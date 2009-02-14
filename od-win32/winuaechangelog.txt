@@ -1,4 +1,24 @@
 
+Beta 12:
+
+- file comment was not reset when file already existed and file was
+  opened mode = MODE_NEWFILE, also caused lost file comment if file
+  was opened and old comment was set again (probably another "since
+  the beginning bug") Thanks to TC for finding easy test case.
+- mousehack/tablet support "mouse sync" updates (still not fixed)
+- "Magic mouse cursor" mode configuration added.
+  - Both = show standard Windows and Amiga cursors
+  - Native = show Amiga cursor only
+  - Host = show Windows cursor only (with colors and shape copied
+    from real hidden Amiga cursor) This mode fakes really smooth
+    looking cursor movement (as long as positioning is correct..)
+- 'e' debugger command OCS/ECS color register contents are shown
+  correctly in AGA mode
+- sprite garbage in some rare situations (reason not fully known..)
+- floppy drives were emptied if quickstart was enabled, show gui on
+  startup was not enabled and GUI was entered for the first time
+- sprite attachment fixed. Surprisingly it works as documented :)
+
 Beta 11:
 
 - fix for graphics corruption introduced in 1.5.3 when bitplane DMA
@@ -18,7 +38,6 @@ Beta 11:
 - blitter line mode (only if linedraw code was "weird") broke in b3
 - file selection dialog (adf, hdf etc..) remembers previous filter
   mode ("*.adf", "all files" etc..)
-
 
 Beta 10: clipboard stuff.
 
@@ -141,7 +160,6 @@ Beta 6:
 - filter aspect ratio now set by default
 - detected screen size logged
 - loading new statefile didn't always trigger scale update
-
 
 Beta 5: WARNING: big changes. 1.6 version change expected.
 

@@ -1408,7 +1408,6 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 {
     int i, j;
-    int ours = 0;
     int gotit;
     struct asyncreq *ar;
 
@@ -1554,7 +1553,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 	uaenet_int_requested = 0;
     uaenet_int_late = 0;
     uae_sem_post (&async_sem);
-    return ours;
+    return 0;
 }
 
 static void dev_reset (void)

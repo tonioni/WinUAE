@@ -835,7 +835,7 @@ static int mouseedge_alive, mousehack_alive_cnt;
 static int lastmx, lastmy;
 static uaecptr magicmouse_ibase, magicmouse_gfxbase;
 static int dimensioninfo_width, dimensioninfo_height, dimensioninfo_dbl;
-static int vp_xoffset, vp_yoffset;
+static int vp_xoffset, vp_yoffset, mouseoffset_x, mouseoffset_y;
 static int tablet_maxx, tablet_maxy, tablet_data;
 
 int mousehack_alive (void)
@@ -936,6 +936,7 @@ static void mousehack_reset (void)
     int off;
 
     dimensioninfo_width = dimensioninfo_height = 0;
+    mouseoffset_x = mouseoffset_y = 0;
     dimensioninfo_dbl = 0;
     mousehack_alive_cnt = 0;
     vp_xoffset = vp_yoffset = 0;
@@ -955,18 +956,27 @@ static void mousehack_enable (void)
     off = 12 + get_long (rtarea_base + 36);
     if (rtarea[off + MH_E])
 	return;
-    mode = 1;
-    if (inputdevice_is_tablet () < 0)
-	mode |= 0x80;
-    write_log ("Tablet driver enabled (%s)\n", (mode & 0x80) ? "mousehack" : "real");
-    rtarea[off + MH_E] = mode;
+    mode = 0x80;
+    if (currprefs.input_tablet == TABLET_MOUSEHACK)
+	mode |= 1;
+    if (inputdevice_is_tablet () > 0)
+	mode |= 2;
+    write_log ("Tablet driver enabled (%s)\n", ((mode & 3) == 3 ? "tablet+mousehack" : ((mode & 3) == 2) ? "tablet" : "mousehack"));
+    rtarea[off + MH_E] = 0x80;
 }
 
-void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp)
+void input_mousehack_mouseoffset (uaecptr pointerprefs)
+{
+    mouseoffset_x = (uae_s16)get_word (pointerprefs + 28);
+    mouseoffset_y = (uae_s16)get_word (pointerprefs + 30);
+    write_log ("MO: %dx%d\n", mouseoffset_x, mouseoffset_y);
+}
+
+void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
 {
     if (mode == 0) {
 	uae_u8 v = rtarea[12 + get_long (rtarea_base + 36)];
-	v |= 2;
+	v |= 0x40;
 	rtarea[12 + get_long (rtarea_base + 36)] = v;
 	write_log ("Tablet driver running (%02x)\n", v);
     } else if (mode == 1) {
@@ -1109,6 +1119,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 
     if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
 	return;
+    rtarea[off + MH_E] = 0xc0 | 2;
     p[MH_CNT]++;
 }
 
@@ -1145,7 +1156,7 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 
 void getgfxoffset (int *dx, int *dy, int*,int*);
 
-static void inputdevice_tablet_abs (int x, int y)
+static void inputdevice_mh_abs (int x, int y)
 {
     uae_u8 *p;
     uae_u8 tmp[4];
@@ -1158,9 +1169,13 @@ static void inputdevice_tablet_abs (int x, int y)
 
     memcpy (tmp, p + MH_ABSX, 4);
 
-    getgfxoffset (&fdx, &fdy, &fmx, &fmy);
-    x -= fdx;
-    y -= fdy;
+    if (!picasso_on) {
+	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+	x -= fdx - 1;
+	y -= fdy - 1;
+    }
+    x -= mouseoffset_x + 1;
+    y -= mouseoffset_y + 2;
 
     p[MH_ABSX] = x >> 8;
     p[MH_ABSX + 1] = x;
@@ -1169,11 +1184,13 @@ static void inputdevice_tablet_abs (int x, int y)
 
     if (!memcmp (tmp, p + MH_ABSX, 4))
 	return;
+    rtarea[off + MH_E] = 0xc0 | 1;
     p[MH_CNT]++;
     tablet_data = 1;
 }
 
-static void inputdevice_tablet_abs_v36 (int x, int y)
+#if 0
+static void inputdevice_mh_abs_v36 (int x, int y)
 {
     uae_u8 *p;
     uae_u8 tmp[MH_END];
@@ -1290,17 +1307,20 @@ static void inputdevice_tablet_abs_v36 (int x, int y)
     p[MH_CNT]++;
     tablet_data = 1;
 }
+#endif
 
 static void mousehack_helper (void)
 {
     int x, y;
 
-    if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet == 0)
+    if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet < TABLET_MOUSEHACK)
 	return;
+#if 0
     if (kickstart_version >= 36) {
-	inputdevice_tablet_abs_v36 (lastmx, lastmy);
+	inputdevice_mh_abs_v36 (lastmx, lastmy);
 	return;
     }
+#endif
 #ifdef PICASSO96
     if (picasso_on) {
 	x = lastmx - picasso96_state.XOffset;
@@ -1311,7 +1331,7 @@ static void mousehack_helper (void)
 	x = coord_native_to_amiga_x (lastmx);
 	y = coord_native_to_amiga_y (lastmy) << 1;
     }
-    inputdevice_tablet_abs (x, y);
+    inputdevice_mh_abs (x, y);
 }
 
 static int mouseedge_x, mouseedge_y, mouseedge_time;

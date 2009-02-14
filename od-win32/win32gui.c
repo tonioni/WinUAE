@@ -1285,7 +1285,7 @@ static void prefs_to_gui (struct uae_prefs *p)
     workprefs = *p;
     /* filesys hack */
     workprefs.mountitems = currprefs.mountitems;
-    memcpy(&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
+    memcpy (&workprefs.mountconfig, &currprefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
 
     updatewinfsmode (&workprefs);
 #if 0
@@ -1424,9 +1424,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    break;
 	}
     }
-    openFileName.lStructSize = sizeof (OPENFILENAME);
-    openFileName.hwndOwner = hDlg;
-    openFileName.hInstance = hInst;
 
     szFilter[0] = 0;
     szFilter[1] = 0;
@@ -1556,6 +1553,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	p += strlen(p) + 1;
 	*p = 0;
     }
+    openFileName.lStructSize = sizeof (OPENFILENAME);
+    openFileName.hwndOwner = hDlg;
     openFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
 	OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     openFileName.lpstrFilter = szFilter;
@@ -3937,7 +3936,7 @@ static void init_quickstartdlg (HWND hDlg)
 
     qssize = sizeof (tmp1);
     regquerystr (NULL, "QuickStartHostConfig", hostconf, &qssize);
-    if (firsttime == 0) {
+    if (firsttime == 0 && workprefs.start_gui) {
 	regqueryint (NULL, "QuickStartModel", &quickstart_model);
 	regqueryint (NULL, "QuickStartConfiguration", &quickstart_conf);
 	regqueryint (NULL, "QuickStartCompatibility", &quickstart_compa);
@@ -3950,8 +3949,8 @@ static void init_quickstartdlg (HWND hDlg)
 	    load_quickstart (hDlg, 1);
 	    quickstarthost (hDlg, hostconf);
 	}
-       firsttime = 1;
     }
+    firsttime = 1;
 
     CheckDlgButton (hDlg, IDC_QUICKSTARTMODE, quickstart);
 
@@ -8313,200 +8312,200 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 
     switch (msg)
     {
-    case WM_INITDIALOG:
-    {
-	char ft35dd[20], ft35hd[20], ft525sd[20], ftdis[20], ft35ddescom[20];
-	int df0texts[] = { IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, -1 };
+	case WM_INITDIALOG:
+	{
+	    char ft35dd[20], ft35hd[20], ft525sd[20], ftdis[20], ft35ddescom[20];
+	    int df0texts[] = { IDC_DF0TEXT, IDC_DF1TEXT, IDC_DF2TEXT, IDC_DF3TEXT, -1 };
 
-	WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd);
-	WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd);
-	WIN32GUI_LoadUIString (IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd);
-	WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DDESCOM, ft35ddescom, sizeof ft35ddescom);
-	WIN32GUI_LoadUIString (IDS_FLOPPYTYPEDISABLED, ftdis, sizeof ftdis);
-	pages[FLOPPY_ID] = hDlg;
-	if (workprefs.floppy_speed > 0 && workprefs.floppy_speed < 10)
-	    workprefs.floppy_speed = 100;
-	currentpage = FLOPPY_ID;
-	SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETRANGE, TRUE, MAKELONG (0, 4));
-	SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35dd);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35hd);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft525sd);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_SETCURSEL, 0, 0);
-	for (i = 0; i < 4; i++) {
-	    int f_type = floppybuttons[i][3];
-	    SendDlgItemMessage (hDlg, f_type, CB_RESETCONTENT, 0, 0L);
-	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ftdis);
-	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
-	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
-	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
-	    SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
+	    WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DD, ft35dd, sizeof ft35dd);
+	    WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35HD, ft35hd, sizeof ft35hd);
+	    WIN32GUI_LoadUIString (IDS_FLOPPYTYPE525SD, ft525sd, sizeof ft525sd);
+	    WIN32GUI_LoadUIString (IDS_FLOPPYTYPE35DDESCOM, ft35ddescom, sizeof ft35ddescom);
+	    WIN32GUI_LoadUIString (IDS_FLOPPYTYPEDISABLED, ftdis, sizeof ftdis);
+	    pages[FLOPPY_ID] = hDlg;
+	    if (workprefs.floppy_speed > 0 && workprefs.floppy_speed < 10)
+		workprefs.floppy_speed = 100;
+	    currentpage = FLOPPY_ID;
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETRANGE, TRUE, MAKELONG (0, 4));
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPAGESIZE, 0, 1);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_RESETCONTENT, 0, 0L);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35dd);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft35hd);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_ADDSTRING, 0, (LPARAM)ft525sd);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_SETCURSEL, 0, 0);
+	    for (i = 0; i < 4; i++) {
+		int f_type = floppybuttons[i][3];
+		SendDlgItemMessage (hDlg, f_type, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ftdis);
+		SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35dd);
+		SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35hd);
+		SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft525sd);
+		SendDlgItemMessage (hDlg, f_type, CB_ADDSTRING, 0, (LPARAM)ft35ddescom);
+	    }
+	    setmultiautocomplete (hDlg, df0texts);
 	}
-	setmultiautocomplete (hDlg, df0texts);
-    }
-    case WM_USER:
-	recursive++;
-	SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.df[0]);
-	SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
-	SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
-	SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
-	SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
-	SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
-	SetDlgItemText (hDlg, IDC_CREATE_NAME, diskname);
-	SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPOS, TRUE,
-	    workprefs.floppy_speed ? exact_log2 ((workprefs.floppy_speed) / 100) + 1 : 0);
-	out_floppyspeed (hDlg);
-	addallfloppies (hDlg);
-	recursive--;
-	break;
-
-    case WM_CONTEXTMENU:
-	diskselectmenu (hDlg, wParam);
-	break;
-
-    case WM_COMMAND:
-	if (recursive > 0)
+	case WM_USER:
+	    recursive++;
+	    SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.df[0]);
+	    SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
+	    SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
+	    SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
+	    SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
+	    SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
+	    SetDlgItemText (hDlg, IDC_CREATE_NAME, diskname);
+	    SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPOS, TRUE,
+		workprefs.floppy_speed ? exact_log2 ((workprefs.floppy_speed) / 100) + 1 : 0);
+	    out_floppyspeed (hDlg);
+	    addallfloppies (hDlg);
+	    recursive--;
 	    break;
-	recursive++;
-	if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+
+	case WM_CONTEXTMENU:
+	    diskselectmenu (hDlg, wParam);
+	    break;
+
+	case WM_COMMAND:
+	    if (recursive > 0)
+		break;
+	    recursive++;
+	    if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+		switch (LOWORD (wParam))
+		{
+		    case IDC_DF0TEXT:
+		    case IDC_DF0TEXTQ:
+		    getfloppyname (hDlg, 0);
+		    addfloppytype (hDlg, 0);
+		    addfloppyhistory (hDlg);
+		    break;
+		    case IDC_DF1TEXT:
+		    case IDC_DF1TEXTQ:
+		    getfloppyname (hDlg, 1);
+		    addfloppytype (hDlg, 1);
+		    addfloppyhistory (hDlg);
+		    break;
+		    case IDC_DF2TEXT:
+		    getfloppyname (hDlg, 2);
+		    addfloppytype (hDlg, 2);
+		    addfloppyhistory (hDlg);
+		    break;
+		    case IDC_DF3TEXT:
+		    getfloppyname (hDlg, 3);
+		    addfloppytype (hDlg, 3);
+		    addfloppyhistory (hDlg);
+		    break;
+		    case IDC_DF0TYPE:
+		    getfloppytype (hDlg, 0);
+		    break;
+		    case IDC_DF1TYPE:
+		    getfloppytype (hDlg, 1);
+		    break;
+		    case IDC_DF2TYPE:
+		    getfloppytype (hDlg, 2);
+		    break;
+		    case IDC_DF3TYPE:
+		    getfloppytype (hDlg, 3);
+		    break;
+		}
+	    }
 	    switch (LOWORD (wParam))
 	    {
-		case IDC_DF0TEXT:
-		case IDC_DF0TEXTQ:
-		getfloppyname (hDlg, 0);
+	    case IDC_DF0ENABLE:
+	    case IDC_DF0QENABLE:
+		getfloppytypeq (hDlg, 0);
+		break;
+	    case IDC_DF1ENABLE:
+	    case IDC_DF1QENABLE:
+		getfloppytypeq (hDlg, 1);
+		break;
+	    case IDC_DF2ENABLE:
+		getfloppytypeq (hDlg, 2);
+		break;
+	    case IDC_DF3ENABLE:
+		getfloppytypeq (hDlg, 3);
+		break;
+	    case IDC_DF0WP:
+	    case IDC_DF0WPQ:
+		floppysetwriteprotect (hDlg, 0, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF0WPQ) : IsDlgButtonChecked (hDlg, IDC_DF0WP));
+		break;
+	    case IDC_DF1WP:
+	    case IDC_DF1WPQ:
+		floppysetwriteprotect (hDlg, 1, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF1WPQ) : IsDlgButtonChecked (hDlg, IDC_DF1WP));
+		break;
+	    case IDC_DF2WP:
+		floppysetwriteprotect (hDlg, 2, IsDlgButtonChecked (hDlg, IDC_DF2WP));
+		break;
+	    case IDC_DF3WP:
+		floppysetwriteprotect (hDlg, 3, IsDlgButtonChecked (hDlg, IDC_DF3WP));
+		break;
+	    case IDC_DF0:
+	    case IDC_DF0QQ:
+		diskselect (hDlg, wParam, &workprefs, 0, NULL);
+		break;
+	    case IDC_DF1:
+	    case IDC_DF1QQ:
+		diskselect (hDlg, wParam, &workprefs, 1, NULL);
+		break;
+	    case IDC_DF2:
+		diskselect (hDlg, wParam, &workprefs, 2, NULL);
+		break;
+	    case IDC_DF3:
+		diskselect (hDlg, wParam, &workprefs, 3, NULL);
+		break;
+	    case IDC_EJECT0:
+	    case IDC_EJECT0Q:
+		SetDlgItemText (hDlg, IDC_DF0TEXT, "");
+		SetDlgItemText (hDlg, IDC_DF0TEXTQ, "");
+		workprefs.df[0][0] = 0;
 		addfloppytype (hDlg, 0);
-		addfloppyhistory (hDlg);
 		break;
-		case IDC_DF1TEXT:
-		case IDC_DF1TEXTQ:
-		getfloppyname (hDlg, 1);
+	    case IDC_EJECT1:
+	    case IDC_EJECT1Q:
+		SetDlgItemText (hDlg, IDC_DF1TEXT, "");
+		SetDlgItemText (hDlg, IDC_DF1TEXTQ, "");
+		workprefs.df[1][0] = 0;
 		addfloppytype (hDlg, 1);
-		addfloppyhistory (hDlg);
 		break;
-		case IDC_DF2TEXT:
-		getfloppyname (hDlg, 2);
+	    case IDC_EJECT2:
+		SetDlgItemText (hDlg, IDC_DF2TEXT, "");
+		workprefs.df[2][0] = 0;
 		addfloppytype (hDlg, 2);
-		addfloppyhistory (hDlg);
 		break;
-		case IDC_DF3TEXT:
-		getfloppyname (hDlg, 3);
+	    case IDC_EJECT3:
+		SetDlgItemText (hDlg, IDC_DF3TEXT, "");
+		workprefs.df[3][0] = 0;
 		addfloppytype (hDlg, 3);
-		addfloppyhistory (hDlg);
 		break;
-		case IDC_DF0TYPE:
-		getfloppytype (hDlg, 0);
+	    case IDC_SAVEIMAGE0:
+		deletesaveimage (hDlg, 0);
 		break;
-		case IDC_DF1TYPE:
-		getfloppytype (hDlg, 1);
+	    case IDC_SAVEIMAGE1:
+		deletesaveimage (hDlg, 1);
 		break;
-		case IDC_DF2TYPE:
-		getfloppytype (hDlg, 2);
+	    case IDC_SAVEIMAGE2:
+		deletesaveimage (hDlg, 2);
 		break;
-		case IDC_DF3TYPE:
-		getfloppytype (hDlg, 3);
+	    case IDC_SAVEIMAGE3:
+		deletesaveimage (hDlg, 3);
+		break;
+	    case IDC_CREATE:
+		DiskSelection(hDlg, wParam, 1, &workprefs, 0);
+		break;
+	    case IDC_CREATE_RAW:
+		DiskSelection(hDlg, wParam, 1, &workprefs, 0);
 		break;
 	    }
-	}
-	switch (LOWORD (wParam))
-	{
-	case IDC_DF0ENABLE:
-	case IDC_DF0QENABLE:
-	    getfloppytypeq (hDlg, 0);
+	    recursive--;
 	    break;
-	case IDC_DF1ENABLE:
-	case IDC_DF1QENABLE:
-	    getfloppytypeq (hDlg, 1);
-	    break;
-	case IDC_DF2ENABLE:
-	    getfloppytypeq (hDlg, 2);
-	    break;
-	case IDC_DF3ENABLE:
-	    getfloppytypeq (hDlg, 3);
-	    break;
-	case IDC_DF0WP:
-	case IDC_DF0WPQ:
-	    floppysetwriteprotect (hDlg, 0, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF0WPQ) : IsDlgButtonChecked (hDlg, IDC_DF0WP));
-	    break;
-	case IDC_DF1WP:
-	case IDC_DF1WPQ:
-	    floppysetwriteprotect (hDlg, 1, currentpage == QUICKSTART_ID ? IsDlgButtonChecked (hDlg, IDC_DF1WPQ) : IsDlgButtonChecked (hDlg, IDC_DF1WP));
-	    break;
-	case IDC_DF2WP:
-	    floppysetwriteprotect (hDlg, 2, IsDlgButtonChecked (hDlg, IDC_DF2WP));
-	    break;
-	case IDC_DF3WP:
-	    floppysetwriteprotect (hDlg, 3, IsDlgButtonChecked (hDlg, IDC_DF3WP));
-	    break;
-	case IDC_DF0:
-	case IDC_DF0QQ:
-	    diskselect (hDlg, wParam, &workprefs, 0, NULL);
-	    break;
-	case IDC_DF1:
-	case IDC_DF1QQ:
-	    diskselect (hDlg, wParam, &workprefs, 1, NULL);
-	    break;
-	case IDC_DF2:
-	    diskselect (hDlg, wParam, &workprefs, 2, NULL);
-	    break;
-	case IDC_DF3:
-	    diskselect (hDlg, wParam, &workprefs, 3, NULL);
-	    break;
-	case IDC_EJECT0:
-	case IDC_EJECT0Q:
-	    SetDlgItemText (hDlg, IDC_DF0TEXT, "");
-	    SetDlgItemText (hDlg, IDC_DF0TEXTQ, "");
-	    workprefs.df[0][0] = 0;
-	    addfloppytype (hDlg, 0);
-	    break;
-	case IDC_EJECT1:
-	case IDC_EJECT1Q:
-	    SetDlgItemText (hDlg, IDC_DF1TEXT, "");
-	    SetDlgItemText (hDlg, IDC_DF1TEXTQ, "");
-	    workprefs.df[1][0] = 0;
-	    addfloppytype (hDlg, 1);
-	    break;
-	case IDC_EJECT2:
-	    SetDlgItemText (hDlg, IDC_DF2TEXT, "");
-	    workprefs.df[2][0] = 0;
-	    addfloppytype (hDlg, 2);
-	    break;
-	case IDC_EJECT3:
-	    SetDlgItemText (hDlg, IDC_DF3TEXT, "");
-	    workprefs.df[3][0] = 0;
-	    addfloppytype (hDlg, 3);
-	    break;
-	case IDC_SAVEIMAGE0:
-	    deletesaveimage (hDlg, 0);
-	    break;
-	case IDC_SAVEIMAGE1:
-	    deletesaveimage (hDlg, 1);
-	    break;
-	case IDC_SAVEIMAGE2:
-	    deletesaveimage (hDlg, 2);
-	    break;
-	case IDC_SAVEIMAGE3:
-	    deletesaveimage (hDlg, 3);
-	    break;
-	case IDC_CREATE:
-	    DiskSelection(hDlg, wParam, 1, &workprefs, 0);
-	    break;
-	case IDC_CREATE_RAW:
-	    DiskSelection(hDlg, wParam, 1, &workprefs, 0);
-	    break;
-	}
-	recursive--;
-	break;
 
-    case WM_HSCROLL:
-	workprefs.floppy_speed = (int)SendMessage (GetDlgItem (hDlg, IDC_FLOPPYSPD), TBM_GETPOS, 0, 0);
-	if (workprefs.floppy_speed > 0) {
-	    workprefs.floppy_speed--;
-	    workprefs.floppy_speed = 1 << workprefs.floppy_speed;
-	    workprefs.floppy_speed *= 100;
-	}
-	out_floppyspeed (hDlg);
-	break;
+	case WM_HSCROLL:
+	    workprefs.floppy_speed = (int)SendMessage (GetDlgItem (hDlg, IDC_FLOPPYSPD), TBM_GETPOS, 0, 0);
+	    if (workprefs.floppy_speed > 0) {
+		workprefs.floppy_speed--;
+		workprefs.floppy_speed = 1 << workprefs.floppy_speed;
+		workprefs.floppy_speed *= 100;
+	    }
+	    out_floppyspeed (hDlg);
+	    break;
     }
 
     return FALSE;
@@ -8799,6 +8798,7 @@ static void enable_for_gameportsdlg (HWND hDlg)
     int v = full_property_sheet;
     ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
     ew (hDlg, IDC_PORT_MOUSETRICK, v);
+    ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
 }
 
 static void enable_for_portsdlg (HWND hDlg)
@@ -8843,6 +8843,7 @@ static void updatejoyport (HWND hDlg)
 
     SetDlgItemInt (hDlg, IDC_INPUTSPEEDM, workprefs.input_mouse_speed, FALSE);
     CheckDlgButton (hDlg, IDC_PORT_MOUSETRICK, workprefs.input_magic_mouse);
+    SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_SETCURSEL, workprefs.input_magic_mouse_cursor, 0);
     CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
     CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
 
@@ -8931,6 +8932,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 	    currprefs.input_mouse_speed = workprefs.input_mouse_speed = i;
 
 	workprefs.input_magic_mouse = IsDlgButtonChecked (hDlg, IDC_PORT_MOUSETRICK) ? -1 : 0;
+	workprefs.input_magic_mouse_cursor = SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_GETCURSEL, 0, 0L);
 	workprefs.input_tablet = 0;
 	if (IsDlgButtonChecked (hDlg, IDC_PORT_TABLET)) {
 	    workprefs.input_tablet = TABLET_MOUSEHACK;
@@ -9222,6 +9224,10 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	recursive++;
 	pages[GAMEPORTS_ID] = hDlg;
 	currentpage = GAMEPORTS_ID;
+	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)"Show both cursors");
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)"Show native cursor only");
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)"Show host cursor only");
 	inputdevice_updateconfig (&workprefs);
 	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);

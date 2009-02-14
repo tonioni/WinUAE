@@ -84,10 +84,15 @@ extern uae_u8 handle_joystick_buttons (uae_u8);
 extern int getbuttonstate (int joy, int button);
 extern int getjoystate (int joy);
 
+#define MAGICMOUSE_BOTH 0
+#define MAGICMOUSE_NATIVE_ONLY 1
+#define MAGICMOUSE_HOST_ONLY 2
+
 extern int magicmouse_alive (void);
 extern int is_tablet (void);
 extern int inputdevice_is_tablet (void);
-extern void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp);
+extern void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
+extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void setmouseactive (int);
 

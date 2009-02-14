@@ -359,6 +359,7 @@ struct uae_prefs {
     int input_mouse_speed;
     int input_tablet;
     int input_magic_mouse;
+    int input_magic_mouse_cursor;
     struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
     struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
     struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];

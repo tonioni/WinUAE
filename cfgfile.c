@@ -161,6 +161,7 @@ static const char *scsimode[] = { "false", "true", "scsi", 0 };
 static const char *maxhoriz[] = { "lores", "hires", "superhires", 0 };
 static const char *maxvert[] = { "nointerlace", "interlace", 0 };
 static const char *abspointers[] = { "none", "mousehack", "tablet", 0 };
+static const char *magiccursors[] = { "both", "native", "host", 0 };
 static const char *autoscale[] = { "none", "scale", "resize", 0 };
 
 static const char *obsolete[] = {
@@ -504,6 +505,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, "parallel_autoflush=%d\n", p->parallel_autoflush_time);
     cfgfile_dwrite (f, "uae_hide=%d\n", p->uae_hide);
     cfgfile_dwrite (f, "magic_mouse=%s\n", p->input_magic_mouse ? "true" : "false");
+    cfgfile_dwrite (f, "magic_mousecursor=%s\n", magiccursors[p->input_magic_mouse_cursor]);
     cfgfile_dwrite (f, "absolute_mouse=%s\n", abspointers[p->input_tablet]);
 
     cfgfile_write (f, "gfx_display=%d\n", p->gfx_display);
@@ -974,6 +976,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, char *option, char *value)
 	|| cfgfile_strval (option, value, "gfx_max_horizontal", &p->gfx_max_horizontal, maxhoriz, 0)
 	|| cfgfile_strval (option, value, "gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0)
 	|| cfgfile_strval (option, value, "gfx_filter_autoscale", &p->gfx_filter_autoscale, autoscale, 0)
+	|| cfgfile_strval (option, value, "magic_mousecursor", &p->input_magic_mouse_cursor, magiccursors, 0)
 	|| cfgfile_strval (option, value, "absolute_mouse", &p->input_tablet, abspointers, 0))
 	    return 1;
 
@@ -3081,6 +3084,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->input_tablet = TABLET_OFF;
     p->input_magic_mouse = 0;
+    p->input_magic_mouse_cursor = 0;
 
     inputdevice_default_prefs (p);
 

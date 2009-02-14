@@ -3,6 +3,7 @@ rm -rf bak
 mkdir bak
 copy c:\projects\winuae\src\ c:\projects\winuae_bak\bak\ /s
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
+copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb /s

@@ -331,6 +331,8 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
+#define IDC_PORT_TABLE_CURSOR           1028
+#define IDC_PORT_TABLET_CURSOR          1028
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031
 #define IDC_PARALLEL                    1033
@@ -817,7 +819,6 @@
 #define IDC_QUICKSTART_HOSTCONFIG       1679
 #define IDC_PATHS_RIP                   1679
 #define IDC_DF1QQ                       1680
-#define IDC_PATHS_SAVEIMAGES2           1680
 #define IDC_PATHS_RIPS                  1680
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682

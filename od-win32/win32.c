@@ -487,8 +487,13 @@ void setpriority (struct threadpriorities *pri)
 
 static void setcursorshape (void)
 {
-    if (!picasso_setwincursor ())
-	SetCursor (normalcursor);
+    if (currprefs.input_tablet && currprefs.input_magic_mouse && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
+	if (GetCursor () != NULL)
+	    SetCursor (NULL);
+    }  else if (!picasso_setwincursor ()) {
+	if (GetCursor () != normalcursor)
+	    SetCursor (normalcursor);
+    }
 }
 
 static void releasecapture (void)
@@ -527,7 +532,7 @@ void setmouseactive (int active)
     if (isfullscreen () <= 0 && currprefs.input_magic_mouse && currprefs.input_tablet > 0) {
 	if (mousehack_alive ())
 	    return;
-	SetCursor (normalcursor);
+        SetCursor (normalcursor);
     }
 
     if (mouseactive > 0)

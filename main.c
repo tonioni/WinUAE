@@ -497,10 +497,9 @@ static void parse_cmdline (int argc, char **argv)
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
 	} else if (strncmp (argv[i], "-statefile=", 11) == 0) {
 	    savestate_state = STATE_DORESTORE;
-	    strcpy (savestate_fname, argv[++i]);
-	}
-	/* Check for new-style "-f xxx" argument, where xxx is config-file */
-	else if (strcmp (argv[i], "-f") == 0) {
+	    strcpy (savestate_fname, argv[i] + 11);
+	} else if (strcmp (argv[i], "-f") == 0) {
+	    /* Check for new-style "-f xxx" argument, where xxx is config-file */
 	    if (i + 1 == argc) {
 		write_log ("Missing argument for '-f' option.\n");
 	    } else {

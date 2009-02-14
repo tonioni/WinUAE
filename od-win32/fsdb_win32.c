@@ -365,7 +365,7 @@ int fsdb_set_file_attrs (a_inode *aino)
 
     aino->dirty = 1;
     if (aino->volflags & MYVOLUMEINFO_STREAMS) {
-	if (needs_fsdb(aino)) {
+	if (needs_fsdb (aino)) {
 	    create_uaefsdb (aino, fsdb, mode);
 	    write_uaefsdb (aino->nname, fsdb);
 	} else {

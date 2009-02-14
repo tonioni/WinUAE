@@ -32,7 +32,7 @@
 
 #define MULTIDISPLAY 0
 #define P96DX 0
-#define WINCURSOR 0
+#define WINCURSOR 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -1515,6 +1515,8 @@ int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubled
 
     if (isfullscreen () > 0 || currprefs.input_tablet == 0 || currprefs.input_magic_mouse == 0)
 	goto exit;
+    if (currprefs.input_magic_mouse_cursor != MAGICMOUSE_HOST_ONLY)
+	goto exit;
 
     if (chipset) {
 	if (!sprite_0 || !mousehack_alive ()) {
@@ -1548,8 +1550,10 @@ int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubled
 	    !memcmp (tmp_sprite_data, realsrc, datasize) && !memcmp (tmp_sprite_colors, ct, sizeof (uae_u32)*4)
 	    && hiressprite == tmp_sprite_hires && doubledsprite == tmp_sprite_doubled
 	) {
-	    if (GetCursor () == wincursor)
+	    if (GetCursor () == wincursor) {
+		wincursor_shown = 1;
 		return 1;
+	    }
 	}
     }
     write_log ("wincursor: %dx%d hires=%d doubled=%d\n", w2, h2, hiressprite, doubledsprite);
@@ -1639,17 +1643,20 @@ end:
     
     if (wincursor) {
 	SetCursor (wincursor);
-#if WINCURSOR > 0
 	wincursor_shown = 1;
-#endif
     }
 
     if (!ret)
 	write_log ("RTG Windows color cursor creation failed\n");
 
 exit:
-    if (wincursor == oldwincursor)
-	SetCursor (normalcursor);
+    if (currprefs.input_tablet && currprefs.input_magic_mouse && currprefs.input_magic_mouse_cursor == MAGICMOUSE_NATIVE_ONLY) {
+	if (GetCursor () != NULL)
+	    SetCursor (NULL);
+    } else {
+	if (wincursor == oldwincursor)
+	    SetCursor (normalcursor);
+    }
     if (oldwincursor)
 	DestroyIcon (oldwincursor);
     oldwincursor = NULL;

@@ -206,6 +206,7 @@ static struct sprite spr[MAX_SPRITES];
 uaecptr sprite_0;
 int sprite_0_width, sprite_0_height, sprite_0_doubled;
 uae_u32 sprite_0_colors[4];
+static uae_u8 magic_sprite_mask = 0xff;
 
 static int sprite_vblank_endline = VBLANK_SPRITE_PAL;
 
@@ -2135,7 +2136,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 	mask = 1 << half;
     }
     width = (sprite_width << sprite_buffer_res) >> sprres;
-    attachment = (spr[num & ~1].armed && ((sprctl[num | 1] & 0x80) || (!(currprefs.chipset_mask & CSMASK_AGA) && (sprctl[num & ~1] & 0x80))));
+    attachment = sprctl[num | 1] & 0x80;
 
     /* Try to coalesce entries if they aren't too far apart  */
     if (!next_sprite_forced && e[-1].max + sprite_width >= sprxp) {
@@ -2275,7 +2276,7 @@ static void decide_sprites (int hpos)
 	if (spr[i].xpos < 0)
 	    continue;
 
-	if (!((debug_sprite_mask) & (1 << i)))
+	if (!((debug_sprite_mask & magic_sprite_mask) & (1 << i)))
 	    continue;
 
 	if (! spr[i].armed)
@@ -3103,10 +3104,10 @@ static void INTREQ_d (uae_u16 v, int d)
 
 void INTREQ (uae_u16 v)
 {
-    if (!use_eventmode())
-	INTREQ_f(v);
+    if (!use_eventmode ())
+	INTREQ_f (v);
     else
-	INTREQ_d(v, 6);
+	INTREQ_d (v, 6);
 }
 
 static void ADKCON (int hpos, uae_u16 v)
@@ -4253,6 +4254,12 @@ static void cursorsprite (void)
 	sprite_0_colors[3] = xcolors[current_colors.color_regs_ecs[19]];
     }
     sprite_0_width = sprite_width;
+    if (currprefs.input_tablet && currprefs.input_magic_mouse) {
+	if (currprefs.input_magic_mouse_cursor == MAGICMOUSE_HOST_ONLY && mousehack_alive ())
+	    magic_sprite_mask &= ~1;
+	else
+	    magic_sprite_mask |= 1;
+    }
 }
 
 STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cycle, int mode)
@@ -6216,8 +6223,19 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	    SW (sprdatb[i][0]);	    /* 1x6 SPRxDATB */
 	}
     }
-    for ( i = 0; i < 32; i++)
-	SW (current_colors.color_regs_ecs[i]); /* 180-1BE COLORxx */
+    for ( i = 0; i < 32; i++) {
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+	    uae_u32 v = current_colors.color_regs_aga[i];
+	    uae_u16 v2;
+	    v &= 0x00f0f0f0;
+	    v2 = (v >> 4) & 15;
+	    v2 |= ((v >> 12) & 15) << 4;
+	    v2 |= ((v >> 20) & 15) << 8;
+	    SW (v2);
+	} else {
+	    SW (current_colors.color_regs_ecs[i]); /* 180-1BE COLORxx */
+	}
+    }
     SW (htotal);		/* 1C0 HTOTAL */
     SW (hsstop);		/* 1C2 HSTOP*/
     SW (hbstrt);		/* 1C4 HBSTRT */

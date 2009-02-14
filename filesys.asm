@@ -18,6 +18,9 @@
 ; 2007.09.01 ACTION_EXAMINE_ALL (TW)
 ; 2007.09.05 fully filesystem device mounting on the fly (TW)
 ; 2008.01.09 ACTION_EXAMINE_ALL does not anymore return eac_Entries = 0 with continue (fixes some broken programs)
+; 2008.12.11 mousehack -> tablet driver
+; 2008.12.25 mousehack cursor sync
+; 2009.01.20 clipboard sharing
 
 AllocMem = -198
 FreeMem = -210
@@ -39,19 +42,18 @@ NRF_WAIT_REPLY = 8
 NRF_NOTIFY_INITIAL = 16
 NRF_MAGIC = $80000000
 
-	dc.l 16
+	dc.l 16 								; 4
 our_seglist:
-	dc.l 0 ;/* NextSeg */
+	dc.l 0 									; 8 /* NextSeg */
 start:
-	bra filesys_mainloop
-	dc.l make_dev-start
-	dc.l filesys_init-start
-	dc.l exter_server-start
-	dc.l bootcode-start
-	dc.l setup_exter-start
-
-	dc.l p96vsyncfix1-start
-	dc.l mousehack_x-start
+	bra.w filesys_mainloop	;12
+	dc.l make_dev-start			;16
+	dc.l filesys_init-start	;20
+	dc.l exter_server-start	;24
+	dc.l bootcode-start			;28
+	dc.l setup_exter-start	;32
+	dc.l mh_e-start					;36
+													;40
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -185,29 +187,40 @@ FSIN_chip_done
 general_ret:
 	rts
 
-	; this is getting ridiculous but I don't see any other solutions..
-fsmounttask
-.fsm1	move.l 4.w,a6
-	moveq #0,d0
-	bset #17,d0 ; SIGBREAK_CTRL_D
-	jsr -$013e(a6) ;Wait
+createproc
+	movem.l d2-d4/a2/a6,-(sp)
+	move.l 4.w,a6
+	move.l d0,d2
+	move.l d1,d4
+	move.l a1,d3
+	move.l a0,a2
 	lea doslibname(pc),a1
 	moveq #0,d0
 	jsr -$0228(a6) ; OpenLibrary
 	tst.l d0
-	beq.s .fsm1
+	beq.s .noproc
 	move.l d0,a6
-	lea fsprocname(pc),a0
-	move.l a0,d1
-	moveq #15,d2
-	lea mountproc(pc),a0
-	move.l a0,d3
+	move.l a2,d1
 	lsr.l #2,d3
-	move.l #8000,d4
 	jsr -$08a(a6) ; CreateProc
 	move.l a6,a1
 	move.l 4.w,a6
 	jsr -$019e(a6); CloseLibrary
+.noproc
+	movem.l (sp)+,d2-d4/a2/a6
+	rts
+
+	; this is getting ridiculous but I don't see any other solutions..
+fsmounttask
+.fsm1	move.l 4.w,a6
+	moveq #0,d0
+	bset #13,d0 ; SIGBREAK_CTRL_D
+	jsr -$013e(a6) ;Wait
+	lea fsprocname(pc),a0
+	lea mountproc(pc),a1
+	moveq #15,d0
+	move.l #8000,d1
+	bsr.w createproc
 	bra.s .fsm1	
 
 	; dummy process here because can't mount devices with ADNF_STARTPROC from task..
@@ -307,6 +320,14 @@ setup_exter:
 	move.w #$0214,8(a1)
 	moveq.l #3,d0
 	jsr -168(a6) ; AddIntServer
+	move.w mh_e(pc),d0
+	beq.s .nomh
+	bsr.w mousehack_init
+.nomh
+	cmp.w #36,20(a6)
+	bcs.s .noclip
+	bsr.w clipboard_init
+.noclip
 	movem.l (sp)+,d0-d1/a0-a1
 	rts
 
@@ -814,14 +835,14 @@ make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36
 	move.l d0,d3
 	cmp.w #-2,d3
 	beq.w general_ret
-	cmp.w #1,d3
-	bne.s mountalways
 
+	;cmp.w #1,d3
+	;bne.s mountalways
 	; KS < V36: init regular hardfiles only if filesystem is loaded
-	btst #2,d7
-	bne.s mountalways ; >= 36
-	btst #1,d7
-	bne.w mountalways
+	;btst #2,d7
+	;bne.s mountalways ; >= 36
+	;btst #1,d7
+	;bne.w mountalways
 
 mountalways
 	; allocate memory for loaded filesystem
@@ -1056,9 +1077,15 @@ filesys_mainloop:
 	jsr -294(a6) ; FindTask
 	move.l d0,176(a3)
 
-	bsr.w allocinputdevice
+	lea inp_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	bsr.w allocdevice
 	move.l d0,164(a3)
-	bsr.w alloctimerdevice
+	lea tim_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	bsr.w allocdevice
 	move.l d0,168(a3)
 
 	moveq.l #0,d5 ; No commands queued.
@@ -1085,7 +1112,6 @@ filesys_mainloop:
 	bsr.w diskinsertremove
 .nonotif
 
-	bsr.w mousehack_init
 	bra.w FSML_Reply
 
 	; We abuse some of the fields of the message we get. Offset 0 is
@@ -1097,7 +1123,6 @@ filesys_mainloop:
 	; processing by now, so it's safe to reply to it.
 
 FSML_loop:
-	bsr.w mousehack_init
 
 	move.l a5,a0
 	jsr -372(a6) ; GetMsg
@@ -1108,7 +1133,7 @@ FSML_loop:
 	moveq #0,d0
 	move.b 15(a5),d1 ;mp_SigBit
 	bset d1,d0
-	bset #17,d0 ; SIGBREAK_CTRL_D
+	bset #13,d0 ; SIGBREAK_CTRL_D
 	jsr -$013e(a6) ;Wait
 .msg
 	; disk changed?
@@ -1292,32 +1317,6 @@ getrtbase:
 	add.l d0,a0
 	rts
 
-	;p96 stuff
-
-p96flag	dc.w 0
-p96vsyncfix1
-	cmp.l #34,8(sp) ; picasso_WaitVerticalSync?
-	bne.s p961
-	movem.l d0-d1/a0-a2/a6,-(sp)
-	move.l 4.w,a6
-	sub.l a1,a1
-	jsr -$126(a6) ; FindTask
-	move.l d0,a2
-	move.l a2,a1
-	moveq #-20,d0
-	jsr -$12c(a6) ; SetTaskPri
-	lea p96flag(pc),a0
-	move.w (a0),d1
-p962 cmp.w (a0),d1
-	beq.s p962
-	move.l a2,a1
-	jsr -$12c(a6) ; SetTaskPri
-	moveq #1,d1
-	movem.l (sp)+,d0-d1/a0-a2/a6
-	addq.l #4,sp ; return directly to caller
-p961 rts
-
-
 ; mouse hack
 
 newlist:
@@ -1329,7 +1328,7 @@ newlist:
 
 createport:
 	movem.l d2/a2/a6,-(sp)
-	move.l 4,a6
+	move.l 4.w,a6
 	moveq #-1,d0
 	jsr -$014a(a6) ;AllocSignal
 	sub.l a0,a0
@@ -1356,11 +1355,14 @@ createport:
 
 createio:
 	movem.l d2/a2/a6,-(sp)
-	move.l 4,a6
+	move.l 4.w,a6
 	tst.l d0
 	beq.s .f
 	move.l d0,a2
+	move.l d1,d2
+	bne.s .ci
 	moveq #48,d2
+.ci
 	move.l d2,d0
 	move.l #65536+1,d1
 	jsr AllocMem(a6)
@@ -1372,16 +1374,20 @@ createio:
 	movem.l (sp)+,d2/a2/a6
 	rts
 
-allocinputdevice
-	movem.l a2/a6,-(sp)
+allocdevice
+	movem.l d2-d3/a2/a6,-(sp)
+	move.l a0,a2
+	move.l d0,d2
+	move.l d1,d3
 	move.l 4.w,a6
 	bsr.w createport
+	move.l d3,d1
 	bsr.w createio
 	beq.s .f
+	move.l a2,a0
 	move.l d0,a1
 	move.l d0,a2
-	lea inp_dev(pc),a0
-	moveq #0,d0
+	move.l d2,d0
 	moveq #0,d1
 	jsr -$01bc(a6) ;OpenDevice
 	move.l d0,d1
@@ -1390,33 +1396,12 @@ allocinputdevice
 	bne.s .f
 	move.l a2,d0
 .f	tst.l d0
-	movem.l (sp)+,a2/a6
-	rts
-
-alloctimerdevice
-	movem.l a2/a6,-(sp)
-	move.l 4.w,a6
-	bsr.w createport
-	bsr.w createio
-	beq.s .f
-	move.l d0,a2
-	move.l d0,a1
-	lea tim_dev(pc),a0
-	moveq #0,d0
-	moveq #0,d1
-	jsr -$01bc(a6) ;OpenDevice	
-	move.l d0,d1
-	moveq #0,d0
-	tst.l d1
-	bne.s .f
-	move.l a2,d0
-.f	tst.l d0
-	movem.l (sp)+,a2/a6
+	movem.l (sp)+,d2-d3/a2/a6
 	rts
 
 createtask:
 	movem.l d2/d3/d4/a2/a3/a6,-(sp)
-	move.l 4,a6
+	move.l 4.w,a6
 	move.l d0,d4
 	move.l a0,d2
 	move.l a1,d3
@@ -1443,43 +1428,211 @@ createtask:
 .f	movem.l (sp)+,d2/d3/d4/a2/a3/a6
 	rts
 
-mousehack_e: dc.w 0
-mousehack_x: dc.w 0
-mousehack_y: dc.w 0
+; mousehack/tablet
+
+mousehack_init:
+	lea mhname(pc),a0
+	lea mousehack_task(pc),a1
+	moveq #19,d0
+	bsr createtask
+	rts
+
+mhdoiotimer:
+	move.l MH_TM(a5),a1
+	move.w #10,28(a1) ;TR_GETSYSTIME
+	move.b #1,30(a1) ;IOF_QUICK
+	jsr -$01c8(a6) ;DoIO
+	move.l MH_TM(a5),a1
+	move.l 32(a1),14(a2)
+	move.l 36(a1),18(a2)
+	move.l MH_IO(a5),a1
+	move.b #1,30(a1) ;IOF_QUICK
+	jsr -$01c8(a6) ;DoIO
+	rts
+mhdoio:
+	clr.l 14(a2)
+	clr.l 18(a2)
+	move.l MH_IO(a5),a1
+	move.b #1,30(a1) ;IOF_QUICK
+	jsr -$01c8(a6) ;DoIO
+	rts
+
+; these shouldn't be here but it is easier this way..
+
+mh_e: dc.w 0
+mh_cnt: dc.w -1
+mh_maxx: dc.w 0
+mh_maxy: dc.w 0
+mh_maxz: dc.w 0
+mh_x: dc.w 0
+mh_y: dc.w 0
+mh_z: dc.w 0
+mh_resx: dc.w 0
+mh_resy: dc.w 0
+mh_maxax: dc.w 0
+mh_maxay: dc.w 0
+mh_maxaz: dc.w 0
+mh_ax: dc.w 0
+mh_ay: dc.w 0
+mh_az: dc.w 0
+mh_pressure: dc.w 0
+mh_buttonbits: dc.l 0
+mh_inproximity: dc.w 0
+mh_absx: dc.w 0
+mh_absy: dc.w 0
 
 MH_INT = 0
+
 MH_FOO = (MH_INT+22)
-MH_IEV = (MH_FOO+16)
-MH_IO = (MH_IEV+22)
+MH_FOO_CNT = 0
+MH_FOO_BUTTONS = 4
+MH_FOO_TASK = 8
+MH_FOO_MASK = 12
+MH_FOO_EXECBASE = 16
+MH_FOO_INTBASE = 20
+MH_FOO_GFXBASE = 24
+MH_FOO_DELAY = 28
+MH_FOO_DIMS_X = 32
+MH_FOO_DIMS_Y = 36
+MH_FOO_VPXY = 40
+MH_FOO_MOFFSET = 44
+MH_FOO_ALIVE = 48
+MH_FOO_LIMITCNT = 52
+MH_FOO_DIMS = 56
+MH_FOO_DISP = (MH_FOO_DIMS+88)
+MH_FOO_PREFS = (MH_FOO_DISP+48)
+MH_FOO_SIZE = (MH_FOO_PREFS+102)
+
+PREFS_SIZE = 102
+
+MH_IEV = (MH_FOO+MH_FOO_SIZE) ;InputEvent
+MH_IEH = (MH_IEV+22) ;InputHandler (Interrupt)
+MH_IEPT = (MH_IEH+22) ;IEPointerTable/IENewTablet
+MH_IENTTAGS = (MH_IEPT+32) ;space for ient_TagList
+MH_IO = (MH_IENTTAGS+16*4*2)
 MH_TM = (MH_IO+4)
 MH_END = (MH_TM+4)
 
-mousehack_init:
-	move.l a0,-(sp)
-	tst.b 157(a3)
-	bne.s .no
-	lea mousehack_e(pc),a0
-	cmp.b #1,(a0)
-	bne.s .no
-	lea mhname(pc),a0
-	lea mousehack_task(pc),a1
-	moveq #5,d0
-	bsr createtask
-	st 157(a3)
-	;tell native side that mousehack is active
+MH_MOUSEHACK = 0
+MH_TABLET = 1
+MH_ACTIVE = 7
+
+TAG_USER   equ $80000000
+TABLETA_Dummy		EQU	TAG_USER+$3A000
+TABLETA_TabletZ		EQU	TABLETA_Dummy+$01
+TABLETA_RangeZ		EQU	TABLETA_Dummy+$02
+TABLETA_AngleX		EQU	TABLETA_Dummy+$03
+TABLETA_AngleY		EQU	TABLETA_Dummy+$04
+TABLETA_AngleZ		EQU	TABLETA_Dummy+$05
+TABLETA_Pressure	EQU	TABLETA_Dummy+$06
+TABLETA_ButtonBits	EQU	TABLETA_Dummy+$07
+TABLETA_InProximity	EQU	TABLETA_Dummy+$08
+TABLETA_ResolutionX	EQU	TABLETA_Dummy+$09
+TABLETA_ResolutionY	EQU	TABLETA_Dummy+$0A
+
+
+DTAG_DISP EQU $80000000
+DTAG_DIMS EQU $80001000
+DTAG_MNTR EQU $80002000
+DTAG_NAME EQU $80003000
+
+getgfxlimits:
+	movem.l d0-d4/a0-a6,-(sp)
+	move.l a0,a5
+	sub.l a2,a2
+	sub.l a3,a3
+	sub.l a4,a4
+	moveq #0,d4
+
+	move.l MH_FOO_GFXBASE(a5),a6
+	move.l MH_FOO_INTBASE(a5),a0
+	move.l 60(a0),d0 ;FirstScreen
+	beq.s .end
+
+	move.l d0,a0
+	lea 44(a0),a0 ;ViewPort
+	move.l a0,a4
+	jsr -$318(a6) ;GetVPModeID
+	moveq #-1,d1
+	moveq #-1,d2
+	cmp.l d0,d1
+	beq.s .end
+	move.l d0,d3
+
+	; mouse offset
+	move.l MH_FOO_INTBASE(a5),a6
+	lea MH_FOO_PREFS(a5),a0
+	moveq #PREFS_SIZE,d0
+	jsr -$84(a6) ;GetPrefs
+	lea MH_FOO_PREFS(a5),a0
+	move.w 100(a0),d4
+	move.l MH_FOO_GFXBASE(a5),a6
+
+  ; Text Overscan area needed
+	sub.l a0,a0
+	lea MH_FOO_DIMS(a5),a1
+	moveq #0,d0
+	move.w #88,d0
+	move.l #DTAG_DIMS,d1
+	move.l d3,d2
+	jsr -$2f4(a6) ;GetDisplayInfoData
+	moveq #-1,d1
+	moveq #-1,d2
+	tst.l d0
+	bmi.s .end
+	lea MH_FOO_DIMS(a5),a2
+	move.l 50(a2),d1
+	move.l 54(a2),d2
+.end
+
+	move.l 28(a4),d0
+	cmp.w MH_FOO_MOFFSET(a5),d4
+	bne.s .dosend
+	cmp.l MH_FOO_VPXY(a5),d0
+	bne.s .dosend
+	cmp.l MH_FOO_DIMS_X(a5),d1
+	bne.s .dosend
+	cmp.l MH_FOO_DIMS_Y(a5),d2
+	beq.s .nosend
+.dosend
+	move.l d0,MH_FOO_VPXY(a5)
+	move.l d1,MH_FOO_DIMS_X(a5)
+	move.l d2,MH_FOO_DIMS_Y(a5)
+	move.w d4,MH_FOO_MOFFSET(a5)
+
+	; This only for doublescan properties bit..
+	sub.l a0,a0
+	lea MH_FOO_DISP(a5),a1
+	moveq #0,d0
+	move.w #88,d0
+	move.l #DTAG_DISP,d1
+	move.l d3,d2
+	jsr -$2f4(a6) ;GetDisplayInfoData
+	tst.l d0
+	bmi.s .nomntr
+	lea MH_FOO_DISP(a5),a3
+.nomntr
+
+	;send updated data to native side
+	move.w MH_FOO_MOFFSET(a5),d2
 	move.w #$FF38,d0
+	moveq #1,d1
 	bsr.w getrtbase
 	jsr (a0)
-.no	move.l (sp)+,a0
+
+.nosend
+	movem.l (sp)+,d0-d4/a0-a6
 	rts
 
 mousehack_task:
-	move.l 4,a6
+	move.l 4.w,a6
+
+	move.w 20(a6),d7
 
 	moveq #-1,d0
 	jsr -$014a(a6) ;AllocSignal
-	moveq #0,d2
-	bset d0,d2
+	moveq #0,d6
+	bset d0,d6
 
 	sub.l a1,a1
 	jsr -$0126(a6) ;FindTask
@@ -1490,29 +1643,17 @@ mousehack_task:
 	jsr -$012c(a6) ;SetTaskPri
 
 	moveq #0,d0
-	lea intlibname(pc),a1
-	jsr -$0228(a6)
-	move.l d0,d7
-
-	moveq #0,d0
 	move.w #MH_END,d0
 	move.l #65536+1,d1
 	jsr AllocMem(a6)
 	move.l d0,a5
 
-	bsr.w allocinputdevice
-	move.l d0,MH_IO(a5)
-	beq.w .f
-	bsr.w alloctimerdevice
-	move.l d0,MH_TM(a5)
-	beq.w .f
-
 	lea MH_FOO(a5),a3
-	move.l a4,12(a3);task
-	move.l d2,8(a3) ;sigmask
+	move.l a6,MH_FOO_EXECBASE(a3)
+	move.l a4,MH_FOO_TASK(a3)
+	move.l d6,MH_FOO_MASK(a3)
 	moveq #-1,d0
-	move.l d0,(a3)	;mx
-	move.l d0,4(a3)	;my
+	move.w d0,MH_FOO_CNT(a3)
 
 	lea MH_INT(a5),a1
 	move.b #2,8(a1) ;NT_INTERRUPT
@@ -1521,83 +1662,699 @@ mousehack_task:
 	move.l a0,10(a1)
 	lea mousehackint(pc),a0
 	move.l a0,18(a1)
-	move.l a3,14(a1)
+	move.l a5,14(a1)
 	moveq #5,d0 ;INTB_VERTB
 	jsr -$00a8(a6)
-	bra.s mhloop
-.f	rts
 
 mhloop
-	move.l d2,d0
+	move.l d6,d0
 	jsr -$013e(a6) ;Wait
-	
+
+	moveq #0,d0
+	subq.l #1,MH_FOO_DELAY(a3)
+	bpl.s .delay1
+	moveq #10,d0
+	move.l d0,MH_FOO_DELAY(a3)
+.delay1
+
+	tst.l MH_FOO_INTBASE(a3)
+	bne.s .intyes
+	tst.l MH_FOO_DELAY(a3)
+	bne.s mhloop
+	lea intlibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ;OpenLibrary
+	move.l d0,MH_FOO_INTBASE(a3)
+	beq.s mhloop
+.intyes
+	tst.l MH_FOO_GFXBASE(a3)
+	bne.s .gfxyes
+	tst.l MH_FOO_DELAY(a3)
+	bne.s mhloop
+	lea gfxlibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ;OpenLibrary
+	move.l d0,MH_FOO_GFXBASE(a3)
+	beq.w mhloop
+.gfxyes
+
+	tst.l MH_IO(a5)
+	bne.s .yesio
+	tst.l MH_FOO_DELAY(a3)
+	bne.s mhloop
+	jsr -$0084(a6) ;Forbid
+	lea 350(a6),a0 ;DeviceList
+	lea inp_dev(pc),a1
+	jsr -$114(a6) ;FindName
+	move.l d0,d2
+	jsr -$008a(a6) ;Permit
+	tst.l d2
+	beq.s mhloop
+	lea inp_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	bsr.w allocdevice
+	move.l d0,MH_IO(a5)
+	beq.w mhend
+	bra.w mhloop
+.yesio
+	tst.l MH_TM(a5)
+	bne.s .yestim
+	tst.l MH_FOO_DELAY(a3)
+	bne.w mhloop
+	jsr -$0084(a6) ;Forbid
+	lea 350(a6),a0 ;DeviceList
+	lea tim_dev(pc),a1
+	jsr -$114(a6) ;FindName
+	move.l d0,d2
+	jsr -$008a(a6) ;Permit
+	tst.l d2
+	beq.w mhloop
+	lea tim_dev(pc),a0
+	moveq #0,d0
+	moveq #0,d1
+	bsr.w allocdevice
+	move.l d0,MH_TM(a5)
+	beq.w mhend
+
+	;tell native side that mousehack is now active
+	move.w #$FF38,d0
+	moveq #0,d1
+	bsr.w getrtbase
+	jsr (a0)
+	bra.w mhloop
+.yestim
+
+	cmp.w #36,d7
+	bcs.s .nodims
+	subq.l #1,MH_FOO_LIMITCNT(a3)
+	bpl.s .nodims
+	move.l a3,a0
+	bsr.w getgfxlimits
+	moveq #50,d0
+	move.l d0,MH_FOO_LIMITCNT(a3)
+.nodims
+
 	move.l MH_IO(a5),a1
 	lea MH_IEV(a5),a2
 	move.w #11,28(a1) ;IND_WRITEEVENT
 	move.l #22,36(a1) ;sizeof(struct InputEvent)
 	move.l a2,40(a1)
-	move.b #1,30(a1) ;IOF_QUICK
 
-	move.b #4,4(a2) ;IECLASS_POINTERPOS
-	clr.b 5(a2) ;ie_SubClass
+	move.b mh_e(pc),d0
+	cmp.w #39,d7
+	bcs.w .notablet
+	btst #MH_TABLET,d0
+	beq.w .notablet
+
+	;IENewTablet
+
+	lea MH_IEPT(a5),a0
+	move.l a0,10(a2) ;ie_Addr
+
+	move.b #$13,4(a2) ;ie_Class=IECLASS_NEWPOINTERPOS
+	move.b #3,5(a2) ;ie_SubClass = IESUBCLASS_NEWTABLET
+	clr.l (a0) ;ient_CallBack
+	clr.l 4(a0)
+	clr.w 6(a2) ;ie_Code
+	clr.l 8(a0)
+	clr.w 12(a0)
+
+	;IEQUALIFIER_MIDBUTTON=0x1000/IEQUALIFIER_RBUTTON=0x2000/IEQUALIFIER_LEFTBUTTON=0x4000
+	move.l mh_buttonbits(pc),d1
+	and.w #7,d1
+	moveq #7,d0
+	sub.w d1,d0
+	lsl.w #8,d0
+	lsl.w #4,d0
+	move.w d0,8(a2) ;ie_Qualifier
+
+	move.w mh_x(pc),12+2(a0) ;ient_TabletX
+	clr.w 16(a0)
+	move.w mh_y(pc),16+2(a0) ;ient_TabletY
+	clr.w 20(a0)
+	move.w mh_maxx(pc),20+2(a0) ;ient_RangeX
+	clr.w 24(a0)
+	move.w mh_maxy(pc),24+2(a0) ;ient_RangeY
+	lea MH_IENTTAGS(a5),a1
+	move.l a1,28(a0) ;ient_TagList
+	move.l #TABLETA_Pressure,(a1)+
+	move.w mh_pressure(pc),d0
+	ext.l d0
+	asl.l #8,d0
+	move.l d0,(a1)+
+	move.l #TABLETA_ButtonBits,(a1)+
+	move.l mh_buttonbits(pc),(a1)+
+	
+	moveq #0,d0
+
+	move.w mh_resx(pc),d0
+	bmi.s .noresx
+	move.l #TABLETA_ResolutionX,(a1)+
+	move.l d0,(a1)+
+.noresx
+	move.w mh_resy(pc),d0
+	bmi.s .noresy
+	move.l #TABLETA_ResolutionY,(a1)+
+	move.l d0,(a1)+
+.noresy
+
+	move.w mh_maxz(pc),d0
+	bmi.s .noz
+	move.l #TABLETA_RangeZ,(a1)+
+	move.l d0,(a1)+
+	move.w mh_z(pc),d0
+	move.l #TABLETA_TabletZ,(a1)+
+	move.l d0,(a1)+
+.noz
+
+	move.w mh_maxax(pc),d0
+	bmi.s .noax
+	move.l #TABLETA_AngleX,(a1)+
+	move.w mh_ax(pc),d0
+	ext.l d0
+	asl.l #8,d0
+	move.l d0,(a1)+
+.noax
+	move.w mh_maxay(pc),d0
+	bmi.s .noay
+	move.l #TABLETA_AngleY,(a1)+
+	move.w mh_ay(pc),d0
+	ext.l d0
+	asl.l #8,d0
+	move.l d0,(a1)+
+.noay
+	move.w mh_maxaz(pc),d0
+	bmi.s .noaz
+	move.l #TABLETA_AngleZ,(a1)+
+	move.w mh_az(pc),d0
+	ext.l d0
+	asl.l #8,d0
+	move.l d0,(a1)+
+.noaz
+	
+	moveq #0,d0
+	move.w mh_inproximity(pc),d0
+	bmi.s .noproxi
+	move.l #TABLETA_InProximity,(a1)+
+	move.l d0,(a1)+
+.noproxi
+	clr.l (a1) ;TAG_DONE
+
+	bsr.w mhdoio
+	
+	;create mouse button events if button state changed
+	move.w #$68,d3 ;IECODE_LBUTTON->IECODE_RBUTTON->IECODE_MBUTTON
+	moveq #1,d2
+	move.l mh_buttonbits(pc),d4
+.nextbut
+	move.l d4,d0
+	and.l d2,d0
+	move.l MH_FOO_BUTTONS(a3),d1
+	and.l d2,d1
+	cmp.l d0,d1
+	beq.s .nobut
+	
+	clr.l (a2)
+	move.w #$0200,4(a2) ;ie_Class=IECLASS_RAWMOUSE,ie_SubClass=0
+	clr.l 10(a2)	;ie_Addr/X+Y
+	move.w d3,d1
+	tst.b d0
+	bne.s .butdown
+	bset #7,d1 ;IECODE_UP_PREFIX
+.butdown
+	move.w d1,6(a2) ;ie_Code
+	clr.w 8(a2) ;ie_Qualifier
+
+	bsr.w mhdoio
+
+.nobut
+	addq.w #1,d3
+	add.w d2,d2
+	cmp.w #8,d2
+	bne.s .nextbut
+	move.l d4,MH_FOO_BUTTONS(a3)
+
+.notablet
+
+	move.b mh_e(pc),d0
+	btst #MH_MOUSEHACK,d0
+	beq.w mhloop
+
+	clr.l (a2)
+	move.w #$0400,4(a2) ;IECLASS_POINTERPOS
 	clr.w 6(a2) ;ie_Code
 	clr.w 8(a2) ;ie_Qualifier
 
-	move.l d7,a0 ;intbase
+	move.l MH_FOO_INTBASE(a3),a0
 
-	move.l MH_FOO+0(a5),d0
+	move.w mh_absx(pc),d0
 	move.w 34+14(a0),d1
 	add.w d1,d1
 	sub.w d1,d0
+	bpl.s .xn
+	moveq #0,d0
+.xn
 	move.w d0,10(a2)
 
-	move.l MH_FOO+4(a5),d0
+	move.w mh_absy(pc),d0
 	move.w 34+12(a0),d1
 	add.w d1,d1
 	sub.w d1,d0
-	ext.l d0
+	bpl.s .yn
+	moveq #0,d0
+.yn
 	move.w d0,12(a2)
 
-	move.l MH_TM(a5),a1
-	move.w #10,28(a1) ;TR_GETSYSTIME
-	move.b #1,30(a1) ;IOF_QUICK
-	jsr -$01c8(a6) ;DoIO
-	move.l MH_TM(a5),a1
-	move.l 32(a1),14(a2)
-	move.l 36(a1),18(a2)
+	bsr.w mhdoiotimer
 
-	move.l MH_IO(a5),a1
-	jsr -$01c8(a6) ;DoIO
-	
 	bra.w mhloop
 
+mhend
+	rts
+
 mousehackint:
-	move.w mousehack_x(pc),d0
-	ext.l d0
-	move.w mousehack_y(pc),d1
-	ext.l d1
-	cmp.l (a1),d0
-	bne .l1
-	cmp.l 4(a1),d1
-	beq .l2
-.l1 move.l d1,4(a1)
-	move.l d0,(a1)
-	move.l 8(a1),d0
-	move.l 12(a1),a1
-	move.l 4.w,a6
+	tst.l MH_IO(a1)
+	beq.s .l1
+	tst.l MH_TM(a1)
+	beq.s .l1
+	move.w mh_cnt(pc),d0
+	cmp.w MH_FOO+MH_FOO_CNT(a1),d0
+	beq.s .l2
+	move.w d0,MH_FOO+MH_FOO_CNT(a1)
+.l1
+	move.l MH_FOO+MH_FOO_EXECBASE(a1),a6
+	move.l MH_FOO+MH_FOO_MASK(a1),d0
+	move.l MH_FOO+MH_FOO_TASK(a1),a1
 	jsr -$0144(a6) ; Signal
-.l2	lea $dff000,a0
+.l2
+	subq.w #1,MH_FOO+MH_FOO_ALIVE(a1)
+	bpl.s .l3
+	move.w #50,MH_FOO+MH_FOO_ALIVE(a1)
+	move.w #$FF38,d0
+	moveq #2,d1
+	bsr.w getrtbase
+	jsr (a0)
+.l3
+	lea $dff000,a0
 	moveq #0,d0
 	rts
 
+; clipboard sharing
+
+CLIP_WRITE_SIZE = 0
+CLIP_WRITE_ALLOC = (CLIP_WRITE_SIZE+4)
+CLIP_TASK = (CLIP_WRITE_ALLOC+4)
+CLIP_UNIT = (CLIP_TASK+4)
+CLIP_ID = (CLIP_UNIT+4)
+CLIP_EXEC = (CLIP_ID+4)
+CLIP_DOS = (CLIP_EXEC+4)
+CLIP_HOOK = (CLIP_DOS+4)
+CLIP_BUF = (CLIP_HOOK+20)
+CLIP_BUF_SIZE = 8
+CLIP_POINTER_NOTIFY = (CLIP_BUF+CLIP_BUF_SIZE)
+CLIP_POINTER_PREFS = (CLIP_POINTER_NOTIFY+48)
+CLIP_END = (CLIP_POINTER_PREFS+32)
+
+clipboard_init:
+	lea clname(pc),a0
+	lea clipboard_task(pc),a1
+	moveq #-10,d0
+	bsr createtask
+	rts
+
+clipboard_task:
+	sub.l a5,a5
+	move.l 4.w,a6
+
+	move.l #CLIP_END,d0
+	move.l #$10001,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq.s clipdie
+	move.l d0,a5
+
+	move.l a6,CLIP_EXEC(a5)
+
+	sub.l a1,a1
+	jsr -294(a6) ; FindTask
+	move.l d0,CLIP_TASK(a5)
+
+	move.w #$FF38,d0
+	moveq #14,d1
+	bsr.w getrtbase
+	move.l a5,d0
+	jsr (a0)
+
+.wait
+	moveq #0,d0
+	bset #13,d0
+	jsr -$013e(a6) ;Wait
+	jsr -$0084(a6) ;Forbid
+	lea 378(a6),a0 ;LibList
+	lea doslibname(pc),a1
+	jsr -$114(a6) ;FindName
+	move.l d0,d2
+	jsr -$008a(a6) ;Permit
+	tst.l d2
+	beq.s .wait
+
+	clr.l CLIP_TASK(a5)
+	; we need to be a process, LoadLibrary() needs to call dos
+	lea clname(pc),a0
+	lea clipboard_proc(pc),a1
+	moveq #-10,d0
+	move.l #10000,d1
+	bsr.w createproc
+	
+	; task has done its job, process continues..
+	moveq #0,d0
+	rts
+
+clipdie:
+	move.w #$FF38,d0
+	moveq #10,d1
+	bsr.w getrtbase
+	jsr (a0)
+	move.l a5,d0
+	beq.s .cd1
+	move.l CLIP_EXEC(a5),a6
+	move.l CLIP_DOS(a5),d0
+	beq.s .cd2
+	move.l d0,a1
+	jsr -414(a6) ; CloseLibrary
+.cd2
+	move.l a5,a1
+	move.l #CLIP_END,d0
+	jsr FreeMem(a6)	
+.cd1
+	moveq #0,d0
+	rts
+
+prefsread:
+	movem.l d2-d4/a2-a6,-(sp)
+	move.l CLIP_DOS(a5),a6
+	lea pointer_prefs(pc),a0
+	move.l a0,d1
+	move.l #1005,d2
+	jsr -$001e(a6) ;Open
+	move.l d0,d4
+	beq.s .pr1
+	lea CLIP_POINTER_PREFS(a5),a2
+.pr4
+	clr.l (a2)
+.pr3
+	move.w 2(a2),(a2)
+	move.l a2,d2
+	addq.l #2,d2
+	moveq	#2,d3
+	move.l d4,d1
+	jsr -$002a(a6) ;Read
+	cmp.l d0,d3
+	bne.s .pr1
+	cmp.l #'PNTR',(a2)
+	bne.s .pr3
+	move.l a2,d2
+	moveq #4,d3
+	move.l d4,d1
+	jsr -$002a(a6) ;Read	
+	move.l a2,d2
+	moveq #32,d3
+	move.l d4,d1
+	jsr -$002a(a6) ;Read	
+	cmp.l d0,d3
+	bne.s .pr1
+	tst.w 16(a2) ;pp_Which
+	bne.s .pr4
+	move.w #$FF38,d0
+	moveq #16,d1
+	bsr.w getrtbase
+	jsr (a0)
+.pr1
+	move.l d4,d1
+	beq.s .pr2
+	jsr -$0024(a6) ;Close
+.pr2
+	movem.l (sp)+,d2-d4/a2-a6
+	rts
+
+prefshook:
+	move.l CLIP_DOS(a5),a6
+	lea ram_name(pc),a0
+	move.l a0,d1
+	moveq #-2,d2
+	jsr -$0054(a6) ;Lock
+	move.l d0,d1
+	beq.s .ph1
+	jsr -$005a(a6) ;Unlock
+	move.l CLIP_EXEC(a5),a6
+	lea CLIP_POINTER_NOTIFY(a5),a2
+	moveq #-1,d0
+	jsr -$014a(a6) ;AllocSignal
+	move.b d0,20(a2) ;nr_SignalNum
+	lea pointer_prefs(pc),a0
+	move.l a0,(a2) ;nr_Name
+	move.l #NRF_SEND_SIGNAL|NRF_NOTIFY_INITIAL,12(a2) ;nr_Flags 
+	move.l CLIP_TASK(a5),16(a2) ;nr_Task
+	move.l CLIP_DOS(a5),a6
+	move.l a2,d1
+	jsr -$378(a6) ;StartNotify
+.ph1
+	move.l CLIP_EXEC(a5),a6
+	rts
+
+	cnop 0,4
+	dc.l 16
+clipboard_proc:
+	dc.l 0
+
+	move.w #$FF38,d0
+	moveq #13,d1
+	bsr.w getrtbase
+	jsr (a0)
+	tst.l d0
+	beq.w clipdie
+	move.l d0,a5
+	move.l CLIP_EXEC(a5),a6
+
+	sub.l a1,a1
+	jsr -294(a6) ; FindTask
+	move.l d0,CLIP_TASK(a5)
+
+	lea doslibname(pc),a1
+	moveq #0,d0
+	jsr -$0228(a6) ; OpenLibrary
+	move.l d0,CLIP_DOS(a5)
+	tst.l d0
+	beq.w clipdie
+	move.l d0,a6
+
+.devsloop
+	moveq #50,d1
+	jsr -$00c6(a6) ;Delay
+	lea devs_name(pc),a0
+	move.l a0,d1
+	moveq #-2,d2
+	jsr -$0054(a6) ;Lock
+	tst.l d0
+	beq.s .devsloop
+	move.l d0,d1
+	jsr -$005a(a6) ;Unlock
+	moveq #50,d1
+	jsr -$00c6(a6) ;Delay
+	lea clip_name(pc),a0
+	move.l a0,d1
+	moveq #-2,d2
+	jsr -$0054(a6) ;Lock
+	tst.l d0
+	beq.w clipdie
+	move.l d0,d1
+	jsr -$005a(a6) ;Unlock
+	
+	move.l CLIP_EXEC(a5),a6
+
+	bsr.w createport
+	moveq #0,d1
+	move.w #52,d1
+	bsr.w createio
+	move.l d0,a4
+	tst.l d0
+	beq.w clipdie	
+
+cfloop2
+	moveq #0,d0
+	bset #13,d0
+	jsr -$013e(a6) ;Wait
+	
+	moveq #0,d1
+	move.l CLIP_UNIT(a5),d0
+	lea clip_dev(pc),a0
+	move.l a4,a1
+	jsr -$01bc(a6) ;OpenDevice
+	tst.l d0
+	bne.s cfloop2
+
+	move.w #$FF38,d0
+	moveq #15,d1
+	bsr.w getrtbase
+	jsr (a0)
+
+	bsr.w prefshook
+
+	lea CLIP_HOOK(a5),a0
+	move.l a0,40(a4)
+	moveq #1,d0
+	move.l d0,36(a4)
+	move.w #12,28(a4) ;CBD_CHANGEHOOK
+	move.l a5,CLIP_HOOK+16(a5)
+	lea cliphook(pc),a0
+	move.l a0,CLIP_HOOK+8(a5)
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+
+cfloop
+	moveq #0,d0
+	moveq #0,d2
+	move.b CLIP_POINTER_NOTIFY+20(a5),d2
+	bset d2,d0
+	bset #13,d0
+	jsr -$013e(a6) ;Wait
+	btst d2,d0
+	beq.s .clipsignal
+	bsr.w prefsread
+	bra.s cfloop
+
+.clipsignal
+	move.l CLIP_WRITE_SIZE(a5),d0
+	beq.w clipread
+	;allocate amiga-side space
+	moveq #1,d1
+	jsr AllocMem(a6)
+	move.l d0,CLIP_WRITE_ALLOC(a5)
+	;and notify host-side
+	move.w #$FF38,d0
+	moveq #12,d1
+	bsr.w getrtbase
+	jsr (a0)
+	; and now we should have the data in CLIP_WRITE_ALLOC
+	tst.l CLIP_WRITE_ALLOC(a5)
+	beq.s .nowrite
+
+	move.w #3,28(a4) ;CMD_WRITE
+	clr.b 31(a4)
+	clr.l 32(a4)
+	move.l CLIP_WRITE_SIZE(a5),36(a4)
+	move.l CLIP_WRITE_ALLOC(a5),40(a4)
+	clr.l 44(a4)
+	clr.l 48(a4)
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+	move.l 48(a4),CLIP_ID(a5)
+	move.w #4,28(a4) ;CMD_UPDATE
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+
+.nowrite
+	move.l CLIP_WRITE_SIZE(a5),d0
+	clr.l CLIP_WRITE_SIZE(a5)
+	move.l CLIP_WRITE_ALLOC(a5),d1
+	beq.w cfloop
+	move.l d1,a1
+	jsr FreeMem(a6)
+	bra.w cfloop
+
+clipread:
+  ; read first 8 bytes	
+	move.w #2,28(a4) ;CMD_READ
+	lea CLIP_BUF(a5),a0
+	clr.l (a0)
+	clr.l 4(a0)
+	clr.b 31(a4)
+	clr.l 44(a4)
+	clr.l 48(a4)
+	move.l a0,40(a4)
+	moveq #8,d0
+	move.l d0,36(a4)
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+	cmp.l #'FORM',CLIP_BUF(a5)
+	bne.s .cf1
+	move.l CLIP_BUF+4(a5),d0
+	beq.s .cf1
+	bmi.s .cf1
+	move.l 48(a4),CLIP_ID(a5)
+	addq.l #8,d0
+	move.l d0,d2
+	moveq #1,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq.s .cf1
+	move.l d0,a2
+	; read the rest
+	move.l a2,a0
+	move.l CLIP_BUF(a5),(a0)+
+	move.l CLIP_BUF+4(a5),(a0)+
+	move.l a0,40(a4)
+	move.l d2,d0
+	subq.l #8,d0
+	move.l d0,36(a4)
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+	move.w #$FF38,d0
+	moveq #11,d1
+	bsr.w getrtbase
+	move.l 32(a4),d0
+	jsr (a0)
+	move.l a2,a1
+	move.l d2,d0
+	jsr FreeMem(a6)
+.cf1
+	; tell clipboard.device that we are done (read until io_Actual==0)
+	tst.l 32(a4)
+	beq.w cfloop
+	lea CLIP_BUF(a5),a0
+	move.l a0,40(a4)
+	moveq #1,d0
+	move.l d0,36(a4)
+	clr.l 32(a4)
+	move.l a4,a1
+	jsr -$01c8(a6) ;DoIO
+	bra.s .cf1
+
+cliphook:
+	lea -CLIP_HOOK(a0),a0
+	move.l 8(a1),d0
+	cmp.l CLIP_ID(a0),d0 ;ClipHookMsg->chm_ClipID
+	beq.s .same
+	move.l d0,CLIP_ID(a0)
+	move.l a6,-(sp)
+	move.l CLIP_EXEC(a0),a6
+	move.l CLIP_TASK(a0),a1
+	moveq #0,d0
+	bset #13,d0 ;SIG_D
+	jsr -$0144(a6) ;Signal
+	move.l (sp)+,a6
+.same
+	moveq #0,d0
+	rts
+
+
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0
-mhname: dc.b 'UAE mouse hack',0
+devs_name: dc.b 'DEVS:',0
+clip_name: dc.b 'DEVS:clipboard.device',0
+ram_name: dc.b 'RAM:',0
+clip_dev: dc.b 'clipboard.device',0
+ ;argghh but StartNofity()ing non-existing ENV: causes "Insert disk ENV: in any drive" dialog..
+pointer_prefs: dc.b 'RAM:Env/Sys/Pointer.prefs',0
+clname: dc.b 'UAE clipboard sharing',0
+mhname: dc.b 'UAE mouse driver',0
 exter_name: dc.b 'UAE filesystem',0
 fstaskname: dc.b 'UAE fs automounter',0
 fsprocname: dc.b 'UAE fs automount process',0
 doslibname: dc.b 'dos.library',0
 intlibname: dc.b 'intuition.library',0
+gfxlibname: dc.b 'graphics.library',0
 explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
 	END

@@ -114,7 +114,7 @@ struct vidbuf_description gfxvidinfo;
 xcolnr xcolors[4096];
 
 struct spritepixelsbuf {
-    int attach:1;
+    uae_u8 attach;
     uae_u8 stdata;
     uae_u16 data;
 };
@@ -757,7 +757,6 @@ STATIC_INLINE void fill_line (void)
     }
 }
 
-static int linetoscr_double_offset;
 
 #define SPRITE_DEBUG 0
 STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
@@ -1787,6 +1786,7 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
 static void pfield_expand_dp_bplcon (void)
 {
     int brdblank_2;
+    static int b2;
 
     bplres = dp_for_drawing->bplres;
     bplplanecnt = dp_for_drawing->nr_planes;
@@ -1807,7 +1807,7 @@ static void pfield_expand_dp_bplcon (void)
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
     plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
-    plf_sprite_mask |= (0xFFFF << (4 * plf1pri)) & 0xFFFF;
+    plf_sprite_mask |= (0x0000FFFF << (4 * plf1pri)) & 0xFFFF;
     bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
     bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
 
@@ -1977,7 +1977,6 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
     case LINE_DECIDED_DOUBLE:
 	if (follow_ypos != -1) {
 	    do_double = 1;
-	    linetoscr_double_offset = gfxvidinfo.rowbytes * (follow_ypos - gfx_ypos);
 	    linestate[lineno + 1] = LINE_DONE_AS_PREVIOUS;
 	}
 

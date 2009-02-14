@@ -2342,9 +2342,12 @@ action_add_notify (Unit *unit, dpacket packet)
 #endif
 
     p = name + strlen (name) - 1;
-    if (p[0] == ':') p--;
-    while (p > name && p[0] != ':' && p[0] != '/') p--;
-    if (p[0] == ':' || p[0] == '/') p++;
+    if (p[0] == ':')
+	p--;
+    while (p > name && p[0] != ':' && p[0] != '/')
+	p--;
+    if (p[0] == ':' || p[0] == '/')
+	p++;
     partname = my_strdup (p);
     n = new_notify (unit, partname);
     n->notifyrequest = nr;
@@ -2710,7 +2713,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 
-int get_native_path(uae_u32 lock, char *out)
+int get_native_path (uae_u32 lock, char *out)
 {
     int i = 0;
     for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
@@ -3331,10 +3334,17 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	fsdb_set_file_attrs (aino);
 
     put_long (fh + 36, k->uniq);
-    if (create == 2)
+    if (create == 2) {
 	aino->elock = 1;
-    else
+	// clear comment if file already existed
+	if (aino->comment) {
+	    xfree (aino->comment);
+	    aino->comment = 0;
+	}
+	fsdb_set_file_attrs (aino);
+    } else {
 	aino->shlock++;
+    }
     de_recycle_aino (unit, aino);
     PUT_PCK_RES1 (packet, DOS_TRUE);
 }
@@ -5403,7 +5413,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	uaecptr diminfo = m68k_areg (&context->regs, 2);
 	uaecptr dispinfo = m68k_areg (&context->regs, 3);
 	uaecptr vp = m68k_areg (&context->regs, 4);
-	input_mousehack_status (mode, diminfo, dispinfo, vp);
+	input_mousehack_status (mode, diminfo, dispinfo, vp, m68k_dreg (&context->regs, 2));
     } else if (mode == 10) {
 	amiga_clipboard_die ();
     } else if (mode == 11) {
@@ -5416,6 +5426,9 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	amiga_clipboard_task_start (m68k_dreg (&context->regs, 0));
     } else if (mode == 15) {
 	amiga_clipboard_init ();
+    } else if (mode == 16) {
+	uaecptr a2 = m68k_areg (&context->regs, 2);
+	input_mousehack_mouseoffset (a2);
     }
     return 1;
 }
@@ -5791,23 +5804,23 @@ static uae_u8 *restore_key(UnitInfo *ui, Unit *u, uae_u8 *src)
     return src;
 }
 
-static uae_u8 *restore_notify(UnitInfo *ui, Unit *u, uae_u8 *src)
+static uae_u8 *restore_notify (UnitInfo *ui, Unit *u, uae_u8 *src)
 {
-    Notify *n = (Notify*)xcalloc (sizeof (Notify), 1);
+    Notify *n = xcalloc (sizeof (Notify), 1);
     uae_u32 hash;
     char *s;
 
-    n->notifyrequest = restore_u32();
-    s = restore_string();
-    n->fullname = (char*)xmalloc (strlen(ui->volname) + 2 + strlen(s) + 1);
+    n->notifyrequest = restore_u32 ();
+    s = restore_string ();
+    n->fullname = xmalloc (strlen (ui->volname) + 2 + strlen (s) + 1);
     sprintf (n->fullname, "%s:%s", ui->volname, s);
     xfree(s);
-    s = strrchr(n->fullname, '/');
+    s = strrchr (n->fullname, '/');
     if (s)
 	s++;
     else
 	s = n->fullname;
-    n->partname = my_strdup(s);
+    n->partname = my_strdup (s);
     hash = notifyhash (n->fullname);
     n->next = u->notifyhash[hash];
     u->notifyhash[hash] = n;

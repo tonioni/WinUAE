@@ -3247,9 +3247,9 @@ uae_u8 *restore_disk(int num,uae_u8 *src)
     drv->dskchange_time = 0;
     restore_u32 ();
     strcpy (old, currprefs.df[num]);
-    strncpy(changed_prefs.df[num],src,255);
+    strncpy (changed_prefs.df[num], src, 255);
     newis = changed_prefs.df[num][0] ? 1 : 0;
-    src+=strlen(src)+1;
+    src += strlen(src) + 1;
     if (!(disabled & (1 << num))) {
 	if (!newis) {
 	    drv->dskchange = 1;
@@ -3265,7 +3265,7 @@ uae_u8 *restore_disk(int num,uae_u8 *src)
 	    }
 	}
     }
-    reset_drive_gui(num);
+    reset_drive_gui (num);
     return src;
 }
 
