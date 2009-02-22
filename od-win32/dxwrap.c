@@ -750,7 +750,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
     return result;
 }
 
-int DirectDraw_BlitToPrimary (RECT *rect)
+static int DirectDraw_BlitToPrimary2 (RECT *rect, int dooffset)
 {
     LPDIRECTDRAWSURFACE7 dst;
     int result = 0;
@@ -773,7 +773,8 @@ int DirectDraw_BlitToPrimary (RECT *rect)
 	h = dxdata.sheight - y;
     SetRect (&srcrect, x, y, x + w, y + h);
     SetRect (&dstrect, x, y, x + w, y + h);
-    centerdstrect (&dstrect);
+    if (rect || dooffset)
+	centerdstrect (&dstrect);
     while (FAILED(ddrval = IDirectDrawSurface7_Blt (dst, &dstrect, dxdata.secondary, &srcrect, DDBLT_WAIT, NULL))) {
 	if (ddrval == DDERR_SURFACELOST) {
 	    ddrval = restoresurfacex (dst, dxdata.secondary);
@@ -787,6 +788,11 @@ int DirectDraw_BlitToPrimary (RECT *rect)
     if (SUCCEEDED(ddrval))
 	result = 1;
     return result;
+}
+
+int DirectDraw_BlitToPrimary (RECT *rect)
+{
+    return DirectDraw_BlitToPrimary2 (rect, FALSE);
 }
 
 static int DirectDraw_Blt_EmuCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *srcrect)
@@ -878,7 +884,7 @@ int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAW
     return DirectDraw_Blt (dst, dstrect, src, scrrect, TRUE);
 }
 
-static void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color)
+void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color)
 {
     HRESULT ddrval;
     DDBLTFX ddbltfx;
@@ -968,7 +974,7 @@ int DirectDraw_Flip (int doflip)
 	    DirectDraw_Blit (dxdata.primary, getlocksurface ());
 	}
     } else {
-	DirectDraw_BlitToPrimary (NULL);
+	DirectDraw_BlitToPrimary2 (NULL, TRUE);
     }
     return 1;
 }

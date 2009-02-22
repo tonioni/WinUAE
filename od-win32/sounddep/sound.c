@@ -37,6 +37,8 @@
 #include <al.h>
 #include <alc.h>
 
+#include <portaudio.h>
+
 #include <math.h>
 
 #define ADJUST_SIZE 30
@@ -71,10 +73,14 @@ struct sound_device sound_devices[MAX_SOUND_DEVICES];
 struct sound_device record_devices[MAX_SOUND_DEVICES];
 static int num_sound_devices, num_record_devices;
 
+// directsound
+
 static LPDIRECTSOUND8 lpDS;
 static LPDIRECTSOUNDBUFFER8 lpDSBsecondary;
 static DWORD writepos;
 
+
+// openal
 
 #define AL_BUFFERS 2
 static ALCdevice *al_dev;
@@ -85,6 +91,17 @@ static int al_toggle;
 static DWORD al_format;
 static uae_u8 *al_bigbuffer;
 static int al_bufsize, al_offset;
+
+
+// portaudio
+
+static volatile int patoggle;
+static volatile int pacounter;
+static uae_u8 *pasoundbuffer[2];
+static int pasndbufsize;
+static int paframesperbuffer;
+static PaStream *pastream;
+static HANDLE paevent;
 
 
 int setup_sound (void)
@@ -160,6 +177,19 @@ static void resume_audio_ds (void)
     paused = 0;
     clearbuffer ();
     waiting_for_buffer = 1;
+}
+static void pause_audio_pa (void)
+{
+    PaError err = Pa_StopStream (pastream);
+    if (err != paNoError)
+	write_log ("SOUND: Pa_StopStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+}
+static void resume_audio_pa (void)
+{
+    PaError err = Pa_StartStream (pastream);
+    if (err != paNoError)
+	write_log ("SOUND: Pa_StartStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+    paused = 0;
 }
 static void pause_audio_al (void)
 {
@@ -318,6 +348,98 @@ DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *ds
     return speakerconfig;
 }
 
+
+static void finish_sound_buffer_pa (void)
+{
+    static int opacounter;
+
+    while (opacounter == pacounter && pastream && !paused)
+	WaitForSingleObject (paevent, 10);
+    ResetEvent (paevent);
+    opacounter = pacounter;
+    memcpy (pasoundbuffer[patoggle], sndbuffer, sndbufsize);
+}
+
+static int portAudioCallback (const void *inputBuffer, void *outputBuffer,
+                           unsigned long framesPerBuffer,
+                           const PaStreamCallbackTimeInfo* timeInfo,
+                           PaStreamCallbackFlags statusFlags,
+                           void *userData)
+{
+    memcpy (outputBuffer, pasoundbuffer[patoggle], sndbufsize);
+    patoggle ^= 1;
+    pacounter++;
+    SetEvent (paevent);
+    return paContinue;
+}
+
+static void close_audio_pa (void)
+{
+    int i;
+
+    if (pastream)
+	Pa_CloseStream (pastream);
+    pastream = NULL;
+    for (i = 0; i < 2; i++) {
+	xfree (pasoundbuffer[i]);
+	pasoundbuffer[i] = NULL;
+    }
+    if (paevent) {
+	SetEvent (paevent);
+	CloseHandle (paevent);
+    }
+    paevent = NULL;
+}
+
+static int open_audio_pa (int size)
+{
+    int i;
+    int freq = currprefs.sound_freq;
+    int ch = get_audio_nativechannels ();
+    int dev = sound_devices[currprefs.win32_soundcard].panum;
+    const PaDeviceInfo *di;
+    PaStreamParameters p;
+    PaError err;
+
+    paframesperbuffer = size;
+    sndbufsize = size * ch * 2;
+    devicetype = SOUND_DEVICE_PA;
+    memset (&p, 0, sizeof p);
+    p.channelCount = ch;
+    p.device = dev;
+    p.hostApiSpecificStreamInfo = NULL;
+    p.sampleFormat = paInt16;
+    p.suggestedLatency = Pa_GetDeviceInfo (dev)->defaultLowOutputLatency;
+    p.hostApiSpecificStreamInfo = NULL; 
+    for (;;) {
+	err = Pa_IsFormatSupported (NULL, &p, freq);
+	if (err == paFormatIsSupported)
+	    break;
+	di = Pa_GetDeviceInfo (dev);
+	freq = di->defaultSampleRate;
+	err = Pa_IsFormatSupported (NULL, &p, freq);
+	if (err == paFormatIsSupported) {
+	    currprefs.sound_freq = changed_prefs.sound_freq = freq;
+	    break;
+	}
+	write_log ("SOUND: sound format not supported\n");
+	goto end;
+    }
+    err = Pa_OpenStream (&pastream, NULL, &p, freq, paframesperbuffer, paNoFlag, portAudioCallback, NULL);
+    if (err != paNoError) {
+	write_log ("SOUND: Pa_OpenStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+	goto end;
+    }
+    paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
+    for (i = 0; i < 2; i++)
+	pasoundbuffer[i] = xcalloc (sndbufsize, 1);
+    return 1;
+end:
+    pastream = NULL;
+    close_audio_pa ();
+    return 0;
+}
+
 static void close_audio_al (void)
 {
     int i;
@@ -342,7 +464,7 @@ static void close_audio_al (void)
 static int open_audio_al (int size)
 {
     int freq = currprefs.sound_freq;
-    int ch = get_audio_nativechannels();
+    int ch = get_audio_nativechannels ();
 
     devicetype = SOUND_DEVICE_AL;
     size *= ch * 2;
@@ -398,7 +520,7 @@ static int open_audio_ds (int size)
     WAVEFORMATEXTENSIBLE wavfmt;
     LPDIRECTSOUNDBUFFER pdsb;
     int freq = currprefs.sound_freq;
-    int ch = get_audio_nativechannels();
+    int ch = get_audio_nativechannels ();
     int round, i;
     DWORD speakerconfig;
 
@@ -560,6 +682,8 @@ static int open_sound (void)
 	ret = open_audio_al (size);
     else if (sound_devices[currprefs.win32_soundcard].type == SOUND_DEVICE_DS)
 	ret = open_audio_ds (size);
+    else if (sound_devices[currprefs.win32_soundcard].type == SOUND_DEVICE_PA)
+	ret = open_audio_pa (size);
     if (!ret)
 	return 0;
 
@@ -592,6 +716,8 @@ void close_sound (void)
 	close_audio_al ();
     else if (devicetype == SOUND_DEVICE_DS)
 	close_audio_ds ();
+    else if (devicetype == SOUND_DEVICE_PA)
+	close_audio_pa ();
     have_sound = 0;
 }
 
@@ -624,6 +750,8 @@ void pause_sound (void)
 	pause_audio_al ();
     else if (devicetype == SOUND_DEVICE_DS)
 	pause_audio_ds ();
+    else if (devicetype == SOUND_DEVICE_PA)
+	pause_audio_pa ();
 }
 
 void resume_sound (void)
@@ -636,6 +764,8 @@ void resume_sound (void)
 	resume_audio_al ();
     else if (devicetype == SOUND_DEVICE_DS)
 	resume_audio_ds ();
+    else if (devicetype == SOUND_DEVICE_PA)
+	resume_audio_pa ();
 }
 
 void reset_sound (void)
@@ -1082,6 +1212,8 @@ void finish_sound_buffer (void)
 	finish_sound_buffer_al ();
     else if (devicetype == SOUND_DEVICE_DS)
 	finish_sound_buffer_ds ();
+    else if (devicetype == SOUND_DEVICE_PA)
+	finish_sound_buffer_pa ();
 }
 
 static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
@@ -1099,6 +1231,7 @@ static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDr
 	memcpy (&sd[i].guid, lpGUID, sizeof (GUID));
     sd[i].name = my_strdup (lpszDesc);
     sd[i].type = SOUND_DEVICE_DS;
+    sd[i].cfgname = my_strdup (sd[i].name);
     return TRUE;
 }
 
@@ -1151,6 +1284,7 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
 	        sd->alname = my_strdup (pDeviceNames);
 	        sd->name = my_strdup (pDeviceNames);
 	    }
+	    sd->cfgname = my_strdup (sd->alname);
 	}
 	if (ppDefaultDevice)
 	    ppDefaultDevice = NULL;
@@ -1188,8 +1322,40 @@ static int isdllversion (const char *name, int version, int revision, int subver
     }
     return ok;
 }
+#define PORTAUDIO 1
+#if PORTAUDIO
+static void PortAudioEnumerate (struct sound_device *sds)
+{
+    struct sound_device *sd;
+    int num;
+    int i, j;
+    char tmp[MAX_DPATH];
 
-
+    num = Pa_GetDeviceCount ();
+    for (j = 0; j < num; j++) {
+	const PaDeviceInfo *di;
+	const PaHostApiInfo *hai;
+	di = Pa_GetDeviceInfo (j);
+	if (di->maxOutputChannels == 0)
+	    continue;
+	hai = Pa_GetHostApiInfo (di->hostApi);
+	if (!hai)
+	    continue;
+	for (i = 0; i < MAX_SOUND_DEVICES; i++) {
+	    sd = &sds[i];
+	    if (sd->name == NULL)
+	        break;
+	}
+	if (i >= MAX_SOUND_DEVICES)
+	    return;
+	sprintf (tmp, "[%s] %s", hai->name, di->name);
+	sd->type = SOUND_DEVICE_PA;
+	sd->name = my_strdup (tmp);
+	sd->cfgname = my_strdup (tmp);
+	sd->panum = j;
+    }
+}
+#endif
 int enumerate_sound_devices (void)
 {
     if (!num_sound_devices) {
@@ -1210,6 +1376,24 @@ int enumerate_sound_devices (void)
 		OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
 	    }
 	}
+#if PORTAUDIO
+	{
+	    HMODULE hm = WIN32_LoadLibrary ("portaudio_x86.dll");
+	    if (hm) {
+		PaError err;
+		write_log ("Enumerating PortAudio devices..\n");
+		write_log ("%s (%d)\n", Pa_GetVersionText (), Pa_GetVersion ());
+		err = Pa_Initialize ();
+		if (err == paNoError) {
+		    PortAudioEnumerate (sound_devices);
+		} else {
+		    write_log ("Portaudio initializiation failed: %d (%s)\n",
+			err, Pa_GetErrorText (err));
+		    FreeLibrary (hm);
+		}
+	    }
+	}
+#endif
 	write_log("Enumeration end\n");
 	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
 	    if (sound_devices[num_sound_devices].name == NULL)

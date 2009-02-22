@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA "12"
-#define WINUAEDATE MAKEBD(2009, 2, 14)
+#define WINUAEBETA "13"
+#define WINUAEDATE MAKEBD(2009, 2, 22)
 #define WINUAEEXTRA ""
 #define WINUAEREV ""
 
@@ -147,14 +147,18 @@ extern void logging_cleanup (void);
 
 extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
 
-#define MAX_SOUND_DEVICES 20
+#define MAX_SOUND_DEVICES 32
 #define SOUND_DEVICE_DS 1
 #define SOUND_DEVICE_AL 2
+#define SOUND_DEVICE_PA 3
+
 struct sound_device
 {
     GUID guid;
     char *name;
     char *alname;
+    char *cfgname;
+    int panum;
     int type;
 };
 extern struct sound_device sound_devices[MAX_SOUND_DEVICES];

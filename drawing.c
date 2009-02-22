@@ -350,6 +350,13 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     if (gclow > 0 && gcloh > 0)
 	ret = -1;
 
+    if (doublescan <= 0) {
+	if (diwfirstword_total < (48 << currprefs.gfx_resolution))
+	    diwfirstword_total = 48 << currprefs.gfx_resolution;
+	if (diwlastword_total > (448 << currprefs.gfx_resolution))
+	    diwlastword_total = 448 << currprefs.gfx_resolution;
+    }
+
     w = diwlastword_total - diwfirstword_total;
     dx = diwfirstword_total - visible_left_border;
 
@@ -1834,7 +1841,7 @@ static void pfield_expand_dp_bplcon2 (int regno, int v)
     {
 	case 0x100:
 	dp_for_drawing->bplcon0 = v;
-	dp_for_drawing->bplres = GET_RES (v);
+	dp_for_drawing->bplres = GET_RES_DENISE (v);
 	dp_for_drawing->nr_planes = GET_PLANES (v);
 	dp_for_drawing->ham_seen = !! (v & 0x800);
 	break;

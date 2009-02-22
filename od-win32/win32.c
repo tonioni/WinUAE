@@ -2045,7 +2045,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_automount_drives = 0;
 	p->win32_automount_removabledrives = 0;
 	p->win32_automount_cddrives = 0;
-	p->win32_automount_netdrives = 0;
+    	p->win32_automount_netdrives = 0;
 	p->win32_kbledmode = 0;
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
 	p->win32_borderless = 0;
@@ -2095,8 +2095,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "iconified_pause=%s\n", p->win32_iconified_pause ? "true" : "false");
 
     cfgfile_target_dwrite (f, "ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? "true" : "false");
-    cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev );
-    cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev );
+    cfgfile_target_dwrite (f, "midiout_device=%d\n", p->win32_midioutdev);
+    cfgfile_target_dwrite (f, "midiin_device=%d\n", p->win32_midiindev);
     cfgfile_target_dwrite (f, "rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? "true" : "false");
     cfgfile_target_dwrite (f, "rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? "true" : "false");
     cfgfile_target_dwrite (f, "rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? "true" : "false");
@@ -2110,6 +2110,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, "borderless=%s\n", p->win32_borderless ? "true" : "false");
     cfgfile_target_dwrite (f, "uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
     cfgfile_target_dwrite (f, "soundcard=%d\n", p->win32_soundcard);
+    if (sound_devices[p->win32_soundcard].cfgname)
+	cfgfile_target_dwrite (f, "soundcardname=%s\n", sound_devices[p->win32_soundcard].cfgname);
     cfgfile_target_dwrite (f, "cpu_idle=%d\n", p->cpu_idle);
     cfgfile_target_dwrite (f, "notaskbarbutton=%s\n", p->win32_notaskbarbutton ? "true" : "false");
     cfgfile_target_dwrite (f, "always_on_top=%s\n", p->win32_alwaysontop ? "true" : "false");
@@ -2178,6 +2180,17 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
     if (cfgfile_yesno (option, value, "rtg_scale_allow", &p->win32_rtgallowscaling))
 	return 1;
 
+    if (cfgfile_string (option, value, "soundcardname", tmpbuf, sizeof tmpbuf)) {
+	int i;
+	for (i = 0; sound_devices[i].cfgname; i++) {
+	    if (!strcmp (sound_devices[i].cfgname, tmpbuf)) {
+		p->win32_soundcard = i;
+		break;
+	    }
+	}
+	return 1;
+    }
+
     if (cfgfile_yesno (option, value, "aspi", &v)) {
 	p->win32_uaescsimode = 0;
 	if (v)
@@ -2225,7 +2238,6 @@ int target_parse_option (struct uae_prefs *p, char *option, char *value)
 
     if (cfgfile_strval (option, value, "uaescsimode", &p->win32_uaescsimode, scsimode, 0))
 	return 1;
-
 
     if (cfgfile_intval (option, value, "active_priority", &v, 1)) {
 	p->win32_active_priority = fetchpri (v, 1);
@@ -3675,11 +3687,13 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR 
 	write_log ("Display buffer mode = %d\n", ddforceram);
 	enumerate_sound_devices ();
 	for (i = 0; sound_devices[i].name; i++) {
-	    write_log ("%d:%s: %s\n", i, sound_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[i].name);
+	    int type = sound_devices[i].type;
+	    write_log ("%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? "DS" : (type == SOUND_DEVICE_AL ? "AL" : "PA"), sound_devices[i].name);
 	}
 	write_log ("Enumerating recording devices:\n");
 	for (i = 0; record_devices[i].name; i++) {
-	    write_log ("%d:%s: %s\n", i, record_devices[i].type == SOUND_DEVICE_DS ? "DS" : "AL", record_devices[i].name);
+	    int type = record_devices[i].type;
+	    write_log ("%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? "DS" : (type == SOUND_DEVICE_AL ? "AL" : "PA"), record_devices[i].name);
 	}
 	write_log ("done\n");
 	memset (&devmode, 0, sizeof (devmode));

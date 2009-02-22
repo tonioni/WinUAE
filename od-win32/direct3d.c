@@ -723,6 +723,7 @@ static void setupscenecoords (void)
     getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
 //    write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
 //	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+
     dw = dr.right - dr.left;
     dh = dr.bottom - dr.top;
     w = sr.right - sr.left;
@@ -732,8 +733,8 @@ static void setupscenecoords (void)
     MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
     MatrixTranslation (&m_matView,
-	-0.5f + dw * tin_w / window_w / 2 - zr.left, // - (tin_w - 2 * zr.left - w),
-	 0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h), // <- ???
+	-0.5f + dw * tin_w / window_w / 2 - zr.left - sr.left, // - (tin_w - 2 * zr.left - w),
+	+0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
 	0);
 
     MatrixScaling (&m_matWorld,

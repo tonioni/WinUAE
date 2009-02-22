@@ -129,6 +129,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect);
 int DirectDraw_Blit (LPDIRECTDRAWSURFACE7 dst, LPDIRECTDRAWSURFACE7 src);
 int DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
 int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect);
+void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color);
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 

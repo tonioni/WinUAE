@@ -1161,7 +1161,6 @@ static void inputdevice_mh_abs (int x, int y)
     uae_u8 *p;
     uae_u8 tmp[4];
     uae_u32 off;
-    int fdy, fdx, fmx, fmy;
 
     mousehack_enable ();
     off = 12 + get_long (rtarea_base + 36);
@@ -1169,11 +1168,6 @@ static void inputdevice_mh_abs (int x, int y)
 
     memcpy (tmp, p + MH_ABSX, 4);
 
-    if (!picasso_on) {
-	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
-	x -= fdx - 1;
-	y -= fdy - 1;
-    }
     x -= mouseoffset_x + 1;
     y -= mouseoffset_y + 2;
 
@@ -1312,6 +1306,7 @@ static void inputdevice_mh_abs_v36 (int x, int y)
 static void mousehack_helper (void)
 {
     int x, y;
+    int fdy, fdx, fmx, fmy;
 
     if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet < TABLET_MOUSEHACK)
 	return;
@@ -1321,15 +1316,28 @@ static void mousehack_helper (void)
 	return;
     }
 #endif
+    x = lastmx;
+    y = lastmy;
+    getgfxoffset (&fdx, &fdy, &fmx, &fmy);
+
+
 #ifdef PICASSO96
     if (picasso_on) {
-	x = lastmx - picasso96_state.XOffset;
-	y = lastmy - picasso96_state.YOffset;
+	x -= picasso96_state.XOffset;
+	y -= picasso96_state.YOffset;
+	x = x * fmx / 1000;
+	y = y * fmy / 1000;
+	x -= fdx * fmx / 1000;
+	y -= fdy * fmy / 1000;
     } else
 #endif
     {
-	x = coord_native_to_amiga_x (lastmx);
-	y = coord_native_to_amiga_y (lastmy) << 1;
+	x = x * fmx / 1000;
+	y = y * fmy / 1000;
+	x -= fdx * fmx / 1000 - 1;
+	y -= fdy * fmy / 1000 - 2;
+    	x = coord_native_to_amiga_x (x);
+	y = coord_native_to_amiga_y (y) << 1;
     }
     inputdevice_mh_abs (x, y);
 }

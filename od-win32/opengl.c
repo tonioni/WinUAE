@@ -464,21 +464,37 @@ void OGL_resize (int width, int height)
 static void OGL_dorender (int newtex)
 {
     uae_u8 *data = gfxvidinfo.bufmem;
-    float x1, y1, x2, y2;
+    float x1, y1, x2, y2, multx, multy;
 
-#if 0
-    RECT sr, dr;
-    getfilterrect2 (&sr, &dr, w_width, w_height, t_width, t_height, 1, t_width, t_height);
-    xm = (float)required_texture_size / t_width;
-    ym = (float)required_texture_size / t_height;
+#if 1
+    RECT sr, dr, zr;
+    float w, h;
+    float dw, dh;
 
-    //write_log ("%fx%f\n", xm, ym);
+    getfilterrect2 (&dr, &sr, &zr, w_width, w_height, t_width, t_height, 1, t_width, t_height);
+//    write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
+//	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+    dw = dr.right - dr.left;
+    dh = dr.bottom - dr.top;
+    w = sr.right - sr.left;
+    h = sr.bottom - sr.top;
 
-    x1 = dr.left;
-    y1 = dr.top;
-    x2 = dr.right * xm;
-    y2 = dr.bottom * ym;
+    multx = dw * t_width / w_width;
+    multy = dh * t_height / w_height;
+//    write_log ("%fx%f\n", multx, multy);
 
+    x1 = -0.5f + dw * t_width / w_width / 2 - zr.left - sr.left;
+    y1 =  0.5f + dh * t_height / w_height / 2 - zr.top - (t_height - 2 * zr.top - h) + sr.top;
+    x1 -= (w * t_width / w_width) / 2;
+    y1 -= (h * t_height / w_height) / 2;
+
+    x2 = x1 + dw * t_width / w_width;
+    y2 = y1 + dh * t_height / w_height;
+
+    x1 *= (float)required_texture_size / t_width;
+    y1 *= (float)required_texture_size / t_height;
+    x2 *= (float)required_texture_size / t_width;
+    y2 *= (float)required_texture_size / t_height;
 #else
     double fx, fy, xm, ym;
     float multx, multy;
@@ -524,7 +540,7 @@ static void OGL_dorender (int newtex)
     glLoadIdentity ();
 
     glBindTexture (GL_TEXTURE_2D, tex[0]);
-    if (newtex && gfxvidinfo.bufmem + t_width * t_height * t_depth / 8 <= gfxvidinfo.bufmemend)
+    if (newtex && data + t_width * t_height * t_depth / 8 <= gfxvidinfo.bufmemend)
 	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, t_width, t_height, ti2d_format, ti2d_type, data);
 
     glBegin (GL_QUADS);

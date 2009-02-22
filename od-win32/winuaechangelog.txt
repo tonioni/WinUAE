@@ -1,4 +1,29 @@
 
+Beta 13:
+
+- mousehack mouse sync works in filter modes
+- D3D filter display positioning should be correct. maybe.
+- full window RTG scaling changes or RTG<>native switches didn't clear
+  old graphics completely
+- unofficial/experimental PortAudio audio library support, copy dll
+  (portaudio_x86.dll) to plugins-directory. Main point is very low
+  latency sound API (ASIO, WDM-KS, WASAPI) support. WDM-KS (XP) not
+  tested, WASAPI (VistaSP1/W7 only) confirmed working. Generally
+  can be ignored, do not ask :)
+- file selection dialog uses new IFileDialog interface (if available,
+  Vista or newer only) Dialogs still should look same, shout if
+  something looks weird. (currently this is my workaround for
+  Windows 7b feature/bug of remembering old directory, even if
+  OPENFILENAME structure has lpstrInitialDir set)
+- automatic scaling update, very large DIWSTRT/DIWSTOP values are
+  clipped to max overscan size when calculating display size
+  (some demos had really wide autoscaling)
+- fixed autoscaling + aspect ratio set + resolution/linedoubling ratio
+  not 1:1 (for example lores + doubling) = wrong aspect ratio.
+- clipboard Amiga->PC conversion crashed if clipboard contained no
+  text data (empty FORM FTXT structure without data content)
+  
+
 Beta 12:
 
 - file comment was not reset when file already existed and file was
@@ -113,7 +138,7 @@ Beta 7:
 - PAL/NTSC switching in KS3.x early boot screen was ignored until
   following reboot (old bug)
 - do not report no_cd-status when loading CD32 statefile without CD
-  installed
+  inserted
 - doublescan modes autoscale/resize better
 - improved Amiga display size detection
 - autoscale option saved to configuration file
@@ -305,7 +330,7 @@ Beta 2:
 - fixed b1 slowdown when lots of sprites are visible
 - CD32 mode CD32.TM detection added (log only)
 - RTG vblank interrupt changes, use INTB_VERTB if RTG vblank is set
-  to "Chipset". (very compatible, no extra interrups happening) Uses
+  to "Chipset". (very compatible, no extra interrupts happening) Uses
   INTB_PORTS if different than Chipset. (Previously used INTB_EXTER but
   some games didn't like it, Ports seems to be more compatible) Added
   "Disabled" option which disables RTG vblank support.

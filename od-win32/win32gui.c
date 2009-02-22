@@ -1307,31 +1307,205 @@ static void gui_to_prefs (void)
     updatewinfsmode (&changed_prefs);
 }
 
-typedef struct tagOFNX { 
-  DWORD         lStructSize; 
-  HWND          hwndOwner; 
-  HINSTANCE     hInstance; 
-  PWCHAR         lpstrFilter; 
-  PWCHAR         lpstrCustomFilter; 
-  DWORD         nMaxCustFilter; 
-  DWORD         nFilterIndex; 
-  PWCHAR        lpstrFile; 
-  DWORD         nMaxFile; 
-  PWCHAR        lpstrFileTitle; 
-  DWORD         nMaxFileTitle; 
-  PWCHAR       lpstrInitialDir; 
-  PWCHAR       lpstrTitle; 
-  DWORD         Flags; 
-  WORD          nFileOffset; 
-  WORD          nFileExtension; 
-  PWCHAR       lpstrDefExt; 
-  LPARAM        lCustData; 
-  LPOFNHOOKPROC lpfnHook; 
-  PWCHAR       lpTemplateName; 
-  void *        pvReserved;
-  DWORD         dwReserved;
-  DWORD         FlagsEx;
-} OPENFILENAMEX, *LPOPENFILENAMEX;
+static char *getfilepath (char *s)
+{
+    char *p = strrchr (s, '\\');
+    if (p)
+	return p + 1;
+    return NULL;
+}
+
+typedef HRESULT (CALLBACK* SHCREATEITEMFROMPARSINGNAME)
+    (PCWSTR,IBindCtx*,REFIID,void**); // Vista+ only
+
+// OPENFILENAME->IFileOpenDialog wrapper
+static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int save)
+{
+    SHCREATEITEMFROMPARSINGNAME pSHCreateItemFromParsingName;
+    WCHAR *title = NULL;
+    WCHAR *defext = NULL;
+    WCHAR *initialdir = NULL;
+    HRESULT hr;
+    IFileOpenDialog *pfd;
+    FILEOPENDIALOGOPTIONS pfos;
+    IShellItem *shellitem = NULL;
+    int ret;
+    COMDLG_FILTERSPEC *fs = NULL;
+    int filtercnt = 0;
+    
+    ret = 0;
+    pSHCreateItemFromParsingName = (SHCREATEITEMFROMPARSINGNAME)GetProcAddress (
+	GetModuleHandle ("shell32.dll"), "SHCreateItemFromParsingName");
+    if (pSHCreateItemFromParsingName == NULL) {
+	if (save)
+	    return GetSaveFileName (opn);
+	else
+	    return GetOpenFileName (opn);
+    }
+    hr = CoCreateInstance (&CLSID_FileOpenDialog, 
+                                  NULL, 
+                                  CLSCTX_INPROC_SERVER, 
+                                  &IID_IFileOpenDialog, (LPVOID*)&pfd);
+    if (FAILED (hr)) {
+	if (save)
+	    return GetSaveFileName (opn);
+	else
+	    return GetOpenFileName (opn);
+    }
+    IFileDialog_GetOptions (pfd, &pfos);
+    pfos |= FOS_FORCEFILESYSTEM;
+    if (opn->Flags & OFN_ALLOWMULTISELECT)
+	pfos |= FOS_ALLOWMULTISELECT;
+    IFileDialog_SetOptions (pfd, pfos);
+
+    if (guid)
+	IFileDialog_SetClientGuid (pfd, guid);
+
+    if (opn->lpstrFilter) {
+	const char *p = opn->lpstrFilter;
+	int i;
+	while (*p) {
+	    p += strlen (p) + 1;
+	    p += strlen (p) + 1;
+	    filtercnt++;
+	}
+	if (filtercnt) {
+	    fs = xmalloc (sizeof (COMDLG_FILTERSPEC) * filtercnt);
+	    p = opn->lpstrFilter;
+	    for (i = 0; i < filtercnt; i++) {
+		fs[i].pszName = au (p);
+		p += strlen (p) + 1;
+		fs[i].pszSpec = au (p);
+		p += strlen (p) + 1;
+	    }
+	    IFileDialog_SetFileTypes (pfd, filtercnt, fs);
+	}
+	IFileOpenDialog_SetFileTypeIndex (pfd, opn->nFilterIndex);
+    }
+
+    if (opn->lpstrTitle) {
+	title = au (opn->lpstrTitle);
+	IFileDialog_SetTitle (pfd, title);
+    }
+    if (opn->lpstrDefExt) {
+	defext = au (opn->lpstrDefExt);
+	IFileDialog_SetDefaultExtension (pfd, defext);
+    }
+    if (opn->lpstrInitialDir) {
+	char tmp[MAX_DPATH];
+	const char *p = opn->lpstrInitialDir;
+	if (GetFullPathName (p, sizeof tmp, tmp, NULL)) 
+	    p = tmp;
+	initialdir = au (p);
+	hr = pSHCreateItemFromParsingName (initialdir, NULL, &IID_IShellItem, &shellitem);
+	if (SUCCEEDED (hr))
+	    IFileDialog_SetFolder (pfd, shellitem);
+    }
+
+    hr = IFileDialog_Show (pfd, opn->hwndOwner);
+    if (SUCCEEDED (hr)) {
+	UINT idx;
+	IShellItemArray *pitema;
+	opn->lpstrFile[0] = 0;
+	opn->lpstrFile[1] = 0;
+	if (opn->lpstrFileTitle)
+	    opn->lpstrFileTitle[0] = 0;
+	if (save) {
+	    IShellItem *pitem;
+	    hr = IFileOpenDialog_GetResult (pfd, &pitem);
+	    if (SUCCEEDED (hr)) {
+	        WCHAR *path = NULL;
+	        hr = IShellItem_GetDisplayName (pitem, SIGDN_FILESYSPATH, &path);
+	        if (SUCCEEDED (hr)) {
+		    char *spath = ua (path);
+	    	    char *p = opn->lpstrFile;
+		    strcpy (p, spath);
+		    p[strlen (p) + 1] = 0;
+		    xfree (spath);
+		    p = getfilepath (opn->lpstrFile);
+		    if (p && opn->lpstrFileTitle)
+			strcpy (opn->lpstrFileTitle, p);
+		}
+		IShellItem_Release (pitem);
+	    }
+	} else {
+	    hr = IFileOpenDialog_GetResults (pfd, &pitema);
+	    if (SUCCEEDED (hr)) {
+		DWORD cnt;
+		hr = IShellItemArray_GetCount (pitema, &cnt);
+		if (SUCCEEDED (hr)) {
+		    int i;
+		    for (i = 0; i < cnt; i++) {
+			IShellItem *pitem;
+			hr = IShellItemArray_GetItemAt (pitema, i, &pitem);
+			if (SUCCEEDED (hr)) {
+			    WCHAR *path = NULL;
+			    hr = IShellItem_GetDisplayName (pitem, SIGDN_FILESYSPATH, &path);
+			    if (SUCCEEDED (hr)) {
+				char *spath = ua (path);
+				char *p = opn->lpstrFile;
+				while (*p)
+				    p += strlen (p) + 1;
+				if (p - opn->lpstrFile + strlen (spath) + 2 < opn->nMaxFile) {
+				    strcpy (p, spath);
+				    p[strlen (p) + 1] = 0;
+				}
+				xfree (spath);
+				if (!opn->lpstrFileTitle[0]) {
+				    p = getfilepath (opn->lpstrFile);
+				    if (p && opn->lpstrFileTitle)
+					strcpy (opn->lpstrFileTitle, p);
+				}
+			    }
+			    CoTaskMemFree (path);
+			}
+		    }
+		}
+		IShellItemArray_Release (pitema);
+	    }
+	}
+	hr = IFileOpenDialog_GetFileTypeIndex (pfd, &idx);
+	if (SUCCEEDED (hr))
+	    opn->nFilterIndex = idx;
+	ret = 1;
+    }
+
+
+    IFileDialog_Release (pfd);
+    if (shellitem)
+	IShellItem_Release (shellitem);
+    if (filtercnt) {
+	int i;
+        for (i = 0; i < filtercnt; i++) {
+	    xfree (fs[i].pszName);
+	    xfree (fs[i].pszSpec);
+	}
+	xfree (fs);
+    }
+    xfree (title);
+    xfree (defext);
+    xfree (initialdir);
+    return ret;
+}
+
+static BOOL GetOpenFileName_2 (OPENFILENAME *opn, const GUID *guid)
+{
+    return GetFileDialog (opn, guid, 0);
+}
+static BOOL GetSaveFileName_2 (OPENFILENAME *opn, const GUID *guid)
+{
+    return GetFileDialog (opn, guid, 1);
+}
+ 
+
+static const GUID diskselectionguids[] = {
+    { 0x4fa8fa15, 0xc209, 0x4112, { 0x94, 0x7b, 0xc6, 0x00, 0x8e, 0x1f, 0xa3, 0x29 } },
+    { 0x32073f09, 0x752d, 0x4783, { 0x84, 0x6c, 0xaa, 0x66, 0x48, 0x84, 0x14, 0x45 } },
+    { 0x8047f7ea, 0x8a42, 0x4695, { 0x94, 0x52, 0xf5, 0x0d, 0xb8, 0x43, 0x00, 0x58 } },
+    { 0x2412c4e7, 0xf608, 0x4333, { 0x83, 0xd2, 0xa1, 0x2f, 0xdf, 0x66, 0xac, 0xe5 } },
+    { 0xe3741dff, 0x11f2, 0x445f, { 0x94, 0xb0, 0xa3, 0xe7, 0x58, 0xe2, 0xcb, 0xb5 } },
+    { 0x2056d641, 0xba13, 0x4312, { 0xaa, 0x75, 0xc5, 0xeb, 0x52, 0xa8, 0x1c, 0xe3 } }
+};
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -1362,6 +1536,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     int all = 1;
     int next;
     int nosavepath = 0;
+    const GUID *guid = NULL;
 
     char szTitle[MAX_DPATH] = { 0 };
     char szFormat[MAX_DPATH];
@@ -1379,20 +1554,24 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	    case 0:
 	    case 1:
 		fetch_path ("FloppyPath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[0];
 	    break;
 	    case 2:
 	    case 3:
 		fetch_path ("hdfPath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[1];
 	    break;
 	    case 6:
 	    case 7:
 	    case 11:
 		fetch_path ("KickstartPath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[2];
 	    break;
 	    case 4:
 	    case 5:
 	    case 8:
 		fetch_path ("ConfigurationPath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[3];
 	    break;
 	    case 9:
 	    case 10:
@@ -1416,11 +1595,13 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		}
 		if (!ok)
 		    fetch_path ("StatefilePath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[4];
 	    }
 	    break;
 	    case 15:
 	    case 16:
 		fetch_path ("InputPath", init_path, sizeof (init_path));
+		guid = &diskselectionguids[5];
 	    break;
 	}
     }
@@ -1573,11 +1754,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
     if (multi)
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
-	if (!(result = GetSaveFileName (&openFileName)))
-	    write_log ("GetSaveFileName() failed, err=%d.\n", GetLastError());
+	if (!(result = GetSaveFileName_2 (&openFileName, guid)))
+	    write_log ("GetSaveFileNameX() failed, err=%d.\n", GetLastError());
     } else {
-	if (!(result = GetOpenFileName (&openFileName)))
-	    write_log ("GetOpenFileName() failed, err=%d.\n", GetLastError());
+	if (!(result = GetOpenFileName_2 (&openFileName, guid)))
+	    write_log ("GetOpenFileNameX() failed, err=%d.\n", GetLastError());
     }
     previousfilter[flag] = openFileName.nFilterIndex;
 
@@ -7067,8 +7248,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	}
 	for (card = 0; card < numdevs; card++) {
 	    char tmp[MAX_DPATH];
+	    int type = sound_devices[card].type;
 	    if (gotnonds)
-		sprintf (tmp, "%s: %s", sound_devices[card].type == SOUND_DEVICE_DS ? "DS" : "AL", sound_devices[card].name);
+		sprintf (tmp, "%s: %s",  type == SOUND_DEVICE_DS ? "DS" : (type == SOUND_DEVICE_AL ? "AL" : "PA"),
+		    sound_devices[card].name);
 	    else
 		strcpy (tmp, sound_devices[card].name);
 	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);

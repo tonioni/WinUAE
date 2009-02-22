@@ -236,11 +236,11 @@ int bpl_off[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static struct color_entry current_colors;
 static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
-static unsigned int t_bplcon0_res, t_bplcon0_planes, t_bplcon0_planes_limit;
+static unsigned int ta_bplcon0_res, td_bplcon0_res, t_bplcon0_planes, t_bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
-static int ddf_change;
+static int ddf_change, badmode;
 
 /* The display and data fetch windows */
 
@@ -301,7 +301,7 @@ static int copper_enabled_thisline;
 static int cop_min_waittime;
 
 static uae_u16 f_bplcon0, f_fmode;
-static int f_bplcon0_res, f_bplcon0_planes, f_bplcon0_planes_limit;
+static int fa_bplcon0_res, fd_bplcon0_res, f_bplcon0_planes, f_bplcon0_planes_limit;
 static int f_fetchunit, f_fetchunit_mask;
 static int f_fetchstart, f_fetchstart_mask, f_fetchstart_shift;
 static int f_fm_maxplane_shift, f_fm_maxplane;
@@ -387,7 +387,7 @@ enum fetchstate {
 
 STATIC_INLINE int ecsshres(void)
 {
-    return f_bplcon0_res == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
+    return fd_bplcon0_res == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
 }
 
 STATIC_INLINE int nodraw (void)
@@ -598,7 +598,7 @@ static int real_bitplane_number[3][3][9];
    e.g. by the Sanity WOC demo (at the "Party Effect").  */
 STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 {
-    int res = GET_RES (bc0);
+    int res = GET_RES_AGNUS (bc0);
     int planes = GET_PLANES (bc0);
     return real_bitplane_number[f_fetchmode][res][planes];
 }
@@ -765,7 +765,7 @@ static int cycle_diagram_shift;
 
 static void estimate_last_fetch_cycle (int hpos)
 {
-    int fetchunit = fetchunits[f_fetchmode * 4 + f_bplcon0_res];
+    int fetchunit = fetchunits[f_fetchmode * 4 + fa_bplcon0_res];
 
     if (plfstate < plf_passed_stop) {
 	int stop = plfstop < hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
@@ -848,7 +848,7 @@ static void record_color_change2 (int hpos, int regno, unsigned long value)
 // OCS/ECS, lores, 7 planes = 4 "real" planes + BPL5DAT and BPL6DAT as 5th and 6th plane
 STATIC_INLINE int isocs7planes (void)
 {
- return !(currprefs.chipset_mask & CSMASK_AGA) && f_bplcon0_res == 0 && f_bplcon0_planes == 7;
+ return !(currprefs.chipset_mask & CSMASK_AGA) && fa_bplcon0_res == 0 && f_bplcon0_planes == 7;
 }
 
 static uae_u16 tmp_bplcon0, tmp_fmode;
@@ -879,17 +879,18 @@ static void copy_bpl_params (int pos)
 	f_fetchmode = 1;
     else
 	f_fetchmode = 2;
-    f_bplcon0_res = GET_RES (f_bplcon0);
+    fa_bplcon0_res = GET_RES_AGNUS (f_bplcon0);
+    fd_bplcon0_res = GET_RES_DENISE (f_bplcon0);
     f_bplcon0_planes = GET_PLANES (f_bplcon0);
     f_bplcon0_planes_limit = GET_PLANES_LIMIT (f_bplcon0);
-    f_fetchunit = fetchunits[fetchmode * 4 + f_bplcon0_res];
+    f_fetchunit = fetchunits[fetchmode * 4 + fa_bplcon0_res];
     f_fetchunit_mask = t_fetchunit - 1;
-    f_fetchstart_shift = fetchstarts[f_fetchmode * 4 + f_bplcon0_res];
+    f_fetchstart_shift = fetchstarts[f_fetchmode * 4 + fa_bplcon0_res];
     f_fetchstart = 1 << t_fetchstart_shift;
     f_fetchstart_mask = t_fetchstart - 1;
-    f_fm_maxplane_shift = fm_maxplanes[f_fetchmode * 4 + f_bplcon0_res];
+    f_fm_maxplane_shift = fm_maxplanes[f_fetchmode * 4 + fa_bplcon0_res];
     f_fm_maxplane = 1 << f_fm_maxplane_shift;
-    curr_diagram = cycle_diagram_table[f_fetchmode][f_bplcon0_res][f_bplcon0_planes_limit];
+    curr_diagram = cycle_diagram_table[f_fetchmode][fa_bplcon0_res][f_bplcon0_planes_limit];
     f_fetch_modulo_cycle = t_fetchunit - f_fetchstart;
     if (toscr_nr_planes < f_bplcon0_planes_limit)
 	toscr_nr_planes = f_bplcon0_planes_limit;
@@ -899,17 +900,18 @@ static void copy_bpl_params (int pos)
     } else {
 	toscr_nr_planes2 = toscr_nr_planes;
     }
-    toscr_res = f_bplcon0_res;
+    toscr_res = fd_bplcon0_res;
 }
 
 static void expand_fmodes (void)
 {
-    t_bplcon0_res = GET_RES (bplcon0);
+    ta_bplcon0_res = GET_RES_AGNUS (bplcon0);
+    td_bplcon0_res = GET_RES_DENISE (bplcon0);
     t_bplcon0_planes = GET_PLANES (bplcon0);
     t_bplcon0_planes_limit = GET_PLANES_LIMIT (bplcon0);
-    t_fetchunit = fetchunits[fetchmode * 4 + t_bplcon0_res];
+    t_fetchunit = fetchunits[fetchmode * 4 + ta_bplcon0_res];
     t_fetchunit_mask = t_fetchunit - 1;
-    t_fetchstart_shift = fetchstarts[fetchmode * 4 + t_bplcon0_res];
+    t_fetchstart_shift = fetchstarts[fetchmode * 4 + ta_bplcon0_res];
     t_fetchstart = 1 << t_fetchstart_shift;
     t_fetchstart_mask = t_fetchstart - 1;
 }
@@ -935,7 +937,7 @@ static void compute_toscr_delay_1 (void)
 
 static void compute_toscr_delay (int hpos)
 {
-    toscr_res = f_bplcon0_res;
+    toscr_res = fd_bplcon0_res;
     toscr_nr_planes = f_bplcon0_planes_limit;
     toscr_nr_planes2 = f_bplcon0_planes;
     compute_toscr_delay_1 ();
@@ -996,7 +998,7 @@ STATIC_INLINE void fetch (int nr, int fm)
     if (nr == 0)
 	fetch_state = fetch_was_plane0;
 #if NEW_BPL
-    else if (nr == 1 && t_bplcon0_res > f_bplcon0_res)
+    else if (nr == 1 && ta_bplcon0_res > fa_bplcon0_res)
 	fetch_state = fetch_was_plane0;
 #endif
 }
@@ -1606,7 +1608,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     if (plfstate < plf_passed_stop && ddf_change != vpos && ddf_change + 1 != vpos
 	&& dma
 	&& (fetch_cycle & f_fetchstart_mask) == (f_fm_maxplane & f_fetchstart_mask)
-	&& toscr_delay1 == toscr_delay1x && toscr_delay2 == toscr_delay2x
+	&& toscr_delay1 == toscr_delay1x && toscr_delay2 == toscr_delay2x && badmode
  # if 0
 	/* @@@ We handle this case, but the code would be simpler if we
 	 * disallowed it - it may even be possible to guarantee that
@@ -1714,7 +1716,7 @@ static void start_bpl_dma (int hpos, int hstart)
     out_nbits = 0;
     out_offs = 0;
     toscr_nbits = 0;
-    thisline_decision.bplres = f_bplcon0_res;
+    thisline_decision.bplres = fd_bplcon0_res;
 
     ddfstate = DIW_waiting_stop;
     compute_toscr_delay (last_fetch_hpos);
@@ -1850,7 +1852,7 @@ static void record_register_change (int hpos, int regno, unsigned long value)
 	    thisline_decision.ham_seen = 1;
 	if (hpos < HARD_DDF_START || hpos < plfstrt + 0x20) {
 	    thisline_decision.bplcon0 = value;
-	    thisline_decision.bplres = GET_RES (value);
+	    thisline_decision.bplres = GET_RES_DENISE (value);
 	}
     }
     record_color_change (hpos, regno + 0x1000, value);
@@ -1869,7 +1871,7 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
     break;
 #ifdef ECS_DENISE
     case 0: /* ECS defaults (LORES,HIRES=LORES sprite,SHRES=HIRES sprite) */
-	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES (con0) == RES_SUPERHIRES)
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) && GET_RES_DENISE (con0) == RES_SUPERHIRES)
 	    res = RES_HIRES;
 	else
 	    res = RES_LORES;
@@ -1893,7 +1895,7 @@ static int expand_sprres (uae_u16 con0, uae_u16 con3)
 /* handle very rarely needed playfield collision (CLXDAT bit 0) */
 static void do_playfield_collisions (void)
 {
-    int bplres = t_bplcon0_res;
+    int bplres = td_bplcon0_res;
     hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
     hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
     hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
@@ -1962,7 +1964,7 @@ static void do_sprite_collisions (void)
     int first = curr_drawinfo[next_lineno].first_sprite_entry;
     int i;
     unsigned int collision_mask = clxmask[clxcon >> 12];
-    int bplres = t_bplcon0_res;
+    int bplres = td_bplcon0_res;
     hwres_t ddf_left = thisline_decision.plfleft * 2 << bplres;
     hwres_t hw_diwlast = coord_window_to_diw_x (thisline_decision.diwlastword);
     hwres_t hw_diwfirst = coord_window_to_diw_x (thisline_decision.diwfirstword);
@@ -2457,7 +2459,7 @@ static void reset_decisions (void)
 
     curr_diagram_change = -1;
     toscr_nr_planes = toscr_nr_planes2 = 0;
-    thisline_decision.bplres = t_bplcon0_res;
+    thisline_decision.bplres = td_bplcon0_res;
     thisline_decision.nr_planes = 0;
 
     thisline_decision.plfleft = -1;
@@ -3168,7 +3170,7 @@ int is_bitplane_dma (int hpos)
 	|| hpos >= estimated_last_fetch_cycle)
 	return 0;
     if (curr_diagram_change >= 0 && hpos >= curr_diagram_change) {
-        curr_diagram = cycle_diagram_table[fetchmode][t_bplcon0_res][t_bplcon0_planes_limit];
+        curr_diagram = cycle_diagram_table[fetchmode][ta_bplcon0_res][t_bplcon0_planes_limit];
 	curr_diagram_change = -1;
     }
     return curr_diagram[(hpos - cycle_diagram_shift) & f_fetchstart_mask];
@@ -3182,7 +3184,7 @@ STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 	|| hpos >= estimated_last_fetch_cycle)
 	return 0;
     if (curr_diagram_change >= 0 && hpos >= curr_diagram_change) {
-        curr_diagram = cycle_diagram_table[fetchmode][t_bplcon0_res][t_bplcon0_planes_limit];
+        curr_diagram = cycle_diagram_table[fetchmode][ta_bplcon0_res][t_bplcon0_planes_limit];
 	curr_diagram_change = -1;
     }
     return curr_diagram[(hpos - cycle_diagram_shift) & f_fetchstart_mask];
@@ -3246,6 +3248,8 @@ static void BPLCON0 (int hpos, uae_u16 v)
     decide_fetch (hpos);
     decide_blitter (hpos);
 
+    badmode = GET_RES_AGNUS (v) != GET_RES_DENISE (v);
+
     // fake unused 0x0080 bit as an EHB bit (see below)
     if (isehb (v, bplcon2))
 	v |= 0x80;
@@ -3254,7 +3258,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
         record_register_change (hpos, 0x100, (bplcon0 & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
 
     // don't ask..
-    if (GET_PLANES (v) > GET_PLANES (bplcon0) && GET_RES (v) >= GET_RES (bplcon0) && fetch_state != fetch_not_started)
+    if (GET_PLANES (v) > GET_PLANES (bplcon0) && GET_RES_AGNUS (v) >= GET_RES_AGNUS (bplcon0) && fetch_state != fetch_not_started)
 	fetch_state = fetch_was_plane0;
 
     bplcon0 = v;
@@ -3286,7 +3290,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
     if (fetch_state == fetch_started && diwstate == DIW_waiting_stop) {
 	curr_diagram_change = hpos - 2 + f_fm_maxplane - (fetch_cycle & f_fetchstart_mask);
     } else {
-        curr_diagram = cycle_diagram_table[fetchmode][t_bplcon0_res][t_bplcon0_planes_limit];
+        curr_diagram = cycle_diagram_table[fetchmode][ta_bplcon0_res][t_bplcon0_planes_limit];
     }
 
 }
@@ -4968,8 +4972,8 @@ static void hsync_handler (void)
     if (!nocustom()) {
 	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
 	    blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << f_fetchmode),
-		cycle_diagram_total_cycles[f_fetchmode][GET_RES (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)],
-		cycle_diagram_free_cycles[f_fetchmode][GET_RES (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)]);
+		cycle_diagram_total_cycles[f_fetchmode][GET_RES_AGNUS (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)],
+		cycle_diagram_free_cycles[f_fetchmode][GET_RES_AGNUS (f_bplcon0)][GET_PLANES_LIMIT (f_bplcon0)]);
 	}
 	hardware_line_completed (next_lineno);
 	if (doflickerfix () && interlace_seen)

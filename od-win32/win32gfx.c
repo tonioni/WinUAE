@@ -132,6 +132,11 @@ int isscreen (void)
     return hMainWnd ? 1 : 0;
 }
 
+static void clearscreen (void)
+{
+    DirectDraw_FillPrimary ();
+}    
+
 static int isfullscreen_2 (struct uae_prefs *p)
 {
     if (screen_is_picasso)
@@ -1096,9 +1101,9 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
     c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
-    c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? 8 : 0;
-    c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? 8 : 0;
-    c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? 8 : 0;
+    c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (8 | 64) : 0;
+    c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (8 | 64) : 0;
+    c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? (8 | 64) : 0;
     c |= currprefs.win32_rtgvblankrate != changed_prefs.win32_rtgvblankrate ? 8 : 0;
 
     if (display_change_requested || c)
@@ -1164,6 +1169,10 @@ int check_prefs_changed_gfx (void)
 	currprefs.win32_rtgvblankrate = changed_prefs.win32_rtgvblankrate;
 
 	inputdevice_unacquire ();
+	if (c & 64) {
+	    DirectDraw_Fill (NULL, 0);
+	    DirectDraw_BlitToPrimary (NULL);
+	}
 	if ((c & 16) || ((c & 8) && keepfsmode)) {
 	    extern int reopen (int);
 	    if (reopen (c & 2))
@@ -1563,6 +1572,8 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 	return -1;
     } else {
 	/* fullwindow to fullwindow */
+	DirectDraw_Fill (NULL, 0);
+        DirectDraw_BlitToPrimary (NULL);
 	if (screen_is_picasso) {
 	    if (currprefs.win32_rtgscaleifsmall && (wc->native_width > picasso96_state.Width || wc->native_height > picasso96_state.Height))
 		return -1;
@@ -1573,11 +1584,6 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
     }
     return 0;
 }
-
-static void clearscreen (void)
-{
-    DirectDraw_FillPrimary ();
-}    
 
 void gfx_set_picasso_state (int on)
 {

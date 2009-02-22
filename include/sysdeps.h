@@ -230,7 +230,7 @@ extern char *my_strdup (const char*s);
 
 extern void *xmalloc(size_t);
 extern void *xcalloc(size_t, size_t);
-extern void xfree(void*);
+extern void xfree(const void*);
 
 /* We can only rely on GNU C getting enums right. Mickeysoft VSC++ is known
  * to have problems, and it's likely that other compilers choke too. */

@@ -163,22 +163,23 @@ static void to_iff_text (char *pctxt)
 static int clipboard_put_text (const char *txt);
 static void from_iff_text (uaecptr ftxt, uae_u32 len)
 {
-    uae_u8 *addr, *eaddr;
+    uae_u8 *addr = NULL, *eaddr;
     char *txt = NULL;
     int txtsize = 0;
     char *pctxt;
 
 #if 0
     {
-	FILE *f = fopen("c:\\d\\clipboard_a2p.000.dat", "rb");
+	FILE *f = fopen("c:\\d\\clipboard_a2p.005.dat", "rb");
 	if (f) {
 	    addr = xmalloc (10000);
 	    len = fread (addr, 1, 10000, f);
 	    fclose (f);
 	}
     }
-#endif
+#else
     addr = get_real_address (ftxt);
+#endif
     eaddr = addr + len;
     if (memcmp ("FTXT", addr + 8, 4))
 	return;
@@ -200,10 +201,12 @@ static void from_iff_text (uaecptr ftxt, uae_u32 len)
 	else if (csize >= 1 && addr[-1] == 0x0d && addr[0] == 0x0a)
 	    addr++;
     }
+    if (txt == NULL)
+	txt = my_strdup ("");
     pctxt = amigatopc (txt);
     clipboard_put_text (pctxt);
     xfree (pctxt);
-    free (txt);
+    xfree (txt);
 }
 
    

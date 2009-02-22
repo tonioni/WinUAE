@@ -166,10 +166,17 @@ extern int bpl_off[8];
 #define RES_SHIFT(res) ((res) == RES_LORES ? 8 : (res) == RES_HIRES ? 4 : 2)
 
 /* get resolution from bplcon0 */
-STATIC_INLINE int GET_RES (uae_u16 con0)
+STATIC_INLINE int GET_RES_DENISE (uae_u16 con0)
 {
-    int res = ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
-    return res;
+    if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+	con0 &= ~0x40;
+    return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
+}
+STATIC_INLINE int GET_RES_AGNUS (uae_u16 con0)
+{
+    if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	con0 &= ~0x40;
+    return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
 }
 /* get sprite width from FMODE */
 #define GET_SPRITEWIDTH(FMODE) ((((FMODE) >> 2) & 3) == 3 ? 64 : (((FMODE) >> 2) & 3) == 0 ? 16 : 32)

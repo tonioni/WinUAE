@@ -113,6 +113,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
     dr->right = dr->left + dst_width;
     dr->bottom = dr->top + dst_height;
 
+    filteroffsetx = 0;
+    filteroffsety = 0;
+
     xmult = currprefs.gfx_filter_horiz_zoom_mult;
     ymult = currprefs.gfx_filter_vert_zoom_mult;
     if (currprefs.gfx_filter_autoscale) {
@@ -123,8 +126,6 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	filterxmult = 1000 / scale;
 	filterymult = 1000 / scale;
-	filteroffsetx = 0;
-	filteroffsety = 0;
 
 	xmult = 1000;
 	ymult = 1000;
@@ -209,15 +210,23 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	    filteroffsety = -zr->top / scale;
 
 	    if (currprefs.gfx_filter_keep_aspect || currprefs.gfx_filter_aspect > 0) {
-		int xratio = dst_width * 256 / cw;
-		int yratio = dst_height * 256 / ch;
+		int dw = dst_width;
+		int dh = dst_height;
+		int xratio, yratio;
 		int diffx = dr->right - dr->left;
 		int diffy = dr->bottom - dr->top;
-		
+	
+		xratio = dw * 256 / cw;
+		yratio = dh * 256 / ch;
 		if (currprefs.gfx_filter_aspect > 0) {
 		    int xm = (currprefs.gfx_filter_aspect >> 8) * 256;
 		    int ym = (currprefs.gfx_filter_aspect & 0xff) * 256;
-		    xratio = xratio * ((dst_width * ym * 256) / (dst_height * xm)) / 256;
+		    int mult = currprefs.gfx_resolution - (currprefs.gfx_linedbl ? 1 : 0);
+		    if (mult < 0)
+			xm *= 1 << (-mult);
+		    else
+			ym *= 1 << mult;
+		    xratio = xratio * ((dw * ym * 256) / (dh * xm)) / 256;
 		}
 
 		if (xratio > yratio) {
@@ -256,15 +265,18 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	else
 	    ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
     }
-
+    
     if (currprefs.gfx_filter_aspect > 0) {
 	int srcratio, dstratio;
+	int xmult2 = xmult;
+	int ymult2 = ymult;
 	dstratio = (currprefs.gfx_filter_aspect >> 8) * 256 / (currprefs.gfx_filter_aspect & 0xff);
 	srcratio = dst_width * 256 / dst_height;
-	if (srcratio > dstratio)
+	if (srcratio > dstratio) {
 	    xmult = xmult * srcratio / dstratio;
-	else
+	} else {
 	    ymult = ymult * dstratio / srcratio;
+	}
     }
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
@@ -278,8 +290,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
     filterxmult = xmult;
     filterymult = ymult;
-    filteroffsetx = (dst_width - amiga_width * 1000 / filterxmult) / 2;
-    filteroffsety = (dst_height - amiga_height * 1000 / filterymult) / 2;
+    filteroffsetx += (dst_width - aw * 1000 / filterxmult) / 2;
+    filteroffsety += (dst_height - ah * 1000 / filterymult) / 2;
 
 }
 
@@ -554,7 +566,7 @@ endfail:
 end:
     unlocksurface (tempsurf);
 
-    getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, amiga_width, amiga_height, scale, temp_width, temp_height);
+    getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
     //write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
     OffsetRect (&sr, zr.left, zr.top);
     if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
