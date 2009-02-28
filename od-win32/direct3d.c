@@ -1008,14 +1008,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	    d3d_ex = TRUE;
     }
     FreeLibrary (d3dDLL);
+    hr = -1;
     if (d3d_ex && D3DEX) {
-        if (FAILED (Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex))) {
-            D3D_free ();
-            strcpy (errmsg, "Direct3D: failed to create D3DEx object");
-            return errmsg;
-        }
+        hr = Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex);
+	write_log ("Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
         d3d = (IDirect3D9*)d3dex;
-    } else {
+    }
+    if (FAILED (hr)) {
+	d3dex = NULL;
 	d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (d3d == NULL) {
 	    D3D_free ();

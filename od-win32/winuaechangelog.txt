@@ -1,4 +1,13 @@
 
+Beta 14:
+
+- filter out PortAudio DS and MME drivers (useless duplication only)
+- portaudio WDM-KS freeze fixed (ancient bug in portaudio library
+  and nobody hasn't fixed it yet.. Why do I have to do everything..)
+- folder selection dialog updated to larger Vista/W7 version
+- new Vista/W7 style file dialog was always in "open" mode, it was not
+  possible to select non-existing file when saving
+
 Beta 13:
 
 - mousehack mouse sync works in filter modes
@@ -22,7 +31,6 @@ Beta 13:
   not 1:1 (for example lores + doubling) = wrong aspect ratio.
 - clipboard Amiga->PC conversion crashed if clipboard contained no
   text data (empty FORM FTXT structure without data content)
-  
 
 Beta 12:
 

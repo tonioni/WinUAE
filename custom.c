@@ -3196,7 +3196,7 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
     bplptx[num] = (bplptx[num] & 0x0000ffff) | ((uae_u32)v << 16);
-    //write_log ("%d:%d:BPL%dPTH %08X COP=%08x\n", hpos, vpos, num, v, cop_state.ip);
+    //write_log ("%d:%d:BPL%dPTH %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
 }
 static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
@@ -3210,7 +3210,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     }
     bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     bplptx[num] = (bplptx[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
-    //write_log ("%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, v, cop_state.ip);
+    //write_log ("%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
 }
 
 static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)

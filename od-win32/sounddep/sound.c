@@ -416,11 +416,21 @@ static int open_audio_pa (int size)
 	if (err == paFormatIsSupported)
 	    break;
 	di = Pa_GetDeviceInfo (dev);
-	freq = di->defaultSampleRate;
-	err = Pa_IsFormatSupported (NULL, &p, freq);
-	if (err == paFormatIsSupported) {
-	    currprefs.sound_freq = changed_prefs.sound_freq = freq;
-	    break;
+	if (freq < 48000) {
+	    freq = 48000;
+	    err = Pa_IsFormatSupported (NULL, &p, freq);
+	    if (err == paFormatIsSupported) {
+		currprefs.sound_freq = changed_prefs.sound_freq = freq;
+		break;
+	    }
+	}
+	if (freq != di->defaultSampleRate) {
+	    freq = di->defaultSampleRate;
+	    err = Pa_IsFormatSupported (NULL, &p, freq);
+	    if (err == paFormatIsSupported) {
+		currprefs.sound_freq = changed_prefs.sound_freq = freq;
+		break;
+	    }
 	}
 	write_log ("SOUND: sound format not supported\n");
 	goto end;
@@ -1340,6 +1350,8 @@ static void PortAudioEnumerate (struct sound_device *sds)
 	    continue;
 	hai = Pa_GetHostApiInfo (di->hostApi);
 	if (!hai)
+	    continue;
+	if (hai->type == paDirectSound || hai->type == paMME)
 	    continue;
 	for (i = 0; i < MAX_SOUND_DEVICES; i++) {
 	    sd = &sds[i];

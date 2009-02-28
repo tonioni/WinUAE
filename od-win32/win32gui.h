@@ -9,9 +9,9 @@
 #define CONFIG_LOAD_FULL 3
 #define CONFIG_DELETE 4
 
-void WIN32GUI_LoadUIString( DWORD id, char *string, DWORD dwStringLen );
-extern int DiskSelection( HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *);
-void InitializeListView( HWND hDlg );
+void WIN32GUI_LoadUIString (DWORD id, char *string, DWORD dwStringLen);
+extern int DiskSelection (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, char *);
+void InitializeListView (HWND hDlg);
 extern void pre_gui_message (const char*,...);
 extern void gui_message_id (int id);
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
@@ -31,7 +31,7 @@ extern struct newresource *scaleresource(struct newresource *res, HWND);
 extern void freescaleresource(struct newresource*);
 extern void scaleresource_setmaxsize(int w, int h);
 extern HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc);
-extern INT_PTR CustomDialogBox(int templ, HWND hDlg, DLGPROC proc);
+extern INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc);
 extern struct newresource *getresource(int tmpl);
 extern struct newresource *resourcefont(struct newresource*, char *font, int size);
 

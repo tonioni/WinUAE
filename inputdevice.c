@@ -3946,6 +3946,8 @@ void warpmode (int mode)
 {
     int fr, fr2;
     
+    write_log ("%d %d %d\n", currprefs.gfx_framerate, turbo_emulation, mode);
+
     fr = currprefs.gfx_framerate;
     if (fr == 0)
 	fr = -1;
@@ -3960,8 +3962,9 @@ void warpmode (int mode)
 	} else {
 	    turbo_emulation = fr;
 	}
-    } else if (mode == 0 && turbo_emulation > 0) {
-	changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
+    } else if (mode == 0 && turbo_emulation) {
+	if (turbo_emulation > 0)
+	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
 	turbo_emulation = 0;
     } else if (mode > 0 && !turbo_emulation) {
 	turbo_emulation = fr;
