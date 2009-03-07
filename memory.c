@@ -2662,11 +2662,12 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 	cr = 1;
     }
 
+    memset (mem, 0, size);
     i = zfile_fread (mem, 1, size, f);
     if (kickdisk && i > 262144)
 	i = 262144;
 
-    if (i != 8192 && i != 65536 && i != 131072 && i != 262144 && i != 524288 && i != 524288 * 2 && i != 524288 * 4) {
+    if (i >= 262144 && (i != 262144 && i != 524288 && i != 524288 * 2 && i != 524288 * 4)) {
 	notify_user (NUMSG_KSROMREADERROR);
 	return 0;
     }

@@ -5192,7 +5192,7 @@ static int rl (uae_u8 *p)
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3]);
 }
 
-int rdb_checksum (TCHAR *id, uae_u8 *p, int block)
+int rdb_checksum (uae_char *id, uae_u8 *p, int block)
 {
     uae_u32 sum = 0;
     int i, blocksize;
@@ -5206,7 +5206,9 @@ int rdb_checksum (TCHAR *id, uae_u8 *p, int block)
 	sum += rl (p + i * 4);
     sum = -sum;
     if (sum) {
-	write_log (L"RDB: block %d ('%s') checksum error\n", block, id);
+	TCHAR *s = au (id);
+	write_log (L"RDB: block %d ('%s') checksum error\n", block, s);
+	xfree (s);
 	return 0;
     }
     return 1;
@@ -5303,10 +5305,10 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
     }
     for (rdblock = 0; rdblock < lastblock; rdblock++) {
 	hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
-	if (rdb_checksum (L"RDSK", bufrdb, rdblock))
+	if (rdb_checksum ("RDSK", bufrdb, rdblock))
 	    break;
 	hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
-	if (!memcmp (L"RDSK", bufrdb, 4)) {
+	if (!memcmp ("RDSK", bufrdb, 4)) {
 	    bufrdb[0xdc] = 0;
 	    bufrdb[0xdd] = 0;
 	    bufrdb[0xde] = 0;
@@ -5359,7 +5361,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, partblock * hfd->blocksize, readblocksize);
-	if (!rdb_checksum (L"PART", buf, partblock)) {
+	if (!rdb_checksum ("PART", buf, partblock)) {
 	    err = -2;
 	    goto error;
 	}
@@ -5435,7 +5437,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, fileblock * hfd->blocksize, readblocksize);
-	if (!rdb_checksum (L"FSHD", buf, fileblock)) {
+	if (!rdb_checksum ("FSHD", buf, fileblock)) {
 	    write_log (L"RDB: checksum error in FSHD block %d\n", fileblock);
 	    goto error;
 	}
@@ -5468,7 +5470,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    goto error;
 	memset (buf, 0, readblocksize);
 	hdf_read (hfd, buf, lsegblock * hfd->blocksize, readblocksize);
-	if (!rdb_checksum (L"LSEG", buf, lsegblock))
+	if (!rdb_checksum ("LSEG", buf, lsegblock))
 	    goto error;
 	lsegblock = rl (buf + 16);
 	if (lsegblock == pb)
