@@ -166,7 +166,7 @@ xrealloc(old, size)
 {
 	char           *p = (char *) realloc(old, size);
 	if (!p)
-		fatal_error("Not enough memory");
+		fatal_error(L"Not enough memory");
 	return p;
 }
 

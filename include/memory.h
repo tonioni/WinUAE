@@ -35,7 +35,7 @@ typedef void (REGPARAM3 *mem_put_func)(uaecptr, uae_u32) REGPARAM;
 typedef uae_u8 *(REGPARAM3 *xlate_func)(uaecptr) REGPARAM;
 typedef int (REGPARAM3 *check_func)(uaecptr, uae_u32) REGPARAM;
 
-extern char *address_space, *good_address_map;
+extern uae_u8 *address_space, *good_address_map;
 extern uae_u8 *chipmemory;
 
 extern uae_u32 allocated_chipmem;
@@ -90,7 +90,7 @@ typedef struct {
        ourselves. This holds the memory address where the start of memory is
        for this particular bank. */
     uae_u8 *baseaddr;
-    char *name;
+    TCHAR *name;
     /* for instruction opcode/operand fetches */
     mem_get_func lgeti, wgeti;
     int flags;
@@ -275,15 +275,15 @@ STATIC_INLINE void put_pointer (uaecptr addr, void *v)
 
 STATIC_INLINE uae_u8 *get_real_address (uaecptr addr)
 {
-    return get_mem_bank(addr).xlateaddr(addr);
+    return get_mem_bank (addr).xlateaddr(addr);
 }
 
-STATIC_INLINE int valid_address(uaecptr addr, uae_u32 size)
+STATIC_INLINE int valid_address (uaecptr addr, uae_u32 size)
 {
-    return get_mem_bank(addr).check(addr, size);
+    return get_mem_bank (addr).check(addr, size);
 }
 
-extern int addr_valid(char*,uaecptr,uae_u32);
+extern int addr_valid (TCHAR*, uaecptr,uae_u32);
 
 /* For faster access in custom chip emulation.  */
 extern uae_u32 REGPARAM3 chipmem_lget (uaecptr) REGPARAM;
@@ -327,12 +327,12 @@ extern shmpiece *shm_start;
 
 #endif
 
-extern uae_u8 *mapped_malloc (size_t, const char *);
+extern uae_u8 *mapped_malloc (size_t, const TCHAR*);
 extern void mapped_free (uae_u8 *);
 extern void clearexec (void);
 extern void mapkick (void);
 extern int decode_cloanto_rom_do (uae_u8 *mem, int size, int real_size);
-extern void a3000_fakekick(int);
+extern void a3000_fakekick (int);
 
 #define ROMTYPE_KICK	    0x000001
 #define ROMTYPE_KICKCD32    0x000002
@@ -359,15 +359,15 @@ extern void a3000_fakekick(int);
 #define ROMTYPE_SCRAMBLED   0x400000
 
 struct romheader {
-    char *name;
+    TCHAR *name;
     int id;
 };
 
 struct romdata {
-    char *name;
+    TCHAR *name;
     int ver, rev;
     int subver, subrev;
-    char *model;
+    TCHAR *model;
     uae_u32 size;
     int id;
     int cpu;
@@ -375,46 +375,46 @@ struct romdata {
     int type;
     int group;
     int title;
-    char *partnumber;
+    TCHAR *partnumber;
     uae_u32 crc32;
     uae_u32 sha1[5];
-    char *configname;
+    TCHAR *configname;
 };
 
 struct romlist {
-    char *path;
+    TCHAR *path;
     struct romdata *rd;
 };
 
-extern struct romdata *getromdatabypath(char *path);
+extern struct romdata *getromdatabypath (TCHAR *path);
 extern struct romdata *getromdatabycrc (uae_u32 crc32);
 extern struct romdata *getromdatabydata (uae_u8 *rom, int size);
 extern struct romdata *getromdatabyid (int id);
 extern struct romdata *getromdatabyidgroup (int id, int group, int subitem);
 extern struct romdata *getromdatabyzfile (struct zfile *f);
 extern struct romlist **getarcadiaroms (void);
-extern struct romdata *getarcadiarombyname (char *name);
-extern struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, char *model, int all);
-extern void getromname (struct romdata*, char*);
-extern struct romdata *getromdatabyname (char*);
-extern struct romlist *getromlistbyids(int *ids);
+extern struct romdata *getarcadiarombyname (TCHAR *name);
+extern struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, TCHAR *model, int all);
+extern void getromname (struct romdata*, TCHAR*);
+extern struct romdata *getromdatabyname (TCHAR*);
+extern struct romlist *getromlistbyids (int *ids);
 extern void romwarning(int *ids);
-extern struct romlist *getromlistbyromdata(struct romdata *rd);
-extern void romlist_add (char *path, struct romdata *rd);
-extern char *romlist_get (struct romdata *rd);
+extern struct romlist *getromlistbyromdata (struct romdata *rd);
+extern void romlist_add (TCHAR *path, struct romdata *rd);
+extern TCHAR *romlist_get (struct romdata *rd);
 extern void romlist_clear (void);
 extern struct zfile *read_rom (struct romdata **rd);
-extern struct zfile *read_rom_name (const char *filename);
+extern struct zfile *read_rom_name (const TCHAR *filename);
 
-extern int load_keyring (struct uae_prefs *p, char *path);
-extern uae_u8 *target_load_keyfile (struct uae_prefs *p, char *path, int *size, char *name);
+extern int load_keyring (struct uae_prefs *p, TCHAR *path);
+extern uae_u8 *target_load_keyfile (struct uae_prefs *p, TCHAR *path, int *size, TCHAR *name);
 extern void free_keyring (void);
 extern int get_keyring (void);
 
-uaecptr strcpyha_safe (uaecptr dst, const char *src);
-extern char *strcpyah_safe (char *dst, uaecptr src, int maxsize);
-void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
-void memcpyha (uaecptr dst, const uae_u8 *src, int size);
-void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);
-void memcpyah (uae_u8 *dst, uaecptr src, int size);
+extern uaecptr strcpyha_safe (uaecptr dst, const uae_char *src);
+extern uae_char *strcpyah_safe (uae_u8 *dst, uaecptr src, int maxsize);
+extern void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
+extern void memcpyha (uaecptr dst, const uae_u8 *src, int size);
+extern void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);
+extern void memcpyah (uae_u8 *dst, uaecptr src, int size);
 

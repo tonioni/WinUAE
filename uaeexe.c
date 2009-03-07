@@ -18,7 +18,7 @@
 
 static struct uae_xcmd *first = NULL;
 static struct uae_xcmd *last  = NULL;
-static char running = 0;
+static TCHAR running = 0;
 static uae_u32 REGPARAM3 uaeexe_server (TrapContext *context) REGPARAM;
 
 /*
@@ -30,7 +30,7 @@ void uaeexe_install (void)
 
     loop = here ();
     org (UAEEXE_ORG);
-    calltrap (deftrapres (uaeexe_server, 0, "uaeexe_server"));
+    calltrap (deftrapres (uaeexe_server, 0, L"uaeexe_server"));
     dw (RTS);
     org (loop);
 }
@@ -44,7 +44,7 @@ void uaeexe_install (void)
  * to launch the command asynchronously. Please note also that the
  * remote cli works better if you've got the fifo-handler installed.
  */
-int uaeexe (const char *cmd)
+int uaeexe (const TCHAR *cmd)
 {
     struct uae_xcmd *nw;
 
@@ -54,13 +54,13 @@ int uaeexe (const char *cmd)
     nw = malloc (sizeof *nw);
     if (!nw)
 	goto NOMEM;
-    nw->cmd = malloc (strlen (cmd) + 1);
+    nw->cmd = malloc ((_tcslen (cmd) + 1) * sizeof (TCHAR));
     if (!nw->cmd) {
 	free (nw);
 	goto NOMEM;
     }
 
-    strcpy (nw->cmd, cmd);
+    _tcscpy (nw->cmd, cmd);
     nw->prev = last;
     nw->next = NULL;
 
@@ -76,17 +76,17 @@ int uaeexe (const char *cmd)
   NOMEM:
     return UAEEXE_NOMEM;
   NORUN:
-    write_log ("Remote cli is not running.\n");
+    write_log (L"Remote cli is not running.\n");
     return UAEEXE_NOTRUNNING;
 }
 
 /*
  * returns next command to be executed
  */
-static char *get_cmd (void)
+static TCHAR *get_cmd (void)
 {
     struct uae_xcmd *cmd;
-    char *s;
+    TCHAR *s;
 
     if (!first)
 	return NULL;
@@ -106,12 +106,12 @@ static char *get_cmd (void)
 static uae_u32 REGPARAM2 uaeexe_server (TrapContext *context)
 {
     int len;
-    char *cmd;
-    char *dst;
+    TCHAR *cmd;
+    char *dst, *s;
 
     if (ARG (0) && !running) {
 	running = 1;
-	write_log ("Remote CLI started.\n");
+	write_log (L"Remote CLI started.\n");
     }
 
     cmd = get_cmd ();
@@ -122,10 +122,12 @@ static uae_u32 REGPARAM2 uaeexe_server (TrapContext *context)
 	return 0;
     }
 
-    dst = (char *)get_real_address (ARG (0));
+    dst = (char*)get_real_address (ARG (0));
     len = ARG (1);
-    strncpy (dst, cmd, len);
-    write_log ("Sending '%s' to remote cli\n", cmd);
-    free (cmd);
+    s = ua (cmd);
+    strncpy (dst, s, len);
+    write_log (L"Sending '%s' to remote cli\n", cmd);
+    xfree (s);
+    xfree (cmd);
     return ARG (0);
 }

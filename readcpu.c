@@ -15,141 +15,141 @@
 int nr_cpuop_funcs;
 
 struct mnemolookup lookuptab[] = {
-    { i_ILLG, "ILLEGAL" },
-    { i_OR, "OR" },
-    { i_CHK, "CHK" },
-    { i_CHK2, "CHK2" },
-    { i_AND, "AND" },
-    { i_EOR, "EOR" },
-    { i_ORSR, "ORSR" },
-    { i_ANDSR, "ANDSR" },
-    { i_EORSR, "EORSR" },
-    { i_SUB, "SUB" },
-    { i_SUBA, "SUBA" },
-    { i_SUBX, "SUBX" },
-    { i_SBCD, "SBCD" },
-    { i_ADD, "ADD" },
-    { i_ADDA, "ADDA" },
-    { i_ADDX, "ADDX" },
-    { i_ABCD, "ABCD" },
-    { i_NEG, "NEG" },
-    { i_NEGX, "NEGX" },
-    { i_NBCD, "NBCD" },
-    { i_CLR, "CLR" },
-    { i_NOT, "NOT" },
-    { i_TST, "TST" },
-    { i_BTST, "BTST" },
-    { i_BCHG, "BCHG" },
-    { i_BCLR, "BCLR" },
-    { i_BSET, "BSET" },
-    { i_CMP, "CMP" },
-    { i_CMPM, "CMPM" },
-    { i_CMPA, "CMPA" },
-    { i_MVPRM, "MVPRM" },
-    { i_MVPMR, "MVPMR" },
-    { i_MOVE, "MOVE" },
-    { i_MOVEA, "MOVEA" },
-    { i_MVSR2, "MVSR2" },
-    { i_MV2SR, "MV2SR" },
-    { i_SWAP, "SWAP" },
-    { i_EXG, "EXG" },
-    { i_EXT, "EXT" },
-    { i_MVMEL, "MVMEL", "MOVEM" },
-    { i_MVMLE, "MVMLE", "MOVEM" },
-    { i_TRAP, "TRAP" },
-    { i_MVR2USP, "MVR2USP" },
-    { i_MVUSP2R, "MVUSP2R" },
-    { i_NOP, "NOP" },
-    { i_RESET, "RESET" },
-    { i_RTE, "RTE" },
-    { i_RTD, "RTD" },
-    { i_LINK, "LINK" },
-    { i_UNLK, "UNLK" },
-    { i_RTS, "RTS" },
-    { i_STOP, "STOP" },
-    { i_TRAPV, "TRAPV" },
-    { i_RTR, "RTR" },
-    { i_JSR, "JSR" },
-    { i_JMP, "JMP" },
-    { i_BSR, "BSR" },
-    { i_Bcc, "Bcc" },
-    { i_LEA, "LEA" },
-    { i_PEA, "PEA" },
-    { i_DBcc, "DBcc" },
-    { i_Scc, "Scc" },
-    { i_DIVU, "DIVU" },
-    { i_DIVS, "DIVS" },
-    { i_MULU, "MULU" },
-    { i_MULS, "MULS" },
-    { i_ASR, "ASR" },
-    { i_ASL, "ASL" },
-    { i_LSR, "LSR" },
-    { i_LSL, "LSL" },
-    { i_ROL, "ROL" },
-    { i_ROR, "ROR" },
-    { i_ROXL, "ROXL" },
-    { i_ROXR, "ROXR" },
-    { i_ASRW, "ASRW" },
-    { i_ASLW, "ASLW" },
-    { i_LSRW, "LSRW" },
-    { i_LSLW, "LSLW" },
-    { i_ROLW, "ROLW" },
-    { i_RORW, "RORW" },
-    { i_ROXLW, "ROXLW" },
-    { i_ROXRW, "ROXRW" },
+    { i_ILLG, L"ILLEGAL" },
+    { i_OR, L"OR" },
+    { i_CHK, L"CHK" },
+    { i_CHK2, L"CHK2" },
+    { i_AND, L"AND" },
+    { i_EOR, L"EOR" },
+    { i_ORSR, L"ORSR" },
+    { i_ANDSR, L"ANDSR" },
+    { i_EORSR, L"EORSR" },
+    { i_SUB, L"SUB" },
+    { i_SUBA, L"SUBA" },
+    { i_SUBX, L"SUBX" },
+    { i_SBCD, L"SBCD" },
+    { i_ADD, L"ADD" },
+    { i_ADDA, L"ADDA" },
+    { i_ADDX, L"ADDX" },
+    { i_ABCD, L"ABCD" },
+    { i_NEG, L"NEG" },
+    { i_NEGX, L"NEGX" },
+    { i_NBCD, L"NBCD" },
+    { i_CLR, L"CLR" },
+    { i_NOT, L"NOT" },
+    { i_TST, L"TST" },
+    { i_BTST, L"BTST" },
+    { i_BCHG, L"BCHG" },
+    { i_BCLR, L"BCLR" },
+    { i_BSET, L"BSET" },
+    { i_CMP, L"CMP" },
+    { i_CMPM, L"CMPM" },
+    { i_CMPA, L"CMPA" },
+    { i_MVPRM, L"MVPRM" },
+    { i_MVPMR, L"MVPMR" },
+    { i_MOVE, L"MOVE" },
+    { i_MOVEA, L"MOVEA" },
+    { i_MVSR2, L"MVSR2" },
+    { i_MV2SR, L"MV2SR" },
+    { i_SWAP, L"SWAP" },
+    { i_EXG, L"EXG" },
+    { i_EXT, L"EXT" },
+    { i_MVMEL, L"MVMEL", L"MOVEM" },
+    { i_MVMLE, L"MVMLE", L"MOVEM" },
+    { i_TRAP, L"TRAP" },
+    { i_MVR2USP, L"MVR2USP" },
+    { i_MVUSP2R, L"MVUSP2R" },
+    { i_NOP, L"NOP" },
+    { i_RESET, L"RESET" },
+    { i_RTE, L"RTE" },
+    { i_RTD, L"RTD" },
+    { i_LINK, L"LINK" },
+    { i_UNLK, L"UNLK" },
+    { i_RTS, L"RTS" },
+    { i_STOP, L"STOP" },
+    { i_TRAPV, L"TRAPV" },
+    { i_RTR, L"RTR" },
+    { i_JSR, L"JSR" },
+    { i_JMP, L"JMP" },
+    { i_BSR, L"BSR" },
+    { i_Bcc, L"Bcc" },
+    { i_LEA, L"LEA" },
+    { i_PEA, L"PEA" },
+    { i_DBcc, L"DBcc" },
+    { i_Scc, L"Scc" },
+    { i_DIVU, L"DIVU" },
+    { i_DIVS, L"DIVS" },
+    { i_MULU, L"MULU" },
+    { i_MULS, L"MULS" },
+    { i_ASR, L"ASR" },
+    { i_ASL, L"ASL" },
+    { i_LSR, L"LSR" },
+    { i_LSL, L"LSL" },
+    { i_ROL, L"ROL" },
+    { i_ROR, L"ROR" },
+    { i_ROXL, L"ROXL" },
+    { i_ROXR, L"ROXR" },
+    { i_ASRW, L"ASRW" },
+    { i_ASLW, L"ASLW" },
+    { i_LSRW, L"LSRW" },
+    { i_LSLW, L"LSLW" },
+    { i_ROLW, L"ROLW" },
+    { i_RORW, L"RORW" },
+    { i_ROXLW, L"ROXLW" },
+    { i_ROXRW, L"ROXRW" },
 
-    { i_MOVE2C, "MOVE2C", "MOVEC" },
-    { i_MOVEC2, "MOVEC2", "MOVEC" },
-    { i_CAS, "CAS" },
-    { i_CAS2, "CAS2" },
-    { i_MULL, "MULL" },
-    { i_DIVL, "DIVL" },
-    { i_BFTST, "BFTST" },
-    { i_BFEXTU, "BFEXTU" },
-    { i_BFCHG, "BFCHG" },
-    { i_BFEXTS, "BFEXTS" },
-    { i_BFCLR, "BFCLR" },
-    { i_BFFFO, "BFFFO" },
-    { i_BFSET, "BFSET" },
-    { i_BFINS, "BFINS" },
-    { i_PACK, "PACK" },
-    { i_UNPK, "UNPK" },
-    { i_TAS, "TAS" },
-    { i_BKPT, "BKPT" },
-    { i_CALLM, "CALLM" },
-    { i_RTM, "RTM" },
-    { i_TRAPcc, "TRAPcc" },
-    { i_MOVES, "MOVES" },
-    { i_FPP, "FPP" },
-    { i_FDBcc, "FDBcc" },
-    { i_FScc, "FScc" },
-    { i_FTRAPcc, "FTRAPcc" },
-    { i_FBcc, "FBcc" },
-    { i_FBcc, "FBcc" },
-    { i_FSAVE, "FSAVE" },
-    { i_FRESTORE, "FRESTORE" },
+    { i_MOVE2C, L"MOVE2C", L"MOVEC" },
+    { i_MOVEC2, L"MOVEC2", L"MOVEC" },
+    { i_CAS, L"CAS" },
+    { i_CAS2, L"CAS2" },
+    { i_MULL, L"MULL" },
+    { i_DIVL, L"DIVL" },
+    { i_BFTST, L"BFTST" },
+    { i_BFEXTU, L"BFEXTU" },
+    { i_BFCHG, L"BFCHG" },
+    { i_BFEXTS, L"BFEXTS" },
+    { i_BFCLR, L"BFCLR" },
+    { i_BFFFO, L"BFFFO" },
+    { i_BFSET, L"BFSET" },
+    { i_BFINS, L"BFINS" },
+    { i_PACK, L"PACK" },
+    { i_UNPK, L"UNPK" },
+    { i_TAS, L"TAS" },
+    { i_BKPT, L"BKPT" },
+    { i_CALLM, L"CALLM" },
+    { i_RTM, L"RTM" },
+    { i_TRAPcc, L"TRAPcc" },
+    { i_MOVES, L"MOVES" },
+    { i_FPP, L"FPP" },
+    { i_FDBcc, L"FDBcc" },
+    { i_FScc, L"FScc" },
+    { i_FTRAPcc, L"FTRAPcc" },
+    { i_FBcc, L"FBcc" },
+    { i_FBcc, L"FBcc" },
+    { i_FSAVE, L"FSAVE" },
+    { i_FRESTORE, L"FRESTORE" },
 
-    { i_CINVL, "CINVL" },
-    { i_CINVP, "CINVP" },
-    { i_CINVA, "CINVA" },
-    { i_CPUSHL, "CPUSHL" },
-    { i_CPUSHP, "CPUSHP" },
-    { i_CPUSHA, "CPUSHA" },
-    { i_MOVE16, "MOVE16" },
+    { i_CINVL, L"CINVL" },
+    { i_CINVP, L"CINVP" },
+    { i_CINVA, L"CINVA" },
+    { i_CPUSHL, L"CPUSHL" },
+    { i_CPUSHP, L"CPUSHP" },
+    { i_CPUSHA, L"CPUSHA" },
+    { i_MOVE16, L"MOVE16" },
 
-    { i_MMUOP030, "MMUOP030" },
-    { i_PFLUSHN, "PFLUSHN" },
-    { i_PFLUSH, "PFLUSH" },
-    { i_PFLUSHAN, "PFLUSHAN" },
-    { i_PFLUSHA, "PFLUSHA" },
+    { i_MMUOP030, L"MMUOP030" },
+    { i_PFLUSHN, L"PFLUSHN" },
+    { i_PFLUSH, L"PFLUSH" },
+    { i_PFLUSHAN, L"PFLUSHAN" },
+    { i_PFLUSHA, L"PFLUSHA" },
 
-    { i_PLPAR, "PLPAR" },
-    { i_PLPAW, "PLPAW" },
-    { i_PTESTR, "PTESTR" },
-    { i_PTESTW, "PTESTW" },
+    { i_PLPAR, L"PLPAR" },
+    { i_PLPAW, L"PLPAW" },
+    { i_PTESTR, L"PTESTR" },
+    { i_PTESTW, L"PTESTW" },
 
-    { i_LPSTOP, "LPSTOP" },
-    { i_ILLG, "" },
+    { i_LPSTOP, L"LPSTOP" },
+    { i_ILLG, L"" },
 };
 
 struct instr *table68k;
@@ -176,20 +176,20 @@ static int specialcase (uae_u16 opcode, int cpu_lev)
     return cpu_lev;
 }
 
-static amodes mode_from_str (const char *str)
+static amodes mode_from_str (const TCHAR *str)
 {
-    if (strncmp (str, "Dreg", 4) == 0) return Dreg;
-    if (strncmp (str, "Areg", 4) == 0) return Areg;
-    if (strncmp (str, "Aind", 4) == 0) return Aind;
-    if (strncmp (str, "Apdi", 4) == 0) return Apdi;
-    if (strncmp (str, "Aipi", 4) == 0) return Aipi;
-    if (strncmp (str, "Ad16", 4) == 0) return Ad16;
-    if (strncmp (str, "Ad8r", 4) == 0) return Ad8r;
-    if (strncmp (str, "absw", 4) == 0) return absw;
-    if (strncmp (str, "absl", 4) == 0) return absl;
-    if (strncmp (str, "PC16", 4) == 0) return PC16;
-    if (strncmp (str, "PC8r", 4) == 0) return PC8r;
-    if (strncmp (str, "Immd", 4) == 0) return imm;
+    if (_tcsncmp (str, L"Dreg", 4) == 0) return Dreg;
+    if (_tcsncmp (str, L"Areg", 4) == 0) return Areg;
+    if (_tcsncmp (str, L"Aind", 4) == 0) return Aind;
+    if (_tcsncmp (str, L"Apdi", 4) == 0) return Apdi;
+    if (_tcsncmp (str, L"Aipi", 4) == 0) return Aipi;
+    if (_tcsncmp (str, L"Ad16", 4) == 0) return Ad16;
+    if (_tcsncmp (str, L"Ad8r", 4) == 0) return Ad8r;
+    if (_tcsncmp (str, L"absw", 4) == 0) return absw;
+    if (_tcsncmp (str, L"absl", 4) == 0) return absl;
+    if (_tcsncmp (str, L"PC16", 4) == 0) return PC16;
+    if (_tcsncmp (str, L"PC8r", 4) == 0) return PC8r;
+    if (_tcsncmp (str, L"Immd", 4) == 0) return imm;
     abort ();
     return 0;
 }
@@ -226,7 +226,7 @@ static void build_insn (int insn)
     int variants;
     int isjmp = 0;
     struct instr_def id;
-    const char *opcstr;
+    const TCHAR *opcstr;
     int i;
 
     int flaglive = 0, flagdead = 0;
@@ -274,7 +274,7 @@ static void build_insn (int insn)
 	int pos = 0;
 	int mnp = 0;
 	int bitno = 0;
-	char mnemonic[10];
+	TCHAR mnemonic[10];
 
 	wordsizes sz = sz_long;
 	int srcgather = 0, dstgather = 0;
@@ -320,7 +320,7 @@ static void build_insn (int insn)
 	    bitval[bitc] = bitval[bitC];
 
 	pos = 0;
-	while (opcstr[pos] && !isspace(opcstr[pos])) {
+	while (opcstr[pos] && !_istspace(opcstr[pos])) {
 	    if (opcstr[pos] == '.') {
 		pos++;
 		switch (opcstr[pos]) {
@@ -355,7 +355,7 @@ static void build_insn (int insn)
 	mnemonic[mnp] = 0;
 
 	/* now, we have read the mnemonic and the size */
-	while (opcstr[pos] && isspace(opcstr[pos]))
+	while (opcstr[pos] && _istspace(opcstr[pos]))
 	    pos++;
 
 	/* A goto a day keeps the D******a away. */
@@ -718,14 +718,14 @@ static void build_insn (int insn)
       endofline:
 	/* now, we have a match */
 	if (table68k[opc].mnemo != i_ILLG)
-	    ;//write_log ("Double match: %x: %s\n", opc, opcstr);
+	    ;//write_log (L"Double match: %x: %s\n", opc, opcstr);
 	if (find == -1) {
 	    for (find = 0;; find++) {
-		if (strcmp(mnemonic, lookuptab[find].name) == 0) {
+		if (_tcscmp (mnemonic, lookuptab[find].name) == 0) {
 		    table68k[opc].mnemo = lookuptab[find].mnemo;
 		    break;
 		}
-		if (strlen(lookuptab[find].name) == 0)
+		if (_tcslen (lookuptab[find].name) == 0)
 		    abort();
 	    }
 	}

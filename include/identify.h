@@ -7,13 +7,13 @@
 
 struct mem_labels
 {
-    const char *name;
+    const TCHAR *name;
     uae_u32 adr;
 };
 
 struct customData
 {
-    const char *name;
+    const TCHAR *name;
     uae_u32 adr;
     uae_u8 rw, special;
 };

@@ -22,7 +22,7 @@ struct shmid_ds {
     key_t  key;
     size_t size;
     void   *addr;
-    char   name[MAX_PATH];
+    TCHAR  name[MAX_PATH];
     void   *attached;
     int    mode;
     void   *natmembase;
@@ -31,7 +31,7 @@ struct shmid_ds {
 int mprotect (void *addr, size_t len, int prot);
 void *shmat (int shmid, LPVOID shmaddr, int shmflg);
 int shmdt (const void *shmaddr);
-int shmget (key_t key, size_t size, int shmflg, const char*);
+int shmget (key_t key, size_t size, int shmflg, const TCHAR*);
 int shmctl (int shmid, int cmd, struct shmid_ds *buf);
 int init_shm (void);
 

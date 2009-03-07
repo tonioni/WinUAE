@@ -73,7 +73,7 @@ static void get_time(time_t t, long *days, long *mins, long *ticks)
     *ticks = t * 50;
 }
 
-static DWORD getattr(const char *name, LPFILETIME lpft, size_t *size)
+static DWORD getattr(const TCHAR *name, LPFILETIME lpft, size_t *size)
 {
     HANDLE hFind;
     WIN32_FIND_DATA fd;
@@ -92,7 +92,7 @@ static DWORD getattr(const char *name, LPFILETIME lpft, size_t *size)
     return fd.dwFileAttributes;
 }
 
-int posixemu_stat(const char *name, struct stat *statbuf)
+int posixemu_stat(const TCHAR *name, struct stat *statbuf)
 {
     DWORD attr;
     FILETIME ft, lft;
@@ -111,7 +111,7 @@ int posixemu_stat(const char *name, struct stat *statbuf)
     return 0;
 }
 
-int posixemu_chmod(const char *name, int mode)
+int posixemu_chmod(const TCHAR *name, int mode)
 {
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     if (!(mode & FILEFLAG_WRITE))
@@ -139,7 +139,7 @@ static void tmToSystemTime(struct tm *tmtime, LPSYSTEMTIME systime)
     }
 }
 
-static int setfiletime (const char *name, unsigned int days, int minute, int tick, int tolocal)
+static int setfiletime (const TCHAR *name, unsigned int days, int minute, int tick, int tolocal)
 {
     FILETIME LocalFileTime, FileTime;
     HANDLE hFile;
@@ -162,7 +162,7 @@ static int setfiletime (const char *name, unsigned int days, int minute, int tic
     return success;
 }
 
-int posixemu_utime (const char *name, struct utimbuf *ttime)
+int posixemu_utime (const TCHAR *name, struct utimbuf *ttime)
 {
     int result = -1, tolocal;
     long days, mins, ticks;
@@ -248,7 +248,7 @@ void uae_end_thread (uae_thread_id *tid)
     }
 }
 
-int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
+int uae_start_thread (TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
 {
     HANDLE hThread;
     int result = 1;
@@ -262,10 +262,10 @@ int uae_start_thread (char *name, void *(*f)(void *), void *arg, uae_thread_id *
     if (hThread) {
 	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
 	if (name)
-	    write_log ("Thread '%s' started (%d)\n", name, hThread);
+	    write_log (L"Thread '%s' started (%d)\n", name, hThread);
     } else {
 	result = 0;
-	write_log ("Thread '%s' failed to start!?\n", name ? name : "<unknown>");
+	write_log (L"Thread '%s' failed to start!?\n", name ? name : L"<unknown>");
     }
     if (tid)
 	*tid = hThread;

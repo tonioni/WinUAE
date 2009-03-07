@@ -39,7 +39,7 @@ struct scsi_info {
     int type;
     int mediainserted;
     uae_u8 *buf;
-    char label[100];
+    TCHAR label[100];
     SCSI *handle;
     int isatapi;
     int removable;
@@ -47,7 +47,7 @@ struct scsi_info {
 static struct scsi_info si[MAX_TOTAL_DEVICES];
 static int unitcnt;
 
-static int getversion(const char *name, VS_FIXEDFILEINFO *ver)
+static int getversion(const TCHAR *name, VS_FIXEDFILEINFO *ver)
 {
     int ok = FALSE;
     DWORD  dwVersionHandle, dwFileVersionInfoSize;
@@ -63,7 +63,7 @@ static int getversion(const char *name, VS_FIXEDFILEINFO *ver)
 		    if(vsFileInfo) {
 			memcpy (ver, vsFileInfo, sizeof (*ver));
 			ok = TRUE;
-			write_log ("%s version %d.%d.%d.%d\n", name,
+			write_log (L"%s version %d.%d.%d.%d\n", name,
 			    vsFileInfo->dwFileVersionMS >> 16,
 			    vsFileInfo->dwFileVersionMS & 0xffff,
 			    vsFileInfo->dwFileVersionLS >> 16,
@@ -77,12 +77,12 @@ static int getversion(const char *name, VS_FIXEDFILEINFO *ver)
     return ok;
 }
 
-const char *get_aspi_path(int aspitype)
+const TCHAR *get_aspi_path(int aspitype)
 {
     static int nero, adaptec, frog;
-    static char path_nero[MAX_DPATH];
-    static char path_adaptec[MAX_DPATH];
-    static const char *path_frog = "FrogAspi.dll";
+    static TCHAR path_nero[MAX_DPATH];
+    static TCHAR path_adaptec[MAX_DPATH];
+    static const TCHAR *path_frog = L"FrogAspi.dll";
     VS_FIXEDFILEINFO ver;
 
     switch (aspitype)
@@ -107,11 +107,11 @@ const char *get_aspi_path(int aspitype)
 	    if (nero < 0)
 		return NULL;
 	    nero = -1;
-	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, "SOFTWARE\\Ahead\\shared", 0, KEY_READ, &key) == ERROR_SUCCESS) {
-		if (RegQueryValueEx (key, "NeroAPI", 0, &type, (LPBYTE)path_nero, &size) == ERROR_SUCCESS) {
-		    if (path_nero[strlen(path_nero) - 1] != '\\')
-			strcat (path_nero, "\\");
-		    strcat (path_nero, "wnaspi32.dll");
+	    if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, L"SOFTWARE\\Ahead\\shared", 0, KEY_READ, &key) == ERROR_SUCCESS) {
+		if (RegQueryValueEx (key, L"NeroAPI", 0, &type, (LPBYTE)path_nero, &size) == ERROR_SUCCESS) {
+		    if (path_nero[_tcslen (path_nero) - 1] != '\\')
+			_tcscat (path_nero, L"\\");
+		    _tcscat (path_nero, L"wnaspi32.dll");
 		    RegCloseKey (key);
 		    if (getversion(path_nero, &ver)) {
 			if (ver.dwFileVersionMS >= 0x20000) {
@@ -133,7 +133,7 @@ const char *get_aspi_path(int aspitype)
 	    if (adaptec < 0)
 		return NULL;
 	    adaptec = -1;
-	    strcpy (path_adaptec, "wnaspi32.dll");
+	    _tcscpy (path_adaptec, L"wnaspi32.dll");
 	    if (getversion(path_adaptec, &ver)) {
 		if (ver.dwFileVersionMS >= 0x40000 || ver.dwFileVersionMS < 0x10000) {
 		    adaptec = 1;
@@ -157,7 +157,7 @@ static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 
     Status = pfnSendASPI32Command((LPSRB)ip);
     if (log_scsi)
-	write_log ("ASPI: S=%d ha=%d, ID=%d, M='%s', Id='%s'\n",
+	write_log (L"ASPI: S=%d ha=%d, ID=%d, M='%s', Id='%s'\n",
 	    Status, ip->HA_Count, ip->HA_SCSI_ID, ip->HA_ManagerId, ip->HA_Identifier);
     if (ip->SRB_Status != SS_COMP)
 	return -1;
@@ -166,7 +166,7 @@ static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
 
 static int open_driver (SCSI *scgp)
 {
-    char path[MAX_DPATH];
+    TCHAR path[MAX_DPATH];
     DWORD astatus;
     BYTE HACount;
     BYTE ASPIStatus;
@@ -180,35 +180,35 @@ static int open_driver (SCSI *scgp)
 	return TRUE;
 
     nero = frog = 0;
-    strcpy (path, "WNASPI32");
+    _tcscpy (path, L"WNASPI32");
     if (currprefs.win32_uaescsimode == UAESCSI_NEROASPI) {
-	const char *p = get_aspi_path(1);
+	const TCHAR *p = get_aspi_path(1);
 	if (p) {
-	    strcpy (path, p);
+	    _tcscpy (path, p);
 	    nero = 1;
 	}
     } else if (currprefs.win32_uaescsimode == UAESCSI_FROGASPI) {
-	const char *p = get_aspi_path(2);
+	const TCHAR *p = get_aspi_path(2);
 	if (p) {
-	    strcpy (path, p);
+	    _tcscpy (path, p);
 	    frog = 1;
 	}
     }
     /*
      * Load the ASPI library
      */
-    write_log ("ASPI: driver location '%s'\n", path);
-    hAspiLib = LoadLibrary(path);
+    write_log (L"ASPI: driver location '%s'\n", path);
+    hAspiLib = LoadLibrary (path);
     if (hAspiLib == NULL && (nero || frog)) {
-	write_log ("ASPI: NERO/FROG ASPI failed to load, falling back to default\n");
-	hAspiLib = LoadLibrary("WNASPI32");
+	write_log (L"ASPI: NERO/FROG ASPI failed to load, falling back to default\n");
+	hAspiLib = LoadLibrary (L"WNASPI32");
     }
 
     /*
      * Check if ASPI library is loaded correctly
      */
     if (hAspiLib == NULL) {
-	write_log ("ASPI: failed to load wnaspi32.dll\n");
+	write_log (L"ASPI: failed to load wnaspi32.dll\n");
 	return FALSE;
     }
     /*
@@ -219,7 +219,7 @@ static int open_driver (SCSI *scgp)
     pfnSendASPI32Command = (DWORD(*)(LPSRB))GetProcAddress(hAspiLib, "SendASPI32Command");
 
     if (pfnGetASPI32SupportInfo == NULL || pfnSendASPI32Command == NULL) {
-	write_log ("ASPI: obsolete wnaspi32.dll found\n");
+	write_log (L"ASPI: obsolete wnaspi32.dll found\n");
 	return FALSE;
     }
 
@@ -237,15 +237,15 @@ static int open_driver (SCSI *scgp)
     ASPIStatus = HIBYTE(LOWORD(astatus));
     HACount    = LOBYTE(LOWORD(astatus));
 
-    write_log ("ASPI: open_driver %X HostASPIStatus=0x%x HACount=0x%x\n", astatus, ASPIStatus, HACount);
+    write_log (L"ASPI: open_driver %X HostASPIStatus=0x%x HACount=0x%x\n", astatus, ASPIStatus, HACount);
 
     if (ASPIStatus != SS_COMP && ASPIStatus != SS_NO_ADAPTERS) {
-	write_log ("ASPI: Could not find any host adapters, ASPIStatus == 0x%02X\n", ASPIStatus);
+	write_log (L"ASPI: Could not find any host adapters, ASPIStatus == 0x%02X\n", ASPIStatus);
 	return FALSE;
     }
     busses = HACount;
 
-    write_log ("ASPI: open_driver HostASPIStatus=0x%x HACount=0x%x\n", ASPIStatus, HACount);
+    write_log (L"ASPI: open_driver HostASPIStatus=0x%x HACount=0x%x\n", ASPIStatus, HACount);
 
     for (i=0; i < busses; i++) {
 	SRB_HAInquiry s;
@@ -361,7 +361,7 @@ static SCSI *openscsi (int busno, int tgt, int tlun)
     if (busno >= MAX_SCG || tgt >= MAX_TGT || tlun >= MAX_LUN) {
 	errno = EINVAL;
 	if (log_scsi)
-	    write_log ("ASPI: Illegal value for busno, target or lun '%d,%d,%d'\n", busno, tgt, tlun);
+	    write_log (L"ASPI: Illegal value for busno, target or lun '%d,%d,%d'\n", busno, tgt, tlun);
 	return 0;
     }
     /*
@@ -407,7 +407,7 @@ static void scsi_debug (SCSI *scgp, SRB_ExecSCSICmd *s)
 	return;
     if (scanphase)
 	return;
-    write_log ("ASPI EXEC_SCSI: bus=%d,target=%d,lun=%d\n",
+    write_log (L"ASPI EXEC_SCSI: bus=%d,target=%d,lun=%d\n",
 	s->SRB_HaId, s->SRB_Target, s->SRB_Lun);
     scsi_log_before (scgp->scmd->cdb.cmd_cdb, scgp->scmd->cdb_len,
 	(s->SRB_Flags & SRB_DIR_OUT) ? s->SRB_BufPointer : 0, s->SRB_BufLen);
@@ -493,7 +493,7 @@ static int scsiabort(SCSI *scgp, SRB_ExecSCSICmd *sp)
     SRB_Abort s;
 
     if (log_scsi)
-	write_log ("ASPI: Attempting to abort SCSI command\n");
+	write_log (L"ASPI: Attempting to abort SCSI command\n");
     /*
      * Set structure variables
      */
@@ -510,11 +510,11 @@ static int scsiabort(SCSI *scgp, SRB_ExecSCSICmd *sp)
      */
     if (s.SRB_Status != SS_COMP) {
 	if (log_scsi)
-	    write_log ("ASPI: Abort ERROR! 0x%08X\n", s.SRB_Status);
+	    write_log (L"ASPI: Abort ERROR! 0x%08X\n", s.SRB_Status);
 	return FALSE;
     }
     if (log_scsi)
-	write_log ("ASPI: Abort SCSI command completed\n");
+	write_log (L"ASPI: Abort SCSI command completed\n");
     /*
      * Everything went OK
      */
@@ -546,7 +546,7 @@ static int scsicmd(SCSI *scgp)
 	sp->error = SCG_FATAL;
 	sp->ux_errno = EINVAL;
 	if (log_scsi)
-	    write_log ("ASPI: sp->cdb_len > sizeof(SRB_ExecSCSICmd.CDBByte). Fatal error in scgo_send, exiting...\n");
+	    write_log (L"ASPI: sp->cdb_len > sizeof(SRB_ExecSCSICmd.CDBByte). Fatal error in scgo_send, exiting...\n");
 	return -1;
     }
     /*
@@ -619,11 +619,11 @@ static int scsicmd(SCSI *scgp)
 
     if (s.SRB_Status != SS_COMP) {
 	if (log_scsi && s.SRB_Status != 0x82)
-	    write_log ("ASPI: Error in scgo_send: s.SRB_Status is 0x%x\n", s.SRB_Status);
+	    write_log (L"ASPI: Error in scgo_send: s.SRB_Status is 0x%x\n", s.SRB_Status);
 	set_error(&s, sp); /* Set error flags */
 	copy_sensedata(&s, sp); /* Copy sense and status */
 	if (log_scsi && s.SRB_Status != 0x82)
-	    write_log ("ASPI: Mapped to: error %d errno: %d\n", sp->error, sp->ux_errno);
+	    write_log (L"ASPI: Mapped to: error %d errno: %d\n", sp->error, sp->ux_errno);
 	return 1;
     }
     /*
@@ -658,7 +658,7 @@ static int scsierr(SCSI *scgp)
     register struct scg_cmd *cp = scgp->scmd;
 
     if(cp->error != SCG_NO_ERROR ||
-       cp->ux_errno != 0 || *(u_char *)&cp->scb != 0)
+       cp->ux_errno != 0 || *(u_char*)&cp->scb != 0)
 	return -1;
     return 0;
 }
@@ -666,7 +666,7 @@ static int scsierr(SCSI *scgp)
 static void scan_scsi_bus (SCSI *scgp, int flags)
 {
     /* add all units we find */
-    write_log ("ASPI: SCSI scan starting..\n");
+    write_log (L"ASPI: SCSI scan starting..\n");
     scanphase = 1;
     for (scgp->addr.scsibus=0; scgp->addr.scsibus < 8; scgp->addr.scsibus++) {
 	if (!scsi_havebus(scgp, scgp->addr.scsibus))
@@ -678,29 +678,29 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 		continue;
 	    for (scgp->addr.lun=0; scgp->addr.lun < 8; scgp->addr.lun++) {
 		if (!inquiry (scgp, &inq, sizeof(inq))) {
-		    write_log ("ASPI: %d:%d:%d ", scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun);
-		    write_log ("'%.8s' ", inq.vendor_info);
-		    write_log ("'%.16s' ", inq.prod_ident);
-		    write_log ("'%.4s' ", inq.prod_revision);
+		    write_log (L"ASPI: %d:%d:%d ", scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun);
+		    write_log (L"'%.8s' ", inq.vendor_info);
+		    write_log (L"'%.16s' ", inq.prod_ident);
+		    write_log (L"'%.4s' ", inq.prod_revision);
 		    if (unitcnt < MAX_TOTAL_DEVICES) {
 			struct scsi_info *cis = &si[unitcnt];
 			int use = 0;
-			write_log ("[");
+			write_log (L"[");
 			if (inq.type == INQ_ROMD) {
-			    write_log ("CDROM");
+			    write_log (L"CDROM");
 			    use = 1;
 			} else if ((inq.type >= INQ_SEQD && inq.type < INQ_COMM && aspi_allow_misc) || aspi_allow_all) {
-			    write_log ("%d", inq.type);
+			    write_log (L"%d", inq.type);
 			    use = 1;
 			} else {
-			    write_log ("<%d>", inq.type);
+			    write_log (L"<%d>", inq.type);
 			}
 			if (inq.ansi_version == 0) {
-			    write_log (",ATAPI");
+			    write_log (L",ATAPI");
 			    cis->isatapi = 1;
 			} else
-			    write_log (",SCSI");
-			write_log ("]");
+			    write_log (L",SCSI");
+			write_log (L"]");
 			if (use) {
 			    unitcnt++;
 			    cis->buf = malloc (DEVICE_SCSI_BUFSIZE);
@@ -709,15 +709,15 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 			    cis->lun = scgp->addr.lun;
 			    cis->type = inq.type;
 			    cis->removable = inq.removable;
-			    sprintf (cis->label, "%.8s %.16s %.4s", inq.vendor_info, inq.prod_ident, inq.prod_revision);
+			    _stprintf (cis->label, L"%.8s %.16s %.4s", inq.vendor_info, inq.prod_ident, inq.prod_revision);
 			}
 		    }
-		    write_log ("\n");
+		    write_log (L"\n");
 		}
 	    }
 	}
     }
-    write_log ("ASPI: SCSI scan ended\n");
+    write_log (L"ASPI: SCSI scan ended\n");
     scanphase = 0;
 }
 
@@ -843,12 +843,12 @@ static int open_scsi_device (int unitnum)
     if (unitnum >= unitcnt)
 	return 0;
     if (log_scsi)
-	write_log ("ASPI: opening %d:%d:%d (%d)\n", si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun, unitnum);
+	write_log (L"ASPI: opening %d:%d:%d (%d)\n", si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun, unitnum);
     si[unitnum].handle = openscsi (si[unitnum].scsibus, si[unitnum].target, si[unitnum].lun);
     if (si[unitnum].handle)
 	si[unitnum].mediainserted = mediacheck (unitnum);
     if (log_scsi)
-	write_log ("unit %d: %s\n", unitnum, si[unitnum].mediainserted ? "CD inserted" : "Drive empty");
+	write_log (L"unit %d: %s\n", unitnum, si[unitnum].mediainserted ? "CD inserted" : "Drive empty");
     return si[unitnum].handle ? 1 : 0;
 }
 
@@ -949,15 +949,15 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     mediacheck_full (unitnum, di);
     di->id = unitnum + 1;
     di->removable = sif->removable;
-    strcpy (di->label, sif->label);
+    _tcscpy (di->label, sif->label);
     if (log_scsi) {
-	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
+	write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
 	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);
     }
     return di;
 }
 
-void win32_aspi_media_change (char driveletter, int insert)
+void win32_aspi_media_change (TCHAR driveletter, int insert)
 {
     int i, now;
 
@@ -965,7 +965,7 @@ void win32_aspi_media_change (char driveletter, int insert)
 	if (si[i].type == INQ_ROMD) {
 	    now = mediacheck (i);
 	    if (now != si[i].mediainserted) {
-		write_log ("ASPI: media change %c %d\n", driveletter, insert);
+		write_log (L"ASPI: media change %c %d\n", driveletter, insert);
 		si[i].mediainserted = now;
 		scsi_do_disk_change (i + 1, insert);
 	    }

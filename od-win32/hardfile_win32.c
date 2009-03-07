@@ -32,12 +32,12 @@
 static int usefloppydrives = 0;
 
 struct uae_driveinfo {
-    char vendor_id[128];
-    char product_id[128];
-    char product_rev[128];
-    char product_serial[128];
-    char device_name[2048];
-    char device_path[2048];
+    TCHAR vendor_id[128];
+    TCHAR product_id[128];
+    TCHAR product_rev[128];
+    TCHAR product_serial[128];
+    TCHAR device_name[2048];
+    TCHAR device_path[2048];
     uae_u64 size;
     uae_u64 offset;
     int bytespersector;
@@ -77,14 +77,14 @@ static void rdbdump (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 {
     static int cnt = 1;
     int i, blocks;
-    char name[100];
+    TCHAR name[100];
     FILE *f;
 
     blocks = (buf[132] << 24) | (buf[133] << 16) | (buf[134] << 8) | (buf[135] << 0);
     if (blocks < 0 || blocks > 100000)
 	return;
-    sprintf (name, "rdb_dump_%d.rdb", cnt);
-    f = fopen (name, "wb");
+    _stprintf (name, L"rdb_dump_%d.rdb", cnt);
+    f = _tfopen (name, L"wb");
     if (!f)
 	return;
     for (i = 0; i <= blocks; i++) {
@@ -109,24 +109,24 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
     for (j = 0; j < blocks; j++) {
 	high = (DWORD)(offset >> 32);
 	if (SetFilePointer (h, (DWORD)offset, &high, FILE_BEGIN) == INVALID_FILE_SIZE) {
-	    write_log ("hd ignored, SetFilePointer failed, error %d\n", GetLastError());
+	    write_log (L"hd ignored, SetFilePointer failed, error %d\n", GetLastError());
 	    return 1;
 	}
 	memset (buf, 0xaa, blocksize);
 	ReadFile (h, buf, blocksize, &outlen, NULL);
 	if (outlen != blocksize) {
-	    write_log ("hd ignored, read error %d!\n", GetLastError());
+	    write_log (L"hd ignored, read error %d!\n", GetLastError());
 	    return 2;
 	}
 	if (!memcmp (buf, "RDSK", 4)) {
 	    if (do_rdbdump)
 		rdbdump (h, offset, buf, blocksize);
-	    write_log ("hd accepted (rdb detected at block %d)\n", j);
+	    write_log (L"hd accepted (rdb detected at block %d)\n", j);
 	    return -1;
 	}
 
 	if (!memcmp (buf + 2, "CIS@", 4) && !memcmp (buf + 16, CA, strlen (CA))) {
-	    write_log ("hd accepted (PCMCIA RAM)\n");
+	    write_log (L"hd accepted (PCMCIA RAM)\n");
 	    return -2;
 	}
 	if (j == 0) {
@@ -138,40 +138,40 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	offset += blocksize;
     }
     if (!empty) {
-	write_log ("hd ignored, not empty and no RDB detected\n");
+	write_log (L"hd ignored, not empty and no RDB detected\n");
 	return 0;
     }
-    write_log ("hd accepted (empty)\n");
+    write_log (L"hd accepted (empty)\n");
     return -9;
 }
 
 
-static void trim (char *s)
+static void trim (TCHAR *s)
 {
-    while(strlen(s) > 0 && s[strlen(s) - 1] == ' ')
-	s[strlen(s) - 1] = 0;
+    while(_tcslen(s) > 0 && s[_tcslen(s) - 1] == ' ')
+	s[_tcslen(s) - 1] = 0;
 }
 
-int isharddrive (const char *name)
+int isharddrive (const TCHAR *name)
 {
     int i;
 
     for (i = 0; i < hdf_getnumharddrives (); i++) {
-	if (!strcmp (uae_drives[i].device_name, name))
+	if (!_tcscmp (uae_drives[i].device_name, name))
 	    return i;
     }
     return -1;
 }
 
-static char *hdz[] = { "hdz", "zip", "rar", "7z", NULL };
+static TCHAR *hdz[] = { L"hdz", L"zip", L"rar", L"7z", NULL };
 
-int hdf_open_target (struct hardfiledata *hfd, const char *pname)
+int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 {
     HANDLE h = INVALID_HANDLE_VALUE;
     DWORD flags;
     int i;
     struct uae_driveinfo *udi;
-    char *name = my_strdup (pname);
+    TCHAR *name = my_strdup (pname);
 
     hfd->flags = 0;
     hfd->drive_empty = 0;
@@ -181,11 +181,11 @@ int hdf_open_target (struct hardfiledata *hfd, const char *pname)
     hfd->virtual_size = 0;
     hfd->virtual_rdb = NULL;
     if (!hfd->cache) {
-	write_log ("VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError());
+	write_log (L"VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError());
 	goto end;
     }
-    hfd_log ("hfd open: '%s'\n", name);
-    if (strlen (name) > 4 && !memcmp (name, "HD_", 3)) {
+    hfd_log (L"hfd open: '%s'\n", name);
+    if (_tcslen (name) > 4 && !_tcsncmp (name, L"HD_", 3)) {
 	hdf_init_target ();
 	i = isharddrive (name);
 	if (i >= 0) {
@@ -205,10 +205,10 @@ int hdf_open_target (struct hardfiledata *hfd, const char *pname)
 	    if (h == INVALID_HANDLE_VALUE)
 		goto end;
 	    if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
-		write_log ("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", name, GetLastError());
-	    strncpy (hfd->vendor_id, udi->vendor_id, 8);
-	    strncpy (hfd->product_id, udi->product_id, 16);
-	    strncpy (hfd->product_rev, udi->product_rev, 4);
+		write_log (L"WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", name, GetLastError());
+	    _tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
+	    _tcsncpy (hfd->product_id, udi->product_id, 16);
+	    _tcsncpy (hfd->product_rev, udi->product_rev, 4);
 	    hfd->offset = udi->offset;
 	    hfd->physsize = hfd->virtsize = udi->size;
 	    hfd->blocksize = udi->bytespersector;
@@ -240,23 +240,23 @@ int hdf_open_target (struct hardfiledata *hfd, const char *pname)
 	}
     } else {
 	int zmode = 0;
-	char *ext = strrchr (name, '.');
+	TCHAR *ext = _tcsrchr (name, '.');
 	if (ext != NULL) {
 	    ext++;
 	    for (i = 0; hdz[i]; i++) {
-		if (!stricmp (ext, hdz[i]))
+		if (!_tcsicmp (ext, hdz[i]))
 		    zmode = 1;
 	    }
 	}
 	h = CreateFile (name, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), hfd->readonly ? FILE_SHARE_READ : 0, NULL,
 	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 	hfd->handle = h;
-	i = strlen (name) - 1;
+	i = _tcslen (name) - 1;
 	while (i >= 0) {
 	    if ((i > 0 && (name[i - 1] == '/' || name[i - 1] == '\\')) || i == 0) {
-		strcpy (hfd->vendor_id, "UAE");
-		strncpy (hfd->product_id, name + i, 15);
-		strcpy (hfd->product_rev, "0.3");
+		_tcscpy (hfd->vendor_id, L"UAE");
+		_tcsncpy (hfd->product_id, name + i, 15);
+		_tcscpy (hfd->product_rev, L"0.3");
 		break;
 	    }
 	    i--;
@@ -274,9 +274,9 @@ int hdf_open_target (struct hardfiledata *hfd, const char *pname)
 	    hfd->physsize = hfd->virtsize = ((uae_u64)high << 32) | low;
 	    hfd->handle_valid = HDF_HANDLE_WIN32;
 	    if (hfd->physsize < 64 * 1024 * 1024 && zmode) {
-		write_log ("HDF '%s' re-opened in zfile-mode\n", name);
+		write_log (L"HDF '%s' re-opened in zfile-mode\n", name);
 		CloseHandle (h);
-		hfd->handle = h = zfile_fopen(name, hfd->readonly ? "rb" : "r+b");
+		hfd->handle = h = zfile_fopen(name, hfd->readonly ? L"rb" : L"r+b");
 		if (!h)
 		    goto end;
 		zfile_fseek (h, 0, SEEK_END);
@@ -285,12 +285,12 @@ int hdf_open_target (struct hardfiledata *hfd, const char *pname)
 		hfd->handle_valid = HDF_HANDLE_ZFILE;
 	    }
 	} else {
-	    write_log ("HDF '%s' failed to open. error = %d\n", name, GetLastError ());
+	    write_log (L"HDF '%s' failed to open. error = %d\n", name, GetLastError ());
 	}
     }
     hfd->handle = h;
     if (hfd->handle_valid || hfd->drive_empty) {
-	hfd_log ("HDF '%s' opened, size=%dK mode=%d empty=%d\n",
+	hfd_log (L"HDF '%s' opened, size=%dK mode=%d empty=%d\n",
 	    name, hfd->physsize / 1024, hfd->handle_valid, hfd->drive_empty);
 	return 1;
     }
@@ -356,16 +356,16 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
     DWORD high, ret;
 
     if (hfd->handle_valid == 0) {
-	gui_message ("hd: hdf handle is not valid. bug.");
+	gui_message (L"hd: hdf handle is not valid. bug.");
 	abort();
     }
     if (offset >= hfd->physsize - hfd->virtual_size) {
-	gui_message ("hd: tried to seek out of bounds! (%I64X >= %I64X)\n", offset, hfd->physsize);
+	gui_message (L"hd: tried to seek out of bounds! (%I64X >= %I64X)\n", offset, hfd->physsize);
 	abort ();
     }
     offset += hfd->offset;
     if (offset & (hfd->blocksize - 1)) {
-	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X)\n",
+	gui_message (L"hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X)\n",
 	    offset, hfd->blocksize, offset & (hfd->blocksize - 1));
 	abort ();
     }
@@ -390,7 +390,7 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	ret = SetFilePointer (hfd->handle, 0, &high, FILE_CURRENT);
 	err = GetLastError ();
 	if (ret == INVALID_FILE_SIZE && err != NO_ERROR) {
-	    gui_message ("hd: poscheck failed. seek failure, error %d", err);
+	    gui_message (L"hd: poscheck failed. seek failure, error %d", err);
 	    abort ();
 	}
 	pos = ((uae_u64)high) << 32 | ret;
@@ -398,19 +398,19 @@ static void poscheck (struct hardfiledata *hfd, int len)
 	pos = zfile_ftell (hfd->handle);
     }
     if (len < 0) {
-	gui_message ("hd: poscheck failed, negative length! (%d)", len);
+	gui_message (L"hd: poscheck failed, negative length! (%d)", len);
 	abort ();
     }
     if (pos < hfd->offset) {
-	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d < %I64d)", pos, hfd->offset);
+	gui_message (L"hd: poscheck failed, offset out of bounds! (%I64d < %I64d)", pos, hfd->offset);
 	abort ();
     }
     if (pos >= hfd->offset + hfd->physsize - hfd->virtual_size || pos >= hfd->offset + hfd->physsize + len - hfd->virtual_size) {
-	gui_message ("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)", pos, hfd->offset + hfd->physsize, len);
+	gui_message (L"hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)", pos, hfd->offset + hfd->physsize, len);
 	abort ();
     }
     if (pos & (hfd->blocksize - 1)) {
-	gui_message ("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n", pos, hfd->blocksize, pos & hfd->blocksize);
+	gui_message (L"hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n", pos, hfd->blocksize, pos & hfd->blocksize);
 	abort ();
     }
 }
@@ -560,7 +560,7 @@ static int hdf_read_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 	memcpy (buffer, hfd->cache + coffset, len);
 	return len;
     }
-    write_log ("hdf_read: cache bug! offset=%I64d len=%d\n", offset, len);
+    write_log (L"hdf_read: cache bug! offset=%I64d len=%d\n", offset, len);
     hfd->cache_valid = 0;
     return 0;
 }
@@ -671,17 +671,17 @@ int hdf_resize_target (struct hardfiledata *hfd, uae_u64 newsize)
 
 static void generatestorageproperty (struct uae_driveinfo *udi, int ignoreduplicates)
 {
-    strcpy (udi->vendor_id, "UAE");
-    strcpy (udi->product_id, "DISK");
-    strcpy (udi->product_rev, "1.0");
-    sprintf (udi->device_name, "%s", udi->device_path);
+    _tcscpy (udi->vendor_id, L"UAE");
+    _tcscpy (udi->product_id, L"DISK");
+    _tcscpy (udi->product_rev, L"1.0");
+    _stprintf (udi->device_name, L"%s", udi->device_path);
     udi->removablemedia = 1;
 }
 
 static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_driveinfo *udi, int ignoreduplicates)
 {
     PSTORAGE_DEVICE_DESCRIPTOR devDesc;
-    char orgname[1024];
+    TCHAR orgname[1024];
     PUCHAR p;
     int i, j;
     int size;
@@ -690,11 +690,11 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
     size = devDesc->Version;
     p = (PUCHAR) outBuf;
     if (offsetof(STORAGE_DEVICE_DESCRIPTOR, CommandQueueing) > size) {
-	write_log ("too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n", size);
+	write_log (L"too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n", size);
 	return 1;
     }
     if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
-        write_log ("not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
+        write_log (L"not a direct access device, ignored (type=%d)\n", devDesc->DeviceType);
         return 1;
     }
     if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
@@ -718,50 +718,50 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 	    udi->product_serial[j++] = p[i];
     }
     if (udi->vendor_id[0])
-        strcat (udi->device_name, udi->vendor_id);
+        _tcscat (udi->device_name, udi->vendor_id);
     if (udi->product_id[0]) {
         if (udi->device_name[0])
-	    strcat (udi->device_name, " ");
-	strcat (udi->device_name, udi->product_id);
+	    _tcscat (udi->device_name, L" ");
+	_tcscat (udi->device_name, udi->product_id);
     }
     if (udi->product_rev[0]) {
         if (udi->device_name[0])
-	    strcat (udi->device_name, " ");
-	strcat (udi->device_name, udi->product_rev);
+	    _tcscat (udi->device_name, L" ");
+	_tcscat (udi->device_name, udi->product_rev);
     }
     if (udi->product_serial[0]) {
         if (udi->device_name[0])
-	    strcat (udi->device_name, " ");
-	strcat (udi->device_name, udi->product_serial);
+	    _tcscat (udi->device_name, L" ");
+	_tcscat (udi->device_name, udi->product_serial);
     }
     if (!udi->device_name[0]) {
-        write_log ("empty device id?!?, replacing with device path\n");
-        strcpy (udi->device_name, udi->device_path);
+        write_log (L"empty device id?!?, replacing with device path\n");
+        _tcscpy (udi->device_name, udi->device_path);
     }
     udi->removablemedia = devDesc->RemovableMedia;
-    write_log ("device id string: '%s'\n", udi->device_name);
+    write_log (L"device id string: '%s'\n", udi->device_name);
     if (ignoreduplicates) {
-	sprintf (orgname, "HD_%s", udi->device_name);
+	_stprintf (orgname, L"HD_%s", udi->device_name);
 	if (isharddrive (orgname) >= 0) {
-	    write_log ("duplicate device, ignored\n");
+	    write_log (L"duplicate device, ignored\n");
 	    return 1;
 	}
 	if (!udi->removablemedia) {
-	    write_log ("drive letter not removable, ignored\n");
+	    write_log (L"drive letter not removable, ignored\n");
 	    return 1;
 	}
     }
     return 0;
 }
 
-static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
+static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
 {
     int i, nosp;
     int ret = -1;
     STORAGE_PROPERTY_QUERY query;
     DRIVE_LAYOUT_INFORMATION		*dli;
     struct uae_driveinfo *udi;
-    char orgname[1024];
+    TCHAR orgname[1024];
     HANDLE hDevice = INVALID_HANDLE_VALUE;
     UCHAR outBuf[20000];
     DISK_GEOMETRY			dg;
@@ -779,8 +779,8 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 
     udi = &uae_drives[*index2];
     memset (udi, 0, sizeof (struct uae_driveinfo));
-    strcpy (udi->device_path, DevicePath);
-    write_log ("opening device '%s'\n", udi->device_path);
+    _tcscpy (udi->device_path, DevicePath);
+    write_log (L"opening device '%s'\n", udi->device_path);
     hDevice = CreateFile(
 		udi->device_path,    // device interface name
 		GENERIC_READ | GENERIC_WRITE,       // dwDesiredAccess
@@ -798,7 +798,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 
 
     if (hDevice == INVALID_HANDLE_VALUE) {
-	write_log ("CreateFile failed with error: %d\n", GetLastError());
+	write_log (L"CreateFile failed with error: %d\n", GetLastError());
 	ret = 1;
 	goto end;
     }
@@ -817,7 +817,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 			NULL
 			);
     if (!status) {
-	write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", GetLastError());
+	write_log (L"IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", GetLastError());
     } else {
         adpDesc = (PSTORAGE_ADAPTER_DESCRIPTOR) outBuf;
     }
@@ -836,7 +836,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 			NULL);
     if (!status) {
 	DWORD err = GetLastError ();
-        write_log ("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", err);
+        write_log (L"IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n", err);
 	if (err != ERROR_INVALID_FUNCTION) {
 	    ret = 1;
 	    goto end;
@@ -852,7 +852,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	    goto end;
 	}
     }
-    strcpy (orgname, udi->device_name);
+    _tcscpy (orgname, udi->device_name);
     udi->bytespersector = 512;
     if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 	DWORD err = GetLastError();
@@ -860,7 +860,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	    udi->nomedia = 1;
 	    goto amipartfound;
 	}
-	write_log ("IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n", err);
+	write_log (L"IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n", err);
 	ret = 1;
 	goto end;
     }
@@ -874,29 +874,29 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
     gli_ok = 1;
     if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
 	gli_ok = 0;
-	write_log ("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n", GetLastError());
+	write_log (L"IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n", GetLastError());
 	if (!nosp)
-	    write_log ("IOCTL_DISK_GET_LENGTH_INFO not supported, detected disk size may not be correct.\n");
+	    write_log (L"IOCTL_DISK_GET_LENGTH_INFO not supported, detected disk size may not be correct.\n");
     }
     udi->bytespersector = dg.BytesPerSector;
     if (dg.BytesPerSector < 512) {
-	write_log ("unsupported blocksize < 512 (%d)\n", dg.BytesPerSector);
+	write_log (L"unsupported blocksize < 512 (%d)\n", dg.BytesPerSector);
 	ret = 1;
 	goto end;
     }
     if (dg.BytesPerSector > 2048) {
-	write_log ("unsupported blocksize > 2048 (%d)\n", dg.BytesPerSector);
+	write_log (L"unsupported blocksize > 2048 (%d)\n", dg.BytesPerSector);
 	ret = 1;
 	goto end;
     }
     udi->offset = 0;
-    write_log ("BPS=%d Cyls=%I64d TPC=%d SPT=%d MediaType=%d\n",
+    write_log (L"BPS=%d Cyls=%I64d TPC=%d SPT=%d MediaType=%d\n",
 	dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack, dg.MediaType);
     udi->size = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
 	(uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
     if (gli_ok)
 	udi->size = gli.Length.QuadPart;
-    write_log ("device size %I64d (0x%I64x) bytes\n", udi->size, udi->size);
+    write_log (L"device size %I64d (0x%I64x) bytes\n", udi->size, udi->size);
     trim (orgname);
 
     memset (outBuf, 0, sizeof (outBuf));
@@ -904,7 +904,7 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	&outBuf, sizeof (outBuf), &returnedLength, NULL);
     if (!status) {
 	DWORD err = GetLastError();
-	write_log ("IOCTL_DISK_GET_DRIVE_LAYOUT failed with error code %d.\n", err);
+	write_log (L"IOCTL_DISK_GET_DRIVE_LAYOUT failed with error code %d.\n", err);
 	if (err != ERROR_INVALID_FUNCTION) {
 	    ret = 1;
 	    goto end;
@@ -917,28 +917,28 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	int nonzeropart = 0;
 	int gotpart = 0;
 	int safepart = 0;
-	write_log ("%d MBR partitions found\n", dli->PartitionCount);
+	write_log (L"%d MBR partitions found\n", dli->PartitionCount);
 	for (i = 0; i < dli->PartitionCount && (*index2) < MAX_FILESYSTEM_UNITS; i++) {
 	    PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
 	    if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
 		continue;
-	    write_log ("%d: num: %d type: %02X offset: %I64d size: %I64d, ", i, pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
+	    write_log (L"%d: num: %d type: %02X offset: %I64d size: %I64d, ", i, pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
 	    if (pi->RecognizedPartition == 0) {
-		write_log ("unrecognized\n");
+		write_log (L"unrecognized\n");
 		continue;
 	    }
 	    nonzeropart++;
 	    if (pi->PartitionType != 0x76) {
-		write_log ("type not 0x76\n");
+		write_log (L"type not 0x76\n");
 		continue;
 	    }
 	    memmove (udi, udi2, sizeof (*udi));
 	    udi->device_name[0] = 0;
 	    udi->offset = pi->StartingOffset.QuadPart;
 	    udi->size = pi->PartitionLength.QuadPart;
-	    write_log ("used\n");
+	    write_log (L"used\n");
 	    if (safetycheck (hDevice, udi->offset, buffer, dg.BytesPerSector) <= 0) {
-		sprintf (udi->device_name, "HD_P#%d_%s", pi->PartitionNumber, orgname);
+		_stprintf (udi->device_name, L"HD_P#%d_%s", pi->PartitionNumber, orgname);
 		udi++;
 		(*index2)++;
 		safepart = 1;
@@ -946,24 +946,24 @@ static BOOL GetDevicePropertyFromName(const char *DevicePath, DWORD Index, DWORD
 	    gotpart = 1;
 	}
 	if (!nonzeropart) {
-	    write_log ("empty MBR partition table detected, checking for RDB\n");
+	    write_log (L"empty MBR partition table detected, checking for RDB\n");
 	} else if (!gotpart) {
-	    write_log ("non-empty MBR partition table detected, doing RDB check anyway\n");
+	    write_log (L"non-empty MBR partition table detected, doing RDB check anyway\n");
 	} else if (safepart) {
 	    goto amipartfound; /* ugly but bleh.. */
 	}
     } else {
-	write_log ("no MBR partition table detected, checking for RDB\n");
+	write_log (L"no MBR partition table detected, checking for RDB\n");
     }
 
     udi->dangerous = safetycheck (hDevice, 0, buffer, dg.BytesPerSector);
     if (udi->dangerous > 0)
 	goto end;
 amipartfound:
-    sprintf (udi->device_name, "HD_%s", orgname);
+    _stprintf (udi->device_name, L"HD_%s", orgname);
     {
 	int cnt = 1;
-	int off = strlen (udi->device_name);
+	int off = _tcslen (udi->device_name);
 	while (isharddrive (udi->device_name) >= 0) {
 	    udi->device_name[off] = '_';
 	    udi->device_name[off + 1] = cnt + '0';
@@ -1022,7 +1022,7 @@ Return Value:
     if (status == FALSE) {
 	errorCode = GetLastError();
 	if (errorCode != ERROR_NO_MORE_ITEMS) {
-	    write_log ("SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
+	    write_log (L"SetupDiEnumDeviceInterfaces failed with error: %d\n", errorCode);
 	}
 	ret = 0;
 	goto end;
@@ -1050,7 +1050,7 @@ Return Value:
     if (status == FALSE) {
 	errorCode = GetLastError();
 	if (errorCode != ERROR_INSUFFICIENT_BUFFER) {
-	    write_log ("SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
+	    write_log (L"SetupDiGetDeviceInterfaceDetail failed with error: %d\n", errorCode);
 	    ret = 0;
 	    goto end;
 	}
@@ -1064,7 +1064,7 @@ Return Value:
     interfaceDetailDataSize = reqSize;
     interfaceDetailData = malloc (interfaceDetailDataSize);
     if (interfaceDetailData == NULL) {
-	write_log ("Unable to allocate memory to get the interface detail data.\n");
+	write_log (L"Unable to allocate memory to get the interface detail data.\n");
 	ret = 0;
 	goto end;
     }
@@ -1079,7 +1079,7 @@ Return Value:
 		  NULL);                    // Interface device info
 
     if (status == FALSE) {
-	write_log ("Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
+	write_log (L"Error in SetupDiGetDeviceInterfaceDetail failed with error: %d\n", GetLastError());
 	ret = 0;
 	goto end;
     }
@@ -1133,12 +1133,12 @@ static int hdf_init2 (int force)
 	dwDriveMask = GetLogicalDrives();
         for(drive = 'A'; drive <= 'Z'; drive++) {
 	    if((dwDriveMask & 1) && (drive >= 'C' || usefloppydrives)) {
-		char tmp1[20], tmp2[20];
+		TCHAR tmp1[20], tmp2[20];
 		DWORD drivetype;
-		sprintf (tmp1, "%c:\\", drive);
+		_stprintf (tmp1, L"%c:\\", drive);
 		drivetype = GetDriveType(tmp1);
 		if (drivetype != DRIVE_REMOTE) {
-		    sprintf (tmp2, "\\\\.\\%c:", drive);
+		    _stprintf (tmp2, L"\\\\.\\%c:", drive);
 		    GetDevicePropertyFromName (tmp2, index, &index2, buffer, 1);
 		    num_drives = index2;
 		}
@@ -1160,7 +1160,7 @@ static int hdf_init2 (int force)
 	VirtualFree (buffer, 0, MEM_RELEASE);
     }
     num_drives = index2;
-    write_log ("Drive scan result: %d Amiga formatted drives detected\n", num_drives);
+    write_log (L"Drive scan result: %d Amiga formatted drives detected\n", num_drives);
 #endif
     return num_drives;
 }
@@ -1175,49 +1175,49 @@ int hdf_getnumharddrives (void)
     return num_drives;
 }
 
-char *hdf_getnameharddrive (int index, int flags, int *sectorsize)
+TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize)
 {
-    static char name[512];
-    char tmp[32];
+    static TCHAR name[512];
+    TCHAR tmp[32];
     uae_u64 size = uae_drives[index].size;
     int nomedia = uae_drives[index].nomedia;
-    char *dang = "?";
-    char *rw = "RW";
+    TCHAR *dang = L"?";
+    TCHAR *rw = L"RW";
 
     switch (uae_drives[index].dangerous)
     {
 	case -9:
-	dang = "Empty";
+	dang = L"Empty";
 	break;
 	case -2:
-	dang = "SRAM";
+	dang = L"SRAM";
 	break;
 	case -1:
-	dang = "RDB";
+	dang = L"RDB";
 	break;
 	case 0:
-	dang = "NON-EMPTY";
+	dang = L"NON-EMPTY";
 	break;
     }
     if (nomedia)	
-	dang = "NO MEDIA";
+	dang = L"NO MEDIA";
     if (uae_drives[index].readonly)
-	rw = "RO";
+	rw = L"RO";
 
     if (sectorsize)
 	*sectorsize = uae_drives[index].bytespersector;
     if (flags & 1) {
 	if (nomedia) {
-	    strcpy (tmp, "N/A");
+	    _tcscpy (tmp, L"N/A");
 	} else {
 	    if (size >= 1024 * 1024 * 1024)
-		sprintf (tmp, "%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
+		_stprintf (tmp, L"%.1fG", ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
 	    else if (size < 10 * 1024 * 1024)
-		sprintf (tmp, "%dK", size / 1024);
+		_stprintf (tmp, L"%dK", size / 1024);
 	    else
-		sprintf (tmp, "%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
+		_stprintf (tmp, L"%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
 	}
-	sprintf (name, "%10s [%s,%s] %s", dang, tmp, rw, uae_drives[index].device_name + 3);
+	_stprintf (name, L"%10s [%s,%s] %s", dang, tmp, rw, uae_drives[index].device_name + 3);
 	return name;
     }
     if (flags & 2)
@@ -1233,7 +1233,7 @@ static int hmc (struct hardfiledata *hfd)
 
     while (hfd->handle_valid) {
 	DWORD errormode;
-	write_log ("testing if %s has media inserted\n", hfd->emptyname);
+	write_log (L"testing if %s has media inserted\n", hfd->emptyname);
 	status = 0;
 	errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 	SetFilePointer (hfd->handle, 0, NULL, FILE_BEGIN);
@@ -1242,14 +1242,14 @@ static int hmc (struct hardfiledata *hfd)
 	SetErrorMode(errormode);
 	if (ret) {
 	    if (got == hfd->blocksize) {
-		write_log ("read ok (%d)\n", got);
+		write_log (L"read ok (%d)\n", got);
 	    } else {
-		write_log ("read ok but no data (%d)\n", hfd->blocksize);
+		write_log (L"read ok but no data (%d)\n", hfd->blocksize);
 		ret = 0;
 		err = 0;
 	    }
 	} else {
-	    write_log ("=%d\n", err);
+	    write_log (L"=%d\n", err);
 	}
 	if (!ret && (err == ERROR_DEV_NOT_EXIST || err == ERROR_WRONG_DISK)) {
 	    if (!first)
@@ -1271,7 +1271,7 @@ static int hmc (struct hardfiledata *hfd)
 	status = -1;
 end:
     xfree (buf);
-    write_log("hmc returned %d\n", status);
+    write_log (L"hmc returned %d\n", status);
     return status;
 }
 
@@ -1279,7 +1279,7 @@ int hardfile_remount (int nr);
 
 
 static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci, int *rescanned, int *reopen,
-		       int *gotinsert, const char *drvname, int inserted)
+		       int *gotinsert, const TCHAR *drvname, int inserted)
 {
     int ret;
 
@@ -1289,14 +1289,14 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
 	hdf_init2 (1);
 	*rescanned = 1;
     }
-    if (hfd->emptyname && strlen (hfd->emptyname) >= 6 && drvname && strlen (drvname) == 3 && drvname[1] == ':' && drvname[2] == '\\' && !inserted) { /* drive letter check */
-	char tmp[10], *p;
-	sprintf (tmp, "\\\\.\\%c:", drvname[0]);
-	p = hfd->emptyname + strlen (hfd->emptyname) - 6;
-	write_log("workaround-remove test: '%s' and '%s'\n", p, drvname);
-	if (!strcmp (tmp, p)) {
-	    char *en = my_strdup (hfd->emptyname);
-	    write_log ("workaround-remove done\n");
+    if (hfd->emptyname && _tcslen (hfd->emptyname) >= 6 && drvname && _tcslen (drvname) == 3 && drvname[1] == ':' && drvname[2] == '\\' && !inserted) { /* drive letter check */
+	TCHAR tmp[10], *p;
+	_stprintf (tmp, L"\\\\.\\%c:", drvname[0]);
+	p = hfd->emptyname + _tcslen (hfd->emptyname) - 6;
+	write_log( L"workaround-remove test: '%s' and '%s'\n", p, drvname);
+	if (!_tcscmp (tmp, p)) {
+	    TCHAR *en = my_strdup (hfd->emptyname);
+	    write_log (L"workaround-remove done\n");
 	    hdf_close (hfd);
 	    hfd->emptyname = en;
 	    hfd->drive_empty = 1;
@@ -1308,9 +1308,9 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
     if (hfd->drive_empty < 0 || !hfd->handle_valid) {
         int empty = hfd->drive_empty;
         int r;
-        //write_log ("trying to open '%s' de=%d hv=%d\n", hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
+        //write_log (L"trying to open '%s' de=%d hv=%d\n", hfd->emptyname, hfd->drive_empty, hfd->handle_valid);
         r = hdf_open (hfd, hfd->emptyname);
-        //write_log ("=%d\n", r);
+        //write_log (L"=%d\n", r);
         if (!r)
 	    return;
 	*reopen = 1;
@@ -1333,7 +1333,7 @@ static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci,
     hardfile_do_disk_change (uci, ret < 0 ? 0 : 1);
 }
 
-int win32_hardfile_media_change (const char *drvname, int inserted)
+int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 {
     int gotinsert = 0, rescanned = 0;
     int i, j;
@@ -1359,7 +1359,7 @@ int win32_hardfile_media_change (const char *drvname, int inserted)
 	}
     }
 
-    //write_log ("win32_hardfile_media_change returned %d\n", gotinsert);
+    //write_log (L"win32_hardfile_media_change returned %d\n", gotinsert);
     return gotinsert;
 }
 
@@ -1405,7 +1405,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
     DWORD ret, got, gotdst, get;
     uae_u64 size, sizecnt, written;
     LARGE_INTEGER li;
-    char path[MAX_DPATH], tmp[MAX_DPATH], tmp2[MAX_DPATH];
+    TCHAR path[MAX_DPATH], tmp[MAX_DPATH], tmp2[MAX_DPATH];
     DWORD retcode = 0;
     HWND hwnd, hwndprogress, hwndprogresstxt;
     MSG msg;
@@ -1455,7 +1455,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 	    break;
 	if (cnt > 0) {
 	    SendMessage(hwndprogress, PBM_SETPOS, (WPARAM)pct, 0);
-	    sprintf (tmp, "%dM / %dM (%d%%)", (int)(written >> 20), (int)(size >> 20), pct);
+	    _stprintf (tmp, L"%dM / %dM (%d%%)", (int)(written >> 20), (int)(size >> 20), pct);
 	    SendMessage(hwndprogresstxt, WM_SETTEXT, 0, (LPARAM)tmp);
 	    while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 		TranslateMessage (&msg);
@@ -1522,7 +1522,7 @@ int harddrive_to_hdf(HWND hDlg, struct uae_prefs *p, int idx)
 
 err:
     WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
-    sprintf (tmp2, tmp, progressdialogreturn, GetLastError());
+    _stprintf (tmp2, tmp, progressdialogreturn, GetLastError());
     gui_message (tmp2);
 
 ok:

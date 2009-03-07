@@ -63,7 +63,7 @@ extern void hq4x_32(unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
 struct uae_filter
 {
     int type, yuv, intmul;
-    char *name, *cfgname;
+    TCHAR *name, *cfgname;
     int x[6];
 };
 

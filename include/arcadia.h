@@ -2,17 +2,17 @@
 #ifdef ARCADIA
 
 extern void arcadia_init (void);
-extern int is_arcadia_rom (char *path);
+extern int is_arcadia_rom (const TCHAR *path);
 extern int arcadia_map_banks (void);
 extern void arcadia_unmap (void);
 extern void arcadia_vsync (void);
 extern void arcadia_reset (void);
 extern uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra);
-extern struct romdata *scan_arcadia_rom (char*, int);
+extern struct romdata *scan_arcadia_rom (TCHAR*, int);
 
 struct arcadiarom {
     int romid;
-    char *name, *rom;
+    TCHAR *name, *rom;
     int type, extra;
     int b7, b6, b5, b4, b3, b2, b1, b0;
 };

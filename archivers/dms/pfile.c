@@ -48,7 +48,7 @@ UCHAR *text;
 
 static void log_error(int track)
 {
-    write_log ("DMS: Ignored error on track %d!\n", track);
+    write_log (L"DMS: Ignored error on track %d!\n", track);
 }
 
 USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
@@ -118,18 +118,18 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	if ( (cmd == CMD_VIEW) || (cmd == CMD_VIEWFULL) ) {
 
 		pv = (USHORT)(c_version/100);
-		write_log (" Created with DMS version %d.%02d ",pv,c_version-pv*100);
+		write_log (L" Created with DMS version %d.%02d ",pv,c_version-pv*100);
 		if (geninfo & 0x80)
-			write_log ("Registered\n");
+			write_log (L"Registered\n");
 		else
-			write_log ("Evaluation\n");
+			write_log (L"Evaluation\n");
 
-		write_log (" Creation date : %s",ctime(&date));
-		write_log (" Lowest track in archive : %d\n",from);
-		write_log (" Highest track in archive : %d\n",to);
-		write_log (" Packed data size : %lu\n",pkfsize);
-		write_log (" Unpacked data size : %lu\n",unpkfsize);
-		write_log (" Disk type of archive : ");
+		write_log (L" Creation date : %s",ctime(&date));
+		write_log (L" Lowest track in archive : %d\n",from);
+		write_log (L" Highest track in archive : %d\n",to);
+		write_log (L" Packed data size : %lu\n",pkfsize);
+		write_log (L" Unpacked data size : %lu\n",unpkfsize);
+		write_log (L" Disk type of archive : ");
 
 		/*  The original DMS from SDS software (DMS up to 1.11) used other values    */
 		/*  in disk type to indicate formats as MS-DOS, AMax and Mac, but it was     */
@@ -140,49 +140,49 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 			case 0:
 			case 1:
 				/* Can also be a non-dos disk */
-				write_log ("AmigaOS 1.0 OFS\n");
+				write_log (L"AmigaOS 1.0 OFS\n");
 				break;
 			case 2:
-				write_log ("AmigaOS 2.0 FFS\n");
+				write_log (L"AmigaOS 2.0 FFS\n");
 				break;
 			case 3:
-				write_log ("AmigaOS 3.0 OFS / International\n");
+				write_log (L"AmigaOS 3.0 OFS / International\n");
 				break;
 			case 4:
-				write_log ("AmigaOS 3.0 FFS / International\n");
+				write_log (L"AmigaOS 3.0 FFS / International\n");
 				break;
 			case 5:
-				write_log ("AmigaOS 3.0 OFS / Dir Cache\n");
+				write_log (L"AmigaOS 3.0 OFS / Dir Cache\n");
 				break;
 			case 6:
-				write_log ("AmigaOS 3.0 FFS / Dir Cache\n");
+				write_log (L"AmigaOS 3.0 FFS / Dir Cache\n");
 				break;
 			case 7:
-				write_log ("FMS Amiga System File\n");
+				write_log (L"FMS Amiga System File\n");
 				break;
 			default:
-				write_log ("Unknown\n");
+				write_log (L"Unknown\n");
 		}
 
-		write_log (" Compression mode used : ");
+		write_log (L" Compression mode used : ");
 		if (cmode>6)
-			write_log ("Unknown !\n");
+			write_log (L"Unknown !\n");
 		else
-			write_log ("%s\n",modes[cmode]);
+			write_log (L"%s\n",modes[cmode]);
 
-		write_log (" General info : ");
-		if ((geninfo==0)||(geninfo==0x80)) write_log ("None");
-		if (geninfo & 1) write_log ("NoZero ");
-		if (geninfo & 2) write_log ("Encrypted ");
-		if (geninfo & 4) write_log ("Appends ");
-		if (geninfo & 8) write_log ("Banner ");
-		if (geninfo & 16) write_log ("HD ");
-		if (geninfo & 32) write_log ("MS-DOS ");
-		if (geninfo & 64) write_log ("DMS_DEV_Fixed ");
-		if (geninfo & 256) write_log ("FILEID.DIZ");
-		write_log ("\n");
+		write_log (L" General info : ");
+		if ((geninfo==0)||(geninfo==0x80)) write_log (L"None");
+		if (geninfo & 1) write_log (L"NoZero ");
+		if (geninfo & 2) write_log (L"Encrypted ");
+		if (geninfo & 4) write_log (L"Appends ");
+		if (geninfo & 8) write_log (L"Banner ");
+		if (geninfo & 16) write_log (L"HD ");
+		if (geninfo & 32) write_log (L"MS-DOS ");
+		if (geninfo & 64) write_log (L"DMS_DEV_Fixed ");
+		if (geninfo & 256) write_log (L"FILEID.DIZ");
+		write_log (L"\n");
 
-		write_log (" Info Header CRC : %04X\n\n",hcrc);
+		write_log (L" Info Header CRC : %04X\n\n",hcrc);
 
 	}
 
@@ -196,8 +196,8 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 
 	if (cmd == CMD_VIEWFULL)	{
-		write_log (" Track   Plength  Ulength  Cmode   USUM  HCRC  DCRC Cflag\n");
-		write_log (" ------  -------  -------  ------  ----  ----  ---- -----\n");
+		write_log (L" Track   Plength  Ulength  Cmode   USUM  HCRC  DCRC Cflag\n");
+		write_log (L" ------  -------  -------  ------  ----  ----  ---- -----\n");
 	}
 
 //	if (((cmd==CMD_UNPACK) || (cmd==CMD_SHOWBANNER)) && (geninfo & 2) && (!pwd))
@@ -215,7 +215,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		}
 	}
 
-	if ((cmd == CMD_VIEWFULL) || (cmd == CMD_SHOWDIZ) || (cmd == CMD_SHOWBANNER)) write_log ("\n");
+	if ((cmd == CMD_VIEWFULL) || (cmd == CMD_SHOWDIZ) || (cmd == CMD_SHOWBANNER)) write_log (L"\n");
 
 	if (ret == DMS_FILE_END) ret = NO_PROBLEM;
 
@@ -270,15 +270,15 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if (cmd == CMD_VIEWFULL) {
 		if (number==80)
-			write_log (" FileID   ");
+			write_log (L" FileID   ");
 		else if (number==0xffff)
-			write_log (" Banner   ");
+			write_log (L" Banner   ");
 		else if ((number==0) && (unpklen==1024))
-			write_log (" FakeBB   ");
+			write_log (L" FakeBB   ");
 		else
-			write_log ("   %2d     ",(short)number);
+			write_log (L"   %2d     ",(short)number);
 
-	    write_log ("%5d    %5d   %s  %04X  %04X  %04X    %0d\n", pklen1, unpklen, modes[cmode], usum, hcrc, dcrc, flags);
+	    write_log (L"%5d    %5d   %s  %04X  %04X  %04X    %0d\n", pklen1, unpklen, modes[cmode], usum, hcrc, dcrc, flags);
 	}
 
 	if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN)) return ERR_BIGTRACK;
@@ -420,7 +420,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 	    if (usum1 == Calc_CheckSum(b2,(ULONG)unpklen)) {
 		passfound = maybeencrypted;
 		if (passfound)
-		    write_log ("DMS: decryption key = 0x%04X\n", prevpass);
+		    write_log (L"DMS: decryption key = 0x%04X\n", prevpass);
 		err = NO_PROBLEM;
 		pass = prevpass;
 		break;
@@ -454,7 +454,7 @@ static void printbandiz(UCHAR *m, USHORT len){
 	while (i<m+len) {
 		if (*i == 10) {
 			*i=0;
-			write_log ("%s\n",j);
+			write_log (L"%s\n",j);
 			j=i+1;
 		}
 		i++;

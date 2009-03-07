@@ -276,14 +276,14 @@ STATIC_INLINE void adjust_jmpdep(dependency* d, void* a)
 
 STATIC_INLINE void set_dhtu(blockinfo* bi, void* dh)
 {
-    //write_log ("JIT: bi is %p\n",bi);
+    //write_log (L"JIT: bi is %p\n",bi);
     if (dh!=bi->direct_handler_to_use) {
 	dependency* x=bi->deplist;
-	//write_log ("JIT: bi->deplist=%p\n",bi->deplist);
+	//write_log (L"JIT: bi->deplist=%p\n",bi->deplist);
 	while (x) {
-	    //write_log ("JIT: x is %p\n",x);
-	    //write_log ("JIT: x->next is %p\n",x->next);
-	    //write_log ("JIT: x->prev_p is %p\n",x->prev_p);
+	    //write_log (L"JIT: x is %p\n",x);
+	    //write_log (L"JIT: x->next is %p\n",x->next);
+	    //write_log (L"JIT: x->prev_p is %p\n",x->prev_p);
 
 	    if (x->jmp_off) {
 		adjust_jmpdep(x,dh);
@@ -346,7 +346,7 @@ STATIC_INLINE void big_to_small_state(bigstate* b, smallstate* s)
 	    count++;
 	}
     }
-    write_log ("JIT: count=%d\n",count);
+    write_log (L"JIT: count=%d\n",count);
     for (i=0;i<N_REGS;i++) {  // FIXME --- don't do dirty yet
 	s->nat[i].dirtysize=0;
     }
@@ -480,11 +480,11 @@ int check_prefs_changed_comp (void)
 	changed = 1;
 
 	if (currprefs.cachesize)
-	    write_log ( "JIT: Reverting to \"indirect\" access, because canbang is zero!\n" );
+	    write_log (L"JIT: Reverting to \"indirect\" access, because canbang is zero!\n");
     }
 
     if (changed)
-	write_log ("JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d const=%d hard=%d\n",
+	write_log (L"JIT: cache=%d. b=%d w=%d l=%d fpu=%d nf=%d const=%d hard=%d\n",
 	    currprefs.cachesize,
 	    currprefs.comptrustbyte, currprefs.comptrustword, currprefs.comptrustlong, 
 	    currprefs.compfpu, currprefs.compnf, currprefs.comp_constjump, currprefs.comp_hardflush);
@@ -493,21 +493,21 @@ int check_prefs_changed_comp (void)
     if (!currprefs.compforcesettings) {
 	int stop=0;
 	if (currprefs.comptrustbyte!=0 && currprefs.comptrustbyte!=3)
-	    stop = 1, write_log ("JIT: comptrustbyte is not 'direct' or 'afterpic'\n");
+	    stop = 1, write_log (L"JIT: comptrustbyte is not 'direct' or 'afterpic'\n");
 	if (currprefs.comptrustword!=0 && currprefs.comptrustword!=3)
-	    stop = 1, write_log ("JIT: comptrustword is not 'direct' or 'afterpic'\n");
+	    stop = 1, write_log (L"JIT: comptrustword is not 'direct' or 'afterpic'\n");
 	if (currprefs.comptrustlong!=0 && currprefs.comptrustlong!=3)
-	    stop = 1, write_log ("JIT: comptrustlong is not 'direct' or 'afterpic'\n");
+	    stop = 1, write_log (L"JIT: comptrustlong is not 'direct' or 'afterpic'\n");
 	if (currprefs.comptrustnaddr!=0 && currprefs.comptrustnaddr!=3)
-	    stop = 1, write_log ("JIT: comptrustnaddr is not 'direct' or 'afterpic'\n");
+	    stop = 1, write_log (L"JIT: comptrustnaddr is not 'direct' or 'afterpic'\n");
 	if (currprefs.compnf!=1)
-	    stop = 1, write_log ("JIT: compnf is not 'yes'\n");
+	    stop = 1, write_log (L"JIT: compnf is not 'yes'\n");
 	if (currprefs.cachesize<1024)
-	    stop = 1, write_log ("JIT: cachesize is less than 1024\n");
+	    stop = 1, write_log (L"JIT: cachesize is less than 1024\n");
 	if (currprefs.comp_hardflush)
-	    stop = 1, write_log ("JIT: comp_flushmode is 'hard'\n");
+	    stop = 1, write_log (L"JIT: comp_flushmode is 'hard'\n");
 	if (!canbang)
-	    stop = 1, write_log ("JIT: Cannot use most direct memory access,\n"
+	    stop = 1, write_log (L"JIT: Cannot use most direct memory access,\n"
 				"     and unable to recover from failed guess!\n");
 	if (stop) {
 	    gui_message("JIT: Configuration problems were detected!\n"
@@ -711,17 +711,17 @@ STATIC_INLINE void log_dump(void)
 
     return;
 
-    write_log ("----------------------\n");
+    write_log (L"----------------------\n");
     for (i=0;i<N_REGS;i++) {
 	switch(nstate[i]) {
-	 case L_UNKNOWN: write_log ("Nat %d : UNKNOWN\n",i); break;
-	 case L_UNAVAIL: write_log ("Nat %d : UNAVAIL\n",i); break;
-	 default:        write_log ("Nat %d : %d\n",i,nstate[i]); break;
+	 case L_UNKNOWN: write_log (L"Nat %d : UNKNOWN\n",i); break;
+	 case L_UNAVAIL: write_log (L"Nat %d : UNAVAIL\n",i); break;
+	 default:        write_log (L"Nat %d : %d\n",i,nstate[i]); break;
 	}
     }
     for (i=0;i<VREGS;i++) {
 	if (vstate[i]==L_UNNEEDED)
-	    write_log ("Virt %d: UNNEEDED\n",i);
+	    write_log (L"Virt %d: UNNEEDED\n",i);
     }
 }
 
@@ -757,7 +757,7 @@ static  void tomem(int r)
 	if (live.state[r].val &&
 	    live.nat[rr].nholds==1 &&
 	    !live.nat[rr].locked) {
-	    // write_log ("JIT: RemovingA offset %x from reg %d (%d) at %p\n",
+	    // write_log (L"JIT: RemovingA offset %x from reg %d (%d) at %p\n",
 	    //   live.state[r].val,r,rr,target);
 	    adjust_nreg(rr,live.state[r].val);
 	    live.state[r].val=0;
@@ -1147,7 +1147,7 @@ STATIC_INLINE void remove_offset(int r, int spec)
     rr=live.state[r].realreg;
 
     if (live.nat[rr].nholds==1) {
-	//write_log ("JIT: RemovingB offset %x from reg %d (%d) at %p\n",
+	//write_log (L"JIT: RemovingB offset %x from reg %d (%d) at %p\n",
 	//       live.state[r].val,r,rr,target);
 	adjust_nreg(rr,live.state[r].val);
 	live.state[r].dirtysize=4;
@@ -1172,7 +1172,7 @@ STATIC_INLINE int readreg_general(int r, int size, int spec, int can_offset)
     int answer=-1;
 
     if (live.state[r].status==UNDEF) {
-	write_log ("JIT: WARNING: Unexpected read of undefined register %d\n",r);
+	write_log (L"JIT: WARNING: Unexpected read of undefined register %d\n",r);
     }
     if (!can_offset)
 	remove_offset(r,spec);
@@ -1318,7 +1318,7 @@ STATIC_INLINE int rmw_general(int r, int wsize, int rsize, int spec)
     int answer=-1;
 
     if (live.state[r].status==UNDEF) {
-	write_log ("JIT: WARNING: Unexpected read of undefined register %d\n",r);
+	write_log (L"JIT: WARNING: Unexpected read of undefined register %d\n",r);
     }
     remove_offset(r,spec);
     make_exclusive(r,0,spec);
@@ -1604,13 +1604,13 @@ STATIC_INLINE void f_make_exclusive(int r, int clobber)
 	    }
 	}
 	Dif (live.fat[rr].nholds!=1) {
-	    write_log ("JIT: realreg %d holds %d (",rr,live.fat[rr].nholds);
+	    write_log (L"JIT: realreg %d holds %d (",rr,live.fat[rr].nholds);
 	    for (i=0;i<live.fat[rr].nholds;i++) {
-		write_log ("JIT: %d(%d,%d)",live.fat[rr].holds[i],
+		write_log (L"JIT: %d(%d,%d)",live.fat[rr].holds[i],
 		       live.fate[live.fat[rr].holds[i]].realreg,
 		       live.fate[live.fat[rr].holds[i]].realind);
 	    }
-	    write_log ("\n");
+	    write_log (L"\n");
 	    jit_abort("x");
 	}
 	return;
@@ -3151,7 +3151,7 @@ MIDFUNC(2,mov_l_rr,(W4 d, R4 s))
     live.nat[s].nholds++;
     log_clobberreg(d);
 
-    /* write_log ("JIT: Added %d to nreg %d(%d), now holds %d regs\n",
+    /* write_log (L"JIT: Added %d to nreg %d(%d), now holds %d regs\n",
        d,s,live.state[d].realind,live.nat[s].nholds); */
     unlock(s);
 #else
@@ -4639,7 +4639,7 @@ STATIC_INLINE void match_states(smallstate* s)
 	 case UNDEF:
 	    break;
 	 default:
-	    write_log ("JIT: Weird status: %d\n",live.state[i].status);
+	    write_log (L"JIT: Weird status: %d\n",live.state[i].status);
 	    abort();
 	}
     }
@@ -4650,12 +4650,12 @@ STATIC_INLINE void match_states(smallstate* s)
 	    int n=live.state[i].realreg;
 
 	    if (live.nat[n].nholds!=1) {
-		write_log ("JIT: Register %d isn't alone in nreg %d\n",
+		write_log (L"JIT: Register %d isn't alone in nreg %d\n",
 		       i,n);
 		abort();
 	    }
 	    if (vton[i]==-1) {
-		write_log ("JIT: Register %d is still in register, shouldn't be\n",
+		write_log (L"JIT: Register %d is still in register, shouldn't be\n",
 		       i);
 		abort();
 	    }
@@ -4674,7 +4674,7 @@ STATIC_INLINE void match_states(smallstate* s)
 	int n=vton[i];
 	if (n==-1) {
 	    Dif (isinreg(i)) {
-		write_log ("JIT: Register %d unexpectedly in nreg %d\n",
+		write_log (L"JIT: Register %d unexpectedly in nreg %d\n",
 		       i,live.state[i].realreg);
 		abort();
 	    }
@@ -4688,7 +4688,7 @@ STATIC_INLINE void match_states(smallstate* s)
 		break;
 	     case INMEM:
 		Dif (live.nat[n].nholds) {
-		    write_log ("JIT: natreg %d holds %d vregs, should be empty\n",
+		    write_log (L"JIT: natreg %d holds %d vregs, should be empty\n",
 			   n,live.nat[n].nholds);
 		}
 		raw_mov_l_rm(n,(uae_u32)live.state[i].mem);
@@ -4705,7 +4705,7 @@ STATIC_INLINE void match_states(smallstate* s)
 		break;
 	     case ISCONST:
 		if (i!=PC_P) {
-		    write_log ("JIT: Got constant in matchstate for reg %d. Bad!\n",i);
+		    write_log (L"JIT: Got constant in matchstate for reg %d. Bad!\n",i);
 		    abort();
 		}
 		break;
@@ -4790,7 +4790,7 @@ void flush(int save_regs)
 		 default: break;
 		}
 		Dif (live.state[i].val && i!=PC_P) {
-		    write_log ("JIT: Register %d still has val %x\n",
+		    write_log (L"JIT: Register %d still has val %x\n",
 			   i,live.state[i].val);
 		}
 	    }
@@ -4804,7 +4804,7 @@ void flush(int save_regs)
 	raw_fp_cleanup_drop();
     }
     if (needflags) {
-	write_log ("JIT: Warning! flush with needflags=1!\n");
+	write_log (L"JIT: Warning! flush with needflags=1!\n");
     }
 
     lopt_emit_all();
@@ -4852,7 +4852,7 @@ void freescratch(void)
     int i;
     for (i=0;i<N_REGS;i++)
 	if (live.nat[i].locked && i!=4)
-	    write_log ("JIT: Warning! %d is locked\n",i);
+	    write_log (L"JIT: Warning! %d is locked\n",i);
 
     for (i=0;i<VREGS;i++)
 	if (live.state[i].needflush==NF_SCRATCH) {
@@ -5433,11 +5433,11 @@ static void show_checksum(blockinfo* bi)
     }
     else {
 	while (len>0) {
-	    write_log ("%08x ",*pos);
+	    write_log (L"%08x ",*pos);
 	    pos++;
 	    len-=4;
 	}
-	write_log (" bla\n");
+	write_log (L" bla\n");
     }
 }
 
@@ -5522,7 +5522,7 @@ static void check_checksum(void)
 	bi->handler_to_use=bi->handler;
 	set_dhtu(bi,bi->direct_handler);
 
-	/*	write_log ("JIT: reactivate %p/%p (%x %x/%x %x)\n",bi,bi->pc_p,
+	/*	write_log (L"JIT: reactivate %p/%p (%x %x/%x %x)\n",bi,bi->pc_p,
 		c1,c2,bi->c1,bi->c2);*/
 	remove_from_list(bi);
 	add_to_active(bi);
@@ -5531,7 +5531,7 @@ static void check_checksum(void)
     else {
 	/* This block actually changed. We need to invalidate it,
 	   and set it up to be recompiled */
-	/* write_log ("JIT: discard %p/%p (%x %x/%x %x)\n",bi,bi->pc_p,
+	/* write_log (L"JIT: discard %p/%p (%x %x/%x %x)\n",bi,bi->pc_p,
 	   c1,c2,bi->c1,bi->c2); */
 	invalidate_block(bi);
 	raise_in_cl_list(bi);
@@ -5688,12 +5688,12 @@ void build_comp(void)
 #endif
     raw_init_cpu();
 #ifdef NATMEM_OFFSET
-    write_log ("JIT: Setting signal handler\n");
+    write_log (L"JIT: Setting signal handler\n");
 #ifndef _WIN32
     signal(SIGSEGV,vec);
 #endif
 #endif
-    write_log ("JIT: Building Compiler function table\n");
+    write_log (L"JIT: Building Compiler function table\n");
     for (opcode = 0; opcode < 65536; opcode++) {
 #ifdef NOFLAGS_SUPPORT
 	nfcpufunctbl[opcode] = op_illg;
@@ -5782,7 +5782,7 @@ void build_comp(void)
 	if (compfunctbl[opcode])
 	    count++;
     }
-    write_log ("JIT: Supposedly %d compileable opcodes!\n",count);
+    write_log (L"JIT: Supposedly %d compileable opcodes!\n",count);
 
     /* Initialise state */
     alloc_cache();
@@ -5816,7 +5816,7 @@ static void flush_icache_hard(uae_u32 ptr, int n)
 
     hard_flush_count++;
 #if 0
-    write_log ("JIT: Flush Icache_hard(%d/%x/%p), %u instruction bytes\n",
+    write_log (L"JIT: Flush Icache_hard(%d/%x/%p), %u instruction bytes\n",
 	   n,regs.pc,regs.pc_p,current_compile_p-compiled_code);
 #endif
     bi=active;

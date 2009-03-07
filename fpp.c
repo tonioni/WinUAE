@@ -163,7 +163,7 @@ static void fpu_op_illg (uae_u32 opcode, struct regstruct *regs, int pcoffset)
 	put_long (m68k_areg (regs, 7), newpc);
 	m68k_areg (regs, 7) -= 2;
 	put_word (m68k_areg (regs, 7), regs->sr);
-	write_log("68040/060 FPU disabled exception PC=%x\n", newpc);
+	write_log (L"68040/060 FPU disabled exception PC=%x\n", newpc);
 	newpc = get_long (regs->vbr + 11 * 4);
 	m68k_setpc (regs, newpc);
 	set_special (regs, SPCFLAG_END_COMPILE);
@@ -513,7 +513,7 @@ STATIC_INLINE int put_fp_value (struct regstruct *regs, fptype value, uae_u32 op
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("PUTFP: %f %04X %04X\n", value, opcode, extra);
+	write_log (L"PUTFP: %f %04X %04X\n", value, opcode, extra);
 #endif
     if (!(extra & 0x4000)) {
 	regs->fp[(extra >> 10) & 7] = value;
@@ -779,7 +779,7 @@ void fpuop_dbcc (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fdbcc_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"fdbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, 4))
 	return;
@@ -805,7 +805,7 @@ void fpuop_scc (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fscc_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"fscc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, 4))
 	return;
@@ -830,7 +830,7 @@ void fpuop_trapcc (uae_u32 opcode, struct regstruct *regs, uaecptr oldpc)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("ftrapcc_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"ftrapcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, m68k_getpc(regs) - oldpc))
 	return;
@@ -849,7 +849,7 @@ void fpuop_bcc (uae_u32 opcode, struct regstruct *regs, uaecptr pc, uae_u32 extr
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fbcc_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"fbcc_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, m68k_getpc(regs) - pc))
 	return;
@@ -873,7 +873,7 @@ void fpuop_save (uae_u32 opcode, struct regstruct *regs)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("fsave_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"fsave_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, 2))
 	return;
@@ -945,7 +945,7 @@ void fpuop_restore (uae_u32 opcode, struct regstruct *regs)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("frestore_opp at %08lx\n", m68k_getpc (regs));
+	write_log (L"frestore_opp at %08lx\n", m68k_getpc (regs));
 #endif
     if (fault_if_no_fpu (opcode, regs, 2))
 	return;
@@ -1036,7 +1036,7 @@ void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
 
 #if DEBUG_FPP
     if (!isinrom ())
-	write_log ("FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc (regs) - 4);
+	write_log (L"FPP %04lx %04x at %08lx\n", opcode & 0xffff, extra, m68k_getpc (regs) - 4);
 #endif
     if (fault_if_no_fpu (opcode, regs, 4))
 	return;
@@ -1642,7 +1642,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 	restore_u32();
 	restore_u32();
     }
-    write_log ("FPU=%d\n", currprefs.fpu_model);
+    write_log (L"FPU=%d\n", currprefs.fpu_model);
     return src;
 }
 

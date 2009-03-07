@@ -15,7 +15,7 @@ void setserstat (int mask, int onoff);
 int readser (int *buffer);
 int readseravail (void);
 void writeser (int c);
-int openser (char *sername);
+int openser (TCHAR *sername);
 void closeser (void);
 void doserout (void);
 void closeprinter (void);
@@ -36,13 +36,13 @@ extern int load_ghostscript (void);
 #define MAX_SERIAL_PORTS 32
 struct serialportinfo
 {
-    char *dev;
-    char *cfgname;
-    char *name;
+    TCHAR *dev;
+    TCHAR *cfgname;
+    TCHAR *name;
 };
 extern struct serialportinfo comports[MAX_SERIAL_PORTS];
 
-extern int enumserialports(void);
-extern void sernametodev(char*);
-extern void serdevtoname(char*);
+extern int enumserialports (void);
+extern void sernametodev (TCHAR*);
+extern void serdevtoname (TCHAR*);
 

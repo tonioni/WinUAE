@@ -10,24 +10,24 @@ extern void do_start_program (void);
 extern void do_leave_program (void);
 extern void start_program (void);
 extern void leave_program (void);
-extern void real_main (int, char **);
+extern void real_main (int, TCHAR **);
 extern void usage (void);
-extern void parse_cmdline (int argc, char **argv);
+extern void parse_cmdline (int argc, TCHAR **argv);
 extern void sleep_millis (int ms);
 extern void sleep_millis_busy (int ms);
 extern int sleep_resolution;
 
 extern void uae_reset (int);
 extern void uae_quit (void);
-extern void uae_restart (int, char*);
+extern void uae_restart (int, TCHAR*);
 extern void reset_all_systems (void);
 extern void target_reset (void);
 
 extern int quit_program;
 
-extern char warning_buffer[256];
-extern char start_path_data[];
-extern char start_path_data_exe[];
+extern TCHAR warning_buffer[256];
+extern TCHAR start_path_data[];
+extern TCHAR start_path_data_exe[];
 
 /* This structure is used to define menus. The val field can hold key
  * shortcuts, or one of these special codes:
@@ -39,14 +39,14 @@ extern char start_path_data_exe[];
  *    0: Menu title
  */
 struct bstring {
-    const char *data;
+    const TCHAR *data;
     int val;
 };
 
-extern char *colormodes[];
-extern void fetch_saveimagepath (char*, int, int);
-extern void fetch_configurationpath (char *out, int size);
-extern void fetch_screenshotpath (char *out, int size);
-extern void fetch_ripperpath (char *out, int size);
-extern void fetch_datapath (char *out, int size);
+extern TCHAR *colormodes[];
+extern void fetch_saveimagepath (TCHAR*, int, int);
+extern void fetch_configurationpath (TCHAR *out, int size);
+extern void fetch_screenshotpath (TCHAR *out, int size);
+extern void fetch_ripperpath (TCHAR *out, int size);
+extern void fetch_datapath (TCHAR *out, int size);
 extern int uaerand(void);

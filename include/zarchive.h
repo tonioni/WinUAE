@@ -1,11 +1,11 @@
 
 struct zfile {
-    char *name;
-    char *zipname;
+    TCHAR *name;
+    TCHAR *zipname;
     FILE *f;
     uae_u8 *data;
-    int size;
-    int seek;
+    uae_u64 size;
+    uae_u64 seek;
     int deleteafterclose;
     struct zfile *next;
 };
@@ -20,11 +20,11 @@ struct znode {
     struct znode *next;
     struct znode *prev;
     struct znode *vfile; // points to real file when this node is virtual directory
-    char *name;
-    char *fullname;
-    unsigned int size;
+    TCHAR *name;
+    TCHAR *fullname;
+    uae_u64 size;
     struct zfile *f;
-    char *comment;
+    TCHAR *comment;
     int flags;
     time_t mtime;
     /* decompressor specific */
@@ -42,19 +42,19 @@ struct zvolume
     struct zvolume *next;
     struct znode *last;
     struct zvolume *parent;
-    unsigned int size;
+    uae_u64 size;
     unsigned int blocks;
     unsigned int id;
-    unsigned int archivesize;
+    uae_u64 archivesize;
     unsigned int method;
 };
 
 struct zarchive_info
 {
-    const char *name;
-    unsigned int size;
+    const TCHAR *name;
+    uae_u64 size;
     int flags;
-    char *comment;
+    TCHAR *comment;
     time_t t;
 };
 
@@ -66,14 +66,14 @@ struct zarchive_info
 #define ArchiveFormatPLAIN '----'
 #define ArchiveFormatAA 'aa  ' // method only
 
-extern int zfile_is_ignore_ext(const char *name);
+extern int zfile_is_ignore_ext(const TCHAR *name);
 
 extern struct zvolume *zvolume_alloc(struct zfile *z, unsigned int id, void *handle);
-extern struct zvolume *zvolume_alloc_empty(const char *name);
+extern struct zvolume *zvolume_alloc_empty(const TCHAR *name);
 
 extern struct znode *zvolume_addfile_abs(struct zvolume *zv, struct zarchive_info*);
 extern struct znode *zvolume_adddir_abs(struct zvolume *zv, struct zarchive_info *zai);
-extern struct znode *znode_adddir(struct znode *parent, const char *name, struct zarchive_info*);
+extern struct znode *znode_adddir(struct znode *parent, const TCHAR *name, struct zarchive_info*);
 
 extern struct zvolume *archive_directory_plain(struct zfile *zf);
 extern struct zfile *archive_access_plain (struct znode *zn);

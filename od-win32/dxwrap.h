@@ -59,7 +59,7 @@ struct PicassoResolution
     int depth;   /* depth in bytes-per-pixel */
     int residx;
     int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */
-    char name[25];
+    TCHAR name[25];
     /* Bit mask of RGBFF_xxx values.  */
     uae_u32 colormodes;
 };
@@ -69,8 +69,8 @@ extern GUID *displayGUID;
 struct MultiDisplay {
     int primary, disabled, gdi;
     GUID guid;
-    char *name;
-    char *name2;
+    TCHAR *name;
+    TCHAR *name2;
     struct PicassoResolution *DisplayModes;
     RECT rect;
 };
@@ -83,8 +83,8 @@ typedef enum
     blue_mask
 } DirectDraw_Mask_e;
 
-extern const char *DXError (HRESULT hr);
-extern char *outGUID (const GUID *guid);
+extern const TCHAR *DXError (HRESULT hr);
+extern TCHAR *outGUID (const GUID *guid);
 
 HRESULT DirectDraw_GetDisplayMode (void);
 void DirectDraw_Release(void);
@@ -105,7 +105,7 @@ HRESULT DirectDraw_CreateClipper (void);
 HRESULT DirectDraw_SetClipper(HWND hWnd);
 RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface);
 HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback, void *context);
-HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEX callback);
+HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEXA callback);
 DWORD DirectDraw_CurrentWidth (void);
 DWORD DirectDraw_CurrentHeight (void);
 DWORD DirectDraw_GetCurrentDepth (void);

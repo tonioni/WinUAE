@@ -127,7 +127,7 @@ static int driveclick_fdrawcmd_init(int drive)
 	return 1;
     thread_ok = 1;
     init_comm_pipe (dc_pipe, DC_PIPE_SIZE, 3);
-    uae_start_thread("fdrawcmd_win32", driveclick_thread, NULL, NULL);
+    uae_start_thread (L"fdrawcmd_win32", driveclick_thread, NULL, NULL);
     return 1;
 }
 
@@ -141,10 +141,10 @@ void driveclick_fdrawcmd_close(int drive)
 
 static int driveclick_fdrawcmd_open_2(int drive)
 {
-    char s[32];
+    TCHAR s[32];
 
     driveclick_fdrawcmd_close(drive);
-    sprintf (s, "\\\\.\\fdraw%d", drive);
+    _stprintf (s, L"\\\\.\\fdraw%d", drive);
     h[drive] = CreateFile(s, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (h[drive] == INVALID_HANDLE_VALUE)
 	return 0;

@@ -13,13 +13,14 @@ extern uae_u32 addr (int);
 extern void db (uae_u8);
 extern void dw (uae_u16);
 extern void dl (uae_u32);
-extern uae_u32 ds (const char *);
+extern uae_u32 ds_ansi (const uae_char*);
+extern uae_u32 ds (const TCHAR*);
 extern void calltrap (uae_u32);
 extern void org (uae_u32);
 extern uae_u32 here (void);
 extern uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s8 priority, uae_u16 ver, uae_u16 rev);
 
-#define deftrap(f) define_trap((f), 0, "")
+#define deftrap(f) define_trap((f), 0, L"")
 #define deftrap2(f, mode, str) define_trap((f), (mode), (str))
 #define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
 
@@ -54,19 +55,19 @@ struct mountedinfo
     int nrcyls;
 };
 
-extern int add_filesys_unitconfig (struct uae_prefs *p, int index, char *error);
+extern int add_filesys_unitconfig (struct uae_prefs *p, int index, TCHAR *error);
 extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo*);
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
 
-int filesys_insert(int nr, char *volume, const char *rootdir, int readonly, int flags);
+int filesys_insert(int nr, TCHAR *volume, const TCHAR *rootdir, int readonly, int flags);
 int filesys_eject(int nr);
-int filesys_media_change (const char *rootdir, int inserted, struct uaedev_config_info *uci);
+int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_config_info *uci);
 
-extern char *filesys_createvolname (const char *volname, const char *rootdir, const char *def);
-extern int target_get_volume_name(struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck);
+extern TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const TCHAR *def);
+extern int target_get_volume_name(struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, int inserted, int fullcheck);
 
-extern int sprintf_filesys_unit (char *buffer, int num);
+extern int sprintf_filesys_unit (TCHAR *buffer, int num);
 
 extern void filesys_reset (void);
 extern void filesys_cleanup (void);

@@ -10,9 +10,9 @@
 //#define TRACING_ENABLED
 
 #ifdef TRACING_ENABLED
-#define TRACE(x) do { write_log x; } while(0)
+#define BSDTRACE(x) do { write_log x; } while(0)
 #else
-#define TRACE(x)
+#define BSDTRACE(x)
 #endif
 
 extern int init_socket_layer (void);
@@ -92,9 +92,9 @@ struct socketbase {
 #define LIBRARY_SIZEOF 36
 
 struct UAEBSDBase {
-    char dummy[LIBRARY_SIZEOF];
+    uae_u8 dummy[LIBRARY_SIZEOF];
     struct socketbase *sb;
-    char scratchbuf[SCRATCHBUFSIZE];
+    uae_u8 scratchbuf[SCRATCHBUFSIZE];
 };
 
 /* socket flags */
@@ -120,11 +120,10 @@ struct UAEBSDBase {
 #define SF_BLOCKING 0x80000000
 #define SF_BLOCKINGINPROGRESS 0x40000000
 
-extern uae_u32 addstr (uae_u32 *, const char *);
-extern uae_u32 addmem (uae_u32 *, const char *, int len);
-
-extern char *strncpyah (char *, uae_u32, int);
-extern uae_u32 strncpyha (uae_u32, const char *, int);
+uae_u32 addstr (uae_u32 * dst, const TCHAR *src);
+uae_u32 addstr_ansi (uae_u32 * dst, const uae_char *src);
+uae_u32 strncpyha (uae_u32 dst, const uae_char *src, int size);
+uae_u32 addmem (uae_u32 * dst, const uae_char *src, int len);
 
 #define SB struct socketbase *sb
 

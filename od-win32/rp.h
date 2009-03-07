@@ -24,7 +24,7 @@ extern void rp_vsync (void);
 extern HWND rp_getparent (void);
 extern void rp_rtg_switch (void);
 
-extern char *rp_param;
+extern TCHAR *rp_param;
 extern int rp_rpescapekey;
 extern int rp_rpescapeholdtime;
 extern int rp_screenmode;
@@ -32,5 +32,5 @@ extern int rp_inputmode;
 extern int log_rp;
 
 extern void rp_input_change (int num);
-extern void rp_disk_image_change (int num, const char *name);
-extern void rp_harddrive_image_change (int num, const char *name);
+extern void rp_disk_image_change (int num, const TCHAR *name);
+extern void rp_harddrive_image_change (int num, const TCHAR *name);

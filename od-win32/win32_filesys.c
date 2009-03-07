@@ -1,13 +1,13 @@
 
 
 /* Determines if this drive-letter currently has a disk inserted */
-int CheckRM(char *DriveName)
+int CheckRM (TCHAR *DriveName)
 {
-    char filename[MAX_DPATH];
+    TCHAR filename[MAX_DPATH];
     DWORD dwHold;
     BOOL result = FALSE;
 
-    sprintf(filename, "%s.", DriveName);
+    _stprintf(filename, L"%s.", DriveName);
     dwHold = GetFileAttributes(filename);
     if(dwHold != 0xFFFFFFFF)
 	result = TRUE;
@@ -16,21 +16,21 @@ int CheckRM(char *DriveName)
 
 /* This function makes sure the volume-name being requested is not already in use, or any of the following
    illegal values: */
-static char *illegal_volumenames[] = { "SYS", "DEVS", "LIBS", "FONTS", "C", "L", "S" };
+static TCHAR *illegal_volumenames[] = { L"SYS", L"DEVS", L"LIBS", L"FONTS", L"C", L"L", L"S" };
 
-static int valid_volumename(struct uaedev_mount_info *mountinfo, char *volumename, int fullcheck)
+static int valid_volumename (struct uaedev_mount_info *mountinfo, TCHAR *volumename, int fullcheck)
 {
-    int i, result = 1, illegal_count = sizeof(illegal_volumenames) / sizeof(char *);
+    int i, result = 1, illegal_count = sizeof (illegal_volumenames) / sizeof(TCHAR*);
     for (i = 0; i < illegal_count; i++) {
-	if(strcmp(volumename, illegal_volumenames[i]) == 0) {
+	if(_tcscmp (volumename, illegal_volumenames[i]) == 0) {
 	    result = 0;
 	    break;
 	}
     }
     /* if result is still good, we've passed the illegal names check, and must check for duplicates now */
     if(result && fullcheck) {
-	for(i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-	    if(mountinfo->ui[i].open && mountinfo->ui[i].volname && strcmp(mountinfo->ui[i].volname, volumename) == 0) {
+	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	    if (mountinfo->ui[i].open && mountinfo->ui[i].volname && _tcscmp (mountinfo->ui[i].volname, volumename) == 0) {
 		result = 0;
 		break;
 	    }
@@ -40,7 +40,7 @@ static int valid_volumename(struct uaedev_mount_info *mountinfo, char *volumenam
 }
 
 /* Returns 1 if an actual volume-name was found, 2 if no volume-name (so uses some defaults) */
-int target_get_volume_name (struct uaedev_mount_info *mtinf, const char *volumepath, char *volumename, int size, int inserted, int fullcheck)
+int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, int inserted, int fullcheck)
 {
     int result = 2;
     int drivetype;
@@ -51,12 +51,12 @@ int target_get_volume_name (struct uaedev_mount_info *mtinf, const char *volumep
 	    volumename[0] && 
 	    valid_volumename (mtinf, volumename, fullcheck)) {
 	    // +++Bernd Roesch
-	    if(!strcmp (volumename, "AmigaOS35"))
-		strcpy (volumename, "AmigaOS3.5");
-	    if(!strcmp (volumename, "AmigaOS39"))
-		strcpy (volumename, "AmigaOS3.9");
+	    if(!_tcscmp (volumename, L"AmigaOS35"))
+		_tcscpy (volumename, L"AmigaOS3.5");
+	    if(!_tcscmp (volumename, L"AmigaOS39"))
+		_tcscpy (volumename, L"AmigaOS3.9");
 	    // ---Bernd Roesch
-	    if (strlen (volumename) > 0)
+	    if (_tcslen (volumename) > 0)
 		result = 1;
 	}
     }
@@ -65,19 +65,19 @@ int target_get_volume_name (struct uaedev_mount_info *mtinf, const char *volumep
 	switch(drivetype)
 	{
 	    case DRIVE_FIXED:
-		sprintf (volumename, "WinDH_%c", volumepath[0]);
+		_stprintf (volumename, L"WinDH_%c", volumepath[0]);
 		break;
 	    case DRIVE_CDROM:
-		sprintf (volumename, "WinCD_%c", volumepath[0]);
+		_stprintf (volumename, L"WinCD_%c", volumepath[0]);
 		break;
 	    case DRIVE_REMOVABLE:
-		sprintf (volumename, "WinRMV_%c", volumepath[0]);
+		_stprintf (volumename, L"WinRMV_%c", volumepath[0]);
 		break;
 	    case DRIVE_REMOTE:
-		sprintf (volumename, "WinNET_%c", volumepath[0]);
+		_stprintf (volumename, L"WinNET_%c", volumepath[0]);
 		break;
 	    case DRIVE_RAMDISK:
-		sprintf (volumename, "WinRAM_%c", volumepath[0]);
+		_stprintf (volumename, L"WinRAM_%c", volumepath[0]);
 		break;
 	    case DRIVE_UNKNOWN:
 	    case DRIVE_NO_ROOT_DIR:
@@ -94,8 +94,8 @@ static void filesys_addexternals(void)
 {
     int drive, drivetype;
     UINT errormode;
-    char volumename[MAX_DPATH]="";
-    char volumepath[6];
+    TCHAR volumename[MAX_DPATH] = L"";
+    TCHAR volumepath[6];
     DWORD dwDriveMask;
     int drvnum = 0;
 
@@ -104,18 +104,18 @@ static void filesys_addexternals(void)
     dwDriveMask >>= 2; // Skip A and B drives...
 
     for(drive = 'C'; drive <= 'Z'; ++drive) {
-        sprintf(volumepath, "%c:\\", drive);
+        _stprintf(volumepath, L"%c:\\", drive);
         /* Is this drive-letter valid (it used to check for media in drive) */
         if(dwDriveMask & 1) {
-    	    char devname[100];
-	    BOOL inserted = CheckRM(volumepath); /* Is there a disk inserted? */
+    	    TCHAR devname[100];
+	    BOOL inserted = CheckRM (volumepath); /* Is there a disk inserted? */
 	    int nok = FALSE;
 	    int rw = 1;
-	    drivetype = GetDriveType(volumepath);
+	    drivetype = GetDriveType (volumepath);
 	    devname[0] = 0;
 	    for (;;) {
 		if (drivetype == DRIVE_CDROM && currprefs.win32_automount_cddrives) {
-		    sprintf (devname, "WinCD_%c", drive);
+		    _stprintf (devname, L"WinCD_%c", drive);
 		    rw = 0;
 		    break;
 		}
@@ -138,13 +138,13 @@ static void filesys_addexternals(void)
 	    if (inserted) {
 	        target_get_volume_name (&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
 		if (!volumename[0])
-		    sprintf (volumename, "WinUNK_%c", drive);
+		    _stprintf (volumename, L"WinUNK_%c", drive);
 	    }
 	    if (drivetype == DRIVE_REMOTE)
-	        strcat(volumepath, ".");
+	        _tcscat (volumepath, L".");
 	    else
-	        strcat(volumepath, "..");
-	    //write_log ("Drive type %d: '%s' '%s'\n", drivetype, volumepath, volumename);
+	        _tcscat (volumepath, L"..");
+	    //write_log (L"Drive type %d: '%s' '%s'\n", drivetype, volumepath, volumename);
 	    add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
 	    drvnum++;
 	} /* if drivemask */

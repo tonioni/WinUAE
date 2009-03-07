@@ -29,10 +29,10 @@ static int fmv_size = 1048576;
 static uae_u8 fmv_bget2 (uaecptr addr)
 {
 #ifdef FMV_DEBUG
-    write_log ("fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
+    write_log (L"fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
 #endif
     if (addr >= rom_size) {
-	write_log ("fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
+	write_log (L"fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
 	return 0;
     }
     return rom[addr];
@@ -40,7 +40,7 @@ static uae_u8 fmv_bget2 (uaecptr addr)
 static void fmv_bput2 (uaecptr addr, uae_u8 v)
 {
     if (addr >= rom_size && addr < 0xf0000) {
-	;//write_log ("fmv_bput2 %08X=%02X PC=%8X\n", addr, v & 0xff, M68K_GETPC);
+	;//write_log (L"fmv_bput2 %08X=%02X PC=%8X\n", addr, v & 0xff, M68K_GETPC);
     }
 }
 
@@ -55,7 +55,7 @@ static uae_u32 REGPARAM2 fmv_lget (uaecptr addr)
     v = (fmv_bget2 (addr) << 24) | (fmv_bget2 (addr + 1) << 16) |
 	(fmv_bget2 (addr + 2) << 8) | (fmv_bget2 (addr + 3));
 #ifdef FMV_DEBUG
-    write_log ("fmv_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
+    write_log (L"fmv_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -70,7 +70,7 @@ static uae_u32 REGPARAM2 fmv_wget (uaecptr addr)
     addr &= fmv_mask;
     v = (fmv_bget2 (addr) << 8) | fmv_bget2 (addr + 1);
 #ifdef FMV_DEBUG
-    write_log ("fmv_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
+    write_log (L"fmv_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -95,7 +95,7 @@ static void REGPARAM2 fmv_lput (uaecptr addr, uae_u32 l)
     addr -= fmv_start & fmv_mask;
     addr &= fmv_mask;
 #ifdef FMV_DEBUG
-    write_log ("fmv_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
+    write_log (L"fmv_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
 #endif
     fmv_bput2 (addr, l >> 24);
     fmv_bput2 (addr + 1, l >> 16);
@@ -111,7 +111,7 @@ static void REGPARAM2 fmv_wput (uaecptr addr, uae_u32 w)
     addr -= fmv_start & fmv_mask;
     addr &= fmv_mask;
 #ifdef FMV_DEBUG
-    write_log ("fmv_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
+    write_log (L"fmv_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
 #endif
     fmv_bput2 (addr, w >> 8);
     fmv_bput2 (addr + 1, w);
@@ -142,7 +142,7 @@ static uae_u32 REGPARAM2 fmv_wgeti (uaecptr addr)
     if (addr < rom_size)
 	return do_get_mem_word ((uae_u16 *)m);
 #ifdef FMV_DEBUG
-    write_log ("fmv_wgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
+    write_log (L"fmv_wgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -160,7 +160,7 @@ static uae_u32 REGPARAM2 fmv_lgeti (uaecptr addr)
     if (addr < rom_size)
 	return do_get_mem_long ((uae_u32 *)m);
 #ifdef FMV_DEBUG
-    write_log ("fmv_lgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
+    write_log (L"fmv_lgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif
     return v;
 }
@@ -182,7 +182,7 @@ static uae_u8 *REGPARAM2 fmv_xlate (uaecptr addr)
 static addrbank fmv_bank = {
     fmv_lget, fmv_wget, fmv_bget,
     fmv_lput, fmv_wput, fmv_bput,
-    fmv_xlate, fmv_check, NULL, "CD32 FMV module",
+    fmv_xlate, fmv_check, NULL, L"CD32 FMV module",
     fmv_lgeti, fmv_wgeti, ABFLAG_ROM | ABFLAG_IO
 };
 
@@ -195,7 +195,7 @@ void cd32_fmv_init (uaecptr start)
     struct romdata *rd;
     struct zfile *z;
 
-    write_log ("CD32 FMV mapped @$%lx\n", start);
+    write_log (L"CD32 FMV mapped @$%lx\n", start);
     if (start != fmv_start)
 	return;
     if (!rl)
@@ -203,8 +203,8 @@ void cd32_fmv_init (uaecptr start)
     rd = rl->rd;
     z = read_rom (&rd);
     if (z) {
-	write_log ("CD32 FMV ROM %d.%d\n", rd->ver, rd->rev);
-	rom = mapped_malloc (fmv_size, "fast");
+	write_log (L"CD32 FMV ROM %d.%d\n", rd->ver, rd->rev);
+	rom = mapped_malloc (fmv_size, L"fast");
 	if (rom)
 	    zfile_fread (rom, rd->size, 1, z);
 	zfile_fclose (z);

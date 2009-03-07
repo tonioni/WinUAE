@@ -35,8 +35,8 @@ ENUMDECL {
 
 extern struct mnemolookup {
     instrmnem mnemo;
-    const char *name;
-    const char *friendlyname;
+    const TCHAR *name;
+    const TCHAR *friendlyname;
 } lookuptab[];
 
 ENUMDECL {
@@ -60,7 +60,7 @@ ENUMDECL {
 struct instr_def {
     unsigned int bits;
     int n_variable;
-    char bitpos[16];
+    uae_u8 bitpos[16];
     unsigned int mask;
     int cpulevel;
     int plevel;
@@ -68,8 +68,8 @@ struct instr_def {
 	unsigned int flaguse:3;
 	unsigned int flagset:3;
     } flaginfo[5];
-    unsigned char sduse;
-    const char *opcstr;
+    uae_u8 sduse;
+    const TCHAR *opcstr;
 };
 
 extern struct instr_def defs68k[];

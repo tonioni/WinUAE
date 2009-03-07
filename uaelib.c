@@ -135,7 +135,7 @@ static uae_u32 REGPARAM2 emulib_ChgCMemSize (struct regstruct *regs, uae_u32 mem
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x200000) {
 	memsize = 0x200000;
-	write_log ("Unsupported chipmem size!\n");
+	write_log (L"Unsupported chipmem size!\n");
     }
     m68k_dreg (regs, 0) = 0;
 
@@ -153,7 +153,7 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (struct regstruct *regs, uae_u32 mem
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x180000 && memsize != 0x1C0000) {
 	memsize = 0;
-	write_log ("Unsupported bogomem size!\n");
+	write_log (L"Unsupported bogomem size!\n");
     }
 
     m68k_dreg (regs, 0) = 0;
@@ -171,7 +171,7 @@ static uae_u32 REGPARAM2 emulib_ChgFMemSize (struct regstruct *regs, uae_u32 mem
     if (memsize != 0x100000 && memsize != 0x200000 &&
 	memsize != 0x400000 && memsize != 0x800000) {
 	memsize = 0;
-	write_log ("Unsupported fastmem size!\n");
+	write_log (L"Unsupported fastmem size!\n");
     }
     m68k_dreg (regs, 0) = 0;
     currprefs.fastmem_size = memsize;
@@ -186,6 +186,7 @@ static uae_u32 emulib_InsertDisk (uaecptr name, uae_u32 drive)
 {
     int i = 0;
     char real_name[256];
+    TCHAR *s;
 
     if (drive > 3)
 	return 0;
@@ -196,7 +197,9 @@ static uae_u32 emulib_InsertDisk (uaecptr name, uae_u32 drive)
     if (i == 255)
 	return 0; /* ENAMETOOLONG */
 
-    strcpy (changed_prefs.df[drive], real_name);
+    s = au (real_name);
+    _tcscpy (changed_prefs.df[drive], s);
+    xfree (s);
 
     return 1;
 }
@@ -289,29 +292,6 @@ static uae_u32 emulib_Debug (void)
 #endif
 }
 
-/* We simply find the first "text" hunk, get the offset of its actual code segment (20 bytes away)
- * and add that offset to the base address of the object.  Now we've got code to execute.
- *
- * @@@ Brian: does anything actually use this yet?
- * @@@ Bernd: Not yet.  It needs to get much better.  Should spawn off a seperate task to handle the
- *            function, and then somehow "signal" the Amiga caller that completion or error has
- *            occurred.  I don't know how to do that, so right now it is a synchronous call.  Yuck!
- *            Would be nice to implement jpg decompression functionality for the Amiga which used
- *            the UAE Host to do all the work, for example.
- * @@@ Brian: I disabled it to prevent people from starting to use it - if that happens, we're
- *            stuck with this.
- */
-static uae_u32 FindFunctionInObject (uae_u8 *objectptr)
-{
-    uae_u8 *text_hdr;
-    uae_u8 offset;
-    text_hdr = (uae_u8 *)strstr ("text", (char *)objectptr);
-    if (text_hdr != 0) {
-	offset = *(text_hdr + 19);
-	return (uae_u32)(objectptr + offset);
-    }
-    return 0;
-}
 
 #define CREATE_NATIVE_FUNC_PTR uae_u32 (* native_func) (uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, \
 							uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32)
@@ -359,7 +339,8 @@ static uae_u32 emulib_Minimize (void)
 
 static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
 {
-    char tmp[MAX_DPATH];
+    TCHAR tmp[MAX_DPATH];
+    char *s;
     int v, i;
 
     if (mode)
@@ -370,10 +351,12 @@ static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
     v = get_native_path (p1, tmp);
     if (v)
 	return v;
-    for (i = 0; i <= strlen(tmp) && i < p3 - 1; i++) {
-	put_byte (p2 + i, tmp[i]);
+    s = ua (tmp);
+    for (i = 0; i <= strlen (s) && i < p3 - 1; i++) {
+	put_byte (p2 + i, s[i]);
 	put_byte (p2 + i + 1, 0);
     }
+    xfree (s);
     return 0;
 }
 #ifndef UAEGFX_INTERNAL
@@ -429,7 +412,7 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
      case 85: return native_dos_op (ARG1, ARG2, ARG3, ARG4);
      case 86:
 	 if (valid_address (ARG1, 1))
-	    write_log ("DBG: %s\n", get_real_address (ARG1));
+	    write_log (L"DBG: %s\n", get_real_address (ARG1));
 	 return 1;
     }
     return 0;
@@ -442,19 +425,19 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
     struct regstruct *r = &context->regs;
 
     if (uaelib_debug)
-	write_log ("%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	write_log (L"%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n",
 	    ARG0,
 	    r->regs[0],r->regs[1],r->regs[2],r->regs[3],r->regs[4],r->regs[5],r->regs[6],r->regs[7],
 	    r->regs[8],r->regs[9],r->regs[10],r->regs[11],r->regs[12],r->regs[13],r->regs[14],r->regs[15]);
 #ifdef UAEGFX_INTERNAL
     if (ARG0 >= 16 && ARG0 <= 39) {
-	write_log ("uaelib: obsolete Picasso96 uaelib hook called, call ignored\n");
+	write_log (L"uaelib: obsolete Picasso96 uaelib hook called, call ignored\n");
 	return 0;
     }
 #endif
     v = uaelib_demux2 (context);
     if (uaelib_debug)
-	write_log ("=%08x\n", v);
+	write_log (L"=%08x\n", v);
     return v;
 }
 
@@ -474,7 +457,7 @@ void emulib_install (void)
     dw ((rtarea_base >> 16) | get_word (rtarea_base + 36));
     dw (get_word (rtarea_base + 38) + 12);
 #endif
-    calltrap (deftrapres (uaelib_demux, 0, "uaelib_demux"));
+    calltrap (deftrapres (uaelib_demux, 0, L"uaelib_demux"));
     dw (RTS);
     org (a);
 }

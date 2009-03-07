@@ -1,6 +1,6 @@
 struct netdriverdata
 {
-    char *name;
+    TCHAR *name;
     int mtu;
     uae_u8 mac[6];
     int active;

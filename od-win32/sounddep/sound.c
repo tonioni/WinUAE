@@ -146,7 +146,7 @@ static void clearbuffer_ds (void)
 	hr = IDirectSoundBuffer_Lock (lpDSBsecondary, 0, dsoundbuf, &buffer, &size, NULL, NULL, 0);
     }
     if (FAILED (hr)) {
-	write_log ("SOUND: failed to Lock sound buffer (clear): %s\n", DXError (hr));
+	write_log (L"SOUND: failed to Lock sound buffer (clear): %s\n", DXError (hr));
 	return;
     }
     memset (buffer, 0, size);
@@ -166,10 +166,10 @@ static void pause_audio_ds (void)
     waiting_for_buffer = 0;
     hr = IDirectSoundBuffer_Stop (lpDSBsecondary);
     if (FAILED (hr))
-	write_log ("SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
+	write_log (L"SOUND: DirectSoundBuffer_Stop failed, %s\n", DXError(hr));
     hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
     if (FAILED (hr))
-	write_log ("SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError (hr));
+	write_log (L"SOUND: DirectSoundBuffer_SetCurretPosition failed, %s\n", DXError (hr));
     clearbuffer ();
 }
 static void resume_audio_ds (void)
@@ -182,13 +182,13 @@ static void pause_audio_pa (void)
 {
     PaError err = Pa_StopStream (pastream);
     if (err != paNoError)
-	write_log ("SOUND: Pa_StopStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+	write_log (L"SOUND: Pa_StopStream() error %d (%s)\n", err, Pa_GetErrorText (err));
 }
 static void resume_audio_pa (void)
 {
     PaError err = Pa_StartStream (pastream);
     if (err != paNoError)
-	write_log ("SOUND: Pa_StartStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+	write_log (L"SOUND: Pa_StartStream() error %d (%s)\n", err, Pa_GetErrorText (err));
     paused = 0;
 }
 static void pause_audio_al (void)
@@ -207,10 +207,10 @@ static int restore_ds (DWORD hr)
     if (hr != DSERR_BUFFERLOST)
 	return 0;
     if (sound_debug)
-	write_log ("SOUND: sound buffer lost\n");
+	write_log (L"SOUND: sound buffer lost\n");
     hr = IDirectSoundBuffer_Restore (lpDSBsecondary);
     if (FAILED(hr)) {
-	write_log ("SOUND: restore failed %s\n", DXError (hr));
+	write_log (L"SOUND: restore failed %s\n", DXError (hr));
 	return 1;
     }
     pause_audio_ds ();
@@ -242,7 +242,7 @@ static void close_audio_ds (void)
 #endif
     if (lpDS) {
 	IDirectSound_Release (lpDS);
-	write_log ("SOUND: DirectSound driver freed\n");
+	write_log (L"SOUND: DirectSound driver freed\n");
     }
     lpDS = 0;
 }
@@ -263,7 +263,7 @@ void set_volume (int volume, int mute)
 	    vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
 	hr = IDirectSoundBuffer_SetVolume (lpDSBsecondary, vol);
 	if (FAILED (hr))
-	    write_log ("SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	    write_log (L"SOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 	setvolume_ahi (vol);
     }
 }
@@ -432,12 +432,12 @@ static int open_audio_pa (int size)
 		break;
 	    }
 	}
-	write_log ("SOUND: sound format not supported\n");
+	write_log (L"SOUND: sound format not supported\n");
 	goto end;
     }
     err = Pa_OpenStream (&pastream, NULL, &p, freq, paframesperbuffer, paNoFlag, portAudioCallback, NULL);
     if (err != paNoError) {
-	write_log ("SOUND: Pa_OpenStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+	write_log (L"SOUND: Pa_OpenStream() error %d (%s)\n", err, Pa_GetErrorText (err));
 	goto end;
     }
     paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
@@ -475,6 +475,7 @@ static int open_audio_al (int size)
 {
     int freq = currprefs.sound_freq;
     int ch = get_audio_nativechannels ();
+    char *name;
 
     devicetype = SOUND_DEVICE_AL;
     size *= ch * 2;
@@ -483,7 +484,9 @@ static int open_audio_al (int size)
 	sndbufsize = SND_MAX_BUFFER;
     al_bufsize = size;
     al_bigbuffer = xcalloc (al_bufsize, 1);
-    al_dev = alcOpenDevice (sound_devices[currprefs.win32_soundcard].alname);
+    name = ua (sound_devices[currprefs.win32_soundcard].alname);
+    al_dev = alcOpenDevice (name);
+    xfree (name);
     if (!al_dev)
 	goto error;
     al_ctx = alcCreateContext (al_dev, NULL);
@@ -512,7 +515,7 @@ static int open_audio_al (int size)
     if (al_format == 0)
 	goto error;
 
-    write_log ("SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d)\n",
+    write_log (L"SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d)\n",
 	    al_format, ch, freq, sound_devices[currprefs.win32_soundcard].alname,
 	    sndbufsize, al_bufsize);
     return 1;
@@ -558,13 +561,13 @@ static int open_audio_ds (int size)
 
     hr = DirectSoundCreate8 (&sound_devices[currprefs.win32_soundcard].guid, &lpDS, NULL);
     if (FAILED (hr))  {
-	write_log ("SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
+	write_log (L"SOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
 	return 0;
     }
 
     hr = IDirectSound_SetCooperativeLevel (lpDS, hMainWnd, DSSCL_PRIORITY);
     if (FAILED (hr)) {
-	write_log ("SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
+	write_log (L"SOUND: Can't set cooperativelevel: %s\n", DXError (hr));
 	goto error;
     }
 
@@ -572,11 +575,11 @@ static int open_audio_ds (int size)
     DSCaps.dwSize = sizeof (DSCaps);
     hr = IDirectSound_GetCaps (lpDS, &DSCaps);
     if (FAILED(hr)) {
-	write_log ("SOUND: Error getting DirectSound capabilities: %s\n", DXError (hr));
+	write_log (L"SOUND: Error getting DirectSound capabilities: %s\n", DXError (hr));
 	goto error;
     }
     if (DSCaps.dwFlags & DSCAPS_EMULDRIVER) {
-	write_log ("SOUND: Emulated DirectSound driver detected, don't complain if sound quality is crap :)\n");
+	write_log (L"SOUND: Emulated DirectSound driver detected, don't complain if sound quality is crap :)\n");
     }
     if (DSCaps.dwFlags & DSCAPS_CONTINUOUSRATE) {
 	int minfreq = DSCaps.dwMinSecondarySampleRate;
@@ -584,20 +587,20 @@ static int open_audio_ds (int size)
 	if (minfreq > freq && freq < 22050) {
 	    freq = minfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
-	    write_log ("SOUND: minimum supported frequency: %d\n", minfreq);
+	    write_log (L"SOUND: minimum supported frequency: %d\n", minfreq);
 	}
 	if (maxfreq < freq && freq > 44100) {
 	    freq = maxfreq;
 	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
-	    write_log ("SOUND: maximum supported frequency: %d\n", maxfreq);
+	    write_log (L"SOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     }
 
     speakerconfig = fillsupportedmodes (lpDS, freq, supportedmodes);
-    write_log ("SOUND: %08X ", speakerconfig);
+    write_log (L"SOUND: %08X ", speakerconfig);
     for (i = 0; supportedmodes[i].ch; i++)
-	write_log ("%d:%08X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
-    write_log ("\n");
+	write_log (L"%d:%08X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
+    write_log (L"\n");
 
     for (round = 0; supportedmodes[round].ch; round++) {
 	DWORD ksmode = 0;
@@ -624,7 +627,7 @@ static int open_audio_ds (int size)
 	wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
 	samplesize = ch * 2;
-	write_log ("SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d), dist %d\n",
+	write_log (L"SOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d), dist %d\n",
 	    ksmode, ch, freq, sound_devices[currprefs.win32_soundcard].name,
 	    max_sndbufsize / samplesize, max_sndbufsize, snd_configsize / samplesize);
 
@@ -645,18 +648,18 @@ static int open_audio_ds (int size)
 	    sound_buffer.dwFlags |=  DSBCAPS_LOCSOFTWARE;
 	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED(hr)) {
-		//write_log ("SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
+		//write_log (L"SOUND: Couldn't use hardware buffer (switched to software): %s\n", DXError (hr2));
 		break;
 	    }
 	}
-	write_log ("SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
+	write_log (L"SOUND: Secondary CreateSoundBuffer() failure: %s\n", DXError (hr));
     }
 
     if (pdsb == NULL)
 	goto error;
     hr = IDirectSound_QueryInterface (pdsb, &IID_IDirectSoundBuffer8, (LPVOID*)&lpDSBsecondary);
     if (FAILED (hr))  {
-	write_log ("SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
+	write_log (L"SOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 	goto error;
     }
     IDirectSound_Release (pdsb);
@@ -830,7 +833,7 @@ void restart_sound_buffer (void)
 	return;
     hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safed);
     if (FAILED (hr)) {
-	write_log ("SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError (hr));
+	write_log (L"SOUND: DirectSoundBuffer_GetCurrentPosition failed, %s\n", DXError (hr));
 	return;
     }
     writepos = safed + snd_writeoffset;
@@ -847,8 +850,8 @@ static int alcheck (int v)
         alGetSourcei (al_Source, AL_BUFFERS_PROCESSED, &v1);
 	alGetSourcei (al_Source, AL_BUFFERS_QUEUED, &v2);
 	alGetSourcei (al_Source, AL_SOURCE_STATE, &v3);
-	write_log ("OpenAL %d: error %d. PROC=%d QUEUE=%d STATE=%d\n", v, err, v1, v2, v3);
-	write_log ("           %d %08x %08x %08x %d %d\n",
+	write_log (L"OpenAL %d: error %d. PROC=%d QUEUE=%d STATE=%d\n", v, err, v1, v2, v3);
+	write_log (L"           %d %08x %08x %08x %d %d\n",
 	    al_toggle, al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
 	return 1;
     }
@@ -892,7 +895,7 @@ static void finish_sound_buffer_al (void)
         alSourceUnqueueBuffers (al_Source, 1, &tmp);
 	alGetError ();
 
-//	write_log ("           %d %08x %08x %08x %d %d\n",
+//	write_log (L"           %d %08x %08x %08x %d %d\n",
 //	    al_toggle, al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
 
 	alBufferData (al_Buffers[al_toggle], al_format, al_bigbuffer, al_bufsize, currprefs.sound_freq);
@@ -909,7 +912,7 @@ static void finish_sound_buffer_al (void)
 	alcheck(3);
 	if (v != AL_PLAYING && v2 >= AL_BUFFERS) {
 	    if (waiting_for_buffer > 0) {
-		write_log ("AL SOUND PLAY!\n");
+		write_log (L"AL SOUND PLAY!\n");
 		alSourcePlay (al_Source);
 		waiting_for_buffer = -1;
     		tfprev = timeframes + 10;
@@ -917,7 +920,7 @@ static void finish_sound_buffer_al (void)
 	    } else {
 		gui_data.sndbuf_status = 2;
 		statuscnt = SND_STATUSCNT;
-		write_log ("AL underflow\n");
+		write_log (L"AL underflow\n");
 		clearbuffer ();
 		waiting_for_buffer = 1;
 	    }
@@ -958,7 +961,7 @@ static void finish_sound_buffer_al (void)
 	}
 	if (tfprev != timeframes) {
 	    if ((0 || sound_debug) && !(tfprev % 10))
-		write_log ("s=%+02.1f\n", skipmode);
+		write_log (L"s=%+02.1f\n", skipmode);
 	    tfprev = timeframes;
 	    if (!avioutput_audio)
 		sound_setadjust (skipmode);
@@ -996,14 +999,14 @@ static void finish_sound_buffer_ds (void)
     if (waiting_for_buffer == 1) {
 	hr = IDirectSoundBuffer_Play (lpDSBsecondary, 0, 0, DSBPLAY_LOOPING);
 	if (FAILED (hr)) {
-	    write_log ("SOUND: Play failed: %s\n", DXError (hr));
+	    write_log (L"SOUND: Play failed: %s\n", DXError (hr));
 	    restore_ds (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
 	}
 	hr = IDirectSoundBuffer_SetCurrentPosition (lpDSBsecondary, 0);
 	if (FAILED (hr)) {
-	    write_log ("SOUND: 1st SetCurrentPosition failed: %s\n", DXError (hr));
+	    write_log (L"SOUND: 1st SetCurrentPosition failed: %s\n", DXError (hr));
 	    restore_ds (DSERR_BUFFERLOST);
 	    waiting_for_buffer = 0;
 	    return;
@@ -1017,11 +1020,11 @@ static void finish_sound_buffer_ds (void)
 	    sleep_millis (1);
 	    counter--;
 	    if (counter < 0) {
-		write_log ("SOUND: stuck?!?!\n");
+		write_log (L"SOUND: stuck?!?!\n");
 		break;
 	    }
 	}
-	write_log ("SOUND: %d = (%d - %d)\n", (safedist - playpos) / samplesize, safedist / samplesize, playpos / samplesize);
+	write_log (L"SOUND: %d = (%d - %d)\n", (safedist - playpos) / samplesize, safedist / samplesize, playpos / samplesize);
 	recalc_offsets ();
 	safedist -= playpos;
 	if (safedist < 64)
@@ -1039,7 +1042,7 @@ static void finish_sound_buffer_ds (void)
 #endif
 	waiting_for_buffer = -1;
 	restart_sound_buffer ();
-	write_log ("SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
+	write_log (L"SOUND: bs=%d w=%d max=%d tof=%d tuf=%d\n",
 	    sndbufsize / samplesize, snd_writeoffset / samplesize,
 	    snd_maxoffset / samplesize, snd_totalmaxoffset_of / samplesize,
 	    snd_totalmaxoffset_uf / samplesize);
@@ -1050,17 +1053,17 @@ static void finish_sound_buffer_ds (void)
     counter = 5000;
     hr = IDirectSoundBuffer_GetStatus (lpDSBsecondary, &status);
     if (FAILED (hr)) {
-	write_log ("SOUND: GetStatus() failed: %s\n", DXError (hr));
+	write_log (L"SOUND: GetStatus() failed: %s\n", DXError (hr));
 	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
     if (status & DSBSTATUS_BUFFERLOST) {
-	write_log ("SOUND: buffer lost\n");
+	write_log (L"SOUND: buffer lost\n");
 	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
     if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
-	write_log ("SOUND: status = %08X\n", status);
+	write_log (L"SOUND: status = %08X\n", status);
 	restore_ds (DSERR_BUFFERLOST);
 	return;
     }
@@ -1068,7 +1071,7 @@ static void finish_sound_buffer_ds (void)
 	hr = IDirectSoundBuffer_GetCurrentPosition (lpDSBsecondary, &playpos, &safepos);
 	if (FAILED (hr)) {
 	    restore_ds (hr);
-	    write_log ("SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
+	    write_log (L"SOUND: GetCurrentPosition failed: %s\n", DXError (hr));
 	    return;
 	}
 	if (writepos >= safepos)
@@ -1101,7 +1104,7 @@ static void finish_sound_buffer_ds (void)
 	    statuscnt = SND_STATUSCNT;
 	    restart_sound_buffer ();
 	    diff = snd_writeoffset;
-	    write_log ("SOUND: underflow (%d %d)\n", diff / samplesize, snd_totalmaxoffset_of / samplesize);
+	    write_log (L"SOUND: underflow (%d %d)\n", diff / samplesize, snd_totalmaxoffset_of / samplesize);
 	    break;
 	}
 
@@ -1111,7 +1114,7 @@ static void finish_sound_buffer_ds (void)
 	    sleep_millis (1);
 	    counter--;
 	    if (counter < 0) {
-		write_log ("SOUND: sound system got stuck!?\n");
+		write_log (L"SOUND: sound system got stuck!?\n");
 		restore_ds (DSERR_BUFFERLOST);
 		return;
 	    }
@@ -1124,7 +1127,7 @@ static void finish_sound_buffer_ds (void)
     if (restore_ds (hr))
 	return;
     if (FAILED (hr)) {
-	write_log ("SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos / samplesize, sndbufsize / samplesize);
+	write_log (L"SOUND: lock failed: %s (%d %d)\n", DXError (hr), writepos / samplesize, sndbufsize / samplesize);
 	return;
     }
     memcpy (b1, sndbuffer, s1);
@@ -1159,7 +1162,7 @@ static void finish_sound_buffer_ds (void)
 
     if (tfprev != timeframes) {
 	if (sound_debug && !(tfprev % 10))
-	    write_log ("b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
+	    write_log (L"b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
 		sndbufsize / samplesize, snd_configsize / samplesize, max_sndbufsize / samplesize,
 		dsoundbuf / samplesize, diff / samplesize, vdiff, skipmode);
 	tfprev = timeframes;
@@ -1286,13 +1289,15 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
 	if (ok) {
 	    sd->type = SOUND_DEVICE_AL;
 	    if (ppDefaultDevice) {
-	        char tmp[MAX_DPATH];
-	        sprintf (tmp, "Default [%s]", devname);
-	        sd->alname = my_strdup (ppDefaultDevice);
+	        TCHAR tmp[MAX_DPATH];
+		TCHAR *tdevname = au (devname);
+	        _stprintf (tmp, L"Default [%s]", tdevname);
+		xfree (tdevname);
+	        sd->alname = my_strdup_ansi (ppDefaultDevice);
 	        sd->name = my_strdup (tmp);
 	    } else {
-	        sd->alname = my_strdup (pDeviceNames);
-	        sd->name = my_strdup (pDeviceNames);
+	        sd->alname = my_strdup_ansi (pDeviceNames);
+	        sd->name = my_strdup_ansi (pDeviceNames);
 	    }
 	    sd->cfgname = my_strdup (sd->alname);
 	}
@@ -1303,7 +1308,7 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
    }
 }
 
-static int isdllversion (const char *name, int version, int revision, int subver, int subrev)
+static int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)
 {
     DWORD  dwVersionHandle, dwFileVersionInfoSize;
     LPVOID lpFileVersionData = NULL;
@@ -1319,7 +1324,7 @@ static int isdllversion (const char *name, int version, int revision, int subver
 		    if (vsFileInfo) {
 			uae_u64 v1 = ((uae_u64)vsFileInfo->dwProductVersionMS << 32) | vsFileInfo->dwProductVersionLS;
 			uae_u64 v2 = ((uae_u64)version << 48) | ((uae_u64)revision << 32) | (subver << 16) | (subrev << 0);
-			write_log ("%s %d.%d.%d.%d\n", name,
+			write_log (L"%s %d.%d.%d.%d\n", name,
 			    HIWORD (vsFileInfo->dwProductVersionMS), LOWORD (vsFileInfo->dwProductVersionMS),
 			    HIWORD (vsFileInfo->dwProductVersionLS), LOWORD (vsFileInfo->dwProductVersionLS));
 			if (v1 >= v2)
@@ -1339,7 +1344,7 @@ static void PortAudioEnumerate (struct sound_device *sds)
     struct sound_device *sd;
     int num;
     int i, j;
-    char tmp[MAX_DPATH];
+    TCHAR tmp[MAX_DPATH];
 
     num = Pa_GetDeviceCount ();
     for (j = 0; j < num; j++) {
@@ -1360,7 +1365,7 @@ static void PortAudioEnumerate (struct sound_device *sds)
 	}
 	if (i >= MAX_SOUND_DEVICES)
 	    return;
-	sprintf (tmp, "[%s] %s", hai->name, di->name);
+	_stprintf (tmp, L"[%s] %s", hai->name, di->name);
 	sd->type = SOUND_DEVICE_PA;
 	sd->name = my_strdup (tmp);
 	sd->cfgname = my_strdup (tmp);
@@ -1372,14 +1377,14 @@ int enumerate_sound_devices (void)
 {
     if (!num_sound_devices) {
 	HMODULE l = NULL;
-	write_log ("Enumerating DirectSound devices..\n");
+	write_log (L"Enumerating DirectSound devices..\n");
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-	if (isdllversion ("openal32.dll", 6, 14, 357, 22)) {
-	    write_log ("Enumerating OpenAL devices..\n");
+	if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
+	    write_log (L"Enumerating OpenAL devices..\n");
 	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
-		const ALchar* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
-		const ALchar* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
+		const char* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
+		const char* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
 		if (alcIsExtensionPresent (NULL, "ALC_ENUMERATE_ALL_EXT"))
 		    pDeviceNames = alcGetString (NULL, ALC_ALL_DEVICES_SPECIFIER);
 		OpenALEnumerate (sound_devices, pDeviceNames, ppDefaultDevice, FALSE);
@@ -1390,23 +1395,23 @@ int enumerate_sound_devices (void)
 	}
 #if PORTAUDIO
 	{
-	    HMODULE hm = WIN32_LoadLibrary ("portaudio_x86.dll");
+	    HMODULE hm = WIN32_LoadLibrary (L"portaudio_x86.dll");
 	    if (hm) {
 		PaError err;
-		write_log ("Enumerating PortAudio devices..\n");
-		write_log ("%s (%d)\n", Pa_GetVersionText (), Pa_GetVersion ());
+		write_log (L"Enumerating PortAudio devices..\n");
+		write_log (L"%s (%d)\n", Pa_GetVersionText (), Pa_GetVersion ());
 		err = Pa_Initialize ();
 		if (err == paNoError) {
 		    PortAudioEnumerate (sound_devices);
 		} else {
-		    write_log ("Portaudio initializiation failed: %d (%s)\n",
+		    write_log (L"Portaudio initializiation failed: %d (%s)\n",
 			err, Pa_GetErrorText (err));
 		    FreeLibrary (hm);
 		}
 	    }
 	}
 #endif
-	write_log("Enumeration end\n");
+	write_log (L"Enumeration end\n");
 	for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
 	    if (sound_devices[num_sound_devices].name == NULL)
 		break;
@@ -1478,15 +1483,15 @@ static int setget_master_volume_vista (int setvolume, int *volume, int *mute)
     return ok == 2;
 }
 
-static void mcierr (char *str, DWORD err)
+static void mcierr (TCHAR *str, DWORD err)
 {
-    char es[1000];
+    TCHAR es[1000];
     if (err == MMSYSERR_NOERROR)
 	return;
-    if (mciGetErrorString (err, es, sizeof es))
-	write_log ("MCIErr: %s: %d = '%s'\n", str, err, es);
+    if (mciGetErrorString (err, es, sizeof es / sizeof (TCHAR)))
+	write_log (L"MCIErr: %s: %d = '%s'\n", str, err, es);
     else
-	write_log ("%s, errcode=%d\n", str, err);
+	write_log (L"%s, errcode=%d\n", str, err);
 }
 /* from http://www.codeproject.com/audio/mixerSetControlDetails.asp */
 static int setget_master_volume_xp (int setvolume, int *volume, int *mute)
@@ -1550,14 +1555,14 @@ static int setget_master_volume_xp (int setvolume, int *volume, int *mute)
 		    if (result == MMSYSERR_NOERROR)
 			ok = 1;
 		} else
-		    mcierr ("mixerGetLineControls Mute", result);
+		    mcierr (L"mixerGetLineControls Mute", result);
 	    } else
-		mcierr ("mixerGetLineControls Volume", result);
+		mcierr (L"mixerGetLineControls Volume", result);
 	} else
-	    mcierr ("mixerGetLineInfo", result);
+	    mcierr (L"mixerGetLineInfo", result);
 	mixerClose (hMixer);
     } else
-	mcierr ("mixerOpen", result);
+	mcierr (L"mixerOpen", result);
     return ok;
 }
 

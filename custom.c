@@ -75,17 +75,17 @@ STATIC_INLINE int nocustom(void)
     return 0;
 }
 
-void uae_abort (const char *format,...)
+void uae_abort (const TCHAR *format,...)
 {
     static int nomore;
     va_list parms;
-    char buffer[1000];
+    TCHAR buffer[1000];
 
     va_start (parms, format);
-    _vsnprintf(buffer, sizeof (buffer) - 1, format, parms );
+    _vsntprintf (buffer, sizeof (buffer) - 1, format, parms );
     va_end (parms);
     if (nomore) {
-	write_log ("%s\n", buffer);
+	write_log (L"%s\n", buffer);
 	return;
     }
     gui_message (buffer);
@@ -425,7 +425,7 @@ void reset_frame_rate_hack (void)
     rpt_did_reset = 1;
     is_lastline = 0;
     vsyncmintime = read_processor_time () + vsynctime;
-    write_log ("Resetting frame rate hack\n");
+    write_log (L"Resetting frame rate hack\n");
 }
 
 STATIC_INLINE void setclr (uae_u16 *p, uae_u16 val)
@@ -441,11 +441,11 @@ STATIC_INLINE alloc_cycle (int hpos, int type)
 #ifdef CPUEMU_12
 #if 0
     if (cycle_line[hpos])
-	write_log ("hpos=%d, old=%d, new=%d\n", hpos, cycle_line[hpos], type);
+	write_log (L"hpos=%d, old=%d, new=%d\n", hpos, cycle_line[hpos], type);
     if ((type == CYCLE_CPU || type == CYCLE_COPPER) && (hpos & 1))
-	write_log ("odd %d cycle %d\n", hpos);
+	write_log (L"odd %d cycle %d\n", hpos);
     if (!(hpos & 1) && (type == CYCLE_SPRITE || type == CYCLE_REFRESH || type == CYCLE_MISC))
-	write_log ("even %d cycle %d\n", type, hpos);
+	write_log (L"even %d cycle %d\n", type, hpos);
 #endif
     cycle_line[hpos] = type;
 #endif
@@ -482,7 +482,7 @@ STATIC_INLINE uae_u8 *pfield_xlateptr (uaecptr plpt, int bytecount)
     if (!chipmem_bank.check (plpt, bytecount)) {
 	static int count = 0;
 	if (!count)
-	    count++, write_log ("Warning: Bad playfield pointer\n");
+	    count++, write_log (L"Warning: Bad playfield pointer\n");
 	return NULL;
     }
     return chipmem_bank.xlateaddr (plpt);
@@ -694,22 +694,22 @@ static const int cycle_sequences[3 * 8] = { 2,1,2,1,2,1,2,1, 4,2,3,1,4,2,3,1, 8,
 static void debug_cycle_diagram (void)
 {
     int fm, res, planes, cycle, v;
-    char aa;
+    TCHAR aa;
 
     for (fm = 0; fm <= 2; fm++) {
-	write_log ("FMODE %d\n=======\n", fm);
+	write_log (L"FMODE %d\n=======\n", fm);
 	for (res = 0; res <= 2; res++) {
 	    for (planes = 0; planes <= 8; planes++) {
-		write_log ("%d: ",planes);
+		write_log (L"%d: ",planes);
 		for (cycle = 0; cycle < 32; cycle++) {
 		    v=cycle_diagram_table[fm][res][planes][cycle];
 		    if (v==0) aa='-'; else if(v>0) aa='1'; else aa='X';
-		    write_log ("%c",aa);
+		    write_log (L"%c",aa);
 		}
-		write_log (" %d:%d\n",
+		write_log (L" %d:%d\n",
 		    cycle_diagram_free_cycles[fm][res][planes], cycle_diagram_total_cycles[fm][res][planes]);
 	    }
-	    write_log ("\n");
+	    write_log (L"\n");
 	}
     }
     fm=0;
@@ -833,7 +833,7 @@ STATIC_INLINE void compute_delay_offset (void)
 	delayoffset = 16;
     else /* what about 40 and 56? */
 	delayoffset = 0;
-    //write_log ("%d:%d ", vpos, delayoffset);
+    //write_log (L"%d:%d ", vpos, delayoffset);
 #endif
 }
 
@@ -1534,7 +1534,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
     toscr_nbits += 2 << toscr_res;
 
     if (toscr_nbits > 16) {
-	uae_abort ("toscr_nbits > 16 (%d)", toscr_nbits);
+	uae_abort (L"toscr_nbits > 16 (%d)", toscr_nbits);
 	toscr_nbits = 0;
     }
     if (toscr_nbits == 16)
@@ -1555,7 +1555,7 @@ STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm
     case 1: return one_fetch_cycle_fm1 (pos, ddfstop_to_test, dma);
     case 2: return one_fetch_cycle_fm2 (pos, ddfstop_to_test, dma);
 #endif
-    default: uae_abort ("fm corrupt"); return 0;
+    default: uae_abort (L"fm corrupt"); return 0;
     }
 }
 
@@ -1686,7 +1686,7 @@ STATIC_INLINE void decide_fetch (int hpos)
 	case 1: update_fetch_1 (hpos); break;
 	case 2: update_fetch_2 (hpos); break;
 #endif
-	default: uae_abort ("fetchmode corrupt");
+	default: uae_abort (L"fetchmode corrupt");
 	}
     }
     last_fetch_hpos = hpos;
@@ -2052,7 +2052,7 @@ static void do_sprite_collisions (void)
     {
 	static int olx;
 	if (clxdat != olx)
-	    write_log ("%d: %04X\n", vpos, clxdat);
+	    write_log (L"%d: %04X\n", vpos, clxdat);
 	olx = clxdat;
     }
 #endif
@@ -2150,7 +2150,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
     }
 
     if (sprxp < e->pos)
-	uae_abort ("sprxp < e->pos");
+	uae_abort (L"sprxp < e->pos");
 
     e->max = sprxp + width;
     e[1].first_pixel = e->first_pixel + ((e->max - e->pos + 3) & ~3);
@@ -2390,10 +2390,10 @@ static void finish_decisions (int hpos)
 
     if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {
 	if (fetch_state != fetch_not_started) {
-	    write_log ("fetch_state=%d plfleft=%d,len=%d,vpos=%d,hpos=%d\n",
+	    write_log (L"fetch_state=%d plfleft=%d,len=%d,vpos=%d,hpos=%d\n",
 		fetch_state, thisline_decision.plfleft, thisline_decision.plflinelen,
 		vpos, hpos);
-	    uae_abort ("fetch_state != fetch_not_started");
+	    uae_abort (L"fetch_state != fetch_not_started");
 	}
 	thisline_decision.plfright = thisline_decision.plfleft;
 	thisline_decision.plflinelen = 0;
@@ -2564,10 +2564,10 @@ static void dumpsync (void)
     if (cnt < 0)
 	return;
     cnt--;
-    write_log ("BEAMCON0=%04X VTOTAL=%04X HTOTAL=%04X\n", new_beamcon0, vtotal, htotal);
-    write_log ("HSSTOP=%04X HBSTRT=%04X HBSTOP=%04X\n", hsstop, hbstrt, hbstop);
-    write_log ("VSSTOP=%04X VBSTRT=%04X VBSTOP=%04X\n", vsstop, vbstrt, vbstop);
-    write_log ("HSSTRT=%04X VSSTRT=%04X HCENTER=%04X\n", hsstrt, vsstrt, hcenter);
+    write_log (L"BEAMCON0=%04X VTOTAL=%04X HTOTAL=%04X\n", new_beamcon0, vtotal, htotal);
+    write_log (L"HSSTOP=%04X HBSTRT=%04X HBSTOP=%04X\n", hsstop, hbstrt, hbstop);
+    write_log (L"VSSTOP=%04X VBSTRT=%04X VBSTOP=%04X\n", vsstop, vbstrt, vbstop);
+    write_log (L"HSSTRT=%04X VSSTRT=%04X HCENTER=%04X\n", hsstrt, vsstrt, hcenter);
 }
 
 /* set PAL/NTSC or custom timing variables */
@@ -2590,7 +2590,7 @@ void init_hz (void)
 	hzc = 1;
     if (beamcon0 != new_beamcon0) {
 	hack_vpos = 0;
-	write_log ("BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
+	write_log (L"BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
     }
     if (beamcon0 & 0x80)
 	hack_vpos = -1;
@@ -2666,10 +2666,10 @@ void init_hz (void)
     init_hz_p96 ();
 #endif
     inputdevice_tablet_strobe ();
-    write_log ("%s mode%s%s V=%dHz H=%dHz (%dx%d)\n",
-	isntsc ? "NTSC" : "PAL",
-	(bplcon0 & 4) ? " interlaced" : "",
-	doublescan > 0 ? " dblscan" : "",
+    write_log (L"%s mode%s%s V=%dHz H=%dHz (%dx%d)\n",
+	isntsc ? L"NTSC" : L"PAL",
+	(bplcon0 & 4) ? L" interlaced" : L"",
+	doublescan > 0 ? L" dblscan" : L"",
 	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
 }
@@ -2823,7 +2823,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 	vp &= 1;
     vp = vp | (lof ? 0x8000 : 0) | csbit;
 #if 0
-    write_log ("VPOSR %04x at %08x\n", vp, M68K_GETPC);
+    write_log (L"VPOSR %04x at %08x\n", vp, M68K_GETPC);
 #endif
     if (currprefs.cpu_model >= 68020)
 	hsyncdelay ();
@@ -2832,7 +2832,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 static void VPOSW (uae_u16 v)
 {
 #if 0
-    write_log ("VPOSW %d PC=%08x\n", v, M68K_GETPC);
+    write_log (L"VPOSW %d PC=%08x\n", v, M68K_GETPC);
 #endif
     if (lof != ((v & 0x8000) ? 1 : 0))
 	lof_changed = 1;
@@ -2860,7 +2860,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     if (currprefs.cpu_model >= 68020)
 	hsyncdelay ();
 #if 0
-    write_log ("VPOS %04x %04x at %08x\n", VPOSR(), vp, M68K_GETPC);
+    write_log (L"VPOS %04x %04x at %08x\n", VPOSR(), vp, M68K_GETPC);
     if (M68K_GETPC == 0x40e6) {
         activate_debugger();
     }
@@ -3057,7 +3057,7 @@ STATIC_INLINE void INTENA (uae_u16 v)
     setclr (&intena,v);
 #if 0
     if (v & 0x40)
-	write_log ("INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
+	write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
     if (v & 0x8000) {
 	if (!use_eventmode ())
@@ -3132,7 +3132,7 @@ static void BEAMCON0 (uae_u16 v)
 	if (v != new_beamcon0) {
 	    new_beamcon0 = v;
 	    if (v & ~0x20)
-		write_log ("warning: %04X written to BEAMCON0 PC=%08X\n", v, M68K_GETPC);
+		write_log (L"warning: %04X written to BEAMCON0 PC=%08X\n", v, M68K_GETPC);
 	}
     }
 }
@@ -3196,7 +3196,7 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
     bplptx[num] = (bplptx[num] & 0x0000ffff) | ((uae_u32)v << 16);
-    //write_log ("%d:%d:BPL%dPTH %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
+    //write_log (L"%d:%d:BPL%dPTH %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
 }
 static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
@@ -3210,7 +3210,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     }
     bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     bplptx[num] = (bplptx[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
-    //write_log ("%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
+    //write_log (L"%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
 }
 
 static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)
@@ -3442,7 +3442,7 @@ static void DDFSTRT (int hpos, uae_u16 v)
 	static int last_warned;
 	last_warned = (last_warned + 1) & 4095;
 	if (last_warned == 0)
-	    write_log ("WARNING! Very strange DDF values (%x %x).\n", ddfstrt, ddfstop);
+	    write_log (L"WARNING! Very strange DDF values (%x %x).\n", ddfstrt, ddfstop);
     }
 }
 
@@ -3463,7 +3463,7 @@ static void DDFSTOP (int hpos, uae_u16 v)
     if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {
 	static int last_warned;
 	if (last_warned == 0)
-	    write_log ("WARNING! Very strange DDF values (%x).\n", ddfstop);
+	    write_log (L"WARNING! Very strange DDF values (%x).\n", ddfstop);
 	last_warned = (last_warned + 1) & 4095;
     }
 }
@@ -3644,7 +3644,7 @@ STATIC_INLINE void SPRxCTL_1 (uae_u16 v, int num, int hpos)
     SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dCTL %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
+	write_log (L"%d:%d:SPR%dCTL %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
 	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
     }
 #endif
@@ -3657,7 +3657,7 @@ STATIC_INLINE void SPRxPOS_1 (uae_u16 v, int num, int hpos)
     SPRxCTLPOS (num);
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dPOS %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
+	write_log (L"%d:%d:SPR%dPOS %04X P=%06X VSTRT=%d VSTOP=%d HSTRT=%d D=%d A=%d CP=%x PC=%x\n",
 	    vpos, hpos, num, v, s->pt, s->vstart, s->vstop, s->xpos, spr[num].dmastate, spr[num].armed, cop_state.ip, M68K_GETPC);
     }
 #endif
@@ -3673,7 +3673,7 @@ STATIC_INLINE void SPRxDATA_1 (uae_u16 v, int num, int hpos)
     spr_arm (num, 1);
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dDATA %04X P=%06X D=%d A=%d PC=%x\n",
+	write_log (L"%d:%d:SPR%dDATA %04X P=%06X D=%d A=%d PC=%x\n",
 	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, M68K_GETPC);
     }
 #endif
@@ -3688,7 +3688,7 @@ STATIC_INLINE void SPRxDATB_1 (uae_u16 v, int num, int hpos)
 #endif
 #if SPRITE_DEBUG > 1
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dDATB %04X P=%06X D=%d A=%d PC=%x\n",
+	write_log (L"%d:%d:SPR%dDATB %04X P=%06X D=%d A=%d PC=%x\n",
 	    vpos, hpos, num, v, spr[num].pt, spr[num].dmastate, spr[num].armed, M68K_GETPC);
     }
 #endif
@@ -3704,7 +3704,7 @@ static void SPRxPTH (int hpos, uae_u16 v, int num)
     spr[num].pt |= (uae_u32)v << 16;
 #if SPRITE_DEBUG > 0
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dPTH %06X\n", vpos, hpos, num, spr[num].pt);
+	write_log (L"%d:%d:SPR%dPTH %06X\n", vpos, hpos, num, spr[num].pt);
     }
 #endif
 }
@@ -3715,7 +3715,7 @@ static void SPRxPTL (int hpos, uae_u16 v, int num)
     spr[num].pt |= v;
 #if SPRITE_DEBUG > 0
      if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	write_log ("%d:%d:SPR%dPTL %06X\n", vpos, hpos, num, spr[num].pt);
+	write_log (L"%d:%d:SPR%dPTL %06X\n", vpos, hpos, num, spr[num].pt);
      }
 #endif
 }
@@ -3758,7 +3758,7 @@ void dump_aga_custom (void)
 	rgb2 = current_colors.color_regs_aga[c2] | (color_regs_aga_genlock[c2] << 31);
 	rgb3 = current_colors.color_regs_aga[c3] | (color_regs_aga_genlock[c3] << 31);
 	rgb4 = current_colors.color_regs_aga[c4] | (color_regs_aga_genlock[c4] << 31);
-	console_out_f ("%3d %08X %3d %08X %3d %08X %3d %08X\n",
+	console_out_f (L"%3d %08X %3d %08X %3d %08X %3d %08X\n",
 	    c1, rgb1, c2, rgb2, c3, rgb3, c4, rgb4);
     }
 }
@@ -3930,7 +3930,7 @@ static void perform_copper_write (int old_hpos, int address, int data)
 	cop_state.last_write_hpos = old_hpos;
 	old_hpos++;
 	if (!nocustom () && address >= 0x140 && address < 0x180 && old_hpos >= SPR0_HPOS && old_hpos < SPR0_HPOS + 4 * MAX_SPRITES) {
-	    //write_log ("%d:%d %04X:%04X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
+	    //write_log (L"%d:%d %04X:%04X\n", vpos, old_hpos, cop_state.saved_i1, cop_state.saved_i2);
 	    do_sprites (old_hpos);
 	}
     }
@@ -3956,13 +3956,13 @@ static int isagnus[]= {
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static void dump_copper (char *error, int until_hpos)
+static void dump_copper (TCHAR *error, int until_hpos)
 {
-    write_log ("%s: vpos=%d until_hpos=%d\n",
+    write_log (L"%s: vpos=%d until_hpos=%d\n",
 	error, vpos, until_hpos);
-    write_log ("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04X ci2=%04X\n",
+    write_log (L"cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04X ci2=%04X\n",
 	cop_state.vcmp,cop_state.hcmp,cop_state.hpos,cop_state.vpos,cop_state.saved_i1,cop_state.saved_i2);
-    write_log ("cstate=%d ip=%x SPCFLAGS=%x\n",
+    write_log (L"cstate=%d ip=%x SPCFLAGS=%x\n",
 	cop_state.state, cop_state.ip, regs.spcflags);
 }
 
@@ -3975,7 +3975,7 @@ static void update_copper (int until_hpos)
 	return;
 
     if (cop_state.state == COP_wait && vp < cop_state.vcmp) {
-	dump_copper ("error2", until_hpos);
+	dump_copper (L"error2", until_hpos);
 	copper_enabled_thisline = 0;
 	cop_state.state = COP_stop;
 	unset_special (&regs, SPCFLAG_COPPER);
@@ -4294,12 +4294,12 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 #endif
 #if SPRITE_DEBUG > 3
     if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
-	write_log ("%d:%d:slot%d:%d\n", vpos, hpos, num, cycle);
+	write_log (L"%d:%d:slot%d:%d\n", vpos, hpos, num, cycle);
 #endif
     if (vpos == s->vstart) {
 #if SPRITE_DEBUG > 0
 	if (!s->dmastate && vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
-	    write_log ("%d:%d:SPR%d START\n", vpos, hpos, num);
+	    write_log (L"%d:%d:SPR%d START\n", vpos, hpos, num);
 #endif
 	s->dmastate = 1;
 	if (num == 0 && cycle == 0)
@@ -4308,7 +4308,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     if (vpos == s->vstop || vpos == sprite_vblank_endline) {
 #if SPRITE_DEBUG > 0
 	if (s->dmastate && vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY)
-	    write_log ("%d:%d:SPR%d STOP\n", vpos, hpos, num);
+	    write_log (L"%d:%d:SPR%d STOP\n", vpos, hpos, num);
 #endif
 	s->dmastate = 0;
 #if 1
@@ -4343,10 +4343,10 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	}
 #if SPRITE_DEBUG > 1
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	    write_log ("%d:%d:dma:P=%06X ", vpos, hpos, s->pt);
+	    write_log (L"%d:%d:dma:P=%06X ", vpos, hpos, s->pt);
 	}
 #endif
-	//write_log ("%d:%d: %04X=%04X\n", vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
+	//write_log (L"%d:%d: %04X=%04X\n", vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
 	if (cycle == 0) {
 	    SPRxPOS_1 (data, num, hpos);
 	    s->dmacycle = 1;
@@ -4362,7 +4362,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	data = sprite_fetch (s, dma, hpos, cycle, 1);
 #if SPRITE_DEBUG > 1
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
-	    write_log ("%d:%d:dma:P=%06X ", vpos, hpos, s->pt);
+	    write_log (L"%d:%d:dma:P=%06X ", vpos, hpos, s->pt);
 	}
 #endif
 	if (cycle == 0) {
@@ -4490,11 +4490,11 @@ static void adjust_array_sizes (void)
 	    memset (&sprite_entries[0][max_sprite_entry], (mcc - max_sprite_entry) * sizeof(struct sprite_entry), 0);
 	    memset (&sprite_entries[1][max_sprite_entry], (mcc - max_sprite_entry) * sizeof(struct sprite_entry), 0);
 
-	    write_log ("New max_sprite_entry=%d\n", mcc);
+	    write_log (L"New max_sprite_entry=%d\n", mcc);
 
 	    max_sprite_entry = mcc;
 	} else
-	    write_log ("WARNING: Failed to enlarge sprite_entries table\n");
+	    write_log (L"WARNING: Failed to enlarge sprite_entries table\n");
     }
     if (delta_color_change) {
 	void *p1;
@@ -4510,11 +4510,11 @@ static void adjust_array_sizes (void)
 	    color_changes[0] = p1;
 	    color_changes[1] = p2;
 
-	    write_log ("New max_color_change=%d\n", mcc);
+	    write_log (L"New max_color_change=%d\n", mcc);
 
 	    max_color_change = mcc;
 	} else
-	    write_log ("WARNING: Failed to enlarge color_changes table\n");
+	    write_log (L"WARNING: Failed to enlarge color_changes table\n");
     }
 #endif
 }
@@ -4782,7 +4782,7 @@ static void copper_check (int n)
 	int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	if (vp < cop_state.vcmp) {
 	    if (copper_enabled_thisline)
-		write_log ("COPPER BUG %d: vp=%d vpos=%d vcmp=%d act=%d thisline=%d\n", n, vp, vpos, cop_state.vcmp, copper_enabled_thisline);
+		write_log (L"COPPER BUG %d: vp=%d vpos=%d vcmp=%d act=%d thisline=%d\n", n, vp, vpos, cop_state.vcmp, copper_enabled_thisline);
 	}
     }
 }
@@ -4802,7 +4802,7 @@ static void CIA_vsync_prehandler (int dotod)
 	    inprec_pend();
 	}
 	if (v != ciavsync_counter)
-	    write_log ("INPREC: ciavsync sync error %d <> %d\n", v, ciavsync_counter);
+	    write_log (L"INPREC: ciavsync sync error %d <> %d\n", v, ciavsync_counter);
     }
 #endif
     ciavsync_counter++;
@@ -5004,7 +5004,7 @@ static void hsync_handler (void)
 		inprec_pend();
 	    }
 	    if (v != vsync_counter)
-		write_log ("INPREC: vsync sync error %d <> %d\n", v, vsync_counter);
+		write_log (L"INPREC: vsync sync error %d <> %d\n", v, vsync_counter);
 	}
 #endif
 	vsync_counter++;
@@ -5096,7 +5096,7 @@ static void hsync_handler (void)
     while (input_recording < 0 && inprec_pstart (INPREC_DISKINSERT)) {
 	int drv = inprec_pu8 ();
 	inprec_pstr (currprefs.df[drv]);
-	strcpy (changed_prefs.df[drv], currprefs.df[drv]);
+	_tcscpy (changed_prefs.df[drv], currprefs.df[drv]);
 	disk_insert_force (drv, currprefs.df[drv]);
 	inprec_pend ();
     }
@@ -5203,7 +5203,7 @@ STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
 	    }
 	}
 	if (no == ev2_max) {
-	    write_log ("out of event2's! PC=%x\n", M68K_GETPC);
+	    write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
 	    return;
 	}
     }
@@ -5260,7 +5260,7 @@ void customreset (int hardreset)
     int zero = 0;
 
     reset_all_systems ();
-    write_log ("Reset at %08X\n", m68k_getpc (&regs));
+    write_log (L"Reset at %08X\n", m68k_getpc (&regs));
     memory_map_dump();
 
     hsync_counter = 0;
@@ -5404,7 +5404,7 @@ void customreset (int hardreset)
 	CLXCON (clxcon);
 	CLXCON2 (clxcon2);
 	calcdiw ();
-	write_log ("State restored\n");
+	write_log (L"State restored\n");
 	for (i = 0; i < 8; i++)
 	    nr_armed += spr[i].armed != 0;
 	if (! currprefs.produce_sound) {
@@ -5431,17 +5431,17 @@ void customreset (int hardreset)
 
 void dumpcustom (void)
 {
-    console_out_f ("DMACON: %x INTENA: %x INTREQ: %x VPOS: %x HPOS: %x\n", DMACONR(),
+    console_out_f (L"DMACON: %x INTENA: %x INTREQ: %x VPOS: %x HPOS: %x\n", DMACONR(),
 	    (unsigned int)intena, (unsigned int)intreq, (unsigned int)vpos, (unsigned int)current_hpos());
-    console_out_f ("COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
-    console_out_f ("DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
+    console_out_f (L"COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
+    console_out_f (L"DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
 	    (unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
-    console_out_f ("BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
+    console_out_f (L"BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
     if (timeframes) {
-	console_out_f ("Average frame time: %.2f ms [frames: %d time: %d]\n",
+	console_out_f (L"Average frame time: %.2f ms [frames: %d time: %d]\n",
 		    (double)frametime / timeframes, timeframes, frametime);
 	if (total_skipped)
-	    console_out_f ("Skipped frames: %d\n", total_skipped);
+	    console_out_f (L"Skipped frames: %d\n", total_skipped);
     }
 }
 
@@ -5561,7 +5561,7 @@ static void REGPARAM3 custom_bput (uaecptr, uae_u32) REGPARAM;
 addrbank custom_bank = {
     custom_lget, custom_wget, custom_bget,
     custom_lput, custom_wput, custom_bput,
-    default_xlate, default_check, NULL, "Custom chipset",
+    default_xlate, default_check, NULL, L"Custom chipset",
     custom_lgeti, custom_wgeti, ABFLAG_IO
 };
 
@@ -5586,7 +5586,7 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (uaecptr addr, int noput)
 #endif
     addr &= 0xfff;
 #ifdef CUSTOM_DEBUG
-    write_log ("%d:%d:wget: %04X=%04X pc=%p\n", current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
+    write_log (L"%d:%d:wget: %04X=%04X pc=%p\n", current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
 #endif
     switch (addr & 0x1fe) {
      case 0x002: v = DMACONR (); break;
@@ -5906,7 +5906,7 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
     special_mem |= S_WRITE;
 #endif
 #ifdef CUSTOM_DEBUG
-    write_log ("%d:%d:wput: %04X %04X pc=%p\n", hpos, vpos, addr & 0x01fe, value & 0xffff, m68k_getpc ());
+    write_log (L"%d:%d:wput: %04X %04X pc=%p\n", hpos, vpos, addr & 0x01fe, value & 0xffff, m68k_getpc ());
 #endif
     sync_copper_with_cpu (hpos, 1);
     if (addr & 1) {
@@ -5936,7 +5936,7 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
     }
     if (warned < 10) {
 	if (M68K_GETPC < 0xe00000 || M68K_GETPC >= 0x10000000) {
-	    write_log ("Byte put to custom register %04X PC=%08X\n", addr, M68K_GETPC);
+	    write_log (L"Byte put to custom register %04X PC=%08X\n", addr, M68K_GETPC);
 	    warned++;
 	}
     }

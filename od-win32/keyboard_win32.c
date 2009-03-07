@@ -421,10 +421,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		} else {
 		    int i;
 		    for (i = 0; i < 4; i++) {
-			if (!strcmp (currprefs.df[i], currprefs.dfxlist[num]))
+			if (!_tcscmp (currprefs.df[i], currprefs.dfxlist[num]))
 			    changed_prefs.df[i][0] = 0;
 		    }
-		    strcpy (changed_prefs.df[swapperdrive], currprefs.dfxlist[num]);
+		    _tcscpy (changed_prefs.df[swapperdrive], currprefs.dfxlist[num]);
 		}
 	    }
 	    break;

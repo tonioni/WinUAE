@@ -84,7 +84,7 @@ int device_func_init (int flags)
     if (have_ioctl)
 	support_ioctl = device_func[DF_IOCTL]->openbus (1 << INQ_ROMD) ? 1 : 0;
     initialized = 1;
-    write_log ("support_scsi = %d support_ioctl = %d\n", support_scsi, support_ioctl);
+    write_log (L"support_scsi = %d support_ioctl = %d\n", support_scsi, support_ioctl);
     return (support_scsi ? (1 << DF_SCSI) : 0) | (support_ioctl ? (1 << DF_IOCTL) : 0);
 }
 
@@ -397,31 +397,31 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 {
     int i;
     for (i = 0; i < cdblen; i++) {
-	write_log ("%s%02X", i > 0 ? "." : "", cdb[i]);
+	write_log (L"%s%02X", i > 0 ? "." : "", cdb[i]);
     }
-    write_log ("\n");
+    write_log (L"\n");
     if (data) {
-	write_log ("DATAOUT: %d\n", datalen);
+	write_log (L"DATAOUT: %d\n", datalen);
 	for (i = 0; i < datalen && i < 100; i++)
-	    write_log ("%s%02X", i > 0 ? "." : "", data[i]);
+	    write_log (L"%s%02X", i > 0 ? "." : "", data[i]);
 	if (datalen > 0)
-	    write_log ("\n");
+	    write_log (L"\n");
     }
 }
 
 void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
 {
     int i;
-    write_log ("DATAIN: %d\n", datalen);
+    write_log (L"DATAIN: %d\n", datalen);
     for (i = 0; i < datalen && i < 100 && data; i++)
-	write_log ("%s%02X", i > 0 ? "." : "", data[i]);
+	write_log (L"%s%02X", i > 0 ? "." : "", data[i]);
     if (data && datalen > 0)
-	write_log ("\n");
+	write_log (L"\n");
     if (senselen > 0) {
-	write_log ("SENSE: %d,", senselen);
+	write_log (L"SENSE: %d,", senselen);
 	for (i = 0; i < senselen && i < 32; i++) {
-	    write_log ("%s%02X", i > 0 ? "." : "", sense[i]);
+	    write_log (L"%s%02X", i > 0 ? "." : "", sense[i]);
 	}
-	write_log ("\n");
+	write_log (L"\n");
     }
 }

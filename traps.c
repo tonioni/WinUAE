@@ -65,7 +65,7 @@ struct Trap
 {
     TrapHandler handler;	/* Handler function to be invoked for this trap. */
     int         flags;		/* Trap attributes. */
-    const char *name;		/* For debugging purposes. */
+    const TCHAR *name;		/* For debugging purposes. */
     uaecptr addr;
 };
 
@@ -80,13 +80,13 @@ static const int trace_traps = 0;
 
 static void trap_HandleExtendedTrap (TrapHandler, int has_retval);
 
-uaecptr find_trap (const char *name)
+uaecptr find_trap (const TCHAR *name)
 {
     int i;
 
     for (i = 0; i < trap_count; i++) {
 	struct Trap *trap = &traps[i];
-	if ((trap->flags & TRAPFLAG_UAERES) && trap->name && !strcmp (trap->name, name))
+	if ((trap->flags & TRAPFLAG_UAERES) && trap->name && !_tcscmp (trap->name, name))
 	    return trap->addr;
     }
     return 0;
@@ -102,10 +102,10 @@ uaecptr find_trap (const char *name)
  *
  * returns trap number of defined trap
  */
-unsigned int define_trap (TrapHandler handler_func, int flags, const char *name)
+unsigned int define_trap (TrapHandler handler_func, int flags, const TCHAR *name)
 {
     if (trap_count == MAX_TRAPS) {
-	write_log ("Ran out of emulator traps\n");
+	write_log (L"Ran out of emulator traps\n");
 	abort ();
 	return -1;
     } else {
@@ -137,7 +137,7 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num, struct regstruct *regs)
     int implicit_rts = (trap->flags & TRAPFLAG_DORET) != 0;
 
     if (trap->name && trap->name[0] != 0 && trace_traps)
-	write_log ("TRAP: %s\n", trap->name);
+	write_log (L"TRAP: %s\n", trap->name);
 
     if (trap_num < trap_count) {
 
@@ -162,7 +162,7 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num, struct regstruct *regs)
        }
 
     } else {
-	write_log ("Illegal emulator trap %d\n", trap_num);
+	write_log (L"Illegal emulator trap %d\n", trap_num);
     }
 }
 
@@ -480,13 +480,13 @@ void init_traps (void)
 void init_extended_traps (void)
 {
     m68k_call_trapaddr = here ();
-    calltrap (deftrap2 ((TrapHandler)m68k_call_handler, TRAPFLAG_NO_RETVAL, "m68k_call"));
+    calltrap (deftrap2 ((TrapHandler)m68k_call_handler, TRAPFLAG_NO_RETVAL, L"m68k_call"));
 
     m68k_return_trapaddr = here();
-    calltrap (deftrap2 ((TrapHandler)m68k_return_handler, TRAPFLAG_NO_RETVAL, "m68k_return"));
+    calltrap (deftrap2 ((TrapHandler)m68k_return_handler, TRAPFLAG_NO_RETVAL, L"m68k_return"));
 
     exit_trap_trapaddr = here();
-    calltrap (deftrap2 ((TrapHandler)exit_trap_handler, TRAPFLAG_NO_RETVAL, "exit_trap"));
+    calltrap (deftrap2 ((TrapHandler)exit_trap_handler, TRAPFLAG_NO_RETVAL, L"exit_trap"));
 
     uae_sem_init (&trap_mutex, 0, 1);
 }

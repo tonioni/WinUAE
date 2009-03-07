@@ -40,7 +40,7 @@ struct device_info {
     int bytespersector;
     int bus, target, lun;
     int id;
-    char label[MAX_DPATH];
+    TCHAR label[MAX_DPATH];
 };
 
 struct device_scsi_info {

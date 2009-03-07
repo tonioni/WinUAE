@@ -43,12 +43,12 @@
 static long samples, playchannel, intcount;
 static int record_enabled;
 int ahi_on;
-static char *sndptrmax, soundneutral, sndptr;
+static TCHAR *sndptrmax, soundneutral, sndptr;
 
 static LPSTR lpData,sndptrout;
 extern uae_u32 chipmem_mask;
 unsigned int *sndbufrecpt;
-static char *ahisndbuffer, *sndrecbuffer;
+static TCHAR *ahisndbuffer, *sndrecbuffer;
 static int ahisndbufsize, *ahisndbufpt, ahitweak;;
 int ahi_pollrate = 40;
 
@@ -153,9 +153,9 @@ void ahi_close_sound (void)
     if (lpDSB2) {
 	hr = IDirectSoundBuffer_Stop (lpDSB2);
 	if(FAILED (hr))
-	    write_log ("AHI: SoundStop() failure: %s\n", DXError (hr));
+	    write_log (L"AHI: SoundStop() failure: %s\n", DXError (hr));
     } else {
-	write_log ("AHI: Sound Stopped...\n");
+	write_log (L"AHI: Sound Stopped...\n");
     }
 
     if (lpDSB2)
@@ -219,7 +219,7 @@ void ahi_updatesound(int force)
 
     hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     if(hr == DSERR_BUFFERLOST) {
-	write_log ("AHI: lostbuf %d %x\n", pos, amigablksize);
+	write_log (L"AHI: lostbuf %d %x\n", pos, amigablksize);
 	IDirectSoundBuffer_Restore (lpDSB2);
 	hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     }
@@ -271,7 +271,7 @@ static int ahi_init_record_win32 (void)
     // Record begin
     hr = DirectSoundCaptureCreate (NULL, &lpDS2r, NULL);
     if (FAILED (hr)) {
-	write_log ( "AHI: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
+	write_log (L"AHI: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
@@ -283,19 +283,19 @@ static int ahi_init_record_win32 (void)
 
     hr = IDirectSoundCapture_CreateCaptureBuffer (lpDS2r, &sound_buffer_rec, &lpDSB2r, NULL);
     if (FAILED (hr)) {
-	write_log ("AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
+	write_log (L"AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
 	record_enabled = -1;
 	return 0;
     }
 
     hr = IDirectSoundCaptureBuffer_Start (lpDSB2r, DSCBSTART_LOOPING);
     if (FAILED (hr)) {
-	write_log ("AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
+	write_log (L"AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
     record_enabled = 1;
-    write_log ("AHI: Init AHI Audio Recording \n");
+    write_log (L"AHI: Init AHI Audio Recording \n");
     return 1;
 }
 
@@ -306,7 +306,7 @@ void setvolume_ahi (LONG vol)
 	return;
     hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
     if (FAILED (hr))
-	write_log ("AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	write_log (L"AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
 }
 
 static int ahi_init_sound_win32 (void)
@@ -327,7 +327,7 @@ static int ahi_init_sound_win32 (void)
     wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * sound_freq_ahi;
     wavfmt.cbSize = 0;
 
-    write_log ("AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
+    write_log (L"AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
 	sound_freq_ahi, sound_channels_ahi, sound_bits_ahi, amigablksize);
 
     if (!amigablksize)
@@ -342,7 +342,7 @@ static int ahi_init_sound_win32 (void)
     else
 	hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard].guid, &lpDS2, NULL);
     if (FAILED (hr)) {
-	write_log ("AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
+	write_log (L"AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
 	return 0;
     }
     memset (&sound_buffer, 0, sizeof (DSBUFFERDESC));
@@ -355,18 +355,18 @@ static int ahi_init_sound_win32 (void)
     hr = IDirectSound_GetCaps (lpDS2, &DSCaps);
     if (SUCCEEDED (hr)) {
 	if (DSCaps.dwFlags & DSCAPS_EMULDRIVER)
-	    write_log ( "AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n");
+	    write_log (L"AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n");
     }
     if (FAILED (IDirectSound_SetCooperativeLevel (lpDS2, hMainWnd, DSSCL_PRIORITY)))
 	return 0;
     hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSBprimary2, NULL);
     if (FAILED (hr)) {
-	write_log ("AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
+	write_log (L"AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
 	return 0;
     }
     hr = IDirectSoundBuffer_SetFormat (lpDSBprimary2, &wavfmt);
     if (FAILED (hr)) {
-	write_log ("AHI: SetFormat() failure: %s\n", DXError (hr));
+	write_log (L"AHI: SetFormat() failure: %s\n", DXError (hr));
 	return 0;
     }
     sound_buffer.dwBufferBytes = ahisndbufsize;
@@ -376,7 +376,7 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.guid3DAlgorithm = GUID_NULL;
     hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSB2, NULL);
     if (FAILED (hr)) {
-	write_log ("AHI: CreateSoundBuffer() failure: %s\n", DXError (hr));
+	write_log (L"AHI: CreateSoundBuffer() failure: %s\n", DXError (hr));
 	return 0;
     }
 
@@ -384,7 +384,7 @@ static int ahi_init_sound_win32 (void)
 
     hr = IDirectSoundBuffer_GetFormat (lpDSBprimary2,&wavfmt,500,0);
     if (FAILED (hr)) {
-	write_log ("AHI: GetFormat() failure: %s\n", DXError (hr));
+	write_log (L"AHI: GetFormat() failure: %s\n", DXError (hr));
 	return 0;
     }
 
@@ -456,7 +456,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
     {
 	uae_u32 src, num_vars;
 	static int cap_pos, clipsize;
-	static char *clipdat;
+	static TCHAR *clipdat;
 
 	case 0:
 	    cap_pos = 0;
@@ -556,7 +556,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    if (OpenClipboard (0)) {
 		clipdat = GetClipboardData (CF_TEXT);
 		if (clipdat) {
-		    clipsize = strlen (clipdat);
+		    clipsize = _tcslen (clipdat);
 		    clipsize++;
 		    return clipsize;
 		}
@@ -578,28 +578,27 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 12:
 	{
 #if 1
-	    uae_u8 *addr = get_real_address (m68k_areg (&regs, 0));
+	    TCHAR *s = au (get_real_address (m68k_areg (&regs, 0)));
 	    static LPTSTR p;
 	    int slen;
-	    LPTSTR p2;
 
 	    if (OpenClipboard (0)) {
 		EmptyClipboard();
-		slen = strlen(addr);
+		slen = _tcslen (s);
 		if (p)
 		    GlobalFree (p);
-		p = GlobalAlloc (GMEM_MOVEABLE,slen+2);
+		p = GlobalAlloc (GMEM_MOVEABLE, (slen + 1) * sizeof (TCHAR));
 		if (p) {
-		    p2 = GlobalLock (p);
+		    TCHAR *p2 = GlobalLock (p);
 		    if (p2) {
-			memcpy (p2, addr, slen);
-			p2[slen] = 0;
+			_tcscpy (p2, s);
 			GlobalUnlock (p);
-			SetClipboardData (CF_TEXT,p2);
+			SetClipboardData (CF_TEXT, p);
 		    }
 		}
 		CloseClipboard ();
 	    }
+	    xfree (s);
 #endif
 	}
 	return 0;
@@ -633,46 +632,46 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 100: // open dll
 	{
-	    char *dlldir = TEXT ("winuae_dll");
-	    char *dllname;
+	    TCHAR *dlldir = TEXT ("winuae_dll");
+	    TCHAR *dllname;
 	    uaecptr dllptr;
 	    HMODULE h = NULL;
-	    char dpath[MAX_DPATH];
-	    char newdllpath[MAX_DPATH];
+	    TCHAR dpath[MAX_DPATH];
+	    TCHAR newdllpath[MAX_DPATH];
 	    int ok = 0;
-	    char *filepart;
+	    TCHAR *filepart;
 
 	    dllptr = m68k_areg (&context->regs, 0);
-	    dllname = (char *)get_real_address (dllptr);
+	    dllname = (TCHAR *)get_real_address (dllptr);
 	    dpath[0] = 0;
-	    GetFullPathName (dllname, sizeof dpath, dpath, &filepart);
-	    if (strlen (dpath) > strlen (start_path_data) && !strnicmp (dpath, start_path_data, strlen (start_path_data))) {
+	    GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
+	    if (_tcslen (dpath) > _tcslen (start_path_data) && !_tcsncmp (dpath, start_path_data, _tcslen (start_path_data))) {
 		/* path really is relative to winuae directory */
 		ok = 1;
-		strcpy (newdllpath, dpath + strlen (start_path_data));
-		if (!strnicmp (newdllpath, dlldir, strlen (dlldir))) /* remove "winuae_dll" */
-		    strcpy (newdllpath, dpath + strlen (start_path_data) + 1 + strlen (dlldir));
-		sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, newdllpath);
+		_tcscpy (newdllpath, dpath + _tcslen (start_path_data));
+		if (!_tcsncmp (newdllpath, dlldir, _tcslen (dlldir))) /* remove "winuae_dll" */
+		    _tcscpy (newdllpath, dpath + _tcslen (start_path_data) + 1 + _tcslen (dlldir));
+		_stprintf (dpath, L"%s%s%s", start_path_data, WIN32_PLUGINDIR, newdllpath);
 		h = LoadLibrary (dpath);
 		if (h == NULL)
-		    write_log ("native open: '%s' = %d\n", dpath, GetLastError ());
+		    write_log (L"native open: '%s' = %d\n", dpath, GetLastError ());
 		if (h == NULL) {
-		    sprintf (dpath, "%s%s\\%s", start_path_data, dlldir, newdllpath);
+		    _stprintf (dpath, L"%s%s\\%s", start_path_data, dlldir, newdllpath);
 		    h = LoadLibrary (dllname);
 		    if (h == NULL)
-			write_log ("fallback native open: '%s' = %d\n", dpath, GetLastError ());
+			write_log (L"fallback native open: '%s' = %d\n", dpath, GetLastError ());
 		}
 	    } else {
-		write_log ("native open outside of installation dir '%s'!\n", dpath);
+		write_log (L"native open outside of installation dir '%s'!\n", dpath);
 	    }
 #if 0
 	    if (h == NULL) {
 		h = LoadLibrary (filepart);
-		write_log ("native file open: '%s' = %p\n", filepart, h);
+		write_log (L"native file open: '%s' = %p\n", filepart, h);
 		if (h == NULL) {
-		    sprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
+		    _stprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
 		    h = LoadLibrary (dpath);
-		    write_log ("native path open: '%s' = %p\n", dpath, h);
+		    write_log (L"native path open: '%s' = %p\n", dpath, h);
 		}
 	    }
 #endif
@@ -683,10 +682,11 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 101:	//get dll label
 	{
 	    HMODULE m;
+	    uaecptr funcaddr;
 	    char *funcname;
 	    m = (HMODULE) m68k_dreg (&context->regs, 1);
-	    funcname = (char *)m68k_areg (&context->regs, 0);
-	    funcname = (char *)get_real_address ((uae_u32)funcname);
+	    funcaddr = m68k_areg (&context->regs, 0);
+	    funcname = get_real_address (funcaddr);
 	    return (uae_u32) GetProcAddress (m, funcname);
 	}
 

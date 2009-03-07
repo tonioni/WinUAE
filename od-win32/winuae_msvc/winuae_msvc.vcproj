@@ -25,7 +25,7 @@
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -52,7 +52,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include,..\tun"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS"
 				GeneratePreprocessedFile="0"
 				KeepComments="false"
 				ExceptionHandling="0"
@@ -234,7 +234,7 @@
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -1016,7 +1016,7 @@
 			ConfigurationType="1"
 			UseOfMFC="0"
 			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
+			CharacterSet="1"
 			WholeProgramOptimization="1"
 			>
 			<Tool
@@ -1048,7 +1048,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0501;WIN32;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -1387,6 +1387,10 @@
 			</File>
 			<File
 				RelativePath="..\sounddep\sound.c"
+				>
+			</File>
+			<File
+				RelativePath="..\unicode.c"
 				>
 			</File>
 			<File

@@ -38,7 +38,7 @@ static HWND myGetConsoleWindow (void)
     GETCONSOLEWINDOW pGetConsoleWindow;
     /* Windows 2000 or newer only */
     pGetConsoleWindow = (GETCONSOLEWINDOW)GetProcAddress (
-	GetModuleHandle ("kernel32.dll"), "GetConsoleWindow");
+	GetModuleHandle (L"kernel32.dll"), "GetConsoleWindow");
     if (pGetConsoleWindow)
 	return pGetConsoleWindow ();
     return NULL;
@@ -49,7 +49,9 @@ static void open_console_window (void)
     AllocConsole();
     stdinput = GetStdHandle (STD_INPUT_HANDLE);
     stdoutput = GetStdHandle (STD_OUTPUT_HANDLE);
-    SetConsoleMode (stdinput,ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_OUTPUT);
+    SetConsoleMode (stdinput, ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_OUTPUT);
+    SetConsoleCP (65001);
+    SetConsoleOutputCP (65001);
     consoleopen = -1;
     reopen_console ();
 }
@@ -60,7 +62,7 @@ static void openconsole( void)
 	if (consoleopen > 0 || debuggerinitializing)
 	    return;
 	if (debugger_type < 0) {
-	    regqueryint (NULL, "DebuggerType", &debugger_type);
+	    regqueryint (NULL, L"DebuggerType", &debugger_type);
 	    if (debugger_type <= 0)
 		debugger_type = 2;
 	    openconsole();
@@ -88,7 +90,7 @@ void debugger_change (int mode)
 	debugger_type = mode;
     if (debugger_type != 1 && debugger_type != 2)
 	debugger_type = 2;
-    regsetint (NULL, "DebuggerType", debugger_type);
+    regsetint (NULL, L"DebuggerType", debugger_type);
     openconsole ();
 }
 
@@ -102,13 +104,13 @@ void reopen_console (void)
     if (hwnd) {
 	int newpos = 1;
 	LONG x, y, w, h;
-	if (!regqueryint (NULL, "LoggerPosX", &x))
+	if (!regqueryint (NULL, L"LoggerPosX", &x))
 	    newpos = 0;
-	if (!regqueryint (NULL, "LoggerPosY", &y))
+	if (!regqueryint (NULL, L"LoggerPosY", &y))
 	    newpos = 0;
-	if (!regqueryint (NULL, "LoggerPosW", &w))
+	if (!regqueryint (NULL, L"LoggerPosW", &w))
 	    newpos = 0;
-	if (!regqueryint (NULL, "LoggerPosH", &h))
+	if (!regqueryint (NULL, L"LoggerPosH", &h))
 	    newpos = 0;
 	if (newpos) {
 	    RECT rc;
@@ -136,10 +138,10 @@ void close_console (void)
 	    if (GetWindowRect (hwnd, &r)) {
 		r.bottom -= r.top;
 		r.right -= r.left;
-		regsetint (NULL, "LoggerPosX", r.left);
-		regsetint (NULL, "LoggerPosY", r.top);
-		regsetint (NULL, "LoggerPosW", r.right);
-		regsetint (NULL, "LoggerPosH", r.bottom);
+		regsetint (NULL, L"LoggerPosX", r.left);
+		regsetint (NULL, L"LoggerPosY", r.top);
+		regsetint (NULL, L"LoggerPosW", r.right);
+		regsetint (NULL, L"LoggerPosH", r.bottom);
 	    }
 	}
 	FreeConsole ();
@@ -147,35 +149,35 @@ void close_console (void)
     consoleopen = 0;
 }
 
-static void writeconsole (const char *buffer)
+static void writeconsole (const TCHAR *buffer)
 {
     DWORD temp;
     if (!consoleopen)
 	openconsole();
     if (consoleopen > 0)
-	WriteOutput (buffer, strlen(buffer));
+	WriteOutput (buffer, _tcslen(buffer));
     else if (consoleopen < 0)
-	WriteConsole (stdoutput, buffer, strlen (buffer), &temp,0);
+	WriteConsole (stdoutput, buffer, _tcslen (buffer), &temp,0);
 }
 
-void console_out_f (const char *format,...)
+void console_out_f (const TCHAR *format,...)
 {
     va_list parms;
-    char buffer[WRITE_LOG_BUF_SIZE];
+    TCHAR buffer[WRITE_LOG_BUF_SIZE];
 
     va_start (parms, format);
-    _vsnprintf (buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
+    _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
     va_end (parms);
     openconsole ();
     writeconsole (buffer);
 }
-void console_out (const char *txt)
+void console_out (const TCHAR *txt)
 {
     openconsole ();
     writeconsole (txt);
 }
 
-int console_get (char *out, int maxlen)
+int console_get (TCHAR *out, int maxlen)
 {
     *out = 0;
     if (consoleopen > 0) {
@@ -206,43 +208,43 @@ void console_flush (void)
 
 static int lfdetected = 1;
 
-static char *writets (void)
+static TCHAR *writets (void)
 {
     struct tm *t;
     struct _timeb tb;
-    static char out[100];
-    char *p;
-    static char lastts[100];
-    char curts[100];
+    static TCHAR out[100];
+    TCHAR *p;
+    static TCHAR lastts[100];
+    TCHAR curts[100];
 
     if (bootlogmode)
 	return NULL;
     _ftime(&tb);
     t = localtime (&tb.time);
-    strftime (curts, sizeof curts, "%Y-%m-%d %H:%M:%S\n", t);
+    _tcsftime (curts, sizeof curts / sizeof (TCHAR), L"%Y-%m-%d %H:%M:%S\n", t);
     p = out;
     *p = 0;
-    if (memcmp (curts, lastts, strlen (curts))) {
-	strcat (p, curts);
-	p += strlen (p);
-	strcpy (lastts, curts);
+    if (!_tcsncmp (curts, lastts, _tcslen (curts))) {
+	_tcscat (p, curts);
+	p += _tcslen (p);
+	_tcscpy (lastts, curts);
     }
-    strftime (p, sizeof out - (p - out) , "%S-", t);
-    p += strlen (p);
-    sprintf (p, "%03d", tb.millitm);
-    p += strlen (p);
+    _tcsftime (p, sizeof out / sizeof (TCHAR) - (p - out) , L"%S-", t);
+    p += _tcslen (p);
+    _stprintf (p, L"%03d", tb.millitm);
+    p += _tcslen (p);
     if (timeframes || vpos > 0 && current_hpos () > 0)
-	sprintf (p, " [%d %03dx%03d]", timeframes, current_hpos (), vpos);
-    strcat (p, ": ");
+	_stprintf (p, L" [%d %03dx%03d]", timeframes, current_hpos (), vpos);
+    _tcscat (p, L": ");
     return out;
 }
 
 
-void write_dlog (const char *format, ...)
+void write_dlog (const TCHAR *format, ...)
 {
     int count;
-    char buffer[WRITE_LOG_BUF_SIZE];
-    char *ts;
+    TCHAR buffer[WRITE_LOG_BUF_SIZE];
+    TCHAR *ts;
     va_list parms;
 
     if (!SHOW_CONSOLE && !console_logging && !debugfile)
@@ -250,7 +252,7 @@ void write_dlog (const char *format, ...)
 
     EnterCriticalSection (&cs);
     va_start (parms, format);
-    count = _vsnprintf(buffer, WRITE_LOG_BUF_SIZE-1, format, parms);
+    count = _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
     ts = writets ();
     if (SHOW_CONSOLE || console_logging) {
 	if (lfdetected && ts)
@@ -259,29 +261,29 @@ void write_dlog (const char *format, ...)
     }
     if (debugfile) {
 	if (lfdetected && ts)
-	    fprintf (debugfile, ts);
-	fprintf (debugfile, buffer);
+	    _ftprintf (debugfile, ts);
+	_ftprintf (debugfile, buffer);
     }
     lfdetected = 0;
-    if (strlen (buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
+    if (_tcslen (buffer) > 0 && buffer[_tcslen(buffer) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
     LeaveCriticalSection (&cs);
 }
 
-void write_log (const char *format, ...)
+void write_log (const TCHAR *format, ...)
 {
     int count;
-    char buffer[WRITE_LOG_BUF_SIZE], *ts;
+    TCHAR buffer[WRITE_LOG_BUF_SIZE], *ts;
     int bufsize = WRITE_LOG_BUF_SIZE;
-    char *bufp;
+    TCHAR *bufp;
     va_list parms;
 
-    EnterCriticalSection(&cs);
+    EnterCriticalSection (&cs);
     va_start(parms, format);
     bufp = buffer;
     for (;;) {
-	count = _vsnprintf(bufp, bufsize - 1, format, parms);
+	count = _vsntprintf (bufp, bufsize - 1, format, parms);
 	if (count < 0) {
 	    bufsize *= 10;
 	    if (bufp != buffer)
@@ -292,7 +294,7 @@ void write_log (const char *format, ...)
 	break;
     }
     bufp[bufsize - 1] = 0;
-    if (!memcmp (bufp, "write ",6))
+    if (!_tcsncmp (bufp, L"write ", 6))
 	bufsize--;
     ts = writets ();
     if (bufp[0] == '*')
@@ -304,18 +306,18 @@ void write_log (const char *format, ...)
     }
     if (debugfile) {
 	if (lfdetected && ts)
-	    fprintf (debugfile, ts);
-	fprintf (debugfile, bufp);
+	    _ftprintf (debugfile, ts);
+	_ftprintf (debugfile, bufp);
     }
     lfdetected = 0;
-    if (strlen (bufp) > 0 && bufp[strlen(bufp) - 1] == '\n')
+    if (_tcslen (bufp) > 0 && bufp[_tcslen(bufp) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
     if (bufp != buffer)
 	xfree (bufp);
     if (always_flush_log)
 	flush_log ();
-    LeaveCriticalSection(&cs);
+    LeaveCriticalSection (&cs);
 }
 
 void flush_log (void)
@@ -324,22 +326,22 @@ void flush_log (void)
 	fflush (debugfile);
 }
 
-void f_out (void *f, const char *format, ...)
+void f_out (void *f, const TCHAR *format, ...)
 {
     int count;
-    char buffer[WRITE_LOG_BUF_SIZE];
+    TCHAR buffer[WRITE_LOG_BUF_SIZE];
     va_list parms;
     va_start (parms, format);
 
     if (f == NULL)
 	return;
-    count = _vsnprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+    count = _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
     openconsole ();
     writeconsole (buffer);
     va_end (parms);
 }
 
-char* buf_out (char *buffer, int *bufsize, const char *format, ...)
+TCHAR* buf_out (TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 {
     int count;
     va_list parms;
@@ -347,17 +349,17 @@ char* buf_out (char *buffer, int *bufsize, const char *format, ...)
 
     if (buffer == NULL)
 	return 0;
-    count = _vsnprintf (buffer, (*bufsize)-1, format, parms);
+    count = _vsntprintf (buffer, (*bufsize)-1, format, parms);
     va_end (parms);
-    *bufsize -= strlen (buffer);
-    return buffer + strlen (buffer);
+    *bufsize -= _tcslen (buffer);
+    return buffer + _tcslen (buffer);
 }
 
-void *log_open (const char *name, int append, int bootlog)
+void *log_open (const TCHAR *name, int append, int bootlog)
 {
     FILE *f;
 
-    f = fopen (name, append ? "a" : "wt");
+    f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
     bootlogmode = bootlog;
     if (!cs_init)
 	InitializeCriticalSection (&cs);
@@ -370,19 +372,19 @@ void log_close (void *f)
     fclose (f);
 }
 
-void jit_abort (const char *format,...)
+void jit_abort (const TCHAR *format,...)
 {
     static int happened;
     int count;
-    char buffer[WRITE_LOG_BUF_SIZE];
+    TCHAR buffer[WRITE_LOG_BUF_SIZE];
     va_list parms;
     va_start (parms, format);
 
-    count = _vsnprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
+    count = _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
     writeconsole (buffer);
     va_end (parms);
     if (!happened)
-	gui_message ("JIT: Serious error:\n%s", buffer);
+	gui_message (L"JIT: Serious error:\n%s", buffer);
     happened = 1;
     uae_reset (1);
 }

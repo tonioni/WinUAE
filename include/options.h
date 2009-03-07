@@ -17,7 +17,7 @@ extern long int version;
 
 struct strlist {
     struct strlist *next;
-    char *option, *value;
+    TCHAR *option, *value;
     int unknown;
 };
 
@@ -31,10 +31,10 @@ struct strlist {
 #define MAX_INPUT_SIMULTANEOUS_KEYS 4
 
 struct uae_input_device {
-    char *name;
-    char *configname;
+    TCHAR *name;
+    TCHAR *configname;
     uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
-    char *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
+    TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
     uae_u8 enabled;
@@ -43,8 +43,8 @@ struct uae_input_device {
 #define MAX_JPORTNAME 128
 struct jport {
     int id;
-    char name[MAX_JPORTNAME];
-    char configname[MAX_JPORTNAME];
+    TCHAR name[MAX_JPORTNAME];
+    TCHAR configname[MAX_JPORTNAME];
 };
 
 #define MAX_SPARE_DRIVES 20
@@ -65,15 +65,15 @@ struct wh {
 
 #define MOUNT_CONFIG_SIZE 30
 struct uaedev_config_info {
-    char devname[MAX_DPATH];
-    char volname[MAX_DPATH];
-    char rootdir[MAX_DPATH];
+    TCHAR devname[MAX_DPATH];
+    TCHAR volname[MAX_DPATH];
+    TCHAR rootdir[MAX_DPATH];
     int ishdf;
     int readonly;
     int bootpri;
     int autoboot;
     int donotmount;
-    char filesys[MAX_DPATH];
+    TCHAR filesys[MAX_DPATH];
     int surfaces;
     int sectors;
     int reserved;
@@ -89,11 +89,11 @@ struct uae_prefs {
 
     struct strlist *all_lines;
 
-    char description[256];
-    char info[256];
+    TCHAR description[256];
+    TCHAR info[256];
     int config_version;
-    char config_hardware_path[MAX_DPATH];
-    char config_host_path[MAX_DPATH];
+    TCHAR config_hardware_path[MAX_DPATH];
+    TCHAR config_host_path[MAX_DPATH];
 
     int illegal_mem;
     int no_xhair;
@@ -105,7 +105,7 @@ struct uae_prefs {
     int parallel_postscript_emulation;
     int parallel_postscript_detection;
     int parallel_autoflush_time;
-    char ghostscript_parameters[256];
+    TCHAR ghostscript_parameters[256];
     int use_gfxlib;
     int socket_emu;
 
@@ -153,7 +153,7 @@ struct uae_prefs {
     uae_u32 override_dga_address;
 
     int gfx_display;
-    char gfx_display_name[256];
+    TCHAR gfx_display_name[256];
     int gfx_framerate, gfx_autoframerate;
     struct wh gfx_size_win;
     struct wh gfx_size_fs;
@@ -177,7 +177,7 @@ struct uae_prefs {
     int color_mode;
 
     int gfx_filter;
-    char gfx_filtershader[MAX_DPATH];
+    TCHAR gfx_filtershader[MAX_DPATH];
     int gfx_filter_scanlines;
     int gfx_filter_scanlineratio;
     int gfx_filter_scanlinelevel;
@@ -241,24 +241,24 @@ struct uae_prefs {
     int cs_denisenoehb;
     int cs_agnusbltbusybug;
 
-    char df[4][MAX_DPATH];
-    char dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
-    char romfile[MAX_DPATH];
-    char romident[256];
-    char romextfile[MAX_DPATH];
-    char romextident[256];
-    char flashfile[MAX_DPATH];
-    char cartfile[MAX_DPATH];
-    char cartident[256];
+    TCHAR df[4][MAX_DPATH];
+    TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
+    TCHAR romfile[MAX_DPATH];
+    TCHAR romident[256];
+    TCHAR romextfile[MAX_DPATH];
+    TCHAR romextident[256];
+    TCHAR flashfile[MAX_DPATH];
+    TCHAR cartfile[MAX_DPATH];
+    TCHAR cartident[256];
     int cart_internal;
-    char pci_devices[256];
-    char prtname[256];
-    char sername[256];
-    char amaxromfile[MAX_DPATH];
+    TCHAR pci_devices[256];
+    TCHAR prtname[256];
+    TCHAR sername[256];
+    TCHAR amaxromfile[MAX_DPATH];
 
-    char path_floppy[256];
-    char path_hardfile[256];
-    char path_rom[256];
+    TCHAR path_floppy[256];
+    TCHAR path_hardfile[256];
+    TCHAR path_rom[256];
 
     int m68k_speed;
     int cpu_model;
@@ -294,7 +294,7 @@ struct uae_prefs {
     int nr_floppies;
     int dfxtype[4];
     int dfxclick[4];
-    char dfxclickexternal[4][256];
+    TCHAR dfxclickexternal[4][256];
     int dfxclickvolume;
 
     /* Target specific options */
@@ -338,6 +338,7 @@ struct uae_prefs {
     int win32_specialkey;
     int win32_guikey;
     int win32_kbledmode;
+    int win32_fscodepage;
 
     int curses_reverse_video;
 
@@ -346,7 +347,7 @@ struct uae_prefs {
 
     /* input */
 
-    char inputname[256];
+    TCHAR inputname[256];
     struct jport jports[2];
     int input_selected_setting;
     int input_joymouse_multiplier;
@@ -366,50 +367,50 @@ struct uae_prefs {
 };
 
 /* Contains the filename of .uaerc */
-extern char optionsfile[];
+extern TCHAR optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
-extern void cfgfile_write (struct zfile *, char *format,...);
-extern void cfgfile_dwrite (struct zfile *, char *format,...);
-extern void cfgfile_target_write (struct zfile *, char *format,...);
-extern void cfgfile_target_dwrite (struct zfile *, char *format,...);
-extern void cfgfile_backup (const char *path);
+extern void cfgfile_write (struct zfile *, TCHAR *format,...);
+extern void cfgfile_dwrite (struct zfile *, TCHAR *format,...);
+extern void cfgfile_target_write (struct zfile *, TCHAR *format,...);
+extern void cfgfile_target_dwrite (struct zfile *, TCHAR *format,...);
+extern void cfgfile_backup (const TCHAR *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
-			char *devname, char *volname, char *rootdir, int readonly,
+			TCHAR *devname, TCHAR *volname, TCHAR *rootdir, int readonly,
 			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, char *filesysdir, int hdc, int flags);
+			int blocksize, int bootpri, TCHAR *filesysdir, int hdc, int flags);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
 
-int parse_cmdline_option (struct uae_prefs *, char, char *);
+int parse_cmdline_option (struct uae_prefs *, TCHAR, const TCHAR *);
 
-extern int cfgfile_yesno (const char *option, const char *value, const char *name, int *location);
-extern int cfgfile_intval (const char *option, const char *value, const char *name, int *location, int scale);
-extern int cfgfile_strval (const char *option, const char *value, const char *name, int *location, const char *table[], int more);
-extern int cfgfile_string (const char *option, const char *value, const char *name, char *location, int maxsz);
-extern char *cfgfile_subst_path (const char *path, const char *subst, const char *file);
+extern int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location);
+extern int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, int scale);
+extern int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[], int more);
+extern int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz);
+extern TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *file);
 
-extern int target_parse_option (struct uae_prefs *, char *option, char *value);
+extern int target_parse_option (struct uae_prefs *, TCHAR *option, TCHAR *value);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern void target_fixup_options (struct uae_prefs *);
-extern int target_cfgfile_load (struct uae_prefs *, char *filename, int type, int isdefault);
+extern int target_cfgfile_load (struct uae_prefs *, TCHAR *filename, int type, int isdefault);
 extern void target_quit (void);
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
-extern int cfgfile_load (struct uae_prefs *p, const char *filename, int *type, int ignorelink);
-extern int cfgfile_save (struct uae_prefs *p, const char *filename, int);
-extern void cfgfile_parse_line (struct uae_prefs *p, char *, int);
-extern int cfgfile_parse_option (struct uae_prefs *p, char *option, char *value, int);
-extern int cfgfile_get_description (const char *filename, char *description, char *hostlink, char *hardwarelink, int *type);
+extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink);
+extern int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int);
+extern void cfgfile_parse_line (struct uae_prefs *p, TCHAR *, int);
+extern int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int);
+extern int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
 extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
-extern uae_u32 cfgfile_modify (uae_u32 index, char *parms, uae_u32 size, char *out, uae_u32 outsize);
-extern void cfgfile_addcfgparam (char *);
+extern uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize);
+extern void cfgfile_addcfgparam (TCHAR *);
 extern int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int romcheck);
 extern int built_in_chipset_prefs (struct uae_prefs *p);
-extern int cmdlineparser (char *s, char *outp[], int max);
+extern int cmdlineparser (TCHAR *s, TCHAR *outp[], int max);
 extern int cfgfile_configuration_change(int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
@@ -450,7 +451,7 @@ extern void machdep_free (void);
 #define fuzzy_memset(p, c, o, l) fuzzy_memset_1 ((p), QUADRUPLIFY (c), (o) & ~3, ((l) + 4) >> 2)
 STATIC_INLINE void fuzzy_memset_1 (void *p, uae_u32 c, int offset, int len)
 {
-    uae_u32 *p2 = (uae_u32 *)((char *)p + offset);
+    uae_u32 *p2 = (uae_u32 *)((TCHAR *)p + offset);
     int a = len & 7;
     len >>= 3;
     switch (a) {
@@ -493,7 +494,7 @@ STATIC_INLINE void fuzzy_memset_1 (void *p, uae_u32 c, int offset, int len)
 #define fuzzy_memset_le32(p, c, o, l) fuzzy_memset_le32_1 ((p), QUADRUPLIFY (c), (o) & ~3, ((l) + 7) >> 2)
 STATIC_INLINE void fuzzy_memset_le32_1 (void *p, uae_u32 c, int offset, int len)
 {
-    uae_u32 *p2 = (uae_u32 *)((char *)p + offset);
+    uae_u32 *p2 = (uae_u32 *)((TCHAR *)p + offset);
 
     switch (len) {
      case 9: p2[0] = c; p2[1] = c; p2[2] = c; p2[3] = c; p2[4] = c; p2[5] = c; p2[6] = c; p2[7] = c; p2[8] = c; break;

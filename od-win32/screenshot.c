@@ -20,11 +20,11 @@
 
 int screenshotmode = PNG_SCREENSHOTS;
 
-static void namesplit (char *s)
+static void namesplit (TCHAR *s)
 {
     int l;
 
-    l = strlen (s) - 1;
+    l = _tcslen (s) - 1;
     while (l >= 0) {
 	if (s[l] == '.')
 	    s[l] = 0;
@@ -35,7 +35,7 @@ static void namesplit (char *s)
 	l--;
     }
     if (l > 0)
-	memmove (s, s + l, strlen (s + l) + 1);
+	memmove (s, s + l, (_tcslen (s + l) + 1) * sizeof (TCHAR));
 }
 
 static int toclipboard (BITMAPINFO *bi, void *bmp)
@@ -153,12 +153,12 @@ oops:
 
 #if PNG_SCREENSHOTS > 0
 
-static void pngtest_blah(png_structp png_ptr, png_const_charp message)
+static void pngtest_blah (png_structp png_ptr, png_const_charp message)
 {
-   char *name = "unknown";
+   TCHAR *name = L"unknown";
    if (png_ptr != NULL && png_ptr->error_ptr != NULL)
       name = png_ptr->error_ptr;
-   write_log ("%s: libpng warning: %s\n", name, message);
+   write_log (L"%s: libpng warning: %s\n", name, message);
 }
 
 static int savepng(FILE *fp)
@@ -188,7 +188,7 @@ static int savepng(FILE *fp)
     png_set_IHDR (png_ptr, info_ptr,
 	w, h, 8, PNG_COLOR_TYPE_RGB,
 	PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-    row_pointers = xmalloc (h * sizeof(png_bytep*));
+    row_pointers = xmalloc (h * sizeof (png_bytep*));
     for (i = 0; i < h; i++) {
 	int j = h - i - 1;
 	row_pointers[i] = (uae_u8*)lpvBits + j * 3 * ((w + 3) & ~3);
@@ -205,13 +205,13 @@ static int savebmp(FILE *fp)
     BITMAPFILEHEADER bfh;
     // write the file header, bitmap information and pixel data
     bfh.bfType = 19778;
-    bfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + bi.bmiHeader.biSizeImage;
+    bfh.bfSize = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + bi.bmiHeader.biSizeImage;
     bfh.bfReserved1 = 0;
     bfh.bfReserved2 = 0;
-    bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-    if (fwrite (&bfh, 1, sizeof(BITMAPFILEHEADER), fp) < sizeof(BITMAPFILEHEADER))
+    bfh.bfOffBits = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER);
+    if (fwrite (&bfh, 1, sizeof (BITMAPFILEHEADER), fp) < sizeof (BITMAPFILEHEADER))
 	return 0; // failed to write bitmap file header
-    if (fwrite (&bi, 1, sizeof(BITMAPINFOHEADER), fp) < sizeof(BITMAPINFOHEADER))
+    if (fwrite (&bi, 1, sizeof (BITMAPINFOHEADER), fp) < sizeof (BITMAPINFOHEADER))
 	return 0; // failed to write bitmap infomation header
     if (fwrite (lpvBits, 1, bi.bmiHeader.biSizeImage, fp) < bi.bmiHeader.biSizeImage)
 	return 0; // failed to write the bitmap
@@ -221,7 +221,7 @@ static int savebmp(FILE *fp)
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
-int screenshotf (const char *spath, int mode, int doprepare)
+int screenshotf (const TCHAR *spath, int mode, int doprepare)
 {
     static int recursive;
     FILE *fp = NULL;
@@ -243,14 +243,14 @@ int screenshotf (const char *spath, int mode, int doprepare)
     if (mode == 0) {
 	toclipboard (&bi, lpvBits);
     } else {
-	char filename[MAX_DPATH];
-	char path[MAX_DPATH];
-	char name[MAX_DPATH];
-	char underline[] = "_";
+	TCHAR filename[MAX_DPATH];
+	TCHAR path[MAX_DPATH];
+	TCHAR name[MAX_DPATH];
+	TCHAR underline[] = L"_";
 	int number = 0;
 
 	if (spath) {
-	    fp = fopen (spath, "wb");
+	    fp = _tfopen (spath, L"wb");
 	    if (fp) {
 #if PNG_SCREENSHOTS > 0
 		if (screenshotmode)
@@ -263,22 +263,22 @@ int screenshotf (const char *spath, int mode, int doprepare)
 		goto oops;
 	    }
 	}
-	fetch_path ("ScreenshotPath", path, sizeof (path));
+	fetch_path (L"ScreenshotPath", path, sizeof (path) / sizeof (TCHAR));
 	CreateDirectory (path, NULL);
 	name[0] = 0;
 	if (currprefs.dfxtype[0] >= 0)
-	    strcpy (name, currprefs.df[0]);
+	    _tcscpy (name, currprefs.df[0]);
 	if (!name[0])
 	    underline[0] = 0;
 	namesplit (name);
 
 	while(++number < 1000) // limit 999 iterations / screenshots
 	{
-	    sprintf (filename, "%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? "png" : "bmp");
-	    if ((fp = fopen (filename, "rb")) == NULL) // does file not exist?
+	    _stprintf (filename, L"%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? L"png" : L"bmp");
+	    if ((fp = _tfopen (filename, L"rb")) == NULL) // does file not exist?
 	    {
 		int ok = 0;
-		if ((fp = fopen (filename, "wb")) == NULL)
+		if ((fp = _tfopen (filename, L"wb")) == NULL)
 		    goto oops; // error
 #if PNG_SCREENSHOTS > 0
 		if (screenshotmode)
@@ -290,7 +290,7 @@ int screenshotf (const char *spath, int mode, int doprepare)
 		fp = NULL;
 		if (!ok)
 		    goto oops;
-		write_log ("Screenshot saved as \"%s\"\n", filename);
+		write_log (L"Screenshot saved as \"%s\"\n", filename);
 		allok = 1;
 		break;
 	    }

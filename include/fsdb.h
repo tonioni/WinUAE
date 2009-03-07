@@ -8,7 +8,7 @@
   */
 
 #ifndef FSDB_FILE
-#define FSDB_FILE "_UAEFSDB.___"
+#define FSDB_FILE L"_UAEFSDB.___"
 #endif
 
 #ifndef FSDB_DIR_SEPARATOR
@@ -59,10 +59,10 @@ typedef struct a_inode_struct {
     struct a_inode_struct *child, *sibling;
     /* AmigaOS name, and host OS name.  The host OS name is a full path, the
      * AmigaOS name is relative to the parent.  */
-    char *aname;
-    char *nname;
+    TCHAR *aname;
+    TCHAR *nname;
     /* AmigaOS file comment, or NULL if file has none.  */
-    char *comment;
+    TCHAR *comment;
     /* AmigaOS protection bits.  */
     int amigaos_mode;
     /* Unique number for identification.  */
@@ -95,60 +95,60 @@ typedef struct a_inode_struct {
 #endif
 } a_inode;
 
-extern char *nname_begin (char *);
+extern TCHAR *nname_begin (TCHAR *);
 
-extern char *build_nname (const char *d, const char *n);
-extern char *build_aname (const char *d, const char *n);
+extern TCHAR *build_nname (const TCHAR *d, const TCHAR *n);
+extern TCHAR *build_aname (const TCHAR *d, const TCHAR *n);
 
 /* Filesystem-independent functions.  */
 extern void fsdb_clean_dir (a_inode *);
-extern char *fsdb_search_dir (const char *dirname, char *rel);
+extern TCHAR *fsdb_search_dir (const TCHAR *dirname, TCHAR *rel);
 extern void fsdb_dir_writeback (a_inode *);
-extern int fsdb_used_as_nname (a_inode *base, const char *);
-extern a_inode *fsdb_lookup_aino_aname (a_inode *base, const char *);
-extern a_inode *fsdb_lookup_aino_nname (a_inode *base, const char *);
-extern int fsdb_exists (char *nname);
+extern int fsdb_used_as_nname (a_inode *base, const TCHAR *);
+extern a_inode *fsdb_lookup_aino_aname (a_inode *base, const TCHAR *);
+extern a_inode *fsdb_lookup_aino_nname (a_inode *base, const TCHAR *);
+extern int fsdb_exists (TCHAR *nname);
 
-STATIC_INLINE int same_aname (const char *an1, const char *an2)
+STATIC_INLINE int same_aname (const TCHAR *an1, const TCHAR *an2)
 {
     return strcasecmp (an1, an2) == 0;
 }
 
 /* Filesystem-dependent functions.  */
-extern int fsdb_name_invalid (const char *n);
+extern int fsdb_name_invalid (const TCHAR *n);
 extern int fsdb_fill_file_attrs (a_inode *, a_inode *);
 extern int fsdb_set_file_attrs (a_inode *);
 extern int fsdb_mode_representable_p (const a_inode *, int);
 extern int fsdb_mode_supported (const a_inode *);
-extern char *fsdb_create_unique_nname (a_inode *base, const char *);
+extern TCHAR *fsdb_create_unique_nname (a_inode *base, const TCHAR *);
 
-extern void *my_opendir (const char*);
+extern void *my_opendir (const TCHAR*);
 extern void my_closedir (void*);
-extern int my_readdir (void*, char*);
+extern int my_readdir (void*, TCHAR*);
 
-extern int my_rmdir (const char*);
-extern int my_mkdir (const char*);
-extern int my_unlink (const char*);
-extern int my_rename (const char*, const char*);
+extern int my_rmdir (const TCHAR*);
+extern int my_mkdir (const TCHAR*);
+extern int my_unlink (const TCHAR*);
+extern int my_rename (const TCHAR*, const TCHAR*);
 
-extern void *my_open (const char*, int);
+extern void *my_open (const TCHAR*, int);
 extern void my_close (void*);
-extern unsigned int my_lseek (void*, unsigned int, int);
+extern uae_s64 my_lseek (void*, uae_s64, int);
 extern unsigned int my_read (void*, void*, unsigned int);
 extern unsigned int my_write (void*, void*, unsigned int);
-extern int my_truncate (const char *name, long int len);
+extern int my_truncate (const TCHAR *name, uae_u64 len);
 extern int dos_errno (void);
-extern int my_existsfile (const char *name);
-extern int my_existsdir (const char *name);
+extern int my_existsfile (const TCHAR *name);
+extern int my_existsdir (const TCHAR *name);
 
-extern char *custom_fsdb_search_dir (const char *dirname, char *rel);
-extern a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const char *aname);
-extern a_inode *custom_fsdb_lookup_aino_nname (a_inode *base, const char *nname);
-extern int custom_fsdb_used_as_nname (a_inode *base, const char *nname);
+extern char *custom_fsdb_search_dir (const char *dirname, TCHAR *rel);
+extern a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const TCHAR *aname);
+extern a_inode *custom_fsdb_lookup_aino_nname (a_inode *base, const TCHAR *nname);
+extern int custom_fsdb_used_as_nname (a_inode *base, const TCHAR *nname);
 
 #define MYVOLUMEINFO_READONLY 1
 #define MYVOLUMEINFO_STREAMS 2
 #define MYVOLUMEINFO_ARCHIVE 4
 #define MYVOLUMEINFO_REUSABLE 8
 
-extern int my_getvolumeinfo (const char *root);
+extern int my_getvolumeinfo (const TCHAR *root);

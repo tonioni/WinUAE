@@ -59,20 +59,20 @@ uae_s16 *decodewav (uae_u8 *s, int *lenp)
     return 0;
 }
 
-static int loadsample (char *path, struct drvsample *ds)
+static int loadsample (TCHAR *path, struct drvsample *ds)
 {
     struct zfile *f;
     uae_u8 *buf;
     int size;
-    char name[MAX_DPATH];
+    TCHAR name[MAX_DPATH];
 
-    f = zfile_fopen (path, "rb");
+    f = zfile_fopen (path, L"rb");
     if (!f) {
-	strcpy (name, path);
-	strcat (name, ".wav");
-	f = zfile_fopen (name, "rb");
+	_tcscpy (name, path);
+	_tcscat (name, L".wav");
+	f = zfile_fopen (name, L"rb");
 	if (!f) {
-	    write_log ("driveclick: can't open '%s' (or '%s')\n", path, name);
+	    write_log (L"driveclick: can't open '%s' (or '%s')\n", path, name);
 	    return 0;
 	}
     }
@@ -135,7 +135,7 @@ static void processclicks(struct drvsample *ds)
 void driveclick_init (void)
 {
     int v, vv, i, j;
-    char tmp[MAX_DPATH];
+    TCHAR tmp[MAX_DPATH];
 
     driveclick_fdrawcmd_detect ();
     driveclick_free ();
@@ -163,30 +163,30 @@ void driveclick_init (void)
 		    break;
 		}
 	    } else if (currprefs.dfxclick[i] == -1) {
-		char path2[MAX_DPATH];
+		TCHAR path2[MAX_DPATH];
 		wave_initialized = 1;
 		for (j = 0; j < CLICK_TRACKS; j++)
 		    drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
-		sprintf (tmp, "%splugins%cfloppysounds%c", start_path_data, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR);
+		_stprintf (tmp, L"%splugins%cfloppysounds%c", start_path_data, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR);
 		if (my_existsdir (tmp))
-		    strcpy (path2, tmp);
+		    _tcscpy (path2, tmp);
 		else
-		    sprintf (path2, "%suae_data%c", start_path_data, FSDB_DIR_SEPARATOR);
-		sprintf (tmp, "%sdrive_click_%s",
+		    _stprintf (path2, L"%suae_data%c", start_path_data, FSDB_DIR_SEPARATOR);
+		_stprintf (tmp, L"%sdrive_click_%s",
 		    path2, currprefs.dfxclickexternal[i]);
 		v = loadsample (tmp, &drvs[i][DS_CLICK]);
 		if (v)
 		    processclicks (&drvs[i][DS_CLICK]);
-		sprintf (tmp, "%sdrive_spin_%s",
+		_stprintf (tmp, L"%sdrive_spin_%s",
 		    path2, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPIN]);
-		sprintf (tmp, "%sdrive_spinnd_%s",
+		_stprintf (tmp, L"%sdrive_spinnd_%s",
 		    path2, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SPINND]);
-		sprintf (tmp, "%sdrive_startup_%s",
+		_stprintf (tmp, L"%sdrive_startup_%s",
 		    path2, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_START]);
-		sprintf (tmp, "%sdrive_snatch_%s",
+		_stprintf (tmp, L"%sdrive_snatch_%s",
 		    path2, currprefs.dfxclickexternal[i]);
 		v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 	    }
@@ -458,15 +458,15 @@ void driveclick_check_prefs (void)
 	currprefs.dfxclick[1] != changed_prefs.dfxclick[1] ||
 	currprefs.dfxclick[2] != changed_prefs.dfxclick[2] ||
 	currprefs.dfxclick[3] != changed_prefs.dfxclick[3] ||
-	strcmp (currprefs.dfxclickexternal[0], changed_prefs.dfxclickexternal[0]) ||
-	strcmp (currprefs.dfxclickexternal[1], changed_prefs.dfxclickexternal[1]) ||
-	strcmp (currprefs.dfxclickexternal[2], changed_prefs.dfxclickexternal[2]) ||
-	strcmp (currprefs.dfxclickexternal[3], changed_prefs.dfxclickexternal[3]))
+	_tcscmp (currprefs.dfxclickexternal[0], changed_prefs.dfxclickexternal[0]) ||
+	_tcscmp (currprefs.dfxclickexternal[1], changed_prefs.dfxclickexternal[1]) ||
+	_tcscmp (currprefs.dfxclickexternal[2], changed_prefs.dfxclickexternal[2]) ||
+	_tcscmp (currprefs.dfxclickexternal[3], changed_prefs.dfxclickexternal[3]))
     {
 	currprefs.dfxclickvolume = changed_prefs.dfxclickvolume;
 	for (i = 0; i < 4; i++) {
 	    currprefs.dfxclick[i] = changed_prefs.dfxclick[i];
-	    strcpy (currprefs.dfxclickexternal[i], changed_prefs.dfxclickexternal[i]);
+	    _tcscpy (currprefs.dfxclickexternal[i], changed_prefs.dfxclickexternal[i]);
 	}
 	driveclick_init ();
     }

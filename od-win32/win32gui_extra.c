@@ -75,11 +75,11 @@ static int font_vista_ok;
 static wchar_t wfont_vista[] = L"Segoe UI";
 static wchar_t wfont_xp[] = L"Tahoma";
 static wchar_t wfont_old[] = L"MS Sans Serif";
-static char font_vista[] = "Segoe UI";
-static char font_xp[] = "Tahoma";
+static TCHAR font_vista[] = L"Segoe UI";
+static TCHAR font_xp[] = L"Tahoma";
 
 
-static BYTE *skiptext(BYTE *s)
+static BYTE *skiptext (BYTE *s)
 {
     if (s[0] == 0xff && s[1] == 0xff) {
 	s += 4;
@@ -91,21 +91,21 @@ static BYTE *skiptext(BYTE *s)
     return s;
 }
 
-static BYTE *todword(BYTE *p)
+static BYTE *todword (BYTE *p)
 {
     while ((LONG_PTR)p & 3)
 	p++;
     return p;
 }
 
-static void modifytemplate(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id, int mult)
+static void modifytemplate (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, int id, int mult)
 {
 
     d->cx = d->cx * mult / 100;
     d->cy = d->cy * mult / 100;
 }
 
-static void modifytemplatefont(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
+static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 {
     wchar_t *p = NULL;
 
@@ -117,7 +117,7 @@ static void modifytemplatefont(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 	wcscpy (d2->typeface, p);
 }
 
-static void modifyitem(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id, int mult)
+static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id, int mult)
 {
     dt->cy = dt->cy * mult / 100;
     dt->cx = dt->cx * mult / 100;
@@ -125,7 +125,7 @@ static void modifyitem(DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEE
     dt->x = dt->x * mult / 100;
 }
 
-static INT_PTR CALLBACK DummyProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch(msg)
     {
@@ -141,7 +141,7 @@ static INT_PTR CALLBACK DummyProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPa
     return FALSE;
 }
 
-struct newresource *scaleresource(struct newresource *res, HWND parent)
+struct newresource *scaleresource (struct newresource *res, HWND parent)
 {
     DLGTEMPLATEEX *d;
     DLGTEMPLATEEX_END *d2;
@@ -168,20 +168,20 @@ struct newresource *scaleresource(struct newresource *res, HWND parent)
     d = ns->resource;
     d2 = ns->resource;
     p = (BYTE*)d + sizeof (DLGTEMPLATEEX);
-    p = skiptext(p);
-    p = skiptext(p);
-    p = skiptext(p);
+    p = skiptext (p);
+    p = skiptext (p);
+    p = skiptext (p);
     d2 = (DLGTEMPLATEEX_END*)p;
     p2 = p;
     p2 += sizeof (DLGTEMPLATEEX_END);
-    p2 = skiptext(p2);
-    p2 = todword(p2);
+    p2 = skiptext (p2);
+    p2 = todword (p2);
 
-    modifytemplatefont(d, d2);
+    modifytemplatefont (d, d2);
 
     p += sizeof (DLGTEMPLATEEX_END);
-    p = skiptext(p);
-    p = todword(p);
+    p = skiptext (p);
+    p = todword (p);
 
     if (p != p2)
 	memmove (p, p2, ns->size - (p2 - (BYTE*)ns->resource));
@@ -190,13 +190,13 @@ struct newresource *scaleresource(struct newresource *res, HWND parent)
 
     for (i = 0; i < d->cDlgItems; i++) {
 	dt = (DLGITEMTEMPLATEEX*)p;
-	modifyitem(d, d2, dt, ns->tmpl, mult);
+	modifyitem (d, d2, dt, ns->tmpl, mult);
 	p += sizeof (DLGITEMTEMPLATEEX);
 	p = skiptext(p);
 	p = skiptext(p);
 	p += ((WORD*)p)[0];
 	p += sizeof (WORD);
-	p = todword(p);
+	p = todword (p);
     }
 
     ns->width = d->cx;
@@ -204,13 +204,13 @@ struct newresource *scaleresource(struct newresource *res, HWND parent)
     return ns;
 }
 
-void freescaleresource(struct newresource *ns)
+void freescaleresource (struct newresource *ns)
 {
     xfree (ns->resource);
     xfree (ns);
 }
 
-void scaleresource_setmaxsize(int w, int h)
+void scaleresource_setmaxsize (int w, int h)
 {
     if (os_vista)
 	font_vista_ok = 1;

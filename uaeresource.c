@@ -42,11 +42,17 @@ static uaecptr res_init, res_name, res_id, base;
 static uae_u32 REGPARAM2 res_getfunc (TrapContext *ctx)
 {
     uaecptr funcname = m68k_areg (&ctx->regs, 0);
-    char tmp[256];
+    uae_char tmp[256];
+    uae_u32 p;
+    TCHAR *s;
+
     if (funcname == 0)
 	return 0;
     strcpyah_safe (tmp, funcname, sizeof tmp);
-    return find_trap (tmp);
+    s = au (tmp);
+    p = find_trap (s);
+    xfree (s);
+    return p;
 }
 
 static uae_u32 REGPARAM2 res_initcode (TrapContext *ctx)
@@ -80,10 +86,10 @@ void uaeres_install (void)
 {
     uae_u32 functable, datatable;
     uae_u32 initcode, getfunc;
-    char tmp[100];
+    TCHAR tmp[100];
 
-    sprintf (tmp, "UAE resource %d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
-    res_name = ds ("uae.resource");
+    _stprintf (tmp, L"UAE resource %d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
+    res_name = ds (L"uae.resource");
     res_id = ds (tmp);
 
     /* initcode */

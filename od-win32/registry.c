@@ -9,8 +9,8 @@
 #include "crc32.h"
 
 static int inimode = 0;
-static char *inipath;
-#define PUPPA "eitätäoo"
+static TCHAR *inipath;
+#define PUPPA L"eitätäoo"
 
 static HKEY gr (UAEREG *root)
 {
@@ -18,24 +18,24 @@ static HKEY gr (UAEREG *root)
 	return hWinUAEKey;
     return root->fkey;
 }
-static char *gs (UAEREG *root)
+static TCHAR *gs (UAEREG *root)
 {
     if (!root)
-	return "WinUAE";
+	return L"WinUAE";
     return root->inipath;
 }
-static char *gsn (UAEREG *root, const char *name)
+static TCHAR *gsn (UAEREG *root, const TCHAR *name)
 {
-    char *r, *s;
+    TCHAR *r, *s;
     if (!root)
 	return my_strdup (name);
     r = gs (root);
-    s = xmalloc (strlen (r) + 1 + strlen (name) + 1);
-    sprintf (s, "%s/%s", r, name);
+    s = xmalloc ((_tcslen (r) + 1 + _tcslen (name) + 1) * sizeof (TCHAR));
+    _stprintf (s, L"%s/%s", r, name);
     return s;
 }
 
-int regsetstr (UAEREG *root, const char *name, const char *str)
+int regsetstr (UAEREG *root, const TCHAR *name, const TCHAR *str)
 {
     if (inimode) {
 	DWORD ret;
@@ -45,16 +45,16 @@ int regsetstr (UAEREG *root, const char *name, const char *str)
 	HKEY rk = gr (root);
 	if (!rk)
 	    return 0;
-	return RegSetValueEx (rk, name, 0, REG_SZ, (CONST BYTE *)str, strlen (str) + 1) == ERROR_SUCCESS;
+	return RegSetValueEx (rk, name, 0, REG_SZ, (CONST BYTE *)str, (_tcslen (str) + 1) * sizeof (TCHAR)) == ERROR_SUCCESS;
     }
 }
 
-int regsetint (UAEREG *root, const char *name, int val)
+int regsetint (UAEREG *root, const TCHAR *name, int val)
 {
     if (inimode) {
 	DWORD ret;
-	char tmp[100];
-	sprintf (tmp, "%d", val);
+	TCHAR tmp[100];
+	_stprintf (tmp, L"%d", val);
 	ret = WritePrivateProfileString (gs (root), name, tmp, inipath);
 	return ret;
     } else {
@@ -66,14 +66,14 @@ int regsetint (UAEREG *root, const char *name, int val)
     }
 }
 
-int regqueryint (UAEREG *root, const char *name, int *val)
+int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 {
     if (inimode) {
 	int ret = 0;
-	char tmp[100];
-	GetPrivateProfileString (gs (root), name, PUPPA, tmp, sizeof (tmp), inipath);
-	if (strcmp (tmp, PUPPA)) {
-	    *val = atol (tmp);
+	TCHAR tmp[100];
+	GetPrivateProfileString (gs (root), name, PUPPA, tmp, sizeof (tmp) / sizeof (TCHAR), inipath);
+	if (_tcscmp (tmp, PUPPA)) {
+	    *val = _tstol (tmp);
 	    ret = 1;
 	}
 	return ret;
@@ -87,14 +87,14 @@ int regqueryint (UAEREG *root, const char *name, int *val)
     }
 }
 
-int regquerystr (UAEREG *root, const char *name, char *str, int *size)
+int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 {
     if (inimode) {
 	int ret = 0;
-	char *tmp = xmalloc ((*size) + 1);
+	TCHAR *tmp = xmalloc (((*size) + 1) * sizeof (TCHAR));
 	GetPrivateProfileString (gs (root), name, PUPPA, tmp, *size, inipath);
-	if (strcmp (tmp, PUPPA)) {
-	    strcpy (str, tmp);
+	if (_tcscmp (tmp, PUPPA)) {
+	    _tcscpy (str, tmp);
 	    ret = 1;
 	}
 	xfree (tmp);
@@ -103,29 +103,31 @@ int regquerystr (UAEREG *root, const char *name, char *str, int *size)
 	HKEY rk = gr (root);
 	if (!rk)
 	    return 0;
-	return RegQueryValueEx (rk, name, 0, NULL, str, size) == ERROR_SUCCESS;
+	return RegQueryValueEx (rk, name, 0, NULL, (LPBYTE)str, size) == ERROR_SUCCESS;
     }
 }
 
-int regenumstr (UAEREG *root, int idx, char *name, int *nsize, char *str, int *size)
+int regenumstr (UAEREG *root, int idx, TCHAR *name, int *nsize, TCHAR *str, int *size)
 {
+    name[0] = 0;
+    str[0] = 0;
     if (inimode) {
 	int ret = 0;
 	int tmpsize = 65536;
-	char *tmp = xmalloc (tmpsize);
+	TCHAR *tmp = xmalloc (tmpsize * sizeof (TCHAR));
 	if (GetPrivateProfileSection (gs (root), tmp, tmpsize, inipath) > 0) {
 	    int i;
-	    char *p = tmp, *p2;
+	    TCHAR *p = tmp, *p2;
 	    for (i = 0; i < idx; i++) {
 		if (p[0] == 0)
 		    break;
-		p += strlen (p) + 1;
+		p += _tcslen (p) + 1;
 	    }
 	    if (p[0]) {
-		p2 = strchr (p, '=');
+		p2 = _tcschr (p, '=');
 		*p2++ = 0;
-		strcpy_s (name, *nsize, p);
-		strcpy_s (str, *size, p2);
+		_tcscpy_s (name, *nsize, p);
+		_tcscpy_s (str, *size, p2);
 		ret = 1;
 	    }
 	}
@@ -135,18 +137,18 @@ int regenumstr (UAEREG *root, int idx, char *name, int *nsize, char *str, int *s
 	HKEY rk = gr (root);
 	if (!rk)
 	    return 0;
-	return RegEnumValue (rk, idx, name, nsize, NULL, NULL, str, size) == ERROR_SUCCESS;
+	return RegEnumValue (rk, idx, name, nsize, NULL, NULL, (LPBYTE)str, size) == ERROR_SUCCESS;
     }
 }
 
-int regquerydatasize (UAEREG *root, const char *name, int *size)
+int regquerydatasize (UAEREG *root, const TCHAR *name, int *size)
 {
     if (inimode) {
 	int ret = 0;
 	int csize = 65536;
-	char *tmp = xmalloc (csize);
+	TCHAR *tmp = xmalloc (csize * sizeof (TCHAR));
 	if (regquerystr (root, name, tmp, &csize)) {
-	    *size = strlen (tmp) / 2;
+	    *size = _tcslen (tmp) / 2;
 	    ret = 1;
 	}
 	xfree (tmp);
@@ -159,15 +161,15 @@ int regquerydatasize (UAEREG *root, const char *name, int *size)
     }
 }
 
-int regsetdata (UAEREG *root, const char *name, void *str, int size)
+int regsetdata (UAEREG *root, const TCHAR *name, void *str, int size)
 {
     if (inimode) {
 	uae_u8 *in = str;
 	DWORD ret;
 	int i;
-	char *tmp = xmalloc (size * 2 + 1);
+	TCHAR *tmp = xmalloc ((size * 2 + 1) * sizeof (TCHAR));
 	for (i = 0; i < size; i++)
-	    sprintf (tmp + i * 2, "%02X", in[i]); 
+	    _stprintf (tmp + i * 2, L"%02X", in[i]); 
 	ret = WritePrivateProfileString (gs (root), name, tmp, inipath);
 	xfree (tmp);
 	return ret;
@@ -178,21 +180,21 @@ int regsetdata (UAEREG *root, const char *name, void *str, int size)
 	return RegSetValueEx(rk, name, 0, REG_BINARY, (BYTE*)str, size) == ERROR_SUCCESS;
     }
 }
-int regquerydata (UAEREG *root, const char *name, void *str, int *size)
+int regquerydata (UAEREG *root, const TCHAR *name, void *str, int *size)
 {
     if (inimode) {
 	int csize = (*size) * 2 + 1;
 	int i, j;
 	int ret = 0;
-	char *tmp = xmalloc (csize);
+	TCHAR *tmp = xmalloc (csize * sizeof (TCHAR));
 	uae_u8 *out = str;
 
 	if (!regquerystr (root, name, tmp, &csize))
 	    goto err;
 	j = 0;
-	for (i = 0; i < strlen (tmp); i += 2) {
-	    char c1 = toupper(tmp[i + 0]);
-	    char c2 = toupper(tmp[i + 1]);
+	for (i = 0; i < _tcslen (tmp); i += 2) {
+	    TCHAR c1 = toupper(tmp[i + 0]);
+	    TCHAR c2 = toupper(tmp[i + 1]);
 	    if (c1 >= 'A')
 		c1 -= 'A' - 10;
 	    else if (c1 >= '0')
@@ -219,7 +221,7 @@ int regquerydata (UAEREG *root, const char *name, void *str, int *size)
     }
 }
 
-int regdelete (UAEREG *root, const char *name)
+int regdelete (UAEREG *root, const TCHAR *name)
 {
     if (inimode) {
 	WritePrivateProfileString (gs (root), name, NULL, inipath);
@@ -232,14 +234,14 @@ int regdelete (UAEREG *root, const char *name)
     }
 }
 
-int regexists (UAEREG *root, const char *name)
+int regexists (UAEREG *root, const TCHAR *name)
 {
     if (inimode) {
 	int ret = 1;
-	char *tmp = xmalloc (strlen (PUPPA) + 1);
-	int size = strlen (PUPPA) + 1;
+	TCHAR *tmp = xmalloc ((_tcslen (PUPPA) + 1) * sizeof (TCHAR));
+	int size = _tcslen (PUPPA) + 1;
 	GetPrivateProfileString (gs (root), name, PUPPA, tmp, size, inipath);
-	if (!strcmp (tmp, PUPPA))
+	if (!_tcscmp (tmp, PUPPA))
 	    ret = 0;
 	xfree (tmp);
 	return ret;
@@ -251,13 +253,13 @@ int regexists (UAEREG *root, const char *name)
     }
 }
 
-void regdeletetree (UAEREG *root, const char *name)
+void regdeletetree (UAEREG *root, const TCHAR *name)
 {
     if (inimode) {
-	char *s = gsn (root, name);
+	TCHAR *s = gsn (root, name);
 	if (!s)
 	    return;
-	WritePrivateProfileSection (s, "", inipath);
+	WritePrivateProfileSection (s, L"", inipath);
 	xfree (s);
     } else {
 	HKEY rk = gr (root);
@@ -267,13 +269,13 @@ void regdeletetree (UAEREG *root, const char *name)
     }
 }
 
-int regexiststree (UAEREG *root, const char *name)
+int regexiststree (UAEREG *root, const TCHAR *name)
 {
     if (inimode) {
 	int ret = 0;
 	int tmpsize = 65536;
-	char *p, *tmp;
-	char *s = gsn (root, name);
+	TCHAR *p, *tmp;
+	TCHAR *s = gsn (root, name);
 	if (!s)
 	    return 0;
 	tmp = xmalloc (tmpsize);
@@ -281,11 +283,11 @@ int regexiststree (UAEREG *root, const char *name)
 	GetPrivateProfileSectionNames (tmp, tmpsize, inipath);
 	p = tmp;
 	while (p[0]) {
-	    if (!strcmp (p, name)) {
+	    if (!_tcscmp (p, name)) {
 		ret = 1;
 		break;
 	    }
-	    p += strlen (p) + 1;
+	    p += _tcslen (p) + 1;
 	}
 	xfree (tmp);
 	xfree (s);
@@ -305,32 +307,36 @@ int regexiststree (UAEREG *root, const char *name)
 }
 
 
-UAEREG *regcreatetree (UAEREG *root, const char *name)
+UAEREG *regcreatetree (UAEREG *root, const TCHAR *name)
 {
     UAEREG *fkey;
     HKEY rkey;
 
     if (inimode) {
-	char *ininame;
+	TCHAR *ininame;
 	if (!root) {
 	    if (!name)
 		ininame = my_strdup (gs (NULL));
 	    else
 		ininame = my_strdup (name);
 	} else {
-	    ininame = xmalloc (strlen (root->inipath) + 1 + strlen (name) + 1);
-	    sprintf (ininame, "%s/%s", root->inipath, name);
+	    ininame = xmalloc ((_tcslen (root->inipath) + 1 + _tcslen (name) + 1) * sizeof (TCHAR));
+	    _stprintf (ininame, L"%s/%s", root->inipath, name);
 	}
 	fkey = xcalloc (sizeof (UAEREG), 1);
 	fkey->inipath = ininame;
     } else {
+	DWORD err;
 	HKEY rk = gr (root);
 	if (!rk) {
 	    rk = HKEY_CURRENT_USER;
-	    name = "Software\\Arabuusimiehet\\WinUAE";
+	    name = L"Software\\Arabuusimiehet\\WinUAE";
+	} else if (!name) {
+	    name = L"";
 	}
-	if (RegCreateKeyEx(rk, name, 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_READ | KEY_WRITE, NULL, &rkey, NULL) != ERROR_SUCCESS)
+	err = RegCreateKeyEx (rk, name, 0, NULL, REG_OPTION_NON_VOLATILE,
+	    KEY_READ | KEY_WRITE, NULL, &rkey, NULL);
+	if (err != ERROR_SUCCESS)
 	    return 0;
 	fkey = xcalloc (sizeof (UAEREG), 1);
 	fkey->fkey = rkey;
@@ -348,65 +354,66 @@ void regclosetree (UAEREG *key)
     xfree (key);
 }
 
-static uae_u8 crcok[20] = { 0xD3,0x34,0xDE,0x75,0x31,0x2B,0x44,0x51,0xA2,0xB8,0x8D,0xC3,0x52,0xFB,0x65,0x8F,0x95,0xCB,0x0C,0xF2 };
+//static uae_u8 crcok[20] = { 0xD3,0x34,0xDE,0x75,0x31,0x2B,0x44,0x51,0xA2,0xB8,0x8D,0xC3,0x52,0xFB,0x65,0x8F,0x95,0xCB,0x0C,0xF2 };
+static uae_u8 crcok[20] = { 0xaf,0xb7,0x36,0x15,0x05,0xca,0xe6,0x9d,0x23,0x17,0x4d,0x50,0x2b,0x5c,0xc3,0x64,0x38,0xb8,0x4e,0xfc };
 
-int reginitializeinit (const char *ppath)
+int reginitializeinit (const TCHAR *ppath)
 {
     UAEREG *r = NULL;
-    char tmp1[1000];
+    TCHAR tmp1[1000];
     uae_u8 crc[20];
     int s, v1, v2, v3;
-    char path[MAX_DPATH], fpath[MAX_PATH];
+    TCHAR path[MAX_DPATH], fpath[MAX_PATH];
 
     if (!ppath) {
 	int ok = 0;
-	char *posn;
-	strcpy (path, _pgmptr);
-	if (strlen (path) > 4 && !stricmp (path + strlen (path) - 4, ".exe")) {
-	    strcpy (path + strlen (path) - 3, "ini");
+	TCHAR *posn;
+	_tcscpy (path, pgmptr);
+	if (_tcslen (path) > 4 && !_tcsicmp (path + _tcslen (path) - 4, L".exe")) {
+	    _tcscpy (path + _tcslen (path) - 3, L"ini");
 	    if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
 		ok = 1;
 	}
 	if (!ok) {
-	    strcpy (path, _pgmptr);
-	    if((posn = strrchr (path, '\\')))
+	    _tcscpy (path, pgmptr);
+	    if((posn = _tcsrchr (path, '\\')))
 		posn[1] = 0;
-	    strcat (path, "winuae.ini");
+	    _tcscat (path, L"winuae.ini");
 	}
 	if (GetFileAttributes (path) == INVALID_FILE_ATTRIBUTES)
 	    return 0;
     } else {
-	strcpy (path, ppath);
+	_tcscpy (path, ppath);
     }
 
     fpath[0] = 0;
-    GetFullPathName (path, sizeof fpath, fpath, NULL);
-    if (strlen (fpath) < 5 || stricmp (fpath + strlen (fpath) - 4, ".ini"))
+    GetFullPathName (path, sizeof fpath / sizeof (TCHAR), fpath, NULL);
+    if (_tcslen (fpath) < 5 || _tcsicmp (fpath + _tcslen (fpath) - 4, L".ini"))
 	return 0;
 
     inimode = 1;
     inipath = my_strdup (fpath);
-    if (!regexists (NULL, "Version"))
+    if (!regexists (NULL, L"Version"))
 	goto fail;
-    r = regcreatetree (NULL, "Warning");
+    r = regcreatetree (NULL, L"Warning");
     if (!r)
 	goto fail;
     memset (tmp1, 0, sizeof tmp1);
     s = 200;
-    if (!regquerystr (r, "info1", tmp1, &s))
+    if (!regquerystr (r, L"info1", tmp1, &s))
 	goto fail;
-    if (!regquerystr (r, "info2", tmp1 + 200, &s))
+    if (!regquerystr (r, L"info2", tmp1 + 200, &s))
 	goto fail;
     get_sha1 (tmp1, sizeof tmp1, crc);
     if (memcmp (crc, crcok, sizeof crcok))
 	goto fail;
     v1 = v2 = -1;
-    regsetint (r, "check", 1);
-    regqueryint (r, "check", &v1);
-    regsetint (r, "check", 3);
-    regqueryint (r, "check", &v2);
-    regdelete (r, "check");
-    if (regqueryint (r, "check", &v3))
+    regsetint (r, L"check", 1);
+    regqueryint (r, L"check", &v1);
+    regsetint (r, L"check", 3);
+    regqueryint (r, L"check", &v2);
+    regdelete (r, L"check");
+    if (regqueryint (r, L"check", &v3))
 	goto fail;
     if (v1 != 1 || v2 != 3)
 	goto fail;
@@ -418,11 +425,11 @@ fail:
 	DeleteFile (path);
     if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
 	goto end;
-    r = regcreatetree (NULL, "Warning");
+    r = regcreatetree (NULL, L"Warning");
     if (!r)
 	goto end;
-    regsetstr (r, "info1", "This is unsupported file. Compatibility between versions is not guaranteed.");
-    regsetstr (r, "info2", "Incompatible ini-files may be re-created from scratch!");
+    regsetstr (r, L"info1", L"This is unsupported file. Compatibility between versions is not guaranteed.");
+    regsetstr (r, L"info2", L"Incompatible ini-files may be re-created from scratch!");
     regclosetree (r);
     return 1;
 end:
@@ -434,7 +441,7 @@ end:
 void regstatus (void)
 {
     if (inimode)
-	write_log ("WARNING: Unsupported '%s' enabled\n", inipath);
+	write_log (L"WARNING: Unsupported '%s' enabled\n", inipath);
 }
 
 int getregmode (void)

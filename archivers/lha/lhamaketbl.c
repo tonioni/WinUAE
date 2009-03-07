@@ -42,7 +42,7 @@ lha_make_table(nchar, bitlen, tablebits, table)
 		total += weight[i] * count[i];
 	}
 	if ((total & 0xffff) != 0)
-		error("make_table()", "Bad table (5)\n");
+		error(L"make_table()", L"Bad table (5)\n");
 
 	/* shift data for make table. */
 	m = 16 - tablebits;

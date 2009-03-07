@@ -28,7 +28,7 @@ static int clipboard_change;
 static void *clipboard_delayed_data;
 static int clipboard_delayed_size;
 
-static void debugwrite (const char *name, uae_u8 *p, int size)
+static void debugwrite (const TCHAR *name, uae_u8 *p, int size)
 {
     FILE *f;
     int cnt;
@@ -37,15 +37,15 @@ static void debugwrite (const char *name, uae_u8 *p, int size)
 	return;
     cnt = 0;
     for (;;) {
-	char tmp[MAX_DPATH];
-	sprintf (tmp, "%s.%03d.dat", name, cnt);
-	f = fopen (tmp, "rb");
+	TCHAR tmp[MAX_DPATH];
+	_stprintf (tmp, L"%s.%03d.dat", name, cnt);
+	f = _tfopen (tmp, L"rb");
 	if (f) {
 	    fclose (f);
 	    cnt++;
 	    continue;
 	}
-        f = fopen (tmp, "wb");
+        f = _tfopen (tmp, L"wb");
 	if (f) {
 	    fwrite (p, size, 1, f);
 	    fclose (f);
@@ -59,23 +59,23 @@ static void to_amiga_start (void)
     if (!clipboard_data)
 	return;
     if (clipboard_debug) {
-	debugwrite ("clipboard_p2a", to_amiga, to_amiga_size);
+	debugwrite (L"clipboard_p2a", to_amiga, to_amiga_size);
     }
     put_long (clipboard_data, to_amiga_size);
     uae_Signal (get_long (clipboard_data + 8), 1 << 13);
 }
 
-static char *pctoamiga (const char *txt)
+static TCHAR *pctoamiga (const TCHAR *txt)
 {
     int len;
-    char *txt2;
+    TCHAR *txt2;
     int i, j;
 
-    len = strlen (txt) + 1;
-    txt2 = xmalloc (len);
+    len = _tcslen (txt) + 1;
+    txt2 = xmalloc (len * sizeof (TCHAR));
     j = 0;
     for (i = 0; i < len; i++) {
-	char c = txt[i];
+	TCHAR c = txt[i];
 	if (c == 13)
 	    continue;
 	txt2[j++] = c;
@@ -83,7 +83,7 @@ static char *pctoamiga (const char *txt)
     return txt2;
 }
 
-static int parsecsi (const char *txt, int off, int len)
+static int parsecsi (const uae_u8 *txt, int off, int len)
 {
     while (off < len) {
 	if (txt[off] >= 0x40)
@@ -93,28 +93,29 @@ static int parsecsi (const char *txt, int off, int len)
     return off;
 }
 
-static char *amigatopc (const char *txt)
+static TCHAR *amigatopc (const uae_u8 *txt)
 {
     int i, j, cnt;
     int len, pc;
     char *txt2;
+    TCHAR *s;
 
     pc = 0;
     cnt = 0;
     len = strlen (txt) + 1;
     for (i = 0; i < len; i++) {
-	char c = txt[i];
+	TCHAR c = txt[i];
 	if (c == 13)
 	    pc = 1;
 	if (c == 10)
 	    cnt++;
     }
     if (pc)
-        return my_strdup (txt);
+        return my_strdup_ansi (txt);
     txt2 = xcalloc (len + cnt, 1);
     j = 0;
     for (i = 0; i < len; i++) {
-	char c = txt[i];
+	uae_u8 c = txt[i];
 	if (c == 0 && i + 1 < len)
 	    continue;
 	if (c == 10)
@@ -128,19 +129,23 @@ static char *amigatopc (const char *txt)
 	}
 	txt2[j++] = c;
     }
-    return txt2;
+    s = my_strdup_ansi (txt2);
+    xfree (txt2);
+    return s;
 }
 
 
-static void to_iff_text (char *pctxt)
+static void to_iff_text (TCHAR *pctxt)
 {
     uae_u8 b[] = { 'F','O','R','M',0,0,0,0,'F','T','X','T','C','H','R','S',0,0,0,0 };
     uae_u32 size;
     int txtlen;
-    char *txt;
-    
+    TCHAR *txt;
+    char *s;
+
     txt = pctoamiga (pctxt);
-    txtlen = strlen (txt);
+    s = ua (txt);
+    txtlen = strlen (s);
     xfree (to_amiga);
     size = txtlen + sizeof b + (txtlen & 1) - 8;
     b[4] = size >> 24;
@@ -155,18 +160,18 @@ static void to_iff_text (char *pctxt)
     to_amiga_size = sizeof b + txtlen + (txtlen & 1);
     to_amiga = xcalloc (to_amiga_size, 1);
     memcpy (to_amiga, b, sizeof b);
-    memcpy (to_amiga + sizeof b, txt, strlen (txt));
+    memcpy (to_amiga + sizeof b, s, txtlen);
     to_amiga_start ();
     xfree (txt);
+    xfree (s);
 }
 
-static int clipboard_put_text (const char *txt);
+static int clipboard_put_text (const TCHAR *txt);
 static void from_iff_text (uaecptr ftxt, uae_u32 len)
 {
     uae_u8 *addr = NULL, *eaddr;
     char *txt = NULL;
     int txtsize = 0;
-    char *pctxt;
 
 #if 0
     {
@@ -201,11 +206,13 @@ static void from_iff_text (uaecptr ftxt, uae_u32 len)
 	else if (csize >= 1 && addr[-1] == 0x0d && addr[0] == 0x0a)
 	    addr++;
     }
-    if (txt == NULL)
-	txt = my_strdup ("");
-    pctxt = amigatopc (txt);
-    clipboard_put_text (pctxt);
-    xfree (pctxt);
+    if (txt == NULL) {
+        clipboard_put_text (L"");
+    } else {
+	TCHAR *pctxt = amigatopc (txt);
+	clipboard_put_text (pctxt);
+	xfree (pctxt);
+    }
     xfree (txt);
 }
 
@@ -239,7 +246,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 	return;
     }
 
-    write_log ("BMP2IFF: W=%d H=%d bpp=%d\n", w, h, bpp);
+    write_log (L"BMP2IFF: W=%d H=%d bpp=%d\n", w, h, bpp);
 
     iffbpp = bpp > 8 ? 24 : bpp;
     cnt = 0;
@@ -264,7 +271,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 	    i >>= 1;
 	    iffbpp++;
 	}
-	write_log ("BMP2IFF: Colors=%d BPP=%d\n", cnt, iffbpp);
+	write_log (L"BMP2IFF: Colors=%d BPP=%d\n", cnt, iffbpp);
     }
 
     bodysize = (((w + 15) & ~15) / 8) * h * iffbpp;
@@ -491,7 +498,7 @@ static void from_iff_ilbm (uaecptr ilbm, uae_u32 len)
 	    uae_u8 *caddr = NULL, *dptr;
 	    body = 1;
 
-	    write_log ("W=%d H=%d planes=%d mask=%d comp=%d CAMG=%08x\n", w, h, planes, masking, compr, camg);
+	    write_log (L"W=%d H=%d planes=%d mask=%d comp=%d CAMG=%08x\n", w, h, planes, masking, compr, camg);
 
 	    ham = 0; ehb = 0;
 	    if ((camg & 0x0800) && planes > 4)
@@ -648,7 +655,7 @@ static void from_iff (uaecptr data, uae_u32 len)
 	return;
     addr = get_real_address (data);
     if (clipboard_debug)
-	debugwrite ("clipboard_a2p", addr, len);
+	debugwrite (L"clipboard_a2p", addr, len);
     if (memcmp ("FORM", addr, 4))
 	return;
     if (!memcmp ("FTXT", addr + 8, 4))
@@ -666,19 +673,19 @@ static void clipboard_read (HWND hwnd)
     if (!OpenClipboard (hwnd))
 	return;
     f = 0;
-    write_log ("clipboard: windows clipboard: ");
+    write_log (L"clipboard: windows clipboard: ");
     while (f = EnumClipboardFormats (f)) {
-	write_log ("%d ", f);
+	write_log (L"%d ", f);
 	if (f == CF_TEXT)
 	    text = TRUE;
 	if (f == CF_BITMAP)
 	    bmp = TRUE;
     }
-    write_log ("\n");
+    write_log (L"\n");
     if (text) {
 	hglb = GetClipboardData (CF_TEXT); 
 	if (hglb != NULL) { 
-	    char *lptstr = GlobalLock (hglb); 
+	    TCHAR *lptstr = GlobalLock (hglb); 
 	    if (lptstr != NULL) {
 		to_iff_text (lptstr);
 		GlobalUnlock (hglb);
@@ -730,11 +737,11 @@ static int clipboard_put_bmp_real (HBITMAP hbmp)
     ret = TRUE;
     CloseClipboard ();
     clipopen--;
-    write_log ("clipboard: BMP written to windows clipboard\n");
+    write_log (L"clipboard: BMP written to windows clipboard\n");
     return ret;
 }
 
-static int clipboard_put_text_real (const char *txt)
+static int clipboard_put_text_real (const TCHAR *txt)
 {
     HGLOBAL hglb;
     int ret = FALSE;
@@ -743,21 +750,21 @@ static int clipboard_put_text_real (const char *txt)
 	return ret;
     clipopen++;
     EmptyClipboard (); 
-    hglb = GlobalAlloc (GMEM_MOVEABLE, strlen (txt) + 1);
+    hglb = GlobalAlloc (GMEM_MOVEABLE, (_tcslen (txt) + 1) * sizeof (TCHAR));
     if (hglb) {
-	char *lptstr = GlobalLock (hglb);
-	strcpy (lptstr, txt);
+	TCHAR *lptstr = GlobalLock (hglb);
+	_tcscpy (lptstr, txt);
 	GlobalUnlock (hglb);
 	SetClipboardData (CF_TEXT, hglb); 
 	ret = TRUE;
     }
     CloseClipboard ();
     clipopen--;
-    write_log ("clipboard: text written to windows clipboard\n");
+    write_log (L"clipboard: text written to windows clipboard\n");
     return ret;
 }
 
-static int clipboard_put_text (const char *txt)
+static int clipboard_put_text (const TCHAR *txt)
 {
     if (!clipactive)
 	return clipboard_put_text_real (txt);
@@ -779,25 +786,25 @@ static int clipboard_put_bmp (HBITMAP hbmp)
 void amiga_clipboard_die (void)
 {
     signaling = 0;
-    write_log ("clipboard not initialized\n");
+    write_log (L"clipboard not initialized\n");
 }
 
 void amiga_clipboard_init (void)
 {
     signaling = 0;
-    write_log ("clipboard initialized\n");
+    write_log (L"clipboard initialized\n");
 }
 
 void amiga_clipboard_task_start (uaecptr data)
 {
     clipboard_data = data;
     signaling = 1;
-    write_log ("clipboard task init: %08x\n", data);
+    write_log (L"clipboard task init: %08x\n", data);
 }
 
 uae_u32 amiga_clipboard_proc_start (void)
 {
-    write_log ("clipboard process init\n");
+    write_log (L"clipboard process init\n");
     signaling = 1;
     return clipboard_data;
 }
@@ -805,7 +812,7 @@ uae_u32 amiga_clipboard_proc_start (void)
 void amiga_clipboard_got_data (uaecptr data, uae_u32 size, uae_u32 actual)
 {
     uae_u8 *addr = get_real_address (data);
-    write_log ("clipboard: <-amiga, %08x %d %d\n", data, size, actual);
+    write_log (L"clipboard: <-amiga, %08x %d %d\n", data, size, actual);
     from_iff (data, actual);
 }
 
@@ -820,7 +827,7 @@ void amiga_clipboard_want_data (void)
 	memcpy (raddr, to_amiga, size);
     }
     xfree (to_amiga);
-    write_log ("clipboard: ->amiga, %08x %d bytes\n", addr, size);
+    write_log (L"clipboard: ->amiga, %08x %d bytes\n", addr, size);
     to_amiga = NULL;
     to_amiga_size = 0;
 }

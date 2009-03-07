@@ -45,7 +45,7 @@ BOOL debuggerinitializing = FALSE;
 extern uae_u32 get_fpsr();
 extern void set_fpsr(uae_u32 x);
 
-static char linebreak[] = {'\r', '\n', '\0'};
+static TCHAR linebreak[] = {'\r', '\n', '\0'};
 
 #define MAXLINES 250
 #define MAXINPUTHIST 50
@@ -59,7 +59,7 @@ static WORD* dlgtmpl;
 static int reopen;
 
 struct histnode {
-    char *command;
+    TCHAR *command;
 	struct histnode *prev;
 	struct histnode *next;
 };
@@ -71,7 +71,7 @@ struct debuggerpage {
     HWND ctrl[MAXPAGECONTROLS];
     uae_u32 memaddr;
 	uae_u32 dasmaddr;
-    char addrinput[9];
+    TCHAR addrinput[9];
 	int selection;
     int init;
 	int autoset;
@@ -80,32 +80,32 @@ static struct debuggerpage dbgpage[MAXPAGES];
 static int currpage, pages;
 static int pagetype;
 
-char *pname[] = { "OUT1", "OUT2", "MEM1", "MEM2", "DASM1", "DASM2", "BRKPTS", "MISC", "CUSTOM" };
+TCHAR *pname[] = { L"OUT1", L"OUT2", L"MEM1", L"MEM2", L"DASM1", L"DASM2", L"BRKPTS", L"MISC", L"CUSTOM" };
 static int pstatuscolor[MAXPAGES];
 
 static int dbgwnd_minx = 800, dbgwnd_miny = 600;
 
 static BOOL useinternalcmd = FALSE;
-static char internalcmd[MAX_LINEWIDTH + 1];
+static TCHAR internalcmd[MAX_LINEWIDTH + 1];
 
-static const char *markinstr[] = { "JMP", "BT ", "RTS", "RTD", "RTE", "RTR", 0 };
-static const char *ucbranch[] = { "BSR", "JMP", "JSR", 0 };
-static const char *cbranch[] = { "B", "DB", "FB", "FDB", 0 };
-static const char *ccode[] = { "T ", "F ", "HI", "LS", "CC", "CS", "NE", "EQ",
-								"VC", "VS", "PL", "MI", "GE", "LT", "GT", "LE", 0 };
+static const TCHAR *markinstr[] = { L"JMP", L"BT L", L"RTS", L"RTD", L"RTE", L"RTR", 0 };
+static const TCHAR *ucbranch[] = { L"BSR", L"JMP", L"JSR", 0 };
+static const TCHAR *cbranch[] = { L"B", L"DB", L"FB", L"FDB", 0 };
+static const TCHAR *ccode[] = { L"T ", L"F  ", L"HI", L"LS", L"CC", L"CS", L"NE", L"EQ",
+				L"VC", L"VS", L"PL", L"MI", L"GE", L"LT", L"GT", L"LE", 0 };
 
 static void OutputCurrHistNode(HWND hWnd)
 {
     int txtlen;
-    char *buf;
+    TCHAR *buf;
 
     if (currhist->command) {
 	txtlen = GetWindowTextLength(hWnd);
 	buf = malloc(txtlen + 1);
 	GetWindowText(hWnd, buf, txtlen + 1);
-	if (strcmp(buf, currhist->command)) {
+	if (_tcscmp(buf, currhist->command)) {
 	    SetWindowText(hWnd, currhist->command);
-	    txtlen = strlen(currhist->command);
+	    txtlen = _tcslen(currhist->command);
 	    SendMessage(hWnd, EM_SETSEL, (WPARAM)txtlen, (LPARAM)txtlen);
 	    SendMessage(hWnd, EM_SETSEL, -1, -1);
 	}
@@ -155,12 +155,12 @@ static void DeleteFromHistory(int count)
     }
 }
 
-static void AddToHistory(const char *command)
+static void AddToHistory(const TCHAR *command)
 {
     struct histnode *tmp;
 
     currhist = NULL;
-    if (histcount > 0 && !strcmp(command, lasthist->command))
+    if (histcount > 0 && !_tcscmp(command, lasthist->command))
 	return;
     else if (histcount == MAXINPUTHIST)
 	DeleteFromHistory(1);
@@ -168,7 +168,7 @@ static void AddToHistory(const char *command)
     lasthist = malloc(sizeof(struct histnode));
     if (histcount == 0)
 	firsthist = lasthist;
-    lasthist->command = strdup(command);
+    lasthist->command = my_strdup(command);
     lasthist->next = NULL;
     lasthist->prev = tmp;
     if (tmp)
@@ -176,33 +176,33 @@ static void AddToHistory(const char *command)
     histcount++;
 }
 
-int GetInput (char *out, int maxlen)
+int GetInput (TCHAR *out, int maxlen)
 {
     HWND hInput;
-    int chars;
+    int TCHARs;
 
     if (!hDbgWnd)
 	return 0;
     hInput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
-    chars = GetWindowText(hInput, out, maxlen);
-    if (chars == 0)
+    TCHARs = GetWindowText(hInput, out, maxlen);
+    if (TCHARs == 0)
 	return 0;
     WriteOutput(linebreak + 1, 2);
-    WriteOutput(out, strlen(out));
+    WriteOutput(out, _tcslen(out));
     WriteOutput(linebreak + 1, 2);
     AddToHistory(out);
-    SetWindowText(hInput, "");
-    return chars;
+    SetWindowText(hInput, L"");
+    return TCHARs;
 }
 
-static int CheckLineLimit(HWND hWnd, const char *out)
+static int CheckLineLimit(HWND hWnd, const TCHAR *out)
 {
-    char *tmp, *p;
+    TCHAR *tmp, *p;
     int lines_have, lines_new = 0, lastchr, txtlen, visible;
 
-    tmp = (char *)out;
+    tmp = (TCHAR *)out;
     lines_have = SendMessage(hWnd, EM_GETLINECOUNT, 0, 0);
-    while (strlen(tmp) > 0 && (p = strchr(tmp, '\n')) > 0) {
+    while (_tcslen(tmp) > 0 && (p = _tcschr(tmp, '\n')) > 0) {
 	lines_new++;
 	tmp = p + 1;
     }
@@ -225,37 +225,37 @@ static int CheckLineLimit(HWND hWnd, const char *out)
     return 1;
 }
 
-void WriteOutput(const char *out, int len)
+void WriteOutput(const TCHAR *out, int len)
 {
     int txtlen, pos = 0, count, index, leave = 0;
-    char *buf = 0, *p, *tmp;
+    TCHAR *buf = 0, *p, *tmp;
 
-    if (!hOutput || !strcmp(out, ">") || len == 0)
+    if (!hOutput || !_tcscmp(out, L">") || len == 0)
 	return;
     if (!CheckLineLimit(hOutput, out))
 	return;
-    tmp = (char *)out;
+    tmp = (TCHAR *)out;
     for(;;) {
-	p = strchr(tmp, '\n');
+	p = _tcschr(tmp, '\n');
 	if (p) {
 	    pos = p - tmp + 1;
 	    if (pos > (MAX_LINEWIDTH + 1))
 		pos = MAX_LINEWIDTH + 1;
 	    buf = xmalloc(pos + 2);
 	    memset(buf, 0, pos + 2);
-	    strncpy(buf, tmp, pos - 1);
-	    strcat(buf, linebreak);
-	} else if (strlen(tmp) == 0) {
+	    _tcsncmp(buf, tmp, pos - 1);
+	    _tcscat(buf, linebreak);
+	} else if (_tcslen(tmp) == 0) {
 	    leave = 1;
 	} else {
 	    count = SendMessage(hOutput, EM_GETLINECOUNT, 0, 0);
 	    index = SendMessage(hOutput, EM_LINEINDEX, count - 1, 0);
 	    txtlen = SendMessage(hOutput, EM_LINELENGTH, index, 0);
-	    if (strlen(tmp) + txtlen > MAX_LINEWIDTH) {
+	    if (_tcslen(tmp) + txtlen > MAX_LINEWIDTH) {
 		buf = xmalloc(MAX_LINEWIDTH + 3 - txtlen);
 		memset(buf, 0, MAX_LINEWIDTH + 3 - txtlen);
-		strncpy(buf, tmp, MAX_LINEWIDTH - txtlen);
-		strcat(buf, linebreak);
+		_tcsncmp(buf, tmp, MAX_LINEWIDTH - txtlen);
+		_tcscat(buf, linebreak);
 	    }
 	    leave = 1;
 	}
@@ -274,20 +274,20 @@ void WriteOutput(const char *out, int len)
 
 static HWND ulbs_hwnd;
 static int ulbs_pos;
-static void UpdateListboxString(HWND hWnd, int pos, char *out, int mark)
+static void UpdateListboxString(HWND hWnd, int pos, TCHAR *out, int mark)
 {
     int count;
-    char text[MAX_LINEWIDTH + 1], *p;
+    TCHAR text[MAX_LINEWIDTH + 1], *p;
     COLORREF cr;
 
     if (!IsWindowEnabled(hWnd)) {
-	p = strchr(out, ':');
+	p = _tcschr(out, ':');
 	if (p)
 	    *(p + 1) = '\0';
     }
-    if (strlen(out) > MAX_LINEWIDTH)
+    if (_tcslen(out) > MAX_LINEWIDTH)
 	out[MAX_LINEWIDTH] = '\0';
-    p = strchr(out, '\n');
+    p = _tcschr(out, '\n');
     if (p)
 	*p = '\0';
     cr = GetSysColor(COLOR_WINDOWTEXT);
@@ -295,7 +295,7 @@ static void UpdateListboxString(HWND hWnd, int pos, char *out, int mark)
     if (pos < count) {
 	memset(text, 0, MAX_LINEWIDTH + 1);
 	SendMessage(hWnd, LB_GETTEXT, pos, (LPARAM)((LPTSTR)text));
-	if (strcmp(out, text) != 0 && mark)
+	if (_tcscmp(out, text) != 0 && mark)
 	    cr = GetSysColor(COLOR_HIGHLIGHT);
 	SendMessage(hWnd, LB_DELETESTRING, pos, 0);
     }
@@ -307,20 +307,20 @@ static void ULBSINIT(HWND hwnd)
     ulbs_hwnd = hwnd;
     ulbs_pos = 0;
 }
-static void ULBS(const char *format, ...)
+static void ULBS(const TCHAR *format, ...)
 {
-    char buffer[MAX_LINEWIDTH + 1];
+    TCHAR buffer[MAX_LINEWIDTH + 1];
     va_list parms;
     va_start(parms, format);
-    _vsnprintf(buffer, MAX_LINEWIDTH, format, parms);
+    _vsntprintf(buffer, MAX_LINEWIDTH, format, parms);
     UpdateListboxString(ulbs_hwnd, ulbs_pos++, buffer, FALSE);
 }
-static void ULBST(const char *format, ...)
+static void ULBST(const TCHAR *format, ...)
 {
-    char buffer[MAX_LINEWIDTH + 1];
+    TCHAR buffer[MAX_LINEWIDTH + 1];
     va_list parms;
     va_start(parms, format);
-    _vsnprintf(buffer, MAX_LINEWIDTH, format, parms);
+    _vsntprintf(buffer, MAX_LINEWIDTH, format, parms);
     UpdateListboxString(ulbs_hwnd, ulbs_pos++, buffer, TRUE);
 }
 
@@ -342,12 +342,12 @@ static int GetLBOutputLines(HWND hWnd)
 static void ShowMiscCPU(HWND hwnd)
 {
     int line = 0;
-    char out[MAX_LINEWIDTH + 1];
+    TCHAR out[MAX_LINEWIDTH + 1];
     int i;
 
     for (i = 0; m2cregs[i].regno>= 0; i++) {
 	if (!movec_illg(m2cregs[i].regno)) {
-	    sprintf(out, "%-4s %08X", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
+	    _stprintf(out, L"%-4s %08X", m2cregs[i].regname, val_move2c(m2cregs[i].regno));
 	    UpdateListboxString(hwnd, line++, out, TRUE);
 	}
     }
@@ -365,7 +365,7 @@ static void ShowCustomSmall(HWND hwnd)
 {
     int len, i, j, cnt;
     uae_u8 *p1, *p2, *p3, *p4;
-    char out[MAX_LINEWIDTH + 1];
+    TCHAR out[MAX_LINEWIDTH + 1];
 
     p1 = p2 = save_custom (&len, 0, 1);
     p1 += 4; // skip chipset type
@@ -388,20 +388,20 @@ static void ShowCustomSmall(HWND hwnd)
     }
     ULBSINIT(hwnd);
     cnt = 0;
-    sprintf(out, "CPU %d", currprefs.cpu_model);
+    _stprintf(out, L"CPU %d", currprefs.cpu_model);
     if (currprefs.fpu_model)
-	sprintf (out + strlen(out), "/%d", currprefs.fpu_model);
-    sprintf(out + strlen(out), " %s", (currprefs.chipset_mask & CSMASK_AGA) ? "AGA" : ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? "ECS" : "OCS"));
+	_stprintf (out + _tcslen(out), L"/%d", currprefs.fpu_model);
+    _stprintf(out + _tcslen(out), L" %s", (currprefs.chipset_mask & CSMASK_AGA) ? L"AGA" : ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? L"ECS" : L"OCS"));
     ULBST(out);
-    ULBST("VPOS     %04X (%d)", vpos, vpos);
-    ULBST("HPOS     %04X (%d)", current_hpos(), current_hpos());
+    ULBST(L"VPOS     %04X (%d)", vpos, vpos);
+    ULBST(L"HPOS     %04X (%d)", current_hpos(), current_hpos());
     for (i = 0; dcustom[i]; i++) {
 	for (j = 0; custd[j].name; j++) {
 	    if (custd[j].adr == (dcustom[i] & 0x1fe) + 0xdff000) {
 		if (dcustom[i] & 0x8000)
-		    ULBST("%-8s %08X", custd[j].name, (gw(p1, dcustom[i] & 0x1fe) << 16) | gw(p1, (dcustom[i] & 0x1fe) + 2));
+		    ULBST(L"%-8s %08X", custd[j].name, (gw(p1, dcustom[i] & 0x1fe) << 16) | gw(p1, (dcustom[i] & 0x1fe) + 2));
 		else
-		    ULBST("%-8s %04X", custd[j].name, gw(p1, dcustom[i] & 0x1fe));
+		    ULBST(L"%-8s %04X", custd[j].name, gw(p1, dcustom[i] & 0x1fe));
 		break;
 	    }
 	}
@@ -420,17 +420,17 @@ static void ShowMisc(void)
     ULBSINIT(hMisc);
     for (i = 0; i < 2; i++) {
 	p = p2 = save_cia (i, &len, NULL);
-	ULBS("");
-	ULBS("CIA %c:", i == 1 ? 'B' : 'A');
-	ULBS("");
-	ULBS("PRA %02X   PRB %02X", p[0], p[1]);
-	ULBS("DRA %02X   DRB %02X", p[2], p[3]);
-	ULBS("CRA %02X   CRB %02X   ICR %02X   IM %02X",
+	ULBS(L"");
+	ULBS(L"CIA %c:", i == 1 ? 'B' : 'A');
+	ULBS(L"");
+	ULBS(L"PRA %02X   PRB %02X", p[0], p[1]);
+	ULBS(L"DRA %02X   DRB %02X", p[2], p[3]);
+	ULBS(L"CRA %02X   CRB %02X   ICR %02X   IM %02X",
 	    p[14], p[15], p[13], p[16]);
-	ULBS("TA  %04X (%04X)   TB %04X (%04X)",
+	ULBS(L"TA  %04X (%04X)   TB %04X (%04X)",
 	    (p[5] << 8) | p[4], (p[18] << 8) | p[17],
 	    (p[7] << 8) | p[6], (p[20] << 8) | p[19]);
-	ULBS("TOD %06X (%06X) ALARM %06X %c%c",
+	ULBS(L"TOD %06X (%06X) ALARM %06X %c%c",
 	    (p[10] << 16) | (p[ 9] << 8) | p[ 8],
 	    (p[23] << 16) | (p[22] << 8) | p[21],
 	    (p[26] << 16) | (p[25] << 8) | p[24],
@@ -439,23 +439,23 @@ static void ShowMisc(void)
     }
     for (i = 0; i < 4; i++) {
 	p = p2 = save_disk (i, &len, NULL);
-	ULBS("");
-	ULBS("Drive DF%d: (%s)", i, (p[4] & 2) ? "disabled" : "enabled");
-	ULBS("ID %08X  Motor %s  Cylinder %2d  MFMPOS %d",
+	ULBS(L"");
+	ULBS(L"Drive DF%d: (%s)", i, (p[4] & 2) ? "disabled" : "enabled");
+	ULBS(L"ID %08X  Motor %s  Cylinder %2d  MFMPOS %d",
 	    (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3],
-	    (p[4] & 1) ? "On" : "Off",
+	    (p[4] & 1) ? L"On" : L"Off",
 	    p[5], (p[8] << 24) | (p[9] << 16) | (p[10] << 8) | p[11]);
 	if (p[16])
-	    ULBS("'%s'", p + 16);
+	    ULBS(L"'%s'", p + 16);
 	else
-	    ULBS("Drive is empty");
+	    ULBS(L"Drive is empty");
 	free(p2);
     }
     p = p2 = save_floppy (&len, NULL);
-    ULBS("");
-    ULBS("Disk controller:");
-    ULBS("");
-    ULBS("Shift register: Data=%04X Shift=%d. DMA=%d,%d", (p[0] << 8) | p[1], p[2], p[3], p[5]);
+    ULBS(L"");
+    ULBS(L"Disk controller:");
+    ULBS(L"");
+    ULBS(L"Shift register: Data=%04X Shift=%d. DMA=%d,%d", (p[0] << 8) | p[1], p[2], p[3], p[5]);
     free (p2);
 }
 
@@ -497,7 +497,7 @@ static void ShowCustom(void)
 	addr2 = custd[j].adr & 0x1ff;
 	v1 = (p1[addr1 + 0] << 8) | p1[addr1 + 1];
 	v2 = (p1[addr2 + 0] << 8) | p1[addr2 + 1];
-	ULBS("%03.3X %-15s %04X    %03X %-15s %04X",
+	ULBS(L"%03.3X %-15s %04X    %03X %-15s %04X",
 	    addr1, custd[i].name, v1,
 	    addr2, custd[j].name, v2);
     }
@@ -508,14 +508,14 @@ static void ShowBreakpoints(void)
 {
     HWND hBrkpts;
     int i, lines_old, got;
-    char outbp[MAX_LINEWIDTH + 1], outw[50];
+    TCHAR outbp[MAX_LINEWIDTH + 1], outw[50];
 
     hBrkpts = GetDlgItem(hDbgWnd, IDC_DBG_BRKPTS);
     ULBSINIT(hBrkpts);
     lines_old = SendMessage(hBrkpts, LB_GETCOUNT, 0, 0);
-    ULBS("");
-    ULBS("Breakpoints:");
-    ULBS("");
+    ULBS(L"");
+    ULBS(L"Breakpoints:");
+    ULBS(L"");
     got = 0;
     for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 	if (!bpnodes[i].enabled)
@@ -525,10 +525,10 @@ static void ShowBreakpoints(void)
 	got = 1;
     }
     if (!got)
-	ULBS("none");
-    ULBS("");
-    ULBS("Memwatch breakpoints:");
-    ULBS("");
+	ULBS(L"none");
+    ULBS(L"");
+    ULBS(L"Memwatch breakpoints:");
+    ULBS(L"");
     got = 0;
     for (i = 0; i < MEMWATCH_TOTAL; i++) {
 	if (mwnodes[i].size == 0)
@@ -538,7 +538,7 @@ static void ShowBreakpoints(void)
 	got = 1;
     }
     if (!got)
-	ULBS("none");
+	ULBS(L"none");
     for (i = ulbs_pos; i < lines_old; i++)
 	SendMessage(hBrkpts, LB_DELETESTRING, ulbs_pos, 0);
 }
@@ -547,7 +547,7 @@ static void ShowMem(int offset)
 {
     uae_u32 addr;
     int i, lines_old, lines_new;
-    char out[MAX_LINEWIDTH + 1];
+    TCHAR out[MAX_LINEWIDTH + 1];
     HWND hMemory;
 
     dbgpage[currpage].memaddr += offset;
@@ -590,7 +590,7 @@ static void ShowDasm(int direction)
 {
     uae_u32 addr = 0, prev;
     int i, lines_old, lines_new;
-    char out[MAX_LINEWIDTH + 1];
+    TCHAR out[MAX_LINEWIDTH + 1];
     HWND hDasm;
 
 	if (currpage == 0)
@@ -626,7 +626,7 @@ static void ShowDasm(int direction)
 	if (addr > dbgpage[currpage].dasmaddr)
 	    UpdateListboxString(hDasm, i, out, FALSE);
 	else
-	    UpdateListboxString(hDasm, i, "", FALSE);
+	    UpdateListboxString(hDasm, i, L"", FALSE);
     }
     for (i = lines_new; i < lines_old; i++) {
 	SendMessage(hDasm, LB_DELETESTRING, lines_new, 0);
@@ -639,7 +639,7 @@ static void SetMemToPC(void)
     int i, id;
 
     dbgpage[currpage].dasmaddr = m68k_getpc (&regs);
-    sprintf(dbgpage[currpage].addrinput, "%08lX", dbgpage[currpage].dasmaddr);
+    _stprintf(dbgpage[currpage].addrinput, L"%08lX", dbgpage[currpage].dasmaddr);
     for (i = 0; i < MAXPAGECONTROLS; i++) {
 	id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
 	if (id == IDC_DBG_MEMINPUT)
@@ -722,7 +722,7 @@ static void AddPage(int *iddata)
     pages++;
 }
 
-static int GetTextSize(HWND hWnd, char *text, int width)
+static int GetTextSize(HWND hWnd, TCHAR *text, int width)
 {
     HDC hdc;
     TEXTMETRIC tm;
@@ -736,7 +736,7 @@ static int GetTextSize(HWND hWnd, char *text, int width)
     if (!width)
 	return tm.tmHeight + tm.tmExternalLeading;
     else if (text)
-	return tm.tmMaxCharWidth * strlen(text);
+	return tm.tmMaxCharWidth * _tcslen(text);
     return 0;
 }
 
@@ -761,7 +761,7 @@ static void InitPages(void)
     for (i = 0; i < (sizeof(dpage) / sizeof(dpage[0])); i++)
 	AddPage(dpage[i]);
     memset(parts, 0, MAXPAGES * sizeof(int));
-    width = GetTextSize(hDbgWnd, "12345678", TRUE); // longest pagename + 2
+    width = GetTextSize(hDbgWnd, L"12345678", TRUE); // longest pagename + 2
     for (i = 0; i < pages; i++) {
 	pwidth += width;
 	parts[i] = pwidth;
@@ -807,9 +807,9 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 {
     HANDLE hdata;
     LPTSTR lptstr;
-    char allowed[] = "1234567890abcdefABCDEF";
+    TCHAR allowed[] = L"1234567890abcdefABCDEF";
     int ok = 1;
-    char addrstr[11];
+    TCHAR addrstr[11];
     uae_u32 addr;
     WNDPROC oldproc;
 
@@ -822,7 +822,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 			case 0x16:		//ctrl+v
 				break;
 			default:
-				if (!debugger_active || !strchr(allowed, wParam))
+				if (!debugger_active || !_tcschr(allowed, wParam))
 					return 0;
 				break;
 		}
@@ -834,7 +834,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 	    if (hdata) {
 		lptstr = GlobalLock(hdata);
 		if (lptstr) {
-		    if (strspn(lptstr, allowed) != strlen(lptstr))
+		    if (_tcsspn(lptstr, allowed) != _tcslen(lptstr))
 			ok = 0;
 		    GlobalUnlock(hdata);
 		}
@@ -848,10 +848,10 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 			return 0;
 	     switch (wParam) {
 		case VK_RETURN:
-		    sprintf(addrstr, "0x");
+		    _stprintf(addrstr, L"0x");
 		    GetWindowText(hWnd, addrstr + 2, 9);
 			if (addrstr[2] != 0) {
-				addr = strtoul(addrstr, NULL, 0);
+				addr = _tcstoul(addrstr, NULL, 0);
 				if (pagetype == IDC_DBG_MEM || pagetype == IDC_DBG_MEM2) {
 					dbgpage[currpage].memaddr = addr;
 					ShowMem(0);
@@ -904,11 +904,11 @@ static INT_PTR CALLBACK AddrInputDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 	    switch (LOWORD(wParam)) {
 			case IDOK:
 			{
-				char addrstr[11] = { '0', 'x', '\0' };
+				TCHAR addrstr[11] = { '0', 'x', '\0' };
 
 				SendMessage(GetDlgItem(hDlg, IDC_DBG_MEMINPUT2), WM_GETTEXT, 9, (LPARAM)addrstr + 2);
 				if (addrstr[2] != 0) {
-					uae_u32 addr = strtoul(addrstr, NULL, 0);
+					uae_u32 addr = _tcstoul(addrstr, NULL, 0);
 					if (dbgpage[currpage].selection == IDC_DBG_MEM || dbgpage[currpage].selection == IDC_DBG_MEM2) {
 						dbgpage[currpage].memaddr = addr;
 						ShowMem(0);
@@ -975,34 +975,34 @@ static void CopyListboxText(HWND hwnd, BOOL all)
 
 static void ToggleBreakpoint(HWND hwnd)
 {
-	char addrstr[MAX_LINEWIDTH + 1], *ptr;
+	TCHAR addrstr[MAX_LINEWIDTH + 1], *ptr;
 	int index = dbgpage[currpage].selection;
 	SendMessage(hwnd, LB_GETTEXT, index, (LPARAM)addrstr);
 	addrstr[8] = '\0';
 	ptr = addrstr;
-	console_out_f ("\nf %s\n", addrstr);
+	console_out_f (L"\nf %s\n", addrstr);
 	instruction_breakpoint(&ptr);
 	RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
 }
 
 static void DeleteBreakpoints(HWND hwnd)
 {
-	char *cmd = "d";
-	console_out("\nfd\n");
+	TCHAR *cmd = L"d";
+	console_out(L"\nfd\n");
 	instruction_breakpoint(&cmd);
 	RedrawWindow(hwnd, 0, 0, RDW_INVALIDATE);
 }
 
-static void ignore_ws (char **c)
+static void ignore_ws (TCHAR **c)
 {
-    while (**c && isspace(**c))
+    while (**c && _istspace(**c))
 	(*c)++;
 }
 
 static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 {
 	MSG msg;
-	char *p, *p2, txt[MAX_LINEWIDTH + 1], tmp[MAX_LINEWIDTH + 1], hexstr[11] = { '0', 'x', '\0' };
+	TCHAR *p, *p2, txt[MAX_LINEWIDTH + 1], tmp[MAX_LINEWIDTH + 1], hexstr[11] = { '0', 'x', '\0' };
 
 	if (!hedit)
 		return;
@@ -1011,7 +1011,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 	GetWindowText(hedit, txt, MAX_LINEWIDTH + 1);
 	p = txt;
 	ignore_ws(&p);
-	if ((GetWindowTextLength(hedit) == 0) || (strlen(p) == 0))
+	if ((GetWindowTextLength(hedit) == 0) || (_tcslen(p) == 0))
 		acceptinput = FALSE;
 	while (PeekMessage(&msg, hedit, 0, 0, PM_REMOVE))
 		;
@@ -1020,22 +1020,22 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 	if (acceptinput) {
 		int index = dbgpage[currpage].selection, id = GetDlgCtrlID(hwnd);
 		if (id == IDC_DBG_DREG) {
-			strncpy(hexstr + 2, txt, 8);
+			_tcsncmp(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
-			m68k_dreg(&regs, index) = strtoul(hexstr, NULL, 0);
+			m68k_dreg(&regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
 		else if (id == IDC_DBG_AREG) {
-			strncpy(hexstr + 2, txt, 8);
+			_tcsncmp(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
-			m68k_areg(&regs, index) = strtoul(hexstr, NULL, 0);
+			m68k_areg(&regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
 		else if (id == IDC_DBG_FPREG) {
-			char *stopstr;
+			TCHAR *stopstr;
 			double value;
 			errno = 0;
-			value = strtod(txt, &stopstr);
-			if (strlen(stopstr) == 0 && errno == 0)
-				regs.fp[index] = strtod(txt, &stopstr);
+			value = _tcstod(txt, &stopstr);
+			if (_tcslen(stopstr) == 0 && errno == 0)
+				regs.fp[index] = _tcstod(txt, &stopstr);
 		}
 		else {
 			int bytes, i, offset = -1;
@@ -1048,44 +1048,44 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 				bytes = 16;
 			}
 			else if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2) {
-				strncpy(hexstr + 2, tmp, 8);
+				_tcsncmp(hexstr + 2, tmp, 8);
 				hexstr[10] = '\0';
-				addr = strtoul(hexstr, NULL, 0);
+				addr = _tcstoul(hexstr, NULL, 0);
 				offset = 9;
 				bytes = 16;
 			}
 			else if (id == IDC_DBG_DASM || id == IDC_DBG_DASM2) {
-				strncpy(hexstr + 2, tmp, 8);
+				_tcsncmp(hexstr + 2, tmp, 8);
 				hexstr[10] = '\0';
-				addr = strtoul(hexstr, NULL, 0);
+				addr = _tcstoul(hexstr, NULL, 0);
 				bytes = 0;
 				p = tmp + 9;
-				while (isxdigit(p[0]) && p[4] == ' ') {
+				while (_istxdigit(p[0]) && p[4] == ' ') {
 					bytes += 2;
 					p += 5;
 				}
 			}
-			if (offset >= 0 && !isxdigit(tmp[offset])) {
+			if (offset >= 0 && !_istxdigit(tmp[offset])) {
 				int t = 0;
 				do {
 					t += 5;
 					addr += 2;
 					bytes -= 2;
-				} while (!isxdigit(tmp[offset + t]) && !isxdigit(tmp[offset + t + 1]) && isspace(tmp[offset + t + 4]));
+				} while (!_istxdigit(tmp[offset + t]) && !_istxdigit(tmp[offset + t + 1]) && _istspace(tmp[offset + t + 4]));
 			}
 			p = txt;
 			for (i = 0; i < bytes; i++) {
 				ignore_ws(&p);
-				if (!isxdigit(p[0]))
+				if (!_istxdigit(p[0]))
 					break;
 				p2 = p + 1;
 				ignore_ws(&p2);
-				if (!isxdigit(p2[0]))
+				if (!_istxdigit(p2[0]))
 					break;
 				hexstr[2] = p[0];
 				hexstr[3] = p2[0];
 				hexstr[4] = '\0';
-				value = (uae_u8)strtoul(hexstr, NULL, 0);
+				value = (uae_u8)_tcstoul(hexstr, NULL, 0);
 				put_byte(addr, value);
 				p = p2 + 1;
 				addr++;
@@ -1101,15 +1101,15 @@ static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, 
 {
     HANDLE hdata;
     LPTSTR lptstr;
-    char allowed[] = "1234567890abcdefABCDEF ";
+    TCHAR allowed[] = L"1234567890abcdefABCDEF ";
     int ok = 1, id;
     WNDPROC oldproc;
 	HWND hparent = GetParent(hWnd);
 	id = GetDlgCtrlID(hparent);
 	if (id == IDC_DBG_DREG || id == IDC_DBG_AREG)
-		allowed[strlen(allowed) - 1] = '\0'; // no space
+		allowed[_tcslen(allowed) - 1] = '\0'; // no space
 	else if (id == IDC_DBG_FPREG)
-		sprintf(allowed, "1234567890deDE.+-");
+		_stprintf(allowed, L"1234567890deDE.+-");
     switch (message) {
 	case WM_GETDLGCODE:
 		return DLGC_WANTALLKEYS;
@@ -1141,7 +1141,7 @@ static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, 
 				ListboxEndEdit(hparent, FALSE);
 				return 0;
 			default:
-				if (!strchr(allowed, wParam))
+				if (!_tcschr(allowed, wParam))
 					return 0;
 				break;
 		}
@@ -1153,7 +1153,7 @@ static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, 
 	    if (hdata) {
 		lptstr = GlobalLock(hdata);
 		if (lptstr) {
-		    if (strspn(lptstr, allowed) != strlen(lptstr))
+		    if (_tcsspn(lptstr, allowed) != _tcslen(lptstr))
 			ok = 0;
 		    GlobalUnlock(hdata);
 		}
@@ -1177,7 +1177,7 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 	RECT rc, ri;
 	HFONT hfont;
 	WNDPROC oldproc;
-	char txt[MAX_LINEWIDTH + 1], tmp[MAX_LINEWIDTH + 1];
+	TCHAR txt[MAX_LINEWIDTH + 1], tmp[MAX_LINEWIDTH + 1];
 	if (!debugger_active || hedit)
 		return;
 	if (!hwnd)
@@ -1205,7 +1205,7 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 	}
 	else
 		return;
-	hedit = CreateWindow("Edit", "Listbox Edit", WS_BORDER | WS_CHILD, 0, 0, 1, 1, hwnd, NULL, hInst, NULL);
+	hedit = CreateWindow(L"Edit", L"Listbox Edit", WS_BORDER | WS_CHILD, 0, 0, 1, 1, hwnd, NULL, hInst, NULL);
 	if (!hedit)
 		return;
 	size = GetTextSize(hwnd, NULL, 0);
@@ -1214,20 +1214,20 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 	SendMessage(hwnd, LB_GETITEMRECT, (WPARAM)index, (LPARAM)&ri);
 	SendMessage(hwnd, LB_GETTEXT, (WPARAM)index, (LPARAM)(LPTSTR)txt);
 	if (id == IDC_DBG_DASM || id == IDC_DBG_DASM2) {
-		while (isxdigit(txt[offset + length]) && isspace(txt[offset + length + 4]))
+		while (_istxdigit(txt[offset + length]) && _istspace(txt[offset + length + 4]))
 			length += 5;
 		length--;
 	}
 	if (length > 0) {
 		int t = 0;
-		if (!isxdigit(txt[offset])) {
-			while (isxdigit(txt[offset + length - t - 1]) && isspace(txt[offset + length - t - 5]))
+		if (!_istxdigit(txt[offset])) {
+			while (_istxdigit(txt[offset + length - t - 1]) && _istspace(txt[offset + length - t - 5]))
 				t += 5;
 			offset += length - t + 1;
 			length = t - 1;
 		}
-		else if (!isxdigit(txt[offset + length - 1])) {
-			while (isxdigit(txt[offset + t]) && isspace(txt[offset + t + 4]))
+		else if (!_istxdigit(txt[offset + length - 1])) {
+			while (_istxdigit(txt[offset + t]) && _istspace(txt[offset + t + 4]))
 				t += 5;
 			length = t - 1;
 		}
@@ -1235,15 +1235,15 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 			ListboxEndEdit(hwnd, FALSE);
 			return;
 		}
-		strncpy(tmp, txt + offset, length);
+		_tcsncmp(tmp, txt + offset, length);
 		tmp[length] = '\0';
 		radjust = GetTextSize(hwnd, tmp, TRUE);
 	}
 	else if (id == IDC_DBG_FPREG)
 		length = 20;
 	else
-		length = strlen(txt + offset);
-	strncpy(tmp, txt, offset);
+		length = _tcslen(txt + offset);
+	_tcsncmp(tmp, txt, offset);
 	tmp[offset] = '\0';
 	ri.left += GetTextSize(hwnd, tmp, TRUE);
 	if (radjust)
@@ -1278,7 +1278,7 @@ static void ToggleCCRFlag(HWND hwnd, int x, int y)
 {
 	int size = GetTextSize(hwnd, NULL, 0);
 	int index = y / size;
-	char txt[MAX_LINEWIDTH + 1];
+	TCHAR txt[MAX_LINEWIDTH + 1];
 
 	memset(txt, 0, MAX_LINEWIDTH + 1);
 	SendMessage(hwnd, LB_GETTEXT, (WPARAM)index, (LPARAM)(LPTSTR)txt);
@@ -1600,7 +1600,7 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 {
     int i, id, enable = TRUE, items = 0;
     WNDPROC newproc = NULL, oldproc;
-    char classname[CLASSNAMELENGTH];
+    TCHAR classname[CLASSNAMELENGTH];
     WINDOWINFO pwi;
     RECT *r;
 
@@ -1644,9 +1644,9 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 	    break;
 	default:
 	    if (GetClassName(hWnd, classname, CLASSNAMELENGTH)) {
-		if (!strcmp(classname, "ListBox"))
+		if (!_tcscmp(classname, L"ListBox"))
 		    newproc = ListboxProc;
-		else if (!strcmp(classname, "Edit"))
+		else if (!_tcscmp(classname, L"Edit"))
 		    newproc = EditProc;
 	    }
 	    break;
@@ -1662,9 +1662,9 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 static void step(BOOL over)
 {
 	if (over)
-		strcpy(internalcmd, "z");
+		_tcscpy(internalcmd, L"z");
 	else
-		strcpy(internalcmd, "t");
+		_tcscpy(internalcmd, L"t");
 	useinternalcmd = TRUE;
 	inputfinished = 1;
 }
@@ -1727,13 +1727,13 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 	    dbgwnd_miny = rw.bottom - rw.top;
 	    GetClientRect(hDlg, &dlgRect);
 	    newpos = 1;
-	    if (!regqueryint (NULL, "DebuggerPosX", &x))
+	    if (!regqueryint (NULL, L"DebuggerPosX", &x))
 		newpos = 0;
-	    if (!regqueryint (NULL, "DebuggerPosY", &y))
+	    if (!regqueryint (NULL, L"DebuggerPosY", &y))
 		newpos = 0;
-	    if (!regqueryint (NULL, "DebuggerPosW", &w))
+	    if (!regqueryint (NULL, L"DebuggerPosW", &w))
 		newpos = 0;
-	    if (!regqueryint (NULL, "DebuggerPosH", &h))
+	    if (!regqueryint (NULL, L"DebuggerPosH", &h))
 		newpos = 0;
 	    if (newpos) {
 		RECT rc;
@@ -1778,11 +1778,11 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		r->bottom -= r->top;
 		r->left += xoffset;
 		r->top += yoffset;
-		regsetint (NULL, "DebuggerPosX", r->left);
-		regsetint (NULL, "DebuggerPosY", r->top);
-		regsetint (NULL, "DebuggerPosW", r->right);
-		regsetint (NULL, "DebuggerPosH", r->bottom);
-		regsetint (NULL, "DebuggerMaximized", (IsZoomed(hDlg) || (wp.flags & WPF_RESTORETOMAXIMIZED)) ? 1 : 0);
+		regsetint (NULL, L"DebuggerPosX", r->left);
+		regsetint (NULL, L"DebuggerPosY", r->top);
+		regsetint (NULL, L"DebuggerPosW", r->right);
+		regsetint (NULL, L"DebuggerPosH", r->bottom);
+		regsetint (NULL, L"DebuggerMaximized", (IsZoomed(hDlg) || (wp.flags & WPF_RESTORETOMAXIMIZED)) ? 1 : 0);
 	    }
 	    hDbgWnd = 0;
 	    PostQuitMessage(0);
@@ -1921,12 +1921,12 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		DRAWITEMSTRUCT *pdis = (DRAWITEMSTRUCT *)lParam;
 		HDC hdc = pdis->hDC;
 		RECT rc = pdis->rcItem;
-		char text[MAX_LINEWIDTH + 1];
+		TCHAR text[MAX_LINEWIDTH + 1];
 		uae_u32 addr;
 	    SetBkMode(hdc, TRANSPARENT);
 	    if (wParam == IDC_DBG_STATUS) {
 		SetTextColor(hdc, GetSysColor(pstatuscolor[pdis->itemID]));
-		DrawText(hdc, pname[pdis->itemID], lstrlen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+		DrawText(hdc, pname[pdis->itemID], _tcslen(pname[pdis->itemID]), &rc, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 		return TRUE;
 	    }
 	    else {
@@ -1945,11 +1945,11 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		}
 		SetTextColor(hdc, pdis->itemData);
 		if (wParam == IDC_DBG_DASM || wParam == IDC_DBG_DASM2) {
-			char addrstr[11] = { '0', 'x', '\0'}, *btemp;
+			TCHAR addrstr[11] = { '0', 'x', '\0'}, *btemp;
 			int i, j, size = rc.bottom - rc.top;
-			strncpy(addrstr + 2, text, 8);
+			_tcsncmp(addrstr + 2, text, 8);
 			addrstr[10] = 0;
-			addr = strtoul(addrstr, NULL, 0);
+			addr = _tcstoul(addrstr, NULL, 0);
 			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 				if (addr == bpnodes[i].addr && bpnodes[i].enabled) {
 					int offset = 0;
@@ -1964,18 +1964,18 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 			btemp = NULL;
 			addrstr[2] = '\0';
 			while (ucbranch[i])  {
-				if (!strncmp(text + 34, ucbranch[i], strlen(ucbranch[i]))) {
-					btemp = strchr(text + 34, '=');
+				if (!_tcsncmp(text + 34, ucbranch[i], _tcslen(ucbranch[i]))) {
+					btemp = _tcschr(text + 34, '=');
 					if (btemp)
-						strncpy(addrstr + 2, btemp + 4, 8);
+						_tcsncmp(addrstr + 2, btemp + 4, 8);
 					else {
-						int pos = 34 + strlen(ucbranch[i]) + 3;
+						int pos = 34 + _tcslen(ucbranch[i]) + 3;
 						if (text[pos] == '$')	//absolute addressing
-							strncpy(addrstr + 2, text + pos + 1, 8);
-						else if (text[pos] == '(' && isdigit(text[pos + 2])) { //address register indirect
-							int reg = atoi(text + pos + 2);
+							_tcsncmp(addrstr + 2, text + pos + 1, 8);
+						else if (text[pos] == '(' && _istdigit(text[pos + 2])) { //address register indirect
+							int reg = _tstoi(text + pos + 2);
 							uae_u32 loc = m68k_areg (&regs, reg);
-							sprintf(addrstr + 2, "%08lx", loc);
+							_stprintf(addrstr + 2, L"%08lx", loc);
 						}
 					}
 					break;
@@ -1984,13 +1984,13 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 			}
 			i = 0;
 			while (addrstr[2] == '\0' && cbranch[i]) {
-				if (!strncmp(text + 34, cbranch[i], strlen(cbranch[i]))) {
+				if (!_tcsncmp(text + 34, cbranch[i], _tcslen(cbranch[i]))) {
 					j = 0;
 					while (ccode[j]) {
-						if (!strncmp(text + 34 + strlen(cbranch[i]), ccode[j], strlen(ccode[j]))) {
-							btemp = strchr(text + 34, '=');
+						if (!_tcsncmp(text + 34 + _tcslen(cbranch[i]), ccode[j], _tcslen(ccode[j]))) {
+							btemp = _tcschr(text + 34, '=');
 							if (btemp)
-								strncpy(addrstr + 2, btemp + 4, 8);
+								_tcsncmp(addrstr + 2, btemp + 4, 8);
 							break;
 						}
 						j++;
@@ -1999,17 +1999,17 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 				i++;
 			}
 			if (addrstr[2] != '\0') {
-				uae_u32 branchaddr = strtoul(addrstr, NULL, 0);
+				uae_u32 branchaddr = _tcstoul(addrstr, NULL, 0);
 				if (branchaddr < addr)
-					TextOut(hdc, rc.left, rc.top, "^", 1);
+					TextOut(hdc, rc.left, rc.top, L"^", 1);
 				else if (branchaddr > addr) {
 					HFONT hfontold = (HFONT)SelectObject(hdc, udfont);
-					int width = GetTextSize(hDlg, "^", TRUE);
-					TextOut(hdc, rc.left + width, rc.bottom, "^", 1);
+					int width = GetTextSize(hDlg, L"^", TRUE);
+					TextOut(hdc, rc.left + width, rc.bottom, L"^", 1);
 					SelectObject(hdc, hfontold);
 				}
 				else
-					TextOut(hdc, rc.left, rc.top, "=", 1);
+					TextOut(hdc, rc.left, rc.top, L"=", 1);
 			}
 			rc.left += size;
 			if (addr == m68k_getpc(&regs)) {
@@ -2017,10 +2017,10 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 				SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
 				SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
 			}
-			TextOut(hdc, rc.left, rc.top, text, strlen(text));
+			TextOut(hdc, rc.left, rc.top, text, _tcslen(text));
 			i = 0;
 			while (markinstr[i])  {
-				if (!strncmp(text + 34, markinstr[i], strlen(markinstr[i]))) {
+				if (!_tcsncmp(text + 34, markinstr[i], _tcslen(markinstr[i]))) {
 					MoveToEx(hdc, rc.left, rc.bottom - 1, NULL);
 					LineTo(hdc, rc.right, rc.bottom - 1);
 					break;
@@ -2031,12 +2031,12 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 				DrawFocusRect(hdc, &rc);
 		}
 		else if (wParam == IDC_DBG_MEM || wParam == IDC_DBG_MEM2) {
-			TextOut(hdc, rc.left, rc.top, text, strlen(text));
+			TextOut(hdc, rc.left, rc.top, text, _tcslen(text));
 			if ((pdis->itemState) & (ODS_SELECTED))
 				DrawFocusRect(hdc, &rc);
 		}
 		else
-			TextOut(hdc, rc.left, rc.top, text, strlen(text));
+			TextOut(hdc, rc.left, rc.top, text, _tcslen(text));
 		return TRUE;
 	    }
 	    break;
@@ -2066,7 +2066,7 @@ int open_debug_window(void)
 	return 0;
     InitPages();
     ShowPage(0, TRUE);
-	if (!regqueryint (NULL, "DebuggerMaximized", &maximized))
+	if (!regqueryint (NULL, L"DebuggerMaximized", &maximized))
 		maximized = 0;
 	ShowWindow(hDbgWnd, maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     UpdateWindow(hDbgWnd);
@@ -2079,7 +2079,7 @@ void close_debug_window(void)
     DestroyWindow(hDbgWnd);
  }
 
-int console_get_gui (char *out, int maxlen)
+int console_get_gui (TCHAR *out, int maxlen)
 {
     MSG msg;
     int ret;
@@ -2099,11 +2099,11 @@ int console_get_gui (char *out, int maxlen)
 		inputfinished = 0;
 		if (useinternalcmd) {
 			useinternalcmd = FALSE;
-			console_out("\n");
+			console_out(L"\n");
 			console_out(internalcmd);
-			console_out("\n");
-			strncpy(out, internalcmd, maxlen);
-			return strlen(out);
+			console_out(L"\n");
+			_tcsncmp(out, internalcmd, maxlen);
+			return _tcslen(out);
 		}
 		else
 			return GetInput(out, maxlen);
@@ -2115,25 +2115,25 @@ int console_get_gui (char *out, int maxlen)
 void update_debug_info(void)
 {
     int i;
-    char out[MAX_LINEWIDTH + 1];
+    TCHAR out[MAX_LINEWIDTH + 1];
     HWND hwnd;
     struct instr *dp;
     struct mnemolookup *lookup1, *lookup2;
     uae_u32 fpsr;
-    char *fpsrflag[] = { "N:   ", "Z:   ", "I:   ", "NAN: " };
+    TCHAR *fpsrflag[] = { L"N:   ", L"Z:   ", L"I:   ", L"NAN: " };
 
     if (!hDbgWnd)
 	return;
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_DREG);
     for (i = 0; i < 8; i++) {
-	sprintf(out, "D%d: %08lX", i, m68k_dreg (&regs, i));
+	_stprintf(out, L"D%d: %08lX", i, m68k_dreg (&regs, i));
 	UpdateListboxString(hwnd, i, out, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
     for (i = 0; i < 8; i++) {
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
-	sprintf(out, "A%d: %08lX", i, m68k_areg (&regs, i));
+	_stprintf(out, L"A%d: %08lX", i, m68k_areg (&regs, i));
 	UpdateListboxString(hwnd, i, out, TRUE);
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AMEM);
 	dumpmem2(m68k_areg (&regs, i), out, sizeof(out));
@@ -2141,34 +2141,34 @@ void update_debug_info(void)
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_CCR);
-    UpdateListboxString(hwnd, 0, GET_XFLG(&regs.ccrflags) ? "X: 1" : "X: 0", TRUE);
-    UpdateListboxString(hwnd, 1, GET_NFLG(&regs.ccrflags) ? "N: 1" : "N: 0", TRUE);
-    UpdateListboxString(hwnd, 2, GET_ZFLG(&regs.ccrflags) ? "Z: 1" : "Z: 0", TRUE);
-    UpdateListboxString(hwnd, 3, GET_VFLG(&regs.ccrflags) ? "V: 1" : "V: 0", TRUE);
-    UpdateListboxString(hwnd, 4, GET_CFLG(&regs.ccrflags) ? "C: 1" : "C: 0", TRUE);
+    UpdateListboxString(hwnd, 0, GET_XFLG(&regs.ccrflags) ? L"X: 1" : L"X: 0", TRUE);
+    UpdateListboxString(hwnd, 1, GET_NFLG(&regs.ccrflags) ? L"N: 1" : L"N: 0", TRUE);
+    UpdateListboxString(hwnd, 2, GET_ZFLG(&regs.ccrflags) ? L"Z: 1" : L"Z: 0", TRUE);
+    UpdateListboxString(hwnd, 3, GET_VFLG(&regs.ccrflags) ? L"V: 1" : L"V: 0", TRUE);
+    UpdateListboxString(hwnd, 4, GET_CFLG(&regs.ccrflags) ? L"C: 1" : L"C: 0", TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_SP_VBR);
-    sprintf(out, "USP: %08lX", regs.usp);
+    _stprintf(out, L"USP: %08lX", regs.usp);
     UpdateListboxString(hwnd, 0, out, TRUE);
-    sprintf(out, "ISP: %08lX", regs.isp);
+    _stprintf(out, L"ISP: %08lX", regs.isp);
     UpdateListboxString(hwnd, 1, out, TRUE);
 
     ShowMiscCPU(GetDlgItem(hDbgWnd, IDC_DBG_MISCCPU));
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_MMISC);
-    sprintf(out, "T:     %d%d", regs.t1, regs.t0);
+    _stprintf(out, L"T:     %d%d", regs.t1, regs.t0);
     UpdateListboxString(hwnd, 0, out, TRUE);
-    sprintf(out, "S:     %d", regs.s);
+    _stprintf(out, L"S:     %d", regs.s);
     UpdateListboxString(hwnd, 1, out, TRUE);
-    sprintf(out, "M:     %d", regs.m);
+    _stprintf(out, L"M:     %d", regs.m);
     UpdateListboxString(hwnd, 2, out, TRUE);
-    sprintf(out, "IMASK: %d", regs.intmask);
+    _stprintf(out, L"IMASK: %d", regs.intmask);
     UpdateListboxString(hwnd, 3, out, TRUE);
-    sprintf(out, "STP:   %d", regs.stopped);
+    _stprintf(out, L"STP:   %d", regs.stopped);
     UpdateListboxString(hwnd, 4, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PC);
-    sprintf(out, "PC: %08lX", m68k_getpc (&regs));
+    _stprintf(out, L"PC: %08lX", m68k_getpc (&regs));
     UpdateListboxString(hwnd, 0, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PREFETCH);
@@ -2176,21 +2176,21 @@ void update_debug_info(void)
     for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++);
     dp = table68k + regs.ir;
     for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++);
-    sprintf(out, "Prefetch: %04X (%s) %04X (%s)", regs.irc, lookup1->name, regs.ir, lookup2->name);
+    _stprintf(out, L"Prefetch: %04X (%s) %04X (%s)", regs.irc, lookup1->name, regs.ir, lookup2->name);
     UpdateListboxString(hwnd, 0, out, TRUE);
 
     ShowCustomSmall(GetDlgItem(hDbgWnd, IDC_DBG_MCUSTOM));
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPREG);
     for (i = 0; i < 8; i++) {
-	sprintf(out, "FP%d: %g", i, regs.fp[i]);
+	_stprintf(out, L"FP%d: %g", i, regs.fp[i]);
 	UpdateListboxString(hwnd, i, out, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_FPSR);
     fpsr = get_fpsr();
     for (i = 0; i < 4; i++) {
-	sprintf(out, "%s%d", fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
+	_stprintf(out, L"%s%d", fpsrflag[i], (fpsr & (0x8000000 >> i)) != 0 ? 1 : 0);
 	UpdateListboxString(hwnd, i, out, TRUE);
     }
     ShowPage(currpage, TRUE);

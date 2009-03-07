@@ -49,23 +49,23 @@ static long adjust_blocks (long blocks, int fromsize, int tosize)
 #include "sysdeps.h"
 #include "od-win32/posixemu.h"
 #include <windows.h>
-int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
+int get_fs_usage (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp)
 {
-    char buf2[MAX_DPATH];
+    TCHAR buf2[MAX_DPATH];
     ULARGE_INTEGER FreeBytesAvailable, TotalNumberOfBytes, TotalNumberOfFreeBytes;
 
-    if (!GetFullPathName (path, sizeof buf2, buf2, NULL)) {
-	write_log ("GetFullPathName() failed err=%d\n", GetLastError());
+    if (!GetFullPathName (path, sizeof buf2 / sizeof (TCHAR), buf2, NULL)) {
+	write_log (L"GetFullPathName() failed err=%d\n", GetLastError());
 	return -1;
     }
 
-    if (!memcmp (buf2, "\\\\", 2)) {
-	char *p;
-	strcat(buf2, "\\");
-	p = strchr(buf2 + 2, '\\');
+    if (!_tcsncmp (buf2, L"\\\\", 2)) {
+	TCHAR *p;
+	_tcscat (buf2, L"\\");
+	p = _tcschr (buf2 + 2, '\\');
 	if (!p)
 	    return -1;
-	p = strchr(p + 1, '\\');
+	p = _tcschr (p + 1, '\\');
 	if (!p)
 	    return -1;
 	p[1] = 0;
@@ -74,7 +74,7 @@ int get_fs_usage (const char *path, const char *disk, struct fs_usage *fsp)
     }
 
     if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes)) {
-	write_log ("GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
+	write_log (L"GetDiskFreeSpaceEx() failed err=%d\n", GetLastError());
 	return -1;
     }
 
@@ -139,7 +139,7 @@ int statvfs ();
 int
 safe_read (desc, ptr, len)
      int desc;
-     char *ptr;
+     TCHAR *ptr;
      int len;
 {
   int n_chars;
@@ -169,8 +169,8 @@ safe_read (desc, ptr, len)
    on a system that requires a non-NULL value.  */
 int
 get_fs_usage (path, disk, fsp)
-     const char *path;
-     const char *disk;
+     const TCHAR *path;
+     const TCHAR *disk;
      struct fs_usage *fsp;
 {
 #ifdef STAT_STATFS3_OSF1
@@ -218,7 +218,7 @@ get_fs_usage (path, disk, fsp)
   if (fd < 0)
     return -1;
   lseek (fd, (long) SUPERBOFF, 0);
-  if (safe_read (fd, (char *) &fsd, sizeof fsd) != sizeof fsd)
+  if (safe_read (fd, (TCHAR *) &fsd, sizeof fsd) != sizeof fsd)
     {
       close (fd);
       return -1;
@@ -323,7 +323,7 @@ get_fs_usage (path, disk, fsp)
 
 int
 statfs (path, fsb)
-     char *path;
+     TCHAR *path;
      struct statfs *fsb;
 {
   struct stat stats;

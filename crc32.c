@@ -335,17 +335,17 @@ void get_sha1 (uae_u8 *input, int len, uae_u8 *out)
     sha1_update( &ctx, input, len );
     sha1_finish( &ctx, out );
 }
-char *get_sha1_txt (uae_u8 *input, int len)
+const TCHAR *get_sha1_txt (uae_u8 *input, int len)
 {
-    static char outtxt[SHA1_SIZE * 2 + 1];
+    static TCHAR outtxt[SHA1_SIZE * 2 + 1];
     uae_u8 out[SHA1_SIZE];
     int i;
-    char *p;
+    TCHAR *p;
 
     p = outtxt;
-    get_sha1(input, len, out);
+    get_sha1 (input, len, out);
     for (i = 0; i < SHA1_SIZE; i++) {
-	sprintf(p, "%02X", out[i]);
+	_stprintf (p, L"%02X", out[i]);
 	p += 2;
     }
     *p = 0;

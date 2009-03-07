@@ -45,16 +45,16 @@ int caps_init (void)
     int i;
     HMODULE h;
     struct CapsVersionInfo cvi;
-    char *dllname = "CAPSImg.dll";
+    TCHAR *dllname = L"CAPSImg.dll";
 
     if (init)
 	return 1;
     h = WIN32_LoadLibrary (dllname);
     if (!h) {
-	char tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH];
 	if (SUCCEEDED(SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
-	    strcat (tmp, "\\Software Preservation Society\\");
-	    strcat (tmp, dllname);
+	    _tcscat (tmp, L"\\Software Preservation Society\\");
+	    _tcscat (tmp, dllname);
 	    h = LoadLibrary (tmp);
 	    if (!h) {
 		if (noticed)
@@ -85,7 +85,7 @@ int caps_init (void)
     init = 1;
     cvi.type = LIB_TYPE;
     pCAPSGetVersionInfo (&cvi, 0);
-    write_log ("CAPS: library version %d.%d\n", cvi.release, cvi.revision);
+    write_log (L"CAPS: library version %d.%d\n", cvi.release, cvi.revision);
     for (i = 0; i < 4; i++)
 	caps_cont[i] = pCAPSAddImage ();
     return 1;
@@ -105,7 +105,7 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
     struct CapsImageInfo ci;
     int len, ret;
     uae_u8 *buf;
-    char s1[100];
+    TCHAR s1[100];
     struct CapsDateTimeExt *cdt;
 
     if (!caps_init ())
@@ -128,8 +128,8 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
     *num_tracks = (ci.maxcylinder - ci.mincylinder + 1) * (ci.maxhead - ci.minhead + 1);
     pCAPSLoadImage(caps_cont[drv], caps_flags);
     cdt = &ci.crdt;
-    sprintf (s1, "%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
-    write_log ("caps: type:%d date:%s rel:%d rev:%d\n",
+    _stprintf (s1, L"%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
+    write_log (L"caps: type:%d date:%s rel:%d rev:%d\n",
 	ci.type, s1, ci.release, ci.revision);
     return 1;
 }
@@ -206,7 +206,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	    tracktiming[i] = (uae_u16)ci.timebuf[i];
     }
 #if 0
-    write_log ("caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n",
+    write_log (L"caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n",
 	drv, track, len, *multirev, ci.timelen, type, ci.overlap);
 #endif
     return 1;

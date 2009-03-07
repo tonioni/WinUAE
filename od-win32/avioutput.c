@@ -66,11 +66,11 @@ int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
 DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
 
-char avioutput_filename[MAX_DPATH];
-static char avioutput_filename_tmp[MAX_DPATH];
+TCHAR avioutput_filename[MAX_DPATH];
+static TCHAR avioutput_filename_tmp[MAX_DPATH];
 
 extern struct uae_prefs workprefs;
-extern char config_filename[256];
+extern TCHAR config_filename[256];
 
 static CRITICAL_SECTION AVIOutput_CriticalSection;
 static int cs_allocated;
@@ -188,25 +188,25 @@ static void waitqueuefull (void)
 
 static UAEREG *openavikey (void)
 {
-    return regcreatetree (NULL, "AVConfiguration");
+    return regcreatetree (NULL, L"AVConfiguration");
 }
 
 static void storesettings (UAEREG *avikey)
 {
-    regsetint (avikey, "FrameLimiter", avioutput_framelimiter);
-    regsetint (avikey, "NoSoundOutput", avioutput_nosoundoutput);
-    regsetint (avikey, "FPS", avioutput_fps);
+    regsetint (avikey, L"FrameLimiter", avioutput_framelimiter);
+    regsetint (avikey, L"NoSoundOutput", avioutput_nosoundoutput);
+    regsetint (avikey, L"FPS", avioutput_fps);
 }
 static void getsettings (UAEREG *avikey)
 {
     DWORD val;
-    if (regqueryint (avikey, "NoSoundOutput", &val))
+    if (regqueryint (avikey, L"NoSoundOutput", &val))
 	avioutput_nosoundoutput = val;
-    if (regqueryint (avikey, "FrameLimiter", &val))
+    if (regqueryint (avikey, L"FrameLimiter", &val))
 	avioutput_framelimiter = val;
     if (!avioutput_framelimiter)
 	avioutput_nosoundoutput = 1;
-    if (regqueryint (avikey, "FPS", &val))
+    if (regqueryint (avikey, L"FPS", &val))
 	avioutput_fps = val;
 }
 
@@ -248,7 +248,7 @@ static int AVIOutput_AllocateAudio (void)
     AVIOutput_ReleaseAudio ();
 
     if ((err = acmMetrics (NULL, ACM_METRIC_MAX_SIZE_FORMAT, &wfxMaxFmtSize))) {
-	gui_message("acmMetrics() FAILED (%X)\n", err);
+	gui_message (L"acmMetrics() FAILED (%X)\n", err);
 	return 0;
     }
 
@@ -293,7 +293,7 @@ static int AVIOutput_AllocateAudio (void)
     acmopt.fdwStyle = ACMFORMATCHOOSE_STYLEF_INITTOWFXSTRUCT;
     acmopt.pwfx = pwfxDst;
     acmopt.cbwfx = wfxMaxFmtSize;
-    acmopt.pszTitle  = "Choose Audio Codec";
+    acmopt.pszTitle  = L"Choose Audio Codec";
 
     //acmopt.szFormatTag =; // not valid until the format is chosen
     //acmopt.szFormat =; // not valid until the format is chosen
@@ -311,7 +311,7 @@ static int AVIOutput_AllocateAudio (void)
     return 1;
 }
 
-static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, char *name, int len)
+static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, TCHAR *name, int len)
 {
     DWORD ret;
     ACMFORMATTAGDETAILS aftd;
@@ -334,7 +334,7 @@ static int AVIOutput_ValidateAudio (WAVEFORMATEX *wft, char *name, int len)
 	return 0;
 
     if (name)
-	sprintf (name, "%s %s", aftd.szFormatTag, afd.szFormat);
+	_stprintf (name, L"%s %s", aftd.szFormatTag, afd.szFormat);
     return 1;
 }
 
@@ -350,25 +350,25 @@ static int AVIOutput_GetAudioFromRegistry (WAVEFORMATEX *wft)
     getsettings (avikey);
     if (wft) {
 	ss = wfxMaxFmtSize;
-	if (regquerydata (avikey, "AudioConfigurationVars", wft, &ss)) {
+	if (regquerydata (avikey, L"AudioConfigurationVars", wft, &ss)) {
 	    if (AVIOutput_ValidateAudio (wft, NULL, 0))
 		ok = 1;
 	}
     }
     if (!ok)
-	regdelete (avikey, "AudioConfigurationVars");
+	regdelete (avikey, L"AudioConfigurationVars");
     regclosetree (avikey);
     return ok;
 }
 
 
 
-static int AVIOutput_GetAudioCodecName (WAVEFORMATEX *wft, char *name, int len)
+static int AVIOutput_GetAudioCodecName (WAVEFORMATEX *wft, TCHAR *name, int len)
 {
     return AVIOutput_ValidateAudio (wft, name, len);
 }
 
-int AVIOutput_GetAudioCodec (char *name, int len)
+int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 {
     if (AVIOutput_AudioAllocated ())
 	return AVIOutput_GetAudioCodecName (pwfxDst, name, len);
@@ -382,7 +382,7 @@ int AVIOutput_GetAudioCodec (char *name, int len)
     return 0;
 }
 
-int AVIOutput_ChooseAudioCodec (HWND hwnd, char *s, int len)
+int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR *s, int len)
 {
     AVIOutput_End();
     if (!AVIOutput_AllocateAudio ())
@@ -395,10 +395,10 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, char *s, int len)
 	case MMSYSERR_NOERROR:
 	{
 	    UAEREG *avikey;
-	    strcpy (s, acmopt.szFormatTag);
+	    _tcscpy (s, acmopt.szFormatTag);
 	    avikey = openavikey ();
 	    if (avikey) {
-		regsetdata (avikey, "AudioConfigurationVars", pwfxDst, pwfxDst->cbSize + sizeof (WAVEFORMATEX));
+		regsetdata (avikey, L"AudioConfigurationVars", pwfxDst, pwfxDst->cbSize + sizeof (WAVEFORMATEX));
 		storesettings (avikey);
 		regclosetree (avikey);
 	    }
@@ -411,27 +411,27 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, char *s, int len)
 	    break;
 
 	case ACMERR_NOTPOSSIBLE:
-	    MessageBox (hwnd, "The buffer identified by the pwfx member of the ACMFORMATCHOOSE structure is too small to contain the selected format.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"The buffer identified by the pwfx member of the ACMFORMATCHOOSE structure is too small to contain the selected format.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	case MMSYSERR_INVALFLAG:
-	    MessageBox (hwnd, "At least one flag is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"At least one flag is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	case MMSYSERR_INVALHANDLE:
-	    MessageBox (hwnd, "The specified handle is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"The specified handle is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	case MMSYSERR_INVALPARAM:
-	    MessageBox (hwnd, "At least one parameter is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"At least one parameter is invalid.", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	case MMSYSERR_NODRIVER:
-	    MessageBox (hwnd, "A suitable driver is not available to provide valid format selections.\n(Unsupported channel-mode selected in Sound-panel?)", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"A suitable driver is not available to provide valid format selections.\n(Unsupported channel-mode selected in Sound-panel?)", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
 
 	default:
-	    MessageBox (hwnd, "acmFormatChoose() FAILED", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	    MessageBox (hwnd, L"acmFormatChoose() FAILED", VersionStr, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
 	    break;
     }
     return 0;
@@ -502,14 +502,14 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
     if (pcv) {
 	ss = pcv->cbSize;
 	pcv->hic = 0;
-	if (regquerydata (avikey, "VideoConfigurationVars", pcv, &ss)) {
+	if (regquerydata (avikey, L"VideoConfigurationVars", pcv, &ss)) {
 	    pcv->hic = 0;
 	    pcv->lpbiIn = pcv->lpbiOut = 0;
 	    pcv->cbState = 0;
-	    if (regquerydatasize (avikey, "VideoConfigurationState", &ss)) {
+	    if (regquerydatasize (avikey, L"VideoConfigurationState", &ss)) {
 		if (ss > 0) {
 		    LPBYTE state = xmalloc (ss);
-		    if (regquerydata (avikey, "VideoConfigurationState", state, &ss)) {
+		    if (regquerydata (avikey, L"VideoConfigurationState", state, &ss)) {
 			pcv->hic = ICOpen (pcv->fccType, pcv->fccHandler, ICMODE_COMPRESS);
 			if (pcv->hic) {
 			    ok = 1;
@@ -524,30 +524,30 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 	}
     }
     if (!ok) {
-	regdelete (avikey, "VideoConfigurationVars");
-	regdelete (avikey, "VideoConfigurationState");
+	regdelete (avikey, L"VideoConfigurationVars");
+	regdelete (avikey, L"VideoConfigurationState");
     }
     regclosetree (avikey);
     return ok;
 }
 
-static int AVIOutput_GetVideoCodecName (COMPVARS *pcv, char *name, int len)
+static int AVIOutput_GetVideoCodecName (COMPVARS *pcv, TCHAR *name, int len)
 {
     ICINFO icinfo = { 0 };
 
     name[0] = 0;
     if (pcv->fccHandler == mmioFOURCC ('D','I','B',' ')) {
-	strcpy (name, "Full Frames (Uncompressed)");
+	_tcscpy (name, L"Full Frames (Uncompressed)");
 	return 1;
     }
     if (ICGetInfo (pcv->hic, &icinfo, sizeof (ICINFO)) != 0) {
-	if (WideCharToMultiByte (CP_ACP, 0, icinfo.szDescription, -1, name, len, NULL, NULL) != 0)
-	    return 1;
+	_tcsncpy (name, icinfo.szDescription, len);
+	return 1;
     }
     return 0;
 }
 
-int AVIOutput_GetVideoCodec (char *name, int len)
+int AVIOutput_GetVideoCodec (TCHAR *name, int len)
 {
     if (AVIOutput_VideoAllocated ())
 	return AVIOutput_GetVideoCodecName (pcompvars, name, len);
@@ -562,7 +562,7 @@ int AVIOutput_GetVideoCodec (char *name, int len)
     return 0;
 }
 
-int AVIOutput_ChooseVideoCodec (HWND hwnd, char *s, int len)
+int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 {
     AVIOutput_End ();
     if (!AVIOutput_AllocateVideo ())
@@ -602,8 +602,8 @@ int AVIOutput_ChooseVideoCodec (HWND hwnd, char *s, int len)
 	    state = xmalloc (1);
 	avikey = openavikey ();
 	if (avikey) {
-	    regsetdata (avikey, "VideoConfigurationState", state, ss);
-	    regsetdata (avikey, "VideoConfigurationVars", pcompvars, pcompvars->cbSize);
+	    regsetdata (avikey, L"VideoConfigurationState", state, ss);
+	    regsetdata (avikey, L"VideoConfigurationVars", pcompvars, pcompvars->cbSize);
 	    storesettings (avikey);
 	    regclosetree (avikey);
 	}
@@ -621,15 +621,15 @@ static void checkAVIsize (int force)
     int tmp_partcnt = partcnt + 1;
     int tmp_avioutput_video = avioutput_video;
     int tmp_avioutput_audio = avioutput_audio;
-    char fn[MAX_DPATH];
+    TCHAR fn[MAX_DPATH];
 
     if (!force && total_avi_size < MAX_AVI_SIZE)
 	return;
     if (total_avi_size == 0)
 	return;
-    strcpy (fn, avioutput_filename_tmp);
-    sprintf (avioutput_filename, "%s_%d.avi", fn, tmp_partcnt);
-    write_log ("AVI split %d at %d bytes, %d frames\n",
+    _tcscpy (fn, avioutput_filename_tmp);
+    _stprintf (avioutput_filename, L"%s_%d.avi", fn, tmp_partcnt);
+    write_log (L"AVI split %d at %d bytes, %d frames\n",
 	tmp_partcnt, total_avi_size, frame_count);
     AVIOutput_End ();
     first_frame = 0;
@@ -637,13 +637,13 @@ static void checkAVIsize (int force)
     avioutput_video = tmp_avioutput_video;
     avioutput_audio = tmp_avioutput_audio;
     AVIOutput_Begin ();
-    strcpy (avioutput_filename_tmp, fn);
+    _tcscpy (avioutput_filename_tmp, fn);
     partcnt = tmp_partcnt;
 }
 
 static void dorestart (void)
 {
-    write_log ("AVIOutput: parameters changed, restarting..\n");
+    write_log (L"AVIOutput: parameters changed, restarting..\n");
     avioutput_needs_restart = 0;
     checkAVIsize (1);
 }
@@ -675,7 +675,7 @@ static int AVIOutput_AVIWriteAudio_Thread (struct avientry *ae)
 	    goto error;
 
 	if ((err = acmStreamSize (has, ae->sndsize, &dwOutputBytes, ACM_STREAMSIZEF_SOURCE) != 0)) {
-	    gui_message ("acmStreamSize() FAILED (%X)\n", err);
+	    gui_message (L"acmStreamSize() FAILED (%X)\n", err);
 	    goto error;
 	}
 
@@ -703,17 +703,17 @@ static int AVIOutput_AVIWriteAudio_Thread (struct avientry *ae)
 	ash.dwDstUser = 0;
 
 	if ((err = acmStreamPrepareHeader (has, &ash, 0))) {
-	    gui_message ("acmStreamPrepareHeader() FAILED (%X)\n", err);
+	    gui_message (L"acmStreamPrepareHeader() FAILED (%X)\n", err);
 	    goto error;
 	}
 
 	if ((err = acmStreamConvert (has, &ash, ACM_STREAMCONVERTF_BLOCKALIGN))) {
-	    gui_message ("acmStreamConvert() FAILED (%X)\n", err);
+	    gui_message (L"acmStreamConvert() FAILED (%X)\n", err);
 	    goto error;
 	}
 
 	if ((err = AVIStreamWrite (AVIAudioStream, StreamSizeAudio, ash.cbDstLengthUsed / pwfxDst->nBlockAlign, lpAudio, ash.cbDstLengthUsed, 0, &swritten, &written)) != 0) {
-	    gui_message ("AVIStreamWrite() FAILED (%X)\n", err);
+	    gui_message (L"AVIStreamWrite() FAILED (%X)\n", err);
 	    goto error;
 	}
 
@@ -777,7 +777,7 @@ static int getFromDC (struct avientry *avie)
     BitBlt (hdcMem, (avioutput_width / 2) - (actual_width / 2), (avioutput_height / 2) - (actual_height / 2), actual_width, actual_height, hdc, 0, 0, SRCCOPY);
     SelectObject (hdcMem, hbitmapOld);
     if (GetDIBits (hdc, hbitmap, 0, avioutput_height, avie->lpVideo, (LPBITMAPINFO)lpbi, DIB_RGB_COLORS) == 0) {
-	gui_message ("GetDIBits() FAILED (%X)\n", GetLastError());
+	gui_message (L"GetDIBits() FAILED (%X)\n", GetLastError());
 	ok = 0;
     }
     DeleteObject (hbitmap);
@@ -892,13 +892,13 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 
 	if (!frame_count) {
 	    if ((err = AVIStreamSetFormat (AVIVideoStream, frame_count, ae->lpbi, ae->lpbi->biSize + (ae->lpbi->biClrUsed * sizeof (RGBQUAD)))) != 0) {
-		gui_message ("AVIStreamSetFormat() FAILED (%X)\n", err);
+		gui_message (L"AVIStreamSetFormat() FAILED (%X)\n", err);
 		goto error;
 	    }
 	}
 
 	if ((err = AVIStreamWrite (AVIVideoStream, frame_count, 1, ae->lpVideo, ae->lpbi->biSizeImage, 0, NULL, &written)) != 0) {
-	    gui_message ("AVIStreamWrite() FAILED (%X)\n", err);
+	    gui_message (L"AVIStreamWrite() FAILED (%X)\n", err);
 	    goto error;
 	}
 
@@ -907,13 +907,13 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 
     } else {
 
-	gui_message ("DirectDraw_GetDC() FAILED\n");
+	gui_message (L"DirectDraw_GetDC() FAILED\n");
 	goto error;
 
     }
 
     if ((frame_count % (avioutput_fps * 10)) == 0)
-	write_log ("AVIOutput: %d frames, (%d fps)\n", frame_count, avioutput_fps);
+	write_log (L"AVIOutput: %d frames, (%d fps)\n", frame_count, avioutput_fps);
     return 1;
 
 error:
@@ -967,7 +967,7 @@ void AVIOutput_End (void)
     avioutput_enabled = 0;
 
     if (alive) {
-	write_log ("killing worker thread\n");
+	write_log (L"killing worker thread\n");
 	write_comm_pipe_u32 (&workindex, 0xfffffffe, 1);
 	while (alive) {
 	    while (comm_pipe_has_data (&queuefull))
@@ -1021,7 +1021,7 @@ void AVIOutput_Begin (void)
 {
     AVISTREAMINFO avistreaminfo; // Structure containing information about the stream, including the stream type and its sample rate
     int i, err;
-    char *ext1, *ext2;
+    TCHAR *ext1, *ext2;
     struct avientry *ae = NULL;
 
     avientryindex = -1;
@@ -1037,16 +1037,16 @@ void AVIOutput_Begin (void)
     reset_sound ();
 
     if (avioutput_audio == AVIAUDIO_WAV) {
-	ext1 = ".wav"; ext2 = ".avi";
+	ext1 = L".wav"; ext2 = L".avi";
     } else {
-	ext1 = ".avi"; ext2 = ".wav";
+	ext1 = L".avi"; ext2 = L".wav";
     }
-    if (strlen (avioutput_filename) >= 4 && !strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext2))
-	avioutput_filename[strlen (avioutput_filename) - 4] = 0;
-    if (strlen (avioutput_filename) >= 4 && strcmpi (avioutput_filename + strlen (avioutput_filename) - 4, ext1))
-	strcat (avioutput_filename, ext1);
-    strcpy (avioutput_filename_tmp, avioutput_filename);
-    i = strlen (avioutput_filename_tmp) - 1;
+    if (_tcslen (avioutput_filename) >= 4 && !_tcsicmp (avioutput_filename + _tcslen (avioutput_filename) - 4, ext2))
+	avioutput_filename[_tcslen (avioutput_filename) - 4] = 0;
+    if (_tcslen (avioutput_filename) >= 4 && _tcsicmp (avioutput_filename + _tcslen (avioutput_filename) - 4, ext1))
+	_tcscat (avioutput_filename, ext1);
+    _tcscpy (avioutput_filename_tmp, avioutput_filename);
+    i = _tcslen (avioutput_filename_tmp) - 1;
     while (i > 0 && avioutput_filename_tmp[i] != '.') i--;
     if (i > 0)
 	avioutput_filename_tmp[i] = 0;
@@ -1061,18 +1061,18 @@ void AVIOutput_Begin (void)
     DeleteFile (avioutput_filename);
 
     if (avioutput_audio == AVIAUDIO_WAV) {
-	wavfile = fopen (avioutput_filename, "wb");
+	wavfile = _tfopen (avioutput_filename, L"wb");
 	if (!wavfile) {
-	    gui_message ("Failed to open wave-file\n\nThis can happen if the path and or file name was entered incorrectly.\n");
+	    gui_message (L"Failed to open wave-file\n\nThis can happen if the path and or file name was entered incorrectly.\n");
 	    goto error;
 	}
 	writewavheader (0);
-	write_log ("wave-output to '%s' started\n", avioutput_filename);
+	write_log (L"wave-output to '%s' started\n", avioutput_filename);
 	return;
     }
 
     if (((err = AVIFileOpen (&pfile, avioutput_filename, OF_CREATE | OF_WRITE, NULL)) != 0)) {
-	gui_message ("AVIFileOpen() FAILED (Error %X)\n\nThis can happen if the path and or file name was entered incorrectly.\nRequired *.avi extension.\n", err);
+	gui_message (L"AVIFileOpen() FAILED (Error %X)\n\nThis can happen if the path and or file name was entered incorrectly.\nRequired *.avi extension.\n", err);
 	goto error;
     }
 
@@ -1097,21 +1097,21 @@ void AVIOutput_Begin (void)
 	//avistreaminfo.rcFrame; // doesn't apply to audio
 	//avistreaminfo.dwEditCount =; // Number of times the stream has been edited. The stream handler maintains this count.
 	//avistreaminfo.dwFormatChangeCount =; // Number of times the stream format has changed. The stream handler maintains this count.
-	strcpy (avistreaminfo.szName, "Audiostream"); // description of the stream.
+	_tcscpy (avistreaminfo.szName, L"Audiostream"); // description of the stream.
 
 	// create the audio stream
 	if ((err = AVIFileCreateStream (pfile, &AVIAudioStream, &avistreaminfo)) != 0) {
-	    gui_message ("AVIFileCreateStream() FAILED (%X)\n", err);
+	    gui_message (L"AVIFileCreateStream() FAILED (%X)\n", err);
 	    goto error;
 	}
 
 	if ((err = AVIStreamSetFormat (AVIAudioStream, 0, pwfxDst, sizeof (WAVEFORMATEX) + pwfxDst->cbSize)) != 0) {
-	    gui_message ("AVIStreamSetFormat() FAILED (%X)\n", err);
+	    gui_message (L"AVIStreamSetFormat() FAILED (%X)\n", err);
 	    goto error;
 	}
 
 	if ((err = acmStreamOpen(&has, NULL, &wfxSrc.Format, pwfxDst, NULL, 0, 0, ACM_STREAMOPENF_NONREALTIME)) != 0) {
-	    gui_message ("acmStreamOpen() FAILED (%X)\n", err);
+	    gui_message (L"acmStreamOpen() FAILED (%X)\n", err);
 	    goto error;
 	}
     }
@@ -1147,11 +1147,11 @@ void AVIOutput_Begin (void)
 
 	//avistreaminfo.dwEditCount =; // Number of times the stream has been edited. The stream handler maintains this count.
 	//avistreaminfo.dwFormatChangeCount =; // Number of times the stream format has changed. The stream handler maintains this count.
-	strcpy (avistreaminfo.szName, "Videostream"); // description of the stream.
+	_tcscpy (avistreaminfo.szName, L"Videostream"); // description of the stream.
 
 	// create the stream
 	if ((err = AVIFileCreateStream (pfile, &AVIStreamInterface, &avistreaminfo)) != 0) {
-	    gui_message ("AVIFileCreateStream() FAILED (%X)\n", err);
+	    gui_message (L"AVIFileCreateStream() FAILED (%X)\n", err);
 	    goto error;
 	}
 
@@ -1173,7 +1173,7 @@ void AVIOutput_Begin (void)
 
 	// create a compressed stream from our uncompressed stream and a compression filter
 	if ((err = AVIMakeCompressedStream (&AVIVideoStream, AVIStreamInterface, &videoOptions, NULL)) != AVIERR_OK) {
-	    gui_message("AVIMakeCompressedStream() FAILED (%X)\n", err);
+	    gui_message (L"AVIMakeCompressedStream() FAILED (%X)\n", err);
 	    goto error;
 	}
     }
@@ -1181,8 +1181,8 @@ void AVIOutput_Begin (void)
     init_comm_pipe (&workindex, 20, 1);
     init_comm_pipe (&queuefull, 20, 1);
     alive = -1;
-    uae_start_thread ("aviworker", AVIOutput_worker, NULL, NULL);
-    write_log ("AVIOutput enabled: video=%d audio=%d\n", avioutput_video, avioutput_audio);
+    uae_start_thread (L"aviworker", AVIOutput_worker, NULL, NULL);
+    write_log (L"AVIOutput enabled: video=%d audio=%d\n", avioutput_video, avioutput_audio);
     return;
 
 error:
@@ -1233,7 +1233,7 @@ void AVIOutput_Initialize (void)
 
 static void *AVIOutput_worker (void *arg)
 {
-    write_log ("AVIOutput worker thread started\n");
+    write_log (L"AVIOutput worker thread started\n");
     alive = 1;
     for (;;) {
         uae_u32 idx = read_comm_pipe_u32_blocking (&workindex);
@@ -1262,7 +1262,7 @@ static void *AVIOutput_worker (void *arg)
         if (idx == 0xfffffffe || idx == 0xffffffff)
 	    break;
     }
-    write_log ("AVIOutput worker thread killed\n");
+    write_log (L"AVIOutput worker thread killed\n");
     alive = 0;
     return 0;
 }
@@ -1303,7 +1303,7 @@ void frame_drawn(void)
     sound_setadjust (0.0);
 
 #if 0
-    write_log ("%d ", idiff);
+    write_log (L"%d ", idiff);
     diff = idiff / 20.0;
     skipmode = pow (diff < 0 ? -diff : diff, EXP);
     if (idiff < 0)
@@ -1312,12 +1312,12 @@ void frame_drawn(void)
 	skipmode = -ADJUST_SIZE;
     if (skipmode > ADJUST_SIZE)
 	skipmode = ADJUST_SIZE;
-    write_log ("%d/%.2f\n", idiff, skipmode);
+    write_log (L"%d/%.2f\n", idiff, skipmode);
 
     sound_setadjust (skipmode);
 
     if (0 && !(frame_count % avioutput_fps))
-	write_log ("AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
+	write_log (L"AVIOutput: diff=%.2f skip=%.2f (%d-%d=%d)\n", diff, skipmode,
 	    StreamSizeAudio, StreamSizeAudioExpected, idiff);
 #endif
 }

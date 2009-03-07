@@ -57,7 +57,7 @@ extern int serdev;
 static HMIDIIN inHandle;
 static MIDIHDR midiin[MIDI_INBUFFERS];
 
-static char *inbuffer[MIDI_INBUFFERS] = { 0, 0} ;
+static uae_u8 *inbuffer[MIDI_INBUFFERS] = { 0, 0} ;
 static long inbufferlength[MIDI_INBUFFERS] = { 0,0};
 
 static int in_allocated = 0;
@@ -68,7 +68,7 @@ static MidiOutStatus out_status;
 static HMIDIOUT outHandle;
 static MIDIHDR midiout[MIDI_BUFFERS];
 
-static char *outbuffer[MIDI_BUFFERS] = { 0, 0 };
+static uae_u8 *outbuffer[MIDI_BUFFERS] = { 0, 0 };
 static long outbufferlength[MIDI_BUFFERS] = { 0, 0 };
 static int outbufferselect = 0;
 static int out_allocated = 0;
@@ -91,7 +91,7 @@ static CRITICAL_SECTION cs_proc;
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static char *getmidiouterr(char *txt, int err)
+static TCHAR *getmidiouterr(TCHAR *txt, int err)
 {
     midiOutGetErrorText(err, txt, MAX_DPATH);
     return txt;
@@ -131,7 +131,7 @@ static int MidiOut_Alloc(void)
 	}
 	outbufferselect = 0;
     } else {
-	write_log ("MIDI: ERROR - MidiOutAlloc() called twice?\n");
+	write_log (L"MIDI: ERROR - MidiOutAlloc() called twice?\n");
     }
     return out_allocated;
 }
@@ -188,7 +188,7 @@ static void MidiOut_Free(void)
 static int MidiOut_PrepareHeader(LPMIDIHDR out, LPSTR data, DWORD length)
 {
     int result = 1;
-    char err[MAX_DPATH];
+    TCHAR err[MAX_DPATH];
 
     out->lpData = data;
     out->dwBufferLength = length;
@@ -197,7 +197,7 @@ static int MidiOut_PrepareHeader(LPMIDIHDR out, LPSTR data, DWORD length)
     out->dwFlags = 0;
 
     if((result = midiOutPrepareHeader(outHandle, out, sizeof( MIDIHDR)))) {
-	write_log ( "MIDI: error %s / %d\n", getmidiouterr(err, result), result);
+	write_log (L"MIDI: error %s / %d\n", getmidiouterr (err, result), result);
 	result = 0;
     }
     return result;
@@ -223,7 +223,7 @@ static int MidiOut_PrepareHeader(LPMIDIHDR out, LPSTR data, DWORD length)
  *   1999.09.06  1.0    Brian King             - Creation
  *
  */
-static char *getmidiinerr(char *txt, int err)
+static TCHAR *getmidiinerr(TCHAR *txt, int err)
 {
     midiInGetErrorText(err, txt, MAX_DPATH);
     return txt;
@@ -262,7 +262,7 @@ static int MidiIn_Alloc(void)
 	    }
 	}
     } else {
-	write_log ("MIDI: ERROR - MidiInAlloc() called twice?\n");
+	write_log (L"MIDI: ERROR - MidiInAlloc() called twice?\n");
     }
     return in_allocated;
 }
@@ -298,7 +298,7 @@ static void MidiIn_Free( void )
     only_one_time = 0;
 }
 
-static unsigned char plen[128] = {
+static uae_u8 plen[128] = {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -333,7 +333,7 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 {
     int result = 0;
     static unsigned short bufferindex;
-    static char *bufferpoint = 0;
+    static uae_u8 *bufferpoint = 0;
 
     if(direction == midi_output) {
 	BYTE data = *dataptr;
@@ -364,7 +364,7 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 			bufferindex = BUFFLEN - 1;
 		    out_status.status = MIDI_SYSX;
 		    // Flush this buffer using midiOutLongMsg
-		    MidiOut_PrepareHeader(&midiout[ outbufferselect ], bufferpoint, bufferindex);
+		    MidiOut_PrepareHeader(&midiout[outbufferselect], bufferpoint, bufferindex);
 		    midiOutLongMsg(outHandle, &midiout[outbufferselect], sizeof(MIDIHDR));
 		    outbufferselect = !outbufferselect;
 		    bufferpoint = outbuffer[outbufferselect];
@@ -424,7 +424,7 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 
  */
 
-static unsigned char midibuf[BUFFLEN];
+static uae_u8 midibuf[BUFFLEN];
 static long midi_inptr = 0, midi_inlast = 0;
 
 static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
@@ -472,7 +472,7 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 
     EnterCriticalSection (&cs_proc);
     if (overflow == 1) {
-	char szMessage[MAX_DPATH];
+	TCHAR szMessage[MAX_DPATH];
 	WIN32GUI_LoadUIString(IDS_MIDIOVERFLOW, szMessage, MAX_DPATH);
 	gui_message(szMessage);
 	overflow = 0;
@@ -611,17 +611,17 @@ end:
 int Midi_Open(void)
 {
     unsigned long result = 0, i;
-    char err[MAX_DPATH];
+    TCHAR err[MAX_DPATH];
 
     if((result = midiOutOpen(&outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL))) {
-	write_log ("MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
+	write_log (L"MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 	result = 0;
     } else {
 	InitializeCriticalSection(&cs_proc);
 	// We don't need input for output...
 	if((currprefs.win32_midiindev >= 0) &&
 	    (result = midiInOpen( &inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
-	    write_log ( "MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
+	    write_log (L"MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
 	} else {
 	    midi_in_ready = TRUE;
 	    result=midiInStart(inHandle);
@@ -700,7 +700,7 @@ void Midi_Close(void)
 	    exitin = 0;
 	}
 	midi_ready = FALSE;
-	write_log ("MIDI: closed.\n");
+	write_log (L"MIDI: closed.\n");
 	DeleteCriticalSection(&cs_proc);
     }
 }

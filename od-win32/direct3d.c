@@ -59,14 +59,14 @@ struct TLVERTEX {
     D3DXVECTOR2 texcoord;       // texture coords
 };
 
-static char *D3D_ErrorText (HRESULT error)
+static TCHAR *D3D_ErrorText (HRESULT error)
 {
-    return "";
+    return L"";
 }
-static char *D3D_ErrorString (HRESULT dival)
+static TCHAR *D3D_ErrorString (HRESULT dival)
 {
-    static char dierr[200];
-    sprintf(dierr, "%08X S=%d F=%04X C=%04X (%d) (%s)",
+    static TCHAR dierr[200];
+    _stprintf (dierr, L"%08X S=%d F=%04X C=%04X (%d) (%s)",
 	dival, (dival & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(dival),
 	HRESULT_CODE(dival),
@@ -102,17 +102,17 @@ static D3DXMATRIX* MatrixTranslation (D3DXMATRIX *pOut, float tx, float ty, floa
     return pOut;
 }
 
-static char *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
+static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 {
-    static char buffer[1000];
-    char *s = NULL;
+    static TCHAR buffer[1000];
+    TCHAR *s = NULL;
 
     if (Errors)
 	s = Errors->lpVtbl->GetBufferPointer (Errors);
-    strcpy (buffer, D3D_ErrorString (hr));
+    _tcscpy (buffer, D3D_ErrorString (hr));
     if (s) {
-	strcat (buffer, " ");
-	strcat (buffer, s);
+	_tcscat (buffer, L" ");
+	_tcscat (buffer, s);
     }
     return buffer;
 }
@@ -294,7 +294,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler)
 		if (ppTextureShader)
 		    ppTextureShader->lpVtbl->Release (ppTextureShader);
 	    } else {
-		write_log ("D3D: Could not compile texture shader: %s\n", D3DX_ErrorString (hr, lpErrors));
+		write_log (L"D3D: Could not compile texture shader: %s\n", D3DX_ErrorString (hr, lpErrors));
 		if (lpErrors)
 		    lpErrors->lpVtbl->Release (lpErrors);
 		return 0;
@@ -319,14 +319,14 @@ int D3D_canshaders (void)
     if (yesno > 0)
 	return 1;
     yesno = -1;
-    h = LoadLibrary ("d3dx9_40.dll");
+    h = LoadLibrary (L"d3dx9_40.dll");
     if (h != NULL) {
 	FreeLibrary (h);
 	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (d3dx != NULL) {
 	    if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3dx, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
 		if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
-		    write_log ("D3D: Pixel shader 2.0+ support detected, shader filters enabled.\n");
+		    write_log (L"D3D: Pixel shader 2.0+ support detected, shader filters enabled.\n");
 		    yesno = 1;
 		}
 	    }
@@ -336,31 +336,31 @@ int D3D_canshaders (void)
     return yesno > 0 ? 1 : 0;
 }
 
-static int psEffect_LoadEffect (const char *shaderfile)
+static int psEffect_LoadEffect (const TCHAR *shaderfile)
 {
     int ret = 0;
     LPD3DXEFFECTCOMPILER EffectCompiler = NULL;
     LPD3DXBUFFER Errors = NULL;
     LPD3DXBUFFER BufferEffect = NULL;
     HRESULT hr;
-    char tmp[MAX_DPATH];
+    TCHAR tmp[MAX_DPATH];
     static int first;
 
     if (!D3D_canshaders ()) {
 	if (!first)
-	    gui_message ("Installed DirectX is too old\nD3D shaders disabled.");
+	    gui_message (L"Installed DirectX is too old\nD3D shaders disabled.");
 	first = 1;
 	return 0;
     }
-    sprintf (tmp, "%s%sfiltershaders\\direct3d\\%s", start_path_exe, WIN32_PLUGINDIR, shaderfile);
+    _stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_exe, WIN32_PLUGINDIR, shaderfile);
     hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, 0, &EffectCompiler, &Errors);
     if (FAILED (hr)) {
-	write_log ("D3D: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DX_ErrorString (hr, Errors));
+	write_log (L"D3D: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DX_ErrorString (hr, Errors));
 	goto end;
     }
     hr = EffectCompiler->lpVtbl->CompileEffect (EffectCompiler, 0, &BufferEffect, &Errors);
     if (FAILED (hr)) {
-	write_log ("D3D: CompileEffect failed: %s\n", D3DX_ErrorString (hr, Errors));
+	write_log (L"D3D: CompileEffect failed: %s\n", D3DX_ErrorString (hr, Errors));
 	goto end;
     }
     hr = D3DXCreateEffect (d3ddev,
@@ -370,7 +370,7 @@ static int psEffect_LoadEffect (const char *shaderfile)
 	0,
 	NULL, &pEffect, &Errors);
     if (FAILED (hr)) {
-	write_log ("D3D: D3DXCreateEffect failed: %s\n", D3DX_ErrorString (hr, Errors));
+	write_log (L"D3D: D3DXCreateEffect failed: %s\n", D3DX_ErrorString (hr, Errors));
 	goto end;
     }
     pEffect->lpVtbl->GetDesc (pEffect, &EffectDesc);
@@ -391,9 +391,9 @@ end:
 	psActive = TRUE;
 	if (psEffect_hasPreProcess ())
 	    psPreProcess = TRUE;
-	write_log ("D3D: pixelshader filter '%s' enabled, preproc=%d\n", tmp, psPreProcess);
+	write_log (L"D3D: pixelshader filter '%s' enabled, preproc=%d\n", tmp, psPreProcess);
     } else {
-	write_log ("D3D: pixelshader filter '%s' failed to initialize\n", tmp);
+	write_log (L"D3D: pixelshader filter '%s' failed to initialize\n", tmp);
     }
     return ret;
 }
@@ -405,21 +405,21 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
     if (m_MatWorldEffectHandle) {
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatWorldEffectHandle, matWorld);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matWorld %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matWorld %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
     if (m_MatViewEffectHandle) {
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatViewEffectHandle, matView);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matView %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matView %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
     if (m_MatProjEffectHandle) {
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatProjEffectHandle, matProj);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matProj %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matProj %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -428,7 +428,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 	D3DXMatrixMultiply (&matWorldView, matWorld, matView);
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatWorldViewEffectHandle, &matWorldView);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matWorldView %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matWorldView %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -437,7 +437,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 	D3DXMatrixMultiply (&matViewProj, matView, matProj);
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatViewProjEffectHandle, &matViewProj);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matViewProj %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matViewProj %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -447,7 +447,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 	D3DXMatrixMultiply (&matWorldViewProj, &tmp, matProj);
 	hr = pEffect->lpVtbl->SetMatrix (pEffect, m_MatWorldViewProjEffectHandle, &matWorldViewProj);
 	if (FAILED (hr)) {
-	    write_log ("D3D:Create:SetMatrix:matWorldViewProj %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:Create:SetMatrix:matWorldViewProj %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -460,32 +460,32 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DTEXTURE9
     D3DXVECTOR4 fDims, fTexelSize;
 
     if (!m_SourceTextureEffectHandle) {
-	write_log ("D3D: Texture with SOURCETEXTURE semantic not found\n");
+	write_log (L"D3D: Texture with SOURCETEXTURE semantic not found\n");
 	return 0;
     }
     hr = pEffect->lpVtbl->SetTexture (pEffect, m_SourceTextureEffectHandle, (LPDIRECT3DBASETEXTURE9)lpSource);
     if (FAILED (hr)) {
-	write_log ("D3D:SetTextures:lpSource %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D:SetTextures:lpSource %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     if(m_WorkingTexture1EffectHandle) {
 	hr = pEffect->lpVtbl->SetTexture (pEffect, m_WorkingTexture1EffectHandle, (LPDIRECT3DBASETEXTURE9)lpWorking1);
 	if (FAILED (hr)) {
-	    write_log ("D3D:SetTextures:lpWorking1 %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:SetTextures:lpWorking1 %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
     if(m_WorkingTexture2EffectHandle) {
 	hr = pEffect->lpVtbl->SetTexture (pEffect, m_WorkingTexture2EffectHandle, (LPDIRECT3DBASETEXTURE9)lpWorking2);
 	if (FAILED (hr)) {
-	    write_log ("D3D:SetTextures:lpWorking2 %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:SetTextures:lpWorking2 %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
     if(m_Hq2xLookupTextureHandle) {
 	hr = pEffect->lpVtbl->SetTexture (pEffect, m_Hq2xLookupTextureHandle, (LPDIRECT3DBASETEXTURE9)lpHq2xLookupTexture);
 	if (FAILED (hr)) {
-	    write_log ("D3D:SetTextures:lpHq2xLookupTexture %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:SetTextures:lpHq2xLookupTexture %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -502,14 +502,14 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DTEXTURE9
     if (m_SourceDimsEffectHandle) {
 	hr = pEffect->lpVtbl->SetVector (pEffect, m_SourceDimsEffectHandle, &fDims);
 	if (FAILED (hr)) {
-	    write_log ("D3D:SetTextures:SetVector:Source %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:SetTextures:SetVector:Source %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
     if (m_TexelSizeEffectHandle) {
 	hr = pEffect->lpVtbl->SetVector (pEffect, m_TexelSizeEffectHandle, &fTexelSize);
 	if (FAILED (hr)) {
-	    write_log ("D3D:SetTextures:SetVector:Texel %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D:SetTextures:SetVector:Texel %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
     }
@@ -531,12 +531,12 @@ static int psEffect_Begin (enum psEffect_Pass pass, UINT *pPasses)
 	    break;
     }
     if(FAILED(hr)) {
-	write_log ("D3D: SetTechnique: %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: SetTechnique: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     hr = pEffect->lpVtbl->Begin (pEffect, pPasses, D3DXFX_DONOTSAVESTATE|D3DXFX_DONOTSAVESHADERSTATE);
     if(FAILED(hr)) {
-	write_log ("D3D: Begin: %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: Begin: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     return 1;
@@ -547,7 +547,7 @@ static int psEffect_BeginPass (UINT Pass)
 
     hr = pEffect->lpVtbl->BeginPass (pEffect, Pass);
     if (FAILED (hr)) {
-	write_log ("D3D: BeginPass: %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: BeginPass: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     return 1;
@@ -558,7 +558,7 @@ static int psEffect_EndPass (void)
 
     hr = pEffect->lpVtbl->EndPass (pEffect);
     if (FAILED (hr)) {
-	write_log ("D3D: EndPass: %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: EndPass: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     return 1;
@@ -569,7 +569,7 @@ static int psEffect_End (void)
 
     hr = pEffect->lpVtbl->End (pEffect);
     if (FAILED (hr)) {
-	write_log ("D3D: End: %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: End: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     return 1;
@@ -618,7 +618,7 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 	    D3DPOOL_MANAGED, &t, NULL);
     }
     if (FAILED (hr)) {
-        write_log ("IDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
+        write_log (L"IDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
 
@@ -639,26 +639,26 @@ static int createtexture (int w, int h)
 	return 0;
     twidth = ww;
     theight = hh;
-    write_log ("D3D: %d*%d texture allocated, bits per pixel %d\n", ww, hh, t_depth);
+    write_log (L"D3D: %d*%d texture allocated, bits per pixel %d\n", ww, hh, t_depth);
     if (psActive) {
 	D3DLOCKED_BOX lockedBox;
 	if (FAILED (hr = IDirect3DDevice9_CreateTexture (d3ddev, ww, hh, 1,
 	    D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
-		write_log ("D3D:Failed to create working texture1: %s\n", D3D_ErrorString (hr));
+		write_log (L"D3D:Failed to create working texture1: %s\n", D3D_ErrorString (hr));
 		return 0;
 	}
 	if (FAILED (hr = IDirect3DDevice9_CreateTexture (d3ddev, ww, hh, 1,
 	    D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2, NULL))) {
-		write_log ("D3D:Failed to create working texture2: %s\n", D3D_ErrorString (hr));
+		write_log (L"D3D:Failed to create working texture2: %s\n", D3D_ErrorString (hr));
 		return 0;
 	}
 	if (FAILED (hr = IDirect3DDevice9_CreateVolumeTexture (d3ddev, 256, 16, 256, 1, 0,
 	    D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &lpHq2xLookupTexture, NULL))) {
-		write_log ("D3D:Failed to create volume texture: %s\n", D3D_ErrorString (hr));
+		write_log (L"D3D:Failed to create volume texture: %s\n", D3D_ErrorString (hr));
 		return 0;
 	}
 	if (FAILED (hr = IDirect3DVolumeTexture9_LockBox (lpHq2xLookupTexture, 0, &lockedBox, NULL, 0))) {
-	    write_log ("D3D: Failed to lock box of volume texture: %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D: Failed to lock box of volume texture: %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
 	//BuildHq2xLookupTexture(tin_w, tin_w, window_w, window_h, (unsigned char*)lockedBox.pBits);
@@ -679,7 +679,7 @@ static int createsltexture (void)
 	return 0;
     required_sl_texture_w = ww;
     required_sl_texture_h = hh;
-    write_log ("D3D: SL %d*%d texture allocated\n", ww, hh);
+    write_log (L"D3D: SL %d*%d texture allocated\n", ww, hh);
 
     scanlines_ok = 1;
     return 1;
@@ -718,17 +718,17 @@ static void setupscenecoords (void)
     float w, h;
     float dw, dh;
 
-//    write_log ("%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
+//    write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
 
     getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
-//    write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
+//    write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
 //	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
 
     dw = dr.right - dr.left;
     dh = dr.bottom - dr.top;
     w = sr.right - sr.left;
     h = sr.bottom - sr.top;
-//    write_log ("%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
+//    write_log (L"%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
 
     MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
@@ -841,7 +841,7 @@ static void createscanlines (int force)
 
     hr = IDirect3DTexture9_LockRect (sltexture, 0, &locked, NULL, D3DLOCK_DISCARD);
     if (FAILED (hr)) {
-	write_log ("SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	write_log (L"SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	return;
     }
     sld = (uae_u8*)locked.pBits;
@@ -940,7 +940,7 @@ static int restoredeviceobjects (void)
     hr = IDirect3DDevice9_SetFVF (d3ddev, D3DFVF_TLVERTEX);
     if (FAILED (IDirect3DDevice9_CreateVertexBuffer (d3ddev, vbsize, D3DUSAGE_WRITEONLY,
     	D3DFVF_TLVERTEX, D3DPOOL_MANAGED, &vertexBuffer, NULL))) {
-	    write_log ("D3D: failed to create vertex buffer: %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D: failed to create vertex buffer: %s\n", D3D_ErrorString (hr));
 	    return 0;
     }
     createvertex ();
@@ -976,10 +976,10 @@ void D3D_free (void)
     psActive = 0;
 }
 
-const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 {
     HRESULT ret, hr;
-    static char errmsg[100] = { 0 };
+    static TCHAR errmsg[100] = { 0 };
     D3DDISPLAYMODE mode;
     D3DDISPLAYMODEEX modeex;
     D3DCAPS9 d3dCaps;
@@ -992,14 +992,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     d3d_enabled = 0;
     scanlines_ok = 0;
     if (currprefs.gfx_filter != UAE_FILTER_DIRECT3D) {
-	strcpy (errmsg, "D3D: not enabled");
+	_tcscpy (errmsg, L"D3D: not enabled");
 	return errmsg;
     }
 
     d3d_ex = FALSE;
-    d3dDLL = LoadLibrary ("D3D9.DLL");
+    d3dDLL = LoadLibrary (L"D3D9.DLL");
     if (d3dDLL == NULL) {
-	strcpy (errmsg, "Direct3D: DirectX 9 or newer required");
+	_tcscpy (errmsg, L"Direct3D: DirectX 9 or newer required");
 	return errmsg;
     } else {
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
@@ -1011,7 +1011,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     hr = -1;
     if (d3d_ex && D3DEX) {
         hr = Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex);
-	write_log ("Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
+	write_log (L"Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
         d3d = (IDirect3D9*)d3dex;
     }
     if (FAILED (hr)) {
@@ -1019,7 +1019,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (d3d == NULL) {
 	    D3D_free ();
-	    strcpy (errmsg, "Direct3D: failed to create D3D object");
+	    _tcscpy (errmsg, L"Direct3D: failed to create D3D object");
 	    return errmsg;
         }
     }
@@ -1034,9 +1034,9 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     if (d3dex && D3DEX)
 	IDirect3D9Ex_GetAdapterDisplayModeEx (d3dex, adapter, &modeex, NULL);
     if (FAILED (hr = IDirect3D9_GetAdapterDisplayMode (d3d, adapter, &mode)))
-        write_log ("D3D: IDirect3D9_GetAdapterDisplayMode failed %s\n", D3D_ErrorString (hr));
+        write_log (L"D3D: IDirect3D9_GetAdapterDisplayMode failed %s\n", D3D_ErrorString (hr));
     if (FAILED (hr = IDirect3D9_GetDeviceCaps (d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps)))
-        write_log ("D3D: IDirect3D9_GetDeviceCaps failed %s\n", D3D_ErrorString (hr));
+        write_log (L"D3D: IDirect3D9_GetDeviceCaps failed %s\n", D3D_ErrorString (hr));
 
     memset (&dpp, 0, sizeof (dpp));
     dpp.Windowed = isfullscreen() <= 0;
@@ -1085,7 +1085,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
 	ret = IDirect3D9_CreateDevice (d3d, adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, &d3ddev);
     }
     if (FAILED (ret)) {
-	sprintf (errmsg, "%s failed, %s\n", d3d_ex && D3DEX ? "CreateDeviceEx" : "CreateDevice", D3D_ErrorString (ret));
+	_stprintf (errmsg, L"%s failed, %s\n", d3d_ex && D3DEX ? L"CreateDeviceEx" : L"CreateDevice", D3D_ErrorString (ret));
 	D3D_free ();
 	return errmsg;
     }
@@ -1118,14 +1118,14 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     max_texture_w = d3dCaps.MaxTextureWidth;
     max_texture_h = d3dCaps.MaxTextureHeight;
 
-    write_log ("D3D: PS=%d.%d VS=%d.%d Square=%d, Pow2=%d, Tex Size=%d*%d\n",
+    write_log (L"D3D: PS=%d.%d VS=%d.%d Square=%d, Pow2=%d, Tex Size=%d*%d\n",
 	(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 	(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 	tex_square, tex_pow2,
 	max_texture_w, max_texture_h);
 
     if (max_texture_w < t_w || max_texture_h < t_h) {
-	sprintf (errmsg, "Direct3D: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
+	_stprintf (errmsg, L"Direct3D: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
 	    t_w, t_h, max_texture_w, max_texture_h);
 	return errmsg;
     }
@@ -1133,8 +1133,8 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     required_sl_texture_w = w_w;
     required_sl_texture_h = w_h;
     if (currprefs.gfx_filter_scanlines > 0 && (max_texture_w < w_w || max_texture_h < w_h)) {
-	gui_message ("Direct3D: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n"
-	    "Scanlines disabled.",
+	gui_message (L"Direct3D: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n"
+	    L"Scanlines disabled.",
 	    required_sl_texture_w, required_sl_texture_h, max_texture_w, max_texture_h);
 	changed_prefs.gfx_filter_scanlines = currprefs.gfx_filter_scanlines = 0;
     }
@@ -1162,7 +1162,7 @@ const char *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
     tin_h = t_h;
     if (!restoredeviceobjects ()) {
 	D3D_free ();
-	sprintf (errmsg, "Direct3D: texture creation failed");
+	_stprintf (errmsg, L"Direct3D: texture creation failed");
 	return errmsg;
     }
 
@@ -1177,7 +1177,7 @@ int D3D_needreset (void)
     if (hr == D3DERR_DEVICENOTRESET) {
 	hr = IDirect3DDevice9_Reset (d3ddev, &dpp);
 	if (FAILED (hr)) {
-	    write_log ("D3D: Reset failed %s\n", D3D_ErrorString (hr));
+	    write_log (L"D3D: Reset failed %s\n", D3D_ErrorString (hr));
 	    return 1;
 	}
     }
@@ -1229,7 +1229,7 @@ static void D3D_render2 (int clear)
 	    pass2:
 	    IDirect3DTexture9_GetSurfaceLevel (lpWorkTexture, 0, &lpNewRenderTarget);
 	    if (FAILED (hr = IDirect3DDevice9_SetRenderTarget (d3ddev, 0, lpNewRenderTarget))) {
-		write_log ("D3D: IDirect3DDevice9_SetRenderTarget: %s\n", D3D_ErrorString (hr));
+		write_log (L"D3D: IDirect3DDevice9_SetRenderTarget: %s\n", D3D_ErrorString (hr));
 		return;
 	    }
 	    if (lpRenderTarget)
@@ -1312,7 +1312,7 @@ int D3D_locktexture (void)
     if (FAILED (hr)) {
 	if (hr == D3DERR_DEVICELOST) {
 	    if (!dpp.Windowed && IsWindow (d3dhwnd) && !IsIconic (d3dhwnd)) {
-		write_log ("D3D: minimize\n");
+		write_log (L"D3D: minimize\n");
 		ShowWindow (d3dhwnd, SW_MINIMIZE);
 	    }
 	}
@@ -1324,13 +1324,13 @@ int D3D_locktexture (void)
     hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, D3DLOCK_NO_DIRTY_UPDATE);
     if (FAILED (hr)) {
 	if (hr != D3DERR_DRIVERINTERNALERROR) {
-	    write_log ("IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	    write_log (L"IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 	    D3D_unlocktexture ();
 	    return 0;
 	}
     }
     if (locked.pBits == NULL || locked.Pitch == 0) {
-	write_log ("IDirect3DTexture9_LockRect return NULL texture\n");
+	write_log (L"IDirect3DTexture9_LockRect return NULL texture\n");
         D3D_unlocktexture ();
 	return 0;
     }
@@ -1385,7 +1385,7 @@ void D3D_guimode (int guion)
 	return;
     hr = IDirect3DDevice9_SetDialogBoxMode (d3ddev, guion);
     if (FAILED (hr))
-	write_log ("D3D: SetDialogBoxMode %s\n", D3D_ErrorString (hr));
+	write_log (L"D3D: SetDialogBoxMode %s\n", D3D_ErrorString (hr));
     guimode = guion;
 }
 
@@ -1399,13 +1399,13 @@ HDC D3D_getDC (HDC hdc)
     if (!hdc) {
 	hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);
 	if (FAILED (hr)) {
-	    write_log ("IDirect3DDevice9_GetBackBuffer() failed: %s\n", D3D_ErrorString (hr));
+	    write_log (L"IDirect3DDevice9_GetBackBuffer() failed: %s\n", D3D_ErrorString (hr));
 	    return 0;
 	}
 	hr = IDirect3DSurface9_GetDC (bb, &hdc);
 	if (SUCCEEDED (hr))
 	    return hdc;
-        write_log ("IDirect3DSurface9_GetDC() failed: %s\n", D3D_ErrorString (hr));
+        write_log (L"IDirect3DSurface9_GetDC() failed: %s\n", D3D_ErrorString (hr));
 	return 0;
     }
     IDirect3DSurface9_ReleaseDC (bb, hdc);

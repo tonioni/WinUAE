@@ -69,7 +69,7 @@ struct comptbl {
 
 extern unsigned long REGPARAM3 op_illg (uae_u32, struct regstruct *regs) REGPARAM;
 
-typedef char flagtype;
+typedef uae_u8 flagtype;
 
 #ifdef FPUEMU
 /* You can set this to long double to be more accurate. However, the
@@ -170,13 +170,13 @@ STATIC_INLINE void m68k_setpc (struct regstruct *regs, uaecptr newpc)
 
 STATIC_INLINE uaecptr m68k_getpc (struct regstruct *regs)
 {
-    return (uaecptr)(regs->pc + ((char *)regs->pc_p - (char *)regs->pc_oldp));
+    return (uaecptr)(regs->pc + ((uae_u8*)regs->pc_p - (uae_u8*)regs->pc_oldp));
 }
 #define M68K_GETPC m68k_getpc(&regs)
 
 STATIC_INLINE uaecptr m68k_getpc_p (struct regstruct *regs, uae_u8 *p)
 {
-    return (uaecptr)(regs->pc + ((char *)p - (char *)regs->pc_oldp));
+    return (uaecptr)(regs->pc + ((uae_u8*)p - (uae_u8*)regs->pc_oldp));
 }
 
 #define m68k_incpc(regs, o) ((regs)->pc_p += (o))
@@ -281,7 +281,7 @@ extern uae_u32 REGPARAM3 get_disp_ea_020i (struct regstruct *regs, uae_u32 base,
 extern uae_u32 REGPARAM3 get_disp_ea_000 (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
 extern void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
 extern void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt);
-extern void m68k_disasm_2 (char *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode);
+extern void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode);
 extern int get_cpu_model(void);
 
 extern void REGPARAM3 MakeSR (struct regstruct *regs) REGPARAM;
@@ -300,7 +300,7 @@ extern void init_m68k_full (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (void *, uaecptr *);
 extern void m68k_disasm (void *, uaecptr, uaecptr *, int);
-extern void sm68k_disasm(char *, char *, uaecptr addr, uaecptr *nextpc);
+extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (int);
 extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
@@ -360,6 +360,6 @@ extern uae_u32 val_move2c (int regno);
 extern void val_move2c2 (int regno, uae_u32 val);
 struct cpum2c {
     int regno;
-    char *regname;
+    TCHAR *regname;
 };
 extern struct cpum2c m2cregs[];

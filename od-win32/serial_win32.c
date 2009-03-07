@@ -79,7 +79,7 @@ void SERPER (uae_u16 w)
 	serial_period_hsyncs = 1;
     serial_period_hsync_counter = 0;
 
-    write_log ("SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n", w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
+    write_log (L"SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n", w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
 
     if (ninebit)
 	baud *= 2;
@@ -93,7 +93,7 @@ void SERPER (uae_u16 w)
 #endif
 }
 
-static char dochar (int v)
+static uae_char dochar (int v)
 {
     v &= 0xff;
     if (v >= 32 && v < 127) return (char)v;
@@ -118,7 +118,7 @@ static void checkreceive (int mode)
 	    ovrun = 1;
 	    INTREQ_f (0x8000 | 0x0800);
 	    while (readser (&recdata));
-	    write_log ("SERIAL: overrun\n");
+	    write_log (L"SERIAL: overrun\n");
 	}
 	return;
     }
@@ -136,7 +136,7 @@ static void checkreceive (int mode)
 	    } else {
 		ninebitdata = recdata;
 		if ((ninebitdata & ~1) != 0xa8) {
-		    write_log ("SERIAL: 9-bit serial emulation sync lost, %02X != %02X\n", ninebitdata & ~1, 0xa8);
+		    write_log (L"SERIAL: 9-bit serial emulation sync lost, %02X != %02X\n", ninebitdata & ~1, 0xa8);
 		    ninebitdata = 0;
 		    return;
 		}
@@ -154,7 +154,7 @@ static void checkreceive (int mode)
     data_in_serdatr = 1;
     serial_check_irq ();
 #if SERIALDEBUG > 2
-    write_log ("SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
+    write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, doTCHAR (serdatr));
 #endif
 #endif
 }
@@ -183,7 +183,7 @@ static void checksend (int mode)
 	data_in_serdat = 0;
 	INTREQ_f (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
-	write_log ("SERIAL: send %04X (%c)\n", serdatshift, dochar (serdatshift));
+	write_log (L"SERIAL: send %04X (%c)\n", serdatshift, doTCHAR (serdatshift));
 #endif
     }
 }
@@ -209,26 +209,26 @@ void SERDAT (uae_u16 w)
 
     if (!(w & 0x3ff)) {
 #if SERIALDEBUG > 1
-	write_log ("SERIAL: zero serial word written?! PC=%x\n", M68K_GETPC);
+	write_log (L"SERIAL: zero serial word written?! PC=%x\n", M68K_GETPC);
 #endif
 	return;
     }
 
 #if SERIALDEBUG > 1
     if (data_in_serdat) {
-	write_log ("SERIAL: program wrote to SERDAT but old byte wasn't fetched yet\n");
+	write_log (L"SERIAL: program wrote to SERDAT but old byte wasn't fetched yet\n");
     }
 #endif
 
     if (seriallog)
-	console_out_f ("%c", dochar (w));
+	console_out_f (L"%c", dochar (w));
 
     if (serper == 372) {
 	extern int enforcermode;
 	if (enforcermode & 2) {
-	    console_out_f ("%c", dochar (w));
+	    console_out_f (L"%c", dochar (w));
 	    if (w == 266)
-		console_out("\n");
+		console_out(L"\n");
 	}
     }
 
@@ -237,7 +237,7 @@ void SERDAT (uae_u16 w)
 	checksend (1);
 
 #if SERIALDEBUG > 2
-    write_log ("SERIAL: wrote 0x%04x (%c) PC=%x\n", w, dochar (w), M68K_GETPC);
+    write_log (L"SERIAL: wrote 0x%04x (%c) PC=%x\n", w, doTCHAR (w), M68K_GETPC);
 #endif
 
     return;
@@ -255,7 +255,7 @@ uae_u16 SERDATR (void)
     if (ovrun)
 	serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-    write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), M68K_GETPC);
+    write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, doTCHAR (serdatr), M68K_GETPC);
 #endif
     ovrun = 0;
     data_in_serdatr = 0;
@@ -300,10 +300,10 @@ void serial_flush_buffer (void)
 
 static uae_u8 oldserbits;
 
-static void serial_status_debug (char *s)
+static void serial_status_debug (TCHAR *s)
 {
 #if SERIALHSDEBUG > 1
-    write_log ("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
+    write_log (L"%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
 	(oldserbits & 0x80) ? 0 : 1, (oldserbits & 0x40) ? 0 : 1,
 	(oldserbits & 0x20) ? 0 : 1, (oldserbits & 0x10) ? 0 : 1, (oldserbits & 0x08) ? 0 : 1);
 #endif
@@ -369,7 +369,7 @@ uae_u8 serial_readstatus (uae_u8 dir)
     oldserbits &= ~(0x08 | 0x10 | 0x20);
     oldserbits |= serbits;
 
-    serial_status_debug("read");
+    serial_status_debug (L"read");
 
     return oldserbits;
 }
@@ -391,12 +391,12 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	    if (newstate & 0x40) {
 		setserstat (TIOCM_RTS, 0);
 #if SERIALHSDEBUG > 0
-		write_log ("SERIAL: RTS cleared\n");
+		write_log (L"SERIAL: RTS cleared\n");
 #endif
 	    } else {
 		setserstat (TIOCM_RTS, 1);
 #if SERIALHSDEBUG > 0
-		write_log ("SERIAL: RTS set\n");
+		write_log (L"SERIAL: RTS set\n");
 #endif
 	    }
 	}
@@ -404,20 +404,20 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 
  #if 0 /* CIA io-pins can be read even when set to output.. */
     if ((newstate & 0x20) != (oldserbits & 0x20) && (dir & 0x20))
-	write_log ("SERIAL: warning, program tries to use CD as an output!\n");
+	write_log (L"SERIAL: warning, program tries to use CD as an output!\n");
     if ((newstate & 0x10) != (oldserbits & 0x10) && (dir & 0x10))
-	write_log ("SERIAL: warning, program tries to use CTS as an output!\n");
+	write_log (L"SERIAL: warning, program tries to use CTS as an output!\n");
     if ((newstate & 0x08) != (oldserbits & 0x08) && (dir & 0x08))
-	write_log ("SERIAL: warning, program tries to use DSR as an output!\n");
+	write_log (L"SERIAL: warning, program tries to use DSR as an output!\n");
 #endif
 
     if (logcnt > 0) {
 	if (((newstate ^ oldserbits) & 0x40) && !(dir & 0x40)) {
-	    write_log ("SERIAL: warning, program tries to use RTS as an input! PC=%x\n", M68K_GETPC);
+	    write_log (L"SERIAL: warning, program tries to use RTS as an input! PC=%x\n", M68K_GETPC);
 	    logcnt--;
 	}
 	if (((newstate ^ oldserbits) & 0x80) && !(dir & 0x80)) {
-	    write_log ("SERIAL: warning, program tries to use DTR as an input! PC=%x\n", M68K_GETPC);
+	    write_log (L"SERIAL: warning, program tries to use DTR as an input! PC=%x\n", M68K_GETPC);
 	    logcnt--;
 	}
     }
@@ -427,7 +427,7 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
     oldserbits &= ~(0x80 | 0x40);
     newstate &= 0x80 | 0x40;
     oldserbits |= newstate;
-    serial_status_debug("write");
+    serial_status_debug (L"write");
 
     return oldserbits;
 }
@@ -438,8 +438,8 @@ void serial_open (void)
     if (serdev)
 	return;
     serper = 0;
-    if(!openser(currprefs.sername)) {
-	write_log ("SERIAL: Could not open device %s\n", currprefs.sername);
+    if(!openser (currprefs.sername)) {
+	write_log (L"SERIAL: Could not open device %s\n", currprefs.sername);
 	return;
     }
     serdev = 1;

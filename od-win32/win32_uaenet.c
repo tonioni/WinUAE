@@ -156,7 +156,7 @@ static void *uaenet_trap_threadr (void *arg)
 	    uae_sem_post (&sd->change_sem);
 	}
 	if (r < 0) {
-	    write_log ("pcap_next_ex failed, err=%d\n", r);
+	    write_log (L"pcap_next_ex failed, err=%d\n", r);
 	    break;
 	}
     }
@@ -198,9 +198,15 @@ void uaenet_trigger (struct uaenetdatawin32 *sd)
 
 int uaenet_open (struct uaenetdatawin32 *sd, struct netdriverdata *tc, void *user, int promiscuous)
 {
-    sd->fp = pcap_open (tc->name, 65536, (promiscuous ? PCAP_OPENFLAG_PROMISCUOUS : 0) | PCAP_OPENFLAG_MAX_RESPONSIVENESS, 100, NULL, sd->errbuf);
+    char *s;
+
+    s = ua (tc->name);
+    sd->fp = pcap_open (s, 65536, (promiscuous ? PCAP_OPENFLAG_PROMISCUOUS : 0) | PCAP_OPENFLAG_MAX_RESPONSIVENESS, 100, NULL, sd->errbuf);
+    xfree (s);
     if (sd->fp == NULL) {
-	write_log ("'%s' failed to open: %s\n", tc->name, sd->errbuf);
+	TCHAR *ss = au (sd->errbuf);
+	write_log (L"'%s' failed to open: %s\n", tc->name, ss);
+	xfree (ss);
 	return 0;
     }
     sd->tc = tc;
@@ -215,12 +221,12 @@ int uaenet_open (struct uaenetdatawin32 *sd, struct netdriverdata *tc, void *use
 
     uae_sem_init (&sd->change_sem, 0, 1);
     uae_sem_init (&sd->sync_semr, 0, 0);
-    uae_start_thread ("uaenet_win32r", uaenet_trap_threadr, sd, &sd->tidr);
+    uae_start_thread (L"uaenet_win32r", uaenet_trap_threadr, sd, &sd->tidr);
     uae_sem_wait (&sd->sync_semr);
     uae_sem_init (&sd->sync_semw, 0, 0);
-    uae_start_thread ("uaenet_win32w", uaenet_trap_threadw, sd, &sd->tidw);
+    uae_start_thread (L"uaenet_win32w", uaenet_trap_threadw, sd, &sd->tidw);
     uae_sem_wait (&sd->sync_semw);
-    write_log ("uaenet_win32 initialized\n");
+    write_log (L"uaenet_win32 initialized\n");
     return 1;
 
 end:
@@ -242,14 +248,14 @@ void uaenet_close (struct uaenetdatawin32 *sd)
     if (sd->threadactiver) {
 	while (sd->threadactiver)
 	    Sleep(10);
-	write_log ("uaenet_win32 thread %d killed\n", sd->tidr);
+	write_log (L"uaenet_win32 thread %d killed\n", sd->tidr);
 	uae_end_thread (&sd->tidr);
     }
     if (sd->threadactivew) {
 	while (sd->threadactivew)
 	    Sleep(10);
 	CloseHandle (sd->evttw);
-	write_log ("uaenet_win32 thread %d killed\n", sd->tidw);
+	write_log (L"uaenet_win32 thread %d killed\n", sd->tidw);
 	uae_end_thread (&sd->tidw);
     }
     xfree (sd->readbuffer);
@@ -257,7 +263,7 @@ void uaenet_close (struct uaenetdatawin32 *sd)
     if (sd->fp)
 	pcap_close (sd->fp);
     uaeser_initdata (sd, sd->user);
-    write_log ("uaenet_win32 closed\n");
+    write_log (L"uaenet_win32 closed\n");
 }
 
 
@@ -272,56 +278,67 @@ int uaenet_open_driver (struct netdriverdata *tcp)
     struct netdriverdata *tc;
     pcap_t *fp;
     int val;
+    TCHAR *ss;
 
-    hm = LoadLibrary ("wpcap.dll");
+    hm = LoadLibrary (L"wpcap.dll");
     if (hm == NULL) {
-	write_log ("uaenet: winpcap not installed (wpcap.dll)\n");
+	write_log (L"uaenet: winpcap not installed (wpcap.dll)\n");
 	return 0;
     }
     FreeLibrary (hm);
-    hm = LoadLibrary ("packet.dll");
+    hm = LoadLibrary (L"packet.dll");
     if (hm == NULL) {
-	write_log ("uaenet: winpcap not installed (packet.dll)\n");
+	write_log (L"uaenet: winpcap not installed (packet.dll)\n");
 	return 0;
     }
     FreeLibrary (hm);
-    write_log ("uaenet: %s\n", pcap_lib_version ());
+    ss = au (pcap_lib_version ());
+    write_log (L"uaenet: %s\n", ss);
+    xfree (ss);
 
     if (pcap_findalldevs_ex (PCAP_SRC_IF_STRING, NULL, &alldevs, errbuf) == -1) {
-	write_log ("uaenet: failed to get interfaces: %s\n", errbuf);
+	ss = au (errbuf);
+	write_log (L"uaenet: failed to get interfaces: %s\n", ss);
+	xfree (ss);
 	return 0;
     }
 
-    write_log ("uaenet: detecting interfaces\n");
+    write_log (L"uaenet: detecting interfaces\n");
     for(cnt = 0, d = alldevs; d != NULL; d = d->next) {
 	char *n2;
+	TCHAR *ss2;
 	tc = tcp + cnt;
 	if (cnt >= MAX_TOTAL_NET_DEVICES) {
-	    write_log ("buffer overflow\n");
+	    write_log (L"buffer overflow\n");
 	    break;
 	}
-	write_log ("%s\n- %s\n",
-	    d->name, d->description ? d->description : "(no description)");
+	ss = au (d->name);
+	ss2 = d->description ? au (d->description) : L"(no description)";
+	write_log (L"%s\n- %s\n", ss, ss2);
+	xfree (ss2);
+	xfree (ss);
 	n2 = d->name;
 	if (strlen (n2) <= strlen (PCAP_SRC_IF_STRING)) {
-	    write_log ("- corrupt name\n");
+	    write_log (L"- corrupt name\n");
 	    continue;
 	}
 	fp = pcap_open (d->name, 65536, 0, 0, NULL, errbuf);
 	if (!fp) {
-	    write_log ("- pcap_open() failed: %s\n", errbuf);
+	    ss = au (errbuf);
+	    write_log (L"- pcap_open() failed: %s\n", ss);
+	    xfree (ss);
 	    continue;
 	}
 	val = pcap_datalink (fp);
 	pcap_close (fp);
 	if (val != DLT_EN10MB) {
-	    write_log ("- not an ethernet adapter (%d)\n", val);
+	    write_log (L"- not an ethernet adapter (%d)\n", val);
 	    continue;
 	}
 
 	lpAdapter = PacketOpenAdapter (n2 + strlen (PCAP_SRC_IF_STRING));
 	if (lpAdapter == NULL) {
-	    write_log ("- PacketOpenAdapter() failed\n");
+	    write_log (L"- PacketOpenAdapter() failed\n");
 	    continue;
 	}
 	OidData = calloc(6 + sizeof(PACKET_OID_DATA), 1);
@@ -330,21 +347,21 @@ int uaenet_open_driver (struct netdriverdata *tcp)
 	    OidData->Oid = OID_802_3_CURRENT_ADDRESS;
 	    if (PacketRequest (lpAdapter, FALSE, OidData)) {
 		memcpy (tc->mac, OidData->Data, 6);
-		write_log ("- MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+		write_log (L"- MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
 		    tc->mac[0], tc->mac[1], tc->mac[2],
 		    tc->mac[3], tc->mac[4], tc->mac[5]);
-		write_log ("- mapped as uaenet.device:%d\n", cnt++);
+		write_log (L"- mapped as uaenet.device:%d\n", cnt++);
 		tc->active = 1;
 		tc->mtu = 1500;
-		tc->name = my_strdup (d->name);
+		tc->name = au (d->name);
 	    } else {
-		write_log (" - failed to get MAC\n");
+		write_log (L" - failed to get MAC\n");
 	    }
 	    free (OidData);
 	}
         PacketCloseAdapter (lpAdapter);
     }
-    write_log ("uaenet: end of detection\n");
+    write_log (L"uaenet: end of detection\n");
     pcap_freealldevs(alldevs);
     return 0;
 }

@@ -17,23 +17,23 @@
 
 struct uae_filter uaefilters[] =
 {
-    { UAE_FILTER_NULL, 0, 1, "Null filter", "null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+    { UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
-    { UAE_FILTER_DIRECT3D, 0, 1, "Direct3D", "direct3d", 1, 0, 0, 0, 0 },
+    { UAE_FILTER_DIRECT3D, 0, 1, L"Direct3D", L"direct3d", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_OPENGL, 0, 1, "OpenGL", "opengl", 1, 0, 0, 0, 0 },
+    { UAE_FILTER_OPENGL, 0, 1, L"OpenGL", L"opengl", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_SCALE2X, 0, 2, "Scale2X", "scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
+    { UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
 
-    { UAE_FILTER_HQ, 0, 2, "hq2x/3x/4x", "hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+    { UAE_FILTER_HQ, 0, 2, L"hq2x/3x/4x", L"hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-    { UAE_FILTER_SUPEREAGLE, 0, 2, "SuperEagle", "supereagle", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+    { UAE_FILTER_SUPEREAGLE, 0, 2, L"SuperEagle", L"supereagle", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
-    { UAE_FILTER_SUPER2XSAI, 0, 2, "Super2xSaI", "super2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+    { UAE_FILTER_SUPER2XSAI, 0, 2, L"Super2xSaI", L"super2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
-    { UAE_FILTER_2XSAI, 0, 2, "2xSaI", "2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+    { UAE_FILTER_2XSAI, 0, 2, L"2xSaI", L"2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
 
-    { UAE_FILTER_PAL, 1, 1, "PAL", "pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+    { UAE_FILTER_PAL, 1, 1, L"PAL", L"pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
     { 0 }
 };
@@ -404,7 +404,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
         tempsurf = allocsurface (temp_width, temp_height);
     }
     if (!tempsurf)
-        write_log ("DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
+        write_log (L"DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
 
 }
 
@@ -567,7 +567,7 @@ end:
     unlocksurface (tempsurf);
 
     getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
-    //write_log ("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+    //write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
     OffsetRect (&sr, zr.left, zr.top);
     if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
 	if (sr.left < sr.right && sr.top < sr.bottom)

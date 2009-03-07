@@ -73,11 +73,11 @@ void record_key_direct (int kc)
     int k = kc >> 1;
     int b = !(kc & 1);
 
-    //write_log ("got kc %02X\n", ((kc << 7) | (kc >> 1)) & 0xff);
+    //write_log (L"got kc %02X\n", ((kc << 7) | (kc >> 1)) & 0xff);
     if (kpb_next == 256)
 	kpb_next = 0;
     if (kpb_next == kpb_last) {
-	write_log ("Keyboard buffer overrun. Congratulations.\n");
+	write_log (L"Keyboard buffer overrun. Congratulations.\n");
 	return;
     }
 

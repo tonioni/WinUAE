@@ -49,7 +49,7 @@
 static ALWAYS_INLINE bool test_ram_boundary (uaecptr addr, int size, bool super, bool write) { return false; }
 static ALWAYS_INLINE void flush_internals (void) { }
 
-typedef char flagtype;
+typedef uae_u8 flagtype;
 
 struct xttrx {
     uae_u32 log_addr_base : 8;

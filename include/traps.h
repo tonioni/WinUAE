@@ -39,8 +39,8 @@ typedef uae_u32 (REGPARAM3 *TrapHandler) (TrapContext *) REGPARAM;
  */
 extern void REGPARAM3 m68k_handle_trap (unsigned int trap_num, struct regstruct *) REGPARAM;
 
-unsigned int define_trap (TrapHandler handler_func, int flags, const char *name);
-uaecptr find_trap (const char *name);
+unsigned int define_trap (TrapHandler handler_func, int flags, const TCHAR *name);
+uaecptr find_trap (const TCHAR *name);
 
 /*
  * Call a 68k Library function from an extended trap

@@ -24,24 +24,24 @@ static int p96mem_size;
 static SYSTEM_INFO si;
 int maxmem;
 
-static void *virtualallocwithlock(LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
+static void *virtualallocwithlock (LPVOID addr, SIZE_T size, DWORD allocationtype, DWORD protect)
 {
     void *p = VirtualAlloc (addr, size, allocationtype, protect);
     return p;
 }
-static void virtualfreewithlock(LPVOID addr, SIZE_T size, DWORD freetype)
+static void virtualfreewithlock (LPVOID addr, SIZE_T size, DWORD freetype)
 {
     VirtualFree(addr, size, freetype);
 }
 
-void cache_free(void *cache)
+void cache_free (void *cache)
 {
-    virtualfreewithlock(cache, 0, MEM_RELEASE);
+    virtualfreewithlock (cache, 0, MEM_RELEASE);
 }
 
-void *cache_alloc(int size)
+void *cache_alloc (int size)
 {
-    return virtualallocwithlock(NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    return virtualallocwithlock (NULL, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
 #if 0
@@ -99,40 +99,40 @@ static int testwritewatch (void)
 
     ps = si.dwPageSize;
 
-    pGetWriteWatch = (GETWRITEWATCH)GetProcAddress(GetModuleHandle("kernel32.dll"), "GetWriteWatch");
+    pGetWriteWatch = (GETWRITEWATCH)GetProcAddress (GetModuleHandle (L"kernel32.dll"), "GetWriteWatch");
     if (pGetWriteWatch == NULL) {
-	write_log ("GetWriteWatch(): missing!?\n");
+	write_log (L"GetWriteWatch(): missing!?\n");
 	return 0;
     }
     mem = VirtualAlloc (NULL, TEST_SIZE, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
     if (mem == NULL) {
-	write_log ("GetWriteWatch(): MEM_WRITE_WATCH not supported!? err=%d\n", GetLastError());
+	write_log (L"GetWriteWatch(): MEM_WRITE_WATCH not supported!? err=%d\n", GetLastError());
 	return 0;
     }
     if (VirtualAlloc (mem, TEST_SIZE, MEM_COMMIT, PAGE_EXECUTE_READWRITE) == NULL) {
-	write_log ("GetWriteWatch(): test memory area MEM_COMMIT failed!? err=%d\n", GetLastError());
+	write_log (L"GetWriteWatch(): test memory area MEM_COMMIT failed!? err=%d\n", GetLastError());
 	goto end;
     }
     ResetWriteWatch (mem, TEST_SIZE);
     ((uae_u8*)mem)[1] = 0;
     gwwcnt = TEST_SIZE / ps;
-    if (GetWriteWatch(WRITE_WATCH_FLAG_RESET, mem, TEST_SIZE, pages, &gwwcnt, &ps)) {
-	write_log ("GetWriteWatch(): failed!? err=%d\n", GetLastError ());
+    if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, mem, TEST_SIZE, pages, &gwwcnt, &ps)) {
+	write_log (L"GetWriteWatch(): failed!? err=%d\n", GetLastError ());
 	goto end;
     }
     if (ps != si.dwPageSize) {
-	write_log ("GetWriteWatch(): pagesize %d != %d!?\n", si.dwPageSize, ps);
+	write_log (L"GetWriteWatch(): pagesize %d != %d!?\n", si.dwPageSize, ps);
 	goto end;
     }
     if (gwwcnt != 1) {
-	write_log ("GetWriteWatch(): modified pages returned %d != 1!?\n", gwwcnt);
+	write_log (L"GetWriteWatch(): modified pages returned %d != 1!?\n", gwwcnt);
 	goto end;
     }
     if (pages[0] != mem) {
-	write_log ("GetWriteWatch(): modified page was wrong!?\n");
+	write_log (L"GetWriteWatch(): modified page was wrong!?\n");
 	goto end;
     }
-    write_log ("GetWriteWatch() test ok\n");
+    write_log (L"GetWriteWatch() test ok\n");
     ret = 1;
     memwatchok = 1;
 end:
@@ -167,12 +167,12 @@ void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize)
 {
     if (memwatchok) {
 	if (ResetWriteWatch (lpBaseAddress, dwRegionSize))
-	    write_log ("ResetWriteWatch() failed, %d\n", GetLastError ());
+	    write_log (L"ResetWriteWatch() failed, %d\n", GetLastError ());
     } else {
 	DWORD op;
 	memset (memwatchtable, 0, p96mem_size / si.dwPageSize);
 	if (!VirtualProtect (lpBaseAddress, dwRegionSize, PAGE_READWRITE | PAGE_GUARD, &op))
-	    write_log ("VirtualProtect() failed, err=%d\n", GetLastError ());
+	    write_log (L"VirtualProtect() failed, err=%d\n", GetLastError ());
     }
 }
 
@@ -216,7 +216,7 @@ void preinit_shm (void)
     GlobalMemoryStatus(&memstats);
     totalphys64 = memstats.dwTotalPhys;
     total64 = (uae_u64)memstats.dwAvailPageFile + (uae_u64)memstats.dwTotalPhys;
-    pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress(GetModuleHandle("kernel32.dll"), "GlobalMemoryStatusEx");
+    pGlobalMemoryStatusEx = (GLOBALMEMORYSTATUSEX)GetProcAddress (GetModuleHandle (L"kernel32.dll"), "GlobalMemoryStatusEx");
     if (pGlobalMemoryStatusEx) {
         memstatsex.dwLength = sizeof (MEMORYSTATUSEX);
         if (pGlobalMemoryStatusEx(&memstatsex)) {
@@ -253,7 +253,7 @@ void preinit_shm (void)
         shmids[i].name[0] = 0;
     }
 
-    write_log ("Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
+    write_log (L"Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
     testwritewatch ();
     canbang = 1;
 }
@@ -277,9 +277,9 @@ static void resetmem (void)
 	shmaddr = natmem_offset + ((uae_u8*)s->attached - (uae_u8*)s->natmembase);
 	result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, s->mode);
 	if (result != shmaddr)
-	    write_log ("NATMEM: realloc(%p,%d,%d) failed, err=%x\n", shmaddr, size, s->mode, GetLastError ());
+	    write_log (L"NATMEM: realloc(%p,%d,%d) failed, err=%x\n", shmaddr, size, s->mode, GetLastError ());
 	else
-	    write_log ("NATMEM: rellocated(%p,%d,%s)\n", shmaddr, size, s->name);
+	    write_log (L"NATMEM: rellocated(%p,%d,%s)\n", shmaddr, size, s->name);
     }
 }
 
@@ -293,7 +293,7 @@ restart:
 	int lowround = 0;
 	LPVOID blah = NULL;
 	if (rounds > 0)
-	    write_log ("NATMEM: retrying %d..\n", rounds);
+	    write_log (L"NATMEM: retrying %d..\n", rounds);
 	rounds++;
 	if (natmem_offset)
 	    VirtualFree(natmem_offset, 0, MEM_RELEASE);
@@ -319,11 +319,11 @@ restart:
 	    int change = lowmem ();
 	    if (!change)
 		return 0;
-	    write_log ("NATMEM: %d, %dM > %dM = %dM\n", ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
+	    write_log (L"NATMEM: %d, %dM > %dM = %dM\n", ++lowround, totalsize >> 20, size64 >> 20, (totalsize - change) >> 20);
 	    totalsize -= change;
 	}
 	if ((rounds > 1 && totalsize < 0x10000000) || rounds > 20) {
-	    write_log ("NATMEM: No special area could be allocated (3)!\n");
+	    write_log (L"NATMEM: No special area could be allocated (3)!\n");
 	    return 0;
 	}
 	natmemsize = size + z3size;
@@ -332,7 +332,7 @@ restart:
 	memwatchtable = 0;
 	if (currprefs.gfxmem_size) {
 	    if (!memwatchok) {
-		write_log ("GetWriteWatch() not supported, using guard pages, RTG performance will be slower.\n");
+		write_log (L"GetWriteWatch() not supported, using guard pages, RTG performance will be slower.\n");
 		memwatchtable = xcalloc (currprefs.gfxmem_size / si.dwPageSize + 1, 1);
 	    }
 	}
@@ -347,10 +347,10 @@ restart:
 	    natmem_offset = blah;
 	    break;
 	}
-	write_log ("NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n",
+	write_log (L"NATMEM: %dM area failed to allocate, err=%d (Z3=%dM,RTG=%dM)\n",
 	    natmemsize >> 20, GetLastError (), (currprefs.z3fastmem_size + currprefs.z3fastmem2_size) >> 20, currprefs.gfxmem_size >> 20);
 	if (!lowmem ()) {
-	    write_log ("NATMEM: No special area could be allocated (2)!\n");
+	    write_log (L"NATMEM: No special area could be allocated (2)!\n");
 	    return 0;
 	}
     }
@@ -358,7 +358,7 @@ restart:
     if (p96mem_size) {
 	VirtualFree (natmem_offset, 0, MEM_RELEASE);
 	if (!VirtualAlloc (natmem_offset, natmemsize + rtgbarrier, MEM_RESERVE, PAGE_READWRITE)) {
-	    write_log ("VirtualAlloc() part 2 error %d. RTG disabled.\n", GetLastError ());
+	    write_log (L"VirtualAlloc() part 2 error %d. RTG disabled.\n", GetLastError ());
 	    currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
 	    rtgbarrier = si.dwPageSize;
 	    rtgextra = 0;
@@ -368,18 +368,18 @@ restart:
 	    MEM_RESERVE | (memwatchok == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
 	if (!p96mem_offset) {
 	    currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
-	    write_log ("NATMEM: failed to allocate special Picasso96 GFX RAM, err=%d\n", GetLastError ());
+	    write_log (L"NATMEM: failed to allocate special Picasso96 GFX RAM, err=%d\n", GetLastError ());
 	}
     }
 
     if (!natmem_offset) {
-	write_log ("NATMEM: No special area could be allocated! (1) err=%d\n", GetLastError ());
+	write_log (L"NATMEM: No special area could be allocated! (1) err=%d\n", GetLastError ());
     } else {
-	write_log ("NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
+	write_log (L"NATMEM: Our special area: 0x%p-0x%p (%08x %dM)\n",
 	    natmem_offset, (uae_u8*)natmem_offset + natmemsize,
 	    natmemsize, natmemsize >> 20);
 	if (currprefs.gfxmem_size)
-	    write_log ("NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n",
+	    write_log (L"NATMEM: P96 special area: 0x%p-0x%p (%08x %dM)\n",
 		p96mem_offset, (uae_u8*)p96mem_offset + currprefs.gfxmem_size,
 		currprefs.gfxmem_size, currprefs.gfxmem_size >> 20);
 	canbang = 1;
@@ -471,58 +471,58 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	return shmids[shmid].attached;
 
     if ((uae_u8*)shmaddr < natmem_offset) {
-	if(!strcmp(shmids[shmid].name,"chip")) {
+	if(!_tcscmp (shmids[shmid].name, L"chip")) {
 	    shmaddr=natmem_offset;
 	    got = TRUE;
 	    if (currprefs.fastmem_size == 0 || currprefs.chipmem_size < 2 * 1024 * 1024)
 		size += BARRIER;
 	}
-	if(!strcmp(shmids[shmid].name,"kick")) {
+	if(!_tcscmp (shmids[shmid].name, L"kick")) {
 	    shmaddr=natmem_offset + 0xf80000;
 	    got = TRUE;
 	    size += BARRIER;
 	}
-	if(!strcmp(shmids[shmid].name,"rom_a8")) {
+	if(!_tcscmp (shmids[shmid].name, L"rom_a8")) {
 	    shmaddr=natmem_offset + 0xa80000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"rom_e0")) {
+	if(!_tcscmp (shmids[shmid].name, L"rom_e0")) {
 	    shmaddr=natmem_offset + 0xe00000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"rom_f0")) {
+	if(!_tcscmp (shmids[shmid].name, L"rom_f0")) {
 	    shmaddr=natmem_offset + 0xf00000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"rtarea")) {
+	if(!_tcscmp (shmids[shmid].name, L"rtarea")) {
 	    shmaddr=natmem_offset + rtarea_base;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"fast")) {
+	if(!_tcscmp (shmids[shmid].name, L"fast")) {
 	    shmaddr=natmem_offset + 0x200000;
 	    got = TRUE;
 	    size += BARRIER;
 	}
-	if(!strcmp(shmids[shmid].name,"ramsey_low")) {
+	if(!_tcscmp (shmids[shmid].name, L"ramsey_low")) {
 	    shmaddr=natmem_offset + a3000lmem_start;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"ramsey_high")) {
+	if(!_tcscmp (shmids[shmid].name, L"ramsey_high")) {
 	    shmaddr=natmem_offset + a3000hmem_start;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"z3")) {
+	if(!_tcscmp (shmids[shmid].name, L"z3")) {
 	    shmaddr=natmem_offset + currprefs.z3fastmem_start;
 	    if (!currprefs.z3fastmem2_size)
 		size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"z3_2")) {
+	if(!_tcscmp (shmids[shmid].name, L"z3_2")) {
 	    shmaddr=natmem_offset + currprefs.z3fastmem_start + currprefs.z3fastmem_size;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"gfx")) {
+	if(!_tcscmp (shmids[shmid].name, L"gfx")) {
 	    got = TRUE;
 	    p96special = TRUE;
 	    p96ram_start = p96mem_offset - natmem_offset;
@@ -531,13 +531,13 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	    if (!memwatchok)
 		protect |= PAGE_GUARD;
 	}
-	if(!strcmp(shmids[shmid].name,"bogo")) {
+	if(!_tcscmp (shmids[shmid].name, L"bogo")) {
 	    shmaddr=natmem_offset+0x00C00000;
 	    got = TRUE;
 	    if (currprefs.bogomem_size <= 0x100000)
 		size += BARRIER;
 	}
-	if(!strcmp(shmids[shmid].name,"filesys")) {
+	if(!_tcscmp (shmids[shmid].name, L"filesys")) {
 	    static uae_u8 *filesysptr;
 	    if (filesysptr == NULL)
 		filesysptr = xcalloc (size, 1);
@@ -545,60 +545,60 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	    shmids[shmid].attached = result;
 	    return result;
 	}
-	if(!strcmp(shmids[shmid].name,"custmem1")) {
+	if(!_tcscmp (shmids[shmid].name, L"custmem1")) {
 	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[0];
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"custmem2")) {
+	if(!_tcscmp (shmids[shmid].name, L"custmem2")) {
 	    shmaddr=natmem_offset + currprefs.custom_memory_addrs[1];
 	    got = TRUE;
 	}
 
-	if(!strcmp(shmids[shmid].name,"hrtmem")) {
+	if(!_tcscmp (shmids[shmid].name, L"hrtmem")) {
 	    shmaddr=natmem_offset + 0x00a10000;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"arhrtmon")) {
+	if(!_tcscmp (shmids[shmid].name, L"arhrtmon")) {
 	    shmaddr=natmem_offset + 0x00800000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"xpower_e2")) {
+	if(!_tcscmp (shmids[shmid].name, L"xpower_e2")) {
 	    shmaddr=natmem_offset + 0x00e20000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"xpower_f2")) {
+	if(!_tcscmp (shmids[shmid].name, L"xpower_f2")) {
 	    shmaddr=natmem_offset + 0x00f20000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"nordic_f0")) {
+	if(!_tcscmp (shmids[shmid].name, L"nordic_f0")) {
 	    shmaddr=natmem_offset + 0x00f00000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"nordic_f4")) {
+	if(!_tcscmp (shmids[shmid].name, L"nordic_f4")) {
 	    shmaddr=natmem_offset + 0x00f40000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"nordic_f6")) {
+	if(!_tcscmp (shmids[shmid].name, L"nordic_f6")) {
 	    shmaddr=natmem_offset + 0x00f60000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"superiv_b0")) {
+	if(!_tcscmp(shmids[shmid].name, L"superiv_b0")) {
 	    shmaddr=natmem_offset + 0x00b00000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"superiv_d0")) {
+	if(!_tcscmp (shmids[shmid].name, L"superiv_d0")) {
 	    shmaddr=natmem_offset + 0x00d00000;
 	    size += BARRIER;
 	    got = TRUE;
 	}
-	if(!strcmp(shmids[shmid].name,"superiv_e0")) {
+	if(!_tcscmp (shmids[shmid].name, L"superiv_e0")) {
 	    shmaddr=natmem_offset + 0x00e00000;
 	    size += BARRIER;
 	    got = TRUE;
@@ -614,14 +614,14 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
 	if (result == NULL) {
 	    result = (void*)-1;
-	    write_log ("VirtualAlloc %08X - %08X %x (%dk) failed %d\n",
+	    write_log (L"VirtualAlloc %08X - %08X %x (%dk) failed %d\n",
 	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 	        size, size >> 10, GetLastError ());
 	 } else {
 	    shmids[shmid].attached = result;
-	    write_log ("VirtualAlloc %08X - %08X %x (%dk) ok%s\n",
+	    write_log (L"VirtualAlloc %08X - %08X %x (%dk) ok%s\n",
 	        (uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-	        size, size >> 10, p96special ? " P96" : "");
+	        size, size >> 10, p96special ? L" P96" : L"");
 	}
     }
     return result;
@@ -632,15 +632,15 @@ int shmdt (const void *shmaddr)
     return 0;
 }
 
-int shmget (key_t key, size_t size, int shmflg, const char *name)
+int shmget (key_t key, size_t size, int shmflg, const TCHAR *name)
 {
     int result = -1;
 
     if((key == IPC_PRIVATE) || ((shmflg & IPC_CREAT) && (find_shmkey (key) == -1))) {
-	write_log ("shmget of size %d (%dk) for %s\n", size, size >> 10, name);
+	write_log (L"shmget of size %d (%dk) for %s\n", size, size >> 10, name);
 	if ((result = get_next_shmkey ()) != -1) {
 	    shmids[result].size = size;
-	    strcpy(shmids[result].name, name);
+	    _tcscpy (shmids[result].name, name);
 	} else {
 	    result = -1;
 	}

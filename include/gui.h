@@ -11,14 +11,14 @@ extern int gui_update (void);
 extern void gui_exit (void);
 extern void gui_led (int, int);
 extern void gui_handle_events (void);
-extern void gui_filename (int, const char *);
+extern void gui_filename (int, const TCHAR *);
 extern void gui_fps (int fps, int idle);
 extern void gui_changesettings (void);
 extern void gui_lock (void);
 extern void gui_unlock (void);
 extern void gui_hd_led (int, int);
 extern void gui_cd_led (int, int);
-extern void gui_disk_image_change (int, const char *);
+extern void gui_disk_image_change (int, const TCHAR *);
 extern unsigned int gui_ledstate;
 extern void gui_display (int shortcut);
 
@@ -37,7 +37,7 @@ struct gui_info
     uae_u8 cd;			    /* CD */
     int fps, idle;
     int sndbuf, sndbuf_status;
-    char df[4][256];		    /* inserted image */
+    TCHAR df[4][256];		    /* inserted image */
     uae_u32 crc32[4];		    /* crc32 of image */
 };
 #define NUM_LEDS (1 + 1 + 1 + 1 + 1 + 1 + 4)
@@ -48,8 +48,8 @@ extern struct gui_info gui_data;
 extern void gui_update_gfx (void);
 
 void notify_user (int msg);
-void notify_user_parms (int msg, const char *parms, ...);
-int translate_message (int msg, char *out);
+void notify_user_parms (int msg, const TCHAR *parms, ...);
+int translate_message (int msg, TCHAR *out);
 typedef enum {
     NUMSG_NEEDEXT2, NUMSG_NOROM, NUMSG_NOROMKEY,
     NUMSG_KSROMCRCERROR, NUMSG_KSROMREADERROR, NUMSG_NOEXTROM,

@@ -47,23 +47,23 @@ struct arcadiarom *arcadia_bios, *arcadia_game;
 
 static struct arcadiarom roms[]	= {
 
-    { 49, "ar_bios.zip", "scpa21",	    ARCADIA_BIOS, 0, 6, 1, 0, 2, 3, 4, 5, 7 },
-    { 50, "ar_bios.zip", "gcp-", 	    ARCADIA_BIOS, 3, 7, 6, 5, 4, 3, 2, 1, 0 },
-    { 51, "ar_bios.zip", "scpav3_0.",	    ARCADIA_BIOS, 0, 6, 1, 0, 2, 3, 4, 5, 7 },
+    { 49, L"ar_bios.zip", L"scpa21",	    ARCADIA_BIOS, 0, 6, 1, 0, 2, 3, 4, 5, 7 },
+    { 50, L"ar_bios.zip", L"gcp-", 	    ARCADIA_BIOS, 3, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { 51, L"ar_bios.zip", L"scpav3_0.",	    ARCADIA_BIOS, 0, 6, 1, 0, 2, 3, 4, 5, 7 },
 
-    { 33, "ar_airh.zip", "airh_",	    ARCADIA_GAME, 1, 5, 0, 2, 4, 7, 6, 1, 3 },
-    { 34, "ar_bowl.zip", "bowl_",	    ARCADIA_GAME, 1, 7, 6, 0, 1, 2, 3, 4, 5 },
-    { 35, "ar_dart.zip", "dart_",	    ARCADIA_GAME, 1, 4, 0, 7, 6, 3, 1, 2, 5 },
-    { 36, "ar_fast.zip", "fastv28.",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
-    { 37, "ar_ldrb.zip", "lbg240",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
-    { 38, "ar_ldrba.zip","ldrb_",	    ARCADIA_GAME, 1, 2, 3, 4, 1, 0, 7, 5, 6 },
-    { 39, "ar_ninj.zip", "ninj_",	    ARCADIA_GAME, 1, 1, 6, 5, 7, 4, 2, 0, 3 },
-    { 40, "ar_rdwr.zip", "rdwr_",	    ARCADIA_GAME, 1, 3, 1, 6, 4, 0, 5, 2, 7 },
-    { 41, "ar_sdwr.zip", "sdwr_",	    ARCADIA_GAME, 1, 6, 3, 4, 5, 2, 1, 0, 7 },
-    { 42, "ar_spot.zip", "spotv2.",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
-    { 43, "ar_sprg.zip", "sprg_",	    ARCADIA_GAME, 1, 4, 7, 3, 0, 6, 5, 2, 1 },
-    { 44, "ar_xeon.zip", "xeon_",	    ARCADIA_GAME, 1, 3, 1, 2, 4, 0, 5, 6, 7 },
-    { 45, "ar_socc.zip", "socc30.",	    ARCADIA_GAME, 2, 0, 7, 1, 6, 5, 4, 3, 2 },
+    { 33, L"ar_airh.zip", L"airh_",	    ARCADIA_GAME, 1, 5, 0, 2, 4, 7, 6, 1, 3 },
+    { 34, L"ar_bowl.zip", L"bowl_",	    ARCADIA_GAME, 1, 7, 6, 0, 1, 2, 3, 4, 5 },
+    { 35, L"ar_dart.zip", L"dart_",	    ARCADIA_GAME, 1, 4, 0, 7, 6, 3, 1, 2, 5 },
+    { 36, L"ar_fast.zip", L"fastv28.",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { 37, L"ar_ldrb.zip", L"lbg240",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { 38, L"ar_ldrba.zip",L"ldrb_",	    ARCADIA_GAME, 1, 2, 3, 4, 1, 0, 7, 5, 6 },
+    { 39, L"ar_ninj.zip", L"ninj_",	    ARCADIA_GAME, 1, 1, 6, 5, 7, 4, 2, 0, 3 },
+    { 40, L"ar_rdwr.zip", L"rdwr_",	    ARCADIA_GAME, 1, 3, 1, 6, 4, 0, 5, 2, 7 },
+    { 41, L"ar_sdwr.zip", L"sdwr_",	    ARCADIA_GAME, 1, 6, 3, 4, 5, 2, 1, 0, 7 },
+    { 42, L"ar_spot.zip", L"spotv2.",	    ARCADIA_GAME, 0, 7, 6, 5, 4, 3, 2, 1, 0 },
+    { 43, L"ar_sprg.zip", L"sprg_",	    ARCADIA_GAME, 1, 4, 7, 3, 0, 6, 5, 2, 1 },
+    { 44, L"ar_xeon.zip", L"xeon_",	    ARCADIA_GAME, 1, 3, 1, 2, 4, 0, 5, 6, 7 },
+    { 45, L"ar_socc.zip", L"socc30.",	    ARCADIA_GAME, 2, 0, 7, 1, 6, 5, 4, 3, 2 },
 
     { -1 }
 };
@@ -85,24 +85,24 @@ static int boot_read;
 
 static int nvwrite;
 
-static int load_rom8 (char *xpath, uae_u8 *mem,	int extra)
+static int load_rom8 (TCHAR *xpath, uae_u8 *mem,	int extra)
 {
     struct zfile *zf;
-    char path[MAX_DPATH];
+    TCHAR path[MAX_DPATH];
     int i;
-    uae_u8 *tmp = (uae_u8*)xmalloc (131072);
-    char *bin = extra == 1 ? ".bin" : "";
+    uae_u8 *tmp = xmalloc (131072);
+    TCHAR *bin = extra == 1 ? L".bin" : L"";
 
     memset (tmp, 0, 131072);
-    sprintf (path, "%s%s%s", xpath, extra == 3 ? "-hi" : (extra == 2 ? "hi" : "h"), bin);
-    zf = zfile_fopen (path, "rb");
+    _stprintf (path, L"%s%s%s", xpath, extra == 3 ? L"-hi" : (extra == 2 ? L"hi" : L"h"), bin);
+    zf = zfile_fopen (path, L"rb");
     if (!zf)
 	goto end;
     if (zfile_fread (tmp, 65536, 1, zf) == 0)
 	goto end;
     zfile_fclose (zf);
-    sprintf (path, "%s%s%s", xpath, extra == 3 ? "-lo" : (extra == 2 ? "lo" : "l"), bin);
-    zf = zfile_fopen (path, "rb");
+    _stprintf (path, L"%s%s%s", xpath, extra == 3 ? L"-lo" : (extra == 2 ? L"lo" : L"l"), bin);
+    zf = zfile_fopen (path, L"rb");
     if (!zf)
 	goto end;
     if (zfile_fread (tmp + 65536, 65536, 1, zf) == 0)
@@ -119,15 +119,15 @@ static int load_rom8 (char *xpath, uae_u8 *mem,	int extra)
     return 0;
 }
 
-static struct arcadiarom *is_arcadia (char *xpath, int cnt)
+static struct arcadiarom *is_arcadia (const TCHAR *xpath, int cnt)
 {
-    char path[MAX_DPATH], *p;
+    TCHAR path[MAX_DPATH], *p;
     struct arcadiarom *rom = NULL;
     int i;
 
-    strcpy (path, xpath);
+    _tcscpy (path, xpath);
     p = path;
-    for (i = strlen (xpath) - 1; i > 0; i--) {
+    for (i = _tcslen (xpath) - 1; i > 0; i--) {
 	if (path[i] == '\\' || path[i] == '/') {
 	    path[i++] = 0;
 	    p = path + i;
@@ -135,7 +135,7 @@ static struct arcadiarom *is_arcadia (char *xpath, int cnt)
 	}
     }
     for (i = 0; roms[i].romid > 0; i++) {
-	if (!strcmpi (p, roms[i].name) || !strcmpi (p, roms[i].rom)) {
+	if (!_tcsicmp (p, roms[i].name) || !_tcsicmp (p, roms[i].rom)) {
 	    if (cnt > 0) {
 		cnt--;
 		continue;
@@ -151,17 +151,17 @@ static struct arcadiarom *is_arcadia (char *xpath, int cnt)
 
 static int load_roms (struct arcadiarom *rom)
 {
-    char path[MAX_DPATH], path2[MAX_DPATH], path3[MAX_DPATH], *p;
+    TCHAR path[MAX_DPATH], path2[MAX_DPATH], path3[MAX_DPATH], *p;
     int i, offset;
-    char *xpath;
+    TCHAR *xpath;
 
     if (rom->type == ARCADIA_BIOS)
 	xpath = currprefs.romextfile;
     else
 	xpath = currprefs.cartfile;
 
-    strcpy (path3, xpath);
-    p = path3 + strlen (path3) - 1;
+    _tcscpy (path3, xpath);
+    p = path3 + _tcslen (path3) - 1;
     while (p > path3) {
 	if (p[0] == '\\' || p[0] == '/') {
 	    *p = 0;
@@ -171,24 +171,24 @@ static int load_roms (struct arcadiarom *rom)
     }
     if (p == path3)
 	*p = 0;
-    strcpy (path2, xpath);
+    _tcscpy (path2, xpath);
 
     offset = 0;
     if (rom->type == ARCADIA_BIOS)
 	offset = bios_offset;
     i = 0;
     for (;;) {
-	sprintf (path, "%s%d", xpath, i + 1);
+	_stprintf (path, L"%s%d", xpath, i + 1);
 	if (!load_rom8 (path, arbmemory + 2 * 65536 * i + offset, rom->extra)) {
 	    if (i == 0)
-		write_log ("Arcadia: %s rom load failed ('%s')\n", rom->type == ARCADIA_BIOS ? "bios" : "game", path);
+		write_log (L"Arcadia: %s rom load failed ('%s')\n", rom->type == ARCADIA_BIOS ? "bios" : "game", path);
 	    break;
 	}
 	i++;
     }
     if (i == 0)
 	return 0;
-    write_log ("Arcadia: %s rom %s loaded\n", rom->type == ARCADIA_BIOS ? "bios" : "game", xpath);
+    write_log (L"Arcadia: %s rom %s loaded\n", rom->type == ARCADIA_BIOS ? "bios" : "game", xpath);
     return 1;
 }
 
@@ -263,7 +263,7 @@ static void REGPARAM2 arbb_bput (uaecptr addr, uae_u32 b)
 static addrbank arcadia_boot_bank = {
     arbb_lget, arbb_wget, arbb_bget,
     arbb_lput, arbb_wput, arbb_bput,
-    default_xlate, default_check, NULL, "Arcadia BIOS",
+    default_xlate, default_check, NULL, L"Arcadia BIOS",
     arbb_lget, arbb_wget, ABFLAG_ROM
 };
 
@@ -330,7 +330,7 @@ static void REGPARAM2 arb_bput (uaecptr addr, uae_u32 b)
 static addrbank arcadia_rom_bank = {
     arb_lget, arb_wget, arb_bget,
     arb_lput, arb_wput, arb_bput,
-    default_xlate, default_check, NULL, "Arcadia Game ROM",
+    default_xlate, default_check, NULL, L"Arcadia Game ROM",
     arb_lget, arb_wget, ABFLAG_ROM
 };
 
@@ -345,7 +345,7 @@ static void multigame(int v)
 	    allocated_arbmemory >> 16, 0);
 }
 
-int is_arcadia_rom (char *path)
+int is_arcadia_rom (const TCHAR *path)
 {
     struct arcadiarom *rom;
 
@@ -362,9 +362,9 @@ int is_arcadia_rom (char *path)
 
 static void nvram_write (void)
 {
-    struct zfile *f = zfile_fopen (currprefs.flashfile, "rb+");
+    struct zfile *f = zfile_fopen (currprefs.flashfile, L"rb+");
     if (!f) {
-	f = zfile_fopen (currprefs.flashfile, "wb");
+	f = zfile_fopen (currprefs.flashfile, L"wb");
 	if (!f)
 	    return;
     }
@@ -376,7 +376,7 @@ static void nvram_read (void)
 {
     struct zfile *f;
 
-    f = zfile_fopen (currprefs.flashfile, "rb");
+    f = zfile_fopen (currprefs.flashfile, L"rb");
     memset (arbmemory + nvram_offset, 0, NVRAM_SIZE);
     if (!f)
 	return;
@@ -448,25 +448,25 @@ uae_u8 arcadia_parport (int port, uae_u8 pra, uae_u8 dra)
     return v;
 }
 
-struct romdata *scan_arcadia_rom (char *path, int cnt)
+struct romdata *scan_arcadia_rom (TCHAR *path, int cnt)
 {
     struct romdata *rd = 0;
     struct romlist **arc_rl;
     struct arcadiarom *arcadia_rom;
     int i;
 
-    arcadia_rom = is_arcadia(path, cnt);
+    arcadia_rom = is_arcadia (path, cnt);
     if (arcadia_rom) {
 	arc_rl = getarcadiaroms();
 	for (i = 0; arc_rl[i]; i++) {
 	    if (arc_rl[i]->rd->id == arcadia_rom->romid) {
 		rd = arc_rl[i]->rd;
-		strcat(path, "/");
-		strcat(path, arcadia_rom->rom);
+		_tcscat (path, L"/");
+		_tcscat (path, arcadia_rom->rom);
 		break;
 	    }
 	}
-	xfree(arc_rl);
+	xfree (arc_rl);
     }
     return rd;
 }

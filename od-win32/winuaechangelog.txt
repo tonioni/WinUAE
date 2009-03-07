@@ -1,4 +1,41 @@
 
+Beta 15:
+
+- WinUAE is now native unicode application (internally all strings are
+  NT native UTF16-LE format instead of 8-bit "ANSI")
+  What does this mean?
+  - lots of breakage possible, size of one byte = size of one character
+  isn't true anymore and finding all cases is difficult. Report all
+  mysterious crashes (they are usually easily duplicated)
+  - Windows<>Amiga directory filesystem character set conversion can
+  be configured (Windows "code page" may not match Amiga charset =
+  "special" characters should work better now. Default is CP 1252 which
+  is functionally identical to Amiga standard ISO-8859-1)
+  - logs and configuration.cache are UTF-8 formatted (UTF-8 is more
+  human readable than UTF-16), "old" charset supported
+  - log window supports unicode now, no more weird characters in
+  (for example) device names containing national characters
+  - configuration files are still in old format (would cause too many
+  problems with old versions and front ends..)
+  - I simply wanted to do this when I dropped 98/ME support but I wasn't
+  ready until now. (also most new Vista+ APIs are unicode only,
+  converting between ansi<>unicode was getting too annoying)
+
+- ACTION_EXAMINE_ALL was quite broken, it always returned full directory
+  entry data (wrong variable used..) Most (all) programs didn't care.
+- "not implemented error" filesystem warning is now shown to user
+  (nobody apparently noticed it in the log = I can never fix it..)
+- directory filesystem >2G files are shown as 2G minus 1 byte (instead
+  of truncating to 32-bit and showing negative or other random sizes),
+  >4G files internally supported
+- directory filesystem ACTION_CHANGE_FILE_POSITION64,
+  ACTION_GET_FILE_POSITION64, ACTION_CHANGE_FILE_SIZE64 and
+  ACTION_GET_FILE_SIZE64 implemented (OS4+ packets but also supported
+  by 68k SFS2)
+- ignore all input events (except activation events or if mousehack
+  is enabled) if no focus and not active (previously only focus was
+  required)
+
 Beta 14:
 
 - filter out PortAudio DS and MME drivers (useless duplication only)

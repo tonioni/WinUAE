@@ -176,13 +176,13 @@ static void REGPARAM3 expamem_bput (uaecptr, uae_u32) REGPARAM;
 addrbank expamem_bank = {
     expamem_lget, expamem_wget, expamem_bget,
     expamem_lput, expamem_wput, expamem_bput,
-    default_xlate, default_check, NULL, "Autoconfig",
+    default_xlate, default_check, NULL, L"Autoconfig",
     dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 static void expamem_map_clear (void)
 {
-    write_log ("expamem_map_clear() got called. Shouldn't happen.\n");
+    write_log (L"expamem_map_clear() got called. Shouldn't happen.\n");
 }
 
 static void expamem_init_clear (void)
@@ -204,21 +204,21 @@ static void expamem_init_clear2 (void)
 static void expamem_init_last (void)
 {
     expamem_init_clear2 ();
-    write_log ("Memory map after autoconfig:\n");
+    write_log (L"Memory map after autoconfig:\n");
     memory_map_dump();
 }
 
 
 static uae_u32 REGPARAM2 expamem_lget (uaecptr addr)
 {
-    write_log ("warning: READ.L from address $%lx PC=%x\n", addr, M68K_GETPC);
+    write_log (L"warning: READ.L from address $%lx PC=%x\n", addr, M68K_GETPC);
     return (expamem_wget (addr) << 16) | expamem_wget (addr + 2);
 }
 
 static uae_u32 REGPARAM2 expamem_wget (uaecptr addr)
 {
     uae_u32 v = (expamem_bget (addr) << 8) | expamem_bget (addr + 1);
-    write_log ("warning: READ.W from address $%lx=%04x PC=%x\n", addr, v & 0xffff, M68K_GETPC);
+    write_log (L"warning: READ.W from address $%lx=%04x PC=%x\n", addr, v & 0xffff, M68K_GETPC);
     return v;
 }
 
@@ -230,7 +230,7 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 #endif
     addr &= 0xFFFF;
     b = expamem[addr];
-    //write_log ("%08x=%02X\n", addr, b);
+    //write_log (L"%08x=%02X\n", addr, b);
     return b;
 }
 
@@ -259,7 +259,7 @@ static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("warning: WRITE.L to address $%lx : value $%lx\n", addr, value);
+    write_log (L"warning: WRITE.L to address $%lx : value $%lx\n", addr, value);
 }
 
 static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
@@ -271,7 +271,7 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
     if (ecard >= cardno)
 	return;
     if (expamem_type() != zorroIII)
-	write_log ("warning: WRITE.W to address $%lx : value $%x\n", addr, value);
+	write_log (L"warning: WRITE.W to address $%lx : value $%x\n", addr, value);
     else {
 	switch (addr & 0xff) {
 	 case 0x44:
@@ -297,8 +297,8 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		(*card_map[ecard]) ();
 		ecard++;
 		if (p1 != p2)
-		    write_log ("   Card %d remapped %04x0000 -> %04x0000\n", ecard, p1, p2);
-		write_log ("   Card %d (Zorro%s) done.\n", ecard, expamem_type () == 0xc0 ? "II" : "III");
+		    write_log (L"   Card %d remapped %04x0000 -> %04x0000\n", ecard, p1, p2);
+		write_log (L"   Card %d (Zorro%s) done.\n", ecard, expamem_type () == 0xc0 ? L"II" : L"III");
 		if (ecard < cardno)
 		    (*card_init[ecard]) ();
 		else
@@ -329,7 +329,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	if (expamem_type () == zorroII) {
 	    expamem_hi = value;
 	    (*card_map[ecard]) ();
-	    write_log ("   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
+	    write_log (L"   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
 	    ++ecard;
 	    if (ecard < cardno)
 		(*card_init[ecard]) ();
@@ -345,7 +345,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	break;
 
      case 0x4c:
-	write_log ("   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
+	write_log (L"   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
 	++ecard;
 	if (ecard < cardno)
 	    (*card_init[ecard]) ();
@@ -373,7 +373,7 @@ static void expamem_init_cd32fmv (void)
     expamem_init_clear ();
     if (!rl)
 	return;
-    write_log ("CD32 FMV ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
+    write_log (L"CD32 FMV ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
     rd = rl->rd;
     z = read_rom (&rd);
     if (z) {
@@ -471,7 +471,7 @@ static uae_u8 *REGPARAM2 fastmem_xlate (uaecptr addr)
 addrbank fastmem_bank = {
     fastmem_lget, fastmem_wget, fastmem_bget,
     fastmem_lput, fastmem_wput, fastmem_bput,
-    fastmem_xlate, fastmem_check, NULL, "Fast memory",
+    fastmem_xlate, fastmem_check, NULL, L"Fast memory",
     fastmem_lget, fastmem_wget, ABFLAG_RAM
 };
 
@@ -499,7 +499,7 @@ static uae_u32 REGPARAM2 catweasel_lget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    write_log ("catweasel_lget @%08X!\n",addr);
+    write_log (L"catweasel_lget @%08X!\n",addr);
     return 0;
 }
 
@@ -508,7 +508,7 @@ static uae_u32 REGPARAM2 catweasel_wget (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
-    write_log ("catweasel_wget @%08X!\n",addr);
+    write_log (L"catweasel_wget @%08X!\n",addr);
     return 0;
 }
 
@@ -527,7 +527,7 @@ static void REGPARAM2 catweasel_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("catweasel_lput @%08X=%08X!\n",addr,l);
+    write_log (L"catweasel_lput @%08X=%08X!\n",addr,l);
 }
 
 static void REGPARAM2 catweasel_wput (uaecptr addr, uae_u32 w)
@@ -535,7 +535,7 @@ static void REGPARAM2 catweasel_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("catweasel_wput @%08X=%04X!\n",addr,w);
+    write_log (L"catweasel_wput @%08X=%04X!\n",addr,w);
 }
 
 static void REGPARAM2 catweasel_bput (uaecptr addr, uae_u32 b)
@@ -555,14 +555,14 @@ static int REGPARAM2 catweasel_check (uaecptr addr, uae_u32 size)
 
 static uae_u8 *REGPARAM2 catweasel_xlate (uaecptr addr)
 {
-    write_log ("catweasel_xlate @%08X size %08X\n", addr);
+    write_log (L"catweasel_xlate @%08X size %08X\n", addr);
     return 0;
 }
 
 static addrbank catweasel_bank = {
     catweasel_lget, catweasel_wget, catweasel_bget,
     catweasel_lput, catweasel_wput, catweasel_bput,
-    catweasel_xlate, catweasel_check, NULL, "Catweasel",
+    catweasel_xlate, catweasel_check, NULL, L"Catweasel",
     dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -570,7 +570,7 @@ static void expamem_map_catweasel (void)
 {
     catweasel_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
     map_banks (&catweasel_bank, catweasel_start >> 16, 1, 0);
-    write_log ("Catweasel MK%d: mapped @$%lx\n", cwc.type, catweasel_start);
+    write_log (L"Catweasel MK%d: mapped @$%lx\n", cwc.type, catweasel_start);
 }
 
 static void expamem_init_catweasel (void)
@@ -660,7 +660,7 @@ static void REGPARAM2 filesys_lput (uaecptr addr, uae_u32 l)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("filesys_lput called PC=%p\n", M68K_GETPC);
+    write_log (L"filesys_lput called PC=%p\n", M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
@@ -668,7 +668,7 @@ static void REGPARAM2 filesys_wput (uaecptr addr, uae_u32 w)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-    write_log ("filesys_wput called PC=%p\n", M68K_GETPC);
+    write_log (L"filesys_wput called PC=%p\n", M68K_GETPC);
 }
 
 static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
@@ -681,7 +681,7 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 static addrbank filesys_bank = {
     filesys_lget, filesys_wget, filesys_bget,
     filesys_lput, filesys_wput, filesys_bput,
-    default_xlate, default_check, NULL, "Filesystem Autoconfig Area",
+    default_xlate, default_check, NULL, L"Filesystem Autoconfig Area",
     dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
@@ -812,13 +812,13 @@ static uae_u8 *REGPARAM2 z3fastmem2_xlate (uaecptr addr)
 addrbank z3fastmem_bank = {
     z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
     z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
-    z3fastmem_xlate, z3fastmem_check, NULL, "ZorroIII Fast RAM",
+    z3fastmem_xlate, z3fastmem_check, NULL, L"ZorroIII Fast RAM",
     z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM
 };
 addrbank z3fastmem2_bank = {
     z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
     z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
-    z3fastmem2_xlate, z3fastmem2_check, NULL, "ZorroIII Fast RAM #2",
+    z3fastmem2_xlate, z3fastmem2_check, NULL, L"ZorroIII Fast RAM #2",
     z3fastmem2_lget, z3fastmem2_wget, ABFLAG_RAM
 };
 
@@ -837,7 +837,7 @@ static void expamem_map_fastcard (void)
 {
     fastmem_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
     map_banks (&fastmem_bank, fastmem_start >> 16, allocated_fastmem >> 16, 0);
-    write_log ("Fastcard: mapped @$%lx: %dMB fast memory\n", fastmem_start, allocated_fastmem >> 20);
+    write_log (L"Fastcard: mapped @$%lx: %dMB fast memory\n", fastmem_start, allocated_fastmem >> 20);
 }
 
 static void expamem_init_fastcard (void)
@@ -887,7 +887,7 @@ static void expamem_map_filesys (void)
 
     filesys_start = ((expamem_hi | (expamem_lo >> 4)) << 16);
     map_banks (&filesys_bank, filesys_start >> 16, 1, 0);
-    write_log ("Filesystem: mapped memory @$%lx.\n", filesys_start);
+    write_log (L"Filesystem: mapped memory @$%lx.\n", filesys_start);
     /* 68k code needs to know this. */
     a = here ();
     org (rtarea_base + 0xFFFC);
@@ -950,14 +950,14 @@ static void expamem_map_z3fastmem_2 (addrbank *bank, int *startp, uae_u32 size, 
     int start = *startp;
 
     if (start != z3fs) {
-	write_log ("WARNING: Z3FAST mapping changed from $%08x to $%08x\n", start, z3fs);
+	write_log (L"WARNING: Z3FAST mapping changed from $%08x to $%08x\n", start, z3fs);
 	map_banks (&dummy_bank, start >> 16, size >> 16,
 		   allocated);
 	*startp = z3fs;
 	map_banks (bank, start >> 16, size >> 16,
 		   allocated);
     }
-    write_log ("Fastmem (32bit): mapped @$%08x: %d MB Zorro III fast memory \n",
+    write_log (L"Fastmem (32bit): mapped @$%08x: %d MB Zorro III fast memory \n",
 	       start, allocated / 0x100000);
 }
 
@@ -1027,7 +1027,7 @@ static void expamem_map_gfxcard (void)
 {
     gfxmem_start = (expamem_hi | (expamem_lo >> 4)) << 16;
     map_banks (&gfxmem_bankx, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
-    write_log ("UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
+    write_log (L"UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
 static void expamem_init_gfxcard (void)
@@ -1095,9 +1095,9 @@ static void allocate_expamem (void)
 	fastmem_mask = allocated_fastmem - 1;
 
 	if (allocated_fastmem) {
-	    fastmemory = mapped_malloc (allocated_fastmem, "fast");
+	    fastmemory = mapped_malloc (allocated_fastmem, L"fast");
 	    if (fastmemory == 0) {
-		write_log ("Out of memory for fastmem card.\n");
+		write_log (L"Out of memory for fastmem card.\n");
 		allocated_fastmem = 0;
 	    }
 	}
@@ -1112,9 +1112,9 @@ static void allocate_expamem (void)
 	z3fastmem_mask = allocated_z3fastmem - 1;
 
 	if (allocated_z3fastmem) {
-	    z3fastmem = mapped_malloc (allocated_z3fastmem, "z3");
+	    z3fastmem = mapped_malloc (allocated_z3fastmem, L"z3");
 	    if (z3fastmem == 0) {
-		write_log ("Out of memory for 32 bit fast memory.\n");
+		write_log (L"Out of memory for 32 bit fast memory.\n");
 		allocated_z3fastmem = 0;
 	    }
 	}
@@ -1129,9 +1129,9 @@ static void allocate_expamem (void)
 	z3fastmem2_mask = allocated_z3fastmem2 - 1;
 
 	if (allocated_z3fastmem2) {
-	    z3fastmem2 = mapped_malloc (allocated_z3fastmem2, "z3_2");
+	    z3fastmem2 = mapped_malloc (allocated_z3fastmem2, L"z3_2");
 	    if (z3fastmem2 == 0) {
-		write_log ("Out of memory for 32 bit fast memory #2.\n");
+		write_log (L"Out of memory for 32 bit fast memory #2.\n");
 		allocated_z3fastmem2 = 0;
 	    }
 	}
@@ -1147,9 +1147,9 @@ static void allocate_expamem (void)
 	gfxmem_mask = allocated_gfxmem - 1;
 
 	if (allocated_gfxmem) {
-	    gfxmemory = mapped_malloc (allocated_gfxmem, "gfx");
+	    gfxmemory = mapped_malloc (allocated_gfxmem, L"gfx");
 	    if (gfxmemory == 0) {
-		write_log ("Out of memory for graphics card memory\n");
+		write_log (L"Out of memory for graphics card memory\n");
 		allocated_gfxmem = 0;
 	    }
 	}
@@ -1297,7 +1297,7 @@ void expamem_reset (void)
 	    || kickstart_version < 34))
     {
 	/* warn user */
-	write_log ("Kickstart version is below 1.3!  Disabling autoconfig devices.\n");
+	write_log (L"Kickstart version is below 1.3!  Disabling autoconfig devices.\n");
 	do_mount = 0;
     }
     if (need_uae_boot_rom() == 0)
@@ -1330,7 +1330,7 @@ void expamem_reset (void)
     if (currprefs.cs_cd32cd && currprefs.fastmem_size == 0 && currprefs.chipmem_size <= 0x200000) {
 	int ids[] = { 23, -1 };
 	struct romlist *rl = getromlistbyids (ids);
-	if (rl && !strcmp (rl->path, currprefs.cartfile)) {
+	if (rl && !_tcscmp (rl->path, currprefs.cartfile)) {
 	    card_init[cardno] = expamem_init_cd32fmv;
 	    card_map[cardno++] = expamem_map_cd32fmv;
 	}
@@ -1409,9 +1409,9 @@ void expansion_init (void)
     allocate_expamem ();
 
 #ifdef FILESYS
-    filesysory = mapped_malloc (0x10000, "filesys");
+    filesysory = mapped_malloc (0x10000, L"filesys");
     if (!filesysory) {
-	write_log ("virtual memory exhausted (filesysory)!\n");
+	write_log (L"virtual memory exhausted (filesysory)!\n");
 	exit (0);
     }
     filesys_bank.baseaddr = filesysory;

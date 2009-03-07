@@ -19,10 +19,10 @@ struct inputdevice_functions {
     void (*unacquire)(int);
     void (*read)(void);
     int (*get_num)(void);
-    char* (*get_friendlyname)(int);
-    char* (*get_uniquename)(int);
+    TCHAR* (*get_friendlyname)(int);
+    TCHAR* (*get_uniquename)(int);
     int (*get_widget_num)(int);
-    int (*get_widget_type)(int,int,char*,uae_u32*);
+    int (*get_widget_type)(int,int,TCHAR*,uae_u32*);
     int (*get_widget_first)(int,int);
     int (*get_flags)(int);
 };
@@ -50,22 +50,22 @@ struct uae_input_device_kbr_default {
 #define ID_AXIS_OFFSET 32
 #define ID_AXIS_TOTAL 32
 
-extern int inputdevice_iterate (int devnum, int num, char *name, int *af);
-extern int inputdevice_set_mapping (int devnum, int num, char *name, char *custom, int af, int sub);
-extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, char *name, char *custom, int sub);
+extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
+extern int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int af, int sub);
+extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
 extern void inputdevice_config_change (void);
 extern int inputdevice_config_change_test (void);
 extern int inputdevice_get_device_index (int devnum);
-extern char *inputdevice_get_device_name (int type, int devnum);
-extern char *inputdevice_get_device_unique_name (int type, int devnum);
+extern TCHAR *inputdevice_get_device_name (int type, int devnum);
+extern TCHAR *inputdevice_get_device_unique_name (int type, int devnum);
 extern int inputdevice_get_device_status (int devnum);
 extern void inputdevice_set_device_status (int devnum, int enabled);
 extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
-extern int inputdevice_get_widget_type (int devnum, int num, char *name);
+extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
 extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port);
 extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port);
@@ -126,9 +126,9 @@ extern void inputdevice_hsync (void);
 extern void inputdevice_reset (void);
 
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
-extern void read_inputdevice_config (struct uae_prefs *p, char *option, char *value);
+extern void read_inputdevice_config (struct uae_prefs *p, TCHAR *option, TCHAR *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
-extern int inputdevice_joyport_config (struct uae_prefs *p, char *value, int portnum, int type);
+extern int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int type);
 extern int inputdevice_getjoyportdevice (int jport);
 
 extern void inputdevice_init (void);
@@ -173,7 +173,7 @@ extern int jsem_ismouse (int port, const struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
 extern void do_fake_joystick (int nr, int *fake);
 
-extern int inputdevice_uaelib (char *, char *);
+extern int inputdevice_uaelib (TCHAR *, TCHAR *);
 
 #define INPREC_JOYPORT 1
 #define INPREC_JOYBUTTON 2
@@ -185,20 +185,20 @@ extern int inputdevice_uaelib (char *, char *);
 #define INPREC_END 0xff
 
 extern int input_recording;
-extern void inprec_close(void);
-extern int inprec_open(char*, int);
-extern void inprec_rend(void);
-extern void inprec_rstart(uae_u8);
-extern void inprec_ru8(uae_u8);
-extern void inprec_ru16(uae_u16);
-extern void inprec_ru32(uae_u32);
-extern void inprec_rstr(const char*);
-extern int inprec_pstart(uae_u8);
-extern void inprec_pend(void);
-extern uae_u8 inprec_pu8(void);
-extern uae_u16 inprec_pu16(void);
-extern uae_u32 inprec_pu32(void);
-extern int inprec_pstr(char*);
+extern void inprec_close (void);
+extern int inprec_open (TCHAR*, int);
+extern void inprec_rend (void);
+extern void inprec_rstart (uae_u8);
+extern void inprec_ru8 (uae_u8);
+extern void inprec_ru16 (uae_u16);
+extern void inprec_ru32 (uae_u32);
+extern void inprec_rstr (const TCHAR*);
+extern int inprec_pstart (uae_u8);
+extern void inprec_pend (void);
+extern uae_u8 inprec_pu8 (void);
+extern uae_u16 inprec_pu16 (void);
+extern uae_u32 inprec_pu32 (void);
+extern int inprec_pstr (TCHAR*);
 
-extern int inputdevice_testread (char *name);
+extern int inputdevice_testread (TCHAR *name);
 extern int inputdevice_istest (void);

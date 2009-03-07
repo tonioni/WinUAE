@@ -65,33 +65,14 @@ int kickstart_rom = 1;
 
 struct gui_info gui_data;
 
-char warning_buffer[256];
+TCHAR warning_buffer[256];
 
-char optionsfile[256];
+TCHAR optionsfile[256];
 
 int uaerand (void)
 {
     return rand ();
 }
-/* If you want to pipe printer output to a file, put something like
- * "cat >>printerfile.tmp" above.
- * The printer support was only tested with the driver "PostScript" on
- * Amiga side, using apsfilter for linux to print ps-data.
- *
- * Under DOS it ought to be -p LPT1: or -p PRN: but you'll need a
- * PostScript printer or ghostscript -=SR=-
- */
-
-/* Slightly stupid place for this... */
-/* ncurses.c might use quite a few of those. */
-char *colormodes[] = { "256 colors", "32768 colors", "65536 colors",
-    "256 colors dithered", "16 colors dithered", "16 million colors",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
-};
 
 void discard_prefs (struct uae_prefs *p, int type)
 {
@@ -178,20 +159,20 @@ void fixup_prefs (struct uae_prefs *p)
 	|| p->chipmem_size < 0x20000
 	|| p->chipmem_size > 0x800000)
     {
-	write_log ("Unsupported chipmem size %x!\n", p->chipmem_size);
+	write_log (L"Unsupported chipmem size %x!\n", p->chipmem_size);
 	p->chipmem_size = 0x200000;
 	err = 1;
     }
     if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
 	|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
     {
-	write_log ("Unsupported fastmem size %x!\n", p->fastmem_size);
+	write_log (L"Unsupported fastmem size %x!\n", p->fastmem_size);
 	err = 1;
     }
     if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
 	|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > max_z3fastmem / 2)))
     {
-	write_log ("Unsupported graphics card memory size %x (%x)!\n", p->gfxmem_size, max_z3fastmem / 2);
+	write_log (L"Unsupported graphics card memory size %x (%x)!\n", p->gfxmem_size, max_z3fastmem / 2);
 	if (p->gfxmem_size > max_z3fastmem / 2)
 	    p->gfxmem_size = max_z3fastmem / 2;
 	else
@@ -201,7 +182,7 @@ void fixup_prefs (struct uae_prefs *p)
     if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
 	|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > max_z3fastmem)))
     {
-	write_log ("Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem_size, max_z3fastmem);
+	write_log (L"Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem_size, max_z3fastmem);
 	if (p->z3fastmem_size > max_z3fastmem)
 	    p->z3fastmem_size = max_z3fastmem;
 	else
@@ -211,7 +192,7 @@ void fixup_prefs (struct uae_prefs *p)
     if ((p->z3fastmem2_size & (p->z3fastmem2_size - 1)) != 0
 	|| (p->z3fastmem2_size != 0 && (p->z3fastmem2_size < 0x100000 || p->z3fastmem2_size > max_z3fastmem)))
     {
-	write_log ("Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem2_size, max_z3fastmem);
+	write_log (L"Unsupported Zorro III fastmem size %x (%x)!\n", p->z3fastmem2_size, max_z3fastmem);
 	if (p->z3fastmem2_size > max_z3fastmem)
 	    p->z3fastmem2_size = max_z3fastmem;
 	else
@@ -224,112 +205,112 @@ void fixup_prefs (struct uae_prefs *p)
 
     if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0)) {
 	p->z3fastmem_size = p->gfxmem_size = 0;
-	write_log ("Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"
-		 "address space - sorry.\n");
+	write_log (L"Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"
+		 L"address space - sorry.\n");
     }
     if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000) {
 	p->bogomem_size = 0;
-	write_log ("Unsupported bogomem size!\n");
+	write_log (L"Unsupported bogomem size!\n");
 	err = 1;
     }
     if (p->bogomem_size > 0x100000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
 	p->bogomem_size = 0x100000;
-	write_log ("Possible Gayle bogomem conflict fixed\n");
+	write_log (L"Possible Gayle bogomem conflict fixed\n");
     }
     if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {
-	write_log ("You can't use fastmem and more than 2MB chip at the same time!\n");
+	write_log (L"You can't use fastmem and more than 2MB chip at the same time!\n");
 	p->fastmem_size = 0;
 	err = 1;
     }
     if (p->mbresmem_low_size > 0x04000000 || (p->mbresmem_low_size & 0xfffff)) {
 	p->mbresmem_low_size = 0;
-	write_log ("Unsupported A3000 MB RAM size\n");
+	write_log (L"Unsupported A3000 MB RAM size\n");
     }
     if (p->mbresmem_high_size > 0x04000000 || (p->mbresmem_high_size & 0xfffff)) {
 	p->mbresmem_high_size = 0;
-	write_log ("Unsupported Motherboard RAM size\n");
+	write_log (L"Unsupported Motherboard RAM size\n");
     }
 
 #if 0
     if (p->m68k_speed < -1 || p->m68k_speed > 20) {
-	write_log ("Bad value for -w parameter: must be -1, 0, or within 1..20.\n");
+	write_log (L"Bad value for -w parameter: must be -1, 0, or within 1..20.\n");
 	p->m68k_speed = 4;
 	err = 1;
     }
 #endif
 
     if (p->produce_sound < 0 || p->produce_sound > 3) {
-	write_log ("Bad value for -S parameter: enable value must be within 0..3\n");
+	write_log (L"Bad value for -S parameter: enable value must be within 0..3\n");
 	p->produce_sound = 0;
 	err = 1;
     }
     if (p->comptrustbyte < 0 || p->comptrustbyte > 3) {
-	write_log ("Bad value for comptrustbyte parameter: value must be within 0..2\n");
+	write_log (L"Bad value for comptrustbyte parameter: value must be within 0..2\n");
 	p->comptrustbyte = 1;
 	err = 1;
     }
     if (p->comptrustword < 0 || p->comptrustword > 3) {
-	write_log ("Bad value for comptrustword parameter: value must be within 0..2\n");
+	write_log (L"Bad value for comptrustword parameter: value must be within 0..2\n");
 	p->comptrustword = 1;
 	err = 1;
     }
     if (p->comptrustlong < 0 || p->comptrustlong > 3) {
-	write_log ("Bad value for comptrustlong parameter: value must be within 0..2\n");
+	write_log (L"Bad value for comptrustlong parameter: value must be within 0..2\n");
 	p->comptrustlong = 1;
 	err = 1;
     }
     if (p->comptrustnaddr < 0 || p->comptrustnaddr > 3) {
-	write_log ("Bad value for comptrustnaddr parameter: value must be within 0..2\n");
+	write_log (L"Bad value for comptrustnaddr parameter: value must be within 0..2\n");
 	p->comptrustnaddr = 1;
 	err = 1;
     }
     if (p->compnf < 0 || p->compnf > 1) {
-	write_log ("Bad value for compnf parameter: value must be within 0..1\n");
+	write_log (L"Bad value for compnf parameter: value must be within 0..1\n");
 	p->compnf = 1;
 	err = 1;
     }
     if (p->comp_hardflush < 0 || p->comp_hardflush > 1) {
-	write_log ("Bad value for comp_hardflush parameter: value must be within 0..1\n");
+	write_log (L"Bad value for comp_hardflush parameter: value must be within 0..1\n");
 	p->comp_hardflush = 1;
 	err = 1;
     }
     if (p->comp_constjump < 0 || p->comp_constjump > 1) {
-	write_log ("Bad value for comp_constjump parameter: value must be within 0..1\n");
+	write_log (L"Bad value for comp_constjump parameter: value must be within 0..1\n");
 	p->comp_constjump = 1;
 	err = 1;
     }
     if (p->comp_oldsegv < 0 || p->comp_oldsegv > 1) {
-	write_log ("Bad value for comp_oldsegv parameter: value must be within 0..1\n");
+	write_log (L"Bad value for comp_oldsegv parameter: value must be within 0..1\n");
 	p->comp_oldsegv = 1;
 	err = 1;
     }
     if (p->cachesize < 0 || p->cachesize > 16384) {
-	write_log ("Bad value for cachesize parameter: value must be within 0..16384\n");
+	write_log (L"Bad value for cachesize parameter: value must be within 0..16384\n");
 	p->cachesize = 0;
 	err = 1;
     }
     if (p->z3fastmem_size > 0 && (p->address_space_24 || p->cpu_model < 68020)) {
-	write_log ("Z3 fast memory can't be used with a 68000/68010 emulation. It\n"
-		 "requires a 68020 emulation. Turning off Z3 fast memory.\n");
+	write_log (L"Z3 fast memory can't be used with a 68000/68010 emulation. It\n"
+		 L"requires a 68020 emulation. Turning off Z3 fast memory.\n");
 	p->z3fastmem_size = 0;
 	err = 1;
     }
     if (p->gfxmem_size > 0 && (p->cpu_model < 68020 || p->address_space_24)) {
-	write_log ("Picasso96 can't be used with a 68000/68010 or 68EC020 emulation. It\n"
-		 "requires a 68020 emulation. Turning off Picasso96.\n");
+	write_log (L"Picasso96 can't be used with a 68000/68010 or 68EC020 emulation. It\n"
+		 L"requires a 68020 emulation. Turning off Picasso96.\n");
 	p->gfxmem_size = 0;
 	err = 1;
     }
 #if !defined (BSDSOCKET)
     if (p->socket_emu) {
-	write_log ("Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n");
+	write_log (L"Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n");
 	p->socket_emu = 0;
 	err = 1;
     }
 #endif
 
     if (p->nr_floppies < 0 || p->nr_floppies > 4) {
-	write_log ("Invalid number of floppies.  Using 4.\n");
+	write_log (L"Invalid number of floppies.  Using 4.\n");
 	p->nr_floppies = 4;
 	p->dfxtype[0] = 0;
 	p->dfxtype[1] = 0;
@@ -344,7 +325,7 @@ void fixup_prefs (struct uae_prefs *p)
 	p->input_mouse_speed = 100;
     }
     if (p->collision_level < 0 || p->collision_level > 3) {
-	write_log ("Invalid collision support level.  Using 1.\n");
+	write_log (L"Invalid collision support level.  Using 1.\n");
 	p->collision_level = 1;
 	err = 1;
     }
@@ -411,7 +392,7 @@ void fixup_prefs (struct uae_prefs *p)
 
 int quit_program = 0;
 static int restart_program;
-static char restart_config[256];
+static TCHAR restart_config[256];
 
 void uae_reset (int hardreset)
 {
@@ -432,13 +413,13 @@ void uae_quit (void)
 }
 
 /* 0 = normal, 1 = nogui, -1 = disable nogui */
-void uae_restart (int opengui, char *cfgfile)
+void uae_restart (int opengui, TCHAR *cfgfile)
 {
     uae_quit ();
     restart_program = opengui > 0 ? 1 : (opengui == 0 ? 2 : 3);
     restart_config[0] = 0;
     if (cfgfile)
-	strcpy (restart_config, cfgfile);
+	_tcscpy (restart_config, cfgfile);
 }
 
 #ifndef DONT_PARSE_CMDLINE
@@ -446,81 +427,81 @@ void uae_restart (int opengui, char *cfgfile)
 void usage (void)
 {
 }
-static void parse_cmdline_2 (int argc, char **argv)
+static void parse_cmdline_2 (int argc, TCHAR **argv)
 {
     int i;
 
     cfgfile_addcfgparam (0);
     for (i = 1; i < argc; i++) {
-	if (strcmp (argv[i], "-cfgparam") == 0) {
+	if (_tcscmp (argv[i], L"-cfgparam") == 0) {
 	    if (i + 1 == argc)
-		write_log ("Missing argument for '-cfgparam' option.\n");
+		write_log (L"Missing argument for '-cfgparam' option.\n");
 	    else
 		cfgfile_addcfgparam (argv[++i]);
 	}
     }
 }
 
-static void parse_diskswapper (char *s)
+static void parse_diskswapper (TCHAR *s)
 {
-    char *tmp = my_strdup (s);
-    char *delim = ",";
-    char *p1, *p2;
+    TCHAR *tmp = my_strdup (s);
+    TCHAR *delim = L",";
+    TCHAR *p1, *p2;
     int num = 0;
 
     p1 = tmp;
     for (;;) {
-	p2 = strtok (p1, delim);
+	p2 = _tcstok (p1, delim);
 	if (!p2)
 	    break;
 	p1 = NULL;
 	if (num >= MAX_SPARE_DRIVES)
 	    break;
-	strncpy (currprefs.dfxlist[num], p2, 255);
+	_tcsncpy (currprefs.dfxlist[num], p2, 255);
 	num++;
     }
     free (tmp);
 }
 
-static void parse_cmdline (int argc, char **argv)
+static void parse_cmdline (int argc, TCHAR **argv)
 {
     int i;
 
     for (i = 1; i < argc; i++) {
-	if (!strncmp (argv[i], "-diskswapper=", 13)) {
+	if (!_tcsncmp (argv[i], L"-diskswapper=", 13)) {
 	    parse_diskswapper (argv[i] + 13);
-	} else if (strcmp (argv[i], "-cfgparam") == 0) {
+	} else if (_tcscmp (argv[i], L"-cfgparam") == 0) {
 	    if (i + 1 < argc)
 		i++;
-	} else if (strncmp (argv[i], "-config=", 8) == 0) {
+	} else if (_tcsncmp (argv[i], L"-config=", 8) == 0) {
 	    currprefs.mountitems = 0;
 	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
-	} else if (strncmp (argv[i], "-statefile=", 11) == 0) {
+	} else if (_tcsncmp (argv[i], L"-statefile=", 11) == 0) {
 	    savestate_state = STATE_DORESTORE;
-	    strcpy (savestate_fname, argv[i] + 11);
-	} else if (strcmp (argv[i], "-f") == 0) {
+	    _tcscpy (savestate_fname, argv[i] + 11);
+	} else if (_tcscmp (argv[i], L"-f") == 0) {
 	    /* Check for new-style "-f xxx" argument, where xxx is config-file */
 	    if (i + 1 == argc) {
-		write_log ("Missing argument for '-f' option.\n");
+		write_log (L"Missing argument for '-f' option.\n");
 	    } else {
 		currprefs.mountitems = 0;
 		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
 	    }
-	} else if (strcmp (argv[i], "-s") == 0) {
+	} else if (_tcscmp (argv[i], L"-s") == 0) {
 	    if (i + 1 == argc)
-		write_log ("Missing argument for '-s' option.\n");
+		write_log (L"Missing argument for '-s' option.\n");
 	    else
 		cfgfile_parse_line (&currprefs, argv[++i], 0);
-	} else if (strcmp (argv[i], "-h") == 0 || strcmp (argv[i], "-help") == 0) {
+	} else if (_tcscmp (argv[i], L"-h") == 0 || _tcscmp (argv[i], L"-help") == 0) {
 	    usage ();
 	    exit (0);
 	} else {
 	    if (argv[i][0] == '-' && argv[i][1] != '\0') {
-		const char *arg = argv[i] + 2;
+		const TCHAR *arg = argv[i] + 2;
 		int extra_arg = *arg == '\0';
 		if (extra_arg)
 		    arg = i + 1 < argc ? argv[i + 1] : 0;
-		if (parse_cmdline_option (&currprefs, argv[i][1], (char*)arg) && extra_arg)
+		if (parse_cmdline_option (&currprefs, argv[i][1], arg) && extra_arg)
 		    i++;
 	    }
 	}
@@ -528,31 +509,31 @@ static void parse_cmdline (int argc, char **argv)
 }
 #endif
 
-static void parse_cmdline_and_init_file (int argc, char **argv)
+static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 {
 
-    strcpy (optionsfile, "");
+    _tcscpy (optionsfile, L"");
 
 #ifdef OPTIONS_IN_HOME
     {
-	char *home = getenv ("HOME");
+	TCHAR *home = getenv ("HOME");
 	if (home != NULL && strlen (home) < 240)
 	{
-	    strcpy (optionsfile, home);
-	    strcat (optionsfile, "/");
+	    _tcscpy (optionsfile, home);
+	    _tcscat (optionsfile, L"/");
 	}
     }
 #endif
 
     parse_cmdline_2 (argc, argv);
 
-    strcat (optionsfile, restart_config);
+    _tcscat (optionsfile, restart_config);
 
     if (! target_cfgfile_load (&currprefs, optionsfile, 0, 0)) {
-	write_log ("failed to load config '%s'\n", optionsfile);
+	write_log (L"failed to load config '%s'\n", optionsfile);
 #ifdef OPTIONS_IN_HOME
 	/* sam: if not found in $HOME then look in current directory */
-	strcpy (optionsfile, restart_config);
+	_tcscpy (optionsfile, restart_config);
 	target_cfgfile_load (&currprefs, optionsfile, 0);
 #endif
     }
@@ -676,7 +657,7 @@ void leave_program (void)
     do_leave_program ();
 }
 
-static void real_main2 (int argc, char **argv)
+static void real_main2 (int argc, TCHAR **argv)
 {
 #if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
     extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
@@ -712,7 +693,7 @@ static void real_main2 (int argc, char **argv)
     }
 
     if (! setup_sound ()) {
-	write_log ("Sound driver unavailable: Sound output disabled\n");
+	write_log (L"Sound driver unavailable: Sound output disabled\n");
 	currprefs.produce_sound = 0;
     }
     inputdevice_init ();
@@ -728,7 +709,7 @@ static void real_main2 (int argc, char **argv)
 	int err = gui_init ();
 	currprefs = changed_prefs;
 	if (err == -1) {
-	    write_log ("Failed to initialize the GUI\n");
+	    write_log (L"Failed to initialize the GUI\n");
 	} else if (err == -2) {
 	    return;
 	}
@@ -742,7 +723,7 @@ static void real_main2 (int argc, char **argv)
 #endif
 
 #ifdef JIT
-    if (!((currprefs.cpu_model >= 68020) && (currprefs.address_space_24 == 0) && (currprefs.cachesize)))
+    if (!(currprefs.cpu_model >= 68020 && currprefs.address_space_24 == 0 && currprefs.cachesize))
 	canbang = 0;
 #endif
 
@@ -809,7 +790,7 @@ static void real_main2 (int argc, char **argv)
 
 	if (!init_audio ()) {
 	    if (sound_available && currprefs.produce_sound > 1) {
-		write_log ("Sound driver unavailable: Sound output disabled\n");
+		write_log (L"Sound driver unavailable: Sound output disabled\n");
 	    }
 	    currprefs.produce_sound = 0;
 	}
@@ -818,7 +799,7 @@ static void real_main2 (int argc, char **argv)
     }
 
     }
-#if defined (JIT) && (defined ( _WIN32 ) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
     __except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
     {
 	// EvalException does the good stuff...
@@ -826,11 +807,11 @@ static void real_main2 (int argc, char **argv)
 #endif
 }
 
-void real_main (int argc, char **argv)
+void real_main (int argc, TCHAR **argv)
 {
     restart_program = 1;
-    fetch_configurationpath (restart_config, sizeof (restart_config));
-    strcat (restart_config, OPTIONSFILENAME);
+    fetch_configurationpath (restart_config, sizeof (restart_config) / sizeof (TCHAR));
+    _tcscat (restart_config, OPTIONSFILENAME);
     while (restart_program) {
 	changed_prefs = currprefs;
 	real_main2 (argc, argv);
@@ -841,7 +822,7 @@ void real_main (int argc, char **argv)
 }
 
 #ifndef NO_MAIN_IN_MAIN_C
-int main (int argc, char **argv)
+int main (int argc, TCHAR **argv)
 {
     real_main (argc, argv);
     return 0;

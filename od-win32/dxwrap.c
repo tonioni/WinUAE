@@ -25,7 +25,7 @@ HRESULT DirectDraw_GetDisplayMode (void)
     dxdata.native.dwSize = sizeof (DDSURFACEDESC2);
     ddrval = IDirectDraw7_GetDisplayMode (dxdata.maindd, &dxdata.native);
     if (FAILED (ddrval))
-	write_log ("IDirectDraw7_GetDisplayMode: %s\n", DXError (ddrval));
+	write_log (L"IDirectDraw7_GetDisplayMode: %s\n", DXError (ddrval));
     return ddrval;
 }
 
@@ -85,7 +85,7 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
 	return ddrval;
     ddrval = IDirectDrawSurface7_Restore (surf);
     if (FAILED (ddrval)) {
-	write_log ("IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
     } else {
 	if (surf == dxdata.primary && dxdata.palette)
 	    IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
@@ -144,7 +144,7 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 	    if (FAILED (ddrval))
 	        return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("locksurface: %s\n", DXError (ddrval));
+	    write_log (L"locksurface: %s\n", DXError (ddrval));
 	    return 0;
 	}
     }
@@ -156,7 +156,7 @@ void unlocksurface (LPDIRECTDRAWSURFACE7 surf)
 
     ddrval = IDirectDrawSurface7_Unlock (surf, NULL);
     if (FAILED (ddrval))
-	write_log ("IDirectDrawSurface7_Unlock: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_Unlock: %s\n", DXError (ddrval));
 }
 
 static void setsurfacecap (DDSURFACEDESC2 *desc, int w, int h, int mode)
@@ -177,7 +177,7 @@ STATIC_INLINE uae_u16 rgb32torgb16pc (uae_u32 rgb)
     return (((rgb >> (16 + 3)) & 0x1f) << 11) | (((rgb >> (8 + 2)) & 0x3f) << 5) | (((rgb >> (0 + 3)) & 0x1f) << 0);
 }
 
-static char *alloctexts[] = { "NonLocalVRAM", "DefaultRAM", "VRAM", "RAM" };
+static TCHAR *alloctexts[] = { L"NonLocalVRAM", L"DefaultRAM", L"VRAM", L"RAM" };
 static LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, int pitch, int ck, int forcemode)
 {
     HRESULT ddrval;
@@ -211,10 +211,10 @@ static LPDIRECTDRAWSURFACE7 allocsurface_3 (int width, int height, uae_u8 *ptr, 
     }
     ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &surf, NULL);
     if (FAILED (ddrval)) {
-	write_log ("IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
+	write_log (L"IDirectDraw7_CreateSurface (%dx%d,%s): %s\n", width, height, alloctexts[forcemode], DXError (ddrval));
     } else {
-	write_log ("Created %dx%dx%d (%p) surface in %s (%d)%s\n", width, height, desc.ddpfPixelFormat.dwRGBBitCount, surf,
-	    alloctexts[forcemode], forcemode, ck ? (dxcaps.cancolorkey ? " hardware colorkey" : " software colorkey") : "");
+	write_log (L"Created %dx%dx%d (%p) surface in %s (%d)%s\n", width, height, desc.ddpfPixelFormat.dwRGBBitCount, surf,
+	    alloctexts[forcemode], forcemode, ck ? (dxcaps.cancolorkey ? L" hardware colorkey" : L" software colorkey") : L"");
     }
     return surf;
 }
@@ -318,7 +318,7 @@ int dx_testck (void)
     clearsurface (cksurf);
     clearsurface (tmp);
     if (failed) {
-	write_log ("Color key test failure, display driver bug, falling back to software emulation.\n");
+	write_log (L"Color key test failure, display driver bug, falling back to software emulation.\n");
 	dxcaps.cancolorkey = 0;
 	releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
 	dxdata.cursorsurface1 = allocsurface_2 (dxcaps.cursorwidth, dxcaps.cursorheight, TRUE);
@@ -371,7 +371,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.flipping[0], &ddscaps, &dxdata.flipping[1]);
 	    }
 	    if (FAILED (ddrval))
-		write_log ("IDirectDrawSurface7_GetAttachedSurface: %s\n", DXError (ddrval));
+		write_log (L"IDirectDrawSurface7_GetAttachedSurface: %s\n", DXError (ddrval));
 	} else {
 	    desc.dwBackBufferCount = 0;
 	    desc.ddsCaps.dwCaps = oldcaps;
@@ -401,13 +401,13 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	}
     }
     if (FAILED (ddrval)) {
-        write_log ("IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
+        write_log (L"IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
         return ddrval;
     }
     dxdata.native.dwSize = sizeof (DDSURFACEDESC2);
     ddrval = IDirectDrawSurface7_GetSurfaceDesc (dxdata.primary, &dxdata.native);
     if (FAILED (ddrval))
-	write_log ("IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_GetSurfaceDesc: %s\n", DXError (ddrval));
     if (dxdata.fsmodeset) {
         clearsurf (dxdata.primary, 0);
 	dxdata.fsmodeset = 1;
@@ -425,13 +425,13 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	    dxdata.pitch = desc.lPitch;
 	    unlocksurface (surf);
 	} else {
-	    write_log ("Couldn't get surface pitch!\n");
+	    write_log (L"Couldn't get surface pitch!\n");
 	}
 	createcursorsurface ();
     } else {
 	ddrval = DD_FALSE;
     }
-    write_log ("DDRAW: primary surface %p, secondary %p (%dx%dx%d)\n",
+    write_log (L"DDRAW: primary surface %p, secondary %p (%dx%dx%d)\n",
 	dxdata.primary, surf, width, height, dxdata.native.ddpfPixelFormat.dwRGBBitCount);
     return ddrval;
 }
@@ -445,7 +445,7 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 	return DD_OK;
     ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
     if (FAILED (ddrval)) {
-	write_log ("IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
+	write_log (L"IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
 	IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
 	dxdata.fsmodeset = 0;
     } else {
@@ -467,11 +467,11 @@ HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen, int doset)
 	ddrval = IDirectDraw7_SetCooperativeLevel (dxdata.maindd, window, fullscreen ?
 	    DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN : DDSCL_NORMAL);
 	if (FAILED (ddrval))
-	    write_log ("IDirectDraw7_SetCooperativeLevel: SET %s\n", DXError (ddrval));
+	    write_log (L"IDirectDraw7_SetCooperativeLevel: SET %s\n", DXError (ddrval));
     } else {
         ddrval = IDirectDraw7_SetCooperativeLevel (dxdata.maindd, dxdata.hwnd, DDSCL_NORMAL);
 	if (FAILED (ddrval))
-	    write_log ("IDirectDraw7_SetCooperativeLevel: RESET %s\n", DXError (ddrval));
+	    write_log (L"IDirectDraw7_SetCooperativeLevel: RESET %s\n", DXError (ddrval));
     }
     return ddrval;
 }
@@ -482,7 +482,7 @@ HRESULT DirectDraw_CreateClipper (void)
 
     ddrval = IDirectDraw7_CreateClipper (dxdata.maindd, 0, &dxdata.dclip, NULL);
     if (FAILED (ddrval))
-	write_log ("IDirectDraw7_CreateClipper: %s\n", DXError (ddrval));
+	write_log (L"IDirectDraw7_CreateClipper: %s\n", DXError (ddrval));
     return ddrval;
 }
 
@@ -494,32 +494,32 @@ HRESULT DirectDraw_SetClipper (HWND hWnd)
 	return DD_FALSE;
     ddrval = IDirectDrawSurface7_SetClipper (dxdata.primary, hWnd ? dxdata.dclip : NULL);
     if (FAILED (ddrval))
-	write_log ("IDirectDrawSurface7_SetClipper: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_SetClipper: %s\n", DXError (ddrval));
     if(hWnd && SUCCEEDED (ddrval)) {
 	ddrval = IDirectDrawClipper_SetHWnd (dxdata.dclip, 0, hWnd);
 	if (FAILED (ddrval))
-	    write_log ("IDirectDrawClipper_SetHWnd: %s\n", DXError (ddrval));
+	    write_log (L"IDirectDrawClipper_SetHWnd: %s\n", DXError (ddrval));
     }
     return ddrval;
 }
 
 
-char *outGUID (const GUID *guid)
+TCHAR *outGUID (const GUID *guid)
 {
-    static char gb[64];
+    static TCHAR gb[64];
     if (guid == NULL)
-	return "NULL";
-    sprintf (gb, "%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
+	return L"NULL";
+    _stprintf (gb, L"%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
 	guid->Data1, guid->Data2, guid->Data3,
 	guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
 	guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
     return gb;
 }
 
-const char *DXError (HRESULT ddrval)
+const TCHAR *DXError (HRESULT ddrval)
 {
-    static char dderr[1000];
-    sprintf (dderr, "%08X S=%d F=%04X C=%04X (%d) (%s)",
+    static TCHAR dderr[1000];
+    _stprintf (dderr, L"%08X S=%d F=%04X C=%04X (%d) (%s)",
 	ddrval, (ddrval & 0x80000000) ? 1 : 0,
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),
@@ -586,7 +586,7 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat (LPDDSURFACEDESC2 surface)
 	break;
 
      default:
-	write_log ("Unknown %d bit format %d %d %d\n", pfp->dwRGBBitCount, r, g, b);
+	write_log (L"Unknown %d bit format %d %d %d\n", pfp->dwRGBBitCount, r, g, b);
 	break;
     }
     return RGBFB_NONE;
@@ -599,10 +599,10 @@ HRESULT DirectDraw_EnumDisplayModes (DWORD flags, LPDDENUMMODESCALLBACK2 callbac
     return result;
 }
 
-HRESULT DirectDraw_EnumDisplays (LPDDENUMCALLBACKEX callback)
+HRESULT DirectDraw_EnumDisplays (LPDDENUMCALLBACKEXA callback)
 {
     HRESULT result;
-    result = DirectDrawEnumerateEx (callback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
+    result = DirectDrawEnumerateExA (callback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
     return result;
 }
 
@@ -639,7 +639,7 @@ int DirectDraw_SurfaceLock (void)
 void DirectDraw_SurfaceUnlock (void)
 {
     if (dxdata.lockcnt < 0)
-	write_log ("DirectDraw_SurfaceUnlock negative lock count %d!\n", dxdata.lockcnt);
+	write_log (L"DirectDraw_SurfaceUnlock negative lock count %d!\n", dxdata.lockcnt);
     if (dxdata.lockcnt == 0)
 	return;
     dxdata.lockcnt--;
@@ -741,7 +741,7 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 	    if (FAILED (ddrval))
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("DirectDraw_BlitToPrimary: %s\n", DXError (ddrval));
+	    write_log (L"DirectDraw_BlitToPrimary: %s\n", DXError (ddrval));
 	    break;
 	}
     }
@@ -781,7 +781,7 @@ static int DirectDraw_BlitToPrimary2 (RECT *rect, int dooffset)
 	    if (FAILED (ddrval))
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("DirectDraw_BlitToPrimary: %s\n", DXError (ddrval));
+	    write_log (L"DirectDraw_BlitToPrimary: %s\n", DXError (ddrval));
 	    break;
 	}
     }
@@ -865,7 +865,7 @@ static int DirectDraw_Blt (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAW
 	    if (FAILED (ddrval))
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("DirectDraw_Blit: %s\n", DXError (ddrval));
+	    write_log (L"DirectDraw_Blit: %s\n", DXError (ddrval));
 	    return 0;
 	}
     }
@@ -900,7 +900,7 @@ void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color
 	    if (FAILED (ddrval))
 		break;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log ("DirectDraw_Fill: %s\n", DXError (ddrval));
+	    write_log (L"DirectDraw_Fill: %s\n", DXError (ddrval));
 	    break;
 	}
     }
@@ -958,7 +958,7 @@ static void flip (void)
 	    recurse--;
 	}
     } else if(FAILED (ddrval)) {
-	write_log ("IDirectDrawSurface7_Flip: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_Flip: %s\n", DXError (ddrval));
     }
 }
 
@@ -993,7 +993,7 @@ HRESULT DirectDraw_SetPalette (int remove)
 	return DD_FALSE;
     ddrval = IDirectDrawSurface7_SetPalette (dxdata.primary, remove ? NULL : dxdata.palette);
     if (FAILED (ddrval))
-	write_log ("IDirectDrawSurface7_SetPalette: %s\n", DXError (ddrval));
+	write_log (L"IDirectDrawSurface7_SetPalette: %s\n", DXError (ddrval));
     return ddrval;
 }
 HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal)
@@ -1001,7 +1001,7 @@ HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal)
     HRESULT ddrval;
     ddrval = IDirectDraw_CreatePalette (dxdata.maindd, DDPCAPS_8BIT | DDPCAPS_ALLOW256, pal, &dxdata.palette, NULL);
     if (FAILED (ddrval))
-	write_log ("IDirectDraw_CreatePalette: %s\n", DXError (ddrval));
+	write_log (L"IDirectDraw_CreatePalette: %s\n", DXError (ddrval));
     return ddrval;
 }
 
@@ -1024,50 +1024,50 @@ void DirectDraw_Release (void)
 
 struct dxcap {
     int num;
-    char *name;
+    TCHAR *name;
     DWORD mask;
 };
 static struct dxcap dxcapsinfo[] = 
 {
-    { 1, "DDCAPS_BLT", DDCAPS_BLT },
-    { 1, "DDCAPS_BLTQUEUE", DDCAPS_BLTQUEUE },
-    { 1, "DDCAPS_BLTFOURCC", DDCAPS_BLTFOURCC },
-    { 1, "DDCAPS_BLTCOLORFILL", DDCAPS_BLTSTRETCH },
-    { 1, "DDCAPS_BLTSTRETCH", DDCAPS_BLTSTRETCH },
-    { 1, "DDCAPS_CANBLTSYSMEM", DDCAPS_CANBLTSYSMEM },
-    { 1, "DDCAPS_CANCLIP", DDCAPS_CANCLIP },
-    { 1, "DDCAPS_CANCLIPSTRETCHED", DDCAPS_CANCLIPSTRETCHED },
-    { 1, "DDCAPS_COLORKEY", DDCAPS_COLORKEY },
-    { 1, "DDCAPS_COLORKEYHWASSIST", DDCAPS_COLORKEYHWASSIST },
-    { 1, "DDCAPS_GDI", DDCAPS_GDI },
-    { 1, "DDCAPS_NOHARDWARE", DDCAPS_NOHARDWARE },
-    { 1, "DDCAPS_OVERLAY", DDCAPS_OVERLAY },
-    { 1, "DDCAPS_VBI", DDCAPS_VBI },
-    { 1, "DDCAPS_3D", DDCAPS_3D },
-    { 1, "DDCAPS_BANKSWITCHED", DDCAPS_BANKSWITCHED },
-    { 1, "DDCAPS_PALETTE", DDCAPS_PALETTE },
-    { 1, "DDCAPS_PALETTEVSYNC", DDCAPS_PALETTEVSYNC },
-    { 1, "DDCAPS_READSCANLINE", DDCAPS_READSCANLINE },
-    { 2, "DDCAPS2_CERTIFIED", DDCAPS2_CERTIFIED },
-    { 2, "DDCAPS2_CANRENDERWINDOWED", DDCAPS2_CANRENDERWINDOWED },
-    { 2, "DDCAPS2_NOPAGELOCKREQUIRED", DDCAPS2_NOPAGELOCKREQUIRED },
-    { 2, "DDCAPS2_FLIPNOVSYNC", DDCAPS2_FLIPNOVSYNC },
-    { 2, "DDCAPS2_FLIPINTERVAL", DDCAPS2_FLIPINTERVAL },
-    { 2, "DDCAPS2_NO2DDURING3DSCENE", DDCAPS2_NO2DDURING3DSCENE },
-    { 2, "DDCAPS2_NONLOCALVIDMEM", DDCAPS2_NONLOCALVIDMEM },
-    { 2, "DDCAPS2_NONLOCALVIDMEMCAPS", DDCAPS2_NONLOCALVIDMEMCAPS },
-    { 2, "DDCAPS2_WIDESURFACES", DDCAPS2_WIDESURFACES },
-    { 3, "DDCKEYCAPS_DESTBLT", DDCKEYCAPS_DESTBLT },
-    { 3, "DDCKEYCAPS_DESTBLTCLRSPACE", DDCKEYCAPS_DESTBLTCLRSPACE },
-    { 3, "DDCKEYCAPS_SRCBLT", DDCKEYCAPS_SRCBLT },
-    { 3, "DDCKEYCAPS_SRCBLTCLRSPACE", DDCKEYCAPS_SRCBLTCLRSPACE },
+    { 1, L"DDCAPS_BLT", DDCAPS_BLT },
+    { 1, L"DDCAPS_BLTQUEUE", DDCAPS_BLTQUEUE },
+    { 1, L"DDCAPS_BLTFOURCC", DDCAPS_BLTFOURCC },
+    { 1, L"DDCAPS_BLTCOLORFILL", DDCAPS_BLTSTRETCH },
+    { 1, L"DDCAPS_BLTSTRETCH", DDCAPS_BLTSTRETCH },
+    { 1, L"DDCAPS_CANBLTSYSMEM", DDCAPS_CANBLTSYSMEM },
+    { 1, L"DDCAPS_CANCLIP", DDCAPS_CANCLIP },
+    { 1, L"DDCAPS_CANCLIPSTRETCHED", DDCAPS_CANCLIPSTRETCHED },
+    { 1, L"DDCAPS_COLORKEY", DDCAPS_COLORKEY },
+    { 1, L"DDCAPS_COLORKEYHWASSIST", DDCAPS_COLORKEYHWASSIST },
+    { 1, L"DDCAPS_GDI", DDCAPS_GDI },
+    { 1, L"DDCAPS_NOHARDWARE", DDCAPS_NOHARDWARE },
+    { 1, L"DDCAPS_OVERLAY", DDCAPS_OVERLAY },
+    { 1, L"DDCAPS_VBI", DDCAPS_VBI },
+    { 1, L"DDCAPS_3D", DDCAPS_3D },
+    { 1, L"DDCAPS_BANKSWITCHED", DDCAPS_BANKSWITCHED },
+    { 1, L"DDCAPS_PALETTE", DDCAPS_PALETTE },
+    { 1, L"DDCAPS_PALETTEVSYNC", DDCAPS_PALETTEVSYNC },
+    { 1, L"DDCAPS_READSCANLINE", DDCAPS_READSCANLINE },
+    { 2, L"DDCAPS2_CERTIFIED", DDCAPS2_CERTIFIED },
+    { 2, L"DDCAPS2_CANRENDERWINDOWED", DDCAPS2_CANRENDERWINDOWED },
+    { 2, L"DDCAPS2_NOPAGELOCKREQUIRED", DDCAPS2_NOPAGELOCKREQUIRED },
+    { 2, L"DDCAPS2_FLIPNOVSYNC", DDCAPS2_FLIPNOVSYNC },
+    { 2, L"DDCAPS2_FLIPINTERVAL", DDCAPS2_FLIPINTERVAL },
+    { 2, L"DDCAPS2_NO2DDURING3DSCENE", DDCAPS2_NO2DDURING3DSCENE },
+    { 2, L"DDCAPS2_NONLOCALVIDMEM", DDCAPS2_NONLOCALVIDMEM },
+    { 2, L"DDCAPS2_NONLOCALVIDMEMCAPS", DDCAPS2_NONLOCALVIDMEMCAPS },
+    { 2, L"DDCAPS2_WIDESURFACES", DDCAPS2_WIDESURFACES },
+    { 3, L"DDCKEYCAPS_DESTBLT", DDCKEYCAPS_DESTBLT },
+    { 3, L"DDCKEYCAPS_DESTBLTCLRSPACE", DDCKEYCAPS_DESTBLTCLRSPACE },
+    { 3, L"DDCKEYCAPS_SRCBLT", DDCKEYCAPS_SRCBLT },
+    { 3, L"DDCKEYCAPS_SRCBLTCLRSPACE", DDCKEYCAPS_SRCBLTCLRSPACE },
     { 0, NULL }
 };
 
 static void showcaps (DDCAPS_DX7 *dc)
 {
     int i, out;
-    write_log ("%08x %08x %08x %08x %08x %08x\n",
+    write_log (L"%08x %08x %08x %08x %08x %08x\n",
 	dc->dwCaps, dc->dwCaps2, dc->dwCKeyCaps, dc->dwFXCaps, dc->dwFXAlphaCaps, dc->dwPalCaps, dc->ddsCaps);
     out = 0;
     for (i = 0;  dxcapsinfo[i].name; i++) {
@@ -1086,13 +1086,13 @@ static void showcaps (DDCAPS_DX7 *dc)
 	}
 	if (caps & dxcapsinfo[i].mask) {
 	    if (out > 0)
-		write_log (",");
-	    write_log ("%s", dxcapsinfo[i].name);
+		write_log (L",");
+	    write_log (L"%s", dxcapsinfo[i].name);
 	    out++;
 	}
     }
     if (out > 0)
-	write_log ("\n");
+	write_log (L"\n");
     if ((dc->dwCaps & DDCAPS_COLORKEY) && (dc->dwCKeyCaps & DDCKEYCAPS_SRCBLT))
 	dxcaps.cancolorkey = TRUE;
     if (dc->dwCaps2 & DDCAPS2_NONLOCALVIDMEM)
@@ -1113,12 +1113,12 @@ static void getcaps (void)
     hc.dwSize = sizeof hc;
     hr = IDirectDraw7_GetCaps (dxdata.maindd, &dc, &hc);
     if (FAILED (hr)) {
-	write_log ("IDirectDraw7_GetCaps() failed %s\n", DXError (hr));
+	write_log (L"IDirectDraw7_GetCaps() failed %s\n", DXError (hr));
 	return;
     }
-    write_log ("DriverCaps: ");
+    write_log (L"DriverCaps: ");
     showcaps (&dc);
-    write_log ("HELCaps   : ");
+    write_log (L"HELCaps   : ");
     showcaps (&hc);
 }
 
@@ -1143,7 +1143,7 @@ int DirectDraw_Start (GUID *guid)
     LPDIRECTDRAW dd;
     ddrval = DirectDrawCreate (guid, &dd, NULL);
     if (FAILED (ddrval)) {
-	write_log ("DirectDrawCreate() failed, %s\n", DXError (ddrval));
+	write_log (L"DirectDrawCreate() failed, %s\n", DXError (ddrval));
 	if (guid != NULL)
 	    return 0;
 	goto oops;
@@ -1151,13 +1151,13 @@ int DirectDraw_Start (GUID *guid)
     ddrval = IDirectDraw_QueryInterface (dd, &IID_IDirectDraw7, &dxdata.maindd);
     IDirectDraw_Release (dd);
     if (FAILED (ddrval)) {
-	write_log ("IDirectDraw_QueryInterface() failed, %s\n", DXError (ddrval));
+	write_log (L"IDirectDraw_QueryInterface() failed, %s\n", DXError (ddrval));
 	goto oops;
     }
 #else
     ddrval = DirectDrawCreateEx (guid, &dxdata.maindd, &IID_IDirectDraw7, NULL);
     if (FAILED (ddrval)) {
-	write_log ("DirectDrawCreateEx() failed, %s\n", DXError (ddrval));
+	write_log (L"DirectDrawCreateEx() failed, %s\n", DXError (ddrval));
 	if (guid != NULL)
 	    return 0;
 	goto oops;
@@ -1169,14 +1169,14 @@ int DirectDraw_Start (GUID *guid)
     dxcaps.cursorwidth = 48;
     dxcaps.cursorheight = 48;
     if (!d3ddone) {
-	d3dDLL = LoadLibrary ("D3D9.DLL");
+	d3dDLL = LoadLibrary (L"D3D9.DLL");
 	if (d3dDLL) {
 	    d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
 	    if (d3d) {
 		if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps))) {
 		    dxcaps.maxwidth = d3dCaps.MaxTextureWidth;
 		    dxcaps.maxheight = d3dCaps.MaxTextureHeight;
-		    write_log ("Max hardware surface size: %dx%d\n", dxcaps.maxwidth, dxcaps.maxheight);
+		    write_log (L"Max hardware surface size: %dx%d\n", dxcaps.maxwidth, dxcaps.maxheight);
 		}
 		IDirect3D9_Release (d3d);
 	    }
@@ -1204,7 +1204,7 @@ int DirectDraw_Start (GUID *guid)
 	return 1;
     }
   oops:
-    write_log ("DirectDraw_Start: %s\n", DXError (ddrval));
+    write_log (L"DirectDraw_Start: %s\n", DXError (ddrval));
     DirectDraw_Release ();
     return 0;
 }

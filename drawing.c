@@ -182,7 +182,7 @@ typedef void (*line_draw_func)(int, int);
 #define LINE_DONE_AS_PREVIOUS 8
 #define LINE_REMEMBERED_AS_PREVIOUS 9
 
-static char linestate[(MAXVPOS + 1) * 2 + 1];
+static uae_u8 linestate[(MAXVPOS + 1) * 2 + 1];
 
 uae_u8 line_data[(MAXVPOS + 1) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
@@ -255,7 +255,7 @@ static void xlinecheck (unsigned int start, unsigned int end)
 	ok = 0;
 
     if (!ok) {
-	    write_log ("*** %d-%d (%dx%dx%d %d) %p\n",
+	    write_log (L"*** %d-%d (%dx%dx%d %d) %p\n",
 		start - min, end - min, gfxvidinfo.width, gfxvidinfo.height,
 		gfxvidinfo.pixbytes, gfxvidinfo.rowbytes,
 		xlinebuffer);
@@ -430,8 +430,8 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     *pdx = dx;
     *pdy = dy;
 
-    write_log ("Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
-    write_log ("first: %d last: %d minv: %d maxv: %d min: %d\n",
+    write_log (L"Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
+    write_log (L"first: %d last: %d minv: %d maxv: %d min: %d\n",
 	plffirstline_total, plflastline_total,
 	first_planes_vpos, last_planes_vpos, minfirstline);
     return 1;
@@ -729,7 +729,7 @@ STATIC_INLINE void fill_line (void)
     nints = gfxvidinfo.width >> (2 - shift);
     nrem = nints & 7;
     nints &= ~7;
-    start = (int *)(((char *)xlinebuffer) + (visible_left_border << shift));
+    start = (int *)(((uae_u8*)xlinebuffer) + (visible_left_border << shift));
 #ifdef ECS_DENISE
     val = brdblank ? 0 : colors_for_drawing.acolors[0];
 #else
@@ -1666,7 +1666,7 @@ void init_row_map (void)
 {
     int i, j;
     if (gfxvidinfo.height > MAX_VIDHEIGHT) {
-	write_log ("Resolution too high, aborting\n");
+	write_log (L"Resolution too high, aborting\n");
 	abort ();
     }
     j = 0;
@@ -1957,7 +1957,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
     {
     case LINE_REMEMBERED_AS_PREVIOUS:
 	if (!warned)
-	    write_log ("Shouldn't get here... this is a bug.\n"), warned++;
+	    write_log (L"Shouldn't get here... this is a bug.\n"), warned++;
 	return;
 
     case LINE_BLACK:
@@ -2167,7 +2167,7 @@ static void center_image (void)
 #if 0
 	if (currprefs.gfx_xcenter_size > 0) {
 	    int diff = ((gfxvidinfo.width << (RES_MAX - currprefs.gfx_resolution)) - currprefs.gfx_xcenter_size) / 1;
-	    write_log ("%d %d\n", currprefs.gfx_xcenter_size, gfxvidinfo.width);
+	    write_log (L"%d %d\n", currprefs.gfx_xcenter_size, gfxvidinfo.width);
 	    val -= diff >> RES_MAX;
 	}
 #endif
@@ -2836,7 +2836,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 
 void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 {
-    char *state;
+    uae_u8 *state;
 
     if (framecnt != 0)
 	return;

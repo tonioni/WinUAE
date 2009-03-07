@@ -20,8 +20,8 @@ extern uae_u32 restore_u32_func (uae_u8 **);
 extern uae_u16 restore_u16_func (uae_u8 **);
 extern uae_u8 restore_u8_func (uae_u8 **);
 
-extern void save_string_func (uae_u8 **, const char*);
-extern char *restore_string_func (uae_u8 **);
+extern void save_string_func (uae_u8 **, const TCHAR*);
+extern TCHAR *restore_string_func (uae_u8 **);
 
 #define save_u64(x) save_u64_func (&dst, (x))
 #define save_u32(x) save_u32_func (&dst, (x))
@@ -130,9 +130,9 @@ extern uae_u8 *save_action_replay (int *, uae_u8 *);
 extern uae_u8 *restore_hrtmon (uae_u8 *);
 extern uae_u8 *save_hrtmon (int *, uae_u8 *);
 
-extern void savestate_initsave (const char *filename, int docompress, int nodialogs);
-extern int save_state (const char *filename, const char *description);
-extern void restore_state (const char *filename);
+extern void savestate_initsave (const TCHAR *filename, int docompress, int nodialogs);
+extern int save_state (const TCHAR *filename, const TCHAR *description);
+extern void restore_state (const TCHAR *filename);
 extern void savestate_restore_finish (void);
 
 extern void custom_save_state (void);
@@ -146,7 +146,7 @@ extern void custom_prepare_savestate (void);
 #define STATE_DOREWIND 32
 
 extern int savestate_state;
-extern char savestate_fname[MAX_DPATH];
+extern TCHAR savestate_fname[MAX_DPATH];
 extern struct zfile *savestate_file;
 
 extern void savestate_quick (int slot, int save);

@@ -13,11 +13,10 @@
 
 #ifndef HAVE_STRDUP
 
-char *my_strdup (const char *s)
+TCHAR *my_strdup (const TCHAR *s)
 {
-    /* The casts to char * are there to shut up the compiler on HPUX */
-    char *x = (char*)xmalloc(strlen((char *)s) + 1);
-    strcpy(x, (char *)s);
+    TCHAR *x = (char*)xmalloc(strlen((TCHAR *)s) + 1);
+    strcpy(x, (TCHAR *)s);
     return x;
 }
 

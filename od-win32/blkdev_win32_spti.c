@@ -45,9 +45,9 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
 static int unitcnt = 0;
 
 struct dev_info_spti {
-    char *drvpath;
-    char *name;
-    char *inquirydata;
+    TCHAR *drvpath;
+    TCHAR *name;
+    TCHAR *inquirydata;
     int mediainserted;
     HANDLE handle;
     int isatapi;
@@ -68,7 +68,7 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
 
     *err = 0;
     if (log_scsi) {
-	write_log ("SCSI, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
+	write_log (L"SCSI, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
@@ -86,8 +86,8 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
     if (!status) {
 	int lasterror = GetLastError();
 	*err = lasterror;
-	write_log ("SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
-	write_log ("Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
+	write_log (L"SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
+	write_log (L"Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
 	scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 	    swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
     }
@@ -231,7 +231,7 @@ static int total_devices;
 static void close_scsi_device (int unitnum)
 {
     if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE) {
-	write_log ("SPTI: unit %d closed\n", unitnum);
+	write_log (L"SPTI: unit %d closed\n", unitnum);
 	CloseHandle (dev_info[unitnum].handle);
     }
     dev_info[unitnum].handle = INVALID_HANDLE_VALUE;
@@ -270,7 +270,7 @@ static void close_scsi_bus (void)
 {
     int i;
     for (i = 0; i < total_devices; i++)
-	free_scsi_device(i);
+	free_scsi_device (i);
 }
 
 static void checkcapabilities (int unitnum)
@@ -286,7 +286,7 @@ static void checkcapabilities (int unitnum)
 	&query, sizeof query, &desc, sizeof desc, &ret, NULL);
     if (status) {
 	if (desc.Version > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
-	    write_log ("SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
+	    write_log (L"SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
 		desc.BusType, desc.MaximumTransferLength, desc.AlignmentMask);
     }
 }
@@ -304,7 +304,7 @@ static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
     di->type = 0x1f;
     if (!p) {
 	if (log_scsi)
-	    write_log ("SPTI: INQUIRY failed\n");
+	    write_log (L"SPTI: INQUIRY failed\n");
 	return 0;
     }
     inqlen = outlen > INQUIRY_SIZE ? INQUIRY_SIZE : outlen;
@@ -317,7 +317,7 @@ static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
     memcpy (inquirydata, p, inqlen);
     if (log_scsi) {
 	if (outlen >= INQUIRY_SIZE)
-	    write_log ("SPTI: INQUIRY: %02X%02X%02X %d '%-8s' '%-16s'\n",
+	    write_log (L"SPTI: INQUIRY: %02X%02X%02X %d '%-8s' '%-16s'\n",
 	    p[0], p[1], p[2], di->isatapi, p + 8, p + 16);
     }
     return inqlen;
@@ -362,7 +362,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 	    di->write_protected = (p[3] & 0x80) ? 1 : 0;
 	}
     }
-//    write_log ("mediacheck_full(%d,%d,%d,%d,%d)\n",
+//    write_log (L"mediacheck_full(%d,%d,%d,%d,%d)\n",
 //	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
     return 1;
 }
@@ -370,7 +370,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 int open_scsi_device (int unitnum)
 {
     HANDLE h;
-    char *dev;
+    TCHAR *dev;
     struct dev_info_spti *di;
 
     di = &dev_info[unitnum];
@@ -380,37 +380,38 @@ int open_scsi_device (int unitnum)
 	return 0;
     if (di->bus >= 0) {
 	dev = xmalloc (100);
-	sprintf (dev, "\\\\.\\Scsi%d:", di->bus);
+	_stprintf (dev, L"\\\\.\\Scsi%d:", di->bus);
     } else {
-	dev = my_strdup(di->drvpath);
+	dev = my_strdup (di->drvpath);
     }
     if (!di->scsibuf)
 	di->scsibuf = VirtualAlloc (NULL, DEVICE_SCSI_BUFSIZE, MEM_COMMIT, PAGE_READWRITE);
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     di->handle = h;
     if (h == INVALID_HANDLE_VALUE) {
-	write_log ("SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
+	write_log (L"SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
     } else {
 	uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 	checkcapabilities (unitnum);
 	if (!inquiry (unitnum, di, inqdata)) {
-	    write_log ("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
+	    write_log (L"SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
 		di->bus, di->path, di->target, di->lun);
 	    close_scsi_device (unitnum);
 	    xfree (dev);
 	    return 0;
 	}
 	inqdata[INQUIRY_SIZE] = 0;
+	di->name = my_strdup_ansi (inqdata + 8);
 	if (di->type == INQ_ROMD) {
 	    dev_info[unitnum].mediainserted = mediacheck (unitnum);
-	    write_log ("SPTI: unit %d opened [%s], %s, '%s'\n", unitnum,
-		di->isatapi ? "ATAPI" : "SCSI",
-		di->mediainserted ? "media inserted" : "drive empty", inqdata + 8);
+	    write_log (L"SPTI: unit %d opened [%s], %s, '%s'\n", unitnum,
+		di->isatapi ? L"ATAPI" : L"SCSI",
+		di->mediainserted ? L"media inserted" : L"drive empty",
+		di->name);
 	} else {
-	    write_log ("SPTI: unit %d, type %d, '%s'\n",
-		unitnum, di->type, inqdata + 8);
+	    write_log (L"SPTI: unit %d, type %d, '%s'\n",
+		unitnum, di->type, di->name);
 	}
-	di->name = my_strdup (inqdata + 8);
 	di->inquirydata = xmalloc (INQUIRY_SIZE);
 	memcpy (di->inquirydata, inqdata, INQUIRY_SIZE);
 	xfree (dev);
@@ -420,7 +421,7 @@ int open_scsi_device (int unitnum)
     return 0;
 }
 
-static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid, int scanmode)
+static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int lunid, int scanmode)
 {
     struct dev_info_spti *di;
     int cnt = total_devices, i;
@@ -430,10 +431,10 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
 	return 0;
     for (i = 0; i < total_devices; i++) {
 	di = &dev_info[i];
-	if (!strcmp (drvpath, di->drvpath))
+	if (!_tcscmp (drvpath, di->drvpath))
 	    return 0;
     }
-    write_log ("SPTI: unit %d '%s' added\n", total_devices, drvpath);
+    write_log (L"SPTI: unit %d '%s' added\n", total_devices, drvpath);
     di = &dev_info[total_devices];
     di->drvpath = my_strdup (drvpath);
     di->type = 0;
@@ -446,7 +447,7 @@ static int adddrive (char *drvpath, int bus, int pathid, int targetid, int lunid
     if (open_scsi_device (cnt)) {
 	for (i = 0; i < cnt; i++) {
 	    if (!memcmp (di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
-		write_log ("duplicate device, skipped..\n");
+		write_log (L"duplicate device, skipped..\n");
 		break;
 	    }
 	}
@@ -468,7 +469,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 	return 0;
     dispti = &dev_info[unitnum];
-    strcpy (di->label, dispti->name);
+    _tcscpy (di->label, dispti->name);
     di->bus = 0;
     di->target = unitnum;
     di->lun = 0;
@@ -478,13 +479,13 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
     di->type = dispti->type;
     di->id = unitnum + 1;
     if (log_scsi) {
-	write_log ("MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
+	write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
 	    di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
     }
     return di;
 }
 
-void win32_spti_media_change (char driveletter, int insert)
+void win32_spti_media_change (TCHAR driveletter, int insert)
 {
     int i, now;
 
@@ -492,7 +493,7 @@ void win32_spti_media_change (char driveletter, int insert)
 	if (dev_info[i].type == INQ_ROMD) {
 	    now = mediacheck (i);
 	    if (now != dev_info[i].mediainserted) {
-		write_log ("SPTI: media change %c %d\n", driveletter, insert);
+		write_log (L"SPTI: media change %c %d\n", driveletter, insert);
 		dev_info[i].mediainserted = now;
 		scsi_do_disk_change (i + 1, insert);
 	    }
@@ -518,7 +519,7 @@ struct device_functions devicefunc_win32_spti = {
     0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
 };
 
-static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
+static int getCDROMProperty (int idx, HDEVINFO DevInfo, const GUID *guid)
 {
     SP_DEVICE_INTERFACE_DATA interfaceData;
     PSP_DEVICE_INTERFACE_DETAIL_DATA interfaceDetailData = NULL;
@@ -576,7 +577,7 @@ static int getCDROMProperty(int idx, HDEVINFO DevInfo, const GUID *guid)
 }
 
 #define	SCSI_INFO_BUFFER_SIZE 0x5000
-static void scanscsi(void)
+static void scanscsi (void)
 {
     PSCSI_BUS_DATA BusData;
     PSCSI_INQUIRY_DATA InquiryData;
@@ -588,15 +589,15 @@ static void scanscsi(void)
     SHORT Bus, Luns;
     DWORD bytesTransferred;
     int idx;
-    char DeviceName[256];
+    TCHAR DeviceName[256];
 
-    AdapterInfo = (PSCSI_ADAPTER_BUS_INFO)xmalloc(SCSI_INFO_BUFFER_SIZE) ;
+    AdapterInfo = xmalloc (SCSI_INFO_BUFFER_SIZE) ;
     if (AdapterInfo == NULL)
 	return;
 
     idx = 0;
     for (;;) {
-	sprintf(DeviceName, "\\\\.\\Scsi%d:", idx++);
+	_stprintf (DeviceName, L"\\\\.\\Scsi%d:", idx++);
 	h = CreateFile (DeviceName,
 	    GENERIC_READ | GENERIC_WRITE,
 	    0,
@@ -607,7 +608,7 @@ static void scanscsi(void)
 	if (h == INVALID_HANDLE_VALUE)
 	    return;
 
-	if(!DeviceIoControl(h,
+	if(!DeviceIoControl (h,
 	    IOCTL_SCSI_RESCAN_BUS,
 	    NULL,
 	    0,
@@ -615,13 +616,13 @@ static void scanscsi(void)
 	    0,
 	    &bytesTransferred,
 	    NULL)) {
-	    write_log ( "Rescan SCSI port %d failed [Error %d]\n", idx - 1, GetLastError());
-	    CloseHandle(h);
+	    write_log (L"Rescan SCSI port %d failed [Error %d]\n", idx - 1, GetLastError());
+	    CloseHandle (h);
 	    continue;
 	}
 
 	// Get the SCSI inquiry data for all devices for the given SCSI bus
-	status = DeviceIoControl(
+	status = DeviceIoControl (
 	    h,
 	    IOCTL_SCSI_GET_INQUIRY_DATA,
 	    NULL,
@@ -632,7 +633,7 @@ static void scanscsi(void)
 	    NULL);
 
 	if (!status) {
-	    write_log ("Error in IOCTL_SCSI_GET_INQUIRY_DATA\n" );
+	    write_log (L"Error in IOCTL_SCSI_GET_INQUIRY_DATA\n" );
 	    CloseHandle (h);
 	    continue;
 	}
@@ -640,22 +641,22 @@ static void scanscsi(void)
 	for (Bus = 0; Bus < AdapterInfo->NumberOfBuses; Bus++) {
 	    int luncheck = 0;
 	    BusData = &AdapterInfo->BusData[Bus];
-	    InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + BusData->InquiryDataOffset );
+	    InquiryData = (PSCSI_INQUIRY_DATA) ((PUCHAR)AdapterInfo + BusData->InquiryDataOffset);
 	    for (Luns = 0; Luns < BusData->NumberOfLogicalUnits; Luns++) {
-		char label[100];
+		TCHAR label[100];
 		int type = InquiryData->InquiryData[0] & 0x1f;
 		Claimed = InquiryData->DeviceClaimed;
-		write_log ("SCSI=%d Initiator=%d Path=%d Target=%d LUN=%d Claimed=%s Type=%d\n",
+		write_log (L"SCSI=%d Initiator=%d Path=%d Target=%d LUN=%d Claimed=%s Type=%d\n",
 		    idx - 1,
 		    BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId,
-		    InquiryData->Lun, Claimed ? "Yes" : "No ", type);
+		    InquiryData->Lun, Claimed ? L"Yes" : L"No ", type);
 		if (Claimed == 0 && !luncheck) {
 		    luncheck = 1;
-		    sprintf (label, "SCSI(%d):%d:%d:%d:%d", idx - 1, BusData->InitiatorBusId,
+		    _stprintf (label, L"SCSI(%d):%d:%d:%d:%d", idx - 1, BusData->InitiatorBusId,
 			InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
 		    adddrive (label, idx - 1, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun, 3);
 		}
-		InquiryData = (PSCSI_INQUIRY_DATA) ( (PUCHAR) AdapterInfo + InquiryData->NextInquiryDataOffset );
+		InquiryData = (PSCSI_INQUIRY_DATA) ((PUCHAR)AdapterInfo + InquiryData->NextInquiryDataOffset);
 	    }   // for Luns
 	}	// for Bus
 	CloseHandle(h);
@@ -667,9 +668,9 @@ static const GUID *guids[] = {
     &GUID_DEVCLASS_IMAGE,
     &GUID_DEVCLASS_TAPEDRIVE,
     NULL };
-static const char *scsinames[] = { "Tape", "Scanner", "Changer", NULL };
+static const TCHAR *scsinames[] = { L"Tape", L"Scanner", L"Changer", NULL };
 
-static int rescan(void)
+static int rescan (void)
 {
     int idx, idx2;
 
@@ -679,34 +680,34 @@ static int rescan(void)
 	    NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
 	if (hDevInfo != INVALID_HANDLE_VALUE) {
 	    for (idx = 0; ; idx++) {
-		if (!getCDROMProperty(idx, hDevInfo, guids[idx2]))
+		if (!getCDROMProperty (idx, hDevInfo, guids[idx2]))
 		    break;
 	    }
-	    SetupDiDestroyDeviceInfoList(hDevInfo);
+	    SetupDiDestroyDeviceInfoList (hDevInfo);
 	}
     }
 
     for (idx2 = 0; scsinames[idx2]; idx2++) {
 	int max = 10;
 	for (idx = 0; idx < max; idx++) {
-	    char tmp[100];
+	    TCHAR tmp[100];
 	    HANDLE h;
-	    sprintf (tmp, "\\\\.\\%s%d", scsinames[idx2], idx);
-	    h = CreateFile(tmp, GENERIC_READ | GENERIC_WRITE,
+	    _stprintf (tmp, L"\\\\.\\%s%d", scsinames[idx2], idx);
+	    h = CreateFile (tmp, GENERIC_READ | GENERIC_WRITE,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		NULL, OPEN_EXISTING, 0, NULL);
 	    if (h != INVALID_HANDLE_VALUE) {
-		adddrive(tmp, -1, -1, -1, -1, 2);
-		CloseHandle(h);
+		adddrive (tmp, -1, -1, -1, -1, 2);
+		CloseHandle (h);
 		if (idx == max - 1)
 		    max++;
 	    }
 	}
     }
     if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
-	write_log ("SCSI adapter enumeration..\n");
-	scanscsi();
-	write_log ("SCSI adapter enumeration ends\n");
+	write_log (L"SCSI adapter enumeration..\n");
+	scanscsi ();
+	write_log (L"SCSI adapter enumeration ends\n");
     }
     return 1;
 }
