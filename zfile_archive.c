@@ -438,8 +438,8 @@ struct zfile *archive_access_7z (struct znode *zn)
 /* copy and paste job? you are only imagining it! */
 static struct zfile *rarunpackzf; /* stupid unrar.dll */
 #include <unrar.h>
-typedef HANDLE (_stdcall* RAROPENARCHIVE)(struct RAROpenArchiveData*);
-static RAROPENARCHIVE pRAROpenArchive;
+typedef HANDLE (_stdcall* RAROPENARCHIVEEX)(struct RAROpenArchiveDataEx*);
+static RAROPENARCHIVEEX pRAROpenArchiveEx;
 typedef int (_stdcall* RARREADHEADEREX)(HANDLE,struct RARHeaderDataEx*);
 static RARREADHEADEREX pRARReadHeaderEx;
 typedef int (_stdcall* RARPROCESSFILE)(HANDLE,int,char*,char*);
@@ -473,13 +473,13 @@ static int canrar(void)
 
 	    rarlib = WIN32_LoadLibrary (L"unrar.dll");
 	    if (rarlib) {
-		pRAROpenArchive = (RAROPENARCHIVE)GetProcAddress (rarlib, "RAROpenArchive");
+		pRAROpenArchiveEx = (RAROPENARCHIVEEX)GetProcAddress (rarlib, "RAROpenArchiveEx");
 		pRARReadHeaderEx = (RARREADHEADEREX)GetProcAddress (rarlib, "RARReadHeaderEx");
 		pRARProcessFile = (RARPROCESSFILE)GetProcAddress (rarlib, "RARProcessFile");
 		pRARCloseArchive = (RARCLOSEARCHIVE)GetProcAddress (rarlib, "RARCloseArchive");
 		pRARSetCallback = (RARSETCALLBACK)GetProcAddress (rarlib, "RARSetCallback");
 		pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
-		if (pRAROpenArchive && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
+		if (pRAROpenArchiveEx && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
 		    israr = 1;
 		    write_log (L"unrar.dll version %08X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
 
@@ -502,7 +502,7 @@ static int CALLBACK RARCallbackProc (UINT msg,LONG UserData,LONG P1,LONG P2)
 
 struct RARContext
 {
-    struct RAROpenArchiveData OpenArchiveData;
+    struct RAROpenArchiveDataEx OpenArchiveData;
     struct RARHeaderDataEx HeaderData;
     HANDLE hArcData;
 };
@@ -520,7 +520,7 @@ struct zvolume *archive_directory_rar (struct zfile *z)
     struct zfile *zftmp;
     int cnt;
 
-    if (!canrar())
+    if (!canrar ())
 	return archive_directory_arcacc (z, ArchiveFormatRAR);
     if (z->data)
 	 /* wtf? stupid unrar.dll only accept filename as an input.. */
@@ -529,12 +529,11 @@ struct zvolume *archive_directory_rar (struct zfile *z)
     zv = zvolume_alloc (z, ArchiveFormatRAR, rc);
     fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
     z->f = NULL;
-    rc->OpenArchiveData.ArcName = ua (z->name);
+    rc->OpenArchiveData.ArcNameW = z->name;
     rc->OpenArchiveData.OpenMode = RAR_OM_LIST;
-    rc->hArcData = pRAROpenArchive (&rc->OpenArchiveData);
-    xfree (rc->OpenArchiveData.ArcName);
+    rc->hArcData = pRAROpenArchiveEx (&rc->OpenArchiveData);
     if (rc->OpenArchiveData.OpenResult != 0) {
-	xfree(rc);
+	xfree (rc);
 	if (!rar_resetf (z)) {
 	    zfile_fclose_archive (zv);
 	    return NULL;
@@ -545,17 +544,15 @@ struct zvolume *archive_directory_rar (struct zfile *z)
     pRARSetCallback (rc->hArcData, RARCallbackProc, 0);
     cnt = 0;
     while (pRARReadHeaderEx (rc->hArcData, &rc->HeaderData) == 0) {
-	TCHAR *name = au (rc->HeaderData.FileName);
 	struct zarchive_info zai;
 	struct znode *zn;
 	memset(&zai, 0, sizeof zai);
-	zai.name = name;
+	zai.name = rc->HeaderData.FileNameW;
 	zai.size = rc->HeaderData.UnpSize;
 	zai.t = fromdostime (rc->HeaderData.FileTime);
 	zn = zvolume_addfile_abs (zv, &zai);
 	zn->offset = cnt++;
 	pRARProcessFile (rc->hArcData, RAR_SKIP, NULL, NULL);
-	xfree (name);
     }
     pRARCloseArchive (rc->hArcData);
     zftmp = zfile_fopen_empty (z->name, 0);
@@ -573,22 +570,22 @@ struct zfile *archive_access_rar (struct znode *zn)
     if (zn->volume->method != ArchiveFormatRAR)
 	return archive_access_arcacc (zn);
     rc->OpenArchiveData.OpenMode = RAR_OM_EXTRACT;
-    rc->hArcData = pRAROpenArchive(&rc->OpenArchiveData);
+    rc->hArcData = pRAROpenArchiveEx (&rc->OpenArchiveData);
     if (rc->OpenArchiveData.OpenResult != 0)
 	return NULL;
-    pRARSetCallback(rc->hArcData, RARCallbackProc, 0);
+    pRARSetCallback (rc->hArcData, RARCallbackProc, 0);
     for (i = 0; i <= zn->offset; i++) {
-	if (pRARReadHeaderEx(rc->hArcData, &rc->HeaderData))
+	if (pRARReadHeaderEx (rc->hArcData, &rc->HeaderData))
 	    return NULL;
 	if (i < zn->offset) {
-	    if (pRARProcessFile(rc->hArcData, RAR_SKIP, NULL, NULL))
+	    if (pRARProcessFile (rc->hArcData, RAR_SKIP, NULL, NULL))
 		goto end;
 	}
     }
     zf = zfile_fopen_empty (zn->fullname, zn->size);
     rarunpackzf = zf;
-    if (pRARProcessFile(rc->hArcData, RAR_TEST, NULL, NULL)) {
-	zfile_fclose(zf);
+    if (pRARProcessFile (rc->hArcData, RAR_TEST, NULL, NULL)) {
+	zfile_fclose (zf);
 	zf = NULL;
     }
 end:

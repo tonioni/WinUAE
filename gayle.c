@@ -340,7 +340,7 @@ static void write_gayle_cs (uae_u8 val)
 	/* PCMCIA disable -> enable */
         card_trigger (!(gayle_cs & GAYLE_CS_DIS) ? 1 : 0);
 	if (PCMCIA_LOG)
-	    write_log (L"PCMCIA slot: %s PC=%08X\n", !(gayle_cs & 1) ? "enabled" : "disabled", M68K_GETPC);
+	    write_log (L"PCMCIA slot: %s PC=%08X\n", !(gayle_cs & 1) ? L"enabled" : L"disabled", M68K_GETPC);
     }
 }
 static uae_u8 read_gayle_cs (void)

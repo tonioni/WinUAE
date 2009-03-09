@@ -150,13 +150,13 @@ void save_u8_func (uae_u8 **dstp, uae_u8 v)
 void save_string_func (uae_u8 **dstp, const TCHAR *from)
 {
     uae_u8 *dst = *dstp;
-    char *s;
-    s = ua (from);
+    char *s, *s2;
+    s2 = s = ua (from);
     while (s && *s)
 	*dst++ = *s++;
     *dst++ = 0;
     *dstp = dst;
-    xfree (s);
+    xfree (s2);
 }
 
 uae_u32 restore_u32_func (uae_u8 **dstp)
@@ -221,6 +221,7 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, TCHAR *name,
     uae_u32 flags;
     size_t pos;
     size_t chunklen, len2;
+    char *s;
 
     if (!chunk)
 	return;
@@ -231,7 +232,9 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, TCHAR *name,
     }
 
     /* chunk name */
-    zfile_fwrite (name, 1, 4, f);
+    s = ua (name);
+    zfile_fwrite (s, 1, 4, f);
+    xfree (s);
     pos = zfile_ftell (f);
     /* chunk size */
     dst = &tmp[0];
@@ -384,7 +387,7 @@ static void restore_header (uae_u8 *src)
     emuversion = restore_string ();
     description = restore_string ();
     write_log (L"Saved with: '%s %s', description: '%s'\n",
-	emuname,emuversion,description);
+	emuname, emuversion, description);
     xfree (description);
     xfree (emuversion);
     xfree (emuname);

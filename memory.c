@@ -2632,6 +2632,30 @@ struct zfile *read_rom_name (const TCHAR *filename)
     return f;
 }
 
+
+static void kickstart_fix_checksum (uae_u8 *mem, int size)
+{
+    uae_u32 cksum = 0, prevck = 0;
+    int i, ch = size == 524288 ? 0x7ffe8 : 0x3e;
+
+    mem[ch] = 0;
+    mem[ch + 1] = 0;
+    mem[ch + 2] = 0;
+    mem[ch + 3] = 0;
+    for (i = 0; i < size; i+=4) {
+	uae_u32 data = (mem[i] << 24) | (mem[i + 1] << 16) | (mem[i + 2] << 8) | mem[i + 3];
+	cksum += data;
+	if (cksum < prevck)
+	    cksum++;
+	prevck = cksum;
+    }
+    cksum ^= 0xffffffff;
+    mem[ch++] = cksum >> 24;
+    mem[ch++] = cksum >> 16;
+    mem[ch++] = cksum >> 8;
+    mem[ch++] = cksum >> 0;
+}
+
 static uae_char *kickstring = "exec.library";
 static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksum, int noalias)
 {
@@ -2663,14 +2687,31 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
     }
 
     memset (mem, 0, size);
+    for (i = 0; i < 8; i++)
+	mem[size - 16 + i * 2 + 1] = 0x18 + i;
+    mem[size - 20] = size >> 24;
+    mem[size - 19] = size >> 16;
+    mem[size - 18] = size >>  8;
+    mem[size - 17] = size >>  0;
+
     i = zfile_fread (mem, 1, size, f);
+
     if (kickdisk && i > 262144)
 	i = 262144;
-
+#if 0
     if (i >= 262144 && (i != 262144 && i != 524288 && i != 524288 * 2 && i != 524288 * 4)) {
 	notify_user (NUMSG_KSROMREADERROR);
 	return 0;
     }
+#endif
+    if (i < size - 20)
+	kickstart_fix_checksum (mem, size);
+
+    j = 1;
+    while (j < i)
+	j <<= 1;
+    i = j;
+
     if (!noalias && i == size / 2)
 	memcpy (mem + size / 2, mem, size / 2);
 
@@ -2748,29 +2789,6 @@ static int load_extendedkickstart (void)
     extendedkickmem_mask = extendedkickmem_size - 1;
     zfile_fclose (f);
     return 1;
-}
-
-static void kickstart_fix_checksum (uae_u8 *mem, int size)
-{
-    uae_u32 cksum = 0, prevck = 0;
-    int i, ch = size == 524288 ? 0x7ffe8 : 0x3e;
-
-    mem[ch] = 0;
-    mem[ch + 1] = 0;
-    mem[ch + 2] = 0;
-    mem[ch + 3] = 0;
-    for (i = 0; i < size; i+=4) {
-	uae_u32 data = (mem[i] << 24) | (mem[i + 1] << 16) | (mem[i + 2] << 8) | mem[i + 3];
-	cksum += data;
-	if (cksum < prevck)
-	    cksum++;
-	prevck = cksum;
-    }
-    cksum ^= 0xffffffff;
-    mem[ch++] = cksum >> 24;
-    mem[ch++] = cksum >> 16;
-    mem[ch++] = cksum >> 8;
-    mem[ch++] = cksum >> 0;
 }
 
 static int patch_shapeshifter (uae_u8 *kickmemory)
@@ -3575,7 +3593,7 @@ void memory_reset (void)
 	map_banks (&rtarea_bank, rtarea_base >> 16, 1, 0);
 #endif
 
-    if ((cloanto_rom || currprefs.cs_ksmirror_e0) && !currprefs.maprom && !extendedkickmem_type)
+    if ((cloanto_rom || currprefs.cs_ksmirror_e0) && (currprefs.maprom != 0xe00000) && !extendedkickmem_type)
 	map_banks (&kickmem_bank, 0xE0, 8, 0);
     if (currprefs.cs_ksmirror_a8) {
 	if (extendedkickmem2_size) {

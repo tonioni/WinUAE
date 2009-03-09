@@ -1,4 +1,17 @@
 
+Beta 16:
+
+- multiple unicode conversion issues fixed, hardfile/drive issues,
+  clipboard text conversion, statefiles etc..
+- automatically add KS rom "footer" if rom is too short (for my own
+  rom project, more information later...)
+- unrar.dll support fixed and uses now unicode functions
+- all text file reading routines now automatically support UTF-8 and
+  UTF-16LE formats if BOM is included (plain files only, not inside
+  archives yet)
+- directory filesystem seek 2G test added, 64-bit seek function return
+  code fix
+
 Beta 15:
 
 - WinUAE is now native unicode application (internally all strings are

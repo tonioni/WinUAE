@@ -2799,7 +2799,7 @@ uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen)
 uae_u8 *restore_configuration (uae_u8 *src)
 {
     TCHAR *s = au (src);
-    write_log (s);
+    //write_log (s);
     xfree (s);
     src += strlen (src) + 1;
     return src;

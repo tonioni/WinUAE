@@ -844,7 +844,7 @@ typedef uae_u8 *dpacket;
 #define GET_PCK_ARG5(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp_Arg5))))
 
 #define PUT_PCK64_RES0(p,v) do { do_put_mem_long ((uae_u32 *)((p) + dp64_Res0), (v)); } while (0)
-#define PUT_PCK64_RES1(p,v) do { do_put_mem_long ((uae_u32 *)((p) + dp64_Res1), ((v) >> 32)); do_put_mem_long ((uae_u32 *)((p) + dp64_Res1 + 4), ((uae_u32)v)); } while (0)
+#define PUT_PCK64_RES1(p,v) do { do_put_mem_long ((uae_u32 *)((p) + dp64_Res1), (((uae_u64)v) >> 32)); do_put_mem_long ((uae_u32 *)((p) + dp64_Res1 + 4), ((uae_u32)v)); } while (0)
 #define PUT_PCK64_RES2(p,v) do { do_put_mem_long ((uae_u32 *)((p) + dp64_Res2), (v)); } while (0)
 
 #define GET_PCK64_TYPE(p) ((uae_s32)(do_get_mem_long ((uae_u32 *)((p) + dp64_Type))))
@@ -2754,7 +2754,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
 #ifdef HAVE_ST_BLOCKS
     put_long (info + 128, statbuf.st_blocks);
 #else
-    put_long (info + 128, (statbuf.st_size > MAXFILESIZE32 ? MAXFILESIZE32 : statbuf.st_size) / 512 + 1);
+    put_long (info + 128, (statbuf.st_size + 511) / 512);
 #endif
     get_time (statbuf.st_mtime, &days, &mins, &ticks);
     put_long (info + 132, days);
@@ -3735,7 +3735,7 @@ action_seek (Unit *unit, dpacket packet)
     }
     res = fs_lseek (unit, k->fd, pos, whence);
 
-    if (-1 == res) {
+    if (-1 == res || res > MAXFILESIZE32) {
 	PUT_PCK_RES1 (packet, res);
 	PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
     } else
@@ -4479,7 +4479,7 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
 	PUT_PCK64_RES2 (packet, ERROR_SEEK_ERROR);
     } else {
 	PUT_PCK64_RES1 (packet, TRUE);
-        PUT_PCK64_RES2 (packet, DOS_TRUE);
+        PUT_PCK64_RES2 (packet, 0);
     }
     k->file_pos = res;
 
@@ -4498,7 +4498,7 @@ static void action_get_file_position64 (Unit *unit, dpacket packet)
     }
     TRACE((L"ACTION_GET_FILE_POSITION64(%s)\n", k->aino->nname));
     PUT_PCK64_RES1 (packet, k->file_pos);
-    PUT_PCK64_RES2 (packet, DOS_TRUE);
+    PUT_PCK64_RES2 (packet, 0);
 }
 
 static void action_change_file_size64 (Unit *unit, dpacket packet)
@@ -4549,7 +4549,7 @@ static void action_change_file_size64 (Unit *unit, dpacket packet)
     }
 
     PUT_PCK64_RES1 (packet, DOS_TRUE);
-    PUT_PCK64_RES2 (packet, TRUE);
+    PUT_PCK64_RES2 (packet, 0);
 }
 
 
@@ -4572,7 +4572,7 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 	if (filesize >= 0) {
 	    fs_lseek64 (unit, k->fd, old, SEEK_SET);
 	    PUT_PCK64_RES1 (packet, filesize);
-	    PUT_PCK64_RES2 (packet, DOS_TRUE);
+	    PUT_PCK64_RES2 (packet, 0);
 	    return;
 	}
     }
@@ -5313,7 +5313,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	    bufrdb[0xdd] = 0;
 	    bufrdb[0xde] = 0;
 	    bufrdb[0xdf] = 0;
-	    if (rdb_checksum (L"RDSK", bufrdb, rdblock)) {
+	    if (rdb_checksum ("RDSK", bufrdb, rdblock)) {
 		write_log (L"Windows 95/98/ME trashed RDB detected, fixing..\n");
 		hdf_write (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
 		break;
@@ -5507,13 +5507,14 @@ static void addfakefilesys (uaecptr parmpacket, uae_u32 dostype)
 static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 {
     int i, size;
-    TCHAR tmp[1024];
+    TCHAR tmp[MAX_DPATH];
+    uae_u8 buf[512];
     struct zfile *zf;
     uae_u32 dostype, fsres, fsnode;
 
-    memset (tmp, 0, 4);
-    hdf_read (&uip->hf, tmp, 0, 512);
-    dostype = (tmp[0] << 24) | (tmp[1] << 16) |(tmp[2] << 8) | tmp[3];
+    memset (buf, 0, 4);
+    hdf_read (&uip->hf, buf, 0, 512);
+    dostype = (buf[0] << 24) | (buf[1] << 16) |(buf[2] << 8) | buf[3];
     if (dostype == 0)
 	return FILESYS_HARDFILE;
     fsres = get_long (parmpacket + PP_FSRES);
@@ -5531,7 +5532,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
     }
 
     tmp[0] = 0;
-    if (uip->filesysdir && _tcslen(uip->filesysdir) > 0) {
+    if (uip->filesysdir && _tcslen (uip->filesysdir) > 0) {
 	_tcscpy (tmp, uip->filesysdir);
     } else if ((dostype & 0xffffff00) == 0x444f5300) {
 	_tcscpy (tmp, currprefs.romfile);

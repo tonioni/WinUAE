@@ -7,6 +7,7 @@ struct zfile {
     uae_u64 size;
     uae_u64 seek;
     int deleteafterclose;
+    int textmode;
     struct zfile *next;
 };
 

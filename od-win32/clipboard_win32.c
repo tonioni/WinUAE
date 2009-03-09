@@ -65,17 +65,17 @@ static void to_amiga_start (void)
     uae_Signal (get_long (clipboard_data + 8), 1 << 13);
 }
 
-static TCHAR *pctoamiga (const TCHAR *txt)
+static uae_char *pctoamiga (const uae_char *txt)
 {
     int len;
-    TCHAR *txt2;
+    uae_char *txt2;
     int i, j;
 
-    len = _tcslen (txt) + 1;
-    txt2 = xmalloc (len * sizeof (TCHAR));
+    len = strlen (txt) + 1;
+    txt2 = xmalloc (len);
     j = 0;
     for (i = 0; i < len; i++) {
-	TCHAR c = txt[i];
+	uae_char c = txt[i];
 	if (c == 13)
 	    continue;
 	txt2[j++] = c;
@@ -83,7 +83,7 @@ static TCHAR *pctoamiga (const TCHAR *txt)
     return txt2;
 }
 
-static int parsecsi (const uae_u8 *txt, int off, int len)
+static int parsecsi (const uae_char *txt, int off, int len)
 {
     while (off < len) {
 	if (txt[off] >= 0x40)
@@ -104,7 +104,7 @@ static TCHAR *amigatopc (const uae_u8 *txt)
     cnt = 0;
     len = strlen (txt) + 1;
     for (i = 0; i < len; i++) {
-	TCHAR c = txt[i];
+	uae_char c = txt[i];
 	if (c == 13)
 	    pc = 1;
 	if (c == 10)
@@ -115,7 +115,7 @@ static TCHAR *amigatopc (const uae_u8 *txt)
     txt2 = xcalloc (len + cnt, 1);
     j = 0;
     for (i = 0; i < len; i++) {
-	uae_u8 c = txt[i];
+	uae_char c = txt[i];
 	if (c == 0 && i + 1 < len)
 	    continue;
 	if (c == 10)
@@ -140,11 +140,11 @@ static void to_iff_text (TCHAR *pctxt)
     uae_u8 b[] = { 'F','O','R','M',0,0,0,0,'F','T','X','T','C','H','R','S',0,0,0,0 };
     uae_u32 size;
     int txtlen;
-    TCHAR *txt;
+    uae_char *txt;
     char *s;
 
-    txt = pctoamiga (pctxt);
-    s = ua (txt);
+    s = ua (pctxt);
+    txt = pctoamiga (s);
     txtlen = strlen (s);
     xfree (to_amiga);
     size = txtlen + sizeof b + (txtlen & 1) - 8;
@@ -160,7 +160,7 @@ static void to_iff_text (TCHAR *pctxt)
     to_amiga_size = sizeof b + txtlen + (txtlen & 1);
     to_amiga = xcalloc (to_amiga_size, 1);
     memcpy (to_amiga, b, sizeof b);
-    memcpy (to_amiga + sizeof b, s, txtlen);
+    memcpy (to_amiga + sizeof b, txt, txtlen);
     to_amiga_start ();
     xfree (txt);
     xfree (s);
@@ -676,14 +676,14 @@ static void clipboard_read (HWND hwnd)
     write_log (L"clipboard: windows clipboard: ");
     while (f = EnumClipboardFormats (f)) {
 	write_log (L"%d ", f);
-	if (f == CF_TEXT)
+	if (f == CF_UNICODETEXT)
 	    text = TRUE;
 	if (f == CF_BITMAP)
 	    bmp = TRUE;
     }
     write_log (L"\n");
     if (text) {
-	hglb = GetClipboardData (CF_TEXT); 
+	hglb = GetClipboardData (CF_UNICODETEXT); 
 	if (hglb != NULL) { 
 	    TCHAR *lptstr = GlobalLock (hglb); 
 	    if (lptstr != NULL) {
@@ -755,7 +755,7 @@ static int clipboard_put_text_real (const TCHAR *txt)
 	TCHAR *lptstr = GlobalLock (hglb);
 	_tcscpy (lptstr, txt);
 	GlobalUnlock (hglb);
-	SetClipboardData (CF_TEXT, hglb); 
+	SetClipboardData (CF_UNICODETEXT, hglb); 
 	ret = TRUE;
     }
     CloseClipboard ();

@@ -2925,11 +2925,11 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
     int i, j;
 
     for (i = 0; i < 8; i++){
-	f_out (f, L"  LD%d %08lX ", i, m68k_dreg (&regs, i));
+	f_out (f, L"  D%d %08lX ", i, m68k_dreg (&regs, i));
 	if ((i & 3) == 3) f_out (f, L"\n");
     }
     for (i = 0; i < 8; i++){
-	f_out (f, L"  LA%d %08lX ", i, m68k_areg (&regs, i));
+	f_out (f, L"  A%d %08lX ", i, m68k_areg (&regs, i));
 	if ((i & 3) == 3) f_out (f, L"\n");
     }
     if (regs.s == 0) regs.usp = m68k_areg (&regs, 7);

@@ -140,6 +140,7 @@ extern int my_truncate (const TCHAR *name, uae_u64 len);
 extern int dos_errno (void);
 extern int my_existsfile (const TCHAR *name);
 extern int my_existsdir (const TCHAR *name);
+extern FILE *my_opentext (const TCHAR*);
 
 extern char *custom_fsdb_search_dir (const char *dirname, TCHAR *rel);
 extern a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const TCHAR *aname);

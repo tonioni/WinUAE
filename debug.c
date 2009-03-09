@@ -746,7 +746,7 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
     uae_u32 insn_type = insn & 0x00010001;
     int hpos, vpos;
     TCHAR here = ' ';
-    TCHAR record[] = L"          L";
+    TCHAR record[] = L"          ";
     if (find_copper_record (addr, &hpos, &vpos)) {
 	_stprintf (record, L" [%03x %03x]", vpos, hpos);
     }

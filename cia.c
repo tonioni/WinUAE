@@ -590,10 +590,12 @@ static void bfe001_change (void)
     }
     if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
 	oldovl = v & 1;
-	if (!oldovl || ersatzkickfile)
+	if (!oldovl || ersatzkickfile) {
 	    map_overlay (1);
-	else
+	} else {
+	    //activate_debugger ();
 	    map_overlay (0);
+	}
     }
 }
 
@@ -610,7 +612,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
     switch (addr & 0xf) {
     case 0:
 #ifdef ACTION_REPLAY
-	action_replay_ciaread();
+	action_replay_ciaread ();
 #endif
 	tmp = DISK_status() & 0x3c;
 	tmp |= handle_joystick_buttons (ciaadra);
@@ -1151,7 +1153,6 @@ void CIA_reset (void)
 	ersatz_chipcopy ();
     else
 	map_overlay (0);
-    oldovl = 1;
 #ifdef SERIAL_PORT
     if (currprefs.use_serial && !savestate_state)
 	serial_dtr_off (); /* Drop DTR at reset */

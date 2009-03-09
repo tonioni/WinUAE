@@ -519,7 +519,12 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode)
     } else {
 	l = zfile_create ();
 	l->name = my_strdup (name);
-	f = _tfopen (l->name, mode);
+	if (!_tcsicmp (mode, L"r")) {
+	    f = my_opentext (l->name);
+	    l->textmode = 1;
+	} else {
+	    f = _tfopen (l->name, mode);
+	}
 	if (!f) {
 	    zfile_fclose (l);
 	    return 0;

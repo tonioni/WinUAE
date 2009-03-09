@@ -882,11 +882,11 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	return 0;
     }
     zfile_fread (buffer, 1, 11, f);
-    if (!memcmp (buffer, L"KICK", 4)) {
+    if (!memcmp (buffer, "KICK", 4)) {
 	zfile_fseek (f, 512, SEEK_SET);
 	if (size > 262144)
 	    size = 262144;
-    } else if (!memcmp (buffer, L"AMIROMTYPE1", 11)) {
+    } else if (!memcmp (buffer, "AMIROMTYPE1", 11)) {
 	cl = 1;
 	size -= 11;
     } else {
@@ -1299,7 +1299,7 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
     _tcscpy (fname, filename);
     if (!zfile_exists (fname)) {
 	fetch_configurationpath (fname, sizeof (fname) / sizeof (TCHAR));
-	if (memcmp(fname, filename, _tcslen (fname)))
+	if (_tcsncmp (fname, filename, _tcslen (fname)))
 	    _tcscat (fname, filename);
 	else
 	    _tcscpy (fname, filename);
@@ -2181,7 +2181,7 @@ static struct ConfigStruct *readconfigcache (const TCHAR *path)
     err = 0;
     first = NULL;
     getconfigcache (cachepath, path);
-    zcache = _tfopen (cachepath, L"r");
+    zcache = my_opentext (cachepath);
     if (!zcache)
 	return NULL;
     if (!configurationcache) {
@@ -2967,7 +2967,7 @@ void InitializeListView (HWND hDlg)
 		_tcscpy (devname_str, L"n/a");
 		_tcscpy (volname_str, L"n/a");
 		_tcscpy (bootpri_str, L"n/a");
-		if (!memcmp (rootdir, L"HD_", 3))
+		if (!_tcsncmp (rootdir, L"HD_", 3))
 		    rootdir += 3;
 	    } else {
 		_tcscpy (blocksize_str, L"n/a");
@@ -7493,9 +7493,9 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 	return;
     zfile_fread (tmp, 1, sizeof (tmp), f);
     zfile_fclose (f);
-    if (!memcmp (tmp + 2, L"CIS", 3))
+    if (!memcmp (tmp + 2, "CIS", 3))
 	hdf->controller = HD_CONTROLLER_PCMCIA_SRAM;
-    if (!memcmp (tmp, L"RDSK\0\0\0", 7)) {
+    if (!memcmp (tmp, "RDSK\0\0\0", 7)) {
 	hdf->sectors = 0;
 	hdf->surfaces = 0;
 	hdf->reserved = 0;

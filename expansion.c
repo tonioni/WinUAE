@@ -329,7 +329,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	if (expamem_type () == zorroII) {
 	    expamem_hi = value;
 	    (*card_map[ecard]) ();
-	    write_log (L"   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
+	    write_log (L"   Card %d (Zorro%s) done.\n", ecard + 1, expamem_type () == 0xc0 ? L"II" : L"III");
 	    ++ecard;
 	    if (ecard < cardno)
 		(*card_init[ecard]) ();
@@ -345,7 +345,7 @@ static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 	break;
 
      case 0x4c:
-	write_log (L"   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type () == 0xc0 ? "II" : "III");
+	write_log (L"   Card %d (Zorro%s) had no success.\n", ecard + 1, expamem_type () == 0xc0 ? L"II" : L"III");
 	++ecard;
 	if (ecard < cardno)
 	    (*card_init[ecard]) ();
