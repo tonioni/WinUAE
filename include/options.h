@@ -369,10 +369,22 @@ struct uae_prefs {
 /* Contains the filename of .uaerc */
 extern TCHAR optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
-extern void cfgfile_write (struct zfile *, TCHAR *format,...);
-extern void cfgfile_dwrite (struct zfile *, TCHAR *format,...);
-extern void cfgfile_target_write (struct zfile *, TCHAR *format,...);
-extern void cfgfile_target_dwrite (struct zfile *, TCHAR *format,...);
+
+extern void cfgfile_write (struct zfile *, TCHAR *option, TCHAR *format,...);
+extern void cfgfile_dwrite (struct zfile *, TCHAR *option, TCHAR *format,...);
+extern void cfgfile_target_write (struct zfile *, TCHAR *option, TCHAR *format,...);
+extern void cfgfile_target_dwrite (struct zfile *, TCHAR *option, TCHAR *format,...);
+
+extern void cfgfile_write_bool (struct zfile *f, TCHAR *option, int b);
+extern void cfgfile_dwrite_bool (struct zfile *f, TCHAR *option, int b);
+extern void cfgfile_target_write_bool (struct zfile *f, TCHAR *option, int b);
+extern void cfgfile_target_dwrite_bool (struct zfile *f, TCHAR *option, int b);
+
+extern void cfgfile_write_str (struct zfile *f, TCHAR *option, const TCHAR *value);
+extern void cfgfile_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value);
+extern void cfgfile_target_write_str (struct zfile *f, TCHAR *option, const TCHAR *value);
+extern void cfgfile_target_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value);
+
 extern void cfgfile_backup (const TCHAR *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			TCHAR *devname, TCHAR *volname, TCHAR *rootdir, int readonly,

@@ -1848,7 +1848,7 @@ void toggle_mousegrab (void)
 #define LOG_BOOT L"winuaebootlog.txt"
 #define LOG_NORMAL L"winuaelog.txt"
 
-void logging_open(int bootlog, int append)
+void logging_open (int bootlog, int append)
 {
     TCHAR debugfilename[MAX_DPATH];
 
@@ -1867,7 +1867,7 @@ void logging_open(int bootlog, int append)
 
 typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 
-void logging_init(void)
+void logging_init (void)
 {
     LPFN_ISWOW64PROCESS fnIsWow64Process;
     int wow64 = 0;
@@ -2089,54 +2089,54 @@ static const TCHAR *scsimode[] = { L"none", L"SPTI", L"SPTI+SCSISCAN", L"Adaptec
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
-    cfgfile_target_dwrite (f, L"middle_mouse=%s\n", p->win32_middle_mouse ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"logfile=%s\n", p->win32_logfile ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"map_drives=%s\n", p->win32_automount_drives ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"map_drives_auto=%s\n", p->win32_automount_removable ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"map_cd_drives=%s\n", p->win32_automount_cddrives ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"map_net_drives=%s\n", p->win32_automount_netdrives ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"map_removable_drives=%s\n", p->win32_automount_removabledrives ? L"true" : L"false");
+    cfgfile_target_dwrite_bool (f, L"middle_mouse", p->win32_middle_mouse);
+    cfgfile_target_dwrite_bool (f, L"logfile", p->win32_logfile);
+    cfgfile_target_dwrite_bool (f, L"map_drives", p->win32_automount_drives);
+    cfgfile_target_dwrite_bool (f, L"map_drives_auto", p->win32_automount_removable);
+    cfgfile_target_dwrite_bool (f, L"map_cd_drives", p->win32_automount_cddrives);
+    cfgfile_target_dwrite_bool (f, L"map_net_drives", p->win32_automount_netdrives);
+    cfgfile_target_dwrite_bool (f, L"map_removable_drives", p->win32_automount_removabledrives);
     serdevtoname (p->sername);
-    cfgfile_target_dwrite (f, L"serial_port=%s\n", p->sername[0] ? p->sername : L"none");
+    cfgfile_target_dwrite_str (f, L"serial_port", p->sername[0] ? p->sername : L"none");
     sernametodev (p->sername);
-    cfgfile_target_dwrite (f, L"parallel_port=%s\n", p->prtname[0] ? p->prtname : L"none");
+    cfgfile_target_dwrite_str (f, L"parallel_port", p->prtname[0] ? p->prtname : L"none");
 
-    cfgfile_target_dwrite (f, L"active_priority=%d\n", priorities[p->win32_active_priority].value);
-    cfgfile_target_dwrite (f, L"inactive_priority=%d\n", priorities[p->win32_inactive_priority].value);
-    cfgfile_target_dwrite (f, L"inactive_nosound=%s\n", p->win32_inactive_nosound ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"inactive_pause=%s\n", p->win32_inactive_pause ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"iconified_priority=%d\n", priorities[p->win32_iconified_priority].value);
-    cfgfile_target_dwrite (f, L"iconified_nosound=%s\n", p->win32_iconified_nosound ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"iconified_pause=%s\n", p->win32_iconified_pause ? L"true" : L"false");
+    cfgfile_target_dwrite (f, L"active_priority", L"%d", priorities[p->win32_active_priority].value);
+    cfgfile_target_dwrite (f, L"inactive_priority", L"%d", priorities[p->win32_inactive_priority].value);
+    cfgfile_target_dwrite_bool (f, L"inactive_nosound", p->win32_inactive_nosound);
+    cfgfile_target_dwrite_bool (f, L"inactive_pause", p->win32_inactive_pause);
+    cfgfile_target_dwrite (f, L"iconified_priority", L"%d", priorities[p->win32_iconified_priority].value);
+    cfgfile_target_dwrite_bool (f, L"iconified_nosound", p->win32_iconified_nosound);
+    cfgfile_target_dwrite_bool (f, L"iconified_pause", p->win32_iconified_pause);
 
-    cfgfile_target_dwrite (f, L"ctrl_f11_is_quit=%s\n", p->win32_ctrl_F11_is_quit ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"midiout_device=%d\n", p->win32_midioutdev);
-    cfgfile_target_dwrite (f, L"midiin_device=%d\n", p->win32_midiindev);
-    cfgfile_target_dwrite (f, L"rtg_match_depth=%s\n", p->win32_rtgmatchdepth ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"rtg_scale_small=%s\n", p->win32_rtgscaleifsmall ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"rtg_scale_allow=%s\n", p->win32_rtgallowscaling ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"rtg_scale_aspect_ratio=%d:%d\n",
+    cfgfile_target_dwrite_bool (f, L"ctrl_f11_is_quit", p->win32_ctrl_F11_is_quit);
+    cfgfile_target_dwrite (f, L"midiout_device", L"%d", p->win32_midioutdev);
+    cfgfile_target_dwrite (f, L"midiin_device", L"%d", p->win32_midiindev);
+    cfgfile_target_dwrite_bool (f, L"rtg_match_depth", p->win32_rtgmatchdepth);
+    cfgfile_target_dwrite_bool (f, L"rtg_scale_small", p->win32_rtgscaleifsmall);
+    cfgfile_target_dwrite_bool (f, L"rtg_scale_allow", p->win32_rtgallowscaling);
+    cfgfile_target_dwrite (f, L"rtg_scale_aspect_ratio", L"%d:%d",
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
 	p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
     if (p->win32_rtgvblankrate <= 0)
-	cfgfile_target_dwrite (f, L"rtg_vblank=%s\n", p->win32_rtgvblankrate == -1 ? L"real" : (p->win32_rtgvblankrate == -2 ? L"disabled" : L"chipset"));
+	cfgfile_target_dwrite_str (f, L"rtg_vblank", p->win32_rtgvblankrate == -1 ? L"real" : (p->win32_rtgvblankrate == -2 ? L"disabled" : L"chipset"));
     else
-	cfgfile_target_dwrite (f, L"rtg_vblank=%d\n", p->win32_rtgvblankrate);
-    cfgfile_target_dwrite (f, L"borderless=%s\n", p->win32_borderless ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"uaescsimode=%s\n", scsimode[p->win32_uaescsimode]);
-    cfgfile_target_dwrite (f, L"soundcard=%d\n", p->win32_soundcard);
+	cfgfile_target_dwrite (f, L"rtg_vblank", L"%d", p->win32_rtgvblankrate);
+    cfgfile_target_dwrite_bool (f, L"borderless", p->win32_borderless);
+    cfgfile_target_dwrite_str (f, L"uaescsimode", scsimode[p->win32_uaescsimode]);
+    cfgfile_target_dwrite (f, L"soundcard", L"%d", p->win32_soundcard);
     if (sound_devices[p->win32_soundcard].cfgname)
-	cfgfile_target_dwrite (f, L"soundcardname=%s\n", sound_devices[p->win32_soundcard].cfgname);
-    cfgfile_target_dwrite (f, L"cpu_idle=%d\n", p->cpu_idle);
-    cfgfile_target_dwrite (f, L"notaskbarbutton=%s\n", p->win32_notaskbarbutton ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"always_on_top=%s\n", p->win32_alwaysontop ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"no_recyclebin=%s\n", p->win32_norecyclebin ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"specialkey=0x%x\n", p->win32_specialkey);
+	cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard].cfgname);
+    cfgfile_target_dwrite (f, L"cpu_idle", L"%d", p->cpu_idle);
+    cfgfile_target_dwrite_bool (f, L"notaskbarbutton", p->win32_notaskbarbutton);
+    cfgfile_target_dwrite_bool (f, L"always_on_top", p->win32_alwaysontop);
+    cfgfile_target_dwrite_bool (f, L"no_recyclebin", p->win32_norecyclebin);
+    cfgfile_target_dwrite (f, L"specialkey", L"0x%x", p->win32_specialkey);
     if (p->win32_guikey >= 0)
-	cfgfile_target_dwrite (f, L"guikey=0x%x\n", p->win32_guikey);
-    cfgfile_target_dwrite (f, L"kbledmode=%d\n", p->win32_kbledmode);
-    cfgfile_target_dwrite (f, L"powersavedisabled=%s\n", p->win32_powersavedisabled ? L"true" : L"false");
-    cfgfile_target_dwrite (f, L"filesystem_codepage=%d\n", p->win32_fscodepage);
+	cfgfile_target_dwrite (f, L"guikey", L"0x%x", p->win32_guikey);
+    cfgfile_target_dwrite (f, L"kbledmode", L"%d", p->win32_kbledmode);
+    cfgfile_target_dwrite_bool (f, L"powersavedisabled", p->win32_powersavedisabled);
+    cfgfile_target_dwrite (f, L"filesystem_codepage", L"%d", p->win32_fscodepage);
 
 }
 
@@ -2234,7 +2234,7 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	return 1;
     }
 
-    if (cfgfile_string (option, value, L"rtg_scale_aspect_ratio", tmpbuf, sizeof tmpbuf) / sizeof (TCHAR)) {
+    if (cfgfile_string (option, value, L"rtg_scale_aspect_ratio", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 	int v1, v2;
 	TCHAR *s;
 	
@@ -3942,6 +3942,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 	__time64_t now;
 
 	if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
+	    TCHAR beta[100];
 	    TCHAR *slash = _tcsrchr (path, '\\');
 	    _time64 (&now);
 	    when = *_localtime64 (&now);
@@ -3955,8 +3956,11 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		p = slash + 1;
 	    else
 		p = path2;
-	    _stprintf (p, L"winuae_%d%d%d%d_%d%02d%02d_%02d%02d%02d.dmp",
-		UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEBETA,
+	    beta[0] = 0;
+	    if (WINUAEPUBLICBETA > 0)
+		_stprintf (beta, L"b%s", WINUAEBETA);
+	    _stprintf (p, L"winuae_%d%d%d%s_%d%02d%02d_%02d%02d%02d.dmp",
+		UAEMAJOR, UAEMINOR, UAESUBREV, beta,
 		when.tm_year + 1900, when.tm_mon + 1, when.tm_mday, when.tm_hour, when.tm_min, when.tm_sec);
 	    if (dll == NULL)
 		dll = WIN32_LoadLibrary (L"DBGHELP.DLL");

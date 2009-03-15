@@ -436,12 +436,14 @@ static void copyjport (const struct uae_prefs *src, struct uae_prefs *dst, int n
 
 static void out_config (struct zfile *f, int id, int num, TCHAR *s1, TCHAR *s2)
 {
-    cfgfile_write (f, L"input.%d.%s%d=%s\n", id, s1, num, s2);
+    TCHAR tmp[MAX_DPATH];
+    _stprintf (tmp, L"input.%d.%s%d", id, s1, num);
+    cfgfile_write_str (f, tmp, s2);
 }
 
 static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR *tmp1, struct uae_input_device *id)
 {
-    TCHAR tmp2[200], *p;
+    TCHAR tmp2[200], tmp3[200], *p;
     int evt, got, j, k;
     TCHAR *custom;
 
@@ -470,41 +472,53 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 	    _stprintf (p, L"%s.%d", events[evt].confname, id->flags[i + offset][j]);
 	p += _tcslen (p);
     }
-    if (p > tmp2)
-	cfgfile_write (f, L"input.%d.%s%d=%s\n", idnum, tmp1, i, tmp2);
+    if (p > tmp2) {
+	_stprintf (tmp3, L"input.%d.%s%d", idnum, tmp1, i);
+	cfgfile_write_str (f, tmp3, tmp2);
+    }
 }
 
 static struct inputdevice_functions *getidf (int devnum);
 
 static void write_config (struct zfile *f, int idnum, int devnum, TCHAR *name, struct uae_input_device *id, struct uae_input_device2 *id2, struct inputdevice_functions *idf)
 {
-    TCHAR tmp1[MAX_DPATH], *s;
+    TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH], *s;
     int i;
 
     if (!isdevice (id)) {
-	cfgfile_write (f, L"input.%d.%s.%d.empty=true\n", idnum, name, devnum);
-	if (id->enabled)
-	    cfgfile_write (f, L"input.%d.%s.%d.disabled=%d\n", idnum, name, devnum, id->enabled ? 0 : 1);
+	_stprintf (tmp2, L"input.%d.%s.%d.empty", idnum, name, devnum);
+	cfgfile_write_bool (f, tmp2, 1);
+	if (id->enabled) {
+	    _stprintf (tmp2, L"input.%d.%s.%d.disabled", idnum, name, devnum);
+	    cfgfile_write (f, tmp2, L"%d", id->enabled ? 0 : 1);
+	}
 	return;
     }
-    cfgfile_write (f, L"input.%d.%s.%d.empty=false\n", idnum, name, devnum);
-    cfgfile_write (f, L"input.%d.%s.%d.disabled=%d\n", idnum, name, devnum, id->enabled ? 0 : 1);
+
+    _stprintf (tmp2, L"input.%d.%s.%d.empty", idnum, name, devnum);
+    cfgfile_write_bool (f, tmp2, 0);
+    _stprintf (tmp2, L"input.%d.%s.%d.disabled", idnum, name, devnum);
+    cfgfile_write (f, tmp2, L"%d", id->enabled ? 0 : 1);
 
     s = NULL;
     if (id->name)
 	s = id->name;
     else if (devnum < idf->get_num ())
 	s = idf->get_friendlyname (devnum);
-    if (s)
-        cfgfile_write (f, L"input.%d.%s.%d.friendlyname=%s\n", idnum, name, devnum, s);
+    if (s) {
+	_stprintf (tmp2, L"input.%d.%s.%d.friendlyname", idnum, name, devnum);
+        cfgfile_write_str (f, tmp2, s);
+    }
 
     s = NULL;
     if (id->configname)
         s = id->configname;
     else if (devnum < idf->get_num ())
 	s = idf->get_uniquename (devnum);
-    if (s)
-        cfgfile_write (f, L"input.%d.%s.%d.name=%s\n", idnum, name, devnum, s);
+    if (s) {
+	_stprintf (tmp2, L"input.%d.%s.%d.name", idnum, name, devnum);
+        cfgfile_write_str (f, tmp2, s);
+    }
 
     _stprintf (tmp1, L"%s.%d.axis.", name, devnum);
     for (i = 0; i < ID_AXIS_TOTAL; i++)
@@ -525,7 +539,7 @@ static void kbrlabel (TCHAR *s)
 
 static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae_input_device *kbr, struct inputdevice_functions *idf)
 {
-    TCHAR tmp1[200], tmp2[200], tmp3[200], *p;
+    TCHAR tmp1[200], tmp2[200], tmp3[200], tmp4[200], *p;
     int i, j, k, evt, skip;
 
     if (!keyboard_default)
@@ -580,7 +594,8 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	_stprintf (tmp3, L"%d", kbr->extra[i][0]);
 	kbrlabel (tmp3);
 	_stprintf (tmp1, L"keyboard.%d.button.%s", devnum, tmp3);
-	cfgfile_write (f, L"input.%d.%s=%s\n", idnum, tmp1, tmp2[0] ? tmp2 : L"NULL");
+	_stprintf (tmp4, L"input.%d.%s", idnum, tmp1);
+	cfgfile_write_str (f, tmp4, tmp2[0] ? tmp2 : L"NULL");
 	i++;
     }
 }
@@ -589,15 +604,15 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 {
     int i, id;
 
-    cfgfile_write (f, L"input.config=%d\n", p->input_selected_setting);
-    cfgfile_write (f, L"input.joymouse_speed_analog=%d\n", p->input_joymouse_multiplier);
-    cfgfile_write (f, L"input.joymouse_speed_digital=%d\n", p->input_joymouse_speed);
-    cfgfile_write (f, L"input.joymouse_deadzone=%d\n", p->input_joymouse_deadzone);
-    cfgfile_write (f, L"input.joystick_deadzone=%d\n", p->input_joystick_deadzone);
-    cfgfile_write (f, L"input.analog_joystick_multiplier=%d\n", p->input_analog_joystick_mult);
-    cfgfile_write (f, L"input.analog_joystick_offset=%d\n", p->input_analog_joystick_offset);
-    cfgfile_write (f, L"input.mouse_speed=%d\n", p->input_mouse_speed);
-    cfgfile_write (f, L"input.autofire=%d\n", p->input_autofire_framecnt);
+    cfgfile_write (f, L"input.config", L"%d", p->input_selected_setting);
+    cfgfile_write (f, L"input.joymouse_speed_analog", L"%d", p->input_joymouse_multiplier);
+    cfgfile_write (f, L"input.joymouse_speed_digital", L"%d", p->input_joymouse_speed);
+    cfgfile_write (f, L"input.joymouse_deadzone", L"%d", p->input_joymouse_deadzone);
+    cfgfile_write (f, L"input.joystick_deadzone", L"%d", p->input_joystick_deadzone);
+    cfgfile_write (f, L"input.analog_joystick_multiplier", L"%d", p->input_analog_joystick_mult);
+    cfgfile_write (f, L"input.analog_joystick_offset", L"%d", p->input_analog_joystick_offset);
+    cfgfile_write (f, L"input.mouse_speed", L"%d", p->input_mouse_speed);
+    cfgfile_write (f, L"input.autofire", L"%d", p->input_autofire_framecnt);
     for (id = 1; id <= MAX_INPUT_SETTINGS; id++) {
 	for (i = 0; i < MAX_INPUT_DEVICES; i++)
 	    write_config (f, id, i, L"joystick", &p->joystick_settings[id][i], &joysticks2[i], &idev[IDTYPE_JOYSTICK]);

@@ -364,6 +364,7 @@ int reginitializeinit (const TCHAR *ppath)
     uae_u8 crc[20];
     int s, v1, v2, v3;
     TCHAR path[MAX_DPATH], fpath[MAX_PATH];
+    FILE *f;
 
     if (!ppath) {
 	int ok = 0;
@@ -425,6 +426,12 @@ fail:
 	DeleteFile (path);
     if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
 	goto end;
+    f = _tfopen (path, L"wb");
+    if (f) {
+	uae_u8 bom[3] = { 0xef, 0xbb, 0xbf };
+	fwrite (bom, sizeof (bom), 1, f);
+	fclose (f);
+    }
     r = regcreatetree (NULL, L"Warning");
     if (!r)
 	goto end;

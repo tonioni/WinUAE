@@ -238,6 +238,8 @@ extern char *ua_copy (char *dst, int maxlen, const TCHAR *src);
 extern TCHAR *au_copy (TCHAR *dst, int maxlen, const char *src);
 extern char *uacp_copy (char *dst, int maxlen, const TCHAR *src, unsigned int cp);
 extern TCHAR *aucp_copy (TCHAR *dst, int maxlen, const char *src, unsigned int cp);
+extern char *uutf8 (const TCHAR *s);
+extern TCHAR *utf8u (const char *s);
 
 extern void *xmalloc (size_t);
 extern void *xcalloc (size_t, size_t);
@@ -350,13 +352,12 @@ struct direct
 /* These are prototypes for functions from the Win32 posixemu file */
 extern void get_time (time_t t, long* days, long* mins, long* ticks);
 extern time_t put_time (long days, long mins, long ticks);
-extern DWORD getattr (const TCHAR *name, LPFILETIME lpft, size_t *size);
 
 /* #define DONT_HAVE_POSIX - don't need all of Mathias' posixemu_functions, just a subset (below) */
 #define chmod(a,b) posixemu_chmod ((a), (b))
 extern int posixemu_chmod (const TCHAR *, int);
 #define stat(a,b) posixemu_stat ((a), (b))
-extern int posixemu_stat (const TCHAR *, struct stat *);
+extern int posixemu_stat (const TCHAR *, struct _stat64 *);
 #define mkdir(x,y) mkdir(x)
 #define truncate posixemu_truncate
 extern int posixemu_truncate (const TCHAR *, long int);

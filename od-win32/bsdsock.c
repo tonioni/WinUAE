@@ -2268,7 +2268,7 @@ kludge:
 		if (!sb->hostent) {
 			write_log (L"BSDSOCK: WARNING - gethostby%s() ran out of Amiga memory "
 				L"(couldn't allocate %ld bytes) while returning result of lookup for '%s'\n",
-				addrtype == -1 ? "name" : "addr", size, name_rp);
+				addrtype == -1 ? L"name" : L"addr", size, name_rp);
 			bsdsocklib_seterrno(sb, 12); // ENOMEM
 			return;
 		}

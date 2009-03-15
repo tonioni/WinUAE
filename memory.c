@@ -2770,9 +2770,10 @@ static int load_extendedkickstart (void)
 	extendedkickmem_type = EXTENDED_ROM_CDTV;
     } else if (size > 300000) {
 	extendedkickmem_type = EXTENDED_ROM_CD32;
-    } else {
+    } else if (need_uae_boot_rom () != 0xf00000) {
 	extendedkickmem_type = EXTENDED_ROM_CDTV;
-    }
+    } else
+	return 0;
 
     zfile_fseek (f, off, SEEK_SET);
     switch (extendedkickmem_type) {

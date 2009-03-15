@@ -1283,7 +1283,7 @@ static int fsdb_cando (Unit *unit)
 static void prepare_for_open (TCHAR *name)
 {
 #if 0
-    struct stat statbuf;
+    struct _stat64 statbuf;
     int mode;
 
     if (-1 == stat (name, &statbuf))
@@ -1558,8 +1558,8 @@ static a_inode *lookup_aino (Unit *unit, uae_u32 uniq)
 
 TCHAR *build_nname (const TCHAR *d, const TCHAR *n)
 {
-    TCHAR dsep[2] = { FSDB_DIR_SEPARATOR, '\0' };
-    TCHAR *p = xmalloc ((_tcslen (d) + _tcslen (n) + 2) * sizeof (TCHAR));
+    TCHAR dsep[2] = { FSDB_DIR_SEPARATOR, 0 };
+    TCHAR *p = xmalloc ((_tcslen (d) + 1 + _tcslen (n) + 1) * sizeof (TCHAR));
     _tcscpy (p, d);
     _tcscat (p, dsep);
     _tcscat (p, n);
@@ -1568,7 +1568,7 @@ TCHAR *build_nname (const TCHAR *d, const TCHAR *n)
 
 TCHAR *build_aname (const TCHAR *d, const TCHAR *n)
 {
-    TCHAR *p = xmalloc ((_tcslen (d) + _tcslen (n) + 2) * sizeof (TCHAR));
+    TCHAR *p = xmalloc ((_tcslen (d) + 1 + _tcslen (n) + 1) * sizeof (TCHAR));
     _tcscpy (p, d);
     _tcscat (p, L"/");
     _tcscat (p, n);
@@ -2720,7 +2720,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
     if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
 	zfile_stat_archive (aino->nname, &statbuf);
     else
-	_wstat64 (aino->nname, &statbuf);
+	stat (aino->nname, &statbuf);
 
     if (aino->parent == 0) {
 	/* Guru book says ST_ROOT = 1 (root directory, not currently used)
@@ -2837,11 +2837,11 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
     char *x = NULL, *comment = NULL;
     int ret = 0;
 
-    memset(&statbuf, 0, sizeof statbuf);
+    memset (&statbuf, 0, sizeof statbuf);
     if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
 	zfile_stat_archive (aino->nname, &statbuf);
     else
-	_wstat64 (aino->nname, &statbuf);
+	stat (aino->nname, &statbuf);
 
     if (aino->parent == 0) {
 	entrytype = 2;
@@ -3515,7 +3515,7 @@ action_find_write (Unit *unit, dpacket packet)
 /* change file/dir's parent dir modification time */
 static void updatedirtime (a_inode *a1, int now)
 {
-    struct stat statbuf;
+    struct _stat64 statbuf;
     struct utimbuf ut;
     long days, mins, ticks;
 
@@ -3598,7 +3598,7 @@ action_read (Unit *unit, dpacket packet)
 	    k->file_pos += actual;
 	}
     } else {
-	TCHAR *buf;
+	uae_u8 *buf;
 	off_t old, filesize;
 
 	write_log (L"unixfs warning: Bad pointer passed for read: %08x, size %d\n", addr, size);
@@ -3696,8 +3696,8 @@ action_seek (Unit *unit, dpacket packet)
     Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
     long pos = (uae_s32)GET_PCK_ARG2 (packet);
     long mode = (uae_s32)GET_PCK_ARG3 (packet);
-    off_t res;
-    long old;
+    uae_s64 res;
+    uae_s64 old;
     int whence = SEEK_CUR;
 
     if (k == 0) {
@@ -3716,8 +3716,8 @@ action_seek (Unit *unit, dpacket packet)
 
     old = fs_lseek (unit, k->fd, 0, SEEK_CUR);
     {
-	uae_s32 temppos;
-	long filesize = fs_lseek (unit, k->fd, 0, SEEK_END);
+	uae_s64 temppos;
+	uae_s64 filesize = fs_lseek64 (unit, k->fd, 0, SEEK_END);
 	fs_lseek (unit, k->fd, old, SEEK_SET);
 
 	if (whence == SEEK_CUR)
@@ -3733,13 +3733,16 @@ action_seek (Unit *unit, dpacket packet)
 	    return;
 	}
     }
-    res = fs_lseek (unit, k->fd, pos, whence);
+    res = fs_lseek64 (unit, k->fd, pos, whence);
 
-    if (-1 == res || res > MAXFILESIZE32) {
-	PUT_PCK_RES1 (packet, res);
+    if (-1 == res || old > MAXFILESIZE32) {
+	PUT_PCK_RES1 (packet, -1);
 	PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
-    } else
+	fs_lseek64 (unit, k->fd, old, SEEK_SET);
+	res = old;
+    } else {
 	PUT_PCK_RES1 (packet, old);
+    }
     k->file_pos = res;
 }
 
@@ -4440,7 +4443,7 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
     PUT_PCK64_RES0 (packet, DP64_INIT);
 
     if (k == 0) {
-	PUT_PCK64_RES1 (packet, (uae_s64)-1);
+	PUT_PCK64_RES1 (packet, DOS_FALSE);
 	PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 	return;
     }
@@ -4475,13 +4478,13 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
     res = fs_lseek64 (unit, k->fd, pos, whence);
 
     if (-1 == res) {
-	PUT_PCK64_RES1 (packet, res);
+	PUT_PCK64_RES1 (packet, DOS_FALSE);
 	PUT_PCK64_RES2 (packet, ERROR_SEEK_ERROR);
     } else {
 	PUT_PCK64_RES1 (packet, TRUE);
         PUT_PCK64_RES2 (packet, 0);
+        k->file_pos = res;
     }
-    k->file_pos = res;
 
 }
 
@@ -4492,7 +4495,7 @@ static void action_get_file_position64 (Unit *unit, dpacket packet)
     PUT_PCK64_RES0 (packet, DP64_INIT);
 
     if (k == 0) {
-	PUT_PCK64_RES1 (packet, (uae_s64)-1);
+	PUT_PCK64_RES1 (packet, DOS_FALSE);
 	PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 	return;
     }
@@ -4519,7 +4522,7 @@ static void action_change_file_size64 (Unit *unit, dpacket packet)
 
     k = lookup_key (unit, GET_PCK64_ARG1 (packet));
     if (k == 0) {
-	PUT_PCK64_RES1 (packet, DOS_TRUE);
+	PUT_PCK64_RES1 (packet, DOS_FALSE);
 	PUT_PCK64_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
 	return;
     }
@@ -4561,7 +4564,7 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
     PUT_PCK64_RES0 (packet, DP64_INIT);
 
     if (k == 0) {
-	PUT_PCK64_RES1 (packet, (uae_s64)-1);
+	PUT_PCK64_RES1 (packet, DOS_FALSE);
 	PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 	return;
     }
@@ -4576,7 +4579,7 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 	    return;
 	}
     }
-    PUT_PCK64_RES1 (packet, (uae_s64)-1);
+    PUT_PCK64_RES1 (packet, DOS_FALSE);
     PUT_PCK64_RES2 (packet, ERROR_SEEK_ERROR);
 }
 
@@ -5815,7 +5818,7 @@ static a_inode *restore_filesys_get_base (Unit *u, TCHAR *npath)
     /* iterate from root to last to previous path part,
      * create ainos if not already created.
      */
-    path = xcalloc((_tcslen(npath) + 2) * sizeof (TCHAR), 1);
+    path = xcalloc((_tcslen (npath) + 2) * sizeof (TCHAR), 1);
     cnt = 1;
     for (;;) {
 	_tcscpy (path, npath);
@@ -5978,7 +5981,7 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
     Key *k;
 
     missing = 0;
-    k = xcalloc (sizeof(Key), 1);
+    k = xcalloc (sizeof (Key), 1);
     k->uniq = restore_u64 ();
     k->file_pos = restore_u32 ();
     k->createmode = restore_u32 ();

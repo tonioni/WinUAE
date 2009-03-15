@@ -4,6 +4,35 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+char *uutf8 (const WCHAR *s)
+{
+    char *d;
+    int len;
+
+    if (s == NULL)
+	return NULL;
+    len = WideCharToMultiByte (CP_UTF8, 0, s, -1, NULL, 0, 0, FALSE);
+    if (!len)
+	return strdup ("");
+    d = xmalloc (len + 1);
+    WideCharToMultiByte (CP_UTF8, 0, s, -1, d, len, 0, FALSE);
+    return d;
+}
+WCHAR *utf8u (const char *s)
+{
+    WCHAR *d;
+    int len;
+
+    if (s == NULL)
+	return NULL;
+    len = MultiByteToWideChar (CP_UTF8, MB_PRECOMPOSED, s, -1, NULL, 0);
+    if (!len)
+	return xcalloc (2, 1);
+    d = xmalloc ((len + 1) * sizeof (WCHAR));
+    MultiByteToWideChar (CP_UTF8, MB_PRECOMPOSED, s, -1, d, len);
+    return d;
+}
+
 static char *ua_2 (const WCHAR *s, UINT cp)
 {
     char *d;

@@ -155,7 +155,7 @@ static void writeconsole (const TCHAR *buffer)
     if (!consoleopen)
 	openconsole();
     if (consoleopen > 0)
-	WriteOutput (buffer, _tcslen(buffer));
+	WriteOutput (buffer, _tcslen (buffer));
     else if (consoleopen < 0)
 	WriteConsole (stdoutput, buffer, _tcslen (buffer), &temp,0);
 }
@@ -280,7 +280,7 @@ void write_log (const TCHAR *format, ...)
     va_list parms;
 
     EnterCriticalSection (&cs);
-    va_start(parms, format);
+    va_start (parms, format);
     bufp = buffer;
     for (;;) {
 	count = _vsntprintf (bufp, bufsize - 1, format, parms);
@@ -288,7 +288,7 @@ void write_log (const TCHAR *format, ...)
 	    bufsize *= 10;
 	    if (bufp != buffer)
 		xfree (bufp);
-    	    bufp = xmalloc (bufsize);
+    	    bufp = xmalloc (bufsize * sizeof (TCHAR));
 	    continue;
 	}
 	break;

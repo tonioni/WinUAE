@@ -400,9 +400,9 @@ static int catweasel4_configure (void)
 #include <setupapi.h>
 #include <cfgmgr32.h>
 
-#define PCI_CW_MK3 "PCI\\VEN_E159&DEV_0001&SUBSYS_00021212"
-#define PCI_CW_MK4 "PCI\\VEN_E159&DEV_0001&SUBSYS_00035213"
-#define PCI_CW_MK4_BUG "PCI\\VEN_E159&DEV_0001&SUBSYS_00025213"
+#define PCI_CW_MK3 L"PCI\\VEN_E159&DEV_0001&SUBSYS_00021212"
+#define PCI_CW_MK4 L"PCI\\VEN_E159&DEV_0001&SUBSYS_00035213"
+#define PCI_CW_MK4_BUG L"PCI\\VEN_E159&DEV_0001&SUBSYS_00025213"
 
 extern int os_winnt;
 int force_direct_catweasel;
@@ -426,13 +426,13 @@ static int direct_detect(void)
 	    TCHAR devID[MAX_DEVICE_ID_LEN];
 	    if(CM_Get_Device_ID_Ex(devInfo.DevInst,devID,MAX_DEVICE_ID_LEN,0,devInfoListDetail.RemoteMachineHandle)!=CR_SUCCESS)
 		devID[0] = TEXT('\0');
-	    if (!memcmp (devID, PCI_CW_MK3, strlen (PCI_CW_MK3))) {
+	    if (!_tcsncmp (devID, PCI_CW_MK3, _tcslen (PCI_CW_MK3))) {
 		if (cw > 3)
 		    break;
 		cw = 3;
 	    }
-	    if (!memcmp (devID, PCI_CW_MK4, strlen (PCI_CW_MK4)) ||
-		!memcmp (devID, PCI_CW_MK4_BUG, strlen (PCI_CW_MK4_BUG)))
+	    if (!_tcsncmp (devID, PCI_CW_MK4, _tcslen (PCI_CW_MK4)) ||
+		!_tcsncmp (devID, PCI_CW_MK4_BUG, _tcslen (PCI_CW_MK4_BUG)))
 		cw = 4;
 	    if (cw) {
 		SP_DEVINFO_LIST_DETAIL_DATA devInfoListDetail;
@@ -521,7 +521,7 @@ static int detected;
 
 int catweasel_init(void)
 {
-    TCHAR name[32], tmp[1000];
+    TCHAR name[32], tmp[1000], *s;
     int i, len;
     uae_u8 buffer[10000];
     uae_u32 model, base;
@@ -586,12 +586,14 @@ int catweasel_init(void)
 
     if (!cwc.direct_type) {
 	if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	    write_log (L"CW: CW_GET_VERSION failed %d\n", GetLastError());
+	    write_log (L"CW: CW_GET_VERSION failed %d\n", GetLastError ());
 	    goto fail;
 	}
-	write_log (L"CW driver version string '%s'\n", buffer);
+	s = au (buffer);
+	write_log (L"CW driver version string '%s'\n", s);
+	xfree (s);
 	if (!DeviceIoControl (handle, CW_GET_HWVERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-	    write_log (L"CW: CW_GET_HWVERSION failed %d\n", GetLastError());
+	    write_log (L"CW: CW_GET_HWVERSION failed %d\n", GetLastError ());
 	    goto fail;
 	}
 	write_log (L"CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n",
@@ -638,7 +640,7 @@ int catweasel_init(void)
 
     //catweasel_init_controller(&cwc);
     _stprintf (tmp, L"CW: Catweasel MK%d @%p (%s) enabled. %s.",
-	cwc.type, (uae_u8*)cwc.iobase, name, cwc.direct_access ? "DIRECTIO": "API");
+	cwc.type, (uae_u8*)cwc.iobase, name, cwc.direct_access ? L"DIRECTIO": L"API");
     if (cwc.direct_access) {
 	if (cwc.can_sid) {
 	    TCHAR *p = tmp + _tcslen (tmp);

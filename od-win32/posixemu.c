@@ -58,7 +58,7 @@ void gettimeofday (struct timeval *tv, void *blah)
 #define secs_per_day (24 * 60 * 60)
 #define diff ((8 * 365 + 2) * secs_per_day)
 
-static void get_time(time_t t, long *days, long *mins, long *ticks)
+static void get_time (time_t t, long *days, long *mins, long *ticks)
 {
     /* time_t is secs since 1-1-1970 */
     /* days since 1-1-1978 */
@@ -73,12 +73,12 @@ static void get_time(time_t t, long *days, long *mins, long *ticks)
     *ticks = t * 50;
 }
 
-static DWORD getattr(const TCHAR *name, LPFILETIME lpft, size_t *size)
+static DWORD getattr (const TCHAR *name, LPFILETIME lpft, uae_u64 *size)
 {
     HANDLE hFind;
     WIN32_FIND_DATA fd;
 
-    if ((hFind = FindFirstFile (name,&fd)) == INVALID_HANDLE_VALUE) {
+    if ((hFind = FindFirstFile (name, &fd)) == INVALID_HANDLE_VALUE) {
 	fd.dwFileAttributes = GetFileAttributes (name);
 	return fd.dwFileAttributes;
     }
@@ -87,17 +87,17 @@ static DWORD getattr(const TCHAR *name, LPFILETIME lpft, size_t *size)
     if (lpft)
 	*lpft = fd.ftLastWriteTime;
     if (size)
-	*size = fd.nFileSizeLow;
+	*size = (((uae_u64)fd.nFileSizeHigh) << 32) | fd.nFileSizeLow;
 
     return fd.dwFileAttributes;
 }
 
-int posixemu_stat(const TCHAR *name, struct stat *statbuf)
+int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 {
     DWORD attr;
     FILETIME ft, lft;
 
-    if ((attr = getattr (name,&ft,(size_t*)&statbuf->st_size)) == (DWORD)~0) {
+    if ((attr = getattr (name, &ft, &statbuf->st_size)) == (DWORD)~0) {
 	return -1;
     } else {
 	statbuf->st_mode = (attr & FILE_ATTRIBUTE_READONLY) ? FILEFLAG_READ : FILEFLAG_READ | FILEFLAG_WRITE;
@@ -111,19 +111,19 @@ int posixemu_stat(const TCHAR *name, struct stat *statbuf)
     return 0;
 }
 
-int posixemu_chmod(const TCHAR *name, int mode)
+int posixemu_chmod (const TCHAR *name, int mode)
 {
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     if (!(mode & FILEFLAG_WRITE))
 	attr |= FILE_ATTRIBUTE_READONLY;
     if (mode & FILEFLAG_ARCHIVE)
 	attr |= FILE_ATTRIBUTE_ARCHIVE;
-    if (SetFileAttributes(name,attr))
+    if (SetFileAttributes (name,attr))
 	return 1;
     return -1;
 }
 
-static void tmToSystemTime(struct tm *tmtime, LPSYSTEMTIME systime)
+static void tmToSystemTime (struct tm *tmtime, LPSYSTEMTIME systime)
 {
     if (tmtime == NULL) {
 	GetSystemTime (systime);

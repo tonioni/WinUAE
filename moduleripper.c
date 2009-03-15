@@ -82,34 +82,37 @@ void moduleripper (void)
     xfree (buf);
 }
 
-FILE *moduleripper_fopen (const char *name, const char *mode)
+FILE *moduleripper_fopen (const char *aname, const char *amode)
 {
     TCHAR tmp2[MAX_DPATH];
     TCHAR tmp[MAX_DPATH];
-    TCHAR *ufn, *umode;
+    TCHAR *name, *mode;
     FILE *f;
 
     fetch_ripperpath (tmp, sizeof tmp);
-    ufn = au (name);
-    umode = au (mode);
-    _stprintf (tmp2, L"%s%s", tmp, ufn);
-    f = _tfopen (tmp2, umode);
-    xfree (umode);
-    xfree (ufn);
+    name = au (aname);
+    mode = au (amode);
+    _stprintf (tmp2, L"%s%s", tmp, name);
+    f = _tfopen (tmp2, mode);
+    xfree (mode);
+    xfree (name);
     return f;
 }
 
-FILE *moduleripper2_fopen (const char *name, const char *mode, const char *id, int addr, int size)
+FILE *moduleripper2_fopen (const char *name, const char *mode, const char *aid, int addr, int size)
 {
     TCHAR msg[MAX_DPATH], msg2[MAX_DPATH];
+    TCHAR *id;
     int ret;
 
     if (canceled)
 	return NULL;
     got++;
     translate_message (NUMSG_MODRIP_SAVE, msg);
+    id = au (aid);
     _stprintf (msg2, msg, id, addr, size);
     ret = gui_message_multibutton (2, msg2);
+    xfree (id);
     if (ret < 0)
 	canceled = 1;
     if (ret < 0 || ret != 1)

@@ -1,4 +1,15 @@
 
+Beta 17: (even more fixes. do not use b15 or b16)
+
+- module ripper text conversion fixed
+- winuae.ini UTF-8 support (only new ones are created in UTF-8)
+- ACTION_READ with "illegal" length or address crashed (b15)
+- catweasel log information string wrong encoding fixed
+- ACTION_SEEK 2G limit and 64-bit filesystem packet fixes
+- configuration file handling bugs fixed (b15)
+- directory filesystem date field ignored timezone (b15)
+- crash dump file naming fixed (old bug)
+
 Beta 16:
 
 - multiple unicode conversion issues fixed, hardfile/drive issues,

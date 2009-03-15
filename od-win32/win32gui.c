@@ -6209,9 +6209,9 @@ static void misc_scsi(HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI");
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI + SCSI SCAN");
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? "AdaptecASPI" : "(AdaptecASPI)"));
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? "NeroASPI" : "(NeroASPI)"));
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(2)) ? "FrogASPI" : "(FrogASPI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? L"AdaptecASPI" : L"(AdaptecASPI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? L"NeroASPI" : L"(NeroASPI)"));
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(2)) ? L"FrogASPI" : L"(FrogASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode - 1, 0);
 }
 

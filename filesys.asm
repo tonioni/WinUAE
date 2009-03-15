@@ -2193,7 +2193,16 @@ cfloop2
 	jsr -$01bc(a6) ;OpenDevice
 	tst.l d0
 	bne.s cfloop2
-
+	move.l 20(a4),a0 ;device node
+	cmp.w #37,20(a0) ;must be at least v37
+	bcc.s cfversion
+	;too lazy free everything..
+cfloop3
+	moveq #0,d0
+	jsr -$013e(a6)
+	bra.s cfloop3
+	
+cfversion
 	move.w #$FF38,d0
 	moveq #15,d1
 	bsr.w getrtbase
