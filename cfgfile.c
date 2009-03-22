@@ -178,11 +178,11 @@ static const TCHAR *obsolete[] = {
 
 #define UNEXPANDED L"$(FILE_PATH)"
 
-static void trimws (TCHAR *s)
+static void trimwsa (char *s)
 {
     /* Delete trailing whitespace.  */
-    int len = _tcslen (s);
-    while (len > 0 && _tcscspn (s + len - 1, L"\t \r\n") == 0)
+    int len = strlen (s);
+    while (len > 0 && strcspn (s + len - 1, "\t \r\n") == 0)
         s[--len] = '\0';
 }
 
@@ -237,24 +237,49 @@ static size_t cfg_write (void *b, struct zfile *z)
     } else {
 	char lf = 10;
 	char *s = ua (b);
-	v = zfile_fwrite (s, strlen(s), 1, z);
+	v = zfile_fwrite (s, strlen (s), 1, z);
 	zfile_fwrite (&lf, 1, 1, z);
 	xfree (s);
     }
     return v;
 }
 
+#define UTF8NAME L".utf8"
+
 static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *value, int d, int target)
 {
+    char lf = 10;
     TCHAR tmp[CONFIG_BLEN];
+    char tmpa[CONFIG_BLEN];
+    char *tmp1, *tmp2;
+    int utf8;
+    
+    utf8 = 0;
+    tmp1 = ua (value);
+    tmp2 = uutf8 (value);
+    if (strcmp (tmp1, tmp2))
+	utf8 = 1;
 
     if (target)
 	_stprintf (tmp, L"%s.%s=%s", TARGET_NAME, option, value);
     else
 	_stprintf (tmp, L"%s=%s", option, value);
     if (d && isdefault (tmp))
-	return;
+	goto end;
     cfg_write (tmp, f);
+    if (utf8 && !unicode_config) {
+	char *opt = ua (option);
+	if (target)
+	    sprintf (tmpa, "%s.%s.utf8=%s", TARGET_NAME, opt, tmp2);
+	else
+	    sprintf (tmpa, "%s.utf8=%s", opt, tmp2);
+	xfree (opt);
+	zfile_fwrite (tmpa, strlen (tmpa), 1, f);
+	zfile_fwrite (&lf, 1, 1, f);
+    }
+end:
+    xfree (tmp2);
+    xfree (tmp1);
 }
 
 void cfgfile_write_bool (struct zfile *f, TCHAR *option, int b)
@@ -1828,6 +1853,54 @@ int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int 
     return 0;
 }
 
+static int isutf8ext (TCHAR *s)
+{
+    if (_tcslen (s) > _tcslen (UTF8NAME) && !_tcscmp (s + _tcslen (s) - _tcslen (UTF8NAME), UTF8NAME)) {
+	s[_tcslen (s) - _tcslen (UTF8NAME)] = 0;
+	return 1;
+    }
+    return 0;
+}
+
+static int cfgfile_separate_linea (char *line, TCHAR *line1b, TCHAR *line2b)
+{
+    char *line1, *line2;
+    int i;
+
+    line1 = line;
+    line2 = strchr (line, '=');
+    if (! line2) {
+	TCHAR *s = au (line1);
+	write_log (L"CFGFILE: linea was incomplete with only %s\n", s);
+	xfree (s);
+	return 0;
+    }
+    *line2++ = '\0';
+
+    /* Get rid of whitespace.  */
+    i = strlen (line2);
+    while (i > 0 && (line2[i - 1] == '\t' || line2[i - 1] == ' '
+		     || line2[i - 1] == '\r' || line2[i - 1] == '\n'))
+	line2[--i] = '\0';
+    line2 += strspn (line2, "\t \r\n");
+
+    i = strlen (line);
+    while (i > 0 && (line[i - 1] == '\t' || line[i - 1] == ' '
+		     || line[i - 1] == '\r' || line[i - 1] == '\n'))
+	line[--i] = '\0';
+    line += strspn (line, "\t \r\n");
+    au_copy (line1b, MAX_DPATH, line);
+    if (isutf8ext (line1b)) {
+	TCHAR *s = utf8u (line2);
+	_tcscpy (line2b, s);
+	xfree (s);
+    } else {
+        au_copy (line2b, MAX_DPATH, line2);
+    }
+
+    return 1;
+}
+
 static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 {
     TCHAR *line1, *line2;
@@ -1840,8 +1913,6 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 	return 0;
     }
     *line2++ = '\0';
-    _tcscpy (line1b, line1);
-    _tcscpy (line2b, line2);
 
     /* Get rid of whitespace.  */
     i = _tcslen (line2);
@@ -1856,6 +1927,8 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 	line[--i] = '\0';
     line += _tcsspn (line, L"\t \r\n");
     _tcscpy (line1b, line);
+    if (isutf8ext (line1b))
+	return 0;
     return 1;
 }
 
@@ -1924,7 +1997,7 @@ static void subst (TCHAR *p, TCHAR *f, int n)
     free (str);
 }
 
-static TCHAR *cfg_fgets (TCHAR *line, int max, struct zfile *fh)
+static char *cfg_fgets (char *line, int max, struct zfile *fh)
 {
 #ifdef SINGLEFILE
     extern TCHAR singlefile_config[];
@@ -1933,7 +2006,7 @@ static TCHAR *cfg_fgets (TCHAR *line, int max, struct zfile *fh)
 #endif
 
     if (fh)
-	return zfile_fgets (line, max, fh);
+	return zfile_fgetsa (line, max, fh);
 #ifdef SINGLEFILE
     if (sfile_ptr == 0) {
 	sfile_ptr = singlefile_config;
@@ -1964,6 +2037,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
 {
     int i;
     struct zfile *fh;
+    char linea[CONFIG_BLEN];
     TCHAR line[CONFIG_BLEN], line1b[CONFIG_BLEN], line2b[CONFIG_BLEN];
     struct strlist *sl;
     int type1 = 0, type2 = 0, askedtype = 0;
@@ -1984,12 +2058,12 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
 	return 0;
 #endif
 
-    while (cfg_fgets (line, sizeof (line) / sizeof (TCHAR), fh) != 0) {
-	trimws (line);
-	if (_tcslen (line) > 0) {
-	    if (line[0] == '#' || line[0] == ';')
+    while (cfg_fgets (linea, sizeof (linea), fh) != 0) {
+	trimwsa (linea);
+	if (strlen (linea) > 0) {
+	    if (linea[0] == '#' || linea[0] == ';')
 		continue;
-	    if (!cfgfile_separate_line (line, line1b, line2b))
+	    if (!cfgfile_separate_linea (linea, line1b, line2b))
 		continue;
 	    type1 = type2 = 0;
 	    if (cfgfile_yesno (line1b, line2b, L"config_hardware", &type1) ||

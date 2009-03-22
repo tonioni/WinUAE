@@ -222,7 +222,6 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
     _tcsncpy ((TCHAR*)(buf + 604), aino->nname, 256);
     _tcsncpy ((TCHAR*)(buf + 1118), nn, 256);
     aino->has_dbentry = 0;
-    aino->dirty = 0;
 }
 
 static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)

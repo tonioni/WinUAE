@@ -239,9 +239,9 @@ BEGIN
     PUSHBUTTON      "Eject",IDC_EJECT3,253,110,30,15
     PUSHBUTTON      "...",IDC_DF3,287,109,10,15
     GROUPBOX        "New Floppy Disk Image",IDC_SETTINGSTEXT,5,183,289,49
-    COMBOBOX        IDC_FLOPPYTYPE,16,197,51,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Create Standard Disk [] Creates a standard 880 or 1760 KB ADF disk image.",IDC_CREATE,77,196,97,15
-    PUSHBUTTON      "Create Custom Disk [] Creates a low level (MFM) ADF disk image (about 2MB). Useful for programs that use non-standard disk formats (for example some save disks or DOS-formatted floppies)",IDC_CREATE_RAW,183,196,101,15
+    COMBOBOX        IDC_FLOPPYTYPE,12,197,64,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Create Standard Disk [] Creates a standard 880 or 1760 KB ADF disk image.",IDC_CREATE,81,196,97,15
+    PUSHBUTTON      "Create Custom Disk [] Creates a low level (MFM) ADF disk image (about 2MB). Useful for programs that use non-standard disk formats (for example some save disks or DOS-formatted floppies)",IDC_CREATE_RAW,187,196,101,15
     GROUPBOX        "Floppy Drive Emulation Speed",IDC_SETTINGSTEXT2,5,144,289,35
     CONTROL         "",IDC_FLOPPYSPD,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,32,154,116,20
     EDITTEXT        IDC_FLOPPYSPDTEXT,183,157,101,12,ES_CENTER | ES_READONLY
@@ -249,7 +249,7 @@ BEGIN
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE1,43,40,70,15,NOT WS_VISIBLE
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE2,43,75,70,15,NOT WS_VISIBLE
     PUSHBUTTON      "Delete save image",IDC_SAVEIMAGE3,43,110,70,15,NOT WS_VISIBLE
-    EDITTEXT        IDC_CREATE_NAME,77,215,97,13,ES_AUTOHSCROLL
+    EDITTEXT        IDC_CREATE_NAME,81,215,97,13,ES_AUTOHSCROLL
     RTEXT           "Disk label:",IDC_STATIC,15,216,52,10,SS_CENTERIMAGE
     CONTROL         "DF0:",IDC_DF0ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,6,34,15
     CONTROL         "DF1:",IDC_DF1ENABLE,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,3,41,34,15
@@ -1423,6 +1423,12 @@ BEGIN
     IDS_QS_MODEL_A3000      "1.4 ROM, 2MB Chip + 8MB Fast\n\n2.04 ROM, 2MB Chip + 8MB Fast\n\n3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000      "68030, 3.1 ROM, 2MB Chip + 8MB Fast\n\n68040, 3.1 ROM, 2MB Chip + 8MB Fast\n"
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_FLOPPYTYPE35DDPC    "3.5"" DD (PC)"
+    IDS_FLOPPYTYPE35HDPC    "3.5"" HD (PC)"
 END
 
 #endif    // English (U.S.) resources

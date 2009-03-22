@@ -3205,10 +3205,10 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     /* fix for "bitplane dma fetch at the same time while updating BPLxPTL" */
     /* fixes "3v Demo" by Cave and "New Year Demo" by Phoenix */
-    if (is_bitplane_dma (hpos) == num + 1 || is_bitplane_dma (hpos - 1) == num + 1) {
+    if (is_bitplane_dma (hpos) == num + 1 || is_bitplane_dma (hpos - 1) == num + 1 || is_bitplane_dma (hpos + 1) == num + 1) {
 	delta = 2 << f_fetchmode;
     }
-    bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
+    f_bplpt[num] = bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     bplptx[num] = (bplptx[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     //write_log (L"%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
 }

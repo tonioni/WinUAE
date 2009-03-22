@@ -101,7 +101,7 @@ static void OutputCurrHistNode(HWND hWnd)
 
     if (currhist->command) {
 	txtlen = GetWindowTextLength(hWnd);
-	buf = malloc(txtlen + 1);
+	buf = xmalloc((txtlen + 1) * sizeof (TCHAR));
 	GetWindowText(hWnd, buf, txtlen + 1);
 	if (_tcscmp(buf, currhist->command)) {
 	    SetWindowText(hWnd, currhist->command);
@@ -241,9 +241,8 @@ void WriteOutput(const TCHAR *out, int len)
 	    pos = p - tmp + 1;
 	    if (pos > (MAX_LINEWIDTH + 1))
 		pos = MAX_LINEWIDTH + 1;
-	    buf = xmalloc(pos + 2);
-	    memset(buf, 0, pos + 2);
-	    _tcsncmp(buf, tmp, pos - 1);
+	    buf = xcalloc(pos + 2, sizeof (TCHAR));
+	    _tcsncpy(buf, tmp, pos - 1);
 	    _tcscat(buf, linebreak);
 	} else if (_tcslen(tmp) == 0) {
 	    leave = 1;
@@ -252,9 +251,8 @@ void WriteOutput(const TCHAR *out, int len)
 	    index = SendMessage(hOutput, EM_LINEINDEX, count - 1, 0);
 	    txtlen = SendMessage(hOutput, EM_LINELENGTH, index, 0);
 	    if (_tcslen(tmp) + txtlen > MAX_LINEWIDTH) {
-		buf = xmalloc(MAX_LINEWIDTH + 3 - txtlen);
-		memset(buf, 0, MAX_LINEWIDTH + 3 - txtlen);
-		_tcsncmp(buf, tmp, MAX_LINEWIDTH - txtlen);
+		buf = xcalloc(MAX_LINEWIDTH + 3 - txtlen, sizeof (TCHAR));
+		_tcsncpy(buf, tmp, MAX_LINEWIDTH - txtlen);
 		_tcscat(buf, linebreak);
 	    }
 	    leave = 1;
@@ -1020,12 +1018,12 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 	if (acceptinput) {
 		int index = dbgpage[currpage].selection, id = GetDlgCtrlID(hwnd);
 		if (id == IDC_DBG_DREG) {
-			_tcsncmp(hexstr + 2, txt, 8);
+			_tcsncpy(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
 			m68k_dreg(&regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
 		else if (id == IDC_DBG_AREG) {
-			_tcsncmp(hexstr + 2, txt, 8);
+			_tcsncpy(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
 			m68k_areg(&regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
@@ -1048,14 +1046,14 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 				bytes = 16;
 			}
 			else if (id == IDC_DBG_MEM || id == IDC_DBG_MEM2) {
-				_tcsncmp(hexstr + 2, tmp, 8);
+				_tcsncpy(hexstr + 2, tmp, 8);
 				hexstr[10] = '\0';
 				addr = _tcstoul(hexstr, NULL, 0);
 				offset = 9;
 				bytes = 16;
 			}
 			else if (id == IDC_DBG_DASM || id == IDC_DBG_DASM2) {
-				_tcsncmp(hexstr + 2, tmp, 8);
+				_tcsncpy(hexstr + 2, tmp, 8);
 				hexstr[10] = '\0';
 				addr = _tcstoul(hexstr, NULL, 0);
 				bytes = 0;
@@ -1235,7 +1233,7 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 			ListboxEndEdit(hwnd, FALSE);
 			return;
 		}
-		_tcsncmp(tmp, txt + offset, length);
+		_tcsncpy(tmp, txt + offset, length);
 		tmp[length] = '\0';
 		radjust = GetTextSize(hwnd, tmp, TRUE);
 	}
@@ -1243,7 +1241,7 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 		length = 20;
 	else
 		length = _tcslen(txt + offset);
-	_tcsncmp(tmp, txt, offset);
+	_tcsncpy(tmp, txt, offset);
 	tmp[offset] = '\0';
 	ri.left += GetTextSize(hwnd, tmp, TRUE);
 	if (radjust)
@@ -1947,7 +1945,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		if (wParam == IDC_DBG_DASM || wParam == IDC_DBG_DASM2) {
 			TCHAR addrstr[11] = { '0', 'x', '\0'}, *btemp;
 			int i, j, size = rc.bottom - rc.top;
-			_tcsncmp(addrstr + 2, text, 8);
+			_tcsncpy(addrstr + 2, text, 8);
 			addrstr[10] = 0;
 			addr = _tcstoul(addrstr, NULL, 0);
 			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
@@ -1967,11 +1965,11 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 				if (!_tcsncmp(text + 34, ucbranch[i], _tcslen(ucbranch[i]))) {
 					btemp = _tcschr(text + 34, '=');
 					if (btemp)
-						_tcsncmp(addrstr + 2, btemp + 4, 8);
+						_tcsncpy(addrstr + 2, btemp + 4, 8);
 					else {
 						int pos = 34 + _tcslen(ucbranch[i]) + 3;
 						if (text[pos] == '$')	//absolute addressing
-							_tcsncmp(addrstr + 2, text + pos + 1, 8);
+							_tcsncpy(addrstr + 2, text + pos + 1, 8);
 						else if (text[pos] == '(' && _istdigit(text[pos + 2])) { //address register indirect
 							int reg = _tstoi(text + pos + 2);
 							uae_u32 loc = m68k_areg (&regs, reg);
@@ -1990,7 +1988,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 						if (!_tcsncmp(text + 34 + _tcslen(cbranch[i]), ccode[j], _tcslen(ccode[j]))) {
 							btemp = _tcschr(text + 34, '=');
 							if (btemp)
-								_tcsncmp(addrstr + 2, btemp + 4, 8);
+								_tcsncpy(addrstr + 2, btemp + 4, 8);
 							break;
 						}
 						j++;
@@ -2102,7 +2100,7 @@ int console_get_gui (TCHAR *out, int maxlen)
 			console_out(L"\n");
 			console_out(internalcmd);
 			console_out(L"\n");
-			_tcsncmp(out, internalcmd, maxlen);
+			_tcsncpy(out, internalcmd, maxlen);
 			return _tcslen(out);
 		}
 		else

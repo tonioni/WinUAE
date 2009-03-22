@@ -80,7 +80,7 @@ static FILE *get_fsdb (a_inode *dir, const TCHAR *mode)
 
     n = build_nname (dir->nname, FSDB_FILE);
     f = _tfopen (n, mode);
-    free (n);
+    xfree (n);
     return f;
 }
 
@@ -101,13 +101,13 @@ static void fsdb_fixup (FILE *f, TCHAR *buf, int size, a_inode *base)
     nname = build_nname (base->nname, buf + 5 + 257);
     ret = fsdb_exists (nname);
     if (ret) {
-	free (nname);
+	xfree (nname);
 	return;
     }
     TRACE ((L"uaefsdb '%s' deleted\n", nname));
     /* someone deleted this file/dir outside of emulation.. */
     buf[0] = 0;
-    free (nname);
+    xfree (nname);
 }
 
 /* Prune the db file the first time this directory is opened in a session.  */
@@ -121,7 +121,7 @@ void fsdb_clean_dir (a_inode *dir)
     n = build_nname (dir->nname, FSDB_FILE);
     f = _tfopen (n, L"r+b");
     if (f == 0) {
-	free (n);
+	xfree (n);
 	return;
     }
     for (;;) {
@@ -140,7 +140,7 @@ void fsdb_clean_dir (a_inode *dir)
     }
     fclose (f);
     my_truncate (n, pos1);
-    free (n);
+    xfree (n);
 }
 
 static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, long off)
@@ -267,7 +267,7 @@ static int needs_dbentry (a_inode *aino)
 
 static void write_aino (FILE *f, a_inode *aino)
 {
-    uae_u8 buf[1 + 4 + 257 + 257 + 81];
+    uae_u8 buf[1 + 4 + 257 + 257 + 81] = { 0 };
 
     buf[0] = aino->needs_dbentry;
     do_put_mem_long ((uae_u32 *)(buf + 1), aino->amigaos_mode);
@@ -378,5 +378,5 @@ void fsdb_dir_writeback (a_inode *dir)
     }
     TRACE ((L"end\n"));
     fclose (f);
-    free (tmpbuf);
+    xfree (tmpbuf);
 }

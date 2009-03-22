@@ -448,6 +448,7 @@ void *open_tablet (HWND hwnd)
     LOGCONTEXT lc;
     AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
     AXIS pres = { 0 };
+    int xm, ym, zm;
 
     if (!tablet)
 	return 0;
@@ -458,6 +459,9 @@ void *open_tablet (HWND hwnd)
     WTInfo (WTI_DEVICES, DVC_X, &tx);
     WTInfo (WTI_DEVICES, DVC_Y, &ty);
     WTInfo (WTI_DEVICES, DVC_NPRESSURE, &pres);
+    WTInfo (WTI_DEVICES, DVC_XMARGIN, &xm);
+    WTInfo (WTI_DEVICES, DVC_YMARGIN, &ym);
+    WTInfo (WTI_DEVICES, DVC_ZMARGIN, &zm);
     xmax = tx.axMax;
     ymax = ty.axMax;
     if (WTInfo (WTI_DEVICES, DVC_Z, &tz))
@@ -518,6 +522,7 @@ static int initialize_tablet (void)
 	write_log (L"Tablet: WTInfo() returned failure\n");
 	return 0;
     }
+    name[0] = 0;
     WTInfo (WTI_DEVICES, DVC_NAME, name);
     axmax = aymax = azmax = -1;
     tilt = WTInfo (WTI_DEVICES, DVC_ORIENTATION, &ori);

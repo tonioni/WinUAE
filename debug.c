@@ -629,14 +629,12 @@ static void dump_vectors (uaecptr addr)
 
     while (int_labels[i].name || trap_labels[j].name) {
 	if (int_labels[i].name) {
-	    console_out_f (L"$%08X: %s  \t $%08X\t", int_labels[i].adr + addr,
+	    console_out_f (L"$%08X %02d: %12s $%08X  ", int_labels[i].adr + addr, int_labels[i].adr / 4,
 		int_labels[i].name, get_long (int_labels[i].adr + addr));
 	    i++;
-	} else {
-	    console_out (L"\t\t\t\t");
 	}
 	if (trap_labels[j].name) {
-	    console_out_f (L"$%08X: %s  \t $%08X", trap_labels[j].adr + addr,
+	    console_out_f (L"$%08X %02d: %12s $%08X", trap_labels[j].adr + addr, trap_labels[j].adr / 4,
 	       trap_labels[j].name, get_long (trap_labels[j].adr + addr));
 	    j++;
 	}

@@ -642,7 +642,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    TCHAR *filepart;
 
 	    dllptr = m68k_areg (&context->regs, 0);
-	    dllname = (TCHAR *)get_real_address (dllptr);
+	    dllname = au ((uae_char*)get_real_address (dllptr));
 	    dpath[0] = 0;
 	    GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
 	    if (_tcslen (dpath) > _tcslen (start_path_data) && !_tcsncmp (dpath, start_path_data, _tcslen (start_path_data))) {
@@ -664,6 +664,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    } else {
 		write_log (L"native open outside of installation dir '%s'!\n", dpath);
 	    }
+	    xfree (dllname);
 #if 0
 	    if (h == NULL) {
 		h = LoadLibrary (filepart);

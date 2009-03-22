@@ -25,11 +25,11 @@ WCHAR *utf8u (const char *s)
 
     if (s == NULL)
 	return NULL;
-    len = MultiByteToWideChar (CP_UTF8, MB_PRECOMPOSED, s, -1, NULL, 0);
+    len = MultiByteToWideChar (CP_UTF8, 0, s, -1, NULL, 0);
     if (!len)
 	return xcalloc (2, 1);
     d = xmalloc ((len + 1) * sizeof (WCHAR));
-    MultiByteToWideChar (CP_UTF8, MB_PRECOMPOSED, s, -1, d, len);
+    MultiByteToWideChar (CP_UTF8, 0, s, -1, d, len);
     return d;
 }
 

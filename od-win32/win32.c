@@ -793,7 +793,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
-	if (!mouseactive && isfullscreen() <= 0 && !gui_active && !mousehack_alive ()) {
+	if (!mouseactive && isfullscreen() <= 0 && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK)) {
 	    setmouseactive (1);
 	} else if (dinput_winmouse () >= 0 && isfocus ()) {
 	    setmousebuttonstate (dinput_winmouse (), 0, 1);
@@ -956,10 +956,13 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_MOUSEMOVE:
     {
 	int wm = dinput_winmouse ();
+
 	mx = (signed short) LOWORD (lParam);
 	my = (signed short) HIWORD (lParam);
 	mx -= mouseposx;
 	my -= mouseposy;
+
+	//write_log(L"%d %d %d %d\n", mx, my, mouseposx, mouseposy);
 	if (recapture && isfullscreen () <= 0) {
 	    setmouseactive (1);
 	    return 0;

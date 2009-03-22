@@ -226,7 +226,7 @@ static void disk_checksum(uae_u8 *p, uae_u8 *c)
     c[0] = cs >> 24; c[1] = cs >> 16; c[2] = cs >> 8; c[3] = cs >> 0;
 }
 
-static int dirhash (const unsigned char *name)
+static int dirhash (const uae_char *name)
 {
     unsigned long hash;
     int i;
@@ -250,15 +250,15 @@ static void disk_date (uae_u8 *p)
 
     time (&t);
     today = localtime( &t );
-    _tcsftime (tmp, sizeof (tmp), L"%Y", today);
+    _tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%Y", today);
     year = _tstoi (tmp);
-    _tcsftime (tmp, sizeof (tmp), L"%j", today);
+    _tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%j", today);
     days = _tstoi (tmp) - 1;
-    _tcsftime (tmp, sizeof (tmp), L"%H", today);
+    _tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%H", today);
     minutes = _tstoi (tmp) * 60;
-    _tcsftime (tmp, sizeof (tmp), L"%M", today);
+    _tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%M", today);
     minutes += _tstoi (tmp);
-    _tcsftime (tmp, sizeof (tmp), L"%S", today);
+    _tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%S", today);
     ticks = _tstoi (tmp) * 50;
     while (year > 1978) {
 	if ( !(year % 100) ? !(year % 400) : !(year % 4) ) days++;
@@ -1859,11 +1859,11 @@ void DISK_ersatz_read (int tr, int sec, uaecptr dest)
 }
 
 /* type: 0=regular, 1=ext2adf */
-/* adftype: 0=DD,1=HD,2=525SD */
+/* adftype: 0=DD,1=HD,2=DD PC,3=HD PC,4=525SD */
 void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk_name)
 {
     struct zfile *f;
-    int i, l, file_size, tracks, track_len;
+    int i, l, file_size, tracks, track_len, sectors;
     uae_u8 *chunk = NULL;
     uae_u8 tmp[3*4];
     uae_char *s;
@@ -1876,51 +1876,58 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
     else
 	tracks = 2 * 80;
     file_size = 880 * 1024;
+    sectors = 11;
+    if (adftype == 2 || adftype == 3) {
+	file_size = 720 * 1024;
+	sectors = 9;
+    }
     track_len = FLOPPY_WRITE_LEN * 2;
-    if (adftype == 1) {
+    if (adftype == 1 || adftype == 3) {
 	file_size *= 2;
 	track_len *= 2;
-    } else if (adftype == 2) {
+    } else if (adftype == 4) {
 	file_size /= 2;
 	tracks /= 2;
     }
 
     f = zfile_fopen (name, L"wb");
-    chunk = xmalloc (16384);
+    chunk = xmalloc (32768);
     if (f && chunk) {
-	memset(chunk,0,16384);
-	if (type == 0 && adftype < 2) {
-	    for (i = 0; i < file_size; i += 11264) {
-		memset(chunk, 0, 11264);
-		if (i == 0) {
-		    /* boot block */
-		    strcpy (chunk, "DOS");
-		} else if (i == file_size / 2) {
-		    int block = file_size / 1024;
-		    /* root block */
-		    chunk[0+3] = 2;
-		    chunk[12+3] = 0x48;
-		    chunk[312] = chunk[313] = chunk[314] = chunk[315] = (uae_u8)0xff;
-		    chunk[316+2] = (block + 1) >> 8; chunk[316+3] = (block + 1) & 255;
-		    s = ua (disk_name);
-		    chunk[432] = strlen (s);
-		    strcpy (chunk + 433, s);
-		    xfree (s);
-		    chunk[508 + 3] = 1;
-		    disk_date (chunk + 420);
-		    memcpy (chunk + 472, chunk + 420, 3 * 4);
-		    memcpy (chunk + 484, chunk + 420, 3 * 4);
-		    disk_checksum(chunk, chunk + 20);
-		    /* bitmap block */
-		    memset (chunk + 512 + 4, 0xff, 2 * file_size / (1024 * 8));
-		    if (adftype == 0)
-			chunk[512 + 0x72] = 0x3f;
-		    else
-			chunk[512 + 0xdc] = 0x3f;
-		    disk_checksum(chunk + 512, chunk + 512);
-
+	int cylsize = sectors * 2 * 512;
+	memset (chunk, 0, 32768);
+	if (type == 0) {
+	    for (i = 0; i < file_size; i += cylsize) {
+		memset(chunk, 0, cylsize);
+		if (adftype <= 1) {
+		    if (i == 0) {
+			/* boot block */
+			strcpy (chunk, "DOS");
+		    } else if (i == file_size / 2) {
+			int block = file_size / 1024;
+			/* root block */
+			chunk[0+3] = 2;
+			chunk[12+3] = 0x48;
+			chunk[312] = chunk[313] = chunk[314] = chunk[315] = (uae_u8)0xff;
+			chunk[316+2] = (block + 1) >> 8; chunk[316+3] = (block + 1) & 255;
+			s = ua (disk_name);
+			chunk[432] = strlen (s);
+			strcpy (chunk + 433, s);
+			xfree (s);
+			chunk[508 + 3] = 1;
+			disk_date (chunk + 420);
+			memcpy (chunk + 472, chunk + 420, 3 * 4);
+			memcpy (chunk + 484, chunk + 420, 3 * 4);
+			disk_checksum(chunk, chunk + 20);
+			/* bitmap block */
+			memset (chunk + 512 + 4, 0xff, 2 * file_size / (1024 * 8));
+			if (adftype == 0)
+			    chunk[512 + 0x72] = 0x3f;
+			else
+			    chunk[512 + 0xdc] = 0x3f;
+			disk_checksum(chunk + 512, chunk + 512);
+		    }
 		}
-		zfile_fwrite (chunk, 11264, 1, f);
+		zfile_fwrite (chunk, cylsize, 1, f);
 	    }
 	} else {
 	    l = track_len;
@@ -1932,11 +1939,13 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
 	    tmp[2] = 0; tmp[3] = 1; /* track type */
 	    tmp[4] = 0; tmp[5] = 0; tmp[6]=(uae_u8)(l >> 8); tmp[7] = (uae_u8)l;
 	    tmp[8] = 0; tmp[9] = 0; tmp[10] = 0; tmp[11] = 0;
-	    for (i = 0; i < tracks; i++) zfile_fwrite (tmp, sizeof (tmp), 1, f);
-	    for (i = 0; i < tracks; i++) zfile_fwrite (chunk, l, 1, f);
+	    for (i = 0; i < tracks; i++)
+		zfile_fwrite (tmp, sizeof (tmp), 1, f);
+	    for (i = 0; i < tracks; i++)
+		zfile_fwrite (chunk, l, 1, f);
 	}
     }
-    free (chunk);
+    xfree (chunk);
     zfile_fclose (f);
 }
 

@@ -747,6 +747,31 @@ size_t zfile_fputs (struct zfile *z, TCHAR *s)
     return t;
 }
 
+char *zfile_fgetsa (char *s, int size, struct zfile *z)
+{
+    if (z->data) {
+	char *os = s;
+	int i;
+	for (i = 0; i < size - 1; i++) {
+	    if (z->seek == z->size) {
+		if (i == 0)
+		    return NULL;
+		break;
+	    }
+	    *s = z->data[z->seek++];
+	    if (*s == '\n') {
+		s++;
+		break;
+	    }
+	    s++;
+	}
+	*s = 0;
+	return os;
+    } else {
+	return fgets (s, size, z->f);
+    }
+}
+
 TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z)
 {
     if (z->data) {

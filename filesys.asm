@@ -1991,7 +1991,7 @@ clipboard_task:
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	tst.l d0
-	beq.s clipdie
+	beq.w clipdie
 	move.l d0,a5
 
 	move.l a6,CLIP_EXEC(a5)
@@ -2006,17 +2006,44 @@ clipboard_task:
 	move.l a5,d0
 	jsr (a0)
 
+	moveq #0,d4
+	moveq #0,d5
+
+	;move.l d0,$100.w
+
 .wait
 	moveq #0,d0
 	bset #13,d0
 	jsr -$013e(a6) ;Wait
+
 	jsr -$0084(a6) ;Forbid
+
+	tst.l d4
+	bne.s .wait2
 	lea 378(a6),a0 ;LibList
 	lea doslibname(pc),a1
 	jsr -$114(a6) ;FindName
-	move.l d0,d2
+	move.l d0,d4
+	bra.s .wait3
+.wait2
+
+	moveq #1,d5
+;	exg d4,a6
+;	moveq #(1<<0)+(1<<4),d1 ;LDF_READ | LDF_ASSIGNS
+;	jsr -$28E(a6) ;LockDosList
+;	move.l d0,d1
+;	lea devsn_name(pc),a0
+;	move.l a0,d2
+;	moveq #(1<<4),d3 ;LDF_ASSIGNS
+;	jsr -$2AC(a6) ;FindDosEntry
+;	move.l d0,d5
+;	moveq #(1<<0)+(1<<4),d1 ;LDF_READ | LDF_ASSIGNS
+;	jsr -$294(a6) ;UnLockDosList
+;	exg d4,a6
+
+.wait3
 	jsr -$008a(a6) ;Permit
-	tst.l d2
+	tst.l d5
 	beq.s .wait
 
 	clr.l CLIP_TASK(a5)
@@ -2031,11 +2058,15 @@ clipboard_task:
 	moveq #0,d0
 	rts
 
-clipdie:
+clipkill
 	move.w #$FF38,d0
 	moveq #10,d1
 	bsr.w getrtbase
 	jsr (a0)
+	rts
+
+clipdie:
+	bsr.s clipkill
 	move.l a5,d0
 	beq.s .cd1
 	move.l CLIP_EXEC(a5),a6
@@ -2152,6 +2183,7 @@ clipboard_proc:
 .devsloop
 	moveq #50,d1
 	jsr -$00c6(a6) ;Delay
+	;move.l d0,$104.w
 	lea devs_name(pc),a0
 	move.l a0,d1
 	moveq #-2,d2
@@ -2196,10 +2228,11 @@ cfloop2
 	move.l 20(a4),a0 ;device node
 	cmp.w #37,20(a0) ;must be at least v37
 	bcc.s cfversion
-	;too lazy free everything..
+	;too lazy to free everything..
+	bsr.w clipkill
 cfloop3
 	moveq #0,d0
-	jsr -$013e(a6)
+	jsr -$013e(a6) ;Wait
 	bra.s cfloop3
 	
 cfversion
@@ -2350,6 +2383,7 @@ cliphook:
 
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0
+devsn_name: dc.b 'DEVS',0
 devs_name: dc.b 'DEVS:',0
 clip_name: dc.b 'DEVS:clipboard.device',0
 ram_name: dc.b 'RAM:',0

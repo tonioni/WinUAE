@@ -4941,7 +4941,7 @@ void filesys_cleanup (void)
     free_mountinfo ();
 }
 
-void filesys_free_handles(void)
+void filesys_free_handles (void)
 {
     Unit *u, *u1;
     for (u = units; u; u = u1) {
@@ -4954,6 +4954,9 @@ void filesys_free_handles(void)
 	    xfree (k1);
 	}
 	u->keys = NULL;
+	free_all_ainos (u, &u->rootnode);
+	u->rootnode.next = u->rootnode.prev = &u->rootnode;
+	u->aino_cache_size = 0;
 	xfree (u->newrootdir);
 	xfree (u->newvolume);
 	u->newrootdir = NULL;
@@ -5007,6 +5010,7 @@ static void filesys_prepare_reset2 (void)
     }
 #endif
     filesys_free_handles();
+#if 0
     u = units;
     while (u != 0) {
 	free_all_ainos (u, &u->rootnode);
@@ -5014,6 +5018,7 @@ static void filesys_prepare_reset2 (void)
 	u->aino_cache_size = 0;
 	u = u->next;
     }
+#endif
 }
 
 void filesys_prepare_reset (void)

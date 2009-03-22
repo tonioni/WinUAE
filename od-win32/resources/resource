@@ -294,6 +294,8 @@
 #define IDS_SB_FAVORITENAME             334
 #define IDD_DBGMEMINPUT                 335
 #define IDS_SB_CUSTOMEVENT              335
+#define IDS_FLOPPYTYPE35DDPC            336
+#define IDS_FLOPPYTYPE35HDPC            337
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -331,7 +333,6 @@
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
-#define IDC_PORT_TABLE_CURSOR           1028
 #define IDC_PORT_TABLET_CURSOR          1028
 #define IDC_SLOWMEM                     1030
 #define IDC_MBMEM2                      1031

@@ -1,4 +1,19 @@
 
+Beta 18:
+
+- gui debugger unicode conversion fixes (b15)
+- native dll call fixed (b15)
+- already existing _UAEFSDB.___ was not updated properly on NTFS
+  volumes, "dirty" _UAEFSDB.___ data was not flushed when emulator
+  was exited (old bug)
+- non-ascii configuration strings are duplicated in UTF-8 as
+  <entry name>.utf8. Now even japanese file names and paths work in
+  configuration files :) (backwards compatible, old versions will
+  ignore it)
+- clipboard sharing: accept only v37 or newer clipboard.device
+- added DD (720k) and HD (1440k) PC floppy image type to create disk
+  option (image will be unformatted)
+
 Beta 17: (even more fixes. do not use b15 or b16)
 
 - module ripper text conversion fixed
