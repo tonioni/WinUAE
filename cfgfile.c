@@ -1897,7 +1897,6 @@ static int cfgfile_separate_linea (char *line, TCHAR *line1b, TCHAR *line2b)
     } else {
         au_copy (line2b, MAX_DPATH, line2);
     }
-
     return 1;
 }
 
@@ -1927,6 +1926,16 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 	line[--i] = '\0';
     line += _tcsspn (line, L"\t \r\n");
     _tcscpy (line1b, line);
+
+    if (line2b[0] == '"' || line2b[0] == '\"') {
+	TCHAR c = line2b[0];
+	int i = 0;
+	memmove (line2b, line2b + 1, (_tcslen (line2b) + 1) * sizeof (TCHAR));
+	while (line2b[i] != 0 && line2b[i] != c)
+	    i++;
+	line2b[i] = 0;
+    }
+
     if (isutf8ext (line1b))
 	return 0;
     return 1;

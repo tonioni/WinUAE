@@ -1,4 +1,19 @@
 
+Beta 19:
+
+- missing command line unicode support added
+- added support for winuae.exe <paths> [<other params>] command line.
+  <Paths> can be path to a configuration file, any supported floppy
+  disk image file or statefile, multiple paths supported, path
+  parsing stops when first parameter beginning with '-' or '/' is
+  detected. Now manually created Windows file extension mappings work
+  as expected. Automatically disables "show gui on startup".
+- improved configuration parsing, now for example something="path"
+  and command line -something="path" works, previously " (or ')
+  were not accepted
+- clear dsound buffer when sound autodeactivates, there could have
+  been some old sound data left if buffer size is really big
+
 Beta 18:
 
 - gui debugger unicode conversion fixes (b15)

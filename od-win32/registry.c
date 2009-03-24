@@ -369,14 +369,14 @@ int reginitializeinit (const TCHAR *ppath)
     if (!ppath) {
 	int ok = 0;
 	TCHAR *posn;
-	_tcscpy (path, pgmptr);
+	_tcscpy (path, _wpgmptr);
 	if (_tcslen (path) > 4 && !_tcsicmp (path + _tcslen (path) - 4, L".exe")) {
 	    _tcscpy (path + _tcslen (path) - 3, L"ini");
 	    if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
 		ok = 1;
 	}
 	if (!ok) {
-	    _tcscpy (path, pgmptr);
+	    _tcscpy (path, _wpgmptr);
 	    if((posn = _tcsrchr (path, '\\')))
 		posn[1] = 0;
 	    _tcscat (path, L"winuae.ini");

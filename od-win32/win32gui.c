@@ -1587,7 +1587,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 	_stprintf (szFilter, L"%s ", szFormat);
-	memcpy (szFilter + _tcslen (szFilter), L"(*.adf)\0*.adf\0", 15);
+	memcpy (szFilter + _tcslen (szFilter), L"(*.adf)\0*.adf\0", 15 * sizeof (TCHAR));
 	defext = L"ADF";
 	break;
     case 2:
@@ -1603,7 +1603,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_SELECTUAE, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_UAE, szFormat, MAX_DPATH );
 	_stprintf (szFilter, L"%s ", szFormat);
-	memcpy (szFilter + _tcslen (szFilter), L"(*.uae)\0*.uae\0", 15);
+	memcpy (szFilter + _tcslen (szFilter), L"(*.uae)\0*.uae\0", 15 * sizeof (TCHAR));
 	defext = L"UAE";
 	break;
     case 6:
@@ -1617,7 +1617,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	WIN32GUI_LoadUIString (IDS_SELECTKEY, szTitle, MAX_DPATH);
 	WIN32GUI_LoadUIString (IDS_KEY, szFormat, MAX_DPATH);
 	_stprintf (szFilter, L"%s ", szFormat);
-	memcpy (szFilter + _tcslen (szFilter), L"(*.key)\0*.key\0", 15);
+	memcpy (szFilter + _tcslen (szFilter), L"(*.key)\0*.key\0", 15 * sizeof (TCHAR));
 	defext = L"KEY";
 	break;
     case 15:

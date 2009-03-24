@@ -433,7 +433,9 @@ static void parse_cmdline_2 (int argc, TCHAR **argv)
 
     cfgfile_addcfgparam (0);
     for (i = 1; i < argc; i++) {
-	if (_tcscmp (argv[i], L"-cfgparam") == 0) {
+	if (_tcsncmp (argv[i], L"-cfgparam=", 10) == 0) {
+	    cfgfile_addcfgparam (argv[i] + 10);
+	} else if (_tcscmp (argv[i], L"-cfgparam") == 0) {
 	    if (i + 1 == argc)
 		write_log (L"Missing argument for '-cfgparam' option.\n");
 	    else
@@ -463,22 +465,48 @@ static void parse_diskswapper (TCHAR *s)
     free (tmp);
 }
 
+static TCHAR *parsetext (const TCHAR *s)
+{
+    if (*s == '"' || *s == '\'') {
+	TCHAR *d;
+	TCHAR c = *s++;
+	int i;
+	d = my_strdup (s);
+	for (i = 0; i < _tcslen (d); i++) {
+	    if (d[i] == c) {
+		d[i] = 0;
+		break;
+	    }
+	}
+	return d;
+    } else {
+	return my_strdup (s);
+    }
+}
+
 static void parse_cmdline (int argc, TCHAR **argv)
 {
     int i;
 
     for (i = 1; i < argc; i++) {
 	if (!_tcsncmp (argv[i], L"-diskswapper=", 13)) {
-	    parse_diskswapper (argv[i] + 13);
+	    TCHAR *txt = parsetext (argv[i] + 13);
+	    parse_diskswapper (txt);
+	    xfree (txt);
 	} else if (_tcscmp (argv[i], L"-cfgparam") == 0) {
 	    if (i + 1 < argc)
 		i++;
 	} else if (_tcsncmp (argv[i], L"-config=", 8) == 0) {
+	    TCHAR *txt = parsetext (argv[i] + 8);
 	    currprefs.mountitems = 0;
-	    target_cfgfile_load (&currprefs, argv[i] + 8, -1, 1);
+	    target_cfgfile_load (&currprefs, txt, -1, 1);
+	    xfree (txt);
 	} else if (_tcsncmp (argv[i], L"-statefile=", 11) == 0) {
+	    TCHAR *txt = parsetext (argv[i] + 11);
+	    write_log (L"%s\n", txt);
 	    savestate_state = STATE_DORESTORE;
-	    _tcscpy (savestate_fname, argv[i] + 11);
+	    _tcscpy (savestate_fname, txt);
+	    xfree (txt);
 	} else if (_tcscmp (argv[i], L"-f") == 0) {
 	    /* Check for new-style "-f xxx" argument, where xxx is config-file */
 	    if (i + 1 == argc) {

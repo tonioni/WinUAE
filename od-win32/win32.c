@@ -149,7 +149,6 @@ static CRITICAL_SECTION cs_time;
 
 TCHAR start_path_data[MAX_DPATH];
 TCHAR start_path_exe[MAX_DPATH];
-TCHAR *pgmptr;
 TCHAR start_path_af[MAX_DPATH]; /* OLD AF */
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
@@ -1814,10 +1813,13 @@ static void WIN32_InitLang (void)
     pritransla ();
 }
 
- /* try to load COMDLG32 and DDRAW, initialize csDraw */
+typedef HRESULT (CALLBACK* SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD)(PCWSTR);
+
+/* try to load COMDLG32 and DDRAW, initialize csDraw */
 static int WIN32_InitLibraries (void)
 {
     LARGE_INTEGER freq;
+    SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD pSetCurrentProcessExplicitAppUserModelID; 
 
     CoInitialize (0);
     /* Determine our processor speed and capabilities */
@@ -1835,6 +1837,10 @@ static int WIN32_InitLibraries (void)
 	pre_gui_message (L"MMTimer second initialization failed, exiting..");
 	return 0;
     }
+    pSetCurrentProcessExplicitAppUserModelID = (SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD)GetProcAddress (
+	GetModuleHandle (L"shell32.dll"), "SetCurrentProcessExplicitAppUserModelID");
+    if (pSetCurrentProcessExplicitAppUserModelID)
+	pSetCurrentProcessExplicitAppUserModelID (L"Arabuusimiehet.WinUAE");
 
     hRichEdit = LoadLibrary (L"RICHED32.DLL");
     return 1;
@@ -3201,7 +3207,7 @@ static void getstartpaths (void)
     if (!_tcscmp (prevpath, L"AMIGAFOREVERDATA"))
 	path_type = PATH_TYPE_AMIGAFOREVERDATA;
 
-    _tcscpy (start_path_exe, pgmptr);
+    _tcscpy (start_path_exe, _wpgmptr);
     if((posn = _tcsrchr (start_path_exe, '\\')))
 	posn[1] = 0;
 
@@ -3354,7 +3360,7 @@ static int getval (const TCHAR *s)
     return v;
 }
 
-static void makeverstr(TCHAR *s)
+static void makeverstr (TCHAR *s)
 {
     if (_tcslen (WINUAEBETA) > 0) {
 	_stprintf (BetaStr, L" (%sBeta %s, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? L"Public " : L"", WINUAEBETA,
@@ -3362,7 +3368,7 @@ static void makeverstr(TCHAR *s)
 	_stprintf (s, L"WinUAE %d.%d.%d%s%s",
 	    UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
     } else {
-	_stprintf(s, L"WinUAE %d.%d.%d%s (%d.%02d.%02d)",
+	_stprintf (s, L"WinUAE %d.%d.%d%s (%d.%02d.%02d)",
 	    UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
     }
     if (_tcslen (WINUAEEXTRA) > 0) {
@@ -3552,21 +3558,19 @@ static int parseargs (const TCHAR *arg, const TCHAR *np)
     return 0;
 }
 
-
-static TCHAR **parseargstring (TCHAR *s, TCHAR **xargv)
+static TCHAR **parseargstring (TCHAR *s)
 {
-    int cnt, i, xargc;
+    int cnt;
     TCHAR **args;
 
     if (_tcslen (s) == 0)
 	return NULL;
-
     args = xcalloc (sizeof (TCHAR*), 32 + 1);
     cnt = 0;
     for (;;) {
 	TCHAR *p = s;
 	int skip = 0;
-	while (*p && isspace (*p))
+	while (*p && _istspace (*p))
 	    p++;
 	if (*p == 0)
 	    break;
@@ -3577,13 +3581,13 @@ static TCHAR **parseargstring (TCHAR *s, TCHAR **xargv)
 		p++;
 	    skip = 1;
 	} else {
-	    while (*p && !isspace (*p))
+	    while (*p && !_istspace (*p))
 		p++;
 	}
-	args[cnt] = xcalloc (p - s + 1, 1);
-	memcpy (args[cnt++], s, p - s);
+	args[cnt] = xcalloc (p - s + 1, sizeof (TCHAR));
+	memcpy (args[cnt++], s, (p - s) * sizeof (TCHAR));
 	p += skip;
-	while (*p && isspace (*p))
+	while (*p && _istspace (*p))
 	    p++;
 	if (*p == 0)
 	    break;
@@ -3591,6 +3595,16 @@ static TCHAR **parseargstring (TCHAR *s, TCHAR **xargv)
 	    break;
 	s = p;
     }
+    return args;
+}
+
+static TCHAR **parseargstrings (TCHAR *s, TCHAR **xargv)
+{
+    int cnt, i, xargc;
+    TCHAR **args;
+
+    args = parseargstring (s);
+    for (cnt = 0; args[cnt]; cnt++);
     for (xargc = 0; xargv[xargc]; xargc++);
     for (i = 0; i < cnt; i++) {
 	TCHAR *arg = args[i];
@@ -3605,17 +3619,63 @@ static TCHAR **parseargstring (TCHAR *s, TCHAR **xargv)
 }
 
 
-static int process_arg (TCHAR **xargv)
+static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 {
-    int i, argc, xargc;
-    char **argv;
+    int i, xargc;
+    TCHAR **argv;
+    TCHAR tmp[MAX_DPATH];
+    int fd, ok, added;
 
+    argv = parseargstring (cmdline);
+    if (argv == NULL)
+	return 0;
+    added = 0;
     xargc = 0;
-    argc = __argc; argv = __argv;
-    xargv[xargc++] = my_strdup_ansi (argv[0]);
-    for (i = 1; i < argc; i++) {
-	TCHAR *arg = au (argv[i]);
-	TCHAR *next = i + 1 < argc ? au (argv[i + 1]) : NULL;
+    xargv[xargc++] = my_strdup (_wpgmptr);
+    fd = 0;
+    for (i = 0; argv[i]; i++) {
+	TCHAR *f = argv[i];
+	ok = 0;
+	if (f[0] != '-' && f[0] != '/') {
+	    int type = -1;
+	    struct zfile *z = zfile_fopen (f, L"rb");
+	    if (z) {
+		type = zfile_gettype (z);
+		zfile_fclose (z);
+	    }
+	    tmp[0] = 0;
+	    switch (type)
+	    {
+		case ZFILE_CONFIGURATION:
+		_stprintf (tmp, L"-config=%s", f);
+		break;
+		case ZFILE_STATEFILE:
+		_stprintf (tmp, L"-statefile=%s", f);
+		break;
+		case ZFILE_DISKIMAGE:
+		if (fd < 4)
+		    _stprintf (tmp, L"-cfgparam=floppy%d=%s", fd++, f);
+		break;
+	    }
+	    if (tmp[0]) {
+		xfree (argv[i]);
+		argv[i] = my_strdup (tmp);
+		ok = 1;
+		added = 1;
+	    }
+	}
+	if (!ok)
+	    break;
+    }
+    if (added) {
+	for (i = 0; argv[i]; i++);
+	argv[i++] = my_strdup (L"-s");
+	argv[i++] = my_strdup (L"use_gui=no");
+	argv[i] = NULL;
+    }
+    for (i = 0; argv[i]; i++) {
+	TCHAR *arg = argv[i];
+	TCHAR *next = argv[i + 1];
 	int v = parseargs (arg, next);
 	if (!v)
 	    xargv[xargc++] = my_strdup (arg);
@@ -3626,6 +3686,7 @@ static int process_arg (TCHAR **xargv)
     argv = 0;
     argv[0] = 0;
 #endif
+    *xargv3 = argv;
     return xargc;
 }
 
@@ -3643,7 +3704,7 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 	    KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
     }
     if (regquerystr (NULL, L"Commandline", tmp, &size))
-    	return parseargstring (tmp, argv);
+    	return parseargstrings (tmp, argv);
     return NULL;
 }
 
@@ -3651,7 +3712,7 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
     HANDLE hMutex;
-    TCHAR **argv = NULL, **argv2 = NULL;
+    TCHAR **argv = NULL, **argv2 = NULL, **argv3;
     int argc, i;
 
 #ifdef _DEBUG
@@ -3679,21 +3740,21 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
     AVIOutput_Initialize ();
 #endif
 
-    argv = xcalloc (sizeof (TCHAR*),  __argc);
-    argc = process_arg (argv);
+    argv = xcalloc (sizeof (TCHAR*), 32);
+    argc = process_arg (lpCmdLine, argv, &argv3);
 
     argv2 = WIN32_InitRegistry (argv);
     getstartpaths ();
     makeverstr (VersionStr);
 
     logging_init ();
-#if 0
-    if (__argc > 1) {
+    if (_tcslen (lpCmdLine) > 0)
+	write_log (L"'%s'\n", lpCmdLine);
+    if (argv3[0]) {
 	write_log (L"params:\n");
-	for (i = 1; i < __argc; i++)
-	    write_log (L"%d: '%s'\n", i, __argv[i]);
+	for (i = 0; argv3[i]; i++)
+	    write_log (L"%d: '%s'\n", i + 1, argv3[i]);
     }
-#endif
     if (argv2) {
 	write_log (L"extra params:\n");
 	for (i = 0; argv2[i]; i++)
@@ -4222,7 +4283,7 @@ void target_reset (void)
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
-int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
     SETPROCESSDPIAWARE pSetProcessDPIAware;
     DWORD_PTR sys_aff;
@@ -4232,7 +4293,7 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     InitCommonControls ();
 
     original_affinity = 1;
-    GetProcessAffinityMask (GetCurrentProcess(), &original_affinity, &sys_aff);
+    GetProcessAffinityMask (GetCurrentProcess (), &original_affinity, &sys_aff);
 
     thread = GetCurrentThread ();
     //original_affinity = SetThreadAffinityMask(thread, 1);
@@ -4251,10 +4312,8 @@ int PASCAL WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     if (pSetProcessDPIAware)
 	pSetProcessDPIAware ();
 
-    pgmptr = au (_pgmptr);
-
     __try {
-	WinMain2 (hInstance, hPrevInstance, GetCommandLineW (), nCmdShow);
+	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except(WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
     }
     //SetThreadAffinityMask(thread, original_affinity);

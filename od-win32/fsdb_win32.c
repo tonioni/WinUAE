@@ -884,7 +884,11 @@ int dos_errno (void)
 	return ERROR_SEEK_ERROR;
 
      default:
-	gui_message (L"Unimplemented error %d\nContact author!", e);
+	{
+	    uae_u8 *p = 0;
+	    *p = 0;
+	    gui_message (L"Unimplemented error %d\nContact author!", e);
+	}
 	return ERROR_NOT_IMPLEMENTED;
     }
 }

@@ -42,8 +42,8 @@ static HWND hedit = 0;
 extern int consoleopen;
 BOOL debuggerinitializing = FALSE;
 
-extern uae_u32 get_fpsr();
-extern void set_fpsr(uae_u32 x);
+extern uae_u32 get_fpsr (void);
+extern void set_fpsr (uae_u32 x);
 
 static TCHAR linebreak[] = {'\r', '\n', '\0'};
 
@@ -70,11 +70,11 @@ static int histcount;
 struct debuggerpage {
     HWND ctrl[MAXPAGECONTROLS];
     uae_u32 memaddr;
-	uae_u32 dasmaddr;
+    uae_u32 dasmaddr;
     TCHAR addrinput[9];
-	int selection;
+    int selection;
     int init;
-	int autoset;
+    int autoset;
 };
 static struct debuggerpage dbgpage[MAXPAGES];
 static int currpage, pages;
@@ -179,20 +179,20 @@ static void AddToHistory(const TCHAR *command)
 int GetInput (TCHAR *out, int maxlen)
 {
     HWND hInput;
-    int TCHARs;
+    int chars;
 
     if (!hDbgWnd)
 	return 0;
     hInput = GetDlgItem(hDbgWnd, IDC_DBG_INPUT);
-    TCHARs = GetWindowText(hInput, out, maxlen);
-    if (TCHARs == 0)
+    chars = GetWindowText(hInput, out, maxlen);
+    if (chars == 0)
 	return 0;
     WriteOutput(linebreak + 1, 2);
     WriteOutput(out, _tcslen(out));
     WriteOutput(linebreak + 1, 2);
     AddToHistory(out);
     SetWindowText(hInput, L"");
-    return TCHARs;
+    return chars;
 }
 
 static int CheckLineLimit(HWND hWnd, const TCHAR *out)
@@ -807,7 +807,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
     LPTSTR lptstr;
     TCHAR allowed[] = L"1234567890abcdefABCDEF";
     int ok = 1;
-    TCHAR addrstr[11];
+    TCHAR addrstr[12];
     uae_u32 addr;
     WNDPROC oldproc;
 

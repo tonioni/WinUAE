@@ -18,7 +18,7 @@
 #define WINUAEPUBLICBETA 1
 
 #define WINUAEBETA L"18"
-#define WINUAEDATE MAKEBD(2009, 3, 22)
+#define WINUAEDATE MAKEBD(2009, 3, 25)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -85,7 +85,6 @@ extern int win_x_diff, win_y_diff;
 extern int window_extra_width, window_extra_height;
 extern int af_path_2005, af_path_old;
 extern TCHAR start_path_af[MAX_DPATH], start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
-extern TCHAR *pgmptr;
 #define PATH_TYPE_WINUAE 0
 #define PATH_TYPE_NEWWINUAE 1
 #define PATH_TYPE_OLDAF 2

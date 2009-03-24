@@ -1025,7 +1025,7 @@ static void audio_event_reset (void)
     next_sample_evtime = scaled_sample_evtime;
     for (i = 0; i < 4; i++) {
 	struct audio_channel_data *cdp = audio_channel + i;
-	zerostate(cdp);
+	zerostate (cdp);
     }
     schedule_audio ();
     events_schedule ();
@@ -1037,8 +1037,9 @@ static void audio_deactivate (void)
 	return;
     gui_data.sndbuf_status = 3;
     gui_data.sndbuf = 0;
-    clear_sound_buffers();
-    audio_event_reset();
+    reset_sound ();
+    clear_sound_buffers ();
+    audio_event_reset ();
 }
 
 int audio_activate (void)
