@@ -2597,6 +2597,8 @@ get_time (time_t t, long* days, long* mins, long* ticks)
     /* ticks past minute @ 50Hz */
 
     t -= diff;
+    if (t < 0)
+	t = 0;
     *days = t / secs_per_day;
     t -= *days * secs_per_day;
     *mins = t / 60;
@@ -2608,9 +2610,19 @@ static time_t
 put_time (long days, long mins, long ticks)
 {
     time_t t;
+
+    if (days < 0)
+	days = 0;
+    if (days > 9900 * 365)
+	days = 9900 * 365; // in future far enough?
+    if (mins < 0 || mins >= 24 * 60)
+	mins = 0;
+    if (ticks < 0 || ticks >= 60 * 50)
+	ticks = 0;
+
     t = ticks / 50;
     t += mins * 60;
-    t += days * secs_per_day;
+    t += ((uae_u64)days) * secs_per_day;
     t += diff;
 
     return t;
@@ -3801,6 +3813,11 @@ static void action_set_comment (Unit * unit, dpacket packet)
 
     if (fsdb_cando (unit)) {
 	commented = bstr (unit, comment);
+	if (_tcslen (commented) > 80) {
+	    PUT_PCK_RES1 (packet, DOS_FALSE);
+	    PUT_PCK_RES2 (packet, ERROR_COMMENT_TOO_BIG);
+	    return;
+	}
 	if (_tcslen (commented) > 0) {
 	    TCHAR *p = commented;
 	    commented = xmalloc (81 * sizeof (TCHAR));
@@ -4226,7 +4243,7 @@ action_set_date (Unit *unit, dpacket packet)
 	return;
     }
 
-    ut.actime = ut.modtime = put_time(get_long (date), get_long (date + 4),
+    ut.actime = ut.modtime = put_time (get_long (date), get_long (date + 4),
 				      get_long (date + 8));
     a = find_aino (unit, lock, bstr (unit, name), &err);
     if (err == 0 && utime (a->nname, &ut) == -1)
@@ -4991,7 +5008,7 @@ void filesys_reset (void)
 static void filesys_prepare_reset2 (void)
 {
     UnitInfo *uip;
-    Unit *u;
+//    Unit *u;
     int i;
 
     uip = mountinfo.ui;

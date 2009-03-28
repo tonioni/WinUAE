@@ -143,23 +143,38 @@ static int setfiletime (const TCHAR *name, unsigned int days, int minute, int ti
 {
     FILETIME LocalFileTime, FileTime;
     HANDLE hFile;
-    int success;
+
     if ((hFile = CreateFile (name, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
 	return 0;
 
-    *(__int64 *)&LocalFileTime = (((__int64)(377*365+91+days)*(__int64)1440+(__int64)minute)*(__int64)(60*50)+(__int64)tick)*(__int64)200000;
+    for (;;) {
+	ULARGE_INTEGER lft;
 
-    if (tolocal) {
-	if (!LocalFileTimeToFileTime (&LocalFileTime,&FileTime))
+	lft.QuadPart = (((uae_u64)(377*365+91+days)*(uae_u64)1440+(uae_u64)minute)*(uae_u64)(60*50)+(uae_u64)tick)*(uae_u64)200000;
+	LocalFileTime.dwHighDateTime = lft.HighPart;
+	LocalFileTime.dwLowDateTime = lft.LowPart;
+        if (tolocal) {
+	    if (!LocalFileTimeToFileTime (&LocalFileTime, &FileTime))
+		FileTime = LocalFileTime;
+	} else {
 	    FileTime = LocalFileTime;
-    } else {
-	FileTime = LocalFileTime;
+	}
+	if (!SetFileTime (hFile, &FileTime, &FileTime, &FileTime)) {
+	    if (days > 47846) { // > 2108-12-31 (fat limit)
+		days = 47846;
+		continue;
+	    }
+	    if (days < 730) { // < 1980-01-01 (fat limit)
+		days = 730;
+		continue;
+	    }
+	}
+	break;
     }
 
-    success = SetFileTime (hFile,&FileTime,&FileTime,&FileTime);
     CloseHandle (hFile);
 
-    return success;
+    return 1;
 }
 
 int posixemu_utime (const TCHAR *name, struct utimbuf *ttime)
@@ -180,7 +195,7 @@ int posixemu_utime (const TCHAR *name, struct utimbuf *ttime)
     if (setfiletime (name, days, mins, ticks, tolocal))
 	result = 0;
 
-	return result;
+    return result;
 }
 
 void uae_sem_init (uae_sem_t * event, int manual_reset, int initial_state)

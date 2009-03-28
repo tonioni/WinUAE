@@ -16,7 +16,7 @@
 #include "sysconfig.h"
 
 
-#define _WIN32_WINNT 0x600 /* XButtons + MOUSEHWHEEL */
+#define _WIN32_WINNT 0x700 /* XButtons + MOUSEHWHEEL=XP, Jump List=Win7 */
 
 #include <windows.h>
 #include <commctrl.h>
@@ -1840,7 +1840,7 @@ static int WIN32_InitLibraries (void)
     pSetCurrentProcessExplicitAppUserModelID = (SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD)GetProcAddress (
 	GetModuleHandle (L"shell32.dll"), "SetCurrentProcessExplicitAppUserModelID");
     if (pSetCurrentProcessExplicitAppUserModelID)
-	pSetCurrentProcessExplicitAppUserModelID (L"Arabuusimiehet.WinUAE");
+	pSetCurrentProcessExplicitAppUserModelID (WINUAEAPPNAME);
 
     hRichEdit = LoadLibrary (L"RICHED32.DLL");
     return 1;
@@ -2661,10 +2661,11 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 			      const TCHAR *description, const TCHAR *ext2)
 {
     TCHAR rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
-    HKEY rkey, key1;
+    HKEY rkey, key1, key2;
     DWORD disposition;
     const TCHAR *progid = L"WinUAE";
     int def = !_tcscmp (extension, L".uae");
+    TCHAR *defprogid;
     UAEREG *fkey;
 
     _tcscpy (progid2, progid);
@@ -2673,13 +2674,14 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
         rkey = HKEY_LOCAL_MACHINE;
     else
         rkey = HKEY_CURRENT_USER;
+    defprogid = def ? progid : progid2;
 
     _tcscpy (rpath1, L"Software\\Classes\\");
     _tcscpy (rpath2, rpath1);
     _tcscat (rpath2, extension);
     if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
 	KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
-	RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)(def ? progid : progid2), (_tcslen (def ? progid : progid2) + 1) * sizeof (TCHAR));
+	RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)defprogid, (_tcslen (defprogid) + 1) * sizeof (TCHAR));
 	if (perceivedtype)
 	    RegSetValueEx (key1, L"PerceivedType", 0, REG_SZ, (CONST BYTE *)perceivedtype, (_tcslen (perceivedtype) + 1) * sizeof (TCHAR));
 	RegCloseKey (key1);
@@ -2689,9 +2691,23 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
     if (!def)
 	_tcscat (rpath2, ext2 ? ext2 : extension);
     if (description) {
-	if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
-	    KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+	if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+	    TCHAR tmp[MAX_DPATH];
 	    RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)description, (_tcslen (description) + 1) * sizeof (TCHAR));
+	    RegSetValueEx (key1, L"AppUserModelID", 0, REG_SZ, (CONST BYTE *)WINUAEAPPNAME, (_tcslen (WINUAEAPPNAME) + 1) * sizeof (TCHAR));
+	    _tcscpy (tmp, rpath2);
+	    _tcscat (tmp, L"\\CurVer");
+	    if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
+		RegSetValueEx (key2, L"", 0, REG_SZ, (CONST BYTE *)defprogid, (_tcslen (defprogid) + 1) * sizeof (TCHAR));
+		RegCloseKey (key2);
+	    }
+	    _tcscpy (tmp, rpath2);
+	    _tcscat (tmp, L"\\DefaultIcon");
+	    if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
+		_stprintf (tmp, L"%s,-1", _wpgmptr);
+		RegSetValueEx (key2, L"", 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
+		RegCloseKey (key2);
+	    }
 	    RegCloseKey (key1);
 	}
     }
@@ -3626,6 +3642,7 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
     TCHAR tmp[MAX_DPATH];
     int fd, ok, added;
 
+    *xargv3 = NULL;
     argv = parseargstring (cmdline);
     if (argv == NULL)
 	return 0;
@@ -3741,6 +3758,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 #endif
 
     argv = xcalloc (sizeof (TCHAR*), 32);
+    argv3 = NULL;
     argc = process_arg (lpCmdLine, argv, &argv3);
 
     argv2 = WIN32_InitRegistry (argv);
@@ -3750,7 +3768,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
     logging_init ();
     if (_tcslen (lpCmdLine) > 0)
 	write_log (L"'%s'\n", lpCmdLine);
-    if (argv3[0]) {
+    if (argv3 && argv3[0]) {
 	write_log (L"params:\n");
 	for (i = 0; argv3[i]; i++)
 	    write_log (L"%d: '%s'\n", i + 1, argv3[i]);
@@ -4274,6 +4292,30 @@ int get_guid_target (uae_u8 *out)
     memcpy (out + 8, guid.Data4, 8);
     return 1;
 }
+
+typedef HRESULT (CALLBACK* SHCREATEITEMFROMPARSINGNAME)
+    (PCWSTR,IBindCtx*,REFIID,void**); // Vista+ only
+
+
+void target_addtorecent (const TCHAR *name, int t)
+{
+    if (os_win7) {
+	SHCREATEITEMFROMPARSINGNAME pSHCreateItemFromParsingName;
+	SHARDAPPIDINFO shard;
+	pSHCreateItemFromParsingName = (SHCREATEITEMFROMPARSINGNAME)GetProcAddress (
+	    GetModuleHandle (L"shell32.dll"), "SHCreateItemFromParsingName");
+	if (!pSHCreateItemFromParsingName)
+	    return;
+	shard.pszAppID = WINUAEAPPNAME;
+	if (SUCCEEDED (pSHCreateItemFromParsingName (name, NULL, &IID_IShellItem, &shard.psi))) {
+	    SHAddToRecentDocs (SHARD_APPIDINFO, &shard);
+	    IShellItem_Release (shard.psi);
+	}
+    } else {
+	SHAddToRecentDocs (SHARD_PATH, name);
+    }
+}
+
 
 void target_reset (void)
 {

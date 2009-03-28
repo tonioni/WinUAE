@@ -6,13 +6,27 @@ Beta 19:
   <Paths> can be path to a configuration file, any supported floppy
   disk image file or statefile, multiple paths supported, path
   parsing stops when first parameter beginning with '-' or '/' is
-  detected. Now manually created Windows file extension mappings work
-  as expected. Automatically disables "show gui on startup".
+  detected. Automatically disables "show gui on startup".
 - improved configuration parsing, now for example something="path"
   and command line -something="path" works, previously " (or ')
-  were not accepted
-- clear dsound buffer when sound autodeactivates, there could have
-  been some old sound data left if buffer size is really big
+  was not parsed properly
+- clear dsound buffer when sound autodeactivates, it was possible to
+  have some old sound data left in buffer if buffer size is really big
+- gui debugger clipboard and enter address option fixed (b15)
+- autoscaled screen was off center if display size was too small
+- directory filesystem "unimplemented error 3" fix
+- directory filesystem "unimplemented error 87" when setting file/dir
+  datestamp and drive is in FAT partition (FAT date range is not as
+  large as Amiga supported date range, AmigaDOS minimum date is
+  1978-01-01, FAT minimum is 1980-01-01)
+- directory filesystem date underflow fixed, host-side date earlier
+  than 1978-01-01 caused underflow, result usually was date in
+  far future.. (bug since the beginning most likely)
+- updated directory filesystem date calculations to 64-bit
+- directory filesystem ERROR_COMMENT_TOO_BIG implemented
+- PortAudio works again, also accept only v1899 or newer library
+- clear D3D filter screen when autoscale settings change
+- added F13-F16 to rawkeyboard keycode array
 
 Beta 18:
 

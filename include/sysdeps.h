@@ -336,7 +336,7 @@ struct direct
     TCHAR d_name[1];
 };
 #include <sys/utime.h>
-#define utimbuf _utimbuf
+#define utimbuf __utimbuf64
 #define USE_ZFILE
 
 #undef S_ISDIR

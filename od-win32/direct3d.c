@@ -1,4 +1,3 @@
-
 #include <windows.h>
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -51,6 +50,7 @@ static int tin_w, tin_h, window_h, window_w;
 static int t_depth;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode;
+static int needclear;
 
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
 struct TLVERTEX {
@@ -717,6 +717,7 @@ static void setupscenecoords (void)
     RECT sr, dr, zr;
     float w, h;
     float dw, dh;
+    static RECT sro, dro, zro;
 
 //    write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
 
@@ -741,6 +742,13 @@ static void setupscenecoords (void)
 	dw * tin_w / window_w,
 	dh * tin_h / window_h,
 	1.0f);
+
+    if (memcmp (&sr, &sro, sizeof (RECT)) || memcmp (&dr, &dro, sizeof (RECT)) || memcmp (&zr, &zro, sizeof (RECT))) {
+	needclear = 1;
+	sro = sr;
+	dro = dr;
+	zro = zr;
+    }
 }
 
 static void createvertex (void)
@@ -1212,8 +1220,12 @@ static void D3D_render2 (int clear)
     setupscenecoords ();
     settransform ();
     hr = IDirect3DDevice9_BeginScene (d3ddev);
-    if (clear)
-	hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L );
+    if (clear || needclear) {
+	hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,0), 1.0f, 0L );
+	if (FAILED (hr))
+	    write_log (L"IDirect3DDevice9_Clear() failed: %s\n", D3D_ErrorString (hr));
+	needclear = 0;
+    }
     if (psActive) {
         UINT uPasses, uPass;
 	LPDIRECT3DSURFACE9 lpRenderTarget;
@@ -1294,8 +1306,8 @@ void D3D_unlocktexture (void)
     RECT r;
 
     hr = IDirect3DTexture9_UnlockRect (texture, 0);
-    r.left = 0; r.right = twidth;
-    r.top = 0; r.bottom = theight;
+    r.left = 0; r.right = window_w;
+    r.top = 0; r.bottom = window_h;
     hr = IDirect3DTexture9_AddDirtyRect (texture, &r);
 
     D3D_render2 (0);

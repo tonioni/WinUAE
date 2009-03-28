@@ -865,6 +865,7 @@ int dos_errno (void)
      case ERROR_FILE_NOT_FOUND:
      case ERROR_INVALID_DRIVE:
      case ERROR_INVALID_NAME:
+     case ERROR_PATH_NOT_FOUND:
 	return ERROR_OBJECT_NOT_AROUND;
 
      case ERROR_HANDLE_DISK_FULL:
@@ -885,8 +886,6 @@ int dos_errno (void)
 
      default:
 	{
-	    uae_u8 *p = 0;
-	    *p = 0;
 	    gui_message (L"Unimplemented error %d\nContact author!", e);
 	}
 	return ERROR_NOT_IMPLEMENTED;

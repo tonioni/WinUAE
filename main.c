@@ -392,7 +392,7 @@ void fixup_prefs (struct uae_prefs *p)
 
 int quit_program = 0;
 static int restart_program;
-static TCHAR restart_config[256];
+static TCHAR restart_config[MAX_DPATH];
 
 void uae_reset (int hardreset)
 {

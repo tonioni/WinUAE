@@ -391,13 +391,17 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	return 0;
 
     if (doublescan <= 0) {
-	if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W)
+	if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W) {
+	    dx += (w - (MIN_DISPLAY_W << currprefs.gfx_resolution)) / 2;
 	    w = MIN_DISPLAY_W << currprefs.gfx_resolution;
+	}
 	if ((h >> dbl1) < MIN_DISPLAY_H) {
-	    if (gcloh > MIN_DISPLAY_H)
+	    if (gcloh > MIN_DISPLAY_H) {
 		h = gcloh;
-	    else
+	    } else {
+		dy += (h - (MIN_DISPLAY_H << dbl1)) / 2;
 		h = MIN_DISPLAY_H << dbl1;
+	    }
 	}
 	if ((w >> currprefs.gfx_resolution) > MAX_DISPLAY_W) {
 	    dx += (w - (MAX_DISPLAY_W << currprefs.gfx_resolution)) / 2;

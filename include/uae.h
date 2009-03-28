@@ -22,6 +22,7 @@ extern void uae_quit (void);
 extern void uae_restart (int, TCHAR*);
 extern void reset_all_systems (void);
 extern void target_reset (void);
+extern void target_addtorecent (const TCHAR*, int);
 
 extern int quit_program;
 

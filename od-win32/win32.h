@@ -17,14 +17,15 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"18"
-#define WINUAEDATE MAKEBD(2009, 3, 25)
+#define WINUAEBETA L"19"
+#define WINUAEDATE MAKEBD(2009, 3, 28)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX)
 
+#define WINUAEAPPNAME L"Arabuusimiehet.WinUAE"
 extern HMODULE hUIDLL;
 extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 extern RECT amigawin_rect;

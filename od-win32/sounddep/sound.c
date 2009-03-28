@@ -1344,7 +1344,7 @@ static void PortAudioEnumerate (struct sound_device *sds)
     struct sound_device *sd;
     int num;
     int i, j;
-    TCHAR tmp[MAX_DPATH];
+    TCHAR tmp[MAX_DPATH], *s1, *s2;
 
     num = Pa_GetDeviceCount ();
     for (j = 0; j < num; j++) {
@@ -1365,7 +1365,11 @@ static void PortAudioEnumerate (struct sound_device *sds)
 	}
 	if (i >= MAX_SOUND_DEVICES)
 	    return;
-	_stprintf (tmp, L"[%s] %s", hai->name, di->name);
+	s1 = au (hai->name);
+	s2 = au (di->name);
+	_stprintf (tmp, L"[%s] %s", s1, s2);
+	xfree (s2);
+	xfree (s1);
 	sd->type = SOUND_DEVICE_PA;
 	sd->name = my_strdup (tmp);
 	sd->cfgname = my_strdup (tmp);
@@ -1397,16 +1401,26 @@ int enumerate_sound_devices (void)
 	{
 	    HMODULE hm = WIN32_LoadLibrary (L"portaudio_x86.dll");
 	    if (hm) {
+		TCHAR *s;
 		PaError err;
 		write_log (L"Enumerating PortAudio devices..\n");
-		write_log (L"%s (%d)\n", Pa_GetVersionText (), Pa_GetVersion ());
-		err = Pa_Initialize ();
-		if (err == paNoError) {
-		    PortAudioEnumerate (sound_devices);
+		s = au (Pa_GetVersionText ());
+		write_log (L"%s (%d)\n", s, Pa_GetVersion ());
+		xfree (s);
+		if (Pa_GetVersion () >= 1899) {
+		    err = Pa_Initialize ();
+		    if (err == paNoError) {
+			PortAudioEnumerate (sound_devices);
+		    } else {
+			s = au (Pa_GetErrorText (err));
+			write_log (L"Portaudio initializiation failed: %d (%s)\n",
+			    err, s);
+			xfree (s);
+			FreeLibrary (hm);
+		    }
 		} else {
-		    write_log (L"Portaudio initializiation failed: %d (%s)\n",
-			err, Pa_GetErrorText (err));
-		    FreeLibrary (hm);
+		    write_log (L"Too old PortAudio library\n");
+	    	    FreeLibrary (hm);
 		}
 	    }
 	}

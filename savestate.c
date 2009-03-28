@@ -571,6 +571,7 @@ void restore_state (const TCHAR *filename)
     restore_blitter_finish ();
     restore_akiko_finish ();
     restore_p96_finish ();
+    target_addtorecent (filename, 0);
     return;
 
     error:

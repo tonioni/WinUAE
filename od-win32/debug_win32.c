@@ -804,7 +804,7 @@ static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HANDLE hdata;
-    LPTSTR lptstr;
+    LPWSTR lptstr;
     TCHAR allowed[] = L"1234567890abcdefABCDEF";
     int ok = 1;
     TCHAR addrstr[12];
@@ -828,7 +828,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 	case WM_PASTE:
 	    if (!OpenClipboard(NULL))
 		return TRUE;
-	    hdata = GetClipboardData(CF_TEXT);
+	    hdata = GetClipboardData(CF_UNICODETEXT);
 	    if (hdata) {
 		lptstr = GlobalLock(hdata);
 		if (lptstr) {
@@ -904,7 +904,7 @@ static INT_PTR CALLBACK AddrInputDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 			{
 				TCHAR addrstr[11] = { '0', 'x', '\0' };
 
-				SendMessage(GetDlgItem(hDlg, IDC_DBG_MEMINPUT2), WM_GETTEXT, 9, (LPARAM)addrstr + 2);
+				SendMessage(GetDlgItem(hDlg, IDC_DBG_MEMINPUT2), WM_GETTEXT, 9, (LPARAM)(addrstr + 2));
 				if (addrstr[2] != 0) {
 					uae_u32 addr = _tcstoul(addrstr, NULL, 0);
 					if (dbgpage[currpage].selection == IDC_DBG_MEM || dbgpage[currpage].selection == IDC_DBG_MEM2) {
@@ -933,7 +933,7 @@ static INT_PTR CALLBACK AddrInputDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 static void CopyListboxText(HWND hwnd, BOOL all)
 {
 	HANDLE hdata;
-	LPTSTR lptstr;
+	LPWSTR lptstr;
 	int i, count, start, end, size = 0;
 
 	if (!OpenClipboard(hwnd))
@@ -953,7 +953,7 @@ static void CopyListboxText(HWND hwnd, BOOL all)
 	for (i = start; i < end; i++)
 		size += (SendMessage(hwnd, LB_GETTEXTLEN, i, 0) + 2);
 	size++;
-	hdata = GlobalAlloc(GMEM_MOVEABLE, size);
+	hdata = GlobalAlloc(GMEM_MOVEABLE, size * sizeof (TCHAR));
 	if (hdata) {
 		int pos = 0;
 		lptstr = GlobalLock(hdata);
@@ -966,7 +966,7 @@ static void CopyListboxText(HWND hwnd, BOOL all)
 			lptstr += (len + 2);
 		}
         GlobalUnlock(hdata); 
-		SetClipboardData(CF_TEXT, hdata);
+		SetClipboardData(CF_UNICODETEXT, hdata);
 	}
 	CloseClipboard();
 }
@@ -1098,7 +1098,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HANDLE hdata;
-    LPTSTR lptstr;
+    LPWSTR lptstr;
     TCHAR allowed[] = L"1234567890abcdefABCDEF ";
     int ok = 1, id;
     WNDPROC oldproc;
@@ -1147,7 +1147,7 @@ static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_PASTE:
 	    if (!OpenClipboard(NULL))
 		return TRUE;
-	    hdata = GetClipboardData(CF_TEXT);
+	    hdata = GetClipboardData(CF_UNICODETEXT);
 	    if (hdata) {
 		lptstr = GlobalLock(hdata);
 		if (lptstr) {
