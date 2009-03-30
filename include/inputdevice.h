@@ -68,7 +68,9 @@ extern int inputdevice_get_widget_num (int devnum);
 extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
 extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port);
-extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port);
+extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port);
+extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int cd32);
+extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port);
 
 #define DEFEVENT(A, B, C, D, E, F) INPUTEVENT_ ## A,
 enum inputevents {
@@ -152,6 +154,14 @@ extern void inputdevice_tablet (int x, int y, int z,
 extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
 extern void inputdevice_tablet_strobe (void);
 
+
+#define JSEM_MODE_DEFAULT 0
+#define JSEM_MODE_MOUSE 1
+#define JSEM_MODE_JOYSTICK 2
+#define JSEM_MODE_JOYSTICK_ANALOG 3
+#define JSEM_MODE_MOUSE_CDTV 4
+#define JSEM_MODE_JOYSTICK_CD32 5
+#define JSEM_MODE_LIGHTPEN 6
 
 #define JSEM_KBDLAYOUT 0
 #define JSEM_JOYS 100

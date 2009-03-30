@@ -1,4 +1,37 @@
 
+Beta 20: (feature complete now. I think..)
+
+- added controller type to gameports panel, easier way to enable
+  more complex standard controller configurations without need for
+  input panel (analog joystick, lightpen, joystick mouse emulation..)
+  Note that impossible configurations like emulating joystick with
+  mouse aren't supported even if GUI seems to allow it, also
+  non-mouse lightpen isn't really supported, it works but moves
+  badly (not worth the trouble really, maybe)
+- added "CDTV Mouse" which is CDTV remote controller mouse emulation,
+  only difference between normal and CDTV mouse is speed setting,
+  normal mouse speed is adjustable in input-panel, CDTV mouse speed
+  is not adjustable and is same as real CDTV mouse emulation (there
+  are CDTV programs that expect CDTV remote controller -like mouse
+  speed and they do not work very well with normal mouse)
+  NOTE: speed not yet calibrated!
+- added CD32 controller type to gameports GUI, enables CD32 controller
+  emulation. Now it is possible to emulate normal joysticks in CD32
+  emulation mode (without using input panel)
+- parallel port joystick adapter configuration added to gameports panel
+  (GUI lists all devices but only joystick/keyboard supported)
+- light pen cursor is centered when used for the first time
+- added more compatible default analog joystick parameters
+- digital joystick/buttons mapped to analog stick axis work correctly
+- state restore rom detection fixed (b15), added logging
+- support "0x402 An unknown error occurred" when deleting non-existing
+  directory with recycle bin enabled
+- drives 1 to 3 config load didn't work (b15)
+- added possibly pointless command line image conversion option,
+  "winuae -convert <src> <dst>" where src can be any supported archive
+  and/or disk image (even archive.lha\fileinsidearchive.dms should
+  unpack to adf) Separate command line unpacker maybe in future..
+
 Beta 19:
 
 - missing command line unicode support added

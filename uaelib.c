@@ -218,7 +218,7 @@ static uae_u32 emulib_ExitEmu (void)
  */
 static uae_u32 emulib_GetUaeConfig (uaecptr place)
 {
-    int i;
+    int i, j;
 
     put_long (place, version);
     put_long (place + 4, allocated_chipmem);
@@ -245,11 +245,11 @@ static uae_u32 emulib_GetUaeConfig (uaecptr place)
     else
 	put_byte (place + 35, 1);
 
-    for (i = 0; i < 256; i++) {
-	put_byte ((place + 36 + i), currprefs.df[0][i]);
-	put_byte ((place + 36 + i + 256), currprefs.df[1][i]);
-	put_byte ((place + 36 + i + 512), currprefs.df[2][i]);
-	put_byte ((place + 36 + i + 768), currprefs.df[3][i]);
+    for (j = 0; j < 4; j++) {
+	char *s = ua (currprefs.df[j]);
+	for (i = 0; i < 256; i++)
+	    put_byte (place + 36 + i + j * 256, s[i]);
+	xfree (s);
     }
     return 1;
 }

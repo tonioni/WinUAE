@@ -1479,3 +1479,31 @@ int zfile_exists_archive (const TCHAR *path, const TCHAR *rel)
     return zn ? 1 : 0;
 }
 
+int zfile_convertimage (const TCHAR *src, const TCHAR *dst)
+{
+    struct zfile *s, *d;
+    int ret = 0;
+
+    s = zfile_fopen (src, L"rb");
+    if (s) {
+	uae_u8 *b;
+	int size;
+	zfile_fseek (s, 0, SEEK_END);
+	size = zfile_ftell (s);
+	zfile_fseek (s, 0, SEEK_SET);
+	b = xcalloc (size, 1);
+	if (b) {
+	    if (zfile_fread (b, size, 1, s) == 1) {
+		d = zfile_fopen (dst, L"wb");
+		if (d) {
+		    if (zfile_fwrite (b, size, 1, d) == 1)
+			ret = 1;
+		    zfile_fclose (d);
+		}
+	    }
+	    xfree (b);
+	}
+	zfile_fclose (s);
+    }
+    return ret;
+}

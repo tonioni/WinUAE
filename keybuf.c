@@ -23,15 +23,14 @@
 #include "custom.h"
 #include "savestate.h"
 
-static int fakestate[2][7] = { {0},{0} };
+static int fakestate[MAX_JPORTS][7] = { {0},{0} };
 
 static int *fs_np, *fs_ck, *fs_se;
 #ifdef ARCADIA
 static int *fs_xa1, *fs_xa2;
 #endif
 
-/* Not static so the DOS code can mess with them */
-int kpb_first, kpb_last;
+static int kpb_first, kpb_last;
 
 static int keybuf[256];
 
@@ -56,17 +55,17 @@ int get_next_key (void)
 static void do_fake (int nr)
 {
     int *fake = fakestate[nr];
-    do_fake_joystick(nr, fake);
+    do_fake_joystick (nr, fake);
 }
 
-void record_key (int kc)
+int record_key (int kc)
 {
     if (input_recording < 0 || pause_emulation)
-	return;
-    record_key_direct (kc);
+	return 0;
+    return record_key_direct (kc);
 }
 
-void record_key_direct (int kc)
+int record_key_direct (int kc)
 {
     int fs = 0;
     int kpb_next = kpb_first + 1;
@@ -78,7 +77,7 @@ void record_key_direct (int kc)
 	kpb_next = 0;
     if (kpb_next == kpb_last) {
 	write_log (L"Keyboard buffer overrun. Congratulations.\n");
-	return;
+	return 0;
     }
 
     if (fs_np != 0) {
@@ -140,7 +139,11 @@ void record_key_direct (int kc)
 	    do_fake (0);
 	if (JSEM_ISANYKBD (1, &currprefs))
 	    do_fake (1);
-	return;
+	if (JSEM_ISANYKBD (2, &currprefs))
+	    do_fake (2);
+	if (JSEM_ISANYKBD (3, &currprefs))
+	    do_fake (3);
+	return 0;
     } else {
 	if ((kc >> 1) == AK_RCTRL) {
 	    kc ^= AK_RCTRL << 1;
@@ -185,41 +188,32 @@ void record_key_direct (int kc)
 
     keybuf[kpb_first] = kc;
     kpb_first = kpb_next;
+    return 1;
 }
 
 void joystick_setting_changed (void)
 {
+    int i;
+
     fs_np = fs_ck = fs_se = 0;
 #ifdef ARCADIA
     fs_xa1 = fs_xa2 = 0;
 #endif
 
-    if (JSEM_ISNUMPAD (0, &currprefs))
-	fs_np = fakestate[0];
-    else if (JSEM_ISNUMPAD (1, &currprefs))
-	fs_np = fakestate[1];
-
-    if (JSEM_ISCURSOR (0, &currprefs))
-	fs_ck = fakestate[0];
-    else if (JSEM_ISCURSOR (1, &currprefs))
-	fs_ck = fakestate[1];
-
-    if (JSEM_ISSOMEWHEREELSE (0, &currprefs))
-	fs_se = fakestate[0];
-    else if (JSEM_ISSOMEWHEREELSE (1, &currprefs))
-	fs_se = fakestate[1];
-
+    for (i = 0; i < MAX_JPORTS; i++) {
+	if (JSEM_ISNUMPAD (i, &currprefs))
+	    fs_np = fakestate[i];
+        if (JSEM_ISCURSOR (i, &currprefs))
+	    fs_ck = fakestate[i];
+	if (JSEM_ISSOMEWHEREELSE (i, &currprefs))
+	    fs_se = fakestate[i];
 #ifdef ARCADIA
-    if (JSEM_ISXARCADE1 (0, &currprefs))
-	fs_xa1 = fakestate[0];
-    else if (JSEM_ISXARCADE1 (1, &currprefs))
-	fs_xa1 = fakestate[1];
-
-    if (JSEM_ISXARCADE2 (0, &currprefs))
-	fs_xa2 = fakestate[0];
-    else if (JSEM_ISXARCADE2 (1, &currprefs))
-	fs_xa2 = fakestate[1];
+	if (JSEM_ISXARCADE1 (i, &currprefs))
+	    fs_xa1 = fakestate[i];
+	if (JSEM_ISXARCADE2 (i, &currprefs))
+	    fs_xa2 = fakestate[i];
 #endif
+    }
 }
 
 void keybuf_init (void)

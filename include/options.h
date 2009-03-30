@@ -37,12 +37,14 @@ struct uae_input_device {
     TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
     uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
-    uae_u8 enabled;
+    uae_s8 enabled;
 };
 
+#define MAX_JPORTS 4
 #define MAX_JPORTNAME 128
 struct jport {
     int id;
+    int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
     TCHAR name[MAX_JPORTNAME];
     TCHAR configname[MAX_JPORTNAME];
 };
@@ -348,7 +350,7 @@ struct uae_prefs {
     /* input */
 
     TCHAR inputname[256];
-    struct jport jports[2];
+    struct jport jports[MAX_JPORTS];
     int input_selected_setting;
     int input_joymouse_multiplier;
     int input_joymouse_deadzone;
@@ -370,20 +372,20 @@ struct uae_prefs {
 extern TCHAR optionsfile[];
 extern void save_options (struct zfile *, struct uae_prefs *, int);
 
-extern void cfgfile_write (struct zfile *, TCHAR *option, TCHAR *format,...);
-extern void cfgfile_dwrite (struct zfile *, TCHAR *option, TCHAR *format,...);
-extern void cfgfile_target_write (struct zfile *, TCHAR *option, TCHAR *format,...);
-extern void cfgfile_target_dwrite (struct zfile *, TCHAR *option, TCHAR *format,...);
+extern void cfgfile_write (struct zfile *, const TCHAR *option, const TCHAR *format,...);
+extern void cfgfile_dwrite (struct zfile *, const TCHAR *option, const TCHAR *format,...);
+extern void cfgfile_target_write (struct zfile *, const TCHAR *option, const TCHAR *format,...);
+extern void cfgfile_target_dwrite (struct zfile *, const TCHAR *option, const TCHAR *format,...);
 
-extern void cfgfile_write_bool (struct zfile *f, TCHAR *option, int b);
-extern void cfgfile_dwrite_bool (struct zfile *f, TCHAR *option, int b);
-extern void cfgfile_target_write_bool (struct zfile *f, TCHAR *option, int b);
-extern void cfgfile_target_dwrite_bool (struct zfile *f, TCHAR *option, int b);
+extern void cfgfile_write_bool (struct zfile *f, const TCHAR *option, int b);
+extern void cfgfile_dwrite_bool (struct zfile *f,const  TCHAR *option, int b);
+extern void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, int b);
+extern void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, int b);
 
-extern void cfgfile_write_str (struct zfile *f, TCHAR *option, const TCHAR *value);
-extern void cfgfile_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value);
-extern void cfgfile_target_write_str (struct zfile *f, TCHAR *option, const TCHAR *value);
-extern void cfgfile_target_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value);
+extern void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
+extern void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
+extern void cfgfile_target_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
+extern void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
 
 extern void cfgfile_backup (const TCHAR *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,

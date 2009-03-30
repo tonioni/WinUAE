@@ -164,6 +164,7 @@ static const TCHAR *maxvert[] = { L"nointerlace", L"interlace", 0 };
 static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
 static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", 0 };
+static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
 
 static const TCHAR *obsolete[] = {
     L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -282,41 +283,41 @@ end:
     xfree (tmp1);
 }
 
-void cfgfile_write_bool (struct zfile *f, TCHAR *option, int b)
+void cfgfile_write_bool (struct zfile *f, const TCHAR *option, int b)
 {
     cfg_dowrite (f, option, b ? L"true" : L"false", 0, 0);
 }
-void cfgfile_dwrite_bool (struct zfile *f, TCHAR *option, int b)
+void cfgfile_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
 {
     cfg_dowrite (f, option, b ? L"true" : L"false", 1, 0);
 }
-void cfgfile_write_str (struct zfile *f, TCHAR *option, const TCHAR *value)
+void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
     cfg_dowrite (f, option, value, 0, 0);
 }
-void cfgfile_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value)
+void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
     cfg_dowrite (f, option, value, 1, 0);
 }
 
-void cfgfile_target_write_bool (struct zfile *f, TCHAR *option, int b)
+void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, int b)
 {
     cfg_dowrite (f, option, b ? L"true" : L"false", 0, 1);
 }
-void cfgfile_target_dwrite_bool (struct zfile *f, TCHAR *option, int b)
+void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, int b)
 {
     cfg_dowrite (f, option, b ? L"true" : L"false", 1, 1);
 }
-void cfgfile_target_write_str (struct zfile *f, TCHAR *option, const TCHAR *value)
+void cfgfile_target_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
     cfg_dowrite (f, option, value, 0, 1);
 }
-void cfgfile_target_dwrite_str (struct zfile *f, TCHAR *option, const TCHAR *value)
+void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value)
 {
     cfg_dowrite (f, option, value, 1, 1);
 }
 
-void cfgfile_write (struct zfile *f, TCHAR *option, TCHAR *format,...)
+void cfgfile_write (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
     va_list parms;
     TCHAR tmp[CONFIG_BLEN];
@@ -326,7 +327,7 @@ void cfgfile_write (struct zfile *f, TCHAR *option, TCHAR *format,...)
     cfg_dowrite (f, option, tmp, 0, 0);
     va_end (parms);
 }
-void cfgfile_dwrite (struct zfile *f, TCHAR *option, TCHAR *format,...)
+void cfgfile_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
     va_list parms;
     TCHAR tmp[CONFIG_BLEN];
@@ -336,7 +337,7 @@ void cfgfile_dwrite (struct zfile *f, TCHAR *option, TCHAR *format,...)
     cfg_dowrite (f, option, tmp, 1, 0);
     va_end (parms);
 }
-void cfgfile_target_write (struct zfile *f, TCHAR *option, TCHAR *format,...)
+void cfgfile_target_write (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
     va_list parms;
     TCHAR tmp[CONFIG_BLEN];
@@ -346,7 +347,7 @@ void cfgfile_target_write (struct zfile *f, TCHAR *option, TCHAR *format,...)
     cfg_dowrite (f, option, tmp, 0, 1);
     va_end (parms);
 }
-void cfgfile_target_dwrite (struct zfile *f, TCHAR *option, TCHAR *format,...)
+void cfgfile_target_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *format,...)
 {
     va_list parms;
     TCHAR tmp[CONFIG_BLEN];
@@ -556,7 +557,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     if (p->override_dga_address)
 	cfgfile_write (f, L"override_dga_address", L"0x%08x", p->override_dga_address);
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < MAX_JPORTS; i++) {
 	struct jport *jp = &p->jports[i];
 	int v = jp->id;
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
@@ -571,15 +572,21 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	    if (v - JSEM_MICE > 0)
 		_stprintf (tmp2, L"mouse%d", v - JSEM_MICE);
 	}
-	_stprintf (tmp1, L"joyport%d", i);
-	cfgfile_write (f, tmp1, tmp2);
-	if (jp->name) {
-	    _stprintf (tmp1, L"joyportfriendlyname%d", i);
-	    cfgfile_write (f, tmp1, jp->name);
-	}
-	if (jp->configname) {
-	    _stprintf (tmp1, L"joyportname%d", i);
-	    cfgfile_write (f, tmp1, jp->configname);
+	if (i < 2 || jp->id >= 0) {
+	    _stprintf (tmp1, L"joyport%d", i);
+	    cfgfile_write (f, tmp1, tmp2);
+	    if (i < 2 && jp->mode > 0) {
+		_stprintf (tmp1, L"joyport%dmode", i);
+		cfgfile_write (f, tmp1, joyportmodes[jp->mode]);
+	    }
+	    if (jp->name) {
+		_stprintf (tmp1, L"joyportfriendlyname%d", i);
+		cfgfile_write (f, tmp1, jp->name);
+	    }
+	    if (jp->configname) {
+		_stprintf (tmp1, L"joyportname%d", i);
+		cfgfile_write (f, tmp1, jp->configname);
+	    }
 	}
     }
 
@@ -1173,15 +1180,34 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname0") == 0 ? 0 : 1, 2);
 	return 1;
     }
+    if (_tcscmp (option, L"joyportfriendlyname2") == 0 || _tcscmp (option, L"joyportfriendlyname3") == 0) {
+	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname2") == 0 ? 2 : 3, 2);
+	return 1;
+    }
     if (_tcscmp (option, L"joyportname0") == 0 || _tcscmp (option, L"joyportname1") == 0) {
 	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname0") == 0 ? 0 : 1, 1);
 	return 1;
     }
-
+    if (_tcscmp (option, L"joyportname2") == 0 || _tcscmp (option, L"joyportname3") == 0) {
+	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname2") == 0 ? 2 : 3, 1);
+	return 1;
+    }
     if (_tcscmp (option, L"joyport0") == 0 || _tcscmp (option, L"joyport1") == 0) {
 	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport0") == 0 ? 0 : 1, 0);
 	return 1;
     }
+    if (_tcscmp (option, L"joyport2") == 0 || _tcscmp (option, L"joyport3") == 0) {
+	inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport2") == 0 ? 2 : 3, 0);
+	return 1;
+    }
+    if (cfgfile_strval (option, value, L"joyport0mode", &p->jports[0].mode, joyportmodes, 0))
+	return 1;
+    if (cfgfile_strval (option, value, L"joyport1mode", &p->jports[1].mode, joyportmodes, 0))
+	return 1;
+    if (cfgfile_strval (option, value, L"joyport2mode", &p->jports[2].mode, joyportmodes, 0))
+	return 1;
+    if (cfgfile_strval (option, value, L"joyport3mode", &p->jports[3].mode, joyportmodes, 0))
+	return 1;
 
     if (cfgfile_string (option, value, L"statefile", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
 	_tcscpy (savestate_fname, tmpbuf);
@@ -2106,7 +2132,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
     }
 
     for (i = 0; i < 4; i++)
-	subst (p->path_floppy, p->df[i], sizeof p->df[i]);
+	subst (p->path_floppy, p->df[i], sizeof p->df[i] / sizeof (TCHAR));
     subst (p->path_rom, p->romfile, sizeof p->romfile / sizeof (TCHAR));
     subst (p->path_rom, p->romextfile, sizeof p->romextfile / sizeof (TCHAR));
 
@@ -3052,8 +3078,12 @@ void default_prefs (struct uae_prefs *p, int type)
 
     memset (&p->jports[0], 0, sizeof (struct jport));
     memset (&p->jports[1], 0, sizeof (struct jport));
+    memset (&p->jports[2], 0, sizeof (struct jport));
+    memset (&p->jports[3], 0, sizeof (struct jport));
     p->jports[0].id = JSEM_MICE;
     p->jports[1].id = JSEM_KBDLAYOUT;
+    p->jports[2].id = -1;
+    p->jports[3].id = -1;
     p->keyboard_lang = KBD_LANG_US;
 
     p->produce_sound = 3;

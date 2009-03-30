@@ -279,6 +279,8 @@ void write_log (const TCHAR *format, ...)
     TCHAR *bufp;
     va_list parms;
 
+    if (!cs_init)
+	return;
     EnterCriticalSection (&cs);
     va_start (parms, format);
     bufp = buffer;

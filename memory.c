@@ -3891,43 +3891,50 @@ void restore_a3000hram (int len, size_t filepos)
 uae_u8 *restore_rom (uae_u8 *src)
 {
     uae_u32 crc32, mem_start, mem_size, mem_type, version;
-    TCHAR *s;
-    int i;
+    TCHAR *s, *romn;
+    int i, crcdet;
 
     mem_start = restore_u32 ();
     mem_size = restore_u32 ();
     mem_type = restore_u32 ();
     version = restore_u32 ();
     crc32 = restore_u32 ();
-    s = restore_string ();
+    romn = restore_string ();
+    crcdet = 0;
     for (i = 0; i < romlist_cnt; i++) {
 	if (rl[i].rd->crc32 == crc32 && crc32) {
 	    switch (mem_type)
 	    {
 		case 0:
-		_tcsncmp (changed_prefs.romfile, rl[i].path, 255);
+		_tcsncpy (changed_prefs.romfile, rl[i].path, 255);
 		break;
 		case 1:
-		_tcsncmp (changed_prefs.romextfile, rl[i].path, 255);
+		_tcsncpy (changed_prefs.romextfile, rl[i].path, 255);
 		break;
 	    }
+	    write_log (L"ROM '%s' = '%s'\n", romn, rl[i].path);
+	    crcdet = 1;
 	    break;
 	}
     }
-    xfree (s);
     s = restore_string ();
-    if (zfile_exists (s)) {
+    if (!crcdet && zfile_exists (s)) {
 	switch (mem_type)
 	{
 	    case 0:
-	    _tcsncmp (changed_prefs.romfile, s, 255);
+	    _tcsncpy (changed_prefs.romfile, s, 255);
 	    break;
 	    case 1:
-	    _tcsncmp (changed_prefs.romextfile, s, 255);
+	    _tcsncpy (changed_prefs.romextfile, s, 255);
 	    break;
 	}
+	write_log (L"ROM detected (path) as '%s'\n", s);
+	crcdet = 1;
     }
     xfree (s);
+    if (!crcdet)
+	write_log (L"WARNING: ROM '%s' not found!\n", romn);
+    xfree (romn);
     return src;
 }
 

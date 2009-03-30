@@ -956,7 +956,7 @@ STATIC_INLINE void fetch (int nr, int fm)
 {
     if (nr < toscr_nr_planes) {
 #if NEW_BPL
-	uaecptr p = f_bplpt[nr];
+	uaecptr p = f_bplpt[nr] + bpl_off[nr];
 #else
 	uaecptr p = bplpt[nr];
 	bplpt[nr] += 2 << fm;
@@ -5266,7 +5266,8 @@ void customreset (int hardreset)
     hsync_counter = 0;
     vsync_counter = 0;
     ciavsync_counter = 0;
-    lightpen_x = lightpen_y = lightpen_triggered = 0;
+    lightpen_x = lightpen_y = -1;
+    lightpen_triggered = 0;
     lightpen_cx = lightpen_cy = -1;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;

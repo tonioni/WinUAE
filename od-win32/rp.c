@@ -129,7 +129,7 @@ static int port_insert2 (int num, const TCHAR *name)
 
     type = 1;
     _tcscpy (tmp2, name);
-    for (i = 1; i <= 4; i++) {
+    for (i = 1; i <= MAX_JPORTS; i++) {
 	TCHAR tmp1[1000];
 	_stprintf (tmp1, L"Mouse%d", i);
 	if (!_tcscmp (name, tmp1)) {
@@ -163,7 +163,7 @@ static int port_insert (int num, const TCHAR *name)
 {
     TCHAR tmp1[1000];
 
-    if (num < 0 || num > 1)
+    if (num < 0 || num >= MAX_JPORTS)
 	return FALSE;
     if (_tcslen (name) == 0) {
 	inputdevice_joyport_config (&changed_prefs, L"none", num, 0);
@@ -733,9 +733,11 @@ void rp_fixup_options (struct uae_prefs *p)
     }
     RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 
-    RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_INPUTPORT, 3, NULL, 0, &guestinfo, NULL);
+    RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_INPUTPORT, (1 << MAX_JPORTS) - 1, NULL, 0, &guestinfo, NULL);
     rp_input_change (0);
     rp_input_change (1);
+    rp_input_change (2);
+    rp_input_change (3);
 
     hd_mask = 0;
     cd_mask = 0;

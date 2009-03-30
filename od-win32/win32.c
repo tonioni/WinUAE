@@ -94,6 +94,7 @@ OSVERSIONINFO osVersion;
 static SYSTEM_INFO SystemInfo;
 static int logging_started;
 static DWORD minidumpmode = MiniDumpNormal;
+static int doquit;
 void *globalipc, *serialipc;
 
 int qpcdivisor = 0;
@@ -2665,7 +2666,7 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
     DWORD disposition;
     const TCHAR *progid = L"WinUAE";
     int def = !_tcscmp (extension, L".uae");
-    TCHAR *defprogid;
+    const TCHAR *defprogid;
     UAEREG *fkey;
 
     _tcscpy (progid2, progid);
@@ -3393,8 +3394,12 @@ static void makeverstr (TCHAR *s)
     }
 }
 
-static int parseargs (const TCHAR *arg, const TCHAR *np)
+static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 {
+    if (!_tcscmp (arg, L"-convert") && np && np2) {
+	zfile_convertimage (np, np2);
+	return -1;
+    }
 
     if (!_tcscmp (arg, L"-log")) {
         console_logging = 1;
@@ -3625,11 +3630,16 @@ static TCHAR **parseargstrings (TCHAR *s, TCHAR **xargv)
     for (i = 0; i < cnt; i++) {
 	TCHAR *arg = args[i];
 	TCHAR *next = i + 1 < cnt ? args[i + 1] : NULL;
-	int v = parseargs (arg, next);
-	if (!v)
+	TCHAR *next2 = i + 2 < cnt ? args[i + 2] : NULL;
+	int v = parseargs (arg, next, next2);
+	if (!v) {
 	    xargv[xargc++] = my_strdup (arg);
-	else if (v == 2)
+	} else if (v == 2) {
 	    i++;
+	} else if (v < 0) {
+	    doquit = 1;
+	    return NULL;
+	}
     }
     return args;
 }
@@ -3693,11 +3703,16 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
     for (i = 0; argv[i]; i++) {
 	TCHAR *arg = argv[i];
 	TCHAR *next = argv[i + 1];
-	int v = parseargs (arg, next);
-	if (!v)
+	TCHAR *next2 = next != NULL ? argv[i + 2] : NULL;
+	int v = parseargs (arg, next, next2);
+	if (!v) {
 	    xargv[xargc++] = my_strdup (arg);
-	else if (v == 2)
+	} else if (v == 2) {
 	    i++;
+	} else if (v < 0) {
+	    doquit = 1;
+	    return 0;
+	}
     }
 #if 0
     argv = 0;
@@ -3753,13 +3768,13 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 
     hInst = hInstance;
     hMutex = CreateMutex (NULL, FALSE, L"WinUAE Instantiated"); // To tell the installer we're running
-#ifdef AVIOUTPUT
-    AVIOutput_Initialize ();
-#endif
+
 
     argv = xcalloc (sizeof (TCHAR*), 32);
     argv3 = NULL;
     argc = process_arg (lpCmdLine, argv, &argv3);
+    if (doquit)
+	return 0;
 
     argv2 = WIN32_InitRegistry (argv);
     getstartpaths ();
@@ -3808,7 +3823,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	    else
 		default_freq = 60;
 	}
-	WIN32_HandleRegistryStuff ();
+#ifdef AVIOUTPUT
+	AVIOutput_Initialize ();
+#endif	WIN32_HandleRegistryStuff ();
 	WIN32_InitLang ();
 	WIN32_InitHtmlHelp ();
 	DirectDraw_Release ();

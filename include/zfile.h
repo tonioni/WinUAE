@@ -41,6 +41,7 @@ extern struct zfile *zfile_dup (struct zfile *f);
 extern struct zfile *zfile_gunzip (struct zfile *z);
 extern int zfile_isdiskimage (const TCHAR *name);
 extern int iszip (struct zfile *z);
+extern int zfile_convertimage (const TCHAR *src, const TCHAR *dst);
 
 #define ZFILE_UNKNOWN 0
 #define ZFILE_CONFIGURATION 1

@@ -2528,30 +2528,61 @@ int input_get_default_mouse (struct uae_input_device *uid, int i, int port)
     return 0;
 }
 
-int input_get_default_joystick (struct uae_input_device *uid, int i, int port)
+int input_get_default_lightpen (struct uae_input_device *uid, int i, int port)
+{
+    struct didata *did;
+
+    if (i >= num_mouse)
+	return 0;
+    did = &di_mouse[i];
+    if (did->wininput)
+	port = 0;
+    uid[i].eventid[ID_AXIS_OFFSET + 0][0] = INPUTEVENT_LIGHTPEN_HORIZ;
+    uid[i].eventid[ID_AXIS_OFFSET + 1][0] = INPUTEVENT_LIGHTPEN_VERT;
+    uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
+    if (i == 0)
+	return 1;
+    return 0;
+}
+
+int input_get_default_joystick (struct uae_input_device *uid, int i, int port, int cd32)
 {
     int j;
     struct didata *did;
+    int h, v;
 
     if (i >= num_joystick)
 	return 0;
     did = &di_joystick[i];
-    uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
-    uid[i].eventid[ID_AXIS_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
-    uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON;
-    if (isrealbutton (did, 1))
-	uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON;
-    if (isrealbutton (did, 2))
-	uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
+    if (port >= 2) {
+	h = port == 3 ? INPUTEVENT_PAR_JOY2_HORIZ : INPUTEVENT_PAR_JOY1_HORIZ;
+	v = port == 3 ? INPUTEVENT_PAR_JOY2_VERT : INPUTEVENT_PAR_JOY1_VERT;
+    } else {
+	h = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;;
+	v = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
+    }
+    uid[i].eventid[ID_AXIS_OFFSET + 0][0] = h;
+    uid[i].eventid[ID_AXIS_OFFSET + 1][0] = v;
+
+    if (port >= 2) {
+	uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port == 3 ? INPUTEVENT_PAR_JOY2_FIRE_BUTTON : INPUTEVENT_PAR_JOY1_FIRE_BUTTON;
+    } else {
+	uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON;
+	if (isrealbutton (did, 1))
+	    uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON;
+	if (isrealbutton (did, 2))
+	    uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON;
+    }
+
     for (j = 2; j < MAX_MAPPINGS - 1; j++) {
 	int am = did->axismappings[j];
 	if (am == DIJOFS_POV(0) || am == DIJOFS_POV(1) || am == DIJOFS_POV(2) || am == DIJOFS_POV(3)) {
-	    uid[i].eventid[ID_AXIS_OFFSET + j + 0][0] = port ? INPUTEVENT_JOY2_HORIZ : INPUTEVENT_JOY1_HORIZ;
-	    uid[i].eventid[ID_AXIS_OFFSET + j + 1][0] = port ? INPUTEVENT_JOY2_VERT : INPUTEVENT_JOY1_VERT;
+	    uid[i].eventid[ID_AXIS_OFFSET + j + 0][0] = h;
+	    uid[i].eventid[ID_AXIS_OFFSET + j + 1][0] = v;
 	    j++;
 	}
     }
-    if (currprefs.cs_cd32cd) {
+    if (cd32) {
 	uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_CD32_RED : INPUTEVENT_JOY1_CD32_RED;
 	if (isrealbutton (did, 1))
 	    uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_CD32_BLUE : INPUTEVENT_JOY1_CD32_BLUE;
@@ -2570,3 +2601,34 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port)
 	return 1;
     return 0;
 }
+
+int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int port)
+{
+    int j;
+    struct didata *did;
+
+    if (i >= num_joystick)
+	return 0;
+    did = &di_joystick[i];
+    uid[i].eventid[ID_AXIS_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT;
+    uid[i].eventid[ID_AXIS_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT;
+    uid[i].eventid[ID_BUTTON_OFFSET + 0][0] = port ? INPUTEVENT_JOY2_LEFT : INPUTEVENT_JOY1_LEFT;
+    if (isrealbutton (did, 1))
+	uid[i].eventid[ID_BUTTON_OFFSET + 1][0] = port ? INPUTEVENT_JOY2_RIGHT : INPUTEVENT_JOY1_RIGHT;
+    if (isrealbutton (did, 2))
+	uid[i].eventid[ID_BUTTON_OFFSET + 2][0] = port ? INPUTEVENT_JOY2_UP : INPUTEVENT_JOY1_UP;
+    if (isrealbutton (did, 3))
+	uid[i].eventid[ID_BUTTON_OFFSET + 3][0] = port ? INPUTEVENT_JOY2_DOWN : INPUTEVENT_JOY1_DOWN;
+    for (j = 2; j < MAX_MAPPINGS - 1; j++) {
+	int am = did->axismappings[j];
+	if (am == DIJOFS_POV(0) || am == DIJOFS_POV(1) || am == DIJOFS_POV(2) || am == DIJOFS_POV(3)) {
+	    uid[i].eventid[ID_AXIS_OFFSET + j + 0][0] = port ? INPUTEVENT_JOY2_HORIZ_POT : INPUTEVENT_JOY1_HORIZ_POT;
+	    uid[i].eventid[ID_AXIS_OFFSET + j + 1][0] = port ? INPUTEVENT_JOY2_VERT_POT : INPUTEVENT_JOY1_VERT_POT;
+	    j++;
+	}
+    }
+    if (i == 0)
+	return 1;
+    return 0;
+}
+

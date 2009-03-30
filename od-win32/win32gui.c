@@ -1722,10 +1722,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.Flags |= OFN_ALLOWMULTISELECT;
     if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
 	if (!(result = GetSaveFileName_2 (&openFileName, guid)))
-	    write_log (L"GetSaveFileNameX() failed, err=%d.\n", GetLastError());
+	    write_log (L"GetSaveFileNameX() failed, err=%d.\n", GetLastError ());
     } else {
 	if (!(result = GetOpenFileName_2 (&openFileName, guid)))
-	    write_log (L"GetOpenFileNameX() failed, err=%d.\n", GetLastError());
+	    write_log (L"GetOpenFileNameX() failed, err=%d.\n", GetLastError ());
     }
     previousfilter[flag] = openFileName.nFilterIndex;
 
@@ -8947,7 +8947,7 @@ static DWORD dwEnumeratedPrinters = 0;
 struct serialportinfo comports[MAX_SERIAL_PORTS];
 static int ghostscript_available;
 
-static int joy0previous, joy1previous;
+static int joyxprevious[4];
 static BOOL bNoMidiIn = FALSE;
 
 static void enable_for_gameportsdlg (HWND hDlg)
@@ -8993,6 +8993,9 @@ static void enable_for_portsdlg (HWND hDlg)
 #endif
 }
 
+static int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
+static int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
+
 static void updatejoyport (HWND hDlg)
 {
     int i, j;
@@ -9004,16 +9007,22 @@ static void updatejoyport (HWND hDlg)
     CheckDlgButton (hDlg, IDC_PORT_TABLET, workprefs.input_tablet > 0);
     CheckDlgButton (hDlg, IDC_PORT_TABLET_FULL, workprefs.input_tablet == TABLET_REAL);
 
-    if (joy0previous < 0)
-	joy0previous = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
-    if (joy1previous < 0)
-	joy1previous = JSEM_LASTKBD + 1;
-    for (i = 0; i < 2; i++) {
+    if (joyxprevious[0] < 0)
+	joyxprevious[0] = inputdevice_get_device_total (IDTYPE_JOYSTICK) + 1;
+    if (joyxprevious[1] < 0)
+	joyxprevious[1] = JSEM_LASTKBD + 1;
+
+    for (i = 0; i < MAX_JPORTS; i++) {
 	int total = 2;
-	int idx = i == 0 ? joy0previous : joy1previous;
-	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
+	int idx = joyxprevious[i];
+	int id = joys[i];
+	int idm = joysm[i];
 	int v = workprefs.jports[i].id;
+	int vm = workprefs.jports[i].mode;
 	TCHAR *p1, *p2;
+
+	if (idm > 0)
+	    SendDlgItemMessage (hDlg, idm, CB_SETCURSEL, vm, 0);
 
 	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"");
@@ -9079,9 +9088,8 @@ static void fixjport (struct jport *port, int v)
 
 static void values_from_gameportsdlg (HWND hDlg, int d)
 {
-    int i, success;
+    int i, j, success;
     int changed = 0;
-    int lastside = 0;
 
     if (d) {
 	i  = GetDlgItemInt (hDlg, IDC_INPUTSPEEDM, &success, FALSE);
@@ -9099,14 +9107,16 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 	return;
     }
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < MAX_JPORTS; i++) {
 	int idx = 0;
 	int *port = &workprefs.jports[i].id;
+	int *portm = &workprefs.jports[i].mode;
 	int prevport = *port;
-	int id = i == 0 ? IDC_PORT0_JOYS : IDC_PORT1_JOYS;
+	int id = joys[i];
+	int idm = joysm[i];
 	LRESULT v = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0L);
 	if (v != CB_ERR && v > 0) {
-	    v-=2;
+	    v -= 2;
 	    if (v < 0)
 		*port = -1;
 	    else if (v < JSEM_LASTKBD)
@@ -9116,18 +9126,21 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 	    else
 		*port = JSEM_JOYS + (int)v - JSEM_LASTKBD;
 	}
-	if (*port != prevport) {
-	    lastside = i;
+	v = SendDlgItemMessage (hDlg, idm, CB_GETCURSEL, 0, 0L);
+	if (v != CB_ERR && v > 0)
+	    *portm = v;
+	if (*port != prevport)
 	    changed = 1;
-	}
     }
     if (changed) {
-	if (lastside)
-	    fixjport (&workprefs.jports[0], workprefs.jports[1].id);
-	else
-	    fixjport (&workprefs.jports[1], workprefs.jports[0].id);
+	for (i = 0; i < MAX_JPORTS; i++) {
+	    for (j = 0; j < MAX_JPORTS; j++) {
+		if (j != i)
+		    fixjport (&workprefs.jports[i], workprefs.jports[j].id);
+	    }
+	}
     }
-    
+       
 }
 
 static void values_from_portsdlg (HWND hDlg)
@@ -9292,7 +9305,6 @@ static void init_portsdlg (HWND hDlg)
 	    unload_ghostscript ();
 	    ghostscript_available = 1;
 	}
-	joy0previous = joy1previous = -1;
     }
     if (!ghostscript_available) {
 	workprefs.parallel_postscript_emulation = 0;
@@ -9372,8 +9384,10 @@ static void init_portsdlg (HWND hDlg)
 /* Handle messages for the Joystick Settings page of our property-sheet */
 static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    TCHAR tmp[MAX_DPATH];
     static int recursive = 0;
-    int temp;
+    static int first;
+    int temp, i;
 
     switch (msg)
     {
@@ -9381,10 +9395,42 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	recursive++;
 	pages[GAMEPORTS_ID] = hDlg;
 	currentpage = GAMEPORTS_ID;
+    
+	if (!first) {
+	    first = 1;
+	    joyxprevious[0] = -1;
+	    joyxprevious[1] = -1;
+	    joyxprevious[2] = -1;
+	    joyxprevious[3] = -1;
+	}
+
 	SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
-        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)L"Show both cursors");
-        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)L"Show native cursor only");
-        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)L"Show host cursor only");
+        WIN32GUI_LoadUIString (IDS_TABLET_BOTH_CURSORS, tmp, MAX_DPATH);
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+        WIN32GUI_LoadUIString (IDS_TABLET_NATIVE_CURSOR, tmp, MAX_DPATH);
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+        WIN32GUI_LoadUIString (IDS_TABLET_HOST_CURSOR, tmp, MAX_DPATH);
+        SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_ADDSTRING, 0, (LPARAM)tmp);
+
+	for (i = 0; i < 2; i++) {
+	    int id = i == 0 ? IDC_PORT0_JOYSMODE : IDC_PORT1_JOYSMODE;
+	    SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_DEFAULT, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICKANALOG, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE_CDTV, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK_CD32, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_JOYMODE_LIGHTPEN, tmp, MAX_DPATH);
+	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
+
 	inputdevice_updateconfig (&workprefs);
 	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);
@@ -9406,9 +9452,9 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	    memcpy (&tmp, &workprefs.jports[0], sizeof (struct jport));
 	    memcpy (&workprefs.jports[0], &workprefs.jports[1], sizeof (struct jport));
 	    memcpy (&workprefs.jports[1], &tmp, sizeof (struct jport));
-	    temp = joy0previous;
-	    joy0previous = joy1previous;
-	    joy1previous = temp;
+	    temp = joyxprevious[0];
+	    joyxprevious[0] = joyxprevious[1];
+	    joyxprevious[1] = temp;
 	    enable_for_gameportsdlg (hDlg);
 	    updatejoyport (hDlg);
 	    inputdevice_updateconfig (&workprefs);
@@ -9418,6 +9464,10 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	    {
 	        case IDC_PORT0_JOYS:
 	        case IDC_PORT1_JOYS:
+	        case IDC_PORT2_JOYS:
+	        case IDC_PORT3_JOYS:
+	        case IDC_PORT0_JOYSMODE:
+	        case IDC_PORT1_JOYSMODE:
 	    	    values_from_gameportsdlg (hDlg, 0);
 		    enable_for_gameportsdlg (hDlg);
 		    updatejoyport (hDlg);

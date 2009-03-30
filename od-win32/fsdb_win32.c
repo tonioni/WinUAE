@@ -598,6 +598,7 @@ static int recycle (const TCHAR *name)
 	{
 	    case 0xb7: //DE_ERROR_MAX
 	    case 0x7c: //DE_INVALIDFILES
+	    case 0x402: // "unknown error"
 	    v = ERROR_FILE_NOT_FOUND;
 	    break;
 	    case 0x75: //DE_OPCANCELLED:
