@@ -2691,6 +2691,7 @@ int cmdlineparser (TCHAR *s, TCHAR *outp[], int max)
     doout = 0;
     prev = s;
     j = 0;
+    outp[0] = 0;
     while (cnt < max) {
 	TCHAR c = *s++;
 	if (!c)
@@ -2719,14 +2720,17 @@ int cmdlineparser (TCHAR *s, TCHAR *outp[], int max)
 	}
 	if (doout) {
 	    outp[cnt++] = my_strdup (tmp1);
+	    outp[cnt] = 0;
 	    tmp1[0] = 0;
 	    doout = 0;
 	    j = 0;
 	}
 	slash = 0;
     }
-    if (j > 0 && cnt < max)
+    if (j > 0 && cnt < max) {
 	outp[cnt++] = my_strdup (tmp1);
+	outp[cnt] = 0;
+    }
     return cnt;
 }
 

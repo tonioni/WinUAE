@@ -31,17 +31,9 @@ int always_flush_log = 0;
 
 /* console functions for debugger */
 
-typedef HWND (CALLBACK* GETCONSOLEWINDOW)(void);
-
 static HWND myGetConsoleWindow (void)
 {
-    GETCONSOLEWINDOW pGetConsoleWindow;
-    /* Windows 2000 or newer only */
-    pGetConsoleWindow = (GETCONSOLEWINDOW)GetProcAddress (
-	GetModuleHandle (L"kernel32.dll"), "GetConsoleWindow");
-    if (pGetConsoleWindow)
-	return pGetConsoleWindow ();
-    return NULL;
+    return GetConsoleWindow ();
 }
 
 static void open_console_window (void)
@@ -219,7 +211,7 @@ static TCHAR *writets (void)
 
     if (bootlogmode)
 	return NULL;
-    _ftime(&tb);
+    _ftime (&tb);
     t = localtime (&tb.time);
     _tcsftime (curts, sizeof curts / sizeof (TCHAR), L"%Y-%m-%d %H:%M:%S\n", t);
     p = out;
@@ -233,7 +225,7 @@ static TCHAR *writets (void)
     p += _tcslen (p);
     _stprintf (p, L"%03d", tb.millitm);
     p += _tcslen (p);
-    if (timeframes || vpos > 0 && current_hpos () > 0)
+    if (timeframes || (vpos > 0 && current_hpos () > 0))
 	_stprintf (p, L" [%d %03dx%03d]", timeframes, current_hpos (), vpos);
     _tcscat (p, L": ");
     return out;
@@ -312,7 +304,7 @@ void write_log (const TCHAR *format, ...)
 	_ftprintf (debugfile, bufp);
     }
     lfdetected = 0;
-    if (_tcslen (bufp) > 0 && bufp[_tcslen(bufp) - 1] == '\n')
+    if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
 	lfdetected = 1;
     va_end (parms);
     if (bufp != buffer)
@@ -351,7 +343,7 @@ TCHAR* buf_out (TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 
     if (buffer == NULL)
 	return 0;
-    count = _vsntprintf (buffer, (*bufsize)-1, format, parms);
+    count = _vsntprintf (buffer, (*bufsize) - 1, format, parms);
     va_end (parms);
     *bufsize -= _tcslen (buffer);
     return buffer + _tcslen (buffer);

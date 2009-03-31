@@ -3825,7 +3825,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	}
 #ifdef AVIOUTPUT
 	AVIOutput_Initialize ();
-#endif	WIN32_HandleRegistryStuff ();
+#endif
+	WIN32_HandleRegistryStuff ();
 	WIN32_InitLang ();
 	WIN32_InitHtmlHelp ();
 	DirectDraw_Release ();
@@ -4000,6 +4001,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
     PCONTEXT ctx = pExceptionPointers->ContextRecord;
 
     /* Check possible access violation in 68010+/compatible mode disabled if PC points to non-existing memory */
+#if 1
     if (ec == EXCEPTION_ACCESS_VIOLATION && !er->ExceptionFlags &&
 	er->NumberParameters >= 2 && !er->ExceptionInformation[0] && regs.pc_p) {
 	    void *p = (void*)er->ExceptionInformation[1];
@@ -4030,6 +4032,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		}
 	    }
     }
+#endif
 #ifndef	_DEBUG
     if (lRet == EXCEPTION_CONTINUE_SEARCH) {
 	TCHAR path[MAX_DPATH];

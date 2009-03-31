@@ -1608,7 +1608,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     if (plfstate < plf_passed_stop && ddf_change != vpos && ddf_change + 1 != vpos
 	&& dma
 	&& (fetch_cycle & f_fetchstart_mask) == (f_fm_maxplane & f_fetchstart_mask)
-	&& toscr_delay1 == toscr_delay1x && toscr_delay2 == toscr_delay2x && badmode
+	&& toscr_delay1 == toscr_delay1x && toscr_delay2 == toscr_delay2x && !badmode
  # if 0
 	/* @@@ We handle this case, but the code would be simpler if we
 	 * disallowed it - it may even be possible to guarantee that

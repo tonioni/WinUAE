@@ -53,7 +53,7 @@
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
 
-static char prtbuf[PRTBUFSIZE];
+static uae_char prtbuf[PRTBUFSIZE];
 static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
 static DWORD  dwJob;
@@ -130,20 +130,21 @@ static int openprinter_ps (void)
 
     if (ptr_gsapi_new_instance (&gsinstance, NULL) < 0)
 	return 0;
-    tmpparms[0] = L"WinUAE";
-    gsargc2 = cmdlineparser (currprefs.ghostscript_parameters, tmpparms + 1, 100 - 10) + 1;
+    cmdlineparser (currprefs.ghostscript_parameters, tmpparms, 100 - 10);
 
+    gsargc2 = 0;
+    gsparms[gsargc2++] = ua (L"WinUAE");
     for (gsargc = 0; gsargv[gsargc]; gsargc++) {
-	gsparms[gsargc] = ua (gsargv[gsargc]);
+	gsparms[gsargc2++] = ua (gsargv[gsargc]);
     }
-    for (i = 0; i < gsargc; i++)
+    for (i = 0; tmpparms[i]; i++)
 	gsparms[gsargc2++] = ua (tmpparms[i]);
     if (currprefs.prtname[0]) {
 	_stprintf (tmp, L"-sOutputFile=%%printer%%%s", currprefs.prtname);
 	gsparms[gsargc2++] = ua (tmp);
     }
     if (postscript_print_debugging) {
-	for(i = 0; i < gsargc2; i++) {
+	for (i = 0; i < gsargc2; i++) {
 	    TCHAR *parm = au (gsparms[i]);
 	    write_log (L"GSPARM%d: '%s'\n", i, parm);
 	    xfree (parm);
@@ -175,7 +176,7 @@ static void *prt_thread (void *p)
     ok = 1;
     prt_running++;
     prt_started = 1;
-    SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
     if (load_ghostscript ()) {
 	if (openprinter_ps ()) {
 	    write_log (L"PostScript printing emulation started..\n");
@@ -193,10 +194,10 @@ static void *prt_thread (void *p)
 	    }
 	    cnt = 0;
 	    while (buffers[cnt]) {
-		free (buffers[cnt]);
+		xfree (buffers[cnt]);
 		cnt++;
 	    }
-	    free (buffers);
+	    xfree (buffers);
 	    if (ok) {
 		write_log (L"PostScript printing emulation finished..\n");
 		ptr_gsapi_run_string_end (gsinstance, 0, &gs_exitcode);
@@ -236,7 +237,7 @@ static void flushprtbuf (void)
 	prtbufbytes = 0;
 	return;
     } else if (hPrt != INVALID_HANDLE_VALUE) {
-	if (WritePrinter(hPrt, prtbuf, prtbufbytes, &written)) {
+	if (WritePrinter (hPrt, prtbuf, prtbufbytes, &written)) {
 	    if (written != prtbufbytes)
 		write_log (L"PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes);
 	} else {
@@ -461,7 +462,7 @@ void flushprinter (void)
     closeprinter ();
 }
 
-void closeprinter( void	)
+void closeprinter (void)
 {
 #ifdef PRINT_DUMP
     zfile_fclose (prtdump);
@@ -487,7 +488,7 @@ void closeprinter( void	)
     freepsbuffers ();
 }
 
-static void putprinter (char val)
+static void putprinter (uae_char val)
 {
     DoSomeWeirdPrintingStuff (val);
 }

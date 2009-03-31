@@ -1,4 +1,12 @@
 
+Beta 21:
+
+- registry subsystem wasn't initialized in b20 (broke lots of things)
+- postscript printing crash fixed (old bug that didn't crash so
+  easily in older versions..)
+- slowdown introduced in b13 should be fixed (inverted comparison
+  when testing if current scan line can be emulated in "fast" mode)
+
 Beta 20: (feature complete now. I think..)
 
 - added controller type to gameports panel, easier way to enable
