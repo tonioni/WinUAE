@@ -188,14 +188,14 @@ static int readregx (TCHAR **c, uae_u32 *valp)
     addr = 0;
     i = 0;
     while (p[i]) {
-	tmp[i] = _totupper(p[i]);
-	if (i >= sizeof (tmp) - 1)
+	tmp[i] = _totupper (p[i]);
+	if (i >= sizeof (tmp) / sizeof (TCHAR) - 1)
 	    break;
 	i++;
     }
     tmp[i] = 0;
     if (_totupper (tmp[0]) == 'R') {
-	memmove (tmp, tmp + 1, sizeof (tmp) - 1);
+	memmove (tmp, tmp + 1, sizeof (tmp) - sizeof (TCHAR));
 	extra = 1;
     }
     if (!_tcscmp (tmp, L"USP")) {
@@ -554,7 +554,7 @@ uaecptr dumpmem2 (uaecptr addr, TCHAR *out, int osize)
     if (nonsafe == cols) {
 	addrbank *ab = &get_mem_bank (addr);
 	if (ab->name)
-	    memcpy (out + 9 + 4 + 1, ab->name, _tcslen (ab->name));
+	    memcpy (out + (9 + 4 + 1) * sizeof (TCHAR), ab->name, _tcslen (ab->name) * sizeof (TCHAR));
     }
     return addr;
 }
@@ -863,7 +863,7 @@ static int totaltrainers;
 static void clearcheater(void)
 {
     if (!trainerdata)
-	trainerdata = (struct trainerstruct*)xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
+	trainerdata =  xmalloc(MAX_CHEAT_VIEW * sizeof (struct trainerstruct));
     memset(trainerdata, 0, sizeof (struct trainerstruct) * MAX_CHEAT_VIEW);
     totaltrainers = 0;
 }
@@ -1304,7 +1304,7 @@ static void smc_detect_init (TCHAR **c)
     if (currprefs.z3fastmem_size)
 	smc_size = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
     smc_size += 4;
-    smc_table = (struct smc_item*)xmalloc (smc_size * sizeof (struct smc_item));
+    smc_table = xmalloc (smc_size * sizeof (struct smc_item));
     if (!smc_table)
 	return;
     for (i = 0; i < smc_size; i++) {
@@ -1749,7 +1749,7 @@ static void memwatch_dump (int num)
     TCHAR *buf;
     int multiplier = num < 0 ? MEMWATCH_TOTAL : 1;
 
-    buf = malloc (50 * multiplier);
+    buf = malloc (50 * multiplier * sizeof (TCHAR));
     if (!buf)
 	return;
     memwatch_dump2 (buf, 50 * multiplier, num);
@@ -2521,7 +2521,7 @@ static void disk_debug (TCHAR **inptr)
     disk_debug_mode = 0;
     disk_debug_track = -1;
     ignore_ws (inptr);
-    if (!next_string (inptr, parm, sizeof (parm), 1))
+    if (!next_string (inptr, parm, sizeof (parm) / sizeof (TCHAR), 1))
 	goto end;
     for (i = 0; i < _tcslen(parm); i++) {
 	if (parm[i] == 'R')
@@ -2584,7 +2584,7 @@ static void m68k_modify (TCHAR **inptr)
     TCHAR c1, c2;
     int i;
 
-    if (!next_string (inptr, parm, sizeof (parm), 1))
+    if (!next_string (inptr, parm, sizeof (parm) / sizeof (TCHAR), 1))
 	return;
     c1 = _totupper (parm[0]);
     c2 = 99;

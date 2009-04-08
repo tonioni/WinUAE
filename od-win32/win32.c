@@ -483,6 +483,10 @@ static int avioutput_video = 0;
 void setpriority (struct threadpriorities *pri)
 {
     int err;
+    DWORD opri = GetPriorityClass (GetCurrentProcess ());
+
+    if (opri != IDLE_PRIORITY_CLASS && opri != NORMAL_PRIORITY_CLASS && opri != BELOW_NORMAL_PRIORITY_CLASS && opri != ABOVE_NORMAL_PRIORITY_CLASS)
+	return;
     err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
     if (!err)
 	write_log (L"priority set failed, %08X\n", GetLastError ());
@@ -1026,7 +1030,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	if (lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_MEDIAREMOVED) {
 	    SHNOTIFYSTRUCT *shns = (SHNOTIFYSTRUCT*)wParam;
-	    if(SHGetPathFromIDList((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
+	    if (SHGetPathFromIDList ((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
 		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
 		write_log (L"Shell Notification %d '%s'\n", inserted, path);
 		if (!win32_hardfile_media_change (path, inserted)) {	
@@ -3394,6 +3398,8 @@ static void makeverstr (TCHAR *s)
     }
 }
 
+#define MAX_ARGUMENTS 128
+
 static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 {
     if (!_tcscmp (arg, L"-convert") && np && np2) {
@@ -3586,7 +3592,7 @@ static TCHAR **parseargstring (TCHAR *s)
 
     if (_tcslen (s) == 0)
 	return NULL;
-    args = xcalloc (sizeof (TCHAR*), 32 + 1);
+    args = xcalloc (sizeof (TCHAR*), MAX_ARGUMENTS + 1);
     cnt = 0;
     for (;;) {
 	TCHAR *p = s;
@@ -3612,7 +3618,7 @@ static TCHAR **parseargstring (TCHAR *s)
 	    p++;
 	if (*p == 0)
 	    break;
-	if (cnt >= 32)
+	if (cnt >= MAX_ARGUMENTS)
 	    break;
 	s = p;
     }
@@ -3665,7 +3671,7 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 	ok = 0;
 	if (f[0] != '-' && f[0] != '/') {
 	    int type = -1;
-	    struct zfile *z = zfile_fopen (f, L"rb");
+	    struct zfile *z = zfile_fopen (f, L"rb", ZFD_NORMAL);
 	    if (z) {
 		type = zfile_gettype (z);
 		zfile_fclose (z);
@@ -3770,7 +3776,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
     hMutex = CreateMutex (NULL, FALSE, L"WinUAE Instantiated"); // To tell the installer we're running
 
 
-    argv = xcalloc (sizeof (TCHAR*), 32);
+    argv = xcalloc (sizeof (TCHAR*), MAX_ARGUMENTS);
     argv3 = NULL;
     argc = process_arg (lpCmdLine, argv, &argv3);
     if (doquit)

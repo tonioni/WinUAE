@@ -613,7 +613,7 @@ static void addkeyfile (const TCHAR *path)
     int keysize;
     uae_u8 *keybuf;
 
-    f = zfile_fopen (path, L"rb");
+    f = zfile_fopen (path, L"rb", ZFD_NORMAL);
     if (!f)
 	return;
     zfile_fseek (f, 0, SEEK_END);
@@ -2412,7 +2412,7 @@ static int read_rom_file (uae_u8 *buf, struct romdata *rd)
 
     if (!rl || _tcslen (rl->path) == 0)
 	return 0;
-    zf = zfile_fopen (rl->path, L"rb");
+    zf = zfile_fopen (rl->path, L"rb", ZFD_NORMAL);
     if (!zf)
 	return 0;
     addkeydir (rl->path);
@@ -2466,7 +2466,7 @@ static void mergecd32 (uae_u8 *dst, uae_u8 *src, int size)
 #if 0
     {
 	struct zfile *f;
-	f = zfile_fopen ("c:\\d\\1.rom","wb");
+	f = zfile_fopen ("c:\\d\\1.rom","wb", ZFD_NORMAL);
 	zfile_fwrite (dst, 1, size, f);
 	zfile_fclose(f);
     }
@@ -2575,7 +2575,7 @@ struct zfile *read_rom (struct romdata **prd)
 		    ok = 1;
 	    }
 	    if (ok) {
-    		struct zfile *zf = zfile_fopen_empty (name, size);
+    		struct zfile *zf = zfile_fopen_empty (NULL, name, size);
 		if (zf) {
 		    zfile_fwrite (buf, size, 1, zf);
 		    zfile_fseek (zf, 0, SEEK_SET);
@@ -2604,7 +2604,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 		return f;
 	}
     }
-    f = zfile_fopen (filename, L"rb");
+    f = zfile_fopen (filename, L"rb", ZFD_NORMAL);
     if (f) {
 	uae_u8 tmp[11];
 	zfile_fread (tmp, sizeof tmp, 1, f);
@@ -2618,7 +2618,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	    zfile_fseek (f, sizeof tmp, SEEK_SET);
 	    buf = xmalloc (size);
 	    zfile_fread (buf, size, 1, f);
-	    df = zfile_fopen_empty (L"tmp.rom", size);
+	    df = zfile_fopen_empty (f, L"tmp.rom", size);
 	    decode_cloanto_rom_do (buf, size, size);
 	    zfile_fwrite (buf, size, 1, df);
 	    zfile_fclose (f);
@@ -2875,19 +2875,19 @@ static int load_kickstart (void)
     _tcscpy (tmprom, currprefs.romfile);
     if (f == NULL) {
 	_stprintf (tmprom2, L"%s%s", start_path_data, currprefs.romfile);
-	f = zfile_fopen (tmprom2, L"rb");
+	f = zfile_fopen (tmprom2, L"rb", ZFD_NORMAL);
 	if (f == NULL) {
 	    _stprintf (currprefs.romfile, L"%sroms/kick.rom", start_path_data);
-	    f = zfile_fopen (currprefs.romfile, L"rb");
+	    f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 	    if (f == NULL) {
 		_stprintf (currprefs.romfile, L"%skick.rom", start_path_data);
-		f = zfile_fopen (currprefs.romfile, L"rb");
+		f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		if (f == NULL) {
 		    _stprintf (currprefs.romfile, L"%s../shared/rom/kick.rom", start_path_data);
-		    f = zfile_fopen (currprefs.romfile, L"rb");
+		    f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		    if (f == NULL) {
 			_stprintf (currprefs.romfile, L"%s../System/rom/kick.rom", start_path_data);
-			f = zfile_fopen (currprefs.romfile, L"rb");
+			f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		    }
 		}
 	    }

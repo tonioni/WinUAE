@@ -675,7 +675,7 @@ struct zfile *archive_access_lzx (struct znode *zn)
     /* pre-cache all files we just decompressed */
     for (;;) {
 	if (znfirst->size && !znfirst->f) {
-	    dstf = zfile_fopen_empty (znfirst->name, znfirst->size);
+	    dstf = zfile_fopen_empty (zf, znfirst->name, znfirst->size);
 	    zfile_fwrite(dbuf + znfirst->offset2, znfirst->size, 1, dstf);
 	    znfirst->f = dstf;
 	    if (znfirst == zn)
@@ -716,7 +716,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
      return 0;
  if (memcmp(archive_header, "LZX", 3))
      return 0;
- zv = zvolume_alloc(in_file, ArchiveFormatLZX, NULL);
+ zv = zvolume_alloc (in_file, ArchiveFormatLZX, NULL, NULL);
 
  do
  {

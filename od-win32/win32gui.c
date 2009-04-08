@@ -83,6 +83,7 @@
 #include "crc32.h"
 #include "rp.h"
 #include "statusline.h"
+#include "zarchive.h"
 
 #define ARCHIVE_STRING L"*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
@@ -939,7 +940,7 @@ static struct romdata *scan_single_rom (TCHAR *path)
     rd = getromdatabypath (path);
     if (rd && rd->crc32 == 0xffffffff)
 	return rd;
-    z = zfile_fopen (path, L"rb");
+    z = zfile_fopen (path, L"rb", ZFD_NORMAL);
     if (!z)
 	return 0;
     return scan_single_rom_2 (z);
@@ -5634,9 +5635,10 @@ static void values_to_memorydlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 	(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
 	(workprefs.win32_rtgscaleaspectratio == 4 * 256 + 3) ? 2 :
-	(workprefs.win32_rtgscaleaspectratio == 15 * 256 + 9) ? 3 :
-	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 9) ? 4 :
-	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 10) ? 5 : 1, 0);
+	(workprefs.win32_rtgscaleaspectratio == 5 * 256 + 4) ? 3 :
+	(workprefs.win32_rtgscaleaspectratio == 15 * 256 + 9) ? 4 :
+	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 9) ? 5 :
+	(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 10) ? 6 : 1, 0);
 
     mem_size = 0;
     switch (workprefs.mbresmem_low_size) {
@@ -5752,6 +5754,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    WIN32GUI_LoadUIString (IDS_AUTOMATIC, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)L"4:3");
+	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)L"5:4");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)L"15:9");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)L"16:9");
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)L"16:10");
@@ -5822,10 +5825,12 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			if (v == 2)
 			    workprefs.win32_rtgscaleaspectratio = 4 * 256 + 3;
 			if (v == 3)
-			    workprefs.win32_rtgscaleaspectratio = 15 * 256 + 9;
+			    workprefs.win32_rtgscaleaspectratio = 5 * 256 + 4;
 			if (v == 4)
-			    workprefs.win32_rtgscaleaspectratio = 16 * 256 + 9;
+			    workprefs.win32_rtgscaleaspectratio = 15 * 256 + 9;
 			if (v == 5)
+			    workprefs.win32_rtgscaleaspectratio = 16 * 256 + 9;
+			if (v == 6)
 			    workprefs.win32_rtgscaleaspectratio = 16 * 256 + 10;
 		    }
 		    break;
@@ -6193,6 +6198,9 @@ static void misc_getpri (HWND hDlg, int v, int *n)
 static void misc_addpri (HWND hDlg, int v, int pri)
 {
     int i;
+    
+    DWORD opri = GetPriorityClass (GetCurrentProcess ());
+    ew (hDlg, v, !(opri != IDLE_PRIORITY_CLASS && opri != NORMAL_PRIORITY_CLASS && opri != BELOW_NORMAL_PRIORITY_CLASS && opri != ABOVE_NORMAL_PRIORITY_CLASS));
     SendDlgItemMessage (hDlg, v, CB_RESETCONTENT, 0, 0L);
     i = 0;
     while (priorities[i].name) {
@@ -6200,6 +6208,8 @@ static void misc_addpri (HWND hDlg, int v, int pri)
 	i++;
     }
     SendDlgItemMessage (hDlg, v, CB_SETCURSEL, pri, 0);
+
+
 }
 
 extern TCHAR *get_aspi_path(int);
@@ -7487,7 +7497,7 @@ static void sethfdostype (HWND hDlg, int idx)
 
 static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 {
-    void *f = zfile_fopen (hdf->filename, L"rb");
+    void *f = zfile_fopen (hdf->filename, L"rb", ZFD_NORMAL);
     uae_u8 tmp[8] = { 0 };
     if (!f)
 	return;
@@ -10184,9 +10194,10 @@ static void values_to_hw3ddlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
 	(workprefs.gfx_filter_aspect == 0) ? 0 :
 	(workprefs.gfx_filter_aspect == 4 * 256 + 3) ? 1 :
-	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 2 :
-	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 3 :
-	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 4 : 0, 0);
+	(workprefs.gfx_filter_aspect == 5 * 256 + 4) ? 2 :
+	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 3 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 4 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 5 : 0, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)L"Disabled");
@@ -10523,6 +10534,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"4:3");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"5:4");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"15:9");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"16:9");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"16:10");
@@ -10615,10 +10627,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				if (v == 1)
 				    v2 = 4 * 256 + 3;
 				if (v == 2)
-				    v2 = 15 * 256 + 9;
+				    v2 = 5 * 256 + 4;
 				if (v == 3)
-				    v2 = 16 * 256 + 9;
+				    v2 = 15 * 256 + 9;
 				if (v == 4)
+				    v2 = 16 * 256 + 9;
+				if (v == 5)
 				    v2 = 16 * 256 + 10;
 			    }
 			    currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = v2;
@@ -11445,7 +11459,7 @@ static int do_filesys_insert (const TCHAR *root)
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
-    int cnt, i, drv, drvdrag, firstdrv, list;
+    int cnt, i, drv, harddrive, drvdrag, firstdrv, list;
     TCHAR file[MAX_DPATH];
     int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
     POINT pt;
@@ -11458,7 +11472,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
     cnt = DragQueryFile (hd, 0xffffffff, NULL, 0);
     if (!cnt)
 	return 0;
-    drv = 0;
+    drv = harddrive = 0;
     drvdrag = 0;
     if (currentpage < 0) {
 	GetClientRect (hMainWnd, &r2);
@@ -11470,6 +11484,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	        drvdrag = 1;
 		if (drv < 0 || drv > 3)
 		    drv = 0;
+	    }
+	    if (pt.x >= window_led_hd && pt.x < window_led_hd_end && window_led_hd > 0) {
+		harddrive = 1;
 	    }
 	}
     } else if (currentpage == FLOPPY_ID || currentpage == QUICKSTART_ID) {
@@ -11490,22 +11507,26 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	struct romdata *rd = NULL;
 	struct zfile *z;
 	int type = -1, zip = 0;
+	int mask;
 
 	DragQueryFile (hd, i, file, sizeof (file) / sizeof (TCHAR));
 	flags = GetFileAttributes (file);
 	if (flags & FILE_ATTRIBUTE_DIRECTORY)
 	    type = ZFILE_HDF;
+	if (harddrive)
+	    mask = ZFD_ALL;
+	else
+	    mask = ZFD_NORMAL;
 	if (type < 0) {
 	    if (currentpage < 0) {
-		z = zfile_fopen_nozip (file, L"rb");
+		z = zfile_fopen (file, L"rb", mask);
 		if (z) {
-		    if (iszip (z))
-			zip = 1;
+		    int zip = iszip (z);
 		    zfile_fclose (z);
 		}
 	    }
 	    if (!zip) {
-		z = zfile_fopen (file, L"rb");
+		z = zfile_fopen (file, L"rb", mask);
 		if (z) {
 		    if (currentpage < 0 && iszip (z)) {
 			zip = 1;
@@ -11616,6 +11637,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		} else if (currentpage == HARDDISK_ID) {
 		    add_filesys_config (&workprefs, -1, NULL, L"", file, 0,
 			0, 0, 0, 0, 0, NULL, 0, 0);
+		    if (!full_property_sheet)
+			do_filesys_insert (file);
 		} else {
 		    rd = scan_arcadia_rom (file, 0);
 		    if (rd) {

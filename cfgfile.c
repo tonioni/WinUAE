@@ -2087,7 +2087,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
 	reset_inputdevice_config (p);
     }
 
-    fh = zfile_fopen (filename, L"r");
+    fh = zfile_fopen (filename, L"r", ZFD_NORMAL);
 #ifndef	SINGLEFILE
     if (! fh)
 	return 0;
@@ -2190,7 +2190,7 @@ int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int type)
     struct zfile *fh;
 
     cfgfile_backup (filename);
-    fh = zfile_fopen (filename, unicode_config ? L"w, ccs=UTF-8" : L"w");
+    fh = zfile_fopen (filename, unicode_config ? L"w, ccs=UTF-8" : L"w", ZFD_NORMAL);
     if (! fh)
 	return 0;
 
@@ -2841,7 +2841,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
     if (argv <= 1 && index == 0xffffffff) {
 	zfile_fclose (configstore);
 	xfree (configsearch);
-	configstore = zfile_fopen_empty (L"configstore", 50000);
+	configstore = zfile_fopen_empty (NULL, L"configstore", 50000);
 	configsearch = NULL;
 	if (argv > 0 && _tcslen (argc[0]) > 0)
 	    configsearch = my_strdup (argc[0]);
@@ -3281,7 +3281,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
     zfile_fclose (default_file);
     default_file = NULL;
-    f = zfile_fopen_empty (L"configstore", 100000);
+    f = zfile_fopen_empty (NULL, L"configstore", 100000);
     if (f) {
 	uaeconfig++;
 	cfgfile_save_options (f, p, 0);

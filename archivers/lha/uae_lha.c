@@ -19,7 +19,7 @@ static char *methods[] =
 	NULL
 };
 
-struct zvolume *archive_directory_lha(struct zfile *zf)
+struct zvolume *archive_directory_lha (struct zfile *zf)
 {
     struct zvolume *zv;
     struct zarchive_info zai;
@@ -27,16 +27,16 @@ struct zvolume *archive_directory_lha(struct zfile *zf)
     int i;
 
     _tzset();
-    zv = zvolume_alloc(zf, ArchiveFormatLHA, NULL);
+    zv = zvolume_alloc (zf, ArchiveFormatLHA, NULL, NULL);
     while (get_header(zf, &hdr)) {
 	struct znode *zn;
 	int method;
 
 	for (i = 0; methods[i]; i++) {
-	    if (!strcmp(methods[i], hdr.method))
+	    if (!strcmp (methods[i], hdr.method))
 		method = i;
 	}
-	memset(&zai, 0, sizeof zai);
+	memset (&zai, 0, sizeof zai);
 	zai.name = au (hdr.name);
 	zai.size = hdr.original_size;
 	zai.flags = hdr.attribute;
@@ -44,25 +44,25 @@ struct zvolume *archive_directory_lha(struct zfile *zf)
 	if (hdr.name[strlen(hdr.name) + 1] != 0)
 	    zai.comment = au (&hdr.name[strlen(hdr.name) + 1]);
 	if (method == LZHDIRS_METHOD_NUM) {
-	    zvolume_adddir_abs(zv, &zai);
+	    zvolume_adddir_abs (zv, &zai);
 	} else {
-	    zn = zvolume_addfile_abs(zv, &zai);
+	    zn = zvolume_addfile_abs (zv, &zai);
 	    zn->offset = zfile_ftell(zf);
 	    zn->packedsize = hdr.packed_size;
 	    zn->method = method;
 	}
 	xfree (zai.name);
 	xfree (zai.comment);
-	zfile_fseek(zf, hdr.packed_size, SEEK_CUR);
+	zfile_fseek (zf, hdr.packed_size, SEEK_CUR);
 
     }
     return zv;
 }
 
-struct zfile *archive_access_lha(struct znode *zn)
+struct zfile *archive_access_lha (struct znode *zn)
 {
     struct zfile *zf = zn->volume->archive;
-    struct zfile *out = zfile_fopen_empty (zn->name, zn->size);
+    struct zfile *out = zfile_fopen_empty (zf, zn->name, zn->size);
     struct interfacing lhinterface;
 
     zfile_fseek(zf, zn->offset, SEEK_SET);

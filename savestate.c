@@ -405,7 +405,7 @@ void restore_state (const TCHAR *filename)
     int z3num;
 
     chunk = 0;
-    f = zfile_fopen (filename, L"rb");
+    f = zfile_fopen (filename, L"rb", ZFD_NORMAL);
     if (!f)
 	goto error;
     zfile_fseek (f, 0, SEEK_END);
@@ -662,7 +662,7 @@ int save_state (const TCHAR *filename, const TCHAR *description)
     }
     savestate_nodialogs = 0;
     custom_prepare_savestate ();
-    f = zfile_fopen (filename, L"w+b");
+    f = zfile_fopen (filename, L"w+b", 0);
     if (!f)
 	return 0;
     if (savestate_specialdump) {

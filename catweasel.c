@@ -366,7 +366,7 @@ static int catweasel4_configure (void)
 	write_log (L"CW: FPGA failed to reset!\n");
 	return 0;
     }
-    f = zfile_fopen(L"core.cw4", L"rb");
+    f = zfile_fopen(L"core.cw4", L"rb", ZFD_NORMAL);
     if (!f) {
 	f = zfile_fopen_data (L"core.cw4.gz", core_len, core);
 	f = zfile_gunzip (f);

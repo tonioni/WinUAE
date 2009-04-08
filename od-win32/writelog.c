@@ -253,8 +253,8 @@ void write_dlog (const TCHAR *format, ...)
     }
     if (debugfile) {
 	if (lfdetected && ts)
-	    _ftprintf (debugfile, ts);
-	_ftprintf (debugfile, buffer);
+	    _ftprintf (debugfile, L"%s", ts);
+	_ftprintf (debugfile, L"%s", buffer);
     }
     lfdetected = 0;
     if (_tcslen (buffer) > 0 && buffer[_tcslen(buffer) - 1] == '\n')
@@ -300,8 +300,8 @@ void write_log (const TCHAR *format, ...)
     }
     if (debugfile) {
 	if (lfdetected && ts)
-	    _ftprintf (debugfile, ts);
-	_ftprintf (debugfile, bufp);
+	    _ftprintf (debugfile, L"%s", ts);
+	_ftprintf (debugfile, L"%s", bufp);
     }
     lfdetected = 0;
     if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')

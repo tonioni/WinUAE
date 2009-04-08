@@ -16,7 +16,7 @@
 ; 2007.06.15 uninitialized variable in memory type selection fixed (stupid me) (TW)
 ; 2007.08.09 started implementing removable drive support (TW)
 ; 2007.09.01 ACTION_EXAMINE_ALL (TW)
-; 2007.09.05 fully filesystem device mounting on the fly (TW)
+; 2007.09.05 full filesystem device mounting on the fly (TW)
 ; 2008.01.09 ACTION_EXAMINE_ALL does not anymore return eac_Entries = 0 with continue (fixes some broken programs)
 ; 2008.12.11 mousehack -> tablet driver
 ; 2008.12.25 mousehack cursor sync
@@ -46,14 +46,16 @@ NRF_MAGIC = $80000000
 our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
-	bra.w filesys_mainloop	;12
-	dc.l make_dev-start			;16
-	dc.l filesys_init-start	;20
-	dc.l exter_server-start	;24
-	dc.l bootcode-start			;28
-	dc.l setup_exter-start	;32
-	dc.l mh_e-start					;36
-													;40
+	dc.l 9									;0 12
+	bra.w filesys_mainloop	;1 16
+	dc.l make_dev-start			;2 20
+	dc.l filesys_init-start	;3 24
+	dc.l exter_server-start	;4 28
+	dc.l bootcode-start			;5 32
+	dc.l setup_exter-start	;6 36
+	dc.l mh_e-start					;7 40
+	dc.l clipboard_init-start ;8 44
+	;48
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -63,6 +65,62 @@ bootcode:
 	move.l d0,a0
 	jsr (a0)
 	rts
+
+residenthack
+	movem.l d0-d2/a0-a2/a6,-(sp)
+	move.l 4.w,a6
+	cmp.w #37,20(a6)
+	bcs.s .rsh
+	moveq #residentcodeend-residentcodestart,d0
+	move.l d0,d2
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	tst.l d0
+	beq.s .rsh
+	move.l d0,a2
+
+	move.l a2,a0
+	lea residentcodestart(pc),a1
+.cp1
+	move.l (a1)+,(a0)+
+	subq.l #4,d2
+	bne.s .cp1
+
+	move.l a6,a1
+	move.w #-$48,a0 ;InitCode
+	move.l a2,d0
+	jsr -$01a4(a6) ;SetFunction
+	move.l d0,residentcodejump2-residentcodestart+2(a2)
+	lea myafterdos(pc),a0
+	move.l a0,residentcodejump1-residentcodestart+2(a2)
+	jsr -$27C(a6) ;CacheClearU
+.rsh
+	movem.l (sp)+,d0-d2/a0-a2/a6
+	rts
+	
+myafterdos
+	move.l (sp),a0
+	move.l 2(a0),a0
+	movem.l d0-d7/a1-a6,-(sp)
+	move.l a6,a1
+	move.l a0,d0
+	move.w #-$48,a0 ;InitResident
+	jsr -$01a4(a6) ;SetFunction
+	bsr.w clipboard_init
+	movem.l (sp)+,d0-d7/a1-a6
+	rts
+
+	cnop 0,4
+residentcodestart:
+	btst #2,d0 ;RTF_AFTERDOS?
+	beq.s resjump
+residentcodejump1
+	jsr $f00000
+resjump
+residentcodejump2
+	jmp $f00000
+	cnop 0,4
+residentcodeend:
 
 filesys_init:
 	movem.l d0-d7/a0-a6,-(sp)
@@ -307,6 +365,7 @@ exter_server_exit:
 
 setup_exter:
 	movem.l d0-d1/a0-a1,-(sp)
+	bsr.w residenthack
 	moveq.l #26,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
@@ -324,10 +383,6 @@ setup_exter:
 	beq.s .nomh
 	bsr.w mousehack_init
 .nomh
-	cmp.w #36,20(a6)
-	bcs.s .noclip
-	bsr.w clipboard_init
-.noclip
 	movem.l (sp)+,d0-d1/a0-a1
 	rts
 
@@ -1976,29 +2031,28 @@ CLIP_POINTER_NOTIFY = (CLIP_BUF+CLIP_BUF_SIZE)
 CLIP_POINTER_PREFS = (CLIP_POINTER_NOTIFY+48)
 CLIP_END = (CLIP_POINTER_PREFS+32)
 
+;clipboard_resident:
+;	dc.w $4afc
+;	dc.l 0
+;	dc.l 26
+;	dc.b 4 ; RTF_AFTERDOS
+;	dc.b 1
+;	dc.b 0 ; NT_UNKNOWN
+;	dc.b -125
+;	dc.l clname-clipboard_resident
+;	dc.l clname-clipboard_resident
+;	dc.l clipboard_init-clipboard_resident
+
 clipboard_init:
-	lea clname(pc),a0
-	lea clipboard_task(pc),a1
-	moveq #-10,d0
-	bsr createtask
-	rts
-
-clipboard_task:
-	sub.l a5,a5
+	movem.l a5/a6,-(sp)
 	move.l 4.w,a6
-
 	move.l #CLIP_END,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	tst.l d0
 	beq.w clipdie
 	move.l d0,a5
-
 	move.l a6,CLIP_EXEC(a5)
-
-	sub.l a1,a1
-	jsr -294(a6) ; FindTask
-	move.l d0,CLIP_TASK(a5)
 
 	move.w #$FF38,d0
 	moveq #14,d1
@@ -2006,56 +2060,15 @@ clipboard_task:
 	move.l a5,d0
 	jsr (a0)
 
-	moveq #0,d4
-	moveq #0,d5
-
-	;move.l d0,$100.w
-
-.wait
-	moveq #0,d0
-	bset #13,d0
-	jsr -$013e(a6) ;Wait
-
-	jsr -$0084(a6) ;Forbid
-
-	tst.l d4
-	bne.s .wait2
-	lea 378(a6),a0 ;LibList
-	lea doslibname(pc),a1
-	jsr -$114(a6) ;FindName
-	move.l d0,d4
-	bra.s .wait3
-.wait2
-
-	moveq #1,d5
-;	exg d4,a6
-;	moveq #(1<<0)+(1<<4),d1 ;LDF_READ | LDF_ASSIGNS
-;	jsr -$28E(a6) ;LockDosList
-;	move.l d0,d1
-;	lea devsn_name(pc),a0
-;	move.l a0,d2
-;	moveq #(1<<4),d3 ;LDF_ASSIGNS
-;	jsr -$2AC(a6) ;FindDosEntry
-;	move.l d0,d5
-;	moveq #(1<<0)+(1<<4),d1 ;LDF_READ | LDF_ASSIGNS
-;	jsr -$294(a6) ;UnLockDosList
-;	exg d4,a6
-
-.wait3
-	jsr -$008a(a6) ;Permit
-	tst.l d5
-	beq.s .wait
-
-	clr.l CLIP_TASK(a5)
 	; we need to be a process, LoadLibrary() needs to call dos
 	lea clname(pc),a0
 	lea clipboard_proc(pc),a1
 	moveq #-10,d0
 	move.l #10000,d1
 	bsr.w createproc
-	
-	; task has done its job, process continues..
+
 	moveq #0,d0
+	movem.l (sp)+,a5/a6
 	rts
 
 clipkill
@@ -2176,14 +2189,12 @@ clipboard_proc:
 	moveq #0,d0
 	jsr -$0228(a6) ; OpenLibrary
 	move.l d0,CLIP_DOS(a5)
-	tst.l d0
 	beq.w clipdie
 	move.l d0,a6
 
 .devsloop
 	moveq #50,d1
 	jsr -$00c6(a6) ;Delay
-	;move.l d0,$104.w
 	lea devs_name(pc),a0
 	move.l a0,d1
 	moveq #-2,d2
@@ -2388,7 +2399,7 @@ devs_name: dc.b 'DEVS:',0
 clip_name: dc.b 'DEVS:clipboard.device',0
 ram_name: dc.b 'RAM:',0
 clip_dev: dc.b 'clipboard.device',0
- ;argghh but StartNofity()ing non-existing ENV: causes "Insert disk ENV: in any drive" dialog..
+ ;argghh but StartNotify()ing non-existing ENV: causes "Insert disk ENV: in any drive" dialog..
 pointer_prefs: dc.b 'RAM:Env/Sys/Pointer.prefs',0
 clname: dc.b 'UAE clipboard sharing',0
 mhname: dc.b 'UAE mouse driver',0

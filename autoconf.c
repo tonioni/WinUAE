@@ -137,6 +137,12 @@ void dl (uae_u32 data)
     rtarea[rt_addr++] = data;
 }
 
+uae_u8 dbg (uaecptr addr)
+{
+    addr -= rtarea_base;
+    return rtarea[addr];
+}
+
 /* store strings starting at the end of the rt area and working
  * backward.  store pointer at current address
  */

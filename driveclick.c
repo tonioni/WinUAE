@@ -66,11 +66,11 @@ static int loadsample (TCHAR *path, struct drvsample *ds)
     int size;
     TCHAR name[MAX_DPATH];
 
-    f = zfile_fopen (path, L"rb");
+    f = zfile_fopen (path, L"rb", ZFD_NORMAL);
     if (!f) {
 	_tcscpy (name, path);
 	_tcscat (name, L".wav");
-	f = zfile_fopen (name, L"rb");
+	f = zfile_fopen (name, L"rb", ZFD_NORMAL);
 	if (!f) {
 	    write_log (L"driveclick: can't open '%s' (or '%s')\n", path, name);
 	    return 0;

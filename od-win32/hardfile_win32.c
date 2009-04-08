@@ -276,7 +276,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	    if (hfd->physsize < 64 * 1024 * 1024 && zmode) {
 		write_log (L"HDF '%s' re-opened in zfile-mode\n", name);
 		CloseHandle (h);
-		hfd->handle = h = zfile_fopen(name, hfd->readonly ? L"rb" : L"r+b");
+		hfd->handle = h = zfile_fopen(name, hfd->readonly ? L"rb" : L"r+b", ZFD_NORMAL);
 		if (!h)
 		    goto end;
 		zfile_fseek (h, 0, SEEK_END);

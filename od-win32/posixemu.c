@@ -248,10 +248,15 @@ static unsigned __stdcall thread_init (void *f)
     void *arg = thp->arg;
 
     xfree (f);
+
+#ifndef _CONSOLE
     __try {
 	fp (arg);
+#endif
+#ifndef _CONSOLE
     } __except (WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
     }
+#endif
     return 0;
 }
 

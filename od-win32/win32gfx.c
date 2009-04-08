@@ -99,6 +99,7 @@ static struct winuae_currentmode currentmodestruct;
 static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
 int window_led_drives, window_led_drives_end;
+int window_led_hd, window_led_hd_end;
 extern int console_logging;
 int window_extra_width, window_extra_height;
 
@@ -1790,14 +1791,16 @@ static void createstatuswindow (void)
 	lpParts[2] = lpParts[1] + idle_width;
 	lpParts[3] = lpParts[2] + fps_width;
 	lpParts[4] = lpParts[3] + power_width;
-	lpParts[5] = lpParts[4] + cd_width;
-	lpParts[6] = lpParts[5] + hd_width;
+	lpParts[5] = lpParts[4] + hd_width;
+	lpParts[6] = lpParts[5] + cd_width;
 	lpParts[7] = lpParts[6] + drive_width;
 	lpParts[8] = lpParts[7] + drive_width;
 	lpParts[9] = lpParts[8] + drive_width;
 	lpParts[10] = lpParts[9] + drive_width;
 	window_led_drives = lpParts[6];
 	window_led_drives_end = lpParts[10];
+	window_led_hd = lpParts[4];
+	window_led_hd_end = lpParts[5];
 
 	/* Create the parts */
 	SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);

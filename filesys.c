@@ -63,6 +63,12 @@
 
 static uae_sem_t test_sem;
 
+int bootrom_header, bootrom_items;
+static uae_u32 dlg (uae_u32 a)
+{
+    return (dbg (a + 0) << 24) | (dbg (a + 1) << 16) | (dbg (a + 2) << 8) | (dbg (a + 3) << 0);
+}
+
 static char *ua_fs (const TCHAR *src)
 {
     return uacp (src, currprefs.win32_fscodepage);
@@ -366,9 +372,9 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const 
 static int set_filesys_volume (const TCHAR *rootdir, int *flags, int *readonly, int *emptydrive, struct zvolume **zvp)
 {
     *emptydrive = 0;
-    if (my_existsfile(rootdir)) {
+    if (my_existsfile (rootdir)) {
 	struct zvolume *zv;
-	zv = zfile_fopen_archive(rootdir);
+	zv = zfile_fopen_archive (rootdir);
 	if (!zv) {
 	    write_log (L"'%s' is not a supported archive file\n", rootdir);
 	    return -1;
@@ -872,8 +878,8 @@ static TCHAR *char1 (uaecptr addr)
 
 static TCHAR *bstr1 (uaecptr addr)
 {
-    static TCHAR bufx[256];
-    static uae_char buf[256];
+    static TCHAR bufx[257];
+    static uae_char buf[257];
     int i;
     int n = get_byte (addr);
     addr++;
@@ -888,7 +894,7 @@ static TCHAR *bstr (Unit *unit, uaecptr addr)
 {
     int i;
     int n = get_byte (addr);
-    uae_char buf[256];
+    uae_char buf[257];
 
     addr++;
     for (i = 0; i < n; i++, addr++)
@@ -951,7 +957,7 @@ static void *fs_open (Unit *unit, const TCHAR *name, int flags)
     else
 	return my_open (name, flags);
 }
-static void fs_close(Unit *unit, void *fd)
+static void fs_close (Unit *unit, void *fd)
 {
     int isarch = unit->volflags & MYVOLUMEINFO_ARCHIVE;
     if (isarch)
@@ -1659,7 +1665,9 @@ static int fill_file_attrs (Unit *u, a_inode *base, a_inode *c)
 	TCHAR *comment;
 	zfile_fill_file_attrs_archive (c->nname, &isdir, &flags, &comment);
 	c->dir = isdir;
-	c->amigaos_mode = flags;
+	c->amigaos_mode = 0;
+	if (flags >= 0)
+	    c->amigaos_mode = flags;
 	c->comment = comment;
 	return 1;
     } else {
@@ -5070,7 +5078,6 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
     }
     resaddr += 0x1A;
     tmp = resaddr;
-
     /* The good thing about this function is that it always gets called
      * when we boot. So we could put all sorts of stuff that wants to be done
      * here.
@@ -5109,9 +5116,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
     }
     /* call setup_exter */
     put_word (resaddr +  0, 0x2079);
-    put_long (resaddr +  2, rtarea_base + 28 + 4); /* move.l RTAREA_BASE+32,a0 */
+    put_long (resaddr +  2, rtarea_base + bootrom_header + 4 + 5 * 4); /* move.l RTAREA_BASE+setup_exter,a0 */
     put_word (resaddr +  6, 0xd1fc);
-    put_long (resaddr +  8, rtarea_base + 8 + 4); /* add.l #RTAREA_BASE+12,a0 */
+    put_long (resaddr +  8, rtarea_base + bootrom_header); /* add.l #RTAREA_BASE+bootrom_header,a0 */
     put_word (resaddr + 12, 0x4e90); /* jsr (a0) */
     put_word (resaddr + 14, 0x7001); /* moveq.l #1,d0 */
     put_word (resaddr + 16, RTS);
@@ -5573,7 +5580,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 	return -1;
     }
     write_log (L"RDB: fakefilesys, trying to load '%s', dostype 0x%08X\n", tmp, dostype);
-    zf = zfile_fopen (tmp, L"rb");
+    zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
     if (!zf) {
 	write_log (L"RDB: filesys not found\n");
 	if ((dostype & 0xffffff00) == 0x444f5300)
@@ -5712,8 +5719,8 @@ void filesys_install (void)
 
     fsdevname = ds (L"uae.device"); /* does not really exist */
 
-    ROM_filesys_diagentry = here();
-    calltrap (deftrap2(filesys_diagentry, 0, L"filesys_diagentry"));
+    ROM_filesys_diagentry = here ();
+    calltrap (deftrap2 (filesys_diagentry, 0, L"filesys_diagentry"));
     dw(0x4ED0); /* JMP (a0) - jump to code that inits Residents */
 
     loop = here ();
@@ -5760,16 +5767,20 @@ void filesys_install (void)
 
 void filesys_install_code (void)
 {
-    uae_u32 a;
+    uae_u32 a, b;
+
+    bootrom_header = 3 * 4;
     align(4);
-
     a = here ();
-    /* The last offset comes from the code itself, look for it near the top. */
-    EXPANSION_bootcode = a + 40 - 4;
-    filesys_initcode = a + 40 - 4 + 20;
-
     #include "filesys_bootrom.c"
+
+    bootrom_items = dlg (a + 8);
+    /* The last offset comes from the code itself, look for it near the top. */
+    EXPANSION_bootcode = a + bootrom_header + bootrom_items * 4 - 4;
+    b = a + bootrom_header + 3 * 4 - 4;
+    filesys_initcode = a + dlg (b) + bootrom_header - 4;
 }
+
 #include "od-win32/win32_filesys.c"
 
 static uae_u8 *restore_filesys_hardfile (UnitInfo *ui, uae_u8 *src)

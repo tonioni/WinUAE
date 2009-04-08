@@ -1796,6 +1796,8 @@ static void fdi2_celltiming (FDI *fdi, unsigned long totalavg, int bitoffset, ua
 	double avg_bit_len;
 	int i;
 
+	if (out == NULL)
+	    return;
 	avg_bit_len = (double)totalavg / (double)bitoffset;
 	pt2 = fdi->track_dst_buffer_timing;
 	pt = out;

@@ -453,7 +453,7 @@ int vhd_create (const TCHAR *name, uae_u64 size)
     batsize &= ~511;
     ret = 0;
     b = NULL;
-    zf = zfile_fopen (name, L"wb");
+    zf = zfile_fopen (name, L"wb", 0);
     if (!zf)
 	goto end;
     b = xcalloc (512 + 1024 + batsize + 512, 1);

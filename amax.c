@@ -139,7 +139,7 @@ void amax_init (void)
     if (!currprefs.amaxromfile[0])
 	return;
     amax_reset ();
-    z = zfile_fopen (currprefs.amaxromfile, L"rb");
+    z = zfile_fopen (currprefs.amaxromfile, L"rb", ZFD_NORMAL);
     if (!z) {
 	write_log (L"AMAX: failed to load rom '%s'\n", currprefs.amaxromfile);
 	return;

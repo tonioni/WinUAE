@@ -1,4 +1,5 @@
-/*  7zHeader.c */
+/*  7zHeader.c -- 7z Headers
+2008-10-04 : Igor Pavlov : Public domain */
 
 #include "7zHeader.h"
 

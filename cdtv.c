@@ -589,7 +589,7 @@ static uae_u8 *read_raw (int sector, int size)
     if (track != trackcnt) {
 	_stprintf (fname, L"track%d.bin", trackcnt);
 	zfile_fclose (f);
-	f = zfile_fopen (fname, L"rb");
+	f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
 	if (!f)
 	    write_log (L"failed to open '%s'\n", fname);
 	else
@@ -1409,7 +1409,7 @@ void cdtv_loadcardmem(uae_u8 *p, int size)
     struct zfile *f;
 
     memset (p, 0, size);
-    f = zfile_fopen (currprefs.flashfile, L"rb");
+    f = zfile_fopen (currprefs.flashfile, L"rb", ZFD_NORMAL);
     if (!f)
 	return;
     zfile_fseek (f, CDTV_NVRAM_SIZE, SEEK_SET);
@@ -1421,7 +1421,7 @@ void cdtv_savecardmem(uae_u8 *p, int size)
 {
     struct zfile *f;
 
-    f = zfile_fopen (currprefs.flashfile, L"rb+");
+    f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f)
 	return;
     zfile_fseek (f, CDTV_NVRAM_SIZE, SEEK_SET);
@@ -1435,9 +1435,9 @@ static void cdtv_battram_reset (void)
     int v;
 
     memset (cdtv_battram, 0, CDTV_NVRAM_SIZE);
-    f = zfile_fopen (currprefs.flashfile, L"rb+");
+    f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f) {
-	f = zfile_fopen (currprefs.flashfile, L"wb");
+	f = zfile_fopen (currprefs.flashfile, L"wb", 0);
 	if (f) {
 	    zfile_fwrite (cdtv_battram, CDTV_NVRAM_SIZE, 1, f);
 	    zfile_fclose (f);
@@ -1460,7 +1460,7 @@ void cdtv_battram_write (int addr, int v)
     if (cdtv_battram[offset] == v)
 	return;
     cdtv_battram[offset] = v;
-    f = zfile_fopen (currprefs.flashfile, L"rb+");
+    f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f)
 	return;
     zfile_fseek (f, offset, SEEK_SET);
@@ -1524,7 +1524,7 @@ static void romhack (void)
     rl = getromlistbyids(roms);
     if (rl) {
 	write_log (L"A590/A2091 BOOT ROM '%s' %d.%d\n", rl->path, rl->rd->ver, rl->rd->rev);
-	z = zfile_fopen(rl->path, "rb");
+	z = zfile_fopen(rl->path, "rb", ZFD_NORMAL);
 	if (z) {
 	    rom_size = 16384;
 	    rom = (uae_u8*)xmalloc (rom_size);

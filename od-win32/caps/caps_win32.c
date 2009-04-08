@@ -182,7 +182,8 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
     struct CapsTrackInfoT1 ci;
 
     ci.type = LIB_TYPE;
-    *tracktiming = 0;
+    if (tracktiming)
+	*tracktiming = 0;
     pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
     mfm = mfmbuf;
     *multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
@@ -201,7 +202,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	fclose (f);
     }
 #endif
-    if (ci.timelen > 0) {
+    if (ci.timelen > 0 && tracktiming) {
 	for (i = 0; i < ci.timelen; i++)
 	    tracktiming[i] = (uae_u16)ci.timebuf[i];
     }

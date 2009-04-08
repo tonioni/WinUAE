@@ -107,7 +107,7 @@ static uae_u16 word, dsksync;
 static int disk_hpos;
 static int disk_jitter;
 
-typedef enum { TRACK_AMIGADOS, TRACK_RAW, TRACK_RAW1, TRACK_PCDOS } image_tracktype;
+typedef enum { TRACK_AMIGADOS, TRACK_RAW, TRACK_RAW1, TRACK_PCDOS, TRACK_DISKSPARE } image_tracktype;
 typedef struct {
     uae_u16 len;
     uae_u32 offs;
@@ -453,7 +453,7 @@ static int createimagefromexe (struct zfile *src, struct zfile *dst)
     bitmap[1] = 1;
 
     dblock1 = createdirheaderblock (sector2, 880, dirname1, bitmap);
-    ss = zfile_fopen_empty (fname1b, strlen (fname1));
+    ss = zfile_fopen_empty (src, fname1b, strlen (fname1));
     zfile_fwrite (fname1, strlen(fname1), 1, ss);
     fblock1 = createfileheaderblock (dst, sector1,  dblock1, fname2, ss, bitmap);
     zfile_fclose (ss);
@@ -656,14 +656,14 @@ struct zfile *DISK_validate_filename (const TCHAR *fname, int leave_open, int *w
     if (crc32)
 	*crc32 = 0;
     if (leave_open) {
-	struct zfile *f = zfile_fopen (fname, L"r+b");
+	struct zfile *f = zfile_fopen (fname, L"r+b", ZFD_NORMAL);
 	if (f) {
 	    if (wrprot)
 		*wrprot = 0;
 	} else {
 	    if (wrprot)
 		*wrprot = 1;
-	    f = zfile_fopen (fname, L"rb");
+	    f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
 	}
 	if (f && crc32)
 	    *crc32 = zfile_crc32 (f);
@@ -673,7 +673,7 @@ struct zfile *DISK_validate_filename (const TCHAR *fname, int leave_open, int *w
 	    if (wrprot)
 		*wrprot = 0;
 	    if (crc32) {
-		struct zfile *f = zfile_fopen (fname, L"rb");
+		struct zfile *f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
 		if (f)
 		    *crc32 = zfile_crc32 (f);
 		zfile_fclose (f);
@@ -969,7 +969,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 
     } else if (memcmp (exeheader, buffer, sizeof (exeheader)) == 0) {
 	int i;
-	struct zfile *z = zfile_fopen_empty (L"", 512 * 1760);
+	struct zfile *z = zfile_fopen_empty (NULL, L"", 512 * 1760);
 	createimagefromexe (drv->diskfile, z);
 	drv->filetype = ADF_NORMAL;
 	zfile_fclose (drv->diskfile);
@@ -1017,21 +1017,49 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	}
 
     } else {
-	int i;
+	int i, ds;
+
+	ds = 0;
 	drv->filetype = ADF_NORMAL;
 
-	/* High-density disk? */
-	if (size >= 160 * 22 * 512) {
-	    drv->num_tracks = size / (512 * (drv->num_secs = 22));
-	    drv->ddhd = 2;
-	} else
+	/* High-density or diskspare disk? */
+	drv->num_tracks = 0;
+	if (size > 160 * 11 * 512) { // larger than standard adf?
+	    for (i = 80; i <= 83; i++) {
+		if (size == i * 22 * 512 * 2) { // HD
+		    drv->ddhd = 2;
+		    drv->num_tracks = size / (512 * (drv->num_secs = 22));
+		    break;
+		}
+		if (size == i * 11 * 512 * 2) { // >80 cyl DD
+		    drv->num_tracks = size / (512 * (drv->num_secs = 11));
+		    break;
+		}
+		if (size == i * 12 * 512 * 2) { // ds 12 sectors
+		    drv->num_tracks = size / (512 * (drv->num_secs = 12));
+		    ds = 1;
+		    break;
+		}
+		if (size == i * 24 * 512 * 2) { // ds 24 sectors
+		    drv->num_tracks = size / (512 * (drv->num_secs = 24));
+		    drv->ddhd = 2;
+		    ds = 1;
+		    break;
+		}
+	    }
+	    if (drv->num_tracks == 0) {
+		drv->num_tracks = size / (512 * (drv->num_secs = 22));
+		drv->ddhd = 2;
+	    }
+	} else {
 	    drv->num_tracks = size / (512 * (drv->num_secs = 11));
+	}
 
-	if (drv->num_tracks > MAX_TRACKS)
+	if (!ds && drv->num_tracks > MAX_TRACKS)
 	    write_log (L"Your diskfile is too big, %d bytes!\n", size);
 	for (i = 0; i < drv->num_tracks; i++) {
 	    tid = &drv->trackdata[i];
-	    tid->type = TRACK_AMIGADOS;
+	    tid->type = ds ? TRACK_DISKSPARE : TRACK_AMIGADOS;
 	    tid->len = 512 * drv->num_secs;
 	    tid->bitlen = 0;
 	    tid->offs = i * 512 * drv->num_secs;
@@ -1408,6 +1436,93 @@ static void decode_amigados (drive *drv)
 	write_log (L"amigados read track %d\n", tr);
 }
 
+/*
+ * diskspare format
+ *
+ * 0 <4489> <4489> 0 track sector crchi, crclo, data[512] (520 bytes per sector)
+ *
+ * 0xAAAA 0x4489 0x4489 0x2AAA oddhi, oddlo, evenhi, evenlo, ...
+ *
+ * NOTE: data is MFM encoded using same method as ADOS header, not like ADOS data!
+ *
+ */
+
+static void decode_diskspare (drive *drv)
+{
+    int tr = drv->cyl * 2 + side;
+    int sec;
+    int dstmfmoffset = 0;
+    int size = 512 + 8;
+    uae_u16 *dstmfmbuf = drv->bigmfmbuf;
+    int len = drv->num_secs * size + FLOPPY_GAP_LEN;
+
+    trackid *ti = drv->trackdata + tr;
+    memset (dstmfmbuf, 0xaa, len * 2);
+    dstmfmoffset += FLOPPY_GAP_LEN;
+    drv->skipoffset = (FLOPPY_GAP_LEN * 8) / 3 * 2;
+    drv->tracklen = len * 2 * 8;
+
+    for (sec = 0; sec < drv->num_secs; sec++) {
+	uae_u8 secbuf[512 + 8];
+	uae_u16 mfmbuf[512 + 8];
+	int i;
+	uae_u32 deven, dodd;
+	uae_u16 chk;
+
+	secbuf[0] = tr;
+	secbuf[1] = sec;
+	secbuf[2] = 0;
+	secbuf[3] = 0;
+
+	read_floppy_data (drv->diskfile, ti, sec * 512, &secbuf[4], 512);
+
+	mfmbuf[0] = 0xaaaa;
+	mfmbuf[1] = 0x4489;
+	mfmbuf[2] = 0x4489;
+	mfmbuf[3] = 0x2aaa;
+
+	for (i = 0; i < 512; i += 4) {
+	    deven = ((secbuf[i + 4] << 24) | (secbuf[i + 5] << 16)
+			 | (secbuf[i + 6] << 8) | (secbuf[i + 7]));
+	    dodd = deven >> 1;
+	    deven &= 0x55555555;
+	    dodd &= 0x55555555;
+	    mfmbuf[i + 8 + 0] = dodd >> 16;
+	    mfmbuf[i + 8 + 1] = dodd;
+	    mfmbuf[i + 8 + 2] = deven >> 16;
+	    mfmbuf[i + 8 + 3] = deven;
+	}
+	mfmcode (mfmbuf + 8, 512);
+
+	i = 8;
+	chk = mfmbuf[i++] & 0x7fff;
+	while (i < 512 + 8)
+	    chk ^= mfmbuf[i++];
+	secbuf[2] = chk >> 8;
+	secbuf[3] = chk;
+
+	deven = ((secbuf[0] << 24) | (secbuf[1] << 16)
+		     | (secbuf[2] << 8) | (secbuf[3]));
+	dodd = deven >> 1;
+	deven &= 0x55555555;
+	dodd &= 0x55555555;
+
+	mfmbuf[4] = dodd >> 16;
+	mfmbuf[5] = dodd;
+	mfmbuf[6] = deven >> 16;
+	mfmbuf[7] = deven;
+	mfmcode (mfmbuf + 4, 4);
+
+	for (i = 0; i < 512 + 8; i++) {
+	    dstmfmbuf[dstmfmoffset % len] = mfmbuf[i];
+	    dstmfmoffset++;
+	}
+     }
+
+    if (disk_debug_logging > 0)
+	write_log (L"diskspare read track %d\n", tr);
+}
+
 static void drive_fill_bigbuf (drive * drv, int force)
 {
     int tr = drv->cyl * 2 + side;
@@ -1470,10 +1585,13 @@ static void drive_fill_bigbuf (drive * drv, int force)
 
 	decode_pcdos (drv);
 
-
     } else if (ti->type == TRACK_AMIGADOS) {
 
 	decode_amigados (drv);
+
+    } else if (ti->type == TRACK_DISKSPARE) {
+
+	decode_diskspare (drv);
 
     } else {
 	int i;
@@ -1574,7 +1692,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 
 	trackoffs = (id & 0xff00) >> 8;
 	if (trackoffs + 1 > drvsec) {
-	    write_log (L"Disk decode: weird sector number %d\n", trackoffs);
+	    write_log (L"Disk decode: weird sector number %d (%04x)\n", trackoffs, id);
 	    if (filetype == ADF_EXT2)
 		return 2;
 	    continue;
@@ -1640,7 +1758,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
     return 0;
 }
 
-static uae_u8 mfmdecode(uae_u16 **mfmp, int shift)
+static uae_u8 mfmdecode (uae_u16 **mfmp, int shift)
 {
     uae_u16 mfm = getmfmword (*mfmp, shift);
     uae_u8 out = 0;
@@ -1890,7 +2008,7 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
 	tracks /= 2;
     }
 
-    f = zfile_fopen (name, L"wb");
+    f = zfile_fopen (name, L"wb", 0);
     chunk = xmalloc (32768);
     if (f && chunk) {
 	int cylsize = sectors * 2 * 512;
@@ -1958,7 +2076,7 @@ int disk_getwriteprotect (const TCHAR *name)
 
 static void diskfile_readonly (const TCHAR *name, int readonly)
 {
-    struct stat st;
+    struct _stat64 st;
     int mode, oldmode;
 
     if (stat (name, &st))
@@ -2812,7 +2930,7 @@ void DISK_update (int tohpos)
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
 
-	if (drv->motoroff)
+	if (drv->motoroff || !drv->tracklen || !drv->trackspeed)
 	    continue;
 	drv->floppybitcounter += cycles;
 	if (selected & (1 << dr)) {
@@ -2828,7 +2946,7 @@ void DISK_update (int tohpos)
     didread = 0;
     for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 	drive *drv = &floppy[dr];
-	if (drv->motoroff)
+	if (drv->motoroff || !drv->trackspeed)
 	    continue;
 	if (selected & (1 << dr))
 	    continue;

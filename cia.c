@@ -1003,7 +1003,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 	if (notinrom ())
 	    write_log (L"BFD100 W %02X %s\n", val, debuginfo(0));
 #endif
-	ciabprb = val; DISK_select(val); break;
+	ciabprb = val; DISK_select (val); break;
     case 2:
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
@@ -1403,9 +1403,9 @@ static uae_u8 rtc_memory[RF5C01A_RAM_SIZE], rtc_alarm[RF5C01A_RAM_SIZE];
 
 static void write_battclock (void)
 {
-    struct zfile *f = zfile_fopen (currprefs.flashfile, L"rb+");
+    struct zfile *f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f) {
-        f = zfile_fopen (currprefs.flashfile, L"wb");
+        f = zfile_fopen (currprefs.flashfile, L"wb", 0);
         if (f) {
 	    zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
 	    zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
@@ -1438,7 +1438,7 @@ void rtc_hardreset (void)
 	memset (rtc_alarm, 0, RF5C01A_RAM_SIZE);
 #if 0
 	struct zfile *f;
-	f = zfile_fopen (currprefs.flashfile, "rb");
+	f = zfile_fopen (currprefs.flashfile, "rb", ZFD_NORMAL);
 	if (f) {
 	    zfile_fread (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
 	    zfile_fread (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);

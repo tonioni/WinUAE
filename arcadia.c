@@ -95,14 +95,14 @@ static int load_rom8 (TCHAR *xpath, uae_u8 *mem,	int extra)
 
     memset (tmp, 0, 131072);
     _stprintf (path, L"%s%s%s", xpath, extra == 3 ? L"-hi" : (extra == 2 ? L"hi" : L"h"), bin);
-    zf = zfile_fopen (path, L"rb");
+    zf = zfile_fopen (path, L"rb", ZFD_NORMAL);
     if (!zf)
 	goto end;
     if (zfile_fread (tmp, 65536, 1, zf) == 0)
 	goto end;
     zfile_fclose (zf);
     _stprintf (path, L"%s%s%s", xpath, extra == 3 ? L"-lo" : (extra == 2 ? L"lo" : L"l"), bin);
-    zf = zfile_fopen (path, L"rb");
+    zf = zfile_fopen (path, L"rb", ZFD_NORMAL);
     if (!zf)
 	goto end;
     if (zfile_fread (tmp + 65536, 65536, 1, zf) == 0)
@@ -362,9 +362,9 @@ int is_arcadia_rom (const TCHAR *path)
 
 static void nvram_write (void)
 {
-    struct zfile *f = zfile_fopen (currprefs.flashfile, L"rb+");
+    struct zfile *f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f) {
-	f = zfile_fopen (currprefs.flashfile, L"wb");
+	f = zfile_fopen (currprefs.flashfile, L"wb", 0);
 	if (!f)
 	    return;
     }
@@ -376,7 +376,7 @@ static void nvram_read (void)
 {
     struct zfile *f;
 
-    f = zfile_fopen (currprefs.flashfile, L"rb");
+    f = zfile_fopen (currprefs.flashfile, L"rb", ZFD_NORMAL);
     memset (arbmemory + nvram_offset, 0, NVRAM_SIZE);
     if (!f)
 	return;

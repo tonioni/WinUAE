@@ -131,6 +131,7 @@ extern int my_rmdir (const TCHAR*);
 extern int my_mkdir (const TCHAR*);
 extern int my_unlink (const TCHAR*);
 extern int my_rename (const TCHAR*, const TCHAR*);
+extern int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur);
 
 extern void *my_open (const TCHAR*, int);
 extern void my_close (void*);

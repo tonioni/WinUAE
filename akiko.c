@@ -82,9 +82,9 @@ static void nvram_write (int offset, int len)
 
     if (!currprefs.cs_cd32nvram)
 	return;
-    f = zfile_fopen (currprefs.flashfile, L"rb+");
+    f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
     if (!f) {
-	f = zfile_fopen (currprefs.flashfile, L"wb");
+	f = zfile_fopen (currprefs.flashfile, L"wb", 0);
 	if (!f) return;
 	zfile_fwrite (cd32_nvram, NVRAM_SIZE, 1, f);
     }
@@ -99,7 +99,7 @@ static void nvram_read (void)
 
     if (!currprefs.cs_cd32nvram)
 	return;
-    f = zfile_fopen (currprefs.flashfile, L"rb");
+    f = zfile_fopen (currprefs.flashfile, L"rb", ZFD_NORMAL);
     memset (cd32_nvram, 0, NVRAM_SIZE);
     if (!f) return;
     zfile_fread (cd32_nvram, NVRAM_SIZE, 1, f);

@@ -47,6 +47,8 @@
 #include "autoconf.h"
 #include "rp.h"
 
+extern int bootrom_header, bootrom_items;
+
 // 01 = host events
 // 02 = joystick
 // 04 = cia buttons
@@ -143,7 +145,7 @@ int inprec_open (TCHAR *fname, int record)
     int i;
 
     inprec_close();
-    inprec_zf = zfile_fopen (fname, record > 0 ? L"wb" : L"rb");
+    inprec_zf = zfile_fopen (fname, record > 0 ? L"wb" : L"rb", ZFD_NORMAL);
     if (inprec_zf == NULL)
 	return 0;
     inprec_size = 10000;
@@ -959,6 +961,13 @@ int inputdevice_is_tablet (void)
     return v ? 1 : 0;
 }
 
+static int getmhoffset (void)
+{
+    if (!uae_boot_rom)
+	return 0;
+    return get_long (rtarea_base + bootrom_header + 7 * 4) + bootrom_header;
+}
+
 static void mousehack_reset (void)
 {
     int off;
@@ -969,10 +978,9 @@ static void mousehack_reset (void)
     mousehack_alive_cnt = 0;
     vp_xoffset = vp_yoffset = 0;
     tablet_data = 0;
-    if (!uae_boot_rom)
-	return;
-    off = 12 + get_long (rtarea_base + 36);
-    rtarea[off + MH_E] = 0;
+    off = getmhoffset ();
+    if (off)
+	rtarea[off + MH_E] = 0;
 }
 
 static void mousehack_enable (void)
@@ -981,7 +989,7 @@ static void mousehack_enable (void)
 
     if (!uae_boot_rom || currprefs.input_tablet == TABLET_OFF)
 	return;
-    off = 12 + get_long (rtarea_base + 36);
+    off = getmhoffset ();
     if (rtarea[off + MH_E])
 	return;
     mode = 0x80;
@@ -1002,9 +1010,9 @@ void input_mousehack_mouseoffset (uaecptr pointerprefs)
 void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
 {
     if (mode == 0) {
-	uae_u8 v = rtarea[12 + get_long (rtarea_base + 36)];
+	uae_u8 v = rtarea[getmhoffset ()];
 	v |= 0x40;
-	rtarea[12 + get_long (rtarea_base + 36)] = v;
+	rtarea[getmhoffset ()] = v;
 	write_log (L"Tablet driver running (%02x)\n", v);
     } else if (mode == 1) {
         int x1 = -1, y1 = -1, x2 = -1, y2 = -1;
@@ -1051,7 +1059,7 @@ void inputdevice_tablet_strobe (void)
 	return;
     if (!tablet_data)
 	return;
-    off = 12 + get_long (rtarea_base + 36);
+    off = getmhoffset ();
     p = rtarea + off;
     p[MH_CNT]++;
 }
@@ -1066,7 +1074,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
     if (inputdevice_is_tablet () <= 0)
 	return;
     //write_log (L"%d %d %d %d %08X %d %d %d %d\n", x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
-    off = 12 + get_long (rtarea_base + 36);
+    off = getmhoffset ();
     p = rtarea + off;
 
     memcpy (tmp, p + MH_START, MH_END - MH_START); 
@@ -1156,7 +1164,7 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 
     if (!uae_boot_rom)
 	return;
-    p = rtarea + 12 + get_long (rtarea_base + 36);
+    p = rtarea + getmhoffset ();
 
     tablet_maxx = maxx;
     tablet_maxy = maxy;
@@ -1190,7 +1198,7 @@ static void inputdevice_mh_abs (int x, int y)
     uae_u32 off;
 
     mousehack_enable ();
-    off = 12 + get_long (rtarea_base + 36);
+    off = getmhoffset ();
     p = rtarea + off;
 
     memcpy (tmp, p + MH_ABSX, 4);
@@ -1220,7 +1228,7 @@ static void inputdevice_mh_abs_v36 (int x, int y)
     int fdy, fdx, fmx, fmy;
 
     mousehack_enable ();
-    off = 12 + get_long (rtarea_base + 36);
+    off = getmhoffset ();
     p = rtarea + off;
 
     memcpy (tmp, p + MH_START, MH_END - MH_START); 

@@ -1310,6 +1310,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\fsdb_mywin32.c"
+				>
+			</File>
+			<File
 				RelativePath="..\fsdb_win32.c"
 				>
 			</File>
@@ -1709,6 +1713,10 @@
 			</File>
 			<File
 				RelativePath="..\..\disk.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\diskutil.c"
 				>
 			</File>
 			<File
@@ -2396,11 +2404,11 @@
 				Name="7z"
 				>
 				<File
-					RelativePath="..\..\archivers\7z\7zAlloc.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zAlloc.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zBuffer.c"
+					RelativePath="..\..\archivers\7z\7zBuf.c"
 					>
 				</File>
 				<File
@@ -2408,35 +2416,43 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zDecode.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zDecode.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zExtract.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zExtract.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zHeader.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zHeader.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zIn.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zIn.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zItem.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zItem.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zMain.c"
+					RelativePath="..\..\archivers\7z\7zStream.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zMethodID.c"
+					RelativePath="..\..\archivers\7z\Bcj2.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\LzmaDecode.c"
+					RelativePath="..\..\archivers\7z\Bra.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\Bra86.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\archivers\7z\LzmaDec.c"
 					>
 				</File>
 			</Filter>

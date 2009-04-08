@@ -290,7 +290,7 @@ static void DoSomeWeirdPrintingStuff (uae_char val)
 	} else if (!psmode && !stricmp (prev, "%!PS")) {
 
 	    if (postscript_print_debugging)
-		prtdump = zfile_fopen (L"psdump.dat", L"wb");
+		prtdump = zfile_fopen (L"psdump.dat", L"wb", 0);
 
 	    psmode = 1;
 	    psbuffer = malloc (sizeof (uae_u8*));

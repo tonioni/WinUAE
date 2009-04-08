@@ -192,7 +192,7 @@ void audio_sampleripper (int mode)
 	    namesplit (name);
 	    _tcscpy (extension, L"wav");
 	    _stprintf (filename, L"%s%s%s%03.3d.%s", path, name, underline, cnt, extension);
-	    wavfile = zfile_fopen (filename, L"wb");
+	    wavfile = zfile_fopen (filename, L"wb", 0);
 	    if (wavfile) {
 		int freq = rs->per > 0 ? (currprefs.ntscmode ? 3579545 : 3546895 / rs->per) : 8000;
 		write_wavheader (wavfile, 0, 0);

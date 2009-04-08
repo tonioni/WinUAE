@@ -7,6 +7,7 @@
 #define FTIME
 #define NOBSTRING
 #define NOINDEX
+#define MKTIME
 
 /* ------------------------------------------------------------------------ */
 /* LHa for UNIX    Archiver Driver											*/

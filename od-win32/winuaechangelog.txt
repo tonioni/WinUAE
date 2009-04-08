@@ -1,4 +1,27 @@
 
+Beta 22:
+
+- do not change priority if current priority is HIGH or REALTIME
+- command line parameter parsing crash fixed
+- added 5:4 aspect ratio to rtg and filter settings
+- archiveaccess filename encoding fixed (b15)
+- recursive archive support fixed (b15)
+- added adf, rdb and hdf "archive" support. It is now possible to
+  browse adf/hdf/dms/ipf/fdi/extended adf inside zip/lha/whatever
+  archives when mounted as a harddrive :) (uaeunp.exe feature mainly)
+- clipboard initialization should really be after dos initialization,
+  should fix random "UAE clipboard sharing" crashes when booting
+- debugger crash fixes (b15)
+- lha non-extended file/dir timestamps fixed
+- 7z SDK updated to newer version, timestamps supported
+- diskspare (12/24 sector) disk images supported, also includes "plain"
+  adf files that have exact diskspare format size
+- dragging to windowed mode HD-"led" forces harddrive mount (for
+  example adf is mounted as a harddrive, normally dragging autodetects
+  type and inserts adfs to disk drive)
+- dragging file to harddrive panel also automounts it immediately if
+  emulation is already running
+
 Beta 21:
 
 - registry subsystem wasn't initialized in b20 (broke lots of things)

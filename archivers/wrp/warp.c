@@ -403,8 +403,8 @@ struct zfile *unwarp(struct zfile *zf)
 	if (!iswrp (buf))
 	    break;
 	if (!nf) {
-	    nf = zfile_fopen_empty (L"zipped.wrp", 1760 * 512);
-	    tmpf = zfile_fopen_empty (L"tmp", outsize2);
+	    nf = zfile_fopen_empty (zf, L"zipped.wrp", 1760 * 512);
+	    tmpf = zfile_fopen_empty (zf, L"tmp", outsize2);
 	}
 	track = (buf[10] << 8) | buf[11];
         algo = buf[19];
