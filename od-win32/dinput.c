@@ -1117,12 +1117,14 @@ void handle_rawinput (LPARAM lParam)
 
 static void unacquire (LPDIRECTINPUTDEVICE8 lpdi, TCHAR *txt)
 {
+    HRESULT hr;
     if (lpdi) {
-	HRESULT hr = IDirectInputDevice8_Unacquire (lpdi);
+	hr = IDirectInputDevice8_Unacquire (lpdi);
 	if (FAILED (hr) && hr != DI_NOEFFECT)
 	    write_log (L"unacquire %s failed, %s\n", txt, DXError (hr));
     }
 }
+
 static int acquire (LPDIRECTINPUTDEVICE8 lpdi, TCHAR *txt)
 {
     HRESULT hr = DI_OK;
@@ -1993,150 +1995,6 @@ void release_keys (void)
     }
 }
 
-static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
-{
-    HRESULT hr;
-    int i;
-    uae_u8 kc[256];
-
-    hr = IDirectInputDevice8_GetDeviceState (lpdi, sizeof (kc), kc);
-    if (SUCCEEDED (hr)) {
-	for (i = 0; i < sizeof (kc); i++) {
-	    if (i == 0x80) /* USB KB led causes this, better ignore it */
-		continue;
-	    if (kc[i] & 0x80)
-		kc[i] = 1;
-	    else
-		kc[i] = 0;
-	    if (kc[i] != di_keycodes[num][i]) {
-		write_log (L"%02X -> %d\n", i, kc[i]);
-		di_keycodes[num][i] = kc[i];
-		my_kbd_handler (num, i, kc[i]);
-	    }
-	}
-    } else if (hr == DIERR_INPUTLOST) {
-	acquire (lpdi, L"keyboard");
-	IDirectInputDevice8_Poll (lpdi);
-	return 0;
-    }
-    IDirectInputDevice8_Poll (lpdi);
-    return 1;
-}
-
-
-static void read_kb (void)
-{
-    DIDEVICEOBJECTDATA didod[DI_KBBUFFER];
-    DWORD elements;
-    HRESULT hr;
-    LPDIRECTINPUTDEVICE8 lpdi;
-    int i, j;
-    int istest = inputdevice_istest ();
-
-    if (IGNOREEVERYTHING)
-	return;
-
-    update_leds ();
-    for (i = 0; i < MAX_INPUT_DEVICES; i++) {
-	struct didata *did = &di_keyboard[i];
-	if (!did->acquired)
-	    continue;
-	lpdi = did->lpdi;
-	if (!lpdi)
-	    continue;
-	if (kb_do_refresh & (1 << i)) {
-	    if (!refresh_kb (lpdi, i))
-		continue;
-	    kb_do_refresh &= ~(1 << i);
-	}
-	elements = DI_KBBUFFER;
-	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof(DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus () > 0) {
-	    if (did->superdevice && (normalkb || rawkb))
-		continue;
-	    for (j = 0; j < elements; j++) {
-		int scancode = didod[j].dwOfs;
-		int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
-		//write_log (L"%d: %02X %d\n", j, scancode, pressed);
-		if (!istest)
-		    scancode = keyhack (scancode, pressed, i);
-		if (scancode < 0)
-		    continue;
-		di_keycodes[i][scancode] = pressed;
-		if (istest) {
-		    inputdevice_do_keyboard (scancode, pressed);
-		} else {
-		    if (stopoutput == 0)
-			my_kbd_handler (i, scancode, pressed);
-		}
-	    }
-	} else if (hr == DIERR_INPUTLOST) {
-	    acquire (lpdi, L"keyboard");
-	    kb_do_refresh |= 1 << i;
-	} else if (did->acquired &&  hr == DIERR_NOTACQUIRED) {
-	    acquire (lpdi, L"keyboard");
-	}
-	IDirectInputDevice8_Poll (lpdi);
-    }
-#ifdef CATWEASEL
-    {
-	uae_u8 kc;
-	if (stopoutput == 0 && catweasel_read_keyboard (&kc))
-	    inputdevice_do_keyboard (kc & 0x7f, kc & 0x80);
-    }
-#endif
-}
-
-void wait_keyrelease (void)
-{
-    stopoutput++;
-
-#if 0
-    int i, j, maxcount = 10, found;
-    while (maxcount-- > 0) {
-	read_kb ();
-	found = 0;
-	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
-	    for (i = 0; i < MAX_KEYCODES; i++) {
-		if (di_keycodes[j][i])
-		    found = 1;
-	    }
-	}
-	if (!found)
-	    break;
-	sleep_millis (10);
-    }
-#endif
-    release_keys ();
-#if 0
-    for (;;) {
-	int ok = 0, nok = 0;
-	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
-	    struct didata *did = &di_mouse[i];
-	    DIMOUSESTATE dis;
-	    LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
-	    HRESULT hr;
-	    int j;
-
-	    if (!lpdi)
-		continue;
-	    nok++;
-	    hr = IDirectInputDevice8_GetDeviceState (lpdi, sizeof (dis), &dis);
-	    if (SUCCEEDED (hr)) {
-		for (j = 0; j < 4; j++) {
-		    if (dis.rgbButtons[j] & 0x80) break;
-		}
-		if (j == 4) ok++;
-	    } else {
-		ok++;
-	    }
-	}
-	if (ok == nok) break;
-	sleep_millis (10);
-    }
-#endif
-    stopoutput--;
-}
 
 static int acquire_kb (int num, int flags)
 {
@@ -2211,6 +2069,155 @@ static void unacquire_kb (int num)
 	}
 #endif
     }
+}
+
+static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
+{
+    HRESULT hr;
+    int i;
+    uae_u8 kc[256];
+
+    hr = IDirectInputDevice8_GetDeviceState (lpdi, sizeof (kc), kc);
+    if (SUCCEEDED (hr)) {
+	for (i = 0; i < sizeof (kc); i++) {
+	    if (i == 0x80) /* USB KB led causes this, better ignore it */
+		continue;
+	    if (kc[i] & 0x80)
+		kc[i] = 1;
+	    else
+		kc[i] = 0;
+	    if (kc[i] != di_keycodes[num][i]) {
+		write_log (L"%02X -> %d\n", i, kc[i]);
+		di_keycodes[num][i] = kc[i];
+		my_kbd_handler (num, i, kc[i]);
+	    }
+	}
+    } else if (hr == DIERR_INPUTLOST) {
+	acquire_kb (num, 0);
+	IDirectInputDevice8_Poll (lpdi);
+	return 0;
+    }
+    IDirectInputDevice8_Poll (lpdi);
+    return 1;
+}
+
+static void read_kb (void)
+{
+    DIDEVICEOBJECTDATA didod[DI_KBBUFFER];
+    DWORD elements;
+    HRESULT hr;
+    LPDIRECTINPUTDEVICE8 lpdi;
+    int i, j;
+    int istest = inputdevice_istest ();
+
+    if (IGNOREEVERYTHING)
+	return;
+
+    update_leds ();
+    for (i = 0; i < MAX_INPUT_DEVICES; i++) {
+	struct didata *did = &di_keyboard[i];
+	if (!did->acquired)
+	    continue;
+	if (isfocus () == 0) {
+	    if (did->acquired > 0)
+		unacquire_kb (i);
+	    continue;
+	}
+	lpdi = did->lpdi;
+	if (!lpdi)
+	    continue;
+	if (kb_do_refresh & (1 << i)) {
+	    if (!refresh_kb (lpdi, i))
+		continue;
+	    kb_do_refresh &= ~(1 << i);
+	}
+	elements = DI_KBBUFFER;
+	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof(DIDEVICEOBJECTDATA), didod, &elements, 0);
+	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus () > 0) {
+	    if (did->superdevice && (normalkb || rawkb))
+		continue;
+	    for (j = 0; j < elements; j++) {
+		int scancode = didod[j].dwOfs;
+		int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
+		//write_log (L"%d: %02X %d\n", j, scancode, pressed);
+		if (!istest)
+		    scancode = keyhack (scancode, pressed, i);
+		if (scancode < 0)
+		    continue;
+		di_keycodes[i][scancode] = pressed;
+		if (istest) {
+		    inputdevice_do_keyboard (scancode, pressed);
+		} else {
+		    if (stopoutput == 0)
+			my_kbd_handler (i, scancode, pressed);
+		}
+	    }
+	} else if (hr == DIERR_INPUTLOST) {
+	    acquire_kb (i, 0);
+	    kb_do_refresh |= 1 << i;
+	} else if (did->acquired && hr == DIERR_NOTACQUIRED) {
+	    acquire_kb (i, 0);
+	}
+	IDirectInputDevice8_Poll (lpdi);
+    }
+#ifdef CATWEASEL
+    if (isfocus ()) {
+	uae_u8 kc;
+	if (stopoutput == 0 && catweasel_read_keyboard (&kc))
+	    inputdevice_do_keyboard (kc & 0x7f, kc & 0x80);
+    }
+#endif
+}
+
+void wait_keyrelease (void)
+{
+    stopoutput++;
+
+#if 0
+    int i, j, maxcount = 10, found;
+    while (maxcount-- > 0) {
+	read_kb ();
+	found = 0;
+	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+	    for (i = 0; i < MAX_KEYCODES; i++) {
+		if (di_keycodes[j][i])
+		    found = 1;
+	    }
+	}
+	if (!found)
+	    break;
+	sleep_millis (10);
+    }
+#endif
+    release_keys ();
+#if 0
+    for (;;) {
+	int ok = 0, nok = 0;
+	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
+	    struct didata *did = &di_mouse[i];
+	    DIMOUSESTATE dis;
+	    LPDIRECTINPUTDEVICE8 lpdi = did->lpdi;
+	    HRESULT hr;
+	    int j;
+
+	    if (!lpdi)
+		continue;
+	    nok++;
+	    hr = IDirectInputDevice8_GetDeviceState (lpdi, sizeof (dis), &dis);
+	    if (SUCCEEDED (hr)) {
+		for (j = 0; j < 4; j++) {
+		    if (dis.rgbButtons[j] & 0x80) break;
+		}
+		if (j == 4) ok++;
+	    } else {
+		ok++;
+	    }
+	}
+	if (ok == nok) break;
+	sleep_millis (10);
+    }
+#endif
+    stopoutput--;
 }
 
 static int get_kb_flags (int kb)

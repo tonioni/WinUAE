@@ -179,7 +179,7 @@ void getchshd (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorsper
     *psectorspertrack = spt;
 }
 
-static void pl(uae_u8 *p, int off, uae_u32 v)
+static void pl (uae_u8 *p, int off, uae_u32 v)
 {
     p += off * 4;
     p[0] = v >> 24;
@@ -188,7 +188,7 @@ static void pl(uae_u8 *p, int off, uae_u32 v)
     p[3] = v >> 0;
 }
 
-static void rdb_crc(uae_u8 *p)
+static void rdb_crc (uae_u8 *p)
 {
     uae_u32 sum;
     int i, blocksize;
@@ -551,7 +551,6 @@ end:
     zfile_fclose (zf);
     return ret;
 }
-
 
 static uae_u64 vhd_read (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {

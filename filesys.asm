@@ -86,6 +86,7 @@ residenthack
 	subq.l #4,d2
 	bne.s .cp1
 
+	jsr -$0078(a6)
 	move.l a6,a1
 	move.w #-$48,a0 ;InitCode
 	move.l a2,d0
@@ -94,6 +95,7 @@ residenthack
 	lea myafterdos(pc),a0
 	move.l a0,residentcodejump1-residentcodestart+2(a2)
 	jsr -$27C(a6) ;CacheClearU
+	jsr -$007e(a6)
 .rsh
 	movem.l (sp)+,d0-d2/a0-a2/a6
 	rts
@@ -101,14 +103,18 @@ residenthack
 myafterdos
 	move.l (sp),a0
 	move.l 2(a0),a0
+	move.l a0,-(sp)
+	jsr (a0) ;jump to original InitCode
+	move.l (sp)+,a0
+	addq.l #4,sp ;remove return address
 	movem.l d0-d7/a1-a6,-(sp)
 	move.l a6,a1
 	move.l a0,d0
-	move.w #-$48,a0 ;InitResident
-	jsr -$01a4(a6) ;SetFunction
+	move.w #-$48,a0 ;InitCode
+	jsr -$01a4(a6) ;SetFunction (restore original)
 	bsr.w clipboard_init
 	movem.l (sp)+,d0-d7/a1-a6
-	rts
+	rts ;return directly to caller
 
 	cnop 0,4
 residentcodestart:
@@ -2030,18 +2036,6 @@ CLIP_BUF_SIZE = 8
 CLIP_POINTER_NOTIFY = (CLIP_BUF+CLIP_BUF_SIZE)
 CLIP_POINTER_PREFS = (CLIP_POINTER_NOTIFY+48)
 CLIP_END = (CLIP_POINTER_PREFS+32)
-
-;clipboard_resident:
-;	dc.w $4afc
-;	dc.l 0
-;	dc.l 26
-;	dc.b 4 ; RTF_AFTERDOS
-;	dc.b 1
-;	dc.b 0 ; NT_UNKNOWN
-;	dc.b -125
-;	dc.l clname-clipboard_resident
-;	dc.l clname-clipboard_resident
-;	dc.l clipboard_init-clipboard_resident
 
 clipboard_init:
 	movem.l a5/a6,-(sp)

@@ -1,4 +1,12 @@
 
+Beta 23:
+
+- archives (zip etc) didn't unpack
+- directinput keyboard was not always unacquired when focus was lost
+- hq2x/3x/4x crash in specific situations (old random bug)
+- clipboard initialization changed again, now initialized after all
+  residents have been initialized (previously it was after dos)
+
 Beta 22:
 
 - do not change priority if current priority is HIGH or REALTIME

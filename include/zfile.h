@@ -42,7 +42,7 @@ extern struct zfile *zfile_gunzip (struct zfile *z);
 extern int zfile_isdiskimage (const TCHAR *name);
 extern int iszip (struct zfile *z);
 extern int zfile_convertimage (const TCHAR *src, const TCHAR *dst);
-extern struct zfile *zuncompress (struct zfile *z, int dodefault, int imgonly);
+extern struct zfile *zuncompress (struct znode*, struct zfile *z, int dodefault, int imgonly);
 extern void zfile_seterror (const TCHAR *format, ...);
 extern TCHAR *zfile_geterror (void);
 

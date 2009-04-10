@@ -756,7 +756,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 
 static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
 {
-    int i, nosp;
+    int i, nosp, geom_ok;
     int ret = -1;
     STORAGE_PROPERTY_QUERY query;
     DRIVE_LAYOUT_INFORMATION		*dli;
@@ -854,6 +854,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
     }
     _tcscpy (orgname, udi->device_name);
     udi->bytespersector = 512;
+    geom_ok = 1;
     if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
 	DWORD err = GetLastError();
 	if (isnomediaerr (err)) {
@@ -861,8 +862,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	    goto amipartfound;
 	}
 	write_log (L"IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n", err);
-	ret = 1;
-	goto end;
+	dg.BytesPerSector = 512;
+	geom_ok = 0;
     }
     udi->readonly = 0;
     if (!DeviceIoControl (hDevice, IOCTL_DISK_IS_WRITABLE, NULL, 0, NULL, 0, &returnedLength, NULL)) {
@@ -878,22 +879,30 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	if (!nosp)
 	    write_log (L"IOCTL_DISK_GET_LENGTH_INFO not supported, detected disk size may not be correct.\n");
     }
-    udi->bytespersector = dg.BytesPerSector;
-    if (dg.BytesPerSector < 512) {
-	write_log (L"unsupported blocksize < 512 (%d)\n", dg.BytesPerSector);
+    if (geom_ok == 0 && gli_ok == 0) {
+	write_log (L"Can't detect size of device\n");
 	ret = 1;
 	goto end;
     }
-    if (dg.BytesPerSector > 2048) {
-	write_log (L"unsupported blocksize > 2048 (%d)\n", dg.BytesPerSector);
-	ret = 1;
-	goto end;
-    }
+
     udi->offset = 0;
-    write_log (L"BPS=%d Cyls=%I64d TPC=%d SPT=%d MediaType=%d\n",
-	dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack, dg.MediaType);
-    udi->size = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
-	(uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
+    if (geom_ok) {
+	udi->bytespersector = dg.BytesPerSector;
+	if (dg.BytesPerSector < 512) {
+	    write_log (L"unsupported blocksize < 512 (%d)\n", dg.BytesPerSector);
+	    ret = 1;
+	    goto end;
+	}
+	if (dg.BytesPerSector > 2048) {
+	    write_log (L"unsupported blocksize > 2048 (%d)\n", dg.BytesPerSector);
+	    ret = 1;
+	    goto end;
+	}
+        write_log (L"BPS=%d Cyls=%I64d TPC=%d SPT=%d MediaType=%d\n",
+	    dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack, dg.MediaType);
+	udi->size = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
+	    (uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
+    }
     if (gli_ok)
 	udi->size = gli.Length.QuadPart;
     write_log (L"device size %I64d (0x%I64x) bytes\n", udi->size, udi->size);

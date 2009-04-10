@@ -100,12 +100,12 @@ extern struct zvolume *archive_directory_lzx (struct zfile *in_file);
 extern struct zfile *archive_access_lzx (struct znode *zn);
 extern struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id);
 extern struct zfile *archive_access_arcacc (struct znode *zn);
-extern struct zvolume *archive_directory_adf (struct zfile *z);
+extern struct zvolume *archive_directory_adf (struct znode *zn, struct zfile *z);
 extern struct zfile *archive_access_adf (struct znode *zn);
 extern struct zvolume *archive_directory_rdb (struct zfile *z);
 extern struct zfile *archive_access_rdb (struct znode *zn);
 
-extern struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int doselect);
+extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id);
 
 extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsigned int id);

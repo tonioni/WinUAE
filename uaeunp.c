@@ -15,7 +15,7 @@ TCHAR start_path_data[MAX_DPATH];
 TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 struct uae_prefs currprefs;
-static int debug = 0;
+static int debug = 1;
 
 #define WRITE_LOG_BUF_SIZE 4096
 void write_log (const TCHAR *format, ...)
@@ -395,6 +395,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 		break;
 	}
     }
+    geterror ();
     if (!found && !level) {
 	_tprintf (L"'%s' not found\n", fn);
     }
@@ -480,6 +481,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	    zfile_fclose (s);
 	}
     }
+    geterror ();
     if (!found && !level) {
 	_tprintf (L"'%s' not matched\n", match);
     }
@@ -623,7 +625,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	ok = 1;
     }
     if (!ok) {
-	_tprintf (L"UAE unpacker uaeunp 0.4c by Toni Wilen (c)2009\n");
+	_tprintf (L"UAE unpacker uaeunp 0.5b by Toni Wilen (c)2009\n");
 	_tprintf (L"\n");
 	_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 	_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
@@ -634,7 +636,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	_tprintf (L"Output to console: \"uaeunp (-x) -o <path> <filename>\"\n");
 	_tprintf (L"\n");
 	_tprintf (L"Supported disk image formats:\n");
-	_tprintf (L" ADF and HDF (OFS/FFS), DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n");
+	_tprintf (L" ADF and HDF (OFS/FFS/SFS/SFS2), DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n");
 	_tprintf (L"Supported archive formats:\n");
 	_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), ZIP, ArchiveAccess.DLL\n");
 	_tprintf (L"Miscellaneous formats:\n");
@@ -644,3 +646,19 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
     }
     return 0;
 }
+
+/*
+    0.5:
+
+    - adf protection flags fixed
+    - sfs support added
+    - >512 block sizes supported (rdb hardfiles only)
+
+    0.5b:
+
+    - SFS file extraction fixed
+    - SFS2 supported
+    - block size autodetection implemented (if non-rdb hardfile)
+
+
+*/

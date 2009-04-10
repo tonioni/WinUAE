@@ -44,7 +44,7 @@ static time_t fromdostime (uae_u32 dd)
     return t;
 }
 
-static struct zvolume *getzvolume (struct zfile *zf, unsigned int id)
+static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsigned int id)
 {
     struct zvolume *zv = NULL;
 
@@ -69,7 +69,7 @@ static struct zvolume *getzvolume (struct zfile *zf, unsigned int id)
 	zv = archive_directory_plain (zf);
 	break;
 	case ArchiveFormatADF:
-	zv = archive_directory_adf (zf);
+	zv = archive_directory_adf (parent, zf);
 	break;
 	case ArchiveFormatRDB:
 	zv = archive_directory_rdb (zf);
@@ -114,7 +114,7 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
     return zf;
 }
 
-struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dodefault)
+struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault)
 {
     struct zvolume *zv;
     struct znode *zn;
@@ -123,7 +123,7 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dode
     struct zfile *z = NULL;
     int we_have_file;
 
-    zv = getzvolume (zf, id);
+    zv = getzvolume (parent, zf, id);
     if (!zv)
 	return zf;
     we_have_file = 0;
@@ -176,7 +176,7 @@ struct zfile *archive_access_select (struct zfile *zf, unsigned int id, int dode
 	    }
 	}
 	zipcnt++;
-	zn = zn->sibling;
+	zn = zn->next;
     }
 #ifndef _CONSOLE
     if (first && tmphist[0])
@@ -203,7 +203,7 @@ void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsig
     struct zvolume *zv;
     struct znode *zn;
 
-    zv = getzvolume (zf, id);
+    zv = getzvolume (NULL, zf, id);
     if (!zv)
 	return;
     zn = &zv->root;
@@ -222,7 +222,7 @@ void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsig
 		}
 	    }
 	}
-	zn = zn->sibling;
+	zn = zn->next;
     }
     zfile_fclose_archive (zv);
 }
@@ -886,7 +886,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	xfree (data);
     }
     zf = zfile_dup (z);
-    zf2 = zuncompress (zf, 0, 1);
+    zf2 = zuncompress (NULL, zf, 0, ZFD_ALL);
     if (zf2 != zf) {
 	zf = zf2;
 	zai.name = zfile_getfilename (zf);
@@ -908,13 +908,15 @@ struct zfile *archive_access_plain (struct znode *zn)
     if (zn->offset) {
 	struct zfile *zf;
 	z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-	zf = zfile_fopen (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask);
+	zf = zfile_fopen (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF);
 	zfile_fread (z->data, zn->size, 1, zf);
 	zfile_fclose (zf);
     } else {
 	z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-	zfile_fseek (zn->volume->archive, 0, SEEK_SET);
-	zfile_fread (z->data, zn->size, 1, zn->volume->archive);
+	if (z) {
+	    zfile_fseek (zn->volume->archive, 0, SEEK_SET);
+	    zfile_fread (z->data, zn->size, 1, zn->volume->archive);
+	}
     }
     return z;
 }
@@ -929,6 +931,24 @@ struct adfhandle {
     uae_u32 dostype;
 };
 
+
+static int dos_checksum (uae_u8 *p, int blocksize)
+{
+    uae_u32 cs = 0;
+    int i;
+    for (i = 0; i < blocksize; i += 4)
+	cs += (p[i] << 24) | (p[i + 1] << 16) | (p[i + 2] << 8) | (p[i + 3] << 0);
+    return cs;
+}
+static int sfs_checksum (uae_u8 *p, int blocksize, int sfs2)
+{
+    uae_u32 cs = sfs2 ? 2 : 1;
+    int i;
+    for (i = 0; i < blocksize; i += 4)
+	cs += (p[i] << 24) | (p[i + 1] << 16) | (p[i + 2] << 8) | (p[i + 3] << 0);
+    return cs;
+}
+
 static TCHAR *getBSTR (uae_u8 *bstr)
 {
     int n = *bstr++;
@@ -940,14 +960,24 @@ static TCHAR *getBSTR (uae_u8 *bstr)
     buf[i] = 0;
     return au (buf);
 }
+
 static uae_u32 gl (struct adfhandle *adf, int off)
 {
     uae_u8 *p = adf->block + off;
     return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
 }
+static uae_u32 glx (uae_u8 *p)
+{
+    return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
+}
+static uae_u32 gwx (uae_u8 *p)
+{
+    return (p[0] << 8) | (p[1] << 0);
+}
 
 static const int secs_per_day = 24 * 60 * 60;
 static const int diff = (8 * 365 + 2) * (24 * 60 * 60);
+static const int diff2 = (-8 * 365 - 2) * (24 * 60 * 60);
 static time_t put_time (long days, long mins, long ticks)
 {
     time_t t;
@@ -985,13 +1015,14 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
     struct zvolume *zv = zn->volume;
     struct adfhandle *adf = zv->handle;
     TCHAR name2[MAX_DPATH];
+    int bs = adf->blocksize;
 
-    for (i = 6; i < 78; i++) {
+    for (i = 0; i < bs / 4 - 56; i++) {
 	int block;
 	if (!adf_read_block (adf, root))
 	    return;
-	block = gl (adf, i * 4);
-	while (block > 0 && block < adf->size / 512) {
+	block = gl (adf, (i + 6) * 4);
+	while (block > 0 && block < adf->size / bs) {
 	    struct zarchive_info zai;
 	    TCHAR *fname;
 	    uae_u32 size, secondary;
@@ -1002,12 +1033,12 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
 	        break;
 	    if (gl (adf, 1 * 4) != block)
 		break;
-	    secondary = gl (adf, 512 - 1 * 4);
+	    secondary = gl (adf, bs - 1 * 4);
 	    if (secondary != -3 && secondary != 2)
 	        break;
 	    memset (&zai, 0, sizeof zai);
-	    fname = getBSTR (adf->block + 512 - 20 * 4);
-	    size = gl (adf, 512 - 47 * 4);
+	    fname = getBSTR (adf->block + bs - 20 * 4);
+	    size = gl (adf, bs - 47 * 4);
 	    name2[0] = 0;
 	    if (name[0]) {
 		TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
@@ -1017,10 +1048,8 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
 	    _tcscat (name2, fname);
 	    zai.name = name2;
 	    zai.size = size;
-	    zai.flags = gl (adf, 512 - 48);
-	    zai.t = put_time (gl (adf, 512 - 23 * 4),
-		gl (adf, 512 - 22 * 4),
-		gl (adf, 512 - 21 * 4));
+	    zai.flags = gl (adf, bs - 48 * 4);
+	    zai.t = put_time (gl (adf, bs - 23 * 4), gl (adf, bs - 22 * 4),gl (adf, bs - 21 * 4));
 	    if (secondary == -3) {
 	        struct znode *znnew = zvolume_addfile_abs (zv, &zai);
 	        znnew->offset = block;
@@ -1032,17 +1061,103 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
 		    return;
 	    }
 	    xfree (fname);
-	    block = gl (adf, 512 - 4 * 4);
+	    block = gl (adf, bs - 4 * 4);
 	}
     }
 }
 
-struct zvolume *archive_directory_adf (struct zfile *z)
+static void recursesfs (struct znode *zn, int root, TCHAR *name, int sfs2)
+{
+    struct zvolume *zv = zn->volume;
+    struct adfhandle *adf = zv->handle;
+    TCHAR name2[MAX_DPATH];
+    int bs = adf->blocksize;
+    int block;
+    uae_u8 *p, *s;
+    struct zarchive_info zai;
+
+    block = root;
+    while (block) {
+        if (!adf_read_block (adf, block))
+	    return;
+	p = adf->block + 12 + 3 * 4;
+	while (glx (p + 4) && p < adf->block + adf->blocksize - 27) {
+	    TCHAR *fname;
+	    int i;
+	    int align;
+
+	    memset (&zai, 0, sizeof zai);
+	    zai.flags = glx (p + 8) ^ 0x0f;
+	    s = p + (sfs2 ? 27 : 25);
+	    fname = au (s);
+	    i = 0;
+	    while (*s) {
+		s++;
+		i++;
+	    }
+	    s++;
+	    i++;
+	    if (*s)
+		zai.comment = au (s);
+	    while (*s) {
+		s++;
+		i++;
+	    }
+	    s++;
+	    i++;
+	    i += sfs2 ? 27 : 25;
+	    align = i & 1;
+
+	    name2[0] = 0;
+	    if (name[0]) {
+		TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
+		_tcscpy (name2, name);
+		_tcscat (name2, sep);
+	    }
+	    _tcscat (name2, fname);
+	    zai.name = name2;
+	    if (sfs2)
+		zai.t = glx (p + 22) - diff2;
+	    else
+		zai.t = glx (p + 20) - diff;
+	    if (p[sfs2 ? 26 : 24] & 0x80) { // dir
+		struct znode *znnew = zvolume_adddir_abs (zv, &zai);
+		int newblock = glx (p + 16);
+		if (newblock) {
+		    znnew->offset = block;
+		    recursesfs (znnew, newblock, name2, sfs2);
+		}
+		if (!adf_read_block (adf, block))
+		    return;
+	    } else {
+		struct znode *znnew;
+		if (sfs2) {
+		    uae_u64 b1 = p[16];
+		    uae_u64 b2 = p[17];
+		    zai.size = (b1 << 40) | (b2 << 32) | glx (p + 18) ;
+		} else {
+		    zai.size = glx (p + 16);
+		}
+		znnew = zvolume_addfile_abs (zv, &zai);
+		znnew->offset = block;
+		znnew->offset2 = p - adf->block;
+	    }
+	    xfree (zai.comment);
+	    xfree (fname);
+	    p += i + align;
+	}
+	block = gl (adf, 12 + 4);
+    }
+
+}
+
+struct zvolume *archive_directory_adf (struct znode *parent, struct zfile *z)
 {
     struct zvolume *zv;
     struct adfhandle *adf;
-    TCHAR *volname;
+    TCHAR *volname = NULL;
     TCHAR name[MAX_DPATH];
+    int gotroot = 0;
 
     adf = xcalloc (sizeof (struct adfhandle), 1);
     zfile_fseek (z, 0, SEEK_END);
@@ -1050,81 +1165,285 @@ struct zvolume *archive_directory_adf (struct zfile *z)
     zfile_fseek (z, 0, SEEK_SET);
 
     adf->blocksize = 512;
+    if (parent && parent->offset2) {
+	if (parent->offset2 == 1024 || parent->offset2 == 2048 || parent->offset2 == 4096 || parent->offset2 == 8192 ||
+	    parent->offset2 == 16384 || parent->offset2 == 32768 || parent->offset2 == 65536) {
+	    adf->blocksize = parent->offset2;
+	    gotroot = 1;
+	}
+    }
+
     adf->highblock = adf->size / adf->blocksize;
     adf->z = z;
 
-    if (!adf_read_block (adf, 0)) {
-	xfree (adf);
-	return NULL;
-    }
+    if (!adf_read_block (adf, 0))
+	goto fail;
     adf->dostype = gl (adf, 0);
 
-    adf->rootblock = ((adf->size / 512) - 1 + 2) / 2;
-    for (;;) {
-	if (!adf_read_block (adf, adf->rootblock)) {
-	    xfree (adf);
-	    return NULL;
-	}
-	if (gl (adf, 0) != 2 || gl (adf, 512 - 1 * 4) != 1) {
-	    if (adf->size < 2000000 && adf->rootblock != 880) {
-		adf->rootblock = 880;
-		continue;
+    if ((adf->dostype & 0xffffff00) == 'DOS\0') {
+	int bs = adf->blocksize;
+        int res;
+
+        adf->rootblock = ((adf->size / bs) - 1 + 2) / 2;
+	if (!gotroot) {
+	    for (res = 2; res >= 1; res--) {
+		for (bs = 512; bs < 65536; bs <<= 1) {
+		    adf->blocksize = bs;
+		    adf->rootblock = ((adf->size / bs) - 1 + res) / 2;
+		    if (!adf_read_block (adf, adf->rootblock))
+			continue;
+		    if (gl (adf, 0) != 2 || gl (adf, bs - 1 * 4) != 1)
+			continue;
+		    if (dos_checksum (adf->block, bs) != 0)
+			continue;
+		    gotroot = 1;
+		    break;
+		}
+		if (gotroot)
+		    break;
 	    }
-	    xfree (adf);
-	    return NULL;
 	}
-	break;
+	if (!gotroot) {
+	    bs = adf->blocksize = 512;
+	    if (adf->size < 2000000 && adf->rootblock != 880) {
+	        adf->rootblock = 880;
+		if (gl (adf, 0) != 2 || gl (adf, bs - 1 * 4) != 1)
+		    goto fail;
+		if (dos_checksum (adf->block, bs) != 0)
+		    goto fail;
+		goto fail;
+	    }
+	}
+
+        if (!adf_read_block (adf, adf->rootblock))
+	    goto fail;
+        if (gl (adf, 0) != 2 || gl (adf, bs - 1 * 4) != 1)
+	    goto fail;
+	if (dos_checksum (adf->block, adf->blocksize) != 0)
+	    goto fail;
+	adf->blocksize = bs;
+        adf->highblock = adf->size / adf->blocksize;
+	volname = getBSTR (adf->block + adf->blocksize - 20 * 4);
+	zv = zvolume_alloc (z, ArchiveFormatADF, NULL, NULL);
+	zv->method = ArchiveFormatADF;
+	zv->handle = adf;
+    
+	name[0] = 0;
+	recurseadf (&zv->root, adf->rootblock, name);
+
+    } else if ((adf->dostype & 0xffffff00) == 'SFS\0') {
+
+	uae_u16 version, sfs2;
+
+	for (;;) {
+	    for (;;) {
+		version = gl (adf, 12) >> 16;
+		sfs2 = version > 3;
+		if (version > 4)
+		    break;
+		adf->rootblock = gl (adf, 104);
+		if (!adf_read_block (adf, adf->rootblock))
+		    break;
+		if (gl (adf, 0) != 'OBJC')
+		    break;
+		if (sfs_checksum (adf->block, adf->blocksize, sfs2))
+		    break;
+		adf->rootblock = gl (adf, 40);
+		if (!adf_read_block (adf, adf->rootblock))
+		    break;
+		if (gl (adf, 0) != 'OBJC')
+		    break;
+		if (sfs_checksum (adf->block, adf->blocksize, sfs2))
+		    break;
+		gotroot = 1;
+		break;
+	    }
+	    if (gotroot)
+		break;
+	    adf->blocksize <<= 1;
+	    if (adf->blocksize == 65536)
+		break;
+	}
+	if (!gotroot)
+	    goto fail;
+
+	zv = zvolume_alloc (z, ArchiveFormatADF, NULL, NULL);
+	zv->method = ArchiveFormatADF;
+	zv->handle = adf;
+
+ 	name[0] = 0;
+	recursesfs (&zv->root, adf->rootblock, name, version > 3);
+
+    } else {
+	goto fail;
     }
 
-    volname = getBSTR (adf->block + 512 - 20 * 4);
 
-    zv = zvolume_alloc (z, ArchiveFormatADF, NULL, NULL);
-    zv->method = ArchiveFormatADF;
-    zv->handle = adf;
-
-    name[0] = 0;
-    recurseadf (&zv->root, adf->rootblock, name);
+    xfree (volname);
     return zv;
+fail:
+    xfree (adf);
+    return NULL;
 }
+
+struct sfsblock
+{
+    int block;
+    int length;
+};
+
+static int sfsfindblock (struct adfhandle *adf, int btree, int theblock, struct sfsblock **sfsb, int *sfsblockcnt, int *sfsmaxblockcnt, int sfs2)
+{
+    int nodecount, isleaf, nodesize;
+    int i;
+    uae_u8 *p;
+
+    if (!btree)
+	return 0;
+    if (!adf_read_block (adf, btree))
+        return 0;
+    if (memcmp (adf->block, "BNDC", 4))
+        return 0;
+    nodecount = gwx (adf->block + 12);
+    isleaf = adf->block[14];
+    nodesize = adf->block[15];
+    p = adf->block + 16;
+    for (i = 0; i < nodecount; i++) {
+	if (isleaf) {
+	    uae_u32 key = glx (p);
+	    uae_u32 next = glx (p + 4);
+	    uae_u32 prev = glx (p + 8);
+	    uae_u32 blocks;
+	    if (sfs2)
+		blocks = glx (p + 12);
+	    else
+		blocks = gwx (p + 12);
+	    if (key == theblock) {
+		struct sfsblock *sb;
+		if (*sfsblockcnt >= *sfsmaxblockcnt) {
+		    *sfsmaxblockcnt += 100;
+		    *sfsb = realloc (*sfsb, (*sfsmaxblockcnt) * sizeof (struct sfsblock));
+		}
+		sb = *sfsb + (*sfsblockcnt);
+		sb->block = key;
+		sb->length = blocks;
+		(*sfsblockcnt)++;
+		return next;
+	    }
+	} else {
+	    uae_u32 key = glx (p);
+	    uae_u32 data = glx (p + 4);
+	    int newblock = sfsfindblock (adf, data, theblock, sfsb, sfsblockcnt, sfsmaxblockcnt, sfs2);
+	    if (newblock)
+		return newblock;
+	    if (!adf_read_block (adf, btree))
+		return 0;
+	    if (memcmp (adf->block, "BNDC", 4))
+		return 0;
+	}
+        p += nodesize;
+    }
+    return 0;
+}
+
 
 struct zfile *archive_access_adf (struct znode *zn)
 {
-    struct zfile *z;
-    int block, root, ffs;
+    struct zfile *z = NULL;
+    int root, ffs;
     struct adfhandle *adf = zn->volume->handle;
-    int size;
+    int size, bs;
     int i;
     uae_u8 *dst;
 
     size = zn->size;
+    bs = adf->blocksize;
     z = zfile_fopen_empty (zn->volume->archive, zn->fullname, size);
     if (!z)
 	return NULL;
-    ffs = adf->dostype & 1;
-    root = zn->offset;
-    dst = z->data;
-    for (;;) {
-	adf_read_block (adf, root);
-	for (i = 128 - 51; i >= 6; i--) {
-	    int bsize = ffs ? 512 : 488;
-	    block = gl (adf, i * 4);
-	    if (size < bsize)
-		bsize = size;
-	    if (ffs)
-		zfile_fseek (adf->z, block * adf->blocksize, SEEK_SET);
-	    else
-		zfile_fseek (adf->z, block * adf->blocksize + (512 - 488), SEEK_SET);
-	    zfile_fread (dst, bsize, 1, adf->z);
-	    size -= bsize;
-	    dst += bsize;
+
+    if ((adf->dostype & 0xffffff00) == 'DOS\0') {
+
+	ffs = adf->dostype & 1;
+	root = zn->offset;
+	dst = z->data;
+	for (;;) {
+	    adf_read_block (adf, root);
+	    for (i = bs / 4 - 51; i >= 6; i--) {
+		int bsize = ffs ? bs : bs - 24;
+		int block = gl (adf, i * 4);
+		if (size < bsize)
+		    bsize = size;
+		if (ffs)
+		    zfile_fseek (adf->z, block * adf->blocksize, SEEK_SET);
+		else
+		    zfile_fseek (adf->z, block * adf->blocksize + 24, SEEK_SET);
+		zfile_fread (dst, bsize, 1, adf->z);
+		size -= bsize;
+		dst += bsize;
+		if (size <= 0)
+		    break;
+	    }
 	    if (size <= 0)
 		break;
+	    root = gl (adf, bs - 2 * 4);
 	}
-	if (size <= 0)
-	    break;
-	root = gl (adf, 512 - 2 * 4);
+    } else if ((adf->dostype & 0xffffff00) == 'SFS\0') {
+
+	struct sfsblock *sfsblocks;
+	int sfsblockcnt, sfsmaxblockcnt, i;
+	int bsize;
+	int block = zn->offset;
+	int dblock;
+	int btree, version, sfs2;
+	uae_u8 *p;
+
+	if (!adf_read_block (adf, 0))
+	    goto end;
+	btree = glx (adf->block + 108);
+	version = gwx (adf->block + 12);
+	sfs2 = version > 3;
+
+	if (!adf_read_block (adf, block))
+	    goto end;
+	p = adf->block + zn->offset2;
+	dblock = glx (p + 12);
+
+	sfsblockcnt = 0;
+	sfsmaxblockcnt = 0;
+	sfsblocks = NULL;
+	if (size > 0) {
+	    int nextblock = dblock;
+	    while (nextblock) {
+		nextblock = sfsfindblock (adf, btree, nextblock, &sfsblocks, &sfsblockcnt, &sfsmaxblockcnt, sfs2);
+	    }
+	}
+
+	bsize = 0;
+    	for (i = 0; i < sfsblockcnt; i++)
+	    bsize += sfsblocks[i].length * adf->blocksize;
+	if (bsize < size)
+	    write_log (L"SFS extracting error, %s size mismatch %d<%d\n", z->name, bsize, size);
+
+	dst = z->data;
+        block = zn->offset;
+	for (i = 0; i < sfsblockcnt; i++) {
+	    block = sfsblocks[i].block;
+	    bsize = sfsblocks[i].length * adf->blocksize;
+	    zfile_fseek (adf->z, block * adf->blocksize, SEEK_SET);
+	    if (bsize > size)
+		bsize = size;
+	    zfile_fread (dst, bsize, 1, adf->z);
+	    dst += bsize;
+	    size -= bsize; 
+	}
+
+	xfree (sfsblocks);
     }
     return z;
+end:
+    zfile_fclose (z);
+    return NULL;
 }
 
 static void archive_close_adf (void *v)
@@ -1175,10 +1494,10 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 	struct znode *zn;
         struct zarchive_info zai;
 	TCHAR tmp[MAX_DPATH];
-	int surf, spt, lowcyl, highcyl, reserved;
+	int surf, spt, spb, lowcyl, highcyl, reserved;
 	int size, block, blocksize, rootblock;
 	uae_u8 *p;
-	TCHAR comment[81], *com;
+	TCHAR comment[81], *dos;
 
 	if (partnum == 0)
 	    partblock = rl (buf + 28);
@@ -1194,31 +1513,37 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 
 	p = buf + 128 - 16;
 	surf = rl (p + 28);
+	spb = rl (p + 32);
 	spt = rl (p + 36);
 	reserved = rl (p + 40);
 	lowcyl = rl (p + 52);
 	highcyl = rl (p + 56);
-	blocksize = rl (p + 20) * 4;
+	blocksize = rl (p + 20) * 4 * spb;
 	block = lowcyl * surf * spt;
 
 	size = (highcyl - lowcyl + 1) * surf * spt;
 	size *= blocksize;
 
-	rootblock = ((size / blocksize) - 1 + 2) / 2;
+	dos = tochar (buf + 192, 4);
+
+	if (!memcmp (dos, L"DOS", 3))
+	    rootblock = ((size / blocksize) - 1 + 2) / 2;
+	else
+	    rootblock = 0;
 
 	devname = getBSTR (buf + 36);
 	_stprintf (tmp, L"%s.hdf", devname);
 	memset (&zai, 0, sizeof zai);
-	com = tochar (buf + 192, 4);
 	_stprintf (comment, L"FS=%s LO=%d HI=%d HEADS=%d SPT=%d RES=%d BLOCK=%d ROOT=%d",
-	    com, lowcyl, highcyl, surf, spt, reserved, blocksize, rootblock);
+	    dos, lowcyl, highcyl, surf, spt, reserved, blocksize, rootblock);
 	zai.comment = comment;
-	xfree (com);
+	xfree (dos);
         zai.name = tmp;
 	zai.size = size;
 	zai.flags = -1;
 	zn = zvolume_addfile_abs (zv, &zai);
 	zn->offset = partblock;
+	zn->offset2 = blocksize; // örp?
     }
 
     zv->method = ArchiveFormatRDB;

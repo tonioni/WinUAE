@@ -491,6 +491,8 @@ void S2X_render (void)
 	    }
 	    for (i = 0; i < ah * scale; i++) {
 		int w = aw * scale * (dst_depth / 8);
+		if (dptr + w > enddptr)
+		    break;
 		memcpy (dptr, sptr2, w);
 		sptr2 += w;
 		dptr += pitch;
