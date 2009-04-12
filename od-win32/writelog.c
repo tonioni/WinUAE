@@ -216,7 +216,7 @@ static TCHAR *writets (void)
     _tcsftime (curts, sizeof curts / sizeof (TCHAR), L"%Y-%m-%d %H:%M:%S\n", t);
     p = out;
     *p = 0;
-    if (!_tcsncmp (curts, lastts, _tcslen (curts))) {
+    if (_tcsncmp (curts, lastts, _tcslen (curts) - 3)) { // "xx\n"
 	_tcscat (p, curts);
 	p += _tcslen (p);
 	_tcscpy (lastts, curts);

@@ -503,7 +503,6 @@ static void parse_cmdline (int argc, TCHAR **argv)
 	    xfree (txt);
 	} else if (_tcsncmp (argv[i], L"-statefile=", 11) == 0) {
 	    TCHAR *txt = parsetext (argv[i] + 11);
-	    write_log (L"%s\n", txt);
 	    savestate_state = STATE_DORESTORE;
 	    _tcscpy (savestate_fname, txt);
 	    xfree (txt);
@@ -605,6 +604,7 @@ void reset_all_systems (void)
 #if defined (PARALLEL_PORT)
     initparallel ();
 #endif
+    native2amiga_reset ();
 }
 
 /* Okay, this stuff looks strange, but it is here to encourage people who

@@ -1479,9 +1479,12 @@ static TCHAR *tochar (uae_u8 *s, int len)
 struct zvolume *archive_directory_rdb (struct zfile *z)
 {
     uae_u8 buf[512] = { 0 };
-    int partnum;
+    int partnum, bs;
     TCHAR *devname;
     struct zvolume *zv;
+    struct zarchive_info zai;
+    uae_u8 *p;
+    struct znode *zn;
 
     zv = zvolume_alloc (z, ArchiveFormatRDB, NULL, NULL);
 
@@ -1491,12 +1494,9 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
     partnum = 0;
     for (;;) {
 	int partblock;
-	struct znode *zn;
-        struct zarchive_info zai;
 	TCHAR tmp[MAX_DPATH];
 	int surf, spt, spb, lowcyl, highcyl, reserved;
 	int size, block, blocksize, rootblock;
-	uae_u8 *p;
 	TCHAR comment[81], *dos;
 
 	if (partnum == 0)
@@ -1546,6 +1546,16 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 	zn->offset2 = blocksize; // örp?
     }
 
+    zfile_fseek (z, 0, SEEK_SET);
+    p = buf;
+    zfile_fread (buf, 1, 512, z);
+    zai.name = L"rdb_dump.dat";
+    bs = rl (p + 16);
+    zai.size = rl (p + 140) * bs;
+    zai.comment = NULL;
+    zn = zvolume_addfile_abs (zv, &zai);
+    zn->offset = 0;
+
     zv->method = ArchiveFormatRDB;
     return zv;
 }
@@ -1559,20 +1569,29 @@ struct zfile *archive_access_rdb (struct znode *zn)
     int size, block, blocksize;
     uae_u8 *p;
 
-    zfile_fseek (z, zn->offset * 512, SEEK_SET);
-    zfile_fread (buf, 1, 512, z);
- 
-    p = buf + 128 - 16;
-    surf = rl (p + 28);
-    spb = rl (p + 32);
-    spt = rl (p + 36);
-    lowcyl = rl (p + 52);
-    highcyl = rl (p + 56);
-    blocksize = rl (p + 20) * 4;
-    block = lowcyl * surf * spt;
+    if (zn->offset) {
+	zfile_fseek (z, zn->offset * 512, SEEK_SET);
+	zfile_fread (buf, 1, 512, z);
+     
+	p = buf + 128 - 16;
+	surf = rl (p + 28);
+	spb = rl (p + 32);
+	spt = rl (p + 36);
+	lowcyl = rl (p + 52);
+	highcyl = rl (p + 56);
+	blocksize = rl (p + 20) * 4;
+	block = lowcyl * surf * spt;
 
-    size = (highcyl - lowcyl + 1) * surf * spt;
-    size *= blocksize;
+	size = (highcyl - lowcyl + 1) * surf * spt;
+	size *= blocksize;
+    } else {
+	zfile_fseek (z, 0, SEEK_SET);
+	zfile_fread (buf, 1, 512, z);
+	p = buf;
+	blocksize = rl (p + 16);
+	block = 0;
+	size = zn->size;
+    }
 
     zf = zfile_fopen_empty (z, zn->fullname, size);
     zfile_fseek (z, block * blocksize, SEEK_SET);

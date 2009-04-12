@@ -2065,6 +2065,9 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
     }
     xfree (chunk);
     zfile_fclose (f);
+    if (f)
+	DISK_history_add (name, -1);
+
 }
 
 int disk_getwriteprotect (const TCHAR *name)

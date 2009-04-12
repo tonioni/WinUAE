@@ -30,6 +30,8 @@ void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size);
  */
 void native2amiga_install (void);
 
+void native2amiga_reset (void);
+
 /*
  * to be called when the Amiga boots, i.e. by filesys_diagentry()
  */

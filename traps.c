@@ -109,13 +109,23 @@ unsigned int define_trap (TrapHandler handler_func, int flags, const TCHAR *name
 	abort ();
 	return -1;
     } else {
-	unsigned int trap_num = trap_count++;
-	struct Trap *trap = &traps[trap_num];
+	int i;
+	unsigned int trap_num;
+	struct Trap *trap;
+	uaecptr addr = here ();
+
+	for (i = 0; i < trap_count; i++) {
+	    if (addr == traps[i].addr)
+		return i;
+	}
+
+	trap_num = trap_count++;
+	trap = &traps[trap_num];
 
 	trap->handler = handler_func;
 	trap->flags   = flags;
 	trap->name    = name;
-	trap->addr    = here ();
+	trap->addr    = addr;
 
 	return trap_num;
     }

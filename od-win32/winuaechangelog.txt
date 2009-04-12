@@ -1,11 +1,24 @@
 
+Beta 24:
+
+- debugger T command fixed (b15)
+- JIT FPU bug, one addressing mode was wrong (b15)
+- reset clears "native2amiga" command queue (it was possible to have
+  command queued just before reset which would have been executed
+  after reset -> random errors and crashes)
+- do not include mice in parallel port joystick select menus
+- add new empty adf files to disk history list
+- added simple list devices, libraries and resources commands to
+  debugger (Td Tl Tr)
+- log file long datestamps fixed
+
 Beta 23:
 
-- archives (zip etc) didn't unpack
+- archives (zip etc) didn't unpack (b22)
 - directinput keyboard was not always unacquired when focus was lost
 - hq2x/3x/4x crash in specific situations (old random bug)
 - clipboard initialization changed again, now initialized after all
-  residents have been initialized (previously it was after dos)
+  other residents (previously it was after dos)
 
 Beta 22:
 

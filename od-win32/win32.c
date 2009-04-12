@@ -3602,9 +3602,10 @@ static TCHAR **parseargstring (TCHAR *s)
 	if (*p == 0)
 	    break;
 	if (*p == '\'' || *p == '"') {
+	    TCHAR sc = *p;
 	    p++;
 	    s++;
-	    while (*p && *p != '\'' && *p != '"')
+	    while (*p && *p != sc)
 		p++;
 	    skip = 1;
 	} else {

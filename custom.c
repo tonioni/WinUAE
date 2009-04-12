@@ -5259,6 +5259,7 @@ void customreset (int hardreset)
     int i;
     int zero = 0;
 
+    target_reset ();
     reset_all_systems ();
     write_log (L"Reset at %08X\n", m68k_getpc (&regs));
     memory_map_dump();
@@ -5427,7 +5428,6 @@ void customreset (int hardreset)
 	rtc_hardreset();
 
     picasso_reset ();
-    target_reset ();
 }
 
 void dumpcustom (void)

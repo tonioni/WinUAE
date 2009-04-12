@@ -173,7 +173,7 @@ static const TCHAR *obsolete[] = {
     L"gfx_test_speed", L"gfxlib_replacement", L"enforcer", L"catweasel_io",
     L"kickstart_key_file", L"fast_copper", L"sound_adjust",
     L"serial_hardware_dtrdsr", L"gfx_filter_upscale",
-    L"gfx_correct_aspect",
+    L"gfx_correct_aspect", L"gfx_autoscale",
     NULL
 };
 

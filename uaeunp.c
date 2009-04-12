@@ -625,7 +625,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	ok = 1;
     }
     if (!ok) {
-	_tprintf (L"UAE unpacker uaeunp 0.5b by Toni Wilen (c)2009\n");
+	_tprintf (L"UAE unpacker uaeunp 0.5c by Toni Wilen (c)2009\n");
 	_tprintf (L"\n");
 	_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 	_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
@@ -660,5 +660,8 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
     - SFS2 supported
     - block size autodetection implemented (if non-rdb hardfile)
 
+    0.5c:
+
+    - rdb_dump.dat added to rdb hardfiles, can be used to dump/backup rdb blocks
 
 */

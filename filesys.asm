@@ -73,7 +73,7 @@ residenthack
 	bcs.s .rsh
 	moveq #residentcodeend-residentcodestart,d0
 	move.l d0,d2
-	move.l #65536+1,d1
+	moveq #1,d1
 	jsr AllocMem(a6)
 	tst.l d0
 	beq.s .rsh
@@ -86,7 +86,7 @@ residenthack
 	subq.l #4,d2
 	bne.s .cp1
 
-	jsr -$0078(a6)
+	jsr -$0078(a6) ;Disable
 	move.l a6,a1
 	move.w #-$48,a0 ;InitCode
 	move.l a2,d0
@@ -95,7 +95,7 @@ residenthack
 	lea myafterdos(pc),a0
 	move.l a0,residentcodejump1-residentcodestart+2(a2)
 	jsr -$27C(a6) ;CacheClearU
-	jsr -$007e(a6)
+	jsr -$007e(a6) ;Enable
 .rsh
 	movem.l (sp)+,d0-d2/a0-a2/a6
 	rts
@@ -2241,11 +2241,6 @@ cfloop3
 	bra.s cfloop3
 	
 cfversion
-	move.w #$FF38,d0
-	moveq #15,d1
-	bsr.w getrtbase
-	jsr (a0)
-
 	bsr.w prefshook
 
 	lea CLIP_HOOK(a5),a0
@@ -2259,6 +2254,13 @@ cfversion
 	move.l a4,a1
 	jsr -$01c8(a6) ;DoIO
 
+	move.w #$FF38,d0
+	moveq #15,d1
+	bsr.w getrtbase
+	jsr (a0)
+	tst.l CLIP_WRITE_SIZE(a5)
+	bne.s clipsignal
+
 cfloop
 	moveq #0,d0
 	moveq #0,d2
@@ -2267,11 +2269,11 @@ cfloop
 	bset #13,d0
 	jsr -$013e(a6) ;Wait
 	btst d2,d0
-	beq.s .clipsignal
+	beq.s clipsignal
 	bsr.w prefsread
 	bra.s cfloop
 
-.clipsignal
+clipsignal
 	move.l CLIP_WRITE_SIZE(a5),d0
 	beq.w clipread
 	;allocate amiga-side space

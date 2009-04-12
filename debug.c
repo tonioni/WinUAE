@@ -122,7 +122,8 @@ static TCHAR help[] = {
     L"  S <file> <addr> <n>   Save a block of Amiga memory\n"
     L"  s \"<string>\"/<values> [<addr>] [<length>]\n"
     L"                        Search for string/bytes\n"
-    L"  T                     Show exec tasks and their PCs\n"
+    L"  T or Tt               Show exec tasks and their PCs\n"
+    L"  Td,Tl,Tr              Show devices, libraries or resources\n"
     L"  b                     Step to previous state capture position\n"
     L"  M<a/b/s> <val>        Enable or disable audio channels, bitplanes or sprites\n"
     L"  sp <addr> [<addr2][<size>] Dump sprite information\n"
@@ -2002,9 +2003,13 @@ static TCHAR *BSTR2CSTR (uae_u8 *bstr)
 
 static void print_task_info (uaecptr node)
 {
+    TCHAR *s;
     int process = get_byte (node + 8) == 13 ? 1 : 0;
-    console_out_f (L"%08X: %08X", node, 0);
-    console_out_f (process ? L" PROCESS '%s'" : L" TASK    '%s'\n", get_real_address (get_long (node + 10)));
+
+    console_out_f (L"%08X: ", node);
+    s = au (get_real_address (get_long (node + 10)));
+    console_out_f (process ? L" PROCESS '%s'" : L" TASK    '%s'\n", s);
+    xfree (s);
     if (process) {
 	uaecptr cli = BPTR2APTR (get_long (node + 172));
 	int tasknum = get_long (node + 140);
@@ -2025,7 +2030,7 @@ static void show_exec_tasks (void)
     uaecptr taskready = get_long (execbase + 406);
     uaecptr taskwait = get_long (execbase + 420);
     uaecptr node, end;
-    console_out_f (L"Execbase at 0x%08X\n", (unsigned long) execbase);
+    console_out_f (L"Execbase at 0x%08X\n", execbase);
     console_out (L"Current:\n");
     node = get_long (execbase + 276);
     print_task_info (node);
@@ -2041,6 +2046,34 @@ static void show_exec_tasks (void)
     end = get_long (taskwait + 4);
     while (node) {
 	print_task_info (node);
+	node = get_long (node);
+    }
+}
+
+static void show_exec_lists (TCHAR t)
+{
+    uaecptr execbase = get_long (4);
+    uaecptr list = 0, node;
+
+    switch (_totupper (t))
+    {
+	case 'R':
+	list = execbase + 336;
+	break;
+	case 'D':
+	list = execbase + 350;
+	break;
+	case 'L':
+	list = execbase + 378;
+	break;
+    }
+    if (list == 0)
+	return;
+    node = get_long (list);
+    while (get_long (node)) {
+	TCHAR *name = au (get_real_address (get_long (node + 10)));
+	console_out_f (L"%08x %s\n", node, name);
+	xfree (name);
 	node = get_long (node);
     }
 }
@@ -2732,7 +2765,12 @@ static void debug_1 (void)
 	    }
 	}
 	break;
-	case 'T': show_exec_tasks (); break;
+	case 'T':
+	    if (inptr[0] == 't' || inptr[0] == 0)
+		show_exec_tasks ();
+	    else
+		show_exec_lists (inptr[0]);
+	break;
 	case 't':
 	    if (more_params (&inptr))
 		skipaddr_doskip = readint (&inptr);

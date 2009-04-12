@@ -8656,9 +8656,11 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		break;
 	    case IDC_CREATE:
 		DiskSelection (hDlg, wParam, 1, &workprefs, 0);
+	        addfloppyhistory (hDlg);
 		break;
 	    case IDC_CREATE_RAW:
 		DiskSelection (hDlg, wParam, 1, &workprefs, 0);
+	        addfloppyhistory (hDlg);
 		break;
 	    }
 	    recursive--;
@@ -9054,8 +9056,10 @@ static void updatejoyport (HWND hDlg)
 	}
 	for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++, total++)
 	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
-	for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
-	    SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
+	if (i < 2) {
+	    for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
+		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
+	}
 	idx = inputdevice_getjoyportdevice (v);
 	if (idx >= 0)
 	    idx += 2;
@@ -9534,6 +9538,8 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    workprefs.parallel_postscript_detection = IsDlgButtonChecked (hDlg, IDC_PSPRINTERDETECT) ? 1 : 0;
 	    if (!workprefs.parallel_postscript_detection)
 		CheckDlgButton (hDlg, IDC_PSPRINTER, 0);
+	} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH) {
+	    values_from_portsdlg (hDlg);
 	} else {
 	    if (HIWORD (wParam) == CBN_SELCHANGE) {
 		switch (LOWORD (wParam))
