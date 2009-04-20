@@ -998,7 +998,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	if (num == num_mouse)
 	    return;
 
-	if (isfocus () > 0) {
+	if (isfocus ()) {
 	    for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
 	        if (rm->usButtonFlags & (3 << (i * 2)))
 		    setmousebuttonstate (num, i, (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0);
@@ -1072,7 +1072,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	    inputdevice_do_keyboard (scancode, pressed);
 	} else {
 	    scancode = keyhack (scancode, pressed, num);
-	    if (scancode < 0 || isfocus () <= 0)
+	    if (scancode < 0 || isfocus () == 0)
 		return;
 	    di_keycodes[num][scancode] = pressed;
 	    if (stopoutput == 0)
@@ -1702,7 +1702,7 @@ static void read_mouse (void)
 #ifdef DI_DEBUG2
 		write_log (L"MOUSE: %d OFF=%d DATA=%d STATE=%d\n", i, dimofs, data, state);
 #endif
-		if (istest || isfocus () > 0) {
+		if (istest || isfocus ()) {
 		    for (k = 0; k < did->axles; k++) {
 		        if (did->axismappings[k] == dimofs)
 			    setmousestate (i, k, data, 0);
@@ -2133,7 +2133,7 @@ static void read_kb (void)
 	}
 	elements = DI_KBBUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof(DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus () > 0) {
+	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus ()) {
 	    if (did->superdevice && (normalkb || rawkb))
 		continue;
 	    for (j = 0; j < elements; j++) {
@@ -2298,7 +2298,7 @@ static void read_joystick (void)
 	if (!did->acquired)
 	    continue;
 	if (did->connection == DIDC_CAT) {
-	    if (getjoystickstate (i) && isfocus () > 0) {
+	    if (getjoystickstate (i) && isfocus ()) {
 		/* only read CW state if it is really needed */
 		uae_u8 cdir, cbuttons;
 		if (catweasel_read_joystick (&cdir, &cbuttons)) {
@@ -2318,7 +2318,7 @@ static void read_joystick (void)
 	    continue;
 	elements = DI_BUFFER;
 	hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
-	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus () > 0) {
+	if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && isfocus ()) {
 	    for (j = 0; j < elements; j++) {
 		int dimofs = didod[j].dwOfs;
 		int data = didod[j].dwData;

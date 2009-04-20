@@ -63,7 +63,7 @@ static void to_amiga_start (void)
     if (clipboard_debug) {
 	debugwrite (L"clipboard_p2a", to_amiga, to_amiga_size);
     }
-    write_log (L"clipboard: to_amiga %08x\n", clipboard_data);
+    //write_log (L"clipboard: to_amiga %08x\n", clipboard_data);
     put_long (clipboard_data, to_amiga_size);
     uae_Signal (get_long (clipboard_data + 8), 1 << 13);
 }

@@ -58,8 +58,7 @@ long int version = 256 * 65536L * UAEMAJOR + 65536L * UAEMINOR + UAESUBREV;
 
 struct uae_prefs currprefs, changed_prefs;
 
-int no_gui = 0;
-int joystickpresent = 0;
+int no_gui = 0, quit_to_gui = 0;
 int cloanto_rom = 0;
 int kickstart_rom = 1;
 
@@ -685,7 +684,7 @@ void leave_program (void)
     do_leave_program ();
 }
 
-static void real_main2 (int argc, TCHAR **argv)
+static int real_main2 (int argc, TCHAR **argv)
 {
 #if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
     extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
@@ -717,7 +716,7 @@ static void real_main2 (int argc, TCHAR **argv)
 
     if (!machdep_init ()) {
 	restart_program = 0;
-	return;
+	return -1;
     }
 
     if (! setup_sound ()) {
@@ -738,8 +737,9 @@ static void real_main2 (int argc, TCHAR **argv)
 	currprefs = changed_prefs;
 	if (err == -1) {
 	    write_log (L"Failed to initialize the GUI\n");
+	    return -1;
 	} else if (err == -2) {
-	    return;
+	    return 1;
 	}
     }
 
@@ -833,6 +833,7 @@ static void real_main2 (int argc, TCHAR **argv)
 	// EvalException does the good stuff...
     }
 #endif
+    return 0;
 }
 
 void real_main (int argc, TCHAR **argv)
@@ -841,8 +842,11 @@ void real_main (int argc, TCHAR **argv)
     fetch_configurationpath (restart_config, sizeof (restart_config) / sizeof (TCHAR));
     _tcscat (restart_config, OPTIONSFILENAME);
     while (restart_program) {
+	int ret;
 	changed_prefs = currprefs;
-	real_main2 (argc, argv);
+	ret = real_main2 (argc, argv);
+	if (ret == 0 && quit_to_gui)
+	    restart_program = 1;
 	leave_program ();
 	quit_program = 0;
     }

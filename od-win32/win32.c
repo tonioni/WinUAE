@@ -3505,6 +3505,10 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
         ahi_debug = 3;
 	return 1;
     }
+    if (!_tcscmp (arg, L"-quittogui")) {
+	quit_to_gui = 1;
+	return 1;
+    }
 
     if (!np)
 	return 0;
@@ -3872,7 +3876,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 #ifdef RETROPLATFORM
     rp_free ();
 #endif
-    if(hWinUAEKey)
+    if (hWinUAEKey)
 	RegCloseKey (hWinUAEKey);
     CloseHandle (hMutex);
     WIN32_CleanupLibraries ();

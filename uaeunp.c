@@ -115,6 +115,7 @@ struct arcdir {
     uae_u64 size;
     TCHAR *comment;
     uae_u32 crc32;
+    int iscrc;
     __time64_t dt;
     int parent, nextlevel;
 };
@@ -131,6 +132,7 @@ static void dolist (struct arcdir **filelist, struct arcdir *adp, int entries, i
 	    int j;
 	    TCHAR protflags[9];
 	    TCHAR dates[32];
+	    TCHAR crcs[16];
 	    int flags;
 	    struct tm *dt;
 
@@ -161,12 +163,16 @@ static void dolist (struct arcdir **filelist, struct arcdir *adp, int entries, i
 
 		for (j = 0; j < level; j++)
 		    _tprintf (L" ");
+		if (ad->iscrc)
+		    _stprintf (crcs, L"%08X", ad->crc32);
+		else
+		    _tcscpy (crcs, L"--------");
 		if (ad->isdir > 0)
 		    _tprintf (L"     [DIR] %s %s          %s\n", protflags, dates, ad->name);
 		else if (ad->isdir < 0)
 		    _tprintf (L"    [VDIR] %s %s          %s\n", protflags, dates, ad->name);
 		else
-		    _tprintf (L"%10I64d %s %s %08X %s\n", ad->size, protflags, dates, ad->crc32, ad->name);
+		    _tprintf (L"%10I64d %s %s %s %s\n", ad->size, protflags, dates, crcs, ad->name);
 		if (ad->comment)
 		    _tprintf (L" \"%s\"\n", ad->comment);
 		if (ad->nextlevel >= 0) {
@@ -182,6 +188,14 @@ static void dolist (struct arcdir **filelist, struct arcdir *adp, int entries, i
 
 static int parentid = -1, subdirid;
 static int maxentries = 10000, entries;
+
+static void resetlist (void)
+{
+    parentid = -1;
+    subdirid = 0;
+    maxentries = 10000;
+    entries = 0;
+}
 
 static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 {
@@ -217,6 +231,7 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
         TCHAR *comment;
 	struct zfile *zf;
 	uae_u32 crc32 = 0;
+	int iscrc = 0;
 	int nextdir = -1;
 
         _tcscpy (p, src);
@@ -231,10 +246,11 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 	comment = 0;
 	zfile_fill_file_attrs_archive (p, &isdir, &flags, &comment);
 	flags ^= 15;
-	if (!isdir) {
+	if (!isdir && st.st_size < 1024 * 1024 * 2 && st.st_size > 0) {
 	    zf = zfile_open_archive (p, 0);
 	    if (zf) {
 		crc32 = zfile_crc32 (zf);
+		iscrc = 1;
 	    }
 	}
 
@@ -247,6 +263,7 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 	ad->dt = st.st_mtime;
 	ad->parent = parentid;
 	ad->crc32 = crc32;
+	ad->iscrc = iscrc;
 
 	if (isdir && all) {
 	    int oldparent = parentid;
@@ -285,6 +302,7 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 
     dolist (filelist, adp, entries, -1, 0);
     zfile_closedir_archive (h);
+    zfile_fclose_archive (zv);
     return 1;
 }
 
@@ -293,6 +311,41 @@ static int unlist (const TCHAR *src, int all)
     struct arcdir *adp;
     adp = xcalloc (sizeof (struct arcdir), maxentries);
     unlist2 (adp, src, all);
+    return 1;
+}
+
+static int docrclist (const TCHAR *src)
+{
+    WIN32_FIND_DATA ffd;
+    HANDLE h;
+    TCHAR path[MAX_DPATH];
+    
+    _tcscpy (path, src);
+    _tcscat (path, L"\\*.*");
+    h = FindFirstFile (path, &ffd);
+    while (h) {
+	if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+	    if (!_tcscmp (ffd.cFileName, L".") || !_tcscmp (ffd.cFileName, L".."))
+		goto next;
+	    _tcscpy (path, src);
+	    _tcscat (path, L"\\");
+	    _tcscat (path, ffd.cFileName);
+	    docrclist (path);
+	} else {
+	    TCHAR path2[MAX_DPATH];
+	    _tcscpy (path, src);
+	    _tcscat (path, L"\\");
+	    _tcscat (path, ffd.cFileName);
+	    GetFullPathName (path, MAX_DPATH, path2, NULL);
+	    resetlist ();
+	    unlist (path2, 1);
+	}
+next:
+	if (!FindNextFile (h, &ffd)) {
+	    FindClose (h);
+	    break;
+	}
+    }
     return 1;
 }
 
@@ -526,14 +579,23 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 {
     int ok = 0, i;
     int list = 0, xtract = 0, extract = 0;
-    int out = 0, all = 0;
-    TCHAR path[MAX_DPATH], tmppath[MAX_DPATH];
+    int out = 0, all = 0, crclist = 0;
+    TCHAR path[MAX_DPATH] = { 0 }, pathx[MAX_DPATH] = { 0 };
+#if 0
+    TCHAR tmppath[MAX_DPATH];
+#endif
     int used[32] = { 0 };
     TCHAR *parm2 = NULL;
     TCHAR *parm3 = NULL;
     TCHAR *match = NULL;
     
+    resetlist ();
+
     for (i = 0; i < argc && i < 32; i++) {
+	if (!_tcsicmp (argv[i], L"-crclist")) {
+	    crclist = 1;
+	    used[i] = 1;
+	}
 	if (!_tcsicmp (argv[i], L"o")) {
 	    out = 1;
 	    used[i] = 1;
@@ -582,6 +644,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
     }
     for (i = 1; i < argc && i < 32; i++) {
 	if (!used[i]) {
+	    _tcscpy (pathx, argv[i]);
 	    GetFullPathName (argv[i], MAX_DPATH, path, NULL);
 	    used[i] = 1;
 	    break;
@@ -605,7 +668,10 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 //    _tcscpy (tmppath, path);
 //    scanpath (tmppath, path);
 
-    if (match) {
+    if (crclist) {
+	docrclist (L".");
+	ok = 1;
+    } else if (match) {
 	unpack2 (path, match, 0);
 	ok = 1;
     } else if (!parm2 && all > 0) {

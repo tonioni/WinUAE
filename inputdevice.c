@@ -1480,17 +1480,17 @@ int getbuttonstate (int joy, int button)
 	oldbuttons[joy] &= ~(1 << button);
 	if (v)
 	    oldbuttons[joy] |= 1 << button;
-	inprec_rstart(INPREC_JOYBUTTON);
-	inprec_ru8(joy);
-	inprec_ru8(button);
-	inprec_ru8(v);
-	inprec_rend();
+	inprec_rstart (INPREC_JOYBUTTON);
+	inprec_ru8 (joy);
+	inprec_ru8 (button);
+	inprec_ru8 (v);
+	inprec_rend ();
     } else if (input_recording < 0) {
 	while(inprec_pstart (INPREC_JOYBUTTON)) {
-	    uae_u8 j = inprec_pu8();
-	    uae_u8 but = inprec_pu8();
-	    uae_u8 vv = inprec_pu8();
-	    inprec_pend();
+	    uae_u8 j = inprec_pu8 ();
+	    uae_u8 but = inprec_pu8 ();
+	    uae_u8 vv = inprec_pu8 ();
+	    inprec_pend ();
 	    oldbuttons[j] &= ~(1 << but);
 	    if (vv)
 		oldbuttons[j] |= 1 << but;

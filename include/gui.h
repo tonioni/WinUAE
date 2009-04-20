@@ -22,7 +22,7 @@ extern void gui_disk_image_change (int, const TCHAR *);
 extern unsigned int gui_ledstate;
 extern void gui_display (int shortcut);
 
-extern int no_gui;
+extern int no_gui, quit_to_gui;
 
 struct gui_info
 {

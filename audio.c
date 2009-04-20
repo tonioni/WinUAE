@@ -1049,7 +1049,7 @@ int audio_activate (void)
     if (!audio_work_to_do) {
 	restart_sound_buffer ();
 	ret = 1;
-	audio_event_reset();
+	audio_event_reset ();
     }
     audio_work_to_do = 4 * maxvpos * 50;
     return ret;

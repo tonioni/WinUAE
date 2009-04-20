@@ -43,12 +43,13 @@
 static long samples, playchannel, intcount;
 static int record_enabled;
 int ahi_on;
-static TCHAR *sndptrmax, soundneutral, sndptr;
+static uae_u8 *sndptrmax;
+static uae_u8 soundneutral;
 
 static LPSTR lpData,sndptrout;
 extern uae_u32 chipmem_mask;
 unsigned int *sndbufrecpt;
-static TCHAR *ahisndbuffer, *sndrecbuffer;
+static uae_u8 *ahisndbuffer, *sndrecbuffer;
 static int ahisndbufsize, *ahisndbufpt, ahitweak;;
 int ahi_pollrate = 40;
 

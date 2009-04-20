@@ -319,7 +319,7 @@ int D3D_canshaders (void)
     if (yesno > 0)
 	return 1;
     yesno = -1;
-    h = LoadLibrary (L"d3dx9_40.dll");
+    h = LoadLibrary (L"d3dx9_41.dll");
     if (h != NULL) {
 	FreeLibrary (h);
 	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
@@ -1194,16 +1194,15 @@ int D3D_needreset (void)
 
 void D3D_clear (void)
 {
+    int i;
     HRESULT hr;
     hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
     if (FAILED (hr))
 	return;
-    IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0L);
-    hr = IDirect3DDevice9_BeginScene (d3ddev);
-    if (FAILED (hr))
-	return;
-    IDirect3DDevice9_EndScene (d3ddev);
-    IDirect3DDevice9_Present (d3ddev, 0, 0, 0 ,0);
+    for (i = 0; i < 2; i++) {
+	IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0L);
+	IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
+    }
 }
 
 static void D3D_render2 (int clear)
@@ -1219,13 +1218,17 @@ static void D3D_render2 (int clear)
     }
     setupscenecoords ();
     settransform ();
-    hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (clear || needclear) {
-	hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,0), 1.0f, 0L );
-	if (FAILED (hr))
-	    write_log (L"IDirect3DDevice9_Clear() failed: %s\n", D3D_ErrorString (hr));
+	int i;
+	for (i = 0; i < 2; i++) {
+	    hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0L );
+	    if (FAILED (hr))
+		write_log (L"IDirect3DDevice9_Clear() failed: %s\n", D3D_ErrorString (hr));
+	    IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
+	}
 	needclear = 0;
     }
+    hr = IDirect3DDevice9_BeginScene (d3ddev);
     if (psActive) {
         UINT uPasses, uPass;
 	LPDIRECT3DSURFACE9 lpRenderTarget;
@@ -1292,7 +1295,7 @@ static void D3D_render2 (int clear)
     }
 
     hr = IDirect3DDevice9_EndScene (d3ddev);
-    hr = IDirect3DDevice9_Present (d3ddev, 0, 0, 0 ,0);
+    hr = IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
 }
 
 void D3D_render (void)

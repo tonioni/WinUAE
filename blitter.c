@@ -71,6 +71,8 @@ static const int *blit_diag;
 static uae_u16 ddat1, ddat2;
 static int ddat1use, ddat2use;
 
+static int blit_last_hpos;
+
 /*
 
 Confirmed blitter information by Toni Wilen
@@ -259,6 +261,7 @@ static void blitter_done (void)
     INTREQ (0x8040);
     event2_remevent (ev2_blitter);
     unset_special (&regs, SPCFLAG_BLTNASTY);
+    blit_last_hpos = 0;
 #ifdef BLITTER_DEBUG
     write_log (L"vpos=%d, cycles %d, missed %d, total %d\n",
 	vpos, blit_cyclecounter, blit_misscyclecounter, blit_cyclecounter + blit_misscyclecounter);
@@ -578,8 +581,6 @@ STATIC_INLINE void blitter_nxline (void)
 }
 
 #ifdef CPUEMU_12
-
-static int blit_last_hpos;
 
 static int blitter_cyclecounter;
 static int blitter_hcounter1, blitter_hcounter2;
@@ -1244,7 +1245,7 @@ uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
 	dstbak = dst = dstptr;
     else
 	dstbak = dst = xmalloc (16);
-    save_u32(((bltstate != BLT_done) ? 0 : 1) | forced);
+    save_u32 (((bltstate != BLT_done) ? 0 : 1) | forced);
     *len = dst - dstbak;
     return dstbak;
 

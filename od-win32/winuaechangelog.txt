@@ -1,4 +1,18 @@
 
+Beta 25:
+
+- Picasso96 crash in some specific cases when 8bit->16/32 or 16->32
+  conversion is used (bug since new Picasso96 emulation was introduced)
+- "yes/no"-style dialogs in fullscreen with active GUI: mouse was
+  (incorrectly) captured when exiting the dialog
+- switching between ce and non-ce mode in some blitter heavy programs
+  could have frozen the blitter (workaround was to switch back to
+  original mode)
+- input was disabled when in "mouse driver" mode and focus was lost
+  and regained
+- DXSDK update, D3D support requires March 2009 DX runtime or newer
+- D3D fullscreen flickering fixed
+
 Beta 24:
 
 - debugger T command fixed (b15)
@@ -8,7 +22,7 @@ Beta 24:
   after reset -> random errors and crashes)
 - do not include mice in parallel port joystick select menus
 - add new empty adf files to disk history list
-- added simple list devices, libraries and resources commands to
+- added simple list devices, libraries and resources command to
   debugger (Td Tl Tr)
 - log file long datestamps fixed
 

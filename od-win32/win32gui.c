@@ -12329,10 +12329,12 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
     else if (flags == 2)
 	mbflags |= MB_YESNOCANCEL;
 
-    pause_sound ();
     flipflop = fsdialog (&hwnd, &mbflags);
-    if (flipflop)
-	ShowWindow (hAmigaWnd, SW_MINIMIZE);
+    if (!gui_active) {
+	pause_sound ();
+	if (flipflop)
+	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
+    }
 
     va_start (parms, format);
     _vstprintf (msg, format, parms);
@@ -12345,11 +12347,12 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 
     ret = MessageBox (hwnd, msg, szTitle, mbflags);
 
-    if (flipflop)
-	ShowWindow (hAmigaWnd, SW_RESTORE);
-
-    resume_sound ();
-    setmouseactive (focuso > 0 ? 1 : 0);
+    if (!gui_active) {
+	if (flipflop)
+	    ShowWindow (hAmigaWnd, SW_RESTORE);
+        resume_sound ();
+	setmouseactive (focuso > 0 ? 1 : 0);
+    }
     if (ret == IDOK)
 	return 0;
     if (ret == IDYES)
@@ -12375,14 +12378,18 @@ void gui_message (const TCHAR *format,...)
     va_start (parms, format);
     _vstprintf (msg, format, parms);
     va_end (parms);
+
     if (full_property_sheet) {
 	pre_gui_message (msg);
 	return;
     }
-    pause_sound ();
+
     flipflop = fsdialog (&hwnd, &flags);
-    if (flipflop)
-	ShowWindow (hAmigaWnd, SW_MINIMIZE);
+    if (!gui_active) {
+        pause_sound ();
+	if (flipflop)
+	    ShowWindow (hAmigaWnd, SW_MINIMIZE);
+    }
 
     write_log (msg);
     if (msg[_tcslen (msg) - 1] != '\n')
@@ -12391,12 +12398,14 @@ void gui_message (const TCHAR *format,...)
     WIN32GUI_LoadUIString (IDS_ERRORTITLE, szTitle, MAX_DPATH);
 
     if (!MessageBox (hwnd, msg, szTitle, flags))
-	write_log (L"MessageBox(%s) failed, err=%d\n", msg, GetLastError());
+	write_log (L"MessageBox(%s) failed, err=%d\n", msg, GetLastError ());
 
-    if (flipflop)
-	ShowWindow (hAmigaWnd, SW_RESTORE);
-    resume_sound ();
-    setmouseactive (focuso > 0 ? 1 : 0);
+    if (!gui_active) {
+	if (flipflop)
+	    ShowWindow (hAmigaWnd, SW_RESTORE);
+	resume_sound ();
+	setmouseactive (focuso > 0 ? 1 : 0);
+    }
 }
 
 void gui_message_id (int id)
