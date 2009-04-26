@@ -26,6 +26,7 @@
 #include "cd32_fmv.h"
 #include "ncr_scsi.h"
 #include "debug.h"
+#include "gayle.h"
 
 #define MAX_EXPANSION_BOARDS 8
 
@@ -1255,15 +1256,15 @@ void expamem_next (void)
 
 static void expamem_init_cdtv (void)
 {
-    cdtv_init();
+    cdtv_init ();
 }
 static void expamem_init_a2091 (void)
 {
-    a2091_init();
+    a2091_init ();
 }
 static void expamem_init_a4091 (void)
 {
-    ncr_init();
+    ncr_init ();
 }
 
 void p96memstart(void)

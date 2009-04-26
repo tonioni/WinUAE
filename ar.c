@@ -1767,7 +1767,7 @@ static void hrtmon_configure(void)
     do_put_mem_long (&cfg->max_chip, currprefs.chipmem_size);
     do_put_mem_long (&cfg->mon_size, 0x800000);
     cfg->ide = currprefs.cs_ide ? 1 : 0;
-    cfg->a1200 = currprefs.cs_ide == 1 ? 1 : 0; /* type of IDE interface, not Amiga model */
+    cfg->a1200 = currprefs.cs_ide == IDE_A600A1200 ? 1 : 0; /* type of IDE interface, not Amiga model */
 }
 
 int hrtmon_load (void)

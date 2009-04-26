@@ -109,7 +109,7 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
     for (j = 0; j < blocks; j++) {
 	high = (DWORD)(offset >> 32);
 	if (SetFilePointer (h, (DWORD)offset, &high, FILE_BEGIN) == INVALID_FILE_SIZE) {
-	    write_log (L"hd ignored, SetFilePointer failed, error %d\n", GetLastError());
+	    write_log (L"hd ignored, SetFilePointer failed, error %d\n", GetLastError ());
 	    return 1;
 	}
 	memset (buf, 0xaa, blocksize);
@@ -117,6 +117,13 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	if (outlen != blocksize) {
 	    write_log (L"hd ignored, read error %d!\n", GetLastError());
 	    return 2;
+	}
+	if (j == 0 && buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) {
+	    // ADIDE "CPRM" hidden block..
+	    if (do_rdbdump)
+		rdbdump (h, offset, buf, blocksize);
+	    write_log (L"hd accepted (adide rdb detected at block %d)\n", j);
+	    return -3;
 	}
 	if (!memcmp (buf, "RDSK", 4)) {
 	    if (do_rdbdump)
@@ -1197,6 +1204,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize)
     {
 	case -9:
 	dang = L"Empty";
+	break;
+	case -3:
+	dang = L"CPRM";
 	break;
 	case -2:
 	dang = L"SRAM";

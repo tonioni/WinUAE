@@ -1,4 +1,26 @@
 
+Beta 26:
+
+- added transparent support for ICD AdIDE "bit swapped" disks and
+  hardfiles. Each 16-bit data word has bits swapped, bit 0 = 15,
+  bit 1 = 0, bit 2 = 14, bit 3 = 1 and so on (reason is most likely
+  PCB cost) Listed as "CPRM" in "Add Harddrive" list because first
+  (which is normally hidden) block starts with ascii string "CPRM"
+- wrong sound device was selected if configuration was loaded and
+  DS, OpenAL or PortAudio had 100% identical device names
+- bsdsocket not too common connection issue fixed (b15)
+- sound card index in config file > number of sound devices = very
+  slow emulation
+- added "All" option to RTG RGB format selection menus (make sure
+  "ENV:Picasso96/ShowModes" contains "All" or only single format per
+  color depth is available in screen mode dialogs)
+- autoscale: show blank display using previous scaling instead of
+  defaulting to non-scaling
+- NTSC vertical centering fixed in scaled modes
+- D3D and OGL mode was not properly closed when switching to
+  windowed/fullwindow RTG mode (old graphics was visible depending
+  on screen/scaling etc..)
+
 Beta 25:
 
 - Picasso96 crash in some specific cases when 8bit->16/32 or 16->32
@@ -11,7 +33,7 @@ Beta 25:
 - input was disabled when in "mouse driver" mode and focus was lost
   and regained
 - DXSDK update, D3D support requires March 2009 DX runtime or newer
-- D3D fullscreen flickering fixed
+- D3D fullscreen "border" flickering fixed
 
 Beta 24:
 

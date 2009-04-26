@@ -255,6 +255,7 @@
 #define IDS_SOUND_51                    260
 #define IDS_AUTOMATIC                   261
 #define IDI_GAMEPORTS                   262
+#define IDS_ALL                         262
 #define IDD_GAMEPORTS                   263
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
@@ -349,7 +350,6 @@
 #define IDC_PORT1_JOYSMODE              1030
 #define IDC_MBMEM2                      1031
 #define IDC_PORT2_JOYS                  1031
-#define IDC_PORT4_JOYS                  1032
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040

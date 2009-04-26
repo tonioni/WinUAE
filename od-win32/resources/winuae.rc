@@ -1257,6 +1257,7 @@ BEGIN
     IDS_SOUND_CLONED51      "Cloned Stereo (5.1)"
     IDS_SOUND_51            "5.1 Channels"
     IDS_AUTOMATIC           "Automatic"
+    IDS_ALL                 "All"
 END
 
 STRINGTABLE 

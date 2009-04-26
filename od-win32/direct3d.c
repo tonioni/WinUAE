@@ -970,6 +970,7 @@ static int restoredeviceobjects (void)
 
 void D3D_free (void)
 {
+    D3D_clear ();
     invalidatedeviceobjects ();
     if (d3ddev) {
 	IDirect3DDevice9_Release (d3ddev);
@@ -1196,6 +1197,9 @@ void D3D_clear (void)
 {
     int i;
     HRESULT hr;
+
+    if (!d3ddev)
+	return;
     hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
     if (FAILED (hr))
 	return;

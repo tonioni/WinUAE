@@ -349,11 +349,13 @@ static uae_u32 vhd_checksum (uae_u8 *p, int offset)
     return ~sum;
 }
 
-int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
+static int hdf_open2 (struct hardfiledata *hfd, const TCHAR *pname)
 {
     uae_u8 tmp[512], tmp2[512];
     uae_u32 v;
 
+    hfd->adide = 0;
+    hfd->byteswap = 0;
     if (!hdf_open_target (hfd, pname))
 	return 0;
     if (hdf_read_target (hfd, tmp, 0, 512) != 512)
@@ -413,6 +415,25 @@ nonvhd:
 end:
     hdf_close_target (hfd);
     return 0;
+}
+
+int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
+{
+    int v;
+    uae_u8 buf[512];
+
+    v = hdf_open2 (hfd, pname);
+    if (!v)
+	return v;
+    memset (buf, 0, sizeof buf);
+    hdf_read (hfd, buf, 0, sizeof buf);
+    if (buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) { // AdIDE encoded "CPRM"
+	hfd->adide = 1;
+    }
+    if (!memcmp (buf, "DRKS", 4)) {
+	hfd->byteswap = 1;
+    }
+    return v;
 }
 
 void hdf_close (struct hardfiledata *hfd)
@@ -694,7 +715,7 @@ static uae_u64 vhd_write (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 off
     return written;
 }
 
-int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     if (hfd->vhd_type == VHD_DYNAMIC)
 	return vhd_read (hfd, buffer, offset, len);
@@ -703,7 +724,139 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
     else
 	return hdf_read_target (hfd, buffer, offset, len);
 }
-int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+
+static void adide_decode (uae_u8 *buffer, int len)
+{
+    int i;
+    for (i = 0; i < len; i += 2) {
+	uae_u8 *b =  buffer + i;
+	uae_u16 w = (b[0] << 8) | (b[1] << 0);
+	uae_u16 o = 0;
+
+	if (w & 0x8000)
+	    o |= 0x0001;
+	if (w & 0x0001)
+	    o |= 0x0002;
+
+	if (w & 0x4000)
+	    o |= 0x0004;
+	if (w & 0x0002)
+	    o |= 0x0008;
+
+	if (w & 0x2000)
+	    o |= 0x0010;
+	if (w & 0x0004)
+	    o |= 0x0020;
+
+	if (w & 0x1000)
+	    o |= 0x0040;
+	if (w & 0x0008)
+	    o |= 0x0080;
+
+	if (w & 0x0800)
+	    o |= 0x0100;
+	if (w & 0x0010)
+	    o |= 0x0200;
+
+	if (w & 0x0400)
+	    o |= 0x0400;
+	if (w & 0x0020)
+	    o |= 0x0800;
+
+	if (w & 0x0200)
+	    o |= 0x1000;
+	if (w & 0x0040)
+	    o |= 0x2000;
+
+	if (w & 0x0100)
+	    o |= 0x4000;
+	if (w & 0x0080)
+	    o |= 0x8000;
+
+	b[0] = o >> 8;
+	b[1] = o >> 0;
+    }
+}
+static void adide_encode (uae_u8 *buffer, int len)
+{
+    int i;
+    for (i = 0; i < len; i += 2) {
+	uae_u8 *b =  buffer + i;
+	uae_u16 w = (b[0] << 8) | (b[1] << 0);
+	uae_u16 o = 0;
+
+	if (w & 0x0001)
+	    o |= 0x8000;
+	if (w & 0x0002)
+	    o |= 0x0001;
+
+	if (w & 0x0004)
+	    o |= 0x4000;
+	if (w & 0x0008)
+	    o |= 0x0002;
+
+	if (w & 0x0010)
+	    o |= 0x2000;
+	if (w & 0x0020)
+	    o |= 0x0004;
+
+	if (w & 0x0040)
+	    o |= 0x1000;
+	if (w & 0x0080)
+	    o |= 0x0008;
+
+	if (w & 0x0100)
+	    o |= 0x0800;
+	if (w & 0x0200)
+	    o |= 0x0010;
+
+	if (w & 0x0400)
+	    o |= 0x0400;
+	if (w & 0x0800)
+	    o |= 0x0020;
+
+	if (w & 0x1000)
+	    o |= 0x0200;
+	if (w & 0x2000)
+	    o |= 0x0040;
+
+	if (w & 0x4000)
+	    o |= 0x0100;
+	if (w & 0x8000)
+	    o |= 0x0080;
+
+	b[0] = o >> 8;
+	b[1] = o >> 0;
+    }
+}
+
+static void hdf_byteswap (uae_u8 *b, int len)
+{
+    int i;
+    for (i = 0; i < len; i += 2) {
+	uae_u8 tmp = b[i];
+	b[i] = b[i + 1];
+	b[i + 1] = tmp;
+    }
+}
+
+int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    int v;
+    
+    if (!hfd->adide) {
+	v = hdf_read2 (hfd, buffer, offset, len);
+    } else {
+	offset += 512;
+	v = hdf_read2 (hfd, buffer, offset, len);
+	adide_decode (buffer, len);
+    }
+    if (hfd->byteswap)
+	hdf_byteswap (buffer, len);
+    return v;
+}
+
+static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
     if (hfd->vhd_type == VHD_DYNAMIC)
 	return vhd_write (hfd, buffer, offset, len);
@@ -711,6 +864,25 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	return hdf_write_target (hfd, buffer, offset + 512, len);
     else
 	return hdf_write_target (hfd, buffer, offset, len);
+}
+
+int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+    int v;
+
+    if (hfd->byteswap)
+	hdf_byteswap (buffer, len);
+    if (!hfd->adide) {
+	v = hdf_write2 (hfd, buffer, offset, len);
+    } else {
+	offset += 512;
+	adide_encode (buffer, len);
+	v = hdf_write2 (hfd, buffer, offset, len);
+	adide_decode (buffer, len);
+    }
+    if (hfd->byteswap)
+	hdf_byteswap (buffer, len);
+    return v;
 }
 
 static uae_u64 cmd_readx (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)

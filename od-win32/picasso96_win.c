@@ -914,7 +914,8 @@ void picasso_refresh (void)
     setconvert ();
 
     /* Make sure that the first time we show a Picasso video mode, we don't blit any crap.
-    * We can do this by checking if we have an Address yet.  */
+     * We can do this by checking if we have an Address yet. 
+     */
     if (picasso96_state.Address) {
 	unsigned int width, height;
 
@@ -4100,6 +4101,7 @@ static void flushpixels (void)
 	}
 	if (dst == NULL)
 	    break;
+	dst += picasso_vidinfo.offset;
 
 	if (doskip () && p96skipmode == 2)
 	    break;

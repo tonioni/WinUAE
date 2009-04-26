@@ -5496,6 +5496,20 @@ static void enable_for_memorydlg (HWND hDlg)
     ew (hDlg, IDC_RTG_VBLANKRATE, rtg2);
 }
 
+static int manybits (int v, int mask)
+{
+    int i, cnt;
+
+    cnt = 0;
+    for (i = 0; i < 32; i++) {
+	if (((1 << i) & mask) & v)
+	    cnt++;
+    }
+    if (cnt > 1)
+	return 1;
+    return 0;
+}
+
 static void values_to_memorydlg (HWND hDlg)
 {
     uae_u32 mem_size = 0;
@@ -5592,20 +5606,23 @@ static void values_to_memorydlg (HWND hDlg)
     SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
     SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
     SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
-	(workprefs.picasso96_modeflags & RGBFF_R5G6B5PC) ? 1 :
-	(workprefs.picasso96_modeflags & RGBFF_R5G5B5PC) ? 2 :
-	(workprefs.picasso96_modeflags & RGBFF_R5G6B5) ? 3 :
-	(workprefs.picasso96_modeflags & RGBFF_R5G5B5) ? 4 :
-	(workprefs.picasso96_modeflags & RGBFF_B5G6R5PC) ? 5 :
-	(workprefs.picasso96_modeflags & RGBFF_B5G5R5PC) ? 6 : 0, 0);
+	(manybits (workprefs.picasso96_modeflags, RGBFF_R5G6B5PC | RGBFF_R5G6B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC)) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G6B5PC) ? 2 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G5B5PC) ? 3 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G6B5) ? 4 :
+	(workprefs.picasso96_modeflags & RGBFF_R5G5B5) ? 5 :
+	(workprefs.picasso96_modeflags & RGBFF_B5G6R5PC) ? 6 :
+	(workprefs.picasso96_modeflags & RGBFF_B5G5R5PC) ? 7 : 0, 0);
     SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_SETCURSEL,
-	(workprefs.picasso96_modeflags & RGBFF_R8G8B8) ? 1 :
-	(workprefs.picasso96_modeflags & RGBFF_B8G8R8) ? 2 : 0, 0);
+	(manybits (workprefs.picasso96_modeflags, RGBFF_R8G8B8 | RGBFF_B8G8R8)) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_R8G8B8) ? 2 :
+	(workprefs.picasso96_modeflags & RGBFF_B8G8R8) ? 3 : 0, 0);
     SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_SETCURSEL,
-	(workprefs.picasso96_modeflags & RGBFF_A8R8G8B8) ? 1 :
-	(workprefs.picasso96_modeflags & RGBFF_A8B8G8R8) ? 2 :
-	(workprefs.picasso96_modeflags & RGBFF_R8G8B8A8) ? 3 :
-	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 4 : 0, 0);
+	(manybits (workprefs.picasso96_modeflags, RGBFF_A8R8G8B8 | RGBFF_A8B8G8R8 | RGBFF_R8G8B8A8 | RGBFF_B8G8R8A8)) ? 1 :
+	(workprefs.picasso96_modeflags & RGBFF_A8R8G8B8) ? 2 :
+	(workprefs.picasso96_modeflags & RGBFF_A8B8G8R8) ? 3 :
+	(workprefs.picasso96_modeflags & RGBFF_R8G8B8A8) ? 4 :
+	(workprefs.picasso96_modeflags & RGBFF_B8G8R8A8) ? 5 : 0, 0);
     if (workprefs.win32_rtgvblankrate <= 0 ||
 	workprefs.win32_rtgvblankrate == 50 ||
 	workprefs.win32_rtgvblankrate == 60 ||
@@ -5720,11 +5737,13 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	case WM_INITDIALOG:
 	    pages[MEMORY_ID] = hDlg;
 	    currentpage = MEMORY_ID;
+		WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"(8bit)");
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"8-bit (*)");
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)L"(15/16bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)L"R5G6B5PC (*)");
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)L"R5G5B5PC");
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)L"R5G6B5");
@@ -5733,10 +5752,12 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_ADDSTRING, 0, (LPARAM)L"B5G5R5PC");
 	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)L"(24bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)L"R8G8B8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_24BIT, CB_ADDSTRING, 0, (LPARAM)L"B8G8R8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"(32bit)");
+	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"A8R8G8B8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"A8B8G8R8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"R8G8B8A8");
@@ -5847,16 +5868,18 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    if (v != CB_ERR) {
 			mask &= ~(RGBFF_R5G6B5PC | RGBFF_R5G5B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC);
 			if (v == 1)
-			    mask |= RGBFF_R5G6B5PC;
+			    mask |= RGBFF_R5G6B5PC | RGBFF_R5G6B5PC | RGBFF_R5G5B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC;
 			if (v == 2)
-			    mask |= RGBFF_R5G5B5PC;
+			    mask |= RGBFF_R5G6B5PC;
 			if (v == 3)
-			    mask |= RGBFF_R5G6B5;
+			    mask |= RGBFF_R5G5B5PC;
 			if (v == 4)
-			    mask |= RGBFF_R5G5B5;
+			    mask |= RGBFF_R5G6B5;
 			if (v == 5)
-			    mask |= RGBFF_B5G6R5PC;
+			    mask |= RGBFF_R5G5B5;
 			if (v == 6)
+			    mask |= RGBFF_B5G6R5PC;
+			if (v == 7)
 			    mask |= RGBFF_B5G5R5PC;
 		    }
 		    break;
@@ -5865,8 +5888,10 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    if (v != CB_ERR) {
 			mask &= ~(RGBFF_R8G8B8 | RGBFF_B8G8R8);
 			if (v == 1)
-			    mask |= RGBFF_R8G8B8;
+			    mask |= RGBFF_R8G8B8 | RGBFF_B8G8R8;
 			if (v == 2)
+			    mask |= RGBFF_R8G8B8;
+			if (v == 3)
 			    mask |= RGBFF_B8G8R8;
 		    }
 		    break;
@@ -5875,12 +5900,14 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		    if (v != CB_ERR) {
 			mask &= ~(RGBFF_A8R8G8B8 | RGBFF_A8B8G8R8 | RGBFF_R8G8B8A8 | RGBFF_B8G8R8A8);
 			if (v == 1)
-			    mask |= RGBFF_A8R8G8B8;
+			    mask |= RGBFF_A8R8G8B8 | RGBFF_A8B8G8R8 | RGBFF_R8G8B8A8 | RGBFF_B8G8R8A8;
 			if (v == 2)
-			    mask |= RGBFF_A8B8G8R8;
+			    mask |= RGBFF_A8R8G8B8;
 			if (v == 3)
-			    mask |= RGBFF_R8G8B8A8;
+			    mask |= RGBFF_A8B8G8R8;
 			if (v == 4)
+			    mask |= RGBFF_R8G8B8A8;
+			if (v == 5)
 			    mask |= RGBFF_B8G8R8A8;
 		    }
 		    break;
@@ -7498,23 +7525,33 @@ static void sethfdostype (HWND hDlg, int idx)
 static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 {
     void *f = zfile_fopen (hdf->filename, L"rb", ZFD_NORMAL);
-    uae_u8 tmp[8] = { 0 };
+    uae_u8 tmp[8];
+    int i;
+
     if (!f)
 	return;
-    zfile_fread (tmp, 1, sizeof (tmp), f);
-    zfile_fclose (f);
-    if (!memcmp (tmp + 2, "CIS", 3))
-	hdf->controller = HD_CONTROLLER_PCMCIA_SRAM;
-    if (!memcmp (tmp, "RDSK\0\0\0", 7)) {
-	hdf->sectors = 0;
-	hdf->surfaces = 0;
-	hdf->reserved = 0;
-	hdf->fsfilename[0] = 0;
-	hdf->bootpri = 0;
-	hdf->autoboot = 1;
-	hdf->donotmount = 0;
-	hdf->devicename[0] = 0;
+    for (i = 0; i < 16; i++) {
+	zfile_fseek (f, i * 512, SEEK_SET);
+	memset (tmp, 0, sizeof tmp);
+	zfile_fread (tmp, 1, sizeof tmp, f);
+	if (i == 0 && !memcmp (tmp + 2, "CIS", 3)) {
+	    hdf->controller = HD_CONTROLLER_PCMCIA_SRAM;
+	    break;
+	}
+	if (!memcmp (tmp, "RDSK\0\0\0", 7) || (tmp[0] == 0x53 && tmp[1] == 0x10 && tmp[2] == 0x9b && tmp[3] == 0x13 && tmp[4] == 0 && tmp[5] == 0)) {
+	    // RDSK or ADIDE "encoded" RDSK
+	    hdf->sectors = 0;
+	    hdf->surfaces = 0;
+	    hdf->reserved = 0;
+	    hdf->fsfilename[0] = 0;
+	    hdf->bootpri = 0;
+	    hdf->autoboot = 1;
+	    hdf->donotmount = 0;
+	    hdf->devicename[0] = 0;
+	    break;
+	}
     }
+    zfile_fclose (f);
     sethardfile (hDlg);
 }
 
@@ -7533,8 +7570,14 @@ static void updatehdfinfo (HWND hDlg, int force)
 	hfd.readonly = 1;
 	hfd.blocksize = 512;
 	if (hdf_open (&hfd, current_hfdlg.filename)) {
-	    hdf_read (&hfd, id, 0, 512);
-	    bsize = hfd.virtsize;
+	    for (i = 0; i < 16; i++) {
+		hdf_read (&hfd, id, i * 512, 512);
+		bsize = hfd.virtsize;
+		if (!memcmp (id, "RDSK", 4))
+		    break;
+	    }
+	    if (i == 16)
+		hdf_read (&hfd, id, 0, 512);
 	    hdf_close (&hfd);
 	}
     }

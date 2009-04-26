@@ -87,6 +87,9 @@ struct uaedev_config_info {
 enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
        CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T };
 
+#define IDE_A600A1200 1
+#define IDE_A4000 2
+
 struct uae_prefs {
 
     struct strlist *all_lines;

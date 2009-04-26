@@ -587,7 +587,7 @@ static void initialize_mountinfo(void)
 		ui = &mountinfo.ui[idx];
 		ui->configureddrive = 1;
 	    }
-        } else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
+        } else if (uci->controller <= HD_CONTROLLER_IDE3) {
 	    gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
 		uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 		uci->bootpri, uci->filesys);
@@ -5482,7 +5482,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 
     write_log (L"RDB: RDB filesystem %08X version %d.%d\n", dostype, newversion, newrevision);
     if (fsnode) {
-	write_log (L"RDB: %08X in FileSystem.resouce version %d.%d\n", dostype, oldversion, oldrevision);
+	write_log (L"RDB: %08X in FileSystem.resource version %d.%d\n", dostype, oldversion, oldrevision);
     }
     if (newversion * 65536 + newrevision <= oldversion * 65536 + oldrevision && oldversion >= 0) {
 	write_log (L"RDB: FS in FileSystem.resource is newer or same, ignoring RDB filesystem\n");

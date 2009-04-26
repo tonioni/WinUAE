@@ -1,7 +1,7 @@
 cd c:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-copy c:\projects\winuae\src\ c:\projects\winuae_bak\bak\ /s
+copy /s c:\projects\winuae\src\* c:\projects\winuae_bak\bak\
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
@@ -102,6 +102,11 @@ rm -rf release
 cd ..
 
 cd fdrawcmd
+rm -rf debug
+rm -rf release
+cd ..
+
+cd uaeunp
 rm -rf debug
 rm -rf release
 cd ..

@@ -693,6 +693,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write_bool (f, L"ntsc", p->ntscmode);
     cfgfile_write_bool (f, L"genlock", p->genlock);
     cfgfile_dwrite_bool (f, L"show_leds", p->leds_on_screen & STATUSLINE_CHIPSET);
+    //cfgfile_dwrite_bool (f, L"show_leds_rtg", p->leds_on_screen & STATUSLINE_RTG);
     cfgfile_dwrite (f, L"keyboard_leds", L"numlock:%s,capslock:%s,scrolllock:%s",
 	kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
     if (p->chipset_mask & CSMASK_AGA)
@@ -720,7 +721,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite_bool (f, L"cdtvcd", p->cs_cdtvcd);
     cfgfile_dwrite_bool (f, L"cdtvram", p->cs_cdtvram);
     cfgfile_dwrite (f, L"cdtvramcard", L"%d", p->cs_cdtvcard);
-    cfgfile_dwrite_str (f, L"ide", p->cs_ide == 1 ? L"a600/a1200" : (p->cs_ide == 2 ? L"a4000" : L"none"));
+    cfgfile_dwrite_str (f, L"ide", p->cs_ide == IDE_A600A1200 ? L"a600/a1200" : (p->cs_ide == IDE_A4000 ? L"a4000" : L"none"));
     cfgfile_dwrite_bool (f, L"a1000ram", p->cs_a1000ram);
     cfgfile_dwrite (f, L"fatgary", L"%d", p->cs_fatgaryrev);
     cfgfile_dwrite (f, L"ramsey", L"%d", p->cs_ramseyrev);
@@ -917,7 +918,7 @@ static void set_chipset_mask (struct uae_prefs *p, int val)
 
 static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 {
-    int i;
+    int i, v;
     TCHAR *section = 0;
     TCHAR *tmpp;
     TCHAR tmpbuf[CONFIG_BLEN];
@@ -1039,7 +1040,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync)
 	|| cfgfile_yesno (option, value, L"gfx_blacker_than_black", &p->gfx_blackerthanblack)
 	|| cfgfile_yesno (option, value, L"gfx_flickerfixer", &p->gfx_scandoubler)
-	|| cfgfile_yesno (option, value, L"show_leds", &p->leds_on_screen)
 	|| cfgfile_yesno (option, value, L"synchronize_clock", &p->tod_hack)
 	|| cfgfile_yesno (option, value, L"magic_mouse", &p->input_magic_mouse)
 	|| cfgfile_yesno (option, value, L"bsdsocket_emu", &p->socket_emu))
@@ -1075,6 +1075,15 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_strval (option, value, L"absolute_mouse", &p->input_tablet, abspointers, 0))
 	    return 1;
 
+
+    if (cfgfile_yesno (option, value, L"show_leds", &v)) {
+	p->leds_on_screen |= STATUSLINE_CHIPSET;
+	return 1;
+    }
+    if (cfgfile_yesno (option, value, L"show_leds_rtg", &v)) {
+	p->leds_on_screen |= STATUSLINE_RTG;
+	return 1;
+    }
 
 #ifdef GFXFILTER
     if (_tcscmp (option, L"gfx_filter") == 0) {
@@ -3907,7 +3916,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	break;
     case CP_A600: // A600
 	p->cs_rtc = 1;
-	p->cs_ide = 1;
+	p->cs_ide = IDE_A600A1200;
 	p->cs_pcmcia = 1;
 	p->cs_ksmirror_a8 = 1;
 	p->cs_ciaoverlay = 0;
@@ -3921,7 +3930,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_agnusbltbusybug = 1;
 	break;
     case CP_A1200: // A1200
-	p->cs_ide = 1;
+	p->cs_ide = IDE_A600A1200;
 	p->cs_pcmcia = 1;
 	p->cs_ksmirror_a8 = 1;
 	p->cs_ciaoverlay = 0;
@@ -3948,7 +3957,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_rtc = 2;
 	p->cs_fatgaryrev = 0;
 	p->cs_ramseyrev = 0x0f;
-	p->cs_ide = 2;
+	p->cs_ide = IDE_A4000;
 	p->cs_mbdmac = 0;
 	p->cs_ksmirror_a8 = 1;
 	p->cs_ciaoverlay = 0;
@@ -3957,7 +3966,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_rtc = 2;
 	p->cs_fatgaryrev = 0;
 	p->cs_ramseyrev = 0x0f;
-	p->cs_ide = 2;
+	p->cs_ide = IDE_A4000;
 	p->cs_mbdmac = 2;
 	p->cs_ksmirror_a8 = 1;
 	p->cs_ciaoverlay = 0;

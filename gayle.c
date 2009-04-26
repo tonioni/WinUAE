@@ -19,8 +19,8 @@
 #include "memory.h"
 #include "custom.h"
 #include "newcpu.h"
-#include "gayle.h"
 #include "filesys.h"
+#include "gayle.h"
 #include "savestate.h"
 #include "uae.h"
 #include "gui.h"
@@ -152,13 +152,16 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 #define GAYLE_CFG_250NS         0x00
 #define GAYLE_CFG_720NS         0x0c
 
-#define MAX_MULTIPLE_SECTORS 128
+#define IDE_GAYLE 0
+#define IDE_ADIDE 1
+
+#define MAX_IDE_MULTIPLE_SECTORS 128
 
 struct ide_hdf
 {
     struct hd_hardfiledata hdhfd;
 
-    uae_u8 secbuf[512 * (MAX_MULTIPLE_SECTORS * 2)];
+    uae_u8 secbuf[512 * (MAX_IDE_MULTIPLE_SECTORS * 2)];
     int data_offset;
     int data_size;
     int data_multi;
@@ -168,6 +171,7 @@ struct ide_hdf
     int irq_delay;
     int irq;
     int num;
+    int type;
 };
 
 static struct ide_hdf *idedrive[4];
@@ -228,14 +232,14 @@ void rethink_gayle (void)
     int lev6 = 0;
     uae_u8 mask;
 
-    if (currprefs.cs_ide == 2) {
+    if (currprefs.cs_ide == IDE_A4000) {
 	if (isideirq ())
 	    gayle_irq |= GAYLE_IRQ_IDE;
 	if ((gayle_irq & GAYLE_IRQ_IDE) && !(intreq & 0x0008))
 	    INTREQ_0 (0x8000 | 0x0008);
     }
 
-    if (currprefs.cs_ide != 1 && !currprefs.cs_pcmcia)
+    if (currprefs.cs_ide != IDE_A600A1200 && !currprefs.cs_pcmcia)
 	return;
     if (isideirq ())
 	gayle_irq |= GAYLE_IRQ_IDE;
@@ -428,7 +432,7 @@ static void ide_identify_drive (void)
     ps (23, L"0.3", 8); /* firmware revision */
     _stprintf (tmp, L"UAE-IDE %s", ide->hdhfd.hfd.product_id);
     ps (27, tmp, 40); /* model */
-    pw (47, MAX_MULTIPLE_SECTORS); /* max sectors in multiple mode */
+    pw (47, MAX_IDE_MULTIPLE_SECTORS); /* max sectors in multiple mode */
     pw (48, 1);
     pw (49, (1 << 9) | (1 << 8)); /* LBA and DMA supported */
     pw (51, 0x200); /* PIO cycles */
@@ -756,7 +760,7 @@ static int get_ide_reg (uaecptr addr)
 {
     uaecptr a = addr;
     addr &= 0xffff;
-    if (addr >= 0x3020 && addr <= 0x3021 && currprefs.cs_ide == 2)
+    if (addr >= 0x3020 && addr <= 0x3021 && currprefs.cs_ide == IDE_A4000)
 	return -1;
     addr &= ~0x2020;
     addr >>= 2;
@@ -784,18 +788,18 @@ static uae_u32 ide_read (uaecptr addr)
 	    return 0x7f;
 	return 0xff;
     }
-    if (addr >= GAYLE_IRQ_4000 && addr <= GAYLE_IRQ_4000 + 1 && currprefs.cs_ide == 2) {
+    if (addr >= GAYLE_IRQ_4000 && addr <= GAYLE_IRQ_4000 + 1 && currprefs.cs_ide == IDE_A4000) {
 	uae_u8 v = gayle_irq;
 	gayle_irq = 0;
 	return v;
     }
     if (addr >= 0x4000) {
 	if (addr == GAYLE_IRQ_1200) {
-	    if (currprefs.cs_ide == 1)
+	    if (currprefs.cs_ide == IDE_A600A1200)
 		return read_gayle_irq ();
 	    return 0;
 	} else if (addr == GAYLE_INT_1200) {
-	    if (currprefs.cs_ide == 1)
+	    if (currprefs.cs_ide == IDE_A600A1200)
 		return read_gayle_int ();
 	    return 0;
 	}
@@ -871,7 +875,7 @@ static void ide_write (uaecptr addr, uae_u32 val)
 	write_log (L"IDE_WRITE %08X=%02X PC=%X\n", addr, (uae_u32)val & 0xff, M68K_GETPC);
     if (currprefs.cs_ide <= 0)
 	return;
-    if (currprefs.cs_ide == 1) {
+    if (currprefs.cs_ide == IDE_A600A1200) {
 	if (addr == GAYLE_IRQ_1200) {
 	    write_gayle_irq (val);
 	    return;
@@ -937,7 +941,7 @@ static int gayle_read (uaecptr addr)
 #endif
     addr &= 0xffff;
     if (currprefs.cs_pcmcia) {
-	if (currprefs.cs_ide != 1) {
+	if (currprefs.cs_ide != IDE_A600A1200) {
 	    if (addr == GAYLE_IRQ_1200) {
 		v = read_gayle_irq ();
 		got = 1;
@@ -973,7 +977,7 @@ static void gayle_write (uaecptr addr, int val)
 #endif
     addr &= 0xffff;
     if (currprefs.cs_pcmcia) {
-	if (currprefs.cs_ide != 1) {
+	if (currprefs.cs_ide != IDE_A600A1200) {
 	    if (addr == GAYLE_IRQ_1200) {
 		write_gayle_irq (val);
 		got = 1;
@@ -1762,13 +1766,13 @@ void gayle_free_units (void)
     freepcmcia (1);
 }
 
-static void alloc_ide_mem (void)
+static void alloc_ide_mem (struct ide_hdf **ide, int max)
 {
     int i;
 
-    for (i = 0; i < 4; i++) {
-	if (!idedrive[i])
-	    idedrive[i] = xcalloc (sizeof (struct ide_hdf), 1);
+    for (i = 0; i < max; i++) {
+	if (!ide[i])
+	    ide[i] = xcalloc (sizeof (struct ide_hdf), 1);
     }
 }
 
@@ -1800,16 +1804,17 @@ int gayle_add_ide_unit (int ch, TCHAR *path, int blocksize, int readonly,
 
     if (ch >= 4)
 	return -1;
-    alloc_ide_mem ();
+    alloc_ide_mem (idedrive, 4);
     ide = idedrive[ch];
     if (!hdf_hd_open (&ide->hdhfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return -1;
     ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
-    write_log (L"IDE%d '%s', CHS=%d,%d,%d. %uM. LBA48=%d\n",
+    write_log (L"GAYLE_IDE%d '%s', CHS=%d,%d,%d. %uM. LBA48=%d\n",
 	ch, path, ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack, (int)(ide->hdhfd.size / (1024 * 1024)), ide->lba48);
     ide->status = 0;
     ide->data_offset = 0;
     ide->data_size = 0;
+    ide->type = IDE_GAYLE;
     //dumphdf (&ide->hdhfd.hfd);
     return 1;
 }
@@ -1831,7 +1836,7 @@ static void initide (void)
 {
     int i;
 
-    alloc_ide_mem ();
+    alloc_ide_mem (idedrive, 4);
     if (savestate_state == STATE_RESTORE)
 	return;
     ide_error = 1;
@@ -1861,7 +1866,7 @@ void gayle_reset (int hardreset)
 	gary_toenb = 0;
     }
     _tcscpy (bankname, L"Gayle (low)");
-    if (currprefs.cs_ide == 2)
+    if (currprefs.cs_ide == IDE_A4000)
 	_tcscpy (bankname, L"A4000 IDE");
     if (currprefs.cs_mbdmac == 2) {
 	_tcscat (bankname, L" + NCR53C710 SCSI");
@@ -1950,7 +1955,7 @@ uae_u8 *restore_ide (uae_u8 *src)
     TCHAR *path;
     struct ide_hdf *ide;
 
-    alloc_ide_mem ();
+    alloc_ide_mem (idedrive, 4);
     num = restore_u32 ();
     ide = idedrive[num];
     size = restore_u64 ();

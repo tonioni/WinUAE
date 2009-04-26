@@ -1204,7 +1204,7 @@ addrbank cia_bank = {
 
 STATIC_INLINE isgayle (void)
 {
-    return (currprefs.cs_ide == 1 || currprefs.cs_pcmcia);
+    return (currprefs.cs_ide == IDE_A600A1200 || currprefs.cs_pcmcia);
 }
 
 /* e-clock is 10 CPU cycles, 6 cycles low, 4 high

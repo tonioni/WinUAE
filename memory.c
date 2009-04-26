@@ -3479,7 +3479,7 @@ void memory_reset (void)
 		    if (currprefs.cs_ramseyrev < 0)
 			changed_prefs.cs_ramseyrev = currprefs.cs_ramseyrev = 0x0f;
 		    changed_prefs.cs_fatgaryrev = currprefs.cs_fatgaryrev = 0;
-		    if (currprefs.cs_ide != 2)
+		    if (currprefs.cs_ide != IDE_A4000)
 			changed_prefs.cs_ide = currprefs.cs_ide = -1;
 		}
 	    }
@@ -3516,12 +3516,12 @@ void memory_reset (void)
 	map_banks (&bogomem_bank, 0xC0, t, 0);
     }
     if (currprefs.cs_ide || currprefs.cs_pcmcia) {
-	if (currprefs.cs_ide == 1 || currprefs.cs_pcmcia) {
+	if (currprefs.cs_ide == IDE_A600A1200 || currprefs.cs_pcmcia) {
 	    map_banks (&gayle_bank, 0xD8, 6, 0);
 	    map_banks (&gayle2_bank, 0xDD, 2, 0);
 	}
 	gayle_map_pcmcia ();
-	if (currprefs.cs_ide == 2 || currprefs.cs_mbdmac == 2)
+	if (currprefs.cs_ide == IDE_A4000 || currprefs.cs_mbdmac == 2)
 	    map_banks (&gayle_bank, 0xDD, 1, 0);
 	if (currprefs.cs_ide < 0 && !currprefs.cs_pcmcia)
 	    map_banks (&gayle_bank, 0xD8, 6, 0);

@@ -784,8 +784,6 @@ static int p96_double_buffer_firstx, p96_double_buffer_lastx;
 static int p96_double_buffer_first, p96_double_buffer_last;
 static int p96_double_buffer_needs_flushing = 0;
 
-#include "statusline.h"
-extern uae_u32 p96rc[256], p96gc[256], p96bc[256];
 static void DX_Blit96 (int x, int y, int w, int h)
 {
     RECT dr, sr;
@@ -832,26 +830,48 @@ static void DX_Blit96 (int x, int y, int w, int h)
         SetRect (&sr, x, y, x + w, y + h);
 	DirectDraw_BlitToPrimary (&sr);
     }
-    if (0 && (currprefs.leds_on_screen & STATUSLINE_RTG)) {
-	DDSURFACEDESC2 desc;
-	RECT sr, dr;
-	int dst_width = currentmode->native_width;
-        int dst_height = currentmode->native_height;
-	SetRect (&sr, 0, 0, dxdata.statuswidth, dxdata.statusheight);
-	SetRect (&dr, dst_width - dxdata.statuswidth, dst_height - dxdata.statusheight, dst_width, dst_height);
-	DirectDraw_BlitRect (dxdata.statussurface, &sr, NULL, &dr);
-	if (locksurface (dxdata.statussurface, &desc)) {
-	    int sy, yy;
-	    yy = 0;
-	    for (sy = dst_height - dxdata.statusheight; sy < dst_height; sy++) {
-		uae_u8 *buf = (uae_u8*)desc.lpSurface + yy * desc.lPitch;
-		draw_status_line_single (buf, currentmode->current_depth / 8, yy, dst_width, p96rc, p96gc, p96bc);
-		yy++;
-	    }
-	    unlocksurface (dxdata.statussurface);
+}
+
+#include "statusline.h"
+extern uae_u32 p96rc[256], p96gc[256], p96bc[256];
+static void RTGleds (void)
+{
+    DDSURFACEDESC2 desc;
+    RECT sr, dr;
+    int dst_width = currentmode->native_width;
+    int dst_height = currentmode->native_height;
+    int width;
+
+    if (!(currprefs.leds_on_screen & STATUSLINE_RTG))
+	return;
+
+    width = dxdata.statuswidth;
+    if (dst_width < width)
+	width = dst_width;
+    SetRect (&sr, 0, 0, width, dxdata.statusheight);
+    SetRect (&dr, dst_width - width, dst_height - dxdata.statusheight, dst_width, dst_height);
+
+    picasso_putcursor (dr.left, dr.top,
+	dr.right - dr.left, dr.bottom - dr.top);
+    DX_Blit96 (dr.left, dr.top,
+	dr.right - dr.left, dr.bottom - dr.top);
+
+    DirectDraw_BlitRect (dxdata.statussurface, &sr, dxdata.secondary, &dr);
+    if (locksurface (dxdata.statussurface, &desc)) {
+        int sy, yy;
+        yy = 0;
+        for (sy = dst_height - dxdata.statusheight; sy < dst_height; sy++) {
+	    uae_u8 *buf = (uae_u8*)desc.lpSurface + yy * desc.lPitch;
+	    draw_status_line_single (buf, currentmode->current_depth / 8, yy, dst_width, p96rc, p96gc, p96bc);
+	    yy++;
 	}
-	DirectDraw_BlitRect (dxdata.primary, &dr, dxdata.statussurface, &sr);
+	unlocksurface (dxdata.statussurface);
     }
+    DirectDraw_BlitRect (dxdata.secondary, &dr, dxdata.statussurface, &sr);
+    
+    picasso_clearcursor ();
+    
+    DirectDraw_BlitToPrimary (&dr);
 }
 
 void gfx_unlock_picasso (void)
@@ -872,6 +892,8 @@ void gfx_unlock_picasso (void)
 	picasso_clearcursor ();
 	p96_double_buffer_needs_flushing = 0;
     }
+    if (currprefs.leds_on_screen & STATUSLINE_RTG)
+	RTGleds ();
 }
 
 static void close_hwnds (void)
@@ -1003,8 +1025,9 @@ static void update_gfxparams (void)
 	    if ((currprefs.win32_rtgscaleifsmall || currprefs.win32_rtgallowscaling) && (picasso96_state.Width != currentmode->native_width || picasso96_state.Height != currentmode->native_height))
 	        scalepicasso = -1;
 	} else if (isfullscreen () > 0) {
-	    if (currprefs.gfx_size.width > picasso96_state.Width && currprefs.gfx_size.height > picasso96_state.Height) {
-		if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth)
+	    //if (currprefs.gfx_size.width > picasso96_state.Width && currprefs.gfx_size.height > picasso96_state.Height) {
+	    if (currentmode->native_width > picasso96_state.Width && currentmode->native_height > picasso96_state.Height) {
+		if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth) // can't scale to different color depth
 		    scalepicasso = 1;
 	    }
 	} else if (isfullscreen () == 0) {
@@ -1031,6 +1054,8 @@ static int open_windows (int full)
     in_sizemove = 0;
 
     updatewinfsmode (&currprefs);
+    D3D_free ();
+    OGL_free ();
     if (!DirectDraw_Start (displayGUID))
 	return 0;
     write_log (L"DirectDraw GUID=%s\n", outGUID (displayGUID));
@@ -1109,8 +1134,8 @@ int check_prefs_changed_gfx (void)
     c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
     c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
     c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
-    c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (8 | 64) : 0;
-    c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (8 | 64) : 0;
+    c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (2 | 8 | 64) : 0;
+    c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (2 | 8 | 64) : 0;
     c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? (8 | 64) : 0;
     c |= currprefs.win32_rtgvblankrate != changed_prefs.win32_rtgvblankrate ? 8 : 0;
 
@@ -2278,6 +2303,7 @@ static BOOL doInit (void)
     picasso_vidinfo.height = currentmode->current_height;
     picasso_vidinfo.width = currentmode->current_width;
     picasso_vidinfo.depth = currentmode->current_depth;
+    picasso_vidinfo.offset = 0;
 #endif
 
     xfree (gfxvidinfo.realbufmem);

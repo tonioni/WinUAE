@@ -2212,20 +2212,35 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	return 1;
 
     if (cfgfile_string (option, value, L"soundcardname", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-	int i;
+	int i, num;
+	
+	num = p->win32_soundcard;
+	p->win32_soundcard = -1;
 	for (i = 0; sound_devices[i].cfgname; i++) {
+	    if (i < num)
+		continue;
 	    if (!_tcscmp (sound_devices[i].cfgname, tmpbuf)) {
 		p->win32_soundcard = i;
 		break;
 	    }
 	}
+	if (p->win32_soundcard < 0) {
+	    for (i = 0; sound_devices[i].cfgname; i++) {
+		if (!_tcscmp (sound_devices[i].cfgname, tmpbuf)) {
+		    p->win32_soundcard = i;
+		    break;
+		}
+	    }
+	}
+	if (p->win32_soundcard < 0)
+	    p->win32_soundcard = num;
 	return 1;
     }
 
     if (cfgfile_yesno (option, value, L"aspi", &v)) {
 	p->win32_uaescsimode = 0;
 	if (v)
-	    p->win32_uaescsimode = get_aspi(0);
+	    p->win32_uaescsimode = get_aspi (0);
 	if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
 	    p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
 	return 1;

@@ -369,20 +369,27 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     if (minfirstline > y1)
 	y1 = minfirstline;
 
-    h = y2 - y1;
-    dy = y1 - minfirstline;
-
-    if (first_planes_vpos == 0)
-	h = 0; // no planes enabled during frame
-
-    if (dx < 0)
-	dx = 1;
-
     dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
     if (doublescan > 0 && interlace_seen <= 0) {
 	dbl1--;
 	dbl2--;
     }
+
+    h = y2 - y1;
+    dy = y1 - minfirstline;
+
+    if (first_planes_vpos == 0) {
+	// no planes enabled during frame
+	if (ret < 0)
+	    return 1;
+	h = currprefs.ntscmode ? 200 : 240;
+	w = 320 << currprefs.gfx_resolution;
+	dy = 36 / 2;
+	dx = 58;
+    }
+
+    if (dx < 0)
+	dx = 1;
 
     dy = xshift (dy, dbl2);
     h = xshift (h, dbl1);

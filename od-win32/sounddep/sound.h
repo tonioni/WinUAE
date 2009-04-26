@@ -7,9 +7,9 @@
   */
 
 extern int sound_fd;
-extern uae_u16 sndbuffer[];
-extern uae_u16 *sndbufpt;
-extern int sndbufsize;
+extern uae_u16 paula_sndbuffer[];
+extern uae_u16 *paula_sndbufpt;
+extern int paula_sndbufsize;
 extern void finish_sound_buffer (void);
 extern void restart_sound_buffer (void);
 extern int init_sound (void);
@@ -27,36 +27,61 @@ extern void sound_volume (int);
 extern void set_volume (int, int);
 extern void master_sound_volume (int);
 
+struct sound_data
+{
+    int waiting_for_buffer;
+    int devicetype;
+    int obtainedfreq;
+    int paused;
+    int mute;
+    int channels;
+    int freq;
+    int samplesize;
+    int sndbufsize;
+    void *data;
+};
+
+
+void send_sound (struct sound_data *sd, uae_u16 *sndbuffer);
+int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, int channels);
+void close_sound_device (struct sound_data *sd);
+void pause_sound_device (struct sound_data *sd);
+void resume_sound_device (struct sound_data *sd);
+void set_volume_sound_device (struct sound_data *sd, int volume, int mute);
+int get_offset_sound_device (struct sound_data *sd);
+int blocking_sound_device (struct sound_data *sd);
+
+
 STATIC_INLINE void check_sound_buffers (void)
 {
     if (currprefs.sound_stereo == SND_4CH_CLONEDSTEREO) {
-	((uae_u16*)sndbufpt)[0] = ((uae_u16*)sndbufpt)[-2];
-	((uae_u16*)sndbufpt)[1] = ((uae_u16*)sndbufpt)[-1];
-	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 2 * 2);
+	((uae_u16*)paula_sndbufpt)[0] = ((uae_u16*)paula_sndbufpt)[-2];
+	((uae_u16*)paula_sndbufpt)[1] = ((uae_u16*)paula_sndbufpt)[-1];
+	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2 * 2);
     } else if (currprefs.sound_stereo == SND_6CH_CLONEDSTEREO) {
-	uae_s16 *p = ((uae_s16*)sndbufpt);
+	uae_s16 *p = ((uae_s16*)paula_sndbufpt);
 	uae_s32 sum;
 	p[2] = p[-2];
 	p[3] = p[-1];
 	sum = (uae_s32)(p[-2]) + (uae_s32)(p[-1]) + (uae_s32)(p[2]) + (uae_s32)(p[3]);
 	p[0] = sum >> 3;
 	p[1] = sum >> 3;
-	sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 4 * 2);
+	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
-    if ((char *)sndbufpt - (char *)sndbuffer >= sndbufsize) {
+    if ((char *)paula_sndbufpt - (char *)paula_sndbuffer >= paula_sndbufsize) {
 	finish_sound_buffer ();
-	sndbufpt = sndbuffer;
+	paula_sndbufpt = paula_sndbuffer;
     }
 }
 
 STATIC_INLINE void clear_sound_buffers (void)
 {
-    memset (sndbuffer, 0, sndbufsize);
-    sndbufpt = sndbuffer;
+    memset (paula_sndbuffer, 0, paula_sndbufsize);
+    paula_sndbufpt = paula_sndbuffer;
 }
 
-#define PUT_SOUND_BYTE(b) do { *(uae_u8 *)sndbufpt = b; sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 1); } while (0)
-#define PUT_SOUND_WORD(b) do { *(uae_u16 *)sndbufpt = b; sndbufpt = (uae_u16 *)(((uae_u8 *)sndbufpt) + 2); } while (0)
+#define PUT_SOUND_BYTE(b) do { *(uae_u8 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 1); } while (0)
+#define PUT_SOUND_WORD(b) do { *(uae_u16 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2); } while (0)
 #define PUT_SOUND_BYTE_LEFT(b) PUT_SOUND_BYTE(b)
 #define PUT_SOUND_WORD_LEFT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[0]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_BYTE_RIGHT(b) PUT_SOUND_BYTE(b)

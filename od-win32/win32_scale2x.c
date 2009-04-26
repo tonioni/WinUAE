@@ -21,7 +21,7 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_DIRECT3D, 0, 1, L"Direct3D", L"direct3d", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_OPENGL, 0, 1, L"OpenGL", L"opengl", 1, 0, 0, 0, 0 },
+    { UAE_FILTER_OPENGL, 0, 1, L"OpenGL (unsupported)", L"opengl", 1, 0, 0, 0, 0 },
 
     { UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
 
@@ -95,14 +95,16 @@ static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
 
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
-    int aws, ahs;
+    int aws, ahs, ahs2, hdiff;
     int xs, ys;
     int xmult, ymult;
     int v;
 
+    ahs2 = ah * scale;
     ah = vblscale (ah);
     aws = aw * scale;
     ahs = ah * scale;
+    hdiff = (ahs2 - ahs) / 2;
 
     SetRect (sr, 0, 0, dst_width, dst_height);
     SetRect (zr, 0, 0, 0, 0);
@@ -110,6 +112,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
     dr->top =  (temp_height - ahs) / 2;
     dr->left -= (dst_width - aws) / 2;
     dr->top -= (dst_height - ahs) / 2;
+    dr->top -= hdiff;
     dr->right = dr->left + dst_width;
     dr->bottom = dr->top + dst_height;
 
@@ -180,7 +183,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 		SetRect (sr, 0, 0, cw * scale, ch * scale);
 		dr->left = (temp_width - aws) /2;
-		dr->top =  (temp_height - ahs) / 2;
+		dr->top = (temp_height - ahs) / 2;
+		dr->top -= hdiff;
 		dr->right = dr->left + cw * scale;
 		dr->bottom = dr->top + ch * scale;
 		OffsetRect (zr, cx * scale, cy * scale);
@@ -196,6 +200,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	    dr->left = (temp_width - aws) /2;
 	    dr->top =  (temp_height - ahs) / 2;
+	    dr->top -= hdiff;
 	    dr->right = dr->left + dst_width * scale;
 	    dr->bottom = dr->top + dst_height * scale;
 

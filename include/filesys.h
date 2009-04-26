@@ -34,6 +34,8 @@ struct hardfiledata {
     uae_u8 *virtual_rdb;
     uae_u64 virtual_size;
     int unitnum;
+    int byteswap;
+    int adide;
 
     uae_u8 *vhd_header;
     uae_u32 vhd_bamoffset;

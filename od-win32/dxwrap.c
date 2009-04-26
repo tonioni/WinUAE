@@ -335,7 +335,7 @@ static void createcursorsurface (void)
     releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
     dxdata.cursorsurface1 = allocsurface_2 (dxcaps.cursorwidth, dxcaps.cursorheight, TRUE);
     dxdata.cursorsurface2 = allocsurface_2 (dxcaps.cursorwidth, dxcaps.cursorheight, FALSE);
-//    dxdata.statussurface = allocsurface_2 (dxdata.statuswidth, dxdata.statusheight, FALSE);
+    dxdata.statussurface = allocsurface_2 (dxdata.statuswidth, dxdata.statusheight, FALSE);
     if (dxdata.cursorsurface1)
 	clearsurf (dxdata.cursorsurface1, 0);
     if (dxdata.cursorsurface2)
@@ -742,6 +742,10 @@ int DirectDraw_BlitToPrimaryScale (RECT *dstrect, RECT *srcrect)
 		return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
 	    write_log (L"DirectDraw_BlitToPrimary: %s\n", DXError (ddrval));
+	    if (srcrect)
+		write_log (L"SRC=%dx%d %dx%d\n", srcrect->left, srcrect->top, srcrect->right, srcrect->bottom);
+	    if (srcrect)
+		write_log (L"DST=%dx%d %dx%d\n", dstrect->left, dstrect->top, dstrect->right, dstrect->bottom);
 	    break;
 	}
     }
@@ -1164,8 +1168,8 @@ int DirectDraw_Start (GUID *guid)
     }
 #endif
 
-//    dxdata.statuswidth = 800;
-//    dxdata.statusheight = TD_TOTAL_HEIGHT;
+    dxdata.statuswidth = 800;
+    dxdata.statusheight = TD_TOTAL_HEIGHT;
     dxcaps.cursorwidth = 48;
     dxcaps.cursorheight = 48;
     if (!d3ddone) {

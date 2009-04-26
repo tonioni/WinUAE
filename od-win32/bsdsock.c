@@ -538,10 +538,10 @@ static void prephostaddr(SOCKADDR_IN *addr)
 static void prepamigaaddr(struct sockaddr *realpt, int len)
 {
     // little endian address family value to the byte sin_family member
-    ((TCHAR *)realpt)[1] = *((TCHAR *)realpt);
+    ((uae_u8*)realpt)[1] = *((uae_u8*)realpt);
 
     // set size of address
-    *((TCHAR *)realpt) = len;
+    *((uae_u8*)realpt) = len;
 }
 
 
@@ -618,7 +618,7 @@ int host_socket(SB, int af, int type, int protocol)
 
 uae_u32 host_bind(SB, uae_u32 sd, uae_u32 name, uae_u32 namelen)
 {
-    TCHAR buf[MAXADDRLEN];
+    uae_char buf[MAXADDRLEN];
     uae_u32 success = 0;
     SOCKET s;
 

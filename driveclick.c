@@ -216,7 +216,7 @@ void driveclick_reset (void)
     clickbuffer = NULL;
     if (!wave_initialized)
 	return;
-    clickbuffer = xmalloc (sndbufsize);
+    clickbuffer = xmalloc (paula_sndbufsize);
     sample_step = (freq << DS_SHIFT) / currprefs.sound_freq;
 }
 
@@ -305,7 +305,7 @@ static int clickcnt;
 
 static void mix (void)
 {
-    int total = ((uae_u8*)sndbufpt - (uae_u8*)sndbuffer) / (get_audio_nativechannels () * 2);
+    int total = ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer) / (get_audio_nativechannels () * 2);
 
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {
