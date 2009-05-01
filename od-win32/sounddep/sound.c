@@ -306,7 +306,7 @@ const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
 
 static struct dsaudiomodes supportedmodes[16];
 
-DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *dsam)
+static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudiomodes *dsam)
 {
     DWORD speakerconfig;
     DSBUFFERDESC sound_buffer;
@@ -315,7 +315,8 @@ DWORD fillsupportedmodes (LPDIRECTSOUND8 lpDS, int freq, struct dsaudiomodes *ds
     HRESULT hr;
     int ch, round, mode, skip;
     DWORD rn[4];
-    struct sound_dp *s = sdp->data;
+    struct sound_dp *s = sd->data;
+    LPDIRECTSOUND8 lpDS = s->lpDS;
 
     mode = 2;
     dsam[0].ch = 1;
@@ -383,7 +384,7 @@ static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
     memcpy (s->pasoundbuffer[s->patoggle], sndbuffer, sd->sndbufsize);
 }
 
-static int portAudioCallback (const void *inputBuffer, void *outputBuffer,
+static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer,
                            unsigned long framesPerBuffer,
                            const PaStreamCallbackTimeInfo* timeInfo,
                            PaStreamCallbackFlags statusFlags,
@@ -636,7 +637,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	}
     }
 
-    speakerconfig = fillsupportedmodes (s->lpDS, freq, supportedmodes);
+    speakerconfig = fillsupportedmodes (sd, freq, supportedmodes);
     write_log (L"DSSOUND: %08X ", speakerconfig);
     for (i = 0; supportedmodes[i].ch; i++)
 	write_log (L"%d:%08X ", supportedmodes[i].ch, supportedmodes[i].ksmode);
@@ -1536,7 +1537,7 @@ int enumerate_sound_devices (void)
 	write_log (L"Enumerating DirectSound devices..\n");
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-	if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
+	if (0 && isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
 	    write_log (L"Enumerating OpenAL devices..\n");
 	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
 		const char* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);

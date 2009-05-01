@@ -99,7 +99,7 @@ short testTitanicsPlayer ( void )
 
 
 /* With the help of Xigh :) .. thx */
-int cmplong(const void * a, const void * b)
+int _cdecl cmplong(const void * a, const void * b)
 {
   long * aa = (long *) a;
   long * bb = (long *) b;

@@ -307,6 +307,9 @@
 #define IDS_TABLET_BOTH_CURSORS         345
 #define IDS_TABLET_NATIVE_CURSOR        346
 #define IDS_TABLET_HOST_CURSOR          347
+#define IDS_AUTOSCALE_DISABLED          348
+#define IDS_AUTOSCALE_SCALING           349
+#define IDS_AUTOSCALE_RESIZE            350
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -619,6 +622,8 @@
 #define IDC_PSPRINTER                   1556
 #define IDC_PSPRINTERDETECT             1557
 #define IDC_UAESERIAL                   1558
+#define IDC_PSPRINTERDETECT2            1559
+#define IDC_ASCIIPRINTER                1559
 #define IDC_VIEWINFO                    1568
 #define IDC_SETINFO                     1569
 #define IDC_FLOPPYSLIDER                1570

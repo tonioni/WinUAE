@@ -594,6 +594,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     cfgfile_write_bool (f, L"synchronize_clock", p->tod_hack);
     cfgfile_write (f, L"maprom", L"0x%x", p->maprom);
+    cfgfile_write_bool (f, L"parallel_matrix_emulation", p->parallel_ascii_emulation);
     cfgfile_write_bool (f, L"parallel_postscript_emulation", p->parallel_postscript_emulation);
     cfgfile_write_bool (f, L"parallel_postscript_detection", p->parallel_postscript_detection);
     cfgfile_write_str (f, L"ghostscript_parameters", p->ghostscript_parameters);
@@ -1077,11 +1078,13 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 
     if (cfgfile_yesno (option, value, L"show_leds", &v)) {
-	p->leds_on_screen |= STATUSLINE_CHIPSET;
+	if (v)
+	    p->leds_on_screen |= STATUSLINE_CHIPSET;
 	return 1;
     }
     if (cfgfile_yesno (option, value, L"show_leds_rtg", &v)) {
-	p->leds_on_screen |= STATUSLINE_RTG;
+	if (v)
+	    p->leds_on_screen |= STATUSLINE_RTG;
 	return 1;
     }
 
@@ -1522,6 +1525,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	|| cfgfile_yesno (option, value, L"cpu_compatible", &p->cpu_compatible)
 	|| cfgfile_yesno (option, value, L"cpu_24bit_addressing", &p->address_space_24)
 	|| cfgfile_yesno (option, value, L"parallel_on_demand", &p->parallel_demand)
+	|| cfgfile_yesno (option, value, L"parallel_matrix_emulation", &p->parallel_ascii_emulation)
 	|| cfgfile_yesno (option, value, L"parallel_postscript_emulation", &p->parallel_postscript_emulation)
 	|| cfgfile_yesno (option, value, L"parallel_postscript_detection", &p->parallel_postscript_detection)
 	|| cfgfile_yesno (option, value, L"serial_on_demand", &p->serial_demand)
@@ -3083,6 +3087,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->serial_demand = 0;
     p->serial_hwctsrts = 1;
     p->parallel_demand = 0;
+    p->parallel_ascii_emulation = 0;
     p->parallel_postscript_emulation = 0;
     p->parallel_postscript_detection = 0;
     p->parallel_autoflush_time = 5;

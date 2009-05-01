@@ -53,6 +53,8 @@
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
 
+#define MIN_PRTBYTES 10
+
 static uae_char prtbuf[PRTBUFSIZE];
 static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
@@ -213,6 +215,18 @@ static void *prt_thread (void *p)
     return 0;
 }
 
+static int doflushprinter (void)
+{
+    if (prtopen == 0 && prtbufbytes < MIN_PRTBYTES) {
+	if (prtbufbytes > 0)
+	    write_log (L"PRINTER: %d bytes received, less than %d bytes, not printing.\n", prtbufbytes, MIN_PRTBYTES);
+	prtbufbytes = 0;
+	return 0;
+    }
+    return 1;
+}
+
+static void openprinter (void);
 static void flushprtbuf (void)
 {
     DWORD written = 0;
@@ -224,6 +238,7 @@ static void flushprtbuf (void)
 	zfile_fwrite (prtbuf, prtbufbytes, 1, prtdump);
 
     if (currprefs.parallel_postscript_emulation) {
+
 	if (psmode) {
 	    uae_u8 *p;
 	    psbuffer = realloc (psbuffer, (psbuffers + 2) * sizeof (uae_u8*));
@@ -236,15 +251,24 @@ static void flushprtbuf (void)
 	}
 	prtbufbytes = 0;
 	return;
-    } else if (hPrt != INVALID_HANDLE_VALUE) {
-	if (WritePrinter (hPrt, prtbuf, prtbufbytes, &written)) {
-	    if (written != prtbufbytes)
-		write_log (L"PRINTER: Only wrote %d of %d bytes!\n", written, prtbufbytes);
-	} else {
-	    write_log (L"PRINTER: Couldn't write data!\n");
+
+    } else if (prtbufbytes > 0) {
+	int pbyt = prtbufbytes;
+
+	if (hPrt == INVALID_HANDLE_VALUE) {
+	    if (!doflushprinter ())
+		return;
+	    openprinter ();
 	}
-    } else {
-	write_log (L"PRINTER: Not open!\n");
+	if (hPrt != INVALID_HANDLE_VALUE) {
+	    if (WritePrinter (hPrt, prtbuf, pbyt, &written)) {
+		if (written != pbyt)
+		    write_log (L"PRINTER: Only wrote %d of %d bytes!\n", written, pbyt);
+	    } else {
+		write_log (L"PRINTER: Couldn't write data!\n");
+	    }
+	}
+
     }
     prtbufbytes = 0;
 }
@@ -287,6 +311,7 @@ static void DoSomeWeirdPrintingStuff (uae_char val)
 	    }
 	    freepsbuffers ();
 	    return;
+
 	} else if (!psmode && !stricmp (prev, "%!PS")) {
 
 	    if (postscript_print_debugging)
@@ -325,7 +350,7 @@ int isprinter (void)
 
 int isprinteropen (void)
 {
-    if (prtopen)
+    if (prtopen || prtbufbytes > 0)
 	return 1;
     return 0;
 }
@@ -420,7 +445,7 @@ void unload_ghostscript (void)
     psmode = 0;
 }
 
-void openprinter( void )
+static void openprinter (void)
 {
     DOC_INFO_1 DocInfo;
     static int first;
@@ -436,14 +461,14 @@ void openprinter( void )
 	flushprtbuf ();
 	if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
 	    // Fill in the structure with info about this "document."
-	    DocInfo.pDocName = L"My Document";
+	    DocInfo.pDocName = L"WinUAE Document";
 	    DocInfo.pOutputFile = NULL;
-	    DocInfo.pDatatype = L"RAW";
+	    DocInfo.pDatatype = currprefs.parallel_ascii_emulation ? L"TEXT" : L"RAW";
 	    // Inform the spooler the document is beginning.
-	    if ((dwJob = StartDocPrinter(hPrt, 1, (LPSTR)&DocInfo)) == 0) {
-		ClosePrinter(hPrt );
+	    if ((dwJob = StartDocPrinter (hPrt, 1, (LPSTR)&DocInfo)) == 0) {
+		ClosePrinter (hPrt );
 		hPrt = INVALID_HANDLE_VALUE;
-	    } else if(StartPagePrinter (hPrt)) {
+	    } else if (StartPagePrinter (hPrt)) {
 		prtopen = 1;
 	    }
 	} else {
@@ -459,6 +484,8 @@ void openprinter( void )
 
 void flushprinter (void)
 {
+    if (!doflushprinter ())
+	return;
     closeprinter ();
 }
 
@@ -486,21 +513,13 @@ void closeprinter (void)
 	    Sleep (10);
     }
     freepsbuffers ();
+    prtbufbytes = 0;
 }
 
-static void putprinter (uae_char val)
-{
-    DoSomeWeirdPrintingStuff (val);
-}
-
-int doprinter (uae_u8 val)
+void doprinter (uae_u8 val)
 {
     parflush = 0;
-    if (!prtopen)
-	openprinter ();
-    if (prtopen)
-	putprinter (val);
-    return prtopen;
+    DoSomeWeirdPrintingStuff (val);
 }
 
 struct uaeserialdatawin32
@@ -1115,7 +1134,8 @@ void hsyncstuff(void)
     keycheck++;
     if(keycheck >= 1000)
     {
-	flushprtbuf ();
+	if (prtopen)
+	    flushprtbuf ();
 	{
 #if defined(AHI)
 	    //extern int warned_JIT_0xF10000;

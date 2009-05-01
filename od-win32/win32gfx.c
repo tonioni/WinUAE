@@ -374,40 +374,36 @@ oops:
     return 0;
 }
 
-static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context)
+static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int nondx)
 {
-    RGBFTYPE colortype;
-    int i, j, ct, depth;
-    struct MultiDisplay *md = context;
+    int ct;
+    int i, j;
 
-    colortype = DirectDraw_GetSurfacePixelFormat (modeDesc);
-    if (colortype == RGBFB_NONE)
-	return DDENUMRET_OK;
-    if (modeDesc->dwWidth > 2560 || modeDesc->dwHeight > 2048)
-	return DDENUMRET_OK;
-    ct = 1 << colortype;
-    depth = 0;
-    if (ct & RGBMASK_8BIT)
-	depth = 1;
-    else if (ct & (RGBMASK_15BIT | RGBMASK_16BIT))
-	depth = 2;
-    else if (ct & RGBMASK_24BIT)
-	depth = 3;
-    else if (ct & RGBMASK_32BIT)
-	depth = 4;
-    if (depth == 0)
-	return DDENUMRET_OK;
+    ct = 0;
+    if (d == 8)
+	ct = RGBMASK_8BIT;
+    if (d == 15)
+	ct = RGBMASK_15BIT;
+    if (d == 16)
+	ct = RGBMASK_16BIT;
+    if (d == 24)
+	ct = RGBMASK_24BIT;
+    if (d == 32)
+	ct = RGBMASK_32BIT;
+    if (ct == 0)
+	return;
+    d /= 8;
     i = 0;
     while (md->DisplayModes[i].depth >= 0) {
-	if (md->DisplayModes[i].depth == depth && md->DisplayModes[i].res.width == modeDesc->dwWidth && md->DisplayModes[i].res.height == modeDesc->dwHeight) {
+	if (md->DisplayModes[i].depth == d && md->DisplayModes[i].res.width == w && md->DisplayModes[i].res.height == h) {
 	    for (j = 0; j < MAX_REFRESH_RATES; j++) {
-		if (md->DisplayModes[i].refresh[j] == 0 || md->DisplayModes[i].refresh[j] == modeDesc->dwRefreshRate)
+		if (md->DisplayModes[i].refresh[j] == 0 || md->DisplayModes[i].refresh[j] == rate)
 		    break;
 	    }
 	    if (j < MAX_REFRESH_RATES) {
-		md->DisplayModes[i].refresh[j] = modeDesc->dwRefreshRate;
+		md->DisplayModes[i].refresh[j] = rate;
 		md->DisplayModes[i].refresh[j + 1] = 0;
-		return DDENUMRET_OK;
+		return;
 	    }
 	}
 	i++;
@@ -416,20 +412,48 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
     while (md->DisplayModes[i].depth >= 0)
 	i++;
     if (i >= MAX_PICASSO_MODES - 1)
-	return DDENUMRET_OK;
-    md->DisplayModes[i].res.width = modeDesc->dwWidth;
-    md->DisplayModes[i].res.height = modeDesc->dwHeight;
-    md->DisplayModes[i].depth = depth;
-    md->DisplayModes[i].refresh[0] = modeDesc->dwRefreshRate;
+	return;
+    md->DisplayModes[i].res.width = w;
+    md->DisplayModes[i].res.height = h;
+    md->DisplayModes[i].depth = d;
+    md->DisplayModes[i].refresh[0] = rate;
     md->DisplayModes[i].refresh[1] = 0;
     md->DisplayModes[i].colormodes = ct;
     md->DisplayModes[i + 1].depth = -1;
     _stprintf (md->DisplayModes[i].name, L"%dx%d, %d-bit",
 	md->DisplayModes[i].res.width, md->DisplayModes[i].res.height, md->DisplayModes[i].depth * 8);
+}
+
+static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context)
+{
+    struct MultiDisplay *md = context;
+    RGBFTYPE colortype;
+    int depth, ct;
+
+    colortype = DirectDraw_GetSurfacePixelFormat (modeDesc);
+    ct = 1 << colortype;
+    depth = 0;
+    if (ct & RGBMASK_8BIT)
+	depth = 8;
+    else if (ct & RGBMASK_15BIT)
+	depth = 15;
+    else if (ct & RGBMASK_16BIT)
+	depth = 16;
+    else if (ct & RGBMASK_24BIT)
+	depth = 24;
+    else if (ct & RGBMASK_32BIT)
+	depth = 32;
+    if (depth == 0)
+	return DDENUMRET_OK;
+    if (colortype == RGBFB_NONE)
+	return DDENUMRET_OK;
+    if (modeDesc->dwWidth > 2560 || modeDesc->dwHeight > 2048)
+	return DDENUMRET_OK;
+    addmode (md, modeDesc->dwWidth, modeDesc->dwHeight, depth, modeDesc->dwRefreshRate, 0);
     return DDENUMRET_OK;
 }
 
-static int resolution_compare (const void *a, const void *b)
+static int _cdecl resolution_compare (const void *a, const void *b)
 {
     struct PicassoResolution *ma = (struct PicassoResolution *)a;
     struct PicassoResolution *mb = (struct PicassoResolution *)b;
@@ -509,6 +533,7 @@ BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPVOID ctx
         _stprintf (tmp, L"%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
     md->name = my_strdup (tmp);
     md->name2 = my_strdup (desc);
+    md->name3 = my_strdup (name);
     write_log (L"'%s' '%s' %s\n", desc, name, outGUID(guid));
     ret = 1;
 end:
@@ -560,7 +585,7 @@ static int makesort (struct MultiDisplay *md)
 void sortdisplays (void)
 {
     struct MultiDisplay *md1, *md2, tmp;
-    int i;
+    int i, idx, idx2;
 
     md1 = Displays;
     while (md1->name) {
@@ -590,7 +615,36 @@ void sortdisplays (void)
 		int b = DirectDraw_GetCurrentDepth ();
 		write_log (L"Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n", w, h, b,
 		    GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
-		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES , modesCallback, md1);
+		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES, modesCallback, md1);
+		idx = 0;
+		for (;;) {
+		    int found;
+		    DEVMODE dm;
+
+		    dm.dmSize = sizeof dm;
+		    dm.dmDriverExtra = 0;
+		    if (!EnumDisplaySettings  (md1->primary ? NULL : md1->name3, idx, &dm))
+			break;
+		    idx2 = 0;
+		    found = 0;
+		    while (md1->DisplayModes[idx2].depth >= 0 && !found) {
+			struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+			if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
+			    for (i = 0; pr->refresh[i]; i++) {
+				if (pr->refresh[i] == dm.dmDisplayFrequency) {
+				    found = 1;
+				    break;
+				}
+			    }
+			}
+			idx2++;
+		    }
+		    if (!found) {
+			write_log (L"EnumDisplaySettings(%dx%dx%d %dHz)\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency);
+			addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, 1);
+		    }
+		    idx++;
+		}
 		//dhack();
 		sortmodes (md1);
 		modesList (md1);
@@ -1304,11 +1358,13 @@ int check_prefs_changed_gfx (void)
 
     if (_tcscmp (currprefs.prtname, changed_prefs.prtname) ||
 	currprefs.parallel_autoflush_time != changed_prefs.parallel_autoflush_time ||
+	currprefs.parallel_ascii_emulation != changed_prefs.parallel_ascii_emulation ||
 	currprefs.parallel_postscript_emulation != changed_prefs.parallel_postscript_emulation ||
 	currprefs.parallel_postscript_detection != changed_prefs.parallel_postscript_detection ||
 	_tcscmp (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters)) {
 	_tcscpy (currprefs.prtname, changed_prefs.prtname);
 	currprefs.parallel_autoflush_time = changed_prefs.parallel_autoflush_time;
+	currprefs.parallel_ascii_emulation = changed_prefs.parallel_ascii_emulation;
 	currprefs.parallel_postscript_emulation = changed_prefs.parallel_postscript_emulation;
 	currprefs.parallel_postscript_detection = changed_prefs.parallel_postscript_detection;
 	_tcscpy (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters);

@@ -153,7 +153,7 @@ oops:
 
 #if PNG_SCREENSHOTS > 0
 
-static void pngtest_blah (png_structp png_ptr, png_const_charp message)
+static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
 {
    TCHAR *name = L"unknown";
    if (png_ptr != NULL && png_ptr->error_ptr != NULL)

@@ -307,18 +307,41 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler)
 static int psEffect_hasPreProcess (void) { return m_PreprocessTechnique1EffectHandle != 0; }
 static int psEffect_hasPreProcess2 (void) { return m_PreprocessTechnique2EffectHandle != 0; }
 
+static int d3d_yesno = 0;
+
+int D3D_goodenough (void)
+{
+    static int d3d_good;
+    LPDIRECT3D9 d3dx;
+    D3DCAPS9 d3dCaps;
+
+    if (d3d_yesno > 0 || d3d_good > 0)
+	return 1;
+    if (d3d_good < 0)
+	return 0;
+    d3d_good = -1;
+    d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
+    if (d3dx != NULL) {
+        if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3dx, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
+	    if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0))
+		d3d_good = 1;
+	}
+	IDirect3D9_Release (d3dx);
+    }
+    return d3d_good > 0 ? 1 : 0;
+}
+
 int D3D_canshaders (void)
 {
-    static int yesno = 0;
     HANDLE h;
     LPDIRECT3D9 d3dx;
     D3DCAPS9 d3dCaps;
 
-    if (yesno < 0)
+    if (d3d_yesno < 0)
 	return 0;
-    if (yesno > 0)
+    if (d3d_yesno > 0)
 	return 1;
-    yesno = -1;
+    d3d_yesno = -1;
     h = LoadLibrary (L"d3dx9_41.dll");
     if (h != NULL) {
 	FreeLibrary (h);
@@ -327,13 +350,13 @@ int D3D_canshaders (void)
 	    if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3dx, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
 		if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
 		    write_log (L"D3D: Pixel shader 2.0+ support detected, shader filters enabled.\n");
-		    yesno = 1;
+		    d3d_yesno = 1;
 		}
 	    }
 	    IDirect3D9_Release (d3dx);
 	}
     }
-    return yesno > 0 ? 1 : 0;
+    return d3d_yesno > 0 ? 1 : 0;
 }
 
 static int psEffect_LoadEffect (const TCHAR *shaderfile)
@@ -1020,7 +1043,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     hr = -1;
     if (d3d_ex && D3DEX) {
         hr = Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex);
-	write_log (L"Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
+	if (FAILED (hr))
+	    write_log (L"Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
         d3d = (IDirect3D9*)d3dex;
     }
     if (FAILED (hr)) {
@@ -1040,8 +1064,11 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	adapter = 0;
 
     modeex.Size = sizeof modeex;
-    if (d3dex && D3DEX)
-	IDirect3D9Ex_GetAdapterDisplayModeEx (d3dex, adapter, &modeex, NULL);
+    if (d3dex && D3DEX) {
+	LUID luid;
+	hr = IDirect3D9Ex_GetAdapterLUID (d3dex, adapter, &luid);
+	hr = IDirect3D9Ex_GetAdapterDisplayModeEx (d3dex, adapter, &modeex, NULL);
+    }
     if (FAILED (hr = IDirect3D9_GetAdapterDisplayMode (d3d, adapter, &mode)))
         write_log (L"D3D: IDirect3D9_GetAdapterDisplayMode failed %s\n", D3D_ErrorString (hr));
     if (FAILED (hr = IDirect3D9_GetDeviceCaps (d3d, adapter, D3DDEVTYPE_HAL, &d3dCaps)))
@@ -1187,6 +1214,7 @@ int D3D_needreset (void)
 	hr = IDirect3DDevice9_Reset (d3ddev, &dpp);
 	if (FAILED (hr)) {
 	    write_log (L"D3D: Reset failed %s\n", D3D_ErrorString (hr));
+	    changed_prefs.gfx_filter = 0;
 	    return 1;
 	}
     }

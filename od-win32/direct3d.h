@@ -13,3 +13,4 @@ extern int D3D_isenabled (void);
 extern int D3D_needreset (void);
 extern void D3D_clear (void);
 extern int D3D_canshaders (void);
+extern int D3D_goodenough (void);

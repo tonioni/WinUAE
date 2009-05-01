@@ -63,6 +63,7 @@
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
 #define SPEEDUP
+#define AUTOSCALE_SPRITES 1
 
 #define NEW_BPL 1
 
@@ -2300,22 +2301,25 @@ static void decide_sprites (int hpos)
 	int nr = nrs[i] & (MAX_SPRITES - 1);
 	record_sprite (next_lineno, nr, posns[i], sprdata[nr], sprdatb[nr], sprctl[nr]);
 	/* get left and right sprite edge if brdsprt enabled */
-	if (bplcon3 & 2) {
-	    int j;
-	    for (j = 0; j < sprite_width; j+= 16) {
+#if AUTOSCALE_SPRITES
+	if ((bplcon0 & 1) && (bplcon3 & 0x02) && !(bplcon3 & 0x20)) {
+	    int j, jj;
+	    for (j = 0, jj = 0; j < sprite_width; j+= 16, jj++) {
 		int nx = fromspritexdiw (posns[i] + j);
-		if (sprdata[nr][j] || sprdata[nr][j]) {
-		    if (diwfirstword_total > nx)
+		if (sprdata[nr][jj] || sprdatb[nr][jj]) {
+		    if (diwfirstword_total > nx && nx >= (48 << currprefs.gfx_resolution))
 			diwfirstword_total = nx;
-		    if (diwlastword_total < nx + 16)
+		    if (diwlastword_total < nx + 16 && nx <= (448 << currprefs.gfx_resolution))
 			diwlastword_total = nx + 16;
 		}
 	    }
 	    gotdata = 1;
 	}
+#endif
     }
     last_sprite_point = point;
 
+#if AUTOSCALE_SPRITES
     /* get upper and lower sprite position if brdsprt enabled */
     if (gotdata) {
 	if (vpos < first_planes_vpos)
@@ -2327,6 +2331,7 @@ static void decide_sprites (int hpos)
 	if (vpos > plflastline_total)
 	    plflastline_total = vpos;
     }
+#endif
 }
 
 STATIC_INLINE int sprites_differ (struct draw_info *dip, struct draw_info *dip_old)

@@ -1,4 +1,33 @@
 
+Beta 27:
+
+- on screen led was always enabled (b26)
+- scaling in NTSC mode really fixed (b26)
+- enabling autoscaling and no filters enabled: select Direct3D if
+  at least 2.0 shaders supported (=fast enough), only select Null
+  filter if older. (D3D9 scaling is "free" on modern hardware)
+- Logitech LCD SDK updated (currently waiting for G19..)
+- autoscale found sprites outside of bitplanes when BRDSPRT was
+  enabled without ECSENA
+- vertical positioning in autoscale was wrong in some cases
+- AHI works again
+- always enable Picasso96 BIF_INDISPLAYCHAIN (not enabled means
+  RTG mode display size of 0x0 pixels = crash)
+- delayed printer open, do not open until enough data received, also
+  ignore data completely if less than 10 bytes received
+- added "ASCII Printer" option. Select this option if you use programs
+  that print directly to emulated parallel port (bypassing Amiga
+  printer drivers) and they expect old-style printers that directly
+  accept ascii text (Action Replay, demo scene disk magazines etc..)
+  In future this will also include emulation of old Epson matrix
+  printer control codes (de-facto control codes that most printers
+  supported at that time)
+- added missing "Automatic" aspect ratio setting in Filter panel
+- selecting "Full Window" mode when no filters enabled = also enable
+  Direct3D + FS. (this is what users apparently expect, not confusing
+  tiny image on the middle of screen)
+- development PC updated to Windows 7 RC
+
 Beta 26:
 
 - added transparent support for ICD AdIDE "bit swapped" disks and
@@ -20,6 +49,7 @@ Beta 26:
 - D3D and OGL mode was not properly closed when switching to
   windowed/fullwindow RTG mode (old graphics was visible depending
   on screen/scaling etc..)
+- AHI is broken in this version. Do not use
 
 Beta 25:
 

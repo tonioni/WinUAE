@@ -218,9 +218,7 @@ int getcapslock (void)
 {
     int newstate;
 
-    BYTE keyState[256];
-    GetKeyboardState (keyState);
-    newstate = keyState[VK_CAPITAL] & 1;
+    newstate = GetKeyState (VK_CAPITAL) & 1; // this returns bogus state if caps change when in exclusive mode..
     if (newstate != capslockstate)
 	inputdevice_translatekeycode (0, DIK_CAPITAL, newstate);
     capslockstate = newstate;

@@ -4739,6 +4739,7 @@ static int display_toselect(int fs, int vsync, int p96)
 }
 static void display_fromselect(int val, int *fs, int *vsync, int p96)
 {
+    int ofs = *fs;
     if (val == CB_ERR)
 	return;
     *fs = 0;
@@ -4746,6 +4747,10 @@ static void display_fromselect(int val, int *fs, int *vsync, int p96)
     if (p96) {
 	*fs = val / 2;
 	*vsync = val & 1;
+	if (*fs == 2 && *fs != ofs) {
+	    workprefs.win32_rtgscaleifsmall = 1;
+	    workprefs.win32_rtgmatchdepth = 0;
+	}
 	return;
     }
     switch (val)
@@ -4762,6 +4767,22 @@ static void display_fromselect(int val, int *fs, int *vsync, int p96)
 	break;
 	case 3:
 	*fs = 2;
+	if (workprefs.gfx_filter == 0 && *fs != ofs) {
+	    if (D3D_goodenough ()) {
+		workprefs.gfx_filter = 2;
+		workprefs.gfx_filter_filtermode = 2;
+	    } else {
+		workprefs.gfx_filter = 1;
+	    }
+	    workprefs.gfx_filter_horiz_zoom = 0;
+	    workprefs.gfx_filter_vert_zoom = 0;
+	    workprefs.gfx_filter_horiz_zoom_mult = 0;
+	    workprefs.gfx_filter_vert_zoom_mult = 0;
+	    workprefs.gfx_filter_aspect = -1;
+	    workprefs.gfx_filter_horiz_offset = 0;
+	    workprefs.gfx_filter_vert_offset = 0;
+	    workprefs.gfx_filter_keep_aspect = 0;
+	}
 	break;
     }
 }
@@ -9304,6 +9325,7 @@ static void values_to_portsdlg (HWND hDlg)
 	}
     }
     SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
+    CheckDlgButton (hDlg, IDC_ASCIIPRINTER, workprefs.parallel_ascii_emulation);
     CheckDlgButton (hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation);
     CheckDlgButton (hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection);
     SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
@@ -9573,14 +9595,20 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    if (isprinter ()) {
 		closeprinter ();
 	    }
+	} else if (wParam == IDC_ASCIIPRINTER) {
+	    workprefs.parallel_ascii_emulation = IsDlgButtonChecked (hDlg, IDC_ASCIIPRINTER) ? 1 : 0;
+	    if (workprefs.parallel_ascii_emulation)
+		workprefs.parallel_postscript_detection = 0;
 	} else if (wParam == IDC_PSPRINTER) {
 	    workprefs.parallel_postscript_emulation = IsDlgButtonChecked (hDlg, IDC_PSPRINTER) ? 1 : 0;
 	    if (workprefs.parallel_postscript_emulation)
 		CheckDlgButton (hDlg, IDC_PSPRINTERDETECT, 1);
 	} else if (wParam == IDC_PSPRINTERDETECT) {
 	    workprefs.parallel_postscript_detection = IsDlgButtonChecked (hDlg, IDC_PSPRINTERDETECT) ? 1 : 0;
-	    if (!workprefs.parallel_postscript_detection)
+	    if (!workprefs.parallel_postscript_detection) {
 		CheckDlgButton (hDlg, IDC_PSPRINTER, 0);
+		workprefs.parallel_ascii_emulation = 0;
+	    }
 	} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH) {
 	    values_from_portsdlg (hDlg);
 	} else {
@@ -10174,7 +10202,9 @@ struct filterpreset {
 };
 static struct filterpreset filterpresets[] =
 {
-    { L"PAL example", 8, 0, 0, 0, 1000, 1000, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0, 0 },
+    { L"PAL", 8, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0, 0 },
+    { L"D3D Autoscale", 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1 },
+    { L"D3D Full Scaling", 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0 },
     { NULL }
 };
 
@@ -10242,16 +10272,20 @@ static void values_to_hw3ddlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
     SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
 	(workprefs.gfx_filter_aspect == 0) ? 0 :
-	(workprefs.gfx_filter_aspect == 4 * 256 + 3) ? 1 :
-	(workprefs.gfx_filter_aspect == 5 * 256 + 4) ? 2 :
-	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 3 :
-	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 4 :
-	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 5 : 0, 0);
+	(workprefs.gfx_filter_aspect < 0) ? 1 :
+	(workprefs.gfx_filter_aspect == 4 * 256 + 3) ? 2 :
+	(workprefs.gfx_filter_aspect == 5 * 256 + 4) ? 3 :
+	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 4 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 5 :
+	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
-    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)L"Disabled");
-    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)L"Automatic scaling");
-    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)L"Automatic resize");
+    WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_AUTOSCALE_SCALING, txt, sizeof (txt) / sizeof (TCHAR));
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+    WIN32GUI_LoadUIString (IDS_AUTOSCALE_RESIZE, txt, sizeof (txt) / sizeof (TCHAR));
+    SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
     SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
@@ -10582,6 +10616,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_RESETCONTENT, 0, 0);
 	    WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    WIN32GUI_LoadUIString (IDS_AUTOMATIC, tmp, sizeof tmp / sizeof (TCHAR));
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"4:3");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"5:4");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"15:9");
@@ -10632,8 +10668,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 			if (item != CB_ERR) {
 			    workprefs.gfx_filter_autoscale = item;
-			    if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
-				workprefs.gfx_filter = 1;
+			    if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0) {
+				if (D3D_goodenough ()) {
+				    workprefs.gfx_filter = 2; // D3D
+				    workprefs.gfx_filter_filtermode = 2;
+				} else {
+				    workprefs.gfx_filter = 1; // NULL
+				}
+			    }
 			    values_to_hw3ddlg (hDlg);
 			    enable_for_hw3ddlg (hDlg);
 			}
@@ -10674,14 +10716,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				if (v == 0)
 				    v2 = 0;
 				if (v == 1)
-				    v2 = 4 * 256 + 3;
+				    v2 = -1;
 				if (v == 2)
-				    v2 = 5 * 256 + 4;
+				    v2 = 4 * 256 + 3;
 				if (v == 3)
-				    v2 = 15 * 256 + 9;
+				    v2 = 5 * 256 + 4;
 				if (v == 4)
-				    v2 = 16 * 256 + 9;
+				    v2 = 15 * 256 + 9;
 				if (v == 5)
+				    v2 = 16 * 256 + 9;
+				if (v == 6)
 				    v2 = 16 * 256 + 10;
 			    }
 			    currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = v2;

@@ -266,7 +266,7 @@ frame_time_t read_processor_time (void)
 
 #include <process.h>
 static volatile int dummythread_die;
-static void dummythread (void *dummy)
+static void _cdecl dummythread (void *dummy)
 {
     SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
     while (!dummythread_die);

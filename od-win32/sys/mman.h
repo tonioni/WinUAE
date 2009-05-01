@@ -35,9 +35,6 @@ int shmget (key_t key, size_t size, int shmflg, const TCHAR*);
 int shmctl (int shmid, int cmd, struct shmid_ds *buf);
 int init_shm (void);
 
-int isinf(double x);
-int isnan(double x);
-
 #define PROT_READ  0x01
 #define PROT_WRITE 0x02
 #define PROT_EXEC  0x04

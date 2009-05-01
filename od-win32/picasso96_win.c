@@ -2359,10 +2359,14 @@ static void inituaegfx (uaecptr ABI)
     flags |= BIF_HARDWARESPRITE;
 #endif
     if (flags & BIF_NOBLITTER)
-	write_log (L"P96: blitter disabled in devs:monitors/uaegfx!\n");
+	write_log (L"P96: Blitter disabled in devs:monitors/uaegfx!\n");
 
     if (currprefs.win32_rtgvblankrate >= -1)
 	flags |= BIF_VBLANKINTERRUPT;
+    if (!(flags & BIF_INDISPLAYCHAIN)) {
+	write_log (L"P96: BIF_INDISPLAYCHAIN force-enabled!\n");
+	flags |= BIF_INDISPLAYCHAIN;
+    }
 
     put_long (ABI + PSSO_BoardInfo_Flags, flags);
 

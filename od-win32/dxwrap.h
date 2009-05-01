@@ -69,8 +69,7 @@ extern GUID *displayGUID;
 struct MultiDisplay {
     int primary, disabled, gdi;
     GUID guid;
-    TCHAR *name;
-    TCHAR *name2;
+    TCHAR *name, *name2, *name3;
     struct PicassoResolution *DisplayModes;
     RECT rect;
 };

@@ -349,8 +349,8 @@ BEGIN
     RTEXT           "Printer:",IDC_STATIC,12,15,25,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PRINTERLIST,49,15,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,114,51,58,12
-    CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,65,35,79,12
-    CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,175,35,110,12
+    CONTROL         "PostScript detection",IDC_PSPRINTERDETECT,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,91,35,84,12
+    CONTROL         "PostScript printer emulation",IDC_PSPRINTER,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,180,35,111,12
     RTEXT           "Autoflush [] Time in seconds after a pending print job is automatically flushed.",IDC_PRINTERAUTOFLUSHTXT,173,49,86,15,SS_NOTIFY | SS_CENTERIMAGE
     EDITTEXT        IDC_PRINTERAUTOFLUSH,263,50,25,12,ES_NUMBER
     RTEXT           "Ghostscript extra parameters:",IDC_STATIC,12,66,102,15,SS_CENTERIMAGE
@@ -367,6 +367,7 @@ BEGIN
     CONTROL         "Direct []Use when emulating serial-link games on two PCs running WinUAE",IDC_SER_DIRECT,
                     "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,135,123,65,12
     CONTROL         "uaeserial.device",IDC_UAESERIAL,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,200,123,78,12
+    CONTROL         "ASCII Printer",IDC_ASCIIPRINTER,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,13,35,69,12
 END
 
 IDD_GAMEPORTS DIALOGEX 0, 0, 300, 236
@@ -1112,11 +1113,6 @@ IDB_LCD160X43           BITMAP                  "lcd.bmp"
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO 
 BEGIN
-    IDD_IOPORTS, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 180
-    END
-
     IDD_FILTER, DIALOG
     BEGIN
         BOTTOMMARGIN, 237
@@ -1445,6 +1441,9 @@ BEGIN
     IDS_TABLET_BOTH_CURSORS "Show both cursors"
     IDS_TABLET_NATIVE_CURSOR "Show native cursor only"
     IDS_TABLET_HOST_CURSOR  "Show host cursor only"
+    IDS_AUTOSCALE_DISABLED  "Disabled"
+    IDS_AUTOSCALE_SCALING   "Automatic scaling"
+    IDS_AUTOSCALE_RESIZE    "Automatic resize"
 END
 
 #endif    // English (U.S.) resources

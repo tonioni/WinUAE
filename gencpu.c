@@ -3103,7 +3103,11 @@ static char *outopcode (int opcode)
 	if (ins->mnemo == lookuptab[i].mnemo)
 	    break;
     }
-    strcpy (out, lookuptab[i].name);
+    {
+	char *s = ua (lookuptab[i].name);
+	strcpy (out, s);
+	xfree (s);
+    }
     if (ins->size == sz_byte)
 	strcat (out,".B");
     if (ins->size == sz_word)

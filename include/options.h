@@ -107,6 +107,7 @@ struct uae_prefs {
     int serial_hwctsrts;
     int serial_direct;
     int parallel_demand;
+    int parallel_ascii_emulation;
     int parallel_postscript_emulation;
     int parallel_postscript_detection;
     int parallel_autoflush_time;

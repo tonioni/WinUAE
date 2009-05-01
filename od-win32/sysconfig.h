@@ -265,7 +265,6 @@
 #define HAVE_ISNAN
 #define HAVE_ISINF
 #define isnan _isnan
-extern int isinf(double);
 
 /* Define if you have the bcopy function.  */
 /* #undef HAVE_BCOPY */

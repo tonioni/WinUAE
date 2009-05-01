@@ -20,6 +20,7 @@
  */
 
 #include "hq2x_d3d.h"
+#include <math.h>
 
 #define fmax(x,y) ((x)>(y)?(x):(y))
 #define fmin(x,y) ((x)<(y)?(x):(y))
