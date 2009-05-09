@@ -402,6 +402,7 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 	    }
 	    if (j < MAX_REFRESH_RATES) {
 		md->DisplayModes[i].refresh[j] = rate;
+		md->DisplayModes[i].refreshtype[j] = nondx;
 		md->DisplayModes[i].refresh[j + 1] = 0;
 		return;
 	    }
@@ -413,10 +414,12 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 	i++;
     if (i >= MAX_PICASSO_MODES - 1)
 	return;
+    md->DisplayModes[i].nondx = nondx;
     md->DisplayModes[i].res.width = w;
     md->DisplayModes[i].res.height = h;
     md->DisplayModes[i].depth = d;
     md->DisplayModes[i].refresh[0] = rate;
+    md->DisplayModes[i].refreshtype[0] = nondx;
     md->DisplayModes[i].refresh[1] = 0;
     md->DisplayModes[i].colormodes = ct;
     md->DisplayModes[i + 1].depth = -1;
@@ -467,14 +470,30 @@ static int _cdecl resolution_compare (const void *a, const void *b)
 	return 1;
     return ma->depth - mb->depth;
 }
+
 static void sortmodes (struct MultiDisplay *md)
 {
-    int	i = 0, idx = -1;
+    int	i, idx = -1;
     int pw = -1, ph = -1;
+
+    i = 0;
     while (md->DisplayModes[i].depth >= 0)
 	i++;
     qsort (md->DisplayModes, i, sizeof (struct PicassoResolution), resolution_compare);
     for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+	int j, k;
+	for (j = 0; md->DisplayModes[i].refresh[j]; j++) {
+	    for (k = j + 1; md->DisplayModes[i].refresh[k]; k++) {
+		if (md->DisplayModes[i].refresh[j] > md->DisplayModes[i].refresh[k]) {
+		    int t = md->DisplayModes[i].refresh[j];
+		    md->DisplayModes[i].refresh[j] = md->DisplayModes[i].refresh[k];
+		    md->DisplayModes[i].refresh[k] = t;
+		    t = md->DisplayModes[i].refreshtype[j];
+		    md->DisplayModes[i].refreshtype[j] = md->DisplayModes[i].refreshtype[k];
+		    md->DisplayModes[i].refreshtype[k] = t;
+		}
+	    }
+	}
 	if (md->DisplayModes[i].res.height != ph || md->DisplayModes[i].res.width != pw) {
 	    ph = md->DisplayModes[i].res.height;
 	    pw = md->DisplayModes[i].res.width;
@@ -490,12 +509,15 @@ static void modesList (struct MultiDisplay *md)
 
     i = 0;
     while (md->DisplayModes[i].depth >= 0) {
-	write_log (L"%d: %s (", i, md->DisplayModes[i].name);
+	write_log (L"%d: %s%s (", i, md->DisplayModes[i].nondx ? L"!" : L"", md->DisplayModes[i].name);
 	j = 0;
 	while (md->DisplayModes[i].refresh[j] > 0) {
 	    if (j > 0)
 		write_log (L",");
-	    write_log (L"%d", md->DisplayModes[i].refresh[j]);
+	    if (md->DisplayModes[i].refreshtype[j])
+		write_log (L"!%d", md->DisplayModes[i].refresh[j]);
+	    else
+		write_log (L"%d", md->DisplayModes[i].refresh[j]);
 	    j++;
 	}
 	write_log (L")\n");
@@ -613,17 +635,27 @@ void sortdisplays (void)
 		int w = DirectDraw_CurrentWidth ();
 		int h = DirectDraw_CurrentHeight ();
 		int b = DirectDraw_GetCurrentDepth ();
-		write_log (L"Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n", w, h, b,
-		    GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
+		int maxw = 0, maxh = 0;
+
 		DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES, modesCallback, md1);
+		idx2 = 0;
+		while (md1->DisplayModes[idx2].depth >= 0) {
+		    struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+		    if (pr->res.width > maxw)
+		        maxw = pr->res.width;
+		    if (pr->res.height > maxh)
+		        maxh = pr->res.height;
+		    idx2++;
+		}
+		write_log (L"Desktop: W=%d H=%d B=%d. MaxW=%d MaxH=%d CXVS=%d CYVS=%d\n", w, h, b, maxw, maxh,
+		    GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
 		idx = 0;
 		for (;;) {
 		    int found;
 		    DEVMODE dm;
-
 		    dm.dmSize = sizeof dm;
 		    dm.dmDriverExtra = 0;
-		    if (!EnumDisplaySettings  (md1->primary ? NULL : md1->name3, idx, &dm))
+		    if (!EnumDisplaySettingsEx (md1->primary ? NULL : md1->name3, idx, &dm, EDS_RAWMODE))
 			break;
 		    idx2 = 0;
 		    found = 0;
@@ -640,8 +672,20 @@ void sortdisplays (void)
 			idx2++;
 		    }
 		    if (!found) {
-			write_log (L"EnumDisplaySettings(%dx%dx%d %dHz)\n", dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency);
-			addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, 1);
+			int freq = 0;
+#if 0
+			write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
+			    dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
+#endif
+			if (dm.dmFields & DM_DISPLAYFREQUENCY) {
+			    freq = dm.dmDisplayFrequency;
+			    if (freq < 10)
+				freq = 0;
+			}
+			if (freq < 75) {
+			    if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL))
+				addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, 1);
+			}
 		    }
 		    idx++;
 		}
@@ -1358,13 +1402,13 @@ int check_prefs_changed_gfx (void)
 
     if (_tcscmp (currprefs.prtname, changed_prefs.prtname) ||
 	currprefs.parallel_autoflush_time != changed_prefs.parallel_autoflush_time ||
-	currprefs.parallel_ascii_emulation != changed_prefs.parallel_ascii_emulation ||
+	currprefs.parallel_matrix_emulation != changed_prefs.parallel_matrix_emulation ||
 	currprefs.parallel_postscript_emulation != changed_prefs.parallel_postscript_emulation ||
 	currprefs.parallel_postscript_detection != changed_prefs.parallel_postscript_detection ||
 	_tcscmp (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters)) {
 	_tcscpy (currprefs.prtname, changed_prefs.prtname);
 	currprefs.parallel_autoflush_time = changed_prefs.parallel_autoflush_time;
-	currprefs.parallel_ascii_emulation = changed_prefs.parallel_ascii_emulation;
+	currprefs.parallel_matrix_emulation = changed_prefs.parallel_matrix_emulation;
 	currprefs.parallel_postscript_emulation = changed_prefs.parallel_postscript_emulation;
 	currprefs.parallel_postscript_detection = changed_prefs.parallel_postscript_detection;
 	_tcscpy (currprefs.ghostscript_parameters, changed_prefs.ghostscript_parameters);

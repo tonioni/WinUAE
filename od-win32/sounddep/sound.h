@@ -6,7 +6,6 @@
   * Copyright 1997 Bernd Schmidt
   */
 
-extern int sound_fd;
 extern uae_u16 paula_sndbuffer[];
 extern uae_u16 *paula_sndbufpt;
 extern int paula_sndbufsize;
@@ -68,7 +67,7 @@ STATIC_INLINE void check_sound_buffers (void)
 	p[1] = sum >> 3;
 	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
-    if ((char *)paula_sndbufpt - (char *)paula_sndbuffer >= paula_sndbufsize) {
+    if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
 	finish_sound_buffer ();
 	paula_sndbufpt = paula_sndbuffer;
     }
@@ -80,11 +79,8 @@ STATIC_INLINE void clear_sound_buffers (void)
     paula_sndbufpt = paula_sndbuffer;
 }
 
-#define PUT_SOUND_BYTE(b) do { *(uae_u8 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 1); } while (0)
 #define PUT_SOUND_WORD(b) do { *(uae_u16 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2); } while (0)
-#define PUT_SOUND_BYTE_LEFT(b) PUT_SOUND_BYTE(b)
 #define PUT_SOUND_WORD_LEFT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[0]); PUT_SOUND_WORD(b); } while (0)
-#define PUT_SOUND_BYTE_RIGHT(b) PUT_SOUND_BYTE(b)
 #define PUT_SOUND_WORD_RIGHT(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[1]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_WORD_LEFT2(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[2]); PUT_SOUND_WORD(b); } while (0)
 #define PUT_SOUND_WORD_RIGHT2(b) do { if (currprefs.sound_filter) b = filter (b, &sound_filter_state[3]); PUT_SOUND_WORD(b); } while (0)

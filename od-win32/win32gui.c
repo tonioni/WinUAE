@@ -1306,7 +1306,7 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
 	    _tcscpy (fname, filename);
     }
 
-    if (isdefault)
+    if (!isdefault)
 	qs_override = 1;
     if (type < 0) {
 	type = 0;
@@ -1319,7 +1319,7 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
     if (type == 0)
 	default_prefs (p, type);
     regqueryint (NULL, L"ConfigFile_NoAuto", &ct2);
-    v = cfgfile_load (p, fname, &type2, ct2);
+    v = cfgfile_load (p, fname, &type2, ct2, isdefault ? 0 : 1);
     if (!v)
 	return v;
     if (type > 0)
@@ -1335,7 +1335,7 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
 		fetch_path (L"ConfigurationPath", tmp2, sizeof (tmp2) / sizeof (TCHAR));
 		_tcscat (tmp2, tmp1);
 		v = i;
-		cfgfile_load (p, tmp2, &v, 1);
+		cfgfile_load (p, tmp2, &v, 1, 0);
 	    }
 	}
     }
@@ -3790,6 +3790,7 @@ static void resetregistry (void)
     regdelete (NULL, L"QuickStartHostConfig");
     regdelete (NULL, L"ConfigurationCache");
     regdelete (NULL, L"DirectDraw_Secondary");
+    regdelete (NULL, L"ShownsupportedModes");
 }
 
 int path_type;
@@ -4056,7 +4057,7 @@ static void quickstarthost (HWND hDlg, TCHAR *name)
     TCHAR tmp[MAX_DPATH];
 
     if (getconfigstorefrompath (name, tmp, CONFIG_TYPE_HOST)) {
-	if (cfgfile_load (&workprefs, tmp, &type, 1))
+	if (cfgfile_load (&workprefs, tmp, &type, 1, 0))
 	    workprefs.start_gui = 1;
     }
 }
@@ -4513,36 +4514,45 @@ static void LoadNthString( DWORD value, TCHAR *nth, DWORD dwNthMax )
 }
 
 static int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
-static int storedrefreshrates[MAX_REFRESH_RATES + 1];
+struct storedrefreshrate
+{
+    int rate, type;
+};
+static struct storedrefreshrate storedrefreshrates[MAX_REFRESH_RATES + 1];
 
 static void init_frequency_combo (HWND hDlg, int dmode)
 {
-    int i, j, freq, tmp;
+    int i, j, freq;
     TCHAR hz[20], hz2[20], txt[100];
     LRESULT index;
     struct MultiDisplay *md = getdisplay (&workprefs);
 
     i = 0; index = 0;
     while (dmode >= 0 && (freq = md->DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
-	storedrefreshrates[index++] = freq;
+	storedrefreshrates[index].rate = freq;
+	storedrefreshrates[index++].type = md->DisplayModes[dmode].refreshtype[i];
 	i++;
     }
     i = 0;
     while ((freq = fakerefreshrates[i]) > 0 && index < MAX_REFRESH_RATES) {
 	for (j = 0; j < index; j++) {
-	    if (storedrefreshrates[j] == freq) break;
+	    if (storedrefreshrates[j].rate == freq)
+		break;
 	}
-	if (j == index)
-	    storedrefreshrates[index++] = -freq;
+	if (j == index) {
+	    storedrefreshrates[index].rate = -freq;
+	    storedrefreshrates[index++].type = 0;
+	}
 	i++;
     }
-    storedrefreshrates[index] = 0;
+    storedrefreshrates[index].rate = 0;
     for (i = 0; i < index; i++) {
 	for (j = i + 1; j < index; j++) {
-	    if (abs(storedrefreshrates[i]) >= abs(storedrefreshrates[j])) {
-		tmp = storedrefreshrates[i];
-		storedrefreshrates[i] = storedrefreshrates[j];
-		storedrefreshrates[j] = tmp;
+	    if (abs (storedrefreshrates[i].rate) >= abs (storedrefreshrates[j].rate)) {
+		struct storedrefreshrate srr;
+		memcpy (&srr, &storedrefreshrates[i], sizeof (struct storedrefreshrate));
+		memcpy (&storedrefreshrates[i], &storedrefreshrates[j], sizeof (struct storedrefreshrate));
+		memcpy (&storedrefreshrates[j], &srr, sizeof (struct storedrefreshrate));
 	    }
 	}
     }
@@ -4552,7 +4562,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
     WIN32GUI_LoadUIString (IDS_VSYNC_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
     SendDlgItemMessage(hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)txt);
     for (i = 0; i < index; i++) {
-	freq = storedrefreshrates[i];
+	freq = storedrefreshrates[i].rate;
 	if (freq < 0) {
 	    freq = -freq;
 	    _stprintf (hz, L"(%dHz)", freq);
@@ -4563,7 +4573,9 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 	    _tcscat (hz, L" PAL");
 	if (freq == 60 || freq == 120)
 	    _tcscat (hz, L" NTSC");
-	if (abs(workprefs.gfx_refreshrate) == freq)
+	if (storedrefreshrates[i].type)
+	    _tcscat (hz, L" (*)");
+	if (abs (workprefs.gfx_refreshrate) == freq)
 	    _tcscpy (hz2, hz);
 	SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)hz);
     }
@@ -4582,20 +4594,20 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 
 static int display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d)
 {
-    int i;
+    int i, j;
     struct MultiDisplay *md = getdisplay (&workprefs);
 
-    i = 0;
-    while (md->DisplayModes[i].depth >= 0) {
+    j = 0;
+    for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
 	if (md->DisplayModes[i].res.width == x &&
 	    md->DisplayModes[i].res.height == y &&
 	    md->DisplayModes[i].depth == d)
 	    break;
-	i++;
+	j++;
     }
     if(md->DisplayModes[i].depth < 0)
-	i = -1;
-    return i;
+	j = -1;
+    return j;
 }
 
 static int da_mode_selected;
@@ -4811,7 +4823,7 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, v);
     WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, sizeof buffer / sizeof (TCHAR));
     LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
-    if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+    if (FormatMessage (FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
 	    buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
     {
 	DWORD dwLastError = GetLastError();
@@ -4853,9 +4865,12 @@ static void values_to_displaydlg (HWND hDlg)
     SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL, display_toselect(workprefs.gfx_pfullscreen, workprefs.gfx_pvsync, 1), 0);
 
     SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)L"Lores");
-    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)L"Hires (normal)");
-    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)L"SuperHires");
+    WIN32GUI_LoadUIString(IDS_RES_LORES, buffer, sizeof buffer / sizeof (TCHAR));
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_RES_HIRES, buffer, sizeof buffer / sizeof (TCHAR));
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)buffer);
+    WIN32GUI_LoadUIString(IDS_RES_SUPERHIRES, buffer, sizeof buffer / sizeof (TCHAR));
+    SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)buffer);
     SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
 
     CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
@@ -4870,18 +4885,20 @@ static void values_to_displaydlg (HWND hDlg)
 
 static void init_resolution_combo (HWND hDlg)
 {
-    int i = 0, idx = -1;
+    int i, idx;
     TCHAR tmp[64];
     struct MultiDisplay *md = getdisplay (&workprefs);
 
+    idx = -1;
     SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
-    while (md->DisplayModes[i].depth >= 0) {
+    for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
 	if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx != idx) {
 	    _stprintf (tmp, L"%dx%d", md->DisplayModes[i].res.width, md->DisplayModes[i].res.height);
+	    if (md->DisplayModes[i].nondx)
+		_tcscat (tmp, L" (*)");
 	    SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
 	    idx = md->DisplayModes[i].residx;
 	}
-	i++;
     }
 }
 static void init_displays_combo (HWND hDlg)
@@ -5023,7 +5040,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.gfx_refreshrate = 0;
 	    } else {
 		posn1--;
-		workprefs.gfx_refreshrate = storedrefreshrates[posn1];
+		workprefs.gfx_refreshrate = storedrefreshrates[posn1].rate;
 	    }
 	    values_to_displaydlg (hDlg);
 	} else if (LOWORD (wParam) == IDC_DA_MODE) {
@@ -9300,6 +9317,7 @@ static void values_from_portsdlg (HWND hDlg)
 static void values_to_portsdlg (HWND hDlg)
 {
     LRESULT result = 0;
+    int idx;
 
     if(workprefs.prtname[0]) {
 	int i, got = 1;
@@ -9325,9 +9343,13 @@ static void values_to_portsdlg (HWND hDlg)
 	}
     }
     SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
-    CheckDlgButton (hDlg, IDC_ASCIIPRINTER, workprefs.parallel_ascii_emulation);
-    CheckDlgButton (hDlg, IDC_PSPRINTER, workprefs.parallel_postscript_emulation);
-    CheckDlgButton (hDlg, IDC_PSPRINTERDETECT, workprefs.parallel_postscript_detection);
+    idx = workprefs.parallel_matrix_emulation;
+    if (workprefs.parallel_postscript_detection)
+	idx = 2;
+    if (workprefs.parallel_postscript_emulation)
+	idx = 3;
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_SETCURSEL, idx, 0);
+
     SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
 
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0);
@@ -9377,6 +9399,7 @@ static void init_portsdlg (HWND hDlg)
     int port, numdevs;
     MIDIOUTCAPS midiOutCaps;
     MIDIINCAPS midiInCaps;
+    TCHAR tmp[MAX_DPATH];
 
     if (!first) {
 	first = 1;
@@ -9394,6 +9417,18 @@ static void init_portsdlg (HWND hDlg)
     for (port = 0; port < MAX_SERIAL_PORTS && comports[port].name; port++) {
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port].name);
     }
+
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_RESETCONTENT, 0, 0L);
+    WIN32GUI_LoadUIString (IDS_PRINTER_PASSTHROUGH, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+    WIN32GUI_LoadUIString (IDS_PRINTER_ASCII, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+    WIN32GUI_LoadUIString (IDS_PRINTER_EPSON, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+    WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_DETECTION, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+    WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_EMULATION, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
@@ -9595,20 +9630,6 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	    if (isprinter ()) {
 		closeprinter ();
 	    }
-	} else if (wParam == IDC_ASCIIPRINTER) {
-	    workprefs.parallel_ascii_emulation = IsDlgButtonChecked (hDlg, IDC_ASCIIPRINTER) ? 1 : 0;
-	    if (workprefs.parallel_ascii_emulation)
-		workprefs.parallel_postscript_detection = 0;
-	} else if (wParam == IDC_PSPRINTER) {
-	    workprefs.parallel_postscript_emulation = IsDlgButtonChecked (hDlg, IDC_PSPRINTER) ? 1 : 0;
-	    if (workprefs.parallel_postscript_emulation)
-		CheckDlgButton (hDlg, IDC_PSPRINTERDETECT, 1);
-	} else if (wParam == IDC_PSPRINTERDETECT) {
-	    workprefs.parallel_postscript_detection = IsDlgButtonChecked (hDlg, IDC_PSPRINTERDETECT) ? 1 : 0;
-	    if (!workprefs.parallel_postscript_detection) {
-		CheckDlgButton (hDlg, IDC_PSPRINTER, 0);
-		workprefs.parallel_ascii_emulation = 0;
-	    }
 	} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH) {
 	    values_from_portsdlg (hDlg);
 	} else {
@@ -9623,6 +9644,27 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			inputdevice_updateconfig (&workprefs);
 			inputdevice_config_change ();
 		    break;
+		    case IDC_PRINTERTYPELIST:
+		    {
+			int item = SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_GETCURSEL, 0, 0L);
+			workprefs.parallel_postscript_detection = workprefs.parallel_postscript_emulation = workprefs.parallel_matrix_emulation = 0;
+			switch (item)
+			{
+			case 1:
+			    workprefs.parallel_matrix_emulation = 1;
+			break;
+			case 2:
+			    workprefs.parallel_matrix_emulation = 2;
+			break;
+			case 3:
+			    workprefs.parallel_postscript_detection = 1;
+			break;
+			case 4:
+			    workprefs.parallel_postscript_detection = 1;
+			    workprefs.parallel_postscript_emulation = 1;
+			break;
+			}
+		    }
 		}
 	    }
 	}

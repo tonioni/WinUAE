@@ -2140,10 +2140,12 @@ void picasso96_alloc (TrapContext *ctx)
 
     i = 0;
     while (DisplayModes[i].depth >= 0) {
-	for (j = 0; missmodes[j * 2] >= 0; j++) {
-	    if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
-		missmodes[j * 2 + 0] = 0;
-		missmodes[j * 2 + 1] = 0;
+	if (DisplayModes[i].nondx == 0) {
+	    for (j = 0; missmodes[j * 2] >= 0; j++) {
+		if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
+		    missmodes[j * 2 + 0] = 0;
+		    missmodes[j * 2 + 1] = 0;
+		}
 	    }
 	}
 	i++;
@@ -2151,6 +2153,10 @@ void picasso96_alloc (TrapContext *ctx)
 
     i = 0;
     while (DisplayModes[i].depth >= 0) {
+	if (DisplayModes[i].nondx) {
+	    i++;
+	    continue;
+	}
 	j = i;
 	size += PSSO_LibResolution_sizeof;
 	while (missmodes[misscnt * 2] == 0)

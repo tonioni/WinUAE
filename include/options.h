@@ -107,7 +107,7 @@ struct uae_prefs {
     int serial_hwctsrts;
     int serial_direct;
     int parallel_demand;
-    int parallel_ascii_emulation;
+    int parallel_matrix_emulation;
     int parallel_postscript_emulation;
     int parallel_postscript_detection;
     int parallel_autoflush_time;
@@ -416,7 +416,7 @@ extern int target_cfgfile_load (struct uae_prefs *, TCHAR *filename, int type, i
 extern void target_quit (void);
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
-extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink);
+extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink, int userconfig);
 extern int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int);
 extern void cfgfile_parse_line (struct uae_prefs *p, TCHAR *, int);
 extern int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int);

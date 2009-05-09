@@ -310,6 +310,14 @@
 #define IDS_AUTOSCALE_DISABLED          348
 #define IDS_AUTOSCALE_SCALING           349
 #define IDS_AUTOSCALE_RESIZE            350
+#define IDS_PRINTER_ASCII               351
+#define IDS_PRINTER_EPSON               352
+#define IDS_PRINTER_POSTSCRIPT_DETECTION 353
+#define IDS_PRINTER_POSTSCRIPT_EMULATION 354
+#define IDS_PRINTER_PASSTHROUGH         355
+#define IDS_RES_LORES                   356
+#define IDS_RES_HIRES                   357
+#define IDS_RES_SUPERHIRES              358
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -342,6 +350,7 @@
 #define IDC_CREATELOGFILE               1026
 #define IDC_PORT0_JOYS                  1026
 #define IDC_SCREENMODE_NATIVE           1026
+#define IDC_PRINTERTYPELIST             1026
 #define IDC_FASTMEM                     1027
 #define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
@@ -385,6 +394,8 @@
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
+#define IDC_LORES_SMOOTHED2             1181
+#define IDC_DISPLAY_UNSUPPORTED         1181
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
@@ -622,8 +633,6 @@
 #define IDC_PSPRINTER                   1556
 #define IDC_PSPRINTERDETECT             1557
 #define IDC_UAESERIAL                   1558
-#define IDC_PSPRINTERDETECT2            1559
-#define IDC_ASCIIPRINTER                1559
 #define IDC_VIEWINFO                    1568
 #define IDC_SETINFO                     1569
 #define IDC_FLOPPYSLIDER                1570

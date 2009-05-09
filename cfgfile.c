@@ -165,6 +165,7 @@ static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
 static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", 0 };
 static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
+static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix" };
 
 static const TCHAR *obsolete[] = {
     L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -594,7 +595,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
     cfgfile_write_bool (f, L"synchronize_clock", p->tod_hack);
     cfgfile_write (f, L"maprom", L"0x%x", p->maprom);
-    cfgfile_write_bool (f, L"parallel_matrix_emulation", p->parallel_ascii_emulation);
+    cfgfile_dwrite_str (f, L"parallel_matrix_emulation", epsonprinter[p->parallel_matrix_emulation]);
     cfgfile_write_bool (f, L"parallel_postscript_emulation", p->parallel_postscript_emulation);
     cfgfile_write_bool (f, L"parallel_postscript_detection", p->parallel_postscript_detection);
     cfgfile_write_str (f, L"ghostscript_parameters", p->ghostscript_parameters);
@@ -1525,7 +1526,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	|| cfgfile_yesno (option, value, L"cpu_compatible", &p->cpu_compatible)
 	|| cfgfile_yesno (option, value, L"cpu_24bit_addressing", &p->address_space_24)
 	|| cfgfile_yesno (option, value, L"parallel_on_demand", &p->parallel_demand)
-	|| cfgfile_yesno (option, value, L"parallel_matrix_emulation", &p->parallel_ascii_emulation)
 	|| cfgfile_yesno (option, value, L"parallel_postscript_emulation", &p->parallel_postscript_emulation)
 	|| cfgfile_yesno (option, value, L"parallel_postscript_detection", &p->parallel_postscript_detection)
 	|| cfgfile_yesno (option, value, L"serial_on_demand", &p->serial_demand)
@@ -1583,6 +1583,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	|| cfgfile_strval (option, value, L"comp_trustlong", &p->comptrustlong, compmode, 0)
 	|| cfgfile_strval (option, value, L"comp_trustnaddr", &p->comptrustnaddr, compmode, 0)
 	|| cfgfile_strval (option, value, L"collision_level", &p->collision_level, collmode, 0)
+	|| cfgfile_strval (option, value, L"parallel_matrix_emulation", &p->parallel_matrix_emulation, epsonprinter, 0)
 	|| cfgfile_strval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 	return 1;
 
@@ -2152,7 +2153,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
     return 1;
 }
 
-int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink)
+int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink, int userconfig)
 {
     int v;
     TCHAR tmp[MAX_DPATH];
@@ -2168,18 +2169,20 @@ int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ign
 	write_log (L"load failed\n");
 	goto end;
     }
+    if (userconfig)
+	target_addtorecent (filename, 0);
     if (!ignorelink) {
 	if (p->config_hardware_path[0]) {
 	    fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
 	    _tcsncat (tmp, p->config_hardware_path, sizeof (tmp) / sizeof (TCHAR));
 	    type2 = CONFIG_TYPE_HARDWARE;
-	    cfgfile_load (p, tmp, &type2, 1);
+	    cfgfile_load (p, tmp, &type2, 1, 0);
 	}
 	if (p->config_host_path[0]) {
 	    fetch_configurationpath (tmp, sizeof (tmp) / sizeof (TCHAR));
 	    _tcsncat (tmp, p->config_host_path, sizeof (tmp) / sizeof (TCHAR));
 	    type2 = CONFIG_TYPE_HOST;
-	    cfgfile_load (p, tmp, &type2, 1);
+	    cfgfile_load (p, tmp, &type2, 1, 0);
 	}
     }
 end:
@@ -3087,7 +3090,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->serial_demand = 0;
     p->serial_hwctsrts = 1;
     p->parallel_demand = 0;
-    p->parallel_ascii_emulation = 0;
+    p->parallel_matrix_emulation = 0;
     p->parallel_postscript_emulation = 0;
     p->parallel_postscript_detection = 0;
     p->parallel_autoflush_time = 5;

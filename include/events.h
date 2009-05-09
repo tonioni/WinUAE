@@ -26,7 +26,6 @@ extern void init_eventtab (void);
 extern void do_cycles_ce (long cycles);
 
 extern unsigned long currcycle, nextevent, is_lastline;
-extern unsigned long sample_evtime;
 typedef void (*evfunc)(void);
 typedef void (*evfunc2)(uae_u32);
 

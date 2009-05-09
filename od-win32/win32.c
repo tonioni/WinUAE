@@ -4345,6 +4345,10 @@ typedef HRESULT (CALLBACK* SHCREATEITEMFROMPARSINGNAME)
 
 void target_addtorecent (const TCHAR *name, int t)
 {
+    TCHAR tmp[MAX_DPATH];
+
+    tmp[0] = 0;
+    GetFullPathName (name, sizeof tmp / sizeof (TCHAR), tmp, NULL);
     if (os_win7) {
 	SHCREATEITEMFROMPARSINGNAME pSHCreateItemFromParsingName;
 	SHARDAPPIDINFO shard;
@@ -4353,12 +4357,12 @@ void target_addtorecent (const TCHAR *name, int t)
 	if (!pSHCreateItemFromParsingName)
 	    return;
 	shard.pszAppID = WINUAEAPPNAME;
-	if (SUCCEEDED (pSHCreateItemFromParsingName (name, NULL, &IID_IShellItem, &shard.psi))) {
+	if (SUCCEEDED (pSHCreateItemFromParsingName (tmp, NULL, &IID_IShellItem, &shard.psi))) {
 	    SHAddToRecentDocs (SHARD_APPIDINFO, &shard);
 	    IShellItem_Release (shard.psi);
 	}
     } else {
-	SHAddToRecentDocs (SHARD_PATH, name);
+	SHAddToRecentDocs (SHARD_PATH, tmp);
     }
 }
 

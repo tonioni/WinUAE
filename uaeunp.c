@@ -16,6 +16,7 @@ TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 struct uae_prefs currprefs;
 static int debug = 1;
+static int amigatest;
 
 #define WRITE_LOG_BUF_SIZE 4096
 void write_log (const TCHAR *format, ...)

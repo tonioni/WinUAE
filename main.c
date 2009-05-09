@@ -392,6 +392,7 @@ void fixup_prefs (struct uae_prefs *p)
 int quit_program = 0;
 static int restart_program;
 static TCHAR restart_config[MAX_DPATH];
+static int default_config;
 
 void uae_reset (int hardreset)
 {
@@ -417,6 +418,7 @@ void uae_restart (int opengui, TCHAR *cfgfile)
     uae_quit ();
     restart_program = opengui > 0 ? 1 : (opengui == 0 ? 2 : 3);
     restart_config[0] = 0;
+    default_config = 0;
     if (cfgfile)
 	_tcscpy (restart_config, cfgfile);
 }
@@ -555,7 +557,7 @@ static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 
     _tcscat (optionsfile, restart_config);
 
-    if (! target_cfgfile_load (&currprefs, optionsfile, 0, 0)) {
+    if (! target_cfgfile_load (&currprefs, optionsfile, 0, default_config)) {
 	write_log (L"failed to load config '%s'\n", optionsfile);
 #ifdef OPTIONS_IN_HOME
 	/* sam: if not found in $HOME then look in current directory */
@@ -839,8 +841,11 @@ static int real_main2 (int argc, TCHAR **argv)
 void real_main (int argc, TCHAR **argv)
 {
     restart_program = 1;
+
     fetch_configurationpath (restart_config, sizeof (restart_config) / sizeof (TCHAR));
     _tcscat (restart_config, OPTIONSFILENAME);
+    default_config = 1;
+
     while (restart_program) {
 	int ret;
 	changed_prefs = currprefs;

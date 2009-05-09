@@ -255,17 +255,27 @@ static void flushprtbuf (void)
     } else if (prtbufbytes > 0) {
 	int pbyt = prtbufbytes;
 
-	if (hPrt == INVALID_HANDLE_VALUE) {
-	    if (!doflushprinter ())
-		return;
-	    openprinter ();
-	}
-	if (hPrt != INVALID_HANDLE_VALUE) {
-	    if (WritePrinter (hPrt, prtbuf, pbyt, &written)) {
-		if (written != pbyt)
-		    write_log (L"PRINTER: Only wrote %d of %d bytes!\n", written, pbyt);
-	    } else {
-		write_log (L"PRINTER: Couldn't write data!\n");
+	if (currprefs.parallel_matrix_emulation == 2) {
+	    int i;
+	    if (!prtopen) {
+	        if (epson_init ())
+		    prtopen = 1;
+	    }
+	    for (i = 0; i < prtbufbytes; i++)
+	        epson_printchar (prtbuf[i]);
+	} else {
+	    if (hPrt == INVALID_HANDLE_VALUE) {
+		if (!doflushprinter ())
+		    return;
+		openprinter ();
+	    }
+	    if (hPrt != INVALID_HANDLE_VALUE) {
+		if (WritePrinter (hPrt, prtbuf, pbyt, &written)) {
+		    if (written != pbyt)
+			write_log (L"PRINTER: Only wrote %d of %d bytes!\n", written, pbyt);
+		} else {
+		    write_log (L"PRINTER: Couldn't write data!\n");
+		}
 	    }
 	}
 
@@ -363,7 +373,7 @@ int load_ghostscript (void)
 
     if (gsdll)
 	return 1;
-    _tcscpy(path, L"gsdll32.dll");
+    _tcscpy (path, L"gsdll32.dll");
     gsdll = WIN32_LoadLibrary (path);
     if (!gsdll) {
 	if (GetEnvironmentVariable (L"GS_DLL", path, sizeof (path) / sizeof (TCHAR)))
@@ -457,13 +467,15 @@ static void openprinter (void)
     if (currprefs.parallel_postscript_emulation) {
 	prtopen = 1;
 	return;
+    } else if (currprefs.parallel_matrix_emulation == 2) {
+	epson_init ();
     } else if (hPrt == INVALID_HANDLE_VALUE) {
 	flushprtbuf ();
 	if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {
 	    // Fill in the structure with info about this "document."
 	    DocInfo.pDocName = L"WinUAE Document";
 	    DocInfo.pOutputFile = NULL;
-	    DocInfo.pDatatype = currprefs.parallel_ascii_emulation ? L"TEXT" : L"RAW";
+	    DocInfo.pDatatype = currprefs.parallel_matrix_emulation ? L"TEXT" : L"RAW";
 	    // Inform the spooler the document is beginning.
 	    if ((dwJob = StartDocPrinter (hPrt, 1, (LPSTR)&DocInfo)) == 0) {
 		ClosePrinter (hPrt );
@@ -486,6 +498,7 @@ void flushprinter (void)
 {
     if (!doflushprinter ())
 	return;
+    flushprtbuf ();
     closeprinter ();
 }
 
@@ -513,6 +526,7 @@ void closeprinter (void)
 	    Sleep (10);
     }
     freepsbuffers ();
+    epson_close ();
     prtbufbytes = 0;
 }
 

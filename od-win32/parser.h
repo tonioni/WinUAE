@@ -46,3 +46,6 @@ extern int enumserialports (void);
 extern void sernametodev (TCHAR*);
 extern void serdevtoname (TCHAR*);
 
+extern void epson_printchar(uae_u8 c);
+extern int epson_init(void);
+extern void epson_close(void);

@@ -59,9 +59,11 @@ struct PicassoResolution
     int depth;   /* depth in bytes-per-pixel */
     int residx;
     int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */
+    int refreshtype[MAX_REFRESH_RATES]; /* 0=dx,1=enumdisplaysettings */
     TCHAR name[25];
     /* Bit mask of RGBFF_xxx values.  */
     uae_u32 colormodes;
+    int nondx;
 };
 extern GUID *displayGUID;
 

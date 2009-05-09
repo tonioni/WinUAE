@@ -1,4 +1,34 @@
 
+Beta 28: (RC1)
+
+- re-added CD32 emulation hack that was removed in b4, fixes unreliable
+  booting in non-JIT modes (do not return TOC until "turn led on/off"
+  command is received. At that time led command was unknown command,
+  now I am quite sure this can't be the correct way to do it..)
+- Rainbow Islands one missing horizontal line fixed ("Ode to Ramon"
+  scanline fix broke this, OCS-only)
+- printer GUI changed, checkboxes replaced with select menu.
+  Passthrough: no changes, original printing method.
+  ASCII-only: prints only basic ASCII text.
+  Epson matrix printer emulation: you do not need to know. yet.
+  PostScript options: no changes.
+- list also supposedly unsupported modes/refresh rates in resolution
+  list, marked with '*'. Ignore modes that have larger resolution
+  than largest supported mode and modes that have 75Hz or higher
+  refresh rate (just to be in safe side..) Some display drivers
+  don't return custom resolutions in "monitor supported" list..
+- loaded configuration files, disk images and statefiles are added to
+  recent list (includes Windows 7 jump list support)
+- more accurate audio Paula/native rate conversion (from UADE, I was
+  supposed to merge this fix long long time ago..), this fix and some
+  sound sync code updates mean much improved sound sync (SND% should
+  be much more stable now, including vsync modes)
+- filter-panel aspect ratio works as expected, aspect ratio selected
+  is monitor's aspect ratio and automatic = aspect ratio calculated
+  from desktop resolution (if fullscreen) or window size (if windowed)
+- added hack that fixes Pang (and perhaps others) graphics problem,
+  real fix coming (much) later..
+
 Beta 27:
 
 - on screen led was always enabled (b26)

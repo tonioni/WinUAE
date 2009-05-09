@@ -397,6 +397,7 @@ static int cdrom_current_sector;
 static int cdrom_data_end, cdrom_leadout;
 static int cdrom_audiotimeout;
 static int cdrom_led;
+static int cdrom_dosomething;
 
 static uae_u8 *sector_buffer_1, *sector_buffer_2;
 static int sector_buffer_sector_1, sector_buffer_sector_2;
@@ -928,6 +929,7 @@ static void cdrom_run_command_run (void)
 	len = cdrom_command_multi ();
 	break;
 	case 5:
+	cdrom_dosomething = 1; // this is a hack
 	len = cdrom_command_led ();
 	break;
 	case 6:
@@ -1028,8 +1030,9 @@ static void akiko_handler (void)
 	    return;
 	}
     }
-    if (cdrom_toc_counter >= 0 && !cdrom_command_active) {
+    if (cdrom_toc_counter >= 0 && !cdrom_command_active && cdrom_dosomething) {
 	cdrom_return_data (cdrom_return_toc_entry ());
+	cdrom_dosomething--;
 	return;
     }
 }

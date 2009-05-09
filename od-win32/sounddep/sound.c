@@ -12,12 +12,13 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include <math.h>
+
 #include "options.h"
 #include "audio.h"
 #include "memory.h"
 #include "events.h"
 #include "custom.h"
-#include "gensound.h"
 #include "threaddep/thread.h"
 #include "avioutput.h"
 #include "gui.h"
@@ -25,6 +26,7 @@
 #include "win32.h"
 #include "savestate.h"
 #include "driveclick.h"
+#include "gensound.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -81,8 +83,6 @@ struct sound_dp
     int opacounter;
 };
 
-#include <math.h>
-
 #define ADJUST_SIZE 30
 #define EXP 2.1
 
@@ -121,22 +121,30 @@ static int isvsync (void)
     return currprefs.gfx_avsync && currprefs.gfx_afullscreen;
 }
 
-int scaled_sample_evtime_orig;
-void update_sound (int freq)
+float scaled_sample_evtime_orig;
+void update_sound (int freq, int longframe)
 
 {
     static int lastfreq;
+    float lines = 0;
+
     if (freq < 0)
 	freq = lastfreq;
     lastfreq = freq;
+
+    if (longframe < 0)
+	lines += 0.5;
+    else if (longframe > 0)
+	lines += 1.0;
+
     if (have_sound) {
 	if (isvsync () || currprefs.chipset_refreshrate) {
 	    if (currprefs.ntscmode)
-		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_NTSC * MAXVPOS_NTSC * freq * CYCLE_UNIT + sdp->obtainedfreq - 1) / sdp->obtainedfreq;
+		scaled_sample_evtime_orig = (MAXHPOS_NTSC * (MAXVPOS_NTSC + lines) * freq * CYCLE_UNIT) / (float)sdp->obtainedfreq;
 	    else
-		scaled_sample_evtime_orig = (unsigned long)(MAXHPOS_PAL * MAXVPOS_PAL * freq * CYCLE_UNIT + sdp->obtainedfreq - 1) / sdp->obtainedfreq;
+		scaled_sample_evtime_orig = (MAXHPOS_PAL * (MAXVPOS_PAL + lines) * freq * CYCLE_UNIT) / (float)sdp->obtainedfreq;
 	} else {
-	    scaled_sample_evtime_orig = (unsigned long)(312.0 * 50 * CYCLE_UNIT / (sdp->obtainedfreq  / 227.0));
+	    scaled_sample_evtime_orig = 227.0 * (lines + 312) * 50 * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	}
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
@@ -304,11 +312,12 @@ const static GUID KSDATAFORMAT_SUBTYPE_PCM = {0x00000001,0x0000,0x0010,
 #define KSAUDIO_SPEAKER_QUAD_SURROUND   (SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT | \
 					 SPEAKER_SIDE_LEFT  | SPEAKER_SIDE_RIGHT)
 
-static struct dsaudiomodes supportedmodes[16];
+#define MAX_SUPPORTEDMODES 16
+static struct dsaudiomodes supportedmodes[MAX_SUPPORTEDMODES];
 
 static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudiomodes *dsam)
 {
-    DWORD speakerconfig;
+    static DWORD speakerconfig;
     DSBUFFERDESC sound_buffer;
     WAVEFORMATEXTENSIBLE wavfmt;
     LPDIRECTSOUNDBUFFER pdsb;
@@ -317,6 +326,10 @@ static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudio
     DWORD rn[4];
     struct sound_dp *s = sd->data;
     LPDIRECTSOUND8 lpDS = s->lpDS;
+    static done;
+
+    if (done)
+	return speakerconfig;
 
     mode = 2;
     dsam[0].ch = 1;
@@ -361,15 +374,21 @@ static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudio
 	    sound_buffer.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
 	    sound_buffer.dwFlags |= DSBCAPS_CTRLVOLUME;
 	    sound_buffer.guid3DAlgorithm = GUID_NULL;
+	    pdsb = NULL;
 	    hr = IDirectSound_CreateSoundBuffer (lpDS, &sound_buffer, &pdsb, NULL);
 	    if (SUCCEEDED (hr)) {
 		IDirectSound_Release (pdsb);
 		dsam[mode].ksmode = rn[round];
 		dsam[mode].ch = ch;
 		mode++;
+		if (mode >= MAX_SUPPORTEDMODES - 1)
+		    break;
 	    }
 	}
     }
+    dsam[mode].ch = 0;
+    dsam[mode].ksmode = 0;
+    done = 1;
     return speakerconfig;
 }
 
@@ -790,8 +809,7 @@ static int open_sound (void)
 	return 0;
 
     set_volume (currprefs.sound_volume, sdp->mute);
-    init_sound_table16 ();
-    if (get_audio_amigachannels() == 4)
+    if (get_audio_amigachannels () == 4)
 	sample_handler = sample16ss_handler;
     else
 	sample_handler = get_audio_ismono () ? sample16_handler : sample16s_handler;
@@ -800,7 +818,7 @@ static int open_sound (void)
 
     have_sound = 1;
     sound_available = 1;
-    update_sound (fake_vblank_hz);
+    update_sound (fake_vblank_hz, 1);
     paula_sndbufsize = sdp->sndbufsize;
     paula_sndbufpt = paula_sndbuffer;
     driveclick_init ();
@@ -874,12 +892,15 @@ static int avioutput_audio;
 
 void sound_setadjust (double v)
 {
-    double mult;
+    float mult;
+
+    if (v >= -5 && v <= 5)
+	v = 0;
 
     mult = (1000.0 + v);
     if (isvsync () || (avioutput_audio && !compiled_code)) {
 	vsynctime = vsynctime_orig;
-	scaled_sample_evtime = (long)(((double)scaled_sample_evtime_orig) * mult / 1000.0);
+	scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
     } else if (compiled_code || currprefs.m68k_speed != 0) {
 	vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 	scaled_sample_evtime = scaled_sample_evtime_orig;
@@ -1125,7 +1146,6 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
     DWORD s1, s2;
     int diff;
     int counter;
-    double vdiff, m, skipmode;
     static int statuscnt;
 
     if (sd == sdp) {
@@ -1283,6 +1303,8 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
     IDirectSoundBuffer_Unlock (s->lpDSBsecondary, b1, s1, b2, s2);
 
     if (sd == sdp) {
+	double vdiff, m, skipmode;
+
 	vdiff = diff - s->snd_writeoffset;
 	m = 100.0 * vdiff / s->max_sndbufsize;
 
@@ -1309,7 +1331,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	}
 
 	if (tfprev != timeframes) {
-	    if (sound_debug && !(tfprev % 10))
+	    if ((0 || sound_debug) && !(tfprev % 10))
 		write_log (L"b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
 		    sd->sndbufsize / sd->samplesize, s->snd_configsize / sd->samplesize, s->max_sndbufsize / sd->samplesize,
 		    s->dsoundbuf / sd->samplesize, diff / sd->samplesize, vdiff, skipmode);
@@ -1365,7 +1387,7 @@ void finish_sound_buffer (void)
     if (currprefs.sound_stereo_swap_paula) {
 	if (get_audio_nativechannels () == 2 || get_audio_nativechannels () == 4)
 	    channelswap ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
-	else if (get_audio_nativechannels() == 6)
+	else if (get_audio_nativechannels () == 6)
 	    channelswap6 ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
     }
 #ifdef DRIVESOUND
@@ -1537,7 +1559,7 @@ int enumerate_sound_devices (void)
 	write_log (L"Enumerating DirectSound devices..\n");
 	DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
-	if (0 && isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
+	if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
 	    write_log (L"Enumerating OpenAL devices..\n");
 	    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
 		const char* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);

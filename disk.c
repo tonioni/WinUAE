@@ -2235,6 +2235,7 @@ static void disk_insert_2 (int num, const TCHAR *name, int forced)
 
 void disk_insert (int num, const TCHAR *name)
 {
+    target_addtorecent (name, 0);
     disk_insert_2 (num, name, 0);
 }
 void disk_insert_force (int num, const TCHAR *name)

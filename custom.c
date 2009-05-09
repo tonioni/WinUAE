@@ -1770,7 +1770,7 @@ STATIC_INLINE void decide_line (int hpos)
     if (fetch_state != fetch_not_started)
 	return;
 
-    if (dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
+    if (diwstate == DIW_waiting_stop) {
 	int ok = 0;
 	if (last_decide_line_hpos < plfstrt_start && hpos >= plfstrt_start) {
 	    if (plfstate == plf_idle)
@@ -1786,7 +1786,7 @@ STATIC_INLINE void decide_line (int hpos)
 	    if (hpos - 2 == ddfstrt_old_hpos && ddfstrt_old_vpos == vpos)
 		ok = 0;
 	}
-	if (ok) {
+	if (ok && dmaen (DMA_BITPLANE)) {
 	    start_bpl_dma (hpos, plfstrt);
 	    estimate_last_fetch_cycle (plfstrt);
 	    last_decide_line_hpos = hpos;
@@ -2302,7 +2302,7 @@ static void decide_sprites (int hpos)
 	record_sprite (next_lineno, nr, posns[i], sprdata[nr], sprdatb[nr], sprctl[nr]);
 	/* get left and right sprite edge if brdsprt enabled */
 #if AUTOSCALE_SPRITES
-	if ((bplcon0 & 1) && (bplcon3 & 0x02) && !(bplcon3 & 0x20)) {
+	if (dmaen (DMA_SPRITE) && (bplcon0 & 1) && (bplcon3 & 0x02) && !(bplcon3 & 0x20)) {
 	    int j, jj;
 	    for (j = 0, jj = 0; j < sprite_width; j+= 16, jj++) {
 		int nx = fromspritexdiw (posns[i] + j);
@@ -2559,7 +2559,7 @@ void compute_vsynctime (void)
 #endif
     }
     if (currprefs.produce_sound > 1)
-	update_sound (fake_vblank_hz);
+	update_sound (fake_vblank_hz, (bplcon0 & 4) ? -1 : lof);
 }
 
 
@@ -3210,9 +3210,18 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     decide_fetch (hpos);
     /* fix for "bitplane dma fetch at the same time while updating BPLxPTL" */
     /* fixes "3v Demo" by Cave and "New Year Demo" by Phoenix */
-    if (is_bitplane_dma (hpos) == num + 1 || is_bitplane_dma (hpos - 1) == num + 1 || is_bitplane_dma (hpos + 1) == num + 1) {
+    if (is_bitplane_dma (hpos) == num + 1 || is_bitplane_dma (hpos - 1) == num + 1) {
 	delta = 2 << f_fetchmode;
     }
+
+    // hack until bitplane pipelin is properly emulated
+    if (fetchmode == 0 && fetch_state != fetch_not_started && diwstate == DIW_waiting_stop && f_fm_maxplane == 8) {
+        if (hpos > plfstrt && hpos <= plfstrt + 7) {
+	    if (num == 1 && hpos <= plfstrt + 2)
+		delta = 2;
+	}
+    }
+
     f_bplpt[num] = bplpt[num] = (bplpt[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     bplptx[num] = (bplptx[num] & 0xffff0000) | ((v + delta) & 0x0000fffe);
     //write_log (L"%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
@@ -4705,6 +4714,7 @@ static void vsync_handler (void)
 #ifdef PICASSO96
     picasso_handle_vsync ();
 #endif
+    audio_vsync ();
 
     if (quit_program > 0) {
 	/* prevent possible infinite loop at wait_cycles().. */
