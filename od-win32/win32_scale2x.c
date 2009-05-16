@@ -80,6 +80,23 @@ static int vblscale (int v)
     o = n;
     if (beamcon0 & 0x80)
 	return v;
+    if (currprefs.ntscmode)
+	v = v * maxvpos / MAXVPOS_NTSC;
+    else
+	v = v * maxvpos / MAXVPOS_PAL;
+    return v;
+}
+static int vblscale2 (int v)
+{
+    static int o;
+    int n;
+
+    n = (beamcon0 & 0x80) + maxvpos;
+    if (n != o)
+	cleartemp = 1;
+    o = n;
+    if (beamcon0 & 0x80)
+	return v;
     v = v * maxvpos / MAXVPOS_PAL;
     return v;
 }
@@ -106,17 +123,33 @@ static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
     OffsetRect (zr, w / 2, h / 2);
 }
 
+static void xymult (int *x, int *y)
+{
+    int mult = currprefs.gfx_resolution - (currprefs.gfx_linedbl ? 1 : 0);
+    if (mult < 0)
+	*x *= 1 << (-mult);
+    else
+	*y *= 1 << mult;
+}
+
+static int ppp = 320;
+
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
+    float srcratio, dstratio;
     int aws, ahs, ahs2;
     int xs, ys;
-    int xmult, ymult;
+    float xmult, ymult;
     int v;
-
+    int extraw, extrah;
+    
     getinit ();
     ahs2 = vblscale (ah) * scale;
     aws = aw * scale;
     ahs = ah * scale;
+
+    extraw = -aws * currprefs.gfx_filter_horiz_zoom / 2000;
+    extrah = -ahs * currprefs.gfx_filter_vert_zoom / 2000;
 
     SetRect (sr, 0, 0, dst_width, dst_height);
     SetRect (zr, 0, 0, 0, 0);
@@ -132,24 +165,27 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
     xmult = currprefs.gfx_filter_horiz_zoom_mult;
     ymult = currprefs.gfx_filter_vert_zoom_mult;
+
+    srcratio = 4.0 / 3.0;
+    if (currprefs.gfx_filter_aspect > 0) {
+        dstratio = (currprefs.gfx_filter_aspect >> 8) * 1.0 / (currprefs.gfx_filter_aspect & 0xff);
+    } else if (currprefs.gfx_filter_aspect < 0 && deskw > 0 && deskh > 0) {
+        dstratio = 1.0 * deskw / deskh;
+    } else {
+        dstratio = srcratio;
+    }
+
     if (currprefs.gfx_filter_autoscale) {
 	int cw, ch, cx, cy, cv;
-	int extraw = currprefs.gfx_filter_horiz_zoom;
-	int extrah = currprefs.gfx_filter_vert_zoom;
 	static int oxmult, oymult;
 
 	filterxmult = 1000 / scale;
 	filterymult = 1000 / scale;
 
-	xmult = 1000;
-	ymult = 1000;
         cv = get_custom_limits (&cw, &ch, &cx, &cy);
 	if (cv) {
 	    int diff;
-
-	    extraw = amiga_width * extraw / 2000;
-	    extrah = amiga_height * extrah / 2000;
-
+	
 	    if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
 		int ww;
 		static int lastresize = 0;
@@ -224,45 +260,32 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	    filteroffsety = -zr->top / scale;
 
 	    if (currprefs.gfx_filter_keep_aspect || currprefs.gfx_filter_aspect != 0) {
-		int dw = dst_width;
-		int dh = dst_height;
-		int xratio, yratio;
 		int diffx = dr->right - dr->left;
 		int diffy = dr->bottom - dr->top;
-	
-		xratio = 4 * 256;
-		yratio = 3 * 256;
-		if (currprefs.gfx_filter_aspect != 0) {
-		    int xm, ym, mult;
-		    if (currprefs.gfx_filter_aspect > 0) {
-			xm = (currprefs.gfx_filter_aspect >> 8) * 256;
-			ym = (currprefs.gfx_filter_aspect & 0xff) * 256;
-		    } else if (deskw > 0 && deskh > 0) {
-			xm = deskw * 256;
-			ym = deskh * 256;
-		    } else {
-			xm = xratio;
-			ym = yratio;
-		    }
-		    mult = currprefs.gfx_resolution - (currprefs.gfx_linedbl ? 1 : 0);
-		    if (mult < 0)
-			xm *= 1 << (-mult);
-		    else
-			ym *= 1 << mult;
-		    xratio *= ym / 256;
-		    yratio *= xm / 256;
+		float xmult = 1.0;
+		float ymult = 1.0;
+
+	        if (currprefs.gfx_filter_keep_aspect) {
+		    dstratio = dstratio * (aws * 1.0 / ahs2) / (cw * 1.0 / ch);
+		    if (currprefs.ntscmode)
+			dstratio = dstratio * 1.2;
 		}
 
-		if (xratio < yratio) {
-		    diff = diffx - diffx * xratio / yratio;
-		    sizeoffset (dr, zr, -diff, 0);
-		    filteroffsetx += (diff * cw / dst_width) / 2;
+		if (srcratio > dstratio) {
+		    ymult = ymult * srcratio / dstratio;
 		} else {
-		    diff = diffx - diffx * yratio / xratio;
-		    sizeoffset (dr, zr, 0, -diff);
-		    filteroffsety += diff / 2;
+		    xmult = xmult * dstratio / srcratio;
 		}
+
+	        diff = diffx - diffx * xmult;
+	        sizeoffset (dr, zr, diff, 0);
+	        filteroffsetx += diff / 2;
+
+		diff = diffy - diffy * ymult;
+	        sizeoffset (dr, zr, 0, diff);
+	        filteroffsety += diff / 2;
 	    }
+
 	    diff = dr->right - dr->left;
 	    filterxmult = diff * 1000 / (dst_width * scale);
 	    diff = dr->bottom - dr->top;
@@ -270,37 +293,42 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	    return;
 	}
     }
-    
-    if (currprefs.gfx_filter_keep_aspect && !xmult && !ymult) {
-        xmult = aws * 1000 / dst_width;
-        ymult = ahs * 1000 / dst_height;
-	if (xmult < ymult)
-	    xmult = ymult;
-	else
-	    ymult = xmult;
-    } else {
-	if (xmult <= 0)
+  
+    if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult) {
+
+	sizeoffset (dr, zr, extraw, extrah);
+
+	if (currprefs.gfx_filter_keep_aspect) {
+	    float xm, ym, m;
+
+	    xm = 1.0 * aws / dst_width;
+	    ym = 1.0 * ahs / dst_height;
+	    if (xm < ym)
+		xm = ym;
+	    else
+		ym = xm;
+	    xmult = ymult = xm * 1000.0;
+
+	    m = (aws * 1.0 / dst_width) / (ahs * 1.0 / dst_height);
+	    dstratio = dstratio * m;
+	}
+
+    }
+
+    if (xmult <= 0.01 || ymult <= 0.01) {
+
+	if (xmult <= 0.01)
 	    xmult = aws * 1000 / dst_width;
 	else
 	    xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
-	if (ymult <= 0)
+	if (ymult <= 0.01)
 	    ymult = ahs * 1000 / dst_height;
 	else
 	    ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
+
     }
-    
+
     if (currprefs.gfx_filter_aspect != 0) {
-	int srcratio, dstratio;
-	int xmult2 = xmult;
-	int ymult2 = ymult;
-	srcratio = 4 * 256 / 3;
-	if (currprefs.gfx_filter_aspect > 0) {
-	    dstratio = (currprefs.gfx_filter_aspect >> 8) * 256 / (currprefs.gfx_filter_aspect & 0xff);
-	} else if (deskw > 0 && deskh > 0) {
-	    dstratio = deskw * 256 / deskh;
-	} else {
-	    dstratio = srcratio;
-	}
 	if (srcratio > dstratio) {
 	    ymult = ymult * srcratio / dstratio;
 	} else {
@@ -308,7 +336,15 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	}
     }
 
+    if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult && currprefs.ntscmode) {
+	int v = vblscale2 (ahs);
+	ymult /= 1.2;
+	OffsetRect (dr, 0, (v - ahs2) / 2);
+    }
+
+
     ymult = vblscale (ymult);
+    OffsetRect (dr, 0, (ahs2 - ahs) / 2);
 
     v = currprefs.gfx_filter ? currprefs.gfx_filter_horiz_offset : 0;
     OffsetRect (zr, (int)(-v * aws / 1000.0), 0);
@@ -317,7 +353,6 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
     xs = dst_width - dst_width * xmult / 1000;
     ys = dst_height - dst_height * ymult / 1000;
-    OffsetRect (dr, 0, (ahs2 - ahs) / 2);
     sizeoffset (dr, zr, xs, ys);
 
     filterxmult = xmult;

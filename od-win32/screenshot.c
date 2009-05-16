@@ -88,7 +88,7 @@ void screenshot_free(void)
 }
 
 
-int screenshot_prepare(void)
+int screenshot_prepare (void)
 {
     unsigned int width, height;
     HGDIOBJ hgdiobj;

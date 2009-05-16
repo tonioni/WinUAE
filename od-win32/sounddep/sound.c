@@ -453,23 +453,24 @@ static int open_audio_pa (struct sound_data *sd, int index)
     const PaDeviceInfo *di;
     PaStreamParameters p;
     PaError err;
+    TCHAR *name;
 
     size = sd->sndbufsize;
     s->paframesperbuffer = size;
     sd->sndbufsize = size * ch * 2;
     sd->devicetype = SOUND_DEVICE_PA;
     memset (&p, 0, sizeof p);
+    di = Pa_GetDeviceInfo (dev);
     p.channelCount = ch;
     p.device = dev;
     p.hostApiSpecificStreamInfo = NULL;
     p.sampleFormat = paInt16;
-    p.suggestedLatency = Pa_GetDeviceInfo (dev)->defaultLowOutputLatency;
+    p.suggestedLatency = di->defaultLowOutputLatency;
     p.hostApiSpecificStreamInfo = NULL; 
     for (;;) {
 	err = Pa_IsFormatSupported (NULL, &p, freq);
 	if (err == paFormatIsSupported)
 	    break;
-	di = Pa_GetDeviceInfo (dev);
 	if (freq < 48000) {
 	    freq = 48000;
 	    err = Pa_IsFormatSupported (NULL, &p, freq);
@@ -497,6 +498,10 @@ static int open_audio_pa (struct sound_data *sd, int index)
     s->paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
     for (i = 0; i < 2; i++)
 	s->pasoundbuffer[i] = xcalloc (sd->sndbufsize, 1);
+    name = au (di->name);
+    write_log (L"PASOUND: CH=%d,FREQ=%d (%s) '%s' buffer %d\n",
+	ch, freq, sound_devices[index].name, name, sd->sndbufsize);
+    xfree (name);
     return 1;
 end:
     s->pastream = NULL;

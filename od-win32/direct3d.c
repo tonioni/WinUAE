@@ -1079,7 +1079,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     dpp.BackBufferFormat = mode.Format;
     dpp.BackBufferCount = 1;
     dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    dpp.Flags = dpp.Windowed ? 0 : D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+    dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
     dpp.BackBufferWidth = w_w;
     dpp.BackBufferHeight = w_h;
     dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;

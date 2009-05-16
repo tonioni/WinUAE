@@ -94,7 +94,7 @@ static int lcd_init (void)
     memcpy (origbitmap, bitmap, desc.Width * desc.Height);
     DeleteDC (dc);
 
-    write_log (L"LCD: Logitech LCD system initialized\n");
+    write_log (L"LCD: '%s' enabled\n", desc.deviceDisplayName);
     return 1;
 }
 

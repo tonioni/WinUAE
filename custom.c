@@ -3215,7 +3215,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
     }
 
     // hack until bitplane pipelin is properly emulated
-    if (fetchmode == 0 && fetch_state != fetch_not_started && diwstate == DIW_waiting_stop && f_fm_maxplane == 8) {
+    if (fetchmode == 0 && fetch_state != fetch_not_started && diwstate == DIW_waiting_stop && f_fm_maxplane == 8 && t_bplcon0_planes > 1 && td_bplcon0_res == 0) {
         if (hpos > plfstrt && hpos <= plfstrt + 7) {
 	    if (num == 1 && hpos <= plfstrt + 2)
 		delta = 2;

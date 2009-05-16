@@ -642,7 +642,7 @@ HRESULT rp_init (void)
 {
     HRESULT hr;
 
-    hr = RPInitializeGuest(&guestinfo, hInst, rp_param, RPHostMsgFunction, 0);
+    hr = RPInitializeGuest (&guestinfo, hInst, rp_param, RPHostMsgFunction, 0);
     if (SUCCEEDED (hr)) {
 	initialized = TRUE;
 	write_log (L"rp_init('%s') succeeded\n", rp_param);

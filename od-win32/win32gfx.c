@@ -78,7 +78,7 @@
 #define SM_NONE 11
 
 struct uae_filter *usedfilter;
-int scalepicasso;
+static int scalepicasso;
 
 struct winuae_currentmode {
     unsigned int flags;
@@ -892,33 +892,38 @@ static void DX_Blit96 (int x, int y, int w, int h)
     picasso_offset_my = 1000;
     if (scalepicasso) {
 	int srcratio, dstratio;
+	int srcwidth, srcheight;
+
+	if (scalepicasso < 0) {
+	    srcwidth = picasso96_state.Width;
+	    srcheight = picasso96_state.Height;
+	} else {
+	    srcwidth = currentmode->native_width;
+	    srcheight = currentmode->native_height;
+	}
+
 	SetRect (&sr, 0, 0, picasso96_state.Width, picasso96_state.Height);
 	if (currprefs.win32_rtgscaleaspectratio < 0) {
 	    // automatic
 	    srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
-	    dstratio = currentmode->native_width * 256 / currentmode->native_height;
+	    dstratio = srcwidth * 256 / srcheight;
 	} else if (currprefs.win32_rtgscaleaspectratio == 0) {
 	    // none
 	    srcratio = dstratio = 0;
 	} else {
 	    // manual
-	    if (isfullscreen () == 0) {
-		dstratio = currentmode->native_width * 256 / currentmode->native_height;
-		srcratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
-	    } else {
-		srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
-		dstratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
-	    }
+	    srcratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
+	    dstratio = srcwidth * 256 / srcheight;
 	}
 	if (srcratio == dstratio) {
-	    SetRect (&dr, 0, 0, currentmode->native_width, currentmode->native_height);
+	    SetRect (&dr, 0, 0, srcwidth, srcheight);
 	} else if (srcratio > dstratio) {
-	    int yy = currentmode->native_height - currentmode->native_height * dstratio / srcratio;
-	    SetRect (&dr, 0, yy / 2, currentmode->native_width, currentmode->native_height - yy / 2);
+	    int yy = srcheight - srcheight * dstratio / srcratio;
+	    SetRect (&dr, 0, yy / 2, srcwidth, srcheight - yy / 2);
 	    picasso_offset_y = yy / 2;
 	} else {
-	    int xx = currentmode->native_width - currentmode->native_width * srcratio / dstratio;
-	    SetRect (&dr, xx / 2, 0, currentmode->native_width - xx / 2, currentmode->native_height);
+	    int xx = srcwidth - srcwidth * srcratio / dstratio;
+	    SetRect (&dr, xx / 2, 0,srcwidth - xx / 2, srcheight);
 	    picasso_offset_x = xx / 2;
 	}
 	picasso_offset_mx = picasso96_state.Width * 1000 / (dr.right - dr.left);
@@ -1073,6 +1078,8 @@ static void updatemodes (void)
         RECT rc = getdisplay (&currprefs)->rect;
         currentmode->native_width = rc.right - rc.left;
         currentmode->native_height = rc.bottom - rc.top;
+        currentmode->current_width = currentmode->native_width;
+        currentmode->current_height = currentmode->native_height;
     } else {
 	currentmode->native_width = currentmode->current_width;
 	currentmode->native_height = currentmode->current_height;
@@ -1121,18 +1128,25 @@ static void update_gfxparams (void)
     if (screen_is_picasso) {
 	if (isfullscreen () < 0) {
 	    if ((currprefs.win32_rtgscaleifsmall || currprefs.win32_rtgallowscaling) && (picasso96_state.Width != currentmode->native_width || picasso96_state.Height != currentmode->native_height))
-	        scalepicasso = -1;
+	        scalepicasso = 1;
+	    if (!scalepicasso && currprefs.win32_rtgscaleaspectratio)
+		scalepicasso = -1;
 	} else if (isfullscreen () > 0) {
-	    //if (currprefs.gfx_size.width > picasso96_state.Width && currprefs.gfx_size.height > picasso96_state.Height) {
-	    if (currentmode->native_width > picasso96_state.Width && currentmode->native_height > picasso96_state.Height) {
-		if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth) // can't scale to different color depth
-		    scalepicasso = 1;
+	    if (!currprefs.win32_rtgmatchdepth) { // can't scale to different color depth
+		if (currentmode->native_width > picasso96_state.Width && currentmode->native_height > picasso96_state.Height) {
+		    if (currprefs.win32_rtgscaleifsmall)
+			scalepicasso = 1;
+		}
+		if (!scalepicasso && currprefs.win32_rtgscaleaspectratio)
+		    scalepicasso = -1;
 	    }
 	} else if (isfullscreen () == 0) {
 	    if ((currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height) && currprefs.win32_rtgallowscaling)
 		scalepicasso = 1;
 	    if ((currprefs.gfx_size.width > picasso96_state.Width || currprefs.gfx_size.height > picasso96_state.Height) && currprefs.win32_rtgscaleifsmall)
 		scalepicasso = 1;
+	    if (!scalepicasso && currprefs.win32_rtgscaleaspectratio)
+		scalepicasso = -1;
 	}
 
 	if (scalepicasso > 0 && (currprefs.gfx_size.width != picasso96_state.Width || currprefs.gfx_size.height != picasso96_state.Height)) {
@@ -1801,7 +1815,7 @@ int machdep_init (void)
     screen_is_picasso = 0;
     memset (currentmode, 0, sizeof (*currentmode));
 #ifdef LOGITECHLCD
-    lcd_open();
+    lcd_open ();
 #endif
 #ifdef RETROPLATFORM
     if (rp_param != NULL) {

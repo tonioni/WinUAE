@@ -1455,6 +1455,8 @@ void set_audio (void)
     }
 
     sep = (currprefs.sound_stereo_separation = changed_prefs.sound_stereo_separation) * 3 / 2;
+    if (sep >= 15)
+	sep = 16;
     delay = currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
     mixed_mul1 = MIXED_STEREO_SCALE / 2 - sep;
     mixed_mul2 = MIXED_STEREO_SCALE / 2 + sep;

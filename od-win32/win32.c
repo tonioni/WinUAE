@@ -1246,7 +1246,7 @@ static int canstretch (void)
 	return 0;
     if (!WIN32GFX_IsPicassoScreen ())
 	return 1;
-    if (currprefs.win32_rtgallowscaling)
+    if (currprefs.win32_rtgallowscaling || currprefs.win32_rtgscaleaspectratio)
 	return 1;
     return 0;
 }

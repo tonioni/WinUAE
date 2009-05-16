@@ -1,4 +1,16 @@
 
+Beat 29: (RC2, beta dialog removed)
+
+- Pang hack fixed, it was wrong and caused side-effects..
+- autoscale/keep aspect ratio combination fixed
+- NTSC hardware in PAL mode: shrink display (fit PAL display in NTSC
+  space) Previously NTSC was always streched but I think it is better
+  to make "base" hardware PAL/NTSC mode non-scaled. Note that PAL/NTSC
+  vertical streching/shrinking is only supported in filter modes
+- screenshots didn't work in windowed D3D modes
+- screenshot size was wrong in full-window mode
+- 100% stereo separation was only about 95% stereo separation
+
 Beta 28: (RC1)
 
 - re-added CD32 emulation hack that was removed in b4, fixes unreliable

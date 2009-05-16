@@ -58,7 +58,7 @@ HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHo
 
 	// find the host message window
 	//
-	pszHostClass = (_TCHAR *)LocalAlloc(LMEM_FIXED, _tcslen(g_szHostWndClass) + _tcslen(pszHostInfo) + 1);
+	pszHostClass = (_TCHAR *)LocalAlloc(LMEM_FIXED, (_tcslen(g_szHostWndClass) + _tcslen(pszHostInfo) + 1) * sizeof (_TCHAR));
 	if (!pszHostClass)
 		return E_OUTOFMEMORY;
 	wsprintf(pszHostClass, g_szHostWndClass, pszHostInfo);
