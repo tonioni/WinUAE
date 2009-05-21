@@ -100,6 +100,12 @@ static int vblscale2 (int v)
     v = v * maxvpos / MAXVPOS_PAL;
     return v;
 }
+static int ispal (void)
+{
+    if (beamcon0 & 0x80)
+	return currprefs.ntscmode == 0;
+    return maxvpos >= MAXVPOS_NTSC + (MAXVPOS_PAL - MAXVPOS_NTSC) / 2;
+}
 
 uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
 {
@@ -169,8 +175,11 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
     srcratio = 4.0 / 3.0;
     if (currprefs.gfx_filter_aspect > 0) {
         dstratio = (currprefs.gfx_filter_aspect >> 8) * 1.0 / (currprefs.gfx_filter_aspect & 0xff);
-    } else if (currprefs.gfx_filter_aspect < 0 && deskw > 0 && deskh > 0) {
-        dstratio = 1.0 * deskw / deskh;
+    } else if (currprefs.gfx_filter_aspect < 0) {
+	if (isfullscreen () && deskw > 0 && deskh > 0)
+	    dstratio = 1.0 * deskw / deskh;
+	else
+	    dstratio = 1.0 * dst_width / dst_height;
     } else {
         dstratio = srcratio;
     }
@@ -267,8 +276,18 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	        if (currprefs.gfx_filter_keep_aspect) {
 		    dstratio = dstratio * (aws * 1.0 / ahs2) / (cw * 1.0 / ch);
-		    if (currprefs.ntscmode)
-			dstratio = dstratio * 1.2;
+		    if (currprefs.ntscmode) {
+		        dstratio = dstratio * 1.21;
+			if (currprefs.gfx_filter_keep_aspect == 2 && ispal ())
+			    dstratio = dstratio * 0.93;
+			else if (currprefs.gfx_filter_keep_aspect == 1 && !ispal ())
+			    dstratio = dstratio * 0.98;
+		    } else {
+			if (currprefs.gfx_filter_keep_aspect == 2 && ispal ())
+			    dstratio = dstratio * 0.95;
+			else if (currprefs.gfx_filter_keep_aspect == 1 && !ispal ())
+			    dstratio = dstratio * 0.95;
+		    }
 		}
 
 		if (srcratio > dstratio) {
@@ -315,31 +334,39 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
     }
 
-    if (xmult <= 0.01 || ymult <= 0.01) {
-
-	if (xmult <= 0.01)
-	    xmult = aws * 1000 / dst_width;
-	else
-	    xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
-	if (ymult <= 0.01)
-	    ymult = ahs * 1000 / dst_height;
-	else
-	    ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
-
+    if (currprefs.ntscmode) {
+        if (currprefs.gfx_filter_keep_aspect == 2 && ispal ())
+	    dstratio = dstratio * 0.93;
+	else if (currprefs.gfx_filter_keep_aspect == 1 && !ispal ())
+    	    dstratio = dstratio * 0.98;
+    } else {
+	if (currprefs.gfx_filter_keep_aspect == 2 && ispal ())
+    	    dstratio = dstratio * 0.95;
+	else if (currprefs.gfx_filter_keep_aspect == 1 && !ispal ())
+	    dstratio = dstratio * 0.95;
     }
 
-    if (currprefs.gfx_filter_aspect != 0) {
-	if (srcratio > dstratio) {
-	    ymult = ymult * srcratio / dstratio;
-	} else {
-	    xmult = xmult * dstratio / srcratio;
+    if (srcratio > dstratio) {
+        ymult = ymult * srcratio / dstratio;
+    } else {
+        xmult = xmult * dstratio / srcratio;
+    }
+
+    if (xmult <= 0.01)
+        xmult = aws * 1000 / dst_width;
+    else
+        xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
+    if (ymult <= 0.01)
+        ymult = ahs * 1000 / dst_height;
+    else
+        ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
+
+    if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult) {
+	if (currprefs.ntscmode) {
+	    int v = vblscale2 (ahs);
+	    ymult /= 1.21;
+	    OffsetRect (dr, 0, (v - ahs2) / 2);
 	}
-    }
-
-    if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult && currprefs.ntscmode) {
-	int v = vblscale2 (ahs);
-	ymult /= 1.2;
-	OffsetRect (dr, 0, (v - ahs2) / 2);
     }
 
 

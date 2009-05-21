@@ -4372,6 +4372,26 @@ void target_reset (void)
     clipboard_reset ();
 }
 
+uae_u32 emulib_target_getcpurate (uae_u32 v, uae_u32 *low)
+{
+    *low = 0;
+    if (v == 1) {
+        LARGE_INTEGER pf;
+        pf.QuadPart = 0;
+        QueryPerformanceFrequency (&pf);
+        *low = pf.LowPart;
+        return pf.HighPart;
+    } else if (v == 2) {
+        LARGE_INTEGER pf;
+        pf.QuadPart = 0;
+        QueryPerformanceCounter (&pf);
+        *low = pf.LowPart;
+        return pf.HighPart;
+    }
+    return 0;
+}
+
+
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 

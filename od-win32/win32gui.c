@@ -9049,6 +9049,7 @@ static void enable_for_gameportsdlg (HWND hDlg)
     ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
     ew (hDlg, IDC_PORT_MOUSETRICK, v);
     ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
+    ew (hDlg, IDC_PORT_TABLET, v);
 }
 
 static void enable_for_portsdlg (HWND hDlg)
@@ -10163,6 +10164,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERFILTER, vv);
     ew (hDlg, IDC_FILTERKEEPASPECT, v);
     ew (hDlg, IDC_FILTERASPECT, v);
+    ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
 
     ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
     ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
@@ -10311,7 +10313,6 @@ static void values_to_hw3ddlg (HWND hDlg)
     struct uae_filter *uf;
     UAEREG *fkey;
 
-    CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
     SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
 	(workprefs.gfx_filter_aspect == 0) ? 0 :
 	(workprefs.gfx_filter_aspect < 0) ? 1 :
@@ -10320,6 +10321,11 @@ static void values_to_hw3ddlg (HWND hDlg)
 	(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 4 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 5 :
 	(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
+
+    CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
+
+    SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
+	workprefs.gfx_filter_keep_aspect, 0);
 
     SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
     WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
@@ -10665,6 +10671,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"15:9");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"16:9");
 	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)L"16:10");
+
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_RESETCONTENT, 0, 0);
+	    WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)L"VGA");
+	    SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)L"TV");
+
 	    enable_for_hw3ddlg (hDlg);
 
 	case WM_USER:
@@ -10698,9 +10711,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		recursive++;
 		break;
 		case IDC_FILTERKEEPASPECT:
-		currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT);
-		updatedisplayarea ();
-		WIN32GFX_WindowMove ();
+		{
+		    if (IsDlgButtonChecked (hDlg, IDC_FILTERKEEPASPECT))
+			currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 1;
+		    else
+			currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 0;
+		    enable_for_hw3ddlg (hDlg);
+		    values_to_hw3ddlg (hDlg);
+		    updatedisplayarea ();
+		    WIN32GFX_WindowMove ();
+		}
 		break;
 		default:
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
@@ -10775,6 +10795,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			    WIN32GFX_WindowMove ();
 			}
 			break;
+			case IDC_FILTERASPECT2:
+			{
+			    int v = SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_GETCURSEL, 0, 0L);
+			    if (v != CB_ERR)
+				currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = v;
+			    updatedisplayarea ();
+			    WIN32GFX_WindowMove ();
+			}
+			break;
+
 		    }
 		}
 		break;

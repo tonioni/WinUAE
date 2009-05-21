@@ -51,6 +51,7 @@ static int t_depth;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode;
 static int needclear;
+static int resetcount;
 
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
 struct TLVERTEX {
@@ -1006,6 +1007,7 @@ void D3D_free (void)
     d3d_enabled = 0;
     psPreProcess = 0;
     psActive = 0;
+    resetcount = 0;
 }
 
 const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
@@ -1214,9 +1216,11 @@ int D3D_needreset (void)
 	hr = IDirect3DDevice9_Reset (d3ddev, &dpp);
 	if (FAILED (hr)) {
 	    write_log (L"D3D: Reset failed %s\n", D3D_ErrorString (hr));
-	    changed_prefs.gfx_filter = 0;
-	    return 1;
+	    resetcount++;
+	    if (resetcount > 2)
+		changed_prefs.gfx_filter = 0;
 	}
+	return 1;
     }
     return 0;
 }

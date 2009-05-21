@@ -1,13 +1,28 @@
 
-Beat 29: (RC2, beta dialog removed)
+Final 1.6.0
 
-- Pang hack fixed, it was wrong and caused side-effects..
+- filter mode PAL aspect ratio corrected (~5% difference) if keep
+  aspect ratio checked. (it includes now non-square pixel ratio)
+  Does basically same as long time ago removed aspect ratio option.
+  Because it can look ugly and it isn't exactly required feature,
+  it is only enabled in FS or autoscale modes (they need scaling
+  even without aspect ratio correction)
+- ASPI SCSI unicode conversion bugs fixed (random crashes..)
+- "Ignore modes that have larger resolution than largest supported
+  mode". Now it really does this.
+- D3D fall back to non-filtered if IDirect3DDevice9_Reset failed
+  (instead of closing and reopening the screen and trying again)
+- filter scaling sliders didn't work in normal (1x+ mode)
+
+Beta 29: (RC2, beta dialog removed)
+
+- Pang hack side-effects fixed
 - autoscale/keep aspect ratio combination fixed
 - NTSC hardware in PAL mode: shrink display (fit PAL display in NTSC
-  space) Previously NTSC was always streched but I think it is better
+  space) Previously NTSC was always stretched but I think it is better
   to make "base" hardware PAL/NTSC mode non-scaled. Note that PAL/NTSC
   vertical streching/shrinking is only supported in filter modes
-- screenshots didn't work in windowed D3D modes
+- screenshots never worked in windowed D3D modes
 - screenshot size was wrong in full-window mode
 - 100% stereo separation was only about 95% stereo separation
 

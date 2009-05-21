@@ -156,9 +156,14 @@ static int ha_inquiry (SCSI *scgp, int id, SRB_HAInquiry *ip)
     ip->SRB_Hdr_Rsvd = 0;
 
     Status = pfnSendASPI32Command((LPSRB)ip);
-    if (log_scsi)
+    if (log_scsi) {
+	TCHAR *s1 = au (ip->HA_ManagerId);
+	TCHAR *s2 = au (ip->HA_Identifier);
 	write_log (L"ASPI: S=%d ha=%d, ID=%d, M='%s', Id='%s'\n",
-	    Status, ip->HA_Count, ip->HA_SCSI_ID, ip->HA_ManagerId, ip->HA_Identifier);
+	    Status, ip->HA_Count, ip->HA_SCSI_ID, s1, s2);
+	xfree (s2);
+	xfree (s1);
+    }
     if (ip->SRB_Status != SS_COMP)
 	return -1;
     return 0;
@@ -678,10 +683,21 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 		continue;
 	    for (scgp->addr.lun=0; scgp->addr.lun < 8; scgp->addr.lun++) {
 		if (!inquiry (scgp, &inq, sizeof(inq))) {
-		    write_log (L"ASPI: %d:%d:%d ", scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun);
-		    write_log (L"'%.8s' ", inq.vendor_info);
-		    write_log (L"'%.16s' ", inq.prod_ident);
-		    write_log (L"'%.4s' ", inq.prod_revision);
+		    TCHAR *vend, *prod, *rev;
+		    char tmp[20];
+
+		    memcpy (tmp, inq.vendor_info, 8);
+		    tmp[8] = 0;
+		    vend = au (tmp);
+		    memcpy (tmp, inq.prod_ident, 16);
+		    tmp[16] = 0;
+		    prod = au (tmp);
+		    memcpy (tmp, inq.prod_revision, 4);
+		    tmp[4] = 0;
+		    rev = au (tmp);
+
+		    write_log (L"ASPI: %d:%d:%d '%s' '%s' '%s",
+			scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun, vend, prod, rev);
 		    if (unitcnt < MAX_TOTAL_DEVICES) {
 			struct scsi_info *cis = &si[unitcnt];
 			int use = 0;
@@ -709,10 +725,14 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 			    cis->lun = scgp->addr.lun;
 			    cis->type = inq.type;
 			    cis->removable = inq.removable;
-			    _stprintf (cis->label, L"%.8s %.16s %.4s", inq.vendor_info, inq.prod_ident, inq.prod_revision);
+			    _stprintf (cis->label, L"%s %s %s", vend, prod, rev);
 			}
 		    }
 		    write_log (L"\n");
+
+		    xfree (rev);
+		    xfree (prod);
+		    xfree (vend);
 		}
 	    }
 	}
@@ -848,7 +868,7 @@ static int open_scsi_device (int unitnum)
     if (si[unitnum].handle)
 	si[unitnum].mediainserted = mediacheck (unitnum);
     if (log_scsi)
-	write_log (L"unit %d: %s\n", unitnum, si[unitnum].mediainserted ? "CD inserted" : "Drive empty");
+	write_log (L"unit %d: %s\n", unitnum, si[unitnum].mediainserted ? L"CD inserted" : L"Drive empty");
     return si[unitnum].handle ? 1 : 0;
 }
 

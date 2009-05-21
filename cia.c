@@ -88,8 +88,6 @@ static void RethinkICRA (void)
     if (ciaaimask & ciaaicr) {
 	ciaaicr |= 0x80;
 	INTREQ_0 (0x8000 | 0x0008);
-    } else {
-	ciaaicr &= 0x7F;
     }
 }
 
@@ -98,8 +96,6 @@ static void RethinkICRB (void)
     if (ciabimask & ciabicr) {
 	ciabicr |= 0x80;
 	INTREQ_0 (0x8000 | 0x2000);
-    } else {
-	ciabicr &= 0x7F;
     }
 }
 
@@ -1087,7 +1083,7 @@ static void WriteCIAB (uae_u16 addr,uae_u8 val)
 	CIA_calctimers ();
 	break;
     case 13:
-	setclr(&ciabimask,val);
+	setclr (&ciabimask,val);
 	break;
     case 14:
 	CIA_update ();

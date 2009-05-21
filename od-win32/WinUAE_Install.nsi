@@ -1,5 +1,5 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "1.5.3"
+!define PRODUCT_VERSION "1.6.0"
 !define PRODUCT_PUBLISHER "Arabuusimiehet"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
@@ -99,6 +99,7 @@ Section "Host-Configurations" secExConfig
  ;-- Copy Example Host Configurations
   File "${DISTPATH}\Configurations\Host\Fullscreen (640x480).uae"
   File "${DISTPATH}\Configurations\Host\Fullscreen (800x600).uae"
+  File "${DISTPATH}\Configurations\Host\FullwindowD3D.uae"
   File "${DISTPATH}\Configurations\Host\Windowed.uae"
 SectionEnd
 
@@ -148,9 +149,7 @@ SubSection "Additional files" secAdditionalFiles
   File "${DISTPATH}\Amiga Programs\german_KeyMap_new.zip"
   File "${DISTPATH}\Amiga Programs\amigaprog.txt"
   File "${DISTPATH}\Amiga Programs\ahidriver.zip"
-  File "${DISTPATH}\Amiga Programs\sources\p96refresh.ab2"
-  File "${DISTPATH}\Amiga Programs\sources\uae-configuration.s"
-  File "${DISTPATH}\Amiga Programs\sources\uae-configuration.c"
+  File "${DISTPATH}\Amiga Programs\sources.zip"
  SectionEnd
 SubSectionEnd
 
@@ -266,8 +265,10 @@ Section Uninstall
   Delete "$INSTDIR\Amiga Programs\sources\uae-configuration.s"
   Delete "$INSTDIR\Amiga Programs\sources\uae-configuration.c"
   Delete "$INSTDIR\Amiga Programs\sources\picasso96fix.lha"
+  Delete "$INSTDIR\Amiga Programs\sources.zip"
   Delete "$INSTDIR\Configurations\Host\Fullscreen (640x480).uae"
   Delete "$INSTDIR\Configurations\Host\Fullscreen (800x600).uae"
+  Delete "$INSTDIR\Configurations\Host\FullwindowD3D.uae"
   Delete "$INSTDIR\Configurations\Host\Windowed.uae"
   Delete "$INSTDIR\winuaebootlog.txt"
   Delete "$INSTDIR\winuaelog.txt"

@@ -394,8 +394,6 @@
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
-#define IDC_LORES_SMOOTHED2             1181
-#define IDC_DISPLAY_UNSUPPORTED         1181
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
@@ -732,6 +730,7 @@
 #define IDC_INPREC_PLAY                 1620
 #define IDC_FILTERASPECT                1620
 #define IDC_AVIOUTPUT_24BIT             1621
+#define IDC_FILTERASPECT2               1621
 #define IDC_AVIOUTPUT_WIDTH             1622
 #define IDC_AVIOUTPUT_HEIGHT            1623
 #define IDC_AVIOUTPUT_FRAME             1624

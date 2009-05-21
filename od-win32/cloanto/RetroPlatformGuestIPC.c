@@ -2,12 +2,13 @@
  Name    : RetroPlatformGuestIPC.c
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
- Legal   : Copyright 2007, 2008 Cloanto Italia srl - All rights reserved. This
+ Support : http://www.retroplatform.com
+ Legal   : Copyright 2007-2009 Cloanto Italia srl - All rights reserved. This
          : file is made available under the terms of the GNU General Public
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-24 15:28:48
- Updated : 2008-06-10 13:42:00
+ Updated : 2009-05-14 10:12:43
  Comment : RP Player interprocess communication functions (guest side)
  Note    : Can be compiled both in Unicode and Multibyte projects
  *****************************************************************************/
@@ -58,7 +59,7 @@ HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHo
 
 	// find the host message window
 	//
-	pszHostClass = (_TCHAR *)LocalAlloc(LMEM_FIXED, (_tcslen(g_szHostWndClass) + _tcslen(pszHostInfo) + 1) * sizeof (_TCHAR));
+	pszHostClass = (_TCHAR *)LocalAlloc(LMEM_FIXED, (_tcslen(g_szHostWndClass) + _tcslen(pszHostInfo) + 1) * sizeof(_TCHAR));
 	if (!pszHostClass)
 		return E_OUTOFMEMORY;
 	wsprintf(pszHostClass, g_szHostWndClass, pszHostInfo);
@@ -178,11 +179,11 @@ BOOL RPSendMessage(UINT uMessage, WPARAM wParam, LPARAM lParam,
 
 /*****************************************************************************
  Name      : RPPostMessage
- Arguments : UINT uMessage            - 
-           : WPARAM wParam            - 
-           : LPARAM lParam            - 
-           : const RPGUESTINFO *pInfo - 
- Return    : BOOL                     - 
+ Arguments : UINT uMessage            -
+           : WPARAM wParam            -
+           : LPARAM lParam            -
+           : const RPGUESTINFO *pInfo -
+ Return    : BOOL                     -
  Authors   : os
  Created   : 2008-06-10 13:30:34
  Comment   : the guest calls this function to post messages to the host

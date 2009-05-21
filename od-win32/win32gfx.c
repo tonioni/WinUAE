@@ -682,7 +682,7 @@ void sortdisplays (void)
 			    if (freq < 10)
 				freq = 0;
 			}
-			if (freq < 75) {
+			if (freq < 75 && dm.dmPelsWidth <= maxw && dm.dmPelsHeight <= maxh) {
 			    if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL))
 				addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, 1);
 			}

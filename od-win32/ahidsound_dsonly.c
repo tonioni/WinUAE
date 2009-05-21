@@ -555,7 +555,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 10:
 #if 1
 	    if (OpenClipboard (0)) {
-		clipdat = GetClipboardData (CF_TEXT);
+		clipdat = GetClipboardData (CF_UNICODETEXT);
 		if (clipdat) {
 		    clipsize = _tcslen (clipdat);
 		    clipsize++;
@@ -568,9 +568,15 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 11:
 	{
 #if 1
-	    int i;
-	    for (i = 0; i < clipsize; i++)
-		put_byte (m68k_areg (&context->regs, 0) + i, clipdat[i]);
+	    put_byte (m68k_areg (&context->regs, 0), 0);
+	    if (clipdat) {
+		char *tmp = ua (clipdat);
+		int i;
+		for (i = 0; i < clipsize && i < strlen (tmp); i++)
+		    put_byte (m68k_areg (&context->regs, 0) + i, tmp[i]);
+		put_byte (m68k_areg (&context->regs, 0) + clipsize - 1, 0);
+		xfree (tmp);
+	    }
 	    CloseClipboard ();
 #endif
 	}
@@ -594,7 +600,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		    if (p2) {
 			_tcscpy (p2, s);
 			GlobalUnlock (p);
-			SetClipboardData (CF_TEXT, p);
+			SetClipboardData (CF_UNICODETEXT, p);
 		    }
 		}
 		CloseClipboard ();

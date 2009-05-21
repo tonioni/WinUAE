@@ -89,3 +89,5 @@ extern void expansion_cleanup (void);
 extern void expansion_clear (void);
 
 extern void uaegfx_install_code (void);
+
+extern uae_u32 emulib_target_getcpurate (uae_u32, uae_u32*);

@@ -1,0 +1,142 @@
+﻿<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGUID>{6181E50C-5F32-42DC-BEF6-827AA8A5429D}</ProjectGUID>
+    <RootNamespace>uaeunp</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">d:\amiga\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">d:\amiga\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\tun;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\tun;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\archivers\7z\7zBuf.c" />
+    <ClCompile Include="..\..\archivers\7z\7zCrc.c" />
+    <ClCompile Include="..\..\archivers\7z\7zStream.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c" />
+    <ClCompile Include="..\..\archivers\7z\Bcj2.c" />
+    <ClCompile Include="..\..\archivers\7z\Bra.c" />
+    <ClCompile Include="..\..\archivers\7z\Bra86.c" />
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.c" />
+    <ClCompile Include="..\..\archivers\dms\crc_csum.c" />
+    <ClCompile Include="..\..\archivers\dms\getbits.c" />
+    <ClCompile Include="..\..\archivers\dms\maketbl.c" />
+    <ClCompile Include="..\..\archivers\dms\pfile.c" />
+    <ClCompile Include="..\..\archivers\dms\tables.c" />
+    <ClCompile Include="..\..\archivers\dms\u_deep.c" />
+    <ClCompile Include="..\..\archivers\dms\u_heavy.c" />
+    <ClCompile Include="..\..\archivers\dms\u_init.c" />
+    <ClCompile Include="..\..\archivers\dms\u_medium.c" />
+    <ClCompile Include="..\..\archivers\dms\u_quick.c" />
+    <ClCompile Include="..\..\archivers\dms\u_rle.c" />
+    <ClCompile Include="..\..\archivers\lha\crcio.c" />
+    <ClCompile Include="..\..\archivers\lha\dhuf.c" />
+    <ClCompile Include="..\..\archivers\lha\header.c" />
+    <ClCompile Include="..\..\archivers\lha\huf.c" />
+    <ClCompile Include="..\..\archivers\lha\larc.c" />
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.c" />
+    <ClCompile Include="..\..\archivers\lha\lharc.c" />
+    <ClCompile Include="..\..\archivers\lha\shuf.c" />
+    <ClCompile Include="..\..\archivers\lha\slide.c" />
+    <ClCompile Include="..\..\archivers\lha\uae_lha.c" />
+    <ClCompile Include="..\..\archivers\lha\util.c" />
+    <ClCompile Include="..\..\archivers\lzx\unlzx.c" />
+    <ClCompile Include="..\..\archivers\wrp\warp.c" />
+    <ClCompile Include="..\..\archivers\zip\unzip.c" />
+    <ClCompile Include="..\..\crc32.c" />
+    <ClCompile Include="..\..\diskutil.c" />
+    <ClCompile Include="..\..\fdi2raw.c" />
+    <ClCompile Include="..\..\missing.c" />
+    <ClCompile Include="..\..\uaeunp.c" />
+    <ClCompile Include="..\..\zfile.c" />
+    <ClCompile Include="..\..\zfile_archive.c" />
+    <ClCompile Include="..\caps\caps_win32.c" />
+    <ClCompile Include="..\fsdb_mywin32.c" />
+    <ClCompile Include="..\posixemu.c" />
+    <ClCompile Include="..\uaeunp_win32.c" />
+    <ClCompile Include="..\unicode.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

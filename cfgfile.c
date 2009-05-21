@@ -165,7 +165,8 @@ static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
 static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", 0 };
 static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
-static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix" };
+static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix", 0 };
+static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
 
 static const TCHAR *obsolete[] = {
     L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -681,7 +682,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_dwrite (f, L"gfx_filter_gamma", L"%d", p->gfx_filter_gamma);
     cfgfile_dwrite (f, L"gfx_filter_blur", L"%d", p->gfx_filter_blur);
     cfgfile_dwrite (f, L"gfx_filter_noise", L"%d", p->gfx_filter_noise);
-    cfgfile_dwrite_bool (f, L"gfx_filter_keep_aspect", p->gfx_filter_keep_aspect);
+    cfgfile_dwrite_str (f, L"gfx_filter_keep_aspect", aspects[p->gfx_filter_keep_aspect]);
     cfgfile_dwrite_str (f, L"gfx_filter_autoscale", autoscale[p->gfx_filter_autoscale]);
     cfgfile_dwrite (f, L"gfx_filter_aspect_ratio", L"%d:%d",
 	p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect >> 8) : -1,
@@ -1006,7 +1007,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_intval (option, value, L"gfx_filter_gamma", &p->gfx_filter_gamma, 1)
 	|| cfgfile_intval (option, value, L"gfx_filter_blur", &p->gfx_filter_blur, 1)
 	|| cfgfile_intval (option, value, L"gfx_filter_noise", &p->gfx_filter_noise, 1)
-	|| cfgfile_yesno  (option, value, L"gfx_filter_keep_aspect", &p->gfx_filter_keep_aspect)
 	|| cfgfile_intval (option, value, L"gfx_luminance", &p->gfx_luminance, 1)
 	|| cfgfile_intval (option, value, L"gfx_contrast", &p->gfx_contrast, 1)
 	|| cfgfile_intval (option, value, L"gfx_gamma", &p->gfx_gamma, 1)
@@ -1074,6 +1074,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_strval (option, value, L"gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0)
 	|| cfgfile_strval (option, value, L"gfx_filter_autoscale", &p->gfx_filter_autoscale, autoscale, 0)
 	|| cfgfile_strval (option, value, L"magic_mousecursor", &p->input_magic_mouse_cursor, magiccursors, 0)
+	|| cfgfile_strval (option, value, L"gfx_filter_keep_aspect", &p->gfx_filter_keep_aspect, aspects, 0)
 	|| cfgfile_strval (option, value, L"absolute_mouse", &p->input_tablet, abspointers, 0))
 	    return 1;
 

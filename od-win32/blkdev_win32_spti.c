@@ -316,9 +316,21 @@ static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
 	di->isatapi = 1;
     memcpy (inquirydata, p, inqlen);
     if (log_scsi) {
-	if (outlen >= INQUIRY_SIZE)
-	    write_log (L"SPTI: INQUIRY: %02X%02X%02X %d '%-8s' '%-16s'\n",
-	    p[0], p[1], p[2], di->isatapi, p + 8, p + 16);
+	if (outlen >= INQUIRY_SIZE) {
+	    char tmp[20];
+	    TCHAR *s1, *s2;
+
+	    memcpy (tmp, p + 8, 8);
+	    tmp[8] = 0;
+	    s1 = au (tmp);
+	    memcpy (tmp, p + 16, 16);
+	    tmp[16] = 0;
+	    s2 = au (tmp);
+	    write_log (L"SPTI: INQUIRY: %02X%02X%02X %d '%s' '%s'\n",
+	    p[0], p[1], p[2], di->isatapi, s1, s2);
+	    xfree (s2);
+	    xfree (s1);
+	}
     }
     return inqlen;
 }
@@ -389,7 +401,7 @@ int open_scsi_device (int unitnum)
     h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
     di->handle = h;
     if (h == INVALID_HANDLE_VALUE) {
-	write_log (L"SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError(), dev);
+	write_log (L"SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError (), dev);
     } else {
 	uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 	checkcapabilities (unitnum);

@@ -175,13 +175,13 @@ static int open_createfile (int unitnum, int fullaccess)
 		}
 	    }
 	    if (closed)
-		write_log (L"IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError());
+		write_log (L"IOCTL: failed to re-open '%s', err=%d\n", ciw->devname, GetLastError ());
 	    return 0;
 	}
 	break;
     }
     if (!DeviceIoControl (ciw->h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &len, NULL))
-	write_log (L"IOCTL: FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError());
+	write_log (L"IOCTL: FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError ());
     if (log_scsi)
 	write_log (L"IOCTL: IOCTL open completed\n");
     return 1;
