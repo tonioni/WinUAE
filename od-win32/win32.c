@@ -525,9 +525,14 @@ void setmouseactive (int active)
 	if (c != normalcursor)
 	    return;
     }
+    if (active) {
+	if (IsWindowVisible (hAmigaWnd) == FALSE)
+	    return;
+    }
 
     if (active < 0)
 	active = 1;
+
 
     mouseactive = active;
 
@@ -2084,7 +2089,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgallowscaling = 0;
 	p->win32_rtgscaleaspectratio = -1;
 	p->win32_rtgvblankrate = 0;
-	p->win32_fscodepage = 1252;
+	p->win32_fscodepage = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);

@@ -11708,7 +11708,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 
 	if (drvdrag) {
 	    type = ZFILE_DISKIMAGE;
-	} else if (zip) {
+	} else if (zip || harddrive) {
 	    do_filesys_insert (file);
 	    continue;
 	}

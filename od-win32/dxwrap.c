@@ -921,13 +921,15 @@ void DirectDraw_FillPrimary (void)
     DirectDraw_FillSurface (dxdata.primary, NULL, 0);
 }
 
-extern int vblank_skip;
+extern int vblank_skip, turbo_emulation;
 static void flip (void)
 {
     int result = 0;
     HRESULT ddrval = DD_OK;
     DWORD flags = DDFLIP_WAIT;
 
+    if (turbo_emulation)
+	flags |= DDFLIP_NOVSYNC;
     if (dxdata.backbuffers == 2) {
         DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
 	if (currprefs.gfx_avsync) {
@@ -943,7 +945,7 @@ static void flip (void)
 		}
 	    }
 	} else {
-	    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+	    ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags| DDFLIP_NOVSYNC);
 	}
     } else if(dxdata.backbuffers == 1) {
 	if (currprefs.gfx_avsync) { 
@@ -961,7 +963,7 @@ static void flip (void)
 	    flip ();
 	    recurse--;
 	}
-    } else if(FAILED (ddrval)) {
+    } else if (FAILED (ddrval)) {
 	write_log (L"IDirectDrawSurface7_Flip: %s\n", DXError (ddrval));
     }
 }

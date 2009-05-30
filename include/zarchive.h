@@ -5,12 +5,15 @@ struct zfile {
     TCHAR *mode;
     FILE *f;
     uae_u8 *data;
-    uae_u64 size;
-    uae_u64 seek;
+    uae_s64 size;
+    uae_s64 seek;
     int deleteafterclose;
     int textmode;
     struct zfile *next;
     int zfdmask;
+    struct zfile *parent;
+    uae_u64 offset;
+    int opencnt;
 };
 
 #define ZNODE_FILE 0
@@ -28,7 +31,7 @@ struct znode {
     struct znode *vfile; // points to real file when this node is virtual directory
     TCHAR *name;
     TCHAR *fullname;
-    uae_u64 size;
+    uae_s64 size;
     struct zfile *f;
     TCHAR *comment;
     int flags;
@@ -49,10 +52,10 @@ struct zvolume
     struct znode *last;
     struct znode *parentz;
     struct zvolume *parent;
-    uae_u64 size;
+    uae_s64 size;
     unsigned int blocks;
     unsigned int id;
-    uae_u64 archivesize;
+    uae_s64 archivesize;
     unsigned int method;
     TCHAR *volumename;
     int zfdmask;
@@ -61,7 +64,7 @@ struct zvolume
 struct zarchive_info
 {
     const TCHAR *name;
-    uae_u64 size;
+    uae_s64 size;
     int flags;
     TCHAR *comment;
     time_t t;
@@ -76,6 +79,8 @@ struct zarchive_info
 #define ArchiveFormatAA 'aa  ' // method only
 #define ArchiveFormatADF 'DOS '
 #define ArchiveFormatRDB 'RDSK'
+#define ArchiveFormatMBR 'MBR '
+#define ArchiveFormatFAT 'FAT '
 
 extern int zfile_is_ignore_ext(const TCHAR *name);
 
@@ -104,9 +109,12 @@ extern struct zvolume *archive_directory_adf (struct znode *zn, struct zfile *z)
 extern struct zfile *archive_access_adf (struct znode *zn);
 extern struct zvolume *archive_directory_rdb (struct zfile *z);
 extern struct zfile *archive_access_rdb (struct znode *zn);
+extern struct zvolume *archive_directory_fat (struct zfile *z);
+extern struct zfile *archive_access_fat (struct znode *zn);
 
 extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id);
+extern int isfat (uae_u8*);
 
 extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsigned int id);
 

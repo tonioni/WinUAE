@@ -692,7 +692,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	ok = 1;
     }
     if (!ok) {
-	_tprintf (L"UAE unpacker uaeunp 0.5c by Toni Wilen (c)2009\n");
+	_tprintf (L"UAE unpacker uaeunp 0.6 by Toni Wilen (c)2009\n");
 	_tprintf (L"\n");
 	_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 	_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
@@ -703,7 +703,9 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	_tprintf (L"Output to console: \"uaeunp (-x) -o <path> <filename>\"\n");
 	_tprintf (L"\n");
 	_tprintf (L"Supported disk image formats:\n");
-	_tprintf (L" ADF and HDF (OFS/FFS/SFS/SFS2), DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n");
+	_tprintf (L" ADF, HDF, DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n");
+	_tprintf (L"Supported filesystems:\n");
+	_tprintf (L" OFS, FFS, SFS, SFS2 and FAT12\n");
 	_tprintf (L"Supported archive formats:\n");
 	_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), ZIP, ArchiveAccess.DLL\n");
 	_tprintf (L"Miscellaneous formats:\n");
@@ -715,6 +717,11 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 }
 
 /*
+    0.6:
+
+    - rdb handling optimization (no more huge memory usage)
+    - fat16 supported
+
     0.5:
 
     - adf protection flags fixed

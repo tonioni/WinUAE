@@ -26,11 +26,11 @@ int aspi_allow_misc = 1;
 int aspi_allow_all = 0;
 
 static int busses, AspiLoaded;
-static DWORD (*pfnGetASPI32SupportInfo)(void);
-static DWORD (*pfnSendASPI32Command)(LPSRB);
-static BOOL (*pfnGetASPI32Buffer)(PASPI32BUFF);
-static BOOL (*pfnFreeASPI32Buffer)(PASPI32BUFF);
-static BOOL (*pfnTranslateASPI32Address)(PDWORD, PDWORD);
+static DWORD (_cdecl *pfnGetASPI32SupportInfo)(void);
+static DWORD (_cdecl *pfnSendASPI32Command)(LPSRB);
+static BOOL (_cdecl *pfnGetASPI32Buffer)(PASPI32BUFF);
+static BOOL (_cdecl *pfnFreeASPI32Buffer)(PASPI32BUFF);
+static BOOL (_cdecl *pfnTranslateASPI32Address)(PDWORD, PDWORD);
 static HANDLE hAspiLib;
 static int scanphase;
 
@@ -220,17 +220,17 @@ static int open_driver (SCSI *scgp)
      * Get a pointer to GetASPI32SupportInfo function
      * and a pointer to SendASPI32Command function
      */
-    pfnGetASPI32SupportInfo = (DWORD(*)(void))GetProcAddress(hAspiLib, "GetASPI32SupportInfo");
-    pfnSendASPI32Command = (DWORD(*)(LPSRB))GetProcAddress(hAspiLib, "SendASPI32Command");
+    pfnGetASPI32SupportInfo = (DWORD(_cdecl *)(void))GetProcAddress (hAspiLib, "GetASPI32SupportInfo");
+    pfnSendASPI32Command = (DWORD(_cdecl *)(LPSRB))GetProcAddress (hAspiLib, "SendASPI32Command");
 
     if (pfnGetASPI32SupportInfo == NULL || pfnSendASPI32Command == NULL) {
 	write_log (L"ASPI: obsolete wnaspi32.dll found\n");
 	return FALSE;
     }
 
-    pfnGetASPI32Buffer = (BOOL(*)(PASPI32BUFF))GetProcAddress(hAspiLib, "GetASPI32Buffer");
-    pfnFreeASPI32Buffer = (BOOL(*)(PASPI32BUFF))GetProcAddress(hAspiLib, "FreeASPI32Buffer");
-    pfnTranslateASPI32Address = (BOOL(*)(PDWORD, PDWORD))GetProcAddress(hAspiLib, "TranslateASPI32Address");
+    pfnGetASPI32Buffer = (BOOL(_cdecl *)(PASPI32BUFF))GetProcAddress (hAspiLib, "GetASPI32Buffer");
+    pfnFreeASPI32Buffer = (BOOL(_cdecl *)(PASPI32BUFF))GetProcAddress (hAspiLib, "FreeASPI32Buffer");
+    pfnTranslateASPI32Address = (BOOL(_cdecl *)(PDWORD, PDWORD))GetProcAddress (hAspiLib, "TranslateASPI32Address");
 
     /*
      * Set AspiLoaded variable

@@ -15,10 +15,10 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L""
-#define WINUAEDATE MAKEBD(2009, 5, 21)
+#define WINUAEBETA L"Beta 1"
+#define WINUAEDATE MAKEBD(2009, 5, 30)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 

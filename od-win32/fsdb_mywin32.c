@@ -315,6 +315,8 @@ int dos_errno (void)
      case ERROR_INVALID_DRIVE:
      case ERROR_INVALID_NAME:
      case ERROR_PATH_NOT_FOUND:
+     case ERROR_NOT_READY:
+     case ERROR_BAD_UNIT:
 	return ERROR_OBJECT_NOT_AROUND;
 
      case ERROR_HANDLE_DISK_FULL:

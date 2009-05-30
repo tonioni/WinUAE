@@ -205,7 +205,7 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
     char *s;
     buf[0] = 1;
     do_put_mem_long ((uae_u32 *)(buf + 1), aino->amigaos_mode);
-    s = uacp (aino->nname, currprefs.win32_fscodepage);
+    s = uacp (aino->aname, currprefs.win32_fscodepage);
     strncpy (buf + 5, s, 256);
     buf[5 + 256] = '\0';
     xfree (s);
@@ -219,7 +219,7 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
     buf[5 + 2 * 257 + 80] = '\0';
     xfree (s);
     do_put_mem_long ((uae_u32 *)(buf + 5 + 2 * 257 + 81), winmode);
-    _tcsncpy ((TCHAR*)(buf + 604), aino->nname, 256);
+    _tcsncpy ((TCHAR*)(buf + 604), aino->aname, 256);
     _tcsncpy ((TCHAR*)(buf + 1118), nn, 256);
     aino->has_dbentry = 0;
 }
@@ -525,16 +525,15 @@ static a_inode *custom_fsdb_lookup_aino (a_inode *base, const TCHAR *aname, int 
     HANDLE h;
     WIN32_FIND_DATA fd;
     static a_inode dummy;
-    TCHAR *s;
 
     tmp1 = build_nname (base->nname, UAEFSDB_BEGINSX);
     if (!tmp1)
 	return NULL;
-    s = au (fsdb + offset);
     h = FindFirstFile (tmp1, &fd);
     if (h != INVALID_HANDLE_VALUE) {
 	do {
 	    if (read_uaefsdb (base->nname, fd.cFileName, fsdb)) {
+		TCHAR *s = au (fsdb + offset);
 		if (same_aname (s, aname)) {
 		    int winmode;
 		    FindClose (h);
@@ -544,11 +543,11 @@ static a_inode *custom_fsdb_lookup_aino (a_inode *base, const TCHAR *aname, int 
 			return &dummy;
 		    return aino_from_buf (base, fsdb, &winmode);
 		}
+		xfree (s);
 	    }
 	} while (FindNextFile (h, &fd));
 	FindClose (h);
     }
-    xfree (s);
     xfree (tmp1);
     return NULL;
 }

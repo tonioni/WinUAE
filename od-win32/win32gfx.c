@@ -2009,6 +2009,7 @@ static int getbestmode (int nextbest)
 
 static int create_windows_2 (void)
 {
+    static int firstwindow = 1;
     int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
     int d3dfs = currentmode->flags & (DM_D3D_FULLSCREEN);
     int fsw = currentmode->flags & (DM_W_FULLSCREEN);
@@ -2228,11 +2229,12 @@ static int create_windows_2 (void)
 	SetCursorPos (x + w / 2, y + h / 2);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
-	ShowWindow (hMainWnd, SW_SHOWNORMAL);
+	ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);
     }
-    ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
+    ShowWindow (hAmigaWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
     UpdateWindow (hAmigaWnd);
+    firstwindow = 0;
 
     return 1;
 }

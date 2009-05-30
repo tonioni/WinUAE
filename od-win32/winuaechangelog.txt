@@ -1,4 +1,23 @@
 
+Beta 1
+
+- development PC updated to Intel Core i7 based. (Asus P6T DeluxeV2,
+  i7 920 2.66GHz CPU @ 3.7GHz, 3x2G 1866MHz RAM)
+- ASPI crash fixed (calling convention mismatch.. I didn't test and
+  only assumed previous fix would be the only problem left..)
+- filesys default codepage changed to default ansi page (1252 breaks
+  many non-european characters)
+- added more directory harddrive error codes to Windows->Amiga code
+  translation table (unit not ready, bad unit)
+- directory harddrive Windows illegal character handling was broken
+- do not capture mouse at startup if window is hidden/minimized
+- archive dragging to HD-led really mounts it as a harddrive, even
+  if it contains only disk images
+- 1760k HD and 10 sector DD PC formatted had switched internal
+  DD/HD flag (=above image types didn't work)
+- FAT12 formatted images supported as a harddrive (uaeunp feature)
+- turbo/warp mode in fullscreen mode wasn't as fast as possible
+
 Final 1.6.0
 
 - filter mode PAL aspect ratio corrected (~5% difference) if keep

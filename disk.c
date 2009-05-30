@@ -997,10 +997,10 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	    drv->ddhd = 1;
 	} else if (size == 18 * 80 * 2 * 512 || size == 18 * 81 * 2 * 512 || size == 18 * 82 * 2 * 512) {
 	    drv->num_secs = 18;
-	    drv->ddhd = 1;
+	    drv->ddhd = 2;
 	} else if (size == 10 * 80 * 2 * 512 || size == 10 * 81 * 2 * 512 || size == 10 * 82 * 2 * 512) {
 	    drv->num_secs = 10;
-	    drv->ddhd = 2;
+	    drv->ddhd = 1;
 	} else if (size == 20 * 80 * 2 * 512 || size == 20 * 81 * 2 * 512 || size == 20 * 82 * 2 * 512) {
 	    drv->num_secs = 20;
 	    drv->ddhd = 2;
@@ -1281,7 +1281,7 @@ static uae_u16 *mfmcoder (uae_u8 *src, uae_u16 *dest, int len)
 
 static void decode_pcdos (drive *drv)
 {
-    int i;
+    int i, len;
     int tr = drv->cyl * 2 + side;
     uae_u16 *dstmfmbuf, *mfm2;
     uae_u8 secbuf[1000];
@@ -1326,7 +1326,9 @@ static void decode_pcdos (drive *drv)
 	crc16 = get_crc16 (secbuf + 56, 3 + 1 + 512);
 	secbuf[60 + 512] = crc16 >> 8;
 	secbuf[61 + 512] = crc16 & 0xff;
-	memset(secbuf + 512 + 62, 0x4e, (tracklen / 2 - 96) / drv->num_secs - 574 / drv->ddhd);
+	len = (tracklen / 2 - 96) / drv->num_secs - 574 / drv->ddhd;
+	if (len > 0)
+	    memset(secbuf + 512 + 62, 0x4e, len);
 	dstmfmbuf = mfmcoder (secbuf, mfm2, 60 + 512 + 2 + 76 / drv->ddhd);
 	mfm2[12] = 0x4489;
 	mfm2[13] = 0x4489;
@@ -1815,15 +1817,15 @@ static int drive_write_pcdos (drive *drv)
 	    uae_u8 tmp[8];
 	    uae_u8 cyl, head, size;
 
-	    cyl = mfmdecode(&mbuf, shift);
-	    head = mfmdecode(&mbuf, shift);
-	    sector = mfmdecode(&mbuf, shift);
-	    size = mfmdecode(&mbuf, shift);
-	    crc = (mfmdecode(&mbuf, shift) << 8) | mfmdecode(&mbuf, shift);
+	    cyl = mfmdecode (&mbuf, shift);
+	    head = mfmdecode (&mbuf, shift);
+	    sector = mfmdecode (&mbuf, shift);
+	    size = mfmdecode (&mbuf, shift);
+	    crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
 
 	    tmp[0] = 0xa1; tmp[1] = 0xa1; tmp[2] = 0xa1; tmp[3] = mark;
 	    tmp[4] = cyl; tmp[5] = head; tmp[6] = sector; tmp[7] = size;
-	    if (get_crc16(tmp, 8) != crc || cyl != drv->cyl || head != side || size != 2 || sector < 1 || sector > drv->num_secs) {
+	    if (get_crc16 (tmp, 8) != crc || cyl != drv->cyl || head != side || size != 2 || sector < 1 || sector > drv->num_secs) {
 		write_log (L"PCDOS: track %d, corrupted sector header\n", drv->cyl * 2 + side);
 		return 1;
 	    }
@@ -1837,9 +1839,9 @@ static int drive_write_pcdos (drive *drv)
 	if (sector < 0)
 	    continue;
 	for (i = 0; i < 512; i++)
-	    secbuf[i + 4] = mfmdecode(&mbuf, shift);
-	crc = (mfmdecode(&mbuf, shift) << 8) | mfmdecode(&mbuf, shift);
-	if (get_crc16(secbuf, 3 + 1 + 512) != crc) {
+	    secbuf[i + 4] = mfmdecode (&mbuf, shift);
+	crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
+	if (get_crc16 (secbuf, 3 + 1 + 512) != crc) {
 	    write_log (L"PCDOS: track %d, sector %d data checksum error\n",
 		drv->cyl * 2 + side, sector + 1);
 	    continue;
@@ -2473,8 +2475,8 @@ void dumpdisk (void)
 	drive *drv = &floppy[i];
 	if (!(disabled & (1 << i))) {
 	    console_out_f (L"Drive %d: motor %s cylinder %2d sel %s %s mfmpos %d/%d\n",
-		i, drv->motoroff ? "off" : " on", drv->cyl, (selected & (1 << i)) ? "no" : "yes",
-		drive_writeprotected(drv) ? "ro" : "rw", drv->mfmpos, drv->tracklen);
+		i, drv->motoroff ? L"off" : L" on", drv->cyl, (selected & (1 << i)) ? L"no" : L"yes",
+		drive_writeprotected(drv) ? L"ro" : L"rw", drv->mfmpos, drv->tracklen);
 	    w = word;
 	    for (j = 0; j < 15; j++) {
 		console_out_f (L"%04X ", w);

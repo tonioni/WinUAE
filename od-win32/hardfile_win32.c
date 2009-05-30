@@ -115,7 +115,7 @@ static int safetycheck (HANDLE *h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	memset (buf, 0xaa, blocksize);
 	ReadFile (h, buf, blocksize, &outlen, NULL);
 	if (outlen != blocksize) {
-	    write_log (L"hd ignored, read error %d!\n", GetLastError());
+	    write_log (L"hd ignored, read error %d!\n", GetLastError ());
 	    return 2;
 	}
 	if (j == 0 && buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) {
@@ -188,7 +188,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
     hfd->virtual_size = 0;
     hfd->virtual_rdb = NULL;
     if (!hfd->cache) {
-	write_log (L"VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError());
+	write_log (L"VirtualAlloc(%d) failed, error %d\n", CACHE_SIZE, GetLastError ());
 	goto end;
     }
     hfd_log (L"hfd open: '%s'\n", name);
@@ -212,7 +212,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	    if (h == INVALID_HANDLE_VALUE)
 		goto end;
 	    if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
-		write_log (L"WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", name, GetLastError());
+		write_log (L"WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", name, GetLastError ());
 	    _tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
 	    _tcsncpy (hfd->product_id, udi->product_id, 16);
 	    _tcsncpy (hfd->product_rev, udi->product_rev, 4);
@@ -272,10 +272,10 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	    DWORD ret, low, high;
 	    high = 0;
 	    ret = SetFilePointer (h, 0, &high, FILE_END);
-	    if (ret == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+	    if (ret == INVALID_FILE_SIZE && GetLastError () != NO_ERROR)
 		goto end;
 	    low = GetFileSize (h, &high);
-	    if (low == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+	    if (low == INVALID_FILE_SIZE && GetLastError () != NO_ERROR)
 		goto end;
 	    low &= ~(hfd->blocksize - 1);
 	    hfd->physsize = hfd->virtsize = ((uae_u64)high << 32) | low;
