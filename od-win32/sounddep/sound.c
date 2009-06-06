@@ -454,6 +454,7 @@ static int open_audio_pa (struct sound_data *sd, int index)
     PaStreamParameters p;
     PaError err;
     TCHAR *name;
+    TCHAR *errtxt;
 
     size = sd->sndbufsize;
     s->paframesperbuffer = size;
@@ -468,9 +469,14 @@ static int open_audio_pa (struct sound_data *sd, int index)
     p.suggestedLatency = di->defaultLowOutputLatency;
     p.hostApiSpecificStreamInfo = NULL; 
     for (;;) {
+	int err2;
 	err = Pa_IsFormatSupported (NULL, &p, freq);
 	if (err == paFormatIsSupported)
 	    break;
+	err2 = err;
+	errtxt = au (Pa_GetErrorText (err));
+	write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
+	xfree (errtxt);
 	if (freq < 48000) {
 	    freq = 48000;
 	    err = Pa_IsFormatSupported (NULL, &p, freq);
@@ -487,12 +493,18 @@ static int open_audio_pa (struct sound_data *sd, int index)
 		break;
 	    }
 	}
-	write_log (L"PASOUND: sound format not supported\n");
+	if (err2 != err) {
+	    errtxt = au (Pa_GetErrorText (err));
+	    write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
+	    xfree (errtxt);
+	}
 	goto end;
     }
     err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, portAudioCallback, sd);
     if (err != paNoError) {
-	write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, Pa_GetErrorText (err));
+	errtxt = au (Pa_GetErrorText (err));
+	write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, errtxt);
+	xfree (errtxt);
 	goto end;
     }
     s->paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
@@ -1387,7 +1399,7 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 
 void finish_sound_buffer (void)
 {
-    if (turbo_emulation)
+    if (currprefs.turbo_emulation)
 	return;
     if (currprefs.sound_stereo_swap_paula) {
 	if (get_audio_nativechannels () == 2 || get_audio_nativechannels () == 4)

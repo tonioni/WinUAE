@@ -120,7 +120,7 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
     return zf;
 }
 
-struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault)
+struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault, int *retcode)
 {
     struct zvolume *zv;
     struct znode *zn;
@@ -129,9 +129,11 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
     struct zfile *z = NULL;
     int we_have_file;
 
+    if (retcode)
+	*retcode = 0;
     zv = getzvolume (parent, zf, id);
     if (!zv)
-	return zf;
+	return NULL;
     we_have_file = 0;
     tmphist[0] = 0;
     zipcnt = 1;
@@ -193,13 +195,14 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 	zfile_fclose (zf);
 	zf = z;
     } else if (!dodefault && zf->zipname && zf->zipname[0]) {
-	zfile_fclose (zf);
+	if (retcode)
+	    *retcode = -1;
 	zf = NULL;
     }
     return zf;
 }
 
-struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id)
+struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id, int *retcode)
 {
     return zf;
 }
@@ -874,6 +877,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
     struct znode *zn;
     struct zarchive_info zai;
     uae_u8 id[8];
+    int rc;
 
     memset (&zai, 0, sizeof zai);
     zv = zvolume_alloc (z, ArchiveFormatPLAIN, NULL, NULL);
@@ -893,7 +897,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	xfree (data);
     }
     zf = zfile_dup (z);
-    zf2 = zuncompress (NULL, zf, 0, ZFD_ALL);
+    zf2 = zuncompress (NULL, zf, 0, ZFD_ALL, &rc);
     if (zf2) {
 	zf = NULL;
 	zai.name = zfile_getfilename (zf2);

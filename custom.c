@@ -2529,7 +2529,6 @@ static int isvsync (void)
 }
 
 int vsynctime_orig;
-int turbo_emulation;
 
 void compute_vsynctime (void)
 {
@@ -2546,7 +2545,7 @@ void compute_vsynctime (void)
     }
     if (!fake_vblank_hz)
 	fake_vblank_hz = vblank_hz;
-    if (turbo_emulation)
+    if (currprefs.turbo_emulation)
 	vsynctime = vsynctime_orig = 1;
     else
 	vsynctime = vsynctime_orig = syncbase / fake_vblank_hz;
@@ -4659,7 +4658,7 @@ static void fpscounter (void)
 	    double mult = (double)fake_vblank_hz * 10.0 / fps;
 	    idle *= mult;
 	}
-	if (turbo_emulation && idle < 100 * 10)
+	if (currprefs.turbo_emulation && idle < 100 * 10)
 	    idle = 100 * 10;
 	gui_fps (fps, (int)idle);
 	frametime2 = 0;
@@ -4784,7 +4783,7 @@ static void frh_handler (void)
 	/* Allow this to be one frame's worth of cycles out */
 	while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
 	    vsyncmintime += vsynctime * N_LINES / maxvpos;
-	    if (turbo_emulation)
+	    if (currprefs.turbo_emulation)
 		break;
 	}
     }

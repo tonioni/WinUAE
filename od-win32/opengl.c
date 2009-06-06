@@ -437,7 +437,7 @@ static void OGL_swapinterval (void)
     if (wglSwapIntervalEXT) {
 	int i1, i2;
 	i1 = (currprefs.gfx_avsync > 0 && isfullscreen() > 0) ? (abs (currprefs.gfx_refreshrate) > 85 ? 2 : 1) : 0;
-	if (turbo_emulation)
+	if (currprefs.turbo_emulation)
 	    i1 = 0;
 	wglSwapIntervalEXT (i1);
 	i2 = wglGetSwapIntervalEXT ();

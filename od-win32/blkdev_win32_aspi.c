@@ -696,7 +696,7 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 		    tmp[4] = 0;
 		    rev = au (tmp);
 
-		    write_log (L"ASPI: %d:%d:%d '%s' '%s' '%s",
+		    write_log (L"ASPI: %d:%d:%d '%s' '%s' '%s' ",
 			scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun, vend, prod, rev);
 		    if (unitcnt < MAX_TOTAL_DEVICES) {
 			struct scsi_info *cis = &si[unitcnt];

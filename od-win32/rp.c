@@ -759,7 +759,7 @@ void rp_fixup_options (struct uae_prefs *p)
     }
 
     rp_update_volume (&currprefs);
-    rp_turbo (turbo_emulation);
+    rp_turbo (currprefs.turbo_emulation);
     for (i = 0; i <= 4; i++)
 	rp_update_leds (i, 0, 0);
 }

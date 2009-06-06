@@ -257,6 +257,8 @@
 #define IDI_GAMEPORTS                   262
 #define IDS_ALL                         262
 #define IDD_GAMEPORTS                   263
+#define IDS_STRING22                    263
+#define IDS_INPUTTOGGLE                 263
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302

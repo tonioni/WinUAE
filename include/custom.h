@@ -32,7 +32,6 @@ extern void init_custom (void);
 
 extern int picasso_requested_on;
 extern int picasso_on;
-extern int turbo_emulation;
 
 /* Set to 1 to leave out the current frame in average frame time calculation.
  * Useful if the debugger was active.  */

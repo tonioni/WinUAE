@@ -736,6 +736,21 @@ static void setupscenescaled (void)
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
 }
 
+static void setupscenecoordssl (void)
+{
+    float w, h;
+
+    w = window_w;
+    h = window_h;
+
+    MatrixOrthoOffCenterLH (&m_matProj, 0.0f, (float)w, 0.0f, (float)h, 0.0f, 1.0f);
+    MatrixTranslation (&m_matView,
+	(float)w / 2 - 0.5,
+	(float)h / 2 + 0.5,
+	0.0f);
+    MatrixScaling (&m_matWorld, w, h, 1.0f);
+}
+
 static void setupscenecoords (void)
 {
     RECT sr, dr, zr;
@@ -818,6 +833,15 @@ static void createvertex (void)
 	vertices[7].texcoord.x = 1.0f; vertices[7].texcoord.y = 0.0f;
     }
     hr = IDirect3DVertexBuffer9_Unlock (vertexBuffer);
+}
+
+static void settransformsl (void)
+{
+    HRESULT hr;
+
+    hr = IDirect3DDevice9_SetTransform (d3ddev, D3DTS_PROJECTION, &m_matProj);
+    hr = IDirect3DDevice9_SetTransform (d3ddev, D3DTS_VIEW, &m_matView);
+    hr = IDirect3DDevice9_SetTransform (d3ddev, D3DTS_WORLD, &m_matWorld);
 }
 
 static void settransform (void)
@@ -1270,6 +1294,7 @@ static void D3D_render2 (int clear)
 	LPDIRECT3DSURFACE9 lpRenderTarget;
 	LPDIRECT3DSURFACE9 lpNewRenderTarget;
 	LPDIRECT3DTEXTURE9 lpWorkTexture;
+
 	if (!psEffect_SetTextures (texture, lpWorkTexture1, lpWorkTexture2, lpHq2xLookupTexture))
 	    return;
 	if (psPreProcess) {
@@ -1323,7 +1348,10 @@ static void D3D_render2 (int clear)
 
 	hr = IDirect3DDevice9_SetTexture (d3ddev, 0, (IDirect3DBaseTexture9*)texture);
 	hr = IDirect3DDevice9_DrawPrimitive (d3ddev, D3DPT_TRIANGLESTRIP, 0, 2);
+
 	if (scanlines_ok) {
+	    setupscenecoordssl ();
+	    settransformsl ();
 	    hr = IDirect3DDevice9_SetTexture (d3ddev, 0, (IDirect3DBaseTexture9*)sltexture);
 	    hr = IDirect3DDevice9_DrawPrimitive (d3ddev, D3DPT_TRIANGLESTRIP, 0, 2);
 	}
@@ -1350,7 +1378,7 @@ void D3D_unlocktexture (void)
     hr = IDirect3DTexture9_AddDirtyRect (texture, &r);
 
     D3D_render2 (0);
-    if (vsync2)
+    if (vsync2 && !currprefs.turbo_emulation)
 	D3D_render2 (0);
 }
 

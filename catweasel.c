@@ -193,7 +193,7 @@ void catweasel_hsync (void)
     cwhsync = 10;
     if (handshake) {
 	/* keyboard handshake */
-	catweasel_do_bput(0xd0, 0);
+	catweasel_do_bput (0xd0, 0);
 	handshake = 0;
     }
     if (hsync_requested < 0)
@@ -205,17 +205,17 @@ void catweasel_hsync (void)
 	if (cwmk3buttonsync <= 0) {
 	    cwmk3buttonsync = 30;
 	    b = 0;
-	    if (sid_read(0x19, 0) > 0x7f)
+	    if (sid_read (0x19, 0) > 0x7f)
 		b |= 2;
-	    if (sid_read(0x1a, 0) > 0x7f)
+	    if (sid_read (0x1a, 0) > 0x7f)
 		b |= 1;
 	    if (cwmk3port == 0) {
 		cwmk3port1 = b;
-		catweasel_do_bput(0xd4, 0); // select port2
+		catweasel_do_bput (0xd4, 0); // select port2
 		cwmk3port = 1;
 	    } else {
 		cwmk3port2 = b;
-		catweasel_do_bget(0xd4); // select port1
+		catweasel_do_bget (0xd4); // select port1
 		cwmk3port = 0;
 	    }
 	}
@@ -223,11 +223,11 @@ void catweasel_hsync (void)
     if (!cwc.can_mouse)
 	return;
     /* read MK4 mouse counters */
-    catweasel_do_bput(3, 0x81);
+    catweasel_do_bput (3, 0x81);
     for (i = 0; i < 2; i++) {
 	int x, y, dx, dy;
-	x = (uae_s8)catweasel_do_bget(0xc4 + i * 8);
-	y = (uae_s8)catweasel_do_bget(0xc0 + i * 8);
+	x = (uae_s8)catweasel_do_bget (0xc4 + i * 8);
+	y = (uae_s8)catweasel_do_bget (0xc0 + i * 8);
 	dx = mouse_px[i] - x;
 	if (dx > 127)
 	    dx = 255 - dx;
@@ -243,16 +243,16 @@ void catweasel_hsync (void)
 	mouse_px[i] = x;
 	mouse_py[i] = y;
     }
-    catweasel_do_bput(3, 0x41);
+    catweasel_do_bput (3, 0x41);
 }
 
 int catweasel_read_joystick (uae_u8 *dir, uae_u8 *buttons)
 {
     if (!cwc.can_joy || !cwc.direct_access)
 	return 0;
-    hsync_request();
-    *dir = catweasel_do_bget(0xc0);
-    *buttons = get_buttons();
+    hsync_request ();
+    *dir = catweasel_do_bget (0xc0);
+    *buttons = get_buttons ();
     return 1;
 }
 

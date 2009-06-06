@@ -674,13 +674,15 @@ int iszip (struct zfile *z)
     return 0;
 }
 
-struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault, int mask)
+struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault, int mask, int *retcode)
 {
     TCHAR *name = z->name;
     TCHAR *ext = NULL;
     uae_u8 header[32];
     int i;
 
+    if (*retcode)
+	*retcode = 0;
     if (!mask)
 	return NULL;
     if (name) {
@@ -692,15 +694,15 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
     if (ext != NULL) {
 	if (mask & ZFD_ARCHIVE) {
 	    if (strcasecmp (ext, L"7z") == 0)
-		 return archive_access_select (parent, z, ArchiveFormat7Zip, dodefault);
+		 return archive_access_select (parent, z, ArchiveFormat7Zip, dodefault, retcode);
 	    if (strcasecmp (ext, L"zip") == 0)
-		 return archive_access_select (parent, z, ArchiveFormatZIP, dodefault);
+		 return archive_access_select (parent, z, ArchiveFormatZIP, dodefault, retcode);
 	    if (strcasecmp (ext, L"lha") == 0 || strcasecmp (ext, L"lzh") == 0)
-		 return archive_access_select (parent, z, ArchiveFormatLHA, dodefault);
+		 return archive_access_select (parent, z, ArchiveFormatLHA, dodefault, retcode);
 	    if (strcasecmp (ext, L"lzx") == 0)
-		 return archive_access_select (parent, z, ArchiveFormatLZX, dodefault);
+		 return archive_access_select (parent, z, ArchiveFormatLZX, dodefault, retcode);
 	    if (strcasecmp (ext, L"rar") == 0)
-		 return archive_access_select (parent, z, ArchiveFormatRAR, dodefault);
+		 return archive_access_select (parent, z, ArchiveFormatRAR, dodefault, retcode);
 	}
 	if (mask & ZFD_UNPACK) {
 	    if (strcasecmp (ext, L"gz") == 0)
@@ -741,7 +743,7 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 #if defined(ARCHIVEACCESS)
 	for (i = 0; plugins_7z_x[i]; i++) {
 	    if ((plugins_7z_t[i] & mask) && strcasecmp (ext, plugins_7z[i]) == 0)
-	        return archive_access_arcacc_select (z, plugins_7z_t[i]);
+	        return archive_access_arcacc_select (z, plugins_7z_t[i], retcode);
 	}
 #endif
     }
@@ -787,21 +789,21 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
     }
     if (mask & ZFD_ARCHIVE) {
         if (header[0] == 'P' && header[1] == 'K')
-    	    return archive_access_select (parent, z, ArchiveFormatZIP, dodefault);
+    	    return archive_access_select (parent, z, ArchiveFormatZIP, dodefault, retcode);
         if (header[0] == 'R' && header[1] == 'a' && header[2] == 'r' && header[3] == '!')
-	    return archive_access_select (parent, z, ArchiveFormatRAR, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatRAR, dodefault, retcode);
 	if (header[0] == 'L' && header[1] == 'Z' && header[2] == 'X')
-	    return archive_access_select (parent, z, ArchiveFormatLZX, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatLZX, dodefault, retcode);
 	if (header[2] == '-' && header[3] == 'l' && header[4] == 'h' && header[6] == '-')
-	    return archive_access_select (parent, z, ArchiveFormatLHA, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatLHA, dodefault, retcode);
     }
     if (mask & ZFD_ADF) {
  	if (header[0] == 'D' && header[1] == 'O' && header[2] == 'S' && (header[3] >= 0 && header[3] <= 7))
-	    return archive_access_select (parent, z, ArchiveFormatADF, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatADF, dodefault, retcode);
  	if (header[0] == 'S' && header[1] == 'F' && header[2] == 'S')
-	    return archive_access_select (parent, z, ArchiveFormatADF, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatADF, dodefault, retcode);
 	if (isfat (header))
-	    return archive_access_select (parent, z, ArchiveFormatFAT, dodefault);
+	    return archive_access_select (parent, z, ArchiveFormatFAT, dodefault, retcode);
     }
 
     if (ext) {
@@ -811,7 +813,7 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 	}
 	if (mask & ZFD_ADF) {
 	    if (strcasecmp (ext, L"adf") == 0 && !memcmp (header, "DOS", 3))
-		return archive_access_select (parent, z, ArchiveFormatADF, dodefault);
+		return archive_access_select (parent, z, ArchiveFormatADF, dodefault, retcode);
 	}
     }
     return NULL;
@@ -989,7 +991,7 @@ int zfile_zopen (const TCHAR *name, zfile_callback zc, void *user)
 /*
  * fopen() for a compressed file
  */
-struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
+static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int mask)
 {
     int cnt = 10;
     struct zfile *l, *l2;
@@ -1003,15 +1005,30 @@ struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
 	return l;
     l2 = NULL;
     while (cnt-- > 0) {
+	int rc;
 	zfile_fseek (l, 0, SEEK_SET);
-	l2 = zuncompress (NULL, l, 0, mask);
-	zfile_fseek (l, 0, SEEK_SET);
-	if (!l2)
+	l2 = zuncompress (NULL, l, 0, mask, &rc);
+	if (!l2) {
+	    if (rc < 0) {
+		zfile_fclose (l);
+		return NULL;
+	    }
+	    zfile_fseek (l, 0, SEEK_SET);
 	    break;
+	}
 	l = l2;
     }
     return l;
 }
+struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
+{
+    struct zfile *f;
+    //write_log (L"zfile_fopen('%s','%s',%08x)\n", name, mode, mask);
+    f = zfile_fopen_x (name, mode, mask);
+    //write_log (L"=%p\n", f);
+    return f;
+}
+
 
 struct zfile *zfile_dup (struct zfile *zf)
 {
@@ -1778,7 +1795,7 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 	goto end;
     zvnew = zfile_fopen_archive_ext (zv->parentz, zf);
     if (!zvnew) {
-	struct zfile *zf2 = zuncompress (&zv->root, zf, 0, ZFD_ALL);
+	struct zfile *zf2 = zuncompress (&zv->root, zf, 0, ZFD_ALL, NULL);
 	if (zf2) {
 	    zf = zf2;
 	    zvnew = archive_directory_plain (zf);

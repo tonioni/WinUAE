@@ -107,6 +107,9 @@ struct inputevent {
 
 /* event flags */
 #define ID_FLAG_AUTOFIRE 1
+#define ID_FLAG_TOGGLE 2
+#define ID_FLAG_SAVE_MASK 0xff
+#define ID_FLAG_TOGGLED 0x100
 
 #define DEFEVENT(A, B, C, D, E, F) {L#A, B, C, D, E, F },
 struct inputevent events[] = {
@@ -186,7 +189,7 @@ int inprec_open (TCHAR *fname, int record)
 	return 0;
     }
     input_recording = record;
-    srand(t);
+    srand (t);
     CIA_inprec_prepare ();
     write_log (L"inprec initialized '%s', mode=%d\n", fname, input_recording);
     return 1;
@@ -471,8 +474,8 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 	    *p++ = ',';
 	    *p = 0;
 	}
-	if (custom)
-	    _stprintf (p, L"'%s'.%d", custom, id->flags[i + offset][j] & 0xff);
+	if (custom && _tcslen (custom) > 0)
+	    _stprintf (p, L"'%s'.%d", custom, id->flags[i + offset][j] & ID_FLAG_SAVE_MASK);
 	else if (evt <= 0)
 	    _stprintf (p, L"NULL");
 	else
@@ -538,8 +541,9 @@ static void write_config (struct zfile *f, int idnum, int devnum, TCHAR *name, s
 static void kbrlabel (TCHAR *s)
 {
     while (*s) {
-	*s = toupper(*s);
-	if (*s == ' ') *s = '_';
+	*s = _totupper (*s);
+	if (*s == ' ')
+	    *s = '_';
 	s++;
     }
 }
@@ -591,7 +595,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 		*p++ = ',';
 		*p = 0;
 	    }
-	    if (custom)
+	    if (custom && _tcslen (custom) > 0)
 		_stprintf (p, L"'%s'.%d", custom, kbr->flags[i][j] & 0xff);
 	    else if (evt > 0)
 		_stprintf (p, L"%s.%d", events[evt].confname, kbr->flags[i][j]);
@@ -636,8 +640,10 @@ static int getnum (const TCHAR **pp)
     const TCHAR *p = *pp;
     int v = _tstol (p);
 
-    while (*p != 0 && *p !='.' && *p != ',') p++;
-    if (*p == '.' || *p == ',') p++;
+    while (*p != 0 && *p !='.' && *p != ',')
+	p++;
+    if (*p == '.' || *p == ',')
+	p++;
     *pp = p;
     return v;
 }
@@ -873,28 +879,28 @@ int mousehack_alive (void)
     return mousehack_alive_cnt > 0 ? mousehack_alive_cnt : 0;
 }
 
-static uaecptr get_base (const TCHAR *name)
+static uaecptr get_base (const uae_char *name)
 {
     uaecptr v = get_long (4);
     addrbank *b = &get_mem_bank(v);
 
-    if (!b || !b->check(v, 400) || b->flags != ABFLAG_RAM)
+    if (!b || !b->check (v, 400) || b->flags != ABFLAG_RAM)
 	return 0;
     v += 378; // liblist
     while (v = get_long (v)) {
 	uae_u32 v2;
 	uae_u8 *p;
-	b = &get_mem_bank(v);
+	b = &get_mem_bank (v);
 	if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM)
 	    return 0xffffffff;
 	v2 = get_long (v + 10); // name
-	b = &get_mem_bank(v2);
+	b = &get_mem_bank (v2);
 	if (!b || !b->check (v2, 20))
 	    return 0xffffffff;
 	if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
 	    return 0;
-	p = b->xlateaddr(v2);
-	if (!memcmp (p, name, _tcslen (name) + 1))
+	p = b->xlateaddr (v2);
+	if (!memcmp (p, name, strlen (name) + 1))
 	    return v;
     }
     return 0;
@@ -906,7 +912,7 @@ static uaecptr get_intuitionbase (void)
 	return 0;
     if (magicmouse_ibase)
 	return magicmouse_ibase;
-    magicmouse_ibase = get_base (L"intuition.library");
+    magicmouse_ibase = get_base ("intuition.library");
     return magicmouse_ibase;
 }
 static uaecptr get_gfxbase (void)
@@ -915,7 +921,7 @@ static uaecptr get_gfxbase (void)
 	return 0;
     if (magicmouse_gfxbase)
 	return magicmouse_gfxbase;
-    magicmouse_gfxbase = get_base (L"graphics.library");
+    magicmouse_gfxbase = get_base ("graphics.library");
     return magicmouse_gfxbase;
 }
 
@@ -2741,7 +2747,7 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)
 {
-    int evt, autofire, i;
+    int i;
     uae_u32 mask = 1 << button;
     uae_u32 omask = id2->buttonmask & mask;
     uae_u32 nmask = (state ? 1 : 0) << button;
@@ -2755,13 +2761,26 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 	return;
 
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-	evt = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
-	autofire = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
+	int evt = evt = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
+	int autofire = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
+	int toggle = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_TOGGLE) ? 1 : 0;
+
 	if (state < 0) {
 	    handle_input_event (evt, 1, 1, 0);
 	    queue_input_event (evt, 0, 1, 1, 0); /* send release event next frame */
 	    if (i == 0)
 		process_custom_event (id, ID_BUTTON_OFFSET + button, state);
+	} else if (toggle) {
+	    int toggled;
+	    if (!state)
+		continue;
+	    if (omask & mask)
+		continue;
+	    id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] ^= ID_FLAG_TOGGLED;
+	    toggled = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_TOGGLED) ? 1 : 0;
+	    handle_input_event (evt, toggled, 1, autofire);
+	    if (i == 0)
+	        process_custom_event (id, ID_BUTTON_OFFSET + button, toggled);
 	} else {
 	    if ((omask ^ nmask) & mask) {
 		handle_input_event (evt, state, 1, autofire);
@@ -3370,8 +3389,19 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 	if (na->extra[j][0] == scancode) {
 	    for (k = 0; k < MAX_INPUT_SUB_EVENT; k++) {/* send key release events in reverse order */
 		int autofire = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
+		int toggle = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_TOGGLE) ? 1 : 0;
 		int evt = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
-		handled |= handle_input_event (evt, state, 1, autofire);
+		int toggled;
+
+		if (toggle) {
+		    if (!state)
+			continue;
+		    na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] ^= ID_FLAG_TOGGLED;
+		    toggled = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_TOGGLED) ? 1 : 0;
+		    handled |= handle_input_event (evt, toggled, 1, autofire);
+		} else {
+		    handled |= handle_input_event (evt, state, 1, autofire);
+		}
 	    }
 	    process_custom_event (na, j, state);
 	    return handled;
@@ -3487,21 +3517,21 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 	uid->eventid[i][sub] = eventid;
 	uid->flags[i][sub] = flags;
 	xfree (uid->custom[i][sub]);
-	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
+	uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
 	return i;
     } else if (type == IDEV_WIDGET_AXIS) {
 	i = num - id->get_widget_first (devnum, type) + ID_AXIS_OFFSET;
 	uid->eventid[i][sub] = eventid;
 	uid->flags[i][sub] = flags;
 	xfree (uid->custom[i][sub]);
-	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
+	uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
 	return i;
     } else if (type == IDEV_WIDGET_KEY) {
 	i = num - id->get_widget_first (devnum, type);
 	uid->eventid[i][sub] = eventid;
 	uid->flags[i][sub] = flags;
 	xfree (uid->custom[i][sub]);
-	uid->custom[i][sub] = custom ? my_strdup (custom) : NULL;
+	uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
 	return i;
     }
     return -1;
@@ -3684,6 +3714,8 @@ int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR *name, 
 	_tcscpy (custom, customp);
     if (flag & ID_FLAG_AUTOFIRE)
 	flags |= IDEV_MAPPED_AUTOFIRE_SET;
+    if (flag & ID_FLAG_TOGGLE)
+	flags |= IDEV_MAPPED_TOGGLE;
     if (!data)
 	return 0;
     if (events[data].allow_mask & AM_AF)
@@ -3694,7 +3726,7 @@ int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR *name, 
     return data;
 }
 
-int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int af, int sub)
+int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int flags, int sub)
 {
     const struct inputdevice_functions *idf = getidf (devnum);
     const struct uae_input_device *uid = get_uid (idf, inputdevice_get_device_index (devnum));
@@ -3723,9 +3755,11 @@ int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, in
 	return 0;
     if (data >= 0) {
 	amask = events[eid].allow_mask;
-	flag &= ~ID_FLAG_AUTOFIRE;
-	if (amask & AM_AF)
-	    flag |= af ? ID_FLAG_AUTOFIRE : 0;
+	flag &= ~(ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE);
+	if (amask & AM_AF) {
+	    flag |= (flags & IDEV_MAPPED_AUTOFIRE_SET) ? ID_FLAG_AUTOFIRE : 0;
+	    flag |= (flags & IDEV_MAPPED_TOGGLE) ? ID_FLAG_TOGGLE : 0;
+	}
 	put_event_data (idf, devindex, num, eid, custom, flag, sub);
 	return 1;
     }
@@ -3932,7 +3966,7 @@ void do_fake_joystick (int nr, int *fake)
 
 void setjoybuttonstate (int joy, int button, int state)
 {
-    if (ignoreoldinput(joy)) {
+    if (ignoreoldinput (joy)) {
 	if (state)
 	    switchdevice (&joysticks[joy], button, 1);
 	return;
@@ -3946,7 +3980,7 @@ void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask)
 {
     int i;
 
-    if (ignoreoldinput(joy))
+    if (ignoreoldinput (joy))
 	return;
     for (i = 0; i < ID_BUTTON_TOTAL; i++) {
 	if (buttonmask & (1 << i))
@@ -4085,25 +4119,25 @@ void warpmode (int mode)
     fr = currprefs.gfx_framerate;
     if (fr == 0)
 	fr = -1;
-    fr2 = turbo_emulation;
+    fr2 = currprefs.turbo_emulation;
     if (fr2 == -1)
 	fr2 = 0;
 
     if (mode < 0) {
-	if (turbo_emulation) {
+	if (currprefs.turbo_emulation) {
 	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
-	    turbo_emulation = 0;
+	    currprefs.turbo_emulation = 0;
 	} else {
-	    turbo_emulation = fr;
+	    currprefs.turbo_emulation = fr;
 	}
-    } else if (mode == 0 && turbo_emulation) {
-	if (turbo_emulation > 0)
+    } else if (mode == 0 && currprefs.turbo_emulation) {
+	if (currprefs.turbo_emulation > 0)
 	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = fr2;
-	turbo_emulation = 0;
-    } else if (mode > 0 && !turbo_emulation) {
-	turbo_emulation = fr;
+	currprefs.turbo_emulation = 0;
+    } else if (mode > 0 && !currprefs.turbo_emulation) {
+	currprefs.turbo_emulation = fr;
     }
-    if (turbo_emulation) {
+    if (currprefs.turbo_emulation) {
 	if (!currprefs.cpu_cycle_exact && !currprefs.blitter_cycle_exact)
 	    changed_prefs.gfx_framerate = currprefs.gfx_framerate = 10;
 	pause_sound ();
@@ -4112,7 +4146,7 @@ void warpmode (int mode)
     }
     compute_vsynctime ();
 #ifdef RETROPLATFORM
-    rp_turbo (turbo_emulation);
+    rp_turbo (currprefs.turbo_emulation);
 #endif
 }
 

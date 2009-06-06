@@ -1205,7 +1205,7 @@ int scan_roms (int show)
 	keys = get_keyring ();
 	fetch_path (L"KickstartPath", path, sizeof path / sizeof (TCHAR));
 	cnt += scan_roms_3 (fkey, paths, path);
-	if (TRUE) {
+	if (1) {
 	    for(i = 0; i < MAX_ROM_PATHS; i++) {
 		ret = get_rom_path (path, i);
 		if (ret < 0)
@@ -2734,7 +2734,7 @@ static void set_lventry_input (HWND list, int index)
     int flags, i, sub;
     TCHAR name[256];
     TCHAR custom[MAX_DPATH];
-    TCHAR af[10];
+    TCHAR af[32], toggle[32];
 
     inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, input_selected_sub_num);
     if (flags & IDEV_MAPPED_AUTOFIRE_SET)
@@ -2743,15 +2743,22 @@ static void set_lventry_input (HWND list, int index)
 	WIN32GUI_LoadUIString (IDS_NO, af, sizeof (af) / sizeof (TCHAR));
     else
 	_tcscpy (af, L"-");
-    ListView_SetItemText(list, index, 1, custom[0] ? custom : name);
-    ListView_SetItemText(list, index, 2, af);
+    if (flags & IDEV_MAPPED_TOGGLE)
+	WIN32GUI_LoadUIString (IDS_YES, toggle, sizeof (toggle) / sizeof (TCHAR));
+    else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
+	WIN32GUI_LoadUIString (IDS_NO, toggle, sizeof (toggle) / sizeof (TCHAR));
+    else
+	_tcscpy (toggle, L"-");
+    ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
+    ListView_SetItemText (list, index, 2, af);
+    ListView_SetItemText (list, index, 3, toggle);
     sub = 0;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 	if (inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, i) || custom[0])
 	    sub++;
     }
     _stprintf (name, L"%d", sub);
-    ListView_SetItemText(list, index, 3, name);
+    ListView_SetItemText (list, index, 4, name);
 }
 
 static void update_listview_input (HWND hDlg)
@@ -2774,7 +2781,7 @@ static int clicked_entry = -1;
 
 #define LV_LOADSAVE 1
 #define LV_HARDDISK 2
-#define LV_INPUT 3
+#define LV_INPUT 4
 #define LV_DISK 4
 #define LV_MISC2 5
 
@@ -2817,7 +2824,8 @@ void InitializeListView (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
 	WIN32GUI_LoadUIString(IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 	WIN32GUI_LoadUIString(IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
-	_tcscpy (column_heading[3], L"#");
+	WIN32GUI_LoadUIString(IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
+	_tcscpy (column_heading[4], L"#");
 	list = GetDlgItem(hDlg, IDC_INPUTLIST);
     } else if (hDlg == pages[MISC2_ID]) {
 	listview_num_columns = MISC2_COLUMNS;
@@ -2881,7 +2889,8 @@ void InitializeListView (HWND hDlg)
 	}
 	listview_column_width [1] = 260;
 	listview_column_width [2] = 65;
-	listview_column_width [3] = 30;
+	listview_column_width [3] = 65;
+	listview_column_width [4] = 30;
 	update_listview_input (hDlg);
     } else if (lv_type == LV_DISK) {
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
@@ -9875,7 +9884,7 @@ static void doinputcustom (HWND hDlg, int newcustom)
     if (_tcslen (custom1) > 0 || newcustom) {
 	if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
 	    inputdevice_set_mapping (input_selected_device, input_selected_widget,
-		0, custom1, (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0, input_selected_sub_num);
+		0, custom1, flags, input_selected_sub_num);
 	}
     }
 }
@@ -9958,7 +9967,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 	    custom[0] = 0;
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
 	    eventnames[input_selected_event], _tcslen (custom) == 0 ? NULL : custom,
-	    (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 1 : 0, input_selected_sub_num);
+	    flags, input_selected_sub_num);
 	update_listview_input (hDlg);
 	inputdevice_updateconfig (&workprefs);
     }
@@ -9998,7 +10007,7 @@ static void input_copy (HWND hDlg)
 
 static void input_toggleautofire (void)
 {
-    int af, flags, evt;
+    int flags, evt;
     TCHAR name[256];
     TCHAR custom[MAX_DPATH];
     if (input_selected_device < 0 || input_selected_widget < 0)
@@ -10007,9 +10016,22 @@ static void input_toggleautofire (void)
 	&flags, name, custom, input_selected_sub_num);
     if (evt <= 0)
 	return;
-    af = (flags & IDEV_MAPPED_AUTOFIRE_SET) ? 0 : 1;
     inputdevice_set_mapping (input_selected_device, input_selected_widget,
-	name, custom, af, input_selected_sub_num);
+	name, custom, flags ^ IDEV_MAPPED_AUTOFIRE_SET, input_selected_sub_num);
+}
+static void input_toggletoggle (void)
+{
+    int flags, evt;
+    TCHAR name[256];
+    TCHAR custom[MAX_DPATH];
+    if (input_selected_device < 0 || input_selected_widget < 0)
+	return;
+    evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+	&flags, name, custom, input_selected_sub_num);
+    if (evt <= 0)
+	return;
+    inputdevice_set_mapping (input_selected_device, input_selected_widget,
+	name, custom, flags ^ IDEV_MAPPED_TOGGLE, input_selected_sub_num);
 }
 
 static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -10051,7 +10073,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	    input_swap (hDlg);
 	    break;
 	    case IDC_INPUTDEVICEDISABLE:
-	    inputdevice_set_device_status (input_selected_device, IsDlgButtonChecked( hDlg, IDC_INPUTDEVICEDISABLE) ? 1 : 0);
+	    inputdevice_set_device_status (input_selected_device, IsDlgButtonChecked (hDlg, IDC_INPUTDEVICEDISABLE) ? 1 : 0);
 	    break;
 	    default:
 	    switch (LOWORD (wParam))
@@ -10100,7 +10122,9 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		    input_selected_widget = entry;
 		    if (row == 2 && entry == oldentry)
 			input_toggleautofire ();
-		    if (row == 3) {
+		    if (row == 3 && entry == oldentry)
+			input_toggletoggle ();
+		    if (row == 4) {
 			input_selected_sub_num++;
 			if (input_selected_sub_num >= MAX_INPUT_SUB_EVENT)
 			    input_selected_sub_num = 0;
@@ -10156,9 +10180,9 @@ static void enable_for_hw3ddlg (HWND hDlg)
     ew (hDlg, IDC_FILTERVZMULT, v && !as);
     ew (hDlg, IDC_FILTERHO, v && !as);
     ew (hDlg, IDC_FILTERVO, v && !as);
-    ew (hDlg, IDC_FILTERSLR, vv3 && !as);
-    ew (hDlg, IDC_FILTERXL, vv2 && !as);
-    ew (hDlg, IDC_FILTERXLV, vv2 && !as);
+    ew (hDlg, IDC_FILTERSLR, vv3);
+    ew (hDlg, IDC_FILTERXL, vv2);
+    ew (hDlg, IDC_FILTERXLV, vv2);
     ew (hDlg, IDC_FILTERXTRA, vv2);
     ew (hDlg, IDC_FILTERDEFAULT, v);
     ew (hDlg, IDC_FILTERFILTER, vv);

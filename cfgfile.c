@@ -1044,6 +1044,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_yesno (option, value, L"gfx_flickerfixer", &p->gfx_scandoubler)
 	|| cfgfile_yesno (option, value, L"synchronize_clock", &p->tod_hack)
 	|| cfgfile_yesno (option, value, L"magic_mouse", &p->input_magic_mouse)
+	|| cfgfile_yesno (option, value, L"warp", &p->turbo_emulation)
+	|| cfgfile_yesno (option, value, L"headless", &p->headless)
 	|| cfgfile_yesno (option, value, L"bsdsocket_emu", &p->socket_emu))
 	    return 1;
 
@@ -3189,6 +3191,8 @@ void default_prefs (struct uae_prefs *p, int type)
     p->scsi = 0;
     p->uaeserial = 0;
     p->cpu_idle = 0;
+    p->turbo_emulation = 0;
+    p->headless = 0;
     p->catweasel = 0;
     p->tod_hack = 0;
     p->maprom = 0;
@@ -3358,6 +3362,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
     p->scsi = 0;
     p->uaeserial = 0;
     p->cpu_idle = 0;
+    p->turbo_emulation = 0;
     p->catweasel = 0;
     p->tod_hack = 0;
     p->maprom = 0;

@@ -921,19 +921,19 @@ void DirectDraw_FillPrimary (void)
     DirectDraw_FillSurface (dxdata.primary, NULL, 0);
 }
 
-extern int vblank_skip, turbo_emulation;
+extern int vblank_skip;
 static void flip (void)
 {
     int result = 0;
     HRESULT ddrval = DD_OK;
     DWORD flags = DDFLIP_WAIT;
 
-    if (turbo_emulation)
+    if (currprefs.turbo_emulation)
 	flags |= DDFLIP_NOVSYNC;
     if (dxdata.backbuffers == 2) {
         DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
 	if (currprefs.gfx_avsync) {
-	    if (vblank_skip >= 0) {
+	    if (vblank_skip >= 0 || currprefs.turbo_emulation) {
 	        ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 	    } else {
 		if (flipinterval_supported) {

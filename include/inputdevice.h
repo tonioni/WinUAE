@@ -44,6 +44,7 @@ struct uae_input_device_kbr_default {
 
 #define IDEV_MAPPED_AUTOFIRE_POSSIBLE 1
 #define IDEV_MAPPED_AUTOFIRE_SET 2
+#define IDEV_MAPPED_TOGGLE 4
 
 #define ID_BUTTON_OFFSET 0
 #define ID_BUTTON_TOTAL 32
@@ -51,7 +52,7 @@ struct uae_input_device_kbr_default {
 #define ID_AXIS_TOTAL 32
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
-extern int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int af, int sub);
+extern int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int flags, int sub);
 extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);

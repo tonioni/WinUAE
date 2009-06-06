@@ -1,5 +1,28 @@
+Beta 2:
 
-Beta 1
+- fs "double vsync" mode (100Hz+) was still slow in warp mode
+  (note D3D mode will stay "slow" because afaik it is not possible
+  to switch D3D vsync on/off on the fly)
+- added warp mode to configuration file (warp=true/false, config file
+  read-only)
+- and another read-only configuration entry, "headless" that switches
+  invisible emulation mode (window gets hidden). future feature..
+- log window scrollback buffer increased to 900 lines
+- command prompt "console wrapper" support (run winuae in command
+  prompt: output goes to command prompt window, does not open separate
+  log window) More information later, not important just yet..
+- saving configuration after modifying input-panel autofire setting
+  caused modified input event to be saved incorrectly (old bug)
+- display scaling does not anymore change D3D filter scanline scaling
+- unicode conversion broke magic mouse
+- uaeunp file handling update broke some archive operations (b1)
+- loading config from command line with GUI enabled didn't override
+  quickstart (if enabled)
+- added "toggle" option to input panel. First button/key press =
+  emulated button is pressed and kept down. Second button/key press
+  = emulated button is released
+
+Beta 1:
 
 - development PC updated to Intel Core i7 based. (Asus P6T DeluxeV2,
   i7 920 2.66GHz CPU @ 3.7GHz, 3x2G 1866MHz RAM)

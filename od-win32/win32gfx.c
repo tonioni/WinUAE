@@ -2213,13 +2213,13 @@ static int create_windows_2 (void)
 	    WS_EX_TOPMOST :
 	    WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 	    L"AmigaPowah", L"WinUAE",
-	    (dxfs || d3dfs ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
+	    (dxfs || d3dfs || currprefs.headless ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
 	    x, y, w, h,
 	    borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
     }
     if (!hAmigaWnd) {
 	write_log (L"creation of amiga window failed\n");
-	close_hwnds();
+	close_hwnds ();
 	return 0;
     }
     if (hMainWnd == NULL)
@@ -2229,10 +2229,12 @@ static int create_windows_2 (void)
 	SetCursorPos (x + w / 2, y + h / 2);
     addnotifications (hAmigaWnd, FALSE);
     if (hMainWnd != hAmigaWnd) {
-	ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
+	if (!currprefs.headless)
+	    ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
 	UpdateWindow (hMainWnd);
     }
-    ShowWindow (hAmigaWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
+    if (!currprefs.headless)
+	ShowWindow (hAmigaWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
     UpdateWindow (hAmigaWnd);
     firstwindow = 0;
 

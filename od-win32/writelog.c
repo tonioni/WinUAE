@@ -16,6 +16,7 @@
 #define SHOW_CONSOLE 0
 
 int consoleopen = 0;
+static int realconsole;
 static HANDLE stdinput,stdoutput;
 static int bootlogmode;
 static CRITICAL_SECTION cs;
@@ -36,20 +37,43 @@ static HWND myGetConsoleWindow (void)
     return GetConsoleWindow ();
 }
 
-static void open_console_window (void)
+static void getconsole (void)
 {
-    AllocConsole();
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+
     stdinput = GetStdHandle (STD_INPUT_HANDLE);
     stdoutput = GetStdHandle (STD_OUTPUT_HANDLE);
     SetConsoleMode (stdinput, ENABLE_PROCESSED_INPUT|ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_OUTPUT);
     SetConsoleCP (65001);
     SetConsoleOutputCP (65001);
+    if (GetConsoleScreenBufferInfo (stdoutput, &csbi)) {
+	if (csbi.dwMaximumWindowSize.Y < 900) {
+	    csbi.dwMaximumWindowSize.Y = 900;
+	    SetConsoleScreenBufferSize (stdoutput, csbi.dwMaximumWindowSize);
+	}
+    }
+}
+
+static void open_console_window (void)
+{
+    AllocConsole ();
+    getconsole ();
     consoleopen = -1;
     reopen_console ();
 }
 
-static void openconsole( void)
+static void openconsole (void)
 {
+    if (realconsole) {
+	if (debugger_type == 2) {
+	    open_debug_window ();
+	    consoleopen = 1;
+	} else {
+	    close_debug_window ();
+	    consoleopen = -1;
+	}
+	return;
+    }
     if (debugger_active && (debugger_type < 0 || debugger_type == 2)) {
 	if (consoleopen > 0 || debuggerinitializing)
 	    return;
@@ -90,6 +114,8 @@ void reopen_console (void)
 {
     HWND hwnd;
 
+    if (realconsole)
+	return;
     if (consoleopen >= 0)
 	return;
     hwnd = myGetConsoleWindow ();
@@ -121,6 +147,8 @@ void reopen_console (void)
 
 void close_console (void)
 {
+    if (realconsole)
+	return;
     if (consoleopen > 0) {
 	close_debug_window ();
     } else if (consoleopen < 0) {
@@ -144,12 +172,18 @@ void close_console (void)
 static void writeconsole (const TCHAR *buffer)
 {
     DWORD temp;
+    
     if (!consoleopen)
-	openconsole();
-    if (consoleopen > 0)
+	openconsole ();
+
+    if (consoleopen > 0) {
 	WriteOutput (buffer, _tcslen (buffer));
-    else if (consoleopen < 0)
-	WriteConsole (stdoutput, buffer, _tcslen (buffer), &temp,0);
+    } else if (realconsole) {
+	fputws (buffer, stdout);
+	fflush (stdout);
+    } else if (consoleopen < 0) {
+	WriteConsole (stdoutput, buffer, _tcslen (buffer), &temp, 0);
+    }
 }
 
 void console_out_f (const TCHAR *format,...)
@@ -172,8 +206,12 @@ void console_out (const TCHAR *txt)
 int console_get (TCHAR *out, int maxlen)
 {
     *out = 0;
+
     if (consoleopen > 0) {
 	return console_get_gui (out, maxlen);
+    } else if (realconsole) {
+	_fgetts (out, maxlen, stdin);
+	return _tcslen (out);
     } else if (consoleopen < 0) {
 	DWORD len, totallen;
 
@@ -351,13 +389,27 @@ TCHAR* buf_out (TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 
 void *log_open (const TCHAR *name, int append, int bootlog)
 {
-    FILE *f;
+    FILE *f = NULL;
 
-    f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
-    bootlogmode = bootlog;
     if (!cs_init)
-	InitializeCriticalSection (&cs);
+        InitializeCriticalSection (&cs);
     cs_init = 1;
+
+    if (name != NULL) {
+	f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
+	bootlogmode = bootlog;
+    } else if (1) {
+	TCHAR *c = GetCommandLine ();
+	if (_tcsstr (c, L" -console")) {
+	    if (GetStdHandle (STD_INPUT_HANDLE) && GetStdHandle (STD_OUTPUT_HANDLE)) {
+		consoleopen = -1;
+		realconsole = 1;
+		getconsole ();
+		_setmode(_fileno (stdout), _O_U16TEXT);
+		_setmode(_fileno (stdin), _O_U16TEXT);
+	    }
+	}
+    }
     return f;
 }
 

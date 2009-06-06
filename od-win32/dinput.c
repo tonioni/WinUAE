@@ -1612,8 +1612,8 @@ static int acquire_mouse (int num, int flags)
     unacquire (lpdi, L"mouse");
     if (did->connection == DIDC_DX && lpdi) {
 	setcoop (&di_mouse[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), L"mouse");
-	dipdw.diph.dwSize = sizeof(DIPROPDWORD);
-	dipdw.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+	dipdw.diph.dwSize = sizeof (DIPROPDWORD);
+	dipdw.diph.dwHeaderSize = sizeof (DIPROPHEADER);
 	dipdw.diph.dwObj = 0;
 	dipdw.diph.dwHow = DIPH_DEVICE;
 	dipdw.dwData = DI_BUFFER;
@@ -1662,7 +1662,7 @@ static void read_mouse (void)
     DWORD elements;
     HRESULT hr;
     int i, j, k;
-    int fs = isfullscreen() > 0 ? 1 : 0;
+    int fs = isfullscreen () > 0 ? 1 : 0;
     int istest = inputdevice_istest ();
    
     if (IGNOREEVERYTHING)

@@ -592,7 +592,7 @@ int host_socket(SB, int af, int type, int protocol)
 		BSDTRACE((L"failed (%d)\n",sb->sb_errno));
 		return -1;
     } else
-		sd = getsd(sb,(int)s);
+		sd = getsd(sb,s);
 
 	sb->ftable[sd-1] = SF_BLOCKING;
     ioctlsocket(s,FIONBIO,&nonblocking);

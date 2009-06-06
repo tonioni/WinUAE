@@ -1254,6 +1254,7 @@ BEGIN
     IDS_SOUND_51            "5.1 Channels"
     IDS_AUTOMATIC           "Automatic"
     IDS_ALL                 "All"
+    IDS_INPUTTOGGLE         "Toggle"
 END
 
 STRINGTABLE 

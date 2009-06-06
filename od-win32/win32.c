@@ -3426,7 +3426,9 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 	zfile_convertimage (np, np2);
 	return -1;
     }
-
+    if (!_tcscmp (arg, L"-console")) {
+	return 1;
+    }
     if (!_tcscmp (arg, L"-log")) {
         console_logging = 1;
         return 1;
@@ -4428,6 +4430,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	GetModuleHandle (L"user32.dll"), "SetProcessDPIAware");
     if (pSetProcessDPIAware)
 	pSetProcessDPIAware ();
+    log_open (NULL, 0, 0);
 
     __try {
 	WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);

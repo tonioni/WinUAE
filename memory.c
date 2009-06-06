@@ -394,7 +394,7 @@ void romlist_clear (void)
     }
 }
 
-/* remove rom entries that need 2 or more roms but not everyone is present */
+/* remove rom entries that need 2 or more roms but not everything required is present */
 static void romlist_cleanup (void)
 {
     int i = 0;
@@ -416,7 +416,7 @@ static void romlist_cleanup (void)
 		struct romlist *rl = romlist_getrl (&roms[i]);
 		if (rl) {
 		    int cnt = romlist_cnt - i - 1;
-		    write_log (L"%d '%s' removed from romlist\n", roms[k].name, rl->path);
+		    write_log (L"%s '%s' removed from romlist\n", roms[k].name, rl->path);
 		    xfree (rl->path);
 		    if (cnt > 0)
 			memmove (rl, rl + 1, cnt * sizeof (struct romlist));
@@ -2591,6 +2591,15 @@ struct zfile *read_rom (struct romdata **prd)
     return NULL;
 }
 
+static struct zfile *rom_fopen (const TCHAR *name, const TCHAR *mode, int mask)
+{
+    struct zfile *f;
+    //write_log (L"attempting to load '%s'\n", name); 
+    f = zfile_fopen (name, mode, mask);
+    //write_log (L"=%p\n", f);
+    return f;
+}
+
 struct zfile *read_rom_name (const TCHAR *filename)
 {
     int i;
@@ -2604,7 +2613,7 @@ struct zfile *read_rom_name (const TCHAR *filename)
 		return f;
 	}
     }
-    f = zfile_fopen (filename, L"rb", ZFD_NORMAL);
+    f = rom_fopen (filename, L"rb", ZFD_NORMAL);
     if (f) {
 	uae_u8 tmp[11];
 	zfile_fread (tmp, sizeof tmp, 1, f);
@@ -2836,7 +2845,9 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 		j = 0;
 		while (residents[j]) {
 		    if (!memcmp (residents[j], kickmemory + addr - base, strlen (residents[j]) + 1)) {
-			write_log (L"KSPatcher: '%s' at %08X disabled\n", residents[j], i + base);
+			TCHAR *s = au (residents[j]);
+			write_log (L"KSPatcher: '%s' at %08X disabled\n", s, i + base);
+			xfree (s);
 			kickmemory[i] = 0x4b; /* destroy RTC_MATCHWORD */
 			patched++;
 			break;
@@ -2875,19 +2886,19 @@ static int load_kickstart (void)
     _tcscpy (tmprom, currprefs.romfile);
     if (f == NULL) {
 	_stprintf (tmprom2, L"%s%s", start_path_data, currprefs.romfile);
-	f = zfile_fopen (tmprom2, L"rb", ZFD_NORMAL);
+	f = rom_fopen (tmprom2, L"rb", ZFD_NORMAL);
 	if (f == NULL) {
 	    _stprintf (currprefs.romfile, L"%sroms/kick.rom", start_path_data);
-	    f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
+	    f = rom_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 	    if (f == NULL) {
 		_stprintf (currprefs.romfile, L"%skick.rom", start_path_data);
-		f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
+		f = rom_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		if (f == NULL) {
 		    _stprintf (currprefs.romfile, L"%s../shared/rom/kick.rom", start_path_data);
-		    f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
+		    f = rom_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		    if (f == NULL) {
 			_stprintf (currprefs.romfile, L"%s../System/rom/kick.rom", start_path_data);
-			f = zfile_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
+			f = rom_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
 		    }
 		}
 	    }
@@ -3094,7 +3105,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
     base = ((uae_u8 *) NATMEM_OFFSET) + start;
     y->native_address = shmat (y->id, base, 0);
     if (y->native_address == (void *) -1) {
-	write_log (L"NATMEM: Failure to map existing at %08x(%p)\n", start, base);
+	write_log (L"NATMEM: Failure to map existing at %08x (%p)\n", start, base);
 	dumplist ();
 	nocanbang ();
 	return;
@@ -3210,7 +3221,7 @@ static void allocate_memory (void)
 	    allocated_chipmem = 0;
 	} else {
 	    need_hardreset = 1;
-	    if (memsize != allocated_chipmem)
+	    if (memsize > allocated_chipmem)
 		memset (chipmemory + allocated_chipmem, 0xff, memsize - allocated_chipmem);
 	}
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
@@ -3421,10 +3432,11 @@ void memory_reset (void)
 
     init_mem_banks ();
     allocate_memory ();
-
+    
     if (_tcscmp (currprefs.romfile, changed_prefs.romfile) != 0
 	|| _tcscmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
     {
+	write_log (L"ROM loader..\n");
         kickstart_rom = 1;
 	ersatzkickfile = 0;
 	a1000_handle_kickstart (0);
@@ -3459,6 +3471,7 @@ void memory_reset (void)
 	} else {
 	    struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
 	    if (rd) {
+		write_log (L"Known ROM '%s' loaded\n", rd->name);
 		if ((rd->cpu & 3) == 3 && changed_prefs.cpu_model != 68030) {
 		    notify_user (NUMSG_KS68030);
 		    uae_restart (-1, NULL);
@@ -3482,9 +3495,12 @@ void memory_reset (void)
 		    if (currprefs.cs_ide != IDE_A4000)
 			changed_prefs.cs_ide = currprefs.cs_ide = -1;
 		}
+	    } else {
+		write_log (L"Unknown ROM '%s' loaded\n", currprefs.romfile);
 	    }
 	}
 	patch_kick ();
+	write_log (L"ROM loader end\n");
     }
 
     if (cloanto_rom && currprefs.maprom < 0x01000000)
@@ -3644,6 +3660,7 @@ void memory_reset (void)
     }
 #endif
 #endif
+    write_log (L"memory init end\n");
 }
 
 void memory_init (void)

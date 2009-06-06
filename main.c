@@ -500,7 +500,7 @@ static void parse_cmdline (int argc, TCHAR **argv)
 	} else if (_tcsncmp (argv[i], L"-config=", 8) == 0) {
 	    TCHAR *txt = parsetext (argv[i] + 8);
 	    currprefs.mountitems = 0;
-	    target_cfgfile_load (&currprefs, txt, -1, 1);
+	    target_cfgfile_load (&currprefs, txt, -1, 0);
 	    xfree (txt);
 	} else if (_tcsncmp (argv[i], L"-statefile=", 11) == 0) {
 	    TCHAR *txt = parsetext (argv[i] + 11);
@@ -513,7 +513,7 @@ static void parse_cmdline (int argc, TCHAR **argv)
 		write_log (L"Missing argument for '-f' option.\n");
 	    } else {
 		currprefs.mountitems = 0;
-		target_cfgfile_load (&currprefs, argv[++i], -1, 1);
+		target_cfgfile_load (&currprefs, argv[++i], -1, 0);
 	    }
 	} else if (_tcscmp (argv[i], L"-s") == 0) {
 	    if (i + 1 == argc)

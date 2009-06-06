@@ -2068,6 +2068,7 @@ int open_debug_window(void)
 		maximized = 0;
 	ShowWindow(hDbgWnd, maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     UpdateWindow(hDbgWnd);
+    SetForegroundWindow (hDbgWnd);
     update_debug_info();
     return 1;
 }

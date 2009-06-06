@@ -216,6 +216,8 @@ struct uae_prefs {
     int floppy_write_length;
     int tod_hack;
     uae_u32 maprom;
+    int turbo_emulation;
+    int headless;
 
     int cs_compatible;
     int cs_ciaatod;
