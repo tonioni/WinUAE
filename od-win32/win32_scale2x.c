@@ -15,6 +15,8 @@
 #include "statusline.h"
 #include "drawing.h"
 
+#include <float.h>
+
 struct uae_filter uaefilters[] =
 {
     { UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
@@ -23,7 +25,7 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_OPENGL, 0, 1, L"OpenGL (unsupported)", L"opengl", 1, 0, 0, 0, 0 },
 
-    { UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0 },
+    { UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
     { UAE_FILTER_HQ, 0, 2, L"hq2x/3x/4x", L"hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
@@ -148,7 +150,10 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
     float xmult, ymult;
     int v;
     int extraw, extrah;
-    
+    int fpuv;
+   
+    fpux_save (&fpuv);
+
     getinit ();
     ahs2 = vblscale (ah) * scale;
     aws = aw * scale;
@@ -250,7 +255,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, 0);
 		filteroffsetx = -zr->left / scale;
 		filteroffsety = -zr->top / scale;
-		return;
+		goto end;
 	    }
 
 	    dr->left = (temp_width - aws) /2;
@@ -309,7 +314,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	    filterxmult = diff * 1000 / (dst_width * scale);
 	    diff = dr->bottom - dr->top;
 	    filterymult = diff * 1000 / (dst_height * scale);
-	    return;
+	    goto end;
 	}
     }
   
@@ -386,6 +391,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
     filterymult = ymult;
     filteroffsetx += (dst_width - aw * 1000 / filterxmult) / 2;
     filteroffsety += (dst_height - ah * 1000 / filterymult) / 2;
+
+end:
+    fpux_restore (&fpuv);
 
 }
 
@@ -654,6 +662,7 @@ void S2X_render (void)
     }
 
 endfail:
+
     if (ok == 0 && currprefs.gfx_filter) {
 	usedfilter = &uaefilters[0];
 	changed_prefs.gfx_filter = usedfilter->type;

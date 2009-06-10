@@ -1621,6 +1621,13 @@ void fpuop_arithmetic (uae_u32 opcode, struct regstruct *regs, uae_u16 extra)
     op_illg (opcode, regs);
 }
 
+void fpu_reset (void)
+{
+    regs.fpcr = regs.fpsr = regs.fpiar = 0;
+    regs.fp_result = 1;
+    fpux_restore (NULL);
+}
+
 uae_u8 *restore_fpu (uae_u8 *src)
 {
     int i;

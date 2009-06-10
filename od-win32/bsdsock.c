@@ -344,14 +344,17 @@ void host_sbcleanup(SB)
 			bsd->asyncsb[i] = NULL;
 	}
 
-	if (sb->hEvent != NULL)
+	if (sb->hEvent != NULL) {
 		CloseHandle(sb->hEvent);
+		sb->hEvent = NULL;
+	}
 
 	for (i = sb->dtablesize; i--; ) {
 		if (sb->dtable[i] != INVALID_SOCKET)
 			host_closesocketquick(sb->dtable[i]);
+		sb->dtable[i] = INVALID_SOCKET;
 
-		if (sb->mtable[i])
+		if (sb->mtable && sb->mtable[i])
 			bsd->asyncsb[(sb->mtable[i] - 0xb000) / 2] = NULL;
 	}
 
@@ -359,6 +362,7 @@ void host_sbcleanup(SB)
 	closesocket(sb->sockAbort);
 
 	free(sb->mtable);
+	sb->mtable = NULL;
 }
 
 void host_sbreset(void)

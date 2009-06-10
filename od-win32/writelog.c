@@ -186,6 +186,17 @@ static void writeconsole (const TCHAR *buffer)
     }
 }
 
+static void flushconsole (void)
+{
+    if (consoleopen > 0) {
+	fflush (stdout);
+    } else if (realconsole) {
+	fflush (stdout);
+    } else if (consoleopen < 0) {
+	FlushFileBuffers  (stdoutput);
+    }
+}
+
 void console_out_f (const TCHAR *format,...)
 {
     va_list parms;
@@ -234,6 +245,7 @@ int console_get (TCHAR *out, int maxlen)
 
 void console_flush (void)
 {
+    flushconsole ();
 }
 
 static int lfdetected = 1;
@@ -356,6 +368,7 @@ void flush_log (void)
 {
     if (debugfile)
 	fflush (debugfile);
+    flushconsole ();
 }
 
 void f_out (void *f, const TCHAR *format, ...)

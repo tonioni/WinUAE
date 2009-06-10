@@ -1,3 +1,17 @@
+
+Beta 3:
+
+- added exception handler that writes log message if openal or
+  portaudio device enumeration crashes
+- fixed d3d pot/square texture restriction check, only for really
+  old display cards (which may be too slow for d3d filter..)
+- bsdsocket cleanup crash fix (ancient win32-specific bug)
+- gzip decompression problem (yet another unicode conversion bug),
+  also broke built-in hrtmon (which is gzipped internally)
+- reset fpu rounding state to original temporarily when doing filter
+  calculations (single pixel jittering in some filtering modes if
+  Amiga-side code uses FPU and modifies rounding mode)
+  
 Beta 2:
 
 - fs "double vsync" mode (100Hz+) was still slow in warp mode

@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"Beta 2"
-#define WINUAEDATE MAKEBD(2009, 6, 6)
+#define WINUAEBETA L"Beta 3"
+#define WINUAEDATE MAKEBD(2009, 6, 10)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -143,6 +143,9 @@ struct winuae_lang
 };
 extern struct winuae_lang langs[];
 extern HMODULE language_load (WORD language);
+extern unsigned int fpucontrol;
+extern void fpux_save (int *v);
+extern void fpux_restore (int *v);
 
 extern void logging_open (int,int);
 extern void logging_cleanup (void);

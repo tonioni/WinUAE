@@ -116,6 +116,9 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
 	case ArchiveFormatFAT:
 	zf = archive_access_fat (zn);
 	break;
+	case ArchiveFormatDIR:
+	zf = archive_access_dir (zn);
+	break;
     }
     return zf;
 }
@@ -642,10 +645,12 @@ struct zfile *archive_access_rar (struct znode *zn)
 	}
     }
     zf = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-    rarunpackzf = zf;
-    if (pRARProcessFile (rc->hArcData, RAR_TEST, NULL, NULL)) {
-	zfile_fclose (zf);
-	zf = NULL;
+    if (zf) {
+	rarunpackzf = zf;
+	if (pRARProcessFile (rc->hArcData, RAR_TEST, NULL, NULL)) {
+	    zfile_fclose (zf);
+	    zf = NULL;
+	}
     }
 end:
     pRARCloseArchive(rc->hArcData);
@@ -1061,6 +1066,8 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
 	    }
 	    _tcscat (name2, fname);
 	    zai.name = name2;
+	    if (size < 0 || size > 0x7fffffff)
+		size = 0;
 	    zai.size = size;
 	    zai.flags = gl (adf, bs - 48 * 4);
 	    zai.t = put_time (gl (adf, bs - 23 * 4), gl (adf, bs - 22 * 4),gl (adf, bs - 21 * 4));
@@ -1905,3 +1912,9 @@ void archive_access_close (void *handle, unsigned int id)
 	break;
     }
 }
+
+struct zfile *archive_access_dir (struct znode *zn)
+{
+    return zfile_fopen (zn->fullname, L"rb", 0);
+}
+

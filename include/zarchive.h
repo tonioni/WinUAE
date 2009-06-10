@@ -76,6 +76,7 @@ struct zarchive_info
 #define ArchiveFormatLHA 'lha '
 #define ArchiveFormatLZX 'lzx '
 #define ArchiveFormatPLAIN '----'
+#define ArchiveFormatDIR 'DIR '
 #define ArchiveFormatAA 'aa  ' // method only
 #define ArchiveFormatADF 'DOS '
 #define ArchiveFormatRDB 'RDSK'
@@ -111,6 +112,7 @@ extern struct zvolume *archive_directory_rdb (struct zfile *z);
 extern struct zfile *archive_access_rdb (struct znode *zn);
 extern struct zvolume *archive_directory_fat (struct zfile *z);
 extern struct zfile *archive_access_fat (struct znode *zn);
+extern struct zfile *archive_access_dir (struct znode *zn);
 
 extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect, int *retcode);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id, int *retcode);

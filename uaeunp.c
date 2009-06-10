@@ -511,7 +511,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	    s = zfile_open_archive (tmp, 0);
 	    if (!s) {
 		geterror();
-		_tprintf (L"Couldn't open '%s' for reading\n", src);
+		_tprintf (L"Couldn't open '%s' for reading\n", tmp);
 		continue;
 	    }
 	    zfile_fseek (s, 0, SEEK_END); 
@@ -672,13 +672,13 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
     if (crclist) {
 	docrclist (L".");
 	ok = 1;
-    } else if (match) {
+    } else if (!list && match) {
 	unpack2 (path, match, 0);
 	ok = 1;
-    } else if (!parm2 && all > 0) {
+    } else if (!list && !parm2 && all > 0) {
 	unpack2 (path, L"*", 0);
 	ok = 1;
-    } else if (extract && parm2) {
+    } else if (!list && extract && parm2) {
 	unpack2 (path, parm2, 0);
 	ok = 1;
     } else if (argc == 2 || (argc > 2 && list)) {

@@ -62,7 +62,7 @@ static void reseterrormode (int unitnum)
 static void close_device (int unitnum);
 static int open_device (int unitnum);
 
-static void mcierr(TCHAR *str, DWORD err)
+static void mcierr (TCHAR *str, DWORD err)
 {
     TCHAR es[1000];
     if (err == MMSYSERR_NOERROR)

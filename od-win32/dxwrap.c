@@ -354,25 +354,32 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
     desc.dwFlags = DDSD_CAPS;
     desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
     if (dxdata.fsmodeset) {
+	int ok = 0;
 	DWORD oldcaps = desc.ddsCaps.dwCaps;
 	DWORD oldflags = desc.dwFlags;
 	desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
 	desc.ddsCaps.dwCaps |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-	desc.dwBackBufferCount = 2;
-	ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
-	if (SUCCEEDED (ddrval)) {
-	    DDSCAPS2 ddscaps;
-	    memset (&ddscaps, 0, sizeof (ddscaps));
-	    ddscaps.dwCaps = DDSCAPS_BACKBUFFER;
-	    ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.primary, &ddscaps, &dxdata.flipping[0]);
-	    if(SUCCEEDED (ddrval)) {
+	desc.dwBackBufferCount = currprefs.gfx_backbuffers;
+	if (desc.dwBackBufferCount > 0) {
+	    ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
+	    if (SUCCEEDED (ddrval)) {
+		DDSCAPS2 ddscaps;
 		memset (&ddscaps, 0, sizeof (ddscaps));
-		ddscaps.dwCaps = DDSCAPS_FLIP;
-		ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.flipping[0], &ddscaps, &dxdata.flipping[1]);
+		ddscaps.dwCaps = DDSCAPS_BACKBUFFER;
+		ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.primary, &ddscaps, &dxdata.flipping[0]);
+		if(SUCCEEDED (ddrval)) {
+		    if (desc.dwBackBufferCount > 1) {
+			memset (&ddscaps, 0, sizeof (ddscaps));
+			ddscaps.dwCaps = DDSCAPS_FLIP;
+			ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.flipping[0], &ddscaps, &dxdata.flipping[1]);
+		    }
+		}
+		if (FAILED (ddrval))
+		    write_log (L"IDirectDrawSurface7_GetAttachedSurface: %s\n", DXError (ddrval));
+		ok = 1;
 	    }
-	    if (FAILED (ddrval))
-		write_log (L"IDirectDrawSurface7_GetAttachedSurface: %s\n", DXError (ddrval));
-	} else {
+	}
+	if (!ok) {
 	    desc.dwBackBufferCount = 0;
 	    desc.ddsCaps.dwCaps = oldcaps;
 	    desc.dwFlags = oldflags;

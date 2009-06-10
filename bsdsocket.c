@@ -691,6 +691,7 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 {
     int *newdtable;
     int *newftable;
+    int *newmtable;
     int i;
 
     if (newSize < sb->dtablesize) {
@@ -698,25 +699,32 @@ static uae_u32 bsdsocklib_SetDTableSize (SB, int newSize)
 	return 0;
     }
 
-    newdtable = (int *)malloc(newSize * sizeof(*sb->dtable));
-    newftable = (int *)malloc(newSize * sizeof(*sb->ftable));
+    newdtable = (int *)calloc(newSize, sizeof(*sb->dtable));
+    newftable = (int *)calloc(newSize, sizeof(*sb->ftable));
+    newmtable = (int *)calloc(newSize, sizeof(*sb->mtable));
 
-    if (newdtable == NULL || newftable == NULL) {
+    if (newdtable == NULL || newftable == NULL || newmtable == NULL) {
 	sb->resultval = -1;
 	bsdsocklib_seterrno(sb, ENOMEM);
+	free (newdtable);
+	free (newftable);
+	free (newmtable);
 	return -1;
     }
 
     memcpy(newdtable, sb->dtable, sb->dtablesize * sizeof(*sb->dtable));
     memcpy(newftable, sb->ftable, sb->dtablesize * sizeof(*sb->ftable));
+    memcpy(newmtable, sb->mtable, sb->dtablesize * sizeof(*sb->mtable));
     for (i = sb->dtablesize + 1; i < newSize; i++)
 	newdtable[i] = -1;
 
     sb->dtablesize = newSize;
     free(sb->dtable);
     free(sb->ftable);
+    free(sb->mtable);
     sb->dtable = (SOCKET*)newdtable;
     sb->ftable = newftable;
+    sb->mtable = newmtable;
     sb->resultval = 0;
     return 0;
 }

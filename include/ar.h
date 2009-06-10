@@ -40,18 +40,18 @@ extern void action_replay_hide (void);
 extern void action_replay_reset (void);
 extern int action_replay_load (void);
 
-extern void action_replay_memory_reset(void);
+extern void action_replay_memory_reset (void);
 extern void action_replay_init (int);
 extern void action_replay_cleanup (void);
-extern void action_replay_chipwrite(void);
-extern void action_replay_map_banks(void);
+extern void action_replay_chipwrite (void);
+extern void action_replay_map_banks (void);
 extern void REGPARAM3 chipmem_lput_actionreplay23 (uaecptr addr, uae_u32 l) REGPARAM;
 extern void REGPARAM3 chipmem_wput_actionreplay23 (uaecptr addr, uae_u32 w) REGPARAM;
 extern void REGPARAM3 chipmem_bput_actionreplay1 (uaecptr addr, uae_u32 b) REGPARAM;
 extern void REGPARAM3 chipmem_wput_actionreplay1 (uaecptr addr, uae_u32 w) REGPARAM;
 extern void REGPARAM3 chipmem_lput_actionreplay1 (uaecptr addr, uae_u32 l) REGPARAM;
 
-extern void action_replay_version(void);
+extern void action_replay_version (void);
 
 extern void descramble_nordicpro (uae_u8*, int, int);
 
@@ -63,7 +63,7 @@ extern void hrtmon_ciaread (void);
 extern void hrtmon_hide (void);
 extern void hrtmon_reset (void);
 extern int hrtmon_load (void);
-extern void hrtmon_map_banks(void);
+extern void hrtmon_map_banks (void);
 
 /*extern uae_u8 *hrtmemory;*/
 extern uae_u32 hrtmem_start, hrtmem_size;

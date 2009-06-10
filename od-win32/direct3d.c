@@ -607,7 +607,7 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 
     w = *ww;
     h = *hh;
-    if (!tex_pow2) {
+    if (tex_pow2) {
 	if (w < 256)
 	    w = 256;
 	else if (w < 512)
@@ -633,16 +633,27 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 	else
 	    h = 8192;
     }
+    if (tex_square) {
+        if (w > h)
+	    h = w;
+	else
+	    w = h;
+    }
 
     if (tex_dynamic) {
         hr = IDirect3DDevice9_CreateTexture (d3ddev, w, h, 1, D3DUSAGE_DYNAMIC, format,
 	    D3DPOOL_DEFAULT, &t, NULL);
-    } else {
+	if (FAILED (hr))
+	    write_log (L"IDirect3DDevice9_CreateTexture() D3DUSAGE_DYNAMIC failed: %s (%d*%d %08x)\n",
+		D3D_ErrorString (hr), w, h, format);
+    }
+    if (!tex_dynamic || (tex_dynamic && FAILED (hr))) {
         hr = IDirect3DDevice9_CreateTexture (d3ddev, w, h, 1, 0, format,
 	    D3DPOOL_MANAGED, &t, NULL);
     }
     if (FAILED (hr)) {
-        write_log (L"IDirect3DDevice9_CreateTexture failed: %s\n", D3D_ErrorString (hr));
+        write_log (L"IDirect3DDevice9_CreateTexture() failed: %s (%d*%d %08x)\n",
+	    D3D_ErrorString (hr), w, h, format);
 	return 0;
     }
 
@@ -1167,9 +1178,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	tex_dynamic = TRUE;
 
     if(d3dCaps.PixelShaderVersion >= D3DPS_VERSION(2,0)) {
-	if((d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) && tex_dynamic) {
+	if((d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) && tex_dynamic && !tex_pow2 && !tex_square) {
 	    psEnabled = TRUE;
-	    tex_pow2 = TRUE;
 	} else {
 	    psEnabled = FALSE;
 	}
@@ -1180,10 +1190,10 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     max_texture_w = d3dCaps.MaxTextureWidth;
     max_texture_h = d3dCaps.MaxTextureHeight;
 
-    write_log (L"D3D: PS=%d.%d VS=%d.%d Square=%d, Pow2=%d, Tex Size=%d*%d\n",
+    write_log (L"D3D: PS=%d.%d VS=%d.%d Square=%d, Pow2=%d, Dyn=%d, %d*%d\n",
 	(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 	(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
-	tex_square, tex_pow2,
+	tex_square, tex_pow2, tex_dynamic,
 	max_texture_w, max_texture_h);
 
     if (max_texture_w < t_w || max_texture_h < t_h) {
@@ -1265,9 +1275,10 @@ void D3D_clear (void)
     }
 }
 
-static void D3D_render2 (int clear)
+static void D3D_render22 (int clear)
 {
     HRESULT hr;
+
     if (!d3d_enabled)
 	return;
     if (FAILED (IDirect3DDevice9_TestCooperativeLevel (d3ddev)))
@@ -1360,6 +1371,16 @@ static void D3D_render2 (int clear)
 
     hr = IDirect3DDevice9_EndScene (d3ddev);
     hr = IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
+
+}
+
+static void D3D_render2 (int clear)
+{   
+    int fpuv;
+
+    fpux_save (&fpuv);
+    D3D_render22 (clear);
+    fpux_restore (&fpuv);
 }
 
 void D3D_render (void)

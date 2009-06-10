@@ -2471,6 +2471,8 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	    pos = 2;
 	    on_rgb = 0x000000;
 	    off_rgb = 0x000000;
+	    if (fps > 999)
+		fps = 999;
 	    num1 = fps / 100;
 	    num2 = (fps - num1 * 100) / 10;
 	    num3 = fps % 10;

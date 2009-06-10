@@ -1614,10 +1614,9 @@ void m68k_reset (int hardreset)
     SET_NFLG (&regs.ccrflags, 0);
     regs.intmask = 7;
     regs.vbr = regs.sfc = regs.dfc = 0;
-#ifdef FPUEMU
-    regs.fpcr = regs.fpsr = regs.fpiar = 0;
-    regs.fp_result = 1;
     regs.irc = 0xffff;
+#ifdef FPUEMU
+    fpu_reset ();
 #endif
     regs.caar = regs.cacr = 0;
     regs.itt0 = regs.itt1 = regs.dtt0 = regs.dtt1 = 0;

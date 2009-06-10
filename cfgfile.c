@@ -985,6 +985,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_intval (option, value, L"gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
 	|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_refreshrate, 1)
 	|| cfgfile_intval (option, value, L"gfx_autoresolution", &p->gfx_autoresolution, 1)
+	|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_backbuffers, 1)
 
 	|| cfgfile_intval (option, value, L"gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
 	|| cfgfile_intval (option, value, L"gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
@@ -3172,6 +3173,7 @@ void default_prefs (struct uae_prefs *p, int type)
     p->gfx_max_vertical = 1;
     p->color_mode = 2;
     p->gfx_blackerthanblack = 0;
+    p->gfx_backbuffers = 2;
 
     p->x11_use_low_bandwidth = 0;
     p->x11_use_mitshm = 0;

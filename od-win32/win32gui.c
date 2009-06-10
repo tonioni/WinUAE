@@ -12424,13 +12424,16 @@ void gui_led (int led, int on)
 	pos = 5;
 	ptr = _tcscpy (drive_text + pos * 16, L"CD");
     } else if (led == 7) {
+	double fps = (double)gui_data.fps / 10.0;
 	extern int p96vblank;
 	pos = 2;
 	ptr = drive_text + pos * 16;
+	if (fps > 999.9)
+	    fps = 999.9;
 	if (picasso_on)
-	    _stprintf (ptr, L"%d [%.1f]", p96vblank, (double)(gui_data.fps  / 10.0));
+	    _stprintf (ptr, L"%d [%.1f]", p96vblank, fps);
 	else
-	    _stprintf (ptr, L"FPS: %.1f", (double)(gui_data.fps  / 10.0));
+	    _stprintf (ptr, L"FPS: %.1f", fps);
 	if (pause_emulation)
 	    _tcscpy (ptr, L"PAUSED");
     } else if (led == 8) {

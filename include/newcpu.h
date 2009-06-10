@@ -316,6 +316,9 @@ extern void fpuop_bcc(uae_u32, struct regstruct *regs, uaecptr, uae_u32);
 extern void fpuop_save(uae_u32, struct regstruct *regs);
 extern void fpuop_restore(uae_u32, struct regstruct *regs);
 extern uae_u32 fpp_get_fpsr (const struct regstruct *regs);
+extern void fpu_reset (void);
+extern void fpux_save (int*);
+extern void fpux_restore (int*);
 
 extern void exception3 (uae_u32 opcode, uaecptr addr, uaecptr fault);
 extern void exception3i (uae_u32 opcode, uaecptr addr, uaecptr fault);

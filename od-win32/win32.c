@@ -31,6 +31,7 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <dbghelp.h>
+#include <float.h>
 
 #include "resource"
 
@@ -87,6 +88,7 @@
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput, rawkeyboard;
 int log_scsi, log_net, uaelib_debug;
 int pissoff_value = 25000;
+unsigned int fpucontrol;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -4398,6 +4400,17 @@ uae_u32 emulib_target_getcpurate (uae_u32 v, uae_u32 *low)
     return 0;
 }
 
+void fpux_save (int *v)
+{
+    *v = _controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
+}
+void fpux_restore (int *v)
+{
+    if (v)
+	_controlfp (*v, _MCW_IC | _MCW_RC | _MCW_PC);
+    else
+	_controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
+}
 
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
@@ -4415,6 +4428,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     GetProcessAffinityMask (GetCurrentProcess (), &original_affinity, &sys_aff);
 
     thread = GetCurrentThread ();
+    fpucontrol = _controlfp (0, 0) & (_MCW_IC | _MCW_RC | _MCW_PC);
     //original_affinity = SetThreadAffinityMask(thread, 1);
 
 #if 0
