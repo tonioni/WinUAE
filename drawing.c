@@ -1310,7 +1310,7 @@ static void init_ham_decoding (void)
 	    int pv = pixdata.apixels[ham_decode_pixel + unpainted_amiga - 1];
 #ifdef AGA
 	    if (currprefs.chipset_mask & CSMASK_AGA)
-		ham_lastcolor = colors_for_drawing.color_regs_aga[pv];
+		ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor];
 	    else
 #endif
 		ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
@@ -1319,7 +1319,7 @@ static void init_ham_decoding (void)
     } else if (currprefs.chipset_mask & CSMASK_AGA) {
 	if (bplplanecnt >= 7) { /* AGA mode HAM8 */
 	    while (unpainted_amiga-- > 0) {
-		int pv = pixdata.apixels[ham_decode_pixel++];
+		int pv = pixdata.apixels[ham_decode_pixel++] ^ bplxor;
 		switch (pv & 0x3)
 		{
 		    case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2]; break;
@@ -1330,7 +1330,7 @@ static void init_ham_decoding (void)
 	    }
 	} else { /* AGA mode HAM6 */
 	    while (unpainted_amiga-- > 0) {
-		int pv = pixdata.apixels[ham_decode_pixel++];
+		int pv = pixdata.apixels[ham_decode_pixel++] ^ bplxor;
 		switch (pv & 0x30)
 		{
 		    case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv]; break;
@@ -1365,7 +1365,7 @@ static void decode_ham (int pix, int stoppos)
 	    int pv = pixdata.apixels[ham_decode_pixel];
 #ifdef AGA
 	    if (currprefs.chipset_mask & CSMASK_AGA)
-		ham_lastcolor = colors_for_drawing.color_regs_aga[pv];
+		ham_lastcolor = colors_for_drawing.color_regs_aga[pv ^ bplxor];
 	    else
 #endif
 		ham_lastcolor = colors_for_drawing.color_regs_ecs[pv];
@@ -1376,7 +1376,7 @@ static void decode_ham (int pix, int stoppos)
     } else if (currprefs.chipset_mask & CSMASK_AGA) {
 	if (bplplanecnt >= 7) { /* AGA mode HAM8 */
 	    while (todraw_amiga-- > 0) {
-		int pv = pixdata.apixels[ham_decode_pixel];
+		int pv = pixdata.apixels[ham_decode_pixel] ^ bplxor;
 		switch (pv & 0x3)
 		{
 		    case 0x0: ham_lastcolor = colors_for_drawing.color_regs_aga[pv >> 2]; break;
@@ -1388,7 +1388,7 @@ static void decode_ham (int pix, int stoppos)
 	    }
 	} else { /* AGA mode HAM6 */
 	    while (todraw_amiga-- > 0) {
-		int pv = pixdata.apixels[ham_decode_pixel];
+		int pv = pixdata.apixels[ham_decode_pixel] ^ bplxor;
 		switch (pv & 0x30)
 		{
 		    case 0x00: ham_lastcolor = colors_for_drawing.color_regs_aga[pv]; break;
@@ -1841,6 +1841,25 @@ static void pfield_expand_dp_bplcon (void)
 #endif
 }
 
+static int isham (uae_u16 bplcon0)
+{
+    int p = GET_PLANES (bplcon0);
+    if (!(bplcon0 & 0x800))
+	return 0;
+    if (currprefs.chipset_mask & CSMASK_AGA) {
+	// AGA only has 6 or 8 plane HAM
+	if (p == 6 || p == 8)
+	    return 1;
+    } else {
+	// OCS/ECS also supports 5 plane HAM
+	if (GET_RES_DENISE (bplcon0) > 0)
+	    return 0;
+	if (p >= 5)
+	    return 1;
+    }
+    return 0;
+}
+
 static void pfield_expand_dp_bplcon2 (int regno, int v)
 {
     regno -= 0x1000;
@@ -1850,7 +1869,7 @@ static void pfield_expand_dp_bplcon2 (int regno, int v)
 	dp_for_drawing->bplcon0 = v;
 	dp_for_drawing->bplres = GET_RES_DENISE (v);
 	dp_for_drawing->nr_planes = GET_PLANES (v);
-	dp_for_drawing->ham_seen = !! (v & 0x800);
+	dp_for_drawing->ham_seen = isham (v);
 	break;
 	case 0x104:
 	dp_for_drawing->bplcon2 = v;

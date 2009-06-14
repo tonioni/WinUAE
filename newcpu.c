@@ -187,6 +187,8 @@ static void build_cpufunctbl (void)
 	break;
 #endif
 #endif
+	default:
+	changed_prefs.cpu_model = currprefs.cpu_model = 68000;
 	case 68000:
 	lvl = 0;
 	tbl = op_smalltbl_5_ff;
@@ -202,7 +204,7 @@ static void build_cpufunctbl (void)
     }
 
     if (tbl == 0) {
-	write_log (L"no CPU emulation cores available!");
+	write_log (L"no CPU emulation cores available CPU=%d!", currprefs.cpu_model);
 	abort ();
     }
 
@@ -3062,7 +3064,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	    currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
     }
     write_log (L"CPU %d%s%03d, PC=%08X\n",
-	model / 1000, flags & 1 ? "EC" : "", model % 1000, regs.pc);
+	model / 1000, flags & 1 ? L"EC" : L"", model % 1000, regs.pc);
 
     return src;
 }

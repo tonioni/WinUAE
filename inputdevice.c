@@ -892,18 +892,29 @@ static uaecptr get_base (const uae_char *name)
 	uae_u8 *p;
 	b = &get_mem_bank (v);
 	if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM)
-	    return 0xffffffff;
+	    goto fail;
 	v2 = get_long (v + 10); // name
 	b = &get_mem_bank (v2);
 	if (!b || !b->check (v2, 20))
-	    return 0xffffffff;
+	    goto fail;
 	if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
 	    return 0;
 	p = b->xlateaddr (v2);
-	if (!memcmp (p, name, strlen (name) + 1))
+	if (!memcmp (p, name, strlen (name) + 1)) {
+	    TCHAR *s = au (name);
+	    write_log (L"get_base('%s')=%08x\n", s, v);
+	    xfree (s);
 	    return v;
+	}
     }
     return 0;
+fail:
+    {
+	TCHAR *s = au (name);
+	write_log (L"get_base('%s') failed, invalid library list\n", s);
+	xfree (s);
+    }
+    return 0xffffffff;
 }
 
 static uaecptr get_intuitionbase (void)
@@ -1455,7 +1466,7 @@ end:
 	    x += dx;
 	    y += dy;
 	}
-	if (!dmaen(DMA_SPRITE))
+	if (!dmaen (DMA_SPRITE))
 	    setmouseactivexy (x, y, 0);
 	else
 	    setmouseactivexy (x, y, dir);
@@ -1532,37 +1543,38 @@ static void mouseupdate (int pct, int vsync)
 {
     int v, i;
     int max = 127;
+    static int mxd, myd;
 
     if (pct > 1000)
 	pct = 1000;
 
     if (vsync) {
-	if (mouse_delta[0][0] < 0) {
+	if (mxd < 0) {
 	    if (mouseedge_x > 0)
 		mouseedge_x = 0;
 	    else
-		mouseedge_x += mouse_delta[0][0];
+		mouseedge_x += mxd;
 	    mouseedge_time = MOUSEEDGE_TIME;
 	}
-	if (mouse_delta[0][0] > 0) {
+	if (mxd > 0) {
 	    if (mouseedge_x < 0)
 		mouseedge_x = 0;
 	    else
-		mouseedge_x += mouse_delta[0][0];
+		mouseedge_x += mxd;
 	    mouseedge_time = MOUSEEDGE_TIME;
 	}
-	if (mouse_delta[0][1] < 0) {
+	if (myd < 0) {
 	    if (mouseedge_y > 0)
 		mouseedge_y = 0;
 	    else
-		mouseedge_y += mouse_delta[0][1];
+		mouseedge_y += myd;
 	    mouseedge_time = MOUSEEDGE_TIME;
 	}
-	if (mouse_delta[0][1] > 0) {
+	if (myd > 0) {
 	    if (mouseedge_y < 0)
 		mouseedge_y = 0;
 	    else
-		mouseedge_y += mouse_delta[0][1];
+		mouseedge_y += myd;
 	    mouseedge_time = MOUSEEDGE_TIME;
 	}
 	if (mouseedge_time > 0) {
@@ -1572,14 +1584,18 @@ static void mouseupdate (int pct, int vsync)
 		mouseedge_y = 0;
 	    }
 	}
+	mxd = 0;
+	myd = 0;
     }
 
     for (i = 0; i < 2; i++) {
 
 	v = getvelocity (i, 0, pct);
+	mxd += v;
 	mouse_x[i] += v;
 
 	v = getvelocity (i, 1, pct);
+	myd += v;
 	mouse_y[i] += v;
 
 	v = getvelocity (i, 2, pct);
@@ -2386,6 +2402,7 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		int delta;
 		int deadzone = currprefs.input_joymouse_deadzone * max / 100;
 		int unit = ie->data & 0x7f;
+
 		if (max) {
 		    if (state <= deadzone && state >= -deadzone) {
 			state = 0;
@@ -2410,6 +2427,7 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		    else if (state < 0)
 			delta = -JOYMOUSE_CDTV;
 		}
+
 		mouse_delta[joy][unit] += delta * ((ie->data & IE_INVERT) ? -1 : 1);
 
 	    } else if (ie->type & 32) { /* button mouse emulation vertical */
@@ -4105,6 +4123,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
 }
+
 int getmousestate (int joy)
 {
     if (testmode)

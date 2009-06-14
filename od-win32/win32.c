@@ -2685,7 +2685,7 @@ static int shell_deassociate (const TCHAR *extension)
 }
 
 static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand, const TCHAR *command, const TCHAR *perceivedtype,
-			      const TCHAR *description, const TCHAR *ext2)
+			      const TCHAR *description, const TCHAR *ext2, int icon)
 {
     TCHAR rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
     HKEY rkey, key1, key2;
@@ -2728,12 +2728,14 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 		RegSetValueEx (key2, L"", 0, REG_SZ, (CONST BYTE *)defprogid, (_tcslen (defprogid) + 1) * sizeof (TCHAR));
 		RegCloseKey (key2);
 	    }
-	    _tcscpy (tmp, rpath2);
-	    _tcscat (tmp, L"\\DefaultIcon");
-	    if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
-		_stprintf (tmp, L"%s,-1", _wpgmptr);
-		RegSetValueEx (key2, L"", 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
-		RegCloseKey (key2);
+	    if (icon) {
+		_tcscpy (tmp, rpath2);
+		_tcscat (tmp, L"\\DefaultIcon");
+		if (RegCreateKeyEx (rkey, tmp, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE | KEY_READ, NULL, &key2, &disposition) == ERROR_SUCCESS) {
+		    _stprintf (tmp, L"%s,%d", _wpgmptr, -icon);
+		    RegSetValueEx (key2, L"", 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
+		    RegCloseKey (key2);
+		}
 	    }
 	    RegCloseKey (key1);
 	}
@@ -2758,11 +2760,11 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
     regclosetree (fkey);
     return 1;
 }
-static int shell_associate (const TCHAR *extension, const TCHAR *command, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2)
+static int shell_associate (const TCHAR *extension, const TCHAR *command, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2, int icon)
 {
-    int v = shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2);
+    int v = shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2, icon);
     if (!_tcscmp (extension, L".uae"))
-	shell_associate_2 (extension, L"edit", L"-f \"%1\" -s use_gui=yes", L"text", description, NULL);
+	shell_associate_2 (extension, L"edit", L"-f \"%1\" -s use_gui=yes", L"text", description, NULL, 0);
     return v;
 }
 
@@ -2785,7 +2787,7 @@ static int shell_associate_is (const TCHAR *extension)
     _tcscpy (rpath1, L"Software\\Classes\\");
     _tcscpy (rpath2, rpath1);
     _tcscat (rpath2, extension);
-    size = sizeof tmp;
+    size = sizeof tmp / sizeof (TCHAR);
     if (RegOpenKeyEx (rkey, rpath2, 0, KEY_READ, &key1) == ERROR_SUCCESS) {
 	if (RegQueryValueEx (key1, NULL, NULL, NULL, (LPBYTE)tmp, &size) == ERROR_SUCCESS) {
 	    if (_tcscmp (tmp, def ? progid : progid2)) {
@@ -2807,13 +2809,13 @@ static int shell_associate_is (const TCHAR *extension)
 }
 
 struct assext exts[] = {
-    { L".uae", L"-f \"%1\"", L"WinUAE configuration file", },
-    { L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image" },
-    { L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image" },
-    { L".dms", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image" },
-    { L".fdi", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image" },
-    { L".ipf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image" },
-    { L".uss", L"-s statefile=\"%1\" -s use_gui=no", L"WinUAE statefile" },
+    { L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_APPICON },
+    { L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
+    { L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
+    { L".dms", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
+    { L".fdi", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
+    { L".ipf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
+    { L".uss", L"-s statefile=\"%1\" -s use_gui=no", L"WinUAE statefile", IDI_APPICON },
     { NULL }
 };
 
@@ -2830,13 +2832,39 @@ static void associate_init_extensions (void)
     if (!regexiststree (NULL, L"FileAssociations")) {
 	UAEREG *fkey;
 	if (exts[0].enabled == 0) {
-	    shell_associate (exts[0].ext, exts[0].cmd, NULL, exts[0].desc, NULL);
+	    shell_associate (exts[0].ext, exts[0].cmd, NULL, exts[0].desc, NULL, exts[0].icon);
 	    exts[0].enabled = shell_associate_is (exts[0].ext);
 	}
         fkey = regcreatetree (NULL, L"FileAssociations");
 	regsetstr (fkey, exts[0].ext, L"");
 	regclosetree (fkey);
     }
+    if (os_winnt_admin > 1) {
+	DWORD disposition;
+	TCHAR rpath[MAX_DPATH];
+        HKEY rkey = HKEY_LOCAL_MACHINE;
+	HKEY key1;
+	int setit = 1;
+
+	_tcscpy (rpath, L"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\winuae.exe");
+	if (RegOpenKeyEx (rkey, rpath, 0, KEY_READ, &key1) == ERROR_SUCCESS) {
+	    TCHAR tmp[MAX_DPATH];
+	    DWORD size = sizeof tmp / sizeof (TCHAR);
+	    if (RegQueryValueEx (key1, NULL, NULL, NULL, (LPBYTE)tmp, &size) == ERROR_SUCCESS) {
+		if (!_tcscmp (tmp, _wpgmptr))
+		    setit = 0;
+	    }
+	    RegCloseKey (key1);
+	}
+	if (setit) {
+	    if (RegCreateKeyEx (rkey, rpath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+		RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)_wpgmptr, (_tcslen (_wpgmptr) + 1) * sizeof (TCHAR));
+		RegCloseKey (key1);
+		SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
+	    }
+	}
+   }
+
 #if 0
     UAEREG *fkey;
     fkey = regcreatetree (NULL, L"FileAssociations");
@@ -2892,12 +2920,14 @@ void associate_file_extensions (void)
 	if (exts[i].enabled == 0 && already) {
 	    shell_deassociate (exts[i].ext);
 	    exts[i].enabled = shell_associate_is (exts[i].ext);
-	    if (exts[i].enabled)
+	    if (exts[i].enabled) {
 		modified = 1;
-	} else if (exts[i].enabled && already == 0) {
-	    shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL);
+		shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL, exts[i].icon);
+	    }
+	} else if (exts[i].enabled) {
+	    shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL, exts[i].icon);
 	    exts[i].enabled = shell_associate_is (exts[i].ext);
-	    if (exts[i].enabled == 0)
+	    if (exts[i].enabled != already)
 		modified = 1;
 	}
     }

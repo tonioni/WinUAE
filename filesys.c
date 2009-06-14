@@ -566,9 +566,9 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
 }
 
 
-static void filesys_addexternals(void);
+static void filesys_addexternals (void);
 
-static void initialize_mountinfo(void)
+static void initialize_mountinfo (void)
 {
     int i;
     struct uaedev_config_info *uci;
@@ -5003,7 +5003,6 @@ static void filesys_reset2 (void)
     key_uniq = 0;
     a_uniq = 0;
     free_mountinfo ();
-    initialize_mountinfo ();
 }
 
 void filesys_reset (void)
@@ -5011,6 +5010,7 @@ void filesys_reset (void)
     if (savestate_state == STATE_RESTORE)
 	return;
     filesys_reset2 ();
+    initialize_mountinfo ();
 }
 
 static void filesys_prepare_reset2 (void)

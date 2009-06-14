@@ -3237,6 +3237,7 @@ static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)
 	bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !currprefs.cs_denisenoehb;
     return bplehb;
 }
+
 static void BPLCON0 (int hpos, uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))

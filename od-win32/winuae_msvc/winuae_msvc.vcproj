@@ -1453,6 +1453,14 @@
 					>
 				</File>
 				<File
+					RelativePath=".\diskimage.ico"
+					>
+				</File>
+				<File
+					RelativePath="..\resources\diskimage.ico"
+					>
+				</File>
+				<File
 					RelativePath="..\resources\Drive.ico"
 					>
 				</File>

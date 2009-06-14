@@ -180,7 +180,14 @@ STATIC_INLINE int GET_RES_AGNUS (uae_u16 con0)
 /* get sprite width from FMODE */
 #define GET_SPRITEWIDTH(FMODE) ((((FMODE) >> 2) & 3) == 3 ? 64 : (((FMODE) >> 2) & 3) == 0 ? 16 : 32)
 /* Compute the number of bitplanes from a value written to BPLCON0  */
-#define GET_PLANES(x) ((((x) >> 12) & 7) | (((x) & 0x10) >> 1))
+STATIC_INLINE int GET_PLANES(uae_u16 bplcon0)
+{
+    if ((bplcon0 & 0x0010) && (bplcon0 & 0x7000))
+	return 0;
+    if (bplcon0 & 0x0010)
+	return 8;
+    return (bplcon0 >> 12) & 7;
+}
 
 extern void fpscounter_reset (void);
 extern unsigned long idletime;

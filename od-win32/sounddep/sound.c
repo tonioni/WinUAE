@@ -138,14 +138,7 @@ void update_sound (int freq, int longframe)
 	lines += 1.0;
 
     if (have_sound) {
-	if (isvsync () || currprefs.chipset_refreshrate) {
-	    if (currprefs.ntscmode)
-		scaled_sample_evtime_orig = (MAXHPOS_NTSC * (MAXVPOS_NTSC + lines) * freq * CYCLE_UNIT) / (float)sdp->obtainedfreq;
-	    else
-		scaled_sample_evtime_orig = (MAXHPOS_PAL * (MAXVPOS_PAL + lines) * freq * CYCLE_UNIT) / (float)sdp->obtainedfreq;
-	} else {
-	    scaled_sample_evtime_orig = 227.0 * (lines + 312) * 50 * CYCLE_UNIT / (float)sdp->obtainedfreq;
-	}
+	scaled_sample_evtime_orig = 227.0 * (lines + maxvpos) * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
 }

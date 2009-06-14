@@ -272,10 +272,13 @@ static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *valu
     cfg_write (tmp, f);
     if (utf8 && !unicode_config) {
 	char *opt = ua (option);
-	if (target)
-	    sprintf (tmpa, "%s.%s.utf8=%s", TARGET_NAME, opt, tmp2);
-	else
+	if (target) {
+	    char *tna = ua (TARGET_NAME);
+	    sprintf (tmpa, "%s.%s.utf8=%s", tna, opt, tmp2);
+	    xfree (tna);
+	} else {
 	    sprintf (tmpa, "%s.utf8=%s", opt, tmp2);
+	}
 	xfree (opt);
 	zfile_fwrite (tmpa, strlen (tmpa), 1, f);
 	zfile_fwrite (&lf, 1, 1, f);
@@ -1995,6 +1998,8 @@ static int isobsolete (TCHAR *s)
 	}
 	i++;
     }
+    if (_tcslen (s) > 2 && !_tcsncmp (s, L"w.", 2))
+	return 1;
     if (_tcslen (s) >= 10 && !_tcsncmp (s, L"gfx_opengl", 10)) {
 	write_log (L"obsolete config entry '%s\n", s);
 	return 1;

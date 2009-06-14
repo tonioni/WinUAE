@@ -1061,24 +1061,14 @@ struct zfile *zfile_dup (struct zfile *zf)
 
 int zfile_exists (const TCHAR *name)
 {
-    TCHAR fname[MAX_DPATH];
-    struct zfile *f;
+    struct zfile *z;
 
-    if (_tcslen (name) == 0)
+    if (my_existsfile (name))
+	return 1;
+    z = zfile_fopen (name, L"rb", ZFD_NORMAL);
+    if (!z)
 	return 0;
-    manglefilename (fname, name);
-    f = openzip (fname);
-    if (!f) {
-	FILE *f2;
-	manglefilename (fname, name);
-	if (!my_existsfile (fname))
-	    return 0;
-	f2 = _tfopen (fname, L"rb");
-	if (!f2)
-	    return 0;
-	fclose (f2);
-    }
-    zfile_fclose (f);
+    zfile_fclose (z);
     return 1;
 }
 

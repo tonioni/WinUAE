@@ -1,4 +1,25 @@
 
+Beta 4:
+
+- mixed disk swapper panel id and number of input panel columns..
+- magic mouse was unreliable in directinput mouse mode ("mouse *")
+- magic mouse can be switched on/off on the fly
+- utf8 configuration entries didn't work correctly and caused
+  duplicate entries. (fix by loading and saving config again)
+- added generic disk icon image (from Cloanto) that is associated
+  with disk image extensions (if enabled in associations panel) This
+  may change before 1.6.1 if my brother feels less lazy next week :)
+- App Paths winuae.exe reg key created if winuae is run as admin
+  at least once, this fixes some file association issues (wrong or
+  missing icon for example), also some other association updates
+- statefile harddisk restore problem fixed (still not guaranteed
+  to work..)
+- 60Hz on PAL (or NTSC in 50Hz) sound sync/vsync calculation was
+  incorrect
+- in AGA only HAM6 or HAM8 supported. HAM mode bit set with 5 or 7
+  planes seems to be ignored (OCS/ECS has "HAM5")
+- HAM ignored AGA BPLAM (BPLCON4) bits
+
 Beta 3:
 
 - added exception handler that writes log message if openal or

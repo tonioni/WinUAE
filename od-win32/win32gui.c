@@ -2773,7 +2773,7 @@ static void update_listview_input (HWND hDlg)
 static int clicked_entry = -1;
 
 #define LOADSAVE_COLUMNS 2
-#define INPUT_COLUMNS 4
+#define INPUT_COLUMNS 5
 #define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
 #define MISC2_COLUMNS 2
@@ -2781,7 +2781,7 @@ static int clicked_entry = -1;
 
 #define LV_LOADSAVE 1
 #define LV_HARDDISK 2
-#define LV_INPUT 4
+#define LV_INPUT 3
 #define LV_DISK 4
 #define LV_MISC2 5
 
@@ -2807,6 +2807,7 @@ void InitializeListView (HWND hDlg)
     int listview_column_width[HARDDISK_COLUMNS];
 
     if (hDlg == pages[HARDDISK_ID]) {
+
 	listview_num_columns = HARDDISK_COLUMNS;
 	lv_type = LV_HARDDISK;
 	_tcscpy (column_heading[0], L"*");
@@ -2818,7 +2819,9 @@ void InitializeListView (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_HFDSIZE, column_heading[6], MAX_COLUMN_HEADING_WIDTH);
 	WIN32GUI_LoadUIString(IDS_BOOTPRI, column_heading[7], MAX_COLUMN_HEADING_WIDTH);
 	list = GetDlgItem(hDlg, IDC_VOLUMELIST);
+
     } else if (hDlg == pages[INPUT_ID]) {
+
 	listview_num_columns = INPUT_COLUMNS;
 	lv_type = LV_INPUT;
 	WIN32GUI_LoadUIString(IDS_INPUTHOSTWIDGET, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
@@ -2827,19 +2830,23 @@ void InitializeListView (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
 	_tcscpy (column_heading[4], L"#");
 	list = GetDlgItem(hDlg, IDC_INPUTLIST);
+
     } else if (hDlg == pages[MISC2_ID]) {
+
 	listview_num_columns = MISC2_COLUMNS;
 	lv_type = LV_MISC2;
 	_tcscpy (column_heading[0], L"Extension");
 	_tcscpy (column_heading[1], L"");
 	list = GetDlgItem (hDlg, IDC_ASSOCIATELIST);
     } else {
+
 	listview_num_columns = DISK_COLUMNS;
 	lv_type = LV_DISK;
 	_tcscpy (column_heading[0], L"#");
 	WIN32GUI_LoadUIString(IDS_DISK_IMAGENAME, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 	WIN32GUI_LoadUIString(IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 	list = GetDlgItem (hDlg, IDC_DISK);
+
     }
 
     cachedlist = list;
@@ -2860,7 +2867,9 @@ void InitializeListView (HWND hDlg)
 	    ListView_InsertColumn (list, i, &lvcolumn);
 	}
     }
+
     if (lv_type == LV_MISC2) {
+
 	listview_column_width[0] = 180;
 	listview_column_width[1] = 10;
 	for (i = 0; exts[i].ext; i++) {
@@ -2873,6 +2882,7 @@ void InitializeListView (HWND hDlg)
 	    ListView_SetItemText (list, result, 1, exts[i].enabled ? L"*" : L"");
 	}
     } else if (lv_type == LV_INPUT) {
+
 	for (i = 0; input_total_devices && i < inputdevice_get_widget_num (input_selected_device); i++) {
 	    TCHAR name[100];
 	    inputdevice_get_widget_type (input_selected_device, i, name);
@@ -2892,7 +2902,9 @@ void InitializeListView (HWND hDlg)
 	listview_column_width [3] = 65;
 	listview_column_width [4] = 30;
 	update_listview_input (hDlg);
+
     } else if (lv_type == LV_DISK) {
+
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 	    int drv;
 	    _stprintf (tmp, L"%d", i + 1);
@@ -9056,7 +9068,6 @@ static void enable_for_gameportsdlg (HWND hDlg)
 {
     int v = full_property_sheet;
     ew (hDlg, IDC_PORT_TABLET_FULL, v && is_tablet () && workprefs.input_tablet > 0);
-    ew (hDlg, IDC_PORT_MOUSETRICK, v);
     ew (hDlg, IDC_PORT_TABLET_CURSOR, v && workprefs.input_tablet > 0);
     ew (hDlg, IDC_PORT_TABLET, v);
 }
@@ -9201,7 +9212,7 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 	if (success)
 	    currprefs.input_mouse_speed = workprefs.input_mouse_speed = i;
 
-	workprefs.input_magic_mouse = IsDlgButtonChecked (hDlg, IDC_PORT_MOUSETRICK) ? -1 : 0;
+	currprefs.input_magic_mouse = workprefs.input_magic_mouse = IsDlgButtonChecked (hDlg, IDC_PORT_MOUSETRICK) ? -1 : 0;
 	workprefs.input_magic_mouse_cursor = SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_GETCURSEL, 0, 0L);
 	workprefs.input_tablet = 0;
 	if (IsDlgButtonChecked (hDlg, IDC_PORT_TABLET)) {

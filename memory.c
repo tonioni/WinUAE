@@ -3920,33 +3920,39 @@ uae_u8 *restore_rom (uae_u8 *src)
     crcdet = 0;
     for (i = 0; i < romlist_cnt; i++) {
 	if (rl[i].rd->crc32 == crc32 && crc32) {
-	    switch (mem_type)
-	    {
-		case 0:
-		_tcsncpy (changed_prefs.romfile, rl[i].path, 255);
-		break;
-		case 1:
-		_tcsncpy (changed_prefs.romextfile, rl[i].path, 255);
-		break;
+	    if (zfile_exists (rl[i].path)) {
+		switch (mem_type)
+		{
+		    case 0:
+		    _tcsncpy (changed_prefs.romfile, rl[i].path, 255);
+		    break;
+		    case 1:
+		    _tcsncpy (changed_prefs.romextfile, rl[i].path, 255);
+		    break;
+		}
+		write_log (L"ROM '%s' = '%s'\n", romn, rl[i].path);
+		crcdet = 1;
+	    } else {
+		write_log (L"ROM '%s' = '%s' invalid rom scanner path!", romn, rl[i].path);
 	    }
-	    write_log (L"ROM '%s' = '%s'\n", romn, rl[i].path);
-	    crcdet = 1;
 	    break;
 	}
     }
     s = restore_string ();
-    if (!crcdet && zfile_exists (s)) {
-	switch (mem_type)
-	{
-	    case 0:
-	    _tcsncpy (changed_prefs.romfile, s, 255);
-	    break;
-	    case 1:
-	    _tcsncpy (changed_prefs.romextfile, s, 255);
-	    break;
+    if (!crcdet) {
+	if (zfile_exists (s)) {
+	    switch (mem_type)
+	    {
+		case 0:
+		_tcsncpy (changed_prefs.romfile, s, 255);
+		break;
+		case 1:
+		_tcsncpy (changed_prefs.romextfile, s, 255);
+		break;
+	    }
+	    write_log (L"ROM detected (path) as '%s'\n", s);
+	    crcdet = 1;
 	}
-	write_log (L"ROM detected (path) as '%s'\n", s);
-	crcdet = 1;
     }
     xfree (s);
     if (!crcdet)

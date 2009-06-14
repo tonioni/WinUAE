@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"Beta 3"
-#define WINUAEDATE MAKEBD(2009, 6, 10)
+#define WINUAEBETA L"Beta 4"
+#define WINUAEDATE MAKEBD(2009, 6, 14)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -173,6 +173,7 @@ struct assext {
     TCHAR *ext;
     TCHAR *cmd;
     TCHAR *desc;
+    int icon;
     int enabled;
 };
 struct assext exts[];
