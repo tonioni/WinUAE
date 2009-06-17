@@ -12,13 +12,46 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// English (Neutral) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 #pragma code_page(1252)
 #endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_APPICON             ICON                    "winuae.ico"
+IDI_FLOPPY              ICON                    "35floppy.ico"
+IDI_ABOUT               ICON                    "amigainfo.ico"
+IDI_HARDDISK            ICON                    "Drive.ico"
+IDI_CPU                 ICON                    "cpu.ico"
+IDI_GAMEPORTS           ICON                    "joystick.ico"
+IDI_IOPORTS             ICON                    "joystick.ico"
+IDI_INPUT               ICON                    "joystick.ico"
+IDI_MISC1               ICON                    "misc.ico"
+IDI_MISC2               ICON                    "misc.ico"
+IDI_MOVE_UP             ICON                    "move_up.ico"
+IDI_MOVE_DOWN           ICON                    "move_dow.ico"
+IDI_AVIOUTPUT           ICON                    "avioutput.ico"
+IDI_DISK                ICON                    "Drive.ico"
+IDI_FOLDER              ICON                    "folder.ico"
+IDI_SOUND               ICON                    "sound.ico"
+IDI_DISPLAY             ICON                    "screen.ico"
+IDI_ROOT                ICON                    "root.ico"
+IDI_MEMORY              ICON                    "chip.ico"
+IDI_QUICKSTART          ICON                    "quickstart.ico"
+IDI_PATHS               ICON                    "paths.ico"
+IDI_DISKIMAGE           ICON                    "diskimage.ico"
+IDI_PORTS               ICON                    "port.ico"
+IDI_CONFIGFILE          ICON                    "configfile.ico"
+IDI_FILE                ICON                    "file.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -938,36 +971,6 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// Icon
-//
-
-// Icon with lowest ID value placed first to ensure application icon
-// remains consistent on all systems.
-IDI_APPICON             ICON                    "winuae.ico"
-IDI_FLOPPY              ICON                    "35floppy.ico"
-IDI_ABOUT               ICON                    "amigainfo.ico"
-IDI_HARDDISK            ICON                    "Drive.ico"
-IDI_CPU                 ICON                    "cpu.ico"
-IDI_GAMEPORTS           ICON                    "joystick.ico"
-IDI_IOPORTS             ICON                    "joystick.ico"
-IDI_INPUT               ICON                    "joystick.ico"
-IDI_MISC1               ICON                    "misc.ico"
-IDI_MISC2               ICON                    "misc.ico"
-IDI_MOVE_UP             ICON                    "move_up.ico"
-IDI_MOVE_DOWN           ICON                    "move_dow.ico"
-IDI_AVIOUTPUT           ICON                    "avioutput.ico"
-IDI_DISK                ICON                    "Drive.ico"
-IDI_CONFIGFILE          ICON                    "file.ico"
-IDI_FOLDER              ICON                    "folder.ico"
-IDI_SOUND               ICON                    "sound.ico"
-IDI_DISPLAY             ICON                    "screen.ico"
-IDI_ROOT                ICON                    "root.ico"
-IDI_MEMORY              ICON                    "chip.ico"
-IDI_QUICKSTART          ICON                    "quickstart.ico"
-IDI_PATHS               ICON                    "paths.ico"
-
-/////////////////////////////////////////////////////////////////////////////
-//
 // Version
 //
 
@@ -1460,7 +1463,7 @@ BEGIN
     IDS_RES_SUPERHIRES      "SuperHires"
 END
 
-#endif    // English (U.S.) resources
+#endif    // English (Neutral) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -1472,15 +1475,6 @@ END
 LANGUAGE LANG_FINNISH, SUBLANG_DEFAULT
 #pragma code_page(1252)
 #endif //_WIN32
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Icon
-//
-
-// Icon with lowest ID value placed first to ensure application icon
-// remains consistent on all systems.
-IDI_DISKIMAGE           ICON                    "diskimage.ico"
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////

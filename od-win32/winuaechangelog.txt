@@ -1,4 +1,17 @@
 
+Beta 5: (1.6.1 RC)
+
+- JIT indirect/direct state is remembered when JIT is switched off and
+  later restored when JIT is switched back on (uae-configuration etc..)
+- inhibit "no disk" Windows dialogs when connecting some USB memory
+  card readers without media
+- do not add disk images to disk history if they are inside archive
+  that was mounted as a harddrive
+- fixed infinite archive recursion introduced in previous betas
+- magic mouse automatic mouse capture didn't work reliably (160b7)
+- Ports/About GUI icons and file association icons updated (JW)
+- language identifier changed to english (neutral) (was english, US)
+
 Beta 4:
 
 - mixed disk swapper panel id and number of input panel columns..

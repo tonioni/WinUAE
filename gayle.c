@@ -7,7 +7,7 @@
   */
 
 #define GAYLE_LOG 0
-#define IDE_LOG 0
+#define IDE_LOG 1
 #define MBRES_LOG 0
 #define PCMCIA_LOG 1
 

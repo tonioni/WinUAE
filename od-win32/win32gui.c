@@ -418,7 +418,7 @@ void reset_disk_history (void)
     int i;
 
     for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++)
-	DISK_history_add (NULL, i);
+	DISK_history_add (NULL, i, 0);
     write_disk_history ();
 }
 
@@ -445,7 +445,7 @@ UAEREG *read_disk_history (void)
 	if (_tcslen (tmp) == 7) {
 	    idx2 = _tstol (tmp + 5) - 1;
 	    if (idx2 >= 0)
-		DISK_history_add (tmp2, idx2);
+		DISK_history_add (tmp2, idx2, 0);
 	}
 	idx++;
     }
@@ -1771,26 +1771,26 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	case IDC_DF0QQ:
 	    SetDlgItemText (hDlg, IDC_DF0TEXT, full_path);
 	    _tcscpy(prefs->df[0], full_path);
-	    DISK_history_add (full_path, -1);
+	    DISK_history_add (full_path, -1, 0);
 	    next = IDC_DF1;
 	    break;
 	case IDC_DF1:
 	case IDC_DF1QQ:
 	    SetDlgItemText (hDlg, IDC_DF1TEXT, full_path);
 	    _tcscpy(prefs->df[1], full_path);
-	    DISK_history_add (full_path, -1);
+	    DISK_history_add (full_path, -1, 0);
 	    next = IDC_DF2;
 	    break;
 	case IDC_DF2:
 	    SetDlgItemText (hDlg, IDC_DF2TEXT, full_path);
 	    _tcscpy(prefs->df[2], full_path);
-	    DISK_history_add (full_path, -1);
+	    DISK_history_add (full_path, -1, 0);
 	    next = IDC_DF3;
 	    break;
 	case IDC_DF3:
 	    SetDlgItemText (hDlg, IDC_DF3TEXT, full_path);
 	    _tcscpy (prefs->df[3], full_path);
-	    DISK_history_add (full_path, -1);
+	    DISK_history_add (full_path, -1, 0);
 	    break;
 	case IDC_DOSAVESTATE:
 	case IDC_DOLOADSTATE:
@@ -2838,6 +2838,7 @@ void InitializeListView (HWND hDlg)
 	_tcscpy (column_heading[0], L"Extension");
 	_tcscpy (column_heading[1], L"");
 	list = GetDlgItem (hDlg, IDC_ASSOCIATELIST);
+
     } else {
 
 	listview_num_columns = DISK_COLUMNS;
@@ -3317,7 +3318,7 @@ static HTREEITEM InitializeConfigTreeView (HWND hDlg)
 	HICON icon;
 	icon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE(IDI_FOLDER));
 	ImageList_AddIcon (himl, icon);
-	icon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE(IDI_CONFIGFILE));
+	icon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE(IDI_FILE));
 	ImageList_AddIcon (himl, icon);
 	icon = LoadIcon (hInst, (LPCWSTR)MAKEINTRESOURCE(IDI_ROOT));
 	ImageList_AddIcon (himl, icon);
@@ -6247,6 +6248,9 @@ static void enable_for_miscdlg (HWND hDlg)
 	ew (hDlg, IDC_STATE_RATE, workprefs.statecapture ? TRUE : FALSE);
 	ew (hDlg, IDC_STATE_BUFFERSIZE, workprefs.statecapture ? TRUE : FALSE);
     }
+    ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
+    ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
+    ew (hDlg, IDC_ASSOCIATE_OFF, !rp_isactive ());
 }
 
 static void misc_kbled (HWND hDlg, int v, int nv)
@@ -6336,7 +6340,7 @@ static void misc_lang(HWND hDlg)
     }
     SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_SETCURSEL, idx, 0);
 }
-static void misc_setlang(int v)
+static void misc_setlang (int v)
 {
     int i;
     WORD langid = 0;
@@ -6832,7 +6836,7 @@ static void values_from_cpudlg (HWND hDlg)
 #ifdef JIT
     oldcache = workprefs.cachesize;
     jitena = IsDlgButtonChecked (hDlg, IDC_JITENABLE) ? 1 : 0;
-    workprefs.cachesize = SendMessage (GetDlgItem(hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
+    workprefs.cachesize = SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
     if (!jitena) {
 	cachesize_prev = workprefs.cachesize;
 	trust_prev = workprefs.comptrustbyte;
@@ -8479,7 +8483,7 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen)
     i = 0;
     while ((p = DISK_history_get (i))) {
 	if (!_tcscmp (p, out)) {
-	    DISK_history_add (out, -1);
+	    DISK_history_add (out, -1, 0);
 	    break;
 	}
 	i++;
@@ -12171,7 +12175,7 @@ static int GetSettings (int all_options, HWND hwnd)
     if (!init_called) {
 	first = 1;
 	panelresource = getresource (IDD_PANEL);
-	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_CONFIGFILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, L"gui/configurations.htm");
+	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_FILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, L"gui/configurations.htm");
 	MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, L"gui/ram.htm");
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, L"gui/rom.htm");
 	CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, NULL, L"gui/cpu.htm");
@@ -12188,7 +12192,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	HARDDISK_ID = init_page (IDD_HARDDISK, IDI_HARDDISK, IDS_HARDDISK, HarddiskDlgProc, HarddiskAccel, L"gui/hard-drives.htm");
 #endif
 	GAMEPORTS_ID = init_page (IDD_GAMEPORTS, IDI_GAMEPORTS, IDS_GAMEPORTS, GamePortsDlgProc, NULL, L"gui/gameports.htm");
-	IOPORTS_ID = init_page (IDD_IOPORTS, IDI_IOPORTS, IDS_IOPORTS, IOPortsDlgProc, NULL, L"gui/ioports.htm");
+	IOPORTS_ID = init_page (IDD_IOPORTS, IDI_PORTS, IDS_IOPORTS, IOPortsDlgProc, NULL, L"gui/ioports.htm");
 	INPUT_ID = init_page (IDD_INPUT, IDI_INPUT, IDS_INPUT, InputDlgProc, NULL, L"gui/input.htm");
 	MISC1_ID = init_page (IDD_MISC1, IDI_MISC1, IDS_MISC1, MiscDlgProc1, NULL, L"gui/misc.htm");
 	MISC2_ID = init_page (IDD_MISC2, IDI_MISC2, IDS_MISC2, MiscDlgProc2, NULL, L"gui/misc2.htm");

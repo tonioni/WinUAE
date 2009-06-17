@@ -656,14 +656,14 @@ struct zfile *DISK_validate_filename (const TCHAR *fname, int leave_open, int *w
     if (crc32)
 	*crc32 = 0;
     if (leave_open) {
-	struct zfile *f = zfile_fopen (fname, L"r+b", ZFD_NORMAL);
+	struct zfile *f = zfile_fopen (fname, L"r+b", ZFD_NORMAL | ZFD_DISKHISTORY);
 	if (f) {
 	    if (wrprot)
 		*wrprot = 0;
 	} else {
 	    if (wrprot)
 		*wrprot = 1;
-	    f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
+	    f = zfile_fopen (fname, L"rb", ZFD_NORMAL | ZFD_DISKHISTORY);
 	}
 	if (f && crc32)
 	    *crc32 = zfile_crc32 (f);
@@ -673,7 +673,7 @@ struct zfile *DISK_validate_filename (const TCHAR *fname, int leave_open, int *w
 	    if (wrprot)
 		*wrprot = 0;
 	    if (crc32) {
-		struct zfile *f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
+		struct zfile *f = zfile_fopen (fname, L"rb", ZFD_NORMAL | ZFD_DISKHISTORY);
 		if (f)
 		    *crc32 = zfile_crc32 (f);
 		zfile_fclose (f);
@@ -2068,7 +2068,7 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
     xfree (chunk);
     zfile_fclose (f);
     if (f)
-	DISK_history_add (name, -1);
+	DISK_history_add (name, -1, 0);
 
 }
 
@@ -2160,7 +2160,7 @@ void disk_eject (int num)
     update_drive_gui (num);
 }
 
-int DISK_history_add (const TCHAR *name, int idx)
+int DISK_history_add (const TCHAR *name, int idx, int donotcheck)
 {
     int i;
 
@@ -2172,8 +2172,10 @@ int DISK_history_add (const TCHAR *name, int idx)
     }
     if (name[0] == 0)
 	return 0;
-    if (!zfile_exists (name))
-	return 0;
+    if (!donotcheck) {
+	if (!zfile_exists (name))
+	    return 0;
+    }
     if (idx >= 0) {
 	if (idx >= MAX_PREVIOUS_FLOPPIES)
 	    return 0;
@@ -2220,7 +2222,7 @@ static void disk_insert_2 (int num, const TCHAR *name, int forced)
 	return;
     _tcscpy (drv->newname, name);
     _tcscpy (currprefs.df[num], name);
-    DISK_history_add (name, -1);
+    DISK_history_add (name, -1, 0);
     if (name[0] == 0) {
 	disk_eject (num);
     } else if (!drive_empty(drv) || drv->dskchange_time > 0) {

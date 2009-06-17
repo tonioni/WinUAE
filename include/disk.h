@@ -26,7 +26,7 @@ extern int disk_getwriteprotect (const TCHAR *name);
 extern int disk_setwriteprotect (int num, const TCHAR *name, int protect);
 extern void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk_name);
 extern void dumpdisk (void);
-extern int DISK_history_add (const TCHAR *name, int idx);
+extern int DISK_history_add (const TCHAR *name, int idx, int donotcheck);
 extern TCHAR *DISK_history_get (int idx);
 int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32);
 extern TCHAR *DISK_get_saveimagepath (const TCHAR *name);

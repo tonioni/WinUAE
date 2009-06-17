@@ -41,7 +41,7 @@ extern TCHAR *zfile_getfilename (struct zfile *f);
 extern uae_u32 zfile_crc32 (struct zfile *f);
 extern struct zfile *zfile_dup (struct zfile *f);
 extern struct zfile *zfile_gunzip (struct zfile *z);
-extern int zfile_isdiskimage (const TCHAR *name);
+extern int zfile_is_diskimage (const TCHAR *name);
 extern int iszip (struct zfile *z);
 extern int zfile_convertimage (const TCHAR *src, const TCHAR *dst);
 extern struct zfile *zuncompress (struct znode*, struct zfile *z, int dodefault, int mask, int *retcode);
@@ -54,6 +54,8 @@ extern TCHAR *zfile_geterror (void);
 #define ZFD_HD 4 //rdb/hdf
 #define ZFD_UNPACK 8 //gzip,dms
 #define ZFD_RAWDISK 16  //fdi->adf,ipf->adf etc..
+#define ZFD_DISKHISTORY 0x100 //allow diskhistory (if disk image)
+#define ZFD_CHECKONLY 0x200 //file exists checkc
 #define ZFD_NORMAL (ZFD_ARCHIVE|ZFD_UNPACK)
 #define ZFD_ALL 0x0000ffff
 

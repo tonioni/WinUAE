@@ -450,6 +450,16 @@ int check_prefs_changed_comp (void)
     currprefs.fpu_strict = changed_prefs.fpu_strict;
 
     if (currprefs.cachesize != changed_prefs.cachesize) {
+	if (currprefs.cachesize && !changed_prefs.cachesize) {
+	    cachesize_prev = currprefs.cachesize;
+	    comptrust_prev = currprefs.comptrustbyte;
+	    canbang_prev = canbang;
+	} else if (!currprefs.cachesize && changed_prefs.cachesize == cachesize_prev) {
+	    changed_prefs.comptrustbyte = currprefs.comptrustbyte = comptrust_prev;
+	    changed_prefs.comptrustword = currprefs.comptrustword = comptrust_prev;
+	    changed_prefs.comptrustlong = currprefs.comptrustlong = comptrust_prev;
+	    changed_prefs.comptrustnaddr = currprefs.comptrustnaddr = comptrust_prev;
+	}
 	currprefs.cachesize = changed_prefs.cachesize;
 	alloc_cache();
 	changed = 1;

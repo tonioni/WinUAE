@@ -310,8 +310,11 @@
 #define IDI_DISKIMAGE                   345
 #define IDS_TABLET_NATIVE_CURSOR        346
 #define IDS_TABLET_HOST_CURSOR          347
+#define IDI_PORTS                       347
 #define IDS_AUTOSCALE_DISABLED          348
 #define IDS_AUTOSCALE_SCALING           349
+#define IDI_ICON3                       349
+#define IDI_FILE                        349
 #define IDS_AUTOSCALE_RESIZE            350
 #define IDS_PRINTER_ASCII               351
 #define IDS_PRINTER_EPSON               352
@@ -1039,7 +1042,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        346
+#define _APS_NEXT_RESOURCE_VALUE        350
 #define _APS_NEXT_COMMAND_VALUE         40045
 #define _APS_NEXT_CONTROL_VALUE         1790
 #define _APS_NEXT_SYMED_VALUE           101

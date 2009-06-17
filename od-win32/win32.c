@@ -194,13 +194,13 @@ static int init_mmtimer (void)
     int i;
 
     mm_timerres = 0;
-    if (timeGetDevCaps(&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
+    if (timeGetDevCaps (&tc, sizeof(TIMECAPS)) != TIMERR_NOERROR)
 	return 0;
     mm_timerres = min (max (tc.wPeriodMin, 1), tc.wPeriodMax);
     sleep_resolution = 1000 / mm_timerres;
     for (i = 0; i < MAX_TIMEHANDLES; i++)
 	timehandle[i] = CreateEvent (NULL, TRUE, FALSE, NULL);
-    InitializeCriticalSection(&cs_time);
+    InitializeCriticalSection (&cs_time);
     timehandlecounter = 0;
     return 1;
 }
@@ -522,7 +522,7 @@ void setmouseactive (int active)
     if (mouseactive == active && active >= 0)
 	return;
 
-    if (active > 0) {
+    if (active == 1 && !currprefs.input_magic_mouse) {
 	HANDLE c = GetCursor ();
 	if (c != normalcursor)
 	    return;
@@ -534,7 +534,6 @@ void setmouseactive (int active)
 
     if (active < 0)
 	active = 1;
-
 
     mouseactive = active;
 
@@ -566,7 +565,7 @@ void setmouseactive (int active)
 		if (SetForegroundWindow (w1) == FALSE) {
 		    if (w3 == NULL || SetForegroundWindow (w3) == FALSE) {
 			donotfocus = 1;
-			write_log (L"wanted focus but SetforegroundWindow() failed\n");
+			write_log (L"wanted focus but SetForegroundWindow() failed\n");
 		    }
 		}
 	    }
@@ -805,7 +804,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
 	if (!mouseactive && isfullscreen() <= 0 && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK)) {
-	    setmouseactive (1);
+	    setmouseactive (message == WM_LBUTTONDBLCLK ? 2 : 1);
 	} else if (dinput_winmouse () >= 0 && isfocus ()) {
 	    setmousebuttonstate (dinput_winmouse (), 0, 1);
 	}
@@ -963,7 +962,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	break;
     }
 
-
     case WM_MOUSEMOVE:
     {
 	int wm = dinput_winmouse ();
@@ -1039,6 +1037,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	    SHNOTIFYSTRUCT *shns = (SHNOTIFYSTRUCT*)wParam;
 	    if (SHGetPathFromIDList ((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
 		int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
+	        UINT errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 		write_log (L"Shell Notification %d '%s'\n", inserted, path);
 		if (!win32_hardfile_media_change (path, inserted)) {	
 		    if ((inserted && CheckRM (path)) || !inserted) {
@@ -1050,6 +1049,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			filesys_media_change (path, inserted, NULL);
 		    }
 		}
+		SetErrorMode (errormode);
 	    }
 	}
     }
@@ -1078,6 +1078,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if (pBVol->dbcv_unitmask) {
 		    int inserted, i;
 		    TCHAR drive;
+		    UINT errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 		    for (i = 0; i <= 'Z'-'A'; i++) {
 			if (pBVol->dbcv_unitmask & (1 << i)) {
 			    TCHAR drvname[10];
@@ -1109,6 +1110,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			    }
 			}
 		    }
+		    SetErrorMode (errormode);
 		}
 	    }
 	}
@@ -1117,36 +1119,35 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return TRUE;
 
     case WM_SYSCOMMAND:
-	    switch (wParam & 0xfff0) // Check System Calls
+	switch (wParam & 0xfff0) // Check System Calls
+	{
+	    case SC_SCREENSAVE: // Screensaver Trying To Start?
+	    case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
+	    if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled)
+	        return 0; // Prevent From Happening
+	    break;
+	    default:
 	    {
-		case SC_SCREENSAVE: // Screensaver Trying To Start?
-		case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
-		if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled) {
-		    return 0; // Prevent From Happening
-		break;
-		default:
-		{
-		    LRESULT lr;
+	        LRESULT lr;
 		    
 #ifdef RETROPLATFORM
-		    if ((wParam & 0xfff0) == SC_CLOSE) {
-			if (rp_close ())
-			    return 0;
-		    }
-#endif
-		    lr = DefWindowProc (hWnd, message, wParam, lParam);
-		    switch (wParam & 0xfff0)
-		    {
-			case SC_MINIMIZE:
-			break;
-			case SC_RESTORE:
-			break;
-			case SC_CLOSE:
-			    PostQuitMessage (0);
-			break;
-		    }
-		    return lr;
+	        if ((wParam & 0xfff0) == SC_CLOSE) {
+		    if (rp_close ())
+		        return 0;
 		}
+#endif
+		lr = DefWindowProc (hWnd, message, wParam, lParam);
+		switch (wParam & 0xfff0)
+		{
+		    case SC_MINIMIZE:
+		    break;
+		    case SC_RESTORE:
+		    break;
+		    case SC_CLOSE:
+		        PostQuitMessage (0);
+		    break;
+		}
+		return lr;
 	    }
 	}
     break;
@@ -2809,7 +2810,7 @@ static int shell_associate_is (const TCHAR *extension)
 }
 
 struct assext exts[] = {
-    { L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_APPICON },
+    { L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_CONFIGFILE },
     { L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
     { L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
     { L".dms", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
@@ -2828,6 +2829,8 @@ static void associate_init_extensions (void)
 	if (shell_associate_is (exts[i].ext))
 	    exts[i].enabled = 1;
     }
+    if (rp_param)
+	return;
     // associate .uae by default when running for the first time
     if (!regexiststree (NULL, L"FileAssociations")) {
 	UAEREG *fkey;
@@ -2915,6 +2918,8 @@ void associate_file_extensions (void)
     int i;
     int modified = 0;
 
+    if (rp_param)
+	return;
     for (i = 0; exts[i].ext; i++) {
 	int already = shell_associate_is (exts[i].ext);
 	if (exts[i].enabled == 0 && already) {

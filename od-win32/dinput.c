@@ -998,7 +998,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 	if (num == num_mouse)
 	    return;
 
-	if (isfocus ()) {
+	if (isfocus () > 0) {
 	    for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
 	        if (rm->usButtonFlags & (3 << (i * 2)))
 		    setmousebuttonstate (num, i, (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0);
@@ -1702,7 +1702,7 @@ static void read_mouse (void)
 #ifdef DI_DEBUG2
 		write_log (L"MOUSE: %d OFF=%d DATA=%d STATE=%d\n", i, dimofs, data, state);
 #endif
-		if (istest || isfocus ()) {
+		if (istest || isfocus () > 0) {
 		    for (k = 0; k < did->axles; k++) {
 		        if (did->axismappings[k] == dimofs)
 			    setmousestate (i, k, data, 0);

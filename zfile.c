@@ -575,7 +575,7 @@ int zfile_is_ignore_ext (const TCHAR *name)
     return 0;
 }
 
-int zfile_isdiskimage (const TCHAR *name)
+int zfile_is_diskimage (const TCHAR *name)
 {
     int i;
 
@@ -1065,7 +1065,7 @@ int zfile_exists (const TCHAR *name)
 
     if (my_existsfile (name))
 	return 1;
-    z = zfile_fopen (name, L"rb", ZFD_NORMAL);
+    z = zfile_fopen (name, L"rb", ZFD_NORMAL | ZFD_CHECKONLY);
     if (!z)
 	return 0;
     zfile_fclose (z);
