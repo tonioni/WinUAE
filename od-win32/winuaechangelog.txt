@@ -10,7 +10,7 @@ Beta 5: (1.6.1 RC)
 - fixed infinite archive recursion introduced in previous betas
 - magic mouse automatic mouse capture didn't work reliably (160b7)
 - Ports/About GUI icons and file association icons updated (JW)
-- language identifier changed to english (neutral) (was english, US)
+- language identifier changed to english, neutral (was english, US)
 
 Beta 4:
 

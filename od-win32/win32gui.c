@@ -9370,9 +9370,9 @@ static void values_to_portsdlg (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
     idx = workprefs.parallel_matrix_emulation;
     if (workprefs.parallel_postscript_detection)
-	idx = 2;
-    if (workprefs.parallel_postscript_emulation)
 	idx = 3;
+    if (workprefs.parallel_postscript_emulation)
+	idx = 4;
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_SETCURSEL, idx, 0);
 
     SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);

@@ -720,7 +720,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
     0.6:
 
     - rdb handling optimization (no more huge memory usage)
-    - fat16 supported
+    - fat12 supported
 
     0.5:
 

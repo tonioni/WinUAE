@@ -1262,7 +1262,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 	    regs.pcr &= ~(0x40 | 2 | 1);
 	    regs.pcr |= (*regp) & (0x40 | 2 | 1);
 	    if (((opcr ^ regs.pcr) & 2) == 2) {
-		write_log (L"68060 FPU state: %s\n", regs.pcr & 2 ? "disabled" : "enabled");
+		write_log (L"68060 FPU state: %s\n", regs.pcr & 2 ? L"disabled" : L"enabled");
 		/* flush possible already translated FPU instructions */
 		flush_icache (0, 3);
 	    }
