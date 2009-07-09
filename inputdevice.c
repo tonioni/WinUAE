@@ -434,6 +434,7 @@ static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 static void freejport (struct uae_prefs *dst, int num)
 {
     memset (&dst->jports[num], 0, sizeof (struct jport));
+    dst->jports[num].id = -1;
 }
 static void copyjport (const struct uae_prefs *src, struct uae_prefs *dst, int num)
 {
@@ -1930,6 +1931,11 @@ void inputdevice_hsync (void)
 #ifdef CATWEASEL
     catweasel_hsync ();
 #endif
+    if ((vpos & 31) == 31 && handle_msgpump ()) {
+        idev[IDTYPE_MOUSE].read ();
+        idev[IDTYPE_JOYSTICK].read ();
+        idev[IDTYPE_KEYBOARD].read ();
+    }
     if (inputdelay > 0) {
 	inputdelay--;
 	if (inputdelay == 0) {
@@ -2149,7 +2155,7 @@ void inputdevice_handle_inputcode (void)
 	gui_display (-1);
 	break;
     case AKS_SCREENSHOT:
-	screenshot(1, 1);
+	screenshot (1, 1);
 	break;
 #ifdef ACTION_REPLAY
     case AKS_FREEZEBUTTON:
@@ -2670,7 +2676,7 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 		return 0;
 	    if (name) {
 	        write_log (L"inputdevice change '%s':%d->%d\n", name, num, newport);
-		inputdevice_joyport_config (&changed_prefs, name, newport, 2);
+		inputdevice_joyport_config (&changed_prefs, name, newport, -1, 2);
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 		return 1;
 	    }
@@ -3282,21 +3288,32 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 #endif
 }
 
-/* called when devices get inserted or removed */
+/* called when devices get inserted or removed
+ * store old devices temporarily, enumerate all devices
+ * restore old devices back (order may have changed)
+ */
 void inputdevice_devicechange (struct uae_prefs *prefs)
 {
     int acc = input_acquired;
     int i, idx;
     TCHAR *jports[MAX_JPORTS];
+    int jportskb[MAX_JPORTS], jportsmode[MAX_JPORTS];
 
     for (i = 0; i < MAX_JPORTS; i++) {
-	jports[i] = 0;
-	idx = inputdevice_getjoyportdevice (prefs->jports[i].id) - JSEM_LASTKBD;
-	if (idx >= 0) {
-	    struct inputdevice_functions *idf = getidf (idx);
-	    int devidx = inputdevice_get_device_index (idx);
+	jports[i] = NULL;
+	jportskb[i] = -1;
+	idx = inputdevice_getjoyportdevice (prefs->jports[i].id);
+	if (idx >= JSEM_LASTKBD) {
+	    struct inputdevice_functions *idf;
+	    int devidx;
+	    idx -= JSEM_LASTKBD;
+	    idf = getidf (idx);
+	    devidx = inputdevice_get_device_index (idx);
 	    jports[i] = my_strdup (idf->get_uniquename (devidx));
+	} else {
+	    jportskb[i] = idx;
 	}
+	jportsmode[i] = prefs->jports[i].mode;
     }
 
     inputdevice_unacquire ();
@@ -3312,9 +3329,14 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 
     for (i = 0; i < MAX_JPORTS; i++) {
 	freejport (prefs, i);
-	if (jports[i])
-	    inputdevice_joyport_config (prefs, jports[i], i, 2);
-	xfree (jports[i]);
+	if (jports[i]) {
+	    inputdevice_joyport_config (prefs, jports[i], i, jportsmode[i], 2);
+	    xfree (jports[i]);
+	} else if (jportskb[i] >= 0) {
+	    TCHAR tmp[10];
+	    _stprintf (tmp, L"kbd%d", jportskb[i]);
+	    inputdevice_joyport_config (prefs, tmp, i, jportsmode[i], 0);
+	}
     }
 
     if (prefs == &changed_prefs)
@@ -4210,7 +4232,7 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
     return v;
 }
 
-int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int type)
+int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type)
 {
     switch (type)
     {
@@ -4232,7 +4254,8 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 		    TCHAR *name2 = idf->get_uniquename (i);
 		    if ((name1 && !_tcscmp (name1, value)) || (name2 && !_tcscmp (name2, value))) {
 			p->jports[portnum].id = idnum + i;
-			p->jports[portnum].mode = 0;
+			if (mode >= 0)
+			    p->jports[portnum].mode = mode;
 			return 1;
 		    }
 		}
@@ -4272,7 +4295,8 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 		}
 		if (got == 2) {
 		    p->jports[portnum].id = start;
-		    p->jports[portnum].mode = 0;
+		    if (mode >= 0)
+			p->jports[portnum].mode = mode;
 		    return 1;
 		}
 	    }

@@ -44,6 +44,8 @@
   *
   */
 
+#define OPEN_LOG 0
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -373,7 +375,11 @@ void restore_ram (size_t filepos, uae_u8 *memory)
 
 static uae_u8 *restore_log (uae_u8 *src)
 {
-    //write_log (src);
+#if OPEN_LOG > 0
+    TCHAR *s = utf8u (src);
+    write_log (L"%s\n", s);
+    xfree (s);
+#endif
     src += strlen (src) + 1;
     return src;
 }

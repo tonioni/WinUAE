@@ -134,7 +134,7 @@ int screenshot_prepare (void)
     bi.bmiHeader.biClrImportant = 0;
 
     // Reserve memory for bitmap bits
-    if (!(lpvBits = malloc (bi.bmiHeader.biSizeImage)))
+    if (!(lpvBits = xmalloc (bi.bmiHeader.biSizeImage)))
 	goto oops; // out of memory
 
     // Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):

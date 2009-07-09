@@ -965,7 +965,7 @@ static void RTGleds (void)
         yy = 0;
         for (sy = dst_height - dxdata.statusheight; sy < dst_height; sy++) {
 	    uae_u8 *buf = (uae_u8*)desc.lpSurface + yy * desc.lPitch;
-	    draw_status_line_single (buf, currentmode->current_depth / 8, yy, dst_width, p96rc, p96gc, p96bc);
+	    draw_status_line_single (buf, currentmode->current_depth / 8, yy, dst_width, p96rc, p96gc, p96bc, NULL);
 	    yy++;
 	}
 	unlocksurface (dxdata.statussurface);
@@ -1015,7 +1015,7 @@ static void close_hwnds (void)
 	hStatusWnd = 0;
     }
     if (hAmigaWnd) {
-	addnotifications (hAmigaWnd, TRUE);
+	addnotifications (hAmigaWnd, TRUE, FALSE);
 #ifdef OPENGL
 	OGL_free ();
 #endif
@@ -1062,10 +1062,12 @@ static void updatemodes (void)
 		}
 		flags &= ~DM_DDRAW;
 	    }
+#if defined (OPENGL)
 	    if (usedfilter->type == UAE_FILTER_OPENGL) {
 		flags |= DM_OPENGL;
 		flags &= ~DM_DDRAW;
 	    }
+#endif
 	} 
     }
 #endif
@@ -1162,12 +1164,16 @@ static int open_windows (int full)
     int ret, i;
 
     inputdevice_unacquire ();
-    reset_sound();
+    reset_sound ();
     in_sizemove = 0;
 
     updatewinfsmode (&currprefs);
+#ifdef D3D
     D3D_free ();
+#endif
+#ifdef OPENGL
     OGL_free ();
+#endif
     if (!DirectDraw_Start (displayGUID))
 	return 0;
     write_log (L"DirectDraw GUID=%s\n", outGUID (displayGUID));
@@ -1264,11 +1270,13 @@ int check_prefs_changed_gfx (void)
         if (changed_prefs.gfx_afullscreen == 1) { 
 	    if (currprefs.gfx_filter == UAE_FILTER_DIRECT3D && changed_prefs.gfx_filter != UAE_FILTER_DIRECT3D)
 		display_change_requested = 1;
+#ifdef OPENGL
 	    if (currprefs.gfx_filter == UAE_FILTER_OPENGL && changed_prefs.gfx_filter != UAE_FILTER_OPENGL)
 		display_change_requested = 1;
-	    if (changed_prefs.gfx_filter == UAE_FILTER_DIRECT3D && currprefs.gfx_filter != UAE_FILTER_DIRECT3D)
-		display_change_requested = 1;
 	    if (changed_prefs.gfx_filter == UAE_FILTER_OPENGL && currprefs.gfx_filter != UAE_FILTER_OPENGL)
+		display_change_requested = 1;
+#endif
+	    if (changed_prefs.gfx_filter == UAE_FILTER_DIRECT3D && currprefs.gfx_filter != UAE_FILTER_DIRECT3D)
 		display_change_requested = 1;
 	}
 
@@ -1747,7 +1755,11 @@ void gfx_set_picasso_state (int on)
     update_gfxparams ();
     clearscreen ();
     if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen ||
-	(currprefs.gfx_afullscreen == 1 && (currprefs.gfx_filter == UAE_FILTER_DIRECT3D || currprefs.gfx_filter == UAE_FILTER_OPENGL))) {
+	(currprefs.gfx_afullscreen == 1 && (currprefs.gfx_filter == UAE_FILTER_DIRECT3D
+#ifdef OPENGL
+	|| currprefs.gfx_filter == UAE_FILTER_OPENGL
+#endif
+	))) {
 	mode = 1;
     } else {
 	mode = modeswitchneeded (&wc);
@@ -2227,7 +2239,7 @@ static int create_windows_2 (void)
     GetWindowRect (hAmigaWnd, &amigawin_rect);
     if (dxfs || d3dfs)
 	SetCursorPos (x + w / 2, y + h / 2);
-    addnotifications (hAmigaWnd, FALSE);
+    addnotifications (hAmigaWnd, FALSE, FALSE);
     if (hMainWnd != hAmigaWnd) {
 	if (!currprefs.headless)
 	    ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);

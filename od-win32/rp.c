@@ -156,7 +156,7 @@ static int port_insert2 (int num, const TCHAR *name)
 	}
     }
     trimws (tmp2);
-    return inputdevice_joyport_config (&changed_prefs, tmp2, num, type);
+    return inputdevice_joyport_config (&changed_prefs, tmp2, num, 0, type);
 }
 
 static int port_insert (int num, const TCHAR *name)
@@ -166,7 +166,7 @@ static int port_insert (int num, const TCHAR *name)
     if (num < 0 || num >= MAX_JPORTS)
 	return FALSE;
     if (_tcslen (name) == 0) {
-	inputdevice_joyport_config (&changed_prefs, L"none", num, 0);
+	inputdevice_joyport_config (&changed_prefs, L"none", num, 0, 0);
 	return TRUE;
     }
     if (_tcslen (name) >= sizeof (tmp1) / sizeof (TCHAR) - 1)
@@ -353,6 +353,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
     }
     if (full > 1)
 	m |= RP_SCREENMODE_FULLWINDOW;
+    if (p->gfx_filter_scanlines || p->gfx_linedbl == 2)
+	m |= RP_SCREENMODE_SCANLINES;
     sm->dwScreenMode = m;
 
     if (log_rp)
@@ -483,6 +485,13 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
     p->gfx_ycenter_pos = sm->lClipTop;
     p->gfx_xcenter_size = sm->lClipWidth;
     p->gfx_ycenter_size = sm->lClipHeight;
+
+    if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
+	if (p->gfx_linedbl > 0) {
+	    p->gfx_linedbl = 2;
+	    p->gfx_filter_scanlines = 0;
+	}
+    }
 
     updatewinfsmode (p);
     hwndset = 0;
@@ -689,7 +698,7 @@ static void sendfeatures (void)
 
     feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
     feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
-    feat |= RP_FEATURE_STATE;
+    feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES;
     if (!WIN32GFX_IsPicassoScreen ())
 	feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN4X;
     RPSendMessagex (RPIPCGM_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);

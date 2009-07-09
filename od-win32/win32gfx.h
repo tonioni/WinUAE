@@ -19,6 +19,7 @@ int WIN32GFX_ClearPalette (void);
 int WIN32GFX_SetPalette (void);
 void WIN32GFX_WindowMove (void);
 void WIN32GFX_WindowSize (void);;
+void DX_Invalidate (int x, int y, int width, int height);
 
 RGBFTYPE WIN32GFX_FigurePixelFormats (RGBFTYPE colortype);
 int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, uae_u32 *pwidth, uae_u32 *pheight, uae_u32 *ppixbits);

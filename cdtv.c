@@ -684,7 +684,7 @@ static void *dev_thread (void *p)
 	    sys_command_cd_pause (DF_IOCTL, unitnum, 0);
 	    break;
 	    case 0x0104: // stop
-	    cdaudiostop();
+	    cdaudiostop ();
 	    break;
 	    case 0x0110: // do_play!
 	    do_play ();

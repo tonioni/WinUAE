@@ -639,8 +639,8 @@ int catweasel_init(void)
     }
 
     //catweasel_init_controller(&cwc);
-    _stprintf (tmp, L"CW: Catweasel MK%d @%p (%s) enabled. %s.",
-	cwc.type, (uae_u8*)cwc.iobase, name, cwc.direct_access ? L"DIRECTIO": L"API");
+    _stprintf (tmp, L"CW: Catweasel MK%d @%08x (%s) enabled. %s.",
+	cwc.type, (int)cwc.iobase, name, cwc.direct_access ? L"DIRECTIO": L"API");
     if (cwc.direct_access) {
 	if (cwc.can_sid) {
 	    TCHAR *p = tmp + _tcslen (tmp);

@@ -238,9 +238,8 @@ void rtarea_init (void)
 
     deftrap (NULL); /* Generic emulator trap */
 
-    EXPANSION_nullfunc = here ();
-    calltrap (deftrap (nullfunc));
-    dw (RTS);
+    dw (0);
+    dw (0);
 
     a = here();
     /* Dummy trap - removing this breaks the filesys emulation. */

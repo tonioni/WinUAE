@@ -51,8 +51,13 @@ int get_offset_sound_device (struct sound_data *sd);
 int blocking_sound_device (struct sound_data *sd);
 
 
-STATIC_INLINE void check_sound_buffers (void)
+STATIC_INLINE void check_sound_buffers (int outputsample, int doublesample)
 {
+    static uae_u16 *paula_sndbufpt_prev;
+    uae_u16 *start;
+    int len;
+
+    start = paula_sndbufpt;
     if (currprefs.sound_stereo == SND_4CH_CLONEDSTEREO) {
 	((uae_u16*)paula_sndbufpt)[0] = ((uae_u16*)paula_sndbufpt)[-2];
 	((uae_u16*)paula_sndbufpt)[1] = ((uae_u16*)paula_sndbufpt)[-1];
@@ -67,9 +72,29 @@ STATIC_INLINE void check_sound_buffers (void)
 	p[1] = sum >> 3;
 	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
+    if (outputsample == 0) {
+	paula_sndbufpt_prev = start;
+	return;
+    }
+    len = paula_sndbufpt - start;
+    if (outputsample < 0) {
+	int i;
+        uae_s16 *p1 = (uae_s16*)paula_sndbufpt_prev;
+        uae_s16 *p2 = (uae_s16*)start;
+	for (i = 0; i < len; i++)
+	    p1[i] = (p1[i] + p2[i]) / 2;
+	paula_sndbufpt -= len;
+    }
     if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
 	finish_sound_buffer ();
 	paula_sndbufpt = paula_sndbuffer;
+    }
+    if (doublesample) {
+	memcpy (paula_sndbufpt, start, len * 2);
+	if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
+	    finish_sound_buffer ();
+	    paula_sndbufpt = paula_sndbuffer;
+	}
     }
 }
 

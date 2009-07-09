@@ -255,7 +255,7 @@ static int AVIOutput_AllocateAudio (void)
     // set the source format
     memset (&wfxSrc, 0, sizeof (wfxSrc));
     wfxSrc.Format.wFormatTag = WAVE_FORMAT_PCM;
-    wfxSrc.Format.nChannels = get_audio_nativechannels () ? get_audio_nativechannels () : 2;
+    wfxSrc.Format.nChannels = get_audio_nativechannels (currprefs.sound_stereo) ? get_audio_nativechannels (currprefs.sound_stereo) : 2;
     wfxSrc.Format.nSamplesPerSec = workprefs.sound_freq ? workprefs.sound_freq : 44100;
     wfxSrc.Format.nBlockAlign = wfxSrc.Format.nChannels * 16 / 8;
     wfxSrc.Format.nAvgBytesPerSec = wfxSrc.Format.nBlockAlign * wfxSrc.Format.nSamplesPerSec;
@@ -370,6 +370,7 @@ static int AVIOutput_GetAudioCodecName (WAVEFORMATEX *wft, TCHAR *name, int len)
 
 int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 {
+    AVIOutput_Initialize ();
     if (AVIOutput_AudioAllocated ())
 	return AVIOutput_GetAudioCodecName (pwfxDst, name, len);
     if (!AVIOutput_AllocateAudio ())
@@ -384,6 +385,7 @@ int AVIOutput_GetAudioCodec (TCHAR *name, int len)
 
 int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR *s, int len)
 {
+    AVIOutput_Initialize ();
     AVIOutput_End();
     if (!AVIOutput_AllocateAudio ())
 	return 0;
@@ -456,6 +458,7 @@ static int AVIOutput_AllocateVideo (void)
     avioutput_height = WIN32GFX_GetHeight ();
     avioutput_bits = WIN32GFX_GetDepth (0);
 
+    AVIOutput_Initialize ();
     AVIOutput_ReleaseVideo ();
     if (!avioutput_width || !avioutput_height || !avioutput_bits) {
 	avioutput_width = workprefs.gfx_size.width;
@@ -549,6 +552,8 @@ static int AVIOutput_GetVideoCodecName (COMPVARS *pcv, TCHAR *name, int len)
 
 int AVIOutput_GetVideoCodec (TCHAR *name, int len)
 {
+    AVIOutput_Initialize ();
+
     if (AVIOutput_VideoAllocated ())
 	return AVIOutput_GetVideoCodecName (pcompvars, name, len);
     if (!AVIOutput_AllocateVideo ())
@@ -564,6 +569,8 @@ int AVIOutput_GetVideoCodec (TCHAR *name, int len)
 
 int AVIOutput_ChooseVideoCodec (HWND hwnd, TCHAR *s, int len)
 {
+    AVIOutput_Initialize ();
+
     AVIOutput_End ();
     if (!AVIOutput_AllocateVideo ())
 	return 0;
@@ -925,7 +932,7 @@ static void writewavheader (uae_u32 size)
     uae_u16 tw;
     uae_u32 tl;
     int bits = 16;
-    int channels = get_audio_nativechannels ();
+    int channels = get_audio_nativechannels (currprefs.sound_stereo);
 
     fseek (wavfile, 0, SEEK_SET);
     fwrite ("RIFF", 1, 4, wavfile);
@@ -1023,6 +1030,8 @@ void AVIOutput_Begin (void)
     int i, err;
     TCHAR *ext1, *ext2;
     struct avientry *ae = NULL;
+
+    AVIOutput_Initialize ();
 
     avientryindex = -1;
     if (avioutput_enabled) {
@@ -1216,6 +1225,9 @@ void AVIOutput_Release (void)
 
 void AVIOutput_Initialize (void)
 {
+    if (avioutput_init)
+	return;
+
     InitializeCriticalSection (&AVIOutput_CriticalSection);
     cs_allocated = 1;
 
@@ -1223,11 +1235,8 @@ void AVIOutput_Initialize (void)
     if (!pcompvars)
 	return;
     pcompvars->cbSize = sizeof (COMPVARS);
-
-    if (!avioutput_init) {
-	AVIFileInit ();
-	avioutput_init = 1;
-    }
+    AVIFileInit ();
+    avioutput_init = 1;
 }
 
 

@@ -7,8 +7,8 @@ int CheckRM (TCHAR *DriveName)
     DWORD dwHold;
     BOOL result = FALSE;
 
-    _stprintf(filename, L"%s.", DriveName);
-    dwHold = GetFileAttributes(filename);
+    _stprintf (filename, L"%s.", DriveName);
+    dwHold = GetFileAttributes (filename);
     if(dwHold != 0xFFFFFFFF)
 	result = TRUE;
     return result;
@@ -90,28 +90,73 @@ int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volume
     return result;
 }
 
-static void filesys_addexternals(void)
+static int getidfromhandle (HANDLE h)
+{
+    int drvnum = -1;
+    DWORD written, outsize;
+    VOLUME_DISK_EXTENTS *vde;
+
+    outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * 32;
+    vde = xmalloc (outsize);
+    if (DeviceIoControl (h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
+        if (vde->NumberOfDiskExtents > 0)
+	    drvnum = vde->Extents[0].DiskNumber;
+    }
+    xfree (vde);
+    return drvnum;
+}
+
+static int hfdcheck (TCHAR drive)
+{
+    HANDLE h;
+    TCHAR tmp[16];
+    int disknum, i;
+
+    _stprintf (tmp, L"\\\\.\\%c:", drive);
+    h = CreateFile (tmp, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE)
+	return 0;
+    disknum = getidfromhandle (h);
+    CloseHandle (h);
+    for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+	struct hardfiledata *hfd = get_hardfile_data (i);
+	int reopen = 0;
+	if (!hfd || !(hfd->flags & HFD_FLAGS_REALDRIVE) || !hfd->handle_valid)
+	    continue;
+	if (getidfromhandle (hfd->handle) == disknum)
+	    return 1;
+    }
+    return 0;
+}
+
+static void filesys_addexternals (void)
 {
     int drive, drivetype;
     UINT errormode;
     TCHAR volumename[MAX_DPATH] = L"";
-    TCHAR volumepath[6];
+    TCHAR volumepath[16];
     DWORD dwDriveMask;
     int drvnum = 0;
 
-    errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
-    dwDriveMask = GetLogicalDrives();
+    errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+    dwDriveMask = GetLogicalDrives ();
     dwDriveMask >>= 2; // Skip A and B drives...
 
     for(drive = 'C'; drive <= 'Z'; ++drive) {
-        _stprintf(volumepath, L"%c:\\", drive);
+        _stprintf (volumepath, L"%c:\\", drive);
         /* Is this drive-letter valid (it used to check for media in drive) */
         if(dwDriveMask & 1) {
-    	    TCHAR devname[100];
+    	    TCHAR devname[MAX_DPATH];
 	    BOOL inserted = CheckRM (volumepath); /* Is there a disk inserted? */
 	    int nok = FALSE;
 	    int rw = 1;
 	    drivetype = GetDriveType (volumepath);
+	    if (inserted && drivetype != DRIVE_NO_ROOT_DIR && drivetype != DRIVE_UNKNOWN) {
+		if (hfdcheck (drive)) {
+		    write_log (L"Drive %c:\\ ignored, was configured as a harddrive\n", drive);
+		    continue;
+		}
+	    }
 	    devname[0] = 0;
 	    for (;;) {
 		if (drivetype == DRIVE_CDROM && currprefs.win32_automount_cddrives) {
@@ -150,5 +195,5 @@ static void filesys_addexternals(void)
 	} /* if drivemask */
 	dwDriveMask >>= 1;
     }
-    SetErrorMode(errormode);
+    SetErrorMode (errormode);
 }

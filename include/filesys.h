@@ -18,6 +18,7 @@ struct hardfiledata {
     void *handle;
     int handle_valid;
     int readonly;
+    int dangerous;
     int flags;
     uae_u8 *cache;
     int cache_valid;
@@ -30,7 +31,6 @@ struct hardfiledata {
     unsigned int cylinders;
     unsigned int sectors;
     unsigned int heads;
-    int warned;
     uae_u8 *virtual_rdb;
     uae_u64 virtual_size;
     int unitnum;
@@ -100,7 +100,7 @@ extern void hdf_close (struct hardfiledata *hfd);
 extern int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_getnumharddrives (void);
-extern TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize);
+extern TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangerousdrive);
 extern int isspecialdrive(const TCHAR *name);
 extern int get_native_path(uae_u32 lock, TCHAR *out);
 extern void hardfile_do_disk_change (struct uaedev_config_info *uci, int insert);

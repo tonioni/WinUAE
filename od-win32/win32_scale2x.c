@@ -23,7 +23,9 @@ struct uae_filter uaefilters[] =
 
     { UAE_FILTER_DIRECT3D, 0, 1, L"Direct3D", L"direct3d", 1, 0, 0, 0, 0 },
 
+#ifdef OPENGL
     { UAE_FILTER_OPENGL, 0, 1, L"OpenGL (unsupported)", L"opengl", 1, 0, 0, 0, 0 },
+#endif
 
     { UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
@@ -402,18 +404,22 @@ static void statusline (void)
     DDSURFACEDESC2 desc;
     RECT sr, dr;
     int y;
+    int lx, ly, sx;
 
     if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
 	return;
-    SetRect (&sr, 0, 0, dst_width, TD_TOTAL_HEIGHT);
-    SetRect (&dr, 0, dst_height - TD_TOTAL_HEIGHT, dst_width, dst_height);
+    lx = dst_width;
+    ly = dst_height;
+    sx = lx;
+    if (sx > dst_width)
+	sx = dst_width;
+    SetRect (&sr, 0, 0, sx, TD_TOTAL_HEIGHT);
+    SetRect (&dr, lx - sx, ly - TD_TOTAL_HEIGHT, lx, ly);
     DirectDraw_BlitRect (tempsurf, &sr, NULL, &dr);
     if (locksurface (tempsurf, &desc)) {
-	int yy = 0;
-	for (y = dst_height - TD_TOTAL_HEIGHT; y < dst_height; y++) {
-	    uae_u8 *buf = (uae_u8*)desc.lpSurface + yy * desc.lPitch;
-	    draw_status_line_single (buf, dst_depth / 8, yy, dst_width, rc, gc, bc);
-	    yy++;
+	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
+	    uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
+	    draw_status_line_single (buf, dst_depth / 8, y, sx, rc, gc, bc, NULL);
 	}
 	unlocksurface (tempsurf);
 	DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);

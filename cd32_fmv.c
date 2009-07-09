@@ -20,6 +20,34 @@
 
 //#define FMV_DEBUG
 
+#define FMV_BASE 0x40000
+#define AUDIO_BASE 0x50000
+#define VIDEO_BASE 0x70000
+#define VIDEO_RAM 0x80000
+
+// L64111 registers (from datasheet)
+#define A_DATA 0
+#define A_CONTROL1 2
+#define A_CONTROL2 4
+#define A_CONTROL3 6
+#define A_INT1 8
+#define A_INT2 10
+#define A_TCR 12
+#define A_TORH 14
+#define A_TORL 16
+#define A_PARAM1 18
+#define A_PARAM2 20
+#define A_PARAM3 22
+#define A_PRESENT1 24
+#define A_PRESENT2 26
+#define A_PRESENT3 28
+#define A_PRESENT4 30
+#define A_PRESENT5 32
+#define A_FIFO 34
+#define A_CB_STATUS 36
+#define A_CB_WRITE 38
+#define A_CB_READ 40
+
 static int fmv_mask;
 static uae_u8 *rom;
 static int rom_size = 262144;
@@ -31,7 +59,7 @@ static uae_u8 fmv_bget2 (uaecptr addr)
 #ifdef FMV_DEBUG
     write_log (L"fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
 #endif
-    if (addr >= rom_size) {
+    if (addr >= rom_size && addr < 0x80000) {
 	write_log (L"fmv_bget2 %08X PC=%8X\n", addr, M68K_GETPC);
 	return 0;
     }
@@ -39,8 +67,8 @@ static uae_u8 fmv_bget2 (uaecptr addr)
 }
 static void fmv_bput2 (uaecptr addr, uae_u8 v)
 {
-    if (addr >= rom_size && addr < 0xf0000) {
-	;//write_log (L"fmv_bput2 %08X=%02X PC=%8X\n", addr, v & 0xff, M68K_GETPC);
+    if (addr >= rom_size && addr < 0x80000) {
+	write_log (L"fmv_bput2 %08X=%02X PC=%8X\n", addr, v & 0xff, M68K_GETPC);
     }
 }
 

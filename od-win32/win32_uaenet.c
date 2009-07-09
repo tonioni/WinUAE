@@ -73,7 +73,7 @@ static void *uaenet_trap_thread (void *arg)
     int readactive, writeactive;
     DWORD actual;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 2);
     sd->threadactive = 1;
     uae_sem_post (&sd->sync_sem);
     readactive = 0;
@@ -144,7 +144,7 @@ static void *uaenet_trap_threadr (void *arg)
     struct pcap_pkthdr *header;
     const u_char *pkt_data;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
     sd->threadactiver = 1;
     uae_sem_post (&sd->sync_semr);
     while (sd->threadactiver == 1) {
@@ -169,7 +169,7 @@ static void *uaenet_trap_threadw (void *arg)
 {
     struct uaenetdatawin32 *sd = arg;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
     sd->threadactivew = 1;
     uae_sem_post (&sd->sync_semw);
     while (sd->threadactivew == 1) {

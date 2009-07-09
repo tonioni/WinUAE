@@ -25,6 +25,7 @@
 #define IDS_FRONTEND                    19
 #define IDS_CHIPSET2                    20
 #define IDS_GAMEPORTS                   21
+#define IDS_RTG                         22
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -317,6 +318,8 @@
 #define IDI_FILE                        349
 #define IDS_AUTOSCALE_RESIZE            350
 #define IDS_PRINTER_ASCII               351
+#define IDD_DIALOG2                     351
+#define IDD_RTG                         351
 #define IDS_PRINTER_EPSON               352
 #define IDS_PRINTER_POSTSCRIPT_DETECTION 353
 #define IDS_PRINTER_POSTSCRIPT_EMULATION 354
@@ -1042,7 +1045,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        350
+#define _APS_NEXT_RESOURCE_VALUE        352
 #define _APS_NEXT_COMMAND_VALUE         40045
 #define _APS_NEXT_CONTROL_VALUE         1790
 #define _APS_NEXT_SYMED_VALUE           101

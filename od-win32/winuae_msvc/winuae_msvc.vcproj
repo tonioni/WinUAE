@@ -69,7 +69,7 @@
 				Detect64BitPortabilityProblems="false"
 				DebugInformationFormat="4"
 				CallingConvention="2"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				EnablePREfast="false"
 			/>
@@ -87,19 +87,19 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib capsimg.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib"
+				AdditionalDependencies="opengl32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib"
 				ShowProgress="0"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				GenerateManifest="false"
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Debug/winuae.pdb"
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
-				LargeAddressAware="0"
+				LargeAddressAware="2"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
 			/>
@@ -285,7 +285,7 @@
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				CallingConvention="2"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -302,19 +302,20 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib"
+				AdditionalDependencies="opengl32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dlll;ws2_32.dll;msacm32.dll;wtsapi32.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
 				StackReserveSize="2621440"
 				StackCommitSize="2621440"
+				LargeAddressAware="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				OptimizeForWindows98="0"
@@ -1086,14 +1087,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="opengl32.lib glu32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib vfw32.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib"
+				AdditionalDependencies="opengl32.lib ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr9.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_41.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;opengl32.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1349,10 +1350,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\opengl.c"
-				>
-			</File>
-			<File
 				RelativePath="..\parser.c"
 				>
 			</File>
@@ -1449,11 +1446,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
@@ -1473,11 +1470,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\file.ico"
+					RelativePath=".\file.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\file.ico"
+					RelativePath="..\resources\file.ico"
 					>
 				</File>
 				<File
@@ -1517,11 +1514,11 @@
 					>
 				</File>
 				<File
-					RelativePath=".\port.ico"
+					RelativePath="..\resources\port.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\port.ico"
+					RelativePath=".\port.ico"
 					>
 				</File>
 				<File

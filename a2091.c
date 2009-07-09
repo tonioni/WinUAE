@@ -7,7 +7,7 @@
   *
   */
 
-#define A2091_DEBUG 0
+#define A2091_DEBUG 1
 #define A3000_DEBUG 0
 #define WD33C93_DEBUG 0
 
@@ -142,6 +142,7 @@ static uae_u8 *rom;
 static int rombankswitcher, rombank;
 static int rom_size, rom_mask;
 
+static int old_dmac = 0;
 static uae_u32 dmac_istr, dmac_cntr;
 static uae_u32 dmac_dawr;
 static uae_u32 dmac_acr;
@@ -316,6 +317,17 @@ static void wd_cmd_sel_xfer (void)
     set_status (wd_phase, 1);
 }
 
+static void dmacheck (void)
+{
+    dmac_acr++;
+    if (old_dmac && (dmac_cntr & CNTR_TCEN)) {
+	if (dmac_wtc == 0)
+	    dmac_istr |= ISTR_E_INT;
+	else
+	    dmac_wtc--;
+    }
+}
+
 static void do_dma (void)
 {
     if (currprefs.cs_cdtvscsi)
@@ -329,7 +341,7 @@ static void do_dma (void)
 	    put_byte (dmac_acr, v);
 	    if (wd_dataoffset < sizeof wd_data)
 		wd_data[wd_dataoffset++] = v;
-	    dmac_acr++;
+	    dmacheck ();
 	    if (status)
 		break;
 	}
@@ -340,7 +352,7 @@ static void do_dma (void)
 	    if (wd_dataoffset < sizeof wd_data)
 		wd_data[wd_dataoffset++] = v;
 	    status = scsi_send_data (SCSIID, v);
-	    dmac_acr++;
+	    dmacheck ();
 	    if (status)
 		break;
 	}
@@ -662,6 +674,22 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	case 0x43:
 	v = dmac_cntr;
 	break;
+	case 0x80:
+	if (old_dmac)
+	    v = (dmac_wtc >> 24) & 0xff;
+	break;
+	case 0x81:
+	if (old_dmac)
+	    v = (dmac_wtc >> 16) & 0xff;
+	break;
+	case 0x82:
+	if (old_dmac)
+	    v = (dmac_wtc >>  8) & 0xff;
+	break;
+	case 0x83:
+	if (old_dmac)
+	    v = (dmac_wtc >>  0) & 0xff;
+	break;
 	case 0x91:
 	v = wdscsi_getauxstatus ();
 	break;
@@ -696,8 +724,9 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	break;
 	case 0xe8:
 	case 0xe9:
-	/* FLUSH */
-	dmac_istr |= ISTR_FE_FLG;
+	/* FLUSH (new only) */
+	if (!old_dmac && dmac_dma)
+	    dmac_istr |= ISTR_FE_FLG;
 	break;
     }
 #if A2091_DEBUG > 0
@@ -749,8 +778,11 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 	dmac_acr |= b << 8;
 	break;
 	case 0x87:
-	dmac_acr &= 0xffffff01;
-	dmac_acr |= (b & ~ 1) << 0;
+	dmac_acr &= 0xffffff00;
+	dmac_acr |= b << 0;
+	dmac_acr &= ~1;
+	if (old_dmac)
+	    dmac_acr &= ~3;
 	break;
 	case 0x8e:
 	dmac_dawr &= 0x00ff;
@@ -1287,7 +1319,7 @@ void a2091_init (void)
     memset (dmacmemory, 0xff, 100);
     ew (0x00, 0xc0 | 0x01 | 0x10);
     /* A590/A2091 hardware id */
-    ew (0x04, 0x03);
+    ew (0x04, old_dmac ? 0x02 : 0x03);
     /* commodore's manufacturer id */
     ew (0x10, 0x02);
     ew (0x14, 0x02);
@@ -1305,7 +1337,6 @@ void a2091_init (void)
     roms[2] = 53;
     roms[3] = 56;
     roms[4] = -1;
-    roms[0] = 53;
 
     rombankswitcher = 0;
     rombank = 0;

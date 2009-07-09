@@ -406,7 +406,7 @@ static int hdf_open2 (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->vhd_bitmapsize = ((hfd->vhd_blocksize / (8 * 512)) + 511) & ~511;
     }
     write_log (L"HDF is VHD %s image, virtual size=%dK\n",
-	hfd->vhd_type == 2 ? "fixed" : "dynamic",
+	hfd->vhd_type == 2 ? L"fixed" : L"dynamic",
 	hfd->virtsize / 1024);
     return 1;
 nonvhd:
@@ -942,8 +942,8 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
     char *ss;
 
     *reply_len = *sense_len = 0;
-    memset(r, 0, 256);
-    memset(s, 0, 256);
+    memset (r, 0, 256);
+    memset (s, 0, 256);
     switch (cmdbuf[0])
     {
 	case 0x00: /* TEST UNIT READY */
@@ -956,7 +956,8 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
 	offset *= hfd->blocksize;
 	len = cmdbuf[4];
-	if (!len) len = 256;
+	if (!len)
+	    len = 256;
 	len *= hfd->blocksize;
 	if (checkbounds(hfd, offset, len))
 	    scsi_len = (uae_u32)cmd_readx (hfd, scsi_data, offset, len);
@@ -964,10 +965,13 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x0a: /* WRITE (6) */
 	if (nodisk (hfd))
 	    goto nodisk;
+	if (hfd->readonly || hfd->dangerous)
+	    goto readprot;
 	offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
 	offset *= hfd->blocksize;
 	len = cmdbuf[4];
-	if (!len) len = 256;
+	if (!len)
+	    len = 256;
 	len *= hfd->blocksize;
 	if (checkbounds(hfd, offset, len))
 	    scsi_len = (uae_u32)cmd_writex (hfd, scsi_data, offset, len);
@@ -1132,6 +1136,8 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x2a: /* WRITE (10) */
 	if (nodisk (hfd))
 	    goto nodisk;
+	if (hfd->readonly || hfd->dangerous)
+	    goto readprot;
 	offset = rl (cmdbuf + 2);
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 7 - 2) & 0xffff;
@@ -1182,6 +1188,8 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0xaa: /* WRITE (12) */
 	if (nodisk (hfd))
 	    goto nodisk;
+	if (hfd->readonly || hfd->dangerous)
+	    goto readprot;
 	offset = rl (cmdbuf + 2);
 	offset *= hfd->blocksize;
 	len = rl (cmdbuf + 6);
@@ -1192,11 +1200,17 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x37: /* READ DEFECT DATA */
 	if (nodisk (hfd))
 	    goto nodisk;
-	write_log (L"UAEHF: READ DEFECT DATA\n");
 	status = 2; /* CHECK CONDITION */
 	s[0] = 0x70;
 	s[2] = 0; /* NO SENSE */
 	s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
+	ls = 12;
+	break;
+readprot:
+	status = 2; /* CHECK CONDITION */
+	s[0] = 0x70;
+	s[2] = 7; /* DATA PROTECT */
+	s[12] = 0x27; /* WRITE PROTECTED */
 	ls = 12;
 	break;
 nodisk:
@@ -1266,7 +1280,7 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
     }
     scsi_log ("\n");
 
-    status = scsi_emulate(hfd, NULL, cmdbuf, scsi_cmd_len, scsi_data_ptr, &scsi_len, reply, &reply_len, sense, &sense_len);
+    status = scsi_emulate (hfd, NULL, cmdbuf, scsi_cmd_len, scsi_data_ptr, &scsi_len, reply, &reply_len, sense, &sense_len);
 
     put_word (acmd + 18, status != 0 ? 0 : scsi_cmd_len); /* fake scsi_CmdActual */
     put_byte (acmd + 21, status); /* scsi_Status */
@@ -1547,7 +1561,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	case CMD_FORMAT: /* Format */
 	if (nodisk (hfd))
 	    goto no_disk;
-	if (hfd->readonly) {
+	if (hfd->readonly || hfd->dangerous) {
 	    error = 28; /* write protect */
 	} else {
 	    offset = get_long (request + 44);
@@ -1574,7 +1588,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	case NSCMD_TD_FORMAT64:
 	if (nodisk (hfd))
 	    goto no_disk;
-	if (hfd->readonly) {
+	if (hfd->readonly || hfd->dangerous) {
 	    error = 28; /* write protect */
 	} else {
 	    offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
@@ -1646,7 +1660,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	break;
 
 	case CMD_PROTSTATUS:
-	    if (hfd->readonly)
+	    if (hfd->readonly || hfd->dangerous)
 		actual = -1;
 	    else
 		actual = 0;
@@ -1783,7 +1797,7 @@ static void *hardfile_thread (void *devs)
 {
     struct hardfileprivdata *hfpd = (struct hardfileprivdata*)devs;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
     hfpd->thread_running = 1;
     uae_sem_post (&hfpd->sync_sem);
     for (;;) {

@@ -15,10 +15,10 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L""
-#define WINUAEDATE MAKEBD(2009, 6, 18)
+#define WINUAEBETA L"Beta 0"
+#define WINUAEDATE MAKEBD(2009, 7, 9)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -119,7 +119,7 @@ extern int close_tablet (void*);
 extern void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int flags, int ax, int ay, int az, int rx, int ry, int rz, RECT *r);
 extern void send_tablet_proximity (int);
 
-void addnotifications (HWND hwnd, int remove);
+void addnotifications (HWND hwnd, int remove, int isgui);
 int win32_hardfile_media_change (const TCHAR *drvname, int inserted);
 extern int CheckRM (TCHAR *DriveName);
 void systray (HWND hwnd, int remove);

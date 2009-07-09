@@ -15,6 +15,7 @@
 #if defined(NATMEM_OFFSET)
 
 #define BARRIER 32
+#define MAXZ3MEM 0x7F000000
 
 static struct shmid_ds shmids[MAX_SHMID];
 static int memwatchok = 0;
@@ -226,15 +227,15 @@ void preinit_shm (void)
     }
     size64 = total64;
     if (maxmem < 0)
-	size64 = 0x7f000000;
+	size64 = MAXZ3MEM;
     else if (maxmem > 0)
 	size64 = maxmem * 1024 * 1024;
     if (os_64bit) {
-	if (size64 > 0x7f000000)
-	    size64 = 0x7f000000;
+	if (size64 > MAXZ3MEM)
+	    size64 = MAXZ3MEM;
     } else {
-	if (size64 > 0x7f000000)
-	    size64 = 0x7f000000;
+	if (size64 > MAXZ3MEM)
+	    size64 = MAXZ3MEM;
     }
     if (size64 < 8 * 1024 * 1024)
 	size64 = 8 * 1024 * 1024;

@@ -2408,9 +2408,12 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
     }
 }
 
-STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
+STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
 {
-    return rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
+    uae_u32 v = rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
+    if (a)
+	v |= a[255 - ((c >> 24) & 0xff)];
+    return v;
 }
 
 static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32 c1, uae_u32 c2)
@@ -2428,14 +2431,14 @@ static void write_tdnumber (uae_u8 *buf, int bpp, int x, int y, int num, uae_u32
     }
 }
 
-void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc)
+void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *alpha)
 {
     int x_start, j, led, border;
     uae_u32 c1, c2, cb;
 
-    c1 = ledcolor (0xffffff, rc, gc, bc);
-    c2 = ledcolor (0x000000, rc, gc, bc);
-    cb = ledcolor (TD_BORDER, rc, gc, bc);
+    c1 = ledcolor (0x00ffffff, rc, gc, bc, alpha);
+    c2 = ledcolor (0x00000000, rc, gc, bc, alpha);
+    cb = ledcolor (TD_BORDER, rc, gc, bc, alpha);
 
     if (td_pos & TD_RIGHT)
 	x_start = totalwidth - TD_PADX - NUM_LEDS * TD_WIDTH;
@@ -2530,10 +2533,12 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	    off_rgb = 0x000000;
 	    am = 3;
 	}
-	c = ledcolor (on ? on_rgb : off_rgb, rc, gc, bc);
+	on_rgb |= 0x33000000;
+	off_rgb |= 0x33000000;
+	c = ledcolor (on ? on_rgb : off_rgb, rc, gc, bc, alpha);
 	border = 0;
 	if (y == 0 || y == TD_TOTAL_HEIGHT - 1) {
-	    c = ledcolor (TD_BORDER, rc, gc, bc);
+	    c = ledcolor (TD_BORDER, rc, gc, bc, alpha);
 	    border = 1;
 	}
 
@@ -2576,7 +2581,7 @@ static void draw_status_line (int line)
     if (xlinebuffer == 0)
 	xlinebuffer = row_map[line];
     buf = xlinebuffer;
-    draw_status_line_single (buf, bpp, y, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors);
+    draw_status_line_single (buf, bpp, y, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 #define LIGHTPEN_HEIGHT 12

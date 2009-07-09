@@ -19,6 +19,7 @@ extern int graphics_setup (void);
 extern int graphics_init (void);
 extern void graphics_leave (void);
 extern void handle_events (void);
+extern int handle_msgpump (void);
 extern void setup_brkhandler (void);
 extern int isfullscreen (void);
 extern void toggle_fullscreen (void);

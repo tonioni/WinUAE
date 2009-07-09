@@ -152,7 +152,7 @@ BEGIN
     RTEXT           "Fullscreen:",IDC_STATIC,17,19,40,15,SS_CENTERIMAGE
 END
 
-IDD_MEMORY DIALOGEX 0, 0, 300, 239
+IDD_MEMORY DIALOGEX 0, 0, 300, 158
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
@@ -170,31 +170,13 @@ BEGIN
     RTEXT           "Z3 Fast:",IDC_Z3TEXT,139,51,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
     EDITTEXT        IDC_Z3FASTRAM,243,50,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,98,53,10,SS_NOTIFY | SS_CENTERIMAGE
-    CONTROL         "Slider1",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,94,60,20
-    EDITTEXT        IDC_P96RAM,152,97,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "A3000/A4000 Advanced Memory Settings",-1,13,179,275,57
-    RTEXT           "Motherboard Fast RAM:",-1,39,194,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,190,59,20
-    EDITTEXT        IDC_MBRAM1,243,193,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Prosessor Slot Fast RAM:",-1,39,217,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,180,213,59,20
-    EDITTEXT        IDC_MBRAM2,243,216,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "RTG Graphics Card Settings",-1,14,81,275,95
-    CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,128,162,10
-    CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,116,163,10
-    COMBOBOX        IDC_RTG_8BIT,211,91,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_16BIT,211,106,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_24BIT,211,121,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_32BIT,211,136,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,140,162,10
-    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,155,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Aspect ratio:",-1,153,156,52,10,SS_CENTERIMAGE
-    RTEXT           "Refresh rate:",-1,22,157,51,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_RTG_VBLANKRATE,77,155,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "A3000/A4000 Advanced Memory Settings",-1,14,84,274,65
+    RTEXT           "Motherboard Fast RAM:",-1,40,100,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,96,59,20
+    EDITTEXT        IDC_MBRAM1,244,99,34,12,ES_CENTER | ES_READONLY
+    RTEXT           "Prosessor Slot Fast RAM:",-1,40,123,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,119,59,20
+    EDITTEXT        IDC_MBRAM2,244,122,34,12,ES_CENTER | ES_READONLY
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 226
@@ -818,12 +800,12 @@ BEGIN
     GROUPBOX        "",IDC_PANEL_FRAME,112,4,303,247,NOT WS_VISIBLE
     CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | WS_HSCROLL | WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
     GROUPBOX        "",IDC_PANEL_FRAME_OUTER,110,2,307,251
-    PUSHBUTTON      "Reset",IDC_RESETAMIGA,6,259,47,14
-    PUSHBUTTON      "Quit",IDC_QUITEMU,57,259,47,14
+    PUSHBUTTON      "Reset",IDC_RESETAMIGA,5,259,47,14
+    PUSHBUTTON      "Quit",IDC_QUITEMU,55,259,47,14
     DEFPUSHBUTTON   "OK",IDOK,260,259,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,313,259,50,14
     PUSHBUTTON      "Help",IDHELP,366,259,50,14,WS_DISABLED
-    PUSHBUTTON      "Restart",IDC_RESTARTEMU,109,259,47,14,NOT WS_VISIBLE
+    PUSHBUTTON      "Restart",IDC_RESTARTEMU,106,259,47,14,NOT WS_VISIBLE
 END
 
 IDD_PATHS DIALOGEX 0, 0, 300, 243
@@ -968,6 +950,30 @@ BEGIN
     CTEXT           "Enter address",IDC_DBG_ADDRINPUTTXT,20,1,100,10,SS_CENTERIMAGE | WS_TABSTOP
 END
 
+IDD_RTG DIALOGEX 0, 0, 300, 135
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,44,53,10,SS_NOTIFY | SS_CENTERIMAGE
+    CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,40,60,20
+    EDITTEXT        IDC_P96RAM,152,43,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "RTG Graphics Card Settings",-1,14,12,275,113
+    CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,74,162,10
+    CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,62,163,10
+    COMBOBOX        IDC_RTG_8BIT,211,29,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_16BIT,211,44,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_24BIT,211,59,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_32BIT,211,74,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,86,162,10
+    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,101,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Aspect ratio:",-1,153,102,52,10,SS_CENTERIMAGE
+    RTEXT           "Refresh rate:",-1,22,103,51,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_RTG_VBLANKRATE,77,101,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -975,8 +981,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,6,1,0
- PRODUCTVERSION 1,6,1,0
+ FILEVERSION 1,6,2,0
+ PRODUCTVERSION 1,6,2,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -992,12 +998,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.6.1"
+            VALUE "FileVersion", "1.6.2"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2009 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.6.1"
+            VALUE "ProductVersion", "1.6.2"
         END
     END
     BLOCK "VarFileInfo"
@@ -1156,6 +1162,7 @@ BEGIN
     IDS_FRONTEND            "Frontend"
     IDS_CHIPSET2            "Adv. Chipset"
     IDS_GAMEPORTS           "Game ports"
+    IDS_RTG                 "Display Card"
 END
 
 STRINGTABLE 
@@ -1393,8 +1400,6 @@ STRINGTABLE
 BEGIN
     IDS_ROM_AVAILABLE       "available"
     IDS_ROM_UNAVAILABLE     "unavailable"
-    IDS_HARDDRIVESAFETYWARNING1 
-                            "Warning: The drive safety check is active. Selected drive is not empty and non-RDB partitioned."
     IDS_NUMSG_KS68EC020     "The selected system ROM requires a 68020 with 24-bit addressing or higher CPU."
     IDS_ROMSCANNOROMS       "No supported system ROMs detected."
     IDS_NUMSG_KICKREP       "You need to have a floppy disk (image file) in DF0: to use the system ROM replacement."
@@ -1404,8 +1409,6 @@ BEGIN
     IDS_HDCLONE_FAIL        "Hard drive image file creation failed.\nError code %d:%d."
     IDS_NUMSG_KS68030       "The selected system ROM requires a 68030 CPU."
     IDS_NUMSG_EXPROMNEED    "One of the following expansion boot ROMs is required:\n\n%s\n\nCheck the System ROM path in the Paths panel and click Rescan ROMs."
-    IDS_HARDDRIVESAFETYWARNING2 
-                            "Warning: The drive safety check has been disabled, and non-empty and non-RDB partitioned hard disk(s) were detected."
     IDS_SB_FAVORITENAME     "Enter name..."
     IDS_SB_CUSTOMEVENT      "Enter custom event string.."
 END

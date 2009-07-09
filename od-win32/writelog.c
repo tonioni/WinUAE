@@ -169,7 +169,7 @@ void close_console (void)
     consoleopen = 0;
 }
 
-static void writeconsole (const TCHAR *buffer)
+static void writeconsole_2 (const TCHAR *buffer)
 {
     DWORD temp;
     
@@ -183,6 +183,25 @@ static void writeconsole (const TCHAR *buffer)
 	fflush (stdout);
     } else if (consoleopen < 0) {
 	WriteConsole (stdoutput, buffer, _tcslen (buffer), &temp, 0);
+    }
+}
+
+static void writeconsole (const TCHAR *buffer)
+{
+    if (_tcslen (buffer) > 256) {
+	TCHAR *p = my_strdup (buffer);
+	TCHAR *p2 = p;
+	while (_tcslen (p) > 256) {
+    	    TCHAR tmp = p[256];
+	    p[256] = 0;
+	    writeconsole_2 (p);
+	    p[256] = tmp;
+	    p += 256;
+	}
+	writeconsole_2 (p);
+	xfree (p2);
+    } else {
+        writeconsole_2 (buffer);
     }
 }
 

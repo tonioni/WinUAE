@@ -157,7 +157,7 @@ extern uae_u8 *baseaddr[MEMORY_BANKS];
     if ((b)->baseaddr) \
 	baseaddr[bankindex(addr)] = (b)->baseaddr - (realstart); \
     else \
-	baseaddr[bankindex(addr)] = (uae_u8*)(((long)b)+1); \
+	baseaddr[bankindex(addr)] = (uae_u8*)(((uae_u8*)b)+1); \
 } while (0)
 #else
 #define put_mem_bank(addr, b, realstart) \

@@ -305,7 +305,7 @@ static int clickcnt;
 
 static void mix (void)
 {
-    int total = ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer) / (get_audio_nativechannels () * 2);
+    int total = ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer) / (get_audio_nativechannels (currprefs.sound_stereo) * 2);
 
     if (currprefs.dfxclickvolume > 0) {
 	while (clickcnt < total) {
@@ -335,7 +335,7 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 	return;
     mix ();
     clickcnt = 0;
-    switch (get_audio_nativechannels ())
+    switch (get_audio_nativechannels (currprefs.sound_stereo))
     {
 	case 6:
 	    for (i = 0; i < size / 6; i++) {

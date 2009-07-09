@@ -136,6 +136,7 @@ void clearsurface (LPDIRECTDRAWSURFACE7 surf)
 
 int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 {
+    static int cnt = 50;
     HRESULT ddrval;
     desc->dwSize = sizeof (*desc);
     while (FAILED (ddrval = IDirectDrawSurface7_Lock (surf, NULL, desc, DDLOCK_SURFACEMEMORYPTR | DDLOCK_WAIT, NULL))) {
@@ -144,7 +145,10 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 	    if (FAILED (ddrval))
 	        return 0;
 	} else if (ddrval != DDERR_SURFACEBUSY) {
-	    write_log (L"locksurface: %s\n", DXError (ddrval));
+	    if (cnt > 0) {
+	        cnt--;
+		write_log (L"locksurface %d: %s\n", cnt, DXError (ddrval));
+	    }
 	    return 0;
 	}
     }

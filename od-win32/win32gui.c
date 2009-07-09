@@ -137,7 +137,7 @@ static int C_PAGES;
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, CHIPSET2_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
     HARDDISK_ID = -1, IOPORTS_ID = -1, GAMEPORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
-    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, FRONTEND_ID = -1;
+    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, RTG_ID = -1, FRONTEND_ID = -1;
 static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
@@ -1924,7 +1924,7 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 	if (dynamic) {
 	    result = vhd_create (init_path, hfsize);
 	} else {
-	    SetCursor (LoadCursor(NULL, IDC_WAIT));
+	    SetCursor (LoadCursor (NULL, IDC_WAIT));
 	    if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE) {
 		if (sparse) {
 		    DWORD ret;
@@ -5786,7 +5786,7 @@ static void updatez3 (uae_u32 *size1p, uae_u32 *size2p)
     *size2p = s2;
 }
 
-static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     int v;
     TCHAR tmp[100];
@@ -5795,9 +5795,9 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
     switch (msg)
     {
 	case WM_INITDIALOG:
-	    pages[MEMORY_ID] = hDlg;
-	    currentpage = MEMORY_ID;
-		WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
+	    pages[RTG_ID] = hDlg;
+	    currentpage = RTG_ID;
+	    WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"(8bit)");
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"8-bit (*)");
@@ -5822,13 +5822,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"A8B8G8R8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"R8G8B8A8");
 	    SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"B8G8R8A8 (*)");
-	    SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
-	    SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
-	    SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
-	    SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 	    SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
-	    SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
-	    SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
 	    WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -5857,14 +5851,7 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 	break;
 
 	case WM_HSCROLL:
-	    workprefs.chipmem_size = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
-	    workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
-	    workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
-	    workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
-	    updatez3 (&workprefs.z3fastmem_size, &workprefs.z3fastmem2_size);
 	    workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
-	    workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
-	    workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
 	    fix_values_memorydlg ();
 	    values_to_memorydlg (hDlg);
 	    enable_for_memorydlg (hDlg);
@@ -5993,6 +5980,63 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		}
 		workprefs.picasso96_modeflags = mask;
 		values_to_memorydlg (hDlg);
+	    }
+	    recursive--;
+	}
+	break;
+    }
+    return FALSE;
+}
+
+
+static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    int v;
+    static int recursive = 0;
+
+    switch (msg)
+    {
+	case WM_INITDIALOG:
+	    pages[MEMORY_ID] = hDlg;
+	    currentpage = MEMORY_ID;
+	    SendDlgItemMessage (hDlg, IDC_CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_CHIP_MEM, MAX_CHIP_MEM));
+	    SendDlgItemMessage (hDlg, IDC_FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_FAST_MEM, MAX_FAST_MEM));
+	    SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
+	    SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
+	    SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+	    SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+
+	case WM_USER:
+	    recursive++;
+	    fix_values_memorydlg ();
+	    values_to_memorydlg (hDlg);
+	    enable_for_memorydlg (hDlg);
+	    recursive--;
+	break;
+
+	case WM_HSCROLL:
+	    workprefs.chipmem_size = memsizes[msi_chip[SendMessage (GetDlgItem (hDlg, IDC_CHIPMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.bogomem_size = memsizes[msi_bogo[SendMessage (GetDlgItem (hDlg, IDC_SLOWMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.fastmem_size = memsizes[msi_fast[SendMessage (GetDlgItem (hDlg, IDC_FASTMEM), TBM_GETPOS, 0, 0)]];
+	    workprefs.z3fastmem_size = memsizes[msi_z3fast[SendMessage (GetDlgItem (hDlg, IDC_Z3FASTMEM), TBM_GETPOS, 0, 0)]];
+	    updatez3 (&workprefs.z3fastmem_size, &workprefs.z3fastmem2_size);
+	    workprefs.mbresmem_low_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM1), TBM_GETPOS, 0, 0)]];
+	    workprefs.mbresmem_high_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_MBMEM2), TBM_GETPOS, 0, 0)]];
+	    fix_values_memorydlg ();
+	    values_to_memorydlg (hDlg);
+	    enable_for_memorydlg (hDlg);
+	break;
+
+	case WM_COMMAND:
+	{
+	    if (recursive > 0)
+		break;
+	    recursive++;
+	    switch (LOWORD (wParam))
+	    {
+		;
+	    }
+    	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 	    }
 	    recursive--;
 	}
@@ -7601,7 +7645,7 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 	    hdf->controller = HD_CONTROLLER_PCMCIA_SRAM;
 	    break;
 	}
-	if (!memcmp (tmp, "RDSK\0\0\0", 7) || (tmp[0] == 0x53 && tmp[1] == 0x10 && tmp[2] == 0x9b && tmp[3] == 0x13 && tmp[4] == 0 && tmp[5] == 0)) {
+	if (!memcmp (tmp, "RDSK\0\0\0", 7) || !memcmp (tmp, "DRKS\0\0", 6) || (tmp[0] == 0x53 && tmp[1] == 0x10 && tmp[2] == 0x9b && tmp[3] == 0x13 && tmp[4] == 0 && tmp[5] == 0)) {
 	    // RDSK or ADIDE "encoded" RDSK
 	    hdf->sectors = 0;
 	    hdf->surfaces = 0;
@@ -7848,8 +7892,8 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	ew (hDlg, IDC_HDF_CONTROLLER, FALSE);
 	index = -1;
 	for (i = 0; i < hdf_getnumharddrives (); i++) {
-	    SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL));
-	    if (!_tcscmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0, NULL)))
+	    SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL));
+	    if (!_tcscmp (current_hfdlg.filename, hdf_getnameharddrive (i, 0, NULL, NULL)))
 		index = i;
 	}
 	if (index >= 0) {
@@ -7867,12 +7911,17 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	if (oposn != posn && posn != CB_ERR) {
 	    oposn = posn;
 	    if (posn >= 0) {
+		int dang = 1;
+		hdf_getnameharddrive (posn, 1, NULL, &dang);
 		ew (hDlg, IDC_HARDDRIVE_IMAGE, TRUE);
 		ew (hDlg, IDOK, TRUE);
-		ew (hDlg, IDC_HDF_RW, TRUE);
+		ew (hDlg, IDC_HDF_RW, !dang);
+		if (dang)
+		    current_hfdlg.rw = FALSE;
 		ew (hDlg, IDC_HDF_CONTROLLER, TRUE);
 		hardfile_testrdb (hDlg, &current_hfdlg);
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
+		CheckDlgButton(hDlg, IDC_HDF_RW, current_hfdlg.rw);
 	    }
 	}
 	if (HIWORD (wParam) == BN_CLICKED) {
@@ -7890,7 +7939,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	    }
 	}
 	if (posn != CB_ERR)
-	    _tcscpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize));
+	    _tcscpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize, NULL));
 	current_hfdlg.rw = IsDlgButtonChecked (hDlg, IDC_HDF_RW);
 	posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 	if (posn != CB_ERR)
@@ -10393,6 +10442,7 @@ static void values_to_hw3ddlg (HWND hDlg)
     while (uaefilters[i].name) {
 	switch (uaefilters[i].type)
 	{
+#if 0
 #ifndef D3D
 	    case UAE_FILTER_DIRECT3D:
 	    nofilter = 1;
@@ -10402,6 +10452,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	    case UAE_FILTER_OPENGL:
 	    nofilter = 1;
 	    break;
+#endif
 #endif
 	    default:
 	    nofilter = 0;
@@ -11595,6 +11646,7 @@ static void createTreeView (HWND hDlg, int currentpage)
     CN (MEMORY_ID);
     CN (FLOPPY_ID);
     CN (HARDDISK_ID);
+    CN (RTG_ID);
 
     p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HOST, root, LOADSAVE_ID, CONFIG_TYPE_HOST);
     CN (DISPLAY_ID);
@@ -11876,7 +11928,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		    doit = 1;
 	    } else if (pBHdr && pBHdr->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE) {
 		DEV_BROADCAST_DEVICEINTERFACE *dbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
-		write_log (L"%s: %s\n", wParam == DBT_DEVICEREMOVECOMPLETE ? "Removed" : "Inserted",
+		write_log (L"%s: %s\n", wParam == DBT_DEVICEREMOVECOMPLETE ? L"Removed" : L"Inserted",
 		    dbd->dbcc_name);
 		if (wParam == DBT_DEVICEREMOVECOMPLETE)
 		    doit = 1;
@@ -11894,7 +11946,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	PostQuitMessage (0);
 	return TRUE;
 	case WM_CLOSE:
-        addnotifications (hDlg, 1);
+        addnotifications (hDlg, TRUE, TRUE);
 	DestroyWindow(hDlg);
 	if (dialogreturn < 0) {
 	    dialogreturn = 0;
@@ -11917,7 +11969,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	    centerWindow (hDlg);
 	    createTreeView (hDlg, currentpage);
 	    updatePanel (hDlg, currentpage);
-	    addnotifications (hDlg, 0);
+	    addnotifications (hDlg, FALSE, TRUE);
 	return TRUE;
 	case WM_DROPFILES:
 	    if (dragdrop (hDlg, (HDROP)wParam, (gui_active || full_property_sheet) ? &workprefs : &changed_prefs, currentpage))
@@ -12177,6 +12229,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	panelresource = getresource (IDD_PANEL);
 	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_FILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, L"gui/configurations.htm");
 	MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, L"gui/ram.htm");
+	RTG_ID = init_page (IDD_RTG, IDI_DISPLAY, IDS_RTG, RTGDlgProc, NULL, L"gui/rtg.htm");
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, L"gui/rom.htm");
 	CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, NULL, L"gui/cpu.htm");
 	DISPLAY_ID = init_page (IDD_DISPLAY, IDI_DISPLAY, IDS_DISPLAY, DisplayDlgProc, NULL, L"gui/display.htm");

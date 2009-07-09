@@ -151,8 +151,12 @@ int zfile_gettype (struct zfile *z)
 	return ZFILE_DISKIMAGE;
     if (!memcmp (buf, "RDSK", 4))
 	return ZFILE_HDFRDB;
-    if (!memcmp (buf, "DOS", 3))
-	return ZFILE_HDF;
+    if (!memcmp (buf, "DOS", 3)) {
+	if (z->size < 4 * 1024 * 1024)
+	    return ZFILE_DISKIMAGE;
+	else
+	    return ZFILE_HDF;
+    }
     if (ext != NULL) {
 	if (strcasecmp (ext, L"hdf") == 0)
 	    return ZFILE_HDF;
@@ -930,6 +934,7 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 	}
 	l->zfdmask = mask;
     } else {
+	struct _stat64 st;
 	l = zfile_create (NULL);
 	l->mode = my_strdup (mode);
 	l->name = my_strdup (name);
@@ -944,6 +949,8 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 	    zfile_fclose (l);
 	    return 0;
 	}
+	if (stat (l->name, &st) != -1)
+	    l->size = st.st_size;
 	l->f = f;
     }
     return l;

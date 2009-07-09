@@ -32,6 +32,7 @@
 #include <shlwapi.h>
 #include <dbghelp.h>
 #include <float.h>
+#include <WtsApi32.h>
 
 #include "resource"
 
@@ -517,6 +518,7 @@ static void releasecapture (void)
 
 void setmouseactive (int active)
 {
+    //write_log (L"setmouseactive %d->%d\n", mouseactive, active);
     if (active == 0)
 	releasecapture ();
     if (mouseactive == active && active >= 0)
@@ -574,6 +576,8 @@ void setmouseactive (int active)
 	if (rp_isactive () && isfullscreen () == 0)
 	    donotfocus = 0;
 #endif
+	if (isfullscreen () > 0)
+	    donotfocus = 0;
 	if (donotfocus) {
 	    focus = 0;
 	    mouseactive = 0;
@@ -769,7 +773,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     {
 
     case WM_SETFOCUS:
-        winuae_active (hWnd, minimized);
+	winuae_active (hWnd, minimized);
         minimized = 0;
 	dx_check ();
 	return 0;
@@ -794,7 +798,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
     case WM_KEYDOWN:
 	if (dinput_wmkey ((uae_u32)lParam))
-	    gui_display (-1);
+	    inputdevice_add_inputcode (AKS_ENTERGUI, 1);
     return 0;
 
     case WM_LBUTTONUP:
@@ -803,8 +807,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
     return 0;
     case WM_LBUTTONDOWN:
     case WM_LBUTTONDBLCLK:
-	if (!mouseactive && isfullscreen() <= 0 && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK)) {
-	    setmouseactive (message == WM_LBUTTONDBLCLK ? 2 : 1);
+	if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || isfullscreen () > 0)) {
+	    setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 	} else if (dinput_winmouse () >= 0 && isfocus ()) {
 	    setmousebuttonstate (dinput_winmouse (), 0, 1);
 	}
@@ -971,7 +975,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	mx -= mouseposx;
 	my -= mouseposy;
 
-	//write_log(L"%d %d %d %d\n", mx, my, mouseposx, mouseposy);
+	//write_log (L"%d %d %d %d %d %d %d\n", wm, mouseactive, focus, mx, my, mouseposx, mouseposy);
 	if (recapture && isfullscreen () <= 0) {
 	    setmouseactive (1);
 	    return 0;
@@ -997,6 +1001,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	        int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
 	        mx = mx - mxx;
 	        my = my - myy;
+		//write_log (L"%d:%dx%d\n", dinput_winmouse(), mx, my);
 	        setmousestate (dinput_winmouse (), 0, mx, 0);
 	        setmousestate (dinput_winmouse (), 1, my, 0);
 	    }
@@ -1184,7 +1189,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			}
 		    } else if (num == 4) {
 			if (nm->code == NM_CLICK)
-			    gui_display (-1);
+			    inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 			else
 			    uae_reset (0);
 		    }
@@ -1199,12 +1204,32 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	if ((HWND) wParam == hwndNextViewer) 
 	    hwndNextViewer = (HWND) lParam; 
 	else if (hwndNextViewer != NULL) 
-	    SendMessage(hwndNextViewer, message, wParam, lParam); 
+	    SendMessage (hwndNextViewer, message, wParam, lParam); 
     return 0;
     case WM_DRAWCLIPBOARD:
 	clipboard_changed (hWnd);
-	SendMessage(hwndNextViewer, message, wParam, lParam); 
+	SendMessage (hwndNextViewer, message, wParam, lParam); 
     return 0;
+
+    case WM_WTSSESSION_CHANGE:
+    {
+	static int wasactive;
+	switch (wParam)
+	{
+	    case WTS_CONSOLE_CONNECT:
+	    case WTS_SESSION_UNLOCK:
+		if (wasactive)
+		    winuae_active (hWnd, 0);
+		wasactive = 0;
+	    break;
+	    case WTS_CONSOLE_DISCONNECT:
+	    case WTS_SESSION_LOCK:
+		wasactive = mouseactive;
+		winuae_inactive (hWnd, 0);
+	    break;
+	}
+    }
+
 
     case WT_PROXIMITY:
     {
@@ -1309,6 +1334,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
      case WM_NOTIFY:
      case WM_ENABLE:
      case WT_PACKET:
+     case WM_WTSSESSION_CHANGE:
 	return AmigaWindowProc (hWnd, message, wParam, lParam);
 
     case WM_DISPLAYCHANGE:
@@ -1474,6 +1500,19 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
          systray (TaskbarRestartHWND, FALSE);
     }
     return DefWindowProc (hWnd, message, wParam, lParam);
+}
+
+int handle_msgpump (void)
+{
+    int got = 0;
+    MSG msg;
+
+    while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+	got = 1;
+	TranslateMessage (&msg);
+	DispatchMessage (&msg);
+    }
+    return got;
 }
 
 void handle_events (void)
@@ -3817,6 +3856,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
     TCHAR **argv = NULL, **argv2 = NULL, **argv3;
     int argc, i;
 
+#if 0
 #ifdef _DEBUG
     {
 	int tmp = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
@@ -3830,7 +3870,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	_CrtSetDbgFlag(tmp);
     }
 #endif
-
+#endif
     if (!osdetect ())
 	return 0;
     if (!dxdetect ())
@@ -3893,9 +3933,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	    else
 		default_freq = 60;
 	}
-#ifdef AVIOUTPUT
-	AVIOutput_Initialize ();
-#endif
 	WIN32_HandleRegistryStuff ();
 	WIN32_InitLang ();
 	WIN32_InitHtmlHelp ();
@@ -4182,10 +4219,11 @@ typedef ULONG (CALLBACK *SHCHANGENOTIFYREGISTER)
     const SHChangeNotifyEntry *pshcne);
 typedef BOOL (CALLBACK *SHCHANGENOTIFYDEREGISTER)(ULONG ulID);
 
-void addnotifications (HWND hwnd, int remove)
+void addnotifications (HWND hwnd, int remove, int isgui)
 {
     static ULONG ret;
     static HDEVNOTIFY hdn;
+    static int wtson;
     LPITEMIDLIST ppidl;
     SHCHANGENOTIFYREGISTER pSHChangeNotifyRegister;
     SHCHANGENOTIFYDEREGISTER pSHChangeNotifyDeregister;
@@ -4202,6 +4240,9 @@ void addnotifications (HWND hwnd, int remove)
 	if (hdn)
 	    UnregisterDeviceNotification (hdn);
 	hdn = 0;
+	if (os_winxp && wtson && !isgui)
+    	    WTSUnRegisterSessionNotification (hwnd);
+	wtson = 0;
     } else {
 	DEV_BROADCAST_DEVICEINTERFACE NotificationFilter = { 0 };
 	if(pSHChangeNotifyRegister && SHGetSpecialFolderLocation (hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
@@ -4216,6 +4257,8 @@ void addnotifications (HWND hwnd, int remove)
 	NotificationFilter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 	NotificationFilter.dbcc_classguid = GUID_DEVINTERFACE_HID;
 	hdn = RegisterDeviceNotification (hwnd,  &NotificationFilter, DEVICE_NOTIFY_WINDOW_HANDLE);
+	if (os_winxp && !isgui)
+	    wtson = WTSRegisterSessionNotification (hwnd, NOTIFY_FOR_THIS_SESSION);
     }
 }
 

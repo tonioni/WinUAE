@@ -2,7 +2,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#if defined (OPENGL) && defined (GFXFILTER)
+#if defined (D3D) && defined (GFXFILTER)
 
 #include "options.h"
 #include "xwin.h"
@@ -12,6 +12,7 @@
 #include "win32.h"
 #include "win32gfx.h"
 #include "gfxfilter.h"
+#include "statusline.h"
 
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -25,17 +26,18 @@ static int tex_pow2, tex_square, tex_dynamic;
 static int psEnabled, psActive, psPreProcess;
 
 static int tformat;
-static int d3d_enabled, d3d_ex, scanlines_ok;
+static int d3d_enabled, d3d_ex;
 static LPDIRECT3D9 d3d;
 static LPDIRECT3D9EX d3dex;
 static D3DPRESENT_PARAMETERS dpp;
 static LPDIRECT3DDEVICE9 d3ddev;
 static LPDIRECT3DDEVICE9EX d3ddevex;
 static D3DSURFACE_DESC dsdbb;
-static LPDIRECT3DTEXTURE9 texture, sltexture;
+static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2;
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static IDirect3DVertexBuffer9 *vertexBuffer;
+static ID3DXSprite *sprite;
 static HWND d3dhwnd;
 
 static D3DXMATRIX m_matProj;
@@ -45,6 +47,7 @@ static D3DXMATRIX m_matPreProj;
 static D3DXMATRIX m_matPreView;
 static D3DXMATRIX m_matPreWorld;
 
+static int ledwidth, ledheight;
 static int twidth, theight, max_texture_w, max_texture_h;
 static int tin_w, tin_h, window_h, window_w;
 static int t_depth;
@@ -662,7 +665,6 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
     return t;
 }
 
-
 static int createtexture (int w, int h)
 {
     HRESULT hr;
@@ -704,19 +706,56 @@ static int createtexture (int w, int h)
     return 1;
 }
 
+static void updateleds (void)
+{
+    D3DLOCKED_RECT locked;
+    HRESULT hr;
+    static rc[256], gc[256], bc[256], a[256];
+    static int done;
+    int i, y;
+
+    if (!done) {
+	for (i = 0; i < 256; i++) {
+	    rc[i] = i << 16;
+	    gc[i] = i << 8;
+	    bc[i] = i << 0;
+	    a[i] = i << 24;
+	}
+	done = 1;
+    }
+    hr = IDirect3DTexture9_LockRect (ledtexture, 0, &locked, NULL, D3DLOCK_DISCARD);
+    if (FAILED (hr)) {
+	write_log (L"SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
+	return;
+    }
+    for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
+	uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
+        draw_status_line_single (buf, 32 / 8, y, ledwidth, rc, gc, bc, a);
+    }
+    IDirect3DTexture9_UnlockRect (ledtexture, 0);
+}
+
+static int createledtexture (void)
+{
+    ledwidth = window_w;
+    ledheight = TD_TOTAL_HEIGHT;
+    ledtexture = createtext (&ledwidth, &ledheight, D3DFMT_A8R8G8B8);
+    if (!ledtexture)
+	return 0;
+    return 1;
+}
+
 static int createsltexture (void)
 {
     UINT ww = required_sl_texture_w;
     UINT hh = required_sl_texture_h;
 
-    sltexture = createtext (&ww, &hh, D3DFMT_A4R4G4B4);
+    sltexture = createtext (&ww, &hh, t_depth < 32 ? D3DFMT_A4R4G4B4 : D3DFMT_A8R8G8B8);
     if (!sltexture)
 	return 0;
     required_sl_texture_w = ww;
     required_sl_texture_h = hh;
     write_log (L"D3D: SL %d*%d texture allocated\n", ww, hh);
-
-    scanlines_ok = 1;
     return 1;
 }
 
@@ -745,6 +784,7 @@ static void setupscenescaled (void)
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MINFILTER, v);
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MAGFILTER, v);
     hr = IDirect3DDevice9_SetSamplerState (d3ddev, 0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+    hr = IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ALPHABLENDENABLE, FALSE);
 }
 
 static void setupscenecoordssl (void)
@@ -889,11 +929,13 @@ static void createscanlines (int force)
     int l1, l2;
     int x, y, yy;
     uae_u8 *sld, *p;
+    int bpp;
 
-    if (!scanlines_ok)
+    if (!sltexture)
 	return;
     if (osl1 == currprefs.gfx_filter_scanlines && osl3 == currprefs.gfx_filter_scanlinelevel && osl2 == currprefs.gfx_filter_scanlineratio && !force)
 	return;
+    bpp = t_depth < 32 ? 2 : 4;
     osl1 = currprefs.gfx_filter_scanlines;
     osl3 = currprefs.gfx_filter_scanlinelevel;
     osl2 = currprefs.gfx_filter_scanlineratio;
@@ -913,27 +955,29 @@ static void createscanlines (int force)
     }
     sld = (uae_u8*)locked.pBits;
     for (y = 0; y < required_sl_texture_h; y++)
-	memset (sld + y * locked.Pitch, 0, required_sl_texture_w * 2);
+	memset (sld + y * locked.Pitch, 0, required_sl_texture_w * bpp);
     for (y = 1; y < required_sl_texture_h; y += l1 + l2) {
 	for (yy = 0; yy < l2 && y + yy < required_sl_texture_h; yy++) {
 	    for (x = 0; x < required_sl_texture_w; x++) {
-		/* 16-bit, A4R4G4B4 */
 		uae_u8 sll = sl42;
-		p = &sld[(y + yy) * locked.Pitch + (x * 2)];
-		p[1] = (sl4 << 4) | (sll << 0);
-		p[0] = (sll << 4) | (sll << 0);
+		p = &sld[(y + yy) * locked.Pitch + (x * bpp)];
+		if (bpp < 4) {
+		    /* 16-bit, A4R4G4B4 */
+		    p[1] = (sl4 << 4) | (sll << 0);
+		    p[0] = (sll << 4) | (sll << 0);
+		} else {
+		    /* 32-bit, A8R8G8B8 */
+		    uae_u8 sll4 = sl42 | (sl42 << 4);
+		    uae_u8 sll2 = sll | (sll << 4);
+		    p[0] = sll4;
+		    p[1] = sll2;
+		    p[2] = sll2;
+		    p[3] = sll2;
+		}
 	    }
 	}
     }
     IDirect3DTexture9_UnlockRect (sltexture, 0);
-    if (scanlines_ok) {
-	/* enable alpha blending for scanlines */
-	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ALPHABLENDENABLE, TRUE);
-	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    } else {
-	IDirect3DDevice9_SetRenderState (d3ddev, D3DRS_ALPHABLENDENABLE, FALSE);
-    }
 }
 
 
@@ -942,6 +986,14 @@ static void invalidatedeviceobjects (void)
     if (texture) {
 	IDirect3DTexture9_Release (texture);
 	texture = NULL;
+    }
+    if (sprite) {
+	sprite->lpVtbl->Release (sprite);
+	sprite = NULL;
+    }
+    if (ledtexture) {
+	IDirect3DTexture9_Release (ledtexture);
+	ledtexture = NULL;
     }
     if (sltexture) {
 	IDirect3DTexture9_Release (sltexture);
@@ -1000,6 +1052,7 @@ static int restoredeviceobjects (void)
 	return 0;
     if (currprefs.gfx_filter_scanlines > 0)
 	createsltexture ();
+    createledtexture ();
 
     vbsize = sizeof (struct TLVERTEX) * 4;
     if (psPreProcess)
@@ -1043,6 +1096,7 @@ void D3D_free (void)
     psPreProcess = 0;
     psActive = 0;
     resetcount = 0;
+    changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 }
 
 const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
@@ -1059,7 +1113,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     D3D_free ();
     D3D_canshaders ();
     d3d_enabled = 0;
-    scanlines_ok = 0;
     if (currprefs.gfx_filter != UAE_FILTER_DIRECT3D) {
 	_tcscpy (errmsg, L"D3D: not enabled");
 	return errmsg;
@@ -1238,6 +1291,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	return errmsg;
     }
 
+    changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+
+    hr = D3DXCreateSprite (d3ddev, &sprite);
+    if (FAILED (hr)) {
+	write_log (L"LED D3DXSprite filaed: %s\n", D3D_ErrorString (hr));
+    }
+
     createscanlines (1);
     d3d_enabled = 1;
     return 0;
@@ -1360,13 +1420,22 @@ static void D3D_render22 (int clear)
 	hr = IDirect3DDevice9_SetTexture (d3ddev, 0, (IDirect3DBaseTexture9*)texture);
 	hr = IDirect3DDevice9_DrawPrimitive (d3ddev, D3DPT_TRIANGLESTRIP, 0, 2);
 
-	if (scanlines_ok) {
-	    setupscenecoordssl ();
-	    settransformsl ();
-	    hr = IDirect3DDevice9_SetTexture (d3ddev, 0, (IDirect3DBaseTexture9*)sltexture);
-	    hr = IDirect3DDevice9_DrawPrimitive (d3ddev, D3DPT_TRIANGLESTRIP, 0, 2);
-	}
+    }
 
+    if (sprite && (sltexture || ledtexture)) {
+	D3DXVECTOR3 v;
+	sprite->lpVtbl->Begin (sprite, D3DXSPRITE_ALPHABLEND);
+	if (sltexture) {
+	    v.x = v.y = v.z = 0;
+	    sprite->lpVtbl->Draw (sprite, sltexture, NULL, NULL, &v, 0xffffffff);
+	}
+	if (ledtexture) {
+	    v.x = 0;
+	    v.y = window_h - TD_TOTAL_HEIGHT;
+	    v.z = 0;
+	    sprite->lpVtbl->Draw (sprite, ledtexture, NULL, NULL, &v, 0xffffffff);
+	}
+        sprite->lpVtbl->End (sprite);
     }
 
     hr = IDirect3DDevice9_EndScene (d3ddev);
@@ -1392,6 +1461,9 @@ void D3D_unlocktexture (void)
 {
     HRESULT hr;
     RECT r;
+
+    if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
+	updateleds ();
 
     hr = IDirect3DTexture9_UnlockRect (texture, 0);
     r.left = 0; r.right = window_w;

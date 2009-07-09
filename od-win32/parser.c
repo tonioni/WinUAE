@@ -659,7 +659,7 @@ static void *uaeser_trap_thread (void *arg)
     int cnt, actual;
     DWORD evtmask;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
     sd->threadactive = 1;
     uae_sem_post (&sd->sync_sem);
     startwce(sd, &evtmask);
@@ -846,7 +846,7 @@ int openser (TCHAR *sername)
 			    NULL);
     if (hCom == INVALID_HANDLE_VALUE) {
 	write_log (L"SERIAL: failed to open '%s' err=%d\n", sername, GetLastError());
-	closeser();
+	closeser ();
 	return 0;
     }
 
@@ -1155,8 +1155,8 @@ void hsyncstuff(void)
 	    //extern int warned_JIT_0xF10000;
 	    //warned_JIT_0xF10000 = 0;
 	    if (flashscreen > 0) {
-		DX_Fill (0, 0, -1, 30, 0x000000);
-		DX_Invalidate (0, 0, -1, 30);
+		//DX_Fill (0, 0, -1, 30, 0x000000); can't do anymore
+		//DX_Invalidate (0, 0, -1, 30);
 		flashscreen--;
 		if (flashscreen == 0)
 		    picasso_refresh ();
@@ -1175,7 +1175,7 @@ void hsyncstuff(void)
 #endif
 }
 
-static int enumserialports_2(void)
+static int enumserialports_2 (int cnt)
 {
     // Create a device information set that will be the container for
     // the device interfaces.
@@ -1185,7 +1185,6 @@ static int enumserialports_2(void)
     SP_DEVICE_INTERFACE_DATA ifcData;
     DWORD dwDetDataSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA) + 256;
     DWORD ii;
-    int cnt = 0;
 
     hDevInfo = SetupDiGetClassDevs (&GUID_CLASS_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if(hDevInfo == INVALID_HANDLE_VALUE)
@@ -1249,7 +1248,7 @@ end:
     return cnt;
 }
 
-int enumserialports(void)
+int enumserialports (void)
 {
     int cnt, i, j;
     TCHAR name[256];
@@ -1257,7 +1256,15 @@ int enumserialports(void)
     TCHAR devname[1000];
 
     write_log (L"Serial port enumeration..\n");
-    cnt = enumserialports_2 ();
+
+    comports[0].dev = my_strdup (L"ENET:H");
+    comports[0].cfgname = my_strdup (comports[0].dev);
+    comports[0].name = my_strdup (L"NET (host)");
+    comports[1].dev = my_strdup (L"ENET:L");
+    comports[1].cfgname = my_strdup (comports[1].dev);
+    comports[1].name = my_strdup (L"NET (client)");
+    
+    cnt = enumserialports_2 (2);
     for (i = 0; i < 10; i++) {
 	_stprintf(name, L"COM%d", i);
 	if (!QueryDosDevice (name, devname, sizeof devname))
@@ -1277,17 +1284,11 @@ int enumserialports(void)
 	    cnt++;
 	}
     }
-    if (isIPC (COMPIPENAME)) {
-        comports[j].dev = xmalloc (100);
-	_stprintf (comports[cnt].dev, L"\\\\.\\pipe\\%s", COMPIPENAME);
-	comports[j].cfgname = my_strdup (COMPIPENAME);
-        comports[j].name = my_strdup (COMPIPENAME);
-    }
     write_log (L"Serial port enumeration end\n");
     return cnt;
 }
 
-void sernametodev(TCHAR *sername)
+void sernametodev (TCHAR *sername)
 {
     int i;
 
@@ -1300,7 +1301,7 @@ void sernametodev(TCHAR *sername)
     sername[0] = 0;
 }
 
-void serdevtoname(TCHAR *sername)
+void serdevtoname (TCHAR *sername)
 {
     int i;
     for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {

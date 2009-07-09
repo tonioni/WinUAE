@@ -280,7 +280,6 @@ int uae_start_thread (TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id 
     thp->arg = arg;
     hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
     if (hThread) {
-	SetThreadPriority (hThread, THREAD_PRIORITY_ABOVE_NORMAL);
 	if (name)
 	    write_log (L"Thread '%s' started (%d)\n", name, hThread);
     } else {
@@ -301,7 +300,15 @@ int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
 
 DWORD_PTR cpu_affinity = 1, cpu_paffinity = 1;
 
-void uae_set_thread_priority (int pri)
+void uae_set_thread_priority (uae_thread_id *tid, int pri)
 {
+    int pri2 = GetThreadPriority (NULL);
+
+    pri2 += pri;
+    if (pri2 > 1)
+	pri2 = 1;
+    if (pri2 < -1)
+	pri2 = -1;
+    SetThreadPriority (tid ? *tid : NULL, pri2);
 }
 

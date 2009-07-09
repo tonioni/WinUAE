@@ -73,7 +73,7 @@ struct Trap
 
 /* Defined traps */
 static struct Trap  traps[MAX_TRAPS];
-static unsigned int trap_count;
+static unsigned int trap_count = 1;
 
 
 static const int trace_traps = 0;
@@ -229,7 +229,7 @@ static void *trap_thread (void *arg)
 {
     ExtendedTrapContext *context = (ExtendedTrapContext *) arg;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
 
     /* Wait until main thread is ready to switch to the
      * this trap context. */

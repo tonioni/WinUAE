@@ -62,13 +62,14 @@ static void reseterrormode (int unitnum)
 static void close_device (int unitnum);
 static int open_device (int unitnum);
 
-static void mcierr (TCHAR *str, DWORD err)
+static int mcierr (TCHAR *str, DWORD err)
 {
     TCHAR es[1000];
     if (err == MMSYSERR_NOERROR)
-	return;
+	return MMSYSERR_NOERROR;
     if (mciGetErrorString (err, es, sizeof es))
 	write_log (L"MCIErr: %s: %d = '%s'\n", str, err, es);
+    return err;
 }
 
 static int win32_error (int unitnum, const TCHAR *format,...)
@@ -209,7 +210,7 @@ static int open_mci (int unitnum)
     mciOpen.lpstrElementName = elname;
     mciOpen.lpstrAlias = alname;
     flags = MCI_OPEN_ELEMENT | MCI_OPEN_SHAREABLE | MCI_OPEN_ALIAS | MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID | MCI_WAIT;
-    err = mciSendCommand (0, MCI_OPEN, flags, (DWORD)(LPVOID)&mciOpen);
+    err = mciSendCommand (0, MCI_OPEN, flags, (DWORD_PTR)(LPVOID)&mciOpen);
     ciw->mciid = mciOpen.wDeviceID;
     if (err != MMSYSERR_NOERROR) {
 	if (closed)
@@ -291,7 +292,7 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 {
     struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
-    open_mci(unitnum);
+    open_mci (unitnum);
 
     if (ciw->mciid > 0) {
 
@@ -381,19 +382,19 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 	memset (buf, 0, sizeof buf);
 	memset (&mciStatusParms, 0, sizeof mciStatusParms);
 	mciStatusParms.dwItem = MCI_STATUS_MODE;
-	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD_PTR)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	mode = mciStatusParms.dwReturn;
 	mciStatusParms.dwItem = MCI_STATUS_CURRENT_TRACK;
-	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD_PTR)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	trk = mciStatusParms.dwReturn - 1;
 	if (trk < 0)
 	    trk = 0;
 	mciStatusParms.dwItem = MCI_STATUS_POSITION;
-	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD_PTR)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	pos = (((mciStatusParms.dwReturn >> 16) & 0xff) << 0) | (((mciStatusParms.dwReturn >> 8) & 0xff) << 8) | (((mciStatusParms.dwReturn >> 0) & 0xff) << 16);
@@ -679,8 +680,9 @@ static int ismedia (int unitnum)
 	DWORD err;
 	MCI_STATUS_PARMS mciStatusParms;
 
+	memset (&mciStatusParms, 0, sizeof mciStatusParms);
 	mciStatusParms.dwItem = MCI_STATUS_MEDIA_PRESENT;
-	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD)(LPVOID)&mciStatusParms);
+	err = mciSendCommand (ciw->mciid, MCI_STATUS, MCI_STATUS_ITEM | MCI_WAIT, (DWORD_PTR)&mciStatusParms);
 	if (err != MMSYSERR_NOERROR)
 	    return 0;
 	if (mciStatusParms.dwReturn)
@@ -688,9 +690,11 @@ static int ismedia (int unitnum)
 	return 0;
 
     } else {
+
 	struct device_info di;
 	memset (&di, 0, sizeof di);
 	return fetch_geometry (unitnum, &di);
+
     }
 }
 

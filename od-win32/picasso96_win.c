@@ -34,6 +34,8 @@
 #define P96DX 0
 #define WINCURSOR 1
 
+static int multithreaded = 0;
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -137,6 +139,9 @@ static int wincursor_shown;
 static uaecptr boardinfo;
 static int interrupt_enabled;
 int p96vblank;
+
+static uae_sem_t sem;
+static int thread_alive;
 
 static uaecptr uaegfx_resname,
     uaegfx_resid,
@@ -682,6 +687,14 @@ static int isvsync (void)
     return currprefs.gfx_pfullscreen && currprefs.gfx_pvsync;
 }
 
+static void flushpixels_do (void)
+{
+    if (multithreaded)
+	uae_sem_post (&sem);
+    else
+	flushpixels ();
+}
+
 void picasso_handle_vsync (void)
 {
     static int vsynccnt;
@@ -711,15 +724,20 @@ void picasso_handle_vsync (void)
 	return;
 
     framecnt++;
-    mouseupdate ();
+    if (!multithreaded)
+	mouseupdate ();
 
     if (thisisvsync) {
-	if (doskip () && p96skipmode == 0) {
-	    ;
+	if (multithreaded) {
+	    uae_sem_post (&sem);
 	} else {
-	    flushpixels ();
+	    if (doskip () && p96skipmode == 0) {
+		;
+	    } else {
+		flushpixels_do ();
+	    }
+	    gfx_unlock_picasso ();
 	}
-	gfx_unlock_picasso ();
     }
 }
 
@@ -938,7 +956,7 @@ void picasso_refresh (void)
 	    width = picasso96_state.Width;
 	    height = picasso96_state.Height;
 	}
-	flushpixels ();
+	flushpixels_do ();
     } else {
 	write_log (L"ERROR - picasso_refresh() can't refresh!\n");
     }
@@ -4036,7 +4054,7 @@ static void statusline (uae_u8 *dst)
     yy = 0;
     for (y = dst_height - TD_TOTAL_HEIGHT; y < dst_height; y++) {
         uae_u8 *buf = dst + y * pitch;
-	draw_status_line_single (buf, picasso_vidinfo.pixbytes, yy, picasso96_state.Width, p96rc, p96gc, p96bc);
+	draw_status_line_single (buf, picasso_vidinfo.pixbytes, yy, picasso96_state.Width, p96rc, p96gc, p96bc, NULL);
         yy++;
     }
 }
@@ -4561,6 +4579,25 @@ static void initvblankirq (TrapContext *ctx, uaecptr base)
     CallLib (ctx, get_long (4), -168); /* AddIntServer */
 }
 
+static void *picasso_copy (void *data)
+{
+    thread_alive = 1;
+    while (thread_alive) {
+	uae_sem_wait (&sem);
+	if (!thread_alive)
+	    break;
+	if (!picasso_on)
+	    continue;
+	if (dx_islost ())
+	    continue;
+	mouseupdate ();
+	flushpixels ();
+    }
+    thread_alive = -1;
+    return NULL;
+}
+
+
 static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 {
     uae_u32 functable, datatable, a2;
@@ -4568,9 +4605,9 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
     uaecptr findcardfunc, initcardfunc;
     uaecptr exec = get_long (4);
 
-    uaegfx_resid = ds (L"UAE Graphics Card 3.2");
+    uaegfx_resid = ds (L"UAE Graphics Card 3.3");
     uaegfx_vblankname = ds (L"UAE Graphics Card VBLANK");
-    uaegfx_vblankname = ds (L"UAE Graphics Card PORTS");
+    uaegfx_portsname = ds (L"UAE Graphics Card PORTS");
 
     /* Open */
     openfunc = here ();
@@ -4625,6 +4662,11 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 
     if (currprefs.win32_rtgvblankrate >= -1)
 	initvblankirq (ctx, uaegfx_base);
+
+    if (multithreaded && thread_alive == 0) {
+	uae_sem_init (&sem, FALSE, FALSE);
+	uae_start_thread (L"rtg_copy", picasso_copy, NULL, NULL);
+    }
 
     write_log (L"uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
     return uaegfx_base;

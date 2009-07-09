@@ -81,6 +81,7 @@ struct sound_dp
     PaStream *pastream;
     HANDLE paevent;
     int opacounter;
+    int pablocking;
 };
 
 #define ADJUST_SIZE 30
@@ -138,7 +139,7 @@ void update_sound (int freq, int longframe)
 	lines += 1.0;
 
     if (have_sound) {
-	scaled_sample_evtime_orig = 227.0 * (lines + maxvpos) * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
+	scaled_sample_evtime_orig = maxhpos * (lines + maxvpos) * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
     }
 }
@@ -389,11 +390,18 @@ static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudio
 static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 {
     struct sound_dp *s = sd->data;
-    while (s->opacounter == s->pacounter && s->pastream && !sd->paused)
-	WaitForSingleObject (s->paevent, 10);
-    ResetEvent (s->paevent);
-    s->opacounter = s->pacounter;
-    memcpy (s->pasoundbuffer[s->patoggle], sndbuffer, sd->sndbufsize);
+    if (s->pablocking) {
+	if (s->paframesperbuffer != sd->sndbufsize / (sd->channels * 2)) {
+	    write_log (L"sound buffer size mistmatch %d <> %d\n", s->paframesperbuffer, sd->sndbufsize / (sd->channels * 2));
+	} else {
+	    Pa_WriteStream (s->pastream, sndbuffer, s->paframesperbuffer); 
+	}
+    } else {
+	while (s->opacounter == s->pacounter && s->pastream && !sd->paused)
+	    WaitForSingleObject (s->paevent, 10);
+	s->opacounter = s->pacounter;
+	memcpy (s->pasoundbuffer[s->patoggle], sndbuffer, sd->sndbufsize);
+    }
 }
 
 static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer,
@@ -406,7 +414,7 @@ static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer
     struct sound_dp *s = sd->data;
 
     if (framesPerBuffer != sd->sndbufsize / (sd->channels * 2)) {
-	write_log (L"%d <> %d\n", framesPerBuffer, sd->sndbufsize / (sd->channels * 2));
+	write_log (L"sound buffer size mistmatch %d <> %d\n", framesPerBuffer, sd->sndbufsize / (sd->channels * 2));
     } else {
 	memcpy (outputBuffer, s->pasoundbuffer[s->patoggle], sd->sndbufsize);
     }
@@ -448,21 +456,22 @@ static int open_audio_pa (struct sound_data *sd, int index)
     PaError err;
     TCHAR *name;
     TCHAR *errtxt;
+    int defaultrate = 0;
 
     size = sd->sndbufsize;
     s->paframesperbuffer = size;
-    sd->sndbufsize = size * ch * 2;
     sd->devicetype = SOUND_DEVICE_PA;
     memset (&p, 0, sizeof p);
     di = Pa_GetDeviceInfo (dev);
-    p.channelCount = ch;
-    p.device = dev;
-    p.hostApiSpecificStreamInfo = NULL;
-    p.sampleFormat = paInt16;
-    p.suggestedLatency = di->defaultLowOutputLatency;
-    p.hostApiSpecificStreamInfo = NULL; 
     for (;;) {
 	int err2;
+	p.channelCount = ch;
+	p.device = dev;
+	p.hostApiSpecificStreamInfo = NULL;
+	p.sampleFormat = paInt16;
+	p.suggestedLatency = di->defaultLowOutputLatency;
+	p.hostApiSpecificStreamInfo = NULL; 
+
 	err = Pa_IsFormatSupported (NULL, &p, freq);
 	if (err == paFormatIsSupported)
 	    break;
@@ -470,36 +479,44 @@ static int open_audio_pa (struct sound_data *sd, int index)
 	errtxt = au (Pa_GetErrorText (err));
 	write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
 	xfree (errtxt);
-	if (freq < 48000) {
+	if (err == paInvalidChannelCount) {
+	    if (ch > 2) {
+		ch = sd->channels = 2;
+		continue;
+	    }
+	    goto end;
+	}
+	if (freq < 44000 && err == paInvalidSampleRate) {
+	    freq = 44000;
+	    sd->freq = freq;
+	    continue;
+	}
+	if (freq < 48000 && err == paInvalidSampleRate) {
 	    freq = 48000;
-	    err = Pa_IsFormatSupported (NULL, &p, freq);
-	    if (err == paFormatIsSupported) {
-		sd->freq = freq;
-		break;
-	    }
+	    sd->freq = freq;
+	    continue;
 	}
-	if (freq != di->defaultSampleRate) {
+	if (freq != di->defaultSampleRate && err == paInvalidSampleRate && !defaultrate) {
 	    freq = di->defaultSampleRate;
-	    err = Pa_IsFormatSupported (NULL, &p, freq);
-	    if (err == paFormatIsSupported) {
-		sd->freq = freq;
-		break;
-	    }
+	    sd->freq = freq;
+	    defaultrate = 1;
+	    continue;
 	}
-	if (err2 != err) {
+        goto end;
+    }
+    sd->sndbufsize = size * ch * 2;
+//    s->pablocking = 1;
+//    err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, NULL, NULL);
+//    if (err != paNoError) {
+	s->pablocking = 0;
+	err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, portAudioCallback, sd);
+	if (err != paNoError) {
 	    errtxt = au (Pa_GetErrorText (err));
-	    write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
+	    write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, errtxt);
 	    xfree (errtxt);
+	    goto end;
 	}
-	goto end;
-    }
-    err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, portAudioCallback, sd);
-    if (err != paNoError) {
-	errtxt = au (Pa_GetErrorText (err));
-	write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, errtxt);
-	xfree (errtxt);
-	goto end;
-    }
+//    }
     s->paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
     for (i = 0; i < 2; i++)
 	s->pasoundbuffer[i] = xcalloc (sd->sndbufsize, 1);
@@ -626,6 +643,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 
     if (s->max_sndbufsize * 2 > s->dsoundbuf)
 	s->max_sndbufsize = s->dsoundbuf / 2;
+    sd->samplesize = sd->channels * 2;
 
     recalc_offsets (sd);
 
@@ -656,12 +674,12 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	int maxfreq = DSCaps.dwMaxSecondarySampleRate;
 	if (minfreq > freq && freq < 22050) {
 	    freq = minfreq;
-	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
+	    sd->freq = freq;
 	    write_log (L"DSSOUND: minimum supported frequency: %d\n", minfreq);
 	}
 	if (maxfreq < freq && freq > 44100) {
 	    freq = maxfreq;
-	    changed_prefs.sound_freq = currprefs.sound_freq = freq;
+	    sd->freq = freq;
 	    write_log (L"DSSOUND: maximum supported frequency: %d\n", maxfreq);
 	}
     }
@@ -749,7 +767,6 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
     sd->sndbufsize = bufsize;
     sd->freq = freq;
     sd->channels = channels;
-    sd->samplesize = channels * 2;
     sd->paused = 1;
     if (sound_devices[index].type == SOUND_DEVICE_AL)
 	ret = open_audio_al (sd, index);
@@ -757,6 +774,7 @@ int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, 
 	ret = open_audio_ds (sd, index);
     else if (sound_devices[index].type == SOUND_DEVICE_PA)
 	ret = open_audio_pa (sd, index);
+    sd->samplesize = sd->channels * 2;
     return ret;
 }
 void close_sound_device (struct sound_data *sd)
@@ -795,7 +813,7 @@ void resume_sound_device (struct sound_data *sd)
 
 static int open_sound (void)
 {
-    int ret = 0, num;
+    int ret = 0, num, ch;
     int size = currprefs.sound_maxbsiz;
 
     if (!currprefs.produce_sound)
@@ -814,15 +832,19 @@ static int open_sound (void)
     num = enumerate_sound_devices ();
     if (currprefs.win32_soundcard >= num)
 	currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
-    ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, get_audio_nativechannels ());
+    ch = get_audio_nativechannels (currprefs.sound_stereo);
+    ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, ch);
     if (!ret)
 	return 0;
+    currprefs.sound_freq = changed_prefs.sound_freq = sdp->freq;
+    if (ch != sdp->channels)
+	currprefs.sound_stereo = changed_prefs.sound_stereo = get_audio_stereomode (sdp->channels);
 
     set_volume (currprefs.sound_volume, sdp->mute);
-    if (get_audio_amigachannels () == 4)
+    if (get_audio_amigachannels (currprefs.sound_stereo) == 4)
 	sample_handler = sample16ss_handler;
     else
-	sample_handler = get_audio_ismono () ? sample16_handler : sample16s_handler;
+	sample_handler = get_audio_ismono (currprefs.sound_stereo) ? sample16_handler : sample16s_handler;
 
     sdp->obtainedfreq = currprefs.sound_freq;
 
@@ -1395,9 +1417,9 @@ void finish_sound_buffer (void)
     if (currprefs.turbo_emulation)
 	return;
     if (currprefs.sound_stereo_swap_paula) {
-	if (get_audio_nativechannels () == 2 || get_audio_nativechannels () == 4)
+	if (get_audio_nativechannels (currprefs.sound_stereo) == 2 || get_audio_nativechannels (currprefs.sound_stereo) == 4)
 	    channelswap ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
-	else if (get_audio_nativechannels () == 6)
+	else if (get_audio_nativechannels (currprefs.sound_stereo) == 6)
 	    channelswap6 ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
     }
 #ifdef DRIVESOUND
@@ -1532,6 +1554,12 @@ static void PortAudioEnumerate (struct sound_device *sds)
     TCHAR tmp[MAX_DPATH], *s1, *s2;
 
     num = Pa_GetDeviceCount ();
+    if (num < 0) {
+	TCHAR *errtxt = au (Pa_GetErrorText (num));
+	write_log (L"PA: Pa_GetDeviceCount() failed: %08x (%s)\n", num, errtxt);
+	xfree (errtxt);
+	return;
+    }
     for (j = 0; j < num; j++) {
 	const PaDeviceInfo *di;
 	const PaHostApiInfo *hai;

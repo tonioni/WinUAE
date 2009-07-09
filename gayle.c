@@ -7,7 +7,7 @@
   */
 
 #define GAYLE_LOG 0
-#define IDE_LOG 1
+#define IDE_LOG 0
 #define MBRES_LOG 0
 #define PCMCIA_LOG 1
 
@@ -207,6 +207,7 @@ static void ps (int offset, TCHAR *src, int max)
 	ide->secbuf[offset ^ 1] = c;
 	offset++;
     }
+    xfree (s);
 }
 
 static int isideirq (void)
@@ -612,6 +613,7 @@ static void ide_read_sectors (int flags)
     put_lbachs (ide, lba, cyl, head, sec, nsec, lba48);
     ide->data_multi = multi ? ide->multiple_mode : 1;
 }
+
 static void ide_write_sectors (int flags)
 {
     unsigned int cyl, head, sec, nsec;
@@ -815,7 +817,7 @@ static uae_u32 ide_read (uaecptr addr)
     switch (ide_reg)
     {
 	case IDE_DRVADDR:
-	    v = 0;
+	    v = ((ide_drv ? 2 : 1) | ((ide_select & 15) << 2)) ^ 0xff;
 	break;
 	case IDE_DATA:
 	break;
@@ -1893,7 +1895,7 @@ uae_u8 *save_gayle (int *len)
 
     if (currprefs.cs_ide <= 0)
 	return NULL;
-    dstbak = dst = (uae_u8*)malloc (1000);
+    dstbak = dst = malloc (1000);
     save_u8 (currprefs.cs_ide);
     save_u8 (gayle_int);
     save_u8 (gayle_irq);
@@ -1916,7 +1918,7 @@ uae_u8 *save_ide (int num, int *len)
     ide = idedrive[num];
     if (ide->hdhfd.size == 0)
 	return NULL;
-    dstbak = dst = (uae_u8*)malloc (1000);
+    dstbak = dst = malloc (1000);
     save_u32 (num);
     save_u64 (ide->hdhfd.size);
     save_string (ide->hdhfd.path);

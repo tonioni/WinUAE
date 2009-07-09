@@ -4843,7 +4843,7 @@ static void *filesys_thread (void *unit_v)
 {
     UnitInfo *ui = (UnitInfo *)unit_v;
 
-    uae_set_thread_priority (2);
+    uae_set_thread_priority (NULL, 1);
     for (;;) {
 	uae_u8 *pck;
 	uae_u8 *msg;
@@ -5154,9 +5154,11 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
     while (get_long (fsnode)) {
 	dostype2 = get_long (fsnode + 14);
 	if (dostype2 == dostype) {
-	    if (get_long (fsnode + 22) & (1 << 7)) {
-		put_long (devicenode + 32, get_long (fsnode + 54)); /* dn_SegList */
-		put_long (devicenode + 36, -1); /* dn_GlobalVec */
+	    int i;
+	    uae_u32 pf = get_long (fsnode + 22); // fse_PatchFlags
+	    for (i = 0; i < 32; i++) {
+		if (pf & (1 << i))
+		    put_long (devicenode + 4 + i * 4, get_long (fsnode + 22 + 4 + i * 4));
 	    }
 	    return 1;
 	}

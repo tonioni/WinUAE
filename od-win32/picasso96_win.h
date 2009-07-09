@@ -548,10 +548,7 @@ extern int uaegfx_card_found;
 extern struct picasso96_state_struct picasso96_state;
 extern uae_u16 picasso96_pixel_format;
 
-extern int  DX_InvertRect (int X, int Y, int Width, int Height);
 extern void DX_SetPalette (int start, int count);
-extern void DX_Invalidate (int, int, int, int);
-extern int  DX_Flip (void);
 extern void picasso_enablescreen (int on);
 extern void picasso_refresh (void);
 extern void picasso_handle_vsync (void);
