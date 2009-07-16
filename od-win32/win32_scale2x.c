@@ -133,17 +133,6 @@ static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
     OffsetRect (zr, w / 2, h / 2);
 }
 
-static void xymult (int *x, int *y)
-{
-    int mult = currprefs.gfx_resolution - (currprefs.gfx_linedbl ? 1 : 0);
-    if (mult < 0)
-	*x *= 1 << (-mult);
-    else
-	*y *= 1 << mult;
-}
-
-static int ppp = 320;
-
 void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height, int aw, int ah, int scale, int temp_width, int temp_height)
 {
     float srcratio, dstratio;

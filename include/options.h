@@ -343,11 +343,13 @@ struct uae_prefs {
     int win32_midiindev;
     int win32_uaescsimode;
     int win32_soundcard;
+    int win32_soundexclusive;
     int win32_norecyclebin;
     int win32_specialkey;
     int win32_guikey;
     int win32_kbledmode;
     int win32_fscodepage;
+    TCHAR win32_commandpath[MAX_DPATH];
 
     int curses_reverse_video;
 

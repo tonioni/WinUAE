@@ -26,6 +26,7 @@ extern void deactivate_debugger (void);
 extern int notinrom (void);
 extern const TCHAR *debuginfo (int);
 extern void record_copper (uaecptr addr, int hpos, int vpos);
+extern void record_copper_otherdma (uae_u16 bpl, uae_u16 dat, int hpos, int vpos);
 extern void record_copper_reset(void);
 extern int mmu_init(int,uaecptr,uaecptr);
 extern void mmu_do_hit(void);

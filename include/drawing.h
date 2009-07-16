@@ -27,7 +27,7 @@
 #else
 /* According to the HRM, pixel data spends a couple of cycles somewhere in the chips
    before it appears on-screen.  */
-#define DIW_DDF_OFFSET 9
+#define DIW_DDF_OFFSET 1
 /* this many cycles starting from hpos=0 are visible on right border */
 #define HBLANK_OFFSET 9
 /* We ignore that many lores pixels at the start of the display. These are
@@ -228,6 +228,7 @@ struct decision {
 #endif
     uae_u8 nr_planes;
     uae_u8 bplres;
+    unsigned int ehb_seen;
     unsigned int ham_seen;
     unsigned int ham_at_start;
 };

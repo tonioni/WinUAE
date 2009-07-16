@@ -33,6 +33,7 @@
 #include <dbghelp.h>
 #include <float.h>
 #include <WtsApi32.h>
+#include <Avrt.h>
 
 #include "resource"
 
@@ -87,6 +88,7 @@
 #endif
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput, rawkeyboard;
+extern int force_directsound;
 int log_scsi, log_net, uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
@@ -117,6 +119,7 @@ static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
 static HWND hwndNextViewer;
+static HANDLE AVTask;
 
 TCHAR VersionStr[256];
 TCHAR BetaStr[64];
@@ -649,6 +652,10 @@ static void winuae_active (HWND hWnd, int minimized)
 	lcd_priority (1);
 #endif
     clipboard_active (hAmigaWnd, 1);
+    if (os_vista && AVTask == NULL) {
+	DWORD taskIndex = 0;
+	AVTask = AvSetMmThreadCharacteristics (TEXT("Pro Audio"), &taskIndex);
+    }
 }
 
 static void winuae_inactive (HWND hWnd, int minimized)
@@ -657,6 +664,9 @@ static void winuae_inactive (HWND hWnd, int minimized)
     int wasfocus = focus;
 
     write_log (L"winuae_inactive(%d)\n", minimized);
+    if (AVTask)
+	AvRevertMmThreadCharacteristics (AVTask);
+    AVTask = NULL;
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -1807,7 +1817,7 @@ HMODULE language_load (WORD language)
 			    if (vsFileInfo &&
 				HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 				&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV || HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV - 1)) {
+				&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)) {
 				success = TRUE;
 				write_log (L"Translation DLL '%s' loaded and enabled\n", dllbuf);
 			    } else {
@@ -2109,6 +2119,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_inactive_pause = 0;
 	p->win32_ctrl_F11_is_quit = 0;
 	p->win32_soundcard = 0;
+	p->win32_soundexclusive = 0;
 	p->win32_active_priority = 1;
 	p->win32_inactive_priority = 2;
 	p->win32_iconified_priority = 3;
@@ -2132,6 +2143,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgscaleaspectratio = -1;
 	p->win32_rtgvblankrate = 0;
 	p->win32_fscodepage = 0;
+	p->win32_commandpath[0] = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
@@ -2188,6 +2200,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, L"soundcard", L"%d", p->win32_soundcard);
     if (sound_devices[p->win32_soundcard].cfgname)
 	cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard].cfgname);
+    cfgfile_target_dwrite_bool (f, L"soundcard_exclusive", p->win32_soundexclusive);
     cfgfile_target_dwrite (f, L"cpu_idle", L"%d", p->cpu_idle);
     cfgfile_target_dwrite_bool (f, L"notaskbarbutton", p->win32_notaskbarbutton);
     cfgfile_target_dwrite_bool (f, L"always_on_top", p->win32_alwaysontop);
@@ -2198,6 +2211,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, L"kbledmode", L"%d", p->win32_kbledmode);
     cfgfile_target_dwrite_bool (f, L"powersavedisabled", p->win32_powersavedisabled);
     cfgfile_target_dwrite (f, L"filesystem_codepage", L"%d", p->win32_fscodepage);
+    cfgfile_target_dwrite_str (f, L"exec", p->win32_commandpath);
 
 }
 
@@ -2242,9 +2256,11 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	    || cfgfile_intval (option, value, L"midiout_device", &p->win32_midioutdev, 1)
 	    || cfgfile_intval (option, value, L"midiin_device", &p->win32_midiindev, 1)
 	    || cfgfile_intval (option, value, L"soundcard", &p->win32_soundcard, 1)
+	    || cfgfile_yesno (option, value, L"soundcard_exclusive", &p->win32_soundexclusive)
 	    || cfgfile_yesno (option, value, L"notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_yesno (option, value, L"always_on_top", &p->win32_alwaysontop)
 	    || cfgfile_yesno (option, value, L"powersavedisabled", &p->win32_powersavedisabled)
+	    || cfgfile_string (option, value, L"exec", p->win32_commandpath, sizeof p->win32_commandpath / sizeof (TCHAR))
 	    || cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 	    || cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 	    || cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)
@@ -3531,6 +3547,10 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
         rawkeyboard = 1;
 	return 1;
     }
+    if (!_tcscmp (arg, L"-directsound")) {
+        force_directsound = 1;
+	return 1;
+    }
     if (!_tcscmp (arg, L"-scsilog")) {
         log_scsi = 1;
 	return 1;
@@ -3689,7 +3709,7 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 
 static TCHAR **parseargstring (TCHAR *s)
 {
-    int cnt;
+    int cnt, i;
     TCHAR **args;
 
     if (_tcslen (s) == 0)
@@ -3698,6 +3718,7 @@ static TCHAR **parseargstring (TCHAR *s)
     cnt = 0;
     for (;;) {
 	TCHAR *p = s;
+	TCHAR *d, prev;
 	int skip = 0;
 	while (*p && _istspace (*p))
 	    p++;
@@ -3714,8 +3735,19 @@ static TCHAR **parseargstring (TCHAR *s)
 	    while (*p && !_istspace (*p))
 		p++;
 	}
-	args[cnt] = xcalloc (p - s + 1, sizeof (TCHAR));
-	memcpy (args[cnt++], s, (p - s) * sizeof (TCHAR));
+	args[cnt] = d = xcalloc (p - s + 1, sizeof (TCHAR));
+	memcpy (d, s, (p - s) * sizeof (TCHAR));
+	prev = 0;
+	for (i = 0; d[i]; i++) {
+	    TCHAR c = d[i];
+	    if (c == '\"' || c == '\'') {
+		memmove (&d[i], &d[i + 1], (_tcslen (&d[i + 1]) + 1) * sizeof (TCHAR));
+		i--;
+		continue;
+	    }
+	    prev = c;
+	}
+	cnt++;
 	p += skip;
 	while (*p && _istspace (*p))
 	    p++;

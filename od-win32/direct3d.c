@@ -1108,7 +1108,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     D3DCAPS9 d3dCaps;
     int adapter;
     DWORD flags;
-    HINSTANCE d3dDLL;
+    HINSTANCE d3dDLL, d3dx;
 
     D3D_free ();
     D3D_canshaders ();
@@ -1117,6 +1117,14 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	_tcscpy (errmsg, L"D3D: not enabled");
 	return errmsg;
     }
+    d3dx = LoadLibrary (L"d3dx9_41.dll");
+    if (d3dx == NULL) {
+	_tcscpy (errmsg, L"Direct3D: March 2009 or newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513");
+	if (isfullscreen () <= 0)
+	    ShellExecute(NULL, L"open", L"http://go.microsoft.com/fwlink/?linkid=56513", NULL, NULL, SW_SHOWNORMAL);
+	return errmsg;
+    }
+    FreeLibrary (d3dx);
 
     d3d_ex = FALSE;
     d3dDLL = LoadLibrary (L"D3D9.DLL");

@@ -5991,7 +5991,6 @@ static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    int v;
     static int recursive = 0;
 
     switch (msg)
@@ -7050,20 +7049,27 @@ extern int soundpercent;
 
 static void update_soundgui (HWND hDlg)
 {
-    int bufsize;
+    int bufsize, canexc;
     TCHAR txt[20];
 
     bufsize = exact_log2 (workprefs.sound_maxbsiz / 1024);
     _stprintf (txt, L"%d", bufsize);
     SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
-    SendDlgItemMessage( hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
+    SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
     _stprintf (txt, L"%d%%", 100 - workprefs.sound_volume);
     SetDlgItemText (hDlg, IDC_SOUNDVOLUME2, txt);
 
-    SendDlgItemMessage( hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
+    SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
     _stprintf (txt, L"%d%%", 100 - workprefs.dfxclickvolume);
     SetDlgItemText (hDlg, IDC_SOUNDDRIVEVOLUME2, txt);
+
+    canexc = sound_devices[workprefs.win32_soundcard].type == SOUND_DEVICE_WASAPI;
+    ew (hDlg, IDC_SOUND_EXCLUSIVE, canexc);
+    if (!canexc)
+	workprefs.win32_soundexclusive = 0;
+    CheckDlgButton (hDlg, IDC_SOUND_EXCLUSIVE, workprefs.win32_soundexclusive);
+
 }
 
 static int soundfreqs[] = { 11025, 15000, 22050, 32000, 44100, 48000, 0 };
@@ -7243,6 +7249,7 @@ static void values_from_sounddlg (HWND hDlg)
 {
     TCHAR txt[10];
     LRESULT idx;
+    int soundcard;
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDFREQ, CB_GETCURSEL, 0, 0);
     if (idx >= 0) {
@@ -7280,7 +7287,13 @@ static void values_from_sounddlg (HWND hDlg)
     }
 
     workprefs.sound_interpol = SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_GETCURSEL, 0, 0);
-    workprefs.win32_soundcard = SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_GETCURSEL, 0, 0L);
+    workprefs.win32_soundexclusive = IsDlgButtonChecked (hDlg, IDC_SOUND_EXCLUSIVE) ? 1 : 0;
+    soundcard = SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_GETCURSEL, 0, 0L);
+    if (soundcard != workprefs.win32_soundcard && soundcard != CB_ERR) {
+	workprefs.win32_soundcard = soundcard;
+	update_soundgui (hDlg);
+    }
+
     switch (SendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_GETCURSEL, 0, 0))
     {
 	case 0:
@@ -7338,7 +7351,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
     switch (msg) {
     case WM_INITDIALOG:
     {
-	int gotnonds = 0;
+	recursive++;
 	sound_loaddrivesamples ();
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SOUND_MEM, MAX_SOUND_MEM));
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPAGESIZE, 0, 1);
@@ -7355,17 +7368,11 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);
 	numdevs = enumerate_sound_devices ();
 	for (card = 0; card < numdevs; card++) {
-	    if (sound_devices[card].type != SOUND_DEVICE_DS)
-		gotnonds = 1;
-	}
-	for (card = 0; card < numdevs; card++) {
 	    TCHAR tmp[MAX_DPATH];
 	    int type = sound_devices[card].type;
-	    if (gotnonds)
-		_stprintf (tmp, L"%s: %s",  type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : L"PA"),
-		    sound_devices[card].name);
-	    else
-		_tcscpy (tmp, sound_devices[card].name);
+	    _stprintf (tmp, L"%s: %s",
+		type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
+		sound_devices[card].name);
 	    SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
 	if (numdevs == 0)
@@ -7373,6 +7380,8 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	pages[SOUND_ID] = hDlg;
 	currentpage = SOUND_ID;
+	update_soundgui (hDlg);
+	recursive--;
     }
     case WM_USER:
 	recursive++;

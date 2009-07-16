@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"Beta 0"
-#define WINUAEDATE MAKEBD(2009, 7, 9)
+#define WINUAEBETA L"Beta 1"
+#define WINUAEDATE MAKEBD(2009, 7, 16)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -156,6 +156,7 @@ extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pException
 #define SOUND_DEVICE_DS 1
 #define SOUND_DEVICE_AL 2
 #define SOUND_DEVICE_PA 3
+#define SOUND_DEVICE_WASAPI 4
 
 struct sound_device
 {

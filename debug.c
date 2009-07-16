@@ -43,7 +43,7 @@ static int memwatch_enabled, memwatch_triggered;
 static uae_u16 sr_bpmask, sr_bpvalue;
 int debugging;
 int exception_debugging;
-int debug_copper;
+int debug_copper = 0;
 int debug_sprite_mask = 0xff;
 
 static uaecptr processptr;
@@ -680,38 +680,56 @@ static void disassemble_wait (FILE *file, unsigned long insn)
 	console_out (L", ignore horizontal");
     }
 
-    console_out_f (L".\n                        \t; VP %02x, VE %02x; HP %02x, HE %02x; BFD %d\n",
+    console_out_f (L"\n                        \t; VP %02x, VE %02x; HP %02x, HE %02x; BFD %d\n",
 	     vp, ve, hp, he, bfd);
 }
 
-#define NR_COPPER_RECORDS 100000
+#define NR_COPPER_RECORDS 1000000
 /* Record copper activity for the debugger.  */
-struct cop_record
+struct cop_rec
 {
   int hpos, vpos;
+  uae_u16 reg, dat;
   uaecptr addr;
 };
-static struct cop_record *cop_record[2];
+static struct cop_rec *cop_record[2];
 static int nr_cop_records[2], curr_cop_set;
 
-void record_copper_reset(void)
+void record_copper_reset (void)
 {
 /* Start a new set of copper records.  */
     curr_cop_set ^= 1;
     nr_cop_records[curr_cop_set] = 0;
 }
 
+void record_copper_otherdma (uae_u16 bpl, uae_u16 dat, int hpos, int vpos)
+{
+    int t = nr_cop_records[curr_cop_set];
+    if (!cop_record[0])
+	return;
+    if (t >= NR_COPPER_RECORDS)
+	return;
+    cop_record[curr_cop_set][t].addr = 0xffffffff;
+    cop_record[curr_cop_set][t].hpos = hpos;
+    cop_record[curr_cop_set][t].vpos = vpos;
+    cop_record[curr_cop_set][t].reg = bpl;
+    cop_record[curr_cop_set][t].dat = dat;
+    nr_cop_records[curr_cop_set] = t + 1;
+}
+
 void record_copper (uaecptr addr, int hpos, int vpos)
 {
     int t = nr_cop_records[curr_cop_set];
     if (!cop_record[0]) {
-	cop_record[0] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
-	cop_record[1] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_record));
+	cop_record[0] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_rec));
+	cop_record[1] = xmalloc (NR_COPPER_RECORDS * sizeof (struct cop_rec));
     }
     if (t < NR_COPPER_RECORDS) {
 	cop_record[curr_cop_set][t].addr = addr;
 	cop_record[curr_cop_set][t].hpos = hpos;
 	cop_record[curr_cop_set][t].vpos = vpos;
+	cop_record[curr_cop_set][t].reg = 0xffff;
+    	cop_record[curr_cop_set][t].dat = 0xffff;
 	nr_cop_records[curr_cop_set] = t + 1;
     }
     if (debug_copper & 2) { /* trace */
@@ -724,17 +742,14 @@ void record_copper (uaecptr addr, int hpos, int vpos)
     }
 }
 
-static int find_copper_record (uaecptr addr, int *phpos, int *pvpos)
+static struct cop_rec *find_copper_records (uaecptr addr)
 {
     int s = curr_cop_set ^ 1;
     int t = nr_cop_records[s];
     int i;
     for (i = 0; i < t; i++) {
-	if (cop_record[s][i].addr == addr) {
-	    *phpos = cop_record[s][i].hpos;
-	    *pvpos = cop_record[s][i].vpos;
-	    return 1;
-	}
+	if (cop_record[s][i].addr == addr)
+	    return &cop_record[s][i];
     }
     return 0;
 }
@@ -742,12 +757,14 @@ static int find_copper_record (uaecptr addr, int *phpos, int *pvpos)
 /* simple decode copper by Mark Cox */
 static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long addr)
 {
+    struct cop_rec *cr = NULL;
     uae_u32 insn_type = insn & 0x00010001;
-    int hpos, vpos;
     TCHAR here = ' ';
     TCHAR record[] = L"          ";
-    if (find_copper_record (addr, &hpos, &vpos)) {
-	_stprintf (record, L" [%03x %03x]", vpos, hpos);
+    int cnt;
+
+    if ((cr = find_copper_records (addr))) {
+	_stprintf (record, L" [%03x %03x]", cr->vpos, cr->hpos);
     }
 
     if (get_copper_address (-1) >= addr && get_copper_address(-1) <= addr + 3)
@@ -791,6 +808,32 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
 	abort ();
     }
 
+    if (!cr)
+	return;
+    cr++;
+    cnt = 0;
+    while (cr->addr == 0xffffffff) {
+	int addr = cr->reg;
+	int i = 0;
+	while (custd[i].name) {
+	    if (custd[i].adr == addr + 0xdff000)
+	        break;
+	    i++;
+	}
+	_stprintf (record, L" [%03x %03x]", cr->vpos, cr->hpos);
+	console_out_f (L"           %04lx %04lx%s\t; ", addr, cr->dat, record);
+	if (custd[i].name)
+	    console_out_f (L"%s := 0x%04lx\n", custd[i].name, cr->dat);
+	else
+	    console_out_f (L"%04x := 0x%04lx\n", addr, cr->dat);
+	cr++;
+	if (cnt++ >= 10) {
+	    console_out_f (L" ...\n");
+	    break;
+	}
+
+    }
+
 }
 
 static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
@@ -814,27 +857,27 @@ static int copper_debugger (TCHAR **c)
     int lines;
 
     if (**c == 'd') {
-	next_char(c);
+	next_char (c);
 	if (debug_copper)
 	    debug_copper = 0;
 	else
 	    debug_copper = 1;
 	console_out_f (L"Copper debugger %s.\n", debug_copper ? L"enabled" : L"disabled");
-    } else if(**c == 't') {
+    } else if (**c == 't') {
 	debug_copper = 1|2;
 	return 1;
-    } else if(**c == 'b') {
+    } else if (**c == 'b') {
 	(*c)++;
 	debug_copper = 1|4;
-	if (more_params(c)) {
-	    debug_copper_pc = readhex(c);
+	if (more_params (c)) {
+	    debug_copper_pc = readhex (c);
 	    console_out_f (L"Copper breakpoint @0x%08x\n", debug_copper_pc);
 	} else {
 	    debug_copper &= ~4;
 	}
     } else {
-	if (more_params(c)) {
-	    maddr = readhex(c);
+	if (more_params (c)) {
+	    maddr = readhex (c);
 	    if (maddr == 1 || maddr == 2)
 		maddr = get_copper_address (maddr);
 	    else if (maddr == 0)
@@ -2921,7 +2964,7 @@ static void debug_1 (void)
 	break;
 	case 'o':
 	{
-	    if (copper_debugger(&inptr)) {
+	    if (copper_debugger (&inptr)) {
 		debugger_active = 0;
 		debugging = 0;
 		return;

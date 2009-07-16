@@ -9,15 +9,10 @@ Beta 1:
   latency (in worst case it may increase power requirements..)
 - marked DLLs that are rarely used/only in specific configurations
   as delay loaded, may make startup slightly faster
-- programmed display modes had bad sound (161b4 sound update was not
-  fully complete.. most stupid 1.6.1 bug so far)
-- "Add PC drives at startup" does not anymore mount drives that are
-  also configured as real harddrives
 - inserting/ejecting USB input devices on the fly replaced all "<none>"
   and all keyboard layouts with keyboard layout A (old bug)
-- portaudio fallback code added, unsupported samplerate = try 44000,
-  48000 and default reported before disabling sound. Same with number
-  of channels, unsupported channels = fall back to stereo
+- "Add PC drives at startup" does not anymore mount drives that are
+  also configured as real harddrives
 - real harddrive safetycheck modified, now all drives can be mounted as
   long as drive does not have any Windows mounted partitions. Any drive
   with one or more Windows mounted partitions are only available in read
@@ -27,33 +22,67 @@ Beta 1:
   read-write mode.
 - SCSI (RDB hdf emulation) write commands return proper write protected
   sense status if hdf is read-only
+- A590/A2091 SCSI ROM 7.0 was not accepted (debugging code..)
+- RDB filesystem loader still had fse_PatchFlags hack instead of
+  handling it 100% correctly (no functional change, at least with any
+  popular filesystem)
+- accept also partition type 0x30 (another Amithlon like RDB drive
+  inside real PC partition)
+- added new RTG configuration panel, more space for future options, also
+  old RTG setting panel was not really in correct place anymore
+- command line parsing didn't handle quotes inside strings as Windows
+  does when running from command line
+
+- added bitplane DMA fetches to copper debugger (there will be separate
+  DMA sequence "disassembler" in future)
+- Agnus bitplane DMA behavior correctly emulated when number of planes
+  or resolution changes mid screen. Old code was totally wrong and too
+  complex..  Now all my test statefiles work 100% correctly:
+  Disposable Hero, Bass-O-Matic/Crusaders, Innovation Part 2/Axxis 
+  Brian The Lion "dialog" screen is corrupted again but this seems to be
+  AGA specific feature (SMD chips = no logic analyzer)
+
 - CD32 CD controller emulation improved, CDXL animations should run more
   smoothly now, previously emulation couldn't load more than few sectors
-  before cd driver decided to read some previously loaded sectors again
+  before cd driver detected error condition and retried
 - added seek delays to CD32 emulation (CD32 drive has really slow seeks)
-- CD32 Lotus Trilogy's Lotus 3 finally loads (stupid loader overwriting
-  already loaded data if CD DMA sequence is not identical to real
-  hardware)
+- CD32 Lotus Trilogy's Lotus 3 finally loads (stupid loader partially
+  overwriting already loaded data if CD DMA "slot" sequencing is not
+  exactly correct)
 - CD32 CD audio moved to separate thread, no more emulator pausing when
   CD audio starts or track changes (possibly introduces other issues..)
+
+- D3D 2D sprites (ID3DXSprite) used in D3D filter onscreen leds, correct
+  positioning, no scaling and free transparency. Scanline texture also
+  converted to 2D sprite, now works correctly with D3D filters (future
+  plan: convert all DirectDraw code to D3D 2D sprites)
+- OpenGL filter removed, totally obsolete now. Gone forever unless
+  someone updates it. (includes correct positioning and scaling)
+
+- built-in WASAPI sound driver implemented. Replaces DirectSound if
+  running on Vista or newer. WASAPI has two modes, shared and
+  exclusive. Shared roughly equals old DirectSound, exclusive means
+  sound card is exclusively used by WinUAE. Exclusive mode has lowest
+  possibly latency but note that there may be only one or two
+  supported sample rates (for example 48000). NOTE: buffer sizes
+  can not be directly compared between different modes. PortAudio
+  is now considered very unsupported (that didn't last long..)
+  Needs tuning, not good enough yet (especially exclusive mode)
 - distortion in sound was possible with short square wave samples (160)
 - final 16-bit sound samples always had lowest bit (or two lowest bits)
   zero, now lowest bit(s) are duplicated from real lowest significant
   bit(s)
-- A590/A2091 SCSI ROM 7.0 was not accepted (debugging code..)
-- added new RTG configuration panel, more space for future options, also
-  old RTG setting panel was not really in correct place anymore
-- RDB filesystem loader still had fse_PatchFlags hack instead of
-  handling it 100% correctly (no functional change, at least with any
-  popular filesystem)
-- D3D 2D sprites (ID3DXSPrite) used in D3D filter onscreen leds, correct
-  positioning, no scaling and free transparency. Scanline texture also
-  converted to 2D sprite, now works correctly with D3D filters (future
-  plan: convert all DirectDraw code to D3D 2D sprites)
-- accept also partition type 0x30 (another Amithlon like RDB drive
-  inside real PC partition)
-- OpenGL filter removed, totally obsolete now. Gone forever unless
-  someone updates it. (includes correct positioning and scaling)
+- programmed display modes had bad sound (161b4 sound update was not
+  fully complete.. most stupid 1.6.1 bug so far)
+- portaudio fallback code added, unsupported samplerate = try 44000,
+  48000 and default reported before disabling sound. Same with number
+  of channels, unsupported channels = fall back to stereo
+
+- Vista or newer: AvSetMmThreadCharacteristics() is used to enable
+  task scheduling better suited for multimedia applications = more
+  CPU time given without slowing down lower priority tasks (which
+  can happen with normal priority settings)
+  
 
 1.6.1
 

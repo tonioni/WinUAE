@@ -438,7 +438,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
     *pdy = dy;
 
     write_log (L"Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
-    write_log (L"first: %d last: %d minv: %d maxv: %d min: %d\n",
+    write_log (L"First: %d Last: %d MinV: %d MaxV: %d Min: %d\n",
 	plffirstline_total, plflastline_total,
 	first_planes_vpos, last_planes_vpos, minfirstline);
     return 1;
@@ -1805,6 +1805,9 @@ static void pfield_expand_dp_bplcon (void)
     bplres = dp_for_drawing->bplres;
     bplplanecnt = dp_for_drawing->nr_planes;
     bplham = dp_for_drawing->ham_seen;
+    bplehb = dp_for_drawing->ehb_seen;
+    if ((currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon2 & 0x0200))
+	bplehb = 0;
     issprites = dip_for_drawing->nr_sprites;
 #ifdef ECS_DENISE
     ecsshres = bplres == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
@@ -1815,9 +1818,6 @@ static void pfield_expand_dp_bplcon (void)
     if (bplres > 0)
 	can_use_lores = 0;
 
-    bplehb = (dp_for_drawing->bplcon0 & 0x80) == 0x80;
-    if ((currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon2 & 0x0200))
-	bplehb = 0;
     plf1pri = dp_for_drawing->bplcon2 & 7;
     plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
     plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
