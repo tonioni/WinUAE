@@ -39,5 +39,5 @@
 #define OPT_QUIET 2
 
 
-USHORT DMS_Process_File(struct zfile *, struct zfile *, USHORT, USHORT, USHORT, USHORT);
+USHORT DMS_Process_File(struct zfile *, struct zfile *, USHORT, USHORT, USHORT, USHORT, int);
 

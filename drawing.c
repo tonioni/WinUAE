@@ -2683,6 +2683,7 @@ void finish_drawing_frame (void)
 	unlockscr ();
     return;
 #endif
+
     for (i = 0; i < max_ypos_thisframe; i++) {
 	int i1 = i + min_ypos_for_screen;
 	int line = i + thisframe_y_adjust_real;

@@ -1691,7 +1691,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode, struct regstruct *regs)
 	    return 4;
 	} else if (inrt) {
 	    /* User-mode STOP replacement */
-	    m68k_setstopped (regs, 1);
+	    m68k_setstopped (regs);
 	    return 4;
 	}
     }
@@ -2039,6 +2039,8 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	}
 	if ((regs->spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 	    unset_special (regs, SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+	    // SPCFLAG_BRK breaks STOP condition, need to prefetch
+	    m68k_resumestopped (regs);
 	    return 1;
 	}
 
@@ -3021,8 +3023,9 @@ uae_u8 *restore_cpu (uae_u8 *src)
     if (l & CPUMODE_HALT) {
 	regs.stopped = 1;
 	set_special (&regs, SPCFLAG_STOP);
-    } else
+    } else {
 	regs.stopped = 0;
+    }
     if (model >= 68010) {
 	regs.dfc = restore_u32 ();
 	regs.sfc = restore_u32 ();
@@ -3218,6 +3221,49 @@ void cpureset (void)
 }
 
 
+void m68k_setstopped (struct regstruct *regs)
+{
+    regs->stopped = 1;
+    /* A traced STOP instruction drops through immediately without
+       actually stopping.  */
+    if ((regs->spcflags & SPCFLAG_DOTRACE) == 0)
+	set_special (regs, SPCFLAG_STOP);
+    else
+	m68k_resumestopped (regs);
+}
+
+void m68k_resumestopped (struct regstruct *regs)
+{
+    if (!regs->stopped)
+	return;
+    regs->stopped = 0;
+    fill_prefetch_slow (regs);
+    unset_special (regs, SPCFLAG_STOP);
+}
+
+/*
+ * Compute exact number of CPU cycles taken
+ * by DIVU and DIVS on a 68000 processor.
+ *
+ * Copyright (c) 2005 by Jorge Cwik, pasti@fxatari.com
+ *
+ * This is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+
+
 /*
 
  The routines below take dividend and divisor as parameters.
@@ -3230,7 +3276,7 @@ void cpureset (void)
  Probably valid for 68008 after adding the extra prefetch cycle.
 
 
- Best and worst cases are for register operand:
+ Best and worst cases for register operand:
  (Note the difference with the documented range.)
 
 
@@ -3250,16 +3296,10 @@ void cpureset (void)
  Best case without signed overflow: 122 cycles.
  Best case with signed overflow: 120 cycles
 
-
+ 
  */
 
-
-//
-// DIVU
-// Unsigned division
-//
-
-STATIC_INLINE int getDivu68kCycles_2 (uae_u32 dividend, uae_u16 divisor)
+int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 {
     int mcycles;
     uae_u32 hdivisor;
@@ -3270,9 +3310,9 @@ STATIC_INLINE int getDivu68kCycles_2 (uae_u32 dividend, uae_u16 divisor)
 
     // Overflow
     if ((dividend >> 16) >= divisor)
-	return (mcycles = 5) * 2;
+	return (mcycles = 5 - 2) * 2;
 
-    mcycles = 38;
+    mcycles = 38 - 2;
     hdivisor = divisor << 16;
 
     for (i = 0; i < 15; i++) {
@@ -3294,19 +3334,8 @@ STATIC_INLINE int getDivu68kCycles_2 (uae_u32 dividend, uae_u16 divisor)
     }
     return mcycles * 2;
 }
-int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
-{
-    int v = getDivu68kCycles_2 (dividend, divisor) - 4;
-//    write_log (L"U%d ", v);
-    return v;
-}
 
-//
-// DIVS
-// Signed division
-//
-
-STATIC_INLINE int getDivs68kCycles_2 (uae_s32 dividend, uae_s16 divisor)
+int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 {
     int mcycles;
     uae_u32 aquot;
@@ -3315,7 +3344,7 @@ STATIC_INLINE int getDivs68kCycles_2 (uae_s32 dividend, uae_s16 divisor)
     if (divisor == 0)
 	return 0;
 
-    mcycles = 6;
+    mcycles = 6 - 2;
 
     if (dividend < 0)
 	mcycles++;
@@ -3345,10 +3374,4 @@ STATIC_INLINE int getDivs68kCycles_2 (uae_s32 dividend, uae_s16 divisor)
     }
 
     return mcycles * 2;
-}
-int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
-{
-    int v = getDivs68kCycles_2 (dividend, divisor) - 4;
-//    write_log (L"S%d ", v);
-    return v;
 }

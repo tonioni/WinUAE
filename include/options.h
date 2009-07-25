@@ -349,7 +349,8 @@ struct uae_prefs {
     int win32_guikey;
     int win32_kbledmode;
     int win32_fscodepage;
-    TCHAR win32_commandpath[MAX_DPATH];
+    TCHAR win32_commandpathstart[MAX_DPATH];
+    TCHAR win32_commandpathend[MAX_DPATH];
 
     int curses_reverse_video;
 
@@ -418,7 +419,6 @@ extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);
 extern void target_fixup_options (struct uae_prefs *);
 extern int target_cfgfile_load (struct uae_prefs *, TCHAR *filename, int type, int isdefault);
-extern void target_quit (void);
 extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type);
 
 extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink, int userconfig);

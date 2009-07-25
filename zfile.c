@@ -542,7 +542,10 @@ static struct zfile *dms (struct zfile *z)
     TCHAR *orgname = zfile_getname (z);
     TCHAR *ext = _tcsrchr (orgname, '.');
     TCHAR newname[MAX_DPATH];
+    static int recursive;
 
+    if (recursive)
+	return NULL;
     if (ext) {
 	_tcscpy (newname, orgname);
 	_tcscpy (newname + _tcslen (newname) - _tcslen (ext), L".adf");
@@ -553,8 +556,27 @@ static struct zfile *dms (struct zfile *z)
     zo = zfile_fopen_empty (z, newname, 1760 * 512);
     if (!zo)
 	return z;
-    ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0);
+    ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 0);
     if (ret == NO_PROBLEM || ret == DMS_FILE_END) {
+	int off = zfile_ftell (zo);
+	if (off >= 1760 * 512 / 3 && off <= 1760 * 512 * 3 / 4) { // possibly split dms?
+	    if (_tcslen (orgname) > 5) {
+		TCHAR *s = orgname + _tcslen (orgname) - 5;
+		if (!_tcsicmp (s, L"a.dms")) {
+		    TCHAR *fn2 = my_strdup (orgname);
+		    struct zfile *z2;
+		    fn2[_tcslen (fn2) - 5]++;
+		    recursive++;
+		    z2 = zfile_fopen (fn2, L"rb", z->zfdmask);
+		    recursive--;
+		    if (z2) {
+			ret = DMS_Process_File (z2, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 1);
+			zfile_fclose (z2);
+		    }
+		    xfree (fn2);
+		}
+	    }
+	}
 	zfile_fclose (z);
 	zfile_fseek (zo, 0, SEEK_SET);
 	return zo;

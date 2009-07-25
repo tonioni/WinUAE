@@ -22,6 +22,8 @@ extern enum blitter_states {
 
 extern struct bltinfo blt_info;
 
+extern int blitter_nasty, blit_interrupt;
+
 extern uae_u16 bltsize;
 extern uae_u16 bltcon0, bltcon1;
 extern uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
@@ -35,7 +37,8 @@ extern void blitter_handler (uae_u32);
 extern void build_blitfilltable (void);
 extern void do_blitter (int);
 extern void decide_blitter (int hpos);
-extern void blitter_done_notify (void);
+extern int blitter_need (int hpos);
+extern void blitter_done_notify (int hpos);
 extern void blitter_slowdown (int, int, int, int);
 
 typedef void blitter_func(uaecptr, uaecptr, uaecptr, uaecptr, struct bltinfo *);

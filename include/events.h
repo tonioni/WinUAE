@@ -24,6 +24,7 @@ extern frame_time_t syncbase;
 extern void compute_vsynctime (void);
 extern void init_eventtab (void);
 extern void do_cycles_ce (long cycles);
+extern int is_cycle_ce (void);
 
 extern unsigned long currcycle, nextevent, is_lastline;
 typedef void (*evfunc)(void);

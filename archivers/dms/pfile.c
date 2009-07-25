@@ -41,7 +41,7 @@ static void printbandiz(UCHAR *, USHORT);
 
 static int passfound, passretries;
 
-static char modes[7][7]={"NOCOMP","SIMPLE","QUICK ","MEDIUM","DEEP  ","HEAVY1","HEAVY2"};
+static TCHAR modes[7][7]={L"NOCOMP",L"SIMPLE",L"QUICK ",L"MEDIUM",L"DEEP  ",L"HEAVY1",L"HEAVY2"};
 static USHORT PWDCRC;
 
 UCHAR *text;
@@ -51,7 +51,8 @@ static void log_error(int track)
     write_log (L"DMS: Ignored error on track %d!\n", track);
 }
 
-USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd){
+USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd, int part)
+{
 	USHORT from, to, geninfo, c_version, cmode, hcrc, disktype, pv, ret;
 	ULONG pkfsize, unpkfsize;
 	UCHAR *b1, *b2;
@@ -105,6 +106,13 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	date = (time_t) ((((ULONG)b1[12])<<24) | (((ULONG)b1[13])<<16) | (((ULONG)b1[14])<<8) | (ULONG)b1[15]);	/* date in standard UNIX/ANSI format */
 	from = (USHORT) ((b1[16]<<8) | b1[17]);		/*  Lowest track in archive. May be incorrect if archive is "appended" */
 	to = (USHORT) ((b1[18]<<8) | b1[19]);		/*  Highest track in archive. May be incorrect if archive is "appended" */
+
+	if (part && from < 30) {
+	    free(b1);
+	    free(b2);
+	    free(text);
+	    return DMS_FILE_END;
+	}
 
 	pkfsize = (ULONG) ((((ULONG)b1[21])<<16) | (((ULONG)b1[22])<<8) | (ULONG)b1[23]);	/*  Length of total packed data as in archive   */
 	unpkfsize = (ULONG) ((((ULONG)b1[25])<<16) | (((ULONG)b1[26])<<8) | (ULONG)b1[27]);	/*  Length of unpacked data. Usually 901120 bytes  */
@@ -211,6 +219,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
 			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,(geninfo & 2));
 		else {
+			zfile_fseek (fo, from * 512 * 22, SEEK_SET);
 			while ( (ret=Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2))) == NO_PROBLEM ) ;
 		}
 	}
@@ -450,15 +459,18 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 static void printbandiz(UCHAR *m, USHORT len){
     UCHAR *i,*j;
 
-	i=j=m;
-	while (i<m+len) {
-		if (*i == 10) {
-			*i=0;
-			write_log (L"%s\n",j);
-			j=i+1;
-		}
-		i++;
+    i=j=m;
+    while (i<m+len) {
+	if (*i == 10) {
+	    TCHAR *u;
+	    *i=0;
+	    u = au (j);
+	    write_log (L"%s\n",u);
+	    xfree (u);
+	    j=i+1;
 	}
+	i++;
+    }
 }
 
 

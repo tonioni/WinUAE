@@ -30,6 +30,7 @@
 #include "uae.h"
 #include "gui.h"
 #include "xwin.h"
+#include "debug.h"
 #ifdef AVIOUTPUT
 #include "avioutput.h"
 #endif
@@ -1583,10 +1584,11 @@ void audio_evhandler (void)
 
 uae_u16	dmacon;
 
-void audio_hsync (int dmaaction)
+void audio_hsync (int hpos)
 {
     int nr, handle;
     static int old_dma;
+    int dmaaction = hpos < 0;
 
     if (!isaudio ())
 	return;
@@ -1633,7 +1635,13 @@ void audio_hsync (int dmaaction)
 	    if (cdp->request_word >= 2)
 		handle2 = 1;
 	    if (chan_ena) {
-		alloc_cycle_ext (13 + nr * 2, CYCLE_MISC);
+		if (dmaaction) {
+		    alloc_cycle_ext (13 + nr * 2, CYCLE_MISC);
+#ifdef DEBUGGER
+		    if (debug_dma)
+			record_dma (0xaa + nr * 16, cdp->dat2, cdp->pt, 13 + nr * 2, vpos);
+#endif
+		}
 		if (cdp->request_word == 1 || cdp->request_word == 2)
 		    cdp->pt += 2;
 	    }

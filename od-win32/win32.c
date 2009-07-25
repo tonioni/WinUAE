@@ -2097,8 +2097,50 @@ static get_aspi (int old)
 	return UAESCSI_SPTI;
 }
 
+static void shellexecute (TCHAR *command)
+{
+    SHELLEXECUTEINFO sei = { 0 };
+    TCHAR *f = command;
+    TCHAR *sf, *s, *p;
+
+    sf = s = xcalloc (_tcslen (f) + 1 + 1, sizeof (TCHAR));
+    if (!s)
+	return;
+    _tcscpy (s, f);
+    for (;;) {
+	p = _tcschr (s, ';');
+	if (!p)
+	    break;
+	*p = 0;
+    }
+    while (s[0]) {
+	sei.cbSize = sizeof sei;
+	sei.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS;
+	sei.lpFile = s;
+	sei.nShow = SW_HIDE;
+	write_log (L"ShellExecuteEx('%s')\n", s);
+	if (ShellExecuteEx (&sei)) {
+	    HANDLE h = sei.hProcess;
+	    if (h) {
+		WaitForSingleObject (h, INFINITE);
+		CloseHandle (h);
+	    }
+	    write_log (L"Succeeded\n");
+	} else {
+	    write_log (L"Failed. ERR=%d\n", GetLastError ());
+	}
+	s += _tcslen (s) + 1;
+    }
+    xfree (sf);
+}
+
+void target_run (void)
+{
+    shellexecute (currprefs.win32_commandpathstart);
+}
 void target_quit (void)
 {
+    shellexecute (currprefs.win32_commandpathend);
 }
 
 void target_fixup_options (struct uae_prefs *p)
@@ -2143,7 +2185,8 @@ void target_default_options (struct uae_prefs *p, int type)
 	p->win32_rtgscaleaspectratio = -1;
 	p->win32_rtgvblankrate = 0;
 	p->win32_fscodepage = 0;
-	p->win32_commandpath[0] = 0;
+	p->win32_commandpathstart[0] = 0;
+	p->win32_commandpathend[0] = 0;
     }
     if (type == 1 || type == 0) {
 	p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
@@ -2211,7 +2254,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
     cfgfile_target_dwrite (f, L"kbledmode", L"%d", p->win32_kbledmode);
     cfgfile_target_dwrite_bool (f, L"powersavedisabled", p->win32_powersavedisabled);
     cfgfile_target_dwrite (f, L"filesystem_codepage", L"%d", p->win32_fscodepage);
-    cfgfile_target_dwrite_str (f, L"exec", p->win32_commandpath);
+    cfgfile_target_dwrite_str (f, L"exec_before", p->win32_commandpathstart);
+    cfgfile_target_dwrite_str (f, L"exec_after", p->win32_commandpathend);
 
 }
 
@@ -2260,7 +2304,8 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	    || cfgfile_yesno (option, value, L"notaskbarbutton", &p->win32_notaskbarbutton)
 	    || cfgfile_yesno (option, value, L"always_on_top", &p->win32_alwaysontop)
 	    || cfgfile_yesno (option, value, L"powersavedisabled", &p->win32_powersavedisabled)
-	    || cfgfile_string (option, value, L"exec", p->win32_commandpath, sizeof p->win32_commandpath / sizeof (TCHAR))
+	    || cfgfile_string (option, value, L"exec_before", p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof (TCHAR))
+	    || cfgfile_string (option, value, L"exec_after", p->win32_commandpathend, sizeof p->win32_commandpathend / sizeof (TCHAR))
 	    || cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 	    || cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 	    || cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)
@@ -3707,57 +3752,237 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
     return 0;
 }
 
+/***
+*static void parse_cmdline(cmdstart, argv, args, numargs, numchars)
+*
+*Purpose:
+*       Parses the command line and sets up the argv[] array.
+*       On entry, cmdstart should point to the command line,
+*       argv should point to memory for the argv array, args
+*       points to memory to place the text of the arguments.
+*       If these are NULL, then no storing (only counting)
+*       is done.  On exit, *numargs has the number of
+*       arguments (plus one for a final NULL argument),
+*       and *numchars has the number of bytes used in the buffer
+*       pointed to by args.
+*
+*Entry:
+*       _TSCHAR *cmdstart - pointer to command line of the form
+*           <progname><nul><args><nul>
+*       _TSCHAR **argv - where to build argv array; NULL means don't
+*                       build array
+*       _TSCHAR *args - where to place argument text; NULL means don't
+*                       store text
+*
+*Exit:
+*       no return value
+*       int *numargs - returns number of argv entries created
+*       int *numchars - number of characters used in args buffer
+*
+*Exceptions:
+*
+*******************************************************************************/
+
+#define NULCHAR    _T('\0')
+#define SPACECHAR  _T(' ')
+#define TABCHAR    _T('\t')
+#define DQUOTECHAR _T('\"')
+#define SLASHCHAR  _T('\\')
+
+
+static void __cdecl wparse_cmdline (
+    _TSCHAR *cmdstart,
+    _TSCHAR **argv,
+    _TSCHAR *args,
+    int *numargs,
+    int *numchars
+    )
+{
+        _TSCHAR *p;
+        _TUCHAR c;
+        int inquote;                    /* 1 = inside quotes */
+        int copychar;                   /* 1 = copy char to *args */
+        unsigned numslash;              /* num of backslashes seen */
+
+        *numchars = 0;
+        *numargs = 1;                   /* the program name at least */
+
+        /* first scan the program name, copy it, and count the bytes */
+        p = cmdstart;
+        if (argv)
+            *argv++ = args;
+
+#ifdef WILDCARD
+        /* To handle later wild card expansion, we prefix each entry by
+        it's first character before quote handling.  This is done
+        so _[w]cwild() knows whether to expand an entry or not. */
+        if (args)
+            *args++ = *p;
+        ++*numchars;
+
+#endif  /* WILDCARD */
+
+        /* A quoted program name is handled here. The handling is much
+           simpler than for other arguments. Basically, whatever lies
+           between the leading double-quote and next one, or a terminal null
+           character is simply accepted. Fancier handling is not required
+           because the program name must be a legal NTFS/HPFS file name.
+           Note that the double-quote characters are not copied, nor do they
+           contribute to numchars. */
+        inquote = FALSE;
+        do {
+            if (*p == DQUOTECHAR )
+            {
+                inquote = !inquote;
+                c = (_TUCHAR) *p++;
+                continue;
+            }
+            ++*numchars;
+            if (args)
+                *args++ = *p;
+
+            c = (_TUCHAR) *p++;
+#ifdef _MBCS
+            if (_ismbblead(c)) {
+                ++*numchars;
+                if (args)
+                    *args++ = *p;   /* copy 2nd byte too */
+                p++;  /* skip over trail byte */
+            }
+#endif  /* _MBCS */
+
+        } while ( (c != NULCHAR && (inquote || (c !=SPACECHAR && c != TABCHAR))) );
+
+        if ( c == NULCHAR ) {
+            p--;
+        } else {
+            if (args)
+                *(args-1) = NULCHAR;
+        }
+
+        inquote = 0;
+
+        /* loop on each argument */
+        for(;;) {
+
+            if ( *p ) {
+                while (*p == SPACECHAR || *p == TABCHAR)
+                    ++p;
+            }
+
+            if (*p == NULCHAR)
+                break;              /* end of args */
+
+            /* scan an argument */
+            if (argv)
+                *argv++ = args;     /* store ptr to arg */
+            ++*numargs;
+
+#ifdef WILDCARD
+        /* To handle later wild card expansion, we prefix each entry by
+        it's first character before quote handling.  This is done
+        so _[w]cwild() knows whether to expand an entry or not. */
+        if (args)
+            *args++ = *p;
+        ++*numchars;
+
+#endif  /* WILDCARD */
+
+        /* loop through scanning one argument */
+        for (;;) {
+            copychar = 1;
+            /* Rules: 2N backslashes + " ==> N backslashes and begin/end quote
+               2N+1 backslashes + " ==> N backslashes + literal "
+               N backslashes ==> N backslashes */
+            numslash = 0;
+            while (*p == SLASHCHAR) {
+                /* count number of backslashes for use below */
+                ++p;
+                ++numslash;
+            }
+            if (*p == DQUOTECHAR) {
+                /* if 2N backslashes before, start/end quote, otherwise
+                    copy literally */
+                if (numslash % 2 == 0) {
+                    if (inquote && p[1] == DQUOTECHAR) {
+                        p++;    /* Double quote inside quoted string */
+                    } else {    /* skip first quote char and copy second */
+                        copychar = 0;       /* don't copy quote */
+                        inquote = !inquote;
+                    }
+                }
+                numslash /= 2;          /* divide numslash by two */
+            }
+
+            /* copy slashes */
+            while (numslash--) {
+                if (args)
+                    *args++ = SLASHCHAR;
+                ++*numchars;
+            }
+
+            /* if at end of arg, break loop */
+            if (*p == NULCHAR || (!inquote && (*p == SPACECHAR || *p == TABCHAR)))
+                break;
+
+            /* copy character into argument */
+#ifdef _MBCS
+            if (copychar) {
+                if (args) {
+                    if (_ismbblead(*p)) {
+                        *args++ = *p++;
+                        ++*numchars;
+                    }
+                    *args++ = *p;
+                } else {
+                    if (_ismbblead(*p)) {
+                        ++p;
+                        ++*numchars;
+                    }
+                }
+                ++*numchars;
+            }
+            ++p;
+#else  /* _MBCS */
+            if (copychar) {
+                if (args)
+                    *args++ = *p;
+                ++*numchars;
+            }
+            ++p;
+#endif  /* _MBCS */
+            }
+
+            /* null-terminate the argument */
+
+            if (args)
+                *args++ = NULCHAR;          /* terminate string */
+            ++*numchars;
+        }
+
+        /* We put one last argument in -- a null ptr */
+        if (argv)
+            *argv++ = NULL;
+        ++*numargs;
+}
+
+
+
+
 static TCHAR **parseargstring (TCHAR *s)
 {
-    int cnt, i;
-    TCHAR **args;
+    TCHAR **p;
+    int numa, numc;
 
     if (_tcslen (s) == 0)
 	return NULL;
-    args = xcalloc (sizeof (TCHAR*), MAX_ARGUMENTS + 1);
-    cnt = 0;
-    for (;;) {
-	TCHAR *p = s;
-	TCHAR *d, prev;
-	int skip = 0;
-	while (*p && _istspace (*p))
-	    p++;
-	if (*p == 0)
-	    break;
-	if (*p == '\'' || *p == '"') {
-	    TCHAR sc = *p;
-	    p++;
-	    s++;
-	    while (*p && *p != sc)
-		p++;
-	    skip = 1;
-	} else {
-	    while (*p && !_istspace (*p))
-		p++;
-	}
-	args[cnt] = d = xcalloc (p - s + 1, sizeof (TCHAR));
-	memcpy (d, s, (p - s) * sizeof (TCHAR));
-	prev = 0;
-	for (i = 0; d[i]; i++) {
-	    TCHAR c = d[i];
-	    if (c == '\"' || c == '\'') {
-		memmove (&d[i], &d[i + 1], (_tcslen (&d[i + 1]) + 1) * sizeof (TCHAR));
-		i--;
-		continue;
-	    }
-	    prev = c;
-	}
-	cnt++;
-	p += skip;
-	while (*p && _istspace (*p))
-	    p++;
-	if (*p == 0)
-	    break;
-	if (cnt >= MAX_ARGUMENTS)
-	    break;
-	s = p;
-    }
-    return args;
+    wparse_cmdline (s, NULL, NULL, &numa, &numc);
+    numa++;
+    p = xcalloc (numa * sizeof (TCHAR*) + numc * sizeof (TCHAR), 1);
+    wparse_cmdline (s, (wchar_t **)p, (wchar_t *)(((char *)p) + numa * sizeof(wchar_t *)), &numa, &numc);
+    if (numa > MAX_ARGUMENTS)
+	p[MAX_ARGUMENTS] = NULL;
+    return p;
 }
 
 static TCHAR **parseargstrings (TCHAR *s, TCHAR **xargv)

@@ -759,6 +759,7 @@ static int real_main2 (int argc, TCHAR **argv)
 
     fixup_prefs (&currprefs);
     changed_prefs = currprefs;
+    target_run ();
     /* force sound settings change */
     currprefs.produce_sound = 0;
 

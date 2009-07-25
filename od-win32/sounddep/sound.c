@@ -797,7 +797,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	if (SUCCEEDED (hr) && hr != S_FALSE)
 	    break;
 	write_log (L"WASAPI: IsFormatSupported(%d,%08X,%d) %08X\n", sd->channels, rn[rncnt], sd->freq, hr);
-	if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT)
+	if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != S_FALSE)
 	    goto error;
 	rncnt++;
 	if (rn[rncnt])
@@ -856,7 +856,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
     hr = s->pAudioClient->lpVtbl->Initialize (s->pAudioClient,
 	sharemode, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-	s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, &wavfmt.Format, NULL);
+	s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
     if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
 	hr = s->pAudioClient->lpVtbl->GetBufferSize (s->pAudioClient, &s->bufferFrameCount);
 	if (FAILED (hr)) {
@@ -2154,9 +2154,11 @@ int enumerate_sound_devices (void)
 		    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATE_ALL_EXT"))
 			pDeviceNames = alcGetString (NULL, ALC_ALL_DEVICES_SPECIFIER);
 		    OpenALEnumerate (sound_devices, pDeviceNames, ppDefaultDevice, FALSE);
+#if 0
 		    ppDefaultDevice = alcGetString (NULL, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
 		    pDeviceNames = alcGetString (NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
 		    OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
+#endif
 		}
 	    }
     } __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {

@@ -1,6 +1,55 @@
 
+Beta 2:
 
-Beta 1:
+Background information:
+
+After many days of logic analyzer work, blitter should finally be
+100% cycle-exact, even in line mode.
+
+DMA emulation cycle-exactness is greatly improved, most vector
+routines that had slowdowns, flickering or graphics garbage should
+work perfectly now (even Los Huivos/Virtual Dreams doubleglenz work,
+this has shown only major graphics garbage previously)
+
+There are still some that won't still work or work even worse,
+these could be caused by CPU emulation timing errors (even single
+cycle difference in single instruction that is used regularly enough
+can make the difference)
+
+"Standard test" programs still not working: Rampage/TEK, Hulkamania/TSP
+(and left border garbage in one part of Absolute Inebriation/VD, reason
+is known but I am not sure how to implement the fix)
+
+- "DMA cycle debugger", v <vpos> [<hpos>] lists selected scanline's DMA
+  activity, hpos, custom register, data, address. This made
+  compatibility testing much easier. (just compare this data to
+  logic analyzer data) Second row can contain extra characters:
+  N = blitter cycle given for CPU, b = blitter interrupt, B =
+  blitter finished. (not necessarily exactly same thing)
+
+- chipset bitplane/copper/blitter cycle exact mode DMA sequence
+  routines rewritten. Emulation may be much due to missing
+  optimizations. Later.
+- blitter cycle diagrams rechecked with logic analyzer, errors fixed
+
+- CPU emulation fixes, lsl/asl/ror and friends had wrong cycle
+  counts. bclr/bset/bchg are 2 cycles shorter if bit number is less
+  than 16 (16-31 = add extra cycles) and more. Lots of testing to do..
+
+- WASAPI sample format fallback didn't work correctly
+- command line parser now really works exactly like Windows console
+- added "win32.exec_before" and "win32.exec_after" configuration
+  entries, "before" command is run when emulation starts, "after"
+  when emulation shuts down or before another config is loaded.
+  Multiple commands can be separated with ';'. Waits until command
+  returns (=waits forever if program never exits..)
+- interlace artifact removal works again (b1)
+- automatically handle split dms files. If extracted data is only
+  about half of standard DD disk and if file name is "*a.dms",
+  attempts to open and merge "*b.dms" with already unpacked data
+- do not enumerate openal recording devices
+
+Beta 1: (too many changes, everything can break blahblah usual stuff)
 
 - command line filename will be detected as a disk image if file don't
   have known extensions but is small enough and first 3 bytes contain
@@ -30,21 +79,21 @@ Beta 1:
   inside real PC partition)
 - added new RTG configuration panel, more space for future options, also
   old RTG setting panel was not really in correct place anymore
-- command line parsing didn't handle quotes inside strings as Windows
-  does when running from command line
+- command line parsing handled quotes inside strings differently than
+  Windows does when running from command line
 
 - added bitplane DMA fetches to copper debugger (there will be separate
   DMA sequence "disassembler" in future)
 - Agnus bitplane DMA behavior correctly emulated when number of planes
-  or resolution changes mid screen. Old code was totally wrong and too
-  complex..  Now all my test statefiles work 100% correctly:
+  or resolution changes mid screen. Old code (1.5x+) was totally wrong
+  and too complex..  Now all my test statefiles work 100% correctly:
   Disposable Hero, Bass-O-Matic/Crusaders, Innovation Part 2/Axxis 
   Brian The Lion "dialog" screen is corrupted again but this seems to be
   AGA specific feature (SMD chips = no logic analyzer)
 
 - CD32 CD controller emulation improved, CDXL animations should run more
   smoothly now, previously emulation couldn't load more than few sectors
-  before cd driver detected error condition and retried
+  before CD32's cd driver detected error condition and retried
 - added seek delays to CD32 emulation (CD32 drive has really slow seeks)
 - CD32 Lotus Trilogy's Lotus 3 finally loads (stupid loader partially
   overwriting already loaded data if CD DMA "slot" sequencing is not
@@ -57,7 +106,7 @@ Beta 1:
   converted to 2D sprite, now works correctly with D3D filters (future
   plan: convert all DirectDraw code to D3D 2D sprites)
 - OpenGL filter removed, totally obsolete now. Gone forever unless
-  someone updates it. (includes correct positioning and scaling)
+  someone updates it. (including correct positioning and scaling)
 
 - built-in WASAPI sound driver implemented. Replaces DirectSound if
   running on Vista or newer. WASAPI has two modes, shared and

@@ -267,14 +267,8 @@ STATIC_INLINE uae_u32 next_ilongi (struct regstruct *regs)
     return r;
 }
 
-STATIC_INLINE void m68k_setstopped (struct regstruct *regs, int stop)
-{
-    regs->stopped = stop;
-    /* A traced STOP instruction drops through immediately without
-       actually stopping.  */
-    if (stop && (regs->spcflags & SPCFLAG_DOTRACE) == 0)
-	set_special (regs, SPCFLAG_STOP);
-}
+extern void m68k_setstopped (struct regstruct *regs);
+extern void m68k_resumestopped (struct regstruct *regs);
 
 extern uae_u32 REGPARAM3 get_disp_ea_020 (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_020i (struct regstruct *regs, uae_u32 base, uae_u32 dp) REGPARAM;

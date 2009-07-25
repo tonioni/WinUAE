@@ -15,21 +15,21 @@
 extern int debugging;
 extern int exception_debugging;
 extern int debug_copper;
+extern int debug_dma;
 extern int debug_sprite_mask;
 extern int debug_bpl_mask, debug_bpl_mask_one;
 extern int debugger_active;
 
-extern void debug(void);
-extern void debugger_change(int mode);
-extern void activate_debugger(void);
+extern void debug (void);
+extern void debugger_change (int mode);
+extern void activate_debugger (void);
 extern void deactivate_debugger (void);
 extern int notinrom (void);
 extern const TCHAR *debuginfo (int);
 extern void record_copper (uaecptr addr, int hpos, int vpos);
-extern void record_copper_otherdma (uae_u16 bpl, uae_u16 dat, int hpos, int vpos);
-extern void record_copper_reset(void);
-extern int mmu_init(int,uaecptr,uaecptr);
-extern void mmu_do_hit(void);
+extern void record_copper_reset (void);
+extern int mmu_init (int, uaecptr,uaecptr);
+extern void mmu_do_hit (void);
 extern void dump_aga_custom (void);
 extern void memory_map_dump (void);
 extern void debug_help (void);
@@ -70,6 +70,22 @@ void debug_lputpeek(uaecptr addr, uae_u32 v);
 
 enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
 void debugtest (enum debugtest_item, const TCHAR *, ...);
+
+struct dma_rec
+{
+    uae_u16 reg;
+    uae_u16 dat;
+    uae_u32 addr;
+    uae_u16 evt;
+};
+
+#define DMA_EVENT_BLITIRQ 1
+#define DMA_EVENT_BLITNASTY 2
+#define DMA_EVENT_BLITFINISHED 4
+
+extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos);
+extern void record_dma_reset (void);
+extern void record_dma_event (int evt, int hpos, int vpos);
 
 #else
 

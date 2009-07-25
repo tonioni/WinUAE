@@ -44,6 +44,7 @@ static uae_u16 sr_bpmask, sr_bpvalue;
 int debugging;
 int exception_debugging;
 int debug_copper = 0;
+int debug_dma = 0;
 int debug_sprite_mask = 0xff;
 
 static uaecptr processptr;
@@ -133,6 +134,7 @@ static TCHAR help[] = {
     L"  dj [<level bitmask>]  Enable joystick/mouse input debugging\n"
     L"  smc [<0-1>]           Enable self-modifying code detector. 1 = enable break.\n"
     L"  dm                    Dump current address space map\n"
+    L"  v <vpos> [<hpos>]     Show DMA data (accurate only in cycle-exact mode)\n"
     L"  ?<value>              Hex/Bin/Dec converter\n"
 #ifdef _WIN32
     L"  x                     Close debugger.\n"
@@ -684,37 +686,140 @@ static void disassemble_wait (FILE *file, unsigned long insn)
 	     vp, ve, hp, he, bfd);
 }
 
-#define NR_COPPER_RECORDS 1000000
+#define NR_COPPER_RECORDS 100000
 /* Record copper activity for the debugger.  */
 struct cop_rec
 {
   int hpos, vpos;
-  uae_u16 reg, dat;
   uaecptr addr;
 };
 static struct cop_rec *cop_record[2];
 static int nr_cop_records[2], curr_cop_set;
 
+#define NR_DMA_REC_HPOS 256
+#define NR_DMA_REC_VPOS 1000
+static struct dma_rec *dma_record[2];
+static int dma_record_toggle;
+
+void record_dma_reset (void)
+{
+    int v, h;
+    struct dma_rec *dr, *dr2;
+
+    if (!dma_record[0])
+	return;
+    dma_record_toggle ^= 1;
+    dr = dma_record[dma_record_toggle];
+    for (v = 0; v < NR_DMA_REC_VPOS; v++) {
+	for (h = 0; h < NR_DMA_REC_HPOS; h++) {
+	    dr2 = &dr[v * NR_DMA_REC_HPOS + h];
+	    memset (dr2, 0, sizeof (struct dma_rec));
+	    dr2->reg = 0xffff;
+	    dr2->addr = 0xffffffff;
+	}
+    }
+}
+
 void record_copper_reset (void)
 {
-/* Start a new set of copper records.  */
+    /* Start a new set of copper records.  */
     curr_cop_set ^= 1;
     nr_cop_records[curr_cop_set] = 0;
 }
 
-void record_copper_otherdma (uae_u16 bpl, uae_u16 dat, int hpos, int vpos)
+void record_dma_event (int evt, int hpos, int vpos)
 {
-    int t = nr_cop_records[curr_cop_set];
-    if (!cop_record[0])
+    struct dma_rec *dr;
+
+    if (!dma_record[0])
 	return;
-    if (t >= NR_COPPER_RECORDS)
+    if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+	return ;
+    dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+    dr->evt |= evt;
+}
+
+struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos)
+{
+    struct dma_rec *dr;
+
+    if (!dma_record[0]) {
+	dma_record[0] = xmalloc (NR_DMA_REC_HPOS * NR_DMA_REC_VPOS * sizeof (struct dma_rec));
+	dma_record[1] = xmalloc (NR_DMA_REC_HPOS * NR_DMA_REC_VPOS * sizeof (struct dma_rec));
+	dma_record_toggle = 0;
+	record_dma_reset ();
+    }
+    if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
+	return NULL;
+    dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
+    if (dr->reg != 0xffff)
+	write_log (L"DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n", vpos, hpos, dr->reg, reg);
+    dr->reg = reg;
+    dr->dat = dat;
+    dr->addr = addr;
+    return dr;
+}
+
+static void decode_dma_record (int hpos, int vpos, int toggle)
+{
+    struct dma_rec *dr;
+    int h, i, maxh;
+
+    if (!dma_record[0])
 	return;
-    cop_record[curr_cop_set][t].addr = 0xffffffff;
-    cop_record[curr_cop_set][t].hpos = hpos;
-    cop_record[curr_cop_set][t].vpos = vpos;
-    cop_record[curr_cop_set][t].reg = bpl;
-    cop_record[curr_cop_set][t].dat = dat;
-    nr_cop_records[curr_cop_set] = t + 1;
+    dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
+    console_out_f (L"Line: %02X %3d HPOS %02X %3d:\n", vpos, vpos, hpos, hpos);
+    h = hpos;
+    dr += hpos;
+    maxh = hpos + 80;
+    if (maxh > maxhpos)
+	maxh = maxhpos;
+    while (h < maxh) {
+	int col = 9;
+	int cols = 8;
+	TCHAR l1[81];
+	TCHAR l2[81];
+	TCHAR l3[81];
+	TCHAR l4[81];
+	for (i = 0; i < cols && h < maxh; i++, h++, dr++) {
+	    int cl = i * col, cl2;
+
+	    _stprintf (l1 + cl, L"[%02X %3d]", h, h);
+	    _tcscpy (l4 + cl, L"        ");
+	    if (dr->reg != 0xffff) {
+		if ((dr->reg & 0x1001) == 0x1000)
+		    _tcscpy (l2 + cl, L"   CPU-R ");
+		else if ((dr->reg & 0x1001) == 0x1001)
+		    _tcscpy (l2 + cl, L"   CPU-W ");
+		else
+		    _stprintf (l2 + cl, L"     %03X", dr->reg);
+		_stprintf (l3 + cl, L"    %04X", dr->dat);
+		if (dr->addr != 0xffffffff)
+		    _stprintf (l4 + cl, L"%08X", dr->addr & 0x00ffffff);
+	    } else {
+		_tcscpy (l2 + cl, L"        ");
+		_tcscpy (l3 + cl, L"        ");
+	    }
+	    cl2 = cl;
+	    if (dr->evt & DMA_EVENT_BLITNASTY)
+	        l2[cl2++] = 'N';
+	    if (dr->evt & DMA_EVENT_BLITFINISHED)
+		l2[cl2++] = 'B';
+	    if (dr->evt & DMA_EVENT_BLITIRQ)
+		l2[cl2++] = 'b';
+	    if (i < cols - 1 && h < maxh - 1) {
+		l1[cl + col - 1] = 32;
+		l2[cl + col - 1] = 32;
+		l3[cl + col - 1] = 32;
+		l4[cl + col - 1] = 32;
+	    }
+	}
+	console_out_f (L"%s\n", l1);
+	console_out_f (L"%s\n", l2);
+	console_out_f (L"%s\n", l3);
+	console_out_f (L"%s\n", l4);
+	console_out_f (L"\n");
+    }
 }
 
 void record_copper (uaecptr addr, int hpos, int vpos)
@@ -728,8 +833,6 @@ void record_copper (uaecptr addr, int hpos, int vpos)
 	cop_record[curr_cop_set][t].addr = addr;
 	cop_record[curr_cop_set][t].hpos = hpos;
 	cop_record[curr_cop_set][t].vpos = vpos;
-	cop_record[curr_cop_set][t].reg = 0xffff;
-    	cop_record[curr_cop_set][t].dat = 0xffff;
 	nr_cop_records[curr_cop_set] = t + 1;
     }
     if (debug_copper & 2) { /* trace */
@@ -761,7 +864,6 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
     uae_u32 insn_type = insn & 0x00010001;
     TCHAR here = ' ';
     TCHAR record[] = L"          ";
-    int cnt;
 
     if ((cr = find_copper_records (addr))) {
 	_stprintf (record, L" [%03x %03x]", cr->vpos, cr->hpos);
@@ -806,32 +908,6 @@ static void decode_copper_insn (FILE* file, unsigned long insn, unsigned long ad
 
     default:
 	abort ();
-    }
-
-    if (!cr)
-	return;
-    cr++;
-    cnt = 0;
-    while (cr->addr == 0xffffffff) {
-	int addr = cr->reg;
-	int i = 0;
-	while (custd[i].name) {
-	    if (custd[i].adr == addr + 0xdff000)
-	        break;
-	    i++;
-	}
-	_stprintf (record, L" [%03x %03x]", cr->vpos, cr->hpos);
-	console_out_f (L"           %04lx %04lx%s\t; ", addr, cr->dat, record);
-	if (custd[i].name)
-	    console_out_f (L"%s := 0x%04lx\n", custd[i].name, cr->dat);
-	else
-	    console_out_f (L"%04x := 0x%04lx\n", addr, cr->dat);
-	cr++;
-	if (cnt++ >= 10) {
-	    console_out_f (L" ...\n");
-	    break;
-	}
-
     }
 
 }
@@ -2962,6 +3038,22 @@ static void debug_1 (void)
 	    dumpmem (maddr, &nxmem, lines);
 	}
 	break;
+	case 'v':
+	case 'V':
+	{
+	    int v1 = vpos, v2 = 0;
+	    if (more_params (&inptr))
+		v1 = readint (&inptr);
+	    if (more_params (&inptr))
+		v2 = readint (&inptr);
+	    if (debug_dma) {
+		decode_dma_record (v2, v1, cmd == 'v');
+	    } else {
+		debug_dma = 1;
+		console_out_f (L"DMA debugger enabled.\n");
+	    }
+	}
+	break;
 	case 'o':
 	{
 	    if (copper_debugger (&inptr)) {
@@ -3167,7 +3259,7 @@ void debug (void)
 	do_skip = 1;
     if (do_skip) {
 	set_special (&regs, SPCFLAG_BRK);
-	unset_special (&regs, SPCFLAG_STOP);
+	m68k_resumestopped (&regs);
 	debugging = 1;
     }
     resume_sound ();
