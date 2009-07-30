@@ -113,6 +113,7 @@ struct sound_dp
 
 int sound_debug = 0;
 int sound_mode_skip = 0;
+int sounddrivermask;
 
 static int have_sound;
 static int statuscnt;
@@ -2139,61 +2140,65 @@ int enumerate_sound_devices (void)
     if (!num_sound_devices) {
 	HMODULE l = NULL;
 	write_log (L"Enumerating DirectSound devices..\n");
-	if (os_vista)
+	if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI))
 	    wasapi_enum (sound_devices);
-	if (1 || force_directsound || !os_vista) {
+	if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
 	    DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 	    //DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 	}
-	__try {
-	    if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
-		write_log (L"Enumerating OpenAL devices..\n");
-		if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
-		    const char* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
-		    const char* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
-		    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATE_ALL_EXT"))
-			pDeviceNames = alcGetString (NULL, ALC_ALL_DEVICES_SPECIFIER);
-		    OpenALEnumerate (sound_devices, pDeviceNames, ppDefaultDevice, FALSE);
-#if 0
-		    ppDefaultDevice = alcGetString (NULL, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
-		    pDeviceNames = alcGetString (NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
-		    OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
-#endif
+	if (sounddrivermask & SOUNDDRIVER_OPENAL) {
+	    __try {
+		if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {
+		    write_log (L"Enumerating OpenAL devices..\n");
+		    if (alcIsExtensionPresent (NULL, "ALC_ENUMERATION_EXT")) {
+			const char* ppDefaultDevice = alcGetString (NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
+			const char* pDeviceNames = alcGetString (NULL, ALC_DEVICE_SPECIFIER);
+			if (alcIsExtensionPresent (NULL, "ALC_ENUMERATE_ALL_EXT"))
+			    pDeviceNames = alcGetString (NULL, ALC_ALL_DEVICES_SPECIFIER);
+			OpenALEnumerate (sound_devices, pDeviceNames, ppDefaultDevice, FALSE);
+    #if 0
+			ppDefaultDevice = alcGetString (NULL, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
+			pDeviceNames = alcGetString (NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
+			OpenALEnumerate (record_devices, pDeviceNames, ppDefaultDevice, TRUE);
+    #endif
+		    }
 		}
+	    } __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
+		write_log (L"OpenAL enumeration crashed!\n");
+		flush_log ();
 	    }
-    } __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
-	write_log (L"OpenAL enumeration crashed!\n");
-        flush_log ();
-    }
+	}
 #if PORTAUDIO
-	__try {
-	    HMODULE hm = WIN32_LoadLibrary (L"portaudio_x86.dll");
-	    if (hm) {
-		TCHAR *s;
-		PaError err;
-		write_log (L"Enumerating PortAudio devices..\n");
-		s = au (Pa_GetVersionText ());
-		write_log (L"%s (%d)\n", s, Pa_GetVersion ());
-		xfree (s);
-		if (Pa_GetVersion () >= 1899) {
-		    err = Pa_Initialize ();
-		    if (err == paNoError) {
-	    		PortAudioEnumerate (sound_devices);
+	if (sounddrivermask & SOUNDDRIVER_PORTAUDIO) {
+	    __try {
+		HMODULE hm = WIN32_LoadLibrary (L"portaudio_x86.dll");
+		if (hm) {
+		    TCHAR *s;
+		    PaError err;
+		    write_log (L"Enumerating PortAudio devices..\n");
+		    s = au (Pa_GetVersionText ());
+		    write_log (L"%s (%d)\n", s, Pa_GetVersion ());
+		    xfree (s);
+		    if (Pa_GetVersion () >= 1899) {
+			err = Pa_Initialize ();
+			if (err == paNoError) {
+	    		    PortAudioEnumerate (sound_devices);
+			} else {
+			    s = au (Pa_GetErrorText (err));
+			    write_log (L"Portaudio initialization failed: %d (%s)\n",
+				err, s);
+			    xfree (s);
+			    FreeLibrary (hm);
+			}
 		    } else {
-			s = au (Pa_GetErrorText (err));
-			write_log (L"Portaudio initialization failed: %d (%s)\n",
-			    err, s);
-			xfree (s);
+			write_log (L"Too old PortAudio library\n");
+			flush_log ();
 			FreeLibrary (hm);
 		    }
-		} else {
-		    write_log (L"Too old PortAudio library\n");
-		    flush_log ();
-		    FreeLibrary (hm);
 		}
+	    } __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
+		write_log (L"Portaudio enumeration crashed!\n");
 	    }
-	} __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
-	    write_log (L"Portaudio enumeration crashed!\n");
 	}
 #endif
 	write_log (L"Enumeration end\n");

@@ -143,3 +143,9 @@ struct dsaudiomodes {
     int ch;
     DWORD ksmode;
 };
+
+extern int sounddrivermask;
+#define SOUNDDRIVER_DS 1
+#define SOUNDDRIVER_WASAPI 2
+#define SOUNDDRIVER_OPENAL 4
+#define SOUNDDRIVER_PORTAUDIO 8

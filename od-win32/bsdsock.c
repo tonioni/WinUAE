@@ -2298,6 +2298,7 @@ kludge:
 
 		BSDTRACE((L"OK (%s)\n", h->h_name));
 		bsdsocklib_seterrno(sb, 0);
+		bsdsocklib_setherrno(sb, 0);
 
 	} else {
 		BSDTRACE((L"failed (%d/%d)\n", sb->sb_errno, sb->sb_herrno));

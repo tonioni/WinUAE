@@ -892,72 +892,124 @@ static void exception_debug (int nr)
 
 /* cycle-exact exception handler, 68000 only */
 
+/*
+
+Address/Bus Error:
+
+- 6 idle cycles
+- write PC low word
+- write SR
+- write PC high word
+- write instruction word
+- write fault address low word
+- write status code
+- write fault address high word
+- 2 idle cycles
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+Division by Zero:
+
+- 6 idle cycles
+- write PC low word
+- write SR
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+Traps:
+
+- 2 idle cycles
+- write PC low word
+- write SR
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+TrapV:
+
+- write PC low word
+- write SR
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+CHK:
+
+- 6 idle cycles
+- write PC low word
+- write SR
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+Illegal Instruction:
+
+- 2 idle cycles
+- write PC low word
+- write SR
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+Interrupt cycle diagram:
+
+- 6 idle cycles
+- read exception number byte from (0xfffff1 | (interrupt number << 1))
+- write PC low word
+- write SR
+- 4 idle cycles
+- write PC high word
+- read exception address high word
+- read exception address low word
+- prefetch
+- 2 idle cycles
+- prefetch
+
+*/
+
 static void Exception_ce (int nr, struct regstruct *regs, uaecptr oldpc)
 {
     uae_u32 currpc = m68k_getpc (regs), newpc;
-    int c;
     int sv = regs->s;
+    int start;
+    
+    start = 6;
+    if (nr == 7) // TRAPV
+	start = 0;
+    else if (nr >= 32 && nr < 32 + 16) // TRAP #x
+	start = 2;
+    else if (nr == 4 || nr == 8) // ILLG & PRIVIL VIOL
+	start = 2;
+
+    if (start)
+	do_cycles_ce (start * CYCLE_UNIT / 2);
+
+    if (nr >= 24 && nr < 24 + 8) { // fetch interrupt vector number
+	nr = get_byte_ce (0x00fffff1 | ((nr - 24) << 1));
+    }
 
     exception_debug (nr);
     MakeSR (regs);
 
-    c = 0;
-    switch (nr)
-    {
-	case 2: /* bus */
-	case 3: /* address */
-	c = 6;
-	break;
-	case 4: /* illegal instruction */
-	c = 6;
-	break;
-	case 5: /* divide by zero */
-	c = 10;
-	break;
-	case 6: /* chk */
-	c = 12;
-	break;
-	case 7: /* trapv */
-	c = 6;
-	break;
-	case 8: /* privilege */
-	c = 6;
-	break;
-	case 9: /* trace */
-	c = 6;
-	break;
-	case 25: /* interrupts */
-	case 26:
-	case 27:
-	case 28:
-	case 29:
-	case 30:
-	case 31:
-	c = 12;
-	break;
-	case 32: /* traps */
-	case 33:
-	case 34:
-	case 35:
-	case 36:
-	case 37:
-	case 38:
-	case 39:
-	case 40:
-	case 41:
-	case 42:
-	case 43:
-	case 44:
-	case 45:
-	case 46:
-	case 47:
-	c = 6;
-	break;
-    }
-    /* some delays are interleaved with stack pushes, not bothered yet..
-     */
-    if (c)
-	do_cycles_ce (c * CYCLE_UNIT / 2);
     if (!regs->s) {
 	regs->usp = m68k_areg (regs, 7);
 	m68k_areg (regs, 7) = regs->isp;
@@ -975,16 +1027,17 @@ static void Exception_ce (int nr, struct regstruct *regs, uaecptr oldpc)
 	put_word_ce (m68k_areg (regs, 7) + 4, last_fault_for_exception_3);
 	put_word_ce (m68k_areg (regs, 7) + 0, mode);
 	put_word_ce (m68k_areg (regs, 7) + 2, last_fault_for_exception_3 >> 16);
+	do_cycles_ce (2 * CYCLE_UNIT / 2);
 	write_log (L"Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (4 * nr));
 	goto kludge_me_do;
     }
     m68k_areg (regs, 7) -= 6;
-    put_word_ce (m68k_areg (regs, 7) + 4, currpc);
-    put_word_ce (m68k_areg (regs, 7) + 0, regs->sr);
-    put_word_ce (m68k_areg (regs, 7) + 2, currpc >> 16);
+    put_word_ce (m68k_areg (regs, 7) + 4, currpc); // write low address
+    put_word_ce (m68k_areg (regs, 7) + 0, regs->sr); // write SR
+    put_word_ce (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 kludge_me_do:
-    newpc = get_word_ce (4 * nr) << 16;
-    newpc |= get_word_ce (4 * nr + 2);
+    newpc = get_word_ce (4 * nr) << 16; // read high address
+    newpc |= get_word_ce (4 * nr + 2); // read low address
     if (newpc & 1) {
 	if (nr == 2 || nr == 3)
 	    uae_reset (1); /* there is nothing else we can do.. */
@@ -993,7 +1046,9 @@ kludge_me_do:
 	return;
     }
     m68k_setpc (regs, newpc);
-    fill_prefetch_slow (regs);
+    regs->ir = get_word_ce (m68k_getpc (regs)); // prefetch 1
+    do_cycles_ce (2 * CYCLE_UNIT / 2);
+    regs->irc = get_word_ce (m68k_getpc (regs) + 2); // prefetch 2
     set_special (regs, SPCFLAG_END_COMPILE);
     exception_trace (nr);
 }
@@ -1003,6 +1058,9 @@ static void Exception_normal (int nr, struct regstruct *regs, uaecptr oldpc)
 {
     uae_u32 currpc = m68k_getpc (regs), newpc;
     int sv = regs->s;
+
+    if (nr >= 24 && nr < 24 + 8 && currprefs.cpu_model <= 68010)
+	nr = get_byte (0x00fffff1 | (nr << 1));
 
     exception_debug (nr);
     MakeSR (regs);
@@ -1123,12 +1181,6 @@ kludge_me_do:
 
 void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 {
-#if 0
-    //if (nr < 24)
-    if (nr == 24 + 3)
-	write_log (L"exception %d %08X %08X (%04X %04X)\n",
-	    nr, oldpc, m68k_getpc (regs), intena, intreq);
-#endif
 #ifdef CPUEMU_12
     if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
 	Exception_ce (nr, regs, oldpc);
@@ -1139,24 +1191,11 @@ void REGPARAM2 Exception (int nr, struct regstruct *regs, uaecptr oldpc)
 
 STATIC_INLINE void do_interrupt (int nr, struct regstruct *regs)
 {
-    int vector;
-#if 0
-    if (nr == 2)
-	write_log (L".");
-	//write_log (L"irq %d at %x (%04X) ", nr, m68k_getpc (regs), intena & intreq);
-#endif
     regs->stopped = 0;
     unset_special (regs, SPCFLAG_STOP);
     assert (nr < 8 && nr >= 0);
 
-    if (currprefs.cpu_cycle_exact)
-	vector = get_byte_ce (0x00fffff1 | (nr << 1));
-    else if (currprefs.cpu_model <= 68010)
-	vector = get_byte (0x00fffff1 | (nr << 1));
-    else
-	vector = nr + 24;
-
-    Exception (vector, regs, 0);
+    Exception (nr + 24, regs, 0);
 
     regs->intmask = nr;
     doint ();
@@ -3310,9 +3349,9 @@ int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor)
 
     // Overflow
     if ((dividend >> 16) >= divisor)
-	return (mcycles = 5 - 2) * 2;
+	return (mcycles = 5) * 2;
 
-    mcycles = 38 - 2;
+    mcycles = 38;
     hdivisor = divisor << 16;
 
     for (i = 0; i < 15; i++) {
@@ -3344,7 +3383,7 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
     if (divisor == 0)
 	return 0;
 
-    mcycles = 6 - 2;
+    mcycles = 6;
 
     if (dividend < 0)
 	mcycles++;

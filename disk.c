@@ -2563,6 +2563,30 @@ void DISK_handler (uae_u32 data)
 #endif
 }
 
+#ifdef CPUEMU_12
+extern uae_u8 cycle_line[256];
+
+static void diskdma (uae_u32 pt, uae_u16 w, int write)
+{
+    int i, got;
+
+    got = 0;
+    for (i = 7; i <= 11; i += 2) {
+	if (!cycle_line[i]) {
+	    cycle_line[i] = CYCLE_MISC;
+	    if (debug_dma)
+		record_dma (write ? 0x26 : 0x08, w, pt, i, vpos);
+	    got = 1;
+	    break;
+	}
+//	if (cycle_line[i] != CYCLE_MISC)
+//	    write_log (L"%d!?\n", cycle_line[i]);
+    }
+//    if (!got)
+//	write_log (L"disk dma cycle overflow!?\n");
+}
+#endif
+
 static void disk_doupdate_write (drive * drv, int floppybits)
 {
     int dr;
@@ -2592,6 +2616,9 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 		    drive *drv2 = &floppy[dr];
 		    uae_u16 w = get_word (dskpt);
+#ifdef CPUEMU_12
+		    diskdma (dskpt, w, 1);
+#endif
 		    if (drives[dr]) {
 			drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
 			drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
@@ -2693,10 +2720,6 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
     }
 }
 
-#ifdef CPUEMU_12
-extern uae_u8 cycle_line[256];
-#endif
-
 static void disk_doupdate_read_nothing (int floppybits)
 {
     int j = 0, k = 1, l = 0;
@@ -2706,6 +2729,9 @@ static void disk_doupdate_read_nothing (int floppybits)
 	if (bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
 	    if (dsklength > 0) {
 		put_word (dskpt, word);
+#ifdef CPUEMU_12
+		diskdma (dskpt, word, 0);
+#endif
 		dskpt += 2;
 	    }
 	    dsklength--;
@@ -2769,11 +2795,10 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	if (bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
 	    if (dsklength > 0) {
 		put_word (dskpt, word);
-		dskpt += 2;
 #ifdef CPUEMU_12
-		cycle_line[7] |= CYCLE_MISC;
-		cycle_line[9] |= CYCLE_MISC;
+		diskdma (dskpt, word, 0);
 #endif
+		dskpt += 2;
 	    }
 #if 0
 	    dma_tab[j++] = word;

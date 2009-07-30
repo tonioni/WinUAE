@@ -1113,7 +1113,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	    PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
 	    if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
 		continue;
-	    write_log (L"%d: num: %d type: %02X offset: %I64d size: %I64d, ", i, pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
+	    write_log (L"%d: num: %d type: %02X offset: %I64d size: %I64d, ", i,
+		pi->PartitionNumber, pi->PartitionType, pi->StartingOffset.QuadPart, pi->PartitionLength.QuadPart);
 	    if (pi->RecognizedPartition == 0) {
 		write_log (L"unrecognized\n");
 		continue;
@@ -1128,12 +1129,10 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	    udi->offset = pi->StartingOffset.QuadPart;
 	    udi->size = pi->PartitionLength.QuadPart;
 	    write_log (L"used\n");
-	    if (safetycheck (hDevice, udi->device_path, udi->offset, buffer, dg.BytesPerSector) <= 0) {
-		_stprintf (udi->device_name, L"HD_P#%d_%s", pi->PartitionNumber, orgname);
-		udi++;
-		(*index2)++;
-		safepart = 1;
-	    }
+	    _stprintf (udi->device_name, L"HD_P#%d_%s", pi->PartitionNumber, orgname);
+	    udi++;
+	    (*index2)++;
+	    safepart = 1;
 	    gotpart = 1;
 	}
 	if (!nonzeropart) {
@@ -1146,10 +1145,11 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
     } else {
 	write_log (L"no MBR partition table detected, checking for RDB\n");
     }
-
-    udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector);
-    if (udi->dangerous > 0)
-	goto end;
+    if (udi->offset == 0) {
+	udi->dangerous = safetycheck (hDevice, udi->device_path, 0, buffer, dg.BytesPerSector);
+	if (udi->dangerous > 0)
+	    goto end;
+    }
 amipartfound:
     _stprintf (udi->device_name, L"HD_%s", orgname);
     {

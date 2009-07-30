@@ -1925,13 +1925,13 @@ static int inputdelay;
 
 void inputdevice_hsync (void)
 {
-
+    static int cnt;
     cap_check ();
 
 #ifdef CATWEASEL
     catweasel_hsync ();
 #endif
-    if ((vpos & 31) == 31 && handle_msgpump ()) {
+    if ((++cnt & 63) == 63 && handle_msgpump ()) {
         idev[IDTYPE_MOUSE].read ();
         idev[IDTYPE_JOYSTICK].read ();
         idev[IDTYPE_KEYBOARD].read ();

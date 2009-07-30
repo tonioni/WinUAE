@@ -1,4 +1,26 @@
 
+Beta 3:
+
+Two main compatibility testing demos work perfectly now:
+Final Bobs/Complex and Hulkamania/TSP. (Rampage/TEK still won't work..)
+
+Both require very exact CPU/DMA timing to work. First has "scrambling"
+that uses vertical beam position as a key, main demo has already worked
+if "scrambling" was bypassed, and second writes to BPLxPTs with CPU when
+display DMA is already fetching data.. Yes, sane coders use copper..)
+
+- lots more cycle-exact CPU cycle count updates
+- some more blitter updates (correct startup and copper wake-up delays)
+- non-DMA mode sprites were always reset during vblank (I remember that
+  this was working long long time ago, possibly broke during Superfrog
+  "intro bee" fix or something) Fixes B2 world rotozoomer graphic glitch
+
+- added sound driver use/do not use GUI to sound panel (stored to
+  registry/.ini) Faster startup.
+- exec* command lines should work better. Check the log if problems
+- 0x76/0x30 partition types are always available read/write
+- bsdsocket fix, cvs (SR)
+
 Beta 2:
 
 Background information:
@@ -28,7 +50,7 @@ is known but I am not sure how to implement the fix)
   blitter finished. (not necessarily exactly same thing)
 
 - chipset bitplane/copper/blitter cycle exact mode DMA sequence
-  routines rewritten. Emulation may be much due to missing
+  routines rewritten. Emulation may be slower due to missing
   optimizations. Later.
 - blitter cycle diagrams rechecked with logic analyzer, errors fixed
 

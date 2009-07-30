@@ -51,7 +51,7 @@
 #include "a2091.h"
 #include "ncr_scsi.h"
 
-//#define CUSTOM_DEBUG
+#define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0xb0
 #define SPRITE_DEBUG_MAXY 0xf8
@@ -261,6 +261,7 @@ int diwfirstword_total, diwlastword_total;
 int firstword_bplcon1;
 
 static int last_copper_hpos;
+static int copper_access;
 
 /* Sprite collisions */
 static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match;
@@ -277,6 +278,7 @@ enum copper_states {
     COP_skip1,
     COP_strobe_delay1,
     COP_strobe_delay2,
+    COP_start_delay
 };
 
 struct copper {
@@ -780,7 +782,7 @@ static uae_u32 fetched_aga1[MAX_PLANES];
 
 /* Expansions from bplcon0/bplcon1.  */
 static int toscr_res, toscr_nr_planes, toscr_nr_planes2, fetchwidth;
-static int toscr_delay1, toscr_delay2;
+static int toscr_delay1, toscr_delay2, toscr_delay1x, toscr_delay2x;
 
 /* The number of bits left from the last fetched words.
    This is an optimization - conceptually, we have to make sure the result is
@@ -886,10 +888,10 @@ static void compute_toscr_delay_1 (void)
     delay1 += delayoffset;
     delay2 += delayoffset;
     delaymask = (fetchwidth - 1) >> toscr_res;
-    toscr_delay1 = (delay1 & delaymask) << toscr_res;
-    toscr_delay1 |= shdelay1 >> (RES_MAX - toscr_res);
-    toscr_delay2 = (delay2 & delaymask) << toscr_res;
-    toscr_delay2 |= shdelay2 >> (RES_MAX - toscr_res);
+    toscr_delay1x = (delay1 & delaymask) << toscr_res;
+    toscr_delay1x |= shdelay1 >> (RES_MAX - toscr_res);
+    toscr_delay2x = (delay2 & delaymask) << toscr_res;
+    toscr_delay2x |= shdelay2 >> (RES_MAX - toscr_res);
 }
 
 static void compute_toscr_delay (int hpos)
@@ -904,6 +906,8 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 	thisline_decision.plfleft = hpos;
 	compute_delay_offset ();
 	compute_toscr_delay_1 ();
+	toscr_delay1 = toscr_delay1x;
+	toscr_delay2 = toscr_delay2x;
     }
 }
 
@@ -1195,6 +1199,8 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 	    todisplay[i][0] = fetched_aga0[i];
 	}
 #endif
+    toscr_delay1 = toscr_delay1x;
+    toscr_delay2 = toscr_delay2x;
     update_denise (hpos);
     maybe_first_bpl1dat (hpos);
     compute_toscr_delay (hpos);
@@ -1695,10 +1701,14 @@ static void maybe_start_bpl_dma (int hpos)
 STATIC_INLINE void decide_line (int hpos)
 {
     /* Take care of the vertical DIW.  */
-    if (vpos == plffirstline)
+    if (vpos == plffirstline) {
 	diwstate = DIW_waiting_stop;
-    if (vpos == plflastline)
+	ddf_change = vpos;
+    }
+    if (vpos == plflastline) {
 	diwstate = DIW_waiting_start;
+	ddf_change = vpos;
+    }
 
     if (hpos <= last_decide_line_hpos)
 	return;
@@ -2311,12 +2321,13 @@ STATIC_INLINE int color_changes_differ (struct draw_info *dip, struct draw_info 
 
 /* End of a horizontal scan line. Finish off all decisions that were not
  * made yet. */
-static void finish_decisions (int hpos)
+static void finish_decisions (void)
 {
     struct draw_info *dip;
     struct draw_info *dip_old;
     struct decision *dp;
     int changed;
+    int hpos = maxhpos;
 
     if (nodraw ())
 	return;
@@ -2898,7 +2909,7 @@ static void COPJMP (int num, int vblank)
     cop_state.ignore_next = 0;
     if (!oldstrobe)
 	cop_state.state_prev = cop_state.state;
-    cop_state.state = vblank ? COP_strobe_delay2 : COP_strobe_delay1;
+    cop_state.state = vblank ? COP_start_delay : COP_strobe_delay1;
     cop_state.vpos = vpos;
     cop_state.hpos = current_hpos () & ~1;
     copper_enabled_thisline = 0;
@@ -3481,8 +3492,6 @@ static void BLTCPTL (int hpos, uae_u16 v) { maybe_blit (hpos, 0); bltcpt = (bltc
 static void BLTDPTH (int hpos, uae_u16 v) { maybe_blit (hpos, 0); bltdpt = (bltdpt & 0xffff) | ((uae_u32)v << 16); }
 static void BLTDPTL (int hpos, uae_u16 v) { maybe_blit (hpos, 0); bltdpt = (bltdpt & ~0xffff) | (v & 0xFFFE); }
 
-// copper writing to BLTSIZE = 5 cycle delay before copper starts (6th cycle is first copper cycle)
-// CPU writing to BLTSIZE = 3 cycle delay
 static void BLTSIZE (int hpos, uae_u16 v)
 {
     maybe_blit (hpos, 0);
@@ -3493,7 +3502,7 @@ static void BLTSIZE (int hpos, uae_u16 v)
 	blt_info.vblitsize = 1024;
     if (!blt_info.hblitsize)
 	blt_info.hblitsize = 64;
-    do_blitter (hpos);
+    do_blitter (hpos, copper_access);
 }
 
 static void BLTSIZV (int hpos, uae_u16 v)
@@ -3514,7 +3523,7 @@ static void BLTSIZH (int hpos, uae_u16 v)
 	blt_info.vblitsize = 32768;
     if (!blt_info.hblitsize)
 	blt_info.hblitsize = 0x800;
-    do_blitter (hpos);
+    do_blitter (hpos, copper_access);
 }
 
 STATIC_INLINE void spr_arm (int num, int state)
@@ -3824,8 +3833,13 @@ STATIC_INLINE int copper_cant_read (int hpos)
 
 static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
+    int v;
+
     debug_wputpeek (0xdff000 + (cop_state.saved_i1 & 0x1fe), cop_state.saved_i2);
-    return custom_wput_1 (hpos, addr, value, noget);
+    copper_access = 1;
+    v = custom_wput_1 (hpos, addr, value, noget);
+    copper_access = 0;
+    return v;
 }
 
 static void dump_copper (TCHAR *error, int until_hpos)
@@ -3842,14 +3856,14 @@ static void dump_copper (TCHAR *error, int until_hpos)
 // use only copper to write BPLCON1 etc.. (exception is HulkaMania/TSP..)
 static int customdelay[]= {
     1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0, /* 32 0x00 - 0x3e */
-    0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0, /* 0x40 - 0x5e */
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x40 - 0x5e */
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x60 - 0x7e */
     0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0, /* 0x80 - 0x9e */
     1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde */
     /* BPLxPTH/BPLxPTL */
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
     /* BPLCON0-3,BPLMOD1-2 */
-    0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
     /* SPRxPTH/SPRxPTL */
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 16 */
     /* SPRxPOS/SPRxCTL/SPRxDATA/SPRxDATB */
@@ -3946,6 +3960,14 @@ static void update_copper (int until_hpos)
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    if (debug_dma)
 		record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip + 2), cop_state.ip + 2, old_hpos, vpos);
+	    break;
+	case COP_start_delay:
+	    if (copper_cant_read (old_hpos))
+		continue;
+	    cop_state.state = COP_read1;
+	    alloc_cycle (old_hpos, CYCLE_COPPER);
+	    if (debug_dma)
+		record_dma (0x1fe, 0, 0xffffffff, old_hpos, vpos);
 	    break;
 
 	case COP_read1:
@@ -4156,14 +4178,28 @@ static void compute_spcflag_copper (int hpos)
     set_special (&regs, SPCFLAG_COPPER);
 }
 
+/*
+ Copper writes to BLTSIZE: 2 blitter idle cycles, blitter normal cycle starts
+ BFD=0 wait: blitter interrupt, 4 cycles, copper fetches next word
+*/
 void blitter_done_notify (int hpos)
 {
+    int vp = vpos;
+
     if (cop_state.state != COP_bltwait)
 	return;
-    cop_state.hpos = (hpos + 2) & ~1;
-    cop_state.vpos = vpos;
+
+    hpos += 4;
+    hpos &= ~1;
+    if (hpos >= maxhpos) {
+	hpos -= maxhpos;
+	vp++;
+    }
+    cop_state.hpos = hpos;
+    cop_state.vpos = vp;
     cop_state.state = COP_read1;
-    if (dmaen (DMA_COPPER)) {
+
+    if (dmaen (DMA_COPPER) && vp == vpos) {
 	copper_enabled_thisline = 1;
 	set_special (&regs, SPCFLAG_COPPER);
     }
@@ -4280,8 +4316,6 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	}
 #endif
     }
-    if (!dmaen (DMA_SPRITE))
-	return;
     if (cycle && !s->dmacycle)
 	return; /* Superfrog intro flashing bee fix */
 
@@ -4393,22 +4427,26 @@ static void do_sprites (int hpos)
     if (minspr < SPR0_HPOS)
 	minspr = SPR0_HPOS;
 
-    for (i = minspr; i <= maxspr; i++) {
-	int cycle = -1;
-	int num = (i - SPR0_HPOS) / 4;
-	switch ((i - SPR0_HPOS) & 3)
-	    {
-	    case 0:
-	    cycle = 0;
-	    spr[num].dmacycle = 0;
-	    break;
-	    case 2:
-	    cycle = 1;
-	    break;
+    if (dmaen (DMA_SPRITE)) {
+
+	for (i = minspr; i <= maxspr; i++) {
+	    int cycle = -1;
+	    int num = (i - SPR0_HPOS) / 4;
+	    switch ((i - SPR0_HPOS) & 3)
+		{
+		case 0:
+		cycle = 0;
+		spr[num].dmacycle = 0;
+		break;
+		case 2:
+		cycle = 1;
+		break;
+	    }
+	    if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
+		do_sprites_1 (num, cycle, i);
 	}
-	if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
-	    do_sprites_1 (num, cycle, i);
     }
+
     last_sprite_hpos = hpos;
 #else
     for (i = 0; i < MAX_SPRITES * 2; i++) {
@@ -4846,7 +4884,7 @@ static void hsync_scandoubler (void)
     }
     curr_color_changes[next_color_change].regno = -1;
 
-    finish_decisions (maxhpos);
+    finish_decisions ();
     hsync_record_line_state (next_lineno, nln_normal, thisline_changed);
     hardware_line_completed (next_lineno);
     scandoubled_line = 0;
@@ -4864,7 +4902,7 @@ static void hsync_handler (void)
     if (!nocustom ()) {
 	sync_copper_with_cpu (maxhpos, 0);
 	last_copper_hpos = 0;
-	finish_decisions (hpos);
+	finish_decisions ();
 	if (thisline_decision.plfleft != -1) {
 	    if (currprefs.collision_level > 1)
 		do_sprite_collisions ();
@@ -4976,7 +5014,7 @@ static void hsync_handler (void)
 	    alloc_cycle (hp, i == 0 ? CYCLE_STROBE : CYCLE_REFRESH); /* strobe */
 #ifdef DEBUGGER
 	    if (debug_dma)
-		record_dma (i == 0 ? (vpos + 1 == maxvpos + lof ? 0x3a : 0x3c) : 0x1fe, 0xffff, 0xffffffff, hp, vpos);
+		record_dma (i == 0 ? (vpos + 1 == maxvpos + lof ? 0x38 : 0x3c) : 0x1fe, 0xffff, 0xffffffff, hp, vpos);
 #endif
 	    hp += 2;
 	    if (hp >= maxhpos)
@@ -5562,7 +5600,7 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
     special_mem |= S_READ;
 #endif
     addr &= 0xfff;
-#ifdef CUSTOM_DEBUG
+#if CUSTOM_DEBUG > 2
     write_log (L"%d:%d:wget: %04X=%04X pc=%p\n", current_hpos(), vpos, addr, addr & 0x1fe, m68k_getpc ());
 #endif
     switch (addr & 0x1fe) {
@@ -5611,6 +5649,9 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	    decide_line (hpos);
 	    decide_fetch (hpos);
 	    decide_blitter (hpos);
+#if CUSTOM_DEBUG > 0
+	    write_log (L"%04X read!\n", addr);
+#endif
 	    r = custom_wput_copper (hpos, addr, last_custom_value, 1);
 	    if (currprefs.chipset_mask & CSMASK_AGA) {
 		v = last_custom_value;
@@ -5876,8 +5917,12 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 
      /* writing to read-only register causes read access */
      default:
-	if (!noget)
+	 if (!noget) {
+#if CUSTOM_DEBUG > 0
+	    write_log (L"%04X written!\n", addr);
+#endif
 	    custom_wget_1 (hpos, addr, 1);
+	 }
 	return 1;
     }
     return 0;
@@ -5889,7 +5934,7 @@ static void REGPARAM2 custom_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
-#ifdef CUSTOM_DEBUG
+#if CUSTOM_DEBUG > 2
     write_log (L"%d:%d:wput: %04X %04X pc=%p\n", hpos, vpos, addr & 0x01fe, value & 0xffff, m68k_getpc ());
 #endif
     sync_copper_with_cpu (hpos, 1);

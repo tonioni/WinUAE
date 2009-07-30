@@ -1883,7 +1883,7 @@ static int WIN32_InitLibraries (void)
     LARGE_INTEGER freq;
     SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD pSetCurrentProcessExplicitAppUserModelID; 
 
-    CoInitialize (0);
+    CoInitializeEx (NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     /* Determine our processor speed and capabilities */
     if (!init_mmtimer ()) {
 	pre_gui_message (L"MMTimer initialization failed, exiting..");
@@ -2097,28 +2097,296 @@ static get_aspi (int old)
 	return UAESCSI_SPTI;
 }
 
+
+/***
+*static void parse_cmdline(cmdstart, argv, args, numargs, numchars)
+*
+*Purpose:
+*       Parses the command line and sets up the argv[] array.
+*       On entry, cmdstart should point to the command line,
+*       argv should point to memory for the argv array, args
+*       points to memory to place the text of the arguments.
+*       If these are NULL, then no storing (only counting)
+*       is done.  On exit, *numargs has the number of
+*       arguments (plus one for a final NULL argument),
+*       and *numchars has the number of bytes used in the buffer
+*       pointed to by args.
+*
+*Entry:
+*       _TSCHAR *cmdstart - pointer to command line of the form
+*           <progname><nul><args><nul>
+*       _TSCHAR **argv - where to build argv array; NULL means don't
+*                       build array
+*       _TSCHAR *args - where to place argument text; NULL means don't
+*                       store text
+*
+*Exit:
+*       no return value
+*       int *numargs - returns number of argv entries created
+*       int *numchars - number of characters used in args buffer
+*
+*Exceptions:
+*
+*******************************************************************************/
+
+#define NULCHAR    _T('\0')
+#define SPACECHAR  _T(' ')
+#define TABCHAR    _T('\t')
+#define DQUOTECHAR _T('\"')
+#define SLASHCHAR  _T('\\')
+
+
+static void __cdecl wparse_cmdline (
+    _TSCHAR *cmdstart,
+    _TSCHAR **argv,
+    _TSCHAR *args,
+    int *numargs,
+    int *numchars
+    )
+{
+        _TSCHAR *p;
+        _TUCHAR c;
+        int inquote;                    /* 1 = inside quotes */
+        int copychar;                   /* 1 = copy char to *args */
+        unsigned numslash;              /* num of backslashes seen */
+
+        *numchars = 0;
+        *numargs = 1;                   /* the program name at least */
+
+        /* first scan the program name, copy it, and count the bytes */
+        p = cmdstart;
+        if (argv)
+            *argv++ = args;
+
+#ifdef WILDCARD
+        /* To handle later wild card expansion, we prefix each entry by
+        it's first character before quote handling.  This is done
+        so _[w]cwild() knows whether to expand an entry or not. */
+        if (args)
+            *args++ = *p;
+        ++*numchars;
+
+#endif  /* WILDCARD */
+
+        /* A quoted program name is handled here. The handling is much
+           simpler than for other arguments. Basically, whatever lies
+           between the leading double-quote and next one, or a terminal null
+           character is simply accepted. Fancier handling is not required
+           because the program name must be a legal NTFS/HPFS file name.
+           Note that the double-quote characters are not copied, nor do they
+           contribute to numchars. */
+        inquote = FALSE;
+        do {
+            if (*p == DQUOTECHAR )
+            {
+                inquote = !inquote;
+                c = (_TUCHAR) *p++;
+                continue;
+            }
+            ++*numchars;
+            if (args)
+                *args++ = *p;
+
+            c = (_TUCHAR) *p++;
+#ifdef _MBCS
+            if (_ismbblead(c)) {
+                ++*numchars;
+                if (args)
+                    *args++ = *p;   /* copy 2nd byte too */
+                p++;  /* skip over trail byte */
+            }
+#endif  /* _MBCS */
+
+        } while ( (c != NULCHAR && (inquote || (c !=SPACECHAR && c != TABCHAR))) );
+
+        if ( c == NULCHAR ) {
+            p--;
+        } else {
+            if (args)
+                *(args-1) = NULCHAR;
+        }
+
+        inquote = 0;
+
+        /* loop on each argument */
+        for(;;) {
+
+            if ( *p ) {
+                while (*p == SPACECHAR || *p == TABCHAR)
+                    ++p;
+            }
+
+            if (*p == NULCHAR)
+                break;              /* end of args */
+
+            /* scan an argument */
+            if (argv)
+                *argv++ = args;     /* store ptr to arg */
+            ++*numargs;
+
+#ifdef WILDCARD
+        /* To handle later wild card expansion, we prefix each entry by
+        it's first character before quote handling.  This is done
+        so _[w]cwild() knows whether to expand an entry or not. */
+        if (args)
+            *args++ = *p;
+        ++*numchars;
+
+#endif  /* WILDCARD */
+
+        /* loop through scanning one argument */
+        for (;;) {
+            copychar = 1;
+            /* Rules: 2N backslashes + " ==> N backslashes and begin/end quote
+               2N+1 backslashes + " ==> N backslashes + literal "
+               N backslashes ==> N backslashes */
+            numslash = 0;
+            while (*p == SLASHCHAR) {
+                /* count number of backslashes for use below */
+                ++p;
+                ++numslash;
+            }
+            if (*p == DQUOTECHAR) {
+                /* if 2N backslashes before, start/end quote, otherwise
+                    copy literally */
+                if (numslash % 2 == 0) {
+                    if (inquote && p[1] == DQUOTECHAR) {
+                        p++;    /* Double quote inside quoted string */
+                    } else {    /* skip first quote char and copy second */
+                        copychar = 0;       /* don't copy quote */
+                        inquote = !inquote;
+                    }
+                }
+                numslash /= 2;          /* divide numslash by two */
+            }
+
+            /* copy slashes */
+            while (numslash--) {
+                if (args)
+                    *args++ = SLASHCHAR;
+                ++*numchars;
+            }
+
+            /* if at end of arg, break loop */
+            if (*p == NULCHAR || (!inquote && (*p == SPACECHAR || *p == TABCHAR)))
+                break;
+
+            /* copy character into argument */
+#ifdef _MBCS
+            if (copychar) {
+                if (args) {
+                    if (_ismbblead(*p)) {
+                        *args++ = *p++;
+                        ++*numchars;
+                    }
+                    *args++ = *p;
+                } else {
+                    if (_ismbblead(*p)) {
+                        ++p;
+                        ++*numchars;
+                    }
+                }
+                ++*numchars;
+            }
+            ++p;
+#else  /* _MBCS */
+            if (copychar) {
+                if (args)
+                    *args++ = *p;
+                ++*numchars;
+            }
+            ++p;
+#endif  /* _MBCS */
+            }
+
+            /* null-terminate the argument */
+
+            if (args)
+                *args++ = NULCHAR;          /* terminate string */
+            ++*numchars;
+        }
+
+        /* We put one last argument in -- a null ptr */
+        if (argv)
+            *argv++ = NULL;
+        ++*numargs;
+}
+
+#define MAX_ARGUMENTS 128
+
+static TCHAR **parseargstring (TCHAR *s)
+{
+    TCHAR **p;
+    int numa, numc;
+
+    if (_tcslen (s) == 0)
+	return NULL;
+    wparse_cmdline (s, NULL, NULL, &numa, &numc);
+    numa++;
+    p = xcalloc (numa * sizeof (TCHAR*) + numc * sizeof (TCHAR), 1);
+    wparse_cmdline (s, (wchar_t **)p, (wchar_t *)(((char *)p) + numa * sizeof(wchar_t *)), &numa, &numc);
+    if (numa > MAX_ARGUMENTS)
+	p[MAX_ARGUMENTS] = NULL;
+    return p;
+}
+
+
+static void shellexecute (TCHAR *command)
+{
+    STARTUPINFO si = { 0 };
+    PROCESS_INFORMATION pi = { 0 };
+
+    si.cb = sizeof si;
+    si.wShowWindow = SW_HIDE;
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    if (CreateProcess (NULL,
+	command,
+	NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+	    WaitForSingleObject (pi.hProcess, INFINITE);
+	    CloseHandle (pi.hProcess);
+	    CloseHandle (pi.hThread);
+    } else {
+	write_log (L"CreateProcess('%s') failed, %d\n",
+	    command, GetLastError ());
+    }
+}
+
+#if 0
 static void shellexecute (TCHAR *command)
 {
     SHELLEXECUTEINFO sei = { 0 };
-    TCHAR *f = command;
-    TCHAR *sf, *s, *p;
+    TCHAR **args;
+    int i;
 
-    sf = s = xcalloc (_tcslen (f) + 1 + 1, sizeof (TCHAR));
-    if (!s)
-	return;
-    _tcscpy (s, f);
-    for (;;) {
-	p = _tcschr (s, ';');
-	if (!p)
-	    break;
-	*p = 0;
-    }
-    while (s[0]) {
+    i = 0;
+    args = parseargstring (command);
+    while (args && args[i]) {
+	int j;
+	int len;
+	TCHAR *cmd = args[i++];
+	TCHAR *s = NULL;
+
 	sei.cbSize = sizeof sei;
-	sei.fMask = SEE_MASK_FLAG_NO_UI | SEE_MASK_NOCLOSEPROCESS;
-	sei.lpFile = s;
+	sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_DDEWAIT | SEE_MASK_DOENVSUBST | SEE_MASK_FLAG_NO_UI;
+	sei.lpFile = cmd;
 	sei.nShow = SW_HIDE;
-	write_log (L"ShellExecuteEx('%s')\n", s);
+	j = i;
+	len = 0;
+	while (args[i] && _tcscmp (args[i], L";")) {
+	    len += _tcslen (args[i]) + 1;
+	    i++;
+	}
+	if (i > j) {
+	    s = xcalloc (len + 1, sizeof (TCHAR));
+	    while (j < i) {
+		if (s[0])
+		    _tcscat (s, L" ");
+		_tcscat (s, args[j]);
+		j++;
+	    }
+	    sei.lpParameters = s;
+	}
+	write_log (L"ShellExecuteEx('%s','%s')\n", cmd, s ? s : L"<NULL>");
 	if (ShellExecuteEx (&sei)) {
 	    HANDLE h = sei.hProcess;
 	    if (h) {
@@ -2129,10 +2397,11 @@ static void shellexecute (TCHAR *command)
 	} else {
 	    write_log (L"Failed. ERR=%d\n", GetLastError ());
 	}
-	s += _tcslen (s) + 1;
+	xfree (s);
     }
-    xfree (sf);
+    xfree (args);
 }
+#endif
 
 void target_run (void)
 {
@@ -3092,6 +3361,12 @@ static void WIN32_HandleRegistryStuff (void)
     }
 
     regqueryint (NULL, L"DirectDraw_Secondary", &ddforceram);
+    if (regexists (NULL, L"SoundDriverMask")) {
+	regqueryint (NULL, L"SoundDriverMask", &sounddrivermask);
+    } else {
+	sounddrivermask = 15;
+	regsetint (NULL, L"SoundDriverMask", sounddrivermask);
+    }
     if (regexists (NULL, L"ConfigurationCache"))
 	regqueryint (NULL, L"ConfigurationCache", &configurationcache);
     else
@@ -3555,8 +3830,6 @@ static void makeverstr (TCHAR *s)
     }
 }
 
-#define MAX_ARGUMENTS 128
-
 static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 {
     if (!_tcscmp (arg, L"-convert") && np && np2) {
@@ -3752,239 +4025,6 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
     return 0;
 }
 
-/***
-*static void parse_cmdline(cmdstart, argv, args, numargs, numchars)
-*
-*Purpose:
-*       Parses the command line and sets up the argv[] array.
-*       On entry, cmdstart should point to the command line,
-*       argv should point to memory for the argv array, args
-*       points to memory to place the text of the arguments.
-*       If these are NULL, then no storing (only counting)
-*       is done.  On exit, *numargs has the number of
-*       arguments (plus one for a final NULL argument),
-*       and *numchars has the number of bytes used in the buffer
-*       pointed to by args.
-*
-*Entry:
-*       _TSCHAR *cmdstart - pointer to command line of the form
-*           <progname><nul><args><nul>
-*       _TSCHAR **argv - where to build argv array; NULL means don't
-*                       build array
-*       _TSCHAR *args - where to place argument text; NULL means don't
-*                       store text
-*
-*Exit:
-*       no return value
-*       int *numargs - returns number of argv entries created
-*       int *numchars - number of characters used in args buffer
-*
-*Exceptions:
-*
-*******************************************************************************/
-
-#define NULCHAR    _T('\0')
-#define SPACECHAR  _T(' ')
-#define TABCHAR    _T('\t')
-#define DQUOTECHAR _T('\"')
-#define SLASHCHAR  _T('\\')
-
-
-static void __cdecl wparse_cmdline (
-    _TSCHAR *cmdstart,
-    _TSCHAR **argv,
-    _TSCHAR *args,
-    int *numargs,
-    int *numchars
-    )
-{
-        _TSCHAR *p;
-        _TUCHAR c;
-        int inquote;                    /* 1 = inside quotes */
-        int copychar;                   /* 1 = copy char to *args */
-        unsigned numslash;              /* num of backslashes seen */
-
-        *numchars = 0;
-        *numargs = 1;                   /* the program name at least */
-
-        /* first scan the program name, copy it, and count the bytes */
-        p = cmdstart;
-        if (argv)
-            *argv++ = args;
-
-#ifdef WILDCARD
-        /* To handle later wild card expansion, we prefix each entry by
-        it's first character before quote handling.  This is done
-        so _[w]cwild() knows whether to expand an entry or not. */
-        if (args)
-            *args++ = *p;
-        ++*numchars;
-
-#endif  /* WILDCARD */
-
-        /* A quoted program name is handled here. The handling is much
-           simpler than for other arguments. Basically, whatever lies
-           between the leading double-quote and next one, or a terminal null
-           character is simply accepted. Fancier handling is not required
-           because the program name must be a legal NTFS/HPFS file name.
-           Note that the double-quote characters are not copied, nor do they
-           contribute to numchars. */
-        inquote = FALSE;
-        do {
-            if (*p == DQUOTECHAR )
-            {
-                inquote = !inquote;
-                c = (_TUCHAR) *p++;
-                continue;
-            }
-            ++*numchars;
-            if (args)
-                *args++ = *p;
-
-            c = (_TUCHAR) *p++;
-#ifdef _MBCS
-            if (_ismbblead(c)) {
-                ++*numchars;
-                if (args)
-                    *args++ = *p;   /* copy 2nd byte too */
-                p++;  /* skip over trail byte */
-            }
-#endif  /* _MBCS */
-
-        } while ( (c != NULCHAR && (inquote || (c !=SPACECHAR && c != TABCHAR))) );
-
-        if ( c == NULCHAR ) {
-            p--;
-        } else {
-            if (args)
-                *(args-1) = NULCHAR;
-        }
-
-        inquote = 0;
-
-        /* loop on each argument */
-        for(;;) {
-
-            if ( *p ) {
-                while (*p == SPACECHAR || *p == TABCHAR)
-                    ++p;
-            }
-
-            if (*p == NULCHAR)
-                break;              /* end of args */
-
-            /* scan an argument */
-            if (argv)
-                *argv++ = args;     /* store ptr to arg */
-            ++*numargs;
-
-#ifdef WILDCARD
-        /* To handle later wild card expansion, we prefix each entry by
-        it's first character before quote handling.  This is done
-        so _[w]cwild() knows whether to expand an entry or not. */
-        if (args)
-            *args++ = *p;
-        ++*numchars;
-
-#endif  /* WILDCARD */
-
-        /* loop through scanning one argument */
-        for (;;) {
-            copychar = 1;
-            /* Rules: 2N backslashes + " ==> N backslashes and begin/end quote
-               2N+1 backslashes + " ==> N backslashes + literal "
-               N backslashes ==> N backslashes */
-            numslash = 0;
-            while (*p == SLASHCHAR) {
-                /* count number of backslashes for use below */
-                ++p;
-                ++numslash;
-            }
-            if (*p == DQUOTECHAR) {
-                /* if 2N backslashes before, start/end quote, otherwise
-                    copy literally */
-                if (numslash % 2 == 0) {
-                    if (inquote && p[1] == DQUOTECHAR) {
-                        p++;    /* Double quote inside quoted string */
-                    } else {    /* skip first quote char and copy second */
-                        copychar = 0;       /* don't copy quote */
-                        inquote = !inquote;
-                    }
-                }
-                numslash /= 2;          /* divide numslash by two */
-            }
-
-            /* copy slashes */
-            while (numslash--) {
-                if (args)
-                    *args++ = SLASHCHAR;
-                ++*numchars;
-            }
-
-            /* if at end of arg, break loop */
-            if (*p == NULCHAR || (!inquote && (*p == SPACECHAR || *p == TABCHAR)))
-                break;
-
-            /* copy character into argument */
-#ifdef _MBCS
-            if (copychar) {
-                if (args) {
-                    if (_ismbblead(*p)) {
-                        *args++ = *p++;
-                        ++*numchars;
-                    }
-                    *args++ = *p;
-                } else {
-                    if (_ismbblead(*p)) {
-                        ++p;
-                        ++*numchars;
-                    }
-                }
-                ++*numchars;
-            }
-            ++p;
-#else  /* _MBCS */
-            if (copychar) {
-                if (args)
-                    *args++ = *p;
-                ++*numchars;
-            }
-            ++p;
-#endif  /* _MBCS */
-            }
-
-            /* null-terminate the argument */
-
-            if (args)
-                *args++ = NULCHAR;          /* terminate string */
-            ++*numchars;
-        }
-
-        /* We put one last argument in -- a null ptr */
-        if (argv)
-            *argv++ = NULL;
-        ++*numargs;
-}
-
-
-
-
-static TCHAR **parseargstring (TCHAR *s)
-{
-    TCHAR **p;
-    int numa, numc;
-
-    if (_tcslen (s) == 0)
-	return NULL;
-    wparse_cmdline (s, NULL, NULL, &numa, &numc);
-    numa++;
-    p = xcalloc (numa * sizeof (TCHAR*) + numc * sizeof (TCHAR), 1);
-    wparse_cmdline (s, (wchar_t **)p, (wchar_t *)(((char *)p) + numa * sizeof(wchar_t *)), &numa, &numc);
-    if (numa > MAX_ARGUMENTS)
-	p[MAX_ARGUMENTS] = NULL;
-    return p;
-}
-
 static TCHAR **parseargstrings (TCHAR *s, TCHAR **xargv)
 {
     int cnt, i, xargc;
@@ -4164,6 +4204,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	DEVMODE devmode;
 	DWORD i;
 
+	WIN32_HandleRegistryStuff ();
 	DirectDraw_Release ();
 	write_log (L"Enumerating display devices.. \n");
 	enumeratedisplays (multi_display);
@@ -4190,7 +4231,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	    else
 		default_freq = 60;
 	}
-	WIN32_HandleRegistryStuff ();
 	WIN32_InitLang ();
 	WIN32_InitHtmlHelp ();
 	DirectDraw_Release ();

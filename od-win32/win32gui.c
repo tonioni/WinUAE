@@ -7073,6 +7073,7 @@ static void update_soundgui (HWND hDlg)
 }
 
 static int soundfreqs[] = { 11025, 15000, 22050, 32000, 44100, 48000, 0 };
+static int sounddrivers[] = { IDC_SOUND_DS, IDC_SOUND_WASAPI, IDC_SOUND_OPENAL, IDC_SOUND_PORTAUDIO, 0 };
 
 static void values_to_sounddlg (HWND hDlg)
 {
@@ -7249,7 +7250,7 @@ static void values_from_sounddlg (HWND hDlg)
 {
     TCHAR txt[10];
     LRESULT idx;
-    int soundcard;
+    int soundcard, i;
 
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDFREQ, CB_GETCURSEL, 0, 0);
     if (idx >= 0) {
@@ -7320,6 +7321,15 @@ static void values_from_sounddlg (HWND hDlg)
     workprefs.sound_stereo_swap_paula = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 1) ? 1 : 0;
     workprefs.sound_stereo_swap_ahi = (SendDlgItemMessage (hDlg, IDC_SOUNDSWAP, CB_GETCURSEL, 0, 0) & 2) ? 1 : 0;
 
+    for (i = 0; sounddrivers[i]; i++) {
+	int old = sounddrivermask;
+	sounddrivermask &= ~(1 << i);
+	if (IsDlgButtonChecked (hDlg, sounddrivers[i]))
+	    sounddrivermask |= 1 << i;
+	if (old != sounddrivermask)
+	    regsetint (NULL, L"SoundDriverMask", sounddrivermask);
+    }
+
     idx = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVE, CB_GETCURSEL, 0, 0);
     if (idx != CB_ERR && idx >= 0) {
 	LRESULT res = SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_GETCURSEL, 0, 0);
@@ -7340,13 +7350,11 @@ static void values_from_sounddlg (HWND hDlg)
     }
 }
 
-extern int sound_calibrate (HWND, struct uae_prefs*);
-
 static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static int recursive = 0;
     int numdevs;
-    int card;
+    int card, i;
 
     switch (msg) {
     case WM_INITDIALOG:
@@ -7364,6 +7372,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDADJUST, TBM_SETRANGE, TRUE, MAKELONG (-100, +30));
 	SendDlgItemMessage (hDlg, IDC_SOUNDADJUST, TBM_SETPAGESIZE, 0, 1);
+
+	for (i = 0; i < sounddrivers[i]; i++) {
+	    CheckDlgButton (hDlg, sounddrivers[i], (sounddrivermask & (1 << i)) ? TRUE : FALSE);
+	}
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_RESETCONTENT, 0, 0L);
 	numdevs = enumerate_sound_devices ();
