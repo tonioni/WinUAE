@@ -63,7 +63,7 @@
 
 #define SPRBORDER 0
 
-STATIC_INLINE int nocustom(void)
+STATIC_INLINE int nocustom (void)
 {
     if (picasso_on && currprefs.picasso96_nocustom)
 	return 1;
@@ -238,6 +238,7 @@ static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
 static int ddf_change, badmode;
 static int fmode;
+static int bplcon1_hpos;
 
 /* The display and data fetch windows */
 
@@ -295,6 +296,7 @@ struct copper {
     int strobe; /* COPJMP1 / COPJMP2 accessed */
     int last_write, last_write_hpos;
     int moveaddr, movedata, movedelay;
+    int movedata100, movedelay100;
 };
 
 static struct copper cop_state;
@@ -782,7 +784,7 @@ static uae_u32 fetched_aga1[MAX_PLANES];
 
 /* Expansions from bplcon0/bplcon1.  */
 static int toscr_res, toscr_nr_planes, toscr_nr_planes2, fetchwidth;
-static int toscr_delay1, toscr_delay2, toscr_delay1x, toscr_delay2x;
+static int toscr_delay1, toscr_delay2;
 
 /* The number of bits left from the last fetched words.
    This is an optimization - conceptually, we have to make sure the result is
@@ -888,10 +890,10 @@ static void compute_toscr_delay_1 (void)
     delay1 += delayoffset;
     delay2 += delayoffset;
     delaymask = (fetchwidth - 1) >> toscr_res;
-    toscr_delay1x = (delay1 & delaymask) << toscr_res;
-    toscr_delay1x |= shdelay1 >> (RES_MAX - toscr_res);
-    toscr_delay2x = (delay2 & delaymask) << toscr_res;
-    toscr_delay2x |= shdelay2 >> (RES_MAX - toscr_res);
+    toscr_delay1 = (delay1 & delaymask) << toscr_res;
+    toscr_delay1 |= shdelay1 >> (RES_MAX - toscr_res);
+    toscr_delay2 = (delay2 & delaymask) << toscr_res;
+    toscr_delay2 |= shdelay2 >> (RES_MAX - toscr_res);
 }
 
 static void compute_toscr_delay (int hpos)
@@ -905,9 +907,6 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
     if (thisline_decision.plfleft == -1) {
 	thisline_decision.plfleft = hpos;
 	compute_delay_offset ();
-	compute_toscr_delay_1 ();
-	toscr_delay1 = toscr_delay1x;
-	toscr_delay2 = toscr_delay2x;
     }
 }
 
@@ -1179,14 +1178,17 @@ STATIC_INLINE void fetch_start (int hpos)
     fetch_state = fetch_started;
 }
 
+
 /* Called when all planes have been fetched, i.e. when a new block
    of data is available to be displayed.  The data in fetched[] is
    moved into todisplay[].  */
 STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 {
     int i;
+    int oleft = thisline_decision.plfleft;
 
     flush_display (fm);
+
     if (fm == 0)
 	for (i = 0; i < MAX_PLANES; i++) {
 	    todisplay[i][0] |= fetched[i];
@@ -1199,11 +1201,15 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 	    todisplay[i][0] = fetched_aga0[i];
 	}
 #endif
-    toscr_delay1 = toscr_delay1x;
-    toscr_delay2 = toscr_delay2x;
+
     update_denise (hpos);
     maybe_first_bpl1dat (hpos);
-    compute_toscr_delay (hpos);
+
+    // writing to BPLCON1 1 cycle after BPL1DAT access will
+    // not (except first BPL1DAT write) affect the display
+    // until next display block
+    if (bplcon1_hpos != hpos || oleft < 0)
+	compute_toscr_delay (hpos);
 }
 
 #ifdef SPEEDUP
@@ -1728,8 +1734,9 @@ STATIC_INLINE void decide_line (int hpos)
 		ok = 1;
 	    /* hack warning.. Writing to DDFSTRT when DMA should start must be ignored
 	     * (correct fix would be emulate this delay for every custom register, but why bother..) */
-	    if (hpos - 2 == ddfstrt_old_hpos && ddfstrt_old_vpos == vpos)
-		ok = 0;
+	    if (ddfstrt_old_vpos == vpos)
+		if (hpos - 2 == ddfstrt_old_hpos)
+		    ok = 0;
 	}
 	if (ok && dmaen (DMA_BITPLANE)) {
 	    start_bpl_dma (hpos, plfstrt);
@@ -2433,6 +2440,7 @@ static void reset_decisions (void)
 
     last_sprite_point = 0;
     fetch_state = fetch_not_started;
+    bplcon1_hpos = -1;
 
     if (plf_state > plf_active)
         plf_state = plf_idle;
@@ -2905,6 +2913,11 @@ static void COPJMP (int num, int vblank)
 {
     int oldstrobe = cop_state.strobe;
 
+#if CUSTOM_DEBUG > 0
+    if (dmaen (DMA_COPPER) && (cop_state.saved_i1 != 0xffff || cop_state.saved_i2 != 0xfffe))
+	write_log (L"vblank without copper ending %08x (%08x %08x)\n", cop_state.ip, cop1lc, cop2lc);
+#endif
+
     unset_special (&regs, SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
     if (!oldstrobe)
@@ -3215,7 +3228,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 #endif
     if (bplcon0 == v)
 	return;
-
+    
     if ((bplcon0 & 2) && !(v & 2)) {
 	vpos_previous = vpos;
 	hpos_previous = hpos;
@@ -3238,11 +3251,16 @@ static void BPLCON0 (int hpos, uae_u16 v)
 
     expand_fmodes ();
 
-    record_register_change (hpos, 0x100, v | 0x80);
+    record_register_change (hpos, 0x100, v);
 
     calcdiw ();
     estimate_last_fetch_cycle (hpos);
 
+}
+
+static void BPLCON0_f (uae_u32 d)
+{
+    BPLCON0 (d >> 16, d & 0xffff);
 }
 
 STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
@@ -3254,6 +3272,7 @@ STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
     ddf_change = vpos;
     decide_line (hpos);
     decide_fetch (hpos);
+    bplcon1_hpos = hpos;
     bplcon1 = v;
 }
 
@@ -3373,7 +3392,7 @@ static void DDFSTRT (int hpos, uae_u16 v)
     v &= 0xfe;
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	v &= 0xfc;
-    if (ddfstrt == v)
+    if (ddfstrt == v && hpos + 2 != ddfstrt)
 	return;
     ddf_change = vpos;
     decide_line (hpos);
@@ -3394,7 +3413,7 @@ static void DDFSTOP (int hpos, uae_u16 v)
     v &= 0xfe;
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	v &= 0xfc;
-    if (ddfstop == v)
+    if (ddfstop == v && hpos + 2 != ddfstop)
 	return;
     ddf_change = vpos;
     decide_line (hpos);
@@ -3826,7 +3845,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 
 STATIC_INLINE int copper_cant_read (int hpos)
 {
-    if (hpos + 1 >= maxhpos)
+    if (hpos + 1 >= maxhpos) // first refresh slot
 	return 1;
     return is_bitplane_dma_inline (hpos);
 }
@@ -3835,7 +3854,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
     int v;
 
-    debug_wputpeek (0xdff000 + (cop_state.saved_i1 & 0x1fe), cop_state.saved_i2);
+    debug_wputpeek (0xdff000 + addr, value);
     copper_access = 1;
     v = custom_wput_1 (hpos, addr, value, noget);
     copper_access = 0;
@@ -3854,6 +3873,7 @@ static void dump_copper (TCHAR *error, int until_hpos)
 
 // "emulate" chip internal delays, not the right place but fast and 99.9% programs
 // use only copper to write BPLCON1 etc.. (exception is HulkaMania/TSP..)
+// this table should be filled with zeros and done somewhere else..
 static int customdelay[]= {
     1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0, /* 32 0x00 - 0x3e */
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x40 - 0x5e */
@@ -3910,15 +3930,24 @@ static void update_copper (int until_hpos)
 
 	if (cop_state.movedelay > 0) {
 	    cop_state.movedelay--;
-	    if (cop_state.movedelay == 1 && cop_state.moveaddr == 0x100) {
-		// Denise reacts to BPLCON0 change a bit earlier than Agnus
-		BPLCON0_Denise (old_hpos, cop_state.movedata);
-	    }
 	    if (cop_state.movedelay == 0) {
-	        custom_wput_copper (old_hpos, cop_state.moveaddr, cop_state.movedata, 0);
+	        custom_wput_copper (c_hpos, cop_state.moveaddr, cop_state.movedata, 0);
 	    }
 	}
-
+#if 1
+	if (cop_state.movedelay100 > 0) {
+	    cop_state.movedelay100--;
+	    if (cop_state.movedelay100 == 1) {
+		// Denise reacts to BPLCON0 change a bit earlier than Agnus
+		BPLCON0_Denise (c_hpos, cop_state.movedata100);
+	    }
+	    if (cop_state.movedelay100 == 0) {
+		decide_line (c_hpos);
+		decide_fetch (c_hpos);
+	        custom_wput_copper (c_hpos, 0x100, cop_state.movedata100, 0);
+	    }
+	}
+#endif
 	c_hpos += 2;
 
 	if (cop_state.strobe) {
@@ -3952,8 +3981,8 @@ static void update_copper (int until_hpos)
 	    break;
 	case COP_strobe_delay2:
 	    // second cycle after COPJMP is like second read cycle except
-	    // there is 0x1FE in logic analyzer as a target register
-	    // (next word is still read normally and tossed away)
+	    // there is 0x1FE as a target register
+	    // (following word is still read normally and tossed away)
 	    if (copper_cant_read (old_hpos))
 		continue;
 	    cop_state.state = COP_read1;
@@ -4005,11 +4034,11 @@ static void update_copper (int until_hpos)
 #endif
 	    } else { // MOVE
 		unsigned int reg = cop_state.i1 & 0x1FE;
+		uae_u16 data = cop_state.i2;
 		cop_state.state = COP_read1;
-		cop_state.movedata = cop_state.i2;
 #ifdef DEBUGGER
 		if (debug_dma)
-		    record_dma (reg, cop_state.i2, cop_state.ip - 2, old_hpos, vpos);
+		    record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos);
 #endif
 		test_copper_dangerous (reg);
 		if (! copper_enabled_thisline)
@@ -4019,8 +4048,6 @@ static void update_copper (int until_hpos)
 		    cop_state.ignore_next = 0;
 		}
 
-		cop_state.moveaddr = reg;
-		cop_state.movedelay = 0;
 		cop_state.last_write = reg;
 		cop_state.last_write_hpos = old_hpos;
 		if (reg == 0x88) {
@@ -4030,14 +4057,21 @@ static void update_copper (int until_hpos)
 		    cop_state.ip = cop2lc;
 		    cop_state.state = COP_strobe_delay1;
 		} else {
-		    if (cop_state.moveaddr == 0x100) {
+		    // FIX: all copper writes happen 1 cycle later than CPU writes
+		    if (reg == 0x100) {
 			// special case BPLCON0 BPL DMA sequence delay
-			cop_state.movedelay = 2;
-		    } else if (customdelay[cop_state.moveaddr / 2]) {
+			// dma sequence does not change until 1+4 cycles after the write
+			cop_state.movedelay100 = 2;
+			cop_state.movedata100 = data;
+			if (thisline_decision.plfleft == -1)
+			    BPLCON0_Denise (old_hpos, data);
+		    } else if (customdelay[reg / 2]) {
+			cop_state.moveaddr = reg;
+			cop_state.movedata = data;
 			cop_state.movedelay = customdelay[cop_state.moveaddr / 2];
 		    } else {
 			int hpos2 = old_hpos;
-			custom_wput_copper (hpos2, reg, cop_state.movedata, 0);
+			custom_wput_copper (hpos2, reg, data, 0);
 			hpos2++;
 			if (!nocustom () && reg >= 0x140 && reg < 0x180 && hpos2 >= SPR0_HPOS && hpos2 < SPR0_HPOS + 4 * MAX_SPRITES) {
 			    do_sprites (hpos2);
@@ -4179,8 +4213,9 @@ static void compute_spcflag_copper (int hpos)
 }
 
 /*
- Copper writes to BLTSIZE: 2 blitter idle cycles, blitter normal cycle starts
+ Copper writes to BLTSIZE: 3 blitter idle cycles, blitter normal cycle starts
  BFD=0 wait: blitter interrupt, 4 cycles, copper fetches next word
+ (CPU write to BLTSIZE only have 2 idle cycles at start)
 */
 void blitter_done_notify (int hpos)
 {
@@ -4280,12 +4315,13 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
     struct sprite *s = &spr[num];
     int dma, posctl = 0;
     uae_u16 data;
+    int isdma = dmaen (DMA_SPRITE);
 
-    if (vpos == sprite_vblank_endline)
+    if (isdma && vpos == sprite_vblank_endline)
 	spr_arm (num, 0);
 
 #ifdef AGA
-    if (s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
+    if (isdma && s->dblscan && (fmode & 0x8000) && (vpos & 1) != (s->vstart & 1) && s->dmastate) {
 	spr_arm (num, 1);
 	return;
     }
@@ -4316,6 +4352,9 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	}
 #endif
     }
+
+    if (!isdma)
+	return;
     if (cycle && !s->dmacycle)
 	return; /* Superfrog intro flashing bee fix */
 
@@ -4427,24 +4466,21 @@ static void do_sprites (int hpos)
     if (minspr < SPR0_HPOS)
 	minspr = SPR0_HPOS;
 
-    if (dmaen (DMA_SPRITE)) {
-
-	for (i = minspr; i <= maxspr; i++) {
-	    int cycle = -1;
-	    int num = (i - SPR0_HPOS) / 4;
-	    switch ((i - SPR0_HPOS) & 3)
-		{
-		case 0:
-		cycle = 0;
-		spr[num].dmacycle = 0;
-		break;
-		case 2:
-		cycle = 1;
-		break;
-	    }
-	    if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
-		do_sprites_1 (num, cycle, i);
+    for (i = minspr; i <= maxspr; i++) {
+        int cycle = -1;
+        int num = (i - SPR0_HPOS) / 4;
+        switch ((i - SPR0_HPOS) & 3)
+	{
+	    case 0:
+	    cycle = 0;
+	    spr[num].dmacycle = 0;
+	    break;
+	    case 2:
+	    cycle = 1;
+	    break;
 	}
+	if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
+	    do_sprites_1 (num, cycle, i);
     }
 
     last_sprite_hpos = hpos;
@@ -5205,7 +5241,14 @@ static void MISC_handler (void)
 
 STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
 {
-    evt et = t * CYCLE_UNIT + get_cycles ();
+    evt et;
+
+    if (((int)t) <= 0) {
+	func (data);
+	return;
+    }
+
+    et = t * CYCLE_UNIT + get_cycles ();
 
     if (no < 0) {
 	for (no = ev2_misc; no < ev2_max; no++) {

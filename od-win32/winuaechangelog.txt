@@ -1,4 +1,40 @@
 
+Beta 4:
+
+- 0x76/0x30 partition types are marked as "PART" in GUI and read/write
+  should really really work..
+- exec* command line didn't support command separation (;) characters,
+  batch files supported ("cmd.exe /c <batch file>")
+- fixed very old left border graphics error in Absolute Inebriation
+- b3 sprite fix broke other programs, fixed again
+- Brian the Lion "dialog screen" problem is not anything AGA-specific,
+  BPLCON0 write needs 5 cycle delay, not 4 when written by copper.
+  Not fixed yet, waiting odd number of cycles in copper emulation isn't
+  currently possible
+
+and few buggy demos fixed, doing weird things with the blitter and work
+only accidentally.. For the first time ever Rampage/TEK works!
+
+- Absolute Inebriation/VD "red linevector cube inside white object" part
+  now works. Bug in blitter wait, rewrites blitter registers when old blit
+  is still active, normally this would mess up the blit but it worked
+  because write to BLTCON1 freezes the blitter if it causes switch from
+  "extra" cycle fillmode to normal mode.
+- Rampage/TEK blitter feature workaround added, another buggy demo, it
+  changes blitter channel mode from 0x01 to 0x0D while blit is already
+  active, result is blitter getting confused and changing to weird cycle
+  diagram without D-channel. No writes, no memory corruption, no crash...
+- above cases (blitter channel mode changing while active) also writes
+  message to log. I am not going to test all combinations :)
+
+Random freezing not yet fixed.
+
+I guess version will be renamed to 1.7 or 2.0 because of huge A500
+compatibility increase..
+
+btw, I only have single non fully working A500 test statefile remaining,
+I need more non-working A500 game/demo reports :)
+
 Beta 3:
 
 Two main compatibility testing demos work perfectly now:

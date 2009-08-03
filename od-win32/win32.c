@@ -2335,73 +2335,65 @@ static void shellexecute (TCHAR *command)
 {
     STARTUPINFO si = { 0 };
     PROCESS_INFORMATION pi = { 0 };
+    TCHAR **arg;
+    int i, j, k, stop;
 
-    si.cb = sizeof si;
-    si.wShowWindow = SW_HIDE;
-    si.dwFlags = STARTF_USESHOWWINDOW;
-    if (CreateProcess (NULL,
-	command,
-	NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+    if (_tcslen (command) == 0)
+	return;
+    i = j = 0;
+    stop = 0;
+    arg = parseargstring (command);
+    while (!stop) {
+	TCHAR *cmd, *exec;
+	int len = 1;
+	j = i;
+	while (arg[i] && _tcscmp (arg[i], L";")) {
+	    len += _tcslen (arg[i]) + 3;
+	    i++;
+	}
+	exec = NULL;
+	cmd = xcalloc (len, sizeof (TCHAR));
+	for (k = j; k < i; k++) {
+	    int quote = 0;
+	    if (_tcslen (cmd) > 0)
+		_tcscat (cmd, L" ");
+	    if (_tcschr (arg[k], ' '))
+		quote = 1;
+	    if (quote)
+		_tcscat (cmd, L"\"");
+	    _tcscat (cmd, arg[k]);
+	    if (quote)
+		_tcscat (cmd, L"\"");
+	    if (!exec && !_tcsicmp (cmd, L"cmd.exe")) {
+		int size;
+		size = GetEnvironmentVariable (L"ComSpec", NULL, 0);
+		if (size > 0) {
+		    exec = xcalloc (size + 1, sizeof (TCHAR));
+		    GetEnvironmentVariable (L"ComSpec", exec, size);
+		}
+		cmd[0] = 0;
+	    }
+	}
+	if (arg[i++] == 0)
+	    stop = 1;
+	si.cb = sizeof si;
+	//si.wShowWindow = SW_HIDE;
+	//si.dwFlags = STARTF_USESHOWWINDOW;
+	if (CreateProcess (exec,
+	    cmd,
+	    NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
 	    WaitForSingleObject (pi.hProcess, INFINITE);
 	    CloseHandle (pi.hProcess);
 	    CloseHandle (pi.hThread);
-    } else {
-	write_log (L"CreateProcess('%s') failed, %d\n",
-	    command, GetLastError ());
-    }
-}
-
-#if 0
-static void shellexecute (TCHAR *command)
-{
-    SHELLEXECUTEINFO sei = { 0 };
-    TCHAR **args;
-    int i;
-
-    i = 0;
-    args = parseargstring (command);
-    while (args && args[i]) {
-	int j;
-	int len;
-	TCHAR *cmd = args[i++];
-	TCHAR *s = NULL;
-
-	sei.cbSize = sizeof sei;
-	sei.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_DDEWAIT | SEE_MASK_DOENVSUBST | SEE_MASK_FLAG_NO_UI;
-	sei.lpFile = cmd;
-	sei.nShow = SW_HIDE;
-	j = i;
-	len = 0;
-	while (args[i] && _tcscmp (args[i], L";")) {
-	    len += _tcslen (args[i]) + 1;
-	    i++;
-	}
-	if (i > j) {
-	    s = xcalloc (len + 1, sizeof (TCHAR));
-	    while (j < i) {
-		if (s[0])
-		    _tcscat (s, L" ");
-		_tcscat (s, args[j]);
-		j++;
-	    }
-	    sei.lpParameters = s;
-	}
-	write_log (L"ShellExecuteEx('%s','%s')\n", cmd, s ? s : L"<NULL>");
-	if (ShellExecuteEx (&sei)) {
-	    HANDLE h = sei.hProcess;
-	    if (h) {
-		WaitForSingleObject (h, INFINITE);
-		CloseHandle (h);
-	    }
-	    write_log (L"Succeeded\n");
 	} else {
-	    write_log (L"Failed. ERR=%d\n", GetLastError ());
+	    write_log (L"CreateProcess('%s' '%s') failed, %d\n",
+	        exec, cmd, GetLastError ());
 	}
-	xfree (s);
+	xfree (exec);
+	xfree (cmd);
     }
-    xfree (args);
+    xfree (arg);
 }
-#endif
 
 void target_run (void)
 {

@@ -203,6 +203,8 @@ static int safetycheck (HANDLE *h, const TCHAR *name, uae_u64 offset, uae_u8 *bu
 	    write_log (L"hd ignored, read error %d!\n", GetLastError ());
 	    return 2;
 	}
+	if (offset > 0)
+	    return -5;
 	if (j == 0 && buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) {
 	    // ADIDE "CPRM" hidden block..
 	    if (do_rdbdump)
@@ -1130,6 +1132,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	    udi->size = pi->PartitionLength.QuadPart;
 	    write_log (L"used\n");
 	    _stprintf (udi->device_name, L"HD_P#%d_%s", pi->PartitionNumber, orgname);
+	    udi->dangerous = -5;
 	    udi++;
 	    (*index2)++;
 	    safepart = 1;
@@ -1380,6 +1383,9 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 	*dangerousdrive = 0;
     switch (uae_drives[index].dangerous)
     {
+	case -5:
+	dang = L"[PART]";
+	break;
 	case -6:
 	dang = L"[MBR]";
 	break;
