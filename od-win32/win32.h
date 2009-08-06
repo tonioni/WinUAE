@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"Beta 4"
-#define WINUAEDATE MAKEBD(2009, 8, 3)
+#define WINUAEBETA L"5"
+#define WINUAEDATE MAKEBD(2009, 8, 6)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 

@@ -752,8 +752,10 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
     if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
 	return NULL;
     dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
-    if (dr->reg != 0xffff)
+    if (dr->reg != 0xffff) {
 	write_log (L"DMA conflict: v=%d h=%d OREG=%04X NREG=%04X\n", vpos, hpos, dr->reg, reg);
+	return dr;
+    }
     dr->reg = reg;
     dr->dat = dat;
     dr->addr = addr;
@@ -807,6 +809,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 		l2[cl2++] = 'B';
 	    if (dr->evt & DMA_EVENT_BLITIRQ)
 		l2[cl2++] = 'b';
+	    if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
+		l2[cl2++] = 'p';
 	    if (i < cols - 1 && h < maxh - 1) {
 		l1[cl + col - 1] = 32;
 		l2[cl + col - 1] = 32;

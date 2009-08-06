@@ -679,7 +679,7 @@ static void picasso_trigger_vblank (void)
     put_long (uaegfx_base + CARD_IRQPTR, boardinfo + PSSO_BoardInfo_SoftInterrupt);
     put_byte (uaegfx_base + CARD_IRQFLAG, 1);
     if (currprefs.win32_rtgvblankrate != 0)
-	INTREQ_f (0x8000 | 0x0008);
+	INTREQ (0x8000 | 0x0008);
 }
 
 static int isvsync (void)

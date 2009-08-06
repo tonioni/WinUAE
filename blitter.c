@@ -310,6 +310,7 @@ static void blitter_done (int hpos)
 STATIC_INLINE chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 {
 #ifndef BLITTER_DEBUG_NO_D
+    last_custom_value = w;
     chipmem_agnus_wput (addr, w);
 #endif
 }
@@ -520,6 +521,7 @@ STATIC_INLINE void blitter_read (void)
 	if (!dmaen (DMA_BLITTER))
 	    return;
 	blt_info.bltcdat = chipmem_bank.wget (bltcpt);
+	last_custom_value = blt_info.bltcdat;
     }
     bltstate = BLT_work;
 }
@@ -532,6 +534,7 @@ STATIC_INLINE void blitter_write (void)
     if (bltcon0 & 0x200) {
 	if (!dmaen (DMA_BLITTER))
 	    return;
+	last_custom_value = blt_info.bltddat;
 	chipmem_bank.wput (bltdpt, blt_info.bltddat);
     }
     bltstate = BLT_next;
@@ -816,6 +819,7 @@ STATIC_INLINE int blitter_doddma (int hpos)
     if (wd) {
 	alloc_cycle_ext (hpos, CYCLE_BLITTER);
 	record_dma_blit (0x00, d, bltdpt, hpos);
+	last_custom_value = d;
 	chipmem_agnus_wput2 (bltdpt, d);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
@@ -842,12 +846,14 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
     {
 	case 1:
 	blt_info.bltadat = dat = chipmem_agnus_wget (bltapt);
+	last_custom_value = blt_info.bltadat;
 	addr = bltapt;
 	bltapt += blit_add;
 	reg = 0x74;
 	break;
 	case 2:
 	blt_info.bltbdat = dat = chipmem_agnus_wget (bltbpt);
+	last_custom_value = blt_info.bltbdat;
 	addr = bltbpt;
 	bltbpt += blit_add;
 	if (blitdesc)
@@ -859,6 +865,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 	break;
 	case 3:
 	blt_info.bltcdat = dat = chipmem_agnus_wget (bltcpt);
+	last_custom_value = blt_info.bltcdat;
 	addr = bltcpt;
 	bltcpt += blit_add;
 	reg = 0x70;
@@ -1118,7 +1125,7 @@ static void blit_bltset (int con)
 	    blit_frozen = 1;
 	} else if (!iseo && isen) {
 #ifdef BLITTER_DEBUG_NOWAIT
-	    write_log (L"BLITTER: on the fly %d (%d) -> %d (%d) switch\n", oldch, iseo, blit_ch, isen);
+	    write_log (L"BLITTER: on the fly %d (%d) -> %d (%d) switch\n", original_ch, iseo, blit_ch, isen);
 #endif
 	}
     }

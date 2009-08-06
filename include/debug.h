@@ -82,6 +82,7 @@ struct dma_rec
 #define DMA_EVENT_BLITIRQ 1
 #define DMA_EVENT_BLITNASTY 2
 #define DMA_EVENT_BLITFINISHED 4
+#define DMA_EVENT_BPLFETCHUPDATE 8
 
 extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos);
 extern void record_dma_reset (void);

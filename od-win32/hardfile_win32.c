@@ -203,7 +203,7 @@ static int safetycheck (HANDLE *h, const TCHAR *name, uae_u64 offset, uae_u8 *bu
 	    write_log (L"hd ignored, read error %d!\n", GetLastError ());
 	    return 2;
 	}
-	if (offset > 0)
+	if (j == 0 && offset > 0)
 	    return -5;
 	if (j == 0 && buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) {
 	    // ADIDE "CPRM" hidden block..

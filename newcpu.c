@@ -1998,6 +1998,21 @@ static void do_trace (void)
     }
 }
 
+
+static int interrupt_cycles_active;
+static unsigned long interrupt_cycles;
+
+// handle interrupt delay (few cycles)
+STATIC_INLINE int time_for_interrupt (void)
+{
+    if (!interrupt_cycles_active)
+	return 1;
+    if ((int)get_cycles () - (int)interrupt_cycles < 0)
+	return 0;
+    interrupt_cycles_active = 0;
+    return 1;
+}
+
 #define IDLETIME (currprefs.cpu_idle * sleep_resolution / 700)
 
 STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
@@ -2071,10 +2086,12 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	if (regs->spcflags & SPCFLAG_COPPER)
 	    do_copper ();
 	if (regs->spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
-	    int intr = intlev ();
-	    unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
-	    if (intr != -1 && intr > regs->intmask)
-		do_interrupt (intr, regs);
+	    if (time_for_interrupt ()) {
+		int intr = intlev ();
+		unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
+		if (intr != -1 && intr > regs->intmask)
+		    do_interrupt (intr, regs);
+	    }
 	}
 	if ((regs->spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 	    unset_special (regs, SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
@@ -2109,10 +2126,12 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	do_trace ();
 
     if (regs->spcflags & SPCFLAG_INT) {
-	int intr = intlev ();
-	unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
-	if (intr != -1 && (intr > regs->intmask || intr == 7))
-	    do_interrupt (intr, regs);
+	if (time_for_interrupt ()) {
+	    int intr = intlev ();
+	    unset_special (regs, SPCFLAG_INT | SPCFLAG_DOINT);
+	    if (intr != -1 && (intr > regs->intmask || intr == 7))
+		do_interrupt (intr, regs);
+	}
     }
     if (regs->spcflags & SPCFLAG_DOINT) {
 	unset_special (regs, SPCFLAG_DOINT);
@@ -2124,6 +2143,12 @@ STATIC_INLINE int do_specialties (int cycles, struct regstruct *regs)
 	return 1;
     }
     return 0;
+}
+
+void prepare_interrupt (void)
+{
+    interrupt_cycles = get_cycles () + 6 * CYCLE_UNIT;
+    interrupt_cycles_active = 1;
 }
 
 void doint (void)

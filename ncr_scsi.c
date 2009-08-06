@@ -251,7 +251,7 @@ static void INT2(void)
 {
     if (ncrregs[SIEN_REG] == 0)
 	return;
-    INTREQ_f(0x8000 | 0x0008);
+    INTREQ (0x8000 | 0x0008);
     write_log (L"IRQ\n");
 }
 

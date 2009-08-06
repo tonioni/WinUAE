@@ -848,6 +848,26 @@ STATIC_INLINE int isocs7planes (void)
  return !(currprefs.chipset_mask & CSMASK_AGA) && bplcon0_res == 0 && bplcon0_planes == 7;
 }
 
+int is_bitplane_dma (int hpos)
+{
+    if (fetch_state == fetch_not_started || hpos < plfstrt)
+	return 0;
+    if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
+	|| hpos >= estimated_last_fetch_cycle)
+	return 0;
+    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
+}
+
+STATIC_INLINE int is_bitplane_dma_inline (int hpos)
+{
+    if (fetch_state == fetch_not_started || hpos < plfstrt)
+	return 0;
+    if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
+	|| hpos >= estimated_last_fetch_cycle)
+	return 0;
+    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
+}
+
 static void update_denise (int hpos)
 {
     toscr_res = GET_RES_DENISE (bplcon0d);
@@ -861,8 +881,26 @@ static void update_denise (int hpos)
     }
 }
 
-static void expand_fmodes (void)
+static int bpldmasetuphpos;
+static int bpldmasetupphase;
+
+/* set currently active Agnus bitplane DMA sequence */
+static void setup_fmodes (int hpos)
 {
+    switch (fmode & 3)
+    {
+	case 0:
+	fetchmode = 0;
+	break;
+	case 1:
+	case 2:
+	fetchmode = 1;
+	break;
+	case 3:
+	fetchmode = 2;
+	break;
+    }
+    badmode = GET_RES_AGNUS (bplcon0) != GET_RES_DENISE (bplcon0);
     bplcon0_res = GET_RES_AGNUS (bplcon0);
     bplcon0_planes = GET_PLANES (bplcon0);
     bplcon0_planes_limit = GET_PLANES_LIMIT (bplcon0);
@@ -874,7 +912,67 @@ static void expand_fmodes (void)
     fm_maxplane_shift = fm_maxplanes[fetchmode * 4 + bplcon0_res];
     fm_maxplane = 1 << fm_maxplane_shift;
     fetch_modulo_cycle = fetchunit - fetchstart;
+    if (is_bitplane_dma (hpos - 1))
+	cycle_line[hpos - 1] = 1;
     curr_diagram = cycle_diagram_table[fetchmode][bplcon0_res][bplcon0_planes_limit];
+    estimate_last_fetch_cycle (hpos);
+    if (bpldmasetuphpos >= 0 && debug_dma)
+	record_dma_event (DMA_EVENT_BPLFETCHUPDATE, hpos, vpos);
+    bpldmasetuphpos = -1;
+    bpldmasetupphase = 0;
+    ddf_change = vpos;
+}
+
+static void BPLCON0_Denise (int hpos, uae_u16 v);
+
+// writing to BPLCON0 adds 4 cycle delay before Agnus bitplane DMA sequence changes
+// (Note that Denise sees the change after 1 cycle)
+// AGA either needs 1 extra cycle or only in specific situations (perhaps only
+// when first plane in block is active, which is not possible in OCS/ECS)
+#define BPLCON_AGNUS_DELAY (4 + ((currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0))
+#define BPLCON_DENISE_DELAY 1
+
+static void maybe_setup_fmodes (int hpos)
+{
+    switch (bpldmasetupphase)
+    {
+    case 0:
+	BPLCON0_Denise (hpos, bplcon0);
+	bpldmasetupphase++;
+	bpldmasetuphpos += BPLCON_AGNUS_DELAY - BPLCON_DENISE_DELAY;
+	break;
+    case 1:
+	setup_fmodes (hpos);
+	break;
+    }
+}
+
+STATIC_INLINE maybe_check (int hpos)
+{
+    if (bpldmasetuphpos > 0 && hpos >= bpldmasetuphpos)
+	maybe_setup_fmodes (hpos);
+}
+
+static void bpldmainitdelay (int hpos)
+{
+    int needdelay = 1;
+    int hposa;
+
+    hposa = hpos + BPLCON_AGNUS_DELAY;
+    ddf_change = vpos;
+    if (hposa >= maxhpos - 1)
+	needdelay = 0;
+    if (hposa < 0x14)
+	needdelay = 0;
+    if (!needdelay) {
+	BPLCON0_Denise (hposa, bplcon0);
+	setup_fmodes (hposa);
+	return;
+    }
+    if (bpldmasetuphpos < 0) {
+	bpldmasetupphase = 0;
+	bpldmasetuphpos = hpos + BPLCON_DENISE_DELAY;
+    }
 }
 
 /* Expand bplcon0/bplcon1 into the toscr_xxx variables.  */
@@ -1439,6 +1537,8 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	    plf_state++;
     }
 
+    maybe_check (pos);
+
     if (dma) {
 	/* fetchstart_mask can be larger than fm_maxplane if FMODE > 0.  This means
 	   that the remaining cycles are idle; we'll fall through the whole switch
@@ -1629,15 +1729,18 @@ static void update_fetch_2 (int hpos) { update_fetch (hpos, 2); }
 
 STATIC_INLINE void decide_fetch (int hpos)
 {
-    if (fetch_state != fetch_not_started && hpos > last_fetch_hpos) {
-	switch (fetchmode) {
-	case 0: update_fetch_0 (hpos); break;
-#ifdef AGA
-	case 1: update_fetch_1 (hpos); break;
-	case 2: update_fetch_2 (hpos); break;
-#endif
-	default: uae_abort (L"fetchmode corrupt");
+    if (hpos > last_fetch_hpos) {
+	if (fetch_state != fetch_not_started) {
+	    switch (fetchmode) {
+	    case 0: update_fetch_0 (hpos); break;
+    #ifdef AGA
+	    case 1: update_fetch_1 (hpos); break;
+	    case 2: update_fetch_2 (hpos); break;
+    #endif
+	    default: uae_abort (L"fetchmode corrupt");
+	    }
 	}
+	maybe_check (hpos);
 	last_fetch_hpos = hpos;
     }
 }
@@ -2441,6 +2544,8 @@ static void reset_decisions (void)
     last_sprite_point = 0;
     fetch_state = fetch_not_started;
     bplcon1_hpos = -1;
+    bpldmasetuphpos = -1;
+    bpldmasetupphase = 0;
 
     if (plf_state > plf_active)
         plf_state = plf_idle;
@@ -2807,14 +2912,14 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     uae_u16 vp = GETVPOS ();
     uae_u16 hp = GETHPOS ();
 
-    hp += 2;
+    hp += 3;
     if (hp >= maxhpos) {
 	hp -= maxhpos;
 	vp++;
 	if (vp >= maxvpos)
 	    vp = 0;
     }
-    hp += 2;
+    hp += 1;
     if (hp >= maxhpos)
 	hp -= maxhpos;
 
@@ -3030,10 +3135,6 @@ STATIC_INLINE int use_eventmode (void)
     return currprefs.cpu_cycle_exact != 0;
 }
 
-static void INTENA_f (uae_u32 data)
-{
-    doint();
-}
 STATIC_INLINE void INTENA (uae_u16 v)
 {
     setclr (&intena,v);
@@ -3042,15 +3143,20 @@ STATIC_INLINE void INTENA (uae_u16 v)
 	write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
     if (v & 0x8000) {
-	if (!use_eventmode ())
-	    INTENA_f (0);
-	else
-	    event2_newevent2 (6, 0, INTENA_f);
+	if (use_eventmode ())
+	    prepare_interrupt ();
+        doint ();
     }
 }
 
 void INTREQ_0 (uae_u16 v)
 {
+    intreqr = intreq;
+    /* data in intreq is immediately available (vsync only currently because there is something unknown..) */
+    setclr (&intreqr, v & (0x8000 | 0x20));
+
+    if (use_eventmode ())
+	prepare_interrupt ();
     if (v & (0x80|0x100|0x200|0x400))
 	audio_update_irq (v);
     setclr (&intreq, v);
@@ -3058,7 +3164,7 @@ void INTREQ_0 (uae_u16 v)
     doint ();
 }
 
-void INTREQ_f (uae_u32 data)
+void INTREQ (uae_u16 data)
 {
     INTREQ_0 (data);
     serial_check_irq ();
@@ -3073,25 +3179,6 @@ void INTREQ_f (uae_u32 data)
     rethink_akiko ();
 #endif
     rethink_gayle ();
-}
-
-static void INTREQ_d (uae_u16 v, int d)
-{
-    intreqr = intreq;
-    /* data in intreq is immediately available (vsync only currently because there is something unknown..) */
-    setclr (&intreqr, v & (0x8000 | 0x20));
-    if (!use_eventmode () || v == 0)
-	INTREQ_f (v);
-    else
-	event2_newevent2 (d, v, INTREQ_f);
-}
-
-void INTREQ (uae_u16 v)
-{
-    if (!use_eventmode ())
-	INTREQ_f (v);
-    else
-	INTREQ_d (v, 6);
 }
 
 static void ADKCON (int hpos, uae_u16 v)
@@ -3144,26 +3231,6 @@ static void varsync (void)
 }
 #endif
 
-int is_bitplane_dma (int hpos)
-{
-    if (fetch_state == fetch_not_started || hpos < plfstrt)
-	return 0;
-    if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
-	|| hpos >= estimated_last_fetch_cycle)
-	return 0;
-    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
-}
-
-STATIC_INLINE int is_bitplane_dma_inline (int hpos)
-{
-    if (fetch_state == fetch_not_started || hpos < plfstrt)
-	return 0;
-    if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
-	|| hpos >= estimated_last_fetch_cycle)
-	return 0;
-    return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
-}
-
 static void BPLxPTH (int hpos, uae_u16 v, int num)
 {
     decide_line (hpos);
@@ -3199,9 +3266,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v)
     if (isehb (bplcon0d, bplcon2))
 	v |= 0x80;
 
-    // Denise reacts to HAM/EHB/DPF changes instantly
-    if ((bplcon0d & (0x800 | 0x400 | 0x80)) != (v & (0x800 | 0x400 | 0x80)))
-        record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
+    record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
 
     bplcon0d = v & ~0x80;
 
@@ -3228,7 +3293,16 @@ static void BPLCON0 (int hpos, uae_u16 v)
 #endif
     if (bplcon0 == v)
 	return;
-    
+
+    bplcon0 = v;
+
+    bpldmainitdelay (hpos);
+
+    if (thisline_decision.plfleft == -1)
+	BPLCON0_Denise (hpos, v);
+}
+
+#if 0    
     if ((bplcon0 & 2) && !(v & 2)) {
 	vpos_previous = vpos;
 	hpos_previous = hpos;
@@ -3257,11 +3331,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
     estimate_last_fetch_cycle (hpos);
 
 }
-
-static void BPLCON0_f (uae_u32 d)
-{
-    BPLCON0 (d >> 16, d & 0xffff);
-}
+#endif
 
 STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
 {
@@ -3431,27 +3501,17 @@ static void DDFSTOP (int hpos, uae_u16 v)
     }
 }
 
-static void FMODE (uae_u16 v)
+static void FMODE (int hpos, uae_u16 v)
 {
     if (! (currprefs.chipset_mask & CSMASK_AGA))
 	v = 0;
+    v &= 0xC00F;
+    if (fmode == v)
+	return;
     ddf_change = vpos;
     fmode = v;
     sprite_width = GET_SPRITEWIDTH (fmode);
-    switch (fmode & 3) {
-    case 0:
-	fetchmode = 0;
-	break;
-    case 1:
-    case 2:
-	fetchmode = 1;
-	break;
-    case 3:
-	fetchmode = 2;
-	break;
-    }
-    expand_fmodes ();
-    calcdiw ();
+    bpldmainitdelay (hpos);
 }
 
 static void FNULL (uae_u16 v)
@@ -3934,7 +3994,7 @@ static void update_copper (int until_hpos)
 	        custom_wput_copper (c_hpos, cop_state.moveaddr, cop_state.movedata, 0);
 	    }
 	}
-#if 1
+#if 0
 	if (cop_state.movedelay100 > 0) {
 	    cop_state.movedelay100--;
 	    if (cop_state.movedelay100 == 1) {
@@ -4002,7 +4062,7 @@ static void update_copper (int until_hpos)
 	case COP_read1:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i1 = chipmem_agnus_wget (cop_state.ip);
+	    cop_state.i1 = last_custom_value = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 	    if (debug_dma)
@@ -4015,7 +4075,7 @@ static void update_copper (int until_hpos)
 	case COP_read2:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i2 = chipmem_agnus_wget (cop_state.ip);
+	    cop_state.i2 = last_custom_value = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    cop_state.saved_i1 = cop_state.i1;
@@ -4058,7 +4118,7 @@ static void update_copper (int until_hpos)
 		    cop_state.state = COP_strobe_delay1;
 		} else {
 		    // FIX: all copper writes happen 1 cycle later than CPU writes
-		    if (reg == 0x100) {
+		    if (0 && reg == 0x100) {
 			// special case BPLCON0 BPL DMA sequence delay
 			// dma sequence does not change until 1+4 cycles after the write
 			cop_state.movedelay100 = 2;
@@ -4729,7 +4789,7 @@ static void vsync_handler (void)
 
     handle_events ();
 
-    INTREQ_d (0x8000 | 0x0020, 3);
+    INTREQ (0x8000 | 0x0020);
     if (bplcon0 & 4)
 	lof ^= 1;
 
@@ -4991,10 +5051,7 @@ static void hsync_handler (void)
 	ahi_hsync ();
     }
 
-    if (currprefs.chipset_mask & CSMASK_AGA)
-	last_custom_value = 0xfff;
-    else
-	last_custom_value = uaerand ();
+    last_custom_value = 0xffff; // refresh slots should set this to 0xffff
 
     if (!nocustom()) {
 	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
@@ -5362,8 +5419,10 @@ void customreset (int hardreset)
 	diwhigh = 0;
 	diwhigh_written = 0;
 
-	FMODE (0);
+	FMODE (0, 0);
 	CLXCON (0);
+	setup_fmodes (0);
+	sprite_width = GET_SPRITEWIDTH (fmode);
     }
 
     gayle_reset (hardreset);
@@ -5432,13 +5491,13 @@ void customreset (int hardreset)
 	uae_u32 vv;
 
 	audio_update_adkmasks ();
-	INTENA_f (0);
-	INTREQ_f (0);
+	INTENA (0);
+	INTREQ (0);
 	COPJMP (1, 1);
 	v = bplcon0;
 	BPLCON0 (0, 0);
 	BPLCON0 (0, v);
-	FMODE (fmode);
+	FMODE (0, fmode);
 	if (!(currprefs.chipset_mask & CSMASK_AGA)) {
 	    for(i = 0 ; i < 32 ; i++)  {
 		vv = current_colors.color_regs_ecs[i];
@@ -5472,6 +5531,8 @@ void customreset (int hardreset)
 	}
     }
     sprres = expand_sprres (bplcon0, bplcon3);
+    sprite_width = GET_SPRITEWIDTH (fmode);
+    setup_fmodes (0);
 
     #ifdef ACTION_REPLAY
     /* Doing this here ensures we can use the 'reset' command from within AR */
@@ -5680,7 +5741,9 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	/* OCS/ECS:
 	 * reading write-only register causes write with last value in chip
 	 * bus (custom registers, chipram, slowram)
-	 * and finally returns all ones
+	 * and finally returns either all ones or something weird if DMA happens
+	 * in next (or previous) cycle.. FIXME.
+	 *
 	 * AGA:
 	 * only writes to custom registers change last value, read returns
 	 * last value which then changes to all ones (following read will return
@@ -5689,19 +5752,21 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	v = last_custom_value;
 	if (!noput) {
 	    int r;
+	    uae_u16 old = last_custom_value;
+	    uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : 0xffff;//last_custom_value;
 	    decide_line (hpos);
 	    decide_fetch (hpos);
 	    decide_blitter (hpos);
-#if CUSTOM_DEBUG > 0
-	    write_log (L"%04X read!\n", addr);
-#endif
-	    r = custom_wput_copper (hpos, addr, last_custom_value, 1);
+	    r = custom_wput_copper (hpos, addr, l, 1);
 	    if (currprefs.chipset_mask & CSMASK_AGA) {
-		v = last_custom_value;
+		v = l;
 		last_custom_value = 0xffff;
 	    } else {
-		v = 0xffff;
+		v = old;
 	    }
+#if CUSTOM_DEBUG > 0
+	    write_log (L"%08X read = %04X. Value written=%04X PC=%08x\n", 0xdff000 | addr, v, l, M68K_GETPC);
+#endif
 
 	}
 	return v;
@@ -5954,7 +6019,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 #endif
 
 #ifdef AGA
-     case 0x1FC: FMODE (value); break;
+     case 0x1FC: FMODE (hpos, value); break;
 #endif
      case 0x1FE: FNULL (value); break;
 
@@ -5962,7 +6027,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
      default:
 	 if (!noget) {
 #if CUSTOM_DEBUG > 0
-	    write_log (L"%04X written!\n", addr);
+	    write_log (L"%04X written %08x\n", addr, M68K_GETPC);
 #endif
 	    custom_wget_1 (hpos, addr, 1);
 	 }
@@ -6558,7 +6623,6 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	checknasty (hpos, vpos);
     }
 #endif
-    do_cycles_ce (1 * CYCLE_UNIT);
     if (mode > 0)
 	v = get_word (addr);
     else if (mode == 0)
@@ -6567,7 +6631,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
     if (debug_dma)
 	dr->dat = v;
 #endif
-    do_cycles_ce (1 * CYCLE_UNIT);
+    do_cycles_ce (2 * CYCLE_UNIT);
     return v;
 }
 
@@ -6596,12 +6660,11 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 	checknasty (hpos, vpos);
     }
 #endif
-    do_cycles_ce (1 * CYCLE_UNIT);
     if (mode > 0)
 	put_word (addr, v);
     else if (mode == 0)
 	put_byte (addr, v);
-    do_cycles_ce (1 * CYCLE_UNIT);
+    do_cycles_ce (2 * CYCLE_UNIT);
 }
 
 void do_cycles_ce (long cycles)

@@ -1,4 +1,19 @@
 
+Beta 5:
+
+Biggest A500 cycle-exact updates should be done now.
+
+- interrupt delay rewritten and corrected, fixes Gleat Stuff #01/BRB
+- blitter/CPU timing tweak, fixes 1010 bobs/Celtic
+- disable sound if sound driver buffer position gets stuck (driver bug)
+- final partition read/write fix..
+- try to emulate reading of non-existing/write-only custom registers
+  more accurately
+- Brian the Lion "dialog screen" seems to be something AGA specific
+  after all.. 1 extra cycle needed after write to BPLCON0 before BPL
+  cycle diagram changes (or at least in Brian the Lion's situation..)
+  so add one cycle in AGA and hope it isn't totally incorrect fix..
+
 Beta 4:
 
 - 0x76/0x30 partition types are marked as "PART" in GUI and read/write

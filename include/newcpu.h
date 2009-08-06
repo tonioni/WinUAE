@@ -283,6 +283,7 @@ extern void REGPARAM3 MakeFromSR (struct regstruct *regs) REGPARAM;
 extern void REGPARAM3 Exception (int, struct regstruct *regs, uaecptr) REGPARAM;
 extern void NMI (void);
 extern void NMI_delayed (void);
+extern void prepare_interrupt (void);
 extern void doint (void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);

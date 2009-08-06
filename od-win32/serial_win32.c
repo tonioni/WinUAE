@@ -116,7 +116,7 @@ static void checkreceive (int mode)
 	gettimeofday (&tv, NULL);
 	if (tv.tv_sec > lastchartime) {
 	    ovrun = 1;
-	    INTREQ_f (0x8000 | 0x0800);
+	    INTREQ (0x8000 | 0x0800);
 	    while (readser (&recdata));
 	    write_log (L"SERIAL: overrun\n");
 	}
@@ -181,7 +181,7 @@ static void checksend (int mode)
 	writeser (serdatshift);
 #endif
 	data_in_serdat = 0;
-	INTREQ_f (0x8000 | 0x0001);
+	INTREQ (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
 	write_log (L"SERIAL: send %04X (%c)\n", serdatshift, doTCHAR (serdatshift));
 #endif

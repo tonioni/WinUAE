@@ -1261,6 +1261,12 @@ void reset_sound (void)
     clearbuffer (sdp);
 }
 
+static void disable_sound (void)
+{
+    close_sound ();
+    currprefs.produce_sound = changed_prefs.produce_sound = 1;
+}
+
 #ifdef JIT
 extern uae_u8* compiled_code;
 #else
@@ -1622,6 +1628,8 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
     } else {
 
 	int numFramesPadding, avail;
+	int stuck = 2000;
+	int oldpadding = 0;
 
 	for (;;) {
 	    hr = s->pAudioClient->lpVtbl->GetCurrentPadding (s->pAudioClient, &numFramesPadding);
@@ -1635,6 +1643,14 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	    gui_data.sndbuf_status = 1;
 	    statuscnt = SND_STATUSCNT;
 	    sleep_millis (1);
+	    if (oldpadding == numFramesPadding) {
+		if (stuck-- < 0) {
+		    write_log (L"WASAPI: sound stuck %d %d %d !?\n", s->bufferFrameCount, numFramesPadding, s->sndbufframes);
+		    disable_sound ();
+		    return;
+		}
+	    }
+	    oldpadding = numFramesPadding;
 	}
         s->sndbuf += (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize;
 	gui_data.sndbuf = s->sndbuf / s->framecounter;
@@ -1691,6 +1707,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	    counter--;
 	    if (counter < 0) {
 		write_log (L"DSSOUND: stuck?!?!\n");
+		disable_sound ();
 		break;
 	    }
 	}
@@ -1786,6 +1803,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	    if (counter < 0) {
 		write_log (L"DSSOUND: sound system got stuck!?\n");
 		restore_ds (sd, DSERR_BUFFERLOST);
+		disable_sound ();
 		return;
 	    }
 	    continue;

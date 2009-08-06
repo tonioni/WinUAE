@@ -1276,7 +1276,7 @@ void audio_reset (void)
     free_ahi_v2 ();
 #endif
     reset_sound ();
-    memset(sound_filter_state, 0, sizeof sound_filter_state);
+    memset (sound_filter_state, 0, sizeof sound_filter_state);
     if (savestate_state != STATE_RESTORE) {
 	for (i = 0; i < 4; i++) {
 	    cdp = &audio_channel[i];
@@ -1326,7 +1326,7 @@ STATIC_INLINE int sound_prefs_changed (void)
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
-static float rc_calculate_a0(int sample_rate, int cutoff_freq)
+static float rc_calculate_a0 (int sample_rate, int cutoff_freq)
 {
     float omega;
     /* The BLT correction formula below blows up if the cutoff is above nyquist. */
@@ -1337,7 +1337,7 @@ static float rc_calculate_a0(int sample_rate, int cutoff_freq)
     /* Compensate for the bilinear transformation. This allows us to specify the
      * stop frequency more exactly, but the filter becomes less steep further
      * from stopband. */
-    omega = tan(omega / 2) * 2;
+    omega = tan (omega / 2) * 2;
     return 1 / (1 + 1 / omega);
 }
 
@@ -1398,9 +1398,9 @@ void set_audio (void)
 		    write_log (L"Sound is not supported.\n");
 		} else {
 		    write_log (L"Sorry, can't initialize sound.\n");
-		    currprefs.produce_sound = 0;
+		    currprefs.produce_sound = 1;
 		    /* So we don't do this every frame */
-		    changed_prefs.produce_sound = 0;
+		    changed_prefs.produce_sound = 1;
 		}
 	    }
 	}
@@ -1545,6 +1545,7 @@ void update_audio (void)
 	    if (rounded == best_evtime) {
 		/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
 		next_sample_evtime += scaled_sample_evtime;
+#if 0
 		doublesample = 0;
 		if (--samplecounter <= 0) {
 		    samplecounter = currprefs.sound_freq / 1000;
@@ -1558,11 +1559,14 @@ void update_audio (void)
 			extrasamples++;
 		    }
 		}
-	        (*sample_handler) ();
+#endif
+		(*sample_handler) ();
+#if 0
 		if (outputsample == 0)
 		    outputsample = -1;
 		else if (outputsample < 0)
 		    outputsample = 1;
+#endif
 
 	    }
 	}
