@@ -1828,6 +1828,7 @@ static void gen_opcode (unsigned long int opcode)
     case i_STOP:
 	if (using_prefetch) {
 	    printf ("\tregs->sr = regs->irc;\n");
+	    m68k_pc_offset += 2;
 	} else {
 	    genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 	    printf ("\tregs->sr = src;\n");

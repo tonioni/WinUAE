@@ -6,6 +6,8 @@
   * Copyright 1997 Bernd Schmidt
   */
 
+#define SOUNDSTUFF 1
+
 extern uae_u16 paula_sndbuffer[];
 extern uae_u16 *paula_sndbufpt;
 extern int paula_sndbufsize;
@@ -50,11 +52,15 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute);
 int get_offset_sound_device (struct sound_data *sd);
 int blocking_sound_device (struct sound_data *sd);
 
+#if SOUNDSTUFF > 0
+extern int outputsample, doublesample;
+#endif
+
 static uae_u16 *paula_sndbufpt_prev, *paula_sndbufpt_start;
 
 STATIC_INLINE void set_sound_buffers (void)
 {
-#if 0
+#if SOUNDSTUFF > 0
     paula_sndbufpt_prev = paula_sndbufpt_start;
     paula_sndbufpt_start = paula_sndbufpt;
 #endif
@@ -62,7 +68,7 @@ STATIC_INLINE void set_sound_buffers (void)
 
 STATIC_INLINE void check_sound_buffers (void)
 {
-#if 0
+#if SOUNDSTUFF > 0
     int len;
 #endif
 
@@ -80,7 +86,7 @@ STATIC_INLINE void check_sound_buffers (void)
 	p[1] = sum >> 3;
 	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
-#if 0
+#if SOUNDSTUFF > 0
     if (outputsample == 0)
 	return;
     len = paula_sndbufpt - paula_sndbufpt_start;
@@ -98,7 +104,7 @@ STATIC_INLINE void check_sound_buffers (void)
 	finish_sound_buffer ();
 	paula_sndbufpt = paula_sndbuffer;
     }
-#if 0
+#if SOUNDSTUFF > 0
     while (doublesample-- > 0) {
 	memcpy (paula_sndbufpt, paula_sndbufpt_start, len * 2);
 	paula_sndbufpt += len;

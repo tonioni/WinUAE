@@ -94,7 +94,9 @@ struct audio_channel_data {
 };
 
 static int samplecnt;
+#if SOUNDSTUFF > 0
 static int extrasamples, outputsample, doublesample;
+#endif
 
 int sampleripper_enabled;
 struct ripped_sample
@@ -1545,7 +1547,7 @@ void update_audio (void)
 	    if (rounded == best_evtime) {
 		/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
 		next_sample_evtime += scaled_sample_evtime;
-#if 0
+#if SOUNDSTUFF > 0
 		doublesample = 0;
 		if (--samplecounter <= 0) {
 		    samplecounter = currprefs.sound_freq / 1000;
@@ -1561,7 +1563,7 @@ void update_audio (void)
 		}
 #endif
 		(*sample_handler) ();
-#if 0
+#if SOUNDSTUFF > 0
 		if (outputsample == 0)
 		    outputsample = -1;
 		else if (outputsample < 0)
@@ -1881,7 +1883,7 @@ uae_u8 *save_audio (int i, int *len, uae_u8 *dstptr)
 
 void audio_vsync (void)
 {
-#if 0
+#if SOUNDSTUFF > 0
     int i, max, min;
     static int lastdir;
 

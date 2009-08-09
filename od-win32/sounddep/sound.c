@@ -92,11 +92,12 @@ struct sound_dp
     IAudioClient *pAudioClient;
     IAudioRenderClient *pRenderClient;
     IMMDeviceEnumerator *pEnumerator;
+#if 0
     IAudioClock *pAudioClock;
-    REFERENCE_TIME hnsRequestedDuration;
-    HANDLE wasapihandle;
-    int bufferFrameCount;
     UINT64 wasapiclock;
+#endif
+    REFERENCE_TIME hnsRequestedDuration;
+    int bufferFrameCount;
     UINT64 wasapiframes;
     int wasapiexclusive;
     int framecounter;
@@ -208,14 +209,10 @@ static void resume_audio_wasapi (struct sound_data *sd)
     BYTE *pData;
     int framecnt;
 
-    ResetEvent (s->wasapihandle);
     hr = s->pAudioClient->lpVtbl->Reset (s->pAudioClient);
     if (FAILED (hr))
 	write_log (L"WASAPI: Reset() %08X\n", hr);
-    if (s->wasapiexclusive)
-	framecnt = s->bufferFrameCount;
-    else
-	framecnt = s->wasapigoodsize;
+    framecnt = s->wasapigoodsize;
     hr = s->pRenderClient->lpVtbl->GetBuffer (s->pRenderClient, framecnt, &pData);
     if (FAILED (hr))
 	return;
@@ -223,12 +220,6 @@ static void resume_audio_wasapi (struct sound_data *sd)
     hr = s->pAudioClient->lpVtbl->Start (s->pAudioClient);
     if (FAILED (hr))
 	write_log (L"WASAPI: Start() %08X\n", hr);
-    if (s->wasapiexclusive) {
-	WaitForSingleObject (s->wasapihandle, 5 * 1000);
-	hr = s->pRenderClient->lpVtbl->GetBuffer (s->pRenderClient, framecnt, &pData);
-	if (SUCCEEDED (hr))
-	    hr = s->pRenderClient->lpVtbl->ReleaseBuffer (s->pRenderClient, framecnt, AUDCLNT_BUFFERFLAGS_SILENT);
-    }
     s->wasapiframes = 0;
     s->framecounter = 0;
     s->sndbuf = 0;
@@ -681,16 +672,16 @@ static void close_audio_wasapi (struct sound_data *sd)
 
     if (s->pRenderClient)
 	s->pRenderClient->lpVtbl->Release (s->pRenderClient);
+#if 0
     if (s->pAudioClock)
 	s->pAudioClock->lpVtbl->Release (s->pAudioClock);
+#endif
     if (s->pAudioClient)
 	s->pAudioClient->lpVtbl->Release (s->pAudioClient);
     if (s->pDevice)
 	s->pDevice->lpVtbl->Release (s->pDevice);
     if (s->pEnumerator)
 	s->pEnumerator->lpVtbl->Release (s->pEnumerator);
-    if (s->wasapihandle)
-	CloseHandle (s->wasapihandle);
 }
 
 const static GUID XIID_IAudioClient = {0x1CB9AD4C,0xDBFA,0x4c32,{0xB1,0x78,0xC2,0xF5,0x68,0xA7,0x03,0xB2}};
@@ -709,7 +700,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
     LPWSTR name = NULL;
     int rn[4], rncnt;
     AUDCLNT_SHAREMODE sharemode;
-    int size;
+    int size, v;
 
     sd->devicetype = SOUND_DEVICE_WASAPI;
     s->wasapiexclusive = exclusive;
@@ -825,14 +816,10 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	sd->freq = pwfx->nSamplesPerSec;
     }
 
-    if (!s->wasapiexclusive) {
-        size = sd->sndbufsize * sd->channels * 16 / 8;
-	s->snd_configsize = size;
-	sd->sndbufsize = size / 32;
-	size /= (sd->channels * 16 / 8);
-    } else {
-        s->hnsRequestedDuration *= sd->sndbufsize / 512;
-    }
+    size = sd->sndbufsize * sd->channels * 16 / 8;
+    s->snd_configsize = size;
+    sd->sndbufsize = size / 32;
+    size /= (sd->channels * 16 / 8);
 
     s->bufferFrameCount = (UINT32)( // frames =
         1.0 * s->hnsRequestedDuration * // hns *
@@ -841,22 +828,20 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
         10000 // (hns / s) /
         + 0.5); // rounding
 
-    if (!s->wasapiexclusive) {
-	if (s->bufferFrameCount < size) {
-	    s->bufferFrameCount = size;
-	    s->hnsRequestedDuration = // hns =
-		(REFERENCE_TIME)(
-		    10000.0 * // (hns / ms) *
-		    1000 * // (ms / s) *
-		    s->bufferFrameCount / // frames /
-		    wavfmt.Format.nSamplesPerSec  // (frames / s)
-		    + 0.5 // rounding
-		);
-	}
+    if (s->bufferFrameCount < size) {
+        s->bufferFrameCount = size;
+        s->hnsRequestedDuration = // hns =
+	    (REFERENCE_TIME)(
+	    10000.0 * // (hns / ms) *
+	    1000 * // (ms / s) *
+	    s->bufferFrameCount / // frames /
+	    wavfmt.Format.nSamplesPerSec  // (frames / s)
+	    + 0.5 // rounding
+	);
     }
 
     hr = s->pAudioClient->lpVtbl->Initialize (s->pAudioClient,
-	sharemode, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+	sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST,
 	s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
     if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
 	hr = s->pAudioClient->lpVtbl->GetBufferSize (s->pAudioClient, &s->bufferFrameCount);
@@ -880,18 +865,11 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	    goto error;
 	}
 	hr = s->pAudioClient->lpVtbl->Initialize (s->pAudioClient,
-	    sharemode, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-	    s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, &wavfmt.Format, NULL);
+	    sharemode, AUDCLNT_STREAMFLAGS_NOPERSIST,
+	    s->hnsRequestedDuration, s->wasapiexclusive ? s->hnsRequestedDuration : 0, pwfx ? pwfx : &wavfmt.Format, NULL);
     }
     if (FAILED (hr)) {
 	write_log (L"WASAPI: Initialize() %08X\n", hr);
-	goto error;
-    }
-
-    s->wasapihandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-    hr = s->pAudioClient->lpVtbl->SetEventHandle (s->pAudioClient, s->wasapihandle);
-    if (FAILED (hr)) {
-	write_log (L"WASAPI: SetEventHandle() %08X\n", hr);
 	goto error;
     }
 
@@ -915,7 +893,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	write_log (L"WASAPI: GetService(IID_IAudioRenderClient) %08X\n", hr);
 	goto error;
     }
-
+#if 0
     hr = s->pAudioClient->lpVtbl->GetService (s->pAudioClient, &XIID_IAudioClock, (void**)&s->pAudioClock);
     if (FAILED (hr)) {
 	write_log (L"WASAPI: GetService(IID_IAudioClock) %08X\n", hr);
@@ -925,16 +903,12 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	    write_log (L"WASAPI: GetFrequency() %08X\n", hr);
 	}
     }
-
-    if (s->wasapiexclusive) {
-	sd->sndbufsize = s->bufferFrameCount * sd->channels * 16 / 8;
-    } else {
-	int v = s->bufferFrameCount * sd->channels * 16 / 8;
-	v /= 2;
-	if (sd->sndbufsize > v)
-	    sd->sndbufsize = v;
-	s->wasapigoodsize =s->bufferFrameCount / 2;
-    }
+#endif
+    v = s->bufferFrameCount * sd->channels * 16 / 8;
+    v /= 2;
+    if (sd->sndbufsize > v)
+        sd->sndbufsize = v;
+    s->wasapigoodsize =s->bufferFrameCount / 2;
     s->sndbufframes = sd->sndbufsize / (sd->channels * 16 / 8);
 
     write_log(L"WASAPI: '%s'\nWASAPI: EX=%d CH=%d FREQ=%d BUF=%d (%d)\n",
@@ -1267,6 +1241,13 @@ static void disable_sound (void)
     currprefs.produce_sound = changed_prefs.produce_sound = 1;
 }
 
+static void reopen_sound (void)
+{
+    close_sound ();
+    open_sound ();
+}
+
+
 #ifdef JIT
 extern uae_u8* compiled_code;
 #else
@@ -1500,8 +1481,8 @@ int blocking_sound_device (struct sound_data *sd)
 
     } else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
 
-	if (WaitForSingleObject (s->wasapihandle, 0) == WAIT_TIMEOUT)
-	    return 0;
+//	if (WaitForSingleObject (s->wasapihandle, 0) == WAIT_TIMEOUT)
+//	    return 0;
 	return 1;
 
     }
@@ -1568,6 +1549,9 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
     BYTE *pData;
     DWORD v;
     double skipmode;
+    int numFramesPadding, avail;
+    int stuck = 2000;
+    int oldpadding = 0;
 
     if (sd->paused)
 	return;
@@ -1577,93 +1561,38 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	s->sndbuf = s->sndbuf / s->framecounter;
 	s->framecounter = 2;
     }
-    if (s->wasapiexclusive) {
-
-	v = WaitForSingleObject (s->wasapihandle, 0);
-	if (v == WAIT_OBJECT_0) {
-	    gui_data.sndbuf_status = -1;
-	    statuscnt = SND_STATUSCNT;
-	    pause_audio_wasapi (sd);
-	    resume_audio_wasapi (sd);
-	    return;
-	} else if (v == WAIT_TIMEOUT) {
-	    if (WaitForSingleObject (s->wasapihandle, 2000) != WAIT_OBJECT_0) {
-		write_log (L"WASAPI: event timed out\n");
-		return;
-	    }
-	} else {
-	    return;
-	}
-
-	if (s->wasapiclock) {
-
-	    double v, v2;
-	    UINT64 pos;
-	    hr = s->pAudioClock->lpVtbl->GetPosition (s->pAudioClock, &pos, NULL);
-	    if (FAILED (hr))
-		return;
-	    v = (double)pos;
-	    v /= s->wasapiclock;
-	    v2 = s->wasapiframes / (double)sd->freq;
-	    v = v2 - v;
-	    v2 = v * 10000.0  / ((double)s->bufferFrameCount / (double)sd->freq);
-	    s->sndbuf += v2 + 10000.0;
-	    gui_data.sndbuf = s->sndbuf / s->framecounter;
-	    if ((s->framecounter & 7) == 7) {
-		skipmode = sync_sound (gui_data.sndbuf / 70.0);
-		sound_setadjust (skipmode);
-	    }
-
-	}
-
-	hr = s->pRenderClient->lpVtbl->GetBuffer (s->pRenderClient, s->bufferFrameCount, &pData);
+ 
+    for (;;) {
+	hr = s->pAudioClient->lpVtbl->GetCurrentPadding (s->pAudioClient, &numFramesPadding);
 	if (FAILED (hr)) {
-	    write_log (L"WASAPI: GetBuffer() %08X\n", hr);
+	    write_log (L"WASAPI: GetCurrentPadding() %08X\n", hr);
 	    return;
 	}
-	memcpy (pData, sndbuffer, s->bufferFrameCount * sd->channels * 16 / 8);
-	hr = s->pRenderClient->lpVtbl->ReleaseBuffer (s->pRenderClient, s->bufferFrameCount, 0);
-	s->wasapiframes += s->bufferFrameCount;
-
-    } else {
-
-	int numFramesPadding, avail;
-	int stuck = 2000;
-	int oldpadding = 0;
-
-	for (;;) {
-	    hr = s->pAudioClient->lpVtbl->GetCurrentPadding (s->pAudioClient, &numFramesPadding);
-	    if (FAILED (hr)) {
-		write_log (L"WASAPI: GetCurrentPadding() %08X\n", hr);
+	avail = s->bufferFrameCount - numFramesPadding;
+	if (avail >= s->sndbufframes)
+	    break;
+	gui_data.sndbuf_status = 1;
+	statuscnt = SND_STATUSCNT;
+	sleep_millis (1);
+	if (oldpadding == numFramesPadding) {
+	    if (stuck-- < 0) {
+		write_log (L"WASAPI: sound stuck %d %d %d !?\n", s->bufferFrameCount, numFramesPadding, s->sndbufframes);
+		reopen_sound ();
 		return;
 	    }
-	    avail = s->bufferFrameCount - numFramesPadding;
-	    if (avail >= s->sndbufframes)
-		break;
-	    gui_data.sndbuf_status = 1;
-	    statuscnt = SND_STATUSCNT;
-	    sleep_millis (1);
-	    if (oldpadding == numFramesPadding) {
-		if (stuck-- < 0) {
-		    write_log (L"WASAPI: sound stuck %d %d %d !?\n", s->bufferFrameCount, numFramesPadding, s->sndbufframes);
-		    disable_sound ();
-		    return;
-		}
-	    }
-	    oldpadding = numFramesPadding;
 	}
-        s->sndbuf += (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize;
-	gui_data.sndbuf = s->sndbuf / s->framecounter;
-	if (s->framecounter == 2) {
-	    skipmode = sync_sound (gui_data.sndbuf / 70.0);
-	    sound_setadjust (skipmode);
-	}
-        hr = s->pRenderClient->lpVtbl->GetBuffer (s->pRenderClient, s->sndbufframes, &pData);
-        if (SUCCEEDED (hr)) {
-	    memcpy (pData, sndbuffer, sd->sndbufsize);
-	    s->pRenderClient->lpVtbl->ReleaseBuffer (s->pRenderClient, s->sndbufframes, 0);
-	}
-
+	oldpadding = numFramesPadding;
+    }
+    s->sndbuf += (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize;
+    gui_data.sndbuf = s->sndbuf / s->framecounter;
+    if (s->framecounter == 2) {
+        skipmode = sync_sound (gui_data.sndbuf / 70.0);
+        sound_setadjust (skipmode);
+    }
+    hr = s->pRenderClient->lpVtbl->GetBuffer (s->pRenderClient, s->sndbufframes, &pData);
+    if (SUCCEEDED (hr)) {
+        memcpy (pData, sndbuffer, sd->sndbufsize);
+        s->pRenderClient->lpVtbl->ReleaseBuffer (s->pRenderClient, s->sndbufframes, 0);
     }
 
 }
@@ -1803,7 +1732,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	    if (counter < 0) {
 		write_log (L"DSSOUND: sound system got stuck!?\n");
 		restore_ds (sd, DSERR_BUFFERLOST);
-		disable_sound ();
+		reopen_sound ();
 		return;
 	    }
 	    continue;

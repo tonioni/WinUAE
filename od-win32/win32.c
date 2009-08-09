@@ -652,10 +652,12 @@ static void winuae_active (HWND hWnd, int minimized)
 	lcd_priority (1);
 #endif
     clipboard_active (hAmigaWnd, 1);
+#if 0
     if (os_vista && AVTask == NULL) {
 	DWORD taskIndex = 0;
-	AVTask = AvSetMmThreadCharacteristics (TEXT("Pro Audio"), &taskIndex);
+	AVTask = AvSetMmThreadCharacteristics (TEXT("Games"), &taskIndex);
     }
+#endif
 }
 
 static void winuae_inactive (HWND hWnd, int minimized)
@@ -664,9 +666,11 @@ static void winuae_inactive (HWND hWnd, int minimized)
     int wasfocus = focus;
 
     write_log (L"winuae_inactive(%d)\n", minimized);
+#if 0
     if (AVTask)
 	AvRevertMmThreadCharacteristics (AVTask);
     AVTask = NULL;
+#endif
     if (minimized)
 	exit_gui (0);
     focus = 0;

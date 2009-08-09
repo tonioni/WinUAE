@@ -3456,7 +3456,7 @@ static uae_u32 getadfcrc (drive *drv)
     return crc32;
 }
 
-uae_u8 *save_disk(int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_disk (int num, int *len, uae_u8 *dstptr)
 {
     uae_u8 *dstbak,*dst;
     drive *drv;
@@ -3465,7 +3465,7 @@ uae_u8 *save_disk(int num, int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)malloc (2+1+1+1+1+4+4+256);
+	dstbak = dst = malloc (2+1+1+1+1+4+4+256);
     save_u32 (drv->drive_id);	    /* drive type ID */
     save_u8 ((drv->motoroff ? 0:1) | ((disabled & (1 << num)) ? 2 : 0) | (drv->idbit ? 4 : 0) | (drv->dskchange ? 8 : 0));
     save_u8 (drv->cyl);		    /* cylinder */
@@ -3481,7 +3481,7 @@ uae_u8 *save_disk(int num, int *len, uae_u8 *dstptr)
 
 /* internal floppy controller variables */
 
-uae_u8 *restore_floppy(uae_u8 *src)
+uae_u8 *restore_floppy (uae_u8 *src)
 {
     word = restore_u16();
     bitoffset = restore_u8();

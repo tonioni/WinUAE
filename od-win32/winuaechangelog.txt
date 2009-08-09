@@ -1,4 +1,14 @@
 
+Beta 6:
+
+- STOP increased PC only by 2 if trace was active (copy protections..)
+- WASAPI exclusive mode improved (final Windows 7 SDK had much better
+  examples than RC or Vista versions)
+- restart sound (close and open) if sound gets stuck instead of killing
+  sound completely
+- thread priority updates and fixes (perhaps this fixes reported slow
+  filesystem emulation)
+
 Beta 5:
 
 Biggest A500 cycle-exact updates should be done now.

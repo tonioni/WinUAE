@@ -608,7 +608,7 @@ static int popupmenu (HWND hwnd, TCHAR **items)
     HMENU menu;
     POINT pt;
 
-    menu = CreatePopupMenu();
+    menu = CreatePopupMenu ();
     i = 0;
     while (items[i]) {
         MENUITEMINFO mii = { 0 };
