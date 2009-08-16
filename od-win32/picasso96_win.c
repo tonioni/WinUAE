@@ -1310,7 +1310,6 @@ d7: RGBFTYPE RGBFormat
 */
 static uae_u32 REGPARAM2 picasso_SetSpritePosition (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     boardinfo = bi;
     newcursor_x = (uae_s16)get_word (bi + PSSO_BoardInfo_MouseX) - picasso96_state.XOffset;
@@ -1335,7 +1334,6 @@ This function changes one of the possible three colors of the hardware sprite.
 */
 static uae_u32 REGPARAM2 picasso_SetSpriteColor (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     uae_u8 idx = m68k_dreg (regs, 0);
     uae_u8 red = m68k_dreg (regs, 1);
@@ -1866,7 +1864,6 @@ compensate for this when accounting for hotspot offsets and sprite dimensions.
 */
 static uae_u32 REGPARAM2 picasso_SetSpriteImage (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     boardinfo = bi;
     return setspriteimage (bi);
@@ -1883,7 +1880,6 @@ This function activates or deactivates the hardware sprite.
 */
 static uae_u32 REGPARAM2 picasso_SetSprite (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u32 result = 0;
     uae_u32 activate = m68k_dreg (regs, 0);
     if (!hwsprite)
@@ -1916,7 +1912,6 @@ static uae_u32 REGPARAM2 picasso_SetSprite (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
     /* NOTES: See BoardInfo struct definition in Picasso96 dev info */
 #ifdef UAEGFX_INTERNAL
@@ -2251,8 +2246,8 @@ void picasso96_alloc (TrapContext *ctx)
     uaegfx_card_install (ctx, size);
     init_alloc ();
 #else
-    m68k_dreg (&ctx->regs, 0) = size;
-    m68k_dreg (&ctx->regs, 1) = 65536 + 1;
+    m68k_dreg (regs, 0) = size;
+    m68k_dreg (regs, 1) = 65536 + 1;
     if ((picasso96_amem = CallLib (ctx, get_long (4), -0xC6))) { /* AllocMem */
 	uaecptr rt;
 	picasso96_amemend = picasso96_amem + size;
@@ -2449,7 +2444,6 @@ static void addmode (uaecptr AmigaBoardInfo, uaecptr *amem, struct LibResolution
 */
 static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     int LibResolutionStructureCount = 0;
     int i, j, unkcnt;
     uaecptr amem;
@@ -2532,7 +2526,6 @@ static uae_u32 REGPARAM2 picasso_InitCard (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u16 flag = m68k_dreg (regs, 0) & 0xFFFF;
     TCHAR p96text[100];
 
@@ -2597,7 +2590,6 @@ static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
 {
     /* Fill in some static UAE related structure about this new CLUT setting
      * We need this for CLUT-based displays, and for mapping CLUT to hi/true colour */
-    struct regstruct *regs = &ctx->regs;
     uae_u16 start = m68k_dreg (regs, 0);
     uae_u16 count = m68k_dreg (regs, 1);
     uaecptr boardinfo = m68k_areg (regs, 0);
@@ -2618,7 +2610,6 @@ static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_SetDAC (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
 /* Fill in some static UAE related structure about this new DAC setting
     * Lets us keep track of what pixel format the Amiga is thinking about in our frame-buffer */
 
@@ -2662,7 +2653,6 @@ static void init_picasso_screen (void)
 */
 static uae_u32 REGPARAM2 picasso_SetGC (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     /* Fill in some static UAE related structure about this new ModeInfo setting */
     uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
     uae_u32 border   = m68k_dreg (regs, 0);
@@ -2723,7 +2713,6 @@ static void picasso_SetPanningInit (void)
 
 static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u16 Width = m68k_dreg (regs, 0);
     uaecptr start_of_screen = m68k_areg (regs, 1);
     uaecptr bi = m68k_areg (regs, 0);
@@ -2821,7 +2810,6 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 */
 static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     unsigned long X = (uae_u16)m68k_dreg (regs, 0);
     unsigned long Y = (uae_u16)m68k_dreg (regs, 1);
@@ -2871,7 +2859,6 @@ FillRect:
 ***********************************************************/
 static uae_u32 REGPARAM2 picasso_FillRect (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     uae_u32 X = (uae_u16)m68k_dreg (regs, 0);
     uae_u32 Y = (uae_u16)m68k_dreg (regs, 1);
@@ -3046,7 +3033,6 @@ BlitRect:
 ***********************************************************/
 static uae_u32 REGPARAM2 picasso_BlitRect (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr renderinfo = m68k_areg (regs, 1);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
     unsigned long srcy = (uae_u16)m68k_dreg (regs, 1);
@@ -3084,7 +3070,6 @@ BlitRectNoMaskComplete:
 ***********************************************************/
 static uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr srcri = m68k_areg (regs, 1);
     uaecptr dstri = m68k_areg (regs, 2);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
@@ -3154,7 +3139,6 @@ STATIC_INLINE void PixelWrite (uae_u8 *mem, int bits, uae_u32 fgpen, int Bpp, ua
 */
 static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr rinf = m68k_areg (regs, 1);
     uaecptr pinf = m68k_areg (regs, 2);
     unsigned long X = (uae_u16)m68k_dreg (regs, 0);
@@ -3317,7 +3301,6 @@ BlitTemplate:
 ***********************************************************************************/
 static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u8 inversion = 0;
     uaecptr rinf = m68k_areg (regs, 1);
     uaecptr tmpl = m68k_areg (regs, 2);
@@ -3479,7 +3462,6 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u16 width = m68k_dreg (regs, 0);
     uae_u32 type = m68k_dreg (regs, 7);
     width = GetBytesPerPixel (type) * width;
@@ -3496,7 +3478,6 @@ static uae_u32 REGPARAM2 picasso_CalculateBytesPerRow (TrapContext *ctx)
 */
 static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uae_u32 state = m68k_dreg (regs, 0);
     P96TRACE ((L"SetDisplay(%d)\n", state));
     return !state;
@@ -3633,7 +3614,6 @@ static void PlanarToChunky (struct RenderInfo *ri, struct BitMap *bm,
 */
 static uae_u32 REGPARAM2 picasso_BlitPlanar2Chunky (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bm = m68k_areg (regs, 1);
     uaecptr ri = m68k_areg (regs, 2);
     unsigned long srcx = (uae_u16)m68k_dreg (regs, 0);
@@ -3773,7 +3753,6 @@ static void PlanarToDirect (struct RenderInfo *ri, struct BitMap *bm,
 */
 static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bm = m68k_areg (regs, 1);
     uaecptr ri = m68k_areg (regs, 2);
     uaecptr cim = m68k_areg (regs, 3);
@@ -4313,7 +4292,6 @@ void InitPicasso96 (void)
 
 static uae_u32 REGPARAM2 picasso_SetInterrupt (TrapContext *ctx)
 {
-    struct regstruct *regs = &ctx->regs;
     uaecptr bi = m68k_areg (regs, 0);
     uae_u32 onoff = m68k_dreg (regs, 0);
     interrupt_enabled = onoff;
@@ -4571,11 +4549,11 @@ static void initvblankirq (TrapContext *ctx, uaecptr base)
     put_word (c, 0x7000); c += 2;		    // label: moveq #0,d0
     put_word (c, RTS);				    // rts
 
-    m68k_areg (&ctx->regs, 1) = p1;
-    m68k_dreg (&ctx->regs, 0) = 5; /* VERTB */
+    m68k_areg (regs, 1) = p1;
+    m68k_dreg (regs, 0) = 5; /* VERTB */
     CallLib (ctx, get_long (4), -168); /* AddIntServer */
-    m68k_areg (&ctx->regs, 1) = p2;
-    m68k_dreg (&ctx->regs, 0) = 3; /* PORTS */
+    m68k_areg (regs, 1) = p2;
+    m68k_dreg (regs, 0) = 3; /* PORTS */
     CallLib (ctx, get_long (4), -168); /* AddIntServer */
 }
 
@@ -4640,20 +4618,20 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 
     datatable = makedatatable (uaegfx_resid, uaegfx_resname, 0x09, -50, UAEGFX_VERSION, UAEGFX_REVISION);
 
-    a2 = m68k_areg (&ctx->regs, 2);
-    m68k_areg (&ctx->regs, 0) = functable;
-    m68k_areg (&ctx->regs, 1) = datatable;
-    m68k_areg (&ctx->regs, 2) = 0;
-    m68k_dreg (&ctx->regs, 0) = CARD_SIZEOF + extrasize;
-    m68k_dreg (&ctx->regs, 1) = 0;
+    a2 = m68k_areg (regs, 2);
+    m68k_areg (regs, 0) = functable;
+    m68k_areg (regs, 1) = datatable;
+    m68k_areg (regs, 2) = 0;
+    m68k_dreg (regs, 0) = CARD_SIZEOF + extrasize;
+    m68k_dreg (regs, 1) = 0;
     uaegfx_base = CallLib (ctx, exec, -0x54); /* MakeLibrary */
-    m68k_areg (&ctx->regs, 2) = a2;
+    m68k_areg (regs, 2) = a2;
     if (!uaegfx_base)
 	return 0;
-    m68k_areg (&ctx->regs, 1) = uaegfx_base;
+    m68k_areg (regs, 1) = uaegfx_base;
     CallLib (ctx, exec, -0x18c); /* AddLibrary */
-    m68k_areg (&ctx->regs, 1) = EXPANSION_explibname;
-    m68k_dreg (&ctx->regs, 0) = 0;
+    m68k_areg (regs, 1) = EXPANSION_explibname;
+    m68k_dreg (regs, 0) = 0;
     put_long (uaegfx_base + CARD_EXPANSIONBASE, CallLib (ctx, exec, -0x228)); /* OpenLibrary */
     put_long (uaegfx_base + CARD_EXECBASE, exec);
     put_long (uaegfx_base + CARD_NAME, uaegfx_resname);

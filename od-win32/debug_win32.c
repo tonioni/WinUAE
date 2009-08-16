@@ -597,11 +597,11 @@ static void ShowDasm(int direction)
 		hDasm = GetDlgItem(hDbgWnd, IDC_DBG_DASM);
 
     if (!dbgpage[currpage].init) {
-	addr = m68k_getpc (&regs);
+	addr = m68k_getpc ();
 	dbgpage[currpage].init = 1;
     }
 	else if (dbgpage[currpage].autoset == 1 && direction == 0) {
-	addr = m68k_getpc (&regs);
+	addr = m68k_getpc ();
 	}
     else
 	addr = dbgpage[currpage].dasmaddr;
@@ -636,7 +636,7 @@ static void SetMemToPC(void)
 {
     int i, id;
 
-    dbgpage[currpage].dasmaddr = m68k_getpc (&regs);
+    dbgpage[currpage].dasmaddr = m68k_getpc ();
     _stprintf(dbgpage[currpage].addrinput, L"%08lX", dbgpage[currpage].dasmaddr);
     for (i = 0; i < MAXPAGECONTROLS; i++) {
 	id = GetDlgCtrlID(dbgpage[currpage].ctrl[i]);
@@ -1020,12 +1020,12 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 		if (id == IDC_DBG_DREG) {
 			_tcsncpy(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
-			m68k_dreg(&regs, index) = _tcstoul(hexstr, NULL, 0);
+			m68k_dreg(regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
 		else if (id == IDC_DBG_AREG) {
 			_tcsncpy(hexstr + 2, txt, 8);
 			hexstr[10] = '\0';
-			m68k_areg(&regs, index) = _tcstoul(hexstr, NULL, 0);
+			m68k_areg(regs, index) = _tcstoul(hexstr, NULL, 0);
 		}
 		else if (id == IDC_DBG_FPREG) {
 			TCHAR *stopstr;
@@ -1041,7 +1041,7 @@ static void ListboxEndEdit(HWND hwnd, BOOL acceptinput)
 			uae_u32 addr;
 			SendMessage(hwnd, LB_GETTEXT, index, (LPARAM)tmp);
 			if (id == IDC_DBG_AMEM) {
-				addr = m68k_areg(&regs, index);
+				addr = m68k_areg(regs, index);
 				offset = 0;
 				bytes = 16;
 			}
@@ -1422,11 +1422,11 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 			case ID_DBG_SETTOA5:
 			case ID_DBG_SETTOA6:
 			case ID_DBG_SETTOA7:
-				dbgpage[currpage].memaddr = m68k_areg(&regs, LOWORD(wParam) - ID_DBG_SETTOA0);
+				dbgpage[currpage].memaddr = m68k_areg(regs, LOWORD(wParam) - ID_DBG_SETTOA0);
 				ShowMem(0);
 				return 0;
 			case ID_DBG_SETTOPC:
-				dbgpage[currpage].dasmaddr =  m68k_getpc(&regs);
+				dbgpage[currpage].dasmaddr =  m68k_getpc();
 				ShowDasm(0);
 				return 0;
 			case ID_DBG_ENTERADDR:
@@ -1972,7 +1972,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 							_tcsncpy(addrstr + 2, text + pos + 1, 8);
 						else if (text[pos] == '(' && _istdigit(text[pos + 2])) { //address register indirect
 							int reg = _tstoi(text + pos + 2);
-							uae_u32 loc = m68k_areg (&regs, reg);
+							uae_u32 loc = m68k_areg (regs, reg);
 							_stprintf(addrstr + 2, L"%08lx", loc);
 						}
 					}
@@ -2010,7 +2010,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 					TextOut(hdc, rc.left, rc.top, L"=", 1);
 			}
 			rc.left += size;
-			if (addr == m68k_getpc(&regs)) {
+			if (addr == m68k_getpc()) {
 				FillRect(hdc, &rc, GetSysColorBrush(COLOR_HIGHLIGHT));
 				SetBkColor(hdc, GetSysColor(COLOR_HIGHLIGHT));
 				SetTextColor(hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
@@ -2125,17 +2125,17 @@ void update_debug_info(void)
 	return;
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_DREG);
     for (i = 0; i < 8; i++) {
-	_stprintf(out, L"D%d: %08lX", i, m68k_dreg (&regs, i));
+	_stprintf(out, L"D%d: %08lX", i, m68k_dreg (regs, i));
 	UpdateListboxString(hwnd, i, out, TRUE);
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
     for (i = 0; i < 8; i++) {
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AREG);
-	_stprintf(out, L"A%d: %08lX", i, m68k_areg (&regs, i));
+	_stprintf(out, L"A%d: %08lX", i, m68k_areg (regs, i));
 	UpdateListboxString(hwnd, i, out, TRUE);
 	hwnd = GetDlgItem(hDbgWnd, IDC_DBG_AMEM);
-	dumpmem2(m68k_areg (&regs, i), out, sizeof(out));
+	dumpmem2(m68k_areg (regs, i), out, sizeof(out));
 	UpdateListboxString(hwnd, i, out + 9, TRUE);
     }
 
@@ -2167,7 +2167,7 @@ void update_debug_info(void)
     UpdateListboxString(hwnd, 4, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PC);
-    _stprintf(out, L"PC: %08lX", m68k_getpc (&regs));
+    _stprintf(out, L"PC: %08lX", m68k_getpc ());
     UpdateListboxString(hwnd, 0, out, TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_PREFETCH);

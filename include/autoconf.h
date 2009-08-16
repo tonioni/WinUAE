@@ -21,10 +21,6 @@ extern void org (uae_u32);
 extern uae_u32 here (void);
 extern uaecptr makedatatable (uaecptr resid, uaecptr resname, uae_u8 type, uae_s8 priority, uae_u16 ver, uae_u16 rev);
 
-#define deftrap(f) define_trap((f), 0, L"")
-#define deftrap2(f, mode, str) define_trap((f), (mode), (str))
-#define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
-
 extern void align (int);
 
 extern volatile int uae_int_requested;

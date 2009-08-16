@@ -170,6 +170,7 @@ uae_u16 adkcon; /* used by audio code */
 static uae_u32 cop1lc, cop2lc, copcon;
 
 int maxhpos = MAXHPOS_PAL;
+int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_max = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
@@ -2712,6 +2713,7 @@ void init_hz (void)
 	vblank_hz = 10;
     if (vblank_hz > 300)
 	vblank_hz = 300;
+    maxhpos_short = maxhpos;
     eventtab[ev_hsync].oldcycles = get_cycles ();
     eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
     events_schedule ();
@@ -2799,14 +2801,14 @@ static uae_u32 REGPARAM2 timehack_helper (TrapContext *context)
 {
 #ifdef HAVE_GETTIMEOFDAY
     struct timeval tv;
-    if (m68k_dreg (&context->regs, 0) == 0)
+    if (m68k_dreg (regs, 0) == 0)
 	return timehack_alive;
 
     timehack_alive = 10;
 
     gettimeofday (&tv, NULL);
-    put_long (m68k_areg (&context->regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
-    put_long (m68k_areg (&context->regs, 0) + 4, tv.tv_usec);
+    put_long (m68k_areg (regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
+    put_long (m68k_areg (regs, 0) + 4, tv.tv_usec);
     return 0;
 #else
     return 2;
@@ -2851,13 +2853,24 @@ STATIC_INLINE uae_u16 ADKCONR (void)
     return adkcon;
 }
 
+STATIC_INLINE int islightpentriggered (void)
+{
+    if (beamcon0 & 0x2000) // LPENDIS
+	return 0;
+    return lightpen_triggered > 0;
+}
+STATIC_INLINE int issyncstopped (void)
+{
+    return (bplcon0 & 2) && !currprefs.genlock;
+}
+
 STATIC_INLINE int GETVPOS (void)
 {
-    return lightpen_triggered > 0 ? vpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? vpos_previous : vpos);
+    return islightpentriggered () ? vpos_lpen : (issyncstopped () ? vpos_previous : vpos);
 }
 STATIC_INLINE int GETHPOS (void)
 {
-    return lightpen_triggered > 0 ? hpos_lpen : (((bplcon0 & 2) && !currprefs.genlock) ? hpos_previous : current_hpos ());
+    return islightpentriggered () ? hpos_lpen : (issyncstopped () ? hpos_previous : current_hpos ());
 }
 
 STATIC_INLINE uae_u16 VPOSR (void)
@@ -2880,7 +2893,9 @@ STATIC_INLINE uae_u16 VPOSR (void)
 
     if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 	vp &= 1;
-    vp = vp | (lof ? 0x8000 : 0) | (lol ? 0x80 : 0) | csbit;
+    vp = vp | (lof ? 0x8000 : 0) | csbit;
+    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
+	vp |= lol ? 0x80 : 0;
 #if 0
     write_log (L"VPOSR %04x at %08x\n", vp, M68K_GETPC);
 #endif
@@ -2896,9 +2911,8 @@ static void VPOSW (uae_u16 v)
     if (lof != ((v & 0x8000) ? 1 : 0))
 	lof_changed = 1;
     lof = (v & 0x8000) ? 1 : 0;
-    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+    if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 	lol = (v & 0x0080) ? 1 : 0;
-    }
     if ((v & 1) && vpos > 0) {
 	hack_vpos = vpos + 1;
 	if (hack_vpos > maxvpos)
@@ -2941,7 +2955,7 @@ static int test_copper_dangerous (unsigned int address)
     if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0 : 0x40) : 0x80)) {
 	cop_state.state = COP_stop;
 	copper_enabled_thisline = 0;
-	unset_special (&regs, SPCFLAG_COPPER);
+	unset_special (SPCFLAG_COPPER);
 	return 1;
     }
     return 0;
@@ -2990,7 +3004,7 @@ static void immediate_copper (int num)
 	}
     }
     cop_state.state = COP_stop;
-    unset_special (&regs, SPCFLAG_COPPER);
+    unset_special (SPCFLAG_COPPER);
 }
 
 STATIC_INLINE void COP1LCH (uae_u16 v)
@@ -3023,7 +3037,7 @@ static void COPJMP (int num, int vblank)
 	write_log (L"vblank without copper ending %08x (%08x %08x)\n", cop_state.ip, cop1lc, cop2lc);
 #endif
 
-    unset_special (&regs, SPCFLAG_COPPER);
+    unset_special (SPCFLAG_COPPER);
     cop_state.ignore_next = 0;
     if (!oldstrobe)
 	cop_state.state_prev = cop_state.state;
@@ -3075,17 +3089,17 @@ static void DMACON (int hpos, uae_u16 v)
 	    compute_spcflag_copper (hpos);
 	} else if (!newcop) {
 	    copper_enabled_thisline = 0;
-	    unset_special (&regs, SPCFLAG_COPPER);
+	    unset_special (SPCFLAG_COPPER);
 	}
     }
     if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done)
-	set_special (&regs, SPCFLAG_BLTNASTY);
+	set_special (SPCFLAG_BLTNASTY);
  
     if (dmaen (DMA_BLITTER) && bltstate == BLT_init)
 	bltstate = BLT_work;
  
     if ((dmacon & (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) != (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER))
-	unset_special (&regs, SPCFLAG_BLTNASTY);
+	unset_special (SPCFLAG_BLTNASTY);
 
     if (changed & (DMA_MASTER | 0x0f))
 	audio_hsync (hpos);
@@ -3294,6 +3308,11 @@ static void BPLCON0 (int hpos, uae_u16 v)
     if (bplcon0 == v)
 	return;
 
+    if (!issyncstopped ()) {
+	vpos_previous = vpos;
+	hpos_previous = hpos;
+    }
+
     bplcon0 = v;
 
     bpldmainitdelay (hpos);
@@ -3303,10 +3322,6 @@ static void BPLCON0 (int hpos, uae_u16 v)
 }
 
 #if 0    
-    if ((bplcon0 & 2) && !(v & 2)) {
-	vpos_previous = vpos;
-	hpos_previous = hpos;
-    }
 
     ddf_change = vpos;
     decide_line (hpos);
@@ -3966,7 +3981,7 @@ static void update_copper (int until_hpos)
 	dump_copper (L"error2", until_hpos);
 	copper_enabled_thisline = 0;
 	cop_state.state = COP_stop;
-	unset_special (&regs, SPCFLAG_COPPER);
+	unset_special (SPCFLAG_COPPER);
 	return;
     }
 
@@ -4173,12 +4188,12 @@ static void update_copper (int until_hpos)
 	    if (cop_state.saved_i1 == 0xFFFF && cop_state.saved_i2 == 0xFFFE) {
 		cop_state.state = COP_stop;
 		copper_enabled_thisline = 0;
-		unset_special (&regs, SPCFLAG_COPPER);
+		unset_special (SPCFLAG_COPPER);
 		goto out;
 	    }
 	    if (vp < cop_state.vcmp) {
 		copper_enabled_thisline = 0;
-		unset_special (&regs, SPCFLAG_COPPER);
+		unset_special (SPCFLAG_COPPER);
 		goto out;
 	    }
 
@@ -4197,7 +4212,7 @@ static void update_copper (int until_hpos)
 		/* We need to wait for the blitter.  */
 		cop_state.state = COP_bltwait;
 		copper_enabled_thisline = 0;
-		unset_special (&regs, SPCFLAG_COPPER);
+		unset_special (SPCFLAG_COPPER);
 		goto out;
 	    }
 
@@ -4250,7 +4265,7 @@ static void compute_spcflag_copper (int hpos)
     int wasenabled = copper_enabled_thisline;
 
     copper_enabled_thisline = 0;
-    unset_special (&regs, SPCFLAG_COPPER);
+    unset_special (SPCFLAG_COPPER);
     if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_bltwait || nocustom ())
 	return;
 
@@ -4269,7 +4284,7 @@ static void compute_spcflag_copper (int hpos)
 	cop_state.hpos = hpos;
     }
     copper_enabled_thisline = 1;
-    set_special (&regs, SPCFLAG_COPPER);
+    set_special (SPCFLAG_COPPER);
 }
 
 /*
@@ -4296,7 +4311,7 @@ void blitter_done_notify (int hpos)
 
     if (dmaen (DMA_COPPER) && vp == vpos) {
 	copper_enabled_thisline = 1;
-	set_special (&regs, SPCFLAG_COPPER);
+	set_special (SPCFLAG_COPPER);
     }
 }
 
@@ -5030,7 +5045,11 @@ static void hsync_handler (void)
     }
 #endif
 
-    eventtab[ev_hsync].evtime += get_cycles () - eventtab[ev_hsync].oldcycles;
+    if (!(beamcon0 & 0x0800) && !(beamcon0 & 0x0020) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+	lol ^= 1; // NTSC and !LOLDIS -> LOL toggles every line
+    }
+    maxhpos = maxhpos_short + lol;
+    eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
     eventtab[ev_hsync].oldcycles = get_cycles ();
     CIA_hsync_handler (!(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock));
     if (currprefs.cs_ciaatod > 0) {
@@ -5062,10 +5081,6 @@ static void hsync_handler (void)
 	hardware_line_completed (next_lineno);
 	if (doflickerfix () && interlace_seen)
 	    hsync_scandoubler ();
-    }
-
-    if (!(beamcon0 & 0x0800) && !(beamcon0 & 0x0020) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
-	lol ^= 1; // NTSC and !LOLDIS = LOL toggles every line
     }
 
     /* In theory only an equality test is needed here - but if a program
@@ -5375,7 +5390,7 @@ void customreset (int hardreset)
 
     target_reset ();
     reset_all_systems ();
-    write_log (L"Reset at %08X\n", m68k_getpc (&regs));
+    write_log (L"Reset at %08X\n", M68K_GETPC);
     memory_map_dump();
 
     hsync_counter = 0;
@@ -5442,7 +5457,7 @@ void customreset (int hardreset)
 #ifdef JIT
     compemu_reset ();
 #endif
-    unset_special (&regs, ~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
+    unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
     vpos = 0;
 
@@ -6623,7 +6638,9 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	checknasty (hpos, vpos);
     }
 #endif
-    if (mode > 0)
+    if (mode < 0)
+	v = get_long (addr);
+    else if (mode > 0)
 	v = get_word (addr);
     else if (mode == 0)
 	v = get_byte (addr);
@@ -6660,7 +6677,9 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 	checknasty (hpos, vpos);
     }
 #endif
-    if (mode > 0)
+    if (mode < 0)
+	put_long (addr, v);
+    else if (mode > 0)
 	put_word (addr, v);
     else if (mode == 0)
 	put_byte (addr, v);

@@ -7,7 +7,7 @@
   *
   */
 
-#define A2091_DEBUG 1
+#define A2091_DEBUG 0
 #define A3000_DEBUG 0
 #define WD33C93_DEBUG 0
 

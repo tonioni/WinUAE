@@ -130,7 +130,7 @@ static uae_u32 emulib_ChangeLanguage (uae_u32 which)
  * Changes chip memory size
  *  (reboots)
  */
-static uae_u32 REGPARAM2 emulib_ChgCMemSize (struct regstruct *regs, uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgCMemSize (uae_u32 memsize)
 {
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x200000) {
@@ -148,7 +148,7 @@ static uae_u32 REGPARAM2 emulib_ChgCMemSize (struct regstruct *regs, uae_u32 mem
  * Changes slow memory size
  *  (reboots)
  */
-static uae_u32 REGPARAM2 emulib_ChgSMemSize (struct regstruct *regs, uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
 {
     if (memsize != 0x80000 && memsize != 0x100000 &&
 	memsize != 0x180000 && memsize != 0x1C0000) {
@@ -166,7 +166,7 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (struct regstruct *regs, uae_u32 mem
  * Changes fast memory size
  *  (reboots)
  */
-static uae_u32 REGPARAM2 emulib_ChgFMemSize (struct regstruct *regs, uae_u32 memsize)
+static uae_u32 REGPARAM2 emulib_ChgFMemSize (uae_u32 memsize)
 {
     if (memsize != 0x100000 && memsize != 0x200000 &&
 	memsize != 0x400000 && memsize != 0x800000) {
@@ -299,7 +299,7 @@ static uae_u32 emulib_Debug (void)
 #define CALL_NATIVE_FUNC( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 ) if(native_func) native_func( d1,d2,d3,d4,d5,d6,d7,a1,a2,a3,a4,a5,a6 )
 /* A0 - Contains a ptr to the native .obj data.  This ptr is Amiga-based. */
 /*      We simply find the first function in this .obj data, and execute it. */
-static uae_u32 REGPARAM2 emulib_ExecuteNativeCode (struct regstruct *regs)
+static uae_u32 REGPARAM2 emulib_ExecuteNativeCode (void)
 {
 #if 0
     uaecptr object_AAM = m68k_areg (regs, 0);
@@ -365,12 +365,12 @@ extern uae_u32 picasso_demux (uae_u32 arg, TrapContext *context);
 
 static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 {
-#define ARG0 (get_long (m68k_areg (&context->regs, 7) + 4))
-#define ARG1 (get_long (m68k_areg (&context->regs, 7) + 8))
-#define ARG2 (get_long (m68k_areg (&context->regs, 7) + 12))
-#define ARG3 (get_long (m68k_areg (&context->regs, 7) + 16))
-#define ARG4 (get_long (m68k_areg (&context->regs, 7) + 20))
-#define ARG5 (get_long (m68k_areg (&context->regs, 7) + 24))
+#define ARG0 (get_long (m68k_areg (regs, 7) + 4))
+#define ARG1 (get_long (m68k_areg (regs, 7) + 8))
+#define ARG2 (get_long (m68k_areg (regs, 7) + 12))
+#define ARG3 (get_long (m68k_areg (regs, 7) + 16))
+#define ARG4 (get_long (m68k_areg (regs, 7) + 20))
+#define ARG5 (get_long (m68k_areg (regs, 7) + 24))
 
 #ifndef UAEGFX_INTERNAL
     if (ARG0 >= 16 && ARG0 <= 39)
@@ -388,9 +388,9 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
     case 6: return emulib_EnableSound (ARG1);
     case 7: return emulib_EnableJoystick (ARG1);
     case 8: return emulib_SetFrameRate (ARG1);
-    case 9: return emulib_ChgCMemSize (&context->regs, ARG1);
-    case 10: return emulib_ChgSMemSize (&context->regs, ARG1);
-    case 11: return emulib_ChgFMemSize (&context->regs, ARG1);
+    case 9: return emulib_ChgCMemSize (ARG1);
+    case 10: return emulib_ChgSMemSize (ARG1);
+    case 11: return emulib_ChgFMemSize (ARG1);
     case 12: return emulib_ChangeLanguage (ARG1);
 	/* The next call brings bad luck */
     case 13: return emulib_ExitEmu ();
@@ -398,7 +398,7 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
     case 15: return emulib_Debug ();
 
     case 68: return emulib_Minimize ();
-    case 69: return emulib_ExecuteNativeCode (&context->regs);
+    case 69: return emulib_ExecuteNativeCode ();
 
     case 70: return 0; /* RESERVED. Something uses this.. */
 
@@ -418,7 +418,7 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 	{
 	    uae_u32 d0, d1;
 	    d0 = emulib_target_getcpurate (ARG1, &d1);
-	    m68k_dreg (&context->regs, 1) = d1;
+	    m68k_dreg (regs, 1) = d1;
 	    return d0;
 	}
 
@@ -430,7 +430,7 @@ extern int uaelib_debug;
 static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 {
     uae_u32 v;
-    struct regstruct *r = &context->regs;
+    struct regstruct *r = &regs;
 
     if (uaelib_debug)
 	write_log (L"%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n",

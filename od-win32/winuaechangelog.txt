@@ -1,4 +1,27 @@
 
+
+Beta 7:
+
+- removed very old width divisible by 8 restriction
+- genlock "emulation" (chipset clocks stop if no genlock and BPLCON0
+  external sync bit is enabled) was broken few betas ago
+- NTSC alternating short/long line emulated (perhaps some rare
+  NTSC-only demo cares about this)
+- 5.1 sound mode had wrong Amiga channels -> center/sub mixing ratio
+- another MOVEM disassembler fix
+- pointless regstruct duplication in sources finally removed
+- 68EC020/68020 "cycle exact" mode implemented. This is A500 chipset
+  cycle exact mode combined with 68020 CPU. 68020's chip RAM fetches
+  are slowed by DMA, instruction cache is not emulated but "close
+  enough" opcode fetches are not slowed down as much (better than
+  nothing). Extra instruction processing cycle usage is not yet
+  included, CPU basically runs as fast as memory allows. (which is
+  more or less correct except slow instructions like mul and div need
+  extra cycles) Quickstart A1200/CD32 most compatible now enables this
+  new CE-mode. Some weird sound problems can be noticed, reason unknown..
+
+Two above changes can break lots of things as usual..
+
 Beta 6:
 
 - STOP increased PC only by 2 if trace was active (copy protections..)

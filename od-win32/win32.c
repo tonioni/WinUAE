@@ -4409,7 +4409,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 	    if ((p >= (void*)regs.pc_p && p < (void*)(regs.pc_p + 32))
 		|| (p >= (void*)prevpc && p < (void*)(prevpc + 32))) {
 		int got = 0;
-		uaecptr opc = m68k_getpc (&regs);
+		uaecptr opc = m68k_getpc ();
 		void *ps = get_real_address (0);
 		m68k_dumpstate (0, 0);
 		efix (&ctx->Eax, p, ps, &got);
@@ -4423,7 +4423,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		    write_log (L"failed to find and fix the problem (%p). crashing..\n", p);
 		} else {
 		    void *ppc = regs.pc_p;
-		    m68k_setpc (&regs, 0);
+		    m68k_setpc (0);
 		    if (ppc != regs.pc_p) {
 			prevpc = (uae_u8*)ppc;
 		    }

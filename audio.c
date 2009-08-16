@@ -732,8 +732,9 @@ static void sample16i_crux_handler (void)
 STATIC_INLINE void make6ch (uae_s32 d0, uae_s32 d1, uae_s32 d2, uae_s32 d3)
 {
     uae_s32 sum = d0 + d1 + d2 + d3;
-    PUT_SOUND_WORD (sum >> 1);
-    PUT_SOUND_WORD (sum >> 1);
+    sum /= 8;
+    PUT_SOUND_WORD (sum);
+    PUT_SOUND_WORD (sum);
 }
 
 void sample16ss_handler (void)
@@ -1152,7 +1153,7 @@ static void audio_handler (int nr)
 		cdp->state = 1;
 		cdp->wlen = cdp->len;
 		/* there are too many stupid sound routines that fail on "too" fast cpus.. */
-		if (currprefs.cpu_model >= 68020)
+		if (currprefs.cpu_model >= 68020 && !currprefs.cpu_cycle_exact)
 		    cdp->pt = cdp->lc;
 #ifdef DEBUG_AUDIO
 		if (debugchannel (nr))
@@ -1692,11 +1693,11 @@ void AUDxDAT (int nr, uae_u16 v)
     cdp->request_word = -1;
     cdp->request_word_skip = 0;
     /* cpu >= 68020: another "too fast" memory/CPU hack */
-    if (cdp->state == 0 || currprefs.cpu_model >= 68020) {
+    if (cdp->state == 0 || (currprefs.cpu_model >= 68020 && !currprefs.cpu_cycle_exact)) {
 	cdp->state = 2;
 	cdp->wlen = cdp->len;
 	cdp->pt = cdp->lc;
-	if (currprefs.cpu_model >= 68020)
+	if (currprefs.cpu_model >= 68020 && !currprefs.cpu_cycle_exact)
 	    INTREQ (0x80 << nr);
 	audio_handler (nr);
 	schedule_audio ();

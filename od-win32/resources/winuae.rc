@@ -987,8 +987,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,6,2,0
- PRODUCTVERSION 1,6,2,0
+ FILEVERSION 2,0,0,0
+ PRODUCTVERSION 2,0,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1004,12 +1004,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "1.6.2"
+            VALUE "FileVersion", "2.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2009 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "1.6.2"
+            VALUE "ProductVersion", "2.0.0"
         END
     END
     BLOCK "VarFileInfo"

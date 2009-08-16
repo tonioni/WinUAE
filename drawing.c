@@ -2833,7 +2833,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 	if (quit_program < 0) {
 	    quit_program = -quit_program;
 	    set_inhibit_frame (IHF_QUIT_PROGRAM);
-	    set_special (&regs, SPCFLAG_BRK);
+	    set_special (SPCFLAG_BRK);
 	    return;
 	}
 

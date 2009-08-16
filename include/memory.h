@@ -99,6 +99,7 @@ typedef struct {
 #define CE_MEMBANK_FAST 0
 #define CE_MEMBANK_CHIP 1
 #define CE_MEMBANK_CIA 2
+#define CE_MEMBANK_FAST16BIT 3
 extern uae_u8 ce_banktype[256];
 
 extern uae_u8 *filesysory;
@@ -183,23 +184,23 @@ extern void free_fastmemory (void);
 
 STATIC_INLINE uae_u32 get_long (uaecptr addr)
 {
-    return longget(addr);
+    return longget (addr);
 }
 STATIC_INLINE uae_u32 get_word (uaecptr addr)
 {
-    return wordget(addr);
+    return wordget (addr);
 }
 STATIC_INLINE uae_u32 get_byte (uaecptr addr)
 {
-    return byteget(addr);
+    return byteget (addr);
 }
 STATIC_INLINE uae_u32 get_longi(uaecptr addr)
 {
-    return longgeti(addr);
+    return longgeti (addr);
 }
 STATIC_INLINE uae_u32 get_wordi(uaecptr addr)
 {
-    return wordgeti(addr);
+    return wordgeti (addr);
 }
 
 /*

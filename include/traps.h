@@ -16,10 +16,7 @@
 /*
  * Data passed to a trap handler
  */
-typedef struct TrapContext
-{
-    struct regstruct regs;
-} TrapContext;
+typedef struct TrapContext TrapContext;
 
 
 #define TRAPFLAG_NO_REGSAVE  1
@@ -37,7 +34,7 @@ typedef uae_u32 (REGPARAM3 *TrapHandler) (TrapContext *) REGPARAM;
 /*
  * Interface with 68k interpreter
  */
-extern void REGPARAM3 m68k_handle_trap (unsigned int trap_num, struct regstruct *) REGPARAM;
+extern void REGPARAM3 m68k_handle_trap (unsigned int trap_num) REGPARAM;
 
 unsigned int define_trap (TrapHandler handler_func, int flags, const TCHAR *name);
 uaecptr find_trap (const TCHAR *name);
@@ -53,5 +50,9 @@ extern uae_u32 CallFunc (TrapContext *context, uaecptr func);
  */
 void init_traps (void);
 void init_extended_traps (void);
+
+#define deftrap(f) define_trap((f), 0, L"")
+#define deftrap2(f, mode, str) define_trap((f), (mode), (str))
+#define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
 
 #endif

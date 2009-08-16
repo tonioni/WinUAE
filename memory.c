@@ -2086,7 +2086,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 	    if (be_cnt < 3) {
 		int i, j;
 		uaecptr a2 = a - 32;
-		uaecptr a3 = m68k_getpc (&regs) - 32;
+		uaecptr a3 = m68k_getpc () - 32;
 		write_log (L"Your Amiga program just did something terribly stupid %08X PC=%08X\n", a, M68K_GETPC);
 		m68k_dumpstate (0, 0);
 		for (i = 0; i < 10; i++) {
@@ -2105,9 +2105,9 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 		be_cnt = 0;
 	    } else {
 		regs.panic = 1;
-		regs.panic_pc = m68k_getpc (&regs);
+		regs.panic_pc = m68k_getpc ();
 		regs.panic_addr = a;
-		set_special (&regs, SPCFLAG_BRK);
+		set_special (SPCFLAG_BRK);
 	    }
 	}
     }
@@ -3353,6 +3353,37 @@ static void allocate_memory (void)
     a3000hmem_filepos = 0;
 }
 
+static void fill_ce_banks (void)
+{
+    int i;
+
+    memset (ce_banktype, CE_MEMBANK_FAST, 256);
+    if (&get_mem_bank (0) == &chipmem_bank) {
+	for (i = 0; i < (0x200000 >> 16); i++)
+	    ce_banktype[i] = CE_MEMBANK_CHIP;
+    }
+    if (!currprefs.cs_slowmemisfast) {
+	for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
+	    ce_banktype[i] = CE_MEMBANK_CHIP;
+    }
+    for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
+	ce_banktype[i] = CE_MEMBANK_CHIP;
+    for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++) {
+	addrbank *b;
+	ce_banktype[i] = CE_MEMBANK_CIA;
+	b = &get_mem_bank (i << 16);
+	if (b != &cia_bank)
+	    ce_banktype[i] = CE_MEMBANK_FAST;
+    }
+    // CD32 ROM is 16-bit
+    if (currprefs.cs_cd32cd) {
+	for (i = (0xe00000 >> 16); i < (0xe80000 >> 16); i++)
+	    ce_banktype[i] = CE_MEMBANK_FAST16BIT;
+	for (i = (0xf80000 >> 16); i <= (0xff0000 >> 16); i++)
+	    ce_banktype[i] = CE_MEMBANK_FAST16BIT;
+    }
+}
+
 void map_overlay (int chip)
 {
     int size;
@@ -3361,8 +3392,10 @@ void map_overlay (int chip)
     size = allocated_chipmem >= 0x180000 ? (allocated_chipmem >> 16) : 32;
     cb = &chipmem_bank;
 #ifdef AGA
+#if 0
     if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020)
 	cb = &chipmem_bank_ce2;
+#endif
 #endif
     if (chip) {
 	map_banks (&dummy_bank, 0, 32, 0);
@@ -3396,8 +3429,9 @@ void map_overlay (int chip)
 	    rb = &kickmem_bank;
 	map_banks (rb, 0, size, 0x80000);
     }
+    fill_ce_banks ();
     if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND && valid_address (regs.pc, 4))
-	m68k_setpc (&regs, m68k_getpc (&regs));
+	m68k_setpc (m68k_getpc ());
 }
 
 void memory_reset (void)
@@ -3751,28 +3785,6 @@ void memory_hardreset (void)
     if (a3000hmemory)
 	memset (a3000hmemory, 0, allocated_a3000hmem);
     expansion_clear ();
-}
-
-static void fill_ce_banks (void)
-{
-    int i;
-
-    memset (ce_banktype, CE_MEMBANK_FAST, 256);
-    for (i = 0; i < (0x200000 >> 16); i++)
-	ce_banktype[i] = CE_MEMBANK_CHIP;
-    if (!currprefs.cs_slowmemisfast) {
-	for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
-	    ce_banktype[i] = CE_MEMBANK_CHIP;
-    }
-    for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
-	ce_banktype[i] = CE_MEMBANK_CHIP;
-    for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++) {
-	addrbank *b;
-	ce_banktype[i] = CE_MEMBANK_CIA;
-	b = &get_mem_bank (i << 16);
-	if (b != &cia_bank)
-	    ce_banktype[i] = CE_MEMBANK_FAST;
-    }
 }
 
 void map_banks (addrbank *bank, int start, int size, int realsize)

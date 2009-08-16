@@ -265,7 +265,7 @@ static int start_thread (struct devstruct *dev)
 
 static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     struct priv_devstruct *pdev = getpdevstruct (request);
     struct devstruct *dev;
 
@@ -286,8 +286,8 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
     if (!dev->opencnt) {
 	dev->exclusive = 0;
 	if (pdev->tempbuf) {
-	    m68k_areg (&context->regs, 1) = pdev->tempbuf;
-	    m68k_dreg (&context->regs, 0) = pdev->td->mtu + ETH_HEADER_SIZE + 2;
+	    m68k_areg (regs, 1) = pdev->tempbuf;
+	    m68k_dreg (regs, 0) = pdev->td->mtu + ETH_HEADER_SIZE + 2;
 	    CallLib (context, get_long (4), -0xD2); /* FreeMem */
 	    pdev->tempbuf = 0;
 	}
@@ -297,7 +297,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 	write_comm_pipe_u32 (&dev->requests, 0, 1);
         write_log (L"%s: opencnt == 0, all instances closed\n", SANA2NAME);
     }
-    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
+    put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) - 1);
     return 0;
 }
 
@@ -329,8 +329,8 @@ static int initint (TrapContext *ctx)
 
     if (irq_init)
 	return 1;
-    m68k_dreg (&ctx->regs, 0) = 26;
-    m68k_dreg (&ctx->regs, 1) = 65536 + 1;
+    m68k_dreg (regs, 0) = 26;
+    m68k_dreg (regs, 1) = 65536 + 1;
     p = CallLib (ctx, get_long (4), -0xC6); /* AllocMem */
     if (!p)
 	return 0;
@@ -339,8 +339,8 @@ static int initint (TrapContext *ctx)
     put_word (p + 8, 0x020a);
     put_long (p + 10, ROM_netdev_resid);
     put_long (p + 18, tmp1);
-    m68k_areg (&ctx->regs, 1) = p;
-    m68k_dreg (&ctx->regs, 0) = 13; /* EXTER */
+    m68k_areg (regs, 1) = p;
+    m68k_dreg (regs, 0) = 13; /* EXTER */
     dw (0x4a80); /* TST.L D0 */
     dw (0x4e75); /* RTS */
     CallLib (ctx, get_long (4), -168); /* AddIntServer */
@@ -350,9 +350,9 @@ static int initint (TrapContext *ctx)
 
 static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 {
-    uaecptr ioreq = m68k_areg (&context->regs, 1);
-    uae_u32 unit = m68k_dreg (&context->regs, 0);
-    uae_u32 flags = m68k_dreg (&context->regs, 1);
+    uaecptr ioreq = m68k_areg (regs, 1);
+    uae_u32 unit = m68k_dreg (regs, 0);
+    uae_u32 flags = m68k_dreg (regs, 1);
     uaecptr buffermgmt;
     struct devstruct *dev = getdevstruct (unit);
     struct priv_devstruct *pdev = 0;
@@ -407,10 +407,10 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
     }
 
     if (kickstart_version >= 36) {
-	m68k_areg (&context->regs, 0) = get_long (4) + 350;
-	m68k_areg (&context->regs, 1) = timerdevname;
+	m68k_areg (regs, 0) = get_long (4) + 350;
+	m68k_areg (regs, 1) = timerdevname;
 	CallLib (context, get_long (4), -0x114); /* FindName('timer.device') */
-	pdev->timerbase = m68k_dreg (&context->regs, 0);
+	pdev->timerbase = m68k_dreg (regs, 0);
     }
 
     pdev->copyfrombuff = pdev->copytobuff = pdev->packetfilter = 0;
@@ -450,8 +450,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	if (log_net)
 	    write_log (L"%s:%d CTB=%08x CFB=%08x PF=%08x\n",
 		getdevname(), unit, pdev->copytobuff, pdev->copyfrombuff, pdev->packetfilter);
-	m68k_dreg (&context->regs, 0) = dev->td->mtu + ETH_HEADER_SIZE + 2;
-	m68k_dreg (&context->regs, 1) = 1;
+	m68k_dreg (regs, 0) = dev->td->mtu + ETH_HEADER_SIZE + 2;
+	m68k_dreg (regs, 1) = 1;
 	pdev->tempbuf = CallLib (context, get_long (4), -0xC6); /* AllocMem */
 	if (!pdev->tempbuf) {
 	    if (dev->opencnt == 0) {
@@ -466,7 +466,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
     }
     dev->exclusive = flags & SANA2OPF_MINE;
     dev->opencnt++;
-    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
+    put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
@@ -634,28 +634,28 @@ static void signalasync (struct devstruct *dev, struct asyncreq *ar, int actual,
 
 static uae_u32 copytobuff (TrapContext *ctx, uaecptr from, uaecptr to, uae_u32 len, uaecptr func)
 {
-    m68k_areg (&ctx->regs, 0) = to;
-    m68k_areg (&ctx->regs, 1) = from;
-    m68k_dreg (&ctx->regs, 0) = len;
+    m68k_areg (regs, 0) = to;
+    m68k_areg (regs, 1) = from;
+    m68k_dreg (regs, 0) = len;
     return CallFunc (ctx, func);
 }
 static uae_u32 copyfrombuff (TrapContext *ctx, uaecptr from, uaecptr to, uae_u32 len, uaecptr func)
 {
-    m68k_areg (&ctx->regs, 0) = to;
-    m68k_areg (&ctx->regs, 1) = from;
-    m68k_dreg (&ctx->regs, 0) = len;
+    m68k_areg (regs, 0) = to;
+    m68k_areg (regs, 1) = from;
+    m68k_dreg (regs, 0) = len;
     return CallFunc (ctx, func);
 }
 static uae_u32 packetfilter (TrapContext *ctx, uaecptr hook, uaecptr ios2, uaecptr data)
 {
     uae_u32 a2, v;
 
-    a2 = m68k_areg (&ctx->regs, 2);
-    m68k_areg (&ctx->regs, 0) = hook;
-    m68k_areg (&ctx->regs, 2) = ios2;
-    m68k_areg (&ctx->regs, 1) = data;
+    a2 = m68k_areg (regs, 2);
+    m68k_areg (regs, 0) = hook;
+    m68k_areg (regs, 2) = ios2;
+    m68k_areg (regs, 1) = data;
     v = CallFunc (ctx, get_long (hook + 8));
-    m68k_areg (&ctx->regs, 2) = a2;
+    m68k_areg (regs, 2) = a2;
     return v;
 }
 
@@ -1280,7 +1280,7 @@ static int dev_canquick (struct devstruct *dev, uaecptr request)
 
 static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
     struct priv_devstruct *pdev = getpdevstruct (request);
@@ -1371,7 +1371,7 @@ static void *dev_thread (void *devs)
 
 static uae_u32 REGPARAM2 dev_init_2 (TrapContext *context)
 {
-    uae_u32 base = m68k_dreg (&context->regs,0);
+    uae_u32 base = m68k_dreg (regs,0);
     if (log_net)
 	write_log (L"%s init\n", SANA2NAME);
     return base;
@@ -1384,7 +1384,7 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     struct priv_devstruct *pdev = getpdevstruct (request);
     struct devstruct *dev;
 
@@ -1510,7 +1510,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 		    dev->unknowntypesreceived = 0;
 		    dev->reconfigurations = 0;
 		    if (pdev && pdev->timerbase) {
-			m68k_areg (&ctx->regs, 0) = pdev->tempbuf;
+			m68k_areg (regs, 0) = pdev->tempbuf;
 			CallLib (ctx, pdev->timerbase, -0x42); /* GetSysTime() */
 		    } else {
 			put_long (pdev->tempbuf + 0, 0);

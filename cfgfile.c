@@ -2893,7 +2893,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 		    break;
 		}
 	    }
-	    set_special (&regs, SPCFLAG_BRK);
+	    set_special (SPCFLAG_BRK);
 	    i++;
 	}
     }
@@ -3420,8 +3420,12 @@ static void buildin_default_prefs (struct uae_prefs *p)
 
 static void set_68020_compa (struct uae_prefs *p, int compa)
 {
-    if (compa == 0)
+    if (compa == 0) {
 	p->blitter_cycle_exact = 1;
+	p->m68k_speed = 0;
+	if (p->cpu_model == 68020 && p->cachesize == 0)
+	    p->cpu_cycle_exact = 1;
+    }
     if (compa > 0) {
 	p->cpu_compatible = 0;
 	p->address_space_24 = 0;

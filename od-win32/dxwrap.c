@@ -354,6 +354,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
     DDSURFACEDESC2 desc = { 0 };
     LPDIRECTDRAWSURFACE7 surf;
 
+    width = (width + 7) & ~7;
     desc.dwSize = sizeof (desc);
     desc.dwFlags = DDSD_CAPS;
     desc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;

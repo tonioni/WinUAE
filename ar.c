@@ -507,14 +507,14 @@ uaecptr wait_for_pc = 0;    /* The program counter that we wait for. */
 /* returns true if the Program counter is currently in the AR rom. */
 int is_ar_pc_in_rom()
 {
-    uaecptr pc = m68k_getpc (&regs) & 0xFFFFFF;
+    uaecptr pc = m68k_getpc () & 0xFFFFFF;
     return pc >= arrom_start && pc < arrom_start+arrom_size;
 }
 
 /* returns true if the Program counter is currently in the AR RAM. */
 int is_ar_pc_in_ram()
 {
-    uaecptr pc = m68k_getpc (&regs) & 0xFFFFFF;
+    uaecptr pc = m68k_getpc () & 0xFFFFFF;
     return pc >= arram_start && pc < arram_start+arram_size;
 }
 
@@ -544,15 +544,15 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 		    ar_wait_pop = 0;
 		    /* We get (SP+2) here, as the first word on the stack is the status register. */
 		    /* We want the following long, which is the return program counter. */
-		    wait_for_pc = longget (m68k_areg (&regs, 7) + 2); /* Get (SP+2) */
-		    set_special (&regs, SPCFLAG_ACTION_REPLAY);
+		    wait_for_pc = longget (m68k_areg (regs, 7) + 2); /* Get (SP+2) */
+		    set_special (SPCFLAG_ACTION_REPLAY);
 
-		    pc = m68k_getpc (&regs);
+		    pc = m68k_getpc ();
 /*		    write_log_debug ("Action Replay marked as ACTION_REPLAY_WAIT_PC, PC=%p\n",pc);*/
 		}
 		else
 		{
-		    uaecptr pc = m68k_getpc (&regs);
+		    uaecptr pc = m68k_getpc ();
 /*		    write_log_debug ("Action Replay marked as IDLE, PC=%p\n",pc);*/
 		    action_replay_flag = ACTION_REPLAY_IDLE;
 		}
@@ -592,7 +592,7 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 	} else
 	    write_log (L"AR: exit with armode(%d)\n", armode);
 
-	set_special (&regs, SPCFLAG_ACTION_REPLAY);
+	set_special (SPCFLAG_ACTION_REPLAY);
 	action_replay_flag = ACTION_REPLAY_HIDE;
     } else if (addr == 6) {
 	copytoamiga (regs.vbr + 0x7c, artemp, 4);
@@ -686,19 +686,19 @@ static uae_u32 REGPARAM2 arram_lget (uaecptr addr)
     addr &= arram_mask;
     m = (uae_u32 *)(armemory_ram + addr);
     if (strncmp ("T8", (char*)m, 2) == 0)
-	write_log_debug (L"Reading T8 from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading T8 from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("LAME", (char*)m, 4) == 0)
-	write_log_debug (L"Reading LAME from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading LAME from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("RES1", (char*)m, 4) == 0)
-	write_log_debug (L"Reading RES1 from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading RES1 from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("ARON", (char*)m, 4) == 0)
-	write_log_debug (L"Reading ARON from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading ARON from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("KILL", (char*)m, 4) == 0)
-	write_log_debug (L"Reading KILL from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading KILL from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("BRON", (char*)m, 4) == 0)
-	write_log_debug (L"Reading BRON from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading BRON from addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("PRIN", (char*)m, 4) == 0)
-	write_log_debug (L"Reading PRIN from addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Reading PRIN from addr %08x PC=%p\n", addr, m68k_getpc ());
     return do_get_mem_long (m);
 }
 
@@ -735,19 +735,19 @@ void REGPARAM2 arram_lput (uaecptr addr, uae_u32 l)
     addr &= arram_mask;
     m = (uae_u32 *)(armemory_ram + addr);
     if (strncmp ("T8", (char*)m, 2) == 0)
-	write_log_debug (L"Writing T8 to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing T8 to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("LAME", (char*)m, 4) == 0)
-	write_log_debug (L"Writing LAME to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing LAME to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("RES1", (char*)m, 4) == 0)
-	write_log_debug (L"Writing RES1 to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing RES1 to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("ARON", (char*)m, 4) == 0)
-	write_log_debug (L"Writing ARON to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing ARON to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("KILL", (char*)m, 4) == 0)
-	write_log_debug (L"Writing KILL to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing KILL to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("BRON", (char*)m, 4) == 0)
-	write_log_debug (L"Writing BRON to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing BRON to addr %08x PC=%p\n", addr, m68k_getpc ());
     if (strncmp ("PRIN", (char*)m, 4) == 0)
-	write_log_debug (L"Writing PRIN to addr %08x PC=%p\n", addr, m68k_getpc (&regs));
+	write_log_debug (L"Writing PRIN to addr %08x PC=%p\n", addr, m68k_getpc ());
     do_put_mem_long (m, l);
 }
 
@@ -923,7 +923,7 @@ static void action_replay_go (void)
     hide_cart (0);
     memcpy (armemory_ram + 0xf000, ar_custom, 2 * 256);
     action_replay_flag = ACTION_REPLAY_ACTIVE;
-    set_special (&regs, SPCFLAG_ACTION_REPLAY);
+    set_special (SPCFLAG_ACTION_REPLAY);
     copyfromamiga (artemp, regs.vbr + 0x7c, 4);
     copytoamiga (regs.vbr + 0x7c, armemory_rom + 0x7c, 4);
     NMI ();
@@ -979,7 +979,7 @@ static void hrtmon_go (void)
     triggered_once = 1;
     cartridge_enter();
     hrtmon_flag = ACTION_REPLAY_ACTIVE;
-    set_special (&regs, SPCFLAG_ACTION_REPLAY);
+    set_special (SPCFLAG_ACTION_REPLAY);
     if (hrtmon_zeropage)
 	memcpy (hrtmon_zeropage, chipmemory, 1024);
     if (hrtmon_custom)
@@ -994,7 +994,7 @@ static void hrtmon_go (void)
 	old = get_long ((uaecptr)(regs.vbr + 0x8));
 	put_word (hrtmem_start + 0xc0000, 4);
 	put_long ((uaecptr)(regs.vbr + 8), get_long (hrtmem_start + 8));
-	Exception (2, &regs, 0);
+	Exception (2, 0);
 	put_long ((uaecptr)(regs.vbr + 8), old);
     } else if (cart_type == CART_SUPER4) {
 	uae_u32 v = get_long (hrtmem_start + 0x7c);
@@ -1035,9 +1035,9 @@ void action_replay_enter(void)
 	return;
     triggered_once = 1;
     if (armodel == 1) {
-	write_log (L"AR1: Enter PC:%p\n", m68k_getpc (&regs));
+	write_log (L"AR1: Enter PC:%p\n", m68k_getpc ());
 	action_replay_go1 (7);
-	unset_special (&regs, SPCFLAG_ACTION_REPLAY);
+	unset_special (SPCFLAG_ACTION_REPLAY);
 	return;
     }
     if (action_replay_flag == ACTION_REPLAY_DORESET) {
@@ -1080,7 +1080,7 @@ void action_replay_reset(void)
 {
     if (hrtmemory) {
 	if (savestate_state == STATE_RESTORE) {
-	    if (m68k_getpc (&regs) >= hrtmem_start && m68k_getpc (&regs) <= hrtmem_start + hrtmem_size)
+	    if (m68k_getpc () >= hrtmem_start && m68k_getpc () <= hrtmem_start + hrtmem_size)
 		hrtmon_map_banks ();
 	    else
 		hrtmon_unmap_banks ();
@@ -1090,7 +1090,7 @@ void action_replay_reset(void)
 	    return;
 
 	if (savestate_state == STATE_RESTORE) {
-	    if (m68k_getpc (&regs) >= arrom_start && m68k_getpc (&regs) <= arrom_start + arrom_size) {
+	    if (m68k_getpc () >= arrom_start && m68k_getpc () <= arrom_start + arrom_size) {
 		action_replay_flag = ACTION_REPLAY_ACTIVE;
 		hide_cart (0);
 	    } else {
@@ -1123,10 +1123,10 @@ void action_replay_ciaread(void)
     if (armode < 2)
 	/* If there are no active breakpoints */
 	return;
-    if (m68k_getpc (&regs) >= 0x200)
+    if (m68k_getpc () >= 0x200)
 	return;
     action_replay_flag = ACTION_REPLAY_ACTIVATE;
-    set_special (&regs, SPCFLAG_ACTION_REPLAY);
+    set_special (SPCFLAG_ACTION_REPLAY);
 }
 
 int action_replay_freeze(void)
@@ -1136,13 +1136,13 @@ int action_replay_freeze(void)
 	    action_replay_chipwrite();
 	} else {
 	    action_replay_flag = ACTION_REPLAY_ACTIVATE;
-	    set_special (&regs, SPCFLAG_ACTION_REPLAY);
+	    set_special (SPCFLAG_ACTION_REPLAY);
 	    armode = ARMODE_FREEZE;
 	}
 	return 1;
     } else {
 	hrtmon_flag = ACTION_REPLAY_ACTIVATE;
-	set_special (&regs, SPCFLAG_ACTION_REPLAY);
+	set_special (SPCFLAG_ACTION_REPLAY);
 	return 1;
     }
     return 0;
@@ -1152,7 +1152,7 @@ void action_replay_chipwrite(void)
 {
     if (armodel == 2 || armodel == 3) {
 	action_replay_flag = ACTION_REPLAY_DORESET;
-	set_special (&regs, SPCFLAG_ACTION_REPLAY);
+	set_special (SPCFLAG_ACTION_REPLAY);
     } else if (armodel == 1) {
 	/* copy 0x60 addr info to level 7 */
 	/* This is to emulate the 0x60 interrupt. */
@@ -1161,7 +1161,7 @@ void action_replay_chipwrite(void)
 	ar_wait_pop = 1; /* Wait for stack to pop. */
 
 	action_replay_flag = ACTION_REPLAY_ACTIVATE;
-	set_special (&regs, SPCFLAG_ACTION_REPLAY);
+	set_special (SPCFLAG_ACTION_REPLAY);
     }
 }
 
@@ -1178,7 +1178,7 @@ void hrtmon_hide(void)
 	return;
     cartridge_exit();
     hrtmon_flag = ACTION_REPLAY_IDLE;
-    unset_special (&regs, SPCFLAG_ACTION_REPLAY);
+    unset_special (SPCFLAG_ACTION_REPLAY);
     //write_log (L"HRTMON: Exit\n");
 }
 
@@ -1498,7 +1498,7 @@ int action_replay_unload (int in_memory_reset)
 	}
     }
 
-    unset_special (&regs, SPCFLAG_ACTION_REPLAY); /* This shouldn't be necessary here, but just in case. */
+    unset_special (SPCFLAG_ACTION_REPLAY); /* This shouldn't be necessary here, but just in case. */
     action_replay_flag = ACTION_REPLAY_INACTIVE;
     hrtmon_flag = ACTION_REPLAY_INACTIVE;
     action_replay_unsetbanks ();

@@ -5846,7 +5846,7 @@ static void flush_icache_hard(uae_u32 ptr, int n)
     if (!compiled_code)
 	return;
     current_compile_p=compiled_code;
-    set_special(&regs, 0); /* To get out of compiled code */
+    set_special(0); /* To get out of compiled code */
 }
 
 

@@ -284,7 +284,7 @@ static void gayle_cs_change (uae_u8 mask, int onoff)
 	    if (gayle_irq & GAYLE_IRQ_RESET)
 		uae_reset (0);
 	    if (gayle_irq & GAYLE_IRQ_BERR)
-		Exception (2, &regs, 0);
+		Exception (2, 0);
 	}
     }
 }

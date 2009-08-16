@@ -300,7 +300,7 @@ static void blitter_done (int hpos)
     if (debug_dma)
 	record_dma_event (DMA_EVENT_BLITFINISHED, hpos, vpos);
     event2_remevent (ev2_blitter);
-    unset_special (&regs, SPCFLAG_BLTNASTY);
+    unset_special (SPCFLAG_BLTNASTY);
 #ifdef BLITTER_DEBUG
     write_log (L"cycles %d, missed %d, total %d\n",
 	blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
@@ -1271,9 +1271,9 @@ static void do_blitter2 (int hpos, int copper)
     bltstate = BLT_init;
     blit_slowdown = 0;
 
-    unset_special (&regs, SPCFLAG_BLTNASTY);
+    unset_special (SPCFLAG_BLTNASTY);
     if (dmaen (DMA_BLITPRI))
-	set_special (&regs, SPCFLAG_BLTNASTY);
+	set_special (SPCFLAG_BLTNASTY);
 
     if (vblitsize == 0 || (blitline && hblitsize != 2)) {
 	blitter_done (hpos);

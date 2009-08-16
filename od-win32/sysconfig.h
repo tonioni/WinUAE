@@ -45,7 +45,8 @@
 #define FULLMMU /* Aranym 68040 MMU */
 #define CPUEMU_0 /* generic 680x0 emulation */
 #define CPUEMU_11 /* 68000+prefetch emulation */
-#define CPUEMU_12 /* cycle-exact cpu&blitter */
+#define CPUEMU_12 /* 68000 cycle-exact cpu&blitter */
+#define CPUEMU_13 /* 68020 "cycle-exact" + blitter */
 #define ACTION_REPLAY /* Action Replay 1/2/3 support */
 #define PICASSO96 /* Picasso96 display card emulation */
 #define UAEGFX_INTERNAL /* built-in libs:picasso96/uaegfx.card */

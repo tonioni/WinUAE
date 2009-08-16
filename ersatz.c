@@ -96,7 +96,7 @@ static void ersatz_failed (void)
 
 static void ersatz_doio (void)
 {
-    uaecptr request = m68k_areg (&regs, 1);
+    uaecptr request = m68k_areg (regs, 1);
     switch (get_word (request + 0x1C)) {
      case 9: /* TD_MOTOR is harmless */
 	return;
@@ -143,11 +143,11 @@ static void ersatz_init (void)
 	put_long (a, 0xF8001A);
     }
     regs.isp = regs.msp = regs.usp = 0x800;
-    m68k_areg (&regs, 7) = 0x80000;
+    m68k_areg (regs, 7) = 0x80000;
     regs.intmask = 0;
 
     /* Build a dummy execbase */
-    put_long (4, m68k_areg (&regs, 6) = 0x676);
+    put_long (4, m68k_areg (regs, 6) = 0x676);
     put_byte (0x676 + 0x129, 0);
     for (f = 1; f < 105; f++) {
 	put_word (0x676 - 6*f, 0x4EF9);
@@ -166,7 +166,7 @@ static void ersatz_init (void)
     put_long (request + 0x28, 0x4000);
     put_long (request + 0x2C, 0);
     put_long (request + 0x24, 0x200 * 4);
-    m68k_areg (&regs, 1) = request;
+    m68k_areg (regs, 1) = request;
     ersatz_doio ();
     /* kickstart disk loader */
     if (get_long (0x4000) == 0x4b49434b) {
@@ -180,7 +180,7 @@ static void ersatz_init (void)
 	put_long (request + 0x28, 0xF80000);
 	put_long (request + 0x2C, 0x200);
 	put_long (request + 0x24, 0x200 * 512);
-	m68k_areg (&regs, 1) = request;
+	m68k_areg (regs, 1) = request;
 	ersatz_doio ();
 
 	/* read rom image once again to mirror address space.
@@ -189,20 +189,20 @@ static void ersatz_init (void)
 	put_long (request + 0x28, 0xFC0000);
 	put_long (request + 0x2C, 0x200);
 	put_long (request + 0x24, 0x200 * 512);
-	m68k_areg (&regs, 1) = request;
+	m68k_areg (regs, 1) = request;
 	ersatz_doio ();
 
 	disk_eject (0);
 
-	m68k_setpc (&regs, 0xFC0002);
-	fill_prefetch_slow (&regs);
+	m68k_setpc (0xFC0002);
+	fill_prefetch_slow ();
 	uae_reset (0);
 	ersatzkickfile = 0;
 	return;
     }
 
-    m68k_setpc (&regs, 0x400C);
-    fill_prefetch_slow (&regs);
+    m68k_setpc (0x400C);
+    fill_prefetch_slow ();
 
     /* Init the hardware */
     put_long (0x3000, 0xFFFFFFFEul);
@@ -243,15 +243,15 @@ void ersatz_perform (uae_u16 what)
 	break;
 
      case EOP_AVAILMEM:
-	m68k_dreg (&regs, 0) = m68k_dreg (&regs, 1) & 4 ? 0 : 0x70000;
+	m68k_dreg (regs, 0) = m68k_dreg (regs, 1) & 4 ? 0 : 0x70000;
 	break;
 
      case EOP_ALLOCMEM:
-	m68k_dreg (&regs, 0) = m68k_dreg (&regs, 1) & 4 ? 0 : 0x0F000;
+	m68k_dreg (regs, 0) = m68k_dreg (regs, 1) & 4 ? 0 : 0x0F000;
 	break;
 
      case EOP_ALLOCABS:
-	m68k_dreg (&regs, 0) = m68k_areg (&regs, 1);
+	m68k_dreg (regs, 0) = m68k_areg (regs, 1);
 	break;
 
      case EOP_NIMP:
@@ -260,7 +260,7 @@ void ersatz_perform (uae_u16 what)
 
 	/* fall through */
      case EOP_LOOP:
-	m68k_setpc (&regs, 0xF80010);
+	m68k_setpc (0xF80010);
 	break;
 
      case EOP_OPENLIB:

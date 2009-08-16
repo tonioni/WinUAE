@@ -920,7 +920,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 			D(bug(L"pflusha(%u,%u)\n", glob, regs.dfc));
 			mmu_flush_atc_all(glob);
 		} else {
-			addr = m68k_areg(&regs, regno);
+			addr = m68k_areg(regs, regno);
 			D(bug(L"pflush(%u,%u,%x)\n", glob, regs.dfc, addr));
 			mmu_flush_atc(addr, super, glob);
 		}
@@ -931,7 +931,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 
 		regno = opcode & 7;
 		write = (opcode & 32) == 0;
-		addr = m68k_areg(&regs, regno);
+		addr = m68k_areg(regs, regno);
 		//bug("ptest(%u,%u,%x)", write, regs.dfc, addr);
 		D(bug(L"PTEST%c (A%d) %08x DFC=%d\n", write ? 'W' : 'R', regno, addr, regs.dfc));
 		mmu_flush_atc(addr, super, true);
@@ -959,7 +959,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 		RESTORE_EXCEPTION;
 		D(bug(L"PTEST result: mmusr %08x\n", regs.mmusr));
 	} else
-		op_illg (opcode, &regs);
+		op_illg (opcode);
 }
 
 void REGPARAM2 mmu_flush_atc(uaecptr addr, bool super, bool global)

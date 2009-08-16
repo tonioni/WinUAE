@@ -2411,7 +2411,7 @@ static BOOL doInit (void)
 	    gfxvidinfo.bufmem = 0;
 	    gfxvidinfo.linemem = 0;
 	    gfxvidinfo.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
-	    gfxvidinfo.width = currentmode->amiga_width;
+	    gfxvidinfo.width = (currentmode->amiga_width + 7) & ~7;
 	    gfxvidinfo.height = currentmode->amiga_height;
 	    gfxvidinfo.maxblocklines = 0; // flush_screen actually does everything
 	    gfxvidinfo.rowbytes = currentmode->pitch;

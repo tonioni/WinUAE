@@ -515,8 +515,8 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
     else {
 	abort();
 	if (!comp_fp_adr (opcode)) {
-	    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
-	    op_illg (opcode, &regs);
+	    m68k_setpc (m68k_getpc () - 4);
+	    op_illg (opcode);
 	}
 	else
 	    put_byte (ad, cc ? 0xff : 0x00);
@@ -789,8 +789,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 		ad=comp_fp_adr (opcode);
 		if (ad<0) {
-		    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
-		    op_illg (opcode, &regs);
+		    m68k_setpc (m68k_getpc () - 4);
+		    op_illg (opcode);
 		    return;
 		}
 		switch ((extra >> 11) & 3) {
@@ -859,8 +859,8 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		}
 		ad=comp_fp_adr (opcode);
 		if (ad<0) {
-		    m68k_setpc (&regs, m68k_getpc (&regs) - 4);
-		    op_illg (opcode, &regs);
+		    m68k_setpc (m68k_getpc () - 4);
+		    op_illg (opcode);
 		    return;
 		}
 		switch ((extra >> 11) & 3) {

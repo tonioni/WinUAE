@@ -102,7 +102,7 @@ static TCHAR *get_cmd (void)
 /*
  * helper function
  */
-#define ARG(x) (get_long (m68k_areg (&context->regs, 7) + 4 * (x + 1)))
+#define ARG(x) (get_long (m68k_areg (regs, 7) + 4 * (x + 1)))
 static uae_u32 REGPARAM2 uaeexe_server (TrapContext *context)
 {
     int len;

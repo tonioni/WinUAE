@@ -1941,7 +1941,7 @@ int EvalException (LPEXCEPTION_POINTERS blah, int n_except)
 #endif
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(&regs, 0);
+		    set_special(0);
 		    return EXCEPTION_CONTINUE_EXECUTION;
 		}
 		bi=bi->next;
@@ -1962,7 +1962,7 @@ int EvalException (LPEXCEPTION_POINTERS blah, int n_except)
 #endif
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(&regs, 0);
+		    set_special(0);
 		    return EXCEPTION_CONTINUE_EXECUTION;
 		}
 		bi=bi->next;
@@ -2189,7 +2189,7 @@ static void vec(int x, struct sigcontext sc)
 			      bi->pc_p);
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(&regs, 0);
+		    set_special(0);
 		    return;
 		}
 		bi=bi->next;
@@ -2208,7 +2208,7 @@ static void vec(int x, struct sigcontext sc)
 			      bi->pc_p);
 		    invalidate_block(bi);
 		    raise_in_cl_list(bi);
-		    set_special(&regs, 0);
+		    set_special(0);
 		    return;
 		}
 		bi=bi->next;

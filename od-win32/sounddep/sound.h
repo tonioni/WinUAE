@@ -82,8 +82,8 @@ STATIC_INLINE void check_sound_buffers (void)
 	p[2] = p[-2];
 	p[3] = p[-1];
 	sum = (uae_s32)(p[-2]) + (uae_s32)(p[-1]) + (uae_s32)(p[2]) + (uae_s32)(p[3]);
-	p[0] = sum >> 3;
-	p[1] = sum >> 3;
+	p[0] = sum / 8;
+	p[1] = sum / 8;
 	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
 #if SOUNDSTUFF > 0

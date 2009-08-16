@@ -70,7 +70,7 @@ static LPVOID lpvBits = NULL; // pointer to bitmap bits array
 static HBITMAP offscreen_bitmap;
 static int screenshot_prepared;
 
-void screenshot_free(void)
+void screenshot_free (void)
 {
     if (surface_dc)
 	releasehdc (surface_dc);
@@ -161,7 +161,7 @@ static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
    write_log (L"%s: libpng warning: %s\n", name, message);
 }
 
-static int savepng(FILE *fp)
+static int savepng (FILE *fp)
 {
     png_structp png_ptr;
     png_infop info_ptr;
@@ -191,7 +191,7 @@ static int savepng(FILE *fp)
     row_pointers = xmalloc (h * sizeof (png_bytep*));
     for (i = 0; i < h; i++) {
 	int j = h - i - 1;
-	row_pointers[i] = (uae_u8*)lpvBits + j * 3 * ((w + 3) & ~3);
+	row_pointers[i] = (uae_u8*)lpvBits + j * (((w * 24 + 31) & ~31) / 8);
     }
     png_set_rows (png_ptr, info_ptr, row_pointers);
     png_write_png (png_ptr,info_ptr, PNG_TRANSFORM_BGR, NULL);

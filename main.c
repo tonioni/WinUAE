@@ -98,8 +98,6 @@ static void fixup_prefs_dim2 (struct wh *wh)
 	wh->width = 3072;
     if (wh->height > 2048)
 	wh->height = 2048;
-    wh->width += 7;
-    wh->width &= ~7;
 }
 
 void fixup_prefs_dimensions (struct uae_prefs *prefs)

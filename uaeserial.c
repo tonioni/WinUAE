@@ -175,7 +175,7 @@ static void dev_close_3 (struct devstruct *dev)
 
 static uae_u32 REGPARAM2 dev_close (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     struct devstruct *dev;
 
     dev = getdevstruct (get_long (request + 24));
@@ -185,7 +185,7 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
 	write_log (L"%s:%d close, req=%x\n", getdevname(), dev->unit, request);
     dev_close_3 (dev);
     put_long (request + 24, 0);
-    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) - 1);
+    put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) - 1);
     return 0;
 }
 
@@ -258,9 +258,9 @@ static int openfail (uaecptr ioreq, int error)
 
 static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 {
-    uaecptr ioreq = m68k_areg (&context->regs, 1);
-    uae_u32 unit = m68k_dreg (&context->regs, 0);
-    uae_u32 flags = m68k_dreg (&context->regs, 1);
+    uaecptr ioreq = m68k_areg (regs, 1);
+    uae_u32 unit = m68k_dreg (regs, 0);
+    uae_u32 flags = m68k_dreg (regs, 1);
     struct devstruct *dev;
     int i, err;
 
@@ -299,7 +299,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 	write_log (L"%s:%d open ioreq=%08X\n", getdevname(), unit, ioreq);
     start_thread (dev);
 
-    put_word (m68k_areg (&context->regs, 6) + 32, get_word (m68k_areg (&context->regs, 6) + 32) + 1);
+    put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) + 1);
     put_byte (ioreq + 31, 0);
     put_byte (ioreq + 8, 7);
     return 0;
@@ -562,7 +562,7 @@ static int dev_canquick (struct devstruct *dev, uaecptr request)
 
 static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     uae_u8 flags = get_byte (request + 30);
     int command = get_word (request + 28);
     struct devstruct *dev = getdevstruct (get_long (request + 24));
@@ -615,7 +615,7 @@ static void *dev_thread (void *devs)
 
 static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 {
-    uae_u32 base = m68k_dreg (&context->regs, 0);
+    uae_u32 base = m68k_dreg (regs, 0);
     if (log_uaeserial)
 	write_log (L"%s init\n", getdevname ());
     return base;
@@ -623,7 +623,7 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
-    uae_u32 request = m68k_areg (&context->regs, 1);
+    uae_u32 request = m68k_areg (regs, 1);
     struct devstruct *dev = getdevstruct (get_long (request + 24));
 
     if (!dev) {

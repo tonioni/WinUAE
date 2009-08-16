@@ -1325,8 +1325,8 @@ static uae_u32 init (TrapContext *ctx)
 static uae_u32 AHIsub_AllocAudio (TrapContext *ctx)
 {
     int i;
-    uae_u32 tags = m68k_areg (&ctx->regs, 1);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 tags = m68k_areg (regs, 1);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     uae_u32 pbase = get_long (audioctrl + ahiac_DriverData);
     uae_u32 tag, data, v, ver, size;
     uae_u32 ret = AHISF_KNOWSTEREO | AHISF_KNOWHIFI;
@@ -1403,7 +1403,7 @@ static uae_u32 AHIsub_AllocAudio (TrapContext *ctx)
 
 static void AHIsub_Disable (TrapContext *ctx)
 {
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     if (ahi_debug > 1)
 	write_log (L"AHI: Disable(%08x)\n", audioctrl);
@@ -1412,7 +1412,7 @@ static void AHIsub_Disable (TrapContext *ctx)
 
 static void AHIsub_Enable (TrapContext *ctx)
 {
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     if (ahi_debug > 1)
 	write_log (L"AHI: Enable(%08x)\n", audioctrl);
@@ -1423,7 +1423,7 @@ static void AHIsub_Enable (TrapContext *ctx)
 
 static void AHIsub_FreeAudio (TrapContext *ctx)
 {
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     uae_u32 pbase = get_long (audioctrl + ahiac_DriverData);
     struct DSAHI *dsahip = GETAHI;
     if (ahi_debug)
@@ -1523,11 +1523,11 @@ static uae_u32 getattr2 (struct DSAHI *dsahip, uae_u32 attribute, uae_u32 argume
 
 static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
 {
-    uae_u32 attribute = m68k_dreg (&ctx->regs, 0);
-    uae_u32 argument = m68k_dreg (&ctx->regs, 1);
-    uae_u32 def = m68k_dreg (&ctx->regs, 2);
-    uae_u32 taglist = m68k_areg (&ctx->regs, 1);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 attribute = m68k_dreg (regs, 0);
+    uae_u32 argument = m68k_dreg (regs, 1);
+    uae_u32 def = m68k_dreg (regs, 2);
+    uae_u32 taglist = m68k_areg (regs, 1);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     uae_u32 v;
 
@@ -1540,9 +1540,9 @@ static uae_u32 AHIsub_GetAttr (TrapContext *ctx)
 
 static uae_u32 AHIsub_HardwareControl (TrapContext *ctx)
 {
-    uae_u32 attribute = m68k_dreg (&ctx->regs, 0);
-    uae_u32 argument = m68k_dreg (&ctx->regs, 1);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 attribute = m68k_dreg (regs, 0);
+    uae_u32 argument = m68k_dreg (regs, 1);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     if (ahi_debug)
 	write_log (L"AHI: HardwareControl(%08x=%d,%08x,%08x)\n", attribute, attribute & 0x7fff, argument, audioctrl);
@@ -1576,8 +1576,8 @@ static uae_u32 AHIsub_HardwareControl (TrapContext *ctx)
 
 static uae_u32 AHIsub_Start (TrapContext *ctx)
 {
-    uae_u32 flags = m68k_dreg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     int i;
 
@@ -1602,8 +1602,8 @@ static uae_u32 AHIsub_Start (TrapContext *ctx)
 
 static uae_u32 AHIsub_Stop (TrapContext *ctx)
 {
-    uae_u32 flags = m68k_dreg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     int i;
 
@@ -1627,8 +1627,8 @@ static uae_u32 AHIsub_Stop (TrapContext *ctx)
 
 static uae_u32 AHIsub_Update (TrapContext *ctx)
 {
-    uae_u32 flags = m68k_dreg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     if (ahi_debug)
 	write_log (L"AHI: Update(%08x,%08x)\n", flags, audioctrl);
@@ -1638,11 +1638,11 @@ static uae_u32 AHIsub_Update (TrapContext *ctx)
 
 static uae_u32 AHIsub_SetVol (TrapContext *ctx)
 {
-    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
-    uae_s32 volume = m68k_dreg (&ctx->regs, 1);
-    uae_s32 pan = m68k_dreg (&ctx->regs, 2);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
-    uae_u32 flags = m68k_dreg (&ctx->regs, 3);
+    uae_u16 channel = m68k_dreg (regs, 0);
+    uae_s32 volume = m68k_dreg (regs, 1);
+    uae_s32 pan = m68k_dreg (regs, 2);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 3);
     struct DSAHI *dsahip = GETAHI;
     struct dschannel *dc = GETCHANNEL;
 
@@ -1669,10 +1669,10 @@ static uae_u32 AHIsub_SetVol (TrapContext *ctx)
 
 static uae_u32 AHIsub_SetFreq (TrapContext *ctx)
 {
-    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
-    uae_u32 frequency = m68k_dreg (&ctx->regs, 1);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
-    uae_u32 flags = m68k_dreg (&ctx->regs, 3);
+    uae_u16 channel = m68k_dreg (regs, 0);
+    uae_u32 frequency = m68k_dreg (regs, 1);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 3);
     struct DSAHI *dsahip = GETAHI;
     struct dschannel *dc = GETCHANNEL;
 
@@ -1691,12 +1691,12 @@ static uae_u32 AHIsub_SetFreq (TrapContext *ctx)
 
 static uae_u32 AHIsub_SetSound (TrapContext *ctx)
 {
-    uae_u16 channel = m68k_dreg (&ctx->regs, 0);
-    uae_u16 sound = m68k_dreg (&ctx->regs, 1);
-    uae_u32 offset = m68k_dreg (&ctx->regs, 2);
-    uae_u32 length  = m68k_dreg (&ctx->regs, 3);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
-    uae_u32 flags = m68k_dreg (&ctx->regs, 4);
+    uae_u16 channel = m68k_dreg (regs, 0);
+    uae_u16 sound = m68k_dreg (regs, 1);
+    uae_u32 offset = m68k_dreg (regs, 2);
+    uae_u32 length  = m68k_dreg (regs, 3);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
+    uae_u32 flags = m68k_dreg (regs, 4);
     struct DSAHI *dsahip = GETAHI;
     struct dssample *ds = GETSAMPLE;
     struct dschannel *dc = GETCHANNEL;
@@ -1736,8 +1736,8 @@ static uae_u32 AHIsub_SetSound (TrapContext *ctx)
 
 static uae_u32 AHIsub_SetEffect (TrapContext *ctx)
 {
-    uae_u32 effect = m68k_areg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u32 effect = m68k_areg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     uae_u32 effectype = get_long (effect);
     uae_u32 puaebase = get_long (audioctrl + ahiac_DriverData);
     struct DSAHI *dsahip = GETAHI;
@@ -1764,10 +1764,10 @@ static uae_u32 AHIsub_SetEffect (TrapContext *ctx)
 
 static uae_u32 AHIsub_LoadSound (TrapContext *ctx)
 {
-    uae_u16 sound = m68k_dreg (&ctx->regs, 0);
-    uae_u32 type = m68k_dreg (&ctx->regs, 1);
-    uae_u32 info = m68k_areg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u16 sound = m68k_dreg (regs, 0);
+    uae_u32 type = m68k_dreg (regs, 1);
+    uae_u32 info = m68k_areg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     uae_u32 ret = AHIE_BADSOUNDTYPE;
     int sampletype = get_long (info + ahisi_Type);
@@ -1845,8 +1845,8 @@ static uae_u32 AHIsub_LoadSound (TrapContext *ctx)
 
 static uae_u32 AHIsub_UnloadSound (TrapContext *ctx)
 {
-    uae_u16 sound = m68k_dreg (&ctx->regs, 0);
-    uae_u32 audioctrl = m68k_areg (&ctx->regs, 2);
+    uae_u16 sound = m68k_dreg (regs, 0);
+    uae_u32 audioctrl = m68k_areg (regs, 2);
     struct DSAHI *dsahip = GETAHI;
     struct dssample *ds = GETSAMPLE;
 
@@ -1860,7 +1860,7 @@ static uae_u32 AHIsub_UnloadSound (TrapContext *ctx)
 static uae_u32 REGPARAM2 ahi_demux (TrapContext *ctx)
 {
     uae_u32 ret = 0;
-    uae_u32 sp = m68k_areg (&ctx->regs, 7);
+    uae_u32 sp = m68k_areg (regs, 7);
     uae_u32 offset = get_long (sp + 4);
 
     if (0 && ahi_debug)

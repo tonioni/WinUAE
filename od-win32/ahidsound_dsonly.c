@@ -92,21 +92,21 @@ static struct winuae *a6;
 static uae_u32 REGPARAM2 emulib_ExecuteNativeCode2 (TrapContext *context)
 {
     unsigned int espstore;
-    uae_u8* object_UAM = (uae_u8*) m68k_areg (&context->regs, 0);
-    uae_u32 d1 = m68k_dreg (&context->regs, 1);
-    uae_u32 d2 = m68k_dreg (&context->regs, 2);
-    uae_u32 d3 = m68k_dreg (&context->regs, 3);
-    uae_u32 d4 = m68k_dreg (&context->regs, 4);
-    uae_u32 d5 = m68k_dreg (&context->regs, 5);
-    uae_u32 d6 = m68k_dreg (&context->regs, 6);
-    uae_u32 d7 = m68k_dreg (&context->regs, 7);
-    uae_u32 a1 = m68k_areg (&context->regs, 1);
-    uae_u32 a2 = m68k_areg (&context->regs, 2);
-    uae_u32 a3 = m68k_areg (&context->regs, 3);
-    uae_u32 a4 = m68k_areg (&context->regs, 4);
-    uae_u32 a5 = m68k_areg (&context->regs, 5);
-    uae_u32 a7 = m68k_areg (&context->regs, 7);
-    uae_u32 regs_ = (uae_u32)&context->regs;
+    uae_u8* object_UAM = (uae_u8*) m68k_areg (regs, 0);
+    uae_u32 d1 = m68k_dreg (regs, 1);
+    uae_u32 d2 = m68k_dreg (regs, 2);
+    uae_u32 d3 = m68k_dreg (regs, 3);
+    uae_u32 d4 = m68k_dreg (regs, 4);
+    uae_u32 d5 = m68k_dreg (regs, 5);
+    uae_u32 d6 = m68k_dreg (regs, 6);
+    uae_u32 d7 = m68k_dreg (regs, 7);
+    uae_u32 a1 = m68k_areg (regs, 1);
+    uae_u32 a2 = m68k_areg (regs, 2);
+    uae_u32 a3 = m68k_areg (regs, 3);
+    uae_u32 a4 = m68k_areg (regs, 4);
+    uae_u32 a5 = m68k_areg (regs, 5);
+    uae_u32 a7 = m68k_areg (regs, 7);
+    uae_u32 regs_ = (uae_u32)&regs;
     CREATE_NATIVE_FUNC_PTR2;
     uaevar.z3offset = (uae_u32)(get_real_address (0x10000000) - 0x10000000);
     uaevar.amigawnd = hAmigaWnd;
@@ -451,7 +451,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 // d0=108 free swap array
 // d0=200 ahitweak		 d1=offset for dsound position pointer
 
-    int opcode = m68k_dreg (&context->regs, 0);
+    int opcode = m68k_dreg (regs, 0);
 
     switch (opcode)
     {
@@ -463,17 +463,17 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    cap_pos = 0;
 	    sound_bits_ahi = 16;
 	    sound_channels_ahi = 2;
-	    sound_freq_ahi = m68k_dreg (&context->regs, 2);
-	    amigablksize = m68k_dreg (&context->regs, 3);
+	    sound_freq_ahi = m68k_dreg (regs, 2);
+	    amigablksize = m68k_dreg (regs, 3);
 	    sound_freq_ahi = ahi_open_sound();
 	    uaevar.changenum--;
 	return sound_freq_ahi;
 	case 6: /* new open function */
 	    cap_pos = 0;
-	    sound_freq_ahi = m68k_dreg (&context->regs, 2);
-	    amigablksize = m68k_dreg (&context->regs, 3);
-	    sound_channels_ahi = m68k_dreg (&context->regs, 4);
-	    sound_bits_ahi = m68k_dreg (&context->regs, 5);
+	    sound_freq_ahi = m68k_dreg (regs, 2);
+	    amigablksize = m68k_dreg (regs, 3);
+	    sound_channels_ahi = m68k_dreg (regs, 4);
+	    sound_bits_ahi = m68k_dreg (regs, 5);
 	    sound_freq_ahi = ahi_open_sound();
 	    uaevar.changenum--;
 	return sound_freq_ahi;
@@ -486,7 +486,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 2:
 	{
 	    int i;
-	    uaecptr addr = m68k_areg (&context->regs, 0);
+	    uaecptr addr = m68k_areg (regs, 0);
 	    for (i = 0; i < amigablksize * 4; i += 4)
 		*ahisndbufpt++ = get_long (addr + i);
 	    ahi_finish_sound_buffer();
@@ -524,7 +524,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		cap_pos = cap_pos + t;
 	    else
 		cap_pos = 0;
-	    addr = m68k_areg (&context->regs, 0);
+	    addr = m68k_areg (regs, 0);
 	    sndbufrecpt = (unsigned int*)pos1;
 	    t /= 4;
 	    for (i = 0; i < t; i++) {
@@ -568,13 +568,13 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 11:
 	{
 #if 1
-	    put_byte (m68k_areg (&context->regs, 0), 0);
+	    put_byte (m68k_areg (regs, 0), 0);
 	    if (clipdat) {
 		char *tmp = ua (clipdat);
 		int i;
 		for (i = 0; i < clipsize && i < strlen (tmp); i++)
-		    put_byte (m68k_areg (&context->regs, 0) + i, tmp[i]);
-		put_byte (m68k_areg (&context->regs, 0) + clipsize - 1, 0);
+		    put_byte (m68k_areg (regs, 0) + i, tmp[i]);
+		put_byte (m68k_areg (regs, 0) + clipsize - 1, 0);
 		xfree (tmp);
 	    }
 	    CloseClipboard ();
@@ -585,7 +585,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 12:
 	{
 #if 1
-	    TCHAR *s = au (get_real_address (m68k_areg (&regs, 0)));
+	    TCHAR *s = au (get_real_address (m68k_areg (regs, 0)));
 	    static LPTSTR p;
 	    int slen;
 
@@ -616,8 +616,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    extern uae_u16 vtotal;
 	    extern unsigned int new_beamcon0;
 	    p96hack_vpos2 = 0;
-	    if (m68k_dreg (&context->regs, 1) > 0)
-		p96hack_vpos2 = 15625 / m68k_dreg (&context->regs, 1);
+	    if (m68k_dreg (regs, 1) > 0)
+		p96hack_vpos2 = 15625 / m68k_dreg (regs, 1);
 	    if (!currprefs.cs_ciaatod)
 		changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
 	    p96refresh_active=1;
@@ -626,7 +626,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	return 0;
 
 	case 20:
-	return enforcer_enable(m68k_dreg (&context->regs, 1));
+	return enforcer_enable(m68k_dreg (regs, 1));
 
 	case 21:
 	return enforcer_disable();
@@ -648,7 +648,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    int ok = 0;
 	    TCHAR *filepart;
 
-	    dllptr = m68k_areg (&context->regs, 0);
+	    dllptr = m68k_areg (regs, 0);
 	    dllname = au ((uae_char*)get_real_address (dllptr));
 	    dpath[0] = 0;
 	    GetFullPathName (dllname, sizeof dpath / sizeof (TCHAR), dpath, &filepart);
@@ -692,8 +692,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    HMODULE m;
 	    uaecptr funcaddr;
 	    char *funcname;
-	    m = (HMODULE) m68k_dreg (&context->regs, 1);
-	    funcaddr = m68k_areg (&context->regs, 0);
+	    m = (HMODULE) m68k_dreg (regs, 1);
+	    funcaddr = m68k_areg (regs, 0);
 	    funcname = get_real_address (funcaddr);
 	    return (uae_u32) GetProcAddress (m, funcname);
 	}
@@ -718,7 +718,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	case 103:	//close dll
 	{
 	    HMODULE libaddr;
-	    libaddr = (HMODULE) m68k_dreg (&context->regs, 1);
+	    libaddr = (HMODULE) m68k_dreg (regs, 1);
 	    FreeLibrary (libaddr);
 	    return 0;
 	}
@@ -742,8 +742,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		    //a0 = start address
 		    //d1 = number of 16bit vars
 		    //returns address of new array
-	    src = m68k_areg (&context->regs, 0);
-	    num_vars = m68k_dreg (&context->regs, 1);
+	    src = m68k_areg (regs, 0);
+	    num_vars = m68k_dreg (regs, 1);
 
 	    if (bswap_buffer_size < num_vars * 2) {
 		bswap_buffer_size = (num_vars + 1024) * 2;
@@ -805,8 +805,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		    //a0 = start address
 		    //d1 = number of 32bit vars
 		    //returns address of new array
-	    src = m68k_areg (&context->regs, 0);
-	    num_vars = m68k_dreg (&context->regs, 1);
+	    src = m68k_areg (regs, 0);
+	    num_vars = m68k_dreg (regs, 1);
 	    if (bswap_buffer_size < num_vars * 4) {
 		bswap_buffer_size = (num_vars + 16384) * 4;
 		free(bswap_buffer);
@@ -862,8 +862,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 #endif
 
 	case 200:
-	    ahitweak = m68k_dreg (&context->regs, 1);
-	    ahi_pollrate = m68k_dreg (&context->regs, 2);
+	    ahitweak = m68k_dreg (regs, 1);
+	    ahi_pollrate = m68k_dreg (regs, 2);
 	    if (ahi_pollrate < 10)
 		ahi_pollrate = 10;
 	    if (ahi_pollrate > 60)
