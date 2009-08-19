@@ -212,6 +212,8 @@ struct uae_prefs {
     int catweasel;
     int cpu_idle;
     int cpu_cycle_exact;
+    int cpu_clock_multiplier;
+    int cpu_frequency;
     int blitter_cycle_exact;
     int floppy_speed;
     int floppy_write_length;

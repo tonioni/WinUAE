@@ -1889,7 +1889,7 @@ void audio_vsync (void)
     static int lastdir;
 
     min = -10 * 10;
-    max = (isfullscreen () > 0 && currprefs.gfx_avsync) ? 10 * 10 : 20 * 10;
+    max = (isfullscreen () > 0 && currprefs.gfx_avsync > 0) ? 10 * 10 : 20 * 10;
     extrasamples = 0;
     if (gui_data.sndbuf < min) {
 	// add extra sample

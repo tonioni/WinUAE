@@ -129,18 +129,34 @@ void dump_counts (void)
 
 static void set_cpu_caches (void)
 {
-#ifdef JIT
+    int i;
+
     if (currprefs.cpu_model < 68040) {
+	if (regs.cacr & 0x08) { // Clear Cache
+	    for (i = 0; i < CACHELINES020; i++)
+		regs.cacheline020[i].valid = 0;
+	    regs.prefetch020addr = 0xff000000;
+	}
+	if (regs.cacr & 0x04) { // Clear Entry
+	    regs.cacheline020[(regs.caar >> 2) & 0x3f].valid = 0;
+	}
+#ifdef JIT
 	set_cache_state (regs.cacr & 1);
 	if (regs.cacr & 0x08) {
-	    regs.cacr &= ~0x08;
 	    flush_icache (0, 3);
-	    regs.prefetch020pc = regs.prefetch020ptr = 0xff000000;
 	}
-    } else {
-	set_cache_state ((regs.cacr & 0x8000) ? 1 : 0);
-    }
 #endif
+	regs.cacr &= ~0x08;
+    } else {
+#ifdef JIT
+	set_cache_state ((regs.cacr & 0x8000) ? 1 : 0);
+#endif
+	if (!(regs.cacr & 0x8000)) {
+	    for (i = 0; i < CACHELINES040; i++)
+		regs.cacheline040[i].valid = 0;
+	    regs.prefetch020addr = 0xff000000;
+	}
+    }
 }
 
 STATIC_INLINE void count_instr (unsigned int opcode)
@@ -169,20 +185,26 @@ static void build_cpufunctbl (void)
 	case 68060:
 	lvl = 5;
 	tbl = op_smalltbl_0_ff;
+	if (currprefs.cpu_cycle_exact)
+	   tbl = op_smalltbl_20_ff;
 	break;
 	case 68040:
 	lvl = 4;
 	tbl = op_smalltbl_1_ff;
+	if (currprefs.cpu_cycle_exact)
+	   tbl = op_smalltbl_21_ff;
 	break;
 	case 68030:
 	lvl = 3;
 	tbl = op_smalltbl_2_ff;
+	if (currprefs.cpu_cycle_exact)
+	   tbl = op_smalltbl_22_ff;
 	break;
 	case 68020:
 	lvl = 2;
 	tbl = op_smalltbl_3_ff;
 	if (currprefs.cpu_cycle_exact)
-	    tbl = op_smalltbl_13_ff;
+	   tbl = op_smalltbl_23_ff;
 	break;
 	case 68010:
 	lvl = 1;
@@ -1683,7 +1705,10 @@ void m68k_reset (int hardreset)
     regs.caar = regs.cacr = 0;
     regs.itt0 = regs.itt1 = regs.dtt0 = regs.dtt1 = 0;
     regs.tcr = regs.mmusr = regs.urp = regs.srp = regs.buscr = 0;
-    regs.prefetch020pc = regs.prefetch020ptr = 0xff000000;
+    if (currprefs.cpu_model == 68020) {
+	regs.cacr |= 8;
+	set_cpu_caches ();
+    }
 
     if (currprefs.mmu_model)
 	mmu_reset ();
@@ -2631,7 +2656,7 @@ void m68k_go (int may_quit)
 	    run_func = currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000 ? m68k_run_1_ce :
 		   currprefs.cpu_compatible > 0 && currprefs.cpu_model == 68000 ? m68k_run_1 :
 		   currprefs.cpu_model >= 68020 && currprefs.cachesize ? m68k_run_2a :
-		   currprefs.cpu_model == 68020 && currprefs.cpu_cycle_exact ? m68k_run_2ce :
+		   currprefs.cpu_model >= 68020 && currprefs.cpu_cycle_exact ? m68k_run_2ce :
 		   currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2;
 	}
 #endif
@@ -3478,4 +3503,68 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
     }
 
     return mcycles * 2;
+}
+
+STATIC_INLINE void fill_cache040 (uae_u32 addr)
+{
+    int index;
+    uae_u32 tag;
+    uae_u32 data;
+    struct cache020 *c;
+
+    addr &= ~3;
+    index = (addr >> 2) & (CACHELINES040 - 1);
+    tag = regs.s | (addr & ~((CACHELINES040 << 2) - 1));
+    c = &regs.cacheline040[index];
+    if (c->valid && c->tag == tag) {
+	// cache hit
+	regs.prefetch020addr = addr;
+	regs.prefetch020data = c->data;
+	return;
+    }
+    // cache miss
+    data = mem_access_delay_longi_read_020 (addr);
+    if (1) {
+	c->tag = tag;
+	c->valid = !!(regs.cacr & 0x8000);
+	c->data = data;
+    }
+    regs.prefetch020addr = addr;
+    regs.prefetch020data = data;
+}
+
+STATIC_INLINE void fill_cache020 (uae_u32 addr)
+{
+    int index;
+    uae_u32 tag;
+    uae_u32 data;
+    struct cache020 *c;
+
+    addr &= ~3;
+    index = (addr >> 2) & (CACHELINES020 - 1);
+    tag = regs.s | (addr & ~((CACHELINES020 << 2) - 1));
+    c = &regs.cacheline020[index];
+    if (c->valid && c->tag == tag) {
+	// cache hit
+	regs.prefetch020addr = addr;
+	regs.prefetch020data = c->data;
+	return;
+    }
+    // cache miss
+    data = mem_access_delay_longi_read_020 (addr);
+    if (!(regs.caar & 2)) {
+	c->tag = tag;
+	c->valid = !!(regs.cacr & 1);
+	c->data = data;
+    }
+    regs.prefetch020addr = addr;
+    regs.prefetch020data = data;
+}
+
+void fill_cache0x0 (uae_u32 addr)
+{
+    if (currprefs.cpu_model >= 68040)
+	fill_cache040 (addr);
+    else
+	fill_cache020 (addr);
 }

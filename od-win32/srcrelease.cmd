@@ -23,6 +23,7 @@ del compstbl.c
 del cpuemu_0.c
 del cpuemu_11.c
 del cpuemu_12.c
+del cpuemu_20.c
 del linetoscr.c
 
 cd jit

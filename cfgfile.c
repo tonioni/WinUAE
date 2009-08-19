@@ -3259,6 +3259,8 @@ void default_prefs (struct uae_prefs *p, int type)
 
     p->fpu_model = 0;
     p->cpu_model = 68000;
+    p->cpu_clock_multiplier = 0;
+    p->cpu_frequency = 0;
     p->mmu_model = 0;
     p->cpu060_revision = 6;
     p->fpu_revision = -1;
@@ -3355,6 +3357,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 
     p->fpu_model = 0;
     p->cpu_model = 68000;
+    p->cpu_clock_multiplier = 0;
+    p->cpu_frequency = 0;
     p->cpu060_revision = 1;
     p->fpu_revision = -1;
     p->m68k_speed = 0;

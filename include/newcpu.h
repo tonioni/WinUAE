@@ -86,6 +86,20 @@ typedef double fptype;
 #endif
 #endif
 
+#define CPU000_MEM_CYCLE 4
+#define CPU000_CLOCK_MULT 2
+#define CPU020_MEM_CYCLE 3
+#define CPU020_CLOCK_MULT 4
+
+#define CACHELINES020 64
+#define CACHELINES040 1024 // 040 cache really isn't like this..
+struct cache020
+{
+    uae_u32 data;
+    uae_u32 tag;
+    uae_u32 valid:1;
+};
+
 extern struct regstruct
 {
     uae_u32 regs[16];
@@ -98,10 +112,6 @@ extern struct regstruct
     uae_u16 irc, ir;
     uae_u32 spcflags;
     
-    uae_u32 prefetch020;
-    uae_u32 prefetch020pc;
-    uae_u32 prefetch020ptr;
-
     uaecptr usp, isp, msp;
     uae_u16 sr;
     flagtype t1;
@@ -139,6 +149,11 @@ extern struct regstruct
 
     uae_u8 panic;
     uae_u32 panic_pc, panic_addr;
+
+    uae_u32 prefetch020data;
+    uae_u32 prefetch020addr;
+    struct cache020 cacheline020[CACHELINES020];
+    struct cache020 cacheline040[CACHELINES040];
 
 } regs, lastint_regs, mmu_backup_regs;
 
@@ -302,8 +317,8 @@ extern void m68k_reset (int);
 extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
 
-extern void mmu_op       (uae_u32, uae_u32);
-extern void mmu_op30     (uaecptr, uae_u32, int, uaecptr);
+extern void mmu_op (uae_u32, uae_u32);
+extern void mmu_op30 (uaecptr, uae_u32, int, uaecptr);
 
 extern void fpuop_arithmetic(uae_u32, uae_u16);
 extern void fpuop_dbcc(uae_u32, uae_u16);
@@ -328,12 +343,16 @@ extern void fill_prefetch_slow (void);
 
 /* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
+extern const struct cputbl op_smalltbl_20_ff[];
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
+extern const struct cputbl op_smalltbl_21_ff[];
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
+extern const struct cputbl op_smalltbl_22_ff[];
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
+extern const struct cputbl op_smalltbl_23_ff[];
 /* 68010 */
 extern const struct cputbl op_smalltbl_4_ff[];
 /* 68000 */

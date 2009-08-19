@@ -181,6 +181,7 @@ uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
+static int baseclock, cpucycleunit;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -297,7 +298,6 @@ struct copper {
     int strobe; /* COPJMP1 / COPJMP2 accessed */
     int last_write, last_write_hpos;
     int moveaddr, movedata, movedelay;
-    int movedata100, movedelay100;
 };
 
 static struct copper cop_state;
@@ -928,9 +928,9 @@ static void BPLCON0_Denise (int hpos, uae_u16 v);
 
 // writing to BPLCON0 adds 4 cycle delay before Agnus bitplane DMA sequence changes
 // (Note that Denise sees the change after 1 cycle)
-// AGA either needs 1 extra cycle or only in specific situations (perhaps only
-// when first plane in block is active, which is not possible in OCS/ECS)
-#define BPLCON_AGNUS_DELAY (4 + ((currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0))
+// AGA needs extra cycle in some specific situations (Brian The Lion "dialog") but not
+// in all situations (Superstardust weapon panel)
+#define BPLCON_AGNUS_DELAY (4 + (bplcon0_planes == 8 ? 1 : 0))
 #define BPLCON_DENISE_DELAY 1
 
 static void maybe_setup_fmodes (int hpos)
@@ -2639,12 +2639,24 @@ void init_hz (void)
     int odbl = doublescan, omaxvpos = maxvpos;
     int hzc = 0;
 
-    if ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
-	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode)) {
+    if (vsync_switchmode (-1) > 0)
+	currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1);
+
+    if (!isvsync () && ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
+	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode))) {
 	currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate = 0;
     }
-    if (isvsync ()) {
-	changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+
+    baseclock = currprefs.ntscmode ? 28636360 : 28375160;
+    cpucycleunit = CYCLE_UNIT / 2;
+    if (currprefs.cpu_clock_multiplier) {
+	if (currprefs.cpu_clock_multiplier >= 256) {
+	    cpucycleunit = CYCLE_UNIT / (currprefs.cpu_clock_multiplier >> 8);
+	} else {
+	    cpucycleunit = CYCLE_UNIT * currprefs.cpu_clock_multiplier;
+	}
+    } else if (currprefs.cpu_frequency) {
+	cpucycleunit = CYCLE_UNIT * baseclock / (currprefs.cpu_frequency * 8);
     }
 
     doublescan = 0;
@@ -2735,6 +2747,12 @@ void init_hz (void)
 	doublescan > 0 ? L" dblscan" : L"",
 	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
+
+    if ((vblank_hz == 50 || vblank_hz == 60) && isvsync ()) {
+	if (currprefs.gfx_refreshrate != vblank_hz)
+	    vsync_switchmode (vblank_hz);
+    }
+
 }
 
 static void calcdiw (void)
@@ -4133,14 +4151,7 @@ static void update_copper (int until_hpos)
 		    cop_state.state = COP_strobe_delay1;
 		} else {
 		    // FIX: all copper writes happen 1 cycle later than CPU writes
-		    if (0 && reg == 0x100) {
-			// special case BPLCON0 BPL DMA sequence delay
-			// dma sequence does not change until 1+4 cycles after the write
-			cop_state.movedelay100 = 2;
-			cop_state.movedata100 = data;
-			if (thisline_decision.plfleft == -1)
-			    BPLCON0_Denise (old_hpos, data);
-		    } else if (customdelay[reg / 2]) {
+		    if (customdelay[reg / 2]) {
 			cop_state.moveaddr = reg;
 			cop_state.movedata = data;
 			cop_state.movedelay = customdelay[cop_state.moveaddr / 2];
@@ -5047,10 +5058,13 @@ static void hsync_handler (void)
 
     if (!(beamcon0 & 0x0800) && !(beamcon0 & 0x0020) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 	lol ^= 1; // NTSC and !LOLDIS -> LOL toggles every line
+    } else if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && currprefs.ntscmode) {
+	lol ^= 1;
     }
     maxhpos = maxhpos_short + lol;
     eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
     eventtab[ev_hsync].oldcycles = get_cycles ();
+
     CIA_hsync_handler (!(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock));
     if (currprefs.cs_ciaatod > 0) {
 	static int cia_hsync;
@@ -5094,6 +5108,7 @@ static void hsync_handler (void)
 	    lightpen_triggered = 1;
 	}
 	vpos = 0;
+	lol = 0;
 	vsync_handler ();
 #if 0
 	if (input_recording > 0) {
@@ -5391,7 +5406,7 @@ void customreset (int hardreset)
     target_reset ();
     reset_all_systems ();
     write_log (L"Reset at %08X\n", M68K_GETPC);
-    memory_map_dump();
+    memory_map_dump ();
 
     hsync_counter = 0;
     vsync_counter = 0;
@@ -5401,17 +5416,17 @@ void customreset (int hardreset)
     lightpen_cx = lightpen_cy = -1;
     if (! savestate_state) {
 	currprefs.chipset_mask = changed_prefs.chipset_mask;
-	update_mirrors();
+	update_mirrors ();
 	if (!aga_mode) {
 	    for (i = 0; i < 32; i++) {
 		current_colors.color_regs_ecs[i] = 0;
-		current_colors.acolors[i] = getxcolor(0);
+		current_colors.acolors[i] = getxcolor (0);
 	    }
 #ifdef AGA
 	} else {
 	    for (i = 0; i < 256; i++) {
 		current_colors.color_regs_aga[i] = 0;
-		current_colors.acolors[i] = getxcolor(0);
+		current_colors.acolors[i] = getxcolor (0);
 	    }
 #endif
 	}
@@ -5438,6 +5453,7 @@ void customreset (int hardreset)
 	CLXCON (0);
 	setup_fmodes (0);
 	sprite_width = GET_SPRITEWIDTH (fmode);
+	new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
     }
 
     gayle_reset (hardreset);
@@ -5479,7 +5495,6 @@ void customreset (int hardreset)
     hdiwstate = DIW_waiting_start;
     set_cycles (0);
 
-    new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
     hack_vpos = 0;
     init_hz ();
     vpos_lpen = -1;
@@ -6652,20 +6667,6 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
     return v;
 }
 
-#if 0
-uae_u32 wait_cpu_cycle_read_cycles (uaecptr addr, int mode, int *cycles)
-{
-    uae_u32 v = 0;
-    *cycles = dma_cycle () + CYCLE_UNIT;
-    if (mode > 0)
-	v = get_word (addr);
-    else if (mode == 0)
-	v = get_byte (addr);
-    do_cycles (1 * CYCLE_UNIT);
-    return v;
-}
-#endif
-
 void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
     int hpos;
@@ -6699,6 +6700,16 @@ void do_cycles_ce (long cycles)
 	do_cycles (1 * CYCLE_UNIT);
 	cycles -= CYCLE_UNIT;
     }
+}
+
+void do_cycles_ce020 (int clocks)
+{
+    do_cycles_ce (clocks * cpucycleunit);
+}
+
+void do_cycles_ce000 (int clocks)
+{
+    do_cycles_ce (clocks * cpucycleunit);
 }
 
 int is_cycle_ce (void)

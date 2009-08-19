@@ -1462,7 +1462,7 @@ static void gui_to_prefs (void)
     /* filesys hack */
     currprefs.mountitems = changed_prefs.mountitems;
     memcpy (&currprefs.mountconfig, &changed_prefs.mountconfig, MOUNT_CONFIG_SIZE * sizeof (struct uaedev_config_info));
-
+    fixup_prefs (&changed_prefs);
     updatewinfsmode (&changed_prefs);
 }
 

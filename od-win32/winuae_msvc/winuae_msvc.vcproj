@@ -1446,11 +1446,11 @@
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
@@ -1470,11 +1470,11 @@
 					>
 				</File>
 				<File
-					RelativePath=".\file.ico"
+					RelativePath="..\resources\file.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\file.ico"
+					RelativePath=".\file.ico"
 					>
 				</File>
 				<File
@@ -1514,11 +1514,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\port.ico"
+					RelativePath=".\port.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\port.ico"
+					RelativePath="..\resources\port.ico"
 					>
 				</File>
 				<File
@@ -1724,7 +1724,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_13.c"
+				RelativePath="..\..\cpuemu_20.c"
 				>
 			</File>
 			<File

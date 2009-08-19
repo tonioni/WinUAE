@@ -1,4 +1,36 @@
 
+Beta 8:
+
+68020 CE mode updates:
+
+- unaligned word/long accesses emulated (68020 always fetches aligned
+  longs, two accesses required if for example word is fetched
+  from address 3)
+- emulate 68020 instruction cache logic as documented in 68020 manual,
+  cache hits are free, cache misses require normal, possibly slow
+  chip ram fetch
+- approximate emulation of 68020 prefetch buffer, more compatible with
+  self-modifying code
+- very approximate 68020 MUL/DIV cycle usage added
+- 68030/040/060 also supported in "020CE" mode. Not totally useless
+  because this can mean more compatible HD installed games by switching
+  between JIT and "CE" mode on the fly using uae-configuration.
+  (switching between CPU types on the fly isn't very good idea..)
+
+Note that 68020 "CE" is still too fast (CPU internal calculations are
+not counted yet) but this is 100x better than previously because
+memory fetches are emulated, too fast CPU chip memory accesses and
+too fast blitter was the most common cause for problems.
+
+- CD32 drive command communication and interrupt handling rewritten,
+  should now match real hardware (I think..) At least Brian the Lion
+  CD32 works again..
+- automatic vsync mode on the fly switching between 50Hz and 60Hz
+  screen modes if refresh rate is supported, disable vsync temporarily
+  if rate not supported (until switching back to supported rate)
+- Superstardust AGA weapon panel breaks if 1 extra BPLCON0 delay cycle
+  added. Obviously previous fix wasn't right.. Lets try something else,
+  add extra cycle if first bpl dma cycle is allocated (8 planes)
 
 Beta 7:
 
@@ -20,7 +52,9 @@ Beta 7:
   extra cycles) Quickstart A1200/CD32 most compatible now enables this
   new CE-mode. Some weird sound problems can be noticed, reason unknown..
 
-Two above changes can break lots of things as usual..
+Two above changes can break lots of things as usual.. Binary size also
+increased, 4th CPU core added (68020CE) and finally, next official
+version is now guaranteed to not be 1.6.2..
 
 Beta 6:
 

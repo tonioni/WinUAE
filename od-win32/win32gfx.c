@@ -327,8 +327,10 @@ static int set_ddraw_2 (void)
 		    break;
 		}
 	    }
-	    if (got == FALSE)
+	    if (got == FALSE) {
+		write_log (L"set_ddraw: refresh rate %d not supported\n", freq);
 		freq = 0;
+	    }
 	    write_log (L"set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
 	    ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 	    if (SUCCEEDED (ddrval))
@@ -1689,6 +1691,52 @@ static int reopen (int full)
     if (isfullscreen () <= 0)
 	DirectDraw_FillPrimary ();
 
+    return 0;
+}
+
+int vsync_switchmode (int hz)
+{
+    static int tempvsync;
+    int w = currentmode->native_width;
+    int h = currentmode->native_height;
+    int d = currentmode->native_depth / 8;
+    struct MultiDisplay *md = getdisplay (&currprefs);
+    struct PicassoResolution *found = NULL;
+    int newh, i, cnt;
+
+    if (hz < 0)
+	return tempvsync;
+
+    if (currprefs.ntscmode)
+	newh = h * 312 / 262;
+    else
+	newh = h * 262 / 312;
+
+    for (cnt = 0; cnt <= abs (newh - h) && !found; cnt++) {
+	for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
+	    struct PicassoResolution *r = &md->DisplayModes[i];
+	    if (r->res.width == w && (r->res.height == newh + cnt || r->res.height == newh - cnt) && r->depth == d) {
+		int j;
+		for (j = 0; r->refresh[j] > 0; j++) {
+		    if (r->refresh[j] == hz) {
+			found = r;
+			break;
+		    }
+		}
+	    }
+	}
+    }
+    if (!found) {
+	tempvsync = currprefs.gfx_avsync;
+	changed_prefs.gfx_avsync = 0;
+	write_log (L"refresh rate changed to %d but no matching screenmode found, vsync disabled\n", hz);
+    } else {
+	newh = found->res.height;
+	changed_prefs.gfx_size_fs.height = newh;
+	changed_prefs.gfx_refreshrate = hz;
+	write_log (L"refresh rate changed to %d, new screenmode %dx%d\n", hz, w, newh);
+    }
+    reopen (1);
     return 0;
 }
 
