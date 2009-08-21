@@ -274,7 +274,6 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 	case CE_MEMBANK_CHIP:
 	return wait_cpu_cycle_read (addr, 1);
 	case CE_MEMBANK_FAST:
-	case CE_MEMBANK_FAST16BIT:
 	do_cycles_ce000 (4);
 	break;
     }
@@ -288,7 +287,6 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 	case CE_MEMBANK_CHIP:
 	return wait_cpu_cycle_read (addr, 0);
 	case CE_MEMBANK_FAST:
-	case CE_MEMBANK_FAST16BIT:
 	do_cycles_ce000 (4);
 	break;
 	
@@ -303,7 +301,6 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 	wait_cpu_cycle_write (addr, 0, v);
 	return;
 	case CE_MEMBANK_FAST:
-	case CE_MEMBANK_FAST16BIT:
 	do_cycles_ce000 (4);
 	break;
     }
@@ -318,7 +315,6 @@ STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 	return;
 	break;
 	case CE_MEMBANK_FAST:
-	case CE_MEMBANK_FAST16BIT:
 	do_cycles_ce000 (4);
 	break;
     }

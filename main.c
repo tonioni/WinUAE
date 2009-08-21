@@ -120,42 +120,28 @@ void fixup_cpu (struct uae_prefs *p)
 	p->address_space_24 = 1;
 	if (p->cpu_compatible || p->cpu_cycle_exact)
 	    p->fpu_model = 0;
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 2 << 8;
 	break;
     case 68010:
 	p->address_space_24 = 1;
 	if (p->cpu_compatible || p->cpu_cycle_exact)
 	    p->fpu_model = 0;
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 2 << 8;
 	break;
     case 68020:
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 4 << 8;
 	break;
     case 68030:
 	p->address_space_24 = 0;
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 8 << 8;
 	break;
     case 68040:
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68040;
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 16 << 8;
 	break;
     case 68060:
 	p->address_space_24 = 0;
 	if (p->fpu_model)
 	    p->fpu_model = 68060;
-	if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-	    p->cpu_clock_multiplier = 16 << 8;
 	break;
     }
-    if (!p->cpu_frequency && !p->cpu_clock_multiplier)
-        p->cpu_clock_multiplier = 4 << 8;
 }
 
 
@@ -808,7 +794,6 @@ static int real_main2 (int argc, TCHAR **argv)
     memory_reset ();
 
 #ifdef AUTOCONFIG
-    gfxlib_install ();
 #if defined (BSDSOCKET)
     bsdlib_install ();
 #endif

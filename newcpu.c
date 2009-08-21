@@ -57,6 +57,7 @@ unsigned long irqcycles[15];
 int irqdelay[15];
 int mmu_enabled, mmu_triggered;
 int cpu_cycles;
+static int baseclock, cpucycleunit;
 
 const int areg_byteinc[] = { 1, 1, 1, 1, 1, 1, 1, 2 };
 const int imm8_table[] = { 8, 1, 2, 3, 4, 5, 6, 7 };
@@ -306,6 +307,23 @@ static void update_68k_cycles (void)
 	cycles_mask = 0xFFFFFFFF;
 	cycles_val = 0;
     }
+    currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier;
+    currprefs.cpu_frequency = changed_prefs.cpu_frequency;
+
+    baseclock = currprefs.ntscmode ? 28636360 : 28375160;
+    cpucycleunit = CYCLE_UNIT / 2;
+    if (currprefs.cpu_clock_multiplier) {
+        if (currprefs.cpu_clock_multiplier >= 256) {
+	    cpucycleunit = CYCLE_UNIT / (currprefs.cpu_clock_multiplier >> 8);
+	} else {
+	    cpucycleunit = CYCLE_UNIT * currprefs.cpu_clock_multiplier;
+	}
+    } else if (currprefs.cpu_frequency) {
+        cpucycleunit = CYCLE_UNIT * baseclock / (currprefs.cpu_frequency * 8);
+    }
+    if (cpucycleunit < 1)
+	cpucycleunit = 1;
+    write_log (L"CPU cycleunit: %d (%.3f)\n", cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
 }
 
 static void prefs_changed_cpu (void)
@@ -337,11 +355,16 @@ void check_prefs_changed_cpu (void)
 	build_cpufunctbl ();
 	changed = 1;
     }
-    if (changed || currprefs.m68k_speed != changed_prefs.m68k_speed) {
+    if (changed
+	|| currprefs.m68k_speed != changed_prefs.m68k_speed
+	|| currprefs.cpu_clock_multiplier != changed_prefs.cpu_clock_multiplier
+	|| currprefs.cpu_frequency != changed_prefs.cpu_frequency) {
 	currprefs.m68k_speed = changed_prefs.m68k_speed;
 	reset_frame_rate_hack ();
 	update_68k_cycles ();
+	changed = 1;
     }
+
     if (currprefs.cpu_idle != changed_prefs.cpu_idle) {
 	currprefs.cpu_idle = changed_prefs.cpu_idle;
     }
@@ -3567,4 +3590,14 @@ void fill_cache0x0 (uae_u32 addr)
 	fill_cache040 (addr);
     else
 	fill_cache020 (addr);
+}
+
+void do_cycles_ce020 (int clocks)
+{
+    do_cycles_ce (clocks * cpucycleunit);
+}
+
+void do_cycles_ce000 (int clocks)
+{
+    do_cycles_ce (clocks * cpucycleunit);
 }

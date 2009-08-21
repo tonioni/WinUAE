@@ -1342,6 +1342,9 @@ static void gen_opcode (unsigned long int opcode)
     struct instr *curi = table68k + opcode;
     insn_n_cycles = using_prefetch ? 0 : 4;
 
+    if (using_ce020) {
+	addcycles_ce020 (1); // better than nothing...
+    }
     start_brace ();
     m68k_pc_offset = 2;
     switch (curi->plev) {

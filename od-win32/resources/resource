@@ -183,6 +183,7 @@
 #define IDS_SCREEN_FULLSCREEN           196
 #define IDS_SCREEN_FULLWINDOW           197
 #define IDS_SCREEN_VSYNC                198
+#define IDS_SCREEN_VSYNC_AUTOSWITCH     199
 #define IDS_SOUND_MONO                  200
 #define IDS_SOUND_MIXED                 201
 #define IDI_QUICKSTART                  201
@@ -429,14 +430,11 @@
 #define IDC_CS_HOST                     1209
 #define IDC_CS_68000                    1210
 #define IDC_CS_ADJUSTABLE               1211
-#define IDC_CS_CPU_TEXT                 1212
-#define IDC_CS_CHIPSET_TEXT             1213
 #define IDC_COMPATIBLE                  1214
 #define IDC_TRUST0                      1215
 #define IDC_TRUST1                      1216
 #define IDC_CACHE                       1218
 #define IDC_CYCLEEXACT                  1219
-#define IDC_CS_CPU_TEXT2                1219
 #define IDC_CPUIDLE                     1220
 #define IDC_GENLOCK                     1220
 #define IDC_COMPATIBLE_FPU              1221
@@ -585,8 +583,8 @@
 #define IDC_CPUTEXT                     1508
 #define IDC_MAPDRIVES_NET               1508
 #define IDC_RESTARTEMU                  1508
-#define IDC_SWAP                        1509
 #define IDC_CACHETEXT                   1509
+#define IDC_SWAP                        1509
 #define IDC_MAPDRIVES_CD                1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
@@ -661,6 +659,7 @@
 #define IDC_NOFLAGS                     1581
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
+#define IDC_CS_CACHE_TEXT2              1583
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585
@@ -829,7 +828,6 @@
 #define IDC_PATHS_CONFIGS               1662
 #define IDC_SOUNDSWAP                   1662
 #define IDC_PATHS_SCREENSHOTS           1663
-#define IDC_SOUNDFREQ2                  1663
 #define IDC_PATHS_SAVESTATES            1664
 #define IDC_SOUNDSTEREOSWAPTXT          1664
 #define IDC_SOUNDSWAPTXT                1664
@@ -1003,8 +1001,10 @@
 #define IDC_RTG_32BIT                   1790
 #define IDC_ASSOCIATE_OFF               1790
 #define IDC_PORT_TABLET_FULL            1790
+#define IDC_CPU_MULTIPLIER              1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
+#define IDC_CPU_FREQUENCY               1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_RTG_VBLANKRATE              1793
@@ -1053,7 +1053,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        352
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1790
+#define _APS_NEXT_CONTROL_VALUE         1792
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

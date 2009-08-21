@@ -167,6 +167,7 @@ static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", 0 };
 static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix", 0 };
 static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
+static const TCHAR *vsyncmodes[] = { L"false", L"true", L"autoswitch", 0 };
 
 static const TCHAR *obsolete[] = {
     L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -622,7 +623,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, L"gfx_height_fullscreen", L"%d", p->gfx_size_fs.height);
     cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_refreshrate);
     cfgfile_write (f, L"gfx_autoresolution", L"%d", p->gfx_autoresolution);
-    cfgfile_write_bool (f, L"gfx_vsync", p->gfx_avsync);
+    cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
     cfgfile_write_bool (f, L"gfx_vsync_picasso", p->gfx_pvsync);
     cfgfile_write_bool (f, L"gfx_lores", p->gfx_resolution == 0);
     cfgfile_write_str (f, L"gfx_resolution", lorestype1[p->gfx_resolution]);
@@ -765,8 +766,17 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write_bool (f, L"cpu_compatible", p->cpu_compatible);
     cfgfile_write_bool (f, L"cpu_24bit_addressing", p->address_space_24);
     /* do not reorder end */
+
+    if (p->cpu_frequency)
+	cfgfile_write (f, L"cpu_frequency", L"%d", p->cpu_frequency);
+    if (p->cpu_clock_multiplier) {
+	if (p->cpu_clock_multiplier >= 256)
+	    cfgfile_write (f, L"cpu_multiplier", L"%d", p->cpu_clock_multiplier >> 8);
+    }
+
     cfgfile_write_bool (f, L"cpu_cycle_exact", p->cpu_cycle_exact);
     cfgfile_write_bool (f, L"blitter_cycle_exact", p->blitter_cycle_exact);
+    cfgfile_write_bool (f, L"cycle_exact", p->cpu_cycle_exact && p->blitter_cycle_exact ? 1 : 0);
     cfgfile_write_bool (f, L"rtg_nocustom", p->picasso96_nocustom);
     cfgfile_write (f, L"rtg_modes", L"0x%x", p->picasso96_modeflags);
 
@@ -828,7 +838,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
     *location = _tcstol (value, &endptr, base) * scale;
 
     if (*endptr != '\0' || *value == '\0') {
-	write_log (L"Option `%s' requires a numeric argument.\n", option);
+	write_log (L"Option '%s' requires a numeric argument but got '%s'\n", option, value);
 	return -1;
     }
     return 1;
@@ -844,7 +854,7 @@ int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	if (more)
 	    return 0;
 
-	write_log (L"Unknown value for option `%s'.\n", option);
+	write_log (L"Unknown value ('%s') for option '%s'.\n", value, option);
 	return -1;
     }
     *location = val;
@@ -1042,7 +1052,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_yesno (option, value, L"avoid_vid", &p->avoid_vid)
 	|| cfgfile_yesno (option, value, L"log_illegal_mem", &p->illegal_mem)
 	|| cfgfile_yesno (option, value, L"filesys_no_fsdb", &p->filesys_no_uaefsdb)
-	|| cfgfile_yesno (option, value, L"gfx_vsync", &p->gfx_avsync)
 	|| cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync)
 	|| cfgfile_yesno (option, value, L"gfx_blacker_than_black", &p->gfx_blackerthanblack)
 	|| cfgfile_yesno (option, value, L"gfx_flickerfixer", &p->gfx_scandoubler)
@@ -1084,6 +1093,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	|| cfgfile_strval (option, value, L"absolute_mouse", &p->input_tablet, abspointers, 0))
 	    return 1;
 
+
+    if (_tcscmp (option, L"gfx_vsync") == 0) {
+	if (cfgfile_strval (option, value, L"gfx_vsync", &p->gfx_avsync, vsyncmodes, 0) >= 0)
+	    return 1;
+	return cfgfile_yesno (option, value, L"gfx_vsync", &p->gfx_avsync);
+    }
 
     if (cfgfile_yesno (option, value, L"show_leds", &v)) {
 	if (v)
@@ -1496,6 +1511,18 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	/* we don't want cycle-exact in 68020/40+JIT modes */
 	return 1;
     }
+    if (cfgfile_yesno (option, value, L"cycle_exact", &tmpval)) {
+	p->cpu_cycle_exact = p->blitter_cycle_exact = tmpval ? 1 : 0;
+	if (p->cpu_model >= 68020 && p->cachesize > 0)
+	    p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, L"cpu_multiplier", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
+	p->cpu_clock_multiplier = (int)(_tstof (tmpbuf) * 256.0);
+	return 1;
+    }
+
 
     if (cfgfile_yesno (option, value, L"scsi_a3000", &dummyint)) {
 	if (dummyint)
@@ -1576,6 +1603,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	|| cfgfile_intval (option, value, L"maprom", &p->maprom, 1)
 	|| cfgfile_intval (option, value, L"parallel_autoflush", &p->parallel_autoflush_time, 1)
 	|| cfgfile_intval (option, value, L"uae_hide", &p->uae_hide, 1)
+	|| cfgfile_intval (option, value, L"cpu_frequency", &p->cpu_frequency, 1)
 	|| cfgfile_intval (option, value, L"catweasel", &p->catweasel, 1))
 	return 1;
 
@@ -3427,8 +3455,10 @@ static void set_68020_compa (struct uae_prefs *p, int compa)
     if (compa == 0) {
 	p->blitter_cycle_exact = 1;
 	p->m68k_speed = 0;
-	if (p->cpu_model == 68020 && p->cachesize == 0)
+	if (p->cpu_model == 68020 && p->cachesize == 0) {
 	    p->cpu_cycle_exact = 1;
+	    p->cpu_clock_multiplier = 4 << 8;
+	}
     }
     if (compa > 0) {
 	p->cpu_compatible = 0;
@@ -3449,6 +3479,7 @@ static void set_68020_compa (struct uae_prefs *p, int compa)
 
 static void set_68000_compa (struct uae_prefs *p, int compa)
 {
+    p->cpu_clock_multiplier = 2 << 8;
     switch (compa)
     {
 	case 0:

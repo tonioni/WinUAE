@@ -16,6 +16,13 @@
 
 #include <math.h>
 
+int getvsyncrate (int hz)
+{
+    if (hz > 85)
+	return hz / 2;
+    return hz;
+}
+
 #define RED	0
 #define GRN	1
 #define BLU	2

@@ -181,7 +181,6 @@ uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
-static int baseclock, cpucycleunit;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -2545,6 +2544,11 @@ static void reset_decisions (void)
     last_sprite_point = 0;
     fetch_state = fetch_not_started;
     bplcon1_hpos = -1;
+    if (bpldmasetuphpos >= 0) {
+	// this can happen in "too fast" modes
+	BPLCON0_Denise (0, bplcon0);
+	setup_fmodes (0);
+    }
     bpldmasetuphpos = -1;
     bpldmasetupphase = 0;
 
@@ -2583,7 +2587,9 @@ static void reset_decisions (void)
 
 static int isvsync (void)
 {
-    return currprefs.gfx_avsync && currprefs.gfx_afullscreen && !picasso_on;
+    if (!currprefs.gfx_afullscreen || picasso_on || !currprefs.gfx_avsync)
+	return 0;
+    return currprefs.gfx_avsync;
 }
 
 int vsynctime_orig;
@@ -2595,8 +2601,8 @@ void compute_vsynctime (void)
 	vblank_hz = currprefs.chipset_refreshrate;
 	if (isvsync ()) {
 	    vblank_skip = 1;
-	    if (!fake_vblank_hz && vblank_hz > 85) {
-		vblank_hz /= 2;
+	    if (!fake_vblank_hz && getvsyncrate (vblank_hz) != vblank_hz) {
+		vblank_hz = getvsyncrate (vblank_hz);
 		vblank_skip = -1;
 	    }
 	}
@@ -2639,24 +2645,12 @@ void init_hz (void)
     int odbl = doublescan, omaxvpos = maxvpos;
     int hzc = 0;
 
-    if (vsync_switchmode (-1) > 0)
-	currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1);
+    if (vsync_switchmode (-1, 0) > 0)
+	currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1, 0);
 
     if (!isvsync () && ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
 	(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode))) {
 	currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate = 0;
-    }
-
-    baseclock = currprefs.ntscmode ? 28636360 : 28375160;
-    cpucycleunit = CYCLE_UNIT / 2;
-    if (currprefs.cpu_clock_multiplier) {
-	if (currprefs.cpu_clock_multiplier >= 256) {
-	    cpucycleunit = CYCLE_UNIT / (currprefs.cpu_clock_multiplier >> 8);
-	} else {
-	    cpucycleunit = CYCLE_UNIT * currprefs.cpu_clock_multiplier;
-	}
-    } else if (currprefs.cpu_frequency) {
-	cpucycleunit = CYCLE_UNIT * baseclock / (currprefs.cpu_frequency * 8);
     }
 
     doublescan = 0;
@@ -2733,6 +2727,14 @@ void init_hz (void)
 	interlace_seen = (bplcon0 & 4) ? 1 : 0;
         reset_drawing ();
     }
+    if ((vblank_hz == 50 || vblank_hz == 60) && isvsync () == 2) {
+	if (getvsyncrate (currprefs.gfx_refreshrate) != vblank_hz)
+	    vsync_switchmode (vblank_hz, currprefs.gfx_refreshrate);
+    }
+    if (isvsync ()) {
+	changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+    }
+
     compute_vsynctime ();
 #ifdef OPENGL
     OGL_refresh ();
@@ -2747,11 +2749,6 @@ void init_hz (void)
 	doublescan > 0 ? L" dblscan" : L"",
 	vblank_hz, vblank_hz * maxvpos,
 	maxhpos, maxvpos);
-
-    if ((vblank_hz == 50 || vblank_hz == 60) && isvsync ()) {
-	if (currprefs.gfx_refreshrate != vblank_hz)
-	    vsync_switchmode (vblank_hz);
-    }
 
 }
 
@@ -4287,8 +4284,8 @@ static void compute_spcflag_copper (int hpos)
 	    return;
     }
     // do not use past cycles if starting for the first time in this line
-    // (write to DMACON for example)
-    if (!wasenabled && cop_state.hpos < hpos && hpos < maxhpos) {
+    // (write to DMACON for example) hpos+1 for long lines
+    if (!wasenabled && cop_state.hpos < hpos && hpos + 1 < maxhpos) {
 	hpos = (hpos + 2) & ~1;
 	if (hpos > (maxhpos & ~1))
 	    hpos = maxhpos & ~1;
@@ -5108,7 +5105,6 @@ static void hsync_handler (void)
 	    lightpen_triggered = 1;
 	}
 	vpos = 0;
-	lol = 0;
 	vsync_handler ();
 #if 0
 	if (input_recording > 0) {
@@ -6700,16 +6696,6 @@ void do_cycles_ce (long cycles)
 	do_cycles (1 * CYCLE_UNIT);
 	cycles -= CYCLE_UNIT;
     }
-}
-
-void do_cycles_ce020 (int clocks)
-{
-    do_cycles_ce (clocks * cpucycleunit);
-}
-
-void do_cycles_ce000 (int clocks)
-{
-    do_cycles_ce (clocks * cpucycleunit);
 }
 
 int is_cycle_ce (void)

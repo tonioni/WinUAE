@@ -652,6 +652,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	lcd_priority (1);
 #endif
     clipboard_active (hAmigaWnd, 1);
+    SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
 #if 0
     if (os_vista && AVTask == NULL) {
 	DWORD taskIndex = 0;
@@ -671,6 +672,8 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	AvRevertMmThreadCharacteristics (AVTask);
     AVTask = NULL;
 #endif
+    if (!currprefs.win32_powersavedisabled)
+	SetThreadExecutionState (ES_CONTINUOUS);
     if (minimized)
 	exit_gui (0);
     focus = 0;
@@ -1142,9 +1145,14 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	{
 	    case SC_SCREENSAVE: // Screensaver Trying To Start?
 	    case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
+
+	    // SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED); handles this now
+#if 0
 	    if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled)
 	        return 0; // Prevent From Happening
+#endif
 	    break;
+
 	    default:
 	    {
 	        LRESULT lr;

@@ -1694,15 +1694,16 @@ static int reopen (int full)
     return 0;
 }
 
-int vsync_switchmode (int hz)
+int vsync_switchmode (int hz, int oldhz)
 {
     static int tempvsync;
     int w = currentmode->native_width;
     int h = currentmode->native_height;
     int d = currentmode->native_depth / 8;
     struct MultiDisplay *md = getdisplay (&currprefs);
-    struct PicassoResolution *found = NULL;
+    struct PicassoResolution *found;
     int newh, i, cnt;
+    int dbl = getvsyncrate (currprefs.chipset_refreshrate) != currprefs.chipset_refreshrate ? 2 : 1;
 
     if (hz < 0)
 	return tempvsync;
@@ -1711,7 +1712,27 @@ int vsync_switchmode (int hz)
 	newh = h * 312 / 262;
     else
 	newh = h * 262 / 312;
+    hz = hz * dbl;
 
+    found = NULL;
+    for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
+        struct PicassoResolution *r = &md->DisplayModes[i];
+	if (r->res.width == w && r->res.height == h && r->depth == d) {
+	    int j;
+	    for (j = 0; r->refresh[j] > 0; j++) {
+	        if (r->refresh[j] == oldhz) {
+		    found = r;
+		    break;
+		}
+	    }
+	}
+    }
+    if (found == NULL) {
+	write_log (L"refresh rate changed to %d but original rate was not found\n", hz);
+	return 0;
+    }
+
+    found = NULL;
     for (cnt = 0; cnt <= abs (newh - h) && !found; cnt++) {
 	for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
 	    struct PicassoResolution *r = &md->DisplayModes[i];

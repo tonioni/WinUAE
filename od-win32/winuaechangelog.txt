@@ -1,4 +1,29 @@
 
+Beta 9:
+
+- vsync automatic frequency switching is now optional ("autovsync")
+- 100Hz/120Hz supported in vsync automatic switching mode
+- "Disable powersaving features" is now "Disable screensaver" (when
+  not active) Screensavers are always disabled when active. Programs
+  shouldn't override "real" powersaving features anymore (and Vista
+  and later will ignore these requests anyway)
+- 68020 CE mode all instructions now need at least 1 CPU cycle (1/4
+  bus cycle) to finish (+any slow chip/custom memory fetches),
+  previously all instructions were instant when accessing fast ram
+- CPU frequency configuration added (CE-modes only). Fast RAM (and ROM)
+  is always considered wait-state free, chip ram speed does not change
+  Pre-defined values use main clock as CPU clock source (=includes
+  PAL/NTSC difference), manually typed frequency basically emulate CPU
+  card that has separate CPU clock crystal. For example pre-defined
+  "7MHz" is 7.093790.. if PAL mode) Not very useful in 68020 mode. yet.
+  (see earlier beta change log for explanation)
+- copper woke up 1 line too late (and never woke up if waiting for line
+  255) if wait ended on NTSC long line (this was the real reason for
+  NTSC jumping, b8 hack removed)
+- added "cycle_exact" configuration entry, quick way to switch CE on/off
+  with uae-configuration
+- display parameters were not fully updated if CPU was "too fast" (b5)
+
 Beta 8:
 
 68020 CE mode updates:
@@ -25,6 +50,7 @@ too fast blitter was the most common cause for problems.
 - CD32 drive command communication and interrupt handling rewritten,
   should now match real hardware (I think..) At least Brian the Lion
   CD32 works again..
+- NTSC mode shouldn't jump anymore
 - automatic vsync mode on the fly switching between 50Hz and 60Hz
   screen modes if refresh rate is supported, disable vsync temporarily
   if rate not supported (until switching back to supported rate)

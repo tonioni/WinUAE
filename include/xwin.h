@@ -25,7 +25,7 @@ extern int isfullscreen (void);
 extern void toggle_fullscreen (void);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
-extern int vsync_switchmode (int);
+extern int vsync_switchmode (int, int);
 
 extern void flush_line (int);
 extern void flush_block (int, int);
@@ -53,6 +53,7 @@ extern void setup_greydither (int bits, allocfunc_type allocfunc);
 extern void setup_greydither_maxcol (int maxcol, allocfunc_type allocfunc);
 extern void setup_dither (int bits, allocfunc_type allocfunc);
 extern void DitherLine (uae_u8 *l, uae_u16 *r4g4b4, int x, int y, uae_s16 len, int bits) ASM_SYM_FOR_FUNC("DitherLine");
+extern int getvsyncrate (int hz);
 
 struct vidbuf_description
 {

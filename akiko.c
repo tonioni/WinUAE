@@ -7,7 +7,7 @@
   * - NVRAM
   * - CDROM
   *
-  * Copyright 2001, 2002 Toni Wilen
+  * Copyright 2001-2009 Toni Wilen
   *
   */
 
@@ -332,9 +332,6 @@ static uae_u32 akiko_c2p_read (int offset)
 /* CD32 CDROM hardware emulation
  * Akiko addresses used:
  * 0xb80004-0xb80028
- *
- * I can't believe cd.device and custom loaders are fooled to think
- * this piece of crap emulates real CD32 CDROM controller and drive :)
  */
 
 #define CDINTERRUPT_SUBCODE	    0x80000000
