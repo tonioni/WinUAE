@@ -663,6 +663,8 @@
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585
+#define IDC_JITENABLE2                  1585
+#define IDC_MMUENABLE                   1585
 #define IDC_CTRLF11                     1586
 #define IDC_FASTCOPPER                  1588
 #define IDC_COLLISION0                  1589

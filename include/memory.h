@@ -133,7 +133,7 @@ extern uae_u32 gfxmem_start;
 extern uae_u8 *gfxmemory;
 extern uae_u32 gfxmem_mask;
 extern int address_space_24;
-extern uae_u16 last_custom_value;
+extern uae_u16 last_custom_value1;
 
 /* Default memory access functions */
 

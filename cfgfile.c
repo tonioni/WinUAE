@@ -763,6 +763,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write (f, L"cpu_model", L"%d", p->cpu_model);
     if (p->fpu_model)
 	cfgfile_write (f, L"fpu_model", L"%d", p->fpu_model);
+    if (p->mmu_model)
+	cfgfile_write (f, L"mmu_model", L"%d", p->mmu_model);
     cfgfile_write_bool (f, L"cpu_compatible", p->cpu_compatible);
     cfgfile_write_bool (f, L"cpu_24bit_addressing", p->address_space_24);
     /* do not reorder end */
@@ -1679,6 +1681,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 
     if (cfgfile_strval (option, value, L"chipset", &tmpval, csmode, 0)) {
 	set_chipset_mask (p, tmpval);
+	return 1;
+    }
+
+    if (cfgfile_string (option, value, L"mmu_model", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+	p->mmu_model = _tstol(tmpbuf);
 	return 1;
     }
 

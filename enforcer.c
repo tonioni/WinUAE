@@ -36,7 +36,9 @@
 #define BACKTRACELONGS 500
 #define INSTRUCTIONLINES 17
 
-#define ISILLEGAL(addr) (addr < 4 || (addr > 4 && addr < ENFORCESIZE))
+#define ISILLEGAL_LONG(addr) (addr < 4 || (addr > 4 && addr < ENFORCESIZE))
+#define ISILLEGAL_WORD(addr) (addr < ENFORCESIZE)
+#define ISILLEGAL_BYTE(addr) (addr < ENFORCESIZE)
 
 extern uae_u8 *natmem_offset;
 
@@ -378,7 +380,7 @@ uae_u32 REGPARAM2 chipmem_lget2 (uaecptr addr)
     addr &= chipmem_mask;
     m = (uae_u32 *)(chipmemory + addr);
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_LONG (addr))
     {
 	enforcer_display_hit (L"LONG READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
@@ -395,7 +397,7 @@ uae_u32 REGPARAM2 chipmem_wget2(uaecptr addr)
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_WORD (addr))
     {
 	enforcer_display_hit (L"WORD READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
@@ -409,7 +411,7 @@ uae_u32 REGPARAM2 chipmem_bget2 (uaecptr addr)
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_BYTE (addr))
     {
 	enforcer_display_hit (L"BYTE READ from",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
@@ -427,7 +429,7 @@ void REGPARAM2 chipmem_lput2 (uaecptr addr, uae_u32 l)
     addr &= chipmem_mask;
     m = (uae_u32 *)(chipmemory + addr);
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_LONG (addr))
     {
 	enforcer_display_hit (L"LONG WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
@@ -445,7 +447,7 @@ void REGPARAM2 chipmem_wput2 (uaecptr addr, uae_u32 w)
     addr &= chipmem_mask;
     m = (uae_u16 *)(chipmemory + addr);
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_WORD (addr))
     {
 	enforcer_display_hit (L"WORD WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)
@@ -459,7 +461,7 @@ void REGPARAM2 chipmem_bput2 (uaecptr addr, uae_u32 b)
     addr -= chipmem_start & chipmem_mask;
     addr &= chipmem_mask;
 
-    if (ISILLEGAL (addr))
+    if (ISILLEGAL_BYTE (addr))
     {
 	enforcer_display_hit (L"BYTE WRITE to",(uae_u32)(regs.pc_p - NMEM_OFFSET),addr);
 	if (enforcermode & 1)

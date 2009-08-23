@@ -5,7 +5,7 @@
   *
   * Copyright 1995-2002 Bernd Schmidt
   * Copyright 1995 Alessandro Bissacco
-  * Copyright 2000-2008 Toni Wilen
+  * Copyright 2000-2009 Toni Wilen
   */
 
 #include "sysconfig.h"
@@ -105,7 +105,7 @@ uae_u16 customhack_get (struct customhack *ch, int hpos)
 }
 #endif
 
-uae_u16 last_custom_value;
+uae_u16 last_custom_value1;
 
 static unsigned int n_consecutive_skipped = 0;
 static unsigned int total_skipped = 0;
@@ -1023,17 +1023,17 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 	switch (fm)
 	{
 	case 0:
-	    fetched[nr] = bplxdat[nr] = last_custom_value = chipmem_agnus_wget (p);
+	    fetched[nr] = bplxdat[nr] = last_custom_value1 = chipmem_agnus_wget (p);
 	    break;
 #ifdef AGA
 	case 1:
 	    fetched_aga0[nr] = chipmem_lget (p);
-	    last_custom_value = (uae_u16)fetched_aga0[nr];
+	    last_custom_value1 = (uae_u16)fetched_aga0[nr];
 	    break;
 	case 2:
 	    fetched_aga1[nr] = chipmem_lget (p);
 	    fetched_aga0[nr] = chipmem_lget (p + 4);
-	    last_custom_value = (uae_u16)fetched_aga0[nr];
+	    last_custom_value1 = (uae_u16)fetched_aga0[nr];
 	    break;
 #endif
 	}
@@ -4092,7 +4092,7 @@ static void update_copper (int until_hpos)
 	case COP_read1:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i1 = last_custom_value = chipmem_agnus_wget (cop_state.ip);
+	    cop_state.i1 = last_custom_value1 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 	    if (debug_dma)
@@ -4105,7 +4105,7 @@ static void update_copper (int until_hpos)
 	case COP_read2:
 	    if (copper_cant_read (old_hpos))
 		continue;
-	    cop_state.i2 = last_custom_value = chipmem_agnus_wget (cop_state.ip);
+	    cop_state.i2 = last_custom_value1 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    cop_state.ip += 2;
 	    cop_state.saved_i1 = cop_state.i1;
@@ -4371,9 +4371,9 @@ static void cursorsprite (void)
 
 STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cycle, int mode)
 {
-    uae_u16 data = last_custom_value;
+    uae_u16 data = last_custom_value1;
     if (dma) {
-	data = last_custom_value = chipmem_agnus_wget (s->pt);
+	data = last_custom_value1 = chipmem_agnus_wget (s->pt);
 	alloc_cycle (hpos, CYCLE_SPRITE);
 #ifdef DEBUGGER
 	if (debug_dma)
@@ -4385,9 +4385,9 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 }
 STATIC_INLINE uae_u16 sprite_fetch2 (struct sprite *s, int dma, int hpos, int cycle, int mode)
 {
-    uae_u16 data = last_custom_value;
+    uae_u16 data = last_custom_value1;
     if (dma) {
-	data = last_custom_value = chipmem_agnus_wget (s->pt);
+	data = last_custom_value1 = chipmem_agnus_wget (s->pt);
     }
     s->pt += 2;
     return data;
@@ -5081,7 +5081,7 @@ static void hsync_handler (void)
 	ahi_hsync ();
     }
 
-    last_custom_value = 0xffff; // refresh slots should set this to 0xffff
+    last_custom_value1 = 0xffff; // refresh slots should set this to 0xffff
 
     if (!nocustom()) {
 	if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
@@ -5775,10 +5775,10 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	 * last value which then changes to all ones (following read will return
 	 * all ones)
 	 */
-	v = last_custom_value;
+	v = last_custom_value1;
 	if (!noput) {
 	    int r;
-	    uae_u16 old = last_custom_value;
+	    uae_u16 old = last_custom_value1;
 	    uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : 0xffff;//last_custom_value;
 	    decide_line (hpos);
 	    decide_fetch (hpos);
@@ -5786,7 +5786,7 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	    r = custom_wput_copper (hpos, addr, l, 1);
 	    if (currprefs.chipset_mask & CSMASK_AGA) {
 		v = l;
-		last_custom_value = 0xffff;
+		last_custom_value1 = 0xffff;
 	    } else {
 		v = old;
 	    }
@@ -5856,7 +5856,6 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
     ar_custom[addr+1]=(uae_u8)(value);
 #endif
 #endif
-    last_custom_value = value;
     switch (addr) {
      case 0x00E: CLXDAT (); break;
 
@@ -6268,7 +6267,7 @@ uae_u8 *restore_custom (uae_u8 *src)
     RW;				/* 1F8 ? */
     RW;				/* 1FA ? */
     fmode = RW;			/* 1FC FMODE */
-    last_custom_value = RW;	/* 1FE ? */
+    last_custom_value1 = RW;	/* 1FE ? */
 
     DISK_restore_custom (dskpt, dsklen, dskbytr);
 
@@ -6440,7 +6439,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
     SW (0);			/* 1F8 */
     SW (0);			/* 1FA */
     SW (fmode);			/* 1FC FMODE */
-    SW (last_custom_value);	/* 1FE */
+    SW (last_custom_value1);	/* 1FE */
 
     *len = dst - dstbak;
     return dstbak;

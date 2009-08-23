@@ -6791,12 +6791,13 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_FPU1, fpu);
     ew (hDlg, IDC_FPU2, fpu);
     ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
+    ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
 }
 
 static void values_to_cpudlg (HWND hDlg)
 {
     TCHAR cache[8] = L"";
-    int cpu, idx;
+    int cpu;
 
     SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT );
     SetDlgItemInt( hDlg, IDC_CPUTEXT, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT, FALSE );
@@ -6828,6 +6829,7 @@ static void values_to_cpudlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_HARDFLUSH, workprefs.comp_hardflush);
     CheckDlgButton (hDlg, IDC_CONSTJUMP, workprefs.comp_constjump);
     CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
+    CheckDlgButton (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0 && workprefs.mmu_model == 68040);
 
 }
 
@@ -6842,6 +6844,7 @@ static void values_from_cpudlg (HWND hDlg)
     workprefs.m68k_speed = IsDlgButtonChecked (hDlg, IDC_CS_HOST) ? -1
 	: IsDlgButtonChecked (hDlg, IDC_CS_68000) ? 0
 	: SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * CYCLE_UNIT;
+    workprefs.mmu_model = IsDlgButtonChecked (hDlg, IDC_MMUENABLE) ? 68040 : 0;
 
     newcpu = IsDlgButtonChecked (hDlg, IDC_CPU0) ? 68000
 	: IsDlgButtonChecked (hDlg, IDC_CPU1) ? 68010

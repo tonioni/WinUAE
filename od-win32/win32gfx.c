@@ -1709,9 +1709,9 @@ int vsync_switchmode (int hz, int oldhz)
 	return tempvsync;
 
     if (currprefs.ntscmode)
-	newh = h * 312 / 262;
+	newh = h * 50 / 60;
     else
-	newh = h * 262 / 312;
+	newh = h * 60 / 50;
     hz = hz * dbl;
 
     found = NULL;
@@ -1733,7 +1733,7 @@ int vsync_switchmode (int hz, int oldhz)
     }
 
     found = NULL;
-    for (cnt = 0; cnt <= abs (newh - h) && !found; cnt++) {
+    for (cnt = 0; cnt <= abs (newh - h) + 1 && !found; cnt++) {
 	for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
 	    struct PicassoResolution *r = &md->DisplayModes[i];
 	    if (r->res.width == w && (r->res.height == newh + cnt || r->res.height == newh - cnt) && r->depth == d) {

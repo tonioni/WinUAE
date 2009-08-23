@@ -239,7 +239,7 @@ STATIC_INLINE const int *get_ch (void)
     if (blit_faulty)
 	return &blit_diag[0];
     if (blit_final)
-	return blit_cycle_diagram_finald;
+	return blitline ? blit_cycle_diagram_finalld : blit_cycle_diagram_finald;
     return blit_diag;
 }
 
@@ -271,6 +271,8 @@ STATIC_INLINE int canblit (int hpos)
 {
     if (is_bitplane_dma (hpos))
 	return 0;
+    if (cycle_line[hpos] == CYCLE_CPU)
+	return -1;
     if (cycle_line[hpos])
 	return 0;
     return 1;
@@ -309,8 +311,8 @@ static void blitter_done (int hpos)
 
 STATIC_INLINE chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 {
+    last_custom_value1 = w;
 #ifndef BLITTER_DEBUG_NO_D
-    last_custom_value = w;
     chipmem_agnus_wput (addr, w);
 #endif
 }
@@ -521,7 +523,7 @@ STATIC_INLINE void blitter_read (void)
 	if (!dmaen (DMA_BLITTER))
 	    return;
 	blt_info.bltcdat = chipmem_bank.wget (bltcpt);
-	last_custom_value = blt_info.bltcdat;
+	last_custom_value1 = blt_info.bltcdat;
     }
     bltstate = BLT_work;
 }
@@ -534,7 +536,7 @@ STATIC_INLINE void blitter_write (void)
     if (bltcon0 & 0x200) {
 	if (!dmaen (DMA_BLITTER))
 	    return;
-	last_custom_value = blt_info.bltddat;
+	last_custom_value1 = blt_info.bltddat;
 	chipmem_bank.wput (bltdpt, blt_info.bltddat);
     }
     bltstate = BLT_next;
@@ -631,26 +633,30 @@ static int blitter_vcounter1, blitter_vcounter2;
 
 static void decide_blitter_line (int hsync, int hpos)
 {
-
+    if (blit_final && vblitsize)
+	blit_final = 0;
     while (last_blitter_hpos < hpos) {
         int c = channel_state (blit_cyclecounter);
 
 	for (;;) {
+	    int v = canblit (last_blitter_hpos);
 
-	    if (!canblit (last_blitter_hpos)) {
+	    if (!v) {
 	        blit_misscyclecounter++;
 	        break;
 	    }
 
-	    if (!dmaen (DMA_BLITTER) && (c == 3 || c == 4))
+	    if ((!dmaen (DMA_BLITTER) || v <= 0) && (c == 3 || c == 4)) {
+	        blit_misscyclecounter++;
 		break;
+	    }
 
 	    blit_cyclecounter++;
 	    blit_totalcyclecounter++;
 
 	    // final 2 idle cycles?
-	    if (blit_diag == blit_cycle_diagram_finalld) {
-		if (blit_cyclecounter > blit_diag[0]) {
+	    if (blit_final) {
+		if (blit_cyclecounter > get_ch ()[0]) {
 		    bltdpt = bltcpt;
 		    blitter_done (last_blitter_hpos);
 		    return;
@@ -661,7 +667,7 @@ static void decide_blitter_line (int hsync, int hpos)
 	    /* onedot mode and no pixel = bus write access is skipped */
 	    if (c == 4 && blitsing && blitonedot > 1) {
 		if (vblitsize == 0) {
-		    blit_diag = blit_cycle_diagram_finalld;
+		    blit_final = 1;
 		    blit_cyclecounter = 0;
 		}
 		break;
@@ -689,11 +695,11 @@ static void decide_blitter_line (int hsync, int hpos)
 		alloc_cycle_ext (last_blitter_hpos, CYCLE_BLITTER);
 		record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
 		if (vblitsize == 0) {
-		    blit_diag = blit_cycle_diagram_finalld;
+		    blit_final = 1;
 		    blit_cyclecounter = 0;
 		    break;
 		}
-
+ 
 	    }
 	
 	    break;
@@ -819,7 +825,7 @@ STATIC_INLINE int blitter_doddma (int hpos)
     if (wd) {
 	alloc_cycle_ext (hpos, CYCLE_BLITTER);
 	record_dma_blit (0x00, d, bltdpt, hpos);
-	last_custom_value = d;
+	last_custom_value1 = d;
 	chipmem_agnus_wput2 (bltdpt, d);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
@@ -846,14 +852,14 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
     {
 	case 1:
 	blt_info.bltadat = dat = chipmem_agnus_wget (bltapt);
-	last_custom_value = blt_info.bltadat;
+	last_custom_value1 = blt_info.bltadat;
 	addr = bltapt;
 	bltapt += blit_add;
 	reg = 0x74;
 	break;
 	case 2:
 	blt_info.bltbdat = dat = chipmem_agnus_wget (bltbpt);
-	last_custom_value = blt_info.bltbdat;
+	last_custom_value1 = blt_info.bltbdat;
 	addr = bltbpt;
 	bltbpt += blit_add;
 	if (blitdesc)
@@ -865,7 +871,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 	break;
 	case 3:
 	blt_info.bltcdat = dat = chipmem_agnus_wget (bltcpt);
-	last_custom_value = blt_info.bltcdat;
+	last_custom_value1 = blt_info.bltcdat;
 	addr = bltcpt;
 	bltcpt += blit_add;
 	reg = 0x70;
@@ -923,6 +929,7 @@ static void do_startcycles (int hpos)
 		if (blit_faulty)
 		    blit_faulty = -1;
 		bltstate = BLT_done;
+		blit_final = 0;
 		do_blitter (vhpos, 0);
 		blit_startcycles = 0;
 		blit_cyclecounter = 0;
@@ -993,7 +1000,7 @@ void decide_blitter (int hpos)
 
 	    blitter_nasty++;
 
-	    if (!dmaen (DMA_BLITTER) || v == 0) {
+	    if (!dmaen (DMA_BLITTER) || v <= 0) {
 	        blit_misscyclecounter++;
 	        break;
 	    }
@@ -1021,12 +1028,10 @@ void decide_blitter (int hpos)
 	    break;
 	}
 
-	if (blitter_vcounter1 == vblitsize && channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
-	    if (!blit_final) {
-	        blitter_interrupt (last_blitter_hpos, 0);
-	        blit_cyclecounter = 0;
-		blit_final = 1;
-	    }
+	if (!blit_final && blitter_vcounter1 == vblitsize && channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
+	    blitter_interrupt (last_blitter_hpos, 0);
+	    blit_cyclecounter = 0;
+	    blit_final = 1;
 	}
 	last_blitter_hpos++;
     }
@@ -1196,7 +1201,7 @@ static void do_blitter2 (int hpos, int copper)
 
 #ifdef BLITTER_DEBUG_NOWAIT
     if (bltstate != BLT_done) {
-	if (blit_diag == blit_cycle_diagram_finald)
+	if (blit_final)
         write_log (L"blitter was already active! PC=%08x\n", M68K_GETPC);
     }
 #endif
@@ -1275,11 +1280,6 @@ static void do_blitter2 (int hpos, int copper)
     if (dmaen (DMA_BLITPRI))
 	set_special (SPCFLAG_BLTNASTY);
 
-    if (vblitsize == 0 || (blitline && hblitsize != 2)) {
-	blitter_done (hpos);
-	return;
-    }
-
 #if 0
     if (M68K_GETPC >= 0x00070554 && M68K_GETPC <= 0x000706B0) {
 	blitter_done ();
@@ -1303,6 +1303,11 @@ static void do_blitter2 (int hpos, int copper)
 	blit_cyclecounter = -(BLITTER_STARTUP_CYCLES + (copper ? 1 : 0));
 	blit_startcycles = 0;
 	blit_maxcyclecounter = hblitsize * vblitsize + 2;
+	return;
+    }
+
+    if (vblitsize == 0 || (blitline && hblitsize != 2)) {
+	blitter_done (hpos);
 	return;
     }
 

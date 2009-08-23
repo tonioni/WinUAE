@@ -3318,7 +3318,7 @@ static struct mmunode **mmunl;
 #define MMU_MAP_READI_U (1 << 12)
 #define MMU_MAP_READI_S (1 << 13)
 
-void mmu_do_hit(void)
+void mmu_do_hit (void)
 {
     int i;
     uaecptr p;

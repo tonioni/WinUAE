@@ -55,6 +55,7 @@ typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 struct cputbl {
     cpuop_func *handler;
     uae_u16 opcode;
+    int length;
 };
 
 #ifdef JIT
@@ -152,8 +153,6 @@ extern struct regstruct
 
     uae_u32 prefetch020data;
     uae_u32 prefetch020addr;
-    struct cache020 cacheline020[CACHELINES020];
-    struct cache020 cacheline040[CACHELINES040];
 
 } regs, lastint_regs, mmu_backup_regs;
 
@@ -316,6 +315,7 @@ extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (int);
 extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
+extern void m68k_do_rte (uae_u32 pc, uae_u16 opcode, uae_u16 sr, uae_u16 format);
 
 extern void mmu_op (uae_u32, uae_u32);
 extern void mmu_op30 (uaecptr, uae_u32, int, uaecptr);
@@ -347,6 +347,7 @@ extern const struct cputbl op_smalltbl_20_ff[];
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
 extern const struct cputbl op_smalltbl_21_ff[];
+extern const struct cputbl op_smalltbl_31_ff[]; // MMU
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
 extern const struct cputbl op_smalltbl_22_ff[];
@@ -375,6 +376,7 @@ extern int check_prefs_changed_comp (void);
 #else
 #define flush_icache(X) do {} while (0)
 #endif
+extern void flush_mmu (uaecptr, int);
 
 extern int movec_illg (int regno);
 extern uae_u32 val_move2c (int regno);

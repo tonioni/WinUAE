@@ -1,4 +1,17 @@
 
+Beta 10:
+
+- and more reading of write-only register fixes, original Cardiaxx
+  loads now without extra hacks
+- yet another CPU core added, 68040 MMU emulation from Aranym
+  (Atari ST/TT/Falcon emulator) is finally enabled! (not compatible
+  with JIT, slow etc blahblah) Enforcer+Lawbreaker seems to be working.
+  Perhaps even something else that needs MMU also work..
+- blitter cycles given to CPU (bltnasty=0) didn't count as free cycles
+  for blitter idle cycles
+- blitter line mode froze if new blit was started when last 2 final
+  idle cycles were in progress
+
 Beta 9:
 
 - vsync automatic frequency switching is now optional ("autovsync")
@@ -22,7 +35,7 @@ Beta 9:
   NTSC jumping, b8 hack removed)
 - added "cycle_exact" configuration entry, quick way to switch CE on/off
   with uae-configuration
-- display parameters were not fully updated if CPU was "too fast" (b5)
+- wrong/missing display sometimes in "too fast" CPU modes (b5)
 
 Beta 8:
 

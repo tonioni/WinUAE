@@ -41,6 +41,8 @@ static int count_read_ea, count_write_ea, count_cycles_ea;
 
 static int optimized_flags;
 
+static int cpulengths[65536];
+
 #define GF_APDI 1
 #define GF_AD8R 2
 #define GF_PC8R 4
@@ -99,8 +101,8 @@ static char endlabelstr[80];
 static int endlabelno = 0;
 static int need_endlabel;
 
-static int n_braces = 0, limit_braces;
-static int m68k_pc_offset = 0;
+static int n_braces, limit_braces;
+static int m68k_pc_offset, m68k_pc_offset_sum;
 static int insn_n_cycles;
 
 static void fpulimit (void)
@@ -432,6 +434,7 @@ static void sync_m68k_pc (void)
     if (m68k_pc_offset == 0)
 	return;
     printf ("\tm68k_incpc (%d);\n", m68k_pc_offset);
+    m68k_pc_offset_sum += m68k_pc_offset;
     m68k_pc_offset = 0;
 }
 
@@ -668,9 +671,9 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	    }
 	} else if (using_mmu) {
 	    switch (size) {
-	    case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = uae_mmu_get_byte (%sa);\n", name, name); break;
-	    case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = uae_mmu_get_word (%sa);\n", name, name); break;
-	    case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = uae_mmu_get_long (%sa);\n", name, name); break;
+	    case sz_byte: insn_n_cycles += 4; printf ("\tuae_s8 %s = get_byte_mmu (%sa);\n", name, name); break;
+	    case sz_word: insn_n_cycles += 4; printf ("\tuae_s16 %s = get_word_mmu (%sa);\n", name, name); break;
+	    case sz_long: insn_n_cycles += 8; printf ("\tuae_s32 %s = get_long_mmu (%sa);\n", name, name); break;
 	    default: abort ();
 	    }
 	} else {
@@ -807,19 +810,19 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 	    switch (size) {
 	     case sz_byte:
 		insn_n_cycles += 4;
-		printf ("\uae_mmu_put_byte (%sa,%s);\n", to, from);
+		printf ("\tput_byte_mmu (%sa,%s);\n", to, from);
 		break;
 	     case sz_word:
 		insn_n_cycles += 4;
 		if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 		    abort ();
-		printf ("\uae_mmu_put_word (%sa,%s);\n", to, from);
+		printf ("\tput_word_mmu (%sa,%s);\n", to, from);
 		break;
 	     case sz_long:
 		insn_n_cycles += 8;
 		if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 		    abort ();
-		printf ("\uae_mmu_put_long (%sa,%s);\n", to, from);
+		printf ("\tput_long_mmu (%sa,%s);\n", to, from);
 		break;
 	     default:
 		abort ();
@@ -879,9 +882,9 @@ static void genmovemel (uae_u16 opcode)
 
     if (using_mmu) {
 	if (table68k[opcode].size == sz_long) {
-	    strcpy (getcode, "uae_mmu_get_long (srca)");
+	    strcpy (getcode, "get_long_mmu (srca)");
 	} else {
-	    strcpy (getcode, "(uae_s32)(uae_s16)uae_mmu_get_word (srca)");
+	    strcpy (getcode, "(uae_s32)(uae_s16)get_word_mmu (srca)");
 	}
     } else {
 	if (table68k[opcode].size == sz_long) {
@@ -944,9 +947,9 @@ static void genmovemle (uae_u16 opcode)
 
     if (using_mmu) {
 	if (table68k[opcode].size == sz_long) {
-	    strcpy (putcode, "uae_mmu_put_long (srca");
+	    strcpy (putcode, "put_long_mmu (srca");
 	} else {
-	    strcpy (putcode, "uae_mmu_put_word (srca");
+	    strcpy (putcode, "put_word_mmu (srca");
 	}
     } else {
 	if (table68k[opcode].size == sz_long) {
@@ -1346,6 +1349,7 @@ static void gen_opcode (unsigned long int opcode)
 	addcycles_ce020 (1); // better than nothing...
     }
     start_brace ();
+    m68k_pc_offset_sum = 0;
     m68k_pc_offset = 2;
     switch (curi->plev) {
     case 0: /* not privileged */
@@ -1918,29 +1922,10 @@ static void gen_opcode (unsigned long int opcode)
 	    int old_brace_level = n_braces;
 	    if (next_cpu_level < 0)
 		next_cpu_level = 0;
-	    printf ("\tuae_u16 newsr; uae_u32 newpc; for (;;) {\n");
 	    genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
 	    genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 	    genamode (Aipi, "7", sz_word, "format", 1, 0, 0);
-	    printf ("\tnewsr = sr; newpc = pc;\n");
-	    printf ("\tif ((format & 0xF000) == 0x0000) { break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x1000) { ; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x2000) { m68k_areg (regs, 7) += 4; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x4000) { m68k_areg (regs, 7) += 8; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x8000) { m68k_areg (regs, 7) += 50; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x7000) { m68k_areg (regs, 7) += 52; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0x9000) { m68k_areg (regs, 7) += 12; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0xa000) { m68k_areg (regs, 7) += 24; break; }\n");
-	    printf ("\telse if ((format & 0xF000) == 0xb000) { m68k_areg (regs, 7) += 84; break; }\n");
-	    printf ("\telse { Exception (14, 0); goto %s; }\n", endlabelstr);
-	    printf ("\tregs.sr = newsr; MakeFromSR ();\n}\n");
-	    pop_braces (old_brace_level);
-	    printf ("\tregs.sr = newsr; MakeFromSR ();\n");
-	    printf ("\tif (newpc & 1)\n");
-	    printf ("\t\texception3 (0x%04X, m68k_getpc (), newpc);\n", opcode);
-	    printf ("\telse\n");
-	    printf ("\t\tm68k_setpc (newpc);\n");
-	    need_endlabel = 1;
+	    printf ("\tm68k_do_rte (pc, sr, format, 0x%04x);\n", opcode);
 	}
 	/* PC is set and prefetch filled. */
 	m68k_pc_offset = 0;
@@ -2873,6 +2858,9 @@ static void gen_opcode (unsigned long int opcode)
     case i_MOVES:		/* ignore DFC and SFC because we have no MMU */
     {
 	int old_brace_level;
+	if (using_mmu) {
+	    printf ("write_log(L\"WARNING: MOVES currently ignores MMU!\");\n");
+	}
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	printf ("\tif (extra & 0x800)\n");
 	old_brace_level = n_braces;
@@ -3122,6 +3110,8 @@ static void gen_opcode (unsigned long int opcode)
      case i_CPUSHL:
      case i_CPUSHP:
      case i_CPUSHA:
+	    if (using_mmu)
+		printf ("\tflush_mmu(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n");
 	    printf ("\tif (opcode & 0x80)\n");
 	    printf ("\t\tflush_icache(m68k_areg (regs, opcode & 3), (opcode >> 6) & 3);\n");
 	break;
@@ -3194,9 +3184,8 @@ static void gen_opcode (unsigned long int opcode)
     case i_PLPAW:
     case i_PTESTR:
     case i_PTESTW:
-	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tmmu_op (opcode, extra);\n");
+	printf ("\tmmu_op (opcode, 0);\n");
 	break;
     case i_MMUOP030:
 	printf ("\tuaecptr pc = m68k_getpc ();\n");
@@ -3235,6 +3224,8 @@ static void generate_includes (FILE * f)
     fprintf (f, "#include \"newcpu.h\"\n");
     fprintf (f, "#include \"cpu_prefetch.h\"\n");
     fprintf (f, "#include \"cputbl.h\"\n");
+    fprintf (f, "#include \"cpummu.h\"\n");
+
 
     fprintf (f, "#define CPUFUNC(x) x##_ff\n"
 	     "#define SET_CFLG_ALWAYS(flags, x) SET_CFLG(flags, x)\n"
@@ -3356,7 +3347,7 @@ static char *outopcode (int opcode)
 
 static void generate_one_opcode (int rp)
 {
-    int i;
+    int idx;
     uae_u16 smsk, dmsk;
     long int opcode = opcode_map[rp];
     int i68000 = table68k[opcode].clev > 0;
@@ -3365,8 +3356,8 @@ static void generate_one_opcode (int rp)
 	|| table68k[opcode].clev > cpu_level)
 	return;
 
-    for (i = 0; lookuptab[i].name[0]; i++) {
-	if (table68k[opcode].mnemo == lookuptab[i].mnemo)
+    for (idx = 0; lookuptab[idx].name[0]; idx++) {
+	if (table68k[opcode].mnemo == lookuptab[idx].mnemo)
 	    break;
     }
 
@@ -3374,20 +3365,14 @@ static void generate_one_opcode (int rp)
 	return;
 
     if (opcode_next_clev[rp] != cpu_level) {
+	char *name = ua (lookuptab[idx].name);
 	if (generate_stbl)
-	    fprintf (stblfile, "{ %sCPUFUNC(op_%04lx_%d), %ld }, /* %s */\n",
+	    fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d, %d }, /* %s */\n",
 		(using_ce || using_ce020) ? "(cpuop_func*)" : "",
 		opcode, opcode_last_postfix[rp],
-		opcode, lookuptab[i].name);
+		opcode, cpulengths[opcode], name);
+	xfree (name);
 	return;
-    }
-    if (generate_stbl) {
-	if (i68000)
-	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-	fprintf (stblfile, "{ %sCPUFUNC(op_%04lx_%d), %ld }, /* %s */\n",
-	    (using_ce || using_ce020) ? "(cpuop_func*)" : "", opcode, postfix, opcode, lookuptab[i].name);
-	if (i68000)
-	    fprintf (stblfile, "#endif\n");
     }
     fprintf (headerfile, "extern %s op_%04lx_%d_nf;\n",
 	(using_ce || using_ce020) ? "cpuop_func_ce" : "cpuop_func", opcode, postfix);
@@ -3483,6 +3468,19 @@ static void generate_one_opcode (int rp)
 	printf("#endif\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;
+    cpulengths[opcode] = m68k_pc_offset_sum;
+
+    if (generate_stbl) {
+	char *name = ua (lookuptab[idx].name);
+	if (i68000)
+	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
+	fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d, %d }, /* %s */\n",
+	    (using_ce || using_ce020) ? "(cpuop_func*)" : "",
+	    opcode, postfix, opcode, m68k_pc_offset_sum, name);
+	if (i68000)
+	    fprintf (stblfile, "#endif\n");
+	xfree (name);
+    }
 }
 
 static void generate_func (void)
@@ -3548,12 +3546,12 @@ int main (int argc, char **argv)
     using_ce = 0;
 
     postfix2 = -1;
-    for (i = 0; i < 24; i++) {
+    for (i = 0; i < 32; i++) {
 	postfix = i;
-	if ((i >= 6 && i < 11) || (i > 12 && i < 20))
+	if ((i >= 6 && i < 11) || (i > 12 && i < 20) || (i > 23 && i < 31))
 	    continue;
 	generate_stbl = 1;
-	if (i == 0 || i == 11 || i == 12 || i == 20) {
+	if (i == 0 || i == 11 || i == 12 || i == 20 || i == 31) {
 	    if (generate_stbl)
 		fprintf (stblfile, "#ifdef CPUEMU_%d\n", postfix);
 	    postfix2 = postfix;
@@ -3564,6 +3562,8 @@ int main (int argc, char **argv)
 	using_mmu = 0;
 	using_prefetch = 0;
 	using_ce = 0;
+	using_ce020 = 0;
+	using_mmu = 0;
 	cpu_level = 5 - i;
 	if (i == 11 || i == 12) {
 	    cpu_level = 0;
@@ -3573,11 +3573,18 @@ int main (int argc, char **argv)
 		using_ce = 1;
 	    for (rp = 0; rp < nr_cpuop_funcs; rp++)
 		opcode_next_clev[rp] = 0;
-	} else if (i >= 20) {
+	} else if (i >= 20 && i < 30) {
 	    cpu_level = 25 - i;
 	    using_ce020 = 1;
 	    if (i == 20)
 		read_counts ();
+	} else if (i >= 31 && i < 40) {
+	    cpu_level = 4;
+	    using_mmu = 1;
+	    if (i == 31)
+		read_counts ();
+	    for (rp = 0; rp < nr_cpuop_funcs; rp++)
+		opcode_next_clev[rp] = 4;
 	}
 
 	if (generate_stbl) {
