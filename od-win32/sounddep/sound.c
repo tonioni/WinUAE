@@ -694,7 +694,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 {
     HRESULT hr;
     struct sound_dp *s = sd->data;
-    WAVEFORMATEX *pwfx;
+    WAVEFORMATEX *pwfx, *pwfx_saved;
     WAVEFORMATEXTENSIBLE wavfmt;
     int final;
     LPWSTR name = NULL;
@@ -753,6 +753,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 
     final = 0;
     rncnt = 0;
+    pwfx_saved = NULL;
     for (;;) {
 
 	if (sd->channels == 6) {
@@ -788,9 +789,18 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	hr = s->pAudioClient->lpVtbl->IsFormatSupported (s->pAudioClient, sharemode, &wavfmt.Format, &pwfx);
 	if (SUCCEEDED (hr) && hr != S_FALSE)
 	    break;
-	write_log (L"WASAPI: IsFormatSupported(%d,%08X,%d) %08X\n", sd->channels, rn[rncnt], sd->freq, hr);
+	write_log (L"WASAPI: IsFormatSupported(%d,%08X,%d) (%d,%d) %08X\n",
+	    sd->channels, rn[rncnt], sd->freq,
+	    pwfx ? pwfx->nChannels : -1, pwfx ? pwfx->nSamplesPerSec : -1,
+	    hr);
+	if (final && SUCCEEDED (hr))
+	    break;
 	if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != S_FALSE)
 	    goto error;
+	if (hr == S_FALSE && pwfx_saved == NULL) {
+	    pwfx_saved = pwfx;
+	    pwfx = NULL;
+	}
 	rncnt++;
 	if (rn[rncnt])
 	    continue;
@@ -810,10 +820,10 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	    continue;
 	}
 	final = 1;
-	if (pwfx == NULL)
+	if (pwfx_saved == NULL)
 	    goto error;
-	sd->channels = pwfx->nChannels;
-	sd->freq = pwfx->nSamplesPerSec;
+	sd->channels = pwfx_saved->nChannels;
+	sd->freq = pwfx_saved->nSamplesPerSec;
     }
 
     size = sd->sndbufsize * sd->channels * 16 / 8;
@@ -915,12 +925,14 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	name, s->wasapiexclusive, sd->channels, sd->freq, sd->sndbufsize, s->bufferFrameCount);
 
     CoTaskMemFree (pwfx);
+    CoTaskMemFree (pwfx_saved);
     CoTaskMemFree (name);
 
     return 1;
 
 error:
     CoTaskMemFree (pwfx);
+    CoTaskMemFree (pwfx_saved);
     CoTaskMemFree (name);
     close_audio_wasapi (sd);
     return 0;

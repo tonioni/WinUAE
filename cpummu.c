@@ -23,7 +23,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define DEBUG 0
+#define DEBUG 1
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -304,13 +304,15 @@ static void mmu_bus_error(uaecptr addr, int fc, int write, int size)
 	regs.wb3_status = write ? 0x80 | ssw : 0;
 	if (!write)
 		ssw |= MMU_SSW_RW;
+
 	if (regs.t0 || regs.t1)
 	    ssw |= MMU_SSW_CT;
 
 	regs.mmu_fault_addr = addr;
 	regs.mmu_ssw = ssw | MMU_SSW_ATC;
 
-	//write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x\n", fc, write, addr, ssw);
+	write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x\n", fc, write, addr, ssw);
+	activate_debugger ();
 
 	THROW(2);
 }
@@ -459,6 +461,9 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, int super, int write
 {
 	uae_u32 desc, desc_addr, wp;
 	int i, indirect;
+
+    if (addr == 0xb000)
+	write_log (L"x");
 
 	indirect = 0;
 	wp = 0;

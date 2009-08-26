@@ -93,12 +93,24 @@ typedef double fptype;
 #define CPU020_CLOCK_MULT 4
 
 #define CACHELINES020 64
-#define CACHELINES040 1024 // 040 cache really isn't like this..
 struct cache020
 {
     uae_u32 data;
     uae_u32 tag;
     uae_u32 valid:1;
+};
+#define CACHESETS040 64
+struct cache040set
+{
+    uae_u32 data[4];
+    int valid[4];
+    uae_u32 tag;
+};
+#define CACHELINES040 4
+struct cache040
+{
+    struct cache040set cs[4];
+    int count;
 };
 
 extern struct regstruct

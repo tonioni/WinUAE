@@ -811,6 +811,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 		l2[cl2++] = 'b';
 	    if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
 		l2[cl2++] = 'p';
+	    if (dr->evt & DMA_EVENT_COPPERWAKE)
+		l2[cl2++] = 'W';
 	    if (i < cols - 1 && h < maxh - 1) {
 		l1[cl + col - 1] = 32;
 		l2[cl + col - 1] = 32;

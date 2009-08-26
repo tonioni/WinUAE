@@ -1,4 +1,16 @@
 
+Beta 11:
+
+- fixed 68020 CE-mode cycle counting bug (too slow memory accesses)
+- MOVE16 MMU support update (fetch all data before writing), MOVES MMU
+  support update, MOVEM to memory MMU special handling support
+  (still not working with mmulib, reason unknown)
+- b10 blitter cycles given to CPU update was very wrong..
+- copper BFD=0 wait woke up too early in some cases (and real fix here)
+- calculate autoscale settings only when display window registers have
+  been stable at least 1 full scanline (also fixes NTSC "jumping")
+- WASAPI shared mode closest match update
+
 Beta 10:
 
 - and more reading of write-only register fixes, original Cardiaxx

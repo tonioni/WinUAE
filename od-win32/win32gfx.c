@@ -1709,9 +1709,9 @@ int vsync_switchmode (int hz, int oldhz)
 	return tempvsync;
 
     if (currprefs.ntscmode)
-	newh = h * 50 / 60;
-    else
 	newh = h * 60 / 50;
+    else
+	newh = h * 50 / 60;
     hz = hz * dbl;
 
     found = NULL;

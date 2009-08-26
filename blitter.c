@@ -245,9 +245,10 @@ STATIC_INLINE const int *get_ch (void)
 
 STATIC_INLINE int channel_state (int cycles)
 {
-    const int *diag = get_ch ();
+    const int *diag;
     if (cycles < 0)
 	return 0;
+    diag = get_ch ();
     if (cycles < diag[0])
 	return diag[1 + cycles];
     cycles -= diag[0];
@@ -256,9 +257,10 @@ STATIC_INLINE int channel_state (int cycles)
 }
 STATIC_INLINE int channel_pos (int cycles)
 {
-    const int *diag = get_ch ();
+    const int *diag;
     if (cycles < 0)
 	return 0;
+    diag =  get_ch ();
     if (cycles < diag[0])
 	return cycles;
     cycles -= diag[0];
@@ -271,8 +273,6 @@ STATIC_INLINE int canblit (int hpos)
 {
     if (is_bitplane_dma (hpos))
 	return 0;
-    if (cycle_line[hpos] == CYCLE_CPU)
-	return -1;
     if (cycle_line[hpos])
 	return 0;
     return 1;
@@ -657,7 +657,6 @@ static void decide_blitter_line (int hsync, int hpos)
 	    // final 2 idle cycles?
 	    if (blit_final) {
 		if (blit_cyclecounter > get_ch ()[0]) {
-		    bltdpt = bltcpt;
 		    blitter_done (last_blitter_hpos);
 		    return;
 		}
@@ -667,6 +666,7 @@ static void decide_blitter_line (int hsync, int hpos)
 	    /* onedot mode and no pixel = bus write access is skipped */
 	    if (c == 4 && blitsing && blitonedot > 1) {
 		if (vblitsize == 0) {
+		    bltdpt = bltcpt;
 		    blit_final = 1;
 		    blit_cyclecounter = 0;
 		}
@@ -695,6 +695,7 @@ static void decide_blitter_line (int hsync, int hpos)
 		alloc_cycle_ext (last_blitter_hpos, CYCLE_BLITTER);
 		record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
 		if (vblitsize == 0) {
+		    bltdpt = bltcpt;
 		    blit_final = 1;
 		    blit_cyclecounter = 0;
 		    break;
@@ -839,7 +840,6 @@ STATIC_INLINE int blitter_doddma (int hpos)
 	if (blit_ch == 1)
 	    blitter_hcounter1 = blitter_hcounter2;
     }
-    blit_final = 0;
     return wd;
 }
 
@@ -989,6 +989,8 @@ void decide_blitter (int hpos)
 	    if (c == 0) {
 	        blt_info.got_cycle = 1;
 	        blit_cyclecounter++;
+		if (blit_cyclecounter == 0)
+		    blit_final = 0;
 	        blit_totalcyclecounter++;
 	        /* check if blit with zero channels has ended  */
 	        if (blit_ch == 0 && blit_cyclecounter >= blit_maxcyclecounter) {

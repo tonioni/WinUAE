@@ -237,7 +237,7 @@ static unsigned int bplcon0d, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
-static int ddf_change, badmode;
+static int ddf_change, badmode, diw_change;
 static int fmode;
 static int bplcon1_hpos;
 
@@ -260,6 +260,7 @@ static int diwfirstword, diwlastword;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
 int diwfirstword_total, diwlastword_total;
+int ddffirstword_total, ddflastword_total;
 int firstword_bplcon1;
 
 static int last_copper_hpos;
@@ -2798,6 +2799,7 @@ static void calcdiw (void)
 	    plfstop = 0xff;
 	plfstrt_start = HARD_DDF_START - 2;
     }
+    diw_change = 2;
 }
 
 /* display mode changed (lores, doubling etc..), recalculate everything */
@@ -4216,12 +4218,18 @@ static void update_copper (int until_hpos)
 
 	    /* Now we know that the comparisons were successful.  We might still
 	       have to wait for the blitter though.  */
-	    if ((cop_state.saved_i2 & 0x8000) == 0 && (DMACONR (old_hpos) & 0x4000)) {
-		/* We need to wait for the blitter.  */
-		cop_state.state = COP_bltwait;
-		copper_enabled_thisline = 0;
-		unset_special (SPCFLAG_COPPER);
-		goto out;
+	    if ((cop_state.saved_i2 & 0x8000) == 0) {
+		decide_blitter (old_hpos);
+		if (bltstate != BLT_done) {
+		    /* We need to wait for the blitter.  */
+		    cop_state.state = COP_bltwait;
+		    copper_enabled_thisline = 0;
+		    unset_special (SPCFLAG_COPPER);
+		    goto out;
+		} else {
+		    if (debug_dma)
+			record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
+		}
 	    }
 
 #ifdef DEBUGGER
@@ -4297,8 +4305,9 @@ static void compute_spcflag_copper (int hpos)
 
 /*
  Copper writes to BLTSIZE: 3 blitter idle cycles, blitter normal cycle starts
- BFD=0 wait: blitter interrupt, 4 cycles, copper fetches next word
  (CPU write to BLTSIZE only have 2 idle cycles at start)
+
+ BFD=0 wait: 1 cycle (or 2 if hpos is not aligned) delay before wait ends
 */
 void blitter_done_notify (int hpos)
 {
@@ -4307,7 +4316,7 @@ void blitter_done_notify (int hpos)
     if (cop_state.state != COP_bltwait)
 	return;
 
-    hpos += 4;
+    hpos += 3;
     hpos &= ~1;
     if (hpos >= maxhpos) {
 	hpos -= maxhpos;
@@ -4316,6 +4325,8 @@ void blitter_done_notify (int hpos)
     cop_state.hpos = hpos;
     cop_state.vpos = vp;
     cop_state.state = COP_read1;
+    if (debug_dma)
+	record_dma_event (DMA_EVENT_COPPERWAKE, hpos, vp);
 
     if (dmaen (DMA_COPPER) && vp == vpos) {
 	copper_enabled_thisline = 1;
@@ -4651,6 +4662,8 @@ static void init_hardware_frame (void)
     last_planes_vpos = 0;
     diwfirstword_total = max_diwlastword;
     diwlastword_total = 0;
+    ddffirstword_total = max_diwlastword;
+    ddflastword_total = 0;
     plflastline_total = 0;
     plffirstline_total = maxvpos;
 }
@@ -5250,23 +5263,34 @@ static void hsync_handler (void)
 	    last_planes_vpos = vpos - 1;
 	}
     }
-    if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
-	if (diwlastword > diwlastword_total)
-	    diwlastword_total = diwlastword;
-	if (diwfirstword < diwfirstword_total) {
-	    diwfirstword_total = diwfirstword;
-	    firstword_bplcon1 = bplcon1;
+    if (diw_change == 0) {
+	if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
+	    if (diwlastword > diwlastword_total)
+		diwlastword_total = diwlastword;
+	    if (diwfirstword < diwfirstword_total) {
+		diwfirstword_total = diwfirstword;
+		firstword_bplcon1 = bplcon1;
+	    }
 	}
+	if (diwstate == DIW_waiting_stop) {
+	    int f = 8 << fetchmode;
+	    if (plfstrt + f < ddffirstword_total + f)
+		ddffirstword_total = plfstrt + f;
+	    if (plfstop + 2 * f > ddflastword_total + 2 * f)
+		ddflastword_total = plfstop + 2 * f;
+	}
+	if ((plffirstline < plffirstline_total || (plffirstline_total == minfirstline && vpos > minfirstline)) && plffirstline < vpos / 2) {
+	    firstword_bplcon1 = bplcon1;
+	    if (plffirstline < minfirstline)
+		plffirstline_total = minfirstline;
+	    else
+		plffirstline_total = plffirstline;
+	}
+	if (plflastline > plflastline_total && plflastline > plffirstline_total && plflastline > maxvpos / 2)
+	    plflastline_total = plflastline;
     }
-    if ((plffirstline < plffirstline_total || (plffirstline_total == minfirstline && vpos > minfirstline)) && plffirstline < vpos / 2) {
-        firstword_bplcon1 = bplcon1;
-	if (plffirstline < minfirstline)
-	    plffirstline_total = minfirstline;
-	else
-	    plffirstline_total = plffirstline;
-    }
-    if (plflastline > plflastline_total && plflastline > plffirstline_total && plflastline > vpos / 2)
-	plflastline_total = plflastline;
+    if (diw_change > 0)
+	diw_change--;
 
 
 #if 0
@@ -6614,18 +6638,21 @@ STATIC_INLINE int dma_cycle (void)
 	decide_fetch_ce (hpos);
 	bpldma = is_bitplane_dma (hpos_old);
 	if (bltstate != BLT_done) {
-	    if (!blitpri && blitter_nasty >= BLIT_NASTY && cycle_line[hpos_old] == 0 && !bpldma)
+	    if (!blitpri && blitter_nasty >= BLIT_NASTY && cycle_line[hpos_old] == 0 && !bpldma) {
+		alloc_cycle (hpos_old, CYCLE_CPUNASTY);
 		break;
+	    }
 	    decide_blitter (hpos);
 	    // copper may have been waiting for the blitter
 	    sync_copper (hpos);
 	}
-	if (cycle_line[hpos_old] == 0 && !bpldma)
+	if (cycle_line[hpos_old] == 0 && !bpldma) {
+	    alloc_cycle (hpos_old, CYCLE_CPU);
 	    break;
+	}
 	do_cycles (1 * CYCLE_UNIT);
 	/* bus was allocated to dma channel, wait for next cycle.. */
     }
-    alloc_cycle (hpos_old, CYCLE_CPU);
     return hpos_old;
 }
 
@@ -6685,7 +6712,14 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 void do_cycles_ce (long cycles)
 {
     int hpos;
-    while (cycles > 0) {
+    int mask = CYCLE_UNIT - 1;
+    static int extra;
+
+    extra += cycles & mask;
+    cycles &= ~mask;
+    cycles += extra & ~mask;
+    extra &= mask;
+    while (cycles >= CYCLE_UNIT) {
 	hpos = current_hpos () + 1;
 	sync_copper (hpos);
 	decide_line (hpos);

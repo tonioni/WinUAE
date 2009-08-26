@@ -164,7 +164,10 @@ extern void mmu_dump_tables(void);
 #define MMU_SSW_LK		0x0200
 #define MMU_SSW_ATC		0x0400
 #define MMU_SSW_MA		0x0800
+#define MMU_SSW_CM	0x1000
 #define MMU_SSW_CT	0x2000
+#define MMU_SSW_CU	0x4000
+#define MMU_SSW_CP	0x8000
 
 #define TTR_I0	4
 #define TTR_I1	5

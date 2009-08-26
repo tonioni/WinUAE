@@ -79,8 +79,8 @@ static uae_u64 srp_030, crp_030;
 static uae_u32 tt0_030, tt1_030, tc_030;
 static uae_u16 mmusr_030;
 
-static struct cache020 cacheline020[CACHELINES020];
-static struct cache020 cacheline040[CACHELINES040];
+static struct cache020 caches020[CACHELINES020];
+static struct cache040 caches040[CACHELINES040];
 
 #if COUNT_INSTRS
 static unsigned long int instrcount[65536];
@@ -134,16 +134,16 @@ void dump_counts (void)
 
 static void set_cpu_caches (void)
 {
-    int i;
+    int i, j;
 
     if (currprefs.cpu_model < 68040) {
 	if (regs.cacr & 0x08) { // Clear Cache
 	    for (i = 0; i < CACHELINES020; i++)
-		cacheline020[i].valid = 0;
+		caches020[i].valid = 0;
 	    regs.prefetch020addr = 0xff000000;
 	}
 	if (regs.cacr & 0x04) { // Clear Entry
-	    cacheline020[(regs.caar >> 2) & 0x3f].valid = 0;
+	    caches020[(regs.caar >> 2) & 0x3f].valid = 0;
 	}
 #ifdef JIT
 	set_cache_state (regs.cacr & 1);
@@ -157,8 +157,14 @@ static void set_cpu_caches (void)
 	set_cache_state ((regs.cacr & 0x8000) ? 1 : 0);
 #endif
 	if (!(regs.cacr & 0x8000)) {
-	    for (i = 0; i < CACHELINES040; i++)
-		cacheline040[i].valid = 0;
+	    for (i = 0; i < CACHESETS040; i++) {
+		for (j = 0; j < CACHELINES040; j++) {
+		    caches040[i].cs[j].valid[0] = 0;
+		    caches040[i].cs[j].valid[1] = 0;
+		    caches040[i].cs[j].valid[2] = 0;
+		    caches040[i].cs[j].valid[3] = 0;
+		}
+	    }
 	    regs.prefetch020addr = 0xff000000;
 	}
     }
@@ -1212,7 +1218,7 @@ static void Exception_normal (int nr, uaecptr oldpc)
 			m68k_areg (regs, 7) -= 2;
 			put_word (m68k_areg (regs, 7), regs.mmu_ssw);
 			m68k_areg (regs, 7) -= 4;
-			put_word (m68k_areg (regs, 7), regs.mmu_fault_addr);
+			put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
 
 		    } else {
 
@@ -2587,6 +2593,9 @@ static void m68k_run_mmu040 (void)
 	    }
 #ifdef _WIN32
 	} __except (GetExceptionCode () == MMUEX) {
+	    // movem to memory?
+	    if ((opcode & 0xff80) == 0x4880)
+		regs.mmu_ssw |= MMU_SSW_CM;
 	    // write bus errors restart at next instruction
 	    if (regs.wb3_status & 0x80) {
 //		write_log (L"%08x %04x %d\n", regs.fault_pc, opcode, cpufunclen[opcode]);
@@ -3645,23 +3654,30 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 
     return mcycles * 2;
 }
-
+#if 0
 STATIC_INLINE void fill_cache040 (uae_u32 addr)
 {
-    int index;
+    int index, i, j;
     uae_u32 tag;
     uae_u32 data;
-    struct cache020 *c;
+    struct cache040 *c;
 
-    addr &= ~3;
-    index = (addr >> 2) & (CACHELINES040 - 1);
-    tag = regs.s | (addr & ~((CACHELINES040 << 2) - 1));
-    c = &cacheline040[index];
-    if (c->valid && c->tag == tag) {
-	// cache hit
-	regs.prefetch020addr = addr;
-	regs.prefetch020data = c->data;
-	return;
+    addr &= ~15;
+    index = (addr >> 4) & (CACHESETS040 - 1);
+    tag = regs.s | (addr & ~((CACHESETS040 << 4) - 1));
+    c = &caches040[index];
+    for (i = 0; i < CACHELINES040; i++) {
+	struct cache040set *cs = &c->cs;
+	for (j = 0; j < 4; j++) {
+	    if (cs->valid[j] && c->tag == tag[j]) {
+		// cache hit
+		regs.prefetch020addr = addr;
+		regs.prefetch020data = c->data[j];
+		return;
+	    } if (cs->valid[j] == 0) {
+		inv = &cs->valid[j];
+	    }
+	}
     }
     // cache miss
     data = mem_access_delay_longi_read_020 (addr);
@@ -3673,6 +3689,7 @@ STATIC_INLINE void fill_cache040 (uae_u32 addr)
     regs.prefetch020addr = addr;
     regs.prefetch020data = data;
 }
+#endif
 
 STATIC_INLINE void fill_cache020 (uae_u32 addr)
 {
@@ -3684,7 +3701,7 @@ STATIC_INLINE void fill_cache020 (uae_u32 addr)
     addr &= ~3;
     index = (addr >> 2) & (CACHELINES020 - 1);
     tag = regs.s | (addr & ~((CACHELINES020 << 2) - 1));
-    c = &cacheline020[index];
+    c = &caches020[index];
     if (c->valid && c->tag == tag) {
 	// cache hit
 	regs.prefetch020addr = addr;
@@ -3704,9 +3721,11 @@ STATIC_INLINE void fill_cache020 (uae_u32 addr)
 
 void fill_cache0x0 (uae_u32 addr)
 {
+#if 0
     if (currprefs.cpu_model >= 68040)
 	fill_cache040 (addr);
     else
+#endif
 	fill_cache020 (addr);
 }
 

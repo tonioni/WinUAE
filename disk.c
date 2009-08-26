@@ -2502,7 +2502,7 @@ static void disk_dmafinished (void)
 	int dr, mfmpos = -1;
 	write_log (L"disk dma finished %08X MFMpos=", dskpt);
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++)
-	    write_log (L"%d%s", floppy[dr].mfmpos, dr < MAX_FLOPPY_DRIVES - 1 ? "," : "");
+	    write_log (L"%d%s", floppy[dr].mfmpos, dr < MAX_FLOPPY_DRIVES - 1 ? L"," : L"");
 	write_log (L"\n");
     }
 }
@@ -3079,12 +3079,12 @@ void DSKLEN (uae_u16 v, int hpos)
     }
     if (dr == 4) {
         write_log (L"disk %s DMA started, drvmask=%x motormask=%x\n",
-	    dskdmaen == 3 ? "write" : "read", selected ^ 15, motormask);
+	    dskdmaen == 3 ? L"write" : L"read", selected ^ 15, motormask);
 	noselected = 1;
     } else {
 	if (disk_debug_logging > 0) {
 	    write_log (L"disk %s DMA started, drvmask=%x track %d mfmpos %d dmaen=%d\n",
-		dskdmaen == 3 ? "write" : "read", selected ^ 15,
+		dskdmaen == 3 ? L"write" : L"read", selected ^ 15,
 		floppy[dr].cyl * 2 + side, floppy[dr].mfmpos, dma_enable);
 	    disk_dma_debugmsg ();
 	}
