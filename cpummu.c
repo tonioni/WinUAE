@@ -23,7 +23,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#define DEBUG 1
+#define DEBUG 0
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -311,8 +311,8 @@ static void mmu_bus_error(uaecptr addr, int fc, int write, int size)
 	regs.mmu_fault_addr = addr;
 	regs.mmu_ssw = ssw | MMU_SSW_ATC;
 
-	write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x\n", fc, write, addr, ssw);
-	activate_debugger ();
+	//write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x\n", fc, write, addr, ssw);
+	//activate_debugger ();
 
 	THROW(2);
 }
