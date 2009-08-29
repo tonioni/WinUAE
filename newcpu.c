@@ -304,6 +304,8 @@ static void build_cpufunctbl (void)
 
 void fill_prefetch_slow (void)
 {
+    if (currprefs.mmu_model)
+	return;
 #ifdef CPUEMU_12
     if (currprefs.cpu_cycle_exact) {
 	regs.ir = get_word_ce (m68k_getpc ());
@@ -1169,6 +1171,127 @@ kludge_me_do:
 }
 #endif
 
+static void Exception_mmu (int nr, uaecptr oldpc)
+{
+    uae_u32 currpc = m68k_getpc (), newpc;
+    int sv = regs.s;
+    int i;
+
+    exception_debug (nr);
+    MakeSR ();
+
+    if (!regs.s) {
+	regs.usp = m68k_areg (regs, 7);
+	if (currprefs.cpu_model >= 68020)
+	    m68k_areg (regs, 7) = regs.m ? regs.msp : regs.isp;
+	else
+	    m68k_areg (regs, 7) = regs.isp;
+	regs.s = 1;
+        mmu_set_super (1);
+    }
+    if (nr == 2) {
+	// bus error
+	for (i = 0 ; i < 7 ; i++) {
+	    m68k_areg (regs, 7) -= 4;
+	    put_long_mmu (m68k_areg (regs, 7), 0);
+	}
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), regs.wb3_data);
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), regs.wb3_status);
+	regs.wb3_status = 0;
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), regs.mmu_ssw);
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
+
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0x7000 + nr * 4);
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), oldpc);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), regs.sr);
+	goto kludge_me_do;
+
+    } else if (nr == 3) {
+
+	// address error
+	uae_u16 ssw = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
+	ssw |= last_writeaccess_for_exception_3 ? 0 : 0x40;
+	ssw |= 0x20;
+	for (i = 0 ; i < 36; i++) {
+	    m68k_areg (regs, 7) -= 2;
+	    put_word_mmu (m68k_areg (regs, 7), 0);
+	}
+	m68k_areg (regs, 7) -= 4;
+	put_long_mmu (m68k_areg (regs, 7), last_fault_for_exception_3);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), ssw);
+	m68k_areg (regs, 7) -= 2;
+	put_word_mmu (m68k_areg (regs, 7), 0xb000 + nr * 4);
+        write_log (L"Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (regs.vbr + 4*nr));
+
+    } else if (nr ==5 || nr == 6 || nr == 7 || nr == 9) {
+
+	m68k_areg (regs, 7) -= 4;
+        put_long_mmu (m68k_areg (regs, 7), oldpc);
+        m68k_areg (regs, 7) -= 2;
+        put_word_mmu (m68k_areg (regs, 7), 0x2000 + nr * 4);
+
+    } else if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
+
+	m68k_areg (regs, 7) -= 2;
+        put_word_mmu (m68k_areg (regs, 7), nr * 4);
+        m68k_areg (regs, 7) -= 4;
+        put_long_mmu (m68k_areg (regs, 7), currpc);
+        m68k_areg (regs, 7) -= 2;
+        put_word_mmu (m68k_areg (regs, 7), regs.sr);
+        regs.sr |= (1 << 13);
+        regs.msp = m68k_areg (regs, 7);
+        m68k_areg (regs, 7) = regs.isp;
+        m68k_areg (regs, 7) -= 2;
+        put_word_mmu (m68k_areg (regs, 7), 0x1000 + nr * 4);
+
+    } else {
+
+	m68k_areg (regs, 7) -= 2;
+        put_word_mmu (m68k_areg (regs, 7), nr * 4);
+    
+    }
+    m68k_areg (regs, 7) -= 4;
+    put_long_mmu (m68k_areg (regs, 7), currpc);
+    m68k_areg (regs, 7) -= 2;
+    put_word_mmu (m68k_areg (regs, 7), regs.sr);
+kludge_me_do:
+    newpc = get_long_mmu (regs.vbr + 4 * nr);
+    if (newpc & 1) {
+	if (nr == 2 || nr == 3)
+	    uae_reset (1); /* there is nothing else we can do.. */
+	else
+	    exception3 (regs.ir, m68k_getpc (), newpc);
+	return;
+    }
+    m68k_setpc (newpc);
+    set_special (SPCFLAG_END_COMPILE);
+    fill_prefetch_slow ();
+    exception_trace (nr);
+}
+
+
 static void Exception_normal (int nr, uaecptr oldpc)
 {
     uae_u32 currpc = m68k_getpc (), newpc;
@@ -1200,25 +1323,44 @@ static void Exception_normal (int nr, uaecptr oldpc)
 
 			for (i = 0 ; i < 7 ; i++) {
 			    m68k_areg (regs, 7) -= 4;
-			    put_long (m68k_areg (regs, 7), 0);
+			    put_long_mmu (m68k_areg (regs, 7), 0);
 			}
 			m68k_areg (regs, 7) -= 4;
-			put_long (m68k_areg (regs, 7), regs.wb3_data);
+			put_long_mmu (m68k_areg (regs, 7), regs.wb3_data);
 			m68k_areg (regs, 7) -= 4;
-			put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
+			put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
 			m68k_areg (regs, 7) -= 4;
-			put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
+			put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
 			m68k_areg (regs, 7) -= 2;
-			put_word (m68k_areg (regs, 7), 0);
+			put_word_mmu (m68k_areg (regs, 7), 0);
 			m68k_areg (regs, 7) -= 2;
-			put_word (m68k_areg (regs, 7), 0);
+			put_word_mmu (m68k_areg (regs, 7), 0);
 			m68k_areg (regs, 7) -= 2;
-			put_word (m68k_areg (regs, 7), regs.wb3_status);
+			put_word_mmu (m68k_areg (regs, 7), regs.wb3_status);
 			regs.wb3_status = 0;
 			m68k_areg (regs, 7) -= 2;
-			put_word (m68k_areg (regs, 7), regs.mmu_ssw);
+			put_word_mmu (m68k_areg (regs, 7), regs.mmu_ssw);
 			m68k_areg (regs, 7) -= 4;
-			put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
+			put_long_mmu (m68k_areg (regs, 7), regs.mmu_fault_addr);
+
+			m68k_areg (regs, 7) -= 2;
+			put_word_mmu (m68k_areg (regs, 7), 0x7000 + nr * 4);
+			m68k_areg (regs, 7) -= 4;
+			put_long_mmu (m68k_areg (regs, 7), oldpc);
+			m68k_areg (regs, 7) -= 2;
+			put_word_mmu (m68k_areg (regs, 7), regs.sr);
+			newpc = get_long_mmu (regs.vbr + 4 * nr);
+			if (newpc & 1) {
+			    if (nr == 2 || nr == 3)
+				uae_reset (1); /* there is nothing else we can do.. */
+			    else
+				exception3 (regs.ir, m68k_getpc (), newpc);
+			    return;
+			}
+			m68k_setpc (newpc);
+			set_special (SPCFLAG_END_COMPILE);
+			exception_trace (nr);
+			return;
 
 		    } else {
 
@@ -1238,16 +1380,16 @@ static void Exception_normal (int nr, uaecptr oldpc)
 			put_word (m68k_areg (regs, 7), 0x0140 | (sv ? 6 : 2)); /* SSW */
 			m68k_areg (regs, 7) -= 4;
 			put_long (m68k_areg (regs, 7), last_addr_for_exception_3);
+			m68k_areg (regs, 7) -= 2;
+			put_word (m68k_areg (regs, 7), 0x7000 + nr * 4);
+			m68k_areg (regs, 7) -= 4;
+			put_long (m68k_areg (regs, 7), oldpc);
+			m68k_areg (regs, 7) -= 2;
+			put_word (m68k_areg (regs, 7), regs.sr);
+			goto kludge_me_do;
+		    
 		    }
 
-		    m68k_areg (regs, 7) -= 2;
-		    put_word (m68k_areg (regs, 7), 0x7000 + nr * 4);
-		    m68k_areg (regs, 7) -= 4;
-		    put_long (m68k_areg (regs, 7), oldpc);
-		    m68k_areg (regs, 7) -= 2;
-		    put_word (m68k_areg (regs, 7), regs.sr);
-		    goto kludge_me_do;
-		    
 		} else {
 		    m68k_areg (regs, 7) -= 4;
 		    put_long (m68k_areg (regs, 7), last_fault_for_exception_3);
@@ -1337,6 +1479,9 @@ void REGPARAM2 Exception (int nr, uaecptr oldpc)
 	Exception_ce (nr, oldpc);
     else
 #endif
+    if (currprefs.mmu_model)
+	Exception_mmu (nr, oldpc);
+    else
 	Exception_normal (nr, oldpc);
 }
 
@@ -2130,7 +2275,10 @@ static void do_trace (void)
 	/* We can afford this to be inefficient... */
 	m68k_setpc (m68k_getpc ());
 	fill_prefetch_slow ();
-	opcode = get_word (regs.pc);
+	if (currprefs.mmu_model)
+	    opcode = get_word_mmu (regs.pc);
+	else
+	    opcode = get_word (regs.pc);
 	if (opcode == 0x4e73 			/* RTE */
 	    || opcode == 0x4e74 		/* RTD */
 	    || opcode == 0x4e75 		/* RTS */
@@ -2572,7 +2720,6 @@ static void m68k_run_2 (void)
 /* Aranym MMU 68040  */
 static void m68k_run_mmu040 (void)
 {
-   struct regstruct *r = &regs;
    uae_u32 opcode;
 
    for (;;) {
@@ -2587,7 +2734,7 @@ static void m68k_run_mmu040 (void)
 	    cpu_cycles = (*cpufunctbl[opcode])(opcode);
 	    cpu_cycles &= cycles_mask;
 	    cpu_cycles |= cycles_val;
-	    if (r->spcflags) {
+	    if (regs.spcflags) {
 		if (do_specialties (cpu_cycles))
 		    return;
 	    }
@@ -2607,7 +2754,7 @@ static void m68k_run_mmu040 (void)
    }
 }
 
-/* "cycle exact 68020  */
+/* "cycle exact" 68020  */
 static void m68k_run_2ce (void)
 {
    struct regstruct *r = &regs;
@@ -3290,6 +3437,8 @@ uae_u8 *restore_cpu (uae_u8 *src)
     currprefs.cpu_compatible = changed_prefs.cpu_compatible;
     currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
     currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
+    currprefs.cpu_frequency = changed_prefs.cpu_frequency = 0;
+    currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier = 0;
     for (i = 0; i < 15; i++)
 	regs.regs[i] = restore_u32 ();
     regs.pc = restore_u32 ();
@@ -3755,7 +3904,7 @@ void m68k_do_rte (uae_u32 pc, uae_u16 sr, uae_u16 format, uae_u16 opcode)
     } else if (f == 0x8) {
 	m68k_areg (regs, 7) += 50;
     } else if (f == 0x7) {
-	uae_u16 ssr = get_word (m68k_areg (regs, 7) + 4);
+	uae_u16 ssr = get_word_mmu (m68k_areg (regs, 7) + 4);
 	if (ssr & MMU_SSW_CT) {
 	    uaecptr src_a7 = m68k_areg (regs, 7) - 8;
 	    uaecptr dst_a7 = m68k_areg (regs, 7) + 52;
@@ -3785,4 +3934,60 @@ void m68k_do_rte (uae_u32 pc, uae_u16 sr, uae_u16 format, uae_u16 opcode)
 
 void flush_mmu (uaecptr addr, int n)
 {
+}
+
+void m68k_do_rts_mmu (void)
+{
+    m68k_setpc (get_long_mmu (m68k_areg (regs, 7)));
+    m68k_areg (regs, 7) += 4;
+}
+void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset)
+{
+    m68k_areg (regs, 7) -= 4;
+    put_long_mmu (m68k_areg (regs, 7), oldpc);
+    m68k_incpc (offset);
+}
+
+
+void put_long_slow (uaecptr addr, uae_u32 v)
+{
+    if (currprefs.mmu_model)
+	put_long_mmu (addr, v);
+    else
+	put_long (addr, v);
+}
+void put_word_slow (uaecptr addr, uae_u32 v)
+{
+    if (currprefs.mmu_model)
+	put_word_mmu (addr, v);
+    else
+	put_word (addr, v);
+}
+void put_byte_slow (uaecptr addr, uae_u32 v)
+{
+    if (currprefs.mmu_model)
+	put_byte_mmu (addr, v);
+    else
+	put_byte (addr, v);
+}
+uae_u32 get_long_slow (uaecptr addr)
+{
+    if (currprefs.mmu_model)
+	return get_long_mmu (addr);
+    else
+	return get_long (addr);
+}
+uae_u32 get_word_slow (uaecptr addr)
+{
+    if (currprefs.mmu_model)
+	return get_word_mmu (addr);
+    else
+	return get_word (addr);
+}
+uae_u32 get_byte_slow (uaecptr addr)
+{
+    if (currprefs.mmu_model)
+	return get_byte_mmu (addr);
+    else
+	return get_byte (addr);
 }

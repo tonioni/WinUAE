@@ -2914,7 +2914,8 @@ STATIC_INLINE uae_u16 VPOSR (void)
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 	vp |= lol ? 0x80 : 0;
 #if 0
-    write_log (L"VPOSR %04x at %08x\n", vp, M68K_GETPC);
+    if (M68K_GETPC < 0xf00000)
+	write_log (L"VPOSR %04x at %08x\n", vp, M68K_GETPC);
 #endif
     if (currprefs.cpu_model >= 68020)
 	hsyncdelay ();
@@ -2923,7 +2924,8 @@ STATIC_INLINE uae_u16 VPOSR (void)
 static void VPOSW (uae_u16 v)
 {
 #if 0
-    write_log (L"VPOSW %04X PC=%08x\n", v, M68K_GETPC);
+    if (M68K_GETPC < 0xf00000)
+	write_log (L"VPOSW %04X PC=%08x\n", v, M68K_GETPC);
 #endif
     if (lof != ((v & 0x8000) ? 1 : 0))
 	lof_changed = 1;
@@ -2959,10 +2961,8 @@ STATIC_INLINE uae_u16 VHPOSR (void)
     if (currprefs.cpu_model >= 68020)
 	hsyncdelay ();
 #if 0
-    write_log (L"VPOS %04x %04x at %08x\n", VPOSR (), vp, M68K_GETPC);
-    if (M68K_GETPC == 0x40e6) {
-        activate_debugger();
-    }
+    if (M68K_GETPC < 0xf00000)
+	write_log (L"VPOS %04x %04x at %08x\n", VPOSR (), vp, M68K_GETPC);
 #endif
     return vp;
 }

@@ -273,39 +273,6 @@ extern void REGPARAM3 mmu_put_long_slow(uaecptr addr, uae_u32 val, int super, in
 
 extern void mmu_make_transparent_region(uaecptr baseaddr, uae_u32 size, int datamode);
 
-STATIC_INLINE void mmu_set_ttr(int regno, uae_u32 val)
-{
-	uae_u32 * ttr;
-	switch(regno)	{
-		case TTR_I0:	ttr = &regs.itt0;	break;
-		case TTR_I1:	ttr = &regs.itt1;	break;
-		case TTR_D0:	ttr = &regs.dtt0;	break;
-		case TTR_D1:	ttr = &regs.dtt1;	break;
-		default: abort();
-	}
-	*ttr = val;
-}
-
-STATIC_INLINE void mmu_set_mmusr(uae_u32 val)
-{
-	regs.mmusr = val;
-}
-
-STATIC_INLINE void mmu_set_root_pointer(int regno, uae_u32 val)
-{
-	val &= MMU_ROOT_PTR_ADDR_MASK;
-	switch (regno) {
-	case 0x806:
-		regs.urp = val;
-		break;
-	case 0x807:
-		regs.srp = val;
-		break;
-	default:
-		abort();
-	}
-}
-
 #define FC_DATA		(regs.s ? 5 : 1)
 #define FC_INST		(regs.s ? 6 : 2)
 
@@ -323,30 +290,10 @@ extern void REGPARAM3 mmu_flush_atc(uaecptr addr, bool super, bool global) REGPA
 extern void REGPARAM3 mmu_flush_atc_all(bool global) REGPARAM;
 extern void REGPARAM3 mmu_op_real(uae_u32 opcode, uae_u16 extra) REGPARAM;
 
-#ifdef FULLMMU
-
 extern void REGPARAM3 mmu_reset(void) REGPARAM;
 extern void REGPARAM3 mmu_set_tc(uae_u16 tc) REGPARAM;
 extern void REGPARAM3 mmu_set_super(bool super) REGPARAM;
 
-#else
-
-STATIC_INLINE void mmu_reset(void)
-{
-}
-
-STATIC_INLINE void mmu_set_tc(uae_u16 /*tc*/)
-{
-}
-
-STATIC_INLINE void mmu_set_super(bool /*super*/)
-{
-}
-
-#endif
-
-
-#ifdef FULLMMU
 static ALWAYS_INLINE bool is_unaligned(uaecptr addr, int size)
 {
     return unlikely((addr & (size - 1)) && (addr ^ (addr + size - 1)) & 0x1000);
@@ -354,32 +301,32 @@ static ALWAYS_INLINE bool is_unaligned(uaecptr addr, int size)
 
 static ALWAYS_INLINE uaecptr mmu_get_real_address(uaecptr addr, struct mmu_atc_line *cl)
 {
-	return cl->phys + addr;
+    return cl->phys + addr;
 }
 
 static ALWAYS_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
 {
-    put_long (addr, l);
+    longput(addr, l);
 }
 static ALWAYS_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
 {
-    put_word (addr, w);
+    wordput(addr, w);
 }
 static ALWAYS_INLINE void phys_put_byte(uaecptr addr, uae_u32 b)
 {
-    put_byte (addr, b);
+    byteput(addr, b);
 }
 static ALWAYS_INLINE uae_u32 phys_get_long(uaecptr addr)
 {
-    return get_long (addr);
+    return longget (addr);
 }
 static ALWAYS_INLINE uae_u32 phys_get_word(uaecptr addr)
 {
-    return get_word (addr);
+    return wordget (addr);
 }
 static ALWAYS_INLINE uae_u32 phys_get_byte(uaecptr addr)
 {
-    return get_byte (addr);
+    return byteget (addr);
 }
 
 static ALWAYS_INLINE uae_u32 mmu_get_long(uaecptr addr, int data, int size)
@@ -570,23 +517,6 @@ static ALWAYS_INLINE void uae_mmu_put_byte(uaecptr addr, uae_u8 val)
 	mmu_put_byte(addr, val, 1, sz_byte);
 }
 
-
-
-
-#else
-
-#  define get_long(a)			phys_get_long(a)
-#  define get_word(a)			phys_get_word(a)
-#  define get_byte(a)			phys_get_byte(a)
-#  define put_long(a,b)			phys_put_long(a,b)
-#  define put_word(a,b)			phys_put_word(a,b)
-#  define put_byte(a,b)			phys_put_byte(a,b)
-#  define get_real_address(a,w,s)	phys_get_real_address(a)
-
-#define valid_address(a,w,s)		phys_valid_address(a,w,s)
-#endif
-
-
 STATIC_INLINE void put_byte_mmu (uaecptr addr, uae_u32 v)
 {
     uae_mmu_put_byte (addr, v);
@@ -638,4 +568,9 @@ STATIC_INLINE uae_u32 next_ilong_mmu (void)
     m68k_incpc (4);
     return uae_mmu_get_ilong (pc);
 }
+
+extern void m68k_do_rts_mmu (void);
+extern void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset);
+
+
 #endif /* CPUMMU_H */

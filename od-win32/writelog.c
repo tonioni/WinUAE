@@ -15,6 +15,8 @@
 
 #define SHOW_CONSOLE 0
 
+static int nodatestamps = 0;
+
 int consoleopen = 0;
 static int realconsole;
 static HANDLE stdinput,stdoutput;
@@ -279,6 +281,8 @@ static TCHAR *writets (void)
     TCHAR curts[100];
 
     if (bootlogmode)
+	return NULL;
+    if (nodatestamps)
 	return NULL;
     _ftime (&tb);
     t = localtime (&tb.time);

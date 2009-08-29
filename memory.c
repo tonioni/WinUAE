@@ -2078,7 +2078,7 @@ uae_u8 *REGPARAM2 default_xlate (uaecptr a)
 {
     if (quit_program == 0) {
 	/* do this only in 68010+ mode, there are some tricky A500 programs.. */
-	if (currprefs.cpu_model > 68000 || !currprefs.cpu_compatible) {
+	if ((currprefs.cpu_model > 68000 || !currprefs.cpu_compatible) && !currprefs.mmu_model) {
 #if defined(ENFORCER)
 	    enforcer_disable ();
 #endif

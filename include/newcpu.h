@@ -226,7 +226,7 @@ STATIC_INLINE void m68k_incpci (int o)
 
 STATIC_INLINE void m68k_do_rts (void)
 {
-    m68k_setpc (get_long(m68k_areg (regs, 7)));
+    m68k_setpc (get_long (m68k_areg (regs, 7)));
     m68k_areg (regs, 7) += 4;
 }
 STATIC_INLINE void m68k_do_rtsi (void)
@@ -246,13 +246,6 @@ STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
     m68k_areg (regs, 7) -= 4;
     put_long (m68k_areg (regs, 7), oldpc);
     m68k_incpci (offset);
-}
-
-STATIC_INLINE void m68k_do_jsr (uaecptr oldpc, uaecptr dest)
-{
-    m68k_areg (regs, 7) -= 4;
-    put_long(m68k_areg (regs, 7), oldpc);
-    m68k_setpc (dest);
 }
 
 #define get_ibyte(o) do_get_mem_byte((uae_u8 *)((regs).pc_p + (o) + 1))
@@ -300,6 +293,7 @@ extern void m68k_resumestopped (void);
 
 extern uae_u32 REGPARAM3 get_disp_ea_020 (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_020ce (uae_u32 base, uae_u32 dp) REGPARAM;
+extern uae_u32 REGPARAM3 get_disp_ea_040mmu (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_000 (uae_u32 base, uae_u32 dp) REGPARAM;
 extern void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
 extern void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt);

@@ -108,9 +108,9 @@ void uae_NotificationHack (uaecptr port, uaecptr nr)
 
 void uae_NewList (uaecptr list)
 {
-    put_long (list, list + 4);
-    put_long (list + 4, 0);
-    put_long (list + 8, list);
+    put_long_slow (list, list + 4);
+    put_long_slow (list + 4, 0);
+    put_long_slow (list + 8, list);
 }
 
 uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags)

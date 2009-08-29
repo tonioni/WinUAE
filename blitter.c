@@ -285,7 +285,7 @@ static void blitter_interrupt (int hpos, int done)
 {
     if (blit_interrupt)
 	return;
-    if (!done && !currprefs.blitter_cycle_exact)
+    if (!done && (!currprefs.blitter_cycle_exact || (currprefs.chipset_mask & CSMASK_AGA)))
 	return;
     blit_interrupt = 1;
     INTREQ (0x8040);
@@ -1351,7 +1351,7 @@ void maybe_blit (int hpos, int hack)
 #ifdef BLITTER_DEBUG_NOWAIT
 	warned = 10;
 	write_log (L"program does not wait for blitter PC=%08x\n", M68K_GETPC);
-	//activate_debugger ();
+	activate_debugger ();
 	//blitter_done (hpos);
 #endif
     }

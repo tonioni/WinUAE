@@ -54,7 +54,7 @@
 #endif
 
 #define AMIGA_WIDTH_MAX (752 / 2)
-#define AMIGA_HEIGHT_MAX (568 / 2)
+#define AMIGA_HEIGHT_MAX (572 / 2)
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
@@ -1708,10 +1708,7 @@ int vsync_switchmode (int hz, int oldhz)
     if (hz < 0)
 	return tempvsync;
 
-    if (currprefs.ntscmode)
-	newh = h * 60 / 50;
-    else
-	newh = h * 50 / 60;
+    newh = h * oldhz / hz;
     hz = hz * dbl;
 
     found = NULL;

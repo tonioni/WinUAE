@@ -1,4 +1,20 @@
 
+Beta 12:
+
+- increased vertical filter display buffer size by 4 pixels (max PAL
+  overscan fully visible now, again..)
+- autovsync vertical resolution autoselection really works now
+- more MMU fixes, Linux boots now. MMULib does not work but it most
+  likely is a bug in MMULib which expects some undocumented behavior
+  of 68040 (like how ATC caches work etc..) Commodore's 68040.library
+  works. Note that native code (for example filesystem emulation) can't
+  support MMU address translation (impossible to call bus error handler
+  from non-68k code without some heavy black magic) -> any non-debugging
+  MMU software most likely won't work without using IDE or SCSI
+  emulation. MMU support is considered finished now. Enforcer and Linux
+  working = good enough :)
+- version number bumped to 2.0
+
 Beta 11:
 
 - fixed 68020 CE-mode cycle counting bug (too slow memory accesses)

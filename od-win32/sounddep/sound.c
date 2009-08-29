@@ -793,8 +793,16 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	    sd->channels, rn[rncnt], sd->freq,
 	    pwfx ? pwfx->nChannels : -1, pwfx ? pwfx->nSamplesPerSec : -1,
 	    hr);
-	if (final && SUCCEEDED (hr))
+	if (final && SUCCEEDED (hr)) {
+	    if (pwfx_saved) {
+		sd->channels = pwfx_saved->nChannels;
+		sd->freq = pwfx_saved->nSamplesPerSec;
+		CoTaskMemFree (pwfx);
+		pwfx = pwfx_saved;
+		pwfx_saved = NULL;
+	    }
 	    break;
+	}
 	if (hr != AUDCLNT_E_UNSUPPORTED_FORMAT && hr != S_FALSE)
 	    goto error;
 	if (hr == S_FALSE && pwfx_saved == NULL) {
