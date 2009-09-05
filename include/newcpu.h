@@ -12,26 +12,26 @@
 
 #ifndef SET_CFLG
 
-#define SET_CFLG(regs, x) (CFLG(regs) = (x))
-#define SET_NFLG(regs, x) (NFLG(regs) = (x))
-#define SET_VFLG(regs, x) (VFLG(regs) = (x))
-#define SET_ZFLG(regs, x) (ZFLG(regs) = (x))
-#define SET_XFLG(regs, x) (XFLG(regs) = (x))
+#define SET_CFLG(x) (CFLG() = (x))
+#define SET_NFLG(x) (NFLG() = (x))
+#define SET_VFLG(x) (VFLG() = (x))
+#define SET_ZFLG(x) (ZFLG() = (x))
+#define SET_XFLG(x) (XFLG() = (x))
 
-#define GET_CFLG(regs) CFLG(regs)
-#define GET_NFLG(regs) NFLG(regs)
-#define GET_VFLG(regs) VFLG(regs)
-#define GET_ZFLG(regs) ZFLG(regs)
-#define GET_XFLG(regs) XFLG(regs)
+#define GET_CFLG() CFLG()
+#define GET_NFLG() NFLG()
+#define GET_VFLG() VFLG()
+#define GET_ZFLG() ZFLG()
+#define GET_XFLG() XFLG()
 
-#define CLEAR_CZNV(regs) do { \
- SET_CFLG (regs, 0); \
- SET_ZFLG (regs, 0); \
- SET_NFLG (regs, 0); \
- SET_VFLG (regs, 0); \
+#define CLEAR_CZNV() do { \
+ SET_CFLG (0); \
+ SET_ZFLG (0); \
+ SET_NFLG (0); \
+ SET_VFLG (0); \
 } while (0)
 
-#define COPY_CARRY(regs) (SET_XFLG (regs, GET_CFLG (regs)))
+#define COPY_CARRY() (SET_XFLG (GET_CFLG ()))
 #endif
 
 extern const int areg_byteinc[];
@@ -113,10 +113,10 @@ struct cache040
     int count;
 };
 
+struct flag_struct regflags;
 extern struct regstruct
 {
     uae_u32 regs[16];
-    struct flag_struct ccrflags;
 
     uae_u32 pc;
     uae_u8 *pc_p;
@@ -173,8 +173,6 @@ STATIC_INLINE uae_u32 munge24 (uae_u32 x)
     return x & regs.address_space_mask;
 }
 
-extern unsigned long irqcycles[15];
-extern int irqdelay[15];
 extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
 
@@ -295,10 +293,17 @@ extern uae_u32 REGPARAM3 get_disp_ea_020 (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_020ce (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_040mmu (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_disp_ea_000 (uae_u32 base, uae_u32 dp) REGPARAM;
+extern uae_u32 get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width);
+extern void put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width);
+extern uae_u32 get_bitfield_020ce (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width);
+extern void put_bitfield_020ce (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width);
+extern uae_u32 get_bitfield_040mmu (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width);
+extern void put_bitfield_040mmu (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width);
+
 extern void m68k_disasm_ea (void *f, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr);
 extern void m68k_disasm (void *f, uaecptr addr, uaecptr *nextpc, int cnt);
 extern void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode);
-extern int get_cpu_model(void);
+extern int get_cpu_model (void);
 
 extern void REGPARAM3 MakeSR (void) REGPARAM;
 extern void REGPARAM3 MakeFromSR (void) REGPARAM;
@@ -319,8 +324,8 @@ extern void m68k_dumpstate (void *, uaecptr *);
 extern void m68k_disasm (void *, uaecptr, uaecptr *, int);
 extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (int);
-extern int getDivu68kCycles(uae_u32 dividend, uae_u16 divisor);
-extern int getDivs68kCycles(uae_s32 dividend, uae_s16 divisor);
+extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
+extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void m68k_do_rte (uae_u32 pc, uae_u16 opcode, uae_u16 sr, uae_u16 format);
 
 extern void mmu_op (uae_u32, uae_u32);

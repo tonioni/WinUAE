@@ -26,7 +26,6 @@
 #define ACTION_REPLAY_HIDE 5
 
 extern int action_replay_freeze (void);
-extern void cartridge_init(void);
 
 extern uaecptr wait_for_pc;
 extern int action_replay_flag;

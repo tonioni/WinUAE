@@ -639,8 +639,6 @@ static void save_rams (struct zfile *f, int comp)
     save_chunk (f, dst, len, L"BORO", comp);
 #endif
 #ifdef PICASSO96
-    dst = save_p96 (&len, 0);
-    save_chunk (f, dst, len, L"P96 ", 0);
     dst = save_pram (&len);
     save_chunk (f, dst, len, L"PRAM", comp);
 #endif
@@ -674,21 +672,21 @@ int save_state (const TCHAR *filename, const TCHAR *description)
     if (savestate_specialdump) {
 	size_t pos;
 	if (savestate_specialdump == 2)
-	    write_wavheader(f, 0, 22050);
-	pos = zfile_ftell(f);
+	    write_wavheader (f, 0, 22050);
+	pos = zfile_ftell (f);
 	save_rams (f, -1);
 	if (savestate_specialdump == 2) {
 	    int len, len2, i;
 	    uae_u8 *tmp;
-	    len = zfile_ftell(f) - pos;
-	    tmp = (uae_u8*)xmalloc(len);
+	    len = zfile_ftell (f) - pos;
+	    tmp = xmalloc (len);
 	    zfile_fseek(f, pos, SEEK_SET);
-	    len2 = zfile_fread(tmp, 1, len, f);
+	    len2 = zfile_fread (tmp, 1, len, f);
 	    for (i = 0; i < len2; i++)
 		tmp[i] += 0x80;
-	    write_wavheader(f, len, 22050);
-	    zfile_fwrite(tmp, len2, 1, f);
-	    xfree(tmp);
+	    write_wavheader (f, len, 22050);
+	    zfile_fwrite (tmp, len2, 1, f);
+	    xfree (tmp);
 	}
 	zfile_fclose (f);
 	return 1;
@@ -768,6 +766,10 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 #ifdef AUTOCONFIG
     dst = save_expansion (&len, 0);
     save_chunk (f, dst, len, L"EXPA", 0);
+#endif
+#ifdef PICASSO96
+    dst = save_p96 (&len, 0);
+    save_chunk (f, dst, len, L"P96 ", 0);
 #endif
     save_rams (f, comp);
 

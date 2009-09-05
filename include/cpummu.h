@@ -50,7 +50,6 @@
 #define false 0
 #define likely(x) x
 #define unlikely(x) x
-static ALWAYS_INLINE bool test_ram_boundary (uaecptr addr, int size, bool super, bool write) { return false; }
 static ALWAYS_INLINE void flush_internals (void) { }
 
 typedef uae_u8 flagtype;
@@ -482,6 +481,10 @@ static ALWAYS_INLINE uae_u16 uae_mmu_get_iword(uaecptr addr)
 		return mmu_get_word_unaligned(addr, 0);
 	return mmu_get_word(addr, 0, sz_word);
 }
+static ALWAYS_INLINE uae_u16 uae_mmu_get_ibyte(uaecptr addr)
+{
+	return mmu_get_byte(addr, 0, sz_byte);
+}
 static ALWAYS_INLINE uae_u32 uae_mmu_get_long(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
@@ -559,18 +562,24 @@ STATIC_INLINE uae_u32 get_ilong_mmu (int o)
 STATIC_INLINE uae_u32 next_iword_mmu (void)
 {
     uae_u32 pc = m68k_getpc ();
-    m68k_incpc (2);
+    m68k_incpci (2);
     return uae_mmu_get_iword (pc);
 }
 STATIC_INLINE uae_u32 next_ilong_mmu (void)
 {
     uae_u32 pc = m68k_getpc ();
-    m68k_incpc (4);
+    m68k_incpci (4);
     return uae_mmu_get_ilong (pc);
 }
 
 extern void m68k_do_rts_mmu (void);
 extern void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset);
 
+struct mmufixup
+{
+    int reg;
+    uae_u32 value;
+};
+extern struct mmufixup mmufixup;
 
 #endif /* CPUMMU_H */

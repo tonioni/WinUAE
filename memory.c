@@ -311,7 +311,7 @@ static struct romdata roms[] = {
 	0x72850aef, 0x59c91d1f,0xa8f118f9,0x0bdba05a,0x9ae788d7,0x7a6cc7c9 },
     ALTROM(70, 1, 1, 32768, ROMTYPE_EVEN|ROMTYPE_SCRAMBLED|ROMTYPE_8BIT, 0xf3330e1f,0x3a597db2,0xb7d11b6c,0xb8e13496,0xc215f223,0x88c4ca3c)
     ALTROM(70, 1, 2, 32768, ROMTYPE_EVEN|ROMTYPE_SCRAMBLED|ROMTYPE_8BIT, 0xee58e0f9,0x4148f4cb,0xb42cec33,0x8ca144de,0xd4f54118,0xe0f185dd)
-    { L"Freezer: HRTMon v2.30 (built-in)", 0, 0, 0, 0, L"HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
+    { L"Freezer: HRTMon v2.31 (built-in)", 0, 0, 0, 0, L"HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
 	0xffffffff, 0, 0, 0, 0, 0, L"HRTMon" },
 
     { L"A590/A2091 SCSI boot ROM", 6, 0, 6, 0, L"A590\0A2091\0", 16384, 53, 0, 0, ROMTYPE_A2091BOOT, 0, 0, NULL,
@@ -1099,6 +1099,8 @@ static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 {
+    if (M68K_GETPC == 0xf81a16)
+	activate_debugger ();
     if (illegal_count >= MAX_ILG)
 	return;
     /* ignore Zorro3 expansion space */

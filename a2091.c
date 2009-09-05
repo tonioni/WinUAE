@@ -362,7 +362,7 @@ static void do_dma (void)
 static void wd_do_transfer_out (void)
 {
 #if WD33C93_DEBUG > 0
-    write_log (L"%s SCSI O [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring());
+    write_log (L"%s SCSI O [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring ());
 #endif
     if (wdregs[WD_COMMAND_PHASE] == 0x11) {
 	wdregs[WD_COMMAND_PHASE] = 0x20;
@@ -400,7 +400,7 @@ static void wd_do_transfer_out (void)
 static void wd_do_transfer_in (void)
 {
 #if WD33C93_DEBUG > 0
-    write_log (L"%s SCSI I [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring());
+    write_log (L"%s SCSI I [%02X] %d/%d %s\n", WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring ());
 #endif
     wd_dataoffset = 0;
     if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] < 0x47) {

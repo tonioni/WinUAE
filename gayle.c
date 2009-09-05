@@ -941,6 +941,10 @@ static int gayle_read (uaecptr addr)
 #ifdef JIT
     special_mem |= S_READ;
 #endif
+    if (currprefs.cs_ide == IDE_A600A1200) {
+	if ((addr & 0xA0000) != 0xA0000)
+	    return 0;
+    }
     addr &= 0xffff;
     if (currprefs.cs_pcmcia) {
 	if (currprefs.cs_ide != IDE_A600A1200) {
@@ -970,6 +974,7 @@ static int gayle_read (uaecptr addr)
 	write_log (L"GAYLE_READ %08X=%02X PC=%08X\n", oaddr, (uae_u32)v & 0xff, M68K_GETPC);
     return v;
 }
+
 static void gayle_write (uaecptr addr, int val)
 {
     uaecptr oaddr = addr;
@@ -977,6 +982,10 @@ static void gayle_write (uaecptr addr, int val)
 #ifdef JIT
     special_mem |= S_WRITE;
 #endif
+    if (currprefs.cs_ide == IDE_A600A1200) {
+	if ((addr & 0xA0000) != 0xA0000)
+	    return;
+    }
     addr &= 0xffff;
     if (currprefs.cs_pcmcia) {
 	if (currprefs.cs_ide != IDE_A600A1200) {

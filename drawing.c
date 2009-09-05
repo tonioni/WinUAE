@@ -2487,8 +2487,12 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	    off_rgb = 0x330000;
 	} else if (led == 5) {
 	    pos = 5;
-	    on = gui_data.cd;
-	    on_rgb = 0x0000cc;
+	    on = gui_data.cd & (LED_CD_AUDIO | LED_CD_ACTIVE);
+	    on_rgb = (on & LED_CD_AUDIO) ? 0x00cc00 : 0x0000cc;
+	    if ((gui_data.cd & LED_CD_ACTIVE2) && !(gui_data.cd & LED_CD_AUDIO)) {
+		on_rgb &= 0xfefefe;
+		on_rgb >>= 1;
+	    }
 	    off_rgb = 0x000033;
 	    num1 = -1;
 	    num2 = 10;

@@ -1,4 +1,28 @@
 
+Beta 13:
+
+- MMU emulation bug fix (was bug in Aranym's code, official fix now
+  included), fixes MMULib crash
+- other MMU emulation fixes
+- Gayle IDE address mapping corrected, reserved Gayle expansion space
+  not included anymore
+- CD32/CDTV CD led flickers blue when there is CD activity, shows
+  green when playing CD audio
+- built-in hrtmon updated to 2.31
+- 68020 cache freeze-bit emulation fixed
+- CD32 pad default mapping green and yellow buttons switched
+- MOVES fixed (this has always been wrong but nobody noticed because
+  it is only used with MMU)
+- bsdsocket: support MSG_WAITALL (previously recv() with MSG_WAITALL
+  always returned -1)
+- 68020+ bit field instruction update from Aranym (correct memory
+  access size for MMU and CE020. BFCHG, BFSET ignored size)
+- more regstruct (ccrflags) removal
+- added U <logical address> debugger command, shows translated physical
+  addresses (user+code,user+data,super+code,super+data. RW=readwrite,
+  RO=readonly) or * if address is not mapped (accessing it would cause
+  access violation)
+
 Beta 12:
 
 - increased vertical filter display buffer size by 4 pixels (max PAL

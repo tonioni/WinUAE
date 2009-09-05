@@ -435,6 +435,7 @@ static void set_status (uae_u32 status)
 {
     cdrom_intreq |= status;
     checkint ();
+    cdrom_led ^= LED_CD_ACTIVE2;
 }
 
 void rethink_akiko (void)
@@ -762,12 +763,13 @@ static int cdrom_command_led (void)
 {
     int v = cdrom_command_buffer[1];
     int old = cdrom_led;
-    cdrom_led = v & 1;
+    cdrom_led &= ~1;
+    cdrom_led |= v & 1;
     if (cdrom_led != old)
-	gui_cd_led (0, cdrom_led ? 1 : -1);
+	gui_cd_led (0, cdrom_led);
     if (v & 0x80) { // result wanted?
 	cdrom_result_buffer[0] = cdrom_command;
-	cdrom_result_buffer[1] = cdrom_led;
+	cdrom_result_buffer[1] = cdrom_led & 1;
 	return 2;
     }
     return 0;
@@ -1162,8 +1164,13 @@ void AKIKO_hsync_handler (void)
     framecounter--;
     if (framecounter <= 0) {
 	int i;
-	if (cdrom_led)
-	    gui_cd_led (0, 1);
+	if (cdrom_led) {
+	    if (cdrom_playing)
+		cdrom_led |= LED_CD_AUDIO;
+	    else
+		cdrom_led &= ~LED_CD_AUDIO;
+	    gui_cd_led (0, cdrom_led);
+	}
 	if (cdrom_seek_delay <= 0) {
 	    cdrom_run_read ();
 	} else {

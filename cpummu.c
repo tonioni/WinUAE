@@ -311,7 +311,7 @@ static void mmu_bus_error(uaecptr addr, int fc, int write, int size)
 	regs.mmu_fault_addr = addr;
 	regs.mmu_ssw = ssw | MMU_SSW_ATC;
 
-	//write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x\n", fc, write, addr, ssw);
+	//write_log (L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x PC=%08x\n", fc, write, addr, ssw, M68K_GETPC);
 	//activate_debugger ();
 	//mmu_dump_tables ();
 
@@ -362,7 +362,7 @@ static uaecptr mmu_fill_atc_l2(uaecptr addr, int super, int data, int write,
 	SAVE_EXCEPTION;
 	TRY(prb) {
 		desc = mmu_lookup_pagetable(addr, super, write);
-		D(bug(L"translate: %x,%u,%u,%u -> %x\n", addr, super, write, data, desc));
+		D(bug(L"translate: %x,%u,%u,%u -> %x PC=%08x\n", addr, super, write, data, desc, M68K_GETPC));
 		RESTORE_EXCEPTION;
 	}
 	CATCH(prb) {
@@ -452,7 +452,6 @@ uaecptr REGPARAM2 mmu_translate(uaecptr addr, int super, int data, int write)
 
 	return addr + l->phys;
 }
-
 /*
  * Lookup the address by walking the page table and updating
  * the page descriptors accordingly. Returns the found descriptor
@@ -461,9 +460,8 @@ uaecptr REGPARAM2 mmu_translate(uaecptr addr, int super, int data, int write)
 static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, int super, int write)
 {
 	uae_u32 desc, desc_addr, wp;
-	int i, indirect;
+	int i;
 
-	indirect = 0;
 	wp = 0;
 	desc = super ? regs.srp : regs.urp;
 
@@ -472,8 +470,7 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, int super, int write
 	desc_addr = (desc & MMU_ROOT_PTR_ADDR_MASK) | i;
 	desc = phys_get_long(desc_addr);
 	if ((desc & 2) == 0) {
-		D(bug(L"MMU: invalid %s root (%08x) descriptor for %08x,%08x = %08x\n",
-		    super ? L"S" : L"U", super ? regs.srp : regs.urp, addr, desc_addr, desc));
+		D(bug(L"MMU: invalid root descriptor for %lx\n", addr));
 		return 0;
 	}
 
@@ -502,24 +499,15 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, int super, int write
 		desc_addr = (desc & MMU_PTR_PAGE_ADDR_MASK_4) | i;
 	}
 
-get_page_descriptor:
 	desc = phys_get_long(desc_addr);
-	if ((desc & 1) == 0) {
-		if ((desc & 2) == 0) {
-			D(bug(L"MMU: invalid page descriptor log=%08lx desc=%08lx @%08lx\n", addr, desc, desc_addr));
-			return desc;
-		}
+	if ((desc & 3) == 2) {
 		/* indirect */
-		if (indirect) {
-			D(bug(L"MMU: double indirect descriptor log=%lx descriptor @ %lx\n", addr, desc_addr));
-			return desc;
-		}
-		wp |= desc;
-		if ((desc & MMU_DES_USED) == 0)
-			phys_put_long(desc_addr, desc | MMU_DES_USED);
 		desc_addr = desc & MMU_PAGE_INDIRECT_MASK;
-		indirect = 1;
-		goto get_page_descriptor;
+		desc = phys_get_long(desc_addr);
+	}
+	if ((desc & 1) == 0) {
+		D(bug(L"MMU: invalid page descriptor log=%08lx desc=%08lx @%08lx\n", addr, desc, desc_addr));
+		return desc;
 	}
 
 	desc |= wp & MMU_DES_WP;

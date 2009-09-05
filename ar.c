@@ -1004,19 +1004,11 @@ static void hrtmon_go (void)
 	    NMI ();
 	    put_long ((uaecptr)(regs.vbr + 0x7c), old);
 	}
-    } else {
+    } else { // HRTMON
 	old = get_long ((uaecptr)(regs.vbr + 0x7c));
-	put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 12 + 2 + get_word (hrtmem_start + 14));
+	put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 8 + 4);
 	NMI ();
 	//put_long ((uaecptr)(regs.vbr + 0x7c), old);
-    }
-}
-
-void cartridge_init (void)
-{
-    if (hrtmemory && cart_type != CART_AR1200) {
-	hrtmon_map_banks ();
-	put_long ((uaecptr)(regs.vbr + 0x7c), hrtmem_start + 12 + 2 + get_word (hrtmem_start + 14));
     }
 }
 
@@ -1746,7 +1738,7 @@ void action_replay_cleanup()
 #endif
 
 #ifdef ACTION_REPLAY_HRTMON
-#include "hrtmon_rom.c"
+#include "hrtmon.rom.c"
 #endif
 
 int hrtmon_lang = 0;
@@ -1820,7 +1812,9 @@ int hrtmon_load (void)
     hrtmem_mask = hrtmem_size - 1;
     if (isinternal) {
 	#ifdef ACTION_REPLAY_HRTMON
-	struct zfile *zf = zfile_fopen_data (L"hrtrom.gz", hrtrom_len, hrtrom);
+	struct zfile *zf;
+	zf = zfile_fopen_data (L"hrtrom.gz", hrtrom_len, hrtrom);
+//	f = zfile_fopen (L"d:\\amiga\\amiga\\hrtmon\\src\\hrtmon.rom", L"rb", 0);
 	f = zfile_gunzip (zf);
 	#else
 	return 0;
@@ -1832,7 +1826,7 @@ int hrtmon_load (void)
     zfile_fseek (f, 0, SEEK_SET);
     zfile_fread (hrtmemory, 1, 524288, f);
     zfile_fclose (f);
-    hrtmon_configure();
+    hrtmon_configure ();
     hrtmon_custom = hrtmemory + 0x08f000;
     hrtmon_ciaa = hrtmemory + 0x08e000;
     hrtmon_ciab = hrtmemory + 0x08d000;

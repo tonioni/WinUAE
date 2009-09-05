@@ -32,6 +32,7 @@
 #include "akiko.h"
 #include "inputdevice.h"
 #include "crc32.h"
+#include "cpummu.h"
 
 int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -3085,6 +3086,33 @@ static void debug_1 (void)
 	    if (staterecorder (&inptr))
 		return;
 	    break;
+	case 'U':
+	    if (currprefs.cpu_model && more_params (&inptr)) {
+		int super, data, i;
+		uaecptr addrl = readhex (&inptr);
+		uaecptr addrp;
+		console_out_f (L"%08X translates to:\n", addrl);
+		for (i = 0; i < 4; i++) {
+		    super = (i & 2) ? 1 : 0;
+		    data = (i & 1) ? 1 : 0;
+		    console_out_f (L"S%dD%d=", super, data);
+		    TRY(prb) {
+			addrp = mmu_translate (addrl, super, data, 0);
+			console_out_f (L"%08X", addrp);
+			TRY(prb2) {
+			    addrp = mmu_translate (addrl, super, data, 1);
+			    console_out_f (L" RW");
+			} CATCH(prb2) {
+			    console_out_f (L" RO");
+			}
+		    } CATCH(prb) {
+			console_out_f (L"***********");
+		    }
+		    console_out_f (L" ");
+		}
+		console_out_f (L"\n");
+	    }
+	break;
 	case 'h':
 	case '?':
 	    if (more_params (&inptr))

@@ -24,6 +24,10 @@ extern void gui_display (int shortcut);
 
 extern int no_gui, quit_to_gui;
 
+#define LED_CD_ACTIVE 1
+#define LED_CD_ACTIVE2 2
+#define LED_CD_AUDIO 4
+
 struct gui_info
 {
     uae_u8 drive_motor[4];          /* motor on off */

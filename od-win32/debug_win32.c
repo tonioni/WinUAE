@@ -1282,19 +1282,19 @@ static void ToggleCCRFlag(HWND hwnd, int x, int y)
 	SendMessage(hwnd, LB_GETTEXT, (WPARAM)index, (LPARAM)(LPTSTR)txt);
 	switch (txt[0]) {
 		case 'X':
-			SET_XFLG(&regs.ccrflags, GET_XFLG(&regs.ccrflags) ? 0 : 1);
+			SET_XFLG(GET_XFLG() ? 0 : 1);
 			break;
 		case 'N':
-			SET_NFLG(&regs.ccrflags, GET_NFLG(&regs.ccrflags) ? 0 : 1);
+			SET_NFLG(GET_NFLG() ? 0 : 1);
 			break;
 		case 'Z':
-			SET_ZFLG(&regs.ccrflags, GET_ZFLG(&regs.ccrflags) ? 0 : 1);
+			SET_ZFLG(GET_ZFLG() ? 0 : 1);
 			break;
 		case 'V':
-			SET_VFLG(&regs.ccrflags, GET_VFLG(&regs.ccrflags) ? 0 : 1);
+			SET_VFLG(GET_VFLG() ? 0 : 1);
 			break;
 		case 'C':
-			SET_CFLG(&regs.ccrflags, GET_CFLG(&regs.ccrflags) ? 0 : 1);
+			SET_CFLG(GET_CFLG() ? 0 : 1);
 			break;
 	}
 	update_debug_info();
@@ -2140,11 +2140,11 @@ void update_debug_info(void)
     }
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_CCR);
-    UpdateListboxString(hwnd, 0, GET_XFLG(&regs.ccrflags) ? L"X: 1" : L"X: 0", TRUE);
-    UpdateListboxString(hwnd, 1, GET_NFLG(&regs.ccrflags) ? L"N: 1" : L"N: 0", TRUE);
-    UpdateListboxString(hwnd, 2, GET_ZFLG(&regs.ccrflags) ? L"Z: 1" : L"Z: 0", TRUE);
-    UpdateListboxString(hwnd, 3, GET_VFLG(&regs.ccrflags) ? L"V: 1" : L"V: 0", TRUE);
-    UpdateListboxString(hwnd, 4, GET_CFLG(&regs.ccrflags) ? L"C: 1" : L"C: 0", TRUE);
+    UpdateListboxString(hwnd, 0, GET_XFLG() ? L"X: 1" : L"X: 0", TRUE);
+    UpdateListboxString(hwnd, 1, GET_NFLG() ? L"N: 1" : L"N: 0", TRUE);
+    UpdateListboxString(hwnd, 2, GET_ZFLG() ? L"Z: 1" : L"Z: 0", TRUE);
+    UpdateListboxString(hwnd, 3, GET_VFLG() ? L"V: 1" : L"V: 0", TRUE);
+    UpdateListboxString(hwnd, 4, GET_CFLG() ? L"C: 1" : L"C: 0", TRUE);
 
     hwnd = GetDlgItem(hDbgWnd, IDC_DBG_SP_VBR);
     _stprintf(out, L"USP: %08lX", regs.usp);

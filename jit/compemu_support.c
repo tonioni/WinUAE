@@ -4504,11 +4504,11 @@ void init_comp(void)
     live.state[PC_P].needflush=NF_TOMEM;
     set_const(PC_P,(uae_u32)comp_pc_p);
 
-    live.state[FLAGX].mem=&(regs.ccrflags.x);
+    live.state[FLAGX].mem=&(regflags.x);
     live.state[FLAGX].needflush=NF_TOMEM;
     set_status(FLAGX,INMEM);
 
-    live.state[FLAGTMP].mem=&(regs.ccrflags.cznv);
+    live.state[FLAGTMP].mem=&(regflags.cznv);
     live.state[FLAGTMP].needflush=NF_TOMEM;
     set_status(FLAGTMP,INMEM);
 

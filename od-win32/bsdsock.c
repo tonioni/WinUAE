@@ -9,6 +9,8 @@
  * GNU Public License
  *
  */
+#include <winsock2.h>
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -16,7 +18,6 @@
 
 #include "resource"
 
-#include <winsock.h>
 #include <stddef.h>
 #include <process.h>
 
@@ -842,15 +843,44 @@ static BOOL HandleStuff(void)
 				}
 				break;
 				case recvfrom_req:
+				{
+				    int len = sockreq.params.recvfrom_s.len;
+				    uae_u8 *p = sockreq.params.recvfrom_s.realpt;
+				    int flags = sockreq.params.recvfrom_s.flags;
+				    int waitall = sockreq.params.recvfrom_s.flags & 0x40;
+				    int result = -1;
+				    int got = 0;
+
+				    if (waitall)
+					flags &= ~0x40;
+				    for (;;) {
+					if (waitall && ((flags & MSG_PEEK) || (flags & MSG_OOB))) {
+					    result = -1;
+					    break;
+					}
 					if(sockreq.params.recvfrom_s.addr) {
-						sockreq.sb->resultval = recvfrom(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
-							sockreq.params.recvfrom_s.flags, sockreq.params.recvfrom_s.rp_addr,
+						result = recvfrom(sockreq.s, p, len,
+							flags, sockreq.params.recvfrom_s.rp_addr,
 							sockreq.params.recvfrom_s.hlen);
 
 					} else {
-						sockreq.sb->resultval = recv(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
-							sockreq.params.recvfrom_s.flags);
+						result = recv(sockreq.s, p, len, flags);
 					}
+					if (!waitall)
+					    break;
+					if (result < 0)
+					    break;
+					got += result;
+					p += result;
+					len -= result;
+					if (len <= 0 || result == 0) {
+					    result = got;
+					    break;
+					}
+
+				    }
+				    sockreq.sb->resultval = result;
+				}
 				break;
 				case abort_req:
 					*(sockreq.params.abort_s.newsock) = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
