@@ -2298,7 +2298,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
     if ((opcode & 0xF000) == 0xF000) {
 	if (warned < 20) {
 	    write_log (L"B-Trap %x at %x (%p)\n", opcode, pc, regs.pc_p);
-	    activate_debugger ();
+	    //activate_debugger ();
 	    warned++;
 	}
 	Exception (0xB, 0);

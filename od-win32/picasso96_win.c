@@ -4005,6 +4005,29 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
     }
 }
 
+static void copyallinvert (uae_u8 *src, uae_u8 *dst)
+{
+    int x, y, w;
+
+    w = picasso96_state.Width * picasso_vidinfo.pixbytes;
+    if (picasso96_state.RGBFormat == host_mode) {
+	for (y = 0; y < picasso96_state.Height; y++) {
+	    for (x = 0; x < w; x++)
+		dst[x] = src[x] ^ 0xff;
+	    dst += picasso_vidinfo.rowbytes;
+	    src += picasso96_state.BytesPerRow;
+	}
+    } else {
+	for (y = 0; y < picasso96_state.Height; y++) {
+	    for (x = 0; x < w; x++)
+		src[x] ^= 0xff;
+	    copyrow (src, dst, 0, y, picasso96_state.Width);
+	    for (x = 0; x < w; x++)
+		src[x] ^= 0xff;
+	}
+    }
+}
+
 static void copyall (uae_u8 *src, uae_u8 *dst)
 {
     int y;
