@@ -943,18 +943,18 @@ static void WriteCIAA (uae_u16 addr,uae_u8 val)
 	CIA_calctimers ();
 	break;
     case 13:
-	setclr(&ciaaimask,val);
+	setclr (&ciaaimask,val);
 	break;
     case 14:
 	CIA_update ();
 	val &= 0x7f; /* bit 7 is unused */
+	if (!(ciaacra & 0x40) && (val & 0x40))
+	    kback = 1;
 	ciaacra = val;
 	if (ciaacra & 0x10) {
 	    ciaacra &= ~0x10;
 	    ciaata = ciaala;
 	}
-	if (ciaacra & 0x40)
-	    kback = 1;
 	CIA_calctimers ();
 	break;
     case 15:

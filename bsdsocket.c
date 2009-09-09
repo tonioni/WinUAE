@@ -160,7 +160,7 @@ BOOL checksd(SB, int sd)
 		return TRUE;
 	}
     }
-    BSDTRACE(("checksd FALSE s 0x%x sd %d\n",s,sd));
+    BSDTRACE((L"checksd FALSE s 0x%x sd %d\n",s,sd));
     return FALSE;
 }
 
@@ -1210,8 +1210,8 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 	 default:
 	    if (currtag & TAG_USER) {
 		BSDTRACE ((L"SBTM_"));
-		BSDTRACE ((currtag & 0x0001 ? "SET" : "GET"));
-		BSDTRACE ((currtag & 0x8000 ? "REF(" : "VAL("));
+		BSDTRACE ((currtag & 0x0001 ? L"SET" : L"GET"));
+		BSDTRACE ((currtag & 0x8000 ? L"REF(" : L"VAL("));
 
 		switch ((currtag >> 1) & SBTS_CODE) {
 		 case SBTC_BREAKMASK:

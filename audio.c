@@ -1638,7 +1638,7 @@ void audio_hsync (int hpos)
 		    write_log (L"%d:>5: LEN=%d PT=%08X\n", nr, cdp->wlen, cdp->pt);
 #endif
 	    }
-	    cdp->dat2 = chipmem_agnus_wget (cdp->pt);
+	    cdp->dat2 = last_custom_value1 = chipmem_agnus_wget (cdp->pt);
 	    if (cdp->request_word >= 2)
 		handle2 = 1;
 	    if (chan_ena) {

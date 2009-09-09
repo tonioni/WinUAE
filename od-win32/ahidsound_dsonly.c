@@ -859,6 +859,25 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 	    free (bswap_buffer);
 	    bswap_buffer = NULL;
 	return 0;
+
+	case 110:
+	{
+	    LARGE_INTEGER p;
+	    QueryPerformanceFrequency (&p);
+	    put_long (m68k_areg (regs, 0), p.HighPart);
+	    put_long (m68k_areg (regs, 0) + 4, p.LowPart);
+	}
+	return 1;
+
+	case 111:
+	{
+	    LARGE_INTEGER p;
+	    QueryPerformanceCounter (&p);
+	    put_long (m68k_areg (regs, 0), p.HighPart);
+	    put_long (m68k_areg (regs, 0) + 4, p.LowPart);
+	}
+	return 1;
+
 #endif
 
 	case 200:

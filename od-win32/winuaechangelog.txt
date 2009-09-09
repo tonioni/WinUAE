@@ -1,4 +1,25 @@
 
+Beta 14:
+
+- added very basic MMU statefile support
+- and more MMU compatibility updates (LINK, RTD, CMPM)
+- FTRAPcc fix from Aranym (I guess nobody uses this instruction..)
+- MMU access error instruction restart update, Linux really works now
+  but is quite useless because there is no hardware cdrom or network
+  emulation..
+- CD32 pad default mapping RWD and FFW swapped
+- non-CE mode blitter timing fix (blitter timing got better few betas
+  ago but it was less compatible because cpu is not slowed down..)
+- bsdsocket MSG_WAITALL really works now
+- added "value must change" debugger memwatch mode (C)
+- another reading write-only register update, reading 0xDFF000 always
+  returns whatever was left on chip bus. Only on OCS chipset and only
+  0xDFF000 (BLTDDAT) does this. Correct fix for Codetrash. This demo
+  has really "fun" bug, it does cmp.b #$30,$dff000;bne.s loop (should
+  be $dff006) and this comparison only succceeds because of 0xDFF000
+  special case AND because module player is running and there is at
+  least one audio sample with value of $30! (unbelievable, isn't it?)
+
 Beta 13:
 
 - MMU emulation bug fix (was bug in Aranym's code, official fix now

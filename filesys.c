@@ -2769,7 +2769,7 @@ get_fileinfo (Unit *unit, dpacket packet, uaecptr info, a_inode *aino)
 	put_byte (info + i, 0), i++;
     xfree (x2);
 
-    put_long (info + 116, fsdb_can ? aino->amigaos_mode : fsdb_mode_supported(aino));
+    put_long (info + 116, fsdb_can ? aino->amigaos_mode : fsdb_mode_supported (aino));
     put_long (info + 124, statbuf.st_size > MAXFILESIZE32 ? MAXFILESIZE32 : statbuf.st_size);
 #ifdef HAVE_ST_BLOCKS
     put_long (info + 128, statbuf.st_blocks);
@@ -4140,7 +4140,7 @@ static int relock_do(Unit *unit, a_inode *a1)
     return wehavekeys;
 }
 
-static void relock_re(Unit *unit, a_inode *a1, a_inode *a2, int failed)
+static void relock_re (Unit *unit, a_inode *a1, a_inode *a2, int failed)
 {
     Key *k1, *knext;
 
@@ -4334,11 +4334,11 @@ action_rename_object (Unit *unit, dpacket packet)
 	int ret = -1;
 	/* maybe we have open file handles that caused failure? */
 	write_log (L"rename '%s' -> '%s' failed, trying relocking..\n", a1->nname, a2->nname);
-	wehavekeys = relock_do(unit, a1);
+	wehavekeys = relock_do (unit, a1);
 	/* try again... */
 	ret = my_rename (a1->nname, a2->nname);
 	/* restore locks */
-	relock_re(unit, a1, a2, ret == -1 ? 1 : 0);
+	relock_re (unit, a1, a2, ret == -1 ? 1 : 0);
 	if (ret == -1) {
 	    delete_aino (unit, a2);
 	    PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -4414,7 +4414,7 @@ action_flush (Unit *unit, dpacket packet)
 {
     TRACE((L"ACTION_FLUSH()\n"));
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    flush_cache(unit, 0);
+    flush_cache (unit, 0);
 }
 
 static void
@@ -4423,14 +4423,14 @@ action_more_cache (Unit *unit, dpacket packet)
     TRACE((L"ACTION_MORE_CACHE()\n"));
     PUT_PCK_RES1 (packet, 50); /* bug but AmigaOS expects it */
     if (GET_PCK_ARG1 (packet) != 0)
-	flush_cache(unit, 0);
+	flush_cache (unit, 0);
 }
 
 static void
 action_inhibit (Unit *unit, dpacket packet)
 {
     PUT_PCK_RES1 (packet, DOS_TRUE);
-    flush_cache(unit, 0);
+    flush_cache (unit, 0);
     unit->inhibited = GET_PCK_ARG1 (packet);
     TRACE((L"ACTION_INHIBIT(%d:%d)\n", unit->unit, unit->inhibited));
 }

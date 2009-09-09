@@ -51,6 +51,7 @@ struct memwatch_node {
     int size;
     int rwi;
     uae_u32 val, valmask;
+    int mustchange;
     int val_enabled;
     uae_u32 modval;
     int modval_written;

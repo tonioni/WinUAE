@@ -985,12 +985,21 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 
 static void manglefilename (TCHAR *out, const TCHAR *in)
 {
+    int i;
+
     out[0] = 0;
     if (!strncasecmp (in, AF, _tcslen (AF)))
 	_tcscpy (out, start_path_data);
     if ((in[0] == '/' || in[0] == '\\') || (_tcslen(in) > 3 && in[1] == ':' && in[2] == '\\'))
 	out[0] = 0;
     _tcscat (out, in);
+    for (i = 0; i < _tcslen (out); i++) {
+	if ((out[i] == '/' || out[i] == '\\') && (out[i + 1] == '/' || out[i + 1] == '\\')) {
+	    memmove (out + i, out + i + 1, (_tcslen (out + i) + 1) * sizeof (TCHAR));
+	    i--;
+	    continue;
+	}
+    }
 }
 #else
 static void manglefilename(TCHAR *out, const TCHAR *in)
@@ -1028,7 +1037,10 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
     struct zfile *l, *l2;
     TCHAR path[MAX_DPATH];
 
+    if (_tcslen (name) == 0)
+	return NULL;
     manglefilename (path, name);
+    //write_log (L"zfile_fopen('%s','%s',%08x)\n", path, mode, mask);
     l = zfile_fopen_2 (path, mode, mask);
     if (!l)
 	return 0;
@@ -1054,10 +1066,41 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
 {
     struct zfile *f;
-    //write_log (L"zfile_fopen('%s','%s',%08x)\n", name, mode, mask);
+    TCHAR tmp[MAX_DPATH];
+    TCHAR dirsep[2] = { FSDB_DIR_SEPARATOR, '\0' };
+
     f = zfile_fopen_x (name, mode, mask);
-    //write_log (L"=%p\n", f);
-    return f;
+    if (f)
+	return f;
+    if (_tcslen (name) <= 2)
+	return NULL;
+    if (name[1] != ':') {
+	_tcscpy (tmp, start_path_data);
+	_tcscat (tmp, name);
+	f = zfile_fopen_x (tmp, mode, mask);
+	if (f)
+	    return f;
+    }
+#if 0
+    name += 2;
+    if (name[0] == '/' || name[0] == '\\')
+	name++;
+    for (;;) {
+	_tcscpy (tmp, start_path_data);
+	_tcscpy (tmp, name);
+	f = zfile_fopen_x (tmp, mode, mask);
+	if (f)
+	    return f;
+	while (name[0]) {
+	    name++;
+	    if (name[-1] == '/' || name[-1] == '\\')
+		break;
+	}
+	if (name[0] == 0)
+	    break;
+    }
+#endif
+    return NULL;
 }
 
 

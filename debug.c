@@ -118,7 +118,7 @@ static TCHAR help[] = {
     L"  D[idxzs <[max diff]>] Deep trainer. i=new value must be larger, d=smaller,\n"
     L"                        x = must be same, z = must be different, s = restart.\n"
     L"  W <address> <value>   Write into Amiga memory\n"
-    L"  w <num> <address> <length> <R/W/I/F> [<value>] (read/write/opcode/freeze)\n"
+    L"  w <num> <address> <length> <R/W/I/F/C> [<value>] (read/write/opcode/freeze/mustchange)\n"
     L"                        Add/remove memory watchpoints\n"
     L"  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n"
     L"  S <file> <addr> <n>   Save a block of Amiga memory\n"
@@ -1508,6 +1508,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 	uaecptr addr2 = m->addr;
 	uaecptr addr3 = addr2 + m->size;
 	int rwi2 = m->rwi;
+	uae_u32 oldval = 0;
+	int isoldval = 0;
 
 	brk = 0;
 	if (m->size == 0)
@@ -1523,6 +1525,16 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 
 	if (!brk)
 	    continue;
+	if (mem_banks[addr >> 16]->check (addr, size)) {
+	    uae_u8 *p = mem_banks[addr >> 16]->xlateaddr (addr);
+	    if (size == 1)
+		oldval = p[0];
+	    else if (size == 2)
+		oldval = (p[0] << 8) | p[1];
+	    else
+		oldval = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
+	    isoldval = 1;
+	}
 
 	if (!m->frozen && m->val_enabled) {
 	    int trigger = 0;
@@ -1544,6 +1556,11 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 		    break;
 	    }
 	    if (!trigger)
+		continue;
+	}
+
+	if (m->mustchange && rwi == 2 && isoldval) {
+	    if (oldval == *valp)
 		continue;
 	}
 
@@ -1866,6 +1883,8 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 		buf = buf_out (buf, &bufsize, L" =%X", mwn->val);
 	    if (mwn->modval_written)
 		buf = buf_out (buf, &bufsize, L" =M");
+	    if (mwn->mustchange)
+		buf = buf_out (buf, &bufsize, L" C");
 	    buf = buf_out (buf, &bufsize, L"\n");
 	}
     }
@@ -1977,8 +1996,10 @@ static void memwatch (TCHAR **c)
 	    }
 	    ignore_ws (c);
 	    if (more_params (c)) {
-		if (_totupper(**c) == 'M') {
+		if (_totupper (**c) == 'M') {
 		    mwn->modval_written = 1;
+		} else if (_totupper (**c) == 'C') {
+		    mwn->mustchange = 1;
 		} else {
 		    mwn->val = readhex (c);
 		    mwn->val_enabled = 1;

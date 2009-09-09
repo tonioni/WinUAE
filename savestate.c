@@ -481,6 +481,10 @@ void restore_state (const TCHAR *filename)
 	else if (!_tcscmp (name, L"FPU "))
 	    end = restore_fpu (chunk);
 #endif
+#ifdef MMUEMU
+	else if (!_tcscmp (name, L"MMU "))
+	    end = restore_mmu (chunk);
+#endif
 	else if (!_tcscmp (name, L"AGAC"))
 	    end = restore_custom_agacolors (chunk);
 	else if (!_tcscmp (name, L"SPR0"))
@@ -707,6 +711,12 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 #ifdef FPUEMU
     dst = save_fpu (&len,0 );
     save_chunk (f, dst, len, L"FPU ", 0);
+    xfree (dst);
+#endif
+
+#ifdef MMUEMU
+    dst = save_mmu (&len, 0);
+    save_chunk (f, dst, len, L"MMU ", 0);
     xfree (dst);
 #endif
 
@@ -1303,8 +1313,10 @@ FPU (only if used)
 
 MMU (when and if MMU is supported in future..)
 
-	MMU model               4 (68851,68030,68040,68060)
+	"MMU "
 
+	MMU model               4 (68040)
+	flags			4 (none defined yet)
 
 CUSTOM CHIPS
 

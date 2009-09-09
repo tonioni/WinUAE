@@ -268,6 +268,11 @@ STATIC_INLINE int channel_pos (int cycles)
     return cycles;
 }
 
+int blitter_channel_state (void)
+{
+    return channel_state (blit_cyclecounter);
+}
+
 extern int is_bitplane_dma (int hpos);
 STATIC_INLINE int canblit (int hpos)
 {
@@ -296,7 +301,7 @@ static void blitter_interrupt (int hpos, int done)
 static void blitter_done (int hpos)
 {
     ddat1use = ddat2use = 0;
-    bltstate = blit_startcycles == 0 ? BLT_done : BLT_init;
+    bltstate = blit_startcycles == 0 || !currprefs.blitter_cycle_exact ? BLT_done : BLT_init;
     blitter_interrupt (hpos, 1);
     blitter_done_notify (hpos);
     if (debug_dma)
@@ -641,6 +646,8 @@ static void decide_blitter_line (int hsync, int hpos)
 	for (;;) {
 	    int v = canblit (last_blitter_hpos);
 
+	    blitter_nasty++;
+
 	    if (!v) {
 	        blit_misscyclecounter++;
 	        break;
@@ -648,6 +655,7 @@ static void decide_blitter_line (int hsync, int hpos)
 
 	    if ((!dmaen (DMA_BLITTER) || v <= 0) && (c == 3 || c == 4)) {
 	        blit_misscyclecounter++;
+		blitter_nasty++;
 		break;
 	    }
 
@@ -752,7 +760,6 @@ void blitter_handler (uae_u32 data)
     blitter_stuck = 0;
     if (blit_slowdown > 0 && !currprefs.immediate_blits) {
 	event2_newevent (ev2_blitter, blit_slowdown);
-	blit_misscyclecounter = blit_slowdown;
 	blit_slowdown = -1;
 	return;
     }
@@ -1317,7 +1324,7 @@ static void do_blitter2 (int hpos, int copper)
     if (currprefs.immediate_blits)
 	cycles = 1;
 
-    blit_cyclecounter = cycles * blit_diag[0]; 
+    blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
     event2_newevent (ev2_blitter, blit_cyclecounter);
 }
 
@@ -1351,7 +1358,7 @@ void maybe_blit (int hpos, int hack)
 #ifdef BLITTER_DEBUG_NOWAIT
 	warned = 10;
 	write_log (L"program does not wait for blitter PC=%08x\n", M68K_GETPC);
-	activate_debugger ();
+	//activate_debugger ();
 	//blitter_done (hpos);
 #endif
     }

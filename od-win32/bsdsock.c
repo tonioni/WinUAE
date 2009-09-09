@@ -561,7 +561,7 @@ int host_dup2socket(SB, int fd1, int fd2)
     if (s1 != INVALID_SOCKET) {
 		if (fd2 != -1) {
 		    if ((unsigned int) (fd2) >= (unsigned int) sb->dtablesize)  {
-				BSDTRACE (("Bad file descriptor (%d)\n", fd2));
+				BSDTRACE ((L"Bad file descriptor (%d)\n", fd2));
 				bsdsocklib_seterrno (sb, 9); /* EBADF */
 			}
 			fd2++;
@@ -833,54 +833,25 @@ static BOOL HandleStuff(void)
 			switch(sockreq.packet_type)
 			{
 				case connect_req:
-				sockreq.sb->resultval = connect(sockreq.s,(struct sockaddr *)(sockreq.params.connect_s.buf),sockreq.params.connect_s.namelen);
+					sockreq.sb->resultval = connect(sockreq.s,(struct sockaddr *)(sockreq.params.connect_s.buf),sockreq.params.connect_s.namelen);
 				break;
 				case sendto_req:
-				if(sockreq.params.sendto_s.to) {
-					sockreq.sb->resultval = sendto(sockreq.s,sockreq.params.sendto_s.realpt,sockreq.params.sendto_s.len,sockreq.params.sendto_s.flags,(struct sockaddr *)(sockreq.params.sendto_s.buf),sockreq.params.sendto_s.tolen);
-				} else {
-					sockreq.sb->resultval = send(sockreq.s,sockreq.params.sendto_s.realpt,sockreq.params.sendto_s.len,sockreq.params.sendto_s.flags);
-				}
+					if(sockreq.params.sendto_s.to) {
+						sockreq.sb->resultval = sendto(sockreq.s,sockreq.params.sendto_s.realpt,sockreq.params.sendto_s.len,sockreq.params.sendto_s.flags,(struct sockaddr *)(sockreq.params.sendto_s.buf),sockreq.params.sendto_s.tolen);
+					} else {
+						sockreq.sb->resultval = send(sockreq.s,sockreq.params.sendto_s.realpt,sockreq.params.sendto_s.len,sockreq.params.sendto_s.flags);
+					}
 				break;
 				case recvfrom_req:
-				{
-				    int len = sockreq.params.recvfrom_s.len;
-				    uae_u8 *p = sockreq.params.recvfrom_s.realpt;
-				    int flags = sockreq.params.recvfrom_s.flags;
-				    int waitall = sockreq.params.recvfrom_s.flags & 0x40;
-				    int result = -1;
-				    int got = 0;
-
-				    if (waitall)
-					flags &= ~0x40;
-				    for (;;) {
-					if (waitall && ((flags & MSG_PEEK) || (flags & MSG_OOB))) {
-					    result = -1;
-					    break;
-					}
 					if(sockreq.params.recvfrom_s.addr) {
-						result = recvfrom(sockreq.s, p, len,
-							flags, sockreq.params.recvfrom_s.rp_addr,
+						sockreq.sb->resultval = recvfrom(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
+							sockreq.params.recvfrom_s.flags, sockreq.params.recvfrom_s.rp_addr,
 							sockreq.params.recvfrom_s.hlen);
 
 					} else {
-						result = recv(sockreq.s, p, len, flags);
+						sockreq.sb->resultval = recv(sockreq.s, sockreq.params.recvfrom_s.realpt, sockreq.params.recvfrom_s.len,
+							sockreq.params.recvfrom_s.flags);
 					}
-					if (!waitall)
-					    break;
-					if (result < 0)
-					    break;
-					got += result;
-					p += result;
-					len -= result;
-					if (len <= 0 || result == 0) {
-					    result = got;
-					    break;
-					}
-
-				    }
-				    sockreq.sb->resultval = result;
-				}
 				break;
 				case abort_req:
 					*(sockreq.params.abort_s.newsock) = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
@@ -1214,6 +1185,7 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
     struct sockaddr *rp_addr = NULL;
     int hlen;
     unsigned int wMsg;
+	int waitall, waitallgot;
 
 #ifdef TRACING_ENABLED
     if (addr)
@@ -1240,6 +1212,10 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
 
 		BEGINBLOCKING;
 
+		waitall = flags & 0x40;
+		flags &= ~0x40;
+		waitallgot = 0;
+
 		for (;;) {
 
 			PREPARE_THREAD;
@@ -1255,34 +1231,54 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
 		    sockreq.params.recvfrom_s.rp_addr = rp_addr;
 
 		    TRIGGER_THREAD;
-		    if (sb->resultval == -1) {
-				if (sb->sb_errno == WSAEWOULDBLOCK - WSABASEERR && sb->ftable[sd-1] & SF_BLOCKING)
-			{
-		    if (sb->mtable[sd-1] || (wMsg = allocasyncmsg(sb,sd,s)) != 0) {
-				if (sb->mtable[sd-1] == 0) {
-					WSAAsyncSelect(s, hWndSelector ? hAmigaWnd : bsd->hSockWnd, wMsg, FD_READ|FD_CLOSE);
-				} else {
-					setWSAAsyncSelect(sb, sd, s, FD_READ|FD_CLOSE);
-				}
 
-				WAITSIGNAL;
-
-				if (sb->mtable[sd-1] == 0) {
-					cancelasyncmsg(context, wMsg);
-				} else {
-					setWSAAsyncSelect(sb, sd, s, 0);
+			if (waitall) {
+				if (sb->resultval > 0) {
+					int l = sb->resultval;
+					realpt += l;
+					len -= l;
+					waitallgot += l;
+					if (len <= 0) {
+						sb->resultval = waitallgot;
+						break;
+					} else {
+						sb->sb_errno = WSAEWOULDBLOCK - WSABASEERR;
+						sb->resultval = -1;
+					}
+				} else if (sb->resultval == 0) {
+					sb->resultval = waitallgot;
 				}
+			}
 
-				if (sb->eintr) {
-					BSDTRACE((L"[interrupted]\n"));
-					return;
-				}
-		    } else
+
+			if (sb->resultval == -1) {
+				if (sb->sb_errno == WSAEWOULDBLOCK - WSABASEERR && (sb->ftable[sd-1] & SF_BLOCKING)) {
+					if (sb->mtable[sd-1] || (wMsg = allocasyncmsg(sb,sd,s)) != 0) {
+						if (sb->mtable[sd-1] == 0) {
+							WSAAsyncSelect(s, hWndSelector ? hAmigaWnd : bsd->hSockWnd, wMsg, FD_READ|FD_CLOSE);
+						} else {
+							setWSAAsyncSelect(sb, sd, s, FD_READ|FD_CLOSE);
+						}
+
+						WAITSIGNAL;
+
+						if (sb->mtable[sd-1] == 0) {
+							cancelasyncmsg(context, wMsg);
+						} else {
+							setWSAAsyncSelect(sb, sd, s, 0);
+						}
+
+						if (sb->eintr) {
+							BSDTRACE((L"[interrupted]\n"));
+							return;
+						}
+
+					} else
+						break;
+				} else
+					break;
+			} else
 				break;
-		} else
-			break;
-	    } else
-			break;
 		}
 
 		ENDBLOCKING;

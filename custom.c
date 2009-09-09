@@ -4254,7 +4254,7 @@ static void update_copper (int until_hpos)
 	    vp1 = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 	    hp1 = c_hpos & (cop_state.saved_i2 & 0xFE);
 
-	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp)) && ((cop_state.saved_i2 & 0x8000) != 0 || ! (DMACONR (old_hpos) & 0x4000)))
+	    if ((vp1 > vcmp || (vp1 == vcmp && hp1 >= hcmp)) && ((cop_state.saved_i2 & 0x8000) != 0 || bltstate == BLT_done))
 		cop_state.ignore_next = 1;
 
 	    cop_state.state = COP_read1;
@@ -5794,6 +5794,8 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	 * and finally returns either all ones or something weird if DMA happens
 	 * in next (or previous) cycle.. FIXME.
 	 *
+	 * OCS-only special case: DFF000 (BLTDAT) will always return whatever was left in bus
+	 *
 	 * AGA:
 	 * only writes to custom registers change last value, read returns
 	 * last value which then changes to all ones (following read will return
@@ -5811,8 +5813,17 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	    if (currprefs.chipset_mask & CSMASK_AGA) {
 		v = l;
 		last_custom_value1 = 0xffff;
-	    } else {
+	    } else if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 		v = old;
+	    } else {
+		if ((addr & 0x1fe) == 0) {
+		    if (is_cycle_ce ())
+			v = old;
+		    else
+			v = l;
+		} else {
+		    v = old;
+		}
 	    }
 #if CUSTOM_DEBUG > 0
 	    write_log (L"%08X read = %04X. Value written=%04X PC=%08x\n", 0xdff000 | addr, v, l, M68K_GETPC);

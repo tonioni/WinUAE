@@ -30,7 +30,7 @@
 
 STATIC_INLINE int isinrom (void)
 {
-    return (munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000;
+    return (munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000 && !currprefs.mmu_model;
 }
 
 static uae_u32 xhex_pi[]    ={0x2168c235, 0xc90fdaa2, 0x4000};
@@ -764,7 +764,7 @@ STATIC_INLINE int get_fp_ad (uae_u32 opcode, uae_u32 * ad)
     return 1;
 }
 
-STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
+STATIC_INLINE int fpp_cond (int condition)
 {
     int N = (regs.fp_result < 0.0);
     int Z = (regs.fp_result == 0.0);
@@ -777,7 +777,7 @@ STATIC_INLINE int fpp_cond (uae_u32 opcode, int contition)
     if (NotANumber)
 	N=Z=0;
 
-    switch (contition) {
+    switch (condition) {
     case 0x00:
 	return 0;
     case 0x01:
@@ -860,7 +860,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	return;
 
     disp = (uae_s32) (uae_s16) next_iword_fpu ();
-    cc = fpp_cond (opcode, extra & 0x3f);
+    cc = fpp_cond (extra & 0x3f);
     if (cc == -1) {
 	fpu_op_illg (opcode, 4);
     } else if (!cc) {
@@ -885,7 +885,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
     if (fault_if_no_fpu (opcode, 4))
 	return;
 
-    cc = fpp_cond (opcode, extra & 0x3f);
+    cc = fpp_cond (extra & 0x3f);
      if (cc == -1) {
 	fpu_op_illg (opcode, 4);
     } else if ((opcode & 0x38) == 0) {
@@ -899,7 +899,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
     }
 }
 
-void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc)
+void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 {
     int cc;
 
@@ -910,7 +910,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc)
     if (fault_if_no_fpu (opcode, m68k_getpc() - oldpc))
 	return;
 
-    cc = fpp_cond (opcode, opcode & 0x3f);
+    cc = fpp_cond (extra & 0x3f);
     if (cc == -1) {
 	fpu_op_illg (opcode, m68k_getpc () - oldpc);
     }
@@ -929,7 +929,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr pc, uae_u32 extra)
     if (fault_if_no_fpu (opcode, m68k_getpc () - pc))
 	return;
 
-    cc = fpp_cond (opcode, opcode & 0x3f);
+    cc = fpp_cond (opcode & 0x3f);
     if (cc == -1) {
 	fpu_op_illg (opcode, m68k_getpc () - pc);
     } else if (cc) {
@@ -1708,7 +1708,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
     int i;
     uae_u32 flags;
 
-    changed_prefs.fpu_model = currprefs.fpu_model = restore_u32();
+    changed_prefs.fpu_model = currprefs.fpu_model = restore_u32 ();
     flags = restore_u32 ();
     for (i = 0; i < 8; i++) {
 	uae_u32 w1 = restore_u32 ();
@@ -1724,7 +1724,7 @@ uae_u8 *restore_fpu (uae_u8 *src)
 	restore_u32();
 	restore_u32();
     }
-    write_log (L"FPU=%d\n", currprefs.fpu_model);
+    write_log (L"FPU: %d\n", currprefs.fpu_model);
     return src;
 }
 
@@ -1739,7 +1739,7 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
     if (dstptr)
 	dstbak = dst = dstptr;
     else
-	dstbak = dst = (uae_u8*)malloc(4+4+8*10+4+4+4+4+4);
+	dstbak = dst = malloc (4+4+8*10+4+4+4+4+4);
     save_u32 (currprefs.fpu_model);
     save_u32 (0x80000000);
     for (i = 0; i < 8; i++) {

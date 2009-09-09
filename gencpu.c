@@ -41,8 +41,6 @@ static int count_read_ea, count_write_ea, count_cycles_ea;
 
 static int optimized_flags;
 
-static int cpulengths[65536];
-
 #define GF_APDI 1
 #define GF_AD8R 2
 #define GF_PC8R 4
@@ -61,6 +59,13 @@ static int *opcode_next_clev;
 static int *opcode_last_postfix;
 static unsigned long *counts;
 static int generate_stbl;
+
+#define GENA_GETV_NO_FETCH	0
+#define GENA_GETV_FETCH		1
+#define GENA_GETV_FETCH_ALIGN	2
+#define GENA_MOVEM_DO_INC	0
+#define GENA_MOVEM_NO_INC	1
+#define GENA_MOVEM_MOVE16	2
 
 static void read_counts (void)
 {
@@ -103,7 +108,7 @@ static int endlabelno = 0;
 static int need_endlabel;
 
 static int n_braces, limit_braces;
-static int m68k_pc_offset, m68k_pc_offset_sum;
+static int m68k_pc_offset;
 static int insn_n_cycles, insn_n_cycles020;
 
 static void fpulimit (void)
@@ -440,6 +445,21 @@ static void fill_prefetch_finish (void)
     fill_prefetch_1 (m68k_pc_offset);
 }
 
+static void setpc (const char *format, ...)
+{
+    va_list parms;
+    char buffer[1000];
+
+    va_start (parms, format);
+    _vsnprintf (buffer, 1000 - 1, format, parms);
+    va_end (parms);
+
+    if (using_mmu)
+	printf ("\tm68k_setpc_mmu (%s);\n", buffer);
+    else
+	printf ("\tm68k_setpc (%s);\n", buffer);
+}
+
 static void incpc (const char *format, ...)
 {
     va_list parms;
@@ -460,7 +480,15 @@ static void sync_m68k_pc (void)
     if (m68k_pc_offset == 0)
 	return;
     incpc ("%d", m68k_pc_offset);
-    m68k_pc_offset_sum += m68k_pc_offset;
+    m68k_pc_offset = 0;
+}
+
+static void gen_set_fault_pc (void)
+{
+    if (!using_mmu)
+	return;
+    sync_m68k_pc ();
+    printf ("\tregs.fault_pc = m68k_getpci ();\n");
     m68k_pc_offset = 0;
 }
 
@@ -839,6 +867,7 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
      case absl:
      case PC16:
      case PC8r:
+	gen_set_fault_pc ();
 	if (using_ce020) {
 	    switch (size) {
 	     case sz_byte:
@@ -1474,7 +1503,6 @@ static void gen_opcode (unsigned long int opcode)
     insn_n_cycles020 = 0;
 
     start_brace ();
-    m68k_pc_offset_sum = 0;
     m68k_pc_offset = 2;
     switch (curi->plev) {
     case 0: /* not privileged */
@@ -1816,8 +1844,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
     case i_CMPM:
-	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
+	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	fill_prefetch_next ();
 	start_brace ();
 	genflags (flag_cmp, curi->size, "newv", "src", "dst");
@@ -1968,6 +1997,7 @@ static void gen_opcode (unsigned long int opcode)
 	break;
     case i_TRAP:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+	gen_set_fault_pc ();
 	sync_m68k_pc ();
 	printf ("\tException (src + 32, 0);\n");
 	did_prefetch = 1;
@@ -2024,7 +2054,8 @@ static void gen_opcode (unsigned long int opcode)
 	if (cpu_level == 0) {
 	    genamode (Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
 	    genamode (Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
-	    printf ("\tregs.sr = sr; m68k_setpc (pc);\n");
+	    printf ("\tregs.sr = sr;\n");
+	    setpc ("pc");
 	    printf ("\tMakeFromSR ();\n");
 	} else {
 	    int old_brace_level = n_braces;
@@ -2040,25 +2071,41 @@ static void gen_opcode (unsigned long int opcode)
 	fill_prefetch_full ();
 	break;
     case i_RTD:
-	genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
-	genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
-	printf ("\tm68k_areg (regs, 7) += offs;\n");
-	printf ("\tif (pc & 1)\n");
-	printf ("\t\texception3 (0x%04X, m68k_getpc (), pc);\n", opcode);
-	printf ("\telse\n");
-	printf ("\t\tm68k_setpc (pc);\n");
+	if (using_mmu) {
+	    genamode (curi->smode, "srcreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+	    genamode (Aipi, "7", sz_long, "pc", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+	    printf ("\tm68k_areg(regs, 7) += offs;\n");
+	    setpc ("pc");
+	} else {
+	    genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
+	    genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
+	    printf ("\tm68k_areg (regs, 7) += offs;\n");
+	    printf ("\tif (pc & 1)\n");
+	    printf ("\t\texception3 (0x%04X, m68k_getpc (), pc);\n", opcode);
+	    printf ("\telse\n");
+	    setpc ("pc");
+	}
 	/* PC is set and prefetch filled. */
 	m68k_pc_offset = 0;
 	fill_prefetch_full ();
 	break;
     case i_LINK:
-	genamode (Apdi, "7", sz_long, "old", 2, 0, GF_AA);
-	genamode (curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
-	genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
-	genastore ("src", Apdi, "7", sz_long, "old");
-	genastore ("m68k_areg (regs, 7)", curi->smode, "srcreg", sz_long, "src");
-	printf ("\tm68k_areg (regs, 7) += offs;\n");
-	fill_prefetch_next ();
+	if (using_mmu) {
+	    genamode (curi->dmode, "dstreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+	    genamode (Apdi, "7", sz_long, "old", GENA_GETV_FETCH_ALIGN, GENA_MOVEM_DO_INC, 0);
+	    genamode (curi->smode, "srcreg", sz_long, "src", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
+	    genastore ("m68k_areg(regs, 7)", curi->smode, "srcreg", sz_long, "src");
+	    printf ("\tm68k_areg(regs, 7) += offs;\n");
+	    genastore ("src", Apdi, "7", sz_long, "old");
+	} else {
+	    genamode (Apdi, "7", sz_long, "old", 2, 0, GF_AA);
+	    genamode (curi->smode, "srcreg", sz_long, "src", 1, 0, GF_AA);
+	    genamode (curi->dmode, "dstreg", curi->size, "offs", 1, 0, 0);
+	    genastore ("src", Apdi, "7", sz_long, "old");
+	    genastore ("m68k_areg (regs, 7)", curi->smode, "srcreg", sz_long, "src");
+	    printf ("\tm68k_areg (regs, 7) += offs;\n");
+	    fill_prefetch_next ();
+	}
 	break;
     case i_UNLK:
 	genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
@@ -2095,7 +2142,8 @@ static void gen_opcode (unsigned long int opcode)
 	genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 	genamodef (Aipi, "7", sz_word, "sr", 1, 0, 0);
 	printf ("\tregs.sr &= 0xFF00; sr &= 0xFF;\n");
-	printf ("\tregs.sr |= sr; m68k_setpc (pc);\n");
+	printf ("\tregs.sr |= sr;\n");
+	setpc ("pc");
 	printf ("\tMakeFromSR ();\n");
 	m68k_pc_offset = 0;
 	fill_prefetch_full ();
@@ -2113,7 +2161,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
 	    addcycles000 (2);
-	printf ("\tm68k_setpc (srca);\n");
+	setpc ("srca");
 	m68k_pc_offset = 0;
 	fill_prefetch_1 (0);
 	if (curi->smode == Ad8r || curi->smode == PC8r)
@@ -2139,8 +2187,7 @@ static void gen_opcode (unsigned long int opcode)
 	}
 	if (curi->smode == Ad16 || curi->smode == Ad8r || curi->smode == absw || curi->smode == PC16 || curi->smode == PC8r)
 	    addcycles000 (2);
-//	if (using_ce && (curi->smode == Ad8r || curi->smode == PC8r))
-	printf ("\tm68k_setpc (srca);\n");
+	setpc ("srca");
 	m68k_pc_offset = 0;
 	fill_prefetch_full ();
     break;
@@ -2276,7 +2323,7 @@ static void gen_opcode (unsigned long int opcode)
 	addcycles000_2 ("\t\t", 2);
 	addcycles_ce020 (3);
 	printf ("\t}\n");
-	printf ("\tm68k_setpc (oldpc + %d);\n", m68k_pc_offset);
+	setpc ("oldpc + %d", m68k_pc_offset);
 	m68k_pc_offset = 0;
 	fill_prefetch_full ();
 	insn_n_cycles = 12;
@@ -2997,8 +3044,8 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\t} else {\n");
 	    genastore ("src", Dreg, "(extra >> 12) & 7", curi->size, "");
 	    printf ("\t}\n");
-	    pop_braces (old_brace_level);
 	    sync_m68k_pc ();
+	    pop_braces (old_brace_level);
 	}
     }
     break;
@@ -3022,8 +3069,6 @@ static void gen_opcode (unsigned long int opcode)
 	need_endlabel = 1;
 	break;
     case i_DIVL:
-	sync_m68k_pc ();
-	start_brace ();
 	printf ("\tuaecptr oldpc = m68k_getpc ();\n");
 	genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
@@ -3140,6 +3185,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\tm68k_areg (regs, srcreg) -= areg_byteinc[srcreg];\n");
 	    printf ("\tval = (val | ((uae_u16)%s (m68k_areg (regs, srcreg)) << 8)) + %s;\n", srcb, gen_nextiword (0));
 	    printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
+	    gen_set_fault_pc ();
 	    printf ("\t%s (m68k_areg (regs, dstreg),((val >> 4) & 0xf0) | (val & 0xf));\n", dstb);
 	}
 	break;
@@ -3161,6 +3207,7 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
 		printf ("\t%s (m68k_areg (regs, dstreg),val);\n", dstb);
 		printf ("\tm68k_areg (regs, dstreg) -= areg_byteinc[dstreg];\n");
+		gen_set_fault_pc ();
 		printf ("\t%s (m68k_areg (regs, dstreg),val >> 8);\n", dstb);
 	    }
 	}
@@ -3204,13 +3251,12 @@ static void gen_opcode (unsigned long int opcode)
 	break;
     case i_FTRAPcc:
 	fpulimit();
-	sync_m68k_pc ();
-	start_brace ();
 	printf ("\tuaecptr oldpc = m68k_getpc ();\n");
+	printf ("\tuae_u16 extra = %s;\n", gen_nextiword (0));
 	if (curi->smode != am_unknown && curi->smode != am_illg)
 	    genamode (curi->smode, "srcreg", curi->size, "dummy", 1, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tfpuop_trapcc (opcode, oldpc);\n");
+	printf ("\tfpuop_trapcc (opcode, oldpc, extra);\n");
 	break;
     case i_FBcc:
 	fpulimit();
@@ -3479,10 +3525,10 @@ static void generate_one_opcode (int rp)
     if (opcode_next_clev[rp] != cpu_level) {
 	char *name = ua (lookuptab[idx].name);
 	if (generate_stbl)
-	    fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d, %d }, /* %s */\n",
+	    fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d }, /* %s */\n",
 		(using_ce || using_ce020) ? "(cpuop_func*)" : "",
 		opcode, opcode_last_postfix[rp],
-		opcode, cpulengths[opcode], name);
+		opcode, name);
 	xfree (name);
 	return;
     }
@@ -3580,15 +3626,14 @@ static void generate_one_opcode (int rp)
 	printf("#endif\n");
     opcode_next_clev[rp] = next_cpu_level;
     opcode_last_postfix[rp] = postfix;
-    cpulengths[opcode] = m68k_pc_offset_sum;
 
     if (generate_stbl) {
 	char *name = ua (lookuptab[idx].name);
 	if (i68000)
 	    fprintf (stblfile, "#ifndef CPUEMU_68000_ONLY\n");
-	fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d, %d }, /* %s */\n",
+	fprintf (stblfile, "{ %sCPUFUNC(op_%04x_%d), %d }, /* %s */\n",
 	    (using_ce || using_ce020) ? "(cpuop_func*)" : "",
-	    opcode, postfix, opcode, m68k_pc_offset_sum, name);
+	    opcode, postfix, opcode, name);
 	if (i68000)
 	    fprintf (stblfile, "#endif\n");
 	xfree (name);

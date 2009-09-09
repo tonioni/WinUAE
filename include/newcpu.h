@@ -55,7 +55,6 @@ typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 struct cputbl {
     cpuop_func *handler;
     uae_u16 opcode;
-    int length;
 };
 
 #ifdef JIT
@@ -193,7 +192,7 @@ STATIC_INLINE void unset_special (uae_u32 x)
 STATIC_INLINE void m68k_setpc (uaecptr newpc)
 {
     regs.pc_p = regs.pc_oldp = get_real_address (newpc);
-    regs.pc = newpc;
+    regs.fault_pc = regs.pc = newpc;
 }
 
 STATIC_INLINE uaecptr m68k_getpc (void)
@@ -209,9 +208,14 @@ STATIC_INLINE uaecptr m68k_getpc_p (uae_u8 *p)
 
 #define m68k_incpc(o) ((regs).pc_p += (o))
 
+STATIC_INLINE void m68k_setpc_mmu (uaecptr newpc)
+{
+    regs.fault_pc = regs.pc = newpc;
+    regs.pc_p = regs.pc_oldp = 0;
+}
 STATIC_INLINE void m68k_setpci (uaecptr newpc)
 {
-    regs.pc = newpc;
+    regs.fault_pc = regs.pc = newpc;
 }
 STATIC_INLINE uaecptr m68k_getpci (void)
 {
@@ -334,7 +338,7 @@ extern void mmu_op30 (uaecptr, uae_u32, int, uaecptr);
 extern void fpuop_arithmetic(uae_u32, uae_u16);
 extern void fpuop_dbcc(uae_u32, uae_u16);
 extern void fpuop_scc(uae_u32, uae_u16);
-extern void fpuop_trapcc(uae_u32, uaecptr);
+extern void fpuop_trapcc(uae_u32, uaecptr, uae_u16);
 extern void fpuop_bcc(uae_u32, uaecptr, uae_u32);
 extern void fpuop_save(uae_u32);
 extern void fpuop_restore(uae_u32);
@@ -354,17 +358,17 @@ extern void fill_prefetch_slow (void);
 
 /* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
-extern const struct cputbl op_smalltbl_20_ff[];
+extern const struct cputbl op_smalltbl_20_ff[]; // CE
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
-extern const struct cputbl op_smalltbl_21_ff[];
+extern const struct cputbl op_smalltbl_21_ff[]; // CE
 extern const struct cputbl op_smalltbl_31_ff[]; // MMU
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
-extern const struct cputbl op_smalltbl_22_ff[];
+extern const struct cputbl op_smalltbl_22_ff[]; // CE
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
-extern const struct cputbl op_smalltbl_23_ff[];
+extern const struct cputbl op_smalltbl_23_ff[]; // CE
 /* 68010 */
 extern const struct cputbl op_smalltbl_4_ff[];
 /* 68000 */
@@ -373,12 +377,8 @@ extern const struct cputbl op_smalltbl_5_ff[];
 extern const struct cputbl op_smalltbl_11_ff[];
 /* 68000 slow but compatible and cycle-exact.  */
 extern const struct cputbl op_smalltbl_12_ff[];
-/* 68020 slow but compatible */
-extern const struct cputbl op_smalltbl_13_ff[];
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
-
-void newcpu_showstate (void);
 
 #ifdef JIT
 extern void flush_icache (uaecptr, int n);
