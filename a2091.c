@@ -104,6 +104,7 @@
 #define WD_CMD_TRANSFER_PAD	0x21
 #define WD_CMD_SBT_MODE		0x80
 
+/* paused or aborted interrupts */
 #define CSR_MSGIN	    0x20
 #define CSR_SDP		    0x21
 #define CSR_SEL_ABORT	    0x22

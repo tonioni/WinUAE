@@ -580,6 +580,6 @@ struct mmufixup
     int reg;
     uae_u32 value;
 };
-extern struct mmufixup mmufixup;
+extern struct mmufixup mmufixup[2];
 
 #endif /* CPUMMU_H */

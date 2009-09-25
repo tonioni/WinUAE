@@ -333,7 +333,7 @@ extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void m68k_do_rte (uae_u32 pc, uae_u16 opcode, uae_u16 sr, uae_u16 format);
 
 extern void mmu_op (uae_u32, uae_u32);
-extern void mmu_op30 (uaecptr, uae_u32, int, uaecptr);
+extern void mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);
 
 extern void fpuop_arithmetic(uae_u32, uae_u16);
 extern void fpuop_dbcc(uae_u32, uae_u16);

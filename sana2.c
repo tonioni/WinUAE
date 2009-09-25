@@ -223,7 +223,7 @@ struct priv_devstruct {
     int tmp;
 };
 
-static struct netdriverdata td[MAX_TOTAL_NET_DEVICES];
+static struct netdriverdata *td;
 static struct devstruct devst[MAX_TOTAL_NET_DEVICES];
 static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
@@ -391,7 +391,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
     if (dev->opencnt == 0) {
 	dev->unit = unit;
 	dev->sysdata = xcalloc (uaenet_getdatalenght(), 1);
-	if (!uaenet_open (dev->sysdata, pdev->td, dev, pdev->promiscuous)) {
+	if (!uaenet_open (dev->sysdata, pdev->td, dev, uaenet_gotdata, uaenet_getdata, pdev->promiscuous)) {
 	    xfree (dev->sysdata);
 	    dev->sysdata = NULL;
 	    return openfail (ioreq, IOERR_OPENFAIL);
@@ -886,7 +886,7 @@ static struct s2packet *createwritepacket (TrapContext *ctx, uaecptr request)
     return s2p;
 }
 
-int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
+static int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
 {
     int gotit;
     struct asyncreq *ar;
@@ -1620,8 +1620,8 @@ void netdev_install (void)
     if (log_net)
 	write_log (L"netdev_install(): 0x%x\n", here ());
 
-    uaenet_close_driver (td);
-    uaenet_open_driver (td);
+    uaenet_enumerate_free (td);
+    uaenet_enumerate (&td, NULL);
 
     ROM_netdev_resname = ds (getdevname());
     ROM_netdev_resid = ds (L"UAE net.device 0.2");

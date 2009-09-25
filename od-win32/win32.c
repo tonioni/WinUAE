@@ -2053,7 +2053,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, TCHAR *path, int *sizep, TCHAR
     if (!h) {
 	TCHAR path[MAX_DPATH];
 	_stprintf (path, L"%s..\\Player\\%s", start_path_exe, libname);
-	h = LoadLibrary (path);
+	h = WIN32_LoadLibrary2 (path);
 	if (!h) {
 	    TCHAR *afr = _wgetenv (L"AMIGAFOREVERROOT");
 	    if (afr) {
@@ -2061,26 +2061,33 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, TCHAR *path, int *sizep, TCHAR
 		_tcscpy (tmp, afr);
 		fixtrailing (tmp);
 		_stprintf (path, L"%sPlayer\\%s", tmp, libname);
-		h = LoadLibrary (path);
-		if (!h)
-		    return NULL;
+		h = WIN32_LoadLibrary2 (path);
 	    }
 	}
     }
+    if (!h)
+	return NULL;
     GetModuleFileName (h, name, MAX_DPATH);
+    //write_log (L"keydll: %s'\n", name);
     pfnGetKey = (PFN_GetKey)GetProcAddress (h, "GetKey");
+    //write_log (L"addr: %08x\n", pfnGetKey);
     if (pfnGetKey) {
 	size = pfnGetKey (NULL, 0);
 	*sizep = size;
+	//write_log (L"size: %d\n", size);
 	if (size > 0) {
+	    int gotsize, i;
 	    keybuf = xmalloc (size);
-	    if (pfnGetKey (keybuf, size) != size) {
+	    gotsize = pfnGetKey (keybuf, size);
+	    //write_log (L"gotsize: %d\n", gotsize);
+	    if (gotsize != size) {
 		xfree (keybuf);
 		keybuf = NULL;
 	    }
 	}
     }
     FreeLibrary (h);
+    //write_log (L"keybuf=%08x\n", keybuf);
     return keybuf;
 }
 
@@ -4144,6 +4151,23 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 	/* Create/Open the hWinUAEKey which points our config-info */
 	RegCreateKeyEx (HKEY_CURRENT_USER, L"Software\\Arabuusimiehet\\WinUAE", 0, L"", REG_OPTION_NON_VOLATILE,
 	    KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
+	if (hWinUAEKey == NULL) {
+	    FILE *f;
+	    TCHAR path[MAX_DPATH];
+	    TCHAR *posn;
+
+	    _tcscpy (path, _wpgmptr);
+	    if((posn = _tcsrchr (path, '\\')))
+		posn[1] = 0;
+	    _tcscat (path, L"winuae.ini");
+	    f = _tfopen (path, L"r");
+	    if (!f)
+		f = _tfopen (path, L"w");
+	    if (f) {
+		fclose (f);
+		reginitializeinit (path);
+	    }
+	}
     }
     if (regquerystr (NULL, L"Commandline", tmp, &size))
     	return parseargstrings (tmp, argv);
@@ -4635,16 +4659,21 @@ static void systraymenu (HWND hwnd)
     DestroyMenu (menu);
 }
 
-static void LLError(const TCHAR *s)
+static void LLError(HMODULE m, const TCHAR *s)
 {
-    DWORD err = GetLastError ();
-
+    DWORD err;
+    
+    if (m) {
+//	write_log (L"'%s' opened\n", s);
+	return;
+    }
+    err = GetLastError ();
     if (err == ERROR_MOD_NOT_FOUND || err == ERROR_DLL_NOT_FOUND)
 	return;
     write_log (L"%s failed to open %d\n", s, err);
 }
 
-HMODULE WIN32_LoadLibrary (const TCHAR *name)
+HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 {
     HMODULE m = NULL;
     TCHAR *newname;
@@ -4686,20 +4715,24 @@ HMODULE WIN32_LoadLibrary (const TCHAR *name)
 	if (s) {
 	    _stprintf (s, L"%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
 	    m = LoadLibrary (s);
-	    if (m)
+	    LLError(m, s);
+	    if (m) {
+		xfree (s);
 		goto end;
+	    }
 	    _stprintf (s, L"%s%s", start_path_exe, newname);
 	    m = LoadLibrary (s);
-	    if (m)
+	    LLError(m ,s);
+	    if (m) {
+		xfree (s);
 		goto end;
-	    _stprintf (s, L"%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
-	    LLError(s);
+	    }
 	    xfree (s);
 	}
 	m = LoadLibrary (newname);
+	LLError (m, newname);
 	if (m)
 	    goto end;
-	LLError (newname);
 #ifndef CPU_64_BIT
 	break;
 #endif
@@ -4708,6 +4741,17 @@ end:
     xfree (newname);
     return m;
 }
+HMODULE WIN32_LoadLibrary (const TCHAR *name)
+{
+    return WIN32_LoadLibrary_2 (name, TRUE);
+}
+HMODULE WIN32_LoadLibrary2 (const TCHAR *name)
+{
+    HMODULE m = LoadLibrary (name);
+    LLError (m, name);
+    return m;
+}
+
 
 int get_guid_target (uae_u8 *out)
 {

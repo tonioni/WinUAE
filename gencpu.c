@@ -59,6 +59,7 @@ static int *opcode_next_clev;
 static int *opcode_last_postfix;
 static unsigned long *counts;
 static int generate_stbl;
+static int fixupcnt;
 
 #define GENA_GETV_NO_FETCH	0
 #define GENA_GETV_FETCH		1
@@ -764,8 +765,8 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	switch (mode) {
 	case Aipi:
 	    if (fixup == 1) {
-		printf ("\tmmufixup.reg = %s;\n", reg);
-		printf ("\tmmufixup.value = m68k_areg (regs, %s);\n", reg);
+		printf ("\tmmufixup[%d].reg = %s;\n", fixupcnt, reg);
+		printf ("\tmmufixup[%d].value = m68k_areg (regs, %s);\n", fixupcnt, reg);
 	    }
 	    switch (size) {
 	    case sz_byte:
@@ -783,8 +784,8 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 	    break;
 	case Apdi:
 	    if (fixup == 1) {
-		printf ("\tmmufixup.reg = %s;\n", reg);
-		printf ("\tmmufixup.value = m68k_areg (regs, %s);\n", reg);
+		printf ("\tmmufixup[%d].reg = %s;\n", fixupcnt, reg);
+		printf ("\tmmufixup[%d].value = m68k_areg (regs, %s);\n", fixupcnt, reg);
 	    }
 	    printf ("\tm68k_areg (regs, %s) = %sa;\n", reg, name);
 	    break;
@@ -803,7 +804,7 @@ static void genamode_fixup (amodes mode, char *reg, wordsizes size, char *name, 
 	    {
 		case Aipi:
 		case Apdi:
-		printf ("\tmmufixup.reg = -1;\n");
+		printf ("\tmmufixup[0].reg = -1;\n", fixupcnt);
 		break;
 	    }
 	}
@@ -814,11 +815,11 @@ static void genamode (amodes mode, char *reg, wordsizes size, char *name, int ge
 {
     genamode2 (mode, reg, size, name, getv, movem, flags, 0, 0);
 }
-static void genamodex (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
+static void genamode_pre (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
 {
     genamode_fixup (mode, reg, size, name, getv, movem, flags, using_mmu ? 1 : 0);
 }
-static void genamodef (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
+static void genamode_post (amodes mode, char *reg, wordsizes size, char *name, int getv, int movem, int flags)
 {
     if (using_mmu)
 	genamode_fixup (mode, reg, size, name, getv, movem, flags, 2);
@@ -1621,9 +1622,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 	break;
     case i_SUBX:
-	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
-	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	if (curi->size == sz_long && isreg (curi->smode))
 	    addcycles000 (4);
 	if (!isreg (curi->smode))
@@ -1636,9 +1637,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
     case i_SBCD:
-	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
-	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	fill_prefetch_next ();
 	start_brace ();
 	printf ("\tuae_u16 newv_lo = (dst & 0xF) - (src & 0xF) - (GET_XFLG () ? 1 : 0);\n");
@@ -1702,9 +1703,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 	break;
     case i_ADDX:
-	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
-	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	if (curi->size == sz_long && isreg (curi->smode))
 	    addcycles000 (4);
 	if (!isreg (curi->smode))
@@ -1717,9 +1718,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 	break;
     case i_ABCD:
-	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
-	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	fill_prefetch_next ();
 	start_brace ();
 	printf ("\tuae_u16 newv_lo = (src & 0xF) + (dst & 0xF) + (GET_XFLG () ? 1 : 0);\n");
@@ -1844,9 +1845,9 @@ static void gen_opcode (unsigned long int opcode)
 	genastore ("dst", curi->dmode, "dstreg", curi->size, "dst");
 	break;
     case i_CMPM:
-	genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
-	genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
+	genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 	fill_prefetch_next ();
 	start_brace ();
 	genflags (flag_cmp, curi->size, "newv", "src", "dst");
@@ -1907,10 +1908,10 @@ static void gen_opcode (unsigned long int opcode)
 	      */
 	    int prefetch_done = 0;
 	    int dualprefetch = curi->dmode == absl && (curi->smode != Dreg && curi->smode != Areg && curi->smode != imm);
-	    genamodex (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+	    genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 	    /* MOVE.L dx,(ax) exception3 PC points to next instruction. hackhackhack */
 	    genamode_e3 (curi->dmode, "dstreg", curi->size, "dst", 2, 0, 1 | (dualprefetch ? GF_NOREFILL : 0), curi->smode == Dreg && curi->dmode == Aind ? 2 : 0);
-	    genamodef (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+	    genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 	    if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 		printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
 	    if (curi->dmode == Apdi) {
@@ -2138,9 +2139,9 @@ static void gen_opcode (unsigned long int opcode)
 	break;
     case i_RTR:
 	printf ("\tMakeSR ();\n");
-	genamodex (Aipi, "7", sz_word, "sr", 1, 0, 0);
+	genamode_pre (Aipi, "7", sz_word, "sr", 1, 0, 0);
 	genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
-	genamodef (Aipi, "7", sz_word, "sr", 1, 0, 0);
+	genamode_post (Aipi, "7", sz_word, "sr", 1, 0, 0);
 	printf ("\tregs.sr &= 0xFF00; sr &= 0xFF;\n");
 	printf ("\tregs.sr |= sr;\n");
 	setpc ("pc");
@@ -3345,12 +3346,15 @@ static void gen_opcode (unsigned long int opcode)
 	break;
     case i_MMUOP030:
 	printf ("\tuaecptr pc = m68k_getpc ();\n");
+	printf ("\tuae_u16 extra = get_word (pc + 2);\n");
+	m68k_pc_offset += 2;
+	sync_m68k_pc ();
 	if (curi->smode == Areg || curi->smode == Dreg)
 	    printf("\tuae_u16 extraa = 0;\n");
 	else
 	    genamode (curi->smode, "srcreg", curi->size, "extra", 0, 0, 0);
 	sync_m68k_pc ();
-	printf ("\tmmu_op30 (pc, opcode, 1, extraa);\n");
+	printf ("\tmmu_op30 (pc, opcode, extra, extraa);\n");
 	break;
     default:
 	abort ();

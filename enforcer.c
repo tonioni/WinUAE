@@ -16,6 +16,7 @@
 #include "custom.h"
 #include "newcpu.h"
 #include "uae.h"
+#include "xwin.h"
 #include "enforcer.h"
 
 #if defined(AHI)
@@ -42,7 +43,6 @@
 
 extern uae_u8 *natmem_offset;
 
-int flashscreen = 0;
 static int enforcer_installed = 0;
 int enforcermode = 0;
 static int enforcer_hit = 0; /* set to 1 if displaying the hit */
@@ -365,7 +365,7 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
     console_out (enforcer_buf);
     write_log (enforcer_buf);
     sleep_millis (5);
-    flashscreen = 30;
+    doflashscreen ();
 
   end:
     xfree (native_task_name);

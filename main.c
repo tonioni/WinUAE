@@ -43,6 +43,7 @@
 #include "filesys.h"
 #include "parallel.h"
 #include "a2091.h"
+#include "a2065.h"
 #include "ncr_scsi.h"
 #include "scsi.h"
 #include "sana2.h"
@@ -583,6 +584,9 @@ void reset_all_systems (void)
     scsi_reset ();
     scsidev_reset ();
     scsidev_start_threads ();
+#endif
+#ifdef A2065
+    a2065_reset ();
 #endif
 #ifdef SANA2
     netdev_reset ();

@@ -9,7 +9,7 @@
 #define GAYLE_LOG 0
 #define IDE_LOG 0
 #define MBRES_LOG 0
-#define PCMCIA_LOG 1
+#define PCMCIA_LOG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -156,12 +156,13 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 #define IDE_ADIDE 1
 
 #define MAX_IDE_MULTIPLE_SECTORS 128
+#define SECBUF_SIZE (512 * (MAX_IDE_MULTIPLE_SECTORS * 2))
 
 struct ide_hdf
 {
     struct hd_hardfiledata hdhfd;
 
-    uae_u8 secbuf[512 * (MAX_IDE_MULTIPLE_SECTORS * 2)];
+    uae_u8 secbuf[SECBUF_SIZE];
     int data_offset;
     int data_size;
     int data_multi;
@@ -172,6 +173,7 @@ struct ide_hdf
     int irq;
     int num;
     int type;
+    int blocksize;
 };
 
 static struct ide_hdf *idedrive[4];
@@ -361,7 +363,9 @@ static uae_u8 read_gayle_cs (void)
 
 static void ide_interrupt (void)
 {
-    ide->status |= IDE_STATUS_BSY;
+    if (ide_devcon & 2)
+	return;
+    //ide->status |= IDE_STATUS_BSY;
     ide->irq_delay = 2;
 }
 
@@ -386,15 +390,14 @@ static void ide_fail (void)
     ide_fail_err (IDE_ERR_ABRT);
 }
 
-static void ide_data_ready (int blocks)
+static void ide_data_ready (void)
 {
-    memset (ide->secbuf, 0, 512 * 256);
+    memset (ide->secbuf, 0, ide->blocksize);
     ide->data_offset = 0;
     ide->status |= IDE_STATUS_DRQ;
-    ide->data_size = blocks * 512;
+    ide->data_size = ide->blocksize;
     ide->data_multi = 1;
-    if (! (ide_devcon & 2))
-	ide_interrupt ();
+    ide_interrupt ();
 }
 
 static void ide_recalibrate (void)
@@ -415,25 +418,26 @@ static void ide_identify_drive (void)
 	ide_fail ();
 	return;
     }
-    memset (buf, 0, 512);
+    memset (buf, 0, ide->blocksize);
     if (IDE_LOG > 0)
 	write_log (L"IDE%d identify drive\n", ide->num);
-    ide_data_ready (1);
+    ide_data_ready ();
+    ide->data_size *= -1;
     pw (0, 1 << 6);
     pw (1, ide->hdhfd.cyls_def);
     pw (2, 0xc837);
     pw (3, ide->hdhfd.heads_def);
-    pw (4, 512 * ide->hdhfd.secspertrack_def);
-    pw (5, 512);
+    pw (4, ide->blocksize * ide->hdhfd.secspertrack_def);
+    pw (5, ide->blocksize);
     pw (6, ide->hdhfd.secspertrack_def);
     ps (10, L"68000", 20); /* serial */
     pw (20, 3);
-    pw (21, 512);
+    pw (21, ide->blocksize);
     pw (22, 4);
     ps (23, L"0.3", 8); /* firmware revision */
     _stprintf (tmp, L"UAE-IDE %s", ide->hdhfd.hfd.product_id);
     ps (27, tmp, 40); /* model */
-    pw (47, MAX_IDE_MULTIPLE_SECTORS); /* max sectors in multiple mode */
+    pw (47, MAX_IDE_MULTIPLE_SECTORS >> (ide->blocksize / 512 - 1)); /* max sectors in multiple mode */
     pw (48, 1);
     pw (49, (1 << 9) | (1 << 8)); /* LBA and DMA supported */
     pw (51, 0x200); /* PIO cycles */
@@ -447,7 +451,7 @@ static void ide_identify_drive (void)
     pw (58, (uae_u16)(totalsecs >> 16));
     v = idedrive[ide_drv]->multiple_mode;
     pw (59, (v > 0 ? 0x100 : 0) | v);
-    totalsecs = ide->hdhfd.size / 512;
+    totalsecs = ide->hdhfd.size / ide->blocksize;
     if (totalsecs > 0x0fffffff)
 	totalsecs = 0x0fffffff;
     pw (60, (uae_u16)totalsecs);
@@ -470,7 +474,7 @@ static void ide_identify_drive (void)
     pw (88, (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0)); /* UDMA modes */
     pw (93, (1 << 14) | (1 << 13) | (1 << 0));
     if (ide->lba48) {
-	totalsecs = ide->hdhfd.size / 512;
+	totalsecs = ide->hdhfd.size / ide->blocksize;
 	pw (100, (uae_u16)(totalsecs >> 0));
 	pw (101, (uae_u16)(totalsecs >> 16));
 	pw (102, (uae_u16)(totalsecs >> 32));
@@ -483,7 +487,7 @@ static void ide_initialize_drive_parameters (void)
     if (ide->hdhfd.size) {
 	ide->hdhfd.secspertrack = ide_nsector == 0 ? 256 : ide_nsector;
 	ide->hdhfd.heads = (ide_select & 15) + 1;
-	ide->hdhfd.cyls = (ide->hdhfd.size / 512) / (ide->hdhfd.secspertrack * ide->hdhfd.heads);
+	ide->hdhfd.cyls = (ide->hdhfd.size / ide->blocksize) / (ide->hdhfd.secspertrack * ide->hdhfd.heads);
 	if (ide->hdhfd.heads * ide->hdhfd.cyls * ide->hdhfd.secspertrack > 16515072 || ide->lba48) {
 	    ide->hdhfd.cyls = ide->hdhfd.cyls_def;
 	    ide->hdhfd.heads = ide->hdhfd.heads_def;
@@ -538,6 +542,18 @@ static int get_nsec (int lba48)
     else
 	return ide_nsector == 0 ? 256 : ide_nsector;
 }
+static void dec_nsec (int lba48, int v)
+{
+    if (lba48) {
+	uae_u16 nsec;
+	nsec = ide_nsector2 * 256 + ide_nsector;
+	ide_nsector -= v;
+	ide_nsector2 = nsec >> 8;
+	ide_nsector = nsec & 0xff;
+    } else {
+	ide_nsector -= v;
+    }
+}
 
 static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsigned int head, unsigned int sec, unsigned int inc, int lba48)
 {
@@ -575,7 +591,6 @@ static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsi
 	    ide_lcyl = (uae_u8)cyl;
 	}
     }
-    ide_nsector = 0;
 }
 
 static void ide_read_sectors (int flags)
@@ -594,24 +609,16 @@ static void ide_read_sectors (int flags)
     get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
     if (IDE_LOG > 0)
 	write_log (L"IDE%d read off=%d, sec=%d (%d) lba%d\n", ide->num, (uae_u32)lba, nsec, ide->multiple_mode, lba48 ? 48 : 28);
-    if (multi && ide->multiple_mode > nsec)
-	nsec = ide->multiple_mode;
-    if (lba * 512 >= ide->hdhfd.size) {
-        ide_data_ready (1);
+    if (lba * ide->blocksize >= ide->hdhfd.size) {
+        ide_data_ready ();
 	ide_fail_err (IDE_ERR_IDNF);
 	return;
     }
-    if (nsec * 512 > ide->hdhfd.size - lba * 512)
-	nsec = (ide->hdhfd.size - lba * 512) / 512;
-    if (nsec <= 0) {
-        ide_data_ready (1);
-	ide_fail_err (IDE_ERR_IDNF);
-	return;
-    }
-    ide_data_ready (nsec);
-    hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * 512, nsec * 512);
-    put_lbachs (ide, lba, cyl, head, sec, nsec, lba48);
     ide->data_multi = multi ? ide->multiple_mode : 1;
+    ide->data_offset = 0;
+    ide->status |= IDE_STATUS_DRQ;
+    ide->data_size = nsec * ide->blocksize;
+    ide_interrupt ();
 }
 
 static void ide_write_sectors (int flags)
@@ -628,22 +635,25 @@ static void ide_write_sectors (int flags)
     gui_hd_led (ide->num, 2);
     nsec = get_nsec (lba48);
     get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
-    if (lba * 512 >= ide->hdhfd.size) {
-        ide_data_ready (1);
+    if (lba * ide->blocksize >= ide->hdhfd.size) {
+        ide_data_ready ();
 	ide_fail_err (IDE_ERR_IDNF);
 	return;
     }
     if (IDE_LOG > 0)
 	write_log (L"IDE%d write off=%d, sec=%d (%d) lba%d\n", ide->num, (uae_u32)lba, nsec, ide->multiple_mode, lba48 ? 48 : 28);
-    if (nsec * 512 > ide->hdhfd.size - lba * 512)
-	nsec = (ide->hdhfd.size - lba * 512) / 512;
+    if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
+	nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
     if (nsec <= 0) {
-        ide_data_ready (1);
+        ide_data_ready ();
 	ide_fail_err (IDE_ERR_IDNF);
 	return;
     }
-    ide_data_ready (nsec);
     ide->data_multi = multi ? ide->multiple_mode : 1;
+    ide->data_offset = 0;
+    ide->status |= IDE_STATUS_DRQ;
+    ide->data_size = nsec * ide->blocksize;
+    ide->data_multi = 1;
 }
 
 static void ide_do_command (uae_u8 cmd)
@@ -703,6 +713,8 @@ static uae_u16 ide_get_data (void)
     int irq = 0;
     uae_u16 v;
 
+    if (IDE_LOG > 4)
+	write_log (L"IDE%d DATA read\n", ide->num);
     if (ide->data_size == 0) {
 	if (IDE_LOG > 0)
 	    write_log (L"IDE%d DATA read without DRQ!?\n", ide->num);
@@ -710,23 +722,73 @@ static uae_u16 ide_get_data (void)
 	    return 0xffff;
 	return 0;
     }
+    if (ide->data_offset == 0 && ide->data_size >= 0) {
+	unsigned int cyl, head, sec, nsec;
+	uae_u64 lba;
+
+	nsec = get_nsec (ide->lba48);
+	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
+	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
+	    nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
+	if (nsec <= 0) {
+	    ide_data_ready ();
+	    ide_fail_err (IDE_ERR_IDNF);
+	    return 0;
+	}
+	if (nsec > ide->data_multi)
+	    nsec = ide->data_multi;
+	hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
+	put_lbachs (ide, lba, cyl, head, sec, nsec, ide->lba48);
+	dec_nsec (ide->lba48, nsec);
+	if (IDE_LOG > 1)
+	    write_log (L"IDE%d read, read %d bytes to buffer\n", ide->num, nsec * ide->blocksize);
+    }
+
     v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
     ide->data_offset += 2;
-    ide->data_size -= 2;
-    if (((ide->data_offset % 512) == 0) && ((ide->data_offset / 512) % ide->data_multi) == 0)
+    if (ide->data_size >= 0)
+	ide->data_size -= 2;
+    else
+	ide->data_size += 2;
+    if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
 	irq = 1;
+	ide->data_offset = 0;
+    }
     if (ide->data_size == 0) {
 	irq = 1;
 	ide->status &= ~IDE_STATUS_DRQ;
+	if (IDE_LOG > 1)
+	    write_log (L"IDE%d read finished\n", ide->num);
     }
-    if (irq)
+    if (irq) {
 	ide_interrupt ();
+    }
     return v;
 }
+
+static void ide_write_drive (void)
+{
+    unsigned int cyl, head, sec, nsec;
+    uae_u64 lba;
+
+    nsec = ide->data_offset / ide->blocksize;
+    if (!nsec)
+	return;
+    get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
+    hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, ide->data_offset);
+    put_lbachs (ide, lba, cyl, head, sec, nsec, ide->lba48);
+    dec_nsec (ide->lba48, nsec);
+    if (IDE_LOG > 1)
+        write_log (L"IDE%d write interrupt, %d bytes written\n", ide->num, ide->data_offset);
+    ide->data_offset = 0;
+}
+
 static void ide_put_data (uae_u16 v)
 {
     int irq = 0;
 
+    if (IDE_LOG > 4)
+	write_log (L"IDE%d DATA write %04x %d/%d\n", ide->num, v, ide->data_offset, ide->data_size);
     if (ide->data_size == 0) {
 	if (IDE_LOG > 0)
 	    write_log (L"IDE%d DATA write without DRQ!?\n", ide->num);
@@ -736,22 +798,15 @@ static void ide_put_data (uae_u16 v)
     ide->secbuf[ide->data_offset + 0] = v >> 8;
     ide->data_offset += 2;
     ide->data_size -= 2;
-    if (((ide->data_offset % 512) == 0) && ((ide->data_offset / 512) % ide->data_multi) == 0) {
-	if (IDE_LOG > 0)
-	    write_log (L"IDE%d write interrupt, %d total bytes transferred so far\n", ide->num, ide->data_offset);
+    if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
 	irq = 1;
+	ide_write_drive ();
     }
     if (ide->data_size == 0) {
-	unsigned int cyl, head, sec, nsec;
-	uae_u64 lba;
-
+	ide_write_drive ();
 	ide->status &= ~IDE_STATUS_DRQ;
-	nsec = ide->data_offset / 512;
-	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
-	if (IDE_LOG > 0)
-	    write_log (L"IDE%d write finished, %d bytes (%d) written\n", ide->num, ide->data_offset, ide->data_offset / 512);
-	hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * 512, ide->data_offset);
-	put_lbachs (ide, lba, cyl, head, sec, nsec, ide->lba48);
+        if (IDE_LOG > 1)
+	    write_log (L"IDE%d write finished\n", ide->num);
 	irq = 1;
     }
     if (irq)
@@ -783,7 +838,7 @@ static uae_u32 ide_read (uaecptr addr)
     uae_u8 v = 0;
 
     addr &= 0xffff;
-    if (IDE_LOG > 2 && addr != 0x2000 && addr != 0x2001 && addr != 0x2020 && addr != 0x2021 && addr != GAYLE_IRQ_1200)
+    if ((IDE_LOG > 2 && (addr != 0x2000 && addr != 0x2001 && addr != 0x2020 && addr != 0x2021 && addr != GAYLE_IRQ_1200)) || IDE_LOG > 4)
 	write_log (L"IDE_READ %08X PC=%X\n", addr, M68K_GETPC);
     if (currprefs.cs_ide <= 0) {
 	if (addr == 0x201c) // AR1200 IDE detection hack
@@ -860,7 +915,7 @@ static uae_u32 ide_read (uaecptr addr)
 		    v |= IDE_STATUS_ERR;
 	    } else {
 		v = ide->status;
-		v |= IDE_STATUS_DRDY;
+		v |= IDE_STATUS_DRDY | IDE_STATUS_DSC;
 	    }
 	break;
     }
@@ -873,7 +928,7 @@ static void ide_write (uaecptr addr, uae_u32 val)
 {
     int ide_reg;
 
-    if (IDE_LOG > 2 && addr != 0x2000 && addr != 0x2001 && addr != 0x2020 && addr != 0x2021 && addr != GAYLE_IRQ_1200)
+    if ((IDE_LOG > 2 && (addr != 0x2000 && addr != 0x2001 && addr != 0x2020 && addr != 0x2021 && addr != GAYLE_IRQ_1200)) || IDE_LOG > 4)
 	write_log (L"IDE_WRITE %08X=%02X PC=%X\n", addr, (uae_u32)val & 0xff, M68K_GETPC);
     if (currprefs.cs_ide <= 0)
 	return;
@@ -1819,6 +1874,7 @@ int gayle_add_ide_unit (int ch, TCHAR *path, int blocksize, int readonly,
     ide = idedrive[ch];
     if (!hdf_hd_open (&ide->hdhfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
 	return -1;
+    ide->blocksize = blocksize;
     ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
     write_log (L"GAYLE_IDE%d '%s', CHS=%d,%d,%d. %uM. LBA48=%d\n",
 	ch, path, ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack, (int)(ide->hdhfd.size / (1024 * 1024)), ide->lba48);

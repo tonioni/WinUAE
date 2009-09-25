@@ -794,6 +794,7 @@ static void recursor (void)
 
 static void setconvert (void)
 {
+    static int ohost_mode, orgbformat;
     int d = picasso_vidinfo.pixbytes;
     int v;
 
@@ -891,7 +892,11 @@ static void setconvert (void)
 	alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
     else
 	alloc_colors_rgb (5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
-    write_log (L"RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
+    if (host_mode != ohost_mode || picasso96_state.RGBFormat != orgbformat) {
+	write_log (L"RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
+	ohost_mode = host_mode;
+	orgbformat = picasso96_state.RGBFormat;
+    }
     recursor ();
     full_refresh = 1;
 }
@@ -4081,6 +4086,9 @@ static void flushpixels (void)
     if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
 	return;
 
+    if (flashscreen) {
+	full_refresh = 1;
+    }
     if (full_refresh)
 	full_refresh = -1;
 
@@ -4137,7 +4145,10 @@ static void flushpixels (void)
 	    break;
 
         if (dofull) {
-	    copyall (src + off, dst);
+	    if (flashscreen != 0)
+		copyallinvert (src + off, dst);
+	    else
+		copyall (src + off, dst);
 	    miny = 0;
 	    maxy = picasso96_state.Height;
 	    break;

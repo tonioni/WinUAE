@@ -597,6 +597,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     }
 
     cfgfile_write_bool (f, L"bsdsocket_emu", p->socket_emu);
+    if (p->a2065name[0])
+	cfgfile_write_str (f, L"a2065", p->a2065name);
 
     cfgfile_write_bool (f, L"synchronize_clock", p->tod_hack);
     cfgfile_write (f, L"maprom", L"0x%x", p->maprom);
@@ -1520,7 +1522,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	return 1;
     }
 
-    if (cfgfile_string (option, value, L"cpu_multiplier", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
+    if (cfgfile_string (option, value, L"cpu_multiplier", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 	p->cpu_clock_multiplier = (int)(_tstof (tmpbuf) * 256.0);
 	return 1;
     }
@@ -1536,6 +1538,10 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	    p->cs_mbdmac = 2;
 	return 1;
     }
+    
+    if (cfgfile_string (option, value, L"a2065", p->a2065name, sizeof p->a2065name / sizeof (TCHAR)))
+	return 1;
+
     if (cfgfile_yesno (option, value, L"immediate_blits", &p->immediate_blits)
 	|| cfgfile_yesno (option, value, L"cd32cd", &p->cs_cd32cd)
 	|| cfgfile_yesno (option, value, L"cd32c2p", &p->cs_cd32c2p)
@@ -2857,7 +2863,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 			else
 			    p = _tcschr (tmp, '=');
 			if (p) {
-			    for (i = 0; i < outsize - 1; i++) {
+			    for (i = 0; out && i < outsize - 1; i++) {
 				TCHAR b = *++p;
 				out[i] = b;
 				out[i + 1] = 0;
@@ -2878,7 +2884,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 	    }
 	}
 	err = 0xffffffff;
-	for (i = 0; i < outsize - 1; i++) {
+	for (i = 0; out && i < outsize - 1; i++) {
 	    uae_u8 b = 0;
 	    if (zfile_fread (&b, 1, 1, configstore) != 1)
 		err = 0;
@@ -2945,16 +2951,24 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
     int i, ret;
     TCHAR *out_p = NULL, *parms_in = NULL;
 
-    put_byte (out, 0);
+    if (out)
+	put_byte (out, 0);
+    if (size == 0) {
+	while (get_byte (parms + size) != 0)
+	    size++;
+    }
     parms_p = xmalloc (size + 1);
     if (!parms_p) {
 	ret = 10;
 	goto end;
     }
-    out_p = xmalloc ((outsize + 1) * sizeof (TCHAR));
-    if (!out_p) {
-	ret = 10;
-	goto end;
+    if (out) {
+	out_p = xmalloc ((outsize + 1) * sizeof (TCHAR));
+	if (!out_p) {
+	    ret = 10;
+	    goto end;
+	}
+	out_p[0] = 0;
     }
     p = parms_p;
     for (i = 0; i < size; i++) {
@@ -2963,18 +2977,19 @@ uae_u32 cfgfile_uaelib_modify (uae_u32 index, uae_u32 parms, uae_u32 size, uae_u
 	    break;
     }
     p[i] = 0;
-    out_p[0] = 0;
     parms_in = au (parms_p);
     ret = cfgfile_modify (index, parms_in, size, out_p, outsize);
     xfree (parms_in);
-    parms_out = ua (out_p);
-    p = parms_out;
-    for (i = 0; i < outsize - 1; i++) {
-	uae_u8 b = *p++;
-	put_byte (out + i, b);
-	put_byte (out + i + 1, 0);
-	if (!b)
-	    break;
+    if (out) {
+	parms_out = ua (out_p);
+	p = parms_out;
+	for (i = 0; i < outsize - 1; i++) {
+	    uae_u8 b = *p++;
+	    put_byte (out + i, b);
+	    put_byte (out + i + 1, 0);
+	    if (!b)
+		break;
+	}
     }
     xfree (parms_out);
 end:

@@ -26,6 +26,8 @@ extern void toggle_fullscreen (void);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern int vsync_switchmode (int, int);
+extern void doflashscreen (void);
+extern int flashscreen;
 
 extern void flush_line (int);
 extern void flush_block (int, int);

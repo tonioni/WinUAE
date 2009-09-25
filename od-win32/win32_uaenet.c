@@ -26,6 +26,8 @@
 #include "win32_uaenet.h"
 #include "win32.h"
 
+static struct netdriverdata tds[MAX_TOTAL_NET_DEVICES];
+static int enumerated;
 
 struct uaenetdatawin32
 {
@@ -49,6 +51,8 @@ struct uaenetdatawin32
 
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_t *fp;
+    uaenet_gotfunc *gotfunc;
+    uaenet_getfunc *getfunc;
 };
 
 int uaenet_getdatalenght (void)
@@ -152,7 +156,7 @@ static void *uaenet_trap_threadr (void *arg)
 	r = pcap_next_ex (sd->fp, &header, &pkt_data);
 	if (r == 1) {
 	    uae_sem_wait (&sd->change_sem);
-	    uaenet_gotdata (sd->user, pkt_data, header->len);
+	    sd->gotfunc (sd->user, pkt_data, header->len);
 	    uae_sem_post (&sd->change_sem);
 	}
 	if (r < 0) {
@@ -174,9 +178,9 @@ static void *uaenet_trap_threadw (void *arg)
     uae_sem_post (&sd->sync_semw);
     while (sd->threadactivew == 1) {
 	int donotwait = 0;
-        int towrite;
+	int towrite = sd->mtu;
 	uae_sem_wait (&sd->change_sem);
-	if (uaenet_getdata (sd->user, sd->writebuffer, &towrite)) {
+	if (sd->getfunc (sd->user, sd->writebuffer, &towrite)) {
 	    pcap_sendpacket (sd->fp, sd->writebuffer, towrite);
 	    donotwait = 1;
 	}
@@ -196,7 +200,7 @@ void uaenet_trigger (struct uaenetdatawin32 *sd)
     SetEvent (sd->evttw);
 }
 
-int uaenet_open (struct uaenetdatawin32 *sd, struct netdriverdata *tc, void *user, int promiscuous)
+int uaenet_open (struct uaenetdatawin32 *sd, struct netdriverdata *tc, void *user, uaenet_gotfunc *gotfunc, uaenet_getfunc *getfunc, int promiscuous)
 {
     char *s;
 
@@ -218,6 +222,8 @@ int uaenet_open (struct uaenetdatawin32 *sd, struct netdriverdata *tc, void *use
     sd->mtu = tc->mtu;
     sd->readbuffer = xmalloc (sd->mtu);
     sd->writebuffer = xmalloc (sd->mtu);
+    sd->gotfunc = gotfunc;
+    sd->getfunc = getfunc;
 
     uae_sem_init (&sd->change_sem, 0, 1);
     uae_sem_init (&sd->sync_semr, 0, 0);
@@ -266,44 +272,81 @@ void uaenet_close (struct uaenetdatawin32 *sd)
     write_log (L"uaenet_win32 closed\n");
 }
 
-
-int uaenet_open_driver (struct netdriverdata *tcp)
+void uaenet_enumerate_free (struct netdriverdata *tcp)
 {
+    int i;
+
+    if (!tcp)
+	return;
+    for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
+	xfree (tcp[i].name);
+	xfree (tcp[i].desc);
+	tcp[i].name = NULL;
+	tcp[i].desc = NULL;
+	tcp[i].active = 0;
+    }
+}
+
+static struct netdriverdata *enumit (const TCHAR *name)
+{
+    int cnt;
+    for (cnt = 0; cnt < MAX_TOTAL_NET_DEVICES; cnt++) {
+	TCHAR mac[20];
+	struct netdriverdata *tc = tds + cnt;
+	_stprintf (mac, L"%02X:%02X:%02X:%02X:%02X:%02X",
+	    tc->mac[0], tc->mac[1], tc->mac[2], tc->mac[3], tc->mac[4], tc->mac[5]);
+	if (tc->active && name && (!_tcsicmp (name, tc->name) || !_tcsicmp (name, mac)))
+	    return tc;
+    }
+    return NULL;
+}
+
+struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR *name)
+{
+    static int done;
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_if_t *alldevs, *d;
     int cnt;
     HMODULE hm;
     LPADAPTER lpAdapter = 0;
     PPACKET_OID_DATA OidData;
-    struct netdriverdata *tc;
+    struct netdriverdata *tc, *tcp;
     pcap_t *fp;
     int val;
     TCHAR *ss;
 
+    if (enumerated) {
+	if (out)
+	    *out = tds;
+	return enumit (name);
+    }
+    tcp = tds;
     hm = LoadLibrary (L"wpcap.dll");
     if (hm == NULL) {
 	write_log (L"uaenet: winpcap not installed (wpcap.dll)\n");
-	return 0;
+	return NULL;
     }
     FreeLibrary (hm);
     hm = LoadLibrary (L"packet.dll");
     if (hm == NULL) {
 	write_log (L"uaenet: winpcap not installed (packet.dll)\n");
-	return 0;
+	return NULL;
     }
     FreeLibrary (hm);
     ss = au (pcap_lib_version ());
-    write_log (L"uaenet: %s\n", ss);
+    if (!done)
+	write_log (L"uaenet: %s\n", ss);
     xfree (ss);
 
     if (pcap_findalldevs_ex (PCAP_SRC_IF_STRING, NULL, &alldevs, errbuf) == -1) {
 	ss = au (errbuf);
 	write_log (L"uaenet: failed to get interfaces: %s\n", ss);
 	xfree (ss);
-	return 0;
+	return NULL;
     }
 
-    write_log (L"uaenet: detecting interfaces\n");
+    if (!done)
+	write_log (L"uaenet: detecting interfaces\n");
     for(cnt = 0, d = alldevs; d != NULL; d = d->next) {
 	char *n2;
 	TCHAR *ss2;
@@ -332,28 +375,31 @@ int uaenet_open_driver (struct netdriverdata *tcp)
 	val = pcap_datalink (fp);
 	pcap_close (fp);
 	if (val != DLT_EN10MB) {
-	    write_log (L"- not an ethernet adapter (%d)\n", val);
+	    if (!done)
+		write_log (L"- not an ethernet adapter (%d)\n", val);
 	    continue;
 	}
 
 	lpAdapter = PacketOpenAdapter (n2 + strlen (PCAP_SRC_IF_STRING));
 	if (lpAdapter == NULL) {
-	    write_log (L"- PacketOpenAdapter() failed\n");
+	    if (!done)
+		write_log (L"- PacketOpenAdapter() failed\n");
 	    continue;
 	}
-	OidData = calloc(6 + sizeof(PACKET_OID_DATA), 1);
+	OidData = calloc (6 + sizeof(PACKET_OID_DATA), 1);
 	if (OidData) {
 	    OidData->Length = 6;
 	    OidData->Oid = OID_802_3_CURRENT_ADDRESS;
 	    if (PacketRequest (lpAdapter, FALSE, OidData)) {
 		memcpy (tc->mac, OidData->Data, 6);
-		write_log (L"- MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
-		    tc->mac[0], tc->mac[1], tc->mac[2],
-		    tc->mac[3], tc->mac[4], tc->mac[5]);
-		write_log (L"- mapped as uaenet.device:%d\n", cnt++);
+		if (!done)
+		    write_log (L"- MAC %02X:%02X:%02X:%02X:%02X:%02X (%d)\n",
+			tc->mac[0], tc->mac[1], tc->mac[2],
+			tc->mac[3], tc->mac[4], tc->mac[5], cnt++);
 		tc->active = 1;
 		tc->mtu = 1500;
 		tc->name = au (d->name);
+		tc->desc = au (d->description);
 	    } else {
 		write_log (L" - failed to get MAC\n");
 	    }
@@ -361,15 +407,22 @@ int uaenet_open_driver (struct netdriverdata *tcp)
 	}
         PacketCloseAdapter (lpAdapter);
     }
-    write_log (L"uaenet: end of detection\n");
-    pcap_freealldevs(alldevs);
-    return 0;
+    if (!done)
+	write_log (L"uaenet: end of detection\n");
+    done = 1;
+    pcap_freealldevs (alldevs);
+    enumerated = 1;
+    if (out)
+        *out = tds;
+    return enumit (name);
 }
 
 void uaenet_close_driver (struct netdriverdata *tc)
 {
     int i;
 
+    if (!tc)
+	return;
     for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
 	tc[i].active = 0;
     }

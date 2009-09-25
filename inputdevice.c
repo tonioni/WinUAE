@@ -158,7 +158,7 @@ int inprec_open (TCHAR *fname, int record)
 	zfile_fseek (inprec_zf, 0, SEEK_END);
 	inprec_size = zfile_ftell (inprec_zf);
 	zfile_fseek (inprec_zf, 0, SEEK_SET);
-	inprec_buffer = inprec_p = (uae_u8*)xmalloc (inprec_size);
+	inprec_buffer = inprec_p = xmalloc (inprec_size);
 	zfile_fread (inprec_buffer, inprec_size, 1, inprec_zf);
 	inprec_plastptr = inprec_buffer;
 	id = inprec_pu32();

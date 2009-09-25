@@ -266,6 +266,7 @@ struct uae_prefs {
     TCHAR prtname[256];
     TCHAR sername[256];
     TCHAR amaxromfile[MAX_DPATH];
+    TCHAR a2065name[MAX_DPATH];
 
     TCHAR path_floppy[256];
     TCHAR path_hardfile[256];

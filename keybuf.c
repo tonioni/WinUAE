@@ -227,8 +227,8 @@ void keybuf_init (void)
 uae_u8 *save_keyboard (int *len)
 {
     uae_u8 *dst, *t;
-    dst = t = (uae_u8*)malloc (8);
-    save_u32 (getcapslockstate() ? 1 : 0);
+    dst = t = xmalloc (8);
+    save_u32 (getcapslockstate () ? 1 : 0);
     save_u32 (0);
     *len = 8;
     return t;

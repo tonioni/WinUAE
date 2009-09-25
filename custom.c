@@ -49,6 +49,7 @@
 #include "gayle.h"
 #include "gfxfilter.h"
 #include "a2091.h"
+#include "a2065.h"
 #include "ncr_scsi.h"
 
 #define CUSTOM_DEBUG 0
@@ -3188,7 +3189,7 @@ void INTREQ_0 (uae_u16 v)
 
     if (use_eventmode ())
 	prepare_interrupt ();
-    if (v & (0x80|0x100|0x200|0x400))
+    if (v & (0x80 | 0x100 | 0x200 | 0x400))
 	audio_update_irq (v);
     setclr (&intreq, v);
     intreqr = intreq;
@@ -3200,6 +3201,9 @@ void INTREQ (uae_u16 data)
     INTREQ_0 (data);
     serial_check_irq ();
     rethink_cias ();
+#ifdef A2065
+    rethink_a2065 ();
+#endif
 #ifdef A2091
     rethink_a2091 ();
 #endif
@@ -5053,6 +5057,9 @@ static void hsync_handler (void)
 	    lightpen_triggered = 1;
 	}
     }
+#ifdef A2065
+    a2065_hsync_handler ();
+#endif
 #ifdef CD32
     AKIKO_hsync_handler ();
 #endif

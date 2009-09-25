@@ -1125,7 +1125,7 @@ static void blit_bltset (int con)
     // non-extra cycle to extra cycle: does not freeze but cycle diagram goes weird,
     // extra free cycle changes to another D write..
     // (Absolute Inebriation vector cube inside semi-filled vector object requires freezing blitter.)
-    if (bltstate != BLT_done) {
+    if (!savestate_state && bltstate != BLT_done) {
 	static int freezes = 10;
 	int isen = blit_diag >= &blit_cycle_diagram_fill[0][0] && blit_diag <= &blit_cycle_diagram_fill[15][0];
 	int iseo = olddiag >= &blit_cycle_diagram_fill[0][0] && olddiag <= &blit_cycle_diagram_fill[15][0];
@@ -1146,7 +1146,7 @@ static void blit_bltset (int con)
 
     // on the fly switching from CH=1 to CH=D -> blitter stops writing (Rampage/TEK)
     // currently just switch to no-channels mode, better than crashing the demo..
-    if (bltstate != BLT_done) {
+    if (!savestate_state && bltstate != BLT_done) {
 	static uae_u8 changetable[32 * 32];
 	int o = original_ch + (original_fill ? 16 : 0);
 	int n = blit_ch + (blitfill ? 16 : 0);
@@ -1429,7 +1429,10 @@ uae_u8 *restore_blitter (uae_u8 *src)
 {
     uae_u32 flags = restore_u32();
 
-    bltstate = (flags & 1) ? BLT_init : BLT_done;
+    bltstate = BLT_done;
+    if (bltstate & 4) {
+	bltstate = (flags & 1) ? BLT_done : BLT_init;
+    }
     if (flags & 2) {
 	write_log (L"blitter was force-finished when this statefile was saved\n");
 	write_log (L"contact the author if restored program freezes\n");
@@ -1464,7 +1467,7 @@ uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
 	dstbak = dst = dstptr;
     else
 	dstbak = dst = xmalloc (16);
-    save_u32 (((bltstate != BLT_done) ? 0 : 1) | forced);
+    save_u32 (((bltstate != BLT_done) ? 0 : 1) | forced | 4);
     *len = dst - dstbak;
     return dstbak;
 

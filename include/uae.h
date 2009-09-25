@@ -52,4 +52,4 @@ extern void fetch_configurationpath (TCHAR *out, int size);
 extern void fetch_screenshotpath (TCHAR *out, int size);
 extern void fetch_ripperpath (TCHAR *out, int size);
 extern void fetch_datapath (TCHAR *out, int size);
-extern int uaerand(void);
+extern int uaerand (void);

@@ -109,8 +109,8 @@ struct sound_dp
 #define ADJUST_SIZE 30
 #define EXP 2.1
 
-#define ADJUST_VSSIZE 15
-#define EXPVS 1.7
+#define ADJUST_VSSIZE 10
+#define EXPVS 1.3
 
 int sound_debug = 0;
 int sound_mode_skip = 0;
@@ -1540,7 +1540,7 @@ static double sync_sound (double m)
     double skipmode;
     if (isvsync ()) {
 
-        skipmode = pow (m < 0 ? -m : m, EXP) / 8;
+        skipmode = pow (m < 0 ? -m : m, EXP) / 10;
         if (m < 0)
 	    skipmode = -skipmode;
 	if (skipmode < -ADJUST_VSSIZE)

@@ -23,6 +23,7 @@
 #include "catweasel.h"
 #include "cdtv.h"
 #include "a2091.h"
+#include "a2065.h"
 #include "cd32_fmv.h"
 #include "ncr_scsi.h"
 #include "debug.h"
@@ -1254,6 +1255,10 @@ void expamem_next (void)
 	expamem_init_clear2 ();
 }
 
+static void expamem_init_a2065 (void)
+{
+    a2065_init ();
+}
 static void expamem_init_cdtv (void)
 {
     cdtv_init ();
@@ -1346,6 +1351,12 @@ void expamem_reset (void)
 #ifdef A2091
     if (currprefs.cs_a2091) {
 	card_init[cardno] = expamem_init_a2091;
+	card_map[cardno++] = NULL;
+    }
+#endif
+#ifdef A2065
+    if (currprefs.a2065name[0]) {
+	card_init[cardno] = expamem_init_a2065;
 	card_map[cardno++] = NULL;
     }
 #endif

@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"14"
-#define WINUAEDATE MAKEBD(2009, 9, 9)
+#define WINUAEBETA L"15"
+#define WINUAEDATE MAKEBD(2009, 9, 25)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -132,6 +132,7 @@ void associate_file_extensions (void);
 
 #define WIN32_PLUGINDIR L"plugins\\"
 HMODULE WIN32_LoadLibrary (const TCHAR *);
+HMODULE WIN32_LoadLibrary2 (const TCHAR *);
 
 extern int screenshot_prepare (void);
 extern void screenshot_free (void);

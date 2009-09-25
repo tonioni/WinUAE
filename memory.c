@@ -311,7 +311,7 @@ static struct romdata roms[] = {
 	0x72850aef, 0x59c91d1f,0xa8f118f9,0x0bdba05a,0x9ae788d7,0x7a6cc7c9 },
     ALTROM(70, 1, 1, 32768, ROMTYPE_EVEN|ROMTYPE_SCRAMBLED|ROMTYPE_8BIT, 0xf3330e1f,0x3a597db2,0xb7d11b6c,0xb8e13496,0xc215f223,0x88c4ca3c)
     ALTROM(70, 1, 2, 32768, ROMTYPE_EVEN|ROMTYPE_SCRAMBLED|ROMTYPE_8BIT, 0xee58e0f9,0x4148f4cb,0xb42cec33,0x8ca144de,0xd4f54118,0xe0f185dd)
-    { L"Freezer: HRTMon v2.31 (built-in)", 0, 0, 0, 0, L"HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
+    { L"Freezer: HRTMon v2.32 (built-in)", 0, 0, 0, 0, L"HRTMON\0", 0, 63, 0, 0, ROMTYPE_HRTMON, 0, 1, NULL,
 	0xffffffff, 0, 0, 0, 0, 0, L"HRTMon" },
 
     { L"A590/A2091 SCSI boot ROM", 6, 0, 6, 0, L"A590\0A2091\0", 16384, 53, 0, 0, ROMTYPE_A2091BOOT, 0, 0, NULL,
@@ -583,6 +583,7 @@ static void addkey (uae_u8 *key, int size, const TCHAR *name)
 {
     int i;
 
+    //write_log (L"addkey(%08x,%d,'%s')\n", key, size, name);
     if (key == NULL || size == 0) {
 	xfree (key);
 	return;
@@ -590,6 +591,7 @@ static void addkey (uae_u8 *key, int size, const TCHAR *name)
     for (i = 0; i < ROM_KEY_NUM; i++) {
 	if (keyring[i].key && keyring[i].size == size && !memcmp (keyring[i].key, key, size)) {
 	    xfree (key);
+	    //write_log (L"key already in keyring\n");
 	    return;
 	}
     }
@@ -599,6 +601,7 @@ static void addkey (uae_u8 *key, int size, const TCHAR *name)
     }
     if (i == ROM_KEY_NUM) {
 	xfree (key);
+	//write_log (L"keyring full\n");
 	return;
     }
     keyring[i].key = key;
@@ -722,7 +725,7 @@ int load_keyring (struct uae_prefs *p, TCHAR *path)
 	    }
 	break;
 	case 7:
-	return cnt;
+	return get_keyring ();
 	}
 	cnt++;
 	if (!tmp[0])
@@ -1222,6 +1225,20 @@ static int REGPARAM2 dummy_check (uaecptr addr, uae_u32 size)
     special_mem |= S_READ;
 #endif
     return 0;
+}
+
+static void REGPARAM2 none_put (uaecptr addr, uae_u32 v)
+{
+#ifdef JIT
+    special_mem |= S_WRITE;
+#endif
+}
+static uae_u32 REGPARAM2 ones_get (uaecptr addr)
+{
+#ifdef JIT
+    special_mem |= S_READ;
+#endif
+    return 0xffffffff;
 }
 
 /* Chip memory */
@@ -2122,6 +2139,13 @@ addrbank dummy_bank = {
     dummy_lget, dummy_wget, dummy_bget,
     dummy_lput, dummy_wput, dummy_bput,
     default_xlate, dummy_check, NULL, NULL,
+    dummy_lgeti, dummy_wgeti, ABFLAG_NONE
+};
+
+addrbank ones_bank = {
+    ones_get, ones_get, ones_get,
+    none_put, none_put, none_put,
+    default_xlate, dummy_check, NULL, L"Ones",
     dummy_lgeti, dummy_wgeti, ABFLAG_NONE
 };
 
@@ -3242,6 +3266,8 @@ static void allocate_memory (void)
 	bogomemory_allocated = 0;
 
 	allocated_bogomem = currprefs.bogomem_size;
+	if (allocated_bogomem == 0x180000)
+	    allocated_bogomem = 0x200000;
 	bogomem_mask = allocated_bogomem - 1;
 
 	if (allocated_bogomem) {
@@ -3559,7 +3585,7 @@ void memory_reset (void)
 	map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
 
     if (bogomemory != 0) {
-	int t = allocated_bogomem >> 16;
+	int t = currprefs.bogomem_size >> 16;
 	if (t > 0x1C)
 	    t = 0x1C;
 	if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_model >= 68020))

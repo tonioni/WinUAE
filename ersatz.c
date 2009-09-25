@@ -234,9 +234,14 @@ void ersatz_perform (uae_u16 what)
 	break;
 
      case EOP_SERVEINT:
-	/* Just reset all the interrupt request bits */
-	put_word (0xDFF09C, get_word (0xDFF01E) & 0x3FFF);
+     {
+	uae_u16 intreq = get_word (0xDFF01E);
+	 /* Just reset all the interrupt request bits */
+	if (intreq & 0x0008)
+	    get_byte (0xbfed01); /* possible keyboard interrupt */
+	put_word (0xDFF09C, intreq & 0x3FFF);
 	break;
+     }
 
      case EOP_DOIO:
 	ersatz_doio ();

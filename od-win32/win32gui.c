@@ -84,6 +84,7 @@
 #include "rp.h"
 #include "statusline.h"
 #include "zarchive.h"
+#include "win32_uaenet.h"
 
 #define ARCHIVE_STRING L"*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
@@ -137,7 +138,7 @@ static int C_PAGES;
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
     DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, CHIPSET2_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
     HARDDISK_ID = -1, IOPORTS_ID = -1, GAMEPORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1, AVIOUTPUT_ID = -1,
-    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, RTG_ID = -1, FRONTEND_ID = -1;
+    PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, EXPANSION_ID = -1, FRONTEND_ID = -1;
 static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
@@ -5806,17 +5807,88 @@ static void updatez3 (uae_u32 *size1p, uae_u32 *size2p)
     *size2p = s2;
 }
 
-static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static struct netdriverdata *ndd;
+
+static void expansion_net (HWND hDlg)
+{
+    int i, cnt;
+    TCHAR tmp[MAX_DPATH];
+
+    SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_RESETCONTENT, 0, 0);
+    WIN32GUI_LoadUIString (IDS_NETDISCONNECTED, tmp, sizeof tmp / sizeof (TCHAR));
+    SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
+    if (!_tcscmp (workprefs.a2065name, L"none"))
+	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
+    cnt = 1;
+    for (i = 0; ndd && i < MAX_TOTAL_NET_DEVICES; i++) {
+	if (ndd[i].active) {
+	    TCHAR mac[20];
+	    _stprintf (mac, L"%02X:%02X:%02X:%02X:%02X:%02X",
+		ndd[i].mac[0], ndd[i].mac[1], ndd[i].mac[2], ndd[i].mac[3], ndd[i].mac[4], ndd[i].mac[5]);
+	    _stprintf (tmp, L"%s %s", mac, ndd[i].desc);
+	    SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	    if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i].name))
+		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, cnt, 0);
+	    cnt++;
+	}
+    }
+}
+
+static void enable_for_expansiondlg (HWND hDlg)
+{
+    int cw;
+
+    cw = catweasel_detect ();
+    ew (hDlg, IDC_CATWEASEL, cw);
+    if (!full_property_sheet) {
+	ew (hDlg, IDC_SOCKETS, FALSE);
+	ew (hDlg, IDC_SCSIDEVICE, FALSE);
+	ew (hDlg, IDC_CATWEASEL, FALSE);
+	ew (hDlg, IDC_NETDEVICE, FALSE);
+    } else {
+#if !defined (BSDSOCKET)
+	ew (hDlg, IDC_SOCKETS, FALSE);
+#endif
+#if !defined (SCSIEMU)
+	ew (hDlg, IDC_SCSIDEVICE, FALSE);
+#endif
+	ew (hDlg, IDC_NETDEVICE, workprefs.a2065name[0]);
+    }
+}
+
+static void values_to_expansiondlg (HWND hDlg)
+{
+    int cw;
+
+    CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
+    CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
+    CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
+    CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
+    CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
+    cw = catweasel_detect ();
+    ew (hDlg, IDC_CATWEASEL, cw);
+    if (!cw && workprefs.catweasel < 100)
+        workprefs.catweasel = 0;
+}
+
+static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     int v;
     TCHAR tmp[100];
     static int recursive = 0;
+    static int enumerated;
 
     switch (msg)
     {
 	case WM_INITDIALOG:
-	    pages[RTG_ID] = hDlg;
-	    currentpage = RTG_ID;
+	    pages[EXPANSION_ID] = hDlg;
+	    currentpage = EXPANSION_ID;
+
+	    if (!enumerated) {
+		uaenet_enumerate (&ndd, NULL);
+		enumerated = 1;
+	    }
+	    expansion_net (hDlg);
 	    WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
 	    SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"(8bit)");
@@ -5864,7 +5936,8 @@ static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	case WM_USER:
 	    recursive++;
-	    fix_values_memorydlg ();
+	    values_to_expansiondlg (hDlg);
+	    enable_for_expansiondlg (hDlg);
 	    values_to_memorydlg (hDlg);
 	    enable_for_memorydlg (hDlg);
 	    recursive--;
@@ -5872,7 +5945,6 @@ static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	case WM_HSCROLL:
 	    workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
-	    fix_values_memorydlg ();
 	    values_to_memorydlg (hDlg);
 	    enable_for_memorydlg (hDlg);
 	break;
@@ -5898,6 +5970,28 @@ static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 //		if (IsDlgButtonChecked (hDlg, IDC_RTG_LEDS))
 //		    workprefs.leds_on_screen |= STATUSLINE_RTG;
 //		break;
+
+		case IDC_SCSIDEVICE:
+		workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE) ? 1 : 0;
+		enable_for_expansiondlg (hDlg);
+		break;
+		case IDC_SANA2:
+		workprefs.sana2 = IsDlgButtonChecked (hDlg, IDC_SANA2) ? 1 : 0;
+		break;
+		case IDC_A2065:
+		if (IsDlgButtonChecked (hDlg, IDC_A2065)) {
+		    _tcscpy (workprefs.a2065name, L"none");
+		    expansion_net (hDlg);
+		    enable_for_expansiondlg (hDlg);
+		} else {
+		    ew (hDlg, IDC_NETDEVICE, FALSE);
+		    workprefs.a2065name[0] = 0;
+		    enable_for_expansiondlg (hDlg);
+		}
+		break;
+		case IDC_CATWEASEL:
+		workprefs.catweasel = IsDlgButtonChecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
+		break;
 	    }
     	    if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
 		uae_u32 mask = workprefs.picasso96_modeflags;
@@ -5997,6 +6091,23 @@ static INT_PTR CALLBACK RTGDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		    if (tmp[0])
 			workprefs.win32_rtgvblankrate = _tstol (tmp);
 		    break;
+		    case IDC_SCSIMODE:
+		    v = SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR)
+			workprefs.win32_uaescsimode = v + 1;
+		    break;
+		    case IDC_NETDEVICE:
+		    v = SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR) {
+			if (v == 0) {
+			    _tcscpy (workprefs.a2065name, L"none");
+			} else if (ndd) {
+			    v--;
+			    _tcscpy (workprefs.a2065name, ndd[v].name);
+			}
+		    }
+		    break;
+		
 		}
 		workprefs.picasso96_modeflags = mask;
 		values_to_memorydlg (hDlg);
@@ -6285,26 +6396,19 @@ static void enable_for_miscdlg (HWND hDlg)
     if (!full_property_sheet) {
 	ew (hDlg, IDC_JULIAN, TRUE);
 	ew (hDlg, IDC_CTRLF11, TRUE);
-	ew (hDlg, IDC_SOCKETS, FALSE);
 	ew (hDlg, IDC_SHOWGUI, FALSE);
 	ew (hDlg, IDC_NOSPEED, TRUE);
 	ew (hDlg, IDC_NOSPEEDPAUSE, TRUE);
 	ew (hDlg, IDC_NOSOUND, TRUE);
 	ew (hDlg, IDC_DOSAVESTATE, TRUE);
 	ew (hDlg, IDC_SCSIMODE, FALSE);
-	ew (hDlg, IDC_SCSIDEVICE, FALSE);
 	ew (hDlg, IDC_CLOCKSYNC, FALSE);
-	ew (hDlg, IDC_CATWEASEL, FALSE);
 	ew (hDlg, IDC_STATE_CAPTURE, FALSE);
 	ew (hDlg, IDC_STATE_RATE, FALSE);
 	ew (hDlg, IDC_STATE_BUFFERSIZE, FALSE);
 	ew (hDlg, IDC_LANGUAGE, FALSE);
     } else {
-#if !defined (BSDSOCKET)
-	EnableWindow (GetDlgItem(hDlg, IDC_SOCKETS), FALSE);
-#endif
 #if !defined (SCSIEMU)
-	EnableWindow (GetDlgItem(hDlg, IDC_SCSIDEVICE), FALSE);
 	EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
 #endif
 	ew (hDlg, IDC_DOSAVESTATE, FALSE);
@@ -6365,12 +6469,12 @@ static void misc_addpri (HWND hDlg, int v, int pri)
 
 }
 
-extern TCHAR *get_aspi_path(int);
+extern TCHAR *get_aspi_path (int);
 
-static void misc_scsi(HWND hDlg)
+static void misc_scsi (HWND hDlg)
 {
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
-    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI");
+    SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI *");
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI + SCSI SCAN");
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(0)) ? L"AdaptecASPI" : L"(AdaptecASPI)"));
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path(1)) ? L"NeroASPI" : L"(NeroASPI)"));
@@ -6378,7 +6482,7 @@ static void misc_scsi(HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode - 1, 0);
 }
 
-static void misc_lang(HWND hDlg)
+static void misc_lang (HWND hDlg)
 {
     int i, idx = 0, cnt = 0, lid;
     WORD langid = -1;
@@ -6435,28 +6539,19 @@ static void misc_setlang (int v)
 static void values_to_miscdlg (HWND hDlg)
 {
     TCHAR txt[100];
-    int cw;
 
     if (currentpage == MISC1_ID) {
 
-	CheckDlgButton (hDlg, IDC_SOCKETS, workprefs.socket_emu);
 	CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
 	CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
 	CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
 	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, (workprefs.leds_on_screen & STATUSLINE_CHIPSET) ? 1 : 0);
-	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
-	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
 	CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
-	cw = catweasel_detect ();
-	ew (hDlg, IDC_CATWEASEL, cw);
-	if (!cw && workprefs.catweasel < 100)
-	    workprefs.catweasel = 0;
-	CheckDlgButton (hDlg, IDC_CATWEASEL, workprefs.catweasel);
 	CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 
 	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
@@ -6482,8 +6577,8 @@ static void values_to_miscdlg (HWND hDlg)
 	_stprintf (txt, L"%d", workprefs.statecapturebuffersize / (1024 * 1024));
 	SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt);
 
-	misc_scsi(hDlg);
-	misc_lang(hDlg);
+	misc_scsi (hDlg);
+	misc_lang (hDlg);
 
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
@@ -6583,11 +6678,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		    case IDC_STATE_BUFFERSIZE:
 		    getcbn (hDlg, IDC_STATE_BUFFERSIZE, txt, sizeof (txt) / sizeof (TCHAR));
 		    break;
-		    case IDC_SCSIMODE:
-		    v = SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
-		    if (v != CB_ERR)
-			workprefs.win32_uaescsimode = v + 1;
-		    break;
 		    case IDC_LANGUAGE:
 		    if (HIWORD (wParam) == CBN_SELENDOK) {
 			v = SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_GETCURSEL, 0, 0L);
@@ -6681,18 +6771,8 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	case IDC_CTRLF11:
 	    workprefs.win32_ctrl_F11_is_quit = IsDlgButtonChecked (hDlg, IDC_CTRLF11);
 	    break;
-	case IDC_SCSIDEVICE:
-	    workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE) ? 1 : 0;
-	    enable_for_miscdlg (hDlg);
-	    break;
-	case IDC_SANA2:
-	    workprefs.sana2 = IsDlgButtonChecked (hDlg, IDC_SANA2) ? 1 : 0;
-	    break;
 	case IDC_CLOCKSYNC:
 	    workprefs.tod_hack = IsDlgButtonChecked (hDlg, IDC_CLOCKSYNC);
-	    break;
-	case IDC_CATWEASEL:
-	    workprefs.catweasel = IsDlgButtonChecked (hDlg, IDC_CATWEASEL) ? -1 : 0;
 	    break;
 	case IDC_NOTASKBARBUTTON:
 	    workprefs.win32_notaskbarbutton = IsDlgButtonChecked (hDlg, IDC_NOTASKBARBUTTON);
@@ -11745,7 +11825,7 @@ static void createTreeView (HWND hDlg, int currentpage)
     CN (MEMORY_ID);
     CN (FLOPPY_ID);
     CN (HARDDISK_ID);
-    CN (RTG_ID);
+    CN (EXPANSION_ID);
 
     p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HOST, root, LOADSAVE_ID, CONFIG_TYPE_HOST);
     CN (DISPLAY_ID);
@@ -12328,7 +12408,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	panelresource = getresource (IDD_PANEL);
 	LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_FILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, L"gui/configurations.htm");
 	MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, L"gui/ram.htm");
-	RTG_ID = init_page (IDD_RTG, IDI_DISPLAY, IDS_RTG, RTGDlgProc, NULL, L"gui/rtg.htm");
+	EXPANSION_ID = init_page (IDD_EXPANSION, IDI_DISPLAY, IDS_EXPANSION, ExpansionDlgProc, NULL, L"gui/expansion.htm");
 	KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, L"gui/rom.htm");
 	CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, NULL, L"gui/cpu.htm");
 	DISPLAY_ID = init_page (IDD_DISPLAY, IDI_DISPLAY, IDS_DISPLAY, DisplayDlgProc, NULL, L"gui/display.htm");
@@ -12392,7 +12472,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	for (;;) {
 	    HANDLE IPChandle;
 	    IPChandle = geteventhandleIPC (globalipc);
-	    if (IPChandle != INVALID_HANDLE_VALUE) {
+	    if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
 		MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
 		while (checkIPC (globalipc, &workprefs));
 	    } else {

@@ -8,7 +8,7 @@
 #include "statusline.h"
 
 #include <d3d9.h>
-#include <dxerr9.h>
+#include <dxerr.h>
 
 
 struct ddstuff dxdata;
@@ -536,7 +536,7 @@ const TCHAR *DXError (HRESULT ddrval)
 	HRESULT_FACILITY(ddrval),
 	HRESULT_CODE(ddrval),
 	HRESULT_CODE(ddrval),
-	DXGetErrorDescription9 (ddrval));
+	DXGetErrorDescription (ddrval));
     return dderr;
 }
 

@@ -49,6 +49,7 @@
 #include "savestate.h"
 #include "ahidsound_new.h"
 #include "uaeipc.h"
+#include "xwin.h"
 
 #include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
@@ -1121,10 +1122,18 @@ void initparallel (void)
     }
 }
 
-extern int flashscreen;
-extern void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
+int flashscreen;
 
-void hsyncstuff(void)
+void doflashscreen (void)
+{
+    flashscreen = 10;
+    init_colors ();
+    picasso_refresh ();
+    reset_drawing ();
+    flush_screen (0, 0);
+}
+
+void hsyncstuff (void)
 //only generate Interrupts when
 //writebuffer is complete flushed
 //check state of lwin rwin
@@ -1151,17 +1160,15 @@ void hsyncstuff(void)
 	if (prtopen)
 	    flushprtbuf ();
 	{
-#if defined(AHI)
-	    //extern int warned_JIT_0xF10000;
-	    //warned_JIT_0xF10000 = 0;
 	    if (flashscreen > 0) {
-		//DX_Fill (0, 0, -1, 30, 0x000000); can't do anymore
-		//DX_Invalidate (0, 0, -1, 30);
 		flashscreen--;
-		if (flashscreen == 0)
+		if (flashscreen == 0) {
+		    init_colors ();
+		    reset_drawing ();
 		    picasso_refresh ();
+		    flush_screen (0, 0);
+		}
 	    }
-#endif
 	}
 	keycheck = 0;
     }

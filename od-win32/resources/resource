@@ -25,7 +25,7 @@
 #define IDS_FRONTEND                    19
 #define IDS_CHIPSET2                    20
 #define IDS_GAMEPORTS                   21
-#define IDS_RTG                         22
+#define IDS_EXPANSION                   22
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -261,6 +261,8 @@
 #define IDD_GAMEPORTS                   263
 #define IDS_STRING22                    263
 #define IDS_INPUTTOGGLE                 263
+#define IDS_STRING23                    264
+#define IDS_NETDISCONNECTED             264
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -315,12 +317,10 @@
 #define IDI_PORTS                       347
 #define IDS_AUTOSCALE_DISABLED          348
 #define IDS_AUTOSCALE_SCALING           349
-#define IDI_ICON3                       349
 #define IDI_FILE                        349
 #define IDS_AUTOSCALE_RESIZE            350
 #define IDS_PRINTER_ASCII               351
-#define IDD_DIALOG2                     351
-#define IDD_RTG                         351
+#define IDD_EXPANSION                   351
 #define IDS_PRINTER_EPSON               352
 #define IDS_PRINTER_POSTSCRIPT_DETECTION 353
 #define IDS_PRINTER_POSTSCRIPT_EMULATION 354
@@ -663,7 +663,6 @@
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585
-#define IDC_JITENABLE2                  1585
 #define IDC_MMUENABLE                   1585
 #define IDC_CTRLF11                     1586
 #define IDC_FASTCOPPER                  1588
@@ -725,6 +724,7 @@
 #define IDC_AVIOUTPUT_VIDEO_CODEC       1615
 #define IDC_INPUTDEVICEDISABLE          1615
 #define IDC_AVIOUTPUT_ACTIVATED         1615
+#define IDC_A2065                       1615
 #define IDC_AVIOUTPUT_AUDIO_CODEC       1616
 #define IDC_INPUTAMIGACNT               1616
 #define IDC_FILTERHZ                    1616
@@ -891,6 +891,7 @@
 #define IDC_SCSIMODE2                   1706
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
+#define IDC_NETDEVICE                   1707
 #define IDC_SOUND_AUTO                  1709
 #define IDC_FILTERKEEPASPECT            1709
 #define IDC_CS_RTC                      1710

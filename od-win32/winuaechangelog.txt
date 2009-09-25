@@ -1,4 +1,27 @@
 
+Beta 15:
+
+- automatically enable ini-mode if registry initialization fails
+  (this should never happen, something is wrong if HKEY_CURRENT_USER
+  is read-only or admin-only..)
+- August 2009 DX SDK (you know the drill, latest DX runtime required)
+- A2065 Ethernet card emulation. winpcap required.
+- mostly useless "kickstart replacement" works again. Broke long long
+  time ago..
+- hrtmon v2.32
+- 68030 "MMU" "emulation" instruction decoding fixes  
+- 68040 MMU on the fly switching supported
+- fixed 1 lores pixel background color gap in some copper effects
+- renamed display card panel to expansions and moved misc expansion
+  related options from misc panel (still work to do)
+- 1.5M slow ram was 1.0M+0.5M mirrored (non-power-of-2 memory sizes
+  are not really supposed)
+- MMU: hardreset if double bus error (real CPU would freeze and wait
+  for reset in this situation, not worth the trouble)
+- IDE emulation updates, read/write multiple implementation fixed,
+  write interrupt fixed, 128-256 sector transfers supported, status
+  register DSC must be always set. Compatible with Linux IDE driver
+
 Beta 14:
 
 - added very basic MMU statefile support
