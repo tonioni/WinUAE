@@ -2076,7 +2076,7 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, TCHAR *path, int *sizep, TCHAR
 	*sizep = size;
 	//write_log (L"size: %d\n", size);
 	if (size > 0) {
-	    int gotsize, i;
+	    int gotsize;
 	    keybuf = xmalloc (size);
 	    gotsize = pfnGetKey (keybuf, size);
 	    //write_log (L"gotsize: %d\n", gotsize);

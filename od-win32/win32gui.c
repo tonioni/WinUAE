@@ -5182,7 +5182,6 @@ static void values_to_chipsetdlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
     CheckDlgButton (hDlg, IDC_GENLOCK, workprefs.genlock);
     CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
-    CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
     CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
     CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
     switch (workprefs.produce_sound) {
@@ -5216,7 +5215,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
     workprefs.genlock = IsDlgButtonChecked (hDlg, IDC_GENLOCK);
     workprefs.immediate_blits = IsDlgButtonChecked (hDlg, IDC_BLITIMM);
-    workprefs.picasso96_nocustom = IsDlgButtonChecked (hDlg, IDC_FASTERRTG);
     n = IsDlgButtonChecked (hDlg, IDC_CYCLEEXACT) ? 1 : 0;
     if (workprefs.cpu_cycle_exact != n) {
 	workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
@@ -5836,24 +5834,18 @@ static void expansion_net (HWND hDlg)
 
 static void enable_for_expansiondlg (HWND hDlg)
 {
-    int cw;
+    int cw, en;
 
+    en = !!full_property_sheet;
     cw = catweasel_detect ();
-    ew (hDlg, IDC_CATWEASEL, cw);
-    if (!full_property_sheet) {
-	ew (hDlg, IDC_SOCKETS, FALSE);
-	ew (hDlg, IDC_SCSIDEVICE, FALSE);
-	ew (hDlg, IDC_CATWEASEL, FALSE);
-	ew (hDlg, IDC_NETDEVICE, FALSE);
-    } else {
-#if !defined (BSDSOCKET)
-	ew (hDlg, IDC_SOCKETS, FALSE);
-#endif
-#if !defined (SCSIEMU)
-	ew (hDlg, IDC_SCSIDEVICE, FALSE);
-#endif
-	ew (hDlg, IDC_NETDEVICE, workprefs.a2065name[0]);
-    }
+    ew (hDlg, IDC_CATWEASEL, cw && en);
+    ew (hDlg, IDC_SOCKETS, en);
+    ew (hDlg, IDC_SCSIDEVICE, en);
+    ew (hDlg, IDC_CATWEASEL, en);
+    ew (hDlg, IDC_NETDEVICE, en);
+    ew (hDlg, IDC_SANA2, en);
+    ew (hDlg, IDC_A2065, en);
+    ew (hDlg, IDC_NETDEVICE, en && workprefs.a2065name[0]);
 }
 
 static void values_to_expansiondlg (HWND hDlg)
@@ -5971,6 +5963,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 //		    workprefs.leds_on_screen |= STATUSLINE_RTG;
 //		break;
 
+		case IDC_SOCKETS:
+		workprefs.socket_emu = IsDlgButtonChecked (hDlg, IDC_SOCKETS);
+		break;
 		case IDC_SCSIDEVICE:
 		workprefs.scsi = IsDlgButtonChecked (hDlg, IDC_SCSIDEVICE) ? 1 : 0;
 		enable_for_expansiondlg (hDlg);
@@ -6553,6 +6548,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
 	CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
 	CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
+	CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
 
 	misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 	misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
@@ -6726,9 +6722,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    workprefs.statecapture = IsDlgButtonChecked (hDlg, IDC_STATE_CAPTURE);
 	    enable_for_miscdlg (hDlg);
 	    break;
-	case IDC_SOCKETS:
-	    workprefs.socket_emu = IsDlgButtonChecked (hDlg, IDC_SOCKETS);
-	    break;
 	case IDC_ILLEGAL:
 	    workprefs.illegal_mem = IsDlgButtonChecked (hDlg, IDC_ILLEGAL);
 	    break;
@@ -6782,6 +6775,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    break;
 	case IDC_KBLED_USB:
 	    workprefs.win32_kbledmode = IsDlgButtonChecked (hDlg, IDC_KBLED_USB) ? 1 : 0;
+	    break;
+	case IDC_FASTERRTG:
+	    workprefs.picasso96_nocustom = IsDlgButtonChecked (hDlg, IDC_FASTERRTG);
 	    break;
 	}
 	recursive--;

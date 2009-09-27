@@ -234,7 +234,7 @@ int bpl_off[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static struct color_entry current_colors;
 static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
-static unsigned int bplcon0d, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
+static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
 static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
@@ -826,7 +826,9 @@ STATIC_INLINE void compute_delay_offset (void)
 
 static void record_color_change2 (int hpos, int regno, unsigned long value)
 {
-    curr_color_changes[next_color_change].linepos = hpos;
+    curr_color_changes[next_color_change].linepos = hpos * 2;
+    // hpos >= 0xe0, add 2 lores pixels (PAL 0.5 extra cycle, should be in copper emul..)
+    curr_color_changes[next_color_change].linepos += (hpos >= maxhpos - 3) ? 2 : 0;
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
     curr_color_changes[next_color_change].regno = -1;
@@ -873,7 +875,10 @@ STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 static void update_denise (int hpos)
 {
     toscr_res = GET_RES_DENISE (bplcon0d);
-    record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
+    if (bplcon0dd != bplcon0d) {
+	record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
+	bplcon0dd = bplcon0d;
+    }
     toscr_nr_planes = GET_PLANES (bplcon0d);
     if (isocs7planes ()) {
 	if (toscr_nr_planes2 < 6)
@@ -1885,7 +1890,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	return;
     }
 #endif
-    if (regno < 0x1000 && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
+    if  (regno < 0x1000 && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
 	struct draw_info *pdip = curr_drawinfo + prev_lineno;
 	int idx = pdip->last_color_change;
 	/* Move color changes in horizontal cycles 0 to HBLANK_OFFSET to end of previous line.
@@ -1893,7 +1898,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	 */
         pdip->last_color_change++;
         pdip->nr_color_changes++;
-        curr_color_changes[idx].linepos = hpos + maxhpos + 1;
+        curr_color_changes[idx].linepos = (hpos + maxhpos) * 2;
         curr_color_changes[idx].regno = regno;
         curr_color_changes[idx].value = value;
 	curr_color_changes[idx + 1].regno = -1;
@@ -3297,6 +3302,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v)
     if (bplcon0d == v)
 	return;
 
+    bplcon0dd = -1;
     // fake unused 0x0080 bit as an EHB bit (see below)
     if (isehb (bplcon0d, bplcon2))
 	v |= 0x80;

@@ -60,6 +60,7 @@ struct hardfileprivdata {
     uae_sem_t sync_sem;
     uaecptr base;
     int changenum;
+    uaecptr changeint;
 };
 
 #define VHD_DYNAMIC 3
@@ -1341,6 +1342,8 @@ void hardfile_do_disk_change (struct uaedev_config_info *uci, int insert)
 	}
 	j++;
     }
+    if (hardfpd[fsid].changeint)
+	uae_Cause (hardfpd[fsid].changeint);
     uae_sem_post (&change_sem);
 }
 
@@ -1680,6 +1683,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 	break;
 
 	case CMD_REMOVE:
+	    hfpd->changeint = get_long (request + 40);
 	break;
 
 	case CMD_CHANGENUM:

@@ -646,10 +646,9 @@ static void decide_blitter_line (int hsync, int hpos)
 	for (;;) {
 	    int v = canblit (last_blitter_hpos);
 
-	    blitter_nasty++;
-
 	    if (!v) {
 	        blit_misscyclecounter++;
+		blitter_nasty++;
 	        break;
 	    }
 

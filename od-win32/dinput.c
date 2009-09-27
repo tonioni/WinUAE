@@ -2087,7 +2087,7 @@ static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)
 	    else
 		kc[i] = 0;
 	    if (kc[i] != di_keycodes[num][i]) {
-		write_log (L"%02X -> %d\n", i, kc[i]);
+		write_log (L"%d: %02X -> %d\n", num, i, kc[i]);
 		di_keycodes[num][i] = kc[i];
 		my_kbd_handler (num, i, kc[i]);
 	    }

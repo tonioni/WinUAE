@@ -174,7 +174,7 @@ BEGIN
     RTEXT           "Motherboard Fast RAM:",-1,40,100,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,96,59,20
     EDITTEXT        IDC_MBRAM1,244,99,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Prosessor Slot Fast RAM:",-1,40,123,129,10,SS_CENTERIMAGE
+    RTEXT           "Processor Slot Fast RAM:",-1,40,123,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,119,59,20
     EDITTEXT        IDC_MBRAM2,244,122,34,12,ES_CENTER | ES_READONLY
 END
@@ -486,6 +486,8 @@ BEGIN
     RTEXT           "DirectDraw display buffer:",IDC_STATIC,195,50,92,10,SS_CENTERIMAGE
     RTEXT           "SCSI and CD/DVD access method:",IDC_STATIC,151,12,126,10,SS_CENTERIMAGE
     CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,109,111,10
+    CONTROL         "Faster RTG [] Enables less accurate custom chipset emulation mode when Picasso96 is enabled.",IDC_FASTERRTG,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,19,122,100,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 249
@@ -603,8 +605,6 @@ BEGIN
     CONTROL         "Emulated, 100% accurate",IDC_CS_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,205,95,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,59,100,10
-    CONTROL         "Faster RTG [] Enables less accurate custom chipset emulation mode when Picasso96 is enabled.",IDC_FASTERRTG,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,72,100,10
     COMBOBOX        IDC_CS_EXT,100,80,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Chipset Extra",IDC_STATIC,25,79,52,15,SS_CENTERIMAGE
 END

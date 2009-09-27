@@ -54,6 +54,7 @@ struct devstruct {
     volatile int d_request_type[MAX_ASYNC_REQUESTS];
     volatile uae_u32 d_request_data[MAX_ASYNC_REQUESTS];
     struct device_info di;
+    uaecptr changeint;
 
     smp_comm_pipe requests;
     int thread_running;
@@ -283,6 +284,8 @@ void scsi_do_disk_change (int device_id, int insert)
 		}
 		j++;
 	    }
+	    if (dev->changeint)
+		uae_Cause (dev->changeint);
 	}
     }
     uae_sem_post (&change_sem);
@@ -371,6 +374,7 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 
     }
     return 0;
 }
+
 static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
     uae_u32 blocksize = dev->di.bytespersector;
@@ -537,6 +541,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	io_actual = 0;
 	break;
 	case CMD_REMOVE:
+	dev->changeint = io_data;
 	io_actual = 0;
 	break;
 	case CMD_CHANGENUM:

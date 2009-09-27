@@ -543,6 +543,8 @@ void record_diw_line (int plfstrt, int first, int last)
    PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
 static int playfield_start, playfield_end;
 static int real_playfield_start, real_playfield_end;
+static int linetoscr_diw_start, linetoscr_diw_end;
+static int native_ddf_left, native_ddf_right;
 
 static int pixels_offset;
 static int src_pixel, ham_src_pixel;
@@ -558,12 +560,13 @@ static void pfield_init_linetoscr (void)
     /* First, get data fetch start/stop in DIW coordinates.  */
     int ddf_left = dp_for_drawing->plfleft * 2 + DIW_DDF_OFFSET;
     int ddf_right = dp_for_drawing->plfright * 2 + DIW_DDF_OFFSET;
-    /* Compute datafetch start/stop in pixels; native display coordinates.  */
-    int native_ddf_left = coord_hw_to_window_x (ddf_left);
-    int native_ddf_right = coord_hw_to_window_x (ddf_right);
 
-    int linetoscr_diw_start = dp_for_drawing->diwfirstword;
-    int linetoscr_diw_end = dp_for_drawing->diwlastword;
+    /* Compute datafetch start/stop in pixels; native display coordinates.  */
+    native_ddf_left = coord_hw_to_window_x (ddf_left);
+    native_ddf_right = coord_hw_to_window_x (ddf_right);
+
+    linetoscr_diw_start = dp_for_drawing->diwfirstword;
+    linetoscr_diw_end = dp_for_drawing->diwlastword;
 
     res_shift = lores_shift - bplres;
 
@@ -1930,15 +1933,17 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
     int i;
     int lastpos = visible_left_border;
     int endpos = visible_left_border + gfxvidinfo.width;
+    int diff = 1 << lores_shift;
 
     for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 	int regno = curr_color_changes[i].regno;
 	unsigned int value = curr_color_changes[i].value;
 	int nextpos, nextpos_in_range;
+
 	if (i == dip_for_drawing->last_color_change)
 	    nextpos = endpos;
 	else
-	    nextpos = coord_hw_to_window_x (curr_color_changes[i].linepos * 2);
+	    nextpos = coord_hw_to_window_x (curr_color_changes[i].linepos);
 
 	nextpos_in_range = nextpos;
 	if (nextpos > endpos)

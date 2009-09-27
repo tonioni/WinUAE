@@ -1,4 +1,16 @@
 
+Beta 16:
+
+- Faster RTG moved to misc panel
+- TD_REMOVE implemented in uaescsi.device (BabelCDRomFS media changes
+  work under KS 1.3) and in uaehf.device
+- bsdsocket GUI checkbox didn't work
+- delay copper writes by 2 lores pixels if hpos >= 0xe0 (I am not sure
+  100% why but I guess extra 0.5 cycle in PAL 227.5 color clock
+  horizontal timing causes this) Fixes Leander "border", can fix other
+  similar border problems. Previous fix in b15 was wrong.
+- CE linemode blitter non-nasty broke in b14
+
 Beta 15:
 
 - automatically enable ini-mode if registry initialization fails
