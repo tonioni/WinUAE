@@ -844,7 +844,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
     ok = execscsicmd_in(unitnum, cmd1, sizeof cmd1, &outlen) ? 1 : 0;
     if (ok) {
 	di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-	di->sectorspertrack = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];
+	di->sectorspertrack = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) + 1;
         di->trackspercylinder = 1;
         di->cylinders = 1;
     }

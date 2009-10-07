@@ -3791,6 +3791,24 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
     return result;
 }
 
+#include "statusline.h"
+static void statusline (uae_u8 *dst)
+{
+    int y, yy;
+    int dst_height, pitch;
+
+    dst_height = picasso96_state.Height;
+    if (dst_height > picasso_vidinfo.height)
+	dst_height = picasso_vidinfo.height;
+    pitch = picasso_vidinfo.rowbytes;
+    yy = 0;
+    for (y = dst_height - TD_TOTAL_HEIGHT; y < dst_height; y++) {
+	uae_u8 *buf = dst + y * pitch;
+	draw_status_line_single (buf, picasso_vidinfo.pixbytes, yy, picasso96_state.Width, p96rc, p96gc, p96bc, NULL);
+	yy++;
+    }
+}
+
 STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 {
     uae_u8 *src2 = src + y * picasso96_state.BytesPerRow;
@@ -3801,7 +3819,7 @@ STATIC_INLINE void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 
     if (picasso96_state.RGBFormat == host_mode) {
         memcpy (dst2 + x * dstpix, src2 + x * srcpix, width * dstpix);
-        return;
+	return;
     }
 
     endx4 = endx & ~3;
@@ -4036,7 +4054,9 @@ static void copyallinvert (uae_u8 *src, uae_u8 *dst)
 static void copyall (uae_u8 *src, uae_u8 *dst)
 {
     int y;
+    uae_u8 *dstb;
 
+    dstb = dst;
     if (picasso96_state.RGBFormat == host_mode) {
 	int w = picasso96_state.Width * picasso_vidinfo.pixbytes;
 	for (y = 0; y < picasso96_state.Height; y++) {
@@ -4047,22 +4067,6 @@ static void copyall (uae_u8 *src, uae_u8 *dst)
     } else {
 	for (y = 0; y < picasso96_state.Height; y++)
 	    copyrow (src, dst, 0, y, picasso96_state.Width);
-    }
-}
-
-#include "statusline.h"
-static void statusline (uae_u8 *dst)
-{
-    int y, yy;
-    int dst_height, pitch;
-
-    dst_height = picasso96_state.Height;
-    pitch = picasso_vidinfo.rowbytes;
-    yy = 0;
-    for (y = dst_height - TD_TOTAL_HEIGHT; y < dst_height; y++) {
-        uae_u8 *buf = dst + y * pitch;
-	draw_status_line_single (buf, picasso_vidinfo.pixbytes, yy, picasso96_state.Width, p96rc, p96gc, p96bc, NULL);
-        yy++;
     }
 }
 
@@ -4192,6 +4196,23 @@ static void flushpixels (void)
 	break;
     }
 
+    if (currprefs.leds_on_screen & STATUSLINE_RTG) {
+	if (dst == NULL) {
+	    if (DirectDraw_IsLocked () == FALSE) {
+		if (!lock)
+		    dst = gfx_lock_picasso ();
+		lock = 1;
+	    } else {
+		dst = picasso96_state.HostAddress;
+	    }
+	}
+	if (dst) {
+	    statusline (dst);
+	    maxy = picasso_vidinfo.height;
+	    if (miny > picasso_vidinfo.height - TD_TOTAL_HEIGHT)
+		miny = picasso_vidinfo.height - TD_TOTAL_HEIGHT;
+	}
+    }
     if (maxy >= 0) {
 	if (doskip () && p96skipmode == 4) {
 	    ;
@@ -4199,21 +4220,7 @@ static void flushpixels (void)
 	    DX_Invalidate (0, miny, picasso96_state.Width, maxy - miny);
 	}
     }
-#if 0
-    if (currprefs.leds_on_screen & STATUSLINE_RTG) {
-	if (!dst && !lock) {
-	    dst = gfx_lock_picasso ();
-	    lock = 1;
-	}
-	if (dst) {
-	    statusline (dst);
-	    if (maxy < 0)
-		DX_Invalidate (0, picasso96_state.Height - TD_TOTAL_HEIGHT, picasso96_state.Width, TD_TOTAL_HEIGHT);
-	    else
-		DX_Invalidate (0, miny, picasso96_state.Width, picasso96_state.Height - miny);
-	}
-    }
-#endif
+
     if (lock)
 	gfx_unlock_picasso ();
     if (dst && gwwcnt) {

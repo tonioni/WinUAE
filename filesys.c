@@ -2248,7 +2248,7 @@ static Key *lookup_key (Unit *unit, uae_u32 uniq)
 
 static Key *new_key (Unit *unit)
 {
-    Key *k = xmalloc (sizeof (Key));
+    Key *k = xcalloc (sizeof (Key), 1);
     k->uniq = ++key_uniq;
     k->fd = NULL;
     k->file_pos = 0;

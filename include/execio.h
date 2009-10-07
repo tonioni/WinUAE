@@ -7,6 +7,8 @@
 #define IOERR_UNITBUSY	 -6
 #define IOERR_SELFTEST	 -7
 
+#define TDERR_DiskChanged 29
+
 #define CMD_INVALID	0
 #define CMD_RESET	1
 #define CMD_READ	2

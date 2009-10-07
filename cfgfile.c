@@ -168,6 +168,13 @@ static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvj
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix", 0 };
 static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
 static const TCHAR *vsyncmodes[] = { L"false", L"true", L"autoswitch", 0 };
+static const TCHAR *dongles[] =
+    {
+    L"none",
+    L"robocop 3", L"leaderboard", L"b.a.t. ii", L"italy'90 soccer", L"dames grand maitre",
+    L"rugby coach", L"cricket captain", L"leviathan",
+    NULL
+};
 
 static const TCHAR *obsolete[] = {
     L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -595,6 +602,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	    }
 	}
     }
+    if (p->dongle) {
+	if (p->dongle + 1 >= sizeof (dongles) / sizeof (TCHAR*))
+	    cfgfile_write (f, L"dongle", L"%d", p->dongle);
+	else
+	    cfgfile_write_str (f, L"dongle", dongles[p->dongle]);
+    }
 
     cfgfile_write_bool (f, L"bsdsocket_emu", p->socket_emu);
     if (p->a2065name[0])
@@ -702,7 +715,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write_bool (f, L"ntsc", p->ntscmode);
     cfgfile_write_bool (f, L"genlock", p->genlock);
     cfgfile_dwrite_bool (f, L"show_leds", p->leds_on_screen & STATUSLINE_CHIPSET);
-    //cfgfile_dwrite_bool (f, L"show_leds_rtg", p->leds_on_screen & STATUSLINE_RTG);
+    cfgfile_dwrite_bool (f, L"show_leds_rtg", p->leds_on_screen & STATUSLINE_RTG);
     cfgfile_dwrite (f, L"keyboard_leds", L"numlock:%s,capslock:%s,scrolllock:%s",
 	kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
     if (p->chipset_mask & CSMASK_AGA)
@@ -771,11 +784,13 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
     cfgfile_write_bool (f, L"cpu_24bit_addressing", p->address_space_24);
     /* do not reorder end */
 
-    if (p->cpu_frequency)
-	cfgfile_write (f, L"cpu_frequency", L"%d", p->cpu_frequency);
-    if (p->cpu_clock_multiplier) {
-	if (p->cpu_clock_multiplier >= 256)
-	    cfgfile_write (f, L"cpu_multiplier", L"%d", p->cpu_clock_multiplier >> 8);
+    if (currprefs.cpu_cycle_exact) {
+	if (p->cpu_frequency)
+	    cfgfile_write (f, L"cpu_frequency", L"%d", p->cpu_frequency);
+	if (p->cpu_clock_multiplier) {
+	    if (p->cpu_clock_multiplier >= 256)
+		cfgfile_write (f, L"cpu_multiplier", L"%d", p->cpu_clock_multiplier >> 8);
+	}
     }
 
     cfgfile_write_bool (f, L"cpu_cycle_exact", p->cpu_cycle_exact);
@@ -1759,6 +1774,12 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	}
 	if (strcasecmp (value, L"max") == 0)
 	    p->m68k_speed = -1;
+	return 1;
+    }
+
+    if (cfgfile_intval (option, value, L"dongle", &p->dongle, 1)) {
+	if (p->dongle == 0)
+	    cfgfile_strval (option, value, L"dongle", &p->dongle, dongles, 0);
 	return 1;
     }
 

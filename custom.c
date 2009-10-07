@@ -133,6 +133,7 @@ extern uae_u8* compiled_code;
 
 int vpos;
 int hack_vpos;
+static int hack_vpos2, hack_vpos2vpos;
 static int lof, lol;
 static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
@@ -827,8 +828,10 @@ STATIC_INLINE void compute_delay_offset (void)
 static void record_color_change2 (int hpos, int regno, unsigned long value)
 {
     curr_color_changes[next_color_change].linepos = hpos * 2;
-    // hpos >= 0xe0, add 2 lores pixels (PAL 0.5 extra cycle, should be in copper emul..)
-    curr_color_changes[next_color_change].linepos += (hpos >= maxhpos - 3) ? 2 : 0;
+#if 0
+    // hpos >= 0xe0, add 2 lores pixels (should be in copper emul..)
+    //curr_color_changes[next_color_change].linepos += (hpos >= maxhpos - 3) ? 2 : 0;
+#endif
     curr_color_changes[next_color_change].regno = regno;
     curr_color_changes[next_color_change++].value = value;
     curr_color_changes[next_color_change].regno = -1;
@@ -2927,6 +2930,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 	hsyncdelay ();
     return vp;
 }
+
 static void VPOSW (uae_u16 v)
 {
 #if 0
@@ -2938,12 +2942,31 @@ static void VPOSW (uae_u16 v)
     lof = (v & 0x8000) ? 1 : 0;
     if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 	lol = (v & 0x0080) ? 1 : 0;
-    if ((v & 1) && vpos > 0) {
-	hack_vpos = vpos + 1;
-	if (hack_vpos > maxvpos)
-	    hack_vpos = maxvpos;
-	hack_vpos &= ~1;
-    }
+    hack_vpos2 = (vpos & 0xff);
+    if (v & 1)
+	hack_vpos2 |= 0x100;
+    hack_vpos2vpos = vpos;
+    if (hack_vpos2 > maxvpos)
+	hack_vpos2 = maxvpos;
+    vpos = hack_vpos2;
+}
+
+static void VHPOSW (uae_u16 v)
+{
+#if 0
+    if (M68K_GETPC < 0xf00000)
+	write_log (L"VHPOSW %04X PC=%08x\n", v, M68K_GETPC);
+#endif
+    v >>= 8;
+    if (hack_vpos2 & 0x100)
+	v |= 0x100;
+    else if (vpos & 0x100)
+	v |= 0x100;
+    hack_vpos2 = v;
+    hack_vpos2vpos = vpos;
+    if (hack_vpos2 > maxvpos)
+	hack_vpos2 = maxvpos;
+    vpos = hack_vpos2;
 }
 
 STATIC_INLINE uae_u16 VHPOSR (void)
@@ -3945,10 +3968,15 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 /* Determine which cycles are available for the copper in a display
  * with a agiven number of planes.  */
 
-STATIC_INLINE int copper_cant_read (int hpos)
+STATIC_INLINE int copper_cant_read (int hpos, int alloc)
 {
     if (hpos + 1 >= maxhpos) // first refresh slot
 	return 1;
+    if ((hpos == maxhpos - 3) && (maxhpos & 1)) {
+	if (alloc)
+	    alloc_cycle (hpos, CYCLE_COPPER);
+	return -1;
+    }
     return is_bitplane_dma_inline (hpos);
 }
 
@@ -4050,7 +4078,10 @@ static void update_copper (int until_hpos)
 	    }
 	}
 #endif
-	c_hpos += 2;
+	if ((c_hpos == maxhpos - 3) && (maxhpos & 1))
+	    c_hpos += 1;
+	else
+	    c_hpos += 2;
 
 	if (cop_state.strobe) {
 	    if (cop_state.strobe > 0)
@@ -4061,18 +4092,18 @@ static void update_copper (int until_hpos)
 	switch (cop_state.state)
 	{
 	case COP_wait_in2:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 0))
 		continue;
 	    cop_state.state = COP_wait1;
 	    break;
 	case COP_skip_in2:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 0))
 		continue;
 	    cop_state.state = COP_skip1;
 	    break;
 	case COP_strobe_delay1:
 	    // first cycle after COPJMP is just like normal first read cycle
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 1))
 		continue;
 	    cop_state.state = COP_strobe_delay2;
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
@@ -4085,7 +4116,7 @@ static void update_copper (int until_hpos)
 	    // second cycle after COPJMP is like second read cycle except
 	    // there is 0x1FE as a target register
 	    // (following word is still read normally and tossed away)
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 1))
 		continue;
 	    cop_state.state = COP_read1;
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
@@ -4093,7 +4124,7 @@ static void update_copper (int until_hpos)
 		record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip + 2), cop_state.ip + 2, old_hpos, vpos);
 	    break;
 	case COP_start_delay:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 1))
 		continue;
 	    cop_state.state = COP_read1;
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
@@ -4102,7 +4133,7 @@ static void update_copper (int until_hpos)
 	    break;
 
 	case COP_read1:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 1))
 		continue;
 	    cop_state.i1 = last_custom_value1 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
@@ -4115,7 +4146,7 @@ static void update_copper (int until_hpos)
 	    break;
 
 	case COP_read2:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 1))
 		continue;
 	    cop_state.i2 = last_custom_value1 = chipmem_agnus_wget (cop_state.ip);
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
@@ -4219,7 +4250,7 @@ static void update_copper (int until_hpos)
 
 	    /* fall through */
 	case COP_wait:
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 0))
 		continue;
 
 	    hp = c_hpos & (cop_state.saved_i2 & 0xFE);
@@ -4256,7 +4287,7 @@ static void update_copper (int until_hpos)
 
 	    if (c_hpos >= (maxhpos & ~1))
 		break;
-	    if (copper_cant_read (old_hpos))
+	    if (copper_cant_read (old_hpos, 0))
 		continue;
 
 	    vcmp = (cop_state.saved_i1 & (cop_state.saved_i2 | 0x8000)) >> 8;
@@ -4870,6 +4901,16 @@ static void vsync_handler (void)
 
     /* For now, let's only allow this to change at vsync time.  It gets too
      * hairy otherwise.  */
+    if (hack_vpos2) {
+	hack_vpos = hack_vpos2vpos + 1;
+	if (hack_vpos2 < maxvpos)
+	    hack_vpos += maxvpos - hack_vpos2;
+	if (hack_vpos > maxvpos)
+	    hack_vpos = maxvpos;
+	if (hack_vpos < 10)
+	    hack_vpos = 10;
+	hack_vpos2 = 0;
+    }
     if ((beamcon0 & (0x20|0x80)) != (new_beamcon0 & (0x20|0x80)) || hack_vpos)
 	init_hz ();
 
@@ -5913,6 +5954,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
      case 0x026: DSKDAT (value); break;
 
      case 0x02A: VPOSW (value); break;
+     case 0x02C: VHPOSW (value); break;
      case 0x02E: COPCON (value); break;
      case 0x030: SERDAT (value); break;
      case 0x032: SERPER (value); break;
@@ -6735,16 +6777,11 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 
 void do_cycles_ce (long cycles)
 {
-    int hpos;
-    int mask = CYCLE_UNIT - 1;
     static int extra;
 
-    extra += cycles & mask;
-    cycles &= ~mask;
-    cycles += extra & ~mask;
-    extra &= mask;
+    cycles += extra;
     while (cycles >= CYCLE_UNIT) {
-	hpos = current_hpos () + 1;
+	int hpos = current_hpos () + 1;
 	sync_copper (hpos);
 	decide_line (hpos);
 	decide_fetch_ce (hpos);
@@ -6753,6 +6790,7 @@ void do_cycles_ce (long cycles)
 	do_cycles (1 * CYCLE_UNIT);
 	cycles -= CYCLE_UNIT;
     }
+    extra = cycles;
 }
 
 int is_cycle_ce (void)

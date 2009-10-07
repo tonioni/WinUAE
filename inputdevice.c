@@ -46,6 +46,7 @@
 #include "cia.h"
 #include "autoconf.h"
 #include "rp.h"
+#include "dongle.h"
 
 extern int bootrom_header, bootrom_items;
 
@@ -393,8 +394,8 @@ static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
 static struct uae_input_device_kbr_default *keyboard_default;
 
-static double mouse_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
-static double oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
+static int mouse_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
+static int oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
 static int mouse_x[MAX_INPUT_DEVICES], mouse_y[MAX_INPUT_DEVICE_EVENTS];
 static int mouse_delta[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
@@ -1639,30 +1640,31 @@ static void readinput (void)
 
 int getjoystate (int joy)
 {
-    int left = 0, right = 0, top = 0, bot = 0;
+    int left = 1, right = 1, top = 1, bot = 1;
     uae_u16 v = 0;
 
     if (inputdevice_logging & 2)
 	write_log (L"JOY%dDAT %08x\n", joy, M68K_GETPC);
     readinput ();
     if (joydir[joy] & DIR_LEFT)
-	left = 1;
+	left = 0;
     if (joydir[joy] & DIR_RIGHT)
-	right = 1;
+	right = 0;
     if (joydir[joy] & DIR_UP)
-	top = 1;
+	top = 0;
     if (joydir[joy] & DIR_DOWN)
-	bot = 1;
+	bot = 0;
     v = (uae_u8)mouse_x[joy] | (mouse_y[joy] << 8);
-    if (left || right || top || bot || !mouse_port[joy]) {
+    if (!left || !right || !top || !bot || !mouse_port[joy]) {
+	int b9, b8, b1, b0;
 	mouse_x[joy] &= ~3;
 	mouse_y[joy] &= ~3;
-	if (left)
-	    top = !top;
-	if (right)
-	    bot = !bot;
+	b0 = bot ^ right;
+	b1 = right ^ 1;
+	b8 = top ^ left;
+	b9 = left ^ 1;
 	v &= ~0x0303;
-	v |= bot | (right << 1) | (top << 8) | (left << 9);
+	v |= (b0 << 0) | (b1 << 1) | (b8 << 8) | (b9 << 9);
     }
 #ifdef DONGLE_DEBUG
     if (notinrom ())
@@ -1686,11 +1688,18 @@ int getjoystate (int joy)
 
 uae_u16 JOY0DAT (void)
 {
-    return getjoystate (0);
+    uae_u16 v;
+    v = getjoystate (0);
+    v = dongle_joydat (0, v);
+    return v;
 }
+
 uae_u16 JOY1DAT (void)
 {
-    return getjoystate (1);
+    uae_u16 v;
+    v = getjoystate (1);
+    v = dongle_joydat (1, v);
+    return v;
 }
 
 void JOYTEST (uae_u16 v)
@@ -1707,6 +1716,7 @@ void JOYTEST (uae_u16 v)
     mouse_frame_y[0] = mouse_y[0];
     mouse_frame_x[1] = mouse_x[1];
     mouse_frame_y[1] = mouse_y[1];
+    dongle_joytest (v);
     if (inputdevice_logging & 2)
 	write_log (L"JOYTEST: %04X PC=%x\n", v , M68K_GETPC);
 }
@@ -1767,17 +1777,26 @@ static void cap_check (void)
 
     for (joy = 0; joy < 2; joy++) {
 	for (i = 0; i < 2; i++) {
-	    int charge = 0;
+	    int charge = 0, dong, joypot;
 	    uae_u16 pdir = 0x0200 << (joy * 4 + i * 2); /* output enable */
 	    uae_u16 pdat = 0x0100 << (joy * 4 + i * 2); /* data */
 	    int isbutton = getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2);
 
 	    if (cd32_pad_enabled[joy])
 		continue;
-	    if (analog_port[joy][i] && pot_cap[joy][i] < joydirpot[joy][i])
-	        charge = 1; // slow charge via pot variable resistor
-	    if ((digital_port[joy][i] || mouse_port[joy]))
-		charge = 1; // slow charge via pull-up resistor
+	    dong = dongle_analogjoy (joy, i);
+	    if (dong >= 0) {
+		isbutton = 0;
+		joypot = dong;
+		if (pot_cap[joy][i] < joypot)
+		    charge = 1; // slow charge via dongle resistor
+	    } else {
+		joypot = joydirpot[joy][i];
+		if (analog_port[joy][i] && pot_cap[joy][i] < joypot)
+		    charge = 1; // slow charge via pot variable resistor
+		if ((digital_port[joy][i] || mouse_port[joy]))
+		    charge = 1; // slow charge via pull-up resistor
+	    }
 	    if (!(potgo_value & pdir)) { // input?
 		if (pot_dat_act[joy][i])
 		    pot_dat[joy][i]++;
@@ -1790,11 +1809,16 @@ static void cap_check (void)
 			pot_dat[joy][i] = 0;
 		    }
 		}
-		if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= joydirpot[joy][i])
-		    pot_dat_act[joy][i] = 0;
-		if ((digital_port[joy][i] || mouse_port[joy]) && pot_dat_act[joy][i] == 2) {
-		    if (pot_cap[joy][i] >= 10 && !isbutton)
+		if (dong >= 0) {
+		    if (pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= joypot)
 			pot_dat_act[joy][i] = 0;
+		} else {
+		    if (analog_port[joy][i] && pot_dat_act[joy][i] == 2 && pot_cap[joy][i] >= joypot)
+			pot_dat_act[joy][i] = 0;
+		    if ((digital_port[joy][i] || mouse_port[joy]) && pot_dat_act[joy][i] == 2) {
+			if (pot_cap[joy][i] >= 10 && !isbutton)
+			    pot_dat_act[joy][i] = 0;
+		    }
 		}
 	    } else { // output?
 		charge = (potgo_value & pdat) ? 2 : -2; /* fast (dis)charge if output */
@@ -1814,13 +1838,13 @@ static void cap_check (void)
 	    }
 	    /* official Commodore mouse has pull-up resistors in button lines
 	     * NOTE: 3rd party mice may not have pullups! */
-	    if (mouse_port[joy] && charge == 0)
+	    if (dong < 0 && mouse_port[joy] && charge == 0)
 	        charge = 2;
 	    /* emulate pullup resistor if button mapped because there too many broken
 	     * programs that read second button in input-mode (and most 2+ button pads have
 	     * pullups)
 	     */
-	    if (digital_port[joy][i] && charge == 0)
+	    if (dong < 0 && digital_port[joy][i] && charge == 0)
 	        charge = 2;
 
 	    charge_cap (joy, i, charge);
@@ -1979,6 +2003,7 @@ void POTGO (uae_u16 v)
     if (notinrom ())
 	write_log (L"POTGO %04X %s\n", v, debuginfo(0));
 #endif
+    dongle_potgo (v);
     potgo_value = potgo_value & 0x5500; /* keep state of data bits */
     potgo_value |= v & 0xaa00; /* get new direction bits */
     for (i = 0; i < 8; i += 2) {
@@ -2009,7 +2034,10 @@ void POTGO (uae_u16 v)
 
 uae_u16 POTGOR (void)
 {
-    uae_u16 v = handle_joystick_potgor (potgo_value) & 0x5500;
+    uae_u16 v;
+    
+    v = handle_joystick_potgor (potgo_value) & 0x5500;
+    v = dongle_potgor (v);
 #ifdef DONGLE_DEBUG
     if (notinrom ())
 	write_log (L"POTGOR %04X %s\n", v, debuginfo(0));
@@ -2491,10 +2519,14 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		int left = oleft[joy], right = oright[joy], top = otop[joy], bot = obot[joy];
 		if (ie->type & 16) {
 		    /* button to axis mapping */
-		    if (ie->data & DIR_LEFT) left = oleft[joy] = state ? 1 : 0;
-		    if (ie->data & DIR_RIGHT) right = oright[joy] = state ? 1 : 0;
-		    if (ie->data & DIR_UP) top = otop[joy] = state ? 1 : 0;
-		    if (ie->data & DIR_DOWN) bot = obot[joy] = state ? 1 : 0;
+		    if (ie->data & DIR_LEFT)
+			left = oleft[joy] = state ? 1 : 0;
+		    if (ie->data & DIR_RIGHT)
+			right = oright[joy] = state ? 1 : 0;
+		    if (ie->data & DIR_UP)
+			top = otop[joy] = state ? 1 : 0;
+		    if (ie->data & DIR_DOWN)
+			bot = obot[joy] = state ? 1 : 0;
 		} else {
 		    /* "normal" joystick axis */
 		    int deadzone = currprefs.input_joystick_deadzone * max / 100;
@@ -2503,16 +2535,24 @@ int handle_input_event (int nr, int state, int max, int autofire)
 			state = 0;
 		    neg = state < 0 ? 1 : 0;
 		    pos = state > 0 ? 1 : 0;
-		    if (ie->data & DIR_LEFT) left = oleft[joy] = neg;
-		    if (ie->data & DIR_RIGHT) right = oright[joy] = pos;
-		    if (ie->data & DIR_UP) top = otop[joy] = neg;
-		    if (ie->data & DIR_DOWN) bot = obot[joy] = pos;
+		    if (ie->data & DIR_LEFT)
+			left = oleft[joy] = neg;
+		    if (ie->data & DIR_RIGHT)
+			right = oright[joy] = pos;
+		    if (ie->data & DIR_UP)
+			top = otop[joy] = neg;
+		    if (ie->data & DIR_DOWN)
+			bot = obot[joy] = pos;
 		}
 		joydir[joy] = 0;
-		if (left) joydir[joy] |= DIR_LEFT;
-		if (right) joydir[joy] |= DIR_RIGHT;
-		if (top) joydir[joy] |= DIR_UP;
-		if (bot) joydir[joy] |= DIR_DOWN;
+		if (left)
+		    joydir[joy] |= DIR_LEFT;
+		if (right)
+		    joydir[joy] |= DIR_RIGHT;
+		if (top)
+		    joydir[joy] |= DIR_UP;
+		if (bot)
+		    joydir[joy] |= DIR_DOWN;
 
 	    }
 	break;
@@ -3243,11 +3283,13 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
     oldmx[0] = oldmx[1] = -1;
     oldmy[0] = oldmy[1] = -1;
     cd32_shifter[0] = cd32_shifter[1] = 8;
-    oleft[0] = oleft[1] = 0;
-    oright[0] = oright[1] = 0;
-    otop[0] = otop[1] = 0;
-    obot[0] = obot[1] = 0;
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 4; i++) {
+	oleft[i] = 0;
+	oright[i] = 0;
+	otop[i] = 0;
+	obot[i] = 0;
+    }
+    for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 	mouse_deltanoreset[i][0] = 0;
 	mouse_delta[i][0] = 0;
 	mouse_deltanoreset[i][1] = 0;
@@ -4093,11 +4135,11 @@ int getjoystickstate(int joy)
 
 void setmousestate (int mouse, int axis, int data, int isabs)
 {
-    int i, v;
-    double *mouse_p, *oldm_p, d, diff;
+    int i, v, diff;
+    int *mouse_p, *oldm_p;
+    double d;
     struct uae_input_device *id = &mice[mouse];
-    static double fract1[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
-    static double fract2[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
+    static double fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
     if (testmode) {
 	testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
@@ -4122,7 +4164,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	*mouse_p += data;
 	d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0;
     } else {
-	d = data - (int)(*oldm_p);
+	d = data - *oldm_p;
 	*oldm_p = data;
 	*mouse_p += d;
 	if (axis == 0)
@@ -4134,14 +4176,11 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive ())
 	    return;
     }
-    v = (int)(d > 0 ? d + 0.5 : d - 0.5);
-    fract1[mouse][axis] += d;
-    fract2[mouse][axis] += v;
-    diff = fract2[mouse][axis] - fract1[mouse][axis];
-    if (diff > 1 || diff < -1) {
-	v -= (int)diff;
-	fract2[mouse][axis] -= diff;
-    }
+    v = (int)d;
+    fract[mouse][axis] += d - v;
+    diff = (int)fract[mouse][axis];
+    v += diff;
+    fract[mouse][axis] -= diff;
     for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
 	handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], v, 0, 0);
 }

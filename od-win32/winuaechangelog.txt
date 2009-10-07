@@ -1,4 +1,23 @@
 
+Beta 17:
+
+- fixed uaescsi.device TD_GETGEOMETRY total number of blocks off by one
+  error, return TDERR_DiskChanged if no media inserted
+- ACTION_FH_FROM_LOCK didn't reset write notification flag, caused
+  ghost file notifications + parent directory date changes when file
+  was closed if same file/dir was ACTION_ADD_NOTIFY'd earlier
+- VHPOSW/VPOSW emulation rewritten (mainly used for "fake" 60Hz but
+  also can be used for other purposes)
+- less confusing GUI CPU frequency configuration
+- when selecting best fit fullscreen mode, ignore modes that have
+  completely wrong aspect ratio (for example rotated screen)
+- right border 2 lores pixel delay properly handled in copper emulation
+- RTG onscreen leds (no transparency, does not ignore scaling)
+- new pointless feature: following games' protection dongles emulated:
+  Leaderboard, Robocop 3, B.A.T. II, Italy'90 Soccer, Dames Grand Maitre,
+  Rugby Coach, Cricket Captain
+  No GUI support, add "dongle=x" where x is name of the game
+
 Beta 16:
 
 - Faster RTG moved to misc panel
@@ -9,6 +28,7 @@ Beta 16:
   100% why but I guess extra 0.5 cycle in PAL 227.5 color clock
   horizontal timing causes this) Fixes Leander "border", can fix other
   similar border problems. Previous fix in b15 was wrong.
+- disable new expansion checkboxes when emulation is running
 - CE linemode blitter non-nasty broke in b14
 
 Beta 15:

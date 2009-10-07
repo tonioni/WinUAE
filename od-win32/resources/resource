@@ -261,7 +261,6 @@
 #define IDD_GAMEPORTS                   263
 #define IDS_STRING22                    263
 #define IDS_INPUTTOGGLE                 263
-#define IDS_STRING23                    264
 #define IDS_NETDISCONNECTED             264
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
@@ -367,6 +366,8 @@
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_MBMEM1                      1028
 #define IDC_PORT_TABLET_CURSOR          1028
+#define IDC_SHOWLEDS2                   1028
+#define IDC_SHOWLEDSRTG                 1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
@@ -1005,6 +1006,7 @@
 #define IDC_ASSOCIATE_OFF               1790
 #define IDC_PORT_TABLET_FULL            1790
 #define IDC_CPU_MULTIPLIER              1790
+#define IDC_CPU_FREQUENCY2              1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
@@ -1056,7 +1058,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        352
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1792
+#define _APS_NEXT_CONTROL_VALUE         1793
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

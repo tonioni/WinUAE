@@ -37,9 +37,10 @@
 #define BACKTRACELONGS 500
 #define INSTRUCTIONLINES 17
 
-#define ISILLEGAL_LONG(addr) (addr < 4 || (addr > 4 && addr < ENFORCESIZE))
-#define ISILLEGAL_WORD(addr) (addr < ENFORCESIZE)
-#define ISILLEGAL_BYTE(addr) (addr < ENFORCESIZE)
+#define ISEXEC(addr) ((addr) >= 4 && (addr) <= 7)
+#define ISILLEGAL_LONG(addr) ((addr) < 4 || ((addr) > 4 && (addr) < ENFORCESIZE))
+#define ISILLEGAL_WORD(addr) ((addr) < ENFORCESIZE)
+#define ISILLEGAL_BYTE(addr) ((addr) < ENFORCESIZE)
 
 extern uae_u8 *natmem_offset;
 
@@ -436,6 +437,8 @@ void REGPARAM2 chipmem_lput2 (uaecptr addr, uae_u32 l)
 	    if (addr != 0x100)
 		set_special (SPCFLAG_TRAP);
     }
+    if (ISEXEC (addr) || ISEXEC (addr + 1) || ISEXEC (addr + 2) || ISEXEC (addr + 3))
+	return;
     do_put_mem_long (m, l);
 }
 
@@ -453,6 +456,8 @@ void REGPARAM2 chipmem_wput2 (uaecptr addr, uae_u32 w)
 	if (enforcermode & 1)
 	    set_special (SPCFLAG_TRAP);
     }
+    if (ISEXEC (addr) || ISEXEC (addr + 1))
+	return;
     do_put_mem_word (m, w);
 }
 
@@ -467,6 +472,8 @@ void REGPARAM2 chipmem_bput2 (uaecptr addr, uae_u32 b)
 	if (enforcermode & 1)
 	    set_special (SPCFLAG_TRAP);
     }
+    if (ISEXEC (addr))
+	return;
     chipmemory[addr] = b;
 }
 

@@ -1333,8 +1333,8 @@ void do_blitter (int hpos, int copper)
 	do_blitter2 (hpos, copper);
 	return;
     }
-    // previous blit may be have last write cycle left
-    // we must let it finish
+    // previous blit may have last write cycle left
+    // and we must let it finish
     blit_startcycles = BLITTER_STARTUP_CYCLES + (copper ? 1 : 0);
 }
 

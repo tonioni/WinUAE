@@ -449,7 +449,6 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     uae_u64 io_offset64;
     int async = 0;
     int bmask = dev->di.bytespersector - 1;
-    struct device_info di;
     struct priv_devstruct *pdev = getpdevstruct (request);
 
     if (!pdev)
@@ -460,6 +459,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
     {
 	case CMD_READ:
 	//write_log (L"CMD_READ %08x %d %d %08x\n", io_data, io_offset, io_length, bmask);
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	if (dev->drivetype == INQ_ROMD) {
 	    io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
 	} else {
@@ -472,6 +473,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	case TD_READ64:
 	case NSCMD_TD_READ64:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	if ((io_offset64 & bmask) || bmask == 0 || io_data == 0)
 	    goto bad_command;
@@ -484,6 +487,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 
 	case CMD_WRITE:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
 	} else if ((io_offset & bmask) || bmask == 0 || io_data == 0) {
@@ -496,6 +501,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	case TD_WRITE64:
 	case NSCMD_TD_WRITE64:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
@@ -509,6 +516,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 
 	case CMD_FORMAT:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
 	} else if ((io_offset & bmask) || bmask == 0 || io_data == 0) {
@@ -521,6 +530,8 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	case TD_FORMAT64:
 	case NSCMD_TD_FORMAT64:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 	if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 	    io_error = 28; /* writeprotect */
@@ -541,28 +552,32 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	io_actual = 0;
 	break;
 	case CMD_REMOVE:
+	io_actual = dev->changeint;
 	dev->changeint = io_data;
-	io_actual = 0;
 	break;
 	case CMD_CHANGENUM:
 	io_actual = dev->changenum;
 	break;
 	case CMD_CHANGESTATE:
-	io_actual = devinfo(pdev->mode, dev->unitnum, &di)->media_inserted ? 0 : 1;
+	io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->media_inserted ? 0 : 1;
 	break;
 	case CMD_PROTSTATUS:
-	io_actual = devinfo(pdev->mode, dev->unitnum, &di)->write_protected ? -1 : 0;
+	io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->write_protected ? -1 : 0;
 	break;
 	case CMD_GETDRIVETYPE:
 	io_actual = dev->drivetype;
 	break;
 	case CMD_GETNUMTRACKS:
+	if (!dev->di.media_inserted)
+	    goto no_media;
 	io_actual = dev->di.cylinders;
 	break;
 	case CMD_GETGEOMETRY:
 	{
-	    struct device_info di2, *di;
-	    di = devinfo (pdev->mode, dev->unitnum, &di2);
+	    struct device_info *di;
+	    di = devinfo (pdev->mode, dev->unitnum, &dev->di);
+	    if (!di->media_inserted)
+		goto no_media;
 	    put_long (io_data + 0, di->bytespersector);
 	    put_long (io_data + 4, di->sectorspertrack * di->trackspercylinder * di->cylinders);
 	    put_long (io_data + 8, di->cylinders);
@@ -572,6 +587,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	    put_long (io_data + 24, 0); /* bufmemtype */
 	    put_byte (io_data + 28, di->type);
 	    put_byte (io_data + 29, di->removable ? 1 : 0); /* flags */
+	    io_actual = 30;
 	}
 	break;
 	case CMD_ADDCHANGEINT:
@@ -608,6 +624,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	break;
 	bad_command:
 	io_error = IOERR_BADADDRESS;
+	break;
+	no_media:
+	io_error = TDERR_DiskChanged;
 	break;
     }
     put_long (request + 32, io_actual);

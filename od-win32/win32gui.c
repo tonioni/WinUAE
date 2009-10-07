@@ -5726,8 +5726,6 @@ static void values_to_memorydlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
     CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 
-    //CheckDlgButton (hDlg, IDC_RTG_LEDS, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
-
     SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 	(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
 	(workprefs.win32_rtgscaleaspectratio == 4 * 256 + 3) ? 2 :
@@ -5957,12 +5955,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_RTG_SCALE_ALLOW:
 		workprefs.win32_rtgallowscaling = IsDlgButtonChecked (hDlg, IDC_RTG_SCALE_ALLOW);
 		break;
-//		case IDC_RTG_LEDS:
-//		workprefs.leds_on_screen &= ~STATUSLINE_RTG;
-//		if (IsDlgButtonChecked (hDlg, IDC_RTG_LEDS))
-//		    workprefs.leds_on_screen |= STATUSLINE_RTG;
-//		break;
-
 		case IDC_SOCKETS:
 		workprefs.socket_emu = IsDlgButtonChecked (hDlg, IDC_SOCKETS);
 		break;
@@ -6543,6 +6535,7 @@ static void values_to_miscdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
 	CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
 	CheckDlgButton (hDlg, IDC_SHOWLEDS, (workprefs.leds_on_screen & STATUSLINE_CHIPSET) ? 1 : 0);
+	CheckDlgButton (hDlg, IDC_SHOWLEDSRTG, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
 	CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 	CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 	CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
@@ -6733,6 +6726,11 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	    if (IsDlgButtonChecked(hDlg, IDC_SHOWLEDS))
 		workprefs.leds_on_screen |= STATUSLINE_CHIPSET;
 	    break;
+	case IDC_SHOWLEDSRTG:
+	    workprefs.leds_on_screen &= ~STATUSLINE_RTG;
+	    if (IsDlgButtonChecked(hDlg, IDC_SHOWLEDSRTG))
+		workprefs.leds_on_screen |= STATUSLINE_RTG;
+	    break;
 	case IDC_SHOWGUI:
 	    workprefs.start_gui = IsDlgButtonChecked (hDlg, IDC_SHOWGUI);
 	    break;
@@ -6860,6 +6858,7 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
     ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact);
+    ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier);
 
     fpu = TRUE;
     if (workprefs.cpu_model > 68030 || workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
@@ -6868,6 +6867,14 @@ static void enable_for_cpudlg (HWND hDlg)
     ew (hDlg, IDC_FPU2, fpu);
     ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
     ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
+}
+
+static int getcpufreq (int m)
+{
+    int f;
+    
+    f = workprefs.ntscmode ? 28636360.0 : 28375160.0;
+    return f * (m >> 8) / 8;
 }
 
 static void values_to_cpudlg (HWND hDlg)
@@ -6907,6 +6914,12 @@ static void values_to_cpudlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
     CheckDlgButton (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0 && workprefs.mmu_model == 68040);
 
+    if (workprefs.cpu_clock_multiplier) {
+	TCHAR txt[20];
+	double f = getcpufreq (workprefs.cpu_clock_multiplier);
+	_stprintf (txt, L"%.6f", f / 1000000.0);
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+    }
 }
 
 static void values_from_cpudlg (HWND hDlg)
@@ -7010,9 +7023,9 @@ static void values_from_cpudlg (HWND hDlg)
     if (pages[MEMORY_ID])
 	SendMessage (pages[MEMORY_ID], WM_USER, 0, 0);
 
-   
     idx = SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_GETCURSEL, 0, 0);
-    if (idx >= 0) {
+    if (idx != CB_ERR) {
+	int m = workprefs.cpu_clock_multiplier;
 	workprefs.cpu_frequency = 0;
 	workprefs.cpu_clock_multiplier = 0;
 	if (idx == 0)
@@ -7021,18 +7034,17 @@ static void values_from_cpudlg (HWND hDlg)
 	    workprefs.cpu_clock_multiplier = 4 << 8;
 	if (idx == 2)
 	    workprefs.cpu_clock_multiplier = 8 << 8;
-    } else {
-	TCHAR txt[20];
-	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
-	workprefs.cpu_clock_multiplier = 0;
-	workprefs.cpu_frequency = _tstof (txt) * 1000000.0;
-	if (workprefs.cpu_frequency < 1 * 1000000)
-	    workprefs.cpu_frequency = 1 * 1000000;
-	if (workprefs.cpu_frequency >= 99 * 1000000)
-	    workprefs.cpu_frequency = 99 * 1000000;
+	if (idx == 3) {
+	    TCHAR txt[20];
+	    SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
+	    workprefs.cpu_clock_multiplier = 0;
+	    workprefs.cpu_frequency = _tstof (txt) * 1000000.0;
+	    if (workprefs.cpu_frequency < 1 * 1000000)
+		workprefs.cpu_frequency = 1 * 1000000;
+	    if (workprefs.cpu_frequency >= 99 * 1000000)
+		workprefs.cpu_frequency = 99 * 1000000;
+	}
     }
-
-
 }
 
 static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -7042,6 +7054,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
     switch (msg) {
     case WM_INITDIALOG:
+	recursive++;
 	pages[CPU_ID] = hDlg;
 	currentpage = CPU_ID;
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, MAKELONG (MIN_M68K_PRIORITY, MAX_M68K_PRIORITY));
@@ -7059,26 +7072,25 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"8 (28.4MHz)");
 #endif
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"7MHz");
-	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"14MHz");
-	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"28MHz");
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"A500");
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"A1200");
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"2x");
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"Custom");
 
-	idx = -1;
-	if (workprefs.cpu_frequency) {
-	    TCHAR txt[20];
-	    _stprintf (txt, L"%.3f", workprefs.cpu_frequency / 1000000.0);
-	    SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, WM_SETTEXT, 0, (LPARAM)txt);
-	} else if (workprefs.cpu_clock_multiplier == 2 << 8) {
+	idx = 3;
+	if (workprefs.cpu_clock_multiplier == 2 << 8)
 	    idx = 0;
-	} else if (workprefs.cpu_clock_multiplier == 4 << 8) {
+	if (workprefs.cpu_clock_multiplier == 4 << 8)
 	    idx = 1;
-	} else if (workprefs.cpu_clock_multiplier == 8 << 8) {
+	if (workprefs.cpu_clock_multiplier == 8 << 8)
 	    idx = 2;
+	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
+	if (!workprefs.cpu_clock_multiplier) {
+	    TCHAR txt[20];
+	    _stprintf (txt, L"%.6f", workprefs.cpu_frequency / 1000000.0);
+	    SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
 	}
-	if (idx >= 0)
-	    SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
-	
-
+	recursive--;
 
     case WM_USER:
 	recursive++;
@@ -7088,7 +7100,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	return TRUE;
 
     case WM_COMMAND:
-	if (recursive > 0)
+        if (recursive > 0)
 	    break;
 	recursive++;
 	values_from_cpudlg (hDlg);
@@ -12380,6 +12392,23 @@ static void dialogmousemove (HWND hDlg)
     }
 }
 
+#if 0
+static void blah(void)
+{
+    char *str1 = "הצו€ץדסכÿüןסח";
+    TCHAR *str2 = L"הצו€ץדסכÿüןסח";
+    TCHAR *s1;
+    char *s2;
+    MessageBoxA(NULL, str1, "Test1 ANSI", MB_OK);
+    s1 = au (str1);
+    MessageBoxW(NULL, s1, L"Test1 UNICODE", MB_OK);
+
+    MessageBoxW(NULL, str2, L"Test2 UNICODE", MB_OK);
+    s2 = ua (str2);
+    MessageBoxA(NULL, s2, "Test2 ANSI", MB_OK);
+}
+#endif
+
 static int GetSettings (int all_options, HWND hwnd)
 {
     static int init_called = 0;
@@ -12447,6 +12476,7 @@ static int GetSettings (int all_options, HWND hwnd)
     DragAcceptFiles (hwnd, TRUE);
     if (first)
 	write_log (L"Entering GUI idle loop\n");
+    //blah();
 
     scaleresource_setmaxsize (800, 600);
     tres = scaleresource (panelresource, hwnd);

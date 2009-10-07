@@ -50,6 +50,7 @@
 #include "blkdev.h"
 #include "gfxfilter.h"
 #include "uaeresource.h"
+#include "dongle.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -612,6 +613,7 @@ void reset_all_systems (void)
     initparallel ();
 #endif
     native2amiga_reset ();
+    dongle_reset ();
 }
 
 /* Okay, this stuff looks strange, but it is here to encourage people who

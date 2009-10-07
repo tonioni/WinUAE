@@ -1913,5 +1913,6 @@ void audio_vsync (void)
 	extrasamples = 10;
     if (extrasamples < -10)
 	extrasamples = -10;
+
 #endif
 }

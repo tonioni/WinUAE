@@ -937,48 +937,6 @@ static void DX_Blit96 (int x, int y, int w, int h)
     }
 }
 
-#include "statusline.h"
-extern uae_u32 p96rc[256], p96gc[256], p96bc[256];
-static void RTGleds (void)
-{
-    DDSURFACEDESC2 desc;
-    RECT sr, dr;
-    int dst_width = currentmode->native_width;
-    int dst_height = currentmode->native_height;
-    int width;
-
-    if (!(currprefs.leds_on_screen & STATUSLINE_RTG))
-	return;
-
-    width = dxdata.statuswidth;
-    if (dst_width < width)
-	width = dst_width;
-    SetRect (&sr, 0, 0, width, dxdata.statusheight);
-    SetRect (&dr, dst_width - width, dst_height - dxdata.statusheight, dst_width, dst_height);
-
-    picasso_putcursor (dr.left, dr.top,
-	dr.right - dr.left, dr.bottom - dr.top);
-    DX_Blit96 (dr.left, dr.top,
-	dr.right - dr.left, dr.bottom - dr.top);
-
-    DirectDraw_BlitRect (dxdata.statussurface, &sr, dxdata.secondary, &dr);
-    if (locksurface (dxdata.statussurface, &desc)) {
-        int sy, yy;
-        yy = 0;
-        for (sy = dst_height - dxdata.statusheight; sy < dst_height; sy++) {
-	    uae_u8 *buf = (uae_u8*)desc.lpSurface + yy * desc.lPitch;
-	    draw_status_line_single (buf, currentmode->current_depth / 8, yy, dst_width, p96rc, p96gc, p96bc, NULL);
-	    yy++;
-	}
-	unlocksurface (dxdata.statussurface);
-    }
-    DirectDraw_BlitRect (dxdata.secondary, &dr, dxdata.statussurface, &sr);
-    
-    picasso_clearcursor ();
-    
-    DirectDraw_BlitToPrimary (&dr);
-}
-
 void gfx_unlock_picasso (void)
 {
     DirectDraw_SurfaceUnlock ();
@@ -997,8 +955,6 @@ void gfx_unlock_picasso (void)
 	picasso_clearcursor ();
 	p96_double_buffer_needs_flushing = 0;
     }
-    if (currprefs.leds_on_screen & STATUSLINE_RTG)
-	RTGleds ();
 }
 
 static void close_hwnds (void)
@@ -2053,9 +2009,11 @@ static int createnotification (HWND hwnd)
 
 static int getbestmode (int nextbest)
 {
-    int i, disp;
+    int i, startidx, disp;
     struct MultiDisplay *md = getdisplay (&currprefs);
+    int ratio;
 
+    ratio = currentmode->native_width > currentmode->native_height ? 1 : 0;
     disp = currprefs.gfx_display;
     for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
         struct PicassoResolution *pr = &md->DisplayModes[i];
@@ -2070,8 +2028,26 @@ static int getbestmode (int nextbest)
     } else {
 	i = 0;
     }
+    // first iterate only modes that have similar aspect ratio
+    startidx = i;
     for (; md->DisplayModes[i].depth >= 0; i++) {
 	struct PicassoResolution *pr = &md->DisplayModes[i];
+	int r = pr->res.width > pr->res.height ? 1 : 0;
+	if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height && r == ratio) {
+	    write_log (L"FS: %dx%d -> %dx%d (%d)\n", currentmode->native_width, currentmode->native_height,
+		pr->res.width, pr->res.height, ratio);
+	    currentmode->native_width = pr->res.width;
+	    currentmode->native_height = pr->res.height;
+	    currentmode->current_width = currentmode->native_width;
+	    currentmode->current_height = currentmode->native_height;
+	    return 1;
+	}
+    }
+    // still not match? check all modes
+    i = startidx;
+    for (; md->DisplayModes[i].depth >= 0; i++) {
+	struct PicassoResolution *pr = &md->DisplayModes[i];
+	int r = pr->res.width > pr->res.height ? 1 : 0;
 	if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
 	    write_log (L"FS: %dx%d -> %dx%d\n", currentmode->native_width, currentmode->native_height,
 		pr->res.width, pr->res.height);
