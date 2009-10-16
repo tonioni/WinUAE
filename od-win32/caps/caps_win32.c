@@ -52,7 +52,7 @@ int caps_init (void)
     h = WIN32_LoadLibrary (dllname);
     if (!h) {
 	TCHAR tmp[MAX_DPATH];
-	if (SUCCEEDED(SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
+	if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
 	    _tcscat (tmp, L"\\Software Preservation Society\\");
 	    _tcscat (tmp, dllname);
 	    h = LoadLibrary (tmp);

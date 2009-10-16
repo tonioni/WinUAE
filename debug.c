@@ -728,6 +728,95 @@ void record_copper_reset (void)
     nr_cop_records[curr_cop_set] = 0;
 }
 
+STATIC_INLINE uae_u32 ledcolor (uae_u32 c, uae_u32 *rc, uae_u32 *gc, uae_u32 *bc, uae_u32 *a)
+{
+    uae_u32 v = rc[(c >> 16) & 0xff] | gc[(c >> 8) & 0xff] | bc[(c >> 0) & 0xff];
+    if (a)
+	v |= a[255 - ((c >> 24) & 0xff)];
+    return v;
+}
+
+STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
+{
+    if (x <= 0)
+	return;
+
+    switch (bpp) {
+    case 1:
+	buf[x] = (uae_u8)c8;
+	break;
+    case 2:
+    {
+	uae_u16 *p = (uae_u16*)buf + x;
+	*p = (uae_u16)c8;
+	break;
+    }
+    case 3:
+	/* no 24 bit yet */
+	break;
+    case 4:
+    {
+	uae_u32 *p = (uae_u32*)buf + x;
+	*p = c8;
+	break;
+    }
+    }
+}
+
+#define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL);
+void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
+{
+    int y, x, xx, dx, xplus, yplus;
+    struct dma_rec *dr;
+    int t;
+    uae_u32 cc[DMARECORD_MAX];
+
+    if (debug_dma >= 4)
+	yplus = 2;
+    else
+	yplus = 1;
+    if (debug_dma >= 3)
+	xplus = 2;
+    else
+	xplus = 1;
+
+    t = dma_record_toggle ^ 1;
+    y = line / yplus;
+
+    if (y > maxvpos)
+	return;
+    if (y >= height)
+	return;
+
+    dx = width - xplus * ((maxhpos + 1) & ~1) - 16;
+
+    cc[0] = lc(0x222222);
+    cc[DMARECORD_REFRESH] = lc(0x444444);
+    cc[DMARECORD_CPU] = lc(0x888888);
+    cc[DMARECORD_COPPER] = lc(0xeeee00);
+    cc[DMARECORD_AUDIO] = lc(0xff0000);
+    cc[DMARECORD_BLITTER] = lc(0x00ff00);
+    cc[DMARECORD_BLITTER_LINE] = lc(0x008800);
+    cc[DMARECORD_BITPLANE] = lc(0x0000ff);
+    cc[DMARECORD_SPRITE] = lc(0xff00ff);
+    cc[DMARECORD_DISK] = lc(0xffffff);
+
+    for (x = 0; x < maxhpos; x++) {
+        uae_u32 c = cc[0];
+        xx = x * xplus + dx;
+        dr = &dma_record[t][y * NR_DMA_REC_HPOS + x];
+        if (dr->reg != 0xffff) {
+	    c = cc[dr->type];	    
+	}
+	putpixel (buf, bpp, xx, c);
+	if (xplus)
+	    putpixel (buf, bpp, xx + 1, c);
+    }
+}
+
+
+
+
 void record_dma_event (int evt, int hpos, int vpos)
 {
     struct dma_rec *dr;
@@ -735,12 +824,12 @@ void record_dma_event (int evt, int hpos, int vpos)
     if (!dma_record[0])
 	return;
     if (hpos >= NR_DMA_REC_HPOS || vpos >= NR_DMA_REC_VPOS)
-	return ;
+	return;
     dr = &dma_record[dma_record_toggle][vpos * NR_DMA_REC_HPOS + hpos];
     dr->evt |= evt;
 }
 
-struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos)
+struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type)
 {
     struct dma_rec *dr;
 
@@ -760,6 +849,7 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
     dr->reg = reg;
     dr->dat = dat;
     dr->addr = addr;
+    dr->type = type;
     return dr;
 }
 
@@ -3077,8 +3167,8 @@ static void debug_1 (void)
 	    if (debug_dma) {
 		decode_dma_record (v2, v1, cmd == 'v');
 	    } else {
-		debug_dma = 1;
-		console_out_f (L"DMA debugger enabled.\n");
+		debug_dma = v1 < 0 ? -v1 : 1;
+		console_out_f (L"DMA debugger enabled, mode=%d.\n", debug_dma);
 	    }
 	}
 	break;

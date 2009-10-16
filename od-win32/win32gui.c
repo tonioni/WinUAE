@@ -6078,11 +6078,6 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		    if (tmp[0])
 			workprefs.win32_rtgvblankrate = _tstol (tmp);
 		    break;
-		    case IDC_SCSIMODE:
-		    v = SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
-		    if (v != CB_ERR)
-			workprefs.win32_uaescsimode = v + 1;
-		    break;
 		    case IDC_NETDEVICE:
 		    v = SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_GETCURSEL, 0, 0L);
 		    if (v != CB_ERR) {
@@ -6571,7 +6566,7 @@ static void values_to_miscdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
-	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM");
+	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM *");
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"LocalVRAM");
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"SystemRAM");
 	SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
@@ -6680,6 +6675,11 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			ddforceram = v;
 			regsetint (NULL, L"DirectDraw_Secondary", ddforceram);
 		    }
+		    break;
+		    case IDC_SCSIMODE:
+		    v = SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
+		    if (v != CB_ERR)
+			workprefs.win32_uaescsimode = v + 1;
 		    break;
 		}
 	    }
@@ -6914,11 +6914,15 @@ static void values_to_cpudlg (HWND hDlg)
     CheckDlgButton (hDlg, IDC_JITENABLE, workprefs.cachesize > 0);
     CheckDlgButton (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0 && workprefs.mmu_model == 68040);
 
-    if (workprefs.cpu_clock_multiplier) {
-	TCHAR txt[20];
-	double f = getcpufreq (workprefs.cpu_clock_multiplier);
-	_stprintf (txt, L"%.6f", f / 1000000.0);
-	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+    if (workprefs.cpu_cycle_exact) {
+	if (workprefs.cpu_clock_multiplier) {
+	    TCHAR txt[20];
+	    double f = getcpufreq (workprefs.cpu_clock_multiplier);
+	    _stprintf (txt, L"%.6f", f / 1000000.0);
+	    SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)txt);
+	}
+    } else {
+        SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_SETTEXT, 0, (LPARAM)"");
     }
 }
 
@@ -7063,14 +7067,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPAGESIZE, 0, 1);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPAGESIZE, 0, 1);
-#if 0
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"-");
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"1 (3.5MHz)");
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"2 (7.1MHz)");
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"4 (14.2MHz)");
-	SendDlgItemMessage (hDlg, IDC_CPU_MULTIPLIER, CB_ADDSTRING, 0, (LPARAM)L"8 (28.4MHz)");
-#endif
+
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"A500");
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"A1200");
@@ -7078,12 +7075,22 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_ADDSTRING, 0, (LPARAM)L"Custom");
 
 	idx = 3;
-	if (workprefs.cpu_clock_multiplier == 2 << 8)
+	if (workprefs.cpu_clock_multiplier == 2 << 8 || (workprefs.cpu_clock_multiplier == 0 && workprefs.cpu_frequency == 0 && workprefs.cpu_model <= 68010)) {
 	    idx = 0;
-	if (workprefs.cpu_clock_multiplier == 4 << 8)
+	    workprefs.cpu_clock_multiplier = 2 << 8;
+	}
+	if (workprefs.cpu_clock_multiplier == 4 << 8 || (workprefs.cpu_clock_multiplier == 0 && workprefs.cpu_frequency == 0 && workprefs.cpu_model >= 68020)) {
 	    idx = 1;
-	if (workprefs.cpu_clock_multiplier == 8 << 8)
+	    workprefs.cpu_clock_multiplier = 4 << 8;
+	}
+	if (workprefs.cpu_clock_multiplier == 8 << 8) {
 	    idx = 2;
+	}
+	if (!workprefs.cpu_cycle_exact) {
+	    idx = 3;
+	    workprefs.cpu_clock_multiplier = 0;
+	    workprefs.cpu_frequency = 0;
+	}
 	SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY, CB_SETCURSEL, idx, 0);
 	if (!workprefs.cpu_clock_multiplier) {
 	    TCHAR txt[20];
@@ -9573,6 +9580,10 @@ static void values_from_portsdlg (HWND hDlg)
     if (success)
 	workprefs.parallel_autoflush_time = v;
 
+    item = SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_GETCURSEL, 0, 0L);
+    if (item != CB_ERR)
+	workprefs.dongle = item;
+
 }
 
 static void values_to_portsdlg (HWND hDlg)
@@ -9606,9 +9617,9 @@ static void values_to_portsdlg (HWND hDlg)
     SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
     idx = workprefs.parallel_matrix_emulation;
     if (workprefs.parallel_postscript_detection)
-	idx = 3;
-    if (workprefs.parallel_postscript_emulation)
 	idx = 4;
+    if (workprefs.parallel_postscript_emulation)
+	idx = 5;
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_SETCURSEL, idx, 0);
 
     SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
@@ -9652,6 +9663,8 @@ static void values_to_portsdlg (HWND hDlg)
 	    workprefs.use_serial = 1;
 	}
     }
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_SETCURSEL, workprefs.dongle, 0L);
+
 }
 
 static void init_portsdlg (HWND hDlg)
@@ -9673,6 +9686,17 @@ static void init_portsdlg (HWND hDlg)
 	workprefs.parallel_postscript_emulation = 0;
     }
 
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_RESETCONTENT, 0, 0L);
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Robocop 3");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Leaderboard");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"B.A.T. II");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Italy'90 Soccer");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Dames Grand Maitre");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Rugby Coach");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Cricket Captain");
+    SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Leviathan");
+
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
     SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);
     for (port = 0; port < MAX_SERIAL_PORTS && comports[port].name; port++) {
@@ -9684,7 +9708,9 @@ static void init_portsdlg (HWND hDlg)
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
     WIN32GUI_LoadUIString (IDS_PRINTER_ASCII, tmp, MAX_DPATH);
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
-    WIN32GUI_LoadUIString (IDS_PRINTER_EPSON, tmp, MAX_DPATH);
+    WIN32GUI_LoadUIString (IDS_PRINTER_EPSON9, tmp, MAX_DPATH);
+    SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+    WIN32GUI_LoadUIString (IDS_PRINTER_EPSON48, tmp, MAX_DPATH);
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
     WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_DETECTION, tmp, MAX_DPATH);
     SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -9901,6 +9927,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		    case IDC_SERIAL:
 		    case IDC_MIDIOUTLIST:
 		    case IDC_MIDIINLIST:
+		    case IDC_DONGLELIST:
 			values_from_portsdlg (hDlg);
 			inputdevice_updateconfig (&workprefs);
 			inputdevice_config_change ();
@@ -9912,15 +9939,18 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			switch (item)
 			{
 			case 1:
-			    workprefs.parallel_matrix_emulation = 1;
+			    workprefs.parallel_matrix_emulation = PARALLEL_MATRIX_TEXT;
 			break;
 			case 2:
-			    workprefs.parallel_matrix_emulation = 2;
+			    workprefs.parallel_matrix_emulation = PARALLEL_MATRIX_EPSON9;
 			break;
 			case 3:
-			    workprefs.parallel_postscript_detection = 1;
+			    workprefs.parallel_matrix_emulation = PARALLEL_MATRIX_EPSON48;
 			break;
 			case 4:
+			    workprefs.parallel_postscript_detection = 1;
+			break;
+			case 5:
 			    workprefs.parallel_postscript_detection = 1;
 			    workprefs.parallel_postscript_emulation = 1;
 			break;

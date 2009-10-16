@@ -45,12 +45,10 @@
 #include "gui.h"
 #include "picasso96.h"
 #include "drawing.h"
-#ifdef JIT
-#include "jit/compemu.h"
-#endif
 #include "savestate.h"
 #include "statusline.h"
 #include "inputdevice.h"
+#include "debug.h"
 
 extern int sprite_buffer_res;
 int lores_factor, lores_shift;
@@ -2606,6 +2604,14 @@ static void draw_status_line (int line)
     draw_status_line_single (buf, bpp, y, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
+static void draw_debug_status_line (int line)
+{
+    xlinebuffer = gfxvidinfo.linemem;
+    if (xlinebuffer == 0)
+	xlinebuffer = row_map[line];
+    debug_draw_cycles (xlinebuffer, gfxvidinfo.pixbytes, line, gfxvidinfo.width, gfxvidinfo.height, xredcolors, xgreencolors, xbluecolors);
+}
+
 #define LIGHTPEN_HEIGHT 12
 #define LIGHTPEN_WIDTH 17
 
@@ -2750,6 +2756,13 @@ void finish_drawing_frame (void)
 	for (i = 0; i < TD_TOTAL_HEIGHT; i++) {
 	    int line = gfxvidinfo.height - TD_TOTAL_HEIGHT + i;
 	    draw_status_line (line);
+	    do_flush_line (line);
+	}
+    }
+    if (debug_dma > 1) {
+	for (i = 0; i < gfxvidinfo.height; i++) {
+	    int line = i;
+	    draw_debug_status_line (line);
 	    do_flush_line (line);
 	}
     }

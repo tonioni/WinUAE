@@ -2587,6 +2587,10 @@ static void inputdevice_checkconfig (void)
 
 	inputdevice_updateconfig (&currprefs);
     }
+    if (currprefs.dongle != changed_prefs.dongle) {
+	currprefs.dongle = changed_prefs.dongle;
+	dongle_reset ();
+    }
 }
 
 void inputdevice_vsync (void)

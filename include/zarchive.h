@@ -1,10 +1,15 @@
 
+typedef uae_s64 (*ZFILEREAD)(void*, uae_u64, uae_u64, struct zfile*);
+typedef uae_s64 (*ZFILEWRITE)(void*, uae_u64, uae_u64, struct zfile*);
+typedef uae_s64 (*ZFILESEEK)(struct zfile*, uae_s64, int);
+
 struct zfile {
     TCHAR *name;
     TCHAR *zipname;
     TCHAR *mode;
     FILE *f;
     uae_u8 *data;
+    int dataseek;
     uae_s64 size;
     uae_s64 seek;
     int deleteafterclose;
@@ -14,6 +19,11 @@ struct zfile {
     struct zfile *parent;
     uae_u64 offset;
     int opencnt;
+    ZFILEREAD zfileread;
+    ZFILEWRITE zfilewrite;
+    ZFILESEEK zfileseek;
+    void *userdata;
+    int useparent;
 };
 
 #define ZNODE_FILE 0

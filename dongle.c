@@ -25,7 +25,6 @@
 #define LEVIATHAN 8
 #define LOGISTIX 10
 
-static int type = 0;
 static int flag;
 static unsigned int cycles;
 
@@ -65,7 +64,7 @@ static unsigned int cycles;
       - must continuously change state
     
     Leviathan
-      - not implemented yet
+      - same as Leaderboard but in mouse port
     
     Logistix/SuperBase
     - second button must be high
@@ -80,16 +79,15 @@ static uae_u8 oldcia[2][16];
 
 void dongle_reset (void)
 {
-    type = currprefs.dongle;
     flag = 0;
     memset (oldcia, 0, sizeof oldcia);
 }
 
 uae_u8 dongle_cia_read (int cia, int reg, uae_u8 val)
 {
-    if (!type)
+    if (!currprefs.dongle)
 	return val;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case BAT2:
 	if (cia == 1 && reg == 0) {
@@ -107,9 +105,9 @@ uae_u8 dongle_cia_read (int cia, int reg, uae_u8 val)
 
 void dongle_cia_write (int cia, int reg, uae_u8 val)
 {
-    if (!type)
+    if (!currprefs.dongle)
 	return;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case ROBOCOP3:
 	if (cia == 0 && reg == 0 && (val & 0x80))
@@ -131,9 +129,9 @@ void dongle_joytest (uae_u16 val)
 
 uae_u16 dongle_joydat (int port, uae_u16 val)
 {
-    if (!type)
+    if (!currprefs.dongle)
 	return val;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case ROBOCOP3:
 	if (port == 1 && flag)
@@ -141,6 +139,12 @@ uae_u16 dongle_joydat (int port, uae_u16 val)
 	break;
 	case LEADERBOARD:
 	if (port == 1) {
+	    val &= ~0x0303;
+	    val |= 0x0101;
+	}
+	break;
+	case LEVIATHAN:
+	if (port == 0) {
 	    val &= ~0x0303;
 	    val |= 0x0101;
 	}
@@ -167,9 +171,9 @@ uae_u16 dongle_joydat (int port, uae_u16 val)
 
 void dongle_potgo (uae_u16 val)
 {
-    if (!type)
+    if (!currprefs.dongle)
 	return;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case ITALY90:
 	case LOGISTIX:
@@ -182,9 +186,9 @@ void dongle_potgo (uae_u16 val)
 
 uae_u16 dongle_potgor (uae_u16 val)
 {
-    if (!type)
+    if (!currprefs.dongle)
 	return val;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case LOGISTIX:
 	val |= 1 << 14;
@@ -196,9 +200,9 @@ uae_u16 dongle_potgor (uae_u16 val)
 int dongle_analogjoy (int joy, int axis)
 {
     int v = -1;
-    if (!type)
+    if (!currprefs.dongle)
 	return -1;
-    switch (type)
+    switch (currprefs.dongle)
     {
 	case ITALY90:
 	if (joy == 1 && axis == 0)

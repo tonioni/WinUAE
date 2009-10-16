@@ -2575,7 +2575,7 @@ static void diskdma (uae_u32 pt, uae_u16 w, int write)
 	if (!cycle_line[i]) {
 	    cycle_line[i] = CYCLE_MISC;
 	    if (debug_dma)
-		record_dma (write ? 0x26 : 0x08, w, pt, i, vpos);
+		record_dma (write ? 0x26 : 0x08, w, pt, i, vpos, DMARECORD_DISK);
 	    got = 1;
 	    break;
 	}

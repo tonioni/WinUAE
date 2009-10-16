@@ -907,20 +907,22 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	xfree (data);
     }
     zf = zfile_dup (z);
-    zf2 = zuncompress (NULL, zf, 0, ZFD_ALL, &rc);
-    if (zf2) {
-	zf = NULL;
-	zai.name = zfile_getfilename (zf2);
-	zai.flags = -1;
-	zfile_fseek (zf2, 0, SEEK_END);
-	zai.size = zfile_ftell (zf2);
-	zfile_fseek (zf2, 0, SEEK_SET);
-	zn = zvolume_addfile_abs (zv, &zai);
-	if (zn)
-	    zn->offset = 1;
-	zfile_fclose (zf2);
+    if (zf) {
+	zf2 = zuncompress (NULL, zf, 0, ZFD_ALL, &rc);
+	if (zf2) {
+	    zf = NULL;
+	    zai.name = zfile_getfilename (zf2);
+	    zai.flags = -1;
+	    zfile_fseek (zf2, 0, SEEK_END);
+	    zai.size = zfile_ftell (zf2);
+	    zfile_fseek (zf2, 0, SEEK_SET);
+	    zn = zvolume_addfile_abs (zv, &zai);
+	    if (zn)
+		zn->offset = 1;
+	    zfile_fclose (zf2);
+	}
+	zfile_fclose (zf);
     }
-    zfile_fclose (zf);
     return zv;
 }
 struct zfile *archive_access_plain (struct znode *zn)

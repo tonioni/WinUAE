@@ -78,6 +78,7 @@ struct dma_rec
     uae_u16 dat;
     uae_u32 addr;
     uae_u16 evt;
+    int type;
 };
 
 #define DMA_EVENT_BLITIRQ 1
@@ -86,9 +87,21 @@ struct dma_rec
 #define DMA_EVENT_BPLFETCHUPDATE 8
 #define DMA_EVENT_COPPERWAKE 16
 
-extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos);
+#define DMARECORD_REFRESH 1
+#define DMARECORD_CPU 2
+#define DMARECORD_COPPER 3
+#define DMARECORD_AUDIO 4
+#define DMARECORD_BLITTER 5
+#define DMARECORD_BLITTER_LINE 6
+#define DMARECORD_BITPLANE 7
+#define DMARECORD_SPRITE 8
+#define DMARECORD_DISK 9
+#define DMARECORD_MAX 10
+
+extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type);
 extern void record_dma_reset (void);
 extern void record_dma_event (int evt, int hpos, int vpos);
+extern void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors);
 
 #else
 

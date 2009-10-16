@@ -60,7 +60,7 @@ static uae_u16 *paula_sndbufpt_prev, *paula_sndbufpt_start;
 
 STATIC_INLINE void set_sound_buffers (void)
 {
-#if SOUNDSTUFF > 0
+#if SOUNDSTUFF > 1
     paula_sndbufpt_prev = paula_sndbufpt_start;
     paula_sndbufpt_start = paula_sndbufpt;
 #endif
@@ -68,7 +68,7 @@ STATIC_INLINE void set_sound_buffers (void)
 
 STATIC_INLINE void check_sound_buffers (void)
 {
-#if SOUNDSTUFF > 0
+#if SOUNDSTUFF > 1
     int len;
 #endif
 
@@ -86,7 +86,7 @@ STATIC_INLINE void check_sound_buffers (void)
 	p[1] = sum / 8;
 	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
     }
-#if SOUNDSTUFF > 0
+#if SOUNDSTUFF > 1
     if (outputsample == 0)
 	return;
     len = paula_sndbufpt - paula_sndbufpt_start;
@@ -104,7 +104,7 @@ STATIC_INLINE void check_sound_buffers (void)
 	finish_sound_buffer ();
 	paula_sndbufpt = paula_sndbuffer;
     }
-#if SOUNDSTUFF > 0
+#if SOUNDSTUFF > 1
     while (doublesample-- > 0) {
 	memcpy (paula_sndbufpt, paula_sndbufpt_start, len * 2);
 	paula_sndbufpt += len;

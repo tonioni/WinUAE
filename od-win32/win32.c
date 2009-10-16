@@ -439,8 +439,10 @@ void setpaused (void)
 
 static void checkpause (void)
 {
-    if (currprefs.win32_inactive_pause)
+    if (currprefs.win32_inactive_pause) {
 	setpaused ();
+	setpriority (&priorities[currprefs.win32_inactive_priority]);
+    }
 }
 
 static int showcursor;
@@ -597,6 +599,7 @@ void setmouseactive (int active)
 	    setcursor (-30000, -30000);
 	}
 	inputdevice_acquire (TRUE);
+	setpriority (&priorities[currprefs.win32_active_priority]);
     } else {
 	inputdevice_acquire (FALSE);
     }
@@ -622,10 +625,8 @@ static void winuae_active (HWND hWnd, int minimized)
 
     focus = 1;
     pri = &priorities[currprefs.win32_inactive_priority];
-#ifndef	_DEBUG
     if (!minimized)
 	pri = &priorities[currprefs.win32_active_priority];
-#endif
     setpriority (pri);
 
     if (!avioutput_video) {
@@ -1201,7 +1202,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		{
 		    LPNMMOUSE lpnm = (LPNMMOUSE) lParam;
 		    int num = (int)lpnm->dwItemSpec;
-		    if (num >= 7 && num <= 10) {
+		    if (num >= 7 && num <= 10) { // DF0-DF3
 			num -= 7;
 			if (nm->code == NM_RCLICK) {
 			    disk_eject (num);
@@ -1210,10 +1211,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			    disk_insert (num, changed_prefs.df[num]);
 			}
 		    } else if (num == 4) {
-			if (nm->code == NM_CLICK)
+			if (nm->code == NM_CLICK) // POWER
 			    inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 			else
 			    uae_reset (0);
+		    } else if (num == 3) {
+			if (pause_emulation) {
+			    resumepaused ();
+			    setmouseactive (1);
+			}
 		    }
 		    return TRUE;
 		}
@@ -1387,14 +1393,15 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	WIN32GFX_WindowMove ();
 	if (hAmigaWnd && isfullscreen () <= 0) {
 	    DWORD aw, ah;
-	    if (!IsIconic (hWnd))
+	    int iconic = IsIconic (hWnd);
+	    if (!iconic)
 		GetWindowRect (hAmigaWnd, &amigawin_rect);
 	    aw = amigawin_rect.right - amigawin_rect.left;
 	    ah = amigawin_rect.bottom - amigawin_rect.top;
 	    if (in_sizemove > 0)
 		break;
 
-	    if (isfullscreen() == 0 && hAmigaWnd) {
+	    if (isfullscreen() == 0 && hAmigaWnd && !iconic) {
 		static int store_xy;
 		RECT rc2;
 		if (GetWindowRect (hMainWnd, &rc2)) {
@@ -1789,6 +1796,7 @@ static PGETUSERDEFAULTUILANGUAGE pGetUserDefaultUILanguage;
 HMODULE language_load (WORD language)
 {
     HMODULE result = NULL;
+#if WINUAEPUBLICBETA == 0
     TCHAR dllbuf[MAX_DPATH];
     TCHAR *dllname;
 
@@ -1854,6 +1862,7 @@ HMODULE language_load (WORD language)
 	    result = NULL;
 	}
     }
+#endif
     return result;
 }
 

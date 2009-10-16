@@ -256,7 +256,7 @@ static void do_samplerip (struct audio_channel_data *adp)
     }
     if (rs || cnt > 100)
 	return;
-    rs = xmalloc(sizeof(struct ripped_sample));
+    rs = xmalloc (sizeof(struct ripped_sample));
     if (prev)
 	prev->next = rs;
     else
@@ -264,7 +264,7 @@ static void do_samplerip (struct audio_channel_data *adp)
     rs->len = len;
     rs->per = adp->per / CYCLE_UNIT;
     rs->sample = xmalloc (len);
-    memcpy(rs->sample, smp, len);
+    memcpy (rs->sample, smp, len);
     rs->next = NULL;
     rs->changed = 1;
     write_log (L"SAMPLERIPPER: sample added (%06X, %d bytes), total %d samples\n", adp->pt, len, ++cnt);
@@ -508,7 +508,7 @@ static void sinc_prehandler (unsigned long best_evtime)
 	    }
 	    /* make room for new and add the new value */
 	    memmove (&acd->sinc_queue[1], &acd->sinc_queue[0],
-		     sizeof(acd->sinc_queue[0]) * acd->sinc_queue_length);
+		     sizeof (acd->sinc_queue[0]) * acd->sinc_queue_length);
 	    acd->sinc_queue_length += 1;
 	    acd->sinc_queue[0].age = best_evtime;
 	    acd->sinc_queue[0].output = output - acd->sinc_output_state;
@@ -1547,8 +1547,8 @@ void update_audio (void)
 	    /* Test if new sample needs to be outputted */
 	    if (rounded == best_evtime) {
 		/* Before the following addition, next_sample_evtime is in range [-0.5, 0.5) */
-		next_sample_evtime += scaled_sample_evtime;
-#if SOUNDSTUFF > 0
+		next_sample_evtime += scaled_sample_evtime - extrasamples * 15;
+#if SOUNDSTUFF > 1
 		doublesample = 0;
 		if (--samplecounter <= 0) {
 		    samplecounter = currprefs.sound_freq / 1000;
@@ -1564,7 +1564,7 @@ void update_audio (void)
 		}
 #endif
 		(*sample_handler) ();
-#if SOUNDSTUFF > 0
+#if SOUNDSTUFF > 1
 		if (outputsample == 0)
 		    outputsample = -1;
 		else if (outputsample < 0)
@@ -1646,7 +1646,7 @@ void audio_hsync (int hpos)
 		    alloc_cycle_ext (13 + nr * 2, CYCLE_MISC);
 #ifdef DEBUGGER
 		    if (debug_dma)
-			record_dma (0xaa + nr * 16, cdp->dat2, cdp->pt, 13 + nr * 2, vpos);
+			record_dma (0xaa + nr * 16, cdp->dat2, cdp->pt, 13 + nr * 2, vpos, DMARECORD_AUDIO);
 #endif
 		}
 		if (cdp->request_word == 1 || cdp->request_word == 2)
@@ -1891,16 +1891,11 @@ void audio_vsync (void)
     min = -10 * 10;
     max = (isfullscreen () > 0 && currprefs.gfx_avsync > 0) ? 10 * 10 : 20 * 10;
     extrasamples = 0;
-    if (gui_data.sndbuf < min) {
-	// add extra sample
-	for (i = min; i >= gui_data.sndbuf; i -= 10)
-	    extrasamples++;
+    if (gui_data.sndbuf < min) { // +1
+	extrasamples = (min - gui_data.sndbuf) / 10;
 	lastdir = 1;
-    } else if (gui_data.sndbuf > max) {
-	// remove one sample
-	for (i = max; i <= gui_data.sndbuf; i += 10)
-	    extrasamples--;
-	lastdir = -1;
+    } else if (gui_data.sndbuf > max) { // -1
+	extrasamples = (max - gui_data.sndbuf) / 10;
     } else if (gui_data.sndbuf > 1 * 50 && lastdir < 0) {
 	extrasamples--;
     } else if (gui_data.sndbuf < -1 * 50 && lastdir > 0) {
@@ -1909,10 +1904,9 @@ void audio_vsync (void)
 	lastdir = 0;
     }
 
-    if (extrasamples > 10)
-	extrasamples = 10;
-    if (extrasamples < -10)
-	extrasamples = -10;
-
+    if (extrasamples > 99)
+	extrasamples = 99;
+    if (extrasamples < -99)
+	extrasamples = -99;
 #endif
 }

@@ -321,12 +321,15 @@
 #define IDS_PRINTER_ASCII               351
 #define IDD_EXPANSION                   351
 #define IDS_PRINTER_EPSON               352
+#define IDS_PRINTER_EPSON9              352
 #define IDS_PRINTER_POSTSCRIPT_DETECTION 353
 #define IDS_PRINTER_POSTSCRIPT_EMULATION 354
 #define IDS_PRINTER_PASSTHROUGH         355
 #define IDS_RES_LORES                   356
 #define IDS_RES_HIRES                   357
 #define IDS_RES_SUPERHIRES              358
+#define IDS_PRIRNTER_EPSON48            359
+#define IDS_PRINTER_EPSON48             359
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -364,9 +367,9 @@
 #define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
+#define IDC_DONGLELIST                  1027
 #define IDC_MBMEM1                      1028
 #define IDC_PORT_TABLET_CURSOR          1028
-#define IDC_SHOWLEDS2                   1028
 #define IDC_SHOWLEDSRTG                 1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SLOWMEM                     1030

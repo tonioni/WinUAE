@@ -219,8 +219,14 @@ void build_blitfilltable (void)
 STATIC_INLINE void record_dma_blit (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos)
 {
 #ifdef DEBUGGER
+    int type;
+
+    if (blitline)
+	type = DMARECORD_BLITTER_LINE;
+    else
+	type = DMARECORD_BLITTER;
     if (debug_dma)
-	record_dma (reg, dat, addr, hpos, vpos);
+	record_dma (reg, dat, addr, hpos, vpos, type);
 #endif
 }
 

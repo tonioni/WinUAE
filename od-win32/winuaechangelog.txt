@@ -1,4 +1,23 @@
 
+Beta 18:
+
+- dongle GUI selection added (IO Ports), Leviathan dongle supported
+- added 9pin Epson matrix printer option (9pin printer has different
+  graphics aspect ratio than 24/48pin)
+- visual DMA debugger (possibly useless but cool!) different colors
+  mark different DMA channels, "v <val>" to enable, no parameter or -1 =
+  normal,-2 = small visual, -3 = wide and -4 = big. CE-only
+  Current colors: yellow = copper, green = blitter (light=normal,
+  dark=line), blue = bitplane, cpu = gray, audio = red, sprite =
+  white, disk = purple
+- disable bitplane "speedup" optimization if dma debugger enabled
+- beta versions do not load language dlls anymore
+- SCSI mode GUI fixed
+- minimizing: priority was set wrong, closing when minimized:
+  remembered windowed mode size was reset (old bugs)
+- unpause when clicking on "PAUSED" fps led
+- some vsync sound sync experiments again..
+
 Beta 17:
 
 - fixed uaescsi.device TD_GETGEOMETRY total number of blocks off by one

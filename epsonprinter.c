@@ -29,6 +29,7 @@
 
 #include "epsonprinter.h"
 #include "win32.h"
+#include "parser.h"
 
 #include <math.h>
 
@@ -89,6 +90,7 @@ static uae_u8 *page;
 static int page_w, page_h, page_pitch;
 static int pagesize;
 static HMODULE ft;
+static int pins = 24;
 
 // Various ASCII codepage to unicode maps
 
@@ -793,8 +795,9 @@ static void resetPrinterHard(void)
 	resetPrinter();
 }
 
-static printer_init(Bit16u dpi2, Bit16u width, Bit16u height, TCHAR* output2, int multipageOutput2)
+static printer_init(Bit16u dpi2, Bit16u width, Bit16u height, TCHAR* output2, int multipageOutput2, int numpins)
 {
+	pins = numpins;
 	if (ft == NULL || FT_Init_FreeType(&FTlib))
 	{
 		write_log(L"EPSONPRINTER: Unable to init Freetype2. ASCII printing disabled\n");
@@ -904,9 +907,21 @@ static void setupBitImage(Bit8u dens, Bit16u numCols)
 		bitGraph.adjacent = true;
 		bitGraph.bytesColumn = 1;
 		break;
+	case 5:
+	        bitGraph.horizDens = 80;
+	        bitGraph.vertDens = 72;
+	        bitGraph.adjacent = true;
+	        bitGraph.bytesColumn = 1;
+		break;
 	case 6:
 		bitGraph.horizDens = 90;
 		bitGraph.vertDens = 60;
+		bitGraph.adjacent = true;
+		bitGraph.bytesColumn = 1;
+		break;
+	case 7:
+		bitGraph.horizDens = 144;
+		bitGraph.vertDens = 72;
 		bitGraph.adjacent = true;
 		bitGraph.bytesColumn = 1;
 		break;
@@ -940,6 +955,24 @@ static void setupBitImage(Bit8u dens, Bit16u numCols)
 		bitGraph.adjacent = false;
 		bitGraph.bytesColumn = 3;
 		break;
+	case 64:
+		bitGraph.horizDens = 60;
+		bitGraph.vertDens = 360;
+		bitGraph.adjacent = true;
+		bitGraph.bytesColumn = 6;
+		break;
+	case 65:
+		bitGraph.horizDens = 120;
+		bitGraph.vertDens = 360;
+		bitGraph.adjacent = true;
+		bitGraph.bytesColumn = 6;
+		break;
+	case 70:
+		bitGraph.horizDens = 90;
+		bitGraph.vertDens = 360;
+		bitGraph.adjacent = true;
+		bitGraph.bytesColumn = 6;
+		break;
 	case 71:
 		bitGraph.horizDens = 180;
 		bitGraph.vertDens = 360;
@@ -961,7 +994,8 @@ static void setupBitImage(Bit8u dens, Bit16u numCols)
 	default:
 		write_log(L"EPSONPRINTER: Unsupported bit image density %i\n", dens);
 	}
-
+	if (pins == 9)
+	    bitGraph.vertDens = 72;
 	bitGraph.remBytes = numCols * bitGraph.bytesColumn;
 	bitGraph.readBytesColumn = 0;
 }
@@ -1942,11 +1976,15 @@ void epson_printchar(uae_u8 c)
 {
     printChar (c);
 }
-int epson_init(void)
+int epson_init(int type)
 {
+    if (type == PARALLEL_MATRIX_EPSON9)
+	pins = 9;
+    else
+	pins = 48;
     epson_ft ();
-    write_log (L"EPSONPRINTER: start\n");
-    return printer_init(300, 83, 117, L"png", 0);
+    write_log (L"EPSONPRINTER%d: start\n", pins);
+    return printer_init(300, 83, 117, L"png", 0, pins);
 }
 void epson_close(void)
 {

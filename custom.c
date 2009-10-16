@@ -1028,7 +1028,7 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 	    bpl1dat_written = 1;
 #ifdef DEBUGGER
 	if (debug_dma)
-	    record_dma (0x110 + nr * 2, chipmem_agnus_wget (p), p, hpos, vpos);
+	    record_dma (0x110 + nr * 2, chipmem_agnus_wget (p), p, hpos, vpos, DMARECORD_BITPLANE);
 #endif
 	switch (fm)
 	{
@@ -1670,7 +1670,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
     if (plf_state < plf_passed_stop && ddf_change != vpos && ddf_change + 1 != vpos
 	&& dma
 	&& (fetch_cycle & fetchstart_mask) == (fm_maxplane & fetchstart_mask)
-	&& !badmode
+	&& !badmode && !debug_dma
  # if 0
 	/* @@@ We handle this case, but the code would be simpler if we
 	 * disallowed it - it may even be possible to guarantee that
@@ -4109,7 +4109,7 @@ static void update_copper (int until_hpos)
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 	    if (debug_dma)
-		record_dma (0x8c, chipmem_agnus_wget (cop_state.ip), cop_state.ip, old_hpos, vpos);
+		record_dma (0x8c, chipmem_agnus_wget (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
 #endif
 	    break;
 	case COP_strobe_delay2:
@@ -4121,7 +4121,7 @@ static void update_copper (int until_hpos)
 	    cop_state.state = COP_read1;
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    if (debug_dma)
-		record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip + 2), cop_state.ip + 2, old_hpos, vpos);
+		record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip + 2), cop_state.ip + 2, old_hpos, vpos, DMARECORD_COPPER);
 	    break;
 	case COP_start_delay:
 	    if (copper_cant_read (old_hpos, 1))
@@ -4129,7 +4129,7 @@ static void update_copper (int until_hpos)
 	    cop_state.state = COP_read1;
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 	    if (debug_dma)
-		record_dma (0x1fe, 0, 0xffffffff, old_hpos, vpos);
+		record_dma (0x1fe, 0, 0xffffffff, old_hpos, vpos, DMARECORD_COPPER);
 	    break;
 
 	case COP_read1:
@@ -4139,7 +4139,7 @@ static void update_copper (int until_hpos)
 	    alloc_cycle (old_hpos, CYCLE_COPPER);
 #ifdef DEBUGGER
 	    if (debug_dma)
-	        record_dma (0x8c, cop_state.i1, cop_state.ip, old_hpos, vpos);
+	        record_dma (0x8c, cop_state.i1, cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
 #endif
 	    cop_state.ip += 2;
 	    cop_state.state = COP_read2;
@@ -4163,7 +4163,7 @@ static void update_copper (int until_hpos)
 		    cop_state.state = COP_wait_in2;
 #ifdef DEBUGGER
 		if (debug_dma)
-		    record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos);
+		    record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER);
 #endif
 	    } else { // MOVE
 		unsigned int reg = cop_state.i1 & 0x1FE;
@@ -4171,7 +4171,7 @@ static void update_copper (int until_hpos)
 		cop_state.state = COP_read1;
 #ifdef DEBUGGER
 		if (debug_dma)
-		    record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos);
+		    record_dma (reg, data, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER);
 #endif
 		test_copper_dangerous (reg);
 		if (! copper_enabled_thisline)
@@ -4429,7 +4429,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 	alloc_cycle (hpos, CYCLE_SPRITE);
 #ifdef DEBUGGER
 	if (debug_dma)
-	    record_dma ((s - &spr[0]) * 2 + 0x120, data, s->pt, hpos, vpos);
+	    record_dma ((s - &spr[0]) * 2 + 0x120, data, s->pt, hpos, vpos, DMARECORD_SPRITE);
 #endif
     }
     s->pt += 2;
@@ -5200,7 +5200,7 @@ static void hsync_handler (void)
 	    alloc_cycle (hp, i == 0 ? CYCLE_STROBE : CYCLE_REFRESH); /* strobe */
 #ifdef DEBUGGER
 	    if (debug_dma)
-		record_dma (i == 0 ? (vpos + 1 == maxvpos + lof ? 0x38 : 0x3c) : 0x1fe, 0xffff, 0xffffffff, hp, vpos);
+		record_dma (i == 0 ? (vpos + 1 == maxvpos + lof ? 0x38 : 0x3c) : 0x1fe, 0xffff, 0xffffffff, hp, vpos, DMARECORD_REFRESH);
 #endif
 	    hp += 2;
 	    if (hp >= maxhpos)
@@ -6737,7 +6737,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
     hpos = dma_cycle ();
 #ifdef DEBUGGER
     if (debug_dma) {
-	dr = record_dma (0x1000, v, addr, hpos, vpos);
+	dr = record_dma (0x1000, v, addr, hpos, vpos, DMARECORD_CPU);
 	checknasty (hpos, vpos);
     }
 #endif
@@ -6762,7 +6762,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
     hpos = dma_cycle ();
 #ifdef DEBUGGER
     if (debug_dma) {
-	record_dma (0x1001, v, addr, hpos, vpos);
+	record_dma (0x1001, v, addr, hpos, vpos, DMARECORD_CPU);
 	checknasty (hpos, vpos);
     }
 #endif

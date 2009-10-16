@@ -18,7 +18,7 @@
 #include "win32_uaenet.h"
 #include "crc32.h"
 
-static int a2065_log = 1;
+static int a2065_log = 0;
 
 #define RAP 0x4002
 #define RDP 0x4000
@@ -578,18 +578,21 @@ static void chip_wput (uaecptr addr, uae_u16 v)
 		    reg |= CSR0_TXON;
 		if (!(am_mode & MODE_DRX))
 		    reg |= CSR0_RXON;
-		write_log (L"A2065: START\n");
+		if (a2065_log)
+		    write_log (L"A2065: START\n");
 	    }
 
 	    if ((reg & CSR0_STOP) && !(oreg & CSR0_STOP)) {
 		reg = CSR0_STOP;
-		write_log (L"A2065: STOP\n");
+		if (a2065_log)
+		    write_log (L"A2065: STOP\n");
 		csr[3] = 0;
 		am_initialized = 0;
 	    }
 
 	    if ((reg & CSR0_INIT) && am_initialized == 0) {
-		write_log (L"A2065: INIT\n");
+		if (a2065_log)
+		    write_log (L"A2065: INIT\n");
 		chip_init ();
 		reg |= CSR0_IDON;
 		am_initialized = 1;
