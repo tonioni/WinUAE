@@ -1,10 +1,10 @@
- /*
-  * UAE - The Un*x Amiga Emulator
-  *
-  * MC68000 emulation
-  *
-  * Copyright 1995 Bernd Schmidt
-  */
+/*
+* UAE - The Un*x Amiga Emulator
+*
+* MC68000 emulation
+*
+* Copyright 1995 Bernd Schmidt
+*/
 
 #include "readcpu.h"
 #include "machdep/m68k.h"
@@ -25,10 +25,10 @@
 #define GET_XFLG() XFLG()
 
 #define CLEAR_CZNV() do { \
- SET_CFLG (0); \
- SET_ZFLG (0); \
- SET_NFLG (0); \
- SET_VFLG (0); \
+	SET_CFLG (0); \
+	SET_ZFLG (0); \
+	SET_NFLG (0); \
+	SET_VFLG (0); \
 } while (0)
 
 #define COPY_CARRY() (SET_XFLG (GET_CFLG ()))
@@ -53,17 +53,17 @@ typedef unsigned long REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 
 struct cputbl {
-    cpuop_func *handler;
-    uae_u16 opcode;
+	cpuop_func *handler;
+	uae_u16 opcode;
 };
 
 #ifdef JIT
 typedef unsigned long REGPARAM3 compop_func (uae_u32) REGPARAM;
 
 struct comptbl {
-    compop_func *handler;
-    uae_u32 opcode;
-    int specific;
+	compop_func *handler;
+	uae_u32 opcode;
+	int specific;
 };
 #endif
 
@@ -73,8 +73,8 @@ typedef uae_u8 flagtype;
 
 #ifdef FPUEMU
 /* You can set this to long double to be more accurate. However, the
-   resulting alignment issues will cost a lot of performance in some
-   apps */
+resulting alignment issues will cost a lot of performance in some
+apps */
 #define USE_LONG_DOUBLE 0
 
 #if USE_LONG_DOUBLE
@@ -94,96 +94,98 @@ typedef double fptype;
 #define CACHELINES020 64
 struct cache020
 {
-    uae_u32 data;
-    uae_u32 tag;
-    uae_u32 valid:1;
+	uae_u32 data;
+	uae_u32 tag;
+	uae_u32 valid:1;
 };
 #define CACHESETS040 64
 struct cache040set
 {
-    uae_u32 data[4];
-    int valid[4];
-    uae_u32 tag;
+	uae_u32 data[4];
+	int valid[4];
+	uae_u32 tag;
 };
 #define CACHELINES040 4
 struct cache040
 {
-    struct cache040set cs[4];
-    int count;
+	struct cache040set cs[4];
+	int count;
 };
 
 struct flag_struct regflags;
 extern struct regstruct
 {
-    uae_u32 regs[16];
+	uae_u32 regs[16];
 
-    uae_u32 pc;
-    uae_u8 *pc_p;
-    uae_u8 *pc_oldp;
+	uae_u32 pc;
+	uae_u8 *pc_p;
+	uae_u8 *pc_oldp;
 
-    uae_u16 irc, ir;
-    uae_u32 spcflags;
-    
-    uaecptr usp, isp, msp;
-    uae_u16 sr;
-    flagtype t1;
-    flagtype t0;
-    flagtype s;
-    flagtype m;
-    flagtype x;
-    flagtype stopped;
-    int intmask;
+	uae_u16 irc, ir;
+	uae_u32 spcflags;
 
-    uae_u32 vbr, sfc, dfc;
+	uaecptr usp, isp, msp;
+	uae_u16 sr;
+	flagtype t1;
+	flagtype t0;
+	flagtype s;
+	flagtype m;
+	flagtype x;
+	flagtype stopped;
+	int intmask;
+
+	uae_u32 vbr, sfc, dfc;
 
 #ifdef FPUEMU
-    fptype fp[8];
-    fptype fp_result;
+	fptype fp[8];
+	fptype fp_result;
 
-    uae_u32 fpcr, fpsr, fpiar;
-    uae_u32 fpsr_highbyte;
+	uae_u32 fpcr, fpsr, fpiar;
+	uae_u32 fpsr_highbyte;
 #endif
 #ifndef CPUEMU_68000_ONLY
-    uae_u32 cacr, caar;
-    uae_u32 itt0, itt1, dtt0, dtt1;
-    uae_u32 tcr, mmusr, urp, srp, buscr;
-    uae_u32 mmu_fslw, mmu_fault_addr;
-    uae_u16 mmu_ssw;
-    uae_u32 wb3_data;
-    uae_u16 wb3_status;
-    int mmu_enabled;
-    int mmu_pagesize_8k;
-    uae_u32 fault_pc;
+	uae_u32 cacr, caar;
+	uae_u32 itt0, itt1, dtt0, dtt1;
+	uae_u32 tcr, mmusr, urp, srp, buscr;
+	uae_u32 mmu_fslw, mmu_fault_addr;
+	uae_u16 mmu_ssw;
+	uae_u32 wb3_data;
+	uae_u16 wb3_status;
+	int mmu_enabled;
+	int mmu_pagesize_8k;
+	uae_u32 fault_pc;
 #endif
 
-    uae_u32 pcr;
-    uae_u32 address_space_mask;
+	uae_u32 pcr;
+	uae_u32 address_space_mask;
 
-    uae_u8 panic;
-    uae_u32 panic_pc, panic_addr;
+	uae_u8 panic;
+	uae_u32 panic_pc, panic_addr;
 
-    uae_u32 prefetch020data;
-    uae_u32 prefetch020addr;
+	uae_u32 prefetch020data;
+	uae_u32 prefetch020addr;
+	int ce020memcycles;
 
 } regs, lastint_regs, mmu_backup_regs;
 
 STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 {
-    return x & regs.address_space_mask;
+	return x & regs.address_space_mask;
 }
 
 extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
+extern int cpucycleunit;
 
 STATIC_INLINE void set_special (uae_u32 x)
 {
-    regs.spcflags |= x;
-    cycles_do_special ();
+	regs.spcflags |= x;
+	cycles_do_special ();
 }
 
 STATIC_INLINE void unset_special (uae_u32 x)
 {
-    regs.spcflags &= ~x;
+	regs.spcflags &= ~x;
 }
 
 #define m68k_dreg(r,num) ((r).regs[(num)])
@@ -191,63 +193,63 @@ STATIC_INLINE void unset_special (uae_u32 x)
 
 STATIC_INLINE void m68k_setpc (uaecptr newpc)
 {
-    regs.pc_p = regs.pc_oldp = get_real_address (newpc);
-    regs.fault_pc = regs.pc = newpc;
+	regs.pc_p = regs.pc_oldp = get_real_address (newpc);
+	regs.fault_pc = regs.pc = newpc;
 }
 
 STATIC_INLINE uaecptr m68k_getpc (void)
 {
-    return (uaecptr)(regs.pc + ((uae_u8*)regs.pc_p - (uae_u8*)regs.pc_oldp));
+	return (uaecptr)(regs.pc + ((uae_u8*)regs.pc_p - (uae_u8*)regs.pc_oldp));
 }
 #define M68K_GETPC m68k_getpc()
 
 STATIC_INLINE uaecptr m68k_getpc_p (uae_u8 *p)
 {
-    return (uaecptr)(regs.pc + ((uae_u8*)p - (uae_u8*)regs.pc_oldp));
+	return (uaecptr)(regs.pc + ((uae_u8*)p - (uae_u8*)regs.pc_oldp));
 }
 
 #define m68k_incpc(o) ((regs).pc_p += (o))
 
 STATIC_INLINE void m68k_setpc_mmu (uaecptr newpc)
 {
-    regs.fault_pc = regs.pc = newpc;
-    regs.pc_p = regs.pc_oldp = 0;
+	regs.fault_pc = regs.pc = newpc;
+	regs.pc_p = regs.pc_oldp = 0;
 }
 STATIC_INLINE void m68k_setpci (uaecptr newpc)
 {
-    regs.fault_pc = regs.pc = newpc;
+	regs.fault_pc = regs.pc = newpc;
 }
 STATIC_INLINE uaecptr m68k_getpci (void)
 {
-    return regs.pc;
+	return regs.pc;
 }
 STATIC_INLINE void m68k_incpci (int o)
 {
-    regs.pc += o;
+	regs.pc += o;
 }
 
 STATIC_INLINE void m68k_do_rts (void)
 {
-    m68k_setpc (get_long (m68k_areg (regs, 7)));
-    m68k_areg (regs, 7) += 4;
+	m68k_setpc (get_long (m68k_areg (regs, 7)));
+	m68k_areg (regs, 7) += 4;
 }
 STATIC_INLINE void m68k_do_rtsi (void)
 {
-    m68k_setpci (get_long (m68k_areg (regs, 7)));
-    m68k_areg (regs, 7) += 4;
+	m68k_setpci (get_long (m68k_areg (regs, 7)));
+	m68k_areg (regs, 7) += 4;
 }
 
 STATIC_INLINE void m68k_do_bsr (uaecptr oldpc, uae_s32 offset)
 {
-    m68k_areg (regs, 7) -= 4;
-    put_long (m68k_areg (regs, 7), oldpc);
-    m68k_incpc (offset);
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), oldpc);
+	m68k_incpc (offset);
 }
 STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
 {
-    m68k_areg (regs, 7) -= 4;
-    put_long (m68k_areg (regs, 7), oldpc);
-    m68k_incpci (offset);
+	m68k_areg (regs, 7) -= 4;
+	put_long (m68k_areg (regs, 7), oldpc);
+	m68k_incpci (offset);
 }
 
 #define get_ibyte(o) do_get_mem_byte((uae_u8 *)((regs).pc_p + (o) + 1))
@@ -258,36 +260,36 @@ STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
 #define get_ilongi(o) get_longi(o)
 
 /* These are only used by the 68020/68881 code, and therefore don't
- * need to handle prefetch.  */
+* need to handle prefetch.  */
 STATIC_INLINE uae_u32 next_ibyte (void)
 {
-    uae_u32 r = get_ibyte (0);
-    m68k_incpc (2);
-    return r;
+	uae_u32 r = get_ibyte (0);
+	m68k_incpc (2);
+	return r;
 }
 STATIC_INLINE uae_u32 next_iword (void)
 {
-    uae_u32 r = get_iword (0);
-    m68k_incpc (2);
-    return r;
+	uae_u32 r = get_iword (0);
+	m68k_incpc (2);
+	return r;
 }
 STATIC_INLINE uae_u32 next_iwordi (void)
 {
-    uae_u32 r = get_iwordi (m68k_getpci ());
-    m68k_incpc (2);
-    return r;
+	uae_u32 r = get_iwordi (m68k_getpci ());
+	m68k_incpc (2);
+	return r;
 }
 STATIC_INLINE uae_u32 next_ilong (void)
 {
-    uae_u32 r = get_ilong (0);
-    m68k_incpc (4);
-    return r;
+	uae_u32 r = get_ilong (0);
+	m68k_incpc (4);
+	return r;
 }
 STATIC_INLINE uae_u32 next_ilongi (void)
 {
-    uae_u32 r = get_ilongi (m68k_getpci ());
-    m68k_incpc (4);
-    return r;
+	uae_u32 r = get_ilongi (m68k_getpci ());
+	m68k_incpc (4);
+	return r;
 }
 
 extern void m68k_setstopped (void);
@@ -393,7 +395,7 @@ extern int movec_illg (int regno);
 extern uae_u32 val_move2c (int regno);
 extern void val_move2c2 (int regno, uae_u32 val);
 struct cpum2c {
-    int regno;
-    TCHAR *regname;
+	int regno;
+	TCHAR *regname;
 };
 extern struct cpum2c m2cregs[];

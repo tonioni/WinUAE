@@ -1,4 +1,27 @@
 
+Beta 19:
+
+- do not "fix" \\'s at start of path (b14)
+- sound sync ignored recently emulated NTSC short/long line toggle
+- less aggressive sound sync in non-vsync modes (not much point really)
+- 68020 CE cycle counting rewritten (may not be better yet but easier
+  to tweak in future)
+- added support for single sided PC/Atari ST-style images
+- added .st to disk image dialog extension list, .vhd to hardfile list
+- onscreen leds show selected disk side
+- onscreen led track number is dimmed when drive is empty
+- always mount regular hardfiles, even if dostype is unknown or
+  filesystem fails to load (unknown dostype = whole drive disappeared
+  after reboot)
+- add or create regular partition hardfile and size >=512M: generate
+  more compatible default disk geometry (cylinders less than 65536)
+- Action Replay statefile support should work again (again and again)
+- AVIOutput: handle recording thread errors without freezing, record
+  as 24-bit (instead of 32) if display is 32-bit
+- fixed really stupid and old bug in blitter state restore
+- added pause priorities (user pause > inactive > minimized), lower
+  priority pause states can't unpause higher priority states
+
 Beta 18:
 
 - dongle GUI selection added (IO Ports), Leviathan dongle supported
@@ -16,7 +39,7 @@ Beta 18:
 - minimizing: priority was set wrong, closing when minimized:
   remembered windowed mode size was reset (old bugs)
 - unpause when clicking on "PAUSED" fps led
-- some vsync sound sync experiments again..
+- some (vsync)sound sync experiments again..
 
 Beta 17:
 

@@ -17,8 +17,8 @@
 
 #define WINUAEPUBLICBETA 1
 
-#define WINUAEBETA L"18"
-#define WINUAEDATE MAKEBD(2009, 10, 16)
+#define WINUAEBETA L"19"
+#define WINUAEDATE MAKEBD(2009, 10, 31)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -60,8 +60,8 @@ extern void setmouseactive (int active);
 extern void minimizewindow (void);
 extern uae_u32 OSDEP_minimize_uae (void);
 
-extern void resumepaused (void);
-extern void setpaused (void);
+extern void resumepaused (int priority);
+extern void setpaused (int priority);
 
 void finishjob (void);
 void updatedisplayarea (void);

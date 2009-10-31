@@ -1,31 +1,31 @@
 /*
 
-  FDI to raw bit stream converter
-  Copyright (c) 2001 by Toni Wilen <twilen@arabuusimiehet.com>
-  FDI 2.0 support
-  Copyright (c) 2003-2004 by Toni Wilen <twilen@arabuusimiehet.com>
-      and Vincent Joguin
+FDI to raw bit stream converter
+Copyright (c) 2001 by Toni Wilen <twilen@arabuusimiehet.com>
+FDI 2.0 support
+Copyright (c) 2003-2004 by Toni Wilen <twilen@arabuusimiehet.com>
+and Vincent Joguin
 
-  FDI format created by Vincent "ApH" Joguin
+FDI format created by Vincent "ApH" Joguin
 
-  Tiny changes - function type fixes, multiple drives, addition of
-  get_last_head and C++ callability - by Thomas Harte, 2001,
-  T.Harte@excite.co.uk
+Tiny changes - function type fixes, multiple drives, addition of
+get_last_head and C++ callability - by Thomas Harte, 2001,
+T.Harte@excite.co.uk
 
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of the GNU General Public License as published by the Free
-  Software Foundation; either version 2 of the License, or (at your option)
-  any later version.
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your option)
+any later version.
 
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
 
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
 
 */
 
@@ -330,18 +330,18 @@ static int decode_raw_track (FDI *fdi)
 static void zxx (FDI *fdi)
 {
 	outlog (L"track %d: unknown track type 0x%02X\n", fdi->current_track, fdi->track_type);
-//	return -1;
+	//	return -1;
 }
 /* unsupported track */
 static void zyy (FDI *fdi)
 {
 	outlog (L"track %d: unsupported track type 0x%02X\n", fdi->current_track, fdi->track_type);
-//	return -1;
+	//	return -1;
 }
 /* empty track */
 static void track_empty (FDI *fdi)
 {
-//	return 0;
+	//	return 0;
 }
 
 /* unknown sector described type */
@@ -661,7 +661,7 @@ static int amiga_check_track (FDI *fdi)
 				mbuf[0] = 0x44;
 				mbuf[1] = 0x89;
 			}
-//			check_offset++;
+			//			check_offset++;
 			if (check_offset > 7) {
 				check_offset = 0;
 				mbuf++;
@@ -790,7 +790,7 @@ static void amiga_data (FDI *fdi, uae_u8 *secbuf)
 
 	for (i = 0; i < 512; i += 4) {
 		deven = ((secbuf[i + 0] << 24) | (secbuf[i + 1] << 16)
-		 | (secbuf[i + 2] << 8) | (secbuf[i + 3]));
+			| (secbuf[i + 2] << 8) | (secbuf[i + 3]));
 		dodd = deven >> 1;
 		deven &= 0x55555555;
 		dodd &= 0x55555555;
@@ -1182,10 +1182,10 @@ static void track_atari_st (struct fdi *fdi, int max_sector)
 	uae_u8 *p = fdi->track_src;
 
 	switch (max_sector) {
-		case 9:
+	case 9:
 		gap3 = 40;
 		break;
-		case 10:
+	case 10:
 		gap3 = 24;
 		break;
 	}
@@ -1206,13 +1206,13 @@ static void track_pc (struct fdi *fdi, int max_sector)
 	uae_u8 *p = fdi->track_src;
 
 	switch (max_sector) {
-		case 8:
+	case 8:
 		gap3 = 116;
 		break;
-		case 9:
+	case 9:
 		gap3 = 54;
 		break;
-		default:
+	default:
 		gap3 = 100; /* fixme */
 		break;
 	}
@@ -1370,13 +1370,13 @@ static uae_u8 *fdi_decompress (int pulses, uae_u8 *sizep, uae_u8 *src, int *dofr
 static void dumpstream(int track, uae_u8 *stream, int len)
 {
 #if 0
-    TCHAR name[100];
-    FILE *f;
+	TCHAR name[100];
+	FILE *f;
 
-    _stprintf (name, "track_%d.raw", track);
-    f = fopen(name, "wb");
-    fwrite (stream, 1, len * 4, f);
-    fclose (f);
+	_stprintf (name, "track_%d.raw", track);
+	f = fopen(name, "wb");
+	fwrite (stream, 1, len * 4, f);
+	fclose (f);
 #endif
 }
 
@@ -1436,7 +1436,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 	while ( (i < pulses) && ( (idx[i] < maxidx)
 		|| (idx[i - 1] < maxidx)
 		|| (avgp[i] < (standard_MFM_2_bit_cell_size - (standard_MFM_2_bit_cell_size / 4))) ) )
-			i++;
+		i++;
 	if (i == pulses)  {
 		outlog (L"No stable and long-enough pulse in track.\n");
 		return;
@@ -1483,7 +1483,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 			if (i == eodat)
 				outstep++;
 			if (outstep == 1 && indexoffset == i)
-			    *indexoffsetp = bitoffset;
+				*indexoffsetp = bitoffset;
 		}
 
 		/* gets the size in bits from the pulse width, considering the current average bitrate */
@@ -1564,7 +1564,7 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 	while ( (i < pulses) && ( (idx[i] < maxidx)
 		|| (idx[i - 1] < maxidx)
 		|| (minp[i] < (standard_MFM_2_bit_cell_size - (standard_MFM_2_bit_cell_size / 4))) ) )
-			i++;
+		i++;
 	if (i == pulses)  {
 		outlog (L"FDI: No stable and long-enough pulse in track.\n");
 		return;
@@ -1683,84 +1683,84 @@ static void fdi2_decode (FDI *fdi, unsigned long totalavg, uae_u32 *avgp, uae_u3
 				}
 			}
 			if (outstep == 1 && indexoffset == i)
-			    *indexoffsetp = bitoffset;
+				*indexoffsetp = bitoffset;
 		}
 
 		/* gets the size in bits from the pulse width, considering the current average bitrate */
 		adjusted_pulse = pulse;
 		real_size = 0;
 		if (mfm) {
-		    while (adjusted_pulse >= avg_size) {
-			    real_size += 4;
-			    adjusted_pulse -= avg_size / 2;
-		    }
-		    adjusted_pulse <<= 3;
-		    while (adjusted_pulse >= ((avg_size * 4) + (avg_size / 4))) {
-			    real_size += 2;
-			    adjusted_pulse -= avg_size * 2;
-		    }
-		    if (adjusted_pulse >= ((avg_size * 3) + (avg_size / 4))) {
-			    if (adjusted_pulse <= ((avg_size * 4) - (avg_size / 4))) {
-				    if ((2 * ((adjusted_pulse >> 2) - adjust)) <= ((2 * avg_size) - (avg_size / 4)))
-					    real_size += 3;
-				    else
-					    real_size += 4;
-			    } else
-				    real_size += 4;
-		    } else {
-			    if (adjusted_pulse > ((avg_size * 3) - (avg_size / 4))) {
-				    real_size += 3;
-			    } else {
-				    if (adjusted_pulse >= ((avg_size * 2) + (avg_size / 4))) {
-					    if ((2 * ((adjusted_pulse >> 2) - adjust)) < (avg_size + (avg_size / 4)))
-						    real_size += 2;
-					    else
-						    real_size += 3;
-				    } else
-					    real_size += 2;
-			    }
-		    }
+			while (adjusted_pulse >= avg_size) {
+				real_size += 4;
+				adjusted_pulse -= avg_size / 2;
+			}
+			adjusted_pulse <<= 3;
+			while (adjusted_pulse >= ((avg_size * 4) + (avg_size / 4))) {
+				real_size += 2;
+				adjusted_pulse -= avg_size * 2;
+			}
+			if (adjusted_pulse >= ((avg_size * 3) + (avg_size / 4))) {
+				if (adjusted_pulse <= ((avg_size * 4) - (avg_size / 4))) {
+					if ((2 * ((adjusted_pulse >> 2) - adjust)) <= ((2 * avg_size) - (avg_size / 4)))
+						real_size += 3;
+					else
+						real_size += 4;
+				} else
+					real_size += 4;
+			} else {
+				if (adjusted_pulse > ((avg_size * 3) - (avg_size / 4))) {
+					real_size += 3;
+				} else {
+					if (adjusted_pulse >= ((avg_size * 2) + (avg_size / 4))) {
+						if ((2 * ((adjusted_pulse >> 2) - adjust)) < (avg_size + (avg_size / 4)))
+							real_size += 2;
+						else
+							real_size += 3;
+					} else
+						real_size += 2;
+				}
+			}
 		} else {
-		    while (adjusted_pulse >= (2*avg_size))
-		    {
-			    real_size+=4;
-			    adjusted_pulse-=avg_size;
-		    }
-		    adjusted_pulse<<=2;
-		    while (adjusted_pulse >= ((avg_size*3)+(avg_size/4)))
-		    {
-			    real_size+=2;
-			    adjusted_pulse-=avg_size*2;
-		    }
-		    if (adjusted_pulse >= ((avg_size*2)+(avg_size/4)))
-		    {
-			    if (adjusted_pulse <= ((avg_size*3)-(avg_size/4)))
-			    {
-				    if (((adjusted_pulse>>1)-adjust) < (avg_size+(avg_size/4)))
-					    real_size+=2;
-				    else
-					    real_size+=3;
-			    }
-			    else
-				    real_size+=3;
-		    }
-		    else
-		    {
-			    if (adjusted_pulse > ((avg_size*2)-(avg_size/4)))
-				    real_size+=2;
-			    else
-			    {
-				    if (adjusted_pulse >= (avg_size+(avg_size/4)))
-				    {
-					    if (((adjusted_pulse>>1)-adjust) <= (avg_size-(avg_size/4)))
-						    real_size++;
-					    else
-						    real_size+=2;
-				    }
-				    else
-					    real_size++;
-			    }
-		    }
+			while (adjusted_pulse >= (2*avg_size))
+			{
+				real_size+=4;
+				adjusted_pulse-=avg_size;
+			}
+			adjusted_pulse<<=2;
+			while (adjusted_pulse >= ((avg_size*3)+(avg_size/4)))
+			{
+				real_size+=2;
+				adjusted_pulse-=avg_size*2;
+			}
+			if (adjusted_pulse >= ((avg_size*2)+(avg_size/4)))
+			{
+				if (adjusted_pulse <= ((avg_size*3)-(avg_size/4)))
+				{
+					if (((adjusted_pulse>>1)-adjust) < (avg_size+(avg_size/4)))
+						real_size+=2;
+					else
+						real_size+=3;
+				}
+				else
+					real_size+=3;
+			}
+			else
+			{
+				if (adjusted_pulse > ((avg_size*2)-(avg_size/4)))
+					real_size+=2;
+				else
+				{
+					if (adjusted_pulse >= (avg_size+(avg_size/4)))
+					{
+						if (((adjusted_pulse>>1)-adjust) <= (avg_size-(avg_size/4)))
+							real_size++;
+						else
+							real_size+=2;
+					}
+					else
+						real_size++;
+				}
+			}
 		}
 
 		/* after one pass to correctly initialize the average bitrate, outputs the bits */
@@ -1797,7 +1797,7 @@ static void fdi2_celltiming (FDI *fdi, unsigned long totalavg, int bitoffset, ua
 	int i;
 
 	if (out == NULL)
-	    return;
+		return;
 	avg_bit_len = (double)totalavg / (double)bitoffset;
 	pt2 = fdi->track_dst_buffer_timing;
 	pt = out;
@@ -2186,7 +2186,7 @@ int fdi2raw_loadtrack (FDI *fdi, uae_u16 *mfmbuf, uae_u16 *tracktiming, int trac
 
 	}
 
-//	amiga_check_track (fdi);
+	//	amiga_check_track (fdi);
 
 	if (fdi->err)
 		return 0;

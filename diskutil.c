@@ -23,7 +23,7 @@ static int drive_write_adf_amigados (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *write
 	for (;;) {
 		int trackoffs;
 
-	/* all sectors complete? */
+		/* all sectors complete? */
 		for (i = 0; i < 11; i++) {
 			if (!writebuffer_ok[i])
 				break;
@@ -137,121 +137,121 @@ int isamigatrack(uae_u16 *amigamfmbuffer, uae_u8 *mfmdata, int len, uae_u8 *writ
 
 static uae_u16 getmfmword (uae_u16 *mbuf, int shift)
 {
-    return (mbuf[0] << shift) | (mbuf[1] >> (16 - shift));
+	return (mbuf[0] << shift) | (mbuf[1] >> (16 - shift));
 }
 static uae_u8 mfmdecode (uae_u16 **mfmp, int shift)
 {
-    uae_u16 mfm = getmfmword (*mfmp, shift);
-    uae_u8 out = 0;
-    int i;
+	uae_u16 mfm = getmfmword (*mfmp, shift);
+	uae_u8 out = 0;
+	int i;
 
-    (*mfmp)++;
-    mfm &= 0x5555;
-    for (i = 0; i < 8; i++) {
-	out >>= 1;
-	if (mfm & 1)
-	    out |= 0x80;
-	mfm >>= 2;
-    }
-    return out;
+	(*mfmp)++;
+	mfm &= 0x5555;
+	for (i = 0; i < 8; i++) {
+		out >>= 1;
+		if (mfm & 1)
+			out |= 0x80;
+		mfm >>= 2;
+	}
+	return out;
 }
 
 static int drive_write_adf_pc (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *writebuffer, uae_u8 *writebuffer_ok, int track, int *outsize)
 {
-    int sectors, shift, sector, i;
-    uae_u8 mark;
-    uae_u8 secbuf[3 + 1 + 512];
-    uae_u16 crc;
-    int mfmcount;
+	int sectors, shift, sector, i;
+	uae_u8 mark;
+	uae_u8 secbuf[3 + 1 + 512];
+	uae_u16 crc;
+	int mfmcount;
 
-    secbuf[0] = secbuf[1] = secbuf[2] = 0xa1;
-    secbuf[3] = 0xfb;
+	secbuf[0] = secbuf[1] = secbuf[2] = 0xa1;
+	secbuf[3] = 0xfb;
 
-    sectors = 0;
-    sector = -1;
-    shift = 0;
-    mend -= (4 + 16 + 8 + 512);
-    mfmcount = 0;
-    for (;;) {
-
-	*outsize = sectors * 512;
-	while (getmfmword (mbuf, shift) != 0x4489) {
-	    if (mbuf >= mend) {
-		if (sectors >= 7) {
-		    *outsize = sectors * 512;
-		    return 0;
-		}
-		write_log (L"* track %d, unexpected end of data\n", track);
-		return 1;
-	    }
-	    shift++;
-	    if (shift == 16) {
-		shift = 0;
-		mbuf++;
-	    }
-	}
-	mfmcount++;
-	while (getmfmword (mbuf, shift) == 0x4489) {
-	    mfmcount++;
-	    if (mbuf >= mend) {
-		if (sectors >= 7) {
-		    *outsize = sectors * 512;
-		    return 0;
-		}
-		return 1;
-	    }
-	    mbuf++;
-	}
+	sectors = 0;
+	sector = -1;
+	shift = 0;
+	mend -= (4 + 16 + 8 + 512);
 	mfmcount = 0;
-	mark = mfmdecode (&mbuf, shift);
-	if (mark == 0xfe) {
-	    uae_u8 tmp[8];
-	    uae_u8 cyl, head, size;
+	for (;;) {
 
-	    cyl = mfmdecode (&mbuf, shift);
-	    head = mfmdecode (&mbuf, shift);
-	    sector = mfmdecode (&mbuf, shift);
-	    size = mfmdecode (&mbuf, shift);
-	    crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
+		*outsize = sectors * 512;
+		while (getmfmword (mbuf, shift) != 0x4489) {
+			if (mbuf >= mend) {
+				if (sectors >= 7) {
+					*outsize = sectors * 512;
+					return 0;
+				}
+				write_log (L"* track %d, unexpected end of data\n", track);
+				return 1;
+			}
+			shift++;
+			if (shift == 16) {
+				shift = 0;
+				mbuf++;
+			}
+		}
+		mfmcount++;
+		while (getmfmword (mbuf, shift) == 0x4489) {
+			mfmcount++;
+			if (mbuf >= mend) {
+				if (sectors >= 7) {
+					*outsize = sectors * 512;
+					return 0;
+				}
+				return 1;
+			}
+			mbuf++;
+		}
+		mfmcount = 0;
+		mark = mfmdecode (&mbuf, shift);
+		if (mark == 0xfe) {
+			uae_u8 tmp[8];
+			uae_u8 cyl, head, size;
 
-	    tmp[0] = 0xa1; tmp[1] = 0xa1; tmp[2] = 0xa1; tmp[3] = mark;
-	    tmp[4] = cyl; tmp[5] = head; tmp[6] = sector; tmp[7] = size;
-	    if (get_crc16 (tmp, 8) != crc || cyl != track / 2 || head != (track & 1) || size != 2 || sector < 1 || sector > 20) {
-		write_log (L"PCDOS: track %d, corrupted sector header\n", track);
-		continue;
-	    }
-	    sector--;
-	    continue;
-	}
-	if (mark != 0xfb) {
-	    write_log (L"PCDOS: track %d: unknown address mark %02X\n", track, mark);
-	    continue;
-	}
-	if (sector < 0)
-	    continue;
-	for (i = 0; i < 512; i++)
-	    secbuf[i + 4] = mfmdecode (&mbuf, shift);
-	sectors++;
-	memcpy (writebuffer + sector * 512, secbuf + 4, 512);
-	sector = 0;
-	crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
-	if (get_crc16 (secbuf, 3 + 1 + 512) != crc) {
-	    write_log (L"PCDOS: track %d, sector %d data checksum error\n",
-		track, sector + 1);
-	    continue;
-	}
+			cyl = mfmdecode (&mbuf, shift);
+			head = mfmdecode (&mbuf, shift);
+			sector = mfmdecode (&mbuf, shift);
+			size = mfmdecode (&mbuf, shift);
+			crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
 
-    }
+			tmp[0] = 0xa1; tmp[1] = 0xa1; tmp[2] = 0xa1; tmp[3] = mark;
+			tmp[4] = cyl; tmp[5] = head; tmp[6] = sector; tmp[7] = size;
+			if (get_crc16 (tmp, 8) != crc || cyl != track / 2 || head != (track & 1) || size != 2 || sector < 1 || sector > 20) {
+				write_log (L"PCDOS: track %d, corrupted sector header\n", track);
+				continue;
+			}
+			sector--;
+			continue;
+		}
+		if (mark != 0xfb) {
+			write_log (L"PCDOS: track %d: unknown address mark %02X\n", track, mark);
+			continue;
+		}
+		if (sector < 0)
+			continue;
+		for (i = 0; i < 512; i++)
+			secbuf[i + 4] = mfmdecode (&mbuf, shift);
+		sectors++;
+		memcpy (writebuffer + sector * 512, secbuf + 4, 512);
+		sector = 0;
+		crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
+		if (get_crc16 (secbuf, 3 + 1 + 512) != crc) {
+			write_log (L"PCDOS: track %d, sector %d data checksum error\n",
+				track, sector + 1);
+			continue;
+		}
+
+	}
 
 }
 
 int ispctrack(uae_u16 *amigamfmbuffer, uae_u8 *mfmdata, int len, uae_u8 *writebuffer, uae_u8 *writebuffer_ok, int track, int *outsize)
 {
-    int i;
-    for (i = 0; i < len / 2; i++)
-	amigamfmbuffer[i] = mfmdata[i * 2 + 1] | (mfmdata[i * 2 + 0] << 8);
-    i = drive_write_adf_pc (amigamfmbuffer, amigamfmbuffer + len / 2, writebuffer, writebuffer_ok, track, outsize);
-    if (*outsize < 9 * 512)
-	*outsize = 9 * 512;
-    return i;
+	int i;
+	for (i = 0; i < len / 2; i++)
+		amigamfmbuffer[i] = mfmdata[i * 2 + 1] | (mfmdata[i * 2 + 0] << 8);
+	i = drive_write_adf_pc (amigamfmbuffer, amigamfmbuffer + len / 2, writebuffer, writebuffer_ok, track, outsize);
+	if (*outsize < 9 * 512)
+		*outsize = 9 * 512;
+	return i;
 }

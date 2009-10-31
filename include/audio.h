@@ -29,7 +29,7 @@ extern void audio_evhandler (void);
 extern void audio_hsync (int);
 extern void audio_update_adkmasks (void);
 extern void audio_update_irq (uae_u16);
-extern void update_sound (int freq, int longframe);
+extern void update_sound (int freq, int longframe, int linetoggle);
 extern void led_filter_audio (void);
 extern void set_audio (void);
 extern int audio_activate (void);

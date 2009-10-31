@@ -1,4 +1,5 @@
-﻿<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -10,37 +11,44 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGUID>{6181E50C-5F32-42DC-BEF6-827AA8A5429D}</ProjectGUID>
+    <ProjectGuid>{6181E50C-5F32-42DC-BEF6-827AA8A5429D}</ProjectGuid>
     <RootNamespace>uaeunp</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets">
-    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">d:\amiga\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">d:\amiga\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
-    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IncludePath)</IncludePath>
-    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(LibraryPath)</LibraryPath>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -59,6 +67,7 @@
       <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
   </ItemDefinitionGroup>
@@ -74,7 +83,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <CompileAs>CompileAsCpp</CompileAs>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Link>
       <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -86,19 +95,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\archivers\7z\7zBuf.c" />
-    <ClCompile Include="..\..\archivers\7z\7zCrc.c" />
-    <ClCompile Include="..\..\archivers\7z\7zStream.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c" />
-    <ClCompile Include="..\..\archivers\7z\Bcj2.c" />
-    <ClCompile Include="..\..\archivers\7z\Bra.c" />
-    <ClCompile Include="..\..\archivers\7z\Bra86.c" />
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.c" />
+    <ClCompile Include="..\..\crc32.c" />
+    <ClCompile Include="..\..\diskutil.c" />
+    <ClCompile Include="..\..\fdi2raw.c" />
+    <ClCompile Include="..\..\missing.c" />
+    <ClCompile Include="..\..\uaeunp.c" />
+    <ClCompile Include="..\..\zfile.c" />
+    <ClCompile Include="..\..\zfile_archive.c" />
     <ClCompile Include="..\..\archivers\dms\crc_csum.c" />
     <ClCompile Include="..\..\archivers\dms\getbits.c" />
     <ClCompile Include="..\..\archivers\dms\maketbl.c" />
@@ -110,6 +113,19 @@
     <ClCompile Include="..\..\archivers\dms\u_medium.c" />
     <ClCompile Include="..\..\archivers\dms\u_quick.c" />
     <ClCompile Include="..\..\archivers\dms\u_rle.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c" />
+    <ClCompile Include="..\..\archivers\7z\7zBuf.c" />
+    <ClCompile Include="..\..\archivers\7z\7zCrc.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c" />
+    <ClCompile Include="..\..\archivers\7z\7zStream.c" />
+    <ClCompile Include="..\..\archivers\7z\Bcj2.c" />
+    <ClCompile Include="..\..\archivers\7z\Bra.c" />
+    <ClCompile Include="..\..\archivers\7z\Bra86.c" />
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.c" />
     <ClCompile Include="..\..\archivers\lha\crcio.c" />
     <ClCompile Include="..\..\archivers\lha\dhuf.c" />
     <ClCompile Include="..\..\archivers\lha\header.c" />
@@ -121,16 +137,9 @@
     <ClCompile Include="..\..\archivers\lha\slide.c" />
     <ClCompile Include="..\..\archivers\lha\uae_lha.c" />
     <ClCompile Include="..\..\archivers\lha\util.c" />
+    <ClCompile Include="..\..\archivers\zip\unzip.c" />
     <ClCompile Include="..\..\archivers\lzx\unlzx.c" />
     <ClCompile Include="..\..\archivers\wrp\warp.c" />
-    <ClCompile Include="..\..\archivers\zip\unzip.c" />
-    <ClCompile Include="..\..\crc32.c" />
-    <ClCompile Include="..\..\diskutil.c" />
-    <ClCompile Include="..\..\fdi2raw.c" />
-    <ClCompile Include="..\..\missing.c" />
-    <ClCompile Include="..\..\uaeunp.c" />
-    <ClCompile Include="..\..\zfile.c" />
-    <ClCompile Include="..\..\zfile_archive.c" />
     <ClCompile Include="..\caps\caps_win32.c" />
     <ClCompile Include="..\fsdb_mywin32.c" />
     <ClCompile Include="..\posixemu.c" />

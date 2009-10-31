@@ -25,6 +25,7 @@ extern void compute_vsynctime (void);
 extern void init_eventtab (void);
 extern void do_cycles_ce (long cycles);
 extern void do_cycles_ce020 (int clocks);
+extern void do_cycles_ce020_mem (int clocks);
 extern void do_cycles_ce000 (int clocks);
 extern int is_cycle_ce (void);
 

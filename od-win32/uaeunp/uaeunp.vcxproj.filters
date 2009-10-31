@@ -14,31 +14,31 @@
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Source Files\decompressors">
-      <UniqueIdentifier>{ca0293dc-074a-4abd-a3e4-d5e0073cf020}</UniqueIdentifier>
+      <UniqueIdentifier>{74332802-0dea-481d-8688-6ea8ca3894c9}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\7z">
-      <UniqueIdentifier>{0672cade-bb56-4711-b392-347640e8262d}</UniqueIdentifier>
+      <UniqueIdentifier>{1d6748ee-1e71-4481-b70b-48abbd6579e1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\dms">
-      <UniqueIdentifier>{a1cca94f-8e58-4e1b-8db2-e1edc73cd5bb}</UniqueIdentifier>
+      <UniqueIdentifier>{9a350565-10e0-4d98-af19-c89cf863c69d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\lha">
-      <UniqueIdentifier>{8d6365e3-4612-4fb8-8bd4-ffa4704bbb3b}</UniqueIdentifier>
+      <UniqueIdentifier>{7b5944b8-15c4-46bf-b99c-24b604e0a523}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\lzx">
-      <UniqueIdentifier>{e221241b-fb65-47f9-a202-bfcb00e61e63}</UniqueIdentifier>
+      <UniqueIdentifier>{3b89358e-ed9f-42d8-a330-90ad0878add0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\wrp">
-      <UniqueIdentifier>{fcf52458-bcf3-411a-b732-dbd936599ae1}</UniqueIdentifier>
+      <UniqueIdentifier>{43f24f87-b713-4df6-aeac-884f63457258}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\xfd">
-      <UniqueIdentifier>{50925ec6-0d6f-4b8f-b0bb-3719bf0cee8e}</UniqueIdentifier>
+      <UniqueIdentifier>{0f91f71a-54cd-4ee8-b2d2-71e72654b6f7}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\decompressors\zip">
-      <UniqueIdentifier>{b7bcc77a-4dbe-4a62-b593-5ce995fb31d9}</UniqueIdentifier>
+      <UniqueIdentifier>{c14490cb-e12c-4dea-9399-f34fd8d6cf23}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\win32">
-      <UniqueIdentifier>{1cf030c6-ec59-44fc-b272-6d40bb977515}</UniqueIdentifier>
+      <UniqueIdentifier>{9656c755-8b1f-4d77-b6ce-ef9f7c8405e2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
