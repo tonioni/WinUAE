@@ -1109,6 +1109,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	int adapter;
 	DWORD flags;
 	HINSTANCE d3dDLL, d3dx;
+	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
+	LPDIRECT3DCREATE9EX d3dexp = NULL;
 
 	D3D_free ();
 	D3D_canshaders ();
@@ -1132,15 +1134,14 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		_tcscpy (errmsg, L"Direct3D: DirectX 9 or newer required");
 		return errmsg;
 	} else {
-		typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
-		LPDIRECT3DCREATE9EX d3dexp  = (LPDIRECT3DCREATE9EX)GetProcAddress (d3dDLL, "Direct3DCreate9Ex");
+		d3dexp  = (LPDIRECT3DCREATE9EX)GetProcAddress (d3dDLL, "Direct3DCreate9Ex");
 		if (d3dexp)
 			d3d_ex = TRUE;
 	}
 	FreeLibrary (d3dDLL);
 	hr = -1;
 	if (d3d_ex && D3DEX) {
-		hr = Direct3DCreate9Ex (D3D_SDK_VERSION, &d3dex);
+		hr = d3dexp (D3D_SDK_VERSION, &d3dex);
 		if (FAILED (hr))
 			write_log (L"Direct3D: failed to create D3DEx object: %s\n", D3D_ErrorString (hr));
 		d3d = (IDirect3D9*)d3dex;

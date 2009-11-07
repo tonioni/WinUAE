@@ -1190,7 +1190,7 @@ static int enumserialports_2 (int cnt)
 	SP_DEVICE_INTERFACE_DETAIL_DATA *pDetData = NULL;
 	BOOL bOk = TRUE;
 	SP_DEVICE_INTERFACE_DATA ifcData;
-	DWORD dwDetDataSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA) + 256;
+	DWORD dwDetDataSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA) + 256 * sizeof (TCHAR);
 	DWORD ii;
 
 	hDevInfo = SetupDiGetClassDevs (&GUID_CLASS_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
@@ -1225,7 +1225,7 @@ static int enumserialports_2 (int cnt)
 					comports[cnt].name = my_strdup (fname);
 					p = _tcsstr (fname, L"(COM");
 					if (p && (p[5] == ')' || p[6] == ')')) {
-						comports[cnt].cfgname = xmalloc (100);
+						comports[cnt].cfgname = xmalloc (100 * sizeof (TCHAR));
 						if (isdigit(p[5]))
 							_stprintf (comports[cnt].cfgname, L"COM%c%c", p[4], p[5]);
 						else
@@ -1241,7 +1241,7 @@ static int enumserialports_2 (int cnt)
 				goto end;
 			}
 		} else {
-			DWORD err = GetLastError();
+			DWORD err = GetLastError ();
 			if (err != ERROR_NO_MORE_ITEMS) {
 				write_log (L"SetupDiEnumDeviceInterfaces failed, err=%d", err);
 				goto end;
@@ -1263,27 +1263,30 @@ int enumserialports (void)
 	TCHAR devname[1000];
 
 	write_log (L"Serial port enumeration..\n");
+	cnt = 0;
 
-	comports[0].dev = my_strdup (L"ENET:H");
-	comports[0].cfgname = my_strdup (comports[0].dev);
-	comports[0].name = my_strdup (L"NET (host)");
-	comports[1].dev = my_strdup (L"ENET:L");
-	comports[1].cfgname = my_strdup (comports[1].dev);
-	comports[1].name = my_strdup (L"NET (client)");
+#if 0
+	comports[cnt].dev = my_strdup (L"ENET:H");
+	comports[cnt].cfgname = my_strdup (comports[0].dev);
+	comports[cnt++].name = my_strdup (L"NET (host)");
+	comports[cnt].dev = my_strdup (L"ENET:L");
+	comports[cnt].cfgname = my_strdup (comports[1].dev);
+	comports[cnt++].name = my_strdup (L"NET (client)");
+#endif
 
-	cnt = enumserialports_2 (2);
+	cnt = enumserialports_2 (cnt);
 	for (i = 0; i < 10; i++) {
-		_stprintf(name, L"COM%d", i);
-		if (!QueryDosDevice (name, devname, sizeof devname))
+		_stprintf (name, L"COM%d", i);
+		if (!QueryDosDevice (name, devname, sizeof devname / sizeof (TCHAR)))
 			continue;
 		for(j = 0; j < cnt; j++) {
-			if (!_tcscmp(comports[j].cfgname, name))
+			if (!_tcscmp (comports[j].cfgname, name))
 				break;
 		}
 		if (j == cnt) {
 			if (cnt >= MAX_SERIAL_PORTS)
 				break;
-			comports[j].dev = xmalloc (100);
+			comports[j].dev = xmalloc (100 * sizeof (TCHAR));
 			_stprintf (comports[cnt].dev, L"\\.\\\\%s", name);
 			comports[j].cfgname = my_strdup (name);
 			comports[j].name = my_strdup (name);

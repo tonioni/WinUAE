@@ -12475,7 +12475,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		panelresource = getresource (IDD_PANEL);
 		LOADSAVE_ID = init_page (IDD_LOADSAVE, IDI_FILE, IDS_LOADSAVE, LoadSaveDlgProc, NULL, L"gui/configurations.htm");
 		MEMORY_ID = init_page (IDD_MEMORY, IDI_MEMORY, IDS_MEMORY, MemoryDlgProc, NULL, L"gui/ram.htm");
-		EXPANSION_ID = init_page (IDD_EXPANSION, IDI_DISPLAY, IDS_EXPANSION, ExpansionDlgProc, NULL, L"gui/expansion.htm");
+		EXPANSION_ID = init_page (IDD_EXPANSION, IDI_EXPANSION, IDS_EXPANSION, ExpansionDlgProc, NULL, L"gui/expansion.htm");
 		KICKSTART_ID = init_page (IDD_KICKSTART, IDI_MEMORY, IDS_KICKSTART, KickstartDlgProc, NULL, L"gui/rom.htm");
 		CPU_ID = init_page (IDD_CPU, IDI_CPU, IDS_CPU, CPUDlgProc, NULL, L"gui/cpu.htm");
 		DISPLAY_ID = init_page (IDD_DISPLAY, IDI_DISPLAY, IDS_DISPLAY, DisplayDlgProc, NULL, L"gui/display.htm");

@@ -2910,11 +2910,19 @@ STATIC_INLINE int GETHPOS (void)
 	return islightpentriggered () ? hpos_lpen : (issyncstopped () ? hpos_previous : current_hpos ());
 }
 
+#define HPOS_OFFSET 3
+
 STATIC_INLINE uae_u16 VPOSR (void)
 {
 	unsigned int csbit = 0;
-	int vp = (GETVPOS () >> 8) & 7;
+	uae_u16 vp = (GETVPOS () >> 8) & 7;
+	uae_u16 hp = GETHPOS ();
 
+	if (hp + HPOS_OFFSET >= maxhpos) {
+		vp++;
+		if (vp >= maxvpos + lof)
+			vp = 0;
+	}
 	if (currprefs.cs_agnusrev >= 0) {
 		csbit |= currprefs.cs_agnusrev  << 8;
 	} else {
@@ -2985,11 +2993,11 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 	uae_u16 vp = GETVPOS ();
 	uae_u16 hp = GETHPOS ();
 
-	hp += 3;
+	hp += HPOS_OFFSET;
 	if (hp >= maxhpos) {
 		hp -= maxhpos;
 		vp++;
-		if (vp >= maxvpos)
+		if (vp >= maxvpos + lof)
 			vp = 0;
 	}
 	hp += 1;
@@ -3001,7 +3009,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 	if (currprefs.cpu_model >= 68020)
 		hsyncdelay ();
 #if 0
-	if (M68K_GETPC < 0xf00000)
+	if (M68K_GETPC < 0xf00000 && (vpos >= maxhpos || vpos <= 1))
 		write_log (L"VPOS %04x %04x at %08x\n", VPOSR (), vp, M68K_GETPC);
 #endif
 	return vp;

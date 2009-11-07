@@ -87,7 +87,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
 				ShowProgress="0"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
@@ -302,14 +302,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;wininet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\Release/winuae.pdb"
 				SubSystem="2"
@@ -1087,14 +1087,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories=""
 				GenerateManifest="true"
 				AdditionalManifestDependencies=""
-				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll"
+				DelayLoadDLLs="wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;wininet.dll"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile=".\FullRelease/winuae.pdb"
 				SubSystem="2"
@@ -1446,11 +1446,11 @@
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
@@ -1458,11 +1458,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\diskimage.ico"
+					RelativePath=".\diskimage.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\diskimage.ico"
+					RelativePath="..\resources\diskimage.ico"
 					>
 				</File>
 				<File
@@ -1470,11 +1470,19 @@
 					>
 				</File>
 				<File
-					RelativePath=".\file.ico"
+					RelativePath="..\resources\expansion.ico"
+					>
+				</File>
+				<File
+					RelativePath=".\expansion.ico"
 					>
 				</File>
 				<File
 					RelativePath="..\resources\file.ico"
+					>
+				</File>
+				<File
+					RelativePath=".\file.ico"
 					>
 				</File>
 				<File

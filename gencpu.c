@@ -2362,7 +2362,7 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();
-			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src) - 4);\n");
+			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src));\n");
 			addcycles000_3 ("\t\t");
 		} else if (using_ce020) {
 			addcycles_ce020 (36);
@@ -2410,7 +2410,7 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();
-			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src) - 4);\n");
+			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src));\n");
 			addcycles000_3 ("\t\t");
 		} else if (using_ce020) {
 			addcycles_ce020 (46);

@@ -1,4 +1,15 @@
 
+Beta 20:
+
+- 68000 CE timing updates
+- expansion panel GUI tree icon added
+- serial port detection didn't detect all ports (broke in 1.6.0)
+- http://, https:// and ftp:// file paths supported (pointless but it
+  was very easy to implement, do not ask for extra improvements)
+- dms, ipf and some other disk image types didn't unpack if inside
+  archive, truncate adf converted >80 cylinder images to 80 if all 81+
+  tracks are empty (uaeunp)
+
 Beta 19:
 
 - do not "fix" \\'s at start of path (b14)

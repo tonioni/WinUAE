@@ -908,7 +908,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	}
 	zf = zfile_dup (z);
 	if (zf) {
-		zf2 = zuncompress (NULL, zf, 0, ZFD_ALL, &rc);
+		zf2 = zuncompress (NULL, zf, 0, ZFD_ALL & ~ZFD_ADF, &rc);
 		if (zf2) {
 			zf = NULL;
 			zai.name = zfile_getfilename (zf2);

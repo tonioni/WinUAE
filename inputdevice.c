@@ -1524,6 +1524,8 @@ static int getvelocity (int num, int subnum, int pct)
 	int val;
 	int v;
 
+	if (pct > 1000)
+		pct = 1000;
 	val = mouse_delta[num][subnum];
 	v = val * pct / 1000;
 	if (!v) {
@@ -1544,11 +1546,8 @@ static int getvelocity (int num, int subnum, int pct)
 static void mouseupdate (int pct, int vsync)
 {
 	int v, i;
-	int max = 127;
+	int max = 120;
 	static int mxd, myd;
-
-	if (pct > 1000)
-		pct = 1000;
 
 	if (vsync) {
 		if (mxd < 0) {
@@ -1631,9 +1630,17 @@ extern int vpos;
 static void readinput (void)
 {
 	uae_u32 totalvpos;
+	int diff;
 
 	totalvpos = input_frame * maxvpos + vpos;
-	mouseupdate ((totalvpos - input_vpos) * 1000 / maxvpos, 0);
+	diff = totalvpos - input_vpos;
+	if (diff > 0) {
+		if (diff < 10) {
+			mouseupdate (0, 0);
+		} else {
+			mouseupdate (diff * 1000 / maxvpos, 0);
+		}
+	}
 	input_vpos = totalvpos;
 
 }
@@ -1641,7 +1648,7 @@ static void readinput (void)
 int getjoystate (int joy)
 {
 	int left = 1, right = 1, top = 1, bot = 1;
-	uae_u16 v = 0;
+	uae_u16 v;
 
 	if (inputdevice_logging & 2)
 		write_log (L"JOY%dDAT %08x\n", joy, M68K_GETPC);

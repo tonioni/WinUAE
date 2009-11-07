@@ -59,7 +59,8 @@ static uae_u8 blit_filltable[256][4][2];
 uae_u32 blit_masktable[BLITTER_MAX_WORDS];
 enum blitter_states bltstate;
 
-static int blit_cyclecounter, blit_maxcyclecounter, blit_slowdown, blit_totalcyclecounter;
+static int blit_cyclecounter, blit_waitcyclecounter;
+static int blit_maxcyclecounter, blit_slowdown, blit_totalcyclecounter;
 static int blit_startcycles, blit_misscyclecounter;
 
 #ifdef CPUEMU_12
@@ -652,6 +653,11 @@ static void decide_blitter_line (int hsync, int hpos)
 		for (;;) {
 			int v = canblit (last_blitter_hpos);
 
+			if (blit_waitcyclecounter) {
+				blit_waitcyclecounter = 0;
+				break;
+			}
+
 			if (!v) {
 				blit_misscyclecounter++;
 				blitter_nasty++;
@@ -682,6 +688,7 @@ static void decide_blitter_line (int hsync, int hpos)
 					bltdpt = bltcpt;
 					blit_final = 1;
 					blit_cyclecounter = 0;
+					blit_waitcyclecounter = 0;
 				}
 				break;
 			}
@@ -711,6 +718,7 @@ static void decide_blitter_line (int hsync, int hpos)
 					bltdpt = bltcpt;
 					blit_final = 1;
 					blit_cyclecounter = 0;
+					blit_waitcyclecounter = 0;
 					break;
 				}
 
@@ -945,6 +953,7 @@ static void do_startcycles (int hpos)
 				do_blitter (vhpos, 0);
 				blit_startcycles = 0;
 				blit_cyclecounter = 0;
+				blit_waitcyclecounter = 0;
 				if (blit_faulty)
 					blit_faulty = 1;
 				return;
@@ -990,6 +999,11 @@ void decide_blitter (int hpos)
 
 			v = canblit (last_blitter_hpos);
 
+			// copper bltsize write needs one cycle (any cycle) delay
+			if (blit_waitcyclecounter) {
+				blit_waitcyclecounter = 0;
+				break;
+			}
 			// idle cycles require free bus..
 			// (CPU can still use this cycle)
 			if (c == 0 && v == 0) {
@@ -1314,7 +1328,8 @@ static void do_blitter2 (int hpos, int copper)
 		blitter_vcounter1 = blitter_vcounter2 = 0;
 		if (blit_nod)
 			blitter_vcounter2 = vblitsize;
-		blit_cyclecounter = -(BLITTER_STARTUP_CYCLES + (copper ? 1 : 0));
+		blit_cyclecounter = -BLITTER_STARTUP_CYCLES;
+		blit_waitcyclecounter = copper;
 		blit_startcycles = 0;
 		blit_maxcyclecounter = hblitsize * vblitsize + 2;
 		return;
@@ -1329,6 +1344,7 @@ static void do_blitter2 (int hpos, int copper)
 	if (currprefs.immediate_blits)
 		cycles = 1;
 
+	blit_waitcyclecounter = 0;
 	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
 	event2_newevent (ev2_blitter, blit_cyclecounter);
 }
@@ -1341,7 +1357,8 @@ void do_blitter (int hpos, int copper)
 	}
 	// previous blit may have last write cycle left
 	// and we must let it finish
-	blit_startcycles = BLITTER_STARTUP_CYCLES + (copper ? 1 : 0);
+	blit_startcycles = BLITTER_STARTUP_CYCLES;
+	blit_waitcyclecounter = copper;
 }
 
 void maybe_blit (int hpos, int hack)
