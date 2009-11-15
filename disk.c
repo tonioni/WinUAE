@@ -862,6 +862,8 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	uae_char buffer[2 + 2 + 4 + 4];
 	trackid *tid;
 	int num_tracks, size;
+	int canauto;
+	TCHAR *ext;
 
 	gui_disk_image_change (dnum, fname);
 	drive_image_free (drv);
@@ -872,6 +874,13 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->tracktiming[0] = 0;
 	drv->useturbo = 0;
 	drv->indexoffset = 0;
+
+	canauto = 0;
+	ext = _tcsrchr (fname, '.');
+	if (ext) {
+		if (!_tcsicmp (ext + 1, L"adf") || !_tcsicmp (ext + 1, L"adz") || !_tcsicmp (ext + 1, L"st") || !_tcsicmp (ext + 1, L"ima") || !_tcsicmp (ext + 1, L"img")) 
+			canauto = 1;
+	}
 
 	if (!drv->motoroff) {
 		drv->dskready_time = DSKREADY_TIME;
@@ -985,7 +994,8 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		}
 		drv->useturbo = 1;
 
-	} else if (
+	} else if (canauto && (
+
 		// double sided
 		size == 9 * 80 * 2 * 512 || size == 18 * 80 * 2 * 512 || size == 10 * 80 * 2 * 512 || size == 20 * 80 * 2 * 512 ||
 		size == 9 * 81 * 2 * 512 || size == 18 * 81 * 2 * 512 || size == 10 * 81 * 2 * 512 || size == 20 * 81 * 2 * 512 ||
@@ -993,7 +1003,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		// single sided
 		size == 9 * 80 * 1 * 512 || size == 18 * 80 * 1 * 512 || size == 10 * 80 * 1 * 512 || size == 20 * 80 * 1 * 512 ||
 		size == 9 * 81 * 1 * 512 || size == 18 * 81 * 1 * 512 || size == 10 * 81 * 1 * 512 || size == 20 * 81 * 1 * 512 ||
-		size == 9 * 82 * 1 * 512 || size == 18 * 82 * 1 * 512 || size == 10 * 82 * 1 * 512 || size == 20 * 82 * 1 * 512) {
+		size == 9 * 82 * 1 * 512 || size == 18 * 82 * 1 * 512 || size == 10 * 82 * 1 * 512 || size == 20 * 82 * 1 * 512)) {
 			/* PC formatted image */
 			int i, side;
 

@@ -8,7 +8,11 @@
 *
 */
 
+
 #include "sysconfig.h"
+#ifdef SERIAL_ENET
+#include "enet/enet.h"
+#endif
 #include "sysdeps.h"
 
 #include "options.h"
@@ -36,9 +40,10 @@ static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
 int serdev;
 int seriallog;
+int serial_enet;
 
-void serial_open(void);
-void serial_close(void);
+void serial_open (void);
+void serial_close (void);
 
 uae_u16 serper, serdat, serdatr;
 
@@ -100,7 +105,44 @@ static uae_char dochar (int v)
 	return '.';
 }
 
-static void checkreceive (int mode)
+static void checkreceive_enet (int mode)
+{
+#ifdef SERIAL_ENET
+	static uae_u32 lastchartime;
+	struct timeval tv;
+	uae_u16 recdata;
+
+	if (!enet_readseravail ())
+		return;
+	if (data_in_serdatr) {
+		/* probably not needed but there may be programs that expect OVRUNs.. */
+		gettimeofday (&tv, NULL);
+		if (tv.tv_sec > lastchartime) {
+			ovrun = 1;
+			INTREQ (0x8000 | 0x0800);
+			while (enet_readser (&recdata));
+			write_log (L"SERIAL: overrun\n");
+		}
+		return;
+	}
+	if (!enet_readser (&recdata))
+		return;
+	serdatr = recdata & 0x1ff;
+	if (recdata & 0x200)
+		serdatr |= 0x200;
+	else
+		serdatr |= 0x100;
+	gettimeofday (&tv, NULL);
+	lastchartime = tv.tv_sec + 5;
+	data_in_serdatr = 1;
+	serial_check_irq ();
+#if SERIALDEBUG > 2
+	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, doTCHAR (serdatr));
+#endif
+#endif
+}
+
+static void checkreceive_serial (int mode)
 {
 #ifdef SERIAL_PORT
 	static uae_u32 lastchartime;
@@ -108,7 +150,7 @@ static void checkreceive (int mode)
 	struct timeval tv;
 	int recdata;
 
-	if (!readseravail())
+	if (!readseravail ())
 		return;
 
 	if (data_in_serdatr) {
@@ -166,6 +208,10 @@ static void checksend (int mode)
 #ifdef SERIAL_PORT
 	bufstate = checkserwrite ();
 #endif
+#ifdef SERIAL_ENET
+	if (serial_enet)
+		bufstate = 1;
+#endif
 	if (!data_in_serdat && !data_in_sershift)
 		return;
 
@@ -175,6 +221,11 @@ static void checksend (int mode)
 	if (data_in_serdat && !data_in_sershift) {
 		data_in_sershift = 1;
 		serdatshift = serdat;
+#ifdef SERIAL_ENET
+		if (serial_enet) {
+			enet_writeser (serdatshift);
+		}
+#endif
 #ifdef SERIAL_PORT
 		if (ninebit)
 			writeser (((serdatshift >> 8) & 1) | 0xa8);
@@ -197,8 +248,10 @@ void serial_hsynchandler (void)
 	if (serial_period_hsyncs == 0)
 		return;
 	serial_period_hsync_counter++;
-	if (serial_period_hsyncs == 1 || (serial_period_hsync_counter % (serial_period_hsyncs - 1)) == 0)
-		checkreceive (0);
+	if (serial_period_hsyncs == 1 || (serial_period_hsync_counter % (serial_period_hsyncs - 1)) == 0) {
+		checkreceive_serial (0);
+		checkreceive_enet (0);
+	}
 	if ((serial_period_hsync_counter % serial_period_hsyncs) == 0)
 		checksend (0);
 }
@@ -432,15 +485,24 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	return oldserbits;
 }
 
+static int enet_is (TCHAR *name)
+{
+	return !_tcsnicmp (name, L"ENET:", 5);
+}
+
 void serial_open (void)
 {
 #ifdef SERIAL_PORT
 	if (serdev)
 		return;
 	serper = 0;
-	if(!openser (currprefs.sername)) {
-		write_log (L"SERIAL: Could not open device %s\n", currprefs.sername);
-		return;
+	if (enet_is (currprefs.sername)) {
+		enet_open (currprefs.sername);
+	} else {
+		if(!openser (currprefs.sername)) {
+			write_log (L"SERIAL: Could not open device %s\n", currprefs.sername);
+			return;
+		}
 	}
 	serdev = 1;
 #endif
@@ -450,6 +512,7 @@ void serial_close (void)
 {
 #ifdef SERIAL_PORT
 	closeser ();
+	enet_close ();
 	serdev = 0;
 #endif
 }
@@ -459,10 +522,8 @@ void serial_init (void)
 #ifdef SERIAL_PORT
 	if (!currprefs.use_serial)
 		return;
-
 	if (!currprefs.serial_demand)
 		serial_open ();
-
 #endif
 }
 
@@ -481,3 +542,138 @@ void serial_uartbreak (int v)
 	serialuartbreak (v);
 #endif
 }
+
+#ifdef SERIAL_ENET
+static ENetHost *enethost, *enetclient;
+static ENetPeer *enetpeer;
+static int enetmode;
+
+void enet_close (void)
+{
+	if (enethost)
+		enet_host_destroy (enethost);
+	enethost = NULL;
+	if (enetclient)
+		enet_host_destroy (enetclient);
+	enetclient = NULL;
+}
+
+int enet_open (TCHAR *name)
+{
+	ENetAddress address;
+	static int initialized;
+
+	if (!initialized) {
+		int err = enet_initialize ();
+		if (err) {
+			write_log (L"ENET: initialization failed: %d\n", err);
+			return 0;
+		}
+		initialized = 1;
+	}
+	
+	enet_close ();
+	enetmode = 0;
+	if (!_tcsnicmp (name, L"ENET:L", 6)) {
+		enetclient = enet_host_create (NULL, 1, 0, 0);
+		if (enetclient == NULL) {
+			write_log (L"ENET: enet_host_create(client) failed\n");
+			return 0;
+		}
+		write_log (L"ENET: client created\n");
+		enet_address_set_host (&address, "192.168.0.10");
+		address.port = 1234;
+		enetpeer = enet_host_connect (enetclient, &address, 2);
+		if (enetpeer == NULL) {
+			write_log (L"ENET: connection to host failed\n");
+			enet_host_destroy (enetclient);
+			enetclient = NULL;
+		}
+		write_log (L"ENET: connection initialized\n");
+		enetmode = -1;
+		return 1;
+	} else if (!_tcsnicmp (name, L"ENET:H", 6)) {
+		address.host = ENET_HOST_ANY;
+		address.port = 1234;
+		enethost = enet_host_create (&address, 2, 0, 0);
+		if (enethost == NULL) {
+			write_log (L"ENET: enet_host_create(server) failed\n");
+			return 0;
+		}
+		write_log (L"ENET: server created\n");
+		enet_address_set_host (&address, "127.0.0.1");
+		address.port = 1234;
+		enetpeer = enet_host_connect (enethost, &address, 2);
+		if (enetpeer == NULL) {
+			write_log (L"ENET: connection to localhost failed\n");
+			enet_host_destroy (enetclient);
+			enetclient = NULL;
+		}
+		write_log (L"ENET: local connection initialized\n");
+		enetmode = 1;
+		return 1;
+	}
+	return 0;
+}
+
+void enet_writeser (uae_u16 w)
+{
+	ENetPacket *p;
+	uae_u8 data[16];
+
+	strcpy (data, "UAE_");
+	data[4] = w >> 8;
+	data[5] = w >> 0;
+	p = enet_packet_create (data, 6, ENET_PACKET_FLAG_RELIABLE);
+	enet_peer_send (enetpeer, 0, p);
+}
+
+static uae_u16 enet_receive[256];
+static int enet_receive_off_w, enet_receive_off_r;
+
+int enet_readseravail (void)
+{
+	ENetEvent evt;
+	ENetHost *host;
+	
+	if (enetmode == 0)
+		return 0;
+	host = enetmode < 0 ? enetclient : enethost;
+	while (enet_host_service (host, &evt, 0)) {
+		switch (evt.type)
+		{
+			case ENET_EVENT_TYPE_CONNECT:
+				write_log (L"ENET: connect from %x:%u\n",
+					evt.peer->address.host, evt.peer->address.port);
+				evt.peer->data = 0;
+			break;
+			case ENET_EVENT_TYPE_RECEIVE:
+			{
+				uae_u8 *p = evt.packet->data;
+				int len = evt.packet->dataLength;
+				write_log (L"ENET: packet received, %d bytes\n", len);
+				if (len == 6) {
+					if (((enet_receive_off_w + 1) & 0xff) != enet_receive_off_r) {
+						enet_receive[enet_receive_off_w++] = (p[4] << 8) | p[5];
+					}
+				}
+
+				enet_packet_destroy (evt.packet);
+			}
+			break;
+			case ENET_EVENT_TYPE_DISCONNECT:
+				write_log (L"ENET: disconnect %p\n", evt.peer->data);
+			break;
+		}
+	}
+	return 0;
+}
+int enet_readser (uae_u16 *data)
+{
+	if (enet_receive_off_r == enet_receive_off_w)
+		return 0;
+	*data = enet_receive[enet_receive_off_r++];
+	enet_receive_off_r &= 0xff;
+	return 1;
+}
+#endif

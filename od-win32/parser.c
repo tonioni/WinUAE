@@ -8,6 +8,9 @@
 */
 
 #include "sysconfig.h"
+
+//#undef SERIAL_ENET
+
 #include <windows.h>
 #include <winspool.h>
 #include <stdlib.h>
@@ -1265,13 +1268,15 @@ int enumserialports (void)
 	write_log (L"Serial port enumeration..\n");
 	cnt = 0;
 
-#if 0
+#ifdef SERIAL_ENET
 	comports[cnt].dev = my_strdup (L"ENET:H");
 	comports[cnt].cfgname = my_strdup (comports[0].dev);
-	comports[cnt++].name = my_strdup (L"NET (host)");
+	comports[cnt].name = my_strdup (L"NET (host)");
+	cnt++;
 	comports[cnt].dev = my_strdup (L"ENET:L");
 	comports[cnt].cfgname = my_strdup (comports[1].dev);
-	comports[cnt++].name = my_strdup (L"NET (client)");
+	comports[cnt].name = my_strdup (L"NET (client)");
+	cnt++;
 #endif
 
 	cnt = enumserialports_2 (cnt);

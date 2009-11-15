@@ -124,7 +124,7 @@ extern struct zvolume *archive_directory_fat (struct zfile *z);
 extern struct zfile *archive_access_fat (struct znode *zn);
 extern struct zfile *archive_access_dir (struct znode *zn);
 
-extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect, int *retcode);
+extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect, int *retcode, int index);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id, int *retcode);
 extern int isfat (uae_u8*);
 

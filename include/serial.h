@@ -41,3 +41,9 @@ extern int uaeser_break (void*, int brklen);
 extern void uaeser_signal (void*, int source);
 extern void uaeser_trigger (void*);
 extern void uaeser_clearbuffers (void*);
+
+extern void enet_writeser (uae_u16);
+extern int enet_readseravail (void);
+extern int enet_readser (uae_u16 *buffer);
+extern int enet_open (TCHAR *name);
+extern void enet_close (void);

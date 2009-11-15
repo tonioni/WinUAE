@@ -1475,6 +1475,16 @@ static const GUID diskselectionguids[] = {
 	{ 0xe3741dff, 0x11f2, 0x445f, { 0x94, 0xb0, 0xa3, 0xe7, 0x58, 0xe2, 0xcb, 0xb5 } },
 	{ 0x2056d641, 0xba13, 0x4312, { 0xaa, 0x75, 0xc5, 0xeb, 0x52, 0xa8, 0x1c, 0xe3 } }
 };
+static void getfilter (int num, TCHAR *name, int *filter, TCHAR *fname)
+{
+	_tcscpy (fname, name);
+	_tcscat (fname, L"_Filter");
+	regqueryint (NULL, fname, &filter[num]);
+}
+static void setfilter (int num, int *filter, TCHAR *fname)
+{
+	regsetint (NULL, fname, filter[num]);
+}
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -1491,8 +1501,8 @@ static const GUID diskselectionguids[] = {
 // flag = 16 for recording input
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
 {
-	static int statefile_previousfilter;
 	static int previousfilter[20];
+	TCHAR filtername[MAX_DPATH] = L"";
 	OPENFILENAME openFileName;
 	TCHAR full_path[MAX_DPATH] = L"";
 	TCHAR full_path2[MAX_DPATH];
@@ -1522,23 +1532,27 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		{
 		case 0:
 		case 1:
+			getfilter(flag, L"FloppyPath", previousfilter, filtername);
 			fetch_path (L"FloppyPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[0];
 			break;
 		case 2:
 		case 3:
+			getfilter(flag, L"hdfPath", previousfilter, filtername);
 			fetch_path (L"hdfPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[1];
 			break;
 		case 6:
 		case 7:
 		case 11:
+			getfilter(flag, L"KickstartPath", previousfilter, filtername);
 			fetch_path (L"KickstartPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[2];
 			break;
 		case 4:
 		case 5:
 		case 8:
+			getfilter(flag, L"ConfigurationPath", previousfilter, filtername);
 			fetch_path (L"ConfigurationPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[3];
 			break;
@@ -1562,13 +1576,16 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 						*p = 0;
 					}
 				}
-				if (!ok)
+				if (!ok) {
+					getfilter(flag, L"StatefilePath", previousfilter, filtername);
 					fetch_path (L"StatefilePath", init_path, sizeof (init_path) / sizeof (TCHAR));
+				}
 				guid = &diskselectionguids[4];
 			}
 			break;
 		case 15:
 		case 16:
+			getfilter(flag, L"InputPath", previousfilter, filtername);
 			fetch_path (L"InputPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[5];
 			break;
@@ -1729,7 +1746,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		if (!(result = GetOpenFileName_2 (&openFileName, guid)))
 			write_log (L"GetOpenFileNameX() failed, err=%d.\n", GetLastError ());
 	}
-	previousfilter[flag] = openFileName.nFilterIndex;
+	if (result) {
+		previousfilter[flag] = openFileName.nFilterIndex;
+		setfilter (flag, previousfilter, filtername);
+	}
 
 	memcpy (full_path2, full_path, sizeof (full_path) / sizeof (TCHAR));
 	memcpy (stored_path, full_path, sizeof (stored_path) / sizeof (TCHAR));
@@ -7671,6 +7691,14 @@ static void volumeselectdir (HWND hDlg, int newdir)
 	}
 }
 
+static void fixvol (TCHAR *s)
+{
+	if (_tcslen (s) == 0)
+		return;
+	if (s[_tcslen (s) - 1] == ':')
+		s[_tcslen (s) - 1] = 0;
+}
+
 static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -7747,7 +7775,9 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		}
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir, sizeof current_fsvdlg.rootdir / sizeof (TCHAR));
 		GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume / sizeof (TCHAR));
+		fixvol (current_fsvdlg.volume);
 		GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device / sizeof (TCHAR));
+		fixvol (current_fsvdlg.device);
 		current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_FS_RW);
 		current_fsvdlg.bootpri = GetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
 		current_fsvdlg.autoboot = IsDlgButtonChecked (hDlg, IDC_FS_AUTOBOOT);

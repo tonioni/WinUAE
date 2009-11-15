@@ -716,18 +716,10 @@ static uae_u64 vhd_write (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 off
 			// block already allocated in bitmap?
 			if (!(hfd->vhd_sectormap[bitmapoffsetbytes & 511] & (1 << (7 - (bitmapoffsetbits & 7))))) {
 				// no, we need to mark it allocated and write the modified bitmap back to the disk
-				int j;
-				for (j = 0; j < 512 / 4; j++) {
-					if (((uae_u32*)dataptr)[j])
-						break;
-				}
-				if (j < 512 / 4) {
-					// only mark it if there was non-zero data written
-					hfd->vhd_sectormap[bitmapoffsetbytes & 511] |= (1 << (7 - (bitmapoffsetbits & 7)));
-					if (hdf_write_target (hfd, hfd->vhd_sectormap, sectormapblock, 512) != 512) {
-						write_log (L"vhd_write: bam write error\n");
-						return written;
-					}
+				hfd->vhd_sectormap[bitmapoffsetbytes & 511] |= (1 << (7 - (bitmapoffsetbits & 7)));
+				if (hdf_write_target (hfd, hfd->vhd_sectormap, sectormapblock, 512) != 512) {
+					write_log (L"vhd_write: bam write error\n");
+					return written;
 				}
 			}
 			written += 512;

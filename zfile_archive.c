@@ -123,7 +123,7 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
 	return zf;
 }
 
-struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault, int *retcode)
+struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault, int *retcode, int index)
 {
 	struct zvolume *zv;
 	struct znode *zn;
@@ -135,6 +135,8 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 
 	if (retcode)
 		*retcode = 0;
+	if (index > 0)
+		return NULL;
 	zv = getzvolume (parent, zf, id);
 	if (!zv)
 		return NULL;
@@ -887,7 +889,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	struct znode *zn;
 	struct zarchive_info zai;
 	uae_u8 id[8];
-	int rc;
+	int rc, index;
 
 	memset (&zai, 0, sizeof zai);
 	zv = zvolume_alloc (z, ArchiveFormatPLAIN, NULL, NULL);
@@ -906,9 +908,12 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 		zn = addfile (zv, z, L"s/startup-sequence", data, strlen (data));
 		xfree (data);
 	}
-	zf = zfile_dup (z);
-	if (zf) {
-		zf2 = zuncompress (NULL, zf, 0, ZFD_ALL & ~ZFD_ADF, &rc);
+	index = 0;
+	for (;;) {
+		zf = zfile_dup (z);
+		if (!zf)
+			break;
+		zf2 = zuncompress (NULL, zf, 0, ZFD_ALL & ~ZFD_ADF, &rc, index);
 		if (zf2) {
 			zf = NULL;
 			zai.name = zfile_getfilename (zf2);
@@ -918,9 +923,13 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 			zfile_fseek (zf2, 0, SEEK_SET);
 			zn = zvolume_addfile_abs (zv, &zai);
 			if (zn)
-				zn->offset = 1;
+				zn->offset = index + 1;
 			zfile_fclose (zf2);
+		} else {
+			if (rc == 0)
+				break;
 		}
+		index++;
 		zfile_fclose (zf);
 	}
 	return zv;
@@ -932,7 +941,7 @@ struct zfile *archive_access_plain (struct znode *zn)
 	if (zn->offset) {
 		struct zfile *zf;
 		z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-		zf = zfile_fopen (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF);
+		zf = zfile_fopen2 (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
 		if (zf) {
 			zfile_fread (z->data, zn->size, 1, zf);
 			zfile_fclose (zf);

@@ -15,7 +15,7 @@ TCHAR start_path_data[MAX_DPATH];
 TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 struct uae_prefs currprefs;
-static int debug = 1;
+static int debug = 0;
 static int amigatest;
 
 #define WRITE_LOG_BUF_SIZE 4096
@@ -721,6 +721,9 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 
 - vhd read support
 - dms, ipf (and possible other) disk image formats didn't unpack inside archives
+- fixed duplicate vdir entries with some image types
+- all raw disk image formats support Amiga, FAT and extended adf extraction
+- cache relatively slow ipf and fdi extracted data
 
 0.6:
 

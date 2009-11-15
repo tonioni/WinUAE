@@ -224,7 +224,7 @@ uae_u8 cycle_line[256];
 #endif
 
 static uae_u16 bplxdat[8];
-static int bpl1dat_written;
+static int bpl1dat_written, bpl1dat_early;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
@@ -1072,14 +1072,15 @@ static void clear_fetchbuffer (uae_u32 *ptr, int nwords)
 {
 	int i;
 
-	if (! thisline_changed)
-		for (i = 0; i < nwords; i++)
+	if (! thisline_changed) {
+		for (i = 0; i < nwords; i++) {
 			if (ptr[i]) {
 				thisline_changed = 1;
 				break;
 			}
-
-			memset (ptr, 0, nwords * 4);
+		}
+	}
+	memset (ptr, 0, nwords * 4);
 }
 
 static void update_toscr_planes (void)
@@ -1249,7 +1250,6 @@ static void toscr_fm2 (int nbits) { toscr_0 (nbits, 2); }
 static int flush_plane_data (int fm)
 {
 	int i = 0;
-	int fetchwidth = 16 << fm;
 
 	if (out_nbits <= 16) {
 		i += 16;
@@ -1267,6 +1267,13 @@ static int flush_plane_data (int fm)
 	if (fm == 2) {
 		/* flush AGA full 64-bit shift register */
 		i += 32;
+		toscr_1 (16, fm);
+		toscr_1 (16, fm);
+	}
+
+	if (bpl1dat_early) {
+		// clear possible crap in right border if
+		// bpl1dat was written "out of sync"
 		toscr_1 (16, fm);
 		toscr_1 (16, fm);
 	}
@@ -1851,9 +1858,11 @@ STATIC_INLINE void decide_line (int hpos)
 				if (hpos - 2 == ddfstrt_old_hpos)
 					ok = 0;
 		}
-		if (ok && dmaen (DMA_BITPLANE)) {
-			start_bpl_dma (hpos, plfstrt);
-			estimate_last_fetch_cycle (plfstrt);
+		if (ok) {
+			if (dmaen (DMA_BITPLANE)) {
+				start_bpl_dma (hpos, plfstrt);
+				estimate_last_fetch_cycle (plfstrt);
+			}
 			last_decide_line_hpos = hpos;
 #ifndef	CUSTOM_SIMPLE
 			do_sprites (plfstrt);
@@ -1865,8 +1874,8 @@ STATIC_INLINE void decide_line (int hpos)
 #ifndef	CUSTOM_SIMPLE
 	if (last_sprite_decide_line_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
 		do_sprites (hpos);
-#endif
 	last_sprite_decide_line_hpos = hpos;
+#endif
 
 	last_decide_line_hpos = hpos;
 }
@@ -2323,7 +2332,7 @@ static void decide_sprites (int hpos)
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
 
-	if (thisline_decision.nr_planes == 0 && !(bplcon3 & 2))
+	if (thisline_decision.plfleft == -1 && !(bplcon3 & 2))
 		return;
 
 	if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
@@ -2529,6 +2538,7 @@ static void reset_decisions (void)
 	thisline_decision.bplres = bplcon0_res;
 	thisline_decision.nr_planes = 0;
 	bpl1dat_written = 0;
+	bpl1dat_early = 0;
 
 	thisline_decision.plfleft = -1;
 	thisline_decision.plflinelen = -1;
@@ -2915,7 +2925,7 @@ STATIC_INLINE int GETHPOS (void)
 STATIC_INLINE uae_u16 VPOSR (void)
 {
 	unsigned int csbit = 0;
-	uae_u16 vp = (GETVPOS () >> 8) & 7;
+	uae_u16 vp = GETVPOS ();
 	uae_u16 hp = GETHPOS ();
 
 	if (hp + HPOS_OFFSET >= maxhpos) {
@@ -2923,6 +2933,8 @@ STATIC_INLINE uae_u16 VPOSR (void)
 		if (vp >= maxvpos + lof)
 			vp = 0;
 	}
+	vp = (vp >> 8) & 7;
+
 	if (currprefs.cs_agnusrev >= 0) {
 		csbit |= currprefs.cs_agnusrev  << 8;
 	} else {
@@ -3504,6 +3516,8 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	bplxdat[num] = v;
 	if (num == 0) {
 		bpl1dat_written = 1;
+		if (thisline_decision.plfleft == -1)
+			bpl1dat_early = 1;
 		maybe_first_bpl1dat (hpos);
 	}
 }

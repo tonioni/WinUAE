@@ -87,7 +87,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
 				ShowProgress="0"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
@@ -302,7 +302,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -1087,7 +1087,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"

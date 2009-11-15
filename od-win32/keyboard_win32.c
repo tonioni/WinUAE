@@ -446,7 +446,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 					i += 2;
 				}
 				if (v >= 0)
-					code = AKS_STATESAVEQUICK + v * 2 + ((shiftpressed () || ctrlpressed()) ? 0 : 1);
+					code = AKS_STATESAVEQUICK + v * 2 + ((shiftpressed () || ctrlpressed ()) ? 0 : 1);
 			}
 			break;
 		case DIK_SYSRQ:

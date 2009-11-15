@@ -64,7 +64,7 @@ uae_u32 allocated_z3fastmem, allocated_z3fastmem2;
 uae_u32 allocated_a3000lmem;
 uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
-uae_u8 ce_banktype[256];
+uae_u8 ce_banktype[65536];
 
 #if defined(CPU_64_BIT)
 uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
@@ -1139,11 +1139,18 @@ static uae_u32 dummy_get (uaecptr addr, int size)
 	if (currprefs.cpu_model >= 68020)
 		return NONEXISTINGDATA;
 	v = (regs.irc << 16) | regs.irc;
-	if (v == 4)
-		return v;
-	if (v == 2)
-		return v & 0xffff;
-	return (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
+	if (size == 4) {
+		;
+	} else if (size == 2) {
+		v &= 0xffff;
+	} else {
+		v = (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
+	}
+#if 0
+	if (addr >= 0x10000000)
+		write_log (L"%08X %d = %08x\n", addr, size, v);
+#endif
+	return v;
 }
 
 static uae_u32 REGPARAM2 dummy_lget (uaecptr addr)
@@ -3385,7 +3392,7 @@ static void fill_ce_banks (void)
 {
 	int i;
 
-	memset (ce_banktype, CE_MEMBANK_FAST, 256);
+	memset (ce_banktype, CE_MEMBANK_FAST, sizeof ce_banktype);
 	if (&get_mem_bank (0) == &chipmem_bank) {
 		for (i = 0; i < (0x200000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_CHIP;
@@ -3409,6 +3416,10 @@ static void fill_ce_banks (void)
 			ce_banktype[i] = CE_MEMBANK_FAST16BIT;
 		for (i = (0xf80000 >> 16); i <= (0xff0000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_FAST16BIT;
+	}
+	if (currprefs.address_space_24) {
+		for (i = 1; i < 256; i++)
+			memcpy (&ce_banktype[i * 256], &ce_banktype[0], 256);
 	}
 }
 

@@ -24,7 +24,7 @@ STATIC_INLINE void checkcycles_ce020 (void)
 STATIC_INLINE uae_u32 mem_access_delay_long_read_ce020 (uaecptr addr)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		if ((addr & 3) != 0) {
@@ -51,7 +51,7 @@ STATIC_INLINE uae_u32 mem_access_delay_long_read_ce020 (uaecptr addr)
 STATIC_INLINE uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		if ((addr & 3) != 0) {
@@ -78,7 +78,7 @@ STATIC_INLINE uae_u32 mem_access_delay_longi_read_ce020 (uaecptr addr)
 STATIC_INLINE uae_u32 mem_access_delay_word_read_ce020 (uaecptr addr)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		if ((addr & 3) == 3) {
@@ -103,7 +103,7 @@ STATIC_INLINE uae_u32 mem_access_delay_word_read_ce020 (uaecptr addr)
 STATIC_INLINE uae_u32 mem_access_delay_wordi_read_ce020 (uaecptr addr)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read_ce020 (addr, 1);
@@ -118,7 +118,7 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read_ce020 (uaecptr addr)
 STATIC_INLINE uae_u32 mem_access_delay_byte_read_ce020 (uaecptr addr)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read_ce020 (addr, 0);
@@ -134,7 +134,7 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read_ce020 (uaecptr addr)
 STATIC_INLINE void mem_access_delay_byte_write_ce020 (uaecptr addr, uae_u32 v)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		wait_cpu_cycle_write_ce020 (addr, 0, v);
@@ -150,7 +150,7 @@ STATIC_INLINE void mem_access_delay_byte_write_ce020 (uaecptr addr, uae_u32 v)
 STATIC_INLINE void mem_access_delay_word_write_ce020 (uaecptr addr, uae_u32 v)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		if ((addr & 3) == 3) {
@@ -175,7 +175,7 @@ STATIC_INLINE void mem_access_delay_word_write_ce020 (uaecptr addr, uae_u32 v)
 STATIC_INLINE void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v)
 {
 	checkcycles_ce020 ();
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		if ((addr & 3) == 3) {
@@ -271,7 +271,7 @@ STATIC_INLINE uae_u32 next_ilong_020ce (void)
 
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 1);
@@ -284,7 +284,7 @@ STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 }
 STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 {
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 1);
@@ -297,7 +297,7 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 
 STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 {
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 0);
@@ -310,7 +310,7 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 }
 STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 {
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		wait_cpu_cycle_write (addr, 0, v);
@@ -323,7 +323,7 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 {
-	switch (ce_banktype[(addr >> 16) & 0xff])
+	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		wait_cpu_cycle_write (addr, 1, v);

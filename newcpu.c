@@ -2705,7 +2705,7 @@ STATIC_INLINE int do_specialties (int cycles)
 
 void prepare_interrupt (void)
 {
-	interrupt_cycles = get_cycles () + 6 * CYCLE_UNIT;
+	interrupt_cycles = get_cycles () + 5 * CYCLE_UNIT + CYCLE_UNIT / 2;
 	interrupt_cycles_active = 1;
 }
 

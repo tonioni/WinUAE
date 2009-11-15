@@ -1,4 +1,25 @@
 
+Beta 21:
+
+- stupid b20 VPOSR bug fixed (upper vpos bits returned "random" data
+  when new frame was about to start)
+- "manual" BPL1DAT write update, Sequential / Andromeda "Magnet"-part
+- interrupt delay changed to 5.5 (was 6) color clocks (<=5: Gleat Stuff
+  #1 breaks, >=6: Warhead audio breaks)
+- reading non-existing memory in 68000 CE-mode was broken (upper byte
+  was always zero), fixes Time Machine (game has buggy IFF animation
+  reader, IFF parser checks end of file incorrectly and keeps reading
+  "random" data and accessing "random" memory)
+- ProWizard promizer20 converter update (Asle)
+- only autodetect PC/Atari ST image files if file name extension is
+  known (adf, adz, st, ima or img)
+- file dialog file type setting is stored to registry/ini
+- some work with serial port emulation via UDP (ENET). May or may not
+  be implemented before final 2.0. (if you are wondering about ENET in
+  serial port settings..) NOTE: do not expect most serial linked games
+  to work, at least via Internet.. null-modem games expect extremely
+  low latencies.
+
 Beta 20:
 
 - 68000 CE timing updates

@@ -10,6 +10,7 @@
 //#define BLITTER_DEBUG_NOWAIT
 //#define BLITTER_DEBUG
 //#define BLITTER_DEBUG_NO_D
+//#define BLITTER_INSTANT
 
 #define SPEEDUP
 
@@ -100,17 +101,17 @@ number of cycles, initial cycle, main cycle
 
 static const int blit_cycle_diagram[][10] =
 {
-	{ 2, 0,0,	    0,0 },	/* 0 */
-	{ 2, 0,0,	    0,4 },	/* 1 */
-	{ 2, 0,3,	    0,3 },	/* 2 */
+	{ 2, 0,0,	    0,0 },		/* 0 */
+	{ 2, 0,0,	    0,4 },		/* 1 */
+	{ 2, 0,3,	    0,3 },		/* 2 */
 	{ 3, 0,3,0,	    0,3,4 },    /* 3 */
 	{ 3, 0,2,0,	    0,2,0 },    /* 4 */
 	{ 3, 0,2,0,	    0,2,4 },    /* 5 */
 	{ 3, 0,2,3,	    0,2,3 },    /* 6 */
 	{ 4, 0,2,3,0,   0,2,3,4 },  /* 7 */
-	{ 2, 1,0,	    1,0 },	/* 8 */
-	{ 2, 1,0,	    1,4 },	/* 9 */
-	{ 2, 1,3,	    1,3 },	/* A */
+	{ 2, 1,0,	    1,0 },		/* 8 */
+	{ 2, 1,0,	    1,4 },		/* 9 */
+	{ 2, 1,3,	    1,3 },		/* A */
 	{ 3, 1,3,0,	    1,3,4, },	/* B */
 	{ 3, 1,2,0,	    1,2,0 },	/* C */
 	{ 3, 1,2,0,	    1,2,4 },	/* D */
@@ -127,22 +128,22 @@ idle cycle added (still requires free bus cycle)
 
 static const int blit_cycle_diagram_fill[][10] =
 {
-	{ 0 },			/* 0 */
+	{ 0 },						/* 0 */
 	{ 3, 0,0,0,	    0,4,0 },	/* 1 */
-	{ 0 },			/* 2 */
-	{ 0 },			/* 3 */
-	{ 0 },			/* 4 */
+	{ 0 },						/* 2 */
+	{ 0 },						/* 3 */
+	{ 0 },						/* 4 */
 	{ 4, 0,2,0,0,   0,2,4,0 },	/* 5 */
-	{ 0 },			/* 6 */
-	{ 0 },			/* 7 */
-	{ 0 },			/* 8 */
+	{ 0 },						/* 6 */
+	{ 0 },						/* 7 */
+	{ 0 },						/* 8 */
 	{ 3, 1,0,0,	    1,4,0 },	/* 9 */
-	{ 0 },			/* A */
-	{ 0 },			/* B */
-	{ 0 },			/* C */
+	{ 0 },						/* A */
+	{ 0 },						/* B */
+	{ 0 },						/* C */
 	{ 4, 1,2,0,0,   1,2,4,0 },	/* D */
-	{ 0 },			/* E */
-	{ 0 },			/* F */
+	{ 0 },						/* E */
+	{ 0 },						/* F */
 };
 
 /*
@@ -1324,6 +1325,9 @@ static void do_blitter2 (int hpos, int copper)
 
 	blit_maxcyclecounter = 0x7fffffff;
 	if (blitter_cycle_exact) {
+#ifdef BLITTER_INSTANT
+		blitter_handler (0);
+#else
 		blitter_hcounter1 = blitter_hcounter2 = 0;
 		blitter_vcounter1 = blitter_vcounter2 = 0;
 		if (blit_nod)
@@ -1332,6 +1336,7 @@ static void do_blitter2 (int hpos, int copper)
 		blit_waitcyclecounter = copper;
 		blit_startcycles = 0;
 		blit_maxcyclecounter = hblitsize * vblitsize + 2;
+#endif
 		return;
 	}
 

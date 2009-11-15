@@ -253,5 +253,5 @@ int ispctrack(uae_u16 *amigamfmbuffer, uae_u8 *mfmdata, int len, uae_u8 *writebu
 	i = drive_write_adf_pc (amigamfmbuffer, amigamfmbuffer + len / 2, writebuffer, writebuffer_ok, track, outsize);
 	if (*outsize < 9 * 512)
 		*outsize = 9 * 512;
-	return i;
+	return i ? -1 : 0;
 }
