@@ -1441,64 +1441,87 @@ static struct uaedev_config_info *getuci(struct uae_prefs *p)
 	return NULL;
 }
 
+static void validatefsname (TCHAR *name, int isdevname)
+{
+	int i;
+	for (i = 0; i < _tcslen (name); i++) {
+		if (name[i] == ':')
+			name[i] = 0;
+		if (name[i] == '/')
+			name[i] = 0;
+	}
+}
+
 struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	TCHAR *devname, TCHAR *volname, TCHAR *rootdir, int readonly,
 	int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri,
-	TCHAR *filesysdir, int hdc, int flags) {
-		struct uaedev_config_info *uci;
-		int i;
-		TCHAR *s;
+	TCHAR *filesysdir, int hdc, int flags)
+{
+	struct uaedev_config_info *uci;
+	int i;
+	TCHAR *s;
 
-		if (index < 0) {
-			uci = getuci(p);
-			uci->configoffset = -1;
-		} else {
-			uci = &p->mountconfig[index];
+	if (devname && _tcslen (devname) > 0) {
+		for (i = 0; i < p->mountitems; i++) {
+			if (p->mountconfig[i].devname && !_tcscmp (p->mountconfig[i].devname, devname))
+				return 0;
 		}
-		if (!uci)
-			return 0;
-		uci->ishdf = volname == NULL ? 1 : 0;
-		_tcscpy (uci->devname, devname ? devname : L"");
-		_tcscpy (uci->volname, volname ? volname : L"");
-		_tcscpy (uci->rootdir, rootdir ? rootdir : L"");
-		uci->readonly = readonly;
-		uci->sectors = secspertrack;
-		uci->surfaces = surfaces;
-		uci->reserved = reserved;
-		uci->blocksize = blocksize;
-		uci->bootpri = bootpri;
-		uci->donotmount = 0;
-		uci->autoboot = 0;
-		if (bootpri < -128)
-			uci->donotmount = 1;
-		else if (bootpri >= -127)
-			uci->autoboot = 1;
-		uci->controller = hdc;
-		_tcscpy (uci->filesys, filesysdir ? filesysdir : L"");
-		if (!uci->devname[0]) {
-			TCHAR base[32];
-			TCHAR base2[32];
-			int num = 0;
-			if (uci->rootdir[0] == 0 && !uci->ishdf)
-				_tcscpy (base, L"RDH");
-			else
-				_tcscpy (base, L"DH");
-			_tcscpy (base2, base);
-			for (i = 0; i < p->mountitems; i++) {
-				_stprintf (base2, L"%s%d", base, num);
-				if (!_tcscmp(base2, p->mountconfig[i].devname)) {
-					num++;
-					i = -1;
-					continue;
-				}
+	}
+
+	if (index < 0) {
+		uci = getuci(p);
+		uci->configoffset = -1;
+	} else {
+		uci = &p->mountconfig[index];
+	}
+	if (!uci)
+		return 0;
+
+	uci->ishdf = volname == NULL ? 1 : 0;
+	_tcscpy (uci->devname, devname ? devname : L"");
+	_tcscpy (uci->volname, volname ? volname : L"");
+	_tcscpy (uci->rootdir, rootdir ? rootdir : L"");
+	validatefsname (uci->devname, 1);
+	validatefsname (uci->volname, 0);
+	uci->readonly = readonly;
+	uci->sectors = secspertrack;
+	uci->surfaces = surfaces;
+	uci->reserved = reserved;
+	uci->blocksize = blocksize;
+	uci->bootpri = bootpri;
+	uci->donotmount = 0;
+	uci->autoboot = 0;
+	if (bootpri < -128)
+		uci->donotmount = 1;
+	else if (bootpri >= -127)
+		uci->autoboot = 1;
+	uci->controller = hdc;
+	_tcscpy (uci->filesys, filesysdir ? filesysdir : L"");
+	if (!uci->devname[0]) {
+		TCHAR base[32];
+		TCHAR base2[32];
+		int num = 0;
+		if (uci->rootdir[0] == 0 && !uci->ishdf)
+			_tcscpy (base, L"RDH");
+		else
+			_tcscpy (base, L"DH");
+		_tcscpy (base2, base);
+		for (i = 0; i < p->mountitems; i++) {
+			_stprintf (base2, L"%s%d", base, num);
+			if (!_tcscmp(base2, p->mountconfig[i].devname)) {
+				num++;
+				i = -1;
+				continue;
 			}
-			_tcscpy (uci->devname, base2);
 		}
-		s = filesys_createvolname (volname, rootdir, L"Harddrive");
-		_tcscpy (uci->volname, s);
-		xfree (s);
-		return uci;
+		_tcscpy (uci->devname, base2);
+		validatefsname (uci->devname, 1);
+	}
+	s = filesys_createvolname (volname, rootdir, L"Harddrive");
+	_tcscpy (uci->volname, s);
+	xfree (s);
+	return uci;
 }
 
 static void parse_addmem (struct uae_prefs *p, TCHAR *buf, int num)

@@ -7691,14 +7691,6 @@ static void volumeselectdir (HWND hDlg, int newdir)
 	}
 }
 
-static void fixvol (TCHAR *s)
-{
-	if (_tcslen (s) == 0)
-		return;
-	if (s[_tcslen (s) - 1] == ':')
-		s[_tcslen (s) - 1] = 0;
-}
-
 static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -7775,9 +7767,7 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		}
 		GetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.rootdir, sizeof current_fsvdlg.rootdir / sizeof (TCHAR));
 		GetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.volume, sizeof current_fsvdlg.volume / sizeof (TCHAR));
-		fixvol (current_fsvdlg.volume);
 		GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.device, sizeof current_fsvdlg.device / sizeof (TCHAR));
-		fixvol (current_fsvdlg.device);
 		current_fsvdlg.rw = IsDlgButtonChecked (hDlg, IDC_FS_RW);
 		current_fsvdlg.bootpri = GetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
 		current_fsvdlg.autoboot = IsDlgButtonChecked (hDlg, IDC_FS_AUTOBOOT);

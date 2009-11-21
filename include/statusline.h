@@ -1,7 +1,7 @@
 
-#define TD_PADX 10
+#define TD_PADX 4
 #define TD_PADY 2
-#define TD_WIDTH 32
+#define TD_WIDTH 30
 #define TD_LED_WIDTH 24
 #define TD_LED_HEIGHT 4
 

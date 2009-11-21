@@ -545,23 +545,123 @@ void serial_uartbreak (int v)
 
 #ifdef SERIAL_ENET
 static ENetHost *enethost, *enetclient;
-static ENetPeer *enetpeer;
+static ENetPeer *enetpeer, *enet;
 static int enetmode;
+static uae_u16 enet_receive[256];
+static int enet_receive_off_w, enet_receive_off_r;
+
+static void enet_service (int serveronly)
+{
+	ENetEvent evt;
+	ENetAddress address;
+	int got;
+	
+	if (enetmode == 0)
+		return;
+
+	got = 1;
+	while (got) {
+		got = 0;
+		if (enetmode > 0) {
+			while (enet_host_service (enethost, &evt, 0)) {
+				got = 1;
+				switch (evt.type)
+				{
+					case ENET_EVENT_TYPE_CONNECT:
+						address = evt.peer->address;
+						write_log (L"ENET_SERVER: connect from %d.%d.%d.%d:%u\n",
+							(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff,
+							address.port);
+						evt.peer->data = 0;
+					break;
+					case ENET_EVENT_TYPE_RECEIVE:
+					{
+						uae_u8 *p = evt.packet->data;
+						int len = evt.packet->dataLength;
+						if (len == 6 && !strncmp (p, "UAE_", 4)) {
+							if (((enet_receive_off_w + 1) & 0xff) != enet_receive_off_r) {
+								enet_receive[enet_receive_off_w++] = (p[4] << 8) | p[5];
+							}
+						}
+
+						enet_packet_destroy (evt.packet);
+					}
+					break;
+					case ENET_EVENT_TYPE_DISCONNECT:
+						address = evt.peer->address;
+						write_log (L"ENET_SERVER: disconnect from %d.%d.%d.%d:%u\n",
+							(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff,
+							address.port);
+					break;
+				}
+			}
+		}
+		if (!serveronly) {
+			while (enet_host_service (enetclient, &evt, 0)) {
+				got = 1;
+				switch (evt.type)
+				{
+					default:
+					write_log (L"ENET_CLIENT: %d\n", evt.type);
+					break;
+				}
+			}
+		}
+	}
+}
+
+static void enet_disconnect (ENetPeer *peer)
+{
+	ENetEvent evt;
+	int cnt = 30;
+
+	if (!peer)
+		return;
+
+	write_log (L"ENET_CLIENT: disconnecting..\n");
+	enet_peer_disconnect (peer, 0);
+	while (cnt-- > 0) {
+		enet_service (1);
+		while (enet_host_service (enetclient, &evt, 100) > 0)
+		{
+			switch (evt.type)
+			{
+			case ENET_EVENT_TYPE_RECEIVE:
+				enet_packet_destroy (evt.packet);
+				break;
+
+			case ENET_EVENT_TYPE_DISCONNECT:
+				write_log (L"ENET_CLIENT: disconnection succeeded\n");
+				enetpeer = NULL;
+				return;
+			}
+		}
+	}
+	write_log (L"ENET_CLIENT: disconnection forced\n");
+	enet_peer_reset (enetpeer);
+	enetpeer = NULL;
+}
 
 void enet_close (void)
 {
-	if (enethost)
-		enet_host_destroy (enethost);
-	enethost = NULL;
+	enet_disconnect (enetpeer);
 	if (enetclient)
 		enet_host_destroy (enetclient);
 	enetclient = NULL;
+	if (enethost)
+		enet_host_destroy (enethost);
+	enethost = NULL;
+	serial_enet = 0;
+	enetmode = 0;
 }
 
 int enet_open (TCHAR *name)
 {
 	ENetAddress address;
+	ENetPacket *p;
 	static int initialized;
+	uae_u8 data[16];
+	int cnt;
 
 	if (!initialized) {
 		int err = enet_initialize ();
@@ -574,46 +674,59 @@ int enet_open (TCHAR *name)
 	
 	enet_close ();
 	enetmode = 0;
-	if (!_tcsnicmp (name, L"ENET:L", 6)) {
-		enetclient = enet_host_create (NULL, 1, 0, 0);
-		if (enetclient == NULL) {
-			write_log (L"ENET: enet_host_create(client) failed\n");
-			return 0;
-		}
-		write_log (L"ENET: client created\n");
-		enet_address_set_host (&address, "192.168.0.10");
-		address.port = 1234;
-		enetpeer = enet_host_connect (enetclient, &address, 2);
-		if (enetpeer == NULL) {
-			write_log (L"ENET: connection to host failed\n");
-			enet_host_destroy (enetclient);
-			enetclient = NULL;
-		}
-		write_log (L"ENET: connection initialized\n");
-		enetmode = -1;
-		return 1;
-	} else if (!_tcsnicmp (name, L"ENET:H", 6)) {
+	if (!_tcsnicmp (name, L"ENET:H", 6)) {
 		address.host = ENET_HOST_ANY;
 		address.port = 1234;
 		enethost = enet_host_create (&address, 2, 0, 0);
 		if (enethost == NULL) {
-			write_log (L"ENET: enet_host_create(server) failed\n");
+			write_log (L"ENET_SERVER: enet_host_create(server) failed\n");
+			enet_close ();
 			return 0;
 		}
-		write_log (L"ENET: server created\n");
-		enet_address_set_host (&address, "127.0.0.1");
-		address.port = 1234;
-		enetpeer = enet_host_connect (enethost, &address, 2);
-		if (enetpeer == NULL) {
-			write_log (L"ENET: connection to localhost failed\n");
-			enet_host_destroy (enetclient);
-			enetclient = NULL;
-		}
-		write_log (L"ENET: local connection initialized\n");
+		write_log (L"ENET_SERVER: server created\n");
 		enetmode = 1;
-		return 1;
+	} else {
+		enetmode = -1;
 	}
-	return 0;
+	enetclient = enet_host_create (NULL, 1, 0, 0);
+	if (enetclient == NULL) {
+		write_log (L"ENET_CLIENT: enet_host_create(client) failed\n");
+		enet_close ();
+		return 0;
+	}
+	write_log (L"ENET_CLIENT: client created\n");
+	enet_address_set_host (&address, enetmode > 0 ? "127.0.0.1" : "192.168.0.10");
+	address.port = 1234;
+	enetpeer = enet_host_connect (enetclient, &address, 2);
+	if (enetpeer == NULL) {
+		write_log (L"ENET_CLIENT: connection to host %d.%d.%d.%d:%d failed\n",
+			(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff, address.port);
+		enet_host_destroy (enetclient);
+		enetclient = NULL;
+	}
+	write_log (L"ENET_CLIENT: connecting to %d.%d.%d.%d:%d...\n",
+		(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff, address.port);
+	cnt = 10 * 5;
+	while (cnt-- > 0) {
+		ENetEvent evt;
+		enet_service (0);
+		if (enet_host_service (enetclient, &evt, 100) > 0) {
+			if (evt.type == ENET_EVENT_TYPE_CONNECT)
+				break;
+		}
+	}
+	if (cnt <= 0) {
+		write_log (L"ENET_CLIENT: connection failed, no response in 5 seconds\n");
+		enet_close ();
+		return 0;
+	}
+	strcpy (data, "UAE_HELLO");
+	p = enet_packet_create (data, sizeof data, ENET_PACKET_FLAG_RELIABLE);
+	enet_peer_send (enetpeer, 0, p);
+	enet_host_flush (enetclient);
+	write_log (L"ENET: connected\n");
+	serial_enet = 1;
+	return 1;
 }
 
 void enet_writeser (uae_u16 w)
@@ -624,55 +737,24 @@ void enet_writeser (uae_u16 w)
 	strcpy (data, "UAE_");
 	data[4] = w >> 8;
 	data[5] = w >> 0;
+	write_log (L"W=%04X ", w);
 	p = enet_packet_create (data, 6, ENET_PACKET_FLAG_RELIABLE);
 	enet_peer_send (enetpeer, 0, p);
+	enet_host_flush (enetclient);
 }
-
-static uae_u16 enet_receive[256];
-static int enet_receive_off_w, enet_receive_off_r;
 
 int enet_readseravail (void)
 {
-	ENetEvent evt;
-	ENetHost *host;
-	
-	if (enetmode == 0)
-		return 0;
-	host = enetmode < 0 ? enetclient : enethost;
-	while (enet_host_service (host, &evt, 0)) {
-		switch (evt.type)
-		{
-			case ENET_EVENT_TYPE_CONNECT:
-				write_log (L"ENET: connect from %x:%u\n",
-					evt.peer->address.host, evt.peer->address.port);
-				evt.peer->data = 0;
-			break;
-			case ENET_EVENT_TYPE_RECEIVE:
-			{
-				uae_u8 *p = evt.packet->data;
-				int len = evt.packet->dataLength;
-				write_log (L"ENET: packet received, %d bytes\n", len);
-				if (len == 6) {
-					if (((enet_receive_off_w + 1) & 0xff) != enet_receive_off_r) {
-						enet_receive[enet_receive_off_w++] = (p[4] << 8) | p[5];
-					}
-				}
-
-				enet_packet_destroy (evt.packet);
-			}
-			break;
-			case ENET_EVENT_TYPE_DISCONNECT:
-				write_log (L"ENET: disconnect %p\n", evt.peer->data);
-			break;
-		}
-	}
-	return 0;
+	enet_service (0);
+	return enet_receive_off_r != enet_receive_off_w;
 }
+
 int enet_readser (uae_u16 *data)
 {
 	if (enet_receive_off_r == enet_receive_off_w)
 		return 0;
 	*data = enet_receive[enet_receive_off_r++];
+	write_log (L"R=%04X ", *data);
 	enet_receive_off_r &= 0xff;
 	return 1;
 }

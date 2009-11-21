@@ -259,6 +259,7 @@ static int last_diw_pix_hpos, last_ddf_pix_hpos;
 static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 static int diwfirstword, diwlastword;
+static int plfleft_real;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
 int diwfirstword_total, diwlastword_total;
@@ -986,7 +987,7 @@ static void bpldmainitdelay (int hpos)
 }
 
 /* Expand bplcon0/bplcon1 into the toscr_xxx variables.  */
-static void compute_toscr_delay_1 (void)
+static void compute_toscr_delay_1 (int bplcon1)
 {
 	int delay1 = (bplcon1 & 0x0f) | ((bplcon1 & 0x0c00) >> 6);
 	int delay2 = ((bplcon1 >> 4) & 0x0f) | (((bplcon1 >> 4) & 0x0c00) >> 6);
@@ -1004,16 +1005,56 @@ static void compute_toscr_delay_1 (void)
 	toscr_delay2 |= shdelay2 >> (RES_MAX - toscr_res);
 }
 
-static void compute_toscr_delay (int hpos)
+static void compute_toscr_delay (int hpos, int bplcon1)
 {
 	update_denise (hpos);
-	compute_toscr_delay_1 ();
+	compute_toscr_delay_1 (bplcon1);
+}
+
+STATIC_INLINE void clear_fetchbuffer (uae_u32 *ptr, int nwords)
+{
+	int i;
+
+	if (! thisline_changed) {
+		for (i = 0; i < nwords; i++) {
+			if (ptr[i]) {
+				thisline_changed = 1;
+				break;
+			}
+		}
+	}
+	memset (ptr, 0, nwords * 4);
+}
+
+static void update_toscr_planes (void)
+{
+	if (toscr_nr_planes2 > thisline_decision.nr_planes) {
+		int j;
+		for (j = thisline_decision.nr_planes; j < toscr_nr_planes2; j++)
+			clear_fetchbuffer ((uae_u32 *)(line_data[next_lineno] + 2 * MAX_WORDS_PER_LINE * j), out_offs);
+		thisline_decision.nr_planes = toscr_nr_planes2;
+	}
 }
 
 STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 {
-	if (thisline_decision.plfleft == -1) {
-		thisline_decision.plfleft = hpos;
+	if (thisline_decision.plfleft != -1) {
+		// early bpl1day crap fix (Sequential engine animation)
+		if (plfleft_real == -1) {
+			int i;
+			for (i = 0; i < thisline_decision.nr_planes; i++) {
+				todisplay[i][0] = 0;
+#ifdef AGA
+				todisplay[i][1] = 0;
+				todisplay[i][2] = 0;
+				todisplay[i][3] = 0;
+#endif
+			}
+			plfleft_real = hpos;
+			bpl1dat_early = 1;
+		}
+	} else {
+		plfleft_real = thisline_decision.plfleft = hpos;
 		compute_delay_offset ();
 	}
 }
@@ -1065,31 +1106,6 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 		// use whatever left in BPLxDAT if no DMA
 		// normally useless but "7-planes" feature won't work without this
 		fetched[nr] = bplxdat[nr];
-	}
-}
-
-static void clear_fetchbuffer (uae_u32 *ptr, int nwords)
-{
-	int i;
-
-	if (! thisline_changed) {
-		for (i = 0; i < nwords; i++) {
-			if (ptr[i]) {
-				thisline_changed = 1;
-				break;
-			}
-		}
-	}
-	memset (ptr, 0, nwords * 4);
-}
-
-static void update_toscr_planes (void)
-{
-	if (toscr_nr_planes2 > thisline_decision.nr_planes) {
-		int j;
-		for (j = thisline_decision.nr_planes; j < toscr_nr_planes2; j++)
-			clear_fetchbuffer ((uae_u32 *)(line_data[next_lineno] + 2 * MAX_WORDS_PER_LINE * j), out_offs);
-		thisline_decision.nr_planes = toscr_nr_planes2;
 	}
 }
 
@@ -1301,6 +1317,7 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 {
 	int i;
 	int oleft = thisline_decision.plfleft;
+	static uae_u16 bplcon1t, bplcon1t2;
 
 	flush_display (fm);
 
@@ -1320,11 +1337,14 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 		update_denise (hpos);
 		maybe_first_bpl1dat (hpos);
 
+		bplcon1t2 = bplcon1t;
+		bplcon1t = bplcon1;
 		// writing to BPLCON1 1 cycle after BPL1DAT access will
 		// not (except first BPL1DAT write) affect the display
 		// until next display block
 		if (bplcon1_hpos != hpos || oleft < 0)
-			compute_toscr_delay (hpos);
+			bplcon1t2 = bplcon1t;
+		compute_toscr_delay (hpos, bplcon1t2);
 }
 
 #ifdef SPEEDUP
@@ -1699,7 +1719,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
 			if (thisline_decision.plfleft == -1) {
 				compute_delay_offset ();
-				compute_toscr_delay_1 ();
+				compute_toscr_delay_1 (bplcon1);
 			}
 
 			do_long_fetch (pos, count >> (3 - toscr_res), dma, fm);
@@ -1787,7 +1807,7 @@ static void start_bpl_dma (int hpos, int hstart)
 	thisline_decision.bplres = bplcon0_res;
 
 	ddfstate = DIW_waiting_stop;
-	compute_toscr_delay (last_fetch_hpos);
+	compute_toscr_delay (last_fetch_hpos, bplcon1);
 
 	/* If someone already wrote BPL1DAT, clear the area between that point and
 	the real fetch start.  */
@@ -2540,6 +2560,7 @@ static void reset_decisions (void)
 	bpl1dat_written = 0;
 	bpl1dat_early = 0;
 
+	plfleft_real = -1;
 	thisline_decision.plfleft = -1;
 	thisline_decision.plflinelen = -1;
 	thisline_decision.ham_seen = !! (bplcon0 & 0x800);
@@ -2698,8 +2719,10 @@ void init_hz (void)
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 	if (hack_vpos > 0) {
-		if (maxvpos == hack_vpos)
+		if (maxvpos == hack_vpos) {
+			hack_vpos = -1;
 			return;
+		}
 		maxvpos = hack_vpos;
 		vblank_hz = 15600 / hack_vpos;
 		hack_vpos = -1;
@@ -3516,9 +3539,10 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	bplxdat[num] = v;
 	if (num == 0) {
 		bpl1dat_written = 1;
-		if (thisline_decision.plfleft == -1)
-			bpl1dat_early = 1;
-		maybe_first_bpl1dat (hpos);
+		if (thisline_decision.plfleft == -1) {
+			thisline_decision.plfleft = hpos;
+			compute_delay_offset ();
+		}
 	}
 }
 

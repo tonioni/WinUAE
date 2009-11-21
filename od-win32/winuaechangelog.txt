@@ -1,3 +1,14 @@
+Beta 22:
+
+- do not load multiple harddrives (directory and regular hardfile) from
+  configuration file if they have identical device names, also fixes
+  bad handling of hardrive paths with national characters in utf8
+- added simple validation to harddrive device and volume labels
+- fixed small graphics glitch in Sequential / Andromeda "18 frames!"
+- slightly smaller on screen leds, fits in 320 pixel wide display
+- "write to BPLCON1 immediately after BPL1DAT" handling was buggy, in
+  some cases bpl delay change had too long delay (Demo2 / Parasite)
+- KS 1.x interlace screen setup was incompatible with "scandoubler"
 
 Beta 21:
 
