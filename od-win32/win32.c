@@ -835,7 +835,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
-		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || isfullscreen () > 0)) {
+		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !currprefs.input_magic_mouse) || isfullscreen () > 0)) {
 			setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 		} else if (dinput_winmouse () >= 0 && isfocus ()) {
 			setmousebuttonstate (dinput_winmouse (), 0, 1);
@@ -1975,6 +1975,7 @@ void logging_init (void)
 	int wow64 = 0;
 	static int started;
 	static int first;
+	TCHAR tmp[MAX_DPATH];
 
 	if (first > 1) {
 		write_log (L"** RESTART **\n");
@@ -2008,6 +2009,9 @@ void logging_init (void)
 		L"\nPress F12 to show the Settings Dialog (GUI), Alt-F4 to quit."
 		L"\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 		L"\n");
+	tmp[0] = 0;
+	GetModuleFileName (NULL, tmp, sizeof (tmp) / sizeof (TCHAR));
+	write_log (L"'%s'\n", tmp);
 	write_log (L"EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
 	regstatus ();
 }

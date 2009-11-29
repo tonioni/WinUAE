@@ -172,6 +172,7 @@ int WIN32GFX_GetHeight (void)
 	return currentmode->current_height;
 }
 
+static int init_round;
 static BOOL doInit (void);
 
 uae_u32 default_freq = 0;
@@ -1136,6 +1137,7 @@ static int open_windows (int full)
 		return 0;
 	write_log (L"DirectDraw GUID=%s\n", outGUID (displayGUID));
 
+	init_round = 0;
 	ret = -2;
 	do {
 		if (ret < -1) {
@@ -1143,6 +1145,12 @@ static int open_windows (int full)
 			update_gfxparams ();
 		}
 		ret = doInit ();
+		init_round++;
+		if (ret < -9) {
+			DirectDraw_Release ();
+			if (!DirectDraw_Start (displayGUID))
+				return 0;
+		}
 	} while (ret < 0);
 
 	if (!ret) {
@@ -2336,7 +2344,7 @@ static BOOL doInit (void)
 	int ret = 0;
 	int mult = 0;
 
-	colortype = DirectDraw_GetPixelFormat();
+	colortype = DirectDraw_GetPixelFormat ();
 	gfxmode_reset ();
 
 	for (;;) {
@@ -2559,7 +2567,7 @@ static BOOL doInit (void)
 	return 1;
 
 oops:
-	close_hwnds();
+	close_hwnds ();
 	return ret;
 }
 

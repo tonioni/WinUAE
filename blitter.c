@@ -65,7 +65,7 @@ static int blit_maxcyclecounter, blit_slowdown, blit_totalcyclecounter;
 static int blit_startcycles, blit_misscyclecounter;
 
 #ifdef CPUEMU_12
-extern uae_u8 cycle_line[];
+extern uae_u8 cycle_line[256];
 #endif
 
 static long blit_firstline_cycles;
@@ -597,9 +597,14 @@ static void blitter_line (void)
 
 static void blitter_line_proc (void)
 {
-	if (!blitsign) {
-		if (bltcon0 & 0x800)
+	if (bltcon0 & 0x800) {
+		if (!blitsign)
 			bltapt += (uae_s16)blt_info.bltamod;
+		else
+			bltapt += (uae_s16)blt_info.bltbmod;
+	}
+
+	if (!blitsign) {
 		if (bltcon1 & 0x10) {
 			if (bltcon1 & 0x8)
 				blitter_line_decy ();
@@ -611,9 +616,6 @@ static void blitter_line_proc (void)
 			else
 				blitter_line_incx ();
 		}
-	} else {
-		if (bltcon0 & 0x800)
-			bltapt += (uae_s16)blt_info.bltbmod;
 	}
 	if (bltcon1 & 0x10) {
 		if (bltcon1 & 0x4)
@@ -626,6 +628,7 @@ static void blitter_line_proc (void)
 		else
 			blitter_line_incy ();
 	}
+
 	blitsign = 0 > (uae_s16)bltapt;
 	bltstate = BLT_write;
 }
@@ -1086,7 +1089,7 @@ static void blitter_force_finish (void)
 		if (blitter_cycle_exact) {
 			int rounds = 10000;
 			while (bltstate != BLT_done && rounds > 0) {
-				memset (cycle_line, 0, maxhpos);
+				memset (cycle_line, 0, sizeof cycle_line);
 				decide_blitter (maxhpos);
 				rounds--;
 			}
@@ -1216,6 +1219,8 @@ void reset_blit (int bltcon)
 {
 	if (bltcon & 1)
 		blinea_shift = bltcon0 >> 12;
+	if (bltcon & 2)
+		blitsign = bltcon1 & 0x40;
 	if (bltstate == BLT_done)
 		return;
 	if (bltcon)
@@ -1266,11 +1271,10 @@ static void do_blitter2 (int hpos, int copper)
 	blit_interrupt = 0;
 
 	if (blitline) {
-		blitsing = bltcon1 & 0x2;
 		blinea = blt_info.bltadat;
 		blineb = (blt_info.bltbdat >> blt_info.blitbshift) | (blt_info.bltbdat << (16 - blt_info.blitbshift));
-		blitsign = bltcon1 & 0x40;
 		blitonedot = 0;
+		blitsing = bltcon1 & 0x2;
 		cycles = vblitsize;
 	} else {
 		blit_firstline_cycles = blit_first_cycle + (blit_diag[0] * hblitsize + cpu_cycles) * CYCLE_UNIT;

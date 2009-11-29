@@ -1,3 +1,16 @@
+
+- mouse capture didn't work if mouse driver (tablet) mode was enabled
+  without magic mouse
+- selecting wave recording (file select) disabled audio sync even if
+  recording was not activated
+- added disable sound sync option to output panel. Previously it was
+  always disabled (for best sound quality), option was added because
+  audio only recording with sync disabled can cause sound glitches and
+  emulation slowdowns and vsync issues (recorded sound was still fine)
+- CD32 state restore compatibility update
+- only update BLTSIGN when writing to BPLCON1, not when starting the
+  the blit (Anesthesia / Possessed and probably others)
+
 Beta 22:
 
 - do not load multiple harddrives (directory and regular hardfile) from
@@ -6,8 +19,7 @@ Beta 22:
 - added simple validation to harddrive device and volume labels
 - fixed small graphics glitch in Sequential / Andromeda "18 frames!"
 - slightly smaller on screen leds, fits in 320 pixel wide display
-- "write to BPLCON1 immediately after BPL1DAT" handling was buggy, in
-  some cases bpl delay change had too long delay (Demo2 / Parasite)
+- BPLCON1 to bitplane delay timing fix in some specific situations
 - KS 1.x interlace screen setup was incompatible with "scandoubler"
 
 Beta 21:

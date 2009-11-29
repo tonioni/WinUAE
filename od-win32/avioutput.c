@@ -64,7 +64,7 @@ static int videoallocated;
 
 int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
-DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
+DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0, avioutput_nosoundsync = 1;
 
 TCHAR avioutput_filename[MAX_DPATH];
 static TCHAR avioutput_filename_tmp[MAX_DPATH];
@@ -214,6 +214,7 @@ static void storesettings (UAEREG *avikey)
 {
 	regsetint (avikey, L"FrameLimiter", avioutput_framelimiter);
 	regsetint (avikey, L"NoSoundOutput", avioutput_nosoundoutput);
+	regsetint (avikey, L"NoSoundSync", avioutput_nosoundsync);
 	regsetint (avikey, L"FPS", avioutput_fps);
 }
 static void getsettings (UAEREG *avikey)
@@ -221,6 +222,8 @@ static void getsettings (UAEREG *avikey)
 	DWORD val;
 	if (regqueryint (avikey, L"NoSoundOutput", &val))
 		avioutput_nosoundoutput = val;
+	if (regqueryint (avikey, L"NoSoundSync", &val))
+		avioutput_nosoundsync = val;
 	if (regqueryint (avikey, L"FrameLimiter", &val))
 		avioutput_framelimiter = val;
 	if (!avioutput_framelimiter)
@@ -1306,7 +1309,7 @@ static void *AVIOutput_worker (void *arg)
 #define ADJUST_SIZE 10
 #define EXP 1.1
 
-void frame_drawn(void)
+void frame_drawn (void)
 {
 #if 0
 	double diff, skipmode;

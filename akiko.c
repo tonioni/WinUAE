@@ -334,22 +334,22 @@ static uae_u32 akiko_c2p_read (int offset)
 * 0xb80004-0xb80028
 */
 
-#define CDINTERRUPT_SUBCODE	    0x80000000
-#define CDINTERRUPT_DRIVEXMIT	    0x40000000 /* not used by ROM */
-#define CDINTERRUPT_DRIVERECV	    0x20000000 /* not used by ROM */
-#define CDINTERRUPT_RXDMADONE	    0x10000000
-#define CDINTERRUPT_TXDMADONE	    0x08000000
-#define CDINTERRUPT_PBX		    0x04000000
-#define CDINTERRUPT_OVERFLOW	    0x02000000
+#define CDINTERRUPT_SUBCODE		0x80000000
+#define CDINTERRUPT_DRIVEXMIT	0x40000000 /* not used by ROM */
+#define CDINTERRUPT_DRIVERECV	0x20000000 /* not used by ROM */
+#define CDINTERRUPT_RXDMADONE	0x10000000
+#define CDINTERRUPT_TXDMADONE	0x08000000
+#define CDINTERRUPT_PBX			0x04000000
+#define CDINTERRUPT_OVERFLOW	0x02000000
 
-#define CDFLAG_SUBCODE		    0x80000000
-#define CDFLAG_TXD		    0x40000000
-#define CDFLAG_RXD		    0x20000000
-#define CDFLAG_CAS		    0x10000000
-#define CDFLAG_PBX		    0x08000000
-#define CDFLAG_ENABLE		    0x04000000
-#define CDFLAG_RAW		    0x02000000
-#define CDFLAG_MSB		    0x01000000
+#define CDFLAG_SUBCODE			0x80000000
+#define CDFLAG_TXD				0x40000000
+#define CDFLAG_RXD				0x20000000
+#define CDFLAG_CAS				0x10000000
+#define CDFLAG_PBX				0x08000000
+#define CDFLAG_ENABLE			0x04000000
+#define CDFLAG_RAW				0x02000000
+#define CDFLAG_MSB				0x01000000
 
 #define CDS_ERROR 0x80
 #define CDS_PLAYING 0x08
@@ -1775,6 +1775,9 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	restore_u32 ();
 	cdrom_addressdata = restore_u32 ();
 	cdrom_addressmisc = restore_u32 ();
+	subcode_address = cdrom_addressmisc | 0x100;
+	cdrx_address = cdrom_addressmisc;
+	cdtx_address = cdrom_addressmisc | 0x200;
 	cdrom_subcodeoffset = restore_u8 ();
 	cdcomtxinx = restore_u8 ();
 	cdcomrxinx = restore_u8 ();

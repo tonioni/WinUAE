@@ -9,7 +9,7 @@
 
 #include "sysconfig.h"
 
-//#undef SERIAL_ENET
+#undef SERIAL_ENET
 
 #include <windows.h>
 #include <winspool.h>

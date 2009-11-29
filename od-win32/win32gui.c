@@ -1317,8 +1317,17 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
 		discard_prefs (p, 0);
 	}
 	type2 = type;
-	if (type == 0)
+	if (type == 0) {
 		default_prefs (p, type);
+#if 0
+		if (isdefault == 0) {
+			fetch_configurationpath (tmp1, sizeof (tmp1) / sizeof (TCHAR));
+			_tcscat (tmp1, OPTIONSFILENAME);
+			cfgfile_load (p, tmp1, NULL, 0, 0);
+		}
+#endif
+	}
+		
 	regqueryint (NULL, L"ConfigFile_NoAuto", &ct2);
 	v = cfgfile_load (p, fname, &type2, ct2, isdefault ? 0 : 1);
 	if (!v)
@@ -1347,7 +1356,7 @@ int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isd
 static int gui_width = 640, gui_height = 480;
 
 static int mm = 0;
-static void m(void)
+static void m (void)
 {
 	write_log (L"%d:0: %dx%d %dx%d %dx%d\n", mm, currprefs.gfx_size.width, currprefs.gfx_size.height,
 		workprefs.gfx_size.width, workprefs.gfx_size.height, changed_prefs.gfx_size.width, changed_prefs.gfx_size.height);
@@ -11215,9 +11224,6 @@ static void values_to_avioutputdlg (HWND hDlg)
 	_stprintf (tmpstr, L"%d fps", avioutput_fps);
 	SendMessage (GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
 
-	_stprintf (tmpstr, L"Actual: %d x %d", workprefs.gfx_size.width, workprefs.gfx_size.height);
-	SendMessage (GetDlgItem(hDlg, IDC_AVIOUTPUT_DIMENSIONS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
-
 	switch(avioutput_fps)
 	{
 	case VBLANK_HZ_PAL:
@@ -11236,6 +11242,7 @@ static void values_to_avioutputdlg (HWND hDlg)
 
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
+	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
@@ -11305,6 +11312,7 @@ static void enable_for_avioutputdlg(HWND hDlg)
 		avioutput_nosoundoutput = 1;
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
+	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
 
 	ew (hDlg, IDC_AVIOUTPUT_ACTIVATED, (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
@@ -11368,6 +11376,10 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			break;
 		case IDC_AVIOUTPUT_NOSOUNDOUTPUT:
 			avioutput_nosoundoutput = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT) ? 1 : 0;
+			AVIOutput_SetSettings ();
+			break;
+		case IDC_AVIOUTPUT_NOSOUNDSYNC:
+			avioutput_nosoundsync = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC) ? 1 : 0;
 			AVIOutput_SetSettings ();
 			break;
 

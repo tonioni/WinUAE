@@ -1517,7 +1517,6 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 	if (_tcslen (name) == 0)
 		return NULL;
 	manglefilename (path, name);
-	//write_log (L"zfile_fopen('%s','%s',%08x)\n", path, mode, mask);
 	l = zfile_fopen_2 (path, mode, mask);
 	if (!l)
 		return 0;
@@ -1642,7 +1641,7 @@ end:
 }
 #endif
 
-static struct zfile *zfile_fopenx (const TCHAR *name, const TCHAR *mode, int mask, int index)
+static struct zfile *zfile_fopenx2 (const TCHAR *name, const TCHAR *mode, int mask, int index)
 {
 	struct zfile *f;
 	TCHAR tmp[MAX_DPATH];
@@ -1685,6 +1684,16 @@ static struct zfile *zfile_fopenx (const TCHAR *name, const TCHAR *mode, int mas
 #endif
 	return NULL;
 }
+
+static struct zfile *zfile_fopenx (const TCHAR *name, const TCHAR *mode, int mask, int index)
+{
+	struct zfile *zf;
+	//write_log (L"zfile_fopen('%s','%s',%08x,%d)\n", name, mode, mask, index);
+	zf = zfile_fopenx2 (name, mode, mask, index);
+	//write_log (L"=%p\n", zf);
+	return zf;
+}
+
 struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
 {
 	return zfile_fopenx (name, mode, mask, 0);
@@ -2462,7 +2471,7 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 {
 	struct zfile *zf = NULL;
 	struct zvolume *zvnew = NULL;
-	int i;
+//	int i;
 	int done = 0;
 
 #ifdef ZFILE_DEBUG

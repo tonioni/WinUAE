@@ -1296,9 +1296,9 @@ void sound_setadjust (double v)
 		v = 0;
 
 	mult = (1000.0 + v);
-	if (avioutput_audio)
+	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
 		mult = 1000.0;
-	if (isvsync () || (avioutput_audio && !compiled_code)) {
+	if (isvsync () || (avioutput_audio && avioutput_enabled && !compiled_code)) {
 		vsynctime = vsynctime_orig;
 		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
 	} else if (compiled_code || currprefs.m68k_speed != 0) {
@@ -1855,7 +1855,7 @@ void finish_sound_buffer (void)
 	driveclick_mix ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
 #endif
 #ifdef AVIOUTPUT
-	if (avioutput_audio)
+	if (avioutput_enabled && avioutput_audio)
 		AVIOutput_WriteAudio ((uae_u8*)paula_sndbuffer, sdp->sndbufsize);
 	if (avioutput_enabled && (!avioutput_framelimiter || avioutput_nosoundoutput))
 		return;
