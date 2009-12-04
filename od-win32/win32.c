@@ -1806,7 +1806,7 @@ static PGETUSERDEFAULTUILANGUAGE pGetUserDefaultUILanguage;
 HMODULE language_load (WORD language)
 {
 	HMODULE result = NULL;
-#if WINUAEPUBLICBETA == 0
+#if LANG_DLL > 0
 	TCHAR dllbuf[MAX_DPATH];
 	TCHAR *dllname;
 

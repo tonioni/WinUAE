@@ -220,7 +220,37 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,(geninfo & 2));
 		else {
 			zfile_fseek (fo, from * 512 * 22, SEEK_SET);
-			while ( (ret=Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2))) == NO_PROBLEM ) ;
+			for (;;) {
+				int ok = 0;
+				ret = Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2));
+				if (ret == DMS_FILE_END)
+					break;
+				if (ret == NO_PROBLEM)
+					continue;
+				break;
+#if 0
+				while (!ok) {
+					uae_u8 b1[THLEN];
+
+					if (zfile_fread(b1,1,THLEN,fi) != 1) {
+						write_log (L"DMS: unexpected end of file\n");
+						break;
+					}
+					write_log (L"DMS: corrupted track, searching for next track header..\n");
+					if (b1[0] == 'T' && b1[1] == 'R') {
+						USHORT hcrc = (USHORT)((b1[THLEN-2] << 8) | b1[THLEN-1]);
+						if (CreateCRC(b1,(ULONG)(THLEN-2)) == hcrc) {
+							write_log (L"DMS: found checksum correct track header, retrying..\n");
+							zfile_fseek (fi, SEEK_CUR, -THLEN);
+							ok = 1;
+							break;
+						}
+					}
+					if (!ok)
+						zfile_fseek (fi, SEEK_CUR, -(THLEN - 1));
+				}
+#endif
+			}
 		}
 	}
 
@@ -276,6 +306,8 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	cmode = b1[13];		/*  compression mode used  */
 	usum = (USHORT)((b1[14] << 8) | b1[15]);	/*  Track Data CheckSum AFTER unpacking  */
 	dcrc = (USHORT)((b1[16] << 8) | b1[17]);	/*  Track Data CRC BEFORE unpacking  */
+
+	//write_log (L"DMS: track=%d\n", number);
 
 	if (cmd == CMD_VIEWFULL) {
 		if (number==80)

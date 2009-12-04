@@ -1860,8 +1860,8 @@ static void gen_opcode (unsigned long int opcode)
 	case i_CMPA:
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
-		addcycles000 (2);
 		fill_prefetch_next ();
+		addcycles000 (2);
 		start_brace ();
 		genflags (flag_cmp, sz_long, "newv", "src", "dst");
 		break;

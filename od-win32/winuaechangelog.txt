@@ -1,4 +1,18 @@
 
+Beta 24: (RC2)
+
+- non 8 divisible width and avi video recording crash fix
+- DMA debugger sprite register addresses fixed
+- D3D 32-bit scanlines fixed
+- frozen blitter didn't unfreeze when old channel mode was restored
+  (FreeNEasy / Arctic Force does bclr.b #1,$dff042 while blitter is
+  active.. Most likely simple accidental mistake)
+- CE CPU emulation CMP cycle order change
+- undocumented sprite DMA update, write to sprite pointer is ignored
+  between sprite DMA accesses (IcewindDale BBS intro / Possessed)
+
+Beta 23: (RC1)
+
 - mouse capture didn't work if mouse driver (tablet) mode was enabled
   without magic mouse
 - selecting wave recording (file select) disabled audio sync even if

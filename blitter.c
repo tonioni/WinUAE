@@ -973,7 +973,7 @@ void decide_blitter (int hpos)
 	if (blit_startcycles > 0)
 		do_startcycles (hpos);
 
-	if (bltstate == BLT_done || blit_frozen)
+	if (bltstate == BLT_done)
 		return;
 #ifdef BLITTER_DEBUG
 	if (blitter_delayed_debug) {
@@ -1012,6 +1012,11 @@ void decide_blitter (int hpos)
 			// (CPU can still use this cycle)
 			if (c == 0 && v == 0) {
 				blitter_nasty++;
+				blit_misscyclecounter++;
+				break;
+			}
+
+			if (blit_frozen) {
 				blit_misscyclecounter++;
 				break;
 			}
@@ -1121,7 +1126,7 @@ static void blit_bltset (int con)
 
 	blit_ch = (bltcon0 & 0x0f00) >> 8;
 	blitline = bltcon1 & 1;
-	blitfill = bltcon1 & 0x18;
+	blitfill = !!(bltcon1 & 0x18);
 
 	if (blitline) {
 		if (hblitsize != 2)
@@ -1131,7 +1136,7 @@ static void blit_bltset (int con)
 	} else {
 		if (con & 2) {
 			blitfc = !!(bltcon1 & 0x4);
-			blitife = bltcon1 & 0x8;
+			blitife = !!(bltcon1 & 0x8);
 			if ((bltcon1 & 0x18) == 0x18) {
 				debugtest (DEBUGTEST_BLITTER, L"weird fill mode\n");
 				blitife = 0;
@@ -1154,11 +1159,13 @@ static void blit_bltset (int con)
 		int iseo = olddiag >= &blit_cycle_diagram_fill[0][0] && olddiag <= &blit_cycle_diagram_fill[15][0];
 		if (iseo != isen) {
 			if (freezes > 0) {
-				write_log (L"BLITTER: on the fly %d (%d) -> %d (%d) switch!\n", original_ch, iseo, blit_ch, isen);
+				write_log (L"BLITTER: on the fly %d (%d) -> %d (%d) switch! PC=%08x\n", original_ch, iseo, blit_ch, isen, M68K_GETPC);
 				freezes--;
 			}
 		}
-		if (iseo && !isen) {
+		if (original_fill == isen) {
+			blit_frozen = 0; // switched back to original fill mode? unfreeze
+		} else if (iseo && !isen) {
 			blit_frozen = 1;
 		} else if (!iseo && isen) {
 #ifdef BLITTER_DEBUG_NOWAIT
@@ -1176,7 +1183,7 @@ static void blit_bltset (int con)
 		if (o != n) {
 			if (changetable[o * 32 + n] < 10) {
 				changetable[o * 32 + n]++;
-				write_log (L"BLITTER: channel mode changed while active (%02X->%02X)\n", o, n);
+				write_log (L"BLITTER: channel mode changed while active (%02X->%02X) PC=%08x\n", o, n, M68K_GETPC);
 			}
 		}
 		if (blit_ch == 13 && original_ch == 1) {

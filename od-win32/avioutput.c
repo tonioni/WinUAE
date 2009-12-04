@@ -460,7 +460,7 @@ int AVIOutput_ChooseAudioCodec (HWND hwnd, TCHAR *s, int len)
 	return 0;
 }
 
-static int AVIOutput_VideoAllocated(void)
+static int AVIOutput_VideoAllocated (void)
 {
 	return videoallocated ? 1 : 0;
 }
@@ -495,7 +495,7 @@ static int AVIOutput_AllocateVideo (void)
 	lpbi->biPlanes = 1;
 	lpbi->biBitCount = avioutput_bits;
 	lpbi->biCompression = BI_RGB; // uncompressed format
-	lpbi->biSizeImage = (lpbi->biWidth * lpbi->biHeight) * (lpbi->biBitCount / 8);
+	lpbi->biSizeImage = (((lpbi->biWidth * lpbi->biBitCount + 31) & ~31) / 8) * lpbi->biHeight;
 	lpbi->biXPelsPerMeter = 0; // ??
 	lpbi->biYPelsPerMeter = 0; // ??
 	lpbi->biClrUsed = (lpbi->biBitCount <= 8) ? 1 << lpbi->biBitCount : 0;
@@ -836,14 +836,15 @@ static int getFromBuffer (struct avientry *ae)
 	int x, y;
 	uae_u8 *src;
 	uae_u8 *dst = ae->lpVideo;
+	int pitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
 
 	src = bufmem_ptr;
 	if (!src)
 		return 0;
-	dst += avioutput_width * avioutput_bits / 8 * avioutput_height;
+	dst += pitch * avioutput_height;
 	for (y = 0; y < (gfxvidinfo.height > avioutput_height ? avioutput_height : gfxvidinfo.height); y++) {
 		uae_u8 *d;
-		dst -= avioutput_width * avioutput_bits / 8;
+		dst -= pitch;
 		d = dst;
 		for (x = 0; x < (gfxvidinfo.width > avioutput_width ? avioutput_width : gfxvidinfo.width); x++) {
 			if (avioutput_bits == 8) {

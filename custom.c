@@ -197,6 +197,7 @@ struct sprite {
 	int armed;
 	int dmastate;
 	int dmacycle;
+	int ptxhpos;
 };
 
 static struct sprite spr[MAX_SPRITES];
@@ -3845,8 +3846,10 @@ static void SPRxPOS (int hpos, uae_u16 v, int num) { decide_sprites (hpos); SPRx
 static void SPRxPTH (int hpos, uae_u16 v, int num)
 {
 	decide_sprites (hpos);
-	spr[num].pt &= 0xffff;
-	spr[num].pt |= (uae_u32)v << 16;
+	if (hpos - 1 != spr[num].ptxhpos) {
+		spr[num].pt &= 0xffff;
+		spr[num].pt |= (uae_u32)v << 16;
+	}
 #if SPRITE_DEBUG > 0
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 		write_log (L"%d:%d:SPR%dPTH %06X\n", vpos, hpos, num, spr[num].pt);
@@ -3856,8 +3859,10 @@ static void SPRxPTH (int hpos, uae_u16 v, int num)
 static void SPRxPTL (int hpos, uae_u16 v, int num)
 {
 	decide_sprites (hpos);
-	spr[num].pt &= ~0xffff;
-	spr[num].pt |= v;
+	if (hpos - 1 != spr[num].ptxhpos) {
+		spr[num].pt &= ~0xffff;
+		spr[num].pt |= v;
+	}
 #if SPRITE_DEBUG > 0
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 		write_log (L"%d:%d:SPR%dPTL %06X\n", vpos, hpos, num, spr[num].pt);
@@ -4482,11 +4487,13 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 {
 	uae_u16 data = last_custom_value1;
 	if (dma) {
+		if (cycle)
+			s->ptxhpos = hpos;
 		data = last_custom_value1 = chipmem_agnus_wget (s->pt);
 		alloc_cycle (hpos, CYCLE_SPRITE);
 #ifdef DEBUGGER
 		if (debug_dma)
-			record_dma ((s - &spr[0]) * 2 + 0x120, data, s->pt, hpos, vpos, DMARECORD_SPRITE);
+			record_dma ((s - &spr[0]) * 8 + 0x140 + mode * 4 + cycle * 2, data, s->pt, hpos, vpos, DMARECORD_SPRITE);
 #endif
 	}
 	s->pt += 2;
@@ -4671,8 +4678,10 @@ static void do_sprites (int hpos)
 			cycle = 1;
 			break;
 		}
-		if (cycle >= 0 && num >= 0 && num < MAX_SPRITES)
+		if (cycle >= 0 && num >= 0 && num < MAX_SPRITES) {
+			spr[num].ptxhpos = MAXHPOS;
 			do_sprites_1 (num, cycle, i);
+		}
 	}
 
 	last_sprite_hpos = hpos;

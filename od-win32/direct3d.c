@@ -967,12 +967,12 @@ static void createscanlines (int force)
 					p[0] = (sll << 4) | (sll << 0);
 				} else {
 					/* 32-bit, A8R8G8B8 */
-					uae_u8 sll4 = sl42 | (sl42 << 4);
+					uae_u8 sll4 = sl4 | (sl4 << 4);
 					uae_u8 sll2 = sll | (sll << 4);
-					p[0] = sll4;
+					p[0] = sll2;
 					p[1] = sll2;
 					p[2] = sll2;
-					p[3] = sll2;
+					p[3] = sll4;
 				}
 			}
 		}

@@ -16,10 +16,11 @@
 #define GETBDD(x) ((x) % 100)
 
 #define WINUAEPUBLICBETA 1
+#define LANG_DLL 1
 
-#define WINUAEBETA L"23"
-#define WINUAEDATE MAKEBD(2009, 11, 29)
-#define WINUAEEXTRA L""
+#define WINUAEBETA L"Beta 24"
+#define WINUAEDATE MAKEBD(2009, 12, 4)
+#define WINUAEEXTRA L"RC2"
 #define WINUAEREV L""
 
 #define IHF_WINDOWHIDDEN 6
