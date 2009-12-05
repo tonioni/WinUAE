@@ -1462,7 +1462,7 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	int i;
 	TCHAR *s;
 
-	if (devname && _tcslen (devname) > 0) {
+	if (index < 0 && devname && _tcslen (devname) > 0) {
 		for (i = 0; i < p->mountitems; i++) {
 			if (p->mountconfig[i].devname && !_tcscmp (p->mountconfig[i].devname, devname))
 				return 0;
@@ -3908,7 +3908,8 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	int roms[4];
+	int roms[4], i;
+	struct romlist **rl;
 
 	p->bogomem_size = 0;
 	p->chipset_mask = 0;
@@ -3932,6 +3933,16 @@ static int bip_arcadia (struct uae_prefs *p, int config, int compa, int romcheck
 	roms[3] = -1;
 	if (!configure_rom (p, roms, romcheck))
 		return 0;
+	rl = getarcadiaroms ();
+	for (i = 0; rl[i]; i++) {
+		if (config-- == 0) {
+			roms[0] = rl[i]->rd->id;
+			roms[1] = -1;
+			configure_rom (p, roms, 0);
+			break;
+		}
+	}
+	xfree (rl);
 	return 1;
 }
 

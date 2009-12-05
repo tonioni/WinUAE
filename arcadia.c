@@ -181,14 +181,14 @@ static int load_roms (struct arcadiarom *rom)
 		_stprintf (path, L"%s%d", xpath, i + 1);
 		if (!load_rom8 (path, arbmemory + 2 * 65536 * i + offset, rom->extra)) {
 			if (i == 0)
-				write_log (L"Arcadia: %s rom load failed ('%s')\n", rom->type == ARCADIA_BIOS ? "bios" : "game", path);
+				write_log (L"Arcadia: %s rom load failed ('%s')\n", rom->type == ARCADIA_BIOS ? L"bios" : L"game", path);
 			break;
 		}
 		i++;
 	}
 	if (i == 0)
 		return 0;
-	write_log (L"Arcadia: %s rom %s loaded\n", rom->type == ARCADIA_BIOS ? "bios" : "game", xpath);
+	write_log (L"Arcadia: %s rom %s loaded\n", rom->type == ARCADIA_BIOS ? L"bios" : L"game", xpath);
 	return 1;
 }
 

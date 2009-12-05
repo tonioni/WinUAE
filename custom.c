@@ -239,7 +239,7 @@ static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
 static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
-static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos, ddfstrt_old_vpos;
+static unsigned int ddfstrt, ddfstop, ddfstrt_old_hpos;
 static int ddf_change, badmode, diw_change;
 static int fmode;
 static int bplcon1_hpos;
@@ -967,18 +967,13 @@ STATIC_INLINE maybe_check (int hpos)
 
 static void bpldmainitdelay (int hpos)
 {
-	int needdelay = 1;
 	int hposa;
 
 	hposa = hpos + BPLCON_AGNUS_DELAY;
 	ddf_change = vpos;
-	if (hposa >= maxhpos - 1)
-		needdelay = 0;
-	if (hposa < 0x14)
-		needdelay = 0;
-	if (!needdelay) {
-		BPLCON0_Denise (hposa, bplcon0);
-		setup_fmodes (hposa);
+	if (hposa < 0x14) {
+		BPLCON0_Denise (hpos, bplcon0);
+		setup_fmodes (hpos);
 		return;
 	}
 	if (bpldmasetuphpos < 0) {
@@ -1875,9 +1870,8 @@ STATIC_INLINE void decide_line (int hpos)
 				ok = 1;
 			/* hack warning.. Writing to DDFSTRT when DMA should start must be ignored
 			* (correct fix would be emulate this delay for every custom register, but why bother..) */
-			if (ddfstrt_old_vpos == vpos)
-				if (hpos - 2 == ddfstrt_old_hpos)
-					ok = 0;
+			if (hpos - 2 == ddfstrt_old_hpos)
+				ok = 0;
 		}
 		if (ok) {
 			if (dmaen (DMA_BITPLANE)) {
@@ -2593,6 +2587,7 @@ static void reset_decisions (void)
 	}
 	bpldmasetuphpos = -1;
 	bpldmasetupphase = 0;
+	ddfstrt_old_hpos = -1;
 
 	if (plf_state > plf_active)
 		plf_state = plf_idle;
@@ -3590,7 +3585,6 @@ static void DDFSTRT (int hpos, uae_u16 v)
 	ddf_change = vpos;
 	decide_line (hpos);
 	ddfstrt_old_hpos = hpos;
-	ddfstrt_old_vpos = vpos;
 	ddfstrt = v;
 	calcdiw ();
 	if (ddfstop > 0xD4 && (ddfstrt & 4) == 4) {

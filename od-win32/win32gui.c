@@ -4133,7 +4133,7 @@ static void init_quickstartdlg_tooltip (HWND hDlg, TCHAR *tt)
 static void init_quickstartdlg (HWND hDlg)
 {
 	static int firsttime;
-	int i, j, idx, idx2, qssize;
+	int i, j, idx, idx2, qssize, total;
 	TCHAR tmp1[2 * MAX_DPATH], tmp2[MAX_DPATH], hostconf[MAX_DPATH];
 	TCHAR *p1, *p2;
 
@@ -4179,29 +4179,39 @@ static void init_quickstartdlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_SETCURSEL, idx2, 0);
 
-	WIN32GUI_LoadUIString (amodels[quickstart_model].id, tmp1, sizeof (tmp1) / sizeof (TCHAR));
-	_tcscat (tmp1, L"\n");
-	p1 = tmp1;
-	init_quickstartdlg_tooltip (hDlg, 0);
+	total = 0;
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_RESETCONTENT, 0, 0L);
-	i = 0;
-	for (;;) {
-		p2 = _tcschr (p1, '\n');
-		if (!p2)
-			break;
-		*p2++= 0;
-		SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)p1);
-		p1 = p2;
-		p2 = _tcschr (p1, '\n');
-		if (!p2)
-			break;
-		*p2++= 0;
-		if (quickstart_conf == i && _tcslen (p1) > 0)
-			init_quickstartdlg_tooltip (hDlg, p1);
-		p1 = p2;
-		i++;
+	if (amodels[quickstart_model].id == IDS_QS_MODEL_ARCADIA) {
+		struct romlist **rl = getarcadiaroms ();
+		for (i = 0; rl[i]; i++) {
+			SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)rl[i]->rd->name);
+			total++;
+		}
+		xfree (rl);
+	} else {
+		WIN32GUI_LoadUIString (amodels[quickstart_model].id, tmp1, sizeof (tmp1) / sizeof (TCHAR));
+		_tcscat (tmp1, L"\n");
+		p1 = tmp1;
+		init_quickstartdlg_tooltip (hDlg, 0);
+		total = 0;
+		for (;;) {
+			p2 = _tcschr (p1, '\n');
+			if (!p2)
+				break;
+			*p2++= 0;
+			SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_ADDSTRING, 0, (LPARAM)p1);
+			p1 = p2;
+			p2 = _tcschr (p1, '\n');
+			if (!p2)
+				break;
+			*p2++= 0;
+			if (quickstart_conf == total && _tcslen (p1) > 0)
+				init_quickstartdlg_tooltip (hDlg, p1);
+			p1 = p2;
+			total++;
+		}
 	}
-	if (quickstart_conf >= i)
+	if (quickstart_conf >= total)
 		quickstart_conf = 0;
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_CONFIGURATION, CB_SETCURSEL, quickstart_conf, 0);
 
@@ -5254,6 +5264,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			}
 			workprefs.immediate_blits = 0;
 			workprefs.gfx_framerate = 1;
+			workprefs.cachesize = 0;
 		}
 	}
 	workprefs.collision_level = IsDlgButtonChecked (hDlg, IDC_COLLISION0) ? 0

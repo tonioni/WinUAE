@@ -1,4 +1,16 @@
 
+Beta 25: (RC3)
+
+- directory filesystem parameter (label, bootpri, rw) changes were
+  ignored unless device name was also changed (b22)
+- BPLCON0 change was partially ignored if hpos was >= e0 (b17)
+- disable JIT when cycle exact is ticked in GUI
+- added Quickstart Arcadia ROM selection (lists all roms)
+- random jumping single black scanline bug finally fixed (variable
+  that was not reset properly caused BPL DMA emulation to think this
+  line had BPL DMA disabled) I finally managed to duplicate this bug
+  100% using Arcadia Leaderboard..
+
 Beta 24: (RC2)
 
 - non 8 divisible width and avi video recording crash fix
