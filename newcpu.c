@@ -1156,6 +1156,16 @@ uae_u32 REGPARAM3 get_disp_ea_000 (uae_u32 base, uae_u32 dp) REGPARAM
 #endif
 }
 
+STATIC_INLINE int in_rom (uaecptr pc)
+{
+	return (munge24 (pc) & 0xFFF80000) == 0xF80000;
+}
+
+STATIC_INLINE int in_rtarea (uaecptr pc)
+{
+	return (munge24 (pc) & 0xFFFF0000) == rtarea_base && uae_boot_rom;
+}
+
 void REGPARAM2 MakeSR (void)
 {
 	regs.sr = ((regs.t1 << 15) | (regs.t0 << 14)
@@ -1356,11 +1366,11 @@ Interrupt cycle diagram:
 
 */
 
-static void Exception_ce (int nr, uaecptr oldpc)
+static void Exception_ce000 (int nr, uaecptr oldpc)
 {
 	uae_u32 currpc = m68k_getpc (), newpc;
 	int sv = regs.s;
-	int start;
+	int start, interrupt;
 
 	start = 6;
 	if (nr == 7) // TRAPV
@@ -1369,11 +1379,12 @@ static void Exception_ce (int nr, uaecptr oldpc)
 		start = 2;
 	else if (nr == 4 || nr == 8) // ILLG & PRIVIL VIOL
 		start = 2;
+	interrupt = nr >= 24 && nr < 24 + 8;
 
 	if (start)
-		do_cycles_ce (start * CYCLE_UNIT / 2);
+		do_cycles_ce000 (start);
 
-	if (nr >= 24 && nr < 24 + 8) { // fetch interrupt vector number
+	if (interrupt) { // fetch interrupt vector number
 		nr = get_byte_ce (0x00fffff1 | ((nr - 24) << 1));
 	}
 
@@ -1397,13 +1408,15 @@ static void Exception_ce (int nr, uaecptr oldpc)
 		put_word_ce (m68k_areg (regs, 7) + 4, last_fault_for_exception_3);
 		put_word_ce (m68k_areg (regs, 7) + 0, mode);
 		put_word_ce (m68k_areg (regs, 7) + 2, last_fault_for_exception_3 >> 16);
-		do_cycles_ce (2 * CYCLE_UNIT / 2);
+		do_cycles_ce000 (2);
 		write_log (L"Exception %d (%x) at %x -> %x!\n", nr, oldpc, currpc, get_long (4 * nr));
 		goto kludge_me_do;
 	}
 	m68k_areg (regs, 7) -= 6;
 	put_word_ce (m68k_areg (regs, 7) + 4, currpc); // write low address
 	put_word_ce (m68k_areg (regs, 7) + 0, regs.sr); // write SR
+	if (interrupt)
+		do_cycles_ce000 (4);
 	put_word_ce (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 kludge_me_do:
 	newpc = get_word_ce (4 * nr) << 16; // read high address
@@ -1417,7 +1430,7 @@ kludge_me_do:
 	}
 	m68k_setpc (newpc);
 	regs.ir = get_word_ce (m68k_getpc ()); // prefetch 1
-	do_cycles_ce (2 * CYCLE_UNIT / 2);
+	do_cycles_ce000 (2);
 	regs.irc = get_word_ce (m68k_getpc () + 2); // prefetch 2
 	set_special (SPCFLAG_END_COMPILE);
 	exception_trace (nr);
@@ -1730,13 +1743,21 @@ void REGPARAM2 Exception (int nr, uaecptr oldpc)
 {
 #ifdef CPUEMU_12
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
-		Exception_ce (nr, oldpc);
+		Exception_ce000 (nr, oldpc);
 	else
 #endif
 		if (currprefs.mmu_model)
 			Exception_mmu (nr, oldpc);
 		else
 			Exception_normal (nr, oldpc);
+
+	if (debug_illegal && !in_rom (M68K_GETPC)) {
+		int v = nr;
+		if (nr <= 63 && (debug_illegal_mask & ((uae_u64)1 << nr))) {
+			write_log (L"Exception %d breakpoint\n", nr);
+			activate_debugger ();
+		}
+	}
 }
 
 STATIC_INLINE void do_interrupt (int nr)
@@ -2252,16 +2273,6 @@ void m68k_reset (int hardreset)
 	fill_prefetch_slow ();
 }
 
-STATIC_INLINE int in_rom (uaecptr pc)
-{
-	return (munge24 (pc) & 0xFFF80000) == 0xF80000;
-}
-
-STATIC_INLINE int in_rtarea (uaecptr pc)
-{
-	return (munge24 (pc) & 0xFFFF0000) == rtarea_base && uae_boot_rom;
-}
-
 unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 {
 	uaecptr pc = m68k_getpc ();
@@ -2309,7 +2320,6 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	if ((opcode & 0xF000) == 0xF000) {
 		if (warned < 20) {
 			write_log (L"B-Trap %x at %x (%p)\n", opcode, pc, regs.pc_p);
-			//activate_debugger ();
 			warned++;
 		}
 		Exception (0xB, 0);
@@ -2325,7 +2335,6 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	}
 	if (warned < 20) {
 		write_log (L"Illegal instruction: %04x at %08X -> %08X\n", opcode, pc, get_long (regs.vbr + 0x10));
-		//activate_debugger ();
 		warned++;
 	}
 
@@ -3052,20 +3061,28 @@ retry:
 }
 
 /* "cycle exact" 68020  */
+#define MAX68020CYCLES 4
 static void m68k_run_2ce (void)
 {
 	struct regstruct *r = &regs;
+	int tmpcycles = MAX68020CYCLES;
 
 	for (;;) {
 		uae_u32 opcode = get_word_ce020_prefetch (0);
 		(*cpufunctbl[opcode])(opcode);
 		if (r->ce020memcycles > 0) {
+			tmpcycles = CYCLE_UNIT * MAX68020CYCLES;
 			do_cycles_ce (r->ce020memcycles);
 			r->ce020memcycles = 0;
 		}
 		if (r->spcflags) {
 			if (do_specialties (0))
 				return;
+		}
+		tmpcycles -= cpucycleunit;
+		if (tmpcycles <= 0) {
+			do_cycles_ce (1 * CYCLE_UNIT);
+			tmpcycles = CYCLE_UNIT * MAX68020CYCLES;;
 		}
 	}
 }

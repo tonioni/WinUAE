@@ -285,6 +285,7 @@ enum copper_states {
 	COP_skip1,
 	COP_strobe_delay1,
 	COP_strobe_delay2,
+	COP_strobe_extra, // just to skip current cycle when CPU wrote to COPJMP
 	COP_start_delay
 };
 
@@ -830,10 +831,6 @@ STATIC_INLINE void compute_delay_offset (void)
 static void record_color_change2 (int hpos, int regno, unsigned long value)
 {
 	curr_color_changes[next_color_change].linepos = hpos * 2;
-#if 0
-	// hpos >= 0xe0, add 2 lores pixels (should be in copper emul..)
-	//curr_color_changes[next_color_change].linepos += (hpos >= maxhpos - 3) ? 2 : 0;
-#endif
 	curr_color_changes[next_color_change].regno = regno;
 	curr_color_changes[next_color_change++].value = value;
 	curr_color_changes[next_color_change].regno = -1;
@@ -1797,6 +1794,7 @@ static void start_bpl_dma (int hpos, int hstart)
 	fetch_start (hpos);
 	fetch_cycle = 0;
 	last_fetch_hpos = hstart;
+	cycle_diagram_shift = last_fetch_hpos;
 	out_nbits = 0;
 	out_offs = 0;
 	toscr_nbits = 0;
@@ -3137,7 +3135,7 @@ static void COPJMP (int num, int vblank)
 	cop_state.ignore_next = 0;
 	if (!oldstrobe)
 		cop_state.state_prev = cop_state.state;
-	cop_state.state = vblank ? COP_start_delay : COP_strobe_delay1;
+	cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
 	cop_state.vpos = vpos;
 	cop_state.hpos = current_hpos () & ~1;
 	copper_enabled_thisline = 0;
@@ -4156,6 +4154,10 @@ static void update_copper (int until_hpos)
 			if (copper_cant_read (old_hpos, 0))
 				continue;
 			cop_state.state = COP_skip1;
+			break;
+		case COP_strobe_extra:
+			// wait 1 copper cycle doing nothing
+			cop_state.state = COP_strobe_delay1;
 			break;
 		case COP_strobe_delay1:
 			// first cycle after COPJMP is just like normal first read cycle
@@ -5921,7 +5923,8 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 			decide_line (hpos);
 			decide_fetch (hpos);
 			decide_blitter (hpos);
-			r = custom_wput_copper (hpos, addr, l, 1);
+			debug_wputpeek (0xdff000 + addr, l);
+			r = custom_wput_1 (hpos, addr, l, 1);
 			if (currprefs.chipset_mask & CSMASK_AGA) {
 				v = l;
 				last_custom_value1 = 0xffff;

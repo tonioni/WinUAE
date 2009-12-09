@@ -19,6 +19,8 @@ extern int debug_dma;
 extern int debug_sprite_mask;
 extern int debug_bpl_mask, debug_bpl_mask_one;
 extern int debugger_active;
+extern int debug_illegal;
+extern uae_u64 debug_illegal_mask;
 
 extern void debug (void);
 extern void debugger_change (int mode);

@@ -12,7 +12,7 @@
 //#define ROMHACK
 //#define ROMHACK2
 //#define CDTV_DEBUG
-//#define CDTV_DEBUG_CMD
+#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -105,7 +105,7 @@ static void INT2 (void)
 	cd_led ^= LED_CD_ACTIVE2;
 }
 
-static int cdrom_command_cnt_out, cdrom_command_size_out;
+static volatile int cdrom_command_cnt_out, cdrom_command_size_out;
 static uae_u8 cdrom_command_output[16];
 
 static volatile int stch, sten, scor, sbcp;
@@ -210,7 +210,7 @@ static int pause_audio (int pause)
 	return 1;
 }
 
-static int read_sectors(int start, int length)
+static int read_sectors (int start, int length)
 {
 #ifdef CDTV_DEBUG
 	write_log (L"READ DATA sector %d, %d sectors (blocksize=%d)\n", start, length, cdtv_sectorsize);
@@ -792,7 +792,7 @@ static void tp_bput (int addr, uae_u8 v)
 	}
 }
 
-static uae_u8 tp_bget(int addr)
+static uae_u8 tp_bget (int addr)
 {
 	uae_u8 v = 0;
 	switch (addr)
@@ -1181,7 +1181,7 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 		}
 		break;
 	case 0xa1:
-		cdrom_command(b);
+		cdrom_command (b);
 		break;
 	case 0xe0:
 	case 0xe1:

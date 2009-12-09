@@ -1,4 +1,16 @@
 
+Beta 26: (RC4)
+
+- in some specific cases copper didn't use its allocated cycle
+  because it thought it was reserved for BPL DMA (broke in early
+  2.0 betas. Rebels Megademo "Made in Sweden" part)
+- CPU writes to COPJMPx caused copper to start fetching instruction
+  words instantly, using same cycle as CPU. Added 1 extra copper idle
+  cycle if COPJMPx was written by CPU (harmless, caused only DMA
+  debugger warnings)
+- 68020 CE emulation become very slow if most accesses were cache hits
+  and froze if all acceses were cache hits
+
 Beta 25: (RC3)
 
 - directory filesystem parameter (label, bootpri, rw) changes were
@@ -8,8 +20,8 @@ Beta 25: (RC3)
 - added Quickstart Arcadia ROM selection (lists all roms)
 - random jumping single black scanline bug finally fixed (variable
   that was not reset properly caused BPL DMA emulation to think this
-  line had BPL DMA disabled) I finally managed to duplicate this bug
-  100% using Arcadia Leaderboard..
+  line had DMA disabled) I finally managed to duplicate this bug 100%
+  using Arcadia Leaderboard..
 
 Beta 24: (RC2)
 

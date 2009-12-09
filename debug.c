@@ -47,6 +47,8 @@ int exception_debugging;
 int debug_copper = 0;
 int debug_dma = 0;
 int debug_sprite_mask = 0xff;
+int debug_illegal = 0;
+uae_u64 debug_illegal_mask;
 
 static uaecptr processptr;
 static uae_char *processname;
@@ -105,6 +107,7 @@ static TCHAR help[] = {
 	L"  f <addr1> <addr2>     Step forward until <addr1> <= PC <= <addr2>\n"
 	L"  e                     Dump contents of all custom registers, ea = AGA colors\n"
 	L"  i [<addr>]            Dump contents of interrupt and trap vectors\n"
+	L"  il [<mask>]           Exception breakpoint\n"
 	L"  o <0-2|addr> [<lines>]View memory as Copper instructions\n"
 	L"  od                    Enable/disable Copper vpos/hpos tracing\n"
 	L"  ot                    Copper single step trace\n"
@@ -2928,11 +2931,25 @@ static void debug_1 (void)
 		{
 		case 'c': dumpcia (); dumpdisk (); dumpcustom (); break;
 		case 'i':
-			addr = 0xffffffff;
-			if (more_params (&inptr))
-				addr = readhex (&inptr);
-			dump_vectors (addr);
+		{
+			if (*inptr == 'l') {
+				next_char (&inptr);
+				if (more_params (&inptr)) {
+					debug_illegal_mask = readhex (&inptr);
+				} else {
+					debug_illegal_mask = debug_illegal ? 0 : -1;
+					debug_illegal_mask &= ~((uae_u64)255 << 24); // mask interrupts
+				}
+				write_log (L"Exception breakpoint mask: %0I64X\n", debug_illegal_mask);
+				debug_illegal = debug_illegal_mask ? 1 : 0;
+			} else {
+				addr = 0xffffffff;
+				if (more_params (&inptr))
+					addr = readhex (&inptr);
+				dump_vectors (addr);
+			}
 			break;
+		}
 		case 'e': dump_custom_regs (tolower(*inptr) == 'a'); break;
 		case 'r':
 			{
@@ -2992,12 +3009,12 @@ static void debug_1 (void)
 				} else {
 					uae_u32 daddr;
 					int count;
-					if (more_params(&inptr))
-						daddr = readhex(&inptr);
+					if (more_params (&inptr))
+						daddr = readhex (&inptr);
 					else
 						daddr = nxdis;
-					if (more_params(&inptr))
-						count = readhex(&inptr);
+					if (more_params (&inptr))
+						count = readhex (&inptr);
 					else
 						count = 10;
 					m68k_disasm (stdout, daddr, &nxdis, count);
