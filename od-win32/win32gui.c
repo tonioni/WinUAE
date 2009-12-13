@@ -3680,7 +3680,7 @@ static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void DisplayContributors (HWND hDlg)
 {
-	CustomDialogBox(IDD_CONTRIBUTORS, hDlg, ContributorsProc);
+	CustomDialogBox (IDD_CONTRIBUTORS, hDlg, ContributorsProc);
 }
 
 typedef struct url_info
@@ -5258,10 +5258,10 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (workprefs.cpu_cycle_exact != n) {
 		workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
 		if (n) {
-			if (workprefs.cpu_model == 68000) {
+			if (workprefs.cpu_model == 68000)
 				workprefs.cpu_compatible = 1;
+			if (workprefs.cpu_model <= 68020)
 				workprefs.m68k_speed = 0;
-			}
 			workprefs.immediate_blits = 0;
 			workprefs.gfx_framerate = 1;
 			workprefs.cachesize = 0;

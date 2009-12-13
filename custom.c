@@ -54,8 +54,8 @@
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
-#define SPRITE_DEBUG_MINY 0xb0
-#define SPRITE_DEBUG_MAXY 0xf8
+#define SPRITE_DEBUG_MINY 0x0
+#define SPRITE_DEBUG_MAXY 0x100
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
@@ -340,7 +340,8 @@ static struct color_change color_changes[2][MAX_REG_CHANGE];
 
 struct decision line_decisions[2 * (MAXVPOS + 1) + 1];
 static struct draw_info line_drawinfo[2][2 * (MAXVPOS + 1) + 1];
-static struct color_entry color_tables[2][(MAXVPOS + 1) * 2];
+#define COLOR_TABLE_SIZE (MAXVPOS + 1) * 2
+static struct color_entry color_tables[2][COLOR_TABLE_SIZE];
 
 static int next_sprite_entry = 0;
 static int prev_next_sprite_entry;
@@ -1852,10 +1853,8 @@ STATIC_INLINE void decide_line (int hpos)
 
 	if (hpos <= last_decide_line_hpos)
 		return;
-	if (fetch_state != fetch_not_started)
-		return;
 
-	if (diwstate == DIW_waiting_stop) {
+	if (fetch_state == fetch_not_started && diwstate == DIW_waiting_stop) {
 		int ok = 0;
 		if (last_decide_line_hpos < plfstrt_start && hpos >= plfstrt_start) {
 			if (plf_state == plf_idle)
@@ -2996,7 +2995,9 @@ static void VPOSW (uae_u16 v)
 	hack_vpos2vpos = vpos;
 	if (hack_vpos2 > maxvpos)
 		hack_vpos2 = maxvpos;
-	vpos = hack_vpos2;
+	// do not allow changing vpos backwards or vsync may never happen..
+	if (vpos < hack_vpos2)
+		vpos = hack_vpos2;
 }
 
 static void VHPOSW (uae_u16 v)
@@ -3014,7 +3015,8 @@ static void VHPOSW (uae_u16 v)
 	hack_vpos2vpos = vpos;
 	if (hack_vpos2 > maxvpos)
 		hack_vpos2 = maxvpos;
-	vpos = hack_vpos2;
+	if (vpos < hack_vpos2)
+		vpos = hack_vpos2;
 }
 
 STATIC_INLINE uae_u16 VHPOSR (void)
@@ -4118,20 +4120,7 @@ static void update_copper (int until_hpos)
 				custom_wput_copper (c_hpos, cop_state.moveaddr, cop_state.movedata, 0);
 			}
 		}
-#if 0
-		if (cop_state.movedelay100 > 0) {
-			cop_state.movedelay100--;
-			if (cop_state.movedelay100 == 1) {
-				// Denise reacts to BPLCON0 change a bit earlier than Agnus
-				BPLCON0_Denise (c_hpos, cop_state.movedata100);
-			}
-			if (cop_state.movedelay100 == 0) {
-				decide_line (c_hpos);
-				decide_fetch (c_hpos);
-				custom_wput_copper (c_hpos, 0x100, cop_state.movedata100, 0);
-			}
-		}
-#endif
+
 		if ((c_hpos == maxhpos - 3) && (maxhpos & 1))
 			c_hpos += 1;
 		else
@@ -4284,7 +4273,7 @@ static void update_copper (int until_hpos)
 			incrementing vpos and setting c_hpos to 0.  Especially the various speedup
 			hacks really assume that vpos remains constant during one line.  Hence,
 			this hack: defer the entire decision until the next line if necessary.  */
-			if (c_hpos >= (maxhpos & ~1))
+			if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1))
 				break;
 
 			cop_state.state = COP_wait;
@@ -4343,7 +4332,7 @@ static void update_copper (int until_hpos)
 			{
 				unsigned int vcmp, hcmp, vp1, hp1;
 
-				if (c_hpos >= (maxhpos & ~1))
+				if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1))
 					break;
 				if (copper_cant_read (old_hpos, 0))
 					continue;
@@ -4392,10 +4381,10 @@ static void compute_spcflag_copper (int hpos)
 	}
 	// do not use past cycles if starting for the first time in this line
 	// (write to DMACON for example) hpos+1 for long lines
-	if (!wasenabled && cop_state.hpos < hpos && hpos + 1 < maxhpos) {
+	if (!wasenabled && cop_state.hpos < hpos && hpos < maxhpos) {
 		hpos = (hpos + 2) & ~1;
-		if (hpos > (maxhpos & ~1))
-			hpos = maxhpos & ~1;
+		if (hpos > (maxhpos_short & ~1))
+			hpos = maxhpos_short & ~1;
 		cop_state.hpos = hpos;
 	}
 	copper_enabled_thisline = 1;
@@ -5339,7 +5328,7 @@ static void hsync_handler (void)
 	/* See if there's a chance of a copper wait ending this line.  */
 	cop_state.hpos = 0;
 	cop_state.last_write = 0;
-	compute_spcflag_copper (hpos);
+	compute_spcflag_copper (maxhpos);
 	serial_hsynchandler ();
 #ifdef CUSTOM_SIMPLE
 	do_sprites (0);

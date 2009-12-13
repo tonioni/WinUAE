@@ -40,7 +40,7 @@ static int original_ch, original_fill, original_line;
 static int blinea_shift;
 static uae_u16 blinea, blineb;
 static int blitline, blitfc, blitfill, blitife, blitsing, blitdesc;
-static int blitonedot, blitsign;
+static int blitonedot, blitsign, blitlinepixel;
 static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
 static int blit_ch;
@@ -73,7 +73,6 @@ static long blit_first_cycle;
 static int blit_last_cycle, blit_dmacount, blit_dmacount2;
 static int blit_linecycles, blit_extracycles, blit_nod;
 static const int *blit_diag;
-static int blit_line_pixel;
 static int blit_frozen, blit_faulty;
 static int blit_final;
 
@@ -589,19 +588,18 @@ static void blitter_line (void)
 	uae_u16 blitbhold = blineb & 1 ? 0xFFFF : 0;
 	uae_u16 blitchold = blt_info.bltcdat;
 
-	if (blitsing && blitonedot)
-		blitahold = 0;
-	blitonedot++;
+	blitlinepixel = !blitsing || (blitsing && !blitonedot);
 	blt_info.bltddat = blit_func (blitahold, blitbhold, blitchold, bltcon0 & 0xFF);
+	blitonedot++;
 }
 
 static void blitter_line_proc (void)
 {
 	if (bltcon0 & 0x800) {
-		if (!blitsign)
-			bltapt += (uae_s16)blt_info.bltamod;
-		else
+		if (blitsign)
 			bltapt += (uae_s16)blt_info.bltbmod;
+		else
+			bltapt += (uae_s16)blt_info.bltamod;
 	}
 
 	if (!blitsign) {
@@ -638,7 +636,6 @@ STATIC_INLINE void blitter_nxline (void)
 	blineb = (blineb << 1) | (blineb >> 15);
 	vblitsize--;
 	bltstate = BLT_read;
-	blit_line_pixel = 0;
 }
 
 #ifdef CPUEMU_12
@@ -686,17 +683,6 @@ static void decide_blitter_line (int hsync, int hpos)
 				break;
 			}
 
-			/* onedot mode and no pixel = bus write access is skipped */
-			if (c == 4 && blitsing && blitonedot > 1) {
-				if (vblitsize == 0) {
-					bltdpt = bltcpt;
-					blit_final = 1;
-					blit_cyclecounter = 0;
-					blit_waitcyclecounter = 0;
-				}
-				break;
-			}
-
 			if (c == 3) {
 
 				blitter_read ();
@@ -715,9 +701,13 @@ static void decide_blitter_line (int hsync, int hpos)
 
 			} else if (c == 4) {
 
-				blitter_write ();
-				alloc_cycle_ext (last_blitter_hpos, CYCLE_BLITTER);
-				record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
+				/* onedot mode and no pixel = bus write access is skipped */
+				if (blitlinepixel) {
+					blitter_write ();
+					alloc_cycle_ext (last_blitter_hpos, CYCLE_BLITTER);
+					record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
+					blitlinepixel = 0;
+				}
 				if (vblitsize == 0) {
 					bltdpt = bltcpt;
 					blit_final = 1;
@@ -818,7 +808,7 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 		int ifemode = blitife ? 2 : 0;
 		int fc1 = blit_filltable[d & 255][ifemode + blitfc][1];
 		ddat = (blit_filltable[d & 255][ifemode + blitfc][0]
-		+ (blit_filltable[d >> 8][ifemode + fc1][0] << 8));
+			+ (blit_filltable[d >> 8][ifemode + fc1][0] << 8));
 		blitfc = blit_filltable[d >> 8][ifemode + fc1][1];
 	}
 
@@ -1281,6 +1271,7 @@ static void do_blitter2 (int hpos, int copper)
 		blinea = blt_info.bltadat;
 		blineb = (blt_info.bltbdat >> blt_info.blitbshift) | (blt_info.bltbdat << (16 - blt_info.blitbshift));
 		blitonedot = 0;
+		blitlinepixel = 0;
 		blitsing = bltcon1 & 0x2;
 		cycles = vblitsize;
 	} else {

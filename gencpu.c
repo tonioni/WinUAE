@@ -1528,35 +1528,23 @@ static void gen_opcode (unsigned long int opcode)
 	case i_OR:
 	case i_AND:
 	case i_EOR:
+	{
+		int c = 0;
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		printf ("\tsrc %c= dst;\n", curi->mnemo == i_OR ? '|' : curi->mnemo == i_AND ? '&' : '^');
 		genflags (flag_logical, curi->size, "src", "", "");
-		if (curi->smode == imm) {
-			int c = 0;
-			if (curi->size == sz_long && curi->dmode == Dreg) {
-				// op.L #,Dn = +2 cycles (AND), +4 cycles (EOR,OR)
-				if (curi->mnemo == i_EOR || curi->mnemo == i_OR)
-					c += 4;
-				else
-					c += 2;
-			}
-			if (c > 0)
-				addcycles000 (c);
-		} else if (curi->smode == Dreg) {
-			int c = 0;
-			if (curi->dmode == Dreg) {
-				if (curi->size == sz_long)
-					c += 2;
-				if (curi->size == sz_long && curi->smode == Dreg)
-					c += 2;
-			}
-			if (c > 0)
-				addcycles000 (c);
+		if (curi->dmode == Dreg && curi->size == sz_long) {
+			c += 2;
+			if (curi->smode == imm || curi->smode == Dreg)
+				c += 2;
 		}
+		if (c > 0)
+			addcycles000 (c);
 		fill_prefetch_next ();
 		genastore ("src", curi->dmode, "dstreg", curi->size, "dst");
 		break;
+	}
 	case i_ORSR:
 	case i_EORSR:
 		printf ("\tMakeSR ();\n");

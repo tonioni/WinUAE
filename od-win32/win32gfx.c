@@ -2572,7 +2572,7 @@ oops:
 }
 
 
-void WIN32GFX_PaletteChange(void)
+void WIN32GFX_PaletteChange (void)
 {
 	if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
 		return;
@@ -2582,7 +2582,7 @@ void WIN32GFX_PaletteChange(void)
 	DirectDraw_SetPalette (0); /* Set our real palette */
 }
 
-int WIN32GFX_ClearPalette(void)
+int WIN32GFX_ClearPalette (void)
 {
 	if (currentmode->current_depth > 8)
 		return 1;
@@ -2592,7 +2592,7 @@ int WIN32GFX_ClearPalette(void)
 	return 1;
 }
 
-int WIN32GFX_SetPalette(void)
+int WIN32GFX_SetPalette (void)
 {
 	if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
 		return 1;

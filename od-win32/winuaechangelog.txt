@@ -1,4 +1,10 @@
 
+- blitter linedraw onedot mode sometimes wrote to memory even if pixel
+  was written in same line previously
+- sprite DMA start and stop positions were not checked if DDFSTRT would
+  have disabled the sprite
+- copper wait and skip must not use odd cycles (last/first cycle "border")
+
 Beta 26: (RC4)
 
 - in some specific cases copper didn't use its allocated cycle
