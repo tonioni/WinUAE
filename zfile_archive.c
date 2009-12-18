@@ -74,6 +74,9 @@ static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsig
 	case ArchiveFormatRDB:
 		zv = archive_directory_rdb (zf);
 		break;
+	case ArchiveFormatTAR:
+		zv = archive_directory_tar (zf);
+		break;
 	case ArchiveFormatFAT:
 		zv = archive_directory_fat (zf);
 		break;
@@ -118,6 +121,9 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
 		break;
 	case ArchiveFormatDIR:
 		zf = archive_access_dir (zn);
+		break;
+	case ArchiveFormatTAR:
+		zf = archive_access_tar (zn);
 		break;
 	}
 	return zf;
@@ -208,6 +214,8 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 		if (retcode)
 			*retcode = -1;
 		zf = NULL;
+	} else {
+		zf = NULL;
 	}
 	return zf;
 }
@@ -244,6 +252,83 @@ void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsig
 		zn = zn->next;
 	}
 	zfile_fclose_archive (zv);
+}
+
+/* TAR */
+
+static void archive_close_tar (void *handle)
+{
+}
+
+struct zvolume *archive_directory_tar (struct zfile *z)
+{
+	struct zvolume *zv;
+	struct znode *zn;
+
+	_tzset ();
+	zv = zvolume_alloc (z, ArchiveFormatTAR, NULL, NULL);
+	for (;;) {
+		uae_u8 block[512];
+		char name[MAX_DPATH];
+		int ustar = 0;
+		struct zarchive_info zai;
+		int valid = 1;
+		uae_u64 size;
+
+		if (zfile_fread (block, 512, 1, z) != 1)
+			break;
+		if (block[0] == 0)
+			break;
+			
+		if (!memcmp (block + 257, "ustar  ", 8))
+			ustar = 1;
+		name[0] = 0;
+		if (ustar)
+			strcpy (name, block + 345);
+		strcat (name, block);
+
+		if (name[0] == 0)
+			valid = 0;
+		if (block[156] != '0')
+			valid = 0;
+		if (ustar && (block[256] != 0 && block[256] != '0'))
+			valid = 0;
+
+		size = _strtoui64 (block + 124, NULL, 8);
+
+		if (valid) {
+			memset (&zai, 0, sizeof zai);
+			zai.name = au (name);
+			zai.size = size;
+			zai.t = _strtoui64 (block + 136, NULL, 8);
+			zai.t += _timezone;
+			if (_daylight)
+				zai.t -= 1 * 60 * 60;
+			if (zai.name[_tcslen (zai.name) - 1] == '/') {
+				zn = zvolume_adddir_abs (zv, &zai);
+			} else {
+				zn = zvolume_addfile_abs (zv, &zai);
+				if (zn)
+					zn->offset = zfile_ftell (z);
+			}
+			xfree (zai.name);
+		}
+		zfile_fseek (z, (size + 511) & ~511, SEEK_CUR);
+	}
+	zv->method = ArchiveFormatTAR;
+	return zv;
+}
+
+struct zfile *archive_access_tar (struct znode *zn)
+{
+#if 0
+	struct zfile *zf = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
+	zfile_fseek (zn->volume->archive, zn->offset, SEEK_SET);
+	zfile_fwrite (zf->data, zn->size, 1, zn->volume->archive);
+	return zf;
+#else
+	return zfile_fopen_parent (zn->volume->archive, zn->fullname, zn->offset, zn->size);
+#endif
 }
 
 /* ZIP */
@@ -541,6 +626,9 @@ static int canrar (void)
 
 			rarlib = WIN32_LoadLibrary (L"unrar.dll");
 			if (rarlib) {
+				TCHAR tmp[MAX_DPATH];
+				tmp[0] = 0;
+				GetModuleFileName (rarlib, tmp, sizeof tmp / sizeof (TCHAR));
 				pRAROpenArchiveEx = (RAROPENARCHIVEEX)GetProcAddress (rarlib, "RAROpenArchiveEx");
 				pRARReadHeaderEx = (RARREADHEADEREX)GetProcAddress (rarlib, "RARReadHeaderEx");
 				pRARProcessFile = (RARPROCESSFILE)GetProcAddress (rarlib, "RARProcessFile");
@@ -548,8 +636,15 @@ static int canrar (void)
 				pRARSetCallback = (RARSETCALLBACK)GetProcAddress (rarlib, "RARSetCallback");
 				pRARGetDllVersion = (RARGETDLLVERSION)GetProcAddress (rarlib, "RARGetDllVersion");
 				if (pRAROpenArchiveEx && pRARReadHeaderEx && pRARProcessFile && pRARCloseArchive && pRARSetCallback) {
+					int version = -1;
 					israr = 1;
-					write_log (L"unrar.dll version %08X detected and used\n", pRARGetDllVersion ? pRARGetDllVersion() : -1);
+					if (pRARGetDllVersion)
+						version = pRARGetDllVersion ();
+					write_log (L"%s version %08X detected\n", tmp, version);
+					if (version < 4) {
+						write_log (L"Too old unrar.dll, must be at least version 4\n");
+						israr = -1;
+					}
 
 				}
 			}
@@ -926,8 +1021,10 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 				zn->offset = index + 1;
 			zfile_fclose (zf2);
 		} else {
-			if (rc == 0)
+			if (rc == 0) {
+				zfile_fclose (zf);
 				break;
+			}
 		}
 		index++;
 		zfile_fclose (zf);
@@ -1925,6 +2022,9 @@ void archive_access_close (void *handle, unsigned int id)
 		break;
 	case ArchiveFormatADF:
 		archive_close_adf (handle);
+		break;
+	case ArchiveFormatTAR:
+		archive_close_tar (handle);
 		break;
 	}
 }

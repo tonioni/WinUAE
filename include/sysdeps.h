@@ -240,6 +240,7 @@ extern char *uacp_copy (char *dst, int maxlen, const TCHAR *src, unsigned int cp
 extern TCHAR *aucp_copy (TCHAR *dst, int maxlen, const char *src, unsigned int cp);
 extern char *uutf8 (const TCHAR *s);
 extern TCHAR *utf8u (const char *s);
+extern int charset_test (const TCHAR *s, unsigned int cp);
 
 extern void *xmalloc (size_t);
 extern void *xcalloc (size_t, size_t);

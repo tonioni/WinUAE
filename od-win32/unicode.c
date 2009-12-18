@@ -4,6 +4,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#define DWFLAGS (WC_COMPOSITECHECK | WC_DISCARDNS)
+
 static void err (const char *func, const WCHAR *w, const char *c, UINT cp)
 {
 #if 0
@@ -67,13 +69,13 @@ static char *ua_2 (const WCHAR *s, UINT cp)
 
 	if (s == NULL)
 		return NULL;
-	len = WideCharToMultiByte (cp, 0, s, -1, NULL, 0, 0, FALSE);
+	len = WideCharToMultiByte (cp, DWFLAGS, s, -1, NULL, 0, 0, FALSE);
 	if (!len) {
 		err (__FUNCTION__, s, NULL, cp);
 		return strdup ("");
 	}
 	d = xmalloc (len + 1);
-	WideCharToMultiByte (cp, 0, s, -1, d, len, 0, FALSE);
+	WideCharToMultiByte (cp, DWFLAGS, s, -1, d, len, 0, FALSE);
 	return d;
 }
 
@@ -125,13 +127,24 @@ WCHAR *aucp_copy (TCHAR *dst, int maxlen, const char *src, UINT cp)
 
 char *ua_copy (char *dst, int maxlen, const TCHAR *src)
 {
-	WideCharToMultiByte (CP_ACP, 0, src, -1, dst, maxlen, 0, FALSE);
+	WideCharToMultiByte (CP_ACP, DWFLAGS, src, -1, dst, maxlen, 0, FALSE);
 	return dst;
 }
 char *uacp_copy (char *dst, int maxlen, const TCHAR *src, UINT cp)
 {
-	WideCharToMultiByte (cp, 0, src, -1, dst, maxlen, 0, FALSE);
+	WideCharToMultiByte (cp, DWFLAGS, src, -1, dst, maxlen, 0, FALSE);
 	return dst;
+}
+
+int charset_test (const TCHAR *s, UINT cp)
+{
+	static char s1[MAX_DPATH];
+	static WCHAR s2[MAX_DPATH];
+	s1[0] = 0;
+	s2[0] = 0;
+	uacp_copy (s1, MAX_DPATH, s, cp);
+	aucp_copy (s2, MAX_DPATH, s1, cp);
+	return !_tcscmp (s2, s);
 }
 
 TCHAR *my_strdup_ansi (const char *src)

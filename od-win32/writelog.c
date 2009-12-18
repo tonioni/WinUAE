@@ -13,6 +13,35 @@
 #include "registry.h"
 #include "uae.h"
 
+static void premsg (void)
+{
+	static int done;
+	char *as;
+	TCHAR *ws;
+
+	return;
+	if (done)
+		return;
+	done = 1;
+
+	MessageBoxA(NULL, "español", "ANSI", MB_OK);
+	MessageBoxW(NULL, L"español", L"UTF-16", MB_OK);
+
+	as = ua (L"español");
+	MessageBoxA(NULL, as, "ANSI:2", MB_OK);
+	ws = au (as);
+	MessageBoxW(NULL, ws, L"UTF-16:2", MB_OK);
+	xfree (ws);
+	xfree (as);
+
+	ws = au ("español");
+	MessageBoxW(NULL, ws, L"UTF-16:3", MB_OK);
+	as = ua (ws);
+	MessageBoxA(NULL, as, "ANSI:3", MB_OK);
+	xfree (ws);
+	xfree (as);
+}
+
 #define SHOW_CONSOLE 0
 
 static int nodatestamps = 0;
@@ -446,6 +475,9 @@ void *log_open (const TCHAR *name, int append, int bootlog)
 			}
 		}
 	}
+
+	premsg();
+
 	return f;
 }
 

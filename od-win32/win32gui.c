@@ -5278,9 +5278,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	n = IsDlgButtonChecked (hDlg, IDC_NTSC) ? 1 : 0;
 	if (workprefs.ntscmode != n) {
 		workprefs.ntscmode = n;
-#ifdef AVIOUTPUT
-		avioutput_fps = n ? VBLANK_HZ_NTSC : VBLANK_HZ_PAL;
-#endif
 	}
 	snd = IsDlgButtonChecked (hDlg, IDC_CS_SOUND0) ? 0
 		: IsDlgButtonChecked (hDlg, IDC_CS_SOUND1) ? 2 : 3;
@@ -11227,54 +11224,26 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 #ifdef AVIOUTPUT
 static void values_to_avioutputdlg (HWND hDlg)
 {
-	TCHAR tmpstr[256];
 
 	updatewinfsmode (&workprefs);
 	SetDlgItemText (hDlg, IDC_AVIOUTPUT_FILETEXT, avioutput_filename);
-
-	_stprintf (tmpstr, L"%d fps", avioutput_fps);
-	SendMessage (GetDlgItem(hDlg, IDC_AVIOUTPUT_FPS_STATIC), WM_SETTEXT, (WPARAM) 0, (LPARAM) tmpstr);
-
-	switch(avioutput_fps)
-	{
-	case VBLANK_HZ_PAL:
-		CheckRadioButton (hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_PAL);
-		break;
-
-	case VBLANK_HZ_NTSC:
-		CheckRadioButton (hDlg, IDC_AVIOUTPUT_PAL, IDC_AVIOUTPUT_NTSC, IDC_AVIOUTPUT_NTSC);
-		break;
-
-	default:
-		CheckDlgButton (hDlg, IDC_AVIOUTPUT_PAL, BST_UNCHECKED);
-		CheckDlgButton (hDlg, IDC_AVIOUTPUT_NTSC, BST_UNCHECKED);
-		break;
-	}
-
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_FRAMELIMITER, avioutput_framelimiter ? FALSE : TRUE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDOUTPUT, avioutput_nosoundoutput ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC, avioutput_nosoundsync ? TRUE : FALSE);
+	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE, avioutput_originalsize ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	LRESULT tmp;
-
-	updatewinfsmode (&workprefs);
-	tmp = SendMessage (GetDlgItem (hDlg, IDC_AVIOUTPUT_FPS), TBM_GETPOS, 0, 0);
-	if (tmp < 1)
-		tmp = 1;
-	if (tmp != avioutput_fps) {
-		avioutput_fps = (int)tmp;
-		AVIOutput_Restart ();
-	}
 }
 
-static void enable_for_avioutputdlg(HWND hDlg)
+static void enable_for_avioutputdlg (HWND hDlg)
 {
 	TCHAR tmp[1000];
+
 #if defined (PROWIZARD)
 	ew (hDlg, IDC_PROWIZARD, TRUE);
 	if (full_property_sheet)
@@ -11284,9 +11253,6 @@ static void enable_for_avioutputdlg(HWND hDlg)
 	ew (hDlg, IDC_SCREENSHOT, full_property_sheet ? FALSE : TRUE);
 	ew (hDlg, IDC_SAMPLERIPPER_ACTIVATED, full_property_sheet ? FALSE : TRUE);
 
-	ew (hDlg, IDC_AVIOUTPUT_PAL, TRUE);
-	ew (hDlg, IDC_AVIOUTPUT_NTSC, TRUE);
-	ew (hDlg, IDC_AVIOUTPUT_FPS, TRUE);
 	ew (hDlg, IDC_AVIOUTPUT_FILE, TRUE);
 
 	if(workprefs.produce_sound < 2) {
@@ -11345,10 +11311,8 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		pages[AVIOUTPUT_ID] = hDlg;
 		currentpage = AVIOUTPUT_ID;
 		AVIOutput_GetSettings ();
+		regqueryint (NULL, L"Screenshot_Original", &screenshot_originalsize);
 		enable_for_avioutputdlg (hDlg);
-		SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETRANGE, TRUE, MAKELONG(1, VBLANK_HZ_NTSC));
-		SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, avioutput_fps);
-		SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 		if (!avioutput_filename[0]) {
 			fetch_path (L"VideoPath", avioutput_filename, sizeof (avioutput_filename) / sizeof (TCHAR));
 			_tcscat (avioutput_filename, L"output.avi");
@@ -11393,6 +11357,14 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			avioutput_nosoundsync = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_NOSOUNDSYNC) ? 1 : 0;
 			AVIOutput_SetSettings ();
 			break;
+		case IDC_AVIOUTPUT_ORIGINALSIZE:
+			avioutput_originalsize = IsDlgButtonChecked (hDlg, IDC_AVIOUTPUT_ORIGINALSIZE) ? 1 : 0;
+			AVIOutput_SetSettings ();
+			break;
+		case IDC_SCREENSHOT_ORIGINALSIZE:
+			screenshot_originalsize = IsDlgButtonChecked (hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
+			regsetint (NULL, L"Screenshot_Original", screenshot_originalsize);
+			break;
 
 		case IDC_INPREC_PLAYMODE:
 			break;
@@ -11428,16 +11400,6 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		case IDC_SCREENSHOT:
 			screenshot(1, 0);
-			break;
-
-		case IDC_AVIOUTPUT_PAL:
-			SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_PAL);
-			SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
-			break;
-
-		case IDC_AVIOUTPUT_NTSC:
-			SendDlgItemMessage (hDlg, IDC_AVIOUTPUT_FPS, TBM_SETPOS, TRUE, VBLANK_HZ_NTSC);
-			SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 			break;
 
 		case IDC_AVIOUTPUT_AUDIO:

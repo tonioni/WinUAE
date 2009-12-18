@@ -809,17 +809,17 @@ static void setupscenecoords (void)
 	float dw, dh;
 	static RECT sro, dro, zro;
 
-	//    write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
+	//write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
 
 	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
-	//    write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
+	//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
 	//	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
 
 	dw = dr.right - dr.left;
 	dh = dr.bottom - dr.top;
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
-	//    write_log (L"%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
+	//write_log (L"%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
 
 	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
@@ -839,6 +839,25 @@ static void setupscenecoords (void)
 		dro = dr;
 		zro = zr;
 	}
+}
+
+uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
+{
+	RECT dr, sr, zr;
+	uae_u8 *p;
+	int w, h;
+
+	*depth = t_depth;
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
+	w = sr.right - sr.left;
+	h = sr.bottom - sr.top;
+	p = gfxvidinfo.bufmem;
+	if (pitch)
+		*pitch = gfxvidinfo.rowbytes;
+	p += (zr.top - h / 2) * gfxvidinfo.rowbytes + (zr.left - w / 2) * t_depth / 8;
+	*widthp = w;
+	*heightp = h;
+	return p;
 }
 
 static void createvertex (void)

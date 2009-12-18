@@ -1529,6 +1529,7 @@ void init_colors (void)
 #ifdef AVIOUTPUT
 		AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
+		Screenshot_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 	}
 }
 
@@ -2360,17 +2361,6 @@ static BOOL doInit (void)
 
 		write_log (L"W=%d H=%d B=%d CT=%d\n",
 			DirectDraw_CurrentWidth (), DirectDraw_CurrentHeight (), DirectDraw_GetCurrentDepth (), colortype);
-
-		if (currentmode->current_depth < 15 && (currprefs.chipset_mask & CSMASK_AGA) && isfullscreen () > 0 && !WIN32GFX_IsPicassoScreen()) {
-			static int warned;
-			if (!warned) {
-				TCHAR szMessage[MAX_DPATH];
-				currentmode->current_depth = 16;
-				WIN32GUI_LoadUIString(IDS_AGA8BIT, szMessage, MAX_DPATH);
-				gui_message(szMessage);
-			}
-			warned = 1;
-		}
 
 		if (isfullscreen() <= 0 && !(currentmode->flags & (DM_OPENGL | DM_D3D))) {
 			currentmode->current_depth = DirectDraw_GetCurrentDepth ();

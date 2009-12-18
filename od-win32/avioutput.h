@@ -10,7 +10,9 @@ extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_reques
 
 extern int avioutput_width, avioutput_height, avioutput_bits;
 extern int avioutput_fps;
-extern DWORD avioutput_framelimiter, avioutput_nosoundoutput, avioutput_nosoundsync;
+extern DWORD avioutput_framelimiter, avioutput_nosoundoutput;
+extern DWORD avioutput_nosoundsync, avioutput_originalsize;
+extern DWORD screenshot_originalsize;
 
 extern TCHAR avioutput_filename[MAX_DPATH];
 
@@ -28,6 +30,8 @@ extern void AVIOutput_Initialize (void);
 extern void AVIOutput_RGBinfo (int,int,int,int,int,int);
 extern void AVIOutput_GetSettings (void);
 extern void AVIOutput_SetSettings (void);
+
+extern void Screenshot_RGBinfo (int,int,int,int,int,int);
 
 #define AVIAUDIO_AVI 1
 #define AVIAUDIO_WAV 2

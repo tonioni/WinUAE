@@ -366,7 +366,6 @@ static void blitter_dofast (void)
 		uaecptr dstp = 0;
 		int dodst = 0;
 
-		/*if (!blitfill) write_log (L"minterm %x not present\n",mt); */
 		for (j = 0; j < vblitsize; j++) {
 			blitfc = !!(bltcon1 & 0x4);
 			for (i = 0; i < hblitsize; i++) {
@@ -400,7 +399,7 @@ static void blitter_dofast (void)
 					int ifemode = blitife ? 2 : 0;
 					int fc1 = blit_filltable[d & 255][ifemode + blitfc][1];
 					blt_info.bltddat = (blit_filltable[d & 255][ifemode + blitfc][0]
-					+ (blit_filltable[d >> 8][ifemode + fc1][0] << 8));
+						+ (blit_filltable[d >> 8][ifemode + fc1][0] << 8));
 					blitfc = blit_filltable[d >> 8][ifemode + fc1][1];
 				}
 				if (blt_info.bltddat)
@@ -733,14 +732,20 @@ static void actually_do_blit (void)
 	if (blitline) {
 		do {
 			blitter_read ();
+			if (ddat1use)
+				bltdpt = bltcpt;
+			ddat1use = 1;
 			blitter_line ();
 			blitter_line_proc ();
-			blitter_write ();
-			bltdpt = bltcpt;
 			blitter_nxline ();
+			if (blitlinepixel) {
+				blitter_write ();
+				blitlinepixel = 0;
+			}
 			if (vblitsize == 0)
 				bltstate = BLT_done;
 		} while (bltstate != BLT_done);
+		bltdpt = bltcpt;
 	} else {
 		if (blitdesc)
 			blitter_dofast_desc ();

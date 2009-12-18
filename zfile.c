@@ -31,7 +31,7 @@
 
 static struct zfile *zlist = 0;
 
-const TCHAR *uae_archive_extensions[] = { L"zip", L"rar", L"7z", L"lha", L"lzh", L"lzx", NULL };
+const TCHAR *uae_archive_extensions[] = { L"zip", L"rar", L"7z", L"lha", L"lzh", L"lzx", L"tar", NULL };
 
 #define MAX_CACHE_ENTRIES 10
 
@@ -228,6 +228,14 @@ void zfile_fclose (struct zfile *f)
 		zlist = nxt;
 	else
 		pl->next = nxt;
+}
+
+static void removeext (TCHAR *s, TCHAR *ext)
+{
+	if (_tcslen (s) < _tcslen (ext))
+		return;
+	if (_tcsicmp (s + _tcslen (s) - _tcslen (ext), ext) == 0)
+		s[_tcslen (s) - _tcslen (ext)] = 0;
 }
 
 static uae_u8 exeheader[]={ 0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00 };
@@ -503,11 +511,11 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	zfile_fread (header, sizeof (header), 1, z);
 	flags = header[3];
 	if (header[0] != 0x1f && header[1] != 0x8b)
-		return z;
+		return NULL;
 	if (flags & 2) /* multipart not supported */
-		return z;
+		return NULL;
 	if (flags & 32) /* encryption not supported */
-		return z;
+		return NULL;
 	if (flags & 4) { /* skip extra field */
 		zfile_fread (&b, 1, 1, z);
 		size = b;
@@ -531,6 +539,7 @@ struct zfile *zfile_gunzip (struct zfile *z)
 			zfile_fread (&b, 1, 1, z);
 		} while (b);
 	}
+	removeext (name, L".gz");
 	offset = zfile_ftell (z);
 	zfile_fseek (z, -4, SEEK_END);
 	zfile_fread (&b, 1, 1, z);
@@ -541,12 +550,12 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	size |= b << 16;
 	zfile_fread (&b, 1, 1, z);
 	size |= b << 24;
-	if (size < 8 || size > 64 * 1024 * 1024) /* safety check */
-		return z;
+	if (size < 8 || size > 256 * 1024 * 1024) /* safety check */
+		return NULL;
 	zfile_fseek (z, offset, SEEK_SET);
 	z2 = zfile_fopen_empty (z, name, size);
 	if (!z2)
-		return z;
+		return NULL;
 	zs.next_out = z2->data;
 	zs.avail_out = size;
 	first = 1;
@@ -563,7 +572,7 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	inflateEnd (&zs);
 	if (ret != Z_STREAM_END || first != 0) {
 		zfile_fclose (z2);
-		return z;
+		return NULL;
 	}
 	zfile_fclose (z);
 	return z2;
@@ -1035,7 +1044,7 @@ static struct zfile *dms (struct zfile *z)
 
 	zo = zfile_fopen_empty (z, newname, 1760 * 512);
 	if (!zo)
-		return z;
+		return NULL;
 	ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 0);
 	if (ret == NO_PROBLEM || ret == DMS_FILE_END) {
 		int off = zfile_ftell (zo);
@@ -1061,7 +1070,7 @@ static struct zfile *dms (struct zfile *z)
 		zfile_fseek (zo, 0, SEEK_SET);
 		return zo;
 	}
-	return z;
+	return NULL;
 }
 
 const TCHAR *uae_ignoreextensions[] =
@@ -1098,18 +1107,18 @@ int zfile_is_diskimage (const TCHAR *name)
 static const TCHAR *archive_extensions[] = {
 	L"7z", L"rar", L"zip", L"lha", L"lzh", L"lzx",
 	L"adf", L"adz", L"dsq", L"dms", L"ipf", L"fdi", L"wrp", L"ima",
-	L"hdf",
+	L"hdf", L"tar",
 	NULL
 };
-static const TCHAR *plugins_7z[] = { L"7z", L"rar", L"zip", L"lha", L"lzh", L"lzx", L"adf", L"dsq", L"hdf", NULL };
-static const uae_char *plugins_7z_x[] = { "7z", "Rar!", "MK", NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+static const TCHAR *plugins_7z[] = { L"7z", L"rar", L"zip", L"lha", L"lzh", L"lzx", L"adf", L"dsq", L"hdf", L"tar", NULL };
+static const uae_char *plugins_7z_x[] = { "7z", "Rar!", "MK", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 static const int plugins_7z_t[] = {
 	ArchiveFormat7Zip, ArchiveFormatRAR, ArchiveFormatZIP, ArchiveFormatLHA, ArchiveFormatLHA, ArchiveFormatLZX,
-	ArchiveFormatADF, ArchiveFormatADF, ArchiveFormatADF
+	ArchiveFormatADF, ArchiveFormatADF, ArchiveFormatADF, ArchiveFormatTAR
 };
 static const int plugins_7z_m[] = {
 	ZFD_ARCHIVE, ZFD_ARCHIVE, ZFD_ARCHIVE, ZFD_ARCHIVE, ZFD_ARCHIVE, ZFD_ARCHIVE,
-	ZFD_ADF, ZFD_ADF, ZFD_ADF
+	ZFD_ADF, ZFD_ADF, ZFD_ADF, ZFD_ARCHIVE
 };
 
 int iszip (struct zfile *z)
@@ -1223,6 +1232,8 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 				return archive_access_select (parent, z, ArchiveFormatLZX, dodefault, retcode, index);
 			if (strcasecmp (ext, L"rar") == 0)
 				return archive_access_select (parent, z, ArchiveFormatRAR, dodefault, retcode, index);
+			if (strcasecmp (ext, L"tar") == 0)
+				return archive_access_select (parent, z, ArchiveFormatTAR, dodefault, retcode, index);
 		}
 		if (mask & ZFD_UNPACK) {
 			if (index == 0) {
@@ -1775,6 +1786,8 @@ struct zfile *zfile_fopen_parent (struct zfile *z, const TCHAR *name, uae_u64 of
 {
 	struct zfile *l;
 
+	if (z == NULL)
+		return NULL;
 	l = zfile_create (z);
 	if (name)
 		l->name = my_strdup (name);
@@ -1809,22 +1822,17 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data)
 uae_s64 zfile_ftell (struct zfile *z)
 {
 	uae_s64 v;
-	if (z->data || z->dataseek)
+	if (z->data || z->dataseek || z->parent)
 		return z->seek;
-	if (z->parent) {
-		v = _ftelli64 (z->parent->f);
-		v -= z->offset;
-	} else {
-		v = _ftelli64 (z->f);
-	}
-	return v;
+	return _ftelli64 (z->f);
+
 }
 
 uae_s64 zfile_fseek (struct zfile *z, uae_s64 offset, int mode)
 {
 	if (z->zfileseek)
 		return z->zfileseek (z, offset, mode);
-	if (z->data || z->dataseek) {
+	if (z->data || z->dataseek || (z->parent && z->useparent)) {
 		int ret = 0;
 		switch (mode)
 		{
@@ -1848,43 +1856,7 @@ uae_s64 zfile_fseek (struct zfile *z, uae_s64 offset, int mode)
 		}
 		return ret;
 	} else {
-		if (z->parent && z->useparent) {
-			switch (mode)
-			{
-			case SEEK_SET:
-				if (offset >= z->size) {
-					_fseeki64 (z->parent->f, z->offset + z->size, SEEK_SET);
-					return 1;
-				} else if (offset < 0) {
-					return 1;
-				}
-				return _fseeki64 (z->parent->f, offset + z->offset, SEEK_SET);
-
-			case SEEK_END:
-				if (offset > 0)
-					return 1;
-				if (offset < -z->size) {
-					_fseeki64 (z->parent->f, z->offset, SEEK_SET);
-					return 1;
-				}
-				return _fseeki64 (z->parent->f, offset + z->size + z->offset, SEEK_SET);
-
-			case SEEK_CUR:
-				{
-					uae_s64 v = zfile_ftell (z->parent);
-					if (v + offset > z->size) {
-						_fseeki64 (z->parent->f, z->offset + z->size, SEEK_SET);
-						return 1;
-					} else if (v + offset < 0) {
-						_fseeki64 (z->parent->f, z->offset, SEEK_SET);
-						return 1;
-					}
-					return _fseeki64 (z->parent->f, v + offset + z->offset, SEEK_SET);
-				}
-			}
-		} else {
-			return _fseeki64 (z->f, offset, mode);
-		}
+		return _fseeki64 (z->f, offset, mode);
 	}
 	return 1;
 }
@@ -1907,9 +1879,10 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
 		return l2;
 	}
 	if (z->parent && z->useparent) {
+		size_t ret;
 		uae_s64 v;
 		uae_s64 size = z->size;
-		v = zfile_ftell (z);
+		v = z->seek;
 		if (v + l1 * l2 > size) {
 			if (l1)
 				l2 = (size - v) / l1;
@@ -1918,7 +1891,11 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2,struct zfile *z)
 			if (l2 < 0)
 				l2 = 0;
 		}
-		z = z->parent;
+		zfile_fseek (z->parent, z->seek + z->offset, SEEK_SET);
+		v = z->seek;
+		ret = zfile_fread (b, l1, l2, z->parent);
+		z->seek = v + l1 * ret;
+		return ret;
 	}
 	return fread (b, l1, l2, z->f);
 }
@@ -2371,6 +2348,8 @@ static struct zvolume *zfile_fopen_archive_ext (struct znode *parent, struct zfi
 			zv = archive_directory_lzx (zf);
 		if (strcasecmp (ext, L"rar") == 0)
 			zv = archive_directory_rar (zf);
+		if (strcasecmp (ext, L"tar") == 0)
+			zv = archive_directory_tar (zf);
 		if (strcasecmp (ext, L"adf") == 0 && !memcmp (header, "DOS", 3))
 			zv = archive_directory_adf (parent, zf);
 		if (strcasecmp (ext, L"hdf") == 0)  {

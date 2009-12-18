@@ -1,4 +1,18 @@
 
+Beta 1:
+
+- blitter linedraw onedot mode was partially broken in non-ce modes (2.0)
+- old off-by-one sprite error fixed, was recently triggered in 2.0 final
+  causing (usually) random display interference (2.0)
+- avioutput "capture before filtering" option
+- screenshot "before filtering" option
+- manual avioutput fps selection removed, automatic now
+- tar archive support (was supposed to be in 2.0)
+- recursive archive engine improvements and fixes
+- only accept unrar.dll version 4 or newer
+
+2.0.0
+
 - blitter linedraw onedot mode sometimes wrote to memory even if pixel
   was written in same line previously
 - sprite DMA start and stop positions were not checked if DDFSTRT would

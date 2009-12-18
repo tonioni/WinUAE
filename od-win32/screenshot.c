@@ -15,10 +15,13 @@
 #include "win32gfx.h"
 #include "direct3d.h"
 #include "opengl.h"
+#include "registry.h"
+#include "gfxfilter.h"
 
 #include "png.h"
 
 int screenshotmode = PNG_SCREENSHOTS;
+DWORD screenshot_originalsize = 0;
 
 static void namesplit (TCHAR *s)
 {
@@ -87,68 +90,145 @@ void screenshot_free (void)
 	screenshot_prepared = FALSE;
 }
 
+static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs;
 
 int screenshot_prepare (void)
 {
 	unsigned int width, height;
 	HGDIOBJ hgdiobj;
+	int bits;
 
 	screenshot_free ();
 
-	width = WIN32GFX_GetWidth ();
-	height = WIN32GFX_GetHeight ();
+	regqueryint (NULL, L"Screenshot_Original", &screenshot_originalsize);
 
-	surface_dc = gethdc ();
-	if (surface_dc == NULL)
-		goto oops;
+	if (screenshot_originalsize && !WIN32GFX_IsPicassoScreen ()) {
+		int spitch, dpitch, x, y;
+		uae_u8 *src, *dst;
+		
+		src = getfilterbuffer (&width, &height, &spitch, &bits);
+		if (src == NULL || width == 0 || height == 0)
+			goto donormal;
+		ZeroMemory (&bi, sizeof(bi));
+		bi.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		bi.bmiHeader.biWidth = width;
+		bi.bmiHeader.biHeight = height;
+		bi.bmiHeader.biPlanes = 1;
+		bi.bmiHeader.biBitCount = 24;
+		bi.bmiHeader.biCompression = BI_RGB;
+		dpitch = ((bi.bmiHeader.biWidth * bi.bmiHeader.biBitCount + 31) & ~31) / 8;
+		bi.bmiHeader.biSizeImage = dpitch * bi.bmiHeader.biHeight;
+		bi.bmiHeader.biXPelsPerMeter = 0;
+		bi.bmiHeader.biYPelsPerMeter = 0;
+		bi.bmiHeader.biClrUsed = 0;
+		bi.bmiHeader.biClrImportant = 0;
+		if (!(lpvBits = xmalloc (bi.bmiHeader.biSizeImage)))
+			goto oops;
+		dst = (uae_u8*)lpvBits + (height - 1) * dpitch;
+		for (y = 0; y < height; y++) {
+			for (x = 0; x < width; x++) {
+				int shift;
+				uae_u32 v = 0;
+				uae_u32 v2;
 
-	// need a HBITMAP to convert it to a DIB
-	if ((offscreen_bitmap = CreateCompatibleBitmap (surface_dc, width, height)) == NULL)
-		goto oops; // error
+				if (bits == 16)
+					v = ((uae_u16*)src)[x];
+				else if (bits == 32)
+					v = ((uae_u32*)src)[x];
 
-	// The bitmap is empty, so let's copy the contents of the surface to it.
-	// For that we need to select it into a device context.
-	if ((offscreen_dc = CreateCompatibleDC (surface_dc)) == NULL)
-		goto oops; // error
+				shift = 8 - rgb_bb;
+				v2 = (v >> rgb_bs) & ((1 << rgb_bb) - 1);
+				v2 <<= shift;
+				if (rgb_bb < 8)
+					v2 |= (v2 >> shift) & ((1 < shift) - 1);
+				dst[x * 3 + 0] = v2;
 
-	// select offscreen_bitmap into offscreen_dc
-	hgdiobj = SelectObject (offscreen_dc, offscreen_bitmap);
+				shift = 8 - rgb_gb;
+				v2 = (v >> rgb_gs) & ((1 << rgb_gb) - 1);
+				v2 <<= (8 - rgb_gb);
+				if (rgb_gb < 8)
+					v2 |= (v2 >> shift) & ((1 < shift) - 1);
+				dst[x * 3 + 1] = v2;
 
-	// now we can copy the contents of the surface to the offscreen bitmap
-	BitBlt (offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
+				shift = 8 - rgb_rb;
+				v2 = (v >> rgb_rs) & ((1 << rgb_rb) - 1);
+				v2 <<= (8 - rgb_rb);
+				if (rgb_rb < 8)
+					v2 |= (v2 >> shift) & ((1 < shift) - 1);
+				dst[x * 3 + 2] = v2;
 
-	// de-select offscreen_bitmap
-	SelectObject (offscreen_dc, hgdiobj);
+			}
+			src += spitch;
+			dst -= dpitch;
+		}
 
-	ZeroMemory (&bi, sizeof(bi));
-	bi.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
-	bi.bmiHeader.biWidth = width;
-	bi.bmiHeader.biHeight = height;
-	bi.bmiHeader.biPlanes = 1;
-	bi.bmiHeader.biBitCount = 24;
-	bi.bmiHeader.biCompression = BI_RGB;
-	bi.bmiHeader.biSizeImage = (((bi.bmiHeader.biWidth * bi.bmiHeader.biBitCount + 31) & ~31) / 8) * bi.bmiHeader.biHeight;
-	bi.bmiHeader.biXPelsPerMeter = 0;
-	bi.bmiHeader.biYPelsPerMeter = 0;
-	bi.bmiHeader.biClrUsed = 0;
-	bi.bmiHeader.biClrImportant = 0;
+	} else {
+donormal:
+		width = WIN32GFX_GetWidth ();
+		height = WIN32GFX_GetHeight ();
 
-	// Reserve memory for bitmap bits
-	if (!(lpvBits = xmalloc (bi.bmiHeader.biSizeImage)))
-		goto oops; // out of memory
+		surface_dc = gethdc ();
+		if (surface_dc == NULL)
+			goto oops;
 
-	// Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):
-	if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi.bmiHeader.biHeight, lpvBits, &bi, DIB_RGB_COLORS))
-		goto oops; // GetDIBits FAILED
+		// need a HBITMAP to convert it to a DIB
+		if ((offscreen_bitmap = CreateCompatibleBitmap (surface_dc, width, height)) == NULL)
+			goto oops; // error
 
-	releasehdc (surface_dc);
-	surface_dc = NULL;
+		// The bitmap is empty, so let's copy the contents of the surface to it.
+		// For that we need to select it into a device context.
+		if ((offscreen_dc = CreateCompatibleDC (surface_dc)) == NULL)
+			goto oops; // error
+
+		// select offscreen_bitmap into offscreen_dc
+		hgdiobj = SelectObject (offscreen_dc, offscreen_bitmap);
+
+		// now we can copy the contents of the surface to the offscreen bitmap
+		BitBlt (offscreen_dc, 0, 0, width, height, surface_dc, 0, 0, SRCCOPY);
+
+		// de-select offscreen_bitmap
+		SelectObject (offscreen_dc, hgdiobj);
+
+		ZeroMemory (&bi, sizeof(bi));
+		bi.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+		bi.bmiHeader.biWidth = width;
+		bi.bmiHeader.biHeight = height;
+		bi.bmiHeader.biPlanes = 1;
+		bi.bmiHeader.biBitCount = 24;
+		bi.bmiHeader.biCompression = BI_RGB;
+		bi.bmiHeader.biSizeImage = (((bi.bmiHeader.biWidth * bi.bmiHeader.biBitCount + 31) & ~31) / 8) * bi.bmiHeader.biHeight;
+		bi.bmiHeader.biXPelsPerMeter = 0;
+		bi.bmiHeader.biYPelsPerMeter = 0;
+		bi.bmiHeader.biClrUsed = 0;
+		bi.bmiHeader.biClrImportant = 0;
+
+		// Reserve memory for bitmap bits
+		if (!(lpvBits = xmalloc (bi.bmiHeader.biSizeImage)))
+			goto oops; // out of memory
+
+		// Have GetDIBits convert offscreen_bitmap to a DIB (device-independent bitmap):
+		if (!GetDIBits (offscreen_dc, offscreen_bitmap, 0, bi.bmiHeader.biHeight, lpvBits, &bi, DIB_RGB_COLORS))
+			goto oops; // GetDIBits FAILED
+
+		releasehdc (surface_dc);
+		surface_dc = NULL;
+	}
 	screenshot_prepared = TRUE;
 	return 1;
 
 oops:
 	screenshot_free();
 	return 0;
+}
+
+void Screenshot_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
+{
+	rgb_rb = rb;
+	rgb_gb = gb;
+	rgb_bb = rb;
+	rgb_rs = rs;
+	rgb_gs = gs;
+	rgb_bs = bs;
 }
 
 #if PNG_SCREENSHOTS > 0

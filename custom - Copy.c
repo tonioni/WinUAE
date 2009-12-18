@@ -257,7 +257,7 @@ static int plfstrt_start, plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
 static int last_diw_pix_hpos, last_ddf_pix_hpos;
-static int last_decide_line_hpos;
+static int last_decide_line_hpos, last_sprite_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 static int diwfirstword, diwlastword;
 static int plfleft_real;
@@ -1877,15 +1877,16 @@ STATIC_INLINE void decide_line (int hpos)
 			}
 			last_decide_line_hpos = hpos;
 #ifndef	CUSTOM_SIMPLE
-			do_sprites (hpos);
+			do_sprites (plfstrt);
 #endif
 			return;
 		}
 	}
 
 #ifndef	CUSTOM_SIMPLE
-	if (hpos > last_sprite_hpos && last_sprite_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
+	if (last_sprite_decide_line_hpos < SPR0_HPOS + 4 * MAX_SPRITES)
 		do_sprites (hpos);
+	last_sprite_decide_line_hpos = hpos;
 #endif
 
 	last_decide_line_hpos = hpos;
@@ -2601,6 +2602,7 @@ static void reset_decisions (void)
 	memset (outword, 0, sizeof outword);
 
 	last_decide_line_hpos = -1;
+	last_sprite_decide_line_hpos = -1;
 	last_diw_pix_hpos = -1;
 	last_ddf_pix_hpos = -1;
 	last_sprite_hpos = -1;
@@ -4640,16 +4642,13 @@ static void do_sprites (int hpos)
 	maxspr = hpos;
 	minspr = last_sprite_hpos + 1;
 
-	if (minspr >= maxspr || last_sprite_hpos == hpos)
+	if (minspr >= SPR0_HPOS + MAX_SPRITES * 4 || maxspr < SPR0_HPOS)
 		return;
 
-	if (maxspr >= SPR0_HPOS + MAX_SPRITES * 4)
-		maxspr = SPR0_HPOS + MAX_SPRITES * 4 - 1;
+	if (maxspr > SPR0_HPOS + MAX_SPRITES * 4)
+		maxspr = SPR0_HPOS + MAX_SPRITES * 4;
 	if (minspr < SPR0_HPOS)
 		minspr = SPR0_HPOS;
-
-	if (minspr == maxspr)
-		return;
 
 	for (i = minspr; i <= maxspr; i++) {
 		int cycle = -1;
@@ -4664,7 +4663,7 @@ static void do_sprites (int hpos)
 			cycle = 1;
 			break;
 		}
-		if (cycle >= 0) {
+		if (cycle >= 0 && num >= 0 && num < MAX_SPRITES) {
 			spr[num].ptxhpos = MAXHPOS;
 			do_sprites_1 (num, cycle, i);
 		}

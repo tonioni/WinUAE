@@ -104,12 +104,6 @@ static int vblscale2 (int v)
 	v = v * maxvpos / MAXVPOS_PAL;
 	return v;
 }
-static int ispal (void)
-{
-	if (beamcon0 & 0x80)
-		return currprefs.ntscmode == 0;
-	return maxvpos >= MAXVPOS_NTSC + (MAXVPOS_PAL - MAXVPOS_NTSC) / 2;
-}
 
 uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
 {
@@ -386,6 +380,41 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 end:
 	fpux_restore (&fpuv);
 
+}
+
+uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
+{
+
+	*widthp = 0;
+	*heightp = 0;
+	*depth = amiga_depth;
+	if (usedfilter == NULL)
+		return NULL;
+	*widthp = gfxvidinfo.width;
+	*heightp = gfxvidinfo.height;
+	if (pitch)
+		*pitch = gfxvidinfo.rowbytes;
+	*depth = gfxvidinfo.pixbytes * 8;
+	return gfxvidinfo.bufmem;
+#if 0
+	RECT dr, sr, zr;
+	uae_u8 *p;
+	int w, h;
+	if (usedfilter->type == UAE_FILTER_DIRECT3D) {
+		return getfilterbuffer3d (widthp, heightp, pitch, depth);
+	} else {
+		getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, amiga_width, amiga_height, scale, temp_width, temp_height);
+	}
+	w = sr.right - sr.left;
+	h = sr.bottom - sr.top;
+	p = gfxvidinfo.bufmem;
+	if (pitch)
+		*pitch = gfxvidinfo.rowbytes;
+	p += (zr.top - (h / 2)) * gfxvidinfo.rowbytes + (zr.left - (w / 2)) * amiga_depth / 8;
+	*widthp = w;
+	*heightp = h;
+	return p;
+#endif
 }
 
 static void statusline (void)

@@ -268,7 +268,7 @@ static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *valu
 	utf8 = 0;
 	tmp1 = ua (value);
 	tmp2 = uutf8 (value);
-	if (strcmp (tmp1, tmp2))
+	if (strcmp (tmp1, tmp2) && tmp2[0] != 0)
 		utf8 = 1;
 
 	if (target)
@@ -2023,9 +2023,11 @@ static int cfgfile_separate_linea (char *line, TCHAR *line1b, TCHAR *line2b)
 	line += strspn (line, "\t \r\n");
 	au_copy (line1b, MAX_DPATH, line);
 	if (isutf8ext (line1b)) {
-		TCHAR *s = utf8u (line2);
-		_tcscpy (line2b, s);
-		xfree (s);
+		if (line2[0]) {
+			TCHAR *s = utf8u (line2);
+			_tcscpy (line2b, s);
+			xfree (s);
+		}
 	} else {
 		au_copy (line2b, MAX_DPATH, line2);
 	}

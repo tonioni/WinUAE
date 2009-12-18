@@ -64,7 +64,8 @@ static int videoallocated;
 
 int avioutput_width, avioutput_height, avioutput_bits;
 int avioutput_fps = VBLANK_HZ_PAL;
-DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0, avioutput_nosoundsync = 1;
+DWORD avioutput_framelimiter = 0, avioutput_nosoundoutput = 0;
+DWORD avioutput_nosoundsync = 1, avioutput_originalsize = 0;
 
 TCHAR avioutput_filename[MAX_DPATH];
 static TCHAR avioutput_filename_tmp[MAX_DPATH];
@@ -215,6 +216,7 @@ static void storesettings (UAEREG *avikey)
 	regsetint (avikey, L"FrameLimiter", avioutput_framelimiter);
 	regsetint (avikey, L"NoSoundOutput", avioutput_nosoundoutput);
 	regsetint (avikey, L"NoSoundSync", avioutput_nosoundsync);
+	regsetint (avikey, L"Original", avioutput_originalsize);
 	regsetint (avikey, L"FPS", avioutput_fps);
 }
 static void getsettings (UAEREG *avikey)
@@ -226,6 +228,8 @@ static void getsettings (UAEREG *avikey)
 		avioutput_nosoundsync = val;
 	if (regqueryint (avikey, L"FrameLimiter", &val))
 		avioutput_framelimiter = val;
+	if (regqueryint (avikey, L"Original", &val))
+		avioutput_originalsize = val;
 	if (!avioutput_framelimiter)
 		avioutput_nosoundoutput = 1;
 	if (regqueryint (avikey, L"FPS", &val))
@@ -475,21 +479,33 @@ void AVIOutput_ReleaseVideo (void)
 
 static int AVIOutput_AllocateVideo (void)
 {
-	avioutput_width = WIN32GFX_GetWidth ();
-	avioutput_height = WIN32GFX_GetHeight ();
-	avioutput_bits = WIN32GFX_GetDepth (0);
+	avioutput_width = avioutput_height = avioutput_bits = 0;
+
+	avioutput_fps = vblank_hz;
+	if (!avioutput_fps)
+		avioutput_fps = ispal () ? 50 : 60;
+	if (avioutput_originalsize)
+		getfilterbuffer (&avioutput_width, &avioutput_height, NULL, &avioutput_bits);
+
+	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
+		avioutput_width = WIN32GFX_GetWidth ();
+		avioutput_height = WIN32GFX_GetHeight ();
+		avioutput_bits = WIN32GFX_GetDepth (0);
+	}
 
 	AVIOutput_Initialize ();
 	AVIOutput_ReleaseVideo ();
-	if (!avioutput_width || !avioutput_height || !avioutput_bits) {
+	if (avioutput_width == 0 || avioutput_height == 0) {
 		avioutput_width = workprefs.gfx_size.width;
 		avioutput_height = workprefs.gfx_size.height;
-		avioutput_bits = 24;
+		avioutput_bits = WIN32GFX_GetDepth (0);
 	}
+	if (avioutput_bits == 0)
+		avioutput_bits = 24;
 	if (avioutput_bits > 24)
 		avioutput_bits = 24;
 	lpbi = xcalloc (lpbisize (), 1);
-	lpbi->biSize = sizeof(BITMAPINFOHEADER);
+	lpbi->biSize = sizeof (BITMAPINFOHEADER);
 	lpbi->biWidth = avioutput_width;
 	lpbi->biHeight = avioutput_height;
 	lpbi->biPlanes = 1;
@@ -824,6 +840,8 @@ void AVIOutput_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
 		rgb_type = 1;
 	else if (bs == 0 && gs == 8 && rs == 16)
 		rgb_type = 2;
+	else if (bs == 0 && gs == 5 && rs == 10)
+		rgb_type = 3;
 	else
 		rgb_type = 0;
 }
@@ -831,20 +849,26 @@ void AVIOutput_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
 #if defined (GFXFILTER)
 extern uae_u8 *bufmem_ptr;
 
-static int getFromBuffer (struct avientry *ae)
+static int getFromBuffer (struct avientry *ae, int original)
 {
-	int x, y;
+	int x, y, w, h, d;
 	uae_u8 *src;
 	uae_u8 *dst = ae->lpVideo;
-	int pitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
+	int spitch, dpitch;
 
-	src = bufmem_ptr;
+	dpitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
+	if (original) {
+		src = getfilterbuffer (&w, &h, &spitch, &d);
+	} else {
+		spitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
+		src = bufmem_ptr;
+	}
 	if (!src)
 		return 0;
-	dst += pitch * avioutput_height;
+	dst += dpitch * avioutput_height;
 	for (y = 0; y < (gfxvidinfo.height > avioutput_height ? avioutput_height : gfxvidinfo.height); y++) {
 		uae_u8 *d;
-		dst -= pitch;
+		dst -= dpitch;
 		d = dst;
 		for (x = 0; x < (gfxvidinfo.width > avioutput_width ? avioutput_width : gfxvidinfo.width); x++) {
 			if (avioutput_bits == 8) {
@@ -852,7 +876,11 @@ static int getFromBuffer (struct avientry *ae)
 			} else if (avioutput_bits == 16) {
 				uae_u16 v = ((uae_u16*)src)[x];
 				uae_u16 v2 = v;
-				if (rgb_type) {
+				if (rgb_type == 3) {
+					v2 = v & 31;
+					v2 |= ((v & (31 << 5)) << 1) | (((v >> 5) & 1) << 5);
+					v2 |= (v & (31 << 10)) << 1;
+				} else if (rgb_type) {
 					v2 = v & 31;
 					v2 |= (v >> 1) & (31 << 5);
 					v2 |= (v >> 1) & (31 << 10);
@@ -870,7 +898,7 @@ static int getFromBuffer (struct avientry *ae)
 				*d++ = v >> 16;
 			}
 		}
-		src += gfxvidinfo.rowbytes;
+		src += spitch;
 	}
 	return 1;
 }
@@ -891,14 +919,18 @@ void AVIOutput_WriteVideo (void)
 		dorestart ();
 	waitqueuefull ();
 	ae = allocavientry_video ();
+	if (avioutput_originalsize && !WIN32GFX_IsPicassoScreen ()) {
+		v = getFromBuffer (ae, 1);
+	} else {
 #if defined (GFXFILTER)
-	if (!usedfilter || (usedfilter && usedfilter->x[0]) || WIN32GFX_IsPicassoScreen ())
-		v = getFromDC (ae);
-	else
-		v = getFromBuffer (ae);
+		if (!usedfilter || (usedfilter && usedfilter->x[0]) || WIN32GFX_IsPicassoScreen ())
+			v = getFromDC (ae);
+		else
+			v = getFromBuffer (ae, 0);
 #else
-	v = getFromDC (avie);
+		v = getFromDC (avie);
 #endif
+	}
 	if (v)
 		queueavientry (ae);
 	else

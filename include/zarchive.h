@@ -92,6 +92,7 @@ struct zarchive_info
 #define ArchiveFormatRDB 'RDSK'
 #define ArchiveFormatMBR 'MBR '
 #define ArchiveFormatFAT 'FAT '
+#define ArchiveFormatTAR 'tar '
 
 extern int zfile_is_ignore_ext(const TCHAR *name);
 
@@ -123,6 +124,8 @@ extern struct zfile *archive_access_rdb (struct znode *zn);
 extern struct zvolume *archive_directory_fat (struct zfile *z);
 extern struct zfile *archive_access_fat (struct znode *zn);
 extern struct zfile *archive_access_dir (struct znode *zn);
+extern struct zvolume *archive_directory_tar (struct zfile *zf);
+extern struct zfile *archive_access_tar (struct znode *zn);
 
 extern struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int doselect, int *retcode, int index);
 extern struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id, int *retcode);

@@ -164,8 +164,10 @@ static void dolist (struct arcdir **filelist, struct arcdir *adp, int entries, i
 
 				for (j = 0; j < level; j++)
 					_tprintf (L" ");
-				if (ad->iscrc)
+				if (ad->iscrc > 0)
 					_stprintf (crcs, L"%08X", ad->crc32);
+				else if (ad->iscrc < 0)
+					_tcscpy (crcs, L"????????");
 				else
 					_tcscpy (crcs, L"--------");
 				if (ad->isdir > 0)
@@ -247,11 +249,15 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 		comment = 0;
 		zfile_fill_file_attrs_archive (p, &isdir, &flags, &comment);
 		flags ^= 15;
-		if (!isdir && st.st_size < 1024 * 1024 * 2 && st.st_size > 0) {
-			zf = zfile_open_archive (p, 0);
-			if (zf) {
-				crc32 = zfile_crc32 (zf);
-				iscrc = 1;
+		if (!isdir) {
+			if (0 && st.st_size >= 2 * 1024 * 1024) {
+				iscrc = -1;
+			} else if (st.st_size > 0) {
+				zf = zfile_open_archive (p, 0);
+				if (zf) {
+					crc32 = zfile_crc32 (zf);
+					iscrc = 1;
+				}
 			}
 		}
 
@@ -692,7 +698,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.7 by Toni Wilen (c)2009\n");
+		_tprintf (L"UAE unpacker uaeunp 0.8 by Toni Wilen (c)2009\n");
 		_tprintf (L"\n");
 		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
@@ -717,6 +723,12 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 }
 
 /*
+
+0.8:
+
+- tar support
+- some fixes and improvements
+
 0.7:
 
 - vhd read support
