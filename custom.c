@@ -183,6 +183,7 @@ uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
+static int hstrt_nodetect;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -579,7 +580,7 @@ static void decide_diw (int hpos)
 	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455 */
 	int pix_hpos = coord_diw_to_window_x (hpos == maxhpos ? hpos * 2 + 1 : hpos * 2);
 	if (hdiwstate == DIW_waiting_start && thisline_decision.diwfirstword == -1
-		&& pix_hpos >= diwfirstword && last_diw_pix_hpos < diwfirstword)
+		&& pix_hpos >= diwfirstword && !hstrt_nodetect && last_diw_pix_hpos < diwfirstword)
 	{
 		thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
 		hdiwstate = DIW_waiting_stop;
@@ -2814,6 +2815,9 @@ static void calcdiw (void)
 		if ((vstop & 0x80) == 0)
 			vstop |= 0x100;
 	}
+
+	// hstrt <= 1: diw start detector not active
+	hstrt_nodetect = hstrt <= 1;
 
 	diwfirstword = coord_diw_to_window_x (hstrt);
 	diwlastword = coord_diw_to_window_x (hstop);

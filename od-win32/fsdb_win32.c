@@ -268,9 +268,11 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
 }
 
 /* Return nonzero for any name we can't create on the native filesystem.  */
-int fsdb_name_invalid (const TCHAR *n)
+static int fsdb_name_invalid_2 (const TCHAR *n)
 {
 	int i;
+	static char s1[MAX_DPATH];
+	static WCHAR s2[MAX_DPATH];
 	TCHAR a = n[0];
 	TCHAR b = (a == '\0' ? a : n[1]);
 	TCHAR c = (b == '\0' ? b : n[2]);
@@ -299,7 +301,7 @@ int fsdb_name_invalid (const TCHAR *n)
 	/* spaces and periods at the end are a no-no */
 	i = l - 1;
 	if (n[i] == '.' || n[i] == ' ')
-		return 1;
+		return -1;
 
 	/* these characters are *never* allowed */
 	for (i = 0; i < NUM_EVILCHARS; i++) {
@@ -309,8 +311,25 @@ int fsdb_name_invalid (const TCHAR *n)
 
 	/* the reserved fsdb filename */
 	if (_tcscmp (n, FSDB_FILE) == 0)
+		return -1;
+
+	s1[0] = 0;
+	s2[0] = 0;
+	ua_fs_copy (s1, MAX_DPATH, n);
+	au_fs_copy (s2, MAX_DPATH, s1);
+	if (_tcsicmp (s2, n) != 0)
 		return 1;
+
 	return 0; /* the filename passed all checks, now it should be ok */
+}
+
+int fsdb_name_invalid (const TCHAR *n)
+{
+	int v = fsdb_name_invalid_2 (n);
+	if (v <= 0)
+		return v;
+	write_log (L"FILESYS: '%s' illegal filename\n", n);
+	return v;
 }
 
 uae_u32 filesys_parse_mask(uae_u32 mask)

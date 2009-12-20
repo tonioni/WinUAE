@@ -860,7 +860,7 @@ static int getFromBuffer (struct avientry *ae, int original)
 	if (original) {
 		src = getfilterbuffer (&w, &h, &spitch, &d);
 	} else {
-		spitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
+		spitch = gfxvidinfo.rowbytes;
 		src = bufmem_ptr;
 	}
 	if (!src)

@@ -2673,6 +2673,39 @@ struct zfile *read_rom_name (const TCHAR *filename)
 	return f;
 }
 
+struct zfile *read_rom_name_guess (const TCHAR *filename)
+{
+	int i, j;
+	struct zfile *f;
+	TCHAR *name;
+
+	for (i = _tcslen (filename) - 1; i >= 0; i--) {
+		if (filename[i] == '/' || filename[i] == '\\')
+			break;
+	}
+	if (i < 0)
+		return NULL;
+	name = &filename[i];
+
+	for (i = 0; i < romlist_cnt; i++) {
+		TCHAR *n = rl[i].path;
+		for (j = _tcslen (n) - 1; j >= 0; j--) {
+			if (n[j] == '/' || n[j] == '\\')
+				break;
+		}
+		if (j < 0)
+			continue;
+		if (!_tcsicmp (name, n + j)) {
+			struct romdata *rd = rl[i].rd;
+			f = read_rom (&rd);
+			if (f) {
+				write_log (L"ROM %s not found, using %s\n", filename, rl[i].path);
+				return f;
+			}
+		}
+	}
+	return NULL;
+}
 
 static void kickstart_fix_checksum (uae_u8 *mem, int size)
 {
@@ -2931,6 +2964,8 @@ static int load_kickstart (void)
 					if (f == NULL) {
 						_stprintf (currprefs.romfile, L"%s../System/rom/kick.rom", start_path_data);
 						f = rom_fopen (currprefs.romfile, L"rb", ZFD_NORMAL);
+						if (f == NULL)
+							f = read_rom_name_guess (tmprom);
 					}
 				}
 			}

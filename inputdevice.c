@@ -1016,7 +1016,7 @@ static void mousehack_enable (void)
 		mode |= 1;
 	if (inputdevice_is_tablet () > 0)
 		mode |= 2;
-	write_log (L"Tablet driver enabled (%s)\n", ((mode & 3) == 3 ? "tablet+mousehack" : ((mode & 3) == 2) ? "tablet" : "mousehack"));
+	write_log (L"Mouse driver enabled (%s)\n", ((mode & 3) == 3 ? L"tablet+mousehack" : ((mode & 3) == 2) ? L"tablet" : L"mousehack"));
 	rtarea[off + MH_E] = 0x80;
 }
 
@@ -1057,7 +1057,7 @@ void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecpt
 		dimensioninfo_dbl = (props & 0x00020000) ? 1 : 0;
 		write_log (L"%08x %08x %08x (%dx%d)-(%dx%d) d=%dx%d %s\n",
 			diminfo, props, vp, x1, y1, x2, y2, vp_xoffset, vp_yoffset,
-			(props & 0x00020000) ? "dbl" : "");
+			(props & 0x00020000) ? L"dbl" : L"");
 	} else if (mode == 2) {
 		if (mousehack_alive_cnt == 0)
 			mousehack_alive_cnt = -100;
@@ -1362,7 +1362,7 @@ static void mousehack_helper (void)
 	int x, y;
 	int fdy, fdx, fmx, fmy;
 
-	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet < TABLET_MOUSEHACK)
+	if (currprefs.input_magic_mouse == 0 && currprefs.input_tablet < TABLET_MOUSEHACK)
 		return;
 #if 0
 	if (kickstart_version >= 36) {
@@ -1390,6 +1390,14 @@ static void mousehack_helper (void)
 		y = y * fmy / 1000;
 		x -= fdx * fmx / 1000 - 1;
 		y -= fdy * fmy / 1000 - 2;
+		if (x < 0)
+			x = 0;
+		if (x >= gfxvidinfo.width)
+			x = gfxvidinfo.width - 1;
+		if (y < 0)
+			y = 0;
+		if (y >= gfxvidinfo.height)
+			y = gfxvidinfo.height - 1;
 		x = coord_native_to_amiga_x (x);
 		y = coord_native_to_amiga_y (y) << 1;
 	}

@@ -2742,7 +2742,7 @@ static int cfgfile_handle_custom_event (TCHAR *custom, int mode)
 	int cnt = 0, cnt_ok = 0;
 
 	if (!mode) {
-		uae_u8 zero = 0;
+		TCHAR zero = 0;
 		configstore = zfile_fopen_empty ("configstore", 50000);
 		cfgfile_save_options (configstore, &currprefs, 0);
 		cfg_write (&zero, configstore);
@@ -3173,7 +3173,7 @@ void default_prefs (struct uae_prefs *p, int type)
 {
 	int i;
 	int roms[] = { 6, 7, 8, 9, 10, 14, 5, 4, 3, 2, 1, -1 };
-	uae_u8 zero = 0;
+	TCHAR zero = 0;
 	struct zfile *f;
 
 	memset (p, 0, sizeof (*p));

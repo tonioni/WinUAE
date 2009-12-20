@@ -1930,6 +1930,7 @@ static int WIN32_InitLibraries (void)
 		pre_gui_message (L"MMTimer second initialization failed, exiting..");
 		return 0;
 	}
+	write_log (L"ACP=%u\n", GetACP ());
 	pSetCurrentProcessExplicitAppUserModelID = (SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD)GetProcAddress (
 		GetModuleHandle (L"shell32.dll"), "SetCurrentProcessExplicitAppUserModelID");
 	if (pSetCurrentProcessExplicitAppUserModelID)
@@ -4285,6 +4286,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		WIN32_InitLang ();
 		WIN32_InitHtmlHelp ();
 		DirectDraw_Release ();
+		unicode_init ();
 		if (betamessage ()) {
 			keyboard_settrans ();
 #ifdef CATWEASEL

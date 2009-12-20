@@ -69,23 +69,6 @@ static uae_u32 dlg (uae_u32 a)
 	return (dbg (a + 0) << 24) | (dbg (a + 1) << 16) | (dbg (a + 2) << 8) | (dbg (a + 3) << 0);
 }
 
-static char *ua_fs (const TCHAR *src)
-{
-	return uacp (src, currprefs.win32_fscodepage);
-}
-static TCHAR *au_fs (const char *src)
-{
-	return aucp (src, currprefs.win32_fscodepage);
-}
-static TCHAR *au_fs_copy (TCHAR *dst, int maxlen, const char *src)
-{
-	return aucp_copy (dst, maxlen, src, currprefs.win32_fscodepage);
-}
-static char *ua_fs_copy (char *dst, int maxlen, const TCHAR *src)
-{
-	return uacp_copy (dst, maxlen, src, currprefs.win32_fscodepage);
-}
-
 static void aino_test (a_inode *aino)
 {
 #ifdef AINO_DEBUG

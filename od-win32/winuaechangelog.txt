@@ -1,4 +1,16 @@
 
+- if rom load fails, try to find matching rom file using rom scanner
+  data by comparing file names without paths
+- improved file/directory name Amiga<>unicode conversion 
+- hide directory filesystem file/directory names if they have characters
+  that do not exist in Amiga charset (again, was accidentally changed in
+  1.6.0), they would have been inaccessible anyway
+- non-tablet mouse driver mode was not enabled without magic mouse
+- fixed potential crash in mouse driver mode
+- "capture before filtering" not enabled mode was broken (b1)
+- DIWSTRT hpos <=1: DIW state machine does not change (stop hpos >
+  max was emulated long long time ago)
+
 Beta 1:
 
 - blitter linedraw onedot mode was partially broken in non-ce modes (2.0)
