@@ -18,9 +18,9 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"Beta 2"
-#define WINUAEDATE MAKEBD(2009, 12, 20)
-#define WINUAEEXTRA L""
+#define WINUAEBETA L"Beta 3"
+#define WINUAEDATE MAKEBD(2009, 12, 22)
+#define WINUAEEXTRA L"RC1"
 #define WINUAEREV L""
 
 #define IHF_WINDOWHIDDEN 6

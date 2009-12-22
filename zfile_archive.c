@@ -992,16 +992,19 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	zai.name = zfile_getfilename (z);
 	zai.flags = -1;
 	zfile_fseek(z, 0, SEEK_END);
-	zai.size = zfile_ftell(z);
+	zai.size = zfile_ftell (z);
+	zai.t = 
 	zfile_fseek(z, 0, SEEK_SET);
 	zfile_fread(id, sizeof id, 1, z);
 	zfile_fseek(z, 0, SEEK_SET);
 	zn = zvolume_addfile_abs (zv, &zai);
 	if (!memcmp (id, exeheader, sizeof id)) {
-		uae_u8 *data = xmalloc (1 + _tcslen (zai.name) + 1 + 2);
-		sprintf (data, "\"%s\"\n", zai.name);
+		uae_u8 *an = ua (zai.name);
+		uae_u8 *data = xmalloc (1 + strlen (an) + 1 + 1 + 1);
+		sprintf (data, "\"%s\"\n", an);
 		zn = addfile (zv, z, L"s/startup-sequence", data, strlen (data));
 		xfree (data);
+		xfree (an);
 	}
 	index = 0;
 	for (;;) {

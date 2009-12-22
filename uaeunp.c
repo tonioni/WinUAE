@@ -713,7 +713,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		_tprintf (L"Supported filesystems:\n");
 		_tprintf (L" OFS, FFS, SFS, SFS2 and FAT12\n");
 		_tprintf (L"Supported archive formats:\n");
-		_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), ZIP, ArchiveAccess.DLL\n");
+		_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), TAR, ZIP, ArchiveAccess.DLL\n");
 		_tprintf (L"Miscellaneous formats:\n");
 		_tprintf (L" RDB partition table, GZIP\n");
 
@@ -726,7 +726,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 
 0.8:
 
-- tar support
+- tar archive support
 - some fixes and improvements
 
 0.7:

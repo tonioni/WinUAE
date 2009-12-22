@@ -1930,7 +1930,6 @@ static int WIN32_InitLibraries (void)
 		pre_gui_message (L"MMTimer second initialization failed, exiting..");
 		return 0;
 	}
-	write_log (L"ACP=%u\n", GetACP ());
 	pSetCurrentProcessExplicitAppUserModelID = (SETCURRENTPROCESSEXPLICITAPPUSERMODEIDD)GetProcAddress (
 		GetModuleHandle (L"shell32.dll"), "SetCurrentProcessExplicitAppUserModelID");
 	if (pSetCurrentProcessExplicitAppUserModelID)

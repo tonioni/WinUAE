@@ -12,7 +12,7 @@
 //#define ROMHACK
 //#define ROMHACK2
 //#define CDTV_DEBUG
-#define CDTV_DEBUG_CMD
+//#define CDTV_DEBUG_CMD
 //#define CDTV_DEBUG_6525
 
 #include "sysconfig.h"
@@ -452,13 +452,14 @@ static void cdrom_command_thread (uae_u8 b)
 	{
 	case 0x01: /* seek */
 		if (cdrom_command_cnt_in == 7) {
+			sleep_millis (500);
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 			cd_finished = 1;
 		}
 		break;
 	case 0x02: /* read */
 		if (cdrom_command_cnt_in == 7) {
-			read_sectors((s[1] << 16) | (s[2] << 8) | (s[3] << 0), (s[4] << 8) | (s[5] << 0));
+			read_sectors ((s[1] << 16) | (s[2] << 8) | (s[3] << 0), (s[4] << 8) | (s[5] << 0));
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 		}
 		break;

@@ -232,7 +232,7 @@ void unicode_init (void)
 {
 	int i;
 
-	write_log (L"Filesystem charset conversion table:\n");
+	write_log (L"Filesystem charset (ACP=%u):\n", GetACP ());
 	for (i = 0; i < 256; i++) {
 		TCHAR dst1[2], dst2[2];
 		char src[2];

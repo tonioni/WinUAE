@@ -183,7 +183,7 @@ uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
-static int hstrt_nodetect;
+static int diw_hstrt;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -249,7 +249,7 @@ static int bplcon1_hpos;
 
 enum diw_states
 {
-	DIW_waiting_start, DIW_waiting_stop
+	DIW_waiting_start, DIW_waiting_stop, DIW_waiting_frozen
 };
 
 static int plffirstline, plflastline;
@@ -579,16 +579,18 @@ static void decide_diw (int hpos)
 {
 	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455 */
 	int pix_hpos = coord_diw_to_window_x (hpos == maxhpos ? hpos * 2 + 1 : hpos * 2);
-	if (hdiwstate == DIW_waiting_start && thisline_decision.diwfirstword == -1
-		&& pix_hpos >= diwfirstword && !hstrt_nodetect && last_diw_pix_hpos < diwfirstword)
+	if (pix_hpos >= diwfirstword && last_diw_pix_hpos < diwfirstword && hdiwstate == DIW_waiting_start)
 	{
-		thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
-		hdiwstate = DIW_waiting_stop;
+		if (thisline_decision.diwfirstword == -1)
+			thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
+		// hstrt < 2 and ECS Denise: horizontal diw start detector not active
+		if (diw_hstrt >= 2 || !(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+			hdiwstate = DIW_waiting_stop;
 	}
-	if (hdiwstate == DIW_waiting_stop && thisline_decision.diwlastword == -1
-		&& pix_hpos >= diwlastword && last_diw_pix_hpos < diwlastword)
+	if (pix_hpos >= diwlastword && last_diw_pix_hpos < diwlastword && hdiwstate == DIW_waiting_stop)
 	{
-		thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
+		if (thisline_decision.diwlastword == -1)
+			thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
 		hdiwstate = DIW_waiting_start;
 	}
 	last_diw_pix_hpos = pix_hpos;
@@ -1844,7 +1846,10 @@ STATIC_INLINE void decide_line (int hpos)
 {
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline) {
-		diwstate = DIW_waiting_stop;
+		if (diwstate == DIW_waiting_stop && last_decide_line_hpos < 2 && hpos > last_decide_line_hpos && diw_hstrt <= 2 && !(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+			diwstate = DIW_waiting_frozen; // OCS Denise bug
+		else if (hpos >= 2 && diwstate != DIW_waiting_frozen)
+			diwstate = DIW_waiting_stop;
 		ddf_change = vpos;
 	}
 	if (vpos == plflastline) {
@@ -2492,7 +2497,7 @@ static void finish_decisions (void)
 	/* Large DIWSTOP values can cause the stop position never to be
 	* reached, so the state machine always stays in the same state and
 	* there's a more-or-less full-screen DIW. */
-	if (hdiwstate == DIW_waiting_stop || thisline_decision.diwlastword > max_diwlastword)
+	if (hdiwstate == DIW_waiting_stop /* || thisline_decision.diwlastword > max_diwlastword */)
 		thisline_decision.diwlastword = max_diwlastword;
 
 	if (thisline_decision.diwfirstword != line_decisions[next_lineno].diwfirstword)
@@ -2816,8 +2821,7 @@ static void calcdiw (void)
 			vstop |= 0x100;
 	}
 
-	// hstrt <= 1: diw start detector not active
-	hstrt_nodetect = hstrt <= 1;
+	diw_hstrt = hstrt;
 
 	diwfirstword = coord_diw_to_window_x (hstrt);
 	diwlastword = coord_diw_to_window_x (hstop);
@@ -2889,10 +2893,10 @@ STATIC_INLINE uae_u16 DENISEID (void)
 		return currprefs.cs_deniserev;
 #ifdef AGA
 	if (currprefs.chipset_mask & CSMASK_AGA)
-		return 0xF8;
+		return 0x00F8;
 #endif
 	if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
-		return 0xFC;
+		return 0xFFFC;
 	return 0xffff;
 }
 STATIC_INLINE uae_u16 DMACONR (int hpos)
@@ -3566,8 +3570,10 @@ static void DIWSTOP (int hpos, uae_u16 v)
 
 static void DIWHIGH (int hpos, uae_u16 v)
 {
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
 		return;
+	if (!(currprefs.chipset_mask & CSMASK_AGA))
+		v &= ~(0x0008 | 0x0010 | 0x1000 | 0x0800);
 	v &= ~(0x8000 | 0x4000 | 0x0080 | 0x0040);
 	if (diwhigh_written && diwhigh == v)
 		return;
@@ -4577,7 +4583,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 			sprstartstop (s);
 		}
 	}
-	if (s->dmastate && !posctl) {
+	if (s->dmastate && !posctl && dma) {
 		uae_u16 data;
 
 		data = sprite_fetch (s, dma, hpos, cycle, 1);
@@ -4753,7 +4759,6 @@ static void init_hardware_frame (void)
 	prev_lineno = -1;
 	nextline_how = nln_normal;
 	diwstate = DIW_waiting_start;
-	hdiwstate = DIW_waiting_start;
 	ddfstate = DIW_waiting_start;
 	first_planes_vpos = 0;
 	last_planes_vpos = 0;
@@ -5576,6 +5581,7 @@ void customreset (int hardreset)
 
 		diwhigh = 0;
 		diwhigh_written = 0;
+		hdiwstate = DIW_waiting_start; // this does not reset at vblank
 
 		FMODE (0, 0);
 		CLXCON (0);
@@ -5620,7 +5626,6 @@ void customreset (int hardreset)
 	bltstate = BLT_done;
 	cop_state.state = COP_stop;
 	diwstate = DIW_waiting_start;
-	hdiwstate = DIW_waiting_start;
 	set_cycles (0);
 
 	hack_vpos = 0;
@@ -6399,7 +6404,8 @@ uae_u8 *restore_custom (uae_u8 *src)
 	hcenter = RW;		/* 1E2 HCENTER */
 	diwhigh = RW;		/* 1E4 DIWHIGH */
 	diwhigh_written = (diwhigh & 0x8000) ? 1 : 0;
-	diwhigh &= 0x7fff;
+	hdiwstate = (diwhigh & 0x4000) ? DIW_waiting_stop : DIW_waiting_start;
+	diwhigh &= 0x3fff;
 	RW;				/* 1E6 ? */
 	RW;				/* 1E8 ? */
 	RW;				/* 1EA ? */
@@ -6571,7 +6577,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (hsstrt);		/* 1DE HSSTRT */
 	SW (vsstrt);		/* 1E0 VSSTRT */
 	SW (hcenter);		/* 1E2 HCENTER */
-	SW (diwhigh | (diwhigh_written ? 0x8000 : 0)); /* 1E4 DIWHIGH */
+	SW (diwhigh | (diwhigh_written ? 0x8000 : 0) | (hdiwstate == DIW_waiting_stop ? 0x4000 : 0)); /* 1E4 DIWHIGH */
 	SW (0);			/* 1E6 */
 	SW (0);			/* 1E8 */
 	SW (0);			/* 1EA */
@@ -6634,6 +6640,7 @@ uae_u8 *save_custom_agacolors (int *len, uae_u8 *dstptr)
 
 uae_u8 *restore_custom_sprite (int num, uae_u8 *src)
 {
+	memset (&spr[num], 0, sizeof (struct sprite));
 	spr[num].pt = RL;		/* 120-13E SPRxPT */
 	sprpos[num] = RW;		/* 1x0 SPRxPOS */
 	sprctl[num] = RW;		/* 1x2 SPRxPOS */

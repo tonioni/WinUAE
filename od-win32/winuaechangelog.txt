@@ -1,7 +1,20 @@
 
+Beta 3: (RC1)
+
+- emulate OCS Denise "bug", vertical DIW already active, matches again
+  with horizontal start DIW=0 or 1 -> vertical DIW stops until next
+  frame. (Kefrens Megademo 8, Snake Bite part)
+- emulate ECS Denise (and AGA) "bug fix", horizontal start DIW=0 or 1
+  gets ignored. (=b2 fix -> ECS Denise/AGA only)
+- ECS Denise DENISEID register returned 0x00FC, correct is 0xFFFC
+- sometimes sprite was visible even if bitplane DMA should have
+  disabled it (older bug)
+
+Beta 2:
+
 - if rom load fails, try to find matching rom file using rom scanner
   data by comparing file names without paths
-- improved file/directory name Amiga<>unicode conversion 
+- improved file/directory name Amiga<>Windows conversion 
 - hide directory filesystem file/directory names if they have characters
   that do not exist in Amiga charset (again, was accidentally changed in
   1.6.0), they would have been inaccessible anyway
