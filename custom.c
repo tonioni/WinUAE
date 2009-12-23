@@ -2810,15 +2810,20 @@ static void calcdiw (void)
 	int vstrt = diwstrt >> 8;
 	int vstop = diwstop >> 8;
 
-	if (diwhigh_written) {
-		hstrt |= ((diwhigh >> 5) & 1) << 8;
-		hstop |= ((diwhigh >> 13) & 1) << 8;
+	// vertical in ECS Agnus
+	if (diwhigh_written && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		vstrt |= (diwhigh & 7) << 8;
 		vstop |= ((diwhigh >> 8) & 7) << 8;
 	} else {
-		hstop += 0x100;
 		if ((vstop & 0x80) == 0)
 			vstop |= 0x100;
+	}
+	// horizontal in ECS Denise
+	if (diwhigh_written && (currprefs.chipset_mask & CSMASK_ECS_DENISE)) {
+		hstrt |= ((diwhigh >> 5) & 1) << 8;
+		hstop |= ((diwhigh >> 13) & 1) << 8;
+	} else {
+		hstop += 0x100;
 	}
 
 	diw_hstrt = hstrt;
@@ -2892,8 +2897,11 @@ STATIC_INLINE uae_u16 DENISEID (void)
 	if (currprefs.cs_deniserev >= 0)
 		return currprefs.cs_deniserev;
 #ifdef AGA
-	if (currprefs.chipset_mask & CSMASK_AGA)
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		if (currprefs.cs_ide == IDE_A4000)
+			return 0xFCF8;
 		return 0x00F8;
+	}
 #endif
 	if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
 		return 0xFFFC;
@@ -2942,7 +2950,7 @@ STATIC_INLINE int GETHPOS (void)
 	return islightpentriggered () ? hpos_lpen : (issyncstopped () ? hpos_previous : current_hpos ());
 }
 
-#define HPOS_OFFSET 3
+#define HPOS_OFFSET 4
 
 STATIC_INLINE uae_u16 VPOSR (void)
 {
@@ -3570,7 +3578,7 @@ static void DIWSTOP (int hpos, uae_u16 v)
 
 static void DIWHIGH (int hpos, uae_u16 v)
 {
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+	if (!(currprefs.chipset_mask & (CSMASK_ECS_DENISE | CSMASK_ECS_AGNUS)))
 		return;
 	if (!(currprefs.chipset_mask & CSMASK_AGA))
 		v &= ~(0x0008 | 0x0010 | 0x1000 | 0x0800);

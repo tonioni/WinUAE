@@ -2,13 +2,13 @@
 Beta 3: (RC1)
 
 - emulate OCS Denise "bug", vertical DIW already active, matches again
-  with horizontal start DIW=0 or 1 -> vertical DIW stops until next
+  with horizontal start DIW=0 or 1 -> DIW stays inactive until next
   frame. (Kefrens Megademo 8, Snake Bite part)
 - emulate ECS Denise (and AGA) "bug fix", horizontal start DIW=0 or 1
   gets ignored. (=b2 fix -> ECS Denise/AGA only)
-- ECS Denise DENISEID register returned 0x00FC, correct is 0xFFFC
 - sometimes sprite was visible even if bitplane DMA should have
   disabled it (older bug)
+- ECS Denise DENISEID register returned 0x00FC, correct is 0xFFFC
 
 Beta 2:
 
