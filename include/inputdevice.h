@@ -114,6 +114,8 @@ extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
 extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans);
 extern int handle_input_event (int nr, int state, int max, int autofire);
 extern void inputdevice_do_keyboard (int code, int state);
+extern int inputdevice_iskeymapped (int keyboard, int scancode);
+extern int inputdevice_synccapslock (int, int*);
 
 extern uae_u16 potgo_value;
 extern uae_u16 POTGOR (void);

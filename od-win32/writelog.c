@@ -274,6 +274,24 @@ void console_out (const TCHAR *txt)
 	writeconsole (txt);
 }
 
+TCHAR console_getch (void)
+{
+	if (realconsole) {
+		return getwc (stdin);
+	} else if (consoleopen < 0) {
+		DWORD len;
+		TCHAR out[2];
+		
+		for (;;) {
+			out[0] = 0;
+			ReadConsole (stdinput, out, 1, &len, 0);
+			if (len > 0)
+				return out[0];
+		}
+	}
+	return 0;
+}
+
 int console_get (TCHAR *out, int maxlen)
 {
 	*out = 0;
@@ -281,8 +299,20 @@ int console_get (TCHAR *out, int maxlen)
 	if (consoleopen > 0) {
 		return console_get_gui (out, maxlen);
 	} else if (realconsole) {
-		_fgetts (out, maxlen, stdin);
-		return _tcslen (out);
+		DWORD totallen;
+
+		*out = 0;
+		totallen = 0;
+		while (maxlen > 0) {
+			*out = getwc (stdin);
+			if (*out == 13)
+				break;
+			out++;
+			maxlen--;
+			totallen++;
+		}
+		*out = 0;
+		return totallen;
 	} else if (consoleopen < 0) {
 		DWORD len, totallen;
 

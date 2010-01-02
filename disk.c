@@ -74,7 +74,7 @@ static int longwritemode = 0;
 * W number of tracks (default 2*80=160)
 *
 * W reserved
-* W type, 0=normal AmigaDOS track, 1 = raw MFM
+* W type, 0=normal AmigaDOS track, 1 = raw MFM (upper byte = disk revolutions - 1)
 * L available space for track in bytes (must be even)
 * L track length in bits
 */
@@ -114,6 +114,7 @@ typedef struct {
 	int bitlen, track;
 	unsigned int sync;
 	image_tracktype type;
+	int revolutions;
 } trackid;
 
 #define MAX_TRACKS (2 * 83)
@@ -153,6 +154,7 @@ typedef struct {
 	int mfmpos;
 	int indexoffset;
 	int tracklen;
+	int revolutions;
 	int prevtracklen;
 	int trackspeed;
 	int dmalen;
@@ -620,7 +622,7 @@ static void reset_drive(int i)
 	drv->dskchange_time = 0;
 	drv->buffered_cyl = -1;
 	drv->buffered_side = -1;
-	gui_led (i + 1, 0);
+	gui_led (i + LED_DF0, 0);
 	drive_settype_id (drv);
 	_tcscpy (currprefs.df[i], changed_prefs.df[i]);
 	drv->newname[0] = 0;
@@ -647,7 +649,7 @@ static void update_drive_gui (int num)
 	gui_data.drive_track[num] = drv->cyl;
 	gui_data.drive_side = side;
 	gui_data.drive_writing[num] = writ;
-	gui_led (num + 1, gui_data.drive_motor[num]);
+	gui_led (num + LED_DF0, gui_data.drive_motor[num]);
 }
 
 static void drive_fill_bigbuf (drive * drv,int);
@@ -699,6 +701,7 @@ static void updatemfmpos (drive *drv)
 static void track_reset (drive *drv)
 {
 	drv->tracklen = FLOPPY_WRITE_LEN * drv->ddhd * 2 * 8;
+	drv->revolutions = 1;
 	drv->trackspeed = get_floppy_speed ();
 	drv->buffered_side = -1;
 	drv->skipoffset = -1;
@@ -725,7 +728,8 @@ static int read_header_ext2 (struct zfile *diskfile, trackid *trackdata, int *nu
 	for (i = 0; i < (*num_tracks); i++) {
 		tid = trackdata + i;
 		zfile_fread (buffer, 2 + 2 + 4 + 4, 1, diskfile);
-		tid->type = buffer[2] * 256 + buffer[3];
+		tid->type = buffer[3];
+		tid->revolutions = buffer[2] + 1;
 		tid->len = buffer[5] * 65536 + buffer[6] * 256 + buffer[7];
 		tid->bitlen = buffer[9] * 65536 + buffer[10] * 256 + buffer[11];
 		tid->offs = offs;
@@ -966,6 +970,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			tid->sync = buffer[0] * 256 + buffer[1];
 			tid->len = buffer[2] * 256 + buffer[3];
 			tid->offs = offs;
+			tid->revolutions = 1;
 			if (tid->sync == 0) {
 				tid->type = TRACK_AMIGADOS;
 				tid->bitlen = 0;
@@ -991,6 +996,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			tid->len = 512 * drv->num_secs;
 			tid->bitlen = 0;
 			tid->offs = i * 512 * drv->num_secs;
+			tid->revolutions = 1;
 		}
 		drv->useturbo = 1;
 
@@ -1040,6 +1046,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 					tid->type = TRACK_NONE;
 					tid->len = 512 * drv->num_secs;
 				}
+				tid->revolutions = 1;
 				tid++;
 
 			}
@@ -1093,6 +1100,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			tid->len = 512 * drv->num_secs;
 			tid->bitlen = 0;
 			tid->offs = i * 512 * drv->num_secs;
+			tid->revolutions = 1;
 		}
 	}
 	openwritefile (drv, 0);
@@ -1577,11 +1585,13 @@ static void drive_fill_bigbuf (drive * drv, int force)
 	drv->multi_revolution = 0;
 	drv->tracktiming[0] = 0;
 	drv->skipoffset = -1;
+	drv->revolutions = 1;
 
 	if (drv->writediskfile && drv->writetrackdata[tr].bitlen > 0) {
 		int i;
 		trackid *wti = &drv->writetrackdata[tr];
 		drv->tracklen = wti->bitlen;
+		drv->revolutions = wti->revolutions;
 		read_floppy_data (drv->writediskfile, wti, 0, (uae_u8*)drv->bigmfmbuf, (wti->bitlen + 7) / 8);
 		for (i = 0; i < (drv->tracklen + 15) / 16; i++) {
 			uae_u16 *mfm = drv->bigmfmbuf + i;
@@ -1660,10 +1670,12 @@ static void diskfile_update (struct zfile *diskfile, trackid *ti, int len, uae_u
 {
 	uae_u8 buf[2 + 2 + 4 + 4], *zerobuf;
 
+	ti->revolutions = 1;
 	ti->bitlen = len;
 	zfile_fseek (diskfile, 8 + 4 + (2 + 2 + 4 + 4) * ti->track, SEEK_SET);
 	memset (buf, 0, sizeof buf);
 	ti->type = type;
+	buf[2] = 0;
 	buf[3] = ti->type;
 	do_put_mem_long ((uae_u32 *) (buf + 4), ti->len);
 	do_put_mem_long ((uae_u32 *) (buf + 8), ti->bitlen);

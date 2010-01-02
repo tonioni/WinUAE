@@ -295,6 +295,8 @@ static void *scgo_getbuf (SCSI *scgp, long amt)
 
 static void scsi_sfree (SCSI *scgp)
 {
+	if (!scgp)
+		return;
 	if (scgp->cmdstart)
 		free(scgp->cmdstart);
 	if (scgp->cmdstop)
@@ -367,6 +369,7 @@ static SCSI *openscsi (int busno, int tgt, int tlun)
 		errno = EINVAL;
 		if (log_scsi)
 			write_log (L"ASPI: Illegal value for busno, target or lun '%d,%d,%d'\n", busno, tgt, tlun);
+		scsi_sfree (scgp);
 		return 0;
 	}
 	/*
@@ -379,23 +382,29 @@ static SCSI *openscsi (int busno, int tgt, int tlun)
 		;
 	} else if (tgt != -1 || tgt != -1 || tlun != -1) {
 		errno = EINVAL;
+		scsi_sfree (scgp);
 		return 0;
 	}
 	if (scgp->local == NULL) {
 		scgp->local = malloc(sizeof(struct scg_local));
-		if (scgp->local == NULL)
+		if (scgp->local == NULL) {
+			scsi_sfree (scgp);
 			return 0;
+		}
 	}
 	/*
 	* Try to open ASPI-Router
 	*/
-	if (!open_driver(scgp))
+	if (!open_driver(scgp)) {
+		scsi_sfree (scgp);
 		return 0;
+	}
 	/*
 	* More than we have ...
 	*/
 	if (busno >= busses) {
 		close_driver ();
+		scsi_sfree (scgp);
 		return 0;
 	}
 	return scgp;
@@ -746,9 +755,9 @@ static void aspi_led (int unitnum)
 	int type = si[unitnum].type;
 
 	if (type == INQ_ROMD)
-		gui_cd_led (unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, 1);
 	else if (type == INQ_DASD)
-		gui_hd_led (unitnum, 1);
+		gui_flicker_led (LED_HD, unitnum, 1);
 }
 
 static uae_sem_t scgp_sem;

@@ -492,7 +492,7 @@ static uae_u8 *spti_read (int unitnum, int sector, int sectorsize)
 	cmd[3] = (uae_u8)(sector >> 16);
 	cmd[4] = (uae_u8)(sector >> 8);
 	cmd[5] = (uae_u8)(sector >> 0);
-	gui_cd_led (unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, 1);
 	memset (&swb, 0, sizeof (swb));
 	memcpy (swb.spt.Cdb, cmd, len);
 	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
@@ -535,7 +535,7 @@ uae_u8 *ioctl_command_rawread (int unitnum, int sector, int sectorsize)
 	if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048)
 		return 0;
 	while (cnt-- > 0) {
-		gui_cd_led (unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, 1);
 		seterrormode (unitnum);
 		rri.DiskOffset.QuadPart = sector * 2048;
 		rri.SectorCount = 1;
@@ -564,7 +564,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 	if (!open_createfile (unitnum, 0))
 		return 0;
 	while (cnt-- > 0) {
-		gui_cd_led (unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, 1);
 		seterrormode (unitnum);
 		if (SetFilePointer (ciw32[unitnum].h, sector * ciw32[unitnum].blocksize, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
 			reseterrormode (unitnum);
@@ -577,7 +577,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 	}
 	cnt = 3;
 	while (cnt-- > 0) {
-		gui_cd_led (unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, 1);
 		seterrormode (unitnum);
 		if (write) {
 			if (!WriteFile (ciw32[unitnum].h, p, blocksize, &dtotal, 0)) {
@@ -622,7 +622,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 			}
 		}
 		reseterrormode (unitnum);
-		gui_cd_led (unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, 1);
 		break;
 	}
 	*ptr = p;
@@ -709,7 +709,7 @@ static uae_u8 *ioctl_command_toc (int unitnum)
 
 	if (!open_createfile (unitnum, 0))
 		return 0;
-	gui_cd_led (unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, 1);
 	while (cnt-- > 0) {
 		seterrormode (unitnum);
 		if (!DeviceIoControl (ciw32[unitnum].h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof(CDROM_TOC), &len, NULL)) {
@@ -758,7 +758,7 @@ static uae_u8 *ioctl_command_toc (int unitnum)
 		p[10] = toc->TrackData[i].Address[3];
 		p += 11;
 	}
-	gui_cd_led (unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, 1);
 	return ciw32[unitnum].tempbuffer;
 }
 

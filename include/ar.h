@@ -52,8 +52,6 @@ extern void REGPARAM3 chipmem_lput_actionreplay1 (uaecptr addr, uae_u32 l) REGPA
 
 extern void action_replay_version (void);
 
-extern void descramble_nordicpro (uae_u8*, int, int);
-
 extern int hrtmon_flag;
 
 extern void hrtmon_enter (void);

@@ -129,6 +129,7 @@ struct uae_input_device2 {
 
 static struct uae_input_device2 joysticks2[MAX_INPUT_DEVICES];
 static struct uae_input_device2 mice2[MAX_INPUT_DEVICES];
+static uae_u8 scancodeused[MAX_INPUT_DEVICES][256];
 
 static int input_acquired;
 static int testmode;
@@ -3040,6 +3041,7 @@ static void scanevents (struct uae_prefs *p)
 			}
 		}
 	}
+	memset (scancodeused, 0, sizeof scancodeused);
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		use_keyboards[i] = 0;
 		if (keyboards[i].enabled && i < idev[IDTYPE_KEYBOARD].get_num()) {
@@ -3052,6 +3054,8 @@ static void scanevents (struct uae_prefs *p)
 					isparport (ei);
 					ismouse (ei);
 					isdigitalbutton (ei);
+					if (ei > 0)
+						scancodeused[i][keyboards[i].extra[j][k]] = 1;
 				}
 				j++;
 			}
@@ -3432,13 +3436,16 @@ static void set_kbr_default (struct uae_prefs *p, int index, int num)
 				while (trans[l].scancode >= 0) {
 					if (kbr->extra[i][0] == trans[l].scancode) {
 						for (k = 0; k < MAX_INPUT_SUB_EVENT; k++) {
-							if (kbr->eventid[i][k] == 0) break;
+							if (kbr->eventid[i][k] == 0)
+								break;
 						}
 						if (k == MAX_INPUT_SUB_EVENT) {
 							write_log (L"corrupt default keyboard mappings\n");
 							return;
 						}
 						kbr->eventid[i][k] = trans[l].event;
+						if (trans[l].event == INPUTEVENT_KEY_CAPS_LOCK)
+							kbr->flags[i][k] |= ID_FLAG_TOGGLE;
 						break;
 					}
 					l++;
@@ -3477,6 +3484,38 @@ void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans)
 	keyboard_default = trans;
 }
 
+int inputdevice_iskeymapped (int keyboard, int scancode)
+{
+	struct uae_input_device *na = &keyboards[keyboard];
+
+	if (!keyboards || scancode < 0)
+		return 0;
+	return scancodeused[keyboard][scancode];
+}
+
+int inputdevice_synccapslock (int oldcaps, int *capstable)
+{
+	struct uae_input_device *na = &keyboards[0];
+	int j, i;
+	
+	if (!keyboards)
+		return -1;
+	for (j = 0; na->extra[j][0]; j++) {
+		if (na->extra[j][0] == INPUTEVENT_KEY_CAPS_LOCK) {
+			for (i = 0; capstable[i]; i += 2) {
+				if (na->extra[j][0] == capstable[i]) {
+					if (oldcaps != capstable[i + 1]) {
+						oldcaps = capstable[i + 1];
+						inputdevice_translatekeycode (0, capstable[i], oldcaps ? -1 : 0);
+					}
+					return i;
+				}
+			}
+		}
+	}
+	return -1;
+}
+
 static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state)
 {
 	struct uae_input_device *na = &keyboards[keyboard];
@@ -3493,6 +3532,21 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 				int toggle = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_TOGGLE) ? 1 : 0;
 				int evt = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
 				int toggled;
+
+				// if evt == caps and scan == caps: sync with native caps led
+				if (evt == INPUTEVENT_KEY_CAPS_LOCK) {
+					int v;
+					if (state < 0)
+						state = 1;
+					v = target_checkcapslock (scancode, &state);
+					if (v < 0)
+						continue;
+					if (v > 0)
+						toggle = 0;
+				} else if (state < 0) {
+					// it was caps lock resync, ignore, not mapped to caps
+					continue;
+				}
 
 				if (toggle) {
 					if (!state)
@@ -3543,7 +3597,7 @@ int inputdevice_translatekeycode (int keyboard, int scancode, int state)
 {
 	if (inputdevice_translatekeycode_2 (keyboard, scancode, state))
 		return 1;
-	if (currprefs.mmkeyboard)
+	if (currprefs.mmkeyboard && scancode > 0)
 		sendmmcodes (scancode, state);
 	return 0;
 }

@@ -33,6 +33,7 @@
 #include "inputdevice.h"
 #include "crc32.h"
 #include "cpummu.h"
+#include "rommgr.h"
 
 int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -112,8 +113,6 @@ static TCHAR help[] = {
 	L"  od                    Enable/disable Copper vpos/hpos tracing\n"
 	L"  ot                    Copper single step trace\n"
 	L"  ob <addr>             Copper breakpoint\n"
-	L"  O                     Display bitplane offsets\n"
-	L"  O <plane> <offset>    Offset a bitplane\n"
 	L"  H[H] <cnt>            Show PC history (HH=full CPU info) <cnt> instructions\n"
 	L"  C <value>             Search for values like energy or lifes in games\n"
 	L"  Cl                    List currently found trainer addresses\n"
@@ -3201,16 +3200,6 @@ static void debug_1 (void)
 				break;
 			}
 		case 'O':
-			if (more_params (&inptr)) {
-				int plane = readint (&inptr);
-				int offs = readint (&inptr);
-				if (plane >= 0 && plane < 8)
-					bpl_off[plane] = offs;
-			} else {
-				int i;
-				for (i = 0; i < 8; i++)
-					console_out_f (L"Plane %d offset %d\n", i, bpl_off[i]);
-			}
 			break;
 		case 'b':
 			if (staterecorder (&inptr))

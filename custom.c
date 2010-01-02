@@ -176,6 +176,7 @@ int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_max = MAXVPOS_PAL;
 int minfirstline = VBLANK_ENDLINE_PAL;
+int equ_vblank_endline = EQU_ENDLINE_PAL;
 int vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_skip, doublescan;
 frame_time_t syncbase;
 static int fmode;
@@ -183,7 +184,8 @@ uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
-static int diw_hstrt;
+static int diw_hstrt, diw_hstop;
+static int diw_hcounter;
 
 #define HSYNCTIME (maxhpos * CYCLE_UNIT);
 
@@ -230,8 +232,6 @@ static int bpl1dat_written, bpl1dat_early;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
-/* Used as a debugging aid, to offset any bitplane temporarily.  */
-int bpl_off[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /*static int blitcount[256];  blitter debug */
 
@@ -257,11 +257,12 @@ int plffirstline_total, plflastline_total;
 static int plfstrt_start, plfstrt, plfstop;
 static int sprite_minx, sprite_maxx;
 static int first_bpl_vpos;
-static int last_diw_pix_hpos, last_ddf_pix_hpos;
+static int last_ddf_pix_hpos;
 static int last_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 static int diwfirstword, diwlastword;
 static int plfleft_real;
+static int last_hdiw;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
 int diwfirstword_total, diwlastword_total;
@@ -577,23 +578,56 @@ static void remember_ctable_for_border (void)
 * checked.  */
 static void decide_diw (int hpos)
 {
-	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455 */
-	int pix_hpos = coord_diw_to_window_x (hpos == maxhpos ? hpos * 2 + 1 : hpos * 2);
-	if (pix_hpos >= diwfirstword && last_diw_pix_hpos < diwfirstword && hdiwstate == DIW_waiting_start)
-	{
+	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455
+	   OCS Denise: 9 bit hdiw counter does not reset during lines 0 to 9
+	   (PAL) or lines 0 to 10 (NTSC)
+	   ECS Denise and AGA: no above "features"
+	*/
+
+	int hdiw = hpos == maxhpos ? hpos * 2 + 1 : hpos * 2 + 2;
+
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= equ_vblank_endline) {
+		if (vpos == equ_vblank_endline)
+			diw_hcounter++;
+		hdiw = diw_hcounter;
+		hdiw &= 511;
+	}
+	for (;;) {
+		int lhdiw = hdiw;
+		if (last_hdiw > lhdiw)
+			lhdiw = 512;
+
+		if (lhdiw >= diw_hstrt && last_hdiw < diw_hstrt && hdiwstate == DIW_waiting_start) {
+			if (thisline_decision.diwfirstword == -1)
+				thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
+			hdiwstate = DIW_waiting_stop;
+		}
+		if (lhdiw >= diw_hstop && last_hdiw < diw_hstop && hdiwstate == DIW_waiting_stop) {
+			if (thisline_decision.diwlastword == -1)
+				thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
+			hdiwstate = DIW_waiting_start;
+		}
+		if (lhdiw != 512)
+			break;
+		last_hdiw = 0 - 1;
+	}
+	last_hdiw = hdiw;
+
+
+#if 0
+	pix_hpos = coord_diw_to_window_x (hdiw);
+	if (pix_hpos >= diwfirstword && last_diw_pix_hpos < diwfirstword && hdiwstate == DIW_waiting_start) {
 		if (thisline_decision.diwfirstword == -1)
 			thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
-		// hstrt < 2 and ECS Denise: horizontal diw start detector not active
-		if (diw_hstrt >= 2 || !(currprefs.chipset_mask & CSMASK_ECS_DENISE))
-			hdiwstate = DIW_waiting_stop;
+		hdiwstate = DIW_waiting_stop;
 	}
-	if (pix_hpos >= diwlastword && last_diw_pix_hpos < diwlastword && hdiwstate == DIW_waiting_stop)
-	{
+	if (pix_hpos >= diwlastword && last_diw_pix_hpos < diwlastword && hdiwstate == DIW_waiting_stop) {
 		if (thisline_decision.diwlastword == -1)
 			thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
 		hdiwstate = DIW_waiting_start;
 	}
 	last_diw_pix_hpos = pix_hpos;
+#endif
 }
 
 static int fetchmode;
@@ -1036,7 +1070,7 @@ static void update_toscr_planes (void)
 STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 {
 	if (thisline_decision.plfleft != -1) {
-		// early bpl1day crap fix (Sequential engine animation)
+		// early bpl1dat crap fix (Sequential engine animation)
 		if (plfleft_real == -1) {
 			int i;
 			for (i = 0; i < thisline_decision.nr_planes; i++) {
@@ -1059,7 +1093,7 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 STATIC_INLINE void fetch (int nr, int fm, int hpos)
 {
 	if (nr < bplcon0_planes_limit) {
-		uaecptr p = bplpt[nr] + bpl_off[nr];
+		uaecptr p = bplpt[nr];
 		bplpt[nr] += 2 << fm;
 		bplptx[nr] += 2 << fm;
 		if (nr == 0)
@@ -1349,7 +1383,7 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 /* The usual inlining tricks - don't touch unless you know what you are doing. */
 STATIC_INLINE void long_fetch_ecs (int plane, int nwords, int weird_number_of_bits, int dma)
 {
-	uae_u16 *real_pt = (uae_u16 *)pfield_xlateptr (bplpt[plane] + bpl_off[plane], nwords * 2);
+	uae_u16 *real_pt = (uae_u16 *)pfield_xlateptr (bplpt[plane], nwords * 2);
 	int delay = (plane & 1) ? toscr_delay2 : toscr_delay1;
 	int tmp_nbits = out_nbits;
 	uae_u32 shiftbuffer = todisplay[plane][0];
@@ -1407,7 +1441,7 @@ STATIC_INLINE void long_fetch_ecs (int plane, int nwords, int weird_number_of_bi
 #ifdef AGA
 STATIC_INLINE void long_fetch_aga (int plane, int nwords, int weird_number_of_bits, int fm, int dma)
 {
-	uae_u32 *real_pt = (uae_u32 *)pfield_xlateptr (bplpt[plane] + bpl_off[plane], nwords * 2);
+	uae_u32 *real_pt = (uae_u32 *)pfield_xlateptr (bplpt[plane], nwords * 2);
 	int delay = (plane & 1) ? toscr_delay2 : toscr_delay1;
 	int tmp_nbits = out_nbits;
 	uae_u32 *shiftbuffer = todisplay[plane];
@@ -2543,6 +2577,12 @@ static void finish_decisions (void)
 
 	/* leave free space for possible extra color changes at the end of line */
 	next_color_change += (HBLANK_OFFSET + 1) / 2;
+
+	diw_hcounter += maxhpos * 2;
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > equ_vblank_endline) {
+		diw_hcounter = maxhpos * 2;
+		last_hdiw = 2 - 1;
+	}
 }
 
 /* Set the state of all decisions to "undecided" for a new scanline. */
@@ -2607,7 +2647,6 @@ static void reset_decisions (void)
 	memset (outword, 0, sizeof outword);
 
 	last_decide_line_hpos = -1;
-	last_diw_pix_hpos = -1;
 	last_ddf_pix_hpos = -1;
 	last_sprite_hpos = -1;
 	last_fetch_hpos = -1;
@@ -2733,12 +2772,14 @@ void init_hz (void)
 			minfirstline = VBLANK_ENDLINE_PAL;
 			vblank_hz = VBLANK_HZ_PAL;
 			sprite_vblank_endline = VBLANK_SPRITE_PAL;
+			equ_vblank_endline = EQU_ENDLINE_PAL;
 		} else {
 			maxvpos = MAXVPOS_NTSC;
 			maxhpos = MAXHPOS_NTSC;
 			minfirstline = VBLANK_ENDLINE_NTSC;
 			vblank_hz = VBLANK_HZ_NTSC;
 			sprite_vblank_endline = VBLANK_SPRITE_NTSC;
+			equ_vblank_endline = EQU_ENDLINE_NTSC;
 		}
 		maxvpos_max = maxvpos;
 	}
@@ -2757,6 +2798,7 @@ void init_hz (void)
 			minfirstline = maxvpos - 1;
 		sprite_vblank_endline = minfirstline - 2;
 		maxvpos_max = maxvpos;
+		equ_vblank_endline = -1;
 		doublescan = htotal <= 164 ? 1 : 0;
 		dumpsync ();
 		hzc = 1;
@@ -2827,6 +2869,7 @@ static void calcdiw (void)
 	}
 
 	diw_hstrt = hstrt;
+	diw_hstop = hstop;
 
 	diwfirstword = coord_diw_to_window_x (hstrt);
 	diwlastword = coord_diw_to_window_x (hstop);
@@ -4488,7 +4531,7 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 {
 	uae_u16 data = last_custom_value1;
 	if (dma) {
-		if (cycle)
+		if (cycle && currprefs.cpu_cycle_exact)
 			s->ptxhpos = hpos;
 		data = last_custom_value1 = chipmem_agnus_wget (s->pt);
 		alloc_cycle (hpos, CYCLE_SPRITE);
@@ -4500,12 +4543,9 @@ STATIC_INLINE uae_u16 sprite_fetch (struct sprite *s, int dma, int hpos, int cyc
 	s->pt += 2;
 	return data;
 }
-STATIC_INLINE uae_u16 sprite_fetch2 (struct sprite *s, int dma, int hpos, int cycle, int mode)
+STATIC_INLINE uae_u16 sprite_fetch2 (struct sprite *s, int hpos, int cycle, int mode)
 {
-	uae_u16 data = last_custom_value1;
-	if (dma) {
-		data = last_custom_value1 = chipmem_agnus_wget (s->pt);
-	}
+	uae_u16 data = last_custom_value1 = chipmem_agnus_wget (s->pt);
 	s->pt += 2;
 	return data;
 }
@@ -4567,10 +4607,10 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 			switch (sprite_width)
 			{
 			case 64:
-				sprite_fetch2 (s, dma, hpos, cycle, 0);
-				sprite_fetch2 (s, dma, hpos, cycle, 0);
+				sprite_fetch2 (s, hpos, cycle, 0);
+				sprite_fetch2 (s, hpos, cycle, 0);
 			case 32:
-				sprite_fetch2 (s, dma, hpos, cycle, 0);
+				sprite_fetch2 (s, hpos, cycle, 0);
 				break;
 			}
 		} else {
@@ -4601,10 +4641,10 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 		}
 #endif
 		if (cycle == 0) {
-			SPRxDATA_1 (dma ? data : sprdata[num][0], num, hpos);
+			SPRxDATA_1 (data, num, hpos);
 			s->dmacycle = 1;
 		} else {
-			SPRxDATB_1 (dma ? data : sprdatb[num][0], num, hpos);
+			SPRxDATB_1 (data, num, hpos);
 			spr_arm (num, 1);
 		}
 #ifdef AGA
@@ -4612,9 +4652,9 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 		{
 		case 64:
 			{
-				uae_u16 data32 = sprite_fetch2 (s, dma, hpos, cycle, 1);
-				uae_u16 data641 = sprite_fetch2 (s, dma, hpos, cycle, 1);
-				uae_u16 data642 = sprite_fetch2 (s, dma, hpos, cycle, 1);
+				uae_u16 data32 = sprite_fetch2 (s, hpos, cycle, 1);
+				uae_u16 data641 = sprite_fetch2 (s, hpos, cycle, 1);
+				uae_u16 data642 = sprite_fetch2 (s, hpos, cycle, 1);
 				if (dma) {
 					if (cycle == 0) {
 						sprdata[num][3] = data642;
@@ -4630,7 +4670,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 			break;
 		case 32:
 			{
-				uae_u16 data32 = sprite_fetch2 (s, dma, hpos, cycle, 1);
+				uae_u16 data32 = sprite_fetch2 (s, hpos, cycle, 1);
 				if (dma) {
 					if (cycle == 0)
 						sprdata[num][1] = data32;
@@ -4651,6 +4691,7 @@ static void do_sprites (int hpos)
 
 	if (vpos < sprite_vblank_endline)
 		return;
+
 	if (doflickerfix () && interlace_seen && (next_lineno & 1))
 		return;
 
@@ -4762,6 +4803,8 @@ static void adjust_array_sizes (void)
 
 static void init_hardware_frame (void)
 {
+	int i;
+
 	first_bpl_vpos = -1;
 	next_lineno = 0;
 	prev_lineno = -1;
@@ -4776,6 +4819,8 @@ static void init_hardware_frame (void)
 	ddflastword_total = 0;
 	plflastline_total = 0;
 	plffirstline_total = maxvpos;
+	for (i = 0; i < MAX_SPRITES; i++)
+		spr[i].ptxhpos = MAXHPOS;
 }
 
 void init_hardware_for_drawing_frame (void)
@@ -4935,6 +4980,10 @@ static void vsync_handler (void)
 
 	handle_events ();
 
+#if CUSTOM_DEBUG > 1
+	if ((intreq & 0x0020) && (intena & 0x0020))
+		write_log (L"vblank interrupt not cleared\n");
+#endif
 	INTREQ (0x8000 | 0x0020);
 	if (bplcon0 & 4)
 		lof ^= 1;
@@ -5266,8 +5315,18 @@ static void hsync_handler (void)
 		for (i = 0; i < 4; i++) {
 			alloc_cycle (hp, i == 0 ? CYCLE_STROBE : CYCLE_REFRESH); /* strobe */
 #ifdef DEBUGGER
-			if (debug_dma)
-				record_dma (i == 0 ? (vpos + 1 == maxvpos + lof ? 0x38 : 0x3c) : 0x1fe, 0xffff, 0xffffffff, hp, vpos, DMARECORD_REFRESH);
+			if (debug_dma) {
+				uae_u16 strobe = 0x3c;
+				if (vpos < equ_vblank_endline)
+					strobe = 0x38;
+				else if (vpos < minfirstline)
+					strobe = 0x3a;
+				else if (vpos + 1 == maxvpos + lof)
+					strobe = 0x38;
+				else if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && lol)
+					strobe = 0x3e;
+				record_dma (i == 0 ? strobe : 0x1fe, 0xffff, 0xffffffff, hp, vpos, DMARECORD_REFRESH);
+			}
 #endif
 			hp += 2;
 			if (hp >= maxhpos)

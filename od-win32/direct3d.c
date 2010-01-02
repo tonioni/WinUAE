@@ -605,6 +605,7 @@ static int psEffect_End (void)
 static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 {
 	LPDIRECT3DTEXTURE9 t;
+	D3DLOCKED_RECT locked;
 	HRESULT hr;
 	int w, h;
 
@@ -659,9 +660,21 @@ static LPDIRECT3DTEXTURE9 createtext (int *ww, int *hh, D3DFORMAT format)
 			D3D_ErrorString (hr), w, h, format);
 		return 0;
 	}
-
 	*ww = w;
 	*hh = h;
+	hr = IDirect3DTexture9_LockRect (t, 0, &locked, NULL, 0);
+	if (SUCCEEDED (hr)) {
+		int y;
+		int wb;
+		wb = w * 4;
+		if (wb > locked.Pitch)
+			wb = w * 2;
+		if (wb > locked.Pitch)
+			wb = w * 1;
+		for (y = 0; y < h; y++)
+			memset ((uae_u8*)locked.pBits + y * locked.Pitch, 0, wb);
+		IDirect3DTexture9_UnlockRect (t, 0);
+	}
 	return t;
 }
 
@@ -723,7 +736,7 @@ static void updateleds (void)
 		}
 		done = 1;
 	}
-	hr = IDirect3DTexture9_LockRect (ledtexture, 0, &locked, NULL, D3DLOCK_DISCARD);
+	hr = IDirect3DTexture9_LockRect (ledtexture, 0, &locked, NULL, 0);
 	if (FAILED (hr)) {
 		write_log (L"SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 		return;
@@ -967,7 +980,7 @@ static void createscanlines (int force)
 	l1 = (currprefs.gfx_filter_scanlineratio >> 0) & 15;
 	l2 = (currprefs.gfx_filter_scanlineratio >> 4) & 15;
 
-	hr = IDirect3DTexture9_LockRect (sltexture, 0, &locked, NULL, D3DLOCK_DISCARD);
+	hr = IDirect3DTexture9_LockRect (sltexture, 0, &locked, NULL, 0);
 	if (FAILED (hr)) {
 		write_log (L"SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 		return;
@@ -1358,7 +1371,7 @@ void D3D_clear (void)
 	if (FAILED (hr))
 		return;
 	for (i = 0; i < 2; i++) {
-		IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0L);
+		IDirect3DDevice9_Clear (d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 0, 0);
 		IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
 	}
 }
@@ -1380,7 +1393,7 @@ static void D3D_render22 (int clear)
 	if (clear || needclear) {
 		int i;
 		for (i = 0; i < 2; i++) {
-			hr = IDirect3DDevice9_Clear (d3ddev, 0L, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0L );
+			hr = IDirect3DDevice9_Clear (d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 0, 0);
 			if (FAILED (hr))
 				write_log (L"IDirect3DDevice9_Clear() failed: %s\n", D3D_ErrorString (hr));
 			IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
@@ -1410,8 +1423,7 @@ pass2:
 			if (lpRenderTarget)
 				IDirect3DSurface9_Release (lpRenderTarget);
 			uPasses = 0;
-			if (!psEffect_Begin ((lpWorkTexture == lpWorkTexture1) ?
-psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses))
+			if (!psEffect_Begin ((lpWorkTexture == lpWorkTexture1) ? psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses))
 					   return;
 			for (uPass = 0; uPass < uPasses; uPass++) {
 				if (!psEffect_BeginPass (uPass))

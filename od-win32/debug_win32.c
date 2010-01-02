@@ -1757,7 +1757,6 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 		}
 	case WM_CLOSE:
 		DestroyWindow(hDlg);
-		uae_quit();
 		return TRUE;
 	case WM_DESTROY:
 		{
@@ -1787,6 +1786,7 @@ static LRESULT CALLBACK DebuggerProc (HWND hDlg, UINT message, WPARAM wParam, LP
 			DeleteFromHistory(histcount);
 			DeleteObject(udfont);
 			consoleopen = 0;
+			deactivate_debugger ();
 			return TRUE;
 		}
 	case WM_GETMINMAXINFO:

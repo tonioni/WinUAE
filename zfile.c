@@ -864,7 +864,9 @@ static struct zfile *ipf (struct zfile *z, int index, int *retcode)
 		zd->tracks = tracks;
 		for (i = 0; i < tracks; i++) {
 			uae_u8 *buf, *p;
-			caps_loadrevolution (mfm, 0, i, &len);
+			int mrev, gapo;
+			caps_loadtrack (mfm, NULL, 0, i, &len, &mrev, &gapo);
+			//write_log (L"%d: %d %d %d\n", i, mrev, gapo, len);
 			len /= 8;
 			buf = p = xmalloc (len);
 			for (j = 0; j < len / 2; j++) {

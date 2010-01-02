@@ -100,6 +100,8 @@ extern uae_u16 INTREQR (void);
 #define VBLANK_SPRITE_NTSC 20
 #define VBLANK_HZ_PAL 50
 #define VBLANK_HZ_NTSC 60
+#define EQU_ENDLINE_PAL 9
+#define EQU_ENDLINE_NTSC 10
 
 extern int maxhpos, maxhpos_short;
 extern int maxvpos, maxvpos_max;
@@ -155,8 +157,6 @@ extern unsigned int xredcolors[256], xgreencolors[256], xbluecolors[256];
 extern int xredcolor_s, xredcolor_b, xredcolor_m;
 extern int xgreencolor_s, xgreencolor_b, xgreencolor_m;
 extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
-
-extern int bpl_off[8];
 
 #define RES_LORES 0
 #define RES_HIRES 1

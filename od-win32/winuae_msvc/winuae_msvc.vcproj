@@ -87,7 +87,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/MACHINE:I386"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib prowizard.lib"
 				ShowProgress="0"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="2"
@@ -302,7 +302,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib prowizard.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -1087,7 +1087,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib"
+				AdditionalDependencies="ws2_32.lib ddraw.lib dxguid.lib winmm.lib comctl32.lib version.lib msacm32.lib dsound.lib dinput8.lib d3d9.lib d3dx9.lib winio.lib setupapi.lib wininet.lib dxerr.lib shlwapi.lib zlibstat.lib libpng.lib lglcd.lib wpcap.lib packet.lib openal32.lib wintab32.lib portaudio_x86.lib freetype.lib vfw32.lib wtsapi32.lib avrt.lib wininet.lib enet.lib prowizard.lib"
 				OutputFile="d:\amiga\winuae.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -1720,6 +1720,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\consolehook.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\cpudefs.c"
 				>
 			</File>
@@ -1872,6 +1876,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\rommgr.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\sana2.c"
 				>
 			</File>
@@ -1945,465 +1953,9 @@
 			Name="prowizard"
 			>
 			<File
-				RelativePath="..\..\prowizard\misc\misc.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\moduleripper.c"
 				>
 			</File>
-			<File
-				RelativePath="..\..\prowizard\prowiz.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\prowizard\misc\testbag.c"
-				>
-			</File>
-			<Filter
-				Name="rippers"
-				>
-				<File
-					RelativePath="..\..\prowizard\rippers\AC1D_packer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\AMOS-MusicBank.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\AMOS-PowerPackerBank.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\BP-Soundmonitor.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\BSI-FutureComposer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Bytekiller.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ChipTracker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Crunchmania-Address.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Crunchmania-Simple.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\datacrunchers.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\DefjamCruncher32-pro.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\DigiBooster17.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\DigitalIllusion.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\DoubleAction.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Dragpack100.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Dragpack252.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\EurekaPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FastTracker2.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FC-M-Packer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FuchsTracker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FutureComposer13.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FutureComposer14.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\FuzzacPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\GameMusicCreator.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\GNUPacker12.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\GnuPlayer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\GPMO.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\HeatseekerMC10.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\HornetPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\HQC2.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\JamCracker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\KefrensSoundMachine.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MasterCruncher30-Address.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MaxPacker12.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MED-Octamed.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MegaCruncher-Object.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MegaCruncher.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\MOD-compatible.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ModuleProtector.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Mugician.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Newtron.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NewtronOld.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NoiseFromHeaven.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NoisePacker1.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NoisePacker2.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NoisePacker3.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NoiseRunner.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\NovoTrade.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PhaPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PolkaPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PowerMusic.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PowerPacker23.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PowerPacker30.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PowerPacker40-library.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\PowerPacker40.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Promizer01.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Promizer10c.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Promizer18a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Promizer20.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Promizer40.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ProPacker10.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ProPacker21.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ProPacker30.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Prorunner10.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\Prorunner20.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\QuadraComposer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\RelokIt10.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SGT-Packer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\skizzo.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SkytPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SoundFX.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SoundTracker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SoundTracker26.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SpikeCruncher.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StartrekkerPack.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StimPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneArtsPlayer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker270.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker299.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker299b.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker299d.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker300.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\StoneCracker310.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SuperCruncher27.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\SyncroPacker46.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TetraPack102.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TetraPack21.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TetraPack22.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TheDarkDemon.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer22a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer30a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer40.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer41a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer50a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer60a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ThePlayer61a.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TimeCruncher17.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TitanicsPlayer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TMK.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TNMCruncher.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TrackerPacker1.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TrackerPacker2.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TrackerPacker3.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TryItCruncher101.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\TurboSqueezer61.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\UnicTracker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\UnicTracker2.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\WantonPacker.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\XannPlayer.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\prowizard\rippers\ZenPacker.c"
-					>
-				</File>
-			</Filter>
 		</Filter>
 		<Filter
 			Name="decompressors"

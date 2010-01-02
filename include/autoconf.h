@@ -56,6 +56,8 @@ extern int add_filesys_unitconfig (struct uae_prefs *p, int index, TCHAR *error)
 extern int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo*);
 extern int kill_filesys_unitconfig (struct uae_prefs *p, int nr);
 extern int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to);
+extern TCHAR *validatedevicename (TCHAR *s);
+extern TCHAR *validatevolumename (TCHAR *s);
 
 int filesys_insert(int nr, TCHAR *volume, const TCHAR *rootdir, int readonly, int flags);
 int filesys_eject(int nr);

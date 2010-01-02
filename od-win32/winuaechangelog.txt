@@ -1,4 +1,46 @@
 
+Beta 1:
+
+- prowizard is now in static link library (no functional changes)
+- update HDIW=0 or 1 OCS Denise feature, after more research (thanks
+  to yaqube for finding real technical reason), OCS Denise hdiw counter
+  does not reset from last line of previous field to line 9 causing
+  "random" positions to match both start and end of hdiw, including
+  normally unavailable positions. This was fixed in ECS Denise.
+- sometimes cpu frequency was reset to 1000000, now it resets to default
+- set "A500 speed" automatically when switching to cycle exact on the fly
+- renamed "Match A500 speed" to "Approximate A500 or cycle-exact A500/A1200"
+- fixed rare sprite bug introduced in 2.0.0
+- DF3 on screen led reused as internal nvram read/write led in CD32/CDTV
+  modes
+- filter presets were broken
+- replace possible illegal (not in Amiga charset) characters in directory
+  filesystem volume and device names, truncate to 30 characters if longer
+- fixed random Direct3D filter garbage when on screen leds enabled and
+  sometimes even when osd was disabled
+- changed filesystem thread priority back to highest (+2), same as before
+  2.0, it seems +1 isn't enough in all systems (slow fs performance when
+  main thread is using all CPU time)
+- removed broken URLs in about panel
+- fullscreen and windowed file dialogs have separate position and size
+  settings (Vista and newer only)
+- attempt to center file dialogs in fullscreen mode (XP only)
+- caps lock key supported in key mappings, toggle should be usually
+  enabled if you are mapping host non-caps lock key to Amiga caps lock
+- hardcoded keys (pause, scroll lock etc..) automatically disable
+  hardcoded mapping if it is mapped in input panel (END + mappings are
+  not disabled)
+- num lock or scroll lock mapped to amiga caps lock -> follow led state
+  (just like host caps lock key mapped to amiga caps lock key)
+- filesystem charset conversion fallbacks added, ISO-8859-15 ->
+  ISO-8859-1 -> windows-1252 -> current Windows codepage (not all XP
+  installations have all charsets installed by default, last 2 can have
+  problems with national characters but it is better than nothing)
+- closing GUI debugger window won't close the emulator anymore
+- rar unpack crash fix
+
+2.0.1
+
 Beta 3: (RC1)
 
 - emulate OCS Denise "bug", vertical DIW already active, matches again

@@ -21,6 +21,7 @@
 ; 2008.12.11 mousehack -> tablet driver
 ; 2008.12.25 mousehack cursor sync
 ; 2009.01.20 clipboard sharing
+; 2009.12.27 console hook
 
 AllocMem = -198
 FreeMem = -210
@@ -46,16 +47,16 @@ NRF_MAGIC = $80000000
 our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
-	dc.l 9									;0 12
-	bra.w filesys_mainloop	;1 16
+	dc.l 9						;0 12
+	bra.w filesys_mainloop		;1 16
 	dc.l make_dev-start			;2 20
-	dc.l filesys_init-start	;3 24
-	dc.l exter_server-start	;4 28
+	dc.l filesys_init-start		;3 24
+	dc.l exter_server-start		;4 28
 	dc.l bootcode-start			;5 32
-	dc.l setup_exter-start	;6 36
-	dc.l mh_e-start					;7 40
-	dc.l clipboard_init-start ;8 44
-	;48
+	dc.l setup_exter-start		;6 36
+	dc.l mh_e-start				;7 40
+	dc.l clipboard_init-start 	;8 44
+	;52
 
 bootcode:
 	lea.l doslibname(pc),a1
@@ -113,6 +114,7 @@ myafterdos
 	move.w #-$48,a0 ;InitCode
 	jsr -$01a4(a6) ;SetFunction (restore original)
 	bsr.w clipboard_init
+	bsr.w consolehook
 	movem.l (sp)+,d0-d7/a1-a6
 	rts ;return directly to caller
 
@@ -2387,9 +2389,53 @@ cliphook:
 	moveq #0,d0
 	rts
 
+consolehook:
+	move.l 4.w,a6
+	moveq #-1,d2
+	move.w #$FF38,d0
+	moveq #100,d1
+	bsr.w getrtbase
+	jsr (a0)
+	tst.l d0
+	beq.s .ch2
+	moveq #0,d2
+	jsr -$0084(a6) ;Forbid
+	lea 350(a6),a0 ;DeviceList
+	lea con_dev(pc),a1
+	jsr -$114(a6) ;FindName
+	tst.l d0
+	beq.s .ch1
+	move.l d0,a0
+	lea chook(pc),a1
+	move.l -$1e+2(a0),a2 ; BeginIO
+	move.l a1,-$1e+2(a0)
+	move.l a0,a1
+	move.w #$FF38,d0
+	moveq #101,d1
+	bsr.w getrtbase
+	jsr (a0)
+	moveq #1,d2
+.ch1
+	jsr -$008a(a6) ;Permit
+.ch2
+	move.l d2,d0
+	rts	
+	
+chook:
+	subq.l #4,sp ; native code fills with original return address
+	movem.l d0-d1/a0,-(sp)
+	move.w #$FF38,d0
+	moveq #102,d1
+	bsr.w getrtbase
+	jsr (a0)
+	movem.l (sp)+,d0-d1/a0
+	rts
+
+
 
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0
+con_dev: dc.b 'console.device',0
 devsn_name: dc.b 'DEVS',0
 devs_name: dc.b 'DEVS:',0
 clip_name: dc.b 'DEVS:clipboard.device',0

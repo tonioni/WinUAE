@@ -604,16 +604,6 @@ static RARSETCALLBACK pRARSetCallback;
 typedef int (_stdcall* RARGETDLLVERSION)(void);
 static RARGETDLLVERSION pRARGetDllVersion;
 
-static int rar_resetf (struct zfile *z)
-{
-	z->f = _tfopen (z->name, L"rb");
-	if (!z->f) {
-		zfile_fclose (z);
-		return 0;
-	}
-	return 1;
-}
-
 static int canrar (void)
 {
 	static int israr;
@@ -670,6 +660,15 @@ struct RARContext
 	HANDLE hArcData;
 };
 
+static int rar_resetf (struct zfile *z)
+{
+	z->f = _tfopen (z->name, z->mode);
+	if (!z->f) {
+		zfile_fclose (z);
+		return 0;
+	}
+	return 1;
+}
 
 static void archive_close_rar (struct RARContext *rc)
 {
@@ -690,17 +689,17 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 		return archive_directory_arcacc (z, ArchiveFormatRAR);
 	rc = xcalloc (sizeof (struct RARContext), 1);
 	zv = zvolume_alloc (z, ArchiveFormatRAR, rc, NULL);
-	fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
-	z->f = NULL;
+	//fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
+	//z->f = NULL;
 	rc->OpenArchiveData.ArcNameW = z->name;
 	rc->OpenArchiveData.OpenMode = RAR_OM_LIST;
 	rc->hArcData = pRAROpenArchiveEx (&rc->OpenArchiveData);
 	if (rc->OpenArchiveData.OpenResult != 0) {
 		xfree (rc);
-		if (!rar_resetf (z)) {
-			zfile_fclose_archive (zv);
-			return NULL;
-		}
+//		if (!rar_resetf (z)) {
+//			zfile_fclose_archive (zv);
+//			return NULL;
+//		}
 		zfile_fclose_archive (zv);
 		return archive_directory_arcacc (z, ArchiveFormatRAR);
 	}

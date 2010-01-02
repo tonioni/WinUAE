@@ -604,7 +604,7 @@ static void ide_read_sectors (int flags)
 		ide_fail ();
 		return;
 	}
-	gui_hd_led (ide->num, 1);
+	gui_flicker_led (LED_HD, ide->num, 1);
 	nsec = get_nsec (lba48);
 	get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
 	if (IDE_LOG > 0)
@@ -632,7 +632,7 @@ static void ide_write_sectors (int flags)
 		ide_fail ();
 		return;
 	}
-	gui_hd_led (ide->num, 2);
+	gui_flicker_led (LED_HD, ide->num, 2);
 	nsec = get_nsec (lba48);
 	get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
 	if (lba * ide->blocksize >= ide->hdhfd.size) {

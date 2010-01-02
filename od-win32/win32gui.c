@@ -37,6 +37,7 @@
 #include "gui.h"
 #include "options.h"
 #include "memory.h"
+#include "rommgr.h"
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
@@ -229,6 +230,11 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	COMDLG_FILTERSPEC *fs = NULL;
 	int filtercnt = 0;
 
+	static const GUID fsdialogguid = { 0xe768b477, 0x3684, 0x4128, { 0x91, 0x55, 0x8c, 0x8f, 0xd9, 0x2d, 0x16, 0x7b } };
+
+	if (isfullscreen () > 0)
+		guid = &fsdialogguid;
+
 	hr = -1;
 	ret = 0;
 	pSHCreateItemFromParsingName = (SHCREATEITEMFROMPARSINGNAME)GetProcAddress (
@@ -369,22 +375,28 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	return ret;
 }
 
-static BOOL GetOpenFileName_2 (OPENFILENAME *opn, const GUID *guid)
+static BOOL GetOpenFileName_2 (HWND parent, OPENFILENAME *opn, const GUID *guid)
 {
-	return GetFileDialog (opn, guid, 0);
+	BOOL val;
+	val = GetFileDialog (opn, guid, 0);
+	return val;
 }
-static BOOL GetSaveFileName_2 (OPENFILENAME *opn, const GUID *guid)
+static BOOL GetSaveFileName_2 (HWND parent, OPENFILENAME *opn, const GUID *guid)
 {
-	return GetFileDialog (opn, guid, 1);
+	BOOL val;
+	val = GetFileDialog (opn, guid, 1);
+	return val;
 }
 int DirectorySelection (HWND hDlg, const GUID *guid, TCHAR *path)
 {
+	int val;
 	OPENFILENAME ofn = { 0 };
 	ofn.hwndOwner = hDlg;
 	ofn.lpstrFile = path;
 	ofn.lpstrInitialDir = path;
 	ofn.nMaxFile = MAX_DPATH;
-	return GetFileDialog (&ofn, NULL, -1);
+	val = GetFileDialog (&ofn, NULL, -1);
+	return val;
 }
 
 void write_disk_history (void)
@@ -1495,6 +1507,48 @@ static void setfilter (int num, int *filter, TCHAR *fname)
 	regsetint (NULL, fname, filter[num]);
 }
 
+static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	HWND hWnd;
+	RECT windowRect;
+	int width, height, w2, h2;
+	struct MultiDisplay *md;
+	NMHDR *nmhdr;
+	int doit = FALSE;
+	static int prevwidth, prevheight;
+
+	if (message == WM_NOTIFY) {
+		nmhdr = (LPNMHDR)lParam;
+		if (nmhdr->code == CDN_INITDONE)
+			doit = TRUE;
+	} else if (message == WM_INITDIALOG) {
+		doit = TRUE;
+	}
+	if (!doit)
+		return FALSE;
+	md = getdisplay (&currprefs);
+	if (!md)
+		return FALSE;
+	w2 = WIN32GFX_GetWidth ();
+	h2 = WIN32GFX_GetHeight ();
+	if (w2 == prevwidth && h2 == prevheight)
+		return FALSE;
+	prevwidth = w2;
+	prevheight = h2;
+	//write_log (L"%dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
+	hWnd = GetParent (hDlg);
+	GetWindowRect (hWnd, &windowRect);
+	width = windowRect.right - windowRect.left;
+	height = windowRect.bottom - windowRect.top;
+	if (width > w2)
+		width = w2;
+	if (height > h2)
+		height = h2;
+	MoveWindow (hWnd, md->rect.left + (w2 - width) / 2, md->rect.top + (h2 - height) / 2, width, height, FALSE);
+	return FALSE;
+}
+
+
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
 // flag - 4 for loading .uae config-files, 5 for saving .uae config-files
@@ -1732,7 +1786,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.lStructSize = sizeof (OPENFILENAME);
 	openFileName.hwndOwner = hDlg;
 	openFileName.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
-		OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+		OFN_LONGNAMES | OFN_HIDEREADONLY | OFN_NOCHANGEDIR | OFN_ENABLESIZING | (isfullscreen () > 0 ? OFN_ENABLEHOOK : 0);
 	openFileName.lpstrFilter = szFilter;
 	openFileName.lpstrDefExt = defext;
 	openFileName.nFilterIndex = previousfilter[flag];
@@ -1740,6 +1794,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	openFileName.nMaxFile = MAX_DPATH;
 	openFileName.lpstrFileTitle = file_name;
 	openFileName.nMaxFileTitle = MAX_DPATH;
+	openFileName.lpfnHook = ofnhook;
 	if (initialdir)
 		openFileName.lpstrInitialDir = initialdir;
 	else
@@ -1749,10 +1804,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	if (multi)
 		openFileName.Flags |= OFN_ALLOWMULTISELECT;
 	if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
-		if (!(result = GetSaveFileName_2 (&openFileName, guid)))
+		if (!(result = GetSaveFileName_2 (hDlg, &openFileName, guid)))
 			write_log (L"GetSaveFileNameX() failed, err=%d.\n", GetLastError ());
 	} else {
-		if (!(result = GetOpenFileName_2 (&openFileName, guid)))
+		if (!(result = GetOpenFileName_2 (hDlg, &openFileName, guid)))
 			write_log (L"GetOpenFileNameX() failed, err=%d.\n", GetLastError ());
 	}
 	if (result) {
@@ -3695,10 +3750,10 @@ static urlinfo urls[] =
 {
 	{IDC_CLOANTOHOME, FALSE, L"Cloanto's Amiga Forever", L"http://www.amigaforever.com/"},
 	{IDC_AMIGAHOME, FALSE, L"Amiga Inc.", L"http://www.amiga.com"},
-	{IDC_PICASSOHOME, FALSE, L"Picasso96 Home Page", L"http://www.picasso96.cogito.de/"},
+//	{IDC_PICASSOHOME, FALSE, L"Picasso96 Home Page", L"http://www.picasso96.cogito.de/"},
 	{IDC_UAEHOME, FALSE, L"UAE Home Page", L"http://uae.coresystems.de/"},
 	{IDC_WINUAEHOME, FALSE, L"WinUAE Home Page", L"http://www.winuae.net/"},
-	{IDC_AIABHOME, FALSE, L"AIAB", L"http://www.amigainabox.co.uk/"},
+//	{IDC_AIABHOME, FALSE, L"AIAB", L"http://www.amigainabox.co.uk/"},
 	{IDC_THEROOTS, FALSE, L"Back To The Roots", L"http://www.back2roots.org/"},
 	{IDC_ABIME, FALSE, L"abime.net", L"http://www.abime.net/"},
 	{IDC_CAPS, FALSE, L"SPS", L"http://www.softpres.org/"},
@@ -7081,9 +7136,9 @@ static void values_from_cpudlg (HWND hDlg)
 			workprefs.cpu_clock_multiplier = 0;
 			workprefs.cpu_frequency = _tstof (txt) * 1000000.0;
 			if (workprefs.cpu_frequency < 1 * 1000000)
-				workprefs.cpu_frequency = 1 * 1000000;
+				workprefs.cpu_frequency = 0;
 			if (workprefs.cpu_frequency >= 99 * 1000000)
-				workprefs.cpu_frequency = 99 * 1000000;
+				workprefs.cpu_frequency = 0;
 		}
 	}
 }
@@ -8082,6 +8137,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			SetDlgItemText (hDlg, IDC_PATH_FILESYS, L"");
 			SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, L"");
 			current_hfdlg.sectors = current_hfdlg.reserved = current_hfdlg.surfaces = 0;
+			current_hfdlg.bootpri = 0;
 			current_hfdlg.autoboot = 1;
 			current_hfdlg.donotmount = 0;
 			sethardfile (hDlg);
@@ -10600,9 +10656,9 @@ struct filterpreset {
 };
 static struct filterpreset filterpresets[] =
 {
-	{ L"PAL", 8, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0, 0, 0 },
-	{ L"D3D Autoscale", 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1 },
-	{ L"D3D Full Scaling", 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0 },
+	{ L"PAL",				UAE_FILTER_PAL,			0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0 },
+	{ L"D3D Autoscale",		UAE_FILTER_DIRECT3D,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 1 },
+	{ L"D3D Full Scaling",	UAE_FILTER_DIRECT3D,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0 },
 	{ NULL }
 };
 
@@ -12640,55 +12696,56 @@ void gui_disk_image_change (int unitnum, const TCHAR *name)
 #endif
 }
 
-void gui_hd_led (int unitnum, int led)
+static void gui_flicker_led2 (int led, int unitnum, int status)
 {
-	static int resetcounter;
-	int old;
+	static int resetcounter[LED_MAX];
+	uae_u8 old;
+	uae_u8 *p;
 
-	old = gui_data.hd;
-	if (led == 0) {
-		resetcounter--;
-		if (resetcounter > 0)
+	if (led == LED_HD)
+		p = &gui_data.hd;
+	else if (led == LED_CD)
+		p = &gui_data.cd;
+	else if (led == LED_MD)
+		p = &gui_data.md;
+	else
+		return;
+	old = *p;
+	if (status == 0) {
+		resetcounter[led]--;
+		if (resetcounter[led] > 0)
 			return;
 	}
 #ifdef RETROPLATFORM
-	rp_hd_activity (unitnum, led ? 1 : 0, led == 2 ? 1 : 0);
+	if (led == LED_HD)
+		rp_hd_activity (unitnum, status ? 1 : 0, status == 2 ? 1 : 0);
+	else if (led == LED_CD)
+		rp_cd_activity (unitnum, status);
 #endif
-	gui_data.hd = led;
-	resetcounter = 6;
-	if (old != gui_data.hd)
-		gui_led (5, gui_data.hd);
+	*p = status;
+	resetcounter[led] = 6;
+	if (old != *p)
+		gui_led (led, *p);
 }
 
-void gui_cd_led (int unitnum, int led)
+void gui_flicker_led (int led, int unitnum, int status)
 {
-	static int resetcounter;
-	int old;
-
-	old = gui_data.cd;
-	if (led == 0) {
-		resetcounter--;
-		if (resetcounter > 0)
-			return;
+	if (led < 0) {
+		gui_flicker_led2 (LED_HD, 0, 0);
+		gui_flicker_led2 (LED_CD, 0, 0);
+		gui_flicker_led2 (LED_MD, 0, 0);
+	} else {
+		gui_flicker_led2 (led, unitnum, status);
 	}
-	if (led < 0)
-		led = 0;
-#ifdef RETROPLATFORM
-	rp_cd_activity (unitnum, led);
-#endif
-	gui_data.cd = led;
-	resetcounter = 6;
-	if (old != gui_data.cd)
-		gui_led (6, gui_data.cd);
 }
 
 void gui_fps (int fps, int idle)
 {
 	gui_data.fps = fps;
 	gui_data.idle = idle;
-	gui_led (7, 0);
-	gui_led (8, 0);
-	gui_led (9, gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0);
+	gui_led (LED_FPS, 0);
+	gui_led (LED_CPU, 0);
+	gui_led (LED_SND, gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0);
 }
 
 void gui_led (int led, int on)
@@ -12705,17 +12762,17 @@ void gui_led (int led, int on)
 	lcd_update (led, on);
 #endif
 #ifdef RETROPLATFORM
-	if (led >= 1 && led <= 4 && !gui_data.drive_disabled[led - 1]) {
-		rp_floppy_track (led - 1, gui_data.drive_track[led - 1]);
-		writing = gui_data.drive_writing[led - 1];
+	if (led >= LED_DF0 && led <= LED_DF3 && !gui_data.drive_disabled[led - LED_DF0]) {
+		rp_floppy_track (led - LED_DF0, gui_data.drive_track[led - LED_DF0]);
+		writing = gui_data.drive_writing[led - LED_DF0];
 	}
 	rp_update_leds (led, on, writing);
 #endif
 	if (!hStatusWnd)
 		return;
 	tt = NULL;
-	if (led >= 1 && led <= 4) {
-		pos = 6 + (led - 1);
+	if (led >= LED_DF0 && led <= LED_DF3) {
+		pos = 6 + (led - LED_DF0);
 		ptr = drive_text + pos * 16;
 		if (gui_data.drive_disabled[led - 1])
 			_tcscpy (ptr, L"");
@@ -12734,16 +12791,16 @@ void gui_led (int led, int on)
 		tt[0] = 0;
 		if (_tcslen (p + j) > 0)
 			_stprintf (tt, L"%s [CRC=%08X]", p + j, gui_data.crc32[led - 1]);
-	} else if (led == 0) {
+	} else if (led == LED_POWER) {
 		pos = 3;
 		ptr = _tcscpy (drive_text + pos * 16, L"Power");
-	} else if (led == 5) {
+	} else if (led == LED_HD) {
 		pos = 4;
 		ptr = _tcscpy (drive_text + pos * 16, L"HD");
-	} else if (led == 6) {
+	} else if (led == LED_CD) {
 		pos = 5;
 		ptr = _tcscpy (drive_text + pos * 16, L"CD");
-	} else if (led == 7) {
+	} else if (led == LED_FPS) {
 		double fps = (double)gui_data.fps / 10.0;
 		extern int p96vblank;
 		pos = 2;
@@ -12756,11 +12813,11 @@ void gui_led (int led, int on)
 			_stprintf (ptr, L"FPS: %.1f", fps);
 		if (pause_emulation)
 			_tcscpy (ptr, L"PAUSED");
-	} else if (led == 8) {
+	} else if (led == LED_CPU) {
 		pos = 1;
 		ptr = drive_text + pos * 16;
 		_stprintf (ptr, L"CPU: %.0f%%", (double)((gui_data.idle) / 10.0));
-	} else if (led == 9) {
+	} else if (led == LED_SND) {
 		pos = 0;
 		ptr = drive_text + pos * 16;
 		if (gui_data.sndbuf_status < 3) {

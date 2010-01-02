@@ -51,6 +51,7 @@
 #include "gfxfilter.h"
 #include "uaeresource.h"
 #include "dongle.h"
+#include "consolehook.h"
 
 #ifdef USE_SDL
 #include "SDL.h"
@@ -63,6 +64,7 @@ struct uae_prefs currprefs, changed_prefs;
 int no_gui = 0, quit_to_gui = 0;
 int cloanto_rom = 0;
 int kickstart_rom = 1;
+int console_emulation = 0;
 
 struct gui_info gui_data;
 
@@ -116,6 +118,8 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 
 void fixup_cpu (struct uae_prefs *p)
 {
+	if (p->cpu_frequency == 1000000)
+		p->cpu_frequency = 0;
 	switch (p->cpu_model)
 	{
 	case 68000:
@@ -384,6 +388,7 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->cpu_cycle_exact) {
 		p->gfx_framerate = 1;
 		p->cachesize = 0;
+		p->m68k_speed = 0;
 	}
 #endif
 	if (p->maprom && !p->address_space_24)
@@ -727,6 +732,11 @@ static int real_main2 (int argc, TCHAR **argv)
 		if (!machdep_init ()) {
 			restart_program = 0;
 			return -1;
+		}
+
+		if (console_emulation) {
+			consolehook_config (&currprefs);
+			fixup_prefs (&currprefs);
 		}
 
 		if (! setup_sound ()) {

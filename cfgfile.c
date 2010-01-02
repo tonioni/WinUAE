@@ -22,6 +22,7 @@
 #include "gfxfilter.h"
 #include "savestate.h"
 #include "memory.h"
+#include "rommgr.h"
 #include "gui.h"
 #include "newcpu.h"
 #include "zfile.h"
@@ -784,7 +785,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"cpu_24bit_addressing", p->address_space_24);
 	/* do not reorder end */
 
-	if (currprefs.cpu_cycle_exact) {
+	if (p->cpu_cycle_exact) {
 		if (p->cpu_frequency)
 			cfgfile_write (f, L"cpu_frequency", L"%d", p->cpu_frequency);
 		if (p->cpu_clock_multiplier) {
@@ -1441,17 +1442,6 @@ static struct uaedev_config_info *getuci(struct uae_prefs *p)
 	return NULL;
 }
 
-static void validatefsname (TCHAR *name, int isdevname)
-{
-	int i;
-	for (i = 0; i < _tcslen (name); i++) {
-		if (name[i] == ':')
-			name[i] = 0;
-		if (name[i] == '/')
-			name[i] = 0;
-	}
-}
-
 struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	TCHAR *devname, TCHAR *volname, TCHAR *rootdir, int readonly,
 	int secspertrack, int surfaces, int reserved,
@@ -1482,8 +1472,8 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	_tcscpy (uci->devname, devname ? devname : L"");
 	_tcscpy (uci->volname, volname ? volname : L"");
 	_tcscpy (uci->rootdir, rootdir ? rootdir : L"");
-	validatefsname (uci->devname, 1);
-	validatefsname (uci->volname, 0);
+	validatedevicename (uci->devname);
+	validatevolumename (uci->volname);
 	uci->readonly = readonly;
 	uci->sectors = secspertrack;
 	uci->surfaces = surfaces;
@@ -1516,7 +1506,7 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 			}
 		}
 		_tcscpy (uci->devname, base2);
-		validatefsname (uci->devname, 1);
+		validatedevicename (uci->devname);
 	}
 	s = filesys_createvolname (volname, rootdir, L"Harddrive");
 	_tcscpy (uci->volname, s);
@@ -3119,39 +3109,6 @@ uae_u8 *save_configuration (int *len)
 	}
 	*len = p - dstbak + 1;
 	return dstbak;
-}
-
-
-static int configure_rom (struct uae_prefs *p, int *rom, int msg)
-{
-	struct romdata *rd;
-	TCHAR *path = 0;
-	int i;
-
-	i = 0;
-	while (rom[i] >= 0) {
-		rd = getromdatabyid (rom[i]);
-		if (!rd) {
-			i++;
-			continue;
-		}
-		path = romlist_get (rd);
-		if (path)
-			break;
-		i++;
-	}
-	if (!path) {
-		if (msg)
-			romwarning(rom);
-		return 0;
-	}
-	if (rd->type & (ROMTYPE_KICK | ROMTYPE_KICKCD32))
-		_tcscpy (p->romfile, path);
-	if (rd->type & (ROMTYPE_EXTCD32 | ROMTYPE_EXTCDTV | ROMTYPE_ARCADIABIOS))
-		_tcscpy (p->romextfile, path);
-	if (rd->type & (ROMTYPE_CD32CART | ROMTYPE_ARCADIAGAME | ROMTYPE_HRTMON | ROMTYPE_XPOWER | ROMTYPE_NORDIC | ROMTYPE_AR | ROMTYPE_SUPERIV))
-		_tcscpy (p->cartfile, path);
-	return 1;
 }
 
 static void default_prefs_mini (struct uae_prefs *p, int type)

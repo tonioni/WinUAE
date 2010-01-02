@@ -979,7 +979,7 @@ void CDTV_hsync_handler (void)
 	else
 		cd_led &= ~LED_CD_ACTIVE;
 	if (cd_led)
-		gui_cd_led (0, cd_led);
+		gui_flicker_led (LED_CD, 0, cd_led);
 
 	if (cd_media && (tp_cr & 1)) {
 		tp_air |= 1 << 1;
@@ -1482,6 +1482,7 @@ void cdtv_battram_write (int addr, int v)
 
 	if (offset >= CDTV_NVRAM_SIZE)
 		return;
+	gui_flicker_led (LED_MD, 0, 2);
 	if (cdtv_battram[offset] == v)
 		return;
 	cdtv_battram[offset] = v;
@@ -1500,6 +1501,7 @@ uae_u8 cdtv_battram_read (int addr)
 	offset = addr & CDTV_NVRAM_MASK;
 	if (offset >= CDTV_NVRAM_SIZE)
 		return 0;
+	gui_flicker_led (LED_MD, 0, 1);
 	v = cdtv_battram[offset];
 	return v;
 }

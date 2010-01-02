@@ -315,7 +315,7 @@ static int fsdb_name_invalid_2 (const TCHAR *n)
 
 	s1[0] = 0;
 	s2[0] = 0;
-	ua_fs_copy (s1, MAX_DPATH, n);
+	ua_fs_copy (s1, MAX_DPATH, n, -1);
 	au_fs_copy (s2, MAX_DPATH, s1);
 	if (_tcsicmp (s2, n) != 0)
 		return 1;

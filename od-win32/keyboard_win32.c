@@ -204,6 +204,7 @@ static int ctrlpressed (void)
 }
 
 static int capslockstate;
+static int host_capslockstate, host_numlockstate, host_scrolllockstate;
 
 int getcapslockstate (void)
 {
@@ -216,12 +217,20 @@ void setcapslockstate (int state)
 
 int getcapslock (void)
 {
-	int newstate;
+	int capstable[7];
 
-	newstate = GetKeyState (VK_CAPITAL) & 1; // this returns bogus state if caps change when in exclusive mode..
-	if (newstate != capslockstate)
-		inputdevice_translatekeycode (0, DIK_CAPITAL, newstate);
-	capslockstate = newstate;
+	// this returns bogus state if caps change when in exclusive mode..
+	host_capslockstate = GetKeyState (VK_CAPITAL) & 1;
+	host_numlockstate = GetKeyState (VK_NUMLOCK) & 1;
+	host_scrolllockstate = GetKeyState (VK_SCROLL) & 1;
+	capstable[0] = DIK_CAPITAL;
+	capstable[1] = host_capslockstate;
+	capstable[2] = DIK_NUMLOCK;
+	capstable[3] = host_numlockstate;
+	capstable[4] = DIK_SCROLL;
+	capstable[5] = host_scrolllockstate;
+	capstable[6] = 0;
+	capslockstate = inputdevice_synccapslock (capslockstate, capstable);
 	return capslockstate;
 }
 
@@ -347,13 +356,26 @@ static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUM
 void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
 	int code = 0;
+	int scancode_new;
 	static int swapperdrive = 0;
 
 	if (scancode == specialkeycode ())
 		return;
 
+	if (scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
+		code = AKS_QUIT;
+
+	scancode_new = scancode;
+	if (!specialpressed () && inputdevice_iskeymapped (keyboard, scancode))
+		scancode = 0;
+	// GUI must be always available
+	if (scancode_new == DIK_F12 && currprefs.win32_guikey < 0)
+		scancode = scancode_new;
+	if (scancode_new == currprefs.win32_guikey && scancode_new != DIK_F12)
+		scancode = scancode_new;
+	
 	//write_log ( "keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
-	if (newstate) {
+	if (newstate && code == 0) {
 
 		if (scancode == DIK_F12 || scancode == currprefs.win32_guikey) {
 			if (ctrlpressed ()) {
@@ -370,12 +392,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 		switch (scancode)
 		{
-		case DIK_F11:
-			if (currprefs.win32_ctrl_F11_is_quit) {
-				if (ctrlpressed ())
-					code = AKS_QUIT;
-			}
-			break;
 		case DIK_F1:
 		case DIK_F2:
 		case DIK_F3:
@@ -505,11 +521,20 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		return;
 	}
 
-	if (!specialpressed () && scancode == DIK_CAPITAL) {
-		if (!newstate)
-			return;
-		capslockstate = capslockstate ? 0 : 1;
-		newstate = capslockstate;
+	scancode = scancode_new;
+	if (!specialpressed () && newstate) {
+		if (scancode == DIK_CAPITAL) {
+			host_capslockstate = host_capslockstate ? 0 : 1;
+			capslockstate = host_capslockstate;
+		}
+		if (scancode == DIK_NUMLOCK) {
+			host_numlockstate = host_numlockstate ? 0 : 1;
+			capslockstate = host_numlockstate;
+		}
+		if (scancode == DIK_SCROLL) {
+			host_scrolllockstate = host_scrolllockstate ? 0 : 1;
+			capslockstate = host_scrolllockstate;
+		}
 	}
 
 	if (currprefs.input_selected_setting == 0) {
@@ -537,3 +562,18 @@ void keyboard_settrans (void)
 	inputdevice_setkeytranslation (keytrans);
 }
 
+
+int target_checkcapslock (int scancode, int *state)
+{
+	if (scancode != DIK_CAPITAL && scancode != DIK_NUMLOCK && scancode != DIK_SCROLL)
+		return 0;
+	if (*state == 0)
+		return -1;
+	if (scancode == DIK_CAPITAL)
+		*state = host_capslockstate;
+	if (scancode == DIK_NUMLOCK)
+		*state = host_numlockstate;
+	if (scancode == DIK_SCROLL)
+		*state = host_scrolllockstate;
+	return 1;
+}

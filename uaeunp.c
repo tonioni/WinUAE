@@ -15,7 +15,7 @@ TCHAR start_path_data[MAX_DPATH];
 TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 struct uae_prefs currprefs;
-static int debug = 0;
+static int debug = 1;
 static int amigatest;
 
 #define WRITE_LOG_BUF_SIZE 4096

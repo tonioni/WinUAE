@@ -2468,8 +2468,8 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		int half = 0;
 
 		pen_rgb = c1;
-		if (led >= 1 && led <= 4) {
-			int pled = led - 1;
+		if (led >= LED_DF0 && led <= LED_DF3) {
+			int pled = led - LED_DF0;
 			int track = gui_data.drive_track[pled];
 			pos = 6 + pled;
 			on_rgb = 0x00cc00;
@@ -2489,14 +2489,14 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 					pen_rgb = ledcolor (0x00aaaaaa, rc, gc, bc, alpha);
 			}
 			side = gui_data.drive_side;
-		} else if (led == 0) {
+		} else if (led == LED_POWER) {
 			pos = 3;
 			//on = gui_data.powerled_brightness > 0;
 			on_rgb = ((gui_data.powerled_brightness * 10 / 16) + 0x33) << 16;
 			on = gui_data.powerled;
 			//on_rgb = 0xcc0000;
 			off_rgb = 0x330000;
-		} else if (led == 5) {
+		} else if (led == LED_CD) {
 			pos = 5;
 			on = gui_data.cd & (LED_CD_AUDIO | LED_CD_ACTIVE);
 			on_rgb = (on & LED_CD_AUDIO) ? 0x00cc00 : 0x0000cc;
@@ -2508,7 +2508,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			num1 = -1;
 			num2 = 10;
 			num3 = 12;
-		} else if (led == 6) {
+		} else if (led == LED_HD) {
 			pos = 4;
 			on = gui_data.hd;
 			on_rgb = on == 2 ? 0xcc0000 : 0x0000cc;
@@ -2516,7 +2516,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			num1 = -1;
 			num2 = 11;
 			num3 = 12;
-		} else if (led == 7) {
+		} else if (led == LED_FPS) {
 			int fps = (gui_data.fps + 5) / 10;
 			pos = 2;
 			on_rgb = 0x000000;
@@ -2529,7 +2529,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			am = 3;
 			if (num1 == 0)
 				am = 2;
-		} else if (led == 8) {
+		} else if (led == LED_CPU) {
 			int idle = (gui_data.idle + 5) / 10;
 			pos = 1;
 			on = framecnt && !picasso_on;
@@ -2540,7 +2540,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			num3 = idle % 10;
 			num4 = num1 == 0 ? 13 : -1;
 			am = 3;
-		} else if (led == 9) {
+		} else if (led == LED_SND) {
 			int snd = abs(gui_data.sndbuf + 5) / 10;
 			if (snd > 99)
 				snd = 99;
@@ -2560,7 +2560,17 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 				on_rgb = 0x0000cc; // "normal" overflow
 			off_rgb = 0x000000;
 			am = 3;
-		}
+		} else if (led == LED_MD && gui_data.drive_disabled[3]) {
+			// DF3 reused as internal non-volatile ram led (cd32/cdtv)
+			pos = 6 + 3;
+			on = gui_data.md;
+			on_rgb = on == 2 ? 0xcc0000 : 0x00cc00;
+			off_rgb = 0x003300;
+			num1 = -1;
+			num2 = -1;
+			num3 = -1;
+		} else
+			return;
 		on_rgb |= 0x33000000;
 		off_rgb |= 0x33000000;
 		if (half > 0) {
@@ -2910,8 +2920,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 		if (currprefs.gfx_afullscreen && currprefs.gfx_avsync)
 			flush_screen (0, 0); /* vsync mode */
 	}
-	gui_hd_led (-1, 0);
-	gui_cd_led (-1, 0);
+	gui_flicker_led (-1, 0, 0);
 #ifdef AVIOUTPUT
 	frame_drawn ();
 #endif

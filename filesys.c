@@ -51,6 +51,7 @@
 #include "uaeresource.h"
 #include "inputdevice.h"
 #include "clipboard.h"
+#include "consolehook.h"
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -296,8 +297,51 @@ static void stripsemicolon (TCHAR *s)
 {
 	if (!s)
 		return;
-	while(_tcslen(s) > 0 && s[_tcslen(s) - 1] == ':')
+	while (_tcslen(s) > 0 && s[_tcslen(s) - 1] == ':')
 		s[_tcslen(s) - 1] = 0;
+}
+static void stripspace (TCHAR *s)
+{
+	int i;
+	if (!s)
+		return;
+	for (i = 0; i < _tcslen (s); i++) {
+		if (s[i] == ' ')
+			s[i] = '_';
+	}
+}
+static void striplength (TCHAR *s, int len)
+{
+	if (!s)
+		return;
+	if (_tcslen (s) <= len)
+		return;
+	s[len] = 0;
+}
+static void fixcharset (TCHAR *s)
+{
+	char tmp[MAX_DPATH];
+	if (!s)
+		return;
+	ua_fs_copy (tmp, MAX_DPATH, s, '_');
+	au_fs_copy (s, strlen (tmp) + 1, tmp);
+}
+
+TCHAR *validatevolumename (TCHAR *s)
+{
+	stripsemicolon (s);
+	stripspace (s);
+	fixcharset (s);
+	striplength (s, 30);
+	return s;
+}
+TCHAR *validatedevicename (TCHAR *s)
+{
+	stripsemicolon (s);
+	stripspace (s);
+	fixcharset (s);
+	striplength (s, 30);
+	return s;
 }
 
 TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const TCHAR *def)
@@ -347,7 +391,7 @@ TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const 
 		else
 			nvol = my_strdup (L"");
 	}
-	stripsemicolon (nvol);
+	validatevolumename (nvol);
 	xfree (p);
 	return nvol;
 }
@@ -473,15 +517,17 @@ static int set_filesys_unit_1 (int nr,
 		bootpri = -128;
 	if (donotmount)
 		bootpri = -129;
-	if (bootpri < -129) bootpri = -129;
-	if (bootpri > 127) bootpri = 127;
+	if (bootpri < -129)
+		bootpri = -129;
+	if (bootpri > 127)
+		bootpri = 127;
 	ui->bootpri = bootpri;
 	ui->open = 1;
 
 	return nr;
 err:
 	if (ui->hf.handle_valid)
-		hdf_close(&ui->hf);
+		hdf_close (&ui->hf);
 	return -1;
 }
 
@@ -978,7 +1024,7 @@ static void set_volume_name (Unit *unit)
 	int i;
 	char *s;
 
-	s = ua_fs (unit->ui.volname);
+	s = ua_fs (unit->ui.volname, -1);
 	namelen = strlen (s);
 	put_byte (unit->volume + 44, namelen);
 	for (i = 0; i < namelen; i++)
@@ -2070,6 +2116,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 	Unit *unit;
 	UnitInfo *uinfo;
 	int late = 0;
+	int ed, ef;
 
 	/* find UnitInfo with correct device name */
 	s = _tcschr (devname, ':');
@@ -2092,8 +2139,11 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 		put_long (pkt + dp_Res2, ERROR_DEVICE_NOT_MOUNTED);
 		return 0;
 	}
+	uinfo = mountinfo.ui + i;
 
-	if (!mountinfo.ui[i].wasisempty && !my_existsdir (mountinfo.ui[i].rootdir) && !my_existsfile (mountinfo.ui[i].rootdir))
+	ed = my_existsdir (uinfo->rootdir);
+	ef = my_existsfile (uinfo->rootdir);
+	if (!uinfo->wasisempty && !ef && !ed)
 	{
 		write_log (L"Failed attempt to mount device '%s'\n", devname);
 		put_long (pkt + dp_Res1, DOS_FALSE);
@@ -2101,7 +2151,6 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 		return 0;
 	}
 
-	uinfo = mountinfo.ui + i;
 	if (!uinfo->unit_pipe) {
 		late = 1;
 		filesys_start_thread (uinfo, i);
@@ -2111,7 +2160,8 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
 	/*    write_comm_pipe_int (unit->ui.unit_pipe, -1, 1);*/
 
-	write_log (L"FS: %s (flags=%08X) starting..\n", unit->ui.volname, unit->volflags);
+	write_log (L"FS: %s (flags=%08X,E=%d,ED=%d,EF=%d,native='%s') starting..\n",
+		unit->ui.volname, unit->volflags, uinfo->wasisempty, ed, ef, unit->ui.rootdir);
 
 	/* fill in our process in the device node */
 	devnode = get_long (pkt + dp_Arg3) << 2;
@@ -2740,7 +2790,7 @@ static void
 	put_long (info + 120, entrytype);
 
 	TRACE((L"name=\"%s\"\n", xs));
-	x2 = x = ua_fs (xs);
+	x2 = x = ua_fs (xs, -1);
 	n = strlen (x);
 	if (n > 106)
 		n = 106;
@@ -2771,7 +2821,7 @@ static void
 		xs = aino->comment;
 		if (!xs)
 			xs= L"";
-		x2 = x = ua_fs (xs);
+		x2 = x = ua_fs (xs, -1);
 		n = strlen (x);
 		if (n > 78)
 			n = 78;
@@ -2853,7 +2903,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 		entrytype = aino->dir ? 2 : -3;
 		xs = aino->aname;
 	}
-	x = ua_fs (xs);
+	x = ua_fs (xs, -1);
 
 	size = 0;
 	size2 = 4;
@@ -2880,7 +2930,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 			commentx = L"";
 		else
 			commentx = aino->comment;
-		comment = ua_fs (commentx);
+		comment = ua_fs (commentx, -1);
 		size += strlen (comment) + 1;
 		size = (size + 3) & ~3;
 	}
@@ -3256,7 +3306,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	uae_u32 uniq;
 
 	TRACE((L"ACTION_EXAMINE_NEXT(0x%lx,0x%lx)\n", lock, info));
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 	DUMPLOCK(unit, lock);
 
 	if (lock != 0)
@@ -3572,7 +3622,7 @@ static void
 		return;
 	}
 	TRACE((L"ACTION_READ(%s,0x%lx,%ld)\n", k->aino->nname, addr, size));
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 #ifdef RELY_ON_LOADSEG_DETECTION
 	/* HACK HACK HACK HACK
 	* Try to detect a LoadSeg() */
@@ -3652,7 +3702,7 @@ static void
 		return;
 	}
 
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 	TRACE((L"ACTION_WRITE(%s,0x%lx,%ld)\n", k->aino->nname, addr, size));
 
 	if (unit->ui.readonly) {
@@ -3715,7 +3765,7 @@ static void
 		whence = SEEK_SET;
 
 	TRACE((L"ACTION_SEEK(%s,%d,%d)\n", k->aino->nname, pos, mode));
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 
 	old = fs_lseek (unit, k->fd, 0, SEEK_CUR);
 	{
@@ -3784,7 +3834,7 @@ static void
 		PUT_PCK_RES1 (packet, DOS_TRUE);
 	}
 	notify_check (unit, a);
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void action_set_comment (Unit * unit, dpacket packet)
@@ -3841,7 +3891,7 @@ maybe_free_and_out:
 	a->comment = commented;
 	fsdb_set_file_attrs (a);
 	notify_check (unit, a);
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void
@@ -4023,7 +4073,7 @@ static void
 	notify_check (unit, aino);
 	updatedirtime (aino, 0);
 	PUT_PCK_RES1 (packet, make_lock (unit, aino->uniq, -2) >> 2);
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void
@@ -4075,7 +4125,7 @@ static void
 		return;
 	}
 
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 	k->notifyactive = 1;
 	/* If any open files have file pointers beyond this size, truncate only
 	* so far that these pointers do not become invalid.  */
@@ -4213,7 +4263,7 @@ static void
 		delete_aino (unit, a);
 	}
 	PUT_PCK_RES1 (packet, DOS_TRUE);
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void
@@ -4246,7 +4296,7 @@ static void
 		notify_check (unit, a);
 		PUT_PCK_RES1 (packet, DOS_TRUE);
 	}
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void
@@ -4352,7 +4402,7 @@ static void
 	if (a2->elock > 0 || a2->shlock > 0 || wehavekeys > 0)
 		de_recycle_aino (unit, a2);
 	PUT_PCK_RES1 (packet, DOS_TRUE);
-	gui_hd_led (unit->unit, 2);
+	gui_flicker_led (LED_HD, unit->unit, 2);
 }
 
 static void
@@ -4462,7 +4512,7 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
 		whence = SEEK_SET;
 
 	TRACE((L"ACTION_CHANGE_FILE_POSITION64(%s,%I64d,%d)\n", k->aino->nname, pos, mode));
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 
 	old = fs_lseek64 (unit, k->fd, 0, SEEK_CUR);
 	{
@@ -4535,7 +4585,7 @@ static void action_change_file_size64 (Unit *unit, dpacket packet)
 		return;
 	}
 
-	gui_hd_led (unit->unit, 1);
+	gui_flicker_led (LED_HD, unit->unit, 1);
 	k->notifyactive = 1;
 	/* If any open files have file pointers beyond this size, truncate only
 	* so far that these pointers do not become invalid.  */
@@ -4644,7 +4694,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 					lockend = get_long (lockend);
 					cnt++;
 				}
-				TRACE((L"%d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
+				TRACE((L"message_lock: %d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
 				put_long (lockend, get_long (m68k_areg (regs, 3)));
 				put_long (m68k_areg (regs, 3), locks);
 			}
@@ -5688,6 +5738,15 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	} else if (mode == 16) {
 		uaecptr a2 = m68k_areg (regs, 2);
 		input_mousehack_mouseoffset (a2);
+	} else if (mode == 100) {
+		return consolehook_activate () ? 1 : 0;
+	} else if (mode == 101) {
+		consolehook_ret (m68k_areg (regs, 1), m68k_areg (regs, 2));
+	} else if (mode == 102) {
+		uaecptr ret = consolehook_beginio (m68k_areg (regs, 1));
+		put_long (m68k_areg (regs, 7) + 4 * 4, ret);
+	} else {
+		write_log (L"Unknown mousehack hook %d\n", mode);
 	}
 	return 1;
 }

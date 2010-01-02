@@ -47,6 +47,7 @@
 #include "sound.h"
 #include "uae.h"
 #include "memory.h"
+#include "rommgr.h"
 #include "custom.h"
 #include "events.h"
 #include "newcpu.h"
@@ -100,6 +101,7 @@ static SYSTEM_INFO SystemInfo;
 static int logging_started;
 static DWORD minidumpmode = MiniDumpNormal;
 static int doquit;
+static int console_started;
 void *globalipc, *serialipc;
 
 int qpcdivisor = 0;
@@ -1157,11 +1159,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		case SC_SCREENSAVE: // Screensaver Trying To Start?
 		case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
 
-			// SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED); handles this now
-#if 0
-			if (!manual_painting_needed && focus && currprefs.win32_powersavedisabled)
-				return 0; // Prevent From Happening
-#endif
+			// SetThreadExecutionState handles this now
 			break;
 
 		default:
@@ -3871,6 +3869,11 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return -1;
 	}
 	if (!_tcscmp (arg, L"-console")) {
+		console_started = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"-cli")) {
+		console_emulation = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-log")) {
@@ -4875,8 +4878,8 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	GetProcessAffinityMask (GetCurrentProcess (), &original_affinity, &sys_aff);
 
 	thread = GetCurrentThread ();
-	fpucontrol = _controlfp (0, 0) & (_MCW_IC | _MCW_RC | _MCW_PC);
 	//original_affinity = SetThreadAffinityMask(thread, 1);
+	fpucontrol = _controlfp (0, 0) & (_MCW_IC | _MCW_RC | _MCW_PC);
 
 #if 0
 #define MSGFLT_ADD 1
@@ -4897,7 +4900,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
 	} __except(WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
 	}
-	//SetThreadAffinityMask(thread, original_affinity);
+	//SetThreadAffinityMask (thread, original_affinity);
 	return FALSE;
 }
 

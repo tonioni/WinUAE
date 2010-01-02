@@ -131,6 +131,7 @@ static void i2c_do (void)
 				memcpy (cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), nvram_writetmp, NVRAM_PAGE_SIZE);
 				nvram_write (nvram_address & ~(NVRAM_PAGE_SIZE - 1), NVRAM_PAGE_SIZE);
 				direction = -1;
+				gui_flicker_led (LED_MD, 0, 2);
 #if AKIKO_DEBUG_NVRAM
 				write_log (L"NVRAM write address %04X:", nvram_address & ~(NVRAM_PAGE_SIZE - 1));
 				for (i = 0; i < NVRAM_PAGE_SIZE; i++)
@@ -223,6 +224,7 @@ static void i2c_do (void)
 		if (direction < 0) {
 			memcpy (nvram_writetmp, cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), NVRAM_PAGE_SIZE);
 			nvram_writeaddr = nvram_address & (NVRAM_PAGE_SIZE - 1);
+			gui_flicker_led (LED_MD, 0, 1);
 		}
 		state = I2C_DATA;
 		bitcounter = 0;
@@ -766,7 +768,7 @@ static int cdrom_command_led (void)
 	cdrom_led &= ~1;
 	cdrom_led |= v & 1;
 	if (cdrom_led != old)
-		gui_cd_led (0, cdrom_led);
+		gui_flicker_led (LED_CD, 0, cdrom_led);
 	if (v & 0x80) { // result wanted?
 		cdrom_result_buffer[0] = cdrom_command;
 		cdrom_result_buffer[1] = cdrom_led & 1;
@@ -1169,7 +1171,7 @@ void AKIKO_hsync_handler (void)
 				cdrom_led |= LED_CD_AUDIO;
 			else
 				cdrom_led &= ~LED_CD_AUDIO;
-			gui_cd_led (0, cdrom_led);
+			gui_flicker_led (LED_CD, 0, cdrom_led);
 		}
 		if (cdrom_seek_delay <= 0) {
 			cdrom_run_read ();

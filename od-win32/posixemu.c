@@ -280,8 +280,10 @@ int uae_start_thread (TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id 
 	thp->arg = arg;
 	hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
 	if (hThread) {
-		if (name)
+		if (name) {
 			write_log (L"Thread '%s' started (%d)\n", name, hThread);
+			SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
+		}
 	} else {
 		result = 0;
 		write_log (L"Thread '%s' failed to start!?\n", name ? name : L"<unknown>");
@@ -305,6 +307,7 @@ DWORD_PTR cpu_affinity = 1, cpu_paffinity = 1;
 
 void uae_set_thread_priority (uae_thread_id *tid, int pri)
 {
+#if 0
 	int pri2;
 	HANDLE th;
 
@@ -315,11 +318,19 @@ void uae_set_thread_priority (uae_thread_id *tid, int pri)
 	pri2 = GetThreadPriority (th);
 	if (pri2 == THREAD_PRIORITY_ERROR_RETURN)
 		pri2 = 0;
+	if (pri > 0)
+		pri2 = THREAD_PRIORITY_HIGHEST;
+	else
+		pri2 = THREAD_PRIORITY_ABOVE_NORMAL;
 	pri2 += pri;
 	if (pri2 > 1)
 		pri2 = 1;
 	if (pri2 < -1)
 		pri2 = -1;
 	SetThreadPriority (th, pri2);
+#endif
+	if (!SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST))
+		SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+
 }
 
