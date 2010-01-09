@@ -75,7 +75,7 @@ static int blit_linecycles, blit_extracycles, blit_nod;
 static const int *blit_diag;
 static int blit_frozen, blit_faulty;
 static int blit_final;
-
+static int blt_delayed_irq;
 static uae_u16 ddat1, ddat2;
 static int ddat1use, ddat2use;
 
@@ -164,7 +164,7 @@ using normal BLTDDAT)
 - C-channel disabled: nothing is written
 
 There is one tricky situation, writing to DFF058 just before
-last D write cycle (which is normally free) does not distrupt
+last D write cycle (which is normally free) does not disturb
 blitter operation, final D is still written correctly before
 blitter starts normally (after 2 idle cycles)
 
@@ -968,6 +968,12 @@ void decide_blitter (int hpos)
 	if (blit_startcycles > 0)
 		do_startcycles (hpos);
 
+	if (blt_delayed_irq > 0 && hsync) {
+		blt_delayed_irq--;
+		if (!blt_delayed_irq)
+			INTREQ (0x8040);
+	}
+
 	if (bltstate == BLT_done)
 		return;
 #ifdef BLITTER_DEBUG
@@ -1090,11 +1096,12 @@ static void blitter_force_finish (void)
 			int rounds = 10000;
 			while (bltstate != BLT_done && rounds > 0) {
 				memset (cycle_line, 0, sizeof cycle_line);
-				decide_blitter (maxhpos);
+				decide_blitter (-1);
 				rounds--;
 			}
 			if (rounds == 0)
 				write_log (L"blitter froze!?\n");
+			blit_startcycles = 0;
 		} else {
 			actually_do_blit ();
 		}
@@ -1463,13 +1470,18 @@ uae_u8 *restore_blitter (uae_u8 *src)
 {
 	uae_u32 flags = restore_u32();
 
+	blt_delayed_irq = 0;
 	bltstate = BLT_done;
-	if (bltstate & 4) {
+	if (flags & 4) {
 		bltstate = (flags & 1) ? BLT_done : BLT_init;
 	}
 	if (flags & 2) {
 		write_log (L"blitter was force-finished when this statefile was saved\n");
 		write_log (L"contact the author if restored program freezes\n");
+		// there is a problem. if system ks vblank is active, we must not activate
+		// "old" blit's intreq until vblank is handled or ks 1.x thinks it was blitter
+		// interrupt..
+		blt_delayed_irq = -1;
 	}
 	return src;
 }
@@ -1482,6 +1494,11 @@ void restore_blitter_finish (void)
 	if (bltstate == BLT_init) {
 		write_log (L"blitter was started but DMA was inactive during save\n");
 		//do_blitter (0);
+	}
+	if (blt_delayed_irq < 0) {
+		if (intreq & 0x0040)
+			blt_delayed_irq = 3;
+		intreq &= 0x0040;
 	}
 }
 

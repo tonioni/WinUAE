@@ -458,7 +458,7 @@ UAEREG *read_disk_history (void)
 		if (_tcslen (tmp) == 7) {
 			idx2 = _tstol (tmp + 5) - 1;
 			if (idx2 >= 0)
-				DISK_history_add (tmp2, idx2, 0);
+				DISK_history_add (tmp2, idx2, TRUE);
 		}
 		idx++;
 	}

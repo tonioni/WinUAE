@@ -1,4 +1,22 @@
 
+Beta 2:
+
+- ioctl cd drive detection corrupted memory if more than 8 drives
+  found
+- removed remains of old and wrong OCS Denise "bug" emulation
+- 2.0.1 OCS Denise update diw counting bug fixed (Stardust map selector)
+- eat relative mouse movements while mouse driver mode is active
+- "blitter active while saving state" compatibility updates
+- fixed buffer underflow in sprite code if sprite was really far and
+  hidden in left border, it overwrote part of dual playfield priority
+  tables causing weird effects in dpf modes (Shadow Fighter AGA)
+- removed some code duplication from dpf mode genlinetoscr.c
+- prowizard promizer18a update (Asle)
+- CD32 pad emulation improved, CD32 Roadkill "non-standard" way of
+  reading buttons works now
+- do not scan files in floppy history at startup (=scan and add
+  possible disk images inside archives)
+
 Beta 1:
 
 - prowizard is now in static link library (no functional changes)

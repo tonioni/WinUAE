@@ -163,7 +163,7 @@ char *ua_fs (const WCHAR *s, int defchar)
 	dc = FALSE;
 	len = WideCharToMultiByte (fscodepage, DWFLAGS | WC_NO_BEST_FIT_CHARS, s, -1, NULL, 0, &def, &dc);
 	if (!len) {
-		err (__FUNCTION__, s, NULL, currprefs.win32_fscodepage);
+		err (__FUNCTION__, s, NULL, fscodepage);
 		return strdup ("");
 	}
 	d = xmalloc (len + 1);
@@ -274,6 +274,7 @@ static void mbtwc (UINT cp, DWORD flags, LPCSTR src, int len, LPWSTR dst, int ma
 
 void unicode_init (void)
 {
+	// iso-8859-15,iso-8859-1,windows-1252,default ansi
 	static UINT pages[] = { 28605, 28591, 1252, 0 };
 	int i;
 
@@ -294,7 +295,7 @@ void unicode_init (void)
 		dst2[1] = 0;
 		aufstable[i] = 0;
 		mbtwc (CP_ACP, 0, src, 1, dst1, 1);
-		mbtwc (fscodepage, 0, src, 1, dst2, 1);// iso-8859-15
+		mbtwc (fscodepage, 0, src, 1, dst2, 1);
 		if (dst2[0] != dst1[0])
 			write_log (L" %02X: %04X (%04X)", i, dst1[0], dst2[0]);
 		else

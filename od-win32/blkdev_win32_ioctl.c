@@ -850,7 +850,7 @@ static int open_bus (int flags)
 	if (log_scsi)
 		write_log (L"IOCTL: drive mask = %08X\n", dwDriveMask);
 	dwDriveMask >>= 2; // Skip A and B drives...
-	for( drive = 'C'; drive <= 'Z'; drive++) {
+	for (drive = 'C'; drive <= 'Z' && total_devices < MAX_TOTAL_DEVICES; drive++) {
 		if (dwDriveMask & 1) {
 			int dt;
 			_stprintf (tmp, L"%c:\\", drive);
@@ -918,6 +918,8 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 
 static struct device_scsi_info *ioctl_scsi_info (int unitnum, struct device_scsi_info *dsi)
 {
+	if (!unitcheck (unitnum))
+		return 0;
 	dsi->buffer = ciw32[unitnum].tempbuffer;
 	dsi->bufsize = IOCTL_DATA_BUFFER;
 	return dsi;

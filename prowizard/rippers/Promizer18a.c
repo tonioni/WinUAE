@@ -82,6 +82,9 @@ void Rip_PM18a ( void )
  * update 20 mar 2003 (it's war time again .. brrrr)
  * - removed all open() funcs.
  * - optimized more than quite a bit (src is 5kb shorter !)
+ *
+ * update 07 jan 2010
+ * - bug fix in patternlist generation
 */
 
 #define ON  0
@@ -109,6 +112,8 @@ void Depack_PM18a ( void )
   long Where = PW_Start_Address;
   Uchar *WholePatternData;
   FILE *out;
+  /*FILE *info;*/
+  /*info = fopen ("info.txt","w+b");*/
 
   #include "tuning.h"
   fillPTKtable(poss);
@@ -123,20 +128,27 @@ void Depack_PM18a ( void )
   BZERO ( OldSmpValue , 4 );
   BZERO ( Pats_Address , 128*4 );
 
-  Whatever = (Uchar *) malloc (128);
-  BZERO (Whatever, 128);
+  Whatever = (Uchar *) malloc (1085);
+  BZERO (Whatever, 1085);
   /* title */
-  fwrite ( &Whatever[0] , 20 , 1 , out );
+  /*fwrite ( &Whatever[0] , 20 , 1 , out );*/
 
   /* bypass replaycode routine */
   Where = PW_Start_Address + 4464;
 
   for ( i=0 ; i<31 ; i++ )
   {
-    
     /*sample name*/
-    fwrite ( &Whatever[32] , 22 , 1 , out );
-    fwrite ( &in_data[Where], 8, 1, out );
+    /*fwrite ( &Whatever[32] , 22 , 1 , out );*/
+    Whatever[42+30*i] = in_data[Where];
+    Whatever[43+30*i] = in_data[Where+1];
+    Whatever[44+30*i] = in_data[Where+2];
+    Whatever[45+30*i] = in_data[Where+3];
+    Whatever[46+30*i] = in_data[Where+4];
+    Whatever[47+30*i] = in_data[Where+5];
+    Whatever[48+30*i] = in_data[Where+6];
+    Whatever[49+30*i] = in_data[Where+7];
+    /*fwrite ( &in_data[Where], 8, 1, out );*/
 
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
     Smp_Fine_Table[i] = in_data[Where+2];
@@ -145,25 +157,33 @@ void Depack_PM18a ( void )
 
   /* pattern table lenght */
   NOP = ((in_data[Where]*256)+in_data[Where+1])/4;
-  fwrite ( &NOP , 1 , 1 , out );
+  /*fwrite ( &NOP , 1 , 1 , out );*/
+  Whatever[950] = NOP;
   Where += 2;
 
   /*printf ( "Number of patterns : %d\n" , NOP );*/
 
   /* NoiseTracker restart byte */
-  Whatever[0] = 0x7f;
-  fwrite ( &Whatever[0] , 1 , 1 , out );
+  /*Whatever[0] = 0x7f;*/
+  /*fwrite ( &Whatever[0] , 1 , 1 , out );*/
+  Whatever[951] = 0x7f;
 
   for ( i=0 ; i<128 ; i++ )
   {
-    Pats_Address[i] = (in_data[Where]*256*256*256)+(in_data[Where+1]*256*256)+(in_data[Where+2]*256)+in_data[Where+3];
+    Pats_Address[i] = (in_data[Where]*256*256*256)+
+                      (in_data[Where+1]*256*256)+
+                      (in_data[Where+2]*256)+
+                      in_data[Where+3];
     Where += 4;
   }
 
 
   /* a little pre-calc code ... no other way to deal with these unknown pattern data sizes ! :( */
   Where = PW_Start_Address + 4460;
-  PatDataSize = (in_data[Where]*256*256*256)+(in_data[Where+1]*256*256)+(in_data[Where+2]*256)+in_data[Where+3];
+  PatDataSize = (in_data[Where]*256*256*256)+
+                (in_data[Where+1]*256*256)+
+                (in_data[Where+2]*256)+
+                in_data[Where+3];
   /* go back to pattern data starting address */
   Where = PW_Start_Address + 5226;
   /* now, reading all pattern data to get the max value of note */
@@ -193,11 +213,11 @@ void Depack_PM18a ( void )
   i=0;
   for ( j=0 ; j<PatDataSize ; j+=2 )
   {
-    if ( (i%1024) == 0 )
+    if ( ((i%1024) == 0 ) || (i == 0))
     {
       Read_Pats_Address[c1] = j;
-      c1 += 0x01;
       /*fprintf ( info, " -> new pattern %2d (addy :%ld)\n", c1, j+5226 );*/
+      c1 += 0x01;
     }
 
     m = ((WholePatternData[j]*256)+WholePatternData[j+1])*4;
@@ -237,7 +257,7 @@ void Depack_PM18a ( void )
       /*fprintf ( info, "\n -> bypassing end of pattern" );*/
       FLAG=OFF;
       while ( (i%1024) != 0)
-	i ++;
+	    i ++;
       i -= 4;
     }
     k += 1;
@@ -248,24 +268,29 @@ void Depack_PM18a ( void )
   free ( WholePatternData );
 
   /* write pattern table */
-  BZERO ( Whatever, 128 );
+  /*BZERO ( Whatever, 128 );*/
   for ( c2=0; c2<128 ; c2+=0x01 )
-    for ( i=0 ; i<NOP ; i++ )
+    for ( i=0 ; i<c1 ; i++ )
       if ( Pats_Address[c2] == Read_Pats_Address[i])
-	Whatever[c2] = (Uchar) i;
-  while ( i<128 )
-    Whatever[i++] = 0x00;
-  fwrite ( &Whatever[0], 128, 1, out );
+	    Whatever[952+c2] = (Uchar) i;
+  while ( NOP<128 )
+  {
+    Whatever[952+NOP] = 0x00;
+    NOP++;
+  }
+  /*fwrite ( &Whatever[0], 128, 1, out );*/
 
   /* write tag */
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
+  Whatever[1080] = 'M';
+  Whatever[1081] = '.';
+  Whatever[1082] = 'K';
+  Whatever[1083] = '.';
 
-  fwrite ( &Whatever[0] , 1 , 1 , out );
+  /*fwrite ( &Whatever[0] , 1 , 1 , out );
   fwrite ( &Whatever[1] , 1 , 1 , out );
   fwrite ( &Whatever[2] , 1 , 1 , out );
-  fwrite ( &Whatever[1] , 1 , 1 , out );
+  fwrite ( &Whatever[1] , 1 , 1 , out );*/
+  fwrite (Whatever, 1, 1084, out);
 
   free ( Whatever );
 
@@ -289,6 +314,7 @@ void Depack_PM18a ( void )
 
   fflush ( out );
   fclose ( out );
+  /*fclose (info);*/
 
   printf ( "done\n" );
   return; /* useless ... but */

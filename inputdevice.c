@@ -1221,7 +1221,7 @@ static void inputdevice_mh_abs (int x, int y)
 	off = getmhoffset ();
 	p = rtarea + off;
 
-	memcpy (tmp, p + MH_ABSX, 4);
+	memcpy (tmp, p + MH_ABSX, sizeof tmp);
 
 	x -= mouseoffset_x + 1;
 	y -= mouseoffset_y + 2;
@@ -1231,7 +1231,7 @@ static void inputdevice_mh_abs (int x, int y)
 	p[MH_ABSY] = y >> 8;
 	p[MH_ABSY + 1] = y;
 
-	if (!memcmp (tmp, p + MH_ABSX, 4))
+	if (!memcmp (tmp, p + MH_ABSX, sizeof tmp))
 		return;
 	rtarea[off + MH_E] = 0xc0 | 1;
 	p[MH_CNT]++;
@@ -1936,8 +1936,8 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 			potgor |= potgo_value & p5dat;
 			if (!(potgo_value & p9dir))
 				potgor |= p9dat;
-			/* P5 output and 1 -> shift register is kept reset (Blue button) */
-			if ((potgo_value & p5dir) && (potgo_value & p5dat))
+			/* (P5 output and 1) or floating -> shift register is kept reset (Blue button) */
+			if (!(potgo_value & p5dir) || ((potgo_value & p5dat) && (potgo_value & p5dir)))
 				cd32_shifter[i] = 8;
 			/* shift at 1 == return one, >1 = return button states */
 			if (cd32_shifter[i] == 0)
@@ -2034,7 +2034,7 @@ void POTGO (uae_u16 v)
 		if (cd32_pad_enabled[i]) {
 			uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
 			uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
-			if ((potgo_value & p5dir) && (potgo_value & p5dat))
+			if (!(potgo_value & p5dir) || ((potgo_value & p5dat) && (potgo_value & p5dir)))
 				cd32_shifter[i] = 8;
 		}
 	}
@@ -4233,6 +4233,9 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	mouse_p = &mouse_axis[mouse][axis];
 	oldm_p = &oldm_axis[mouse][axis];
 	if (!isabs) {
+		// eat relative movements while in mousehack mode
+		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive ())
+			return;
 		*oldm_p = *mouse_p;
 		*mouse_p += data;
 		d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0;

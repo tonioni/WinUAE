@@ -1999,7 +1999,7 @@ void logging_init (void)
 		SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors);
 	write_log (L"\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-		L"\n(c) 1998-2009 Toni Wilen      - Win32 port, core code updates."
+		L"\n(c) 1998-2010 Toni Wilen      - Win32 port, core code updates."
 		L"\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 		L"\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 		L"\n(c) 2000-2001 Bernd Meyer     - JIT engine."

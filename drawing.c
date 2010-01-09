@@ -622,8 +622,13 @@ static void pfield_init_linetoscr (void)
 	}
 #endif
 
-	if (sprite_first_x < sprite_last_x)
+	if (sprite_first_x < sprite_last_x) {
+		if (sprite_first_x < 0)
+			sprite_first_x = 0;
+		if (sprite_last_x >= MAX_PIXELS_PER_LINE)
+			sprite_last_x = MAX_PIXELS_PER_LINE - 1;
 		memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
+	}
 	sprite_last_x = 0;
 	sprite_first_x = MAX_PIXELS_PER_LINE - 1;
 
@@ -1434,17 +1439,12 @@ static void gen_pfield_tables (void)
 {
 	int i;
 
-	/* For now, the AGA stuff is broken in the dual playfield case. We encode
-	* sprites in dpf mode by ORing the pixel value with 0x80. To make dual
-	* playfield rendering easy, the lookup tables contain are made linear for
-	* values >= 128. That only works for OCS/ECS, though. */
-
 	for (i = 0; i < 256; i++) {
-		int plane1 = (i & 1) | ((i >> 1) & 2) | ((i >> 2) & 4) | ((i >> 3) & 8);
+		int plane1 = ((i >> 0) & 1) | ((i >> 1) & 2) | ((i >> 2) & 4) | ((i >> 3) & 8);
 		int plane2 = ((i >> 1) & 1) | ((i >> 2) & 2) | ((i >> 3) & 4) | ((i >> 4) & 8);
 
-		dblpf_2nd1[i] = plane1 == 0 ? (plane2 == 0 ? 0 : 2) : 1;
-		dblpf_2nd2[i] = plane2 == 0 ? (plane1 == 0 ? 0 : 1) : 2;
+		dblpf_2nd1[i] = plane1 == 0 && plane2 != 0;
+		dblpf_2nd2[i] = plane2 != 0;
 
 #ifdef AGA
 		dblpf_ind1_aga[i] = plane1 == 0 ? plane2 : plane1;
@@ -1454,6 +1454,7 @@ static void gen_pfield_tables (void)
 		dblpf_ms1[i] = plane1 == 0 ? (plane2 == 0 ? 16 : 8) : 0;
 		dblpf_ms2[i] = plane2 == 0 ? (plane1 == 0 ? 16 : 0) : 8;
 		dblpf_ms[i] = i == 0 ? 16 : 8;
+
 		if (plane2 > 0)
 			plane2 += 8;
 		dblpf_ind1[i] = i >= 128 ? i & 0x7F : (plane1 == 0 ? plane2 : plane1);

@@ -249,7 +249,7 @@ static int bplcon1_hpos;
 
 enum diw_states
 {
-	DIW_waiting_start, DIW_waiting_stop, DIW_waiting_frozen
+	DIW_waiting_start, DIW_waiting_stop
 };
 
 static int plffirstline, plflastline;
@@ -584,11 +584,8 @@ static void decide_diw (int hpos)
 	   ECS Denise and AGA: no above "features"
 	*/
 
-	int hdiw = hpos == maxhpos ? hpos * 2 + 1 : hpos * 2 + 2;
-
+	int hdiw = hpos >= maxhpos ? maxhpos * 2 + 1 : hpos * 2 + 2;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= equ_vblank_endline) {
-		if (vpos == equ_vblank_endline)
-			diw_hcounter++;
 		hdiw = diw_hcounter;
 		hdiw &= 511;
 	}
@@ -1880,10 +1877,7 @@ STATIC_INLINE void decide_line (int hpos)
 {
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline) {
-		if (diwstate == DIW_waiting_stop && last_decide_line_hpos < 2 && hpos > last_decide_line_hpos && diw_hstrt <= 2 && !(currprefs.chipset_mask & CSMASK_ECS_DENISE))
-			diwstate = DIW_waiting_frozen; // OCS Denise bug
-		else if (hpos >= 2 && diwstate != DIW_waiting_frozen)
-			diwstate = DIW_waiting_stop;
+		diwstate = DIW_waiting_stop;
 		ddf_change = vpos;
 	}
 	if (vpos == plflastline) {
@@ -2531,8 +2525,11 @@ static void finish_decisions (void)
 	/* Large DIWSTOP values can cause the stop position never to be
 	* reached, so the state machine always stays in the same state and
 	* there's a more-or-less full-screen DIW. */
-	if (hdiwstate == DIW_waiting_stop /* || thisline_decision.diwlastword > max_diwlastword */)
+	if (hdiwstate == DIW_waiting_stop) {
 		thisline_decision.diwlastword = max_diwlastword;
+		if (thisline_decision.diwfirstword == -1)
+			thisline_decision.diwfirstword = 0;
+	}
 
 	if (thisline_decision.diwfirstword != line_decisions[next_lineno].diwfirstword)
 		MARK_LINE_CHANGED;
@@ -2579,6 +2576,8 @@ static void finish_decisions (void)
 	next_color_change += (HBLANK_OFFSET + 1) / 2;
 
 	diw_hcounter += maxhpos * 2;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos == equ_vblank_endline - 1)
+		diw_hcounter++;
 	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > equ_vblank_endline) {
 		diw_hcounter = maxhpos * 2;
 		last_hdiw = 2 - 1;
@@ -2956,7 +2955,7 @@ STATIC_INLINE uae_u16 DMACONR (int hpos)
 	decide_fetch (hpos);
 	decide_blitter (hpos);
 	dmacon &= ~(0x4000 | 0x2000);
-	dmacon |= (blit_interrupt || (!blit_interrupt && currprefs.cs_agnusbltbusybug && !blt_info.got_cycle) ? 0 : 0x4000)
+	dmacon |= ((blit_interrupt || (!blit_interrupt && currprefs.cs_agnusbltbusybug && !blt_info.got_cycle)) ? 0 : 0x4000)
 		| (blt_info.blitzero ? 0x2000 : 0);
 	return dmacon;
 }
@@ -3318,15 +3317,23 @@ STATIC_INLINE void INTENA (uae_u16 v)
 
 void INTREQ_0 (uae_u16 v)
 {
+	uae_u16 tmp = intreq;
 	intreqr = intreq;
 	/* data in intreq is immediately available (vsync only currently because there is something unknown..) */
 	setclr (&intreqr, v & (0x8000 | 0x20));
+	setclr (&tmp, v);
 
-	if (use_eventmode ())
-		prepare_interrupt ();
+	if (use_eventmode ()) {
+		if (tmp != intreq)
+			prepare_interrupt ();
+		if (tmp > intreq) {
+			if (debug_dma)
+				record_dma_event (DMA_EVENT_INTREQ, current_hpos (), vpos);
+		}
+	}
 	if (v & (0x80 | 0x100 | 0x200 | 0x400))
 		audio_update_irq (v);
-	setclr (&intreq, v);
+	intreq = tmp;
 	intreqr = intreq;
 	doint ();
 }
@@ -3584,7 +3591,7 @@ static void BPL2MOD (int hpos, uae_u16 v)
 }
 
 /* needed in special OCS/ECS "7-plane" mode. */
-/* (in reality only BPL5DAT and BPL6DAT needed) */
+/* (in reality only BPL0DAT, BPL5DAT and BPL6DAT needed) */
 static void BPLxDAT (int hpos, int num, uae_u16 v)
 {
 	decide_line (hpos);
@@ -4272,6 +4279,9 @@ static void update_copper (int until_hpos)
 					record_dma (0x8c, cop_state.i2, cop_state.ip - 2, old_hpos, vpos, DMARECORD_COPPER);
 #endif
 			} else { // MOVE
+#ifdef DEBUGGER
+				uaecptr debugip = cop_state.ip;
+#endif
 				unsigned int reg = cop_state.i1 & 0x1FE;
 				uae_u16 data = cop_state.i2;
 				cop_state.state = COP_read1;
@@ -4312,7 +4322,7 @@ static void update_copper (int until_hpos)
 				}
 #ifdef DEBUGGER
 				if (debug_copper)
-					record_copper (cop_state.ip - 4, old_hpos, vpos);
+					record_copper (debugip - 4, old_hpos, vpos);
 #endif
 			}
 			break;
@@ -5231,9 +5241,9 @@ static void hsync_handler (void)
 #ifdef CDTV
 	CDTV_hsync_handler ();
 #endif
+	decide_blitter (-1);
 #ifdef CPUEMU_12
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
-		decide_blitter (-1);
 		memset (cycle_line, 0, sizeof cycle_line);
 	}
 #endif
@@ -5526,17 +5536,11 @@ static void MISC_handler (void)
 	recursive--;
 }
 
-STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
+STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
 {
 	evt et;
 
-	if (((int)t) <= 0) {
-		func (data);
-		return;
-	}
-
-	et = t * CYCLE_UNIT + get_cycles ();
-
+	et = t + get_cycles ();
 	if (no < 0) {
 		for (no = ev2_misc; no < ev2_max; no++) {
 			if (!eventtab2[no].active)
@@ -5557,6 +5561,17 @@ STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
 	eventtab2[no].data = data;
 	MISC_handler ();
 }
+
+STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
+{
+	if (((int)t) <= 0) {
+		func (data);
+		return;
+	}
+
+	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
+}
+
 void event2_newevent (int no, evt t)
 {
 	event2_newevent_x (no, t, 0, eventtab2[no].handler);
@@ -6818,11 +6833,12 @@ STATIC_INLINE void decide_fetch_ce (int hpos)
 // at least 4 cycles (all DMA cycles count, not just blitter cycles, even
 // blitter idle cycles do count!)
 
-STATIC_INLINE int dma_cycle (void)
+STATIC_INLINE int dma_cycle (int *waited)
 {
 	int hpos, hpos_old;
 
 	blitter_nasty = 1;
+	*waited = 0;
 	for (;;) {
 		int bpldma;
 		int blitpri = dmacon & DMA_BLITPRI;
@@ -6845,6 +6861,7 @@ STATIC_INLINE int dma_cycle (void)
 			alloc_cycle (hpos_old, CYCLE_CPU);
 			break;
 		}
+		*waited = 1;
 		regs.ce020memcycles -= CYCLE_UNIT;
 		do_cycles (1 * CYCLE_UNIT);
 		/* bus was allocated to dma channel, wait for next cycle.. */
@@ -6861,10 +6878,13 @@ STATIC_INLINE void checknasty (int hpos, int vpos)
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
-	int hpos;
+	int hpos, waited;
 	struct dma_rec *dr;
 
-	hpos = dma_cycle ();
+	hpos = dma_cycle (&waited);
+	if (waited)
+		do_cycles_ce (CYCLE_UNIT);
+
 #ifdef DEBUGGER
 	if (debug_dma) {
 		dr = record_dma (0x1000, v, addr, hpos, vpos, DMARECORD_CPU);
@@ -6877,11 +6897,16 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 		v = get_word (addr);
 	else if (mode == 0)
 		v = get_byte (addr);
+
 #ifdef DEBUGGER
 	if (debug_dma)
 		dr->dat = v;
 #endif
-	do_cycles_ce (2 * CYCLE_UNIT);
+
+	if (!waited)
+		do_cycles_ce (2 * CYCLE_UNIT);
+	else
+		do_cycles_ce (CYCLE_UNIT);
 	regs.ce020memcycles -= 2 * CYCLE_UNIT;
 	return v;
 }
@@ -6894,21 +6919,29 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
+	int waited;
 
-	hpos = dma_cycle ();
+	hpos = dma_cycle (&waited);
+	if (waited)
+		do_cycles_ce (CYCLE_UNIT);
+
 #ifdef DEBUGGER
 	if (debug_dma) {
 		record_dma (0x1001, v, addr, hpos, vpos, DMARECORD_CPU);
 		checknasty (hpos, vpos);
 	}
 #endif
+
 	if (mode < 0)
 		put_long (addr, v);
 	else if (mode > 0)
 		put_word (addr, v);
 	else if (mode == 0)
 		put_byte (addr, v);
-	do_cycles_ce (2 * CYCLE_UNIT);
+	if (!waited)
+		do_cycles_ce (2 * CYCLE_UNIT);
+	else
+		do_cycles_ce (CYCLE_UNIT);
 	regs.ce020memcycles -= 2 * CYCLE_UNIT;
 }
 
@@ -6919,9 +6952,9 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 
 void do_cycles_ce (long cycles)
 {
-	static int extra;
+	static int extra_cycle;
 
-	cycles += extra;
+	cycles += extra_cycle;
 	while (cycles >= CYCLE_UNIT) {
 		int hpos = current_hpos () + 1;
 		sync_copper (hpos);
@@ -6932,7 +6965,7 @@ void do_cycles_ce (long cycles)
 		do_cycles (1 * CYCLE_UNIT);
 		cycles -= CYCLE_UNIT;
 	}
-	extra = cycles;
+	extra_cycle = cycles;
 }
 
 int is_cycle_ce (void)

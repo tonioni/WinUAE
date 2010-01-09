@@ -1353,10 +1353,10 @@ Illegal Instruction:
 Interrupt cycle diagram:
 
 - 6 idle cycles
-- read exception number byte from (0xfffff1 | (interrupt number << 1))
 - write PC low word
-- write SR
+- read exception number byte from (0xfffff1 | (interrupt number << 1))
 - 4 idle cycles
+- write SR
 - write PC high word
 - read exception address high word
 - read exception address low word
@@ -1384,10 +1384,6 @@ static void Exception_ce000 (int nr, uaecptr oldpc)
 	if (start)
 		do_cycles_ce000 (start);
 
-	if (interrupt) { // fetch interrupt vector number
-		nr = get_byte_ce (0x00fffff1 | ((nr - 24) << 1));
-	}
-
 	exception_debug (nr);
 	MakeSR ();
 
@@ -1414,9 +1410,12 @@ static void Exception_ce000 (int nr, uaecptr oldpc)
 	}
 	m68k_areg (regs, 7) -= 6;
 	put_word_ce (m68k_areg (regs, 7) + 4, currpc); // write low address
-	put_word_ce (m68k_areg (regs, 7) + 0, regs.sr); // write SR
-	if (interrupt)
+	if (interrupt) {
+		// fetch interrupt vector number
+		nr = get_byte_ce (0x00fffff1 | ((nr - 24) << 1));
 		do_cycles_ce000 (4);
+	}
+	put_word_ce (m68k_areg (regs, 7) + 0, regs.sr); // write SR
 	put_word_ce (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 kludge_me_do:
 	newpc = get_word_ce (4 * nr) << 16; // read high address
@@ -1762,6 +1761,9 @@ void REGPARAM2 Exception (int nr, uaecptr oldpc)
 
 STATIC_INLINE void do_interrupt (int nr)
 {
+	if (debug_dma)
+		record_dma_event (DMA_EVENT_CPUIRQ, current_hpos (), vpos);
+
 	regs.stopped = 0;
 	unset_special (SPCFLAG_STOP);
 	assert (nr < 8 && nr >= 0);

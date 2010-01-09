@@ -1889,12 +1889,15 @@ static void gen_opcode (unsigned long int opcode)
 			* - MOVE <ea>,-(An) = prefetch is before writes (Apdi)
 			* - MOVE memory,(xxx).L, the most stupid ever. 2 prefetches after write
 			* - all others = prefetch is done after writes
+			*
+			* - move.x xxx,[at least 1 extension word here] = fetch 1 extension word before (xxx)
 			*/
-			int prefetch_done = 0;
+			int prefetch_done = 0, flags;
 			int dualprefetch = curi->dmode == absl && (curi->smode != Dreg && curi->smode != Areg && curi->smode != imm);
 			genamode_pre (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+			flags = 1 | (dualprefetch ? GF_NOREFILL : 0);
 			/* MOVE.L dx,(ax) exception3 PC points to next instruction. hackhackhack */
-			genamode_e3 (curi->dmode, "dstreg", curi->size, "dst", 2, 0, 1 | (dualprefetch ? GF_NOREFILL : 0), curi->smode == Dreg && curi->dmode == Aind ? 2 : 0);
+			genamode_e3 (curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags, curi->smode == Dreg && curi->dmode == Aind ? 2 : 0);
 			genamode_post (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 			if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 				printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
@@ -3749,4 +3752,8 @@ int main (int argc, char **argv)
 
 	free (table68k);
 	return 0;
+}
+
+void write_log (const TCHAR *format,...)
+{
 }
