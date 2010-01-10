@@ -2717,6 +2717,8 @@ STATIC_INLINE int do_specialties (int cycles)
 void prepare_interrupt (void)
 {
 	interrupt_cycles = get_cycles () + 5 * CYCLE_UNIT + CYCLE_UNIT / 2;
+	if (vpos == 0 && current_hpos () == 0)
+		interrupt_cycles -= CYCLE_UNIT; // vblank int hpos=-1
 	interrupt_cycles_active = 1;
 }
 

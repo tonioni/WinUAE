@@ -407,6 +407,13 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 			}
 			break;
 		case DIK_F5:
+#if 0
+			{
+				extern int crap;
+				crap++;
+				write_log (L"%d\n", crap);
+			}
+#endif
 			if (specialpressed ()) {
 				if (shiftpressed ())
 					code = AKS_STATESAVEDIALOG;

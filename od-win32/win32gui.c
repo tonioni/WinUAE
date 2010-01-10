@@ -1526,16 +1526,19 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	}
 	if (!doit)
 		return FALSE;
+	write_log (L"OFNHOOK\n");
 	md = getdisplay (&currprefs);
 	if (!md)
 		return FALSE;
 	w2 = WIN32GFX_GetWidth ();
 	h2 = WIN32GFX_GetHeight ();
-	if (w2 == prevwidth && h2 == prevheight)
+	if (w2 == prevwidth && h2 == prevheight) {
+		write_log (L"SAME %dx%d\n", w2, h2);
 		return FALSE;
+	}
 	prevwidth = w2;
 	prevheight = h2;
-	//write_log (L"%dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
+	write_log (L"MOVEWINDOW %dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
 	hWnd = GetParent (hDlg);
 	GetWindowRect (hWnd, &windowRect);
 	width = windowRect.right - windowRect.left;

@@ -4192,12 +4192,6 @@ static void update_copper (int until_hpos)
 		else
 			c_hpos += 2;
 
-		if (cop_state.strobe) {
-			if (cop_state.strobe > 0)
-				cop_state.ip = cop_state.strobe == 1 ? cop1lc : cop2lc;
-			cop_state.strobe = 0;
-		}
-
 		switch (cop_state.state)
 		{
 		case COP_wait_in2:
@@ -4224,6 +4218,7 @@ static void update_copper (int until_hpos)
 			if (debug_dma)
 				record_dma (0x8c, chipmem_agnus_wget (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
 #endif
+			cop_state.ip += 2;
 			break;
 		case COP_strobe_delay2:
 			// second cycle after COPJMP is like second read cycle except
@@ -4234,7 +4229,13 @@ static void update_copper (int until_hpos)
 			cop_state.state = COP_read1;
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 			if (debug_dma)
-				record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip + 2), cop_state.ip + 2, old_hpos, vpos, DMARECORD_COPPER);
+				record_dma (0x1fe, chipmem_agnus_wget (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			// next cycle finally reads from new pointer
+			if (cop_state.strobe == 1)
+				cop_state.ip = cop1lc;
+			else
+				cop_state.ip = cop2lc;
+			cop_state.strobe = 0;
 			break;
 		case COP_start_delay:
 			if (copper_cant_read (old_hpos, 1))
@@ -4243,6 +4244,7 @@ static void update_copper (int until_hpos)
 			alloc_cycle (old_hpos, CYCLE_COPPER);
 			if (debug_dma)
 				record_dma (0x1fe, 0, 0xffffffff, old_hpos, vpos, DMARECORD_COPPER);
+			cop_state.ip = cop1lc;
 			break;
 
 		case COP_read1:
@@ -4300,10 +4302,10 @@ static void update_copper (int until_hpos)
 				cop_state.last_write = reg;
 				cop_state.last_write_hpos = old_hpos;
 				if (reg == 0x88) {
-					cop_state.ip = cop1lc;
+					cop_state.strobe = 1;
 					cop_state.state = COP_strobe_delay1;
-				} else if (reg == 0x8A) {
-					cop_state.ip = cop2lc;
+				} else if (reg == 0x8a) {
+					cop_state.strobe = 2;
 					cop_state.state = COP_strobe_delay1;
 				} else {
 					// FIX: all copper writes happen 1 cycle later than CPU writes
@@ -6833,12 +6835,11 @@ STATIC_INLINE void decide_fetch_ce (int hpos)
 // at least 4 cycles (all DMA cycles count, not just blitter cycles, even
 // blitter idle cycles do count!)
 
-STATIC_INLINE int dma_cycle (int *waited)
+STATIC_INLINE int dma_cycle (void)
 {
 	int hpos, hpos_old;
 
 	blitter_nasty = 1;
-	*waited = 0;
 	for (;;) {
 		int bpldma;
 		int blitpri = dmacon & DMA_BLITPRI;
@@ -6861,7 +6862,6 @@ STATIC_INLINE int dma_cycle (int *waited)
 			alloc_cycle (hpos_old, CYCLE_CPU);
 			break;
 		}
-		*waited = 1;
 		regs.ce020memcycles -= CYCLE_UNIT;
 		do_cycles (1 * CYCLE_UNIT);
 		/* bus was allocated to dma channel, wait for next cycle.. */
@@ -6878,16 +6878,22 @@ STATIC_INLINE void checknasty (int hpos, int vpos)
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
-	int hpos, waited;
+	int hpos;
 	struct dma_rec *dr;
 
-	hpos = dma_cycle (&waited);
-	if (waited)
-		do_cycles_ce (CYCLE_UNIT);
+	hpos = dma_cycle ();
+	do_cycles_ce (CYCLE_UNIT);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
-		dr = record_dma (0x1000, v, addr, hpos, vpos, DMARECORD_CPU);
+		int reg = 0x1000;
+		if (mode < 0)
+			reg |= 4;
+		else if (mode > 0)
+			reg |= 2;
+		else
+			reg |= 1;
+		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
 		checknasty (hpos, vpos);
 	}
 #endif
@@ -6903,31 +6909,65 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 		dr->dat = v;
 #endif
 
-	if (!waited)
-		do_cycles_ce (2 * CYCLE_UNIT);
-	else
-		do_cycles_ce (CYCLE_UNIT);
-	regs.ce020memcycles -= 2 * CYCLE_UNIT;
+	do_cycles_ce (CYCLE_UNIT);
 	return v;
 }
 
 uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 {
-	return wait_cpu_cycle_read (addr, mode);
+	uae_u32 v = 0;
+	int hpos;
+	struct dma_rec *dr;
+
+	hpos = dma_cycle ();
+	do_cycles_ce (CYCLE_UNIT);
+
+#ifdef DEBUGGER
+	if (debug_dma) {
+		int reg = 0x1000;
+		if (mode < 0)
+			reg |= 4;
+		else if (mode > 0)
+			reg |= 2;
+		else
+			reg |= 1;
+		dr = record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		checknasty (hpos, vpos);
+	}
+#endif
+	if (mode < 0)
+		v = get_long (addr);
+	else if (mode > 0)
+		v = get_word (addr);
+	else if (mode == 0)
+		v = get_byte (addr);
+
+#ifdef DEBUGGER
+	if (debug_dma)
+		dr->dat = v;
+#endif
+
+	regs.ce020memcycles -= CYCLE_UNIT;
+	return v;
 }
 
 void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
-	int waited;
 
-	hpos = dma_cycle (&waited);
-	if (waited)
-		do_cycles_ce (CYCLE_UNIT);
+	hpos = dma_cycle ();
+	do_cycles_ce (CYCLE_UNIT);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
-		record_dma (0x1001, v, addr, hpos, vpos, DMARECORD_CPU);
+		int reg = 0x1100;
+		if (mode < 0)
+			reg |= 4;
+		else if (mode > 0)
+			reg |= 2;
+		else
+			reg |= 1;
+		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
 		checknasty (hpos, vpos);
 	}
 #endif
@@ -6938,16 +6978,38 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 		put_word (addr, v);
 	else if (mode == 0)
 		put_byte (addr, v);
-	if (!waited)
-		do_cycles_ce (2 * CYCLE_UNIT);
-	else
-		do_cycles_ce (CYCLE_UNIT);
-	regs.ce020memcycles -= 2 * CYCLE_UNIT;
+	do_cycles_ce (CYCLE_UNIT);
 }
 
 void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 {
-	wait_cpu_cycle_write (addr, mode, v);
+	int hpos;
+
+	hpos = dma_cycle ();
+	do_cycles_ce (CYCLE_UNIT);
+
+#ifdef DEBUGGER
+	if (debug_dma) {
+		int reg = 0x1100;
+		if (mode < 0)
+			reg |= 4;
+		else if (mode > 0)
+			reg |= 2;
+		else
+			reg |= 1;
+		record_dma (reg, v, addr, hpos, vpos, DMARECORD_CPU);
+		checknasty (hpos, vpos);
+	}
+#endif
+
+	if (mode < 0)
+		put_long (addr, v);
+	else if (mode > 0)
+		put_word (addr, v);
+	else if (mode == 0)
+		put_byte (addr, v);
+
+	regs.ce020memcycles -= CYCLE_UNIT;
 }
 
 void do_cycles_ce (long cycles)

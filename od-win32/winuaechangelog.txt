@@ -1,4 +1,25 @@
 
+Beta 3:
+
+- Shadow Fighter AGA graphics priority issue really fixed now
+- COPJMP cycles in DMA debugger shown correctly, no functional
+  change (after COPJMPx access copper does dummy move cycle before
+  COPxLC changes, dummy data and addresses shown now correctly)
+- show CPU access type (byte, word or long if 32-bit bus) in DMA
+  debugger. TODO: separate instruction and data fetches without
+  slowing everything down..
+- added DMA channel names to DMA debugger (COP, BLT etc..)  
+- few hours of boring logic analyzer CPU cycle usage checks..
+- 68000 AND.L, OR.L, EOR.L, ADD.L, SUB.L also write data in reverse
+  order (like NOT.L, CLR.L and NEG.L do, R+0, R+2, W+2, W+0)
+- CMP idle cycle and prefetch swapped (previously only CMPA)
+- AND/OR/EOR/ADD/SUB #x,Dn idle cycle and prefetch swapped
+- ADDQ.L #x,An had wrong cycle count
+- 68000 interrupt startup cycle counting updated
+- MOVE address error handling may be temporarily broken
+- 68020 ce-mode cpu chip bus access used a500-like timing
+- above changes seems to have fixed some demo glitches
+
 Beta 2:
 
 - ioctl cd drive detection corrupted memory if more than 8 drives

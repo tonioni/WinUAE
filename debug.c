@@ -880,16 +880,39 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 		TCHAR l4[81];
 		for (i = 0; i < cols && h < maxh; i++, h++, dr++) {
 			int cl = i * col, cl2;
+			int r = dr->reg;
+			TCHAR *sr;
 
+			sr = L"    ";
+			if (dr->type == DMARECORD_COPPER)
+				sr = L"COP ";
+			else if (dr->type == DMARECORD_BLITTER)
+				sr = L"BLT ";
+			else if (dr->type == DMARECORD_REFRESH)
+				sr = L"RFS ";
+			else if (dr->type == DMARECORD_AUDIO)
+				sr = L"AUD ";
+			else if (dr->type == DMARECORD_DISK)
+				sr = L"DSK ";
+			else if (dr->type == DMARECORD_SPRITE)
+				sr = L"SPR ";
 			_stprintf (l1 + cl, L"[%02X %3d]", h, h);
 			_tcscpy (l4 + cl, L"        ");
-			if (dr->reg != 0xffff) {
-				if ((dr->reg & 0x1001) == 0x1000)
-					_tcscpy (l2 + cl, L"   CPU-R ");
-				else if ((dr->reg & 0x1001) == 0x1001)
-					_tcscpy (l2 + cl, L"   CPU-W ");
-				else
-					_stprintf (l2 + cl, L"     %03X", dr->reg);
+			if (r != 0xffff) {
+				if (r & 0x1000) {
+					if ((r & 0x0100) == 0x0000)
+						_tcscpy (l2 + cl, L"  CPU-R  ");
+					else if ((r & 0x0100) == 0x0100)
+						_tcscpy (l2 + cl, L"  CPU-W  ");
+					if ((r & 0xff) == 4)
+						l2[cl + 7] = 'L';
+					if ((r & 0xff) == 2)
+						l2[cl + 7] = 'W';
+					if ((r & 0xff) == 1)
+						l2[cl + 7] = 'B';
+				} else {
+					_stprintf (l2 + cl, L"%4s %03X", sr, r);
+				}
 				_stprintf (l3 + cl, L"    %04X", dr->dat);
 				if (dr->addr != 0xffffffff)
 					_stprintf (l4 + cl, L"%08X", dr->addr & 0x00ffffff);
@@ -899,19 +922,19 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 			}
 			cl2 = cl;
 			if (dr->evt & DMA_EVENT_BLITNASTY)
-				l2[cl2++] = 'N';
+				l3[cl2++] = 'N';
 			if (dr->evt & DMA_EVENT_BLITFINISHED)
-				l2[cl2++] = 'B';
+				l3[cl2++] = 'B';
 			if (dr->evt & DMA_EVENT_BLITIRQ)
-				l2[cl2++] = 'b';
+				l3[cl2++] = 'b';
 			if (dr->evt & DMA_EVENT_BPLFETCHUPDATE)
-				l2[cl2++] = 'p';
+				l3[cl2++] = 'p';
 			if (dr->evt & DMA_EVENT_COPPERWAKE)
-				l2[cl2++] = 'W';
+				l3[cl2++] = 'W';
 			if (dr->evt & DMA_EVENT_CPUIRQ)
-				l2[cl2++] = 'I';
+				l3[cl2++] = 'I';
 			if (dr->evt & DMA_EVENT_INTREQ)
-				l2[cl2++] = 'i';
+				l3[cl2++] = 'i';
 			if (i < cols - 1 && h < maxh - 1) {
 				l1[cl + col - 1] = 32;
 				l2[cl + col - 1] = 32;

@@ -625,9 +625,10 @@ static void pfield_init_linetoscr (void)
 	if (sprite_first_x < sprite_last_x) {
 		if (sprite_first_x < 0)
 			sprite_first_x = 0;
-		if (sprite_last_x >= MAX_PIXELS_PER_LINE)
-			sprite_last_x = MAX_PIXELS_PER_LINE - 1;
-		memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
+		if (sprite_last_x >= MAX_PIXELS_PER_LINE - 1)
+			sprite_last_x = MAX_PIXELS_PER_LINE - 2;
+		if (sprite_first_x < sprite_last_x)
+			memset (spritepixels + sprite_first_x, 0, sizeof (struct spritepixelsbuf) * (sprite_last_x - sprite_first_x + 1));
 	}
 	sprite_last_x = 0;
 	sprite_first_x = MAX_PIXELS_PER_LINE - 1;
@@ -1315,8 +1316,10 @@ static int ham_decode_pixel;
 static unsigned int ham_lastcolor;
 
 /* Decode HAM in the invisible portion of the display (left of VISIBLE_LEFT_BORDER),
-but don't draw anything in.  This is done to prepare HAM_LASTCOLOR for later,
-when decode_ham runs.  */
+ * but don't draw anything in.  This is done to prepare HAM_LASTCOLOR for later,
+ * when decode_ham runs.
+ *
+ */
 static void init_ham_decoding (void)
 {
 	int unpainted_amiga = unpainted;
@@ -1493,11 +1496,12 @@ STATIC_INLINE void draw_sprites_1 (struct sprite_entry *e, int dualpf, int has_a
 	if (spr_pos < sprite_first_x)
 		sprite_first_x = spr_pos;
 
-	for (pos = e->pos; pos < e->max; pos++) {
-		spritepixels[spr_pos].data = buf[pos];
-		spritepixels[spr_pos].stdata = stbuf[pos];
-		spritepixels[spr_pos].attach = has_attach;
-		spr_pos++;
+	for (pos = e->pos; pos < e->max; pos++, spr_pos++) {
+		if (spr_pos >= 0 && spr_pos < MAX_PIXELS_PER_LINE) {
+			spritepixels[spr_pos].data = buf[pos];
+			spritepixels[spr_pos].stdata = stbuf[pos];
+			spritepixels[spr_pos].attach = has_attach;
+		}
 	}
 
 	if (spr_pos > sprite_last_x)
