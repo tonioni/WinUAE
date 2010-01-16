@@ -38,6 +38,7 @@ struct cdtoc
 	uae_u8 adr, ctrl;
 	int track;
 	int size;
+	int mp3;
 };
 
 static uae_u8 buffer[2352];
@@ -88,6 +89,86 @@ static struct cdtoc *findtoc (int *sectorp)
 		}
 	}
 	return NULL;
+}
+
+
+static int mp3_bitrates[] = {
+  0,  32,  64,  96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1,
+  0,  32,  48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, 384, -1,
+  0,  32,  40,  48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, -1,
+  0,  32,  48,  56,  64,  80,  96, 112, 128, 144, 160, 176, 192, 224, 256, -1,
+  0,   8,  16,  24,  32,  40,  48,  56,  64,  80,  96, 112, 128, 144, 160, -1
+};
+static int mp3_frequencies[] = {
+	44100, 48000, 32000, 0,
+	22050, 24000, 16000, 0,
+	11025, 12000,  8000, 0
+};
+static int mp3_samplesperframe[] = {
+	 384,  384,  384,
+	1152, 1152, 1152,
+	1152,  576,  576
+};
+
+static uae_u32 mp3decoder_getsize (struct zfile *zf)
+{
+	uae_u32 size;
+	int frames;
+
+	frames = 0;
+	size = 0;
+	for (;;) {
+		int ver, layer, bitrate, freq, padding, bitindex, iscrc;
+		int samplerate, framelen, bitrateidx, channelmode;
+		int isstereo;
+		uae_u8 header[4];
+
+		if (zfile_fread (header, sizeof header, 1, zf) != 1)
+			return size;
+		if (header[0] != 0xff || ((header[1] & (0x80 | 0x40 | 0x20)) != (0x80 | 0x40 | 0x20))) {
+			zfile_fseek (zf, -3, SEEK_CUR);
+			continue;
+		}
+		ver = (header[1] >> 3) & 3;
+		if (ver == 1)
+			return 0;
+		if (ver == 0)
+			ver = 2;
+		else if (ver == 2)
+			ver = 1;
+		else if (ver == 3)
+			ver = 0;
+		layer = 4 - ((header[1] >> 1) & 3);
+		if (layer == 4)
+			return 0;
+		iscrc = ((header[1] >> 0) & 1) ? 0 : 2;
+		bitrateidx = (header[2] >> 4) & 15;
+		freq = mp3_frequencies[(header[2] >> 2) & 3];
+		if (!freq)
+			return 0;
+		channelmode = (header[3] >> 6) & 3;
+		isstereo = channelmode != 3;
+		if (ver == 0) {
+			bitindex = layer - 1;
+		} else {
+			if (layer == 1)
+				bitindex = 3;
+			else
+				bitindex = 4;
+		}
+		bitrate = mp3_bitrates[bitindex * 16 + bitrateidx] * 1000;
+		if (bitrate <= 0)
+			return 0;
+		padding = (header[2] >> 1) & 1;
+		samplerate = mp3_samplesperframe[(layer - 1) * 3 + ver];
+		framelen = ((samplerate / 8 * bitrate) / freq) + padding;
+		if (framelen <= 4)
+			return 0;
+		zfile_fseek (zf, framelen + iscrc - 4, SEEK_CUR);
+		frames++;
+		size += samplerate * 2 * (isstereo ? 2 : 1);
+	}
+	return size;
 }
 
 #ifdef _WIN32
@@ -164,15 +245,13 @@ static int mp3decoder_open (void)
 	return 0;
 }
 
-static uae_u8 *mp3decoder_get (struct zfile *zf, int *size)
+static uae_u8 *mp3decoder_get (struct zfile *zf, int maxsize)
 {
 	MMRESULT mmr;
 	unsigned long rawbufsize = 0;
 	LPBYTE mp3buf;
 	LPBYTE rawbuf;
 	uae_u8 *outbuf = NULL;
-	int outsize = 0;
-	int outsizer = 10000000;
 	int outoffset = 0;
 	ACMSTREAMHEADER mp3streamHead;
 
@@ -198,6 +277,8 @@ static uae_u8 *mp3decoder_get (struct zfile *zf, int *size)
 		write_log (L"CUEMP3: acmStreamPrepareHeader, %d\n", mmr);
 		return NULL;
 	}
+	zfile_fseek (zf, 0, SEEK_SET);
+	outbuf = xcalloc (maxsize, 1);
 	for (;;) {
 		int count = zfile_fread (mp3buf, 1, MP3_BLOCK_SIZE, zf);
 		if (count != MP3_BLOCK_SIZE)
@@ -208,20 +289,15 @@ static uae_u8 *mp3decoder_get (struct zfile *zf, int *size)
 			write_log (L"CUEMP3: acmStreamConvert, %d\n", mmr);
 			return NULL;
 		}
-		if (outoffset + mp3streamHead.cbDstLengthUsed > outsize) {
-			outsize += outsizer;
-			outbuf = realloc (outbuf, outsize);
-			if (!outbuf)
-				break;
-		}
+		if (outoffset + mp3streamHead.cbDstLengthUsed > maxsize)
+			break;
 		memcpy (outbuf + outoffset, rawbuf, mp3streamHead.cbDstLengthUsed);
 		outoffset += mp3streamHead.cbDstLengthUsed;
 	}
 	acmStreamUnprepareHeader (g_mp3stream, &mp3streamHead, 0);
 	LocalFree (rawbuf);
 	LocalFree (mp3buf);
-	write_log (L"CUEMP3: destination size %d bytes\n", outoffset);
-	*size = outoffset;
+	write_log (L"CUEMP3: unpacked size %d bytes\n", outoffset);
 	return outbuf;
 }
 
@@ -318,6 +394,11 @@ static void *cdda_play_func (void *v)
 						t->track, t->fname, t->offset, sector);
 				cdda_pos = cdda_start;
 				oldplay = cdda_play;
+				if (t->mp3 && !t->data) {
+					if (mp3decoder_open ()) {
+						t->data = mp3decoder_get (t->handle, t->filesize);
+					}
+				}
 			}
 
 			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
@@ -334,8 +415,11 @@ static void *cdda_play_func (void *v)
 				sector = cdda_pos;
 				t = findtoc (&sector);
 				if (t && t->handle) {
-					if (t->data) {
-						memcpy (px[bufnum], t->data + sector * t->size + t->offset, t->size * num_sectors);
+					if (t->mp3) {
+						if (t->data)
+							memcpy (px[bufnum], t->data + sector * t->size + t->offset, t->size * num_sectors);
+						else
+							memset (px[bufnum], 0, t->size * num_sectors);
 					} else {
 						zfile_fseek (t->handle, sector * t->size + t->offset, SEEK_SET);
 						if (zfile_fread (px[bufnum], t->size, num_sectors, t->handle) < num_sectors) {
@@ -807,10 +891,9 @@ static int open_device (int unitnum)
 						}
 					} else if (!_tcsicmp (fnametype, L"MP3") && t->handle) {
 						t->offset = 0;
-						// bleh
-						if (mp3decoder_open ()) {
-							t->data = mp3decoder_get (t->handle, &t->filesize);
-						}
+						t->filesize = mp3decoder_getsize (t->handle);
+						if (t->filesize)
+							t->mp3 = 1;
 					}
 				}
 			}
@@ -872,6 +955,7 @@ static int open_bus (int flags)
 
 static void close_bus (void)
 {
+	mp3decoder_close ();
 }
 
 static struct device_info *info_device (int unitnum, struct device_info *di)
