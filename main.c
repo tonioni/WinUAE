@@ -532,6 +532,10 @@ static void parse_cmdline (int argc, TCHAR **argv)
 		} else if (_tcscmp (argv[i], L"-h") == 0 || _tcscmp (argv[i], L"-help") == 0) {
 			usage ();
 			exit (0);
+		} else if (_tcsncmp (argv[i], L"-cdimage=", 9) == 0) {
+			TCHAR *txt = parsetext (argv[i] + 9);
+			cfgfile_parse_option (&currprefs, L"cdimage0", txt, 0);
+			xfree (txt);
 		} else {
 			if (argv[i][0] == '-' && argv[i][1] != '\0') {
 				const TCHAR *arg = argv[i] + 2;

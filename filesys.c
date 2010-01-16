@@ -5327,11 +5327,16 @@ static void dump_partinfo (uae_char *name, int num, uaecptr pp, int partblock)
 {
 	TCHAR *s = au (name);
 	uae_u32 dostype = get_long (pp + 80);
+	uae_u64 size;
+
+	size = ((uae_u64)get_long (pp + 20)) * 4 * get_long (pp + 28) * get_long (pp + 36) * (get_long (pp + 56) - get_long (pp + 52) + 1);
+
 	write_log (L"RDB: '%s' dostype=%08X. PartBlock=%d\n", s, dostype, partblock);
 	write_log (L"BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n",
 		get_long (pp + 20) * 4, get_long (pp + 28), get_long (pp + 32));
-	write_log (L"SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d\n",
-		get_long (pp + 36), get_long (pp + 40), get_long (pp + 52), get_long (pp + 56));
+	write_log (L"SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n",
+		get_long (pp + 36), get_long (pp + 40), get_long (pp + 52), get_long (pp + 56), (uae_u32)(size >> 20));
+		
 	write_log (L"Buffers: %d, BufMemType: %08x, MaxTransfer: %08x, BootPri: %d\n",
 		get_long (pp + 60), get_long (pp + 64), get_long (pp + 68), get_long (pp + 76));
 	xfree (s);

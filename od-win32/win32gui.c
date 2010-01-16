@@ -1521,8 +1521,6 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 		nmhdr = (LPNMHDR)lParam;
 		if (nmhdr->code == CDN_INITDONE)
 			doit = TRUE;
-	} else if (message == WM_INITDIALOG) {
-		doit = TRUE;
 	}
 	if (!doit)
 		return FALSE;
@@ -1540,14 +1538,16 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	prevheight = h2;
 	write_log (L"MOVEWINDOW %dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
 	hWnd = GetParent (hDlg);
+	windowRect.left = windowRect.right = windowRect.top = windowRect.bottom = -1;
 	GetWindowRect (hWnd, &windowRect);
 	width = windowRect.right - windowRect.left;
 	height = windowRect.bottom - windowRect.top;
+	write_log (L"%dx%d %dx%d\n", windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);
 	if (width > w2)
 		width = w2;
 	if (height > h2)
 		height = h2;
-	MoveWindow (hWnd, md->rect.left + (w2 - width) / 2, md->rect.top + (h2 - height) / 2, width, height, FALSE);
+	SetWindowPos (hWnd, NULL, md->rect.left + (w2 - width) / 2, md->rect.top + (h2 - height) / 2, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
 	return FALSE;
 }
 

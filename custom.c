@@ -3265,6 +3265,91 @@ static void DMACON (int hpos, uae_u16 v)
 	events_schedule();
 }
 
+
+static void MISC_handler (void)
+{
+	int i, recheck;
+	evt mintime;
+	evt ct = get_cycles ();
+	static int recursive;
+
+	if (recursive)
+		return;
+	recursive++;
+	eventtab[ev_misc].active = 0;
+	recheck = 1;
+	while (recheck) {
+		recheck = 0;
+		mintime = ~0L;
+		for (i = 0; i < ev2_max; i++) {
+			if (eventtab2[i].active) {
+				if (eventtab2[i].evtime == ct) {
+					eventtab2[i].active = 0;
+					eventtab2[i].handler (eventtab2[i].data);
+					if (eventtab2[i].active)
+						recheck = 1;
+				} else {
+					evt eventtime = eventtab2[i].evtime - ct;
+					if (eventtime < mintime)
+						mintime = eventtime;
+				}
+			}
+		}
+	}
+	if (mintime != ~0L) {
+		eventtab[ev_misc].active = 1;
+		eventtab[ev_misc].oldcycles = ct;
+		eventtab[ev_misc].evtime = ct + mintime;
+		events_schedule ();
+	}
+	recursive--;
+}
+
+STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
+{
+	evt et;
+
+	et = t + get_cycles ();
+	if (no < 0) {
+		for (no = ev2_misc; no < ev2_max; no++) {
+			if (!eventtab2[no].active)
+				break;
+			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
+				eventtab2[no].handler (eventtab2[no].data);
+				break;
+			}
+		}
+		if (no == ev2_max) {
+			write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
+			return;
+		}
+	}
+	eventtab2[no].active = 1;
+	eventtab2[no].evtime = et;
+	eventtab2[no].handler = func;
+	eventtab2[no].data = data;
+	MISC_handler ();
+}
+
+STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
+{
+	if (((int)t) <= 0) {
+		func (data);
+		return;
+	}
+
+	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
+}
+
+void event2_newevent (int no, evt t)
+{
+	event2_newevent_x (no, t, 0, eventtab2[no].handler);
+}
+void event2_newevent2 (evt t, uae_u32 data, evfunc2 func)
+{
+	event2_newevent_x (-1, t, data, func);
+}
+
 static int irq_nmi;
 
 void NMI_delayed (void)
@@ -3301,6 +3386,15 @@ STATIC_INLINE int use_eventmode (void)
 	return currprefs.cpu_cycle_exact != 0;
 }
 
+static void send_interrupt (void)
+{
+	int lev = intlev ();
+	if (lev < 0)
+		lev = 0;
+	if (lev != regs.ipl)
+		event2_newevent_xx (-1, 5 * CYCLE_UNIT, lev, prepare_interrupt);
+}
+
 STATIC_INLINE void INTENA (uae_u16 v)
 {
 	setclr (&intena,v);
@@ -3308,9 +3402,9 @@ STATIC_INLINE void INTENA (uae_u16 v)
 	if (v & 0x40)
 		write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
-	if (v & 0x8000) {
-		if (use_eventmode ())
-			prepare_interrupt ();
+	if (use_eventmode ()) {
+		send_interrupt ();
+	} else if (v & 0x8000) {
 		doint ();
 	}
 }
@@ -3321,21 +3415,21 @@ void INTREQ_0 (uae_u16 v)
 	intreqr = intreq;
 	/* data in intreq is immediately available (vsync only currently because there is something unknown..) */
 	setclr (&intreqr, v & (0x8000 | 0x20));
-	setclr (&tmp, v);
+	setclr (&intreq, v);
 
+	if (v & (0x80 | 0x100 | 0x200 | 0x400))
+		audio_update_irq (v);
+	intreqr = intreq;
 	if (use_eventmode ()) {
 		if (tmp != intreq)
-			prepare_interrupt ();
+			send_interrupt ();
 		if (tmp > intreq) {
 			if (debug_dma)
 				record_dma_event (DMA_EVENT_INTREQ, current_hpos (), vpos);
 		}
+	} else {
+		doint ();
 	}
-	if (v & (0x80 | 0x100 | 0x200 | 0x400))
-		audio_update_irq (v);
-	intreq = tmp;
-	intreqr = intreq;
-	doint ();
 }
 
 void INTREQ (uae_u16 data)
@@ -5499,90 +5593,6 @@ static void hsync_handler (void)
 #endif
 }
 
-static void MISC_handler (void)
-{
-	int i, recheck;
-	evt mintime;
-	evt ct = get_cycles ();
-	static int recursive;
-
-	if (recursive)
-		return;
-	recursive++;
-	eventtab[ev_misc].active = 0;
-	recheck = 1;
-	while (recheck) {
-		recheck = 0;
-		mintime = ~0L;
-		for (i = 0; i < ev2_max; i++) {
-			if (eventtab2[i].active) {
-				if (eventtab2[i].evtime == ct) {
-					eventtab2[i].active = 0;
-					eventtab2[i].handler (eventtab2[i].data);
-					if (eventtab2[i].active)
-						recheck = 1;
-				} else {
-					evt eventtime = eventtab2[i].evtime - ct;
-					if (eventtime < mintime)
-						mintime = eventtime;
-				}
-			}
-		}
-	}
-	if (mintime != ~0L) {
-		eventtab[ev_misc].active = 1;
-		eventtab[ev_misc].oldcycles = ct;
-		eventtab[ev_misc].evtime = ct + mintime;
-		events_schedule ();
-	}
-	recursive--;
-}
-
-STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
-{
-	evt et;
-
-	et = t + get_cycles ();
-	if (no < 0) {
-		for (no = ev2_misc; no < ev2_max; no++) {
-			if (!eventtab2[no].active)
-				break;
-			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
-				eventtab2[no].handler (eventtab2[no].data);
-				break;
-			}
-		}
-		if (no == ev2_max) {
-			write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
-			return;
-		}
-	}
-	eventtab2[no].active = 1;
-	eventtab2[no].evtime = et;
-	eventtab2[no].handler = func;
-	eventtab2[no].data = data;
-	MISC_handler ();
-}
-
-STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
-{
-	if (((int)t) <= 0) {
-		func (data);
-		return;
-	}
-
-	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
-}
-
-void event2_newevent (int no, evt t)
-{
-	event2_newevent_x (no, t, 0, eventtab2[no].handler);
-}
-void event2_newevent2 (evt t, uae_u32 data, evfunc2 func)
-{
-	event2_newevent_x (-1, t, data, func);
-}
-
 void event2_remevent (int no)
 {
 	eventtab2[no].active = 0;
@@ -6319,10 +6329,14 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 	static int warned;
 	uae_u16 rval;
 
-	if (addr & 1) {
-		rval = value & 0xff;
+	if (currprefs.chipset_mask & CSMASK_AGA) {
+		if (addr & 1) {
+			rval = value & 0xff;
+		} else {
+			rval = (value << 8) | (value & 0xFF);
+		}
 	} else {
-		rval = (value << 8) | (value & 0xFF);
+		rval = (value << 8) | (value & 0xff);
 	}
 
 #ifdef JIT
@@ -6979,6 +6993,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 	else if (mode == 0)
 		put_byte (addr, v);
 	do_cycles_ce (CYCLE_UNIT);
+
 }
 
 void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)

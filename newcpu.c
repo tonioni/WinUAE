@@ -2569,17 +2569,47 @@ static void do_trace (void)
 
 
 static int interrupt_cycles_active;
-static unsigned long interrupt_cycles;
+static evt interrupt_cycle;
 
 // handle interrupt delay (few cycles)
 STATIC_INLINE int time_for_interrupt (void)
 {
-	if (!interrupt_cycles_active)
-		return 1;
-	if ((int)get_cycles () - (int)interrupt_cycles < 0)
-		return 0;
-	interrupt_cycles_active = 0;
+	if (interrupt_cycles_active) {
+		if (interrupt_cycle != regs.lastfetch) {
+			interrupt_cycles_active = 0;
+			return 1;
+		} else {
+			return 0;
+		}
+	}
 	return 1;
+}
+
+void prepare_interrupt (uae_u32 lev)
+{
+	// CPU IPLx lines change state now
+	// but we may need to wait for next S4 state
+	// before CPU sees it
+	regs.ipl = lev;
+	if (currprefs.cpu_model == 68000) {
+		interrupt_cycle = get_cycles ();
+		if ((regs.lastfetch - interrupt_cycle) >= 0) {
+			// interrupt arrived too late
+			// wait for next memory cycle
+			interrupt_cycles_active = 1;
+		}
+	}
+	set_special (SPCFLAG_INT);
+}
+
+void doint (void)
+{
+	if (currprefs.cpu_cycle_exact)
+		return;
+	if (currprefs.cpu_compatible)
+		set_special (SPCFLAG_INT);
+	else
+		set_special (SPCFLAG_DOINT);
 }
 
 #define IDLETIME (currprefs.cpu_idle * sleep_resolution / 700)
@@ -2654,14 +2684,22 @@ STATIC_INLINE int do_specialties (int cycles)
 		do_cycles (4 * CYCLE_UNIT);
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper ();
-		if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
+
+		if (currprefs.cpu_cycle_exact) {
 			if (time_for_interrupt ()) {
+				int intr = regs.ipl;
+				if (intr > 0 && intr > regs.intmask)
+					do_interrupt (intr);
+			}
+		} else {
+			if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
 				int intr = intlev ();
 				unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
-				if (intr != -1 && intr > regs.intmask)
+				if (intr > 0 && intr > regs.intmask)
 					do_interrupt (intr);
 			}
 		}
+
 		if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
 			unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 			// SPCFLAG_BRK breaks STOP condition, need to prefetch
@@ -2694,14 +2732,21 @@ STATIC_INLINE int do_specialties (int cycles)
 	if (regs.spcflags & SPCFLAG_TRACE)
 		do_trace ();
 
-	if (regs.spcflags & SPCFLAG_INT) {
+	if (currprefs.cpu_cycle_exact) {
 		if (time_for_interrupt ()) {
+			int intr = regs.ipl;
+			if (intr > 0 && intr > regs.intmask)
+				do_interrupt (intr);
+		}
+	} else {
+		if (regs.spcflags & SPCFLAG_INT) {
 			int intr = intlev ();
 			unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
-			if (intr != -1 && (intr > regs.intmask || intr == 7))
+			if (intr > 0 && (intr > regs.intmask || intr == 7))
 				do_interrupt (intr);
 		}
 	}
+
 	if (regs.spcflags & SPCFLAG_DOINT) {
 		unset_special (SPCFLAG_DOINT);
 		set_special (SPCFLAG_INT);
@@ -2714,21 +2759,6 @@ STATIC_INLINE int do_specialties (int cycles)
 	return 0;
 }
 
-void prepare_interrupt (void)
-{
-	interrupt_cycles = get_cycles () + 5 * CYCLE_UNIT + CYCLE_UNIT / 2;
-	if (vpos == 0 && current_hpos () == 0)
-		interrupt_cycles -= CYCLE_UNIT; // vblank int hpos=-1
-	interrupt_cycles_active = 1;
-}
-
-void doint (void)
-{
-	if (currprefs.cpu_compatible)
-		set_special (SPCFLAG_INT);
-	else
-		set_special (SPCFLAG_DOINT);
-}
 //static uae_u32 pcs[1000];
 
 //#define DEBUG_CD32IO

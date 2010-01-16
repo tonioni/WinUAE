@@ -824,7 +824,7 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 }
 
 
-STATIC_INLINE int blitter_doddma (int hpos)
+STATIC_INLINE void blitter_doddma (int hpos)
 {
 	int wd;
 	uae_u16 d;
@@ -841,25 +841,25 @@ STATIC_INLINE int blitter_doddma (int hpos)
 		d = ddat1;
 		ddat1use = 0;
 		wd = 1;
+	} else {
+		write_log (L"BLITTER: D-channel without nothing to do?\n");
+		return;
 	}
-	if (wd) {
-		alloc_cycle_ext (hpos, CYCLE_BLITTER);
-		record_dma_blit (0x00, d, bltdpt, hpos);
-		last_custom_value1 = d;
-		chipmem_agnus_wput2 (bltdpt, d);
-		bltdpt += blit_add;
-		blitter_hcounter2++;
-		if (blitter_hcounter2 == hblitsize) {
-			blitter_hcounter2 = 0;
-			bltdpt += blit_modaddd;
-			blitter_vcounter2++;
-			if (blitter_vcounter2 > blitter_vcounter1)
-				blitter_vcounter1 = blitter_vcounter2;
-		}
-		if (blit_ch == 1)
-			blitter_hcounter1 = blitter_hcounter2;
+	alloc_cycle_ext (hpos, CYCLE_BLITTER);
+	record_dma_blit (0x00, d, bltdpt, hpos);
+	last_custom_value1 = d;
+	chipmem_agnus_wput2 (bltdpt, d);
+	bltdpt += blit_add;
+	blitter_hcounter2++;
+	if (blitter_hcounter2 == hblitsize) {
+		blitter_hcounter2 = 0;
+		bltdpt += blit_modaddd;
+		blitter_vcounter2++;
+		if (blitter_vcounter2 > blitter_vcounter1)
+			blitter_vcounter1 = blitter_vcounter2;
 	}
-	return wd;
+	if (blit_ch == 1)
+		blitter_hcounter1 = blitter_hcounter2;
 }
 
 STATIC_INLINE void blitter_dodma (int ch, int hpos)
@@ -1045,10 +1045,9 @@ void decide_blitter (int hpos)
 
 			blt_info.got_cycle = 1;
 			if (c == 4) {
-				if (blitter_doddma (last_blitter_hpos)) {
-					blit_cyclecounter++;
-					blit_totalcyclecounter++;
-				}
+				blitter_doddma (last_blitter_hpos);
+				blit_cyclecounter++;
+				blit_totalcyclecounter++;
 			} else {
 				if (blitter_vcounter1 < vblitsize) {
 					blitter_dodma (c, last_blitter_hpos);
@@ -1169,6 +1168,7 @@ static void blit_bltset (int con)
 			blit_frozen = 0; // switched back to original fill mode? unfreeze
 		} else if (iseo && !isen) {
 			blit_frozen = 1;
+			write_log (L"BLITTER: frozen! %d (%d) -> %d (%d) %08X\n", original_ch, iseo, blit_ch, isen, M68K_GETPC);
 		} else if (!iseo && isen) {
 #ifdef BLITTER_DEBUG_NOWAIT
 			write_log (L"BLITTER: on the fly %d (%d) -> %d (%d) switch\n", original_ch, iseo, blit_ch, isen);

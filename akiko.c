@@ -411,6 +411,7 @@ static int cdrom_audiotimeout;
 static int cdrom_led;
 static int cdrom_dosomething;
 static int cdrom_receive_started;
+static int cdrom_muted;
 static int cd_initialized;
 
 static uae_u8 *sector_buffer_1, *sector_buffer_2;
@@ -650,9 +651,13 @@ static int sys_cddev_open (void)
 	struct device_info di1, *di2;
 	int cd32unit = -1;
 	int audiounit = -1;
+	int opened[MAX_TOTAL_DEVICES];
+	int i;
 
 	for (unitnum = 0; unitnum < MAX_TOTAL_DEVICES; unitnum++) {
+		opened[unitnum] = 0;
 		if (sys_command_open (DF_IOCTL, unitnum)) {
+			opened[unitnum] = 1;
 			di2 = sys_command_info (DF_IOCTL, unitnum, &di1);
 			if (di2 && di2->type == INQ_ROMD) {
 				write_log (L"%s: ", di2->label);
@@ -687,7 +692,6 @@ static int sys_cddev_open (void)
 					write_log (L"can't read TOC\n");
 				}
 			}
-			sys_command_close (DF_IOCTL, unitnum);
 		}
 	}
 	unitnum = audiounit;
@@ -695,10 +699,14 @@ static int sys_cddev_open (void)
 		unitnum = cd32unit;
 	if (unitnum < 0)
 		unitnum = first;
+	if (unitnum >= 0)
+		opened[unitnum] = 0;
+	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+		if (opened[i])
+			sys_command_close (DF_IOCTL, i);
+	}
 	if (unitnum < 0)
 		return 1;
-	if (!sys_command_open (DF_IOCTL, unitnum))
-		write_log (L"re-opening unit %d failed!\n", unitnum);
 	di2 = sys_command_info (DF_IOCTL, unitnum, &di1);
 	if (!di2) {
 		write_log (L"unit %d info failed\n", unitnum);
@@ -1238,7 +1246,11 @@ static void *akiko_thread (void *null)
 			case 0x0104: // stop
 				cdaudiostop_do ();
 				break;
+			case 0x0105: // mute change
+				sys_command_cd_volume (DF_IOCTL, unitnum, cdrom_muted ? 0 : 0xffff);
+				break;
 			case 0x0110: // do_play!
+				sys_command_cd_volume (DF_IOCTL, unitnum, cdrom_muted ? 0 : 0xffff);
 				cdaudioplay_do ();
 				break;
 			}
@@ -1829,12 +1841,12 @@ void restore_akiko_finish (void)
 	if (!currprefs.cs_cd32cd)
 		return;
 	akiko_c2p_do ();
-	write_comm_pipe_u32 (&requests, 0x102, 1); // pause
-	write_comm_pipe_u32 (&requests, 0x104, 1); // stop
-	write_comm_pipe_u32 (&requests, 0x103, 1); // unpause
+	write_comm_pipe_u32 (&requests, 0x0102, 1); // pause
+	write_comm_pipe_u32 (&requests, 0x0104, 1); // stop
+	write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
 	if (cdrom_playing) {
-		write_comm_pipe_u32 (&requests, 0x103, 1); // unpause
-		write_comm_pipe_u32 (&requests, 0x110, 0); // play
+		write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
+		write_comm_pipe_u32 (&requests, 0x0110, 0); // play
 		write_comm_pipe_u32 (&requests, last_play_pos, 0);
 		write_comm_pipe_u32 (&requests, last_play_end, 0);
 		write_comm_pipe_u32 (&requests, 0, 1);
@@ -1846,11 +1858,18 @@ void restore_akiko_finish (void)
 void akiko_entergui (void)
 {
 	if (cdrom_playing)
-		write_comm_pipe_u32 (&requests, 0x102, 1);
+		write_comm_pipe_u32 (&requests, 0x0102, 1);
 }
 void akiko_exitgui (void)
 {
 	if (cdrom_playing)
-		write_comm_pipe_u32 (&requests, 0x103, 1);
+		write_comm_pipe_u32 (&requests, 0x0103, 1);
+}
+
+void akiko_mute (int muted)
+{
+	cdrom_muted = muted;
+	if (unitnum >= 0)
+		write_comm_pipe_u32 (&requests, 0x0105, 1);
 }
 

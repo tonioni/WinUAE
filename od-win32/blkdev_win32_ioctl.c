@@ -12,6 +12,7 @@
 
 #ifdef WINDDK
 
+#include "options.h"
 #include "uae.h"
 #include "threaddep/thread.h"
 #include "blkdev.h"
@@ -38,13 +39,23 @@ struct dev_info_ioctl {
 	int type;
 	int blocksize;
 	int mciid;
+	int cdda;
 	CDROM_TOC toc;
 	UINT errormode;
 	int playend;
 	int fullaccess;
+	int cdda_play_finished;
+	int cdda_play;
+	int cdda_paused;
+	int cdda_volume;
+	int cdda_volume_main;
+	uae_u32 cd_last_pos;
+	HWAVEOUT cdda_wavehandle;
+	int cdda_start, cdda_end;
 };
 
-#define IOCTL_DATA_BUFFER 4096
+#define IOCTL_DATA_BUFFER 8192
+#define CDDA_BUFFERS 6
 
 static int MCICDA;
 
@@ -95,6 +106,23 @@ static int win32_error (int unitnum, const TCHAR *format,...)
 		write_log (L"IOCTL: unit=%d %s,%d: %s\n", unitnum, buf, err, (TCHAR*)lpMsgBuf);
 	va_end (arglist);
 	return err;
+}
+
+/* convert minutes, seconds and frames -> logical sector number */
+static int msf2lsn (int	msf)
+{
+	int sector = (((msf >> 16) & 0xff) * 60 * 75 + ((msf >> 8) & 0xff) * 75 + ((msf >> 0) & 0xff));
+	return sector;
+}
+
+/* convert logical sector number -> minutes, seconds and frames */
+static int lsn2msf (int	sectors)
+{
+	int msf;
+	msf = (sectors / (75 * 60)) << 16;
+	msf |= ((sectors / 75) % 60) << 8;
+	msf |= (sectors % 75) << 0;
+	return msf;
 }
 
 static int close_createfile (int unitnum)
@@ -222,6 +250,180 @@ static int open_mci (int unitnum)
 	return 1;
 }
 
+static void cdda_closewav (struct dev_info_ioctl *ciw)
+{
+	if (ciw->cdda_wavehandle != NULL)
+		waveOutClose (ciw->cdda_wavehandle);
+	ciw->cdda_wavehandle = NULL;
+}
+
+// DAE CDDA based on Larry Osterman's "Playing Audio CDs" blog series
+
+static int cdda_openwav (struct dev_info_ioctl *ciw)
+{
+	WAVEFORMATEX wav = { 0 };
+	MMRESULT mmr;
+
+	wav.cbSize = 0;
+	wav.nChannels = 2;
+	wav.nSamplesPerSec = 44100;
+	wav.wBitsPerSample = 16;
+	wav.nBlockAlign = wav.wBitsPerSample / 8 * wav.nChannels;
+	wav.nAvgBytesPerSec = wav.nBlockAlign * wav.nSamplesPerSec;
+	wav.wFormatTag = WAVE_FORMAT_PCM;
+	mmr = waveOutOpen (&ciw->cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
+	if (mmr != MMSYSERR_NOERROR) {
+		write_log (L"CDDA: wave open %d\n", mmr);
+		cdda_closewav (ciw);
+		return 0;
+	}
+	return 1;
+}
+
+static void *cdda_play (void *v)
+{
+	DWORD len;
+	struct dev_info_ioctl *ciw = v;
+	int unitnum = ciw32 - ciw;
+	int cdda_pos;
+	int num_sectors = CDDA_BUFFERS;
+	int quit = 0;
+	int bufnum;
+	int buffered;
+	uae_u8 *px[2], *p;
+	int bufon[2];
+	int i;
+	WAVEHDR whdr[2];
+	MMRESULT mmr;
+	int volume, volume_main;
+	int oldplay;
+
+
+	for (i = 0; i < 2; i++) {
+		memset (&whdr[i], 0, sizeof (WAVEHDR));
+		whdr[i].dwFlags = WHDR_DONE;
+	}
+
+	while (ciw->cdda_play == 0)
+		Sleep (10);
+	oldplay = -1;
+
+	p = VirtualAlloc (NULL, 2 * num_sectors * 4096, MEM_COMMIT, PAGE_READWRITE);
+	px[0] = p;
+	px[1] = p + num_sectors * 4096;
+	bufon[0] = bufon[1] = 0;
+	bufnum = 0;
+	buffered = 0;
+	volume = -1;
+	volume_main = -1;
+
+	if (cdda_openwav (ciw)) {
+
+		for (i = 0; i < 2; i++) {
+			memset (&whdr[i], 0, sizeof (WAVEHDR));
+			whdr[i].dwBufferLength = 2352 * num_sectors;
+			whdr[i].lpData = px[i];
+			mmr = waveOutPrepareHeader (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
+			if (mmr != MMSYSERR_NOERROR) {
+				write_log (L"CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
+				goto end;
+			}
+			whdr[i].dwFlags |= WHDR_DONE;
+		}
+
+		while (ciw->cdda_play > 0) {
+
+			if (oldplay != ciw->cdda_play) {
+				cdda_pos = ciw->cdda_start;
+				oldplay = ciw->cdda_play;
+			}
+
+			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
+				Sleep (10);
+				if (!ciw->cdda_play)
+					goto end;
+			}
+			bufon[bufnum] = 0;
+
+			if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
+				RAW_READ_INFO rri;
+
+				seterrormode (unitnum);
+				rri.DiskOffset.QuadPart = 2048 * (cdda_pos - 150);
+				rri.SectorCount = num_sectors;
+				rri.TrackMode = CDDA;
+				if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], num_sectors * 2352, &len, NULL)) {
+					DWORD err = GetLastError ();
+					write_log (L"IOCTL_CDROM_RAW_READ CDDA returned %d\n", err);
+					quit = 1;
+				}
+				reseterrormode (unitnum);
+				if (quit)
+					break;
+		
+				bufon[bufnum] = 1;
+				if (volume != ciw->cdda_volume || volume_main != currprefs.sound_volume) {
+					int vol;
+					volume = ciw->cdda_volume;
+					volume_main = currprefs.sound_volume;
+					vol = (100 - volume_main) * volume / 100;
+					if (vol >= 0xffff)
+						vol = 0xffff;
+					waveOutSetVolume (ciw->cdda_wavehandle, vol | (vol << 16));
+				}
+				mmr = waveOutWrite (ciw->cdda_wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
+				if (mmr != MMSYSERR_NOERROR) {
+					write_log (L"CDDA: waveOutWrite %d\n", mmr);
+					break;
+				}
+
+				cdda_pos += num_sectors;
+				if (cdda_pos >= ciw->cdda_end)
+					ciw->cdda_play_finished = 1;
+				ciw->cd_last_pos = cdda_pos;
+
+			}
+
+
+			if (bufon[0] == 0 && bufon[1] == 0) {
+				while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
+					Sleep (10);
+				while (ciw->cdda_paused && ciw->cdda_play > 0)
+					Sleep (10);
+			}
+
+			bufnum = 1 - bufnum;
+
+		}
+	}
+
+end:
+	while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
+		Sleep (10);
+	for (i = 0; i < 2; i++)
+		waveOutUnprepareHeader  (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
+
+	cdda_closewav (ciw);
+	VirtualFree (p, 0, MEM_RELEASE);
+	ciw->cdda_play = 0;
+	write_log (L"CDDA: thread killed\n");
+	return NULL;
+}
+
+static void cdda_stop (int unitnum)
+{
+	struct dev_info_ioctl *ciw = &ciw32[unitnum];
+
+	if (ciw->cdda_play > 0) {
+		ciw->cdda_play = -1;
+		while (ciw->cdda_play) {
+			Sleep (10);
+		}
+	}
+	ciw->cdda_play_finished = 0;
+	ciw->cdda_paused = 0;
+}
+
 /* pause/unpause CD audio */
 static int ioctl_command_pause (int unitnum, int paused)
 {
@@ -235,6 +437,10 @@ static int ioctl_command_pause (int unitnum, int paused)
 		else
 			mcierr(L"MCI_RESUME", mciSendCommand (ciw->mciid, MCI_RESUME, MCI_WAIT, (DWORD_PTR)&gp));
 
+	} else if (ciw->cdda) {
+
+		ciw->cdda_paused = paused;
+		
 	} else {
 
 		DWORD len;
@@ -256,6 +462,7 @@ static int ioctl_command_pause (int unitnum, int paused)
 	return 1;
 }
 
+
 /* stop CD audio */
 static int ioctl_command_stop (int unitnum)
 {
@@ -267,6 +474,10 @@ static int ioctl_command_stop (int unitnum)
 		mcierr (L"MCI_STOP", mciSendCommand (ciw->mciid, MCI_STOP, MCI_WAIT, (DWORD_PTR)&gp));
 		ciw->playend = -1;
 
+	} else if (ciw->cdda) {
+
+		cdda_stop (unitnum);
+		
 	} else {
 
 		DWORD len;
@@ -287,12 +498,20 @@ static int ioctl_command_stop (int unitnum)
 	return 1;
 }
 
+static void ioctl_command_volume (int unitnum, uae_u16 volume)
+{
+	struct dev_info_ioctl *ciw = &ciw32[unitnum];
+
+	ciw->cdda_volume = volume;
+}
+
 /* play CD audio */
 static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
-	open_mci (unitnum);
+	if (!ciw->cdda)
+		open_mci (unitnum);
 
 	if (ciw->mciid > 0) {
 
@@ -305,6 +524,20 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 		playParms.dwTo = MCI_MAKE_MSF((end >> 16) & 0xff, (end >> 8) & 0xff, end & 0xff);
 		mcierr (L"MCI_PLAY", mciSendCommand (ciw->mciid, MCI_PLAY, MCI_FROM | MCI_TO, (DWORD_PTR)&playParms));
 		ciw->playend = end;
+
+	} else if (ciw->cdda) {
+
+		if (!open_createfile (unitnum, 1))
+			return 0;
+		ciw->cdda_paused = 0;
+		ciw->cdda_play_finished = 0;
+		if (!ciw->cdda_play) {
+			uae_start_thread (L"cdda_play", cdda_play, ciw, NULL);
+		}
+		ciw->cdda_start = msf2lsn (start);
+		ciw->cdda_end = msf2lsn (end);
+		ciw->cd_last_pos = ciw->cdda_start;
+		ciw->cdda_play++;
 
 	} else {
 
@@ -346,23 +579,6 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 	}
 
 	return 1;
-}
-
-/* convert minutes, seconds and frames -> logical sector number */
-static int msf2lsn (int	msf)
-{
-	int sector = (((msf >> 16) & 0xff) * 60 * 75 + ((msf >> 8) & 0xff) * 75 + ((msf >> 0) & 0xff));
-	return sector;
-}
-
-/* convert logical sector number -> minutes, seconds and frames */
-static int lsn2msf (int	sectors)
-{
-	int msf;
-	msf = (sectors / (75 * 60)) << 16;
-	msf |= ((sectors / 75) % 60) << 8;
-	msf |= (sectors % 75) << 0;
-	return msf;
 }
 
 /* read qcode */
@@ -429,12 +645,76 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 
 		return buf;
 
+	} else if (ciw->cdda) {
+
+		static uae_u8 buf[4 + 12];
+		uae_u8 *p;
+		int trk;
+		CDROM_TOC *toc = &ciw->toc;
+		int pos;
+		int msf;
+		int start, end;
+		int status;
+
+		memset (buf, 0, sizeof buf);
+		p = buf;
+
+		status = AUDIO_STATUS_NO_STATUS;
+		if (ciw->cdda_play) {
+			status = AUDIO_STATUS_IN_PROGRESS;
+			if (ciw->cdda_paused)
+				status = AUDIO_STATUS_PAUSED;
+		} else if (ciw->cdda_play_finished) {
+			status = AUDIO_STATUS_PLAY_COMPLETE;
+		}
+		pos = ciw->cd_last_pos;
+#if 0
+		pos -= CDDA_BUFFERS * 2;
+		if (ciw->cdda_play && pos < ciw->cdda_start) {
+			pos = ciw->cdda_start;
+			status = AUDIO_STATUS_NO_STATUS;
+		}
+#endif
+		p[1] = status;
+		p[3] = 12;
+
+		p = buf + 4;
+
+		if (pos >= 150)
+			trk = 0;
+		start = end = 0;
+		for (trk = 0; trk <= toc->LastTrack; trk++) {
+			TRACK_DATA *td = &toc->TrackData[trk];
+			start = msf2lsn ((td->Address[1] << 16) | (td->Address[2] << 8) | td->Address[3]);
+			end = msf2lsn ((td[1].Address[1] << 16) | (td[1].Address[2] << 8) | td[1].Address[3]);
+			if (pos < start)
+				break;
+			if (pos >= start && pos < end)
+				break;
+		}
+		p[1] = (toc->TrackData[trk].Control << 0) | (toc->TrackData[trk].Adr << 4);
+		p[2] = trk + 1;
+		p[3] = 1;
+		msf = lsn2msf (pos);
+		p[5] = (msf >> 16) & 0xff;
+		p[6] = (msf >> 8) & 0xff;
+		p[7] = (msf >> 0) & 0xff;
+		pos -= start;
+		if (pos < 0)
+			pos = 0;
+		msf = lsn2msf (pos);
+		p[9] = (pos >> 16) & 0xff;
+		p[10] = (pos >> 8) & 0xff;
+		p[11] = (pos >> 0) & 0xff;
+
+		return buf;
+
 	} else {
 
 		SUB_Q_CHANNEL_DATA qcd;
 		DWORD len;
 		ULONG in = 1;
-		uae_u8 *p = ciw32[unitnum].tempbuffer;
+		uae_u8 *p = ciw->tempbuffer;
 		int cnt = 3;
 
 		memset (p, 0, 4 + 12);
@@ -442,7 +722,7 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 		p[3] = 12;
 		while (cnt-- > 0) {
 			reseterrormode (unitnum);
-			if(!DeviceIoControl (ciw32[unitnum].h, IOCTL_CDROM_READ_Q_CHANNEL, &in, sizeof(in), &qcd, sizeof (qcd), &len, NULL)) {
+			if(!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_Q_CHANNEL, &in, sizeof(in), &qcd, sizeof (qcd), &len, NULL)) {
 				reseterrormode (unitnum);
 				if (win32_error (unitnum, L"IOCTL_CDROM_READ_Q_CHANNEL") < 0)
 					continue;
@@ -462,7 +742,7 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 		p[9] = qcd.CurrentPosition.TrackRelativeAddress[1];
 		p[10] = qcd.CurrentPosition.TrackRelativeAddress[2];
 		p[11] = qcd.CurrentPosition.TrackRelativeAddress[3];
-		return ciw32[unitnum].tempbuffer;
+		return ciw->tempbuffer;
 	}
 }
 
@@ -489,6 +769,7 @@ static uae_u8 *spti_read (int unitnum, int sector, int sectorsize)
 
 	if (!open_createfile (unitnum, 1))
 		return 0;
+	ciw32[unitnum].cd_last_pos = sector + sectorsize;
 	cmd[3] = (uae_u8)(sector >> 16);
 	cmd[4] = (uae_u8)(sector >> 8);
 	cmd[5] = (uae_u8)(sector >> 0);
@@ -532,6 +813,7 @@ uae_u8 *ioctl_command_rawread (int unitnum, int sector, int sectorsize)
 		return spti_read (unitnum, sector, sectorsize);
 	if (!open_createfile (unitnum, 1))
 		return 0;
+	cdda_stop (unitnum);
 	if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048)
 		return 0;
 	while (cnt-- > 0) {
@@ -547,6 +829,7 @@ uae_u8 *ioctl_command_rawread (int unitnum, int sector, int sectorsize)
 				DWORD err = GetLastError ();
 		}
 		reseterrormode (unitnum);
+		ciw32[unitnum].cd_last_pos = sector + sectorsize;
 		break;
 	}
 	if (sectorsize == 2352)
@@ -563,6 +846,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 	*ptr = NULL;
 	if (!open_createfile (unitnum, 0))
 		return 0;
+	cdda_stop (unitnum);
 	while (cnt-- > 0) {
 		gui_flicker_led (LED_CD, unitnum, 1);
 		seterrormode (unitnum);
@@ -701,14 +985,17 @@ static int ismedia (int unitnum)
 /* read toc */
 static uae_u8 *ioctl_command_toc (int unitnum)
 {
+	struct dev_info_ioctl *ciw = &ciw32[unitnum];
 	DWORD len;
 	int i;
-	uae_u8 *p = ciw32[unitnum].tempbuffer;
+	uae_u8 *p = ciw->tempbuffer;
 	int cnt = 3;
-	CDROM_TOC *toc = &ciw32[unitnum].toc;
+	CDROM_TOC *toc = &ciw->toc;
 
 	if (!open_createfile (unitnum, 0))
 		return 0;
+	cdda_stop (unitnum);
+	ciw32[unitnum].cd_last_pos = 0;
 	gui_flicker_led (LED_CD, unitnum, 1);
 	while (cnt-- > 0) {
 		seterrormode (unitnum);
@@ -767,6 +1054,9 @@ static int sys_cddev_open (int unitnum)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
+	ciw->cdda = 1;
+	ciw->cdda_volume = 0xffff;
+	ciw->cdda_volume_main = currprefs.sound_volume;
 	/* buffer must be page aligned for device access */
 	ciw->tempbuffer = VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
 	if (!ciw->tempbuffer) {
@@ -809,6 +1099,7 @@ void sys_cddev_close (int unitnum)
 
 	if (!unitcheck (unitnum))
 		return;
+	cdda_stop (unitnum);
 	close_createfile (unitnum);
 	close_mci (unitnum);
 	VirtualFree (ciw->tempbuffer, 0, MEM_RELEASE);
@@ -928,7 +1219,7 @@ static struct device_scsi_info *ioctl_scsi_info (int unitnum, struct device_scsi
 struct device_functions devicefunc_win32_ioctl = {
 	open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
-	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_qcode,
+	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_volume, ioctl_command_qcode,
 	ioctl_command_toc, ioctl_command_read, ioctl_command_rawread, ioctl_command_write,
 	0, ioctl_scsi_info, ioctl_ismedia
 };

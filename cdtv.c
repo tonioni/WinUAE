@@ -786,6 +786,10 @@ static void tp_bput (int addr, uae_u8 v)
 #ifdef CDTV_DEBUG_CMD
 		write_log (L"CDTV CD volume = %d\n", cd_volume);
 #endif
+		if (cd_volume > 1023)
+			cd_volume = 1023;
+		if (unitnum >= 0)
+			sys_command_cd_volume (DF_IOCTL, unitnum, (cd_volume << 6) | (cd_volume >> 4));
 		cd_volume = 0;
 		volstrobe2 = 1;
 	} else if (volstrobe2 && !((tp_b >> 7) & 1)) {
@@ -1310,6 +1314,8 @@ static void open_unit (void)
 	struct device_info di1, *di2;
 	int first = -1;
 	int cdtvunit = -1, audiounit = -1;
+	int opened[MAX_TOTAL_DEVICES];
+	int i;
 
 	if (unitnum >= 0)
 		sys_command_close (DF_IOCTL, unitnum);
@@ -1320,7 +1326,9 @@ static void open_unit (void)
 		return;
 	}
 	for (unitnum = 0; unitnum < MAX_TOTAL_DEVICES; unitnum++) {
+		opened[unitnum] = 0;
 		if (sys_command_open (DF_IOCTL, unitnum)) {
+			opened[unitnum] = 1;
 			di2 = sys_command_info (DF_IOCTL, unitnum, &di1);
 			if (di2 && di2->type == INQ_ROMD) {
 				write_log (L"%s: ", di2->label);
@@ -1345,7 +1353,6 @@ static void open_unit (void)
 					write_log (L"TOC read failed\n");
 				}
 			}
-			sys_command_close (DF_IOCTL, unitnum);
 		}
 	}
 	unitnum = audiounit;
@@ -1353,9 +1360,14 @@ static void open_unit (void)
 		unitnum = cdtvunit;
 	if (unitnum < 0)
 		unitnum = first;
+	if (unitnum >= 0)
+		opened[unitnum] = 0;
+	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+		if (opened[i])
+			sys_command_close (DF_IOCTL, i);
+	}
 	cd_media = 0;
 	if (unitnum >= 0) {
-		sys_command_open (DF_IOCTL, unitnum);
 		cd_media = ismedia () ? -1 : 0;
 		if (!cd_media)
 			cd_hunt = 1;

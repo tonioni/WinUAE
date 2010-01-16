@@ -76,6 +76,7 @@ typedef int (*execscsicmd_direct_func)(int, struct amigascsi*);
 typedef int (*pause_func)(int, int);
 typedef int (*stop_func)(int);
 typedef int (*play_func)(int, uae_u32, uae_u32, int);
+typedef void (*volume_func)(int, uae_u16);
 typedef uae_u8* (*qcode_func)(int);
 typedef uae_u8* (*toc_func)(int);
 typedef uae_u8* (*read_func)(int, int);
@@ -97,6 +98,7 @@ struct device_functions {
     pause_func pause;
     stop_func stop;
     play_func play;
+	volume_func volume;
     qcode_func qcode;
     toc_func toc;
     read_func read;
@@ -122,6 +124,7 @@ extern struct device_scsi_info *sys_command_scsi_info (int mode, int unitnum, st
 extern void sys_command_cd_pause (int mode, int unitnum, int paused);
 extern void sys_command_cd_stop (int mode, int unitnum);
 extern int sys_command_cd_play (int mode, int unitnum, uae_u32 startmsf, uae_u32 endmsf, int);
+extern void sys_command_cd_volume (int mode, int unitnum, uae_u16 volume);
 extern uae_u8 *sys_command_cd_qcode (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_toc (int mode, int unitnum);
 extern uae_u8 *sys_command_cd_read (int mode, int unitnum, int offset);

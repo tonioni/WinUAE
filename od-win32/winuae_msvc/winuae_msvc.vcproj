@@ -1446,11 +1446,11 @@
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
@@ -1470,19 +1470,19 @@
 					>
 				</File>
 				<File
-					RelativePath=".\expansion.ico"
-					>
-				</File>
-				<File
 					RelativePath="..\resources\expansion.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\file.ico"
+					RelativePath=".\expansion.ico"
 					>
 				</File>
 				<File
 					RelativePath="..\resources\file.ico"
+					>
+				</File>
+				<File
+					RelativePath=".\file.ico"
 					>
 				</File>
 				<File
@@ -1689,6 +1689,10 @@
 			</File>
 			<File
 				RelativePath="..\..\blkdev.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\blkdev_cdimage.c"
 				>
 			</File>
 			<File

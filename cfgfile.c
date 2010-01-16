@@ -525,6 +525,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
+	if (p->cdimagefile[0])
+		cfgfile_write_str (f, L"cdimage0", p->cdimagefile);
+
 	cfgfile_write (f, L"nr_floppies", L"%d", p->nr_floppies);
 	cfgfile_write (f, L"floppy_speed", L"%d", p->floppy_speed);
 	cfgfile_write (f, L"floppy_volume", L"%d", p->dfxclickvolume);
@@ -992,6 +995,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			return 1;
 		}
 	}
+
+	if (cfgfile_string (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR)))
+		return 1;
 
 	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)) {
 		/* backwards compatibility */
@@ -3475,7 +3481,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	target_default_options (p, 1);
 }
 
-static void set_68020_compa (struct uae_prefs *p, int compa)
+static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 {
 	if (compa == 0) {
 		p->blitter_cycle_exact = 1;
@@ -3485,14 +3491,10 @@ static void set_68020_compa (struct uae_prefs *p, int compa)
 			p->cpu_clock_multiplier = 4 << 8;
 		}
 	}
-	if (compa > 0) {
+	if (compa > 1) {
 		p->cpu_compatible = 0;
 		p->address_space_24 = 0;
 		p->cachesize = 8192;
-	}
-	if (compa > 1) {
-		p->immediate_blits = 1;
-		p->produce_sound = 2;
 	}
 }
 
@@ -3701,7 +3703,7 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->nr_floppies = 0;
 	p->dfxtype[0] = DRV_NONE;
 	p->dfxtype[1] = DRV_NONE;
-	set_68020_compa (p, compa);
+	set_68020_compa (p, compa, 1);
 	p->cs_compatible = CP_CD32;
 	built_in_chipset_prefs (p);
 	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
@@ -3723,7 +3725,7 @@ static int bip_a1200 (struct uae_prefs *p, int config, int compa, int romcheck)
 		p->fastmem_size = 0x400000;
 		p->cs_rtc = 2;
 	}
-	set_68020_compa (p, compa);
+	set_68020_compa (p, compa, 0);
 	p->cs_compatible = CP_A1200;
 	built_in_chipset_prefs (p);
 	return configure_rom (p, roms, romcheck);

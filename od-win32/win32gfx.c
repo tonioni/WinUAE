@@ -2153,6 +2153,7 @@ static int create_windows_2 (void)
 			y = ny;
 		}
 		GetWindowRect (hAmigaWnd, &amigawin_rect);
+		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
 			SetCursorPos (x + w / 2, y + h / 2);
 		write_log (L"window already open\n");
@@ -2288,6 +2289,7 @@ WS_EX_TOPMOST :
 	if (hMainWnd == NULL)
 		hMainWnd = hAmigaWnd;
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
+	GetWindowRect (hMainWnd, &mainwin_rect);
 	if (dxfs || d3dfs)
 		SetCursorPos (x + w / 2, y + h / 2);
 	addnotifications (hAmigaWnd, FALSE, FALSE);

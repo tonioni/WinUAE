@@ -1,4 +1,42 @@
 
+Beta 4:
+
+- ADDX and SUBX timing updates
+- ABCD and SBCD idle cycle position in -(An),-(An) mode fixed
+- EXG idle cycle and prefetch swapped
+- BCLR/BSET/BCHG/BTST idle cycle and prefetch swapped
+- writing to blitter registers while active could have confused
+  blitter emulation logic, stopping the blitter mid blit (stopping
+  because emulation got confused, not because emulation detected
+  situation when it should really stop)
+- plain A500 OCS/ECS byte writes to custom registers fixed (I think
+  this was using 68020/AGA behavior for all modes accidentally)
+- interrupt delay and 68000 IPL sampling timing improved
+- windowed mode window was sometimes incorrectly detected as resized
+  when it only lost focus (native mode size was changed to current
+  window size)
+
+  Big CD32/CDTV CD handling update:
+
+- stupid MCI CD32/CDTV CD audio replaced with simple "audio ripper"
+  that reads the digital CD audio data and sends it to audio device
+  NOTE: no jitter correction yet (possibly bad sound if your drive
+  is old enough to not have accurate streaming support)
+- CDTV CD hardware volume control now supported
+- CD32 CD mute on/off "volume" control supported (no real volume..)
+- Sound-panel volume also adjusts CD32/CDTV CD audio volume
+- CD32/CDTV Q sub channel data virtualized (does not need real drive
+  anymore, makes new things possible, see below)
+- Built-in CUE CD image support, including CD audio track support!
+  .CUE + single big .BIN and .CUE + .BIN + .WAVs supported (MP3 audio
+  is also supported if you have mp3 codec installed but all tracks will
+  be decoded before emulation starts..) Most common data tracks
+  supported. Plain iso images also supported.
+  Problems = logs AND .cue file required.
+  cdimage0=<path to .cue/.iso> in config file, command line parameter
+  -cdimage=<path to .cue/.iso> can also be used.
+  No GUI support yet.
+
 Beta 3:
 
 - Shadow Fighter AGA graphics priority issue really fixed now

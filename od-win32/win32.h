@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"Beta 3"
-#define WINUAEDATE MAKEBD(2010, 1, 10)
+#define WINUAEBETA L"Beta 4"
+#define WINUAEDATE MAKEBD(2010, 1, 16)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -29,7 +29,7 @@
 #define WINUAEAPPNAME L"Arabuusimiehet.WinUAE"
 extern HMODULE hUIDLL;
 extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
-extern RECT amigawin_rect;
+extern RECT amigawin_rect, mainwin_rect;
 extern int in_sizemove;
 extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;

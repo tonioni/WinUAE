@@ -25,14 +25,19 @@ static int initialized;
 extern struct device_functions devicefunc_win32_aspi;
 extern struct device_functions devicefunc_win32_spti;
 extern struct device_functions devicefunc_win32_ioctl;
+extern struct device_functions devicefunc_cdimage;
 
 static void install_driver (int flags)
 {
 	int installed = 0;
 
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
+	if (devicefunc_cdimage.openbus (0)) {
+		device_func[DF_IOCTL] = &devicefunc_cdimage;
+	}
 #ifdef WINDDK
-	device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
+	if (!device_func[DF_IOCTL])
+		device_func[DF_IOCTL] = &devicefunc_win32_ioctl;
 	device_func[DF_SCSI] = &devicefunc_win32_spti;
 	installed = 1;
 	if (currprefs.win32_uaescsimode == UAESCSI_ADAPTECASPI ||
@@ -153,6 +158,14 @@ int sys_command_cd_play (int mode, int unitnum,uae_u32 startmsf, uae_u32 endmsf,
 		return device_func[DF_SCSI]->exec_out (unitnum, cmd, sizeof (cmd)) == 0 ? 0 : 1;
 	}
 	return device_func[DF_IOCTL]->play (unitnum, startmsf, endmsf, scan);
+}
+
+/* set CD audio volume */
+void sys_command_cd_volume (int mode, int unitnum, uae_u16 volume)
+{
+	if (mode == DF_SCSI || !have_ioctl)
+		return;
+	device_func[DF_IOCTL]->volume (unitnum, volume);
 }
 
 /* read qcode */

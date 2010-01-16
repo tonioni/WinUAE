@@ -133,6 +133,7 @@ extern struct regstruct
 	flagtype x;
 	flagtype stopped;
 	int intmask;
+	int ipl;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -165,6 +166,7 @@ extern struct regstruct
 	uae_u32 prefetch020data;
 	uae_u32 prefetch020addr;
 	int ce020memcycles;
+	evt lastfetch;
 
 } regs, lastint_regs, mmu_backup_regs;
 
@@ -316,7 +318,7 @@ extern void REGPARAM3 MakeFromSR (void) REGPARAM;
 extern void REGPARAM3 Exception (int, uaecptr) REGPARAM;
 extern void NMI (void);
 extern void NMI_delayed (void);
-extern void prepare_interrupt (void);
+extern void prepare_interrupt (uae_u32);
 extern void doint (void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);

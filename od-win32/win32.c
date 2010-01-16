@@ -112,7 +112,7 @@ HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD) = NULL;
 HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
-RECT amigawin_rect;
+RECT amigawin_rect, mainwin_rect;
 static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
 static HWND TaskbarRestartHWND;
@@ -1322,6 +1322,7 @@ static int canstretch (void)
 
 static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	static RECT myrect;
 	PAINTSTRUCT ps;
 	RECT rc;
 	HDC hDC;
@@ -1417,24 +1418,21 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 					DWORD top = rc2.top - win_y_diff;
 					DWORD width = rc2.right - rc2.left;
 					DWORD height = rc2.bottom - rc2.top;
-					if (amigawin_rect.left & 3) {
-						MoveWindow (hMainWnd, rc2.left + 4 - amigawin_rect.left % 4, rc2.top,
-							rc2.right - rc2.left, rc2.bottom - rc2.top, TRUE);
-
-					}
 					if (store_xy++) {
 						regsetint (NULL, L"MainPosX", left);
 						regsetint (NULL, L"MainPosY", top);
 					}
 					changed_prefs.gfx_size_win.x = left;
 					changed_prefs.gfx_size_win.y = top;
-					if (canstretch ()) {
+					if (canstretch () && mainwin_rect.right - mainwin_rect.left != width && mainwin_rect.bottom - mainwin_rect.top != height) {
 						changed_prefs.gfx_size_win.width = width - window_extra_width;
 						changed_prefs.gfx_size_win.height = height - window_extra_height;
 					}
 				}
+				GetWindowRect (hMainWnd, &mainwin_rect);
 				return 0;
 			}
+			GetWindowRect (hMainWnd, &mainwin_rect);
 		}
 		break;
 

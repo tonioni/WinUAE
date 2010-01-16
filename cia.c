@@ -58,7 +58,7 @@ static unsigned long ciaata_passed, ciaatb_passed, ciabta_passed, ciabtb_passed;
 
 static unsigned long ciaatod, ciabtod, ciaatol, ciabtol, ciaaalarm, ciabalarm;
 static int ciaatlatch, ciabtlatch;
-static int oldled, oldovl, led_changed;
+static int oldled, oldovl, oldcd32mute, led_changed;
 
 unsigned int ciabpra;
 
@@ -593,6 +593,9 @@ static void bfe001_change (void)
 			//activate_debugger ();
 			map_overlay (0);
 		}
+	} else if (currprefs.cs_cd32cd && (v & 1) != oldcd32mute) {
+		oldcd32mute = v & 1;
+		akiko_mute (oldcd32mute ? 0 : 1);
 	}
 }
 
@@ -1150,6 +1153,7 @@ void CIA_reset (void)
 	ciaasdr_unread = 0;
 	serbits = 0;
 	oldovl = 1;
+	oldcd32mute = 1;
 	oldled = -1;
 	resetwarning_phase = resetwarning_timer = 0;
 

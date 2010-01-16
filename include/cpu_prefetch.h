@@ -12,6 +12,11 @@ STATIC_INLINE uae_u32 get_long_prefetch (int o)
 	return v;
 }
 
+STATIC_INLINE void prefetch_common_ce000 (void)
+{
+	regs.lastfetch = get_cycles () + CYCLE_UNIT;
+}
+
 #ifdef CPUEMU_20
 
 STATIC_INLINE void checkcycles_ce020 (void)
@@ -271,6 +276,7 @@ STATIC_INLINE uae_u32 next_ilong_020ce (void)
 
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
+	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
@@ -284,6 +290,7 @@ STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 }
 STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 {
+	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
@@ -297,6 +304,7 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 
 STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 {
+	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
@@ -310,6 +318,7 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 }
 STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 {
+	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
@@ -323,6 +332,7 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 }
 STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 {
+	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:

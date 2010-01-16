@@ -10,6 +10,7 @@ extern void akiko_free (void);
 extern void akiko_entergui (void);
 extern void akiko_exitgui (void);
 extern void AKIKO_hsync_handler (void);
+extern void akiko_mute (int);
 
 extern uae_u8 *extendedkickmemory;
 

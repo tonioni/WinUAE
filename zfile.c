@@ -2044,8 +2044,8 @@ int zfile_zuncompress (void *dst, int dstsize, struct zfile *src, int srcsize)
 	uae_u8 inbuf[4096];
 	int incnt;
 
-	memset (&zs, 0, sizeof(zs));
-	if (inflateInit_ (&zs, ZLIB_VERSION, sizeof(z_stream)) != Z_OK)
+	memset (&zs, 0, sizeof (zs));
+	if (inflateInit_ (&zs, ZLIB_VERSION, sizeof (z_stream)) != Z_OK)
 		return 0;
 	zs.next_out = (Bytef*)dst;
 	zs.avail_out = dstsize;

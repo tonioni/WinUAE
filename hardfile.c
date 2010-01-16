@@ -28,13 +28,13 @@
 #include "execio.h"
 #include "zfile.h"
 
-#undef DEBUGME
+//#undef DEBUGME
 #define hf_log
 #define hf_log2
 #define scsi_log
 #define hf_log3
 
-//#define DEBUGME
+#define DEBUGME
 #ifdef DEBUGME
 #undef hf_log
 #define hf_log write_log
@@ -137,7 +137,7 @@ static void getchs2 (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head,
 static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, int *tracksec)
 {
 	getchs2 (hfd, cyl, cylsec, head, tracksec);
-	hf_log ("CHS: %08X-%08X %d %d %d %d %d\n",
+	hf_log (L"CHS: %08X-%08X %d %d %d %d %d\n",
 		(uae_u32)(hfd->virtsize >> 32),(uae_u32)hfd->virtsize,
 		*cyl, *cylsec, *head, *tracksec);
 }
@@ -904,7 +904,7 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 static uae_u64 cmd_readx (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
 	gui_flicker_led (LED_HD, hfd->unitnum, 1);
-	hf_log3 ("cmd_read: %p %04x-%08x (%d) %08x (%d)\n",
+	hf_log3 (L"cmd_read: %p %04x-%08x (%d) %08x (%d)\n",
 		dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->blocksize), (uae_u32)len, (uae_u32)(len / hfd->blocksize));
 	return hdf_read (hfd, dataptr, offset, len);
 }
@@ -918,7 +918,7 @@ static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offs
 static uae_u64 cmd_writex (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
 	gui_flicker_led (LED_HD, hfd->unitnum, 2);
-	hf_log3 ("cmd_write: %p %04x-%08x (%d) %08x (%d)\n",
+	hf_log3 (L"cmd_write: %p %04x-%08x (%d) %08x (%d)\n",
 		dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->blocksize), (uae_u32)len, (uae_u32)(len / hfd->blocksize));
 	return hdf_write (hfd, dataptr, offset, len);
 }
@@ -1288,28 +1288,28 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
 	status = 0;
 	memset (reply, 0, sizeof reply);
 	reply_len = 0; sense_len = 0;
-	scsi_log ("hdf scsiemu: cmd=%02X,%d flags=%02X sense=%p,%d data=%p,%d\n",
+	scsi_log (L"hdf scsiemu: cmd=%02X,%d flags=%02X sense=%p,%d data=%p,%d\n",
 		cmd, scsi_cmd_len, scsi_flags, scsi_sense, scsi_sense_len, scsi_data, scsi_len);
 	for (i = 0; i < scsi_cmd_len; i++) {
 		cmdbuf[i] = get_byte (scsi_cmd + i);
-		scsi_log ("%02X%c", get_byte (scsi_cmd + i), i < scsi_cmd_len - 1 ? '.' : ' ');
+		scsi_log (L"%02X%c", get_byte (scsi_cmd + i), i < scsi_cmd_len - 1 ? '.' : ' ');
 	}
-	scsi_log ("\n");
+	scsi_log (L"\n");
 
 	status = scsi_emulate (hfd, NULL, cmdbuf, scsi_cmd_len, scsi_data_ptr, &scsi_len, reply, &reply_len, sense, &sense_len);
 
 	put_word (acmd + 18, status != 0 ? 0 : scsi_cmd_len); /* fake scsi_CmdActual */
 	put_byte (acmd + 21, status); /* scsi_Status */
 	if (reply_len > 0) {
-		scsi_log ("RD:");
+		scsi_log (L"RD:");
 		i = 0;
 		while (i < reply_len) {
 			if (i < 24)
-				scsi_log ("%02X%c", reply[i], i < reply_len - 1 ? '.' : ' ');
+				scsi_log (L"%02X%c", reply[i], i < reply_len - 1 ? '.' : ' ');
 			put_byte (scsi_data + i, reply[i]);
 			i++;
 		}
-		scsi_log ("\n");
+		scsi_log (L"\n");
 	}
 	i = 0;
 	if (scsi_sense) {
@@ -1371,7 +1371,7 @@ static int add_async_request (struct hardfileprivdata *hfpd, uaecptr request, in
 		if (hfpd->d_request[i] == request) {
 			hfpd->d_request_type[i] = type;
 			hfpd->d_request_data[i] = data;
-			hf_log ("old async request %p (%d) added\n", request, type);
+			hf_log (L"old async request %p (%d) added\n", request, type);
 			return 0;
 		}
 		i++;
@@ -1382,12 +1382,12 @@ static int add_async_request (struct hardfileprivdata *hfpd, uaecptr request, in
 			hfpd->d_request[i] = request;
 			hfpd->d_request_type[i] = type;
 			hfpd->d_request_data[i] = data;
-			hf_log ("async request %p (%d) added (total=%d)\n", request, type, i);
+			hf_log (L"async request %p (%d) added (total=%d)\n", request, type, i);
 			return 0;
 		}
 		i++;
 	}
-	hf_log ("async request overflow %p!\n", request);
+	hf_log (L"async request overflow %p!\n", request);
 	return -1;
 }
 
@@ -1401,19 +1401,19 @@ static int release_async_request (struct hardfileprivdata *hfpd, uaecptr request
 			hfpd->d_request[i] = 0;
 			hfpd->d_request_data[i] = 0;
 			hfpd->d_request_type[i] = 0;
-			hf_log ("async request %p removed\n", request);
+			hf_log (L"async request %p removed\n", request);
 			return type;
 		}
 		i++;
 	}
-	hf_log ("tried to remove non-existing request %p\n", request);
+	hf_log (L"tried to remove non-existing request %p\n", request);
 	return -1;
 }
 
 static void abort_async (struct hardfileprivdata *hfpd, uaecptr request, int errcode, int type)
 {
 	int i;
-	hf_log ("aborting async request %p\n", request);
+	hf_log (L"aborting async request %p\n", request);
 	i = 0;
 	while (i < MAX_ASYNC_REQUESTS) {
 		if (hfpd->d_request[i] == request && hfpd->d_request_type[i] == ASYNC_REQUEST_TEMP) {
@@ -1426,7 +1426,7 @@ static void abort_async (struct hardfileprivdata *hfpd, uaecptr request, int err
 	}
 	i = release_async_request (hfpd, request);
 	if (i >= 0)
-		hf_log ("asyncronous request=%08X aborted, error=%d\n", request, errcode);
+		hf_log (L"asyncronous request=%08X aborted, error=%d\n", request, errcode);
 }
 
 static void *hardfile_thread (void *devs);
@@ -1731,7 +1731,7 @@ no_disk:
 	put_long (request + 32, actual);
 	put_byte (request + 31, error);
 
-	hf_log2 ("hf: unit=%d, request=%p, cmd=%d offset=%u len=%d, actual=%d error%=%d\n", unit, request,
+	hf_log2 (L"hf: unit=%d, request=%p, cmd=%d offset=%u len=%d, actual=%d error%=%d\n", unit, request,
 		get_word (request + 28), get_long (request + 44), get_long (request + 36), actual, error);
 
 	return async;
@@ -1744,15 +1744,15 @@ static uae_u32 REGPARAM2 hardfile_abortio (TrapContext *context)
 	struct hardfiledata *hfd = get_hardfile_data (unit);
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
 
-	hf_log2 ("uaehf.device abortio ");
+	hf_log2 (L"uaehf.device abortio ");
 	start_thread (context, unit);
 	if (!hfd || !hfpd || !hfpd->thread_running) {
 		put_byte (request + 31, 32);
-		hf_log2 ("error\n");
+		hf_log2 (L"error\n");
 		return get_byte (request + 31);
 	}
 	put_byte (request + 31, -2);
-	hf_log2 ("unit=%d, request=%08X\n",  unit, request);
+	hf_log2 (L"unit=%d, request=%08X\n",  unit, request);
 	abort_async (hfpd, request, -2, 0);
 	return 0;
 }
@@ -1799,12 +1799,12 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 	}
 	put_byte (request + 31, 0);
 	if ((flags & 1) && hardfile_canquick (hfd, request)) {
-		hf_log ("hf quickio unit=%d request=%p cmd=%d\n", unit, request, cmd);
+		hf_log (L"hf quickio unit=%d request=%p cmd=%d\n", unit, request, cmd);
 		if (hardfile_do_io (hfd, hfpd, request))
-			hf_log2 ("uaehf.device cmd %d bug with IO_QUICK\n", cmd);
+			hf_log2 (L"uaehf.device cmd %d bug with IO_QUICK\n", cmd);
 		return get_byte (request + 31);
 	} else {
-		hf_log2 ("hf asyncio unit=%d request=%p cmd=%d\n", unit, request, cmd);
+		hf_log2 (L"hf asyncio unit=%d request=%p cmd=%d\n", unit, request, cmd);
 		add_async_request (hfpd, request, ASYNC_REQUEST_TEMP, 0);
 		put_byte (request + 30, get_byte (request + 30) & ~1);
 		write_comm_pipe_u32 (&hfpd->requests, request, 1);
@@ -1832,7 +1832,7 @@ static void *hardfile_thread (void *devs)
 			release_async_request (hfpd, request);
 			uae_ReplyMsg (request);
 		} else {
-			hf_log2 ("async request %08X\n", request);
+			hf_log2 (L"async request %08X\n", request);
 		}
 		uae_sem_post (&change_sem);
 	}

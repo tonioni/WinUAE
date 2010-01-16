@@ -2766,7 +2766,7 @@ static void disk_doupdate_predict (drive * drv, int startcycle)
 		updatetrackspeed (drv, drv->mfmpos);
 	if (diskevent_flag) {
 		disk_sync_cycle = startcycle >> 8;
-		event2_newevent(ev2_disk, (startcycle - firstcycle) / CYCLE_UNIT);
+		event2_newevent (ev2_disk, (startcycle - firstcycle) / CYCLE_UNIT);
 	}
 }
 
