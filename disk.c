@@ -196,7 +196,7 @@ int disk_debug_track = -1;
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
-static TCHAR dfxhistory[MAX_PREVIOUS_FLOPPIES][MAX_DPATH];
+static TCHAR dfxhistory[2][MAX_PREVIOUS_FLOPPIES][MAX_DPATH];
 
 static uae_u8 exeheader[]={0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00};
 static uae_u8 bootblock[]={
@@ -2116,7 +2116,7 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
 	xfree (chunk);
 	zfile_fclose (f);
 	if (f)
-		DISK_history_add (name, -1, TRUE);
+		DISK_history_add (name, -1, HISTORY_FLOPPY, TRUE);
 
 }
 
@@ -2208,14 +2208,14 @@ void disk_eject (int num)
 	update_drive_gui (num);
 }
 
-int DISK_history_add (const TCHAR *name, int idx, int donotcheck)
+int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck)
 {
 	int i;
 
 	if (idx >= MAX_PREVIOUS_FLOPPIES)
 		return 0;
 	if (name == NULL) {
-		dfxhistory[idx][0] = 0;
+		dfxhistory[type][idx][0] = 0;
 		return 1;
 	}
 	if (name[0] == 0)
@@ -2227,35 +2227,35 @@ int DISK_history_add (const TCHAR *name, int idx, int donotcheck)
 	if (idx >= 0) {
 		if (idx >= MAX_PREVIOUS_FLOPPIES)
 			return 0;
-		dfxhistory[idx][0] = 0;
+		dfxhistory[type][idx][0] = 0;
 		for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
-			if (!_tcscmp (dfxhistory[i], name))
+			if (!_tcscmp (dfxhistory[type][i], name))
 				return 0;
 		}
-		_tcscpy (dfxhistory[idx], name);
+		_tcscpy (dfxhistory[type][idx], name);
 		return 1;
 	}
 	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
-		if (!_tcscmp (dfxhistory[i], name)) {
+		if (!_tcscmp (dfxhistory[type][i], name)) {
 			while (i < MAX_PREVIOUS_FLOPPIES - 1) {
-				_tcscpy (dfxhistory[i], dfxhistory[i + 1]);
+				_tcscpy (dfxhistory[type][i], dfxhistory[type][i + 1]);
 				i++;
 			}
-			dfxhistory[MAX_PREVIOUS_FLOPPIES - 1][0] = 0;
+			dfxhistory[type][MAX_PREVIOUS_FLOPPIES - 1][0] = 0;
 			break;
 		}
 	}
 	for (i = MAX_PREVIOUS_FLOPPIES - 2; i >= 0; i--)
-		_tcscpy (dfxhistory[i + 1], dfxhistory[i]);
-	_tcscpy (dfxhistory[0], name);
+		_tcscpy (dfxhistory[type][i + 1], dfxhistory[type][i]);
+	_tcscpy (dfxhistory[type][0], name);
 	return 1;
 }
 
-TCHAR *DISK_history_get (int idx)
+TCHAR *DISK_history_get (int idx, int type)
 {
 	if (idx >= MAX_PREVIOUS_FLOPPIES)
-		return 0;
-	return dfxhistory[idx];
+		return NULL;
+	return dfxhistory[type][idx];
 }
 
 static void disk_insert_2 (int num, const TCHAR *name, int forced)
@@ -2270,7 +2270,7 @@ static void disk_insert_2 (int num, const TCHAR *name, int forced)
 		return;
 	_tcscpy (drv->newname, name);
 	_tcscpy (currprefs.df[num], name);
-	DISK_history_add (name, -1, 0);
+	DISK_history_add (name, -1, HISTORY_FLOPPY, 0);
 	if (name[0] == 0) {
 		disk_eject (num);
 	} else if (!drive_empty(drv) || drv->dskchange_time > 0) {
@@ -3515,7 +3515,7 @@ uae_u8 *save_disk (int num, int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = malloc (2+1+1+1+1+4+4+256);
+		dstbak = dst = xmalloc (2+1+1+1+1+4+4+256);
 	save_u32 (drv->drive_id);	    /* drive type ID */
 	save_u8 ((drv->motoroff ? 0:1) | ((disabled & (1 << num)) ? 2 : 0) | (drv->idbit ? 4 : 0) | (drv->dskchange ? 8 : 0));
 	save_u8 (drv->cyl);		    /* cylinder */
@@ -3555,7 +3555,7 @@ uae_u8 *save_floppy(int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = (uae_u8*)malloc(2+1+1+1+1+2);
+		dstbak = dst = xmalloc (2 + 1 + 1 + 1 + 1 + 2);
 	save_u16 (word);		/* current fifo (low word) */
 	save_u8 (bitoffset);	/* dma bit offset */
 	save_u8 (dma_enable);	/* disk sync found */

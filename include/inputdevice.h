@@ -196,6 +196,7 @@ extern int inputdevice_uaelib (TCHAR *, TCHAR *);
 #define INPREC_VSYNC 6
 #define INPREC_CIAVSYNC 7
 #define INPREC_END 0xff
+#define INPREC_QUIT 0xfe
 
 extern int input_recording;
 extern void inprec_close (void);

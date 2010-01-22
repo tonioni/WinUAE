@@ -1456,6 +1456,9 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	}
 	if (nr == 2) {
 
+		write_log (L"%08x %08x %08x\n", currpc, oldpc, regs.mmu_fault_addr);
+		if (currpc == 0x0013b5e2)
+			activate_debugger ();
 		// bus error
 		for (i = 0 ; i < 7 ; i++) {
 			m68k_areg (regs, 7) -= 4;
@@ -2575,7 +2578,7 @@ static evt interrupt_cycle;
 STATIC_INLINE int time_for_interrupt (void)
 {
 	if (interrupt_cycles_active) {
-		if (interrupt_cycle != regs.lastfetch) {
+		if (regs.lastfetch - interrupt_cycle >= 2 * CYCLE_UNIT) {
 			interrupt_cycles_active = 0;
 			return 1;
 		} else {
@@ -2585,27 +2588,15 @@ STATIC_INLINE int time_for_interrupt (void)
 	return 1;
 }
 
-void prepare_interrupt (uae_u32 lev)
-{
-	// CPU IPLx lines change state now
-	// but we may need to wait for next S4 state
-	// before CPU sees it
-	regs.ipl = lev;
-	if (currprefs.cpu_model == 68000) {
-		interrupt_cycle = get_cycles ();
-		if ((regs.lastfetch - interrupt_cycle) >= 0) {
-			// interrupt arrived too late
-			// wait for next memory cycle
-			interrupt_cycles_active = 1;
-		}
-	}
-	set_special (SPCFLAG_INT);
-}
-
 void doint (void)
 {
-	if (currprefs.cpu_cycle_exact)
+	regs.ipl = intlev ();
+	if (currprefs.cpu_cycle_exact) {
+		set_special (SPCFLAG_INT);
+		interrupt_cycle = get_cycles ();
+		interrupt_cycles_active = 1;
 		return;
+	}
 	if (currprefs.cpu_compatible)
 		set_special (SPCFLAG_INT);
 	else
@@ -2686,10 +2677,9 @@ STATIC_INLINE int do_specialties (int cycles)
 			do_copper ();
 
 		if (currprefs.cpu_cycle_exact) {
-			if (time_for_interrupt ()) {
-				int intr = regs.ipl;
-				if (intr > 0 && intr > regs.intmask)
-					do_interrupt (intr);
+			if (regs.ipl > 0 && regs.ipl > regs.intmask) {
+				if (time_for_interrupt ())
+					do_interrupt (regs.ipl);
 			}
 		} else {
 			if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
@@ -2733,10 +2723,9 @@ STATIC_INLINE int do_specialties (int cycles)
 		do_trace ();
 
 	if (currprefs.cpu_cycle_exact) {
-		if (time_for_interrupt ()) {
-			int intr = regs.ipl;
-			if (intr > 0 && intr > regs.intmask)
-				do_interrupt (intr);
+		if (regs.ipl > 0 && (regs.ipl > regs.intmask || regs.ipl == 7)) {
+			if (time_for_interrupt ())
+				do_interrupt (regs.ipl);
 		}
 	} else {
 		if (regs.spcflags & SPCFLAG_INT) {
@@ -4327,6 +4316,16 @@ void m68k_do_rte (uae_u32 pc, uae_u16 sr, uae_u16 format, uae_u16 opcode)
 
 void flush_mmu (uaecptr addr, int n)
 {
+}
+
+void m68k_do_rte_mmu (void)
+{
+	uaecptr src = m68k_areg (regs, 7);
+	uae_s16 sr = get_word_mmu (src);
+	uae_s32 pc = get_long_mmu (src + 2);
+	uae_s16 format = get_word_mmu (src + 6);
+	m68k_areg (regs, 7) += 8;
+	m68k_do_rte (pc, sr, format, 0x4e73);
 }
 
 void m68k_do_rts_mmu (void)

@@ -144,7 +144,6 @@ static const TCHAR *lorestype1[] = { L"lores", L"hires", L"superhires" };
 static const TCHAR *lorestype2[] = { L"true", L"false" };
 static const TCHAR *loresmode[] = { L"normal", L"filtered", 0 };
 #ifdef GFXFILTER
-static const TCHAR *filtermode1[] = { L"no_16", L"bilinear_16", L"no_32", L"bilinear_32", 0 };
 static const TCHAR *filtermode2[] = { L"0x", L"1x", L"2x", L"3x", L"4x", 0 };
 #endif
 static const TCHAR *cartsmode[] = { L"none", L"hrtmon", 0 };
@@ -169,6 +168,7 @@ static const TCHAR *joyportmodes[] = { NULL, L"mouse", L"djoy", L"ajoy", L"cdtvj
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix_9pin", L"epson_matrix_24pin", L"epson_matrix_48pin", 0 };
 static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
 static const TCHAR *vsyncmodes[] = { L"false", L"true", L"autoswitch", 0 };
+static const TCHAR *filterapi[] = { L"directdraw", L"direct3d", 0 };
 static const TCHAR *dongles[] =
 {
 	L"none",
@@ -655,6 +655,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, L"gfx_center_vertical", centermode1[p->gfx_ycenter]);
 	cfgfile_write_str (f, L"gfx_colour_mode", colormode1[p->color_mode]);
 	cfgfile_write_bool (f, L"gfx_blacker_than_black", p->gfx_blackerthanblack);
+	cfgfile_write_str (f, L"gfx_api", filterapi[p->gfx_api]);
 
 #ifdef GFXFILTER
 	if (p->gfx_filter > 0) {
@@ -669,7 +670,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 					cfgfile_dwrite_str (f, L"gfx_filter", uf->cfgname);
 				if (uf->type == p->gfx_filter) {
 					if (uf->x[0]) {
-						cfgfile_dwrite_str (f, L"gfx_filter_mode", filtermode1[p->gfx_filter_filtermode]);
+						cfgfile_dwrite_str (f, L"gfx_filter_mode", filtermode2[1]);
 					} else {
 						int mt[4], i = 0;
 						if (uf->x[1])
@@ -705,6 +706,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_filter_gamma", L"%d", p->gfx_filter_gamma);
 	cfgfile_dwrite (f, L"gfx_filter_blur", L"%d", p->gfx_filter_blur);
 	cfgfile_dwrite (f, L"gfx_filter_noise", L"%d", p->gfx_filter_noise);
+	cfgfile_dwrite_bool (f, L"gfx_filter_bilinear", p->gfx_filter_bilinear);
 	cfgfile_dwrite_str (f, L"gfx_filter_keep_aspect", aspects[p->gfx_filter_keep_aspect]);
 	cfgfile_dwrite_str (f, L"gfx_filter_autoscale", autoscale[p->gfx_filter_autoscale]);
 	cfgfile_dwrite (f, L"gfx_filter_aspect_ratio", L"%d:%d",
@@ -761,6 +763,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"resetwarning", p->cs_resetwarning);
 	cfgfile_dwrite_bool (f, L"denise_noehb", p->cs_denisenoehb);
 	cfgfile_dwrite_bool (f, L"agnus_bltbusybug", p->cs_agnusbltbusybug);
+	cfgfile_dwrite_bool (f, L"ics_agnus", p->cs_dipagnus);
 
 	cfgfile_write (f, L"fastmem_size", L"%d", p->fastmem_size / 0x100000);
 	cfgfile_write (f, L"a3000mem_size", L"%d", p->mbresmem_low_size / 0x100000);
@@ -1047,6 +1050,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_filter_gamma", &p->gfx_filter_gamma, 1)
 		|| cfgfile_intval (option, value, L"gfx_filter_blur", &p->gfx_filter_blur, 1)
 		|| cfgfile_intval (option, value, L"gfx_filter_noise", &p->gfx_filter_noise, 1)
+		|| cfgfile_intval (option, value, L"gfx_filter_bilinear", &p->gfx_filter_bilinear, 1)
 		|| cfgfile_intval (option, value, L"gfx_luminance", &p->gfx_luminance, 1)
 		|| cfgfile_intval (option, value, L"gfx_contrast", &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, L"gfx_gamma", &p->gfx_gamma, 1)
@@ -1114,6 +1118,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, L"gfx_max_horizontal", &p->gfx_max_horizontal, maxhoriz, 0)
 		|| cfgfile_strval (option, value, L"gfx_max_vertical", &p->gfx_max_vertical, maxvert, 0)
 		|| cfgfile_strval (option, value, L"gfx_filter_autoscale", &p->gfx_filter_autoscale, autoscale, 0)
+		|| cfgfile_strval (option, value, L"gfx_api", &p->gfx_api, filterapi, 0)
 		|| cfgfile_strval (option, value, L"magic_mousecursor", &p->input_magic_mouse_cursor, magiccursors, 0)
 		|| cfgfile_strval (option, value, L"gfx_filter_keep_aspect", &p->gfx_filter_keep_aspect, aspects, 0)
 		|| cfgfile_strval (option, value, L"absolute_mouse", &p->input_tablet, abspointers, 0))
@@ -1145,14 +1150,18 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			*s++ = 0;
 		p->gfx_filtershader[0] = 0;
 		p->gfx_filter = 0;
-		while(uaefilters[i].name) {
-			if (!_tcscmp (uaefilters[i].cfgname, value)) {
-				p->gfx_filter = uaefilters[i].type;
-				if (s)
-					_tcscpy (p->gfx_filtershader, s);
-				break;
+		if (!_tcscmp (value, L"direct3d")) {
+			p->gfx_api = 1; // forwards compatibiity
+		} else {
+			while(uaefilters[i].name) {
+				if (!_tcscmp (uaefilters[i].cfgname, value)) {
+					p->gfx_filter = uaefilters[i].type;
+					if (s)
+						_tcscpy (p->gfx_filtershader, s);
+					break;
+				}
+				i++;
 			}
-			i++;
 		}
 		return 1;
 	}
@@ -1164,9 +1173,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			while(uaefilters[i].name) {
 				uf = &uaefilters[i];
 				if (uf->type == p->gfx_filter) {
-					if (uf->x[0]) {
-						cfgfile_strval (option, value, L"gfx_filter_mode", &p->gfx_filter_filtermode, filtermode1, 0);
-					} else {
+					if (!uf->x[0]) {
 						int mt[4], j;
 						i = 0;
 						if (uf->x[1])
@@ -1593,6 +1600,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_yesno (option, value, L"ksmirror_a8", &p->cs_ksmirror_a8)
 		|| cfgfile_yesno (option, value, L"resetwarning", &p->cs_resetwarning)
 		|| cfgfile_yesno (option, value, L"denise_noehb", &p->cs_denisenoehb)
+		|| cfgfile_yesno (option, value, L"ics_agnus", &p->cs_dipagnus)
 		|| cfgfile_yesno (option, value, L"agnus_bltbusybug", &p->cs_agnusbltbusybug)
 
 		|| cfgfile_yesno (option, value, L"kickshifter", &p->kickshifter)
@@ -3294,6 +3302,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filtershader[0] = 0;
 	p->gfx_filter_horiz_zoom_mult = 0;
 	p->gfx_filter_vert_zoom_mult = 0;
+	p->gfx_filter_bilinear = 0;
 	p->gfx_filter_filtermode = 0;
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
@@ -3635,6 +3644,8 @@ static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->dfxtype[1] = DRV_NONE;
 	p->cs_compatible = CP_A1000;
 	p->cs_slowmemisfast = 1;
+	p->cs_dipagnus = 1;
+	p->cs_agnusbltbusybug = 1;
 	built_in_chipset_prefs (p);
 	if (config > 0)
 		p->cs_denisenoehb = 1;
@@ -4026,6 +4037,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_rtc = 0;
 		p->cs_agnusbltbusybug = 1;
+		p->cs_dipagnus = 1;
 		break;
 	case CP_A1200: // A1200
 		p->cs_ide = IDE_A600A1200;

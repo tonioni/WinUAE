@@ -21,6 +21,7 @@ extern int zfile_exists (const TCHAR *name);
 extern void zfile_fclose (struct zfile *);
 extern uae_s64 zfile_fseek (struct zfile *z, uae_s64 offset, int mode);
 extern uae_s64 zfile_ftell (struct zfile *z);
+extern uae_s64 zfile_size (struct zfile *z);
 extern size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z);
 extern size_t zfile_fwrite  (void *b, size_t l1, size_t l2, struct zfile *z);
 extern TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z);
@@ -72,6 +73,7 @@ extern TCHAR *zfile_geterror (void);
 #define ZFILE_STATEFILE 6
 #define ZFILE_NVR 7
 #define ZFILE_HDFRDB 8
+#define ZFILE_CDIMAGE 9
 
 extern const TCHAR *uae_archive_extensions[];
 extern const TCHAR *uae_ignoreextensions[];

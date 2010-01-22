@@ -784,7 +784,7 @@ static void setupscenescaled (void)
 	hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
 	hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 	hr = IDirect3DDevice9_SetTextureStageState (d3ddev, 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-	switch (currprefs.gfx_filter_filtermode & 1)
+	switch (currprefs.gfx_filter_bilinear)
 	{
 	case 0:
 		v = D3DTEXF_POINT;
@@ -980,6 +980,8 @@ static void createscanlines (int force)
 	l1 = (currprefs.gfx_filter_scanlineratio >> 0) & 15;
 	l2 = (currprefs.gfx_filter_scanlineratio >> 4) & 15;
 
+	if (l1 + l2 <= 0)
+		return;
 	hr = IDirect3DTexture9_LockRect (sltexture, 0, &locked, NULL, 0);
 	if (FAILED (hr)) {
 		write_log (L"SL IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
@@ -1147,10 +1149,11 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	D3D_free ();
 	D3D_canshaders ();
 	d3d_enabled = 0;
-	if (currprefs.gfx_filter != UAE_FILTER_DIRECT3D) {
+	if (!currprefs.gfx_api) {
 		_tcscpy (errmsg, L"D3D: not enabled");
 		return errmsg;
 	}
+
 	d3dx = LoadLibrary (L"d3dx9_42.dll");
 	if (d3dx == NULL) {
 		_tcscpy (errmsg, L"Direct3D: August 2009 or newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513");
@@ -1290,6 +1293,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		tex_square, tex_pow2, tex_dynamic,
 		max_texture_w, max_texture_h);
 
+	t_w *= S2X_getmult ();
+	t_h *= S2X_getmult ();
+
 	if (max_texture_w < t_w || max_texture_h < t_h) {
 		_stprintf (errmsg, L"Direct3D: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
 			t_w, t_h, max_texture_w, max_texture_h);
@@ -1336,7 +1342,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 
 	hr = D3DXCreateSprite (d3ddev, &sprite);
 	if (FAILED (hr)) {
-		write_log (L"LED D3DXSprite filaed: %s\n", D3D_ErrorString (hr));
+		write_log (L"LED D3DXSprite failed: %s\n", D3D_ErrorString (hr));
 	}
 
 	createscanlines (1);
@@ -1515,7 +1521,7 @@ void D3D_unlocktexture (void)
 		D3D_render2 (0);
 }
 
-int D3D_locktexture (void)
+uae_u8 *D3D_locktexture (int *pitch)
 {
 	D3DLOCKED_RECT locked;
 	HRESULT hr;
@@ -1528,7 +1534,7 @@ int D3D_locktexture (void)
 				ShowWindow (d3dhwnd, SW_MINIMIZE);
 			}
 		}
-		return 0;
+		return NULL;
 	}
 
 	locked.pBits = NULL;
@@ -1538,18 +1544,16 @@ int D3D_locktexture (void)
 		if (hr != D3DERR_DRIVERINTERNALERROR) {
 			write_log (L"IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
 			D3D_unlocktexture ();
-			return 0;
+			return NULL;
 		}
 	}
 	if (locked.pBits == NULL || locked.Pitch == 0) {
 		write_log (L"IDirect3DTexture9_LockRect return NULL texture\n");
 		D3D_unlocktexture ();
-		return 0;
+		return NULL;
 	}
-	gfxvidinfo.bufmem = locked.pBits;
-	gfxvidinfo.rowbytes = locked.Pitch;
-	init_row_map ();
-	return 1;
+	*pitch = locked.Pitch;
+	return locked.pBits;
 }
 
 void D3D_refresh (void)

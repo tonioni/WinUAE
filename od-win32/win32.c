@@ -2803,6 +2803,8 @@ void fetch_path (TCHAR *name, TCHAR *out, int size)
 		return;
 	if (!_tcscmp (name, L"FloppyPath"))
 		_tcscat (out, L"..\\shared\\adf\\");
+	if (!_tcscmp (name, L"CDPath"))
+		_tcscat (out, L"..\\shared\\cd\\");
 	if (!_tcscmp (name, L"hdfPath"))
 		_tcscat (out, L"..\\shared\\hdf\\");
 	if (!_tcscmp (name, L"KickstartPath"))
@@ -2811,6 +2813,8 @@ void fetch_path (TCHAR *name, TCHAR *out, int size)
 		_tcscat (out, L"Configurations\\");
 	if (start_data >= 0)
 		regquerystr (NULL, name, out, &size); 
+	if (GetFileAttributes (out) == INVALID_FILE_ATTRIBUTES)
+		_tcscpy (out, start_path_data);
 	if (out[0] == '\\' && (_tcslen (out) >= 2 && out[1] != '\\')) { /* relative? */
 		_tcscpy (out, start_path_data);
 		if (start_data >= 0) {
@@ -3417,7 +3421,8 @@ static void WIN32_HandleRegistryStuff (void)
 	_tcscpy (savestate_fname, path);
 	fetch_path (L"InputPath", path, sizeof (path) / sizeof (TCHAR));
 	createdir (path);
-	regclosetree (read_disk_history ());
+	regclosetree (read_disk_history (HISTORY_FLOPPY));
+	regclosetree (read_disk_history (HISTORY_CD));
 	associate_init_extensions ();
 	read_rom_list ();
 	load_keyring (NULL, NULL);

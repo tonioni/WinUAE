@@ -14,18 +14,13 @@
 #include "dxwrap.h"
 #include "statusline.h"
 #include "drawing.h"
+#include "direct3d.h"
 
 #include <float.h>
 
 struct uae_filter uaefilters[] =
 {
 	{ UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
-
-	{ UAE_FILTER_DIRECT3D, 0, 1, L"Direct3D", L"direct3d", 1, 0, 0, 0, 0 },
-
-#ifdef OPENGL
-	{ UAE_FILTER_OPENGL, 0, 1, L"OpenGL (unsupported)", L"opengl", 1, 0, 0, 0, 0 },
-#endif
 
 	{ UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
 
@@ -51,6 +46,7 @@ static uae_u8 *tempsurf2, *tempsurf3;
 static int cleartemp;
 static uae_u32 rc[256], gc[256], bc[256];
 static int deskw, deskh;
+static int d3d;
 
 void getfilteroffset (int *dx, int *dy, int *mx, int *my)
 {
@@ -474,7 +470,11 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	int res_shift;
 
 	S2X_free ();
+	d3d = currprefs.gfx_api;
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+
+	if (d3d)
+		dd = ad;
 
 	if (dd == 32)
 		alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, rc, gc, bc);
@@ -509,27 +509,34 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	amiga_depth = ad;
 	scale = mult;
 
-	temp_width = dst_width * 3;
-	if (temp_width > dxcaps.maxwidth)
-		temp_width = dxcaps.maxwidth;
-	temp_height = dst_height * 3;
-	if (temp_height > dxcaps.maxheight)
-		temp_height = dxcaps.maxheight;
-	if (temp_width < dst_width)
-		temp_width = dst_width;
-	if (temp_height < dst_height)
-		temp_height = dst_height;
+	if (d3d) {
+		temp_width = dst_width * mult;
+		temp_height = dst_height * mult;
+	} else {
+		temp_width = dst_width * 3;
+		if (temp_width > dxcaps.maxwidth)
+			temp_width = dxcaps.maxwidth;
+		temp_height = dst_height * 3;
+		if (temp_height > dxcaps.maxheight)
+			temp_height = dxcaps.maxheight;
+		if (temp_width < dst_width)
+			temp_width = dst_width;
+		if (temp_height < dst_height)
+			temp_height = dst_height;
+	}
 
 	if (usedfilter->type == UAE_FILTER_HQ) {
 		int w = amiga_width > dst_width ? amiga_width : dst_width;
 		int h = amiga_height > dst_height ? amiga_height : dst_height;
 		tempsurf2 = xmalloc (w * h * (amiga_depth / 8) * ((scale + 1) / 2));
 		tempsurf3 = xmalloc (w * h *(dst_depth / 8) * 4 * scale);
-		tempsurf = allocsystemsurface (temp_width, temp_height);
+		if (!d3d)
+			tempsurf = allocsystemsurface (temp_width, temp_height);
 	} else {
-		tempsurf = allocsurface (temp_width, temp_height);
+		if (!d3d)
+			tempsurf = allocsurface (temp_width, temp_height);
 	}
-	if (!tempsurf)
+	if (!tempsurf && !d3d)
 		write_log (L"DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
 
 }
@@ -542,6 +549,7 @@ void S2X_render (void)
 	RECT sr, dr, zr;
 	DDSURFACEDESC2 desc;
 	DWORD pitch;
+	uae_u8 *surfstart;
 
 	aw = amiga_width;
 	ah = amiga_height;
@@ -552,30 +560,39 @@ void S2X_render (void)
 		return;
 	if (aw < 16)
 		return;
-	if (tempsurf == NULL)
-		return;
 
 	sptr = gfxvidinfo.bufmem;
 	endsptr = gfxvidinfo.bufmemend;
 	bufmem_ptr = sptr;
 
-	if (cleartemp) {
-		clearsurface (tempsurf);
-		cleartemp = 0;
+	if (d3d) {
+		surfstart = D3D_locktexture (&pitch);
+		if (surfstart == NULL)
+			return;
+	} else {
+		if (tempsurf == NULL)
+			return;
+		if (cleartemp) {
+			clearsurface (tempsurf);
+			cleartemp = 0;
+		}
+		if (!locksurface (tempsurf, &desc))
+			return;
+		pitch = desc.lPitch;
+		surfstart = (uae_u8*)desc.lpSurface;
 	}
-	if (!locksurface (tempsurf, &desc))
-		return;
-	pitch = desc.lPitch;
-	dptr = (uae_u8*)desc.lpSurface;
+	dptr = surfstart;
 	enddptr = dptr + pitch * temp_height;
-	dptr = getfilterrect1 (&sr, &dr, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
+	if (!d3d) {
+		dptr = getfilterrect1 (&sr, &dr, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
+	}
 
 	if (!dptr) /* weird things can happen */
 		goto end;
-	if (dptr < (uae_u8*)desc.lpSurface)
-		goto endfail;
+	if (dptr < surfstart)
+		dptr = surfstart;
 
-	if (usedfilter->type == UAE_FILTER_SCALE2X ) { /* 16+32/2X */
+	if (usedfilter->type == UAE_FILTER_SCALE2X) { /* 16+32/2X */
 
 		if (amiga_depth == 16 && dst_depth == 16) {
 			AdMame2x (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
@@ -685,30 +702,56 @@ void S2X_render (void)
 
 	}
 
-endfail:
-
 	if (ok == 0 && currprefs.gfx_filter) {
 		usedfilter = &uaefilters[0];
 		changed_prefs.gfx_filter = usedfilter->type;
 	}
 
 end:
-	unlocksurface (tempsurf);
-
-	getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
-	//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
-	OffsetRect (&sr, zr.left, zr.top);
-	if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
-		if (sr.left < sr.right && sr.top < sr.bottom)
-			DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
+	if (d3d) {
+		D3D_unlocktexture ();
+	} else {
+		unlocksurface (tempsurf);
+	
+		getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
+		//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+		OffsetRect (&sr, zr.left, zr.top);
+		if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
+			if (sr.left < sr.right && sr.top < sr.bottom)
+				DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
+		}
+		statusline ();
 	}
-	statusline ();
 }
 
 void S2X_refresh (void)
 {
 	clearsurface (NULL);
 	S2X_render ();
+}
+
+int S2X_getmult (void)
+{
+	int j, i;
+
+	if (!usedfilter)
+		return 1;
+	j = 0;
+	for (i = 1; i <= 4; i++) {
+		if (usedfilter->x[i])
+			j++;
+	}
+	i = currprefs.gfx_filter_filtermode;
+	if (i >= j)
+		i = 0;
+	j = 0;
+	while (i >= 0) {
+		while (!usedfilter->x[j])
+			j++;
+		if(i-- > 0)
+			j++;
+	}
+	return j;
 }
 
 #endif

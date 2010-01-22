@@ -561,6 +561,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_gayle (chunk);
 		else if (!_tcscmp (name, L"IDE "))
 			end = restore_ide (chunk);
+		else if (!_tcsncmp (name, L"CDU", 3))
+			end = restore_cd (name[3] - '0', chunk);
 		else if (!_tcscmp (name, L"CONF"))
 			end = restore_configuration (chunk);
 		else if (!_tcscmp (name, L"LOG "))
@@ -825,6 +827,14 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 		if (dst) {
 			save_chunk (f, dst, len, L"IDE ", 0);
 			xfree (dst);
+		}
+	}
+
+	for (i = 0; i < 10; i++) {
+		dst = save_cd (i, &len);
+		if (dst) {
+			_stprintf (name, L"CDU%d", i);
+			save_chunk (f, dst, len, name, 0);
 		}
 	}
 
@@ -1478,7 +1488,12 @@ ACTION REPLAY
 Model (1,2,3)		4
 path to rom image
 RAM space		(depends on model)
-ROM CRC                 4
+ROM CRC             4
+
+"CDx "
+
+Flags               4 (bit 0 = scsi, bit 1 = ide, bit 2 = image)
+Path                  (for example image file or drive letter)
 
 END
 hunk "END " ends, remember hunk size 8!

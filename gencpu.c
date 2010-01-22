@@ -2096,22 +2096,26 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_full ();
 		break;
 	case i_RTE:
-		if (cpu_level == 0) {
-			genamode (Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
-			genamode (Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
-			printf ("\tregs.sr = sr;\n");
-			setpc ("pc");
-			printf ("\tMakeFromSR ();\n");
+		if (using_mmu) {
+			printf ("\tm68k_do_rte_mmu ();\n");
 		} else {
-			int old_brace_level = n_braces;
-			if (next_cpu_level < 0)
-				next_cpu_level = 0;
-			genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
-			genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
-			genamode (Aipi, "7", sz_word, "format", 1, 0, 0);
-			printf ("\tm68k_do_rte (pc, sr, format, 0x%04x);\n", opcode);
+			if (cpu_level == 0) {
+				genamode (Aipi, "7", sz_word, "sr", 1, 0, GF_NOREFILL);
+				genamode (Aipi, "7", sz_long, "pc", 1, 0, GF_NOREFILL);
+				printf ("\tregs.sr = sr;\n");
+				setpc ("pc");
+				printf ("\tMakeFromSR ();\n");
+			} else {
+				int old_brace_level = n_braces;
+				if (next_cpu_level < 0)
+					next_cpu_level = 0;
+				genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
+				genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
+				genamode (Aipi, "7", sz_word, "format", 1, 0, 0);
+				printf ("\tm68k_do_rte (pc, sr, format, 0x%04x);\n", opcode);
+			}
+			/* PC is set and prefetch filled. */
 		}
-		/* PC is set and prefetch filled. */
 		m68k_pc_offset = 0;
 		fill_prefetch_full ();
 		break;
@@ -2155,11 +2159,18 @@ static void gen_opcode (unsigned long int opcode)
 		break;
 	case i_UNLK:
 		// ce confirmed
-		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-		printf ("\tm68k_areg (regs, 7) = src;\n");
-		genamode (Aipi, "7", sz_long, "old", 1, 0, 0);
-		fill_prefetch_next ();
-		genastore ("old", curi->smode, "srcreg", curi->size, "src");
+		if (using_mmu) {
+			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+			printf ("\tuae_s32 old = get_long_mmu (src);\n");
+			printf ("\tm68k_areg (regs, 7) = src + 4;\n");
+			printf ("\tm68k_areg (regs, srcreg) = old;\n");
+		} else {
+			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
+			printf ("\tm68k_areg (regs, 7) = src;\n");
+			genamode (Aipi, "7", sz_long, "old", 1, 0, 0);
+			fill_prefetch_next ();
+			genastore ("old", curi->smode, "srcreg", curi->size, "src");
+		}
 		break;
 	case i_RTS:
 		if (using_ce)

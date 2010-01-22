@@ -803,6 +803,8 @@ void flush_screen (int a, int b)
 		OGL_render ();
 #endif
 	} else if (currentmode->flags & DM_D3D) {
+		if (currentmode->flags & DM_SWSCALE)
+			S2X_render ();
 		return;
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
@@ -837,7 +839,15 @@ int lockscr (void)
 #ifdef D3D
 		if (D3D_needreset ())
 			WIN32GFX_DisplayChangeRequested ();
-		ret = D3D_locktexture ();
+		if (currentmode->flags & DM_SWSCALE) {
+			ret = 1;
+		} else {
+			gfxvidinfo.bufmem = D3D_locktexture (&gfxvidinfo.rowbytes);
+			if (gfxvidinfo.bufmem) {
+				init_row_map ();
+				ret = 1;
+			}
+		}
 #endif
 	} else if (currentmode->flags & DM_SWSCALE) {
 		ret = 1;
@@ -850,9 +860,9 @@ int lockscr (void)
 void unlockscr (void)
 {
 	if (currentmode->flags & DM_D3D) {
-#ifdef D3D
+		if (currentmode->flags & DM_SWSCALE)
+			return;
 		D3D_unlocktexture ();
-#endif
 	} else if (currentmode->flags & DM_SWSCALE) {
 		return;
 	} else if (currentmode->flags & DM_DDRAW) {
@@ -1012,24 +1022,18 @@ static void updatemodes (void)
 			if (currentmode->current_depth < 15)
 				currentmode->current_depth = 16;
 		}
-		if (!screen_is_picasso) {
-			if (usedfilter->type == UAE_FILTER_DIRECT3D) {
-				flags |= DM_D3D;
-				if (flags & DM_DX_FULLSCREEN) {
-					flags &= ~DM_DX_FULLSCREEN;
-					flags |= DM_D3D_FULLSCREEN;
-				}
-				flags &= ~DM_DDRAW;
-			}
-#if defined (OPENGL)
-			if (usedfilter->type == UAE_FILTER_OPENGL) {
-				flags |= DM_OPENGL;
-				flags &= ~DM_DDRAW;
-			}
-#endif
-		} 
 	}
 #endif
+	if (!screen_is_picasso) {
+		if (currprefs.gfx_api) {
+			flags |= DM_D3D;
+			if (flags & DM_DX_FULLSCREEN) {
+				flags &= ~DM_DX_FULLSCREEN;
+				flags |= DM_D3D_FULLSCREEN;
+			}
+			flags &= ~DM_DDRAW;
+		}
+	} 
 	currentmode->flags = flags;
 	if (flags & DM_SWSCALE)
 		currentmode->fullfill = 1;
@@ -1188,10 +1192,12 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_pvsync != changed_prefs.gfx_pvsync ? 2 | 16 : 0;
 	c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 2 | 16 : 0;
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
+	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8) : 0;
 
 	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
 	c |= _tcscmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8|32) : 0;
 	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8|32) : 0;
+	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8|32) : 0;
 	c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
 	c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
 	c |= currprefs.gfx_filter_noise != changed_prefs.gfx_filter_noise ? (1|8) : 0;
@@ -1232,17 +1238,10 @@ int check_prefs_changed_gfx (void)
 
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 		currprefs.color_mode = changed_prefs.color_mode;
+		currprefs.gfx_api = changed_prefs.gfx_api;
 
 		if (changed_prefs.gfx_afullscreen == 1) { 
-			if (currprefs.gfx_filter == UAE_FILTER_DIRECT3D && changed_prefs.gfx_filter != UAE_FILTER_DIRECT3D)
-				display_change_requested = 1;
-#ifdef OPENGL
-			if (currprefs.gfx_filter == UAE_FILTER_OPENGL && changed_prefs.gfx_filter != UAE_FILTER_OPENGL)
-				display_change_requested = 1;
-			if (changed_prefs.gfx_filter == UAE_FILTER_OPENGL && currprefs.gfx_filter != UAE_FILTER_OPENGL)
-				display_change_requested = 1;
-#endif
-			if (changed_prefs.gfx_filter == UAE_FILTER_DIRECT3D && currprefs.gfx_filter != UAE_FILTER_DIRECT3D)
+			if (currprefs.gfx_api != changed_prefs.gfx_api)
 				display_change_requested = 1;
 		}
 
@@ -1255,6 +1254,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_filter = changed_prefs.gfx_filter;
 		_tcscpy (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader);
 		currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
+		currprefs.gfx_filter_bilinear = changed_prefs.gfx_filter_bilinear;
 		currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;
 		currprefs.gfx_filter_vert_zoom_mult = changed_prefs.gfx_filter_vert_zoom_mult;
 		currprefs.gfx_filter_noise = changed_prefs.gfx_filter_noise;
@@ -1785,13 +1785,8 @@ void gfx_set_picasso_state (int on)
 	updatemodes ();
 	update_gfxparams ();
 	clearscreen ();
-	if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen ||
-		(currprefs.gfx_afullscreen == 1 && (currprefs.gfx_filter == UAE_FILTER_DIRECT3D
-#ifdef OPENGL
-		|| currprefs.gfx_filter == UAE_FILTER_OPENGL
-#endif
-		))) {
-			mode = 1;
+	if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || (currprefs.gfx_afullscreen == 1 && currprefs.gfx_api)) {
+		mode = 1;
 	} else {
 		mode = modeswitchneeded (&wc);
 		if (!mode)
@@ -2414,31 +2409,11 @@ static BOOL doInit (void)
 				currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 				currentmode->amiga_height = AMIGA_HEIGHT_MAX << (currprefs.gfx_linedbl ? 1 : 0);
 				if (usedfilter) {
-					if (usedfilter->x[0]) {
-						currentmode->current_depth = (currprefs.gfx_filter_filtermode / 2) ? 32 : 16;
+					mult = S2X_getmult ();
+					if ((usedfilter->x[mult] & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {
+						currentmode->current_depth = currentmode->native_depth;
 					} else {
-						int j, i;
-						j = 0;
-						for (i = 1; i <= 4; i++) {
-							if (usedfilter->x[i])
-								j++;
-						}
-						i = currprefs.gfx_filter_filtermode;
-						if (i >= j)
-							i = 0;
-						j = 0;
-						while (i >= 0) {
-							while (!usedfilter->x[j])
-								j++;
-							if(i-- > 0)
-								j++;
-						}
-						if ((usedfilter->x[j] & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {
-							currentmode->current_depth = currentmode->native_depth;
-						} else {
-							currentmode->current_depth = (usedfilter->x[j] & UAE_FILTER_MODE_16) ? 16 : 32;
-						}
-						mult = j;
+						currentmode->current_depth = (usedfilter->x[mult] & UAE_FILTER_MODE_32) ? 32 : 16;
 					}
 				}
 				currentmode->pitch = currentmode->amiga_width * currentmode->current_depth >> 3;
@@ -2482,15 +2457,7 @@ static BOOL doInit (void)
 
 		;
 
-	} else if (!(currentmode->flags & DM_SWSCALE)) {
-
-		int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
-		gfxvidinfo.realbufmem = xmalloc (size);
-		gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
-		gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
-		gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
-
-	} else if (!(currentmode->flags & DM_D3D)) {
+	} else if (currentmode->flags & DM_SWSCALE) {
 
 		int w = currentmode->amiga_width * 2;
 		int h = currentmode->amiga_height * 2;
@@ -2500,6 +2467,14 @@ static BOOL doInit (void)
 		gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
 		gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
 		gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
+
+	} else if (currentmode->flags & DM_D3D) {
+
+		int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
+		gfxvidinfo.realbufmem = xmalloc (size);
+		gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
+		gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
+		gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
 
 	}
 

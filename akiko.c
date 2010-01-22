@@ -1149,9 +1149,11 @@ static void do_hunt (void)
 		sys_command_close (DF_IOCTL, ou);
 	}
 	if (sys_command_open (DF_IOCTL, i) > 0) {
+		struct device_info di = { 0 };
+		sys_command_info (DF_IOCTL, 0, &di);
 		unitnum = i;
 		cd_hunt = 0;
-		write_log (L"CD32: autodetected unit %d\n", unitnum);
+		write_log (L"CD32: autodetected unit %d ('%s')\n", unitnum, di.label);
 	}
 }
 

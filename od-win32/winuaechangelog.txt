@@ -1,4 +1,35 @@
 
+Beta 5:
+
+- save cdimage path to statefile (if set)
+- cdimage on the fly change support (CD32 CD detection may not always
+  notice it without reboot, something wrong with detection)
+- cd images inside archives supported but all tracks will be unpacked
+  before emulation starts = do not use with big images.. (this is
+  something that can be improved someday..)
+- GUI added (quickstart only). "Automatic" and "Image file" does not
+  really do anything, only tries to show that real CDs are still
+  autodetected like in older versions..
+- disk image selection always used DF0: (b4)
+- replaced advanced chipset blitter busy bug checkbox with A1000 Agnus
+  (DIP package 8361/8367) because there are more differences, first
+  vblank strobe is triggered on line 1, not line 0.. (Alcatraz Megademo
+  2) Perhaps someday this gets moved to main chipset panel.. Thanks to
+  yaqube for finding this hardware "feature" accidentally :)
+- more 68000 CE interrupt timing changes
+
+Big DirectDraw/Direct3D change. Anything can be broken..
+
+- Direct3D filter mode is now a checkbox, there is now DirectDraw
+  and Direct3D "render backend" (instead of DirectDraw and D3D
+  filter hack) All software filters are available in both modes
+  (of course pixel shader filters only in D3D mode) This is part of
+  graphics subsystem unification, RTG is still DirectDraw only.
+- point/bilinear setting moved to filter extra menu
+- 16bit/32bit setting removed, uses desktop/fullscreen depth, selects
+  16bit if selected software filter is 16bit only (and lets D3D do
+  the conversion automatically)
+
 Beta 4:
 
 - ADDX and SUBX timing updates

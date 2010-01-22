@@ -300,7 +300,7 @@ static void blitter_interrupt (int hpos, int done)
 	if (!done && (!currprefs.blitter_cycle_exact || (currprefs.chipset_mask & CSMASK_AGA)))
 		return;
 	blit_interrupt = 1;
-	INTREQ (0x8040);
+	send_interrupt (6, 2);
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_BLITIRQ, hpos, vpos);
 }
@@ -971,7 +971,7 @@ void decide_blitter (int hpos)
 	if (blt_delayed_irq > 0 && hsync) {
 		blt_delayed_irq--;
 		if (!blt_delayed_irq)
-			INTREQ (0x8040);
+			send_interrupt (6, 2);
 	}
 
 	if (bltstate == BLT_done)

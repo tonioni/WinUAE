@@ -27,6 +27,7 @@
 #include "filesys.h"
 #include "savestate.h"
 #include "gfxfilter.h"
+#include "blkdev.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -766,6 +767,17 @@ void rp_fixup_options (struct uae_prefs *p)
 			rp_harddrive_image_change (num, uci->rootdir);
 		}
 	}
+	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+		int v = sys_command_ismedia (DF_IOCTL, i, 1);
+		if (v >= 0) {
+			struct device_info di = { 0 };
+			sys_command_info (DF_IOCTL, i, &di);
+			cd_mask |= 1 << i;
+			RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+			rp_cd_image_change (i, v == 0 ? L"" : di.ident);
+		}
+
+	}
 
 	rp_update_volume (&currprefs);
 	rp_turbo (currprefs.turbo_emulation);
@@ -840,6 +852,10 @@ void rp_disk_image_change (int num, const TCHAR *name)
 void rp_harddrive_image_change (int num, const TCHAR *name)
 {
 	rp_device_change (RP_DEVICE_HD, num, name);
+}
+void rp_cd_image_change (int num, const TCHAR *name)
+{
+	rp_device_change (RP_DEVICE_CD, num, name);
 }
 
 void rp_floppydrive_change (int num, int removed)

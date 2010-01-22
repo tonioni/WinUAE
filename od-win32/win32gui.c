@@ -95,6 +95,7 @@
 #define USS_FORMAT_STRING_SAVE L"(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING L"(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING L"(*.inp)\0*.inp\0"
+#define  CD_FORMAT_STRING L"(*.cue;*.iso)\0*.cue;*.iso\0"
 #define CONFIG_HOST L"Host"
 #define CONFIG_HARDWARE L"Hardware"
 
@@ -134,6 +135,13 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 		LoadString (hInst, id, string, dwStringLen);
 }
 
+static DWORD quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
+static DWORD quickstart_floppy = 1, quickstart_cd = 0;
+static DWORD quickstart_cdtype = 0;
+static int quickstart_ok, quickstart_ok_floppy;
+static void addfloppytype (HWND hDlg, int n);
+static void addfloppyhistory (HWND hDlg);
+
 static int C_PAGES;
 #define MAX_C_PAGES 30
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
@@ -160,6 +168,19 @@ static void ew (HWND hDlg, DWORD id, int enable)
 		SendMessage (hDlg, WM_NEXTDLGCTL, 0, FALSE);
 	EnableWindow (w, !!enable);
 }
+static void hide (HWND hDlg, DWORD id, int hide)
+{
+	HWND w;
+	if (id < 0)
+		return;
+	w = GetDlgItem (hDlg, id);
+	if (!w)
+		return;
+	if (hide && w == GetFocus ())
+		SendMessage (hDlg, WM_NEXTDLGCTL, 0, FALSE);
+	ShowWindow (w, hide ? SW_HIDE : SW_SHOW);
+}
+
 
 static int CALLBACK BrowseForFolderCallback (HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 {
@@ -399,18 +420,18 @@ int DirectorySelection (HWND hDlg, const GUID *guid, TCHAR *path)
 	return val;
 }
 
-void write_disk_history (void)
+static void write_disk_history2 (int type)
 {
 	int i, j;
 	TCHAR tmp[16];
 	UAEREG *fkey;
 
-	fkey = regcreatetree (NULL, L"DiskImageMRUList");
+	fkey = regcreatetree (NULL, type ? L"CDImageMRUList" : L"DiskImageMRUList");
 	if (fkey == NULL)
 		return;
 	j = 1;
 	for (i = 0; i <= MAX_PREVIOUS_FLOPPIES; i++) {
-		TCHAR *s = DISK_history_get (i);
+		TCHAR *s = DISK_history_get (i, type);
 		if (s == 0 || _tcslen (s) == 0)
 			continue;
 		_stprintf (tmp, L"Image%02d", j);
@@ -425,17 +446,24 @@ void write_disk_history (void)
 	}
 	regclosetree (fkey);
 }
+void write_disk_history (void)
+{
+	write_disk_history2 (HISTORY_FLOPPY);
+	write_disk_history2 (HISTORY_CD);
+}
 
 void reset_disk_history (void)
 {
 	int i;
 
-	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++)
-		DISK_history_add (NULL, i, 0);
+	for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+		DISK_history_add (NULL, i, HISTORY_FLOPPY, 0);
+		DISK_history_add (NULL, i, HISTORY_CD, 0);
+	}
 	write_disk_history ();
 }
 
-UAEREG *read_disk_history (void)
+UAEREG *read_disk_history (int type)
 {
 	static int regread;
 	TCHAR tmp2[1000];
@@ -445,8 +473,8 @@ UAEREG *read_disk_history (void)
 	TCHAR tmp[1000];
 	DWORD size;
 
-	fkey = regcreatetree (NULL, L"DiskImageMRUList");
-	if (fkey == NULL || regread)
+	fkey = regcreatetree (NULL, type ? L"CDImageMRUList" : L"DiskImageMRUList");
+	if (fkey == NULL || (regread & (1 << type)))
 		return fkey;
 
 	idx = 0;
@@ -458,11 +486,11 @@ UAEREG *read_disk_history (void)
 		if (_tcslen (tmp) == 7) {
 			idx2 = _tstol (tmp + 5) - 1;
 			if (idx2 >= 0)
-				DISK_history_add (tmp2, idx2, TRUE);
+				DISK_history_add (tmp2, idx2, type, TRUE);
 		}
 		idx++;
 	}
-	regread = 1;
+	regread |= 1 << type;
 	return fkey;
 }
 
@@ -1488,14 +1516,23 @@ static void gui_to_prefs (void)
 	updatewinfsmode (&changed_prefs);
 }
 
+static int iscd (int n)
+{
+	if (quickstart_cd && n == 1)
+		return 1;
+	return 0;
+}
+
 static const GUID diskselectionguids[] = {
 	{ 0x4fa8fa15, 0xc209, 0x4112, { 0x94, 0x7b, 0xc6, 0x00, 0x8e, 0x1f, 0xa3, 0x29 } },
 	{ 0x32073f09, 0x752d, 0x4783, { 0x84, 0x6c, 0xaa, 0x66, 0x48, 0x84, 0x14, 0x45 } },
 	{ 0x8047f7ea, 0x8a42, 0x4695, { 0x94, 0x52, 0xf5, 0x0d, 0xb8, 0x43, 0x00, 0x58 } },
 	{ 0x2412c4e7, 0xf608, 0x4333, { 0x83, 0xd2, 0xa1, 0x2f, 0xdf, 0x66, 0xac, 0xe5 } },
 	{ 0xe3741dff, 0x11f2, 0x445f, { 0x94, 0xb0, 0xa3, 0xe7, 0x58, 0xe2, 0xcb, 0xb5 } },
-	{ 0x2056d641, 0xba13, 0x4312, { 0xaa, 0x75, 0xc5, 0xeb, 0x52, 0xa8, 0x1c, 0xe3 } }
+	{ 0x2056d641, 0xba13, 0x4312, { 0xaa, 0x75, 0xc5, 0xeb, 0x52, 0xa8, 0x1c, 0xe3 } },
+	{ 0x05aa5db2, 0x470b, 0x4725, { 0x96, 0x03, 0xee, 0x61, 0x30, 0xfc, 0x54, 0x99 } }
 };
+
 static void getfilter (int num, TCHAR *name, int *filter, TCHAR *fname)
 {
 	_tcscpy (fname, name);
@@ -1551,6 +1588,18 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	return FALSE;
 }
 
+static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
+{
+	SetDlgItemText (hDlg, id, full_path);
+	if (iscd (num)) {
+		_tcscpy (prefs->cdimagefile, full_path);
+		DISK_history_add (full_path, -1, HISTORY_CD, 0);
+	} else {
+		_tcscpy(prefs->df[num], full_path);
+		DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+	}
+}
+
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -1565,6 +1614,7 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 // flag = 14 for loading filesystem
 // flag = 15 for loading input
 // flag = 16 for recording input
+// flag = 17 for CD image
 int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs, TCHAR *path_out, int *multi)
 {
 	static int previousfilter[20];
@@ -1654,6 +1704,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			getfilter(flag, L"InputPath", previousfilter, filtername);
 			fetch_path (L"InputPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[5];
+			break;
+		case 17:
+			getfilter(flag, L"CDPath", previousfilter, filtername);
+			fetch_path (L"CDPath", init_path, sizeof (init_path) / sizeof (TCHAR));
+			guid = &diskselectionguids[6];
 			break;
 		}
 	}
@@ -1775,6 +1830,13 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		_tcscpy (szFilter + _tcslen (szFilter) + 1, ARCHIVE_STRING);
 		initialdir = path_out;
 		break;
+	case 17:
+		WIN32GUI_LoadUIString (IDS_SELECTCD, szTitle, MAX_DPATH);
+		WIN32GUI_LoadUIString (IDS_CD, szFormat, MAX_DPATH);
+		_stprintf (szFilter, L"%s ", szFormat);
+		memcpy (szFilter + _tcslen (szFilter), CD_FORMAT_STRING, sizeof (CD_FORMAT_STRING) + sizeof (TCHAR));
+		defext = L"CUE";
+		break;
 	}
 	if (all) {
 		p = szFilter;
@@ -1857,28 +1919,20 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_DF0:
 		case IDC_DF0QQ:
-			SetDlgItemText (hDlg, IDC_DF0TEXT, full_path);
-			_tcscpy(prefs->df[0], full_path);
-			DISK_history_add (full_path, -1, 0);
+			selectdisk (prefs, hDlg, 0, IDC_DF0TEXT, full_path);
 			next = IDC_DF1;
 			break;
 		case IDC_DF1:
 		case IDC_DF1QQ:
-			SetDlgItemText (hDlg, IDC_DF1TEXT, full_path);
-			_tcscpy(prefs->df[1], full_path);
-			DISK_history_add (full_path, -1, 0);
+			selectdisk (prefs, hDlg, 1, IDC_DF1TEXT, full_path);
 			next = IDC_DF2;
 			break;
 		case IDC_DF2:
-			SetDlgItemText (hDlg, IDC_DF2TEXT, full_path);
-			_tcscpy(prefs->df[2], full_path);
-			DISK_history_add (full_path, -1, 0);
+			selectdisk (prefs, hDlg, 2, IDC_DF2TEXT, full_path);
 			next = IDC_DF3;
 			break;
 		case IDC_DF3:
-			SetDlgItemText (hDlg, IDC_DF3TEXT, full_path);
-			_tcscpy (prefs->df[3], full_path);
-			DISK_history_add (full_path, -1, 0);
+			selectdisk (prefs, hDlg, 3, IDC_DF3TEXT, full_path);
 			break;
 		case IDC_DOSAVESTATE:
 		case IDC_DOLOADSTATE:
@@ -1941,6 +1995,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
 					regsetstr (NULL, L"hdfPath", openFileName.lpstrFile);
+				}
+			} else if (flag == 17) {
+				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
+				if (amiga_path && amiga_path != openFileName.lpstrFile) {
+					*amiga_path = 0;
+					regsetstr (NULL, L"CDPath", openFileName.lpstrFile);
 				}
 			}
 		}
@@ -4136,11 +4196,6 @@ static struct amigamodels amodels[] = {
 	{ -1 }
 };
 
-static DWORD quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1, quickstart_floppy = 1;
-static int quickstart_ok, quickstart_ok_floppy;
-static void addfloppytype (HWND hDlg, int n);
-static void addfloppyhistory (HWND hDlg);
-
 static void enable_for_quickstart (HWND hDlg)
 {
 	int v = quickstart_ok && quickstart_ok_floppy ? TRUE : FALSE;
@@ -4153,6 +4208,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
+	quickstart_cd = workprefs.dfxtype[0] == DRV_NONE;
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -4202,11 +4258,13 @@ static void init_quickstartdlg (HWND hDlg)
 		regqueryint (NULL, L"QuickStartConfiguration", &quickstart_conf);
 		regqueryint (NULL, L"QuickStartCompatibility", &quickstart_compa);
 		regqueryint (NULL, L"QuickStartFloppies", &quickstart_floppy);
+		regqueryint (NULL, L"QuickStartCDType", &quickstart_cdtype);
 		if (quickstart) {
 			workprefs.df[0][0] = 0;
 			workprefs.df[1][0] = 0;
 			workprefs.df[2][0] = 0;
 			workprefs.df[3][0] = 0;
+			workprefs.cdimagefile[0] = 0;
 			load_quickstart (hDlg, 1);
 			quickstarthost (hDlg, hostconf);
 		}
@@ -4281,7 +4339,7 @@ static void init_quickstartdlg (HWND hDlg)
 	ew (hDlg, IDC_QUICKSTART_COMPATIBILITY, i > 1);
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETRANGE, TRUE, MAKELONG (0, i > 1 ? i - 1 : 1));
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPAGESIZE, 0, 1);
-	SendDlgItemMessage( hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPOS, TRUE, quickstart_compa);
+	SendDlgItemMessage (hDlg, IDC_QUICKSTART_COMPATIBILITY, TBM_SETPOS, TRUE, quickstart_compa);
 
 	SendDlgItemMessage (hDlg, IDC_QUICKSTART_HOSTCONFIG, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_DEFAULT_HOST, tmp1, sizeof (tmp1) / sizeof (TCHAR));
@@ -4472,6 +4530,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			case IDC_QUICKSTARTMODE:
 				quickstart = IsDlgButtonChecked (hDlg, IDC_QUICKSTARTMODE);
 				regsetint (NULL, L"QuickStartMode", quickstart);
+				quickstart_cd = 0;
 				if (quickstart) {
 					init_quickstartdlg (hDlg);
 					load_quickstart (hDlg, 0);
@@ -4906,12 +4965,7 @@ static void display_fromselect (int val, int *fs, int *vsync, int p96)
 	case 4:
 		*fs = 2;
 		if (workprefs.gfx_filter == 0 && *fs != ofs) {
-			if (D3D_goodenough ()) {
-				workprefs.gfx_filter = 2;
-				workprefs.gfx_filter_filtermode = 2;
-			} else {
-				workprefs.gfx_filter = 1;
-			}
+			workprefs.gfx_filter = 1;
 			workprefs.gfx_filter_horiz_zoom = 0;
 			workprefs.gfx_filter_vert_zoom = 0;
 			workprefs.gfx_filter_horiz_zoom_mult = 0;
@@ -5418,7 +5472,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_COMPATIBLE, workprefs.cs_compatible);
 	CheckDlgButton (hDlg, IDC_CS_RESETWARNING, workprefs.cs_resetwarning);
 	CheckDlgButton (hDlg, IDC_CS_NOEHB, workprefs.cs_denisenoehb);
-	CheckDlgButton (hDlg, IDC_CS_BLITTERBUG, workprefs.cs_agnusbltbusybug);
+	CheckDlgButton (hDlg, IDC_CS_DIPAGNUS, workprefs.cs_dipagnus);
 	CheckDlgButton (hDlg, IDC_CS_KSMIRROR_E0, workprefs.cs_ksmirror_e0);
 	CheckDlgButton (hDlg, IDC_CS_KSMIRROR_A8, workprefs.cs_ksmirror_a8);
 	CheckDlgButton (hDlg, IDC_CS_CIAOVERLAY, workprefs.cs_ciaoverlay);
@@ -5493,7 +5547,8 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	workprefs.cs_compatible = IsDlgButtonChecked (hDlg, IDC_CS_COMPATIBLE);
 	workprefs.cs_resetwarning = IsDlgButtonChecked (hDlg, IDC_CS_RESETWARNING);
 	workprefs.cs_denisenoehb = IsDlgButtonChecked (hDlg, IDC_CS_NOEHB);
-	workprefs.cs_agnusbltbusybug = IsDlgButtonChecked (hDlg, IDC_CS_BLITTERBUG);
+	workprefs.cs_dipagnus = IsDlgButtonChecked (hDlg, IDC_CS_DIPAGNUS);
+	workprefs.cs_agnusbltbusybug = workprefs.cs_dipagnus;
 	workprefs.cs_ksmirror_e0 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_E0);
 	workprefs.cs_ksmirror_a8 = IsDlgButtonChecked (hDlg, IDC_CS_KSMIRROR_A8);
 	workprefs.cs_ciaoverlay = IsDlgButtonChecked (hDlg, IDC_CS_CIAOVERLAY);
@@ -5592,7 +5647,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_CDTVRAMEXP, e);
 	ew (hDlg, IDC_CS_RESETWARNING, e);
 	ew (hDlg, IDC_CS_NOEHB, e);
-	ew (hDlg, IDC_CS_BLITTERBUG, e);
+	ew (hDlg, IDC_CS_DIPAGNUS, e);
 	ew (hDlg, IDC_CS_KSMIRROR_E0, e);
 	ew (hDlg, IDC_CS_KSMIRROR_A8, e);
 	ew (hDlg, IDC_CS_CIAOVERLAY, e);
@@ -8611,16 +8666,16 @@ static void out_floppyspeed (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
-#define BUTTONSPERFLOPPY 7
+#define BUTTONSPERFLOPPY 8
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,IDC_SAVEIMAGE0,IDC_DF0ENABLE },
-	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,IDC_SAVEIMAGE1,IDC_DF1ENABLE },
-	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,IDC_SAVEIMAGE2,IDC_DF2ENABLE },
-	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,IDC_SAVEIMAGE3,IDC_DF3ENABLE }
+	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE },
+	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE },
+	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE },
+	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE }
 };
 static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,-1,IDC_DF0QENABLE },
-	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,-1,IDC_DF1QENABLE },
+	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE },
+	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE },
 	{ -1,-1,-1,-1,-1,-1,-1 },
 	{ -1,-1,-1,-1,-1,-1,-1 }
 };
@@ -8648,18 +8703,31 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 	SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void addfloppyhistory_2 (HWND hDlg, UAEREG *fkey, int n, int f_text)
+static void addfloppyhistory_2 (HWND hDlg, int n, int f_text)
 {
 	int i, j;
-	TCHAR *s;
-	int nn = workprefs.dfxtype[n] + 1;
+	TCHAR *s, *text;
+	UAEREG *fkey;
+	int nn, type;
 
 	if (f_text < 0)
 		return;
 	SendDlgItemMessage (hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)workprefs.df[n]);
+	if (iscd (n)) {
+		nn = 1;
+		type = HISTORY_CD;
+		text = workprefs.cdimagefile;
+	} else {
+		nn = workprefs.dfxtype[n] + 1;
+		type = HISTORY_FLOPPY;
+		text = workprefs.df[n];
+	}
+	fkey = read_disk_history (type);
+	if (fkey == NULL)
+		return;
+	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
 	i = 0;
-	while (s = DISK_history_get (i)) {
+	while (s = DISK_history_get (i, type)) {
 		TCHAR tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
 		if (_tcslen (s) == 0)
 			break;
@@ -8687,18 +8755,18 @@ static void addfloppyhistory_2 (HWND hDlg, UAEREG *fkey, int n, int f_text)
 		}
 		if (f_text >= 0)
 			SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
-		if (!_tcscmp (workprefs.df[n], s)) {
+		if (!_tcscmp (text, s)) {
 			if (f_text >= 0)
 				SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
 		}
 		if (nn <= 0)
 			break;
 	}
+	regclosetree (fkey);
 }
 
 static void addfloppyhistory (HWND hDlg)
 {
-	UAEREG *fkey;
 	int f_text, max, n;
 
 	if (currentpage == QUICKSTART_ID)
@@ -8709,7 +8777,6 @@ static void addfloppyhistory (HWND hDlg)
 		max = 1;
 	else
 		return;
-	fkey = read_disk_history ();
 	for (n = 0; n < max; n++) {
 		if (currentpage == QUICKSTART_ID)
 			f_text = floppybuttonsq[n][0];
@@ -8717,32 +8784,71 @@ static void addfloppyhistory (HWND hDlg)
 			f_text = floppybuttons[n][0];
 		else
 			f_text = IDC_DISKTEXT;
-		addfloppyhistory_2 (hDlg, fkey, n, f_text);
+		addfloppyhistory_2 (hDlg, n, f_text);
 	}
-	regclosetree (fkey);
+}
+
+static void ejectfloppy (int n)
+{
+	if (iscd (n)) {
+		workprefs.cdimagefile[0] = 0;
+		quickstart_cdtype = 0;
+	} else {
+		workprefs.df[n][0] = 0;
+	}
 }
 
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
 	int nn = workprefs.dfxtype[n] + 1;
+	int showcd = 0;
+	TCHAR *text;
 
 	int f_text = floppybuttons[n][0];
 	int f_drive = floppybuttons[n][1];
 	int f_eject = floppybuttons[n][2];
 	int f_type = floppybuttons[n][3];
 	int f_wp = floppybuttons[n][4];
-	int f_si = floppybuttons[n][5];
-	int f_enable = floppybuttons[n][6];
+	int f_wptext = floppybuttons[n][5];
+	int f_si = floppybuttons[n][6];
+	int f_enable = floppybuttons[n][7];
 
+	text = workprefs.df[n];
 	if (currentpage == QUICKSTART_ID) {
 		f_text = floppybuttonsq[n][0];
 		f_drive = floppybuttonsq[n][1];
 		f_type = -1;
 		f_eject = floppybuttonsq[n][2];
 		f_wp = floppybuttonsq[n][4];
+		f_wptext = floppybuttonsq[n][5];
 		f_si = -1;
-		f_enable = floppybuttonsq[n][6];
+		f_enable = floppybuttonsq[n][7];
+		if (iscd (n))
+			showcd = 1;
+		if (showcd) {
+			nn = 1;
+			hide (hDlg, f_wp, 1);
+			hide (hDlg, f_wptext, 1);
+			ew (hDlg, f_enable, FALSE);
+			SetWindowText (GetDlgItem (hDlg, f_enable), L"CD");
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_RESETCONTENT, 0, 0L);
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)L"Autodetect");
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)L"Image file");
+			if (workprefs.cdimagefile[0])
+				quickstart_cdtype = 1;
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_SETCURSEL, quickstart_cdtype, 0);
+			hide (hDlg, IDC_CD0Q_TYPE, 0);
+			text = workprefs.cdimagefile;
+		} else {
+			hide (hDlg, f_wp, 0);
+			hide (hDlg, f_wptext, 0);
+		}
+	}
+	if (!showcd && f_enable > 0 && n == 1 && currentpage == QUICKSTART_ID) {
+		ew (hDlg, f_enable, TRUE);
+		SetWindowText (GetDlgItem (hDlg, f_enable), L"Floppy drive DF1:");
+		hide (hDlg, IDC_CD0Q_TYPE, 1);
 	}
 
 	if (nn <= 0)
@@ -8752,7 +8858,7 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_type >= 0)
 		SendDlgItemMessage (hDlg, f_type, CB_SETCURSEL, nn, 0);
 	if (f_si >= 0)
-		ShowWindow (GetDlgItem(hDlg, f_si), zfile_exists (DISK_get_saveimagepath (workprefs.df[n])) ? SW_SHOW : SW_HIDE);
+		ShowWindow (GetDlgItem(hDlg, f_si), !showcd && zfile_exists (DISK_get_saveimagepath (text)) ? SW_SHOW : SW_HIDE);
 
 	if (f_text >= 0)
 		ew (hDlg, f_text, state);
@@ -8761,18 +8867,21 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_drive >= 0)
 		ew (hDlg, f_drive, state);
 	if (f_enable >= 0) {
-		if (currentpage == QUICKSTART_ID)
-			ew (hDlg, f_enable, n > 0 && workprefs.nr_floppies > 0);
-		else
+		if (currentpage == QUICKSTART_ID) {
+			ew (hDlg, f_enable, (n > 0 && workprefs.nr_floppies > 0) && !showcd);
+		} else {
 			ew (hDlg, f_enable, TRUE);
+		}
 		CheckDlgButton(hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
 	}
-	chk = disk_getwriteprotect (workprefs.df[n]) && state == TRUE ? BST_CHECKED : 0;
+	chk = !showcd && disk_getwriteprotect (text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
 		CheckDlgButton(hDlg, f_wp, chk);
-	chk = state && DISK_validate_filename (workprefs.df[n], 0, NULL, NULL) ? TRUE : FALSE;
-	if (f_wp >= 0)
+	chk = !showcd && state && DISK_validate_filename (text, 0, NULL, NULL) ? TRUE : FALSE;
+	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk);
+		ew (hDlg, f_wptext, chk);
+	}
 }
 
 static void getfloppytype (HWND hDlg, int n)
@@ -8787,10 +8896,12 @@ static void getfloppytype (HWND hDlg, int n)
 }
 static void getfloppytypeq (HWND hDlg, int n)
 {
-	int f_enable = currentpage == QUICKSTART_ID ? floppybuttonsq[n][6] : floppybuttons[n][6];
+	int f_enable = currentpage == QUICKSTART_ID ? floppybuttonsq[n][7] : floppybuttons[n][7];
 	int chk;
 
 	if (f_enable <= 0 || (n == 0 && currentpage == QUICKSTART_ID))
+		return;
+	if (iscd (n))
 		return;
 	chk = IsDlgButtonChecked (hDlg, f_enable) ? 0 : -1;
 	if (chk != workprefs.dfxtype[n]) {
@@ -8806,7 +8917,7 @@ static void getfloppytypeq (HWND hDlg, int n)
 	}
 }
 
-static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen)
+static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type)
 {
 	LRESULT val;
 	TCHAR *p1, *p2, *p;
@@ -8832,9 +8943,9 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen)
 	}
 	xfree (tmp);
 	i = 0;
-	while ((p = DISK_history_get (i))) {
+	while ((p = DISK_history_get (i, type))) {
 		if (!_tcscmp (p, out)) {
-			DISK_history_add (out, -1, 0);
+			DISK_history_add (out, -1, type, 0);
 			break;
 		}
 		i++;
@@ -8845,11 +8956,16 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen)
 static void getfloppyname (HWND hDlg, int n)
 {
 	int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
+	int cd = iscd (n);
 	TCHAR tmp[MAX_DPATH];
 
-	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR))) {
-		disk_insert (n, tmp);
-		_tcscpy (workprefs.df[n], tmp);
+	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR), cd ? HISTORY_CD : HISTORY_FLOPPY)) {
+		if (!cd) {
+			disk_insert (n, tmp);
+			_tcscpy (workprefs.df[n], tmp);
+		} else {
+			_tcscpy (workprefs.cdimagefile, tmp);
+		}
 	}
 }
 
@@ -8864,13 +8980,18 @@ static void addallfloppies (HWND hDlg)
 
 static void floppysetwriteprotect (HWND hDlg, int n, int protect)
 {
-	disk_setwriteprotect (n, workprefs.df[n], protect);
-	addfloppytype (hDlg, n);
+	if (!iscd (n)) {
+		disk_setwriteprotect (n, workprefs.df[n], protect);
+		addfloppytype (hDlg, n);
+	}
 }
 
 static void deletesaveimage (HWND hDlg, int num)
 {
-	TCHAR *p = DISK_get_saveimagepath (workprefs.df[num]);
+	TCHAR *p;
+	if (!iscd (num))
+		return;
+	p = DISK_get_saveimagepath (workprefs.df[num]);
 	if (zfile_exists (p)) {
 		DeleteFile (p);
 		DISK_reinsert (num);
@@ -8880,11 +9001,14 @@ static void deletesaveimage (HWND hDlg, int num)
 
 static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv, TCHAR *defaultpath)
 {
-	MultiDiskSelection (hDlg, wParam, 0, &workprefs, defaultpath);
-	disk_insert (0, p->df[0]);
-	disk_insert (1, p->df[1]);
-	disk_insert (2, p->df[2]);
-	disk_insert (3, p->df[3]);
+	int cd = iscd (drv);
+	MultiDiskSelection (hDlg, wParam, cd ? 17 : 0, &workprefs, defaultpath);
+	if (!cd) {
+		disk_insert (0, p->df[0]);
+		disk_insert (1, p->df[1]);
+		disk_insert (2, p->df[2]);
+		disk_insert (3, p->df[3]);
+	}
 	addfloppytype (hDlg, drv);
 	addfloppyhistory (hDlg);
 }
@@ -9079,24 +9203,24 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		case IDC_EJECT0Q:
 			SetDlgItemText (hDlg, IDC_DF0TEXT, L"");
 			SetDlgItemText (hDlg, IDC_DF0TEXTQ, L"");
-			workprefs.df[0][0] = 0;
+			ejectfloppy (0);
 			addfloppytype (hDlg, 0);
 			break;
 		case IDC_EJECT1:
 		case IDC_EJECT1Q:
 			SetDlgItemText (hDlg, IDC_DF1TEXT, L"");
 			SetDlgItemText (hDlg, IDC_DF1TEXTQ, L"");
-			workprefs.df[1][0] = 0;
+			ejectfloppy (1);
 			addfloppytype (hDlg, 1);
 			break;
 		case IDC_EJECT2:
 			SetDlgItemText (hDlg, IDC_DF2TEXT, L"");
-			workprefs.df[2][0] = 0;
+			ejectfloppy (2);
 			addfloppytype (hDlg, 2);
 			break;
 		case IDC_EJECT3:
 			SetDlgItemText (hDlg, IDC_DF3TEXT, L"");
-			workprefs.df[3][0] = 0;
+			ejectfloppy (3);
 			addfloppytype (hDlg, 3);
 			break;
 		case IDC_SAVEIMAGE0:
@@ -9313,7 +9437,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 			case IDC_DISKLISTINSERT:
 				if (entry >= 0) {
-					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR))) {
+					if (getfloppybox (hDlg, IDC_DISKTEXT, tmp, sizeof (tmp) / sizeof (TCHAR), HISTORY_FLOPPY)) {
 						_tcscpy (workprefs.dfxlist[entry], tmp);
 						addfloppyhistory (hDlg);
 						InitializeListView (hDlg);
@@ -10563,6 +10687,9 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		vv3 = TRUE;
 	if (v && uf->x[0])
 		vv4 = TRUE;
+	if (workprefs.gfx_api)
+		v = vv = vv2 = vv3 = vv4 = TRUE;
+
 	ew (hDlg, IDC_FILTERHZ, v);
 	ew (hDlg, IDC_FILTERVZ, v);
 	ew (hDlg, IDC_FILTERHZMULT, v && !as);
@@ -10604,7 +10731,8 @@ struct filterxtra {
 	int *varw, *varc;
 	int min, max, step;
 };
-static struct filterxtra *filter_extra, *filter_selected;
+static struct filterxtra *filter_extra[4], *filter_selected;
+static int filter_selected_num;
 
 static struct filterxtra filter_pal_extra[] =
 {
@@ -10619,6 +10747,7 @@ static struct filterxtra filter_pal_extra[] =
 };
 static struct filterxtra filter_3d_extra[] =
 {
+	L"Bilinear", &workprefs.gfx_filter_bilinear, &currprefs.gfx_filter_bilinear, 0, 1, 1,
 	L"Scanline transparency", &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
 	L"Scanline level", &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
 	NULL
@@ -10635,7 +10764,7 @@ static int *filtervars[] = {
 	&workprefs.gfx_filter_luminance, &workprefs.gfx_filter_contrast, &workprefs.gfx_filter_saturation,
 	&workprefs.gfx_filter_gamma, &workprefs.gfx_filter_blur, &workprefs.gfx_filter_noise,
 	&workprefs.gfx_filter_keep_aspect, &workprefs.gfx_filter_aspect,
-	&workprefs.gfx_filter_autoscale,
+	&workprefs.gfx_filter_autoscale, &workprefs.gfx_filter_bilinear,
 	NULL
 };
 static int *filtervars2[] = {
@@ -10649,7 +10778,7 @@ static int *filtervars2[] = {
 	&currprefs.gfx_filter_luminance, &currprefs.gfx_filter_contrast, &currprefs.gfx_filter_saturation,
 	&currprefs.gfx_filter_gamma, &currprefs.gfx_filter_blur, &currprefs.gfx_filter_noise,
 	&currprefs.gfx_filter_keep_aspect, &currprefs.gfx_filter_aspect,
-	&workprefs.gfx_filter_autoscale,
+	&currprefs.gfx_filter_autoscale, &currprefs.gfx_filter_bilinear,
 	NULL
 };
 
@@ -10660,8 +10789,8 @@ struct filterpreset {
 static struct filterpreset filterpresets[] =
 {
 	{ L"PAL",				UAE_FILTER_PAL,			0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0 },
-	{ L"D3D Autoscale",		UAE_FILTER_DIRECT3D,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 1 },
-	{ L"D3D Full Scaling",	UAE_FILTER_DIRECT3D,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0 },
+	{ L"D3D Autoscale",		0,	                    2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 1 },
+	{ L"D3D Full Scaling",	0,	                    2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0 },
 	{ NULL }
 };
 
@@ -10722,8 +10851,9 @@ static void setfiltermult (HWND hDlg)
 static void values_to_hw3ddlg (HWND hDlg)
 {
 	TCHAR txt[100], tmp[100];
-	int i, j, nofilter, fltnum, modenum;
+	int i, j, fltnum, modenum;
 	struct uae_filter *uf;
+	int fxidx = 0, fxcnt;
 	UAEREG *fkey;
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
@@ -10736,6 +10866,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
 
 	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
+	CheckDlgButton (hDlg, IDC_FILTERD3D, workprefs.gfx_api);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
 		workprefs.gfx_filter_keep_aspect, 0);
@@ -10762,35 +10893,15 @@ static void values_to_hw3ddlg (HWND hDlg)
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	uf = &uaefilters[0];
-	nofilter = 0; fltnum = 0;
+	fltnum = 0;
 	i = 0; j = 1;
 	while (uaefilters[i].name) {
-		switch (uaefilters[i].type)
-		{
-#if 0
-#ifndef D3D
-		case UAE_FILTER_DIRECT3D:
-			nofilter = 1;
-			break;
-#endif
-#ifndef OPENGL
-		case UAE_FILTER_OPENGL:
-			nofilter = 1;
-			break;
-#endif
-#endif
-		default:
-			nofilter = 0;
-			break;
+		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
+		if (uaefilters[i].type == workprefs.gfx_filter) {
+			uf = &uaefilters[i];
+			fltnum = j;
 		}
-		if (nofilter == 0) {
-			SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)uaefilters[i].name);
-			if (uaefilters[i].type == workprefs.gfx_filter) {
-				uf = &uaefilters[i];
-				fltnum = j;
-			}
-			j++;
-		}
+		j++;
 		i++;
 	}
 	if (D3D_canshaders ()) {
@@ -10804,7 +10915,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 			_stprintf (tmp2, L"D3D: %s", wfd.cFileName);
 			tmp2[_tcslen (tmp2) - 3] = 0;
 			SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
-			if (uf->type == UAE_FILTER_DIRECT3D && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
+			if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
 				fltnum = j;
 			j++;
 			if (!FindNextFile (h, &wfd)) {
@@ -10815,24 +10926,13 @@ static void values_to_hw3ddlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 
-	filter_extra = NULL;
+	filter_extra[fxidx] = NULL;
 	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
-	if (uf->x[0]) {
-		WIN32GUI_LoadUIString (IDS_3D_NO_FILTER, txt, sizeof (txt) / sizeof (TCHAR));
-		_stprintf (tmp, txt, 16);
-		SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
-		WIN32GUI_LoadUIString (IDS_3D_BILINEAR, txt, sizeof (txt) / sizeof (TCHAR));
-		_stprintf (tmp, txt, 16);
-		SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
-		WIN32GUI_LoadUIString (IDS_3D_NO_FILTER, txt, sizeof (txt) / sizeof (TCHAR));
-		_stprintf (tmp, txt, 32);
-		SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
-		WIN32GUI_LoadUIString (IDS_3D_BILINEAR, txt, sizeof (txt) / sizeof (TCHAR));
-		_stprintf (tmp, txt, 32);
-		SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
-		modenum = 4;
-		filter_extra = filter_3d_extra;
-	} else {
+	if (workprefs.gfx_api) {
+		filter_extra[fxidx++] = filter_3d_extra;
+		filter_extra[fxidx] = NULL;
+	}
+	if (!uf->x[0]) {
 		modenum = 0;
 		for (i = 1; i <= 4; i++) {
 			if (uf->x[i]) {
@@ -10842,35 +10942,43 @@ static void values_to_hw3ddlg (HWND hDlg)
 			}
 		}
 		if (uf->yuv) {
-			filter_extra = filter_pal_extra;
+			filter_extra[fxidx++] = filter_pal_extra;
+			filter_extra[fxidx] = NULL;
 		}
 	}
 	SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
 	SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, 1);
-	if (filter_extra) {
+	if (filter_extra[0]) {
+		struct filterxtra *prev = filter_selected;
 		int idx2 = -1;
 		int idx = SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_GETCURSEL, 0, 0L);
 		if (idx == CB_ERR)
 			idx = -1;
+		fxcnt = 0;
+		filter_selected = &filter_extra[0][0];
 		SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_RESETCONTENT, 0, 0L);
-		for (i = 0; filter_extra[i].label; i++) {
-			if (filter_selected == &filter_extra[i] && idx < 0)
-				idx2 = i;
-			SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_ADDSTRING, 0, (LPARAM)filter_extra[i].label);
+		for (j = 0; filter_extra[j]; j++) {
+			struct filterxtra *fx = filter_extra[j];
+			for (i = 0; fx[i].label; i++) {
+				if (prev == &fx[i] && idx < 0) {
+					idx2 = i;
+					filter_selected = &fx[idx2];
+					filter_selected_num = fxcnt;
+				}
+				SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_ADDSTRING, 0, (LPARAM)fx[i].label);
+				if (idx == 0) {
+					filter_selected = &fx[i];
+					filter_selected_num = fxcnt;
+				}
+				fxcnt++;
+				idx--;
+			}
 		}
-		if (idx2 >= 0)
-			filter_selected = &filter_extra[idx2];
-		else if (idx >= 0)
-			filter_selected = &filter_extra[idx];
-		else
-			filter_selected = &filter_extra[0];
-		SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_SETCURSEL, filter_selected - &filter_extra[0], 0);
+		SendDlgItemMessage (hDlg, IDC_FILTERXTRA, CB_SETCURSEL, filter_selected_num, 0);
 		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (filter_selected->min, filter_selected->max));
 		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, filter_selected->step);
-		if (filter_selected) {
-			SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw));
-			SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw), TRUE);
-		}
+		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw));
+		SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw), TRUE);
 	}
 
 	if (workprefs.gfx_filter_filtermode >= modenum)
@@ -11044,10 +11152,10 @@ static void filter_handle (HWND hDlg)
 		workprefs.gfx_filtershader[0] = 0;
 		workprefs.gfx_filter = 0;
 		if (item > 0) {
-			item--;
-			if (item > UAE_FILTER_PAL) {
-				item = UAE_FILTER_DIRECT3D - 1;
+			if (item > UAE_FILTER_LAST) {
 				_stprintf (workprefs.gfx_filtershader, L"%s.fx", tmp + 5);
+			} else {
+				item--;
 			}
 			workprefs.gfx_filter = uaefilters[item].type;
 			item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
@@ -11058,7 +11166,7 @@ static void filter_handle (HWND hDlg)
 				hw3d_changed = 1;
 			}
 		}
-		if (workprefs.gfx_filter == 0)
+		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
 			workprefs.gfx_filter_autoscale = 0;
 	}
 	enable_for_hw3ddlg (hDlg);
@@ -11124,6 +11232,9 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			recursive--;
 			filter_preset (hDlg, wParam);
 			recursive++;
+			break;
+		case IDC_FILTERD3D:
+			workprefs.gfx_api = IsDlgButtonChecked (hDlg, IDC_FILTERD3D) ? 1 : 0;
 			break;
 		case IDC_FILTERKEEPASPECT:
 			{
@@ -12179,6 +12290,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			savestate_state = STATE_DORESTORE;
 			_tcscpy (savestate_fname, file);
 			ret = 1;
+			break;
+		case ZFILE_CDIMAGE:
+			_tcscpy (workprefs.cdimagefile, file);
 			break;
 		default:
 			if (currentpage < 0 && !full_property_sheet) {

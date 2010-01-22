@@ -268,6 +268,8 @@ int zfile_gettype (struct zfile *z)
 			return ZFILE_NVR;
 		if (strcasecmp (ext, L"uae") == 0)
 			return ZFILE_CONFIGURATION;
+		if (strcasecmp (ext, L"cue") == 0)
+			return ZFILE_CDIMAGE;
 	}
 	memset (buf, 0, sizeof (buf));
 	zfile_fread (buf, 8, 1, z);
@@ -1083,10 +1085,13 @@ const TCHAR *uae_diskimageextensions[] =
 int zfile_is_ignore_ext (const TCHAR *name)
 {
 	int i;
+	TCHAR *ext;
 
+	ext = _tcsrchr (name, '.');
+	if (!ext)
+		return 0;
 	for (i = 0; uae_ignoreextensions[i]; i++) {
-		if (_tcslen(name) > _tcslen (uae_ignoreextensions[i]) &&
-			!strcasecmp (uae_ignoreextensions[i], name + _tcslen (name) - _tcslen (uae_ignoreextensions[i])))
+		if (!strcasecmp (uae_ignoreextensions[i], ext))
 			return 1;
 	}
 	return 0;
@@ -1096,13 +1101,18 @@ int zfile_is_diskimage (const TCHAR *name)
 {
 	int i;
 
+	TCHAR *ext = _tcsrchr (name, '.');
+	if (!ext)
+		return 0;
 	i = 0;
 	while (uae_diskimageextensions[i]) {
-		if (_tcslen (name) > 3 && !strcasecmp (name + _tcslen (name) - 4, uae_diskimageextensions[i]))
-			return 1;
+		if (!strcasecmp (ext, uae_diskimageextensions[i]))
+			return HISTORY_FLOPPY;
 		i++;
 	}
-	return 0;
+	if (!_tcsicmp (ext, L".cue"))
+		return HISTORY_CD;
+	return -1;
 }
 
 
@@ -1819,6 +1829,11 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data)
 	l->size = size;
 	memcpy (l->data, data, size);
 	return l;
+}
+
+uae_s64 zfile_size (struct zfile *z)
+{
+	return z->size;
 }
 
 uae_s64 zfile_ftell (struct zfile *z)

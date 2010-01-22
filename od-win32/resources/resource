@@ -325,6 +325,8 @@
 #define IDS_RES_HIRES                   357
 #define IDS_RES_SUPERHIRES              358
 #define IDS_PRINTER_EPSON48             359
+#define IDS_SELECTCD                    360
+#define IDS_CD                          361
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -854,6 +856,7 @@
 #define IDC_PATHS_RIPS                  1680
 #define IDC_QUICKSTART_SETCONFIG        1681
 #define IDC_CONFIGAUTO                  1682
+#define IDC_CD0Q_TYPE                   1682
 #define IDC_DF0TEXTQ                    1683
 #define IDC_CONFIGNOLINK                1683
 #define IDC_DF0WPQ                      1684
@@ -937,7 +940,7 @@
 #define IDC_DBG_CCR                     1744
 #define IDC_CS_NOEHB                    1744
 #define IDC_DBG_AMEM                    1745
-#define IDC_CS_BLITTERBUG               1745
+#define IDC_CS_DIPAGNUS                 1745
 #define IDC_DBG_SP_VBR                  1746
 #define IDC_DBG_MMISC                   1747
 #define IDC_DBG_PC                      1748
@@ -1001,6 +1004,9 @@
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_RTG_VBLANKRATE              1793
+#define IDC_DF0WPTEXTQ                  1793
+#define IDC_DF1WPTEXTQ                  1794
+#define IDC_FILTERD3D                   1795
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1046,7 +1052,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        354
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1793
+#define _APS_NEXT_CONTROL_VALUE         1796
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

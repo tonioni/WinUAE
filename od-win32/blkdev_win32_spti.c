@@ -22,6 +22,9 @@
 #include "blkdev.h"
 #include "scsidev.h"
 #include "gui.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #include <stddef.h>
 
@@ -48,6 +51,7 @@ struct dev_info_spti {
 	TCHAR *drvpath;
 	TCHAR *name;
 	TCHAR *inquirydata;
+	TCHAR *ident;
 	int mediainserted;
 	HANDLE handle;
 	int isatapi;
@@ -479,7 +483,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 {
 	struct dev_info_spti *dispti;
 	if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
-		return 0;
+		return NULL;
 	dispti = &dev_info[unitnum];
 	_tcscpy (di->label, dispti->name);
 	di->bus = 0;
@@ -508,6 +512,9 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 				write_log (L"SPTI: media change %c %d\n", driveletter, insert);
 				dev_info[i].mediainserted = now;
 				scsi_do_disk_change (i + 1, insert);
+#ifdef RETROPLATFORM
+				rp_cd_change (i, now ? 0 : 1);
+#endif
 			}
 		}
 	}

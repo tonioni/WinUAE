@@ -41,6 +41,7 @@ struct device_info {
     int bus, target, lun;
     int id;
     TCHAR label[MAX_DPATH];
+	TCHAR ident[16];
 };
 
 struct device_scsi_info {
@@ -140,3 +141,5 @@ void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *
 
 void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen);
 void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen);
+
+extern void cdimage_vsync (void);

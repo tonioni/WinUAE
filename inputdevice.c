@@ -271,6 +271,10 @@ int inprec_pstart (uae_u8 type)
 	if (p[5 + 1] == INPREC_END) {
 		inprec_close ();
 		return 0;
+	} else if (p[5 + 1] == INPREC_QUIT) {
+		inprec_close ();
+		uae_quit ();
+		return 0;
 	}
 	hc_orig = hc;
 	hc /= inprec_div;

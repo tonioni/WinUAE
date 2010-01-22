@@ -8,6 +8,9 @@
 
 typedef enum { DRV_NONE = -1, DRV_35_DD = 0, DRV_35_HD, DRV_525_SD, DRV_35_DD_ESCOM } drive_type;
 
+#define HISTORY_FLOPPY 0
+#define HISTORY_CD 1
+
 extern void DISK_init (void);
 extern void DISK_free (void);
 extern void DISK_select (uae_u8 data);
@@ -26,8 +29,8 @@ extern int disk_getwriteprotect (const TCHAR *name);
 extern int disk_setwriteprotect (int num, const TCHAR *name, int protect);
 extern void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk_name);
 extern void dumpdisk (void);
-extern int DISK_history_add (const TCHAR *name, int idx, int donotcheck);
-extern TCHAR *DISK_history_get (int idx);
+extern int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck);
+extern TCHAR *DISK_history_get (int idx, int type);
 int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32);
 extern TCHAR *DISK_get_saveimagepath (const TCHAR *name);
 extern void DISK_reinsert (int num);

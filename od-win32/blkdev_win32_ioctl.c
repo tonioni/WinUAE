@@ -27,8 +27,14 @@
 #include <winioctl.h>
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <stddef.h>
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #include <ntddscsi.h>
+
+#define IOCTL_DATA_BUFFER 8192
+#define CDDA_BUFFERS 6
 
 struct dev_info_ioctl {
 	HANDLE h;
@@ -52,10 +58,8 @@ struct dev_info_ioctl {
 	uae_u32 cd_last_pos;
 	HWAVEOUT cdda_wavehandle;
 	int cdda_start, cdda_end;
+	uae_u8 subcode[96 * CDDA_BUFFERS];
 };
-
-#define IOCTL_DATA_BUFFER 8192
-#define CDDA_BUFFERS 6
 
 static int MCICDA;
 
@@ -287,7 +291,6 @@ static void *cdda_play (void *v)
 	int unitnum = ciw32 - ciw;
 	int cdda_pos;
 	int num_sectors = CDDA_BUFFERS;
-	int quit = 0;
 	int bufnum;
 	int buffered;
 	uae_u8 *px[2], *p;
@@ -351,15 +354,24 @@ static void *cdda_play (void *v)
 				seterrormode (unitnum);
 				rri.DiskOffset.QuadPart = 2048 * (cdda_pos - 150);
 				rri.SectorCount = num_sectors;
-				rri.TrackMode = CDDA;
-				if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], num_sectors * 2352, &len, NULL)) {
-					DWORD err = GetLastError ();
-					write_log (L"IOCTL_CDROM_RAW_READ CDDA returned %d\n", err);
-					quit = 1;
+				rri.TrackMode = RawWithSubCode;
+				if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], num_sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE, &len, NULL)) {
+					rri.TrackMode = CDDA;
+					if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], num_sectors * 2352, &len, NULL)) {
+						DWORD err = GetLastError ();
+						write_log (L"IOCTL_CDROM_RAW_READ CDDA returned %d\n", err);
+						ciw->cdda_play_finished = 1;
+						ciw->cdda_play = -1;
+					}
+				} else {
+					for (i = 0; i < num_sectors; i++) {
+						memcpy (ciw->subcode + i * 96, px[bufnum] + CD_RAW_SECTOR_WITH_SUBCODE_SIZE * i + 2352, 96);
+					}
+					for (i = 1; i < num_sectors; i++) {
+						memmove (px[bufnum] + 2352 * i, px[bufnum] + CD_RAW_SECTOR_WITH_SUBCODE_SIZE * i, 2352);
+					}
 				}
 				reseterrormode (unitnum);
-				if (quit)
-					break;
 		
 				bufon[bufnum] = 1;
 				if (volume != ciw->cdda_volume || volume_main != currprefs.sound_volume) {
@@ -378,8 +390,11 @@ static void *cdda_play (void *v)
 				}
 
 				cdda_pos += num_sectors;
-				if (cdda_pos >= ciw->cdda_end)
+				if (cdda_pos - num_sectors < ciw->cdda_end && cdda_pos >= ciw->cdda_end) {
 					ciw->cdda_play_finished = 1;
+					ciw->cdda_play = -1;
+					cdda_pos = ciw->cdda_end;
+				}
 				ciw->cd_last_pos = cdda_pos;
 
 			}
@@ -1166,7 +1181,7 @@ static int open_bus (int flags)
 static int ioctl_ismedia (int unitnum, int quick)
 {
 	if (!unitcheck (unitnum))
-		return 0;
+		return -1;
 	if (quick) {
 		struct dev_info_ioctl *ciw = &ciw32[unitnum];
 		return ciw->mediainserted;
@@ -1203,6 +1218,9 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 			write_log (L"IOCTL: media change %c %d\n", driveletter, insert);
 			ciw32[i].mediainserted = insert;
 			scsi_do_disk_change (driveletter, insert);
+#ifdef RETROPLATFORM
+			rp_cd_change (i, insert ? 0 : 1);
+#endif
 		}
 	}
 }

@@ -137,6 +137,7 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 	TCHAR tmphist[MAX_DPATH];
 	struct zfile *z = NULL;
 	int we_have_file;
+	int diskimg;
 	int canhistory = (zf->zfdmask & ZFD_DISKHISTORY) && !(zf->zfdmask & ZFD_CHECKONLY);
 
 	if (retcode)
@@ -152,31 +153,31 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 	first = 1;
 	zn = &zv->root;
 	while (zn) {
-		int isok = 1, diskimg = 0;
-
+		int isok = 1;
+		
+		diskimg = -1;
 		if (zn->type != ZNODE_FILE)
 			isok = 0;
 		if (zfile_is_ignore_ext (zn->fullname))
 			isok = 0;
-		if (zfile_is_diskimage (zn->fullname))
-			diskimg = 1;
+		diskimg = zfile_is_diskimage (zn->fullname);
 		if (isok) {
 			if (tmphist[0]) {
 #ifndef _CONSOLE
-				if (diskimg && canhistory)
-					DISK_history_add (tmphist, -1, 1);
+				if (diskimg >= 0 && canhistory)
+					DISK_history_add (tmphist, -1, diskimg, 1);
 #endif
 				tmphist[0] = 0;
 				first = 0;
 			}
 			if (first) {
-				if (diskimg)
+				if (diskimg >= 0)
 					_tcscpy (tmphist, zn->fullname);
 			} else {
 				_tcscpy (tmphist, zn->fullname);
 #ifndef _CONSOLE
-				if (diskimg && canhistory)
-					DISK_history_add (tmphist, -1, 1);
+				if (diskimg >= 0 && canhistory)
+					DISK_history_add (tmphist, -1, diskimg, 1);
 #endif
 				tmphist[0] = 0;
 			}
@@ -203,8 +204,9 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 		zn = zn->next;
 	}
 #ifndef _CONSOLE
-	if (zfile_is_diskimage (zfile_getname (zf)) && first && tmphist[0] && canhistory)
-		DISK_history_add (zfile_getname (zf), -1, 1);
+	diskimg = zfile_is_diskimage (zfile_getname (zf));
+	if (diskimg >= 0 && first && tmphist[0] && canhistory)
+		DISK_history_add (zfile_getname (zf), -1, diskimg, 1);
 #endif
 	zfile_fclose_archive (zv);
 	if (z) {

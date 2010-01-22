@@ -15,6 +15,9 @@
 #include "gui.h"
 #include "fsdb.h"
 #include "threaddep/thread.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define USE 1
 
@@ -57,7 +60,8 @@ static int cdda_start, cdda_end;
 static int msf2lsn (int	msf)
 {
 	int sector = (((msf >> 16) & 0xff) * 60 * 75 + ((msf >> 8) & 0xff) * 75 + ((msf >> 0) & 0xff));
-	return sector - 150;
+	sector -= 150;
+	return sector;
 }
 
 /* convert logical sector number -> minutes, seconds and frames */
@@ -385,18 +389,21 @@ static void *cdda_play_func (void *v)
 			if (oldplay != cdda_play) {
 				struct cdtoc *t;
 				int sector;
-				sector = cdda_start;
-				t = findtoc (&sector);
-				if (!t)
-					write_log (L"CDDA: illegal sector number %d\n", cdda_start);
-				else
-					write_log (L"CDDA: playing track %d (file '%s', offset %d, secoffset %d)\n",
-						t->track, t->fname, t->offset, sector);
+
 				cdda_pos = cdda_start;
 				oldplay = cdda_play;
-				if (t->mp3 && !t->data) {
-					if (mp3decoder_open ()) {
-						t->data = mp3decoder_get (t->handle, t->filesize);
+
+				sector = cdda_start;
+				t = findtoc (&sector);
+				if (!t) {
+					write_log (L"CDDA: illegal sector number %d\n", cdda_start);
+				} else {
+					write_log (L"CDDA: playing track %d (file '%s', offset %d, secoffset %d)\n",
+						t->track, t->fname, t->offset, sector);
+					if (t->mp3 && !t->data) {
+						if (mp3decoder_open ()) {
+							t->data = mp3decoder_get (t->handle, t->filesize);
+						}
 					}
 				}
 			}
@@ -408,31 +415,32 @@ static void *cdda_play_func (void *v)
 			}
 			bufon[bufnum] = 0;
 
-			if ((cdda_pos < cdda_end || cdda_end == 0xffffffff) && !cdda_paused && cdda_play) {
+			if ((cdda_pos < cdda_end || cdda_end == 0xffffffff) && !cdda_paused && cdda_play > 0) {
 				struct cdtoc *t;
-				int sector;
+				int sector, cnt;
+				int dofinish = 0;
 
-				sector = cdda_pos;
-				t = findtoc (&sector);
-				if (t && t->handle) {
-					if (t->mp3) {
-						if (t->data)
-							memcpy (px[bufnum], t->data + sector * t->size + t->offset, t->size * num_sectors);
-						else
-							memset (px[bufnum], 0, t->size * num_sectors);
-					} else {
-						zfile_fseek (t->handle, sector * t->size + t->offset, SEEK_SET);
-						if (zfile_fread (px[bufnum], t->size, num_sectors, t->handle) < num_sectors) {
-							int i = num_sectors - 1;
-							memset (px[bufnum], 0, t->size * num_sectors);
-							while (i > 0) {
-								if (zfile_fread (px[bufnum], t->size, i, t->handle) == i)
-									break;
-								i--;
+				memset (px[bufnum], 0, num_sectors * 2352);
+				for (cnt = 0; cnt < num_sectors; cnt++) {
+					sector = cdda_pos;
+
+					cdda_pos++;
+					if (cdda_pos - num_sectors < cdda_end && cdda_pos >= cdda_end)
+						dofinish = 1;
+					cd_last_pos = cdda_pos;
+
+					t = findtoc (&sector);
+					if (t) {
+						if (t->handle && !(t->ctrl & 4)) {
+							uae_u8 *dst = px[bufnum] + cnt * t->size;
+							if (t->mp3 && t->data) {
+								memcpy (dst, t->data + sector * t->size + t->offset, t->size);
+							} else if (!t->mp3) {
+								if (sector * t->size + t->offset + t->size < t->filesize) {
+									zfile_fseek (t->handle, sector * t->size + t->offset, SEEK_SET);
+									zfile_fread (dst, t->size, 1, t->handle);
+								}
 							}
-							if (i == 0)
-								write_log (L"CDDA: read error, track %d (file '%s' offset %d secoffset %d)\n",
-									t->track, t->fname, t->offset, sector);
 						}
 					}
 				}
@@ -453,10 +461,11 @@ static void *cdda_play_func (void *v)
 					break;
 				}
 
-				cdda_pos += num_sectors;
-				if (cdda_pos >= cdda_end)
+				if (dofinish) {
 					cdda_play_finished = 1;
-				cd_last_pos = cdda_pos;
+					cdda_play = -1;
+					cdda_pos = cdda_end + 1;
+				}
 
 			}
 
@@ -539,7 +548,7 @@ static uae_u8 *command_qcode (int unitnum)
 	p = buf;
 
 	status = AUDIO_STATUS_NO_STATUS;
-	if (cdda_play) {
+	if (cdda_play > 0) {
 		status = AUDIO_STATUS_IN_PROGRESS;
 		if (cdda_paused)
 			status = AUDIO_STATUS_PAUSED;
@@ -693,11 +702,11 @@ static TCHAR *nextstring (TCHAR **sp)
 	return out;
 }
 
-static int open_device (int unitnum)
+static int parse_image (void)
 {
 	struct zfile *zcue;
 	TCHAR *fname, *fnametype;
-	int tracknum;
+	int tracknum, index0, pregap;
 	int offset, secoffset, newfile;
 	int i;
 	TCHAR *p;
@@ -706,12 +715,13 @@ static int open_device (int unitnum)
 	TCHAR *img = currprefs.cdimagefile;
 	int ctrl;
 
-	if (unitnum || !img)
+	if (!img)
 		return 0;
-	zcue = zfile_fopen (img, L"rb", 0);
+	zcue = zfile_fopen (img, L"rb", ZFD_ARCHIVE);
 	if (!zcue)
 		return 0;
 
+	oldcurdir[0] = 0;
 	fname = NULL;
 	fnametype = NULL;
 	tracknum = 0;
@@ -719,10 +729,10 @@ static int open_device (int unitnum)
 	secoffset = 0;
 	newfile = 0;
 	ctrl = 0;
+	index0 = -1;
+	pregap = 0;
 
-	zfile_fseek (zcue, 0, SEEK_END);
-	siz = zfile_ftell (zcue);
-	zfile_fseek (zcue, 0, SEEK_SET);
+	siz = zfile_size (zcue);
 	if (siz >= 16384) {
 		if ((siz % 2048) == 0 || (siz % 2352) == 0) {
 			struct cdtoc *t = &toc[0];
@@ -732,6 +742,7 @@ static int open_device (int unitnum)
 			t->fname = my_strdup (img);
 			t->handle = zcue;
 			t->size = (siz % 2048) == 0 ? 2048 : 2352;
+			t->filesize = siz;
 			write_log (L"CUE: plain CD image mounted!\n");
 			zcue = NULL;
 			goto isodone;
@@ -789,6 +800,8 @@ static int open_device (int unitnum)
 			TCHAR *tracktype;
 			
 			p += 5;
+			//pregap = 0;
+			index0 = -1;
 			tracknum = _tstoi (nextstring (&p));
 			tracktype = nextstring (&p);
 			size = 2352;
@@ -819,14 +832,14 @@ static int open_device (int unitnum)
 				}
 
 				newfile = 0;
-				ztrack = zfile_fopen (fname, L"rb", 0);
+				ztrack = zfile_fopen (fname, L"rb", ZFD_ARCHIVE);
 				if (!ztrack) {
 					TCHAR tmp[MAX_DPATH];
 					_tcscpy (tmp, fname);
 					p = tmp + _tcslen (tmp);
 					while (p > tmp) {
 						if (*p == '/' || *p == '\\') {
-							ztrack = zfile_fopen (p + 1, L"rb", 0);
+							ztrack = zfile_fopen (p + 1, L"rb", ZFD_ARCHIVE);
 							if (ztrack) {
 								xfree (fname);
 								fname = my_strdup (p + 1);
@@ -834,6 +847,20 @@ static int open_device (int unitnum)
 							break;
 						}
 						p--;
+					}
+				}
+				if (!ztrack) {
+					TCHAR tmp[MAX_DPATH];
+					TCHAR *s2;
+					_tcscpy (tmp, zfile_getname (zcue));
+					s2 = _tcsrchr (tmp, '\\');
+					if (!s2)
+						s2 = _tcsrchr (tmp, '/');
+					if (s2) {
+						s2[0] = 0;
+						_tcscat (tmp, L"\\");
+						_tcscat (tmp, fname);
+						ztrack = zfile_fopen (tmp, L"rb", ZFD_ARCHIVE);
 					}
 				}
 				t->track = tracknum;
@@ -844,10 +871,18 @@ static int open_device (int unitnum)
 				t->fname = my_strdup (fname);
 				if (tracknum > tracks)
 					tracks = tracknum;
-				zfile_fseek (t->handle, 0, SEEK_END);
-				t->filesize = zfile_ftell (t->handle);
-				zfile_fseek (t->handle, 0, SEEK_SET);
+				if (t->handle)
+					t->filesize = zfile_size (t->handle);
 			}
+		} else if (!_tcsnicmp (p, L"PREGAP", 6)) {
+			TCHAR *tt;
+			int tn;
+			p += 6;
+			tt = nextstring (&p);
+			tn = _tstoi (tt) * 60 * 75;
+			tn += _tstoi (tt + 3) * 75;
+			tn += _tstoi (tt + 6);
+			pregap += tn;
 		} else if (!_tcsnicmp (p, L"INDEX", 5)) {
 			int idxnum;
 			int tn = 0;
@@ -858,10 +893,13 @@ static int open_device (int unitnum)
 			tn = _tstoi (tt) * 60 * 75;
 			tn += _tstoi (tt + 3) * 75;
 			tn += _tstoi (tt + 6);
-			if (tracknum >= 1 && tracknum <= 99) {
+			if (idxnum == 0) {
+				index0 = tn;
+			} else if (idxnum == 1 && tracknum >= 1 && tracknum <= 99) {
 				struct cdtoc *t = &toc[tracknum - 1];
 				if (!t->address) {
 					t->address = tn + secoffset;
+					t->address += pregap;
 					if (tracknum > 1) {
 						offset += t->address - t[-1].address;
 					} else {
@@ -902,10 +940,12 @@ static int open_device (int unitnum)
 isodone:
 	if (tracks && toc[tracks - 1].handle) {
 		struct cdtoc *t = &toc[tracks - 1];
-		int size = t->filesize - offset * t->size;
+		int size = t->filesize ;
+		if (!secoffset)
+			size -= offset * t->size;
 		if (size < 0)
 			size = 0;
-		toc[tracks].address = toc[tracks - 1].address + size / t->size;
+		toc[tracks].address = t->address + size / t->size;
 	}
 	xfree (fname);
 	if (oldcurdir[0])
@@ -920,7 +960,7 @@ isodone:
 		write_log (L"%7d %02d:%02d:%02d",
 			t->address, (msf >> 16) & 0xff, (msf >> 8) & 0xff, (msf >> 0) & 0xff);
 		if (i < tracks)
-			write_log (L" %s %x %10d %s", (t->ctrl & 4) ? L"DATA" : L"CDA ", t->ctrl, t->offset, t->handle == NULL ? L"FILE ERROR" : L"");
+			write_log (L" %s %x %10d %s", (t->ctrl & 4) ? L"DATA" : L"CDA ", t->ctrl, t->offset, t->handle == NULL ? L"[FILE ERROR]" : L"");
 		write_log (L"\n");
 		if (i < tracks)
 			write_log (L" - %s\n", t->fname);
@@ -929,7 +969,8 @@ isodone:
 	mp3decoder_close ();
 	return 1;
 }
-static void close_device (int unitnum)
+
+static void unload_image (void)
 {
 	int i;
 
@@ -943,14 +984,65 @@ static void close_device (int unitnum)
 	tracks = 0;
 }
 
+static int open_device (int unitnum)
+{
+	if (unitnum)
+		return 0;
+	return parse_image ();
+}
+
+static void close_device (int unitnum)
+{
+	unload_image ();
+}
+
+static int imagechange;
+static TCHAR newfile[MAX_DPATH];
+
+void cdimage_vsync (void)
+{
+	if (imagechange == 0)
+		return;
+	imagechange--;
+	if (imagechange > 0)
+		return;
+	_tcscpy (currprefs.cdimagefile, newfile);
+	_tcscpy (changed_prefs.cdimagefile, newfile);
+	newfile[0] = 0;
+	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile);
+	parse_image ();
+#ifdef RETROPLATFORM
+		rp_cd_change (0, 0);
+#endif
+}
+
 static int ismedia (int unitnum, int quick)
 {
+
+	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
+		_tcscpy (newfile, changed_prefs.cdimagefile);
+		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
+		imagechange = 5 * 50;
+		write_log (L"CD: eject\n");
+		unload_image ();
+#ifdef RETROPLATFORM
+		rp_cd_change (unitnum, 1);
+#endif
+	}
 	return currprefs.cdimagefile[0] ? 1 : 0;
 }
 
 static int open_bus (int flags)
 {
-	return ismedia (0, 1);
+	int v;
+	if (imagechange)
+		return 1;
+	v = ismedia (0, 1);
+#ifdef RETROPLATFORM
+	if (v)
+		rp_cd_change (0, 0);
+#endif
+	return v;
 }
 
 static void close_bus (void)
@@ -972,7 +1064,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	di->write_protected = 1;
 	di->type = INQ_ROMD;
 	di->id = 1;
-	_tcscpy (di->label, L"IMG");
+	_tcscpy (di->label, L"IMG_EMU");
 	return di;
 }
 

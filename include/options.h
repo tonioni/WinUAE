@@ -181,6 +181,7 @@ struct uae_prefs {
     int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
     int gfx_blackerthanblack;
     int gfx_backbuffers;
+	int gfx_api;
     int color_mode;
 
     int gfx_filter;
@@ -192,6 +193,7 @@ struct uae_prefs {
     int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
     int gfx_filter_horiz_offset, gfx_filter_vert_offset;
     int gfx_filter_filtermode;
+	int gfx_filter_bilinear;
     int gfx_filter_noise, gfx_filter_blur;
     int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
     int gfx_filter_keep_aspect, gfx_filter_aspect;
@@ -250,6 +252,7 @@ struct uae_prefs {
     int cs_slowmemisfast;
     int cs_resetwarning;
     int cs_denisenoehb;
+	int cs_dipagnus;
     int cs_agnusbltbusybug;
 
     TCHAR df[4][MAX_DPATH];

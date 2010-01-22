@@ -15,7 +15,7 @@ void InitializeListView (HWND hDlg);
 extern void pre_gui_message (const TCHAR*,...);
 extern void gui_message_id (int id);
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int currentpage);
-UAEREG *read_disk_history (void);
+UAEREG *read_disk_history (int type);
 void write_disk_history (void);
 
 struct newresource

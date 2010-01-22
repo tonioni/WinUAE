@@ -9,6 +9,7 @@ extern void S2X_refresh (void);
 extern void S2X_render (void);
 extern void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd);
 extern void S2X_free (void);
+extern int S2X_getmult (void);
 
 extern void PAL_init (void);
 extern void PAL_1x1_32 (uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, int height);
@@ -43,14 +44,13 @@ extern void _cdecl hq4x_16 (unsigned char*, unsigned char*, DWORD, DWORD, DWORD)
 extern void _cdecl hq4x_32 (unsigned char*, unsigned char*, DWORD, DWORD, DWORD);
 
 #define UAE_FILTER_NULL 1
-#define UAE_FILTER_DIRECT3D 2
-//#define UAE_FILTER_OPENGL 3
-#define UAE_FILTER_SCALE2X 3
+#define UAE_FILTER_SCALE2X 2
+#define UAE_FILTER_HQ 3
 #define UAE_FILTER_SUPEREAGLE 4
 #define UAE_FILTER_SUPER2XSAI 5
 #define UAE_FILTER_2XSAI 6
 #define UAE_FILTER_PAL 7
-#define UAE_FILTER_HQ 8
+#define UAE_FILTER_LAST 7
 
 #define UAE_FILTER_MODE_16 16
 #define UAE_FILTER_MODE_16_16 16

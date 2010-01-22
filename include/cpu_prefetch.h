@@ -14,7 +14,7 @@ STATIC_INLINE uae_u32 get_long_prefetch (int o)
 
 STATIC_INLINE void prefetch_common_ce000 (void)
 {
-	regs.lastfetch = get_cycles () + CYCLE_UNIT;
+	regs.lastfetch = get_cycles ();
 }
 
 #ifdef CPUEMU_20

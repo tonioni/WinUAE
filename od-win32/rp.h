@@ -34,3 +34,4 @@ extern int log_rp;
 extern void rp_input_change (int num);
 extern void rp_disk_image_change (int num, const TCHAR *name);
 extern void rp_harddrive_image_change (int num, const TCHAR *name);
+extern void rp_cd_image_change (int num, const TCHAR *name);

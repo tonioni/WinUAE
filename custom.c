@@ -51,6 +51,7 @@
 #include "a2091.h"
 #include "a2065.h"
 #include "ncr_scsi.h"
+#include "blkdev.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -2578,7 +2579,7 @@ static void finish_decisions (void)
 	diw_hcounter += maxhpos * 2;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos == equ_vblank_endline - 1)
 		diw_hcounter++;
-	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > equ_vblank_endline) {
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > equ_vblank_endline || (currprefs.cs_dipagnus && vpos == 0)) {
 		diw_hcounter = maxhpos * 2;
 		last_hdiw = 2 - 1;
 	}
@@ -3386,13 +3387,19 @@ STATIC_INLINE int use_eventmode (void)
 	return currprefs.cpu_cycle_exact != 0;
 }
 
-static void send_interrupt (void)
+static void send_interrupt_do (uae_u32 v)
 {
-	int lev = intlev ();
-	if (lev < 0)
-		lev = 0;
-	if (lev != regs.ipl)
-		event2_newevent_xx (-1, 5 * CYCLE_UNIT, lev, prepare_interrupt);
+	INTREQ_0 (0x8000 | (1 << v));
+}
+
+void send_interrupt (int num, int delay)
+{
+	if (use_eventmode () && delay > 0) {
+		if (!(intreqr & (1 << num)))
+			event2_newevent_xx (-1, delay * CYCLE_UNIT, num, send_interrupt_do);
+	} else {
+		send_interrupt_do (num);
+	}
 }
 
 STATIC_INLINE void INTENA (uae_u16 v)
@@ -3402,11 +3409,15 @@ STATIC_INLINE void INTENA (uae_u16 v)
 	if (v & 0x40)
 		write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
+#if 0
 	if (use_eventmode ()) {
 		send_interrupt ();
 	} else if (v & 0x8000) {
 		doint ();
 	}
+#endif
+	if (v & 0x8000)
+		doint ();
 }
 
 void INTREQ_0 (uae_u16 v)
@@ -3420,6 +3431,7 @@ void INTREQ_0 (uae_u16 v)
 	if (v & (0x80 | 0x100 | 0x200 | 0x400))
 		audio_update_irq (v);
 	intreqr = intreq;
+#if 0
 	if (use_eventmode ()) {
 		if (tmp != intreq)
 			send_interrupt ();
@@ -3430,6 +3442,8 @@ void INTREQ_0 (uae_u16 v)
 	} else {
 		doint ();
 	}
+#endif
+	doint ();
 }
 
 void INTREQ (uae_u16 data)
@@ -5090,7 +5104,6 @@ static void vsync_handler (void)
 	if ((intreq & 0x0020) && (intena & 0x0020))
 		write_log (L"vblank interrupt not cleared\n");
 #endif
-	INTREQ (0x8000 | 0x0020);
 	if (bplcon0 & 4)
 		lof ^= 1;
 
@@ -5098,6 +5111,7 @@ static void vsync_handler (void)
 	picasso_handle_vsync ();
 #endif
 	audio_vsync ();
+	cdimage_vsync ();
 
 	if (quit_program > 0) {
 		/* prevent possible infinite loop at wait_cycles().. */
@@ -5413,6 +5427,14 @@ static void hsync_handler (void)
 		vsync_counter++;
 		if (currprefs.cs_ciaatod == 0)
 			CIA_vsync_prehandler (!(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock));
+	}
+	// DIP Agnus (8361): vblank interrupt is triggered on line 1!
+	if (currprefs.cs_dipagnus) {
+		if (vpos == 1)
+			send_interrupt (5, 0);
+	} else {
+		if (vpos == 0)
+			send_interrupt (5, 0);
 	}
 
 #ifdef CPUEMU_12
@@ -6825,7 +6847,6 @@ void check_prefs_changed_custom (void)
 	currprefs.gfx_filter_horiz_offset = changed_prefs.gfx_filter_horiz_offset;
 	currprefs.gfx_filter_vert_offset = changed_prefs.gfx_filter_vert_offset;
 	currprefs.gfx_filter_scanlines = changed_prefs.gfx_filter_scanlines;
-	currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 #endif
 }
 

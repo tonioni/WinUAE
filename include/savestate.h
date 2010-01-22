@@ -100,6 +100,9 @@ extern uae_u8 *save_gayle (int *len);
 extern uae_u8 *restore_ide (uae_u8 *src);
 extern uae_u8 *save_ide (int num, int *len);
 
+extern uae_u8 *save_cd (int num, int *len);
+extern uae_u8 *restore_cd (int, uae_u8 *src);
+
 extern uae_u8 *save_configuration (int *len);
 extern uae_u8 *restore_configuration (uae_u8 *src);
 extern uae_u8 *save_log (int, int *len);

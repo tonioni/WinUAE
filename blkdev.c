@@ -12,13 +12,12 @@
 
 #include "blkdev.h"
 #include "scsidev.h"
+#include "savestate.h"
 
 static struct device_functions *device_func[2];
 static int have_ioctl;
 
 #ifdef _WIN32
-
-static int initialized;
 
 #include "od-win32/win32.h"
 
@@ -31,6 +30,7 @@ static void install_driver (int flags)
 {
 	int installed = 0;
 
+	device_func[DF_IOCTL] = NULL;
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
 	if (devicefunc_cdimage.openbus (0)) {
 		device_func[DF_IOCTL] = &devicefunc_cdimage;
@@ -69,7 +69,6 @@ void sys_command_close (int mode, int unitnum)
 
 void device_func_reset (void)
 {
-	initialized = 0;
 	have_ioctl = 0;
 }
 
@@ -78,8 +77,6 @@ int device_func_init (int flags)
 	int support_scsi = 0, support_ioctl = 0;
 	int oflags = (flags & DEVICE_TYPE_SCSI) ? 0 : (1 << INQ_ROMD);
 
-	if (initialized)
-		return initialized;
 	install_driver (flags);
 	if (device_func[DF_IOCTL])
 		have_ioctl = 1;
@@ -88,7 +85,6 @@ int device_func_init (int flags)
 	support_scsi = device_func[DF_SCSI]->openbus (oflags) ? 1 : 0;
 	if (have_ioctl)
 		support_ioctl = device_func[DF_IOCTL]->openbus (1 << INQ_ROMD) ? 1 : 0;
-	initialized = 1;
 	write_log (L"support_scsi = %d support_ioctl = %d\n", support_scsi, support_ioctl);
 	return (support_scsi ? (1 << DF_SCSI) : 0) | (support_ioctl ? (1 << DF_IOCTL) : 0);
 }
@@ -250,7 +246,8 @@ int sys_command_ismedia (int mode, int unitnum, int quick)
 		if (quick)
 			return -1;
 		memset(&di, 0, sizeof di);
-		device_func[DF_SCSI]->info (unitnum, &di);
+		if (device_func[DF_SCSI]->info (unitnum, &di) == NULL)
+			return -1;
 		return di.media_inserted;
 	} else {
 		return device_func[DF_IOCTL]->ismedia (unitnum, quick);
@@ -438,3 +435,32 @@ void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
 		write_log (L"\n");
 	}
 }
+
+uae_u8 *save_cd (int num, int *len)
+{
+	uae_u8 *dstbak, *dst;
+
+	if (num != 0)
+		return NULL;
+	if (!currprefs.cdimagefile[0])
+		return NULL;
+
+	dstbak = dst = xmalloc (4 + 256);
+	save_u32 (4);
+	save_string (currprefs.cdimagefile);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_cd (int unit, uae_u8 *src)
+{
+	uae_u32 flags;
+	TCHAR *s;
+
+	flags = restore_u32 ();
+	s = restore_string ();
+	if ((flags & 4) && unit == 0)
+		_tcscpy (changed_prefs.cdimagefile, s);
+	return src;
+}
+
