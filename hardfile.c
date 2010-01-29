@@ -28,13 +28,13 @@
 #include "execio.h"
 #include "zfile.h"
 
-//#undef DEBUGME
+#undef DEBUGME
 #define hf_log
 #define hf_log2
 #define scsi_log
 #define hf_log3
 
-#define DEBUGME
+//#define DEBUGME
 #ifdef DEBUGME
 #undef hf_log
 #define hf_log write_log
@@ -1112,7 +1112,7 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x25: /* READ_CAPACITY */
 		{
 			int pmi = cmdbuf[8] & 1;
-			uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
+			uae_u32 lba = (cmdbuf[2] << 24) | (cmdbuf[3] << 16) | (cmdbuf[4] << 8) | cmdbuf[5];
 			uae_u32 blocks;
 			int cyl, cylsec, head, tracksec;
 			if (nodisk (hfd))
@@ -1126,6 +1126,8 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 			} else {
 				getchs (hfd, &cyl, &cylsec, &head, &tracksec);
 			}
+			if (pmi == 0 && lba != 0)
+				goto errreq;
 			if (pmi) {
 				lba += tracksec * head;
 				lba /= tracksec * head;
@@ -1239,8 +1241,9 @@ nodisk:
 
 	default:
 err:
-		lr = -1;
 		write_log (L"UAEHF: unsupported scsi command 0x%02X\n", cmdbuf[0]);
+errreq:
+		lr = -1;
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */

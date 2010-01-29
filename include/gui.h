@@ -58,6 +58,7 @@ struct gui_info
     uae_u32 crc32[4];			/* crc32 of image */
 };
 #define NUM_LEDS (LED_MAX)
+#define VISIBLE_LEDS (LED_MAX - 1)
 
 extern struct gui_info gui_data;
 

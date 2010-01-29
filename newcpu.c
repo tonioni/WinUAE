@@ -4042,6 +4042,10 @@ void m68k_resumestopped (void)
 	if (!regs.stopped)
 		return;
 	regs.stopped = 0;
+	if (currprefs.cpu_cycle_exact) {
+		if (currprefs.cpu_model == 68000)
+			do_cycles_ce000 (6);
+	}
 	fill_prefetch_slow ();
 	unset_special (SPCFLAG_STOP);
 }

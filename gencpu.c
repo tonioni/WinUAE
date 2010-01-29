@@ -905,13 +905,13 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 		if (using_ce020) {
 			switch (size) {
 			case sz_byte:
-				printf ("\tput_byte_ce020 (%sa,%s);\n", to, from);
+				printf ("\tput_byte_ce020 (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
-				printf ("\tput_word_ce020 (%sa,%s);\n", to, from);
+				printf ("\tput_word_ce020 (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_long:
@@ -926,13 +926,13 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 		} else if (using_ce) {
 			switch (size) {
 			case sz_byte:
-				printf ("\tput_byte_ce (%sa,%s);\n", to, from);
+				printf ("\tput_byte_ce (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_word:
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
-				printf ("\tput_word_ce (%sa,%s);\n", to, from);
+				printf ("\tput_word_ce (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_long:
@@ -952,27 +952,27 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 			case sz_byte:
 				insn_n_cycles += 4;
 				if (flags & GF_FC)
-					printf ("\tdfc_put_byte (%sa,%s);\n", to, from);
+					printf ("\tdfc_put_byte (%sa, %s);\n", to, from);
 				else
-					printf ("\tput_byte_mmu (%sa,%s);\n", to, from);
+					printf ("\tput_byte_mmu (%sa, %s);\n", to, from);
 				break;
 			case sz_word:
 				insn_n_cycles += 4;
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
 				if (flags & GF_FC)
-					printf ("\tdfc_put_word (%sa,%s);\n", to, from);
+					printf ("\tdfc_put_word (%sa, %s);\n", to, from);
 				else
-					printf ("\tput_word_mmu (%sa,%s);\n", to, from);
+					printf ("\tput_word_mmu (%sa, %s);\n", to, from);
 				break;
 			case sz_long:
 				insn_n_cycles += 8;
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
 				if (flags & GF_FC)
-					printf ("\tdfc_put_long (%sa,%s);\n", to, from);
+					printf ("\tdfc_put_long (%sa, %s);\n", to, from);
 				else
-					printf ("\tput_long_mmu (%sa,%s);\n", to, from);
+					printf ("\tput_long_mmu (%sa, %s);\n", to, from);
 				break;
 			default:
 				abort ();
@@ -981,21 +981,21 @@ static void genastore_2 (char *from, amodes mode, char *reg, wordsizes size, cha
 			switch (size) {
 			case sz_byte:
 				insn_n_cycles += 4;
-				printf ("\tput_byte (%sa,%s);\n", to, from);
+				printf ("\tput_byte (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_word:
 				insn_n_cycles += 4;
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
-				printf ("\tput_word (%sa,%s);\n", to, from);
+				printf ("\tput_word (%sa, %s);\n", to, from);
 				count_write++;
 				break;
 			case sz_long:
 				insn_n_cycles += 8;
 				if (cpu_level < 2 && (mode == PC16 || mode == PC8r))
 					abort ();
-				printf ("\tput_long (%sa,%s);\n", to, from);
+				printf ("\tput_long (%sa, %s);\n", to, from);
 				count_write += 2;
 				break;
 			default:
@@ -2217,19 +2217,26 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("\t}\n");
 			need_endlabel = 1;
 		}
-		if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
-			addcycles000 (2);
-		setpc ("srca");
-		m68k_pc_offset = 0;
-		fill_prefetch_1 (0);
-		if (curi->smode == Ad8r || curi->smode == PC8r)
-			addcycles000 (6);
-		printf ("\tm68k_areg (regs, 7) -= 4;\n");
-		if (using_ce) {
-			printf ("\tput_word_ce (m68k_areg (regs, 7), oldpc >> 16);\n");
-			printf ("\tput_word_ce (m68k_areg (regs, 7) + 2, oldpc);\n");
+		if (using_mmu) {
+			printf ("\t%s (m68k_areg (regs, 7) - 4, oldpc);\n", dstl);
+			printf ("\tm68k_areg (regs, 7) -= 4;\n");
+			setpc ("srca");
+			m68k_pc_offset = 0;
 		} else {
-			printf ("\t%s (m68k_areg (regs, 7), oldpc);\n", dstl);
+			if (curi->smode == Ad16 || curi->smode == absw || curi->smode == PC16)
+				addcycles000 (2);
+			setpc ("srca");
+			m68k_pc_offset = 0;
+			fill_prefetch_1 (0);
+			if (curi->smode == Ad8r || curi->smode == PC8r)
+				addcycles000 (6);
+			printf ("\tm68k_areg (regs, 7) -= 4;\n");
+			if (using_ce) {
+				printf ("\tput_word_ce (m68k_areg (regs, 7), oldpc >> 16);\n");
+				printf ("\tput_word_ce (m68k_areg (regs, 7) + 2, oldpc);\n");
+			} else {
+				printf ("\t%s (m68k_areg (regs, 7), oldpc);\n", dstl);
+			}
 		}
 		count_write += 2;
 		fill_prefetch_next ();

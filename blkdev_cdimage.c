@@ -1059,8 +1059,11 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	di->lun = 0;
 	di->media_inserted = 0;
 	di->bytespersector = 2048;
-	if (ismedia (unitnum, 1))
+	di->mediapath[0] = 0;
+	if (ismedia (unitnum, 1)) {
 		di->media_inserted = 1;
+		_tcscpy (di->mediapath, currprefs.cdimagefile);
+	}
 	di->write_protected = 1;
 	di->type = INQ_ROMD;
 	di->id = 1;

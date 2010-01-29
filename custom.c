@@ -581,7 +581,7 @@ static void decide_diw (int hpos)
 {
 	/* Last hpos = hpos + 0.5, eg. normal PAL end hpos is 227.5 * 2 = 455
 	   OCS Denise: 9 bit hdiw counter does not reset during lines 0 to 9
-	   (PAL) or lines 0 to 10 (NTSC)
+	   (PAL) or lines 0 to 10 (NTSC). A1000 PAL: 1 to 9, NTSC: 1 to 10.
 	   ECS Denise and AGA: no above "features"
 	*/
 

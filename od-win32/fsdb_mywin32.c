@@ -326,6 +326,7 @@ int dos_errno (void)
 	case ERROR_SHARING_VIOLATION:
 	case ERROR_BUSY:
 	case ERROR_INVALID_HANDLE:
+	case ERROR_USER_MAPPED_FILE:
 		return ERROR_OBJECT_IN_USE;
 
 	case ERROR_CURRENT_DIRECTORY:
@@ -337,7 +338,10 @@ int dos_errno (void)
 
 	default:
 		{
-			gui_message (L"Unimplemented error %d\nContact author!", e);
+			static int done;
+			if (!done)
+				gui_message (L"Unimplemented error %d\nContact author!", e);
+			done = 1;
 		}
 		return ERROR_NOT_IMPLEMENTED;
 	}

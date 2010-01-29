@@ -41,7 +41,7 @@ struct device_info {
     int bus, target, lun;
     int id;
     TCHAR label[MAX_DPATH];
-	TCHAR ident[16];
+	TCHAR mediapath[MAX_DPATH];
 };
 
 struct device_scsi_info {

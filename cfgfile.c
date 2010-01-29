@@ -176,6 +176,7 @@ static const TCHAR *dongles[] =
 	L"rugby coach", L"cricket captain", L"leviathan",
 	NULL
 };
+static const TCHAR *parportsampler[] = { L"none", L"mono", L"stereo", NULL };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -624,6 +625,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"parallel_postscript_detection", p->parallel_postscript_detection);
 	cfgfile_write_str (f, L"ghostscript_parameters", p->ghostscript_parameters);
 	cfgfile_write (f, L"parallel_autoflush", L"%d", p->parallel_autoflush_time);
+	cfgfile_dwrite_str (f, L"parallel_sampler", parportsampler[p->parallel_sampler]);
 	cfgfile_dwrite (f, L"uae_hide", L"%d", p->uae_hide);
 	cfgfile_dwrite_bool (f, L"magic_mouse", p->input_magic_mouse);
 	cfgfile_dwrite_str (f, L"magic_mousecursor", magiccursors[p->input_magic_mouse_cursor]);
@@ -864,6 +866,14 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	*location = _tcstol (value, &endptr, base) * scale;
 
 	if (*endptr != '\0' || *value == '\0') {
+		if (strcasecmp (value, L"false") == 0 || strcasecmp (value, L"no") == 0) {
+			*location = 0;
+			return 1;
+		}
+		if (strcasecmp (value, L"true") == 0 || strcasecmp (value, L"yes") == 0) {
+			*location = 1;
+			return 1;
+		}
 		write_log (L"Option '%s' requires a numeric argument but got '%s'\n", option, value);
 		return -1;
 	}
@@ -1669,6 +1679,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_strval (option, value, L"comp_trustnaddr", &p->comptrustnaddr, compmode, 0)
 		|| cfgfile_strval (option, value, L"collision_level", &p->collision_level, collmode, 0)
 		|| cfgfile_strval (option, value, L"parallel_matrix_emulation", &p->parallel_matrix_emulation, epsonprinter, 0)
+		|| cfgfile_strval (option, value, L"parallel_sampler", &p->parallel_sampler, parportsampler, 0)
 		|| cfgfile_strval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -3170,6 +3181,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->parallel_postscript_emulation = 0;
 	p->parallel_postscript_detection = 0;
 	p->parallel_autoflush_time = 5;
+	p->parallel_sampler = 0;
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
 

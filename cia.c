@@ -36,6 +36,7 @@
 #include "uae.h"
 #include "amax.h"
 #include "ersatz.h"
+#include "sampler.h"
 #include "dongle.h"
 
 #define CIAA_DEBUG_R 0
@@ -640,8 +641,13 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		} else if (arcadia_bios) {
 			tmp = arcadia_parport (0, ciaaprb, ciaadrb);
 #endif
+		} else if (currprefs.parallel_sampler) {
+
+			tmp = sampler_getsample ();
+
 		} else
 #endif
+
 		{
 			tmp = handle_parport_joystick (0, ciaaprb, ciaadrb);
 			tmp = dongle_cia_read (1, reg, tmp);

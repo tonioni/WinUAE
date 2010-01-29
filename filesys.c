@@ -5362,17 +5362,17 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	write_log (L"%s:\n", uip->rootdir);
 	if (hfd->drive_empty) {
 		rdbmnt
-			write_log (L"ignored, drive is empty\n");
+		write_log (L"ignored, drive is empty\n");
 		return -2;
 	}
 	if (hfd->blocksize == 0) {
 		rdbmnt
-			write_log (L"failed, blocksize == 0\n");
+		write_log (L"failed, blocksize == 0\n");
 		return -1;
 	}
 	if (lastblock * hfd->blocksize > hfd->virtsize) {
 		rdbmnt
-			write_log (L"failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->virtsize);
+		write_log (L"failed, too small (%d*%d > %I64u)\n", lastblock, hfd->blocksize, hfd->virtsize);
 		return -2;
 	}
 	for (rdblock = 0; rdblock < lastblock; rdblock++) {
@@ -5394,7 +5394,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 	if (rdblock == lastblock) {
 		rdbmnt
-			write_log (L"failed, no RDB detected\n");
+		write_log (L"failed, no RDB detected\n");
 		return -2;
 	}
 	blocksize = rl (bufrdb + 16);
@@ -5402,13 +5402,13 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	badblock = rl (bufrdb + 24);
 	if (badblock != -1) {
 		rdbmnt
-			write_log (L"RDB: badblock list is not yet supported. Contact the author.\n");
+		write_log (L"RDB: badblock list is not yet supported. Contact the author.\n");
 		return -2;
 	}
 	driveinitblock = rl (bufrdb + 36);
 	if (driveinitblock != -1) {
 		rdbmnt
-			write_log (L"RDB: driveinit is not yet supported. Contact the author.\n");
+		write_log (L"RDB: driveinit is not yet supported. Contact the author.\n");
 		return -2;
 	}
 	hfd->cylinders = rl (bufrdb + 64);
@@ -5440,7 +5440,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	}
 
 	rdbmnt
-		flags = rl (buf + 20);
+	flags = rl (buf + 20);
 	if (flags & 2) { /* do not mount */
 		err = -1;
 		write_log (L"RDB: Automount disabled, not mounting\n");
@@ -5546,6 +5546,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 			goto error;
 		lsegblock = rl (buf + 16);
 		if (lsegblock == pb)
+			goto error;
+		if ((i + 1) * (blocksize - 20) >= 262144)
 			goto error;
 		memcpy (fsmem + i * (blocksize - 20), buf + 20, blocksize - 20);
 		i++;

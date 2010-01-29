@@ -187,6 +187,14 @@ static int port_insert (int num, const TCHAR *name)
 	}
 }
 
+static int cd_insert (int num, const TCHAR *name)
+{
+	if (num != 0)
+		return 0;
+	_tcscpy (changed_prefs.cdimagefile, name);
+	return 1;
+}
+
 static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RPGUESTINFO *pInfo)
 {
 	BOOL v = FALSE;
@@ -567,7 +575,9 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			case RP_DEVICE_INPUTPORT:
 				ok = port_insert (num, n);
 				break;
-
+			case RP_DEVICE_CD:
+				ok = cd_insert (num, n);
+				break;
 			}
 			xfree (n);
 			return ok;
@@ -774,7 +784,7 @@ void rp_fixup_options (struct uae_prefs *p)
 			sys_command_info (DF_IOCTL, i, &di);
 			cd_mask |= 1 << i;
 			RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
-			rp_cd_image_change (i, v == 0 ? L"" : di.ident);
+			rp_cd_image_change (i, di.mediapath);
 		}
 
 	}

@@ -2462,11 +2462,11 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	cb = ledcolor (TD_BORDER, rc, gc, bc, alpha);
 
 	if (td_pos & TD_RIGHT)
-		x_start = totalwidth - TD_PADX - NUM_LEDS * TD_WIDTH;
+		x_start = totalwidth - TD_PADX - VISIBLE_LEDS * TD_WIDTH;
 	else
 		x_start = TD_PADX;
 
-	for (led = 0; led < NUM_LEDS; led++) {
+	for (led = 0; led < VISIBLE_LEDS; led++) {
 		int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
 		int x, c, on = 0, am = 2;
 		xcolnr on_rgb, on_rgb2, off_rgb, pen_rgb;

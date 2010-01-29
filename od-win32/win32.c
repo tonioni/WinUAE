@@ -806,20 +806,20 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		winuae_active (hWnd, minimized);
 		minimized = 0;
 		dx_check ();
-		return 0;
+		break;
 	case WM_ACTIVATE:
 		if (LOWORD (wParam) == WA_INACTIVE) {
 			minimized = HIWORD (wParam) ? 1 : 0;
 			winuae_inactive (hWnd, minimized);
 		}
 		dx_check ();
-		return 0;
+		break;
 	case WM_ACTIVATEAPP:
 #ifdef RETROPLATFORM
 		rp_activate (wParam, lParam);
 #endif
 		dx_check ();
-		return 0;
+		break;
 
 	case WM_PALETTECHANGED:
 		if ((HWND)wParam != hWnd)
@@ -1376,7 +1376,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_DISPLAYCHANGE:
 		if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel ())
-			WIN32GFX_DisplayChangeRequested();
+			WIN32GFX_DisplayChangeRequested ();
 		break;
 
 	case WM_GETMINMAXINFO:
@@ -1424,15 +1424,18 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 					}
 					changed_prefs.gfx_size_win.x = left;
 					changed_prefs.gfx_size_win.y = top;
-					if (canstretch () && mainwin_rect.right - mainwin_rect.left != width && mainwin_rect.bottom - mainwin_rect.top != height) {
+					if (canstretch () && (mainwin_rect.right - mainwin_rect.left != width || mainwin_rect.bottom - mainwin_rect.top != height)) {
 						changed_prefs.gfx_size_win.width = width - window_extra_width;
 						changed_prefs.gfx_size_win.height = height - window_extra_height;
 					}
 				}
+				if (hStatusWnd)
+					SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
 				GetWindowRect (hMainWnd, &mainwin_rect);
 				return 0;
 			}
-			GetWindowRect (hMainWnd, &mainwin_rect);
+			if (!iconic)
+				GetWindowRect (hMainWnd, &mainwin_rect);
 		}
 		break;
 
@@ -1629,7 +1632,7 @@ static int WIN32_RegisterClasses (void)
 	wc.lpfnWndProc = AmigaWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
-	wc.hInstance = 0;
+	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
 	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
 	wc.lpszMenuName = 0;
@@ -1642,7 +1645,7 @@ static int WIN32_RegisterClasses (void)
 	wc.lpfnWndProc = MainWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
-	wc.hInstance = 0;
+	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
 	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush (black);
@@ -1655,7 +1658,7 @@ static int WIN32_RegisterClasses (void)
 	wc.lpfnWndProc = HiddenWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
-	wc.hInstance = 0;
+	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
 	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);

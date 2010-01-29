@@ -39,6 +39,7 @@ static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static IDirect3DVertexBuffer9 *vertexBuffer;
 static ID3DXSprite *sprite;
 static HWND d3dhwnd;
+static int devicelost;
 
 static D3DXMATRIX m_matProj;
 static D3DXMATRIX m_matWorld;
@@ -50,7 +51,7 @@ static D3DXMATRIX m_matPreWorld;
 static int ledwidth, ledheight;
 static int twidth, theight, max_texture_w, max_texture_h;
 static int tin_w, tin_h, window_h, window_w;
-static int t_depth;
+static int t_depth, mult;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode;
 static int needclear;
@@ -711,8 +712,8 @@ static int createtexture (int w, int h)
 			write_log (L"D3D: Failed to lock box of volume texture: %s\n", D3D_ErrorString (hr));
 			return 0;
 		}
-		//BuildHq2xLookupTexture(tin_w, tin_w, window_w, window_h, (unsigned char*)lockedBox.pBits);
-		BuildHq2xLookupTexture(window_w, window_h, tin_w, tin_w,  (unsigned char*)lockedBox.pBits);
+		//BuildHq2xLookupTexture(tin_w / mult, tin_w / mult, window_w, window_h, (unsigned char*)lockedBox.pBits);
+		BuildHq2xLookupTexture(window_w, window_h, tin_w / mult, tin_w / mult,  (unsigned char*)lockedBox.pBits);
 		IDirect3DVolumeTexture9_UnlockBox (lpHq2xLookupTexture, 0);
 
 	}
@@ -824,7 +825,7 @@ static void setupscenecoords (void)
 
 	//write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
 
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 	//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
 	//	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
 
@@ -861,7 +862,7 @@ uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
 	int w, h;
 
 	*depth = t_depth;
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, 1, tin_w, tin_h);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, mult, tin_w, tin_h);
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 	p = gfxvidinfo.bufmem;
@@ -1130,6 +1131,7 @@ void D3D_free (void)
 	psPreProcess = 0;
 	psActive = 0;
 	resetcount = 0;
+	devicelost = 0;
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 }
 
@@ -1246,7 +1248,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		flags = D3DCREATE_HARDWARE_VERTEXPROCESSING;
 	else
 		flags = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
-	flags |= D3DCREATE_NOWINDOWCHANGES | D3DCREATE_FPU_PRESERVE;
+	flags |= D3DCREATE_FPU_PRESERVE;
 
 	if (d3d_ex && D3DEX) {
 		ret = IDirect3D9Ex_CreateDeviceEx (d3dex, adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, &modeex, &d3ddevex);
@@ -1293,8 +1295,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		tex_square, tex_pow2, tex_dynamic,
 		max_texture_w, max_texture_h);
 
-	t_w *= S2X_getmult ();
-	t_h *= S2X_getmult ();
+	mult = S2X_getmult ();
+	t_w *= mult;
+	t_h *= mult;
 
 	if (max_texture_w < t_w || max_texture_h < t_h) {
 		_stprintf (errmsg, L"Direct3D: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
@@ -1350,19 +1353,44 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	return 0;
 }
 
+static int isd3d (void)
+{
+	if (devicelost || !d3ddev || !d3d_enabled)
+		return 0;
+	return 1;
+}
+
 int D3D_needreset (void)
 {
-	HRESULT hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
+	HRESULT hr;
+
+	if (!devicelost)
+		return -1;
+	hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
 	if (hr == D3DERR_DEVICENOTRESET) {
+		write_log (L"D3D: DEVICENOTRESET\n");
+		devicelost = 2;
+		invalidatedeviceobjects ();
 		hr = IDirect3DDevice9_Reset (d3ddev, &dpp);
 		if (FAILED (hr)) {
 			write_log (L"D3D: Reset failed %s\n", D3D_ErrorString (hr));
 			resetcount++;
-			if (resetcount > 2)
-				changed_prefs.gfx_filter = 0;
+			if (resetcount > 2) {
+				changed_prefs.gfx_api = 0;
+				write_log (L"D3D: Too many failed resets, disabling Direct3D mode\n");
+			}
+			return 1;
 		}
+		write_log (L"D3D: Reset succeeded\n");
+		restoredeviceobjects ();
 		return 1;
+	} else if (hr == D3DERR_DEVICELOST) {
+		invalidatedeviceobjects ();
+		Sleep (500);
+	} else if (SUCCEEDED (hr)) {
+		return -1;
 	}
+	write_log (L"D3D: TestCooperativeLevel %s\n", D3D_ErrorString (hr));
 	return 0;
 }
 
@@ -1371,14 +1399,11 @@ void D3D_clear (void)
 	int i;
 	HRESULT hr;
 
-	if (!d3ddev)
-		return;
-	hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
-	if (FAILED (hr))
+	if (!isd3d ())
 		return;
 	for (i = 0; i < 2; i++) {
-		IDirect3DDevice9_Clear (d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 0, 0);
-		IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
+		hr = IDirect3DDevice9_Clear (d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 0, 0);
+		hr = IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
 	}
 }
 
@@ -1386,9 +1411,7 @@ static void D3D_render22 (int clear)
 {
 	HRESULT hr;
 
-	if (!d3d_enabled)
-		return;
-	if (FAILED (IDirect3DDevice9_TestCooperativeLevel (d3ddev)))
+	if (!isd3d ())
 		return;
 
 	if (clear) {
@@ -1486,6 +1509,10 @@ pass2:
 
 	hr = IDirect3DDevice9_EndScene (d3ddev);
 	hr = IDirect3DDevice9_Present (d3ddev, NULL, NULL, NULL, NULL);
+	if (hr == D3DERR_DEVICELOST) {
+		write_log (L"D3D: DEVICELOST\n");
+		devicelost = 1;
+	}
 
 }
 
@@ -1506,15 +1533,13 @@ void D3D_render (void)
 void D3D_unlocktexture (void)
 {
 	HRESULT hr;
-	RECT r;
 
+	if (!isd3d ())
+		return;
 	if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
 		updateleds ();
 
 	hr = IDirect3DTexture9_UnlockRect (texture, 0);
-	r.left = 0; r.right = window_w;
-	r.top = 0; r.bottom = window_h;
-	hr = IDirect3DTexture9_AddDirtyRect (texture, &r);
 
 	D3D_render2 (0);
 	if (vsync2 && !currprefs.turbo_emulation)
@@ -1526,20 +1551,12 @@ uae_u8 *D3D_locktexture (int *pitch)
 	D3DLOCKED_RECT locked;
 	HRESULT hr;
 
-	hr = IDirect3DDevice9_TestCooperativeLevel (d3ddev);
-	if (FAILED (hr)) {
-		if (hr == D3DERR_DEVICELOST) {
-			if (!dpp.Windowed && IsWindow (d3dhwnd) && !IsIconic (d3dhwnd)) {
-				write_log (L"D3D: minimize\n");
-				ShowWindow (d3dhwnd, SW_MINIMIZE);
-			}
-		}
+	if (!isd3d ())
 		return NULL;
-	}
 
 	locked.pBits = NULL;
 	locked.Pitch = 0;
-	hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, D3DLOCK_NO_DIRTY_UPDATE);
+	hr = IDirect3DTexture9_LockRect (texture, 0, &locked, NULL, 0);
 	if (FAILED (hr)) {
 		if (hr != D3DERR_DRIVERINTERNALERROR) {
 			write_log (L"IDirect3DTexture9_LockRect failed: %s\n", D3D_ErrorString (hr));
@@ -1548,7 +1565,7 @@ uae_u8 *D3D_locktexture (int *pitch)
 		}
 	}
 	if (locked.pBits == NULL || locked.Pitch == 0) {
-		write_log (L"IDirect3DTexture9_LockRect return NULL texture\n");
+		write_log (L"IDirect3DTexture9_LockRect returned NULL texture\n");
 		D3D_unlocktexture ();
 		return NULL;
 	}
@@ -1558,7 +1575,7 @@ uae_u8 *D3D_locktexture (int *pitch)
 
 void D3D_refresh (void)
 {
-	if (!d3d_enabled)
+	if (!isd3d ())
 		return;
 	createscanlines (1);
 	D3D_render2 (1);
@@ -1597,7 +1614,7 @@ void D3D_getpixelformat (int depth,int *rb, int *gb, int *bb, int *rs, int *gs, 
 void D3D_guimode (int guion)
 {
 	HRESULT hr;
-	if (!d3d_enabled)
+	if (!isd3d ())
 		return;
 	hr = IDirect3DDevice9_SetDialogBoxMode (d3ddev, guion);
 	if (FAILED (hr))
@@ -1610,7 +1627,7 @@ HDC D3D_getDC (HDC hdc)
 	static LPDIRECT3DSURFACE9 bb;
 	HRESULT hr;
 
-	if (!d3d_enabled)
+	if (!isd3d ())
 		return 0;
 	if (!hdc) {
 		hr = IDirect3DDevice9_GetBackBuffer (d3ddev, 0, 0, D3DBACKBUFFER_TYPE_MONO, &bb);

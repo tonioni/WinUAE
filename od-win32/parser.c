@@ -479,7 +479,7 @@ static void openprinter (void)
 			// Fill in the structure with info about this "document."
 			DocInfo.pDocName = L"WinUAE Document";
 			DocInfo.pOutputFile = NULL;
-			DocInfo.pDatatype = currprefs.parallel_matrix_emulation ? L"TEXT" : L"RAW";
+			DocInfo.pDatatype = (currprefs.parallel_matrix_emulation || currprefs.parallel_postscript_detection) ? L"TEXT" : L"RAW";
 			// Inform the spooler the document is beginning.
 			if ((dwJob = StartDocPrinter (hPrt, 1, (LPSTR)&DocInfo)) == 0) {
 				ClosePrinter (hPrt );

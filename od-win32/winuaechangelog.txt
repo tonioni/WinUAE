@@ -1,4 +1,17 @@
 
+Beta 6:
+
+- filter panel GUI issues fixed
+- arcadia quickstart incorrectly enabled CD mode (b5)
+- directory filesystem ERROR_USER_MAPPED_FILE mapped to OBJECT_IN_USE
+- directory filesystem: complain about unimplemented error(s) only once
+- unminimize changed display size (update to b4 fix)
+- window resize was ignored unless both width and height changed (b4)
+- OSD had extra gap in right border (b1)
+- D3D fullscreen handling update, device loss handling improved,
+  possible ALT-TAB weirdness should be gone now, D3D debug runtime
+  warnings fixed
+
 Beta 5:
 
 - save cdimage path to statefile (if set)

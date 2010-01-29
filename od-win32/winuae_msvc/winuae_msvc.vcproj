@@ -52,7 +52,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include,..\tun"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS"
+				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO"
 				GeneratePreprocessedFile="0"
 				KeepComments="false"
 				ExceptionHandling="0"
@@ -1881,6 +1881,10 @@
 			</File>
 			<File
 				RelativePath="..\..\rommgr.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\sampler.c"
 				>
 			</File>
 			<File

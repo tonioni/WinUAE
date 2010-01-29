@@ -1548,11 +1548,10 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 {
 	HWND hWnd;
 	RECT windowRect;
-	int width, height, w2, h2;
+	int width, height, w2, h2, x, y;
 	struct MultiDisplay *md;
 	NMHDR *nmhdr;
 	int doit = FALSE;
-	static int prevwidth, prevheight;
 
 	if (message == WM_NOTIFY) {
 		nmhdr = (LPNMHDR)lParam;
@@ -1567,12 +1566,6 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 		return FALSE;
 	w2 = WIN32GFX_GetWidth ();
 	h2 = WIN32GFX_GetHeight ();
-	if (w2 == prevwidth && h2 == prevheight) {
-		write_log (L"SAME %dx%d\n", w2, h2);
-		return FALSE;
-	}
-	prevwidth = w2;
-	prevheight = h2;
 	write_log (L"MOVEWINDOW %dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
 	hWnd = GetParent (hDlg);
 	windowRect.left = windowRect.right = windowRect.top = windowRect.bottom = -1;
@@ -1584,7 +1577,10 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 		width = w2;
 	if (height > h2)
 		height = h2;
-	SetWindowPos (hWnd, NULL, md->rect.left + (w2 - width) / 2, md->rect.top + (h2 - height) / 2, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+	x = md->rect.left + (w2 - width) / 2;
+	y = md->rect.top  + (h2 - height) / 2;
+	write_log (L"X=%d Y=%d W=%d H=%d\n", x, y, width, height);
+	SetWindowPos (hWnd, NULL, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
 	return FALSE;
 }
 
@@ -2043,7 +2039,7 @@ static int loopmulti (TCHAR *s, TCHAR *out)
 	return 1;
 }
 
-static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newpath)
+static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newpath, TCHAR *outpath)
 {
 	HANDLE hf;
 	int i = 0;
@@ -2056,6 +2052,7 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 	uae_u8 b;
 	int sparse, dynamic;
 
+	outpath[0] = 0;
 	sparse = 0;
 	dynamic = 0;
 	hfsize = (uae_u64)hfsizem * 1024 * 1024;
@@ -2118,6 +2115,8 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 		WIN32GUI_LoadUIString (IDS_FAILEDHARDFILECREATION, szMessage, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_CREATIONERROR, szTitle, MAX_DPATH);
 		MessageBox (hDlg, szMessage, szTitle, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
+	} else {
+		_tcscpy (outpath, init_path);
 	}
 	return result;
 }
@@ -4208,7 +4207,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
-	quickstart_cd = workprefs.dfxtype[0] == DRV_NONE;
+	quickstart_cd = workprefs.dfxtype[0] == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -8084,6 +8083,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
 
 static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 {
+	TCHAR hdfpath[MAX_DPATH];
 	LRESULT res;
 	UINT setting = CalculateHardfileSize (hDlg);
 	TCHAR dostype[16];
@@ -8091,7 +8091,10 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 	res = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
 	if (res == 0)
 		dostype[0] = 0;
-	CreateHardFile (hDlg, setting, dostype, newpath);
+	if (CreateHardFile (hDlg, setting, dostype, newpath, hdfpath)) {
+		if (!current_hfdlg.filename[0])
+			_tcscpy (current_hfdlg.filename, hdfpath);
+	}
 	sethardfile (hDlg);
 }
 
@@ -10747,7 +10750,7 @@ static struct filterxtra filter_pal_extra[] =
 };
 static struct filterxtra filter_3d_extra[] =
 {
-	L"Bilinear", &workprefs.gfx_filter_bilinear, &currprefs.gfx_filter_bilinear, 0, 1, 1,
+	L"Point/Bilinear", &workprefs.gfx_filter_bilinear, &currprefs.gfx_filter_bilinear, 0, 1, 1,
 	L"Scanline transparency", &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
 	L"Scanline level", &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
 	NULL
@@ -10818,7 +10821,6 @@ static void setfiltermult2 (HWND hDlg, int id, int val)
 	int i, got;
 
 	got = 0;
-	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, 0, 0);
 	for (i = 0; filtermultnames[i]; i++) {
 		if (filtermults[i] == val) {
 			SendDlgItemMessage (hDlg, id, CB_SETCURSEL, i, 0);
@@ -10830,20 +10832,13 @@ static void setfiltermult2 (HWND hDlg, int id, int val)
 		tmp[0] = 0;
 		if (val > 0)
 			_stprintf (tmp, L"%.2f", 1000.0 / val);
+		SendDlgItemMessage (hDlg, id, CB_SETCURSEL, 0, 0);
 		SetDlgItemText (hDlg, id, tmp);
 	}
 }
 
 static void setfiltermult (HWND hDlg)
 {
-	int i;
-
-	SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
-	for (i = 0; filtermultnames[i]; i++) {
-		SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
-		SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
-	}
 	setfiltermult2 (hDlg, IDC_FILTERHZMULT, workprefs.gfx_filter_horiz_zoom_mult);
 	setfiltermult2 (hDlg, IDC_FILTERVZMULT, workprefs.gfx_filter_vert_zoom_mult);
 }
@@ -10853,7 +10848,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	TCHAR txt[100], tmp[100];
 	int i, j, fltnum, modenum;
 	struct uae_filter *uf;
-	int fxidx = 0, fxcnt;
+	int fxidx, fxcnt;
 	UAEREG *fkey;
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
@@ -10926,6 +10921,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_SETCURSEL, fltnum, 0);
 
+	fxidx = 0;
 	filter_extra[fxidx] = NULL;
 	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
 	if (workprefs.gfx_api) {
@@ -10969,6 +10965,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 				if (idx == 0) {
 					filter_selected = &fx[i];
 					filter_selected_num = fxcnt;
+					prev = NULL;
 				}
 				fxcnt++;
 				idx--;
@@ -11178,6 +11175,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	static int recursive;
 	LRESULT item;
 	TCHAR tmp[100];
+	int i;
 
 	switch (msg)
 	{
@@ -11200,6 +11198,13 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)L"VGA");
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_ADDSTRING, 0, (LPARAM)L"TV");
+
+		SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_RESETCONTENT, 0, 0L);
+		for (i = 0; filtermultnames[i]; i++) {
+			SendDlgItemMessage (hDlg, IDC_FILTERHZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+			SendDlgItemMessage (hDlg, IDC_FILTERVZMULT, CB_ADDSTRING, 0, (LPARAM)filtermultnames[i]);
+		}
 
 		enable_for_hw3ddlg (hDlg);
 
@@ -11235,6 +11240,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			break;
 		case IDC_FILTERD3D:
 			workprefs.gfx_api = IsDlgButtonChecked (hDlg, IDC_FILTERD3D) ? 1 : 0;
+			enable_for_hw3ddlg (hDlg);
+			values_to_hw3ddlg (hDlg);
 			break;
 		case IDC_FILTERKEEPASPECT:
 			{

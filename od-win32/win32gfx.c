@@ -837,8 +837,12 @@ int lockscr (void)
 	ret = 1;
 	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
-		if (D3D_needreset ())
+		int v;
+		v = D3D_needreset ();
+		if (v > 0)
 			WIN32GFX_DisplayChangeRequested ();
+		if (v >= 0)
+			return 0;
 		if (currentmode->flags & DM_SWSCALE) {
 			ret = 1;
 		} else {
@@ -2073,7 +2077,6 @@ static int create_windows_2 (void)
 	int fsw = currentmode->flags & (DM_W_FULLSCREEN);
 	DWORD exstyle = currprefs.win32_notaskbarbutton ? WS_EX_TOOLWINDOW : WS_EX_APPWINDOW;
 	DWORD flags = 0;
-	HWND hhWnd = NULL;//currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL;
 	int borderless = currprefs.win32_borderless;
 	DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
 	int cymenu = GetSystemMetrics (SM_CYMENU);
@@ -2226,7 +2229,7 @@ static int create_windows_2 (void)
 				style,
 				rc.left, rc.top,
 				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
-				hhWnd, NULL, hInst, NULL);
+				NULL, NULL, hInst, NULL);
 			if (!hMainWnd) {
 				write_log (L"main window creation failed\n");
 				return 0;
@@ -2268,13 +2271,13 @@ static int create_windows_2 (void)
 			x, y, w, h,
 			parent, NULL, hInst, NULL);
 	} else {
-		hAmigaWnd = CreateWindowEx (dxfs || d3dfs ?
-WS_EX_TOPMOST :
-		WS_EX_ACCEPTFILES | exstyle | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
+		hAmigaWnd = CreateWindowEx (
+			((dxfs || d3dfs || currprefs.win32_alwaysontop) ? WS_EX_TOPMOST : WS_EX_ACCEPTFILES) | exstyle,
 			L"AmigaPowah", L"WinUAE",
-			(dxfs || d3dfs || currprefs.headless ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
+			((dxfs || d3dfs || currprefs.headless) ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
 			x, y, w, h,
-			borderless ? NULL : (hMainWnd ? hMainWnd : hhWnd), NULL, hInst, NULL);
+			borderless ? NULL : (hMainWnd ? hMainWnd : NULL),
+			NULL, hInst, NULL);
 	}
 	if (!hAmigaWnd) {
 		write_log (L"creation of amiga window failed\n");

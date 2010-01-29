@@ -51,6 +51,7 @@
 #include "gfxfilter.h"
 #include "uaeresource.h"
 #include "dongle.h"
+#include "sampler.h"
 #include "consolehook.h"
 
 #ifdef USE_SDL
@@ -623,6 +624,7 @@ void reset_all_systems (void)
 #endif
 	native2amiga_reset ();
 	dongle_reset ();
+	sampler_init ();
 }
 
 /* Okay, this stuff looks strange, but it is here to encourage people who
@@ -652,6 +654,7 @@ void do_start_program (void)
 
 void do_leave_program (void)
 {
+	sampler_free ();
 	graphics_leave ();
 	inputdevice_close ();
 	DISK_free ();

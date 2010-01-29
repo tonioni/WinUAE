@@ -486,6 +486,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 		return NULL;
 	dispti = &dev_info[unitnum];
 	_tcscpy (di->label, dispti->name);
+	_tcscpy (di->mediapath, dispti->drvpath);
 	di->bus = 0;
 	di->target = unitnum;
 	di->lun = 0;
