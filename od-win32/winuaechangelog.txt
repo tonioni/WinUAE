@@ -1,4 +1,21 @@
 
+Beta 7:
+
+- Direct3D errors didn't properly reset back to non-D3D mode
+- pixelshader filter configuration save/load didn't work
+- window was closed and opened when some filter parameters changed
+- use Direct3D9Ex when running on Vista/7 or newer (direct3d is
+  now in C++ because D3D9Ex uses inheritance and "emulating" it in
+  plain C is not worth the pain)
+- less tearing in non-vsync D3D fullscreen mode
+- added support for D3D mask/overlay image files (config file only,
+  gfx_filter_mask=<path>) Automatically tiled if image is smaller than
+  display size, uses D3DX function to load image files, .bmp, .dds,
+  .dib, .hdr, .jpg, .pfm, .png, .ppm, and .tga supported
+- skip frames in D3D vsync mode when turbo is enabled
+- WinXP center dialogs in fullscreen mode works now properly
+- clear D3D mode borders if screen is larger than Amiga display window
+
 Beta 6:
 
 - filter panel GUI issues fixed

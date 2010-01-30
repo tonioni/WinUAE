@@ -22,6 +22,11 @@
 #include <limits.h>
 #include <tchar.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #ifndef __STDC__
 #ifndef _MSC_VER
 #error "Your compiler is not ANSI. Get a real one."
@@ -553,4 +558,8 @@ extern void log_close (void *f);
 # endif
 #endif
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

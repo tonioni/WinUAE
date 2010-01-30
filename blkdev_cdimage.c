@@ -1012,13 +1012,14 @@ void cdimage_vsync (void)
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile);
 	parse_image ();
 #ifdef RETROPLATFORM
-		rp_cd_change (0, 0);
+	rp_cd_change (0, 0);
 #endif
 }
 
 static int ismedia (int unitnum, int quick)
 {
-
+	if (unitnum)
+		return 0;
 	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
 		_tcscpy (newfile, changed_prefs.cdimagefile);
 		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
@@ -1039,8 +1040,7 @@ static int open_bus (int flags)
 		return 1;
 	v = ismedia (0, 1);
 #ifdef RETROPLATFORM
-	if (v)
-		rp_cd_change (0, 0);
+	rp_cd_change (0, v ? 0 : 1);
 #endif
 	return v;
 }

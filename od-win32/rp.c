@@ -715,6 +715,20 @@ static void sendfeatures (void)
 	RPSendMessagex (RPIPCGM_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
 
+static int gethdnum (int n)
+{
+	struct uaedev_config_info *uci = &currprefs.mountconfig[n];
+	int num = -1;
+	if (uci->controller == HD_CONTROLLER_UAE) {
+		num = n;
+	} else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
+		num = uci->controller - HD_CONTROLLER_IDE0;
+	} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
+		num = uci->controller - HD_CONTROLLER_SCSI0;
+	}
+	return num;
+}
+
 void rp_fixup_options (struct uae_prefs *p)
 {
 	int i;
@@ -762,32 +776,36 @@ void rp_fixup_options (struct uae_prefs *p)
 	hd_mask = 0;
 	cd_mask = 0;
 	for (i = 0; i < currprefs.mountitems; i++) {
-		struct uaedev_config_info *uci = &currprefs.mountconfig[i];
-		int num = -1;
-		if (uci->controller == HD_CONTROLLER_UAE) {
-			num = i;
-		} else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
-			num = uci->controller -  HD_CONTROLLER_IDE0;
-		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-			num = uci->controller -  HD_CONTROLLER_SCSI0;
-		}
-		if (num >= 0) {
+		int num = gethdnum (i);
+		if (num >= 0)
 			hd_mask |= 1 << num;
-			RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
-			rp_harddrive_image_change (num, uci->rootdir);
+	}
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+	if (hd_mask) {
+		for (i = 0; i < currprefs.mountitems; i++) {
+			struct uaedev_config_info *uci = &currprefs.mountconfig[i];
+			int num = gethdnum (i);
+			if (num >= 0 && ((1 << num) & hd_mask))
+				rp_harddrive_image_change (num, uci->rootdir);
 		}
 	}
+
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		int v = sys_command_ismedia (DF_IOCTL, i, 1);
-		if (v >= 0) {
-			struct device_info di = { 0 };
-			sys_command_info (DF_IOCTL, i, &di);
+		if (v >= 0)
 			cd_mask |= 1 << i;
-			RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
-			rp_cd_image_change (i, di.mediapath);
-		}
-
 	}
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+	if (cd_mask) {
+		for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+			if ((1 << i) & cd_mask) {
+				struct device_info di = { 0 };
+				if (sys_command_info (DF_IOCTL, i, &di))
+					rp_cd_image_change (i, di.mediapath);
+			}
+		}
+	}
+
 
 	rp_update_volume (&currprefs);
 	rp_turbo (currprefs.turbo_emulation);

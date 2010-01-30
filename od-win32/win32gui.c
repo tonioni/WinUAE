@@ -1551,28 +1551,35 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	int width, height, w2, h2, x, y;
 	struct MultiDisplay *md;
 	NMHDR *nmhdr;
-	int doit = FALSE;
 
 	if (message == WM_NOTIFY) {
 		nmhdr = (LPNMHDR)lParam;
-		if (nmhdr->code == CDN_INITDONE)
-			doit = TRUE;
-	}
-	if (!doit)
+		if (nmhdr->code == CDN_INITDONE) {
+			write_log (L"OFNHOOK CDN_INITDONE\n");
+			PostMessage (hDlg, WM_USER + 1, 0, 0);
+			// OFN_ENABLESIZING enabled: SetWindowPos() only works once here...
+		}
 		return FALSE;
-	write_log (L"OFNHOOK\n");
+	} else if (message != WM_USER + 1) {
+		return FALSE;
+	}
+	write_log (L"OFNHOOK POST\n");
+	hWnd = GetParent (hDlg);
 	md = getdisplay (&currprefs);
 	if (!md)
 		return FALSE;
 	w2 = WIN32GFX_GetWidth ();
 	h2 = WIN32GFX_GetHeight ();
 	write_log (L"MOVEWINDOW %dx%d %dx%d (%dx%d)\n", md->rect.left, md->rect.top, md->rect.right, md->rect.bottom, w2, h2);
-	hWnd = GetParent (hDlg);
 	windowRect.left = windowRect.right = windowRect.top = windowRect.bottom = -1;
 	GetWindowRect (hWnd, &windowRect);
 	width = windowRect.right - windowRect.left;
 	height = windowRect.bottom - windowRect.top;
 	write_log (L"%dx%d %dx%d\n", windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);
+	if (width < 800)
+		width = 800;
+	if (height < 600)
+		height = 600;
 	if (width > w2)
 		width = w2;
 	if (height > h2)
@@ -10887,7 +10894,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
-	uf = &uaefilters[0];
+	uf = NULL;
 	fltnum = 0;
 	i = 0; j = 1;
 	while (uaefilters[i].name) {
@@ -10899,7 +10906,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		j++;
 		i++;
 	}
-	if (D3D_canshaders ()) {
+	if (D3D_canshaders () && workprefs.gfx_api) {
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
@@ -10928,7 +10935,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 		filter_extra[fxidx++] = filter_3d_extra;
 		filter_extra[fxidx] = NULL;
 	}
-	if (!uf->x[0]) {
+	ew (hDlg, IDC_FILTERFILTER, uf != NULL);
+	if (uf && !uf->x[0]) {
 		modenum = 0;
 		for (i = 1; i <= 4; i++) {
 			if (uf->x[i]) {
@@ -11148,16 +11156,19 @@ static void filter_handle (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
 		workprefs.gfx_filtershader[0] = 0;
 		workprefs.gfx_filter = 0;
+		workprefs.gfx_filter_filtermode = 0;
 		if (item > 0) {
 			if (item > UAE_FILTER_LAST) {
 				_stprintf (workprefs.gfx_filtershader, L"%s.fx", tmp + 5);
 			} else {
 				item--;
+				workprefs.gfx_filter = uaefilters[item].type;
 			}
-			workprefs.gfx_filter = uaefilters[item].type;
-			item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
-			if (item != CB_ERR)
-				workprefs.gfx_filter_filtermode = (int)item;
+			if (workprefs.gfx_filter) {
+				item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
+				if (item != CB_ERR)
+					workprefs.gfx_filter_filtermode = (int)item;
+			}
 			if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
 				values_to_hw3ddlg (hDlg);
 				hw3d_changed = 1;

@@ -1070,7 +1070,7 @@
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 				CallingConvention="2"
-				CompileAs="1"
+				CompileAs="0"
 				DisableSpecificWarnings="4996"
 				ForcedIncludeFiles=""
 			/>
@@ -1302,7 +1302,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\direct3d.c"
+				RelativePath="..\direct3d.cpp"
 				>
 			</File>
 			<File
@@ -1446,11 +1446,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
@@ -1470,19 +1470,19 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\expansion.ico"
-					>
-				</File>
-				<File
 					RelativePath=".\expansion.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\file.ico"
+					RelativePath="..\resources\expansion.ico"
 					>
 				</File>
 				<File
 					RelativePath=".\file.ico"
+					>
+				</File>
+				<File
+					RelativePath="..\resources\file.ico"
 					>
 				</File>
 				<File

@@ -1199,9 +1199,9 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8) : 0;
 
 	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
-	c |= _tcscmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8|32) : 0;
-	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8|32) : 0;
-	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8|32) : 0;
+	c |= _tcscmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8) : 0;
+	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
+	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8) : 0;
 	c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
 	c |= currprefs.gfx_filter_vert_zoom_mult != changed_prefs.gfx_filter_vert_zoom_mult ? (1|8) : 0;
 	c |= currprefs.gfx_filter_noise != changed_prefs.gfx_filter_noise ? (1|8) : 0;
@@ -2515,6 +2515,7 @@ static BOOL doInit (void)
 		if (err) {
 			D3D_free ();
 			gui_message (err);
+			changed_prefs.gfx_api = currprefs.gfx_api = 0;
 			changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
 			currentmode->current_depth = currentmode->native_depth;
 			gfxmode_reset ();

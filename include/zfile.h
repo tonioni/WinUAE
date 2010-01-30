@@ -88,7 +88,7 @@ extern void *zfile_opendir_archive (const TCHAR *path);
 extern void zfile_closedir_archive (void*);
 extern int zfile_readdir_archive (void*, TCHAR*);
 extern void zfile_resetdir_archive (void*);
-extern zfile_fill_file_attrs_archive (const TCHAR *path, int *isdir, int *flags, TCHAR **comment);
+extern int zfile_fill_file_attrs_archive (const TCHAR *path, int *isdir, int *flags, TCHAR **comment);
 extern uae_s64 zfile_lseek_archive (void *d, uae_s64 offset, int whence);
 extern unsigned int zfile_read_archive (void *d, void *b, unsigned int size);
 extern void zfile_close_archive (void *d);

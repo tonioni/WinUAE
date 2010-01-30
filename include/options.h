@@ -187,6 +187,7 @@ struct uae_prefs {
 
     int gfx_filter;
     TCHAR gfx_filtershader[MAX_DPATH];
+	TCHAR gfx_filtermask[MAX_DPATH];
     int gfx_filter_scanlines;
     int gfx_filter_scanlineratio;
     int gfx_filter_scanlinelevel;

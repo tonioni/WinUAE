@@ -660,16 +660,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, L"gfx_api", filterapi[p->gfx_api]);
 
 #ifdef GFXFILTER
-	if (p->gfx_filter > 0) {
+	if (p->gfx_filtershader[0] && p->gfx_api) {
+		cfgfile_dwrite (f, L"gfx_filter", L"D3D:%s", p->gfx_filtershader);
+	} else if (p->gfx_filter > 0) {
 		int i = 0;
 		struct uae_filter *uf;
 		while (uaefilters[i].name) {
 			uf = &uaefilters[i];
 			if (uf->type == p->gfx_filter) {
-				if (p->gfx_filtershader[0])
-					cfgfile_dwrite (f, L"gfx_filter", L"%s:%s", uf->cfgname, p->gfx_filtershader);
-				else
-					cfgfile_dwrite_str (f, L"gfx_filter", uf->cfgname);
+				cfgfile_dwrite_str (f, L"gfx_filter", uf->cfgname);
 				if (uf->type == p->gfx_filter) {
 					if (uf->x[0]) {
 						cfgfile_dwrite_str (f, L"gfx_filter_mode", filtermode2[1]);
@@ -717,6 +716,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_luminance", L"%d", p->gfx_luminance);
 	cfgfile_dwrite (f, L"gfx_contrast", L"%d", p->gfx_contrast);
 	cfgfile_dwrite (f, L"gfx_gamma", L"%d", p->gfx_gamma);
+	cfgfile_dwrite_str (f, L"gfx_filter_mask", p->gfx_filtermask);
 #endif
 
 	cfgfile_write_bool (f, L"immediate_blits", p->immediate_blits);
@@ -1064,6 +1064,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_luminance", &p->gfx_luminance, 1)
 		|| cfgfile_intval (option, value, L"gfx_contrast", &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, L"gfx_gamma", &p->gfx_gamma, 1)
+		|| cfgfile_string (option, value, L"gfx_filter_mask", p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
 #endif
 		|| cfgfile_intval (option, value, L"floppy0sound", &p->dfxclick[0], 1)
 		|| cfgfile_intval (option, value, L"floppy1sound", &p->dfxclick[1], 1)
@@ -1156,18 +1157,21 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (_tcscmp (option, L"gfx_filter") == 0) {
 		int i = 0;
 		TCHAR *s = _tcschr (value, ':');
-		if (s)
-			*s++ = 0;
 		p->gfx_filtershader[0] = 0;
 		p->gfx_filter = 0;
+		if (s) {
+			*s++ = 0;
+			if (!_tcscmp (value, L"D3D")) {
+				p->gfx_api = 1;
+				_tcscpy (p->gfx_filtershader, s);
+			}
+		}
 		if (!_tcscmp (value, L"direct3d")) {
 			p->gfx_api = 1; // forwards compatibiity
 		} else {
 			while(uaefilters[i].name) {
 				if (!_tcscmp (uaefilters[i].cfgname, value)) {
 					p->gfx_filter = uaefilters[i].type;
-					if (s)
-						_tcscpy (p->gfx_filtershader, s);
 					break;
 				}
 				i++;
@@ -3312,6 +3316,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
 	p->gfx_filter = 0;
 	p->gfx_filtershader[0] = 0;
+	p->gfx_filtermask[0] = 0;
 	p->gfx_filter_horiz_zoom_mult = 0;
 	p->gfx_filter_vert_zoom_mult = 0;
 	p->gfx_filter_bilinear = 0;
