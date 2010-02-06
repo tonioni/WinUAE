@@ -738,10 +738,13 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 
 	if ((using_prefetch || using_ce) && using_exception_3 && getv != 0 && size != sz_byte) {
 		int offset = 0;
-		if (flags & GF_MOVE)
+		if (flags & GF_MOVE) {
 			offset = m68k_pc_offset;
-		else
+			if (getv == 2)
+				offset += 2;
+		} else {
 			offset = m68k_pc_offset_last;
+		}
 		printf ("\tif (%sa & 1) {\n", name);
 		printf ("\t\texception3 (opcode, m68k_getpc () + %d, %sa);\n",
 			offset, name);

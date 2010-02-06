@@ -604,6 +604,8 @@ void S2X_render (void)
 
 	} else if (usedfilter->type == UAE_FILTER_HQ) { /* 32/2X+3X+4X */
 
+#ifndef CPU_64_BIT
+
 		if (tempsurf2 && scale >= 2 && scale <= 4) {
 			/* Aaaaaaaarghhhghgh.. */
 			uae_u8 *sptr2 = tempsurf3;
@@ -641,6 +643,7 @@ void S2X_render (void)
 				dptr += pitch;
 			}
 		}
+#endif
 
 	} else if (usedfilter->type == UAE_FILTER_SUPEREAGLE) { /* 16/32/2X */
 

@@ -54,8 +54,8 @@
 #include "uaeipc.h"
 #include "xwin.h"
 
-#include <Ghostscript/errors.h>
 #include <Ghostscript/iapi.h>
+#include <Ghostscript/ierrors.h>
 
 #define MIN_PRTBYTES 10
 
@@ -78,31 +78,31 @@ static struct zfile *prtdump;
 
 static int psmode = 0;
 static HMODULE gsdll;
-static gs_main_instance *gsinstance;
+static void *gsinstance;
 static int gs_exitcode;
 
 typedef int (CALLBACK* GSAPI_REVISION)(gsapi_revision_t *pr, int len);
 static GSAPI_REVISION ptr_gsapi_revision;
-typedef int (CALLBACK* GSAPI_NEW_INSTANCE)(gs_main_instance **pinstance, void *caller_handle);
+typedef int (CALLBACK* GSAPI_NEW_INSTANCE)(void **pinstance, void *caller_handle);
 static GSAPI_NEW_INSTANCE ptr_gsapi_new_instance;
-typedef void (CALLBACK* GSAPI_DELETE_INSTANCE)(gs_main_instance *instance);
+typedef void (CALLBACK* GSAPI_DELETE_INSTANCE)(void *instance);
 static GSAPI_DELETE_INSTANCE ptr_gsapi_delete_instance;
-typedef int (CALLBACK* GSAPI_SET_STDIO)(gs_main_instance *instance,
+typedef int (CALLBACK* GSAPI_SET_STDIO)(void *instance,
 	int (GSDLLCALLPTR stdin_fn)(void *caller_handle, char *buf, int len),
 	int (GSDLLCALLPTR stdout_fn)(void *caller_handle, const char *str, int len),
 	int (GSDLLCALLPTR stderr_fn)(void *caller_handle, const char *str, int len));
 static GSAPI_SET_STDIO ptr_gsapi_set_stdio;
-typedef int (CALLBACK* GSAPI_INIT_WITH_ARGS)(gs_main_instance *instance, int argc, char **argv);
+typedef int (CALLBACK* GSAPI_INIT_WITH_ARGS)(void *instance, int argc, char **argv);
 static GSAPI_INIT_WITH_ARGS ptr_gsapi_init_with_args;
 
-typedef int (CALLBACK* GSAPI_EXIT)(gs_main_instance *instance);
+typedef int (CALLBACK* GSAPI_EXIT)(void *instance);
 static GSAPI_EXIT ptr_gsapi_exit;
 
-typedef (CALLBACK* GSAPI_RUN_STRING_BEGIN)(gs_main_instance *instance, int user_errors, int *pexit_code);
+typedef (CALLBACK* GSAPI_RUN_STRING_BEGIN)(void *instance, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_BEGIN ptr_gsapi_run_string_begin;
-typedef (CALLBACK* GSAPI_RUN_STRING_CONTINUE)(gs_main_instance *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
+typedef (CALLBACK* GSAPI_RUN_STRING_CONTINUE)(void *instance, const char *str, unsigned int length, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_CONTINUE ptr_gsapi_run_string_continue;
-typedef (CALLBACK* GSAPI_RUN_STRING_END)(gs_main_instance *instance, int user_errors, int *pexit_code);
+typedef (CALLBACK* GSAPI_RUN_STRING_END)(void *instance, int user_errors, int *pexit_code);
 static GSAPI_RUN_STRING_END ptr_gsapi_run_string_end;
 
 static uae_u8 **psbuffer;

@@ -166,7 +166,7 @@ static int REGPARAM3 custom_wput_1 (int, uaecptr, uae_u32, int) REGPARAM;
 
 static uae_u16 cregs[256];
 
-uae_u16 intena, intreq, intreqr;
+uae_u16 intena, intreq;
 uae_u16 dmacon;
 uae_u16 adkcon; /* used by audio code */
 
@@ -2966,7 +2966,7 @@ STATIC_INLINE uae_u16 INTENAR (void)
 }
 uae_u16 INTREQR (void)
 {
-	return intreqr;
+	return intreq;
 }
 STATIC_INLINE uae_u16 ADKCONR (void)
 {
@@ -3358,33 +3358,36 @@ void NMI_delayed (void)
 	irq_nmi = 1;
 }
 
+static uae_u16 intreq_internal, intena_internal;
+
 int intlev (void)
 {
-	uae_u16 imask = intreq & intena;
+	uae_u16 imask = intreq_internal & intena_internal;
 	if (irq_nmi) {
 		irq_nmi = 0;
 		return 7;
 	}
-	if (!(imask && (intena & 0x4000)))
+	if (!(imask && (intena_internal & 0x4000)))
 		return -1;
-	if (imask & (0x4000 | 0x2000)) // 13 14
+	if (imask & (0x4000 | 0x2000))						// 13 14
 		return 6;
-	if (imask & (0x1000 | 0x0800)) // 11 12
+	if (imask & (0x1000 | 0x0800))						// 11 12
 		return 5;
-	if (imask & (0x0400 | 0x0200 | 0x0100 | 0x0080)) // 7 8 9 10
+	if (imask & (0x0400 | 0x0200 | 0x0100 | 0x0080))	// 7 8 9 10
 		return 4;
-	if (imask & (0x0040 | 0x0020 | 0x0010)) // 4 5 6
+	if (imask & (0x0040 | 0x0020 | 0x0010))				// 4 5 6
 		return 3;
-	if (imask & 0x0008) // 3
+	if (imask & 0x0008)									// 3
 		return 2;
-	if (imask & (0x0001 | 0x0002 | 0x0004)) // 0 1 2
+	if (imask & (0x0001 | 0x0002 | 0x0004))				// 0 1 2
 		return 1;
 	return -1;
 }
 
+#define INT_PROCESSING_DELAY 3
 STATIC_INLINE int use_eventmode (void)
 {
-	return currprefs.cpu_cycle_exact != 0;
+	return currprefs.cpu_cycle_exact != 0 && currprefs.cpu_model == 68000;
 }
 
 static void send_interrupt_do (uae_u32 v)
@@ -3395,55 +3398,55 @@ static void send_interrupt_do (uae_u32 v)
 void send_interrupt (int num, int delay)
 {
 	if (use_eventmode () && delay > 0) {
-		if (!(intreqr & (1 << num)))
+		if (!(intreq & (1 << num)))
 			event2_newevent_xx (-1, delay * CYCLE_UNIT, num, send_interrupt_do);
 	} else {
 		send_interrupt_do (num);
 	}
 }
 
-STATIC_INLINE void INTENA (uae_u16 v)
+static void send_intena_do (uae_u32 v)
 {
-	setclr (&intena,v);
+	intena_internal = v;
+	doint ();
+}
+static void send_intreq_do (uae_u32 v)
+{
+	intreq_internal = v;
+	doint ();
+}
+
+static void INTENA (uae_u16 v)
+{
+	uae_u16 old = intena;
+	setclr (&intena, v);
+
+	if (old != intena || (v & 0x8000)) {
+		if (use_eventmode ())
+			event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intena, send_intena_do);
+		else
+			send_intena_do (intena);
+	}
 #if 0
 	if (v & 0x40)
 		write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
 #endif
-#if 0
-	if (use_eventmode ()) {
-		send_interrupt ();
-	} else if (v & 0x8000) {
-		doint ();
-	}
-#endif
-	if (v & 0x8000)
-		doint ();
 }
 
 void INTREQ_0 (uae_u16 v)
 {
-	uae_u16 tmp = intreq;
-	intreqr = intreq;
-	/* data in intreq is immediately available (vsync only currently because there is something unknown..) */
-	setclr (&intreqr, v & (0x8000 | 0x20));
+	uae_u16 old = intreq;
 	setclr (&intreq, v);
 
-	if (v & (0x80 | 0x100 | 0x200 | 0x400))
+	if (v & (0x0080 | 0x0100 | 0x0200 | 0x0400))
 		audio_update_irq (v);
-	intreqr = intreq;
-#if 0
-	if (use_eventmode ()) {
-		if (tmp != intreq)
-			send_interrupt ();
-		if (tmp > intreq) {
-			if (debug_dma)
-				record_dma_event (DMA_EVENT_INTREQ, current_hpos (), vpos);
-		}
-	} else {
-		doint ();
+
+	if (old != intreq || (v & 0x8000)) {
+		if (use_eventmode ())
+			event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intreq, send_intreq_do);
+		else
+			send_intreq_do (intreq);
 	}
-#endif
-	doint ();
 }
 
 void INTREQ (uae_u16 data)
@@ -3471,7 +3474,7 @@ static void ADKCON (int hpos, uae_u16 v)
 	if (currprefs.produce_sound > 0)
 		update_audio ();
 
-	setclr (&adkcon,v);
+	setclr (&adkcon, v);
 	audio_update_adkmasks ();
 	DISK_update (hpos);
 	if ((v >> 11) & 1)
@@ -5686,7 +5689,8 @@ void customreset (int hardreset)
 		memset (spr, 0, sizeof spr);
 		nr_armed = 0;
 
-		dmacon = intena = 0;
+		dmacon = 0;
+		intena = intena_internal = 0;
 
 		copcon = 0;
 		DSKLEN (0, 0);
@@ -6417,37 +6421,37 @@ uae_u8 *restore_custom (uae_u8 *src)
 
 	changed_prefs.chipset_mask = currprefs.chipset_mask = RL;
 	update_mirrors ();
-	RW;				/* 000 BLTDDAT */
-	RW;				/* 002 DMACONR */
-	RW;				/* 004 VPOSR */
-	RW;				/* 006 VHPOSR */
-	RW;				/* 008 DSKDATR (dummy register) */
-	RW;				/* 00A JOY0DAT */
-	RW;				/* 00C JOY1DAT */
-	clxdat = RW;		/* 00E CLXDAT */
-	RW;				/* 010 ADKCONR */
-	RW;				/* 012 POT0DAT* */
-	RW;				/* 014 POT1DAT* */
-	RW;				/* 016 POTINP* */
-	RW;				/* 018 SERDATR* */
-	dskbytr = RW;		/* 01A DSKBYTR */
-	RW;				/* 01C INTENAR */
-	RW;				/* 01E INTREQR */
-	dskpt = RL;			/* 020-022 DSKPT */
-	dsklen = RW;		/* 024 DSKLEN */
-	RW;				/* 026 DSKDAT */
-	RW;				/* 028 REFPTR */
+	RW;						/* 000 BLTDDAT */
+	RW;						/* 002 DMACONR */
+	RW;						/* 004 VPOSR */
+	RW;						/* 006 VHPOSR */
+	RW;						/* 008 DSKDATR (dummy register) */
+	RW;						/* 00A JOY0DAT */
+	RW;						/* 00C JOY1DAT */
+	clxdat = RW;			/* 00E CLXDAT */
+	RW;						/* 010 ADKCONR */
+	RW;						/* 012 POT0DAT* */
+	RW;						/* 014 POT1DAT* */
+	RW;						/* 016 POTINP* */
+	RW;						/* 018 SERDATR* */
+	dskbytr = RW;			/* 01A DSKBYTR */
+	RW;						/* 01C INTENAR */
+	RW;						/* 01E INTREQR */
+	dskpt = RL;				/* 020-022 DSKPT */
+	dsklen = RW;			/* 024 DSKLEN */
+	RW;						/* 026 DSKDAT */
+	RW;						/* 028 REFPTR */
 	i = RW; lof = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080); /* 02A VPOSW */
-	RW;				/* 02C VHPOSW */
-	COPCON (RW);		/* 02E COPCON */
-	RW;				/* 030 SERDAT* */
-	RW;				/* 032 SERPER* */
-	POTGO (RW);			/* 034 POTGO */
-	RW;				/* 036 JOYTEST* */
-	RW;				/* 038 STREQU */
-	RW;				/* 03A STRVHBL */
-	RW;				/* 03C STRHOR */
-	RW;				/* 03E STRLONG */
+	RW;						/* 02C VHPOSW */
+	COPCON (RW);			/* 02E COPCON */
+	RW;						/* 030 SERDAT* */
+	RW;						/* 032 SERPER* */
+	POTGO (RW);				/* 034 POTGO */
+	RW;						/* 036 JOYTEST* */
+	RW;						/* 038 STREQU */
+	RW;						/* 03A STRVHBL */
+	RW;						/* 03C STRHOR */
+	RW;						/* 03E STRLONG */
 	BLTCON0 (0, RW);		/* 040 BLTCON0 */
 	BLTCON1 (0, RW);		/* 042 BLTCON1 */
 	BLTAFWM (0, RW);		/* 044 BLTAFWM */
@@ -6456,89 +6460,89 @@ uae_u8 *restore_custom (uae_u8 *src)
 	BLTBPTH (0, RW);BLTBPTL(0, RW);	/* 04C-04F BLTBPT */
 	BLTAPTH (0, RW);BLTAPTL(0, RW);	/* 050-053 BLTAPT */
 	BLTDPTH (0, RW);BLTDPTL(0, RW);	/* 054-057 BLTDPT */
-	RW;				/* 058 BLTSIZE */
-	RW;				/* 05A BLTCON0L */
-	blt_info.vblitsize = RW;	/* 05C BLTSIZV */
-	blt_info.hblitsize = RW;	/* 05E BLTSIZH */
+	RW;						/* 058 BLTSIZE */
+	RW;						/* 05A BLTCON0L */
+	blt_info.vblitsize = RW;/* 05C BLTSIZV */
+	blt_info.hblitsize = RW;/* 05E BLTSIZH */
 	BLTCMOD (0, RW);		/* 060 BLTCMOD */
 	BLTBMOD (0, RW);		/* 062 BLTBMOD */
 	BLTAMOD (0, RW);		/* 064 BLTAMOD */
 	BLTDMOD (0, RW);		/* 066 BLTDMOD */
-	RW;				/* 068 ? */
-	RW;				/* 06A ? */
-	RW;				/* 06C ? */
-	RW;				/* 06E ? */
+	RW;						/* 068 ? */
+	RW;						/* 06A ? */
+	RW;						/* 06C ? */
+	RW;						/* 06E ? */
 	BLTCDAT (0, RW);		/* 070 BLTCDAT */
 	BLTBDAT (0, RW);		/* 072 BLTBDAT */
 	BLTADAT (0, RW);		/* 074 BLTADAT */
-	RW;				/* 076 ? */
-	RW;				/* 078 ? */
-	RW;				/* 07A ? */
-	RW;				/* 07C LISAID */
+	RW;						/* 076 ? */
+	RW;						/* 078 ? */
+	RW;						/* 07A ? */
+	RW;						/* 07C LISAID */
 	DSKSYNC (-1, RW);		/* 07E DSKSYNC */
-	cop1lc = RL;		/* 080/082 COP1LC */
-	cop2lc = RL;		/* 084/086 COP2LC */
-	RW;				/* 088 ? */
-	RW;				/* 08A ? */
-	RW;				/* 08C ? */
-	diwstrt = RW;		/* 08E DIWSTRT */
-	diwstop = RW;		/* 090 DIWSTOP */
-	ddfstrt = RW;		/* 092 DDFSTRT */
-	ddfstop = RW;		/* 094 DDFSTOP */
+	cop1lc = RL;			/* 080/082 COP1LC */
+	cop2lc = RL;			/* 084/086 COP2LC */
+	RW;						/* 088 ? */
+	RW;						/* 08A ? */
+	RW;						/* 08C ? */
+	diwstrt = RW;			/* 08E DIWSTRT */
+	diwstop = RW;			/* 090 DIWSTOP */
+	ddfstrt = RW;			/* 092 DDFSTRT */
+	ddfstop = RW;			/* 094 DDFSTOP */
 	dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
-	CLXCON (RW);		/* 098 CLXCON */
-	intena = RW;		/* 09A INTENA */
-	intreq = intreqr = RW | 0x20; /* 09C INTREQ */
-	adkcon = RW;		/* 09E ADKCON */
+	CLXCON (RW);			/* 098 CLXCON */
+	intena = intena_internal = RW;	/* 09A INTENA */
+	intreq = intreq_internal = RW | 0x20; /* 09C INTREQ */
+	adkcon = RW;			/* 09E ADKCON */
 	for (i = 0; i < 8; i++)
 		bplptx[i] = bplpt[i] = RL;
-	bplcon0 = RW;		/* 100 BPLCON0 */
-	bplcon1 = RW;		/* 102 BPLCON1 */
-	bplcon2 = RW;		/* 104 BPLCON2 */
-	bplcon3 = RW;		/* 106 BPLCON3 */
-	bpl1mod = RW;		/* 108 BPL1MOD */
-	bpl2mod = RW;		/* 10A BPL2MOD */
-	bplcon4 = RW;		/* 10C BPLCON4 */
-	clxcon2 = RW;		/* 10E CLXCON2* */
+	bplcon0 = RW;			/* 100 BPLCON0 */
+	bplcon1 = RW;			/* 102 BPLCON1 */
+	bplcon2 = RW;			/* 104 BPLCON2 */
+	bplcon3 = RW;			/* 106 BPLCON3 */
+	bpl1mod = RW;			/* 108 BPL1MOD */
+	bpl2mod = RW;			/* 10A BPL2MOD */
+	bplcon4 = RW;			/* 10C BPLCON4 */
+	clxcon2 = RW;			/* 10E CLXCON2* */
 	for(i = 0; i < 8; i++)
 		bplxdat[i] = RW;	/*     BPLXDAT */
 	for(i = 0; i < 32; i++)
 		current_colors.color_regs_ecs[i] = RW; /* 180 COLORxx */
-	htotal = RW;		/* 1C0 HTOTAL */
-	hsstop = RW;		/* 1C2 HSTOP ? */
-	hbstrt = RW;		/* 1C4 HBSTRT ? */
-	hbstop = RW;		/* 1C6 HBSTOP ? */
-	vtotal = RW;		/* 1C8 VTOTAL */
-	vsstop = RW;		/* 1CA VSSTOP */
-	vbstrt = RW;		/* 1CC VBSTRT */
-	vbstop = RW;		/* 1CE VBSTOP */
-	RW;				/* 1D0 ? */
-	RW;				/* 1D2 ? */
-	RW;				/* 1D4 ? */
-	RW;				/* 1D6 ? */
-	RW;				/* 1D8 ? */
-	RW;				/* 1DA ? */
+	htotal = RW;			/* 1C0 HTOTAL */
+	hsstop = RW;			/* 1C2 HSTOP ? */
+	hbstrt = RW;			/* 1C4 HBSTRT ? */
+	hbstop = RW;			/* 1C6 HBSTOP ? */
+	vtotal = RW;			/* 1C8 VTOTAL */
+	vsstop = RW;			/* 1CA VSSTOP */
+	vbstrt = RW;			/* 1CC VBSTRT */
+	vbstop = RW;			/* 1CE VBSTOP */
+	RW;						/* 1D0 ? */
+	RW;						/* 1D2 ? */
+	RW;						/* 1D4 ? */
+	RW;						/* 1D6 ? */
+	RW;						/* 1D8 ? */
+	RW;						/* 1DA ? */
 	new_beamcon0 = RW;		/* 1DC BEAMCON0 */
-	hsstrt = RW;		/* 1DE HSSTRT */
-	vsstrt = RW;		/* 1E0 VSSTT  */
-	hcenter = RW;		/* 1E2 HCENTER */
-	diwhigh = RW;		/* 1E4 DIWHIGH */
+	hsstrt = RW;			/* 1DE HSSTRT */
+	vsstrt = RW;			/* 1E0 VSSTT  */
+	hcenter = RW;			/* 1E2 HCENTER */
+	diwhigh = RW;			/* 1E4 DIWHIGH */
 	diwhigh_written = (diwhigh & 0x8000) ? 1 : 0;
 	hdiwstate = (diwhigh & 0x4000) ? DIW_waiting_stop : DIW_waiting_start;
 	diwhigh &= 0x3fff;
-	RW;				/* 1E6 ? */
-	RW;				/* 1E8 ? */
-	RW;				/* 1EA ? */
-	RW;				/* 1EC ? */
-	RW;				/* 1EE ? */
-	RW;				/* 1F0 ? */
-	RW;				/* 1F2 ? */
-	RW;				/* 1F4 ? */
-	RW;				/* 1F6 ? */
-	RW;				/* 1F8 ? */
-	RW;				/* 1FA ? */
-	fmode = RW;			/* 1FC FMODE */
-	last_custom_value1 = RW;	/* 1FE ? */
+	RW;						/* 1E6 ? */
+	RW;						/* 1E8 ? */
+	RW;						/* 1EA ? */
+	RW;						/* 1EC ? */
+	RW;						/* 1EE ? */
+	RW;						/* 1F0 ? */
+	RW;						/* 1F2 ? */
+	RW;						/* 1F4 ? */
+	RW;						/* 1F6 ? */
+	RW;						/* 1F8 ? */
+	RW;						/* 1FA ? */
+	fmode = RW;				/* 1FC FMODE */
+	last_custom_value1 = RW;/* 1FE ? */
 
 	DISK_restore_custom (dskpt, dsklen, dskbytr);
 
@@ -6917,6 +6921,7 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	struct dma_rec *dr;
 
 	hpos = dma_cycle ();
+	regs.ipl = regs.ipl_pin;
 	do_cycles_ce (CYCLE_UNIT);
 
 #ifdef DEBUGGER
@@ -6991,6 +6996,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 	int hpos;
 
 	hpos = dma_cycle ();
+	regs.ipl = regs.ipl_pin;
 	do_cycles_ce (CYCLE_UNIT);
 
 #ifdef DEBUGGER

@@ -935,7 +935,7 @@ static unsigned int __stdcall sock_thread(void *p)
 {
 	__try {
 		return sock_thread2 (p);
-	} __except(WIN32_ExceptionFilter(GetExceptionInformation(), GetExceptionCode())) {
+	} __except(WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
 	}
 	return 0;
 }

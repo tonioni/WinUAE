@@ -55,6 +55,8 @@ int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volume
 					_tcscpy (volumename, L"AmigaOS3.5");
 				if(!_tcscmp (volumename, L"AmigaOS39"))
 					_tcscpy (volumename, L"AmigaOS3.9");
+				if(!_tcscmp (volumename, L"AmigaOS_XL"))
+					_tcscpy (volumename, L"AmigaOS XL");
 				// ---Bernd Roesch
 				if (_tcslen (volumename) > 0)
 					result = 1;

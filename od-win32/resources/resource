@@ -764,6 +764,8 @@
 #define IDC_MINIMIZED_PRI               1636
 #define IDC_FILTERAUTOSCALE             1636
 #define IDC_VOLUME_BOOTPRI_TEXT         1637
+#define IDC_FILTERAUTOSCALE2            1637
+#define IDC_FILTEROVERLAY               1637
 #define IDC_VOLUME_BOOTPRI              1638
 #define IDC_KBLED1                      1639
 #define IDC_KBLED2                      1640

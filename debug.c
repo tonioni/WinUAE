@@ -3717,14 +3717,13 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 	struct mmudata *snptr;
 	struct mmunode *mn;
 	static int wasjit;
-
+#ifdef JIT
 	if (currprefs.cachesize) {
 		wasjit = currprefs.cachesize;
 		changed_prefs.cachesize = 0;
 		console_out (L"MMU: JIT disabled\n");
 		check_prefs_changed_comp ();
 	}
-
 	if (mode == 0) {
 		if (mmu_enabled) {
 			mmu_free ();
@@ -3735,6 +3734,7 @@ int mmu_init(int mode, uaecptr parm, uaecptr parm2)
 		mmu_logging = 0;
 		return 1;
 	}
+#endif
 
 	if (mode == 1) {
 		if (!mmu_enabled)

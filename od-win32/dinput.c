@@ -445,6 +445,7 @@ static int gettabletres (AXIS *a)
 
 void *open_tablet (HWND hwnd)
 {
+#ifndef _WIN64
 	LOGCONTEXT lc;
 	AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
 	AXIS pres = { 0 };
@@ -488,16 +489,23 @@ void *open_tablet (HWND hwnd)
 	tablet_x = -1;
 	inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
 	return WTOpen (hwnd, &lc, TRUE);
+#else
+	return 0;
+#endif
 }
 
 int close_tablet (void *ctx)
 {
+#ifndef _WIN64
 	if (ctx != NULL)
 		WTClose (ctx);
 	ctx = NULL;
 	if (!tablet)
 		return 0;
 	return 1;
+#else
+	return 0;
+#endif
 }
 
 int is_tablet (void)
@@ -507,6 +515,7 @@ int is_tablet (void)
 
 static int initialize_tablet (void)
 {
+#ifndef _WIN64
 	HANDLE h;
 	TCHAR name[MAX_DPATH];
 	struct tagAXIS ori[3];
@@ -538,6 +547,9 @@ static int initialize_tablet (void)
 	tabletname = my_strdup (name);
 	tablet = TRUE;
 	return 1;
+#else
+	return 0;
+#endif
 }
 
 static int initialize_catweasel (void)

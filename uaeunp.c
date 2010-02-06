@@ -698,7 +698,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.8 by Toni Wilen (c)2009\n");
+		_tprintf (L"UAE unpacker uaeunp 0.8b by Toni Wilen (c)2010\n");
 		_tprintf (L"\n");
 		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");

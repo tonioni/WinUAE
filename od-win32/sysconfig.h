@@ -100,6 +100,7 @@
 
 #ifdef WIN64
 #undef X86_MSVC_ASSEMBLY
+#undef JIT
 #define X64_MSVC_ASSEMBLY
 #define CPU_64_BIT
 #define SIZEOF_VOID_P 8

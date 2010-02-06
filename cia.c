@@ -89,7 +89,7 @@ static void RethinkICRA (void)
 {
 	if (ciaaimask & ciaaicr) {
 		ciaaicr |= 0x80;
-		send_interrupt (3, 2);
+		send_interrupt (3, 0);
 	}
 }
 
@@ -97,7 +97,7 @@ static void RethinkICRB (void)
 {
 	if (ciabimask & ciabicr) {
 		ciabicr |= 0x80;
-		send_interrupt (13, 2);
+		send_interrupt (13, 0);
 	}
 }
 
@@ -1237,10 +1237,11 @@ STATIC_INLINE isgayle (void)
 	return (currprefs.cs_ide == IDE_A600A1200 || currprefs.cs_pcmcia);
 }
 
-/* e-clock is 10 CPU cycles, 6 cycles low, 4 high
+/* e-clock is 10 CPU cycles, 4 cycles high, 6 low
 * data transfer happens during 4 high cycles
 */
 #define ECLOCK_DATA_CYCLE 4
+#define ECLOCK_WAIT_CYCLE 6
 
 static void cia_wait_pre (void)
 {
@@ -1248,12 +1249,11 @@ static void cia_wait_pre (void)
 	int div10 = (get_cycles () - eventtab[ev_cia].oldcycles) % DIV10;
 	int cycles;
 
-	cycles = 5 * CYCLE_UNIT / 2;
 	if (div10 > DIV10 * ECLOCK_DATA_CYCLE / 10) {
-		cycles += DIV10 - div10;
+		cycles = DIV10 - div10;
 		cycles += DIV10 * ECLOCK_DATA_CYCLE / 10;
 	} else {
-		cycles += DIV10 * ECLOCK_DATA_CYCLE / 10 - div10;
+		cycles = DIV10 * ECLOCK_DATA_CYCLE / 10 - div10;
 	}
 	do_cycles (cycles);
 #endif
@@ -1261,7 +1261,7 @@ static void cia_wait_pre (void)
 
 static void cia_wait_post (void)
 {
-	do_cycles (2 * CYCLE_UNIT / 2);
+	do_cycles (6 * CYCLE_UNIT / 2);
 }
 
 static uae_u32 REGPARAM2 cia_bget (uaecptr addr)

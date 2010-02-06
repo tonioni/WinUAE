@@ -33,7 +33,10 @@
 #include "crc_csum.h"
 #include "pfile.h"
 
+static int dolog = 0;
 
+#define DMSFLAG_ENCRYPTED 2
+#define DMSFLAG_HD 16
 
 static USHORT Process_Track(struct zfile *, struct zfile *, UCHAR *, UCHAR *, USHORT, USHORT, int);
 static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR, USHORT, USHORT, USHORT, int);
@@ -123,7 +126,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 	PWDCRC = PCRC;
 
-	if ( (cmd == CMD_VIEW) || (cmd == CMD_VIEWFULL) ) {
+	if (dolog) {
 
 		pv = (USHORT)(c_version/100);
 		write_log (L" Created with DMS version %d.%02d ",pv,c_version-pv*100);
@@ -203,7 +206,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	}
 
 
-	if (cmd == CMD_VIEWFULL)	{
+	if (dolog)	{
 		write_log (L" Track   Plength  Ulength  Cmode   USUM  HCRC  DCRC Cflag\n");
 		write_log (L" ------  -------  -------  ------  ----  ----  ---- -----\n");
 	}
@@ -217,12 +220,11 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 	if (cmd != CMD_VIEW) {
 		if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
-			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,(geninfo & 2));
+			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,geninfo);
 		else {
-			zfile_fseek (fo, from * 512 * 22, SEEK_SET);
 			for (;;) {
 				int ok = 0;
-				ret = Process_Track(fi,fo,b1,b2,cmd,opt,(geninfo & 2));
+				ret = Process_Track(fi,fo,b1,b2,cmd,opt,geninfo);
 				if (ret == DMS_FILE_END)
 					break;
 				if (ret == NO_PROBLEM)
@@ -275,7 +277,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 
 
-static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, int enc){
+static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, int dmsflags){
 	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l;
 	UCHAR cmode, flags;
 	int crcerr = 0;
@@ -307,9 +309,10 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	usum = (USHORT)((b1[14] << 8) | b1[15]);	/*  Track Data CheckSum AFTER unpacking  */
 	dcrc = (USHORT)((b1[16] << 8) | b1[17]);	/*  Track Data CRC BEFORE unpacking  */
 
-	//write_log (L"DMS: track=%d\n", number);
+	if (dolog)
+		write_log (L"DMS: track=%d\n", number);
 
-	if (cmd == CMD_VIEWFULL) {
+	if (dolog) {
 		if (number==80)
 			write_log (L" FileID   ");
 		else if (number==0xffff)
@@ -339,20 +342,22 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	if ((cmd == CMD_UNPACK) && (number<80) && (unpklen>2048)) {
 		memset(b2, 0, unpklen);
 		if (!crcerr)
-			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, enc);
-		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen) return ERR_CANTWRITE;
+			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+		zfile_fseek (fo, number * 512 * 22 * ((dmsflags & DMSFLAG_HD) ? 2 : 1), SEEK_SET);
+		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen)
+			return ERR_CANTWRITE;
 	}
 
 	if (crcerr)
 		return NO_PROBLEM;
 
 	if ((cmd == CMD_SHOWBANNER) && (number == 0xffff)){
-		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, enc);
+		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
 		printbandiz(b2,unpklen);
 	}
 
 	if ((cmd == CMD_SHOWDIZ) && (number == 80)) {
-		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, enc);
+		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
 		printbandiz(b2,unpklen);
 	}
 

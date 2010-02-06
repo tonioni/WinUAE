@@ -5,6 +5,9 @@
 #define USE_MATCHSTATE 0
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#if defined(JIT)
+
 #include "options.h"
 #include "events.h"
 #include "include/memory.h"
@@ -13,7 +16,6 @@
 #include "comptbl.h"
 #include "compemu.h"
 
-#if defined(JIT)
 
 #define NATMEM_OFFSETX (uae_u32)NATMEM_OFFSET
 

@@ -1,4 +1,22 @@
 
+Beta 8:
+
+- do not use D3D9Ex if no v3 shader or dynamic texture support
+  (workaround for some older cards that may not be fully compatible)
+- added workaround for weird display drivers that don't allow changing
+  to 50Hz Direct3D fullscreen but accept it if identical directdraw
+  fullscreen mode is already open
+- 68000 exception3 quick fix (Zoom)
+- CE 68000 CIA cycle timing updates (was too fast)
+- warp mode was slow in windowed D3D mode (b7)
+- selected dostype in create hardfile panel was ignored if hardfile
+  type was dynamic
+- added filter panel overlay/mask selection, put overlay/mask files
+  in <path>\plugins\overlays
+- DMS files with fake complete first cyl (containing BBS ads) didn't
+  unpack correctly. Support HD DMS files (not tested)
+- CE interrupt handling rewritten (still not good enough)
+
 Beta 7:
 
 - Direct3D errors didn't properly reset back to non-D3D mode

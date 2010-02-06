@@ -16,11 +16,11 @@ extern int special_mem;
 
 extern void *cache_alloc (int);
 extern void cache_free (void*);
+#endif
 
-extern int canbang, candirect;
 int init_shm (void);
 void preinit_shm (void);
-#endif
+extern int canbang, candirect;
 
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256

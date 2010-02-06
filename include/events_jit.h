@@ -29,7 +29,7 @@ extern signed long pissoff;
 
 STATIC_INLINE void cycles_do_special (void)
 {
-	if (pissoff >= 0)
+	if (pissoff > 0)
 		pissoff = -1;
 }
 
@@ -46,6 +46,10 @@ STATIC_INLINE unsigned long int get_cycles (void)
 STATIC_INLINE void set_cycles (unsigned long int x)
 {
 	currcycle = x;
+#ifdef EVT_DEBUG
+	if (currcycle & (CYCLE_UNIT - 1))
+		write_log (L"%x\n", currcycle);
+#endif
 }
 
 STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
@@ -79,6 +83,10 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 		events_schedule ();
 	}
 	currcycle += cycles_to_add;
+#ifdef EVT_DEBUG
+	if (currcycle & (CYCLE_UNIT - 1))
+		write_log (L"%x\n", currcycle);
+#endif
 }
 
 #define do_cycles do_cycles_slow

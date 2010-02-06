@@ -107,6 +107,7 @@ void *globalipc, *serialipc;
 int qpcdivisor = 0;
 int cpu_mmx = 1;
 static int userdtsc = 0;
+int D3DEX = 1, d3ddebug = 0;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
@@ -1266,7 +1267,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			}
 		}
 
-
+#ifndef _WIN64
 	case WT_PROXIMITY:
 		{
 			send_tablet_proximity (LOWORD (lParam) ? 1 : 0);
@@ -1299,7 +1300,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			}
 			return 0;
 		}
-
+#endif
 	default:
 		break;
 	}
@@ -1990,13 +1991,18 @@ void logging_init (void)
 	logging_open (first ? 0 : 1, 0);
 	logging_started = 1;
 	first++;
+#ifdef _WIN64
+	wow64 = 1;
+#else
 	fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress (GetModuleHandle (L"kernel32"), "IsWow64Process");
 	if (fnIsWow64Process)
 		fnIsWow64Process (GetCurrentProcess (), &wow64);
+#endif
 	write_log (L"%s (%d.%d %s%s[%d])", VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? L" " : L"", os_winnt_admin);
-	write_log (L" %d-bit %X.%X %d", wow64 ? 64 : 32,
+	write_log (L" %d-bit %X.%X %d",
+		wow64 ? 64 : 32,
 		SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors);
 	write_log (L"\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
@@ -3856,11 +3862,17 @@ static void makeverstr (TCHAR *s)
 	if (_tcslen (WINUAEBETA) > 0) {
 		_stprintf (BetaStr, L" (%sBeta %s, %d.%02d.%02d)", WINUAEPUBLICBETA > 0 ? L"Public " : L"", WINUAEBETA,
 			GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+#ifdef _WIN64
+		_tcscat (BetaStr, L" 64-bit");
+#endif
 		_stprintf (s, L"WinUAE %d.%d.%d%s%s",
 			UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, BetaStr);
 	} else {
 		_stprintf (s, L"WinUAE %d.%d.%d%s (%d.%02d.%02d)",
 			UAEMAJOR, UAEMINOR, UAESUBREV, WINUAEREV, GETBDY(WINUAEDATE), GETBDM(WINUAEDATE), GETBDD(WINUAEDATE));
+#ifdef _WIN64
+		_tcscat (s, L" 64-bit");
+#endif
 	}
 	if (_tcslen (WINUAEEXTRA) > 0) {
 		_tcscat (s, L" ");
@@ -3967,6 +3979,14 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 	if (!_tcscmp (arg, L"-ddsoftwarecolorkey")) {
 		extern int ddsoftwarecolorkey;
 		ddsoftwarecolorkey = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"-nod3d9ex")) {
+		D3DEX = 0;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"-d3ddebug")) {
+		d3ddebug = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-logflush")) {
@@ -4398,9 +4418,9 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
 	return ok;
 }
 
-#if defined(WIN64)
+#if defined(_WIN64)
 
-static LONG WINAPI WIN32_ExceptionFilter( struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
 {
 	write_log (L"EVALEXCEPTION!\n");
 	return EXCEPTION_EXECUTE_HANDLER;
@@ -4726,21 +4746,21 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 		switch(round)
 		{
 		case 0:
-			p = strstr (newname,"32");
+			p = _tcsstr (newname, L"32");
 			if (p) {
 				p[0] = '6';
 				p[1] = '4';
 			}
 			break;
 		case 1:
-			p = strchr (newname,'.');
-			_tcscpy(p,"_64");
-			_tcscat(p, strchr (name,'.'));
+			p = _tcschr (newname, '.');
+			_tcscpy(p, L"_64");
+			_tcscat(p, _tcschr (name, '.'));
 			break;
 		case 2:
-			p = strchr (newname,'.');
-			_tcscpy (p,"64");
-			_tcscat (p, strchr (name,'.'));
+			p = _tcschr (newname, '.');
+			_tcscpy (p, L"64");
+			_tcscat (p, _tcschr (name, '.'));
 			break;
 		}
 #endif
@@ -4858,14 +4878,18 @@ uae_u32 emulib_target_getcpurate (uae_u32 v, uae_u32 *low)
 
 void fpux_save (int *v)
 {
+#ifndef _WIN64
 	*v = _controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
+#endif
 }
 void fpux_restore (int *v)
 {
+#ifndef _WIN64
 	if (v)
 		_controlfp (*v, _MCW_IC | _MCW_RC | _MCW_PC);
 	else
 		_controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
+#endif
 }
 
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);

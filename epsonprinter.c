@@ -24,6 +24,8 @@
 #include "sysdeps.h"
 #include "uae.h"
 
+#ifndef CPU_64_BIT
+
 #define C_LIBPNG
 #define FREETYPE2_STATIC
 
@@ -1970,14 +1972,17 @@ static int epson_ft (void)
 	}
 	return 1;
 }
-
+#endif
 
 void epson_printchar(uae_u8 c)
 {
+#ifndef CPU_64_BIT
 	printChar (c);
+#endif
 }
 int epson_init(int type)
 {
+#ifndef CPU_64_BIT
 	if (type == PARALLEL_MATRIX_EPSON9)
 		pins = 9;
 	else
@@ -1985,11 +1990,16 @@ int epson_init(int type)
 	epson_ft ();
 	write_log (L"EPSONPRINTER%d: start\n", pins);
 	return printer_init(300, 83, 117, L"png", 0, pins);
+#else
+	return 0;
+#endif
 }
 void epson_close(void)
 {
+#ifndef CPU_64_BIT
 	if (page && !isBlank ()) {
 		outputPage();
 	}
 	printer_close();
+#endif
 }

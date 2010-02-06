@@ -797,7 +797,7 @@ static LRESULT CALLBACK InputProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 		}
 		break;
 	}
-	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
+	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -865,7 +865,7 @@ static LRESULT CALLBACK MemInputProc (HWND hWnd, UINT message, WPARAM wParam, LP
 		}
 		break;
 	}
-	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
+	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -886,8 +886,8 @@ static INT_PTR CALLBACK AddrInputDialogProc(HWND hDlg, UINT msg, WPARAM wParam, 
 			DWORD msgpos = GetMessagePos();
 			HWND hwnd = GetDlgItem(hDlg, IDC_DBG_MEMINPUT2);
 			SendMessage(hwnd, EM_LIMITTEXT, 8, 0);
-			oldproc = (WNDPROC)SetWindowLongPtr(hwnd, GWL_WNDPROC, (LONG_PTR)MemInputProc);
-			SetWindowLongPtr(hwnd, GWL_USERDATA, (LONG_PTR)oldproc);
+			oldproc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)MemInputProc);
+			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)oldproc);
 			GetWindowRect(hDlg, &r);
 			r.right -= r.left;
 			r.bottom -= r.top;
@@ -1165,7 +1165,7 @@ static LRESULT CALLBACK ListboxEditProc(HWND hWnd, UINT message, WPARAM wParam, 
 			ListboxEndEdit(hparent, TRUE);
 		break;
 	}
-	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
+	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -1261,8 +1261,8 @@ static void ListboxEdit(HWND hwnd, int x, int y)
 	SendMessage(hedit, EM_LIMITTEXT, length, 0);
 	MoveWindow(hedit, ri.left, ri.top, ri.right - ri.left, ri.bottom - ri.top, FALSE);
 	ShowWindow(hedit, SW_SHOWNORMAL);
-	oldproc = (WNDPROC)SetWindowLongPtr(hedit, GWL_WNDPROC, (LONG_PTR)ListboxEditProc);
-	SetWindowLongPtr(hedit, GWL_USERDATA, (LONG_PTR)oldproc);
+	oldproc = (WNDPROC)SetWindowLongPtr(hedit, GWLP_WNDPROC, (LONG_PTR)ListboxEditProc);
+	SetWindowLongPtr(hedit, GWLP_USERDATA, (LONG_PTR)oldproc);
 	hfont = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
 	SendMessage(hedit, WM_SETFONT, (WPARAM)hfont, (LPARAM)TRUE);
 	memset(txt + offset + length, 0, MAX_LINEWIDTH + 1 - offset - length);
@@ -1448,7 +1448,7 @@ static LRESULT CALLBACK ListboxProc(HWND hWnd, UINT message, WPARAM wParam, LPAR
 		}
 		break;
 	}
-	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
+	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -1469,7 +1469,7 @@ static LRESULT CALLBACK EditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		}
 		break;
 	}
-	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWL_USERDATA);
+	oldproc = (WNDPROC)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	return CallWindowProc(oldproc, hWnd, message, wParam, lParam);
 }
 
@@ -1650,8 +1650,8 @@ static BOOL CALLBACK InitChildWindows(HWND hWnd, LPARAM lParam)
 		break;
 	}
 	if (newproc) {
-		oldproc = (WNDPROC)SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG_PTR)newproc);
-		SetWindowLongPtr(hWnd, GWL_USERDATA, (LONG_PTR)oldproc);
+		oldproc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, (LONG_PTR)newproc);
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)oldproc);
 	}
 	EnableWindow(hWnd, enable);
 	return TRUE;

@@ -460,126 +460,6 @@ int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd)
 
 extern int get_guid_target (uae_u8 *out);
 
-int vhd_create (const TCHAR *name, uae_u64 size)
-{
-	struct hardfiledata hfd;
-	struct zfile *zf;
-	uae_u8 *b;
-	int cyl, cylsec, head, tracksec;
-	uae_u32 crc, blocksize, batsize, batentrysize;
-	int ret, i;
-	time_t tm;
-
-	if (size >= (uae_u64)10 * 1024 * 1024 * 1024)
-		blocksize = 2 * 1024 * 1024;
-	else
-		blocksize = 512 * 1024;
-	batsize = (size + blocksize - 1) / blocksize;
-	batentrysize = batsize;
-	batsize *= 4;
-	batsize += 511;
-	batsize &= ~511;
-	ret = 0;
-	b = NULL;
-	zf = zfile_fopen (name, L"wb", 0);
-	if (!zf)
-		goto end;
-	b = xcalloc (512 + 1024 + batsize + 512, 1);
-	if (zfile_fwrite (b, 512 + 1024 + batsize + 512, 1, zf) != 1)
-		goto end;
-
-	memset (&hfd, 0, sizeof hfd);
-	hfd.virtsize = hfd.physsize = size;
-	hfd.blocksize = 512;
-	strcpy (b, "conectix"); // cookie
-	b[0x0b] = 2; // features
-	b[0x0d] = 1; // version
-	b[0x10 + 6] = 2; // data offset
-	// time stamp
-	tm = time (NULL) - 946684800;
-	b[0x18] = tm >> 24;
-	b[0x19] = tm >> 16;
-	b[0x1a] = tm >>  8;
-	b[0x1b] = tm >>  0;
-	strcpy (b + 0x1c, "vpc "); // creator application
-	b[0x21] = 5; // creator version
-	strcpy (b + 0x24, "Wi2k"); // creator host os
-	// original and current size
-	b[0x28] = b[0x30] = size >> 56;
-	b[0x29] = b[0x31] = size >> 48;
-	b[0x2a] = b[0x32] = size >> 40;
-	b[0x2b] = b[0x33] = size >> 32;
-	b[0x2c] = b[0x34] = size >> 24;
-	b[0x2d] = b[0x35] = size >> 16;
-	b[0x2e] = b[0x36] = size >>  8;
-	b[0x2f] = b[0x37] = size >>  0;
-	getchs2 (&hfd, &cyl, &cylsec, &head, &tracksec);
-	// cylinders
-	b[0x38] = cyl >> 8;
-	b[0x39] = cyl;
-	// heads
-	b[0x3a] = head;
-	// sectors per track
-	b[0x3b] = tracksec;
-	// disk type
-	b[0x3c + 3] = VHD_DYNAMIC;
-	get_guid_target (b + 0x44);
-	crc = vhd_checksum (b, -1);
-	b[0x40] = crc >> 24;
-	b[0x41] = crc >> 16;
-	b[0x42] = crc >>  8;
-	b[0x43] = crc >>  0;
-
-	// write header
-	zfile_fseek (zf, 0, SEEK_SET);
-	zfile_fwrite (b, 512, 1, zf);
-	// write footer
-	zfile_fseek (zf, 512 + 1024 + batsize, SEEK_SET);
-	zfile_fwrite (b, 512, 1, zf);
-
-	// dynamic disk header
-	memset (b, 0, 1024);
-	// cookie
-	strcpy (b, "cxsparse");
-	// data offset
-	for (i = 0; i < 8; i++)
-		b[0x08 + i] = 0xff;
-	// table offset (bat)
-	b[0x10 + 6] = 0x06;
-	// version
-	b[0x19] = 1;
-	// max table entries
-	b[0x1c] = batentrysize >> 24;
-	b[0x1d] = batentrysize >> 16;
-	b[0x1e] = batentrysize >>  8;
-	b[0x1f] = batentrysize >>  0;
-	b[0x20] = blocksize >> 24;
-	b[0x21] = blocksize >> 16;
-	b[0x22] = blocksize >>  8;
-	b[0x23] = blocksize >>  0;
-	crc = vhd_checksum (b, -1);
-	b[0x24] = crc >> 24;
-	b[0x25] = crc >> 16;
-	b[0x26] = crc >>  8;
-	b[0x27] = crc >>  0;
-
-	// write dynamic header
-	zfile_fseek (zf, 512, SEEK_SET);
-	zfile_fwrite (b, 1024, 1, zf);
-
-	// bat
-	memset (b, 0, batsize);
-	memset (b, 0xff, batentrysize * 4);
-	zfile_fwrite (b, batsize, 1, zf);
-
-	ret = 1;
-
-end:
-	xfree (b);
-	zfile_fclose (zf);
-	return ret;
-}
-
 static uae_u64 vhd_read (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
 	uae_u32 bamoffset;
@@ -729,6 +609,142 @@ static uae_u64 vhd_write (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 off
 		offset += 512;
 	}
 	return written;
+}
+
+
+int vhd_create (const TCHAR *name, uae_u64 size, uae_u32 dostype)
+{
+	struct hardfiledata hfd;
+	struct zfile *zf;
+	uae_u8 *b;
+	int cyl, cylsec, head, tracksec;
+	uae_u32 crc, blocksize, batsize, batentrysize;
+	int ret, i;
+	time_t tm;
+
+	if (size >= (uae_u64)10 * 1024 * 1024 * 1024)
+		blocksize = 2 * 1024 * 1024;
+	else
+		blocksize = 512 * 1024;
+	batsize = (size + blocksize - 1) / blocksize;
+	batentrysize = batsize;
+	batsize *= 4;
+	batsize += 511;
+	batsize &= ~511;
+	ret = 0;
+	b = NULL;
+	zf = zfile_fopen (name, L"wb", 0);
+	if (!zf)
+		goto end;
+	b = xcalloc (512 + 1024 + batsize + 512, 1);
+	if (zfile_fwrite (b, 512 + 1024 + batsize + 512, 1, zf) != 1)
+		goto end;
+
+	memset (&hfd, 0, sizeof hfd);
+	hfd.virtsize = hfd.physsize = size;
+	hfd.blocksize = 512;
+	strcpy (b, "conectix"); // cookie
+	b[0x0b] = 2; // features
+	b[0x0d] = 1; // version
+	b[0x10 + 6] = 2; // data offset
+	// time stamp
+	tm = time (NULL) - 946684800;
+	b[0x18] = tm >> 24;
+	b[0x19] = tm >> 16;
+	b[0x1a] = tm >>  8;
+	b[0x1b] = tm >>  0;
+	strcpy (b + 0x1c, "vpc "); // creator application
+	b[0x21] = 5; // creator version
+	strcpy (b + 0x24, "Wi2k"); // creator host os
+	// original and current size
+	b[0x28] = b[0x30] = size >> 56;
+	b[0x29] = b[0x31] = size >> 48;
+	b[0x2a] = b[0x32] = size >> 40;
+	b[0x2b] = b[0x33] = size >> 32;
+	b[0x2c] = b[0x34] = size >> 24;
+	b[0x2d] = b[0x35] = size >> 16;
+	b[0x2e] = b[0x36] = size >>  8;
+	b[0x2f] = b[0x37] = size >>  0;
+	getchs2 (&hfd, &cyl, &cylsec, &head, &tracksec);
+	// cylinders
+	b[0x38] = cyl >> 8;
+	b[0x39] = cyl;
+	// heads
+	b[0x3a] = head;
+	// sectors per track
+	b[0x3b] = tracksec;
+	// disk type
+	b[0x3c + 3] = VHD_DYNAMIC;
+	get_guid_target (b + 0x44);
+	crc = vhd_checksum (b, -1);
+	b[0x40] = crc >> 24;
+	b[0x41] = crc >> 16;
+	b[0x42] = crc >>  8;
+	b[0x43] = crc >>  0;
+
+	// write header
+	zfile_fseek (zf, 0, SEEK_SET);
+	zfile_fwrite (b, 512, 1, zf);
+	// write footer
+	zfile_fseek (zf, 512 + 1024 + batsize, SEEK_SET);
+	zfile_fwrite (b, 512, 1, zf);
+
+	// dynamic disk header
+	memset (b, 0, 1024);
+	// cookie
+	strcpy (b, "cxsparse");
+	// data offset
+	for (i = 0; i < 8; i++)
+		b[0x08 + i] = 0xff;
+	// table offset (bat)
+	b[0x10 + 6] = 0x06;
+	// version
+	b[0x19] = 1;
+	// max table entries
+	b[0x1c] = batentrysize >> 24;
+	b[0x1d] = batentrysize >> 16;
+	b[0x1e] = batentrysize >>  8;
+	b[0x1f] = batentrysize >>  0;
+	b[0x20] = blocksize >> 24;
+	b[0x21] = blocksize >> 16;
+	b[0x22] = blocksize >>  8;
+	b[0x23] = blocksize >>  0;
+	crc = vhd_checksum (b, -1);
+	b[0x24] = crc >> 24;
+	b[0x25] = crc >> 16;
+	b[0x26] = crc >>  8;
+	b[0x27] = crc >>  0;
+
+	// write dynamic header
+	zfile_fseek (zf, 512, SEEK_SET);
+	zfile_fwrite (b, 1024, 1, zf);
+
+	// bat
+	memset (b, 0, batsize);
+	memset (b, 0xff, batentrysize * 4);
+	zfile_fwrite (b, batsize, 1, zf);
+
+	zfile_fclose (zf);
+	zf = NULL;
+
+	if (dostype) {
+		uae_u8 bootblock[512] = { 0 };
+		bootblock[0] = dostype >> 24;
+		bootblock[1] = dostype >> 16;
+		bootblock[2] = dostype >>  8;
+		bootblock[3] = dostype >>  0;
+		if (hdf_open (&hfd, name)) {
+			vhd_write (&hfd, bootblock, 0, 512);
+			hdf_close (&hfd);
+		}
+	}
+
+	ret = 1;
+
+end:
+	xfree (b);
+	zfile_fclose (zf);
+	return ret;
 }
 
 static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)

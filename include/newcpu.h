@@ -133,7 +133,7 @@ extern struct regstruct
 	flagtype x;
 	flagtype stopped;
 	int intmask;
-	int ipl;
+	int ipl, ipl_pin;
 
 	uae_u32 vbr, sfc, dfc;
 
@@ -389,7 +389,7 @@ extern void flush_icache (uaecptr, int n);
 extern void compemu_reset (void);
 extern int check_prefs_changed_comp (void);
 #else
-#define flush_icache(X) do {} while (0)
+#define flush_icache(uaecptr, int) do {} while (0)
 #endif
 extern void flush_mmu (uaecptr, int);
 

@@ -889,7 +889,7 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : 16))
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : ((max_z3fastmem >> 20) < 2560) ? 15 : ((max_z3fastmem >> 20) < 3072) ? 16 : 17))
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
 #define MIN_MB_MEM 0
@@ -2062,6 +2062,7 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 	outpath[0] = 0;
 	sparse = 0;
 	dynamic = 0;
+	dt = 0;
 	hfsize = (uae_u64)hfsizem * 1024 * 1024;
 	if (IsDlgButtonChecked (hDlg, IDC_HF_SPARSE) == BST_CHECKED)
 		sparse = 1;
@@ -2074,7 +2075,9 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 	GetDlgItemText (hDlg, IDC_PATH_NAME, init_path, MAX_DPATH);
 	if (*init_path && hfsize) {
 		if (dynamic) {
-			result = vhd_create (init_path, hfsize);
+			if (!_stscanf (dostype, L"%x", &dt))
+				dt = 0;
+			result = vhd_create (init_path, hfsize, dt);
 		} else {
 			SetCursor (LoadCursor (NULL, IDC_WAIT));
 			if ((hf = CreateFile (init_path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)) != INVALID_HANDLE_VALUE) {
@@ -2149,6 +2152,8 @@ static const TCHAR *memsize_names[] = {
 	/* 17*/ L"384 MB",
 	/* 18*/ L"768 MB",
 	/* 19*/ L"1.5 GB",
+	/* 20*/ L"2.5 GB",
+	/* 21*/ L"3 GB"
 };
 
 static unsigned long memsizes[] = {
@@ -2172,12 +2177,14 @@ static unsigned long memsizes[] = {
 	/* 17*/ 0x18000000, //384M
 	/* 18*/ 0x30000000, //768M
 	/* 19*/ 0x60000000, //1.5GB
+	/* 20*/ 0xA8000000, //2.5GB
+	/* 21*/ 0xC0000000, //3GB
 };
 
 static int msi_chip[] = { 1, 2, 3, 14, 4, 5, 6 };
 static int msi_bogo[] = { 0, 2, 3, 14, 15 };
 static int msi_fast[] = { 0, 3, 4, 5, 6 };
-static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 12, 18, 13, 19, 16 };
+static int msi_z3fast[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 17, 12, 18, 13, 19, 16, 20, 21 };
 static int msi_gfx[] = { 0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
 
 static int CalculateHardfileSize (HWND hDlg)
@@ -5811,14 +5818,18 @@ static void values_to_memorydlg (HWND hDlg)
 		mem_size = 10;
 	else if (v < 0x30000000)
 		mem_size = 11;
-	else if (v < 0x40000000)
+	else if (v < 0x40000000) // 1GB
 		mem_size = 12;
-	else if (v < 0x60000000)
+	else if (v < 0x60000000) // 1.5GB
 		mem_size = 13;
-	else if (v < 0x80000000)
+	else if (v < 0x80000000) // 2GB
 		mem_size = 14;
-	else
+	else if (v < 0xA8000000) // 2.5GB
 		mem_size = 15;
+	else if (v < 0xC0000000) // 3GB
+		mem_size = 16;
+	else
+		mem_size = 17;
 	SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_Z3FASTRAM, memsize_names[msi_z3fast[mem_size]]);
 
@@ -5929,6 +5940,12 @@ static void updatez3 (uae_u32 *size1p, uae_u32 *size2p)
 	int i;
 	uae_u32 s1, s2;
 
+	// no 2GB Z3 size so we need 2x1G
+	if (*size1p >= 0x80000000) {
+		*size2p = *size1p - 0x40000000;
+		*size1p = 0x40000000;
+		return;
+	}
 	s1 = *size1p;
 	*size1p = 0;
 	*size2p = 0;
@@ -7007,7 +7024,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_NOFLAGS, enable);
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
-	ew (hDlg, IDC_JITENABLE, cpu_based_enable);
+	ew (hDlg, IDC_JITENABLE, cpu_based_enable && enable);
 	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 #if 0
@@ -10715,6 +10732,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
+	ew (hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api && !workprefs.gfx_filtershader[0]);
 
 	ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
 	ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
@@ -10891,9 +10909,12 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPAGESIZE, 0, 1);
 
+	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
+	SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
 	uf = NULL;
 	fltnum = 0;
 	i = 0; j = 1;
@@ -10920,6 +10941,26 @@ static void values_to_hw3ddlg (HWND hDlg)
 			if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
 				fltnum = j;
 			j++;
+			if (!FindNextFile (h, &wfd)) {
+				FindClose (h);
+				h = INVALID_HANDLE_VALUE;
+			}
+		}
+		_stprintf (tmp, L"%s%soverlays\\*.*", start_path_exe, WIN32_PLUGINDIR);
+		h = FindFirstFile (tmp, &wfd);
+		i = 0; j = 1;
+		while (h != INVALID_HANDLE_VALUE) {
+			TCHAR *ext = _tcsrchr (wfd.cFileName, '.');
+			if (ext && (
+				!_tcsicmp (ext, L".png") ||
+				!_tcsicmp (ext, L".bmp")))
+			{
+				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
+				if (!_tcsicmp (wfd.cFileName, workprefs.gfx_filtermask))
+					SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
+				j++;
+
+			}
 			if (!FindNextFile (h, &wfd)) {
 				FindClose (h);
 				h = INVALID_HANDLE_VALUE;
@@ -11177,6 +11218,19 @@ static void filter_handle (HWND hDlg)
 		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
 			workprefs.gfx_filter_autoscale = 0;
 	}
+	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
+	if (item != CB_ERR) {
+		TCHAR tmp[MAX_DPATH];
+		tmp[0] = 0;
+		if (item > 0) {
+			SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
+			if (_tcsicmp (workprefs.gfx_filtermask, tmp)) {
+				_tcscpy (workprefs.gfx_filtermask, tmp);
+			}
+		} else {
+			workprefs.gfx_filtermask[0] = 0;
+		}
+	}
 	enable_for_hw3ddlg (hDlg);
 	updatedisplayarea ();
 }
@@ -11301,6 +11355,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					break;
 				case IDC_FILTERMODE:
 				case IDC_FILTERFILTER:
+				case IDC_FILTEROVERLAY:
 					filter_handle (hDlg);
 					values_to_hw3ddlg (hDlg);
 					break;

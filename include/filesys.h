@@ -111,7 +111,7 @@ int hdf_hd_open(struct hd_hardfiledata *hfd, const TCHAR *path, int blocksize, i
 		       int bootpri, const TCHAR *filesys);
 
 
-extern int vhd_create (const TCHAR *name, uae_u64 size);
+extern int vhd_create (const TCHAR *name, uae_u64 size, uae_u32);
 
 extern int hdf_init_target (void);
 extern int hdf_open_target (struct hardfiledata *hfd, const TCHAR *name);

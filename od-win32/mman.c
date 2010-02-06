@@ -16,6 +16,7 @@
 
 #define BARRIER 32
 #define MAXZ3MEM 0x7F000000
+#define MAXZ3MEM64 0xF0000000
 
 static struct shmid_ds shmids[MAX_SHMID];
 static int memwatchok = 0;
@@ -231,8 +232,8 @@ end:
 		else if (maxmem > 0)
 			size64 = maxmem * 1024 * 1024;
 		if (os_64bit) {
-			if (size64 > MAXZ3MEM)
-				size64 = MAXZ3MEM;
+			if (size64 > MAXZ3MEM64)
+				size64 = MAXZ3MEM64;
 		} else {
 			if (size64 > MAXZ3MEM)
 				size64 = MAXZ3MEM;

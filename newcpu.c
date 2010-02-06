@@ -1457,8 +1457,8 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 	if (nr == 2) {
 
 		write_log (L"%08x %08x %08x\n", currpc, oldpc, regs.mmu_fault_addr);
-		if (currpc == 0x0013b5e2)
-			activate_debugger ();
+//		if (currpc == 0x0013b5e2)
+//			activate_debugger ();
 		// bus error
 		for (i = 0 ; i < 7 ; i++) {
 			m68k_areg (regs, 7) -= 4;
@@ -2206,6 +2206,7 @@ void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 void m68k_reset (int hardreset)
 {
 	regs.spcflags = 0;
+	regs.ipl = regs.ipl_pin = 0;
 #ifdef SAVESTATE
 	if (savestate_state == STATE_RESTORE || savestate_state == STATE_REWIND) {
 		m68k_setpc (regs.pc);
@@ -2571,30 +2572,32 @@ static void do_trace (void)
 }
 
 
-static int interrupt_cycles_active;
-static evt interrupt_cycle;
-
 // handle interrupt delay (few cycles)
 STATIC_INLINE int time_for_interrupt (void)
 {
-	if (interrupt_cycles_active) {
-		if (regs.lastfetch - interrupt_cycle >= 2 * CYCLE_UNIT) {
-			interrupt_cycles_active = 0;
-			return 1;
-		} else {
-			return 0;
+	if (regs.ipl > 0 && (regs.ipl > regs.intmask || regs.ipl == 7)) {
+#if 0
+		if (regs.ipl == 3 && current_hpos () < 11) {
+			write_log (L"%d\n", current_hpos ());
+			activate_debugger ();
 		}
+#endif
+		return 1;
 	}
-	return 1;
+	return 0;
 }
 
 void doint (void)
 {
-	regs.ipl = intlev ();
 	if (currprefs.cpu_cycle_exact) {
+		int newipl = intlev ();
+
+		if (newipl == regs.ipl_pin)
+			return;
+		regs.ipl_pin = newipl;
+		if (currprefs.cpu_model != 68000)
+			regs.ipl = regs.ipl_pin;
 		set_special (SPCFLAG_INT);
-		interrupt_cycle = get_cycles ();
-		interrupt_cycles_active = 1;
 		return;
 	}
 	if (currprefs.cpu_compatible)
@@ -2677,9 +2680,10 @@ STATIC_INLINE int do_specialties (int cycles)
 			do_copper ();
 
 		if (currprefs.cpu_cycle_exact) {
-			if (regs.ipl > 0 && regs.ipl > regs.intmask) {
-				if (time_for_interrupt ())
-					do_interrupt (regs.ipl);
+			regs.ipl = regs.ipl_pin;
+			if (time_for_interrupt ()) {
+				unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
+				do_interrupt (regs.ipl);
 			}
 		} else {
 			if (regs.spcflags & (SPCFLAG_INT | SPCFLAG_DOINT)) {
@@ -2723,9 +2727,9 @@ STATIC_INLINE int do_specialties (int cycles)
 		do_trace ();
 
 	if (currprefs.cpu_cycle_exact) {
-		if (regs.ipl > 0 && (regs.ipl > regs.intmask || regs.ipl == 7)) {
-			if (time_for_interrupt ())
-				do_interrupt (regs.ipl);
+		if (time_for_interrupt ()) {
+			unset_special (SPCFLAG_INT | SPCFLAG_DOINT);
+			do_interrupt (regs.ipl);
 		}
 	} else {
 		if (regs.spcflags & SPCFLAG_INT) {
@@ -2889,7 +2893,6 @@ static void m68k_run_1_ce (void)
 
 	for (;;) {
 		uae_u32 opcode = r->ir;
-
 		(*cpufunctbl[opcode])(opcode);
 		if (r->spcflags) {
 			if (do_specialties (0))
@@ -2981,7 +2984,6 @@ static void m68k_run_2a (void)
 		/* Whenever we return from that, we should check spcflags */
 		if (uae_int_requested) {
 			intreq |= 0x0008;
-			intreqr = intreq;
 			set_special (SPCFLAG_INT);
 		}
 		if (regs.spcflags) {

@@ -12,11 +12,6 @@ STATIC_INLINE uae_u32 get_long_prefetch (int o)
 	return v;
 }
 
-STATIC_INLINE void prefetch_common_ce000 (void)
-{
-	regs.lastfetch = get_cycles ();
-}
-
 #ifdef CPUEMU_20
 
 STATIC_INLINE void checkcycles_ce020 (void)
@@ -276,27 +271,29 @@ STATIC_INLINE uae_u32 next_ilong_020ce (void)
 
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
-	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 1);
 	case CE_MEMBANK_FAST:
 	case CE_MEMBANK_FAST16BIT:
-		do_cycles_ce000 (4);
+		do_cycles_ce000 (2);
+		regs.ipl = regs.ipl_pin;
+		do_cycles_ce000 (2);
 		break;
 	}
 	return get_word (addr);
 }
 STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 {
-	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 1);
 	case CE_MEMBANK_FAST:
-		do_cycles_ce000 (4);
+		do_cycles_ce000 (2);
+		regs.ipl = regs.ipl_pin;
+		do_cycles_ce000 (2);
 		break;
 	}
 	return get_wordi (addr);
@@ -304,13 +301,14 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 
 STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 {
-	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 0);
 	case CE_MEMBANK_FAST:
-		do_cycles_ce000 (4);
+		do_cycles_ce000 (2);
+		regs.ipl = regs.ipl_pin;
+		do_cycles_ce000 (2);
 		break;
 
 	}
@@ -318,21 +316,21 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 }
 STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 {
-	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
 		wait_cpu_cycle_write (addr, 0, v);
 		return;
 	case CE_MEMBANK_FAST:
-		do_cycles_ce000 (4);
+		do_cycles_ce000 (2);
+		regs.ipl = regs.ipl_pin;
+		do_cycles_ce000 (2);
 		break;
 	}
 	put_byte (addr, v);
 }
 STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 {
-	prefetch_common_ce000 ();
 	switch (ce_banktype[addr >> 16])
 	{
 	case CE_MEMBANK_CHIP:
@@ -340,7 +338,9 @@ STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 		return;
 		break;
 	case CE_MEMBANK_FAST:
-		do_cycles_ce000 (4);
+		do_cycles_ce000 (2);
+		regs.ipl = regs.ipl_pin;
+		do_cycles_ce000 (2);
 		break;
 	}
 	put_word (addr, v);

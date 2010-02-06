@@ -706,9 +706,16 @@ void leave_program (void)
 	do_leave_program ();
 }
 
+#ifdef _WIN64
+extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
+{
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 static int real_main2 (int argc, TCHAR **argv)
 {
-#if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
 	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
 	__try
 #endif
@@ -854,8 +861,12 @@ static int real_main2 (int argc, TCHAR **argv)
 		}
 
 	}
-#if defined (JIT) && (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#ifdef JIT
 	__except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
+#else
+	__except (DummyException (GetExceptionInformation (), GetExceptionCode ()))
+#endif
 	{
 		// EvalException does the good stuff...
 	}
