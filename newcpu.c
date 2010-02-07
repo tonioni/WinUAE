@@ -2575,7 +2575,7 @@ static void do_trace (void)
 // handle interrupt delay (few cycles)
 STATIC_INLINE int time_for_interrupt (void)
 {
-	if (regs.ipl > 0 && (regs.ipl > regs.intmask || regs.ipl == 7)) {
+	if (regs.ipl > regs.intmask || regs.ipl == 7) {
 #if 0
 		if (regs.ipl == 3 && current_hpos () < 11) {
 			write_log (L"%d\n", current_hpos ());
@@ -2591,9 +2591,6 @@ void doint (void)
 {
 	if (currprefs.cpu_cycle_exact) {
 		int newipl = intlev ();
-
-		if (newipl == regs.ipl_pin)
-			return;
 		regs.ipl_pin = newipl;
 		if (currprefs.cpu_model != 68000)
 			regs.ipl = regs.ipl_pin;

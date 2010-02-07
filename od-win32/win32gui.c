@@ -11329,12 +11329,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					if (item != CB_ERR) {
 						workprefs.gfx_filter_autoscale = item;
 						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0) {
-							if (D3D_goodenough ()) {
-								workprefs.gfx_filter = 2; // D3D
-								workprefs.gfx_filter_filtermode = 2;
-							} else {
+							if (!workprefs.gfx_api)
 								workprefs.gfx_filter = 1; // NULL
-							}
 						}
 						values_to_hw3ddlg (hDlg);
 						enable_for_hw3ddlg (hDlg);

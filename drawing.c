@@ -350,16 +350,18 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 		ret = -1;
 
 	if (doublescan <= 0) {
-		if (diwfirstword_total < (48 << currprefs.gfx_resolution))
-			diwfirstword_total = 48 << currprefs.gfx_resolution;
-		if (diwlastword_total > (448 << currprefs.gfx_resolution))
-			diwlastword_total = 448 << currprefs.gfx_resolution;
+		int min = coord_diw_to_window_x (116);
+		int max = coord_diw_to_window_x (460);
+		if (diwfirstword_total < min)
+			diwfirstword_total = min;
+		if (diwlastword_total > max)
+			diwlastword_total = max;
 		ddffirstword_total = coord_hw_to_window_x (ddffirstword_total * 2 + DIW_DDF_OFFSET);
 		ddflastword_total = coord_hw_to_window_x (ddflastword_total * 2 + DIW_DDF_OFFSET);
-		if (ddffirstword_total < (48 << currprefs.gfx_resolution))
-			ddffirstword_total = 48 << currprefs.gfx_resolution;
-		if (ddflastword_total > (448 << currprefs.gfx_resolution))
-			ddflastword_total = 448 << currprefs.gfx_resolution;
+		if (ddffirstword_total < min)
+			ddffirstword_total = min;
+		if (ddflastword_total > max)
+			ddflastword_total = max;
 		if (0 && !(currprefs.chipset_mask & CSMASK_AGA)) {
 			if (ddffirstword_total > diwfirstword_total)
 				diwfirstword_total = ddffirstword_total;

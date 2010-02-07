@@ -675,14 +675,14 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 		put_byte (request + 31, 32);
 		return get_byte (request + 31);
 	}
-	put_byte (request+31, 0);
+	put_byte (request + 31, 0);
 	if ((flags & 1) && dev_canquick (dev, request)) {
 		if (dev_do_io (dev, request))
 			write_log (L"device %s command %d bug with IO_QUICK\n", getdevname (pdev->type), command);
 		return get_byte (request + 31);
 	} else {
 		add_async_request (dev, request, ASYNC_REQUEST_TEMP, 0);
-		put_byte (request+30, get_byte (request + 30) & ~1);
+		put_byte (request + 30, get_byte (request + 30) & ~1);
 		write_comm_pipe_u32 (&dev->requests, request, 1);
 		return 0;
 	}

@@ -1,4 +1,16 @@
 
+Beta 9:
+
+- CE 68000 interrupt handling update, Spectre Party Demo /
+  Phenomena works without jumping 
+- autoscale left and right border position restricted to sane max
+  overscan values
+- enabling autoscale changed filter mode to scale2x
+- autoscale detects COLOR00 (background color) changes outside of
+  bitplane area 
+- do not enumerate drives if every "Include .. drives" is not ticked
+- CD32/CDTV crash fix (IOCTL CD crash) (b8?)
+
 Beta 8:
 
 - do not use D3D9Ex if no v3 shader or dynamic texture support

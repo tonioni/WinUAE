@@ -1198,7 +1198,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	di->lun = 0;
 	di->media_inserted = 0;
 	di->bytespersector = 2048;
-	_stprintf (di->mediapath, L"\\\\.\\%s", ciw32[unitnum].drvletter);
+	_stprintf (di->mediapath, L"\\\\.\\%c:", ciw32[unitnum].drvletter);
 	if (fetch_geometry (unitnum, di)) { // || ioctl_command_toc (unitnum))
 		di->media_inserted = 1;
 		ciw32[unitnum].blocksize = di->bytespersector;

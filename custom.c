@@ -1962,6 +1962,14 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 		curr_color_changes[idx + 1].regno = -1;
 	}
 	record_color_change2 (hpos, regno, value);
+
+	if (regno == 0 && value != 0 && vpos >= 32) {
+		// autoscale if COLOR00 changes in top or bottom of screen
+		if (vpos < first_planes_vpos || vpos < plffirstline_total)
+			plffirstline_total = first_planes_vpos = vpos - 2;
+		if (vpos > last_planes_vpos || vpos > plflastline_total)
+			plflastline_total = last_planes_vpos = vpos + 3;
+	}
 }
 
 static void record_register_change (int hpos, int regno, unsigned long value)
@@ -3421,12 +3429,10 @@ static void INTENA (uae_u16 v)
 	uae_u16 old = intena;
 	setclr (&intena, v);
 
-	if (old != intena || (v & 0x8000)) {
-		if (use_eventmode ())
-			event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intena, send_intena_do);
-		else
-			send_intena_do (intena);
-	}
+	if (use_eventmode ())
+		event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intena, send_intena_do);
+	else
+		send_intena_do (intena);
 #if 0
 	if (v & 0x40)
 		write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
@@ -3441,12 +3447,10 @@ void INTREQ_0 (uae_u16 v)
 	if (v & (0x0080 | 0x0100 | 0x0200 | 0x0400))
 		audio_update_irq (v);
 
-	if (old != intreq || (v & 0x8000)) {
-		if (use_eventmode ())
-			event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intreq, send_intreq_do);
-		else
-			send_intreq_do (intreq);
-	}
+	if (use_eventmode ())
+		event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intreq, send_intreq_do);
+	else
+		send_intreq_do (intreq);
 }
 
 void INTREQ (uae_u16 data)
@@ -6868,7 +6872,21 @@ STATIC_INLINE void decide_fetch_ce (int hpos)
 		decide_fetch (hpos);
 }
 
+STATIC_INLINE void ipl_check (void)
+{
+	if (debug_dma) {
+		if (regs.ipl == regs.ipl_pin)
+			return;
+		regs.ipl = regs.ipl_pin;
+		record_dma_event (DMA_EVENT_INTREQ, current_hpos (), vpos);
+	} else {
+		regs.ipl = regs.ipl_pin;
+	}
+}
+
 #define BLIT_NASTY 4
+
+static int ipl_checked;
 
 // blitter not in nasty mode = CPU gets one cycle if it has been waiting
 // at least 4 cycles (all DMA cycles count, not just blitter cycles, even
@@ -6903,6 +6921,9 @@ STATIC_INLINE int dma_cycle (void)
 		}
 		regs.ce020memcycles -= CYCLE_UNIT;
 		do_cycles (1 * CYCLE_UNIT);
+		if (!ipl_checked)
+			ipl_check ();
+		ipl_checked = 1;
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
 	return hpos_old;
@@ -6920,9 +6941,11 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	int hpos;
 	struct dma_rec *dr;
 
+	ipl_checked = 0;
 	hpos = dma_cycle ();
-	regs.ipl = regs.ipl_pin;
 	do_cycles_ce (CYCLE_UNIT);
+	if (!ipl_checked)
+		ipl_check ();
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -6995,9 +7018,11 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
 
+	ipl_checked = 0;
 	hpos = dma_cycle ();
-	regs.ipl = regs.ipl_pin;
 	do_cycles_ce (CYCLE_UNIT);
+	if (!ipl_checked)
+		ipl_check ();
 
 #ifdef DEBUGGER
 	if (debug_dma) {

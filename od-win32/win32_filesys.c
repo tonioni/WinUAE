@@ -140,6 +140,9 @@ static void filesys_addexternals (void)
 	DWORD dwDriveMask;
 	int drvnum = 0;
 
+	if (!currprefs.win32_automount_cddrives && !currprefs.win32_automount_netdrives
+		&& !currprefs.win32_automount_drives && !currprefs.win32_automount_removabledrives)
+		return;
 	errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 	dwDriveMask = GetLogicalDrives ();
 	dwDriveMask >>= 2; // Skip A and B drives...
