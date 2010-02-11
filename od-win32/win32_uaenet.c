@@ -333,6 +333,11 @@ struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR 
 		return NULL;
 	}
 	FreeLibrary (hm);
+	if (!isdllversion (L"wpcap.dll", 4, 0, 0, 0)) {
+		write_log (L"uaenet: too old winpcap, v4 or newer required\n");
+		return NULL;
+	}
+
 	ss = au (pcap_lib_version ());
 	if (!done)
 		write_log (L"uaenet: %s\n", ss);

@@ -724,6 +724,11 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 
 /*
 
+0.8b:
+
+- DMS full cylinder 0 BBS ADs skipped when extracting
+- DMS BBS AD extraction support
+
 0.8:
 
 - tar archive support

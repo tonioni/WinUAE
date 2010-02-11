@@ -1028,7 +1028,7 @@ static struct zfile *wrp (struct zfile *z)
 	return unwarp (z);
 }
 
-static struct zfile *dms (struct zfile *z)
+static struct zfile *dms (struct zfile *z, int index, int *retcode)
 {
 	int ret;
 	struct zfile *zo;
@@ -1036,6 +1036,8 @@ static struct zfile *dms (struct zfile *z)
 	TCHAR *ext = _tcsrchr (orgname, '.');
 	TCHAR newname[MAX_DPATH];
 	static int recursive;
+	int i;
+	struct zfile *zextra[DMS_EXTRA_SIZE] = { 0 };
 
 	if (recursive)
 		return NULL;
@@ -1049,7 +1051,7 @@ static struct zfile *dms (struct zfile *z)
 	zo = zfile_fopen_empty (z, newname, 1760 * 512);
 	if (!zo)
 		return NULL;
-	ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 0);
+	ret = DMS_Process_File (z, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 0, zextra);
 	if (ret == NO_PROBLEM || ret == DMS_FILE_END) {
 		int off = zfile_ftell (zo);
 		if (off >= 1760 * 512 / 3 && off <= 1760 * 512 * 3 / 4) { // possible split dms?
@@ -1063,18 +1065,36 @@ static struct zfile *dms (struct zfile *z)
 					z2 = zfile_fopen (fn2, L"rb", z->zfdmask);
 					recursive--;
 					if (z2) {
-						ret = DMS_Process_File (z2, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 1);
+						ret = DMS_Process_File (z2, zo, CMD_UNPACK, OPT_VERBOSE, 0, 0, 1, NULL);
 						zfile_fclose (z2);
 					}
 					xfree (fn2);
 				}
 			}
 		}
-		zfile_fclose (z);
 		zfile_fseek (zo, 0, SEEK_SET);
-		return zo;
+		if (index > 0) {
+			zfile_fclose (zo);
+			zo = NULL;
+			for (i = 0; i < zextra[i]; i++);
+			if (index > i)
+				goto end;
+			zo = zextra[index - 1];
+			zextra[index - 1] = NULL;
+		}
+		if (retcode)
+			*retcode = 1;
+		zfile_fclose (z);
+		z = NULL;
+
+	} else {
+		zfile_fclose (zo);
+		zo = NULL;
 	}
-	return NULL;
+end:
+	for (i = 0; i < DMS_EXTRA_SIZE; i++)
+		zfile_fclose (zextra[i]);
+	return zo;
 }
 
 const TCHAR *uae_ignoreextensions[] =
@@ -1257,11 +1277,11 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 					return zfile_gunzip (z);
 				if (strcasecmp (ext, L"hdz") == 0)
 					return zfile_gunzip (z);
-				if (strcasecmp (ext, L"dms") == 0)
-					return dms (z);
 				if (strcasecmp (ext, L"wrp") == 0)
 					return wrp (z);
 			}
+			if (strcasecmp (ext, L"dms") == 0)
+				return dms (z, index, retcode);
 		}
 		if (mask & ZFD_RAWDISK) {
 #ifdef CAPS
@@ -1296,11 +1316,11 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 		if (index == 0) {
 			if (header[0] == 0x1f && header[1] == 0x8b)
 				return zfile_gunzip (z);
-			if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
-				return dms (z);
 			if (header[0] == 'P' && header[1] == 'K' && header[2] == 'D')
 				return dsq (z, 0);
 		}
+		if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
+			return dms (z, index, retcode);
 	}
 	if (mask & ZFD_RAWDISK) {
 #ifdef CAPS

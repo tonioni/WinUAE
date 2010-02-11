@@ -1,6 +1,37 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\decompressors">
+      <UniqueIdentifier>{025b82fd-637e-4580-b73d-e9cb2b1704f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\dms">
+      <UniqueIdentifier>{f793e865-aaaa-4a92-ab71-042c6df63370}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\7z">
+      <UniqueIdentifier>{30815150-3af4-4642-a7b0-2f0a84e9184b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\lha">
+      <UniqueIdentifier>{26e2cd32-bb63-4be1-8ce7-17a2670fbe68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\zip">
+      <UniqueIdentifier>{02dd9255-7ba8-4931-8ed9-382100420cd3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\lzx">
+      <UniqueIdentifier>{9744d4a4-039b-43f0-a43b-2a3911cf429b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\xfd">
+      <UniqueIdentifier>{7a6a4d5c-b3f7-40e3-922d-ebf5ed25ac7f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\decompressors\wrp">
+      <UniqueIdentifier>{e74cec8e-0727-401b-bea6-57f78b869c7d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\win32">
+      <UniqueIdentifier>{1227b1a8-96c7-40ea-961b-03ac23a184bf}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
@@ -9,77 +40,28 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Source Files\decompressors">
-      <UniqueIdentifier>{74332802-0dea-481d-8688-6ea8ca3894c9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\7z">
-      <UniqueIdentifier>{1d6748ee-1e71-4481-b70b-48abbd6579e1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\dms">
-      <UniqueIdentifier>{9a350565-10e0-4d98-af19-c89cf863c69d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\lha">
-      <UniqueIdentifier>{7b5944b8-15c4-46bf-b99c-24b604e0a523}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\lzx">
-      <UniqueIdentifier>{3b89358e-ed9f-42d8-a330-90ad0878add0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\wrp">
-      <UniqueIdentifier>{43f24f87-b713-4df6-aeac-884f63457258}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\xfd">
-      <UniqueIdentifier>{0f91f71a-54cd-4ee8-b2d2-71e72654b6f7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\decompressors\zip">
-      <UniqueIdentifier>{c14490cb-e12c-4dea-9399-f34fd8d6cf23}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\win32">
-      <UniqueIdentifier>{9656c755-8b1f-4d77-b6ce-ef9f7c8405e2}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\archivers\7z\7zBuf.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\crc32.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zCrc.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\diskutil.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zStream.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\fdi2raw.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\missing.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\uaeunp.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\zfile.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bcj2.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra86.c">
-      <Filter>Source Files\decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.c">
-      <Filter>Source Files\decompressors\7z</Filter>
+    <ClCompile Include="..\..\zfile_archive.c">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\archivers\dms\crc_csum.c">
       <Filter>Source Files\decompressors\dms</Filter>
@@ -114,6 +96,45 @@
     <ClCompile Include="..\..\archivers\dms\u_rle.c">
       <Filter>Source Files\decompressors\dms</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zBuf.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zCrc.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zStream.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bcj2.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bra.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bra86.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.c">
+      <Filter>Source Files\decompressors\7z</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\archivers\lha\crcio.c">
       <Filter>Source Files\decompressors\lha</Filter>
     </ClCompile>
@@ -147,35 +168,14 @@
     <ClCompile Include="..\..\archivers\lha\util.c">
       <Filter>Source Files\decompressors\lha</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\archivers\zip\unzip.c">
+      <Filter>Source Files\decompressors\zip</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\archivers\lzx\unlzx.c">
       <Filter>Source Files\decompressors\lzx</Filter>
     </ClCompile>
     <ClCompile Include="..\..\archivers\wrp\warp.c">
       <Filter>Source Files\decompressors\wrp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\zip\unzip.c">
-      <Filter>Source Files\decompressors\zip</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\crc32.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\diskutil.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\fdi2raw.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\missing.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\uaeunp.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\zfile.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\zfile_archive.c">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\caps\caps_win32.c">
       <Filter>Source Files\win32</Filter>

@@ -57,7 +57,7 @@ enum {
 
 enum {
     ev2_blitter, ev2_disk, ev2_misc,
-    ev2_max = 8
+    ev2_max = 12
 };
 
 extern struct ev eventtab[ev_max];

@@ -38,7 +38,7 @@ static int dolog = 0;
 #define DMSFLAG_ENCRYPTED 2
 #define DMSFLAG_HD 16
 
-static USHORT Process_Track(struct zfile *, struct zfile *, UCHAR *, UCHAR *, USHORT, USHORT, int);
+static USHORT Process_Track(struct zfile *, struct zfile *, UCHAR *, UCHAR *, USHORT, USHORT, int, struct zfile **extra);
 static USHORT Unpack_Track(UCHAR *, UCHAR *, USHORT, USHORT, UCHAR, UCHAR, USHORT, USHORT, USHORT, int);
 static void printbandiz(UCHAR *, USHORT);
 
@@ -54,13 +54,33 @@ static void log_error(int track)
 	write_log (L"DMS: Ignored error on track %d!\n", track);
 }
 
-USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd, int part)
+static void addextra(TCHAR *name, struct zfile **extra, uae_u8 *p, int size)
+{
+	int i;
+	struct zfile *zf = NULL;
+
+	if (!extra)
+		return;
+	for (i = 0; i < DMS_EXTRA_SIZE; i++) {
+		if (!extra[i])
+			break;
+	}
+	if (i == DMS_EXTRA_SIZE)
+		return;
+	zf = zfile_fopen_empty (NULL, name, size);
+	if (!zf)
+		return;
+	zfile_fwrite (p, size, 1, zf);
+	zfile_fseek (zf, 0, SEEK_SET);
+	extra[i] = zf;
+}
+
+USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT opt, USHORT PCRC, USHORT pwd, int part, struct zfile **extra)
 {
 	USHORT from, to, geninfo, c_version, cmode, hcrc, disktype, pv, ret;
 	ULONG pkfsize, unpkfsize;
 	UCHAR *b1, *b2;
 	time_t date;
-
 
 	passfound = 0;
 	passretries = 2;
@@ -220,11 +240,11 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 	if (cmd != CMD_VIEW) {
 		if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
-			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,geninfo);
+			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,geninfo,extra);
 		else {
 			for (;;) {
 				int ok = 0;
-				ret = Process_Track(fi,fo,b1,b2,cmd,opt,geninfo);
+				ret = Process_Track(fi,fo,b1,b2,cmd,opt,geninfo,extra);
 				if (ret == DMS_FILE_END)
 					break;
 				if (ret == NO_PROBLEM)
@@ -275,9 +295,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	return ret;
 }
 
-
-
-static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, int dmsflags){
+static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR *b2, USHORT cmd, USHORT opt, int dmsflags, struct zfile **extra){
 	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l;
 	UCHAR cmode, flags;
 	int crcerr = 0;
@@ -343,22 +361,38 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 		memset(b2, 0, unpklen);
 		if (!crcerr)
 			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+		if (number == 0 && zfile_ftell (fo) == 512 * 22) {
+			// did we have another cylinder 0 already?
+			uae_u8 *p;
+			zfile_fseek (fo, 0, SEEK_SET);
+			p = xcalloc (512 * 22, 1);
+			zfile_fread (p, 512 * 22, 1, fo);
+			addextra(L"BigFakeBootBlock", extra, p, 512 * 22);
+			xfree (p);
+		}
 		zfile_fseek (fo, number * 512 * 22 * ((dmsflags & DMSFLAG_HD) ? 2 : 1), SEEK_SET);
 		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen)
 			return ERR_CANTWRITE;
+	} else if (number == 0 && unpklen == 1024) {
+		memset(b2, 0, unpklen);
+		if (!crcerr)
+			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+		addextra(L"FakeBootBlock", extra, b2, unpklen);
 	}
 
 	if (crcerr)
 		return NO_PROBLEM;
 
-	if ((cmd == CMD_SHOWBANNER) && (number == 0xffff)){
+	if (number == 0xffff && extra){
 		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-		printbandiz(b2,unpklen);
+		addextra(L"Banner", extra, b2, unpklen);
+		//printbandiz(b2,unpklen);
 	}
 
-	if ((cmd == CMD_SHOWDIZ) && (number == 80)) {
+	if (number == 80 && extra) {
 		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-		printbandiz(b2,unpklen);
+		addextra(L"FILEID.DIZ", extra, b2, unpklen);
+		//printbandiz(b2,unpklen);
 	}
 
 	return NO_PROBLEM;

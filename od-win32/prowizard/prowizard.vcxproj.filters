@@ -1,0 +1,361 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Rippers">
+      <UniqueIdentifier>{ad43e6ea-ae64-4d38-b4ee-830628011061}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\prowizard\misc\misc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\prowiz.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\misc\testbag.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\AC1D_packer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\AMOS-MusicBank.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\AMOS-PowerPackerBank.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\BP-Soundmonitor.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\BSI-FutureComposer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Bytekiller.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ChipTracker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Crunchmania-Address.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Crunchmania-Simple.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\datacrunchers.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\DefjamCruncher32-pro.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\DigiBooster17.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\DigitalIllusion.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\DoubleAction.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Dragpack100.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Dragpack252.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\EurekaPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FastTracker2.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FC-M-Packer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FuchsTracker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FutureComposer13.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FutureComposer14.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\FuzzacPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\GameMusicCreator.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\GNUPacker12.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\GnuPlayer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\GPMO.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\HeatseekerMC10.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\HornetPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\HQC2.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\JamCracker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\KefrensSoundMachine.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MasterCruncher30-Address.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MaxPacker12.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MED-Octamed.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MegaCruncher-Object.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MegaCruncher.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\MOD-compatible.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ModuleProtector.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Mugician.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Newtron.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NewtronOld.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NoiseFromHeaven.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker1.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker2.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker3.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NoiseRunner.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NovoTrade.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PhaPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PolkaPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PowerMusic.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker23.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker30.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker40-library.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker40.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Promizer01.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Promizer10c.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Promizer18a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Promizer20.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Promizer40.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker10.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker21.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker30.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Prorunner10.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\Prorunner20.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\QuadraComposer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\RelokIt10.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SGT-Packer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\skizzo.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SkytPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SoundFX.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SoundTracker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SoundTracker26.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SpikeCruncher.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StartrekkerPack.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StimPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneArtsPlayer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker270.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299b.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299d.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker300.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker310.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SuperCruncher27.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\SyncroPacker46.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack102.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack21.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack22.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TheDarkDemon.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer22a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer30a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer40.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer41a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer50a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer60a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer61a.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TimeCruncher17.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TitanicsPlayer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TMK.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TNMCruncher.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker1.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker2.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker3.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TryItCruncher101.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\TurboSqueezer61.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\UnicTracker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\UnicTracker2.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\WantonPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\XannPlayer.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\ZenPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,272 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{8627DA33-98D1-4F60-B404-ECCEE0EE7BF9}</ProjectGuid>
+    <RootNamespace>prowizard</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.30128.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>..\..\prowizard\include;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>StdCall</CallingConvention>
+      <CompileAs>CompileAsC</CompileAs>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Lib>
+      <OutputFile>c:\dev\lib\prowizard.lib</OutputFile>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <ExportNamedFunctions>prowizard_search;%(ExportNamedFunctions)</ExportNamedFunctions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>true</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+    </Midl>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>..\..\prowizard\include;..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>StdCall</CallingConvention>
+      <CompileAs>CompileAsC</CompileAs>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <Lib>
+      <OutputFile>c:\dev\lib\x64\prowizard.lib</OutputFile>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <ExportNamedFunctions>prowizard_search;%(ExportNamedFunctions)</ExportNamedFunctions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\prowizard\misc\misc.c" />
+    <ClCompile Include="..\..\prowizard\prowiz.c" />
+    <ClCompile Include="..\..\prowizard\misc\testbag.c" />
+    <ClCompile Include="..\..\prowizard\rippers\AC1D_packer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\AMOS-MusicBank.c" />
+    <ClCompile Include="..\..\prowizard\rippers\AMOS-PowerPackerBank.c" />
+    <ClCompile Include="..\..\prowizard\rippers\BP-Soundmonitor.c" />
+    <ClCompile Include="..\..\prowizard\rippers\BSI-FutureComposer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Bytekiller.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ChipTracker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Crunchmania-Address.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Crunchmania-Simple.c" />
+    <ClCompile Include="..\..\prowizard\rippers\datacrunchers.c" />
+    <ClCompile Include="..\..\prowizard\rippers\DefjamCruncher32-pro.c" />
+    <ClCompile Include="..\..\prowizard\rippers\DigiBooster17.c" />
+    <ClCompile Include="..\..\prowizard\rippers\DigitalIllusion.c" />
+    <ClCompile Include="..\..\prowizard\rippers\DoubleAction.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Dragpack100.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Dragpack252.c" />
+    <ClCompile Include="..\..\prowizard\rippers\EurekaPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FastTracker2.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FC-M-Packer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FuchsTracker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FutureComposer13.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FutureComposer14.c" />
+    <ClCompile Include="..\..\prowizard\rippers\FuzzacPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\GameMusicCreator.c" />
+    <ClCompile Include="..\..\prowizard\rippers\GNUPacker12.c" />
+    <ClCompile Include="..\..\prowizard\rippers\GnuPlayer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\GPMO.c" />
+    <ClCompile Include="..\..\prowizard\rippers\HeatseekerMC10.c" />
+    <ClCompile Include="..\..\prowizard\rippers\HornetPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\HQC2.c" />
+    <ClCompile Include="..\..\prowizard\rippers\JamCracker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\KefrensSoundMachine.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MasterCruncher30-Address.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MaxPacker12.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MED-Octamed.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MegaCruncher-Object.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MegaCruncher.c" />
+    <ClCompile Include="..\..\prowizard\rippers\MOD-compatible.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ModuleProtector.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Mugician.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Newtron.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NewtronOld.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NoiseFromHeaven.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker1.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker2.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NoisePacker3.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NoiseRunner.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NovoTrade.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PhaPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PolkaPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PowerMusic.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker23.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker30.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker40-library.c" />
+    <ClCompile Include="..\..\prowizard\rippers\PowerPacker40.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Promizer01.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Promizer10c.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Promizer18a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Promizer20.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Promizer40.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker10.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker21.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ProPacker30.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Prorunner10.c" />
+    <ClCompile Include="..\..\prowizard\rippers\Prorunner20.c" />
+    <ClCompile Include="..\..\prowizard\rippers\QuadraComposer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\RelokIt10.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SGT-Packer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\skizzo.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SkytPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SoundFX.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SoundTracker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SoundTracker26.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SpikeCruncher.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StartrekkerPack.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StimPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneArtsPlayer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker270.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299b.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker299d.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker300.c" />
+    <ClCompile Include="..\..\prowizard\rippers\StoneCracker310.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SuperCruncher27.c" />
+    <ClCompile Include="..\..\prowizard\rippers\SyncroPacker46.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack102.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack21.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TetraPack22.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TheDarkDemon.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer22a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer30a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer40.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer41a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer50a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer60a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ThePlayer61a.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TimeCruncher17.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TitanicsPlayer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TMK.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TNMCruncher.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker1.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker2.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TrackerPacker3.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TryItCruncher101.c" />
+    <ClCompile Include="..\..\prowizard\rippers\TurboSqueezer61.c" />
+    <ClCompile Include="..\..\prowizard\rippers\UnicTracker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\UnicTracker2.c" />
+    <ClCompile Include="..\..\prowizard\rippers\WantonPacker.c" />
+    <ClCompile Include="..\..\prowizard\rippers\XannPlayer.c" />
+    <ClCompile Include="..\..\prowizard\rippers\ZenPacker.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

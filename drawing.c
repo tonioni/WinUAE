@@ -350,7 +350,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 		ret = -1;
 
 	if (doublescan <= 0) {
-		int min = coord_diw_to_window_x (116);
+		int min = coord_diw_to_window_x (94);
 		int max = coord_diw_to_window_x (460);
 		if (diwfirstword_total < min)
 			diwfirstword_total = min;

@@ -1,0 +1,638 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="win32">
+      <UniqueIdentifier>{86cfeeb5-a9b0-4c06-bd94-69c258884a66}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="win32\Resource Files">
+      <UniqueIdentifier>{5c4c971a-37b6-4c1e-82f1-d225ebb12808}</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe</Extensions>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{c0e78831-47fa-48a0-a34e-8c3c4410c34b}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="jit">
+      <UniqueIdentifier>{e76a708a-933c-4af4-bad2-0820d79b6a78}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;idl;hpj;bat</Extensions>
+    </Filter>
+    <Filter Include="prowizard">
+      <UniqueIdentifier>{dab2f6c7-d741-4002-b0c9-566a1536642a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors">
+      <UniqueIdentifier>{f3ce6c07-bb5c-47dc-9e59-5e4acd06ff0d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\dms">
+      <UniqueIdentifier>{ae0450a0-e0ff-442b-8896-a21eb8769fae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\7z">
+      <UniqueIdentifier>{c52448a0-4965-449e-bbdd-e8cb8bf9227a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\lha">
+      <UniqueIdentifier>{492ad99e-6cf0-486b-8e97-083a9e50bb7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\zip">
+      <UniqueIdentifier>{d030c158-bae4-4025-9d74-bfe643846c44}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\lzx">
+      <UniqueIdentifier>{4abb311e-366e-4c88-bb5f-0086611a1145}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\xfd">
+      <UniqueIdentifier>{4c157cd6-e04e-4dfa-ad84-a5e9f8abc1ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="decompressors\wrp">
+      <UniqueIdentifier>{43856f2f-e043-4cfe-aa2a-a767858d8ea4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\ahidsound_dsonly.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ahidsound_new.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\avioutput.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\blkdev_win32_aspi.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\blkdev_win32_ioctl.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\blkdev_win32_spti.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bsdsock.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\caps\caps_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\clipboard_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\debug_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dinput.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\direct3d.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\driveclick_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dxwrap.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fsdb_mywin32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fsdb_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\hardfile_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\hq2x_d3d.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ioport.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\keyboard_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\lcd.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\midi.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mman.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\parser.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\picasso96_win.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\posixemu.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\registry.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cloanto\RetroPlatformGuestIPC.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\rp.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scaler.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\scaler_more.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\screenshot.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\serial_win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\sounddep\sound.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\unicode.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32_scale2x.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32_uaenet.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32gfx.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32gui.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32gui_extra.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\writelog.c">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\a2065.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\a2091.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\akiko.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\amax.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ar.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\arcadia.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\audio.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\autoconf.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\blitfunc.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\blittable.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\blitter.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\blkdev.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\blkdev_cdimage.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\bsdsocket.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\catweasel.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cd32_fmv.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cdrom.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cdtv.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cfgfile.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cia.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\consolehook.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpudefs.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_0.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_11.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_12.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_20.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_31.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpummu.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpustbl.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\crc32.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\custom.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\debug.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\disk.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\diskutil.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dongle.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\drawing.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\driveclick.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\enforcer.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\epsonprinter.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ersatz.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\expansion.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fdi2raw.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\filesys.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fpp.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fsdb.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\fsusage.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gayle.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gfxutil.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hardfile.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\identify.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\inputdevice.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\keybuf.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\main.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\memory.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\missing.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\native2amiga.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ncr_scsi.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\newcpu.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\readcpu.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\rommgr.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\sampler.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\sana2.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\savestate.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scsi.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scsiemul.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\traps.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaeexe.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaeipc.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaelib.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaeresource.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\uaeserial.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\zfile.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\zfile_archive.c">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\jit\compemu.c">
+      <Filter>jit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\jit\compemu_fpp.c">
+      <Filter>jit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\jit\compemu_support.c">
+      <Filter>jit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\jit\compstbl.c">
+      <Filter>jit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\moduleripper.c">
+      <Filter>prowizard</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\crc_csum.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\getbits.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\maketbl.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\pfile.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\tables.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_deep.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_heavy.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_init.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_medium.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_quick.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_rle.c">
+      <Filter>decompressors\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zBuf.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zCrc.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\7zStream.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bcj2.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bra.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\Bra86.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.c">
+      <Filter>decompressors\7z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\crcio.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\dhuf.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\header.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\huf.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\larc.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\lharc.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\shuf.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\slide.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\uae_lha.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\util.c">
+      <Filter>decompressors\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\zip\unzip.c">
+      <Filter>decompressors\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lzx\unlzx.c">
+      <Filter>decompressors\lzx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\wrp\warp.c">
+      <Filter>decompressors\wrp</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\resources\35floppy.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\amigainfo.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\avioutput.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\chip.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\configfile.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="configfile.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\cpu.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="diskimage.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\diskimage.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\Drive.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\expansion.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="expansion.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\file.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="file.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\folder.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\h_arrow.cur">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\icon3.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\joystick.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\lcd.bmp">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\misc.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\move_dow.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\move_up.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\paths.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\port.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="port.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\quickstart.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\root.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\screen.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\sound.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\winuae.ico">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\xarcade-winuae.bmp">
+      <Filter>win32\Resource Files</Filter>
+    </None>
+    <None Include="..\resources\drive_click.wav" />
+    <None Include="..\resources\drive_snatch.wav" />
+    <None Include="..\resources\drive_spin.wav" />
+    <None Include="..\resources\drive_spinnd.wav" />
+    <None Include="..\resources\drive_startup.wav" />
+    <None Include="..\resources\resource" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\resources\winuae.rc">
+      <Filter>win32\Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\hq2x16.obj" />
+    <Library Include="..\hq2x32.obj" />
+    <Library Include="..\hq3x16.obj" />
+    <Library Include="..\hq3x32.obj" />
+    <Library Include="..\hq4x16.obj" />
+    <Library Include="..\hq4x32.obj" />
+  </ItemGroup>
+</Project>

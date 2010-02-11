@@ -3001,7 +3001,10 @@ STATIC_INLINE int GETHPOS (void)
 	return islightpentriggered () ? hpos_lpen : (issyncstopped () ? hpos_previous : current_hpos ());
 }
 
-#define HPOS_OFFSET 4
+
+// DFF006 = 0.W must be valid result
+
+#define HPOS_OFFSET 3
 
 STATIC_INLINE uae_u16 VPOSR (void)
 {
@@ -3317,21 +3320,27 @@ static void MISC_handler (void)
 STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
 {
 	evt et;
+	static int next = ev2_misc;
 
 	et = t + get_cycles ();
 	if (no < 0) {
-		for (no = ev2_misc; no < ev2_max; no++) {
+		no = next;
+		for (;;) {
 			if (!eventtab2[no].active)
 				break;
 			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
 				eventtab2[no].handler (eventtab2[no].data);
 				break;
 			}
+			no++;
+			if (no == ev2_max)
+				no = ev2_misc;
+			if (no == next) {
+				write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
+				return;
+			}
 		}
-		if (no == ev2_max) {
-			write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
-			return;
-		}
+		next = no;
 	}
 	eventtab2[no].active = 1;
 	eventtab2[no].evtime = et;
@@ -3392,10 +3401,16 @@ int intlev (void)
 	return -1;
 }
 
-#define INT_PROCESSING_DELAY 3
-STATIC_INLINE int use_eventmode (void)
+#define INT_PROCESSING_DELAY 1
+STATIC_INLINE int use_eventmode (uae_u16 v)
 {
-	return currprefs.cpu_cycle_exact != 0 && currprefs.cpu_model == 68000;
+	if (!currprefs.cpu_cycle_exact)
+		return 0;
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
+		return 1;
+	if (v & 0x8000)
+		return 1;
+	return 0;
 }
 
 static void send_interrupt_do (uae_u32 v)
@@ -3405,7 +3420,7 @@ static void send_interrupt_do (uae_u32 v)
 
 void send_interrupt (int num, int delay)
 {
-	if (use_eventmode () && delay > 0) {
+	if (use_eventmode (0x8000) && delay > 0) {
 		if (!(intreq & (1 << num)))
 			event2_newevent_xx (-1, delay * CYCLE_UNIT, num, send_interrupt_do);
 	} else {
@@ -3429,7 +3444,12 @@ static void INTENA (uae_u16 v)
 	uae_u16 old = intena;
 	setclr (&intena, v);
 
-	if (use_eventmode ())
+	if (old == intena) {
+		doint ();
+		return;
+	}
+
+	if (use_eventmode (v))
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intena, send_intena_do);
 	else
 		send_intena_do (intena);
@@ -3447,7 +3467,11 @@ void INTREQ_0 (uae_u16 v)
 	if (v & (0x0080 | 0x0100 | 0x0200 | 0x0400))
 		audio_update_irq (v);
 
-	if (use_eventmode ())
+	if (old == intreq) {
+		doint ();
+		return;
+	}
+	if (use_eventmode (v))
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY * CYCLE_UNIT, intreq, send_intreq_do);
 	else
 		send_intreq_do (intreq);
@@ -4261,6 +4285,11 @@ static int customdelay[]= {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
+static void copper_write (uae_u32 v)
+{
+	custom_wput_copper (current_hpos (), v >> 16, v & 0xffff, 0);
+}
+
 static void update_copper (int until_hpos)
 {
 	int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
@@ -4423,6 +4452,9 @@ static void update_copper (int until_hpos)
 					cop_state.strobe = 2;
 					cop_state.state = COP_strobe_delay1;
 				} else {
+#if 0
+					event2_newevent2 (1, (reg << 16) | data, copper_write);
+#else
 					// FIX: all copper writes happen 1 cycle later than CPU writes
 					if (customdelay[reg / 2]) {
 						cop_state.moveaddr = reg;
@@ -4436,6 +4468,7 @@ static void update_copper (int until_hpos)
 							do_sprites (hpos2);
 						}
 					}
+#endif
 				}
 #ifdef DEBUGGER
 				if (debug_copper)
@@ -5438,10 +5471,10 @@ static void hsync_handler (void)
 	// DIP Agnus (8361): vblank interrupt is triggered on line 1!
 	if (currprefs.cs_dipagnus) {
 		if (vpos == 1)
-			send_interrupt (5, 0);
+			send_interrupt (5, 1);
 	} else {
 		if (vpos == 0)
-			send_interrupt (5, 0);
+			send_interrupt (5, 1);
 	}
 
 #ifdef CPUEMU_12
@@ -5694,6 +5727,7 @@ void customreset (int hardreset)
 		nr_armed = 0;
 
 		dmacon = 0;
+		intreq_internal = 0;
 		intena = intena_internal = 0;
 
 		copcon = 0;
@@ -6496,7 +6530,10 @@ uae_u8 *restore_custom (uae_u8 *src)
 	dmacon = RW & ~(0x2000|0x4000); /* 096 DMACON */
 	CLXCON (RW);			/* 098 CLXCON */
 	intena = intena_internal = RW;	/* 09A INTENA */
-	intreq = intreq_internal = RW | 0x20; /* 09C INTREQ */
+	intreq = RW;			/* 09C INTREQ */
+	if (!currprefs.cs_dipagnus)
+		intreq |= 0x20;
+	intreq_internal = intreq;
 	adkcon = RW;			/* 09E ADKCON */
 	for (i = 0; i < 8; i++)
 		bplptx[i] = bplpt[i] = RL;
@@ -6872,21 +6909,7 @@ STATIC_INLINE void decide_fetch_ce (int hpos)
 		decide_fetch (hpos);
 }
 
-STATIC_INLINE void ipl_check (void)
-{
-	if (debug_dma) {
-		if (regs.ipl == regs.ipl_pin)
-			return;
-		regs.ipl = regs.ipl_pin;
-		record_dma_event (DMA_EVENT_INTREQ, current_hpos (), vpos);
-	} else {
-		regs.ipl = regs.ipl_pin;
-	}
-}
-
 #define BLIT_NASTY 4
-
-static int ipl_checked;
 
 // blitter not in nasty mode = CPU gets one cycle if it has been waiting
 // at least 4 cycles (all DMA cycles count, not just blitter cycles, even
@@ -6921,9 +6944,6 @@ STATIC_INLINE int dma_cycle (void)
 		}
 		regs.ce020memcycles -= CYCLE_UNIT;
 		do_cycles (1 * CYCLE_UNIT);
-		if (!ipl_checked)
-			ipl_check ();
-		ipl_checked = 1;
 		/* bus was allocated to dma channel, wait for next cycle.. */
 	}
 	return hpos_old;
@@ -6941,11 +6961,8 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 	int hpos;
 	struct dma_rec *dr;
 
-	ipl_checked = 0;
 	hpos = dma_cycle ();
 	do_cycles_ce (CYCLE_UNIT);
-	if (!ipl_checked)
-		ipl_check ();
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -7018,11 +7035,8 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
 
-	ipl_checked = 0;
 	hpos = dma_cycle ();
 	do_cycles_ce (CYCLE_UNIT);
-	if (!ipl_checked)
-		ipl_check ();
 
 #ifdef DEBUGGER
 	if (debug_dma) {

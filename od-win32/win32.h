@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"9"
-#define WINUAEDATE MAKEBD(2010, 2, 7)
+#define WINUAEBETA L"10"
+#define WINUAEDATE MAKEBD(2010, 2, 10)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -134,6 +134,7 @@ void associate_file_extensions (void);
 #define WIN32_PLUGINDIR L"plugins\\"
 HMODULE WIN32_LoadLibrary (const TCHAR *);
 HMODULE WIN32_LoadLibrary2 (const TCHAR *);
+int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev);
 
 extern int screenshot_prepare (void);
 extern void screenshot_free (void);

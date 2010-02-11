@@ -2590,10 +2590,7 @@ STATIC_INLINE int time_for_interrupt (void)
 void doint (void)
 {
 	if (currprefs.cpu_cycle_exact) {
-		int newipl = intlev ();
-		regs.ipl_pin = newipl;
-		if (currprefs.cpu_model != 68000)
-			regs.ipl = regs.ipl_pin;
+		regs.ipl_pin = intlev ();
 		set_special (SPCFLAG_INT);
 		return;
 	}
@@ -2867,6 +2864,7 @@ static void m68k_run_1 (void)
 			if (do_specialties (cpu_cycles))
 				return;
 		}
+		regs.ipl = regs.ipl_pin;
 		if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000))
 			return;
 	}
@@ -2888,6 +2886,7 @@ static void m68k_run_1_ce (void)
 {
 	struct regstruct *r = &regs;
 
+	regs.ipl = regs.ipl_pin;
 	for (;;) {
 		uae_u32 opcode = r->ir;
 		(*cpufunctbl[opcode])(opcode);
@@ -2895,6 +2894,7 @@ static void m68k_run_1_ce (void)
 			if (do_specialties (0))
 				return;
 		}
+		regs.ipl = regs.ipl_pin;
 		if (!currprefs.cpu_cycle_exact || currprefs.cpu_model > 68000)
 			return;
 	}
@@ -3089,6 +3089,7 @@ static void m68k_run_2ce (void)
 	struct regstruct *r = &regs;
 	int tmpcycles = MAX68020CYCLES;
 
+	regs.ipl = regs.ipl_pin;
 	for (;;) {
 		uae_u32 opcode = get_word_ce020_prefetch (0);
 		(*cpufunctbl[opcode])(opcode);
@@ -3106,6 +3107,7 @@ static void m68k_run_2ce (void)
 			do_cycles_ce (1 * CYCLE_UNIT);
 			tmpcycles = CYCLE_UNIT * MAX68020CYCLES;;
 		}
+		regs.ipl = regs.ipl_pin;
 	}
 }
 
@@ -3851,6 +3853,7 @@ void restore_cpu_finish (void)
 	init_m68k ();
 	m68k_setpc (regs.pc);
 	set_cpu_caches ();
+	doint ();
 }
 
 uae_u8 *save_cpu (int *len, uae_u8 *dstptr)

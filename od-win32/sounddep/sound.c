@@ -2027,36 +2027,6 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
 			pDeviceNames += strlen (pDeviceNames) + 1;
 	}
 }
-
-static int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev)
-{
-	DWORD  dwVersionHandle, dwFileVersionInfoSize;
-	LPVOID lpFileVersionData = NULL;
-	int ok = 0;
-
-	dwFileVersionInfoSize = GetFileVersionInfoSize (name, &dwVersionHandle);
-	if (dwFileVersionInfoSize) {
-		if (lpFileVersionData = xcalloc (1, dwFileVersionInfoSize)) {
-			if (GetFileVersionInfo (name, dwVersionHandle, dwFileVersionInfoSize, lpFileVersionData)) {
-				VS_FIXEDFILEINFO *vsFileInfo = NULL;
-				UINT uLen;
-				if (VerQueryValue (lpFileVersionData, TEXT("\\"), (void **)&vsFileInfo, &uLen)) {
-					if (vsFileInfo) {
-						uae_u64 v1 = ((uae_u64)vsFileInfo->dwProductVersionMS << 32) | vsFileInfo->dwProductVersionLS;
-						uae_u64 v2 = ((uae_u64)version << 48) | ((uae_u64)revision << 32) | (subver << 16) | (subrev << 0);
-						write_log (L"%s %d.%d.%d.%d\n", name,
-							HIWORD (vsFileInfo->dwProductVersionMS), LOWORD (vsFileInfo->dwProductVersionMS),
-							HIWORD (vsFileInfo->dwProductVersionLS), LOWORD (vsFileInfo->dwProductVersionLS));
-						if (v1 >= v2)
-							ok = 1;
-					}
-				}
-			}
-			xfree (lpFileVersionData);
-		}
-	}
-	return ok;
-}
 #define PORTAUDIO 1
 #if PORTAUDIO
 static void PortAudioEnumerate (struct sound_device *sds)

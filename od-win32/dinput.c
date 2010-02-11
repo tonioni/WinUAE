@@ -1352,7 +1352,7 @@ static void trimws (TCHAR *s)
 		s[--len] = '\0';
 }
 
-static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
+static BOOL di_enumcallback2 (LPCDIDEVICEINSTANCE lpddi, int joy)
 {
 	struct didata *did;
 	int len, type;
@@ -1363,8 +1363,8 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	if (type == DI8DEVTYPE_MOUSE || type == DI8DEVTYPE_SCREENPOINTER) {
 		did = di_mouse;
 		typetxt = L"Mouse";
-	} else if (type == DI8DEVTYPE_GAMEPAD  || type == DI8DEVTYPE_JOYSTICK ||
-		type == DI8DEVTYPE_FLIGHT || type == DI8DEVTYPE_DRIVING || type == DI8DEVTYPE_1STPERSON) {
+	} else if ((type == DI8DEVTYPE_GAMEPAD  || type == DI8DEVTYPE_JOYSTICK || type == DI8DEVTYPE_SUPPLEMENTAL ||
+		type == DI8DEVTYPE_FLIGHT || type == DI8DEVTYPE_DRIVING || type == DI8DEVTYPE_1STPERSON) || joy) {
 			did = di_joystick;
 			typetxt = L"Game controller";
 	} else if (type == DI8DEVTYPE_KEYBOARD) {
@@ -1431,6 +1431,15 @@ static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
 	return DIENUM_CONTINUE;
 }
 
+static BOOL CALLBACK di_enumcallback (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
+{
+	return di_enumcallback2 (lpddi, 0);
+}
+static BOOL CALLBACK di_enumcallbackj (LPCDIDEVICEINSTANCE lpddi, LPVOID *dd)
+{
+	return di_enumcallback2 (lpddi, 1);
+}
+
 extern HINSTANCE hInst;
 static LPDIRECTINPUT8 g_lpdi;
 
@@ -1474,7 +1483,7 @@ static int di_do_init (void)
 		write_log (L"DirectInput enumeration.. Pointing devices..\n");
 		IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 		write_log (L"DirectInput enumeration.. Game controllers..\n");
-		IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_GAMECTRL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+		IDirectInput8_EnumDevices (g_lpdi, DI8DEVCLASS_GAMECTRL, di_enumcallbackj, 0, DIEDFL_ATTACHEDONLY);
 	}
 	write_log (L"RawInput enumeration..\n");
 	initialize_rawinput ();

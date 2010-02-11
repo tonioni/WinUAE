@@ -1,4 +1,16 @@
 
+- hpos "offset" was accidentally changed (cmp.w #0,$dff006 is possible)
+
+Beta 10:
+
+- CE interrupt handling timing rewrite, again, to better match real
+  behavior (still not good enough but better than previously)
+- only accept winpcap version 4 or newer
+- match autoscale left position to WB max overscan size (maybe in
+  future there will be "TV"-option that restricts to 1990s TV overscan)
+- accept all kinds of DI8DEVCLASS_GAMECTRL devices, not just those that
+  have gamecontroller-like device type
+
 Beta 9:
 
 - CE 68000 interrupt handling update, Spectre Party Demo /
