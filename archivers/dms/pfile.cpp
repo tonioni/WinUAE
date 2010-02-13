@@ -47,7 +47,7 @@ static int passfound, passretries;
 static TCHAR modes[7][7]={L"NOCOMP",L"SIMPLE",L"QUICK ",L"MEDIUM",L"DEEP  ",L"HEAVY1",L"HEAVY2"};
 static USHORT PWDCRC;
 
-static UCHAR *text;
+UCHAR *dms_text;
 
 static void log_error(int track)
 {
@@ -91,8 +91,8 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		free(b1);
 		return ERR_NOMEMORY;
 	}
-	text = xcalloc(UCHAR,TEMP_BUFFER_LEN);
-	if (!text) {
+	dms_text = xcalloc(UCHAR,TEMP_BUFFER_LEN);
+	if (!dms_text) {
 		free(b1);
 		free(b2);
 		return ERR_NOMEMORY;
@@ -103,7 +103,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	if (zfile_fread(b1,1,HEADLEN,fi) != HEADLEN) {
 		free(b1);
 		free(b2);
-		free(text);
+		free(dms_text);
 		return ERR_SREAD;
 	}
 
@@ -111,17 +111,17 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		/*  Check the first 4 bytes of file to see if it is "DMS!"  */
 		free(b1);
 		free(b2);
-		free(text);
+		free(dms_text);
 		return ERR_NOTDMS;
 	}
 
 	hcrc = (USHORT)((b1[HEADLEN-2]<<8) | b1[HEADLEN-1]);
 	/* Header CRC */
 
-	if (hcrc != CreateCRC(b1+4,(ULONG)(HEADLEN-6))) {
+	if (hcrc != dms_CreateCRC(b1+4,(ULONG)(HEADLEN-6))) {
 		free(b1);
 		free(b2);
-		free(text);
+		free(dms_text);
 		return ERR_HCRC;
 	}
 
@@ -133,7 +133,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	if (part && from < 30) {
 		free(b1);
 		free(b2);
-		free(text);
+		free(dms_text);
 		return DMS_FILE_END;
 	}
 
@@ -221,7 +221,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		/*  It's not a DMS compressed disk image, but a FMS archive  */
 		free(b1);
 		free(b2);
-		free(text);
+		free(dms_text);
 		return ERR_FMS;
 	}
 
@@ -290,7 +290,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 	free(b1);
 	free(b2);
-	free(text);
+	free(dms_text);
 
 	return ret;
 }
@@ -316,7 +316,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	/*  Track Header CRC  */
 	hcrc = (USHORT)((b1[THLEN-2] << 8) | b1[THLEN-1]);
 
-	if (CreateCRC(b1,(ULONG)(THLEN-2)) != hcrc) return ERR_THCRC;
+	if (dms_CreateCRC(b1,(ULONG)(THLEN-2)) != hcrc) return ERR_THCRC;
 
 	number = (USHORT)((b1[2] << 8) | b1[3]);	/*  Number of track  */
 	pklen1 = (USHORT)((b1[6] << 8) | b1[7]);	/*  Length of packed track data as in archive  */
@@ -347,7 +347,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	if (zfile_fread(b1,1,(size_t)pklen1,fi) != pklen1) return ERR_SREAD;
 
-	if (CreateCRC(b1,(ULONG)pklen1) != dcrc) {
+	if (dms_CreateCRC(b1,(ULONG)pklen1) != dcrc) {
 		log_error (number);
 		crcerr = 1;
 	}
@@ -480,7 +480,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 			dms_decrypt(b1, pklen1, b1);
 		r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);
 		if (r == NO_PROBLEM) {
-			if (usum1 == Calc_CheckSum(b2,(ULONG)unpklen))
+			if (usum1 == dms_Calc_CheckSum(b2,(ULONG)unpklen))
 				return NO_PROBLEM;
 		}
 		log_error(number);
@@ -497,7 +497,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 	for (;;) {
 		r = Unpack_Track_2(b1, b2, pklen2, unpklen, cmode, flags);
 		if (r == NO_PROBLEM) {
-			if (usum1 == Calc_CheckSum(b2,(ULONG)unpklen)) {
+			if (usum1 == dms_Calc_CheckSum(b2,(ULONG)unpklen)) {
 				passfound = maybeencrypted;
 				if (passfound)
 					write_log (L"DMS: decryption key = 0x%04X\n", prevpass);
