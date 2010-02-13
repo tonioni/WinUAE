@@ -22,11 +22,6 @@
 #include <limits.h>
 #include <tchar.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 #ifndef __STDC__
 #ifndef _MSC_VER
 #error "Your compiler is not ANSI. Get a real one."
@@ -183,7 +178,7 @@ extern void* q_memcpy(void*,const void*,size_t);
 /* If char has more then 8 bits, good night. */
 typedef unsigned char uae_u8;
 typedef signed char uae_s8;
-typedef unsigned char uae_char;
+typedef char uae_char;
 
 typedef struct { uae_u8 RGB[3]; } RGB;
 
@@ -248,10 +243,6 @@ extern TCHAR *au_fs_copy (TCHAR *dst, int maxlen, const char *src);
 extern char *uutf8 (const TCHAR *s);
 extern TCHAR *utf8u (const char *s);
 extern void unicode_init (void);
-
-extern void *xmalloc (size_t);
-extern void *xcalloc (size_t, size_t);
-extern void xfree (const void*);
 
 /* We can only rely on GNU C getting enums right. Mickeysoft VSC++ is known
  * to have problems, and it's likely that other compilers choke too. */
@@ -489,8 +480,8 @@ extern void gui_message (const TCHAR *,...);
 extern int gui_message_multibutton (int flags, const TCHAR *format,...);
 #define write_log_err write_log
 extern void logging_init (void);
-extern void *log_open (const TCHAR *name, int append, int bootlog);
-extern void log_close (void *f);
+extern FILE *log_open (const TCHAR *name, int append, int bootlog);
+extern void log_close (FILE *f);
 
 
 #ifndef O_BINARY
@@ -560,6 +551,24 @@ extern void log_close (void *f);
 
 #endif
 
-#ifdef __cplusplus
-}
+#ifndef __cplusplus
+
+#define xmalloc(T, N) malloc(sizeof (T) * (N))
+#define xcalloc(T, N) calloc(sizeof (T), N)
+#define xfree(T) free(T)
+#define xrealloc(T, TP, N) realloc(TP, sizeof (T) * (N))
+
+#if 0
+extern void *xmalloc (size_t);
+extern void *xcalloc (size_t, size_t);
+extern void xfree (const void*);
+#endif
+
+#else
+
+#define xmalloc(T, N) static_cast<T*>(malloc (sizeof (T) * (N)))
+#define xcalloc(T, N) static_cast<T*>(calloc (sizeof (T), N))
+#define xrealloc(T, TP, N) static_cast<T*>(realloc (TP, sizeof (T) * (N)))
+#define xfree(T) free(T)
+
 #endif

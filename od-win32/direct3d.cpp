@@ -6,8 +6,6 @@
 
 #if defined (D3D) && defined (GFXFILTER)
 
-extern "C"
-{
 #include "options.h"
 #include "xwin.h"
 #include "custom.h"
@@ -20,7 +18,6 @@ extern "C"
 #include "hq2x_d3d.h"
 #include "zfile.h"
 extern int D3DEX, d3ddebug;
-}
 
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -857,7 +854,7 @@ static int createmasktexture (TCHAR *filename)
 		}
 	}
 	size = zfile_size (zf);
-	buf = (uae_u8*)xmalloc (size);
+	buf = xmalloc (uae_u8, size);
 	zfile_fread (buf, size, 1, zf);
 	zfile_fclose (zf);
 	hr = D3DXCreateTextureFromFileInMemoryEx (d3ddev, buf, size,

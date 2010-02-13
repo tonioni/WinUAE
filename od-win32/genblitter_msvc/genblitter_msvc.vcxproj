@@ -101,10 +101,9 @@
     <PreLinkEvent>
       <Message>deleting blitter files</Message>
       <Command>del ..\..\blit.h
-del ..\..\blitfunc.c
+del ..\..\blitfunc.cpp
 del ..\..\blitfunc.h
-del ..\..\blittable.c
-</Command>
+del ..\..\blittable.cpp</Command>
     </PreLinkEvent>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
@@ -119,9 +118,10 @@ del ..\..\blittable.c
     <PostBuildEvent>
       <Message>generating blitter files</Message>
       <Command>genblitter.exe i &gt;..\..\blit.h
-genblitter.exe f &gt;..\..\blitfunc.c
+genblitter.exe f &gt;..\..\blitfunc.cpp
 genblitter.exe h &gt;..\..\blitfunc.h
-genblitter.exe t &gt;..\..\blittable.c
+genblitter.exe t &gt;..\..\blittable.cpp
+del genblitter.exe
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -280,8 +280,8 @@ genblitter.exe t &gt;..\..\blittable.c
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\blitops.c" />
-    <ClCompile Include="..\..\genblitter.c" />
+    <ClCompile Include="..\..\blitops.cpp" />
+    <ClCompile Include="..\..\genblitter.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

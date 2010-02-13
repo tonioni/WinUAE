@@ -124,7 +124,7 @@
       <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\tun;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
       <PreprocessKeepComments>false</PreprocessKeepComments>
@@ -145,6 +145,8 @@
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <EnablePREfast>false</EnablePREfast>
+      <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
+      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -152,7 +154,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;avrt.lib;wininet.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>d:\amiga\winuae.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -167,6 +169,9 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreAllDefaultLibraries>
+      </IgnoreAllDefaultLibraries>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -244,7 +249,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -268,13 +273,14 @@
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;avrt.lib;wininet.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>d:\amiga\winuae.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -387,7 +393,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -411,6 +417,7 @@
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -513,164 +520,164 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\ahidsound_dsonly.c" />
-    <ClCompile Include="..\ahidsound_new.c" />
-    <ClCompile Include="..\avioutput.c" />
-    <ClCompile Include="..\blkdev_win32_aspi.c" />
-    <ClCompile Include="..\blkdev_win32_ioctl.c" />
-    <ClCompile Include="..\blkdev_win32_spti.c" />
-    <ClCompile Include="..\bsdsock.c" />
-    <ClCompile Include="..\caps\caps_win32.c" />
-    <ClCompile Include="..\clipboard_win32.c" />
-    <ClCompile Include="..\debug_win32.c" />
-    <ClCompile Include="..\dinput.c" />
+    <ClCompile Include="..\ahidsound_dsonly.cpp" />
+    <ClCompile Include="..\ahidsound_new.cpp" />
+    <ClCompile Include="..\avioutput.cpp" />
+    <ClCompile Include="..\blkdev_win32_aspi.cpp" />
+    <ClCompile Include="..\blkdev_win32_ioctl.cpp" />
+    <ClCompile Include="..\blkdev_win32_spti.cpp" />
+    <ClCompile Include="..\bsdsock.cpp" />
+    <ClCompile Include="..\caps\caps_win32.cpp" />
+    <ClCompile Include="..\clipboard_win32.cpp" />
+    <ClCompile Include="..\debug_win32.cpp" />
+    <ClCompile Include="..\dinput.cpp" />
     <ClCompile Include="..\direct3d.cpp" />
-    <ClCompile Include="..\driveclick_win32.c" />
-    <ClCompile Include="..\dxwrap.c" />
-    <ClCompile Include="..\fsdb_mywin32.c" />
-    <ClCompile Include="..\fsdb_win32.c" />
-    <ClCompile Include="..\hardfile_win32.c" />
-    <ClCompile Include="..\hq2x_d3d.c" />
-    <ClCompile Include="..\ioport.c" />
-    <ClCompile Include="..\keyboard_win32.c" />
-    <ClCompile Include="..\lcd.c" />
-    <ClCompile Include="..\midi.c" />
-    <ClCompile Include="..\mman.c" />
-    <ClCompile Include="..\parser.c" />
-    <ClCompile Include="..\picasso96_win.c" />
-    <ClCompile Include="..\posixemu.c" />
-    <ClCompile Include="..\registry.c" />
-    <ClCompile Include="..\cloanto\RetroPlatformGuestIPC.c" />
-    <ClCompile Include="..\rp.c" />
-    <ClCompile Include="..\scaler.c" />
-    <ClCompile Include="..\scaler_more.c" />
-    <ClCompile Include="..\screenshot.c" />
-    <ClCompile Include="..\serial_win32.c" />
-    <ClCompile Include="..\sounddep\sound.c" />
-    <ClCompile Include="..\unicode.c" />
-    <ClCompile Include="..\win32.c" />
-    <ClCompile Include="..\win32_scale2x.c" />
-    <ClCompile Include="..\win32_uaenet.c" />
-    <ClCompile Include="..\win32gfx.c" />
-    <ClCompile Include="..\win32gui.c" />
-    <ClCompile Include="..\win32gui_extra.c" />
-    <ClCompile Include="..\writelog.c" />
-    <ClCompile Include="..\..\a2065.c" />
-    <ClCompile Include="..\..\a2091.c" />
-    <ClCompile Include="..\..\akiko.c" />
-    <ClCompile Include="..\..\amax.c" />
-    <ClCompile Include="..\..\ar.c" />
-    <ClCompile Include="..\..\arcadia.c" />
-    <ClCompile Include="..\..\audio.c" />
-    <ClCompile Include="..\..\autoconf.c" />
-    <ClCompile Include="..\..\blitfunc.c" />
-    <ClCompile Include="..\..\blittable.c" />
-    <ClCompile Include="..\..\blitter.c" />
-    <ClCompile Include="..\..\blkdev.c" />
-    <ClCompile Include="..\..\blkdev_cdimage.c" />
-    <ClCompile Include="..\..\bsdsocket.c" />
-    <ClCompile Include="..\..\catweasel.c" />
-    <ClCompile Include="..\..\cd32_fmv.c" />
-    <ClCompile Include="..\..\cdrom.c" />
-    <ClCompile Include="..\..\cdtv.c" />
-    <ClCompile Include="..\..\cfgfile.c" />
-    <ClCompile Include="..\..\cia.c" />
-    <ClCompile Include="..\..\consolehook.c" />
-    <ClCompile Include="..\..\cpudefs.c" />
-    <ClCompile Include="..\..\cpuemu_0.c" />
-    <ClCompile Include="..\..\cpuemu_11.c" />
-    <ClCompile Include="..\..\cpuemu_12.c" />
-    <ClCompile Include="..\..\cpuemu_20.c" />
-    <ClCompile Include="..\..\cpuemu_31.c" />
-    <ClCompile Include="..\..\cpummu.c" />
-    <ClCompile Include="..\..\cpustbl.c" />
-    <ClCompile Include="..\..\crc32.c" />
-    <ClCompile Include="..\..\custom.c" />
-    <ClCompile Include="..\..\debug.c" />
-    <ClCompile Include="..\..\disk.c" />
-    <ClCompile Include="..\..\diskutil.c" />
-    <ClCompile Include="..\..\dongle.c" />
-    <ClCompile Include="..\..\drawing.c" />
-    <ClCompile Include="..\..\driveclick.c" />
-    <ClCompile Include="..\..\enforcer.c" />
-    <ClCompile Include="..\..\epsonprinter.c" />
-    <ClCompile Include="..\..\ersatz.c" />
-    <ClCompile Include="..\..\expansion.c" />
-    <ClCompile Include="..\..\fdi2raw.c" />
-    <ClCompile Include="..\..\filesys.c" />
-    <ClCompile Include="..\..\fpp.c" />
-    <ClCompile Include="..\..\fsdb.c" />
-    <ClCompile Include="..\..\fsusage.c" />
-    <ClCompile Include="..\..\gayle.c" />
-    <ClCompile Include="..\..\gfxutil.c" />
-    <ClCompile Include="..\..\hardfile.c" />
-    <ClCompile Include="..\..\identify.c" />
-    <ClCompile Include="..\..\inputdevice.c" />
-    <ClCompile Include="..\..\keybuf.c" />
-    <ClCompile Include="..\..\main.c" />
-    <ClCompile Include="..\..\memory.c" />
-    <ClCompile Include="..\..\missing.c" />
-    <ClCompile Include="..\..\native2amiga.c" />
-    <ClCompile Include="..\..\ncr_scsi.c" />
-    <ClCompile Include="..\..\newcpu.c" />
-    <ClCompile Include="..\..\readcpu.c" />
-    <ClCompile Include="..\..\rommgr.c" />
-    <ClCompile Include="..\..\sampler.c" />
-    <ClCompile Include="..\..\sana2.c" />
-    <ClCompile Include="..\..\savestate.c" />
-    <ClCompile Include="..\..\scsi.c" />
-    <ClCompile Include="..\..\scsiemul.c" />
-    <ClCompile Include="..\..\traps.c" />
-    <ClCompile Include="..\..\uaeexe.c" />
-    <ClCompile Include="..\..\uaeipc.c" />
-    <ClCompile Include="..\..\uaelib.c" />
-    <ClCompile Include="..\..\uaeresource.c" />
-    <ClCompile Include="..\..\uaeserial.c" />
-    <ClCompile Include="..\..\zfile.c" />
-    <ClCompile Include="..\..\zfile_archive.c" />
-    <ClCompile Include="..\..\jit\compemu.c" />
-    <ClCompile Include="..\..\jit\compemu_fpp.c" />
-    <ClCompile Include="..\..\jit\compemu_support.c" />
-    <ClCompile Include="..\..\jit\compstbl.c" />
-    <ClCompile Include="..\..\moduleripper.c" />
-    <ClCompile Include="..\..\archivers\dms\crc_csum.c" />
-    <ClCompile Include="..\..\archivers\dms\getbits.c" />
-    <ClCompile Include="..\..\archivers\dms\maketbl.c" />
-    <ClCompile Include="..\..\archivers\dms\pfile.c" />
-    <ClCompile Include="..\..\archivers\dms\tables.c" />
-    <ClCompile Include="..\..\archivers\dms\u_deep.c" />
-    <ClCompile Include="..\..\archivers\dms\u_heavy.c" />
-    <ClCompile Include="..\..\archivers\dms\u_init.c" />
-    <ClCompile Include="..\..\archivers\dms\u_medium.c" />
-    <ClCompile Include="..\..\archivers\dms\u_quick.c" />
-    <ClCompile Include="..\..\archivers\dms\u_rle.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c" />
-    <ClCompile Include="..\..\archivers\7z\7zBuf.c" />
-    <ClCompile Include="..\..\archivers\7z\7zCrc.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c" />
-    <ClCompile Include="..\..\archivers\7z\7zStream.c" />
-    <ClCompile Include="..\..\archivers\7z\Bcj2.c" />
-    <ClCompile Include="..\..\archivers\7z\Bra.c" />
-    <ClCompile Include="..\..\archivers\7z\Bra86.c" />
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.c" />
-    <ClCompile Include="..\..\archivers\lha\crcio.c" />
-    <ClCompile Include="..\..\archivers\lha\dhuf.c" />
-    <ClCompile Include="..\..\archivers\lha\header.c" />
-    <ClCompile Include="..\..\archivers\lha\huf.c" />
-    <ClCompile Include="..\..\archivers\lha\larc.c" />
-    <ClCompile Include="..\..\archivers\lha\lhamaketbl.c" />
-    <ClCompile Include="..\..\archivers\lha\lharc.c" />
-    <ClCompile Include="..\..\archivers\lha\shuf.c" />
-    <ClCompile Include="..\..\archivers\lha\slide.c" />
-    <ClCompile Include="..\..\archivers\lha\uae_lha.c" />
-    <ClCompile Include="..\..\archivers\lha\util.c" />
-    <ClCompile Include="..\..\archivers\zip\unzip.c" />
-    <ClCompile Include="..\..\archivers\lzx\unlzx.c" />
-    <ClCompile Include="..\..\archivers\wrp\warp.c" />
+    <ClCompile Include="..\driveclick_win32.cpp" />
+    <ClCompile Include="..\dxwrap.cpp" />
+    <ClCompile Include="..\fsdb_mywin32.cpp" />
+    <ClCompile Include="..\fsdb_win32.cpp" />
+    <ClCompile Include="..\hardfile_win32.cpp" />
+    <ClCompile Include="..\hq2x_d3d.cpp" />
+    <ClCompile Include="..\ioport.cpp" />
+    <ClCompile Include="..\keyboard_win32.cpp" />
+    <ClCompile Include="..\lcd.cpp" />
+    <ClCompile Include="..\midi.cpp" />
+    <ClCompile Include="..\mman.cpp" />
+    <ClCompile Include="..\parser.cpp" />
+    <ClCompile Include="..\picasso96_win.cpp" />
+    <ClCompile Include="..\posixemu.cpp" />
+    <ClCompile Include="..\registry.cpp" />
+    <ClCompile Include="..\cloanto\RetroPlatformGuestIPC.cpp" />
+    <ClCompile Include="..\rp.cpp" />
+    <ClCompile Include="..\scaler.cpp" />
+    <ClCompile Include="..\scaler_more.cpp" />
+    <ClCompile Include="..\screenshot.cpp" />
+    <ClCompile Include="..\serial_win32.cpp" />
+    <ClCompile Include="..\sounddep\sound.cpp" />
+    <ClCompile Include="..\unicode.cpp" />
+    <ClCompile Include="..\win32.cpp" />
+    <ClCompile Include="..\win32_scale2x.cpp" />
+    <ClCompile Include="..\win32_uaenet.cpp" />
+    <ClCompile Include="..\win32gfx.cpp" />
+    <ClCompile Include="..\win32gui.cpp" />
+    <ClCompile Include="..\win32gui_extra.cpp" />
+    <ClCompile Include="..\writelog.cpp" />
+    <ClCompile Include="..\..\a2065.cpp" />
+    <ClCompile Include="..\..\a2091.cpp" />
+    <ClCompile Include="..\..\akiko.cpp" />
+    <ClCompile Include="..\..\amax.cpp" />
+    <ClCompile Include="..\..\ar.cpp" />
+    <ClCompile Include="..\..\arcadia.cpp" />
+    <ClCompile Include="..\..\audio.cpp" />
+    <ClCompile Include="..\..\autoconf.cpp" />
+    <ClCompile Include="..\..\blitfunc.cpp" />
+    <ClCompile Include="..\..\blittable.cpp" />
+    <ClCompile Include="..\..\blitter.cpp" />
+    <ClCompile Include="..\..\blkdev.cpp" />
+    <ClCompile Include="..\..\blkdev_cdimage.cpp" />
+    <ClCompile Include="..\..\bsdsocket.cpp" />
+    <ClCompile Include="..\..\catweasel.cpp" />
+    <ClCompile Include="..\..\cd32_fmv.cpp" />
+    <ClCompile Include="..\..\cdrom.cpp" />
+    <ClCompile Include="..\..\cdtv.cpp" />
+    <ClCompile Include="..\..\cfgfile.cpp" />
+    <ClCompile Include="..\..\cia.cpp" />
+    <ClCompile Include="..\..\consolehook.cpp" />
+    <ClCompile Include="..\..\cpudefs.cpp" />
+    <ClCompile Include="..\..\cpuemu_0.cpp" />
+    <ClCompile Include="..\..\cpuemu_11.cpp" />
+    <ClCompile Include="..\..\cpuemu_12.cpp" />
+    <ClCompile Include="..\..\cpuemu_20.cpp" />
+    <ClCompile Include="..\..\cpuemu_31.cpp" />
+    <ClCompile Include="..\..\cpummu.cpp" />
+    <ClCompile Include="..\..\cpustbl.cpp" />
+    <ClCompile Include="..\..\crc32.cpp" />
+    <ClCompile Include="..\..\custom.cpp" />
+    <ClCompile Include="..\..\debug.cpp" />
+    <ClCompile Include="..\..\disk.cpp" />
+    <ClCompile Include="..\..\diskutil.cpp" />
+    <ClCompile Include="..\..\dongle.cpp" />
+    <ClCompile Include="..\..\drawing.cpp" />
+    <ClCompile Include="..\..\driveclick.cpp" />
+    <ClCompile Include="..\..\enforcer.cpp" />
+    <ClCompile Include="..\..\epsonprinter.cpp" />
+    <ClCompile Include="..\..\ersatz.cpp" />
+    <ClCompile Include="..\..\expansion.cpp" />
+    <ClCompile Include="..\..\fdi2raw.cpp" />
+    <ClCompile Include="..\..\filesys.cpp" />
+    <ClCompile Include="..\..\fpp.cpp" />
+    <ClCompile Include="..\..\fsdb.cpp" />
+    <ClCompile Include="..\..\fsusage.cpp" />
+    <ClCompile Include="..\..\gayle.cpp" />
+    <ClCompile Include="..\..\gfxutil.cpp" />
+    <ClCompile Include="..\..\hardfile.cpp" />
+    <ClCompile Include="..\..\identify.cpp" />
+    <ClCompile Include="..\..\inputdevice.cpp" />
+    <ClCompile Include="..\..\keybuf.cpp" />
+    <ClCompile Include="..\..\main.cpp" />
+    <ClCompile Include="..\..\memory.cpp" />
+    <ClCompile Include="..\..\missing.cpp" />
+    <ClCompile Include="..\..\native2amiga.cpp" />
+    <ClCompile Include="..\..\ncr_scsi.cpp" />
+    <ClCompile Include="..\..\newcpu.cpp" />
+    <ClCompile Include="..\..\readcpu.cpp" />
+    <ClCompile Include="..\..\rommgr.cpp" />
+    <ClCompile Include="..\..\sampler.cpp" />
+    <ClCompile Include="..\..\sana2.cpp" />
+    <ClCompile Include="..\..\savestate.cpp" />
+    <ClCompile Include="..\..\scsi.cpp" />
+    <ClCompile Include="..\..\scsiemul.cpp" />
+    <ClCompile Include="..\..\traps.cpp" />
+    <ClCompile Include="..\..\uaeexe.cpp" />
+    <ClCompile Include="..\..\uaeipc.cpp" />
+    <ClCompile Include="..\..\uaelib.cpp" />
+    <ClCompile Include="..\..\uaeresource.cpp" />
+    <ClCompile Include="..\..\uaeserial.cpp" />
+    <ClCompile Include="..\..\zfile.cpp" />
+    <ClCompile Include="..\..\zfile_archive.cpp" />
+    <ClCompile Include="..\..\jit\compemu.cpp" />
+    <ClCompile Include="..\..\jit\compemu_fpp.cpp" />
+    <ClCompile Include="..\..\jit\compemu_support.cpp" />
+    <ClCompile Include="..\..\jit\compstbl.cpp" />
+    <ClCompile Include="..\..\moduleripper.cpp" />
+    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
+    <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
+    <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
+    <ClCompile Include="..\..\archivers\dms\pfile.cpp" />
+    <ClCompile Include="..\..\archivers\dms\tables.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_deep.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_init.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_medium.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_quick.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_rle.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.cpp" />
+    <ClCompile Include="..\..\archivers\7z\7zBuf.cpp" />
+    <ClCompile Include="..\..\archivers\7z\7zCrc.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.cpp" />
+    <ClCompile Include="..\..\archivers\7z\7zStream.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Bcj2.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Bra.cpp" />
+    <ClCompile Include="..\..\archivers\7z\Bra86.cpp" />
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.cpp" />
+    <ClCompile Include="..\..\archivers\lha\crcio.cpp" />
+    <ClCompile Include="..\..\archivers\lha\dhuf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\header.cpp" />
+    <ClCompile Include="..\..\archivers\lha\huf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\larc.cpp" />
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp" />
+    <ClCompile Include="..\..\archivers\lha\lharc.cpp" />
+    <ClCompile Include="..\..\archivers\lha\shuf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\slide.cpp" />
+    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp" />
+    <ClCompile Include="..\..\archivers\lha\util.cpp" />
+    <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
+    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp" />
+    <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico" />

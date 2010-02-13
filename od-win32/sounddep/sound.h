@@ -28,6 +28,8 @@ extern void sound_volume (int);
 extern void set_volume (int, int);
 extern void master_sound_volume (int);
 
+struct sound_dp;
+
 struct sound_data
 {
     int waiting_for_buffer;
@@ -39,7 +41,7 @@ struct sound_data
     int freq;
     int samplesize;
     int sndbufsize;
-    void *data;
+    struct sound_dp *data;
 };
 
 

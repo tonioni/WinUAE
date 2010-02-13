@@ -151,8 +151,9 @@ od-win32\gencpu_msvc\gencpu.exe
     <PreLinkEvent>
       <Message>deleting gencpu files</Message>
       <Command>del ..\..\cputbl.h
-del ..\..\cpustbl.c
-del ..\..\cpuemu.c
+del ..\..\cpustbl.cpp
+del ..\..\cpuemu.cpp
+
 </Command>
     </PreLinkEvent>
     <Link>
@@ -169,6 +170,7 @@ del ..\..\cpuemu.c
       <Message>generating gencpu files</Message>
       <Command>cd ..\..
 od-win32\gencpu_msvc\gencpu.exe
+del od-win32\gencpu_msvc\gencpu.exe
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -267,11 +269,11 @@ od-win32\gencpu_msvc\gencpu.exe
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\cpudefs.c" />
-    <ClCompile Include="..\..\gencpu.c" />
-    <ClCompile Include="..\..\missing.c" />
-    <ClCompile Include="..\..\readcpu.c" />
-    <ClCompile Include="..\unicode.c" />
+    <ClCompile Include="..\..\cpudefs.cpp" />
+    <ClCompile Include="..\..\gencpu.cpp" />
+    <ClCompile Include="..\..\missing.cpp" />
+    <ClCompile Include="..\..\readcpu.cpp" />
+    <ClCompile Include="..\unicode.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

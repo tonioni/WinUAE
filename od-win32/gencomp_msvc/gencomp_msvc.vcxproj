@@ -113,6 +113,8 @@
       <Message>generating gencomp files</Message>
       <Command>cd ..\..
 od-win32\gencomp_msvc\gencomp.exe
+del od-win32\gencomp_msvc\gencomp.exe
+
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -243,10 +245,10 @@ od-win32\gencomp_msvc\gencomp.exe
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\cpudefs.c" />
-    <ClCompile Include="..\..\jit\gencomp.c" />
-    <ClCompile Include="..\..\missing.c" />
-    <ClCompile Include="..\..\readcpu.c" />
+    <ClCompile Include="..\..\cpudefs.cpp" />
+    <ClCompile Include="..\..\jit\gencomp.cpp" />
+    <ClCompile Include="..\..\missing.cpp" />
+    <ClCompile Include="..\..\readcpu.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

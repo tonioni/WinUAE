@@ -386,23 +386,23 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\..\cpudefs.c"
+				RelativePath="..\..\cpudefs.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\gencpu.c"
+				RelativePath="..\..\gencpu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\missing.c"
+				RelativePath="..\..\missing.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\readcpu.c"
+				RelativePath="..\..\readcpu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\unicode.c"
+				RelativePath="..\unicode.cpp"
 				>
 			</File>
 		</Filter>

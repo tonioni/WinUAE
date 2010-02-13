@@ -66,8 +66,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleting cpudefs.c"
-				CommandLine="del ..\..\cpudefs.c"
+				Description="deleting cpudefs.cpp"
+				CommandLine="del ..\..\cpudefs.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -100,7 +100,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="creating cpudefs.c"
+				Description="creating cpudefs.cpp"
 				CommandLine="build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k"
 			/>
 		</Configuration>
@@ -156,8 +156,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleting cpudefs.c"
-				CommandLine="del ..\..\cpudefs.c"
+				Description="deleting cpudefs.cpp"
+				CommandLine="del ..\..\cpudefs.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -191,7 +191,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="creating cpudefs.c"
+				Description="creating cpudefs.cpp"
 				CommandLine="build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k"
 			/>
 		</Configuration>
@@ -247,8 +247,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleting cpudefs.c"
-				CommandLine="del ..\..\cpudefs.c"
+				Description="deleting cpudefs.cpp"
+				CommandLine="del ..\..\cpudefs.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -281,7 +281,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="creating cpudefs.c"
+				Description="creating cpudefs.cpp"
 				CommandLine="build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k"
 			/>
 		</Configuration>
@@ -337,8 +337,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleting cpudefs.c"
-				CommandLine="del ..\..\cpudefs.c"
+				Description="deleting cpudefs.cpp"
+				CommandLine="del ..\..\cpudefs.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -371,7 +371,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="creating cpudefs.c"
+				Description="creating cpudefs.cpp"
 				CommandLine="build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k"
 			/>
 		</Configuration>
@@ -384,7 +384,7 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\..\build68k.c"
+				RelativePath="..\..\build68k.cpp"
 				>
 			</File>
 		</Filter>

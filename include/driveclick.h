@@ -10,11 +10,11 @@
 #define CLICK_TRACKS 84
 
 struct drvsample {
-    unsigned int len;
-    unsigned pos;
+    int len;
+    int pos;
     uae_s16 *p;
-    unsigned int indexes[CLICK_TRACKS];
-    unsigned int lengths[CLICK_TRACKS];
+    int indexes[CLICK_TRACKS];
+    int lengths[CLICK_TRACKS];
 };
 
 #define DS_CLICK 0

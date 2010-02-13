@@ -47,8 +47,6 @@ extern int fpp_movem_index2[256];
 extern int fpp_movem_next[256];
 #endif
 
-struct regstruct;
-
 typedef unsigned long REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 
@@ -112,8 +110,7 @@ struct cache040
 	int count;
 };
 
-struct flag_struct regflags;
-extern struct regstruct
+struct regstruct
 {
 	uae_u32 regs[16];
 
@@ -168,7 +165,9 @@ extern struct regstruct
 	int ce020memcycles;
 	evt lastfetch;
 
-} regs, lastint_regs, mmu_backup_regs;
+};
+
+extern struct regstruct regs;
 
 STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 {

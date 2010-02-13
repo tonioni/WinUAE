@@ -99,8 +99,8 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreLinkEvent>
-      <Message>deleting cpudefs.c</Message>
-      <Command>del ..\..\cpudefs.c</Command>
+      <Message>deleting cpudefs.cpp</Message>
+      <Command>del ..\..\cpudefs.cpp</Command>
     </PreLinkEvent>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
@@ -113,8 +113,10 @@
       </DataExecutionPrevention>
     </Link>
     <PostBuildEvent>
-      <Message>creating cpudefs.c</Message>
-      <Command>build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k</Command>
+      <Message>creating cpudefs.cpp</Message>
+      <Command>build68k.exe &gt;..\..\cpudefs.cpp &lt;..\..\table68k
+del build68k.exe
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -248,7 +250,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\build68k.c" />
+    <ClCompile Include="..\..\build68k.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -7,10 +7,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\blitops.c">
+    <ClCompile Include="..\..\blitops.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\genblitter.c">
+    <ClCompile Include="..\..\genblitter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

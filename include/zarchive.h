@@ -73,7 +73,7 @@ struct zvolume
 
 struct zarchive_info
 {
-    const TCHAR *name;
+    TCHAR *name;
     uae_s64 size;
     int flags;
     TCHAR *comment;

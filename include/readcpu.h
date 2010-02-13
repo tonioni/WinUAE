@@ -33,11 +33,13 @@ ENUMDECL {
     i_LPSTOP
 } ENUMNAME (instrmnem);
 
-extern struct mnemolookup {
+struct mnemolookup {
     instrmnem mnemo;
     const TCHAR *name;
     const TCHAR *friendlyname;
-} lookuptab[];
+};
+
+extern struct mnemolookup lookuptab[];
 
 ENUMDECL {
     sz_byte, sz_word, sz_long

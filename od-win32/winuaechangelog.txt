@@ -1,5 +1,20 @@
 
-- hpos "offset" was accidentally changed (cmp.w #0,$dff006 is possible)
+Beta 11:
+
+- hpos "offset" was accidentally changed (DFF006 = 0000 is possible)
+- .cd32 rom file extension added (missed when .a500, .a1200 and .a4000
+  was added long time ago)
+- b10 interrupt issues at least partially fixed (freezing or crashing demos)
+- code cleanup, compiles as C++ now (do not worry, this is not "just add
+  hundreds of casts to make it compile") This project has gotten so big
+  that plain C is making things painful (for example archive filehandling
+  would be less messy if written properly in C++, core emulation works fine
+  in C, also future wxwidgets GUI is now at least theoretically possible..)
+  This should also make portability simpler, easier to have better
+  "insulation" between portable and OS specific code. Anyway, nothing
+  really changes until (much) later..
+  Random things can be broken! Report all kinds of undocumented changes
+  compared to previous betas and 2.0.1.
 
 Beta 10:
 

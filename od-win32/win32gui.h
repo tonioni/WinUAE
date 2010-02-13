@@ -20,7 +20,7 @@ void write_disk_history (void);
 
 struct newresource
 {
-    void *resource;
+    LPCDLGTEMPLATEW resource;
     HINSTANCE inst;
     int size;
     int tmpl;

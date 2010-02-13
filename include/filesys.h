@@ -6,6 +6,8 @@
   * Copyright 1997 Bernd Schmidt
   */
 
+struct hardfilehandle;
+
 struct hardfiledata {
     uae_u64 virtsize; // virtual size
     uae_u64 physsize; // physical size (dynamic disk)
@@ -15,7 +17,7 @@ struct hardfiledata {
     int surfaces;
     int reservedblocks;
     int blocksize;
-    void *handle;
+    struct hardfilehandle *handle;
     int handle_valid;
     int readonly;
     int dangerous;
@@ -28,9 +30,9 @@ struct hardfiledata {
     TCHAR product_rev[4 + 1];
     TCHAR device_name[256];
     /* geometry from possible RDSK block */
-    unsigned int cylinders;
-    unsigned int sectors;
-    unsigned int heads;
+    int cylinders;
+    int sectors;
+    int heads;
     uae_u8 *virtual_rdb;
     uae_u64 virtual_size;
     int unitnum;
@@ -57,12 +59,12 @@ struct hd_hardfiledata {
     struct hardfiledata hfd;
     int bootpri;
     uae_u64 size;
-    unsigned int cyls;
-    unsigned int heads;
-    unsigned int secspertrack;
-    unsigned int cyls_def;
-    unsigned int secspertrack_def;
-    unsigned int heads_def;
+    int cyls;
+    int heads;
+    int secspertrack;
+    int cyls_def;
+    int secspertrack_def;
+    int heads_def;
     TCHAR *path;
     int ansi_version;
 };

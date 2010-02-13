@@ -7,7 +7,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\build68k.c">
+    <ClCompile Include="..\..\build68k.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

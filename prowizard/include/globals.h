@@ -21,7 +21,6 @@ typedef unsigned char Uchar;
 typedef unsigned long Ulong;
 typedef unsigned short Ushort;
 
-#include "moduleripper.h"
 #ifdef _WIN32
 __inline Ulong htonlx (Ulong v)
 {

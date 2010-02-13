@@ -46,478 +46,478 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ahidsound_dsonly.c">
+    <ClCompile Include="..\ahidsound_dsonly.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\ahidsound_new.c">
+    <ClCompile Include="..\ahidsound_new.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\avioutput.c">
+    <ClCompile Include="..\avioutput.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\blkdev_win32_aspi.c">
+    <ClCompile Include="..\blkdev_win32_aspi.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\blkdev_win32_ioctl.c">
+    <ClCompile Include="..\blkdev_win32_ioctl.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\blkdev_win32_spti.c">
+    <ClCompile Include="..\blkdev_win32_spti.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\bsdsock.c">
+    <ClCompile Include="..\bsdsock.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\caps\caps_win32.c">
+    <ClCompile Include="..\caps\caps_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\clipboard_win32.c">
+    <ClCompile Include="..\clipboard_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\debug_win32.c">
+    <ClCompile Include="..\debug_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\dinput.c">
+    <ClCompile Include="..\dinput.cpp">
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="..\direct3d.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\driveclick_win32.c">
+    <ClCompile Include="..\driveclick_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\dxwrap.c">
+    <ClCompile Include="..\dxwrap.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\fsdb_mywin32.c">
+    <ClCompile Include="..\fsdb_mywin32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\fsdb_win32.c">
+    <ClCompile Include="..\fsdb_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\hardfile_win32.c">
+    <ClCompile Include="..\hardfile_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\hq2x_d3d.c">
+    <ClCompile Include="..\hq2x_d3d.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\ioport.c">
+    <ClCompile Include="..\ioport.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\keyboard_win32.c">
+    <ClCompile Include="..\keyboard_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\lcd.c">
+    <ClCompile Include="..\lcd.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\midi.c">
+    <ClCompile Include="..\midi.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\mman.c">
+    <ClCompile Include="..\mman.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\parser.c">
+    <ClCompile Include="..\parser.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\picasso96_win.c">
+    <ClCompile Include="..\picasso96_win.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\posixemu.c">
+    <ClCompile Include="..\posixemu.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\registry.c">
+    <ClCompile Include="..\registry.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\cloanto\RetroPlatformGuestIPC.c">
+    <ClCompile Include="..\cloanto\RetroPlatformGuestIPC.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\rp.c">
+    <ClCompile Include="..\rp.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\scaler.c">
+    <ClCompile Include="..\scaler.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\scaler_more.c">
+    <ClCompile Include="..\scaler_more.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\screenshot.c">
+    <ClCompile Include="..\screenshot.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\serial_win32.c">
+    <ClCompile Include="..\serial_win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\sounddep\sound.c">
+    <ClCompile Include="..\sounddep\sound.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\unicode.c">
+    <ClCompile Include="..\unicode.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32.c">
+    <ClCompile Include="..\win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32_scale2x.c">
+    <ClCompile Include="..\win32_scale2x.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32_uaenet.c">
+    <ClCompile Include="..\win32_uaenet.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32gfx.c">
+    <ClCompile Include="..\win32gfx.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32gui.c">
+    <ClCompile Include="..\win32gui.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32gui_extra.c">
+    <ClCompile Include="..\win32gui_extra.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\writelog.c">
+    <ClCompile Include="..\writelog.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\a2065.c">
+    <ClCompile Include="..\..\a2065.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\a2091.c">
+    <ClCompile Include="..\..\a2091.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\akiko.c">
+    <ClCompile Include="..\..\akiko.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\amax.c">
+    <ClCompile Include="..\..\amax.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ar.c">
+    <ClCompile Include="..\..\ar.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\arcadia.c">
+    <ClCompile Include="..\..\arcadia.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\audio.c">
+    <ClCompile Include="..\..\audio.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\autoconf.c">
+    <ClCompile Include="..\..\autoconf.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\blitfunc.c">
+    <ClCompile Include="..\..\blitfunc.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\blittable.c">
+    <ClCompile Include="..\..\blittable.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\blitter.c">
+    <ClCompile Include="..\..\blitter.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\blkdev.c">
+    <ClCompile Include="..\..\blkdev.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\blkdev_cdimage.c">
+    <ClCompile Include="..\..\blkdev_cdimage.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\bsdsocket.c">
+    <ClCompile Include="..\..\bsdsocket.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\catweasel.c">
+    <ClCompile Include="..\..\catweasel.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cd32_fmv.c">
+    <ClCompile Include="..\..\cd32_fmv.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cdrom.c">
+    <ClCompile Include="..\..\cdrom.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cdtv.c">
+    <ClCompile Include="..\..\cdtv.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cfgfile.c">
+    <ClCompile Include="..\..\cfgfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cia.c">
+    <ClCompile Include="..\..\cia.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\consolehook.c">
+    <ClCompile Include="..\..\consolehook.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpudefs.c">
+    <ClCompile Include="..\..\cpudefs.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_0.c">
+    <ClCompile Include="..\..\cpuemu_0.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_11.c">
+    <ClCompile Include="..\..\cpuemu_11.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_12.c">
+    <ClCompile Include="..\..\cpuemu_12.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_20.c">
+    <ClCompile Include="..\..\cpuemu_20.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpuemu_31.c">
+    <ClCompile Include="..\..\cpuemu_31.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpummu.c">
+    <ClCompile Include="..\..\cpummu.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\cpustbl.c">
+    <ClCompile Include="..\..\cpustbl.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\crc32.c">
+    <ClCompile Include="..\..\crc32.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\custom.c">
+    <ClCompile Include="..\..\custom.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\debug.c">
+    <ClCompile Include="..\..\debug.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\disk.c">
+    <ClCompile Include="..\..\disk.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\diskutil.c">
+    <ClCompile Include="..\..\diskutil.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\dongle.c">
+    <ClCompile Include="..\..\dongle.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\drawing.c">
+    <ClCompile Include="..\..\drawing.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\driveclick.c">
+    <ClCompile Include="..\..\driveclick.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\enforcer.c">
+    <ClCompile Include="..\..\enforcer.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\epsonprinter.c">
+    <ClCompile Include="..\..\epsonprinter.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ersatz.c">
+    <ClCompile Include="..\..\ersatz.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\expansion.c">
+    <ClCompile Include="..\..\expansion.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\fdi2raw.c">
+    <ClCompile Include="..\..\fdi2raw.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\filesys.c">
+    <ClCompile Include="..\..\filesys.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\fpp.c">
+    <ClCompile Include="..\..\fpp.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\fsdb.c">
+    <ClCompile Include="..\..\fsdb.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\fsusage.c">
+    <ClCompile Include="..\..\fsusage.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\gayle.c">
+    <ClCompile Include="..\..\gayle.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\gfxutil.c">
+    <ClCompile Include="..\..\gfxutil.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\hardfile.c">
+    <ClCompile Include="..\..\hardfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\identify.c">
+    <ClCompile Include="..\..\identify.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\inputdevice.c">
+    <ClCompile Include="..\..\inputdevice.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\keybuf.c">
+    <ClCompile Include="..\..\keybuf.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\main.c">
+    <ClCompile Include="..\..\main.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\memory.c">
+    <ClCompile Include="..\..\memory.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\missing.c">
+    <ClCompile Include="..\..\missing.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\native2amiga.c">
+    <ClCompile Include="..\..\native2amiga.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ncr_scsi.c">
+    <ClCompile Include="..\..\ncr_scsi.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\newcpu.c">
+    <ClCompile Include="..\..\newcpu.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\readcpu.c">
+    <ClCompile Include="..\..\readcpu.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\rommgr.c">
+    <ClCompile Include="..\..\rommgr.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\sampler.c">
+    <ClCompile Include="..\..\sampler.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\sana2.c">
+    <ClCompile Include="..\..\sana2.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\savestate.c">
+    <ClCompile Include="..\..\savestate.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\scsi.c">
+    <ClCompile Include="..\..\scsi.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\scsiemul.c">
+    <ClCompile Include="..\..\scsiemul.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\traps.c">
+    <ClCompile Include="..\..\traps.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaeexe.c">
+    <ClCompile Include="..\..\uaeexe.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaeipc.c">
+    <ClCompile Include="..\..\uaeipc.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaelib.c">
+    <ClCompile Include="..\..\uaelib.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaeresource.c">
+    <ClCompile Include="..\..\uaeresource.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\uaeserial.c">
+    <ClCompile Include="..\..\uaeserial.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\zfile.c">
+    <ClCompile Include="..\..\zfile.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\zfile_archive.c">
+    <ClCompile Include="..\..\zfile_archive.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jit\compemu.c">
+    <ClCompile Include="..\..\jit\compemu.cpp">
       <Filter>jit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jit\compemu_fpp.c">
+    <ClCompile Include="..\..\jit\compemu_fpp.cpp">
       <Filter>jit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jit\compemu_support.c">
+    <ClCompile Include="..\..\jit\compemu_support.cpp">
       <Filter>jit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jit\compstbl.c">
+    <ClCompile Include="..\..\jit\compstbl.cpp">
       <Filter>jit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\moduleripper.c">
+    <ClCompile Include="..\..\moduleripper.cpp">
       <Filter>prowizard</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\crc_csum.c">
+    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\getbits.c">
+    <ClCompile Include="..\..\archivers\dms\getbits.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\maketbl.c">
+    <ClCompile Include="..\..\archivers\dms\maketbl.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\pfile.c">
+    <ClCompile Include="..\..\archivers\dms\pfile.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\tables.c">
+    <ClCompile Include="..\..\archivers\dms\tables.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_deep.c">
+    <ClCompile Include="..\..\archivers\dms\u_deep.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_heavy.c">
+    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_init.c">
+    <ClCompile Include="..\..\archivers\dms\u_init.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_medium.c">
+    <ClCompile Include="..\..\archivers\dms\u_medium.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_quick.c">
+    <ClCompile Include="..\..\archivers\dms\u_quick.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_rle.c">
+    <ClCompile Include="..\..\archivers\dms\u_rle.cpp">
       <Filter>decompressors\dms</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zBuf.c">
+    <ClCompile Include="..\..\archivers\7z\7zBuf.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zCrc.c">
+    <ClCompile Include="..\..\archivers\7z\7zCrc.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.c">
+    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zStream.c">
+    <ClCompile Include="..\..\archivers\7z\7zStream.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bcj2.c">
+    <ClCompile Include="..\..\archivers\7z\Bcj2.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra.c">
+    <ClCompile Include="..\..\archivers\7z\Bra.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra86.c">
+    <ClCompile Include="..\..\archivers\7z\Bra86.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.c">
+    <ClCompile Include="..\..\archivers\7z\LzmaDec.cpp">
       <Filter>decompressors\7z</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\crcio.c">
+    <ClCompile Include="..\..\archivers\lha\crcio.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\dhuf.c">
+    <ClCompile Include="..\..\archivers\lha\dhuf.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\header.c">
+    <ClCompile Include="..\..\archivers\lha\header.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\huf.c">
+    <ClCompile Include="..\..\archivers\lha\huf.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\larc.c">
+    <ClCompile Include="..\..\archivers\lha\larc.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\lhamaketbl.c">
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\lharc.c">
+    <ClCompile Include="..\..\archivers\lha\lharc.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\shuf.c">
+    <ClCompile Include="..\..\archivers\lha\shuf.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\slide.c">
+    <ClCompile Include="..\..\archivers\lha\slide.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\uae_lha.c">
+    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\util.c">
+    <ClCompile Include="..\..\archivers\lha\util.cpp">
       <Filter>decompressors\lha</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\zip\unzip.c">
+    <ClCompile Include="..\..\archivers\zip\unzip.cpp">
       <Filter>decompressors\zip</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\lzx\unlzx.c">
+    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp">
       <Filter>decompressors\lzx</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\wrp\warp.c">
+    <ClCompile Include="..\..\archivers\wrp\warp.cpp">
       <Filter>decompressors\wrp</Filter>
     </ClCompile>
   </ItemGroup>

@@ -10,9 +10,9 @@ extern int avioutput_video, avioutput_audio, avioutput_enabled, avioutput_reques
 
 extern int avioutput_width, avioutput_height, avioutput_bits;
 extern int avioutput_fps;
-extern DWORD avioutput_framelimiter, avioutput_nosoundoutput;
-extern DWORD avioutput_nosoundsync, avioutput_originalsize;
-extern DWORD screenshot_originalsize;
+extern int avioutput_framelimiter, avioutput_nosoundoutput;
+extern int avioutput_nosoundsync, avioutput_originalsize;
+extern int screenshot_originalsize;
 
 extern TCHAR avioutput_filename[MAX_DPATH];
 

@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"10"
-#define WINUAEDATE MAKEBD(2010, 2, 10)
+#define WINUAEBETA L"11"
+#define WINUAEDATE MAKEBD(2010, 2, 13)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -65,7 +65,6 @@ extern void resumepaused (int priority);
 extern void setpaused (int priority);
 
 void finishjob (void);
-void updatedisplayarea (void);
 void init_colors (void);
 
 extern int pause_emulation;
@@ -78,7 +77,7 @@ extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;
-extern DWORD quickstart, configurationcache;
+extern int quickstart, configurationcache;
 
 extern HKEY hWinUAEKey;
 extern int screen_is_picasso, scalepicasso;

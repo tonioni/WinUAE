@@ -67,9 +67,9 @@ extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 void debug_lgetpeek (uaecptr addr, uae_u32 v);
 void debug_wgetpeek (uaecptr addr, uae_u32 v);
 void debug_bgetpeek (uaecptr addr, uae_u32 v);
-void debug_bputpeek(uaecptr addr, uae_u32 v);
-void debug_wputpeek(uaecptr addr, uae_u32 v);
-void debug_lputpeek(uaecptr addr, uae_u32 v);
+void debug_bputpeek (uaecptr addr, uae_u32 v);
+void debug_wputpeek (uaecptr addr, uae_u32 v);
+void debug_lputpeek (uaecptr addr, uae_u32 v);
 
 enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
 void debugtest (enum debugtest_item, const TCHAR *, ...);

@@ -95,8 +95,9 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PreLinkEvent>
-      <Message>deleteing linetoscr.c</Message>
-      <Command>del ..\..\linetoscr.c</Command>
+      <Message>deleteing linetoscr.cpp</Message>
+      <Command>del ..\..\linetoscr.cpp
+</Command>
     </PreLinkEvent>
     <Link>
       <OutputFile>genlinetoscr.exe</OutputFile>
@@ -111,7 +112,9 @@
     </Link>
     <PostBuildEvent>
       <Message>generating linetoscr.c</Message>
-      <Command>genlinetoscr.exe &gt;..\..\linetoscr.c</Command>
+      <Command>genlinetoscr.exe &gt;..\..\linetoscr.cpp
+del genlinetoscr.exe
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='FullRelease|Win32'">
@@ -148,7 +151,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\genlinetoscr.c" />
+    <ClCompile Include="..\..\genlinetoscr.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -229,13 +229,13 @@ extern void		build_standard_archive_name();
 
 extern FILE		*open_old_archive();
 extern void		init_header();
-extern boolean	get_header();
+extern boolean get_header(struct zfile *fp, LzHeader *hdr);
 extern boolean	archive_is_msdos_sfx1();
 extern boolean	skip_msdos_sfx1_code();
 extern void		write_header();
 extern void		write_archive_tail();
 extern void		copy_old_one();
-extern unsigned char *convdelim();
+extern unsigned char *convdelim(unsigned char *path, unsigned char delim);
 extern long		copyfile();
 
 extern void		cmd_list(), cmd_extract(), cmd_add(), cmd_delete();
@@ -246,7 +246,7 @@ extern char		*extract_directory;
 
 extern int		encode_alloc();
 extern void		encode();
-extern int		decode();
+extern int		decode(struct interfacing*);
 
 /* from append.c */
 extern void     start_indicator();
@@ -289,8 +289,8 @@ extern unsigned short decode_p_lz5();
 extern void			  decode_start_lzs();
 extern void			  decode_start_lz5();
 
-extern void	make_table(	/* int nchar, uchar bitlen[], int tablebits,
-							ushort table[] */ );
+extern void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsigned short table[]);
+
 
 /* from maketree.c */
 /*
@@ -303,13 +303,13 @@ extern short	make_tree( /* int nparm, ushort freqparm[], uchar lenparm[],
 
 /* from crcio.c */
 extern void				make_crctable();
-extern unsigned short	calccrc( /* uchar *p, uint n */ );
-extern void				fillbuf( /* uchar n */ );
-extern unsigned short	getbits( /* uchar n */ );
-extern void				putcode( /* uchar n, ushort x */ );
-extern void				putbits( /* uchar n, ushort x */ );
-extern int				fread_crc( /* uchar *p, int n, FILE *f */ );
-extern void				fwrite_crc( /* uchar *p, int n, FILE *f */ );
+extern unsigned short	calccrc(unsigned char *p, unsigned int n);
+extern void				fillbuf(unsigned char n);
+extern unsigned short	getbits(unsigned char n);
+extern void				putcode(unsigned char n, unsigned short x);
+extern void				putbits(unsigned char n, unsigned short x);
+extern int				fread_crc(unsigned char *p, int n, struct zfile *f);
+extern void				fwrite_crc(unsigned char *p, int n, struct zfile *f);
 extern void				init_getbits();
 extern void				init_putbits();
 extern void     		make_crctable();

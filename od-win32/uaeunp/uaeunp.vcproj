@@ -178,31 +178,31 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\crc32.c"
+				RelativePath="..\..\crc32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\diskutil.c"
+				RelativePath="..\..\diskutil.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\fdi2raw.c"
+				RelativePath="..\..\fdi2raw.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\missing.c"
+				RelativePath="..\..\missing.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaeunp.c"
+				RelativePath="..\..\uaeunp.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\zfile.c"
+				RelativePath="..\..\zfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\zfile_archive.c"
+				RelativePath="..\..\zfile_archive.cpp"
 				>
 			</File>
 			<Filter
@@ -212,47 +212,47 @@
 					Name="dms"
 					>
 					<File
-						RelativePath="..\..\archivers\dms\crc_csum.c"
+						RelativePath="..\..\archivers\dms\crc_csum.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\getbits.c"
+						RelativePath="..\..\archivers\dms\getbits.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\maketbl.c"
+						RelativePath="..\..\archivers\dms\maketbl.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\pfile.c"
+						RelativePath="..\..\archivers\dms\pfile.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\tables.c"
+						RelativePath="..\..\archivers\dms\tables.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_deep.c"
+						RelativePath="..\..\archivers\dms\u_deep.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_heavy.c"
+						RelativePath="..\..\archivers\dms\u_heavy.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_init.c"
+						RelativePath="..\..\archivers\dms\u_init.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_medium.c"
+						RelativePath="..\..\archivers\dms\u_medium.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_quick.c"
+						RelativePath="..\..\archivers\dms\u_quick.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\dms\u_rle.c"
+						RelativePath="..\..\archivers\dms\u_rle.cpp"
 						>
 					</File>
 				</Filter>
@@ -260,55 +260,55 @@
 					Name="7z"
 					>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zAlloc.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zAlloc.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\7zBuf.c"
+						RelativePath="..\..\archivers\7z\7zBuf.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\7zCrc.c"
+						RelativePath="..\..\archivers\7z\7zCrc.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zDecode.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zDecode.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zExtract.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zExtract.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zHeader.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zHeader.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zIn.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zIn.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Archive\7z\7zItem.c"
+						RelativePath="..\..\archivers\7z\Archive\7z\7zItem.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\7zStream.c"
+						RelativePath="..\..\archivers\7z\7zStream.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Bcj2.c"
+						RelativePath="..\..\archivers\7z\Bcj2.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Bra.c"
+						RelativePath="..\..\archivers\7z\Bra.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\Bra86.c"
+						RelativePath="..\..\archivers\7z\Bra86.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\7z\LzmaDec.c"
+						RelativePath="..\..\archivers\7z\LzmaDec.cpp"
 						>
 					</File>
 				</Filter>
@@ -316,47 +316,47 @@
 					Name="lha"
 					>
 					<File
-						RelativePath="..\..\archivers\lha\crcio.c"
+						RelativePath="..\..\archivers\lha\crcio.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\dhuf.c"
+						RelativePath="..\..\archivers\lha\dhuf.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\header.c"
+						RelativePath="..\..\archivers\lha\header.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\huf.c"
+						RelativePath="..\..\archivers\lha\huf.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\larc.c"
+						RelativePath="..\..\archivers\lha\larc.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\lhamaketbl.c"
+						RelativePath="..\..\archivers\lha\lhamaketbl.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\lharc.c"
+						RelativePath="..\..\archivers\lha\lharc.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\shuf.c"
+						RelativePath="..\..\archivers\lha\shuf.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\slide.c"
+						RelativePath="..\..\archivers\lha\slide.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\uae_lha.c"
+						RelativePath="..\..\archivers\lha\uae_lha.cpp"
 						>
 					</File>
 					<File
-						RelativePath="..\..\archivers\lha\util.c"
+						RelativePath="..\..\archivers\lha\util.cpp"
 						>
 					</File>
 				</Filter>
@@ -364,7 +364,7 @@
 					Name="zip"
 					>
 					<File
-						RelativePath="..\..\archivers\zip\unzip.c"
+						RelativePath="..\..\archivers\zip\unzip.cpp"
 						>
 					</File>
 				</Filter>
@@ -372,7 +372,7 @@
 					Name="lzx"
 					>
 					<File
-						RelativePath="..\..\archivers\lzx\unlzx.c"
+						RelativePath="..\..\archivers\lzx\unlzx.cpp"
 						>
 					</File>
 				</Filter>
@@ -384,7 +384,7 @@
 					Name="wrp"
 					>
 					<File
-						RelativePath="..\..\archivers\wrp\warp.c"
+						RelativePath="..\..\archivers\wrp\warp.cpp"
 						>
 					</File>
 				</Filter>
@@ -393,23 +393,23 @@
 				Name="win32"
 				>
 				<File
-					RelativePath="..\caps\caps_win32.c"
+					RelativePath="..\caps\caps_win32.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\fsdb_mywin32.c"
+					RelativePath="..\fsdb_mywin32.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\posixemu.c"
+					RelativePath="..\posixemu.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\uaeunp_win32.c"
+					RelativePath="..\uaeunp_win32.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\unicode.c"
+					RelativePath="..\unicode.cpp"
 					>
 				</File>
 			</Filter>

@@ -229,17 +229,17 @@ void Support_Types_FileDefault ( void )
 void Save_Rip ( char * format_to_save, int FMT_EXT )
 {
   Save_Status = BAD;
-  write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
+  pw_write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
   if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
   {
-    write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    pw_write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO ( OutName_final, sizeof OutName_final);
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
-  write_log ( "  saving in file \"%s\" ... " , OutName_final );
+  pw_write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
   PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize);
   //PW_out = PW_fopen ( OutName_final , "w+b" );
@@ -247,10 +247,10 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
       return;
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
-  write_log ( "done\n" );
+  pw_write_log ( "done\n" );
   if ( CONVERT == GOOD )
   {
-    write_log ( "  converting to Protracker ... " );
+    pw_write_log ( "  converting to Protracker ... " );
   }
   //fflush ( stdout );
   Save_Status = GOOD;
@@ -263,31 +263,31 @@ void Save_Rip ( char * format_to_save, int FMT_EXT )
 void Save_Rip_Special ( char * format_to_save, int FMT_EXT, Uchar * Header_Block , Ulong Block_Size )
 {
   Save_Status = BAD;
-  write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
+  pw_write_log ( "%s found at %ld !. its size is : %ld\n", format_to_save , PW_Start_Address , OutputSize );
   if ( (PW_Start_Address + (long)OutputSize) > PW_in_size )
   {
-    write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
+    pw_write_log ( "!!! Truncated, missing (%ld byte(s) !)\n"
              , (PW_Start_Address+OutputSize)-PW_in_size );
     PW_i += 2 ;
     return;
   }
   BZERO (OutName_final, sizeof OutName_final);
   sprintf ( OutName_final , "%ld.%s" , Cpt_Filename , Extensions[FMT_EXT] );
-  write_log ( "  saving in file \"%s\" ... " , OutName_final );
+  pw_write_log ( "  saving in file \"%s\" ... " , OutName_final );
   Cpt_Filename += 1;
 //  PW_out = PW_fopen ( OutName_final , "w+b" );
   PW_out = moduleripper2_fopen ( OutName_final , "w+b", format_to_save, PW_Start_Address, OutputSize );
   fwrite ( Header_Block , Block_Size  , 1 , PW_out );
   fwrite ( &in_data[PW_Start_Address] , OutputSize , 1 , PW_out );
   fclose ( PW_out );
-  write_log ( "done\n" );
+  pw_write_log ( "done\n" );
   if ( CONVERT == GOOD )
   {
-    write_log ( "  converting to Protracker ... " );
+    pw_write_log ( "  converting to Protracker ... " );
   }
-  write_log ( "  Header of this file was missing and has been rebuilt !\n" );
+  pw_write_log ( "  Header of this file was missing and has been rebuilt !\n" );
   if ( FMT_EXT == DragPack252)
-    write_log ( "  WARNING !: it's a fake header since in this case !!\n" );
+    pw_write_log ( "  WARNING !: it's a fake header since in this case !!\n" );
   //fflush ( stdout );
   Amiga_EXE_Header = GOOD;
   Save_Status = GOOD;

@@ -269,6 +269,11 @@ STATIC_INLINE uae_u32 next_ilong_020ce (void)
 
 #ifdef CPUEMU_12
 
+STATIC_INLINE void ipl_fetch (void)
+{
+	regs.ipl = regs.ipl_pin;
+}
+
 STATIC_INLINE uae_u32 mem_access_delay_word_read (uaecptr addr)
 {
 	switch (ce_banktype[addr >> 16])

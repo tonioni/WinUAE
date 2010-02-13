@@ -6,31 +6,31 @@ copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
 cd bak
-del *.obj *.ilk *.exe *.pdb *.pch *.idb /s
+del *.obj *.ilk *.exe *.pdb *.pch *.idb *.ncb *.sln *.suo *.ncb *.sdf /s
 
 
 
-del cpudefs.c
+del cpudefs.cpp
 del blit.h
-del blitfunc.c
+del blitfunc.cpp
 del blitfunc.h
-del blittable.c
+del blittable.cpp
 del cputbl.h
-del cpustbl.c
-del compemu.c
+del cpustbl.cpp
+del compemu.cpp
 del comptbl.h
-del compstbl.c
-del cpuemu_0.c
-del cpuemu_11.c
-del cpuemu_12.c
-del cpuemu_21.c
-del cpuemu_31.c
-del linetoscr.c
+del compstbl.cpp
+del cpuemu_0.cpp
+del cpuemu_11.cpp
+del cpuemu_12.cpp
+del cpuemu_20.cpp
+del cpuemu_31.cpp
+del linetoscr.cpp
 
 cd jit
-del compemu.c
+del compemu.cpp
 del compstbl.h
-del compstbl.c
+del compstbl.cpp
 cd ..
 
 cd od-win32
@@ -82,25 +82,16 @@ rm -rf fullrelease
 cd ..
 
 cd winuae_msvc
-rm -f winuae_msvc.ncb
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
 cd ..
 
 cd winuae_msvc10
-rm -f winuae_msvc.ncb
-rm -f winuae_msvc.sdf
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
 rm -rf ipch
-cd ..
-
-cd soundcheck
-rm -rf debug
-rm -rf release
-rm -rf fullrelease
 cd ..
 
 cd singlefilehelper
@@ -140,7 +131,7 @@ zip -9 -r winuaesrc *
 copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
 move winuaesrc.zip d:\amiga
 cd c:\projects\winuae\src\od-win32
-zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb
+zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb winuae_msvc10\release\winuae.pdb  winuae_msvc10\fullrelease\winuae.pdb 
 move winuaedebug%1.zip d:\amiga\winuaepackets\
-copy winuae_msvc\fullrelease\winuae.pdb d:\amiga\dump
+copy winuae_msvc10\fullrelease\winuae.pdb d:\amiga\dump
 copy d:\amiga\winuae.exe d:\amiga\dump

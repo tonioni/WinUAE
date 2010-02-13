@@ -131,8 +131,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleteing linetoscr.c"
-				CommandLine="del ..\..\linetoscr.c"
+				Description="deleteing linetoscr.cpp"
+				CommandLine="del ..\..\linetoscr.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -166,8 +166,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="generating linetoscr.c"
-				CommandLine="genlinetoscr.exe &gt;..\..\linetoscr.c"
+				Description="generating linetoscr.cpp"
+				CommandLine="genlinetoscr.exe &gt;..\..\linetoscr.cpp"
 			/>
 		</Configuration>
 		<Configuration
@@ -211,8 +211,8 @@
 			/>
 			<Tool
 				Name="VCPreLinkEventTool"
-				Description="deleteing linetoscr.c"
-				CommandLine="del ..\..\linetoscr.c"
+				Description="deleteing linetoscr.cpp"
+				CommandLine="del ..\..\linetoscr.cpp"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -246,8 +246,8 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="generating linetoscr.c"
-				CommandLine="genlinetoscr.exe &gt;..\..\linetoscr.c"
+				Description="generating linetoscr.cpp"
+				CommandLine="genlinetoscr.exe &gt;..\..\linetoscr.cpp"
 			/>
 		</Configuration>
 	</Configurations>
@@ -260,7 +260,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\genlinetoscr.c"
+				RelativePath="..\..\genlinetoscr.cpp"
 				>
 			</File>
 		</Filter>

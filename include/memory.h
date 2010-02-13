@@ -14,8 +14,8 @@ extern int special_mem;
 #define S_READ 1
 #define S_WRITE 2
 
-extern void *cache_alloc (int);
-extern void cache_free (void*);
+extern uae_u8 *cache_alloc (int);
+extern void cache_free (uae_u8*);
 #endif
 
 int init_shm (void);
@@ -345,7 +345,7 @@ extern void mapkick (void);
 extern void a3000_fakekick (int);
 
 extern uaecptr strcpyha_safe (uaecptr dst, const uae_char *src);
-extern uae_char *strcpyah_safe (uae_u8 *dst, uaecptr src, int maxsize);
+extern uae_char *strcpyah_safe (uae_char *dst, uaecptr src, int maxsize);
 extern void memcpyha_safe (uaecptr dst, const uae_u8 *src, int size);
 extern void memcpyha (uaecptr dst, const uae_u8 *src, int size);
 extern void memcpyah_safe (uae_u8 *dst, uaecptr src, int size);

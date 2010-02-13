@@ -726,47 +726,47 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\ahidsound_dsonly.c"
+				RelativePath="..\ahidsound_dsonly.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\ahidsound_new.c"
+				RelativePath="..\ahidsound_new.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\avioutput.c"
+				RelativePath="..\avioutput.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\blkdev_win32_aspi.c"
+				RelativePath="..\blkdev_win32_aspi.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\blkdev_win32_ioctl.c"
+				RelativePath="..\blkdev_win32_ioctl.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\blkdev_win32_spti.c"
+				RelativePath="..\blkdev_win32_spti.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\bsdsock.c"
+				RelativePath="..\bsdsock.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\caps\caps_win32.c"
+				RelativePath="..\caps\caps_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\clipboard_win32.c"
+				RelativePath="..\clipboard_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\debug_win32.c"
+				RelativePath="..\debug_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\dinput.c"
+				RelativePath="..\dinput.cpp"
 				>
 			</File>
 			<File
@@ -774,123 +774,123 @@
 				>
 			</File>
 			<File
-				RelativePath="..\driveclick_win32.c"
+				RelativePath="..\driveclick_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\dxwrap.c"
+				RelativePath="..\dxwrap.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\fsdb_mywin32.c"
+				RelativePath="..\fsdb_mywin32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\fsdb_win32.c"
+				RelativePath="..\fsdb_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\hardfile_win32.c"
+				RelativePath="..\hardfile_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\hq2x_d3d.c"
+				RelativePath="..\hq2x_d3d.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\ioport.c"
+				RelativePath="..\ioport.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\keyboard_win32.c"
+				RelativePath="..\keyboard_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\lcd.c"
+				RelativePath="..\lcd.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\midi.c"
+				RelativePath="..\midi.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\mman.c"
+				RelativePath="..\mman.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\parser.c"
+				RelativePath="..\parser.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\picasso96_win.c"
+				RelativePath="..\picasso96_win.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\posixemu.c"
+				RelativePath="..\posixemu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\registry.c"
+				RelativePath="..\registry.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\cloanto\RetroPlatformGuestIPC.c"
+				RelativePath="..\cloanto\RetroPlatformGuestIPC.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\rp.c"
+				RelativePath="..\rp.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\scaler.c"
+				RelativePath="..\scaler.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\scaler_more.c"
+				RelativePath="..\scaler_more.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\screenshot.c"
+				RelativePath="..\screenshot.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\serial_win32.c"
+				RelativePath="..\serial_win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\sounddep\sound.c"
+				RelativePath="..\sounddep\sound.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\unicode.c"
+				RelativePath="..\unicode.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32.c"
+				RelativePath="..\win32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32_scale2x.c"
+				RelativePath="..\win32_scale2x.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32_uaenet.c"
+				RelativePath="..\win32_uaenet.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32gfx.c"
+				RelativePath="..\win32gfx.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32gui.c"
+				RelativePath="..\win32gui.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\win32gui_extra.c"
+				RelativePath="..\win32gui_extra.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\writelog.c"
+				RelativePath="..\writelog.cpp"
 				>
 			</File>
 			<Filter
@@ -1112,295 +1112,295 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\..\a2065.c"
+				RelativePath="..\..\a2065.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\a2091.c"
+				RelativePath="..\..\a2091.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\akiko.c"
+				RelativePath="..\..\akiko.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\amax.c"
+				RelativePath="..\..\amax.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\ar.c"
+				RelativePath="..\..\ar.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\arcadia.c"
+				RelativePath="..\..\arcadia.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\audio.c"
+				RelativePath="..\..\audio.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\autoconf.c"
+				RelativePath="..\..\autoconf.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\blitfunc.c"
+				RelativePath="..\..\blitfunc.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\blittable.c"
+				RelativePath="..\..\blittable.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\blitter.c"
+				RelativePath="..\..\blitter.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\blkdev.c"
+				RelativePath="..\..\blkdev.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\blkdev_cdimage.c"
+				RelativePath="..\..\blkdev_cdimage.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\bsdsocket.c"
+				RelativePath="..\..\bsdsocket.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\catweasel.c"
+				RelativePath="..\..\catweasel.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cd32_fmv.c"
+				RelativePath="..\..\cd32_fmv.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cdrom.c"
+				RelativePath="..\..\cdrom.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cdtv.c"
+				RelativePath="..\..\cdtv.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cfgfile.c"
+				RelativePath="..\..\cfgfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cia.c"
+				RelativePath="..\..\cia.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\consolehook.c"
+				RelativePath="..\..\consolehook.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpudefs.c"
+				RelativePath="..\..\cpudefs.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_0.c"
+				RelativePath="..\..\cpuemu_0.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_11.c"
+				RelativePath="..\..\cpuemu_11.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_12.c"
+				RelativePath="..\..\cpuemu_12.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_20.c"
+				RelativePath="..\..\cpuemu_20.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpuemu_31.c"
+				RelativePath="..\..\cpuemu_31.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpummu.c"
+				RelativePath="..\..\cpummu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\cpustbl.c"
+				RelativePath="..\..\cpustbl.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\crc32.c"
+				RelativePath="..\..\crc32.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\custom.c"
+				RelativePath="..\..\custom.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\debug.c"
+				RelativePath="..\..\debug.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\disk.c"
+				RelativePath="..\..\disk.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\diskutil.c"
+				RelativePath="..\..\diskutil.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\dongle.c"
+				RelativePath="..\..\dongle.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\drawing.c"
+				RelativePath="..\..\drawing.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\driveclick.c"
+				RelativePath="..\..\driveclick.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\enforcer.c"
+				RelativePath="..\..\enforcer.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\epsonprinter.c"
+				RelativePath="..\..\epsonprinter.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\ersatz.c"
+				RelativePath="..\..\ersatz.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\expansion.c"
+				RelativePath="..\..\expansion.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\fdi2raw.c"
+				RelativePath="..\..\fdi2raw.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\filesys.c"
+				RelativePath="..\..\filesys.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\fpp.c"
+				RelativePath="..\..\fpp.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\fsdb.c"
+				RelativePath="..\..\fsdb.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\fsusage.c"
+				RelativePath="..\..\fsusage.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\gayle.c"
+				RelativePath="..\..\gayle.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\gfxutil.c"
+				RelativePath="..\..\gfxutil.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\hardfile.c"
+				RelativePath="..\..\hardfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\identify.c"
+				RelativePath="..\..\identify.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\inputdevice.c"
+				RelativePath="..\..\inputdevice.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\keybuf.c"
+				RelativePath="..\..\keybuf.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\main.c"
+				RelativePath="..\..\main.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\memory.c"
+				RelativePath="..\..\memory.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\missing.c"
+				RelativePath="..\..\missing.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\native2amiga.c"
+				RelativePath="..\..\native2amiga.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\ncr_scsi.c"
+				RelativePath="..\..\ncr_scsi.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\newcpu.c"
+				RelativePath="..\..\newcpu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\readcpu.c"
+				RelativePath="..\..\readcpu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\rommgr.c"
+				RelativePath="..\..\rommgr.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\sampler.c"
+				RelativePath="..\..\sampler.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\sana2.c"
+				RelativePath="..\..\sana2.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\savestate.c"
+				RelativePath="..\..\savestate.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\scsi.c"
+				RelativePath="..\..\scsi.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\scsiemul.c"
+				RelativePath="..\..\scsiemul.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\traps.c"
+				RelativePath="..\..\traps.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaeexe.c"
+				RelativePath="..\..\uaeexe.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaeipc.c"
+				RelativePath="..\..\uaeipc.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaelib.c"
+				RelativePath="..\..\uaelib.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaeresource.c"
+				RelativePath="..\..\uaeresource.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\uaeserial.c"
+				RelativePath="..\..\uaeserial.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\zfile.c"
+				RelativePath="..\..\zfile.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\zfile_archive.c"
+				RelativePath="..\..\zfile_archive.cpp"
 				>
 			</File>
 		</Filter>
@@ -1409,19 +1409,19 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath="..\..\jit\compemu.c"
+				RelativePath="..\..\jit\compemu.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\jit\compemu_fpp.c"
+				RelativePath="..\..\jit\compemu_fpp.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\jit\compemu_support.c"
+				RelativePath="..\..\jit\compemu_support.cpp"
 				>
 			</File>
 			<File
-				RelativePath="..\..\jit\compstbl.c"
+				RelativePath="..\..\jit\compstbl.cpp"
 				>
 			</File>
 		</Filter>
@@ -1429,7 +1429,7 @@
 			Name="prowizard"
 			>
 			<File
-				RelativePath="..\..\moduleripper.c"
+				RelativePath="..\..\moduleripper.cpp"
 				>
 			</File>
 		</Filter>
@@ -1440,47 +1440,47 @@
 				Name="dms"
 				>
 				<File
-					RelativePath="..\..\archivers\dms\crc_csum.c"
+					RelativePath="..\..\archivers\dms\crc_csum.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\getbits.c"
+					RelativePath="..\..\archivers\dms\getbits.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\maketbl.c"
+					RelativePath="..\..\archivers\dms\maketbl.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\pfile.c"
+					RelativePath="..\..\archivers\dms\pfile.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\tables.c"
+					RelativePath="..\..\archivers\dms\tables.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_deep.c"
+					RelativePath="..\..\archivers\dms\u_deep.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_heavy.c"
+					RelativePath="..\..\archivers\dms\u_heavy.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_init.c"
+					RelativePath="..\..\archivers\dms\u_init.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_medium.c"
+					RelativePath="..\..\archivers\dms\u_medium.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_quick.c"
+					RelativePath="..\..\archivers\dms\u_quick.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\dms\u_rle.c"
+					RelativePath="..\..\archivers\dms\u_rle.cpp"
 					>
 				</File>
 			</Filter>
@@ -1488,55 +1488,55 @@
 				Name="7z"
 				>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zAlloc.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zAlloc.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zBuf.c"
+					RelativePath="..\..\archivers\7z\7zBuf.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zCrc.c"
+					RelativePath="..\..\archivers\7z\7zCrc.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zDecode.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zDecode.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zExtract.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zExtract.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zHeader.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zHeader.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zIn.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zIn.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Archive\7z\7zItem.c"
+					RelativePath="..\..\archivers\7z\Archive\7z\7zItem.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\7zStream.c"
+					RelativePath="..\..\archivers\7z\7zStream.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Bcj2.c"
+					RelativePath="..\..\archivers\7z\Bcj2.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Bra.c"
+					RelativePath="..\..\archivers\7z\Bra.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\Bra86.c"
+					RelativePath="..\..\archivers\7z\Bra86.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\7z\LzmaDec.c"
+					RelativePath="..\..\archivers\7z\LzmaDec.cpp"
 					>
 				</File>
 			</Filter>
@@ -1544,47 +1544,47 @@
 				Name="lha"
 				>
 				<File
-					RelativePath="..\..\archivers\lha\crcio.c"
+					RelativePath="..\..\archivers\lha\crcio.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\dhuf.c"
+					RelativePath="..\..\archivers\lha\dhuf.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\header.c"
+					RelativePath="..\..\archivers\lha\header.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\huf.c"
+					RelativePath="..\..\archivers\lha\huf.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\larc.c"
+					RelativePath="..\..\archivers\lha\larc.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\lhamaketbl.c"
+					RelativePath="..\..\archivers\lha\lhamaketbl.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\lharc.c"
+					RelativePath="..\..\archivers\lha\lharc.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\shuf.c"
+					RelativePath="..\..\archivers\lha\shuf.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\slide.c"
+					RelativePath="..\..\archivers\lha\slide.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\uae_lha.c"
+					RelativePath="..\..\archivers\lha\uae_lha.cpp"
 					>
 				</File>
 				<File
-					RelativePath="..\..\archivers\lha\util.c"
+					RelativePath="..\..\archivers\lha\util.cpp"
 					>
 				</File>
 			</Filter>
@@ -1592,7 +1592,7 @@
 				Name="zip"
 				>
 				<File
-					RelativePath="..\..\archivers\zip\unzip.c"
+					RelativePath="..\..\archivers\zip\unzip.cpp"
 					>
 				</File>
 			</Filter>
@@ -1600,7 +1600,7 @@
 				Name="lzx"
 				>
 				<File
-					RelativePath="..\..\archivers\lzx\unlzx.c"
+					RelativePath="..\..\archivers\lzx\unlzx.cpp"
 					>
 				</File>
 			</Filter>
@@ -1612,7 +1612,7 @@
 				Name="wrp"
 				>
 				<File
-					RelativePath="..\..\archivers\wrp\warp.c"
+					RelativePath="..\..\archivers\wrp\warp.cpp"
 					>
 				</File>
 			</Filter>

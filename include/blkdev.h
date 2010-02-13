@@ -52,9 +52,9 @@ struct device_scsi_info {
 struct amigascsi
 {
     uae_u8 *data;
-    uae_u32 len;
+    uae_s32 len;
     uae_u8 cmd[16];
-    uae_u32 cmd_len;
+    uae_s32 cmd_len;
     uae_u8 flags;
     uae_u8 sensedata[256];
     uae_u16 sense_len;

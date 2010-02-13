@@ -352,4 +352,6 @@ extern char Extensions[_KNOWN_FORMATS+1][33];
 extern Uchar CONVERT;
 extern Uchar Amiga_EXE_Header;
 
-extern void write_log (const char *, ...);
+extern void pw_write_log (const char *, ...);
+extern FILE *moduleripper2_fopen (const char *name, const char *mode, const char *aid, int addr, int size);
+extern FILE *moduleripper_fopen (const char *aname, const char *amode);

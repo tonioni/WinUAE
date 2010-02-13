@@ -7,16 +7,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\cpudefs.c">
+    <ClCompile Include="..\..\cpudefs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\jit\gencomp.c">
+    <ClCompile Include="..\..\jit\gencomp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\missing.c">
+    <ClCompile Include="..\..\missing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\readcpu.c">
+    <ClCompile Include="..\..\readcpu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
