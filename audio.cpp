@@ -1057,7 +1057,7 @@ int audio_activate (void)
 		ret = 1;
 		audio_event_reset ();
 	}
-	audio_work_to_do = 4 * maxvpos * 50;
+	audio_work_to_do = 4 * maxvpos_nom * 50;
 	return ret;
 }
 
@@ -1301,8 +1301,10 @@ void audio_reset (void)
 	events_schedule ();
 }
 
-STATIC_INLINE int sound_prefs_changed (void)
+static int sound_prefs_changed (void)
 {
+	if (!config_changed)
+		return 0;
 	if (changed_prefs.produce_sound != currprefs.produce_sound
 		|| changed_prefs.win32_soundcard != currprefs.win32_soundcard
 		|| changed_prefs.win32_soundexclusive != currprefs.win32_soundexclusive
@@ -1492,6 +1494,7 @@ void set_audio (void)
 		eventtab[ev_audio].active = 0;
 		events_schedule ();
 	}
+	config_changed = 1;
 }
 
 void update_audio (void)

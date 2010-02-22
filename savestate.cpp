@@ -424,6 +424,7 @@ void restore_state (const TCHAR *filename)
 		write_log (L"%s is not an AmigaStateFile\n", filename);
 		goto error;
 	}
+	config_changed = 1;
 	savestate_file = f;
 	restore_header (chunk);
 	xfree (chunk);

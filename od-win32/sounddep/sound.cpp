@@ -171,7 +171,7 @@ void update_sound (int freq, int longframe, int linetoggle)
 			lines += 1.0;
 		hpos = maxhpos_short;
 	}
-	lines += maxvpos;
+	lines += maxvpos_nom;
 
 	scaled_sample_evtime_orig = hpos * lines * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
@@ -355,6 +355,7 @@ void set_volume (int volume, int mute)
 {
 	set_volume_sound_device (sdp, volume, mute);
 	setvolume_ahi (volume);
+	config_changed = 1;
 }
 
 static void recalc_offsets (struct sound_data *sd)
@@ -1163,6 +1164,7 @@ static int open_sound (void)
 
 	if (!currprefs.produce_sound)
 		return 0;
+	config_changed = 1;
 	/* Always interpret buffer size as number of samples, not as actual
 	buffer size.  Of course, since 8192 is the default, we'll have to
 	scale that to a sane value (assuming that otherwise 16 bits and
@@ -1205,6 +1207,7 @@ static int open_sound (void)
 
 void close_sound (void)
 {
+	config_changed = 1;
 	gui_data.sndbuf = 0;
 	gui_data.sndbuf_status = 3;
 	if (! have_sound)
@@ -2309,6 +2312,7 @@ void sound_mute (int newmute)
 	else
 		sdp->mute = newmute;
 	set_volume (currprefs.sound_volume, sdp->mute);
+	config_changed = 1;
 }
 
 void sound_volume (int dir)
@@ -2320,6 +2324,7 @@ void sound_volume (int dir)
 		currprefs.sound_volume = 100;
 	changed_prefs.sound_volume = currprefs.sound_volume;
 	set_volume (currprefs.sound_volume, sdp->mute);
+	config_changed = 1;
 }
 void master_sound_volume (int dir)
 {
@@ -2336,4 +2341,5 @@ void master_sound_volume (int dir)
 	if (vol > 65535)
 		vol = 65535;
 	set_master_volume (vol, mute);
+	config_changed = 1;
 }

@@ -1743,7 +1743,7 @@ static void init_aspect_maps (void)
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
 		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (gfxvidinfo.height - (maxvpos_max << (linedbl ? 1 : 0))) >> 1;
+		extra_y_adjust = (gfxvidinfo.height - (maxvpos_nom << (linedbl ? 1 : 0))) >> 1;
 		if (extra_y_adjust < 0)
 			extra_y_adjust = 0;
 	}
@@ -2262,19 +2262,19 @@ static void center_image (void)
 			thisframe_y_adjust += diff >> 1;
 		}
 #endif
-		if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_max)
-			thisframe_y_adjust = 2 * maxvpos_max - max_drawn_amiga_line;
+		if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_nom)
+			thisframe_y_adjust = 2 * maxvpos_nom - max_drawn_amiga_line;
 		if (thisframe_y_adjust < 0)
 			thisframe_y_adjust = 0;
 	} else {
 		/* Make sure the value makes sense */
-		if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_max)
-			thisframe_y_adjust = maxvpos_max - max_drawn_amiga_line;
+		if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_nom)
+			thisframe_y_adjust = maxvpos_nom - max_drawn_amiga_line;
 		if (thisframe_y_adjust < minfirstline)
 			thisframe_y_adjust = minfirstline;
 	}
 	thisframe_y_adjust_real = thisframe_y_adjust << (linedbl ? 1 : 0);
-	tmp = (maxvpos_max - thisframe_y_adjust) << (linedbl ? 1 : 0);
+	tmp = (maxvpos_nom - thisframe_y_adjust) << (linedbl ? 1 : 0);
 	if (tmp != max_ypos_thisframe) {
 		last_max_ypos = tmp;
 		if (last_max_ypos < 0)
@@ -2314,6 +2314,7 @@ static void init_drawing_frame (void)
 					} else {
 						*dst = *src;
 					}
+					config_changed = 1;
 					break;
 				}
 				m++;
@@ -2342,7 +2343,7 @@ static void init_drawing_frame (void)
 	if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 		thisframe_last_drawn_line = thisframe_first_drawn_line;
 
-	maxline = linedbl ? (maxvpos_max + 1) * 2 + 1 : (maxvpos_max + 1) + 1;
+	maxline = linedbl ? (maxvpos_nom + 1) * 2 + 1 : (maxvpos_nom + 1) + 1;
 	maxline++;
 #ifdef SMART_UPDATE
 	for (i = 0; i < maxline; i++) {
@@ -2711,8 +2712,8 @@ static void lightpen_update (void)
 		lightpen_cx -= maxhpos;
 	if (lightpen_cy < minfirstline)
 		lightpen_cy = minfirstline;
-	if (lightpen_cy >= maxvpos_max)
-		lightpen_cy = maxvpos_max - 1;
+	if (lightpen_cy >= maxvpos)
+		lightpen_cy = maxvpos - 1;
 
 	for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
 		int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
@@ -2747,9 +2748,6 @@ void finish_drawing_frame (void)
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
 		int where2;
-
-		if (linestate[line] == LINE_UNDECIDED)
-			break;
 
 		where2 = amiga2aspect_line_map[i1];
 		if (where2 >= gfxvidinfo.height)

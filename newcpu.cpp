@@ -35,13 +35,13 @@
 extern uae_u8* compiled_code;
 #include "jit/compemu.h"
 #include <signal.h>
-/* For faster cycles handling */
-signed long pissoff = 0;
 #else
 /* Need to have these somewhere */
 static void build_comp (void) {}
 void check_prefs_changed_comp (void) {}
 #endif
+/* For faster JIT cycles handling */
+signed long pissoff = 0;
 
 /* Opcode of faulting instruction */
 static uae_u16 last_op_for_exception_3;
@@ -352,6 +352,7 @@ static void update_68k_cycles (void)
 	if (cpucycleunit < 1)
 		cpucycleunit = 1;
 	write_log (L"CPU cycleunit: %d (%.3f)\n", cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
+	config_changed = 1;
 }
 
 static void prefs_changed_cpu (void)
@@ -369,6 +370,8 @@ void check_prefs_changed_cpu (void)
 {
 	int changed = 0;
 
+	if (!config_changed)
+		return;
 #ifdef JIT
 	changed = check_prefs_changed_comp ();
 #endif
@@ -1117,15 +1120,22 @@ uae_u32 REGPARAM2 get_disp_ea_040mmu (uae_u32 base, uae_u32 dp)
 		if (dp & 0x80) base = 0;
 		if (dp & 0x40) regd = 0;
 
-		if ((dp & 0x30) == 0x20) base += (uae_s32)(uae_s16) next_iword_mmu ();
-		if ((dp & 0x30) == 0x30) base += next_ilong_mmu ();
+		if ((dp & 0x30) == 0x20)
+			base += (uae_s32)(uae_s16) next_iword_mmu ();
+		if ((dp & 0x30) == 0x30)
+			base += next_ilong_mmu ();
 
-		if ((dp & 0x3) == 0x2) outer = (uae_s32)(uae_s16) next_iword_mmu ();
-		if ((dp & 0x3) == 0x3) outer = next_ilong_mmu ();
+		if ((dp & 0x3) == 0x2)
+			outer = (uae_s32)(uae_s16) next_iword_mmu ();
+		if ((dp & 0x3) == 0x3)
+			outer = next_ilong_mmu ();
 
-		if ((dp & 0x4) == 0) base += regd;
-		if (dp & 0x3) base = get_long_mmu (base);
-		if (dp & 0x4) base += regd;
+		if ((dp & 0x4) == 0)
+			base += regd;
+		if (dp & 0x3)
+			base = get_long_mmu (base);
+		if (dp & 0x4)
+			base += regd;
 
 		return base + outer;
 	} else {
@@ -2971,7 +2981,7 @@ void execute_normal (void)
 
 typedef void compiled_handler (void);
 
-static void m68k_run_2a (void)
+static void m68k_run_jit (void)
 {
 	for (;;) {
 		((compiled_handler*)(pushall_call_handler))();
@@ -3286,22 +3296,18 @@ void m68k_go (int may_quit)
 			regs.spcflags |= of & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 		}
 #endif
-#ifndef JIT
-		run_func = currprefs.cpu_model == 68000 && currprefs.cpu_cycle_exact ? m68k_run_1_ce :
-			currprefs.cpu_model == 68000 && currprefs.cpu_compatible ? m68k_run_1 :
-			currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2;
-#else
 		if (mmu_enabled && !currprefs.cachesize) {
 			run_func = m68k_run_mmu;
 		} else {
 			run_func = currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000 ? m68k_run_1_ce :
 				currprefs.cpu_compatible > 0 && currprefs.cpu_model == 68000 ? m68k_run_1 :
-				currprefs.cpu_model >= 68020 && currprefs.cachesize ? m68k_run_2a :
+#ifdef JIT
+				currprefs.cpu_model >= 68020 && currprefs.cachesize ? m68k_run_jit :
+#endif
 				(currprefs.cpu_model == 68040 || currprefs.cpu_model == 68060) && currprefs.mmu_model ? m68k_run_mmu040 :
 				currprefs.cpu_model >= 68020 && currprefs.cpu_cycle_exact ? m68k_run_2ce :
 				currprefs.cpu_compatible ? m68k_run_2p : m68k_run_2;
 		}
-#endif
 		run_func ();
 	}
 	in_m68k_go--;
@@ -3706,9 +3712,12 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
 		f_out (f, L"  A%d %08lX ", i, m68k_areg (regs, i));
 		if ((i & 3) == 3) f_out (f, L"\n");
 	}
-	if (regs.s == 0) regs.usp = m68k_areg (regs, 7);
-	if (regs.s && regs.m) regs.msp = m68k_areg (regs, 7);
-	if (regs.s && regs.m == 0) regs.isp = m68k_areg (regs, 7);
+	if (regs.s == 0)
+		regs.usp = m68k_areg (regs, 7);
+	if (regs.s && regs.m)
+		regs.msp = m68k_areg (regs, 7);
+	if (regs.s && regs.m == 0)
+		regs.isp = m68k_areg (regs, 7);
 	j = 2;
 	f_out (f, L"USP  %08X ISP  %08X ", regs.usp, regs.isp);
 	for (i = 0; m2cregs[i].regno>= 0; i++) {
@@ -4273,62 +4282,21 @@ void do_cycles_ce000 (int clocks)
 	do_cycles_ce (clocks * cpucycleunit);
 }
 
-void m68k_do_rte (uae_u32 pc, uae_u16 sr, uae_u16 format, uae_u16 opcode)
+void m68k_do_rte_mmu (void)
 {
-	int f;
-
-	f = format >> 12;
-	if (f == 0) {
-		;
-	} else if (f == 0x1) {
-		;
-	} else if (f == 0x2) {
-		m68k_areg (regs, 7) += 4;
-	} else if (f == 0x4) {
-		m68k_areg (regs, 7) += 8;
-	} else if (f == 0x8) {
-		m68k_areg (regs, 7) += 50;
-	} else if (f == 0x7) {
-		uae_u16 ssr = get_word_mmu (m68k_areg (regs, 7) + 4);
-		if (ssr & MMU_SSW_CT) {
-			uaecptr src_a7 = m68k_areg (regs, 7) - 8;
-			uaecptr dst_a7 = m68k_areg (regs, 7) + 52;
-			put_word_mmu (dst_a7 + 0, get_word_mmu (src_a7 + 0));
-			put_long_mmu (dst_a7 + 2, get_long_mmu (src_a7 + 2));
-			// skip this word
-			put_long_mmu (dst_a7 + 8, get_long_mmu (src_a7 + 8));
-		}
-		m68k_areg (regs, 7) += 52;
-	} else if (f == 0x9) {
-		m68k_areg (regs, 7) += 12;
-	} else if (f == 0xa) {
-		m68k_areg (regs, 7) += 24;
-	} else if (f == 0xb) {
-		m68k_areg (regs, 7) += 84;
-	} else {
-		Exception (14, 0);
-		return;
+	uae_u16 ssr = get_word_mmu (m68k_areg (regs, 7) + 4);
+	if (ssr & MMU_SSW_CT) {
+		uaecptr src_a7 = m68k_areg (regs, 7) - 8;
+		uaecptr dst_a7 = m68k_areg (regs, 7) + 52;
+		put_word_mmu (dst_a7 + 0, get_word_mmu (src_a7 + 0));
+		put_long_mmu (dst_a7 + 2, get_long_mmu (src_a7 + 2));
+		// skip this word
+		put_long_mmu (dst_a7 + 8, get_long_mmu (src_a7 + 8));
 	}
-	regs.sr = sr;
-	MakeFromSR ();
-	if (pc & 1)
-		exception3 (0x4E73, m68k_getpc (), pc);
-	else
-		m68k_setpc (pc);
 }
 
 void flush_mmu (uaecptr addr, int n)
 {
-}
-
-void m68k_do_rte_mmu (void)
-{
-	uaecptr src = m68k_areg (regs, 7);
-	uae_s16 sr = get_word_mmu (src);
-	uae_s32 pc = get_long_mmu (src + 2);
-	uae_s16 format = get_word_mmu (src + 6);
-	m68k_areg (regs, 7) += 8;
-	m68k_do_rte (pc, sr, format, 0x4e73);
 }
 
 void m68k_do_rts_mmu (void)
@@ -4336,13 +4304,13 @@ void m68k_do_rts_mmu (void)
 	m68k_setpc (get_long_mmu (m68k_areg (regs, 7)));
 	m68k_areg (regs, 7) += 4;
 }
+
 void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset)
 {
 	put_long_mmu (m68k_areg (regs, 7) - 4, oldpc);
 	m68k_areg (regs, 7) -= 4;
 	m68k_incpci (offset);
 }
-
 
 void put_long_slow (uaecptr addr, uae_u32 v)
 {

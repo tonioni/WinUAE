@@ -192,6 +192,7 @@ static int cd_insert (int num, const TCHAR *name)
 	if (num != 0)
 		return 0;
 	_tcscpy (changed_prefs.cdimagefile, name);
+	config_changed = 1;
 	return 1;
 }
 
@@ -504,6 +505,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	updatewinfsmode (p);
 	hwndset = 0;
+	config_changed = 1;
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
@@ -532,6 +534,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				warpmode ((lParam & RP_TURBO_CPU) ? 1 : 0);
 			if (wParam & RP_TURBO_FLOPPY)
 				changed_prefs.floppy_speed = (lParam & RP_TURBO_FLOPPY) ? 0 : 100;
+			config_changed = 1;
 		}
 		return TRUE;
 	case RPIPCHM_PAUSE:
@@ -811,6 +814,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_turbo (currprefs.turbo_emulation);
 	for (i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, 0);
+	config_changed = 1;
 }
 
 static void rp_device_change (int dev, int num, const TCHAR *name)

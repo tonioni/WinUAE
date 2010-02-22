@@ -276,13 +276,19 @@ void unicode_init (void)
 {
 	// iso-8859-15,iso-8859-1,windows-1252,default ansi
 	static UINT pages[] = { 28605, 28591, 1252, 0 };
-	int i;
+	int i, minac, maxac;
+	UINT ac;
 
 	for (i = 0; fscodepage = pages[i]; i++) {
 		if (MultiByteToWideChar (fscodepage, 0, " ", 1, NULL, 0))
 			break;
 	}
-	write_log (L"Filesystem charset (ACP=%u,FSCP=%u):\n", GetACP (), fscodepage);
+	ac = GetACP ();
+	if (ac == 1251) // cyrillic -> always use 1251
+		fscodepage = 1251;
+	write_log (L"Filesystem charset (ACP=%u,FSCP=%u):\n", ac, fscodepage);
+	minac = 0x7f;
+	maxac = 0x9f;
 	for (i = 0; i < 256; i++) {
 		TCHAR dst1[2], dst2[2];
 		char src[2];
@@ -302,7 +308,7 @@ void unicode_init (void)
 			write_log (L" %02X: %04X       ", i, dst1[0]);
 		if ((i & 3) == 3)
 			write_log (L"\n");
-		if (i < 32 || (i >= 0x7f && i <= 0x9f))
+		if (i < 32 || (i >= minac && i <= maxac))
 			aufstable[i] = dst1[0];
 		else
 			aufstable[i] = dst2[0];

@@ -1052,6 +1052,8 @@ void action_replay_enter (void)
 
 void check_prefs_changed_carts (int in_memory_reset)
 {
+	if (!config_changed)
+		return;
 	if (currprefs.cart_internal != changed_prefs.cart_internal)
 		currprefs.cart_internal = changed_prefs.cart_internal;
 	if (_tcscmp (currprefs.cartfile, changed_prefs.cartfile) != 0) {

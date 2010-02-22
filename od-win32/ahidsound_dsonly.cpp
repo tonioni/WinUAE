@@ -614,16 +614,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 13: /* HACK */
 		{ //for higher P96 mouse draw rate
-			extern int p96hack_vpos2, hack_vpos ,p96refresh_active;
-			extern uae_u16 vtotal;
-			extern unsigned int new_beamcon0;
-			p96hack_vpos2 = 0;
-			if (m68k_dreg (regs, 1) > 0)
-				p96hack_vpos2 = 15625 / m68k_dreg (regs, 1);
-			if (!currprefs.cs_ciaatod)
-				changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
-			p96refresh_active=1;
-			picasso_refresh ();
+			set_picasso_hack_rate (m68k_dreg (regs, 1));
 		} //end for higher P96 mouse draw rate
 		return 0;
 

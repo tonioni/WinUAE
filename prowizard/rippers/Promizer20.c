@@ -1,4 +1,3 @@
-/* 20091113 - fixed patternlist generation and cleaned a bit */
 
 
 /* testPM2() */
@@ -51,7 +50,7 @@ void Rip_PM20 ( void )
   Save_Rip ( "Promizer 2.0 module", Promizer_20 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 2);  /* 1 should do but call it "just to be sure" :) */
+    PW_i += 2;  /* 1 should do but call it "just to be sure" :) */
 }
 
 
@@ -64,6 +63,13 @@ void Rip_PM20 ( void )
  * update 20 mar 2003 (it's war time again .. brrrr)
  * - removed all open() funcs.
  * - optimized more than quite a bit (src 4kb shorter !)
+ *
+ * update 20091113
+ * - fixed patternlist generation and cleaned a bit
+ *
+ * update 20100212-20100216
+ * - fixed endless loop bug (used PW_i instead of i ...)
+ * - correct conversion when there's unused patterns stored .. they are kept ;)
 */
 
 #define ON  0
@@ -78,11 +84,11 @@ void Depack_PM20 ( void )
 {
   //Uchar c1=0x00;
   short Ref_Max=0;
-  long Pats_Address[128];
+  long Pats_Address[128],Pats_Address_infile[128];
   Uchar NOP=0x00; /* number of pattern */
   Uchar *ReferenceTable;
   Uchar *Pattern;
-  //long i=0,j=0,k=0,m=0;
+  long i=0,j;
   long Total_Sample_Size=0;
   long PatDataSize=0l;
   //long SDAV=0l;
@@ -104,6 +110,7 @@ void Depack_PM20 ( void )
   /*info = fopen ( "info", "w+b");*/
 
   BZERO ( Pats_Address , 128*4 );
+  BZERO ( Pats_Address_infile , 128*4 );
 
   Whatever = (Uchar *) malloc (1085);
   BZERO (Whatever, 1085);
@@ -111,18 +118,18 @@ void Depack_PM20 ( void )
   /* bypass replaycode routine */
   Where += SAMPLE_DESC;
 
-  for ( PW_i=0 ; PW_i<31 ; PW_i++ )
+  for ( i=0 ; i<31 ; i++ )
   {
-    Whatever[PW_i*30+42] = in_data[Where];
-    Whatever[PW_i*30+43] = in_data[Where+1];
-    Total_Sample_Size += (((Whatever[PW_i*30+42]*256)+Whatever[PW_i*30+43])*2);
-    Whatever[PW_i*30+44] = in_data[Where+2]/2;
-    Whatever[PW_i*30+45] = in_data[Where+3];
-    Whatever[PW_i*30+46] = in_data[Where+4];
-    Whatever[PW_i*30+47] = in_data[Where+5];
-    Whatever[PW_i*30+48] = in_data[Where+6];
-    Whatever[PW_i*30+49] = in_data[Where+7];
-    if ( (Whatever[PW_i*30+48] == 0x00) && (Whatever[PW_i*30+49] == 0x00) )Whatever[PW_i*30+49] = 0x01;
+    Whatever[i*30+42] = in_data[Where];
+    Whatever[i*30+43] = in_data[Where+1];
+    Total_Sample_Size += (((Whatever[i*30+42]*256)+Whatever[i*30+43])*2);
+    Whatever[i*30+44] = in_data[Where+2]/2;
+    Whatever[i*30+45] = in_data[Where+3];
+    Whatever[i*30+46] = in_data[Where+4];
+    Whatever[i*30+47] = in_data[Where+5];
+    Whatever[i*30+48] = in_data[Where+6];
+    Whatever[i*30+49] = in_data[Where+7];
+    if ( (Whatever[i*30+48] == 0x00) && (Whatever[i*30+49] == 0x00) )Whatever[i*30+49] = 0x01;
 
     Where += 8;
   }
@@ -140,34 +147,35 @@ void Depack_PM20 ( void )
   Whatever[951] = 0x7f;
 
   /* read pattern addys */
-  for ( PW_i=0 ; PW_i<NOP ; PW_i++ )
+  for ( i=0 ; i<NOP ; i++ )
   {
-    Pats_Address[PW_i] = (in_data[Where]*256)+in_data[Where+1] + AFTER_REPLAY_CODE + 4;
+    Pats_Address[i] = (in_data[Where]*256)+in_data[Where+1];
     Where += 2;
-    //printf ( "[%3ld] : %ld\n", PW_i, Pats_Address[PW_i] );
+    //printf ( "[%3ld] : %ld\n", i, Pats_Address[i] );
   }
 
   /* write pattern table */
-  PW_k = PW_l = 0;
-  for (PW_j=0; PW_j<NOP ; PW_j++)
-  {
-    PW_m = 0x7fffffff; /* min */
+  /* doesn't work if there are unused patterns */
+/*  PW_k = PW_l = 0;*/
+/*  for (PW_j=0; PW_j<NOP ; PW_j++)*/
+/*  {*/
+/*    PW_m = 0x7fffffff; *//* min */
     /*search for min */
-    for (PW_i=0; PW_i<NOP ; PW_i++)
-      if ((Pats_Address[PW_i]<PW_m) && (Pats_Address[PW_i]>PW_k))
-	    PW_m = Pats_Address[PW_i];
+/*    for (i=0; i<NOP ; i++)
+      if ((Pats_Address[i]<PW_m) && (Pats_Address[i]>PW_k))
+	    PW_m = Pats_Address[i];*/
     /* if PW_k == PW_m then an already ref was found */
-    if (PW_k == PW_m)
-      continue;
+/*    if (PW_k == PW_m)
+      continue;*/
     /* PW_m is the next minimum */
-    PW_k = PW_m;
-    for (PW_i=0; PW_i<NOP ; PW_i++)
-      if (Pats_Address[PW_i] == PW_k)
-	Whatever[952+PW_i] = (unsigned char)PW_l;
+/*    PW_k = PW_m;
+    for (i=0; i<NOP ; i++)
+      if (Pats_Address[i] == PW_k)
+	Whatever[952+i] = (unsigned char)PW_l;
     PW_l++;
-  }
+  }*/
   /* PW_l is now the number of pattern saved (+1) */
-  PW_l -= 1;
+  /* but I'll retrieve the official one ... */
 
   /* write tag */
   Whatever[1080] = 'M';
@@ -175,7 +183,7 @@ void Depack_PM20 ( void )
   Whatever[1082] = 'K';
   Whatever[1083] = '.';
 
-  fwrite ( Whatever, 1, 1084, out );
+/*  fwrite ( Whatever, 1, 1084, out );*/
 
   /* a little pre-calc code ... no other way to deal with these unknown pattern data sizes ! :( */
   /* so, first, we get the pattern data size .. */
@@ -204,10 +212,10 @@ void Depack_PM20 ( void )
   Where = PW_Start_Address + AFTER_REPLAY_CODE + PW_j;
 
   Ref_Max += 1;  /* coz 1st value is 0 ! */
-  PW_i = Ref_Max * 4; /* coz each block is 4 bytes long */
-  ReferenceTable = (Uchar *) malloc ( PW_i );
-  BZERO ( ReferenceTable, PW_i );
-  for ( PW_j=0 ; PW_j<PW_i ; PW_j++) ReferenceTable[PW_j] = in_data[Where+PW_j];
+  i = Ref_Max * 4; /* coz each block is 4 bytes long */
+  ReferenceTable = (Uchar *) malloc ( i );
+  BZERO ( ReferenceTable, i );
+  for ( PW_j=0 ; PW_j<i ; PW_j++) ReferenceTable[PW_j] = in_data[Where+PW_j];
 
   /* go back to pattern data starting address */
   Where = PW_Start_Address + PATTERN_DATA;
@@ -216,25 +224,33 @@ void Depack_PM20 ( void )
   PW_k=0; /* current note number */
   Pattern = (Uchar *) malloc (65536);
   BZERO (Pattern, 65536);
-  PW_i=0;
+  i=0;
+  PW_l = 1; /* nbr of patterns stored */
+  Pats_Address_infile[0] = 0;
   for ( PW_j=0 ; PW_j<PatDataSize ; PW_j+=2 )
   {
+    if ( ((i%1024) == 0) && (PW_j>0) )
+    {
+      /*printf ("-%lx-",PW_j);*/
+      Pats_Address_infile[PW_l] = PW_j;
+      PW_l++;
+    }
     PW_m = ((WholePatternData[PW_j]*256)+WholePatternData[PW_j+1])*4;
 
     Smp  = ReferenceTable[PW_m];
     Smp  = Smp >> 2;
     Note = ReferenceTable[PW_m+1];
       
-    Pattern[PW_i]   = (Smp&0xf0);
-    Pattern[PW_i]   |= poss[(Note/2)][0];
-    Pattern[PW_i+1] = poss[(Note/2)][1];
-    Pattern[PW_i+2] = ReferenceTable[PW_m+2];
-    Pattern[PW_i+2] |= ((Smp<<4)&0xf0);
-    Pattern[PW_i+3] = ReferenceTable[PW_m+3];
+    Pattern[i]   = (Smp&0xf0);
+    Pattern[i]   |= poss[(Note/2)][0];
+    Pattern[i+1] = poss[(Note/2)][1];
+    Pattern[i+2] = ReferenceTable[PW_m+2];
+    Pattern[i+2] |= ((Smp<<4)&0xf0);
+    Pattern[i+3] = ReferenceTable[PW_m+3];
     /*fprintf ( info, "[%4ld][%ld][%ld] %2x %2x %2x %2x",i,k%4,j,Pattern[i],Pattern[i+1],Pattern[i+2],Pattern[i+3] );*/
 
-    if ( ( (Pattern[PW_i+2] & 0x0f) == 0x0d ) ||
-	 ( (Pattern[PW_i+2] & 0x0f) == 0x0b ) )
+    if ( ( (Pattern[i+2] & 0x0f) == 0x0d ) ||
+	 ( (Pattern[i+2] & 0x0f) == 0x0b ) )
     {
       /*fprintf ( info, " <- D or B detected" );*/
       FLAG = ON;
@@ -243,15 +259,33 @@ void Depack_PM20 ( void )
     {
       /*fprintf ( info, "\n -> bypassing end of pattern" );*/
       FLAG=OFF;
-      while ( (PW_i%1024) != 0)
-	    PW_i ++;
-      PW_i -= 4;
+      while ( (i%1024) != 0)
+	    i ++;
+      i -= 4;
     }
 
     PW_k += 1;
-    PW_i += 4;
+    i += 4;
     /*fprintf ( info, "\n" );*/
   }
+
+  /* let's update now the pattern list */
+  for (i=0; i<NOP; i++)
+  {
+    /*printf ("\n[%2ld][%lx]:",i,Pats_Address[i]);*/
+    for (j=0; j<PW_l; j++)
+    {
+      /*printf ("%lx-",Pats_Address_infile[j]);*/
+      if (Pats_Address_infile[j] == Pats_Address[i])
+      {
+        /*printf ("done");*/
+        Whatever[952+i] = j;
+        break;
+      }
+    }
+  }
+  fwrite ( Whatever, 1, 1084, out );
+
 
   free ( ReferenceTable );
   free ( WholePatternData );
@@ -264,8 +298,8 @@ void Depack_PM20 ( void )
 
   /* get address of sample data .. and go there */
   Where = PW_Start_Address + ADDRESS_SAMPLE_DATA;
-  PW_i = (in_data[Where]*256*256*256)+(in_data[Where+1]*256*256)+(in_data[Where+2]*256)+in_data[Where+3];
-  Where = PW_Start_Address + AFTER_REPLAY_CODE + PW_i;
+  i = (in_data[Where]*256*256*256)+(in_data[Where+1]*256*256)+(in_data[Where+2]*256)+in_data[Where+3];
+  Where = PW_Start_Address + AFTER_REPLAY_CODE + i;
 
 
   /* read and save sample data */

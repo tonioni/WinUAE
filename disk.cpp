@@ -601,7 +601,7 @@ static void setamax (void)
 #endif
 }
 
-static void reset_drive(int i)
+static void reset_drive (int i)
 {
 	drive *drv = &floppy[i];
 
@@ -2209,6 +2209,7 @@ int disk_setwriteprotect (int num, const TCHAR *name, int protect)
 
 void disk_eject (int num)
 {
+	config_changed = 1;
 	gui_filename (num, L"");
 	drive_eject (floppy + num);
 	*currprefs.df[num] = *changed_prefs.df[num] = 0;
@@ -2295,6 +2296,7 @@ static void disk_insert_2 (int num, const TCHAR *name, int forced)
 
 void disk_insert (int num, const TCHAR *name)
 {
+	config_changed = 1;
 	target_addtorecent (name, 0);
 	disk_insert_2 (num, name, 0);
 }

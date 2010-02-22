@@ -52,7 +52,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include,..\tun"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO"
+				PreprocessorDefinitions="WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO"
 				GeneratePreprocessedFile="0"
 				KeepComments="false"
 				ExceptionHandling="0"
@@ -161,7 +161,7 @@
 				AdditionalOptions=""
 				Optimization="0"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include,..\tun"
-				PreprocessorDefinitions="WINVER=0x0500,_DEBUG,WIN32_IE=0x0700;WIN32;WIN64;CINTERFACE;COBJMACROS;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO"
+				PreprocessorDefinitions="WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;WIN64;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -271,7 +271,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -392,7 +392,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="false"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -513,7 +513,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep,..\..\prowizard\include"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -635,7 +635,7 @@
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
 				AdditionalIncludeDirectories="..\..\include,..\..,..\,..\resources,..\osdep,..\sounddep"
-				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;CINTERFACE;COBJMACROS"
+				PreprocessorDefinitions="WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64"
 				StringPooling="true"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -914,11 +914,11 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\configfile.ico"
+					RelativePath=".\configfile.ico"
 					>
 				</File>
 				<File
-					RelativePath=".\configfile.ico"
+					RelativePath="..\resources\configfile.ico"
 					>
 				</File>
 				<File
@@ -938,19 +938,19 @@
 					>
 				</File>
 				<File
-					RelativePath="..\resources\expansion.ico"
-					>
-				</File>
-				<File
 					RelativePath=".\expansion.ico"
 					>
 				</File>
 				<File
-					RelativePath="..\resources\file.ico"
+					RelativePath="..\resources\expansion.ico"
 					>
 				</File>
 				<File
 					RelativePath=".\file.ico"
+					>
+				</File>
+				<File
+					RelativePath="..\resources\file.ico"
 					>
 				</File>
 				<File

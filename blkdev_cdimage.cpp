@@ -1014,6 +1014,7 @@ void cdimage_vsync (void)
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 0);
 #endif
+	config_changed = 1;
 }
 
 static int ismedia (int unitnum, int quick)

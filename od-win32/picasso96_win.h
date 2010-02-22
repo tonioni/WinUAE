@@ -548,15 +548,14 @@ extern int uaegfx_card_found;
 extern struct picasso96_state_struct picasso96_state;
 extern uae_u16 picasso96_pixel_format;
 
-extern void DX_SetPalette (int start, int count);
 extern void picasso_enablescreen (int on);
 extern void picasso_refresh (void);
 extern void picasso_handle_vsync (void);
 extern void init_hz_p96 (void);
 extern void picasso_handle_hsync (void);
-extern int picasso_palette (void);
 extern void picasso_reset (void);
 extern int picasso_setwincursor (void);
+extern int picasso_palette (void);
 
 /* This structure describes the UAE-side framebuffer for the Picasso
  * screen.  */
@@ -578,8 +577,6 @@ extern void gfx_set_picasso_state (int on);
 extern uae_u8 *gfx_lock_picasso (void);
 extern void gfx_unlock_picasso (void);
 extern void picasso_clip_mouse (int *, int *);
-extern void picasso_putcursor (int,int,int,int);
-extern void picasso_clearcursor (void);
 extern int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);
 
 extern int p96refresh_active;

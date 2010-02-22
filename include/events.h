@@ -67,10 +67,14 @@ extern void event2_newevent(int, evt);
 extern void event2_newevent2(evt, uae_u32, evfunc2);
 extern void event2_remevent(int);
 
+#if 0
 #ifdef JIT
 #include "events_jit.h"
 #else
 #include "events_normal.h"
+#endif
+#else
+#include "events_jit.h"
 #endif
 
 STATIC_INLINE int current_hpos (void)

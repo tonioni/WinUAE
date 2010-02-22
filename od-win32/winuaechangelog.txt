@@ -1,4 +1,47 @@
 
+- version bumped to 2.1.0
+- 1620b10 broke 68020 RTE "Throwaway frame" emulation (Quik The Thunder Rabbit CD32)
+- warp mode on the fly change fixed
+- only check for configuration file changes (current vs changed) when needed, not
+  every frame (some on the fly changes may be missed now, report if found)
+- b12 "no scaling" in directdraw was wrong, scaling isn't going to be removed.
+- blurry D3D RTG hardware mouse cursor fixed
+
+Beta 12:
+
+- VPOSW/VHPOSW "fake" 60Hz support rewrite, ugly hacks removed, this also
+  fixes possible odd/even field mismatch when program initializes interlace
+  by writing to VPOSW (only clearing or setting LOF-bit, not attempting to
+  do "fake 60Hz)
+- JIT checkbox fixed (broke during 64-bit compilation fixes)
+- Prowizard PM20 fix (Asle)
+
+Big Direct3D change:
+
+- more gfx subsystem unification. Direct3D is now fully shader based.
+  Overlay and scanlines are done with pixel shaders, also overlay is not scaled anymore.
+  Overlay and pixel shader filters are now compatible.
+  PS 2.0 capable display card required. (PS 1.0 should also work)
+  Scanlines and overlays can't be used simultaneously. (Easy to do with shaders but why?)
+  Horiz and vert positioning works without filter enabled.
+  Point/bilinear setting works now when shader filter is enabled.
+  Direct3D and Null filter: wastes only CPU power, do not use. (will be fixed later)
+  Currently included winuae.fx/winuae_old.fx must be in same directory as winuae or in shaderfilters
+  directory (later it will be built-in. winuae_old.fx = PS1.x compatible shader)
+  If you have problems: include graphics card model, Windows version, winuaebootlog.txt and winuaelog.txt.
+- RTG D3D changes: full Direct3D mode support, hardware sprite is D3DSprite.
+  DirectDraw still supported but only in basic mode (no hardware cursor, no scaling etc..)
+  Direct3D is so much simpler and easier (automatic scaling, transparency, clipping)
+  Currently D3D scanlines and overlays are also applied to D3D RTG screens which may not be what you want...
+
+- NOTE: some older cards or drivers seem to have random problems that come and go between restarts, configuration
+  changes etc.. Report Windows version, card name and driver version when this happens. (when this happens there
+  are no error messages in the log and only on screen leds are visible, it is some other problem if error was logged)
+
+- removed paletted (256 color) mode support completely (no functional changes because native modes haven't supported
+  it for ages and RTG modes have used 16/32-bit modes and transparent color space remapping since 1.6)
+- Direct3D selection moved to misc panel (D3D isn't filter specific anymore)
+
 Beta 11:
 
 - hpos "offset" was accidentally changed (DFF006 = 0000 is possible)

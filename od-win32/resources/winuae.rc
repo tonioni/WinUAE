@@ -12,13 +12,11 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// English (Neutral) resources
+// English resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -59,7 +57,7 @@ IDI_EXPANSION           ICON                    "expansion.ico"
 // Accelerator
 //
 
-IDR_DBGACCEL ACCELERATORS 
+IDR_DBGACCEL ACCELERATORS
 BEGIN
     VK_F1,          ID_DBG_PAGE1,           VIRTKEY, NOINVERT
     VK_F2,          ID_DBG_PAGE2,           VIRTKEY, NOINVERT
@@ -463,7 +461,7 @@ BEGIN
     GROUPBOX        "Miscellaneous Options",IDC_STATIC,8,2,290,136
     CONTROL         "Untrap = middle button",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,19,110,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,31,109,10
-    CONTROL         "Native On-screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,141,80,109,10
+    CONTROL         "Native On-screen LEDs",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,80,109,10
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,56,109,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,43,110,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,7,140,85,94
@@ -493,7 +491,9 @@ BEGIN
     CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,95,111,10
     CONTROL         "Faster RTG [] Enables less accurate custom chipset emulation mode when Picasso96 is enabled.",IDC_FASTERRTG,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,19,108,100,10
-    CONTROL         "RTG On-screen LEDs",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,141,93,109,10
+    CONTROL         "RTG On-screen LEDs",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,138,93,109,10
+    LTEXT           "Graphics API:",IDC_STATIC,136,49,62,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_DXMODE,138,62,61,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 249
@@ -754,7 +754,6 @@ BEGIN
     CONTROL         "Keep aspect ratio",IDC_FILTERKEEPASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,168,85,10
     COMBOBOX        IDC_FILTERAUTOSCALE,132,36,83,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERASPECT2,14,180,73,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Direct3D",IDC_FILTERD3D,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,223,38,63,10
     COMBOBOX        IDC_FILTEROVERLAY,20,36,103,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
@@ -1010,8 +1009,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,2,0
- PRODUCTVERSION 2,0,2,0
+ FILEVERSION 2,1,0,0
+ PRODUCTVERSION 2,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1027,12 +1026,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "2.0.2"
+            VALUE "FileVersion", "2.1.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2010 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "2.0.2"
+            VALUE "ProductVersion", "2.1.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1054,7 +1053,7 @@ IDC_MYHAND              CURSOR                  "H_arrow.cur"
 // Menu
 //
 
-IDM_SYSTRAY MENU 
+IDM_SYSTRAY MENU
 BEGIN
     POPUP "Menu"
     BEGIN
@@ -1073,7 +1072,7 @@ BEGIN
     END
 END
 
-IDM_DBGCONTEXTMENU MENU 
+IDM_DBGCONTEXTMENU MENU
 BEGIN
     POPUP "Inactive"
     BEGIN
@@ -1149,8 +1148,12 @@ IDB_LCD160X43           BITMAP                  "lcd.bmp"
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
+    IDD_MISC1, DIALOG
+    BEGIN
+    END
+
     IDD_FILTER, DIALOG
     BEGIN
         BOTTOMMARGIN, 237
@@ -1164,7 +1167,7 @@ END
 // String Table
 //
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_KICKSTART           "ROM"
     IDS_DISK                "Disk swapper"
@@ -1183,7 +1186,7 @@ BEGIN
     IDS_FILTER              "Filter"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_MISC2               "Pri. & Extensions"
     IDS_PATHS               "Paths"
@@ -1194,7 +1197,7 @@ BEGIN
     IDS_EXPANSION           "Expansions"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_EXTTEXT             "Floppy disk image files"
     IDS_EXTACTUAL           "ADF"
@@ -1210,7 +1213,7 @@ BEGIN
     IDS_EIGHTH              "eighth "
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_NINTH               "ninth "
     IDS_TENTH               "tenth "
@@ -1230,7 +1233,7 @@ BEGIN
     IDS_VOLUME              "Volume"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
@@ -1249,7 +1252,7 @@ BEGIN
     IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen. Please report this to\nberndroesch1@compuserve.de"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_PATH                "Path"
     IDS_RW                  "R/W"
@@ -1265,7 +1268,7 @@ BEGIN
     IDS_INVALIDCOMPORT      "The serial port you have in this configuration is not valid on this machine.\n"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_HFDSIZE             "Size"
     IDS_DEVICE              "Device"
@@ -1284,7 +1287,7 @@ BEGIN
     IDS_DEFAULT_WINUAE      "WinUAE default (old)"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_SOUND_STEREO2       "Cloned Stereo (4 Channels)"
     IDS_INPUT_CUSTOMEVENT   "<Custom event>"
@@ -1297,7 +1300,7 @@ BEGIN
     IDS_NETDISCONNECTED     "Cable disconnected"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_UNSUPPORTEDPIXELFORMAT 
                             "Error: unsupported pixel format. Please use a different screen mode.\n"
@@ -1316,7 +1319,7 @@ BEGIN
     IDS_ERRORTITLE          "WinUAE message"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_INP                 "WinUAE Input Recording"
     IDS_RESTOREINP          "Playback a WinUAE input recording"
@@ -1334,7 +1337,7 @@ BEGIN
     IDS_SOUND_FILTER_EMULATED "Emulated (A500)"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_SOUND_FILTER_EMULATED_E "Emulated (A1200)"
     IDS_INPUT_COMPATIBILITY "Compatibility mode"
@@ -1355,7 +1358,7 @@ BEGIN
                             "the desktop is running in an unknown color mode."
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_UNSUPPORTEDSCREENMODE_2 
                             "the desktop is running in 8-bit color depth, which WinUAE can't use in windowed mode."
@@ -1378,7 +1381,7 @@ BEGIN
     IDS_TREEVIEW_ABOUT      "About"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_NOHARDDRIVES        "No hard disks detected that were either empty or RDB-partitioned."
     IDS_DEFAULT_HOST        "Default Configuration"
@@ -1398,7 +1401,7 @@ BEGIN
     IDS_FLOPPYTYPE35DDESCOM "3.5"" ESCOM"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_NUMSG_NEEDEXT2      "The software uses a non-standard floppy disk format. You may need to use a custom floppy disk image file instead of a standard one. This message will not appear again."
     IDS_NUMSG_NOROMKEY      "Could not find system ROM key file."
@@ -1406,7 +1409,7 @@ BEGIN
     IDS_NUMSG_KSROMREADERROR "Error while reading system ROM."
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_NUMSG_NOEXTROM      "No extended ROM found."
     IDS_NUMSG_MODRIP_NOTFOUND "No music modules or packed data found."
@@ -1426,7 +1429,7 @@ BEGIN
     IDS_ROMSCANEND          "Scan of ROMs finished"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_ROM_AVAILABLE       "available"
     IDS_ROM_UNAVAILABLE     "unavailable"
@@ -1443,7 +1446,7 @@ BEGIN
     IDS_SB_CUSTOMEVENT      "Enter custom event string.."
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_QS_MODELS           "A500\nA500+\nA600\nA1000\nA1200\nA3000\nA4000\nCD32\nCDTV\nArcadia Multi Select system\nExpanded WinUAE example configuration"
     IDS_QS_MODEL_A500       "1.3 ROM, OCS, 512 KB Chip + 512 KB Slow RAM (most common)\nThis configuration is capable of running most games and demos produced for first-generation hardware. Only few exceptions need a different configuration (e.g. the oldest games tend to be incompatible with this configuration).\n1.3 ROM, ECS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nLater hardware revision of the A500. Nearly 100% compatible with the previous configuration.\n1.3 ROM, ECS Agnus, 1 MB Chip RAM\nFew newer games and demos require this configuration.\n1.3 ROM, OCS Agnus, 512 KB Chip RAM\nVery old (e.g. pre-1988) games and demos may require this configuration.\n1.2 ROM, OCS Agnus, 512 KB Chip RAM\nAs available for the A1000, and installed on the first A500 and A2000 series. Some very old programs only work correctly with this configuration. Note: This system ROM version can only boot from floppy disk (no hard disk boot support).\n1.2 ROM, OCS Agnus, 512 KB Chip RAM + 512 KB Slow RAM\nThis configuration adds expansion memory to the first A500 produced. Try this if your game does not work with newer configurations, but works with the previous one. It could add some features to the game, including faster loading times. Note: This system ROM version can only boot from floppy disk (no hard disk boot support)."
@@ -1455,7 +1458,7 @@ BEGIN
     IDS_QS_MODEL_CDTV       "CDTV\nThe CDTV was the first model with a built-in CD-ROM drive. Looking like a black CD player, it featured a configuration equivalent to that of an A500 with 1 MB RAM and an ECS chipset.\nFloppy drive and 64KB SRAM card expanded CDTV\n"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_QS_MODEL_UAE        "High-end expanded configuration"
     IDS_QS_MODEL_ARCADIA    "Arcadia\nArcadia Multi Select system is arcade platform developed by Arcadia and  Mastertronic. It is based on an A500 mainboard with ROM cage attached to expansion port. Arcadia ROM files go to ""Cartridge ROM File"" in ROM-panel."
@@ -1464,7 +1467,7 @@ BEGIN
     IDS_QS_MODEL_A4000T     "A4000T (test)\nA4000T"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_FLOPPYTYPE35DDPC    "3.5"" DD (PC)"
     IDS_FLOPPYTYPE35HDPC    "3.5"" HD (PC)"
@@ -1484,7 +1487,7 @@ BEGIN
     IDS_PRINTER_ASCII       "ASCII-Only"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_PRINTER_EPSON9      "Epson Matrix Printer Emulation, 9pin"
     IDS_PRINTER_POSTSCRIPT_DETECTION "PostScript (Passthrough)"
@@ -1499,18 +1502,16 @@ BEGIN
     IDS_CD                  "CD image files"
 END
 
-#endif    // English (Neutral) resources
+#endif    // English resources
 /////////////////////////////////////////////////////////////////////////////
 
 
 /////////////////////////////////////////////////////////////////////////////
-// Finnish resources
+// Finnish (Finland) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_FIN)
-#ifdef _WIN32
 LANGUAGE LANG_FINNISH, SUBLANG_DEFAULT
 #pragma code_page(1252)
-#endif //_WIN32
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -1535,7 +1536,7 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
-#endif    // Finnish resources
+#endif    // Finnish (Finland) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

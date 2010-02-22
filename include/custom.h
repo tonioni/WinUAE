@@ -32,6 +32,7 @@ extern void init_custom (void);
 
 extern int picasso_requested_on;
 extern int picasso_on;
+extern void set_picasso_hack_rate (int hz);
 
 /* Set to 1 to leave out the current frame in average frame time calculation.
  * Useful if the debugger was active.  */
@@ -105,7 +106,7 @@ extern uae_u16 INTREQR (void);
 #define EQU_ENDLINE_NTSC 10
 
 extern int maxhpos, maxhpos_short;
-extern int maxvpos, maxvpos_max;
+extern int maxvpos, maxvpos_nom;
 extern int minfirstline, vblank_endline, numscrlines;
 extern int vblank_hz, fake_vblank_hz, vblank_skip, doublescan;
 extern frame_time_t syncbase;

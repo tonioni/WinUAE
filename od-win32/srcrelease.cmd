@@ -92,6 +92,7 @@ rm -rf debug
 rm -rf release
 rm -rf fullrelease
 rm -rf ipch
+rm -rf x64
 cd ..
 
 cd singlefilehelper

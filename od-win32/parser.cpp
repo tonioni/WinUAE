@@ -65,7 +65,6 @@ static int prtbufbytes,wantwrite;
 static HANDLE hPrt = INVALID_HANDLE_VALUE;
 static DWORD  dwJob;
 static int prtopen;
-extern void flushpixels(void);
 void DoSomeWeirdPrintingStuff(uae_char val);
 static int uartbreak;
 static int parflush;

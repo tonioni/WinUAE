@@ -130,7 +130,7 @@ extern int path_type;
 
 int in_sizemove;
 int manual_painting_needed;
-int manual_palette_refresh_needed;
+
 int win_x_diff, win_y_diff;
 
 int toggle_sound;
@@ -660,7 +660,6 @@ static void winuae_active (HWND hWnd, int minimized)
 	inputdevice_acquire (TRUE);
 	if (isfullscreen() > 0 && !gui_active)
 		setmouseactive (1);
-	manual_palette_refresh_needed = 1;
 #ifdef LOGITECHLCD
 	if (!minimized)
 		lcd_priority (1);
@@ -822,11 +821,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		dx_check ();
 		break;
 
-	case WM_PALETTECHANGED:
-		if ((HWND)wParam != hWnd)
-			manual_palette_refresh_needed = 1;
-		return 0;
-
 	case WM_KEYDOWN:
 		if (dinput_wmkey ((uae_u32)lParam))
 			inputdevice_add_inputcode (AKS_ENTERGUI, 1);
@@ -921,13 +915,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				if (manual_painting_needed)
 					updatedisplayarea ();
 				EndPaint (hWnd, &ps);
-				if (manual_palette_refresh_needed) {
-					WIN32GFX_SetPalette ();
-#ifdef PICASSO96
-					DX_SetPalette (0, 256);
-#endif
-				}
-				manual_palette_refresh_needed = 0;
 				recursive--;
 			}
 		}
@@ -979,6 +966,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					if (isfullscreen () == 0) {
 						changed_prefs.gfx_size_win.x = amigawin_rect.left;
 						changed_prefs.gfx_size_win.y = amigawin_rect.top;
+						config_changed = 1;
 					}
 				}
 				notice_screen_contents_lost ();
@@ -1429,6 +1417,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 						changed_prefs.gfx_size_win.width = width - window_extra_width;
 						changed_prefs.gfx_size_win.height = height - window_extra_height;
 					}
+					config_changed = 1;
 				}
 				if (hStatusWnd)
 					SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
@@ -3977,8 +3966,7 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-ddsoftwarecolorkey")) {
-		extern int ddsoftwarecolorkey;
-		ddsoftwarecolorkey = 1;
+		// obsolete
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-nod3d9ex")) {
@@ -4739,7 +4727,7 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 	newname = xmalloc (TCHAR, _tcslen (name) + 1 + 10);
 	if (!newname)
 		return NULL;
-	for (round = 0; round < 4; round++) {
+	for (round = 0; round < 6; round++) {
 		TCHAR *s;
 		_tcscpy (newname, name);
 #ifdef CPU_64_BIT
@@ -4754,10 +4742,20 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 			break;
 		case 1:
 			p = _tcschr (newname, '.');
-			_tcscpy (p, L"_64");
+			_tcscpy (p, L"_x64");
 			_tcscat (p, _tcschr (name, '.'));
 			break;
 		case 2:
+			p = _tcschr (newname, '.');
+			_tcscpy (p, L"x64");
+			_tcscat (p, _tcschr (name, '.'));
+			break;
+		case 3:
+			p = _tcschr (newname, '.');
+			_tcscpy (p, L"_64");
+			_tcscat (p, _tcschr (name, '.'));
+			break;
+		case 4:
 			p = _tcschr (newname, '.');
 			_tcscpy (p, L"64");
 			_tcscat (p, _tcschr (name, '.'));

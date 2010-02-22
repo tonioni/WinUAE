@@ -15,8 +15,6 @@ struct ddstuff dxdata;
 struct ddcaps dxcaps;
 static int flipinterval_supported = 1;
 int ddforceram = DDFORCED_DEFAULT;
-int useoverlay = 0;
-int ddsoftwarecolorkey = 0;
 
 HRESULT DirectDraw_GetDisplayMode (void)
 {
@@ -44,13 +42,10 @@ static void freemainsurface (void)
 		DirectDraw_SetClipper (NULL);
 		releaser (dxdata.dclip, IDirectDrawClipper_Release);
 	}
-	releaser (dxdata.palette, IDirectDrawPalette_Release);
 	releaser (dxdata.flipping[1], IDirectDrawSurface7_Release);
 	releaser (dxdata.flipping[0], IDirectDrawSurface7_Release);
 	releaser (dxdata.primary, IDirectDrawSurface7_Release);
 	releaser (dxdata.secondary, IDirectDrawSurface7_Release);
-	releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
-	releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
 	releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
 	dxdata.backbuffers = 0;
 }
@@ -65,10 +60,6 @@ static HRESULT restoresurface_2 (LPDIRECTDRAWSURFACE7 surf)
 	if (SUCCEEDED (ddrval))
 		return ddrval;
 	ddrval = IDirectDrawSurface7_Restore (surf);
-	if (SUCCEEDED (ddrval)) {
-		if (surf == dxdata.primary && dxdata.palette)
-			IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
-	}
 	return ddrval;
 }
 
@@ -86,9 +77,6 @@ HRESULT restoresurface (LPDIRECTDRAWSURFACE7 surf)
 	ddrval = IDirectDrawSurface7_Restore (surf);
 	if (FAILED (ddrval)) {
 		write_log (L"IDirectDrawSurface7_Restore: %s\n", DXError (ddrval));
-	} else {
-		if (surf == dxdata.primary && dxdata.palette)
-			IDirectDrawSurface7_SetPalette (dxdata.primary, dxdata.palette);
 	}
 	return ddrval;
 }
@@ -332,18 +320,10 @@ int dx_testck (void)
 }
 #endif
 
-static void createcursorsurface (void)
+static void createstatussurface (void)
 {
-	releaser (dxdata.cursorsurface1, IDirectDrawSurface7_Release);
-	releaser (dxdata.cursorsurface2, IDirectDrawSurface7_Release);
 	releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
-	dxdata.cursorsurface1 = allocsurface_2 (dxcaps.cursorwidth, dxcaps.cursorheight, TRUE);
-	dxdata.cursorsurface2 = allocsurface_2 (dxcaps.cursorwidth, dxcaps.cursorheight, FALSE);
 	dxdata.statussurface = allocsurface_2 (dxdata.statuswidth, dxdata.statusheight, FALSE);
-	if (dxdata.cursorsurface1)
-		clearsurf (dxdata.cursorsurface1, 0);
-	if (dxdata.cursorsurface2)
-		clearsurf (dxdata.cursorsurface2, 0);
 	if (dxdata.statussurface)
 		clearsurf (dxdata.statussurface, 0);
 }
@@ -391,26 +371,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 		}
 	} else {
-		if (useoverlay && DirectDraw_GetCurrentDepth () == 32) {
-			DDPIXELFORMAT of;
-			DWORD dwDDSColor;
-			memset (&of, 0, sizeof (of));
-			of.dwRGBBitCount = 16;
-			of.dwRBitMask    = 0xF800;
-			of.dwGBitMask    = 0x07E0;
-			of.dwBBitMask    = 0x001F;
-			desc.ddsCaps.dwCaps = DDSCAPS_OVERLAY | DDSCAPS_PRIMARYSURFACE;
-			desc.ddpfPixelFormat = of;
-			dxdata.overlayfx.dwSize = sizeof (DDOVERLAYFX);
-			dxdata.overlayflags = DDOVER_SHOW | DDOVER_DDFX | DDOVER_KEYDESTOVERRIDE;
-			dwDDSColor = 0xff00ff;
-			dxdata.overlayfx.dckDestColorkey.dwColorSpaceLowValue  = dwDDSColor;
-			dxdata.overlayfx.dckDestColorkey.dwColorSpaceHighValue = dwDDSColor;
-			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
-			dxdata.isoverlay = 1;
-		} else {
-			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
-		}
+		ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 	}
 	if (FAILED (ddrval)) {
 		write_log (L"IDirectDraw7_CreateSurface: %s\n", DXError (ddrval));
@@ -439,7 +400,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		} else {
 			write_log (L"Couldn't get surface pitch!\n");
 		}
-		createcursorsurface ();
+		createstatussurface ();
 	} else {
 		ddrval = DD_FALSE;
 	}
@@ -564,8 +525,6 @@ RGBFTYPE DirectDraw_GetSurfacePixelFormat (LPDDSURFACEDESC2 surface)
 	switch (pfp->dwRGBBitCount)
 	{
 	case 8:
-		if ((pfp->dwFlags & DDPF_PALETTEINDEXED8) != 0)
-			return RGBFB_CHUNKY;
 		break;
 
 	case 16:
@@ -997,32 +956,6 @@ int DirectDraw_Flip (int doflip)
 	return 1;
 }
 
-HRESULT DirectDraw_SetPaletteEntries (int start, int count, PALETTEENTRY *palette)
-{
-	HRESULT ddrval = DDERR_NOPALETTEATTACHED;
-	if (dxdata.palette)
-		ddrval = IDirectDrawPalette_SetEntries(dxdata.palette, 0, start, count, palette);
-	return ddrval;
-}
-HRESULT DirectDraw_SetPalette (int remove)
-{
-	HRESULT ddrval;
-	if (dxdata.fsmodeset <= 0 || (!dxdata.palette && !remove))
-		return DD_FALSE;
-	ddrval = IDirectDrawSurface7_SetPalette (dxdata.primary, remove ? NULL : dxdata.palette);
-	if (FAILED (ddrval))
-		write_log (L"IDirectDrawSurface7_SetPalette: %s\n", DXError (ddrval));
-	return ddrval;
-}
-HRESULT DirectDraw_CreatePalette (LPPALETTEENTRY pal)
-{
-	HRESULT ddrval;
-	ddrval = IDirectDraw_CreatePalette (dxdata.maindd, DDPCAPS_8BIT | DDPCAPS_ALLOW256, pal, &dxdata.palette, NULL);
-	if (FAILED (ddrval))
-		write_log (L"IDirectDraw_CreatePalette: %s\n", DXError (ddrval));
-	return ddrval;
-}
-
 void DirectDraw_Release (void)
 {
 	if (!dxdata.ddinit)
@@ -1115,8 +1048,6 @@ static void showcaps (DDCAPS_DX7 *dc)
 		dxcaps.cancolorkey = TRUE;
 	if (dc->dwCaps2 & DDCAPS2_NONLOCALVIDMEM)
 		dxcaps.cannonlocalvidmem = TRUE;
-	if (ddsoftwarecolorkey)
-		dxcaps.cancolorkey = FALSE;
 }
 
 
@@ -1184,8 +1115,6 @@ int DirectDraw_Start (GUID *guid)
 
 	dxdata.statuswidth = 800;
 	dxdata.statusheight = TD_TOTAL_HEIGHT;
-	dxcaps.cursorwidth = 48;
-	dxcaps.cursorheight = 48;
 	if (!d3ddone) {
 		d3dDLL = LoadLibrary (L"D3D9.DLL");
 		if (d3dDLL) {

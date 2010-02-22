@@ -1438,7 +1438,6 @@ void gui_display (int shortcut)
 	scaleresource_setmaxsize (-1, -1);
 	if (w > 0 && h > 0)
 		scaleresource_setmaxsize (w, h);
-	WIN32GFX_ClearPalette ();
 	manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
 	if (isfullscreen () > 0) {
@@ -1465,7 +1464,6 @@ void gui_display (int shortcut)
 			savestate_state = STATE_DORESTORE;
 	}
 	manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
-	manual_palette_refresh_needed = 1;
 	resumepaused (9);
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	inputdevice_config_change_test ();
@@ -1479,10 +1477,6 @@ void gui_display (int shortcut)
 	AVIOutput_Begin ();
 #endif
 	fpscounter_reset ();
-	WIN32GFX_SetPalette ();
-#ifdef PICASSO96
-	DX_SetPalette (0, 256);
-#endif
 	screenshot_free ();
 	write_disk_history ();
 	gui_active--;
@@ -6547,7 +6541,6 @@ static void enable_for_miscdlg (HWND hDlg)
 		ew (hDlg, IDC_STATE_CAPTURE, FALSE);
 		ew (hDlg, IDC_STATE_RATE, FALSE);
 		ew (hDlg, IDC_STATE_BUFFERSIZE, FALSE);
-		ew (hDlg, IDC_LANGUAGE, FALSE);
 	} else {
 #if !defined (SCSIEMU)
 		EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
@@ -6559,6 +6552,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_OFF, !rp_isactive ());
+	ew (hDlg, IDC_DD_SURFACETYPE, workprefs.gfx_api == 0);
 }
 
 static void misc_kbled (HWND hDlg, int v, int nv)
@@ -6723,6 +6717,11 @@ static void values_to_miscdlg (HWND hDlg)
 		misc_scsi (hDlg);
 		misc_lang (hDlg);
 
+		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)L"DirectDraw");
+		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)L"Direct3D");
+		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_SETCURSEL, workprefs.gfx_api, 0);
+
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM *");
@@ -6828,6 +6827,11 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 							misc_setlang(v);
 					}
 					break;
+				case IDC_DXMODE:
+					v = SendDlgItemMessage (hDlg, IDC_DXMODE, CB_GETCURSEL, 0, 0L);
+					if (v != CB_ERR)
+						workprefs.gfx_api = v;
+				break;
 				case IDC_DD_SURFACETYPE:
 					v = SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
@@ -6975,7 +6979,7 @@ static int trust_ids[] = { IDC_TRUST0, IDC_TRUST1, IDC_TRUST1, IDC_TRUST1 };
 
 static void enable_for_cpudlg (HWND hDlg)
 {
-	BOOL enable = FALSE;
+	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
 	BOOL fpu;
 
@@ -6997,10 +7001,11 @@ static void enable_for_cpudlg (HWND hDlg)
 	cpu_based_enable = workprefs.cpu_model >= 68020 &&
 		workprefs.address_space_24 == 0;
 
-	enable = cpu_based_enable && workprefs.cachesize;
+	jitenable = cpu_based_enable;
 #ifndef JIT
-	enable = FALSE;
+	jitenable = FALSE;
 #endif
+	enable = jitenable && workprefs.cachesize;
 
 	ew (hDlg, IDC_TRUST0, enable);
 	ew (hDlg, IDC_TRUST1, enable);
@@ -7010,7 +7015,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_NOFLAGS, enable);
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
-	ew (hDlg, IDC_JITENABLE, cpu_based_enable && enable);
+	ew (hDlg, IDC_JITENABLE, jitenable);
 	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 #if 0
@@ -10718,7 +10723,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
-	ew (hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api && !workprefs.gfx_filtershader[0]);
+	ew (hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 
 	ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
 	ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
@@ -10872,7 +10877,6 @@ static void values_to_hw3ddlg (HWND hDlg)
 		(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
 
 	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
-	CheckDlgButton (hDlg, IDC_FILTERD3D, workprefs.gfx_api);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
 		workprefs.gfx_filter_keep_aspect, 0);
@@ -10913,26 +10917,33 @@ static void values_to_hw3ddlg (HWND hDlg)
 		j++;
 		i++;
 	}
-	if (D3D_canshaders () && workprefs.gfx_api) {
+	if (workprefs.gfx_api && D3D_canshaders ()) {
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_exe, WIN32_PLUGINDIR);
+		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_data, WIN32_PLUGINDIR);
 		h = FindFirstFile (tmp, &wfd);
 		while (h != INVALID_HANDLE_VALUE) {
-			TCHAR tmp2[100];
-			_stprintf (tmp2, L"D3D: %s", wfd.cFileName);
-			tmp2[_tcslen (tmp2) - 3] = 0;
-			SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
-			if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
-				fltnum = j;
-			j++;
+			if (_tcsicmp (wfd.cFileName, L"winuae.fx") && _tcsicmp (wfd.cFileName, L"winuae_old.fx")) {
+				TCHAR tmp2[100];
+				_stprintf (tmp2, L"D3D: %s", wfd.cFileName);
+				tmp2[_tcslen (tmp2) - 3] = 0;
+				SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
+				if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
+					fltnum = j;
+				j++;
+			}
 			if (!FindNextFile (h, &wfd)) {
 				FindClose (h);
 				h = INVALID_HANDLE_VALUE;
 			}
 		}
-		_stprintf (tmp, L"%s%soverlays\\*.*", start_path_exe, WIN32_PLUGINDIR);
+	}
+	if (workprefs.gfx_api && D3D_goodenough ()) {
+		HANDLE h;
+		WIN32_FIND_DATA wfd;
+		TCHAR tmp[MAX_DPATH];
+		_stprintf (tmp, L"%s%soverlays\\*.*", start_path_data, WIN32_PLUGINDIR);
 		h = FindFirstFile (tmp, &wfd);
 		i = 0; j = 1;
 		while (h != INVALID_HANDLE_VALUE) {
@@ -11288,11 +11299,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			recursive--;
 			filter_preset (hDlg, wParam);
 			recursive++;
-			break;
-		case IDC_FILTERD3D:
-			workprefs.gfx_api = IsDlgButtonChecked (hDlg, IDC_FILTERD3D) ? 1 : 0;
-			enable_for_hw3ddlg (hDlg);
-			values_to_hw3ddlg (hDlg);
 			break;
 		case IDC_FILTERKEEPASPECT:
 			{
@@ -12370,6 +12376,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		}
 	}
 	DragFinish (hd);
+	config_changed = 1;
 	return ret;
 }
 

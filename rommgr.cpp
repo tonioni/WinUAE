@@ -1254,7 +1254,7 @@ struct zfile *read_rom_name_guess (const TCHAR *filename)
 void kickstart_fix_checksum (uae_u8 *mem, int size)
 {
 	uae_u32 cksum = 0, prevck = 0;
-	int i, ch = size == 524288 ? 0x7ffe8 : 0x3e;
+	int i, ch = size == 524288 ? 0x7ffe8 : (size == 262144 ? 0x3ffe8 : 0x3e);
 
 	mem[ch] = 0;
 	mem[ch + 1] = 0;

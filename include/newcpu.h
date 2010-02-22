@@ -333,7 +333,7 @@ extern void sm68k_disasm (TCHAR*, TCHAR*, uaecptr addr, uaecptr *nextpc);
 extern void m68k_reset (int);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
-extern void m68k_do_rte (uae_u32 pc, uae_u16 opcode, uae_u16 sr, uae_u16 format);
+extern void m68k_do_rte (void);
 
 extern void mmu_op (uae_u32, uae_u32);
 extern void mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);

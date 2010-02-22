@@ -446,6 +446,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 							changed_prefs.df[i][0] = 0;
 					}
 					_tcscpy (changed_prefs.df[swapperdrive], currprefs.dfxlist[num]);
+					config_changed = 1;
 				}
 			}
 			break;

@@ -154,9 +154,6 @@
     <ClCompile Include="..\win32.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\win32_scale2x.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\win32_uaenet.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -519,6 +516,9 @@
     </ClCompile>
     <ClCompile Include="..\..\archivers\wrp\warp.cpp">
       <Filter>decompressors\wrp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\win32_scaler.cpp">
+      <Filter>win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

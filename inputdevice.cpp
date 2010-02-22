@@ -2326,6 +2326,7 @@ void inputdevice_handle_inputcode (void)
 				changed_prefs.chipset_refreshrate = 10;
 			if (changed_prefs.chipset_refreshrate > 900)
 				changed_prefs.chipset_refreshrate = 900;
+			config_changed = 1;
 		}
 		break;
 	case AKS_DISKSWAPPER_NEXT:
@@ -2348,6 +2349,7 @@ void inputdevice_handle_inputcode (void)
 	case AKS_DISKSWAPPER_INSERT2:
 	case AKS_DISKSWAPPER_INSERT3:
 		_tcscpy (changed_prefs.df[code - AKS_DISKSWAPPER_INSERT0], currprefs.dfxlist[swapperslot]);
+		config_changed = 1;
 		break;
 
 		break;
@@ -3349,6 +3351,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 
 	scanevents (prefs);
 
+	config_changed = 1;
+
 #if 0
 #ifdef CD32
 	if (currprefs.input_selected_setting == 0 && currprefs.cs_cd32cd)
@@ -3412,6 +3416,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 	if (acc)
 		inputdevice_acquire (TRUE);
+	config_changed = 1;
 }
 
 static void set_kbr_default (struct uae_prefs *p, int index, int num)
@@ -4308,6 +4313,8 @@ void warpmode (int mode)
 #ifdef RETROPLATFORM
 	rp_turbo (currprefs.turbo_emulation);
 #endif
+	changed_prefs.turbo_emulation = currprefs.turbo_emulation;
+	config_changed = 1;
 }
 
 void pausemode (int mode)
@@ -4316,6 +4323,7 @@ void pausemode (int mode)
 		pause_emulation = pause_emulation ? 0 : 9;
 	else
 		pause_emulation = mode;
+	config_changed = 1;
 }
 
 int jsem_isjoy (int port, const struct uae_prefs *p)
@@ -4353,6 +4361,7 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
 
 int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type)
 {
+	config_changed = 1;
 	switch (type)
 	{
 	case 1:

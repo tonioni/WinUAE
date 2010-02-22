@@ -764,7 +764,6 @@
 #define IDC_MINIMIZED_PRI               1636
 #define IDC_FILTERAUTOSCALE             1636
 #define IDC_VOLUME_BOOTPRI_TEXT         1637
-#define IDC_FILTERAUTOSCALE2            1637
 #define IDC_FILTEROVERLAY               1637
 #define IDC_VOLUME_BOOTPRI              1638
 #define IDC_KBLED1                      1639
@@ -1005,10 +1004,11 @@
 #define IDC_CPU_FREQUENCY               1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
+#define IDC_DD_SURFACETYPE2             1792
+#define IDC_DXMODE                      1792
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_DF1WPTEXTQ                  1794
-#define IDC_FILTERD3D                   1795
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

@@ -89,7 +89,6 @@ struct winuae_currentmode {
 	int initdone;
 	int fullfill;
 	int vsync;
-	LPPALETTEENTRY pal;
 };
 
 struct MultiDisplay Displays[MAX_DISPLAYS];
@@ -369,8 +368,6 @@ static int set_ddraw_2 (void)
 			currentmode->pitch = DirectDraw_GetSurfacePitch ();
 			DirectDraw_SurfaceUnlock ();
 		}
-		if (bits <= 8)
-			DirectDraw_CreatePalette (currentmode->pal);
 	}
 
 	write_log (L"set_ddraw: %dx%d@%d-bytes\n", width, height, bits);
@@ -442,13 +439,13 @@ static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context
 	ct = 1 << colortype;
 	depth = 0;
 	if (ct & RGBMASK_8BIT)
-		depth = 8;
+		return DDENUMRET_OK;
 	else if (ct & RGBMASK_15BIT)
 		depth = 15;
 	else if (ct & RGBMASK_16BIT)
 		depth = 16;
 	else if (ct & RGBMASK_24BIT)
-		depth = 24;
+		return DDENUMRET_OK;
 	else if (ct & RGBMASK_32BIT)
 		depth = 32;
 	if (depth == 0)
@@ -676,7 +673,7 @@ void sortdisplays (void)
 						}
 						idx2++;
 					}
-					if (!found) {
+					if (!found && dm.dmBitsPerPel > 8) {
 						int freq = 0;
 #if 0
 						write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
@@ -839,15 +836,10 @@ int lockscr (void)
 	ret = 1;
 	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
-		int v;
-		v = D3D_needreset ();
-		if (v > 0)
-			WIN32GFX_DisplayChangeRequested ();
-		if (v >= 0)
-			return 0;
 		if (currentmode->flags & DM_SWSCALE) {
 			ret = 1;
 		} else {
+			ret = 0;
 			gfxvidinfo.bufmem = D3D_locktexture (&gfxvidinfo.rowbytes);
 			if (gfxvidinfo.bufmem) {
 				init_row_map ();
@@ -886,14 +878,6 @@ void flush_clear_screen (void)
 		unlockscr ();
 		flush_screen (0, 0);
 	}
-}
-
-uae_u8 *gfx_lock_picasso (void)
-{
-	if (!DirectDraw_SurfaceLock ())
-		return 0;
-	picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
-	return DirectDraw_GetSurfacePointer ();
 }
 
 /* For the DX_Invalidate() and gfx_unlock_picasso() functions */
@@ -954,23 +938,79 @@ static void DX_Blit96 (int x, int y, int w, int h)
 	}
 }
 
+void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height)
+{
+	SetRect (sr, 0, 0, currentmode->native_width, currentmode->native_height);
+	SetRect (dr, 0, 0, picasso96_state.Width, picasso96_state.Height);
+	SetRect (zr, 0, 0, 0, 0);
+	
+	picasso_offset_x = 0;
+	picasso_offset_y = 0;
+	picasso_offset_mx = 1000;
+	picasso_offset_my = 1000;
+
+	if (!scalepicasso)
+		return;
+
+	int srcratio, dstratio;
+	int srcwidth, srcheight;
+		srcwidth = picasso96_state.Width;
+		srcheight = picasso96_state.Height;
+	if (currprefs.win32_rtgscaleaspectratio < 0) {
+		// automatic
+		srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
+		dstratio = currentmode->native_width * 256 / currentmode->native_height;
+	} else if (currprefs.win32_rtgscaleaspectratio == 0) {
+		// none
+		srcratio = dstratio = 0;
+	} else {
+		// manual
+		dstratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
+		srcratio = srcwidth * 256 / srcheight;
+	}
+	if (srcratio == dstratio) {
+		SetRect (dr, 0, 0, srcwidth, srcheight);
+	} else if (srcratio > dstratio) {
+		int yy = picasso96_state.Height * srcratio / dstratio;
+		SetRect (dr, 0, 0, picasso96_state.Width, yy);
+		picasso_offset_y = (picasso96_state.Height - yy) / 2;
+	} else {
+		int xx = picasso96_state.Width * dstratio / srcratio;
+		SetRect (dr, 0, 0, xx, picasso96_state.Height);
+		picasso_offset_x = (picasso96_state.Width - xx) / 2;
+	}
+	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
+	picasso_offset_mx = picasso96_state.Width * 1000 / (dr->right - dr->left);
+	picasso_offset_my = picasso96_state.Height * 1000 / (dr->bottom - dr->top);
+}
+
+uae_u8 *gfx_lock_picasso (void)
+{
+	if (currprefs.gfx_api) {
+		int pitch;
+		uae_u8 *p = D3D_locktexture (&pitch);
+		picasso_vidinfo.rowbytes = pitch;
+		return p;
+	} else {
+		if (!DirectDraw_SurfaceLock ())
+			return 0;
+		picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
+		return DirectDraw_GetSurfacePointer ();
+	}
+}
+
 void gfx_unlock_picasso (void)
 {
-	DirectDraw_SurfaceUnlock ();
-	if (p96_double_buffer_needs_flushing) {
-		if (scalepicasso) {
-			p96_double_buffer_firstx = 0;
-			p96_double_buffer_lastx = picasso96_state.Width;
-			p96_double_buffer_first = 0;
-			p96_double_buffer_last = picasso96_state.Height;
+	if (currprefs.gfx_api) {
+		D3D_unlocktexture ();
+	} else {
+		DirectDraw_SurfaceUnlock ();
+		if (p96_double_buffer_needs_flushing) {
+			DX_Blit96 (p96_double_buffer_firstx, p96_double_buffer_first,
+				p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
+				p96_double_buffer_last - p96_double_buffer_first + 1);
+			p96_double_buffer_needs_flushing = 0;
 		}
-		picasso_putcursor (p96_double_buffer_firstx, p96_double_buffer_first,
-			p96_double_buffer_lastx - p96_double_buffer_firstx + 1, p96_double_buffer_last - p96_double_buffer_first + 1);
-		DX_Blit96 (p96_double_buffer_firstx, p96_double_buffer_first,
-			p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
-			p96_double_buffer_last - p96_double_buffer_first + 1);
-		picasso_clearcursor ();
-		p96_double_buffer_needs_flushing = 0;
 	}
 }
 
@@ -991,9 +1031,6 @@ static void close_hwnds (void)
 	}
 	if (hAmigaWnd) {
 		addnotifications (hAmigaWnd, TRUE, FALSE);
-#ifdef OPENGL
-		OGL_free ();
-#endif
 #ifdef D3D
 		D3D_free ();
 #endif
@@ -1030,21 +1067,17 @@ static void updatemodes (void)
 		}
 	}
 #endif
-	if (!screen_is_picasso) {
-		if (currprefs.gfx_api) {
-			flags |= DM_D3D;
-			if (flags & DM_DX_FULLSCREEN) {
-				flags &= ~DM_DX_FULLSCREEN;
-				flags |= DM_D3D_FULLSCREEN;
-			}
-			flags &= ~DM_DDRAW;
+	if (currprefs.gfx_api) {
+		flags |= DM_D3D;
+		if (flags & DM_DX_FULLSCREEN) {
+			flags &= ~DM_DX_FULLSCREEN;
+			flags |= DM_D3D_FULLSCREEN;
 		}
-	} 
+		flags &= ~DM_DDRAW;
+	}
 	currentmode->flags = flags;
 	if (flags & DM_SWSCALE)
 		currentmode->fullfill = 1;
-	if (useoverlay && currentmode->current_depth > 16)
-		currentmode->current_depth = 16;
 	if (flags & DM_W_FULLSCREEN) {
 		RECT rc = getdisplay (&currprefs)->rect;
 		currentmode->native_width = rc.right - rc.left;
@@ -1078,20 +1111,14 @@ static void update_gfxparams (void)
 #ifdef PICASSO96
 	}
 #endif
-	currentmode->current_depth = (currprefs.color_mode == 0 ? 8
-		: currprefs.color_mode == 1 ? 15
-		: currprefs.color_mode == 2 ? 16
-		: currprefs.color_mode == 3 ? 8
-		: currprefs.color_mode == 4 ? 8 : 32);
+	currentmode->current_depth = currprefs.color_mode == 1 ? 15
+		: currprefs.color_mode == 2 ? 16 : 32;
 	if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
 		int pbits = picasso96_state.BytesPerPixel * 8;
 		if (pbits == 24)
 			pbits = 32;
-		if (pbits >= 8)
-			currentmode->current_depth = pbits;
+		currentmode->current_depth = pbits;
 	}
-	if (useoverlay && currentmode->current_depth > 16)
-		currentmode->current_depth = 16;
 	currentmode->amiga_width = currentmode->current_width;
 	currentmode->amiga_height = currentmode->current_height;
 
@@ -1182,6 +1209,9 @@ static int open_windows (int full)
 int check_prefs_changed_gfx (void)
 {
 	int c = 0;
+
+	if (!config_changed)
+		return 0;
 
 	c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? 16 : 0;
 	c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? 16 : 0;
@@ -1447,8 +1477,6 @@ int check_prefs_changed_gfx (void)
 /* Color management */
 
 static xcolnr xcol8[4096];
-static PALETTEENTRY colors256[256];
-static int ncols256 = 0;
 
 static int red_bits, green_bits, blue_bits, alpha_bits;
 static int red_shift, green_shift, blue_shift, alpha_shift;
@@ -1456,32 +1484,12 @@ static int x_red_bits, x_green_bits, x_blue_bits, x_alpha_bits;
 static int x_red_shift, x_green_shift, x_blue_shift, x_alpha_shift;
 static int alpha;
 
-static int get_color (int r, int g, int b, xcolnr * cnp)
-{
-	if (ncols256 == 256)
-		return 0;
-	colors256[ncols256].peRed = r * 0x11;
-	colors256[ncols256].peGreen = g * 0x11;
-	colors256[ncols256].peBlue = b * 0x11;
-	colors256[ncols256].peFlags = 0;
-	*cnp = ncols256;
-	ncols256++;
-	return 1;
-}
-
 void init_colors (void)
 {
-	if (ncols256 == 0) {
-		alloc_colors256 (get_color);
-		memcpy (xcol8, xcolors, sizeof xcol8);
-	}
-
 	/* init colors */
-	switch(currentmode->current_depth >> 3)
+	switch(currentmode->current_depth / 8)
 	{
 	case 1:
-		memcpy (xcolors, xcol8, sizeof xcolors);
-		DirectDraw_SetPaletteEntries (0, 256, colors256);
 		break;
 	case 2:
 	case 3:
@@ -1516,34 +1524,29 @@ void init_colors (void)
 		alpha_shift = x_alpha_shift;
 	}
 
-	if (currentmode->current_depth > 8) {
-		if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
-			if (currentmode->current_depth != currentmode->native_depth) {
-				if (currentmode->current_depth == 16) {
-					red_bits = 5; green_bits = 6; blue_bits = 5;
-					red_shift = 11; green_shift = 5; blue_shift = 0;
-				} else {
-					red_bits = green_bits = blue_bits = 8;
-					red_shift = 16; green_shift = 8; blue_shift = 0;
-				}
+	if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
+		if (currentmode->current_depth != currentmode->native_depth) {
+			if (currentmode->current_depth == 16) {
+				red_bits = 5; green_bits = 6; blue_bits = 5;
+				red_shift = 11; green_shift = 5; blue_shift = 0;
+			} else {
+				red_bits = green_bits = blue_bits = 8;
+				red_shift = 16; green_shift = 8; blue_shift = 0;
 			}
 		}
-		alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
-		notice_new_xcolors ();
+	}
+	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
+	notice_new_xcolors ();
 #ifdef GFXFILTER
-		S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
+	S2X_configure (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift);
 #endif
 #ifdef AVIOUTPUT
-		AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
+	AVIOutput_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 #endif
-		Screenshot_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
-	}
+	Screenshot_RGBinfo (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 }
 
 #ifdef PICASSO96
-void DX_SetPalette_vsync (void)
-{
-}
 
 int picasso_palette (void)
 {
@@ -1556,27 +1559,14 @@ int picasso_palette (void)
 		int b = picasso96_state.CLUT[i].Blue;
 		uae_u32 v = (doMask256 (r, red_bits, red_shift)
 			| doMask256 (g, green_bits, green_shift)
-			| doMask256 (b, blue_bits, blue_shift));
+			| doMask256 (b, blue_bits, blue_shift))
+			| doMask256 (0xff, alpha_bits, alpha_shift);
 		if (v !=  picasso_vidinfo.clut[i]) {
 			picasso_vidinfo.clut[i] = v;
 			changed = 1;
 		}
 	}
-	if (changed)
-		DX_SetPalette (0,256);
 	return changed;
-}
-
-void DX_SetPalette (int start, int count)
-{
-	if (!screen_is_picasso)
-		return;
-	if (picasso_vidinfo.pixbytes != 1)
-		return;
-	if(currentmode->current_depth > 8)
-		return;
-	if (SUCCEEDED (DirectDraw_SetPalette (0)))
-		DirectDraw_SetPaletteEntries (start, count, (LPPALETTEENTRY)&(picasso96_state.CLUT[start]));
 }
 
 void DX_Invalidate (int x, int y, int width, int height)
@@ -1608,9 +1598,6 @@ static void open_screen (void)
 {
 	close_windows ();
 	open_windows (1);
-#ifdef PICASSO96
-	DX_SetPalette (0, 256);
-#endif
 }
 
 static int ifs (struct uae_prefs *p)
@@ -1654,6 +1641,7 @@ static int reopen (int full)
 	currprefs.gfx_avsync = changed_prefs.gfx_avsync;
 	currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
 	currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
+	config_changed = 1;
 
 	if (!quick)
 		return 1;
@@ -1726,6 +1714,7 @@ int vsync_switchmode (int hz, int oldhz)
 		changed_prefs.gfx_refreshrate = hz;
 		write_log (L"refresh rate changed to %d, new screenmode %dx%d\n", hz, w, newh);
 	}
+	config_changed = 1;
 	reopen (1);
 	return 0;
 }
@@ -2311,11 +2300,6 @@ static int set_ddraw (void)
 {
 	int cnt, ret;
 
-	if (picasso_on)
-		currentmode->pal = (LPPALETTEENTRY) & picasso96_state.CLUT;
-	else
-		currentmode->pal = colors256;
-
 	cnt = 3;
 	for (;;) {
 		ret = set_ddraw_2 ();
@@ -2375,7 +2359,7 @@ static BOOL doInit (void)
 
 		if (colortype == RGBFB_NONE) {
 			fs_warning = IDS_UNSUPPORTEDSCREENMODE_1;
-		} else if (colortype == RGBFB_CLUT && DirectDraw_GetCurrentDepth () != 8) {
+		} else if (colortype == RGBFB_CLUT) {
 			fs_warning = IDS_UNSUPPORTEDSCREENMODE_2;
 		} else if (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
 			currentmode->current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
@@ -2445,9 +2429,9 @@ static BOOL doInit (void)
 	}
 
 #ifdef PICASSO96
-	picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
-	picasso_vidinfo.pixbytes = DirectDraw_GetBytesPerPixel ();
-	picasso_vidinfo.rgbformat = DirectDraw_GetPixelFormat ();
+	picasso_vidinfo.rowbytes = 0;
+	picasso_vidinfo.pixbytes = currentmode->current_depth / 8;
+	picasso_vidinfo.rgbformat = 0;
 	picasso_vidinfo.extra_mem = 1;
 	picasso_vidinfo.height = currentmode->current_height;
 	picasso_vidinfo.width = currentmode->current_width;
@@ -2459,58 +2443,43 @@ static BOOL doInit (void)
 	gfxvidinfo.realbufmem = NULL;
 	gfxvidinfo.bufmem = NULL;
 
-	if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE | DM_OPENGL))) {
+	if (!screen_is_picasso) {
+		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE | DM_OPENGL))) {
 
-		;
+			;
 
-	} else if (currentmode->flags & DM_SWSCALE) {
+		} else if (currentmode->flags & DM_SWSCALE) {
 
-		int w = currentmode->amiga_width * 2;
-		int h = currentmode->amiga_height * 2;
-		int size = (w * 2) * (h * 3) * gfxvidinfo.pixbytes;
-		gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
-		memset (gfxvidinfo.realbufmem, 0, size);
-		gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
-		gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
-		gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
+			int w = currentmode->amiga_width * 2;
+			int h = currentmode->amiga_height * 2;
+			int size = (w * 2) * (h * 3) * gfxvidinfo.pixbytes;
+			gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
+			memset (gfxvidinfo.realbufmem, 0, size);
+			gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
+			gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
+			gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
 
-	} else if (currentmode->flags & DM_D3D) {
+		} else if (currentmode->flags & DM_D3D) {
 
-		int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
-		gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
-		gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
-		gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
-		gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
+			int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
+			gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
+			gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
+			gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
+			gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
 
+		}
+		init_row_map ();
+		init_colors ();
 	}
 
-	init_row_map ();
-	init_colors ();
 
 #if defined (GFXFILTER)
 	S2X_free ();
-	if ((currentmode->flags & DM_SWSCALE) && !WIN32GFX_IsPicassoScreen ()) {
+	if (currentmode->flags & DM_SWSCALE) {
 		S2X_init (currentmode->native_width, currentmode->native_height,
 			currentmode->amiga_width, currentmode->amiga_height,
 			mult, currentmode->current_depth, currentmode->native_depth);
 	}
-#if defined OPENGL
-	if (currentmode->flags & DM_OPENGL) {
-		const TCHAR *err = OGL_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
-			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth);
-		if (err) {
-			OGL_free ();
-			if (err[0] != '*') {
-				gui_message (err);
-				changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
-			}
-			currentmode->current_depth = currentmode->native_depth;
-			gfxmode_reset ();
-			ret = -1;
-			goto oops;
-		}
-	}
-#endif
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
@@ -2529,10 +2498,6 @@ static BOOL doInit (void)
 #endif
 #endif
 	screen_is_initialized = 1;
-	WIN32GFX_SetPalette ();
-#ifdef PICASSO96
-	DX_SetPalette (0, 256);
-#endif
 	picasso_refresh ();
 
 	if (isfullscreen () > 0)
@@ -2545,36 +2510,6 @@ oops:
 	return ret;
 }
 
-
-void WIN32GFX_PaletteChange (void)
-{
-	if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
-		return;
-	if (currentmode->current_depth > 8)
-		return;
-	DirectDraw_SetPalette (1); /* Remove current palette */
-	DirectDraw_SetPalette (0); /* Set our real palette */
-}
-
-int WIN32GFX_ClearPalette (void)
-{
-	if (currentmode->current_depth > 8)
-		return 1;
-	if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
-		return 1;
-	DirectDraw_SetPalette (1); /* Remove palette */
-	return 1;
-}
-
-int WIN32GFX_SetPalette (void)
-{
-	if (!(currentmode->flags & DM_DDRAW) || (currentmode->flags & DM_D3D))
-		return 1;
-	if (currentmode->current_depth > 8)
-		return 1;
-	DirectDraw_SetPalette (0); /* Set palette */
-	return 1;
-}
 void WIN32GFX_WindowMove (void)
 {
 }
@@ -2627,6 +2562,7 @@ void updatewinfsmode (struct uae_prefs *p)
 		displayGUID = &md->guid;
 	if (isfullscreen () == 0)
 		displayGUID = NULL;
+	config_changed = 1;
 }
 
 void toggle_fullscreen (void)

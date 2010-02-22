@@ -422,7 +422,7 @@ int resetwarning_do (int canreset)
 		return 0;
 	}
 	resetwarning_phase = 1;
-	resetwarning_timer = maxvpos * 5;
+	resetwarning_timer = maxvpos_nom * 5;
 	write_log (L"KB: reset warning triggered\n");
 	sendrw ();
 	return 1;
@@ -442,14 +442,14 @@ static void resetwarning_check (void)
 		if (kback && !(ciaacra & 0x40) && ciaasdr_unread == 2) {
 			write_log (L"KB: reset warning second phase..\n");
 			resetwarning_phase = 2;
-			resetwarning_timer = maxvpos * 5;
+			resetwarning_timer = maxvpos_nom * 5;
 			sendrw ();
 		}
 	} else if (resetwarning_phase == 2) {
 		if (ciaacra & 0x40) {
 			resetwarning_phase = 3;
 			write_log (L"KB: reset warning SP = output\n");
-			resetwarning_timer = 10 * maxvpos * vblank_hz; /* wait max 10s */
+			resetwarning_timer = 10 * maxvpos_nom * vblank_hz; /* wait max 10s */
 		}
 	} else if (resetwarning_phase == 3) {
 		if (!(ciaacra & 0x40)) {
@@ -543,7 +543,7 @@ static void led_vsync (void)
 	gui_data.powerled_brightness = gui_data.powerled ? 255 : 0;
 	calc_led (gui_data.powerled);
 	if (led_on > 0 && led_times > 2) {
-		int v = led_on / CYCLE_UNIT * 256 / (maxhpos * maxvpos);
+		int v = led_on / CYCLE_UNIT * 256 / (maxhpos * maxvpos_nom);
 		if (v < 0)
 			v = 0;
 		if (v > 255)

@@ -8,8 +8,8 @@
   */
 
 #define UAEMAJOR 2
-#define UAEMINOR 0
-#define UAESUBREV 2
+#define UAEMINOR 1
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -387,6 +387,9 @@ struct uae_prefs {
     struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
     int dongle;
 };
+
+extern int config_changed;
+extern void config_check_vsync (void);
 
 /* Contains the filename of .uaerc */
 extern TCHAR optionsfile[];

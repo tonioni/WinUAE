@@ -528,7 +528,7 @@ struct AHIAudioCtrlDrv
 		f = ((double)(freq >> 16)) + ((double)(freq & 0xffff)) / 65536.0;
 		if (f < 1)
 			return;
-		cycles = maxhpos * maxvpos * vblank_hz;
+		cycles = maxhpos * maxvpos_nom * vblank_hz;
 		t = (evt)(cycles / f);
 		if (dsahip->evttime == t)
 			return;

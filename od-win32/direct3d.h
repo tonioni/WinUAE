@@ -1,9 +1,3 @@
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 extern void D3D_resize (int width, int height);
 extern void D3D_free (void);
 extern const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth);
@@ -18,7 +12,5 @@ extern int D3D_needreset (void);
 extern void D3D_clear (void);
 extern int D3D_canshaders (void);
 extern int D3D_goodenough (void);
-
-#ifdef __cplusplus
-}
-#endif
+extern void D3D_setcursor (int x, int y, int visible);
+extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;

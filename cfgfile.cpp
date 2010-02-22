@@ -826,6 +826,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, L"state_replay", p->statecapture ? L"yes" : L"no");
 	cfgfile_dwrite (f, L"state_replay_rate", L"%d", p->statecapturerate);
 	cfgfile_dwrite (f, L"state_replay_buffer", L"%d", p->statecapturebuffersize);
+	cfgfile_dwrite_bool (f, L"warp", p->turbo_emulation);
 
 #ifdef FILESYS
 	write_filesys_config (p, UNEXPANDED, p->path_hardfile, f);
@@ -2889,6 +2890,7 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 	static TCHAR *configsearch;
 	static int configsearchfound;
 
+	config_changed = 1;
 	err = 0;
 	argv = 0;
 	p = 0;
@@ -4112,3 +4114,22 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	}
 	return 1;
 }
+
+void config_check_vsync (void)
+{
+	static int cnt = 0;
+	if (cnt == 0) {
+		/* resolution_check_change (); */
+		DISK_check_change ();
+		cnt = 5;
+	}
+	cnt--;
+	if (config_changed) {
+		if (config_changed == 1)
+			write_log (L"* configuration check trigger\n");
+		config_changed++;
+		if (config_changed > 10)
+			config_changed = 0;
+	}
+}
+

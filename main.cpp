@@ -61,6 +61,7 @@
 long int version = 256 * 65536L * UAEMAJOR + 65536L * UAEMINOR + UAESUBREV;
 
 struct uae_prefs currprefs, changed_prefs;
+int config_changed;
 
 int no_gui = 0, quit_to_gui = 0;
 int cloanto_rom = 0;
@@ -349,6 +350,9 @@ void fixup_prefs (struct uae_prefs *p)
 	}
 	fixup_prefs_dimensions (p);
 
+#if !defined (JIT)
+	p->cachesize = 0;
+#endif
 #ifdef CPU_68000_ONLY
 	p->cpu_model = 68000;
 	p->fpu_model = 0;
@@ -706,7 +710,7 @@ void leave_program (void)
 	do_leave_program ();
 }
 
-#ifdef _WIN64
+#ifndef JIT
 extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
 {
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -724,7 +728,7 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef USE_SDL
 		SDL_Init (SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_NOPARACHUTE);
 #endif
-
+		config_changed = 1;
 		if (restart_config[0]) {
 			default_prefs (&currprefs, 0);
 			fixup_prefs (&currprefs);
@@ -769,6 +773,7 @@ static int real_main2 (int argc, TCHAR **argv)
 		if (! no_gui) {
 			int err = gui_init ();
 			currprefs = changed_prefs;
+			config_changed = 1;
 			if (err == -1) {
 				write_log (L"Failed to initialize the GUI\n");
 				return -1;
