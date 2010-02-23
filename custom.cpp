@@ -183,6 +183,7 @@ frame_time_t syncbase;
 static int fmode;
 uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
+static int maxvpos_stored, maxhpos_stored, vblank_hz_stored;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
@@ -2790,8 +2791,13 @@ void init_hz (void)
 		changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
 	}
 	maxvpos_total = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 2047 : 511;
-	if (maxvpos > MAXVPOS)
-		maxvpos = MAXVPOS;
+	if (maxvpos_total > MAXVPOS)
+		maxvpos_total = MAXVPOS;
+	if (!p96refresh_active) {
+		maxvpos_stored = maxvpos;
+		maxhpos_stored = maxhpos;
+		vblank_hz_stored = vblank_hz;
+	}
 
 	compute_vsynctime ();
 #ifdef PICASSO96
@@ -3492,7 +3498,7 @@ void set_picasso_hack_rate (int hz)
 	if (!picasso_on)
 		return;
 	vpos_count = 0;
-	p96refresh_active = hz * 2 * maxvpos / (currprefs.ntscmode ? 60 : 50);
+	p96refresh_active = maxvpos_stored * vblank_hz_stored / hz;
 	if (!currprefs.cs_ciaatod)
 		changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
 	if (p96refresh_active > 0) {

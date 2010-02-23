@@ -614,7 +614,7 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 13: /* HACK */
 		{ //for higher P96 mouse draw rate
-			set_picasso_hack_rate (m68k_dreg (regs, 1));
+			set_picasso_hack_rate (m68k_dreg (regs, 1) * 2);
 		} //end for higher P96 mouse draw rate
 		return 0;
 
