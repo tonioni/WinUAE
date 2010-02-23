@@ -4215,7 +4215,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
-	quickstart_cd = workprefs.dfxtype[0] == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
+	quickstart_cd = workprefs.dfxtype[1] == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
