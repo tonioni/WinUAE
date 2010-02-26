@@ -1283,6 +1283,11 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 
 	D3D_free2 ();
+	if (D3D_goodenough () <= 0) {
+		_tcscpy (errmsg, L"Direct3D: Pixel and Vertex shader 1.0 or newer support required");
+		return errmsg;
+	}
+
 	D3D_canshaders ();
 	d3d_enabled = 0;
 	if (!currprefs.gfx_api) {
@@ -1426,7 +1431,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	max_texture_w = d3dCaps.MaxTextureWidth;
 	max_texture_h = d3dCaps.MaxTextureHeight;
 
-	write_log (L"%s:", D3DHEAD);
+	write_log (L"%s: ", D3DHEAD);
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
 		write_log (L"SQUAREONLY ");
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)
