@@ -598,8 +598,10 @@ int DirectDraw_SurfaceLock (void)
 	surf = getlocksurface ();
 	if (surf == NULL)
 		return 0;
-	if (FAILED (IDirectDrawSurface7_IsLost (surf)))
+	if (FAILED (IDirectDrawSurface7_IsLost (surf))) {
+		restoresurface (surf);
 		return 0;
+	}
 	if (dxdata.lockcnt > 0)
 		return 1;
 	ok = locksurface (getlocksurface (), &dxdata.locksurface);

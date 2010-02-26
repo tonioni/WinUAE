@@ -817,10 +817,10 @@ void flush_screen (int a, int b)
 
 static uae_u8 *ddraw_dolock (void)
 {
-	if (dx_islost ())
+	if (!DirectDraw_SurfaceLock ()) {
+		dx_check ();
 		return 0;
-	if (!DirectDraw_SurfaceLock ())
-		return 0;
+	}
 	gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer ();
 	gfxvidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
 	init_row_map ();
@@ -992,8 +992,10 @@ uae_u8 *gfx_lock_picasso (void)
 		picasso_vidinfo.rowbytes = pitch;
 		return p;
 	} else {
-		if (!DirectDraw_SurfaceLock ())
+		if (!DirectDraw_SurfaceLock ()) {
+			dx_check ();
 			return 0;
+		}
 		picasso_vidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
 		return DirectDraw_GetSurfacePointer ();
 	}
@@ -2518,9 +2520,9 @@ void updatedisplayarea (void)
 {
 	if (!screen_is_initialized)
 		return;
-	if (picasso_on)
-		return;
 	if (dx_islost ())
+		return;
+	if (picasso_on)
 		return;
 #if defined (GFXFILTER)
 	if (currentmode->flags & DM_OPENGL) {

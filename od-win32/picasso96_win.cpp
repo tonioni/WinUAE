@@ -34,8 +34,6 @@
 #define P96DX 0
 #define WINCURSOR 1
 
-static int multithreaded = 0;
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -581,10 +579,10 @@ static void do_fillrect_frame_buffer (struct RenderInfo *ri, int X, int Y,
 
 static void disablemouse (void)
 {
-	if (!currprefs.gfx_api)
-		return;
 	cursorok = FALSE;
 	cursordeactivate = 0;
+	if (!currprefs.gfx_api)
+		return;
 	D3D_setcursor (0, 0, 0);
 }
 
@@ -596,9 +594,6 @@ static void mouseupdate (void)
 	int y = newcursor_y;
 	int forced = 0;
 
-	if (!currprefs.gfx_api)
-		return;
-
 	if (cursordeactivate > 0) {
 		cursordeactivate--;
 		if (cursordeactivate == 0) {
@@ -607,6 +602,8 @@ static void mouseupdate (void)
 		}
 	}
 
+	if (!currprefs.gfx_api)
+		return;
 	D3D_setcursor (x, y, cursorvisible);
 }
 
@@ -664,8 +661,7 @@ void picasso_handle_vsync (void)
 		return;
 
 	framecnt++;
-	if (!multithreaded)
-		mouseupdate ();
+	mouseupdate ();
 
 	if (thisisvsync) {
 		int flushed = 0;
@@ -2462,6 +2458,29 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 	return 1;
 }
 
+#ifdef CPU_64_BIT
+static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
+{
+	while (ALIGN_POINTER_TO32 (p) != 7 && w) {
+		*p ^= v;
+		p++;
+		w--;
+	}
+	v |= v << 32;
+	while (w >= 2 * 8) {
+		*((uae_u64*)p) ^= v;
+		p += 8;
+		*((uae_u64*)p) ^= v;
+		p += 8;
+		w -= 2 * 8;
+	}
+	while (w) {
+		*p ^= v;
+		p++;
+		w--;
+	}
+}
+#else
 static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 {
 	while (ALIGN_POINTER_TO32 (p) != 3 && w) {
@@ -2482,7 +2501,7 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 		w--;
 	}
 }
-
+#endif
 /*
 * InvertRect:
 *
@@ -4352,11 +4371,6 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 
 	if (currprefs.win32_rtgvblankrate >= -1)
 		initvblankirq (ctx, uaegfx_base);
-
-	if (multithreaded && thread_alive == 0) {
-		uae_sem_init (&sem, FALSE, FALSE);
-		uae_start_thread (L"rtg_copy", picasso_copy, NULL, NULL);
-	}
 
 	write_log (L"uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
 	return uaegfx_base;
