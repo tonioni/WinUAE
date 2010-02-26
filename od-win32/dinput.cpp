@@ -446,6 +446,7 @@ static int gettabletres (AXIS *a)
 void *open_tablet (HWND hwnd)
 {
 #ifndef _WIN64
+	static int initialized;
 	LOGCONTEXT lc;
 	AXIS tx = { 0 }, ty = { 0 }, tz = { 0 };
 	AXIS pres = { 0 };
@@ -476,18 +477,21 @@ void *open_tablet (HWND hwnd)
 	lc.lcInExtY = ty.axMax;
 	if (zmax > 0)
 		lc.lcInExtZ = tz.axMax;
-	write_log (L"Tablet '%s' parameters\n", tabletname);
-	write_log (L"Xmax=%d,Ymax=%d,Zmax=%d\n", xmax, ymax, zmax);
-	write_log (L"Xres=%.1f:%d,Yres=%.1f:%d,Zres=%.1f:%d\n",
-		tx.axResolution / 65536.0, tx.axUnits, ty.axResolution / 65536.0, ty.axUnits, tz.axResolution / 65536.0, tz.axUnits);
-	write_log (L"Xrotmax=%d,Yrotmax=%d,Zrotmax=%d\n", axmax, aymax, azmax);
-	write_log (L"PressureMin=%d,PressureMax=%d\n", pres.axMin, pres.axMax);
+	if (!initialized) {
+		write_log (L"Tablet '%s' parameters\n", tabletname);
+		write_log (L"Xmax=%d,Ymax=%d,Zmax=%d\n", xmax, ymax, zmax);
+		write_log (L"Xres=%.1f:%d,Yres=%.1f:%d,Zres=%.1f:%d\n",
+			tx.axResolution / 65536.0, tx.axUnits, ty.axResolution / 65536.0, ty.axUnits, tz.axResolution / 65536.0, tz.axUnits);
+		write_log (L"Xrotmax=%d,Yrotmax=%d,Zrotmax=%d\n", axmax, aymax, azmax);
+		write_log (L"PressureMin=%d,PressureMax=%d\n", pres.axMin, pres.axMax);
+	}
 	maxpres = pres.axMax;
 	xres = gettabletres (&tx);
 	yres = gettabletres (&ty);
 	tablet_proximity = -1;
 	tablet_x = -1;
 	inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);
+	initialized = 1;
 	return WTOpen (hwnd, &lc, TRUE);
 #else
 	return 0;

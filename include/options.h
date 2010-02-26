@@ -357,7 +357,6 @@ struct uae_prefs {
     int win32_specialkey;
     int win32_guikey;
     int win32_kbledmode;
-    int win32_fscodepage;
     TCHAR win32_commandpathstart[MAX_DPATH];
     TCHAR win32_commandpathend[MAX_DPATH];
 

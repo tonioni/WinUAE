@@ -2481,7 +2481,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
 		p->win32_rtgvblankrate = 0;
-		p->win32_fscodepage = 0;
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 	}
@@ -2550,7 +2549,6 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 		cfgfile_target_dwrite (f, L"guikey", L"0x%x", p->win32_guikey);
 	cfgfile_target_dwrite (f, L"kbledmode", L"%d", p->win32_kbledmode);
 	cfgfile_target_dwrite_bool (f, L"powersavedisabled", p->win32_powersavedisabled);
-	cfgfile_target_dwrite (f, L"filesystem_codepage", L"%d", p->win32_fscodepage);
 	cfgfile_target_dwrite_str (f, L"exec_before", p->win32_commandpathstart);
 	cfgfile_target_dwrite_str (f, L"exec_after", p->win32_commandpathend);
 
@@ -2606,7 +2604,6 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 		|| cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)
-		|| cfgfile_intval (option, value, L"filesystem_codepage", &p->win32_fscodepage, 1)
 		|| cfgfile_intval (option, value, L"cpu_idle", &p->cpu_idle, 1));
 
 	if (cfgfile_yesno (option, value, L"rtg_match_depth", &p->win32_rtgmatchdepth))
