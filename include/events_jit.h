@@ -27,7 +27,7 @@ extern signed long pissoff;
 
 STATIC_INLINE void cycles_do_special (void)
 {
-	if (pissoff > 0)
+	if (pissoff >= 0)
 		pissoff = -1;
 }
 

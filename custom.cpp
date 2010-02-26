@@ -3411,6 +3411,16 @@ static void INTENA (uae_u16 v)
 #endif
 }
 
+void INTREQ_f (uae_u16 v)
+{
+	if (use_eventmode (v)) {
+		send_intreq_do (v);
+	} else {
+	 	intreq |= v;
+	 	intreq_internal |= v;
+	}
+}
+
 void INTREQ_0 (uae_u16 v)
 {
 	uae_u16 old = intreq;

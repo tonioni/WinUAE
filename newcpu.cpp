@@ -2987,7 +2987,7 @@ static void m68k_run_jit (void)
 		((compiled_handler*)(pushall_call_handler))();
 		/* Whenever we return from that, we should check spcflags */
 		if (uae_int_requested) {
-			intreq |= 0x0008;
+			INTREQ_f (0x8008);
 			set_special (SPCFLAG_INT);
 		}
 		if (regs.spcflags) {
