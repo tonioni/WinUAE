@@ -91,9 +91,9 @@ static int read_uaefsdb (const TCHAR *dir, const TCHAR *name, uae_u8 *fsdb)
 			if (fsdb_debug) {
 				TCHAR *an, *nn, *co;
 				write_log (L"->ok\n");
-				an = aucp ((char*)fsdb + 5, currprefs.win32_fscodepage);
-				nn = aucp ((char*)fsdb + 262, currprefs.win32_fscodepage);
-				co = aucp ((char*)fsdb + 519, currprefs.win32_fscodepage);
+				an = au_fs ((char*)fsdb + 5);
+				nn = au_fs ((char*)fsdb + 262);
+				co = au_fs ((char*)fsdb + 519);
 				write_log (L"v=%02x flags=%08x an='%s' nn='%s' c='%s'\n",
 					fsdb[0], ((uae_u32*)(fsdb+1))[0], an, nn, co);
 				xfree (co);
@@ -148,9 +148,9 @@ static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
 		NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (fsdb_debug) {
 		TCHAR *an, *nn, *co;
-		an = aucp ((char*)fsdb + 5, currprefs.win32_fscodepage);
-		nn = aucp ((char*)fsdb + 262, currprefs.win32_fscodepage);
-		co = aucp ((char*)fsdb + 519, currprefs.win32_fscodepage);
+		an = au_fs ((char*)fsdb + 5);
+		nn = au_fs ((char*)fsdb + 262);
+		co = au_fs ((char*)fsdb + 519);
 		write_log (L"write_uaefsdb '%s' = %x\n", p, h);
 		write_log (L"v=%02x flags=%08x an='%s' nn='%s' c='%s'\n",
 			fsdb[0], ((uae_u32*)(fsdb+1))[0], an, nn, co);
@@ -205,16 +205,16 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
 	char *s;
 	buf[0] = 1;
 	do_put_mem_long ((uae_u32 *)(buf + 1), aino->amigaos_mode);
-	s = uacp (aino->aname, currprefs.win32_fscodepage);
+	s = ua_fs (aino->aname, -1);
 	strncpy ((char*)buf + 5, s, 256);
 	buf[5 + 256] = '\0';
 	xfree (s);
 	nn = nname_begin (aino->nname);
-	s = uacp (nn, currprefs.win32_fscodepage);
+	s = ua_fs (nn, -1);
 	strncpy ((char*)buf + 5 + 257, s, 256);
 	buf[5 + 257 + 256] = '\0';
 	xfree (s);
-	s = uacp (aino->comment ? aino->comment : L"", currprefs.win32_fscodepage);
+	s = ua_fs (aino->comment ? aino->comment : L"", -1);
 	strncpy ((char*)buf + 5 + 2 * 257, s, 80);
 	buf[5 + 2 * 257 + 80] = '\0';
 	xfree (s);
@@ -237,14 +237,14 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
 	if (buf2[0]) {
 		aino->aname = my_strdup ((TCHAR*)buf2);
 	} else {
-		aino->aname = aucp ((char*)buf, currprefs.win32_fscodepage);
+		aino->aname = au_fs ((char*)buf);
 	}
 	buf += 257;
 	buf2 += 257 * 2;
 	if (buf2[0]) {
 		aino->nname = build_nname (base->nname, (TCHAR*)buf2);
 	} else {
-		s = aucp ((char*)buf, currprefs.win32_fscodepage);
+		s = au_fs ((char*)buf);
 		aino->nname = build_nname (base->nname, s);
 		xfree (s);
 	}
@@ -292,7 +292,7 @@ static int fsdb_name_invalid_2 (const TCHAR *n)
 	if (a == 'C' && b == 'O' && c == 'N') ll = 3; /* CON  */
 	if (a == 'P' && b == 'R' && c == 'N') ll = 3; /* PRN  */
 	if (a == 'N' && b == 'U' && c == 'L') ll = 3; /* NUL  */
-	if (a == 'L' && b == 'P' && c == 'T'  && (d >= '0' && d <= '9')) ll = 4;  /* LPT# */
+	if (a == 'L' && b == 'P' && c == 'T'  && (d >= '0' && d <= '9')) ll = 4; /* LPT# */
 	if (a == 'C' && b == 'O' && c == 'M'  && (d >= '0' && d <= '9')) ll = 4; /* COM# */
 	/* AUX.anything, CON.anything etc.. are also illegal names */
 	if (ll && (l == ll || (l > ll && n[ll] == '.')))
@@ -317,7 +317,7 @@ static int fsdb_name_invalid_2 (const TCHAR *n)
 	s2[0] = 0;
 	ua_fs_copy (s1, MAX_DPATH, n, -1);
 	au_fs_copy (s2, MAX_DPATH, s1);
-	if (_tcsicmp (s2, n) != 0)
+	if (_tcscmp (s2, n) != 0)
 		return 1;
 
 	return 0; /* the filename passed all checks, now it should be ok */

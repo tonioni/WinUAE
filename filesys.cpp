@@ -936,18 +936,21 @@ static TCHAR *bstr (Unit *unit, uaecptr addr)
 static TCHAR *bstr_cut (Unit *unit, uaecptr addr)
 {
 	TCHAR *p = unit->tmpbuf3;
-	int i, colon_seen = 0;
+	int i, colon_seen = 0, off;
 	int n = get_byte (addr);
+	uae_char buf[257];
 
+	off = 0;
 	addr++;
 	for (i = 0; i < n; i++, addr++) {
 		uae_u8 c = get_byte (addr);
-		unit->tmpbuf3[i] = c;
+		buf[i] = c;
 		if (c == '/' || (c == ':' && colon_seen++ == 0))
-			p = unit->tmpbuf3 + i + 1;
+			off = i + 1;
 	}
-	unit->tmpbuf3[i] = 0;
-	return p;
+	buf[i] = 0;
+	au_fs_copy (unit->tmpbuf3, sizeof (unit->tmpbuf3) / sizeof (TCHAR), buf);
+	return &p[off];
 }
 
 static Unit *units = 0;
@@ -1733,7 +1736,7 @@ static TCHAR *get_aname (Unit *unit, a_inode *base, TCHAR *rel)
 	return my_strdup (rel);
 }
 
-static void init_child_aino_tree(Unit *unit, a_inode *base, a_inode *aino)
+static void init_child_aino_tree (Unit *unit, a_inode *base, a_inode *aino)
 {
 	/* Update tree structure */
 	aino->parent = base;

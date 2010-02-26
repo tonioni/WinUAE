@@ -395,4 +395,3 @@ FILE *my_opentext (const TCHAR *name)
 	}
 	return _tfopen (name, L"r");
 }
-

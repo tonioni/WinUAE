@@ -109,11 +109,7 @@ extern int fsdb_used_as_nname (a_inode *base, const TCHAR *);
 extern a_inode *fsdb_lookup_aino_aname (a_inode *base, const TCHAR *);
 extern a_inode *fsdb_lookup_aino_nname (a_inode *base, const TCHAR *);
 extern int fsdb_exists (TCHAR *nname);
-
-STATIC_INLINE int same_aname (const TCHAR *an1, const TCHAR *an2)
-{
-    return strcasecmp (an1, an2) == 0;
-}
+extern int same_aname (const TCHAR *an1, const TCHAR *an2);
 
 /* Filesystem-dependent functions.  */
 extern int fsdb_name_invalid (const TCHAR *n);
