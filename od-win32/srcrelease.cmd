@@ -1,14 +1,24 @@
 cd c:\projects\winuae_bak
 rm -rf bak
 mkdir bak
-copy /s c:\projects\winuae\src\* c:\projects\winuae_bak\bak\
+
+copy c:\projects\winuae\src\* c:\projects\winuae_bak\bak\
+copy /s c:\projects\winuae\src\archivers\* c:\projects\winuae_bak\bak\archivers\
+mkdir bak\include
+copy c:\projects\winuae\src\include\* c:\projects\winuae_bak\bak\include\
+mkdir bak\jit
+copy c:\projects\winuae\src\jit\* c:\projects\winuae_bak\bak\jit\
+mkdir bak\md-generic
+copy c:\projects\winuae\src\md-generic\* c:\projects\winuae_bak\bak\md-generic\
+mkdir bak\md-i386-gcc
+copy c:\projects\winuae\src\md-i386-gcc\* c:\projects\winuae_bak\bak\md-i386-gcc\
+copy /s c:\projects\winuae\src\od-win32\* c:\projects\winuae_bak\bak\od-win32\
+
 copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
 cd bak
 del *.obj *.ilk *.exe *.pdb *.pch *.idb *.ncb *.sln *.suo *.ncb *.sdf /s
-
-
 
 del cpudefs.cpp
 del blit.h
@@ -133,6 +143,6 @@ copy winuaesrc.zip d:\amiga\winuaepackets\winuaesrc%1.zip
 move winuaesrc.zip d:\amiga
 cd c:\projects\winuae\src\od-win32
 zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb winuae_msvc10\release\winuae.pdb  winuae_msvc10\fullrelease\winuae.pdb 
-move winuaedebug%1.zip d:\amiga\winuaepackets\
+move winuaedebug%1.zip d:\amiga\winuaepackets\debug\
 copy winuae_msvc10\fullrelease\winuae.pdb d:\amiga\dump
 copy d:\amiga\winuae.exe d:\amiga\dump

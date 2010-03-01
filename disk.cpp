@@ -3578,3 +3578,63 @@ uae_u8 *save_floppy(int *len, uae_u8 *dstptr)
 }
 
 #endif /* SAVESTATE */
+
+static int getnextdisk (TCHAR *img)
+{
+	TCHAR *ext, *p, *dst;
+	int num = -1;
+
+	dst = NULL;
+	for (;;) {
+		// disk x of y
+		p = _tcsstr (img, L"disk ");
+		if (p && _istdigit (p[5])) {
+			num = _tstoi (p + 5);
+			dst = p + 5;
+		} else {
+			ext = _tcsrchr (img, '.');
+			if (!ext || ext - img < 4)
+				break;
+			// name_<non numeric character>x.ext
+			if (ext[-3] == '_' && !_istdigit (ext[-2]) && _istdigit (ext[-1])) {
+				num = _tstoi (ext - 1);
+				dst = ext - 1;
+			// name_x.ext
+			} else if (ext[-2] == '_' && _istdigit (ext[-1])) {
+				num = _tstoi (ext - 1);
+				dst = ext - 1;
+			// name_a.ext
+			} else if (ext[-2] == '_' && ext[-1] >= 'a' && ext[-1] <= 'z') {
+				num = ext[-1] - 'a';
+				dst = ext - 1;
+			}
+		}
+		break;
+	}
+	if (num <= 0 || num >= 19)
+		return 0;
+	if (num > 9)
+		return 0;
+	if (num == 9)
+		num = 0;
+	if (!_istdigit (dst[0]))
+		dst[0] = num + 'a';
+	else
+		dst[0] = num + '0';
+	return 0;
+}
+
+int disk_next (int drive)
+{
+	TCHAR img[MAX_DPATH];
+
+	 _tcscpy (img, currprefs.df[drive]);
+	 to_lower (img, sizeof img / sizeof (TCHAR));
+
+	if (img[0])
+		return 0;
+	getnextdisk (img);
+	return 1;
+}
+
+

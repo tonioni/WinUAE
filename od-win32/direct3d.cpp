@@ -25,7 +25,7 @@ extern int D3DEX, d3ddebug;
 #include "direct3d.h"
 
 static TCHAR *D3DHEAD = L"-";
-static int psEnabled, psActive, psPreProcess;
+static int psEnabled, psActive, psPreProcess, shaderon;
 
 static D3DFORMAT tformat;
 static int d3d_enabled, d3d_ex;
@@ -47,6 +47,7 @@ static HWND d3dhwnd;
 static int devicelost;
 static int locked;
 static int cursor_offset_x, cursor_offset_y;
+static float maskmult_x, maskmult_y;
 
 static D3DXMATRIX m_matProj, m_matProj2;
 static D3DXMATRIX m_matWorld, m_matWorld2;
@@ -55,7 +56,7 @@ static D3DXMATRIX m_matPreProj;
 static D3DXMATRIX m_matPreView;
 static D3DXMATRIX m_matPreWorld;
 static D3DXMATRIX postproj;
-static D3DXVECTOR4 maskmult;
+static D3DXVECTOR4 maskmult, maskshift;
 
 static int ledwidth, ledheight;
 static int twidth, theight, max_texture_w, max_texture_h;
@@ -189,7 +190,7 @@ static D3DXHANDLE postSourceTextureHandle;
 static D3DXHANDLE postMaskTextureHandle;
 static D3DXHANDLE postTechnique, postTechniquePlain, postTechniqueAlpha;
 static D3DXHANDLE postMatrixSource;
-static D3DXHANDLE postMaskMult;
+static D3DXHANDLE postMaskMult, postMaskShift;
 static D3DXHANDLE postFilterMode;
 
 static LPD3DXEFFECT pEffect;
@@ -225,7 +226,12 @@ static int postEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3
 	postTechniqueAlpha = effect->GetTechniqueByName ("PostTechniqueAlpha");
 	postMatrixSource = effect->GetParameterByName (NULL, "mtx");
 	postMaskMult = effect->GetParameterByName (NULL, "maskmult");
+	postMaskShift = effect->GetParameterByName (NULL, "maskshift");
 	postFilterMode = effect->GetParameterByName (NULL, "filtermode");
+	if (!postMaskShift || !postMaskMult || !postFilterMode || !postMatrixSource) {
+		gui_message (L"Mismatched _winuae.fx! Exiting..");
+		abort ();
+	}
 	return true;
 }
 
@@ -395,15 +401,13 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 static int psEffect_hasPreProcess (void) { return m_PreprocessTechnique1EffectHandle != 0; }
 static int psEffect_hasPreProcess2 (void) { return m_PreprocessTechnique2EffectHandle != 0; }
 
-static int d3d_yesno = 0;
-
 int D3D_goodenough (void)
 {
 	static int d3d_good;
 	LPDIRECT3D9 d3dx;
 	D3DCAPS9 d3dCaps;
 
-	if (d3d_yesno > 0 || d3d_good > 0)
+	if (d3d_good > 0)
 		return 1;
 	if (d3d_good < 0)
 		return 0;
@@ -415,6 +419,7 @@ int D3D_goodenough (void)
 				if ((d3dCaps.TextureCaps & (D3DPTEXTURECAPS_POW2 | D3DPTEXTURECAPS_NONPOW2CONDITIONAL)) != D3DPTEXTURECAPS_POW2) {
 					if (!(d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY) && (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)) {
 						d3d_good = 1;
+						shaderon = 1;
 					}
 				}
 			}
@@ -426,6 +431,7 @@ int D3D_goodenough (void)
 
 int D3D_canshaders (void)
 {
+	static int d3d_yesno = 0;
 	HMODULE h;
 	LPDIRECT3D9 d3dx;
 	D3DCAPS9 d3dCaps;
@@ -832,6 +838,8 @@ static int createsltexture (void)
 	if (!sltexture)
 		return 0;
 	write_log (L"%s: SL %d*%d texture allocated\n", D3DHEAD, required_sl_texture_w, required_sl_texture_h);
+	maskmult_x = 1.0;
+	maskmult_y = 1.0;
 	return 1;
 }
 
@@ -842,7 +850,7 @@ static int createmasktexture (TCHAR *filename)
 	struct zfile *zf;
 	int size;
 	uae_u8 *buf;
-	D3DSURFACE_DESC maskdesc;
+	D3DSURFACE_DESC maskdesc, txdesc;
 	LPDIRECT3DTEXTURE9 tx;
 	HRESULT hr;
 	D3DLOCKED_RECT lock, slock;
@@ -873,53 +881,62 @@ static int createmasktexture (TCHAR *filename)
 		write_log (L"%s: temp mask texture load failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		goto end;
 	}
+	hr = tx->GetLevelDesc (0, &txdesc);
+	if (FAILED (hr)) {
+		write_log (L"%s: mask image texture GetLevelDesc() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		goto end;
+	}
 	masktexture_w = dinfo.Width;
 	masktexture_h = dinfo.Height;
-#if 0
-	masktexture = tx;
-#else
-	masktexture = createtext (ww, hh, D3DFMT_X8R8G8B8);
-	if (FAILED (hr)) {
-		write_log (L"%s: mask texture creation failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		goto end;
-	}
-	hr = masktexture->GetLevelDesc (0, &maskdesc);
-	if (FAILED (hr)) {
-		write_log (L"%s: mask texture GetLevelDesc() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		goto end;
-	}
-	if (SUCCEEDED (hr = masktexture->LockRect (0, &lock, NULL, 0))) {
-		if (SUCCEEDED (hr = tx->LockRect (0, &slock, NULL, 0))) {
-			int x, y, sx, sy;
-			uae_u32 *sptr, *ptr;
-			sy = 0;
-			for (y = 0; y < maskdesc.Height; y++) {
-				sx = 0;
-				for (x = 0; x < maskdesc.Width; x++) {
-					uae_u32 v;
-					sptr = (uae_u32*)((uae_u8*)slock.pBits + sy * slock.Pitch + sx * 4);
-					ptr = (uae_u32*)((uae_u8*)lock.pBits + y * lock.Pitch + x * 4);
-					v = *sptr;
-//					v &= 0x00FFFFFF;
-//					v |= 0x80000000;
-					*ptr = v;
-					sx++;
-					if (sx >= dinfo.Width)
-						sx = 0;
-				}
-				sy++;
-				if (sy >= dinfo.Height)
-					sy = 0;
-			}
-			tx->UnlockRect (0);
+	if (txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
+		// texture size == image size, no need to tile it (Wrap sampler does the rest)
+		masktexture = tx;
+		tx = NULL;
+	} else {
+		masktexture = createtext (ww, hh, D3DFMT_X8R8G8B8);
+		if (FAILED (hr)) {
+			write_log (L"%s: mask texture creation failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			goto end;
 		}
-		masktexture->UnlockRect (0);
+		hr = masktexture->GetLevelDesc (0, &maskdesc);
+		if (FAILED (hr)) {
+			write_log (L"%s: mask texture GetLevelDesc() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			goto end;
+		}
+		if (SUCCEEDED (hr = masktexture->LockRect (0, &lock, NULL, 0))) {
+			if (SUCCEEDED (hr = tx->LockRect (0, &slock, NULL, 0))) {
+				int x, y, sx, sy;
+				uae_u32 *sptr, *ptr;
+				sy = 0;
+				for (y = 0; y < maskdesc.Height; y++) {
+					sx = 0;
+					for (x = 0; x < maskdesc.Width; x++) {
+						uae_u32 v;
+						sptr = (uae_u32*)((uae_u8*)slock.pBits + sy * slock.Pitch + sx * 4);
+						ptr = (uae_u32*)((uae_u8*)lock.pBits + y * lock.Pitch + x * 4);
+						v = *sptr;
+	//					v &= 0x00FFFFFF;
+	//					v |= 0x80000000;
+						*ptr = v;
+						sx++;
+						if (sx >= dinfo.Width)
+							sx = 0;
+					}
+					sy++;
+					if (sy >= dinfo.Height)
+						sy = 0;
+				}
+				tx->UnlockRect (0);
+			}
+			masktexture->UnlockRect (0);
+		}
+		tx->Release ();
+		masktexture_w = maskdesc.Width;
+		masktexture_h = maskdesc.Height;
 	}
-	tx->Release ();
-	masktexture_w = maskdesc.Width;
-	masktexture_h = maskdesc.Height;
-#endif
-	write_log (L"%s: mask %d*%d ('%s') texture allocated\n", D3DHEAD, masktexture_w, masktexture_h, filename);
+	write_log (L"%s: mask %d*%d (%d*%d) ('%s') texture allocated\n", D3DHEAD, masktexture_w, masktexture_h, txdesc.Width, txdesc.Height, filename);
+	maskmult_x = (float)ww / masktexture_w;
+	maskmult_y = (float)hh / masktexture_h;
 
 	return 1;
 end:
@@ -967,17 +984,19 @@ static void setupscenecoords (void)
 		+0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
 		0);
 
-	float sw = dw * tin_w / window_w + 0.5;
-	float sh = dh * tin_h / window_h + 0.5;
+	float sw = dw * tin_w / window_w + 0.5f;
+	float sh = dh * tin_h / window_h + 0.5f;
 	MatrixScaling (&m_matWorld,
 		sw,
 		sh,
 		1.0f);
 
 	// ratio between Amiga texture and overlay texture
-	maskmult.x = sw / w;
-	maskmult.y = sh / h;
-	maskmult.z = maskmult.w = 0;
+	maskmult.x = sw * maskmult_x / w;
+	maskmult.y = sh * maskmult_y / h;
+
+	maskshift.x = 1.0f / maskmult_x;
+	maskshift.y = 1.0f / maskmult_y;
 
 	D3DXMATRIX tmp;
 	D3DXMatrixMultiply (&tmp, &m_matWorld, &m_matView);
@@ -1199,19 +1218,27 @@ static int restoredeviceobjects (void)
 	HRESULT hr;
 
 	invalidatedeviceobjects ();
-	postEffect = psEffect_LoadEffect (psEnabled ? L"winuae.fx" : L"winuae_old.fx", false);
-	if (!postEffect)
-		return 0;
-	if (currprefs.gfx_filtershader[0]) {
-		if (!(pEffect = psEffect_LoadEffect (currprefs.gfx_filtershader, true)))
-			currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
+	while (shaderon) {
+		postEffect = psEffect_LoadEffect (psEnabled ? L"_winuae.fx" : L"_winuae_old.fx", false);
+		if (!postEffect) {
+			shaderon = 0;
+			break;
+		}
+		if (currprefs.gfx_filtershader[0]) {
+			if (!(pEffect = psEffect_LoadEffect (currprefs.gfx_filtershader, true))) {
+				currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
+				shaderon = 0;
+				break;
+			}
+		}
+		if (currprefs.gfx_filter_scanlines > 0)
+			createsltexture ();
+		createmasktexture (currprefs.gfx_filtermask);
+		break;
 	}
 	if (!createtexture (tin_w, tin_h))
 		return 0;
-	if (currprefs.gfx_filter_scanlines > 0)
-		createsltexture ();
 	createledtexture ();
-	createmasktexture (currprefs.gfx_filtermask);
 
 	hr = D3DXCreateSprite (d3ddev, &sprite);
 	if (FAILED (hr)) {
@@ -1283,12 +1310,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 
 	D3D_free2 ();
-	if (D3D_goodenough () <= 0) {
-		_tcscpy (errmsg, L"Direct3D: Pixel and Vertex shader 1.0 or newer support required");
-		return errmsg;
-	}
-
-	D3D_canshaders ();
 	d3d_enabled = 0;
 	if (!currprefs.gfx_api) {
 		_tcscpy (errmsg, L"D3D: not enabled");
@@ -1303,6 +1324,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		return errmsg;
 	}
 	FreeLibrary (d3dx);
+
+	D3D_goodenough ();
+	D3D_canshaders ();
 
 	d3d_ex = FALSE;
 	d3dDLL = LoadLibrary (L"D3D9.DLL");
@@ -1455,11 +1479,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		t_depth
 		);
 
-	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(3,0) || d3dCaps.VertexShaderVersion < D3DVS_VERSION(3,0) || !psEnabled || max_texture_w < 4096 || max_texture_h < 4096) && d3d_ex) {
+	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(3,0) || d3dCaps.VertexShaderVersion < D3DVS_VERSION(3,0) || !psEnabled || max_texture_w < 4096 || max_texture_h < 4096 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (L"Disabling D3D9Ex\n");
 		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth);
 	}
+	if (!shaderon)
+		write_log (L"Using non-shader version\n");
 
 	mult = S2X_getmult ();
 	t_w *= mult;
@@ -1487,8 +1513,10 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 			tformat = D3DFMT_A8R8G8B8;
 		break;
 		case 15:
-		case 16:
 			tformat = D3DFMT_A1R5G5B5;
+		break;
+		case 16:
+			tformat = D3DFMT_R5G6B5;
 		break;
 	}
 	window_w = w_w;
@@ -1602,121 +1630,145 @@ static void D3D_render22 (void)
 		write_log (L"%s: BeginScene: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
-	if (psActive) {
-		LPDIRECT3DSURFACE9 lpRenderTarget;
-		LPDIRECT3DSURFACE9 lpNewRenderTarget;
-		LPDIRECT3DTEXTURE9 lpWorkTexture;
+	if (shaderon) {
+		if (psActive) {
+			LPDIRECT3DSURFACE9 lpRenderTarget;
+			LPDIRECT3DSURFACE9 lpNewRenderTarget;
+			LPDIRECT3DTEXTURE9 lpWorkTexture;
 
-		settransform ();
-		if (!psEffect_SetTextures (texture, lpWorkTexture1, lpWorkTexture2, lpHq2xLookupTexture))
-			return;
-		if (psPreProcess) {
-			if (!psEffect_SetMatrices (&m_matPreProj, &m_matPreView, &m_matPreWorld))
+			settransform ();
+			if (!psEffect_SetTextures (texture, lpWorkTexture1, lpWorkTexture2, lpHq2xLookupTexture))
 				return;
+			if (psPreProcess) {
+				if (!psEffect_SetMatrices (&m_matPreProj, &m_matPreView, &m_matPreWorld))
+					return;
+
+				if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))
+					write_log (L"%s: GetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
+				lpWorkTexture = lpWorkTexture1;
+				lpNewRenderTarget = NULL;
+	pass2:
+				if (FAILED (hr = lpWorkTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
+					write_log (L"%s: GetSurfaceLevel: %s\n", D3DHEAD, D3D_ErrorString (hr));
+				if (FAILED (hr = d3ddev->SetRenderTarget (0, lpNewRenderTarget)))
+					write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
+
+				uPasses = 0;
+				if (psEffect_Begin (pEffect, (lpWorkTexture == lpWorkTexture1) ? psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses)) {
+					for (uPass = 0; uPass < uPasses; uPass++) {
+						if (psEffect_BeginPass (pEffect, uPass)) {
+							if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 4, 2))) {
+								write_log (L"%s: Effect DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+							}
+							psEffect_EndPass (pEffect);
+						}
+					}
+					psEffect_End (pEffect);
+				}
+				if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1) {
+					lpWorkTexture = lpWorkTexture2;
+					lpNewRenderTarget->Release ();
+					lpNewRenderTarget = NULL;
+					goto pass2;
+				}
+				if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
+					write_log (L"%s: Effect RenderTarget reset failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+				lpRenderTarget->Release ();
+				lpRenderTarget = NULL;
+				lpNewRenderTarget->Release ();
+				lpNewRenderTarget = NULL;
+			}
+			psEffect_SetMatrices (&m_matProj2, &m_matView2, &m_matWorld2);
 
 			if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))
 				write_log (L"%s: GetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
-			lpWorkTexture = lpWorkTexture1;
-			lpNewRenderTarget = NULL;
-pass2:
-			if (FAILED (hr = lpWorkTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
+			if (FAILED (hr = lpTempTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
 				write_log (L"%s: GetSurfaceLevel: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			if (FAILED (hr = d3ddev->SetRenderTarget (0, lpNewRenderTarget)))
 				write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, d3ddebug ? 0x80 : 0), 0, 0);
 
 			uPasses = 0;
-			if (psEffect_Begin (pEffect, (lpWorkTexture == lpWorkTexture1) ? psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses)) {
+			if (psEffect_Begin (pEffect, psEffect_Combine, &uPasses)) {
 				for (uPass = 0; uPass < uPasses; uPass++) {
-					if (psEffect_BeginPass (pEffect, uPass)) {
-						if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 4, 2))) {
-							write_log (L"%s: Effect DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-						}
-						psEffect_EndPass (pEffect);
-					}
+					if (!psEffect_BeginPass (pEffect, uPass))
+						return;
+					if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2)))
+						write_log (L"%s: Effect2 DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+					psEffect_EndPass (pEffect);
 				}
 				psEffect_End (pEffect);
 			}
-			if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1) {
-				lpWorkTexture = lpWorkTexture2;
-				lpNewRenderTarget->Release ();
-				lpNewRenderTarget = NULL;
-				goto pass2;
-			}
-			if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
-				write_log (L"%s: Effect RenderTarget reset failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-			lpRenderTarget->Release ();
-			lpRenderTarget = NULL;
-			lpNewRenderTarget->Release ();
-			lpNewRenderTarget = NULL;
-		}
-		psEffect_SetMatrices (&m_matProj2, &m_matView2, &m_matWorld2);
 
-		if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))
-			write_log (L"%s: GetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		if (FAILED (hr = lpTempTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
-			write_log (L"%s: GetSurfaceLevel: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		if (FAILED (hr = d3ddev->SetRenderTarget (0, lpNewRenderTarget)))
-			write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, d3ddebug ? 0x80 : 0), 0, 0);
+			if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
+				write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			lpNewRenderTarget->Release ();
+			lpRenderTarget->Release ();
+			srctex = lpTempTexture;
+
+		} else {
+
+			srctex = texture;
+
+		}
+
+		if (masktexture) {
+			if (FAILED (hr = postEffect->SetTechnique (postTechnique)))
+				write_log (L"%s: SetTechnique(postTechnique) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			if (FAILED (hr = postEffect->SetTexture (postMaskTextureHandle, masktexture)))
+				write_log (L"%s: SetTexture(masktexture) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		} else if (sltexture) {
+			if (FAILED (hr = postEffect->SetTechnique (postTechniqueAlpha)))
+				write_log (L"%s: SetTechnique(postTechniqueAlpha) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			if (FAILED (hr = postEffect->SetTexture (postMaskTextureHandle, sltexture)))
+				write_log (L"%s: SetTexture(sltexture) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		} else {
+			if (FAILED (hr = postEffect->SetTechnique (postTechniquePlain)))
+				write_log (L"%s: SetTechnique(postTechniquePlain) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		}
+		hr = postEffect->SetInt (postFilterMode, currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
+
+		if (FAILED (hr = postEffect->SetTexture (postSourceTextureHandle, srctex)))
+			write_log (L"%s: SetTexture(srctex) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		setupscenecoords ();
+		hr = postEffect->SetMatrix (postMatrixSource, &postproj);
+		hr = postEffect->SetVector (postMaskMult, &maskmult);
+		hr = postEffect->SetVector (postMaskShift, &maskshift);
 
 		uPasses = 0;
-		if (psEffect_Begin (pEffect, psEffect_Combine, &uPasses)) {
+		if (psEffect_Begin (postEffect, psEffect_None, &uPasses)) {
 			for (uPass = 0; uPass < uPasses; uPass++) {
-				if (!psEffect_BeginPass (pEffect, uPass))
-					return;
-				if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2)))
-					write_log (L"%s: Effect2 DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-				psEffect_EndPass (pEffect);
+				if (psEffect_BeginPass (postEffect, uPass)) {
+					if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2)))
+						write_log (L"%s: Post DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+					psEffect_EndPass (postEffect);
+				}
 			}
-			psEffect_End (pEffect);
+			psEffect_End (postEffect);
 		}
-
-		if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
-			write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		lpNewRenderTarget->Release ();
-		lpRenderTarget->Release ();
-		srctex = lpTempTexture;
 
 	} else {
 
-		srctex = texture;
+		// non-shader version
+		hr = d3ddev->SetTransform (D3DTS_PROJECTION, &m_matProj);
+		hr = d3ddev->SetTransform (D3DTS_VIEW, &m_matView);
+		hr = d3ddev->SetTransform (D3DTS_WORLD, &m_matWorld);
+		hr = d3ddev->SetTexture (0, texture);
+		hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2);
+		int bl = currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
+		hr = d3ddev->SetSamplerState (0, D3DSAMP_MINFILTER, bl);
+		hr = d3ddev->SetSamplerState (0, D3DSAMP_MAGFILTER, bl);
 
-	}
-
-	if (masktexture) {
-		if (FAILED (hr = postEffect->SetTechnique (postTechnique)))
-			write_log (L"%s: SetTechnique(postTechnique) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		if (FAILED (hr = postEffect->SetTexture (postMaskTextureHandle, masktexture)))
-			write_log (L"%s: SetTexture(masktexture) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-	} else if (sltexture) {
-		if (FAILED (hr = postEffect->SetTechnique (postTechniqueAlpha)))
-			write_log (L"%s: SetTechnique(postTechniqueAlpha) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		if (FAILED (hr = postEffect->SetTexture (postMaskTextureHandle, sltexture)))
-			write_log (L"%s: SetTexture(sltexture) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-	} else {
-		if (FAILED (hr = postEffect->SetTechnique (postTechniquePlain)))
-			write_log (L"%s: SetTechnique(postTechniquePlain) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-	}
-	hr = postEffect->SetInt (postFilterMode, currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT);
-
-	if (FAILED (hr = postEffect->SetTexture (postSourceTextureHandle, srctex)))
-		write_log (L"%s: SetTexture(srctex) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-	setupscenecoords ();
-	hr = postEffect->SetMatrix (postMatrixSource, &postproj);
-	hr = postEffect->SetVector (postMaskMult, &maskmult);
-
-	uPasses = 0;
-	if (psEffect_Begin (postEffect, psEffect_None, &uPasses)) {
-		for (uPass = 0; uPass < uPasses; uPass++) {
-			if (psEffect_BeginPass (postEffect, uPass)) {
-				if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2)))
-					write_log (L"%s: Post DrawPrimitive failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-				psEffect_EndPass (postEffect);
+		if (sprite && sltexture) {
+			D3DXVECTOR3 v;
+			sprite->Begin (D3DXSPRITE_ALPHABLEND);
+			if (sltexture) {
+				v.x = v.y = v.z = 0;
+				sprite->Draw (sltexture, NULL, NULL, &v, 0xffffffff);
 			}
+			sprite->End ();
 		}
-		psEffect_End (postEffect);
 	}
-
 	if (sprite && ((ledtexture) || (cursorsurfaced3d && cursor_v))) {
 		D3DXVECTOR3 v;
 		sprite->Begin (D3DXSPRITE_ALPHABLEND);
@@ -1740,6 +1792,7 @@ pass2:
 		}
 		sprite->End ();
 	}
+
 
 	hr = d3ddev->EndScene ();
 	if (FAILED (hr))
@@ -1843,7 +1896,6 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 		*a = 255;
 		break;
 	case 15:
-	case 16:
 		*rb = 5;
 		*gb = 5;
 		*bb = 5;
@@ -1852,7 +1904,18 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 		*gs = 5;
 		*bs = 0;
 		*as = 15;
-		*a = 1;
+		*a = 0;
+	break;
+	case 16:
+		*rb = 5;
+		*gb = 6;
+		*bb = 5;
+		*ab = 1;
+		*rs = 11;
+		*gs = 5;
+		*bs = 0;
+		*as = 0;
+		*a = 0;
 		break;
 	}
 }

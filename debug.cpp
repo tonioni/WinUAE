@@ -3545,8 +3545,9 @@ void mmu_do_hit (void)
 	put_long (m68k_areg (regs, 7), get_long (p - 4));
 	m68k_areg (regs, 7) -= 2;
 	put_word (m68k_areg (regs, 7), mmur.sr);
-
+#ifdef JIT
 	set_special(SPCFLAG_END_COMPILE);
+#endif
 }
 
 static void mmu_do_hit_pre (struct mmudata *md, uaecptr addr, int size, int rwi, uae_u32 v)

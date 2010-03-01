@@ -69,6 +69,8 @@ unsigned int doMask256 (int p, int bits, int shift)
 	* shift to align msb with mask, and apply mask */
 
 	unsigned long val = p * 0x01010101UL;
+	if (bits == 0)
+		return 0;
 	val >>= (32 - bits);
 	val <<= shift;
 

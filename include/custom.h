@@ -67,7 +67,9 @@ STATIC_INLINE int dmaen (unsigned int dmamask)
 #define SPCFLAG_ACTION_REPLAY 2048
 #define SPCFLAG_TRAP 4096 /* enforcer-hack */
 #define SPCFLAG_MODE_CHANGE 8192
+#ifdef JIT
 #define SPCFLAG_END_COMPILE 16384
+#endif
 
 extern uae_u16 adkcon;
 

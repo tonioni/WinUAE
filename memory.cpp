@@ -947,7 +947,7 @@ static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 		} else
 			a1000_handle_kickstart (0);
 	} else if (currprefs.illegal_mem)
-		write_log (L"Illegal kickmem lput at %08lx\n", addr);
+		write_log (L"Illegal kickmem bput at %08lx\n", addr);
 }
 
 static void REGPARAM2 kickmem2_lput (uaecptr addr, uae_u32 l)

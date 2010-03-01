@@ -3821,13 +3821,13 @@ static urlinfo urls[] =
 	{IDC_CLOANTOHOME, FALSE, L"Cloanto's Amiga Forever", L"http://www.amigaforever.com/"},
 	{IDC_AMIGAHOME, FALSE, L"Amiga Inc.", L"http://www.amiga.com"},
 //	{IDC_PICASSOHOME, FALSE, L"Picasso96 Home Page", L"http://www.picasso96.cogito.de/"},
-	{IDC_UAEHOME, FALSE, L"UAE Home Page", L"http://uae.coresystems.de/"},
+	{IDC_UAEHOME, FALSE, L"UAE Home Page", L"http://www.amigaemulator.org/"},
 	{IDC_WINUAEHOME, FALSE, L"WinUAE Home Page", L"http://www.winuae.net/"},
 //	{IDC_AIABHOME, FALSE, L"AIAB", L"http://www.amigainabox.co.uk/"},
 	{IDC_THEROOTS, FALSE, L"Back To The Roots", L"http://www.back2roots.org/"},
 	{IDC_ABIME, FALSE, L"abime.net", L"http://www.abime.net/"},
 	{IDC_CAPS, FALSE, L"SPS", L"http://www.softpres.org/"},
-	{IDC_AMIGASYS, FALSE, L"AmigaSYS", L"http://amigasys.extra.hu/"},
+	{IDC_AMIGASYS, FALSE, L"AmigaSYS", L"http://www.amigasys.com/"},
 	{IDC_AMIKIT, FALSE, L"AmiKit", L"http://amikit.amiga.sk/"},
 	{ -1, FALSE, NULL, NULL }
 };
@@ -10924,7 +10924,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_data, WIN32_PLUGINDIR);
 		h = FindFirstFile (tmp, &wfd);
 		while (h != INVALID_HANDLE_VALUE) {
-			if (_tcsicmp (wfd.cFileName, L"winuae.fx") && _tcsicmp (wfd.cFileName, L"winuae_old.fx")) {
+			if (wfd.cFileName[0] != '_') {
 				TCHAR tmp2[100];
 				_stprintf (tmp2, L"D3D: %s", wfd.cFileName);
 				tmp2[_tcslen (tmp2) - 3] = 0;

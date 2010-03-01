@@ -1482,8 +1482,6 @@ static xcolnr xcol8[4096];
 
 static int red_bits, green_bits, blue_bits, alpha_bits;
 static int red_shift, green_shift, blue_shift, alpha_shift;
-static int x_red_bits, x_green_bits, x_blue_bits, x_alpha_bits;
-static int x_red_shift, x_green_shift, x_blue_shift, x_alpha_shift;
 static int alpha;
 
 void init_colors (void)
@@ -1496,34 +1494,22 @@ void init_colors (void)
 	case 2:
 	case 3:
 	case 4:
-		x_red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
-		x_green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
-		x_blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		x_red_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (red_mask));
-		x_green_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (green_mask));
-		x_blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
-		x_alpha_bits = 0;
-		x_alpha_shift = 0;
+		red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
+		green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
+		blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
+		red_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (red_mask));
+		green_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (green_mask));
+		blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
+		alpha_bits = 0;
+		alpha_shift = 0;
 		break;
 	}
 
-	if (currentmode->flags & DM_OPENGL) {
-#ifdef OPENGL
-		OGL_getpixelformat (currentmode->current_depth,&red_bits,&green_bits,&blue_bits,&red_shift,&green_shift,&blue_shift,&alpha_bits,&alpha_shift,&alpha);
-#endif
-	} else if (currentmode->flags & DM_D3D) {
+	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
-		D3D_getpixelformat (currentmode->current_depth,&red_bits,&green_bits,&blue_bits,&red_shift,&green_shift,&blue_shift,&alpha_bits,&alpha_shift,&alpha);
+		D3D_getpixelformat (currentmode->current_depth,
+			&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
 #endif
-	} else {
-		red_bits = x_red_bits;
-		green_bits = x_green_bits;
-		blue_bits = x_blue_bits;
-		red_shift = x_red_shift;
-		green_shift = x_green_shift;
-		blue_shift = x_blue_shift;
-		alpha_bits = x_alpha_bits;
-		alpha_shift = x_alpha_shift;
 	}
 
 	if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
@@ -1537,6 +1523,7 @@ void init_colors (void)
 			}
 		}
 	}
+	write_log (L"%d %d %d %d %d %d\n", red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 	notice_new_xcolors ();
 #ifdef GFXFILTER
@@ -1824,7 +1811,7 @@ void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgb
 
 void gfx_set_picasso_colors (RGBFTYPE rgbfmt)
 {
-	alloc_colors_picasso (x_red_bits, x_green_bits, x_blue_bits, x_red_shift, x_green_shift, x_blue_shift, rgbfmt);
+	alloc_colors_picasso (red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift, rgbfmt);
 }
 
 static void gfxmode_reset (void)
@@ -2471,8 +2458,8 @@ static BOOL doInit (void)
 
 		}
 		init_row_map ();
-		init_colors ();
 	}
+	init_colors ();
 
 
 #if defined (GFXFILTER)

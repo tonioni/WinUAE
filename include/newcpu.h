@@ -175,14 +175,10 @@ STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 extern int mmu_enabled, mmu_triggered;
 extern int cpu_cycles;
 extern int cpucycleunit;
-#ifdef JIT
-extern uae_u8* compiled_code;
-#endif
 STATIC_INLINE void set_special (uae_u32 x)
 {
 	regs.spcflags |= x;
-	if (compiled_code)
-		cycles_do_special ();
+	cycles_do_special ();
 }
 
 STATIC_INLINE void unset_special (uae_u32 x)

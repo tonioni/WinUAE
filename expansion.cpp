@@ -1029,7 +1029,7 @@ uaecptr p96ram_start;
 static void expamem_map_gfxcard (void)
 {
 	gfxmem_start = (expamem_hi | (expamem_lo >> 4)) << 16;
-	map_banks (&gfxmem_bankx, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
+	map_banks (&gfxmem_bank, gfxmem_start >> 16, allocated_gfxmem >> 16, allocated_gfxmem);
 	write_log (L"UAEGFX-card: mapped @$%lx, %d MB RTG RAM\n", gfxmem_start, allocated_gfxmem / 0x100000);
 }
 
@@ -1163,7 +1163,7 @@ static void allocate_expamem (void)
 	z3fastmem_bank.baseaddr = z3fastmem;
 	z3fastmem2_bank.baseaddr = z3fastmem2;
 	fastmem_bank.baseaddr = fastmemory;
-	gfxmem_bankx.baseaddr = gfxmemory;
+	gfxmem_bank.baseaddr = gfxmemory;
 
 #ifdef SAVESTATE
 	if (savestate_state == STATE_RESTORE) {
@@ -1185,7 +1185,7 @@ static void allocate_expamem (void)
 #ifdef PICASSO96
 		if (allocated_gfxmem > 0 && gfxmem_start > 0) {
 			restore_ram (p96_filepos, gfxmemory);
-			map_banks (&gfxmem_bankx, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
+			map_banks (&gfxmem_bank, gfxmem_start >> 16, currprefs.gfxmem_size >> 16,
 				allocated_gfxmem);
 		}
 #endif

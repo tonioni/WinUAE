@@ -1442,7 +1442,9 @@ kludge_me_do:
 	regs.ir = get_word_ce (m68k_getpc ()); // prefetch 1
 	do_cycles_ce000 (2);
 	regs.irc = get_word_ce (m68k_getpc () + 2); // prefetch 2
+#ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
+#endif
 	exception_trace (nr);
 }
 #endif
@@ -1566,7 +1568,9 @@ kludge_me_do:
 		return;
 	}
 	m68k_setpc (newpc);
+#ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
+#endif
 	fill_prefetch_slow ();
 	exception_trace (nr);
 }
@@ -1638,7 +1642,9 @@ static void Exception_normal (int nr, uaecptr oldpc)
 							return;
 						}
 						m68k_setpc (newpc);
+#ifdef JIT
 						set_special (SPCFLAG_END_COMPILE);
+#endif
 						exception_trace (nr);
 						return;
 
@@ -1747,7 +1753,9 @@ kludge_me_do:
 		return;
 	}
 	m68k_setpc (newpc);
+#ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
+#endif
 	fill_prefetch_slow ();
 	exception_trace (nr);
 }
@@ -2653,7 +2661,6 @@ STATIC_INLINE int do_specialties (int cycles)
 	if (regs.spcflags & SPCFLAG_COPPER)
 		do_copper ();
 
-	/*n_spcinsns++;*/
 #ifdef JIT
 	unset_special (SPCFLAG_END_COMPILE);   /* has done its job */
 #endif

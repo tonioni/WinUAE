@@ -3396,15 +3396,15 @@ static void INTENA (uae_u16 v)
 	uae_u16 old = intena;
 	setclr (&intena, v);
 
-	if (old == intena) {
-		doint ();
+	if (!(v & 0x8000) && old == intena)
 		return;
-	}
-
-	if (use_eventmode (v))
+	if (use_eventmode (v)) {
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY, intena, send_intena_do);
-	else
-		send_intena_do (intena);
+	} else {
+		intena_internal = intena;
+		if (v & 0x8000)
+			doint ();
+	}
 #if 0
 	if (v & 0x40)
 		write_log (L"INTENA %04X (%04X) %p\n", intena, v, M68K_GETPC);
@@ -3426,17 +3426,19 @@ void INTREQ_0 (uae_u16 v)
 	uae_u16 old = intreq;
 	setclr (&intreq, v);
 
+	if (!(v & 0x8000) && old == intreq)
+		return;
+
 	if (v & (0x0080 | 0x0100 | 0x0200 | 0x0400))
 		audio_update_irq (v);
 
-	if (old == intreq) {
-		doint ();
-		return;
-	}
-	if (use_eventmode (v))
+	if (use_eventmode (v)) {
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY, intreq, send_intreq_do);
-	else
-		send_intreq_do (intreq);
+	} else {
+		intreq_internal = intreq;
+		if (v & 0x8000)
+			doint ();
+	}
 }
 
 void INTREQ (uae_u16 data)

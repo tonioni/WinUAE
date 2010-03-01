@@ -72,7 +72,7 @@ static void getinit (void)
 static int vblscale (int v)
 {
 	static int o;
-	int n;
+	int n, v2;
 
 	n = (beamcon0 & 0x80) + maxvpos_nom;
 	if (n != o)
@@ -81,9 +81,12 @@ static int vblscale (int v)
 	if (beamcon0 & 0x80)
 		return v;
 	if (currprefs.ntscmode)
-		v = v * maxvpos_nom / MAXVPOS_NTSC;
+		v2 = MAXVPOS_NTSC;
 	else
-		v = v * maxvpos_nom / MAXVPOS_PAL;
+		v2 = MAXVPOS_PAL;
+	if (abs (v2 - maxvpos_nom) <= 3)
+		return v;
+	v = v * maxvpos_nom / v2;
 	return v;
 }
 static int vblscale2 (int v)

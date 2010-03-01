@@ -242,7 +242,9 @@ static void fpu_op_illg (uae_u32 opcode, int pcoffset)
 			write_log (L"68040/060 FPU disabled exception PC=%x\n", newpc);
 			newpc = get_long_fpu (regs.vbr + 11 * 4);
 			m68k_setpc (newpc);
+#ifdef JIT
 			set_special (SPCFLAG_END_COMPILE);
+#endif
 			return;
 	}
 	op_illg (opcode);

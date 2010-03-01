@@ -322,3 +322,12 @@ int same_aname (const TCHAR *an1, const TCHAR *an2)
 {
 	return CompareString (LOCALE_INVARIANT, NORM_IGNORECASE, an1, -1, an2, -1) == CSTR_EQUAL;
 }
+
+void to_lower (TCHAR *s, int len)
+{
+	CharLowerBuff (s, len);
+}
+void to_upper (TCHAR *s, int len)
+{
+	CharUpperBuff (s, len);
+}
