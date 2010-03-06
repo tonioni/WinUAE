@@ -10686,13 +10686,15 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
 	int as = workprefs.gfx_filter_autoscale;
 	struct uae_filter *uf;
-	int i;
+	int i, isfilter;
 
+	isfilter = 0;
 	uf = &uaefilters[0];
 	i = 0;
 	while (uaefilters[i].name) {
 		if (workprefs.gfx_filter == uaefilters[i].type) {
 			uf = &uaefilters[i];
+			isfilter = 1;
 			break;
 		}
 		i++;
@@ -10705,7 +10707,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		vv3 = TRUE;
 	if (v && uf->x[0])
 		vv4 = TRUE;
-	if (workprefs.gfx_api)
+	if (workprefs.gfx_api && isfilter)
 		v = vv = vv2 = vv3 = vv4 = TRUE;
 
 	ew (hDlg, IDC_FILTERHZ, v);
@@ -11212,7 +11214,7 @@ static void filter_handle (HWND hDlg)
 				hw3d_changed = 1;
 			}
 		}
-		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
+		if (workprefs.gfx_filter == 0)
 			workprefs.gfx_filter_autoscale = 0;
 	}
 	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
@@ -11320,10 +11322,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						workprefs.gfx_filter_autoscale = item;
-						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0) {
-							if (!workprefs.gfx_api)
-								workprefs.gfx_filter = 1; // NULL
-						}
+						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
+							workprefs.gfx_filter = 1; // NULL
 						values_to_hw3ddlg (hDlg);
 						enable_for_hw3ddlg (hDlg);
 					}

@@ -473,12 +473,8 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_data, WIN32_PLUGINDIR, shaderfile);
 	hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, compileflags, &EffectCompiler, &Errors);
 	if (FAILED (hr)) {
-		if (hr == 0x88760B59)
-			hr = D3DXCreateEffectCompilerFromFile (shaderfile, NULL, NULL, compileflags, &EffectCompiler, &Errors);
-		if (FAILED (hr)) {
-			write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
-			goto end;
-		}
+		write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
+		goto end;
 	}
 	hr = EffectCompiler->CompileEffect (0, &BufferEffect, &Errors);
 	if (FAILED (hr)) {
@@ -830,6 +826,69 @@ static int createledtexture (void)
 	return 1;
 }
 
+
+static void createscanlines (int force)
+{
+	HRESULT hr;
+	D3DLOCKED_RECT locked;
+	static int osl1, osl2, osl3;
+	int sl4, sl42;
+	int l1, l2;
+	int x, y, yy;
+	uae_u8 *sld, *p;
+	int bpp;
+
+	if (!sltexture)
+		return;
+	if (osl1 == currprefs.gfx_filter_scanlines && osl3 == currprefs.gfx_filter_scanlinelevel && osl2 == currprefs.gfx_filter_scanlineratio && !force)
+		return;
+	bpp = t_depth < 32 ? 2 : 4;
+	osl1 = currprefs.gfx_filter_scanlines;
+	osl3 = currprefs.gfx_filter_scanlinelevel;
+	osl2 = currprefs.gfx_filter_scanlineratio;
+	sl4 = currprefs.gfx_filter_scanlines * 16 / 100;
+	sl42 = currprefs.gfx_filter_scanlinelevel * 16 / 100;
+	if (sl4 > 15)
+		sl4 = 15;
+	if (sl42 > 15)
+		sl42 = 15;
+	l1 = (currprefs.gfx_filter_scanlineratio >> 0) & 15;
+	l2 = (currprefs.gfx_filter_scanlineratio >> 4) & 15;
+
+	if (l1 + l2 <= 0)
+		return;
+	hr = sltexture->LockRect (0, &locked, NULL, 0);
+	if (FAILED (hr)) {
+		write_log (L"%s: SL LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		return;
+	}
+	sld = (uae_u8*)locked.pBits;
+	for (y = 0; y < required_sl_texture_h; y++)
+		memset (sld + y * locked.Pitch, 0, required_sl_texture_w * bpp);
+	for (y = 1; y < required_sl_texture_h; y += l1 + l2) {
+		for (yy = 0; yy < l2 && y + yy < required_sl_texture_h; yy++) {
+			for (x = 0; x < required_sl_texture_w; x++) {
+				uae_u8 sll = sl42;
+				p = &sld[(y + yy) * locked.Pitch + (x * bpp)];
+				if (bpp < 4) {
+					/* 16-bit, A4R4G4B4 */
+					p[1] = (sl4 << 4) | (sll << 0);
+					p[0] = (sll << 4) | (sll << 0);
+				} else {
+					/* 32-bit, A8R8G8B8 */
+					uae_u8 sll4 = sl4 | (sl4 << 4);
+					uae_u8 sll2 = sll | (sll << 4);
+					p[0] = sll2;
+					p[1] = sll2;
+					p[2] = sll2;
+					p[3] = sll4;
+				}
+			}
+		}
+	}
+	sltexture->UnlockRect (0);
+}
+
 static int createsltexture (void)
 {
 	if (masktexture)
@@ -840,6 +899,7 @@ static int createsltexture (void)
 	write_log (L"%s: SL %d*%d texture allocated\n", D3DHEAD, required_sl_texture_w, required_sl_texture_h);
 	maskmult_x = 1.0;
 	maskmult_y = 1.0;
+	createscanlines (1);
 	return 1;
 }
 
@@ -1075,69 +1135,6 @@ static void settransform (void)
 	psEffect_SetMatrices (&m_matProj, &m_matView, &m_matWorld);
 }
 
-static void createscanlines (int force)
-{
-	HRESULT hr;
-	D3DLOCKED_RECT locked;
-	static int osl1, osl2, osl3;
-	int sl4, sl42;
-	int l1, l2;
-	int x, y, yy;
-	uae_u8 *sld, *p;
-	int bpp;
-
-	if (!sltexture)
-		return;
-	if (osl1 == currprefs.gfx_filter_scanlines && osl3 == currprefs.gfx_filter_scanlinelevel && osl2 == currprefs.gfx_filter_scanlineratio && !force)
-		return;
-	bpp = t_depth < 32 ? 2 : 4;
-	osl1 = currprefs.gfx_filter_scanlines;
-	osl3 = currprefs.gfx_filter_scanlinelevel;
-	osl2 = currprefs.gfx_filter_scanlineratio;
-	sl4 = currprefs.gfx_filter_scanlines * 16 / 100;
-	sl42 = currprefs.gfx_filter_scanlinelevel * 16 / 100;
-	if (sl4 > 15)
-		sl4 = 15;
-	if (sl42 > 15)
-		sl42 = 15;
-	l1 = (currprefs.gfx_filter_scanlineratio >> 0) & 15;
-	l2 = (currprefs.gfx_filter_scanlineratio >> 4) & 15;
-
-	if (l1 + l2 <= 0)
-		return;
-	hr = sltexture->LockRect (0, &locked, NULL, 0);
-	if (FAILED (hr)) {
-		write_log (L"%s: SL LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		return;
-	}
-	sld = (uae_u8*)locked.pBits;
-	for (y = 0; y < required_sl_texture_h; y++)
-		memset (sld + y * locked.Pitch, 0, required_sl_texture_w * bpp);
-	for (y = 1; y < required_sl_texture_h; y += l1 + l2) {
-		for (yy = 0; yy < l2 && y + yy < required_sl_texture_h; yy++) {
-			for (x = 0; x < required_sl_texture_w; x++) {
-				uae_u8 sll = sl42;
-				p = &sld[(y + yy) * locked.Pitch + (x * bpp)];
-				if (bpp < 4) {
-					/* 16-bit, A4R4G4B4 */
-					p[1] = (sl4 << 4) | (sll << 0);
-					p[0] = (sll << 4) | (sll << 0);
-				} else {
-					/* 32-bit, A8R8G8B8 */
-					uae_u8 sll4 = sl4 | (sl4 << 4);
-					uae_u8 sll2 = sll | (sll << 4);
-					p[0] = sll2;
-					p[1] = sll2;
-					p[2] = sll2;
-					p[3] = sll4;
-				}
-			}
-		}
-	}
-	sltexture->UnlockRect (0);
-}
-
-
 static void invalidatedeviceobjects (void)
 {
 	if (texture) {
@@ -1215,6 +1212,7 @@ static void invalidatedeviceobjects (void)
 static int restoredeviceobjects (void)
 {
 	int vbsize;
+	int wasshader = shaderon;
 	HRESULT hr;
 
 	invalidatedeviceobjects ();
@@ -1236,6 +1234,9 @@ static int restoredeviceobjects (void)
 		createmasktexture (currprefs.gfx_filtermask);
 		break;
 	}
+	if (wasshader && !shaderon)
+		write_log (L"Falling back to non-shader mode\n");
+
 	if (!createtexture (tin_w, tin_h))
 		return 0;
 	createledtexture ();
@@ -1510,10 +1511,10 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	{
 		case 32:
 		default:
-			tformat = D3DFMT_A8R8G8B8;
+			tformat = D3DFMT_X8R8G8B8;
 		break;
 		case 15:
-			tformat = D3DFMT_A1R5G5B5;
+			tformat = D3DFMT_X1R5G5B5;
 		break;
 		case 16:
 			tformat = D3DFMT_R5G6B5;
@@ -1630,7 +1631,7 @@ static void D3D_render22 (void)
 		write_log (L"%s: BeginScene: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
-	if (shaderon) {
+	if (shaderon && postEffect) {
 		if (psActive) {
 			LPDIRECT3DSURFACE9 lpRenderTarget;
 			LPDIRECT3DSURFACE9 lpNewRenderTarget;
@@ -1762,13 +1763,12 @@ static void D3D_render22 (void)
 		if (sprite && sltexture) {
 			D3DXVECTOR3 v;
 			sprite->Begin (D3DXSPRITE_ALPHABLEND);
-			if (sltexture) {
-				v.x = v.y = v.z = 0;
-				sprite->Draw (sltexture, NULL, NULL, &v, 0xffffffff);
-			}
+			v.x = v.y = v.z = 0;
+			sprite->Draw (sltexture, NULL, NULL, &v, 0xffffffff);
 			sprite->End ();
 		}
 	}
+
 	if (sprite && ((ledtexture) || (cursorsurfaced3d && cursor_v))) {
 		D3DXVECTOR3 v;
 		sprite->Begin (D3DXSPRITE_ALPHABLEND);
@@ -1784,7 +1784,7 @@ static void D3D_render22 (void)
 			MatrixScaling (&t, 1, 1, 0);
 			sprite->SetTransform (&t);
 		}
-		if (ledtexture) {
+		if (ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen ()) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen ()))) {
 			v.x = 0;
 			v.y = window_h - TD_TOTAL_HEIGHT;
 			v.z = 0;
@@ -1828,7 +1828,7 @@ void D3D_unlocktexture (void)
 
 	if (!isd3d ())
 		return;
-	if (currprefs.leds_on_screen & STATUSLINE_CHIPSET)
+	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
 		updateleds ();
 
 	if (locked)
@@ -1893,7 +1893,7 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 		*gs = 8;
 		*bs = 0;
 		*as = 24;
-		*a = 255;
+		*a = 0;
 		break;
 	case 15:
 		*rb = 5;
@@ -1910,7 +1910,7 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 		*rb = 5;
 		*gb = 6;
 		*bb = 5;
-		*ab = 1;
+		*ab = 0;
 		*rs = 11;
 		*gs = 5;
 		*bs = 0;

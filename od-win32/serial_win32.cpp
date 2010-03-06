@@ -23,6 +23,7 @@
 #include "newcpu.h"
 #include "cia.h"
 #include "serial.h"
+#include "enforcer.h"
 
 #include "od-win32/parser.h"
 
@@ -98,10 +99,11 @@ void SERPER (uae_u16 w)
 #endif
 }
 
-static uae_char dochar (int v)
+static TCHAR dochar (int v)
 {
 	v &= 0xff;
-	if (v >= 32 && v < 127) return (char)v;
+	if (v >= 32 && v < 127)
+		return v;
 	return '.';
 }
 
@@ -277,11 +279,10 @@ void SERDAT (uae_u16 w)
 		console_out_f (L"%c", dochar (w));
 
 	if (serper == 372) {
-		extern int enforcermode;
 		if (enforcermode & 2) {
 			console_out_f (L"%c", dochar (w));
-			if (w == 266)
-				console_out(L"\n");
+			if (w == 256 + 10)
+				console_out (L"\n");
 		}
 	}
 

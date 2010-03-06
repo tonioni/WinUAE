@@ -802,7 +802,7 @@ void flush_screen (int a, int b)
 		OGL_render ();
 #endif
 	} else if (currentmode->flags & DM_D3D) {
-		if (currentmode->flags & DM_SWSCALE)
+		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
 			S2X_render ();
 		return;
 #ifdef GFXFILTER
@@ -836,7 +836,7 @@ int lockscr (void)
 	ret = 1;
 	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
-		if (currentmode->flags & DM_SWSCALE) {
+		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL) {
 			ret = 1;
 		} else {
 			ret = 0;
@@ -858,7 +858,7 @@ int lockscr (void)
 void unlockscr (void)
 {
 	if (currentmode->flags & DM_D3D) {
-		if (currentmode->flags & DM_SWSCALE)
+		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
 			return;
 		D3D_unlocktexture ();
 	} else if (currentmode->flags & DM_SWSCALE) {
@@ -1523,7 +1523,6 @@ void init_colors (void)
 			}
 		}
 	}
-	write_log (L"%d %d %d %d %d %d\n", red_bits, green_bits, blue_bits, red_shift, green_shift, blue_shift);
 	alloc_colors64k (red_bits, green_bits, blue_bits, red_shift,green_shift, blue_shift, alpha_bits, alpha_shift, alpha, 0);
 	notice_new_xcolors ();
 #ifdef GFXFILTER

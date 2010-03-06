@@ -131,10 +131,21 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	float srcratio, dstratio;
 	int aws, ahs, ahs2;
 	int xs, ys;
-	float xmult, ymult;
 	int v;
 	int extraw, extrah;
 	int fpuv;
+
+	int filter_horiz_zoom = currprefs.gfx_filter_horiz_zoom;
+	int filter_vert_zoom = currprefs.gfx_filter_vert_zoom;
+	int filter_horiz_zoom_mult = currprefs.gfx_filter_horiz_zoom_mult;
+	int filter_vert_zoom_mult = currprefs.gfx_filter_vert_zoom_mult;
+	int filter_horiz_offset = currprefs.gfx_filter_horiz_offset;
+	int filter_vert_offset = currprefs.gfx_filter_vert_offset;
+	if (!usedfilter) {
+		filter_horiz_zoom = filter_vert_zoom = 0;
+		filter_horiz_zoom_mult = filter_vert_zoom_mult = 1000;
+		filter_horiz_offset = filter_vert_offset = 0;
+	}
 
 	if (screen_is_picasso) {
 		getrtgfilterrect2 (sr, dr, zr, dst_width, dst_height);
@@ -148,8 +159,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	aws = aw * scale;
 	ahs = ah * scale;
 
-	extraw = -aws * currprefs.gfx_filter_horiz_zoom / 2000;
-	extrah = -ahs * currprefs.gfx_filter_vert_zoom / 2000;
+	extraw = -aws * filter_horiz_zoom / 2000;
+	extrah = -ahs * filter_vert_zoom / 2000;
 
 	SetRect (sr, 0, 0, dst_width, dst_height);
 	SetRect (zr, 0, 0, 0, 0);
@@ -162,9 +173,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	filteroffsetx = 0;
 	filteroffsety = 0;
-
-	xmult = currprefs.gfx_filter_horiz_zoom_mult;
-	ymult = currprefs.gfx_filter_vert_zoom_mult;
+	float xmult = filter_horiz_zoom_mult;
+	float ymult = filter_vert_zoom_mult;
 
 	srcratio = 4.0 / 3.0;
 	if (currprefs.gfx_filter_aspect > 0) {
@@ -307,7 +317,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		}
 	}
 
-	if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult) {
+	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 
 		sizeoffset (dr, zr, extraw, extrah);
 
@@ -349,13 +359,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	if (xmult <= 0.01)
 		xmult = aws * 1000 / dst_width;
 	else
-		xmult = xmult + xmult * currprefs.gfx_filter_horiz_zoom / 2000;
+		xmult = xmult + xmult * filter_horiz_zoom / 2000;
 	if (ymult <= 0.01)
 		ymult = ahs * 1000 / dst_height;
 	else
-		ymult = ymult + ymult * currprefs.gfx_filter_vert_zoom / 2000;
+		ymult = ymult + ymult * filter_vert_zoom / 2000;
 
-	if (!currprefs.gfx_filter_horiz_zoom_mult && !currprefs.gfx_filter_vert_zoom_mult) {
+	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 		if (currprefs.ntscmode) {
 			int v = vblscale2 (ahs);
 			ymult /= 1.21;
@@ -367,9 +377,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	ymult = vblscale (ymult);
 	OffsetRect (dr, 0, (ahs2 - ahs) / 2);
 
-	v = currprefs.gfx_filter_horiz_offset;
+	v = filter_horiz_offset;
 	OffsetRect (zr, (int)(-v * aws / 1000.0), 0);
-	v = currprefs.gfx_filter_vert_offset;
+	v = filter_vert_offset;
 	OffsetRect (zr, 0, (int)(-v * ahs / 1000.0));
 
 	xs = dst_width - dst_width * xmult / 1000;

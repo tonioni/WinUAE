@@ -821,10 +821,25 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	hdf_seek (hfd, offset);
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
-	if (hfd->handle_valid == HDF_HANDLE_WIN32)
+	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
 		WriteFile (hfd->handle->h, hfd->cache, len, &outlen, NULL);
-	else if (hfd->handle_valid == HDF_HANDLE_ZFILE)
+		if (offset == 0) {
+			DWORD outlen2;
+			uae_u8 *tmp;
+			int tmplen = 512;
+			tmp = (uae_u8*)VirtualAlloc (NULL, tmplen, MEM_COMMIT, PAGE_READWRITE);
+			if (tmp) {
+				memset (tmp, 0xa1, tmplen);
+				hdf_seek (hfd, offset);
+				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
+				if (memcmp (hfd->cache, tmp, tmplen) != 0 || outlen != len)
+					gui_message (L"Harddrive\n%s\nblock zero write failed!", hfd->device_name);
+				VirtualFree (tmp, 0, MEM_RELEASE);
+			}
+		}
+	} else if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		outlen = zfile_fwrite (hfd->cache, 1, len, hfd->handle->zf);
+	}
 	return outlen;
 }
 int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)

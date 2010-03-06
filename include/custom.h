@@ -13,6 +13,7 @@
 #define CSMASK_ECS_AGNUS 1
 #define CSMASK_ECS_DENISE 2
 #define CSMASK_AGA 4
+#define CSMASK_MASK (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA)
 
 uae_u32 get_copper_address (int copno);
 

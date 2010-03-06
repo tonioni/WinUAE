@@ -207,9 +207,11 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 
 	enforcer_hit = 1;
 
-	if (!(sysbase = get_long (4)))
+	sysbase = get_long (4);
+	if (sysbase < 0x100 || !valid_address (sysbase, 1000))
 		goto end;
-	if (!(this_task = get_long (sysbase + 276)))
+	this_task = get_long (sysbase + 276);
+	if (this_task < 0x100 || !valid_address (this_task, 1000))
 		goto end;
 
 	task_name = get_long (this_task + 10); /* ln_Name */

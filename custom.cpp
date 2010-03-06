@@ -2777,7 +2777,7 @@ void init_hz (void)
 		vblank_hz = 300;
 	maxhpos_short = maxhpos;
 	eventtab[ev_hsync].oldcycles = get_cycles ();
-	eventtab[ev_hsync].evtime = get_cycles() + HSYNCTIME;
+	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
 	if (hzc) {
 		interlace_seen = (bplcon0 & 4) ? 1 : 0;
@@ -3353,7 +3353,7 @@ int intlev (void)
 	return -1;
 }
 
-#define INT_PROCESSING_DELAY 3 * CYCLE_UNIT
+#define INT_PROCESSING_DELAY (3 * CYCLE_UNIT)
 STATIC_INLINE int use_eventmode (uae_u16 v)
 {
 	if (!currprefs.cpu_cycle_exact)
@@ -5721,6 +5721,13 @@ void customreset (int hardreset)
 		CLXCON (clxcon);
 		CLXCON2 (clxcon2);
 		calcdiw ();
+		write_log (L"CPU=%d Chipset=%s %s\n",
+			currprefs.cpu_model,
+			(currprefs.chipset_mask & CSMASK_AGA) ? L"AGA" :
+			(currprefs.chipset_mask & CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE) == (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE) ? L"Full ECS" :
+			(currprefs.chipset_mask & CSMASK_ECS_DENISE) ? L"ECS Denise" :
+			(currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? L"ECS" :
+			L"OCS", currprefs.ntscmode ? L"NTSC" : L"PAL");
 		write_log (L"State restored\n");
 		for (i = 0; i < 8; i++)
 			nr_armed += spr[i].armed != 0;
@@ -6299,7 +6306,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 
 	audio_reset ();
 
-	changed_prefs.chipset_mask = currprefs.chipset_mask = RL;
+	changed_prefs.chipset_mask = currprefs.chipset_mask = RL & CSMASK_MASK;
 	update_mirrors ();
 	RW;						/* 000 BLTDDAT */
 	RW;						/* 002 DMACONR */
@@ -6321,7 +6328,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	dsklen = RW;			/* 024 DSKLEN */
 	RW;						/* 026 DSKDAT */
 	RW;						/* 028 REFPTR */
-	i = RW; lof = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080); /* 02A VPOSW */
+	i = RW; lof = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080) ? 1 : 0; /* 02A VPOSW */
 	RW;						/* 02C VHPOSW */
 	COPCON (RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
@@ -6423,7 +6430,9 @@ uae_u8 *restore_custom (uae_u8 *src)
 	RW;						/* 1F4 ? */
 	RW;						/* 1F6 ? */
 	RW;						/* 1F8 ? */
-	RW;						/* 1FA ? */
+	i = RW;					/* 1FA ? */
+	if (i & 0x8000)
+		currprefs.ntscmode = changed_prefs.ntscmode = i & 1;
 	fmode = RW;				/* 1FC FMODE */
 	last_custom_value1 = RW;/* 1FE ? */
 
@@ -6595,7 +6604,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (0);			/* 1F4 */
 	SW (0);			/* 1F6 */
 	SW (0);			/* 1F8 */
-	SW (0);			/* 1FA */
+	SW (0x8000 | (currprefs.ntscmode ? 1 : 0));			/* 1FA (re-used for NTSC) */
 	SW (fmode);			/* 1FC FMODE */
 	SW (last_custom_value1);	/* 1FE */
 

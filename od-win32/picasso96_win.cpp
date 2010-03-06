@@ -2429,7 +2429,7 @@ static uae_u32 REGPARAM2 picasso_SetPanning (TrapContext *ctx)
 	picasso_SetPanningInit();
 
 	if (rgbf != picasso96_state.RGBFormat)
-		gfx_set_picasso_colors (picasso96_state.RGBFormat);
+		setconvert ();
 
 	full_refresh = 1;
 	set_panning_called = 1;
@@ -3882,8 +3882,6 @@ static int flushpixels (void)
 		if (dst == NULL) {
 			dst = gfx_lock_picasso ();
 			lock = 1;
-		} else {
-			dst = picasso96_state.HostAddress;
 		}
 		if (dst) {
 			statusline (dst);

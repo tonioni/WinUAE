@@ -2687,7 +2687,7 @@ STATIC_INLINE int do_specialties (int cycles)
 	}
 
 	while (regs.spcflags & SPCFLAG_STOP) {
-		do_cycles (4 * CYCLE_UNIT);
+		do_cycles (currprefs.cpu_cycle_exact ? 2 * CYCLE_UNIT : 4 * CYCLE_UNIT);
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper ();
 
@@ -3811,7 +3811,6 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	l = restore_u32 ();
 	if (l & CPUMODE_HALT) {
 		regs.stopped = 1;
-		set_special (SPCFLAG_STOP);
 	} else {
 		regs.stopped = 0;
 	}
@@ -3867,6 +3866,9 @@ void restore_cpu_finish (void)
 	m68k_setpc (regs.pc);
 	set_cpu_caches ();
 	doint ();
+	if (regs.stopped)
+		set_special (SPCFLAG_STOP);
+
 }
 
 uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
