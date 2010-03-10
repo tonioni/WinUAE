@@ -515,39 +515,51 @@ static int getcbn (HWND hDlg, int v, TCHAR *out, int len)
 	}
 }
 
-#define MAXFAVORITES 30
-static void writefavoritepaths (int num, TCHAR **values, TCHAR **paths)
+
+struct favitems
 {
-	int i;
+	TCHAR *value;
+	TCHAR *path;
+	int type;
+};
+
+#define MAXFAVORITES 30
+static void writefavoritepaths (int num, struct favitems *fitem)
+{
+	int i, idx;
 	UAEREG *fkey;
 
 	fkey = regcreatetree (NULL, L"FavoritePaths");
 	if (fkey == NULL)
 		return;
+	idx = 0;
 	for (i = 0; i < num; i++) {
 		TCHAR str[MAX_DPATH];
 		TCHAR key[100];
-		if (!_tcscmp (values[i], paths[i]))
-			_tcscpy (str, values[i]);
+		if (fitem[i].type != 1)
+			continue;
+		if (!_tcscmp (fitem[i].value, fitem[i].path))
+			_tcscpy (str, fitem[i].value);
 		else
-			_stprintf (str, L"%s \"%s\"", values[i], paths[i]);
-		_stprintf (key, L"PATH_ALL_%02d", i + 1);
+			_stprintf (str, L"%s \"%s\"", fitem[i].value, fitem[i].path);
+		_stprintf (key, L"PATH_ALL_%02d", idx + 1);
+		idx++;
 		regsetstr (fkey, key, str);
-		xfree (values[i]);
-		xfree (paths[i]);
+		xfree (fitem[i].value);
+		xfree (fitem[i].path);
 	}
-	while (i < MAXFAVORITES) {
+	while (idx < MAXFAVORITES) {
 		TCHAR key[100];
-		_stprintf (key, L"PATH_ALL_%02d", i + 1);
+		_stprintf (key, L"PATH_ALL_%02d", idx + 1);
 		regdelete (fkey, key);
-		i++;
+		idx++;
 	}
 	regclosetree (fkey);
 }
 
 
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid);
-static int addfavoritepath (HWND hDlg, int num, TCHAR **values, TCHAR **paths)
+static int addfavoritepath (HWND hDlg, int num, struct favitems *fitem)
 {
 	TCHAR name[MAX_DPATH];
 	const GUID favoriteguid = 
@@ -577,29 +589,30 @@ static int addfavoritepath (HWND hDlg, int num, TCHAR **values, TCHAR **paths)
 		return 0;
 	_tcscpy (name, stored_path);
 	if (askinputcustom (hDlg, name, sizeof name / sizeof (TCHAR), IDS_SB_FAVORITENAME)) {
-		values[num] = my_strdup (name);
-		paths[num] = my_strdup (stored_path);
+		fitem[num].value = my_strdup (name);
+		fitem[num].path = my_strdup (stored_path);
+		fitem[num].type = 1;
 		num++;
-		writefavoritepaths (num, values, paths);
+		writefavoritepaths (num, fitem);
 	}
 	return 1;
 }
-static void removefavoritepath (int idx, int num, TCHAR **values, TCHAR **paths)
+static void removefavoritepath (int idx, int num, struct favitems *fitem)
 {
 	int i;
 
-	xfree (values[idx]);
-	xfree (paths[idx]);
-	values[idx] = paths[idx] = NULL;
+	xfree (fitem[idx].value);
+	xfree (fitem[idx].path);
+	fitem[idx].value = fitem[idx].path = NULL;
 	for (i = idx; i < num - 1; i++) {
-		values[i] = values[i + 1];
-		paths[i] = paths[i + 1];
+		fitem[i].value = fitem[i + 1].value;
+		fitem[i].path = fitem[i + 1].path;
 	}
 	num--;
-	writefavoritepaths (num, values, paths);
+	writefavoritepaths (num, fitem);
 }
 
-static void addeditmenu (HMENU menu, TCHAR **items)
+static void addeditmenu (HMENU menu, struct favitems *fitem)
 {
 	int i;
 	HMENU emenu = CreatePopupMenu ();
@@ -621,15 +634,17 @@ static void addeditmenu (HMENU menu, TCHAR **items)
 	mii.wID = 1000;
 	InsertMenuItem (emenu, -1, TRUE, &mii);
 	i = 0;
-	while (items[i]) {
-		mii.fMask = MIIM_STRING | MIIM_ID;
-		mii.fType = MFT_STRING;
-		mii.fState = MFS_ENABLED;
-		mii.wID = 1001 + i;
-		_stprintf (newpath, L"Remove '%s'", items[i]);
-		mii.dwTypeData = newpath;
-		mii.cch = _tcslen (mii.dwTypeData);
-		InsertMenuItem (emenu, -1, TRUE, &mii);
+	while (fitem[i].type) {
+		if (fitem[i].type == 1) {
+			mii.fMask = MIIM_STRING | MIIM_ID;
+			mii.fType = MFT_STRING;
+			mii.fState = MFS_ENABLED;
+			mii.wID = 1001 + i;
+			_stprintf (newpath, L"Remove '%s'", fitem[i].value);
+			mii.dwTypeData = newpath;
+			mii.cch = _tcslen (mii.dwTypeData);
+			InsertMenuItem (emenu, -1, TRUE, &mii);
+		}
 		i++;
 	}
 
@@ -642,24 +657,52 @@ static void addeditmenu (HMENU menu, TCHAR **items)
 	InsertMenuItem (menu, -1, TRUE, &mii);
 }
 
-static int popupmenu (HWND hwnd, TCHAR **items)
+static int popupmenu (HWND hwnd, struct favitems *items)
 {
-	int i, item;
+	int i, item, got;
 	HMENU menu;
 	POINT pt;
 
 	menu = CreatePopupMenu ();
+	got = 0;
 	i = 0;
-	while (items[i]) {
+	while (items[i].type) {
+		if (items[i].type == 2) {
+			MENUITEMINFO mii = { 0 };
+			mii.cbSize = sizeof mii;
+			mii.fMask = MIIM_STRING | MIIM_ID;
+			mii.fType = MFT_STRING;
+			mii.fState = MFS_ENABLED;
+			mii.wID = 1 + i;
+			mii.dwTypeData = items[i].value;
+			mii.cch = _tcslen (mii.dwTypeData);
+			InsertMenuItem (menu, -1, TRUE, &mii);
+			got = 1;
+		}
+		i++;
+	}
+	if (got) {
 		MENUITEMINFO mii = { 0 };
 		mii.cbSize = sizeof mii;
-		mii.fMask = MIIM_STRING | MIIM_ID;
-		mii.fType = MFT_STRING;
+
+		mii.fMask = MIIM_FTYPE;
+		mii.fType = MFT_SEPARATOR;
 		mii.fState = MFS_ENABLED;
-		mii.wID = 1 + i;
-		mii.dwTypeData = items[i];
-		mii.cch = _tcslen (mii.dwTypeData);
 		InsertMenuItem (menu, -1, TRUE, &mii);
+	}
+	i = 0;
+	while (items[i].type) {
+		if (items[i].type == 1) {
+			MENUITEMINFO mii = { 0 };
+			mii.cbSize = sizeof mii;
+			mii.fMask = MIIM_STRING | MIIM_ID;
+			mii.fType = MFT_STRING;
+			mii.fState = MFS_ENABLED;
+			mii.wID = 1 + i;
+			mii.dwTypeData = items[i].value;
+			mii.cch = _tcslen (mii.dwTypeData);
+			InsertMenuItem (menu, -1, TRUE, &mii);
+		}
 		i++;
 	}
 	addeditmenu (menu, items);
@@ -670,12 +713,11 @@ static int popupmenu (HWND hwnd, TCHAR **items)
 	DestroyMenu (menu);
 	return item;
 }
-static TCHAR *favoritepopup (HWND hwnd)
+static TCHAR *favoritepopup (HWND hwnd, int drive)
 {
 	UAEREG *fkey;
 	int idx, idx2;
-	TCHAR *values[MAXFAVORITES + 1];
-	TCHAR *paths[MAXFAVORITES + 1];
+	struct favitems fitem[MAXFAVORITES + 1];
 	int ret, i, j, num;
 
 	for (;;) {
@@ -710,8 +752,9 @@ static TCHAR *favoritepopup (HWND hwnd)
 						str = my_strdup (tmp2);
 						fname = my_strdup (tmp2);
 					}
-					paths[idx2] = fname;
-					values[idx2] = str;
+					fitem[idx2].path = fname;
+					fitem[idx2].value = str;
+					fitem[idx2].type = 1;
 				}
 			}
 			idx++;
@@ -719,39 +762,81 @@ static TCHAR *favoritepopup (HWND hwnd)
 		regclosetree (fkey);
 		for (i = 0; i < idx; i++) {
 			for (j = i + 1; j < idx; j++) {
-				if (_tcscmp (values[i], values[j]) > 0) {
-					TCHAR *tmp = values[i];
-					values[i] = values[j];
-					values[j] = tmp;
-					tmp = paths[i];
-					paths[i] = paths[j];
-					paths[j] = tmp;
+				if (_tcscmp (fitem[i].value, fitem[j].value) > 0) {
+					struct favitems tmp;
+					memcpy (&tmp, &fitem[i], sizeof tmp);
+					memcpy (&fitem[i], &fitem[j], sizeof tmp);
+					memcpy (&fitem[j], &tmp, sizeof tmp);
 				}
 			}
 		}
-		values[idx] = NULL;
-		ret = popupmenu (hwnd, values);
+		fitem[idx].type = 0;
+
+		if (drive >= 0) {
+			TCHAR name[MAX_DPATH];
+			_tcscpy (name, currprefs.df[drive]);
+			int previdx = idx;
+			for (;;) {
+				if (!disk_prevnext_name (name, 1))
+					break;
+				for (i = previdx; i < idx; i++) {
+					if (!_tcsicmp (fitem[i].value, name))
+						break;
+				}
+				if (i < idx)
+					break;
+				fitem[idx].value = my_strdup (name);
+				fitem[idx].path = NULL;
+				fitem[idx].type = 2;
+				idx++;
+				if (!_tcscmp (name, currprefs.df[drive]))
+					break;
+			}
+			for (i = previdx; i < idx; i++) {
+				for (j = i + 1; j < idx; j++) {
+					if (_tcscmp (fitem[i].value, fitem[j].value) > 0) {
+						struct favitems tmp;
+						memcpy (&tmp, &fitem[i], sizeof tmp);
+						memcpy (&fitem[i], &fitem[j], sizeof tmp);
+						memcpy (&fitem[j], &tmp, sizeof tmp);
+					}
+				}
+			}
+			fitem[idx].type = 0;
+		}
+
+
+		ret = popupmenu (hwnd, fitem);
 		if (ret == 0)
 			break;
-		if (ret <= idx)
+		if (ret <= idx) {
+			if (fitem[ret - 1].type == 2) {
+				_tcscpy (workprefs.df[drive], fitem[ret - 1].value);
+				ret = 0;
+			}
 			break;
+		}
 		if (ret == 1000) {
-			if (!addfavoritepath (hwnd, idx, values, paths)) {
+			if (!addfavoritepath (hwnd, idx, fitem)) {
 				ret = 0;
 				break;
 			}
 		} else if (ret > 1000) {
-			removefavoritepath (ret - 1001, idx, values, paths);
+			removefavoritepath (ret - 1001, idx, fitem);
 		}
 	}
 	for (i = 0; i < idx; i++) {
-		xfree (values[i]);
+		xfree (fitem[i].value);
 		if (i != ret - 1)
-			xfree (paths[i]);
+			xfree (fitem[i].path);
 	}
 	if (ret == 0)
 		return NULL;
-	return paths[ret - 1];
+	return fitem[ret - 1].path;
+}
+static TCHAR *favoritepopup (HWND hwnd)
+{
+	return favoritepopup (hwnd, -1);
 }
 
 /* base Drag'n'Drop code borrowed from http://www.codeproject.com/listctrl/jianghong.asp */
@@ -4437,6 +4522,19 @@ static void testimage (HWND hDlg, int num)
 
 static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam);
 static int diskselectmenu (HWND hDlg, WPARAM wParam);
+static void addallfloppies (HWND hDlg);
+
+static void setfloppytexts (HWND hDlg, int qs)
+{
+	SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.df[0]);
+	SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
+	SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
+	SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
+	SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
+	SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
+	if (!qs)
+		addallfloppies (hDlg);
+}
 
 static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -4457,8 +4555,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 			pages[QUICKSTART_ID] = hDlg;
 			currentpage = QUICKSTART_ID;
 			enable_for_quickstart (hDlg);
-			_tcscpy (df0, workprefs.df[0]);
-			_tcscpy (df1, workprefs.df[1]);
+			setfloppytexts (hDlg, true);
 			setmultiautocomplete (hDlg, ids);
 			doinit = 1;
 			break;
@@ -4479,6 +4576,7 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 
 	case WM_CONTEXTMENU:
 		diskselectmenu (hDlg, wParam);
+		setfloppytexts (hDlg, true);
 		break;
 
 	case WM_COMMAND:
@@ -9053,7 +9151,7 @@ static int diskselectmenu (HWND hDlg, WPARAM wParam)
 		break;
 	}
 	if (num >= 0) {
-		TCHAR *s = favoritepopup (hDlg);
+		TCHAR *s = favoritepopup (hDlg, num);
 		if (s) {
 			int num = id == IDC_DF0QQ ? 0 : 1;
 			TCHAR tmp[MAX_DPATH];
@@ -9112,22 +9210,19 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		}
 	case WM_USER:
 		recursive++;
-		SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.df[0]);
-		SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
-		SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
-		SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
-		SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
-		SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
+		setfloppytexts (hDlg, false);
 		SetDlgItemText (hDlg, IDC_CREATE_NAME, diskname);
 		SendDlgItemMessage (hDlg, IDC_FLOPPYSPD, TBM_SETPOS, TRUE,
 			workprefs.floppy_speed ? exact_log2 ((workprefs.floppy_speed) / 100) + 1 : 0);
 		out_floppyspeed (hDlg);
-		addallfloppies (hDlg);
 		recursive--;
 		break;
 
 	case WM_CONTEXTMENU:
+		recursive++;
 		diskselectmenu (hDlg, wParam);
+		setfloppytexts (hDlg, false);
+		recursive--;
 		break;
 
 	case WM_COMMAND:
@@ -10350,12 +10445,15 @@ static void init_inputdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_INPUT_COPY_DEFAULT, buf, sizeof (buf) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)L"GamePorts");
 	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)buf);
 	WIN32GUI_LoadUIString (IDS_INPUT_COPY_CUSTOM, buf, sizeof (buf) / sizeof (TCHAR));
 	for (i = 0; i < 4; i++) {
 		_stprintf (txt, buf, i + 1);
 		SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)txt);
 	}
+	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_SETCURSEL, 0, 0);
+
 
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_RESETCONTENT, 0, 0L);
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
@@ -10531,7 +10629,13 @@ static void input_copy (HWND hDlg)
 	LRESULT src = SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L);
 	if (src == CB_ERR)
 		return;
-	inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device);
+	int v = (int)src;
+	if (v == 0) {
+		inputdevice_mergeconfig (&workprefs);
+	} else if (v >= 1 && v <= 5) {
+		v--;
+		inputdevice_copy_single_config (&workprefs, v, workprefs.input_selected_setting, input_selected_device);
+	}
 	init_inputdlg (hDlg);
 }
 #endif

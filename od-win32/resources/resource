@@ -1009,6 +1009,7 @@
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_DF1WPTEXTQ                  1794
+#define IDC_INPUTENABLEGAMEPORTS        1796
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1054,7 +1055,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        354
 #define _APS_NEXT_COMMAND_VALUE         40045
-#define _APS_NEXT_CONTROL_VALUE         1796
+#define _APS_NEXT_CONTROL_VALUE         1797
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

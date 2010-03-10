@@ -56,6 +56,12 @@ rm -rf release
 rm -rf fullrelease
 cd ..
 
+cd prowizard
+rm -rf debug
+rm -rf release
+rm -rf x64
+cd ..
+
 cd genlinetoscr_msvc
 rm -f genlinetoscr.exe
 rm -rf debug

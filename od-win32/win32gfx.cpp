@@ -58,7 +58,6 @@
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
-#define DM_OPENGL 8
 #define DM_D3D_FULLSCREEN 16
 #define DM_PICASSO96 32
 #define DM_DDRAW 64
@@ -153,7 +152,7 @@ int isfullscreen (void)
 
 int is3dmode (void)
 {
-	return currentmode->flags & (DM_D3D | DM_OPENGL);
+	return currentmode->flags & (DM_D3D);
 }
 
 int WIN32GFX_GetDepth (int real)
@@ -797,13 +796,10 @@ void flush_screen (int a, int b)
 {
 	if (dx_islost ())
 		return;
-	if (currentmode->flags & DM_OPENGL) {
-#ifdef OPENGL
-		OGL_render ();
-#endif
-	} else if (currentmode->flags & DM_D3D) {
+	if (currentmode->flags & DM_D3D) {
 		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
 			S2X_render ();
+		D3D_flip ();
 		return;
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
@@ -860,7 +856,9 @@ void unlockscr (void)
 	if (currentmode->flags & DM_D3D) {
 		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
 			return;
+#ifdef D3D
 		D3D_unlocktexture ();
+#endif
 	} else if (currentmode->flags & DM_SWSCALE) {
 		return;
 	} else if (currentmode->flags & DM_DDRAW) {
@@ -1005,6 +1003,7 @@ void gfx_unlock_picasso (void)
 {
 	if (currprefs.gfx_api) {
 		D3D_unlocktexture ();
+		D3D_flip ();
 	} else {
 		DirectDraw_SurfaceUnlock ();
 		if (p96_double_buffer_needs_flushing) {
@@ -1512,7 +1511,7 @@ void init_colors (void)
 #endif
 	}
 
-	if (!(currentmode->flags & (DM_OPENGL|DM_D3D))) {
+	if (!(currentmode->flags & (DM_D3D))) {
 		if (currentmode->current_depth != currentmode->native_depth) {
 			if (currentmode->current_depth == 16) {
 				red_bits = 5; green_bits = 6; blue_bits = 5;
@@ -2337,11 +2336,11 @@ static BOOL doInit (void)
 		write_log (L"W=%d H=%d B=%d CT=%d\n",
 			DirectDraw_CurrentWidth (), DirectDraw_CurrentHeight (), DirectDraw_GetCurrentDepth (), colortype);
 
-		if (isfullscreen() <= 0 && !(currentmode->flags & (DM_OPENGL | DM_D3D))) {
+		if (isfullscreen() <= 0 && !(currentmode->flags & (DM_D3D))) {
 			currentmode->current_depth = DirectDraw_GetCurrentDepth ();
 			updatemodes ();
 		}
-		if (!(currentmode->flags & (DM_OPENGL | DM_D3D)) && DirectDraw_GetCurrentDepth () == currentmode->current_depth) {
+		if (!(currentmode->flags & (DM_D3D)) && DirectDraw_GetCurrentDepth () == currentmode->current_depth) {
 			updatemodes ();
 		}
 
@@ -2383,7 +2382,7 @@ static BOOL doInit (void)
 #endif
 			currentmode->native_depth = currentmode->current_depth;
 #if defined (GFXFILTER)
-			if (currentmode->flags & (DM_OPENGL | DM_D3D | DM_SWSCALE)) {
+			if (currentmode->flags & (DM_D3D | DM_SWSCALE)) {
 				currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 				currentmode->amiga_height = AMIGA_HEIGHT_MAX << (currprefs.gfx_linedbl ? 1 : 0);
 				if (usedfilter) {
@@ -2432,7 +2431,7 @@ static BOOL doInit (void)
 	gfxvidinfo.bufmem = NULL;
 
 	if (!screen_is_picasso) {
-		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE | DM_OPENGL))) {
+		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
 
 			;
 
@@ -2511,11 +2510,7 @@ void updatedisplayarea (void)
 	if (picasso_on)
 		return;
 #if defined (GFXFILTER)
-	if (currentmode->flags & DM_OPENGL) {
-#if defined (OPENGL)
-		OGL_refresh ();
-#endif
-	} else if (currentmode->flags & DM_D3D) {
+	if (currentmode->flags & DM_D3D) {
 #if defined (D3D)
 		D3D_refresh ();
 #endif

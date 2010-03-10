@@ -398,6 +398,7 @@ static struct uae_input_device *joysticks;
 static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
 static struct uae_input_device_kbr_default *keyboard_default;
+static int **keyboard_default_kbmaps;
 
 static int mouse_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 static int oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
@@ -2360,6 +2361,18 @@ void inputdevice_handle_inputcode (void)
 		changed_prefs.input_selected_setting = currprefs.input_selected_setting = code - AKS_INPUT_CONFIG_1 + 1;
 		inputdevice_updateconfig (&currprefs);
 		break;
+	case AKS_DISK_PREV0:
+	case AKS_DISK_PREV1:
+	case AKS_DISK_PREV2:
+	case AKS_DISK_PREV3:
+		disk_prevnext (code - AKS_DISK_PREV0, -1);
+		break;
+	case AKS_DISK_NEXT0:
+	case AKS_DISK_NEXT1:
+	case AKS_DISK_NEXT2:
+	case AKS_DISK_NEXT3:
+		disk_prevnext (code - AKS_DISK_NEXT0, 1);
+		break;
 	}
 }
 
@@ -3084,6 +3097,237 @@ static void setcd32 (int joy, int n)
 
 int compatibility_device[MAX_JPORTS];
 
+
+static int ip_joy1[] = {
+	INPUTEVENT_JOY1_UP, INPUTEVENT_JOY1_LEFT, INPUTEVENT_JOY1_RIGHT, INPUTEVENT_JOY1_DOWN,
+	INPUTEVENT_JOY1_FIRE_BUTTON, INPUTEVENT_JOY1_2ND_BUTTON, INPUTEVENT_JOY1_3RD_BUTTON,
+	-1
+};
+static int ip_joy2[] = {
+	INPUTEVENT_JOY2_UP, INPUTEVENT_JOY2_LEFT, INPUTEVENT_JOY2_RIGHT, INPUTEVENT_JOY2_DOWN,
+	INPUTEVENT_JOY2_FIRE_BUTTON, INPUTEVENT_JOY2_2ND_BUTTON, INPUTEVENT_JOY2_3RD_BUTTON,
+	-1
+};
+static int ip_joycd321[] = {
+	INPUTEVENT_JOY1_CD32_RED, INPUTEVENT_JOY1_CD32_BLUE, INPUTEVENT_JOY1_CD32_GREEN, INPUTEVENT_JOY1_CD32_YELLOW,
+	INPUTEVENT_JOY1_CD32_RWD, INPUTEVENT_JOY1_CD32_FFW, INPUTEVENT_JOY1_CD32_PLAY,
+	-1
+};
+static int ip_joycd322[] = {
+	INPUTEVENT_JOY2_CD32_RED, INPUTEVENT_JOY2_CD32_BLUE, INPUTEVENT_JOY2_CD32_GREEN, INPUTEVENT_JOY2_CD32_YELLOW,
+	INPUTEVENT_JOY2_CD32_RWD, INPUTEVENT_JOY2_CD32_FFW, INPUTEVENT_JOY2_CD32_PLAY,
+	-1
+};
+static int ip_parjoy1[] = {
+	INPUTEVENT_PAR_JOY1_UP, INPUTEVENT_PAR_JOY1_LEFT, INPUTEVENT_PAR_JOY1_RIGHT, INPUTEVENT_PAR_JOY1_DOWN,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	-1
+};
+static int ip_parjoy2[] = {
+	INPUTEVENT_PAR_JOY2_UP, INPUTEVENT_PAR_JOY2_LEFT, INPUTEVENT_PAR_JOY2_RIGHT, INPUTEVENT_PAR_JOY2_DOWN,
+	INPUTEVENT_PAR_JOY2_FIRE_BUTTON,
+	-1
+};
+static int ip_mouse1[] = {
+	INPUTEVENT_MOUSE1_UP, INPUTEVENT_MOUSE1_LEFT, INPUTEVENT_MOUSE1_RIGHT, INPUTEVENT_MOUSE1_DOWN,
+	INPUTEVENT_JOY1_FIRE_BUTTON, INPUTEVENT_JOY1_2ND_BUTTON, INPUTEVENT_JOY1_3RD_BUTTON,
+	-1
+};
+static int ip_mouse2[] = {
+	INPUTEVENT_MOUSE2_UP, INPUTEVENT_MOUSE2_LEFT, INPUTEVENT_MOUSE2_RIGHT, INPUTEVENT_MOUSE2_DOWN,
+	INPUTEVENT_JOY2_FIRE_BUTTON, INPUTEVENT_JOY2_2ND_BUTTON, INPUTEVENT_JOY2_3RD_BUTTON,
+	-1
+};
+
+static void checkcompakb (int *kb, int *srcmap)
+{
+	int found = 0, avail = 0;
+	int j, k;
+
+	k = j = 0;
+	while (kb[j] >= 0) {
+		struct uae_input_device *uid = &keyboards[0];
+		while (kb[j] >= 0 && srcmap[k] >= 0) {
+			int id = kb[j];
+			for (int l = 0; l < MAX_INPUT_DEVICE_EVENTS; l++) {
+				if (uid->extra[l][0] == id) {
+					avail++;
+					if (uid->eventid[l][0] == srcmap[k])
+						found++;
+					break;
+				}
+			}
+			j++;
+		}
+		j++;
+		k++;
+	}
+	if (avail != found || avail == 0)
+		return;
+	k = j = 0;
+	while (kb[j] >= 0) {
+		struct uae_input_device *uid = &keyboards[0];
+		while (kb[j] >= 0) {
+			int id = kb[j];
+			int evt = 0;
+			k = 0;
+			while (keyboard_default[k].scancode >= 0) {
+				if (keyboard_default[k].scancode == kb[j]) {
+					evt = keyboard_default[k].event;
+					break;
+				}
+				k++;
+			}
+			for (int l = 0; l < MAX_INPUT_DEVICE_EVENTS; l++) {
+				if (uid->extra[l][0] == id) {
+					uid->eventid[l][0] = evt;
+					break;
+				}
+			}
+			j++;
+		}
+		j++;
+	}
+}
+
+static void setcompakb (int *kb, int *srcmap)
+{
+	int j, k;
+	k = j = 0;
+	while (kb[j] >= 0 && srcmap[k] >= 0) {
+		struct uae_input_device *uid = &keyboards[0];
+		while (kb[j] >= 0) {
+			int id = kb[j];
+			for (int l = 0; l < MAX_INPUT_DEVICE_EVENTS; l++) {
+				if (uid->extra[l][0] == id) {
+					uid->eventid[l][0] = srcmap[k];
+					uid->flags[l][0] = 0;
+					xfree (uid->custom[l][0]);
+					uid->custom[l][0] = NULL;
+					break;
+				}
+			}
+			j++;
+		}
+		j++;
+		k++;
+	}
+}
+
+// merge gameport settings with current input configuration
+static void compatibility_copy (struct uae_prefs *prefs)
+{
+	int used[MAX_INPUT_DEVICES] = { 0 };
+	int i, joy;
+
+	for (i = 0; i < 2; i++) {
+		int mode = prefs->jports[i].mode;
+		if ((joy = jsem_ismouse (i, prefs)) >= 0) {
+			switch (mode)
+			{
+			case JSEM_MODE_DEFAULT:
+			case JSEM_MODE_MOUSE:
+			default:
+				input_get_default_mouse (mice, joy, i);
+				break;
+			case JSEM_MODE_LIGHTPEN:
+				input_get_default_lightpen (mice, joy, i);
+				break;
+			}
+		}
+	}
+	for (i = 1; i >= 0; i--) {
+		int mode = prefs->jports[i].mode;
+		joy = jsem_isjoy (i, prefs);
+		if (joy >= 0) {
+			switch (mode)
+			{
+			case JSEM_MODE_DEFAULT:
+			case JSEM_MODE_JOYSTICK:
+			case JSEM_MODE_JOYSTICK_CD32:
+			default:
+				input_get_default_joystick (joysticks, joy, i, (mode == JSEM_MODE_JOYSTICK_CD32 || (mode == JSEM_MODE_DEFAULT && prefs->cs_cd32cd)));
+				break;
+			case JSEM_MODE_JOYSTICK_ANALOG:
+				input_get_default_joystick_analog (joysticks, joy, i);
+				break;
+			case JSEM_MODE_MOUSE:
+				input_get_default_mouse (joysticks, joy, i);
+				break;
+			case JSEM_MODE_LIGHTPEN:
+				input_get_default_lightpen (joysticks, joy, i);
+				break;
+			}
+			used[joy] = 1;
+		}
+	}
+
+	// replace possible old mappings with default keyboard mapping
+	checkcompakb (keyboard_default_kbmaps[0], ip_joy2);
+	checkcompakb (keyboard_default_kbmaps[0], ip_joy1);
+	checkcompakb (keyboard_default_kbmaps[0], ip_parjoy2);
+	checkcompakb (keyboard_default_kbmaps[0], ip_parjoy1);
+	checkcompakb (keyboard_default_kbmaps[0], ip_mouse2);
+	checkcompakb (keyboard_default_kbmaps[0], ip_mouse1);
+	checkcompakb (keyboard_default_kbmaps[1], ip_joy2);
+	checkcompakb (keyboard_default_kbmaps[1], ip_joy1);
+	checkcompakb (keyboard_default_kbmaps[1], ip_parjoy2);
+	checkcompakb (keyboard_default_kbmaps[1], ip_parjoy1);
+	checkcompakb (keyboard_default_kbmaps[1], ip_mouse2);
+	checkcompakb (keyboard_default_kbmaps[1], ip_mouse1);
+	checkcompakb (keyboard_default_kbmaps[2], ip_joy2);
+	checkcompakb (keyboard_default_kbmaps[2], ip_joy1);
+	checkcompakb (keyboard_default_kbmaps[2], ip_parjoy2);
+	checkcompakb (keyboard_default_kbmaps[2], ip_parjoy1);
+	checkcompakb (keyboard_default_kbmaps[2], ip_mouse2);
+	checkcompakb (keyboard_default_kbmaps[2], ip_mouse1);
+	checkcompakb (keyboard_default_kbmaps[5], ip_joycd321);
+	checkcompakb (keyboard_default_kbmaps[5], ip_joycd322);
+
+	for (i = 0; i < 2; i++) {
+		int *kb;
+		int mode = prefs->jports[i].mode;
+		for (joy = 0; used[joy]; joy++);
+		if (JSEM_ISANYKBD (i, prefs)) {
+			if (JSEM_ISNUMPAD (i, prefs))
+				kb = keyboard_default_kbmaps[0];
+			else if (JSEM_ISCURSOR (i, prefs))
+				kb = keyboard_default_kbmaps[1];
+			else
+				kb = keyboard_default_kbmaps[2];
+			switch (mode)
+			{
+			case JSEM_MODE_JOYSTICK:
+			case JSEM_MODE_JOYSTICK_CD32:
+			case JSEM_MODE_DEFAULT:
+				setcompakb (kb, i ? ip_joy2 : ip_joy1);
+				if (mode == JSEM_MODE_JOYSTICK_CD32 || (mode == JSEM_MODE_DEFAULT && prefs->cs_cd32cd))
+					setcompakb (keyboard_default_kbmaps[5], i ? ip_joycd322 : ip_joycd321);
+				break;
+			case JSEM_MODE_MOUSE:
+				setcompakb (kb, i ? ip_mouse2 : ip_mouse1);
+				break;
+			}
+			used[joy] = 1;
+		}
+	}
+	// parport
+	for (i = 2; i < 4; i++) {
+		int *kb;
+		for (joy = 0; used[joy]; joy++);
+		if (JSEM_ISANYKBD (i, prefs)) {
+			if (JSEM_ISNUMPAD (i, prefs))
+				kb = keyboard_default_kbmaps[0];
+			else if (JSEM_ISCURSOR (i, prefs))
+				kb = keyboard_default_kbmaps[1];
+			else
+				kb = keyboard_default_kbmaps[2];
+			setcompakb (kb, i ? ip_parjoy2 : ip_parjoy1);
+			used[joy] = 1;
+		}
+	}
+}
+
 static void compatibility_mode (struct uae_prefs *prefs)
 {
 	int joy, i;
@@ -3292,7 +3536,7 @@ static void matchdevices_all (struct uae_prefs *prefs)
 	}
 }
 
-void inputdevice_updateconfig (struct uae_prefs *prefs)
+static void inputdevice_updateconfig2 (struct uae_prefs *prefs, int domerge)
 {
 	int i;
 
@@ -3346,6 +3590,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	memset (mice2, 0, sizeof (mice2));
 	if (prefs->input_selected_setting == 0)
 		compatibility_mode (prefs);
+	else if (domerge)
+		compatibility_copy (prefs);
 
 	joystick_setting_changed ();
 
@@ -3360,6 +3606,16 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 #endif
 #endif
 }
+
+void inputdevice_mergeconfig (struct uae_prefs *prefs)
+{
+	inputdevice_updateconfig2 (prefs, 1);
+}
+void inputdevice_updateconfig (struct uae_prefs *prefs)
+{
+	inputdevice_updateconfig2 (prefs, 0);
+}
+
 
 /* called when devices get inserted or removed
 * store old devices temporarily, enumerate all devices
@@ -3488,9 +3744,10 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	}
 }
 
-void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans)
+void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans, int **kbmaps)
 {
 	keyboard_default = trans;
+	keyboard_default_kbmaps = kbmaps;
 }
 
 int inputdevice_iskeymapped (int keyboard, int scancode)

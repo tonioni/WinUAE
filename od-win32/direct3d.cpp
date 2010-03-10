@@ -1046,10 +1046,7 @@ static void setupscenecoords (void)
 
 	float sw = dw * tin_w / window_w + 0.5f;
 	float sh = dh * tin_h / window_h + 0.5f;
-	MatrixScaling (&m_matWorld,
-		sw,
-		sh,
-		1.0f);
+	MatrixScaling (&m_matWorld, sw, sh, 1.0f);
 
 	// ratio between Amiga texture and overlay texture
 	maskmult.x = sw * maskmult_x / w;
@@ -1834,15 +1831,10 @@ void D3D_unlocktexture (void)
 	if (locked)
 		hr = texture->UnlockRect (0);
 	locked = 0;
-
-	D3D_render2 ();
-	if (vsync2 && !currprefs.turbo_emulation)
-		D3D_render2 ();
 }
 
 uae_u8 *D3D_locktexture (int *pitch)
 {
-	static int frameskip;
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
 
@@ -1850,9 +1842,6 @@ uae_u8 *D3D_locktexture (int *pitch)
 		return NULL;
 	if (!isd3d ())
 		return NULL;
-	if (currprefs.turbo_emulation && isfullscreen () > 0 && frameskip-- > 0)
-		return NULL;
-	frameskip = 50;
 
 	lock.pBits = NULL;
 	lock.Pitch = 0;
@@ -1869,6 +1858,19 @@ uae_u8 *D3D_locktexture (int *pitch)
 	locked = 1;
 	*pitch = lock.Pitch;
 	return (uae_u8*)lock.pBits;
+}
+
+void D3D_flip (void)
+{
+	static int frameskip;
+	if (!isd3d ())
+		return;
+	if (currprefs.turbo_emulation && isfullscreen () > 0 && frameskip-- > 0)
+		return;
+	frameskip = 50;
+	D3D_render2 ();
+	if (vsync2 && !currprefs.turbo_emulation)
+		D3D_render2 ();
 }
 
 void D3D_refresh (void)

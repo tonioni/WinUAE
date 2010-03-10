@@ -3579,61 +3579,173 @@ uae_u8 *save_floppy(int *len, uae_u8 *dstptr)
 
 #endif /* SAVESTATE */
 
-static int getnextdisk (TCHAR *img)
+#define MAX_DISKENTRIES 4
+int disk_prevnext_name (TCHAR *imgp, int dir)
 {
-	TCHAR *ext, *p, *dst;
+	TCHAR img[MAX_DPATH], *ext, *p, *p2, *ps, *dst[MAX_DISKENTRIES];
 	int num = -1;
+	int cnt, i;
+	TCHAR imgl[MAX_DPATH];
+	int ret, gotone, wrapped;
+	TCHAR *old;
 
-	dst = NULL;
+	old = my_strdup (imgp);
+
+	struct zfile *zf = zfile_fopen (imgp, L"rb", ZFD_NORMAL);
+	if (zf) {
+		_tcscpy (img, zfile_getname (zf));
+		zfile_fclose (zf);
+		zf = zfile_fopen (img, L"rb", ZFD_NORMAL);
+		if (!zf) // oops, no directory support in this archive type
+			_tcscpy (img, imgp);
+		zfile_fclose (zf);
+	} else {
+		_tcscpy (img, imgp);
+	}
+
+	wrapped = 0;
+retry:
+	_tcscpy (imgl, img);
+	to_lower (imgl, sizeof imgl / sizeof (TCHAR));
+	gotone = 0;
+	ret = 0;
+	ps = imgl;
+	cnt = 0;
+	dst[cnt] = NULL;
 	for (;;) {
 		// disk x of y
-		p = _tcsstr (img, L"disk ");
-		if (p && _istdigit (p[5])) {
-			num = _tstoi (p + 5);
-			dst = p + 5;
-		} else {
-			ext = _tcsrchr (img, '.');
-			if (!ext || ext - img < 4)
+		p = _tcsstr (ps, L"(disk ");
+		if (p && _istdigit (p[6])) {
+			p2 = p - imgl + img;
+			num = _tstoi (p + 6);
+			dst[cnt++] = p2 + 6;
+			if (cnt >= MAX_DISKENTRIES - 1)
 				break;
-			// name_<non numeric character>x.ext
-			if (ext[-3] == '_' && !_istdigit (ext[-2]) && _istdigit (ext[-1])) {
-				num = _tstoi (ext - 1);
-				dst = ext - 1;
-			// name_x.ext
-			} else if (ext[-2] == '_' && _istdigit (ext[-1])) {
-				num = _tstoi (ext - 1);
-				dst = ext - 1;
-			// name_a.ext
-			} else if (ext[-2] == '_' && ext[-1] >= 'a' && ext[-1] <= 'z') {
-				num = ext[-1] - 'a';
-				dst = ext - 1;
-			}
+			gotone = 1;
+			ps = p + 6;
+			continue;
+		}
+		if (gotone)
+			 break;
+		p = _tcsstr (ps, L"disk");
+		if (p && _istdigit (p[4])) {
+			p2 = p - imgl + img;
+			num = _tstoi (p + 4);
+			dst[cnt++] = p2 + 4;
+			if (cnt >= MAX_DISKENTRIES - 1)
+				break;
+			gotone = 1;
+			ps = p + 4;
+			continue;
+		}
+		if (gotone)
+			 break;
+		ext = _tcsrchr (ps, '.');
+		if (!ext || ext - ps < 4)
+			break;
+		TCHAR *ext2 = ext - imgl + img;
+		// name_<non numeric character>x.ext
+		if (ext[-3] == '_' && !_istdigit (ext[-2]) && _istdigit (ext[-1])) {
+			num = _tstoi (ext - 1);
+			dst[cnt++] = ext2 - 1;
+		// name_x.ext, name-x.ext, name x.ext
+		} else if ((ext[-2] == '_' || ext[-2] == '-' || ext[-2] == ' ') && _istdigit (ext[-1])) {
+			num = _tstoi (ext - 1);
+			dst[cnt++] = ext2 - 1;
+		// name_a.ext, name-a.ext, name a .ext
+		} else if ((ext[-2] == '_' || ext[-2] == '-' || ext[-2] == ' ') && ext[-1] >= 'a' && ext[-1] <= 'z') {
+			num = ext[-1] - 'a' + 1;
+			dst[cnt++] = ext2 - 1;
+		// nameA.ext
+		} else if (ext2[-2] >= 'a' && ext2[-2] <= 'z' && ext2[-1] >= 'A' && ext2[-1] <= 'Z') {
+			num = ext[-1] - 'a' + 1;
+			dst[cnt++] = ext2 - 1;
+		// namex.ext
+		} else if (!_istdigit (ext2[-2]) && _istdigit (ext[-1])) {
+			num = ext[-1] - '0';
+			dst[cnt++] = ext2 - 1;
 		}
 		break;
 	}
+	dst[cnt] = NULL;
 	if (num <= 0 || num >= 19)
-		return 0;
+		goto end;
+	num += dir;
 	if (num > 9)
-		return 0;
+		goto end;
 	if (num == 9)
-		num = 0;
-	if (!_istdigit (dst[0]))
-		dst[0] = num + 'a';
-	else
-		dst[0] = num + '0';
-	return 0;
+		num = 1;
+	else if (num == 0)
+		num = 9;
+	for (i = 0; i < cnt; i++) {
+		if (!_istdigit (dst[i][0])) {
+			int capital = dst[i][0] >= 'A' && dst[i][0] <= 'Z';
+			dst[i][0] = (num - 1) + (capital ? 'A' : 'a');
+		} else {
+			dst[i][0] = num + '0';
+		}
+	}
+	if (zfile_exists (img)) {
+		ret = 1;
+		goto end;
+	}
+	if (gotone) { // was (disk x but no match, perhaps there are extra tags..
+		TCHAR *old2 = my_strdup (img);
+		for (;;) {
+			ext = _tcsrchr (img, '.');
+			if (!ext)
+				break;
+			if (ext == img)
+				break;
+			if (ext[-1] != ']')
+				break;
+			TCHAR *t = _tcsrchr (img, '[');
+			if (!t)
+				break;
+			t[0] = 0;
+			if (zfile_exists (img)) {
+				ret = 1;
+				goto end;
+			}
+		}
+		_tcscpy (img, old2);
+		xfree (old2);
+	}
+	if (!wrapped) {
+		for (i = 0; i < cnt; i++) {
+			if (!_istdigit (dst[i][0]))
+				dst[i][0] = dst[i][0] >= 'A' && dst[i][0] <= 'Z' ? 'A' : 'a';
+			else
+				dst[i][0] = '1';
+			if (dir < 0)
+				dst[i][0] += 8;
+		}
+		wrapped++;
+	}
+	if (zfile_exists (img)) {
+		ret = -1;
+		goto end;
+	}
+	if (dir < 0 && wrapped < 2)
+		goto retry;
+	_tcscpy (img, old);
+
+end:
+	_tcscpy (imgp, img);
+	xfree (old);
+	return ret;
 }
 
-int disk_next (int drive)
+int disk_prevnext (int drive, int dir)
 {
 	TCHAR img[MAX_DPATH];
 
 	 _tcscpy (img, currprefs.df[drive]);
-	 to_lower (img, sizeof img / sizeof (TCHAR));
 
-	if (img[0])
+	if (!img[0])
 		return 0;
-	getnextdisk (img);
+	disk_prevnext_name (img, dir);
+	_tcscpy (changed_prefs.df[drive], img);
 	return 1;
 }
 

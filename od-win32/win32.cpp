@@ -4218,21 +4218,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	TCHAR **argv = NULL, **argv2 = NULL, **argv3;
 	int argc, i;
 
-#if 0
-#ifdef _DEBUG
-	{
-		int tmp = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-		//tmp &= 0xffff;
-		tmp |= _CRTDBG_CHECK_ALWAYS_DF;
-		tmp |= _CRTDBG_CHECK_CRT_DF;
-#ifdef MEMDEBUG
-		tmp |=_CRTDBG_CHECK_EVERY_16_DF;
-		tmp |= _CRTDBG_DELAY_FREE_MEM_DF;
-#endif
-		_CrtSetDbgFlag(tmp);
-	}
-#endif
-#endif
 	if (!osdetect ())
 		return 0;
 	if (!dxdetect ())
@@ -4925,6 +4910,21 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	DWORD_PTR sys_aff;
 	HANDLE thread;
 
+#if 0
+#ifdef _DEBUG
+	{
+		int tmp = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
+		//tmp &= 0xffff;
+		tmp |= _CRTDBG_CHECK_ALWAYS_DF;
+		tmp |= _CRTDBG_CHECK_CRT_DF;
+#ifdef MEMDEBUG
+		tmp |=_CRTDBG_CHECK_EVERY_16_DF;
+		tmp |= _CRTDBG_DELAY_FREE_MEM_DF;
+#endif
+		_CrtSetDbgFlag(tmp);
+	}
+#endif
+#endif
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
 	InitCommonControls ();
 

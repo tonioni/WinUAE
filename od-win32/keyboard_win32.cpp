@@ -177,6 +177,13 @@ static struct uae_input_device_kbr_default keytrans[] = {
 	{ -1, 0 }
 };
 
+static int kb_np[] = { DIK_NUMPAD8, -1, DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD2, -1, DIK_NUMPAD0, DIK_NUMPAD5, -1, DIK_DECIMAL, DIK_DIVIDE, DIK_NUMPADENTER, -1, -1 };
+static int kb_ck[] = { DIK_UP, -1, DIK_LEFT, -1, DIK_RIGHT, -1, DIK_DOWN, -1, DIK_RCONTROL, DIK_RMENU, -1, DIK_RSHIFT, -1, -1 };
+static int kb_se[] = { DIK_W, -1, DIK_A, -1, DIK_D, -1, DIK_S, -1, DIK_LMENU, -1, DIK_LSHIFT, -1, -1 };
+static int kb_empty[] = { -1, -1 };
+static int kb_cd32[] = { DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, DIK_DIVIDE, -1, DIK_SUBTRACT, -1, DIK_MULTIPLY, -1, -1 };
+static int *kbmaps[] = { kb_np, kb_ck, kb_se, kb_empty, kb_empty, kb_cd32 };
+
 extern int ispressed (int key);
 
 static int specialkeycode (void)
@@ -409,9 +416,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		case DIK_F5:
 #if 0
 			{
-				extern int crap;
-				crap++;
-				write_log (L"%d\n", crap);
+				disk_prevnext (0, -1);
+				return;
+				//crap++;
+				//write_log (L"%d\n", crap);
 			}
 #endif
 			if (specialpressed ()) {
@@ -567,7 +575,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 void keyboard_settrans (void)
 {
-	inputdevice_setkeytranslation (keytrans);
+	inputdevice_setkeytranslation (keytrans, kbmaps);
 }
 
 

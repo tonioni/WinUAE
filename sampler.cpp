@@ -116,7 +116,7 @@ int sampler_init (void)
 {
 	if (!currprefs.parallel_sampler)
 		return 0;
-	return 0;
+	return 1;
 }
 
 void sampler_free (void)
