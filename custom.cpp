@@ -1655,7 +1655,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
 	int ddfstop_to_test;
 
-	if (nodraw() || plf_state == plf_end)
+	if (nodraw () || plf_state == plf_end)
 		return;
 
 	/* We need an explicit test against HARD_DDF_STOP here to guard against
@@ -3358,7 +3358,7 @@ STATIC_INLINE int use_eventmode (uae_u16 v)
 {
 	if (!currprefs.cpu_cycle_exact)
 		return 0;
-	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68020)
 		return 1;
 	if (v & 0x8000)
 		return 1;
@@ -5299,7 +5299,7 @@ static void hsync_handler (void)
 
 	last_custom_value1 = 0xffff; // refresh slots should set this to 0xffff
 
-	if (!nocustom()) {
+	if (!nocustom ()) {
 		if (!currprefs.blitter_cycle_exact && bltstate != BLT_done && dmaen (DMA_BITPLANE) && diwstate == DIW_waiting_stop) {
 			blitter_slowdown (thisline_decision.plfleft, thisline_decision.plfright - (16 << fetchmode),
 				cycle_diagram_total_cycles[fetchmode][GET_RES_AGNUS (bplcon0)][GET_PLANES_LIMIT (bplcon0)],
@@ -5623,7 +5623,7 @@ void customreset (int hardreset)
 		CLXCON (0);
 		setup_fmodes (0);
 		sprite_width = GET_SPRITEWIDTH (fmode);
-		new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
+		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 	}
 
 	gayle_reset (hardreset);

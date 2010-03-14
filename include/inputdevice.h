@@ -117,6 +117,7 @@ extern int handle_input_event (int nr, int state, int max, int autofire);
 extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
 extern int inputdevice_synccapslock (int, int*);
+extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state);
 
 extern uae_u16 potgo_value;
 extern uae_u16 POTGOR (void);

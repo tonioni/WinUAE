@@ -3103,7 +3103,7 @@ static void m68k_run_2ce (void)
 	struct regstruct *r = &regs;
 	int tmpcycles = MAX68020CYCLES;
 
-	regs.ipl = regs.ipl_pin;
+	ipl_fetch ();
 	for (;;) {
 		uae_u32 opcode = get_word_ce020_prefetch (0);
 		(*cpufunctbl[opcode])(opcode);

@@ -604,6 +604,7 @@ void savestate_restore_finish (void)
 	savestate_file = 0;
 	savestate_state = 0;
 	restore_cpu_finish ();
+	init_hz ();
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */

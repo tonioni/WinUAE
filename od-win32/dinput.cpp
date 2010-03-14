@@ -2172,7 +2172,8 @@ static void read_kb (void)
 					continue;
 				di_keycodes[i][scancode] = pressed;
 				if (istest) {
-					inputdevice_do_keyboard (scancode, pressed);
+					int q = di_keycodes[i][DIK_LMENU] && di_keycodes[i][DIK_RMENU];
+					inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, q ? -1 : scancode, pressed);
 				} else {
 					if (stopoutput == 0)
 						my_kbd_handler (i, scancode, pressed);

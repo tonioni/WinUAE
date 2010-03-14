@@ -6,6 +6,7 @@ extern void D3D_refresh (void);
 extern void D3D_flip (void);
 extern uae_u8 *D3D_locktexture(int*);
 extern void D3D_unlocktexture(void);
+extern void D3D_flushtexture (int miny, int maxy);
 extern void D3D_guimode (int guion);
 extern HDC D3D_getDC(HDC hdc);
 extern int D3D_isenabled (void);

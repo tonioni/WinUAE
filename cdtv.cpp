@@ -252,6 +252,7 @@ static int play_cdtrack (uae_u8 *p)
 	int index_start = p[2];
 	int track_end = p[3];
 	int index_end = p[4];
+	int start_found, end_found;
 	uae_u32 start, end;
 	int i, j;
 
@@ -259,18 +260,31 @@ static int play_cdtrack (uae_u8 *p)
 	i -= 2;
 	i /= 11;
 	end = last_cd_position;
+	start_found = end_found = 0;
 	for (j = 0; j < i; j++) {
 		uae_u8 *s = cdrom_toc + 4 + j * 11;
-		if (track_start == s[3])
+		if (track_start == s[3]) {
+			start_found++;
 			start = (s[8] << 16) | (s[9] << 8) | s[10];
-		if (track_end == s[3])
+		}
+		if (track_end == s[3]) {
 			end = (s[8] << 16) | (s[9] << 8) | s[10];
+			end_found++;
+		}
+	}
+	if (start_found == 0) {
+		cdaudiostop ();
+		cd_error = 1;
+		activate_stch = 1;
+		write_log (L"PLAY CD AUDIO: illegal start track %d\n", track_start);
+		return 0;
 	}
 	play_end = msf2lsn (end);
 	play_start = msf2lsn (start);
 #ifdef CDTV_DEBUG
 	write_log (L"PLAY CD AUDIO from %d-%d, %06X (%d) to %06X (%d)\n",
-		track_start, track_end, start, msf2lsn (start), end, msf2lsn (end));
+		track_start, track_end,
+		start, msf2lsn (start), end, msf2lsn (end));
 #endif
 	play_state = 1;
 	play_state_cmd = 1;

@@ -1035,6 +1035,7 @@ static void setupscenecoords (void)
 	dh = dr.bottom - dr.top;
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
+
 	//write_log (L"%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
 
 	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
@@ -1623,7 +1624,9 @@ static void D3D_render22 (void)
 		return;
 
 	setupscenecoords ();
+
 	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
+
 	if (FAILED (hr = d3ddev->BeginScene ())) {
 		write_log (L"%s: BeginScene: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
@@ -1833,6 +1836,24 @@ void D3D_unlocktexture (void)
 	locked = 0;
 }
 
+void D3D_flushtexture (int miny, int maxy)
+{
+	if (miny >= 0 && maxy >= 0) {
+		RECT r;
+		maxy++;
+		r.left = 0;
+		r.right = twidth;
+		r.top = miny <= 0 ? 0 : miny;
+		r.bottom = maxy <= theight ? maxy : theight;
+		if (r.top <= r.bottom) {
+			HRESULT hr = texture->AddDirtyRect (&r);
+			if (FAILED (hr))
+				write_log (L"%s: AddDirtyRect(): %s\n", D3DHEAD, D3D_ErrorString (hr));
+			//write_log (L"%d %d\n", r.top, r.bottom);
+		}
+	}
+}
+
 uae_u8 *D3D_locktexture (int *pitch)
 {
 	D3DLOCKED_RECT lock;
@@ -1845,7 +1866,7 @@ uae_u8 *D3D_locktexture (int *pitch)
 
 	lock.pBits = NULL;
 	lock.Pitch = 0;
-	hr = texture->LockRect (0, &lock, NULL, 0);
+	hr = texture->LockRect (0, &lock, NULL, D3DLOCK_NO_DIRTY_UPDATE);
 	if (FAILED (hr)) {
 		write_log (L"%s: LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return NULL;

@@ -450,6 +450,8 @@ void driveclick_check_prefs (void)
 {
 	int i;
 
+	if (!config_changed)
+		return;
 	driveclick_fdrawcmd_vsync ();
 	if (driveclick_active ())
 		dr_audio_activate ();

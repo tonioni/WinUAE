@@ -122,6 +122,7 @@ extern TCHAR *fsdb_create_unique_nname (a_inode *base, const TCHAR *);
 struct my_opendir_s;
 struct my_openfile_s;
 
+extern struct my_opendir_s *my_opendir (const TCHAR*, const TCHAR*);
 extern struct my_opendir_s *my_opendir (const TCHAR*);
 extern void my_closedir (struct my_opendir_s*);
 extern int my_readdir (struct my_opendir_s*, TCHAR*);

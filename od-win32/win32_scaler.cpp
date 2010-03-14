@@ -730,7 +730,7 @@ void S2X_render (void)
 
 end:
 	if (d3d) {
-		D3D_unlocktexture ();
+		;//D3D_unlocktexture (); unlock in win32gfx.c
 	} else {
 		unlocksurface (tempsurf);
 	

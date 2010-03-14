@@ -108,11 +108,16 @@ struct my_opendir_s {
 
 struct my_opendir_s *my_opendir (const TCHAR *name)
 {
+	return my_opendir (name, L"*.*");
+}
+struct my_opendir_s *my_opendir (const TCHAR *name, const TCHAR *mask)
+{
 	struct my_opendir_s *mod;
 	TCHAR tmp[MAX_DPATH];
 
 	_tcscpy (tmp, name);
-	_tcscat (tmp, L"\\*.*");
+	_tcscat (tmp, L"\\");
+	_tcscat (tmp, mask);
 	mod = xmalloc (struct my_opendir_s, 1);
 	if (!mod)
 		return NULL;
@@ -181,7 +186,7 @@ unsigned int my_write (struct my_openfile_s *mos, void *b, unsigned int size)
 	return written;
 }
 
-static DWORD GetFileAttributesSafe(const TCHAR *name)
+static DWORD GetFileAttributesSafe (const TCHAR *name)
 {
 	DWORD attr, last;
 

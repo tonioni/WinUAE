@@ -782,25 +782,52 @@ int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, int *pwidth, int *pheigh
 	return index;
 }
 
-void flush_line (int lineno)
-{
+static int flushymin, flushymax;
+#define FLUSH_DIFF 50
 
+static void flushit (int lineno)
+{
+	if (!currprefs.gfx_api)
+		return;
+	if (flushymin > lineno) {
+		if (flushymin - lineno > FLUSH_DIFF && flushymax != 0) {
+			D3D_flushtexture (flushymin, flushymax);
+			flushymin = currentmode->amiga_height;
+			flushymax = 0;
+		} else {
+			flushymin = lineno;
+		}
+	}
+	if (flushymax < lineno) {
+		if (lineno - flushymax > FLUSH_DIFF && flushymax != 0) {
+			D3D_flushtexture (flushymin, flushymax);
+			flushymin = currentmode->amiga_height;
+			flushymax = 0;
+		} else {
+			flushymax = lineno;
+		}
+	}
 }
 
-void flush_block (int a, int b)
+void flush_line (int lineno)
 {
+	flushit (lineno);
+}
 
+void flush_block (int first, int last)
+{
+	flushit (first);
+	flushit (last);
 }
 
 void flush_screen (int a, int b)
 {
 	if (dx_islost ())
 		return;
+	flushymin = 0;
+	flushymax = currentmode->amiga_height;
 	if (currentmode->flags & DM_D3D) {
-		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
-			S2X_render ();
 		D3D_flip ();
-		return;
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		S2X_render ();
@@ -829,6 +856,8 @@ int lockscr (void)
 	int ret = 0;
 	if (!isscreen ())
 		return ret;
+	flushymin = currentmode->amiga_height;
+	flushymax = 0;
 	ret = 1;
 	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
@@ -855,8 +884,9 @@ void unlockscr (void)
 {
 	if (currentmode->flags & DM_D3D) {
 		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
-			return;
+			S2X_render ();
 #ifdef D3D
+		D3D_flushtexture (flushymin, flushymax);
 		D3D_unlocktexture ();
 #endif
 	} else if (currentmode->flags & DM_SWSCALE) {
@@ -1002,6 +1032,10 @@ uae_u8 *gfx_lock_picasso (void)
 void gfx_unlock_picasso (void)
 {
 	if (currprefs.gfx_api) {
+		if (p96_double_buffer_needs_flushing) {
+			D3D_flushtexture (p96_double_buffer_first, p96_double_buffer_last);
+			p96_double_buffer_needs_flushing = 0;
+		}
 		D3D_unlocktexture ();
 		D3D_flip ();
 	} else {
@@ -1252,6 +1286,7 @@ int check_prefs_changed_gfx (void)
 
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (2 | 8) : 0;
 	c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? (2 | 8) : 0;
+
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
 	c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
@@ -1309,10 +1344,11 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 		//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
-		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
-		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
 		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 		currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
+
+		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
+		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
 		currprefs.gfx_display = changed_prefs.gfx_display;
 		_tcscpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
@@ -1347,7 +1383,14 @@ int check_prefs_changed_gfx (void)
 		inputdevice_acquire (TRUE);
 		return 1;
 	}
-
+#if 0
+	if (currprefs.gfx_resolution != changed_prefs.gfx_resolution ||
+		currprefs.gfx_linedbl != changed_prefs.gfx_linedbl) {
+		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
+		currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
+		return -1;
+	}
+#endif
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
 		init_hz ();

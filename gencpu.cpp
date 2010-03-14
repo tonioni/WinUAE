@@ -2110,8 +2110,10 @@ static void gen_opcode (unsigned long int opcode)
 		} else {
 		    int old_brace_level = n_braces;
 		    if (next_cpu_level < 0)
-			next_cpu_level = 0;
+				next_cpu_level = 0;
 		    printf ("\tuae_u16 newsr; uae_u32 newpc;\n");
+			if (using_ce020) // need some delay so that interrupts have time to clear if previous ins was move to INTREQ
+				printf ("\tdo_cycles_ce (6 * CYCLE_UNIT);\n");
 			printf ("\tfor (;;) {\n");
 		    genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
 		    genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
@@ -2135,6 +2137,7 @@ static void gen_opcode (unsigned long int opcode)
 		    printf ("\t\texception3 (0x%04X, m68k_getpc (), newpc);\n", opcode);
 		    printf ("\telse\n");
 		    printf ("\t\tm68k_setpc (newpc);\n");
+			printf ("\tipl_fetch ();\n");
 		    need_endlabel = 1;
 		}
 		/* PC is set and prefetch filled. */

@@ -2203,8 +2203,11 @@ void inputdevice_handle_inputcode (void)
 	case AKS_ENTERGUI:
 		gui_display (-1);
 		break;
-	case AKS_SCREENSHOT:
+	case AKS_SCREENSHOT_FILE:
 		screenshot (1, 1);
+		break;
+	case AKS_SCREENSHOT_CLIPBOARD:
+		screenshot (0, 1);
 		break;
 #ifdef ACTION_REPLAY
 	case AKS_FREEZEBUTTON:
@@ -4310,9 +4313,14 @@ void inputdevice_unacquire (void)
 		idev[IDTYPE_KEYBOARD].unacquire (i);
 }
 
-static void testrecord (int type, int num, int wtype, int wnum, int state)
+void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state)
 {
 	TCHAR tmp[2000];
+
+	if (wnum < 0) {
+		testmode = -1;
+		return;
+	}
 	tmp[0] = 0;
 	wnum += idev[type].get_widget_first (num, wtype);
 	idev[type].get_widget_type (num, wnum, tmp, NULL);
@@ -4330,6 +4338,10 @@ int inputdevice_testread (TCHAR *name)
 	idev[IDTYPE_KEYBOARD].read ();
 	idev[IDTYPE_JOYSTICK].read ();
 	idev[IDTYPE_MOUSE].read ();
+	if (testmode != 1) {
+		testmode = 0;
+		return 1;
+	}
 	testmode = 0;
 	return 0;
 }
@@ -4427,7 +4439,7 @@ void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask)
 void setmousebuttonstate (int mouse, int button, int state)
 {
 	if (testmode) {
-		testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state);
+		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state);
 		return;
 	}
 	setbuttonstateall (&mice[mouse], &mice2[mouse], button, state);
@@ -4444,7 +4456,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	int i, v1, v2;
 
 	if (testmode) {
-		testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_AXIS, axis, state);
+		inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_AXIS, axis, state);
 		return;
 	}
 	v1 = state;
@@ -4481,7 +4493,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	static double fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
 	if (testmode) {
-		testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
+		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
 		return;
 	}
 	if (!mice[mouse].enabled) {

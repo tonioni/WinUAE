@@ -524,6 +524,7 @@ struct favitems
 };
 
 #define MAXFAVORITES 30
+#define MAXFAVORITESPACE 99
 static void writefavoritepaths (int num, struct favitems *fitem)
 {
 	int i, idx;
@@ -657,7 +658,7 @@ static void addeditmenu (HMENU menu, struct favitems *fitem)
 	InsertMenuItem (menu, -1, TRUE, &mii);
 }
 
-static int popupmenu (HWND hwnd, struct favitems *items)
+static int popupmenu (HWND hwnd, struct favitems *items, int morefiles)
 {
 	int i, item, got;
 	HMENU menu;
@@ -667,13 +668,13 @@ static int popupmenu (HWND hwnd, struct favitems *items)
 	got = 0;
 	i = 0;
 	while (items[i].type) {
-		if (items[i].type == 2) {
+		if (items[i].type >= 2) {
 			MENUITEMINFO mii = { 0 };
 			mii.cbSize = sizeof mii;
 			mii.fMask = MIIM_STRING | MIIM_ID;
 			mii.fType = MFT_STRING;
 			mii.fState = MFS_ENABLED;
-			mii.wID = 1 + i;
+			mii.wID = items[i].type == 2 ? 1 + i : 990 - 3 + items[i].type;
 			mii.dwTypeData = items[i].value;
 			mii.cch = _tcslen (mii.dwTypeData);
 			InsertMenuItem (menu, -1, TRUE, &mii);
@@ -681,10 +682,21 @@ static int popupmenu (HWND hwnd, struct favitems *items)
 		}
 		i++;
 	}
+	if (morefiles < 0) {
+		MENUITEMINFO mii = { 0 };
+		mii.cbSize = sizeof mii;
+		mii.fMask = MIIM_STRING | MIIM_ID;
+		mii.fType = MFT_STRING;
+		mii.fState = MFS_ENABLED;
+		mii.wID = 999;
+		mii.dwTypeData = L"[Directory scan]";
+		mii.cch = _tcslen (mii.dwTypeData);
+		InsertMenuItem (menu, -1, TRUE, &mii);
+		got = 1;
+	}
 	if (got) {
 		MENUITEMINFO mii = { 0 };
 		mii.cbSize = sizeof mii;
-
 		mii.fMask = MIIM_FTYPE;
 		mii.fType = MFT_SEPARATOR;
 		mii.fState = MFS_ENABLED;
@@ -713,13 +725,117 @@ static int popupmenu (HWND hwnd, struct favitems *items)
 	DestroyMenu (menu);
 	return item;
 }
+
+static void favitemsort (struct favitems *fitem, int start, int end)
+{
+	for (int i = start; i < end; i++) {
+		for (int j = i + 1; j < end; j++) {
+			if (_tcscmp (fitem[i].value, fitem[j].value) > 0) {
+				struct favitems tmp;
+				memcpy (&tmp, &fitem[i], sizeof tmp);
+				memcpy (&fitem[i], &fitem[j], sizeof tmp);
+				memcpy (&fitem[j], &tmp, sizeof tmp);
+			}
+		}
+	}
+}
+
+static int getdeepfavdiskimage (TCHAR *imgpath, struct favitems *fitem, int idx)
+{
+	TCHAR path[MAX_DPATH], mask[MAX_DPATH];
+	TCHAR *p;
+	struct my_opendir_s *myd = NULL;
+	int previdx = idx;
+
+	if (!imgpath[0])
+		return idx;
+	_tcscpy (path, imgpath);
+	mask[0] = 0;
+	for (;;) {
+		p = _tcsrchr (path, '\\');
+		if (!p)
+			p = _tcsrchr (path, '/');
+		if (!p)
+			break;
+		if (!mask[0])
+			_tcscpy (mask, p + 1);
+		p[0] = 0;
+		if (my_existsdir (path))
+			break;
+	}
+	static TCHAR notallowed[] = L"[]()_-#!{}=.,";
+	for (int i = 0; i < _tcslen (notallowed); i++) {
+		for (;;) {
+			p = _tcsrchr (mask, notallowed[i]);
+			if (!p)
+				break;
+			if (p - mask < 6)
+				break;
+			p[0] = 0;
+		}
+	}
+	while (mask[_tcslen (mask) - 1] == ' ')
+		mask[_tcslen (mask) - 1] = 0;
+	_tcscat (mask, L"*.*");
+	myd = my_opendir (path, mask);
+	int cnt = 0;
+	while (cnt < 30) {
+		TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+		if (!my_readdir (myd, tmp))
+			break;
+		_tcscpy (tmp2, path);
+		_tcscat (tmp2, L"\\");
+		_tcscat (tmp2, tmp);
+		fitem[idx].value = my_strdup (tmp2);
+		fitem[idx].path = NULL;
+		fitem[idx].type = 2;
+		idx++;
+		cnt++;
+	}
+	my_closedir (myd);
+	favitemsort (fitem, previdx, idx);
+	fitem[idx].type = 0;
+	return idx;
+}
+
+static int getfavdiskimage (TCHAR *imgpath, struct favitems *fitem, int idx)
+{
+	int i;
+	TCHAR name[MAX_DPATH];
+
+	_tcscpy (name, imgpath);
+	int previdx = idx;
+	for (;;) {
+		if (!disk_prevnext_name (name, 1))
+			break;
+		for (i = previdx; i < idx; i++) {
+			if (!_tcsicmp (fitem[i].value, name))
+				break;
+		}
+		if (i < idx)
+			break;
+		fitem[idx].value = my_strdup (name);
+		fitem[idx].path = NULL;
+		fitem[idx].type = 2;
+		idx++;
+		if (!_tcscmp (name, imgpath))
+			break;
+	}
+	favitemsort (fitem, previdx, idx);
+	fitem[idx].type = 0;
+	return idx;
+}
+
 static TCHAR *favoritepopup (HWND hwnd, int drive)
 {
 	UAEREG *fkey;
 	int idx, idx2;
-	struct favitems fitem[MAXFAVORITES + 1];
-	int ret, i, j, num;
+	struct favitems fitem[MAXFAVORITESPACE + 1];
+	int ret, i, num;
+	int srcdrive, dstdrive;
+	int morefiles = 0;
 
+	srcdrive = dstdrive = drive;
 	for (;;) {
 		fkey = regcreatetree (NULL, L"FavoritePaths");
 		if (fkey == NULL)
@@ -760,63 +876,50 @@ static TCHAR *favoritepopup (HWND hwnd, int drive)
 			idx++;
 		}
 		regclosetree (fkey);
-		for (i = 0; i < idx; i++) {
-			for (j = i + 1; j < idx; j++) {
-				if (_tcscmp (fitem[i].value, fitem[j].value) > 0) {
-					struct favitems tmp;
-					memcpy (&tmp, &fitem[i], sizeof tmp);
-					memcpy (&fitem[i], &fitem[j], sizeof tmp);
-					memcpy (&fitem[j], &tmp, sizeof tmp);
-				}
-			}
-		}
+		favitemsort (fitem, 0, idx);
 		fitem[idx].type = 0;
 
-		if (drive >= 0) {
-			TCHAR name[MAX_DPATH];
-			_tcscpy (name, currprefs.df[drive]);
-			int previdx = idx;
-			for (;;) {
-				if (!disk_prevnext_name (name, 1))
-					break;
-				for (i = previdx; i < idx; i++) {
-					if (!_tcsicmp (fitem[i].value, name))
-						break;
-				}
-				if (i < idx)
-					break;
-				fitem[idx].value = my_strdup (name);
-				fitem[idx].path = NULL;
-				fitem[idx].type = 2;
-				idx++;
-				if (!_tcscmp (name, currprefs.df[drive]))
-					break;
-			}
-			for (i = previdx; i < idx; i++) {
-				for (j = i + 1; j < idx; j++) {
-					if (_tcscmp (fitem[i].value, fitem[j].value) > 0) {
-						struct favitems tmp;
-						memcpy (&tmp, &fitem[i], sizeof tmp);
-						memcpy (&fitem[i], &fitem[j], sizeof tmp);
-						memcpy (&fitem[j], &tmp, sizeof tmp);
+		if (srcdrive >= 0 && srcdrive <= 4) {
+			if (!morefiles) {
+				for (i = 0; i < 4; i++) {
+					if (workprefs.df[i][0] && srcdrive != i) {
+						TCHAR tmp[100];
+						_stprintf (tmp, L"[DF%c:]", i + '0');
+						fitem[idx].value = my_strdup (tmp);
+						fitem[idx].path = my_strdup (workprefs.df[i]);
+						fitem[idx].type = 3 + i;
+						idx++;
+						fitem[idx].type = 0;
 					}
 				}
 			}
-			fitem[idx].type = 0;
+			if (workprefs.df[srcdrive][0]) {
+				if (morefiles > 0) {
+					idx = getdeepfavdiskimage (workprefs.df[srcdrive], fitem, idx);
+				} else {
+					idx = getfavdiskimage (workprefs.df[srcdrive], fitem, idx);
+					morefiles = -1;
+				}
+			}
 		}
 
 
-		ret = popupmenu (hwnd, fitem);
+		ret = popupmenu (hwnd, fitem, morefiles);
 		if (ret == 0)
 			break;
 		if (ret <= idx) {
 			if (fitem[ret - 1].type == 2) {
-				_tcscpy (workprefs.df[drive], fitem[ret - 1].value);
+				_tcscpy (workprefs.df[dstdrive], fitem[ret - 1].value);
+				disk_insert (dstdrive, workprefs.df[dstdrive]);
 				ret = 0;
 			}
 			break;
 		}
-		if (ret == 1000) {
+		if (ret >= 990 && ret <= 993) {
+			srcdrive = ret - 990;
+		} else if (ret == 999) {
+			morefiles = 1;
+		} else if (ret == 1000) {
 			if (!addfavoritepath (hwnd, idx, fitem)) {
 				ret = 0;
 				break;
@@ -1597,7 +1700,7 @@ static void gui_to_prefs (void)
 
 static int iscd (int n)
 {
-	if (quickstart_cd && n == 1)
+	if (quickstart_cd && n == 1 && currentpage == QUICKSTART_ID)
 		return 1;
 	return 0;
 }
@@ -4575,8 +4678,12 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		break;
 
 	case WM_CONTEXTMENU:
+		if (recursive > 0)
+			break;
+		recursive++;
 		diskselectmenu (hDlg, wParam);
 		setfloppytexts (hDlg, true);
+		recursive--;
 		break;
 
 	case WM_COMMAND:
@@ -8824,7 +8931,7 @@ static void addfloppyhistory_2 (HWND hDlg, int n, int f_text)
 	int i, j;
 	TCHAR *s, *text;
 	UAEREG *fkey;
-	int nn, type;
+	int nn, type, curidx;
 
 	if (f_text < 0)
 		return;
@@ -8838,10 +8945,11 @@ static void addfloppyhistory_2 (HWND hDlg, int n, int f_text)
 		type = HISTORY_FLOPPY;
 		text = workprefs.df[n];
 	}
+	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
 	fkey = read_disk_history (type);
 	if (fkey == NULL)
 		return;
-	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
+	curidx = -1;
 	i = 0;
 	while (s = DISK_history_get (i, type)) {
 		TCHAR tmpname[MAX_DPATH], tmppath[MAX_DPATH], *p, *p2;
@@ -8871,13 +8979,13 @@ static void addfloppyhistory_2 (HWND hDlg, int n, int f_text)
 		}
 		if (f_text >= 0)
 			SendDlgItemMessage (hDlg, f_text, CB_ADDSTRING, 0, (LPARAM)tmpname);
-		if (!_tcscmp (text, s)) {
-			if (f_text >= 0)
-				SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, i - 1, 0);
-		}
+		if (!_tcscmp (text, s))
+			curidx = i - 1;
 		if (nn <= 0)
 			break;
 	}
+	if (f_text >= 0 && curidx >= 0)
+		SendDlgItemMessage (hDlg, f_text, CB_SETCURSEL, curidx, 0);
 	regclosetree (fkey);
 }
 
@@ -9151,7 +9259,7 @@ static int diskselectmenu (HWND hDlg, WPARAM wParam)
 		break;
 	}
 	if (num >= 0) {
-		TCHAR *s = favoritepopup (hDlg, num);
+		TCHAR *s = favoritepopup (hDlg, iscd (num) ? -1 : num);
 		if (s) {
 			int num = id == IDC_DF0QQ ? 0 : 1;
 			TCHAR tmp[MAX_DPATH];
@@ -10614,9 +10722,8 @@ static void input_copy (HWND hDlg)
 	TCHAR buf[2000];
 	inputdevice_acquire (1);
 	for (;;) {
-		focus = 1;
-		inputdevice_testread (buf);
-		focus = 0;
+		if (inputdevice_testread (buf))
+			break;
 		Sleep (100);
 	}
 	inputdevice_unacquire ();

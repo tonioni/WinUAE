@@ -2301,20 +2301,30 @@ static void init_drawing_frame (void)
 	if (FRAMES_UNTIL_RES_SWITCH > 0 && frame_res_old == frame_res * 2 + frame_res_lace) {
 		frame_res_cnt--;
 		if (frame_res_cnt == 0) {
+			int ar = currprefs.gfx_autoresolution;
 			int m = frame_res * 2 + frame_res_lace;
 			struct wh *dst = currprefs.gfx_afullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
 			while (m < 4) {
 				struct wh *src = currprefs.gfx_afullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
-				if ((src->width > 0 && src->height > 0) || (currprefs.gfx_autoresolution && currprefs.gfx_filter > 0)) {
-					changed_prefs.gfx_resolution = (m & 2) == 0 ? 0 : 1;
-					changed_prefs.gfx_linedbl = (m & 1) == 0 ? 0 : 1;
-					if (currprefs.gfx_autoresolution) {
-						changed_prefs.gfx_filter_horiz_zoom_mult = 1000 >> changed_prefs.gfx_resolution;
-						changed_prefs.gfx_filter_vert_zoom_mult = (changed_prefs.gfx_linedbl + 1) * 500;
-					} else {
-						*dst = *src;
+				if ((src->width > 0 && src->height > 0) || (ar && currprefs.gfx_filter > 0)) {
+					int nr = (m & 2) == 0 ? 0 : 1;
+					int nl = (m & 1) == 0 ? 0 : 1;
+					if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_linedbl != nl) {
+						changed_prefs.gfx_resolution = nr;
+						changed_prefs.gfx_linedbl = nl;
+						write_log (L"RES -> %d LINE -> %d\n", nr, nl);
+						config_changed = 1;
+						if (ar) {
+							changed_prefs.gfx_filter_horiz_zoom_mult = (nr + 1) * 500;
+							changed_prefs.gfx_filter_vert_zoom_mult = (nl + 1) * 500;
+						}
 					}
-					config_changed = 1;
+					if (src->width > 0 && src->height > 0) {
+						if (memcmp (dst, src, sizeof *dst)) {
+							*dst = *src;
+							config_changed = 1;
+						}
+					}
 					break;
 				}
 				m++;
@@ -2907,7 +2917,14 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 		count_frame ();
 		check_picasso ();
 
-		if (check_prefs_changed_gfx ()) {
+		int changed = check_prefs_changed_gfx ();
+		if (changed > 0) {
+			reset_drawing ();
+			init_row_map ();
+			init_aspect_maps ();
+			notice_screen_contents_lost ();
+			notice_new_xcolors ();
+		} else if (changed < 0) {
 			reset_drawing ();
 			init_row_map ();
 			init_aspect_maps ();
@@ -2921,6 +2938,8 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 
 		if (framecnt == 0)
 			init_drawing_frame ();
+		else if (currprefs.cpu_cycle_exact)
+			init_hardware_for_drawing_frame ();
 	} else {
 		if (currprefs.gfx_afullscreen && currprefs.gfx_avsync)
 			flush_screen (0, 0); /* vsync mode */

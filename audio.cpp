@@ -1374,7 +1374,6 @@ void set_audio (void)
 	int sep, delay;
 	int ch;
 
-
 	ch = sound_prefs_changed ();
 	if (ch >= 0)
 		close_sound ();
