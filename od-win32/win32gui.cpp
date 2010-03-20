@@ -6882,6 +6882,7 @@ static void values_to_miscdlg (HWND hDlg)
 
 	if (currentpage == MISC1_ID) {
 
+		CheckDlgButton (hDlg, IDC_FOCUSMINIMIZE, workprefs.win32_minimize_inactive);
 		CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
 		CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
 		CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
@@ -7088,6 +7089,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_JULIAN:
 			workprefs.win32_middle_mouse = IsDlgButtonChecked(hDlg, IDC_JULIAN);
+			break;
+		case IDC_FOCUSMINIMIZE:
+			workprefs.win32_minimize_inactive = IsDlgButtonChecked (hDlg, IDC_FOCUSMINIMIZE);
 			break;
 		case IDC_SHOWLEDS:
 			workprefs.leds_on_screen &= ~STATUSLINE_CHIPSET;

@@ -658,7 +658,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	inputdevice_acquire (FALSE);
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);
-	if (isfullscreen() > 0 && !gui_active)
+	if (isfullscreen() != 0 && !gui_active)
 		setmouseactive (1);
 #ifdef LOGITECHLCD
 	if (!minimized)
@@ -815,6 +815,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		dx_check ();
 		break;
 	case WM_ACTIVATEAPP:
+		if (!wParam && isfullscreen () <= 0 && currprefs.win32_minimize_inactive)
+			minimizewindow ();
+
 #ifdef RETROPLATFORM
 		rp_activate (wParam, lParam);
 #endif
@@ -860,6 +863,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			if (isfullscreen () > 0)
 				minimizewindow ();
 #endif
+			if (isfullscreen () < 0 && currprefs.win32_minimize_inactive)
+				minimizewindow ();
 			if (mouseactive)
 				setmouseactive (0);
 		} else {
@@ -2233,7 +2238,7 @@ static void __cdecl wparse_cmdline (
 		}
 #endif  /* _MBCS */
 
-	} while ( (c != NULCHAR && (inquote || (c !=SPACECHAR && c != TABCHAR))) );
+	} while ( (c != NULCHAR && (inquote || (c != SPACECHAR && c != TABCHAR))) );
 
 	if ( c == NULCHAR ) {
 		p--;
@@ -2361,9 +2366,15 @@ static TCHAR **parseargstring (TCHAR *s)
 	numa++;
 	p = (TCHAR**)xcalloc (uae_u8, numa * sizeof (TCHAR*) + numc * sizeof (TCHAR));
 	wparse_cmdline (s, (wchar_t **)p, (wchar_t *)(((char *)p) + numa * sizeof(wchar_t *)), &numa, &numc);
-	if (numa > MAX_ARGUMENTS)
+	if (numa > MAX_ARGUMENTS) {
 		p[MAX_ARGUMENTS] = NULL;
-	return p;
+		numa = MAX_ARGUMENTS;
+	}
+	TCHAR **dstp = xcalloc (TCHAR*, MAX_ARGUMENTS + 1);
+	for (int i = 0; p[i]; i++)
+		dstp[i] = my_strdup (p[i]);
+	xfree (p);
+	return dstp;
 }
 
 
@@ -2428,6 +2439,8 @@ static void shellexecute (TCHAR *command)
 		xfree (exec);
 		xfree (cmd);
 	}
+	for (i = 0; arg && arg[i]; i++)
+		xfree (arg[i]);
 	xfree (arg);
 }
 
@@ -2459,6 +2472,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_ctrl_F11_is_quit = 0;
 		p->win32_soundcard = 0;
 		p->win32_soundexclusive = 0;
+		p->win32_minimize_inactive = 0;
 		p->win32_active_priority = 1;
 		p->win32_inactive_priority = 2;
 		p->win32_iconified_priority = 3;
@@ -2520,6 +2534,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite (f, L"iconified_priority", L"%d", priorities[p->win32_iconified_priority].value);
 	cfgfile_target_dwrite_bool (f, L"iconified_nosound", p->win32_iconified_nosound);
 	cfgfile_target_dwrite_bool (f, L"iconified_pause", p->win32_iconified_pause);
+	cfgfile_target_dwrite_bool (f, L"inactive_iconify", p->win32_minimize_inactive);
 
 	cfgfile_target_dwrite_bool (f, L"ctrl_f11_is_quit", p->win32_ctrl_F11_is_quit);
 	cfgfile_target_dwrite (f, L"midiout_device", L"%d", p->win32_midioutdev);
@@ -2703,6 +2718,9 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		p->win32_iconified_priority = fetchpri (v, 2);
 		return 1;
 	}
+	
+	if (cfgfile_yesno (option, value, L"inactive_iconify", &p->win32_minimize_inactive))
+		return 1;
 
 	if (cfgfile_string (option, value, L"serial_port", &p->sername[0], 256)) {
 		sernametodev(p->sername);
@@ -4337,6 +4355,9 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			xfree (argv2[i]);
 		xfree (argv2);
 	}
+	for (i = 0; argv3 && argv3[i]; i++)
+		xfree (argv3[i]);
+	xfree (argv3);
 	return FALSE;
 }
 

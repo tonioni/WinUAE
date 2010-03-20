@@ -584,7 +584,7 @@ void S2X_render (void)
 	bufmem_ptr = sptr;
 
 	if (d3d) {
-		surfstart = D3D_locktexture (&pitch);
+		surfstart = D3D_locktexture (&pitch, true);
 		if (surfstart == NULL)
 			return;
 	} else {

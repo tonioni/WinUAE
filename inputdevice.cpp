@@ -2251,7 +2251,7 @@ void inputdevice_handle_inputcode (void)
 		toggle_inhibit_frame (IHF_SCROLLLOCK);
 		break;
 	case AKS_STATEREWIND:
-		savestate_dorewind(1);
+		savestate_dorewind (1);
 		break;
 	case AKS_VOLDOWN:
 		sound_volume (-1);

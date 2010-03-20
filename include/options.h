@@ -327,6 +327,7 @@ struct uae_prefs {
     int win32_notaskbarbutton;
     int win32_alwaysontop;
     int win32_powersavedisabled;
+	int win32_minimize_inactive;
 
     int win32_active_priority;
     int win32_inactive_priority;

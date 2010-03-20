@@ -3741,12 +3741,14 @@ static void copyallinvert (uae_u8 *src, uae_u8 *dst)
 			src += picasso96_state.BytesPerRow;
 		}
 	} else {
+		uae_u8 *src2 = src;
 		for (y = 0; y < picasso96_state.Height; y++) {
 			for (x = 0; x < w; x++)
-				src[x] ^= 0xff;
+				src2[x] ^= 0xff;
 			copyrow (src, dst, 0, y, picasso96_state.Width);
 			for (x = 0; x < w; x++)
-				src[x] ^= 0xff;
+				src2[x] ^= 0xff;
+			src2 += picasso96_state.BytesPerRow;
 		}
 	}
 }
@@ -3821,7 +3823,7 @@ static int flushpixels (void)
 
 		dofull = gwwcnt >= ((src_end - src_start) / gwwpagesize) * 80 / 100;
 
-		dst = gfx_lock_picasso ();
+		dst = gfx_lock_picasso (dofull);
 		if (dst == NULL)
 			break;
 		lock = 1;
@@ -3880,7 +3882,7 @@ static int flushpixels (void)
 
 	if (!currprefs.gfx_api && (currprefs.leds_on_screen & STATUSLINE_RTG)) {
 		if (dst == NULL) {
-			dst = gfx_lock_picasso ();
+			dst = gfx_lock_picasso (false);
 			lock = 1;
 		}
 		if (dst) {

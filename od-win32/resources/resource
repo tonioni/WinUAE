@@ -376,6 +376,8 @@
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
+#define IDC_JULIAN2                     1041
+#define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044
 #define IDC_CHIPRAM                     1045
@@ -1009,7 +1011,6 @@
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_DF1WPTEXTQ                  1794
-#define IDC_INPUTENABLEGAMEPORTS        1796
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

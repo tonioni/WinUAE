@@ -789,6 +789,8 @@ static void flushit (int lineno)
 {
 	if (!currprefs.gfx_api)
 		return;
+	if (currentmode->flags & DM_SWSCALE)
+		return;
 	if (flushymin > lineno) {
 		if (flushymin - lineno > FLUSH_DIFF && flushymax != 0) {
 			D3D_flushtexture (flushymin, flushymax);
@@ -851,7 +853,7 @@ static uae_u8 *ddraw_dolock (void)
 	return gfxvidinfo.bufmem;
 }
 
-int lockscr (void)
+int lockscr (int fullupdate)
 {
 	int ret = 0;
 	if (!isscreen ())
@@ -861,11 +863,11 @@ int lockscr (void)
 	ret = 1;
 	if (currentmode->flags & DM_D3D) {
 #ifdef D3D
-		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL) {
+		if (currentmode->flags & DM_SWSCALE) {
 			ret = 1;
 		} else {
 			ret = 0;
-			gfxvidinfo.bufmem = D3D_locktexture (&gfxvidinfo.rowbytes);
+			gfxvidinfo.bufmem = D3D_locktexture (&gfxvidinfo.rowbytes, fullupdate);
 			if (gfxvidinfo.bufmem) {
 				init_row_map ();
 				ret = 1;
@@ -883,12 +885,11 @@ int lockscr (void)
 void unlockscr (void)
 {
 	if (currentmode->flags & DM_D3D) {
-		if ((currentmode->flags & DM_SWSCALE) && usedfilter->type != UAE_FILTER_NULL)
+		if (currentmode->flags & DM_SWSCALE)
 			S2X_render ();
-#ifdef D3D
-		D3D_flushtexture (flushymin, flushymax);
+		else
+			D3D_flushtexture (flushymin, flushymax);
 		D3D_unlocktexture ();
-#endif
 	} else if (currentmode->flags & DM_SWSCALE) {
 		return;
 	} else if (currentmode->flags & DM_DDRAW) {
@@ -898,7 +899,7 @@ void unlockscr (void)
 
 void flush_clear_screen (void)
 {
-	if (lockscr ()) {
+	if (lockscr (true)) {
 		int y;
 		for (y = 0; y < gfxvidinfo.height; y++) {
 			memset (gfxvidinfo.bufmem + y * gfxvidinfo.rowbytes, 0, gfxvidinfo.width * gfxvidinfo.pixbytes);
@@ -1012,11 +1013,11 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	picasso_offset_my = picasso96_state.Height * 1000 / (dr->bottom - dr->top);
 }
 
-uae_u8 *gfx_lock_picasso (void)
+uae_u8 *gfx_lock_picasso (int fullupdate)
 {
 	if (currprefs.gfx_api) {
 		int pitch;
-		uae_u8 *p = D3D_locktexture (&pitch);
+		uae_u8 *p = D3D_locktexture (&pitch, fullupdate);
 		picasso_vidinfo.rowbytes = pitch;
 		return p;
 	} else {
@@ -1150,6 +1151,8 @@ static void update_gfxparams (void)
 		: currprefs.color_mode == 2 ? 16 : 32;
 	if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
 		int pbits = picasso96_state.BytesPerPixel * 8;
+		if (pbits <= 8)
+			pbits = 16;
 		if (pbits == 24)
 			pbits = 32;
 		currentmode->current_depth = pbits;
@@ -1435,6 +1438,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds[0] != changed_prefs.keyboard_leds[0] ||
 		currprefs.keyboard_leds[1] != changed_prefs.keyboard_leds[1] ||
 		currprefs.keyboard_leds[2] != changed_prefs.keyboard_leds[2] ||
+		currprefs.win32_minimize_inactive != changed_prefs.win32_minimize_inactive ||
 		currprefs.win32_middle_mouse != changed_prefs.win32_middle_mouse ||
 		currprefs.win32_active_priority != changed_prefs.win32_active_priority ||
 		currprefs.win32_inactive_priority != changed_prefs.win32_inactive_priority ||
@@ -1445,6 +1449,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_pause != changed_prefs.win32_iconified_pause ||
 		currprefs.win32_ctrl_F11_is_quit != changed_prefs.win32_ctrl_F11_is_quit)
 	{
+		currprefs.win32_minimize_inactive = changed_prefs.win32_minimize_inactive;
 		currprefs.leds_on_screen = changed_prefs.leds_on_screen;
 		currprefs.keyboard_leds[0] = changed_prefs.keyboard_leds[0];
 		currprefs.keyboard_leds[1] = changed_prefs.keyboard_leds[1];
@@ -1756,7 +1761,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 	if (isfullscreen () > 0) {
 		/* fullscreen to fullscreen */
 		if (screen_is_picasso) {
-			if (picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
+			if (picasso96_state.BytesPerPixel > 1 && picasso96_state.BytesPerPixel * 8 != wc->current_depth && currprefs.win32_rtgmatchdepth)
 				return -1;
 			if (picasso96_state.Width < wc->current_width && picasso96_state.Height < wc->current_height) {
 				if (currprefs.win32_rtgscaleifsmall && !currprefs.win32_rtgmatchdepth)
@@ -1767,9 +1772,9 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 				return 1;
 			if (picasso96_state.Width == wc->current_width &&
 				picasso96_state.Height == wc->current_height) {
-					if (picasso96_state.BytesPerPixel * 8 == wc->current_depth)
+					if (picasso96_state.BytesPerPixel * 8 == wc->current_depth || picasso96_state.BytesPerPixel == 1)
 						return 0;
-					if (!currprefs.win32_rtgmatchdepth && wc->current_depth >= 16)
+					if (!currprefs.win32_rtgmatchdepth)
 						return 0;
 			}
 			return 1;
@@ -2447,7 +2452,6 @@ static BOOL doInit (void)
 			gfxvidinfo.pixbytes = currentmode->current_depth >> 3;
 			gfxvidinfo.bufmem = 0;
 			gfxvidinfo.linemem = 0;
-			gfxvidinfo.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 			gfxvidinfo.width = (currentmode->amiga_width + 7) & ~7;
 			gfxvidinfo.height = currentmode->amiga_height;
 			gfxvidinfo.maxblocklines = 0; // flush_screen actually does everything
@@ -2468,6 +2472,7 @@ static BOOL doInit (void)
 	picasso_vidinfo.depth = currentmode->current_depth;
 	picasso_vidinfo.offset = 0;
 #endif
+	gfxvidinfo.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
 	xfree (gfxvidinfo.realbufmem);
 	gfxvidinfo.realbufmem = NULL;

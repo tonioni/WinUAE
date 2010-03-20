@@ -574,7 +574,7 @@ extern void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 d, RGBFTYPE 
 extern void gfx_set_picasso_colors (RGBFTYPE rgbfmt);
 extern void gfx_set_picasso_baseaddr (uaecptr);
 extern void gfx_set_picasso_state (int on);
-extern uae_u8 *gfx_lock_picasso (void);
+extern uae_u8 *gfx_lock_picasso (int);
 extern void gfx_unlock_picasso (void);
 extern void picasso_clip_mouse (int *, int *);
 extern int createwindowscursor (uaecptr src, int w, int h, int hiressprite, int doubledsprite, int chipset);

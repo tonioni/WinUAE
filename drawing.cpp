@@ -2740,7 +2740,7 @@ void finish_drawing_frame (void)
 {
 	int i;
 
-	if (! lockscr ()) {
+	if (! lockscr (false)) {
 		notice_screen_contents_lost ();
 		return;
 	}

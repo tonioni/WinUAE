@@ -112,7 +112,7 @@ typedef struct {
 	uae_u16 len;
 	uae_u32 offs;
 	int bitlen, track;
-	unsigned int sync;
+	uae_u16 sync;
 	image_tracktype type;
 	int revolutions;
 } trackid;
@@ -871,7 +871,7 @@ static int diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, driv
 
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname)
 {
-	uae_char buffer[2 + 2 + 4 + 4];
+	uae_u8 buffer[2 + 2 + 4 + 4];
 	trackid *tid;
 	int num_tracks, size;
 	int canauto;
@@ -918,7 +918,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	_tcscpy (drv->newname, fname);
 	gui_filename (dnum, fname);
 
-	memset (buffer, 0, sizeof (buffer));
+	memset (buffer, 0, sizeof buffer);
 	size = 0;
 	if (drv->diskfile) {
 		zfile_fread (buffer, sizeof (char), 8, drv->diskfile);
@@ -935,7 +935,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		drv->ddhd = 1;
 
 #ifdef CAPS
-	} else if (strncmp (buffer, "CAPS", 4) == 0) {
+	} else if (strncmp ((char*)buffer, "CAPS", 4) == 0) {
 
 		drv->wrprot = 1;
 		if (!caps_loadimage (drv->diskfile, drv - floppy, &num_tracks)) {
@@ -954,7 +954,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		drv->num_secs = fdi2raw_get_num_sector (drv->fdi);
 		drv->filetype = ADF_FDI;
 #endif
-	} else if (strncmp (buffer, "UAE-1ADF", 8) == 0) {
+	} else if (strncmp ((char*)buffer, "UAE-1ADF", 8) == 0) {
 
 		read_header_ext2 (drv->diskfile, drv->trackdata, &drv->num_tracks, &drv->ddhd);
 		drv->filetype = ADF_EXT2;
@@ -962,7 +962,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		if (drv->ddhd > 1)
 			drv->num_secs = 22;
 
-	} else if (strncmp (buffer, "UAE--ADF", 8) == 0) {
+	} else if (strncmp ((char*)buffer, "UAE--ADF", 8) == 0) {
 		int offs = 160 * 4 + 8;
 		int i;
 

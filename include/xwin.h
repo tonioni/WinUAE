@@ -35,7 +35,7 @@ extern void flush_block (int, int);
 extern void flush_screen (int, int);
 extern void flush_clear_screen (void);
 
-extern int lockscr (void);
+extern int lockscr (int);
 extern void unlockscr (void);
 
 extern int debuggable (void);

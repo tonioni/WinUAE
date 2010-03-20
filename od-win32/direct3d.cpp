@@ -45,7 +45,7 @@ static IDirect3DVertexBuffer9 *vertexBuffer;
 static ID3DXSprite *sprite;
 static HWND d3dhwnd;
 static int devicelost;
-static int locked;
+static int locked, fulllocked;
 static int cursor_offset_x, cursor_offset_y;
 static float maskmult_x, maskmult_y;
 
@@ -804,13 +804,14 @@ static void updateleds (void)
 		}
 		done = 1;
 	}
-	hr = ledtexture->LockRect (0, &locked, NULL, 0);
+	hr = ledtexture->LockRect (0, &locked, NULL, D3DLOCK_DISCARD);
 	if (FAILED (hr)) {
 		write_log (L"%d: SL LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
 	for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 		uae_u8 *buf = (uae_u8*)locked.pBits + y * locked.Pitch;
+		memset (buf, 0, ledwidth * 4);
 		draw_status_line_single (buf, 32 / 8, y, ledwidth, rc, gc, bc, a);
 	}
 	ledtexture->UnlockRect (0);
@@ -1834,10 +1835,13 @@ void D3D_unlocktexture (void)
 	if (locked)
 		hr = texture->UnlockRect (0);
 	locked = 0;
+	fulllocked = 0;
 }
 
 void D3D_flushtexture (int miny, int maxy)
 {
+	if (fulllocked)
+		return;
 	if (miny >= 0 && maxy >= 0) {
 		RECT r;
 		maxy++;
@@ -1854,7 +1858,7 @@ void D3D_flushtexture (int miny, int maxy)
 	}
 }
 
-uae_u8 *D3D_locktexture (int *pitch)
+uae_u8 *D3D_locktexture (int *pitch, int fullupdate)
 {
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
@@ -1866,7 +1870,7 @@ uae_u8 *D3D_locktexture (int *pitch)
 
 	lock.pBits = NULL;
 	lock.Pitch = 0;
-	hr = texture->LockRect (0, &lock, NULL, D3DLOCK_NO_DIRTY_UPDATE);
+	hr = texture->LockRect (0, &lock, NULL, fullupdate ? D3DLOCK_DISCARD : D3DLOCK_NO_DIRTY_UPDATE);
 	if (FAILED (hr)) {
 		write_log (L"%s: LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return NULL;
@@ -1877,6 +1881,7 @@ uae_u8 *D3D_locktexture (int *pitch)
 		return NULL;
 	}
 	locked = 1;
+	fulllocked = fullupdate;
 	*pitch = lock.Pitch;
 	return (uae_u8*)lock.pBits;
 }
