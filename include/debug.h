@@ -64,6 +64,8 @@ extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
+void debug_wgetpeekdma (uaecptr addr, uae_u32 v);
+void debug_wputpeekdma (uaecptr addr, uae_u32 v);
 void debug_lgetpeek (uaecptr addr, uae_u32 v);
 void debug_wgetpeek (uaecptr addr, uae_u32 v);
 void debug_bgetpeek (uaecptr addr, uae_u32 v);

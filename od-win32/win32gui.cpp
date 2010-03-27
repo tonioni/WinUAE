@@ -9779,6 +9779,7 @@ static void enable_for_gameportsdlg (HWND hDlg)
 static void enable_for_portsdlg (HWND hDlg)
 {
 	int v;
+	int isprinter, issampler;
 
 	v = workprefs.input_selected_setting > 0 ? FALSE : TRUE;
 	ew (hDlg, IDC_SWAP, v);
@@ -9797,18 +9798,26 @@ static void enable_for_portsdlg (HWND hDlg)
 	ew (hDlg, IDC_SER_DIRECT, v);
 	ew (hDlg, IDC_UAESERIAL, full_property_sheet);
 #endif
+	isprinter = true;
+	issampler = true;
 #if !defined (PARALLEL_PORT)
-	ew (hDlg, IDC_PRINTERLIST, FALSE);
-	ew (hDlg, IDC_FLUSHPRINTER, FALSE);
-	ew (hDlg, IDC_PSPRINTER, FALSE);
-	ew (hDlg, IDC_PS_PARAMS, FALSE);
-	ew (hDlg, IDC_PRINTER_AUTOFLUSH, FALSE);
-#else
-	ew (hDlg, IDC_FLUSHPRINTER, isprinteropen () ? TRUE : FALSE);
-	ew (hDlg, IDC_PSPRINTER, full_property_sheet && ghostscript_available ? TRUE : FALSE);
-	ew (hDlg, IDC_PSPRINTERDETECT, full_property_sheet ? TRUE : FALSE);
-	ew (hDlg, IDC_PS_PARAMS, full_property_sheet && ghostscript_available);
+	isprinter = false;
+	issampler = false;
 #endif
+	if (workprefs.prtname[0]) {
+		issampler = false;
+		workprefs.win32_samplersoundcard = -1;
+	} else if (workprefs.win32_samplersoundcard >= 0) {
+		isprinter = false;
+	}
+	ew (hDlg, IDC_PRINTERLIST, isprinter);
+	ew (hDlg, IDC_SAMPLERLIST, issampler);
+	ew (hDlg, IDC_PRINTERAUTOFLUSH, isprinter);
+	ew (hDlg, IDC_PRINTERTYPELIST, isprinter);
+	ew (hDlg, IDC_FLUSHPRINTER, isprinteropen () && isprinter ? TRUE : FALSE);
+	ew (hDlg, IDC_PSPRINTER, full_property_sheet && ghostscript_available && isprinter ? TRUE : FALSE);
+	ew (hDlg, IDC_PSPRINTERDETECT, full_property_sheet && isprinter ? TRUE : FALSE);
+	ew (hDlg, IDC_PS_PARAMS, full_property_sheet && ghostscript_available && isprinter);
 }
 
 static int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
@@ -9970,11 +9979,19 @@ static void values_from_portsdlg (HWND hDlg)
 	BOOL success;
 	LRESULT item;
 
+	item = SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_GETCURSEL, 0, 0L);
+	if(item != CB_ERR) {
+		workprefs.win32_samplersoundcard = item - 1;
+		if (item > 0)
+			workprefs.prtname[0] = 0;
+	}
+
 	item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
 	if(item != CB_ERR) {
 		int got = 0;
 		_tcscpy (tmp, workprefs.prtname);
 		if (item > 0) {
+			workprefs.win32_samplersoundcard = -1;
 			item--;
 			if (item < dwEnumeratedPrinters) {
 				_tcscpy (workprefs.prtname, pInfo[item].pName);
@@ -10045,9 +10062,12 @@ static void values_from_portsdlg (HWND hDlg)
 
 static void values_to_portsdlg (HWND hDlg)
 {
-	LRESULT result = 0;
+	LRESULT result;
 	int idx;
 
+	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_SETCURSEL, workprefs.win32_samplersoundcard + 1, 0);
+
+	result = 0;
 	if(workprefs.prtname[0]) {
 		int i, got = 1;
 		TCHAR tmp[10];
@@ -10173,6 +10193,19 @@ static void init_portsdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 	WIN32GUI_LoadUIString (IDS_PRINTER_POSTSCRIPT_EMULATION, tmp, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+
+	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_RESETCONTENT, 0, 0L);
+	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+	enumerate_sound_devices ();
+	for (int card = 0; record_devices[card].type; card++) {
+		int type = record_devices[card].type;
+		TCHAR tmp[MAX_DPATH];
+		_stprintf (tmp, L"%s: %s",
+			type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
+			record_devices[card].name);
+		if (type == SOUND_DEVICE_DS)
+			SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
 
 	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
@@ -10380,6 +10413,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			if (HIWORD (wParam) == CBN_SELCHANGE) {
 				switch (LOWORD (wParam))
 				{
+				case IDC_SAMPLERLIST:
 				case IDC_PRINTERLIST:
 				case IDC_SERIAL:
 				case IDC_MIDIOUTLIST:
@@ -10388,6 +10422,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 					values_from_portsdlg (hDlg);
 					inputdevice_updateconfig (&workprefs);
 					inputdevice_config_change ();
+					enable_for_portsdlg (hDlg);
 					break;
 				case IDC_PRINTERTYPELIST:
 					{
@@ -12038,7 +12073,7 @@ static int ignorewindows[] = {
 	-1,
 	IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP,
 	-1,
-	IDD_IOPORTS, IDC_PRINTERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
+	IDD_IOPORTS, IDC_PRINTERLIST, IDC_SAMPLERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
 	-1,
 	IDD_SOUND, IDC_SOUNDCARDLIST, IDC_SOUNDDRIVESELECT,
 	-1,

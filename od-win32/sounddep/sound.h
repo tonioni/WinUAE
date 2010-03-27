@@ -1,10 +1,10 @@
 /*
-  * UAE - The Un*x Amiga Emulator
-  *
-  * Support for Linux/USS sound
-  *
-  * Copyright 1997 Bernd Schmidt
-  */
+* UAE - The Un*x Amiga Emulator
+*
+* Support for Linux/USS sound
+*
+* Copyright 1997 Bernd Schmidt
+*/
 
 #define SOUNDSTUFF 1
 
@@ -32,16 +32,16 @@ struct sound_dp;
 
 struct sound_data
 {
-    int waiting_for_buffer;
-    int devicetype;
-    int obtainedfreq;
-    int paused;
-    int mute;
-    int channels;
-    int freq;
-    int samplesize;
-    int sndbufsize;
-    struct sound_dp *data;
+	int waiting_for_buffer;
+	int devicetype;
+	int obtainedfreq;
+	int paused;
+	int mute;
+	int channels;
+	int freq;
+	int samplesize;
+	int sndbufsize;
+	struct sound_dp *data;
 };
 
 
@@ -63,65 +63,65 @@ static uae_u16 *paula_sndbufpt_prev, *paula_sndbufpt_start;
 STATIC_INLINE void set_sound_buffers (void)
 {
 #if SOUNDSTUFF > 1
-    paula_sndbufpt_prev = paula_sndbufpt_start;
-    paula_sndbufpt_start = paula_sndbufpt;
+	paula_sndbufpt_prev = paula_sndbufpt_start;
+	paula_sndbufpt_start = paula_sndbufpt;
 #endif
 }
 
 STATIC_INLINE void check_sound_buffers (void)
 {
 #if SOUNDSTUFF > 1
-    int len;
+	int len;
 #endif
 
-    if (currprefs.sound_stereo == SND_4CH_CLONEDSTEREO) {
-	((uae_u16*)paula_sndbufpt)[0] = ((uae_u16*)paula_sndbufpt)[-2];
-	((uae_u16*)paula_sndbufpt)[1] = ((uae_u16*)paula_sndbufpt)[-1];
-	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2 * 2);
-    } else if (currprefs.sound_stereo == SND_6CH_CLONEDSTEREO) {
-	uae_s16 *p = ((uae_s16*)paula_sndbufpt);
-	uae_s32 sum;
-	p[2] = p[-2];
-	p[3] = p[-1];
-	sum = (uae_s32)(p[-2]) + (uae_s32)(p[-1]) + (uae_s32)(p[2]) + (uae_s32)(p[3]);
-	p[0] = sum / 8;
-	p[1] = sum / 8;
-	paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
-    }
-#if SOUNDSTUFF > 1
-    if (outputsample == 0)
-	return;
-    len = paula_sndbufpt - paula_sndbufpt_start;
-    if (outputsample < 0) {
-	int i;
-        uae_s16 *p1 = (uae_s16*)paula_sndbufpt_prev;
-        uae_s16 *p2 = (uae_s16*)paula_sndbufpt_start;
-	for (i = 0; i < len; i++) {
-	    *p1 = (*p1 + *p2) / 2;
+	if (currprefs.sound_stereo == SND_4CH_CLONEDSTEREO) {
+		((uae_u16*)paula_sndbufpt)[0] = ((uae_u16*)paula_sndbufpt)[-2];
+		((uae_u16*)paula_sndbufpt)[1] = ((uae_u16*)paula_sndbufpt)[-1];
+		paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2 * 2);
+	} else if (currprefs.sound_stereo == SND_6CH_CLONEDSTEREO) {
+		uae_s16 *p = ((uae_s16*)paula_sndbufpt);
+		uae_s32 sum;
+		p[2] = p[-2];
+		p[3] = p[-1];
+		sum = (uae_s32)(p[-2]) + (uae_s32)(p[-1]) + (uae_s32)(p[2]) + (uae_s32)(p[3]);
+		p[0] = sum / 8;
+		p[1] = sum / 8;
+		paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 4 * 2);
 	}
-	paula_sndbufpt = paula_sndbufpt_start;
-    }
+#if SOUNDSTUFF > 1
+	if (outputsample == 0)
+		return;
+	len = paula_sndbufpt - paula_sndbufpt_start;
+	if (outputsample < 0) {
+		int i;
+		uae_s16 *p1 = (uae_s16*)paula_sndbufpt_prev;
+		uae_s16 *p2 = (uae_s16*)paula_sndbufpt_start;
+		for (i = 0; i < len; i++) {
+			*p1 = (*p1 + *p2) / 2;
+		}
+		paula_sndbufpt = paula_sndbufpt_start;
+	}
 #endif
-    if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
-	finish_sound_buffer ();
-	paula_sndbufpt = paula_sndbuffer;
-    }
-#if SOUNDSTUFF > 1
-    while (doublesample-- > 0) {
-	memcpy (paula_sndbufpt, paula_sndbufpt_start, len * 2);
-	paula_sndbufpt += len;
 	if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
-	    finish_sound_buffer ();
-	    paula_sndbufpt = paula_sndbuffer;
+		finish_sound_buffer ();
+		paula_sndbufpt = paula_sndbuffer;
 	}
-    }
+#if SOUNDSTUFF > 1
+	while (doublesample-- > 0) {
+		memcpy (paula_sndbufpt, paula_sndbufpt_start, len * 2);
+		paula_sndbufpt += len;
+		if ((uae_u8*)paula_sndbufpt - (uae_u8*)paula_sndbuffer >= paula_sndbufsize) {
+			finish_sound_buffer ();
+			paula_sndbufpt = paula_sndbuffer;
+		}
+	}
 #endif
 }
 
 STATIC_INLINE void clear_sound_buffers (void)
 {
-    memset (paula_sndbuffer, 0, paula_sndbufsize);
-    paula_sndbufpt = paula_sndbuffer;
+	memset (paula_sndbuffer, 0, paula_sndbufsize);
+	paula_sndbufpt = paula_sndbuffer;
 }
 
 #define PUT_SOUND_WORD(b) do { *(uae_u16 *)paula_sndbufpt = b; paula_sndbufpt = (uae_u16 *)(((uae_u8 *)paula_sndbufpt) + 2); } while (0)
@@ -148,8 +148,8 @@ STATIC_INLINE void clear_sound_buffers (void)
 #define FILTER_SOUND_TYPE_A1200 1
 
 struct dsaudiomodes {
-    int ch;
-    DWORD ksmode;
+	int ch;
+	DWORD ksmode;
 };
 
 extern int sounddrivermask;

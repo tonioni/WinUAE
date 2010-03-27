@@ -126,7 +126,7 @@ uae_u32 p96rc[256], p96gc[256], p96bc[256];
 static int cursorwidth, cursorheight, cursorok;
 static uae_u8 *cursordata;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
-static int cursorvisible, cursordeactivate;
+static int cursorvisible, cursordeactivate, setupcursor_needed;
 static HCURSOR wincursor;
 static int wincursor_shown;
 static uaecptr boardinfo, ABI_interrupt;
@@ -571,6 +571,34 @@ static void do_fillrect_frame_buffer (struct RenderInfo *ri, int X, int Y,
 	}
 }
 
+static void setupcursor (void)
+{
+	uae_u8 *dptr = NULL;
+	int bpp = 4;
+	DWORD pitch;
+	D3DLOCKED_RECT locked;
+	HRESULT hr;
+
+	setupcursor_needed = 1;
+	if (cursorsurfaced3d && cursordata && cursorwidth && cursorheight) {
+		if (SUCCEEDED (hr = cursorsurfaced3d->LockRect (0, &locked, NULL, 0))) {
+			dptr = (uae_u8*)locked.pBits;
+			pitch = locked.Pitch;
+			for (int y = 0; y < cursorheight; y++) {
+				uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
+				uae_u8 *p2 = dptr + pitch * y;
+				memcpy (p2, p1, cursorwidth * bpp);
+			}
+			cursorsurfaced3d->UnlockRect (0);
+			setupcursor_needed = 0;
+			P96TRACE_SPR((L"cursorsurface3d updated\n"));
+			return;
+		} else {
+			P96TRACE_SPR((L"cursorsurfaced3d LockRect() failed %08x\n", hr));
+		}
+	}
+}
+
 static void disablemouse (void)
 {
 	cursorok = FALSE;
@@ -670,6 +698,8 @@ void picasso_handle_vsync (void)
 		if (!flushed)
 			gfx_unlock_picasso ();
 	}
+	if (setupcursor_needed)
+		setupcursor ();
 }
 
 static int set_panning_called = 0;
@@ -710,27 +740,6 @@ typedef enum {
 	/* DEST = RGBFB_CLUT,8 */
 	RGBFB_CLUT_8
 };
-
-static void setupcursor (void)
-{
-	uae_u8 *dptr = NULL;
-	int bpp = 4;
-	DWORD pitch;
-	D3DLOCKED_RECT locked;
-
-	if (cursorsurfaced3d == NULL)
-		return;
-	if (SUCCEEDED (cursorsurfaced3d->LockRect (0, &locked, NULL, 0))) {
-		dptr = (uae_u8*)locked.pBits;
-		pitch = locked.Pitch;
-		for (int y = 0; y < cursorheight; y++) {
-			uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
-			uae_u8 *p2 = dptr + pitch * y;
-			memcpy (p2, p1, cursorwidth * bpp);
-		}
-		cursorsurfaced3d->UnlockRect (0);
-	}
-}
 
 static uae_u32 setspriteimage (uaecptr bi);
 static void recursor (void)

@@ -508,6 +508,8 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			TCHAR *txt = parsetext (argv[i] + 13);
 			parse_diskswapper (txt);
 			xfree (txt);
+		} else if (_tcsncmp (argv[i], L"-cfgparam=", 10) == 0) {
+			;
 		} else if (_tcscmp (argv[i], L"-cfgparam") == 0) {
 			if (i + 1 < argc)
 				i++;

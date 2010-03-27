@@ -3077,7 +3077,7 @@ static void scanevents (struct uae_prefs *p)
 					ismouse (ei);
 					isdigitalbutton (ei);
 					if (ei > 0)
-						scancodeused[i][keyboards[i].extra[j][k]] = 1;
+						scancodeused[i][keyboards[i].extra[j][k]] = ei;
 				}
 				j++;
 			}

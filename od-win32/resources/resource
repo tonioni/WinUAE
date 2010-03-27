@@ -327,6 +327,7 @@
 #define IDS_PRINTER_EPSON48             359
 #define IDS_SELECTCD                    360
 #define IDS_CD                          361
+#define IDS_PS_FX_10                    363
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -368,6 +369,7 @@
 #define IDC_MBMEM1                      1028
 #define IDC_PORT_TABLET_CURSOR          1028
 #define IDC_SHOWLEDSRTG                 1028
+#define IDC_SAMPLERLIST                 1028
 #define IDC_PORT0_JOYSMODE              1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
@@ -376,7 +378,6 @@
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
 #define IDC_JULIAN                      1040
-#define IDC_JULIAN2                     1041
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044

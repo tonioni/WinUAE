@@ -2085,8 +2085,8 @@ int enumerate_sound_devices (void)
 			wasapi_enum (sound_devices);
 		if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
-			//DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 		}
+		DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
 		if (sounddrivermask & SOUNDDRIVER_OPENAL) {
 			__try {
 				if (isdllversion (L"openal32.dll", 6, 14, 357, 22)) {

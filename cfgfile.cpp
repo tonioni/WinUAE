@@ -155,6 +155,8 @@ static const TCHAR *cscompa[] = {
 	L"-", L"Generic", L"CDTV", L"CD32", L"A500", L"A500+", L"A600",
 	L"A1000", L"A1200", L"A2000", L"A3000", L"A3000T", L"A4000", L"A4000T", 0
 };
+static const TCHAR *qsmodes[] = {
+	L"A500", L"A500+", L"A600", L"A1000", L"A1200", L"A3000", L"A4000", L"", L"CD32", L"CDTV", L"ARCADIA", NULL };
 /* 3-state boolean! */
 static const TCHAR *fullmodes[] = { L"false", L"true", /* "FILE_NOT_FOUND", */ L"fullwindow", 0 };
 /* bleh for compatibility */
@@ -176,7 +178,6 @@ static const TCHAR *dongles[] =
 	L"rugby coach", L"cricket captain", L"leviathan",
 	NULL
 };
-static const TCHAR *parportsampler[] = { L"none", L"mono", L"stereo", NULL };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -625,7 +626,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"parallel_postscript_detection", p->parallel_postscript_detection);
 	cfgfile_write_str (f, L"ghostscript_parameters", p->ghostscript_parameters);
 	cfgfile_write (f, L"parallel_autoflush", L"%d", p->parallel_autoflush_time);
-	cfgfile_dwrite_str (f, L"parallel_sampler", parportsampler[p->parallel_sampler]);
 	cfgfile_dwrite (f, L"uae_hide", L"%d", p->uae_hide);
 	cfgfile_dwrite_bool (f, L"magic_mouse", p->input_magic_mouse);
 	cfgfile_dwrite_str (f, L"magic_mousecursor", magiccursors[p->input_magic_mouse_cursor]);
@@ -1695,7 +1695,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_strval (option, value, L"comp_trustnaddr", &p->comptrustnaddr, compmode, 0)
 		|| cfgfile_strval (option, value, L"collision_level", &p->collision_level, collmode, 0)
 		|| cfgfile_strval (option, value, L"parallel_matrix_emulation", &p->parallel_matrix_emulation, epsonprinter, 0)
-		|| cfgfile_strval (option, value, L"parallel_sampler", &p->parallel_sampler, parportsampler, 0)
 		|| cfgfile_strval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 		return 1;
 
@@ -1834,6 +1833,23 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	if (cfgfile_intval (option, value, L"dongle", &p->dongle, 1)) {
 		if (p->dongle == 0)
 			cfgfile_strval (option, value, L"dongle", &p->dongle, dongles, 0);
+		return 1;
+	}
+
+	if (strcasecmp (option, L"quickstart") == 0) {
+		int model = -1;
+		TCHAR *tmpp = _tcschr (value, ',');
+		if (tmpp) {
+			*tmpp++ = 0;
+			TCHAR *tmpp2 = _tcschr (value, ',');
+			if (tmpp2)
+				*tmpp2 = 0;
+			cfgfile_strval (option, value, option, &model, qsmodes,  0);
+			if (model >= 0) {
+				int config = _tstol (tmpp);
+				built_in_prefs (p, model, config, 0, 0);
+			}
+		}
 		return 1;
 	}
 
@@ -3198,7 +3214,6 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->parallel_postscript_emulation = 0;
 	p->parallel_postscript_detection = 0;
 	p->parallel_autoflush_time = 5;
-	p->parallel_sampler = 0;
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
 

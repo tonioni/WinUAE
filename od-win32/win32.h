@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"18"
-#define WINUAEDATE MAKEBD(2010, 3, 20)
+#define WINUAEBETA L"19"
+#define WINUAEDATE MAKEBD(2010, 3, 27)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -172,11 +172,18 @@ struct sound_device
 extern struct sound_device sound_devices[MAX_SOUND_DEVICES];
 extern struct sound_device record_devices[MAX_SOUND_DEVICES];
 
+struct contextcommand
+{
+	TCHAR *shellcommand;
+	TCHAR *command;
+	int icon;
+};
 struct assext {
     TCHAR *ext;
     TCHAR *cmd;
     TCHAR *desc;
     int icon;
+	struct contextcommand *cc;
     int enabled;
 };
 struct assext exts[];

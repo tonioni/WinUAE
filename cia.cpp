@@ -641,7 +641,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		} else if (arcadia_bios) {
 			tmp = arcadia_parport (0, ciaaprb, ciaadrb);
 #endif
-		} else if (currprefs.parallel_sampler) {
+		} else if (currprefs.win32_samplersoundcard >= 0) {
 
 			tmp = sampler_getsample ();
 

@@ -52,6 +52,7 @@
 #include "a2065.h"
 #include "ncr_scsi.h"
 #include "blkdev.h"
+#include "sampler.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -134,7 +135,7 @@ extern uae_u8* compiled_code;
 
 int vpos;
 static int vpos_count, vpos_count_prev;
-static int lof, lol;
+static int lof_store, lof_current, lol;
 static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0;
@@ -1789,11 +1790,11 @@ static void start_bpl_dma (int hpos, int hstart)
 	if (doflickerfix () && interlace_seen && !scandoubled_line) {
 		int i;
 		for (i = 0; i < 8; i++) {
-			prevbpl[lof][vpos][i] = bplptx[i];
-			if (!lof && (bplcon0 & 4))
-				bplpt[i] = prevbpl[1 - lof][vpos][i];
+			prevbpl[lof_store][vpos][i] = bplptx[i];
+			if (!lof_store && (bplcon0 & 4))
+				bplpt[i] = prevbpl[1 - lof_store][vpos][i];
 			if (!(bplcon0 & 4) || interlace_seen  < 0)
-				prevbpl[1 - lof][vpos][i] = prevbpl[lof][vpos][i] = 0;
+				prevbpl[1 - lof_store][vpos][i] = prevbpl[lof_store][vpos][i] = 0;
 		}
 	}
 
@@ -2678,7 +2679,7 @@ void compute_vsynctime (void)
 		updatedisplayarea ();
 	}
 	if (currprefs.produce_sound > 1)
-		update_sound (fake_vblank_hz, (bplcon0 & 4) ? -1 : lof, islinetoggle ());
+		update_sound (fake_vblank_hz, (bplcon0 & 4) ? -1 : lof_current, islinetoggle ());
 }
 
 
@@ -2976,7 +2977,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 
 	if (hp + HPOS_OFFSET >= maxhpos) {
 		vp++;
-		if (vp >= maxvpos + lof)
+		if (vp >= maxvpos + lof_current)
 			vp = 0;
 	}
 	vp = (vp >> 8) & 7;
@@ -2996,7 +2997,7 @@ STATIC_INLINE uae_u16 VPOSR (void)
 
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		vp &= 1;
-	vp = vp | (lof ? 0x8000 : 0) | csbit;
+	vp = vp | (lof_current ? 0x8000 : 0) | csbit;
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 		vp |= lol ? 0x80 : 0;
 #if 0
@@ -3011,12 +3012,13 @@ STATIC_INLINE uae_u16 VPOSR (void)
 static void VPOSW (uae_u16 v)
 {
 #if 0
-	if (M68K_GETPC < 0xf00000)
+	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (L"VPOSW %04X PC=%08x\n", v, M68K_GETPC);
 #endif
-	if (lof != ((v & 0x8000) ? 1 : 0))
+	if (lof_current != ((v & 0x8000) ? 1 : 0)) {
 		lof_changed = 1;
-	lof = (v & 0x8000) ? 1 : 0;
+		lof_current = (v & 0x8000) ? 1 : 0;
+	}
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 		lol = (v & 0x0080) ? 1 : 0;
 	if (lof_changed)
@@ -3031,7 +3033,7 @@ static void VPOSW (uae_u16 v)
 static void VHPOSW (uae_u16 v)
 {
 #if 0
-	if (M68K_GETPC < 0xf00000)
+	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (L"VHPOSW %04X PC=%08x\n", v, M68K_GETPC);
 #endif
 	v >>= 8; // lets ignore hpos for now
@@ -3048,7 +3050,7 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 	if (hp >= maxhpos) {
 		hp -= maxhpos;
 		vp++;
-		if (vp >= maxvpos + lof)
+		if (vp >= maxvpos + lof_current)
 			vp = 0;
 	}
 	hp += 1;
@@ -4007,7 +4009,7 @@ static void SPRxPTL (int hpos, uae_u16 v, int num)
 	decide_sprites (hpos);
 	if (hpos - 1 != spr[num].ptxhpos) {
 		spr[num].pt &= ~0xffff;
-		spr[num].pt |= v;
+		spr[num].pt |= v & ~1;
 	}
 #if SPRITE_DEBUG > 0
 	if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
@@ -4192,7 +4194,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
 
-	debug_wputpeek (0xdff000 + addr, value);
+	debug_wputpeekdma (0xdff000 + addr, value);
 	copper_access = 1;
 	v = custom_wput_1 (hpos, addr, value, noget);
 	copper_access = 0;
@@ -5033,7 +5035,8 @@ static void vsync_handler (void)
 		write_log (L"vblank interrupt not cleared\n");
 #endif
 	if (bplcon0 & 4)
-		lof ^= 1;
+		lof_current = lof_current ? 0 : 1;
+	lof_store = lof_current;
 
 #ifdef PICASSO96
 	picasso_handle_vsync ();
@@ -5055,7 +5058,7 @@ static void vsync_handler (void)
 	if (debug_dma)
 		record_dma_reset ();
 
-	vsync_handle_redraw (lof, lof_changed);
+	vsync_handle_redraw (lof_store, lof_changed);
 
 	if (p96refresh_active) {
 		vpos_count = p96refresh_active;
@@ -5073,6 +5076,7 @@ static void vsync_handler (void)
 		timehack_alive--;
 	inputdevice_vsync ();
 	filesys_vsync ();
+	sampler_vsync ();
 
 	init_hardware_frame ();
 
@@ -5177,14 +5181,14 @@ static void hsync_scandoubler (void)
 		int diff;
 		bpltmp[i] = bplpt[i];
 		bpltmpx[i] = bplptx[i];
-		if (prevbpl[lof][vpos][i] && prevbpl[1 - lof][vpos][i]) {
-			diff = prevbpl[lof][vpos][i] - prevbpl[1 - lof][vpos][i];
-			if (lof) {
+		if (prevbpl[lof_store][vpos][i] && prevbpl[1 - lof_store][vpos][i]) {
+			diff = prevbpl[lof_store][vpos][i] - prevbpl[1 - lof_store][vpos][i];
+			if (lof_store) {
 				if (bplcon0 & 4)
-					bplpt[i] = prevbpl[lof][vpos][i] - diff;
+					bplpt[i] = prevbpl[lof_store][vpos][i] - diff;
 			} else {
 				if (bplcon0 & 4)
-					bplpt[i] = prevbpl[lof][vpos][i];
+					bplpt[i] = prevbpl[lof_store][vpos][i];
 				else
 					bplpt[i] = bplpt[i] - diff;
 
@@ -5315,7 +5319,7 @@ static void hsync_handler (void)
 	vpos_count++;
 	if (vpos >= maxvpos_total)
 		vpos = 0;
-	if (vpos == maxvpos + lof || vpos == maxvpos + lof + 1 || vpos_count >= MAXVPOS) {
+	if (vpos == maxvpos + lof_current || vpos == maxvpos + lof_current + 1 || vpos_count >= MAXVPOS) {
 		// vpos_count >= MAXVPOS just to not crash if VPOSW writes prevent vsync completely
 		if ((bplcon0 & 8) && !lightpen_triggered) {
 			vpos_lpen = vpos - 1;
@@ -5365,7 +5369,7 @@ static void hsync_handler (void)
 					strobe = 0x38;
 				else if (vpos < minfirstline)
 					strobe = 0x3a;
-				else if (vpos + 1 == maxvpos + lof)
+				else if (vpos + 1 == maxvpos + lof_current)
 					strobe = 0x38;
 				else if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && lol)
 					strobe = 0x3e;
@@ -5398,7 +5402,7 @@ static void hsync_handler (void)
 		}
 	} else {
 #endif
-		is_lastline = vpos + 1 == maxvpos + lof && currprefs.m68k_speed == -1;
+		is_lastline = vpos + 1 == maxvpos + lof_current && currprefs.m68k_speed == -1;
 #ifdef JIT
 	}
 #endif
@@ -5415,8 +5419,8 @@ static void hsync_handler (void)
 		} else if (currprefs.gfx_linedbl && (doublescan <= 0 || interlace_seen > 0)) {
 			lineno *= 2;
 			nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
-			if ((bplcon0 & 4) || (interlace_seen > 0 && !lof)) {
-				if (!lof) {
+			if ((bplcon0 & 4) || (interlace_seen > 0 && !lof_store)) {
+				if (!lof_store) {
 					lineno++;
 					nextline_how = nln_lower;
 				} else {
@@ -5761,7 +5765,7 @@ void dumpcustom (void)
 	console_out_f (L"COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
 	console_out_f (L"DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
 		(unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
-	console_out_f (L"BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4);
+	console_out_f (L"BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x LOF=%d/%d\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4, lof_current, lof_store);
 	if (timeframes) {
 		console_out_f (L"Average frame time: %.2f ms [frames: %d time: %d]\n",
 			(double)frametime / timeframes, timeframes, frametime);
@@ -6328,7 +6332,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	dsklen = RW;			/* 024 DSKLEN */
 	RW;						/* 026 DSKDAT */
 	RW;						/* 028 REFPTR */
-	i = RW; lof = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080) ? 1 : 0; /* 02A VPOSW */
+	i = RW; lof_current = (i & 0x8000) ? 1 : 0; lol = (i & 0x0080) ? 1 : 0; /* 02A VPOSW */
 	RW;						/* 02C VHPOSW */
 	COPCON (RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
@@ -6486,7 +6490,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (dsklen);		/* 024 DSKLEN */
 	SW (0);			/* 026 DSKDAT */
 	SW (0);			/* 028 REFPTR */
-	SW ((lof ? 0x8001 : 0) | (lol ? 0x0080 : 0));/* 02A VPOSW */
+	SW ((lof_current ? 0x8001 : 0) | (lol ? 0x0080 : 0));/* 02A VPOSW */
 	SW (0);			/* 02C VHPOSW */
 	SW (copcon);		/* 02E COPCON */
 	SW (serper);		/* 030 SERDAT * */

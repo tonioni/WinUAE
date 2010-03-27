@@ -1,10 +1,13 @@
 
 #include <windows.h>
+#include <resource>
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
 #if defined (D3D) && defined (GFXFILTER)
 
+#define EFFECT_VERSION 2
 
 #include "options.h"
 #include "xwin.h"
@@ -458,6 +461,216 @@ int D3D_canshaders (void)
 	return d3d_yesno > 0 ? 1 : 0;
 }
 
+static const char *fx10 = {
+
+"// 2 (version)\n"
+"//\n"
+"// WinUAE Direct3D post processing shader\n"
+"//\n"
+"// by Toni Wilen 2010\n"
+"\n"
+"uniform extern float4x4 mtx;\n"
+"uniform extern float2 maskmult;\n"
+"uniform extern float2 maskshift;\n"
+"uniform extern int filtermode;\n"
+"\n"
+"// final possibly filtered Amiga output\n"
+"texture SourceTexture : SOURCETEXTURE;\n"
+"\n"
+"sampler	SourceSampler = sampler_state {\n"
+"	Texture	  = (SourceTexture);\n"
+"	MinFilter = POINT;\n"
+"	MagFilter = POINT;\n"
+"	MipFilter = NONE;\n"
+"	AddressU  = Clamp;\n"
+"	AddressV  = Clamp;\n"
+"};\n"
+"\n"
+"\n"
+"texture OverlayTexture : OVERLAYTEXTURE;\n"
+"\n"
+"sampler	OverlaySampler = sampler_state {\n"
+"	Texture	  = (OverlayTexture);\n"
+"	MinFilter = POINT;\n"
+"	MagFilter = POINT;\n"
+"	MipFilter = NONE;\n"
+"	AddressU  = Wrap;\n"
+"	AddressV  = Wrap;\n"
+"};\n"
+"\n"
+"struct VS_OUTPUT_POST\n"
+"{\n"
+"	float4 Position		: POSITION;\n"
+"	float2 CentreUV		: TEXCOORD0;\n"
+"	float2 Selector		: TEXCOORD1;\n"
+"};\n"
+"\n"
+"VS_OUTPUT_POST VS_Post(float3 pos : POSITION, float2 TexCoord : TEXCOORD0)\n"
+"{\n"
+"	VS_OUTPUT_POST Out = (VS_OUTPUT_POST)0;\n"
+"\n"
+"	Out.Position = mul(float4(pos, 1.0f), mtx);\n"
+"	Out.CentreUV = TexCoord;\n"
+"	Out.Selector = TexCoord * maskmult + maskshift;\n"
+"	return Out;\n"
+"}\n"
+"\n"
+"float4 PS_Post(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	float4 o = tex2D(OverlaySampler, inp.Selector);\n"
+"	return s * o;\n"
+"}\n"
+"\n"
+"float4 PS_PostAlpha(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	float4 o = tex2D(OverlaySampler, inp.Selector);\n"
+"	return s * (1 - o.a) + (o * o.a);\n"
+"}\n"
+"\n"
+"float4 PS_PostPlain(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	return s;\n"
+"}\n"
+"\n"
+"// source and overlay texture\n"
+"technique PostTechnique\n"
+"{\n"
+"    pass P0\n"
+"    {\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_1_0 PS_Post();\n"
+"    }  \n"
+"}\n"
+"\n"
+"// source and scanline texture with alpha\n"
+"technique PostTechniqueAlpha\n"
+"{\n"
+"	pass P0\n"
+"	{\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_1_0 PS_PostAlpha();\n"
+"    } \n"
+"}\n"
+"\n"
+"// only source texture\n"
+"technique PostTechniquePlain\n"
+"{\n"
+"	pass P0\n"
+"	{\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_1_0 PS_PostPlain();\n"
+"    }\n"
+"}\n"
+};
+
+static const char *fx20 = {
+
+"// 2 (version)\n"
+"//\n"
+"// WinUAE Direct3D post processing shader\n"
+"//\n"
+"// by Toni Wilen 2010\n"
+"\n"
+"uniform extern float4x4 mtx;\n"
+"uniform extern float2 maskmult;\n"
+"uniform extern float2 maskshift;\n"
+"uniform extern int filtermode;\n"
+"\n"
+"// final possibly filtered Amiga output\n"
+"texture SourceTexture : SOURCETEXTURE;\n"
+"\n"
+"sampler	SourceSampler = sampler_state {\n"
+"	Texture	  = (SourceTexture);\n"
+"	MinFilter = filtermode;\n"
+"	MagFilter = filtermode;\n"
+"	MipFilter = NONE;\n"
+"	AddressU  = Clamp;\n"
+"	AddressV  = Clamp;\n"
+"};\n"
+"\n"
+"\n"
+"texture OverlayTexture : OVERLAYTEXTURE;\n"
+"\n"
+"sampler	OverlaySampler = sampler_state {\n"
+"	Texture	  = (OverlayTexture);\n"
+"	MinFilter = POINT;\n"
+"	MagFilter = POINT;\n"
+"	MipFilter = NONE;\n"
+"	AddressU  = Wrap;\n"
+"	AddressV  = Wrap;\n"
+"};\n"
+"\n"
+"struct VS_OUTPUT_POST\n"
+"{\n"
+"	float4 Position		: POSITION;\n"
+"	float2 CentreUV		: TEXCOORD0;\n"
+"	float2 Selector		: TEXCOORD1;\n"
+"};\n"
+"\n"
+"VS_OUTPUT_POST VS_Post(float3 pos : POSITION, float2 TexCoord : TEXCOORD0)\n"
+"{\n"
+"	VS_OUTPUT_POST Out = (VS_OUTPUT_POST)0;\n"
+"\n"
+"	Out.Position = mul(float4(pos, 1.0f), mtx);\n"
+"	Out.CentreUV = TexCoord;\n"
+"	Out.Selector = TexCoord * maskmult + maskshift;\n"
+"	return Out;\n"
+"}\n"
+"\n"
+"float4 PS_Post(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	float4 o = tex2D(OverlaySampler, inp.Selector);\n"
+"	return s * o;\n"
+"}\n"
+"\n"
+"float4 PS_PostAlpha(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	float4 o = tex2D(OverlaySampler, inp.Selector);\n"
+"	return s * (1 - o.a) + (o * o.a);\n"
+"}\n"
+"\n"
+"float4 PS_PostPlain(in VS_OUTPUT_POST inp) : COLOR\n"
+"{\n"
+"	float4 s = tex2D(SourceSampler, inp.CentreUV);\n"
+"	return s;\n"
+"}\n"
+"\n"
+"// source and overlay texture\n"
+"technique PostTechnique\n"
+"{\n"
+"    pass P0\n"
+"    {\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_2_0 PS_Post();\n"
+"    }  \n"
+"}\n"
+"\n"
+"// source and scanline texture with alpha\n"
+"technique PostTechniqueAlpha\n"
+"{\n"
+"	pass P0\n"
+"	{\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_2_0 PS_PostAlpha();\n"
+"    } \n"
+"}\n"
+"\n"
+"// only source texture\n"
+"technique PostTechniquePlain\n"
+"{\n"
+"	pass P0\n"
+"	{\n"
+"		VertexShader = compile vs_1_0 VS_Post();\n"
+"		PixelShader  = compile ps_2_0 PS_PostPlain();\n"
+"    }\n"
+"}\n"
+};	
+
 static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 {
 	int ret = 0;
@@ -465,17 +678,57 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	LPD3DXBUFFER Errors = NULL;
 	LPD3DXBUFFER BufferEffect = NULL;
 	HRESULT hr;
-	TCHAR tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 	LPD3DXEFFECT effect = NULL;
 	static int first;
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
+	int canusefile = 0, existsfile = 0;
 
 	_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_data, WIN32_PLUGINDIR, shaderfile);
-	hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, compileflags, &EffectCompiler, &Errors);
-	if (FAILED (hr)) {
-		write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
-		goto end;
+	if (!full) {
+		struct zfile *z = zfile_fopen (tmp, L"r", 0);
+		if (z) {
+			existsfile = 1;
+			zfile_fgets (tmp2, sizeof tmp2 / sizeof (TCHAR), z);
+			zfile_fclose (z);
+			int ver = _tstol (tmp2 + 2);
+			if (ver == EFFECT_VERSION) {
+				canusefile = 1;
+			} else {
+				write_log (L"'%s' mismatched version (%d != %d)\n", tmp, ver, EFFECT_VERSION);
+			}
+		}
+		hr = E_FAIL;
+		if (canusefile) {
+			write_log (L"%s: Attempting to load '%s'\n", D3DHEAD, tmp);
+			hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, compileflags, &EffectCompiler, &Errors);
+			if (FAILED (hr))
+				write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
+		}
+		if (FAILED (hr)) {
+			const char *str = psEnabled ? fx20 : fx10;
+			int len = strlen (str);
+			if (!existsfile) {
+				struct zfile *z = zfile_fopen (tmp, L"w", 0);
+				if (z) {
+					zfile_fwrite ((void*)str, len, 1, z);
+					zfile_fclose (z);
+				}
+			}
+			hr = D3DXCreateEffectCompiler (str, len, NULL, NULL, compileflags, &EffectCompiler, &Errors);
+			if (FAILED (hr)) {
+				write_log (L"%s: D3DXCreateEffectCompilerFromResource failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
+				goto end;
+			}
+		}
+	} else {
+		hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, compileflags, &EffectCompiler, &Errors);
+		if (FAILED (hr)) {
+			write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
+			goto end;
+		}
 	}
+
 	hr = EffectCompiler->CompileEffect (0, &BufferEffect, &Errors);
 	if (FAILED (hr)) {
 		write_log (L"%s: CompileEffect failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
@@ -518,7 +771,7 @@ end:
 		}
 	}
 	if (ret)
-		write_log (L"%s: pixelshader filter '%s' loaded\n", D3DHEAD, tmp);
+		write_log (L"%s: pixelshader filter '%s' enabled\n", D3DHEAD, tmp);
 	else
 		write_log (L"%s: pixelshader filter '%s' failed to initialize\n", D3DHEAD, tmp);
 	return effect;

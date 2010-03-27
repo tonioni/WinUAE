@@ -2471,6 +2471,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_inactive_pause = 0;
 		p->win32_ctrl_F11_is_quit = 0;
 		p->win32_soundcard = 0;
+		p->win32_samplersoundcard = -1;
 		p->win32_soundexclusive = 0;
 		p->win32_minimize_inactive = 0;
 		p->win32_active_priority = 1;
@@ -2555,6 +2556,12 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	if (sound_devices[p->win32_soundcard].cfgname)
 		cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard].cfgname);
 	cfgfile_target_dwrite_bool (f, L"soundcard_exclusive", p->win32_soundexclusive);
+	if (p->win32_samplersoundcard >= 0) {
+		cfgfile_target_dwrite (f, L"samplersoundcard", L"%d", p->win32_samplersoundcard);
+		if (record_devices[p->win32_samplersoundcard].cfgname)
+			cfgfile_target_dwrite_str (f, L"samplersoundcardname", record_devices[p->win32_samplersoundcard].cfgname);
+	}
+
 	cfgfile_target_dwrite (f, L"cpu_idle", L"%d", p->cpu_idle);
 	cfgfile_target_dwrite_bool (f, L"notaskbarbutton", p->win32_notaskbarbutton);
 	cfgfile_target_dwrite_bool (f, L"always_on_top", p->win32_alwaysontop);
@@ -2610,6 +2617,7 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"midiout_device", &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, L"midiin_device", &p->win32_midiindev, 1)
 		|| cfgfile_intval (option, value, L"soundcard", &p->win32_soundcard, 1)
+		|| cfgfile_intval (option, value, L"samplersoundcard", &p->win32_samplersoundcard, 1)
 		|| cfgfile_yesno (option, value, L"soundcard_exclusive", &p->win32_soundexclusive)
 		|| cfgfile_yesno (option, value, L"notaskbarbutton", &p->win32_notaskbarbutton)
 		|| cfgfile_yesno (option, value, L"always_on_top", &p->win32_alwaysontop)
@@ -2651,6 +2659,29 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		if (p->win32_soundcard < 0)
 			p->win32_soundcard = num;
+		return 1;
+	}
+	if (cfgfile_string (option, value, L"samplersoundcardname", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+		int i, num;
+
+		num = p->win32_samplersoundcard;
+		p->win32_samplersoundcard = -1;
+		for (i = 0; record_devices[i].cfgname; i++) {
+			if (i < num)
+				continue;
+			if (!_tcscmp (record_devices[i].cfgname, tmpbuf)) {
+				p->win32_samplersoundcard = i;
+				break;
+			}
+		}
+		if (p->win32_samplersoundcard < 0) {
+			for (i = 0; record_devices[i].cfgname; i++) {
+				if (!_tcscmp (record_devices[i].cfgname, tmpbuf)) {
+					p->win32_samplersoundcard = i;
+					break;
+				}
+			}
+		}
 		return 1;
 	}
 
@@ -3088,8 +3119,7 @@ static int shell_deassociate (const TCHAR *extension)
 	_tcscpy (rpath1, L"Software\\Classes\\");
 	_tcscpy (rpath2, rpath1);
 	_tcscat (rpath2, extension);
-	if (RegDeleteKey (rkey, rpath2) != ERROR_SUCCESS)
-		return 0;
+	RegDeleteKey (rkey, rpath2);
 	_tcscpy (rpath2, rpath1);
 	_tcscat (rpath2, progid);
 	if (!def)
@@ -3101,7 +3131,7 @@ static int shell_deassociate (const TCHAR *extension)
 	return 1;
 }
 
-static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand, const TCHAR *command, const TCHAR *perceivedtype,
+static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype,
 	const TCHAR *description, const TCHAR *ext2, int icon)
 {
 	TCHAR rpath1[MAX_DPATH], rpath2[MAX_DPATH], progid2[MAX_DPATH];
@@ -3157,19 +3187,40 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 			RegCloseKey (key1);
 		}
 	}
-	if (command) {
-		_tcscat (rpath2, L"\\shell\\");
-		if (shellcommand)
-			_tcscat (rpath2, shellcommand);
-		else
-			_tcscat (rpath2, L"open");
-		_tcscat (rpath2, L"\\command");
-		if (RegCreateKeyEx (rkey, rpath2, 0, NULL, REG_OPTION_NON_VOLATILE,
-			KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
-				TCHAR path[MAX_DPATH];
-				_stprintf (path, L"\"%sWinUAE.exe\" %s", start_path_exe, command);
-				RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)path, (_tcslen (path) + 1) * sizeof (TCHAR));
-				RegCloseKey (key1);
+	cc = NULL;
+	struct contextcommand ccs[2];
+	if ((command || shellcommand)) {
+		ccs[0].command = command;
+		ccs[0].shellcommand = shellcommand;
+		ccs[1].command = NULL;
+		cc = &ccs[0];
+	}
+	if (cc) {
+		TCHAR path2[MAX_DPATH];
+		for (int i = 0; cc[i].command; i++) {
+			_tcscpy (path2, rpath2);
+			_tcscat (path2, L"\\shell\\");
+			if (cc[i].shellcommand)
+				_tcscat (path2, cc[i].shellcommand);
+			else
+				_tcscat (path2, L"open");
+			if (cc[i].icon) {
+				if (RegCreateKeyEx (rkey, path2, 0, NULL, REG_OPTION_NON_VOLATILE,
+					KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+						TCHAR tmp[MAX_DPATH];
+						_stprintf (tmp, L"%s,%d", _wpgmptr, -cc[i].icon);
+						RegSetValueEx (key1, L"Icon", 0, REG_SZ, (CONST BYTE *)tmp, (_tcslen (tmp) + 1) * sizeof (TCHAR));
+						RegCloseKey (key1);
+				}
+			}
+			_tcscat (path2, L"\\command");
+			if (RegCreateKeyEx (rkey, path2, 0, NULL, REG_OPTION_NON_VOLATILE,
+				KEY_WRITE | KEY_READ, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+					TCHAR path[MAX_DPATH];
+					_stprintf (path, L"\"%sWinUAE.exe\" %s", start_path_exe, cc[i].command);
+					RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)path, (_tcslen (path) + 1) * sizeof (TCHAR));
+					RegCloseKey (key1);
+			}
 		}
 	}
 	fkey = regcreatetree (NULL, L"FileAssociations");
@@ -3177,11 +3228,11 @@ static int shell_associate_2 (const TCHAR *extension, const TCHAR *shellcommand,
 	regclosetree (fkey);
 	return 1;
 }
-static int shell_associate (const TCHAR *extension, const TCHAR *command, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2, int icon)
+static int shell_associate (const TCHAR *extension, TCHAR *command, struct contextcommand *cc, const TCHAR *perceivedtype, const TCHAR *description, const TCHAR *ext2, int icon)
 {
-	int v = shell_associate_2 (extension, NULL, command, perceivedtype, description, ext2, icon);
+	int v = shell_associate_2 (extension, NULL, command, cc, perceivedtype, description, ext2, icon);
 	if (!_tcscmp (extension, L".uae"))
-		shell_associate_2 (extension, L"edit", L"-f \"%1\" -s use_gui=yes", L"text", description, NULL, 0);
+		shell_associate_2 (extension, L"edit", L"-f \"%1\" -s use_gui=yes", NULL, L"text", description, NULL, 0);
 	return v;
 }
 
@@ -3224,15 +3275,26 @@ static int shell_associate_is (const TCHAR *extension)
 	}
 	return 0;
 }
-
+static struct contextcommand cc_cd[] = {
+	{ L"CDTV", L"-cdimage=\"%1\" -s use_gui=no -cfgparam=quickstart=CDTV,0", IDI_APPICON },
+	{ L"CD32", L"-cdimage=\"%1\" -s use_gui=no -cfgparam=quickstart=CD32,0", IDI_APPICON },
+	{ NULL }
+};
+static struct  contextcommand cc_disk[] = {
+	{ L"A500", L"-0 \"%1\" -s use_gui=no -cfgparam=quickstart=A500,0", IDI_DISKIMAGE },
+	{ L"A1200", L"-0 \"%1\" -s use_gui=no -cfgparam=quickstart=A1200,0", IDI_DISKIMAGE },
+	{ NULL }
+};
 struct assext exts[] = {
-	{ L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_CONFIGFILE },
-	{ L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
-	{ L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
-	{ L".dms", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
-	{ L".fdi", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
-	{ L".ipf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE },
-	{ L".uss", L"-s statefile=\"%1\" -s use_gui=no", L"WinUAE statefile", IDI_APPICON },
+//	{ L".cue", L"-cdimage=\"%1\" -s use_gui=no", L"WinUAE CD image", IDI_DISKIMAGE, cc_cd },
+//	{ L".iso", L"-cdimage=\"%1\" -s use_gui=no", L"WinUAE CD image", IDI_DISKIMAGE, cc_cd },
+	{ L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_CONFIGFILE, NULL },
+	{ L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
+	{ L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
+	{ L".dms", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
+	{ L".fdi", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
+	{ L".ipf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
+	{ L".uss", L"-s statefile=\"%1\" -s use_gui=no", L"WinUAE statefile", IDI_APPICON, NULL },
 	{ NULL }
 };
 
@@ -3251,7 +3313,7 @@ static void associate_init_extensions (void)
 	if (!regexiststree (NULL, L"FileAssociations")) {
 		UAEREG *fkey;
 		if (exts[0].enabled == 0) {
-			shell_associate (exts[0].ext, exts[0].cmd, NULL, exts[0].desc, NULL, exts[0].icon);
+			shell_associate (exts[0].ext, exts[0].cmd, exts[0].cc, NULL, exts[0].desc, NULL, exts[0].icon);
 			exts[0].enabled = shell_associate_is (exts[0].ext);
 		}
 		fkey = regcreatetree (NULL, L"FileAssociations");
@@ -3343,10 +3405,10 @@ void associate_file_extensions (void)
 			exts[i].enabled = shell_associate_is (exts[i].ext);
 			if (exts[i].enabled) {
 				modified = 1;
-				shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL, exts[i].icon);
+				shell_associate (exts[i].ext, exts[i].cmd, exts[i].cc, NULL, exts[i].desc, NULL, exts[i].icon);
 			}
 		} else if (exts[i].enabled) {
-			shell_associate (exts[i].ext, exts[i].cmd, NULL, exts[i].desc, NULL, exts[i].icon);
+			shell_associate (exts[i].ext, exts[i].cmd, exts[i].cc, NULL, exts[i].desc, NULL, exts[i].icon);
 			exts[i].enabled = shell_associate_is (exts[i].ext);
 			if (exts[i].enabled != already)
 				modified = 1;
@@ -4150,6 +4212,9 @@ static int process_arg (TCHAR *cmdline, TCHAR **xargv, TCHAR ***xargv3)
 				break;
 			case ZFILE_STATEFILE:
 				_stprintf (tmp, L"-statefile=%s", f);
+				break;
+			case ZFILE_CDIMAGE:
+				_stprintf (tmp, L"-cdimage=%s", f);
 				break;
 			case ZFILE_DISKIMAGE:
 				if (fd < 4)
