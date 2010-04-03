@@ -1675,6 +1675,7 @@ void akiko_reset (void)
 		akiko_thread_running = 0;
 	}
 	akiko_cdrom_free ();
+	mediacheckcounter = 0;
 }
 
 

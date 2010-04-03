@@ -58,6 +58,11 @@
 #define QUALITY_DRAFT 0x01
 #define QUALITY_LQ 0x02
 
+#define JUST_LEFT 0
+#define JUST_CENTER 1
+#define JUST_RIGHT 2
+#define JUST_FULL 3
+
 enum Typeface
 {
 	roman = 0,

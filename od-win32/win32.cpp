@@ -4347,12 +4347,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		enumerate_sound_devices ();
 		for (i = 0; sound_devices[i].name; i++) {
 			int type = sound_devices[i].type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : L"PA"), sound_devices[i].name);
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), sound_devices[i].name);
 		}
 		write_log (L"Enumerating recording devices:\n");
 		for (i = 0; record_devices[i].name; i++) {
 			int type = record_devices[i].type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : L"PA"), record_devices[i].name);
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), record_devices[i].name);
 		}
 		write_log (L"done\n");
 		memset (&devmode, 0, sizeof (devmode));

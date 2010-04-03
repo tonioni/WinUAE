@@ -171,8 +171,12 @@ void update_sound (int freq, int longframe, int linetoggle)
 			lines += 1.0;
 		hpos = maxhpos_short;
 	}
+#if 0
+	write_log (L"%d.%d %d.%d\n",
+		maxhpos_short, linetoggle ? 5 : 0,
+		maxvpos_nom + (lines == 1.0 ? 1 : 0), lines > 0 && lines < 1 ? 5 : 0);
+#endif
 	lines += maxvpos_nom;
-
 	scaled_sample_evtime_orig = hpos * lines * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
 }

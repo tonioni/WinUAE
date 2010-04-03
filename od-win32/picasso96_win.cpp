@@ -62,6 +62,8 @@
 
 #define NOBLITTER 0
 #define NOBLITTER_BLIT 0
+#define P96TRACING_ENABLED 0
+#define P96SPRTRACING_ENABLED 0
 
 static int hwsprite = 0;
 static int picasso96_BT = BT_uaegfx;
@@ -70,9 +72,6 @@ static int picasso96_PCT = PCT_Unknown;
 
 int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddresses, PULONG_PTR lpdwCount, PULONG lpdwGranularity);
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
-
-#define P96TRACING_ENABLED 0
-#define P96SPRTRACING_ENABLED 0
 
 int p96refresh_active;
 int have_done_picasso = 1; /* For the JIT compiler */
@@ -580,14 +579,22 @@ static void setupcursor (void)
 	HRESULT hr;
 
 	setupcursor_needed = 1;
-	if (cursorsurfaced3d && cursordata && cursorwidth && cursorheight) {
+	if (cursorsurfaced3d) {
 		if (SUCCEEDED (hr = cursorsurfaced3d->LockRect (0, &locked, NULL, 0))) {
 			dptr = (uae_u8*)locked.pBits;
 			pitch = locked.Pitch;
-			for (int y = 0; y < cursorheight; y++) {
-				uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
+			for (int y = 0; y < CURSORMAXHEIGHT; y++) {
 				uae_u8 *p2 = dptr + pitch * y;
-				memcpy (p2, p1, cursorwidth * bpp);
+				memset (p2, 0, CURSORMAXWIDTH * bpp);
+			}
+			if (cursordata && cursorwidth && cursorheight) {
+				dptr = (uae_u8*)locked.pBits;
+				pitch = locked.Pitch;
+				for (int y = 0; y < cursorheight; y++) {
+					uae_u8 *p1 = cursordata + cursorwidth * bpp * y;
+					uae_u8 *p2 = dptr + pitch * y;
+					memcpy (p2, p1, cursorwidth * bpp);
+				}
 			}
 			cursorsurfaced3d->UnlockRect (0);
 			setupcursor_needed = 0;
@@ -1608,7 +1615,11 @@ static uae_u32 setspriteimage (uaecptr bi)
 	}
 
 	cursorwidth = w;
+	if (cursorwidth > CURSORMAXWIDTH)
+		cursorwidth = CURSORMAXWIDTH;
 	cursorheight = h;
+	if (cursorheight > CURSORMAXHEIGHT)
+		cursorheight = CURSORMAXHEIGHT;
 
 	setupcursor ();
 	ret = 1;

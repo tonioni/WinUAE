@@ -262,7 +262,7 @@ static void flushprtbuf (void)
 		if (currprefs.parallel_matrix_emulation >= PARALLEL_MATRIX_EPSON) {
 			int i;
 			if (!prtopen) {
-				if (epson_init (currprefs.parallel_matrix_emulation))
+				if (epson_init (currprefs.prtname, currprefs.parallel_matrix_emulation))
 					prtopen = 1;
 			}
 			for (i = 0; i < prtbufbytes; i++)
@@ -472,7 +472,7 @@ static void openprinter (void)
 		prtopen = 1;
 		return;
 	} else if (currprefs.parallel_matrix_emulation >= PARALLEL_MATRIX_EPSON) {
-		epson_init (currprefs.parallel_matrix_emulation);
+		epson_init (currprefs.prtname, currprefs.parallel_matrix_emulation);
 	} else if (hPrt == INVALID_HANDLE_VALUE) {
 		flushprtbuf ();
 		if (OpenPrinter (currprefs.prtname, &hPrt, NULL)) {

@@ -110,6 +110,7 @@ static const TCHAR *getmsg (int msg)
 	case RPIPCHM_PING: return L"RPIPCHM_PING";
 	case RPIPCHM_SAVESTATE: return L"RPIPCHM_SAVESTATE";
 	case RPIPCHM_LOADSTATE: return L"RPIPCHM_LOADSTATE";
+	case RPIPCHM_FLUSH: return L"RPIPCHM_FLUSH";
 
 	default: return L"UNKNOWN";
 	}
@@ -303,7 +304,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int m;
 	int full = 0;
 	int vres = 0;
-	int totalhdbl, totalvdbl;
+	int totalhdbl = -1, totalvdbl = -1;
 
 	hres = p->gfx_resolution;
 	if (p->gfx_filter && p->gfx_filter_horiz_zoom_mult)
@@ -339,9 +340,9 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		if (log_rp)
 			write_log (L"GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d\n",
-			totalhdbl, hres, totalvdbl, vres, full,
-			p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
-			p->gfx_size_win.width, p->gfx_size_win.height);
+				totalhdbl, hres, totalvdbl, vres, full,
+				p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
+				p->gfx_size_win.width, p->gfx_size_win.height);
 		sm->lClipLeft = p->gfx_xcenter_pos <= 0 ? -1 : p->gfx_xcenter_pos;
 		sm->lClipTop = p->gfx_ycenter_pos <= 0 ? -1 : p->gfx_ycenter_pos;
 		if (full) {
@@ -369,8 +370,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	if (log_rp)
 		write_log (L"GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n",
-		sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
-		totalhdbl, hres, totalvdbl, vres, p->gfx_display, full);
+			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
+			totalhdbl, hres, totalvdbl, vres, p->gfx_display, full);
 }
 
 static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)

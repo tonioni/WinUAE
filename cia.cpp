@@ -643,7 +643,7 @@ static uae_u8 ReadCIAA (unsigned int addr)
 #endif
 		} else if (currprefs.win32_samplersoundcard >= 0) {
 
-			tmp = sampler_getsample ();
+			tmp = sampler_getsample ((ciabpra & 4) ? 1 : 0);
 
 		} else
 #endif

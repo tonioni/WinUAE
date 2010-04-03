@@ -47,7 +47,7 @@ extern void sernametodev (TCHAR*);
 extern void serdevtoname (TCHAR*);
 
 extern void epson_printchar(uae_u8 c);
-extern int epson_init(int pins);
+extern int epson_init(const TCHAR *printername, int pins);
 extern void epson_close(void);
 
 #define PARALLEL_MATRIX_TEXT 1

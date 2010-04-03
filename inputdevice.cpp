@@ -3678,7 +3678,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	config_changed = 1;
 }
 
-static void set_kbr_default (struct uae_prefs *p, int index, int num)
+static void set_kbr_default (struct uae_prefs *p, int index)
 {
 	int i, j, k, l;
 	struct uae_input_device_kbr_default *trans = keyboard_default;
@@ -3695,10 +3695,10 @@ static void set_kbr_default (struct uae_prefs *p, int index, int num)
 			kbr->extra[i][0] = -1;
 		}
 		if (j < id->get_num ()) {
-			if (j == 0)
+			if (input_get_default_keyboard (j))
 				kbr->enabled = 1;
-			for (i = 0; i < id->get_widget_num (num); i++) {
-				id->get_widget_type (num, i, 0, &scancode);
+			for (i = 0; i < id->get_widget_num (j); i++) {
+				id->get_widget_type (j, i, 0, &scancode);
 				kbr->extra[i][0] = scancode;
 				l = 0;
 				while (trans[l].scancode >= 0) {
@@ -3737,7 +3737,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_mouse_speed = 100;
 	p->input_autofire_framecnt = 10;
 	for (i = 0; i <= MAX_INPUT_SETTINGS; i++) {
-		set_kbr_default (p, i, 0);
+		set_kbr_default (p, i);
 		for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 			if (input_get_default_mouse (p->mouse_settings[i], j, j & 1))
 				p->mouse_settings[i]->enabled = 1;
@@ -4653,6 +4653,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 						p->jports[portnum].id = idnum + i;
 						if (mode >= 0)
 							p->jports[portnum].mode = mode;
+						config_changed = 1;
 						return 1;
 					}
 				}
@@ -4694,6 +4695,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 					p->jports[portnum].id = start;
 					if (mode >= 0)
 						p->jports[portnum].mode = mode;
+					config_changed = 1;
 					return 1;
 				}
 			}

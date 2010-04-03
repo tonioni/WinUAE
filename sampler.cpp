@@ -18,8 +18,9 @@
 
 #include "win32.h"
 
-#define RECORDBUFFER (10000 * 4)
-#define SAMPLEBUFFER (2048 * 4)
+#define SAMPLESIZE 4
+#define RECORDBUFFER 40000
+#define SAMPLEBUFFER 4000
 
 static LPDIRECTSOUNDCAPTURE lpDS2r = NULL;
 static LPDIRECTSOUNDCAPTUREBUFFER lpDSBprimary2r = NULL;
@@ -51,7 +52,7 @@ static int capture_init (void)
 	}
 	memset (&sound_buffer_rec, 0, sizeof (DSCBUFFERDESC));
 	sound_buffer_rec.dwSize = sizeof (DSCBUFFERDESC);
-	sound_buffer_rec.dwBufferBytes = RECORDBUFFER;
+	sound_buffer_rec.dwBufferBytes = RECORDBUFFER * SAMPLESIZE;
 	sound_buffer_rec.lpwfxFormat = &wavfmt;
 	sound_buffer_rec.dwFlags = 0 ;
 
@@ -66,7 +67,7 @@ static int capture_init (void)
 		write_log (L"SAMPLER: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
 		return 0;
 	}
-	samplebuffer = xcalloc (uae_u8, SAMPLEBUFFER);
+	samplebuffer = xcalloc (uae_u8, SAMPLEBUFFER * SAMPLESIZE);
 	write_log (L"SAMPLER: Parallel port sampler initialized\n");
 	return 1;
 }
@@ -89,17 +90,20 @@ static void capture_free (void)
 static evt oldcycles;
 static int oldoffset;
 
-uae_u8 sampler_getsample (void)
+uae_u8 sampler_getsample (int channel)
 {
 	HRESULT hr;
-	DWORD t, cur_pos, cap_pos;
+	static DWORD cap_pos;
+	DWORD t, cur_pos;
 	void *p1, *p2;
 	DWORD len1, len2;
 	evt cycles;
 	int offset;
 	int sample, samplecnt, diff;
-	int channel = 0;
-	uae_s16 *sbuf = (uae_s16*)samplebuffer;
+
+//	if (channel)
+//		return 0;
+	channel = 0;
 
 	if (!inited) {
 		if (!capture_init ()) {
@@ -115,6 +119,8 @@ uae_u8 sampler_getsample (void)
 			return 0;
 		}	
 	}
+	uae_s16 *sbuf = (uae_s16*)samplebuffer;
+
 	vsynccnt = 0;
 	sample = 0;
 	samplecnt = 0;
@@ -123,52 +129,59 @@ uae_u8 sampler_getsample (void)
 	if (oldoffset < 0 || offset >= SAMPLEBUFFER || offset < 0) {
 		if (oldoffset >= 0 && offset >= SAMPLEBUFFER) {
 			while (oldoffset < SAMPLEBUFFER) {
-				sample += sbuf[oldoffset * 2 + channel];
+				sample += sbuf[oldoffset * SAMPLESIZE / 2 + channel];
 				oldoffset++;
 				samplecnt++;
 			}
 		}
-		oldcycles = cycles;
-		cap_pos = 0;
-		hr = lpDSB2r->GetCurrentPosition (&t, &cur_pos);
-		if (FAILED (hr))
-			return 0;
-		write_log (L"%d\n", cur_pos - cap_pos);
-		if (cur_pos >= cap_pos)
-			diff = cur_pos - cap_pos;
-		else
-			diff = RECORDBUFFER - cap_pos + cur_pos;
-		if (diff > SAMPLEBUFFER * 4) {
-			cap_pos = cur_pos;
-			oldoffset = 0;
-			oldcycles = get_cycles ();
-		}
-		hr = lpDSB2r->Lock (cap_pos, SAMPLEBUFFER, &p1, &len1, &p2, &len2, 0);
+		//write_log (L"%d\n", cur_pos - cap_pos);
+		hr = lpDSB2r->Lock (cap_pos, SAMPLEBUFFER * SAMPLESIZE, &p1, &len1, &p2, &len2, 0);
 		if (FAILED (hr))
 			return 0;
 		memcpy (samplebuffer, p1, len1);
 		if (p2)
 			memcpy (samplebuffer + len1, p2, len2);
 		lpDSB2r->Unlock (p1, len1, p2, len2);
-		cap_pos += SAMPLEBUFFER;
+		cap_pos += SAMPLEBUFFER * SAMPLESIZE;
+
+		hr = lpDSB2r->GetCurrentPosition (&t, &cur_pos);
+		if (FAILED (hr))
+			return 0;
+		if (cur_pos >= cap_pos)
+			diff = cur_pos - cap_pos;
+		else
+			diff = RECORDBUFFER * SAMPLESIZE - cap_pos + cur_pos;
+		if (diff > RECORDBUFFER * SAMPLESIZE - 4 * SAMPLEBUFFER * SAMPLESIZE) {
+			write_log (L"!");
+			diff -= RECORDBUFFER * SAMPLESIZE;
+		} else if (diff > RECORDBUFFER * SAMPLESIZE / 2) {
+			cap_pos = cur_pos;
+			write_log (L"*");
+			diff = 0;
+		}
+
 		cap_pos += diff;
-		if (cap_pos >= RECORDBUFFER)
-			cap_pos -= RECORDBUFFER;
 		if (cap_pos < 0)
-			cap_pos = 0;
-		offset = 0;
-		if (oldoffset < 0)
-			oldoffset = 0;
+			cap_pos += RECORDBUFFER * SAMPLESIZE;
+		if (cap_pos >= RECORDBUFFER * SAMPLESIZE)
+			cap_pos -= RECORDBUFFER * SAMPLESIZE;
+
+		if (offset < 0)
+			offset = 0;
+		if (offset >= SAMPLEBUFFER)
+			offset -= SAMPLEBUFFER;
+		oldoffset = 0;
+		oldcycles = get_cycles ();
 	}
 	while (oldoffset <= offset) {
-		sample += ((uae_s16*)samplebuffer)[oldoffset * 2 + channel];
-		oldoffset++;
+		sample += sbuf[oldoffset * SAMPLESIZE / 2 + channel];
 		samplecnt++;
+		oldoffset++;
 	}
 	oldoffset = offset;
 	if (samplecnt > 0)
 		sample /= samplecnt;
-	return sample >> 8;
+	return (sample / 256) - 128;
 }
 
 int sampler_init (void)

@@ -5066,6 +5066,8 @@ static void vsync_handler (void)
 	}
 	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev) > 1))
 		init_hz ();
+	if (lof_changed)
+		compute_vsynctime ();
 	vpos_count_prev = vpos_count;
 
 	lof_changed = 0;

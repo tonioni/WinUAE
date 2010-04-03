@@ -18,41 +18,50 @@
 
 /*
 *  Converted to WinUAE by Toni Wilen 2009
+*  
+*  Freetype to Win32 CreateFont() conversion by TW in 2010
 */
 
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "uae.h"
 
-#ifndef CPU_64_BIT
-
+#define WINFONT
 #define C_LIBPNG
-#define FREETYPE2_STATIC
 
 #include "epsonprinter.h"
 #include "win32.h"
 #include "parser.h"
+#include "threaddep/thread.h"
 
 #include <math.h>
+
+//#define DEBUGPRINT
+static int pngprint = 0;
 
 #ifdef C_LIBPNG
 #include <png.h>
 #endif
 
 #define PARAM16(I) (params[I+1]*256+params[I])
-#define PIXX ((Bitu)floor(curX*dpi+0.5))
-#define PIXY ((Bitu)floor(curY*dpi+0.5))
+#define PIXX ((Bitu)floor(curX*dpiX+0.5))
+#define PIXY ((Bitu)floor(curY*dpiY+0.5))
 
 #define true 1
 #define false 0
 
-static Bit16u confdpi, confwidth, confheight;
-static TCHAR confoutputDevice[50];
-static int confmultipageOutput;
+#ifdef WINFONT
+static HFONT curFont;
+static float curFontHorizPoints, curFontVertPoints;
+static TCHAR *curFontName;
+static HDC memHDC;
+static LPOUTLINETEXTMETRIC otm;
+#else
 static FT_Library FTlib;
 static FT_Face curFont;
+#endif
 static Real64 curX, curY;
-static Bit16u dpi, ESCCmd;
+static Bit16u dpiX, dpiY, ESCCmd;
 static int ESCSeen;
 static Bit8u numParam, neededParam;
 static Bit8u params[20];
@@ -83,16 +92,22 @@ static int multipoint;
 static Real64 multiPointSize, multicpi, hmi;
 static Bit8u msb;
 static Bit16u numPrintAsChar;
-static TCHAR *output;
 static void *outputHandle;
 static Bit16u multipageOutput, multiPageCounter;
 static HDC printerDC;
+static int justification;
+#define CHARBUFFERSIZE 1000
+static int charcnt;
+static Bit8u charbuffer[CHARBUFFERSIZE];
 
 static uae_u8 *page;
 static int page_w, page_h, page_pitch;
 static int pagesize;
 static HMODULE ft;
 static int pins = 24;
+
+static void printCharBuffer(void);
+
 
 // Various ASCII codepage to unicode maps
 
@@ -388,53 +403,53 @@ static const Bit16u intCharSets[15][12] =
 static void selectCodepage(Bit16u cp)
 {
 	int i;
-	Bit16u *mapToUse = NULL;
+	const Bit16u *mapToUse = NULL;
 
 	switch(cp)
 	{
 	case 0: // Italics, use cp437
 	case 437:
-		mapToUse = (Bit16u*)&cp437Map;
+		mapToUse = cp437Map;
 		break;
 	case 737:
-		mapToUse = (Bit16u*)&cp737Map;
+		mapToUse = cp737Map;
 		break;
 	case 775:
-		mapToUse = (Bit16u*)&cp775Map;
+		mapToUse = cp775Map;
 		break;
 	case 850:
-		mapToUse = (Bit16u*)&cp850Map;
+		mapToUse = cp850Map;
 		break;
 	case 852:
-		mapToUse = (Bit16u*)&cp852Map;
+		mapToUse = cp852Map;
 		break;
 	case 855:
-		mapToUse = (Bit16u*)&cp855Map;
+		mapToUse = cp855Map;
 		break;
 	case 857:
-		mapToUse = (Bit16u*)&cp857Map;
+		mapToUse = cp857Map;
 		break;
 	case 860:
-		mapToUse = (Bit16u*)&cp860Map;
+		mapToUse = cp860Map;
 		break;
 	case 861:
-		mapToUse = (Bit16u*)&cp861Map;
+		mapToUse = cp861Map;
 		break;
 	case 863:
-		mapToUse = (Bit16u*)&cp863Map;
+		mapToUse = cp863Map;
 		break;
 	case 864:
-		mapToUse = (Bit16u*)&cp864Map;
+		mapToUse = cp864Map;
 		break;
 	case 865:
-		mapToUse = (Bit16u*)&cp865Map;
+		mapToUse = cp865Map;
 		break;
 	case 866:
-		mapToUse = (Bit16u*)&cp866Map;
+		mapToUse = cp866Map;
 		break;
 	default:
 		write_log(L"Unsupported codepage %i. Using CP437 instead.\n", cp);
-		mapToUse = (Bit16u*)&cp437Map;
+		mapToUse = cp437Map;
 	}
 
 	for (i=0; i<256; i++)
@@ -442,37 +457,108 @@ static void selectCodepage(Bit16u cp)
 }
 
 
+static int selectfont(Bit16u style)
+{
+	static TCHAR *thisFontName;
+	static float thisFontHorizPoints;
+	static float thisFontVertPoints;
+	static Bit16u thisStyle;
+
+	if (curFont) {
+		for (;;) {
+			if (thisFontName != curFontName)
+				break;
+			if (thisFontHorizPoints != curFontHorizPoints)
+				break;
+			if (thisFontVertPoints != curFontVertPoints)
+				break;
+			if (thisStyle != style)
+				break;
+			// still using same font
+			return 1;
+		}
+		DeleteObject (curFont);
+		curFont = NULL;
+		xfree (thisFontName);
+		thisFontName = NULL;
+		xfree (otm);
+		otm = NULL;
+	}
+	thisFontHorizPoints = curFontHorizPoints;
+	thisFontVertPoints = curFontVertPoints;
+	thisStyle = style;
+	thisFontName = curFontName;
+
+	int ly = GetDeviceCaps (memHDC, LOGPIXELSY);
+	int lx = GetDeviceCaps (memHDC, LOGPIXELSX);
+	int rounds = 0;
+	while (rounds < 2) {
+		curFont = CreateFont (thisFontVertPoints * dpiY / ly + 0.5, thisFontHorizPoints * dpiX / lx + 0.5,
+			0, 0,
+			FW_NORMAL,
+			(style & STYLE_ITALICS) ? TRUE : FALSE,
+			FALSE,
+			FALSE,
+			DEFAULT_CHARSET,
+			OUT_TT_PRECIS,
+			CLIP_DEFAULT_PRECIS,
+			PROOF_QUALITY,
+			((style & STYLE_PROP) ? VARIABLE_PITCH : FIXED_PITCH) | FF_DONTCARE,
+			thisFontName);
+		if (curFont)
+			break;
+		rounds++;
+		if (style & STYLE_PROP)
+			thisFontName = curFontName = L"Times New Roman";
+		else
+			thisFontName = curFontName = L"Courier New";
+	}
+	if (curFont) {
+		SelectObject (memHDC, curFont);
+		int size = GetOutlineTextMetrics (memHDC, 0, NULL);
+		if (size > 0) {
+			otm = (LPOUTLINETEXTMETRIC)xmalloc (uae_u8, size);
+			GetOutlineTextMetrics (memHDC, size, otm);
+		}
+	}
+	return curFont ? 1 : 0;
+}
+
 static void updateFont(void)
 {
 	Real64 horizPoints = 10.5;
 	Real64 vertPoints = 10.5;
-	char* fontName;
+	TCHAR *fontName;
 
 	if (curFont != NULL)
+#ifdef WINFONT
+		DeleteObject (curFont);
+#else
 		FT_Done_Face(curFont);
+#endif
+	curFont = NULL;
+	int prop = style & STYLE_PROP;
 
 	switch (LQtypeFace)
 	{
 	case roman:
-		fontName = "roman.ttf";
+	default:
+		if (prop)
+			fontName = L"Times New Roman";
+		else
+			fontName = L"Courier New";
 		break;
 	case sansserif:
-		fontName = "sansserif.ttf";
+		if (prop)
+			fontName = L"Arial";
+		else
+			fontName = L"Lucida Console";
 		break;
-	case courier:
-		fontName = "courier.ttf";
-		break;
-	case script:
-		fontName = "script.ttf";
-		break;
-	case ocra:
-	case ocrb:
-		fontName = "ocra.ttf";
-		break;
-	default:
-		fontName = "roman.ttf";
 	}
 
+#ifdef WINFONT
+	curFontName = fontName;
+#else
 	if (!ft) {
 		write_log(L"EPSONPRINTER: No freetype6.dll, unable to load font %s\n", fontName);
 		curFont = NULL;
@@ -492,7 +578,7 @@ static void updateFont(void)
 			}
 		}
 	}
-
+#endif
 	if (!multipoint)
 	{
 		actcpi = cpi;
@@ -548,12 +634,17 @@ static void updateFont(void)
 		actcpi /= (Real64)2/(Real64)3;
 	}
 
-
+#ifdef WINFONT
+	curFontHorizPoints = horizPoints;
+	curFontVertPoints = vertPoints;
+#else
 	if (curFont)
-		FT_Set_Char_Size(curFont, (Bit16u)horizPoints*64, (Bit16u)vertPoints*64, dpi, dpi);
+		FT_Set_Char_Size(curFont, (Bit16u)horizPoints*64, (Bit16u)vertPoints*64, dpiX, dpiY);
+#endif
 
 	if (style & STYLE_ITALICS || charTables[curCharTable] == 0)
 	{
+#ifndef WINFONT
 		FT_Matrix  matrix;
 		matrix.xx = 0x10000L;
 		matrix.xy = (FT_Fixed)(0.20 * 0x10000L);
@@ -561,6 +652,7 @@ static void updateFont(void)
 		matrix.yy = 0x10000L;
 		if (curFont)
 			FT_Set_Transform(curFont, &matrix, 0);
+#endif
 	}
 }
 
@@ -580,86 +672,77 @@ static void getfname (TCHAR *fname)
 	}
 }
 
-static void outputPage(void) 
+static int volatile prt_thread_mode;
+
+static void *prt_thread (void *p) 
 {
 	Bit16u x, y;
+	HDC TprinterDC = printerDC;
+	HDC TmemHDC = memHDC;
+	int Tpage_w = page_w;
+	int Tpage_h = page_h;
+	int Tpage_pitch = page_pitch;
+	uae_u8 *Tpage = page;
 
-	if (strcasecmp(output, L"printer") == 0)
+	write_log (L"EPSONPRINTER: background print thread started\n");
+	prt_thread_mode = 1;
+	SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_BELOW_NORMAL);
+
+	if (TprinterDC)
 	{
-#if defined (WIN32)
-		Bit16u physW = GetDeviceCaps(printerDC, PHYSICALWIDTH);
-		Bit16u physH = GetDeviceCaps(printerDC, PHYSICALHEIGHT);
-		HDC memHDC;
-		HBITMAP bitmap;
+		int hz = GetDeviceCaps (TprinterDC, PHYSICALWIDTH);
+		int vz = GetDeviceCaps (TprinterDC, PHYSICALHEIGHT);
+		int topmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETX);
+		int leftmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETY);
 
-		Real64 scaleW, scaleH;
-		Bit32u topX,  topY;
+		write_log (L"EPSONPRINTER: HP=%d WP=%d TM=%d LM=%d W=%d H=%d\n",
+			hz, vz, topmargin, leftmargin, Tpage_w, Tpage_h);
 
-		if (page_w > physW) 
-			scaleW = (Real64)page_w / (Real64)physW;
-		else 
-			scaleW = (Real64)physW / (Real64)page_w; 
-
-		if (page_h > physH) 
-			scaleH = (Real64)page_h / (Real64)physH;
-		else 
-			scaleH = (Real64)physH / (Real64)page_h; 
-
-		memHDC = CreateCompatibleDC(printerDC);
-		bitmap = CreateCompatibleBitmap(memHDC, page_w, page_h);
-		SelectObject(memHDC, bitmap);
+		HBITMAP bitmap = CreateCompatibleBitmap (memHDC, Tpage_w, Tpage_h);
+		SelectObject (TmemHDC, bitmap);
+		BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
 
 		// Start new printer job?
 		if (outputHandle == NULL)
 		{
 			DOCINFO docinfo;
-			docinfo.cbSize = sizeof(docinfo);
-			docinfo.lpszDocName = L"WinUAE Printer";
+			docinfo.cbSize = sizeof (docinfo);
+			docinfo.lpszDocName = L"WinUAE Epson Printer";
 			docinfo.lpszOutput = NULL;
 			docinfo.lpszDatatype = NULL;
 			docinfo.fwType = 0;
 
-			StartDoc(printerDC, &docinfo);
+			StartDoc (TprinterDC, &docinfo);
 			multiPageCounter = 1;
 		}
 
-		StartPage(printerDC);
+		StartPage (TprinterDC);
 
-		for (y=0; y<page_h; y++)
+		// this really needs to use something else than SetPixel()..
+		for (y=0; y<Tpage_h; y++)
 		{
-			for (x=0; x<page_w; x++)
+			for (x=0; x<Tpage_w; x++)
 			{
-				Bit8u pixel = *((Bit8u*)page + x + (y*page_pitch));
-				Bit32u color = 0;
-				color |= pixel;
-				color |= pixel << 8;
-				color |= pixel << 16;
-				SetPixel(memHDC, x, y, color);
+				Bit8u pixel = 255 - *((Bit8u*)Tpage + x + (y*Tpage_pitch));
+				if (pixel != 255) {
+					Bit32u color = 0;
+					color |= pixel;
+					color |= pixel << 8;
+					color |= pixel << 16;
+					SetPixel (TmemHDC, x, y, color);
+				}
 			}
 		}
 
-		StretchBlt(printerDC, 0, 0, physW, physH, memHDC, 0, 0, page_w, page_h, SRCCOPY);
+		BitBlt (TprinterDC, leftmargin, topmargin, Tpage_w, Tpage_h, TmemHDC, 0, 0, SRCCOPY);
 
-		EndPage(printerDC);
+		EndPage (TprinterDC);
+		DeleteObject (bitmap);
+		EndDoc (TprinterDC);
 
-		if (multipageOutput)
-		{
-			multiPageCounter++;
-			outputHandle = printerDC;
-		}
-		else
-		{
-			EndDoc(printerDC);
-			outputHandle = NULL;
-		}
-
-		DeleteDC(memHDC);
-#else
-		write_log(L"EPSONPRINTER: Direct printing not supported under this OS\n");
-#endif
 	}
 #ifdef C_LIBPNG
-	else if (strcasecmp(output, L"png") == 0)
+	else
 	{
 		png_structp png_ptr;
 		png_infop info_ptr;
@@ -675,16 +758,17 @@ static void outputPage(void)
 		if (!fp) 
 		{
 			write_log(L"EPSONPRINTER: Can't open file %s for printer output\n", fname);
-			return;
+			goto end;
 		}
 
 		/* First try to alloacte the png structures */
 		png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL,NULL, NULL);
-		if (!png_ptr) return;
+		if (!png_ptr)
+			goto end;
 		info_ptr = png_create_info_struct(png_ptr);
 		if (!info_ptr) {
 			png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
-			return;
+			goto end;
 		}
 
 		/* Finalize the initing of png library */
@@ -699,7 +783,7 @@ static void outputPage(void)
 		png_set_compression_buffer_size(png_ptr, 8192);
 
 
-		png_set_IHDR(png_ptr, info_ptr, page_w, page_h,
+		png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
 			8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
 			PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 		for (i=0;i<256;i++) 
@@ -711,9 +795,9 @@ static void outputPage(void)
 		png_set_PLTE(png_ptr, info_ptr, palette,256);
 
 		// Allocate an array of scanline pointers
-		row_pointers = (png_bytep*)malloc(page_h*sizeof(png_bytep));
-		for (i=0; i<page_h; i++) 
-			row_pointers[i] = ((Bit8u*)page+(i*page_pitch));
+		row_pointers = (png_bytep*)malloc(Tpage_h*sizeof(png_bytep));
+		for (i=0; i<Tpage_h; i++) 
+			row_pointers[i] = ((Bit8u*)Tpage+(i*Tpage_pitch));
 
 		// tell the png library what to encode.
 		png_set_rows(png_ptr, info_ptr, row_pointers);
@@ -732,19 +816,38 @@ static void outputPage(void)
 		ShellExecute (NULL, L"open", fname, NULL, NULL, SW_SHOWNORMAL);
 	}
 #endif
+end:
+	xfree (Tpage);
+	if (TprinterDC)
+		DeleteObject (TprinterDC);
+	DeleteObject (TmemHDC);
+	write_log (L"EPSONPRINTER: background thread finished\n");
+	return 0;
+}
+
+static void outputPage(void)
+{
+	prt_thread_mode = 0;
+	if (uae_start_thread (L"epson", prt_thread, NULL, NULL)) {
+		while (prt_thread_mode == 0)
+			Sleep(5);
+		memHDC = NULL;
+		printerDC = NULL;
+		page = NULL;
+	}
 }
 
 static void newPage(int save)
 {
 	if (save)
-		outputPage();
-
+		outputPage ();
+	if (page == NULL)
+		page = xcalloc (uae_u8, pagesize);
 	curY = topMargin;
-
 	memset (page, 0, pagesize);
 }
 
-static void resetPrinter(void)
+static void initPrinter(void)
 {
 	Bitu i;
 	curX = curY = 0.0;
@@ -776,6 +879,8 @@ static void resetPrinter(void)
 	msb = 255;
 	numPrintAsChar = 0;
 	LQtypeFace = roman;
+	justification = JUST_LEFT;
+	charcnt = 0;
 
 	selectCodepage(charTables[curCharTable]);
 
@@ -784,8 +889,8 @@ static void resetPrinter(void)
 	newPage(false);
 
 	// Default tabs => Each eight characters
-	for (i=0;i<32;i++)
-		horiztabs[i] = i*8*(1/(Real64)cpi);
+	for (i = 0; i < 32; i++)
+		horiztabs[i] = i * 8 * (1.0 / (Real64)cpi);
 	numHorizTabs = 32;
 
 	numVertTabs = 255;
@@ -794,85 +899,105 @@ static void resetPrinter(void)
 static void resetPrinterHard(void)
 {
 	charRead = false;
-	resetPrinter();
+	initPrinter();
 }
 
-static int printer_init(Bit16u dpi2, Bit16u width, Bit16u height, TCHAR* output2, int multipageOutput2, int numpins)
+static int printer_init(Bit16u dpi2, Bit16u width, Bit16u height, const TCHAR *printername, int multipageOutput2, int numpins)
 {
 	pins = numpins;
+#ifndef WINFONT
 	if (ft == NULL || FT_Init_FreeType(&FTlib))
 	{
 		write_log(L"EPSONPRINTER: Unable to init Freetype2. ASCII printing disabled\n");
+		return 0;
 	}
-	{	
-		Bitu i;
-		dpi = dpi2;
-		output = output2;
-		multipageOutput = multipageOutput2;
-
-		defaultPageWidth = (Real64)width/(Real64)10;
-		defaultPageHeight = (Real64)height/(Real64)10;
-
-		// Create page
-		page_w = (Bitu)(defaultPageWidth*dpi);
-		page_h = (Bitu)(defaultPageHeight*dpi);
-		pagesize =  page_w * page_h;
-		page_pitch = page_w;
-		page = xcalloc (uae_u8, pagesize);
-		curFont = NULL;
-		charRead = false;
-		autoFeed = false;
-		outputHandle = NULL;
-
-		resetPrinter();
-
-		if (strcasecmp(output, L"printer") == 0)
-		{
-#if defined (WIN32)
-			// Show Print dialog to obtain a printer device context
-
-			PRINTDLG pd;
-			pd.lStructSize = sizeof(PRINTDLG); 
-			pd.hDevMode = (HANDLE) NULL; 
-			pd.hDevNames = (HANDLE) NULL; 
-			pd.Flags = PD_RETURNDC; 
-			pd.hwndOwner = NULL; 
-			pd.hDC = (HDC) NULL; 
-			pd.nFromPage = 1; 
-			pd.nToPage = 1; 
-			pd.nMinPage = 0; 
-			pd.nMaxPage = 0; 
-			pd.nCopies = 1; 
-			pd.hInstance = NULL; 
-			pd.lCustData = 0L; 
-			pd.lpfnPrintHook = (LPPRINTHOOKPROC) NULL; 
-			pd.lpfnSetupHook = (LPSETUPHOOKPROC) NULL; 
-			pd.lpPrintTemplateName = (LPWSTR) NULL; 
-			pd.lpSetupTemplateName = (LPWSTR)  NULL; 
-			pd.hPrintTemplate = (HANDLE) NULL; 
-			pd.hSetupTemplate = (HANDLE) NULL; 
-			PrintDlg(&pd);
-			printerDC = pd.hDC;
 #endif
-		}
+	dpiX = dpiY = dpi2;
+	multipageOutput = multipageOutput2;
+
+	defaultPageWidth = (Real64)width/(Real64)10;
+	defaultPageHeight = (Real64)height/(Real64)10;
+
+	if (printername)
+	{
+#if 0
+		// Show Print dialog to obtain a printer device context
+		PRINTDLG pd;
+		pd.lStructSize = sizeof(PRINTDLG); 
+		pd.hDevMode = (HANDLE) NULL; 
+		pd.hDevNames = (HANDLE) NULL; 
+		pd.Flags = PD_RETURNDC; 
+		pd.hwndOwner = NULL; 
+		pd.hDC = (HDC) NULL; 
+		pd.nFromPage = 1; 
+		pd.nToPage = 1; 
+		pd.nMinPage = 0; 
+		pd.nMaxPage = 0; 
+		pd.nCopies = 1; 
+		pd.hInstance = NULL; 
+		pd.lCustData = 0L; 
+		pd.lpfnPrintHook = (LPPRINTHOOKPROC) NULL; 
+		pd.lpfnSetupHook = (LPSETUPHOOKPROC) NULL; 
+		pd.lpPrintTemplateName = (LPWSTR) NULL; 
+		pd.lpSetupTemplateName = (LPWSTR)  NULL; 
+		pd.hPrintTemplate = (HANDLE) NULL; 
+		pd.hSetupTemplate = (HANDLE) NULL; 
+		PrintDlg(&pd);
+		printerDC = pd.hDC;
+#endif
+		printerDC = CreateDC (NULL, printername, NULL, NULL);
+		if (!printerDC)
+			return 0;
+
+		dpiX = GetDeviceCaps(printerDC, LOGPIXELSX);
+		dpiY = GetDeviceCaps(printerDC, LOGPIXELSY);
+		defaultPageWidth = (Real64)GetDeviceCaps(printerDC, HORZRES) / dpiX;
+		defaultPageHeight = (Real64)GetDeviceCaps(printerDC, VERTRES) / dpiY;
 	}
+
+	// Create page
+	page_w = (Bitu)(defaultPageWidth*dpiX);
+	page_h = (Bitu)(defaultPageHeight*dpiY);
+	pagesize =  page_w * page_h;
+	page_pitch = page_w;
+	page = xcalloc (uae_u8, pagesize);
+	curFont = NULL;
+	charRead = false;
+	autoFeed = false;
+	outputHandle = NULL;
+	write_log (L"EPSONPRINTER: Page size: %dx%d DPI: %dx%d\n",
+		page_w, page_h, dpiX, dpiY);
+
+	initPrinter();
+
+	memHDC = CreateCompatibleDC (NULL);
+
 	return 1;
 };
 
 
 static void printer_close(void)
 {
-	if (page != NULL)
-	{
+	if (page != NULL) {
 		xfree (page);
 		page = NULL;
+#ifndef WINFONT
 		if (ft)
 			FT_Done_FreeType(FTlib);
+#endif
 		write_log (L"EPSONPRINTER: end\n");
 	}
-#if defined (WIN32)
-	DeleteDC(printerDC);
-#endif
+	xfree (otm);
+	otm = NULL;
+	if (curFont)
+		DeleteObject (curFont);
+	curFont = NULL;
+	if (printerDC)
+		DeleteDC(printerDC);
+	printerDC = NULL;
+	if (memHDC)
+		DeleteDC(memHDC);
+	memHDC = NULL;
 };
 
 
@@ -1010,6 +1135,9 @@ static int processCommandChar(Bit8u ch)
 		ESCCmd = ch;
 		ESCSeen = false;
 		numParam = 0;
+
+		if (ESCCmd != 0x78)
+			printCharBuffer ();
 
 		switch (ESCCmd)
 		{
@@ -1317,7 +1445,7 @@ static int processCommandChar(Bit8u ch)
 				densz = params[1];
 			break;
 		case 0x40: // Initialize printer (ESC @)
-			resetPrinter();
+			initPrinter();
 			break;
 		case 0x41: // Set n/60-inch line spacing
 			lineSpacing = (Real64)params[0]/60;
@@ -1380,6 +1508,10 @@ static int processCommandChar(Bit8u ch)
 			break;
 		case 0x51: // Set right margin
 			rightMargin = (Real64)(params[0]-1.0) / (Real64)cpi;
+			if (rightMargin < 0)
+				rightMargin = 0;
+			if (rightMargin < leftMargin)
+				rightMargin = leftMargin;
 			break;
 		case 0x52: // Select an international character set (ESC R)
 			if (params[0] <= 13 || params[0] == 64)
@@ -1460,7 +1592,14 @@ static int processCommandChar(Bit8u ch)
 			}
 			break;
 		case 0x61: // Select justification (ESC a)
-			// Ignore
+			printCharBuffer ();
+			justification = JUST_LEFT;
+			if (params[0] == 1 || params[0] == 31)
+				justification = JUST_CENTER;
+			if (params[0] == 2 || params[0] == 32)
+				justification = JUST_RIGHT;
+			if (params[0] == 3 || params[0] == 33)
+				justification = JUST_FULL;
 			break;
 		case 0x63: // Set horizontal motion index (HMI) (ESC c)
 			hmi = (Real64)PARAM16(0) / (Real64)360.0;
@@ -1479,6 +1618,8 @@ static int processCommandChar(Bit8u ch)
 			break;
 		case 0x6c: // Set left margin (ESC 1)
 			leftMargin =  (Real64)(params[0]-1.0) / (Real64)cpi;
+			if (leftMargin < 0)
+				leftMargin = 0;
 			if (curX < leftMargin)
 				curX = leftMargin;
 			break;
@@ -1689,10 +1830,12 @@ static int processCommandChar(Bit8u ch)
 		newPage(true);
 		return true;
 	case 0x0d:		// Carriage Return (CR)
+		printCharBuffer ();
 		curX = leftMargin;
 		if (!autoFeed)
 			return true;
 	case 0x0a:		// Line feed
+		printCharBuffer ();
 		if (style & STYLE_DOUBLEWIDTHONELINE)
 		{
 			style &= 0xFFFF - STYLE_DOUBLEWIDTHONELINE;
@@ -1762,8 +1905,8 @@ static void printBitGraph(Bit8u ch)
 		return;
 
 	// When page dpi is greater than graphics dpi, the drawn pixels get "bigger"
-	pixsizeX = dpi/bitGraph.horizDens > 0?dpi/bitGraph.horizDens:1;
-	pixsizeY = dpi/bitGraph.vertDens > 0?dpi/bitGraph.vertDens:1;
+	pixsizeX = dpiX/bitGraph.horizDens > 0?dpiX/bitGraph.horizDens:1;
+	pixsizeY = dpiY/bitGraph.vertDens > 0?dpiY/bitGraph.vertDens:1;
 
 	for (i=0; i<bitGraph.bytesColumn; i++)
 	{
@@ -1799,47 +1942,57 @@ static void printBitGraph(Bit8u ch)
 
 }
 
-static void blitGlyph(FT_Bitmap bitmap, Bit16u destx, Bit16u desty, int add)
+static void blitGlyph(uae_u8 *gbitmap, int width, int rows, int pitch, int destx, int desty, int add)
 {
-	Bitu y, x;
-	for (y=0; y<bitmap.rows; y++)
+	int y, x;
+	for (y=0; y<rows; y++)
 	{
-		for (x=0; x<bitmap.width; x++)
+		for (x=0; x<width; x++)
 		{
 			// Read pixel from glyph bitmap
-			Bit8u* source = bitmap.buffer + x + y*bitmap.pitch;
+			Bit8u* source = gbitmap + x + y*pitch;
 
 			// Ignore background and don't go over the border
-			if (*source != 0 && (destx+x < page_w) && (desty+y < page_h))
+			if (*source != 0 && (destx+x < page_w) && (desty+y < page_h) && (destx+x >= 0) && (desty+y >= 0))
 			{
 				Bit8u* target = (Bit8u*)page + (x+destx) + (y+desty)*page_pitch;
+				Bit8u b = *source;
+				if (b >= 64) {
+					b = 255;
+				} else if (b == 0) {
+					b = 0;
+				} else {
+					b = (b << 2) | (b >> 4);
+				}
 				if (add)
 				{
-					if (*target + *source > 255)
+					if (*target + b > 255)
 						*target = 255;
 					else
-						*target += *source;
+						*target += b;
 				}
 				else
-					*target = *source;
+					*target = b;
 			}
 		}
 	}
 }
 
-static void drawLine(Bit8u fromx, Bit8u tox, Bit8u y, int broken)
+static void drawLine(int fromx, int tox, int y, int broken)
 {
-	Bitu x;
+	int x;
 
-	Bitu breakmod = dpi / 15;
-	Bitu gapstart = (breakmod * 4)/5;
+	int breakmod = dpiX / 15;
+	int gapstart = (breakmod * 4) / 5;
 
 	// Draw anti-aliased line
 	for (x=fromx; x<=tox; x++)
 	{
 		// Skip parts if broken line or going over the border
-		if ((!broken || (x%breakmod <= gapstart)) && (x < page_w))
+		if ((!broken || (x%breakmod <= gapstart)) && (x < page_w) && (x >= 0))
 		{
+			if (y < 0)
+				continue;
 			if (y > 0 && (y-1) < page_h)
 				*((Bit8u*)page + x + (y-1)*page_pitch) = 120;
 			if (y < page_h)
@@ -1850,12 +2003,171 @@ static void drawLine(Bit8u fromx, Bit8u tox, Bit8u y, int broken)
 	}
 }
 
+static void printSingleChar(Bit8u ch, int doprint)
+{
+	int penX;
+	int penY;
+	Bit16u lineStart;
+
+	int bitmap_left = 0;
+	int bitmap_top = 0;
+	int ascender = 0;
+	int width = 0;
+	int rows = 0;
+	int height = 0;
+	int pitch = 0;
+	int advancex = 0;
+	uae_u8 *gbitmap = NULL;
+#ifndef WINFONT
+	// Do not print if no font is available
+	if (!curFont)
+		return;
+
+	bitmap_left =  curFont->glyph->bitmap_left;
+	bitmap_top = curFont->glyph->bitmap_top;
+	ascender = curFont->size->metrics.ascender / 64;
+	rows = curFont->glyph->bitmap.rows;
+	advancex = curFont->glyph->advance.x / 64;
+
+	// Find the glyph for the char to render
+	index = FT_Get_Char_Index(curFont, curMap[ch]);
+
+	// Load the glyph 
+	FT_Load_Glyph(curFont, index, FT_LOAD_DEFAULT);
+
+	// Render a high-quality bitmap
+	FT_Render_Glyph(curFont->glyph, FT_RENDER_MODE_NORMAL);
+	gbitmap = curFont->glyph->bitmap;
+#else
+	if (!selectfont (style))
+		return;
+	MAT2 m2 = {{0, 1}, {0, 0}, {0, 0}, {0, 1}};
+	GLYPHMETRICS metrics;
+	int bufsize = GetGlyphOutline (memHDC, curMap[ch], GGO_GRAY8_BITMAP, &metrics, 0, NULL, &m2); 
+	if (bufsize >= 0) {
+		if (bufsize == 0)
+			bufsize = 4;
+		gbitmap = xcalloc (uae_u8, bufsize);
+		GetGlyphOutline (memHDC, curMap[ch], GGO_GRAY8_BITMAP, &metrics, bufsize, gbitmap, &m2); 
+
+		bitmap_left = metrics.gmptGlyphOrigin.x;
+		bitmap_top = metrics.gmptGlyphOrigin.y;
+		width = metrics.gmBlackBoxX;
+		rows = metrics.gmBlackBoxY;
+		advancex = metrics.gmCellIncX;
+		height = otm->otmTextMetrics.tmHeight;
+		ascender = otm->otmAscent;
+		pitch = (width + 3) & ~3;
+	}
+#endif
+
+	if (gbitmap) {
+		penX = PIXX + bitmap_left;
+		penY = PIXY - bitmap_top + ascender;
+
+		if (style & STYLE_SUBSCRIPT)
+			penY += rows / 2;
+
+		if (doprint) {
+			// Copy bitmap into page
+			blitGlyph(gbitmap, width, rows, pitch, penX, penY, false);
+
+			// Doublestrike => Print the glyph a second time one pixel below
+			if (style & STYLE_DOUBLESTRIKE)
+				blitGlyph(gbitmap, width, rows, pitch, penX, penY+1, true);
+
+			// Bold => Print the glyph a second time one pixel to the right
+			if (style & STYLE_BOLD)
+				blitGlyph(gbitmap, width, rows, pitch, penX+1, penY, true);
+		}
+	}
+
+	// For line printing
+	lineStart = PIXX;
+
+	if (style & STYLE_PROP)
+		curX += (Real64)((Real64)(advancex)/(Real64)(dpiX));
+	else
+	{
+		if (hmi < 0)
+			curX += 1.0/(Real64)actcpi;
+		else
+			curX += hmi;
+	}
+
+	curX += extraIntraSpace;
+
+	// Draw lines if desired
+	if (doprint && score != SCORE_NONE && (style & (STYLE_UNDERLINE|STYLE_STRIKETHROUGH|STYLE_OVERSCORE)))
+	{
+		// Find out where to put the line
+		Bit16u lineY = PIXY;
+
+		if (style & STYLE_UNDERLINE)
+			lineY = PIXY + height - 1;
+		if (style & STYLE_STRIKETHROUGH)
+			lineY = PIXY + ascender / 2;
+		if (style & STYLE_OVERSCORE)
+			lineY = PIXY - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN) ? 5 : 0);
+
+		drawLine(penX - 1, PIXX + 1, lineY, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
+
+		if (score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN)
+			drawLine(lineStart, PIXX + 1, lineY + 5, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
+	}
+#ifdef WINFONT
+	xfree (gbitmap);
+#endif
+}
+
+static void printCharBuffer(void)
+{
+	if (justification != JUST_LEFT) {
+		curX = 0;
+		for (int i = 0; i < charcnt; i++) {
+			printSingleChar (charbuffer[i], false);
+		}
+		switch (justification)
+		{
+		case JUST_RIGHT:
+			curX = rightMargin - curX;
+		break;
+		case JUST_CENTER:
+			curX = leftMargin + (rightMargin - leftMargin) / 2  - curX / 2;
+		break;
+		case JUST_FULL:
+		{
+			float width = rightMargin - leftMargin;
+			if (curX > width * 50 / 100) {
+				float extraw = (width - curX) / charcnt;
+				curX = leftMargin;
+				for (int i = 0; i < charcnt; i++) {
+					printSingleChar (charbuffer[i], true);
+					curX += extraw;
+				}
+				charcnt = 0;
+				return;
+			} else {
+				curX = leftMargin;
+			}
+		}
+		break;
+		default:
+			curX = leftMargin;
+		break;
+		}
+	}
+	for (int i = 0; i < charcnt; i++) {
+		printSingleChar(charbuffer[i], true);
+	}
+	charcnt = 0;
+}
+
 static void printChar(Bit8u ch)
 {
+#ifndef WINFONT
 	FT_UInt index;
-	Bit16u penX;
-	Bit16u penY;
-	Bit16u lineStart;
+#endif
 
 	charRead = true;
 
@@ -1879,74 +2191,16 @@ static void printChar(Bit8u ch)
 	}
 
 	// Print everything?
-	if (numPrintAsChar > 0)
+	if (numPrintAsChar > 0) {
 		numPrintAsChar--;
-	else if (processCommandChar(ch))
+	} else if (processCommandChar(ch)) {
+		printCharBuffer ();
 		return;
-
-	// Do not print if no font is available
-	if (!curFont)
-		return;
-
-	// Find the glyph for the char to render
-	index = FT_Get_Char_Index(curFont, curMap[ch]);
-
-	// Load the glyph 
-	FT_Load_Glyph(curFont, index, FT_LOAD_DEFAULT);
-
-	// Render a high-quality bitmap
-	FT_Render_Glyph(curFont->glyph, FT_RENDER_MODE_NORMAL);
-
-	penX = PIXX + curFont->glyph->bitmap_left;
-	penY = PIXY - curFont->glyph->bitmap_top + curFont->size->metrics.ascender/64;
-
-	if (style & STYLE_SUBSCRIPT)
-		penY += curFont->glyph->bitmap.rows / 2;
-
-	// Copy bitmap into page
-
-	blitGlyph(curFont->glyph->bitmap, penX, penY, false);
-
-	// Doublestrike => Print the glyph a second time one pixel below
-	if (style & STYLE_DOUBLESTRIKE)
-		blitGlyph(curFont->glyph->bitmap, penX, penY+1, true);
-
-	// Bold => Print the glyph a second time one pixel to the right
-	if (style & STYLE_BOLD)
-		blitGlyph(curFont->glyph->bitmap, penX+1, penY, true);
-
-	// For line printing
-	lineStart = PIXX;
-
-	if (style & STYLE_PROP)
-		curX += (Real64)((Real64)(curFont->glyph->advance.x)/(Real64)(dpi*64));
-	else
-	{
-		if (hmi < 0)
-			curX += 1/(Real64)actcpi;
-		else
-			curX += hmi;
 	}
 
-	curX += extraIntraSpace;
-
-	// Draw lines if desired
-	if (score != SCORE_NONE && (style & (STYLE_UNDERLINE|STYLE_STRIKETHROUGH|STYLE_OVERSCORE)))
-	{
-		// Find out where to put the line
-		Bit16u lineY = PIXY;
-
-		if (style & STYLE_UNDERLINE)
-			lineY = penY + 5 + curFont->glyph->bitmap.rows;
-		if (style & STYLE_STRIKETHROUGH)
-			lineY = PIXY + curFont->size->metrics.ascender/128;
-		if (style & STYLE_OVERSCORE)
-			lineY = PIXY - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN)?5:0);
-
-		drawLine(penX, PIXX, lineY, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
-
-		if (score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN)
-			drawLine(lineStart, PIXX, lineY + 5, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
+	charbuffer[charcnt++] = ch;
+	if (charcnt >= CHARBUFFERSIZE) {
+		printCharBuffer ();
 	}
 }
 
@@ -1965,42 +2219,57 @@ static int isBlank(void)
 
 static int epson_ft (void)
 {
+#ifndef WINFONT
 	if (!ft)
 		ft = WIN32_LoadLibrary (L"freetype6.dll");
 	if (!ft) {
 		write_log (L"EPSONPRINTER: freetype6.dll not found. Text output disabled.");
 		return 0;
 	}
+#endif
 	return 1;
 }
+
+#ifdef DEBUGPRINT
+#include "zfile.h"
+static int printed;
 #endif
 
 void epson_printchar(uae_u8 c)
 {
-#ifndef CPU_64_BIT
+#ifdef DEBUGPRINT
+	if (printed)
+		return;
+	printed = 1;
+	struct zfile *zf = zfile_fopen (L"c:\\d\\data_epsonq_raw.bin", L"rb", ZFD_ALL);
+	for (;;) {
+		int v = zfile_getc (zf);
+		if (v < 0)
+			break;
+		printChar (v);
+	}
+	zfile_fclose (zf);
+#else
 	printChar (c);
 #endif
 }
-int epson_init(int type)
+int epson_init(const TCHAR *printername, int type)
 {
-#ifndef CPU_64_BIT
 	if (type == PARALLEL_MATRIX_EPSON9)
 		pins = 9;
 	else
 		pins = 48;
 	epson_ft ();
 	write_log (L"EPSONPRINTER%d: start\n", pins);
-	return printer_init(300, 83, 117, L"png", 0, pins);
-#else
-	return 0;
-#endif
+	return printer_init(600, 83, 117, pngprint ? NULL : printername, 0, pins);
 }
 void epson_close(void)
 {
-#ifndef CPU_64_BIT
 	if (page && !isBlank ()) {
 		outputPage();
 	}
 	printer_close();
+#ifdef DEBUGPRINT
+	printed = 0;
 #endif
 }

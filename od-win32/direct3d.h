@@ -16,3 +16,6 @@ extern int D3D_canshaders (void);
 extern int D3D_goodenough (void);
 extern void D3D_setcursor (int x, int y, int visible);
 extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;
+
+#define CURSORMAXWIDTH 64
+#define CURSORMAXHEIGHT 64

@@ -49,6 +49,7 @@
 #include "gfxfilter.h"
 #include "parser.h"
 #include "lcd.h"
+#include "sampler.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -317,20 +318,22 @@ static int set_ddraw_2 (void)
 		for (;;) {
 			int i, j, got = FALSE;
 			HRESULT olderr;
-			struct MultiDisplay *md = getdisplay (&currprefs);
-			for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-				struct PicassoResolution *pr = &md->DisplayModes[i];
-				if (pr->res.width == width && pr->res.height == height) {
-					for (j = 0; pr->refresh[j] > 0; j++) {
-						if (pr->refresh[j] == freq)
-							got = TRUE;
+			if (freq > 0) {
+				struct MultiDisplay *md = getdisplay (&currprefs);
+				for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+					struct PicassoResolution *pr = &md->DisplayModes[i];
+					if (pr->res.width == width && pr->res.height == height) {
+						for (j = 0; pr->refresh[j] > 0; j++) {
+							if (pr->refresh[j] == freq)
+								got = TRUE;
+						}
+						break;
 					}
-					break;
 				}
-			}
-			if (got == FALSE) {
-				write_log (L"set_ddraw: refresh rate %d not supported\n", freq);
-				freq = 0;
+				if (got == FALSE) {
+					write_log (L"set_ddraw: refresh rate %d not supported\n", freq);
+					freq = 0;
+				}
 			}
 			write_log (L"set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
 			ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
@@ -1472,6 +1475,11 @@ int check_prefs_changed_gfx (void)
 		setpriority (&priorities[currprefs.win32_active_priority]);
 #endif
 		return 1;
+	}
+
+	if (currprefs.win32_samplersoundcard != changed_prefs.win32_samplersoundcard) {
+		currprefs.win32_samplersoundcard = changed_prefs.win32_samplersoundcard;
+		sampler_free ();
 	}
 
 	if (_tcscmp (currprefs.prtname, changed_prefs.prtname) ||

@@ -104,7 +104,7 @@ static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 
-int rawkeyboard;
+int rawkeyboard = -1;
 int no_rawinput;
 int dinput_enum_all;
 
@@ -896,11 +896,11 @@ static int initialize_rawinput (void)
 			} else {
 				int j;
 				PRID_DEVICE_INFO_KEYBOARD rdik = &rdi->keyboard;
-				write_log (L"type=%d sub=%d mode=%d fkeys=%d indicators=%d tkeys=%d",
+				write_log (L"type=%d sub=%d mode=%d fkeys=%d indicators=%d tkeys=%d\n",
 					rdik->dwType, rdik->dwSubType, rdik->dwKeyboardMode,
 					rdik->dwNumberOfFunctionKeys, rdik->dwNumberOfIndicators, rdik->dwNumberOfKeysTotal);
 				j = 0;
-				for (i = 0; i < 254; i++) {
+				for (int k = 0; k < 254; k++) {
 					TCHAR tmp[100];
 					tmp[0] = 0;
 					if (rawkeyboardlabels[j] != NULL) {
@@ -912,10 +912,10 @@ static int initialize_rawinput (void)
 						j++;
 					}
 					if (!tmp[0])
-						_stprintf (tmp, L"Key %02X", i + 1);
-					did->buttonname[i] = my_strdup (tmp);
-					did->buttonmappings[i] = i + 1;
-					did->buttonsort[i] = i + 1;
+						_stprintf (tmp, L"Key %02X", k + 1);
+					did->buttonname[k] = my_strdup (tmp);
+					did->buttonmappings[k] = k + 1;
+					did->buttonsort[k] = k + 1;
 					did->buttons++;
 				}
 			}
@@ -1067,17 +1067,15 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (scancode == 0xaa)
 			return;
 
-#if 0
+#if 1
 		for (num = 0; num < num_keyboard; num++) {
 			did = &di_keyboard[num];
-			if ((did->acquired || rawkeyboard > 0) && did->rawinput == raw->header.hDevice)
+			if (did->acquired && did->rawinput == raw->header.hDevice)
 				break;
 		}
 		if (num == num_keyboard) {
-			if (scancode == DIK_F12 && pressed) {
+			if (scancode == DIK_F12 && pressed)
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
-				return;
-			}
 			return;
 		}
 #endif
@@ -1330,7 +1328,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 	if (pdidoi->dwType & DIDFT_BUTTON) {
 		if (did->buttons >= MAX_MAPPINGS)
 			return DIENUM_CONTINUE;
-		did->buttonname[did->buttons] = my_strdup (pdidoi->tszName);
+		TCHAR *bname = did->buttonname[did->buttons] = my_strdup (pdidoi->tszName);
 		if (did->type == DID_JOYSTICK) {
 			//did->buttonmappings[did->buttons] = DIJOFS_BUTTON(DIDFT_GETINSTANCE (pdidoi->dwType));
 			did->buttonmappings[did->buttons] = DIJOFS_BUTTON(did->buttons);
@@ -1339,9 +1337,15 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 			//did->buttonmappings[did->buttons] = FIELD_OFFSET(DIMOUSESTATE2, rgbButtons) + DIDFT_GETINSTANCE (pdidoi->dwType);
 			did->buttonmappings[did->buttons] = FIELD_OFFSET(DIMOUSESTATE2, rgbButtons) + did->buttons;
 			did->buttonsort[did->buttons] = makesort_mouse (&pdidoi->guidType, &did->buttonmappings[did->buttons]);
-		} else {
+		} else if (did->type == DID_KEYBOARD) {
 			//did->buttonmappings[did->buttons] = pdidoi->dwOfs;
 			did->buttonmappings[did->buttons] = DIDFT_GETINSTANCE (pdidoi->dwType);
+			if (rawkeyboard && (!_tcsicmp (bname, L"kana") || 0)) { // buggy layout?
+				if (rawkeyboard != 2) {
+					write_log (L"Possible buggy directinput keyboard layout detected, switching to raw keyboard mode\n");
+					rawkeyboard = 2;
+				}
+			}
 		}
 		did->buttons++;
 	}
@@ -1481,10 +1485,8 @@ static int di_do_init (void)
 		write_log (L"DirectInput enumeration..\n");
 		g_lpdi->EnumDevices (DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 	} else {
-		if (rawkeyboard <= 0) {
-			write_log (L"DirectInput enumeration.. Keyboards..\n");
-			g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-		}
+		write_log (L"DirectInput enumeration.. Keyboards..\n");
+		g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 		write_log (L"DirectInput enumeration.. Pointing devices..\n");
 		g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 		write_log (L"DirectInput enumeration.. Game controllers..\n");
@@ -2530,6 +2532,19 @@ int dinput_wmkey (uae_u32 key)
 	if (((key >> 16) & 0xff) == 0x58)
 		return 1;
 	return 0;
+}
+
+int input_get_default_keyboard (int i)
+{
+	if (rawkeyboard > 0) {
+		if (i == 0)
+			return 0;
+		return 1;
+	} else {
+		if (i == 0)
+			return 1;
+		return 0;
+	}
 }
 
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port)

@@ -1498,7 +1498,7 @@ static int restoredeviceobjects (void)
 		write_log (L"%s: LED D3DXSprite failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 
-	int curw = 64, curh = 64;
+	int curw = CURSORMAXWIDTH, curh = CURSORMAXHEIGHT;
 	cursorsurfaced3d = createtext (curw, curh, D3DFMT_A8R8G8B8);
 	cursor_v = 0;
 

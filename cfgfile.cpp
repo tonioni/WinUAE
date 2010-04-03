@@ -1837,7 +1837,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 	}
 
 	if (strcasecmp (option, L"quickstart") == 0) {
-		int model = -1;
+		int model = 0;
 		TCHAR *tmpp = _tcschr (value, ',');
 		if (tmpp) {
 			*tmpp++ = 0;
