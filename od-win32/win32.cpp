@@ -2754,7 +2754,7 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (cfgfile_string (option, value, L"serial_port", &p->sername[0], 256)) {
-		sernametodev(p->sername);
+		sernametodev (p->sername);
 		if (p->sername[0])
 			p->use_serial = 1;
 		else
@@ -2763,8 +2763,13 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (cfgfile_string (option, value, L"parallel_port", &p->prtname[0], 256)) {
-		if (!_tcscmp(p->prtname, L"none"))
+		if (!_tcscmp (p->prtname, L"none"))
 			p->prtname[0] = 0;
+		if (!_tcscmp (p->prtname, L"default")) {
+			p->prtname[0] = 0;
+			DWORD size = 256;
+			GetDefaultPrinter (p->prtname, &size);
+		}
 		return 1;
 	}
 
@@ -3905,6 +3910,7 @@ static void getstartpaths (void)
 extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
+extern int pngprint;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -3978,6 +3984,10 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 #endif
+	if (!_tcscmp (arg, L"-pngprint")) {
+		pngprint = 1;
+		return 1;
+	}
 	if (!_tcscmp (arg, L"-norawinput")) {
 		no_rawinput = 1;
 		return 1;

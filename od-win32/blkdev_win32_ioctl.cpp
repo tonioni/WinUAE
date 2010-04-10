@@ -40,6 +40,7 @@ struct dev_info_ioctl {
 	HANDLE h;
 	uae_u8 *tempbuffer;
 	TCHAR drvletter;
+	TCHAR drvlettername[10];
 	TCHAR devname[30];
 	int mediainserted;
 	int type;
@@ -234,7 +235,7 @@ static int open_mci (int unitnum)
 	ciw->playend = -1;
 	closed = close_createfile (unitnum);
 	if (log_scsi)
-		write_log (L"IOCTL: MCI opening %c:\n", ciw->drvletter);
+		write_log (L"IOCTL: MCI opening %s\n", ciw->drvlettername);
 	memset (&mciOpen, 0, sizeof (mciOpen));
 	mciOpen.lpstrDeviceType = (LPWSTR)MCI_DEVTYPE_CD_AUDIO;
 	_stprintf (elname, L"%c:", ciw->drvletter);
@@ -359,9 +360,9 @@ static void *cdda_play (void *v)
 					rri.TrackMode = CDDA;
 					if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], num_sectors * 2352, &len, NULL)) {
 						DWORD err = GetLastError ();
-						write_log (L"IOCTL_CDROM_RAW_READ CDDA returned %d\n", err);
-						ciw->cdda_play_finished = 1;
-						ciw->cdda_play = -1;
+						write_log (L"IOCTL_CDROM_RAW_READ CDDA sector %d returned %d\n", cdda_pos - 150, err);
+						//ciw->cdda_play_finished = 1;
+						//ciw->cdda_play = -1;
 					}
 				} else {
 					for (i = 0; i < num_sectors; i++) {
@@ -842,6 +843,7 @@ uae_u8 *ioctl_command_rawread (int unitnum, int sector, int sectorsize)
 		if (!DeviceIoControl (ciw32[unitnum].h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri,
 			p, IOCTL_DATA_BUFFER, &len, NULL)) {
 				DWORD err = GetLastError ();
+				write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d, ERR=%d\n", unitnum, sector, sectorsize, err);
 		}
 		reseterrormode (unitnum);
 		ciw32[unitnum].cd_last_pos = sector + sectorsize;
@@ -1167,6 +1169,7 @@ static int open_bus (int flags)
 				if (log_scsi)
 					write_log (L"IOCTL: drive %c: = unit %d\n", drive, total_devices);
 				ciw32[total_devices].drvletter = drive;
+				_tcscpy (ciw32[total_devices].drvlettername, tmp);
 				ciw32[total_devices].type = dt;
 				ciw32[total_devices].blocksize = 2048;
 				_stprintf (ciw32[total_devices].devname, L"\\\\.\\%c:", drive);
@@ -1206,7 +1209,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	di->write_protected = ciw32[unitnum].type == DRIVE_CDROM ? 1 : 0;
 	di->type = ciw32[unitnum].type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
 	di->id = ciw32[unitnum].drvletter;
-	_stprintf (di->label, L"Drive %c:", ciw32[unitnum].drvletter);
+	_tcscpy (di->label, ciw32[unitnum].drvlettername);
 	return di;
 }
 
@@ -1216,11 +1219,11 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		if (ciw32[i].drvletter == driveletter && ciw32[i].mediainserted != insert) {
-			write_log (L"IOCTL: media change %c %d\n", driveletter, insert);
+			write_log (L"IOCTL: media change %s %d\n", ciw32[i].drvlettername, insert);
 			ciw32[i].mediainserted = insert;
 			scsi_do_disk_change (driveletter, insert);
 #ifdef RETROPLATFORM
-			rp_cd_change (i, insert ? 0 : 1);
+			rp_cd_image_change (i, insert ? ciw32[i].drvlettername : NULL);
 #endif
 		}
 	}

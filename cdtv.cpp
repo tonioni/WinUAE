@@ -584,7 +584,7 @@ static void cdrom_command_thread (uae_u8 b)
 
 static uae_u8 *read_raw (int sector, int size)
 {
-	int osector = sector;
+	int osector = sector - 150;
 	static struct zfile *f;
 	static int track;
 	int trackcnt;
@@ -613,9 +613,7 @@ static uae_u8 *read_raw (int sector, int size)
 		_stprintf (fname, L"track%d.bin", trackcnt);
 		zfile_fclose (f);
 		f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
-		if (!f)
-			write_log (L"failed to open '%s'\n", fname);
-		else
+		if (f)
 			write_log (L"opened '%s'\n", fname);
 		track = trackcnt;
 	}
@@ -893,7 +891,7 @@ static void do_hunt (void)
 	}
 	if (sys_command_open (DF_IOCTL, i) > 0) {
 		struct device_info di = { 0 };
-		sys_command_info (DF_IOCTL, 0, &di);
+		sys_command_info (DF_IOCTL, i, &di);
 		unitnum = i;
 		cd_hunt = 0;
 		write_log (L"CDTV: autodetected unit %d ('%s')\n", unitnum, di.label);

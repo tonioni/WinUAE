@@ -36,8 +36,8 @@
 
 #include <math.h>
 
-//#define DEBUGPRINT
-static int pngprint = 0;
+//#define DEBUGPRINT L"c:\\d\\data_epsonq_raw_fixed_superscript_subscript_multi-strike.bin"
+int pngprint = 0;
 
 #ifdef C_LIBPNG
 #include <png.h>
@@ -77,6 +77,7 @@ static Bit8u numVertTabs, curCharTable, printQuality;
 static enum Typeface LQtypeFace;
 static Real64 extraIntraSpace;
 static int charRead, autoFeed, printUpperContr;
+static int printColor, colorPrinted;
 static struct bitGraphicParams {
 	Bit16u horizDens, vertDens;
 	int adjacent;
@@ -100,7 +101,7 @@ static int justification;
 static int charcnt;
 static Bit8u charbuffer[CHARBUFFERSIZE];
 
-static uae_u8 *page;
+static uae_u8 *page, *cpage;
 static int page_w, page_h, page_pitch;
 static int pagesize;
 static HMODULE ft;
@@ -108,6 +109,15 @@ static int pins = 24;
 
 static void printCharBuffer(void);
 
+static Bit8u colors[] = {
+	0x00, 0x00, 0x00, // 0 black
+	0xff, 0x00, 0xff, // 1 magenta (/green)
+	0x00, 0xff, 0xff, // 2 cyan (/red)
+	0xff, 0x00, 0xff, // 3 violet
+	0xff, 0xff, 0x00, // 4 yellow (/blue)
+	0xff, 0x00, 0x00, // 5 red
+	0x00, 0xff, 0x00  // 6 green
+};
 
 // Various ASCII codepage to unicode maps
 
@@ -472,14 +482,13 @@ static int selectfont(Bit16u style)
 				break;
 			if (thisFontVertPoints != curFontVertPoints)
 				break;
-			if (thisStyle != style)
+			if ((thisStyle & (STYLE_ITALICS | STYLE_PROP)) != (style & (STYLE_ITALICS | STYLE_PROP)))
 				break;
 			// still using same font
 			return 1;
 		}
 		DeleteObject (curFont);
 		curFont = NULL;
-		xfree (thisFontName);
 		thisFontName = NULL;
 		xfree (otm);
 		otm = NULL;
@@ -674,6 +683,29 @@ static void getfname (TCHAR *fname)
 
 static int volatile prt_thread_mode;
 
+STATIC_INLINE void getcolor (uae_u8 *Tpage, uae_u8 *Tcpage, int x, int y, int Tpage_pitch, Bit8u *r, Bit8u *g, Bit8u *b)
+{
+	Bit8u pixel = *((Bit8u*)Tpage + x + (y*Tpage_pitch));
+	Bit8u c = *((Bit8u*)Tcpage + x + (y*Tpage_pitch));
+	Bit8u color_r = 0, color_g = 0, color_b = 0;
+	if (c) {
+		Bit32u color = 0;
+		int cindex = 0;
+		while (c) {
+			if (c & 1) {
+				color_r |= (255 - colors[cindex * 3 + 0]) * pixel / 256;
+				color_g |= (255 - colors[cindex * 3 + 1]) * pixel / 256;
+				color_b |= (255 - colors[cindex * 3 + 2]) * pixel / 256;
+			}
+			cindex++;
+			c >>= 1;
+		}
+	}
+	*r = 255 - color_r;
+	*g = 255 - color_g;
+	*b = 255 - color_b;
+}
+
 static void *prt_thread (void *p) 
 {
 	Bit16u x, y;
@@ -683,6 +715,7 @@ static void *prt_thread (void *p)
 	int Tpage_h = page_h;
 	int Tpage_pitch = page_pitch;
 	uae_u8 *Tpage = page;
+	uae_u8 *Tcpage = cpage;
 
 	write_log (L"EPSONPRINTER: background print thread started\n");
 	prt_thread_mode = 1;
@@ -694,11 +727,14 @@ static void *prt_thread (void *p)
 		int vz = GetDeviceCaps (TprinterDC, PHYSICALHEIGHT);
 		int topmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETX);
 		int leftmargin = GetDeviceCaps (TprinterDC, PHYSICALOFFSETY);
+		HDC dc = NULL;
 
 		write_log (L"EPSONPRINTER: HP=%d WP=%d TM=%d LM=%d W=%d H=%d\n",
 			hz, vz, topmargin, leftmargin, Tpage_w, Tpage_h);
 
-		HBITMAP bitmap = CreateCompatibleBitmap (memHDC, Tpage_w, Tpage_h);
+		if (colorPrinted)
+			dc = GetDC (NULL);
+		HBITMAP bitmap = CreateCompatibleBitmap (dc, Tpage_w, Tpage_h);
 		SelectObject (TmemHDC, bitmap);
 		BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
 
@@ -723,22 +759,21 @@ static void *prt_thread (void *p)
 		{
 			for (x=0; x<Tpage_w; x++)
 			{
-				Bit8u pixel = 255 - *((Bit8u*)Tpage + x + (y*Tpage_pitch));
-				if (pixel != 255) {
-					Bit32u color = 0;
-					color |= pixel;
-					color |= pixel << 8;
-					color |= pixel << 16;
-					SetPixel (TmemHDC, x, y, color);
-				}
+				Bit8u r, g, b;
+				getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
+				if (r != 255 || g != 255 || b != 255)
+					SetPixel (TmemHDC, x, y, (r << 16) | (g << 8) | b);
 			}
 		}
 
 		BitBlt (TprinterDC, leftmargin, topmargin, Tpage_w, Tpage_h, TmemHDC, 0, 0, SRCCOPY);
 
 		EndPage (TprinterDC);
-		DeleteObject (bitmap);
 		EndDoc (TprinterDC);
+
+		DeleteObject (bitmap);
+		if (dc)
+			ReleaseDC (NULL, dc);
 
 	}
 #ifdef C_LIBPNG
@@ -751,6 +786,7 @@ static void *prt_thread (void *p)
 		Bitu i;
 		TCHAR fname[MAX_DPATH];
 		FILE *fp;
+		Bit8u *bm = NULL;
 
 		getfname (fname);
 		/* Open the actual file */
@@ -782,22 +818,39 @@ static void *prt_thread (void *p)
 		png_set_compression_method(png_ptr, 8);
 		png_set_compression_buffer_size(png_ptr, 8192);
 
-
-		png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
-			8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
-			PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
-		for (i=0;i<256;i++) 
-		{
-			palette[i].red = 255 - i;
-			palette[i].green = 255 - i;
-			palette[i].blue = 255 - i;
-		}
-		png_set_PLTE(png_ptr, info_ptr, palette,256);
-
 		// Allocate an array of scanline pointers
 		row_pointers = (png_bytep*)malloc(Tpage_h*sizeof(png_bytep));
-		for (i=0; i<Tpage_h; i++) 
-			row_pointers[i] = ((Bit8u*)Tpage+(i*Tpage_pitch));
+
+		if (colorPrinted) {
+			png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
+				8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
+				PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+			bm = xcalloc (Bit8u, Tpage_w * Tpage_h * 3);
+			for (i=0; i<Tpage_h; i++) 
+				row_pointers[i] = bm + i * Tpage_w * 3;
+			for (int y = 0; y < Tpage_h; y++) {
+				for (int x = 0; x < Tpage_w; x++) {
+					Bit8u r, g, b;
+					getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
+					bm[y * Tpage_w * 3 + x * 3 + 0] = r;
+					bm[y * Tpage_w * 3 + x * 3 + 1] = g;
+					bm[y * Tpage_w * 3 + x * 3 + 2] = b;
+				}
+			}
+		} else {
+			png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
+				8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
+				PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+			for (i=0;i<256;i++) 
+			{
+				palette[i].red = 255 - i;
+				palette[i].green = 255 - i;
+				palette[i].blue = 255 - i;
+			}
+			png_set_PLTE(png_ptr, info_ptr, palette,256);
+			for (i=0; i<Tpage_h; i++) 
+				row_pointers[i] = ((Bit8u*)Tpage+(i*Tpage_pitch));
+		}
 
 		// tell the png library what to encode.
 		png_set_rows(png_ptr, info_ptr, row_pointers);
@@ -812,12 +865,14 @@ static void *prt_thread (void *p)
 		png_destroy_write_struct(&png_ptr, &info_ptr);
 
 		/*clean up dynamically allocated RAM.*/
-		free(row_pointers);
+		xfree (row_pointers);
+		xfree (bm);
 		ShellExecute (NULL, L"open", fname, NULL, NULL, SW_SHOWNORMAL);
 	}
 #endif
 end:
 	xfree (Tpage);
+	xfree (Tcpage);
 	if (TprinterDC)
 		DeleteObject (TprinterDC);
 	DeleteObject (TmemHDC);
@@ -834,6 +889,7 @@ static void outputPage(void)
 		memHDC = NULL;
 		printerDC = NULL;
 		page = NULL;
+		cpage = NULL;
 	}
 }
 
@@ -841,8 +897,10 @@ static void newPage(int save)
 {
 	if (save)
 		outputPage ();
-	if (page == NULL)
+	if (page == NULL) {
 		page = xcalloc (uae_u8, pagesize);
+		cpage = xcalloc (uae_u8, pagesize);
+	}
 	curY = topMargin;
 	memset (page, 0, pagesize);
 }
@@ -881,6 +939,7 @@ static void initPrinter(void)
 	LQtypeFace = roman;
 	justification = JUST_LEFT;
 	charcnt = 0;
+	printColor = 0;
 
 	selectCodepage(charTables[curCharTable]);
 
@@ -961,6 +1020,7 @@ static int printer_init(Bit16u dpi2, Bit16u width, Bit16u height, const TCHAR *p
 	pagesize =  page_w * page_h;
 	page_pitch = page_w;
 	page = xcalloc (uae_u8, pagesize);
+	cpage = xcalloc (uae_u8, pagesize);
 	curFont = NULL;
 	charRead = false;
 	autoFeed = false;
@@ -981,6 +1041,8 @@ static void printer_close(void)
 	if (page != NULL) {
 		xfree (page);
 		page = NULL;
+		xfree (cpage);
+		cpage = NULL;
 #ifndef WINFONT
 		if (ft)
 			FT_Done_FreeType(FTlib);
@@ -1636,8 +1698,9 @@ static int processCommandChar(Bit8u ch)
 			updateFont();
 			break;
 		case 0x72: // Select printing color (ESC r)
-			if (params[0] != 0)
-				write_log(L"EPSONPRINTER: Color printing not supported\n");
+			printColor = params[0];
+			if (printColor > 6)
+				printColor = 0;
 			break;
 		case 0x73: // Select low-speed mode (ESC s)
 			// Ignore
@@ -1921,8 +1984,10 @@ static void printBitGraph(Bit8u ch)
 				for (xx=0; xx<pixsizeX; xx++) {
 					Bitu yy;
 					for (yy=0; yy<pixsizeY; yy++)
-						if (((PIXX + xx) < page_w) && ((PIXY + yy) < page_h))
+						if (((PIXX + xx) < page_w) && ((PIXY + yy) < page_h)) {
 							*((Bit8u*)page + PIXX + xx + (PIXY+yy)*page_pitch) = 255;
+							*((Bit8u*)cpage + PIXX + xx + (PIXY+yy)*page_pitch) |= 1 < printColor;
+						}
 				}
 			}
 
@@ -1956,6 +2021,7 @@ static void blitGlyph(uae_u8 *gbitmap, int width, int rows, int pitch, int destx
 			if (*source != 0 && (destx+x < page_w) && (desty+y < page_h) && (destx+x >= 0) && (desty+y >= 0))
 			{
 				Bit8u* target = (Bit8u*)page + (x+destx) + (y+desty)*page_pitch;
+				Bit8u* ctarget = (Bit8u*)cpage + (x+destx) + (y+desty)*page_pitch;
 				Bit8u b = *source;
 				if (b >= 64) {
 					b = 255;
@@ -1966,16 +2032,20 @@ static void blitGlyph(uae_u8 *gbitmap, int width, int rows, int pitch, int destx
 				}
 				if (add)
 				{
-					if (*target + b > 255)
+					if (*target + (unsigned int)b > 255)
 						*target = 255;
 					else
 						*target += b;
 				}
 				else
 					*target = b;
+				*ctarget |= 1 << printColor;
+
 			}
 		}
 	}
+	if (printColor)
+		colorPrinted = true;
 }
 
 static void drawLine(int fromx, int tox, int y, int broken)
@@ -1993,20 +2063,28 @@ static void drawLine(int fromx, int tox, int y, int broken)
 		{
 			if (y < 0)
 				continue;
-			if (y > 0 && (y-1) < page_h)
+			if (y > 0 && (y-1) < page_h) {
 				*((Bit8u*)page + x + (y-1)*page_pitch) = 120;
-			if (y < page_h)
+				*((Bit8u*)cpage + x + (y-1)*page_pitch) |= 1 << printColor;
+			}
+			if (y < page_h) {
 				*((Bit8u*)page + x + y*page_pitch) = !broken?255:120;
-			if (y+1 < page_h)
+				*((Bit8u*)cpage + x + y*page_pitch) |= 1 << printColor;
+			}
+			if (y+1 < page_h) {
 				*((Bit8u*)page + x + (y+1)*page_pitch) = 120;
+				*((Bit8u*)cpage + x + (y+1)*page_pitch) |= 1 << printColor;
+			}
 		}
 	}
+	if (printColor)
+		colorPrinted = true;
 }
 
 static void printSingleChar(Bit8u ch, int doprint)
 {
-	int penX;
-	int penY;
+	int penX = PIXX;
+	int penY = PIXY;
 	Bit16u lineStart;
 
 	int bitmap_left = 0;
@@ -2061,12 +2139,15 @@ static void printSingleChar(Bit8u ch, int doprint)
 	}
 #endif
 
+	int deltaY = 0;
+	if (style & STYLE_SUBSCRIPT)
+		deltaY = rows / 2;
+	else if (style & STYLE_SUPERSCRIPT)
+		deltaY = rows / 2;
+
 	if (gbitmap) {
 		penX = PIXX + bitmap_left;
-		penY = PIXY - bitmap_top + ascender;
-
-		if (style & STYLE_SUBSCRIPT)
-			penY += rows / 2;
+		penY = PIXY - bitmap_top + ascender + deltaY;
 
 		if (doprint) {
 			// Copy bitmap into page
@@ -2077,8 +2158,10 @@ static void printSingleChar(Bit8u ch, int doprint)
 				blitGlyph(gbitmap, width, rows, pitch, penX, penY+1, true);
 
 			// Bold => Print the glyph a second time one pixel to the right
-			if (style & STYLE_BOLD)
+			if (style & STYLE_BOLD) {
+				printColor = 0;
 				blitGlyph(gbitmap, width, rows, pitch, penX+1, penY, true);
+			}
 		}
 	}
 
@@ -2101,19 +2184,19 @@ static void printSingleChar(Bit8u ch, int doprint)
 	if (doprint && score != SCORE_NONE && (style & (STYLE_UNDERLINE|STYLE_STRIKETHROUGH|STYLE_OVERSCORE)))
 	{
 		// Find out where to put the line
-		Bit16u lineY = PIXY;
+		Bit16u lineY = PIXY + deltaY;
+		Bit16u xEnd = lineStart + advancex;
 
 		if (style & STYLE_UNDERLINE)
-			lineY = PIXY + height - 1;
+			lineY = PIXY + deltaY + ascender * 100 / 70;
 		if (style & STYLE_STRIKETHROUGH)
-			lineY = PIXY + ascender / 2;
+			lineY = PIXY + deltaY + ascender / 2;
 		if (style & STYLE_OVERSCORE)
-			lineY = PIXY - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN) ? 5 : 0);
+			lineY = PIXY + deltaY - otm->otmTextMetrics.tmDescent - ((score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN) ? 5 : 0);
 
-		drawLine(penX - 1, PIXX + 1, lineY, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
-
+		drawLine(lineStart, xEnd, lineY, score == SCORE_SINGLEBROKEN || score == SCORE_DOUBLEBROKEN);
 		if (score == SCORE_DOUBLE || score == SCORE_DOUBLEBROKEN)
-			drawLine(lineStart, PIXX + 1, lineY + 5, score==SCORE_SINGLEBROKEN || score==SCORE_DOUBLEBROKEN);
+			drawLine(lineStart, xEnd, lineY + 5, score == SCORE_SINGLEBROKEN || score == SCORE_DOUBLEBROKEN);
 	}
 #ifdef WINFONT
 	xfree (gbitmap);
@@ -2241,7 +2324,7 @@ void epson_printchar(uae_u8 c)
 	if (printed)
 		return;
 	printed = 1;
-	struct zfile *zf = zfile_fopen (L"c:\\d\\data_epsonq_raw.bin", L"rb", ZFD_ALL);
+	struct zfile *zf = zfile_fopen (DEBUGPRINT, L"rb", ZFD_ALL);
 	for (;;) {
 		int v = zfile_getc (zf);
 		if (v < 0)

@@ -4630,7 +4630,6 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
 
 int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type)
 {
-	config_changed = 1;
 	switch (type)
 	{
 	case 1:

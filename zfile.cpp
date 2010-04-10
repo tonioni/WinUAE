@@ -1171,7 +1171,7 @@ int iszip (struct zfile *z)
 	zfile_fseek (z, 0, SEEK_SET);
 
 	if (mask & ZFD_ARCHIVE) {
-		if (!strcasecmp (ext, L".zip")) {
+		if (!strcasecmp (ext, L".zip") || !strcasecmp (ext, L".rp9")) {
 			if (header[0] == 'P' && header[1] == 'K')
 				return ArchiveFormatZIP;
 			return 0;

@@ -15,6 +15,7 @@
 #include "gui.h"
 #include "fsdb.h"
 #include "threaddep/thread.h"
+#include "scsidev.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -47,6 +48,7 @@ struct cdtoc
 static uae_u8 buffer[2352];
 static struct cdtoc toc[102];
 static int tracks;
+static uae_u64 cdsize;
 
 static int cdda_play_finished;
 static int cdda_play;
@@ -55,6 +57,9 @@ static int cdda_volume;
 static int cdda_volume_main;
 static uae_u32 cd_last_pos;
 static int cdda_start, cdda_end;
+
+static int imagechange;
+static TCHAR newfile[MAX_DPATH];
 
 /* convert minutes, seconds and frames -> logical sector number */
 static int msf2lsn (int	msf)
@@ -599,9 +604,22 @@ static void command_volume (int unitnum, uae_u16 volume)
 
 uae_u8 *command_rawread (int unitnum, int sector, int sectorsize)
 {
+	struct cdtoc *t = findtoc (&sector);
+	int offset;
+	if (!t || t->handle == NULL)
+		return NULL;
+
 	cdda_stop ();
-	return NULL;
+	if (sectorsize > t->size)
+		return NULL;
+	offset = 0;
+	if (sectorsize == 2336 && t->size == 2352)
+		offset = 16;
+	zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
+	zfile_fread (buffer, sectorsize, 1, t->handle);
+	return buffer;
 }
+
 static uae_u8 *command_read (int unitnum, int sector)
 {
 	struct cdtoc *t = findtoc (&sector);
@@ -813,9 +831,9 @@ static int parse_image (void)
 					size = 2048;
 				else if (!_tcsicmp (tracktype, L"MODE1/2352"))
 					size = 2352;
-				else if (!_tcsicmp (tracktype, L"MODE2/2336"))
+				else if (!_tcsicmp (tracktype, L"MODE2/2336") || !_tcsicmp (tracktype, L"CDI/2336"))
 					size = 2336;
-				else if (!_tcsicmp (tracktype, L"MODE2/2352"))
+				else if (!_tcsicmp (tracktype, L"MODE2/2352") || !_tcsicmp (tracktype, L"CDI/2352"))
 					size = 2352;
 				else {
 					write_log (L"CUE: unknown tracktype '%s' ('%s')\n", tracktype, fname);
@@ -940,12 +958,13 @@ static int parse_image (void)
 isodone:
 	if (tracks && toc[tracks - 1].handle) {
 		struct cdtoc *t = &toc[tracks - 1];
-		int size = t->filesize ;
+		int size = t->filesize;
 		if (!secoffset)
 			size -= offset * t->size;
 		if (size < 0)
 			size = 0;
 		toc[tracks].address = t->address + size / t->size;
+		cdsize = toc[tracks].address * t->size;
 	}
 	xfree (fname);
 	if (oldcurdir[0])
@@ -982,6 +1001,7 @@ static void unload_image (void)
 	}
 	memset (toc, 0, sizeof toc);
 	tracks = 0;
+	cdsize = 0;
 }
 
 static int open_device (int unitnum)
@@ -996,11 +1016,20 @@ static void close_device (int unitnum)
 	unload_image ();
 }
 
-static int imagechange;
-static TCHAR newfile[MAX_DPATH];
-
 void cdimage_vsync (void)
 {
+	int media = 0;
+	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
+		_tcscpy (newfile, changed_prefs.cdimagefile);
+		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
+		imagechange = 3 * 50;
+		write_log (L"CD: eject\n");
+		unload_image ();
+		scsi_do_disk_change (-1, 0);
+#ifdef RETROPLATFORM
+		rp_cd_image_change (0, NULL); 
+#endif
+	}
 	if (imagechange == 0)
 		return;
 	imagechange--;
@@ -1009,10 +1038,16 @@ void cdimage_vsync (void)
 	_tcscpy (currprefs.cdimagefile, newfile);
 	_tcscpy (changed_prefs.cdimagefile, newfile);
 	newfile[0] = 0;
-	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile);
-	parse_image ();
+	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile[0] ? currprefs.cdimagefile : L"<EMPTY>");
+	int un = scsi_do_disk_change (-1, 1);
+	if (un >= 0) {
+		media = sys_command_ismedia (DF_IOCTL, un, 1);
+	} else {
+		parse_image ();
+		media = tracks > 0;
+	}
 #ifdef RETROPLATFORM
-	rp_cd_change (0, 0);
+	rp_cd_image_change (0, media ? currprefs.cdimagefile : NULL);
 #endif
 	config_changed = 1;
 }
@@ -1021,17 +1056,7 @@ static int ismedia (int unitnum, int quick)
 {
 	if (unitnum)
 		return 0;
-	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
-		_tcscpy (newfile, changed_prefs.cdimagefile);
-		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
-		imagechange = 5 * 50;
-		write_log (L"CD: eject\n");
-		unload_image ();
-#ifdef RETROPLATFORM
-		rp_cd_change (unitnum, 1);
-#endif
-	}
-	return currprefs.cdimagefile[0] ? 1 : 0;
+	return tracks > 0 ? 1 : 0;
 }
 
 static int open_bus (int flags)
@@ -1039,9 +1064,10 @@ static int open_bus (int flags)
 	int v;
 	if (imagechange)
 		return 1;
-	v = ismedia (0, 1);
+	v = currprefs.cdimagefile[0] ? 1 : 0;
 #ifdef RETROPLATFORM
-	rp_cd_change (0, v ? 0 : 1);
+	rp_cd_change (0, 0);
+	rp_cd_image_change (0, currprefs.cdimagefile[0] ? currprefs.cdimagefile : NULL);
 #endif
 	return v;
 }
@@ -1049,25 +1075,32 @@ static int open_bus (int flags)
 static void close_bus (void)
 {
 	mp3decoder_close ();
+#ifdef RETROPLATFORM
+	rp_cd_change (0, 1);
+#endif
 }
 
 static struct device_info *info_device (int unitnum, struct device_info *di)
 {
 	if (unitnum)
 		return 0;
+	di->removable = 1;
 	di->bus = unitnum;
 	di->target = 0;
 	di->lun = 0;
 	di->media_inserted = 0;
 	di->bytespersector = 2048;
 	di->mediapath[0] = 0;
+	di->cylinders = 1;
+	di->trackspercylinder = 1;
+	di->sectorspertrack = cdsize / di->bytespersector;
 	if (ismedia (unitnum, 1)) {
 		di->media_inserted = 1;
 		_tcscpy (di->mediapath, currprefs.cdimagefile);
 	}
 	di->write_protected = 1;
 	di->type = INQ_ROMD;
-	di->id = 1;
+	di->id = -1;
 	_tcscpy (di->label, L"IMG_EMU");
 	return di;
 }

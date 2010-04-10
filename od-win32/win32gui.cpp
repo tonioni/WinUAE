@@ -10020,7 +10020,7 @@ static void values_from_portsdlg (HWND hDlg)
 	workprefs.win32_midioutdev = SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0);
 	workprefs.win32_midioutdev -= 2;
 
-	if( bNoMidiIn) {
+	if (bNoMidiIn) {
 		workprefs.win32_midiindev = -1;
 	} else {
 		workprefs.win32_midiindev = SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0);

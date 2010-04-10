@@ -183,6 +183,13 @@ static int openfail (uaecptr ioreq, int error)
 	return (uae_u32)-1;
 }
 
+static void setpdev (struct priv_devstruct *pdev, struct devstruct *dev)
+{
+	pdev->scsi = dev->allow_scsi ? 1 : 0;
+	pdev->ioctl = dev->allow_scsi ? 0 : 1;
+	pdev->mode = dev->allow_scsi ? DF_SCSI : DF_IOCTL;
+}
+
 static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 {
 	uaecptr ioreq = m68k_areg (regs, 1);
@@ -203,9 +210,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 			pdev = &pdevst[i];
 			if (pdev->inuse == 0) break;
 		}
-		if (type == UAEDEV_SCSI_ID && sys_command_open (DF_SCSI, dev->unitnum)) {
-			pdev->scsi = 1;
-			pdev->mode = DF_SCSI;
+		if (type == UAEDEV_SCSI_ID && sys_command_open (dev->allow_scsi ? DF_SCSI : DF_IOCTL, dev->unitnum)) {
+			setpdev (pdev, dev);
 		}
 		if (type == UAEDEV_DISK_ID && sys_command_open (DF_IOCTL, dev->unitnum)) {
 			pdev->ioctl = 1;
@@ -264,14 +270,74 @@ static int is_async_request (struct devstruct *dev, uaecptr request)
 	return 0;
 }
 
-void scsi_do_disk_change (int device_id, int insert)
+
+int scsiemul_switchscsi (TCHAR *name)
 {
+	struct devstruct *dev = NULL;
+	struct device_info *discsi, discsi2;
 	int i, j;
 
+	dev = &devst[0];
+	if (dev->allow_scsi)
+		sys_command_close (DF_SCSI, dev->unitnum);
+	if (dev->allow_ioctl)
+		sys_command_close (DF_IOCTL, dev->unitnum);
+	dev->allow_ioctl = 0;
+	dev->allow_scsi = 0;
+
+	dev = NULL;
+	for (j = 0; j < 2; j++) {
+		int mode = j == 0 ? DF_SCSI : DF_IOCTL;
+		device_func_init (j == 0 ? DEVICE_TYPE_SCSI : DEVICE_TYPE_ANY);
+		i = 0;
+		while (i < MAX_TOTAL_DEVICES && dev == NULL) {
+			discsi = 0;
+			if (sys_command_open (mode, i)) {
+				discsi = sys_command_info (mode, i, &discsi2);
+				if (discsi && discsi->type == INQ_ROMD) {
+					if (!_tcsicmp (currprefs.cdimagefile, discsi->label) || j) {
+						dev = &devst[0];
+						dev->unitnum = i;
+						dev->allow_scsi = j == 0 ? 1 : 0;
+						dev->allow_ioctl = j != 0 ? 1 : 0;
+						dev->drivetype = discsi->type;
+						memcpy (&dev->di, discsi, sizeof (struct device_info));
+						dev->iscd = 1;
+						write_log (L"%s mounted as uaescsi.device:0 (SCSI=%d)\n", discsi->label, dev->allow_scsi);
+						if (dev->aunit >= 0) {
+							struct priv_devstruct *pdev = &pdevst[dev->aunit];
+							setpdev (pdev, dev);
+						}
+					}
+				}
+				if (devst[0].opencnt == 0)
+					sys_command_close (mode, i);
+			}
+			i++;
+		}
+		if (dev)
+			return i;
+	}
+	return -1;
+}
+
+int scsi_do_disk_change (int device_id, int insert)
+{
+	int i, j, ret;
+
+	ret = -1;
+	if (!change_sem)
+		return ret;
 	uae_sem_wait (&change_sem);
+	if (device_id < 0 && insert) {
+		ret = scsiemul_switchscsi (currprefs.cdimagefile);
+		if (ret < 0)
+			goto end;
+	}
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		struct devstruct *dev = &devst[i];
-		if (dev->di.id == device_id) {
+		if (dev->di.id == device_id || (device_id < 0 && i == 0)) {
+			ret = i;
 			if (dev->aunit >= 0) {
 				struct priv_devstruct *pdev = &pdevst[dev->aunit];
 				devinfo (pdev->mode, dev->unitnum, &dev->di);
@@ -288,7 +354,9 @@ void scsi_do_disk_change (int device_id, int insert)
 				uae_Cause (dev->changeint);
 		}
 	}
+end:
 	uae_sem_post (&change_sem);
+	return ret;
 }
 
 static int add_async_request (struct devstruct *dev, uaecptr request, int type, uae_u32 data)
@@ -764,7 +832,6 @@ static void dev_reset (void)
 	struct device_info *discsi, discsi2;
 	int unitnum = 0;
 
-	device_func_init (DEVICE_TYPE_SCSI);
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		dev = &devst[i];
 		if (dev->opencnt > 0) {
@@ -774,8 +841,10 @@ static void dev_reset (void)
 					abort_async (dev, request, 0, 0);
 			}
 			dev->opencnt = 1;
-			sys_command_close (DF_SCSI, dev->unitnum);
-			sys_command_close (DF_IOCTL, dev->unitnum);
+			if (dev->allow_scsi)
+				sys_command_close (DF_SCSI, dev->unitnum);
+			if (dev->allow_ioctl)
+				sys_command_close (DF_IOCTL, dev->unitnum);
 		}
 		memset (dev, 0, sizeof (struct devstruct));
 		dev->unitnum = dev->aunit = -1;
@@ -783,24 +852,29 @@ static void dev_reset (void)
 	for (i = 0; i < MAX_OPEN_DEVICES; i++)
 		memset (&pdevst[i], 0, sizeof (struct priv_devstruct));
 
-	i = j = 0;
-	while (i < MAX_TOTAL_DEVICES) {
-		dev = &devst[i];
-		discsi = 0;
-		if (sys_command_open (DF_SCSI, j)) {
-			discsi = sys_command_info (DF_SCSI, j, &discsi2);
-			sys_command_close (DF_SCSI, j);
+	if (currprefs.cdimagefile[0]) {
+		scsiemul_switchscsi (currprefs.cdimagefile);
+	} else {
+		device_func_init (DEVICE_TYPE_SCSI);
+		i = j = 0;
+		while (i < MAX_TOTAL_DEVICES) {
+			dev = &devst[i];
+			discsi = 0;
+			if (sys_command_open (DF_SCSI, j)) {
+				discsi = sys_command_info (DF_SCSI, j, &discsi2);
+				sys_command_close (DF_SCSI, j);
+			}
+			if (discsi) {
+				dev->unitnum = j;
+				dev->allow_scsi = 1;
+				dev->drivetype = discsi->type;
+				memcpy (&dev->di, discsi, sizeof (struct device_info));
+				if (discsi->type == INQ_ROMD)
+					dev->iscd = 1;
+			}
+			i++;
+			j++;
 		}
-		if (discsi) {
-			dev->unitnum = j;
-			dev->allow_scsi = 1;
-			dev->drivetype = discsi->type;
-			memcpy (&dev->di, discsi, sizeof (struct device_info));
-			if (discsi->type == INQ_ROMD)
-				dev->iscd = 1;
-		}
-		i++;
-		j++;
 	}
 	unitnum = 0;
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {

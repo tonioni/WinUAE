@@ -16,11 +16,13 @@
 
 #include <dsound.h>
 
+#include <math.h>
+
 #include "win32.h"
 
 #define SAMPLESIZE 4
-#define RECORDBUFFER 40000
-#define SAMPLEBUFFER 4000
+#define RECORDBUFFER 10000
+#define SAMPLEBUFFER 2000
 
 static LPDIRECTSOUNDCAPTURE lpDS2r = NULL;
 static LPDIRECTSOUNDCAPTUREBUFFER lpDSBprimary2r = NULL;
@@ -30,6 +32,8 @@ static uae_u8 *samplebuffer;
 static int samplerate = 44100;
 static float clockspersample;
 static int vsynccnt;
+static int safepos;
+float sampler_evtime;
 
 static int capture_init (void)
 {
@@ -94,6 +98,7 @@ uae_u8 sampler_getsample (int channel)
 {
 	HRESULT hr;
 	static DWORD cap_pos;
+	static float diffsample;
 	DWORD t, cur_pos;
 	void *p1, *p2;
 	DWORD len1, len2;
@@ -113,19 +118,29 @@ uae_u8 sampler_getsample (int channel)
 		inited = 1;
 		oldcycles = get_cycles ();
 		oldoffset = -1;
+		safepos = -RECORDBUFFER / 10 * SAMPLESIZE;
 		hr = lpDSB2r->GetCurrentPosition (&t, &cap_pos);
+		cap_pos += safepos;
+		if (cap_pos > 10 * RECORDBUFFER * SAMPLESIZE)
+			cap_pos += RECORDBUFFER * SAMPLESIZE;
+		if (cap_pos >= RECORDBUFFER * SAMPLESIZE)
+			cap_pos -= RECORDBUFFER * SAMPLESIZE;
 		if (FAILED (hr)) {
 			sampler_free ();
 			return 0;
-		}	
+		}
+		clockspersample = sampler_evtime / samplerate + 41000;
 	}
+	if (clockspersample < 1)
+		return 0;
 	uae_s16 *sbuf = (uae_s16*)samplebuffer;
 
 	vsynccnt = 0;
 	sample = 0;
 	samplecnt = 0;
 	cycles = get_cycles () - oldcycles;
-	offset = cycles / clockspersample;
+	float cps = clockspersample + diffsample;
+	offset = (cycles + cps - 1) / cps;
 	if (oldoffset < 0 || offset >= SAMPLEBUFFER || offset < 0) {
 		if (oldoffset >= 0 && offset >= SAMPLEBUFFER) {
 			while (oldoffset < SAMPLEBUFFER) {
@@ -134,7 +149,6 @@ uae_u8 sampler_getsample (int channel)
 				samplecnt++;
 			}
 		}
-		//write_log (L"%d\n", cur_pos - cap_pos);
 		hr = lpDSB2r->Lock (cap_pos, SAMPLEBUFFER * SAMPLESIZE, &p1, &len1, &p2, &len2, 0);
 		if (FAILED (hr))
 			return 0;
@@ -147,20 +161,28 @@ uae_u8 sampler_getsample (int channel)
 		hr = lpDSB2r->GetCurrentPosition (&t, &cur_pos);
 		if (FAILED (hr))
 			return 0;
+		cur_pos += safepos;
+		if (cur_pos >= 10 * RECORDBUFFER * SAMPLESIZE)
+			cur_pos += RECORDBUFFER * SAMPLESIZE;
+		if (cur_pos >= RECORDBUFFER * SAMPLESIZE)
+			cur_pos -= RECORDBUFFER * SAMPLESIZE;
 		if (cur_pos >= cap_pos)
 			diff = cur_pos - cap_pos;
 		else
 			diff = RECORDBUFFER * SAMPLESIZE - cap_pos + cur_pos;
-		if (diff > RECORDBUFFER * SAMPLESIZE - 4 * SAMPLEBUFFER * SAMPLESIZE) {
-			write_log (L"!");
-			diff -= RECORDBUFFER * SAMPLESIZE;
-		} else if (diff > RECORDBUFFER * SAMPLESIZE / 2) {
-			cap_pos = cur_pos;
-			write_log (L"*");
-			diff = 0;
-		}
+		if (diff > RECORDBUFFER * SAMPLESIZE / 2)
+			diff -= RECORDBUFFER * SAMPLESIZE; 
+		diff /= SAMPLESIZE;
 
-		cap_pos += diff;
+		int diff2 = 100 * diff / (RECORDBUFFER / 2);
+#if 0
+		diffsample = -pow (diff2 < 0 ? -diff2 : diff2, 3.1);
+		if (diff2 < 0)
+			diffsample = -diffsample;
+#endif	
+//		write_log (L"%d:%.1f\n", diff, diffsample);
+
+		cap_pos += SAMPLEBUFFER * SAMPLESIZE;
 		if (cap_pos < 0)
 			cap_pos += RECORDBUFFER * SAMPLESIZE;
 		if (cap_pos >= RECORDBUFFER * SAMPLESIZE)
@@ -186,7 +208,6 @@ uae_u8 sampler_getsample (int channel)
 
 int sampler_init (void)
 {
-	clockspersample = (float)maxvpos * maxhpos * vblank_hz * CYCLE_UNIT / samplerate;
 	if (currprefs.win32_samplersoundcard < 0)
 		return 0;
 	return 1;

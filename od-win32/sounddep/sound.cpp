@@ -147,6 +147,7 @@ static int isvsync (void)
 }
 
 float scaled_sample_evtime_orig;
+extern float sampler_evtime;
 void update_sound (int freq, int longframe, int linetoggle)
 
 {
@@ -179,6 +180,7 @@ void update_sound (int freq, int longframe, int linetoggle)
 	lines += maxvpos_nom;
 	scaled_sample_evtime_orig = hpos * lines * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
+	sampler_evtime = hpos * lines * freq * CYCLE_UNIT;
 }
 
 static void clearbuffer_ds (struct sound_data *sd)

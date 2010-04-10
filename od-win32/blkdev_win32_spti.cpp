@@ -52,6 +52,8 @@ struct dev_info_spti {
 	TCHAR *name;
 	uae_u8 *inquirydata;
 	TCHAR *ident;
+	TCHAR drvletter;
+	TCHAR drvlettername[10];
 	int mediainserted;
 	HANDLE handle;
 	int isatapi;
@@ -255,7 +257,7 @@ static void free_scsi_device(int dev)
 	memset(&dev_info[dev], 0, sizeof (struct dev_info_spti));
 }
 
-static int rescan(void);
+static int rescan (void);
 static int open_scsi_bus (int flags)
 {
 	int i;
@@ -266,7 +268,7 @@ static int open_scsi_bus (int flags)
 		memset (&dev_info[i], 0, sizeof (struct dev_info_spti));
 		dev_info[i].handle = INVALID_HANDLE_VALUE;
 	}
-	rescan();
+	rescan ();
 	return total_devices;
 }
 
@@ -421,7 +423,8 @@ int open_scsi_device (int unitnum)
 		di->name = my_strdup_ansi ((char*)inqdata + 8);
 		if (di->type == INQ_ROMD) {
 			dev_info[unitnum].mediainserted = mediacheck (unitnum);
-			write_log (L"SPTI: unit %d opened [%s], %s, '%s'\n", unitnum,
+			write_log (L"SPTI: unit %d (%c:\\) opened [%s], %s, '%s'\n",
+				unitnum, di->drvletter ? di->drvletter : '*',
 				di->isatapi ? L"ATAPI" : L"SCSI",
 				di->mediainserted ? L"media inserted" : L"drive empty",
 				di->name);
@@ -460,6 +463,26 @@ static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int luni
 	di->target = targetid;
 	di->lun = lunid;
 	di->scanmode = scanmode;
+	di->drvletter = 0;
+
+	for (TCHAR drvletter = 'C'; drvletter <= 'Z'; drvletter++) {
+		TCHAR drvname[10];
+		TCHAR volname[MAX_DPATH], volname2[MAX_DPATH];
+		_stprintf (drvname, L"%c:\\", drvletter);
+		if (GetVolumeNameForVolumeMountPoint (drvname, volname, sizeof volname / sizeof (TCHAR))) {
+			TCHAR drvpath2[MAX_DPATH];
+			_stprintf (drvpath2, L"%s\\", di->drvpath);
+			if (GetVolumeNameForVolumeMountPoint (drvpath2, volname2, sizeof volname2 / sizeof (TCHAR))) {
+				if (!_tcscmp (volname, volname2)) {
+					di->drvletter = drvletter;
+					_tcscpy (di->drvlettername, drvname);
+					break;
+				}
+			}
+		}
+	}
+
+
 	total_devices++;
 	if (open_scsi_device (cnt)) {
 		for (i = 0; i < cnt; i++) {
@@ -480,13 +503,18 @@ static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int luni
 	return 1;
 }
 
+static int getid (int unitnum)
+{
+	return dev_info[unitnum].drvletter ? dev_info[unitnum].drvletter : unitnum + 1;
+}
+
 static struct device_info *info_device (int unitnum, struct device_info *di)
 {
 	struct dev_info_spti *dispti;
 	if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
 		return NULL;
 	dispti = &dev_info[unitnum];
-	_tcscpy (di->label, dispti->name);
+	_tcscpy (di->label, dispti->drvletter ? dispti->drvlettername : dispti->name);
 	_tcscpy (di->mediapath, dispti->drvpath);
 	di->bus = 0;
 	di->target = unitnum;
@@ -495,7 +523,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	di->removable = dispti->removable;
 	mediacheck_full (unitnum, di);
 	di->type = dispti->type;
-	di->id = unitnum + 1;
+	di->id = getid (unitnum);
 	if (log_scsi) {
 		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
 			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
@@ -511,11 +539,11 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 		if (dev_info[i].type == INQ_ROMD) {
 			now = mediacheck (i);
 			if (now != dev_info[i].mediainserted) {
-				write_log (L"SPTI: media change %c %d\n", driveletter, insert);
+				write_log (L"SPTI: media change %c %d\n", dev_info[i].drvletter, insert);
 				dev_info[i].mediainserted = now;
-				scsi_do_disk_change (i + 1, insert);
+				scsi_do_disk_change (getid (i), insert);
 #ifdef RETROPLATFORM
-				rp_cd_change (i, now ? 0 : 1);
+				rp_cd_image_change (i, now ? (dev_info[i].drvletter ? dev_info[i].drvlettername : dev_info[i].name) : NULL);
 #endif
 			}
 		}
@@ -689,49 +717,49 @@ static const GUID *guids[] = {
 	&GUID_DEVCLASS_IMAGE,
 	&GUID_DEVCLASS_TAPEDRIVE,
 	NULL };
-	static const TCHAR *scsinames[] = { L"Tape", L"Scanner", L"Changer", NULL };
+static const TCHAR *scsinames[] = { L"Tape", L"Scanner", L"Changer", NULL };
 
-	static int rescan (void)
-	{
-		int idx, idx2;
+static int rescan (void)
+{
+	int idx, idx2;
 
-		for (idx2 = 0; guids[idx2]; idx2++) {
-			HDEVINFO hDevInfo = SetupDiGetClassDevs(
-				guids[idx2],
-				NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
-			if (hDevInfo != INVALID_HANDLE_VALUE) {
-				for (idx = 0; ; idx++) {
-					if (!getCDROMProperty (idx, hDevInfo, guids[idx2]))
-						break;
-				}
-				SetupDiDestroyDeviceInfoList (hDevInfo);
+	for (idx2 = 0; guids[idx2]; idx2++) {
+		HDEVINFO hDevInfo = SetupDiGetClassDevs(
+			guids[idx2],
+			NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
+		if (hDevInfo != INVALID_HANDLE_VALUE) {
+			for (idx = 0; ; idx++) {
+				if (!getCDROMProperty (idx, hDevInfo, guids[idx2]))
+					break;
 			}
+			SetupDiDestroyDeviceInfoList (hDevInfo);
 		}
-
-		for (idx2 = 0; scsinames[idx2]; idx2++) {
-			int max = 10;
-			for (idx = 0; idx < max; idx++) {
-				TCHAR tmp[100];
-				HANDLE h;
-				_stprintf (tmp, L"\\\\.\\%s%d", scsinames[idx2], idx);
-				h = CreateFile (tmp, GENERIC_READ | GENERIC_WRITE,
-					FILE_SHARE_READ | FILE_SHARE_WRITE,
-					NULL, OPEN_EXISTING, 0, NULL);
-				if (h != INVALID_HANDLE_VALUE) {
-					adddrive (tmp, -1, -1, -1, -1, 2);
-					CloseHandle (h);
-					if (idx == max - 1)
-						max++;
-				}
-			}
-		}
-		if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
-			write_log (L"SCSI adapter enumeration..\n");
-			scanscsi ();
-			write_log (L"SCSI adapter enumeration ends\n");
-		}
-		return 1;
 	}
+
+	for (idx2 = 0; scsinames[idx2]; idx2++) {
+		int max = 10;
+		for (idx = 0; idx < max; idx++) {
+			TCHAR tmp[100];
+			HANDLE h;
+			_stprintf (tmp, L"\\\\.\\%s%d", scsinames[idx2], idx);
+			h = CreateFile (tmp, GENERIC_READ | GENERIC_WRITE,
+				FILE_SHARE_READ | FILE_SHARE_WRITE,
+				NULL, OPEN_EXISTING, 0, NULL);
+			if (h != INVALID_HANDLE_VALUE) {
+				adddrive (tmp, -1, -1, -1, -1, 2);
+				CloseHandle (h);
+				if (idx == max - 1)
+					max++;
+			}
+		}
+	}
+	if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
+		write_log (L"SCSI adapter enumeration..\n");
+		scanscsi ();
+		write_log (L"SCSI adapter enumeration ends\n");
+	}
+	return 1;
+}
 
 
 #endif
