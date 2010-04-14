@@ -746,7 +746,9 @@ static uae_u8 ReadCIAB (unsigned int addr)
 #endif
 #ifdef PARALLEL_PORT
 		if (isprinter () > 0) {
-			tmp |= ciabpra & (0x04 | 0x02 | 0x01);
+			//tmp |= ciabpra & (0x04 | 0x02 | 0x01);
+			tmp &= ~3; // clear BUSY and PAPEROUT
+			tmp |= 4; // set SELECT
 		} else if (isprinter () < 0) {
 			uae_u8 v;
 			parallel_direct_read_status (&v);

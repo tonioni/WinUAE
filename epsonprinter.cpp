@@ -51,6 +51,7 @@ int pngprint = 0;
 #define false 0
 
 #ifdef WINFONT
+static const TCHAR *epsonprintername;
 static HFONT curFont;
 static float curFontHorizPoints, curFontVertPoints;
 static TCHAR *curFontName;
@@ -85,6 +86,7 @@ static struct bitGraphicParams {
 	Bit16u remBytes;
 	Bit8u column[6];
 	Bit8u readBytesColumn;
+	int pin9;
 } bitGraph;
 static Bit8u densk, densl, densy, densz;
 static Bit16u curMap[256], charTables[4];
@@ -693,9 +695,9 @@ STATIC_INLINE void getcolor (uae_u8 *Tpage, uae_u8 *Tcpage, int x, int y, int Tp
 		int cindex = 0;
 		while (c) {
 			if (c & 1) {
-				color_r |= (255 - colors[cindex * 3 + 0]) * pixel / 256;
-				color_g |= (255 - colors[cindex * 3 + 1]) * pixel / 256;
-				color_b |= (255 - colors[cindex * 3 + 2]) * pixel / 256;
+				color_r |= (255 - colors[cindex * 3 + 0]) * pixel / 255;
+				color_g |= (255 - colors[cindex * 3 + 1]) * pixel / 255;
+				color_b |= (255 - colors[cindex * 3 + 2]) * pixel / 255;
 			}
 			cindex++;
 			c >>= 1;
@@ -716,6 +718,7 @@ static void *prt_thread (void *p)
 	int Tpage_pitch = page_pitch;
 	uae_u8 *Tpage = page;
 	uae_u8 *Tcpage = cpage;
+	int TcolorPrinter = colorPrinted;
 
 	write_log (L"EPSONPRINTER: background print thread started\n");
 	prt_thread_mode = 1;
@@ -732,9 +735,9 @@ static void *prt_thread (void *p)
 		write_log (L"EPSONPRINTER: HP=%d WP=%d TM=%d LM=%d W=%d H=%d\n",
 			hz, vz, topmargin, leftmargin, Tpage_w, Tpage_h);
 
-		if (colorPrinted)
+		if (TcolorPrinter)
 			dc = GetDC (NULL);
-		HBITMAP bitmap = CreateCompatibleBitmap (dc, Tpage_w, Tpage_h);
+		HBITMAP bitmap = CreateCompatibleBitmap (dc ? dc : TmemHDC, Tpage_w, Tpage_h);
 		SelectObject (TmemHDC, bitmap);
 		BitBlt (TmemHDC, 0, 0, Tpage_w, Tpage_h, NULL, 0, 0, WHITENESS);
 
@@ -821,7 +824,7 @@ static void *prt_thread (void *p)
 		// Allocate an array of scanline pointers
 		row_pointers = (png_bytep*)malloc(Tpage_h*sizeof(png_bytep));
 
-		if (colorPrinted) {
+		if (TcolorPrinter) {
 			png_set_IHDR(png_ptr, info_ptr, Tpage_w, Tpage_h,
 				8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE,
 				PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
@@ -900,6 +903,8 @@ static void newPage(int save)
 	if (page == NULL) {
 		page = xcalloc (uae_u8, pagesize);
 		cpage = xcalloc (uae_u8, pagesize);
+		printerDC = CreateDC (NULL, epsonprintername, NULL, NULL);
+		memHDC = CreateCompatibleDC (NULL);
 	}
 	curY = topMargin;
 	memset (page, 0, pagesize);
@@ -1004,7 +1009,8 @@ static int printer_init(Bit16u dpi2, Bit16u width, Bit16u height, const TCHAR *p
 		PrintDlg(&pd);
 		printerDC = pd.hDC;
 #endif
-		printerDC = CreateDC (NULL, printername, NULL, NULL);
+		epsonprintername = printername;
+		printerDC = CreateDC (NULL, epsonprintername, NULL, NULL);
 		if (!printerDC)
 			return 0;
 
@@ -1063,7 +1069,7 @@ static void printer_close(void)
 };
 
 
-static void setupBitImage(Bit8u dens, Bit16u numCols)
+static void setupBitImage(Bit8u dens, Bit16u numCols, int pin9)
 {
 	switch (dens)
 	{
@@ -1184,8 +1190,14 @@ static void setupBitImage(Bit8u dens, Bit16u numCols)
 	default:
 		write_log(L"EPSONPRINTER: Unsupported bit image density %i\n", dens);
 	}
-	if (pins == 9)
+	bitGraph.pin9 = false;
+	if (pins == 9) {
+		if (pin9) {
+			bitGraph.pin9 = true;
+			bitGraph.bytesColumn = 2;
+		}	
 		bitGraph.vertDens = 72;
+	}
 	bitGraph.remBytes = numCols * bitGraph.bytesColumn;
 	bitGraph.readBytesColumn = 0;
 }
@@ -1208,6 +1220,7 @@ static int processCommandChar(Bit8u ch)
 		case 0x0f: // Select condensed printing (ESC SI)
 		case 0x23: // Cancel MSB control (ESC #)
 		case 0x30: // Select 1/8-inch line spacing (ESC 0)
+		case 0x31: // Select 7/72-inch line spacing (ESC 1)
 		case 0x32: // Select 1/6-inch line spacing (ESC 2)
 		case 0x34: // Select italic font (ESC 4)
 		case 0x35: // Cancel italic font (ESC 5)
@@ -1261,6 +1274,7 @@ static int processCommandChar(Bit8u ch)
 		case 0x4c: // Select 120-dpi graphics (ESC L)
 		case 0x59: // Select 120-dpi, double-speed graphics (ESC Y)
 		case 0x5a: // Select 240-dpi graphics (ESC Z)
+		case 0x5e: // Select 60/120-dpi, 9-pin graphics
 		case 0x5c: // Set relative horizontal print position (ESC \)
 		case 0x63: // Set horizontal motion index (HMI) (ESC c)
 			neededParam = 2;
@@ -1446,7 +1460,7 @@ static int processCommandChar(Bit8u ch)
 			}
 			break;
 		case 0x2a: // Select bit image (ESC *)
-			setupBitImage(params[0], PARAM16(1));
+			setupBitImage(params[0], PARAM16(1), false);
 			break;
 		case 0x2b: // Set n/360-inch line spacing (ESC +)
 			lineSpacing = (Real64)params[0]/360;
@@ -1466,6 +1480,9 @@ static int processCommandChar(Bit8u ch)
 			break;
 		case 0x30: // Select 1/8-inch line spacing (ESC 0)
 			lineSpacing = (Real64)1/8;
+			break;
+		case 0x31: // Select 7/72-inch line spacing (ESC 1) 9-pin ONLY
+			lineSpacing = (Real64)7/72;
 			break;
 		case 0x32: // Select 1/6-inch line spacing (ESC 2)
 			lineSpacing = (Real64)1/6;
@@ -1538,15 +1555,15 @@ static int processCommandChar(Bit8u ch)
 			style &= 0xFFFF - STYLE_DOUBLESTRIKE;
 			break;
 		case 0x4a: // Advance print position vertically (ESC J n)
-			curY += (Real64)((Real64)params[0] / 180);
+			curY += (Real64)((Real64)params[0] / (pins == 9 ? 216 : 180));
 			if (curY > bottomMargin)
 				newPage(true);
 			break;
 		case 0x4b: // Select 60-dpi graphics (ESC K)
-			setupBitImage(densk, PARAM16(0));
+			setupBitImage(densk, PARAM16(0), false);
 			break;
 		case 0x4c: // Select 120-dpi graphics (ESC L)
-			setupBitImage(densl, PARAM16(0));
+			setupBitImage(densl, PARAM16(0), false);
 			break;
 		case 0x4d: // Select 10.5-point, 12-cpi (ESC M)
 			cpi = 12;
@@ -1639,10 +1656,13 @@ static int processCommandChar(Bit8u ch)
 			updateFont();
 			break;
 		case 0x59: // Select 120-dpi, double-speed graphics (ESC Y)
-			setupBitImage(densy, PARAM16(0));
+			setupBitImage(densy, PARAM16(0), false);
 			break;
 		case 0x5a: // Select 240-dpi graphics (ESC Z)
-			setupBitImage(densz, PARAM16(0));
+			setupBitImage(densz, PARAM16(0), false);
+			break;
+		case 0x5e: // Select 60/120-dpi, 9-pin graphics
+			setupBitImage(densy, PARAM16(0), true);
 			break;
 		case 0x5c: // Set relative horizontal print position (ESC \)
 			{
@@ -1761,7 +1781,7 @@ static int processCommandChar(Bit8u ch)
 			updateFont();
 			break;
 		case 0x242: // Bar code setup and print (ESC (B)
-			write_log(L"EPSONPRINTER: Bardcode printing not supported\n");
+			write_log(L"EPSONPRINTER: Barcode printing not supported\n");
 			// Find out how many bytes to skip
 			neededParam = PARAM16(0);
 			numParam = 0;
@@ -1977,6 +1997,8 @@ static void printBitGraph(Bit8u ch)
 		for (j=7; j>=0; j--)
 		{
 			Bit8u pixel = (bitGraph.column[i] >> j) & 0x01;
+			if (bitGraph.pin9 && i == 1 && j == 7)
+				pixel = bitGraph.column[i] & 0x01;
 
 			if (pixel != 0)
 			{
@@ -1986,12 +2008,15 @@ static void printBitGraph(Bit8u ch)
 					for (yy=0; yy<pixsizeY; yy++)
 						if (((PIXX + xx) < page_w) && ((PIXY + yy) < page_h)) {
 							*((Bit8u*)page + PIXX + xx + (PIXY+yy)*page_pitch) = 255;
-							*((Bit8u*)cpage + PIXX + xx + (PIXY+yy)*page_pitch) |= 1 < printColor;
+							(*((Bit8u*)cpage + PIXX + xx + (PIXY+yy)*page_pitch)) |= 1 << printColor;
 						}
 				}
 			}
 
 			curY += (Real64)1/(Real64)bitGraph.vertDens;
+
+			if (bitGraph.pin9 && i == 1 && j == 7)
+				break;
 		}
 	}
 
@@ -2005,6 +2030,8 @@ static void printBitGraph(Bit8u ch)
 	else
 		curX += (Real64)1/(Real64)bitGraph.horizDens;
 
+	if (printColor)
+		colorPrinted = true;
 }
 
 static void blitGlyph(uae_u8 *gbitmap, int width, int rows, int pitch, int destx, int desty, int add)

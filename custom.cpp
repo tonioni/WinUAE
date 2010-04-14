@@ -2557,6 +2557,13 @@ static void finish_decisions (void)
 		diw_hcounter = maxhpos * 2;
 		last_hdiw = 2 - 1;
 	}
+
+	if (next_color_change >= MAX_REG_CHANGE - 30) {
+		write_log (L"color_change buffer overflow!\n");
+		next_color_change = 0;
+		dip->nr_color_changes = 0;
+		dip->first_color_change = 0;
+	}
 }
 
 /* Set the state of all decisions to "undecided" for a new scanline. */

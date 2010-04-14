@@ -280,6 +280,7 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 	if (mode < 0)
 		pfos |= FOS_PICKFOLDERS;
 	pfd->SetOptions (pfos);
+	opn->nFileOffset = 0;
 
 	if (guid)
 		pfd->SetClientGuid (*guid);
@@ -352,7 +353,7 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 				DWORD cnt;
 				hr = pitema->GetCount (&cnt);
 				if (SUCCEEDED (hr)) {
-					int i;
+					int i, first = true;
 					for (i = 0; i < cnt; i++) {
 						IShellItem *pitem;
 						hr = pitema->GetItemAt (i, &pitem);
@@ -360,11 +361,29 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 							WCHAR *path = NULL;
 							hr = pitem->GetDisplayName (SIGDN_FILESYSPATH, &path);
 							if (SUCCEEDED (hr)) {
+								TCHAR *ppath = path;
 								TCHAR *p = opn->lpstrFile;
 								while (*p)
 									p += _tcslen (p) + 1;
-								if (p - opn->lpstrFile + _tcslen (path) + 2 < opn->nMaxFile) {
-									_tcscpy (p, path);
+								TCHAR *pathfilename = _tcsrchr (ppath, '\\');
+								if (pathfilename)
+									pathfilename++;
+								if (first && cnt > 1) {
+									opn->nFileOffset = pathfilename - ppath;
+									_tcscpy (p, ppath);
+									p[opn->nFileOffset - 1] = 0;
+									p += _tcslen (p) + 1;
+									*p = 0;
+									ppath = pathfilename;
+								} else if (cnt > 1) {
+									ppath = pathfilename;
+								} else {
+									ppath = path;
+								}
+								if (!ppath)
+									ppath = path;
+								if (p - opn->lpstrFile + _tcslen (ppath) + 2 < opn->nMaxFile) {
+									_tcscpy (p, ppath);
 									p[_tcslen (p) + 1] = 0;
 								}
 								if (opn->lpstrFileTitle && !opn->lpstrFileTitle[0]) {
@@ -372,6 +391,7 @@ static BOOL GetFileDialog (OPENFILENAME *opn, const GUID *guid, int mode)
 									if (p && opn->lpstrFileTitle)
 										_tcscpy (opn->lpstrFileTitle, p);
 								}
+								first = false;
 							}
 							CoTaskMemFree (path);
 						}
@@ -1811,7 +1831,6 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 	TCHAR init_path[MAX_DPATH] = L"";
 	BOOL result = FALSE;
 	TCHAR *amiga_path = NULL, *initialdir = NULL, *defext = NULL;
-	TCHAR description[CFG_DESCRIPTION_LENGTH] = L"";
 	TCHAR *p, *nextp;
 	int all = 1;
 	int next;
@@ -1833,27 +1852,27 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		{
 		case 0:
 		case 1:
-			getfilter(flag, L"FloppyPath", previousfilter, filtername);
+			getfilter (flag, L"FloppyPath", previousfilter, filtername);
 			fetch_path (L"FloppyPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[0];
 			break;
 		case 2:
 		case 3:
-			getfilter(flag, L"hdfPath", previousfilter, filtername);
+			getfilter (flag, L"hdfPath", previousfilter, filtername);
 			fetch_path (L"hdfPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[1];
 			break;
 		case 6:
 		case 7:
 		case 11:
-			getfilter(flag, L"KickstartPath", previousfilter, filtername);
+			getfilter (flag, L"KickstartPath", previousfilter, filtername);
 			fetch_path (L"KickstartPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[2];
 			break;
 		case 4:
 		case 5:
 		case 8:
-			getfilter(flag, L"ConfigurationPath", previousfilter, filtername);
+			getfilter (flag, L"ConfigurationPath", previousfilter, filtername);
 			fetch_path (L"ConfigurationPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[3];
 			break;
@@ -1886,12 +1905,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case 15:
 		case 16:
-			getfilter(flag, L"InputPath", previousfilter, filtername);
+			getfilter (flag, L"InputPath", previousfilter, filtername);
 			fetch_path (L"InputPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[5];
 			break;
 		case 17:
-			getfilter(flag, L"CDPath", previousfilter, filtername);
+			getfilter (flag, L"CDPath", previousfilter, filtername);
 			fetch_path (L"CDPath", init_path, sizeof (init_path) / sizeof (TCHAR));
 			guid = &diskselectionguids[6];
 			break;
@@ -2065,8 +2084,8 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		setfilter (flag, previousfilter, filtername);
 	}
 
-	memcpy (full_path2, full_path, sizeof (full_path) / sizeof (TCHAR));
-	memcpy (stored_path, full_path, sizeof (stored_path) / sizeof (TCHAR));
+	memcpy (full_path2, full_path, sizeof full_path);
+	memcpy (stored_path, full_path, sizeof stored_path);
 	next = 0;
 	nextp = full_path2 + openFileName.nFileOffset;
 	if (path_out) {
@@ -8815,6 +8834,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		clicked_entry = 0;
 		pages[HARDDISK_ID] = hDlg;
 		currentpage = HARDDISK_ID;
+		Button_SetElevationRequiredState (GetDlgItem (hDlg, IDC_NEW_HD), TRUE);
 		EnableWindow (GetDlgItem (hDlg, IDC_NEW_HD), os_winnt_admin > 1 ? TRUE : FALSE);
 
 	case WM_USER:
@@ -10093,6 +10113,8 @@ static void values_to_portsdlg (HWND hDlg)
 	}
 	SetDlgItemInt (hDlg, IDC_PRINTERAUTOFLUSH, workprefs.parallel_autoflush_time, FALSE);
 	idx = workprefs.parallel_matrix_emulation;
+	if (idx >= PARALLEL_MATRIX_EPSON24)
+		idx = PARALLEL_MATRIX_EPSON24;
 	if (workprefs.parallel_postscript_detection)
 		idx = 4;
 	if (workprefs.parallel_postscript_emulation)
