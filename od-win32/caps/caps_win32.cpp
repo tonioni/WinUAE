@@ -17,6 +17,7 @@
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
 static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE;
+static struct CapsVersionInfo cvi;
 #define LIB_TYPE 1
 
 typedef SDWORD (__cdecl* CAPSINIT)(void);
@@ -45,7 +46,6 @@ int caps_init (void)
 	static int init, noticed;
 	int i;
 	HMODULE h;
-	struct CapsVersionInfo cvi;
 	TCHAR *dllname = L"CAPSImg.dll";
 
 	if (init)
@@ -103,6 +103,7 @@ void caps_unloadimage (int drv)
 
 int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 {
+	static int notified;
 	struct CapsImageInfo ci;
 	int len, ret;
 	uae_u8 *buf;
@@ -122,12 +123,33 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 		return 0;
 	ret = pCAPSLockImageMemory (caps_cont[drv], buf, len, 0);
 	xfree (buf);
-	if (ret != imgeOk)
+	if (ret != imgeOk) {
+		if (ret == imgeIncompatible) {
+			if (!notified)
+				notify_user (NUMSG_OLDCAPS);
+			notified = 1;
+		}
+		write_log (L"caps: CAPSLockImageMemory() returned %d\n", ret);
 		return 0;
+	}
 	caps_locked[drv] = 1;
-	pCAPSGetImageInfo(&ci, caps_cont[drv]);
+	ret = pCAPSGetImageInfo(&ci, caps_cont[drv]);
 	*num_tracks = (ci.maxcylinder - ci.mincylinder + 1) * (ci.maxhead - ci.minhead + 1);
-	pCAPSLoadImage(caps_cont[drv], caps_flags);
+
+	if (cvi.release < 4) { // pre-4.x bug workaround
+		struct CapsTrackInfoT1 cit;
+		cit.type = LIB_TYPE;
+		if (pCAPSLockTrack ((PCAPSTRACKINFO)&cit, caps_cont[drv], 0, 0, caps_flags) == imgeIncompatible) {
+			if (!notified)
+				notify_user (NUMSG_OLDCAPS);
+			notified = 1;
+			caps_unloadimage (drv);
+			return 0;
+		}
+		pCAPSUnlockAllTracks (caps_cont[drv]);
+	}
+
+	ret = pCAPSLoadImage(caps_cont[drv], caps_flags);
 	cdt = &ci.crdt;
 	_stprintf (s1, L"%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
 	write_log (L"caps: type:%d date:%s rel:%d rev:%d\n",
@@ -178,14 +200,14 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 
 int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev, int *gapoffset)
 {
-	int i, len, type;
+	int i, len, type, ret;
 	uae_u16 *mfm;
 	struct CapsTrackInfoT1 ci;
 
 	ci.type = LIB_TYPE;
 	if (tracktiming)
 		*tracktiming = 0;
-	pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
+	ret = pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
 	mfm = mfmbuf;
 	*multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
 	type = ci.type & CTIT_MASK_TYPE;
