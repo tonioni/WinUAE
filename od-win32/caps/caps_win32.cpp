@@ -124,7 +124,7 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 	ret = pCAPSLockImageMemory (caps_cont[drv], buf, len, 0);
 	xfree (buf);
 	if (ret != imgeOk) {
-		if (ret == imgeIncompatible) {
+		if (ret == imgeIncompatible || ret == imgeUnsupported) {
 			if (!notified)
 				notify_user (NUMSG_OLDCAPS);
 			notified = 1;
