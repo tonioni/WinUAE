@@ -272,6 +272,12 @@ static int winok (void)
 
 static void fixup_size (struct uae_prefs *prefs)
 {
+	static int done;
+
+	if (done)
+		return;
+	done = 1;
+
 	if (prefs->gfx_xcenter_size > 0) {
 		int hres = prefs->gfx_resolution;
 		if (prefs->gfx_filter) {
@@ -765,9 +771,11 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	write_log (L"rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n",
 		rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
-	write_log (L"w=%dx%d fs=%dx%d\n",
+	write_log (L"w=%dx%d fs=%dx%d pos=%dx%d %dx%d\n",
 		p->gfx_size_win.width, p->gfx_size_win.height,
-		p->gfx_size_fs.width, p->gfx_size_fs.height);
+		p->gfx_size_fs.width, p->gfx_size_fs.height,
+		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
+		p->gfx_xcenter_size, p->gfx_ycenter_size);
 
 	max_horiz_dbl = currprefs.gfx_max_horizontal;
 	max_vert_dbl = currprefs.gfx_max_vertical;

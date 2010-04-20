@@ -257,6 +257,9 @@
 #define IDD_GAMEPORTS                   263
 #define IDS_INPUTTOGGLE                 263
 #define IDS_NETDISCONNECTED             264
+#define IDS_QS_CD                       265
+#define IDS_QS_CD_AUTO                  266
+#define IDS_QS_CD_IMAGE                 267
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -327,7 +330,6 @@
 #define IDS_PRINTER_EPSON48             359
 #define IDS_SELECTCD                    360
 #define IDS_CD                          361
-#define IDS_PS_FX_10                    363
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

@@ -1329,6 +1329,9 @@ BEGIN
     IDS_ALL                 "All"
     IDS_INPUTTOGGLE         "Toggle"
     IDS_NETDISCONNECTED     "Cable disconnected"
+    IDS_QS_CD               "CD"
+    IDS_QS_CD_AUTO          "Autodetect"
+    IDS_QS_CD_IMAGE         "Image file"
 END
 
 STRINGTABLE

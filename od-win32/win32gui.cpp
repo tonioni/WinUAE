@@ -9064,6 +9064,7 @@ static void addfloppytype (HWND hDlg, int n)
 
 	text = workprefs.df[n];
 	if (currentpage == QUICKSTART_ID) {
+		TCHAR tmp[MAX_DPATH];
 		f_text = floppybuttonsq[n][0];
 		f_drive = floppybuttonsq[n][1];
 		f_type = -1;
@@ -9079,10 +9080,13 @@ static void addfloppytype (HWND hDlg, int n)
 			hide (hDlg, f_wp, 1);
 			hide (hDlg, f_wptext, 1);
 			ew (hDlg, f_enable, FALSE);
-			SetWindowText (GetDlgItem (hDlg, f_enable), L"CD");
+			WIN32GUI_LoadUIString (IDS_QS_CD, tmp, sizeof tmp / sizeof (TCHAR));
+			SetWindowText (GetDlgItem (hDlg, f_enable), tmp);
 			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_RESETCONTENT, 0, 0L);
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)L"Autodetect");
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)L"Image file");
+			WIN32GUI_LoadUIString (IDS_QS_CD_AUTO, tmp, sizeof tmp / sizeof (TCHAR));
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_QS_CD_IMAGE, tmp, sizeof tmp / sizeof (TCHAR));
+			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 			if (workprefs.cdimagefile[0])
 				quickstart_cdtype = 1;
 			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_SETCURSEL, quickstart_cdtype, 0);
@@ -9094,8 +9098,11 @@ static void addfloppytype (HWND hDlg, int n)
 		}
 	}
 	if (!showcd && f_enable > 0 && n == 1 && currentpage == QUICKSTART_ID) {
+		static TCHAR drivedf1[MAX_DPATH];
+		if (drivedf1[0] == 0)
+			GetDlgItemText(hDlg, f_enable, drivedf1, sizeof drivedf1 / sizeof (TCHAR));
 		ew (hDlg, f_enable, TRUE);
-		SetWindowText (GetDlgItem (hDlg, f_enable), L"Floppy drive DF1:");
+		SetWindowText (GetDlgItem (hDlg, f_enable), drivedf1);
 		hide (hDlg, IDC_CD0Q_TYPE, 1);
 	}
 
