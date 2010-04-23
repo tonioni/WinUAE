@@ -2587,6 +2587,18 @@ static int fetchpri (int pri, int defpri)
 	return defpri;
 }
 
+TCHAR *target_expand_environment (const TCHAR *path)
+{
+	if (!path)
+		return NULL;
+	int len = ExpandEnvironmentStrings (path, NULL, 0);
+	if (len <= 0)
+		return my_strdup (path);
+	TCHAR *s = xmalloc (TCHAR, len + 1);
+	ExpandEnvironmentStrings (path, s, len);
+	return s;
+}
+
 static const TCHAR *obsolete[] = {
 	L"killwinkeys", L"sound_force_primary", L"iconified_highpriority",
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
@@ -4109,7 +4121,7 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 	if (!_tcscmp (arg, L"-datapath")) {
-		_tcscpy(start_path_data, np);
+		ExpandEnvironmentStrings (np, start_path_data, sizeof start_path_data / sizeof (TCHAR));
 		start_data = -1;
 		return 2;
 	}

@@ -373,17 +373,21 @@ static void *cdda_play (void *v)
 					}
 				}
 				reseterrormode (unitnum);
+
+				volume = ciw->cdda_volume;
+				volume_main = currprefs.sound_volume;
+				int vol_mult = (100 - volume_main) * volume / 100;
+				if (vol_mult)
+					vol_mult++;
+				if (vol_mult >= 65536)
+					vol_mult = 65536;
+				uae_s16 *p = (uae_s16*)(px[bufnum]);
+				for (i = 0; i < num_sectors * 2352 / 4; i++) {
+					p[i * 2 + 0] = p[i * 2 + 0] * vol_mult / 65536;
+					p[i * 2 + 1] = p[i * 2 + 1] * vol_mult / 65536;
+				}
 		
 				bufon[bufnum] = 1;
-				if (volume != ciw->cdda_volume || volume_main != currprefs.sound_volume) {
-					int vol;
-					volume = ciw->cdda_volume;
-					volume_main = currprefs.sound_volume;
-					vol = (100 - volume_main) * volume / 100;
-					if (vol >= 0xffff)
-						vol = 0xffff;
-					waveOutSetVolume (ciw->cdda_wavehandle, vol | (vol << 16));
-				}
 				mmr = waveOutWrite (ciw->cdda_wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
 				if (mmr != MMSYSERR_NOERROR) {
 					write_log (L"CDDA: waveOutWrite %d\n", mmr);

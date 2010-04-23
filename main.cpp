@@ -498,6 +498,13 @@ static TCHAR *parsetext (const TCHAR *s)
 		return my_strdup (s);
 	}
 }
+static TCHAR *parsetextpath (const TCHAR *s)
+{
+	TCHAR *s2 = parsetext (s);
+	TCHAR *s3 = target_expand_environment (s2);
+	xfree (s2);
+	return s3;
+}
 
 static void parse_cmdline (int argc, TCHAR **argv)
 {
@@ -505,7 +512,7 @@ static void parse_cmdline (int argc, TCHAR **argv)
 
 	for (i = 1; i < argc; i++) {
 		if (!_tcsncmp (argv[i], L"-diskswapper=", 13)) {
-			TCHAR *txt = parsetext (argv[i] + 13);
+			TCHAR *txt = parsetextpath (argv[i] + 13);
 			parse_diskswapper (txt);
 			xfree (txt);
 		} else if (_tcsncmp (argv[i], L"-cfgparam=", 10) == 0) {
@@ -514,12 +521,12 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			if (i + 1 < argc)
 				i++;
 		} else if (_tcsncmp (argv[i], L"-config=", 8) == 0) {
-			TCHAR *txt = parsetext (argv[i] + 8);
+			TCHAR *txt = parsetextpath (argv[i] + 8);
 			currprefs.mountitems = 0;
 			target_cfgfile_load (&currprefs, txt, -1, 0);
 			xfree (txt);
 		} else if (_tcsncmp (argv[i], L"-statefile=", 11) == 0) {
-			TCHAR *txt = parsetext (argv[i] + 11);
+			TCHAR *txt = parsetextpath (argv[i] + 11);
 			savestate_state = STATE_DORESTORE;
 			_tcscpy (savestate_fname, txt);
 			xfree (txt);
@@ -528,8 +535,10 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			if (i + 1 == argc) {
 				write_log (L"Missing argument for '-f' option.\n");
 			} else {
+				TCHAR *txt = parsetextpath (argv[++i]);
 				currprefs.mountitems = 0;
-				target_cfgfile_load (&currprefs, argv[++i], -1, 0);
+				target_cfgfile_load (&currprefs, txt, -1, 0);
+				xfree (txt);
 			}
 		} else if (_tcscmp (argv[i], L"-s") == 0) {
 			if (i + 1 == argc)
@@ -540,7 +549,7 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			usage ();
 			exit (0);
 		} else if (_tcsncmp (argv[i], L"-cdimage=", 9) == 0) {
-			TCHAR *txt = parsetext (argv[i] + 9);
+			TCHAR *txt = parsetextpath (argv[i] + 9);
 			cfgfile_parse_option (&currprefs, L"cdimage0", txt, 0);
 			xfree (txt);
 		} else {

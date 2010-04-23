@@ -427,6 +427,7 @@ extern int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR 
 extern int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz);
 extern TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *file);
 
+extern TCHAR *target_expand_environment (const TCHAR *path);
 extern int target_parse_option (struct uae_prefs *, TCHAR *option, TCHAR *value);
 extern void target_save_options (struct zfile*, struct uae_prefs *);
 extern void target_default_options (struct uae_prefs *, int type);

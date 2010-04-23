@@ -214,7 +214,7 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 	/* @@@ use strcasecmp for some targets.  */
 	if (_tcslen (path) > 0 && _tcsncmp (file, path, _tcslen (path)) == 0) {
 		int l;
-		TCHAR *p = xmalloc (TCHAR, _tcslen (file) + _tcslen (subst) + 2);
+		TCHAR *p2, *p = xmalloc (TCHAR, _tcslen (file) + _tcslen (subst) + 2);
 		_tcscpy (p, subst);
 		l = _tcslen (p);
 		while (l > 0 && p[l - 1] == '/')
@@ -222,10 +222,13 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 		l = _tcslen (path);
 		while (file[l] == '/')
 			l++;
-		_tcscat (p, L"/"); _tcscat (p, file + l);
-		return p;
+		_tcscat (p, L"/");
+		_tcscat (p, file + l);
+		p2 = target_expand_environment (p);
+		xfree (p);
+		return p2;
 	}
-	return my_strdup (file);
+	return target_expand_environment (file);
 }
 
 static int isdefault (const TCHAR *s)
@@ -918,6 +921,18 @@ int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	return 1;
 }
 
+int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+{
+	if (!cfgfile_string (option, value, name, location, maxsz))
+		return 0;
+	TCHAR *s = target_expand_environment (location);
+	_tcsncpy (location, s, maxsz - 1);
+	location[maxsz - 1] = 0;
+	xfree (s);
+	return 1;
+}
+
+
 static int getintval (TCHAR **p, int *result, int delim)
 {
 	TCHAR *value = *p;
@@ -1002,9 +1017,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		*tmpp = '\0';
 		if (_tcscmp (section, TARGET_NAME) == 0) {
 			/* We special case the various path options here.  */
-			if (cfgfile_string (option, value, L"rom_path", p->path_rom, sizeof p->path_rom / sizeof (TCHAR))
-				|| cfgfile_string (option, value, L"floppy_path", p->path_floppy, sizeof p->path_floppy / sizeof (TCHAR))
-				|| cfgfile_string (option, value, L"hardfile_path", p->path_hardfile, sizeof p->path_hardfile / sizeof (TCHAR)))
+			if (cfgfile_path (option, value, L"rom_path", p->path_rom, sizeof p->path_rom / sizeof (TCHAR))
+				|| cfgfile_path (option, value, L"floppy_path", p->path_floppy, sizeof p->path_floppy / sizeof (TCHAR))
+				|| cfgfile_path (option, value, L"hardfile_path", p->path_hardfile, sizeof p->path_hardfile / sizeof (TCHAR)))
 				return 1;
 			return target_parse_option (p, option, value);
 		}
@@ -1012,7 +1027,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 		_stprintf (tmpbuf, L"diskimage%d", i);
-		if (cfgfile_string (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof (TCHAR))) {
+		if (cfgfile_path (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof (TCHAR))) {
 #if 0
 			if (i < 4 && !p->df[i][0])
 				_tcscpy (p->df[i], p->dfxlist[i]);
@@ -1021,7 +1036,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 	}
 
-	if (cfgfile_string (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR)))
+	if (cfgfile_path (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR)))
 		return 1;
 
 	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)) {
@@ -1086,10 +1101,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"override_dga_address", &p->override_dga_address, 1))
 		return 1;
 
-	if (cfgfile_string (option, value, L"floppy0soundext", p->dfxclickexternal[0], sizeof p->dfxclickexternal[0] / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"floppy1soundext", p->dfxclickexternal[1], sizeof p->dfxclickexternal[1] / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"floppy2soundext", p->dfxclickexternal[2], sizeof p->dfxclickexternal[2] / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"floppy3soundext", p->dfxclickexternal[3], sizeof p->dfxclickexternal[3] / sizeof (TCHAR))
+	if (cfgfile_path (option, value, L"floppy0soundext", p->dfxclickexternal[0], sizeof p->dfxclickexternal[0] / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"floppy1soundext", p->dfxclickexternal[1], sizeof p->dfxclickexternal[1] / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"floppy2soundext", p->dfxclickexternal[2], sizeof p->dfxclickexternal[2] / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"floppy3soundext", p->dfxclickexternal[3], sizeof p->dfxclickexternal[3] / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"gfx_display_name", p->gfx_display_name, sizeof p->gfx_display_name / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"config_info", p->info, sizeof p->info / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"config_description", p->description, sizeof p->description / sizeof (TCHAR)))
@@ -1303,7 +1318,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_strval (option, value, L"joyport3mode", &p->jports[3].mode, joyportmodes, 0))
 		return 1;
 
-	if (cfgfile_string (option, value, L"statefile", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
+	if (cfgfile_path (option, value, L"statefile", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
 		_tcscpy (savestate_fname, tmpbuf);
 		if (zfile_exists (savestate_fname)) {
 			savestate_state = STATE_DORESTORE;
@@ -1698,11 +1713,11 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_strval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 		return 1;
 
-	if (cfgfile_string (option, value, L"kickstart_rom_file", p->romfile, sizeof p->romfile / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"amax_rom_file", p->amaxromfile, sizeof p->amaxromfile / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"flash_file", p->flashfile, sizeof p->flashfile / sizeof (TCHAR))
-		|| cfgfile_string (option, value, L"cart_file", p->cartfile, sizeof p->cartfile / sizeof (TCHAR))
+	if (cfgfile_path (option, value, L"kickstart_rom_file", p->romfile, sizeof p->romfile / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"amax_rom_file", p->amaxromfile, sizeof p->amaxromfile / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"flash_file", p->flashfile, sizeof p->flashfile / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"cart_file", p->cartfile, sizeof p->cartfile / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"pci_devices", p->pci_devices, sizeof p->pci_devices / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"ghostscript_parameters", p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
@@ -1730,7 +1745,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmpbuf, L"floppy%d", i);
-		if (cfgfile_string (option, value, tmpbuf, p->df[i], sizeof p->df[i] / sizeof (TCHAR)))
+		if (cfgfile_path (option, value, tmpbuf, p->df[i], sizeof p->df[i] / sizeof (TCHAR)))
 			return 1;
 	}
 
@@ -2015,9 +2030,9 @@ int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int 
 		return 1;
 	if (!_tcscmp (option, L"config_host"))
 		return 1;
-	if (cfgfile_string (option, value, L"config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR)))
+	if (cfgfile_path (option, value, L"config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR)))
 		return 1;
-	if (cfgfile_string (option, value, L"config_host_path", p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR)))
+	if (cfgfile_path (option, value, L"config_host_path", p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR)))
 		return 1;
 	if (type == 0 || (type & CONFIG_TYPE_HARDWARE)) {
 		if (cfgfile_parse_hardware (p, option, value))
@@ -2270,8 +2285,8 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, int real,
 				cfgfile_parse_separated_line (p, line1b, line2b, askedtype);
 			} else {
 				cfgfile_string (line1b, line2b, L"config_description", p->description, sizeof p->description / sizeof (TCHAR));
-				cfgfile_string (line1b, line2b, L"config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
-				cfgfile_string (line1b, line2b, L"config_host_path", p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR));
+				cfgfile_path (line1b, line2b, L"config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
+				cfgfile_path (line1b, line2b, L"config_host_path", p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR));
 			}
 		}
 	}
@@ -2611,6 +2626,14 @@ static void parse_cpu_specs (struct uae_prefs *p, const TCHAR *spec)
 	}
 }
 
+static void cmdpath (TCHAR *dst, const TCHAR *src, int maxsz)
+{
+	TCHAR *s = target_expand_environment (src);
+	_tcsncpy (dst, s, maxsz);
+	dst[maxsz] = 0;
+	xfree (s);
+}
+
 /* Returns the number of args used up (0 or 1).  */
 int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 {
@@ -2632,12 +2655,12 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 	switch (c) {
 	case 'h': usage (); exit (0);
 
-	case '0': _tcsncpy (p->df[0], arg, 255); p->df[0][255] = 0; break;
-	case '1': _tcsncpy (p->df[1], arg, 255); p->df[1][255] = 0; break;
-	case '2': _tcsncpy (p->df[2], arg, 255); p->df[2][255] = 0; break;
-	case '3': _tcsncpy (p->df[3], arg, 255); p->df[3][255] = 0; break;
-	case 'r': _tcsncpy (p->romfile, arg, 255); p->romfile[255] = 0; break;
-	case 'K': _tcsncpy (p->romextfile, arg, 255); p->romextfile[255] = 0; break;
+	case '0': cmdpath (p->df[0], arg, 255); break;
+	case '1': cmdpath (p->df[1], arg, 255); break;
+	case '2': cmdpath (p->df[2], arg, 255); break;
+	case '3': cmdpath (p->df[3], arg, 255); break;
+	case 'r': cmdpath (p->romfile, arg, 255); break;
+	case 'K': cmdpath (p->romextfile, arg, 255); break;
 	case 'p': _tcsncpy (p->prtname, arg, 255); p->prtname[255] = 0; break;
 		/*     case 'I': _tcsncpy (p->sername, arg, 255); p->sername[255] = 0; currprefs.use_serial = 1; break; */
 	case 'm': case 'M': parse_filesys_spec (p, c == 'M', arg); break;
