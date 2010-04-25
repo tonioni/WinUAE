@@ -573,7 +573,7 @@ STATIC_INLINE uae_u32 next_ilong_mmu (void)
 }
 
 extern void m68k_do_rts_mmu (void);
-extern void m68k_do_rte_mmu (void);
+extern void m68k_do_rte_mmu (uaecptr a7);
 extern void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset);
 
 struct mmufixup

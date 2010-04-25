@@ -13203,7 +13203,7 @@ void gui_fps (int fps, int idle)
 	gui_data.idle = idle;
 	gui_led (LED_FPS, 0);
 	gui_led (LED_CPU, 0);
-	gui_led (LED_SND, gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0);
+	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1);
 }
 
 void gui_led (int led, int on)
@@ -13213,7 +13213,8 @@ void gui_led (int led, int on)
 	static TCHAR dfx[4][300];
 	TCHAR *ptr, *tt, *p;
 	int pos = -1, j;
-	int writing = 0;
+	int writing = 0, playing = 0, active2 = 0;
+	int center = 0;
 
 	indicator_leds (led, on);
 #ifdef LOGITECHLCD
@@ -13235,7 +13236,7 @@ void gui_led (int led, int on)
 		if (gui_data.drive_disabled[led - 1])
 			_tcscpy (ptr, L"");
 		else
-			_stprintf (ptr , L"%02d  .", gui_data.drive_track[led - 1]);
+			_stprintf (ptr , L"%02d", gui_data.drive_track[led - 1]);
 		p = gui_data.df[led - 1];
 		j = _tcslen (p) - 1;
 		if (j < 0)
@@ -13249,15 +13250,28 @@ void gui_led (int led, int on)
 		tt[0] = 0;
 		if (_tcslen (p + j) > 0)
 			_stprintf (tt, L"%s [CRC=%08X]", p + j, gui_data.crc32[led - 1]);
+		center = 1;
+		if (gui_data.drive_writing[led - 1])
+			writing = 1;
 	} else if (led == LED_POWER) {
 		pos = 3;
 		ptr = _tcscpy (drive_text + pos * 16, L"Power");
+		center = 1;
 	} else if (led == LED_HD) {
 		pos = 4;
 		ptr = _tcscpy (drive_text + pos * 16, L"HD");
+		center = 1;
+		if (on > 1)
+			writing = 1;
 	} else if (led == LED_CD) {
 		pos = 5;
 		ptr = _tcscpy (drive_text + pos * 16, L"CD");
+		center = 1;
+		if (on & LED_CD_AUDIO)
+			playing = 1;
+		else if (on & LED_CD_ACTIVE2)
+			active2 = 1;
+		on &= 1;
 	} else if (led == LED_FPS) {
 		double fps = (double)gui_data.fps / 10.0;
 		extern int p96vblank;
@@ -13269,30 +13283,52 @@ void gui_led (int led, int on)
 			_stprintf (ptr, L"%d [%.1f]", p96vblank, fps);
 		else
 			_stprintf (ptr, L"FPS: %.1f", fps);
-		if (pause_emulation)
+		if (pause_emulation) {
 			_tcscpy (ptr, L"PAUSED");
+			center = 1;
+		}
+		on = 1;
 	} else if (led == LED_CPU) {
 		pos = 1;
 		ptr = drive_text + pos * 16;
 		_stprintf (ptr, L"CPU: %.0f%%", (double)((gui_data.idle) / 10.0));
-	} else if (led == LED_SND) {
+		if (pause_emulation)
+			on = 0;
+		else
+			on = 1;
+	} else if (led == LED_SND && gui_data.drive_disabled[3]) {
 		pos = 0;
 		ptr = drive_text + pos * 16;
-		if (gui_data.sndbuf_status < 3) {
+		if (gui_data.sndbuf_status < 3 && !pause_emulation) {
 			_stprintf (ptr, L"SND: %+.0f%%", (double)((gui_data.sndbuf) / 10.0));
 		} else {
 			_tcscpy (ptr, L"SND: -");
+			center = 1;
 			on = 0;
 		}
+	} else if (led == LED_MD) {
+		pos = 6 + 3;
+		ptr = _tcscpy (drive_text + pos * 16, L"NV");
 	}
-	if (on)
-		type = SBT_POPOUT;
-	else
-		type = 0;
+
+	type = SBT_OWNERDRAW;
 	if (pos >= 0) {
-		PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM) ((pos + 1) | type), (LPARAM) ptr);
+		ptr[_tcslen (ptr) + 1] = 0;
+		if (center)
+			ptr[_tcslen (ptr) + 1] |= 1;
+		if (on) {
+			ptr[_tcslen (ptr) + 1] |= 2;
+			type |= SBT_POPOUT;
+		}
+		if (writing)
+			ptr[_tcslen (ptr) + 1] |= 4;
+		if (playing)
+			ptr[_tcslen (ptr) + 1] |= 8;
+		if (active2)
+			ptr[_tcslen (ptr) + 1] |= 16;
+		PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
 		if (tt != NULL)
-			PostMessage (hStatusWnd, SB_SETTIPTEXT, (WPARAM) (pos + 1), (LPARAM) tt);
+			PostMessage (hStatusWnd, SB_SETTIPTEXT, (WPARAM)(pos + 1), (LPARAM)tt);
 	}
 }
 

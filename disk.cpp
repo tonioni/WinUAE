@@ -649,7 +649,7 @@ static void update_drive_gui (int num)
 	gui_data.drive_track[num] = drv->cyl;
 	gui_data.drive_side = side;
 	gui_data.drive_writing[num] = writ;
-	gui_led (num + LED_DF0, gui_data.drive_motor[num]);
+	gui_led (num + LED_DF0, (gui_data.drive_motor[num] ? 1 : 0) | (gui_data.drive_writing[num] ? 2 : 0));
 }
 
 static void drive_fill_bigbuf (drive * drv,int);

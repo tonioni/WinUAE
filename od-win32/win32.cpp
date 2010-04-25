@@ -1456,12 +1456,44 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		}
 		break;
 
-
+	case WM_DRAWITEM:
+	{
+		LPDRAWITEMSTRUCT lpDIS = (LPDRAWITEMSTRUCT)lParam;
+		if (lpDIS->hwndItem == hStatusWnd) {
+			DWORD flags, tflags;
+			COLORREF oc;
+			TCHAR *txt = (TCHAR*)lpDIS->itemData;
+			tflags = txt[_tcslen (txt) + 1];
+			SetBkMode (lpDIS->hDC, TRANSPARENT);
+			if ((tflags & 2) == 0)
+				tflags &= ~(4 | 8 | 16);
+			if (tflags & 4) {
+				oc = SetTextColor (lpDIS->hDC, RGB(0xcc, 0x00, 0x00)); // writing
+			} else if (tflags & 8) {
+				oc = SetTextColor (lpDIS->hDC, RGB(0x00, 0xcc, 0x00)); // playing
+			} else {
+				oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+			}
+			flags = DT_VCENTER | DT_SINGLELINE ;
+			if (tflags & 1) {
+				flags |= DT_CENTER;
+				lpDIS->rcItem.left++;
+				lpDIS->rcItem.right -= 3;
+			} else {
+				flags |= DT_LEFT;
+				lpDIS->rcItem.right--;
+				lpDIS->rcItem.left += 2;
+			}
+			DrawText (lpDIS->hDC, txt, _tcslen (txt), &lpDIS->rcItem, flags);
+			SetTextColor (lpDIS->hDC, oc);
+		}
+		break;
+	}
+	
 	default:
 		break;
 
 	}
-
 	return DefWindowProc (hWnd, message, wParam, lParam);
 }
 

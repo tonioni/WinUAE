@@ -1307,7 +1307,7 @@ void expamem_reset (void)
 		write_log (L"Kickstart version is below 1.3!  Disabling autoconfig devices.\n");
 		do_mount = 0;
 	}
-	if (need_uae_boot_rom() == 0)
+	if (need_uae_boot_rom () == 0)
 		do_mount = 0;
 	if (fastmemory != NULL) {
 		card_init[cardno] = expamem_init_fastcard;

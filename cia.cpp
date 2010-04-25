@@ -553,7 +553,7 @@ static void led_vsync (void)
 	led_on = 0;
 	led_times = 0;
 	if (led_changed)
-		gui_led (LED_POWER, gui_data.powerled_brightness);
+		gui_led (LED_POWER, gui_data.powerled);
 	led_changed = 0;
 	led_cycle = get_cycles ();
 }

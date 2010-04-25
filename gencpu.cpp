@@ -2115,22 +2115,29 @@ static void gen_opcode (unsigned long int opcode)
 			if (using_ce020) // need some delay so that interrupts have time to clear if previous ins was move to INTREQ
 				printf ("\tdo_cycles_ce (6 * CYCLE_UNIT);\n");
 			printf ("\tfor (;;) {\n");
-		    genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
+			printf ("\t\tuaecptr a = m68k_areg (regs, 7);\n");
+			printf ("\t\tuae_s16 sr = %s (a);\n", srcw);
+			printf ("\t\tuae_s32 pc = %s (a + 2);\n", srcl);
+			printf ("\t\tuae_s16 format = %s (a + 2 + 4);\n", srcw);
+			printf ("\t\tint offset = 8;\n");
+#if 0
+			genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
 		    genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 		    genamode (Aipi, "7", sz_word, "format", 1, 0, 0);
-		    printf ("\tnewsr = sr; newpc = pc;\n");
-		    printf ("\tif ((format & 0xF000) == 0x0000) { break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0x1000) { ; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0x2000) { m68k_areg (regs, 7) += 4; break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0x4000) { m68k_areg (regs, 7) += 8; break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0x8000) { m68k_areg (regs, 7) += 50; break; }\n");
+#endif
+			printf ("\t\tnewsr = sr; newpc = pc;\n");
+		    printf ("\t\tif ((format & 0xF000) == 0x0000) { m68k_areg (regs, 7) += offset; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0x1000) { m68k_areg (regs, 7) += offset; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0x2000) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0x4000) { m68k_areg (regs, 7) += offset + 8; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0x8000) { m68k_areg (regs, 7) += offset + 50; break; }\n");
 			if (using_mmu)
-		    	printf ("\telse if ((format & 0xF000) == 0x7000) { m68k_do_rte_mmu (); m68k_areg (regs, 7) += 52; break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0x9000) { m68k_areg (regs, 7) += 12; break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0xa000) { m68k_areg (regs, 7) += 24; break; }\n");
-		    printf ("\telse if ((format & 0xF000) == 0xb000) { m68k_areg (regs, 7) += 84; break; }\n");
-		    printf ("\telse { Exception (14, 0); goto %s; }\n", endlabelstr);
-		    printf ("\tregs.sr = newsr; MakeFromSR ();\n}\n");
+		    	printf ("\t\telse if ((format & 0xF000) == 0x7000) { m68k_do_rte_mmu (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0x9000) { m68k_areg (regs, 7) += offset + 12; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0xa000) { m68k_areg (regs, 7) += offset + 24; break; }\n");
+		    printf ("\t\telse if ((format & 0xF000) == 0xb000) { m68k_areg (regs, 7) += offset + 84; break; }\n");
+		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception (14, 0); goto %s; }\n", endlabelstr);
+		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr; MakeFromSR ();\n");
 		    printf ("\tif (newpc & 1)\n");

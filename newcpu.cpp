@@ -1468,8 +1468,7 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		mmu_set_super (1);
 	}
 	if (nr == 2) {
-
-		write_log (L"%08x %08x %08x\n", currpc, oldpc, regs.mmu_fault_addr);
+//		write_log (L"%08x %08x %08x\n", currpc, oldpc, regs.mmu_fault_addr);
 //		if (currpc == 0x0013b5e2)
 //			activate_debugger ();
 		// bus error
@@ -2348,6 +2347,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 			warned++;
 		}
 		Exception (0xB, 0);
+		//activate_debugger ();
 		return 4;
 	}
 	if ((opcode & 0xF000) == 0xA000) {
@@ -3034,9 +3034,10 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode)
 	}
 	if (!fault) {
 		TCHAR buf[100];
-		write_log (L"PC=%08x %04x %s\n", regs.fault_pc, opcode, lookup->name);
+		write_log (L"mmufixup=%d %04x %04x\n", mmufixup[0].reg, regs.wb3_status, regs.mmu_ssw);
 		m68k_disasm_2 (buf, 100, addr, NULL, 1, NULL, NULL, 0);
 		write_log (L"%s\n", buf);
+		m68k_dumpstate (stdout, NULL);
 	}
 }
 
@@ -3062,8 +3063,6 @@ retry:
 		}
 	} CATCH (prb) {
 
-		//opcodedebug (regs.fault_pc, opcode);
-
 		if (currprefs.mmu_model == 68060) {
 			regs.fault_pc = pc;
 			if (mmufixup[1].reg >= 0) {
@@ -3079,6 +3078,8 @@ retry:
 				}
 			}
 		}
+
+		//opcodedebug (regs.fault_pc, opcode);
 
 		if (mmufixup[0].reg >= 0) {
 			m68k_areg (regs, mmufixup[0].reg) = mmufixup[0].value;
@@ -4291,12 +4292,12 @@ void do_cycles_ce000 (int clocks)
 	do_cycles_ce (clocks * cpucycleunit);
 }
 
-void m68k_do_rte_mmu (void)
+void m68k_do_rte_mmu (uaecptr a7)
 {
-	uae_u16 ssr = get_word_mmu (m68k_areg (regs, 7) + 4);
+	uae_u16 ssr = get_word_mmu (a7 + 8 + 4);
 	if (ssr & MMU_SSW_CT) {
-		uaecptr src_a7 = m68k_areg (regs, 7) - 8;
-		uaecptr dst_a7 = m68k_areg (regs, 7) + 52;
+		uaecptr src_a7 = a7 + 8 - 8;
+		uaecptr dst_a7 = a7 + 8 + 52;
 		put_word_mmu (dst_a7 + 0, get_word_mmu (src_a7 + 0));
 		put_long_mmu (dst_a7 + 2, get_long_mmu (src_a7 + 2));
 		// skip this word

@@ -2479,7 +2479,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 	else
 		x_start = TD_PADX;
 
-	for (led = 0; led < VISIBLE_LEDS; led++) {
+	for (led = 0; led < LED_MAX; led++) {
 		int side, pos, num1 = -1, num2 = -1, num3 = -1, num4 = -1;
 		int x, c, on = 0, am = 2;
 		xcolnr on_rgb, on_rgb2, off_rgb, pen_rgb;

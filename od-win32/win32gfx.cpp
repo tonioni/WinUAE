@@ -1976,7 +1976,7 @@ static void createstatuswindow (void)
 		DestroyWindow (hStatusWnd);
 	}
 	hStatusWnd = CreateWindowEx (
-		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBT_TOOLTIPS | WS_CHILD | WS_VISIBLE,
+		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
 	if (!hStatusWnd)
 		return;
@@ -1994,7 +1994,7 @@ static void createstatuswindow (void)
 	power_width = (int)(42 * scaleX);
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
-	snd_width = (int)(64 * scaleX);
+	snd_width = (int)(72 * scaleX);
 	GetClientRect (hMainWnd, &rc);
 	/* Allocate an array for holding the right edge coordinates. */
 	hloc = LocalAlloc (LHND, sizeof (int) * num_parts);
