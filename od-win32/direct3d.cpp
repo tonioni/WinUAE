@@ -708,7 +708,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		if (FAILED (hr)) {
 			const char *str = psEnabled ? fx20 : fx10;
 			int len = strlen (str);
-			if (!existsfile) {
+			if (!existsfile || canusefile == 0) {
 				struct zfile *z = zfile_fopen (tmp, L"w", 0);
 				if (z) {
 					zfile_fwrite ((void*)str, len, 1, z);

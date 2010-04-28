@@ -12519,9 +12519,9 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			mask = ZFD_NORMAL;
 		if (type < 0) {
 			if (currentpage < 0) {
-				z = zfile_fopen (file, L"rb", mask);
+				z = zfile_fopen (file, L"rb", 0);
 				if (z) {
-					int zip = iszip (z);
+					zip = iszip (z);
 					zfile_fclose (z);
 				}
 			}

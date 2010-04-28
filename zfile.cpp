@@ -1159,10 +1159,8 @@ int iszip (struct zfile *z)
 	TCHAR *ext = _tcsrchr (name, '.');
 	uae_u8 header[32];
 	int i;
-	int mask = z->zfdmask;
+	int mask = ZFD_NORMAL;//z->zfdmask;
 
-	if (!mask)
-		return 0;
 	if (!ext)
 		return 0;
 	memset (header, 0, sizeof (header));

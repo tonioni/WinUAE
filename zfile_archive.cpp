@@ -188,15 +188,30 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 				select = -1;
 			if (zf->zipname && zf->zipname[0] == '#' && _tstol (zf->zipname + 1) == zipcnt)
 				select = -1;
-			if (select && !we_have_file) {
-				z = archive_getzfile (zn, id);
-				if (z) {
-					if (select < 0 || zfile_gettype (z))
-						we_have_file = 1;
-					if (!we_have_file) {
-						zfile_fclose (z);
-						z = NULL;
+			if (select && we_have_file <= 0) {
+				struct zfile *zt = archive_getzfile (zn, id);
+				if (zt) {
+					int ft = zfile_gettype (zt);
+					if (select < 0 || ft) {
+						int whf = 1;
+						if (ft == ZFILE_CDIMAGE) {
+							TCHAR *ext = _tcsrchr (zn->fullname, '.');
+							if (ext && we_have_file == 0) {
+								if (!_tcsicmp (ext, L".iso"))
+									whf = -1; // accept .cue if found later
+							}
+						} else if (we_have_file < 0) {
+							whf = 0; // ignore non-cdimage files if iso was found
+						}
+						if (whf) {
+							we_have_file = whf;
+							if (z)
+								zfile_fclose (z);
+							z = zt;
+							zt = NULL;
+						}
 					}
+					zfile_fclose (zt);
 				}
 			}
 		}
