@@ -1,4 +1,136 @@
 
+Beta 25 (RC3):
+
+- CD32/CDTV NVRAM led (DF3) works again
+- Windowed mode status bar "leds" show activity status again in all Windows versions (SBT_POPOUT status bar
+  flag for some reason stopped working in XP non-classic theme and later Windows versions)
+
+Beta 24 (RC2):
+
+- do not use waveOutSetVolume() in CDTV/CD32 CD audio routines, for some weird reason (legacy backwards
+  compatibility..) it also adjusts application's global volume setting.. CD audio volume control is now
+  handled by modifying sample data directly.
+- expand environment variables ("%var%") in configuration file and command line paths
+
+Beta 23 (RC1, max 1 week left for possible bug reports):
+
+- SPS library return code check added, show notification if selected image requires newer library version
+- Quickstart DF1: and CD localization fix
+- beta warnings disabled
+
+Beta 22:
+
+- PAPEROUT and BUSY was not always forced inactive, usually preventing printing if program directly poked printer port hardware
+- fixed epson emulation graphics printing again, 9-pin graphics gaps fixed, added some missing 9-pin only commands, graphics
+  (both b&w and color) confirmed working. Should be perfect now :)
+- added shield icon to "Add Harddrive" button (which does not do do anything, shows only admin privileges requirement)
+- Vista+ file dialog multi selection fix (broken since Vista/Win7 file dialog support was added)
+
+Beta 21:
+
+- Epson printing updates (score positions, superscript, color support etc..), -pngprint added to select print to png image mode
+  (Epson emulation only)
+- CDTV 2336 sector (Mode 2 Form 0/2) read offset fix, built-in cue raw read (2336 and 2352 sector size) support added
+- parallel_port configuration entry set to "default" = select system default printer
+- cdimage0 pointing to image file and uaescsi.device set in configuration: mount image on uaescsi.device:0 in basic non-scsi mode
+- cdimage0 configuration option now also accepts CD drive letter (in "X:\" format) and if set, only selected drive is mounted on
+  uaescsi.device:0. All other drives will be ignored
+
+Beta 20:
+
+- winuaebootlog.txt incorrectly listed WASAPI sound devices as PortAudio devices
+- raw keyboard enumeration stopped after first keyboard was found
+- raw keyboards are now always enumerated (previously -rawkeyboard was required), also they can be enabled and remapped separately.
+  F12=GUI hardcoded to prevent completely getting locked out of GUI (for example by disabling all keyboards)
+- -rawkeyboard does not anymore disable directinput keyboard enumeration, it only disables dinput keyboard and enables all raw keyboards.
+- automatically switches to raw keyboard mode if directinput enumeration returns unexpected keys
+- Epson printer emulation improved. Does not anymore require freetype libraries or extra fonts. Outputs to printer directly,
+  automatically uses printer's resolution internally. Old-style Epson text justification command emulated (left/right/center/full)
+  (Note that this isn't "real emulation", text output is always high-quality, only bitmap graphics output looks ugly)
+- parallel port sound sampler emulation implemented, input selection in IO Ports panel (DirectSound sources only).
+  Sound quality is not good enough (syncronization implementation is crappy), mono only.
+
+Beta 19:
+
+- fixed random D3D RTG ALT-TAB crash if hardware mouse cursor was enabled
+- fixed swapped sound channels if stereo separation code path was used, bug since stereo separation was implemented
+- internal sprite DMA pointer bit 0 was not cleared
+- _winuae.fx shader file is now built-in, will be written to plugins directory if directory is writable and
+  file does not exist. File will be used as long as version in first line matches (if you want to do some shader experiments)
+- winuae <file.cue or file.iso> will internally convert to cdimage=<file.ext> (not very useful currently but if someone
+  wants to associate cue or iso extensions)
+- added "quickstart=<model (a500,a500+,..)>,<subtype (0-n)>" configuration file option
+  (probably only useful as a command line parameter, at least for now) More useful in future, perhaps..
+
+Beta 18:
+
+- fixed blank RTG fullscreen 8-bit modes if "Match host and RTG color depth if possible" was enabled
+- D3D RTG performance improved when whole screen gets refreshed (see below for more info)
+- fixed original extended adf (factor 5 images) handling (broke in b11)
+- command line parsing heap corruption fix (2.0.0 bug but only caused problems randomly)
+- added "minimize when focus is lost" option to misc panel
+  (for example if you want to emulate fullscreen alt-tab in windowed or full window modes)
+- always capture mouse when fullwindow mode gains focus (like real fullscreen mode does)
+- D3D Null filter does memory copy again because it might be faster (D3D internally uses "doublebuffered"
+  textures if it is told that texture data will be completely rewritten. This prevents GPU stall if previous
+  frame is still being rendered)
+
+Beta 17:
+
+- right mouse button popup menu disk changes fixed, added "copy from dfx:" options
+- possible D3D performance improvement when updating screen only partially
+- CE mode crash fix when display updating is disabled (Scroll Lock)
+- CDTV: return CD error status immediately when program attempts to play non-existing cd audio track
+  instead of relying on CD backends to notice the error (Psycho Killer CDTV)
+- do not show inserted CD32/CDTV quickstart CD image in floppy drives panel (currently cd image is quickstart-only)
+- added "save screenshot to clipboard" input event (previously only save to file was possible)
+- some statefiles didn't select correct refresh rate (PAL/NTSC) when restored
+- added small delay to RTE instruction in 68020 CE mode because MOVE.W #x,INTREQ; RTE; currently executes too quickly,
+  faster than emulated IPL lines change state causing interrupt to start again after RTE
+  (another case of improving one part of emulation breaking lots of programs because not directly related part is not exact enough..)
+
+Beta 16:
+
+- implemented feature that makes selecting image from multi disk programs faster and easier.
+  When multidisk image is in disk drive, right clicking on "Select disk image" will open menu
+  that lists all detected disk images (+including all normal "favorite" menu options)
+  Also added previous and next disk input events.
+  Currently supports following disk number naming conventions:
+  "*(disk x*", "*<a-z/A-z/-/_/ >x.*", "*_a.*", "*-a*", "*<a-z>A.*"
+  (x = number 1 to 9, a = a-z/A-Z, A = A-Z, ? any character, * = anything)
+- D3D vsync in interlaced modes was erratic (bug since the beginning)
+- added "GamePorts" to "Copy From" option in Input panel that merges Game Ports panel mouse and
+  joystick configuration with current non-compatibility input configuration, also possible old
+  keyboard layout Game Ports panel mappings will be replaced with default keyboard mapping
+  Nothing is remembered, slot 1 mappings are simply overwritten with new mappings.
+  
+Beta 15:
+
+- D3D filter does not scale anymore in "no filter" mode to prevent confusion when switching
+  between D3D and DD. D3D null filter does not waste CPU power anymore.
+- RTG 8bit to non-paletted mode switch in fullscreen didn't always select correct color
+  space conversion mode (older bug)
+- fixed D3D 16-bit only "vertical scanline effect" introduced in b14
+- onscreen led on/off configuration problems fixed
+- restoring NTSC state files work again (broken when NTSC long/short line emulation was introduced)
+- PAL/NTSC configuration saved with statefile (I guess this was forgotten long time ago..)
+
+Beta 14:
+
+- old non-shader direct3d mode is back (if you have really old card)
+- do not create big tiled overlay texture if overlay texture size is same as original
+  image size (hardware did not have texture size restrictions), sampler can then do the tiling
+  automatically without seams (only if shader 2.0+)
+- always align overlay mask top/left corner 
+- updated about links (back2roots not removed, probably comes back sooner or later..)
+- RTG vblank interrupts didn't work in all situations (older bug, guru when switching to RTG mode)
+- fixed incorrect colors in some RTG modes (both DD and D3D)
+- fixed major (in some situations) JIT performance loss introduced in b8
+- READ THIS: You MUST delete old winuae.fx and winuae_old.fx and use new versions included
+  with this beta
+
+Beta 13:
+
 - version bumped to 2.1.0
 - 1620b10 broke 68020 RTE "Throwaway frame" emulation (Quik The Thunder Rabbit CD32)
 - warp mode on the fly change fixed
@@ -6,6 +138,15 @@
   every frame (some on the fly changes may be missed now, report if found)
 - b12 "no scaling" in directdraw was wrong, scaling isn't going to be removed.
 - blurry D3D RTG hardware mouse cursor fixed
+- p96refresh works again (broke few betas ago)
+- filesystem still had one missing unicode<>Amiga charset conversion (in some
+  situations caused wierd errors when creating new files with file name
+  including non-ISO-8859 charsets)
+- cyrillic charset (1251) Amiga-side charset support fixed (more or less broken
+  since unicode update but it only worked accidentally previously)
+- fixed JIT filesystem slowdown introduced few betas ago
+- fixed RTG directdraw fullscreen alt-tab blank screen
+
 
 Beta 12:
 

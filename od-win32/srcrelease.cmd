@@ -2,6 +2,8 @@ cd c:\projects\winuae_bak
 rm -rf bak
 mkdir bak
 
+copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae\src\od-win32
+
 copy c:\projects\winuae\src\* c:\projects\winuae_bak\bak\
 copy /s c:\projects\winuae\src\archivers\* c:\projects\winuae_bak\bak\archivers\
 mkdir bak\include
@@ -14,7 +16,6 @@ mkdir bak\md-i386-gcc
 copy c:\projects\winuae\src\md-i386-gcc\* c:\projects\winuae_bak\bak\md-i386-gcc\
 copy /s c:\projects\winuae\src\od-win32\* c:\projects\winuae_bak\bak\od-win32\
 
-copy d:\amiga\text\winuaechangelog.txt c:\projects\winuae_bak\bak\od-win32
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak
 
 cd bak
