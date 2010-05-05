@@ -101,7 +101,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="creating cpudefs.cpp"
-				CommandLine="build68k.exe &gt;..\..\cpudefs.c &lt;..\..\table68k"
+				CommandLine="build68k.exe &gt;..\..\cpudefs.cpp &lt;..\..\table68k"
 			/>
 		</Configuration>
 		<Configuration

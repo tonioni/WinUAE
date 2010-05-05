@@ -67,7 +67,7 @@
 			<Tool
 				Name="VCPreLinkEventTool"
 				Description="deleting blitter files"
-				CommandLine="del ..\..\blit.h&#x0D;&#x0A;del ..\..\blitfunc.c&#x0D;&#x0A;del ..\..\blitfunc.h&#x0D;&#x0A;del ..\..\blittable.c&#x0D;&#x0A;"
+				CommandLine="del ..\..\blit.h&#x0D;&#x0A;del ..\..\blitfunc.cpp&#x0D;&#x0A;del ..\..\blitfunc.h&#x0D;&#x0A;del ..\..\blittable.cpp&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCLinkerTool"
@@ -101,7 +101,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="generating blitter files"
-				CommandLine="genblitter.exe i &gt;..\..\blit.h&#x0D;&#x0A;genblitter.exe f &gt;..\..\blitfunc.c&#x0D;&#x0A;genblitter.exe h &gt;..\..\blitfunc.h&#x0D;&#x0A;genblitter.exe t &gt;..\..\blittable.c&#x0D;&#x0A;"
+				CommandLine="genblitter.exe i &gt;..\..\blit.h&#x0D;&#x0A;genblitter.exe f &gt;..\..\blitfunc.cpp&#x0D;&#x0A;genblitter.exe h &gt;..\..\blitfunc.h&#x0D;&#x0A;genblitter.exe t &gt;..\..\blittable.cpp&#x0D;&#x0A;"
 			/>
 		</Configuration>
 		<Configuration
