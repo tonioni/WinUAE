@@ -20,7 +20,7 @@
 #define NATMEM_OFFSETX (uae_u32)NATMEM_OFFSET
 
 // %%% BRIAN KING WAS HERE %%%
-extern int canbang;
+extern bool canbang;
 #include <sys/mman.h>
 extern void jit_abort(const TCHAR*,...);
 compop_func *compfunctbl[65536];
@@ -421,12 +421,13 @@ STATIC_INLINE void alloc_blockinfos(void)
 /********************************************************************
 * Preferences handling. This is just a convenient place to put it  *
 ********************************************************************/
-extern int have_done_picasso;
+extern bool have_done_picasso;
 
-int check_prefs_changed_comp (void)
+bool check_prefs_changed_comp (void)
 {
-	int changed = 0;
-	static int cachesize_prev, comptrust_prev, canbang_prev;
+	bool changed = 0;
+	static int cachesize_prev, comptrust_prev;
+	static bool canbang_prev;
 
 	if (currprefs.comptrustbyte != changed_prefs.comptrustbyte ||
 		currprefs.comptrustword != changed_prefs.comptrustword ||

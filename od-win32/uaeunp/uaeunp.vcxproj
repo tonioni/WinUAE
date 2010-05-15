@@ -57,13 +57,15 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <CompileAs>Default</CompileAs>
+      <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>zlibstat.lib;wininet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlibstat.lib;wininet.lib;lzmalib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalLibraryDirectories>$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -78,25 +80,23 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>StdCall</CallingConvention>
+      <StringPooling>true</StringPooling>
+      <ExceptionHandling>false</ExceptionHandling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>zlibstat.lib;wininet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlibstat.lib;wininet.lib;lzmalib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>wininet.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX86</TargetMachine>
+      <AdditionalLibraryDirectories>$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\crc32.cpp" />
-    <ClCompile Include="..\..\diskutil.cpp" />
-    <ClCompile Include="..\..\fdi2raw.cpp" />
-    <ClCompile Include="..\..\missing.cpp" />
-    <ClCompile Include="..\..\uaeunp.cpp" />
-    <ClCompile Include="..\..\zfile.cpp" />
-    <ClCompile Include="..\..\zfile_archive.cpp" />
     <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
     <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
     <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
@@ -108,19 +108,6 @@
     <ClCompile Include="..\..\archivers\dms\u_medium.cpp" />
     <ClCompile Include="..\..\archivers\dms\u_quick.cpp" />
     <ClCompile Include="..\..\archivers\dms\u_rle.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zBuf.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zCrc.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zStream.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bcj2.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bra.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bra86.cpp" />
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.cpp" />
     <ClCompile Include="..\..\archivers\lha\crcio.cpp" />
     <ClCompile Include="..\..\archivers\lha\dhuf.cpp" />
     <ClCompile Include="..\..\archivers\lha\header.cpp" />
@@ -132,9 +119,16 @@
     <ClCompile Include="..\..\archivers\lha\slide.cpp" />
     <ClCompile Include="..\..\archivers\lha\uae_lha.cpp" />
     <ClCompile Include="..\..\archivers\lha\util.cpp" />
-    <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
     <ClCompile Include="..\..\archivers\lzx\unlzx.cpp" />
     <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
+    <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
+    <ClCompile Include="..\..\crc32.cpp" />
+    <ClCompile Include="..\..\diskutil.cpp" />
+    <ClCompile Include="..\..\fdi2raw.cpp" />
+    <ClCompile Include="..\..\missing.cpp" />
+    <ClCompile Include="..\..\uaeunp.cpp" />
+    <ClCompile Include="..\..\zfile.cpp" />
+    <ClCompile Include="..\..\zfile_archive.cpp" />
     <ClCompile Include="..\caps\caps_win32.cpp" />
     <ClCompile Include="..\fsdb_mywin32.cpp" />
     <ClCompile Include="..\posixemu.cpp" />

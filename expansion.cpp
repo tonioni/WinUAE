@@ -131,7 +131,8 @@ uaecptr ROM_filesys_resname, ROM_filesys_resid;
 uaecptr ROM_filesys_diagentry;
 uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 uaecptr ROM_hardfile_init;
-int uae_boot_rom, uae_boot_rom_size; /* size = code size only */
+bool uae_boot_rom;
+int uae_boot_rom_size; /* size = code size only */
 
 /* ********************************************************** */
 

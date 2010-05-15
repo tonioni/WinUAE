@@ -27,8 +27,10 @@
 #if !defined __PRINTER_H
 #define __PRINTER_H
 
-#include "ft2build.h"
+#ifndef WINFONT
+s#include "ft2build.h"
 #include FT_FREETYPE_H
+#endif
 
 #if defined (WIN32)
 #include <windows.h>

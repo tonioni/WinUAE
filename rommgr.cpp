@@ -73,7 +73,7 @@ void romlist_add (TCHAR *path, struct romdata *rd)
 }
 
 
-struct romdata *getromdatabypath(TCHAR *path)
+struct romdata *getromdatabypath (TCHAR *path)
 {
 	int i;
 	for (i = 0; i < romlist_cnt; i++) {
@@ -474,7 +474,7 @@ struct romdata *getarcadiarombyname (TCHAR *name)
 	return NULL;
 }
 
-struct romlist **getarcadiaroms(void)
+struct romlist **getarcadiaroms (void)
 {
 	int i, out, max;
 	void *buf;
@@ -686,7 +686,7 @@ void free_keyring (void)
 	memset(keyring, 0, sizeof (struct rom_key) * ROM_KEY_NUM);
 }
 
-struct romdata *getromdatabyname (TCHAR *name)
+struct romdata *getromdatabyname (const TCHAR *name)
 {
 	TCHAR tmp[MAX_PATH];
 	int i = 0;
@@ -900,9 +900,11 @@ struct romdata *getromdatabyzfile (struct zfile *f)
 	pos = zfile_ftell (f);
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell (f);
+	if (size > 2048 * 1024)
+		return NULL;
 	p = xmalloc (uae_u8, size);
 	if (!p)
-		return 0;
+		return NULL;
 	memset (p, 0, size);
 	zfile_fseek (f, 0, SEEK_SET);
 	zfile_fread (p, 1, size, f);

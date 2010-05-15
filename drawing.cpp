@@ -69,8 +69,8 @@ static void lores_reset (void)
 		sprite_buffer_res++;
 }
 
-int aga_mode; /* mirror of chipset_mask & CSMASK_AGA */
-int direct_rgb;
+bool aga_mode; /* mirror of chipset_mask & CSMASK_AGA */
+bool direct_rgb;
 
 /* The shift factor to apply when converting between Amiga coordinates and window
 coordinates.  Zero if the resolution is the same, positive if window coordinates
@@ -214,8 +214,8 @@ static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
 static int brdsprt, brdblank, brdblank_changed;
 
-int picasso_requested_on;
-int picasso_on;
+bool picasso_requested_on;
+bool picasso_on;
 
 uae_sem_t gui_sem;
 int inhibit_frame;
@@ -659,10 +659,6 @@ static void pfield_init_linetoscr (void)
 	}
 }
 
-STATIC_INLINE uae_u8 merge_2pixel8 (uae_u8 p1, uae_u8 p2)
-{
-	return p1;
-}
 STATIC_INLINE uae_u16 merge_2pixel16 (uae_u16 p1, uae_u16 p2)
 {
 	uae_u16 v = ((((p1 >> xredcolor_s) & xredcolor_m) + ((p2 >> xredcolor_s) & xredcolor_m)) / 2) << xredcolor_s;
@@ -676,29 +672,6 @@ STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 	v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;
 	v |= ((((p1 >> 0) & 0xff) + ((p2 >> 0) & 0xff)) / 2) << 0;
 	return v;
-}
-
-static void fill_line_8 (uae_u8 *buf, unsigned int start, unsigned int stop)
-{
-	uae_u8 *b = (uae_u8 *)buf;
-	unsigned int i;
-	unsigned int rem = 0;
-	xcolnr col = brdblank ? 0 : colors_for_drawing.acolors[0];
-	while (((long)&b[start]) & 3) {
-		b[start++] = (uae_u8)col;
-		if (start == stop)
-			return;
-	}
-	if (((long)&b[stop]) & 3) {
-		rem = ((long)&b[stop]) & 3;
-		stop -= rem;
-	}
-	for (i = start; i < stop; i += 4) {
-		uae_u32 *b2 = (uae_u32 *)&b[i];
-		*b2 = col;
-	}
-	while (rem--)
-		b[stop++] = (uae_u8) col;
 }
 
 static void fill_line_16 (uae_u8 *buf, unsigned int start, unsigned int stop)
@@ -736,7 +709,6 @@ static void pfield_do_fill_line (int start, int stop)
 {
 	xlinecheck(start, stop);
 	switch (gfxvidinfo.pixbytes) {
-	case 1: fill_line_8 (xlinebuffer, start, stop); break;
 	case 2: fill_line_16 (xlinebuffer, start, stop); break;
 	case 4: fill_line_32 (xlinebuffer, start, stop); break;
 	}
@@ -1241,32 +1213,27 @@ static void pfield_do_linetoscr (int start, int stop)
 				if (issprites) {
 					if (res_shift == 0) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8_spr (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16_spr (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32_spr (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == 2) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8_stretch2_spr (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16_stretch2_spr (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32_stretch2_spr (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == 1) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8_stretch1_spr (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16_stretch1_spr (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32_stretch1_spr (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == -1) {
 						if (currprefs.gfx_lores_mode) {
 							switch (gfxvidinfo.pixbytes) {
-							case 1: src_pixel = linetoscr_8_shrink1f_spr (src_pixel, start, stop); break;
 							case 2: src_pixel = linetoscr_16_shrink1f_spr (src_pixel, start, stop); break;
 							case 4: src_pixel = linetoscr_32_shrink1f_spr (src_pixel, start, stop); break;
 							}
 						} else {
 							switch (gfxvidinfo.pixbytes) {
-							case 1: src_pixel = linetoscr_8_shrink1_spr (src_pixel, start, stop); break;
 							case 2: src_pixel = linetoscr_16_shrink1_spr (src_pixel, start, stop); break;
 							case 4: src_pixel = linetoscr_32_shrink1_spr (src_pixel, start, stop); break;
 							}
@@ -1275,32 +1242,27 @@ static void pfield_do_linetoscr (int start, int stop)
 				} else {
 					if (res_shift == 0) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8 (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16 (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32 (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == 2) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8_stretch2 (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16_stretch2 (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32_stretch2 (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == 1) {
 						switch (gfxvidinfo.pixbytes) {
-						case 1: src_pixel = linetoscr_8_stretch1 (src_pixel, start, stop); break;
 						case 2: src_pixel = linetoscr_16_stretch1 (src_pixel, start, stop); break;
 						case 4: src_pixel = linetoscr_32_stretch1 (src_pixel, start, stop); break;
 						}
 					} else if (res_shift == -1) {
 						if (currprefs.gfx_lores_mode) {
 							switch (gfxvidinfo.pixbytes) {
-							case 1: src_pixel = linetoscr_8_shrink1f (src_pixel, start, stop); break;
 							case 2: src_pixel = linetoscr_16_shrink1f (src_pixel, start, stop); break;
 							case 4: src_pixel = linetoscr_32_shrink1f (src_pixel, start, stop); break;
 							}
 						} else {
 							switch (gfxvidinfo.pixbytes) {
-							case 1: src_pixel = linetoscr_8_shrink1 (src_pixel, start, stop); break;
 							case 2: src_pixel = linetoscr_16_shrink1 (src_pixel, start, stop); break;
 							case 4: src_pixel = linetoscr_32_shrink1 (src_pixel, start, stop); break;
 							}
@@ -1862,7 +1824,7 @@ static void pfield_expand_dp_bplcon (void)
 #endif
 }
 
-static int isham (uae_u16 bplcon0)
+static bool isham (uae_u16 bplcon0)
 {
 	int p = GET_PLANES (bplcon0);
 	if (!(bplcon0 & 0x800))
@@ -2296,6 +2258,7 @@ static int frame_res_cnt;
 static void init_drawing_frame (void)
 {
 	int i, maxline;
+#if 1
 	static int frame_res_old;
 
 	if (FRAMES_UNTIL_RES_SWITCH > 0 && frame_res_old == frame_res * 2 + frame_res_lace) {
@@ -2345,6 +2308,7 @@ static void init_drawing_frame (void)
 		can_use_lores++;
 		lores_reset ();
 	}
+#endif
 
 	init_hardware_for_drawing_frame ();
 
@@ -2375,9 +2339,7 @@ static void init_drawing_frame (void)
 	first_drawn_line = 32767;
 
 	first_block_line = last_block_line = NO_BLOCK;
-	if (currprefs.test_drawing_speed)
-		frame_redraw_necessary = 1;
-	else if (frame_redraw_necessary)
+	if (frame_redraw_necessary)
 		frame_redraw_necessary--;
 
 	center_image ();
@@ -2509,10 +2471,8 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			side = gui_data.drive_side;
 		} else if (led == LED_POWER) {
 			pos = 3;
-			//on = gui_data.powerled_brightness > 0;
 			on_rgb = ((gui_data.powerled_brightness * 10 / 16) + 0x33) << 16;
-			on = gui_data.powerled;
-			//on_rgb = 0xcc0000;
+			on = 1;
 			off_rgb = 0x330000;
 		} else if (led == LED_CD) {
 			pos = 5;

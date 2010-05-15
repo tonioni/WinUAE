@@ -6,10 +6,13 @@
 *     2007 Toni Wilen
 */
 
-#define ZLIB_WINAPI
-
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#include "win32.h"
+#endif
 
 #include "options.h"
 #include "zfile.h"
@@ -21,10 +24,7 @@
 
 #include <zlib.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#include "win32.h"
-#endif
+
 
 static time_t fromdostime (uae_u32 dd)
 {
@@ -56,6 +56,9 @@ static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsig
 	case ArchiveFormat7Zip:
 		zv = archive_directory_7z (zf);
 		break;
+	case ArchiveFormatXZ:
+		zv = archive_directory_xz (zf);
+		break;
 	case ArchiveFormatRAR:
 		zv = archive_directory_rar (zf);
 		break;
@@ -86,14 +89,14 @@ static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsig
 	return zv;
 }
 
-struct zfile *archive_getzfile (struct znode *zn, unsigned int id)
+struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags)
 {
 	struct zfile *zf = NULL;
 
 	switch (id)
 	{
 	case ArchiveFormatZIP:
-		zf = archive_access_zip (zn);
+		zf = archive_access_zip (zn, flags);
 		break;
 	case ArchiveFormat7Zip:
 		zf = archive_access_7z (zn);
@@ -138,7 +141,8 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 	struct zfile *z = NULL;
 	int we_have_file;
 	int diskimg;
-	int canhistory = (zf->zfdmask & ZFD_DISKHISTORY) && !(zf->zfdmask & ZFD_CHECKONLY);
+	int mask = zf->zfdmask;
+	int canhistory = (mask & ZFD_DISKHISTORY) && !(mask & ZFD_CHECKONLY);
 
 	if (retcode)
 		*retcode = 0;
@@ -188,28 +192,24 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 				select = -1;
 			if (zf->zipname && zf->zipname[0] == '#' && _tstol (zf->zipname + 1) == zipcnt)
 				select = -1;
-			if (select && we_have_file <= 0) {
-				struct zfile *zt = archive_getzfile (zn, id);
+			if (select && we_have_file < 10) {
+				struct zfile *zt = archive_getzfile (zn, id, 1);
 				if (zt) {
 					int ft = zfile_gettype (zt);
-					if (select < 0 || ft) {
-						int whf = 1;
-						if (ft == ZFILE_CDIMAGE) {
-							TCHAR *ext = _tcsrchr (zn->fullname, '.');
-							if (ext && we_have_file == 0) {
-								if (!_tcsicmp (ext, L".iso"))
-									whf = -1; // accept .cue if found later
-							}
-						} else if (we_have_file < 0) {
-							whf = 0; // ignore non-cdimage files if iso was found
-						}
-						if (whf) {
-							we_have_file = whf;
-							if (z)
-								zfile_fclose (z);
-							z = zt;
-							zt = NULL;
-						}
+					TCHAR *ext = _tcsrchr (zn->fullname, '.');
+					int whf = 1;
+					if ((mask & ZFD_CD) && ft) {
+						if (ext && !_tcsicmp (ext, L".iso"))
+							whf = 2;
+						if (ext && !_tcsicmp (ext, L".cue"))
+							whf = 10;
+					}
+					if ((select < 0 || ft) && whf > we_have_file) {
+						we_have_file = whf;
+						if (z)
+							zfile_fclose (z);
+						z = zt;
+						zt = NULL;
 					}
 					zfile_fclose (zt);
 				}
@@ -253,7 +253,7 @@ void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user, unsig
 	zn = &zv->root;
 	while (zn) {
 		if (zn->type == ZNODE_FILE) {
-			struct zfile *zf2 = archive_getzfile (zn, id);
+			struct zfile *zf2 = archive_getzfile (zn, id, 0);
 			if (zf2) {
 				int ztype = iszip (zf2);
 				if (ztype) {
@@ -382,7 +382,7 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 		filename_inzip = au (filename_inzip2);
 		dd = file_info.dosDate;
 		t = fromdostime (dd);
-		memset(&zai, 0, sizeof zai);
+		memset (&zai, 0, sizeof zai);
 		zai.name = filename_inzip;
 		zai.t = t;
 		zai.flags = -1;
@@ -408,7 +408,7 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 }
 
 
-struct zfile *archive_access_zip (struct znode *zn)
+struct zfile *archive_access_zip (struct znode *zn, int flags)
 {
 	struct zfile *z = NULL;
 	unzFile uz = zn->volume->handle;
@@ -442,7 +442,9 @@ struct zfile *archive_access_zip (struct znode *zn)
 		return 0;
 	z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 	if (z) {
-		err = unzReadCurrentFile (uz, z->data, zn->size);
+//		if (flags)
+//			z->datasize = PEEK_BYTES;
+		err = unzReadCurrentFile (uz, z->data, z->datasize);
 	}
 	unzCloseCurrentFile (uz);
 	return z;
@@ -450,33 +452,36 @@ struct zfile *archive_access_zip (struct znode *zn)
 
 /* 7Z */
 
-#include "archivers/7z/Types.h"
-#include "archivers/7z/7zCrc.h"
-#include "archivers/7z/Archive/7z/7zIn.h"
-#include "archivers/7z/Archive/7z/7zExtract.h"
-#include "archivers/7z/Archive/7z/7zAlloc.h"
+#include "7z/7z.h"
+#include "7z/Alloc.h"
+#include "7z/7zFile.h"
+#include "7z/7zVersion.h"
+#include "7z/7zCrc.h"
+
+static void *SzAlloc (void *p, size_t size)
+{
+	return xmalloc (uae_u8, size);
+}
+static void SzFree(void *p, void *address)
+{
+	xfree (address);
+}
 
 static ISzAlloc allocImp;
 static ISzAlloc allocTempImp;
 
-typedef struct
-{
-	ISeekInStream s;
-	struct zfile *zf;
-} CFileInStream;
-
-
-
 static SRes SzFileReadImp (void *object, void *buffer, size_t *size)
 {
 	CFileInStream *s = (CFileInStream *)object;
-	*size = zfile_fread (buffer, 1, *size, s->zf);
+	struct zfile *zf = (struct zfile*)s->file.myhandle;
+	*size = zfile_fread (buffer, 1, *size, zf);
 	return SZ_OK;
 }
 
 static SRes SzFileSeekImp(void *object, Int64 *pos, ESzSeek origin)
 {
 	CFileInStream *s = (CFileInStream *)object;
+	struct zfile *zf = (struct zfile*)s->file.myhandle;
 	int org = 0;
 	switch (origin)
 	{
@@ -484,9 +489,9 @@ static SRes SzFileSeekImp(void *object, Int64 *pos, ESzSeek origin)
 	case SZ_SEEK_CUR: org = SEEK_CUR; break;
 	case SZ_SEEK_END: org = SEEK_END; break;
 	}
-	zfile_fseek (s->zf, *pos, org);
-	*pos = zfile_ftell (s->zf);
-	return 0;
+	zfile_fseek (zf, *pos, org);
+	*pos = zfile_ftell (zf);
+	return SZ_OK;
 }
 
 static void init_7z (void)
@@ -498,8 +503,8 @@ static void init_7z (void)
 	initialized = 1;
 	allocImp.Alloc = SzAlloc;
 	allocImp.Free = SzFree;
-	allocTempImp.Alloc = SzAllocTemp;
-	allocTempImp.Free = SzFreeTemp;
+	allocTempImp.Alloc = SzAlloc;
+	allocTempImp.Free = SzFree;
 	CrcGenerateTable ();
 	_tzset ();
 }
@@ -525,6 +530,11 @@ static void archive_close_7z (void *ctx)
 #define EPOCH_DIFF 0x019DB1DED53E8000LL /* 116444736000000000 nsecs */
 #define RATE_DIFF 10000000 /* 100 nsecs */
 
+struct zvolume *archive_directory_xz (struct zfile *z)
+{
+	return NULL;
+}
+
 struct zvolume *archive_directory_7z (struct zfile *z)
 {
 	SRes res;
@@ -537,7 +547,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	ctx->blockIndex = 0xffffffff;
 	ctx->archiveStream.s.Read = SzFileReadImp;
 	ctx->archiveStream.s.Seek = SzFileSeekImp;
-	ctx->archiveStream.zf = z;
+	ctx->archiveStream.file.myhandle = (void*)z;
 	LookToRead_CreateVTable (&ctx->lookStream, False);
 	ctx->lookStream.realStream = &ctx->archiveStream.s;
 	LookToRead_Init (&ctx->lookStream);
@@ -552,12 +562,12 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	zv = zvolume_alloc (z, ArchiveFormat7Zip, ctx, NULL);
 	for (i = 0; i < ctx->db.db.NumFiles; i++) {
 		CSzFileItem *f = ctx->db.db.Files + i;
-		TCHAR *name = au (f->Name);
+		TCHAR *name = (TCHAR*)(ctx->db.FileNames.data + ctx->db.FileNameOffsets[i] * 2);
 		struct zarchive_info zai;
 
 		memset(&zai, 0, sizeof zai);
 		zai.name = name;
-		zai.flags = -1;
+		zai.flags = f->AttribDefined ? f->Attrib : -1;
 		zai.size = f->Size;
 		zai.t = 0;
 		if (f->MTimeDefined) {
@@ -573,10 +583,14 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 			struct znode *zn = zvolume_addfile_abs (zv, &zai);
 			zn->offset = i;
 		}
-		xfree (name);
 	}
 	zv->method = ArchiveFormat7Zip;
 	return zv;
+}
+
+struct zfile *archive_access_xz (struct znode *zn)
+{
+	return NULL;
 }
 
 struct zfile *archive_access_7z (struct znode *zn)
@@ -589,7 +603,7 @@ struct zfile *archive_access_7z (struct znode *zn)
 	struct SevenZContext *ctx;
 
 	ctx = (struct SevenZContext*)zv->handle;
-	res = SzAr_Extract (&ctx->db, &ctx->lookStream.s, zn->offset,
+	res = SzArEx_Extract (&ctx->db, &ctx->lookStream.s, zn->offset,
 		&ctx->blockIndex, &ctx->outBuffer, &ctx->outBufferSize,
 		&offset, &outSizeProcessed,
 		&allocImp, &allocTempImp);
@@ -690,7 +704,8 @@ static int rar_resetf (struct zfile *z)
 
 static void archive_close_rar (void *ctx)
 {
-	xfree ((struct RARContext*)ctx);
+	struct RARContext* rc = (struct RARContext*)ctx;
+	xfree (rc);
 }
 
 struct zvolume *archive_directory_rar (struct zfile *z)
@@ -898,7 +913,7 @@ struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id)
 
 	if (!arcacc_init (z))
 		return NULL;
-	zv = zvolume_alloc (z, id, NULL, NULL);
+	zv = zvolume_alloc (z, ArchiveFormatAA, NULL, NULL);
 	id_r = arcacc_push (z);
 	ah = aaOpenArchive (readCallback, id_r, zv->archivesize, id, &status, NULL);
 	if (!status) {

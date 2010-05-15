@@ -518,9 +518,6 @@ extern void empty_optimizer(void);
 #define comp_get_iword(o) do_get_mem_word((uae_u16 *)(comp_pc_p + (o)))
 #define comp_get_ilong(o) do_get_mem_long((uae_u32 *)(comp_pc_p + (o)))
 
-/* Preferences handling */
-int check_prefs_changed_comp (void);
-
 struct blockinfo_t;
 
 typedef struct dep_t {

@@ -161,7 +161,7 @@ int parallel_direct_read_data (uae_u8 *v) { return 0; }
 
 #else
 
-#include <ParaPort.h>
+#include <paraport/ParaPort.h>
 
 typedef BOOL (*closePort)(HANDLE);
 typedef BOOL (*executeCycle)(HANDLE, PARAPORT_CYCLE*, int);

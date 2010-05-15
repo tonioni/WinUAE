@@ -20,29 +20,26 @@
     <Filter Include="prowizard">
       <UniqueIdentifier>{dab2f6c7-d741-4002-b0c9-566a1536642a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors">
-      <UniqueIdentifier>{f3ce6c07-bb5c-47dc-9e59-5e4acd06ff0d}</UniqueIdentifier>
+    <Filter Include="unpackers">
+      <UniqueIdentifier>{a88602d5-1980-49b2-a87a-79afa3ca7346}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\dms">
-      <UniqueIdentifier>{ae0450a0-e0ff-442b-8896-a21eb8769fae}</UniqueIdentifier>
+    <Filter Include="unpackers\dms">
+      <UniqueIdentifier>{6b855260-58da-4be4-b914-621ca2e33ca5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\7z">
-      <UniqueIdentifier>{c52448a0-4965-449e-bbdd-e8cb8bf9227a}</UniqueIdentifier>
+    <Filter Include="unpackers\lha">
+      <UniqueIdentifier>{1af2c9da-63ab-4226-8b97-5544a0a34433}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\lha">
-      <UniqueIdentifier>{492ad99e-6cf0-486b-8e97-083a9e50bb7c}</UniqueIdentifier>
+    <Filter Include="unpackers\lzx">
+      <UniqueIdentifier>{99d2fcb7-e014-45fe-a543-4a9b9242a35b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\zip">
-      <UniqueIdentifier>{d030c158-bae4-4025-9d74-bfe643846c44}</UniqueIdentifier>
+    <Filter Include="unpackers\wrp">
+      <UniqueIdentifier>{d2f2439b-d15d-47d5-bb26-1a9436aef770}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\lzx">
-      <UniqueIdentifier>{4abb311e-366e-4c88-bb5f-0086611a1145}</UniqueIdentifier>
+    <Filter Include="unpackers\xfd">
+      <UniqueIdentifier>{d69b4a6c-84db-480b-8b80-60a2a3646f6e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="decompressors\xfd">
-      <UniqueIdentifier>{4c157cd6-e04e-4dfa-ad84-a5e9f8abc1ed}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="decompressors\wrp">
-      <UniqueIdentifier>{43856f2f-e043-4cfe-aa2a-a767858d8ea4}</UniqueIdentifier>
+    <Filter Include="unpackers\zip">
+      <UniqueIdentifier>{93fcf20a-8921-43e8-b4b9-e5fceb81332d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -403,122 +400,86 @@
     <ClCompile Include="..\..\moduleripper.cpp">
       <Filter>prowizard</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\getbits.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\maketbl.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\pfile.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\tables.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_deep.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_init.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_medium.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_quick.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\dms\u_rle.cpp">
-      <Filter>decompressors\dms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zBuf.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zCrc.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\7zStream.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bcj2.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\Bra86.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.cpp">
-      <Filter>decompressors\7z</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\crcio.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\dhuf.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\header.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\huf.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\larc.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\lharc.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\shuf.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\slide.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lha\util.cpp">
-      <Filter>decompressors\lha</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\zip\unzip.cpp">
-      <Filter>decompressors\zip</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp">
-      <Filter>decompressors\lzx</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\archivers\wrp\warp.cpp">
-      <Filter>decompressors\wrp</Filter>
-    </ClCompile>
     <ClCompile Include="..\win32_scaler.cpp">
       <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\getbits.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\maketbl.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\pfile.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\tables.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_deep.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_init.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_medium.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_quick.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\dms\u_rle.cpp">
+      <Filter>unpackers\dms</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\crcio.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\dhuf.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\header.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\huf.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\larc.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\lharc.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\shuf.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\slide.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lha\util.cpp">
+      <Filter>unpackers\lha</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp">
+      <Filter>unpackers\lzx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\wrp\warp.cpp">
+      <Filter>unpackers\wrp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\zip\unzip.cpp">
+      <Filter>unpackers\zip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_21.cpp">
+      <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

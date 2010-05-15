@@ -11,7 +11,6 @@ int WIN32GFX_GetWidth (void);
 int WIN32GFX_GetHeight(void);
 int WIN32GFX_GetDepth (int real);
 void WIN32GFX_DisplayChangeRequested (void);
-void WIN32GFX_ToggleFullScreen (void);
 void WIN32GFX_DisablePicasso (void);
 void WIN32GFX_EnablePicasso (void);
 void WIN32GFX_WindowMove (void);

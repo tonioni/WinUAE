@@ -158,7 +158,7 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9d.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9d.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;lzmalib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>d:\amiga\winuae.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -173,7 +173,7 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreAllDefaultLibraries>
       </IgnoreAllDefaultLibraries>
     </Link>
@@ -217,11 +217,11 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>d:\amiga\winuae64.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -232,6 +232,7 @@
       <DataExecutionPrevention>
       </DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae64.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -259,7 +260,7 @@
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
@@ -283,10 +284,10 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>d:\amiga\winuae.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
@@ -304,7 +305,8 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
-      <MinimumRequiredVersion>5</MinimumRequiredVersion>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -328,8 +330,7 @@
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>false</ExceptionHandling>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -338,8 +339,7 @@
       <FloatingPointModel>Precise</FloatingPointModel>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderOutputFile>$(Platform)\$(Configuration)/winuae_msvc.pch</PrecompiledHeaderOutputFile>
       <AssemblerListingLocation>$(Platform)\$(Configuration)\</AssemblerListingLocation>
       <ObjectFileName>$(Platform)\$(Configuration)\</ObjectFileName>
@@ -357,13 +357,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>d:\amiga\winuae64.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -429,10 +429,10 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;freetype.lib;vfw32.lib;wtsapi32.lib;avrt.lib;wininet.lib;enet.lib;prowizard.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;avrt.lib;enet.lib;prowizard.lib;lzmalib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>d:\amiga\winuae.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
@@ -449,7 +449,8 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
-      <MinimumRequiredVersion>5</MinimumRequiredVersion>
+      <MinimumRequiredVersion>
+      </MinimumRequiredVersion>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>..\resources\winuae9.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -506,8 +507,8 @@
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>d:\amiga\winuae64.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_42.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;freetype6.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
@@ -527,6 +528,32 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
+    <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
+    <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
+    <ClCompile Include="..\..\archivers\dms\pfile.cpp" />
+    <ClCompile Include="..\..\archivers\dms\tables.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_deep.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_init.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_medium.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_quick.cpp" />
+    <ClCompile Include="..\..\archivers\dms\u_rle.cpp" />
+    <ClCompile Include="..\..\archivers\lha\crcio.cpp" />
+    <ClCompile Include="..\..\archivers\lha\dhuf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\header.cpp" />
+    <ClCompile Include="..\..\archivers\lha\huf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\larc.cpp" />
+    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp" />
+    <ClCompile Include="..\..\archivers\lha\lharc.cpp" />
+    <ClCompile Include="..\..\archivers\lha\shuf.cpp" />
+    <ClCompile Include="..\..\archivers\lha\slide.cpp" />
+    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp" />
+    <ClCompile Include="..\..\archivers\lha\util.cpp" />
+    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp" />
+    <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
+    <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
+    <ClCompile Include="..\..\cpuemu_21.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />
@@ -647,44 +674,6 @@
     <ClCompile Include="..\..\jit\compemu_support.cpp" />
     <ClCompile Include="..\..\jit\compstbl.cpp" />
     <ClCompile Include="..\..\moduleripper.cpp" />
-    <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
-    <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
-    <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
-    <ClCompile Include="..\..\archivers\dms\pfile.cpp" />
-    <ClCompile Include="..\..\archivers\dms\tables.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_deep.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_heavy.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_init.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_medium.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_quick.cpp" />
-    <ClCompile Include="..\..\archivers\dms\u_rle.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zAlloc.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zBuf.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zCrc.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zDecode.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zExtract.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zHeader.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zIn.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Archive\7z\7zItem.cpp" />
-    <ClCompile Include="..\..\archivers\7z\7zStream.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bcj2.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bra.cpp" />
-    <ClCompile Include="..\..\archivers\7z\Bra86.cpp" />
-    <ClCompile Include="..\..\archivers\7z\LzmaDec.cpp" />
-    <ClCompile Include="..\..\archivers\lha\crcio.cpp" />
-    <ClCompile Include="..\..\archivers\lha\dhuf.cpp" />
-    <ClCompile Include="..\..\archivers\lha\header.cpp" />
-    <ClCompile Include="..\..\archivers\lha\huf.cpp" />
-    <ClCompile Include="..\..\archivers\lha\larc.cpp" />
-    <ClCompile Include="..\..\archivers\lha\lhamaketbl.cpp" />
-    <ClCompile Include="..\..\archivers\lha\lharc.cpp" />
-    <ClCompile Include="..\..\archivers\lha\shuf.cpp" />
-    <ClCompile Include="..\..\archivers\lha\slide.cpp" />
-    <ClCompile Include="..\..\archivers\lha\uae_lha.cpp" />
-    <ClCompile Include="..\..\archivers\lha\util.cpp" />
-    <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
-    <ClCompile Include="..\..\archivers\lzx\unlzx.cpp" />
-    <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico" />

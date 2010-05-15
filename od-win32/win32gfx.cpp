@@ -103,6 +103,7 @@ extern int console_logging;
 int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
+static int wasfullwindow_a, wasfullwindow_p;
 
 int screen_is_picasso = 0;
 
@@ -1298,6 +1299,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
 	c |= _tcscmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
+	c |= currprefs.gfx_backbuffers != changed_prefs.gfx_backbuffers ? (2 | 8) : 0;
 
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
@@ -1358,6 +1360,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_display = changed_prefs.gfx_display;
 		_tcscpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
+		currprefs.gfx_backbuffers = changed_prefs.gfx_backbuffers;
 
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
@@ -1467,7 +1470,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_iconified_pause = changed_prefs.win32_iconified_pause;
 		currprefs.win32_ctrl_F11_is_quit = changed_prefs.win32_ctrl_F11_is_quit;
 		inputdevice_unacquire ();
-		currprefs.keyboard_leds_in_use = currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2];
+		currprefs.keyboard_leds_in_use = (currprefs.keyboard_leds[0] | currprefs.keyboard_leds[1] | currprefs.keyboard_leds[2]) != 0;
 		pause_sound ();
 		resume_sound ();
 		inputdevice_acquire (TRUE);
@@ -1697,9 +1700,9 @@ static int reopen (int full)
 	return 0;
 }
 
-int vsync_switchmode (int hz, int oldhz)
+bool vsync_switchmode (int hz, int oldhz)
 {
-	static int tempvsync;
+	static bool tempvsync;
 	int w = currentmode->native_width;
 	int h = currentmode->native_height;
 	int d = currentmode->native_depth / 8;
@@ -1948,15 +1951,6 @@ void close_windows (void)
 	gfxvidinfo.realbufmem = 0;
 	DirectDraw_Release ();
 	close_hwnds ();
-}
-
-void WIN32GFX_ToggleFullScreen (void)
-{
-	display_change_requested = 1;
-	if (screen_is_picasso)
-		currprefs.gfx_pfullscreen ^= 1;
-	else
-		currprefs.gfx_afullscreen ^= 1;
 }
 
 static void createstatuswindow (void)
@@ -2375,6 +2369,10 @@ static BOOL doInit (void)
 	int ret = 0;
 	int mult = 0;
 
+	if (wasfullwindow_a == 0)
+		wasfullwindow_a = currprefs.gfx_afullscreen == 2 ? 1 : -1;
+	if (wasfullwindow_p == 0)
+		wasfullwindow_p = currprefs.gfx_pfullscreen == 2 ? 1 : -1;
 	colortype = DirectDraw_GetPixelFormat ();
 	gfxmode_reset ();
 
@@ -2606,10 +2604,19 @@ void updatewinfsmode (struct uae_prefs *p)
 
 void toggle_fullscreen (void)
 {
-	if(picasso_on)
-		changed_prefs.gfx_pfullscreen = !changed_prefs.gfx_pfullscreen;
-	else
-		changed_prefs.gfx_afullscreen = !changed_prefs.gfx_afullscreen;
+	int *p = picasso_on ? &changed_prefs.gfx_pfullscreen : &changed_prefs.gfx_afullscreen;
+	int wfw = picasso_on ? wasfullwindow_p : wasfullwindow_a;
+	int v = *p;
+	if (v == 2)
+		v = 1;
+	else if (v == 0)
+		v = 1;
+	else if (v == 1)
+		if (wfw > 0)
+			v = 2;
+		else
+			v = 0;
+	*p = v;
 	updatewinfsmode (&changed_prefs);
 }
 

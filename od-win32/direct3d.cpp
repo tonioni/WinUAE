@@ -418,8 +418,8 @@ int D3D_goodenough (void)
 	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (d3dx != NULL) {
 		if (SUCCEEDED (d3dx->GetDeviceCaps (D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
-			if (d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1, 0) && d3dCaps.VertexShaderVersion >= D3DVS_VERSION(1, 0)) {
-				if ((d3dCaps.TextureCaps & (D3DPTEXTURECAPS_POW2 | D3DPTEXTURECAPS_NONPOW2CONDITIONAL)) != D3DPTEXTURECAPS_POW2) {
+			if (d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1, 0)) {
+				if (((d3dCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) == D3DPTEXTURECAPS_NONPOW2CONDITIONAL) || !(d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)) {
 					if (!(d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY) && (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)) {
 						d3d_good = 1;
 						shaderon = 1;
@@ -1634,12 +1634,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen() <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = 1;
+	dpp.BackBufferCount = currprefs.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.Windowed ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_DEFAULT;
+	dpp.PresentationInterval = dpp.Windowed || currprefs.gfx_backbuffers == 0 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_DEFAULT;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -1651,7 +1651,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (isfullscreen() > 0) {
 		dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
-		if (currprefs.gfx_avsync > 0) {
+		if (currprefs.gfx_avsync) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 			if (getvsyncrate (dpp.FullScreen_RefreshRateInHz) != dpp.FullScreen_RefreshRateInHz) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
@@ -1665,20 +1665,39 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3dhwnd = ahwnd;
 	t_depth = depth;
 
-	flags = 0;
+	flags = D3DCREATE_FPU_PRESERVE;
 	// Check if hardware vertex processing is available
-	if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
-		flags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;
-	else
+	if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
+		flags |= D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE;
+	} else {
 		flags |= D3DCREATE_SOFTWARE_VERTEXPROCESSING;
-	flags |= D3DCREATE_FPU_PRESERVE;
-
+	}
 	if (d3d_ex && D3DEX) {
 		ret = d3dex->CreateDeviceEx (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, dpp.Windowed ? NULL : &modeex, &d3ddevex);
 		d3ddev = d3ddevex;
 	} else {
 		ret = d3d->CreateDevice (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, &d3ddev);
 	}
+	if (FAILED (ret) && (flags & D3DCREATE_PUREDEVICE)) {
+		flags &= ~D3DCREATE_PUREDEVICE;
+		if (d3d_ex && D3DEX) {
+			ret = d3dex->CreateDeviceEx (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, dpp.Windowed ? NULL : &modeex, &d3ddevex);
+			d3ddev = d3ddevex;
+		} else {
+			ret = d3d->CreateDevice (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, &d3ddev);
+		}
+		if (FAILED (ret) && (flags & D3DCREATE_HARDWARE_VERTEXPROCESSING)) {
+			flags &= ~D3DCREATE_HARDWARE_VERTEXPROCESSING;
+			flags |= D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+			if (d3d_ex && D3DEX) {
+				ret = d3dex->CreateDeviceEx (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, dpp.Windowed ? NULL : &modeex, &d3ddevex);
+				d3ddev = d3ddevex;
+			} else {
+				ret = d3d->CreateDevice (adapter, D3DDEVTYPE_HAL, d3dhwnd, flags, &dpp, &d3ddev);
+			}
+		}
+	}
+
 	if (FAILED (ret)) {
 		_stprintf (errmsg, L"%s failed, %s\n", d3d_ex && D3DEX ? L"CreateDeviceEx" : L"CreateDevice", D3D_ErrorString (ret));
 		if (ret == D3DERR_INVALIDCALL && dpp.Windowed == 0 && dpp.FullScreen_RefreshRateInHz && !ddraw_fs) {
@@ -1708,7 +1727,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	max_texture_w = d3dCaps.MaxTextureWidth;
 	max_texture_h = d3dCaps.MaxTextureHeight;
 
-	write_log (L"%s: ", D3DHEAD);
+	write_log (L"%s: %08X ", D3DHEAD, flags);
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
 		write_log (L"SQUAREONLY ");
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)

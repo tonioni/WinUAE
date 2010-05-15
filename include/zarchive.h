@@ -7,17 +7,19 @@ struct zfile {
     TCHAR *name;
     TCHAR *zipname;
     TCHAR *mode;
-    FILE *f;
-    uae_u8 *data;
-    int dataseek;
-    uae_s64 size;
-    uae_s64 seek;
+    FILE *f; // real file handle if physical file
+    uae_u8 *data; // unpacked data
+    int dataseek; // use seek position even if real file
+	struct zfile *archiveparent; // set if parent is archive and this has not yet been unpacked (datasize < size)
+    uae_s64 size; // real size
+	uae_s64 datasize; // available size (not yet unpacked completely?)
+    uae_s64 seek; // seek position
     int deleteafterclose;
     int textmode;
     struct zfile *next;
     int zfdmask;
     struct zfile *parent;
-    uae_u64 offset;
+    uae_u64 offset; // byte offset from parent file
     int opencnt;
     ZFILEREAD zfileread;
     ZFILEWRITE zfilewrite;
@@ -81,6 +83,7 @@ struct zarchive_info
 };
 
 #define ArchiveFormat7Zip '7z  '
+#define ArchiveFormatXZ 'xz  '
 #define ArchiveFormatRAR 'rar '
 #define ArchiveFormatZIP 'zip '
 #define ArchiveFormatLHA 'lha '
@@ -93,6 +96,8 @@ struct zarchive_info
 #define ArchiveFormatMBR 'MBR '
 #define ArchiveFormatFAT 'FAT '
 #define ArchiveFormatTAR 'tar '
+
+#define PEEK_BYTES 1024
 
 extern int zfile_is_ignore_ext(const TCHAR *name);
 
@@ -108,9 +113,11 @@ extern struct zfile *archive_access_plain (struct znode *zn);
 extern struct zvolume *archive_directory_lha(struct zfile *zf);
 extern struct zfile *archive_access_lha (struct znode *zn);
 extern struct zvolume *archive_directory_zip(struct zfile *zf);
-extern struct zfile *archive_access_zip (struct znode *zn);
+extern struct zfile *archive_access_zip (struct znode *zn, int flags);
 extern struct zvolume *archive_directory_7z (struct zfile *z);
 extern struct zfile *archive_access_7z (struct znode *zn);
+extern struct zvolume *archive_directory_xz (struct zfile *z);
+extern struct zfile *archive_access_xz (struct znode *zn);
 extern struct zvolume *archive_directory_rar (struct zfile *z);
 extern struct zfile *archive_access_rar (struct znode *zn);
 extern struct zvolume *archive_directory_lzx (struct zfile *in_file);
@@ -135,6 +142,6 @@ extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user
 
 extern void archive_access_close (void *handle, unsigned int id);
 
-extern struct zfile *archive_getzfile(struct znode *zn, unsigned int id);
+extern struct zfile *archive_getzfile(struct znode *zn, unsigned int id, int flags);
 
 extern struct zfile *decompress_zfd (struct zfile*);

@@ -19,7 +19,6 @@
 #define MAXZ3MEM64 0xF0000000
 
 static struct shmid_ds shmids[MAX_SHMID];
-static int memwatchok = 0;
 uae_u8 *natmem_offset, *natmem_offset_end;
 static uae_u8 *p96mem_offset;
 static int p96mem_size;
@@ -88,113 +87,14 @@ static uae_u32 lowmem (void)
 	return change;
 }
 
-typedef UINT (CALLBACK* GETWRITEWATCH)
-	(DWORD,PVOID,SIZE_T,PVOID*,PULONG_PTR,PULONG);
-#define TEST_SIZE (2 * 4096)
-static int testwritewatch (void)
-{
-	GETWRITEWATCH pGetWriteWatch;
-	void *mem;
-	void *pages[16];
-	ULONG_PTR gwwcnt;
-	ULONG ps;
-	int ret = 0;
-
-	ps = si.dwPageSize;
-
-	pGetWriteWatch = (GETWRITEWATCH)GetProcAddress (GetModuleHandle (L"kernel32.dll"), "GetWriteWatch");
-	if (pGetWriteWatch == NULL) {
-		write_log (L"GetWriteWatch(): missing!?\n");
-		return 0;
-	}
-	mem = VirtualAlloc (NULL, TEST_SIZE, MEM_RESERVE | MEM_WRITE_WATCH, PAGE_EXECUTE_READWRITE);
-	if (mem == NULL) {
-		write_log (L"GetWriteWatch(): MEM_WRITE_WATCH not supported!? err=%d\n", GetLastError());
-		return 0;
-	}
-	if (VirtualAlloc (mem, TEST_SIZE, MEM_COMMIT, PAGE_EXECUTE_READWRITE) == NULL) {
-		write_log (L"GetWriteWatch(): test memory area MEM_COMMIT failed!? err=%d\n", GetLastError());
-		goto end;
-	}
-	ResetWriteWatch (mem, TEST_SIZE);
-	((uae_u8*)mem)[1] = 0;
-	gwwcnt = TEST_SIZE / ps;
-	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, mem, TEST_SIZE, pages, &gwwcnt, &ps)) {
-		write_log (L"GetWriteWatch(): failed!? err=%d\n", GetLastError ());
-		goto end;
-	}
-	if (ps != si.dwPageSize) {
-		write_log (L"GetWriteWatch(): pagesize %d != %d!?\n", si.dwPageSize, ps);
-		goto end;
-	}
-	if (gwwcnt != 1) {
-		write_log (L"GetWriteWatch(): modified pages returned %d != 1!?\n", gwwcnt);
-		goto end;
-	}
-	if (pages[0] != mem) {
-		write_log (L"GetWriteWatch(): modified page was wrong!?\n");
-		goto end;
-	}
-	write_log (L"GetWriteWatch() test ok\n");
-	ret = 1;
-	memwatchok = 1;
-end:
-	if (mem) {
-		VirtualFree (mem, TEST_SIZE, MEM_DECOMMIT);
-		VirtualFree (mem, 0, MEM_RELEASE);
-	}
-	return ret;
-}
-
-static uae_u8 *memwatchtable;
-
 int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddresses, PULONG_PTR lpdwCount, PULONG lpdwGranularity)
 {
-	int i, j, off;
-
-	if (memwatchok)
-		return GetWriteWatch (0, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
-	j = 0;
-	off = ((uae_u8*)lpBaseAddress - (natmem_offset + p96ram_start)) / si.dwPageSize;
-	for (i = 0; i < dwRegionSize / si.dwPageSize; i++) {
-		if (j >= *lpdwCount)
-			break;
-		if (memwatchtable[off + i])
-			lpAddresses[j++] = (uae_u8*)lpBaseAddress + i * si.dwPageSize;
-	}
-	*lpdwCount = j;
-	*lpdwGranularity = si.dwPageSize;
-	return 0;
+	return GetWriteWatch (0, lpBaseAddress, dwRegionSize, lpAddresses, lpdwCount, lpdwGranularity);
 }
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize)
 {
-	if (memwatchok) {
-		if (ResetWriteWatch (lpBaseAddress, dwRegionSize))
-			write_log (L"ResetWriteWatch() failed, %d\n", GetLastError ());
-	} else {
-		DWORD op;
-		memset (memwatchtable, 0, p96mem_size / si.dwPageSize);
-		if (!VirtualProtect (lpBaseAddress, dwRegionSize, PAGE_READWRITE | PAGE_GUARD, &op))
-			write_log (L"VirtualProtect() failed, err=%d\n", GetLastError ());
-	}
-}
-
-int mman_guard_exception (LPEXCEPTION_POINTERS p)
-{
-	PEXCEPTION_RECORD record = p->ExceptionRecord;
-	PCONTEXT context = p->ContextRecord;
-	ULONG_PTR addr = record->ExceptionInformation[1];
-	int rw = record->ExceptionInformation[0];
-	ULONG_PTR p96addr = (ULONG_PTR)p96mem_offset;
-
-	if (memwatchok)
-		return EXCEPTION_CONTINUE_SEARCH;
-	if (addr < p96addr || addr >= p96addr + p96mem_size)
-		return EXCEPTION_CONTINUE_EXECUTION;
-	addr -= p96addr;
-	addr /= si.dwPageSize;
-	memwatchtable[addr] = 1;
-	return EXCEPTION_CONTINUE_EXECUTION;
+	if (ResetWriteWatch (lpBaseAddress, dwRegionSize))
+		write_log (L"ResetWriteWatch() failed, %d\n", GetLastError ());
 }
 
 static uae_u64 size64;
@@ -257,7 +157,6 @@ void preinit_shm (void)
 	}
 
 	write_log (L"Max Z3FastRAM %dM. Total physical RAM %uM\n", max_z3fastmem >> 20, totalphys64 >> 20);
-	testwritewatch ();
 	canbang = 1;
 }
 
@@ -331,14 +230,6 @@ restart:
 		}
 		natmemsize = size + z3size;
 
-		xfree (memwatchtable);
-		memwatchtable = 0;
-		if (currprefs.gfxmem_size) {
-			if (!memwatchok) {
-				write_log (L"GetWriteWatch() not supported, using guard pages, RTG performance will be slower.\n");
-				memwatchtable = xcalloc (uae_u8, currprefs.gfxmem_size / si.dwPageSize + 1);
-			}
-		}
 		if (currprefs.gfxmem_size) {
 			rtgextra = si.dwPageSize;
 		} else {
@@ -368,7 +259,7 @@ restart:
 			goto restart;
 		}
 		p96mem_offset = (uae_u8*)VirtualAlloc (natmem_offset + natmemsize + rtgbarrier, p96mem_size + rtgextra,
-			MEM_RESERVE | (memwatchok == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+			MEM_RESERVE | MEM_WRITE_WATCH, PAGE_READWRITE);
 		if (!p96mem_offset) {
 			currprefs.gfxmem_size = changed_prefs.gfxmem_size = 0;
 			write_log (L"NATMEM: failed to allocate special Picasso96 GFX RAM, err=%d\n", GetLastError ());
@@ -531,8 +422,6 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			p96ram_start = p96mem_offset - natmem_offset;
 			shmaddr = natmem_offset + p96ram_start;
 			size += BARRIER;
-			if (!memwatchok)
-				protect |= PAGE_GUARD;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"bogo")) {
 			shmaddr=natmem_offset+0x00C00000;

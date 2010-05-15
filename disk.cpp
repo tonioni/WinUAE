@@ -143,10 +143,10 @@ typedef struct {
 	trackid writetrackdata[MAX_TRACKS];
 	int buffered_cyl, buffered_side;
 	int cyl;
-	int motoroff;
+	bool motoroff;
 	int motordelay; /* dskrdy needs some clock cycles before it changes after switching off motor */
-	int state;
-	int wrprot;
+	bool state;
+	bool wrprot;
 	uae_u16 bigmfmbuf[0x4000 * DDHDMULT];
 	uae_u16 tracktiming[0x4000 * DDHDMULT];
 	int multi_revolution;
@@ -160,9 +160,9 @@ typedef struct {
 	int dmalen;
 	int num_tracks, write_num_tracks, num_secs;
 	int hard_num_cyls;
-	int dskchange;
+	bool dskchange;
 	int dskchange_time;
-	int dskready;
+	bool dskready;
 	int dskready_time;
 	int dskready_down_time;
 	int writtento;
@@ -634,7 +634,7 @@ static void reset_drive (int i)
 static void update_drive_gui (int num)
 {
 	drive *drv = floppy + num;
-	int writ = dskdmaen == 3 && drv->state && !(selected & (1 << num));
+	bool writ = dskdmaen == 3 && drv->state && !(selected & (1 << num));
 
 	if (drv->state == gui_data.drive_motor[num]
 	&& drv->cyl == gui_data.drive_track[num]
@@ -654,7 +654,7 @@ static void update_drive_gui (int num)
 
 static void drive_fill_bigbuf (drive * drv,int);
 
-int DISK_validate_filename (const TCHAR *fname, int leave_open, int *wrprot, uae_u32 *crc32, struct zfile **zf)
+int DISK_validate_filename (const TCHAR *fname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf)
 {
 	if (zf)
 		*zf = NULL;
@@ -775,7 +775,7 @@ TCHAR *DISK_get_saveimagepath (const TCHAR *name)
 	return name1;
 }
 
-static struct zfile *getwritefile (const TCHAR *name, int *wrprot)
+static struct zfile *getwritefile (const TCHAR *name, bool *wrprot)
 {
 	struct zfile *zf;
 	DISK_validate_filename (DISK_get_saveimagepath (name), 1, wrprot, NULL, &zf);
@@ -785,7 +785,7 @@ static struct zfile *getwritefile (const TCHAR *name, int *wrprot)
 static int iswritefileempty (const TCHAR *name)
 {
 	struct zfile *zf;
-	int wrprot;
+	bool wrprot;
 	uae_char buffer[8];
 	trackid td[MAX_TRACKS];
 	int tracks, ddhd, i, ret;
@@ -807,7 +807,7 @@ static int iswritefileempty (const TCHAR *name)
 
 static int openwritefile (drive *drv, int create)
 {
-	int wrprot = 0;
+	bool wrprot = 0;
 
 	drv->writediskfile = getwritefile (currprefs.df[drv - &floppy[0]], &wrprot);
 	if (drv->writediskfile) {
@@ -826,10 +826,10 @@ static int openwritefile (drive *drv, int create)
 	return drv->writediskfile ? 1 : 0;
 }
 
-static int diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, drive_type *drvtype)
+static bool diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, drive_type *drvtype)
 {
 	struct zfile *zf1, *zf2;
-	int wrprot1 = 0, wrprot2 = 1;
+	bool wrprot1 = 0, wrprot2 = 1;
 	uae_char buffer[25];
 
 	*needwritefile = 0;
@@ -1236,7 +1236,7 @@ static void motordelay_func (uae_u32 v)
 	floppy[v].motordelay = 0;
 }
 
-static void drive_motor (drive * drv, int off)
+static void drive_motor (drive * drv, bool off)
 {
 	if (drv->motoroff && !off) {
 		drv->dskready_time = DSKREADY_TIME;
@@ -2175,7 +2175,8 @@ int disk_setwriteprotect (int num, const TCHAR *name, int protect)
 {
 	int needwritefile, oldprotect;
 	struct zfile *zf1, *zf2;
-	int wrprot1, wrprot2, i;
+	bool wrprot1, wrprot2;
+	int i;
 	TCHAR *name2;
 	drive_type drvtype;
 
@@ -2230,15 +2231,26 @@ int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck)
 	if (name[0] == 0)
 		return 0;
 	if (!donotcheck) {
-		if (!zfile_exists (name))
+		if (!zfile_exists (name)) {
+			for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
+				if (!_tcsicmp (dfxhistory[type][i], name)) {
+					while (i < MAX_PREVIOUS_FLOPPIES - 1) {
+						_tcscpy (dfxhistory[type][i], dfxhistory[type][i + 1]);
+						i++;
+					}
+					dfxhistory[type][MAX_PREVIOUS_FLOPPIES - 1][0] = 0;
+					break;
+				}
+			}
 			return 0;
+		}
 	}
 	if (idx >= 0) {
 		if (idx >= MAX_PREVIOUS_FLOPPIES)
 			return 0;
 		dfxhistory[type][idx][0] = 0;
 		for (i = 0; i < MAX_PREVIOUS_FLOPPIES; i++) {
-			if (!_tcscmp (dfxhistory[type][i], name))
+			if (!_tcsicmp (dfxhistory[type][i], name))
 				return 0;
 		}
 		_tcscpy (dfxhistory[type][idx], name);
@@ -3466,7 +3478,7 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 	drv->buffered_cyl = -1;
 	drv->buffered_side = -1;
 	drv->cyl = restore_u8 ();
-	drv->dskready = restore_u8 ();
+	drv->dskready = restore_u8 () != 0;
 	drv->drive_id_scnt = restore_u8 ();
 	drv->mfmpos = restore_u32 ();
 	drv->dskchange = 0;

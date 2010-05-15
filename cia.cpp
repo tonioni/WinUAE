@@ -59,7 +59,10 @@ static unsigned long ciaata_passed, ciaatb_passed, ciabta_passed, ciabtb_passed;
 
 static unsigned long ciaatod, ciabtod, ciaatol, ciabtol, ciaaalarm, ciabalarm;
 static int ciaatlatch, ciabtlatch;
-static int oldled, oldovl, oldcd32mute, led_changed;
+static bool oldled, oldovl, oldcd32mute;
+static bool led;
+static int led_old_brightness;
+static unsigned long led_cycles_on, led_cycles_off, led_cycle;
 
 unsigned int ciabpra;
 
@@ -524,37 +527,40 @@ void CIA_hsync_handler (int dotod)
 	}
 }
 
-static int led_times;
-static unsigned long led_on, led_cycle;
-
-
 static void calc_led (int old_led)
 {
 	unsigned long c = get_cycles ();
-	unsigned long t = c - led_cycle;
+	unsigned long t = (c - led_cycle) / CYCLE_UNIT;
 	if (old_led)
-		led_on += t;
-	led_times++;
+		led_cycles_on += t;
+	else
+		led_cycles_off += t;
 	led_cycle = c;
 }
 
 static void led_vsync (void)
 {
-	gui_data.powerled_brightness = gui_data.powerled ? 255 : 0;
-	calc_led (gui_data.powerled);
-	if (led_on > 0 && led_times > 2) {
-		int v = led_on / CYCLE_UNIT * 256 / (maxhpos * maxvpos_nom);
-		if (v < 0)
-			v = 0;
-		if (v > 255)
-			v = 255;
-		gui_data.powerled_brightness = v;
-	}
-	led_on = 0;
-	led_times = 0;
-	if (led_changed)
+	int v;
+
+	calc_led (led);
+	if (led_cycles_on && !led_cycles_off)
+		v = 255;
+	else if (led_cycles_off && !led_cycles_on)
+		v = 0;
+	else
+		v = led_cycles_on * 255 / led_cycles_off;
+	if (v < 0)
+		v = 0;
+	if (v > 255)
+		v = 255;
+	gui_data.powerled_brightness = v;
+	led_cycles_on = 0;
+	led_cycles_off = 0;
+	if (led_old_brightness != gui_data.powerled_brightness) {
+		gui_data.powerled = gui_data.powerled_brightness > 127;
 		gui_led (LED_POWER, gui_data.powerled);
-	led_changed = 0;
+	}
+	led_old_brightness = gui_data.powerled_brightness;
 	led_cycle = get_cycles ();
 }
 
@@ -575,15 +581,14 @@ void CIA_vsync_handler (int dotod)
 static void bfe001_change (void)
 {
 	uae_u8 v = ciaapra;
-	int led;
+	bool led2;
 
 	v |= ~ciaadra; /* output is high when pin's direction is input */
-	led = (v & 2) ? 0 : 1;
-	if (led != oldled) {
-		calc_led (oldled);
-		oldled = led;
-		gui_data.powerled = led;
-		led_changed = 1;
+	led2 = (v & 2) ? 0 : 1;
+	if (led2 != led) {
+		calc_led (led);
+		led = led2;
+		led_old_brightness = -1;
 		led_filter_audio ();
 	}
 	if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
@@ -1162,7 +1167,7 @@ void CIA_reset (void)
 	serbits = 0;
 	oldovl = 1;
 	oldcd32mute = 1;
-	oldled = -1;
+	oldled = true;
 	resetwarning_phase = resetwarning_timer = 0;
 
 	if (!savestate_state) {

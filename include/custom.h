@@ -31,8 +31,8 @@ extern void init_row_map (void);
 extern void init_hz (void);
 extern void init_custom (void);
 
-extern int picasso_requested_on;
-extern int picasso_on;
+extern bool picasso_requested_on;
+extern bool picasso_on;
 extern void set_picasso_hack_rate (int hz);
 
 /* Set to 1 to leave out the current frame in average frame time calculation.
@@ -207,4 +207,4 @@ struct customhack {
 void customhack_put (struct customhack *ch, uae_u16 v, int hpos);
 uae_u16 customhack_get (struct customhack *ch, int hpos);
 extern void alloc_cycle_ext (int, int);
-extern int ispal (void);
+extern bool ispal (void);

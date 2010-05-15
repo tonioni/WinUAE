@@ -265,7 +265,7 @@ static void cartridge_exit (void)
 {
 #ifdef PICASSO96
 	if (stored_picasso_on >= 0)
-		picasso_requested_on = stored_picasso_on;
+		picasso_requested_on = stored_picasso_on != 0;
 	stored_picasso_on = -1;
 #endif
 }

@@ -28,6 +28,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "consolewrapper", "..\consol
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prowizard", "..\prowizard\prowizard.vcxproj", "{8627DA33-98D1-4F60-B404-ECCEE0EE7BF9}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "unpackers", "..\unpackers\unpackers.vcxproj", "{98BA115B-829F-4085-9729-ABD0D779A60A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -130,6 +132,15 @@ Global
 		{8627DA33-98D1-4F60-B404-ECCEE0EE7BF9}.FullRelease|x64.ActiveCfg = Release|Win32
 		{8627DA33-98D1-4F60-B404-ECCEE0EE7BF9}.Release|Win32.ActiveCfg = Release|Win32
 		{8627DA33-98D1-4F60-B404-ECCEE0EE7BF9}.Release|x64.ActiveCfg = Release|x64
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Debug|Win32.Build.0 = Debug|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Debug|x64.ActiveCfg = Debug|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.FullRelease|Win32.ActiveCfg = Release|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.FullRelease|Win32.Build.0 = Release|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.FullRelease|x64.ActiveCfg = Release|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Release|Win32.ActiveCfg = Release|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Release|Win32.Build.0 = Release|Win32
+		{98BA115B-829F-4085-9729-ABD0D779A60A}.Release|x64.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

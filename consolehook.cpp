@@ -45,8 +45,8 @@ void consolehook_config (struct uae_prefs *p)
 	p->gfx_size_win.width = 320;
 	p->gfx_size_win.height = 256;
 	p->turbo_emulation = 0;
-	p->win32_automount_drives = 2;
-	p->win32_automount_cddrives = 2;
+	//p->win32_automount_drives = 2;
+	//p->win32_automount_cddrives = 2;
 
 	add_filesys_config (p, -1, L"DH0", L"CLIBOOT", L".", 1, 0, 0, 0, 0, 15, NULL, 0, 0);
 }

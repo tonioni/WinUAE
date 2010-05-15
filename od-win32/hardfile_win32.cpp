@@ -481,8 +481,8 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 		}
 	}
 	if (hfd->handle_valid || hfd->drive_empty) {
-		hfd_log (L"HDF '%s' opened, size=%dK mode=%d empty=%d\n",
-			name, hfd->physsize / 1024, hfd->handle_valid, hfd->drive_empty);
+		hfd_log (L"HDF '%s' %p opened, size=%dK mode=%d empty=%d\n",
+			name, hfd, hfd->physsize / 1024, hfd->handle_valid, hfd->drive_empty);
 		return 1;
 	}
 end:
@@ -833,7 +833,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 				hdf_seek (hfd, offset);
 				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
 				if (memcmp (hfd->cache, tmp, tmplen) != 0 || outlen != len)
-					gui_message (L"Harddrive\n%s\nblock zero write failed!", hfd->device_name);
+					gui_message (L"Harddrive\n%s\nblock zero write failed!", hfd->emptyname == NULL ? L"<unknown>" : hfd->emptyname);
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}
 		}

@@ -34,13 +34,30 @@ extern int pause_emulation;
 
 struct uae_input_device_kbr_default {
     int scancode;
-    int event;
+    int evt;
+	int flags;
 };
+
+struct inputevent {
+	const TCHAR *confname;
+	const TCHAR *name;
+	int allow_mask;
+	int type;
+	int unit;
+	int data;
+};
+
+/* event flags */
+#define ID_FLAG_AUTOFIRE 1
+#define ID_FLAG_TOGGLE 2
+#define ID_FLAG_SAVE_MASK 0xff
+#define ID_FLAG_TOGGLED 0x100
 
 #define IDEV_WIDGET_NONE 0
 #define IDEV_WIDGET_BUTTON 1
 #define IDEV_WIDGET_AXIS 2
-#define IDEV_WIDGET_KEY 3
+#define IDEV_WIDGET_BUTTONAXIS 3
+#define IDEV_WIDGET_KEY 4
 
 #define IDEV_MAPPED_AUTOFIRE_POSSIBLE 1
 #define IDEV_MAPPED_AUTOFIRE_SET 2
@@ -57,10 +74,12 @@ extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR 
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
+extern void inputdevice_swap_compa_ports (struct uae_prefs *p, int portswap);
 extern void inputdevice_config_change (void);
 extern int inputdevice_config_change_test (void);
 extern int inputdevice_get_device_index (int devnum);
 extern TCHAR *inputdevice_get_device_name (int type, int devnum);
+extern TCHAR *inputdevice_get_device_name2 (int devnum);
 extern TCHAR *inputdevice_get_device_unique_name (int type, int devnum);
 extern int inputdevice_get_device_status (int devnum);
 extern void inputdevice_set_device_status (int devnum, int enabled);
@@ -70,7 +89,7 @@ extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
 extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port);
 extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port);
-extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int cd32);
+extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int mode);
 extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port);
 extern int input_get_default_keyboard (int num);
 
@@ -119,6 +138,12 @@ extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
 extern int inputdevice_synccapslock (int, int*);
 extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state);
+extern int inputdevice_get_compatibility_input (struct uae_prefs*, int, int*, int**, int**);
+extern struct inputevent *inputdevice_get_eventinfo (int evt);
+extern void inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
+extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index);
+extern int intputdevice_compa_get_eventtype (int evt, int **axistable);
+
 
 extern uae_u16 potgo_value;
 extern uae_u16 POTGOR (void);
@@ -137,7 +162,7 @@ extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
 extern void read_inputdevice_config (struct uae_prefs *p, TCHAR *option, TCHAR *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
 extern int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type);
-extern int inputdevice_getjoyportdevice (int jport);
+extern int inputdevice_getjoyportdevice (int port, int val);
 
 extern void inputdevice_init (void);
 extern void inputdevice_close (void);
@@ -187,7 +212,6 @@ extern void inputdevice_tablet_strobe (void);
 extern int jsem_isjoy (int port, const struct uae_prefs *p);
 extern int jsem_ismouse (int port, const struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
-extern void do_fake_joystick (int nr, int *fake);
 
 extern int inputdevice_uaelib (TCHAR *, TCHAR *);
 
@@ -217,5 +241,8 @@ extern uae_u16 inprec_pu16 (void);
 extern uae_u32 inprec_pu32 (void);
 extern int inprec_pstr (TCHAR*);
 
-extern int inputdevice_testread (TCHAR *name);
+extern int inputdevice_testread (int*, int*, int*);
 extern int inputdevice_istest (void);
+extern void inputdevice_settest (int);
+extern int inputdevice_testread_count (void);
+

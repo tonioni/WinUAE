@@ -1,14 +1,14 @@
- /*
-  * UAE - The Un*x Amiga Emulator
-  *
-  * Stuff
-  *
-  * Copyright 1995, 1996 Ed Hanway
-  * Copyright 1995-2001 Bernd Schmidt
-  */
+/*
+* UAE - The Un*x Amiga Emulator
+*
+* Stuff
+*
+* Copyright 1995, 1996 Ed Hanway
+* Copyright 1995-2001 Bernd Schmidt
+*/
 
 #define UAEMAJOR 2
-#define UAEMINOR 1
+#define UAEMINOR 2
 #define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
@@ -16,9 +16,9 @@ typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, 
 extern long int version;
 
 struct strlist {
-    struct strlist *next;
-    TCHAR *option, *value;
-    int unknown;
+	struct strlist *next;
+	TCHAR *option, *value;
+	int unknown;
 };
 
 /* maximum number native input devices supported (single type) */
@@ -27,27 +27,31 @@ struct strlist {
 #define MAX_INPUT_DEVICE_EVENTS 256
 /* 4 different customization settings */
 #define MAX_INPUT_SETTINGS 4
+#define GAMEPORT_INPUT_SETTINGS 3 // last slot is for gameport panel mappings
 #define MAX_INPUT_SUB_EVENT 4
 #define MAX_INPUT_SIMULTANEOUS_KEYS 4
 
 struct uae_input_device {
-    TCHAR *name;
-    TCHAR *configname;
-    uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
-    TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
-    uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
-    uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
-    uae_s8 enabled;
+	TCHAR *name;
+	TCHAR *configname;
+	uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
+	TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
+	uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
+	uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
+	uae_s8 enabled;
 };
 
 #define MAX_JPORTS 4
 #define MAX_JPORTNAME 128
 struct jport {
-    int id;
-    int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
-    TCHAR name[MAX_JPORTNAME];
-    TCHAR configname[MAX_JPORTNAME];
+	int id;
+	int mode; // 0=def,1=mouse,2=joy,3=anajoy,4=lightpen
+	int autofire;
+	TCHAR name[MAX_JPORTNAME];
+	TCHAR configname[MAX_JPORTNAME];
 };
+#define JPORT_NONE -1
+#define JPORT_CUSTOM -2
 
 #define MAX_SPARE_DRIVES 20
 #define MAX_CUSTOM_MEMORY_ADDRS 2
@@ -61,331 +65,319 @@ struct jport {
 #define TABLET_REAL 2
 
 struct wh {
-    int x, y;
-    int width, height;
+	int x, y;
+	int width, height;
 };
 
 #define MOUNT_CONFIG_SIZE 30
 struct uaedev_config_info {
-    TCHAR devname[MAX_DPATH];
-    TCHAR volname[MAX_DPATH];
-    TCHAR rootdir[MAX_DPATH];
-    int ishdf;
-    int readonly;
-    int bootpri;
-    int autoboot;
-    int donotmount;
-    TCHAR filesys[MAX_DPATH];
-    int surfaces;
-    int sectors;
-    int reserved;
-    int blocksize;
-    int configoffset;
-    int controller;
+	TCHAR devname[MAX_DPATH];
+	TCHAR volname[MAX_DPATH];
+	TCHAR rootdir[MAX_DPATH];
+	bool ishdf;
+	bool readonly;
+	int bootpri;
+	bool autoboot;
+	bool donotmount;
+	TCHAR filesys[MAX_DPATH];
+	int surfaces;
+	int sectors;
+	int reserved;
+	int blocksize;
+	int configoffset;
+	int controller;
 };
 
 enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
-       CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T };
+	CP_A1200, CP_A2000, CP_A3000, CP_A3000T, CP_A4000, CP_A4000T };
 
 #define IDE_A600A1200 1
 #define IDE_A4000 2
 
 struct uae_prefs {
 
-    struct strlist *all_lines;
+	struct strlist *all_lines;
 
-    TCHAR description[256];
-    TCHAR info[256];
-    int config_version;
-    TCHAR config_hardware_path[MAX_DPATH];
-    TCHAR config_host_path[MAX_DPATH];
+	TCHAR description[256];
+	TCHAR info[256];
+	int config_version;
+	TCHAR config_hardware_path[MAX_DPATH];
+	TCHAR config_host_path[MAX_DPATH];
 
-    int illegal_mem;
-    int no_xhair;
-    int use_serial;
-    int serial_demand;
-    int serial_hwctsrts;
-    int serial_direct;
-    int parallel_demand;
-    int parallel_matrix_emulation;
-    int parallel_postscript_emulation;
-    int parallel_postscript_detection;
-    int parallel_autoflush_time;
-    TCHAR ghostscript_parameters[256];
-    int use_gfxlib;
-    int socket_emu;
+	bool illegal_mem;
+	bool use_serial;
+	bool serial_demand;
+	bool serial_hwctsrts;
+	bool serial_direct;
+	bool parallel_demand;
+	int parallel_matrix_emulation;
+	bool parallel_postscript_emulation;
+	bool parallel_postscript_detection;
+	int parallel_autoflush_time;
+	TCHAR ghostscript_parameters[256];
+	bool use_gfxlib;
+	bool socket_emu;
 
-    int start_debugger;
-    int start_gui;
+	bool start_debugger;
+	bool start_gui;
 
-    KbdLang keyboard_lang;
-    int test_drawing_speed;
+	KbdLang keyboard_lang;
 
-    int produce_sound;
-    int sound_stereo;
-    int sound_stereo_separation;
-    int sound_mixed_stereo_delay;
-    int sound_freq;
-    int sound_maxbsiz;
-    int sound_latency;
-    int sound_interpol;
-    int sound_filter;
-    int sound_filter_type;
-    int sound_volume;
-    int sound_stereo_swap_paula;
-    int sound_stereo_swap_ahi;
-    int sound_auto;
+	int produce_sound;
+	int sound_stereo;
+	int sound_stereo_separation;
+	int sound_mixed_stereo_delay;
+	int sound_freq;
+	int sound_maxbsiz;
+	int sound_latency;
+	int sound_interpol;
+	int sound_filter;
+	int sound_filter_type;
+	int sound_volume;
+	bool sound_stereo_swap_paula;
+	bool sound_stereo_swap_ahi;
+	bool sound_auto;
 
-    int comptrustbyte;
-    int comptrustword;
-    int comptrustlong;
-    int comptrustnaddr;
-    int compnf;
-    int compfpu;
-    int comp_midopt;
-    int comp_lowopt;
-    int fpu_strict;
+	int comptrustbyte;
+	int comptrustword;
+	int comptrustlong;
+	int comptrustnaddr;
+	bool compnf;
+	bool compfpu;
+	bool comp_midopt;
+	bool comp_lowopt;
+	bool fpu_strict;
 
-    int comp_hardflush;
-    int comp_constjump;
-    int comp_oldsegv;
+	bool comp_hardflush;
+	bool comp_constjump;
+	bool comp_oldsegv;
 
-    int cachesize;
-    int optcount[10];
+	int cachesize;
+	int optcount[10];
 
-    int avoid_cmov;
-    int avoid_dga;
-    int avoid_vid;
-    uae_u32 override_dga_address;
+	bool avoid_cmov;
 
-    int gfx_display;
-    TCHAR gfx_display_name[256];
-    int gfx_framerate, gfx_autoframerate;
-    struct wh gfx_size_win;
-    struct wh gfx_size_fs;
-    struct wh gfx_size;
-    struct wh gfx_size_win_xtra[4];
-    struct wh gfx_size_fs_xtra[4];
-    int gfx_autoresolution;
-    int gfx_scandoubler;
-    int gfx_refreshrate;
-    int gfx_avsync, gfx_pvsync;
-    int gfx_resolution;
-    int gfx_lores_mode;
-    int gfx_linedbl;
-    int gfx_afullscreen, gfx_pfullscreen;
-    int gfx_xcenter, gfx_ycenter;
-    int gfx_xcenter_pos, gfx_ycenter_pos;
-    int gfx_xcenter_size, gfx_ycenter_size;
-    int gfx_max_horizontal, gfx_max_vertical;
-    int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
-    int gfx_blackerthanblack;
-    int gfx_backbuffers;
+	int gfx_display;
+	TCHAR gfx_display_name[256];
+	int gfx_framerate, gfx_autoframerate;
+	struct wh gfx_size_win;
+	struct wh gfx_size_fs;
+	struct wh gfx_size;
+	struct wh gfx_size_win_xtra[4];
+	struct wh gfx_size_fs_xtra[4];
+	bool gfx_autoresolution;
+	bool gfx_scandoubler;
+	int gfx_refreshrate;
+	bool gfx_avsync, gfx_pvsync;
+	int gfx_resolution;
+	int gfx_lores_mode;
+	int gfx_linedbl;
+	int gfx_afullscreen, gfx_pfullscreen;
+	int gfx_xcenter, gfx_ycenter;
+	int gfx_xcenter_pos, gfx_ycenter_pos;
+	int gfx_xcenter_size, gfx_ycenter_size;
+	int gfx_max_horizontal, gfx_max_vertical;
+	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
+	bool gfx_blackerthanblack;
+	int gfx_backbuffers;
 	int gfx_api;
-    int color_mode;
+	int color_mode;
 
-    int gfx_filter;
-    TCHAR gfx_filtershader[MAX_DPATH];
+	int gfx_filter;
+	TCHAR gfx_filtershader[MAX_DPATH];
 	TCHAR gfx_filtermask[MAX_DPATH];
-    int gfx_filter_scanlines;
-    int gfx_filter_scanlineratio;
-    int gfx_filter_scanlinelevel;
-    int gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
-    int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
-    int gfx_filter_horiz_offset, gfx_filter_vert_offset;
-    int gfx_filter_filtermode;
+	int gfx_filter_scanlines;
+	int gfx_filter_scanlineratio;
+	int gfx_filter_scanlinelevel;
+	int gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
+	int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
+	int gfx_filter_horiz_offset, gfx_filter_vert_offset;
+	int gfx_filter_filtermode;
 	int gfx_filter_bilinear;
-    int gfx_filter_noise, gfx_filter_blur;
-    int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
-    int gfx_filter_keep_aspect, gfx_filter_aspect;
-    int gfx_filter_autoscale;
+	int gfx_filter_noise, gfx_filter_blur;
+	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
+	int gfx_filter_keep_aspect, gfx_filter_aspect;
+	int gfx_filter_autoscale;
 
-    int immediate_blits;
-    unsigned int chipset_mask;
-    int ntscmode;
-    int genlock;
-    int chipset_refreshrate;
-    int collision_level;
-    int leds_on_screen;
-    int keyboard_leds[3];
-    int keyboard_leds_in_use;
-    int scsi;
-    int sana2;
-    int uaeserial;
-    int catweasel;
-    int cpu_idle;
-    int cpu_cycle_exact;
-    int cpu_clock_multiplier;
-    int cpu_frequency;
-    int blitter_cycle_exact;
-    int floppy_speed;
-    int floppy_write_length;
-    int tod_hack;
-    uae_u32 maprom;
-    int turbo_emulation;
-    int headless;
+	bool immediate_blits;
+	unsigned int chipset_mask;
+	bool ntscmode;
+	bool genlock;
+	int chipset_refreshrate;
+	int collision_level;
+	int leds_on_screen;
+	int keyboard_leds[3];
+	bool keyboard_leds_in_use;
+	int scsi;
+	bool sana2;
+	bool uaeserial;
+	int catweasel;
+	int cpu_idle;
+	bool cpu_cycle_exact;
+	int cpu_clock_multiplier;
+	int cpu_frequency;
+	bool blitter_cycle_exact;
+	int floppy_speed;
+	int floppy_write_length;
+	bool tod_hack;
+	uae_u32 maprom;
+	int turbo_emulation;
+	bool headless;
 
-    int cs_compatible;
-    int cs_ciaatod;
-    int cs_rtc;
-    int cs_rtc_adjust;
-    int cs_rtc_adjust_mode;
-    int cs_ksmirror_e0;
-    int cs_ksmirror_a8;
-    int cs_ciaoverlay;
-    int cs_cd32cd;
-    int cs_cd32c2p;
-    int cs_cd32nvram;
-    int cs_cdtvcd;
-    int cs_cdtvram;
-    int cs_cdtvcard;
-    int cs_ide;
-    int cs_pcmcia;
-    int cs_a1000ram;
-    int cs_fatgaryrev;
-    int cs_ramseyrev;
-    int cs_agnusrev;
-    int cs_deniserev;
-    int cs_mbdmac;
-    int cs_cdtvscsi;
-    int cs_a2091, cs_a4091;
-    int cs_df0idhw;
-    int cs_slowmemisfast;
-    int cs_resetwarning;
-    int cs_denisenoehb;
-	int cs_dipagnus;
-    int cs_agnusbltbusybug;
+	int cs_compatible;
+	int cs_ciaatod;
+	int cs_rtc;
+	int cs_rtc_adjust;
+	int cs_rtc_adjust_mode;
+	bool cs_ksmirror_e0;
+	bool cs_ksmirror_a8;
+	bool cs_ciaoverlay;
+	bool cs_cd32cd;
+	bool cs_cd32c2p;
+	bool cs_cd32nvram;
+	bool cs_cdtvcd;
+	bool cs_cdtvram;
+	int cs_cdtvcard;
+	int cs_ide;
+	bool cs_pcmcia;
+	bool cs_a1000ram;
+	int cs_fatgaryrev;
+	int cs_ramseyrev;
+	int cs_agnusrev;
+	int cs_deniserev;
+	int cs_mbdmac;
+	bool cs_cdtvscsi;
+	bool cs_a2091, cs_a4091;
+	bool cs_df0idhw;
+	bool cs_slowmemisfast;
+	bool cs_resetwarning;
+	bool cs_denisenoehb;
+	bool cs_dipagnus;
+	bool cs_agnusbltbusybug;
 
-    TCHAR df[4][MAX_DPATH];
-    TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
-    TCHAR romfile[MAX_DPATH];
-    TCHAR romident[256];
-    TCHAR romextfile[MAX_DPATH];
-    TCHAR romextident[256];
-    TCHAR flashfile[MAX_DPATH];
-    TCHAR cartfile[MAX_DPATH];
-    TCHAR cartident[256];
-    int cart_internal;
-    TCHAR pci_devices[256];
-    TCHAR prtname[256];
-    TCHAR sername[256];
-    TCHAR amaxromfile[MAX_DPATH];
-    TCHAR a2065name[MAX_DPATH];
+	TCHAR df[4][MAX_DPATH];
+	TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
+	TCHAR romfile[MAX_DPATH];
+	TCHAR romident[256];
+	TCHAR romextfile[MAX_DPATH];
+	TCHAR romextident[256];
+	TCHAR flashfile[MAX_DPATH];
+	TCHAR cartfile[MAX_DPATH];
+	TCHAR cartident[256];
+	int cart_internal;
+	TCHAR pci_devices[256];
+	TCHAR prtname[256];
+	TCHAR sername[256];
+	TCHAR amaxromfile[MAX_DPATH];
+	TCHAR a2065name[MAX_DPATH];
 	TCHAR cdimagefile[MAX_DPATH];
 
-    TCHAR path_floppy[256];
-    TCHAR path_hardfile[256];
-    TCHAR path_rom[256];
+	TCHAR path_floppy[256];
+	TCHAR path_hardfile[256];
+	TCHAR path_rom[256];
 
-    int m68k_speed;
-    int cpu_model;
-    int mmu_model;
-    int cpu060_revision;
-    int fpu_model;
-    int fpu_revision;
-    int cpu_compatible;
-    int address_space_24;
-    int picasso96_nocustom;
-    int picasso96_modeflags;
+	int m68k_speed;
+	int cpu_model;
+	int mmu_model;
+	int cpu060_revision;
+	int fpu_model;
+	int fpu_revision;
+	bool cpu_compatible;
+	bool address_space_24;
+	bool picasso96_nocustom;
+	int picasso96_modeflags;
 
-    uae_u32 z3fastmem_size, z3fastmem2_size;
-    uae_u32 z3fastmem_start;
-    uae_u32 fastmem_size;
-    uae_u32 chipmem_size;
-    uae_u32 bogomem_size;
-    uae_u32 mbresmem_low_size;
-    uae_u32 mbresmem_high_size;
-    uae_u32 gfxmem_size;
-    uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
-    uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
+	uae_u32 z3fastmem_size, z3fastmem2_size;
+	uae_u32 z3fastmem_start;
+	uae_u32 fastmem_size;
+	uae_u32 chipmem_size;
+	uae_u32 bogomem_size;
+	uae_u32 mbresmem_low_size;
+	uae_u32 mbresmem_high_size;
+	uae_u32 gfxmem_size;
+	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
+	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 
-    int kickshifter;
-    int filesys_no_uaefsdb;
-    int filesys_custom_uaefsdb;
-    int mmkeyboard;
-    int uae_hide;
+	bool kickshifter;
+	bool filesys_no_uaefsdb;
+	bool filesys_custom_uaefsdb;
+	bool mmkeyboard;
+	int uae_hide;
 
-    int mountitems;
-    struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
+	int mountitems;
+	struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
 
-    int nr_floppies;
-    int dfxtype[4];
-    int dfxclick[4];
-    TCHAR dfxclickexternal[4][256];
-    int dfxclickvolume;
+	int nr_floppies;
+	int dfxtype[4];
+	int dfxclick[4];
+	TCHAR dfxclickexternal[4][256];
+	int dfxclickvolume;
 
-    /* Target specific options */
-    int x11_use_low_bandwidth;
-    int x11_use_mitshm;
-    int x11_use_dgamode;
-    int x11_hide_cursor;
-    int svga_no_linear;
+	/* Target specific options */
 
-    int win32_middle_mouse;
-    int win32_logfile;
-    int win32_notaskbarbutton;
-    int win32_alwaysontop;
-    int win32_powersavedisabled;
-	int win32_minimize_inactive;
+	bool win32_middle_mouse;
+	bool win32_logfile;
+	bool win32_notaskbarbutton;
+	bool win32_alwaysontop;
+	bool win32_powersavedisabled;
+	bool win32_minimize_inactive;
 
-    int win32_active_priority;
-    int win32_inactive_priority;
-    int win32_inactive_pause;
-    int win32_inactive_nosound;
-    int win32_iconified_priority;
-    int win32_iconified_pause;
-    int win32_iconified_nosound;
+	int win32_active_priority;
+	int win32_inactive_priority;
+	bool win32_inactive_pause;
+	bool win32_inactive_nosound;
+	int win32_iconified_priority;
+	bool win32_iconified_pause;
+	bool win32_iconified_nosound;
 
-    int win32_rtgmatchdepth;
-    int win32_rtgscaleifsmall;
-    int win32_rtgallowscaling;
-    int win32_rtgscaleaspectratio;
-    int win32_rtgvblankrate;
-    int win32_borderless;
-    int win32_ctrl_F11_is_quit;
-    int win32_automount_removable;
-    int win32_automount_drives;
-    int win32_automount_cddrives;
-    int win32_automount_netdrives;
-    int win32_automount_removabledrives;
-    int win32_midioutdev;
-    int win32_midiindev;
-    int win32_uaescsimode;
-    int win32_soundcard;
+	bool win32_rtgmatchdepth;
+	bool win32_rtgscaleifsmall;
+	bool win32_rtgallowscaling;
+	int win32_rtgscaleaspectratio;
+	int win32_rtgvblankrate;
+	bool win32_borderless;
+	bool win32_ctrl_F11_is_quit;
+	bool win32_automount_removable;
+	bool win32_automount_drives;
+	bool win32_automount_cddrives;
+	bool win32_automount_netdrives;
+	bool win32_automount_removabledrives;
+	int win32_midioutdev;
+	int win32_midiindev;
+	int win32_uaescsimode;
+	int win32_soundcard;
 	int win32_samplersoundcard;
-    int win32_soundexclusive;
-    int win32_norecyclebin;
-    int win32_specialkey;
-    int win32_guikey;
-    int win32_kbledmode;
-    TCHAR win32_commandpathstart[MAX_DPATH];
-    TCHAR win32_commandpathend[MAX_DPATH];
+	bool win32_soundexclusive;
+	bool win32_norecyclebin;
+	int win32_specialkey;
+	int win32_guikey;
+	int win32_kbledmode;
+	TCHAR win32_commandpathstart[MAX_DPATH];
+	TCHAR win32_commandpathend[MAX_DPATH];
 
-    int curses_reverse_video;
+	bool statecapture;
+	int statecapturerate, statecapturebuffersize;
 
-    int statecapture;
-    int statecapturerate, statecapturebuffersize;
+	/* input */
 
-    /* input */
-
-    TCHAR inputname[256];
-    struct jport jports[MAX_JPORTS];
-    int input_selected_setting;
-    int input_joymouse_multiplier;
-    int input_joymouse_deadzone;
-    int input_joystick_deadzone;
-    int input_joymouse_speed;
-    int input_analog_joystick_mult;
-    int input_analog_joystick_offset;
-    int input_autofire_framecnt;
-    int input_mouse_speed;
-    int input_tablet;
-    int input_magic_mouse;
-    int input_magic_mouse_cursor;
-    struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
-    struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
-    struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS + 1][MAX_INPUT_DEVICES];
-    int dongle;
+	TCHAR inputname[256];
+	struct jport jports[MAX_JPORTS];
+	int input_selected_setting;
+	int input_joymouse_multiplier;
+	int input_joymouse_deadzone;
+	int input_joystick_deadzone;
+	int input_joymouse_speed;
+	int input_analog_joystick_mult;
+	int input_analog_joystick_offset;
+	int input_autofire_linecnt;
+	int input_mouse_speed;
+	int input_tablet;
+	bool input_magic_mouse;
+	int input_magic_mouse_cursor;
+	struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
+	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
+	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
+	int dongle;
 };
 
 extern int config_changed;
@@ -400,10 +392,10 @@ extern void cfgfile_dwrite (struct zfile *, const TCHAR *option, const TCHAR *fo
 extern void cfgfile_target_write (struct zfile *, const TCHAR *option, const TCHAR *format,...);
 extern void cfgfile_target_dwrite (struct zfile *, const TCHAR *option, const TCHAR *format,...);
 
-extern void cfgfile_write_bool (struct zfile *f, const TCHAR *option, int b);
-extern void cfgfile_dwrite_bool (struct zfile *f,const  TCHAR *option, int b);
-extern void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, int b);
-extern void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, int b);
+extern void cfgfile_write_bool (struct zfile *f, const TCHAR *option, bool b);
+extern void cfgfile_dwrite_bool (struct zfile *f,const  TCHAR *option, bool b);
+extern void cfgfile_target_write_bool (struct zfile *f, const TCHAR *option, bool b);
+extern void cfgfile_target_dwrite_bool (struct zfile *f, const TCHAR *option, bool b);
 
 extern void cfgfile_write_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
 extern void cfgfile_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
@@ -412,16 +404,16 @@ extern void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, con
 
 extern void cfgfile_backup (const TCHAR *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
-			TCHAR *devname, TCHAR *volname, TCHAR *rootdir, int readonly,
-			int secspertrack, int surfaces, int reserved,
-			int blocksize, int bootpri, TCHAR *filesysdir, int hdc, int flags);
+	TCHAR *devname, TCHAR *volname, TCHAR *rootdir, bool readonly,
+	int secspertrack, int surfaces, int reserved,
+	int blocksize, int bootpri, TCHAR *filesysdir, int hdc, int flags);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
 
 int parse_cmdline_option (struct uae_prefs *, TCHAR, const TCHAR *);
 
-extern int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location);
+extern int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location);
 extern int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, int scale);
 extern int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[], int more);
 extern int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz);

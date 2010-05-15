@@ -99,7 +99,7 @@ static struct uae_input_device_kbr_default keytrans[] = {
 	{ DIK_Y, INPUTEVENT_KEY_Y },
 	{ DIK_Z, INPUTEVENT_KEY_Z },
 
-	{ DIK_CAPITAL, INPUTEVENT_KEY_CAPS_LOCK },
+	{ DIK_CAPITAL, INPUTEVENT_KEY_CAPS_LOCK, ID_FLAG_TOGGLE },
 
 	{ DIK_NUMPAD1, INPUTEVENT_KEY_NP_1 },
 	{ DIK_NUMPAD2, INPUTEVENT_KEY_NP_2 },
@@ -177,12 +177,17 @@ static struct uae_input_device_kbr_default keytrans[] = {
 	{ -1, 0 }
 };
 
-static int kb_np[] = { DIK_NUMPAD8, -1, DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD2, -1, DIK_NUMPAD0, DIK_NUMPAD5, -1, DIK_DECIMAL, DIK_DIVIDE, DIK_NUMPADENTER, -1, -1 };
-static int kb_ck[] = { DIK_UP, -1, DIK_LEFT, -1, DIK_RIGHT, -1, DIK_DOWN, -1, DIK_RCONTROL, DIK_RMENU, -1, DIK_RSHIFT, -1, -1 };
-static int kb_se[] = { DIK_W, -1, DIK_A, -1, DIK_D, -1, DIK_S, -1, DIK_LMENU, -1, DIK_LSHIFT, -1, -1 };
-static int kb_empty[] = { -1, -1 };
-static int kb_cd32[] = { DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, DIK_DIVIDE, -1, DIK_SUBTRACT, -1, DIK_MULTIPLY, -1, -1 };
-static int *kbmaps[] = { kb_np, kb_ck, kb_se, kb_empty, kb_empty, kb_cd32 };
+static int kb_np[] = { DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD8, -1, DIK_NUMPAD2, -1, DIK_NUMPAD0, DIK_NUMPAD5, -1, DIK_DECIMAL, DIK_DIVIDE, DIK_NUMPADENTER, -1, -1 };
+static int kb_ck[] = { DIK_LEFT, -1, DIK_RIGHT, -1, DIK_UP, -1, DIK_DOWN, -1, DIK_RCONTROL, DIK_RMENU, -1, DIK_RSHIFT, -1, -1 };
+static int kb_se[] = { DIK_A, -1, DIK_D, -1, DIK_W, -1, DIK_S, -1, DIK_LMENU, -1, DIK_LSHIFT, -1, -1 };
+static int kb_cd32_np[] = { DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD8, -1, DIK_NUMPAD2, -1, DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, DIK_DIVIDE, -1, DIK_SUBTRACT, -1, DIK_MULTIPLY, -1, -1 };
+static int kb_cd32_ck[] = { DIK_LEFT, -1, DIK_RIGHT, -1, DIK_UP, -1, DIK_DOWN, -1, DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, DIK_DIVIDE, -1, DIK_SUBTRACT, -1, DIK_MULTIPLY, -1, -1 };
+static int kb_cd32_se[] = { DIK_A, -1, DIK_D, -1, DIK_W, -1, DIK_S, -1, DIK_NUMPAD1, -1, DIK_NUMPAD3, -1, DIK_NUMPAD7, -1, DIK_NUMPAD9, -1, DIK_DIVIDE, -1, DIK_SUBTRACT, -1, DIK_MULTIPLY, -1, -1 };
+static int kb_xa1[] = { DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD8, -1, DIK_NUMPAD2, DIK_NUMPAD5, -1, DIK_LCONTROL, -1, DIK_LMENU, -1, DIK_SPACE, -1, -1 };
+static int kb_xa2[] = { DIK_D, -1, DIK_G, -1, DIK_R, -1, DIK_F, -1, DIK_A, -1, DIK_S, -1, DIK_Q, -1 };
+static int kb_arcadia[] = { DIK_F2, -1, DIK_1, -1, DIK_2, -1, DIK_5, -1, DIK_6, -1, -1 };
+static int kb_arcadiaxa[] = { DIK_1, -1, DIK_2, -1, DIK_3, -1, DIK_4, -1, DIK_6, -1, DIK_LBRACKET, DIK_LSHIFT, -1, DIK_RBRACKET, -1, DIK_C, -1, DIK_5, -1, DIK_Z, -1, DIK_X, -1, -1 };
+static int *kbmaps[] = { kb_np, kb_ck, kb_se, kb_cd32_np, kb_cd32_ck, kb_cd32_se, kb_xa1, kb_xa2, kb_arcadia, kb_arcadiaxa };
 
 extern int ispressed (int key);
 
@@ -274,89 +279,13 @@ static int handlearcadia (int scancode, int state)
 
 #endif
 
-#ifdef CDTV
-
-static int handlecdtv (int scancode, int state)
-{
-	int e = 0;
-	switch (scancode)
-	{
-	case DIK_UP:
-		if (specialpressed ())
-			e = INPUTEVENT_KEY_CDTV_PLAYPAUSE;
-		break;
-	case DIK_DOWN:
-		if (specialpressed ())
-			e = INPUTEVENT_KEY_CDTV_STOP;
-		break;
-	case DIK_LEFT:
-		if (specialpressed ()) {
-			if (shiftpressed ())
-				e = INPUTEVENT_KEY_CDTV_REW;
-			else
-				e = INPUTEVENT_KEY_CDTV_PREV;
-		}
-		break;
-	case DIK_RIGHT:
-		if (specialpressed ()) {
-			if (shiftpressed ())
-				e = INPUTEVENT_KEY_CDTV_FF;
-			else
-				e = INPUTEVENT_KEY_CDTV_NEXT;
-		}
-		break;
-	}
-	if (!e)
-		return 0;
-	handle_input_event (e, state, 1, 0);
-	return 1;
-}
-#endif
-
-#ifdef CD32
-
-static int handlecd32 (int scancode, int state)
-{
-	int e = 0;
-	if (!currprefs.cs_cd32cd)
-		return 0;
-	switch (scancode)
-	{
-	case DIK_NUMPAD7:
-		e = INPUTEVENT_JOY2_CD32_GREEN;
-		break;
-	case DIK_NUMPAD9:
-		e = INPUTEVENT_JOY2_CD32_YELLOW;
-		break;
-	case DIK_NUMPAD1:
-		e = INPUTEVENT_JOY2_CD32_RED;
-		break;
-	case DIK_NUMPAD3:
-		e = INPUTEVENT_JOY2_CD32_BLUE;
-		break;
-	case DIK_DIVIDE:
-		e = INPUTEVENT_JOY2_CD32_RWD;
-		break;
-	case DIK_MULTIPLY:
-		e = INPUTEVENT_JOY2_CD32_PLAY;
-		break;
-	case DIK_SUBTRACT:
-		e = INPUTEVENT_JOY2_CD32_FFW;
-		break;
-	}
-	if (!e)
-		return 0;
-	handle_input_event (e, state, 1, 0);
-	return 1;
-}
-#endif
-
 void clearallkeys (void)
 {
 	inputdevice_updateconfig (&currprefs);
 }
 
-static int np[] = { DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUMPAD2, 2,
+static int np[] = {
+	DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUMPAD2, 2,
 	DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
 	DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
 
@@ -551,21 +480,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 			host_scrolllockstate = host_scrolllockstate ? 0 : 1;
 			capslockstate = host_scrolllockstate;
 		}
-	}
-
-	if (currprefs.input_selected_setting == 0) {
-#ifdef CD32
-		if (handlecd32 (scancode, newstate))
-			return;
-#endif
-#ifdef CDTV
-		if (handlecdtv (scancode, newstate))
-			return;
-#endif
-#ifdef ARCADIA
-		if (handlearcadia (scancode, newstate))
-			return;
-#endif
 	}
 	if (specialpressed ())
 		return;

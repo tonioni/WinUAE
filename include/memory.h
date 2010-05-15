@@ -20,7 +20,8 @@ extern void cache_free (uae_u8*);
 
 int init_shm (void);
 void preinit_shm (void);
-extern int canbang, candirect;
+extern bool canbang;
+extern int candirect;
 
 #ifdef ADDRESS_SPACE_24BIT
 #define MEMORY_BANKS 256
@@ -63,10 +64,11 @@ extern uaecptr p96ram_start;
 extern uaecptr fastmem_start;
 extern uaecptr a3000lmem_start, a3000hmem_start;
 
-extern int ersatzkickfile;
-extern int cloanto_rom, kickstart_rom;
+extern bool ersatzkickfile;
+extern bool cloanto_rom, kickstart_rom;
 extern uae_u16 kickstart_version;
-extern int uae_boot_rom, uae_boot_rom_size;
+extern bool uae_boot_rom;
+extern int uae_boot_rom_size;
 extern uaecptr rtarea_base;
 
 extern uae_u8* baseaddr[];
@@ -101,7 +103,7 @@ typedef struct {
 #define CE_MEMBANK_CHIP 1
 #define CE_MEMBANK_CIA 2
 #define CE_MEMBANK_FAST16BIT 3
-extern uae_u8 ce_banktype[65536];
+extern uae_u8 ce_banktype[65536], ce_cachable[65536];
 
 extern uae_u8 *filesysory;
 extern uae_u8 *rtarea;
@@ -133,7 +135,6 @@ extern void expamem_next (void);
 extern uae_u32 gfxmem_start;
 extern uae_u8 *gfxmemory;
 extern uae_u32 gfxmem_mask;
-extern int address_space_24;
 extern uae_u16 last_custom_value1;
 
 /* Default memory access functions */

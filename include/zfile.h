@@ -74,6 +74,7 @@ extern TCHAR *zfile_geterror (void);
 #define ZFD_HD 4 //rdb/hdf
 #define ZFD_UNPACK 8 //gzip,dms
 #define ZFD_RAWDISK 16  //fdi->adf,ipf->adf etc..
+#define ZFD_CD 32 //cue/iso, cue has priority over iso
 #define ZFD_DISKHISTORY 0x100 //allow diskhistory (if disk image)
 #define ZFD_CHECKONLY 0x200 //file exists checkc
 #define ZFD_NORMAL (ZFD_ARCHIVE|ZFD_UNPACK)

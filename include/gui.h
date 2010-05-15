@@ -21,7 +21,7 @@ extern void gui_disk_image_change (int, const TCHAR *);
 extern unsigned int gui_ledstate;
 extern void gui_display (int shortcut);
 
-extern int no_gui, quit_to_gui;
+extern bool no_gui, quit_to_gui;
 
 #define LED_CD_ACTIVE 1
 #define LED_CD_ACTIVE2 2
@@ -42,11 +42,11 @@ extern int no_gui, quit_to_gui;
 
 struct gui_info
 {
-    uae_u8 drive_motor[4];		/* motor on off */
+    bool drive_motor[4];		/* motor on off */
     uae_u8 drive_track[4];		/* rw-head track */
-    uae_u8 drive_writing[4];	/* drive is writing */
-    uae_u8 drive_disabled[4];	/* drive is disabled */
-    uae_u8 powerled;			/* state of power led */
+    bool drive_writing[4];		/* drive is writing */
+    bool drive_disabled[4];		/* drive is disabled */
+    bool powerled;				/* state of power led */
     uae_u8 powerled_brightness;	/* 0 to 255 */
     uae_u8 drive_side;			/* floppy side */
     uae_u8 hd;					/* harddrive */

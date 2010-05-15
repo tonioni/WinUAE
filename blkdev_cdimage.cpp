@@ -740,7 +740,7 @@ static int parse_image (void)
 
 	if (!img)
 		return 0;
-	zcue = zfile_fopen (img, L"rb", ZFD_ARCHIVE);
+	zcue = zfile_fopen (img, L"rb", ZFD_ARCHIVE | ZFD_CD);
 	if (!zcue)
 		return 0;
 

@@ -63,10 +63,10 @@ long int version = 256 * 65536L * UAEMAJOR + 65536L * UAEMINOR + UAESUBREV;
 struct uae_prefs currprefs, changed_prefs;
 int config_changed;
 
-int no_gui = 0, quit_to_gui = 0;
-int cloanto_rom = 0;
-int kickstart_rom = 1;
-int console_emulation = 0;
+bool no_gui = 0, quit_to_gui = 0;
+bool cloanto_rom = 0;
+bool kickstart_rom = 1;
+bool console_emulation = 0;
 
 struct gui_info gui_data;
 
@@ -269,26 +269,6 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->comptrustnaddr < 0 || p->comptrustnaddr > 3) {
 		write_log (L"Bad value for comptrustnaddr parameter: value must be within 0..2\n");
 		p->comptrustnaddr = 1;
-		err = 1;
-	}
-	if (p->compnf < 0 || p->compnf > 1) {
-		write_log (L"Bad value for compnf parameter: value must be within 0..1\n");
-		p->compnf = 1;
-		err = 1;
-	}
-	if (p->comp_hardflush < 0 || p->comp_hardflush > 1) {
-		write_log (L"Bad value for comp_hardflush parameter: value must be within 0..1\n");
-		p->comp_hardflush = 1;
-		err = 1;
-	}
-	if (p->comp_constjump < 0 || p->comp_constjump > 1) {
-		write_log (L"Bad value for comp_constjump parameter: value must be within 0..1\n");
-		p->comp_constjump = 1;
-		err = 1;
-	}
-	if (p->comp_oldsegv < 0 || p->comp_oldsegv > 1) {
-		write_log (L"Bad value for comp_oldsegv parameter: value must be within 0..1\n");
-		p->comp_oldsegv = 1;
 		err = 1;
 	}
 	if (p->cachesize < 0 || p->cachesize > 16384) {
@@ -652,6 +632,13 @@ void reset_all_systems (void)
 * Add #ifdefs around these as appropriate.
 */
 
+#ifndef JIT
+extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
+{
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 void do_start_program (void)
 {
 	if (quit_program == -1)
@@ -664,7 +651,23 @@ void do_start_program (void)
 	inputdevice_updateconfig (&currprefs);
 	if (quit_program >= 0)
 		quit_program = 2;
-	m68k_go (1);
+#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
+	__try
+#endif
+	{
+		m68k_go (1);
+	}
+#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
+#ifdef JIT
+	__except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
+#else
+	__except (DummyException (GetExceptionInformation (), GetExceptionCode ()))
+#endif
+	{
+		// EvalException does the good stuff...
+	}
+#endif
 }
 
 void do_leave_program (void)
@@ -721,172 +724,147 @@ void leave_program (void)
 	do_leave_program ();
 }
 
-#ifndef JIT
-extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
-{
-	return EXCEPTION_CONTINUE_SEARCH;
-}
-#endif
-
 static int real_main2 (int argc, TCHAR **argv)
 {
-#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
-	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
-	__try
-#endif
-	{
 
 #ifdef USE_SDL
-		SDL_Init (SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_NOPARACHUTE);
+	SDL_Init (SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_NOPARACHUTE);
 #endif
-		config_changed = 1;
-		if (restart_config[0]) {
-			default_prefs (&currprefs, 0);
-			fixup_prefs (&currprefs);
-		}
+	config_changed = 1;
+	if (restart_config[0]) {
+		default_prefs (&currprefs, 0);
+		fixup_prefs (&currprefs);
+	}
 
-		if (! graphics_setup ()) {
-			exit (1);
-		}
+	if (! graphics_setup ()) {
+		exit (1);
+	}
 
 #ifdef NATMEM_OFFSET
-		preinit_shm ();
+	preinit_shm ();
 #endif
 
-		if (restart_config[0])
-			parse_cmdline_and_init_file (argc, argv);
-		else
-			currprefs = changed_prefs;
+	if (restart_config[0])
+		parse_cmdline_and_init_file (argc, argv);
+	else
+		currprefs = changed_prefs;
 
-		if (!machdep_init ()) {
-			restart_program = 0;
-			return -1;
-		}
-
-		if (console_emulation) {
-			consolehook_config (&currprefs);
-			fixup_prefs (&currprefs);
-		}
-
-		if (! setup_sound ()) {
-			write_log (L"Sound driver unavailable: Sound output disabled\n");
-			currprefs.produce_sound = 0;
-		}
-		inputdevice_init ();
-
-		changed_prefs = currprefs;
-		no_gui = ! currprefs.start_gui;
-		if (restart_program == 2)
-			no_gui = 1;
-		else if (restart_program == 3)
-			no_gui = 0;
+	if (!machdep_init ()) {
 		restart_program = 0;
-		if (! no_gui) {
-			int err = gui_init ();
-			currprefs = changed_prefs;
-			config_changed = 1;
-			if (err == -1) {
-				write_log (L"Failed to initialize the GUI\n");
-				return -1;
-			} else if (err == -2) {
-				return 1;
-			}
-		}
+		return -1;
+	}
 
-		logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
+	if (console_emulation) {
+		consolehook_config (&currprefs);
+		fixup_prefs (&currprefs);
+	}
+
+	if (! setup_sound ()) {
+		write_log (L"Sound driver unavailable: Sound output disabled\n");
+		currprefs.produce_sound = 0;
+	}
+	inputdevice_init ();
+
+	changed_prefs = currprefs;
+	no_gui = ! currprefs.start_gui;
+	if (restart_program == 2)
+		no_gui = 1;
+	else if (restart_program == 3)
+		no_gui = 0;
+	restart_program = 0;
+	if (! no_gui) {
+		int err = gui_init ();
+		currprefs = changed_prefs;
+		config_changed = 1;
+		if (err == -1) {
+			write_log (L"Failed to initialize the GUI\n");
+			return -1;
+		} else if (err == -2) {
+			return 1;
+		}
+	}
+
+	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 
 #ifdef NATMEM_OFFSET
-		init_shm ();
+	init_shm ();
 #endif
 
 #ifdef JIT
-		if (!(currprefs.cpu_model >= 68020 && currprefs.address_space_24 == 0 && currprefs.cachesize))
-			canbang = 0;
+	if (!(currprefs.cpu_model >= 68020 && currprefs.address_space_24 == 0 && currprefs.cachesize))
+		canbang = 0;
 #endif
 
-		fixup_prefs (&currprefs);
-		changed_prefs = currprefs;
-		target_run ();
-		/* force sound settings change */
-		currprefs.produce_sound = 0;
+	fixup_prefs (&currprefs);
+	changed_prefs = currprefs;
+	target_run ();
+	/* force sound settings change */
+	currprefs.produce_sound = 0;
 
 #ifdef AUTOCONFIG
-		rtarea_setup ();
+	rtarea_setup ();
 #endif
 #ifdef FILESYS
-		rtarea_init ();
-		uaeres_install ();
-		hardfile_install ();
+	rtarea_init ();
+	uaeres_install ();
+	hardfile_install ();
 #endif
-		savestate_init ();
+	savestate_init ();
 #ifdef SCSIEMU
-		scsi_reset ();
-		scsidev_install ();
+	scsi_reset ();
+	scsidev_install ();
 #endif
 #ifdef SANA2
-		netdev_install ();
+	netdev_install ();
 #endif
 #ifdef UAESERIAL
-		uaeserialdev_install ();
+	uaeserialdev_install ();
 #endif
-		keybuf_init (); /* Must come after init_joystick */
+	keybuf_init (); /* Must come after init_joystick */
 
 #ifdef AUTOCONFIG
-		expansion_init ();
+	expansion_init ();
 #endif
 #ifdef FILESYS
-		filesys_install ();
+	filesys_install ();
 #endif
-		memory_init ();
-		memory_reset ();
+	memory_init ();
+	memory_reset ();
 
 #ifdef AUTOCONFIG
 #if defined (BSDSOCKET)
-		bsdlib_install ();
+	bsdlib_install ();
 #endif
-		emulib_install ();
-		uaeexe_install ();
-		native2amiga_install ();
+	emulib_install ();
+	uaeexe_install ();
+	native2amiga_install ();
 #endif
 
-		custom_init (); /* Must come after memory_init */
+	custom_init (); /* Must come after memory_init */
 #ifdef SERIAL_PORT
-		serial_init ();
+	serial_init ();
 #endif
-		DISK_init ();
+	DISK_init ();
 
-		reset_frame_rate_hack ();
-		init_m68k (); /* must come after reset_frame_rate_hack (); */
+	reset_frame_rate_hack ();
+	init_m68k (); /* must come after reset_frame_rate_hack (); */
 
-		gui_update ();
+	gui_update ();
 
-		if (graphics_init ()) {
-			setup_brkhandler ();
-			if (currprefs.start_debugger && debuggable ())
-				activate_debugger ();
+	if (graphics_init ()) {
+		setup_brkhandler ();
+		if (currprefs.start_debugger && debuggable ())
+			activate_debugger ();
 
-			if (!init_audio ()) {
-				if (sound_available && currprefs.produce_sound > 1) {
-					write_log (L"Sound driver unavailable: Sound output disabled\n");
-				}
-				currprefs.produce_sound = 0;
+		if (!init_audio ()) {
+			if (sound_available && currprefs.produce_sound > 1) {
+				write_log (L"Sound driver unavailable: Sound output disabled\n");
 			}
-
-			start_program ();
+			currprefs.produce_sound = 0;
 		}
-
+		start_program ();
 	}
-#if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
-#ifdef JIT
-	__except (EvalException (GetExceptionInformation (), GetExceptionCode ()))
-#else
-	__except (DummyException (GetExceptionInformation (), GetExceptionCode ()))
-#endif
-	{
-		// EvalException does the good stuff...
-	}
-#endif
 	return 0;
 }
 

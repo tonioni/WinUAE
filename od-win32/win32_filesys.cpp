@@ -40,7 +40,7 @@ static int valid_volumename (struct uaedev_mount_info *mountinfo, TCHAR *volumen
 }
 
 /* Returns 1 if an actual volume-name was found, 2 if no volume-name (so uses some defaults) */
-int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, int inserted, int fullcheck)
+int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, bool inserted, bool fullcheck)
 {
 	int result = 2;
 	int drivetype;
@@ -152,7 +152,7 @@ static void filesys_addexternals (void)
 		/* Is this drive-letter valid (it used to check for media in drive) */
 		if(dwDriveMask & 1) {
 			TCHAR devname[MAX_DPATH];
-			BOOL inserted = CheckRM (volumepath); /* Is there a disk inserted? */
+			bool inserted = CheckRM (volumepath) != 0; /* Is there a disk inserted? */
 			int nok = FALSE;
 			int rw = 1;
 			drivetype = GetDriveType (volumepath);
@@ -186,7 +186,7 @@ static void filesys_addexternals (void)
 				continue;
 			volumename[0] = 0;
 			if (inserted) {
-				target_get_volume_name (&mountinfo, volumepath, volumename, MAX_DPATH, inserted, 1);
+				target_get_volume_name (&mountinfo, volumepath, volumename, MAX_DPATH, inserted, true);
 				if (!volumename[0])
 					_stprintf (volumename, L"WinUNK_%c", drive);
 			}
@@ -194,10 +194,12 @@ static void filesys_addexternals (void)
 				_tcscat (volumepath, L".");
 			else
 				_tcscat (volumepath, L"..");
+#if 0
 			if (currprefs.win32_automount_drives > 1) {
 				devname[0] = drive;
 				devname[1] = 0;
 			}
+#endif
 			//write_log (L"Drive type %d: '%s' '%s'\n", drivetype, volumepath, volumename);
 			add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
 			drvnum++;

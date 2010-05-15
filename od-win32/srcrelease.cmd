@@ -35,6 +35,7 @@ del cpuemu_0.cpp
 del cpuemu_11.cpp
 del cpuemu_12.cpp
 del cpuemu_20.cpp
+del cpuemu_21.cpp
 del cpuemu_31.cpp
 del linetoscr.cpp
 
@@ -58,6 +59,12 @@ rm -rf fullrelease
 cd ..
 
 cd prowizard
+rm -rf debug
+rm -rf release
+rm -rf x64
+cd ..
+
+cd unpackers
 rm -rf debug
 rm -rf release
 rm -rf x64

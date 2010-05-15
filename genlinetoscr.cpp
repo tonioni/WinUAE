@@ -478,7 +478,7 @@ int main (int argc, char *argv[])
 	outln (" */");
 	outln ("");
 
-	for (bpp = DEPTH_8BPP; bpp <= DEPTH_MAX; bpp++) {
+	for (bpp = DEPTH_16BPP; bpp <= DEPTH_MAX; bpp++) {
 		for (aga = 0; aga <= 1 ; aga++) {
 			if (aga && bpp == DEPTH_8BPP)
 				continue;

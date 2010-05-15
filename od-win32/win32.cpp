@@ -794,7 +794,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	static int mm, minimized, recursive, ignoremousemove;
 
 #if MSGDEBUG > 1
-	write_log (L"AWP: %x %d\n", hWnd, message);
+	write_log (L"AWP: %x %x\n", hWnd, message);
 #endif
 	if (ignore_messages_all)
 		return DefWindowProc (hWnd, message, wParam, lParam);
@@ -1327,6 +1327,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	switch (message)
 	{
+	case WM_SETCURSOR:
 	case WM_KILLFOCUS:
 	case WM_SETFOCUS:
 	case WM_MOUSEMOVE:
@@ -1335,7 +1336,6 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_ACTIVATEAPP:
 	case WM_DROPFILES:
 	case WM_ACTIVATE:
-	case WM_SETCURSOR:
 	case WM_SYSCOMMAND:
 	case WM_KEYUP:
 	case WM_SYSKEYUP:
@@ -1451,7 +1451,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_NCLBUTTONDBLCLK:
 		if (wParam == HTCAPTION) {
-			WIN32GFX_ToggleFullScreen ();
+			toggle_fullscreen ();
 			return 0;
 		}
 		break;
@@ -1706,11 +1706,6 @@ static int WIN32_RegisterClasses (void)
 	return 1;
 }
 
-#ifdef __GNUC__
-#undef WINAPI
-#define WINAPI
-#endif
-
 static HINSTANCE hRichEdit = NULL, hHtmlHelp = NULL;
 
 int WIN32_CleanupLibraries (void)
@@ -1826,9 +1821,6 @@ static TCHAR *getlanguagename(DWORD id)
 	return NULL;
 }
 
-typedef LANGID (CALLBACK* PGETUSERDEFAULTUILANGUAGE)(void);
-static PGETUSERDEFAULTUILANGUAGE pGetUserDefaultUILanguage;
-
 HMODULE language_load (WORD language)
 {
 	HMODULE result = NULL;
@@ -1838,11 +1830,7 @@ HMODULE language_load (WORD language)
 
 	if (language <= 0) {
 		/* new user-specific Windows ME/2K/XP method to get UI language */
-		pGetUserDefaultUILanguage = (PGETUSERDEFAULTUILANGUAGE)GetProcAddress (
-			GetModuleHandle (L"kernel32.dll"), "GetUserDefaultUILanguage");
-		language = GetUserDefaultLangID ();
-		if (pGetUserDefaultUILanguage)
-			language = pGetUserDefaultUILanguage ();
+		language = GetUserDefaultUILanguage ();
 		language &= 0x3ff; // low 9-bits form the primary-language ID
 	}
 	if (language == LANG_GERMAN)
@@ -2635,6 +2623,7 @@ static const TCHAR *obsolete[] = {
 	L"killwinkeys", L"sound_force_primary", L"iconified_highpriority",
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
+	L"filesystem_codepage",
 	0
 };
 
@@ -2642,6 +2631,8 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 {
 	TCHAR tmpbuf[CONFIG_BLEN];
 	int i, v;
+	bool vb;
+
 	int result = (cfgfile_yesno (option, value, L"middle_mouse", &p->win32_middle_mouse)
 		|| cfgfile_yesno (option, value, L"map_drives", &p->win32_automount_drives)
 		|| cfgfile_yesno (option, value, L"map_drives_auto", &p->win32_automount_removable)
@@ -2729,9 +2720,9 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-	if (cfgfile_yesno (option, value, L"aspi", &v)) {
-		p->win32_uaescsimode = 0;
-		if (v)
+	if (cfgfile_yesno (option, value, L"aspi", &vb)) {
+		p->win32_uaescsimode = false;
+		if (vb)
 			p->win32_uaescsimode = get_aspi (0);
 		if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
 			p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
@@ -3134,16 +3125,16 @@ static int parseversion (TCHAR **vs)
 
 static int checkversion (TCHAR *vs)
 {
+	int ver;
 	if (_tcslen (vs) < 10)
 		return 0;
-	if (_tcsncmp (vs, L"WinUAE L", 7))
+	if (_tcsncmp (vs, L"WinUAE ", 7))
 		return 0;
 	vs += 7;
-	if (parseversion (&vs) > UAEMAJOR)
-		return 0;
-	if (parseversion (&vs) > UAEMINOR)
-		return 0;
-	if (parseversion (&vs) >= UAESUBREV)
+	ver = parseversion (&vs) << 16;
+	ver |= parseversion (&vs) << 8;
+	ver |= parseversion (&vs);
+	if (ver >= ((UAEMAJOR << 16) | (UAEMINOR << 8) | UAESUBREV))
 		return 0;
 	return 1;
 }
@@ -3522,7 +3513,7 @@ static void WIN32_HandleRegistryStuff (void)
 	if (regexists (NULL, L"SoundDriverMask")) {
 		regqueryint (NULL, L"SoundDriverMask", &sounddrivermask);
 	} else {
-		sounddrivermask = 15;
+		sounddrivermask = 3;
 		regsetint (NULL, L"SoundDriverMask", sounddrivermask);
 	}
 	if (regexists (NULL, L"ConfigurationCache"))
@@ -4020,7 +4011,7 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-disableharddrivesafetycheck")) {
-		harddrive_dangerous = 0x1234dead;
+		//harddrive_dangerous = 0x1234dead;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-noaspifiltering")) {

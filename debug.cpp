@@ -2191,12 +2191,13 @@ static uae_u8 *dump_xlate (uae_u32 addr)
 
 static void memory_map_dump_2 (int log)
 {
-	int i, j, max, im;
+	bool imold;
+	int i, j, max;
 	addrbank *a1 = mem_banks[0];
 	TCHAR txt[256];
 
-	im = currprefs.illegal_mem;
-	currprefs.illegal_mem = 0;
+	imold = currprefs.illegal_mem;
+	currprefs.illegal_mem = false;
 	max = currprefs.address_space_24 ? 256 : 65536;
 	j = 0;
 	for (i = 0; i < max + 1; i++) {
@@ -2260,7 +2261,7 @@ static void memory_map_dump_2 (int log)
 			a1 = a2;
 		}
 	}
-	currprefs.illegal_mem = im;
+	currprefs.illegal_mem = imold;
 }
 void memory_map_dump (void)
 {

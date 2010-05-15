@@ -74,7 +74,7 @@ int mman_GetWriteWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize, PVOID *lpAddre
 void mman_ResetWatch (PVOID lpBaseAddress, SIZE_T dwRegionSize);
 
 int p96refresh_active;
-int have_done_picasso = 1; /* For the JIT compiler */
+bool have_done_picasso = 1; /* For the JIT compiler */
 static int p96syncrate;
 int p96hsync_counter, full_refresh;
 #if defined(X86_MSVC_ASSEMBLY)
@@ -2234,7 +2234,7 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 	/* Do not switch immediately.  Tell the custom chip emulation about the
 	* desired state, and wait for custom.c to call picasso_enablescreen
 	* whenever it is ready to change the screen state.  */
-	picasso_requested_on = flag;
+	picasso_requested_on = flag != 0;
 	p96text[0] = 0;
 	if (flag)
 		_stprintf (p96text, L"Picasso96 %dx%dx%d (%dx%dx%d)",

@@ -31,19 +31,19 @@
 #include "gayle.h"
 #include "debug.h"
 
-int canbang;
+bool canbang;
 int candirect = -1;
 #ifdef JIT
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
 #endif
 
-static int isdirectjit (void)
+static bool isdirectjit (void)
 {
 	return currprefs.cachesize && !currprefs.comptrustbyte;
 }
 
-static int canjit (void)
+static bool canjit (void)
 {
 	if (currprefs.cpu_model < 68020 && currprefs.address_space_24)
 		return 0;
@@ -55,7 +55,7 @@ static void nocanbang (void)
 	canbang = 0;
 }
 
-int ersatzkickfile;
+bool ersatzkickfile;
 
 uae_u32 allocated_chipmem;
 uae_u32 allocated_fastmem;
@@ -66,6 +66,7 @@ uae_u32 allocated_a3000lmem;
 uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
 uae_u8 ce_banktype[65536];
+uae_u8 ce_cachable[65536];
 
 #if defined(CPU_64_BIT)
 uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
@@ -78,10 +79,10 @@ static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lme
 /* Set if we notice during initialization that settings changed,
 and we must clear all memory to prevent bogus contents from confusing
 the Kickstart.  */
-static int need_hardreset;
+static bool need_hardreset;
 
 /* The address space setting used during the last reset.  */
-static int last_address_space_24;
+static bool last_address_space_24;
 
 addrbank *mem_banks[MEMORY_BANKS];
 
@@ -2172,6 +2173,11 @@ static void fill_ce_banks (void)
 	int i;
 
 	memset (ce_banktype, CE_MEMBANK_FAST, sizeof ce_banktype);
+	// data cachable regions
+	memset (ce_cachable, 0, sizeof ce_cachable);
+	memset (ce_cachable + (0x00200000 >> 16), 1, currprefs.fastmem_size >> 16);
+	memset (ce_cachable + (0x10000000 >> 16), 1, currprefs.z3fastmem_size >> 16);
+
 	if (&get_mem_bank (0) == &chipmem_bank) {
 		for (i = 0; i < (0x200000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_CHIP;
@@ -2186,8 +2192,10 @@ static void fill_ce_banks (void)
 		addrbank *b;
 		ce_banktype[i] = CE_MEMBANK_CIA;
 		b = &get_mem_bank (i << 16);
-		if (b != &cia_bank)
+		if (b != &cia_bank) {
 			ce_banktype[i] = CE_MEMBANK_FAST;
+			ce_cachable[i] = 1;
+		}
 	}
 	// CD32 ROM is 16-bit
 	if (currprefs.cs_cd32cd) {

@@ -85,12 +85,14 @@ struct sound_dp
 	HANDLE paevent;
 	int opacounter;
 	int pablocking;
+	int pavolume;
 
 	// wasapi
 
 	IMMDevice *pDevice;
 	IAudioClient *pAudioClient;
 	IAudioRenderClient *pRenderClient;
+	ISimpleAudioVolume *pAudioVolume;
 	IMMDeviceEnumerator *pEnumerator;
 #if 0
 	IAudioClock *pAudioClock;
@@ -341,19 +343,33 @@ extern void setvolume_ahi (LONG);
 void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 {
 	struct sound_dp *s = sd->data;
+	HRESULT hr;
 	if (sd->devicetype == SOUND_DEVICE_AL) {
 		float vol = 0.0;
 		if (volume < 100 && !mute)
 			vol = (100 - volume) / 100.0;
 		alSourcef (s->al_Source, AL_GAIN, vol);
 	} else if (sd->devicetype == SOUND_DEVICE_DS) {
-		HRESULT hr;
 		LONG vol = DSBVOLUME_MIN;
 		if (volume < 100 && !mute)
 			vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
 		hr = IDirectSoundBuffer_SetVolume (s->lpDSBsecondary, vol);
 		if (FAILED (hr))
 			write_log (L"DSSOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
+		if (s->pAudioVolume) {
+			float vol = 0.0;
+			if (volume < 100 && !mute)
+				vol = (100 - volume) / 100.0;
+			hr = s->pAudioVolume->SetMasterVolume (vol, NULL);
+			if (FAILED (hr))
+				write_log (L"AudioVolume->SetMasterVolume(%.2f) failed: %08Xs\n", vol, hr);
+			hr = s->pAudioVolume->SetMute (mute, NULL);
+			if (FAILED (hr))
+				write_log (L"pAudioVolume->SetMute(%d) failed: %08Xs\n", mute, hr);
+		}
+	} else if (sd->devicetype == SOUND_DEVICE_PA) {
+		s->pavolume = volume;
 	}
 }
 
@@ -462,6 +478,13 @@ static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudio
 static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
+	if (s->pavolume) {
+		int vol = 65536 - s->pavolume * 655;
+		for (int i = 0; i < sd->sndbufsize / sizeof (uae_u16); i++) {
+			uae_s16 v = (uae_s16)sndbuffer[i];
+			sndbuffer[i] = v * vol / 65536;
+		}
+	}
 	if (s->pablocking) {
 		if (s->paframesperbuffer != sd->sndbufsize / (sd->channels * 2)) {
 			write_log (L"sound buffer size mistmatch %d <> %d\n", s->paframesperbuffer, sd->sndbufsize / (sd->channels * 2));
@@ -469,7 +492,8 @@ static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 			Pa_WriteStream (s->pastream, sndbuffer, s->paframesperbuffer); 
 		}
 	} else {
-		while (s->opacounter == s->pacounter && s->pastream && !sd->paused)
+		int cnt = 2000 / 10;
+		while (s->opacounter == s->pacounter && s->pastream && !sd->paused && cnt-- >= 0)
 			WaitForSingleObject (s->paevent, 10);
 		s->opacounter = s->pacounter;
 		memcpy (s->pasoundbuffer[s->patoggle], sndbuffer, sd->sndbufsize);
@@ -688,6 +712,8 @@ static void close_audio_wasapi (struct sound_data *sd)
 
 	if (s->pRenderClient)
 		s->pRenderClient->Release ();
+	if (s->pAudioVolume)
+		s->pAudioVolume->Release ();
 #if 0
 	if (s->pAudioClock)
 		s->pAudioClock->Release ();
@@ -917,6 +943,11 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	hr = s->pAudioClient->GetService (__uuidof(IAudioRenderClient), (void**)&s->pRenderClient);
 	if (FAILED (hr)) {
 		write_log (L"WASAPI: GetService(IAudioRenderClient) %08X\n", hr);
+		goto error;
+	}
+	hr = s->pAudioClient->GetService (__uuidof(ISimpleAudioVolume), (void**)&s->pAudioVolume );
+	if (FAILED (hr)) {
+		write_log (L"WASAPI: GetService(ISimpleAudioVolume) %08X\n", hr);
 		goto error;
 	}
 #if 0
@@ -1577,7 +1608,6 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
 	BYTE *pData;
-	DWORD v;
 	double skipmode;
 	UINT32 numFramesPadding;
 	int avail;

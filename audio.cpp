@@ -1892,7 +1892,7 @@ void audio_vsync (void)
 {
 #if SOUNDSTUFF > 0
 	int max, min;
-	int vsync = isfullscreen () > 0 && currprefs.gfx_avsync > 0;
+	int vsync = isfullscreen () > 0 && currprefs.gfx_avsync;
 	static int lastdir;
 
 	if (!vsync) {
