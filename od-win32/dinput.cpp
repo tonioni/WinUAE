@@ -696,7 +696,7 @@ static TCHAR *rawkeyboardlabels[256] =
 	L"Z",L"X",L"C",L"V",L"B",L"N",L"M",
 	L"COMMA",L"PERIOD",L"SLASH",L"RSHIFT",L"MULTIPLY",L"LMENU",L"SPACE",L"CAPITAL",
 	L"F1",L"F2",L"F3",L"F4",L"F5",L"F6",L"F7",L"F8",L"F9",L"F10",
-	L"NULOCK",L"SCROLL",L"NUMPAD7",L"NUMPAD8",L"NUMPAD9",L"SUBTRACT",
+	L"NUMLOCK",L"SCROLL",L"NUMPAD7",L"NUMPAD8",L"NUMPAD9",L"SUBTRACT",
 	L"NUMPAD4",L"NUMPAD5",L"NUMPAD6",L"ADD",L"NUMPAD1",L"NUMPAD2",L"NUMPAD3",L"NUMPAD0",
 	L"DECIMAL",NULL,NULL,L"OEM_102",L"F11",L"F12",
 	L"F13",L"F14",L"F15",L"F16",NULL,NULL,NULL,NULL,NULL,NULL,
@@ -1046,18 +1046,24 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 	} else if (raw->header.dwType == RIM_TYPEKEYBOARD) {
 		PRAWKEYBOARD rk = &raw->data.keyboard;
-		int scancode = (rk->MakeCode & 0x7f) | ((rk->Flags & RI_KEY_E0) ? 0x80 : 0x00);
+		int scancode = rk->MakeCode & 0x7f;
 		int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
 #ifdef DI_DEBUG_RAWINPUT
-		write_log (L"HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x\n",
+		write_log (L"HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x SC=%x\n",
 			raw->header.hDevice,
-			raw->data.keyboard.MakeCode,
-			raw->data.keyboard.Flags,
-			raw->data.keyboard.VKey,
-			raw->data.keyboard.Message,
-			raw->data.keyboard.ExtraInformation);
+			rk->MakeCode,
+			rk->Flags,
+			rk->VKey,
+			rk->Message,
+			rk->ExtraInformation,
+			scancode);
 #endif
+		// eat E1 extended keys
+		if (rk->Flags & (RI_KEY_E1))
+			return;
+		if (rk->VKey == 0xff || (rk->Flags & RI_KEY_E0))
+			scancode |= 0x80;
 		if (rk->MakeCode == KEYBOARD_OVERRUN_MAKE_CODE)
 			return;
 		if (scancode == 0xaa)

@@ -392,6 +392,7 @@ STATIC_INLINE uae_u32 mem_access_delay_wordi_read (uaecptr addr)
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 1);
 	case CE_MEMBANK_FAST:
+	case CE_MEMBANK_FAST16BIT:
 		do_cycles_ce000 (4);
 		break;
 	}
@@ -405,6 +406,7 @@ STATIC_INLINE uae_u32 mem_access_delay_byte_read (uaecptr addr)
 	case CE_MEMBANK_CHIP:
 		return wait_cpu_cycle_read (addr, 0);
 	case CE_MEMBANK_FAST:
+	case CE_MEMBANK_FAST16BIT:
 		do_cycles_ce000 (4);
 		break;
 
@@ -419,6 +421,7 @@ STATIC_INLINE void mem_access_delay_byte_write (uaecptr addr, uae_u32 v)
 		wait_cpu_cycle_write (addr, 0, v);
 		return;
 	case CE_MEMBANK_FAST:
+	case CE_MEMBANK_FAST16BIT:
 		do_cycles_ce000 (4);
 		break;
 	}
@@ -433,12 +436,19 @@ STATIC_INLINE void mem_access_delay_word_write (uaecptr addr, uae_u32 v)
 		return;
 		break;
 	case CE_MEMBANK_FAST:
+	case CE_MEMBANK_FAST16BIT:
 		do_cycles_ce000 (4);
 		break;
 	}
 	put_word (addr, v);
 }
 
+STATIC_INLINE uae_u32 get_long_ce (uaecptr addr)
+{
+	uae_u32 v = mem_access_delay_word_read (addr) << 16;
+	v |= mem_access_delay_word_read (addr + 2);
+	return v;
+}
 STATIC_INLINE uae_u32 get_word_ce (uaecptr addr)
 {
 	return mem_access_delay_word_read (addr);
@@ -447,12 +457,10 @@ STATIC_INLINE uae_u32 get_wordi_ce (uaecptr addr)
 {
 	return mem_access_delay_wordi_read (addr);
 }
-
 STATIC_INLINE uae_u32 get_byte_ce (uaecptr addr)
 {
 	return mem_access_delay_byte_read (addr);
 }
-
 STATIC_INLINE uae_u32 get_word_ce_prefetch (int o)
 {
 	uae_u32 v = regs.irc;
@@ -460,12 +468,16 @@ STATIC_INLINE uae_u32 get_word_ce_prefetch (int o)
 	return v;
 }
 
-STATIC_INLINE void put_word_ce (uaecptr addr, uae_u16 v)
+STATIC_INLINE void put_long_ce (uaecptr addr, uae_u32 v)
+{
+	mem_access_delay_word_write (addr, v >> 16);
+	mem_access_delay_word_write (addr + 2, v);
+}
+STATIC_INLINE void put_word_ce (uaecptr addr, uae_u32 v)
 {
 	mem_access_delay_word_write (addr, v);
 }
-
-STATIC_INLINE void put_byte_ce (uaecptr addr, uae_u8 v)
+STATIC_INLINE void put_byte_ce (uaecptr addr, uae_u32 v)
 {
 	mem_access_delay_byte_write (addr, v);
 }

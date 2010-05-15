@@ -149,6 +149,8 @@ rm -rf release
 rm -rf fullrelease
 cd ..
 
+rm -rf lib
+
 cd ..
 
 zip -9 -r winuaesrc *

@@ -147,7 +147,7 @@ void (*x_put_long)(uaecptr,uae_u32);
 void (*x_put_word)(uaecptr,uae_u32);
 void (*x_put_byte)(uaecptr,uae_u32);
 
-// 68020+ shared functions
+// shared memory access functions
 static void set_x_funcs (void)
 {
 	if (currprefs.mmu_model) {
@@ -170,6 +170,16 @@ static void set_x_funcs (void)
 		x_get_long = get_long;
 		x_get_word = get_word;
 		x_get_byte = get_byte;
+	} else if (currprefs.cpu_model < 68020) {
+		x_prefetch = NULL;
+		x_next_iword = NULL;
+		x_next_ilong = NULL;
+		x_put_long = put_long_ce;
+		x_put_word = put_word_ce;
+		x_put_byte = put_byte_ce;
+		x_get_long = get_long_ce;
+		x_get_word = get_word_ce;
+		x_get_byte = get_byte_ce;
 	} else if (currprefs.cpu_model == 68020) {
 		x_prefetch = get_word_ce020_prefetch;
 		x_next_iword = next_iword_020ce;

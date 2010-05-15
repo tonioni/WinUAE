@@ -1,4 +1,94 @@
 
+Beta 2:
+
+- reverted filesystem indirect memory change, it can't never work because filesystem
+  is running in a separate thread
+- rawkeyboard extended key fix (Pause-key)
+
+Beta 1:
+
+- less hacky cue/iso selection priority handling inside archives
+- autoscaled top border was incorrectly positioned if program had always-on bitplane DMA
+  and first background color change was later than vertical bitplane DMA start position
+  (Shadow of the Beast)
+- do not enable OpenAL or PortAudio support by default (there are some bad OpenAL drivers
+  that crash when enumerating devices...)
+- save also rom checksum to configuration files, configuration file checksum is now used to
+  find rom path from rom scanner data if path stored in config file does not exist
+- removed Windows 2000 compatibility code (mainly RTG guard page stuff)
+- D3D mode is more compatible with crappy Intel integrated GPUs that have hardware pixel shader
+  but only software vertex shader support (scanlines and shader filters should work now)
+- WASAPI and PortAudio sound volume control supported
+- 7zip support moved to static link lib, updated to latest LZMA SDK, PPMD supported
+  (no XZ because currently only plain XZ (de)compression appears to be supported in SDK)
+- static png and zlib libraries updated to latest versions
+- virtual directory drive fake block device geometry and block size set to non-zero values
+  to fix sys:system/format division by zero crash when started from WB
+- cycle exact custom cpu frequency calculation fixed
+- remove non-existing paths in disk history when selected (not automatic because they might
+  point to non-existing network shares = "unexplained" slowdown at startup possible)
+- 68030 instruction and data cache "cycle exact" emulation code added, (68020 and 68030
+  caches are slightly different 68020's cache is 64*1 longs, 68030's cache is 16*4 longs).
+  Data cache can only cache fast ram and rom. (MMU is normally used to prevent IO and
+  chip ram data caching) Because native expansion code (bsdsocket etc..) bypasses the cache,
+  if there is emulated cache hit, data in memory is compared with data in cache and real
+  memory data is used instead of stale data in cache. (test read is direct access, it does
+  not mess up timing). This also means you will have problems if you use old "68030 cycle exact"
+  configurations, this mode was never supported. Not that this new mode isn't any better..
+- made 68020 "CE" NOP slightly slower (move.w to somewhere followed by NOP: write must be
+  complete before NOP finishes, Roots 2.0 / Sanity globe effect)
+- Roots 2.0 / Sanity "flower zoomer" part gaps fixed (BPLCON4 color change has 1 lores pixel
+  delay compared to direct color register write. AGA-only feature)
+- sprite emulation change, removed few lines of code that was not needed anymore (I hope..), this
+  fixes missing bottom part on Roots 2.0 / Sanity "flower zoomer" part
+- directory filesystem uses now indirect memory access (read&write is still direct, no performance
+  loss + cache flush if in CE030 mode), better compatibility with dcache and MMU (other modules
+  will follow)
+- 68020 "CE" mode movem and some other instructions used direct memory accesses instead of
+  cycle exact fetch modes (=was too fast if accessing chip ram)
+- power led fade hack emulation improved
+- -disableharddrivesafetycheck command line parameter disabled, it is not needed anymore
+  (it was made when there was no "is drive mounted in Windows" test) This parameter has
+  also become THE FIX for every, even totally unrelated possible, HD/CF related problem...
+- toggle between fullwindow and fullscreen if started in fullwindow mode
+- fixed data coruption in input parsing if mapped key did not exist (different keyboard)
+- transparent archive support updates and handle leak fix
+- small filter panel GUI changes
+- single/double/triple buffering option added to Display panel, also affects D3D now mode now
+- enabling any "raw" input device disables all "super" devices if they have same device class
+  (and vice versa) For example "Windows mouse" enabled, enable "raw mouse" -> "Windows mouse"
+  gets disabled.
+- GUI treeview and listview "hot underline" mode enabled
+- missing input keyboard name and status lines added to configuration file
+- Game Ports panel settings does not use special case handling anymore, input panel slot #4
+  is now "Game Ports" configuration slot, all gameports panel settings are always converted to
+  this slot. (slot #4 because I didn't want add new slots and slot #4 is most likely to be free)
+- slot mentioned above is used to store new easy to use new game ports input mapping
+- added "Test" and "Remap" buttons to Input panel, both temporarily enables all input devices,
+  disables GUI and waits for any input, when input event is received, input device and event
+  type gets selected automatically. "Remap" exists immediately when any event arrives, "Test"
+  stays active until F12 is presed. (or if GUI window becomes inactive)
+  Only "raw" devices detected (for example "super mouse" and "raw mouse" don't really play well
+  together)
+- GUI listviews remember old cursor positions
+- default caps lock key input configuration was incorrectly saved to configuration
+- easy joystick remapping support finally implemented.
+- autofire checkboxes added to gameports, sets/disables fire button/CD32 red button autofire,
+  autofire rate modified, it is much faster now (test games and report) 
+
+Quick instructions for new Game Ports panel remapping function:
+- First select type of Amiga side device (mouse/joystick/analog joystick etc..).
+- "Default" device type = mouse in port 0, joystick in port 1.
+- Click Remap and the rest is near automatic :)
+- Click Test to check and test current device type mapping (both built-in and remapped).
+- F12 = exit, F11 = skip current event (jump to next event without mapping)
+
+NOTE:NOTE:NOTE: Answer is still the usual: "Use Input Panel" if you want something more complex.
+This is the QUICK and EASY solution for most commonly needed joystick remapping.
+
+
+Final 2.1.0
+
 Beta 25 (RC3):
 
 - CD32/CDTV NVRAM led (DF3) works again
