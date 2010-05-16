@@ -56,7 +56,7 @@ static BOOL WINAPI ctrlhandler (DWORD type)
 
 #define conpar L"-console"
 
-int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
+static int runmain (int argc, wchar_t *argv[])
 {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	STARTUPINFO si;
@@ -73,7 +73,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	len = _tcslen (argv[0]);
 	if (len < 4)
 		return 0;
-	cmd = malloc ((len + 4 + 1) * sizeof (TCHAR));
+	cmd = (TCHAR*)malloc ((len + 4 + 1) * sizeof (TCHAR));
 	_tcscpy (cmd, argv[0]);
 	if (_tcsicmp (cmd + len - 4, L".com"))
 		_tcscat (cmd + len, L".exe");
@@ -86,7 +86,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 			parmlen ++;
 		parmlen += 1 + _tcslen (argv[i]) + 1;
 	}
-	parms2 = malloc ((_tcslen (cmd) + 1 + parmlen + 1 + _tcslen (conpar) + 1) * sizeof (TCHAR));
+	parms2 = (TCHAR*)malloc ((_tcslen (cmd) + 1 + parmlen + 1 + _tcslen (conpar) + 1) * sizeof (TCHAR));
 	_tcscpy (parms2, cmd);
 	_tcscat (parms2, L" ");
 	_tcscat (parms2, conpar);
@@ -171,4 +171,83 @@ end:
 	free (parms2);
 	free (cmd);
 	return 0;
+}
+
+
+static int runxfd(int argc,wchar_t *argv[])
+{
+	STARTUPINFO si = { 0 };
+	PROCESS_INFORMATION pi = { 0 };
+	TCHAR *src, *dst;
+	TCHAR *parms[5];
+	FILE *f;
+
+	_tprintf(L"uaexfd 0.1b by Toni Wilen (c)2010\n");
+	if (argc < 2) {
+		_tprintf(L"uaexfd <source> [<destination>]");
+		return 0;
+	}
+	if (GetFileAttributes(L"xfd.uae") == INVALID_FILE_ATTRIBUTES) {
+		_tprintf(L"xfd.uae missing\n");
+		return 0;
+	}
+	if (GetFileAttributes(L"uaexfd.zip") == INVALID_FILE_ATTRIBUTES) {
+		_tprintf(L"uaexfd.zip missing\n");
+		return 0;
+	}
+	dst = src = argv[1];
+	if (GetFileAttributes(src) == INVALID_FILE_ATTRIBUTES) {
+		_tprintf(L"can't open '%s'\n", src);
+		return 0;
+	}
+	if (argc >= 3)
+		dst = argv[2];
+	DeleteFile(L"xfd-in-file.dat");	
+	DeleteFile(L"xfd-out-file.dat");
+	DeleteFile(L"xfd-out-text.txt");
+	CopyFile(src, L"xfd-in-file.dat", FALSE);
+	parms[0] = L"winuae.com";
+	parms[1] = L"-f";
+	parms[2] = L"xfd.uae";
+	parms[3] = L"-datapath";
+	parms[4] = L".";
+	parms[5] = NULL;
+	if (!runmain(5, parms)) {
+		if (GetFileAttributes(L"xfd-out-file.dat") != INVALID_FILE_ATTRIBUTES) {
+			DeleteFile(dst);
+			MoveFile(L"xfd-out-file.dat", dst);
+		}
+		f = _tfopen(L"xfd-out-text.txt", L"rb");
+		if (f) {
+			char tmp[1000];
+			int first = 1;
+			while (fgets(tmp, sizeof tmp, f)) {
+				if (strlen(tmp) <= 1)
+					continue;
+				if (first) {
+					first = 0;
+					continue;
+				}
+				if (tmp[strlen(tmp)-1] == 10)
+					tmp[strlen(tmp)-1] = 0;
+				printf("%s\n", tmp);
+			}
+			fclose(f);
+		} else {
+			_tprintf(L"startup failed\n");
+		}
+	}
+	DeleteFile(L"xfd-in-file.dat");	
+	DeleteFile(L"xfd-out-file.dat");
+	DeleteFile(L"xfd-out-text.txt");
+	DeleteFile(L"winuaebootlog.txt");
+	RemoveDirectory(L"Host");
+	RemoveDirectory(L"Hardware");
+	return 0;
+}
+
+int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
+{
+	//return runxfd (argc, argv);
+	return runmain (argc, argv);
 }
