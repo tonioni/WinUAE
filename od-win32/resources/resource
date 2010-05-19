@@ -336,7 +336,6 @@
 #define IDS_CD                          361
 #define IDS_BUFFER_SINGLE               362
 #define IDS_BUFFER_DOUBLE               363
-#define IDS_BUFFER_TRIPPLE              364
 #define IDS_BUFFER_TRIPLE               364
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
@@ -388,6 +387,9 @@
 #define IDC_PORT2_JOYS                  1031
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
+#define IDC_PORT0_AF                    1033
+#define IDC_PORT0_AF2                   1034
+#define IDC_PORT1_AF                    1034
 #define IDC_JULIAN                      1040
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
@@ -1024,12 +1026,10 @@
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
-#define IDC_PORT0_AUTOFIRE              1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_DD_SURFACETYPE2             1792
 #define IDC_DXMODE                      1792
-#define IDC_PORT1_AUTOFIRE              1792
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_DF1WPTEXTQ                  1794

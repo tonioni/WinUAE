@@ -1,3 +1,5 @@
+#if 0
+#define XFD 0
 
 #include <windows.h>
 
@@ -220,13 +222,20 @@ static int runxfd(int argc,wchar_t *argv[])
 		f = _tfopen(L"xfd-out-text.txt", L"rb");
 		if (f) {
 			char tmp[1000];
-			int first = 1;
 			while (fgets(tmp, sizeof tmp, f)) {
 				if (strlen(tmp) <= 1)
 					continue;
-				if (first) {
-					first = 0;
-					continue;
+				for (int i = 0; tmp[i]; i++) {
+					if (tmp[i] == -101 || (tmp[i] == 27 && tmp[i + 1] == '[')) {
+						int j = i + 1;
+						if (tmp[i] == 27)
+							j++;
+						while (tmp[j] > 0 && tmp[j] < 0x40)
+							j++;
+						if (tmp[j])
+							j++;
+						memmove (tmp + i, tmp + j, strlen(tmp + j) + 1);
+					}
 				}
 				if (tmp[strlen(tmp)-1] == 10)
 					tmp[strlen(tmp)-1] = 0;
@@ -248,6 +257,11 @@ static int runxfd(int argc,wchar_t *argv[])
 
 int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 {
-	//return runxfd (argc, argv);
+#if XFD
+	return runxfd (argc, argv);
+#else
 	return runmain (argc, argv);
+#endif
 }
+
+#endif

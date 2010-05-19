@@ -24,8 +24,6 @@
 
 #include <zlib.h>
 
-
-
 static time_t fromdostime (uae_u32 dd)
 {
 	struct tm tm;
@@ -55,9 +53,6 @@ static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsig
 		break;
 	case ArchiveFormat7Zip:
 		zv = archive_directory_7z (zf);
-		break;
-	case ArchiveFormatXZ:
-		zv = archive_directory_xz (zf);
 		break;
 	case ArchiveFormatRAR:
 		zv = archive_directory_rar (zf);
@@ -193,7 +188,7 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 			if (zf->zipname && zf->zipname[0] == '#' && _tstol (zf->zipname + 1) == zipcnt)
 				select = -1;
 			if (select && we_have_file < 10) {
-				struct zfile *zt = archive_getzfile (zn, id, 1);
+				struct zfile *zt = archive_getzfile (zn, id, FILE_PEEK);
 				if (zt) {
 					int ft = zfile_gettype (zt);
 					TCHAR *ext = _tcsrchr (zn->fullname, '.');
@@ -442,7 +437,7 @@ struct zfile *archive_access_zip (struct znode *zn, int flags)
 		return 0;
 	z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 	if (z) {
-//		if (flags)
+//		if (flags & FILE_PEEK)
 //			z->datasize = PEEK_BYTES;
 		err = unzReadCurrentFile (uz, z->data, z->datasize);
 	}
@@ -530,11 +525,6 @@ static void archive_close_7z (void *ctx)
 #define EPOCH_DIFF 0x019DB1DED53E8000LL /* 116444736000000000 nsecs */
 #define RATE_DIFF 10000000 /* 100 nsecs */
 
-struct zvolume *archive_directory_xz (struct zfile *z)
-{
-	return NULL;
-}
-
 struct zvolume *archive_directory_7z (struct zfile *z)
 {
 	SRes res;
@@ -586,11 +576,6 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	}
 	zv->method = ArchiveFormat7Zip;
 	return zv;
-}
-
-struct zfile *archive_access_xz (struct znode *zn)
-{
-	return NULL;
 }
 
 struct zfile *archive_access_7z (struct znode *zn)
@@ -692,16 +677,6 @@ struct RARContext
 	HANDLE hArcData;
 };
 
-static int rar_resetf (struct zfile *z)
-{
-	z->f = _tfopen (z->name, z->mode);
-	if (!z->f) {
-		zfile_fclose (z);
-		return 0;
-	}
-	return 1;
-}
-
 static void archive_close_rar (void *ctx)
 {
 	struct RARContext* rc = (struct RARContext*)ctx;
@@ -722,17 +697,11 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 		return archive_directory_arcacc (z, ArchiveFormatRAR);
 	rc = xcalloc (struct RARContext, 1);
 	zv = zvolume_alloc (z, ArchiveFormatRAR, rc, NULL);
-	//fclose (z->f); /* bleh, unrar.dll fails to open the archive if it is already open.. */
-	//z->f = NULL;
 	rc->OpenArchiveData.ArcNameW = z->name;
 	rc->OpenArchiveData.OpenMode = RAR_OM_LIST;
 	rc->hArcData = pRAROpenArchiveEx (&rc->OpenArchiveData);
 	if (rc->OpenArchiveData.OpenResult != 0) {
 		xfree (rc);
-//		if (!rar_resetf (z)) {
-//			zfile_fclose_archive (zv);
-//			return NULL;
-//		}
 		zfile_fclose_archive (zv);
 		return archive_directory_arcacc (z, ArchiveFormatRAR);
 	}

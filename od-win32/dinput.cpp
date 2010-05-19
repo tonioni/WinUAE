@@ -3,7 +3,7 @@
 *
 * Win32 DirectInput/Windows XP RAWINPUT interface
 *
-* Copyright 2002 - 2004 Toni Wilen
+* Copyright 2002 - 2010 Toni Wilen
 */
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
@@ -856,7 +856,7 @@ static int initialize_rawinput (void)
 				did->axissort[2] = 2;
 				did->axisname[2] = my_strdup (L"Wheel");
 				addplusminus (did, 2);
-				if (rdim->fHasHorizontalWheel) {
+				if (1 || rdim->fHasHorizontalWheel) { // why is this always false?
 					did->axissort[3] = 3;
 					did->axisname[3] = my_strdup (L"HWheel");
 					did->axles++;
@@ -1005,14 +1005,19 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				}
 				lastmbr[num] = rm->ulRawButtons;
 			}
-			if (rm->usButtonFlags & RI_MOUSE_WHEEL) {
-				int val = (short)rm->usButtonData;
-				int bnum = did->buttons_real;
-				setmousestate (num, 2, val, 0);
-				if (val < 0)
-					setmousebuttonstate (num, bnum + 0, -1);
-				else if (val > 0)
-					setmousebuttonstate (num, bnum + 1, -1);
+			for (i = 0; i < 2; i++) {
+				int bnum = did->buttons_real + (i * 2);
+				// RI_MOUSE_WHEEL << 1 = HWHEEL
+				if (rm->usButtonFlags & (RI_MOUSE_WHEEL << i)) {
+					int val = (short)rm->usButtonData;
+					setmousestate (num, 2, val, 0);
+					if (istest)
+						setmousestate (num, 2, 0, 0);
+					if (val < 0)
+						setmousebuttonstate (num, bnum + 0, -1);
+					else if (val > 0)
+						setmousebuttonstate (num, bnum + 1, -1);
+				}
 			}
 			if (istest) {
 				if (abs (rm->lLastX - lastx[num]) > 7) {
@@ -1069,7 +1074,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (scancode == 0xaa)
 			return;
 
-#if 1
 		for (num = 0; num < num_keyboard; num++) {
 			did = &di_keyboard[num];
 			if (did->acquired && did->rawinput == raw->header.hDevice)
@@ -1080,9 +1084,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 			return;
 		}
-#endif
-		if (rawkeystate[scancode] == pressed)
+
+		if (rawkeystate[scancode] == pressed) {
 			return;
+		}
 		rawkeystate[scancode] = pressed;
 		if (istest) {
 			if (pressed && (scancode == DIK_F12 || scancode == DIK_F11))
@@ -1105,22 +1110,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 	}
 }
-
-#if 0
-static void read_rawinput (void)
-{
-	RAWINPUT raw;
-	int size, ret;
-
-	for(;;) {
-		size = sizeof (RAWINPUT);
-		ret = pGetRawInputBuffer (&raw, &size, sizeof (RAWINPUTHEADER));
-		if (ret <= 0)
-			return;
-		handle_rawinput_2 (&raw);
-	}
-}
-#endif
 
 void handle_rawinput (LPARAM lParam)
 {
@@ -2033,6 +2022,7 @@ void release_keys (void)
 			}
 		}
 	}
+	memset (rawkeystate, 0, sizeof rawkeystate);
 }
 
 

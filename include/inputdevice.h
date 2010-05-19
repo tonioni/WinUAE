@@ -128,7 +128,6 @@ extern int getjoystickstate (int mouse);
 void setmousestate (int mouse, int axis, int data, int isabs);
 extern int getmousestate (int mouse);
 extern void inputdevice_updateconfig (struct uae_prefs *prefs);
-extern void inputdevice_mergeconfig (struct uae_prefs *prefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
@@ -142,6 +141,7 @@ extern int inputdevice_get_compatibility_input (struct uae_prefs*, int, int*, in
 extern struct inputevent *inputdevice_get_eventinfo (int evt);
 extern void inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
 extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index);
+extern void inputdevice_compa_clear (struct uae_prefs *prefs, int index);
 extern int intputdevice_compa_get_eventtype (int evt, int **axistable);
 
 

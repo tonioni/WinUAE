@@ -582,7 +582,7 @@ static int scanpath (TCHAR *src, TCHAR *outpath)
 	return 1;
 }
 
-int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
+int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 {
 	int ok = 0, i;
 	int list = 0, xtract = 0, extract = 0;
@@ -715,9 +715,7 @@ int wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		_tprintf (L"Supported archive formats:\n");
 		_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), TAR, ZIP, ArchiveAccess.DLL\n");
 		_tprintf (L"Miscellaneous formats:\n");
-		_tprintf (L" RDB partition table, GZIP\n");
-
-
+		_tprintf (L" RDB partition table, GZIP, XZ\n");
 	}
 	return 0;
 }

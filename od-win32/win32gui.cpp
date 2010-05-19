@@ -3173,11 +3173,13 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 				int devnum;
 				int flags, status;
 				TCHAR name[256];
-				bool found = false;
 				int *atp = axistable;
 				int atpidx;
 				int item;
+				bool found = false;
+				TCHAR target[MAX_DPATH];
 
+				target[0] = 0;
 				if (list) {
 					lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
 					lvstruct.pszText  = (TCHAR*)evt->name;
@@ -3203,17 +3205,19 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 				while (atpidx >= 0) {
 					devnum = 0;
 					while ((status = inputdevice_get_device_status (devnum)) >= 0) {
-						if (1 || status) {
+						if ((1 || status) && !found) {
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-									if (inputdevice_get_mapped_name (devnum, j, &flags, NULL, NULL, sub) == evtnum && !found) {
-										TCHAR tmp[MAX_DPATH];
+									if (inputdevice_get_mapped_name (devnum, j, &flags, NULL, NULL, sub) == evtnum) {
 										inputdevice_get_widget_type (devnum, j, name);
 										if (list) {
-											_tcscpy (tmp, name);
-											_tcscat (tmp, L",");
-											_tcscat (tmp, inputdevice_get_device_name2 (devnum));
-											ListView_SetItemText (list, item, 1, tmp);
+											if (_tcslen (target) < MAX_DPATH / 2) {
+												if (target[0])
+													_tcscat (target, L" ");
+												_tcscat (target, name);
+												_tcscat (target, L",");
+												_tcscat (target, inputdevice_get_device_name2 (devnum));
+											}
 											found = true;
 										} else if (currentdevnum == devnum) {
 											if (currentwidgetnum == j) {
@@ -3234,6 +3238,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					evtnum = *atp++;
 					atpidx--;
 				}
+				if (found)
+					ListView_SetItemText (list, item, 1, target);
 				cnt++;
 			}
 		}
@@ -4333,7 +4339,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	const GUID pathsguid = { 0x5674338c, 0x7a0b, 0x4565, { 0xbf, 0x75, 0x62, 0x8c, 0x80, 0x4a, 0xef, 0xf7 } };
 	void create_afnewdir(int);
 	static int recursive;
-	static int ptypes[3], numtypes;
+	static int ptypes[10], numtypes;
 	int val, selpath = 0;
 	TCHAR tmp[MAX_DPATH], pathmode[32];
 
@@ -5345,7 +5351,7 @@ static void display_fromselect (int val, int *fs, bool *vsync, int p96)
 		break;
 	case 4:
 		*fs = 2;
-		if (workprefs.gfx_filter == 0 && *fs != ofs) {
+		if (workprefs.gfx_filter == 0 && *fs != ofs && !workprefs.gfx_api) {
 			workprefs.gfx_filter = 1;
 			workprefs.gfx_filter_horiz_zoom = 0;
 			workprefs.gfx_filter_vert_zoom = 0;
@@ -10008,7 +10014,7 @@ static void enable_for_portsdlg (HWND hDlg)
 
 static int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS };
 static int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
-static int joysaf[] = { IDC_PORT0_AUTOFIRE, IDC_PORT1_AUTOFIRE, -1, -1 };
+static int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
 
 static void updatejoyport (HWND hDlg)
 {
@@ -10076,7 +10082,7 @@ static void updatejoyport (HWND hDlg)
 			idx = 0;
 		SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 		if (joysaf[i] >= 0)
-			CheckDlgButton (hDlg, joysaf[i], workprefs.jports[i].autofire);
+			SendDlgItemMessage (hDlg, joysaf[i], CB_SETCURSEL, workprefs.jports[i].autofire, 0);
 	}
 }
 
@@ -10168,10 +10174,10 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 				
 		}
 		if (joysaf[i] >= 0) {
-			int is = ischecked (hDlg, joysaf[i]) ? 1 : 0;
-			if (is != workprefs.jports[i].autofire)
+			int af = SendDlgItemMessage (hDlg, joysaf[i], CB_GETCURSEL, 0, 0L);
+			if (af != CB_ERR && af != workprefs.jports[i].autofire)
 				workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
-			workprefs.jports[i].autofire = is;
+			workprefs.jports[i].autofire = af;
 		}
 		if (*port != prevport)
 			changed = 1;
@@ -10496,7 +10502,7 @@ static void ports_remap (HWND, int);
 static void processport (HWND hDlg, bool reset, int port)
 {
 	if (reset)
-		inputdevice_compa_prepare_custom (&workprefs, port);
+		inputdevice_compa_clear (&workprefs, port);
 	values_from_gameportsdlg (hDlg, 0);
 	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);
@@ -10525,6 +10531,14 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			joyxprevious[1] = -1;
 			joyxprevious[2] = -1;
 			joyxprevious[3] = -1;
+		}
+
+		for (i = 0; joysaf[i] >= 0; i++) {
+			int id = joysaf[i];
+			SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"No autofire");
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"Autofire");
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"Autofire (toggle)");
 		}
 
 		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
@@ -10577,10 +10591,6 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			joyxprevious[1] = temp;
 			enable_for_gameportsdlg (hDlg);
 			updatejoyport (hDlg);
-		} else if (LOWORD (wParam) == IDC_PORT0_AUTOFIRE) {
-			processport (hDlg, false, 0);
-		} else if (LOWORD (wParam) == IDC_PORT1_AUTOFIRE) {
-			processport (hDlg, false, 1);
 		} else if (LOWORD (wParam) == IDC_PORT0_REMAP) {
 			ports_remap (hDlg, 0);
 		} else if (LOWORD (wParam) == IDC_PORT1_REMAP) {
@@ -10600,6 +10610,12 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		} else if (HIWORD (wParam) == CBN_SELCHANGE) {
 			switch (LOWORD (wParam))
 			{
+				case IDC_PORT0_AF:
+					processport (hDlg, false, 0);
+				break;
+				case IDC_PORT1_AF:
+					processport (hDlg, false, 1);
+				break;
 				case IDC_PORT0_JOYS:
 				case IDC_PORT1_JOYS:
 				case IDC_PORT2_JOYS:
@@ -11169,6 +11185,11 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 			} else {
 				// input panel
 
+				if (od != devnum)
+					init_inputdlg (hDlg);
+				else
+					init_inputdlg_2 (hDlg);
+
 				static int toggle, skipactive;
 				if (cnt == 2 && !skipactive) {
 					toggle ^= 1;
@@ -11186,10 +11207,6 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					inputdevice_set_device_status (devnum, TRUE);
 					values_to_inputdlg (hDlg);
 				}
-				if (od != devnum)
-					init_inputdlg (hDlg);
-				else
-					init_inputdlg_2 (hDlg);
 				ListView_EnsureVisible (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, FALSE);
 				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
@@ -11576,7 +11593,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		vv3 = TRUE;
 	if (v && uf->x[0])
 		vv4 = TRUE;
-	if (workprefs.gfx_api && isfilter)
+	if (workprefs.gfx_api)
 		v = vv = vv2 = vv3 = vv4 = TRUE;
 
 	ew (hDlg, IDC_FILTERHZ, v);
@@ -12089,7 +12106,7 @@ static void filter_handle (HWND hDlg)
 				hw3d_changed = 1;
 			}
 		}
-		if (workprefs.gfx_filter == 0)
+		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
 			workprefs.gfx_filter_autoscale = 0;
 	}
 	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
@@ -12197,7 +12214,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
 						workprefs.gfx_filter_autoscale = item;
-						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0)
+						if (workprefs.gfx_filter_autoscale && workprefs.gfx_filter == 0 && !workprefs.gfx_api)
 							workprefs.gfx_filter = 1; // NULL
 						values_to_hw3ddlg (hDlg);
 						enable_for_hw3ddlg (hDlg);
@@ -13682,8 +13699,9 @@ static int GetSettings (int all_options, HWND hwnd)
 						handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
 						continue;
 					}
-					// eat all keyboard accelerators
-					if (msg.message == WM_KEYDOWN)
+					// eat all accelerators
+					if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
+						|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
 						continue;
 				}
 				// IsDialogMessage() eats WM_INPUT messages?!?!

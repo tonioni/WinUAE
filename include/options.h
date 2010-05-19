@@ -52,6 +52,8 @@ struct jport {
 };
 #define JPORT_NONE -1
 #define JPORT_CUSTOM -2
+#define JPORT_AF_NORMAL 1
+#define JPORT_AF_TOGGLE 2
 
 #define MAX_SPARE_DRIVES 20
 #define MAX_CUSTOM_MEMORY_ADDRS 2

@@ -1,4 +1,23 @@
 
+Beta 3:
+
+- added XZ compressed file support
+- Paths panel "Reset to defaults" was unreliable if more than 3 choices was available
+- mouse horizontal wheel (HWheel) works in raw mouse mode, it is now always listed because
+  for some unknown reason RID_DEVICE_INFO_MOUSE.fHasHorizontalWheel is always false,
+  even when mouse has working horizontal scroll wheel
+- fixed unreliable device switching in input test/remap mode
+- fixed CD32 extra buttons not automatically getting enabled when joystick/pad was in
+  "default" mode
+- "default" was changed to "joystick" or "mouse" when switching between device types
+- CD32 default button change, Red and Blue buttons are automatically read as a fire
+  and second button if pad is read in standard 2-button mode (previously they did nothing
+  in normal mode, required fire and 2nd button mapped)
+- CD32 2-button mode 2nd button (CD32 Blue button as 2nd button) fixed, never worked previously
+- Game Ports Test mode now shows mappings that have multiple input targets
+- added "toggle" autofire mode to ports panel
+- D3D "none" filter allows again all filter setting adjustments
+
 Beta 2:
 
 - reverted filesystem indirect memory change, it can't never work because filesystem

@@ -141,7 +141,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	int filter_vert_zoom_mult = currprefs.gfx_filter_vert_zoom_mult;
 	int filter_horiz_offset = currprefs.gfx_filter_horiz_offset;
 	int filter_vert_offset = currprefs.gfx_filter_vert_offset;
-	if (!usedfilter) {
+
+	if (!usedfilter && !currprefs.gfx_api) {
 		filter_horiz_zoom = filter_vert_zoom = 0;
 		filter_horiz_zoom_mult = filter_vert_zoom_mult = 1000;
 		filter_horiz_offset = filter_vert_offset = 0;

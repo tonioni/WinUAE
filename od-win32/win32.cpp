@@ -3524,12 +3524,14 @@ static void WIN32_HandleRegistryStuff (void)
 	reopen_console ();
 	fetch_path (L"ConfigurationPath", path, sizeof (path) / sizeof (TCHAR));
 	path[_tcslen (path) - 1] = 0;
-	createdir (path);
-	_tcscat (path, L"\\Host");
-	createdir (path);
-	fetch_path (L"ConfigurationPath", path, sizeof (path) / sizeof (TCHAR));
-	_tcscat (path, L"Hardware");
-	createdir (path);
+	if (GetFileAttributes (path) == 0xffffffff) {
+		createdir (path);
+		_tcscat (path, L"\\Host");
+		createdir (path);
+		fetch_path (L"ConfigurationPath", path, sizeof (path) / sizeof (TCHAR));
+		_tcscat (path, L"Hardware");
+		createdir (path);
+	}
 	fetch_path (L"StatefilePath", path, sizeof (path) / sizeof (TCHAR));
 	createdir (path);
 	_tcscat (path, L"default.uss");

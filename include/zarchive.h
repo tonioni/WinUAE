@@ -83,7 +83,6 @@ struct zarchive_info
 };
 
 #define ArchiveFormat7Zip '7z  '
-#define ArchiveFormatXZ 'xz  '
 #define ArchiveFormatRAR 'rar '
 #define ArchiveFormatZIP 'zip '
 #define ArchiveFormatLHA 'lha '
@@ -98,15 +97,16 @@ struct zarchive_info
 #define ArchiveFormatTAR 'tar '
 
 #define PEEK_BYTES 1024
+#define FILE_PEEK 1
 
-extern int zfile_is_ignore_ext(const TCHAR *name);
+extern int zfile_is_ignore_ext (const TCHAR *name);
 
-extern struct zvolume *zvolume_alloc(struct zfile *z, unsigned int id, void *handle, const TCHAR*);
-extern struct zvolume *zvolume_alloc_empty(struct zvolume *zv, const TCHAR *name);
+extern struct zvolume *zvolume_alloc (struct zfile *z, unsigned int id, void *handle, const TCHAR*);
+extern struct zvolume *zvolume_alloc_empty (struct zvolume *zv, const TCHAR *name);
 
-extern struct znode *zvolume_addfile_abs(struct zvolume *zv, struct zarchive_info*);
-extern struct znode *zvolume_adddir_abs(struct zvolume *zv, struct zarchive_info *zai);
-extern struct znode *znode_adddir(struct znode *parent, const TCHAR *name, struct zarchive_info*);
+extern struct znode *zvolume_addfile_abs (struct zvolume *zv, struct zarchive_info*);
+extern struct znode *zvolume_adddir_abs (struct zvolume *zv, struct zarchive_info *zai);
+extern struct znode *znode_adddir (struct znode *parent, const TCHAR *name, struct zarchive_info*);
 
 extern struct zvolume *archive_directory_plain (struct zfile *zf);
 extern struct zfile *archive_access_plain (struct znode *zn);
@@ -116,8 +116,6 @@ extern struct zvolume *archive_directory_zip(struct zfile *zf);
 extern struct zfile *archive_access_zip (struct znode *zn, int flags);
 extern struct zvolume *archive_directory_7z (struct zfile *z);
 extern struct zfile *archive_access_7z (struct znode *zn);
-extern struct zvolume *archive_directory_xz (struct zfile *z);
-extern struct zfile *archive_access_xz (struct znode *zn);
 extern struct zvolume *archive_directory_rar (struct zfile *z);
 extern struct zfile *archive_access_rar (struct znode *zn);
 extern struct zvolume *archive_directory_lzx (struct zfile *in_file);
@@ -142,6 +140,6 @@ extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user
 
 extern void archive_access_close (void *handle, unsigned int id);
 
-extern struct zfile *archive_getzfile(struct znode *zn, unsigned int id, int flags);
+extern struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags);
 
 extern struct zfile *decompress_zfd (struct zfile*);
