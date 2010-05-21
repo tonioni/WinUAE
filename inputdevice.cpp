@@ -514,7 +514,7 @@ static bool write_config_head (struct zfile *f, int idnum, int devnum, TCHAR *na
 		_stprintf (tmp2, L"input.%d.%s.%d.empty", idnum + 1, name, devnum);
 		cfgfile_write_bool (f, tmp2, false);
 		_stprintf (tmp2, L"input.%d.%s.%d.disabled", idnum + 1, name, devnum);
-		cfgfile_write (f, tmp2, L"%d", id->enabled ? 0 : 1);
+		cfgfile_write_bool (f, tmp2, id->enabled ? false : true);
 	}
 	return true;
 }
@@ -678,7 +678,14 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 static int getnum (TCHAR **pp)
 {
 	TCHAR *p = *pp;
-	int v = _tstol (p);
+	int v;
+
+	if (!_tcsnicmp (p, L"false", 5))
+		v = 0;
+	if (!_tcsnicmp (p, L"true", 4))
+		v = 1;
+	else
+		v = _tstol (p);
 
 	while (*p != 0 && *p !='.' && *p != ',')
 		p++;
@@ -751,7 +758,7 @@ static void set_kbr_default_event (struct uae_input_device *kbr, struct uae_inpu
 	}
 }
 
-static void set_kbr_default (struct uae_prefs *p, int index)
+static void set_kbr_default (struct uae_prefs *p, int index, int devnum)
 {
 	int i, j;
 	struct uae_input_device_kbr_default *trans = keyboard_default;
@@ -762,6 +769,8 @@ static void set_kbr_default (struct uae_prefs *p, int index)
 	if (!trans)
 		return;
 	for (j = 0; j < MAX_INPUT_DEVICES; j++) {
+		if (devnum >= 0 && devnum != j)
+			continue;
 		kbr = &p->keyboard_settings[index][j];
 		for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 			memset (kbr, 0, sizeof (struct uae_input_device));
@@ -789,9 +798,11 @@ static void clear_id (struct uae_input_device *id)
 			xfree (id->custom[i][j]);
 	}
 #endif
-	xfree (id->configname);
-	xfree (id->name);
+	TCHAR *cn = id->configname;
+	TCHAR *n = id->name;
 	memset (id, 0, sizeof (struct uae_input_device));
+	id->configname = cn;
+	id->name = n;
 }
 
 void read_inputdevice_config (struct uae_prefs *pr, TCHAR *option, TCHAR *value)
@@ -881,14 +892,21 @@ void read_inputdevice_config (struct uae_prefs *pr, TCHAR *option, TCHAR *value)
 		if (idnum == GAMEPORT_INPUT_SETTINGS) {
 			clear_id (id);
 			if (joystick < 0)
-				set_kbr_default (pr, idnum);
+				set_kbr_default (pr, idnum, devnum);
 			id->enabled = disabled == 0 ? 1 : 0;
 		}
 		return;
 	}
 
 	if (!_tcscmp (p2, L"empty")) {
+		int empty;
+		p = value;
+		empty = getnum (&p);
 		clear_id (id);
+		if (!empty) {
+			if (joystick < 0)
+				set_kbr_default (pr, idnum, devnum);
+		}
 		id->enabled = 1;
 		if (idnum == GAMEPORT_INPUT_SETTINGS)
 			id->enabled = 0;
@@ -3709,7 +3727,6 @@ static void compatibility_copy (struct uae_prefs *prefs)
 {
 	int used[MAX_INPUT_DEVICES] = { 0 };
 	int i, joy;
-	bool firstmouse = true;
 
 	for (i = 0; i < MAX_JPORTS; i++) {
 		joymodes[i] = prefs->jports[i].mode;
@@ -3804,11 +3821,6 @@ static void compatibility_copy (struct uae_prefs *prefs)
 				case JSEM_MODE_DEFAULT:
 				case JSEM_MODE_MOUSE:
 				default:
-					if (firstmouse) { // map first mouse to each available host mouse device
-						for (int j = 0; j < MAX_INPUT_DEVICES; j++)
-							input_get_default_mouse (mice, j, i);
-						firstmouse = false;
-					}
 					input_get_default_mouse (mice, joy, i);
 					joymodes[i] = JSEM_MODE_MOUSE;
 					break;
@@ -4203,7 +4215,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_autofire_linecnt = 600;
 	for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
 		if (i != GAMEPORT_INPUT_SETTINGS) {
-			set_kbr_default (p, i);
+			set_kbr_default (p, i, -1);
 			for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 				if (input_get_default_mouse (p->mouse_settings[i], j, j & 1))
 					p->mouse_settings[i]->enabled = 1;
@@ -4214,7 +4226,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 			if (p->jports[0].id != -2 || p->jports[0].id != -2) {
 				reset_inputdevice_slot (p, i);
 			}
-			set_kbr_default (p, i);
+			set_kbr_default (p, i, -1);
 		}
 	}
 }
