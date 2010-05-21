@@ -2865,6 +2865,12 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 #endif
 
 		if (quit_program < 0) {
+			if (!savestate_state) {
+				if (currprefs.quitstatefile[0]) {
+					savestate_initsave (currprefs.quitstatefile, 1, 1); 
+					save_state (currprefs.quitstatefile, L"");
+				}
+			}
 			quit_program = -quit_program;
 			set_inhibit_frame (IHF_QUIT_PROGRAM);
 			set_special (SPCFLAG_BRK);

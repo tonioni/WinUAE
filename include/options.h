@@ -273,6 +273,7 @@ struct uae_prefs {
 	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
 	TCHAR cdimagefile[MAX_DPATH];
+	TCHAR quitstatefile[MAX_DPATH];
 
 	TCHAR path_floppy[256];
 	TCHAR path_hardfile[256];
@@ -362,7 +363,6 @@ struct uae_prefs {
 
 	/* input */
 
-	TCHAR inputname[256];
 	struct jport jports[MAX_JPORTS];
 	int input_selected_setting;
 	int input_joymouse_multiplier;

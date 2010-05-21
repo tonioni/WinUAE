@@ -556,6 +556,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	if (p->cdimagefile[0])
 		cfgfile_write_str (f, L"cdimage0", p->cdimagefile);
 
+	if (p->quitstatefile[0])
+		cfgfile_write_str (f, L"statefile_quit", p->quitstatefile);
+
 	cfgfile_write (f, L"nr_floppies", L"%d", p->nr_floppies);
 	cfgfile_write (f, L"floppy_speed", L"%d", p->floppy_speed);
 	cfgfile_write (f, L"floppy_volume", L"%d", p->dfxclickvolume);
@@ -1393,7 +1396,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_strval (option, value, L"joyport3autofire", &p->jports[3].autofire, joyaf, 0))
 		return 1;
 
-	if (cfgfile_path (option, value, L"statefile", tmpbuf, sizeof (tmpbuf) / sizeof (TCHAR))) {
+	if (cfgfile_path (option, value, L"statefile_quit", p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
+		return 1;
+
+	if (cfgfile_path (option, value, L"statefile", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		_tcscpy (savestate_fname, tmpbuf);
 		if (zfile_exists (savestate_fname)) {
 			savestate_state = STATE_DORESTORE;

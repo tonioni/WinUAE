@@ -390,6 +390,8 @@ static int default_config;
 
 void uae_reset (int hardreset)
 {
+	currprefs.quitstatefile[0] = changed_prefs.quitstatefile[0] = 0;
+
 	if (quit_program == 0) {
 		quit_program = -2;
 		if (hardreset)
