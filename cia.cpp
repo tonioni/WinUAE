@@ -547,8 +547,10 @@ static void led_vsync (void)
 		v = 255;
 	else if (led_cycles_off && !led_cycles_on)
 		v = 0;
-	else
+	else if (led_cycles_off)
 		v = led_cycles_on * 255 / led_cycles_off;
+	else
+		v = 255;
 	if (v < 0)
 		v = 0;
 	if (v > 255)
