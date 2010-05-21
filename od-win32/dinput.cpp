@@ -105,6 +105,7 @@ static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
+static bool rawinput_enabled;
 
 int rawkeyboard = -1;
 int no_rawinput;
@@ -195,11 +196,7 @@ static int register_rawinput (int flags)
 		return 0;
 
 	rm = rawmouse ? 1 : 0;
-	if (supermouse)
-		rm = 0;
 	rkb = rawkb ? 1 : 0;
-	if (!rawkeyboard)
-		rkb = 0;
 	if (rawinput_registered_mouse == rm && rawinput_registered_kb == rkb)
 		return 1;
 
@@ -209,16 +206,24 @@ static int register_rawinput (int flags)
 		/* mouse */
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 2;
-		if (!rawmouse)
+		if (!rawmouse) {
 			rid[num].dwFlags = RIDEV_REMOVE;
+		} else if (hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = hMainWnd;
+		}
 		num++;
 	}
 	if (rawinput_registered_kb != rkb) {
 		/* keyboard */
 		rid[num].usUsagePage = 1;
 		rid[num].usUsage = 6;
-		if (!rawkb)
+		if (!rawkb) {
 			rid[num].dwFlags = RIDEV_REMOVE;
+		} else if (hMainWnd) {
+			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].hwndTarget = hMainWnd;
+		}
 		num++;
 	}
 	if (num == 0)
@@ -253,7 +258,7 @@ static int keyboard_german;
 
 static int keyhack (int scancode, int pressed, int num)
 {
-	static byte backslashstate,apostrophstate;
+	static byte backslashstate, apostrophstate;
 
 #ifdef RETROPLATFORM
 	if (rp_checkesc (scancode, di_keycodes[num], pressed, num))
@@ -1470,6 +1475,21 @@ static int di_do_init (void)
 		di_dev_free (&di_mouse[i]);
 		di_dev_free (&di_keyboard[i]);
 	}
+	write_log (L"RawInput enumeration..\n");
+	initialize_rawinput ();
+	if (num_keyboard == 0 || num_mouse == 0) {
+		write_log (L"Disabling RAWINPUT, keyboard or mouse missing\n");
+		num_keyboard = num_mouse = 0;
+		for (i = 0; i < MAX_INPUT_DEVICES; i++) {
+			di_dev_free (&di_joystick[i]);
+			di_dev_free (&di_mouse[i]);
+			di_dev_free (&di_keyboard[i]);
+		}
+		rawinput_enabled = false;
+	} else {
+		rawinput_enabled = true;
+	}
+
 	hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
 	if (FAILED(hr)) {
 		write_log (L"DirectInput8Create failed, %s\n", DXError (hr));
@@ -1478,16 +1498,19 @@ static int di_do_init (void)
 			write_log (L"DirectInput enumeration..\n");
 			g_lpdi->EnumDevices (DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 		} else {
-			write_log (L"DirectInput enumeration.. Keyboards..\n");
-			g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-			write_log (L"DirectInput enumeration.. Pointing devices..\n");
-			g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+			if (!rawinput_enabled) {
+				write_log (L"DirectInput enumeration.. Keyboards..\n");
+				g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+			}
+			if (!rawinput_enabled) {
+				write_log (L"DirectInput enumeration.. Pointing devices..\n");
+				g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+			}
 			write_log (L"DirectInput enumeration.. Game controllers..\n");
 			g_lpdi->EnumDevices (DI8DEVCLASS_GAMECTRL, di_enumcallbackj, 0, DIEDFL_ATTACHEDONLY);
 		}
 	}
-	write_log (L"RawInput enumeration..\n");
-	initialize_rawinput ();
+
 	write_log (L"Windowsmouse initialization..\n");
 	initialize_windowsmouse ();
 	write_log (L"Catweasel joymouse initialization..\n");
@@ -2164,8 +2187,8 @@ static void read_kb (void)
 		elements = DI_KBBUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest)) {
-			if (did->superdevice && (normalkb || rawkb))
-				continue;
+//			if (did->superdevice && (normalkb || rawkb))
+//				continue;
 			for (j = 0; j < elements; j++) {
 				int scancode = didod[j].dwOfs;
 				int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
@@ -2565,9 +2588,7 @@ int dinput_wmkey (uae_u32 key)
 
 int input_get_default_keyboard (int i)
 {
-	if (rawkeyboard > 0) {
-		if (i == 0)
-			return 0;
+	if (rawinput_enabled) {
 		return 1;
 	} else {
 		if (i == 0)
