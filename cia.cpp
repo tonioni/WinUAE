@@ -601,7 +601,8 @@ static void bfe001_change (void)
 			//activate_debugger ();
 			map_overlay (0);
 		}
-	} else if (currprefs.cs_cd32cd && (v & 1) != oldcd32mute) {
+	}
+	if (currprefs.cs_cd32cd && (v & 1) != oldcd32mute) {
 		oldcd32mute = v & 1;
 		akiko_mute (oldcd32mute ? 0 : 1);
 	}
@@ -1198,6 +1199,10 @@ void CIA_reset (void)
 #endif
 	if (savestate_state) {
 		bfe001_change ();
+		if (!currprefs.cs_ciaoverlay) {
+			map_overlay (1);
+			oldovl = false;
+		}
 		/* select drives */
 		DISK_select (ciabprb);
 	}

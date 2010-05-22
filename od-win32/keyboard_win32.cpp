@@ -285,7 +285,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 		if (scancode == DIK_F12 || scancode == currprefs.win32_guikey) {
 			if (ctrlpressed ()) {
-				code = AKS_TOGGLEFULLSCREEN;
+				code = AKS_TOGGLEDEFAULTSCREEN;
 			} else if (shiftpressed () || specialpressed ()) {
 				if (isfullscreen() <= 0) {
 					disablecapture ();

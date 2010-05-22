@@ -476,8 +476,10 @@ void restore_state (const TCHAR *filename)
 			restore_pram (totallen, filepos);
 			continue;
 #endif
-		} else if (!_tcscmp (name, L"CPU "))
+		} else if (!_tcscmp (name, L"CPU ")) {
 			end = restore_cpu (chunk);
+		} else if (!_tcscmp (name, L"CPUX"))
+			end = restore_cpu_extra (chunk);
 #ifdef FPUEMU
 		else if (!_tcscmp (name, L"FPU "))
 			end = restore_fpu (chunk);
@@ -510,6 +512,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_cia (1, chunk);
 		else if (!_tcscmp (name, L"CHIP"))
 			end = restore_custom (chunk);
+		else if (!_tcscmp (name, L"CHPX"))
+			end = restore_custom_extra (chunk);
 		else if (!_tcscmp (name, L"AUD0"))
 			end = restore_audio (0, chunk);
 		else if (!_tcscmp (name, L"AUD1"))
@@ -712,6 +716,10 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	save_chunk (f, dst, len, L"CPU ", 0);
 	xfree (dst);
 
+	dst = save_cpu_extra (&len, 0);
+	save_chunk (f, dst, len, L"CPUX", 0);
+	xfree (dst);
+
 #ifdef FPUEMU
 	dst = save_fpu (&len,0 );
 	save_chunk (f, dst, len, L"FPU ", 0);
@@ -743,6 +751,10 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 
 	dst = save_custom (&len, 0, 0);
 	save_chunk (f, dst, len, L"CHIP", 0);
+	xfree (dst);
+
+	dst = save_custom_extra (&len, 0);
+	save_chunk (f, dst, len, L"CHPX", 0);
 	xfree (dst);
 
 	dst = save_custom_agacolors (&len, 0);
@@ -955,6 +967,7 @@ void savestate_rewind (void)
 	p2 = st->end;
 	write_log (L"rewinding from %d\n", replaycounter);
 	p = restore_cpu (p);
+	p = restore_cpu_extra (p);
 #ifdef FPUEMU
 	if (restore_u32_func (&p))
 		p = restore_fpu (p);
@@ -964,6 +977,7 @@ void savestate_rewind (void)
 	}
 	p = restore_floppy (p);
 	p = restore_custom (p);
+	p = restore_custom_extra (p);
 	p = restore_blitter (p);
 	p = restore_custom_agacolors (p);
 	for (i = 0; i < 8; i++) {
@@ -1051,6 +1065,11 @@ retry2:
 	save_cpu (&len, p);
 	tlen += len;
 	p += len;
+	if (bufcheck (&p, 0))
+		goto retry;
+	save_cpu_extra (&len, p);
+	tlen += len;
+	p += len;
 #ifdef FPUEMU
 	if (bufcheck (&p, 0))
 		goto retry;
@@ -1078,6 +1097,11 @@ retry2:
 	if (bufcheck (&p, 0))
 		goto retry;
 	save_custom (&len, p, 0);
+	tlen += len;
+	p += len;
+	if (bufcheck (&p, 0))
+		goto retry;
+	save_custom_extra (&len, p);
 	tlen += len;
 	p += len;
 	if (bufcheck (&p, 0))

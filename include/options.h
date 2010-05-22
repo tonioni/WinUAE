@@ -96,6 +96,10 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define IDE_A600A1200 1
 #define IDE_A4000 2
 
+#define GFX_WINDOW 0
+#define GFX_FULLSCREEN 1
+#define GFX_FULLWINDOW 2
+
 struct uae_prefs {
 
 	struct strlist *all_lines;

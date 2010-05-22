@@ -143,9 +143,9 @@ static void clearscreen (void)
 static int isfullscreen_2 (struct uae_prefs *p)
 {
 	if (screen_is_picasso)
-		return p->gfx_pfullscreen == 1 ? 1 : (p->gfx_pfullscreen == 2 ? -1 : 0);
+		return p->gfx_pfullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_pfullscreen == GFX_FULLWINDOW ? -1 : 0);
 	else
-		return p->gfx_afullscreen == 1 ? 1 : (p->gfx_afullscreen == 2 ? -1 : 0);
+		return p->gfx_afullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_afullscreen == GFX_FULLWINDOW ? -1 : 0);
 }
 int isfullscreen (void)
 {
@@ -1321,7 +1321,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.color_mode = changed_prefs.color_mode;
 		currprefs.gfx_api = changed_prefs.gfx_api;
 
-		if (changed_prefs.gfx_afullscreen == 1) { 
+		if (changed_prefs.gfx_afullscreen == GFX_FULLSCREEN) { 
 			if (currprefs.gfx_api != changed_prefs.gfx_api)
 				display_change_requested = 1;
 		}
@@ -1649,9 +1649,9 @@ static void open_screen (void)
 static int ifs (struct uae_prefs *p)
 {
 	if (screen_is_picasso)
-		return p->gfx_pfullscreen == 1 ? 1 : (p->gfx_pfullscreen == 2 ? -1 : 0);
+		return p->gfx_pfullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_pfullscreen == GFX_FULLWINDOW ? -1 : 0);
 	else
-		return p->gfx_afullscreen == 1 ? 1 : (p->gfx_afullscreen == 2 ? -1 : 0);
+		return p->gfx_afullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_afullscreen == GFX_FULLWINDOW ? -1 : 0);
 }
 
 static int reopen (int full)
@@ -1667,7 +1667,7 @@ static int reopen (int full)
 
 	/* fullscreen to fullscreen? */
 	if (isfullscreen () > 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen &&
-		currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen && currprefs.gfx_afullscreen == 1) {
+		currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen && currprefs.gfx_afullscreen == GFX_FULLSCREEN) {
 			quick = 1;
 	}
 	/* windowed to windowed */
@@ -1827,7 +1827,7 @@ void gfx_set_picasso_state (int on)
 	updatemodes ();
 	update_gfxparams ();
 	clearscreen ();
-	if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || (currprefs.gfx_afullscreen == 1 && currprefs.gfx_api)) {
+	if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || (currprefs.gfx_afullscreen == GFX_FULLSCREEN && currprefs.gfx_api)) {
 		mode = 1;
 	} else {
 		mode = modeswitchneeded (&wc);
@@ -2370,9 +2370,9 @@ static BOOL doInit (void)
 	int mult = 0;
 
 	if (wasfullwindow_a == 0)
-		wasfullwindow_a = currprefs.gfx_afullscreen == 2 ? 1 : -1;
+		wasfullwindow_a = currprefs.gfx_afullscreen == GFX_FULLWINDOW ? 1 : -1;
 	if (wasfullwindow_p == 0)
-		wasfullwindow_p = currprefs.gfx_pfullscreen == 2 ? 1 : -1;
+		wasfullwindow_p = currprefs.gfx_pfullscreen == GFX_FULLWINDOW ? 1 : -1;
 	colortype = DirectDraw_GetPixelFormat ();
 	gfxmode_reset ();
 
@@ -2417,9 +2417,9 @@ static BOOL doInit (void)
 			gui_message (tmpstr);
 			DirectDraw_Start (displayGUID);
 			if (screen_is_picasso)
-				changed_prefs.gfx_pfullscreen = currprefs.gfx_pfullscreen = 1;
+				changed_prefs.gfx_pfullscreen = currprefs.gfx_pfullscreen = GFX_FULLSCREEN;
 			else
-				changed_prefs.gfx_afullscreen = currprefs.gfx_afullscreen = 1;
+				changed_prefs.gfx_afullscreen = currprefs.gfx_afullscreen = GFX_FULLSCREEN;
 			updatewinfsmode (&currprefs);
 			updatewinfsmode (&changed_prefs);
 			currentmode->current_depth = tmp_depth;
@@ -2602,20 +2602,42 @@ void updatewinfsmode (struct uae_prefs *p)
 	config_changed = 1;
 }
 
-void toggle_fullscreen (void)
+void toggle_fullscreen (int mode)
 {
 	int *p = picasso_on ? &changed_prefs.gfx_pfullscreen : &changed_prefs.gfx_afullscreen;
 	int wfw = picasso_on ? wasfullwindow_p : wasfullwindow_a;
 	int v = *p;
-	if (v == 2)
-		v = 1;
-	else if (v == 0)
-		v = 1;
-	else if (v == 1)
-		if (wfw > 0)
-			v = 2;
+
+	if (mode < 0) {
+		// fullscreen <> window (if in fullwindow: fullwindow <> fullscreen)
+		if (v == GFX_FULLWINDOW)
+			v = GFX_FULLSCREEN;
+		else if (v == GFX_WINDOW)
+			v = GFX_FULLSCREEN;
+		else if (v == GFX_FULLSCREEN)
+			if (wfw > 0)
+				v = GFX_FULLWINDOW;
+			else
+				v = GFX_WINDOW;
+	} else if (mode == 0) {
+		// fullscreen <> window
+		if (v == GFX_FULLSCREEN)
+			v = GFX_WINDOW;
 		else
-			v = 0;
+			v = GFX_FULLSCREEN;
+	} else if (mode == 1) {
+		// fullscreen <> fullwindow
+		if (v == GFX_FULLSCREEN)
+			v = GFX_FULLWINDOW;
+		else
+			v = GFX_FULLSCREEN;
+	} else if (mode == 2) {
+		// window <> fullwindow
+		if (v == GFX_FULLWINDOW)
+			v = GFX_WINDOW;
+		else
+			v = GFX_FULLWINDOW;
+	}
 	*p = v;
 	updatewinfsmode (&changed_prefs);
 }

@@ -3380,8 +3380,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	}
 	p->gfx_resolution = 1;
 	p->gfx_linedbl = 1;
-	p->gfx_afullscreen = 0;
-	p->gfx_pfullscreen = 0;
+	p->gfx_afullscreen = GFX_WINDOW;
+	p->gfx_pfullscreen = GFX_WINDOW;
 	p->gfx_xcenter = 0; p->gfx_ycenter = 0;
 	p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
 	p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;

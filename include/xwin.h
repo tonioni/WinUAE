@@ -22,7 +22,7 @@ extern void handle_events (void);
 extern int handle_msgpump (void);
 extern void setup_brkhandler (void);
 extern int isfullscreen (void);
-extern void toggle_fullscreen (void);
+extern void toggle_fullscreen (int);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int, int);

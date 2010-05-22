@@ -107,8 +107,7 @@ static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmouse
 static int normalkb, superkb, rawkb;
 static bool rawinput_enabled;
 
-int rawkeyboard = -1;
-int no_rawinput;
+int no_rawinput = 0;
 int dinput_enum_all;
 
 int dinput_winmouse (void)
@@ -781,9 +780,6 @@ static int initialize_rawinput (void)
 		HANDLE h = ridl[i].hDevice;
 		int type = ridl[i].dwType;
 
-		if (type == RIM_TYPEKEYBOARD && !rawkeyboard)
-			continue;
-
 		if (type == RIM_TYPEKEYBOARD || type == RIM_TYPEMOUSE) {
 			struct didata *did = type == RIM_TYPEMOUSE ? di_mouse : di_keyboard;
 			PRID_DEVICE_INFO rdi;
@@ -1344,12 +1340,6 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 		} else if (did->type == DID_KEYBOARD) {
 			//did->buttonmappings[did->buttons] = pdidoi->dwOfs;
 			did->buttonmappings[did->buttons] = DIDFT_GETINSTANCE (pdidoi->dwType);
-			if (rawkeyboard && (!_tcsicmp (bname, L"kana") || 0)) { // buggy layout?
-				if (rawkeyboard != 2) {
-					write_log (L"Possible buggy directinput keyboard layout detected, switching to raw keyboard mode\n");
-					rawkeyboard = 2;
-				}
-			}
 		}
 		did->buttons++;
 	}

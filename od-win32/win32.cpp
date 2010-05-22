@@ -88,7 +88,7 @@
 #include "rp.h"
 #endif
 
-extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput, rawkeyboard;
+extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
 int log_scsi, log_net, uaelib_debug;
 int pissoff_value = 25000;
@@ -1451,7 +1451,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_NCLBUTTONDBLCLK:
 		if (wParam == HTCAPTION) {
-			toggle_fullscreen ();
+			toggle_fullscreen (-1);
 			return 0;
 		}
 		break;
@@ -4030,7 +4030,7 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-rawkeyboard")) {
-		rawkeyboard = 1;
+		// obsolete
 		return 1;
 	}
 	if (!_tcscmp (arg, L"-directsound")) {

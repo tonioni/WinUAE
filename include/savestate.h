@@ -41,6 +41,8 @@ extern TCHAR *restore_string_func (uae_u8 **);
 extern uae_u8 *restore_cpu (uae_u8 *);
 extern void restore_cpu_finish (void);
 extern uae_u8 *save_cpu (int *, uae_u8 *);
+extern uae_u8 *restore_cpu_extra (uae_u8 *);
+extern uae_u8 *save_cpu_extra (int *, uae_u8 *);
 
 extern uae_u8 *restore_mmu (uae_u8 *);
 extern uae_u8 *save_mmu (int *, uae_u8 *);
@@ -58,6 +60,8 @@ extern void restore_disk_finish (void);
 
 extern uae_u8 *restore_custom (uae_u8 *);
 extern uae_u8 *save_custom (int *, uae_u8 *, int);
+extern uae_u8 *restore_custom_extra (uae_u8 *);
+extern uae_u8 *save_custom_extra (int *, uae_u8 *);
 
 extern uae_u8 *restore_custom_sprite (int num, uae_u8 *src);
 extern uae_u8 *save_custom_sprite (int num, int *len, uae_u8 *);

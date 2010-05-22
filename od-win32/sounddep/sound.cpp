@@ -145,7 +145,7 @@ int setup_sound (void)
 
 static int isvsync (void)
 {
-	return currprefs.gfx_avsync && currprefs.gfx_afullscreen;
+	return currprefs.gfx_avsync && currprefs.gfx_afullscreen == GFX_FULLSCREEN;
 }
 
 float scaled_sample_evtime_orig;

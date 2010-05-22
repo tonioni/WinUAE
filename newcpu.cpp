@@ -3784,6 +3784,8 @@ void m68k_dumpstate (void *f, uaecptr *nextpc)
 #define CPUTYPE_EC 1
 #define CPUMODE_HALT 1
 
+
+
 uae_u8 *restore_cpu (uae_u8 *src)
 {
 	int i, flags, model;
@@ -3871,6 +3873,52 @@ void restore_cpu_finish (void)
 	if (regs.stopped)
 		set_special (SPCFLAG_STOP);
 
+}
+
+uae_u8 *restore_cpu_extra (uae_u8 *src)
+{
+	restore_u32 ();
+	uae_u32 flags = restore_u32 ();
+
+	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact = (flags & 1) ? true : false;
+	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact = currprefs.cpu_cycle_exact;
+	currprefs.cpu_compatible = changed_prefs.cpu_compatible = (flags & 2) ? true : false;
+	currprefs.cpu_frequency = changed_prefs.cpu_frequency = restore_u32 ();
+	currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier = restore_u32 ();
+	currprefs.cachesize = changed_prefs.cachesize = (flags & 8) ? 8192 : 0;
+
+	currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
+	if (flags & 4)
+		currprefs.m68k_speed = changed_prefs.m68k_speed = -1;
+
+	currprefs.cpu060_revision = changed_prefs.cpu060_revision = restore_u8 ();
+	currprefs.fpu_revision = changed_prefs.fpu_revision = restore_u8 ();
+
+	return src;
+}
+
+uae_u8 *save_cpu_extra (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+	uae_u32 flags;
+
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+	save_u32 (0); // version
+	flags = 0;
+	flags |= currprefs.cpu_cycle_exact ? 1 : 0;
+	flags |= currprefs.cpu_compatible ? 2 : 0;
+	flags |= currprefs.m68k_speed < 0 ? 4 : 0;
+	flags |= currprefs.cachesize > 0 ? 8 : 0;
+	save_u32 (flags);
+	save_u32 (currprefs.cpu_frequency);
+	save_u32 (currprefs.cpu_clock_multiplier);
+	save_u8 (currprefs.cpu060_revision);
+	save_u8 (currprefs.fpu_revision);
+	*len = dst - dstbak;
+	return dstbak;
 }
 
 uae_u8 *save_cpu (int *len, uae_u8 *dstptr)

@@ -2492,8 +2492,17 @@ void inputdevice_handle_inputcode (void)
 	case AKS_STATERESTOREQUICK9:
 		savestate_quick ((code - AKS_STATERESTOREQUICK) / 2, 0);
 		break;
-	case AKS_TOGGLEFULLSCREEN:
-		toggle_fullscreen ();
+	case AKS_TOGGLEDEFAULTSCREEN:
+		toggle_fullscreen (-1);
+		break;
+	case AKS_TOGGLEWINDOWEDFULLSCREEN:
+		toggle_fullscreen (0);
+		break;
+	case AKS_TOGGLEFULLWINDOWFULLSCREEN:
+		toggle_fullscreen (1);
+		break;
+	case AKS_TOGGLEWINDOWFULLWINDOW:
+		toggle_fullscreen (2);
 		break;
 	case AKS_TOGGLEMOUSEGRAB:
 		toggle_mousegrab ();
