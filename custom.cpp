@@ -2670,7 +2670,7 @@ static int islinetoggle (void)
 
 static int isvsync (void)
 {
-	if (!currprefs.gfx_afullscreen || picasso_on || !currprefs.gfx_avsync)
+	if (currprefs.gfx_afullscreen != GFX_FULLSCREEN || picasso_on || !currprefs.gfx_avsync)
 		return 0;
 	return currprefs.gfx_avsync;
 }
@@ -4744,23 +4744,21 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 				sprite_fetch2 (s, hpos, cycle, 0);
 				break;
 			}
-		} else {
-			data = cycle == 0 ? sprpos[num] : sprctl[num];
+			//write_log (L"%d:%d: %04X=%04X\n", vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
+			if (cycle == 0) {
+				SPRxPOS_1 (data, num, hpos);
+				s->dmacycle = 1;
+			} else {
+				SPRxCTL_1 (data, num, hpos);
+				s->dmastate = 0;
+				sprstartstop (s);
+			}
 		}
 #if SPRITE_DEBUG > 1
 		if (vpos >= SPRITE_DEBUG_MINY && vpos <= SPRITE_DEBUG_MAXY) {
 			write_log (L"%d:%d:dma:P=%06X ", vpos, hpos, s->pt);
 		}
 #endif
-		//write_log (L"%d:%d: %04X=%04X\n", vpos, hpos, 0x140 + cycle * 2 + num * 8, data);
-		if (cycle == 0) {
-			SPRxPOS_1 (data, num, hpos);
-			s->dmacycle = 1;
-		} else {
-			SPRxCTL_1 (data, num, hpos);
-			s->dmastate = 0;
-			sprstartstop (s);
-		}
 	}
 	if (s->dmastate && !posctl && dma) {
 		uae_u16 data;
@@ -6330,6 +6328,8 @@ void custom_prepare_savestate (void)
 }
 
 #define RB restore_u8 ()
+#define SRB (uae_s8)restore_u8 ()
+#define RBB restore_u8 () != 0
 #define RW restore_u16 ()
 #define RL restore_u32 ()
 
@@ -6727,6 +6727,105 @@ uae_u8 *save_custom_sprite(int num, int *len, uae_u8 *dstptr)
 	SW (sprdata[num][3]);
 	SW (sprdatb[num][3]);
 	SB (spr[num].armed ? 1 : 0);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_custom_extra (uae_u8 *src)
+{
+	restore_u32 ();
+
+	currprefs.cs_compatible = changed_prefs.cs_compatible = 0;
+
+	currprefs.genlock = changed_prefs.genlock = RBB;
+	currprefs.cs_rtc = changed_prefs.cs_rtc = RB;
+	currprefs.cs_rtc_adjust = changed_prefs.cs_rtc_adjust = RL;
+
+	currprefs.cs_a1000ram = changed_prefs.cs_a1000ram = RBB;
+	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast = RBB;
+
+	currprefs.cs_a2091 = changed_prefs.cs_a2091 = RBB;
+	currprefs.cs_a4091 = changed_prefs.cs_a4091 = RBB;
+	currprefs.cs_cdtvscsi = changed_prefs.cs_cdtvscsi = RBB;
+
+	currprefs.cs_pcmcia = changed_prefs.cs_pcmcia = RBB;
+	currprefs.cs_ciaatod = changed_prefs.cs_ciaatod = RB;
+	currprefs.cs_ciaoverlay = changed_prefs.cs_ciaoverlay = RBB;
+
+	currprefs.cs_agnusbltbusybug = changed_prefs.cs_agnusbltbusybug = RBB;
+	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb = RBB;
+
+	currprefs.cs_agnusrev = changed_prefs.cs_agnusrev = SRB;
+	currprefs.cs_deniserev = changed_prefs.cs_deniserev = SRB;
+	currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev = SRB;
+	currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev = SRB;
+
+	currprefs.cs_cd32c2p = changed_prefs.cs_cd32c2p = RBB;
+	currprefs.cs_cd32cd = changed_prefs.cs_cd32cd = RBB;
+	currprefs.cs_cd32nvram = changed_prefs.cs_cd32nvram = RBB;
+	currprefs.cs_cdtvcd = changed_prefs.cs_cdtvcd = RBB;
+	currprefs.cs_cdtvram = changed_prefs.cs_cdtvram = RBB;
+	currprefs.cs_cdtvcard = changed_prefs.cs_cdtvcard = RB;
+
+	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw = RBB;
+	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus = RBB;
+	currprefs.cs_ide = changed_prefs.cs_ide = RB;
+	currprefs.cs_mbdmac = changed_prefs.cs_mbdmac = RB;
+	currprefs.cs_ksmirror_a8 = changed_prefs.cs_ksmirror_a8 = RBB;
+	currprefs.cs_ksmirror_e0 = changed_prefs.cs_ksmirror_e0 = RBB;
+	currprefs.cs_resetwarning = changed_prefs.cs_resetwarning = RBB;
+
+	return src;
+}
+
+uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+
+	SL (0);
+	SB (currprefs.genlock ? 1 : 0);
+	SB (currprefs.cs_rtc);
+	SL (currprefs.cs_rtc_adjust);
+
+	SB (currprefs.cs_a1000ram ? 1 : 0);
+	SB (currprefs.cs_slowmemisfast ? 1 : 0);
+
+	SB (currprefs.cs_a2091 ? 1 : 0);
+	SB (currprefs.cs_a4091 ? 1 : 0);
+	SB (currprefs.cs_cdtvscsi ? 1 : 0);
+
+	SB (currprefs.cs_pcmcia ? 1 : 0);
+	SB (currprefs.cs_ciaatod);
+	SB (currprefs.cs_ciaoverlay ? 1 : 0);
+
+	SB (currprefs.cs_agnusbltbusybug ? 1 : 0);
+	SB (currprefs.cs_denisenoehb ? 1 : 0);
+
+	SB (currprefs.cs_agnusrev);
+	SB (currprefs.cs_deniserev);
+	SB (currprefs.cs_fatgaryrev);
+	SB (currprefs.cs_ramseyrev);
+
+	SB (currprefs.cs_cd32c2p);
+	SB (currprefs.cs_cd32cd);
+	SB (currprefs.cs_cd32nvram);
+	SB (currprefs.cs_cdtvcd ? 1 : 0);
+	SB (currprefs.cs_cdtvram ? 1 : 0);
+	SB (currprefs.cs_cdtvcard);
+
+	SB (currprefs.cs_df0idhw ? 1 : 0);
+	SB (currprefs.cs_dipagnus ? 1 : 0);
+	SB (currprefs.cs_ide);
+	SB (currprefs.cs_mbdmac);
+	SB (currprefs.cs_ksmirror_a8 ? 1 : 0);
+	SB (currprefs.cs_ksmirror_e0 ? 1 : 0);
+	SB (currprefs.cs_resetwarning ? 1 : 0);
+
 	*len = dst - dstbak;
 	return dstbak;
 }
