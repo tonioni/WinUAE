@@ -787,8 +787,8 @@ static int cdrom_command_led (void)
 
 static int cdrom_command_media_status (void)
 {
-	cdrom_result_buffer[0] = 10;
-	cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0);
+	cdrom_result_buffer[0] = 0x0a;
+	cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0) ? 0x83: 0x80;
 	return 2;
 }
 
@@ -947,18 +947,24 @@ static void cdrom_run_command (void)
 		if (cdcomtxinx == cdcomtxcmp)
 			return;
 		cdrom_command = get_byte (cdtx_address + cdcomtxinx);
+		if (command_lengths[cdrom_command & 0x0f] < 0) {
+			cdcomtxinx = (cdcomtxinx + 1) & 0xff;
+			return;
+		}
 		if ((cdrom_command & 0xf0) == 0) {
 			cdcomtxinx = (cdcomtxinx + 1) & 0xff;
 			return;
 		}
 		cdrom_checksum_error = 0;
 		cmd_len = command_lengths[cdrom_command & 0x0f];
+#if 0
 		if (cmd_len < 0) {
 #if AKIKO_DEBUG_IO_CMD
-			write_log (L"unknown command\n");
+			write_log (L"unknown command %x\n", cdrom_command & 0x0f);
 #endif
 			cmd_len = 1;
 		}
+#endif
 #if AKIKO_DEBUG_IO_CMD
 		write_log (L"IN:");
 #endif
