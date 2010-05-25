@@ -45,6 +45,7 @@ struct cdtoc
 	int mp3;
 };
 
+static bool we_are_active;
 static uae_u8 buffer[2352];
 static struct cdtoc toc[102];
 static int tracks;
@@ -1024,8 +1025,13 @@ static void close_device (int unitnum)
 void cdimage_vsync (void)
 {
 	int media = 0;
+
 	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
 		_tcscpy (newfile, changed_prefs.cdimagefile);
+		if (!we_are_active) {
+			_tcscpy (currprefs.cdimagefile, newfile);
+			device_func_init (0);
+		}
 		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
 		imagechange = 3 * 50;
 		write_log (L"CD: eject\n");
@@ -1074,11 +1080,13 @@ static int open_bus (int flags)
 	rp_cd_change (0, 0);
 	rp_cd_image_change (0, currprefs.cdimagefile[0] ? currprefs.cdimagefile : NULL);
 #endif
+	we_are_active = v ? true : false;
 	return v;
 }
 
 static void close_bus (void)
 {
+	we_are_active = false;
 	mp3decoder_close ();
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 1);
