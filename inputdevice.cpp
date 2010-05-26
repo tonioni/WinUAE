@@ -886,14 +886,14 @@ void read_inputdevice_config (struct uae_prefs *pr, TCHAR *option, TCHAR *value)
 	}
 
 	if (!_tcscmp (p2, L"custom")) {
-		int disabled;
+		int iscustom;
 		p = value;
-		disabled = getnum (&p);
+		iscustom = getnum (&p);
 		if (idnum == GAMEPORT_INPUT_SETTINGS) {
 			clear_id (id);
 			if (joystick < 0)
 				set_kbr_default (pr, idnum, devnum);
-			id->enabled = disabled == 0 ? 1 : 0;
+			id->enabled = iscustom;
 		}
 		return;
 	}
