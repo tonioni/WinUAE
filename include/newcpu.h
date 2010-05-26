@@ -106,17 +106,12 @@ struct cache030
 };
 
 #define CACHESETS040 64
-struct cache040set
-{
-	uae_u32 data[4];
-	bool valid[4];
-	uae_u32 tag;
-};
 #define CACHELINES040 4
 struct cache040
 {
-	struct cache040set cs[4];
-	int count;
+	uae_u32 data[CACHELINES040][4];
+	bool valid[CACHELINES040];
+	uae_u32 tag[CACHELINES040];
 };
 
 struct regstruct

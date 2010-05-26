@@ -105,7 +105,7 @@ static HANDLE kbhandle = INVALID_HANDLE_VALUE;
 static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
-static bool rawinput_enabled;
+static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
 
 int no_rawinput = 0;
 int dinput_enum_all;
@@ -737,9 +737,6 @@ static int initialize_rawinput (void)
 	int rmouse = 0, rkb = 0;
 	TCHAR tmp[100];
 
-	if (no_rawinput)
-		goto error;
-
 	bufsize = 10000 * sizeof (TCHAR);
 	buf = xmalloc (TCHAR, bufsize / sizeof (TCHAR));
 
@@ -901,7 +898,6 @@ static int initialize_rawinput (void)
 		rawinput_available = 1;
 	return 1;
 
-error:
 	write_log (L"RAWINPUT not available or failed to initialize\n");
 error2:
 	xfree (ridl);
@@ -1465,20 +1461,12 @@ static int di_do_init (void)
 		di_dev_free (&di_mouse[i]);
 		di_dev_free (&di_keyboard[i]);
 	}
-	write_log (L"RawInput enumeration..\n");
-	initialize_rawinput ();
-	if (num_keyboard == 0 || num_mouse == 0) {
-		write_log (L"Disabling RAWINPUT, keyboard or mouse missing\n");
-		num_keyboard = num_mouse = 0;
-		for (i = 0; i < MAX_INPUT_DEVICES; i++) {
-			di_dev_free (&di_joystick[i]);
-			di_dev_free (&di_mouse[i]);
-			di_dev_free (&di_keyboard[i]);
-		}
-		rawinput_enabled = false;
-	} else {
-		rawinput_enabled = true;
+	if (!no_rawinput) {
+		write_log (L"RawInput enumeration..\n");
+		initialize_rawinput ();
 	}
+	rawinput_enabled_keyboard = num_keyboard > 0;
+	rawinput_enabled_mouse = num_mouse > 0;
 
 	hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
 	if (FAILED(hr)) {
@@ -1488,11 +1476,11 @@ static int di_do_init (void)
 			write_log (L"DirectInput enumeration..\n");
 			g_lpdi->EnumDevices (DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 		} else {
-			if (!rawinput_enabled) {
+			if (!rawinput_enabled_keyboard) {
 				write_log (L"DirectInput enumeration.. Keyboards..\n");
 				g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 			}
-			if (!rawinput_enabled) {
+			if (!rawinput_enabled_mouse) {
 				write_log (L"DirectInput enumeration.. Pointing devices..\n");
 				g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
 			}
@@ -1789,11 +1777,9 @@ static void read_mouse (void)
 
 static int get_mouse_flags (int num)
 {
-	if (di_mouse[num].rawinput)
+	if (di_mouse[num].rawinput || !rawinput_enabled_mouse)
 		return 0;
 	if (di_mouse[num].catweasel)
-		return 0;
-	if (di_mouse[num].wininput == 1 && !rawinput_available)
 		return 0;
 	return 1;
 }
@@ -2177,11 +2163,10 @@ static void read_kb (void)
 		elements = DI_KBBUFFER;
 		hr = IDirectInputDevice8_GetDeviceData (lpdi, sizeof (DIDEVICEOBJECTDATA), didod, &elements, 0);
 		if ((SUCCEEDED (hr) || hr == DI_BUFFEROVERFLOW) && (isfocus () || istest)) {
-//			if (did->superdevice && (normalkb || rawkb))
-//				continue;
 			for (j = 0; j < elements; j++) {
 				int scancode = didod[j].dwOfs;
 				int pressed = (didod[j].dwData & 0x80) ? 1 : 0;
+
 				//write_log (L"%d: %02X %d\n", j, scancode, pressed);
 				if (!istest)
 					scancode = keyhack (scancode, pressed, i);
@@ -2189,7 +2174,16 @@ static void read_kb (void)
 					continue;
 				di_keycodes[i][scancode] = pressed;
 				if (istest) {
-					inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, scancode, pressed);
+					if (pressed && (scancode == DIK_F12 || scancode == DIK_F11))
+						return;
+					if (scancode == DIK_F12)
+						scancode = -1;
+					if (scancode == DIK_F11) {
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 1);
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 0);
+					} else {
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, scancode, pressed);
+					}
 				} else {
 					if (stopoutput == 0)
 						my_kbd_handler (i, scancode, pressed);
@@ -2265,13 +2259,7 @@ void wait_keyrelease (void)
 
 static int get_kb_flags (int num)
 {
-	if (di_keyboard[num].rawinput)
-		return 0;
-	if (di_keyboard[num].catweasel)
-		return 0;
-	if (di_keyboard[num].wininput == 1 && !rawinput_available)
-		return 0;
-	return 1;
+	return 0;
 }
 
 struct inputdevice_functions inputdevicefunc_keyboard = {
@@ -2578,7 +2566,7 @@ int dinput_wmkey (uae_u32 key)
 
 int input_get_default_keyboard (int i)
 {
-	if (rawinput_enabled) {
+	if (rawinput_enabled_keyboard) {
 		return 1;
 	} else {
 		if (i == 0)

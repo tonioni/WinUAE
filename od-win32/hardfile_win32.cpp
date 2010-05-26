@@ -17,6 +17,8 @@
 #include "zfile.h"
 
 #define hfd_log write_log
+#define hdf_log2
+//#define hdf_log2 write_log
 
 #ifdef WINDDK
 #include <devioctl.h>
@@ -121,23 +123,33 @@ static int getsignfromhandle (HANDLE h, DWORD *sign, DWORD *pstyle)
 		*sign = dli->Mbr.Signature;
 		*pstyle = dli->PartitionStyle;
 		ok = 1;
-	} else if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0, dli, outsize, &written, NULL)) {
-		DRIVE_LAYOUT_INFORMATION *dli2 = (DRIVE_LAYOUT_INFORMATION*)dli;
-		*sign = dli2->Signature;
-		*pstyle = PARTITION_STYLE_MBR;
-		ok = 1;
+	} else {
+		hdf_log2 (L"IOCTL_DISK_GET_DRIVE_LAYOUT_EX() returned %08x\n", GetLastError ());
 	}
+	if (!ok) {
+		if (DeviceIoControl (h, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0, dli, outsize, &written, NULL)) {
+			DRIVE_LAYOUT_INFORMATION *dli2 = (DRIVE_LAYOUT_INFORMATION*)dli;
+			*sign = dli2->Signature;
+			*pstyle = PARTITION_STYLE_MBR;
+			ok = 1;
+		} else {
+			hdf_log2 (L"IOCTL_DISK_GET_DRIVE_LAYOUT() returned %08x\n", GetLastError ());
+		}
+	}
+	hdf_log2 (L"getsignfromhandle(signature=%08X,pstyle=%d)\n", *sign, *pstyle);
 	xfree (dli);
 	return ok;
 }
 
-static int ismounted (HANDLE hd)
+static int ismounted (const TCHAR *name, HANDLE hd)
 {
 	HANDLE h;
 	TCHAR volname[MAX_DPATH];
 	int mounted;
 	DWORD sign, pstyle;
 
+	hdf_log2 (L"\n");
+	hdf_log2 (L"Name='%s'\n", name);
 	if (!getsignfromhandle (hd, &sign, &pstyle))
 		return 0;
 	if (pstyle == PARTITION_STYLE_GPT)
@@ -152,25 +164,31 @@ static int ismounted (HANDLE hd)
 			volname[_tcslen (volname) - 1] = 0;
 		d = CreateFile (volname, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
 			NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		hdf_log2 (L"volname='%s' %08x\n", volname, d);
 		if (d != INVALID_HANDLE_VALUE) {
 			DWORD isntfs, outsize, written;
 			isntfs = 0;
 			if (DeviceIoControl (d, FSCTL_IS_VOLUME_MOUNTED, NULL, 0, NULL, 0, &written, NULL)) {
 				VOLUME_DISK_EXTENTS *vde;
 				NTFS_VOLUME_DATA_BUFFER ntfs;
+				hdf_log2 (L"FSCTL_IS_VOLUME_MOUNTED returned is mounted\n");
 				if (DeviceIoControl (d, FSCTL_GET_NTFS_VOLUME_DATA, NULL, 0, &ntfs, sizeof ntfs, &written, NULL)) {
 					isntfs = 1;
 				}
+				hdf_log2 (L"FSCTL_GET_NTFS_VOLUME_DATA returned %d\n", isntfs);
 				outsize = sizeof (VOLUME_DISK_EXTENTS) + sizeof (DISK_EXTENT) * 32;
 				vde = (VOLUME_DISK_EXTENTS*)xmalloc (uae_u8, outsize);
 				if (DeviceIoControl (d, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, NULL, 0, vde, outsize, &written, NULL)) {
 					int i;
+					hdf_log2 (L"IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %d extents\n", vde->NumberOfDiskExtents);
 					for (i = 0; i < vde->NumberOfDiskExtents; i++) {
 						TCHAR pdrv[MAX_DPATH];
 						HANDLE ph;
 						_stprintf (pdrv, L"\\\\.\\PhysicalDrive%d", vde->Extents[i].DiskNumber);
 						ph = CreateFile (pdrv, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
 							NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+						hdf_log2 (L"PhysicalDrive%d: Extent %d Start=%I64X Len=%I64X\n", i,
+							vde->Extents[i].DiskNumber, vde->Extents[i].StartingOffset.QuadPart, vde->Extents[i].ExtentLength.QuadPart);
 						if (ph != INVALID_HANDLE_VALUE) {
 							DWORD sign2;
 							if (getsignfromhandle (ph, &sign2, &pstyle)) {
@@ -180,7 +198,11 @@ static int ismounted (HANDLE hd)
 							CloseHandle (ph);
 						}
 					}
+				} else {
+					hdf_log2 (L"IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS returned %08x\n", GetLastError ());
 				}
+			} else {
+				hdf_log2 (L"FSCTL_IS_VOLUME_MOUNTED returned not mounted\n");
 			}
 			CloseHandle (d);
 		} else {
@@ -190,6 +212,7 @@ static int ismounted (HANDLE hd)
 			break;
 	}
 	FindVolumeClose (h);
+	hdf_log2 (L"\n");
 	return mounted;
 }
 
@@ -265,7 +288,7 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 				return -7;
 			}
 		}
-		mounted = ismounted (h);
+		mounted = ismounted (name, h);
 		if (!mounted) {
 			write_log (L"hd accepted, not empty and not mounted in Windows\n");
 			return -8;
@@ -274,10 +297,11 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 			write_log (L"hd ignored, NTFS partitions\n");
 			return 0;
 		}
-		if (harddrive_dangerous == 0x1234dead)
-			return -6;
-		write_log (L"hd ignored, not empty and no RDB detected or Windows mounted\n");
-		return 0;
+		return -6;
+		//if (harddrive_dangerous == 0x1234dead)
+		//	return -6;
+		//write_log (L"hd ignored, not empty and no RDB detected or Windows mounted\n");
+		//return 0;
 	}
 	write_log (L"hd accepted (empty)\n");
 	return -9;

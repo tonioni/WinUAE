@@ -136,7 +136,7 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 }
 
 static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
-static int quickstart_floppy = 1, quickstart_cd = 0;
+static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
 static int quickstart_cdtype = 0;
 static int quickstart_ok, quickstart_ok_floppy;
 static void addfloppytype (HWND hDlg, int n);
@@ -4578,6 +4578,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	ew (guiDlg, IDC_RESETAMIGA, FALSE);
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
+	workprefs.ntscmode = quickstart_ntsc != 0;
 	quickstart_cd = workprefs.dfxtype[1] == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
@@ -4629,6 +4630,7 @@ static void init_quickstartdlg (HWND hDlg)
 		regqueryint (NULL, L"QuickStartCompatibility", &quickstart_compa);
 		regqueryint (NULL, L"QuickStartFloppies", &quickstart_floppy);
 		regqueryint (NULL, L"QuickStartCDType", &quickstart_cdtype);
+		regqueryint (NULL, L"QuickStartNTSC", &quickstart_ntsc);
 		if (quickstart) {
 			workprefs.df[0][0] = 0;
 			workprefs.df[1][0] = 0;
@@ -4642,6 +4644,7 @@ static void init_quickstartdlg (HWND hDlg)
 	firsttime = 1;
 
 	CheckDlgButton (hDlg, IDC_QUICKSTARTMODE, quickstart);
+	CheckDlgButton (hDlg, IDC_NTSC, quickstart_ntsc != 0);
 
 	WIN32GUI_LoadUIString (IDS_QS_MODELS, tmp1, sizeof (tmp1) / sizeof (TCHAR));
 	_tcscat (tmp1, L"\n");
@@ -4914,6 +4917,14 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		} else {
 			switch (LOWORD (wParam))
 			{
+			case IDC_NTSC:
+				quickstart_ntsc = ischecked (hDlg, IDC_NTSC);
+				regsetint (NULL, L"QuickStartNTSC", quickstart_ntsc);
+				if (quickstart) {
+					init_quickstartdlg (hDlg);
+					load_quickstart (hDlg, 0);
+				}
+				break;
 			case IDC_QUICKSTARTMODE:
 				quickstart = ischecked (hDlg, IDC_QUICKSTARTMODE);
 				regsetint (NULL, L"QuickStartMode", quickstart);
@@ -5317,7 +5328,7 @@ static int display_toselect (int fs, int vsync, int p96)
 		return 3;
 	return fs;
 }
-static void display_fromselect (int val, int *fs, bool *vsync, int p96)
+static void display_fromselect (int val, int *fs, int *vsync, int p96)
 {
 	int ofs = *fs;
 	if (val == CB_ERR)

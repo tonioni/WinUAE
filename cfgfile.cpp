@@ -674,7 +674,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_refreshrate);
 	cfgfile_write_bool (f, L"gfx_autoresolution", p->gfx_autoresolution);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
-	cfgfile_write_bool (f, L"gfx_vsync_picasso", p->gfx_pvsync);
+	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_pvsync]);
 	cfgfile_write_bool (f, L"gfx_lores", p->gfx_resolution == 0);
 	cfgfile_write_str (f, L"gfx_resolution", lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, L"gfx_lores_mode", loresmode[p->gfx_lores_mode]);
@@ -1190,7 +1190,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"avoid_cmov", &p->avoid_cmov)
 		|| cfgfile_yesno (option, value, L"log_illegal_mem", &p->illegal_mem)
 		|| cfgfile_yesno (option, value, L"filesys_no_fsdb", &p->filesys_no_uaefsdb)
-		|| cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync)
 		|| cfgfile_yesno (option, value, L"gfx_blacker_than_black", &p->gfx_blackerthanblack)
 		|| cfgfile_yesno (option, value, L"gfx_flickerfixer", &p->gfx_scandoubler)
 		|| cfgfile_yesno (option, value, L"synchronize_clock", &p->tod_hack)
@@ -1234,9 +1233,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 
 	if (_tcscmp (option, L"gfx_vsync") == 0) {
-		if (cfgfile_strboolval (option, value, L"gfx_vsync", &p->gfx_avsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, L"gfx_vsync", &p->gfx_avsync, vsyncmodes, 0) >= 0)
 			return 1;
 		return cfgfile_yesno (option, value, L"gfx_vsync", &p->gfx_avsync);
+	}
+	if (_tcscmp (option, L"gfx_vsync_picasso") == 0) {
+		if (cfgfile_strval (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync, vsyncmodes, 0) >= 0)
+			return 1;
+		return cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync);
 	}
 
 	if (cfgfile_yesno (option, value, L"show_leds", &vb)) {

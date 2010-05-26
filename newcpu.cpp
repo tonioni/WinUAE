@@ -206,7 +206,7 @@ static void set_x_funcs (void)
 
 static void set_cpu_caches (void)
 {
-	int i, j;
+	int i;
 
 #ifdef JIT
 	if (currprefs.cachesize) {
@@ -261,12 +261,10 @@ static void set_cpu_caches (void)
 	} else if (currprefs.cpu_model == 68040) {
 		if (!(regs.cacr & 0x8000)) {
 			for (i = 0; i < CACHESETS040; i++) {
-				for (j = 0; j < CACHELINES040; j++) {
-					caches040[i].cs[j].valid[0] = 0;
-					caches040[i].cs[j].valid[1] = 0;
-					caches040[i].cs[j].valid[2] = 0;
-					caches040[i].cs[j].valid[3] = 0;
-				}
+				caches040[i].valid[0] = 0;
+				caches040[i].valid[1] = 0;
+				caches040[i].valid[2] = 0;
+				caches040[i].valid[3] = 0;
 			}
 			regs.prefetch020addr = 0xff000000;
 		}
@@ -1192,6 +1190,11 @@ void REGPARAM2 MakeFromSR (void)
 {
 	int oldm = regs.m;
 	int olds = regs.s;
+
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model >= 68020) {
+		do_cycles_ce (6 * CYCLE_UNIT);
+		regs.ce020memcycles = 0;
+	}
 
 	SET_XFLG ((regs.sr >> 4) & 1);
 	SET_NFLG ((regs.sr >> 3) & 1);
@@ -2357,11 +2360,13 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 			warned++;
 		}
 		Exception (0xA, 0);
+		//activate_debugger();
 		return 4;
 	}
 	if (warned < 20) {
 		write_log (L"Illegal instruction: %04x at %08X -> %08X\n", opcode, pc, get_long (regs.vbr + 0x10));
 		warned++;
+		//activate_debugger();
 	}
 
 	Exception (4, 0);
@@ -3796,7 +3801,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	changed_prefs.address_space_24 = 0;
 	if (flags & CPUTYPE_EC)
 		changed_prefs.address_space_24 = 1;
-	if (model > 68000)
+	if (model > 68020)
 		changed_prefs.cpu_compatible = 0;
 	currprefs.address_space_24 = changed_prefs.address_space_24;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
@@ -4251,42 +4256,42 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 
 	return mcycles * 2;
 }
-#if 0
+
 STATIC_INLINE void fill_cache040 (uae_u32 addr)
 {
-	int index, i, j;
+	int index, i, lws;
 	uae_u32 tag;
 	uae_u32 data;
 	struct cache040 *c;
+	static int linecnt;
 
 	addr &= ~15;
 	index = (addr >> 4) & (CACHESETS040 - 1);
 	tag = regs.s | (addr & ~((CACHESETS040 << 4) - 1));
+	lws = (addr >> 2) & 3;
 	c = &caches040[index];
 	for (i = 0; i < CACHELINES040; i++) {
-		struct cache040set *cs = &c->cs;
-		for (j = 0; j < 4; j++) {
-			if (cs->valid[j] && c->tag == tag[j]) {
-				// cache hit
-				regs.prefetch020addr = addr;
-				regs.prefetch020data = c->data[j];
-				return;
-			} if (cs->valid[j] == 0) {
-				inv = &cs->valid[j];
-			}
+		if (c->valid[i] && c->tag[i] == tag) {
+			// cache hit
+			regs.prefetch020addr = addr;
+			regs.prefetch020data = c->data[i][lws];
+			return;
 		}
 	}
 	// cache miss
-	data = mem_access_delay_longi_read_020 (addr);
-	if (1) {
-		c->tag = tag;
-		c->valid = !!(regs.cacr & 0x8000);
-		c->data = data;
+	data = mem_access_delay_longi_read_ce020 (addr);
+	int line = linecnt;
+	for (i = 0; i < CACHELINES040; i++) {
+		int line = (linecnt + i) & (CACHELINES040 - 1);
+		if (c->tag[i] != tag || c->valid[i] == false) {
+			c->tag[i] = tag;
+			c->valid[i] = true;
+			c->data[i][0] = data;
+		}
 	}
 	regs.prefetch020addr = addr;
 	regs.prefetch020data = data;
 }
-#endif
 
 // this one is really simple and easy
 void fill_icache020 (uae_u32 addr)
@@ -4395,6 +4400,10 @@ void write_dcache030 (uaecptr addr, uae_u32 val, int size)
 		return;
 
 	c1 = getcache030 (dcaches030, addr, &tag1, &lws1);
+	if (!(regs.cacr & 0x2000)) { // write allocate
+		if (c1->tag != tag1 || c1->valid[lws1] == false)
+			return;
+	}
 
 #if 0
 	uaecptr a = 0x1db0c;

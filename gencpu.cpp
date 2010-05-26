@@ -2112,8 +2112,6 @@ static void gen_opcode (unsigned long int opcode)
 		    if (next_cpu_level < 0)
 				next_cpu_level = 0;
 		    printf ("\tuae_u16 newsr; uae_u32 newpc;\n");
-			if (using_ce020) // need some delay so that interrupts have time to clear if previous ins was move to INTREQ
-				printf ("\tdo_cycles_ce (6 * CYCLE_UNIT);\n");
 			printf ("\tfor (;;) {\n");
 			printf ("\t\tuaecptr a = m68k_areg (regs, 7);\n");
 			printf ("\t\tuae_s16 sr = %s (a);\n", srcw);

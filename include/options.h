@@ -174,7 +174,7 @@ struct uae_prefs {
 	bool gfx_autoresolution;
 	bool gfx_scandoubler;
 	int gfx_refreshrate;
-	bool gfx_avsync, gfx_pvsync;
+	int gfx_avsync, gfx_pvsync;
 	int gfx_resolution;
 	int gfx_lores_mode;
 	int gfx_linedbl;

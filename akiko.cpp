@@ -29,8 +29,8 @@
 #include "newcpu.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 0
-#define AKIKO_DEBUG_IO_CMD 0
+#define AKIKO_DEBUG_IO 1
+#define AKIKO_DEBUG_IO_CMD 1
 
 // 43 48 49 4E 4F 4E 20 20 4F 2D 36 35 38 2D 32 20 32 34
 #define FIRMWAREVERSION "CHINON  O-658-2 24"
@@ -403,7 +403,7 @@ static int qcode_valid;
 static int cdrom_disk, cdrom_paused, cdrom_playing;
 static int cdrom_command_active;
 static int cdrom_command_length;
-static int cdrom_checksum_error;
+static int cdrom_checksum_error, cdrom_unknown_command;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
 static int cdrom_current_sector, cdrom_seek_delay;
 static int cdrom_data_end, cdrom_leadout;
@@ -941,30 +941,33 @@ static void cdrom_run_command (void)
 	uae_u8 checksum;
 	uae_u8 *pp = get_real_address (cdtx_address);
 
+	if (!(cdrom_flags & CDFLAG_TXD))
+		return;
 	for (;;) {
 		if (cdrom_command_active)
 			return;
 		if (cdcomtxinx == cdcomtxcmp)
 			return;
 		cdrom_command = get_byte (cdtx_address + cdcomtxinx);
-		if (command_lengths[cdrom_command & 0x0f] < 0) {
-			cdcomtxinx = (cdcomtxinx + 1) & 0xff;
-			return;
-		}
 		if ((cdrom_command & 0xf0) == 0) {
 			cdcomtxinx = (cdcomtxinx + 1) & 0xff;
 			return;
 		}
 		cdrom_checksum_error = 0;
+		cdrom_unknown_command = 0;
+
 		cmd_len = command_lengths[cdrom_command & 0x0f];
-#if 0
 		if (cmd_len < 0) {
 #if AKIKO_DEBUG_IO_CMD
 			write_log (L"unknown command %x\n", cdrom_command & 0x0f);
 #endif
-			cmd_len = 1;
+			cdrom_unknown_command = 1;
+			cdrom_command_active = 1;
+			cdrom_command_length = 1;
+			set_status (CDINTERRUPT_TXDMADONE);
+			return;
 		}
-#endif
+
 #if AKIKO_DEBUG_IO_CMD
 		write_log (L"IN:");
 #endif
@@ -1025,7 +1028,7 @@ static void cdrom_run_command_run (void)
 	}
 	if (len == 0)
 		return;
-	if (cdrom_checksum_error)
+	if (cdrom_checksum_error || cdrom_unknown_command)
 		cdrom_result_buffer[1] |= 0x80;
 	cdrom_start_return_data (len);
 }

@@ -1773,7 +1773,7 @@ STATIC_INLINE void do_flush_screen (int start, int stop)
 	unlockscr ();
 	if (start <= stop)
 		flush_screen (start, stop);
-	else if (currprefs.gfx_afullscreen == 1 && currprefs.gfx_avsync)
+	else if (currprefs.gfx_afullscreen == GFX_FULLSCREEN && currprefs.gfx_avsync)
 		flush_screen (0, 0); /* vsync mode */
 }
 
