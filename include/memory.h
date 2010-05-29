@@ -43,7 +43,8 @@ extern uae_u32 allocated_chipmem;
 extern uae_u32 allocated_fastmem;
 extern uae_u32 allocated_bogomem;
 extern uae_u32 allocated_gfxmem;
-extern uae_u32 allocated_z3fastmem, allocated_z3fastmem2, max_z3fastmem;
+extern uae_u32 allocated_z3fastmem, allocated_z3fastmem2, allocated_z3chipmem;
+extern uae_u32 max_z3fastmem;
 extern uae_u32 allocated_a3000mem;
 extern uae_u32 allocated_cardmem;
 
@@ -59,7 +60,7 @@ extern void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v);
 #define bogomem_start 0x00C00000
 #define cardmem_start 0x00E00000
 #define kickmem_start 0x00F80000
-extern uaecptr z3fastmem_start, z3fastmem2_start;
+extern uaecptr z3fastmem_start, z3fastmem2_start, z3chipmem_start;
 extern uaecptr p96ram_start;
 extern uaecptr fastmem_start;
 extern uaecptr a3000lmem_start, a3000hmem_start;
@@ -324,6 +325,15 @@ extern uae_u32 REGPARAM3 chipmem_bget_ce2 (uaecptr) REGPARAM;
 extern void REGPARAM3 chipmem_lput_ce2 (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_wput_ce2 (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_bput_c2 (uaecptr, uae_u32) REGPARAM;
+
+extern uae_u32 (REGPARAM3 *chipmem_lget_indirect)(uaecptr) REGPARAM;
+extern uae_u32 (REGPARAM3 *chipmem_wget_indirect)(uaecptr) REGPARAM;
+extern uae_u32 (REGPARAM3 *chipmem_bget_indirect)(uaecptr) REGPARAM;
+extern void (REGPARAM3 *chipmem_lput_indirect)(uaecptr, uae_u32) REGPARAM;
+extern void (REGPARAM3 *chipmem_wput_indirect)(uaecptr, uae_u32) REGPARAM;
+extern void (REGPARAM3 *chipmem_bput_indirect)(uaecptr, uae_u32) REGPARAM;
+extern int (REGPARAM2 *chipmem_check_indirect)(uaecptr, uae_u32);
+extern uae_u8 *(REGPARAM2 *chipmem_xlate_indirect)(uaecptr);
 
 #ifdef NATMEM_OFFSET
 

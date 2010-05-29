@@ -115,6 +115,9 @@ static struct uae_input_device2 joysticks2[MAX_INPUT_DEVICES];
 static struct uae_input_device2 mice2[MAX_INPUT_DEVICES];
 static uae_u8 scancodeused[MAX_INPUT_DEVICES][256];
 
+static int mouse_pullup = 1;
+static int joystick_pullup = 1;
+
 static int input_acquired;
 static int testmode, testmode_read, testmode_toggle;
 struct teststore
@@ -443,6 +446,33 @@ struct input_queue_struct {
 };
 static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 
+uae_u8 *restore_input (uae_u8 *src)
+{
+	restore_u32 ();
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			pot_cap[i][j] = restore_u16 ();
+		}
+	}
+	return src;
+}
+uae_u8 *save_input (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+	save_u32 (0);
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			save_u16 (pot_cap[i][j]);
+		}
+	}
+	*len = dst - dstbak;
+	return dstbak;
+}
 
 static void freejport (struct uae_prefs *dst, int num)
 {
@@ -894,6 +924,8 @@ void read_inputdevice_config (struct uae_prefs *pr, TCHAR *option, TCHAR *value)
 			if (joystick < 0)
 				set_kbr_default (pr, idnum, devnum);
 			id->enabled = iscustom;
+		} else {
+			id->enabled = false;
 		}
 		return;
 	}
@@ -1980,7 +2012,7 @@ static void cap_check (void)
 				joypot = joydirpot[joy][i];
 				if (analog_port[joy][i] && pot_cap[joy][i] < joypot)
 					charge = 1; // slow charge via pot variable resistor
-				if ((digital_port[joy][i] || mouse_port[joy]))
+				if (((joystick_pullup && digital_port[joy][i]) || (mouse_pullup && mouse_port[joy])))
 					charge = 1; // slow charge via pull-up resistor
 			}
 			if (!(potgo_value & pdir)) { // input?
@@ -2024,13 +2056,13 @@ static void cap_check (void)
 			}
 			/* official Commodore mouse has pull-up resistors in button lines
 			* NOTE: 3rd party mice may not have pullups! */
-			if (dong < 0 && mouse_port[joy] && charge == 0)
+			if (dong < 0 && (mouse_pullup && mouse_port[joy]) && charge == 0)
 				charge = 2;
 			/* emulate pullup resistor if button mapped because there too many broken
 			* programs that read second button in input-mode (and most 2+ button pads have
 			* pullups)
 			*/
-			if (dong < 0 && digital_port[joy][i] && charge == 0)
+			if (dong < 0 && (joystick_pullup && digital_port[joy][i]) && charge == 0)
 				charge = 2;
 
 			charge_cap (joy, i, charge);

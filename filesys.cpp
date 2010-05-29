@@ -972,11 +972,19 @@ static struct fs_dirhandle *fs_opendir (Unit *u, const TCHAR *nname)
 {
 	struct fs_dirhandle *fsd = xmalloc (struct fs_dirhandle, 1);
 	fsd->isarch = !!(u->volflags & MYVOLUMEINFO_ARCHIVE);
-	if (fsd->isarch)
+	if (fsd->isarch) {
 		fsd->zd = zfile_opendir_archive (nname);
-	else
+		if (!fsd->zd)
+			goto end;
+	} else {
 		fsd->od = my_opendir (nname);
+		if (!fsd->od)
+			goto end;
+	}
 	return fsd;
+end:
+	xfree (fsd);
+	return NULL;
 }
 static void fs_closedir (struct fs_dirhandle *fsd)
 {
@@ -992,11 +1000,19 @@ static struct fs_filehandle *fs_open (Unit *unit, const TCHAR *name, int flags)
 {
 	struct fs_filehandle *fsf = xmalloc (struct fs_filehandle, 1);
 	fsf->isarch = !!(unit->volflags & MYVOLUMEINFO_ARCHIVE);
-	if (fsf->isarch)
+	if (fsf->isarch) {
 		fsf->zf = zfile_open_archive (name, flags);
-	else
+		if (!fsf->zf)
+			goto end;
+	} else {
 		fsf->of = my_open (name, flags);
+		if (!fsf->of)
+			goto end;
+	}
 	return fsf;
+end:
+	xfree (fsf);
+	return NULL;
 }
 static void fs_close (struct fs_filehandle *fd)
 {

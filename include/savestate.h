@@ -112,6 +112,9 @@ extern uae_u8 *restore_configuration (uae_u8 *src);
 extern uae_u8 *save_log (int, int *len);
 extern uae_u8 *restore_log (uae_u8 *src);
 
+extern uae_u8 *restore_input (uae_u8 *src);
+extern uae_u8 *save_input (int *len, uae_u8 *dstptr);
+
 extern void restore_cram (int, size_t);
 extern void restore_bram (int, size_t);
 extern void restore_fram (int, size_t);

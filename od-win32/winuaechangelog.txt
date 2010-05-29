@@ -1,4 +1,37 @@
 
+Beta 6:
+
+- CE-mode CIA interrupt delay decreased by 1 CPU clock cycle, tst.b CIAICR immediately followed
+  by move.w #x,INTREQ didn't clear the interrupt in some situations
+- disk DMA used generic memory access routines, not chip access routines (could DMA to/from
+  any memory address, not just chip ram)
+- "Z3 fake chip" added, "unlimited" chip ram size. (technically it adds another z3 fast ram
+  board that UAE boot rom changes to MEMF_CHIP|MEMF_PUBLIC|MEMF_LOCAL and removes normal chipset
+  DMA addressing limits)
+- two directory filesystem crash fixes (related to opening non-existing files or directories,
+  broken during C++ conversion)
+- CD32 state restore didn't work if CD32 configuration was not pre-selected
+- save POT capacitors' charge status to statefile
+- disk read DMA wordsync should not skip first syncword if data is already in sync
+- on the fly cycle-exact switching broke few betas ago
+- use early blitter finished state emulation only in 68000 cycle exact modes, 68020 "CE" can
+  execute blitter test and immediate blitter register near-instantly in some situations
+
+Beta 5:
+
+- autovsync was broken in b3
+- added NTSC checkbox to Quickstart panel
+- use DirectInput keyboard if rawinput keyboard is not found, same with mouse.
+  (do not disable both if only mouse or keyboard is found like in b4)
+- DirectInput keyboard and mouse didn't work in Test/Remap modes
+- Gameports remap keyboard configuration was not loaded correctly
+- Write Allocate 68030 data cache bit emulated
+- better "too fast" 68020 CE interrupt workaround
+- CD32 CD on fly media changes fixed (both internal mounter and real/virtual drives)
+- CD32 CD unknown command handling modified (Last Ninja 3)
+
+Last Ninja 3 NOTE: game only works if CD is inserted after CD32 boot screen! (Real CD32 confirmed)
+
 Beta 4:
 
 - keyboard input configuration didn't load correctly (was overwritten by default mappings

@@ -16,8 +16,9 @@
 
 static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
-static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE;
+static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE|DI_LOCK_OVLBIT;
 static struct CapsVersionInfo cvi;
+static bool oldlib;
 #define LIB_TYPE 1
 
 typedef SDWORD (__cdecl* CAPSINIT)(void);
@@ -86,7 +87,10 @@ int caps_init (void)
 	init = 1;
 	cvi.type = LIB_TYPE;
 	pCAPSGetVersionInfo (&cvi, 0);
-	write_log (L"CAPS: library version %d.%d\n", cvi.release, cvi.revision);
+	write_log (L"CAPS: library version %d.%d (flags=%08X)\n", cvi.release, cvi.revision, cvi.flag);
+	oldlib = (cvi.flag & (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT)) != (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT);
+	if (!oldlib)
+		caps_flags |= DI_LOCK_TRKBIT | DI_LOCK_OVLBIT;
 	for (i = 0; i < 4; i++)
 		caps_cont[i] = pCAPSAddImage ();
 	return 1;
@@ -180,44 +184,55 @@ static void outdisk (void)
 }
 #endif
 
+static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
+{
+	int memlen = (len + 7) / 8;
+	for (int i = 0; i < memlen; i+=2) {
+		if (i + 1 < memlen)
+			*mfm++ = (data[i] << 8) + data[i + 1];
+		else
+			*mfm++ = (data[i] << 8);
+	}
+}
+
 int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 {
-	int len, i;
-	uae_u16 *mfm;
+	int len;
 	struct CapsTrackInfoT1 ci;
 
 	ci.type = LIB_TYPE;
-	pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
-	len = ci.tracklen;
-	*tracklength = len * 8;
-	mfm = mfmbuf;
-	for (i = 0; i < (len + 1) / 2; i++) {
-		uae_u8 *data = ci.trackbuf + i * 2;
-		*mfm++ = 256 * *data + *(data + 1);
-	}
+	if (pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags) != imgeOk)
+		return 0;
+	if (oldlib)
+		len = ci.tracklen * 8;
+	else
+		len = ci.tracklen;
+	*tracklength = len;
+	mfmcopy (mfmbuf, ci.trackbuf, len);
 	return 1;
 }
 
 int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev, int *gapoffset)
 {
-	int i, len, type, ret;
-	uae_u16 *mfm;
+	int len;
 	struct CapsTrackInfoT1 ci;
 
 	ci.type = LIB_TYPE;
 	if (tracktiming)
 		*tracktiming = 0;
-	ret = pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags);
-	mfm = mfmbuf;
+	if (pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags) != imgeOk)
+		return 0;
 	*multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
-	type = ci.type & CTIT_MASK_TYPE;
-	len = ci.tracklen;
-	*tracklength = len * 8;
-	*gapoffset = ci.overlap >= 0 ? ci.overlap * 8 : -1;
-	for (i = 0; i < (len + 1) / 2; i++) {
-		uae_u8 *data = ci.trackbuf + i * 2;
-		*mfm++ = 256 * *data + *(data + 1);
+	if (oldlib) {
+		len = ci.tracklen * 8;
+		*gapoffset = ci.overlap >= 0 ? ci.overlap * 8 : -1;
+	} else {
+		len = ci.tracklen;
+		*gapoffset = ci.overlap >= 0 ? ci.overlap : -1;
 	}
+	//write_log (L"%d %d %d %d\n", track, len, ci.tracklen, ci.overlap);
+	*tracklength = len;
+	mfmcopy (mfmbuf, ci.trackbuf, len);
 #if 0
 	{
 		FILE *f=fopen("c:\\1.txt","wb");
@@ -226,7 +241,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 	}
 #endif
 	if (ci.timelen > 0 && tracktiming) {
-		for (i = 0; i < ci.timelen; i++)
+		for (int i = 0; i < ci.timelen; i++)
 			tracktiming[i] = (uae_u16)ci.timebuf[i];
 	}
 #if 0

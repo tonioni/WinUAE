@@ -221,10 +221,10 @@ static void do_samplerip (struct audio_channel_data *adp)
 {
 	struct ripped_sample *rs = ripped_samples, *prev;
 	int len = adp->len * 2;
-	uae_u8 *smp = chipmem_bank.xlateaddr (adp->pt);
+	uae_u8 *smp = chipmem_xlate_indirect (adp->pt);
 	int cnt = 0, i;
 
-	if (!smp || !chipmem_bank.check (adp->pt, len))
+	if (!smp || !chipmem_check_indirect (adp->pt, len))
 		return;
 	for (i = 0; i < len; i++) {
 		if (smp[i] != 0)
@@ -1644,7 +1644,7 @@ void audio_hsync (int hpos)
 					write_log (L"%d:>5: LEN=%d PT=%08X\n", nr, cdp->wlen, cdp->pt);
 #endif
 			}
-			cdp->dat2 = last_custom_value1 = chipmem_agnus_wget (cdp->pt);
+			cdp->dat2 = last_custom_value1 = chipmem_wget_indirect (cdp->pt);
 			if (cdp->request_word >= 2)
 				handle2 = 1;
 			if (chan_ena) {

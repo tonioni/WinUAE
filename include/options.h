@@ -296,6 +296,8 @@ struct uae_prefs {
 
 	uae_u32 z3fastmem_size, z3fastmem2_size;
 	uae_u32 z3fastmem_start;
+	uae_u32 z3chipmem_size;
+	uae_u32 z3chipmem_start;
 	uae_u32 fastmem_size;
 	uae_u32 chipmem_size;
 	uae_u32 bogomem_size;

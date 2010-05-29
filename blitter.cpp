@@ -297,10 +297,10 @@ static void blitter_interrupt (int hpos, int done)
 {
 	if (blit_interrupt)
 		return;
-	if (!done && (!currprefs.blitter_cycle_exact || (currprefs.chipset_mask & CSMASK_AGA)))
+	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68020))
 		return;
 	blit_interrupt = 1;
-	send_interrupt (6, 3);
+	send_interrupt (6, 3 * CYCLE_UNIT);
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_BLITIRQ, hpos, vpos);
 }
@@ -325,7 +325,7 @@ STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 {
 	last_custom_value1 = w;
 #ifndef BLITTER_DEBUG_NO_D
-	chipmem_agnus_wput (addr, w);
+	chipmem_wput_indirect (addr, w);
 #endif
 }
 
@@ -372,7 +372,7 @@ static void blitter_dofast (void)
 				uae_u32 bltadat, blitahold;
 				uae_u16 bltbdat;
 				if (bltadatptr) {
-					blt_info.bltadat = bltadat = chipmem_agnus_wget (bltadatptr);
+					blt_info.bltadat = bltadat = chipmem_wget_indirect (bltadatptr);
 					bltadatptr += 2;
 				} else
 					bltadat = blt_info.bltadat;
@@ -381,14 +381,14 @@ static void blitter_dofast (void)
 				preva = bltadat;
 
 				if (bltbdatptr) {
-					blt_info.bltbdat = bltbdat = chipmem_agnus_wget (bltbdatptr);
+					blt_info.bltbdat = bltbdat = chipmem_wget_indirect (bltbdatptr);
 					bltbdatptr += 2;
 					blitbhold = (((uae_u32)prevb << 16) | bltbdat) >> blt_info.blitbshift;
 					prevb = bltbdat;
 				}
 
 				if (bltcdatptr) {
-					blt_info.bltcdat = chipmem_agnus_wget (bltcdatptr);
+					blt_info.bltcdat = chipmem_wget_indirect (bltcdatptr);
 					bltcdatptr += 2;
 				}
 				if (dodst)
@@ -471,7 +471,7 @@ static void blitter_dofast_desc (void)
 				uae_u32 bltadat, blitahold;
 				uae_u16 bltbdat;
 				if (bltadatptr) {
-					bltadat = blt_info.bltadat = chipmem_agnus_wget (bltadatptr);
+					bltadat = blt_info.bltadat = chipmem_wget_indirect (bltadatptr);
 					bltadatptr -= 2;
 				} else
 					bltadat = blt_info.bltadat;
@@ -480,14 +480,14 @@ static void blitter_dofast_desc (void)
 				preva = bltadat;
 
 				if (bltbdatptr) {
-					blt_info.bltbdat = bltbdat = chipmem_agnus_wget (bltbdatptr);
+					blt_info.bltbdat = bltbdat = chipmem_wget_indirect (bltbdatptr);
 					bltbdatptr -= 2;
 					blitbhold = (((uae_u32)bltbdat << 16) | prevb) >> blt_info.blitdownbshift;
 					prevb = bltbdat;
 				}
 
 				if (bltcdatptr) {
-					blt_info.bltcdat = blt_info.bltbdat = chipmem_agnus_wget (bltcdatptr);
+					blt_info.bltcdat = blt_info.bltbdat = chipmem_wget_indirect (bltcdatptr);
 					bltcdatptr -= 2;
 				}
 				if (dodst)
@@ -533,7 +533,7 @@ STATIC_INLINE void blitter_read (void)
 	if (bltcon0 & 0x200) {
 		if (!dmaen (DMA_BLITTER))
 			return;
-		blt_info.bltcdat = chipmem_bank.wget (bltcpt);
+		blt_info.bltcdat = chipmem_wget_indirect (bltcpt);
 		last_custom_value1 = blt_info.bltcdat;
 	}
 	bltstate = BLT_work;
@@ -548,7 +548,7 @@ STATIC_INLINE void blitter_write (void)
 		if (!dmaen (DMA_BLITTER))
 			return;
 		last_custom_value1 = blt_info.bltddat;
-		chipmem_bank.wput (bltdpt, blt_info.bltddat);
+		chipmem_wput_indirect (bltdpt, blt_info.bltddat);
 	}
 	bltstate = BLT_next;
 }
@@ -870,14 +870,14 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 	switch (ch)
 	{
 	case 1:
-		blt_info.bltadat = dat = chipmem_agnus_wget (bltapt);
+		blt_info.bltadat = dat = chipmem_wget_indirect (bltapt);
 		last_custom_value1 = blt_info.bltadat;
 		addr = bltapt;
 		bltapt += blit_add;
 		reg = 0x74;
 		break;
 	case 2:
-		blt_info.bltbdat = dat = chipmem_agnus_wget (bltbpt);
+		blt_info.bltbdat = dat = chipmem_wget_indirect (bltbpt);
 		last_custom_value1 = blt_info.bltbdat;
 		addr = bltbpt;
 		bltbpt += blit_add;
@@ -889,7 +889,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 		reg = 0x72;
 		break;
 	case 3:
-		blt_info.bltcdat = dat = chipmem_agnus_wget (bltcpt);
+		blt_info.bltcdat = dat = chipmem_wget_indirect (bltcpt);
 		last_custom_value1 = blt_info.bltcdat;
 		addr = bltcpt;
 		bltcpt += blit_add;
@@ -971,7 +971,7 @@ void decide_blitter (int hpos)
 	if (blt_delayed_irq > 0 && hsync) {
 		blt_delayed_irq--;
 		if (!blt_delayed_irq)
-			send_interrupt (6, 2);
+			send_interrupt (6, 2 * CYCLE_UNIT);
 	}
 
 	if (bltstate == BLT_done)

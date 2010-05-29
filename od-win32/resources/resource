@@ -401,6 +401,9 @@
 #define IDC_Z3FASTMEM                   1049
 #define IDC_MBRAM1                      1050
 #define IDC_MBRAM2                      1051
+#define IDC_Z3CHIPMEM                   1052
+#define IDC_Z3FASTRAM2                  1053
+#define IDC_Z3CHIPRAM                   1053
 #define IDC_UAEHOME                     1070
 #define IDC_PICASSOHOME                 1071
 #define IDC_AMIGAHOME                   1072

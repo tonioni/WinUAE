@@ -209,6 +209,16 @@ void fixup_prefs (struct uae_prefs *p)
 	p->z3fastmem_start &= ~0xffff;
 	if (p->z3fastmem_start < 0x1000000)
 		p->z3fastmem_start = 0x1000000;
+	if ((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0
+		|| (p->z3chipmem_size != 0 && (p->z3chipmem_size < 0x100000 || p->z3chipmem_size > max_z3fastmem)))
+	{
+		write_log (L"Unsupported Zorro III fake chipmem size %x (%x)!\n", p->z3chipmem_size, max_z3fastmem);
+		if (p->z3chipmem_size > max_z3fastmem)
+			p->z3chipmem_size = max_z3fastmem;
+		else
+			p->z3chipmem_size = 0;
+		err = 1;
+	}
 
 	if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0)) {
 		p->z3fastmem_size = p->gfxmem_size = 0;

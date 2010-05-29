@@ -61,7 +61,7 @@ uae_u32 allocated_chipmem;
 uae_u32 allocated_fastmem;
 uae_u32 allocated_bogomem;
 uae_u32 allocated_gfxmem;
-uae_u32 allocated_z3fastmem, allocated_z3fastmem2;
+uae_u32 allocated_z3fastmem, allocated_z3fastmem2, allocated_z3chipmem;
 uae_u32 allocated_a3000lmem;
 uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
@@ -556,6 +556,71 @@ static uae_u8 *REGPARAM2 chipmem_xlate (uaecptr addr)
 {
 	addr &= chipmem_mask;
 	return chipmemory + addr;
+}
+
+STATIC_INLINE void REGPARAM2 chipmem_lput_bigmem (uaecptr addr, uae_u32 v)
+{
+	put_long (addr, v);
+}
+STATIC_INLINE void REGPARAM2 chipmem_wput_bigmem (uaecptr addr, uae_u32 v)
+{
+	put_word (addr, v);
+}
+STATIC_INLINE void REGPARAM2 chipmem_bput_bigmem (uaecptr addr, uae_u32 v)
+{
+	put_byte (addr, v);
+}
+STATIC_INLINE uae_u32 REGPARAM2 chipmem_lget_bigmem (uaecptr addr)
+{
+	return get_long (addr);
+}
+STATIC_INLINE uae_u32 REGPARAM2 chipmem_wget_bigmem (uaecptr addr)
+{
+	return get_word (addr);
+}
+STATIC_INLINE uae_u32 REGPARAM2 chipmem_bget_bigmem (uaecptr addr)
+{
+	return get_byte (addr);
+}
+STATIC_INLINE int REGPARAM2 chipmem_check_bigmem (uaecptr addr, uae_u32 size)
+{
+	return valid_address (addr, size);
+}
+STATIC_INLINE uae_u8* REGPARAM2 chipmem_xlate_bigmem (uaecptr addr)
+{
+	return get_real_address (addr);
+}
+
+uae_u32 (REGPARAM2 *chipmem_lget_indirect)(uaecptr);
+uae_u32 (REGPARAM2 *chipmem_wget_indirect)(uaecptr);
+uae_u32 (REGPARAM2 *chipmem_bget_indirect)(uaecptr);
+void (REGPARAM2 *chipmem_lput_indirect)(uaecptr, uae_u32);
+void (REGPARAM2 *chipmem_wput_indirect)(uaecptr, uae_u32);
+void (REGPARAM2 *chipmem_bput_indirect)(uaecptr, uae_u32);
+int (REGPARAM2 *chipmem_check_indirect)(uaecptr, uae_u32);
+uae_u8 *(REGPARAM2 *chipmem_xlate_indirect)(uaecptr);
+
+static void chipmem_setindirect (void)
+{
+	if (currprefs.z3chipmem_size) {
+		chipmem_lget_indirect = chipmem_lget_bigmem;
+		chipmem_wget_indirect = chipmem_wget_bigmem;
+		chipmem_bget_indirect = chipmem_bget_bigmem;
+		chipmem_lput_indirect = chipmem_lput_bigmem;
+		chipmem_wput_indirect = chipmem_wput_bigmem;
+		chipmem_bput_indirect = chipmem_bput_bigmem;
+		chipmem_check_indirect = chipmem_check_bigmem;
+		chipmem_xlate_indirect = chipmem_xlate_bigmem;
+	} else {
+		chipmem_lget_indirect = chipmem_lget;
+		chipmem_wget_indirect = chipmem_agnus_wget;
+		chipmem_bget_indirect = chipmem_agnus_bget;
+		chipmem_lput_indirect = chipmem_lput;
+		chipmem_wput_indirect = chipmem_agnus_wput;
+		chipmem_bput_indirect = chipmem_agnus_bput;
+		chipmem_check_indirect = chipmem_check;
+		chipmem_xlate_indirect = chipmem_xlate;
+	}
 }
 
 /* Slow memory */
@@ -2291,6 +2356,7 @@ void memory_reset (void)
 
 	init_mem_banks ();
 	allocate_memory ();
+	chipmem_setindirect ();
 
 	if (_tcscmp (currprefs.romfile, changed_prefs.romfile) != 0
 		|| _tcscmp (currprefs.romextfile, changed_prefs.romextfile) != 0)

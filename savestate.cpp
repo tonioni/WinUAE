@@ -325,6 +325,7 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t 
 		&& _tcscmp (name, L"BRAM") != 0
 		&& _tcscmp (name, L"FRAM") != 0
 		&& _tcscmp (name, L"ZRAM") != 0
+		&& _tcscmp (name, L"ZCRM") != 0
 		&& _tcscmp (name, L"PRAM") != 0
 		&& _tcscmp (name, L"A3K1") != 0
 		&& _tcscmp (name, L"A3K2") != 0)
@@ -467,6 +468,9 @@ void restore_state (const TCHAR *filename)
 		} else if (!_tcscmp (name, L"ZRAM")) {
 			restore_zram (totallen, filepos, z3num++);
 			continue;
+		} else if (!_tcscmp (name, L"ZCRM")) {
+			restore_zram (totallen, filepos, -1);
+			continue;
 		} else if (!_tcscmp (name, L"BORO")) {
 			restore_bootrom (totallen, filepos);
 			continue;
@@ -512,6 +516,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_cia (1, chunk);
 		else if (!_tcscmp (name, L"CHIP"))
 			end = restore_custom (chunk);
+		else if (!_tcscmp (name, L"CINP"))
+			end = restore_input (chunk);
 		else if (!_tcscmp (name, L"CHPX"))
 			end = restore_custom_extra (chunk);
 		else if (!_tcscmp (name, L"AUD0"))
@@ -647,6 +653,8 @@ static void save_rams (struct zfile *f, int comp)
 	save_chunk (f, dst, len, L"ZRAM", comp);
 	dst = save_zram (&len, 1);
 	save_chunk (f, dst, len, L"ZRAM", comp);
+	dst = save_zram (&len, -1);
+	save_chunk (f, dst, len, L"ZCRM", comp);
 	dst = save_bootrom (&len);
 	save_chunk (f, dst, len, L"BORO", comp);
 #endif
@@ -755,6 +763,10 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 
 	dst = save_custom_extra (&len, 0);
 	save_chunk (f, dst, len, L"CHPX", 0);
+	xfree (dst);
+
+	dst = save_input (&len, 0);
+	save_chunk (f, dst, len, L"CINP", 0);
 	xfree (dst);
 
 	dst = save_custom_agacolors (&len, 0);

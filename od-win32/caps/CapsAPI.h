@@ -5,16 +5,19 @@
 #define CAPS_FILEPFX ".ipf"
 
 // Flags provided for locking, in order:
-// 0: re-align data as index synced recording
-// 1: decode track to word aligned size
-// 2: generate cell density for variable density tracks
-// 3: generate density for automatically sized cells
-// 4: generate density for unformatted cells
-// 5: generate unformatted data
-// 6: generate unformatted data, that changes each revolution
-// 7: directly use source memory buffer supplied with LockImageMemory
-// 8: flakey data is created on one revolution, updated with each lock
-// 9: ...Info.type holds the expected structure type
+//  0: re-align data as index synced recording
+//  1: decode track to word aligned size
+//  2: generate cell density for variable density tracks
+//  3: generate density for automatically sized cells
+//  4: generate density for unformatted cells
+//  5: generate unformatted data
+//  6: generate unformatted data, that changes each revolution
+//  7: directly use source memory buffer supplied with LockImageMemory
+//  8: flakey data is created on one revolution, updated with each lock
+//  9: ...Info.type holds the expected structure type
+// 10: alternate density map as fractions
+// 11: overlap position is in bits
+// 12: tracklen is in bits, and the track buffer is bit sized
 #define DI_LOCK_INDEX    DF_0
 #define DI_LOCK_ALIGN    DF_1
 #define DI_LOCK_DENVAR   DF_2
@@ -25,6 +28,9 @@
 #define DI_LOCK_MEMREF   DF_7
 #define DI_LOCK_UPDATEFD DF_8
 #define DI_LOCK_TYPE     DF_9
+#define DI_LOCK_DENALT   DF_10
+#define DI_LOCK_OVLBIT   DF_11
+#define DI_LOCK_TRKBIT   DF_12
 
 #define CAPS_MAXPLATFORM 4
 #define CAPS_MTRS 5
@@ -80,7 +86,7 @@ struct CapsTrackInfo {
 	UDWORD sectorcnt;  // available sectors
 	UDWORD sectorsize; // sector size
 	UDWORD trackcnt;   // track variant count
-	PUBYTE trackbuf;   // track buffer memory
+	PUBYTE trackbuf;   // track buffer memory 
 	UDWORD tracklen;   // track buffer memory length
 	PUBYTE trackdata[CAPS_MTRS]; // track data pointer if available
 	UDWORD tracksize[CAPS_MTRS]; // track data size
@@ -97,11 +103,11 @@ struct CapsTrackInfoT1 {
 	UDWORD head;       // head#
 	UDWORD sectorcnt;  // available sectors
 	UDWORD sectorsize; // sector size
-	PUBYTE trackbuf;   // track buffer memory
+	PUBYTE trackbuf;   // track buffer memory 
 	UDWORD tracklen;   // track buffer memory length
 	UDWORD timelen;    // timing buffer length
 	PUDWORD timebuf;   // timing buffer
-	UDWORD overlap;    // overlap position
+	SDWORD overlap;    // overlap position
 };
 
 typedef struct CapsTrackInfoT1 *PCAPSTRACKINFOT1;
@@ -132,7 +138,7 @@ enum {
 
 // image error status
 enum {
-	imgeOk,
+	imgeOk=0,
 	imgeUnsupported,
 	imgeGeneric,
 	imgeOutOfRange,
@@ -147,7 +153,11 @@ enum {
 	imgeDensityStream,
 	imgeDensityData,
 	imgeIncompatible,
-	imgeUnsupportedType
+	imgeUnsupportedType,
+	imgeBadBlockType,
+	imgeBadBlockSize,
+	imgeBadDataStart,
+	imgeBufferShort
 };
 
 #endif

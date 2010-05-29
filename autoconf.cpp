@@ -197,6 +197,8 @@ static uae_u32 REGPARAM2 nullfunc (TrapContext *context)
 
 static uae_u32 REGPARAM2 getchipmemsize (TrapContext *context)
 {
+	m68k_dreg (regs, 1) = allocated_z3chipmem;
+	m68k_areg (regs, 1) = z3chipmem_start;
 	return allocated_chipmem;
 }
 

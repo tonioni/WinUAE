@@ -345,13 +345,13 @@ static uae_u32 readbin (TCHAR **c)
 	return readbinx (c);
 }
 
-static TCHAR next_char(TCHAR **c)
+static TCHAR next_char (TCHAR **c)
 {
 	ignore_ws (c);
 	return *(*c)++;
 }
 
-static TCHAR peek_next_char(TCHAR **c)
+static TCHAR peek_next_char (TCHAR **c)
 {
 	TCHAR *pc = *c;
 	return pc[1];
@@ -1044,7 +1044,7 @@ static uaecptr decode_copperlist (FILE* file, uaecptr address, int nolines)
 {
 	uae_u32 insn;
 	while (nolines-- > 0) {
-		insn = (chipmem_agnus_wget (address) << 16) | chipmem_agnus_wget (address + 2);
+		insn = (chipmem_wget_indirect (address) << 16) | chipmem_wget_indirect (address + 2);
 		decode_copper_insn (file, insn, address);
 		address += 4;
 	}

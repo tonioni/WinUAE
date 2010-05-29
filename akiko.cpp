@@ -29,8 +29,8 @@
 #include "newcpu.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 1
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO 0
+#define AKIKO_DEBUG_IO_CMD 0
 
 // 43 48 49 4E 4F 4E 20 20 4F 2D 36 35 38 2D 32 20 32 34
 #define FIRMWAREVERSION "CHINON  O-658-2 24"
@@ -1788,9 +1788,9 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	uae_u32 v;
 	int i;
 
-	if (!currprefs.cs_cd32cd) {
-		changed_prefs.cs_cd32c2p = changed_prefs.cs_cd32cd = changed_prefs.cs_cd32nvram = 1;
-		currprefs.cs_cd32c2p = currprefs.cs_cd32cd = currprefs.cs_cd32nvram = 1;
+	if (!currprefs.cs_cd32cd || !cdromok) {
+		changed_prefs.cs_cd32c2p = changed_prefs.cs_cd32cd = changed_prefs.cs_cd32nvram = true;
+		currprefs.cs_cd32c2p = currprefs.cs_cd32cd = currprefs.cs_cd32nvram = true;
 		akiko_init ();
 	}
 

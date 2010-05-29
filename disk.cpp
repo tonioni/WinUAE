@@ -2681,13 +2681,13 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 				floppy[dr].mfmpos %= drv->tracklen;
 			}
 		}
-		if ((dmacon & 0x210) == 0x210 && dskdmaen == 3 && dsklength > 0 && (!(adkcon &0x400) || dma_enable)) {
+		if (dmaen (DMA_DISK) && dskdmaen == 3 && dsklength > 0 && (!(adkcon &0x400) || dma_enable)) {
 			bitoffset++;
 			bitoffset &= 15;
 			if (!bitoffset) {
 				for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
 					drive *drv2 = &floppy[dr];
-					uae_u16 w = get_word (dskpt);
+					uae_u16 w = chipmem_wget_indirect (dskpt);
 #ifdef CPUEMU_12
 					diskdma (dskpt, w, 1);
 #endif
@@ -2798,9 +2798,9 @@ static void disk_doupdate_read_nothing (int floppybits)
 
 	while (floppybits >= get_floppy_speed()) {
 		word <<= 1;
-		if (bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
+		if (dmaen (DMA_DISK) && bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
 			if (dsklength > 0) {
-				put_word (dskpt, word);
+				chipmem_wput_indirect (dskpt, word);
 #ifdef CPUEMU_12
 				diskdma (dskpt, word, 0);
 #endif
@@ -2818,6 +2818,31 @@ static void disk_doupdate_read_nothing (int floppybits)
 		bitoffset &= 15;
 		floppybits -= get_floppy_speed();
 	}
+}
+
+static bool doreaddma (void)
+{
+	if (dmaen (DMA_DISK) && bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
+		if (dsklength > 0) {
+			chipmem_wput_indirect (dskpt, word);
+#ifdef CPUEMU_12
+			diskdma (dskpt, word, 0);
+#endif
+			dskpt += 2;
+		}
+#if 0
+		dma_tab[j++] = word;
+		if (j == MAX_DISK_WORDS_PER_LINE - 1) {
+			write_log (L"Bug: Disk DMA buffer overflow!\n");
+			j--;
+		}
+#endif
+		dsklength--;
+		if (dsklength <= 0)
+			disk_dmafinished ();
+		return true;
+	}
+	return false;
 }
 
 static void disk_doupdate_read (drive * drv, int floppybits)
@@ -2864,37 +2889,22 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			drv->mfmpos += disk_jitter;
 			drv->mfmpos %= drv->tracklen;
 		}
-		if (bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
-			if (dsklength > 0) {
-				put_word (dskpt, word);
-#ifdef CPUEMU_12
-				diskdma (dskpt, word, 0);
-#endif
-				dskpt += 2;
-			}
-#if 0
-			dma_tab[j++] = word;
-			if (j == MAX_DISK_WORDS_PER_LINE - 1) {
-				write_log (L"Bug: Disk DMA buffer overflow!\n");
-				j--;
-			}
-#endif
-			dsklength--;
-			if (dsklength <= 0)
-				disk_dmafinished ();
-		}
+		bool dmadone = doreaddma ();
 		if ((bitoffset & 7) == 7) {
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;
 		}
 		if (word == dsksync) {
-			if (adkcon & 0x400)
-				bitoffset = 15;
 			if (dskdmaen) {
 				if (disk_debug_logging && dma_enable == 0)
-					write_log (L"Sync match, DMA started at %d\n", drv->mfmpos);
+					write_log (L"Sync match, DMA started at %d PC=%08x\n", drv->mfmpos, M68K_GETPC);
 				dma_enable = 1;
 			}
+			// start DMA immediately if bitoffset is already in sync instead of waiting for next word
+			if (!dmadone)
+				doreaddma ();
+			if (adkcon & 0x400)
+				bitoffset = 15;
 		}
 		bitoffset++;
 		bitoffset &= 15;
@@ -2940,7 +2950,7 @@ uae_u16 DSKBYTR (int hpos)
 	dskbytr_val &= ~0x8000;
 	if (word == dsksync)
 		v |= 0x1000;
-	if (dskdmaen && (dmacon & 0x210) == 0x210)
+	if (dskdmaen && dmaen (DMA_DISK))
 		v |= 0x4000;
 	if (dsklen & 0x4000)
 		v |= 0x2000;
@@ -3020,8 +3030,6 @@ void DISK_update (int tohpos)
 	int didread;
 
 	disk_jitter = ((uaerand () >> 4) & 3) + 1;
-	if (disk_jitter > 2)
-		disk_jitter = 1;
 	if (cycles <= 0)
 		return;
 	disk_hpos += cycles;
@@ -3078,6 +3086,7 @@ void DSKLEN (uae_u16 v, int hpos)
 	int motormask;
 
 	DISK_update (hpos);
+
 	if ((v & 0x8000) && (dsklen & 0x8000)) {
 		dskdmaen = 2;
 		DISK_start ();
@@ -3211,7 +3220,7 @@ void DSKLEN (uae_u16 v, int hpos)
 						return;
 				}
 				while (dsklength-- > 0) {
-					put_word (dskpt, drv->bigmfmbuf[pos >> 4]);
+					chipmem_wput_indirect (dskpt, drv->bigmfmbuf[pos >> 4]);
 					dskpt += 2;
 					pos += 16;
 					pos %= drv->tracklen;
@@ -3222,7 +3231,7 @@ void DSKLEN (uae_u16 v, int hpos)
 			} else if (dskdmaen == 3) { /* TURBO write */
 
 				for (i = 0; i < dsklength; i++) {
-					uae_u16 w = get_word (dskpt + i * 2);
+					uae_u16 w = chipmem_wget_indirect (dskpt + i * 2);
 					drv->bigmfmbuf[pos >> 4] = w;
 #ifdef AMAX
 					if (currprefs.amaxromfile[0])
@@ -3238,13 +3247,13 @@ void DSKLEN (uae_u16 v, int hpos)
 		if (!done && noselected) {
 			while (dsklength-- > 0) {
 				if (dskdmaen == 3) {
-					uae_u16 w = get_word (dskpt);
+					uae_u16 w = chipmem_wget_indirect (dskpt);
 #ifdef AMAX
 					if (currprefs.amaxromfile[0])
 						amax_diskwrite (w);
 #endif
 				} else {
-					put_word (dskpt, 0);
+					chipmem_wput_indirect (dskpt, 0);
 				}
 				dskpt += 2;
 			}
@@ -3412,10 +3421,14 @@ end:
 
 void DISK_save_custom (uae_u32 *pdskpt, uae_u16 *pdsklength, uae_u16 *pdsksync, uae_u16 *pdskbytr)
 {
-	if(pdskpt) *pdskpt = dskpt;
-	if(pdsklength) *pdsklength = dsklength;
-	if(pdsksync) *pdsksync = dsksync;
-	if(pdskbytr) *pdskbytr = dskbytr_val;
+	if (pdskpt)
+		*pdskpt = dskpt;
+	if (pdsklength)
+		*pdsklength = dsklength;
+	if (pdsksync)
+		*pdsksync = dsksync;
+	if (pdskbytr)
+		*pdskbytr = dskbytr_val;
 }
 
 #endif /* SAVESTATE || DEBUGGER */

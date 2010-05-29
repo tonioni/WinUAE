@@ -92,7 +92,7 @@ static void RethinkICRA (void)
 {
 	if (ciaaimask & ciaaicr) {
 		ciaaicr |= 0x80;
-		send_interrupt (3, 3);
+		send_interrupt (3, 2 * CYCLE_UNIT + CYCLE_UNIT / 2);
 	}
 }
 
@@ -100,7 +100,7 @@ static void RethinkICRB (void)
 {
 	if (ciabimask & ciabicr) {
 		ciabicr |= 0x80;
-		send_interrupt (13, 3);
+		send_interrupt (13, 2 * CYCLE_UNIT + CYCLE_UNIT / 2);
 	}
 }
 
