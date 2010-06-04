@@ -3117,30 +3117,40 @@ static int input_selected_event, input_selected_sub_num;
 
 static void set_lventry_input (HWND list, int index)
 {
-	int flags, i, sub;
+	int flags, i, sub, port;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
 	TCHAR af[32], toggle[32];
 
-	inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, input_selected_sub_num);
+	inputdevice_get_mapped_name (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
 	if (flags & IDEV_MAPPED_AUTOFIRE_SET)
-		WIN32GUI_LoadUIString (IDS_YES, af, sizeof (af) / sizeof (TCHAR));
+		WIN32GUI_LoadUIString (IDS_YES, af, sizeof af / sizeof (TCHAR));
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
-		WIN32GUI_LoadUIString (IDS_NO, af, sizeof (af) / sizeof (TCHAR));
+		WIN32GUI_LoadUIString (IDS_NO, af, sizeof af / sizeof (TCHAR));
 	else
 		_tcscpy (af, L"-");
 	if (flags & IDEV_MAPPED_TOGGLE)
-		WIN32GUI_LoadUIString (IDS_YES, toggle, sizeof (toggle) / sizeof (TCHAR));
+		WIN32GUI_LoadUIString (IDS_YES, toggle, sizeof toggle / sizeof (TCHAR));
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
-		WIN32GUI_LoadUIString (IDS_NO, toggle, sizeof (toggle) / sizeof (TCHAR));
+		WIN32GUI_LoadUIString (IDS_NO, toggle, sizeof toggle / sizeof (TCHAR));
 	else
 		_tcscpy (toggle, L"-");
+	if (port > 0) {
+		TCHAR tmp[256];
+		_tcscpy (tmp, name);
+		name[0] = 0;
+		_tcscat (name, L"[ ");
+		_tcscat (name, tmp);
+		_tcscat (name, L" ]");
+	}
+	ListView_SetItemState (list, index, port > 0 ? LVIS_DROPHILITED : 0, LVIS_DROPHILITED);
+
 	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
 	ListView_SetItemText (list, index, 2, af);
 	ListView_SetItemText (list, index, 3, toggle);
 	sub = 0;
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-		if (inputdevice_get_mapped_name (input_selected_device, index, &flags, name, custom, i) || custom[0])
+		if (inputdevice_get_mapped_name (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
 			sub++;
 	}
 	_stprintf (name, L"%d", sub);
@@ -3210,7 +3220,10 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 						if ((1 || status) && !found) {
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-									if (inputdevice_get_mapped_name (devnum, j, &flags, NULL, NULL, sub) == evtnum) {
+									int port;
+									if (inputdevice_get_mapped_name (devnum, j, &flags, &port, NULL, NULL, sub) == evtnum) {
+										if (!port)
+											continue;
 										inputdevice_get_widget_type (devnum, j, name);
 										if (list) {
 											if (_tcslen (target) < MAX_DPATH / 2) {
@@ -7779,10 +7792,10 @@ static void sound_loaddrivesamples (void)
 
 	free (drivesounds);
 	p = drivesounds = 0;
-	_stprintf (dirname, L"%s\\%sfloppysounds\\*.wav", start_path_data, WIN32_PLUGINDIR);
+	_stprintf (dirname, L"%s\\%sfloppysounds\\*.wav", start_path_plugins, WIN32_PLUGINDIR);
 	h = FindFirstFile (dirname, &fd);
 	if (h == INVALID_HANDLE_VALUE) {
-		_stprintf (dirname, L"%s\\uae_data\\*.wav", start_path_data);
+		_stprintf (dirname, L"%s\\uae_data\\*.wav", start_path_plugins);
 		h = FindFirstFile (dirname, &fd);
 		if (h == INVALID_HANDLE_VALUE)
 			return;
@@ -10205,23 +10218,18 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 		if (idm >= 0) {
 			v = SendDlgItemMessage (hDlg, idm, CB_GETCURSEL, 0, 0L);
 			if (v != CB_ERR) {
-				if (*portm != v)
-					workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 				*portm = v;
 			}
 				
 		}
 		if (joysaf[i] >= 0) {
 			int af = SendDlgItemMessage (hDlg, joysaf[i], CB_GETCURSEL, 0, 0L);
-			if (af != CB_ERR && af != workprefs.jports[i].autofire)
-				workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 			workprefs.jports[i].autofire = af;
 		}
 		if (*port != prevport)
 			changed = 1;
 	}
 	if (changed) {
-		workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 		for (i = 0; i < MAX_JPORTS; i++) {
 			for (j = 0; j < MAX_JPORTS; j++) {
 				if (j != i)
@@ -10864,7 +10872,7 @@ static void init_inputdlg_2 (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	index = 0; af = 0;
 	if (input_selected_widget >= 0) {
-		inputdevice_get_mapped_name (input_selected_device, input_selected_widget, 0, name1, custom1, input_selected_sub_num);
+		inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, NULL, name1, custom1, input_selected_sub_num);
 		cnt = 2;
 		while(inputdevice_iterate (input_selected_device, input_selected_widget, name2, &aftmp)) {
 			free (eventnames[cnt]);
@@ -10965,11 +10973,11 @@ static void doinputcustom (HWND hDlg, int newcustom)
 	int flags;
 	custom1[0] = 0;
 	inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-		&flags, 0, custom1, input_selected_sub_num);
+		&flags, NULL, NULL, custom1, input_selected_sub_num);
 	if (_tcslen (custom1) > 0 || newcustom) {
 		if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
 			inputdevice_set_mapping (input_selected_device, input_selected_widget,
-				0, custom1, flags, input_selected_sub_num);
+				NULL, custom1, flags, -1, input_selected_sub_num);
 		}
 	}
 }
@@ -11047,12 +11055,12 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		TCHAR custom[MAX_DPATH];
 		custom[0] = 0;
 		inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-			&flags, 0, custom, input_selected_sub_num);
+			&flags, NULL, 0, custom, input_selected_sub_num);
 		if (input_selected_event != 1)
 			custom[0] = 0;
 		inputdevice_set_mapping (input_selected_device, input_selected_widget,
 			eventnames[input_selected_event], _tcslen (custom) == 0 ? NULL : custom,
-			flags, input_selected_sub_num);
+			flags, -1, input_selected_sub_num);
 		update_listview_input (hDlg);
 		inputdevice_updateconfig (&workprefs);
 	}
@@ -11162,13 +11170,13 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				int sub = 0;
 				if (inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL) != IDEV_WIDGET_KEY) {
 					for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-						if (!inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, NULL, NULL, sub))
+						if (!inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, NULL, NULL, NULL, sub))
 							break;
 					}
 				}
 				if (sub >= MAX_INPUT_SUB_EVENT)
 					sub = MAX_INPUT_SUB_EVENT - 1;
-				inputdevice_set_mapping (input_selected_device, input_selected_widget, name, NULL, 0, sub);
+				inputdevice_set_mapping (input_selected_device, input_selected_widget, name, NULL, 0, inputmap_port, sub);
 				InitializeListView (hDlg);
 				inputmap_remap_counter += cntadd;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
@@ -11310,7 +11318,6 @@ static void input_find (HWND hDlg, int mode, int set)
 
 static void ports_remap (HWND hDlg, int port)
 {
-	workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 	inputmap_port_remap = port;
 	inputmap_port = port;
 	inputmap_remap_counter = 0;
@@ -11318,7 +11325,6 @@ static void ports_remap (HWND hDlg, int port)
 }
 static void input_test (HWND hDlg, int port)
 {
-	workprefs.input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 	inputmap_port_remap = -1;
 	inputmap_port = port;
 	inputmap_remap_counter = -1;
@@ -11456,11 +11462,11 @@ static void input_toggleautofire (void)
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
 	evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-		&flags, name, custom, input_selected_sub_num);
+		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-		name, custom, flags ^ IDEV_MAPPED_AUTOFIRE_SET, input_selected_sub_num);
+		name, custom, flags ^ IDEV_MAPPED_AUTOFIRE_SET, -1, input_selected_sub_num);
 }
 static void input_toggletoggle (void)
 {
@@ -11470,11 +11476,11 @@ static void input_toggletoggle (void)
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
 	evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
-		&flags, name, custom, input_selected_sub_num);
+		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-		name, custom, flags ^ IDEV_MAPPED_TOGGLE, input_selected_sub_num);
+		name, custom, flags ^ IDEV_MAPPED_TOGGLE, -1, input_selected_sub_num);
 }
 
 static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -11845,7 +11851,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_data, WIN32_PLUGINDIR);
+		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_plugins, WIN32_PLUGINDIR);
 		h = FindFirstFile (tmp, &wfd);
 		while (h != INVALID_HANDLE_VALUE) {
 			if (wfd.cFileName[0] != '_') {
@@ -11871,7 +11877,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s%soverlays\\*.*", start_path_data, WIN32_PLUGINDIR);
+		_stprintf (tmp, L"%s%soverlays\\*.*", start_path_plugins, WIN32_PLUGINDIR);
 		h = FindFirstFile (tmp, &wfd);
 		i = 0; j = 1;
 		while (h != INVALID_HANDLE_VALUE) {

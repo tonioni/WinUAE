@@ -2146,7 +2146,7 @@ static void center_image (void)
 	int prev_y_adjust = thisframe_y_adjust;
 	int tmp;
 
-	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale) {
+	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
 		int w = gfxvidinfo.width;
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
@@ -2163,7 +2163,7 @@ static void center_image (void)
 				visible_left_border = prev_x_adjust;
 		}
 	} else {
-		if (beamcon0 & 0x80) {
+		if ((beamcon0 & 0x80) && max_diwstop > 0) {
 			int w = gfxvidinfo.width;
 			if (max_diwstop - min_diwstart < w)
 				visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;

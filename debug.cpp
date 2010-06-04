@@ -45,6 +45,7 @@ static int memwatch_enabled, memwatch_triggered;
 static uae_u16 sr_bpmask, sr_bpvalue;
 int debugging;
 int exception_debugging;
+int no_trace_exceptions;
 int debug_copper = 0;
 int debug_dma = 0;
 int debug_sprite_mask = 0xff;
@@ -3070,10 +3071,15 @@ static void debug_1 (void)
 				show_exec_lists (inptr[0]);
 			break;
 		case 't':
-			if (more_params (&inptr))
-				skipaddr_doskip = readint (&inptr);
-			if (skipaddr_doskip <= 0 || skipaddr_doskip > 10000)
-				skipaddr_doskip = 1;
+			no_trace_exceptions = 0;
+			if (*inptr != 't') {
+				if (more_params (&inptr))
+					skipaddr_doskip = readint (&inptr);
+				if (skipaddr_doskip <= 0 || skipaddr_doskip > 10000)
+					skipaddr_doskip = 1;
+			} else {
+				no_trace_exceptions = 1;
+			}
 			set_special (SPCFLAG_BRK);
 			exception_debugging = 1;
 			return;

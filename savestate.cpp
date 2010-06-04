@@ -332,6 +332,8 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t 
 	{
 		/* without zeros at the end old state files may not work */
 		mem = xcalloc (uae_u8, *totallen + 32);
+		if (!mem)
+			return NULL;
 		if (flags & 1) {
 			zfile_zuncompress (mem, *totallen, f, len2);
 		} else {

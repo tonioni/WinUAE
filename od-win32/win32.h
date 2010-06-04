@@ -19,7 +19,7 @@
 #define LANG_DLL 1
 
 #define WINUAEBETA L"6"
-#define WINUAEDATE MAKEBD(2010, 5, 29)
+#define WINUAEDATE MAKEBD(2010, 6, 3)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -39,6 +39,7 @@ extern void *globalipc, *serialipc;
 
 extern TCHAR start_path_exe[MAX_DPATH];
 extern TCHAR start_path_data[MAX_DPATH];
+extern TCHAR start_path_plugins[MAX_DPATH];
 
 extern void my_kbd_handler (int, int, int);
 extern void clearallkeys (void);

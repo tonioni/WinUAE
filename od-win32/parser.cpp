@@ -262,6 +262,8 @@ static void flushprtbuf (void)
 		if (currprefs.parallel_matrix_emulation >= PARALLEL_MATRIX_EPSON) {
 			int i;
 			if (!prtopen) {
+				if (!doflushprinter ())
+					return;
 				if (epson_init (currprefs.prtname, currprefs.parallel_matrix_emulation))
 					prtopen = 1;
 			}

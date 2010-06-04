@@ -159,6 +159,7 @@ static CRITICAL_SECTION cs_time;
 
 TCHAR start_path_data[MAX_DPATH];
 TCHAR start_path_exe[MAX_DPATH];
+TCHAR start_path_plugins[MAX_DPATH];
 TCHAR start_path_af[MAX_DPATH]; /* OLD AF */
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
@@ -2031,7 +2032,7 @@ void logging_init (void)
 	tmp[0] = 0;
 	GetModuleFileName (NULL, tmp, sizeof (tmp) / sizeof (TCHAR));
 	write_log (L"'%s'\n", tmp);
-	write_log (L"EXE: '%s', DATA: '%s'\n", start_path_exe, start_path_data);
+	write_log (L"EXE: '%s', DATA: '%s', PLUGIN: '%s'\n", start_path_exe, start_path_data, start_path_plugins);
 	regstatus ();
 }
 
@@ -3942,6 +3943,14 @@ static void getstartpaths (void)
 	GetFullPathName (start_path_data, sizeof tmp / sizeof (TCHAR), tmp, NULL);
 	_tcscpy (start_path_data, tmp);
 	SetCurrentDirectory (start_path_data);
+
+	v = GetFileAttributes (start_path_plugins);
+	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
+		_tcscpy (start_path_plugins, start_path_exe);
+	}
+	fixtrailing (start_path_plugins);
+	GetFullPathName (start_path_plugins, sizeof tmp / sizeof (TCHAR), tmp, NULL);
+	_tcscpy (start_path_plugins, tmp);
 }
 
 extern void test (void);
@@ -4148,6 +4157,10 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 	if (!_tcscmp (arg, L"-datapath")) {
 		ExpandEnvironmentStrings (np, start_path_data, sizeof start_path_data / sizeof (TCHAR));
 		start_data = -1;
+		return 2;
+	}
+	if (!_tcscmp (arg, L"-pluginpath")) {
+		ExpandEnvironmentStrings (np, start_path_plugins, sizeof start_path_plugins / sizeof (TCHAR));
 		return 2;
 	}
 	if (!_tcscmp (arg, L"-maxmem")) {
@@ -4877,16 +4890,16 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 			break;
 		}
 #endif
-		s = xmalloc (TCHAR, _tcslen (start_path_exe) + _tcslen (WIN32_PLUGINDIR) + _tcslen (newname) + 1);
+		s = xmalloc (TCHAR, _tcslen (start_path_plugins) + _tcslen (WIN32_PLUGINDIR) + _tcslen (newname) + 1);
 		if (s) {
-			_stprintf (s, L"%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
+			_stprintf (s, L"%s%s%s", start_path_plugins, WIN32_PLUGINDIR, newname);
 			m = LoadLibrary (s);
 			LLError (m, s);
 			if (m) {
 				xfree (s);
 				goto end;
 			}
-			_stprintf (s, L"%s%s", start_path_exe, newname);
+			_stprintf (s, L"%s%s", start_path_plugins, newname);
 			m = LoadLibrary (s);
 			LLError (m ,s);
 			if (m) {

@@ -3120,7 +3120,7 @@ main (int argc, char **argv)
     freopen ("jit/compemu.cpp", "wb", stdout);
 
     generate_includes (stdout, 1);
-    generate_includes (stblfile, 0);
+    generate_includes (stblfile, 1);
 
     printf("#include \"compemu.h\"\n");
 

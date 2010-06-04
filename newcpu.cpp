@@ -32,7 +32,6 @@
 #include "cia.h"
 
 #ifdef JIT
-extern uae_u8* compiled_code;
 #include "jit/compemu.h"
 #include <signal.h>
 #else
@@ -410,17 +409,8 @@ void fill_prefetch_slow (void)
 {
 	if (currprefs.mmu_model)
 		return;
-#ifdef CPUEMU_12
-	if (currprefs.cpu_cycle_exact) {
-		regs.ir = get_word_ce (m68k_getpc ());
-		regs.irc = get_word_ce (m68k_getpc () + 2);
-	} else {
-#endif
-		regs.ir = get_word (m68k_getpc ());
-		regs.irc = get_word (m68k_getpc () + 2);
-#ifdef CPUEMU_12
-	}
-#endif
+	regs.ir = x_get_word (m68k_getpc ());
+	regs.irc = x_get_word (m68k_getpc () + 2);
 }
 
 unsigned long cycles_mask, cycles_val;
@@ -449,7 +439,8 @@ static void update_68k_cycles (void)
 	}
 	if (cpucycleunit < 1)
 		cpucycleunit = 1;
-	write_log (L"CPU cycleunit: %d (%.3f)\n", cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
+	if (currprefs.cpu_cycle_exact)
+		write_log (L"CPU cycleunit: %d (%.3f)\n", cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
 	config_changed = 1;
 }
 
@@ -1971,8 +1962,7 @@ int m68k_movec2 (int regno, uae_u32 *regp)
 	return 1;
 }
 
-STATIC_INLINE int
-	div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae_u32 *quot, uae_u32 *rem)
+STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae_u32 *quot, uae_u32 *rem)
 {
 	uae_u32 q = 0, cbit = 0;
 	int i;
@@ -2117,8 +2107,7 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra, uaecptr oldpc)
 #endif
 }
 
-STATIC_INLINE void
-	mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, uae_u32 *dst_lo)
+STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, uae_u32 *dst_lo)
 {
 	uae_u32 r0 = (src1 & 0xffff) * (src2 & 0xffff);
 	uae_u32 r1 = ((src1 >> 16) & 0xffff) * (src2 & 0xffff);
@@ -2567,10 +2556,7 @@ static void do_trace (void)
 		/* We can afford this to be inefficient... */
 		m68k_setpc (m68k_getpc ());
 		fill_prefetch_slow ();
-		if (currprefs.mmu_model)
-			opcode = get_word_mmu (regs.pc);
-		else
-			opcode = get_word (regs.pc);
+		opcode = x_get_word (regs.pc);
 		if (opcode == 0x4e73 			/* RTE */
 			|| opcode == 0x4e74 		/* RTD */
 			|| opcode == 0x4e75 		/* RTS */
@@ -2725,7 +2711,7 @@ STATIC_INLINE int do_specialties (int cycles)
 				if (vpos != lvpos) {
 					sleepcnt--;
 #ifdef JIT
-					if (pissoff == 0 && compiled_code && --zerocnt < 0) {
+					if (pissoff == 0 && currprefs.cachesize && --zerocnt < 0) {
 						sleepcnt = -1;
 						zerocnt = IDLETIME / 4;
 					}
@@ -2951,8 +2937,6 @@ void exec_nostats (void)
 }
 
 static int triggered;
-
-extern volatile int bsd_int_requested;
 
 void execute_normal (void)
 {
@@ -3878,7 +3862,6 @@ void restore_cpu_finish (void)
 	doint ();
 	if (regs.stopped)
 		set_special (SPCFLAG_STOP);
-
 }
 
 uae_u8 *restore_cpu_extra (uae_u8 *src)

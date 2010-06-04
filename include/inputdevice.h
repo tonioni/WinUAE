@@ -50,6 +50,7 @@ struct inputevent {
 /* event flags */
 #define ID_FLAG_AUTOFIRE 1
 #define ID_FLAG_TOGGLE 2
+#define ID_FLAG_GAMEPORTSCUSTOM 4
 #define ID_FLAG_SAVE_MASK 0xff
 #define ID_FLAG_TOGGLED 0x100
 
@@ -62,6 +63,7 @@ struct inputevent {
 #define IDEV_MAPPED_AUTOFIRE_POSSIBLE 1
 #define IDEV_MAPPED_AUTOFIRE_SET 2
 #define IDEV_MAPPED_TOGGLE 4
+#define IDEV_MAPPED_GAMEPORTSCUSTOM 8
 
 #define ID_BUTTON_OFFSET 0
 #define ID_BUTTON_TOTAL 32
@@ -69,8 +71,8 @@ struct inputevent {
 #define ID_AXIS_TOTAL 32
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
-extern int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int flags, int sub);
-extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, TCHAR *name, TCHAR *custom, int sub);
+extern int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int flags, int port, int sub);
+extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);

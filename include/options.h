@@ -38,6 +38,7 @@ struct uae_input_device {
 	TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
 	uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT];
 	uae_s16 extra[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
+	uae_s8 port[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SIMULTANEOUS_KEYS];
 	uae_s8 enabled;
 };
 
@@ -225,6 +226,8 @@ struct uae_prefs {
 	bool blitter_cycle_exact;
 	int floppy_speed;
 	int floppy_write_length;
+	int floppy_random_bits_min;
+	int floppy_random_bits_max;
 	bool tod_hack;
 	uae_u32 maprom;
 	int turbo_emulation;

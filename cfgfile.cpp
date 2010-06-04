@@ -1774,6 +1774,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_intval (option, value, L"rtg_modes", &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, L"floppy_speed", &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, L"floppy_write_length", &p->floppy_write_length, 1)
+		|| cfgfile_intval (option, value, L"floppy_random_bits_min", &p->floppy_random_bits_min, 1)
+		|| cfgfile_intval (option, value, L"floppy_random_bits_max", &p->floppy_random_bits_max, 1)
 		|| cfgfile_intval (option, value, L"nr_floppies", &p->nr_floppies, 1)
 		|| cfgfile_intval (option, value, L"floppy0type", &p->dfxtype[0], 1)
 		|| cfgfile_intval (option, value, L"floppy1type", &p->dfxtype[1], 1)
@@ -3506,6 +3508,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->dfxtype[3] = DRV_NONE;
 	p->floppy_speed = 100;
 	p->floppy_write_length = 0;
+	p->floppy_random_bits_min = 1;
+	p->floppy_random_bits_max = 3;
 	p->dfxclickvolume = 33;
 
 	p->statecapturebuffersize = 20 * 1024 * 1024;

@@ -1309,11 +1309,6 @@ static void reopen_sound (void)
 }
 
 
-#ifdef JIT
-extern uae_u8* compiled_code;
-#else
-static int compiled_code;
-#endif
 extern int vsynctime_orig;
 
 #ifndef AVIOUTPUT
@@ -1330,10 +1325,10 @@ void sound_setadjust (double v)
 	mult = (1000.0 + v);
 	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
 		mult = 1000.0;
-	if (isvsync () || (avioutput_audio && avioutput_enabled && !compiled_code)) {
+	if (isvsync () || (avioutput_audio && avioutput_enabled && !currprefs.cachesize)) {
 		vsynctime = vsynctime_orig;
 		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
-	} else if (compiled_code || currprefs.m68k_speed != 0) {
+	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
 		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	} else {

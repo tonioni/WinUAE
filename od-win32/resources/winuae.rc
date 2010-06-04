@@ -167,17 +167,17 @@ BEGIN
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
     EDITTEXT        IDC_Z3FASTRAM,243,50,34,12,ES_CENTER | ES_READONLY
     GROUPBOX        "A3000/A4000 Advanced Memory Settings",IDC_STATIC,14,110,274,65
-    RTEXT           "Motherboard Fast RAM:",IDC_STATIC,40,126,129,10,SS_CENTERIMAGE
+    RTEXT           "Motherboard Fast:",IDC_STATIC,48,126,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,122,59,20
     EDITTEXT        IDC_MBRAM1,244,125,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Processor Slot Fast RAM:",IDC_STATIC,40,149,129,10,SS_CENTERIMAGE
+    RTEXT           "Processor Slot Fast:",IDC_STATIC,48,149,129,10,SS_CENTERIMAGE
     CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,145,59,20
     EDITTEXT        IDC_MBRAM2,244,148,34,12,ES_CENTER | ES_READONLY
     RTEXT           "Fast:",IDC_STATIC,19,49,32,15,SS_CENTERIMAGE
     RTEXT           "Chip:",IDC_STATIC,19,25,32,15,SS_CENTERIMAGE
     RTEXT           "Slow:",IDC_STATIC,144,25,32,15,SS_CENTERIMAGE
     RTEXT           "Z3 Fast:",IDC_STATIC,144,49,32,15,SS_CENTERIMAGE
-    RTEXT           "Z3 Fake Chip:",IDC_STATIC,123,73,54,15,SS_CENTERIMAGE
+    RTEXT           "Z3 Chip:",IDC_STATIC,123,73,54,15,SS_CENTERIMAGE
     CONTROL         "",IDC_Z3CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,71,60,20
     EDITTEXT        IDC_Z3CHIPRAM,243,76,34,12,ES_CENTER | ES_READONLY
 END
@@ -1186,7 +1186,6 @@ BEGIN
 
     IDD_MEMORY, DIALOG
     BEGIN
-        BOTTOMMARGIN, 158
     END
 
     IDD_CPU, DIALOG
@@ -1338,7 +1337,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe, Christoph Meier and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
@@ -1348,7 +1347,7 @@ BEGIN
     IDS_INPUTAMIGAEVENT     "Input target"
     IDS_INPUTAUTOFIRE       "Autofire"
     IDS_SAVEUSS             "Save a WinUAE snapshot file"
-    IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen. Please report this to\nberndroesch1@compuserve.de"
+    IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen."
 END
 
 STRINGTABLE

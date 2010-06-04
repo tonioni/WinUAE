@@ -561,6 +561,7 @@ static void led_vsync (void)
 	if (led_old_brightness != gui_data.powerled_brightness) {
 		gui_data.powerled = gui_data.powerled_brightness > 127;
 		gui_led (LED_POWER, gui_data.powerled);
+		led_filter_audio ();
 	}
 	led_old_brightness = gui_data.powerled_brightness;
 	led_cycle = get_cycles ();
@@ -591,7 +592,6 @@ static void bfe001_change (void)
 		calc_led (led);
 		led = led2;
 		led_old_brightness = -1;
-		led_filter_audio ();
 	}
 	if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
 		oldovl = v & 1;

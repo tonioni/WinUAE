@@ -23,23 +23,19 @@ STATIC_INLINE void events_schedule (void)
 	nextevent = currcycle + mintime;
 }
 
-#ifdef JIT
-extern uae_u8* compiled_code;
-#endif
 extern signed long pissoff;
 
 STATIC_INLINE void cycles_do_special (void)
 {
 #ifdef JIT
-	if (compiled_code) {
+	if (currprefs.cachesize) {
 		if (pissoff >= 0)
 			pissoff = -1;
-	} else {
+	} else
+#endif
+	{
 		pissoff = 0;
 	}
-#else
-	pissoff = 0;
-#endif
 }
 
 STATIC_INLINE void do_extra_cycles (unsigned long cycles_to_add)

@@ -129,10 +129,6 @@ struct ev2 eventtab2[ev2_max];
 
 volatile frame_time_t vsynctime, vsyncmintime;
 
-#ifdef JIT
-extern uae_u8* compiled_code;
-#endif
-
 int vpos;
 static int vpos_count, vpos_count_prev;
 static int lof_store; // real bit in custom registers
@@ -2986,9 +2982,9 @@ STATIC_INLINE int GETHPOS (void)
 }
 
 
-// DFF006 = 0.W must be valid result
+// DFF006 = 0.W must be valid result but better do this only in 68000 modes (whdload black screen!)
 
-#define HPOS_OFFSET 3
+#define HPOS_OFFSET (currprefs.cpu_model < 68020 ? 3 : 0)
 
 STATIC_INLINE uae_u16 VPOSR (void)
 {
@@ -3074,9 +3070,11 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 		if (vp >= maxvpos + lof_store)
 			vp = 0;
 	}
-	hp += 1;
-	if (hp >= maxhpos)
-		hp -= maxhpos;
+	if (HPOS_OFFSET) {
+		hp += 1;
+		if (hp >= maxhpos)
+			hp -= maxhpos;
+	}
 
 	vp <<= 8;
 	vp |= hp;
@@ -3439,8 +3437,8 @@ void INTREQ_f (uae_u16 v)
 	if (use_eventmode (v)) {
 		send_intreq_do (v);
 	} else {
-	 	intreq |= v;
-	 	intreq_internal |= v;
+		setclr (&intreq, v);
+		setclr (&intreq_internal, v);
 	}
 }
 
@@ -3489,6 +3487,7 @@ static void ADKCON (int hpos, uae_u16 v)
 	if (currprefs.produce_sound > 0)
 		update_audio ();
 
+	DISK_update_adkcon (hpos, v);
 	setclr (&adkcon, v);
 	audio_update_adkmasks ();
 	DISK_update (hpos);
@@ -5021,7 +5020,7 @@ static void vsync_handler (void)
 #endif
 		) {
 #ifdef JIT
-			if (!compiled_code) {
+			if (!currprefs.cachesize) {
 #endif
 				if (currprefs.m68k_speed == -1) {
 					frame_time_t curr_time = read_processor_time ();
@@ -5292,6 +5291,8 @@ static void hsync_handler (void)
 	CDTV_hsync_handler ();
 #endif
 	decide_blitter (-1);
+	DISK_hsync (maxhpos);
+
 #ifdef CPUEMU_12
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 		memset (cycle_line, 0, sizeof cycle_line);
@@ -5413,12 +5414,11 @@ static void hsync_handler (void)
 #endif
 
 
-	DISK_hsync (maxhpos);
 	if (currprefs.produce_sound)
 		audio_hsync (-1);
 
 #ifdef JIT
-	if (compiled_code) {
+	if (currprefs.cachesize) {
 		if (currprefs.m68k_speed == -1) {
 			static int count = 0;
 			count++;

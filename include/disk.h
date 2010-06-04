@@ -23,6 +23,7 @@ extern void DISK_check_change (void);
 extern int DISK_validate_filename (const TCHAR *fname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf);
 extern void DISK_handler (uae_u32);
 extern void DISK_update (int hpos);
+extern void DISK_update_adkcon (int hpos, uae_u16 v);
 extern void DISK_hsync (int hpos);
 extern void DISK_reset (void);
 extern int disk_getwriteprotect (const TCHAR *name);

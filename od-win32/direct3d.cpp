@@ -684,7 +684,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
 	int canusefile = 0, existsfile = 0;
 
-	_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_data, WIN32_PLUGINDIR, shaderfile);
+	_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_plugins, WIN32_PLUGINDIR, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
 		if (z) {

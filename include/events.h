@@ -82,4 +82,10 @@ STATIC_INLINE int current_hpos (void)
     return (get_cycles () - eventtab[ev_hsync].oldcycles) / CYCLE_UNIT;
 }
 
+STATIC_INLINE bool cycles_in_range (unsigned long endcycles)
+{
+	signed long c = get_cycles ();
+	return (signed long)endcycles - c > 0;
+}
+
 #endif

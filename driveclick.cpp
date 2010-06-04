@@ -167,7 +167,7 @@ void driveclick_init (void)
 				wave_initialized = 1;
 				for (j = 0; j < CLICK_TRACKS; j++)
 					drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
-				_stprintf (tmp, L"%splugins%cfloppysounds%c", start_path_data, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR);
+				_stprintf (tmp, L"%splugins%cfloppysounds%c", start_path_plugins, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR);
 				if (my_existsdir (tmp))
 					_tcscpy (path2, tmp);
 				else

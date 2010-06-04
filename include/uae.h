@@ -32,6 +32,7 @@ extern bool console_emulation;
 extern TCHAR warning_buffer[256];
 extern TCHAR start_path_data[];
 extern TCHAR start_path_data_exe[];
+extern TCHAR start_path_plugins[];
 
 /* This structure is used to define menus. The val field can hold key
  * shortcuts, or one of these special codes:
