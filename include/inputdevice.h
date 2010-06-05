@@ -89,10 +89,10 @@ extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
 extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
-extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port);
-extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port);
-extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int mode);
-extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port);
+extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af);
+extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port, int af);
+extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int af, int mode);
+extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port, int af);
 extern int input_get_default_keyboard (int num);
 
 #define DEFEVENT(A, B, C, D, E, F) INPUTEVENT_ ## A,

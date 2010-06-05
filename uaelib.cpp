@@ -139,7 +139,7 @@ static uae_u32 REGPARAM2 emulib_ChgCMemSize (uae_u32 memsize)
 	}
 	m68k_dreg (regs, 0) = 0;
 
-	currprefs.chipmem_size = memsize;
+	changed_prefs.chipmem_size = memsize;
 	uae_reset(0);
 	return 1;
 }
@@ -157,7 +157,7 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
 	}
 
 	m68k_dreg (regs, 0) = 0;
-	currprefs.bogomem_size = memsize;
+	changed_prefs.bogomem_size = memsize;
 	uae_reset (0);
 	return 1;
 }
@@ -174,7 +174,7 @@ static uae_u32 REGPARAM2 emulib_ChgFMemSize (uae_u32 memsize)
 			write_log (L"Unsupported fastmem size!\n");
 	}
 	m68k_dreg (regs, 0) = 0;
-	currprefs.fastmem_size = memsize;
+	changed_prefs.fastmem_size = memsize;
 	uae_reset (0);
 	return 0;
 }

@@ -223,7 +223,7 @@ static void close_filesys_unit (UnitInfo *uip)
 	uip->open = 0;
 }
 
-static UnitInfo *getuip(struct uae_prefs *p, int index)
+static UnitInfo *getuip (struct uae_prefs *p, int index)
 {
 	if (index < 0)
 		return NULL;
@@ -2423,7 +2423,7 @@ static void notify_check (Unit *unit, a_inode *a)
 	int hash = notifyhash (a->aname);
 	for (n = unit->notifyhash[hash]; n; n = n->next) {
 		uaecptr nr = n->notifyrequest;
-		if (same_aname(n->partname, a->aname)) {
+		if (same_aname (n->partname, a->aname)) {
 			int err;
 			a_inode *a2 = find_aino (unit, 0, n->fullname, &err);
 			if (err == 0 && a == a2)
@@ -2434,7 +2434,7 @@ static void notify_check (Unit *unit, a_inode *a)
 		hash = notifyhash (a->parent->aname);
 		for (n = unit->notifyhash[hash]; n; n = n->next) {
 			uaecptr nr = n->notifyrequest;
-			if (same_aname(n->partname, a->parent->aname)) {
+			if (same_aname (n->partname, a->parent->aname)) {
 				int err;
 				a_inode *a2 = find_aino (unit, 0, n->fullname, &err);
 				if (err == 0 && a->parent == a2)
@@ -2517,7 +2517,7 @@ static void
 			}
 		}
 	}
-	//write_log (L"Tried to free non-existing NotifyRequest %08X\n", nr);
+	write_log (L"Tried to free non-existing NotifyRequest %08X\n", nr);
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 

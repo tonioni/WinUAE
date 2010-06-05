@@ -22,6 +22,7 @@
 ; 2008.12.25 mousehack cursor sync
 ; 2009.01.20 clipboard sharing
 ; 2009.12.27 console hook
+; 2010.05.27 Z3Chip
 
 AllocMem = -198
 FreeMem = -210
@@ -225,17 +226,22 @@ FSIN_none:
 
 
 filesys_dev_storeinfo	; add >2MB chip RAM to memory list
+	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
+	cmp.w #36,20(a6)
+	bcs.s FSIN_ksold
+	or.w #256,d4 ; MEMF_LOCAL
+FSIN_ksold
+
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0)
-	moveq.l #3,d1
-	moveq.l #-10,d2
+	move.l d4,d1
+	moveq #-10,d2
 	move.l #$200000,a0
 	sub.l a0,d0
 	bcs.b FSIN_chip_done
 	beq.b FSIN_chip_done
-	moveq.l #0,d4
-	move.l d4,a1
+	sub.l a1,a1
 	jsr -618(a6) ; AddMemList
 FSIN_chip_done
 
@@ -243,7 +249,7 @@ FSIN_chip_done
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0) ; d1 = size, a1 = start address
-	tst.l d1
+	move.l d1,d2
 	beq.s FSIN_fchip_done
 	move.l a1,a2
 	jsr -$0078(a6) ; Disable
@@ -251,17 +257,27 @@ FSIN_chip_done
 FSIN_scanfchip:
 	move.l (a0),a0	; first MemList
 	tst.l (a0)
-	beq.s FSIN_fchip_done
+	bne.s FSIN_fchip_found
+	; not in memlist, AddMem() it
+	move.l a2,a0
+	move.l d2,d0
+	move.l d4,d1
+	moveq #-5,d2
+	lea fchipname(pc),a1
+	jsr -618(a6) ; AddMemList
+	bra.s FSIN_fchip_done2	
+FSIN_fchip_found
 	move.l 20(a0),d0 ; mh_Lower
 	clr.w d0
 	cmp.l d0,a2
 	bne.s FSIN_scanfchip
 	move.w 14(a0),d0 ; attributes
 	and.w #~4,d0 ; MEMF_FAST
-	or.w #2+1+256,d0 ; MEMF_CHIP | MEMF_PUBLIC | MEMF_LOCAL
+	or.w d4,d0
 	move.w d0,14(a0)
 	lea fchipname(pc),a1
 	move.l a1,10(a0)
+FSIN_fchip_done2
 	jsr -$007e(a6) ; Enable
 FSIN_fchip_done
 
