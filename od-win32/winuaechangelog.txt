@@ -1,4 +1,47 @@
 
+Beta 7:
+
+- do not center horizontally if there is no bitplanes enabled (result was very badly aligned
+  screen, normally not visible but if there are background color changes or sprites..)
+- input config backwards compatibility fix, old versions read GamePorts mode as Configuration#4
+- huge brown paper bag bug fixed, in some situations INTREQR can return bit 15 set.. (fast CPU
+  modes only, introduced in earlier 2.x release)
+- do not emulate hpos offset in non-cycle exact modes, JIT mode can return hpos/vpos value pairs
+  that are not normally possible (and so far only some A500 programs require hpos offset = vpos
+  increments when hpos equals 4, not when hpos equals 0)
+- audio filter emulation didn't always follow power led state correctly
+- emulate fire and left mouse button contact bounce (no 2nd and 3rd because they are connected to
+  POT capacitors) Fixes Spacestone which waits for button release and then immediately checks
+  button state again.. I guess coder had really bad joystick firebutton, planet selection works
+  quite unreliably on my real A1200 :) cycle-exact only
+- NTSC disk timing was not fully compatible with RNC Copylock
+- b6 wordsync change reverted, another hopefully better tweak added
+- joystick button pullups removed, this will break some games' second joystick button read routines
+  but it has to be done because they wouldn't work on real Amigas with standard joystick either and
+  this workaround also breaks some other games that don't expect pullups (Dick Tracy for example)
+  Pullups are automatically enabled if joystick 3rd button is mapped.
+
+- another big input change, Game Ports settings are now always merged with currently selected
+  input configuration (possibly overwriting event that was manually configured in slot 0)
+  In other words, Game Ports panel settings are now finally working as expected by most users
+  instead of only confusing most users :) Just select your gamepad/joystick using GamePorts panel,
+  select Configuration#1 and remap remaining extra buttons, should be simple and easy enough now.
+  
+  This also means old Configuration#x configurations now have Gameports mappings merged when loaded.
+  (which most likely is something you don't want) Workaround: set GamePorts settings to <none>
+  Hopefully some kind of automatic fix is possible..
+
+- GamePorts mapped Configuration#x events are marked as [PortX] in Input list where X is port number.
+- GamePorts custom configuration in Configuration#x mode also supported.
+  NOTE: configuration files that have GamePorts customized Input Configuration#x's are not
+  backwards compatible
+- renamed GamePorts port 0 -> port 1 and port 1 -> port 2, now same as input target port numbers
+  (1 = "mouse" port, 2 = "joystick" port, 3 and 4 are parallel joystick adapter ports)
+- do not add default mappings to Configuration#x joysticks and mice (not needed anymore)
+- automatically disable empty devices in Configuration#x modes
+  
+  Just ask if you have any questions or suggestions. Input configuration is never finished :)
+
 Beta 6:
 
 - CE-mode CIA interrupt delay decreased by 1 CPU clock cycle, tst.b CIAICR immediately followed
@@ -12,10 +55,11 @@ Beta 6:
   broken during C++ conversion)
 - CD32 state restore didn't work if CD32 configuration was not pre-selected
 - save POT capacitors' charge status to statefile
-- disk read DMA wordsync should not skip first syncword if data is already in sync
+- disk read DMA wordsync should not skip first syncword if bit stream is already aligned
+  (Starglider 2 original)
 - on the fly cycle-exact switching broke few betas ago
 - use early blitter finished state emulation only in 68000 cycle exact modes, 68020 "CE" can
-  execute blitter test and immediate blitter register near-instantly in some situations
+  execute blitter busy check followed by write to blitter register really too quickly
 
 Beta 5:
 

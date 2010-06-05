@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"6"
-#define WINUAEDATE MAKEBD(2010, 6, 3)
+#define WINUAEBETA L"7"
+#define WINUAEDATE MAKEBD(2010, 6, 5)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 

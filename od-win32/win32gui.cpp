@@ -3138,13 +3138,8 @@ static void set_lventry_input (HWND list, int index)
 	if (port > 0) {
 		TCHAR tmp[256];
 		_tcscpy (tmp, name);
-		name[0] = 0;
-		_tcscat (name, L"[ ");
-		_tcscat (name, tmp);
-		_tcscat (name, L" ]");
+		_stprintf (name, L"[PORT%d] %s", port, tmp);
 	}
-	ListView_SetItemState (list, index, port > 0 ? LVIS_DROPHILITED : 0, LVIS_DROPHILITED);
-
 	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
 	ListView_SetItemText (list, index, 2, af);
 	ListView_SetItemText (list, index, 3, toggle);
@@ -3423,16 +3418,16 @@ void InitializeListView (HWND hDlg)
 				listview_column_width[0] = width;
 			entry++;
 		}
-		listview_column_width [1] = 260;
-		listview_column_width [2] = 65;
-		listview_column_width [3] = 65;
-		listview_column_width [4] = 30;
+		listview_column_width[1] = 260;
+		listview_column_width[2] = 65;
+		listview_column_width[3] = 65;
+		listview_column_width[4] = 30;
 		update_listview_input (hDlg);
 
 	} else if (lv_type == LV_INPUTMAP) {
 
-		listview_column_width [0] = 200;
-		listview_column_width [1] = 200;
+		listview_column_width[0] = 200;
+		listview_column_width[1] = 200;
 		update_listview_inputmap (hDlg);
 
 	} else if (lv_type == LV_DISK) {
@@ -3558,7 +3553,7 @@ void InitializeListView (HWND hDlg)
 				if(width > listview_column_width[2])
 					listview_column_width[2] = width;
 
-				listview_column_width [3] = 150;
+				listview_column_width[3] = 150;
 				ListView_SetItemText(list, result, 3, rootdir);
 				width = ListView_GetStringWidth(list, rootdir) + 10;
 				if(width > listview_column_width[3])
@@ -10859,23 +10854,18 @@ static void init_inputdlg_2 (HWND hDlg)
 {
 	TCHAR name1[256], name2[256];
 	TCHAR custom1[MAX_DPATH], tmp1[MAX_DPATH];
-	int cnt, index, af, aftmp;
+	int cnt, index, af, aftmp, port;
 
-	if (input_selected_widget < 0 || workprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS) {
-		EnableWindow (GetDlgItem (hDlg, IDC_INPUTAMIGA), FALSE);
-	} else {
-		EnableWindow (GetDlgItem (hDlg, IDC_INPUTAMIGA), TRUE);
-	}
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)szNone);
 	WIN32GUI_LoadUIString (IDS_INPUT_CUSTOMEVENT, tmp1, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
-	index = 0; af = 0;
+	index = 0; af = 0; port = 0;
 	if (input_selected_widget >= 0) {
-		inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, NULL, name1, custom1, input_selected_sub_num);
+		inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, &port, name1, custom1, input_selected_sub_num);
 		cnt = 2;
 		while(inputdevice_iterate (input_selected_device, input_selected_widget, name2, &aftmp)) {
-			free (eventnames[cnt]);
+			xfree (eventnames[cnt]);
 			eventnames[cnt] = my_strdup (name2);
 			if (name1 && !_tcscmp (name1, name2)) {
 				index = cnt;
@@ -10890,6 +10880,11 @@ static void init_inputdlg_2 (HWND hDlg)
 			SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SETCURSEL, index, 0);
 			SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
 		}
+	}
+	if (input_selected_widget < 0 || workprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS || port > 0) {
+		EnableWindow (GetDlgItem (hDlg, IDC_INPUTAMIGA), FALSE);
+	} else {
+		EnableWindow (GetDlgItem (hDlg, IDC_INPUTAMIGA), TRUE);
 	}
 }
 
@@ -11176,7 +11171,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				}
 				if (sub >= MAX_INPUT_SUB_EVENT)
 					sub = MAX_INPUT_SUB_EVENT - 1;
-				inputdevice_set_mapping (input_selected_device, input_selected_widget, name, NULL, 0, inputmap_port, sub);
+				inputdevice_set_mapping (input_selected_device, input_selected_widget, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, inputmap_port + 1, sub);
 				InitializeListView (hDlg);
 				inputmap_remap_counter += cntadd;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
@@ -11258,8 +11253,10 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				if (rawmode == 1) {
 					input_find (hDlg, 0, FALSE);
-					setfocus (hDlg, IDC_INPUTAMIGA);
-					SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SHOWDROPDOWN , TRUE, 0L);
+					if (IsWindowEnabled (GetDlgItem (hDlg, IDC_INPUTAMIGA))) {
+						setfocus (hDlg, IDC_INPUTAMIGA);
+						SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SHOWDROPDOWN , TRUE, 0L);
+					}
 				}
 			}
 		}
@@ -11268,7 +11265,15 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 
 static HWND updatePanel (int id);
 
-static int rawdisable[] = { IDC_PANELTREE, 0, IDC_RESETAMIGA, 0, IDC_QUITEMU, 0, IDC_RESTARTEMU, 0, IDOK, 0, IDCANCEL, 0, IDHELP, 0, -1 };
+static int rawdisable[] = {
+	IDC_INPUTTYPE, 0, 0, IDC_INPUTDEVICE, 0, 0, IDC_INPUTDEVICEDISABLE, 0, 0,
+	IDC_INPUTAMIGACNT, 0, 0, IDC_INPUTAMIGA, 0, 0, IDC_INPUTTEST, 0, 0, IDC_INPUTREMAP, 0, 0,
+	IDC_INPUTCOPY, 0, 0, IDC_INPUTCOPYFROM, 0, 0, IDC_INPUTSWAP, 0, 0,
+	IDC_INPUTDEADZONE, 0, 0, IDC_INPUTSPEEDD, 0, 0, IDC_INPUTAUTOFIRERATE, 0, 0, IDC_INPUTSPEEDA, 0, 0,
+	IDC_PANELTREE, 1, 0, IDC_RESETAMIGA, 1, 0, IDC_QUITEMU, 1, 0, IDC_RESTARTEMU, 1, 0, IDOK, 1, 0, IDCANCEL, 1, 0, IDHELP, 1, 0,
+	-1
+};
+
 
 static void input_find (HWND hDlg, int mode, int set)
 {
@@ -11284,11 +11289,12 @@ static void input_find (HWND hDlg, int mode, int set)
 			SetWindowText (guiDlg, tmp2);
 		}
 		SetTimer (hDlg, 1, 30, timerfunc);
-		ew (hDlg, IDC_INPUTREMAP, FALSE);
-		ew (hDlg, IDC_INPUTTEST, FALSE);
-		for (int i = 0; rawdisable[i] >= 0; i += 2) {
-			rawdisable[i + 1] = IsWindowEnabled (GetDlgItem (guiDlg, rawdisable[i]));
-			EnableWindow (GetDlgItem (guiDlg, rawdisable[i]), FALSE);
+		for (int i = 0; rawdisable[i] >= 0; i += 3) {
+			HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
+			if (w) {
+				rawdisable[i + 2] = IsWindowEnabled (w);
+				EnableWindow (w, FALSE);
+			}
 		}
 		ShowCursor (FALSE);
 		SetCapture (guiDlg);
@@ -11301,10 +11307,11 @@ static void input_find (HWND hDlg, int mode, int set)
 		ReleaseCapture ();
 		ShowCursor (TRUE);
 		inputdevice_unacquire ();
-		for (int i = 0; rawdisable[i] >= 0; i += 2)
-			EnableWindow (GetDlgItem (guiDlg, rawdisable[i]), rawdisable[i + 1]);
-		ew (hDlg, IDC_INPUTREMAP, TRUE);
-		ew (hDlg, IDC_INPUTTEST, TRUE);
+		for (int i = 0; rawdisable[i] >= 0; i += 3) {
+			HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
+			if (w)
+				EnableWindow (w, rawdisable[i + 2]);
+		}
 		inputdevice_settest (FALSE);
 		if (rawmode == 2) {
 			SetWindowText (guiDlg, tmp);
