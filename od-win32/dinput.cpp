@@ -220,7 +220,7 @@ static int register_rawinput (int flags)
 		if (!rawkb) {
 			rid[num].dwFlags = RIDEV_REMOVE;
 		} else if (hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK;
+			rid[num].dwFlags = RIDEV_INPUTSINK | RIDEV_NOHOTKEYS;
 			rid[num].hwndTarget = hMainWnd;
 		}
 		num++;
