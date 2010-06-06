@@ -219,9 +219,12 @@ static int register_rawinput (int flags)
 		rid[num].usUsage = 6;
 		if (!rawkb) {
 			rid[num].dwFlags = RIDEV_REMOVE;
-		} else if (hMainWnd) {
-			rid[num].dwFlags = RIDEV_INPUTSINK | RIDEV_NOHOTKEYS;
-			rid[num].hwndTarget = hMainWnd;
+		} else {
+			if (hMainWnd) {
+				rid[num].dwFlags = RIDEV_INPUTSINK;
+				rid[num].hwndTarget = hMainWnd;
+			}
+			rid[num].dwFlags |= RIDEV_NOHOTKEYS;
 		}
 		num++;
 	}

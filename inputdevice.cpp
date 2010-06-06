@@ -3755,6 +3755,7 @@ static void cleardevkbrgp (struct uae_input_device *uid, int num, bool nocustom,
 	}
 }
 
+// remove all gameports mappings mapped to port 'index'
 static void remove_custom_config (struct uae_prefs *prefs, bool nocustom, int index)
 {
 	for (int l = 0; l < MAX_INPUT_DEVICES; l++) {
@@ -4272,6 +4273,31 @@ static void matchdevices_all (struct uae_prefs *prefs)
 		matchdevices (&idev[IDTYPE_JOYSTICK], prefs->joystick_settings[i]);
 		matchdevices (&idev[IDTYPE_KEYBOARD], prefs->keyboard_settings[i]);
 	}
+}
+
+bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, const TCHAR *name, int port)
+{
+	joysticks = prefs->joystick_settings[GAMEPORT_INPUT_SETTINGS];
+	mice = prefs->mouse_settings[GAMEPORT_INPUT_SETTINGS];
+	keyboards = prefs->keyboard_settings[GAMEPORT_INPUT_SETTINGS];
+
+	int sub = 0;
+	if (inputdevice_get_widget_type (devnum, num, NULL) != IDEV_WIDGET_KEY) {
+		for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
+			if (!inputdevice_get_mapped_name (devnum, num, NULL, NULL, NULL, NULL, sub))
+				break;
+		}
+	}
+	if (sub >= MAX_INPUT_SUB_EVENT)
+		sub = MAX_INPUT_SUB_EVENT - 1;
+	inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, port + 1, sub);
+
+	joysticks = prefs->joystick_settings[prefs->input_selected_setting];
+	mice = prefs->mouse_settings[prefs->input_selected_setting];
+	keyboards = prefs->keyboard_settings[prefs->input_selected_setting];
+	if (prefs->input_selected_setting != GAMEPORT_INPUT_SETTINGS)
+		inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, port + 1, 0);
+	return true;
 }
 
 void inputdevice_updateconfig (struct uae_prefs *prefs)
@@ -4893,7 +4919,7 @@ int inputdevice_get_mapped_name (int devnum, int num, int *pflags, int *pport, T
 }
 
 // set event name/custom/flags to devnum/num/sub
-int inputdevice_set_mapping (int devnum, int num, TCHAR *name, TCHAR *custom, int flags, int port, int sub)
+int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, int flags, int port, int sub)
 {
 	const struct inputdevice_functions *idf = getidf (devnum);
 	const struct uae_input_device *uid = get_uid (idf, inputdevice_get_device_index (devnum));

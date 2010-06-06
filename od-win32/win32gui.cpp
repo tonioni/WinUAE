@@ -3164,14 +3164,15 @@ static void update_listview_input (HWND hDlg)
 static int inputmap_port = -1, inputmap_port_remap = -1;
 static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state)
 {
-	int cnt, portnum;
+	int cntitem, cntgroup, portnum;
 	int mode, *events, *axistable;
 	bool found2 = false;
 
 	for (portnum = 0; portnum < 4; portnum++) {
 		if (list)
 			portnum = inputmap_port;
-		cnt = 1;
+		cntitem = 1;
+		cntgroup = 1;
 		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, &events, &axistable)) {
 			int evtnum;
 			for (int i = 0; (evtnum = events[i]) >= 0; i++) {
@@ -3184,16 +3185,19 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 				int atpidx;
 				int item;
 				bool found = false;
-				TCHAR target[MAX_DPATH];
 
-				target[0] = 0;
 				if (list) {
-					lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-					lvstruct.pszText  = (TCHAR*)evt->name;
+					LVGROUP group;
+					group.cbSize = sizeof(LVGROUP);
+					group.mask = LVGF_HEADER | LVGF_GROUPID;
+					group.pszHeader = (TCHAR*)evt->name;
+					group.iGroupId = cntgroup;
+					ListView_InsertGroup (list, -1, &group);
+
+					lvstruct.mask     = LVIF_TEXT | LVIF_PARAM | LVIF_GROUPID;
 					lvstruct.lParam   = 0;
-					lvstruct.iItem    = cnt;
 					lvstruct.iSubItem = 0;
-					item = ListView_InsertItem (list, &lvstruct);
+					lvstruct.iGroupId = cntgroup;
 				}
 
 				atpidx = 0;
@@ -3212,7 +3216,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 				while (atpidx >= 0) {
 					devnum = 0;
 					while ((status = inputdevice_get_device_status (devnum)) >= 0) {
-						if ((1 || status) && !found) {
+						if ((1 || status)) {
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
 									int port;
@@ -3221,24 +3225,25 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 											continue;
 										inputdevice_get_widget_type (devnum, j, name);
 										if (list) {
-											if (_tcslen (target) < MAX_DPATH / 2) {
-												if (target[0])
-													_tcscat (target, L" ");
-												_tcscat (target, name);
-												_tcscat (target, L",");
-												_tcscat (target, inputdevice_get_device_name2 (devnum));
-											}
-											found = true;
+											TCHAR target[MAX_DPATH];
+											_tcscpy (target, name);
+											_tcscat (target, L", ");
+											_tcscat (target, inputdevice_get_device_name2 (devnum));
+											lvstruct.pszText = target;
+											lvstruct.iItem = cntgroup * 256 + cntitem;
+											item = ListView_InsertItem (list, &lvstruct);
 										} else if (currentdevnum == devnum) {
 											if (currentwidgetnum == j) {
 												*inputmap_portp = portnum;
-												*inputmap_indexp = cnt - 1;
+												*inputmap_indexp = cntitem - 1;
 												found2 = true;
 												if (state < 0)
 													return 1;
 												state = -1;
 											}
 										}
+										cntitem++;
+										found = true;
 									}
 								}
 							}
@@ -3248,9 +3253,15 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					evtnum = *atp++;
 					atpidx--;
 				}
-				if (found)
-					ListView_SetItemText (list, item, 1, target);
-				cnt++;
+				if (!found) {
+					if (list) {
+						lvstruct.pszText = L"";
+						lvstruct.iItem = cntgroup * 256 + cntitem;
+						item = ListView_InsertItem (list, &lvstruct);
+					}
+					cntitem++;
+				}
+				cntgroup++;
 			}
 		}
 		if (list)
@@ -3263,6 +3274,9 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 static void update_listview_inputmap (HWND hDlg)
 {
 	HWND list = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
+
+	ListView_EnableGroupView (list, TRUE);
+
 	inputmap_handle (list, -1, -1, NULL, NULL, 0);
 }
 
@@ -3273,7 +3287,7 @@ static int clicked_entry = -1;
 #define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
 #define MISC2_COLUMNS 2
-#define INPUTMAP_COLUMNS 2
+#define INPUTMAP_COLUMNS 1
 #define MAX_COLUMN_HEADING_WIDTH 20
 
 #define LV_LOADSAVE 1
@@ -3344,8 +3358,7 @@ void InitializeListView (HWND hDlg)
 
 		listview_num_columns = INPUTMAP_COLUMNS;
 		lv_type = LV_INPUTMAP;
-		WIN32GUI_LoadUIString (IDS_INPUTAMIGAEVENT, column_heading[0], MAX_COLUMN_HEADING_WIDTH);
-		WIN32GUI_LoadUIString (IDS_INPUTHOSTWIDGET, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+		column_heading[0][0] = NULL;
 		list = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 
 	} else if (hDlg == pages[MISC2_ID]) {
@@ -3426,8 +3439,7 @@ void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_INPUTMAP) {
 
-		listview_column_width[0] = 200;
-		listview_column_width[1] = 200;
+		listview_column_width[0] = 400;
 		update_listview_inputmap (hDlg);
 
 	} else if (lv_type == LV_DISK) {
@@ -11162,16 +11174,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				TCHAR name[256];
 				inputdevice_get_eventname (ie, name);
 				//write_log (L"%d %d %d %s\n", input_selected_device, input_selected_widget, evtnum, name);
-				int sub = 0;
-				if (inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL) != IDEV_WIDGET_KEY) {
-					for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-						if (!inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, NULL, NULL, NULL, sub))
-							break;
-					}
-				}
-				if (sub >= MAX_INPUT_SUB_EVENT)
-					sub = MAX_INPUT_SUB_EVENT - 1;
-				inputdevice_set_mapping (input_selected_device, input_selected_widget, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, inputmap_port + 1, sub);
+				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, name, inputmap_port);
 				InitializeListView (hDlg);
 				inputmap_remap_counter += cntadd;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
