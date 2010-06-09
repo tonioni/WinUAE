@@ -95,7 +95,7 @@
 #define USS_FORMAT_STRING_SAVE L"(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING L"(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING L"(*.inp)\0*.inp\0"
-#define  CD_FORMAT_STRING L"(*.cue;*.iso)\0*.cue;*.iso\0"
+#define  CD_FORMAT_STRING L"(*.cue;*.iso)\0*.cue;*.iso;" ARCHIVE_STRING L"\0"
 #define CONFIG_HOST L"Host"
 #define CONFIG_HARDWARE L"Hardware"
 
@@ -3122,7 +3122,7 @@ static void set_lventry_input (HWND list, int index)
 	TCHAR custom[MAX_DPATH];
 	TCHAR af[32], toggle[32];
 
-	inputdevice_get_mapped_name (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
+	inputdevice_get_mapping (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
 	if (flags & IDEV_MAPPED_AUTOFIRE_SET)
 		WIN32GUI_LoadUIString (IDS_YES, af, sizeof af / sizeof (TCHAR));
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
@@ -3145,7 +3145,7 @@ static void set_lventry_input (HWND list, int index)
 	ListView_SetItemText (list, index, 3, toggle);
 	sub = 0;
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-		if (inputdevice_get_mapped_name (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
+		if (inputdevice_get_mapping (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
 			sub++;
 	}
 	_stprintf (name, L"%d", sub);
@@ -3220,7 +3220,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
 									int port;
-									if (inputdevice_get_mapped_name (devnum, j, &flags, &port, NULL, NULL, sub) == evtnum) {
+									if (inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub) == evtnum) {
 										if (!port)
 											continue;
 										inputdevice_get_widget_type (devnum, j, name);
@@ -10874,7 +10874,7 @@ static void init_inputdlg_2 (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	index = 0; af = 0; port = 0;
 	if (input_selected_widget >= 0) {
-		inputdevice_get_mapped_name (input_selected_device, input_selected_widget, NULL, &port, name1, custom1, input_selected_sub_num);
+		inputdevice_get_mapping (input_selected_device, input_selected_widget, NULL, &port, name1, custom1, input_selected_sub_num);
 		cnt = 2;
 		while(inputdevice_iterate (input_selected_device, input_selected_widget, name2, &aftmp)) {
 			xfree (eventnames[cnt]);
@@ -10979,7 +10979,7 @@ static void doinputcustom (HWND hDlg, int newcustom)
 	TCHAR custom1[MAX_DPATH];
 	int flags;
 	custom1[0] = 0;
-	inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+	inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, NULL, custom1, input_selected_sub_num);
 	if (_tcslen (custom1) > 0 || newcustom) {
 		if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
@@ -11061,7 +11061,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		int flags;
 		TCHAR custom[MAX_DPATH];
 		custom[0] = 0;
-		inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+		inputdevice_get_mapping (input_selected_device, input_selected_widget,
 			&flags, NULL, 0, custom, input_selected_sub_num);
 		if (input_selected_event != 1)
 			custom[0] = 0;
@@ -11471,7 +11471,7 @@ static void input_toggleautofire (void)
 	TCHAR custom[MAX_DPATH];
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
-	evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;
@@ -11485,7 +11485,7 @@ static void input_toggletoggle (void)
 	TCHAR custom[MAX_DPATH];
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
-	evt = inputdevice_get_mapped_name (input_selected_device, input_selected_widget,
+	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;

@@ -286,13 +286,11 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 				if (expamem[0] & add_memory) {
 					// Z3 RAM expansion
 					p2 = 0;
-					while (!p2 && z3num < 3) {
+					while (!p2 && z3num < 2) {
 						if (z3num == 0 && currprefs.z3fastmem_size)
 							p2 = z3fastmem_start >> 16;
 						else if (z3num == 1 && currprefs.z3fastmem2_size)
 							p2 = z3fastmem2_start >> 16;
-						else if (z3num == 2 && currprefs.z3chipmem_size)
-							p2 = z3chipmem_start >> 16;
 						if (!p2)
 							z3num++;
 					}
@@ -894,7 +892,7 @@ addrbank z3fastmem2_bank = {
 addrbank z3chipmem_bank = {
 	z3chipmem_lget, z3chipmem_wget, z3chipmem_bget,
 	z3chipmem_lput, z3chipmem_wput, z3chipmem_bput,
-	z3chipmem_xlate, z3chipmem_check, NULL, L"ZorroIII FakeChipRAM",
+	z3chipmem_xlate, z3chipmem_check, NULL, L"MegaChipRAM",
 	z3chipmem_lget, z3chipmem_wget, ABFLAG_RAM
 };
 
@@ -1045,11 +1043,6 @@ static void expamem_map_z3fastmem2 (void)
 {
 	expamem_map_z3fastmem_2 (&z3fastmem2_bank, &z3fastmem2_start, currprefs.z3fastmem2_size, allocated_z3fastmem2, 0);
 }
-static void expamem_map_z3chipmem (void)
-{
-	expamem_map_z3fastmem_2 (&z3chipmem_bank, &z3chipmem_start, currprefs.z3chipmem_size, allocated_z3chipmem, 1);
-}
-
 
 static void expamem_init_z3fastmem_2 (addrbank *bank, uae_u32 start, uae_u32 size, uae_u32 allocated)
 {
@@ -1095,10 +1088,6 @@ static void expamem_init_z3fastmem (void)
 static void expamem_init_z3fastmem2 (void)
 {
 	expamem_init_z3fastmem_2 (&z3fastmem2_bank, z3fastmem2_start, currprefs.z3fastmem2_size, allocated_z3fastmem2);
-}
-static void expamem_init_z3chipmem (void)
-{
-	expamem_init_z3fastmem_2 (&z3chipmem_bank, z3chipmem_start, currprefs.z3chipmem_size, allocated_z3chipmem);
 }
 
 #ifdef PICASSO96
@@ -1175,6 +1164,12 @@ static void allocate_expamem (void)
 	currprefs.gfxmem_size = changed_prefs.gfxmem_size;
 	currprefs.z3chipmem_size = changed_prefs.z3chipmem_size;
 
+	z3chipmem_start = currprefs.z3fastmem_start;
+	z3fastmem_start = currprefs.z3fastmem_start;
+	if (currprefs.z3chipmem_size)
+		z3fastmem_start += currprefs.z3chipmem_size + 16 * 1024 * 1024;
+	z3fastmem2_start = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+
 	if (allocated_fastmem != currprefs.fastmem_size) {
 		free_fastmemory ();
 		allocated_fastmem = currprefs.fastmem_size;
@@ -1234,7 +1229,7 @@ static void allocate_expamem (void)
 		if (allocated_z3chipmem) {
 			z3chipmem = mapped_malloc (allocated_z3chipmem, L"z3_chip");
 			if (z3chipmem == 0) {
-				write_log (L"Out of memory for 32 bit fake chip memory.\n");
+				write_log (L"Out of memory for 32 bit chip memory.\n");
 				allocated_z3chipmem = 0;
 			}
 		}
@@ -1423,8 +1418,6 @@ void expamem_reset (void)
 		card_map[cardno++] = expamem_map_fastcard;
 	}
 
-	z3fastmem_start = currprefs.z3fastmem_start;
-	z3fastmem2_start = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
 	if (z3fastmem != NULL) {
 		z3num = 0;
 		if (kickstart_version >= 36) {
@@ -1440,17 +1433,8 @@ void expamem_reset (void)
 			map_banks (&z3fastmem2_bank, z3fastmem2_start >> 16, currprefs.z3fastmem2_size >> 16, allocated_z3fastmem2);
 		}
 	}
-	z3chipmem_start = z3fastmem2_start + currprefs.z3fastmem2_size;
-	if (currprefs.z3fastmem_size || currprefs.z3fastmem2_size)
-		z3chipmem_start += 16 * 1024 * 1024;
-	if (z3chipmem != NULL) {
-		z3num = 0;
-		if (kickstart_version >= 36) {
-			card_init[cardno] = expamem_init_z3chipmem;
-			card_map[cardno++] = expamem_map_z3chipmem;
-		}
+	if (z3chipmem != NULL)
 		map_banks (&z3chipmem_bank, z3chipmem_start >> 16, currprefs.z3chipmem_size >> 16, allocated_z3chipmem);
-	}
 #ifdef CDTV
 	if (currprefs.cs_cdtvcd) {
 		card_init[cardno] = expamem_init_cdtv;

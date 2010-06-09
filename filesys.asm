@@ -225,13 +225,14 @@ FSIN_none:
 ;	jsr -$007e(a6) ; Enable
 
 
-filesys_dev_storeinfo	; add >2MB chip RAM to memory list
+filesys_dev_storeinfo
 	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
 	cmp.w #36,20(a6)
 	bcs.s FSIN_ksold
 	or.w #256,d4 ; MEMF_LOCAL
 FSIN_ksold
 
+	; add >2MB-6MB chip RAM to memory list
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0)
@@ -245,40 +246,17 @@ FSIN_ksold
 	jsr -618(a6) ; AddMemList
 FSIN_chip_done
 
-	; patch >8MB Z3 FakeChipRAM memory type to Chip
+	; add MegaChipRAM
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0) ; d1 = size, a1 = start address
-	move.l d1,d2
 	beq.s FSIN_fchip_done
-	move.l a1,a2
-	jsr -$0078(a6) ; Disable
-	lea 322(a6),a0 ; MemHeader
-FSIN_scanfchip:
-	move.l (a0),a0	; first MemList
-	tst.l (a0)
-	bne.s FSIN_fchip_found
-	; not in memlist, AddMem() it
-	move.l a2,a0
-	move.l d2,d0
+	move.l a1,a0
+	move.l d1,d0
 	move.l d4,d1
 	moveq #-5,d2
 	lea fchipname(pc),a1
 	jsr -618(a6) ; AddMemList
-	bra.s FSIN_fchip_done2	
-FSIN_fchip_found
-	move.l 20(a0),d0 ; mh_Lower
-	clr.w d0
-	cmp.l d0,a2
-	bne.s FSIN_scanfchip
-	move.w 14(a0),d0 ; attributes
-	and.w #~4,d0 ; MEMF_FAST
-	or.w d4,d0
-	move.w d0,14(a0)
-	lea fchipname(pc),a1
-	move.l a1,10(a0)
-FSIN_fchip_done2
-	jsr -$007e(a6) ; Enable
 FSIN_fchip_done
 
 	lea fstaskname(pc),a0
@@ -2495,5 +2473,5 @@ intlibname: dc.b 'intuition.library',0
 gfxlibname: dc.b 'graphics.library',0
 explibname: dc.b 'expansion.library',0
 fsresname: dc.b 'FileSystem.resource',0
-fchipname: dc.b 'z3chip memory',0
+fchipname: dc.b 'megachip memory',0
 	END

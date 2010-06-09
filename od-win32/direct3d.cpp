@@ -8,6 +8,7 @@
 #if defined (D3D) && defined (GFXFILTER)
 
 #define EFFECT_VERSION 2
+#define D3DX9DLL L"d3dx9_43.dll"
 
 #include "options.h"
 #include "xwin.h"
@@ -444,7 +445,7 @@ int D3D_canshaders (void)
 	if (d3d_yesno > 0)
 		return 1;
 	d3d_yesno = -1;
-	h = LoadLibrary (L"d3dx9_42.dll");
+	h = LoadLibrary (D3DX9DLL);
 	if (h != NULL) {
 		FreeLibrary (h);
 		d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
@@ -1569,9 +1570,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		return errmsg;
 	}
 
-	d3dx = LoadLibrary (L"d3dx9_42.dll");
+	d3dx = LoadLibrary (D3DX9DLL);
 	if (d3dx == NULL) {
-		_tcscpy (errmsg, L"Direct3D: August 2009 or newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513");
+		_tcscpy (errmsg, L"Direct3D: June 2010 or newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513");
 		if (isfullscreen () <= 0)
 			ShellExecute(NULL, L"open", L"http://go.microsoft.com/fwlink/?linkid=56513", NULL, NULL, SW_SHOWNORMAL);
 		return errmsg;

@@ -68,6 +68,7 @@ struct didata {
 	TCHAR *name;
 	TCHAR *sortname;
 	TCHAR *configname;
+	int vid, pid;
 
 	int connection;
 	LPDIRECTINPUTDEVICE8 lpdi;
@@ -615,8 +616,8 @@ static int initialize_catweasel (void)
 }
 
 
-#define RDP_DEVICE1 L"\\??\\Root#RDP_"
-#define RDP_DEVICE2 L"\\\\?\\Root#RDP_"
+#define RDP_DEVICE1 L"\\??\\Root#"
+#define RDP_DEVICE2 L"\\\\?\\Root#"
 
 static int rdpdevice(TCHAR *buf)
 {
@@ -650,8 +651,12 @@ static void rawinputfixname (const TCHAR *name, const TCHAR *friendlyname)
 			if (_tcslen (tmp2) >= _tcslen (tmp) && !_tcsncmp (tmp2, tmp, _tcslen (tmp))) {
 				xfree (did->name);
 				xfree (did->sortname);
-				did->name = my_strdup (friendlyname);
-				did->sortname = my_strdup (friendlyname);
+				if (did->vid > 0 && did->pid > 0)
+					_stprintf (tmp, L"%s [%04X/%04X]", friendlyname, did->vid, did->pid);
+				else
+					_stprintf (tmp, L"%s", friendlyname);
+				did->name = my_strdup (tmp);
+				did->sortname = my_strdup (tmp);
 				write_log (L"'%s' ('%s')\n", did->name, did->configname);
 			}
 		}
@@ -729,6 +734,23 @@ static TCHAR *rawkeyboardlabels[256] =
 	L"WEBFORWARD",L"WEBBACK",L"MYCOMPUTER",L"MAIL",L"MEDIASELECT",
 	L""
 };
+
+static void getvidpid2 (TCHAR *devname, int *id, TCHAR *str)
+{
+	TCHAR *s = _tcsstr (devname, str);
+	if (!s)
+		return;
+	int val = -1;
+	_stscanf (s + _tcslen (str), L"%X", &val);
+	*id = val;
+}
+
+static void getvidpid (TCHAR *devname, int *vid, int *pid)
+{
+	*vid = *pid = -1;
+	getvidpid2 (devname, vid, L"VID_");
+	getvidpid2 (devname, pid, L"PID_");
+}
 
 static int initialize_rawinput (void)
 {
@@ -816,7 +838,11 @@ static int initialize_rawinput (void)
 
 			rnum_raw++;
 			cleardid (did);
-			_stprintf (tmp, L"%s", type == RIM_TYPEMOUSE ? L"RAW Mouse" : L"RAW Keyboard");
+			getvidpid (buf, &did->vid, &did->pid);
+			if (did->vid > 0 && did->pid > 0)
+				_stprintf (tmp, L"%s (%04X/%04X)", type == RIM_TYPEMOUSE ? L"RAW Mouse" : L"RAW Keyboard", did->vid, did->pid);
+			else
+				_stprintf (tmp, L"%s", type == RIM_TYPEMOUSE ? L"RAW Mouse" : L"RAW Keyboard");
 			did->name = my_strdup (tmp);
 			did->rawinput = h;
 			did->connection = DIDC_RAW;
@@ -1822,8 +1848,11 @@ static int get_kb_widget_first (int kb, int type)
 
 static int get_kb_widget_type (int kb, int num, TCHAR *name, uae_u32 *code)
 {
-	if (name)
+	if (name) {
 		_stprintf (name, L"[%02X] %s", di_keyboard[kb].buttonmappings[num], di_keyboard[kb].buttonname[num]);
+		name += _tcslen (name) + 1;
+		_tcscpy (name, di_keyboard[kb].buttonname[num]);
+	}
 	if (code)
 		*code = di_keyboard[kb].buttonmappings[num];
 	return IDEV_WIDGET_KEY;
@@ -2580,6 +2609,14 @@ int input_get_default_keyboard (int i)
 
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt)
 {
+	// wrong place!
+	uid->eventid[slot][SPARE_SUB_EVENT] = uid->eventid[slot][sub];
+	uid->flags[slot][SPARE_SUB_EVENT] = uid->flags[slot][sub];
+	uid->port[slot][SPARE_SUB_EVENT] = MAX_JPORTS + 1;
+	xfree (uid->custom[slot][SPARE_SUB_EVENT]);
+	uid->custom[slot][SPARE_SUB_EVENT] = uid->custom[slot][sub];
+	uid->custom[slot][sub] = NULL;
+
 	uid[i].eventid[slot][sub] = evt;
 	uid[i].port[slot][sub] = port + 1;
 }

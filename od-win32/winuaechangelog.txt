@@ -1,4 +1,38 @@
 
+Beta 8:
+
+- Z3Chip is not a Z3 board anymore, now also compatible with KS 1.x (32-bit addressing
+  capable CPU required)
+- rawkeyboard RIDEV_NOHOTKEYS flag was missing (Disables Windows keys etc..)
+- GamePorts remap/test GUI updated
+- GamePorts remap when in Configuration#x mode didn't update GamePorts input mappings
+- data in GamePorts overwritten Configuration#x slot 1 is stored in hidden slot 5, also
+  saved to configuration when needed (not backwards compatible with old versions). Now
+  you can load old configurations in Configuration#x mode, set GamePorts to <none> without
+  losing original input configuration data in slot 1.
+- added key label to keyboard configuration data, not used for anything yet (compatible with
+  old versions, old versions simply ignore it)
+- added supported archive extensions to CD image dialog's file type list
+- DX SDK updated (June 2010), d3dx9_xx.dll version bump -> DX runtime update required...
+- added stupid looking vid and pid values to rawinput keyboards and mice, makes it possible
+  to distinguish multiple mouse or keyboard.. (instead of "HID Keyboard Device [n]" x N that
+  change position if you remove or add any keyboard-like device, including bar code readers)
+
+Important: if you have configurations with Configuration#1-3 set, please do following tests:
+(There is no way I can test all possible combinations)
+
+Test 1: Load configuration file, set both mouse and joystick port to <none>. Check that all
+mappings are still 100% correct. NOTE: remember that Keyboard* and Mouse* are gone if you have
+rawinput compatible mouse and keyboard (most likely). Keyboard or mouse mappings disappearing
+due to this rawinput change is not a bug.
+
+Test 2: Play with Game Ports mouse and joystick settings, add random custom mappings, whatever
+(You can keep checking Input panel if you want) and then set them back to <none>. Mappings
+should still be 100% exact same as when configuration was originally loaded.
+
+Test failed -> email or attach original configuration and include short problem description.
+(what test phase, what you did, what happened)
+
 Beta 7:
 
 - do not center horizontally if there is no bitplanes enabled (result was very badly aligned
@@ -19,7 +53,6 @@ Beta 7:
 - joystick button pullups removed, this will break some games' second joystick button read routines
   but it has to be done because they wouldn't work on real Amigas with standard joystick either and
   this workaround also breaks some other games that don't expect pullups (Dick Tracy for example)
-  Pullups are automatically enabled if joystick 3rd button is mapped.
 
 - another big input change, Game Ports settings are now always merged with currently selected
   input configuration (possibly overwriting event that was manually configured in slot 0)
@@ -170,7 +203,7 @@ Beta 1:
   (it was made when there was no "is drive mounted in Windows" test) This parameter has
   also become THE FIX for every, even totally unrelated possible, HD/CF related problem...
 - toggle between fullwindow and fullscreen if started in fullwindow mode
-- fixed data coruption in input parsing if mapped key did not exist (different keyboard)
+- fixed data corruption in input parsing if mapped key did not exist (different keyboard)
 - transparent archive support updates and handle leak fix
 - small filter panel GUI changes
 - single/double/triple buffering option added to Display panel, also affects D3D now mode now

@@ -73,7 +73,7 @@ struct inputevent {
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
 extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, const TCHAR *name, int port);
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, int flags, int port, int sub);
-extern int inputdevice_get_mapped_name (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
+extern int inputdevice_get_mapping (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
 extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);

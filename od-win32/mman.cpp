@@ -418,21 +418,18 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"z3")) {
-			shmaddr=natmem_offset + currprefs.z3fastmem_start;
+			shmaddr=natmem_offset + z3fastmem_start;
 			if (!currprefs.z3fastmem2_size)
 				size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"z3_2")) {
-			shmaddr=natmem_offset + currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+			shmaddr=natmem_offset + z3fastmem_start + currprefs.z3fastmem_size;
 			size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"z3_chip")) {
-			uae_u32 l = currprefs.z3fastmem_start + currprefs.z3fastmem_size + currprefs.z3fastmem2_size;
-			if (currprefs.z3fastmem_size || currprefs.z3fastmem2_size)
-				l += 16 * 1024 * 1024;
-			shmaddr=natmem_offset + l;
+			shmaddr=natmem_offset + z3chipmem_start;
 			size += BARRIER;
 			got = TRUE;
 		}

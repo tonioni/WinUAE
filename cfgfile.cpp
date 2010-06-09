@@ -801,11 +801,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"mbresmem_size", L"%d", p->mbresmem_high_size / 0x100000);
 	cfgfile_write (f, L"z3mem_size", L"%d", p->z3fastmem_size / 0x100000);
 	cfgfile_write (f, L"z3mem2_size", L"%d", p->z3fastmem2_size / 0x100000);
-	cfgfile_write (f, L"z3chipmem_size", L"%d", p->z3chipmem_size / 0x100000);
 	cfgfile_write (f, L"z3mem_start", L"0x%x", p->z3fastmem_start);
 	cfgfile_write (f, L"bogomem_size", L"%d", p->bogomem_size / 0x40000);
 	cfgfile_write (f, L"gfxcard_size", L"%d", p->gfxmem_size / 0x100000);
 	cfgfile_write (f, L"chipmem_size", L"%d", p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
+	cfgfile_dwrite (f, L"megachipmem_size", L"%d", p->z3chipmem_size / 0x100000);
 
 	if (p->m68k_speed > 0)
 		cfgfile_write (f, L"finegrain_cpu_speed", L"%d", p->m68k_speed);
@@ -1767,7 +1767,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		|| cfgfile_intval (option, value, L"mbresmem_size", &p->mbresmem_high_size, 0x100000)
 		|| cfgfile_intval (option, value, L"z3mem_size", &p->z3fastmem_size, 0x100000)
 		|| cfgfile_intval (option, value, L"z3mem2_size", &p->z3fastmem2_size, 0x100000)
-		|| cfgfile_intval (option, value, L"z3chipmem_size", &p->z3chipmem_size, 0x100000)
+		|| cfgfile_intval (option, value, L"megachipmem_size", &p->z3chipmem_size, 0x100000)
 		|| cfgfile_intval (option, value, L"z3mem_start", &p->z3fastmem_start, 1)
 		|| cfgfile_intval (option, value, L"bogomem_size", &p->bogomem_size, 0x40000)
 		|| cfgfile_intval (option, value, L"gfxcard_size", &p->gfxmem_size, 0x100000)
