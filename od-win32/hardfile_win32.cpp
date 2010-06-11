@@ -1744,9 +1744,11 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 			SendMessage (hwndprogress, PBM_SETPOS, (WPARAM)pct, 0);
 			_stprintf (tmp, L"%dM / %dM (%d%%)", (int)(written >> 20), (int)(size >> 20), pct);
 			SendMessage (hwndprogresstxt, WM_SETTEXT, 0, (LPARAM)tmp);
-			while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
-				TranslateMessage (&msg);
-				DispatchMessage (&msg);
+			while (PeekMessage (&msg, hwnd, 0, 0, PM_REMOVE)) {
+				if (!IsDialogMessage (hwnd, &msg)) {
+					TranslateMessage (&msg);
+					DispatchMessage (&msg);
+				}
 			}
 			cnt = 0;
 		}

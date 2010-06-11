@@ -1022,9 +1022,10 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 			zai.size = zfile_ftell (zf2);
 			zfile_fseek (zf2, 0, SEEK_SET);
 			zn = zvolume_addfile_abs (zv, &zai);
-			if (zn)
-				zn->offset = index + 1;
-			zfile_fclose (zf2);
+			zn->f = zf2;
+//			if (zn)
+//				zn->offset = index + 1;
+//			zfile_fclose (zf2);
 		} else {
 			if (rc == 0) {
 				zfile_fclose (zf);

@@ -2916,7 +2916,7 @@ void fetch_path (TCHAR *name, TCHAR *out, int size)
 	fixtrailing (out);
 }
 
-int get_rom_path(TCHAR *out, int mode)
+int get_rom_path (TCHAR *out, int mode)
 {
 	TCHAR tmp[MAX_DPATH];
 
@@ -3050,7 +3050,7 @@ static void romlist_add2 (TCHAR *path, struct romdata *rd)
 	romlist_add (path, rd);
 }
 
-extern int scan_roms (int);
+extern int scan_roms (HWND, int);
 void read_rom_list (void)
 {
 	TCHAR tmp2[1000];
@@ -3066,7 +3066,7 @@ void read_rom_list (void)
 		return;
 	if (!exists || forceroms) {
 		load_keyring (NULL, NULL);
-		scan_roms (forceroms ? 0 : 1);
+		scan_roms (NULL, forceroms ? 0 : 1);
 	}
 	forceroms = 0;
 	idx = 0;

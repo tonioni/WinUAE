@@ -2584,7 +2584,6 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 {
 	struct zfile *zf = NULL;
 	struct zvolume *zvnew = NULL;
-//	int i;
 	int done = 0;
 
 #ifdef ZFILE_DEBUG
@@ -2595,6 +2594,11 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 		goto end;
 	zvnew = zfile_fopen_archive_ext (zv->parentz, zf);
 	if (!zvnew) {
+#if 1
+		zvnew = archive_directory_plain (zf);
+		zfile_fopen_archive_recurse (zvnew);
+		done = 1;
+#else
 		int rc;
 		int index;
 		struct zfile *zf2, *zf3;
@@ -2615,12 +2619,13 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 				}
 			} else {
 				zfile_fclose (zf3);
-				if (rc == 0)
+				if (rc <= 0)
 					break;
 			}
 			index++;
-			break;
+			break; // TODO
 		}
+#endif
 	} else {
 		zvnew->parent = zv->parent;
 		zfile_fopen_archive_recurse (zvnew);

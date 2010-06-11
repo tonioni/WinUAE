@@ -15,7 +15,7 @@ TCHAR start_path_data[MAX_DPATH];
 TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 struct uae_prefs currprefs;
-static int debug = 1;
+static int debug = 0;
 static int amigatest;
 
 #define WRITE_LOG_BUF_SIZE 4096
@@ -698,7 +698,7 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.8b by Toni Wilen (c)2010\n");
+		_tprintf (L"UAE unpacker uaeunp 0.8c by Toni Wilen (c)2010\n");
 		_tprintf (L"\n");
 		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");

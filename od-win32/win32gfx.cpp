@@ -2321,11 +2321,11 @@ static int create_windows_2 (void)
 		SetCursorPos (x + w / 2, y + h / 2);
 	addnotifications (hAmigaWnd, FALSE, FALSE);
 	if (hMainWnd != hAmigaWnd) {
-		if (!currprefs.headless)
+		if (!currprefs.headless && !rp_isactive ())
 			ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
 		UpdateWindow (hMainWnd);
 	}
-	if (!currprefs.headless)
+	if (!currprefs.headless && !rp_isactive ())
 		ShowWindow (hAmigaWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
 	UpdateWindow (hAmigaWnd);
 	firstwindow = 0;

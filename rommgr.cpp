@@ -357,13 +357,13 @@ static void romlist_cleanup (void)
 		}
 		if (ok == 0) {
 			while (i < j) {
-				struct romlist *rl = romlist_getrl (&roms[i]);
-				if (rl) {
-					int cnt = romlist_cnt - i - 1;
-					write_log (L"%s '%s' removed from romlist\n", roms[k].name, rl->path);
-					xfree (rl->path);
+				struct romlist *rl2 = romlist_getrl (&roms[i]);
+				if (rl2) {
+					int cnt = romlist_cnt - (rl2 - rl) - 1;
+					write_log (L"%s '%s' removed from romlist\n", roms[k].name, rl2->path);
+					xfree (rl2->path);
 					if (cnt > 0)
-						memmove (rl, rl + 1, cnt * sizeof (struct romlist));
+						memmove (rl2, rl2 + 1, cnt * sizeof (struct romlist));
 					romlist_cnt--;
 				}
 				i++;

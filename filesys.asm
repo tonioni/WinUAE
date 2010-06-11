@@ -250,9 +250,9 @@ FSIN_chip_done
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0) ; d1 = size, a1 = start address
-	beq.s FSIN_fchip_done
 	move.l a1,a0
 	move.l d1,d0
+	beq.s FSIN_fchip_done
 	move.l d4,d1
 	moveq #-5,d2
 	lea fchipname(pc),a1

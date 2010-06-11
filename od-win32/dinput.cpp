@@ -1454,7 +1454,6 @@ static BOOL di_enumcallback2 (LPCDIDEVICEINSTANCE lpddi, int joy)
 	if (!memcmp (&did->iguid, &GUID_SysKeyboard, sizeof (GUID)) || !memcmp (&did->iguid, &GUID_SysMouse, sizeof (GUID))) {
 		did->priority = 2;
 		did->superdevice = 1;
-		_tcscat (did->name, L" *");
 	}
 	return DIENUM_CONTINUE;
 }

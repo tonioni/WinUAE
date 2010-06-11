@@ -1277,16 +1277,87 @@ static int isromext (TCHAR *path)
 	return 0;
 }
 
+static bool infoboxdialogstate;
+static HWND infoboxhwnd;
+static INT_PTR CALLBACK InfoBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch(msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage (0);
+		infoboxdialogstate = false;
+		return TRUE;
+	case WM_CLOSE:
+		DestroyWindow (hDlg);
+		infoboxdialogstate = false;
+	return TRUE;
+	case WM_INITDIALOG:
+	{
+		HWND owner = GetParent (hDlg);
+		if (!owner) {
+			owner = GetDesktopWindow ();
+			RECT ownerrc, merc;
+			GetWindowRect (owner, &ownerrc);
+			GetWindowRect (hDlg, &merc);
+			SetWindowPos (hDlg, NULL,
+				ownerrc.left + ((ownerrc.right - ownerrc.left) - (merc.right - merc.left)) /2,
+				ownerrc.top + ((ownerrc.bottom - ownerrc.top) - (merc.bottom - merc.top)) / 2,
+				0, 0,
+				SWP_NOSIZE);
+		}
+		return TRUE;
+	}
+	case WM_COMMAND:
+		switch (LOWORD (wParam))
+		{
+		case IDCANCEL:
+			infoboxdialogstate = false;
+			DestroyWindow (hDlg);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+static bool scan_rom_hook (const TCHAR *name, int line)
+{
+	MSG msg;
+	if (!infoboxhwnd)
+		return true;
+	if (name != NULL) {
+		const TCHAR *s = NULL;
+		if (line == 2) {
+			s = _tcsrchr (name, '/');
+			if (!s)
+				s = _tcsrchr (name, '\\');
+			if (s)
+				s++;
+		}
+		SetWindowText (GetDlgItem (infoboxhwnd, line == 1 ? IDC_INFOBOX_TEXT1 : (line == 2 ? IDC_INFOBOX_TEXT2 : IDC_INFOBOX_TEXT3)), s ? s : name);
+	}
+	while (PeekMessage (&msg, infoboxhwnd, 0, 0, PM_REMOVE)) {
+		if (!IsDialogMessage (infoboxhwnd, &msg)) {
+			TranslateMessage (&msg);
+			DispatchMessage (&msg);
+		}
+	}
+	return infoboxdialogstate;
+}
+
 static int scan_rom_2 (struct zfile *f, void *vrsd)
 {
 	struct romscandata *rsd = (struct romscandata*)vrsd;
 	TCHAR *path = zfile_getname(f);
 	struct romdata *rd;
 
-	if (!isromext(path))
+	scan_rom_hook (NULL, 0);
+	if (!isromext (path))
 		return 0;
 	rd = scan_single_rom_2 (f);
 	if (rd) {
+		TCHAR name[MAX_DPATH];
+		getromname (rd, name);
+		scan_rom_hook (name, 3);
 		addrom (rsd->fkey, rd, path);
 		rsd->got = 1;
 	}
@@ -1303,6 +1374,7 @@ static int scan_rom (TCHAR *path, UAEREG *fkey)
 		//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 		return 0;
 	}
+	scan_rom_hook (path, 2);
 	for (;;) {
 		TCHAR tmp[MAX_DPATH];
 		_tcscpy (tmp, path);
@@ -1411,6 +1483,7 @@ static int scan_roms_2 (UAEREG *fkey, TCHAR *path)
 	handle = FindFirstFile (buf, &find_data);
 	if (handle == INVALID_HANDLE_VALUE)
 		return 0;
+	scan_rom_hook (path, 1);
 	for (;;) {
 		TCHAR tmppath[MAX_DPATH];
 		_tcscpy (tmppath, path);
@@ -1419,7 +1492,7 @@ static int scan_roms_2 (UAEREG *fkey, TCHAR *path)
 			if (scan_rom (tmppath, fkey))
 				ret = 1;
 		}
-		if (FindNextFile (handle, &find_data) == 0) {
+		if (!scan_rom_hook (NULL, 0) || FindNextFile (handle, &find_data) == 0) {
 			FindClose (handle);
 			break;
 		}
@@ -1429,12 +1502,13 @@ static int scan_roms_2 (UAEREG *fkey, TCHAR *path)
 
 #define MAX_ROM_PATHS 10
 
-static int scan_roms_3(UAEREG *fkey, TCHAR **paths, TCHAR *path)
+static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, TCHAR *path)
 {
 	int i, ret;
 	TCHAR pathp[MAX_DPATH];
 
 	ret = 0;
+	scan_rom_hook (NULL, 0);
 	GetFullPathName (path, MAX_DPATH, pathp, NULL);
 	for (i = 0; i < MAX_ROM_PATHS; i++) {
 		if (paths[i] && !_tcsicmp (paths[i], pathp))
@@ -1450,15 +1524,17 @@ static int scan_roms_3(UAEREG *fkey, TCHAR **paths, TCHAR *path)
 	return ret;
 }
 
-extern int get_rom_path(TCHAR *out, int mode);
+extern int get_rom_path (TCHAR *out, int mode);
 
-int scan_roms (int show)
+int scan_roms (HWND hDlg, int show)
 {
 	TCHAR path[MAX_DPATH];
 	static int recursive;
 	int id, i, ret, keys, cnt;
 	UAEREG *fkey, *fkey2;
 	TCHAR *paths[MAX_ROM_PATHS];
+	HWND hwnd = 0;
+	MSG msg;
 
 	if (recursive)
 		return 0;
@@ -1469,11 +1545,18 @@ int scan_roms (int show)
 	if (fkey == NULL)
 		goto end;
 
+	infoboxdialogstate = true;
+	hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_INFOBOX), hDlg, InfoBoxDialogProc);
+	if (!hwnd)
+		goto end;
+	infoboxhwnd = hwnd;
+
 	cnt = 0;
 	ret = 0;
 	for (i = 0; i < MAX_ROM_PATHS; i++)
 		paths[i] = NULL;
-	for (;;) {
+	scan_rom_hook (NULL, 0);
+	while (scan_rom_hook (NULL, 0)) {
 		keys = get_keyring ();
 		fetch_path (L"KickstartPath", path, sizeof path / sizeof (TCHAR));
 		cnt += scan_roms_3 (fkey, paths, path);
@@ -1516,6 +1599,14 @@ int scan_roms (int show)
 	}
 
 end:
+	infoboxhwnd = NULL;
+	if (hwnd) {
+		DestroyWindow (hwnd);
+		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+			TranslateMessage (&msg);
+			DispatchMessage (&msg);
+		}
+	}
 	read_rom_list ();
 	if (show)
 		show_rom_list ();
@@ -4431,7 +4522,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
 				load_keyring (&workprefs, NULL);
 				set_path (L"KickstartPath", tmp);
-				if (!scan_roms (1))
+				if (!scan_roms (hDlg, 1))
 					gui_message_id (IDS_ROMSCANNOROMS);
 				values_to_pathsdialog (hDlg);
 			}
@@ -4549,7 +4640,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			}
 			break;
 		case IDC_ROM_RESCAN:
-			scan_roms (1);
+			scan_roms (hDlg, 1);
 			break;
 		case IDC_RESETREGISTRY:
 			resetregistry ();
@@ -6870,7 +6961,7 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
 	if (!regexiststree (NULL , L"DetectedROMs"))
-		scan_roms (1);
+		scan_roms (NULL, 1);
 }
 
 static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
@@ -10844,7 +10935,7 @@ static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)
 	while (stringboxdialogactive == 1) {
 		MSG msg;
 		int ret;
-		WaitMessage();
+		WaitMessage ();
 		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
 			if (ret == -1)
 				break;
