@@ -602,6 +602,8 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 	return 0;
 }
 
+static void action_replay_chipwrite (void);
+
 void REGPARAM2 chipmem_lput_actionreplay1 (uaecptr addr, uae_u32 l)
 {
 	uae_u32 *m;
@@ -618,7 +620,7 @@ void REGPARAM2 chipmem_wput_actionreplay1 (uaecptr addr, uae_u32 w)
 
 	addr -= chipmem_start & chipmem_mask;
 	addr &= chipmem_mask;
-	if (addr == 0x62 && !is_ar_pc_in_rom())
+	if (addr == 0x60 && !is_ar_pc_in_rom())
 		action_replay_chipwrite ();
 	m = (uae_u16 *)(chipmemory + addr);
 	do_put_mem_word (m, w);
@@ -1143,7 +1145,7 @@ int action_replay_freeze (void)
 	return 0;
 }
 
-void action_replay_chipwrite (void)
+static void action_replay_chipwrite (void)
 {
 	if (armodel == 2 || armodel == 3) {
 		action_replay_flag = ACTION_REPLAY_DORESET;

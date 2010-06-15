@@ -377,7 +377,7 @@ static void romlist_cleanup (void)
 	}
 }
 
-struct romlist **getromlistbyident(int ver, int rev, int subver, int subrev, TCHAR *model, int all)
+struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, TCHAR *model, int all)
 {
 	int i, j, ok, out, max;
 	struct romdata *rd;
@@ -1146,7 +1146,18 @@ struct zfile *read_rom (struct romdata **prd)
 			}
 			if (get_crc32 (buf, size) == crc32) {
 				ok = 1;
-			} else {
+			}
+			if (!ok && (rd->type & ROMTYPE_AR)) {
+				uae_u8 tmp[2];
+				tmp[0] = buf[0];
+				tmp[1] = buf[1];
+				buf[0] = buf[1] = 0;
+				if (get_crc32 (buf, size) == crc32)
+					ok = 1;
+				buf[0] = tmp[0];
+				buf[1] = tmp[1];
+			}
+			if (!ok) {
 				/* perhaps it is byteswapped without byteswap entry? */
 				byteswap (buf, size);
 				if (get_crc32 (buf, size) == crc32)

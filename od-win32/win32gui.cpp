@@ -2630,9 +2630,12 @@ static void flushconfigcache (const TCHAR *cachepath)
 	if (zcache == NULL)
 		return;
 	fclose (zcache);
+	bool hidden = my_isfilehidden (cachepath);
+	my_setfilehidden (cachepath, false);
 	zcache = _tfopen (cachepath, L"w+, ccs=UTF-8");
 	if (zcache)
 		fclose (zcache);
+	my_setfilehidden (cachepath, hidden);
 	write_log (L"'%s' flushed\n", cachepath);
 }
 
@@ -2899,6 +2902,8 @@ static void writeconfigcache (const TCHAR *path)
 	if (!configurationcache)
 		return;
 	getconfigcache (cachepath, path);
+	bool hidden = my_isfilehidden (cachepath);
+	my_setfilehidden (cachepath, false);
 	zcache = _tfopen (cachepath, L"w, ccs=UTF-8");
 	if (!zcache)
 		return;
@@ -2921,6 +2926,7 @@ static void writeconfigcache (const TCHAR *path)
 			writeconfigcacheentry (zcache, path2, cs);
 	}
 	fclose (zcache);
+	my_setfilehidden (cachepath, hidden);
 	write_log (L"'%s' created\n", cachepath);
 }
 
@@ -3279,7 +3285,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 
 				if (list) {
 					LVGROUP group;
-					group.cbSize = sizeof(LVGROUP);
+					group.cbSize = sizeof (LVGROUP);
 					group.mask = LVGF_HEADER | LVGF_GROUPID;
 					group.pszHeader = (TCHAR*)evt->name;
 					group.iGroupId = cntgroup;
@@ -11300,6 +11306,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				int op = inputmap_port;
 				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state)) {
 					if (op == inputmap_port) {
+						ListView_EnsureVisible (h, 1, FALSE);
 						ListView_EnsureVisible (h, inputmap_index, FALSE);
 						ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 						ListView_SetItemState (h, inputmap_index, LVIS_SELECTED , LVIS_SELECTED);

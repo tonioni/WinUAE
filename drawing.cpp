@@ -180,9 +180,9 @@ typedef void (*line_draw_func)(int, int);
 #define LINE_DONE_AS_PREVIOUS 8
 #define LINE_REMEMBERED_AS_PREVIOUS 9
 
-static uae_u8 linestate[(MAXVPOS + 1) * 2 + 1];
+static uae_u8 linestate[(MAXVPOS + 2) * 2 + 1];
 
-uae_u8 line_data[(MAXVPOS + 1) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
+uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
 /* Centering variables.  */
 static int min_diwstart, max_diwstop;
@@ -1967,8 +1967,8 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	switch (linestate[lineno])
 	{
 	case LINE_REMEMBERED_AS_PREVIOUS:
-		if (!warned)
-			write_log (L"Shouldn't get here... this is a bug.\n"), warned++;
+//		if (!warned) // happens when program messes up with VPOSW
+//			write_log (L"Shouldn't get here... this is a bug.\n"), warned++;
 		return;
 
 	case LINE_BLACK:

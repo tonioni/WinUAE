@@ -681,7 +681,9 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 			kbr->port[i][SPARE_SUB_EVENT] &&
 			keyboard_default[k].evt == kbr->eventid[i][SPARE_SUB_EVENT] && keyboard_default[k].flags == (kbr->flags[i][SPARE_SUB_EVENT] & ID_FLAG_SAVE_MASK);
 
-		if (kbr->port[i][0] > 0 && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM) && (kbr->port[i][SPARE_SUB_EVENT] == 0 || isdefaultspare))
+		if (kbr->port[i][0] > 0 && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM) && 
+			(kbr->eventid[i][1] <= 0 && kbr->eventid[i][2] <= 0 && kbr->eventid[i][3] <= 0) &&
+			(kbr->port[i][SPARE_SUB_EVENT] == 0 || isdefaultspare))
 			skip = 1;
 		if (kbr->eventid[i][0] == 0 && (kbr->flags[i][0] & ID_FLAG_SAVE_MASK) == 0 && keyboard_default[k].scancode < 0)
 			skip = 1;
@@ -722,8 +724,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 			}
 		}
 		idf->get_widget_type (devnum, i, tmp5, NULL);
-		p = tmp5 + _tcslen (tmp5) + 1;
-		_stprintf (tmp3, L"%d%s%s", kbr->extra[i], p[0] ? L"." : L"", p[0] ? p : L"");
+		_stprintf (tmp3, L"%d%s%s", kbr->extra[i], tmp5[0] ? L"." : L"", tmp5[0] ? tmp5 : L"");
 		kbrlabel (tmp3);
 		_stprintf (tmp1, L"keyboard.%d.button.%s", devnum, tmp3);
 		_stprintf (tmp4, L"input.%d.%s", idnum + 1, tmp1);
@@ -4912,10 +4913,7 @@ void inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out)
 {
 	if (!out)
 		return;
-	if (ie->allow_mask == AM_K)
-		_stprintf (out, L"%s (0x%02X)", ie->name, ie->data);
-	else
-		_tcscpy (out, ie->name);
+	_tcscpy (out, ie->name);
 }
 
 int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af)
@@ -5598,7 +5596,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 				struct inputdevice_functions *idf;
 				int type = IDTYPE_MOUSE;
 				int idnum = JSEM_MICE;
-				if (j == 0) {
+				if (j > 0) {
 					type = IDTYPE_JOYSTICK;
 					idnum = JSEM_JOYS;
 				}
@@ -5619,20 +5617,23 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 		break;
 	case 0:
 		{
-			int start = JPORT_NONE, got = 0;
+			int start = JPORT_NONE, got = 0, max = 0;
 			TCHAR *pp = 0;
 			if (_tcsncmp (value, L"kbd", 3) == 0) {
 				start = JSEM_KBDLAYOUT;
 				pp = value + 3;
 				got = 1;
+				max = JSEM_LASTKBD;
 			} else if (_tcsncmp (value, L"joy", 3) == 0) {
 				start = JSEM_JOYS;
 				pp = value + 3;
 				got = 1;
+				max = idev[IDTYPE_JOYSTICK].get_num ();
 			} else if (_tcsncmp (value, L"mouse", 5) == 0) {
 				start = JSEM_MICE;
 				pp = value + 5;
 				got = 1;
+				max = idev[IDTYPE_MOUSE].get_num ();
 			} else if (_tcscmp (value, L"none") == 0) {
 				got = 2;
 			} else if (_tcscmp (value, L"custom") == 0) {
@@ -5646,6 +5647,8 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 						if (start == JSEM_KBDLAYOUT && v > 0)
 							v--;
 						if (v >= 0) {
+							if (v >= max)
+								v = 0;
 							start += v;
 							got = 2;
 						}

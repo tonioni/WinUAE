@@ -909,7 +909,7 @@ static int initialize_rawinput (void)
 						j++;
 					}
 					if (!tmp[0])
-						_stprintf (tmp, L"Key %02X", k + 1);
+						_stprintf (tmp, L"KEY_%02X", k + 1);
 					did->buttonname[k] = my_strdup (tmp);
 					did->buttonmappings[k] = k + 1;
 					did->buttonsort[k] = k + 1;
@@ -1847,11 +1847,8 @@ static int get_kb_widget_first (int kb, int type)
 
 static int get_kb_widget_type (int kb, int num, TCHAR *name, uae_u32 *code)
 {
-	if (name) {
-		_stprintf (name, L"[%02X] %s", di_keyboard[kb].buttonmappings[num], di_keyboard[kb].buttonname[num]);
-		name += _tcslen (name) + 1;
+	if (name)
 		_tcscpy (name, di_keyboard[kb].buttonname[num]);
-	}
 	if (code)
 		*code = di_keyboard[kb].buttonmappings[num];
 	return IDEV_WIDGET_KEY;
@@ -1890,8 +1887,8 @@ static uae_u32 get_leds (void)
 			led |= KBLED_NUMLOCK;
 		if (OutputBuffer.LedFlags & KEYBOARD_CAPS_LOCK_ON)
 			led |= KBLED_CAPSLOCK;
-		if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON) led
-			|= KBLED_SCROLLLOCK;
+		if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON)
+			led |= KBLED_SCROLLLOCK;
 #endif
 	}
 	return led;

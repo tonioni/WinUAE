@@ -562,6 +562,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"nr_floppies", L"%d", p->nr_floppies);
 	cfgfile_write (f, L"floppy_speed", L"%d", p->floppy_speed);
 	cfgfile_write (f, L"floppy_volume", L"%d", p->dfxclickvolume);
+	cfgfile_dwrite (f, L"floppy_channel_mask", L"0x%x", p->dfxclickchannelmask);
 	cfgfile_write_bool (f, L"parallel_on_demand", p->parallel_demand);
 	cfgfile_write_bool (f, L"serial_on_demand", p->serial_demand);
 	cfgfile_write_bool (f, L"serial_hardware_ctsrts", p->serial_hwctsrts);
@@ -1171,6 +1172,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"floppy1sound", &p->dfxclick[1], 1)
 		|| cfgfile_intval (option, value, L"floppy2sound", &p->dfxclick[2], 1)
 		|| cfgfile_intval (option, value, L"floppy3sound", &p->dfxclick[3], 1)
+		|| cfgfile_intval (option, value, L"floppy_channel_mask", &p->dfxclickchannelmask, 1)
 		|| cfgfile_intval (option, value, L"floppy_volume", &p->dfxclickvolume, 1))
 		return 1;
 
@@ -2449,8 +2451,11 @@ void cfgfile_backup (const TCHAR *path)
 
 	fetch_configurationpath (dpath, sizeof (dpath) / sizeof (TCHAR));
 	_tcscat (dpath, L"configuration.backup");
+	bool hidden = my_isfilehidden (dpath);
 	my_unlink (dpath);
 	my_rename (path, dpath);
+	if (hidden)
+		my_setfilehidden (dpath, hidden);
 }
 
 int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int type)
@@ -3511,6 +3516,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->floppy_random_bits_min = 1;
 	p->floppy_random_bits_max = 3;
 	p->dfxclickvolume = 33;
+	p->dfxclickchannelmask = 0xffff;
 
 	p->statecapturebuffersize = 20 * 1024 * 1024;
 	p->statecapturerate = 5 * 50;
@@ -4244,8 +4250,8 @@ void config_check_vsync (void)
 	}
 	cnt--;
 	if (config_changed) {
-		if (config_changed == 1)
-			write_log (L"* configuration check trigger\n");
+//		if (config_changed == 1)
+//			write_log (L"* configuration check trigger\n");
 		config_changed++;
 		if (config_changed > 10)
 			config_changed = 0;

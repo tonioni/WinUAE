@@ -457,7 +457,8 @@ static void from_iff_ilbm (uaecptr ilbm, uae_u32 len)
 
 	addr += 12;
 	for (;;) {
-		uae_u8 chunk[4], csize;
+		int csize;
+		uae_u8 chunk[4];
 		uae_u8 *paddr, *ceaddr;
 
 		paddr = addr;

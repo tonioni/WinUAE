@@ -206,7 +206,7 @@ extern struct color_change *color_changes[2];
 extern struct color_change color_changes[2][MAX_REG_CHANGE];
 #endif
 
-extern struct color_entry color_tables[2][(MAXVPOS + 1) * 2];
+extern struct color_entry color_tables[2][(MAXVPOS + 2) * 2];
 extern struct color_entry *curr_color_tables, *prev_color_tables;
 
 extern struct sprite_entry *curr_sprite_entries, *prev_sprite_entries;
@@ -243,10 +243,10 @@ struct draw_info {
 
 extern int next_sprite_entry;
 
-extern struct decision line_decisions[2 * (MAXVPOS + 1) + 1];
-extern struct draw_info line_drawinfo[2][2 * (MAXVPOS + 1) + 1];
+extern struct decision line_decisions[2 * (MAXVPOS + 2) + 1];
+extern struct draw_info line_drawinfo[2][2 * (MAXVPOS + 2) + 1];
 
-extern uae_u8 line_data[(MAXVPOS + 1) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
+extern uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
 /* Functions in drawing.c.  */
 extern int coord_native_to_amiga_y (int);

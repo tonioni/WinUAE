@@ -1879,7 +1879,7 @@ void finish_sound_buffer (void)
 			channelswap6 ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
 	}
 #ifdef DRIVESOUND
-	driveclick_mix ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2);
+	driveclick_mix ((uae_s16*)paula_sndbuffer, sdp->sndbufsize / 2, currprefs.dfxclickchannelmask);
 #endif
 #ifdef AVIOUTPUT
 	if (avioutput_enabled && avioutput_audio)

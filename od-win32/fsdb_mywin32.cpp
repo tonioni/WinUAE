@@ -7,6 +7,27 @@
 #include "win32.h"
 #include <windows.h>
 
+bool my_isfilehidden (const TCHAR *path)
+{
+	DWORD attr = GetFileAttributes (path);
+	if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_HIDDEN))
+		return true;
+	return false;
+}
+void my_setfilehidden (const TCHAR *path, bool hidden)
+{
+	DWORD attr = GetFileAttributes (path);
+	if (attr == INVALID_FILE_ATTRIBUTES)
+		return;
+	DWORD attro = attr;
+	attr &= ~FILE_ATTRIBUTE_HIDDEN;
+	if (hidden)
+		attr |= FILE_ATTRIBUTE_HIDDEN;
+	if (attro == attr)
+		return;
+	SetFileAttributes (path, attr);
+}
+
 int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur)
 {
 	int ret = 0;

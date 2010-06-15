@@ -327,7 +327,7 @@ STATIC_INLINE uae_s16 limit (uae_s32 v)
 	return v;
 }
 
-void driveclick_mix (uae_s16 *sndbuffer, int size)
+void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 {
 	int i;
 
@@ -340,36 +340,49 @@ void driveclick_mix (uae_s16 *sndbuffer, int size)
 	case 6:
 		for (i = 0; i < size / 6; i++) {
 			uae_s16 s = clickbuffer[i];
-			sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
-			sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
-			sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
-			sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
-			sndbuffer[4] = limit (((sndbuffer[4] + s) * 2) / 3);
-			sndbuffer[5] = limit (((sndbuffer[5] + s) * 2) / 3);
+			if (channelmask & 1)
+				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			if (channelmask & 2)
+				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			if (channelmask & 4)
+				sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
+			if (channelmask & 8)
+				sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
+			if (channelmask & 16)
+				sndbuffer[4] = limit (((sndbuffer[4] + s) * 2) / 3);
+			if (channelmask & 32)
+				sndbuffer[5] = limit (((sndbuffer[5] + s) * 2) / 3);
 			sndbuffer += 6;
 		}
 		break;
 	case 4:
 		for (i = 0; i < size / 4; i++) {
 			uae_s16 s = clickbuffer[i];
-			sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
-			sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
-			sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
-			sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
+			if (channelmask & 1)
+				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			if (channelmask & 2)
+				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			if (channelmask & 4)
+				sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
+			if (channelmask & 8)
+				sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
 			sndbuffer += 4;
 		}
 		break;
 	case 2:
 		for (i = 0; i < size / 2; i++) {
 			uae_s16 s = clickbuffer[i];
-			sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
-			sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			if (channelmask & 1)
+				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			if (channelmask & 2)
+				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
 			sndbuffer += 2;
 		}
 		break;
 	case 1:
 		for (i = 0; i < size; i++) {
-			sndbuffer[0] = limit (((sndbuffer[0] + clickbuffer[i]) * 2) / 3);
+			if (channelmask & 1)
+				sndbuffer[0] = limit (((sndbuffer[0] + clickbuffer[i]) * 2) / 3);
 			sndbuffer++;
 		}
 		break;

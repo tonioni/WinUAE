@@ -325,9 +325,9 @@ static int current_change_set;
 static struct sprite_entry sprite_entries[2][MAX_SPR_PIXELS / 16];
 static struct color_change color_changes[2][MAX_REG_CHANGE];
 
-struct decision line_decisions[2 * (MAXVPOS + 1) + 1];
-static struct draw_info line_drawinfo[2][2 * (MAXVPOS + 1) + 1];
-#define COLOR_TABLE_SIZE (MAXVPOS + 1) * 2
+struct decision line_decisions[2 * (MAXVPOS + 2) + 1];
+static struct draw_info line_drawinfo[2][2 * (MAXVPOS + 2) + 1];
+#define COLOR_TABLE_SIZE (MAXVPOS + 2) * 2
 static struct color_entry color_tables[2][COLOR_TABLE_SIZE];
 
 static int next_sprite_entry = 0;
@@ -2784,6 +2784,8 @@ void init_hz (void)
 		dumpsync ();
 		hzc = 1;
 	}
+	if (maxvpos_nom >= MAXVPOS)
+		maxvpos_nom = MAXVPOS;
 	if (currprefs.gfx_scandoubler && doublescan == 0)
 		doublescan = -1;
 	if (doublescan != odbl || maxvpos != omaxvpos)

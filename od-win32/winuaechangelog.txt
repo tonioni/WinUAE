@@ -1,8 +1,37 @@
 
+Beta 10: (RC1, official release before Midsummer)
+
+- some V(H)POSW modifications corrupted memory (AR3 for example)
+- AR3 3.09 odd/even pair rom image didn't load correctly
+- AR1 has never worked in cycle-exact mode
+- Amiga->Windows image clipboard sharing didn't work if any IFF
+  chunk (except body) size was more than 255 bytes
+- removed confusing and useless Input keyboard key numbers
+- GamePorts test mode list vertical centering improved
+- configuration file joyportX=kbdZ/joyZ/mouseZ (where Z is larger
+  than max available devices) was not checked
+- floppy sound channel mask added, configuration file only (floppy_channel_mask),
+  default is all channels. 1=left,2=right,4=center,8=sub,16=surleft,32=surright.
+- keyboard input configuration slots 2/3/4 not saved if slot 1 contained port
+  configuration and stored slot 1 was mapped to default keyboard key
+- configuration.backup and configuration.cache remembers hidden file attribute
+
+Beta 9:
+
+- "megachip" was added even if disabled (was fixed in b8 update)
+- fixed DX detection on XP (was fixed in b8 update)
+- removed "*" from DirectInput keyboard and mouse name strings
+- uaeunp/virtual archives: if input file was inside archive and it had multiple output
+  files (most raw disk image formats can have .ima, .adf and .ext.adf output files)
+  only first supported file was listed. Plain files worked correctly.
+- added "scanning ROMs" dialog
+- fixed old memory corruption bug if rom scan data has single rom from odd/even pair
+  (unpaired rom removal code was buggy)
+
 Beta 8:
 
-- Z3Chip is not a Z3 board anymore, now also compatible with KS 1.x (32-bit addressing
-  capable CPU required)
+- Z3Chip is not a Z3 board anymore, now also compatible with KS 1.x (don't forget that
+  32-bit addressing capable CPU is required)
 - rawkeyboard RIDEV_NOHOTKEYS flag was missing (Disables Windows keys etc..)
 - GamePorts remap/test GUI updated
 - GamePorts remap when in Configuration#x mode didn't update GamePorts input mappings

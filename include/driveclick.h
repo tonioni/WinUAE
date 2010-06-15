@@ -30,7 +30,7 @@ extern void driveclick_insert (int drive, int eject);
 extern void driveclick_init (void);
 extern void driveclick_free (void);
 extern void driveclick_reset (void);
-extern void driveclick_mix (uae_s16*, int);
+extern void driveclick_mix (uae_s16*, int, int);
 extern int driveclick_loadresource (struct drvsample*, int);
 extern void driveclick_check_prefs (void);
 extern uae_s16 *decodewav (uae_u8 *s, int *len);

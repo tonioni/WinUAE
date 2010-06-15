@@ -324,6 +324,7 @@ struct uae_prefs {
 	int dfxclick[4];
 	TCHAR dfxclickexternal[4][256];
 	int dfxclickvolume;
+	int dfxclickchannelmask;
 
 	/* Target specific options */
 

@@ -1751,7 +1751,7 @@ bool vsync_switchmode (int hz, int oldhz)
 		}
 	}
 	if (!found) {
-		tempvsync = currprefs.gfx_avsync;
+		tempvsync = currprefs.gfx_avsync != 0;
 		changed_prefs.gfx_avsync = 0;
 		write_log (L"refresh rate changed to %d but no matching screenmode found, vsync disabled\n", hz);
 	} else {
