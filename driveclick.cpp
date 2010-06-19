@@ -342,16 +342,28 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			else
+				sndbuffer[0] = sndbuffer[0] * 2 / 3;
 			if (channelmask & 2)
 				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			else
+				sndbuffer[1] = sndbuffer[1] * 2 / 3;
 			if (channelmask & 4)
 				sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
+			else
+				sndbuffer[2] = sndbuffer[2] * 2 / 3;
 			if (channelmask & 8)
 				sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
+			else
+				sndbuffer[3] = sndbuffer[3] * 2 / 3;
 			if (channelmask & 16)
 				sndbuffer[4] = limit (((sndbuffer[4] + s) * 2) / 3);
+			else
+				sndbuffer[4] = sndbuffer[4] * 2 / 3;
 			if (channelmask & 32)
 				sndbuffer[5] = limit (((sndbuffer[5] + s) * 2) / 3);
+			else
+				sndbuffer[5] = sndbuffer[5] * 2 / 3;
 			sndbuffer += 6;
 		}
 		break;
@@ -360,12 +372,20 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			else
+				sndbuffer[0] = sndbuffer[0] * 2 / 3;
 			if (channelmask & 2)
 				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			else
+				sndbuffer[1] = sndbuffer[1] * 2 / 3;
 			if (channelmask & 4)
 				sndbuffer[2] = limit (((sndbuffer[2] + s) * 2) / 3);
+			else
+				sndbuffer[2] = sndbuffer[2] * 2 / 3;
 			if (channelmask & 8)
 				sndbuffer[3] = limit (((sndbuffer[3] + s) * 2) / 3);
+			else
+				sndbuffer[3] = sndbuffer[3] * 2 / 3;
 			sndbuffer += 4;
 		}
 		break;
@@ -374,8 +394,12 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
 				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			else
+				sndbuffer[0] = sndbuffer[0] * 2 / 3;
 			if (channelmask & 2)
 				sndbuffer[1] = limit (((sndbuffer[1] + s) * 2) / 3);
+			else
+				sndbuffer[1] = sndbuffer[1] * 2 / 3;
 			sndbuffer += 2;
 		}
 		break;

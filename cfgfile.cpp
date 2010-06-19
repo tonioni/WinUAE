@@ -188,7 +188,7 @@ static const TCHAR *obsolete[] = {
 	L"kickstart_key_file", L"fast_copper", L"sound_adjust",
 	L"serial_hardware_dtrdsr", L"gfx_filter_upscale",
 	L"gfx_correct_aspect", L"gfx_autoscale", L"parallel_sampler", L"parallel_ascii_emulation",
-	L"avoid_vid", L"avoid_dga",
+	L"avoid_vid", L"avoid_dga", L"z3chipmem_size",
 	NULL
 };
 
@@ -875,10 +875,11 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, i
 		|| strcasecmp (value, L"true") == 0 || strcasecmp (value, L"t") == 0)
 		*location = 1;
 	else if (strcasecmp (value, L"no") == 0 || strcasecmp (value, L"n") == 0
-		|| strcasecmp (value, L"false") == 0 || strcasecmp (value, L"f") == 0)
+		|| strcasecmp (value, L"false") == 0 || strcasecmp (value, L"f") == 0
+		|| strcasecmp (value, L"0") == 0)
 		*location = 0;
 	else {
-		write_log (L"Option `%s' requires a value of either `yes' or `no'.\n", option);
+		write_log (L"Option `%s' requires a value of either `yes' or `no' (was '%s').\n", option, value);
 		return -1;
 	}
 	return 1;
@@ -1111,8 +1112,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 	}
 
-	if (cfgfile_path (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR)))
+	if (cfgfile_path (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR))) {
+		p->cdimagefileuse = true;
 		return 1;
+	}
 
 	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)) {
 		/* backwards compatibility */

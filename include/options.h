@@ -280,6 +280,7 @@ struct uae_prefs {
 	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
 	TCHAR cdimagefile[MAX_DPATH];
+	bool cdimagefileuse;
 	TCHAR quitstatefile[MAX_DPATH];
 
 	TCHAR path_floppy[256];

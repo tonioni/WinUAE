@@ -60,6 +60,7 @@ static uae_u32 cd_last_pos;
 static int cdda_start, cdda_end;
 
 static int imagechange;
+static bool donotmountme;
 static TCHAR newfile[MAX_DPATH];
 
 /* convert minutes, seconds and frames -> logical sector number */
@@ -1014,7 +1015,8 @@ static int open_device (int unitnum)
 {
 	if (unitnum)
 		return 0;
-	return parse_image ();
+	parse_image ();
+	return 1;
 }
 
 static void close_device (int unitnum)
@@ -1050,12 +1052,19 @@ void cdimage_vsync (void)
 	_tcscpy (changed_prefs.cdimagefile, newfile);
 	newfile[0] = 0;
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile[0] ? currprefs.cdimagefile : L"<EMPTY>");
+	donotmountme = true;
 	int un = scsi_do_disk_change (-1, 1);
+	donotmountme = false;
 	if (un >= 0) {
+		struct device_info di;
 		media = sys_command_ismedia (DF_IOCTL, un, 1);
+		if (sys_command_info (DF_IOCTL, un, &di))
+			scsi_do_disk_change (di.id, 1);
 	} else {
+		device_func_init (DEVICE_TYPE_ANY); // active us again
 		parse_image ();
 		media = tracks > 0;
+		scsi_do_disk_change (255, 1);
 	}
 #ifdef RETROPLATFORM
 	rp_cd_image_change (0, media ? currprefs.cdimagefile : NULL);
@@ -1073,9 +1082,14 @@ static int ismedia (int unitnum, int quick)
 static int open_bus (int flags)
 {
 	int v;
+
+	if (donotmountme && !(flags & DEVICE_TYPE_ALLOWEMU))
+		return 0;
 	if (imagechange)
 		return 1;
 	v = currprefs.cdimagefile[0] ? 1 : 0;
+	if (currprefs.cdimagefileuse)
+		v = 1;
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 0);
 	rp_cd_image_change (0, currprefs.cdimagefile[0] ? currprefs.cdimagefile : NULL);
@@ -1113,7 +1127,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 	}
 	di->write_protected = 1;
 	di->type = INQ_ROMD;
-	di->id = -1;
+	di->id = 255;
 	_tcscpy (di->label, L"IMG_EMU");
 	return di;
 }

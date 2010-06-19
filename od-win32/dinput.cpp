@@ -1180,10 +1180,18 @@ static int acquire (LPDIRECTINPUTDEVICE8 lpdi, TCHAR *txt)
 static int setcoop (struct didata *did, DWORD mode, TCHAR *txt)
 {
 	HRESULT hr = DI_OK;
+	HWND hwnd;
+	int test = inputdevice_istest ();
+	
+	if (!test)
+		hwnd = hMainWnd;
+	else
+		hwnd = hGUIWnd;
+
 	if (did->lpdi) {
 		did->coop = 0;
-		if (!did->coop && hMainWnd) {
-			hr = IDirectInputDevice8_SetCooperativeLevel (did->lpdi, hMainWnd, mode);
+		if (!did->coop && hwnd) {
+			hr = IDirectInputDevice8_SetCooperativeLevel (did->lpdi, hwnd, mode);
 			if (FAILED (hr) && hr != E_NOTIMPL) {
 				write_log (L"setcooperativelevel %s failed, %s\n", txt, DXError (hr));
 			} else {
@@ -1342,7 +1350,7 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 			did->axissort[did->axles] = makesort_mouse (&pdidoi->guidType, &did->axismappings[did->axles]);
 		for (i = 0; i < 2; i++) {
 			did->axismappings[did->axles + i] = DIJOFS_POV(numpov);
-			_stprintf (tmp, L"%s (%d)", pdidoi->tszName, i + 1);
+			_stprintf (tmp, L"%s (%c)", pdidoi->tszName, i ? 'Y' : 'X');
 			did->axisname[did->axles + i] = my_strdup (tmp);
 			did->axissort[did->axles + i] = did->axissort[did->axles];
 			did->axistype[did->axles + i] = i + 1;

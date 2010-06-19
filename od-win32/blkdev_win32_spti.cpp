@@ -543,7 +543,7 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 				dev_info[i].mediainserted = now;
 				scsi_do_disk_change (getid (i), insert);
 #ifdef RETROPLATFORM
-				rp_cd_image_change (i, now ? (dev_info[i].drvletter ? dev_info[i].drvlettername : dev_info[i].name) : NULL);
+				rp_cd_image_change (i, dev_info[i].drvletter ? dev_info[i].drvlettername : dev_info[i].name);
 #endif
 			}
 		}

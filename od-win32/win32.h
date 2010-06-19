@@ -19,7 +19,7 @@
 #define LANG_DLL 1
 
 #define WINUAEBETA L"10"
-#define WINUAEDATE MAKEBD(2010, 6, 15)
+#define WINUAEDATE MAKEBD(2010, 6, 19)
 #define WINUAEEXTRA L"RC1"
 #define WINUAEREV L""
 

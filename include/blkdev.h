@@ -25,6 +25,7 @@
 
 #define DEVICE_TYPE_ANY 1
 #define DEVICE_TYPE_SCSI 2
+#define DEVICE_TYPE_ALLOWEMU 0x100
 
 #define DF_SCSI 0
 #define DF_IOCTL 1

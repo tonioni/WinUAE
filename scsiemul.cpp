@@ -271,7 +271,7 @@ static int is_async_request (struct devstruct *dev, uaecptr request)
 }
 
 
-int scsiemul_switchscsi (TCHAR *name)
+static int scsiemul_switchscsi (const TCHAR *name)
 {
 	struct devstruct *dev = NULL;
 	struct device_info *discsi, discsi2;
@@ -288,14 +288,17 @@ int scsiemul_switchscsi (TCHAR *name)
 	dev = NULL;
 	for (j = 0; j < 2; j++) {
 		int mode = j == 0 ? DF_SCSI : DF_IOCTL;
-		device_func_init (j == 0 ? DEVICE_TYPE_SCSI : DEVICE_TYPE_ANY);
+		if (!(device_func_init (j == 0 ? DEVICE_TYPE_SCSI : DEVICE_TYPE_ANY) & (1 << mode)))
+			continue;
+		if (devst[0].di.media_inserted < 0)
+			devst[0].di.media_inserted = 0;
 		i = 0;
 		while (i < MAX_TOTAL_DEVICES && dev == NULL) {
 			discsi = 0;
 			if (sys_command_open (mode, i)) {
 				discsi = sys_command_info (mode, i, &discsi2);
 				if (discsi && discsi->type == INQ_ROMD) {
-					if (!_tcsicmp (currprefs.cdimagefile, discsi->label) || j) {
+					if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
 						dev = &devst[0];
 						dev->unitnum = i;
 						dev->allow_scsi = j == 0 ? 1 : 0;
@@ -316,11 +319,40 @@ int scsiemul_switchscsi (TCHAR *name)
 			i++;
 		}
 		if (dev)
-			return i;
+			return dev->unitnum;
+	}
+	return -1;
+}
+static int scsiemul_switchemu (const TCHAR *name)
+{
+	struct devstruct *dev = NULL;
+	struct device_info *discsi, discsi2;
+
+	if (!device_func_init (DEVICE_TYPE_ANY | DEVICE_TYPE_ALLOWEMU))
+		return -1;
+	if (sys_command_open (DF_IOCTL, 0)) {
+		if (discsi = sys_command_info (DF_IOCTL, 0, &discsi2)) {
+			dev = &devst[0];
+			dev->unitnum = 0;
+			dev->allow_scsi = 0;
+			dev->allow_ioctl = 1;
+			dev->drivetype = discsi->type;
+			memcpy (&dev->di, discsi, sizeof (struct device_info));
+			dev->iscd = 1;
+			write_log (L"IMG_EMU (%s) mounted as uaescsi.device:0\n", name);
+			if (dev->aunit >= 0) {
+				struct priv_devstruct *pdev = &pdevst[dev->aunit];
+				setpdev (pdev, dev);
+			}
+		}
+		if (devst[0].opencnt == 0)
+			sys_command_close (DF_IOCTL, 0);
+		return 0;
 	}
 	return -1;
 }
 
+// device_id = -1 and insert==0 -> all medias going away
 int scsi_do_disk_change (int device_id, int insert)
 {
 	int i, j, ret;
@@ -331,27 +363,33 @@ int scsi_do_disk_change (int device_id, int insert)
 	uae_sem_wait (&change_sem);
 	if (device_id < 0 && insert) {
 		ret = scsiemul_switchscsi (currprefs.cdimagefile);
-		if (ret < 0)
+		if (ret < 0) {
+			scsiemul_switchemu (currprefs.cdimagefile);
 			goto end;
+		}
 	}
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		struct devstruct *dev = &devst[i];
 		if (dev->di.id == device_id || (device_id < 0 && i == 0)) {
 			ret = i;
-			if (dev->aunit >= 0) {
-				struct priv_devstruct *pdev = &pdevst[dev->aunit];
-				devinfo (pdev->mode, dev->unitnum, &dev->di);
-			}
-			dev->changenum++;
-			j = 0;
-			while (j < MAX_ASYNC_REQUESTS) {
-				if (dev->d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
-					uae_Cause (dev->d_request_data[j]);
+			if ((dev->di.media_inserted > 0 && insert == 0) || (dev->di.media_inserted <= 0 && insert)) {
+				if (dev->aunit >= 0) {
+					struct priv_devstruct *pdev = &pdevst[dev->aunit];
+					devinfo (pdev->mode, dev->unitnum, &dev->di);
 				}
-				j++;
+				if (device_id < 0 && insert == 0)
+					dev->di.media_inserted = -1; // stay away!
+				dev->changenum++;
+				j = 0;
+				while (j < MAX_ASYNC_REQUESTS) {
+					if (dev->d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
+						uae_Cause (dev->d_request_data[j]);
+					}
+					j++;
+				}
+				if (dev->changeint)
+					uae_Cause (dev->changeint);
 			}
-			if (dev->changeint)
-				uae_Cause (dev->changeint);
 		}
 	}
 end:
@@ -527,7 +565,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	{
 	case CMD_READ:
 		//write_log (L"CMD_READ %08x %d %d %08x\n", io_data, io_offset, io_length, bmask);
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		if (dev->drivetype == INQ_ROMD) {
 			io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
@@ -541,7 +579,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		break;
 	case TD_READ64:
 	case NSCMD_TD_READ64:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 		if ((io_offset64 & bmask) || bmask == 0 || io_data == 0)
@@ -555,7 +593,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		break;
 
 	case CMD_WRITE:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 			io_error = 28; /* writeprotect */
@@ -569,7 +607,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		break;
 	case TD_WRITE64:
 	case NSCMD_TD_WRITE64:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 		if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
@@ -584,7 +622,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		break;
 
 	case CMD_FORMAT:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
 			io_error = 28; /* writeprotect */
@@ -598,7 +636,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		break;
 	case TD_FORMAT64:
 	case NSCMD_TD_FORMAT64:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		io_offset64 = get_long (request + 44) | ((uae_u64)get_long (request + 32) << 32);
 		if (dev->di.write_protected || dev->drivetype == INQ_ROMD) {
@@ -627,7 +665,11 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		io_actual = dev->changenum;
 		break;
 	case CMD_CHANGESTATE:
-		io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->media_inserted ? 0 : 1;
+		if (dev->di.media_inserted >= 0) {
+			io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->media_inserted > 0 ? 0 : 1;
+		} else {
+			io_actual = 1;
+		}
 		break;
 	case CMD_PROTSTATUS:
 		io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->write_protected ? -1 : 0;
@@ -636,7 +678,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		io_actual = dev->drivetype;
 		break;
 	case CMD_GETNUMTRACKS:
-		if (!dev->di.media_inserted)
+		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		io_actual = dev->di.cylinders;
 		break;
@@ -644,7 +686,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		{
 			struct device_info *di;
 			di = devinfo (pdev->mode, dev->unitnum, &dev->di);
-			if (!di->media_inserted)
+			if (di->media_inserted <= 0)
 				goto no_media;
 			put_long (io_data + 0, di->bytespersector);
 			put_long (io_data + 4, di->sectorspertrack * di->trackspercylinder * di->cylinders);
@@ -852,21 +894,32 @@ static void dev_reset (void)
 	for (i = 0; i < MAX_OPEN_DEVICES; i++)
 		memset (&pdevst[i], 0, sizeof (struct priv_devstruct));
 
-	if (currprefs.cdimagefile[0]) {
-		scsiemul_switchscsi (currprefs.cdimagefile);
-	} else {
+	int didswitch = -1;
+	if (currprefs.cdimagefile[0] || currprefs.cdimagefileuse)
+		didswitch = scsiemul_switchscsi (currprefs.cdimagefile);
+	if (didswitch < 0) {
 		device_func_init (DEVICE_TYPE_SCSI);
 		i = j = 0;
 		while (i < MAX_TOTAL_DEVICES) {
+			int mode = -1;
 			dev = &devst[i];
 			discsi = 0;
 			if (sys_command_open (DF_SCSI, j)) {
-				discsi = sys_command_info (DF_SCSI, j, &discsi2);
-				sys_command_close (DF_SCSI, j);
+				dev->allow_scsi = 1;
+				mode = DF_SCSI;
+			}
+			if (!dev->allow_scsi) {
+				if (sys_command_open (DF_IOCTL, j)) {
+					dev->allow_ioctl = 1;
+					mode = DF_IOCTL;
+				}
+			}
+			if (mode >= 0) {
+				discsi = sys_command_info (mode, j, &discsi2);
+				sys_command_close (mode, j);
 			}
 			if (discsi) {
 				dev->unitnum = j;
-				dev->allow_scsi = 1;
 				dev->drivetype = discsi->type;
 				memcpy (&dev->di, discsi, sizeof (struct device_info));
 				if (discsi->type == INQ_ROMD)

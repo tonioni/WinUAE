@@ -742,7 +742,7 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 		p[3] = 12;
 		while (cnt-- > 0) {
 			reseterrormode (unitnum);
-			if(!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_Q_CHANNEL, &in, sizeof(in), &qcd, sizeof (qcd), &len, NULL)) {
+			if(!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_Q_CHANNEL, &in, sizeof in, &qcd, sizeof qcd, &len, NULL)) {
 				reseterrormode (unitnum);
 				if (win32_error (unitnum, L"IOCTL_CDROM_READ_Q_CHANNEL") < 0)
 					continue;
@@ -1020,7 +1020,7 @@ static uae_u8 *ioctl_command_toc (int unitnum)
 	gui_flicker_led (LED_CD, unitnum, 1);
 	while (cnt-- > 0) {
 		seterrormode (unitnum);
-		if (!DeviceIoControl (ciw32[unitnum].h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof(CDROM_TOC), &len, NULL)) {
+		if (!DeviceIoControl (ciw32[unitnum].h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof (CDROM_TOC), &len, NULL)) {
 			reseterrormode (unitnum);
 			if (win32_error (unitnum, L"IOCTL_CDROM_READ_TOC") < 0)
 				continue;
@@ -1227,7 +1227,7 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 			ciw32[i].mediainserted = insert;
 			scsi_do_disk_change (driveletter, insert);
 #ifdef RETROPLATFORM
-			rp_cd_image_change (i, insert ? ciw32[i].drvlettername : NULL);
+			rp_cd_image_change (i, ciw32[i].drvlettername);
 #endif
 		}
 	}

@@ -129,9 +129,11 @@ static int port_insert2 (int num, const TCHAR *name)
 	TCHAR tmp2[MAX_DPATH];
 	int i, type;
 
+	if (log_rp)
+		write_log (L"port_insert(%d,%s)\n", num, name);
 	type = 1;
 	_tcscpy (tmp2, name);
-	for (i = 1; i <= MAX_JPORTS; i++) {
+	for (i = 1; i < 10; i++) {
 		TCHAR tmp1[1000];
 		_stprintf (tmp1, L"Mouse%d", i);
 		if (!_tcscmp (name, tmp1)) {
@@ -158,6 +160,8 @@ static int port_insert2 (int num, const TCHAR *name)
 		}
 	}
 	trimws (tmp2);
+	if (log_rp)
+		write_log (L"-> %s,%d,%d\n", tmp2, num, type);
 	return inputdevice_joyport_config (&changed_prefs, tmp2, num, 0, type);
 }
 
@@ -541,9 +545,14 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
-	if (log_rp)
+	if (log_rp) {
 		write_log (L"RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n",
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
+		if (uMessage == RPIPCHM_DEVICECONTENT) {
+			struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
+			write_log (L" Cat=%d Num=%d '%s'\n", dc->btDeviceCategory, dc->btDeviceNumber, dc->szContent);
+		}
+	}
 
 	switch (uMessage)
 	{
@@ -878,6 +887,7 @@ void rp_input_change (int num)
 	TCHAR name[MAX_DPATH];
 	TCHAR *name2 = NULL, *name3 = NULL;
 
+	name[0] = 0;
 	if (JSEM_ISXARCADE1 (num, &currprefs)) {
 		j = 2;
 		m = k = -1;

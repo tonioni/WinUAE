@@ -32,8 +32,10 @@ static void install_driver (int flags)
 
 	device_func[DF_IOCTL] = NULL;
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
-	if (devicefunc_cdimage.openbus (0)) {
+	if (devicefunc_cdimage.openbus (flags)) {
 		device_func[DF_IOCTL] = &devicefunc_cdimage;
+		device_func[DF_SCSI] = NULL;
+		return;
 	}
 #ifdef WINDDK
 	if (!device_func[DF_IOCTL])
@@ -53,18 +55,24 @@ static void install_driver (int flags)
 
 int sys_command_open (int mode, int unitnum)
 {
-	if (mode == DF_SCSI || !have_ioctl)
+	if (mode == DF_SCSI || !have_ioctl) {
+		if (device_func[DF_SCSI] == NULL)
+			return 0;
 		return device_func[DF_SCSI]->opendev (unitnum);
-	else
+	} else {
 		return device_func[DF_IOCTL]->opendev (unitnum);
+	}
 }
 
 void sys_command_close (int mode, int unitnum)
 {
-	if (mode == DF_SCSI || !have_ioctl)
+	if (mode == DF_SCSI || !have_ioctl) {
+		if (device_func[DF_SCSI] == NULL)
+			return;
 		device_func[DF_SCSI]->closedev (unitnum);
-	else
+	} else {
 		device_func[DF_IOCTL]->closedev (unitnum);
+	}
 }
 
 void device_func_reset (void)
@@ -82,9 +90,13 @@ int device_func_init (int flags)
 		have_ioctl = 1;
 	else
 		have_ioctl = 0;
-	support_scsi = device_func[DF_SCSI]->openbus (oflags) ? 1 : 0;
+	if (flags & DEVICE_TYPE_ALLOWEMU)
+		oflags |= DEVICE_TYPE_ALLOWEMU;
+	if (device_func[DF_SCSI])
+		support_scsi = device_func[DF_SCSI]->openbus (oflags) ? 1 : 0;
+	oflags |= 1 << INQ_ROMD;
 	if (have_ioctl)
-		support_ioctl = device_func[DF_IOCTL]->openbus (1 << INQ_ROMD) ? 1 : 0;
+		support_ioctl = device_func[DF_IOCTL]->openbus (oflags) ? 1 : 0;
 	write_log (L"support_scsi = %d support_ioctl = %d\n", support_scsi, support_ioctl);
 	return (support_scsi ? (1 << DF_SCSI) : 0) | (support_ioctl ? (1 << DF_IOCTL) : 0);
 }

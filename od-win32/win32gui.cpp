@@ -8355,6 +8355,10 @@ static void volumeselectfile (HWND hDlg)
 {
 	TCHAR directory_path[MAX_DPATH];
 	_tcscpy (directory_path, current_fsvdlg.rootdir);
+	if (directory_path[0] == 0) {
+		int out = sizeof directory_path / sizeof (TCHAR);
+		regquerystr (NULL, L"FilesystemFilePath", directory_path, &out);
+	}
 	if (DiskSelection (hDlg, 0, 14, &workprefs, directory_path)) {
 		TCHAR *s = filesys_createvolname (NULL, directory_path, L"Harddrive");
 		SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
@@ -8363,6 +8367,13 @@ static void volumeselectfile (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_FS_RW, FALSE);
 		ew (hDlg, IDC_FS_RW, FALSE);
 		archivehd = 1;
+		TCHAR *p = _tcsrchr (directory_path, '\\');
+		if (p) {
+			TCHAR t = p[1];
+			p[1] = 0;
+			regsetstr (NULL, L"FilesystemFilePath", directory_path);
+			p[1] = t;
+		}
 	}
 }
 static void volumeselectdir (HWND hDlg, int newdir)
@@ -8373,9 +8384,15 @@ static void volumeselectdir (HWND hDlg, int newdir)
 
 	_tcscpy (directory_path, current_fsvdlg.rootdir);
 	if (!newdir) {
+		if (directory_path[0] == 0) {
+			int out = sizeof directory_path / sizeof (TCHAR);
+			regquerystr (NULL, L"FilesystemDirectoryPath", directory_path, &out);
+		}
 		WIN32GUI_LoadUIString (IDS_SELECTFILESYSROOT, szTitle, MAX_DPATH);
-		if (DirectorySelection (hDlg, &volumeguid, directory_path))
+		if (DirectorySelection (hDlg, &volumeguid, directory_path)) {
 			newdir = 1;
+			regsetstr (NULL, L"FilesystemDirectoryPath", directory_path);
+		}
 	}
 	if (newdir) {
 		SetDlgItemText (hDlg, IDC_PATH_NAME, directory_path);
@@ -11381,8 +11398,8 @@ static void input_find (HWND hDlg, int mode, int set)
 	static TCHAR tmp[200];
 	if (set && !rawmode) {
 		rawmode = mode ? 2 : 1;
-		inputdevice_acquire (-1);
 		inputdevice_settest (TRUE);
+		inputdevice_acquire (-1);
 		if (rawmode == 2) {
 			TCHAR tmp2[MAX_DPATH];
 			GetWindowText (guiDlg, tmp, sizeof tmp / sizeof (TCHAR));
@@ -13824,6 +13841,8 @@ static int GetSettings (int all_options, HWND hwnd)
 		setguititle (dhwnd);
 		ShowWindow (dhwnd, SW_SHOW);
 		MapDialogRect (dhwnd, &dialog_rect);
+
+		hGUIWnd = dhwnd;
 
 		for (;;) {
 			HANDLE IPChandle;
