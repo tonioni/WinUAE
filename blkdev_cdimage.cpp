@@ -45,7 +45,6 @@ struct cdtoc
 	int mp3;
 };
 
-static bool we_are_active;
 static uae_u8 buffer[2352];
 static struct cdtoc toc[102];
 static int tracks;
@@ -1030,10 +1029,6 @@ void cdimage_vsync (void)
 
 	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
 		_tcscpy (newfile, changed_prefs.cdimagefile);
-		if (!we_are_active) {
-			_tcscpy (currprefs.cdimagefile, newfile);
-			device_func_init (0);
-		}
 		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
 		imagechange = 3 * 50;
 		write_log (L"CD: eject\n");
@@ -1053,14 +1048,9 @@ void cdimage_vsync (void)
 	newfile[0] = 0;
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile[0] ? currprefs.cdimagefile : L"<EMPTY>");
 	donotmountme = true;
-	int un = scsi_do_disk_change (-1, 1);
+	int un = scsi_do_disk_device_change ();
 	donotmountme = false;
-	if (un >= 0) {
-		struct device_info di;
-		media = sys_command_ismedia (DF_IOCTL, un, 1);
-		if (sys_command_info (DF_IOCTL, un, &di))
-			scsi_do_disk_change (di.id, 1);
-	} else {
+	if (un < 0) {
 		device_func_init (DEVICE_TYPE_ANY); // active us again
 		parse_image ();
 		media = tracks > 0;
@@ -1094,13 +1084,11 @@ static int open_bus (int flags)
 	rp_cd_change (0, 0);
 	rp_cd_image_change (0, currprefs.cdimagefile[0] ? currprefs.cdimagefile : NULL);
 #endif
-	we_are_active = v ? true : false;
 	return v;
 }
 
 static void close_bus (void)
 {
-	we_are_active = false;
 	mp3decoder_close ();
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 1);

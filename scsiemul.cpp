@@ -311,6 +311,10 @@ static int scsiemul_switchscsi (const TCHAR *name)
 							struct priv_devstruct *pdev = &pdevst[dev->aunit];
 							setpdev (pdev, dev);
 						}
+						if (dev->di.media_inserted) {
+							dev->di.media_inserted = 0;
+							scsi_do_disk_change (dev->di.id, 1);
+						}
 					}
 				}
 				if (devst[0].opencnt == 0)
@@ -344,12 +348,22 @@ static int scsiemul_switchemu (const TCHAR *name)
 				struct priv_devstruct *pdev = &pdevst[dev->aunit];
 				setpdev (pdev, dev);
 			}
+			dev->di.media_inserted = 0;
 		}
 		if (devst[0].opencnt == 0)
 			sys_command_close (DF_IOCTL, 0);
 		return 0;
 	}
 	return -1;
+}
+
+int scsi_do_disk_device_change (void)
+{
+	int ret = scsiemul_switchscsi (currprefs.cdimagefile);
+	if (ret < 0) {
+		scsiemul_switchemu (currprefs.cdimagefile);
+	}
+	return ret;
 }
 
 // device_id = -1 and insert==0 -> all medias going away
@@ -361,13 +375,6 @@ int scsi_do_disk_change (int device_id, int insert)
 	if (!change_sem)
 		return ret;
 	uae_sem_wait (&change_sem);
-	if (device_id < 0 && insert) {
-		ret = scsiemul_switchscsi (currprefs.cdimagefile);
-		if (ret < 0) {
-			scsiemul_switchemu (currprefs.cdimagefile);
-			goto end;
-		}
-	}
 	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 		struct devstruct *dev = &devst[i];
 		if (dev->di.id == device_id || (device_id < 0 && i == 0)) {
@@ -392,7 +399,6 @@ int scsi_do_disk_change (int device_id, int insert)
 			}
 		}
 	}
-end:
 	uae_sem_post (&change_sem);
 	return ret;
 }
