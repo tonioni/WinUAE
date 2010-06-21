@@ -16,6 +16,8 @@
 
 static struct device_functions *device_func[2];
 static int have_ioctl;
+static int openlist[MAX_TOTAL_DEVICES];
+static int forcedunit = -1;
 
 #ifdef _WIN32
 
@@ -53,26 +55,40 @@ static void install_driver (int flags)
 }
 #endif
 
+int sys_command_isopen (int unitnum)
+{
+	return openlist[unitnum];
+}
+
+void sys_command_setunit (int unitnum)
+{
+	forcedunit = unitnum;
+}
+
 int sys_command_open (int mode, int unitnum)
 {
+	int ret = 0;
 	if (mode == DF_SCSI || !have_ioctl) {
-		if (device_func[DF_SCSI] == NULL)
-			return 0;
-		return device_func[DF_SCSI]->opendev (unitnum);
+		if (device_func[DF_SCSI] != NULL)
+			ret = device_func[DF_SCSI]->opendev (unitnum);
 	} else {
-		return device_func[DF_IOCTL]->opendev (unitnum);
+		ret = device_func[DF_IOCTL]->opendev (unitnum);
 	}
+	if (ret)
+		openlist[unitnum]++;
+	return ret;
 }
 
 void sys_command_close (int mode, int unitnum)
 {
 	if (mode == DF_SCSI || !have_ioctl) {
-		if (device_func[DF_SCSI] == NULL)
-			return;
-		device_func[DF_SCSI]->closedev (unitnum);
+		if (device_func[DF_SCSI] != NULL)
+			device_func[DF_SCSI]->closedev (unitnum);
 	} else {
 		device_func[DF_IOCTL]->closedev (unitnum);
 	}
+	if (openlist[unitnum] > 0)
+		openlist[unitnum]--;
 }
 
 void device_func_reset (void)
@@ -85,6 +101,7 @@ int device_func_init (int flags)
 	int support_scsi = 0, support_ioctl = 0;
 	int oflags = (flags & DEVICE_TYPE_SCSI) ? 0 : (1 << INQ_ROMD);
 
+	forcedunit = -1;
 	install_driver (flags);
 	if (device_func[DF_IOCTL])
 		have_ioctl = 1;
@@ -253,6 +270,11 @@ int sys_command_write (int mode, int unitnum, int offset)
 int sys_command_ismedia (int mode, int unitnum, int quick)
 {
 	struct device_info di;
+
+	if (forcedunit >= 0) {
+		if (unitnum != forcedunit)
+			return -1;
+	}
 
 	if (mode == DF_SCSI || !have_ioctl || !device_func[DF_IOCTL]->ismedia) {
 		if (quick)

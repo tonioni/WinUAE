@@ -367,7 +367,7 @@ static int cdrom_info (uae_u8 *out)
 	uae_u32 size;
 	int i;
 
-	if (!ismedia ())
+	if (ismedia () <= 0)
 		return -1;
 	cd_motor = 1;
 	out[0] = cdrom_toc[2];
@@ -390,7 +390,7 @@ static int read_toc (int track, int msflsn, uae_u8 *out)
 	uae_u8 *buf = cdrom_toc, *s;
 	int i, j;
 
-	if (!ismedia ())
+	if (ismedia () <= 0)
 		return -1;
 	if (!out)
 		return 0;
@@ -688,8 +688,14 @@ static void *dev_thread (void *p)
 			break;
 		case 0x0101:
 			{
-				if (ismedia () != cd_media) {
-					cd_media = ismedia ();
+				int m = ismedia ();
+				if (m < 0) {
+					write_log (L"CDTV: device lost\n");
+					activate_stch = 1;
+					cd_hunt = 1;
+					cd_media = 0;
+				} else if (m != cd_media) {
+					cd_media = m;
 					get_toc ();
 					activate_stch = 1;
 					if (cd_playing)
@@ -883,8 +889,16 @@ static void do_hunt (void)
 		if (sys_command_ismedia (DF_IOCTL, i, 1) > 0)
 			break;
 	}
-	if (i == MAX_TOTAL_DEVICES)
-		return;
+	if (i == MAX_TOTAL_DEVICES) {
+		if (unitnum >= 0 && sys_command_ismedia (DF_IOCTL, unitnum, 1) >= 0)
+			return;
+		for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+			if (sys_command_ismedia (DF_IOCTL, i, 1) >= 0)
+				break;
+		}
+		if (i == MAX_TOTAL_DEVICES)
+			return;
+	}
 	if (unitnum >= 0) {
 		cdaudiostop ();
 		sys_command_close (DF_IOCTL, unitnum);

@@ -121,6 +121,8 @@ extern int device_func_init(int flags);
 extern void device_func_reset(void);
 extern int sys_command_open (int mode, int unitnum);
 extern void sys_command_close (int mode, int unitnum);
+extern int sys_command_isopen (int unitnum);
+extern void sys_command_setunit (int unitnum);
 extern struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di);
 extern struct device_scsi_info *sys_command_scsi_info (int mode, int unitnum, struct device_scsi_info *di);
 extern void sys_command_cd_pause (int mode, int unitnum, int paused);

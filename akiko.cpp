@@ -713,7 +713,7 @@ static int sys_cddev_open (void)
 		sys_command_close (DF_IOCTL, unitnum);
 		return 1;
 	}
-	if (!sys_command_ismedia (DF_IOCTL, unitnum, 0))
+	if (sys_command_ismedia (DF_IOCTL, unitnum, 0) <= 0)
 		cd_hunt = 1;
 	write_log (L"using drive %s (unit %d, media %d)\n", di2->label, unitnum, di2->media_inserted);
 	/* make sure CD audio is not playing */
@@ -788,7 +788,7 @@ static int cdrom_command_led (void)
 static int cdrom_command_media_status (void)
 {
 	cdrom_result_buffer[0] = 0x0a;
-	cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0) ? 0x83: 0x80;
+	cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0) > 0 ? 0x83: 0x80;
 	return 2;
 }
 
@@ -1150,8 +1150,16 @@ static void do_hunt (void)
 		if (sys_command_ismedia (DF_IOCTL, i, 1) > 0)
 			break;
 	}
-	if (i == MAX_TOTAL_DEVICES)
-		return;
+	if (i == MAX_TOTAL_DEVICES) {
+		if (unitnum >= 0 && sys_command_ismedia (DF_IOCTL, unitnum, 1) >= 0)
+			return;
+		for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+			if (sys_command_ismedia (DF_IOCTL, i, 1) >= 0)
+				break;
+		}
+		if (i == MAX_TOTAL_DEVICES)
+			return;
+	}
 	if (unitnum >= 0) {
 		int ou = unitnum;
 		unitnum = -1;
@@ -1288,10 +1296,16 @@ static void *akiko_thread (void *null)
 		}
 
 		if (mediacheckcounter <= 0) {
-			int media = sys_command_ismedia (DF_IOCTL, unitnum, 1);
 			mediacheckcounter = 312 * 50 * 2;
-			if (media != lastmediastate) {
-				write_log (L"media changed = %d\n", media);
+			int media = sys_command_ismedia (DF_IOCTL, unitnum, 1);
+			if (media < 0) {
+				cd_hunt = 1;
+				write_log (L"CD32: device unit %d lost\n", unitnum);
+				media = lastmediastate = cdrom_disk = 0;
+				mediachanged = 1;
+				cdaudiostop_do ();
+			} else if (media != lastmediastate) {
+				write_log (L"CD32: media changed = %d (hunt=%d)\n", media, cd_hunt);
 				lastmediastate = cdrom_disk = media;
 				mediachanged = 1;
 				cdaudiostop_do ();

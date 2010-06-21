@@ -1,4 +1,21 @@
 
+Beta 11: (RC2)
+
+- DirectInput keyboard and mouse didn't work in Test/Remap mode after emulation was started
+- directory filesystem GUI directory/file selection dialog remembers previous path
+- floppy sound disabled channels had different volume level
+- XP DX check reverted, for some reason DirectX web installer didn't install all DLLs
+  (including d3dx9_43.dll) when it was released originally, seems to be fixed now
+- uaescsi.device: do not send media change interrupt if actual media state didn't
+  change (was possible when changing cdimage0 using uae-configuration), some
+  cd filesystem versions crash(!) in this situation..., fix media detection
+  when switching on the fly from SCSI mode to built-in image mounter. Note that
+  on the fly device changes only works properly if CDFS uses trackdisk.device-style
+  commands (not directscsi) and media change interrupts are enabled (not polling)
+- cdimage0= in config file (nothing after '=') means enable built-in image support
+  without media inserted, do not detect and use physical/virtual drives
+- renamed pad/joystick POV pairs (1) and (2) to (X) and (Y)
+
 Beta 10: (RC1, official release before Midsummer)
 
 - some V(H)POSW modifications corrupted memory (AR3 for example)
@@ -8,8 +25,7 @@ Beta 10: (RC1, official release before Midsummer)
   chunk (except body) size was more than 255 bytes
 - removed confusing and useless Input keyboard key numbers
 - GamePorts test mode list vertical centering improved
-- configuration file joyportX=kbdZ/joyZ/mouseZ (where Z is larger
-  than max available devices) was not checked
+- configuration file joyportX=kbdZ/joyZ/mouseZ (where Z is larger than max available devices) was not checked
 - floppy sound channel mask added, configuration file only (floppy_channel_mask),
   default is all channels. 1=left,2=right,4=center,8=sub,16=surleft,32=surright.
 - keyboard input configuration slots 2/3/4 not saved if slot 1 contained port

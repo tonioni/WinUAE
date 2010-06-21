@@ -78,6 +78,27 @@ static void reseterrormode (int unitnum)
 static void close_device (int unitnum);
 static int open_device (int unitnum);
 
+static int unitcheck (int unitnum)
+{
+	if (unitnum >= MAX_TOTAL_DEVICES) {
+		if (unitnum < 'A' || unitnum > 'Z')
+			return 0;
+		return 1;
+	}
+	if (ciw32[unitnum].drvletter == 0)
+		return 0;
+	return 1;
+}
+
+static bool unitisopen (int unitnum)
+{
+	if (!unitcheck (unitnum))
+		return false;
+	if (ciw32[unitnum].tempbuffer == NULL)
+		return false;
+	return true;
+}
+
 static int mcierr (TCHAR *str, DWORD err)
 {
 	TCHAR es[1000];
@@ -449,6 +470,9 @@ static int ioctl_command_pause (int unitnum, int paused)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
 
+	if (!unitisopen (unitnum))
+		return 0;
+
 	if (ciw->mciid > 0) {
 
 		MCI_GENERIC_PARMS gp = { 0 };
@@ -487,6 +511,9 @@ static int ioctl_command_pause (int unitnum, int paused)
 static int ioctl_command_stop (int unitnum)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
+
+	if (!unitisopen (unitnum))
+		return 0;
 
 	if (ciw->mciid > 0) {
 
@@ -529,6 +556,9 @@ static void ioctl_command_volume (int unitnum, uae_u16 volume)
 static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
+
+	if (!unitisopen (unitnum))
+		return 0;
 
 	if (!ciw->cdda)
 		open_mci (unitnum);
@@ -605,6 +635,11 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 static uae_u8 *ioctl_command_qcode (int unitnum)
 {
 	struct dev_info_ioctl *ciw = &ciw32[unitnum];
+
+	if (!unitisopen (unitnum)) {
+		write_log (L"qcode: %d no unit\n", unitnum);
+		return NULL;
+	}
 
 	if (ciw->mciid > 0) {
 
@@ -787,6 +822,9 @@ static uae_u8 *spti_read (int unitnum, int sector, int sectorsize)
 	uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0x10, 0, 0 };
 	int len = sizeof cmd;
 
+	if (!unitisopen (unitnum))
+		return 0;
+
 	if (!open_createfile (unitnum, 1))
 		return 0;
 	ciw32[unitnum].cd_last_pos = sector + sectorsize;
@@ -865,6 +903,10 @@ static int ioctl_command_readwrite (int unitnum, int sector, int write, int bloc
 	uae_u8 *p = ciw32[unitnum].tempbuffer;
 
 	*ptr = NULL;
+
+	if (!unitisopen (unitnum))
+		return 0;
+
 	if (!open_createfile (unitnum, 0))
 		return 0;
 	cdda_stop (unitnum);
@@ -1013,6 +1055,9 @@ static uae_u8 *ioctl_command_toc (int unitnum)
 	int cnt = 3;
 	CDROM_TOC *toc = &ciw->toc;
 
+	if (!unitisopen (unitnum))
+		return NULL;
+
 	if (!open_createfile (unitnum, 0))
 		return 0;
 	cdda_stop (unitnum);
@@ -1101,18 +1146,6 @@ error:
 	return -1;
 }
 
-static int unitcheck (int unitnum)
-{
-	if (unitnum >= MAX_TOTAL_DEVICES) {
-		if (unitnum < 'A' || unitnum > 'Z')
-			return 0;
-		return 1;
-	}
-	if (ciw32[unitnum].drvletter == 0)
-		return 0;
-	return 1;
-}
-
 /* close device handle */
 void sys_cddev_close (int unitnum)
 {
@@ -1188,6 +1221,8 @@ static int open_bus (int flags)
 static int ioctl_ismedia (int unitnum, int quick)
 {
 	if (!unitcheck (unitnum))
+		return -1;
+	if (!unitisopen (unitnum))
 		return -1;
 	if (quick) {
 		struct dev_info_ioctl *ciw = &ciw32[unitnum];

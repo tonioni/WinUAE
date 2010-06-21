@@ -523,18 +523,25 @@ static void cdda_stop (void)
 
 static int command_pause (int unitnum, int paused)
 {
+	if (unitnum)
+		return 0;
 	cdda_paused = paused;
 	return 1;
 }
 
 static int command_stop (int unitnum)
 {
+	if (unitnum)
+		return 0;
 	cdda_stop ();
 	return 1;
 }
 
 static int command_play (int unitnum, uae_u32 start, uae_u32 end, int scan)
 {
+	if (unitnum)
+		return 0;
+
 	cdda_paused = 0;
 	cdda_play_finished = 0;
 	cdda_start = msf2lsn (start);
@@ -554,6 +561,9 @@ static uae_u8 *command_qcode (int unitnum)
 	int msf;
 	int start, end;
 	int status;
+
+	if (unitnum)
+		return NULL;
 
 	memset (buf, 0, sizeof buf);
 	p = buf;
@@ -612,6 +622,9 @@ uae_u8 *command_rawread (int unitnum, int sector, int sectorsize)
 {
 	struct cdtoc *t = findtoc (&sector);
 	int offset;
+
+	if (unitnum)
+		return NULL;
 	if (!t || t->handle == NULL)
 		return NULL;
 
@@ -630,6 +643,9 @@ static uae_u8 *command_read (int unitnum, int sector)
 {
 	struct cdtoc *t = findtoc (&sector);
 	int offset;
+
+	if (unitnum)
+		return NULL;
 	if (!t || t->handle == NULL)
 		return NULL;
 	cdda_stop ();
@@ -648,6 +664,8 @@ static uae_u8 *command_toc (int unitnum)
 	int i;
 	uae_u32 msf;
 
+	if (unitnum)
+		return NULL;
 	cdda_stop ();
 	if (!tracks)
 		return NULL;
@@ -1047,14 +1065,43 @@ void cdimage_vsync (void)
 	_tcscpy (changed_prefs.cdimagefile, newfile);
 	newfile[0] = 0;
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile[0] ? currprefs.cdimagefile : L"<EMPTY>");
-	donotmountme = true;
-	int un = scsi_do_disk_device_change ();
-	donotmountme = false;
-	if (un < 0) {
-		device_func_init (DEVICE_TYPE_ANY); // active us again
-		parse_image ();
-		media = tracks > 0;
-		scsi_do_disk_change (255, 1);
+	if (currprefs.scsi) {
+		donotmountme = true;
+		int un = scsi_do_disk_device_change ();
+		donotmountme = false;
+		if (un < 0) {
+			device_func_init (DEVICE_TYPE_ANY); // activate us again
+			parse_image ();
+			media = tracks > 0;
+			scsi_do_disk_change (255, 1);
+		}
+	} else {
+		bool sel = false;
+		donotmountme = true;
+		device_func_init (DEVICE_TYPE_ANY);
+		for (int i = 0; i < MAX_TOTAL_DEVICES && !sel; i++) {
+			int opened = sys_command_isopen (i);
+			struct device_info *discsi, discsi2;
+			discsi = 0;
+			if (sys_command_open (DF_IOCTL, i)) {
+				discsi = sys_command_info (DF_IOCTL, i, &discsi2);
+				if (discsi && discsi->type == INQ_ROMD) {
+					if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
+						sys_command_setunit (i);
+						write_log (L"Drive '%s' (unit=%d) selected (media=%d)\n", discsi->label, i, discsi->media_inserted);
+						sel = true;
+					}
+				}
+			}
+		}
+		donotmountme = false;
+		if (!sel) {
+			sys_command_setunit (0);
+			device_func_init (DEVICE_TYPE_ANY); // activate us again
+			parse_image ();
+			media = tracks > 0;
+			write_log (L"IMG_EMU (%s) selected (media=%d)\n", currprefs.cdimagefile, media);
+		}
 	}
 #ifdef RETROPLATFORM
 	rp_cd_image_change (0, media ? currprefs.cdimagefile : NULL);
@@ -1065,7 +1112,7 @@ void cdimage_vsync (void)
 static int ismedia (int unitnum, int quick)
 {
 	if (unitnum)
-		return 0;
+		return -1;
 	return tracks > 0 ? 1 : 0;
 }
 

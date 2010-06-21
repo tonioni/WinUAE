@@ -28,7 +28,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 IDI_APPICON             ICON                    "winuae.ico"
 IDI_FLOPPY              ICON                    "35floppy.ico"
 IDI_ABOUT               ICON                    "amigainfo.ico"
-IDI_HARDDISK            ICON                    "Drive.ico"
+IDI_HARDDISK            ICON                    "drive.ico"
 IDI_CPU                 ICON                    "cpu.ico"
 IDI_GAMEPORTS           ICON                    "joystick.ico"
 IDI_IOPORTS             ICON                    "joystick.ico"
@@ -38,7 +38,7 @@ IDI_MISC2               ICON                    "misc.ico"
 IDI_MOVE_UP             ICON                    "move_up.ico"
 IDI_MOVE_DOWN           ICON                    "move_dow.ico"
 IDI_AVIOUTPUT           ICON                    "avioutput.ico"
-IDI_DISK                ICON                    "Drive.ico"
+IDI_DISK                ICON                    "drive.ico"
 IDI_FOLDER              ICON                    "folder.ico"
 IDI_SOUND               ICON                    "sound.ico"
 IDI_DISPLAY             ICON                    "screen.ico"
@@ -149,33 +149,37 @@ BEGIN
     CONTROL         "Remove interlace artifacts",IDC_FLICKERFIXER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,139,99,10
     RTEXT           "Windowed:",IDC_STATIC,17,46,40,15,SS_CENTERIMAGE
     RTEXT           "Fullscreen:",IDC_STATIC,17,19,40,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_DISPLAY_BUFFERCNT,187,47,87,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_MEMORY DIALOGEX 0, 0, 300, 158
+IDD_MEMORY DIALOGEX 0, 0, 300, 182
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Memory Settings",-1,14,7,274,69
-    RTEXT           "Chip:",-1,24,26,20,10,SS_CENTERIMAGE
+    GROUPBOX        "Memory Settings",IDC_STATIC,14,7,274,97
     CONTROL         "Slider1",IDC_CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,22,50,20
     EDITTEXT        IDC_CHIPRAM,105,25,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Slow:",-1,149,26,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_SLOWMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,22,60,20
     EDITTEXT        IDC_SLOWRAM,243,25,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Fast:",IDC_FASTTEXT,24,51,20,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,54,47,50,20
     EDITTEXT        IDC_FASTRAM,105,53,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Z3 Fast:",IDC_Z3TEXT,139,51,30,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_Z3FASTMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,47,60,20
     EDITTEXT        IDC_Z3FASTRAM,243,50,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "A3000/A4000 Advanced Memory Settings",-1,14,84,274,65
-    RTEXT           "Motherboard Fast RAM:",-1,40,100,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,96,59,20
-    EDITTEXT        IDC_MBRAM1,244,99,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Processor Slot Fast RAM:",-1,40,123,129,10,SS_CENTERIMAGE
-    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,119,59,20
-    EDITTEXT        IDC_MBRAM2,244,122,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "A3000/A4000 Advanced Memory Settings",IDC_STATIC,14,110,274,65
+    RTEXT           "Motherboard Fast:",IDC_STATIC,48,126,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM1,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,122,59,20
+    EDITTEXT        IDC_MBRAM1,244,125,34,12,ES_CENTER | ES_READONLY
+    RTEXT           "Processor Slot Fast:",IDC_STATIC,48,149,129,10,SS_CENTERIMAGE
+    CONTROL         "",IDC_MBMEM2,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,181,145,59,20
+    EDITTEXT        IDC_MBRAM2,244,148,34,12,ES_CENTER | ES_READONLY
+    RTEXT           "Fast:",IDC_STATIC,19,49,32,15,SS_CENTERIMAGE
+    RTEXT           "Chip:",IDC_STATIC,19,25,32,15,SS_CENTERIMAGE
+    RTEXT           "Slow:",IDC_STATIC,144,25,32,15,SS_CENTERIMAGE
+    RTEXT           "Z3 Fast:",IDC_STATIC,144,49,32,15,SS_CENTERIMAGE
+    RTEXT           "32-bit Chip:",IDC_STATIC,99,73,78,15,SS_CENTERIMAGE
+    CONTROL         "",IDC_Z3CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,71,60,20
+    EDITTEXT        IDC_Z3CHIPRAM,243,76,34,12,ES_CENTER | ES_READONLY
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 241
@@ -189,10 +193,20 @@ BEGIN
     CONTROL         "68030",IDC_CPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,54,64,10
     CONTROL         "68040",IDC_CPU4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,67,66,10
     CONTROL         "68060",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,80,66,10
+    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,94,73,8
     CONTROL         "More compatible [] Emulate 68000's prefetch registers. More compatible but slower.",IDC_COMPATIBLE,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,107,73,8
     CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or higher CPU.",IDC_JITENABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,119,73,10
+    CONTROL         "68040 MMU [] 68040 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,132,73,10
+    GROUPBOX        "FPU",IDC_STATIC,5,147,81,90,BS_LEFT
+    CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,161,63,10
+    CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,175,63,10
+    CONTROL         "68882",IDC_FPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,188,63,10
+    CONTROL         "CPU internal",IDC_FPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,202,63,10
+    CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,221,73,10
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,90,3,205,92
     CONTROL         "Fastest possible, but maintain chipset timing",IDC_CS_HOST,
                     "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,95,18,195,10
@@ -200,35 +214,25 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,95,32,195,10
     CONTROL         "Adjustable between CPU and chipset",IDC_CS_ADJUSTABLE,
                     "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,95,46,195,10
+    RTEXT           "CPU",IDC_STATIC,96,77,17,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_SPEED,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,114,71,67,20
+    RTEXT           "Chipset",IDC_STATIC,182,77,26,9,SS_CENTERIMAGE
     CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,219,71,69,20
+    RTEXT           "CPU Idle",IDC_STATIC,231,60,47,9,SS_CENTERIMAGE
+    GROUPBOX        "Cycle-exact CPU Emulation Speed",IDC_STATIC,90,99,205,46
+    RTEXT           "CPU Frequency",IDC_STATIC,105,119,51,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_CPU_FREQUENCY,165,118,46,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_CPU_FREQUENCY2,218,117,70,15
     GROUPBOX        "Advanced JIT Settings",IDC_STATIC,90,147,205,91
+    RTEXT           "Cache size:",IDC_STATIC,95,167,42,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,140,161,115,20
     EDITTEXT        IDC_CACHETEXT,255,166,30,12,ES_CENTER | ES_READONLY
     CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,194,63,10
-    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,208,63,10
-    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,222,62,10
     CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,168,194,62,10
     CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,235,194,52,10
+    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,208,63,10
+    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,222,62,10
     CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,235,208,52,10
-    CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,221,73,10
-    GROUPBOX        "FPU",IDC_STATIC,5,147,81,90,BS_LEFT
-    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,10,94,73,8
-    CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,161,63,10
-    CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,175,63,10
-    CONTROL         "68882",IDC_FPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,188,63,10
-    CONTROL         "CPU internal",IDC_FPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,202,63,10
-    RTEXT           "CPU Frequency",IDC_STATIC,105,119,51,10,SS_CENTERIMAGE
-    GROUPBOX        "Cycle-exact CPU Emulation Speed",IDC_STATIC,90,99,205,46
-    RTEXT           "CPU",IDC_STATIC,96,77,17,10,SS_CENTERIMAGE
-    RTEXT           "Chipset",IDC_STATIC,182,77,26,9,SS_CENTERIMAGE
-    RTEXT           "CPU Idle",IDC_STATIC,231,60,47,9,SS_CENTERIMAGE
-    RTEXT           "Cache size:",IDC_STATIC,95,167,42,10,SS_CENTERIMAGE
-    CONTROL         "68040 MMU [] 68040 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,132,73,10
-    COMBOBOX        IDC_CPU_FREQUENCY,165,118,46,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_CPU_FREQUENCY2,218,117,70,15
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 300, 240
@@ -348,7 +352,7 @@ IDD_LOADSAVE DIALOGEX 0, 0, 302, 241
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    CONTROL         "",IDC_CONFIGTREE,"SysTreeView32",TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP,6,3,289,153,WS_EX_CLIENTEDGE
+    CONTROL         "",IDC_CONFIGTREE,"SysTreeView32",TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | TVS_TRACKSELECT | WS_BORDER | WS_HSCROLL | WS_TABSTOP,6,3,289,153,WS_EX_CLIENTEDGE
     RTEXT           "Name:",IDC_STATIC,4,161,40,15,SS_CENTERIMAGE
     EDITTEXT        IDC_EDITNAME,48,162,146,13,ES_AUTOHSCROLL
     RTEXT           "Description:",IDC_STATIC,2,182,41,15,SS_CENTERIMAGE
@@ -400,31 +404,41 @@ BEGIN
     COMBOBOX        IDC_SAMPLERLIST,49,85,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_GAMEPORTS DIALOGEX 0, 0, 300, 236
+IDD_GAMEPORTS DIALOGEX 0, 0, 300, 246
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    COMBOBOX        IDC_PORT0_JOYS,45,29,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_PORT1_JOYS,45,65,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Swap port 0 and 1",IDC_SWAP,194,101,93,14
-    RTEXT           "Port 0:",IDC_STATIC,11,28,25,15,SS_CENTERIMAGE
-    RTEXT           "Port 1:",IDC_STATIC,11,64,25,15,SS_CENTERIMAGE
-    LTEXT           "X-Arcade layout information []#1",IDC_STATIC,64,87,106,15,SS_NOTIFY | SS_CENTERIMAGE
-    GROUPBOX        "Mouse and Joystick settings",IDC_STATIC,4,15,292,148
-    GROUPBOX        "Mouse extra settings",IDC_STATIC,4,165,292,69
-    RTEXT           "Mouse speed:",IDC_STATIC,17,180,56,10,SS_CENTERIMAGE
-    EDITTEXT        IDC_INPUTSPEEDM,87,180,25,12,ES_NUMBER
-    CONTROL         "Install virtual mouse driver",IDC_PORT_TABLET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,187,120,10
+    GROUPBOX        "Mouse and Joystick settings",IDC_STATIC,0,3,299,181
+    RTEXT           "Port 1:",IDC_STATIC,11,16,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_PORT0_JOYS,45,17,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_PORT0_JOYSMODE,127,35,87,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Test [] Test Port 1 (mouse) configuration.",IDC_PORT0_TEST,218,35,34,14
+    PUSHBUTTON      "Remap [] Remap Port 1 configurarion.",IDC_PORT0_REMAP,256,35,31,14
+    RTEXT           "Port 2:",IDC_STATIC,11,52,25,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_PORT1_JOYS,45,53,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Swap ports [] Swap ports 1 and 2.",IDC_SWAP,118,93,53,14
+    COMBOBOX        IDC_PORT1_JOYSMODE,127,70,88,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Test [] Test Port 2 (joystick) configuration.",IDC_PORT1_TEST,218,70,34,14
+    PUSHBUTTON      "Remap [] Remap Port 2 configuration.",IDC_PORT1_REMAP,256,70,31,14
+    LTEXT           "Parallel port joystick adapter",IDC_STATIC,10,96,99,15,SS_CENTERIMAGE
+    LTEXT           "X-Arcade layout information []#1",IDC_STATIC,184,96,109,15,SS_NOTIFY | SS_CENTERIMAGE
+    COMBOBOX        IDC_PORT2_JOYS,45,114,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Test [] Test Parallel port joystick port 1 configuration.",IDC_PORT2_TEST,196,131,44,14
+    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 1 configurarion.",IDC_PORT2_REMAP,245,131,41,14
+    COMBOBOX        IDC_PORT3_JOYS,45,149,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Test [] Test Parallel port joystick 2 configuration.",IDC_PORT3_TEST,196,165,44,14
+    PUSHBUTTON      "Remap [] Remap Parallel port joystick port 2 configurarion.",IDC_PORT3_REMAP,245,165,41,14
+    GROUPBOX        "Mouse extra settings",IDC_STATIC,0,186,299,60
+    RTEXT           "Mouse speed:",IDC_STATIC,17,200,56,10,SS_CENTERIMAGE
+    RTEXT           "Magic Mouse cursor mode:",IDC_STATIC,17,217,138,10,SS_CENTERIMAGE
+    CONTROL         "Install virtual mouse driver",IDC_PORT_TABLET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,20,233,120,10
+    EDITTEXT        IDC_INPUTSPEEDM,87,200,25,12,ES_NUMBER
+    CONTROL         "Magic Mouse",IDC_PORT_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,198,119,10
+    COMBOBOX        IDC_PORT_TABLET_CURSOR,167,214,119,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Full tablet input emulation",IDC_PORT_TABLET_FULL,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,220,121,10
-    CONTROL         "Magic Mouse",IDC_PORT_MOUSETRICK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,175,119,10
-    COMBOBOX        IDC_PORT_TABLET_CURSOR,167,201,119,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Magic Mouse cursor mode:",IDC_STATIC,17,204,138,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_PORT0_JOYSMODE,195,47,91,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_PORT1_JOYSMODE,195,82,91,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_PORT2_JOYS,45,125,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Parallel port joystick adapter",IDC_STATIC,10,105,147,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_PORT3_JOYS,45,143,241,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,233,121,10
+    COMBOBOX        IDC_PORT0_AF,45,35,78,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_PORT1_AF,45,70,78,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
 IDD_CONTRIBUTORS DIALOGEX 0, 0, 411, 242
@@ -702,18 +716,20 @@ IDD_INPUT DIALOGEX 0, 0, 300, 242
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    COMBOBOX        IDC_INPUTTYPE,5,5,98,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_INPUTDEVICE,109,5,167,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "",IDC_INPUTDEVICEDISABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,282,8,9,8
     CONTROL         "List1",IDC_INPUTLIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,22,290,146
+    COMBOBOX        IDC_INPUTTYPE,5,5,77,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_INPUTDEVICE,87,5,190,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_INPUTDEVICEDISABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,282,8,9,8
     COMBOBOX        IDC_INPUTAMIGACNT,5,174,24,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_INPUTAMIGA,33,174,262,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_INPUTAMIGA,33,174,202,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Test [] Test input mappings.",IDC_INPUTTEST,240,175,26,14
+    PUSHBUTTON      "Remap [] Find and remap quickly.",IDC_INPUTREMAP,267,175,30,14
     RTEXT           "Joystick dead zone (%):",-1,4,196,79,10,SS_CENTERIMAGE
     EDITTEXT        IDC_INPUTDEADZONE,88,195,25,12,ES_NUMBER
-    RTEXT           "Autofire rate (frames):",-1,4,212,79,10,SS_CENTERIMAGE
-    EDITTEXT        IDC_INPUTAUTOFIRERATE,88,210,25,12,ES_NUMBER
     RTEXT           "Digital joy-mouse speed:",-1,117,196,88,10,SS_CENTERIMAGE
     EDITTEXT        IDC_INPUTSPEEDD,210,195,25,12,ES_NUMBER
+    RTEXT           "Autofire rate (lines):",-1,4,212,79,10,SS_CENTERIMAGE
+    EDITTEXT        IDC_INPUTAUTOFIRERATE,88,210,25,12,ES_NUMBER
     RTEXT           "Analog joy-mouse speed:",-1,117,212,88,10,SS_CENTERIMAGE
     EDITTEXT        IDC_INPUTSPEEDA,210,211,25,12,ES_NUMBER
     PUSHBUTTON      "Copy from:",IDC_INPUTCOPY,240,195,56,14
@@ -725,7 +741,7 @@ IDD_FILTER DIALOGEX 0, 0, 296, 241
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Filter Settings",-1,0,1,294,199
+    GROUPBOX        "Filter Settings",-1,0,1,295,134
     COMBOBOX        IDC_FILTERMODE,20,15,103,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERFILTER,132,15,83,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Reset to defaults",IDC_FILTERDEFAULT,221,15,67,14
@@ -741,8 +757,7 @@ BEGIN
     RTEXT           "Vert. position:",-1,5,120,55,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FILTERVO,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,99,114,151,19
     EDITTEXT        IDC_FILTERVOV,253,116,34,12,ES_CENTER | ES_READONLY
-    RTEXT           "Extra settings:",-1,105,135,57,10,SS_CENTERIMAGE
-    CONTROL         "Slider1",IDC_FILTERXL,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,99,174,151,19
+    CONTROL         "Slider1",IDC_FILTERXL,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,107,174,141,19
     EDITTEXT        IDC_FILTERXLV,253,176,34,12,ES_CENTER | ES_READONLY
     COMBOBOX        IDC_FILTERSLR,253,151,33,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Presets",-1,0,203,296,36
@@ -754,10 +769,12 @@ BEGIN
     COMBOBOX        IDC_FILTERVZMULT,59,80,35,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERXTRA,105,151,138,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERASPECT,14,151,73,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Keep aspect ratio",IDC_FILTERKEEPASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,168,85,10
+    CONTROL         "Keep aspect ratio",IDC_FILTERKEEPASPECT,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,168,77,10
     COMBOBOX        IDC_FILTERAUTOSCALE,132,36,83,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTERASPECT2,14,180,73,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_FILTEROVERLAY,20,36,103,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Aspect Ratio Correction",-1,3,138,92,65
+    GROUPBOX        "Extra Settings",-1,101,137,194,65
 END
 
 IDD_HARDDRIVE DIALOGEX 0, 0, 380, 76
@@ -816,7 +833,7 @@ CAPTION "WinUAE Properties"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "",IDC_PANEL_FRAME,112,4,303,247,NOT WS_VISIBLE
-    CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_NOSCROLL | WS_BORDER | WS_HSCROLL | WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
+    CONTROL         "",IDC_PANELTREE,"SysTreeView32",TVS_HASLINES | TVS_SHOWSELALWAYS | TVS_TRACKSELECT | TVS_NOSCROLL | TVS_NOHSCROLL | WS_BORDER | WS_TABSTOP,5,5,101,248,WS_EX_CLIENTEDGE
     GROUPBOX        "",IDC_PANEL_FRAME_OUTER,110,2,307,251
     PUSHBUTTON      "Reset",IDC_RESETAMIGA,5,259,47,14
     PUSHBUTTON      "Quit",IDC_QUITEMU,55,259,47,14
@@ -835,6 +852,7 @@ BEGIN
     PUSHBUTTON      "...",IDC_PATHS_ROMS,281,15,11,15
     LTEXT           "Configuration files:",IDC_PATHS_CONFIGL,14,32,121,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_CONFIG,14,42,261,15,ES_AUTOHSCROLL
+    CONTROL         "Cache Configuration files",IDC_PATHS_CONFIGCACHE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,32,97,10
     PUSHBUTTON      "...",IDC_PATHS_CONFIGS,281,42,11,15
     LTEXT           "Screenshots:",IDC_PATHS_SCREENSHOTL,14,59,260,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_SCREENSHOT,14,69,261,15,ES_AUTOHSCROLL
@@ -853,7 +871,6 @@ BEGIN
     PUSHBUTTON      "Clear registry",IDC_RESETREGISTRY,111,212,92,14
     COMBOBOX        IDC_PATHS_DEFAULTTYPE,111,197,163,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Clear disk history",IDC_RESETDISKHISTORY,14,228,92,14
-    CONTROL         "Cache Configuration files",IDC_PATHS_CONFIGCACHE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,177,32,97,10
     LTEXT           "Rips:",IDC_PATHS_RIPSL,13,168,261,8,SS_CENTERIMAGE
     EDITTEXT        IDC_PATHS_RIP,13,178,261,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_PATHS_RIPS,280,178,11,15
@@ -865,7 +882,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Emulated Hardware",IDC_QUICKSTART_CONFIG,3,0,294,54
     RTEXT           "Model:",IDC_STATIC,5,14,50,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_QUICKSTART_MODEL,59,12,233,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_QUICKSTART_MODEL,59,12,192,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Configuration:",IDC_STATIC,5,33,50,10,SS_CENTERIMAGE
     COMBOBOX        IDC_QUICKSTART_CONFIGURATION,59,31,233,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     GROUPBOX        "Compatibility vs Required CPU Power ",IDC_QUICKSTART_COMPA,3,56,294,33
@@ -892,6 +909,8 @@ BEGIN
     GROUPBOX        "Mode",IDC_STATIC,190,211,107,27,BS_LEFT
     CONTROL         "Start in Quickstart mode",IDC_QUICKSTARTMODE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_TABSTOP,197,222,94,10
     COMBOBOX        IDC_CD0Q_TYPE,191,173,63,50,CBS_DROPDOWNLIST | NOT WS_VISIBLE | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,256,15,35,10
 END
 
 IDD_FRONTEND DIALOGEX 0, 0, 420, 242
@@ -918,9 +937,9 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAP
 CAPTION "Enter text..."
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
+    EDITTEXT        IDC_STRINGBOXEDIT,7,17,214,14,ES_AUTOHSCROLL | ES_WANTRETURN
     DEFPUSHBUTTON   "OK",IDOK,48,39,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,151,39,50,14
-    EDITTEXT        IDC_STRINGBOXEDIT,7,17,214,14,ES_AUTOHSCROLL | ES_WANTRETURN
 END
 
 IDD_DEBUGGER DIALOGEX 0, 0, 454, 368
@@ -1005,6 +1024,26 @@ BEGIN
     GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,5,130,117,66
 END
 
+IDD_INPUTMAP DIALOGEX 0, 0, 300, 240
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_INPUTMAPLIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,0,1,299,215
+    EDITTEXT        IDC_INPUTMAPOUT,0,222,299,14,ES_AUTOHSCROLL | WS_DISABLED
+END
+
+IDD_INFOBOX DIALOGEX 0, 0, 420, 68
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Scanning ROM image files..."
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,123,50,50,14,NOT WS_VISIBLE
+    PUSHBUTTON      "Cancel",IDCANCEL,182,50,50,14
+    CTEXT           "",IDC_INFOBOX_TEXT2,6,21,412,11,SS_CENTERIMAGE | SS_SUNKEN | WS_TABSTOP
+    CTEXT           "",IDC_INFOBOX_TEXT1,6,7,412,11,SS_CENTERIMAGE | SS_SUNKEN | WS_TABSTOP
+    CTEXT           "",IDC_INFOBOX_TEXT3,5,35,412,11,SS_CENTERIMAGE | SS_SUNKEN | WS_TABSTOP
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1012,8 +1051,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,1,0,0
- PRODUCTVERSION 2,1,0,0
+ FILEVERSION 2,2,0,0
+ PRODUCTVERSION 2,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1029,12 +1068,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "2.1.0.0"
+            VALUE "FileVersion", "2.2.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2010 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "2.1.0.0"
+            VALUE "ProductVersion", "2.2.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1125,6 +1164,8 @@ BEGIN
     END
 END
 
+
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // DESIGNINFO
@@ -1133,7 +1174,19 @@ END
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO
 BEGIN
+    IDD_DISPLAY, DIALOG
+    BEGIN
+    END
+
+    IDD_MEMORY, DIALOG
+    BEGIN
+    END
+
     IDD_CPU, DIALOG
+    BEGIN
+    END
+
+    IDD_LOADSAVE, DIALOG
     BEGIN
     END
 
@@ -1145,7 +1198,15 @@ BEGIN
     BEGIN
     END
 
+    IDD_ABOUT, DIALOG
+    BEGIN
+    END
+
     IDD_MISC1, DIALOG
+    BEGIN
+    END
+
+    IDD_CHIPSET, DIALOG
     BEGIN
     END
 
@@ -1166,7 +1227,36 @@ BEGIN
     BEGIN
     END
 
+    IDD_PANEL, DIALOG
+    BEGIN
+    END
+
+    IDD_PATHS, DIALOG
+    BEGIN
+    END
+
+    IDD_QUICKSTART, DIALOG
+    BEGIN
+    END
+
     IDD_FRONTEND, DIALOG
+    BEGIN
+    END
+
+    IDD_PROGRESSBAR, DIALOG
+    BEGIN
+    END
+
+    IDD_STRINGBOX, DIALOG
+    BEGIN
+    END
+
+    IDD_INPUTMAP, DIALOG
+    BEGIN
+        TOPMARGIN, 1
+    END
+
+    IDD_INFOBOX, DIALOG
     BEGIN
     END
 END
@@ -1249,18 +1339,17 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe, Christoph Meier and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
+    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
-    IDS_WRONGOSVERSION      "WinUAE is no longer supported on Windows NT.  Please upgrade to either Windows 2000 or Windows XP or a later version."
     IDS_SELECTFLASH         "Select a flash or battery-backed RAM file..."
     IDS_FLASH               "WinUAE flash or battery-backed RAM file"
     IDS_INPUTHOSTWIDGET     "Input source"
     IDS_INPUTAMIGAEVENT     "Input target"
     IDS_INPUTAUTOFIRE       "Autofire"
     IDS_SAVEUSS             "Save a WinUAE snapshot file"
-    IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen. Please report this to\nberndroesch1@compuserve.de"
+    IDS_MIDIOVERFLOW        "Sysexbuffer overflow. Should not happen."
 END
 
 STRINGTABLE
@@ -1312,6 +1401,8 @@ BEGIN
     IDS_QS_CD               "CD"
     IDS_QS_CD_AUTO          "Autodetect"
     IDS_QS_CD_IMAGE         "Image file"
+    IDS_REMAPTITLE          "Input captured. F12 = Exit. F11 = Skip current event in Remap mode."
+    IDS_FILTER_NOOVERLAYS   "No overlays available"
 END
 
 STRINGTABLE
@@ -1354,13 +1445,13 @@ END
 STRINGTABLE
 BEGIN
     IDS_SOUND_FILTER_EMULATED_E "Emulated (A1200)"
-    IDS_INPUT_COMPATIBILITY "Compatibility mode"
+    IDS_INPUT_GAMEPORTS     "Game Ports Panel"
     IDS_INPUT_CUSTOM        "Configuration #%d"
-    IDS_INPUT_COPY_DEFAULT  "Default"
+    IDS_INPUT_COPY_DEFAULT  "GamePorts"
     IDS_INPUT_COPY_CUSTOM   "Config #%d"
     IDS_3D_NO_FILTER        "Point (%d-bit)"
     IDS_3D_BILINEAR         "Bilinear (%d-bit)"
-    IDS_VSYNC_DEFAULT       "Default"
+    IDS_VSYNC_DEFAULT       "Default refresh rate"
     IDS_DRIVESOUND_NONE     "No sound"
     IDS_DRIVESOUND_DEFAULT_A500 "A500 (WinUAE built-in)"
     IDS_AVIOUTPUT_NOCODEC   "no codec selected"
@@ -1514,6 +1605,9 @@ BEGIN
     IDS_PRINTER_EPSON48     "Epson Matrix Printer Emulation, 48pin"
     IDS_SELECTCD            "Select a CD image file..."
     IDS_CD                  "CD image files"
+    IDS_BUFFER_SINGLE       "No buffering"
+    IDS_BUFFER_DOUBLE       "Double buffering"
+    IDS_BUFFER_TRIPLE       "Triple buffering"
 END
 
 #endif    // English resources
