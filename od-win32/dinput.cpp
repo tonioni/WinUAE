@@ -68,7 +68,7 @@ struct didata {
 	TCHAR *name;
 	TCHAR *sortname;
 	TCHAR *configname;
-	int vid, pid;
+	int vid, pid, mi;
 
 	int connection;
 	LPDIRECTINPUTDEVICE8 lpdi;
@@ -735,21 +735,26 @@ static TCHAR *rawkeyboardlabels[256] =
 	L""
 };
 
-static void getvidpid2 (TCHAR *devname, int *id, TCHAR *str)
+static void getvidpid2 (const TCHAR *devname, int *id, const TCHAR *str)
 {
-	TCHAR *s = _tcsstr (devname, str);
-	if (!s)
-		return;
-	int val = -1;
-	_stscanf (s + _tcslen (str), L"%X", &val);
-	*id = val;
+	TCHAR *dv = my_strdup (devname);
+	for (int i = 0; i < _tcslen (dv); i++)
+		dv[i] = _totupper (dv[i]);
+	TCHAR *s = _tcsstr (dv, str);
+	if (s) {
+		int val = -1;
+		_stscanf (s + _tcslen (str), L"%X", &val);
+		*id = val;
+	}
+	xfree (dv);
 }
 
-static void getvidpid (TCHAR *devname, int *vid, int *pid)
+static void getvidpid (const TCHAR *devname, int *vid, int *pid, int *mi)
 {
-	*vid = *pid = -1;
+	*vid = *pid = *mi = -1;
 	getvidpid2 (devname, vid, L"VID_");
 	getvidpid2 (devname, pid, L"PID_");
+	getvidpid2 (devname, mi, L"MI_");
 }
 
 static int initialize_rawinput (void)
@@ -838,7 +843,7 @@ static int initialize_rawinput (void)
 
 			rnum_raw++;
 			cleardid (did);
-			getvidpid (buf, &did->vid, &did->pid);
+			getvidpid (buf, &did->vid, &did->pid, &did->mi);
 			if (did->vid > 0 && did->pid > 0)
 				_stprintf (tmp, L"%s (%04X/%04X)", type == RIM_TYPEMOUSE ? L"RAW Mouse" : L"RAW Keyboard", did->vid, did->pid);
 			else

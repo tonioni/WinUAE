@@ -1104,7 +1104,7 @@ void cdimage_vsync (void)
 		}
 	}
 #ifdef RETROPLATFORM
-	rp_cd_image_change (0, media ? currprefs.cdimagefile : NULL);
+	rp_cd_image_change (0, currprefs.cdimagefile);
 #endif
 	config_changed = 1;
 }
@@ -1129,7 +1129,7 @@ static int open_bus (int flags)
 		v = 1;
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 0);
-	rp_cd_image_change (0, currprefs.cdimagefile[0] ? currprefs.cdimagefile : NULL);
+	rp_cd_image_change (0, currprefs.cdimagefile);
 #endif
 	return v;
 }
