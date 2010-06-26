@@ -40,8 +40,8 @@ static D3DDISPLAYMODEEX modeex;
 static IDirect3DDevice9 *d3ddev;
 static IDirect3DDevice9Ex *d3ddevex;
 static D3DSURFACE_DESC dsdbb;
-static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture;
-static int masktexture_w, masktexture_h;
+static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture, mask2texture;
+static int masktexture_w, masktexture_h, mask2texture_w, mask2texture_h;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2, lpTempTexture;
 LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
@@ -1158,7 +1158,64 @@ static int createsltexture (void)
 	return 1;
 }
 
-static int createmasktexture (TCHAR *filename)
+static int createmask2texture (const TCHAR *filename)
+{
+	struct zfile *zf;
+	int size;
+	uae_u8 *buf;
+	LPDIRECT3DTEXTURE9 tx;
+	HRESULT hr;
+	D3DXIMAGE_INFO dinfo;
+	TCHAR tmp[MAX_DPATH];
+
+	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen ())
+		return 0;
+	zf = NULL;
+	for (int i = 0; i < 2; i++) {
+		if (i == 0)
+			_stprintf (tmp, L"%s%soverlays\\%s", start_path_exe, WIN32_PLUGINDIR, filename);
+		else
+			_tcscpy (tmp, filename);
+		zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
+		if (zf)
+			break;
+		TCHAR tmp2[MAX_DPATH];
+		TCHAR *s = _tcsrchr (tmp, '.');
+		if (s) {
+			_tcscpy (tmp2, s);
+			_stprintf (s, L"_%dx%d%s", window_w, window_h, tmp2);
+			zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
+			if (zf)
+				break;
+		}
+	}
+	if (!zf) {
+		write_log (L"%s: couldn't open overlay '%s'\n", D3DHEAD, filename);
+		return 0;
+	}
+	size = zfile_size (zf);
+	buf = xmalloc (uae_u8, size);
+	zfile_fread (buf, size, 1, zf);
+	zfile_fclose (zf);
+	hr = D3DXCreateTextureFromFileInMemoryEx (d3ddev, buf, size,
+		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8,
+		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
+	xfree (buf);
+	if (FAILED (hr)) {
+		write_log (L"%s: overlay texture load failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		goto end;
+	}
+	mask2texture_w = dinfo.Width;
+	mask2texture_h = dinfo.Height;
+	mask2texture = tx;
+	return 1;
+end:
+	if (tx)
+		tx->Release ();
+	return 0;
+}
+
+static int createmasktexture (const TCHAR *filename)
 {
 	int ww = window_w;
 	int hh = window_h;
@@ -1410,6 +1467,10 @@ static void invalidatedeviceobjects (void)
 		masktexture->Release ();
 		masktexture = NULL;
 	}
+	if (mask2texture) {
+		mask2texture->Release ();
+		mask2texture = NULL;
+	}
 	if (lpTempTexture) {
 		lpTempTexture->Release ();
 		lpTempTexture = NULL;
@@ -1490,13 +1551,15 @@ static int restoredeviceobjects (void)
 	if (wasshader && !shaderon)
 		write_log (L"Falling back to non-shader mode\n");
 
+	createmask2texture (currprefs.gfx_filteroverlay);
+
 	if (!createtexture (tin_w, tin_h))
 		return 0;
 	createledtexture ();
 
 	hr = D3DXCreateSprite (d3ddev, &sprite);
 	if (FAILED (hr)) {
-		write_log (L"%s: LED D3DXSprite failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		write_log (L"%s: D3DXSprite failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 
 	int curw = CURSORMAXWIDTH, curh = CURSORMAXHEIGHT;
@@ -2043,7 +2106,7 @@ static void D3D_render22 (void)
 		}
 	}
 
-	if (sprite && ((ledtexture) || (cursorsurfaced3d && cursor_v))) {
+	if (sprite && ((ledtexture) || (mask2texture) || (cursorsurfaced3d && cursor_v))) {
 		D3DXVECTOR3 v;
 		sprite->Begin (D3DXSPRITE_ALPHABLEND);
 		if (cursorsurfaced3d && cursor_v) {
@@ -2055,6 +2118,51 @@ static void D3D_render22 (void)
 			v.z = 0;
 			sprite->SetTransform (&t);
 			sprite->Draw (cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
+			MatrixScaling (&t, 1, 1, 0);
+			sprite->SetTransform (&t);
+		}
+		if (mask2texture) {
+			D3DXMATRIX t;
+			float w = (float)window_w / mask2texture_w;
+			float h = (float)window_h / mask2texture_h;
+
+			if (currprefs.gfx_filteroverlay_pos.width > 0)
+				w = (float)currprefs.gfx_filteroverlay_pos.width / mask2texture_w;
+			else if (currprefs.gfx_filteroverlay_pos.width == -1)
+				w = 1.0;
+			else if (currprefs.gfx_filteroverlay_pos.width <= -24000)
+				w = w * (-currprefs.gfx_filteroverlay_pos.width - 30000) / 100.0;
+
+			if (currprefs.gfx_filteroverlay_pos.height > 0)
+				h = (float)currprefs.gfx_filteroverlay_pos.height / mask2texture_h;
+			else if (currprefs.gfx_filteroverlay_pos.height == -1)
+				h = 1;
+			else if (currprefs.gfx_filteroverlay_pos.height <= -24000)
+				h = h * (-currprefs.gfx_filteroverlay_pos.height - 30000) / 100.0;
+
+			MatrixScaling (&t, w, h, 0);
+
+			v.x = 0;
+			if (currprefs.gfx_filteroverlay_pos.x == -1)
+				v.x = (window_w - (mask2texture_w * w)) / 2;
+			else if (currprefs.gfx_filteroverlay_pos.x > -24000)
+				v.x = currprefs.gfx_filteroverlay_pos.x;
+			else
+				v.x = (window_w - (mask2texture_w * w)) / 2 + (-currprefs.gfx_filteroverlay_pos.x - 30100) * window_w / 100.0;
+
+			v.y = 0;
+			if (currprefs.gfx_filteroverlay_pos.y == -1)
+				v.y = (window_h - (mask2texture_h * h)) / 2;
+			else if (currprefs.gfx_filteroverlay_pos.y > -24000)
+				v.y = currprefs.gfx_filteroverlay_pos.y;
+			else
+				v.y = (window_h - (mask2texture_h * h)) / 2 + (-currprefs.gfx_filteroverlay_pos.y - 30100) * window_h / 100.0;
+
+			v.x /= w;
+			v.y /= h;
+			v.z = 0;
+			sprite->SetTransform (&t);
+			sprite->Draw (mask2texture, NULL, NULL, &v, 0xffffffff);
 			MatrixScaling (&t, 1, 1, 0);
 			sprite->SetTransform (&t);
 		}

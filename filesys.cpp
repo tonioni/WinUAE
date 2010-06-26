@@ -3644,8 +3644,8 @@ static void
 {
 	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
 	uaecptr addr = GET_PCK_ARG2 (packet);
-	long size = (uae_s32)GET_PCK_ARG3 (packet);
-	int actual;
+	uae_u32 size = GET_PCK_ARG3 (packet);
+	uae_u32 actual;
 
 	if (k == 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -3666,9 +3666,10 @@ static void
 			possible_loadseg();
 	}
 #endif
-	if (valid_address (addr, size)) {
-		uae_u8 *realpt;
-		realpt = get_real_address (addr);
+	if (size == 0) {
+		actual = 0;
+	} else if (valid_address (addr, size)) {
+		uae_u8 *realpt = get_real_address (addr);
 		actual = fs_read (k->fd, realpt, size);
 
 		if (actual == 0) {
@@ -3723,8 +3724,8 @@ static void
 {
 	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
 	uaecptr addr = GET_PCK_ARG2 (packet);
-	long size = GET_PCK_ARG3 (packet);
-	long actual;
+	uae_u32 size = GET_PCK_ARG3 (packet);
+	uae_u32 actual;
 	uae_u8 *buf;
 	int i;
 
@@ -3743,12 +3744,12 @@ static void
 		return;
 	}
 
-	if (valid_address (addr, size)) {
+	if (size == 0) {
+		actual = 0;
+	} else if (valid_address (addr, size)) {
 		uae_u8 *realpt = get_real_address (addr);
 		actual = fs_write (k->fd, realpt, size);
-
 	} else {
-
 		write_log (L"unixfs warning: Bad pointer passed for write: %08x, size %d\n", addr, size);
 		/* ugh this is inefficient but easy */
 		buf = xmalloc (uae_u8, size);

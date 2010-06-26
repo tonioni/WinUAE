@@ -1275,6 +1275,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
 	c |= _tcscmp (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader) ? (2|8) : 0;
 	c |= _tcscmp (currprefs.gfx_filtermask, changed_prefs.gfx_filtermask) ? (2|8) : 0;
+	c |= _tcscmp (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay) ? (2|8) : 0;
 	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
 	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8) : 0;
 	c |= currprefs.gfx_filter_horiz_zoom_mult != changed_prefs.gfx_filter_horiz_zoom_mult ? (1|8) : 0;
@@ -1335,6 +1336,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_filter = changed_prefs.gfx_filter;
 		_tcscpy (currprefs.gfx_filtershader, changed_prefs.gfx_filtershader);
 		_tcscpy (currprefs.gfx_filtermask, changed_prefs.gfx_filtermask);
+		_tcscpy (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay);
 		currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 		currprefs.gfx_filter_bilinear = changed_prefs.gfx_filter_bilinear;
 		currprefs.gfx_filter_horiz_zoom_mult = changed_prefs.gfx_filter_horiz_zoom_mult;

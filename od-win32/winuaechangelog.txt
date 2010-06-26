@@ -1,4 +1,14 @@
 
+Beta 12: (RC3)
+
+- directory filesystem action_read/action_write with length=0 special handling
+  added (host OS routines may have returned weird errors in some situations)
+- monitor "bezel" overlay image support added, direct3d and configuration file only.
+  gfx_filter_overlay=<path>:x,y,width,height (only path is mandatory)
+  x and y: position of overlay relative to top/left corner. -1 = center, value% = relative to window size.
+  width and height: width of overlay image. -1 = scale to window size, 0 = use original size,
+  > 0 = scale to this size. value% = scale to window size + %adjustment.
+
 Beta 11: (RC2)
 
 - DirectInput keyboard and mouse didn't work in Test/Remap mode after emulation was started

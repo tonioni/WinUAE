@@ -193,6 +193,8 @@ struct uae_prefs {
 	int gfx_filter;
 	TCHAR gfx_filtershader[MAX_DPATH];
 	TCHAR gfx_filtermask[MAX_DPATH];
+	TCHAR gfx_filteroverlay[MAX_DPATH];
+	struct wh gfx_filteroverlay_pos;
 	int gfx_filter_scanlines;
 	int gfx_filter_scanlineratio;
 	int gfx_filter_scanlinelevel;
