@@ -54,6 +54,7 @@
 #include "consolehook.h"
 
 #define TRACING_ENABLED 0
+#define TRACE2(x) do { write_log x; } while(0)
 #if TRACING_ENABLED
 #define TRACE(x) do { write_log x; } while(0)
 #define DUMPLOCK(u,x) dumplock(u,x)
@@ -3668,6 +3669,8 @@ static void
 #endif
 	if (size == 0) {
 		actual = 0;
+		PUT_PCK_RES1 (packet, 0);
+		PUT_PCK_RES2 (packet, 0);
 	} else if (valid_address (addr, size)) {
 		uae_u8 *realpt = get_real_address (addr);
 		actual = fs_read (k->fd, realpt, size);
@@ -3746,6 +3749,8 @@ static void
 
 	if (size == 0) {
 		actual = 0;
+		PUT_PCK_RES1 (packet, 0);
+		PUT_PCK_RES2 (packet, 0);
 	} else if (valid_address (addr, size)) {
 		uae_u8 *realpt = get_real_address (addr);
 		actual = fs_write (k->fd, realpt, size);
