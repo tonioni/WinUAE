@@ -11523,6 +11523,14 @@ static void input_test (HWND hDlg, int port)
 }
 #endif
 
+static void handleXbutton (WPARAM wParam, int updown)
+{
+	int b = GET_XBUTTON_WPARAM (wParam);
+	int num = (b & XBUTTON1) ? 3 : (b & XBUTTON2) ? 4 : -1;
+	if (num >= 0)
+		setmousebuttonstate (dinput_winmouse (), num, updown);
+}
+
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive;
@@ -11554,6 +11562,65 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	case WM_DESTROY:
 		input_find (hDlg, 0, false);
 	break;
+#if 0
+	case WM_MOUSEMOVE:
+	{
+		int wm = dinput_winmouse ();
+		int mx = (signed short) LOWORD (lParam);
+		int my = (signed short) HIWORD (lParam);
+		setmousestate (dinput_winmouse (), 0, mx, 0);
+		setmousestate (dinput_winmouse (), 1, my, 0);
+		break;
+	}
+	case WM_LBUTTONUP:
+		setmousebuttonstate (dinput_winmouse (), 0, 0);
+		return 0;
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONDBLCLK:
+		setmousebuttonstate (dinput_winmouse (), 0, 1);
+		return 0;
+	case WM_RBUTTONUP:
+		setmousebuttonstate (dinput_winmouse (), 1, 0);
+		return 0;
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONDBLCLK:
+		setmousebuttonstate (dinput_winmouse (), 1, 1);
+		return 0;
+	case WM_MBUTTONUP:
+		setmousebuttonstate (dinput_winmouse (), 2, 0);
+		return 0;
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONDBLCLK:
+		setmousebuttonstate (dinput_winmouse (), 2, 1);
+		return 0;
+	case WM_XBUTTONUP:
+		handleXbutton (wParam, 0);
+		return TRUE;
+	case WM_XBUTTONDOWN:
+	case WM_XBUTTONDBLCLK:
+		handleXbutton (wParam, 1);
+		return TRUE;
+	case WM_MOUSEWHEEL:
+		{
+			int val = ((short)HIWORD (wParam));
+			setmousestate (dinput_winmouse (), 2, val, 0);
+			if (val < 0)
+				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
+			else if (val > 0)
+				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 1, -1);
+			return TRUE;
+		}
+	case WM_MOUSEHWHEEL:
+		{
+			int val = ((short)HIWORD (wParam));
+			setmousestate (dinput_winmouse (), 3, val, 0);
+			if (val < 0)
+				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 2, -1);
+			else if (val > 0)
+				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 3, -1);
+			return TRUE;
+		}
+#endif
 	}
 	return 0;
 }

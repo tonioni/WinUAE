@@ -115,6 +115,7 @@ SubSection "Additional files" secAdditionalFiles
   File "${DISTPATH}\Docs\README.JIT-tuning"
   File "${DISTPATH}\Docs\README.compemu"
   File "${DISTPATH}\Docs\History_old.txt"
+  File "${DISTPATH}\Docs\winuaechangelog.txt"
  ;-- Copy Docs for Windows
   SetOutPath "$INSTDIR\Docs\Windows"
   File "${DISTPATH}\Docs\Windows\UAEHowTo.txt"
@@ -236,6 +237,7 @@ Section Uninstall
   Delete "$INSTDIR\Docs\Readme.txt.bak"
   Delete "$INSTDIR\Docs\README.umisef"
   Delete "$INSTDIR\Docs\Whatsnew-jit"
+  Delete "$INSTDIR\Docs\winuaechangelog.txt"
   Delete "$INSTDIR\Amiga Programs\ahidriver.zip"
   Delete "$INSTDIR\Amiga Programs\amigaprog.txt"
   Delete "$INSTDIR\Amiga Programs\german_KeyMap_new.zip"

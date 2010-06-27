@@ -1,4 +1,8 @@
 
+2.2.0 Final
+
+- A3000 KS 2.04 ROM odd/even pair mismatched checksums fixed
+
 Beta 12: (RC3)
 
 - directory filesystem action_read/action_write with length=0 special handling
@@ -8,6 +12,7 @@ Beta 12: (RC3)
   x and y: position of overlay relative to top/left corner. -1 = center, value% = relative to window size.
   width and height: width of overlay image. -1 = scale to window size, 0 = use original size,
   > 0 = scale to this size. value% = scale to window size + %adjustment.
+- rawinput VID and PID values didn't work under Windows XP
 
 Beta 11: (RC2)
 
