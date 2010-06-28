@@ -99,7 +99,7 @@
 #define CONFIG_HOST L"Host"
 #define CONFIG_HARDWARE L"Hardware"
 
-static TCHAR szNone[MAX_DPATH];
+static wstring szNone;
 
 static int allow_quit;
 static int restart_requested;
@@ -128,6 +128,15 @@ TCHAR config_filename[MAX_DPATH] = L"";
 static TCHAR stored_path[MAX_DPATH];
 
 #define Error(x) MessageBox (NULL, (x), L"WinUAE Error", MB_OK)
+
+wstring WIN32GUI_LoadUIString (DWORD id)
+{
+	wchar_t tmp[MAX_DPATH];
+	tmp[0] = 0;
+	if (LoadString (hUIDLL ? hUIDLL : hInst, id, tmp, MAX_DPATH) == 0)
+		LoadString (hInst, id, tmp, MAX_DPATH);
+	return wstring(tmp);
+}
 
 void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 {
@@ -2447,7 +2456,7 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 }
 
 static const TCHAR *memsize_names[] = {
-	/* 0 */ szNone,
+	/* 0 */ szNone.c_str(),
 	/* 1 */ L"256 K",
 	/* 2 */ L"512 K",
 	/* 3 */ L"1 MB",
@@ -10555,7 +10564,7 @@ static void init_portsdlg (HWND hDlg)
 	}
 
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Robocop 3");
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Leaderboard");
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"B.A.T. II");
@@ -10566,7 +10575,7 @@ static void init_portsdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_DONGLELIST, CB_ADDSTRING, 0, (LPARAM)L"Leviathan");
 
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	for (port = 0; port < MAX_SERIAL_PORTS && comports[port].name; port++) {
 		SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port].name);
 	}
@@ -10586,7 +10595,7 @@ static void init_portsdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 
 	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	enumerate_sound_devices ();
 	for (int card = 0; record_devices[card].type; card++) {
 		int type = record_devices[card].type;
@@ -10599,7 +10608,7 @@ static void init_portsdlg (HWND hDlg)
 	}
 
 	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	if(!pInfo) {
 		int flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
 		DWORD needed = 0;
@@ -10636,7 +10645,7 @@ static void init_portsdlg (HWND hDlg)
 	}
 
 	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	if ((numdevs = midiOutGetNumDevs ()) == 0) {
 		ew (hDlg, IDC_MIDIOUTLIST, FALSE);
 	} else {
@@ -10983,7 +10992,7 @@ static void init_inputdlg_2 (HWND hDlg)
 	int cnt, index, af, aftmp, port;
 
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)szNone);
+	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	WIN32GUI_LoadUIString (IDS_INPUT_CUSTOMEVENT, tmp1, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	index = 0; af = 0; port = 0;
@@ -13840,7 +13849,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	memset (&workprefs, 0, sizeof (struct uae_prefs));
 	default_prefs (&workprefs, 0);
 
-	WIN32GUI_LoadUIString (IDS_NONE, szNone, MAX_DPATH);
+	szNone = WIN32GUI_LoadUIString (IDS_NONE);
 	prefs_to_gui (&changed_prefs);
 
 	if (!init_called) {

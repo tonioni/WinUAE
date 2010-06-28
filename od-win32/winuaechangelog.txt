@@ -2,6 +2,8 @@
 2.2.0 Final
 
 - A3000 KS 2.04 ROM odd/even pair mismatched checksums fixed
+- no registry or ini data, -datapath not used and winuae.exe in Program Files
+  (CSIDL_PROGRAM_FILES): set default paths to CSIDL_COMMON_DOCUMENTS
 
 Beta 12: (RC3)
 

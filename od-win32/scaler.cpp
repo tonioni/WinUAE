@@ -17,11 +17,11 @@
 
 extern int cpu_mmx;
 
-extern "C"
-{
-
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+extern "C"
+{
 
 #include "gfxfilter.h"
 
