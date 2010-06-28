@@ -11,8 +11,7 @@ copy resourcedll\release\resourcedll.dll d:\amiga\WinUAE_default.dll
 cdd d:\amiga
 zip -9 WinUAE%1_translation WinUAE_default.dll translation.txt
 del translation.txt
-rem zip -9 WinUAEMini%1 winuae_mini.exe
 cdd c:\projects\winuae\src\od-win32
-zip -9 winuaedebug%1 winuae_msvc\release\winuae.pdb winuae_msvc\fullrelease\winuae.pdb
+zip -9 winuaedebug%1 winuae_msvc10\release\winuae.pdb winuae_msvc10\fullrelease\winuae.pdb
 copy winuaedebug%1.zip d:\amiga\winuaepackets
 del *.zip

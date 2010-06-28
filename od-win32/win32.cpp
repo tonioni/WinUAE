@@ -3817,6 +3817,39 @@ static void getstartpaths (void)
 	if((posn = _tcsrchr (start_path_exe, '\\')))
 		posn[1] = 0;
 
+	if (path_type < 0 && start_data == 0 && key) {
+		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, 0, tmp))) {
+			// installed in Program Files?
+			if (_tcsnicmp (tmp, start_path_exe, _tcslen (tmp)) == 0) {
+				if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp))) {
+					fixtrailing (tmp);
+					_tcscpy (tmp2, tmp);
+					_tcscat (tmp2, L"Amiga Files");
+					CreateDirectory (tmp2, NULL);
+					_tcscat (tmp2, L"\\WinUAE");
+					CreateDirectory (tmp2, NULL);
+					v = GetFileAttributes (tmp2);
+					if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+						_tcscat (tmp2, L"\\");
+						path_type = PATH_TYPE_NEWWINUAE;
+						_tcscpy (tmp, tmp2);
+						_tcscat (tmp, L"Configurations");
+						CreateDirectory (tmp, NULL);
+						_tcscpy (tmp, tmp2);
+						_tcscat (tmp, L"Screenshots");
+						CreateDirectory (tmp, NULL);
+						_tcscpy (tmp, tmp2);
+						_tcscat (tmp, L"Savestates");
+						CreateDirectory (tmp, NULL);
+						_tcscpy (tmp, tmp2);
+						_tcscat (tmp, L"Screenshots");
+						CreateDirectory (tmp, NULL);
+					}
+				}
+			}
+		}
+	}
+
 	_tcscpy (tmp, start_path_exe);
 	_tcscat (tmp, L"roms");
 	if (isfilesindir (tmp)) {
@@ -3870,7 +3903,7 @@ static void getstartpaths (void)
 			_tcscpy (tmp, tmp2);
 			_tcscat (tmp, L"WinUAE");
 			v = GetFileAttributes (tmp);
-			if (v == INVALID_FILE_ATTRIBUTES || (v & FILE_ATTRIBUTE_DIRECTORY)) {
+			if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
 				TCHAR *p;
 				_tcscpy (xstart_path_new1, tmp2);
 				_tcscat (xstart_path_new1, L"WinUAE\\");
