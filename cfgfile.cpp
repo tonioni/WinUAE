@@ -748,7 +748,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_gamma", L"%d", p->gfx_gamma);
 	cfgfile_dwrite_str (f, L"gfx_filter_mask", p->gfx_filtermask);
 	if (p->gfx_filteroverlay[0]) {
-		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s:%d%s,%d%s,%d%s,%d%s",
+		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s,%d%s,%d%s,%d%s,%d%s",
 			p->gfx_filteroverlay,
 			p->gfx_filteroverlay_pos.x >= -24000 ? p->gfx_filteroverlay_pos.x : -p->gfx_filteroverlay_pos.x - 30000,
 			p->gfx_filteroverlay_pos.x >= -24000 ? L"" : L"%",
@@ -1275,7 +1275,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 #ifdef GFXFILTER
 	if (_tcscmp (option, L"gfx_filter_overlay") == 0) {
-		TCHAR *s = _tcschr (value, ':');
+		TCHAR *s = _tcschr (value, ',');
 		p->gfx_filteroverlay_pos.x = 0;
 		p->gfx_filteroverlay_pos.y = 0;
 		p->gfx_filteroverlay_pos.width = 0;

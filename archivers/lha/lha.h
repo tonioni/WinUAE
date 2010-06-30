@@ -173,7 +173,7 @@ EXTERN int		prev_char;
 
 /* huf.c */
 #ifndef LHA_MAIN_SRC  /* t.okamoto 96/2/20 */
-EXTERN unsigned short left[], right[];
+EXTERN unsigned short h_left[], h_right[];
 EXTERN unsigned char c_len[], pt_len[];
 EXTERN unsigned short c_freq[], c_table[], c_code[];
 EXTERN unsigned short p_freq[], pt_table[], pt_code[], t_freq[];

@@ -18,7 +18,7 @@
 #endif
 
 /* ------------------------------------------------------------------------ */
-unsigned short  left[2 * NC - 1], right[2 * NC - 1];
+unsigned short  h_left[2 * NC - 1], h_right[2 * NC - 1];
 unsigned char   c_len[NC], pt_len[NPT];
 unsigned short  c_freq[2 * NC - 1], c_table[4096], c_code[NC], p_freq[2 * NP - 1],
 		pt_table[256], pt_code[NPT], t_freq[2 * NT - 1];
@@ -370,9 +370,9 @@ static void read_c_len(void)
 				unsigned short  mask = 1 << (16 - 9);
 				do {
 					if (lhabitbuf & mask)
-						c = right[c];
+						c = h_right[c];
 					else
-						c = left[c];
+						c = h_left[c];
 					mask >>= 1;
 				} while (c >= NT);
 			}
@@ -416,9 +416,9 @@ unsigned short decode_c_st1(void)
 		mask = 1 << (16 - 1);
 		do {
 			if (lhabitbuf & mask)
-				j = right[j];
+				j = h_right[j];
 			else
-				j = left[j];
+				j = h_left[j];
 			mask >>= 1;
 		} while (j >= NC);
 		fillbuf(c_len[j] - 12);
@@ -439,9 +439,9 @@ unsigned short decode_p_st1(void)
 		mask = 1 << (16 - 1);
 		do {
 			if (lhabitbuf & mask)
-				j = right[j];
+				j = h_right[j];
 			else
-				j = left[j];
+				j = h_left[j];
 			mask >>= 1;
 		} while (j >= np);
 		fillbuf(pt_len[j] - 8);

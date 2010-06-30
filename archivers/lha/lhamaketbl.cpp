@@ -72,13 +72,13 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 			/* make tree (n length) */
 			while (--n >= 0) {
 				if (*p == 0) {
-					right[avail] = left[avail] = 0;
+					h_right[avail] = h_left[avail] = 0;
 					*p = avail++;
 				}
 				if (i & 0x8000)
-					p = &right[*p];
+					p = &h_right[*p];
 				else
-					p = &left[*p];
+					p = &h_left[*p];
 				i <<= 1;
 			}
 			*p = j;

@@ -783,7 +783,7 @@ void read_table68k (void)
 	}
 }
 
-static int mismatch;
+static int imismatch;
 
 static void handle_merges (long int opcode)
 {
@@ -838,20 +838,20 @@ static void handle_merges (long int opcode)
 				|| table68k[code].suse != table68k[opcode].suse
 				|| table68k[code].duse != table68k[opcode].duse)
 			{
-				mismatch++; continue;
+				imismatch++; continue;
 			}
 			if (table68k[opcode].suse
 				&& (table68k[opcode].spos != table68k[code].spos
 				|| table68k[opcode].smode != table68k[code].smode
 				|| table68k[opcode].stype != table68k[code].stype))
 			{
-				mismatch++; continue;
+				imismatch++; continue;
 			}
 			if (table68k[opcode].duse
 				&& (table68k[opcode].dpos != table68k[code].dpos
 				|| table68k[opcode].dmode != table68k[code].dmode))
 			{
-				mismatch++; continue;
+				imismatch++; continue;
 			}
 
 			if (code != opcode)
@@ -864,7 +864,7 @@ void do_merges (void)
 {
 	long int opcode;
 	int nr = 0;
-	mismatch = 0;
+	imismatch = 0;
 	for (opcode = 0; opcode < 65536; opcode++) {
 		if (table68k[opcode].handler != -1 || table68k[opcode].mnemo == i_ILLG)
 			continue;
@@ -876,5 +876,5 @@ void do_merges (void)
 
 int get_no_mismatches (void)
 {
-	return mismatch;
+	return imismatch;
 }
