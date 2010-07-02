@@ -338,6 +338,7 @@
 #define IDS_BUFFER_SINGLE               362
 #define IDS_BUFFER_DOUBLE               363
 #define IDS_BUFFER_TRIPLE               364
+#define IDS_AUTOSCALE_CENTER            365
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -793,6 +794,7 @@
 #define IDC_VOLUME_BOOTPRI_TEXT         1637
 #define IDC_FILTEROVERLAY               1637
 #define IDC_VOLUME_BOOTPRI              1638
+#define IDC_FILTEROVERLAYTYPE           1638
 #define IDC_KBLED1                      1639
 #define IDC_KBLED2                      1640
 #define IDC_SOUNDFILTER                 1640

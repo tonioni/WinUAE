@@ -104,9 +104,22 @@ static int vblscale2 (int v)
 	return v;
 }
 
+static void fixh (int *ah, int *th)
+{
+	if (!(beamcon0 & 0x80)) {
+		int max = (572 / 2) << currprefs.gfx_vresolution;
+		if (*ah > max)
+			*ah = max;
+		if (*th > max)
+			*th = max;
+	}
+}
+
 uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
 {
 	int aws, ahs;
+
+	fixh (&ah, &temp_height);
 
 	aws = aw * scale;
 	ahs = ah * scale;
@@ -155,6 +168,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	fpux_save (&fpuv);
 
+	fixh (&ah, &temp_height);
+
 	getinit ();
 	ahs2 = vblscale (ah) * scale;
 	aws = aw * scale;
@@ -200,8 +215,19 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		if (cv) {
 			int diff;
 
-			if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
-				int ww;
+			if (currprefs.gfx_filter_autoscale == 3) {
+
+				int ww = cw * scale;
+				int hh = ch * scale;
+				SetRect (sr, 0, 0, dst_width, dst_height);
+				SetRect (zr, 0, 0, 0, 0);
+				dr->left = dr->top = 0;
+				dr->right = dr->left + dst_width;
+				dr->bottom = dr->top + dst_height;
+				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
+				goto cont;
+
+			} else if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
 				static int lastresize = 0;
 				static int lastdelay = 1;
 				static int ocw, och, ocx, ocy, lcw, lch, lcx, lcy;
@@ -248,11 +274,12 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				dr->right = dr->left + cw * scale;
 				dr->bottom = dr->top + ch * scale;
 				OffsetRect (zr, cx * scale, cy * scale);
-				ww = dr->right - dr->left;
+				int ww = dr->right - dr->left;
+				int hh = dr->bottom - dr->top;
 				changed_prefs.gfx_size_win.width = ww;
-				changed_prefs.gfx_size_win.height = dr->bottom - dr->top;
+				changed_prefs.gfx_size_win.height = hh;
 				fixup_prefs_dimensions (&changed_prefs);
-				OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, 0);
+				OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, -(changed_prefs.gfx_size_win.height - hh + 1) / 2);
 				filteroffsetx = -zr->left / scale;
 				filteroffsety = -zr->top / scale;
 				goto end;
@@ -316,8 +343,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			filterymult = diff * 1000 / (dst_height * scale);
 			goto end;
 		}
-	}
 
+	}
+cont:
 	if (!filter_horiz_zoom_mult && !filter_vert_zoom_mult) {
 
 		sizeoffset (dr, zr, extraw, extrah);
@@ -373,7 +401,6 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			OffsetRect (dr, 0, (v - ahs2) / 2);
 		}
 	}
-
 
 	ymult = vblscale (ymult);
 	OffsetRect (dr, 0, (ahs2 - ahs) / 2);
@@ -516,7 +543,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	res_shift = RES_MAX - currprefs.gfx_resolution;
 	if (currprefs.gfx_xcenter_size > 0 && (currprefs.gfx_xcenter_size >> res_shift) < aw)
 		aw = currprefs.gfx_xcenter_size >> res_shift;
-	res_shift = currprefs.gfx_linedbl ? 0 : 1;
+	res_shift = VRES_MAX - currprefs.gfx_vresolution;
 	if (currprefs.gfx_ycenter_size > 0 && (currprefs.gfx_ycenter_size >> res_shift) < ah)
 		ah = currprefs.gfx_ycenter_size >> res_shift;
 

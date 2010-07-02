@@ -118,6 +118,13 @@ void preinit_shm (void)
 	MEMORYSTATUSEX memstatsex;
 	uae_u32 max_allowed_mman;
 
+	if (natmem_offset)
+		VirtualFree (natmem_offset, 0, MEM_RELEASE);
+	natmem_offset = NULL;
+	if (p96mem_offset)
+		VirtualFree (p96mem_offset, 0, MEM_RELEASE);
+	p96mem_offset = NULL;
+
 	GetSystemInfo (&si);
 	max_allowed_mman = 1536;
 	if (os_64bit)
@@ -207,7 +214,7 @@ restart:
 			write_log (L"NATMEM: retrying %d..\n", rounds);
 		rounds++;
 		if (natmem_offset)
-			VirtualFree(natmem_offset, 0, MEM_RELEASE);
+			VirtualFree (natmem_offset, 0, MEM_RELEASE);
 		natmem_offset = NULL;
 		natmem_offset_end = NULL;
 		canbang = 0;

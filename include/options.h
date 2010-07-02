@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 2
 #define UAEMINOR 2
-#define UAESUBREV 0
+#define UAESUBREV 1
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -177,8 +177,9 @@ struct uae_prefs {
 	int gfx_refreshrate;
 	int gfx_avsync, gfx_pvsync;
 	int gfx_resolution;
+	int gfx_vresolution;
 	int gfx_lores_mode;
-	int gfx_linedbl;
+	int gfx_scanlines;
 	int gfx_afullscreen, gfx_pfullscreen;
 	int gfx_xcenter, gfx_ycenter;
 	int gfx_xcenter_pos, gfx_ycenter_pos;

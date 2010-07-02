@@ -94,7 +94,7 @@ static void freesample (struct drvsample *s)
 	s->p = 0;
 }
 
-static void processclicks(struct drvsample *ds)
+static void processclicks (struct drvsample *ds)
 {
 	unsigned int n = 0;
 	unsigned int nClick = 0;
@@ -204,10 +204,9 @@ void driveclick_init (void)
 			drvs[i][DS_SNATCH].pos = drvs[i][DS_SNATCH].len;
 		}
 	}
-	if (vv > 0) {
-		driveclick_reset ();
+	driveclick_reset ();
+	if (vv > 0)
 		click_initialized = 1;
-	}
 }
 
 void driveclick_reset (void)
@@ -235,10 +234,9 @@ void driveclick_free (void)
 		drv_has_disk[i] = 0;
 	}
 	memset (drvs, 0, sizeof (drvs));
-	xfree (clickbuffer);
-	clickbuffer = 0;
 	click_initialized = 0;
 	wave_initialized = 0;
+	driveclick_reset ();
 }
 
 static int driveclick_active (void)
@@ -405,8 +403,11 @@ void driveclick_mix (uae_s16 *sndbuffer, int size, int channelmask)
 		break;
 	case 1:
 		for (i = 0; i < size; i++) {
+			uae_s16 s = clickbuffer[i];
 			if (channelmask & 1)
-				sndbuffer[0] = limit (((sndbuffer[0] + clickbuffer[i]) * 2) / 3);
+				sndbuffer[0] = limit (((sndbuffer[0] + s) * 2) / 3);
+			else
+				sndbuffer[0] = sndbuffer[0] * 2 / 3;
 			sndbuffer++;
 		}
 		break;

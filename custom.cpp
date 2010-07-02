@@ -174,6 +174,7 @@ int maxhpos = MAXHPOS_PAL;
 int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" maxvpos in fake 60hz modes)
+int hsyncstartpos;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int equ_vblank_endline = EQU_ENDLINE_PAL;
@@ -386,7 +387,7 @@ STATIC_INLINE int nodraw (void)
 
 static int doflickerfix (void)
 {
-	return currprefs.gfx_linedbl && doublescan < 0 && vpos < MAXVPOS;
+	return currprefs.gfx_vresolution && doublescan < 0 && vpos < MAXVPOS;
 }
 
 uae_u32 get_copper_address (int copno)
@@ -1862,7 +1863,7 @@ STATIC_INLINE void decide_line (int hpos)
 	if (hpos <= last_decide_line_hpos)
 		return;
 
-	if (fetch_state == fetch_not_started && diwstate == DIW_waiting_stop) {
+	if (fetch_state == fetch_not_started && (diwstate == DIW_waiting_stop || (currprefs.chipset_mask & CSMASK_ECS_AGNUS))) {
 		int ok = 0;
 		if (last_decide_line_hpos < plfstrt_start && hpos >= plfstrt_start) {
 			if (plf_state == plf_idle)
@@ -1878,7 +1879,7 @@ STATIC_INLINE void decide_line (int hpos)
 			if (hpos - 2 == ddfstrt_old_hpos)
 				ok = 0;
 		}
-		if (ok) {
+		if (ok && diwstate == DIW_waiting_stop) {
 			if (dmaen (DMA_BITPLANE)) {
 				start_bpl_dma (hpos, plfstrt);
 				estimate_last_fetch_cycle (plfstrt);
@@ -2721,7 +2722,7 @@ void init_hz (void)
 	int hzc = 0;
 
 	if (vsync_switchmode (-1, 0))
-		currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1, 0);
+		currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1, 0) ? 2 : 0;
 
 	if (!isvsync () && ((currprefs.chipset_refreshrate == 50 && !currprefs.ntscmode) ||
 		(currprefs.chipset_refreshrate == 60 && currprefs.ntscmode))) {
@@ -2796,6 +2797,14 @@ void init_hz (void)
 	if (vblank_hz > 300)
 		vblank_hz = 300;
 	maxhpos_short = maxhpos;
+	if (beamcon0 & 0x80) {
+		if (hbstrt > maxhpos)
+			hsyncstartpos = hbstrt;
+		else
+			hsyncstartpos = maxhpos + hbstrt;
+	} else {
+		hsyncstartpos = maxhpos_short + 7;
+	}
 	eventtab[ev_hsync].oldcycles = get_cycles ();
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
@@ -5442,14 +5451,14 @@ static void hsync_handler (void)
 		int lineno = vpos;
 		if (lineno >= MAXVPOS)
 			lineno %= MAXVPOS;
-		if ((bplcon0 & 4) && currprefs.gfx_linedbl)
+		if ((bplcon0 & 4) && currprefs.gfx_vresolution)
 			notice_interlace_seen ();
 		nextline_how = nln_normal;
 		if (doflickerfix () && interlace_seen) {
 			lineno *= 2;
-		} else if (currprefs.gfx_linedbl && (doublescan <= 0 || interlace_seen > 0)) {
+		} else if (currprefs.gfx_vresolution && (doublescan <= 0 || interlace_seen > 0)) {
 			lineno *= 2;
-			nextline_how = currprefs.gfx_linedbl == 1 ? nln_doubled : nln_nblack;
+			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && currprefs.gfx_scanlines == false ? nln_doubled : nln_nblack;
 			if ((bplcon0 & 4) || (interlace_seen > 0 && !lof_current)) {
 				if (!lof_current) {
 					lineno++;

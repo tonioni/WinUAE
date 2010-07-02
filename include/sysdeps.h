@@ -14,11 +14,8 @@
   *
   * Copyright 1996, 1997 Bernd Schmidt
   */
-
 #include <string>
-
 using namespace std;
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

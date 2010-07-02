@@ -24,7 +24,8 @@ void consolehook_config (struct uae_prefs *p)
 	//p->headless = 1;
 	p->produce_sound = 0;
 	p->gfx_resolution = 0;
-	p->gfx_linedbl = 0;
+	p->gfx_vresolution = 0;
+	p->gfx_scanlines = false;
 	p->gfx_framerate = 10;
 	p->immediate_blits = 1;
 	p->collision_level = 0;

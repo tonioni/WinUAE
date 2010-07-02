@@ -122,8 +122,7 @@ static const TCHAR *guimode1[] = { L"no", L"yes", L"nowait", 0 };
 static const TCHAR *guimode2[] = { L"false", L"true", L"nowait", 0 };
 static const TCHAR *guimode3[] = { L"0", L"1", L"nowait", 0 };
 static const TCHAR *csmode[] = { L"ocs", L"ecs_agnus", L"ecs_denise", L"ecs", L"aga", 0 };
-static const TCHAR *linemode1[] = { L"none", L"double", L"scanlines", 0 };
-static const TCHAR *linemode2[] = { L"n", L"d", L"s", 0 };
+static const TCHAR *linemode[] = { L"none", L"none", L"double", L"scanlines", 0 };
 static const TCHAR *speedmode[] = { L"max", L"real", 0 };
 static const TCHAR *colormode1[] = { L"8bit", L"15bit", L"16bit", L"8bit_dither", L"4bit_dither", L"32bit", 0 };
 static const TCHAR *colormode2[] = { L"8", L"15", L"16", L"8d", L"4d", L"32", 0 };
@@ -165,7 +164,7 @@ static const TCHAR *maxhoriz[] = { L"lores", L"hires", L"superhires", 0 };
 static const TCHAR *maxvert[] = { L"nointerlace", L"interlace", 0 };
 static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
-static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", 0 };
+static const TCHAR *autoscale[] = { L"none", L"scale", L"resize", L"center", 0 };
 static const TCHAR *joyportmodes[] = { L"", L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
 static const TCHAR *joyaf[] = { L"none", L"normal", L"toggle", 0 };
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix_9pin", L"epson_matrix_24pin", L"epson_matrix_48pin", 0 };
@@ -674,13 +673,14 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"gfx_height_fullscreen", L"%d", p->gfx_size_fs.height);
 	cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_refreshrate);
 	cfgfile_write_bool (f, L"gfx_autoresolution", p->gfx_autoresolution);
+	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_backbuffers);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
 	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_pvsync]);
 	cfgfile_write_bool (f, L"gfx_lores", p->gfx_resolution == 0);
 	cfgfile_write_str (f, L"gfx_resolution", lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, L"gfx_lores_mode", loresmode[p->gfx_lores_mode]);
 	cfgfile_write_bool (f, L"gfx_flickerfixer", p->gfx_scandoubler);
-	cfgfile_write_str (f, L"gfx_linemode", linemode1[p->gfx_linedbl]);
+	cfgfile_write_str (f, L"gfx_linemode", linemode[p->gfx_vresolution * 2 + p->gfx_scanlines]);
 	cfgfile_write_str (f, L"gfx_fullscreen_amiga", fullmodes[p->gfx_afullscreen]);
 	cfgfile_write_str (f, L"gfx_fullscreen_picasso", fullmodes[p->gfx_pfullscreen]);
 	cfgfile_write_str (f, L"gfx_center_horizontal", centermode1[p->gfx_xcenter]);
@@ -748,7 +748,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_gamma", L"%d", p->gfx_gamma);
 	cfgfile_dwrite_str (f, L"gfx_filter_mask", p->gfx_filtermask);
 	if (p->gfx_filteroverlay[0]) {
-		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s,%d%s,%d%s,%d%s,%d%s",
+		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s:%d%s,%d%s,%d%s,%d%s",
 			p->gfx_filteroverlay,
 			p->gfx_filteroverlay_pos.x >= -24000 ? p->gfx_filteroverlay_pos.x : -p->gfx_filteroverlay_pos.x - 30000,
 			p->gfx_filteroverlay_pos.x >= -24000 ? L"" : L"%",
@@ -1231,8 +1231,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, L"gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
 		|| cfgfile_strval (option, value, L"gfx_fullscreen_amiga", &p->gfx_afullscreen, fullmodes, 0)
 		|| cfgfile_strval (option, value, L"gfx_fullscreen_picasso", &p->gfx_pfullscreen, fullmodes, 0)
-		|| cfgfile_strval (option, value, L"gfx_linemode", &p->gfx_linedbl, linemode1, 1)
-		|| cfgfile_strval (option, value, L"gfx_linemode", &p->gfx_linedbl, linemode2, 0)
 		|| cfgfile_strval (option, value, L"gfx_center_horizontal", &p->gfx_xcenter, centermode1, 1)
 		|| cfgfile_strval (option, value, L"gfx_center_vertical", &p->gfx_ycenter, centermode1, 1)
 		|| cfgfile_strval (option, value, L"gfx_center_horizontal", &p->gfx_xcenter, centermode2, 0)
@@ -1250,7 +1248,16 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, L"absolute_mouse", &p->input_tablet, abspointers, 0))
 		return 1;
 
-
+	if (_tcscmp (option, L"gfx_linemode") == 0) {
+		int v;
+		p->gfx_vresolution = VRES_DOUBLE;
+		p->gfx_scanlines = false;
+		if (cfgfile_strval (option, value, L"gfx_linemode", &v, linemode, 0)) {
+			p->gfx_scanlines = v & 1;
+			p->gfx_vresolution = v / 2;
+		}
+		return 1;
+	}
 	if (_tcscmp (option, L"gfx_vsync") == 0) {
 		if (cfgfile_strval (option, value, L"gfx_vsync", &p->gfx_avsync, vsyncmodes, 0) >= 0)
 			return 1;
@@ -1275,7 +1282,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 #ifdef GFXFILTER
 	if (_tcscmp (option, L"gfx_filter_overlay") == 0) {
-		TCHAR *s = _tcschr (value, ',');
+		TCHAR *s = _tcschr (value, ':');
 		p->gfx_filteroverlay_pos.x = 0;
 		p->gfx_filteroverlay_pos.y = 0;
 		p->gfx_filteroverlay_pos.width = 0;
@@ -2593,14 +2600,12 @@ static void parse_gfx_specs (struct uae_prefs *p, const TCHAR *spec)
 	p->gfx_resolution = _tcschr (x2, 'l') != 0 ? 1 : 0;
 	p->gfx_xcenter = _tcschr (x2, 'x') != 0 ? 1 : _tcschr (x2, 'X') != 0 ? 2 : 0;
 	p->gfx_ycenter = _tcschr (x2, 'y') != 0 ? 1 : _tcschr (x2, 'Y') != 0 ? 2 : 0;
-	p->gfx_linedbl = _tcschr (x2, 'd') != 0;
-	p->gfx_linedbl += 2 * (_tcschr (x2, 'D') != 0);
+	p->gfx_vresolution = _tcschr (x2, 'd') != 0 ? VRES_DOUBLE : VRES_NONDOUBLE;
+	p->gfx_scanlines = _tcschr (x2, 'D') != 0;
+	if (p->gfx_scanlines)
+		p->gfx_vresolution = VRES_DOUBLE;
 	p->gfx_afullscreen = _tcschr (x2, 'a') != 0;
 	p->gfx_pfullscreen = _tcschr (x2, 'p') != 0;
-
-	if (p->gfx_linedbl == 3) {
-		write_log (L"You can't use both 'd' and 'D' modifiers in the display mode specification.\n");
-	}
 
 	free (x0);
 	return;
@@ -3450,8 +3455,8 @@ void default_prefs (struct uae_prefs *p, int type)
 		p->gfx_size_win_xtra[i].width = 0;
 		p->gfx_size_win_xtra[i].height = 0;
 	}
-	p->gfx_resolution = 1;
-	p->gfx_linedbl = 1;
+	p->gfx_resolution = RES_HIRES;
+	p->gfx_vresolution = VRES_DOUBLE;
 	p->gfx_afullscreen = GFX_WINDOW;
 	p->gfx_pfullscreen = GFX_WINDOW;
 	p->gfx_xcenter = 0; p->gfx_ycenter = 0;

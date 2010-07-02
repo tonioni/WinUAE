@@ -1081,6 +1081,18 @@ static int createledtexture (void)
 	return 1;
 }
 
+static int createsltexture (void)
+{
+	if (masktexture)
+		return 0;
+	sltexture = createtext (required_sl_texture_w, required_sl_texture_h, t_depth < 32 ? D3DFMT_A4R4G4B4 : D3DFMT_A8R8G8B8);
+	if (!sltexture)
+		return 0;
+	write_log (L"%s: SL %d*%d texture allocated\n", D3DHEAD, required_sl_texture_w, required_sl_texture_h);
+	maskmult_x = 1.0;
+	maskmult_y = 1.0;
+	return 1;
+}
 
 static void createscanlines (int force)
 {
@@ -1093,8 +1105,6 @@ static void createscanlines (int force)
 	uae_u8 *sld, *p;
 	int bpp;
 
-	if (!sltexture)
-		return;
 	if (osl1 == currprefs.gfx_filter_scanlines && osl3 == currprefs.gfx_filter_scanlinelevel && osl2 == currprefs.gfx_filter_scanlineratio && !force)
 		return;
 	bpp = t_depth < 32 ? 2 : 4;
@@ -1112,6 +1122,14 @@ static void createscanlines (int force)
 
 	if (l1 + l2 <= 0)
 		return;
+
+	if (!sltexture) {
+		if (osl1 == 0 && osl3 == 0)
+			return;
+		if (!createsltexture ())
+			return;
+	}
+
 	hr = sltexture->LockRect (0, &locked, NULL, 0);
 	if (FAILED (hr)) {
 		write_log (L"%s: SL LockRect failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
@@ -1142,20 +1160,6 @@ static void createscanlines (int force)
 		}
 	}
 	sltexture->UnlockRect (0);
-}
-
-static int createsltexture (void)
-{
-	if (masktexture)
-		return 0;
-	sltexture = createtext (required_sl_texture_w, required_sl_texture_h, t_depth < 32 ? D3DFMT_A4R4G4B4 : D3DFMT_A8R8G8B8);
-	if (!sltexture)
-		return 0;
-	write_log (L"%s: SL %d*%d texture allocated\n", D3DHEAD, required_sl_texture_w, required_sl_texture_h);
-	maskmult_x = 1.0;
-	maskmult_y = 1.0;
-	createscanlines (1);
-	return 1;
 }
 
 static int createmask2texture (const TCHAR *filename)
@@ -1232,7 +1236,7 @@ static int createmasktexture (const TCHAR *filename)
 	if (filename[0] == 0)
 		return 0;
 	tx = NULL;
-	_stprintf (tmp, L"%s%soverlays\\%s", start_path_exe, WIN32_PLUGINDIR, filename);
+	_stprintf (tmp, L"%s%smasks\\%s", start_path_exe, WIN32_PLUGINDIR, filename);
 	zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
 	if (!zf) {
 		zf = zfile_fopen (filename, L"rb", ZFD_NORMAL);
@@ -1543,8 +1547,10 @@ static int restoredeviceobjects (void)
 				break;
 			}
 		}
-		if (currprefs.gfx_filter_scanlines > 0)
+		if (currprefs.gfx_filter_scanlines > 0) {
 			createsltexture ();
+			createscanlines (1);
+		}
 		createmasktexture (currprefs.gfx_filtermask);
 		break;
 	}

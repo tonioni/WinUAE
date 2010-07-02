@@ -1293,7 +1293,8 @@ int check_prefs_changed_gfx (void)
 	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (2 | 8) : 0;
-	c |= currprefs.gfx_linedbl != changed_prefs.gfx_linedbl ? (2 | 8) : 0;
+	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (2 | 8) : 0;
+	c |= currprefs.gfx_scanlines != changed_prefs.gfx_scanlines ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
@@ -1355,7 +1356,8 @@ int check_prefs_changed_gfx (void)
 		//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
 
 		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
-		currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
+		currprefs.gfx_vresolution = changed_prefs.gfx_vresolution;
+		currprefs.gfx_scanlines = changed_prefs.gfx_scanlines;
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
@@ -1394,14 +1396,7 @@ int check_prefs_changed_gfx (void)
 		inputdevice_acquire (TRUE);
 		return 1;
 	}
-#if 0
-	if (currprefs.gfx_resolution != changed_prefs.gfx_resolution ||
-		currprefs.gfx_linedbl != changed_prefs.gfx_linedbl) {
-		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
-		currprefs.gfx_linedbl = changed_prefs.gfx_linedbl;
-		return -1;
-	}
-#endif
+
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
 		init_hz ();
@@ -2440,7 +2435,11 @@ static BOOL doInit (void)
 #if defined (GFXFILTER)
 			if (currentmode->flags & (DM_D3D | DM_SWSCALE)) {
 				currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-				currentmode->amiga_height = AMIGA_HEIGHT_MAX << (currprefs.gfx_linedbl ? 1 : 0);
+				currentmode->amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
+				if (currprefs.gfx_resolution == RES_SUPERHIRES)
+					currentmode->amiga_height *= 2;
+				if (currentmode->amiga_height > 960)
+					currentmode->amiga_height = 960;
 				if (usedfilter) {
 					mult = S2X_getmult ();
 					if ((usedfilter->x[mult] & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {

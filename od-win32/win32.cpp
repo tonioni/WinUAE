@@ -3818,10 +3818,10 @@ static void getstartpaths (void)
 		posn[1] = 0;
 
 	if (path_type < 0 && start_data == 0 && key) {
-		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, 0, tmp))) {
+		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, SHGFP_TYPE_CURRENT, tmp))) {
 			// installed in Program Files?
 			if (_tcsnicmp (tmp, start_path_exe, _tcslen (tmp)) == 0) {
-				if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp))) {
+				if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
 					fixtrailing (tmp);
 					_tcscpy (tmp2, tmp);
 					_tcscat (tmp2, L"Amiga Files");
@@ -3896,7 +3896,7 @@ static void getstartpaths (void)
 	}
 
 	{
-		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, 0, tmp))) {
+		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
 			fixtrailing (tmp);
 			_tcscpy (tmp2, tmp);
 			_tcscat (tmp2, L"Amiga Files\\");
@@ -3931,10 +3931,10 @@ static void getstartpaths (void)
 			_tcscpy (start_path_data, xstart_path_old);
 		} else if (path_type == PATH_TYPE_NEWWINUAE && xstart_path_new1[0]) {
 			_tcscpy (start_path_data, xstart_path_new1);
-			create_afnewdir(0);
+			create_afnewdir (0);
 		} else if (path_type == PATH_TYPE_NEWAF && (af_path_2005 & 1) && xstart_path_new1[0]) {
 			_tcscpy (start_path_data, xstart_path_new1);
-			create_afnewdir(0);
+			create_afnewdir (0);
 		} else if (path_type == PATH_TYPE_AMIGAFOREVERDATA && (af_path_2005 & 2) && xstart_path_new2[0]) {
 			_tcscpy (start_path_data, xstart_path_new2);
 		} else if (path_type < 0) {

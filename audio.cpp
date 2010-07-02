@@ -1358,22 +1358,23 @@ static float rc_calculate_a0 (int sample_rate, int cutoff_freq)
 void check_prefs_changed_audio (void)
 {
 	int ch;
+
+	if (sound_available) {
+		ch = sound_prefs_changed ();
+		if (ch > 0) {
+#ifdef AVIOUTPUT
+			AVIOutput_Restart ();
+#endif
+			clear_sound_buffers ();
+		}
+		if (ch) {
+			set_audio ();
+			audio_activate ();
+		}
+	}
 #ifdef DRIVESOUND
 	driveclick_check_prefs ();
 #endif
-	if (!sound_available)
-		return;
-	ch = sound_prefs_changed ();
-	if (!ch)
-		return;
-	if (ch > 0) {
-#ifdef AVIOUTPUT
-		AVIOutput_Restart ();
-#endif
-		clear_sound_buffers ();
-	}
-	set_audio ();
-	audio_activate ();
 }
 
 void set_audio (void)

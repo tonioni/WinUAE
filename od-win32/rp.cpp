@@ -295,7 +295,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		prefs->gfx_filter_autoscale = 0;
 	}
 	if (prefs->gfx_ycenter_size > 0) {
-		int vres = prefs->gfx_linedbl ? 1 : 0;
+		int vres = prefs->gfx_vresolution;
 		if (prefs->gfx_filter) {
 			if (prefs->gfx_filter_vert_zoom_mult)
 				vres += (1000 / prefs->gfx_filter_vert_zoom_mult) - 1;
@@ -369,7 +369,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 		if (full && p->gfx_filter && p->gfx_filter_horiz_zoom_mult == 0)
 			m = RP_SCREENMODE_XX;
-		if (p->gfx_filter_scanlines || p->gfx_linedbl == 2)
+		if (p->gfx_filter_scanlines || p->gfx_scanlines)
 			m |= RP_SCREENMODE_SCANLINES;
 	}
 	if (full) {
@@ -447,7 +447,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		vres = vdbl;
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
-		p->gfx_linedbl = vres ? 1 : 0;
+		p->gfx_vresolution = vres;
 
 		if (sm->lClipWidth <= 0)
 			p->gfx_size_win.width = shift (LORES_WIDTH, -hdbl);
@@ -530,9 +530,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	p->gfx_xcenter_size = sm->lClipWidth;
 	p->gfx_ycenter_size = sm->lClipHeight;
 
+	p->gfx_scanlines = 0;
 	if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
-		if (p->gfx_linedbl > 0) {
-			p->gfx_linedbl = 2;
+		if (p->gfx_vresolution > VRES_NONDOUBLE) {
+			p->gfx_scanlines = 1;
 			p->gfx_filter_scanlines = 0;
 		}
 	}

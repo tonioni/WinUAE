@@ -1,4 +1,15 @@
 
+- fixed Z3/RTG RAM not fully deallocating when restarting
+- D3D scanlines can be (finally) enabled on the fly
+- always center (using autoscale parameters) programmed monitor driver modes if filters
+  are enabled. It should be totally safe because they are practically always used "normally",
+  without all kinds of copper tricks etc.. (I hope..)
+- blank right border after hsync position instead of filling it with border color that goes
+  far outside of displayable area (happened in programmed modes)
+- ECS Agnus bitplane DMA state machine update, OCS requires open display window when hpos passes
+  DDFSTRT before it is "armed", ECS drops display window requirement (yaqube)
+  previously only OCS behavior was emulated.
+
 2.2.0 Final
 
 - A3000 KS 2.04 ROM odd/even pair mismatched checksums fixed

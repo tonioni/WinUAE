@@ -411,9 +411,13 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 #endif
 	case 85: return native_dos_op (ARG1, ARG2, ARG3, ARG4);
 	case 86:
-		if (valid_address (ARG1, 1))
-			write_log (L"DBG: %s\n", get_real_address (ARG1));
-		return 1;
+		if (valid_address (ARG1, 1)) {
+			TCHAR *s = au ((char*)get_real_address (ARG1));
+			write_log (L"DBG: %s\n", s);
+			xfree (s);
+			return 1;
+		}
+		return 0;
 	case 87:
 		{
 			uae_u32 d0, d1;

@@ -382,7 +382,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (minfirstline > y1)
 		y1 = minfirstline;
 
-	dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
+	dbl2 = dbl1 = currprefs.gfx_vresolution;
 	if (doublescan > 0 && interlace_seen <= 0) {
 		dbl1--;
 		dbl2--;
@@ -492,7 +492,7 @@ void get_custom_mouse_limits (int *pw, int *ph, int *pdx, int *pdy, int dbl)
 
 	dx = xshift (dx, res_shift);
 
-	dbl2 = dbl1 = currprefs.gfx_linedbl ? 1 : 0;
+	dbl2 = dbl1 = currprefs.gfx_vresolution;
 	if ((doublescan > 0 || interlace_seen > 0) && !dbl) {
 		dbl1--;
 		dbl2--;
@@ -714,7 +714,7 @@ static void pfield_do_fill_line (int start, int stop)
 	}
 }
 
-STATIC_INLINE void fill_line (void)
+STATIC_INLINE void fill_line_2 (int startpos, int len, int blank)
 {
 	int shift;
 	int nints, nrem;
@@ -727,24 +727,20 @@ STATIC_INLINE void fill_line (void)
 	if (gfxvidinfo.pixbytes == 4)
 		shift = 2;
 
-	nints = gfxvidinfo.width >> (2 - shift);
+	nints = len >> (2 - shift);
 	nrem = nints & 7;
 	nints &= ~7;
-	start = (int *)(((uae_u8*)xlinebuffer) + (visible_left_border << shift));
-#ifdef ECS_DENISE
-	val = brdblank ? 0 : colors_for_drawing.acolors[0];
-#else
-	val = colors_for_drawing.acolors[0];
-#endif
+	start = (int *)(((uae_u8*)xlinebuffer) + (startpos << shift));
+	val = blank ? 0 : colors_for_drawing.acolors[0];
 	for (; nints > 0; nints -= 8, start += 8) {
 		*start = val;
-		*(start+1) = val;
-		*(start+2) = val;
-		*(start+3) = val;
-		*(start+4) = val;
-		*(start+5) = val;
-		*(start+6) = val;
-		*(start+7) = val;
+		*(start + 1) = val;
+		*(start + 2) = val;
+		*(start + 3) = val;
+		*(start + 4) = val;
+		*(start + 5) = val;
+		*(start + 6) = val;
+		*(start + 7) = val;
 	}
 
 	switch (nrem) {
@@ -765,6 +761,17 @@ STATIC_INLINE void fill_line (void)
 	}
 }
 
+STATIC_INLINE void fill_line (void)
+{
+	int endpos = visible_left_border + gfxvidinfo.width;
+	int endposh = coord_hw_to_window_x (hsyncstartpos * 2);
+	if (endpos < endposh) {
+		fill_line_2 (visible_left_border, gfxvidinfo.width, brdblank);
+	} else {
+		fill_line_2 (visible_left_border, endposh - visible_left_border, brdblank);
+		fill_line_2 (endposh, gfxvidinfo.width - endposh, 1);
+	}
+}
 
 #define SPRITE_DEBUG 0
 STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga)
@@ -1674,7 +1681,7 @@ static void init_aspect_maps (void)
 		/* Do nothing if the gfx driver hasn't initialized the screen yet */
 		return;
 
-	linedbld = linedbl = currprefs.gfx_linedbl;
+	linedbld = linedbl = currprefs.gfx_vresolution;
 	if (doublescan > 0 && interlace_seen <= 0) {
 		linedbl = 0;
 		linedbld = 1;
@@ -1689,8 +1696,8 @@ static void init_aspect_maps (void)
 	amiga2aspect_line_map = xmalloc (int, (MAXVPOS + 1) * 2 + 1);
 	native2amiga_line_map = xmalloc (int, gfxvidinfo.height);
 
-	maxl = (MAXVPOS + 1) * (linedbld ? 2 : 1);
-	min_ypos_for_screen = minfirstline << (linedbl ? 1 : 0);
+	maxl = (MAXVPOS + 1) << linedbld;
+	min_ypos_for_screen = minfirstline << linedbl;
 	max_drawn_amiga_line = -1;
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
@@ -1700,12 +1707,11 @@ static void init_aspect_maps (void)
 			v = -1;
 		amiga2aspect_line_map[i] = v;
 	}
-	if (linedbl)
-		max_drawn_amiga_line >>= 1;
+	max_drawn_amiga_line >>= linedbl;
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
 		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (gfxvidinfo.height - (maxvpos_nom << (linedbl ? 1 : 0))) >> 1;
+		extra_y_adjust = (gfxvidinfo.height - (maxvpos_nom << linedbl)) >> 1;
 		if (extra_y_adjust < 0)
 			extra_y_adjust = 0;
 	}
@@ -1718,7 +1724,7 @@ static void init_aspect_maps (void)
 		if (amiga2aspect_line_map[i] == -1)
 			continue;
 		for (j = amiga2aspect_line_map[i]; j < gfxvidinfo.height && native2amiga_line_map[j] == -1; j++)
-			native2amiga_line_map[j] = i >> (linedbl ? 1 : 0);
+			native2amiga_line_map[j] = i >> linedbl;
 	}
 }
 
@@ -1901,6 +1907,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 	int lastpos = visible_left_border;
 	int endpos = visible_left_border + gfxvidinfo.width;
 	int diff = 1 << lores_shift;
+	int endposh = coord_hw_to_window_x (hsyncstartpos * 2);
 
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;
@@ -1919,7 +1926,17 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 		if (nextpos_in_range > lastpos) {
 			if (lastpos < playfield_start) {
 				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
-				(*worker_border) (lastpos, t);
+				if (t == endpos) {
+					if (lastpos < endposh)
+						(*worker_border) (lastpos, endposh);
+					// start of hsync, blank the rest of display
+					int blank = brdblank;
+					brdblank = 1;
+					(*worker_border) (endposh, endpos);
+					brdblank = blank;
+				} else {
+					(*worker_border) (lastpos, t);
+				}
 				lastpos = t;
 			}
 		}
@@ -1931,8 +1948,18 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 			}
 		}
 		if (nextpos_in_range > lastpos) {
-			if (lastpos >= playfield_end)
-				(*worker_border) (lastpos, nextpos_in_range);
+			if (lastpos >= playfield_end) {
+				if (nextpos_in_range > endposh) {
+					(*worker_border) (lastpos, endposh);
+					// start of hsync, blank the rest of display
+					int blank = brdblank;
+					brdblank = 1;
+					(*worker_border) (endposh, nextpos_in_range);
+					brdblank = blank;
+				} else {
+					(*worker_border) (lastpos, nextpos_in_range);
+				}
+			}
 			lastpos = nextpos_in_range;
 		}
 		if (i != dip_for_drawing->last_color_change) {
@@ -2162,16 +2189,14 @@ static void center_image (void)
 			if (visible_left_border < prev_x_adjust && prev_x_adjust < min_diwstart && min_diwstart - visible_left_border <= 32)
 				visible_left_border = prev_x_adjust;
 		}
+	} else if ((beamcon0 & 0x80) && max_diwstop > 0) {
+		int w = gfxvidinfo.width;
+		if (max_diwstop - min_diwstart < w)
+			visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
+		else
+			visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
 	} else {
-		if ((beamcon0 & 0x80) && max_diwstop > 0) {
-			int w = gfxvidinfo.width;
-			if (max_diwstop - min_diwstart < w)
-				visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
-			else
-				visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
-		} else {
-			visible_left_border = max_diwlastword - gfxvidinfo.width;
-		}
+		visible_left_border = max_diwlastword - gfxvidinfo.width;
 	}
 	if (currprefs.gfx_xcenter_pos >= 0) {
 		int val = currprefs.gfx_xcenter_pos >> RES_MAX;
@@ -2235,8 +2260,8 @@ static void center_image (void)
 		if (thisframe_y_adjust < minfirstline)
 			thisframe_y_adjust = minfirstline;
 	}
-	thisframe_y_adjust_real = thisframe_y_adjust << (linedbl ? 1 : 0);
-	tmp = (maxvpos_nom - thisframe_y_adjust) << (linedbl ? 1 : 0);
+	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
+	tmp = (maxvpos_nom - thisframe_y_adjust) << linedbl;
 	if (tmp != max_ypos_thisframe) {
 		last_max_ypos = tmp;
 		if (last_max_ypos < 0)
@@ -2272,9 +2297,9 @@ static void init_drawing_frame (void)
 				if ((src->width > 0 && src->height > 0) || (ar && currprefs.gfx_filter > 0)) {
 					int nr = (m & 2) == 0 ? 0 : 1;
 					int nl = (m & 1) == 0 ? 0 : 1;
-					if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_linedbl != nl) {
+					if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
 						changed_prefs.gfx_resolution = nr;
-						changed_prefs.gfx_linedbl = nl;
+						changed_prefs.gfx_vresolution = nl;
 						write_log (L"RES -> %d LINE -> %d\n", nr, nl);
 						config_changed = 1;
 						if (ar) {
@@ -2317,8 +2342,7 @@ static void init_drawing_frame (void)
 	if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 		thisframe_last_drawn_line = thisframe_first_drawn_line;
 
-	maxline = linedbl ? (maxvpos_nom + 1) * 2 + 1 : (maxvpos_nom + 1) + 1;
-	maxline++;
+	maxline = ((maxvpos_nom + 1) << linedbl) + 2;
 #ifdef SMART_UPDATE
 	for (i = 0; i < maxline; i++) {
 		switch (linestate[i]) {
@@ -2672,8 +2696,7 @@ static void lightpen_update (void)
 	lightpen_cx = (((lightpen_x + visible_left_border) >> lores_shift) >> 1) + DISPLAY_LEFT_SHIFT - DIW_DDF_OFFSET;
 
 	lightpen_cy = lightpen_y;
-	if (linedbl)
-		lightpen_cy >>= 1;
+	lightpen_cy >>= linedbl;
 	lightpen_cy += minfirstline;
 
 	if (lightpen_cx < 0x18)
@@ -2842,7 +2865,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 			interlace_seen = -1;
 		} else if (interlace_seen == -1) {
 			interlace_seen = 0;
-			if (currprefs.gfx_scandoubler && currprefs.gfx_linedbl)
+			if (currprefs.gfx_scandoubler && currprefs.gfx_vresolution)
 				notice_screen_contents_lost ();
 		}
 

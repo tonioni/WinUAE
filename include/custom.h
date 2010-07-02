@@ -110,6 +110,7 @@ extern uae_u16 INTREQR (void);
 
 extern int maxhpos, maxhpos_short;
 extern int maxvpos, maxvpos_nom;
+extern int hsyncstartpos;
 extern int minfirstline, vblank_endline, numscrlines;
 extern int vblank_hz, fake_vblank_hz, vblank_skip, doublescan;
 extern frame_time_t syncbase;
@@ -167,6 +168,9 @@ extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 #define RES_HIRES 1
 #define RES_SUPERHIRES 2
 #define RES_MAX 2
+#define VRES_NONDOUBLE 0
+#define VRES_DOUBLE 1
+#define VRES_MAX 1
 
 /* calculate shift depending on resolution (replaced "decided_hires ? 4 : 8") */
 #define RES_SHIFT(res) ((res) == RES_LORES ? 8 : (res) == RES_HIRES ? 4 : 2)
