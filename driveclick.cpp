@@ -167,11 +167,7 @@ void driveclick_init (void)
 				wave_initialized = 1;
 				for (j = 0; j < CLICK_TRACKS; j++)
 					drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
-				_stprintf (tmp, L"%splugins%cfloppysounds%c", start_path_plugins, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR, FSDB_DIR_SEPARATOR);
-				if (my_existsdir (tmp))
-					_tcscpy (path2, tmp);
-				else
-					_stprintf (path2, L"%suae_data%c", start_path_data, FSDB_DIR_SEPARATOR);
+				get_plugin_path (path2, sizeof path2 / sizeof (TCHAR), L"floppysounds");
 				_stprintf (tmp, L"%sdrive_click_%s",
 					path2, currprefs.dfxclickexternal[i]);
 				v = loadsample (tmp, &drvs[i][DS_CLICK]);

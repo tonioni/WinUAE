@@ -24,7 +24,7 @@ extern int DISK_validate_filename (const TCHAR *fname, int leave_open, bool *wrp
 extern void DISK_handler (uae_u32);
 extern void DISK_update (int hpos);
 extern void DISK_update_adkcon (int hpos, uae_u16 v);
-extern void DISK_hsync (int hpos);
+extern void DISK_hsync (void);
 extern void DISK_reset (void);
 extern int disk_getwriteprotect (const TCHAR *name);
 extern int disk_setwriteprotect (int num, const TCHAR *name, int protect);
@@ -40,10 +40,14 @@ extern int disk_prevnext_name (TCHAR *img, int dir);
 
 extern void DSKLEN (uae_u16 v, int hpos);
 extern uae_u16 DSKBYTR (int hpos);
-extern void DSKDAT (uae_u16);
 extern void DSKSYNC (int, uae_u16);
 extern void DSKPTL (uae_u16);
 extern void DSKPTH (uae_u16);
+extern void DSKDAT (uae_u16);
+extern uae_u16 DSKDATR (void);
+extern uae_u16 disk_dmal (void);
+extern uaecptr disk_getpt (void);
+extern int disk_fifostatus (void);
 
 extern int disk_debug_logging;
 extern int disk_debug_mode;

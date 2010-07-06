@@ -63,9 +63,9 @@ enum {
 extern struct ev eventtab[ev_max];
 extern struct ev2 eventtab2[ev2_max];
 
-extern void event2_newevent(int, evt);
-extern void event2_newevent2(evt, uae_u32, evfunc2);
-extern void event2_remevent(int);
+extern void event2_newevent (int, evt, uae_u32);
+extern void event2_newevent2 (evt, uae_u32, evfunc2);
+extern void event2_remevent (int);
 
 #if 0
 #ifdef JIT

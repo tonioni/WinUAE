@@ -1041,10 +1041,41 @@ static void close_device (int unitnum)
 	unload_image ();
 }
 
+static bool mountme (void)
+{
+	sys_command_setunit (-1);
+	bool sel = false;
+	donotmountme = true;
+	device_func_init (DEVICE_TYPE_ANY);
+	for (int i = 0; i < MAX_TOTAL_DEVICES && !sel; i++) {
+		int opened = sys_command_isopen (i);
+		struct device_info *discsi, discsi2;
+		discsi = 0;
+		if (sys_command_open (DF_IOCTL, i)) {
+			discsi = sys_command_info (DF_IOCTL, i, &discsi2);
+			if (discsi && discsi->type == INQ_ROMD) {
+				if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
+					sys_command_setunit (i);
+					write_log (L"Drive '%s' (unit=%d) selected (media=%d)\n", discsi->label, i, discsi->media_inserted);
+					sel = true;
+				}
+			}
+		}
+	}
+	donotmountme = false;
+	if (!sel) {
+		sys_command_setunit (0);
+		device_func_init (DEVICE_TYPE_ANY); // activate us again
+		parse_image ();
+		int media = tracks > 0;
+		write_log (L"IMG_EMU (%s) selected (media=%d)\n", currprefs.cdimagefile, media);
+		return true;
+	}
+	return false;
+}
+
 void cdimage_vsync (void)
 {
-	int media = 0;
-
 	if (_tcscmp (changed_prefs.cdimagefile, currprefs.cdimagefile)) {
 		_tcscpy (newfile, changed_prefs.cdimagefile);
 		changed_prefs.cdimagefile[0] = currprefs.cdimagefile[0] = 0;
@@ -1072,36 +1103,10 @@ void cdimage_vsync (void)
 		if (un < 0) {
 			device_func_init (DEVICE_TYPE_ANY); // activate us again
 			parse_image ();
-			media = tracks > 0;
 			scsi_do_disk_change (255, 1);
 		}
 	} else {
-		bool sel = false;
-		donotmountme = true;
-		device_func_init (DEVICE_TYPE_ANY);
-		for (int i = 0; i < MAX_TOTAL_DEVICES && !sel; i++) {
-			int opened = sys_command_isopen (i);
-			struct device_info *discsi, discsi2;
-			discsi = 0;
-			if (sys_command_open (DF_IOCTL, i)) {
-				discsi = sys_command_info (DF_IOCTL, i, &discsi2);
-				if (discsi && discsi->type == INQ_ROMD) {
-					if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
-						sys_command_setunit (i);
-						write_log (L"Drive '%s' (unit=%d) selected (media=%d)\n", discsi->label, i, discsi->media_inserted);
-						sel = true;
-					}
-				}
-			}
-		}
-		donotmountme = false;
-		if (!sel) {
-			sys_command_setunit (0);
-			device_func_init (DEVICE_TYPE_ANY); // activate us again
-			parse_image ();
-			media = tracks > 0;
-			write_log (L"IMG_EMU (%s) selected (media=%d)\n", currprefs.cdimagefile, media);
-		}
+		mountme ();
 	}
 #ifdef RETROPLATFORM
 	rp_cd_image_change (0, currprefs.cdimagefile);
@@ -1125,8 +1130,13 @@ static int open_bus (int flags)
 	if (imagechange)
 		return 1;
 	v = currprefs.cdimagefile[0] ? 1 : 0;
-	if (currprefs.cdimagefileuse)
+	if (v) {
+		if (!mountme ())
+			return 0;
+	}
+	if (currprefs.cdimagefileuse) {
 		v = 1;
+	}
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 0);
 	rp_cd_image_change (0, currprefs.cdimagefile);

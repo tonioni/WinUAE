@@ -3035,7 +3035,7 @@ void reset_drawing (void)
 
 	init_aspect_maps ();
 
-	init_row_map();
+	init_row_map ();
 
 	last_redraw_point = 0;
 

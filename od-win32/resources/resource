@@ -478,7 +478,6 @@
 #define IDC_SOUND0                      1238
 #define IDC_SOUND1                      1239
 #define IDC_SOUND2                      1240
-#define IDC_SOUND3                      1241
 #define IDC_SOUNDSTYLE                  1242
 #define IDC_SOUNDSTYLE0                 1243
 #define IDC_STEREO                      1244
@@ -821,16 +820,13 @@
 #define IDC_DF0QENABLE                  1649
 #define IDC_AVIOUTPUT_ORIGINALSIZE      1649
 #define IDC_SOUNDCARD                   1650
-#define IDC_CS_SOUND0                   1650
 #define IDC_UPBM                        1650
 #define IDC_DISKLISTINSERT              1650
 #define IDC_DF1QENABLE                  1650
 #define IDC_AVIOUTPUT_ORIGINALSIZE2     1650
 #define IDC_SCREENSHOT_ORIGINALSIZE     1650
 #define IDC_SOUNDCARDLIST               1651
-#define IDC_CS_SOUND1                   1651
 #define IDC_SOUNDFREQ                   1652
-#define IDC_CS_SOUND2                   1652
 #define IDC_SOUNDFREQTXT                1653
 #define IDC_PANEL_FRAME                 1653
 #define IDC_SOUNDFILTERTXT              1654

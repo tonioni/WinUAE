@@ -147,6 +147,7 @@ void WIN32GUI_LoadUIString (DWORD id, TCHAR *string, DWORD dwStringLen)
 static int quickstart_model = 0, quickstart_conf = 0, quickstart_compa = 1;
 static int quickstart_floppy = 1, quickstart_cd = 0, quickstart_ntsc = 0;
 static int quickstart_cdtype = 0;
+static TCHAR quickstart_cddrive[16];
 static int quickstart_ok, quickstart_ok_floppy;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
@@ -1920,6 +1921,10 @@ static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCH
 {
 	SetDlgItemText (hDlg, id, full_path);
 	if (iscd (num)) {
+		if (quickstart_cddrive[0]) {
+			quickstart_cdtype = 0;
+			quickstart_cddrive[0] = 0;
+		}
 		_tcscpy (prefs->cdimagefile, full_path);
 		DISK_history_add (full_path, -1, HISTORY_CD, 0);
 	} else {
@@ -4763,6 +4768,8 @@ static void init_quickstartdlg (HWND hDlg)
 		regqueryint (NULL, L"QuickStartCompatibility", &quickstart_compa);
 		regqueryint (NULL, L"QuickStartFloppies", &quickstart_floppy);
 		regqueryint (NULL, L"QuickStartCDType", &quickstart_cdtype);
+		int size = sizeof quickstart_cddrive / sizeof (TCHAR);
+		regquerystr (NULL, L"QuickStartCDDrive", quickstart_cddrive, &size);
 		regqueryint (NULL, L"QuickStartNTSC", &quickstart_ntsc);
 		if (quickstart) {
 			workprefs.df[0][0] = 0;
@@ -5004,6 +5011,23 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 			switch (LOWORD (wParam))
 			{
+			case IDC_CD0Q_TYPE:
+				val = SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_GETCURSEL, 0, 0);
+				if (val != CB_ERR) {
+					quickstart_cdtype = val;
+					if (quickstart_cdtype >= 2) {
+						int len = sizeof quickstart_cddrive / sizeof (TCHAR);
+						quickstart_cdtype = 2;
+						SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, WM_GETTEXT, (WPARAM)len, (LPARAM)quickstart_cddrive);
+						_tcscpy (workprefs.cdimagefile, quickstart_cddrive);
+					} else {
+						workprefs.cdimagefile[0] = 0;
+						quickstart_cddrive[0] = 0;
+					}
+					addfloppytype (hDlg, 1);
+					addfloppyhistory (hDlg);
+				}
+			break;
 			case IDC_QUICKSTART_MODEL:
 				val = SendDlgItemMessage (hDlg, IDC_QUICKSTART_MODEL, CB_GETCURSEL, 0, 0L);
 				if (val != CB_ERR) {
@@ -5849,7 +5873,6 @@ static void values_to_chipsetdlg (HWND hDlg)
 	TCHAR Nth[MAX_NTH_LENGTH];
 	TCHAR *blah[1] = { Nth };
 	TCHAR *string = NULL;
-	int which_button;
 
 	switch(workprefs.chipset_mask)
 	{
@@ -5875,12 +5898,6 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
 	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
-	switch (workprefs.produce_sound) {
-	case 0: which_button = IDC_CS_SOUND0; break;
-	case 1: case 2: which_button = IDC_CS_SOUND1; break;
-	default: which_button = IDC_CS_SOUND2; break;
-	}
-	CheckRadioButton (hDlg, IDC_CS_SOUND0, IDC_CS_SOUND2, which_button);
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"");
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"Generic");
@@ -5902,7 +5919,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	BOOL success = FALSE;
-	int nn, snd;
+	int nn;
 	bool n;
 
 	workprefs.genlock = ischecked (hDlg, IDC_GENLOCK);
@@ -5931,16 +5948,6 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	n = ischecked (hDlg, IDC_NTSC);
 	if (workprefs.ntscmode != n) {
 		workprefs.ntscmode = n;
-	}
-	snd = ischecked (hDlg, IDC_CS_SOUND0) ? 0
-		: ischecked (hDlg, IDC_CS_SOUND1) ? 2 : 3;
-	if (snd == 0 || snd == 3) {
-		workprefs.produce_sound = snd;
-	} else if (snd == 2) {
-		if (workprefs.produce_sound == 0)
-			workprefs.produce_sound = 2;
-		else if (workprefs.produce_sound >= 2)
-			workprefs.produce_sound = 2;
 	}
 	nn = SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_GETCURSEL, 0, 0);
 	if (nn != CB_ERR) {
@@ -7910,14 +7917,12 @@ static void sound_loaddrivesamples (void)
 
 	free (drivesounds);
 	p = drivesounds = 0;
-	_stprintf (dirname, L"%s\\%sfloppysounds\\*.wav", start_path_plugins, WIN32_PLUGINDIR);
+
+	get_plugin_path (dirname, sizeof dirname / sizeof (TCHAR), L"floppysounds");
+	_tcscat (dirname, L"*.wav");
 	h = FindFirstFile (dirname, &fd);
-	if (h == INVALID_HANDLE_VALUE) {
-		_stprintf (dirname, L"%s\\uae_data\\*.wav", start_path_plugins);
-		h = FindFirstFile (dirname, &fd);
-		if (h == INVALID_HANDLE_VALUE)
-			return;
-	}
+	if (h == INVALID_HANDLE_VALUE)
+		return;
 	for (;;) {
 		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
 			TCHAR *name = fd.cFileName;
@@ -8080,10 +8085,9 @@ static void values_to_sounddlg (HWND hDlg)
 	{
 	case 0: which_button = IDC_SOUND0; break;
 	case 1: which_button = IDC_SOUND1; break;
-	case 2: which_button = IDC_SOUND2; break;
-	case 3: which_button = IDC_SOUND3; break;
+	case 2: case 3: which_button = IDC_SOUND2; break;
 	}
-	CheckRadioButton (hDlg, IDC_SOUND0, IDC_SOUND3, which_button);
+	CheckRadioButton (hDlg, IDC_SOUND0, IDC_SOUND2, which_button);
 
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
 
@@ -8165,8 +8169,7 @@ static void values_from_sounddlg (HWND hDlg)
 		workprefs.sound_freq = 96000;
 
 	workprefs.produce_sound = (ischecked (hDlg, IDC_SOUND0) ? 0
-		: ischecked (hDlg, IDC_SOUND1) ? 1
-		: ischecked (hDlg, IDC_SOUND2) ? 2 : 3);
+		: ischecked (hDlg, IDC_SOUND1) ? 1 : 3);
 
 	workprefs.sound_auto = ischecked (hDlg, IDC_SOUND_AUTO);
 
@@ -9439,11 +9442,28 @@ static void addfloppytype (HWND hDlg, int n)
 			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_QS_CD_IMAGE, tmp, sizeof tmp / sizeof (TCHAR));
 			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+			quickstart_cdtype = 0;
 			if (workprefs.cdimagefile[0])
 				quickstart_cdtype = 1;
+			int cnt = 2;
+			for (int drive = 'C'; drive <= 'Z'; ++drive) {
+				TCHAR vol[100];
+				_stprintf (vol, L"%c:\\", drive);
+				int drivetype = GetDriveType (vol);
+				if (drivetype == DRIVE_CDROM) {
+					SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)vol);
+					if (!_tcsicmp (vol, quickstart_cddrive)) {
+						quickstart_cdtype = cnt;
+						_tcscpy (workprefs.cdimagefile, vol);
+					}
+					cnt++;
+				}
+			}
 			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_SETCURSEL, quickstart_cdtype, 0);
 			hide (hDlg, IDC_CD0Q_TYPE, 0);
 			text = workprefs.cdimagefile;
+			regsetstr (NULL, L"QuickStartCDDrive", quickstart_cdtype >= 2 ? quickstart_cddrive : L"");
+			regsetint (NULL, L"QuickStartCDType", quickstart_cdtype >= 2 ? 2 : quickstart_cdtype);
 		} else {
 			hide (hDlg, f_wp, 0);
 			hide (hDlg, f_wptext, 0);
@@ -9571,6 +9591,10 @@ static void getfloppyname (HWND hDlg, int n)
 			disk_insert (n, tmp);
 			_tcscpy (workprefs.df[n], tmp);
 		} else {
+			if (quickstart_cddrive[0]) {
+				quickstart_cdtype = 0;
+				quickstart_cddrive[0] = 0;
+			}
 			_tcscpy (workprefs.cdimagefile, tmp);
 		}
 	}
@@ -12060,7 +12084,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\*.fx", start_path_plugins, WIN32_PLUGINDIR);
+		get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
+		_tcscat (tmp, L"*.fx");
 		h = FindFirstFile (tmp, &wfd);
 		while (h != INVALID_HANDLE_VALUE) {
 			if (wfd.cFileName[0] != '_') {
@@ -12087,7 +12112,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s%s%s\\*.*", start_path_plugins, WIN32_PLUGINDIR, overlaytype == 0 ? L"overlays" : L"masks");
+		get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), overlaytype == 0 ? L"overlays" : L"masks");
+		_tcscat (tmp, L"*.*");
 		h = FindFirstFile (tmp, &wfd);
 		i = 0; j = 1;
 		while (h != INVALID_HANDLE_VALUE) {

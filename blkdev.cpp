@@ -68,6 +68,12 @@ void sys_command_setunit (int unitnum)
 int sys_command_open (int mode, int unitnum)
 {
 	int ret = 0;
+
+	if (forcedunit >= 0) {
+		if (unitnum != forcedunit)
+			return 0;
+	}
+
 	if (mode == DF_SCSI || !have_ioctl) {
 		if (device_func[DF_SCSI] != NULL)
 			ret = device_func[DF_SCSI]->opendev (unitnum);

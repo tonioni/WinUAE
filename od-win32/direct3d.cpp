@@ -21,6 +21,7 @@
 #include "statusline.h"
 #include "hq2x_d3d.h"
 #include "zfile.h"
+#include "uae.h"
 extern int D3DEX, d3ddebug;
 
 #include <d3d9.h>
@@ -685,7 +686,8 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
 	int canusefile = 0, existsfile = 0;
 
-	_stprintf (tmp, L"%s%sfiltershaders\\direct3d\\%s", start_path_plugins, WIN32_PLUGINDIR, shaderfile);
+	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
+	_tcscpy (tmp, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
 		if (z) {
@@ -1176,10 +1178,12 @@ static int createmask2texture (const TCHAR *filename)
 		return 0;
 	zf = NULL;
 	for (int i = 0; i < 2; i++) {
-		if (i == 0)
-			_stprintf (tmp, L"%s%soverlays\\%s", start_path_exe, WIN32_PLUGINDIR, filename);
-		else
+		if (i == 0) {
+			get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"overlays");
 			_tcscpy (tmp, filename);
+		} else {
+			_tcscpy (tmp, filename);
+		}
 		zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
 		if (zf)
 			break;
@@ -1236,7 +1240,8 @@ static int createmasktexture (const TCHAR *filename)
 	if (filename[0] == 0)
 		return 0;
 	tx = NULL;
-	_stprintf (tmp, L"%s%smasks\\%s", start_path_exe, WIN32_PLUGINDIR, filename);
+	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"masks");
+	_tcscpy (tmp, filename);
 	zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
 	if (!zf) {
 		zf = zfile_fopen (filename, L"rb", ZFD_NORMAL);

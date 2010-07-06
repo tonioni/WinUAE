@@ -1111,7 +1111,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				break;
 		}
 		if (num == num_keyboard) {
-			if (!istest && scancode == DIK_F12 && pressed)
+			if (!istest && scancode == DIK_F12 && pressed && isfocus ())
 				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 			return;
 		}

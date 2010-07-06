@@ -1,18 +1,47 @@
 
+Beta 1:
+
 - fixed Z3/RTG RAM leaking when restarting
 - D3D scanlines can be (finally) enabled on the fly
-- blank right border after hsync position instead of filling it with border color that goes
-  far outside of displayable area
+- blank right border after approximate hsync position instead of filling it with border
+  color that extends far outside of displayable area
 - ECS Agnus bitplane DMA state machine update, state machine advances on OCS when DDFSTRT
   matches hpos and display window is open. ECS only requires DDFSTRT match. (yaqube)
 - triple/double/single buffer option was never saved to configuration file
 - autovsync was broken
-- "old" overlays are now masks (plugins\masks), "new" overlays are in plugins\overlays.
+- "old" overlays are now masks in plugins\masks, "new" overlays are in plugins\overlays.
   (rename overlays -> masks and create new overlays directory)
 - both overlays and masks can be selected using GUI (overlay position can be only
   modified by editing configuration file)
 - added Automatic center option to autoscale select menu, centers image using autoscale
   parameters
+- audio state machine emulation rewrite, now it is fully cycle-exact, including
+  correct DMAL DMA request line delays. (DMAL logic examined by yaqube, I was too slow and lazy..)
+- disk emulation DMA accesses are now fully cycle-exact, emulates DMAL and Paula 3-word FIFO
+- fixed ancient bug in disk emulation that emulated remaining cycles in current line twice
+  when disk event triggered (index, word sync), basically made disk rotate twice the speed
+  for about 20 or so bits of data from disk
+- above disk events didn't work correctly if multiple drives were selected at the same time
+  (very rare situation)
+- added CDROM drives to quickstart CD32/CDTV "autodetect" select menu (works on the fly too)
+- cdimage0=<drive letter>:\ at startup didn't work (only worked if changed on the fly)
+- rawkeyboard hardcoded F12 check ignored focus
+- drive sound emulation crashed if specific sound files were missing
+- non-accurate sound enabled -option removed, difference compared to 100% accurate was
+  practically non-existing, also now totally useless chipset sound options removed,
+  disabled but emulated is now also 100% accurate
+- files inside plugins-directory will be checked from 3 locations (until found):
+  plugin_path, data_path and exe_path. (fixes some path issues introduced in 2.2)
+
+In cycle-exact mode DMA fetches happen in exactly correct positions (need more CPU power),
+in non-cycle-exact modes all DMA fetches use audio channel 0 position (faster, less timing
+events needed). Complete custom chipset should be fully cycle exact now (in theory at least)
+
+All "too fast cpu" audio hacks removed except audio.device AUDxDAT write with AUDxPER=8
+and then waiting for interrupt, in JIT modes interrupt code may run fast enough to enable
+DMA before audio state machine has returned back to idle state. This hack forces AUDxDAT
+writes with AUDxPER less than 10 to finish immediately.
+
 
 2.2.0 Final
 

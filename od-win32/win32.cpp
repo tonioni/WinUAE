@@ -2074,7 +2074,7 @@ static void strip_slashes (TCHAR *p)
 	while (_tcslen (p) > 0 && (p[_tcslen (p) - 1] == '\\' || p[_tcslen (p) - 1] == '/'))
 		p[_tcslen (p) - 1] = 0;
 }
-static void fixtrailing(TCHAR *p)
+static void fixtrailing (TCHAR *p)
 {
 	if (_tcslen(p) == 0)
 		return;
@@ -3783,6 +3783,68 @@ void create_afnewdir (int remove)
 	}
 }
 
+static bool isdir (const TCHAR *path)
+{
+	DWORD a = GetFileAttributes (path);
+	if (a == INVALID_FILE_ATTRIBUTES)
+		return false;
+	if (a & FILE_ATTRIBUTE_DIRECTORY)
+		return true;
+	return false;
+}
+
+bool get_plugin_path (TCHAR *out, int len, const TCHAR *path)
+{
+	TCHAR tmp[MAX_DPATH];
+	_tcscpy (tmp, start_path_plugins);
+	if (path != NULL)
+		_tcscat (tmp, path);
+	if (isdir (tmp)) {
+		_tcscpy (out, tmp);
+		fixtrailing (out);
+		return true;
+	}
+	if (!_tcsicmp (path, L"floppysounds")) {
+		_tcscpy (tmp, start_path_data);
+		_tcscpy (tmp, L"uae_data");
+		if (isdir (tmp)) {
+			_tcscpy (out, tmp);
+			fixtrailing (out);
+			return true;
+		}
+		_tcscpy (tmp, start_path_exe);
+		_tcscpy (tmp, L"uae_data");
+		if (isdir (tmp)) {
+			_tcscpy (out, tmp);
+			fixtrailing (out);
+			return true;
+		}
+	}
+	_tcscpy (tmp, start_path_data);
+	_tcscpy (tmp, WIN32_PLUGINDIR);
+	if (path != NULL)
+		_tcscat (tmp, path);
+	if (isdir (tmp)) {
+		_tcscpy (out, tmp);
+		fixtrailing (out);
+		return true;
+	}
+	_tcscpy (tmp, start_path_exe);
+	_tcscpy (tmp, WIN32_PLUGINDIR);
+	if (path != NULL)
+		_tcscat (tmp, path);
+	if (isdir (tmp)) {
+		_tcscpy (out, tmp);
+		fixtrailing (out);
+		return true;
+	}
+	_tcscpy (out, start_path_plugins);
+	if (path != NULL)
+		_tcscat (tmp, path);
+	fixtrailing (out);
+	return false;
+}
+
 static void getstartpaths (void)
 {
 	TCHAR *posn, *p;
@@ -3977,9 +4039,17 @@ static void getstartpaths (void)
 	_tcscpy (start_path_data, tmp);
 	SetCurrentDirectory (start_path_data);
 
-	v = GetFileAttributes (start_path_plugins);
-	if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
-		_tcscpy (start_path_plugins, start_path_exe);
+	if (!start_path_plugins[0]) {
+		_tcscpy (start_path_plugins, start_path_data);
+		_tcscat (start_path_plugins, WIN32_PLUGINDIR);
+		v = GetFileAttributes (start_path_plugins);
+		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
+			_tcscpy (start_path_plugins, start_path_data);
+	} else {
+		v = GetFileAttributes (start_path_plugins);
+		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
+			_tcscpy (start_path_plugins, start_path_exe);
+		}
 	}
 	fixtrailing (start_path_plugins);
 	GetFullPathName (start_path_plugins, sizeof tmp / sizeof (TCHAR), tmp, NULL);
@@ -4889,7 +4959,7 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 	if (!newname)
 		return NULL;
 	for (round = 0; round < 6; round++) {
-		TCHAR *s;
+		TCHAR s[MAX_DPATH];
 		_tcscpy (newname, name);
 #ifdef CPU_64_BIT
 		switch(round)
@@ -4923,24 +4993,12 @@ HMODULE WIN32_LoadLibrary_2 (const TCHAR *name, int expand)
 			break;
 		}
 #endif
-		s = xmalloc (TCHAR, _tcslen (start_path_plugins) + _tcslen (WIN32_PLUGINDIR) + _tcslen (newname) + 1);
-		if (s) {
-			_stprintf (s, L"%s%s%s", start_path_plugins, WIN32_PLUGINDIR, newname);
-			m = LoadLibrary (s);
-			LLError (m, s);
-			if (m) {
-				xfree (s);
-				goto end;
-			}
-			_stprintf (s, L"%s%s", start_path_plugins, newname);
-			m = LoadLibrary (s);
-			LLError (m ,s);
-			if (m) {
-				xfree (s);
-				goto end;
-			}
-			xfree (s);
-		}
+		get_plugin_path (s, sizeof s / sizeof (TCHAR), NULL);
+		_tcscat (s, newname);
+		m = LoadLibrary (s);
+		LLError (m ,s);
+		if (m)
+			goto end;
 		m = LoadLibrary (newname);
 		LLError (m, newname);
 		if (m)
