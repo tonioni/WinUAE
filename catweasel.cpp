@@ -13,6 +13,7 @@
 #include "uae.h"
 #include "zfile.h"
 
+#define DRIVER
 #include <catweasl_usr.h>
 
 struct catweasel_contr cwc;

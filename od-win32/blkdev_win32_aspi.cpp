@@ -187,13 +187,13 @@ static int open_driver (SCSI *scgp)
 	nero = frog = 0;
 	_tcscpy (path, L"WNASPI32");
 	if (currprefs.win32_uaescsimode == UAESCSI_NEROASPI) {
-		const TCHAR *p = get_aspi_path(1);
+		const TCHAR *p = get_aspi_path (1);
 		if (p) {
 			_tcscpy (path, p);
 			nero = 1;
 		}
 	} else if (currprefs.win32_uaescsimode == UAESCSI_FROGASPI) {
-		const TCHAR *p = get_aspi_path(2);
+		const TCHAR *p = get_aspi_path (2);
 		if (p) {
 			_tcscpy (path, p);
 			frog = 1;
@@ -251,6 +251,9 @@ static int open_driver (SCSI *scgp)
 	busses = HACount;
 
 	write_log (L"ASPI: open_driver HostASPIStatus=0x%x HACount=0x%x\n", ASPIStatus, HACount);
+
+	if (!scgp)
+		return TRUE;
 
 	for (i=0; i < busses; i++) {
 		SRB_HAInquiry s;
@@ -817,16 +820,31 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 
 static SCSI *scsi_handle;
 
+static int check_scsi_bus (int flags)
+{
+	if (open_driver (NULL)) {
+		close_driver ();
+		return 1;
+	}
+	return 0;
+}
+
 static int open_scsi_bus (int flags)
 {
 	SCSI *scgp = openscsi (-1, -1, -1);
-	unitcnt = 0;
 	if (scgp) {
+		unitcnt = 0;
 		scan_scsi_bus (scgp, flags);
 		uae_sem_init (&scgp_sem, 0, 1);
+		scsi_handle = scgp;
 	}
-	scsi_handle = scgp;
 	return scgp ? 1 : 0;
+}
+
+static void close_scsi_bus (void)
+{
+	closescsi (scsi_handle);
+	scsi_handle = 0;
 }
 
 static int mediacheck (int unitnum)
@@ -889,12 +907,6 @@ static void close_scsi_device (int unitnum)
 		return;
 	scsi_sfree (si[unitnum].handle);
 	si[unitnum].handle = 0;
-}
-
-static void close_scsi_bus (void)
-{
-	closescsi (scsi_handle);
-	scsi_handle = 0;
 }
 
 static int execscsicmd_direct (int unitnum, struct amigascsi *as)
@@ -1015,7 +1027,7 @@ static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info 
 }
 
 struct device_functions devicefunc_win32_aspi = {
-	open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
+	check_scsi_bus, open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
 	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
 };

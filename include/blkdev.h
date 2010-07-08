@@ -25,7 +25,8 @@
 
 #define DEVICE_TYPE_ANY 1
 #define DEVICE_TYPE_SCSI 2
-#define DEVICE_TYPE_ALLOWEMU 0x100
+#define DEVICE_TYPE_ALLOWEMU   0x10000000
+#define DEVICE_TYPE_CHECKAVAIL 0x20000000
 
 #define DF_SCSI 0
 #define DF_IOCTL 1
@@ -65,6 +66,7 @@ struct amigascsi
     uae_u16 sactual;
 };
 
+typedef int (*check_bus_func)(int flags);
 typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
 typedef int (*open_device_func)(int);
@@ -88,6 +90,7 @@ typedef int (*isatapi_func)(int);
 typedef int (*ismedia_func)(int, int);
 
 struct device_functions {
+	check_bus_func checkbus;
     open_bus_func openbus;
     close_bus_func closebus;
     open_device_func opendev;

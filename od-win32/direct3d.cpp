@@ -687,7 +687,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	int canusefile = 0, existsfile = 0;
 
 	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
-	_tcscpy (tmp, shaderfile);
+	_tcscat (tmp, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
 		if (z) {
@@ -1180,7 +1180,7 @@ static int createmask2texture (const TCHAR *filename)
 	for (int i = 0; i < 2; i++) {
 		if (i == 0) {
 			get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"overlays");
-			_tcscpy (tmp, filename);
+			_tcscat (tmp, filename);
 		} else {
 			_tcscpy (tmp, filename);
 		}
@@ -1241,7 +1241,7 @@ static int createmasktexture (const TCHAR *filename)
 		return 0;
 	tx = NULL;
 	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"masks");
-	_tcscpy (tmp, filename);
+	_tcscat (tmp, filename);
 	zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
 	if (!zf) {
 		zf = zfile_fopen (filename, L"rb", ZFD_NORMAL);

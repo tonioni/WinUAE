@@ -59,7 +59,7 @@ static uae_u32 cd_last_pos;
 static int cdda_start, cdda_end;
 
 static int imagechange;
-static bool donotmountme;
+static int donotmountme;
 static TCHAR newfile[MAX_DPATH];
 
 /* convert minutes, seconds and frames -> logical sector number */
@@ -583,8 +583,6 @@ static uae_u8 *command_qcode (int unitnum)
 
 	p = buf + 4;
 
-	if (pos >= 150)
-		trk = 0;
 	start = end = 0;
 	for (trk = 0; trk <= tracks; trk++) {
 		struct cdtoc *td = &toc[trk];
@@ -605,10 +603,10 @@ static uae_u8 *command_qcode (int unitnum)
 	pos -= start;
 	if (pos < 0)
 		pos = 0;
-	msf = lsn2msf (pos);
-	p[9] = (pos >> 16) & 0xff;
-	p[10] = (pos >> 8) & 0xff;
-	p[11] = (pos >> 0) & 0xff;
+	msf = lsn2msf (pos - 150);
+	p[9] = (msf >> 16) & 0xff;
+	p[10] = (msf >> 8) & 0xff;
+	p[11] = (msf >> 0) & 0xff;
 
 	return buf;
 }
@@ -1032,7 +1030,8 @@ static int open_device (int unitnum)
 {
 	if (unitnum)
 		return 0;
-	parse_image ();
+	if (!tracks)
+		parse_image ();
 	return 1;
 }
 
@@ -1041,11 +1040,12 @@ static void close_device (int unitnum)
 	unload_image ();
 }
 
-static bool mountme (void)
+static int mountme (bool checkparse)
 {
 	sys_command_setunit (-1);
+
 	bool sel = false;
-	donotmountme = true;
+	donotmountme = 1;
 	device_func_init (DEVICE_TYPE_ANY);
 	for (int i = 0; i < MAX_TOTAL_DEVICES && !sel; i++) {
 		int opened = sys_command_isopen (i);
@@ -1057,21 +1057,23 @@ static bool mountme (void)
 				if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
 					sys_command_setunit (i);
 					write_log (L"Drive '%s' (unit=%d) selected (media=%d)\n", discsi->label, i, discsi->media_inserted);
-					sel = true;
+					donotmountme = false;
+					return -1;
 				}
 			}
 		}
 	}
-	donotmountme = false;
-	if (!sel) {
+	donotmountme = -1;
+	device_func_init (DEVICE_TYPE_ANY); // activate us again
+	donotmountme = 0;
+	if (checkparse) {
 		sys_command_setunit (0);
-		device_func_init (DEVICE_TYPE_ANY); // activate us again
 		parse_image ();
 		int media = tracks > 0;
 		write_log (L"IMG_EMU (%s) selected (media=%d)\n", currprefs.cdimagefile, media);
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
 void cdimage_vsync (void)
@@ -1097,16 +1099,18 @@ void cdimage_vsync (void)
 	newfile[0] = 0;
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdimagefile[0] ? currprefs.cdimagefile : L"<EMPTY>");
 	if (currprefs.scsi) {
-		donotmountme = true;
+		donotmountme = 1;
 		int un = scsi_do_disk_device_change ();
-		donotmountme = false;
+		donotmountme = 0;
 		if (un < 0) {
+			donotmountme = -1;
 			device_func_init (DEVICE_TYPE_ANY); // activate us again
+			donotmountme = 0;
 			parse_image ();
 			scsi_do_disk_change (255, 1);
 		}
 	} else {
-		mountme ();
+		mountme (true);
 	}
 #ifdef RETROPLATFORM
 	rp_cd_image_change (0, currprefs.cdimagefile);
@@ -1121,27 +1125,42 @@ static int ismedia (int unitnum, int quick)
 	return tracks > 0 ? 1 : 0;
 }
 
-static int open_bus (int flags)
+static int check_bus (int flags)
 {
-	int v;
-
-	if (donotmountme && !(flags & DEVICE_TYPE_ALLOWEMU))
+	if (!(flags & DEVICE_TYPE_CHECKAVAIL))
+		return 1;
+	if (donotmountme > 0)
 		return 0;
+	if (donotmountme < 0)
+		return 1;
 	if (imagechange)
 		return 1;
-	v = currprefs.cdimagefile[0] ? 1 : 0;
+	int v = currprefs.cdimagefile[0] ? 1 : 0;
 	if (v) {
-		if (!mountme ())
+		if (mountme (false) < 0) // is it supported <drive letter:>\?
 			return 0;
 	}
 	if (currprefs.cdimagefileuse) {
 		v = 1;
 	}
+	return v;
+}
+
+static int open_bus (int flags)
+{
+	if (!(flags & DEVICE_TYPE_CHECKAVAIL))
+		return 1;
+	if (donotmountme > 0)
+		return 0;
+	if (donotmountme < 0)
+		return 1;
+
+	mountme (true);
 #ifdef RETROPLATFORM
 	rp_cd_change (0, 0);
 	rp_cd_image_change (0, currprefs.cdimagefile);
 #endif
-	return v;
+	return 1;
 }
 
 static void close_bus (void)
@@ -1178,7 +1197,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di)
 }
 
 struct device_functions devicefunc_cdimage = {
-	open_bus, close_bus, open_device, close_device, info_device,
+	check_bus, open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
 	command_pause, command_stop, command_play, command_volume, command_qcode,
 	command_toc, command_read, command_rawread, 0,

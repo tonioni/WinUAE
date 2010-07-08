@@ -30,6 +30,7 @@
 #include "threaddep/thread.h"
 #include "a2091.h"
 #include "uae.h"
+#include "savestate.h"
 
 /* DMAC CNTR bits. */
 #define CNTR_TCEN               (1<<7)
@@ -81,6 +82,7 @@ static volatile int dmac_dma;
 static volatile int activate_stch, cdrom_command_done, play_state, play_state_cmd, play_statewait;
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
 static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready, cd_hunt;
+static uae_u32 last_play_pos, last_play_end;
 
 static volatile int cdtv_hsync, dma_finished, cdtv_sectorsize;
 static volatile uae_u64 dma_wait;
@@ -171,7 +173,7 @@ static int get_qcode (void)
 	memcpy (cdrom_qcode, s, 16);
 	if (cd_playing) {
 		if (s[1] == AUDIO_STATUS_IN_PROGRESS) {
-			int end = msf2lsn((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
+			int end = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4]));
 			if (end >= play_end - 75)
 				finished_cdplay ();
 		} else if (s[1] == AUDIO_STATUS_PLAY_COMPLETE) {
@@ -281,6 +283,8 @@ static int play_cdtrack (uae_u8 *p)
 	}
 	play_end = msf2lsn (end);
 	play_start = msf2lsn (start);
+	last_play_end = start;
+	last_play_end = end;
 #ifdef CDTV_DEBUG
 	write_log (L"PLAY CD AUDIO from %d-%d, %06X (%d) to %06X (%d)\n",
 		track_start, track_end,
@@ -357,7 +361,6 @@ static int cdrom_subq (uae_u8 *out, int msflsn)
 	out[10] = (msflsn ? trackposmsf : trackposlsn) >> 8;
 	out[11] = (msflsn ? trackposmsf : trackposlsn) >> 0;
 	out[12] = 0;
-
 	return 13;
 }
 
@@ -678,6 +681,10 @@ static void *dev_thread (void *p)
 	for (;;) {
 
 		uae_u32 b = read_comm_pipe_u32_blocking (&requests);
+		if (b == 0xffff) {
+			thread_alive = -1;
+			return NULL;
+		}
 		if (unitnum < 0)
 			continue;
 
@@ -719,9 +726,6 @@ static void *dev_thread (void *p)
 		case 0x0110: // do_play!
 			do_play ();
 			break;
-		case 0xffff:
-			thread_alive = -1;
-			return NULL;
 		default:
 			cdrom_command_thread (b);
 			break;
@@ -1006,7 +1010,7 @@ void CDTV_hsync_handler (void)
 		cd_led |= LED_CD_AUDIO;
 	else
 		cd_led &= ~LED_CD_AUDIO;
-	if (dmac_dma)
+	if (dmac_dma || dma_finished)
 		cd_led |= LED_CD_ACTIVE;
 	else
 		cd_led &= ~LED_CD_ACTIVE;
@@ -1452,24 +1456,12 @@ addrbank dmac_bank = {
 };
 
 
-void cdtv_entergui (void)
-{
-	if (cd_playing && !cd_paused)
-		write_comm_pipe_u32 (&requests, 0x102, 1);
-}
-void cdtv_exitgui (void)
-{
-	if (cd_playing && !cd_paused)
-		write_comm_pipe_u32 (&requests, 0x103, 1);
-}
-
-
 /* CDTV batterybacked RAM emulation */
 #define CDTV_NVRAM_MASK 16383
 #define CDTV_NVRAM_SIZE 32768
 static uae_u8 cdtv_battram[CDTV_NVRAM_SIZE];
 
-void cdtv_loadcardmem(uae_u8 *p, int size)
+void cdtv_loadcardmem (uae_u8 *p, int size)
 {
 	struct zfile *f;
 
@@ -1482,7 +1474,7 @@ void cdtv_loadcardmem(uae_u8 *p, int size)
 	zfile_fclose (f);
 }
 
-void cdtv_savecardmem(uae_u8 *p, int size)
+void cdtv_savecardmem (uae_u8 *p, int size)
 {
 	struct zfile *f;
 
@@ -1651,4 +1643,64 @@ void cdtv_init (void)
 	map_banks (&dmac_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
 	cdtv_battram_reset ();
 	open_unit ();
+}
+
+#ifdef SAVESTATE
+
+uae_u8 *save_cdtv (int *len)
+{
+	uae_u8 *dstbak, *dst;
+	int i;
+
+	if (!currprefs.cs_cd32cd)
+		return NULL;
+	return NULL;
+	dstbak = dst = xmalloc (uae_u8, 1000);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_cdtv (uae_u8 *src)
+{
+	uae_u32 v;
+	int i;
+
+	cdtv_free ();
+	if (!currprefs.cs_cdtvcd) {
+		changed_prefs.cs_cdtvcd = changed_prefs.cs_cdtvram = true;
+		currprefs.cs_cdtvcd = currprefs.cs_cdtvram = true;
+		cdtv_init ();
+	}
+	return src;
+}
+
+void restore_cdtv_finish (void)
+{
+	if (!currprefs.cs_cdtvcd)
+		return;
+	cdtv_init ();
+	get_toc ();
+	write_comm_pipe_u32 (&requests, 0x0102, 1); // pause
+	write_comm_pipe_u32 (&requests, 0x0104, 1); // stop
+	write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
+	if (cd_playing) {
+		write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
+		write_comm_pipe_u32 (&requests, 0x0110, 0); // play
+		write_comm_pipe_u32 (&requests, last_play_pos, 0);
+		write_comm_pipe_u32 (&requests, last_play_end, 0);
+		write_comm_pipe_u32 (&requests, 0, 1);
+	}
+}
+
+#endif
+
+void cdtv_entergui (void)
+{
+	if (cd_playing && !cd_paused)
+		write_comm_pipe_u32 (&requests, 0x102, 1);
+}
+void cdtv_exitgui (void)
+{
+	if (cd_playing && !cd_paused)
+		write_comm_pipe_u32 (&requests, 0x103, 1);
 }

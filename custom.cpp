@@ -4232,7 +4232,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
 
-	debug_wputpeekdma (0xdff000 + addr, value);
+	value = debug_wputpeekdma (0xdff000 + addr, value);
 	copper_access = 1;
 	v = custom_wput_1 (hpos, addr, value, noget);
 	copper_access = 0;

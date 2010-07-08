@@ -570,6 +570,10 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcscmp (name, L"CD32"))
 			end = restore_akiko (chunk);
 #endif
+#ifdef CDTV
+		else if (!_tcscmp (name, L"CDTV"))
+			end = restore_cdtv (chunk);
+#endif
 		else if (!_tcscmp (name, L"GAYL"))
 			end = restore_gayle (chunk);
 		else if (!_tcscmp (name, L"IDE "))
@@ -595,6 +599,7 @@ void restore_state (const TCHAR *filename)
 	restore_disk_finish ();
 	restore_blitter_finish ();
 	restore_akiko_finish ();
+	restore_cdtv_finish ();
 	restore_p96_finish ();
 	target_addtorecent (filename, 0);
 	return;
@@ -826,6 +831,12 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	save_chunk (f, dst, len, L"CD32", 0);
 	xfree (dst);
 #endif
+#ifdef CDTV
+	dst = save_cdtv (&len);
+	save_chunk (f, dst, len, L"CDTV", 0);
+	xfree (dst);
+#endif
+
 #ifdef ACTION_REPLAY
 	dst = save_action_replay (&len, 0);
 	save_chunk (f, dst, len, L"ACTR", comp);

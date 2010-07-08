@@ -577,7 +577,7 @@ static int ioctl_command_play (int unitnum, uae_u32 start, uae_u32 end, int scan
 
 	} else if (ciw->cdda) {
 
-		if (!open_createfile (unitnum, 1))
+		if (!open_createfile (unitnum, 0))
 			return 0;
 		ciw->cdda_paused = 0;
 		ciw->cdda_play_finished = 0;
@@ -758,9 +758,9 @@ static uae_u8 *ioctl_command_qcode (int unitnum)
 		if (pos < 0)
 			pos = 0;
 		msf = lsn2msf (pos);
-		p[9] = (pos >> 16) & 0xff;
-		p[10] = (pos >> 8) & 0xff;
-		p[11] = (pos >> 0) & 0xff;
+		p[9] = (msf >> 16) & 0xff;
+		p[10] = (msf >> 8) & 0xff;
+		p[11] = (msf >> 0) & 0xff;
 
 		return buf;
 
@@ -1179,6 +1179,11 @@ static void close_bus (void)
 
 static int total_devices;
 
+static int check_bus (int flags)
+{
+	return 1;
+}
+
 static int open_bus (int flags)
 {
 	int dwDriveMask;
@@ -1278,7 +1283,7 @@ static struct device_scsi_info *ioctl_scsi_info (int unitnum, struct device_scsi
 }
 
 struct device_functions devicefunc_win32_ioctl = {
-	open_bus, close_bus, open_device, close_device, info_device,
+	check_bus, open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
 	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_volume, ioctl_command_qcode,
 	ioctl_command_toc, ioctl_command_read, ioctl_command_rawread, ioctl_command_write,

@@ -34,7 +34,7 @@ static void install_driver (int flags)
 
 	device_func[DF_IOCTL] = NULL;
 	device_func[DF_SCSI] = &devicefunc_win32_aspi;
-	if (devicefunc_cdimage.openbus (flags)) {
+	if (devicefunc_cdimage.checkbus (flags | DEVICE_TYPE_CHECKAVAIL)) {
 		device_func[DF_IOCTL] = &devicefunc_cdimage;
 		device_func[DF_SCSI] = NULL;
 		return;
@@ -52,6 +52,10 @@ static void install_driver (int flags)
 			device_func[DF_IOCTL] = 0;
 	}
 #endif
+	if (device_func[DF_SCSI])
+		device_func[DF_SCSI]->checkbus (DEVICE_TYPE_CHECKAVAIL);
+	if (device_func[DF_IOCTL])
+		device_func[DF_IOCTL]->checkbus (DEVICE_TYPE_CHECKAVAIL);
 }
 #endif
 
@@ -499,8 +503,10 @@ uae_u8 *restore_cd (int unit, uae_u8 *src)
 
 	flags = restore_u32 ();
 	s = restore_string ();
-	if ((flags & 4) && unit == 0)
+	if ((flags & 4) && unit == 0) {
 		_tcscpy (changed_prefs.cdimagefile, s);
+		_tcscpy (currprefs.cdimagefile, s);
+	}
 	return src;
 }
 

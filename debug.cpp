@@ -1856,18 +1856,20 @@ static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 	return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
 }
 
-void debug_wputpeekdma (uaecptr addr, uae_u32 v)
+uae_u16 debug_wputpeekdma (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
-		return;
+		return v;
 	memwatch_func (addr, 2, 2, &v);
+	return v;
 }
-void debug_wgetpeekdma (uaecptr addr, uae_u32 v)
+uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
-		return;
+		return v;
 	memwatch_func (addr, 1, 2, &vv);
+	return vv;
 }
 
 void debug_putlpeek (uaecptr addr, uae_u32 v)

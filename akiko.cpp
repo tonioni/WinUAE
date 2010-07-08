@@ -422,6 +422,7 @@ static uae_u8 *sector_buffer_info_1, *sector_buffer_info_2;
 static int unitnum = -1;
 static int cdromok = 0;
 static int cd_hunt;
+static bool akiko_inited;
 static volatile int mediachanged, mediacheckcounter;
 static volatile int frame2counter;
 
@@ -511,22 +512,46 @@ static void cdaudioplay_do (void)
 	sys_command_cd_play (DF_IOCTL, unitnum, startmsf, endmsf, scan);
 }
 
-static uae_u32 last_play_end;
-static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
+static bool isaudiotrack (uae_u32 startmsf)
 {
-#if 1
 	uae_u8 *buf = cdrom_toc_cd_buffer;
-	uae_u8 *s;
+	uae_u8 *s = NULL;
 	uae_u32 addr;
 	int i;
 
+	if (!cdrom_toc_entries)
+		return false;
 	for (i = 0; i < cdrom_toc_entries; i++) {
 		s = buf + 4 + i * 11;
 		addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
 		if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
 			break;
 	}
-	if ((s[1] & 0x0c) == 0x04) {
+	if (s && (s[1] & 0x0c) == 0x04) {
+		write_log (L"tried to play data track %d!\n", s[3]);
+		return false;
+	}
+	return true;
+}
+
+
+static uae_u32 last_play_end;
+static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
+{
+	uae_u8 *buf = cdrom_toc_cd_buffer;
+	uae_u8 *s = NULL;
+	uae_u32 addr;
+	int i;
+
+	if (!cdrom_toc_entries)
+		return 0;
+	for (i = 0; i < cdrom_toc_entries; i++) {
+		s = buf + 4 + i * 11;
+		addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
+		if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
+			break;
+	}
+	if (s && (s[1] & 0x0c) == 0x04) {
 		write_log (L"tried to play data track %d!\n", s[3]);
 		s += 11;
 		startmsf = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
@@ -535,10 +560,9 @@ static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
 		//cdrom_audiotimeout = 312;
 		return 0;
 	}
-#endif
 	last_play_end = endmsf;
 	cdrom_audiotimeout = 0;
-	write_comm_pipe_u32 (&requests, 0x110, 0);
+	write_comm_pipe_u32 (&requests, 0x0110, 0);
 	write_comm_pipe_u32 (&requests, startmsf, 0);
 	write_comm_pipe_u32 (&requests, endmsf, 0);
 	write_comm_pipe_u32 (&requests, scan, 1);
@@ -773,13 +797,13 @@ static int cdrom_command_led (void)
 {
 	int v = cdrom_command_buffer[1];
 	int old = cdrom_led;
-	cdrom_led &= ~1;
-	cdrom_led |= v & 1;
+	cdrom_led &= ~LED_CD_ACTIVE;
+	cdrom_led |= (v & 1) ? LED_CD_ACTIVE : 0;
 	if (cdrom_led != old)
 		gui_flicker_led (LED_CD, 0, cdrom_led);
 	if (v & 0x80) { // result wanted?
 		cdrom_result_buffer[0] = cdrom_command;
-		cdrom_result_buffer[1] = cdrom_led & 1;
+		cdrom_result_buffer[1] = (cdrom_led & LED_CD_ACTIVE) ? 1 : 0;
 		return 2;
 	}
 	return 0;
@@ -1178,7 +1202,7 @@ void AKIKO_hsync_handler (void)
 {
 	static int framecounter;
 
-	if (!currprefs.cs_cd32cd)
+	if (!currprefs.cs_cd32cd || !akiko_inited)
 		return;
 
 	if (cd_hunt) {
@@ -1699,6 +1723,7 @@ void akiko_reset (void)
 	}
 	akiko_cdrom_free ();
 	mediacheckcounter = 0;
+	akiko_inited = false;
 }
 
 
@@ -1736,12 +1761,13 @@ int akiko_init (void)
 		init_comm_pipe (&requests, 100, 1);
 		uae_start_thread (L"akiko", akiko_thread, 0, NULL);
 	}
+	akiko_inited = true;
 	return 1;
 }
 
 #ifdef SAVESTATE
 
-uae_u8 *save_akiko(int *len)
+uae_u8 *save_akiko (int *len)
 {
 	uae_u8 *dstbak, *dst;
 	int i;
@@ -1802,6 +1828,7 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	uae_u32 v;
 	int i;
 
+	akiko_free ();
 	if (!currprefs.cs_cd32cd || !cdromok) {
 		changed_prefs.cs_cd32c2p = changed_prefs.cs_cd32cd = changed_prefs.cs_cd32nvram = true;
 		currprefs.cs_cd32c2p = currprefs.cs_cd32cd = currprefs.cs_cd32nvram = true;
@@ -1866,11 +1893,13 @@ void restore_akiko_finish (void)
 {
 	if (!currprefs.cs_cd32cd)
 		return;
+	akiko_init ();
 	akiko_c2p_do ();
+	cdrom_toc ();
 	write_comm_pipe_u32 (&requests, 0x0102, 1); // pause
 	write_comm_pipe_u32 (&requests, 0x0104, 1); // stop
 	write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
-	if (cdrom_playing) {
+	if (cdrom_playing && isaudiotrack (last_play_pos)) {
 		write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause
 		write_comm_pipe_u32 (&requests, 0x0110, 0); // play
 		write_comm_pipe_u32 (&requests, last_play_pos, 0);

@@ -45,7 +45,7 @@
 
 #define MAX_EV ~0ul
 //#define DEBUG_AUDIO
-#define DEBUG_CHANNEL_MASK 2
+#define DEBUG_CHANNEL_MASK 15
 //#define TEST_AUDIO
 
 #define PERIOD_MIN 4
@@ -1034,13 +1034,18 @@ static int audio_work_to_do;
 static void zerostate (int nr)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
+#ifdef DEBUG_AUDIO
+	write_log (L"%d: ZEROSTATE\n", nr);
+#endif
 	cdp->state = 0;
 	cdp->evtime = MAX_EV;
 	cdp->intreq2 = 0;
 	cdp->dsr = cdp->dr = false;
+	cdp->dmaenstore = false;
 #ifdef TEST_AUDIO
 	cdp->have_dat = false;
 #endif
+
 }
 
 static void schedule_audio (void)
@@ -1218,23 +1223,35 @@ static void audio_state_channel2 (int nr, bool perfin)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 	bool chan_ena = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
+	bool old_dma = cdp->dmaenstore;
 	int audav = adkcon & (0x01 << nr);
 	int audap = adkcon & (0x10 << nr);
 	int napnav = (!audav && !audap) || audav;
 	int hpos = current_hpos ();
 
-#ifdef DEBUG_AUDIO
-	if (debugchannel (nr)) {
-		if (cdp->dmaenstore != chan_ena) {
-			cdp->dmaenstore = chan_ena;
-			write_log (L"%d:DMA=%d IRQ=%d PC=%08x\n", nr, chan_ena, isirq (nr) ? 1 : 0, M68K_GETPC);
-		}
-	}
-#endif
+	cdp->dmaenstore = chan_ena;
+
 	if (currprefs.produce_sound == 0) {
 		zerostate (nr);
 		return;
 	}
+	audio_activate ();
+
+	if ((cdp->state == 2 || cdp->state == 3) && (currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0) && !chan_ena && old_dma) {
+		// DMA switched off, state=2/3 and "too fast CPU": kill DMA instantly
+		// or CPU timed DMA wait routines in common tracker players will lose notes
+#ifdef DEBUG_AUDIO
+		write_log (L"%d: INSTADMAOFF\n", nr, M68K_GETPC);
+#endif
+		zerostate (nr);
+		return;
+	}
+
+#ifdef DEBUG_AUDIO
+	if (debugchannel (nr) && old_dma != chan_ena) {
+		write_log (L"%d:DMA=%d IRQ=%d PC=%08x\n", nr, chan_ena, isirq (nr) ? 1 : 0, M68K_GETPC);
+	}
+#endif
 	switch (cdp->state)
 	{
 	case 0:
@@ -1270,6 +1287,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		}
 		break;
 	case 1:
+		cdp->evtime = MAX_EV;
 		if (!cdp->dat_written)
 			return;
 #ifdef TEST_AUDIO
@@ -1285,6 +1303,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		cdp->state = 5;
 		break;
 	case 5:
+		cdp->evtime = MAX_EV;
 		if (!cdp->dat_written)
 			return;
 #ifdef DEBUG_AUDIO
@@ -1691,8 +1710,13 @@ void update_audio (void)
 		}
 
 		for (i = 0; i < 4; i++) {
-			if (audio_channel[i].evtime == 0)
+			if (audio_channel[i].evtime == 0) {
 				audio_state_channel (i, true);
+				if (audio_channel[i].evtime == 0) {
+					write_log (L"evtime==0 sound bug channel %d\n");
+					audio_channel[i].evtime = MAX_EV;
+				}
+			}
 		}
 	}
 end:
@@ -1923,7 +1947,7 @@ uae_u8 *save_audio (int i, int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = (uae_u8*)malloc (100);
+		dstbak = dst = xmalloc (uae_u8, 100);
 	acd = audio_channel + i;
 	save_u8 ((uae_u8)acd->state);
 	save_u8 (acd->vol);

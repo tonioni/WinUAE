@@ -1,4 +1,20 @@
 
+
+- CD32/CDTV image mounting broke in b1 (can still be broken in some situations)
+- new audio state machine emulation froze in some situations
+- re-added "too fast CPU" hack that fixes missing sounds with sound routines that use CPU loops
+  in DMA waits (also needed in 68020 "CE" mode because short loops are currently too fast)
+- automatic audio switching detected idle audio when playing long samples
+- CD32 statefile restore ignored possible CD image file path in statefile
+- CDTV CD led flicker was practically non-existing when reading data
+- (I also noticed CDTV statefile support is still missing..)
+- old CD audio timecode relative track position bug fixed (CDTV audio CD player slow time display)
+- built-in image mounter cd audio timecode relative track position had 2 second offset
+- real cd audio cd playback asked for exclusive CD access when shared also works fine
+- do not parse mounted images (cue files) twice when booting in CD32 or CDTV mode
+- path update in b1 broke D3D related paths
+- CDTV processing thread stalled if no drive was detected when exiting
+
 Beta 1:
 
 - fixed Z3/RTG RAM leaking when restarting
