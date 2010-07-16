@@ -97,6 +97,9 @@ extern uae_u8 *restore_cdtv (uae_u8 *src);
 extern uae_u8 *save_cdtv (int *len);
 extern void restore_cdtv_finish (void);
 
+extern uae_u8 *restore_dmac (uae_u8 *src);
+extern uae_u8 *save_dmac (int *len);
+
 extern uae_u8 *restore_filesys (uae_u8 *src);
 extern uae_u8 *save_filesys (int num, int *len);
 extern uae_u8 *restore_filesys_common (uae_u8 *src);

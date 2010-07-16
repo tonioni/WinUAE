@@ -1235,7 +1235,7 @@ static void addnativescsi (void)
 		types[i] = -1;
 		devices[i] = -1;
 		if (sys_command_open (DF_SCSI, i)) {
-			if (sys_command_info (DF_SCSI, i, &dis[i])) {
+			if (sys_command_info (DF_SCSI, i, &dis[i], 0)) {
 				devices[i] = i;
 				types[i] = 100 - i;
 				if (dis[i].type == INQ_ROMD)

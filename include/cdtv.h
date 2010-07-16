@@ -26,5 +26,7 @@ extern void rethink_cdtv (void);
 extern void cdtv_scsi_int (void);
 extern void cdtv_scsi_clear_int (void);
 
+extern bool cdtv_front_panel (int);
+
 #endif
 

@@ -49,16 +49,16 @@ extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
 #define MEMWATCH_TOTAL 8
 struct memwatch_node {
-    uaecptr addr;
-    int size;
-    int rwi;
-    uae_u32 val, valmask;
-    int mustchange;
-    int val_enabled;
-    uae_u32 modval;
-    int modval_written;
-    int frozen;
-    uaecptr pc;
+	uaecptr addr;
+	int size;
+	int rwi;
+	uae_u32 val, val_mask;
+	int val_size, val_enabled;
+	int mustchange;
+	uae_u32 modval;
+	int modval_written;
+	int frozen;
+	uaecptr pc;
 };
 extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 

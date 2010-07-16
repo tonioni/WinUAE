@@ -25,6 +25,7 @@
 #include <io.h>
 
 #include <setupapi.h>
+#include <Ntddpar.h>
 
 #include "sysdeps.h"
 #include "options.h"
@@ -1197,7 +1198,10 @@ void hsyncstuff (void)
 #endif
 }
 
-static int enumserialports_2 (int cnt)
+const static GUID GUID_DEVINTERFACE_PARALLEL = {0x97F76EF0,0xF883,0x11D0,
+{0xAF,0x1F,0x00,0x00,0xF8,0x00,0x84,0x5C}};
+
+static int enumports_2 (struct serparportinfo *pi, int cnt, bool parport)
 {
 	// Create a device information set that will be the container for
 	// the device interfaces.
@@ -1208,7 +1212,7 @@ static int enumserialports_2 (int cnt)
 	DWORD dwDetDataSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA) + 256 * sizeof (TCHAR);
 	DWORD ii;
 
-	hDevInfo = SetupDiGetClassDevs (&GUID_CLASS_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+	hDevInfo = SetupDiGetClassDevs (parport ? &GUID_DEVINTERFACE_PARALLEL : &GUID_DEVINTERFACE_COMPORT, NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
 	if(hDevInfo == INVALID_HANDLE_VALUE)
 		return 0;
 	// Enumerate the serial ports
@@ -1218,7 +1222,7 @@ static int enumserialports_2 (int cnt)
 	ifcData.cbSize = sizeof (SP_DEVICE_INTERFACE_DATA);
 	pDetData->cbSize = sizeof (SP_DEVICE_INTERFACE_DETAIL_DATA);
 	for (ii = 0; bOk; ii++) {
-		bOk = SetupDiEnumDeviceInterfaces (hDevInfo, NULL, &GUID_CLASS_COMPORT, ii, &ifcData);
+		bOk = SetupDiEnumDeviceInterfaces (hDevInfo, NULL, parport ? &GUID_DEVINTERFACE_PARALLEL : &GUID_DEVINTERFACE_COMPORT, ii, &ifcData);
 		if (bOk) {
 			// Got a device. Get the details.
 			SP_DEVINFO_DATA devdata = { sizeof (SP_DEVINFO_DATA)};
@@ -1234,21 +1238,21 @@ static int enumserialports_2 (int cnt)
 				bSuccess = bSuccess && SetupDiGetDeviceRegistryProperty (
 					hDevInfo, &devdata, SPDRP_DEVICEDESC, NULL,
 					(PBYTE)desc, sizeof (desc), NULL);
-				if (bSuccess && cnt < MAX_SERIAL_PORTS) {
+				if (bSuccess && cnt < MAX_SERPAR_PORTS) {
 					TCHAR *p;
-					comports[cnt].dev = my_strdup (pDetData->DevicePath);
-					comports[cnt].name = my_strdup (fname);
-					p = _tcsstr (fname, L"(COM");
+					pi[cnt].dev = my_strdup (pDetData->DevicePath);
+					pi[cnt].name = my_strdup (fname);
+					p = _tcsstr (fname, parport ? L"(LPT" : L"(COM");
 					if (p && (p[5] == ')' || p[6] == ')')) {
-						comports[cnt].cfgname = xmalloc (TCHAR, 100);
+						pi[cnt].cfgname = xmalloc (TCHAR, 100);
 						if (isdigit(p[5]))
-							_stprintf (comports[cnt].cfgname, L"COM%c%c", p[4], p[5]);
+							_stprintf (pi[cnt].cfgname, parport ? L"LPT%c%c" : L"COM%c%c", p[4], p[5]);
 						else
-							_stprintf (comports[cnt].cfgname, L"COM%c", p[4]);
+							_stprintf (pi[cnt].cfgname, parport ? L"LPT%c" : L"COM%c", p[4]);
 					} else {
-						comports[cnt].cfgname = my_strdup (pDetData->DevicePath);
+						pi[cnt].cfgname = my_strdup (pDetData->DevicePath);
 					}
-					write_log (L"SERPORT: '%s' = '%s' = '%s'\n", comports[cnt].name, comports[cnt].cfgname, comports[cnt].dev);
+					write_log (L"%s: '%s' = '%s' = '%s'\n", parport ? L"PARPORT" : L"SERPORT", pi[cnt].name, pi[cnt].cfgname, pi[cnt].dev);
 					cnt++;
 				}
 			} else {
@@ -1269,6 +1273,8 @@ end:
 		SetupDiDestroyDeviceInfoList (hDevInfo);
 	return cnt;
 }
+
+static struct serparportinfo parports[MAX_SERPAR_PORTS];
 
 int enumserialports (void)
 {
@@ -1291,7 +1297,7 @@ int enumserialports (void)
 	cnt++;
 #endif
 
-	cnt = enumserialports_2 (cnt);
+	cnt = enumports_2 (comports, cnt, false);
 	for (i = 0; i < 10; i++) {
 		_stprintf (name, L"COM%d", i);
 		if (!QueryDosDevice (name, devname, sizeof devname / sizeof (TCHAR)))
@@ -1301,7 +1307,7 @@ int enumserialports (void)
 				break;
 		}
 		if (j == cnt) {
-			if (cnt >= MAX_SERIAL_PORTS)
+			if (cnt >= MAX_SERPAR_PORTS)
 				break;
 			comports[j].dev = xmalloc (TCHAR, 100);
 			_stprintf (comports[cnt].dev, L"\\.\\\\%s", name);
@@ -1311,7 +1317,9 @@ int enumserialports (void)
 			cnt++;
 		}
 	}
-	write_log (L"Serial port enumeration end\n");
+	write_log (L"Parallel port enumeration..\n");
+	enumports_2 (parports, 0, true);
+	write_log (L"Port enumeration end\n");
 	return cnt;
 }
 
@@ -1319,7 +1327,7 @@ void sernametodev (TCHAR *sername)
 {
 	int i;
 
-	for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
 		if (!_tcscmp(sername, comports[i].cfgname)) {
 			_tcscpy (sername, comports[i].dev);
 			return;
@@ -1331,7 +1339,7 @@ void sernametodev (TCHAR *sername)
 void serdevtoname (TCHAR *sername)
 {
 	int i;
-	for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
 		if (!_tcscmp(sername, comports[i].dev)) {
 			_tcscpy (sername, comports[i].cfgname);
 			return;

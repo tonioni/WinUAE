@@ -64,7 +64,7 @@ static bool debugchannel (int ch)
 
 STATIC_INLINE bool usehacks (void)
 {
-	return currprefs.cpu_model >= 68020 && !currprefs.cpu_cycle_exact;
+	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != -1;
 }
 
 #define SINC_QUEUE_MAX_AGE 2048
@@ -1237,12 +1237,15 @@ static void audio_state_channel2 (int nr, bool perfin)
 	}
 	audio_activate ();
 
-	if ((cdp->state == 2 || cdp->state == 3) && (currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0) && !chan_ena && old_dma) {
+	if ((cdp->state == 2 || cdp->state == 3) && usehacks () && !chan_ena && old_dma) {
 		// DMA switched off, state=2/3 and "too fast CPU": kill DMA instantly
 		// or CPU timed DMA wait routines in common tracker players will lose notes
 #ifdef DEBUG_AUDIO
 		write_log (L"%d: INSTADMAOFF\n", nr, M68K_GETPC);
 #endif
+		newsample (nr, (cdp->dat2 >> 0) & 0xff);
+		if (napnav)
+			setirq (nr, 91);
 		zerostate (nr);
 		return;
 	}
@@ -1258,10 +1261,18 @@ static void audio_state_channel2 (int nr, bool perfin)
 		if (chan_ena) {
 			cdp->evtime = MAX_EV;
 			cdp->state = 1;
-			cdp->dsr = true;
 			cdp->dr = true;
 			cdp->drhpos = hpos;
 			cdp->wlen = cdp->len;
+			// too fast CPU and some tracker players: enable DMA, CPU delay, update AUDxPT with loop position
+			if (usehacks ()) {
+				// copy AUDxPT - 2 to internal latch instantly
+				cdp->pt = cdp->lc - 2;
+				cdp->dsr = false;
+			} else {
+				// normal hardware behavior: latch it after first DMA fetch comes
+				cdp->dsr = true;
+			}
 #ifdef TEST_AUDIO
 			cdp->have_dat = false;
 #endif
@@ -1273,7 +1284,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->state = 2;
 			setirq (nr, 0);
 			loaddat (nr);
-			if (currprefs.cpu_model >= 68020 && !currprefs.cpu_cycle_exact && cdp->per < 10 * CYCLE_UNIT) {
+			if (usehacks () && cdp->per < 10 * CYCLE_UNIT) {
 				// make sure audio.device AUDxDAT startup returns to idle state before DMA is enabled
 				newsample (nr, (cdp->dat2 >> 0) & 0xff);
 				zerostate (nr);

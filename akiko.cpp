@@ -7,7 +7,7 @@
 * - NVRAM
 * - CDROM
 *
-* Copyright 2001-2009 Toni Wilen
+* Copyright 2001-2010 Toni Wilen
 *
 */
 
@@ -355,13 +355,7 @@ static uae_u32 akiko_c2p_read (int offset)
 
 #define CDS_ERROR 0x80
 #define CDS_PLAYING 0x08
-
-#define AUDIO_STATUS_NOT_SUPPORTED  0x00
-#define AUDIO_STATUS_IN_PROGRESS    0x11
-#define AUDIO_STATUS_PAUSED         0x12
-#define AUDIO_STATUS_PLAY_COMPLETE  0x13
-#define AUDIO_STATUS_PLAY_ERROR     0x14
-#define AUDIO_STATUS_NO_STATUS      0x15
+#define CDS_PLAYEND 0x00
 
 #define CH_ERR_BADCOMMAND       0x80 // %10000000
 #define CH_ERR_CHECKSUM         0x88 // %10001000
@@ -377,6 +371,13 @@ static uae_u32 akiko_c2p_read (int offset)
 #define CH_ERR_ABNORMALSEEK     0xf0 // %11110000
 #define CH_ERR_NODISK           0xf8 // %11111000
 
+static int framecounter, subcodecounter;
+
+#define MAX_SUBCODEBUFFER 20
+static volatile int subcodebufferoffset, subcodebufferoffsetw;
+static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
+static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];
+
 static uae_u32 cdrom_intreq, cdrom_intena;
 static uae_u8 cdrom_subcodeoffset;
 static uae_u32 cdrom_addressdata, cdrom_addressmisc;
@@ -391,13 +392,11 @@ static uae_u8 cdrom_result_buffer[32];
 static uae_u8 cdrom_command_buffer[32];
 static uae_u8 cdrom_command;
 
-#define	MAX_TOC_ENTRIES 103 /* tracks 1-99, A0, A1 and A2 */
-static int cdrom_toc_entries;
 static int cdrom_toc_counter;
 static uae_u32 cdrom_toc_crc;
 static uae_u8 cdrom_toc_buffer[MAX_TOC_ENTRIES * 13];
-static uae_u8 cdrom_toc_cd_buffer[4 + MAX_TOC_ENTRIES * 11];
-static uae_u8 qcode_buf[12];
+static struct cd_toc_head cdrom_toc_cd_buffer;
+static uae_u8 qcode_buf[SUBQ_SIZE];
 static int qcode_valid;
 
 static int cdrom_disk, cdrom_paused, cdrom_playing;
@@ -406,7 +405,7 @@ static int cdrom_command_length;
 static int cdrom_checksum_error, cdrom_unknown_command;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
 static int cdrom_current_sector, cdrom_seek_delay;
-static int cdrom_data_end, cdrom_leadout;
+static int cdrom_data_end;
 static int cdrom_audiotimeout;
 static int cdrom_led;
 static int cdrom_dosomething;
@@ -428,6 +427,7 @@ static volatile int frame2counter;
 
 static smp_comm_pipe requests;
 static volatile int akiko_thread_running;
+static uae_sem_t akiko_sem, sub_sem;
 
 static void checkint (void)
 {
@@ -447,45 +447,11 @@ void rethink_akiko (void)
 	checkint ();
 }
 
-
-static uae_u8 frombcd (uae_u8 v)
-{
-	return (v >> 4) * 10 + (v & 15);
-}
-
-static uae_u8 tobcd (uae_u8 v)
-{
-	return ((v / 10) << 4) | (v % 10);
-}
-
-static int fromlongbcd (uae_u8 *p)
-{
-	return (frombcd (p[0]) << 16) | (frombcd (p[1]) << 8) | (frombcd (p[2])  << 0);
-}
-
-/* convert minutes, seconds and frames -> logical sector number */
-static int msf2lsn (int msf)
-{
-	int sector = (((msf >> 16) & 0xff) * 60 * 75 + ((msf >> 8) & 0xff) * 75 + ((msf >> 0) & 0xff)) - 150;
-	if (sector < 0)
-		sector = 0;
-	return sector;
-}
-
-/* convert logical sector number -> minutes, seconds and frames */
-static int lsn2msf (int sectors)
-{
-	int msf;
-	sectors += 150;
-	msf = (sectors / (75 * 60)) << 16;
-	msf |= ((sectors / 75) % 60) << 8;
-	msf |= (sectors % 75) << 0;
-	return msf;
-}
-
 static void cdaudiostop_do (void)
 {
 	qcode_valid = 0;
+	cdrom_playing = 0;
+	cdrom_paused = 0;
 	if (unitnum < 0)
 		return;
 	sys_command_cd_pause (DF_IOCTL, unitnum, 0);
@@ -497,81 +463,116 @@ static void cdaudiostop (void)
 {
 	cdrom_playing = 0;
 	cdrom_paused = 0;
-	cdrom_audiotimeout = 0;
 	write_comm_pipe_u32 (&requests, 0x104, 1);
+}
+
+static void subfunc (uae_u8 *data, int cnt)
+{
+	if (!(cdrom_flags & CDFLAG_SUBCODE))
+		return;
+	uae_sem_wait (&sub_sem);
+#if 0
+	int total = 0;
+	for (int i = 0; i < MAX_SUBCODEBUFFER; i++) {
+		if (subcodebufferinuse[i])
+			total++;
+	}
+	write_log (L"%d ", total);
+#endif
+	if (subcodebufferinuse[subcodebufferoffsetw]) {
+		memset (subcodebufferinuse, 0,sizeof (subcodebufferinuse));
+		subcodebufferoffsetw = subcodebufferoffset = 0;
+		uae_sem_post (&sub_sem);
+		write_log (L"CD32: subcode buffer overflow 1\n");
+		return;
+	}
+	int offset = subcodebufferoffsetw;
+	while (cnt > 0) {
+		if (subcodebufferinuse[offset]) {
+			write_log (L"CD32: subcode buffer overflow 2\n");
+			break;
+		}
+		subcodebufferinuse[offset] = 1;
+		memcpy (&subcodebuffer[offset * SUB_CHANNEL_SIZE], data, SUB_CHANNEL_SIZE);
+		data += SUB_CHANNEL_SIZE;
+		offset++;
+		if (offset >= MAX_SUBCODEBUFFER)
+			offset = 0;
+		cnt--;
+	}
+	subcodebufferoffsetw = offset;
+	uae_sem_post (&sub_sem);
 }
 
 static void cdaudioplay_do (void)
 {
-	uae_u32 startmsf = read_comm_pipe_u32_blocking (&requests);
-	uae_u32 endmsf = read_comm_pipe_u32_blocking (&requests);
+	uae_u32 startlsn = read_comm_pipe_u32_blocking (&requests);
+	uae_u32 endlsn = read_comm_pipe_u32_blocking (&requests);
 	uae_u32 scan = read_comm_pipe_u32_blocking (&requests);
 	qcode_valid = 0;
 	if (unitnum < 0)
 		return;
-	sys_command_cd_play (DF_IOCTL, unitnum, startmsf, endmsf, scan);
+	sys_command_cd_play (DF_IOCTL, unitnum, startlsn, endlsn, scan, subfunc);
 }
 
-static bool isaudiotrack (uae_u32 startmsf)
+static bool isaudiotrack (int startlsn)
 {
-	uae_u8 *buf = cdrom_toc_cd_buffer;
-	uae_u8 *s = NULL;
+	struct cd_toc *s = NULL;
 	uae_u32 addr;
 	int i;
 
-	if (!cdrom_toc_entries)
+	if (!cdrom_toc_cd_buffer.points)
 		return false;
-	for (i = 0; i < cdrom_toc_entries; i++) {
-		s = buf + 4 + i * 11;
-		addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
-		if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
+	for (i = 0; i < cdrom_toc_cd_buffer.points; i++) {
+		s = &cdrom_toc_cd_buffer.toc[i];
+		addr = s->paddress;
+		if (s->track > 0 && s->track < 100 && addr >= startlsn)
 			break;
+		s++;
 	}
-	if (s && (s[1] & 0x0c) == 0x04) {
-		write_log (L"tried to play data track %d!\n", s[3]);
+	if (s && (s->control & 0x0c) == 0x04) {
+		write_log (L"tried to play data track %d!\n", s->track);
 		return false;
 	}
 	return true;
 }
 
 
-static uae_u32 last_play_end;
-static int cd_play_audio (uae_u32 startmsf, uae_u32 endmsf, int scan)
+static int last_play_end;
+static int cd_play_audio (int startlsn, int endlsn, int scan)
 {
-	uae_u8 *buf = cdrom_toc_cd_buffer;
-	uae_u8 *s = NULL;
+	struct cd_toc *s = NULL;
 	uae_u32 addr;
 	int i;
 
-	if (!cdrom_toc_entries)
+	if (!cdrom_toc_cd_buffer.points)
 		return 0;
-	for (i = 0; i < cdrom_toc_entries; i++) {
-		s = buf + 4 + i * 11;
-		addr = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
-		if (s[3] > 0 && s[3] < 100 && addr >= startmsf)
+	for (i = 0; i < cdrom_toc_cd_buffer.points; i++) {
+		s = &cdrom_toc_cd_buffer.toc[i];
+		addr = s->paddress;
+		if (s->track > 0 && s->track < 100 && addr >= startlsn)
 			break;
 	}
-	if (s && (s[1] & 0x0c) == 0x04) {
-		write_log (L"tried to play data track %d!\n", s[3]);
-		s += 11;
-		startmsf = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
-		s += 11;
-		endmsf = (s[8] << 16) | (s[9] << 8) | (s[10] << 0);
-		//cdrom_audiotimeout = 312;
+	if (s && (s->control & 0x0c) == 0x04) {
+		write_log (L"tried to play data track %d!\n", s->track);
+		s++;
+		startlsn = s->paddress;
+		s++;
+		endlsn = s->paddress;
 		return 0;
 	}
-	last_play_end = endmsf;
+	last_play_end = endlsn;
 	cdrom_audiotimeout = 0;
 	write_comm_pipe_u32 (&requests, 0x0110, 0);
-	write_comm_pipe_u32 (&requests, startmsf, 0);
-	write_comm_pipe_u32 (&requests, endmsf, 0);
+	write_comm_pipe_u32 (&requests, startlsn, 0);
+	write_comm_pipe_u32 (&requests, endlsn, 0);
 	write_comm_pipe_u32 (&requests, scan, 1);
 	return 1;
 }
 
 
 /* read qcode */
-static uae_u32 last_play_pos;
+static int last_play_pos;
 static int cd_qcode (uae_u8 *d)
 {
 	uae_u8 *buf, *s, as;
@@ -579,39 +580,36 @@ static int cd_qcode (uae_u8 *d)
 	if (d)
 		memset (d, 0, 11);
 	last_play_pos = 0;
-	if (!qcode_valid)
-		return 0;
 	buf = qcode_buf;
 	as = buf[1];
-	if (as != 0x11 && as != 0x12 && as != 0x13 && as != 0x15) /* audio status ok? */
+	if (as != AUDIO_STATUS_IN_PROGRESS && as != AUDIO_STATUS_PAUSED && as != AUDIO_STATUS_PLAY_COMPLETE && as != AUDIO_STATUS_NO_STATUS) /* audio status ok? */
 		return 0;
 	s = buf + 4;
-	last_play_pos = (s[5] << 16) | (s[6] << 8) | (s[7] << 0);
+	last_play_pos = msf2lsn (fromlongbcd (s + 7));
 	if (!d)
 		return 0;
 	/* ??? */
 	d[0] = 0;
 	/* CtlAdr */
-	d[1] = (s[1] >> 4) | (s[1] << 4);
+	d[1] = s[0];
 	/* Track */
-	d[2] = tobcd (s[2]);
+	d[2] = s[1];
 	/* Index */
-	d[3] = tobcd (s[3]);
+	d[3] = s[2];
 	/* TrackPos */
-	d[4] = tobcd (s[9]);
-	d[5] = tobcd (s[10]);
-	d[6] = tobcd (s[11]);
+	d[4] = s[3];
+	d[5] = s[4];
+	d[6] = s[5];
 	/* DiskPos */
 	d[7] = 0;
-	d[8] = tobcd (s[5]);
-	d[9] = tobcd (s[6]);
-	d[10] = tobcd (s[7]);
-	if (as == 0x15) {
+	d[8] = s[7];
+	d[9] = s[8];
+	d[10] = s[9];
+	if (as == AUDIO_STATUS_IN_PROGRESS) {
 		/* Make sure end of disc position is not missed.
 		*/
-		int lsn = msf2lsn ((s[5] << 16) | (s[6] << 8) | (s[7] << 0));
-		int msf = lsn2msf (cdrom_leadout);
-		if (lsn >= cdrom_leadout || cdrom_leadout - lsn < 10) {
+		if (last_play_pos >= cdrom_toc_cd_buffer.lastaddress || cdrom_toc_cd_buffer.lastaddress - last_play_pos < 10) {
+			int msf = lsn2msf (cdrom_toc_cd_buffer.lastaddress);
 			d[8] = tobcd ((uae_u8)(msf >> 16));
 			d[9] = tobcd ((uae_u8)(msf >> 8));
 			d[10] = tobcd ((uae_u8)(msf >> 0));
@@ -621,49 +619,42 @@ static int cd_qcode (uae_u8 *d)
 }
 
 /* read toc */
-static int cdrom_toc (void)
+static int get_cdrom_toc (void)
 {
-	int i, j;
+	int j;
 	int datatrack = 0, secondtrack = 0;
-	uae_u8 *s, *d, *buf;
+	struct cd_toc_head *th;
 
 	cdrom_toc_counter = -1;
-	cdrom_toc_entries = 0;
-	buf = sys_command_cd_toc (DF_IOCTL, unitnum);
-	if (!buf)
+	th = sys_command_cd_toc (DF_IOCTL, unitnum);
+	if (!th)
 		return 1;
-	i = (buf[0] << 8) | (buf[1] << 0);
-	i -= 2;
-	i /= 11;
-	if (i > MAX_TOC_ENTRIES)
-		return -1;
-	cdrom_toc_entries = i;
+	memcpy (&cdrom_toc_cd_buffer, th, sizeof cdrom_toc_cd_buffer);
 	memset (cdrom_toc_buffer, 0, MAX_TOC_ENTRIES * 13);
-	memcpy (cdrom_toc_cd_buffer, buf, 4 + cdrom_toc_entries * 11);
 	cdrom_data_end = -1;
-	for (j = 0; j < cdrom_toc_entries; j++) {
-		uae_u32 addr;
-		s = buf + 4 + j * 11;
-		d = &cdrom_toc_buffer[j * 13];
-		addr = msf2lsn ((s[8] << 16) | (s[9] << 8) | (s[10] << 0));
-		d[1] = (s[1] >> 4) | (s[1] << 4);
-		d[3] = s[3] < 100 ? tobcd(s[3]) : s[3];
-		d[8] = tobcd (s[8]);
-		d[9] = tobcd (s[9]);
-		d[10] = tobcd (s[10]);
-		if (s[3] == 1 && (s[1] & 0x0c) == 0x04)
+	for (j = 0; j < th->points; j++) {
+		struct cd_toc *s = &th->toc[j];
+		uae_u8 *d = &cdrom_toc_buffer[j * 13];
+		int addr = s->paddress;
+		int msf = lsn2msf (addr);
+		if (s->point == 0xa0 || s->point == 0xa1)
+			msf = s->track << 16;
+		d[1] = (s->adr << 0) | (s->control << 4);
+		d[3] = s->point < 100 ? tobcd (s->point) : s->point;
+		d[8] = tobcd ((msf >> 16) & 0xff);
+		d[9] = tobcd ((msf >> 8) & 0xff);
+		d[10] = tobcd ((msf >> 0) & 0xff);
+		if (s->point == 1 && (s->control & 0x0c) == 0x04)
 			datatrack = 1;
-		if (s[3] == 2)
+		if (s->point == 2)
 			secondtrack = addr;
-		if (s[3] == 0xa2)
-			cdrom_leadout = addr;
 	}
-	cdrom_toc_crc = get_crc32(cdrom_toc_buffer, cdrom_toc_entries * 13);
+	cdrom_toc_crc = get_crc32 (cdrom_toc_buffer, cdrom_toc_cd_buffer.points * 13);
 	if (datatrack) {
 		if (secondtrack)
 			cdrom_data_end = secondtrack;
 		else
-			cdrom_data_end = cdrom_leadout;
+			cdrom_data_end = cdrom_toc_cd_buffer.lastaddress;
 	}
 	return 0;
 }
@@ -682,21 +673,21 @@ static int sys_cddev_open (void)
 		opened[unitnum] = 0;
 		if (sys_command_open (DF_IOCTL, unitnum)) {
 			opened[unitnum] = 1;
-			di2 = sys_command_info (DF_IOCTL, unitnum, &di1);
+			di2 = sys_command_info (DF_IOCTL, unitnum, &di1, 0);
 			if (di2 && di2->type == INQ_ROMD) {
 				write_log (L"%s: ", di2->label);
 				if (first < 0)
 					first = unitnum;
-				if (!cdrom_toc ()) {
+				if (!get_cdrom_toc ()) {
 					if (cdrom_data_end > 0) {
-						uae_u8 *p = sys_command_cd_read (DF_IOCTL, unitnum, 16);
+						uae_u8 *p = sys_command_cd_read (DF_IOCTL, unitnum, NULL, 16, 1);
 						if (p) {
 							if (!memcmp (p + 8, "CDTV", 4) || !memcmp (p + 8, "CD32", 4)) {
 								uae_u32 crc;
 								write_log (L"CD32 or CDTV");
 								if (cd32unit < 0)
 									cd32unit = unitnum;
-								p = sys_command_cd_read (DF_IOCTL, unitnum, 21);
+								p = sys_command_cd_read (DF_IOCTL, unitnum, NULL, 21, 1);
 								crc = get_crc32 (p, 2048);
 								if (crc == 0xe56c340f)
 									write_log (L" [CD32.TM]");
@@ -731,7 +722,7 @@ static int sys_cddev_open (void)
 	}
 	if (unitnum < 0)
 		return 1;
-	di2 = sys_command_info (DF_IOCTL, unitnum, &di1);
+	di2 = sys_command_info (DF_IOCTL, unitnum, &di1, 0);
 	if (!di2) {
 		write_log (L"unit %d info failed\n", unitnum);
 		sys_command_close (DF_IOCTL, unitnum);
@@ -785,7 +776,7 @@ static void cdrom_return_data (void)
 	}
 	put_byte (cmd_buf + ((cdcomrxinx + len) & 0xff), checksum);
 #if AKIKO_DEBUG_IO_CMD
-	write_log (L"%02X\n", checksum);
+	write_log (L"(%02X)\n", checksum);
 #endif
 	cdcomrxinx += len + 1;
 	cdcomrxinx &= 0xff;
@@ -812,7 +803,11 @@ static int cdrom_command_led (void)
 static int cdrom_command_media_status (void)
 {
 	cdrom_result_buffer[0] = 0x0a;
-	cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0) > 0 ? 0x83: 0x80;
+	if (cd_hunt) {
+		cdrom_result_buffer[1] = 0x80;
+	} else {
+		cdrom_result_buffer[1] = sys_command_ismedia (DF_IOCTL, unitnum, 0) > 0 ? 0x83: 0x80;
+	}
 	return 2;
 }
 
@@ -822,7 +817,7 @@ static int cdrom_command_status (void)
 	cdrom_result_buffer[1] = 0x01;
 	//cdrom_result_buffer[1] = 0x80; door open
 	if (unitnum >= 0)
-		cdrom_toc ();
+		get_cdrom_toc ();
 	/* firmware info */
 	memcpy (cdrom_result_buffer + 2, FIRMWAREVERSION, sizeof FIRMWAREVERSION);
 	cdrom_result_buffer[0] = cdrom_command;
@@ -834,17 +829,18 @@ static int cdrom_command_status (void)
 static int cdrom_return_toc_entry (void)
 {
 	cdrom_result_buffer[0] = 6;
-	if (cdrom_toc_entries == 0) {
+	if (cdrom_toc_cd_buffer.points == 0) {
 		cdrom_result_buffer[1] = CDS_ERROR;
 		return 15;
 	}
 	cdrom_result_buffer[1] = 0;
 	memcpy (cdrom_result_buffer + 2, cdrom_toc_buffer + cdrom_toc_counter * 13, 13);
 	cdrom_toc_counter++;
-	if (cdrom_toc_counter >= cdrom_toc_entries)
+	if (cdrom_toc_counter >= cdrom_toc_cd_buffer.points)
 		cdrom_toc_counter = -1;
 	return 15;
 }
+
 static int checkerr (void)
 {
 	if (!cdrom_disk) {
@@ -854,9 +850,21 @@ static int checkerr (void)
 	return 0;
 }
 
+static int cdrom_command_stop (void)
+{
+	cdrom_audiotimeout = 0;
+	cdrom_result_buffer[0] = cdrom_command;
+	if (checkerr ())
+		return 2;
+	cdrom_result_buffer[1] = 0;
+	write_comm_pipe_u32 (&requests, 0x0104, 1);
+	return 2;
+}
+
 /* pause CD audio */
 static int cdrom_command_pause (void)
 {
+	cdrom_audiotimeout = 0;
 	cdrom_toc_counter = -1;
 	cdrom_result_buffer[0] = cdrom_command;
 	if (checkerr ())
@@ -866,8 +874,7 @@ static int cdrom_command_pause (void)
 		return 2;
 	if (cdrom_paused)
 		return 2;
-	cdrom_audiotimeout = 0;
-	write_comm_pipe_u32 (&requests, 0x102, 1);
+	write_comm_pipe_u32 (&requests, 0x0102, 1);
 	cdrom_paused = 1;
 	return 2;
 }
@@ -884,15 +891,15 @@ static int cdrom_command_unpause (void)
 	if (!cdrom_playing)
 		return 2;
 	cdrom_paused = 0;
-	write_comm_pipe_u32 (&requests, 0x103, 1);
+	write_comm_pipe_u32 (&requests, 0x0103, 1);
 	return 2;
 }
 
 /* seek	head/play CD audio/read	data sectors */
 static int cdrom_command_multi (void)
 {
-	int seekpos = fromlongbcd (cdrom_command_buffer + 1);
-	int endpos = fromlongbcd (cdrom_command_buffer + 4);
+	int seekpos = msf2lsn (fromlongbcd (cdrom_command_buffer + 1));
+	int endpos = msf2lsn (fromlongbcd (cdrom_command_buffer + 4));
 
 	if (cdrom_playing)
 		cdaudiostop ();
@@ -904,9 +911,9 @@ static int cdrom_command_multi (void)
 		return 2;
 	}
 
-	if (cdrom_command_buffer[7] == 0x80) {    /* data read */
-		int cdrom_data_offset_end = msf2lsn (endpos);
-		cdrom_data_offset = msf2lsn (seekpos);
+	if (cdrom_command_buffer[7] == 0x80) { /* data read */
+		int cdrom_data_offset_end = endpos;
+		cdrom_data_offset = seekpos;
 		cdrom_seek_delay = abs (cdrom_current_sector - cdrom_data_offset);
 		if (cdrom_seek_delay < 100) {
 			cdrom_seek_delay = 1;
@@ -949,13 +956,19 @@ static int cdrom_command_multi (void)
 	return 2;
 }
 
+static int cdrom_playend_notify (void)
+{
+	cdrom_result_buffer[0] = 4;
+	cdrom_result_buffer[1] = 0x80;
+	return 2;
+}
+
 /* return subq entry */
 static int cdrom_command_subq (void)
 {
 	cdrom_result_buffer[0] = cdrom_command;
 	cdrom_result_buffer[1] = 0;
-	if (cd_qcode (cdrom_result_buffer + 2))
-		cdrom_result_buffer[1] = CDS_ERROR;
+	cd_qcode (cdrom_result_buffer + 2);
 	return 15;
 }
 
@@ -1027,6 +1040,9 @@ static void cdrom_run_command_run (void)
 	memset (cdrom_result_buffer, 0, sizeof (cdrom_result_buffer));
 	switch (cdrom_command & 0x0f)
 	{
+	case 1:
+		len = cdrom_command_stop ();
+		break;
 	case 2:
 		len = cdrom_command_pause ();
 		break;
@@ -1120,7 +1136,6 @@ static void cdrom_run_read (void)
 		cdrom_sector_counter++;
 }
 
-static uae_sem_t akiko_sem;
 static int lastmediastate = 0;
 
 static void akiko_handler (void)
@@ -1129,24 +1144,28 @@ static void akiko_handler (void)
 		return;
 	if (!cd_initialized || cdrom_receive_started)
 		return;
-#if 0
-	if (cdrom_result_complete > cdcomrxcmp && cdrom_result_complete - cdcomrxcmp < 100) {
-		//set_status (CDINTERRUPT_RXDMADONE);
-		return;
-	}
-	if (cdcomrxcmp < cdrom_result_complete)
-		return;
-#endif
+
 	if (mediachanged) {
 		mediachanged = 0;
 		cdrom_start_return_data (cdrom_command_media_status ());
-		if (!lastmediastate)
-			cd_hunt = 1;
-		cdrom_toc ();
+		get_cdrom_toc ();
 		/* do not remove! first try may fail */
-		cdrom_toc ();
+		get_cdrom_toc ();
 		return;
 	}
+	if (cdrom_audiotimeout == -1) { // play finished (or disk end)
+		if (cdrom_playing) {
+			write_comm_pipe_u32 (&requests, 0x0104, 1);
+			cdrom_audiotimeout = -2;
+		} else {
+			cdrom_audiotimeout = 0;
+		}
+	}
+	if (cdrom_audiotimeout == -2 && qcode_buf[1] != AUDIO_STATUS_IN_PROGRESS) {
+		cdrom_start_return_data (cdrom_playend_notify ());
+		cdrom_audiotimeout = 0;
+	}
+
 	if (cdrom_toc_counter >= 0 && !cdrom_command_active && cdrom_dosomething) {
 		cdrom_start_return_data (cdrom_return_toc_entry ());
 		cdrom_dosomething--;
@@ -1191,23 +1210,22 @@ static void do_hunt (void)
 	}
 	if (sys_command_open (DF_IOCTL, i) > 0) {
 		struct device_info di = { 0 };
-		sys_command_info (DF_IOCTL, i, &di);
+		sys_command_info (DF_IOCTL, i, &di, 0);
 		unitnum = i;
 		cd_hunt = 0;
+		lastmediastate = -1;
 		write_log (L"CD32: autodetected unit %d ('%s')\n", unitnum, di.label);
 	}
 }
 
 void AKIKO_hsync_handler (void)
 {
-	static int framecounter;
-
 	if (!currprefs.cs_cd32cd || !akiko_inited)
 		return;
 
 	if (cd_hunt) {
 		static int huntcnt;
-		if (huntcnt <= 0) {
+		if (huntcnt <= 0 && !mediachanged) {
 			do_hunt ();
 			huntcnt = 312 * 50 * 2;
 		}
@@ -1216,7 +1234,6 @@ void AKIKO_hsync_handler (void)
 
 	framecounter--;
 	if (framecounter <= 0) {
-		int i;
 		if (cdrom_led) {
 			if (cdrom_playing)
 				cdrom_led |= LED_CD_AUDIO;
@@ -1230,17 +1247,31 @@ void AKIKO_hsync_handler (void)
 			cdrom_seek_delay--;
 		}
 		framecounter = 1000000 / (63 * 75 * cdrom_speed);
-		if (cdrom_flags & CDFLAG_SUBCODE) {
-			set_status (CDINTERRUPT_SUBCODE);
-			if (cdrom_subcodeoffset >= 128)
-				cdrom_subcodeoffset = 0;
-			else
-				cdrom_subcodeoffset = 128;
-			for (i = 0; i < 100; i += 4) {
-				put_long (subcode_address + cdrom_subcodeoffset, 0);
-				cdrom_subcodeoffset += 4;
+	}
+
+	subcodecounter--;
+	if (subcodecounter <= 0) {
+		if ((cdrom_flags & CDFLAG_SUBCODE) && subcodebufferoffset != subcodebufferoffsetw) {
+			uae_sem_wait (&sub_sem);
+			if (subcodebufferinuse[subcodebufferoffset]) {
+				if (cdrom_subcodeoffset >= 128)
+					cdrom_subcodeoffset = 0;
+				else
+					cdrom_subcodeoffset = 128;
+				// 96 byte subchannel data
+				for (int i = 0; i < SUB_CHANNEL_SIZE; i++)
+					put_byte (subcode_address + cdrom_subcodeoffset + i, subcodebuffer[subcodebufferoffset * SUB_CHANNEL_SIZE + i]);
+				put_long (subcode_address + cdrom_subcodeoffset + SUB_CHANNEL_SIZE, 0xffffffff);
+				subcodebufferinuse[subcodebufferoffset] = 0;
+				cdrom_subcodeoffset += 100;
+				subcodebufferoffset++;
+				if (subcodebufferoffset >= MAX_SUBCODEBUFFER)
+					subcodebufferoffset -= MAX_SUBCODEBUFFER;
+				set_status (CDINTERRUPT_SUBCODE);
 			}
+			uae_sem_post (&sub_sem);
 		}
+		subcodecounter = 1000000 / (70 * 75 * cdrom_speed);
 	}
 
 	if (frame2counter > 0)
@@ -1248,17 +1279,12 @@ void AKIKO_hsync_handler (void)
 	if (mediacheckcounter > 0)
 		mediacheckcounter--;
 
-	if (cdrom_playing) {
-		if (cdrom_audiotimeout > 0) {
-			cdrom_audiotimeout--;
-			if (cdrom_audiotimeout == 0) {
-				set_status (CDINTERRUPT_RXDMADONE);
-				cdrom_playing = 0;
-				cdrom_result_buffer[1] = 0;
-				cdrom_start_return_data (2);
-			}
-		}
+	if (cdrom_audiotimeout > 0) {
+		cdrom_audiotimeout--;
+		if (cdrom_audiotimeout == 0)
+			cdrom_audiotimeout = -1;
 	}
+
 	akiko_internal ();
 	akiko_handler ();
 }
@@ -1300,20 +1326,16 @@ static void *akiko_thread (void *null)
 		}
 
 		if (frame2counter <= 0) {
-			uae_u8 *s;
 			frame2counter = 312 * 50 / 2;
-			s = sys_command_cd_qcode (DF_IOCTL, unitnum);
-			if (s) {
-				uae_u8 as = s[1];
-				memcpy (qcode_buf, s, sizeof qcode_buf);
+			if (sys_command_cd_qcode (DF_IOCTL, unitnum, qcode_buf)) {
+				uae_u8 as = qcode_buf[1];
 				qcode_valid = 1;
 				if (as == AUDIO_STATUS_IN_PROGRESS) {
-					int lsn = msf2lsn ((s[5 + 4] << 16) | (s[6 + 4] << 8) | (s[7 + 4] << 0));
-					//write_log("%d %d (%d %d)\n", lsn, msf2lsn (last_play_end) - lsn, cdrom_leadout, msf2lsn (last_play_end));
+					frame2counter /= 4;
+					int lsn = msf2lsn (fromlongbcd (qcode_buf + 4 + 7));
 					// make sure audio play really ends because not all drives report position accurately
-					if ((lsn >= cdrom_leadout - 3 * 75 || lsn >= msf2lsn(last_play_end) - 3 * 75) && !cdrom_audiotimeout) {
+					if ((lsn >= cdrom_toc_cd_buffer.lastaddress - 3 * 75 || lsn >= last_play_end - 3 * 75) && cdrom_audiotimeout == 0) {
 						cdrom_audiotimeout = 3 * 312;
-						//write_log("audiotimeout starts\n");
 					}
 				}
 			}
@@ -1323,11 +1345,13 @@ static void *akiko_thread (void *null)
 			mediacheckcounter = 312 * 50 * 2;
 			int media = sys_command_ismedia (DF_IOCTL, unitnum, 1);
 			if (media < 0) {
-				cd_hunt = 1;
-				write_log (L"CD32: device unit %d lost\n", unitnum);
-				media = lastmediastate = cdrom_disk = 0;
-				mediachanged = 1;
-				cdaudiostop_do ();
+				if (!cd_hunt) {
+					cd_hunt = 1;
+					write_log (L"CD32: device unit %d lost\n", unitnum);
+					media = lastmediastate = cdrom_disk = 0;
+					mediachanged = 1;
+					cdaudiostop_do ();
+				}
 			} else if (media != lastmediastate) {
 				write_log (L"CD32: media changed = %d (hunt=%d)\n", media, cd_hunt);
 				lastmediastate = cdrom_disk = media;
@@ -1353,7 +1377,7 @@ static void *akiko_thread (void *null)
 				while (offset < SECTOR_BUFFER_SIZE) {
 					p = 0;
 					if (sector < cdrom_data_end)
-						p = sys_command_cd_read (DF_IOCTL, unitnum, sector);
+						p = sys_command_cd_read (DF_IOCTL, unitnum, NULL, sector, 1);
 					if (p)
 						memcpy (sector_buffer_2 + offset * 2048, p, 2048);
 					sector_buffer_info_2[offset] = p ? 3 : 0;
@@ -1626,6 +1650,12 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 			cdrom_sector_counter = 0;
 		if (!(cdrom_flags & CDFLAG_PBX) && (tmp & CDFLAG_PBX))
 			cdrom_pbx = 0;
+		if ((cdrom_flags & CDFLAG_SUBCODE) && !(tmp & CDFLAG_SUBCODE)) {
+			uae_sem_wait (&sub_sem);
+			memset (subcodebufferinuse, 0, sizeof subcodebufferinuse);
+			subcodebufferoffset = subcodebufferoffsetw = 0;
+			uae_sem_post (&sub_sem);
+		}
 		break;
 		} else if (addr < 0x30) {
 			break;
@@ -1737,7 +1767,7 @@ int akiko_init (void)
 {
 	if (currprefs.cs_cd32cd && cdromok == 0) {
 		unitnum = -1;
-		if (!device_func_init (DEVICE_TYPE_ANY)) {
+		if (!device_func_init (DEVICE_TYPE_IOCTL)) {
 			write_log (L"no CDROM support\n");
 			return 0;
 		}
@@ -1752,6 +1782,7 @@ int akiko_init (void)
 		}
 	}
 	uae_sem_init (&akiko_sem, 0, 1);
+	uae_sem_init (&sub_sem, 0, 1);
 	if (!savestate_state) {
 		cdrom_playing = cdrom_paused = 0;
 		cdrom_data_offset = -1;
@@ -1808,16 +1839,16 @@ uae_u8 *save_akiko (int *len)
 	save_u32 ((cdrom_playing ? 1 : 0) | (cdrom_paused ? 2 : 0) | (cdrom_disk ? 4 : 0));
 	if (cdrom_playing)
 		cd_qcode (0);
-	save_u32 (last_play_pos);
-	save_u32 (last_play_end);
+	save_u32 (lsn2msf (last_play_pos));
+	save_u32 (lsn2msf (last_play_end));
 	save_u8 ((uae_u8)cdrom_toc_counter);
 
 	save_u8 (cdrom_speed);
 	save_u8 (cdrom_current_sector);
 
 	save_u32 (cdrom_toc_crc);
-	save_u8 (cdrom_toc_entries);
-	save_u32 (cdrom_leadout);
+	save_u8 (cdrom_toc_cd_buffer.points);
+	save_u32 (cdrom_toc_cd_buffer.lastaddress);
 
 	*len = dst - dstbak;
 	return dstbak;
@@ -1876,8 +1907,8 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	if (v & 2)
 		cdrom_paused = 1;
 
-	last_play_pos = restore_u32 ();
-	last_play_end = restore_u32 ();
+	last_play_pos = msf2lsn (restore_u32 ());
+	last_play_end = msf2lsn (restore_u32 ());
 	cdrom_toc_counter = (uae_s8)restore_u8 ();
 	cdrom_speed = restore_u8 ();
 	cdrom_current_sector = (uae_s8)restore_u8 ();
@@ -1895,7 +1926,7 @@ void restore_akiko_finish (void)
 		return;
 	akiko_init ();
 	akiko_c2p_do ();
-	cdrom_toc ();
+	get_cdrom_toc ();
 	write_comm_pipe_u32 (&requests, 0x0102, 1); // pause
 	write_comm_pipe_u32 (&requests, 0x0104, 1); // stop
 	write_comm_pipe_u32 (&requests, 0x0103, 1); // unpause

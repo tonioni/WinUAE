@@ -7,7 +7,7 @@
 * Copyright 1995-2001 Bernd Schmidt
 * Copyright 2000-2003 Toni Wilen
 *
-* High Density Drive Handling by Dr. Adil Temel (C) 2001 [atemel1@hotmail.com]
+* Original High Density Drive Handling by Dr. Adil Temel (C) 2001 [atemel1@hotmail.com]
 *
 */
 
@@ -91,10 +91,6 @@ static uae_u8 writebuffer[544 * MAX_SECTORS];
 #define DSKREADY_TIME 4
 #define DSKREADY_DOWN_TIME 10
 
-#if 0
-#define MAX_DISK_WORDS_PER_LINE 50 /* depends on floppy_speed */
-static uae_u32 dma_tab[MAX_DISK_WORDS_PER_LINE + 1];
-#endif
 static int dskdmaen, dsklength, dsklength2, dsklen;
 static uae_u16 dskbytr_val;
 static uae_u32 dskpt;
@@ -2886,9 +2882,6 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 		bitoffset &= 15;
 		floppybits -= drv->trackspeed;
 	}
-#if 0
-	dma_tab[j] = 0xffffffff;
-#endif
 }
 
 static void disk_dma_debugmsg (void)
@@ -2896,24 +2889,6 @@ static void disk_dma_debugmsg (void)
 	write_log (L"LEN=%04X (%d) SYNC=%04X PT=%08X ADKCON=%04X PC=%08X\n",
 		dsklength, dsklength, (adkcon & 0x400) ? dsksync : 0xffff, dskpt, adkcon, M68K_GETPC);
 }
-
-#if 0
-/* disk DMA fetch happens on real Amiga at the beginning of next horizontal line
-(cycles 9, 11 and 13 according to hardware manual) We transfer all DMA'd
-data at cycle 0. I don't think any program cares about this small difference.
-*/
-static void dodmafetch (void)
-{
-	int i;
-
-	i = 0;
-	while (dma_tab[i] != 0xffffffff && dskdmaen != 3 && (dmacon & 0x210) == 0x210) {
-		put_word (dskpt, dma_tab[i++]);
-		dskpt += 2;
-	}
-	dma_tab[0] = 0xffffffff;
-}
-#endif
 
 /* this is very unoptimized. DSKBYTR is used very rarely, so it should not matter. */
 
@@ -3360,9 +3335,6 @@ void DISK_init (void)
 {
 	int dr;
 
-#if 0
-	dma_tab[0] = 0xffffffff;
-#endif
 	for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 		drive *drv = &floppy[dr];
 		/* reset all drive types to 3.5 DD */

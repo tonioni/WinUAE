@@ -844,7 +844,7 @@ void rp_fixup_options (struct uae_prefs *p)
 		for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
 			if ((1 << i) & cd_mask) {
 				struct device_info di = { 0 };
-				if (sys_command_info (DF_IOCTL, i, &di))
+				if (sys_command_info (DF_IOCTL, i, &di, 0))
 					rp_cd_image_change (i, di.mediapath);
 			}
 		}

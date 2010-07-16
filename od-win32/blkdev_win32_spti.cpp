@@ -3,7 +3,7 @@
 *
 * WIN32 CDROM/HD low level access code (SPTI)
 *
-* Copyright 2002-2005 Toni Wilen
+* Copyright 2002-2010 Toni Wilen
 *
 */
 
@@ -514,7 +514,7 @@ static int getid (int unitnum)
 	return dev_info[unitnum].drvletter ? dev_info[unitnum].drvletter : unitnum + 1;
 }
 
-static struct device_info *info_device (int unitnum, struct device_info *di)
+static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
 {
 	struct dev_info_spti *dispti;
 	if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
@@ -547,7 +547,7 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 			if (now != dev_info[i].mediainserted) {
 				write_log (L"SPTI: media change %c %d\n", dev_info[i].drvletter, insert);
 				dev_info[i].mediainserted = now;
-				scsi_do_disk_change (getid (i), insert);
+				scsi_do_disk_change (getid (i), insert, NULL);
 #ifdef RETROPLATFORM
 				rp_cd_image_change (i, dev_info[i].drvletter ? dev_info[i].drvlettername : dev_info[i].name);
 #endif

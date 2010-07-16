@@ -573,6 +573,8 @@ void restore_state (const TCHAR *filename)
 #ifdef CDTV
 		else if (!_tcscmp (name, L"CDTV"))
 			end = restore_cdtv (chunk);
+		else if (!_tcscmp (name, L"DMAC"))
+			end = restore_dmac (chunk);
 #endif
 		else if (!_tcscmp (name, L"GAYL"))
 			end = restore_gayle (chunk);
@@ -832,6 +834,9 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	xfree (dst);
 #endif
 #ifdef CDTV
+	dst = save_dmac (&len);
+	save_chunk (f, dst, len, L"DMAC", 0);
+	xfree (dst);
 	dst = save_cdtv (&len);
 	save_chunk (f, dst, len, L"CDTV", 0);
 	xfree (dst);

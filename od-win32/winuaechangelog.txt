@@ -1,5 +1,69 @@
 
 
+- most debugger options now accept .b, .w and .l size extension (+special .3 if 3-byte word),
+  old style separate size values (1, 2, 3 or 4) not supported anymore
+- debugger 'w' memory freeze mode improved, now also works with copper writes,
+  word and long size freeze values work properly
+- fixed right border corruption when horizontal centering enabled
+- filesystem access problems fixed (b2, forgotten test code..)
+- another "too fast CPU" hack re-added to audio code
+- quickstart "disk image requires ks2.0+" message ignored A3000/A4000/CD32 configurations
+- skip DMAL emulation in JIT modes
+- rawinput supports rawinput packets that have zero scancode but virtual keycode set or
+  null device handle (for example some software injected keys and some keyboard media keys),
+  packets with null device handle are redirected to new "winuae null keyboard"
+
+Major updates in CD related options, IOCTL access, built-in image mounter, CD32, CDTV,
+uaescsi.device:
+
+- cd rom image and IOCTL handling rewritten, unified toc and subchannel data structures
+- cd drive/image selection added to harddrives panel (quickstart duplicate, temporary
+  location until real CD selection panel is done.. if ever..)  Use this to switch images
+  and drives on the fly, report if switching causes crashes or weird behavior.
+  NOTE: only unit 0 supported in uaescsi.device mode, other units are immediately put
+  to "no disk" state when this option is used for the first time.
+- quickstart/harddrives CD "image mode" selected with blank select box: enable image
+  drive without media
+- always use IOCTL in CD32/CDTV modes
+- only enumarate SPTI devices when uaescsi.device is enabled
+- subchannel support added to IOCTL CDROM handling (CD+G)
+- CloneCD (.ccd) CD image file support added, including subchannel files
+- CD32 CD subchannel DMA channel emulated, CD+G audio CDs supported
+- CD32 CD end of play notification only worked if play command was last packet sent
+- many CD32 and CDTV on the fly drive/image/media change updates again
+- CDTV statefile support added
+- CDTV 6525 (CIA-like 3-port IO chip/interrupt controller) emulation rewritten
+- CDTV CD subchannel hardware emulated (CD+G, see notes below)
+- added CDTV front panel CD player buttons to input event list (they directly control
+  CD mechanism and they are the only buttons that work in CD+G mode)
+- "regular" CDTV remote Play/Stop/etc.. input events emulate front panel buttons when CD drive
+  receives enable front panel command, sends "normal" keycodes when frontpanel is disabled
+- simple SCSI emulation added to image mounter in uaescsi.device mode (no CD audio support yet)
+  simple means: CDFS in SCSI mode should work with mounted images now, nothing more.
+  (TEST UNIT READY, READ [6,10,12], READ TOC, INQUIRY, READ CAPACITY emulated. Audio CD commands
+  will be implemented in later betas)
+- added SCSI emulation option to SCSI GUI panel, enables SCSI emulation when using real drives
+- uaescsi.device mounted image file changed without CMD_ADDCHANGEINT or CMD_REMOVE media change
+  interrups: use long 8 second media change delay (CDFS default poll time is ~5s)
+
+CD+G notes:
+
+Some subchannel packets will be lost if emulation slows down too much.
+CD+G confirmed working, CD+MIDI should also work but not tested.
+
+CD32 CD+G mode starts automatically, button also in main audio CD screen.
+
+CDTV needs extra steps: In audio CD player screen select "TV/Keyboard" icon in bottom
+right corner, then press front panel Play-button, only front panel buttons are accepted
+at this point. NOTE: CDTV CD+G does not (yet) work in cycle-exact mode.
+
+CD32 and CDTV do not correctly handle all CD+G discs, it seems both miss first few subchannel
+packets at the beginning.. Confirmed on real CD32 and CDTV. They do work in emulation
+if playback start position is about 1s earlier than asked but this hack is disabled
+because it can cause cd audio sync issues in games.
+
+Beta 2:
+
 - CD32/CDTV image mounting broke in b1 (can still be broken in some situations)
 - new audio state machine emulation froze in some situations
 - re-added "too fast CPU" hack that fixes missing sounds with sound routines that use CPU loops

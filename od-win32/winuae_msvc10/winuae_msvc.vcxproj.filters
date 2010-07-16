@@ -481,6 +481,9 @@
     <ClCompile Include="..\..\cpuemu_21.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\mp3decoder.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

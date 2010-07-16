@@ -12,12 +12,13 @@ uaecptr scsidev_startup (uaecptr resaddr);
 void scsidev_install (void);
 void scsidev_reset (void);
 void scsidev_start_threads (void);
-int scsi_do_disk_change (int device_id, int insert);
+int scsi_do_disk_change (int device_id, int insert, int *pollmode);
 int scsi_do_disk_device_change (void);
 
 extern int log_scsi;
 
 #ifdef _WIN32
+#define UAESCSI_CDEMU 0
 #define UAESCSI_SPTI 1
 #define UAESCSI_SPTISCAN 2
 #define UAESCSI_ASPI_FIRST 3

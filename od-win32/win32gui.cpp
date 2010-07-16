@@ -95,7 +95,7 @@
 #define USS_FORMAT_STRING_SAVE L"(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING L"(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING L"(*.inp)\0*.inp\0"
-#define  CD_FORMAT_STRING L"(*.cue;*.iso)\0*.cue;*.iso;" ARCHIVE_STRING L"\0"
+#define  CD_FORMAT_STRING L"(*.cue;*.ccd;*.iso)\0*.cue;*.ccd;*.iso;" ARCHIVE_STRING L"\0"
 #define CONFIG_HOST L"Host"
 #define CONFIG_HARDWARE L"Hardware"
 
@@ -151,6 +151,9 @@ static TCHAR quickstart_cddrive[16];
 static int quickstart_ok, quickstart_ok_floppy;
 static void addfloppytype (HWND hDlg, int n);
 static void addfloppyhistory (HWND hDlg);
+static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type);
+static void addcdtype (HWND hDlg, int id);
+static void getfloppyname (HWND hDlg, int n, int cd, int f_text);
 
 static int C_PAGES;
 #define MAX_C_PAGES 30
@@ -1917,20 +1920,48 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 	return FALSE;
 }
 
-static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
+static void eject_cd (void)
+{
+	workprefs.cdimagefile[0] = 0;
+	quickstart_cddrive[0] = 0;
+	workprefs.cdimagefileuse = false;
+	if (full_property_sheet) {
+		quickstart_cdtype = 0;
+	} else {
+		if (quickstart_cdtype > 0) {
+			quickstart_cdtype = 1;
+			workprefs.cdimagefileuse = true;
+		}
+	}
+}
+
+static void ejectfloppy (int n)
+{
+	if (iscd (n)) {
+		eject_cd ();
+	} else {
+		workprefs.df[n][0] = 0;
+	}
+}
+
+static void selectcd (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
 {
 	SetDlgItemText (hDlg, id, full_path);
+	if (quickstart_cddrive[0])
+		eject_cd ();
+	_tcscpy (prefs->cdimagefile, full_path);
+	DISK_history_add (full_path, -1, HISTORY_CD, 0);
+}
+
+static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
+{
 	if (iscd (num)) {
-		if (quickstart_cddrive[0]) {
-			quickstart_cdtype = 0;
-			quickstart_cddrive[0] = 0;
-		}
-		_tcscpy (prefs->cdimagefile, full_path);
-		DISK_history_add (full_path, -1, HISTORY_CD, 0);
-	} else {
-		_tcscpy(prefs->df[num], full_path);
-		DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+		selectcd (prefs, hDlg, num, id, full_path);
+		return;
 	}
+	SetDlgItemText (hDlg, id, full_path);
+	_tcscpy(prefs->df[num], full_path);
+	DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
 }
 
 
@@ -2248,6 +2279,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				}
 			}
 			SetDlgItemText (hDlg, wParam, full_path);
+			break;
+		case IDC_CD_SELECT:
+			selectcd (prefs, hDlg, 0, IDC_CD_TEXT, full_path);
 			break;
 		case IDC_DF0:
 		case IDC_DF0QQ:
@@ -4777,6 +4811,7 @@ static void init_quickstartdlg (HWND hDlg)
 			workprefs.df[2][0] = 0;
 			workprefs.df[3][0] = 0;
 			workprefs.cdimagefile[0] = 0;
+			workprefs.cdimagefileuse = quickstart_cdtype > 0;
 			load_quickstart (hDlg, 1);
 			quickstarthost (hDlg, hostconf);
 		}
@@ -4907,7 +4942,7 @@ static void testimage (HWND hDlg, int num)
 		break;
 	case 11:
 		quickstart_ok_floppy = 1;
-		if (quickstart_model != 1 && quickstart_model != 2 && quickstart_model != 4) {
+		if (quickstart_model != 1 && quickstart_model != 2 && quickstart_model != 4 && quickstart_model != 5 && quickstart_model != 6 && quickstart_model != 8) {
 			quickstart_model = 4;
 			messageid = IDS_IMGCHK_KS2;
 			reload = 1;
@@ -5021,8 +5056,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 						SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, WM_GETTEXT, (WPARAM)len, (LPARAM)quickstart_cddrive);
 						_tcscpy (workprefs.cdimagefile, quickstart_cddrive);
 					} else {
-						workprefs.cdimagefile[0] = 0;
-						quickstart_cddrive[0] = 0;
+						eject_cd ();
+						quickstart_cdtype = val;
 					}
 					addfloppytype (hDlg, 1);
 					addfloppyhistory (hDlg);
@@ -7175,12 +7210,13 @@ extern const TCHAR *get_aspi_path (int);
 static void misc_scsi (HWND hDlg)
 {
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SCSI Emulation");
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI *");
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)L"SPTI + SCSI SCAN");
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (0)) ? L"AdaptecASPI" : L"(AdaptecASPI)"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (1)) ? L"NeroASPI" : L"(NeroASPI)"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (2)) ? L"FrogASPI" : L"(FrogASPI)"));
-	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode - 1, 0);
+	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
 }
 
 static void misc_lang (HWND hDlg)
@@ -7409,7 +7445,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				case IDC_SCSIMODE:
 					v = SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR)
-						workprefs.win32_uaescsimode = v + 1;
+						workprefs.win32_uaescsimode = v;
 					break;
 				}
 			}
@@ -9059,9 +9095,21 @@ static ACCEL HarddiskAccel[] = {
 	{ 0, 0, 0 }
 };
 
-static void harddiskdlg_button (HWND hDlg, int button)
+static void harddiskdlg_button (HWND hDlg, WPARAM wParam)
 {
+	int button = LOWORD (wParam);
 	switch (button) {
+	case IDC_CD_SELECT:
+		DiskSelection (hDlg, wParam, 17, &workprefs, NULL);
+		quickstart_cdtype = 1;
+		workprefs.cdimagefileuse = true;
+		addcdtype (hDlg, IDC_CD_TYPE);
+		break;
+	case IDC_CD_EJECT:
+		eject_cd ();
+		SetDlgItemText (hDlg, IDC_CD_TEXT, L"");
+		addcdtype (hDlg, IDC_CD_TYPE);
+		break;
 	case IDC_NEW_FS:
 		current_fsvdlg = empty_fsvdlg;
 		archivehd = 0;
@@ -9200,6 +9248,8 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_REMOVABLE, workprefs.win32_automount_removabledrives);
 		CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 		CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
+		addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+		addcdtype (hDlg, IDC_CD_TYPE);
 		InitializeListView (hDlg);
 		hilitehd ();
 		break;
@@ -9222,21 +9272,55 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		}
 
 	case WM_COMMAND:
-		switch (LOWORD(wParam))
-		{
-		case 10001:
-			clicked_entry--;
-			hilitehd ();
+		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+			switch (LOWORD (wParam))
+			{
+			case IDC_CD_TEXT:
+			getfloppyname (hDlg, 0, 1, IDC_CD_TEXT);
+			quickstart_cdtype = 1;
+			workprefs.cdimagefileuse = true;
+			addcdtype (hDlg, IDC_CD_TYPE);
+			addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
 			break;
-		case 10002:
-			clicked_entry++;
-			hilitehd ();
+			case IDC_CD_TYPE:
+			int val = SendDlgItemMessage (hDlg, IDC_CD_TYPE, CB_GETCURSEL, 0, 0);
+			if (val != CB_ERR) {
+				quickstart_cdtype = val;
+				if (quickstart_cdtype >= 2) {
+					int len = sizeof quickstart_cddrive / sizeof (TCHAR);
+					quickstart_cdtype = 2;
+					workprefs.cdimagefileuse = true;
+					SendDlgItemMessage (hDlg, IDC_CD_TYPE, WM_GETTEXT, (WPARAM)len, (LPARAM)quickstart_cddrive);
+					_tcscpy (workprefs.cdimagefile, quickstart_cddrive);
+				} else {
+					eject_cd ();
+					quickstart_cdtype = val;
+					if (val > 0)
+						workprefs.cdimagefileuse = true;
+
+				}
+				addcdtype (hDlg, IDC_CD_TYPE);
+				addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+			}
 			break;
-		default:
-			harddiskdlg_button (hDlg, LOWORD (wParam));
-			InitializeListView (hDlg);
-			hilitehd ();
-			break;
+			}
+		} else {
+			switch (LOWORD(wParam))
+			{
+			case 10001:
+				clicked_entry--;
+				hilitehd ();
+				break;
+			case 10002:
+				clicked_entry++;
+				hilitehd ();
+				break;
+			default:
+				harddiskdlg_button (hDlg, wParam);
+				InitializeListView (hDlg);
+				hilitehd ();
+				break;
+			}
 		}
 		break;
 
@@ -9305,23 +9389,21 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 	SendMessage (ToolTipHWND, TTM_ADDTOOL, 0, (LPARAM) (LPTOOLINFO) &ti);
 }
 
-static void addfloppyhistory_2 (HWND hDlg, int n, int f_text)
+static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type)
 {
 	int i, j;
 	TCHAR *s, *text;
 	UAEREG *fkey;
-	int nn, type, curidx;
+	int nn, curidx;
 
 	if (f_text < 0)
 		return;
 	SendDlgItemMessage (hDlg, f_text, CB_RESETCONTENT, 0, 0);
-	if (iscd (n)) {
+	if (type == HISTORY_CD) {
 		nn = 1;
-		type = HISTORY_CD;
 		text = workprefs.cdimagefile;
 	} else {
 		nn = workprefs.dfxtype[n] + 1;
-		type = HISTORY_FLOPPY;
 		text = workprefs.df[n];
 	}
 	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
@@ -9387,18 +9469,38 @@ static void addfloppyhistory (HWND hDlg)
 			f_text = floppybuttons[n][0];
 		else
 			f_text = IDC_DISKTEXT;
-		addfloppyhistory_2 (hDlg, n, f_text);
+		addfloppyhistory_2 (hDlg, n, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY);
 	}
 }
 
-static void ejectfloppy (int n)
+static void addcdtype (HWND hDlg, int id)
 {
-	if (iscd (n)) {
-		workprefs.cdimagefile[0] = 0;
-		quickstart_cdtype = 0;
-	} else {
-		workprefs.df[n][0] = 0;
+	TCHAR tmp[MAX_DPATH];
+	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
+	WIN32GUI_LoadUIString (IDS_QS_CD_AUTO, tmp, sizeof tmp / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	WIN32GUI_LoadUIString (IDS_QS_CD_IMAGE, tmp, sizeof tmp / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	int cdtype = quickstart_cdtype;
+	if (currentpage != QUICKSTART_ID) {
+		if (full_property_sheet && !workprefs.cdimagefileuse && !workprefs.cdimagefile[0])
+			cdtype = 0;
 	}
+	int cnt = 2;
+	for (int drive = 'C'; drive <= 'Z'; ++drive) {
+		TCHAR vol[100];
+		_stprintf (vol, L"%c:\\", drive);
+		int drivetype = GetDriveType (vol);
+		if (drivetype == DRIVE_CDROM) {
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)vol);
+			if (!_tcsicmp (vol, quickstart_cddrive)) {
+				cdtype = quickstart_cdtype = cnt;
+				_tcscpy (workprefs.cdimagefile, vol);
+			}
+			cnt++;
+		}
+	}
+	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, cdtype, 0);
 }
 
 static void addfloppytype (HWND hDlg, int n)
@@ -9437,29 +9539,7 @@ static void addfloppytype (HWND hDlg, int n)
 			ew (hDlg, f_enable, FALSE);
 			WIN32GUI_LoadUIString (IDS_QS_CD, tmp, sizeof tmp / sizeof (TCHAR));
 			SetWindowText (GetDlgItem (hDlg, f_enable), tmp);
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_RESETCONTENT, 0, 0L);
-			WIN32GUI_LoadUIString (IDS_QS_CD_AUTO, tmp, sizeof tmp / sizeof (TCHAR));
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			WIN32GUI_LoadUIString (IDS_QS_CD_IMAGE, tmp, sizeof tmp / sizeof (TCHAR));
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			quickstart_cdtype = 0;
-			if (workprefs.cdimagefile[0])
-				quickstart_cdtype = 1;
-			int cnt = 2;
-			for (int drive = 'C'; drive <= 'Z'; ++drive) {
-				TCHAR vol[100];
-				_stprintf (vol, L"%c:\\", drive);
-				int drivetype = GetDriveType (vol);
-				if (drivetype == DRIVE_CDROM) {
-					SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_ADDSTRING, 0, (LPARAM)vol);
-					if (!_tcsicmp (vol, quickstart_cddrive)) {
-						quickstart_cdtype = cnt;
-						_tcscpy (workprefs.cdimagefile, vol);
-					}
-					cnt++;
-				}
-			}
-			SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_SETCURSEL, quickstart_cdtype, 0);
+			addcdtype (hDlg, IDC_CD0Q_TYPE);
 			hide (hDlg, IDC_CD0Q_TYPE, 0);
 			text = workprefs.cdimagefile;
 			regsetstr (NULL, L"QuickStartCDDrive", quickstart_cdtype >= 2 ? quickstart_cddrive : L"");
@@ -9580,10 +9660,8 @@ static int getfloppybox (HWND hDlg, int f_text, TCHAR *out, int maxlen, int type
 	return out[0] ? 1 : 0;
 }
 
-static void getfloppyname (HWND hDlg, int n)
+static void getfloppyname (HWND hDlg, int n, int cd, int f_text)
 {
-	int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
-	int cd = iscd (n);
 	TCHAR tmp[MAX_DPATH];
 
 	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR), cd ? HISTORY_CD : HISTORY_FLOPPY)) {
@@ -9591,13 +9669,17 @@ static void getfloppyname (HWND hDlg, int n)
 			disk_insert (n, tmp);
 			_tcscpy (workprefs.df[n], tmp);
 		} else {
-			if (quickstart_cddrive[0]) {
-				quickstart_cdtype = 0;
-				quickstart_cddrive[0] = 0;
-			}
+			if (quickstart_cddrive[0])
+				eject_cd ();
 			_tcscpy (workprefs.cdimagefile, tmp);
 		}
 	}
+}
+static void getfloppyname (HWND hDlg, int n)
+{
+	int cd = iscd (n);
+	int f_text = currentpage == QUICKSTART_ID ? floppybuttonsq[n][0] : floppybuttons[n][0];
+	getfloppyname (hDlg, n, cd, f_text);
 }
 
 static void addallfloppies (HWND hDlg)
@@ -10165,7 +10247,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 static PRINTER_INFO_1 *pInfo = NULL;
 static DWORD dwEnumeratedPrinters = 0;
 #define MAX_PRINTERS 10
-struct serialportinfo comports[MAX_SERIAL_PORTS];
+struct serparportinfo comports[MAX_SERPAR_PORTS];
 static int ghostscript_available;
 
 static int joyxprevious[4];
@@ -10549,7 +10631,7 @@ static void values_to_portsdlg (HWND hDlg)
 	} else {
 		int i;
 		LRESULT result = -1;
-		for (i = 0; i < MAX_SERIAL_PORTS && comports[i].name; i++) {
+		for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
 			if (!_tcscmp (comports[i].dev, workprefs.sername)) {
 				result = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L);
 				break;
@@ -10605,7 +10687,7 @@ static void init_portsdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	for (port = 0; port < MAX_SERIAL_PORTS && comports[port].name; port++) {
+	for (port = 0; port < MAX_SERPAR_PORTS && comports[port].name; port++) {
 		SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port].name);
 	}
 

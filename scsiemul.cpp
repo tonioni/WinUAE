@@ -79,7 +79,7 @@ static uae_sem_t change_sem;
 
 static struct device_info *devinfo (int mode, int unitnum, struct device_info *di)
 {
-	return sys_command_info (mode, unitnum, di);
+	return sys_command_info (mode, unitnum, di, 0);
 }
 
 static void io_log (const TCHAR *msg, uaecptr request)
@@ -302,7 +302,7 @@ static int scsiemul_switchscsi (const TCHAR *name)
 		while (i < MAX_TOTAL_DEVICES && dev == NULL) {
 			discsi = 0;
 			if (sys_command_open (mode, i)) {
-				discsi = sys_command_info (mode, i, &discsi2);
+				discsi = sys_command_info (mode, i, &discsi2, 0);
 				if (discsi && discsi->type == INQ_ROMD) {
 					if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
 						dev = &devst[0];
@@ -319,7 +319,7 @@ static int scsiemul_switchscsi (const TCHAR *name)
 						}
 						if (dev->di.media_inserted) {
 							dev->di.media_inserted = 0;
-							scsi_do_disk_change (dev->di.id, 1);
+							scsi_do_disk_change (dev->di.id, 1, NULL);
 						}
 					}
 				}
@@ -342,10 +342,10 @@ static int scsiemul_switchemu (const TCHAR *name)
 		return -1;
 	int opened = sys_command_isopen (0);
 	if (sys_command_open (DF_IOCTL, 0)) {
-		if (discsi = sys_command_info (DF_IOCTL, 0, &discsi2)) {
+		if (discsi = sys_command_info (DF_IOCTL, 0, &discsi2, 0)) {
 			dev = &devst[0];
 			dev->unitnum = 0;
-			dev->allow_scsi = 0;
+			dev->allow_scsi = 1;
 			dev->allow_ioctl = 1;
 			dev->drivetype = discsi->type;
 			memcpy (&dev->di, discsi, sizeof (struct device_info));
@@ -374,7 +374,8 @@ int scsi_do_disk_device_change (void)
 }
 
 // device_id = -1 and insert==0 -> all medias going away
-int scsi_do_disk_change (int device_id, int insert)
+// pollmode is 1 if no change interrupts found -> increase time of media change
+int scsi_do_disk_change (int device_id, int insert, int *pollmode)
 {
 	int i, j, ret;
 
@@ -387,6 +388,8 @@ int scsi_do_disk_change (int device_id, int insert)
 		if (dev->di.id == device_id || (device_id < 0 && i == 0)) {
 			ret = i;
 			if ((dev->di.media_inserted > 0 && insert == 0) || (dev->di.media_inserted <= 0 && insert)) {
+				if (pollmode)
+					*pollmode = 1;
 				if (dev->aunit >= 0) {
 					struct priv_devstruct *pdev = &pdevst[dev->aunit];
 					devinfo (pdev->mode, dev->unitnum, &dev->di);
@@ -398,11 +401,16 @@ int scsi_do_disk_change (int device_id, int insert)
 				while (j < MAX_ASYNC_REQUESTS) {
 					if (dev->d_request_type[j] == ASYNC_REQUEST_CHANGEINT) {
 						uae_Cause (dev->d_request_data[j]);
+						if (pollmode)
+							*pollmode = 0;
 					}
 					j++;
 				}
-				if (dev->changeint)
+				if (dev->changeint) {
 					uae_Cause (dev->changeint);
+					if (pollmode)
+						*pollmode = 0;
+				}
 			}
 		}
 	}
@@ -483,7 +491,7 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 
 	length /= blocksize;
 	offset /= blocksize;
 	while (length > 0) {
-		temp = sys_command_read (mode, dev->unitnum, offset);
+		temp = sys_command_read (mode, dev->unitnum, NULL, offset, 1);
 		if (!temp)
 			return 20;
 		memcpyha_safe (data, temp, blocksize);
@@ -499,14 +507,14 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64
 	uae_u32 blocksize = dev->di.bytespersector;
 	struct device_scsi_info dsi;
 
-	if (!sys_command_scsi_info(mode, dev->unitnum, &dsi))
+	if (!sys_command_scsi_info (mode, dev->unitnum, &dsi))
 		return 20;
 	length /= blocksize;
 	offset /= blocksize;
 	while (length > 0) {
 		int err;
 		memcpyah_safe (dsi.buffer, data, blocksize);
-		err = sys_command_write (mode, dev->unitnum, offset);
+		err = sys_command_write (mode, dev->unitnum, NULL, offset, 1);
 		if (!err)
 			return 20;
 		if (err < 0)
@@ -530,7 +538,7 @@ static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, uae_u
 	offset -= startoffset;
 	sector = offset / dev->di.bytespersector;
 	while (length > 0) {
-		temp = sys_command_cd_read (mode, dev->unitnum, sector);
+		temp = sys_command_cd_read (mode, dev->unitnum, NULL, sector, 1);
 		if (!temp)
 			return 20;
 		if (startoffset > 0) {
@@ -928,7 +936,7 @@ static void dev_reset (void)
 				}
 			}
 			if (mode >= 0) {
-				discsi = sys_command_info (mode, j, &discsi2);
+				discsi = sys_command_info (mode, j, &discsi2, 0);
 				sys_command_close (mode, j);
 			}
 			if (discsi) {

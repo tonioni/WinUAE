@@ -487,8 +487,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, L"config_host_path", p->config_host_path);
 
 	for (sl = p->all_lines; sl; sl = sl->next) {
-		if (sl->unknown)
-			cfgfile_write_str (f, sl->option, sl->value);
+		if (sl->unknown) {
+			if (sl->option)
+				cfgfile_write_str (f, sl->option, sl->value);
+		}
 	}
 
 	_stprintf (tmp, L"%s.rom_path", TARGET_NAME);
@@ -552,7 +554,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
-	if (p->cdimagefile[0])
+	if (p->cdimagefile[0] || p->cdimagefileuse)
 		cfgfile_write_str (f, L"cdimage0", p->cdimagefile);
 
 	if (p->quitstatefile[0])
@@ -917,7 +919,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	if (_tcscmp (option, name) != 0)
 		return 0;
 	/* I guess octal isn't popular enough to worry about here...  */
-	if (value[0] == '0' && value[1] == 'x')
+	if (value[0] == '0' && _totupper (value[1]) == 'X')
 		value += 2, base = 16;
 	*location = _tcstol (value, &endptr, base) * scale;
 
@@ -2430,8 +2432,17 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	while (cfg_fgets (linea, sizeof (linea), fh) != 0) {
 		trimwsa (linea);
 		if (strlen (linea) > 0) {
-			if (linea[0] == '#' || linea[0] == ';')
+			if (linea[0] == '#' || linea[0] == ';') {
+				struct strlist *u = xcalloc (struct strlist, 1);
+				u->option = NULL;
+				TCHAR *com = au (linea);
+				u->value = my_strdup (com);
+				xfree (com);
+				u->unknown = 1;
+				u->next = p->all_lines;
+				p->all_lines = u;
 				continue;
+			}
 			if (!cfgfile_separate_linea (linea, line1b, line2b))
 				continue;
 			type1 = type2 = 0;

@@ -33,22 +33,23 @@ void serialuartbreak (int);
 extern void unload_ghostscript (void);
 extern int load_ghostscript (void);
 
-#define MAX_SERIAL_PORTS 32
-struct serialportinfo
+#define MAX_SERPAR_PORTS 32
+struct serparportinfo
 {
     TCHAR *dev;
     TCHAR *cfgname;
     TCHAR *name;
 };
-extern struct serialportinfo comports[MAX_SERIAL_PORTS];
+extern struct serparportinfo comports[MAX_SERPAR_PORTS];
+extern struct serparportinfo parports[MAX_SERPAR_PORTS];
 
 extern int enumserialports (void);
 extern void sernametodev (TCHAR*);
 extern void serdevtoname (TCHAR*);
 
-extern void epson_printchar(uae_u8 c);
-extern int epson_init(const TCHAR *printername, int pins);
-extern void epson_close(void);
+extern void epson_printchar (uae_u8 c);
+extern int epson_init (const TCHAR *printername, int pins);
+extern void epson_close (void);
 
 #define PARALLEL_MATRIX_TEXT 1
 #define PARALLEL_MATRIX_EPSON 2

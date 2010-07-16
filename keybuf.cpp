@@ -42,6 +42,7 @@ int get_next_key (void)
 	key = keybuf[kpb_last];
 	if (++kpb_last == 256)
 		kpb_last = 0;
+	//write_log (L"%02x:%d\n", key >> 1, key & 1);
 	return key;
 }
 

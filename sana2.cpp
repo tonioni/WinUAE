@@ -229,11 +229,6 @@ static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
 static uae_sem_t change_sem, async_sem;
 
-static struct device_info *devinfo (int mode, int unitnum, struct device_info *di)
-{
-	return sys_command_info (mode, unitnum, di);
-}
-
 static struct devstruct *getdevstruct (int unit)
 {
 	if (unit >= MAX_TOTAL_NET_DEVICES || unit < 0)

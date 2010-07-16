@@ -371,6 +371,8 @@ struct uae_prefs {
 	int win32_kbledmode;
 	TCHAR win32_commandpathstart[MAX_DPATH];
 	TCHAR win32_commandpathend[MAX_DPATH];
+	TCHAR win32_parjoyport0[MAX_DPATH];
+	TCHAR win32_parjoyport1[MAX_DPATH];
 
 	bool statecapture;
 	int statecapturerate, statecapturebuffersize;

@@ -2533,7 +2533,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	}
 }
 
-static const TCHAR *scsimode[] = { L"none", L"SPTI", L"SPTI+SCSISCAN", L"AdaptecASPI", L"NeroASPI", L"FrogASPI", 0 };
+static const TCHAR *scsimode[] = { L"SCSIEMU", L"SPTI", L"SPTI+SCSISCAN", L"AdaptecASPI", L"NeroASPI", L"FrogASPI", 0 };
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
@@ -2594,6 +2594,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, L"powersavedisabled", p->win32_powersavedisabled);
 	cfgfile_target_dwrite_str (f, L"exec_before", p->win32_commandpathstart);
 	cfgfile_target_dwrite_str (f, L"exec_after", p->win32_commandpathend);
+	cfgfile_target_dwrite_str (f, L"parjoyport0", p->win32_parjoyport0);
+	cfgfile_target_dwrite_str (f, L"parjoyport1", p->win32_parjoyport1);
 
 }
 
@@ -2660,6 +2662,8 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"powersavedisabled", &p->win32_powersavedisabled)
 		|| cfgfile_string (option, value, L"exec_before", p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"exec_after", p->win32_commandpathend, sizeof p->win32_commandpathend / sizeof (TCHAR))
+		|| cfgfile_string (option, value, L"parjoyport0", p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof (TCHAR))
+		|| cfgfile_string (option, value, L"parjoyport1", p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 		|| cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)

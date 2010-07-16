@@ -1860,6 +1860,7 @@ struct zfile *zfile_dup (struct zfile *zf)
 		nzf->zipname = my_strdup (zf->zipname);
 	nzf->zfdmask = zf->zfdmask;
 	nzf->mode = my_strdup (zf->mode);
+	nzf->size = zf->size;
 	return nzf;
 }
 

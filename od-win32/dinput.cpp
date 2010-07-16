@@ -38,6 +38,7 @@
 #ifdef WINDDK
 #include <winioctl.h>
 #include <ntddkbd.h>
+#include <ntddpar.h>
 #endif
 #include <setupapi.h>
 #include <devguid.h>
@@ -57,6 +58,7 @@
 #define DIDC_RAW 2
 #define DIDC_WIN 3
 #define DIDC_CAT 4
+#define DIDC_PARJOY 5
 
 struct didata {
 	int type;
@@ -77,6 +79,9 @@ struct didata {
 	int catweasel;
 	int coop;
 
+	HANDLE parjoy;
+	PAR_QUERY_INFORMATION oldparjoystatus;
+
 	int axles;
 	int buttons, buttons_real;
 	int axismappings[MAX_MAPPINGS];
@@ -90,6 +95,8 @@ struct didata {
 	int axisparent[MAX_MAPPINGS];
 	int axisparentdir[MAX_MAPPINGS];
 };
+
+#define MAX_PARJOYPORTS 2
 
 #define DI_BUFFER 30
 #define DI_KBBUFFER 50
@@ -550,6 +557,53 @@ static int initialize_tablet (void)
 #endif
 }
 
+#if 0
+static int initialize_parjoyport (void)
+{
+	for (int i = 0; i < MAX_PARJOYPORTS && num_joystick < MAX_INPUT_DEVICES; i++) {
+		struct didata *did;
+		TCHAR *p = i ? currprefs.win32_parjoyport1 : currprefs.win32_parjoyport0;
+		if (p[0] == 0)
+			continue;
+		HANDLE ph = CreateFile (p, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+		if (ph == INVALID_HANDLE_VALUE) {
+			write_log (L"PARJOY: '%s' failed to open: %u\n", p, GetLastError ());
+			continue;
+		}
+		write_log (L"PARJOY: '%s' open\n", p);
+		for (int j = 0; j < 2; j++) {
+			TCHAR tmp[100];
+			did = di_joystick;
+			did += num_joystick;
+			cleardid(did);
+			did->connection = DIDC_PARJOY;
+			did->parjoy = ph;
+			_stprintf (tmp, L"Parallel joystick %d.%d", i + 1, j + 1);
+			did->name = my_strdup (tmp);
+			did->sortname = my_strdup (tmp);
+			_stprintf (tmp, L"PARJOY%d.%d", i, j);
+			did->configname = my_strdup (tmp);
+			did->buttons = did->buttons_real = 1;
+			did->axles = 2;
+			did->axissort[0] = 0;
+			did->axisname[0] = my_strdup (L"X-Axis");
+			did->axissort[1] = 1;
+			did->axisname[1] = my_strdup (L"Y-Axis");
+			for (j = 0; j < did->buttons; j++) {
+				did->buttonsort[j] = j;
+				_stprintf (tmp, L"Button %d", j + 1);
+				did->buttonname[j] = my_strdup (tmp);
+			}
+			did->priority = -1;
+			fixbuttons (did);
+			fixthings (did);
+			num_joystick++;
+		}
+	}
+	return 0;
+}
+#endif
+
 static int initialize_catweasel (void)
 {
 	int j, i;
@@ -595,7 +649,7 @@ static int initialize_catweasel (void)
 			did->sortname = my_strdup (tmp);
 			_stprintf (tmp, L"CWJOY%d", i);
 			did->configname = my_strdup (tmp);
-			did->buttons = did->buttons_real =(catweasel_isjoystick() & 0x80) ? 3 : 1;
+			did->buttons = did->buttons_real = (catweasel_isjoystick () & 0x80) ? 3 : 1;
 			did->axles = 2;
 			did->axissort[0] = 0;
 			did->axisname[0] = my_strdup (L"X-Axis");
@@ -757,6 +811,29 @@ static void getvidpid (const TCHAR *devname, int *vid, int *pid, int *mi)
 	getvidpid2 (devname, mi, L"MI_");
 }
 
+static void addrkblabels (struct didata *did)
+{
+	int j = 0;
+	for (int k = 0; k < 254; k++) {
+		TCHAR tmp[100];
+		tmp[0] = 0;
+		if (rawkeyboardlabels[j] != NULL) {
+			if (rawkeyboardlabels[j][0]) {
+				_tcscpy (tmp, rawkeyboardlabels[j]);
+				j++;
+			}
+		} else {
+			j++;
+		}
+		if (!tmp[0])
+			_stprintf (tmp, L"KEY_%02X", k + 1);
+		did->buttonname[k] = my_strdup (tmp);
+		did->buttonmappings[k] = k + 1;
+		did->buttonsort[k] = k + 1;
+		did->buttons++;
+	}
+}
+
 static int initialize_rawinput (void)
 {
 	RAWINPUTDEVICELIST *ridl = 0;
@@ -833,7 +910,7 @@ static int initialize_rawinput (void)
 					continue;
 				if (rnum_kb < 2)
 					continue;
-				if (num_keyboard >= MAX_INPUT_DEVICES - 1)
+				if (num_keyboard >= MAX_INPUT_DEVICES)
 					continue;
 				did += num_keyboard;
 				num_keyboard++;
@@ -896,32 +973,26 @@ static int initialize_rawinput (void)
 				}
 				did->priority = -1;
 			} else {
-				int j;
 				PRID_DEVICE_INFO_KEYBOARD rdik = &rdi->keyboard;
 				write_log (L"type=%d sub=%d mode=%d fkeys=%d indicators=%d tkeys=%d\n",
 					rdik->dwType, rdik->dwSubType, rdik->dwKeyboardMode,
 					rdik->dwNumberOfFunctionKeys, rdik->dwNumberOfIndicators, rdik->dwNumberOfKeysTotal);
-				j = 0;
-				for (int k = 0; k < 254; k++) {
-					TCHAR tmp[100];
-					tmp[0] = 0;
-					if (rawkeyboardlabels[j] != NULL) {
-						if (rawkeyboardlabels[j][0]) {
-							_tcscpy (tmp, rawkeyboardlabels[j]);
-							j++;
-						}
-					} else {
-						j++;
-					}
-					if (!tmp[0])
-						_stprintf (tmp, L"KEY_%02X", k + 1);
-					did->buttonname[k] = my_strdup (tmp);
-					did->buttonmappings[k] = k + 1;
-					did->buttonsort[k] = k + 1;
-					did->buttons++;
-				}
+				addrkblabels (did);
 			}
 		}
+	}
+
+	if (rnum_kb	&& num_keyboard < MAX_INPUT_DEVICES - 1) {
+		struct didata *did = di_keyboard + num_keyboard;
+		num_keyboard++;
+		rkb++;
+		did->name = my_strdup (L"WinUAE null keyboard");
+		did->rawinput = NULL;
+		did->connection = DIDC_RAW;
+		did->sortname = my_strdup (L"NULLKEYBOARD");
+		did->priority = -2;
+		did->configname = my_strdup (L"NULLKEYBOARD");
+		addrkblabels (did);
 	}
 
 	rawinputfriendlynames ();
@@ -997,10 +1068,11 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 	if (raw->header.dwType == RIM_TYPEMOUSE) {
 		PRAWMOUSE rm = &raw->data.mouse;
+		HANDLE h = raw->header.hDevice;
 
 		for (num = 0; num < num_mouse; num++) {
 			did = &di_mouse[num];
-			if (did->rawinput == raw->header.hDevice)
+			if (did->rawinput == h)
 				break;
 		}
 #ifdef DI_DEBUG_RAWINPUT
@@ -1082,6 +1154,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 	} else if (raw->header.dwType == RIM_TYPEKEYBOARD) {
 		PRAWKEYBOARD rk = &raw->data.keyboard;
+		HANDLE h = raw->header.hDevice;
 		int scancode = rk->MakeCode & 0x7f;
 		int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
@@ -1098,17 +1171,29 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		// eat E1 extended keys
 		if (rk->Flags & (RI_KEY_E1))
 			return;
+		if (scancode == 0) {
+			scancode = MapVirtualKey (rk->VKey, MAPVK_VK_TO_VSC);
+#ifdef DI_DEBUG_RAWINPUT
+			write_log (L"VK->CODE: %x\n", scancode);
+#endif
+		}
 		if (rk->VKey == 0xff || (rk->Flags & RI_KEY_E0))
 			scancode |= 0x80;
 		if (rk->MakeCode == KEYBOARD_OVERRUN_MAKE_CODE)
 			return;
-		if (scancode == 0xaa)
+		if (scancode == 0xaa || scancode == 0)
 			return;
 
 		for (num = 0; num < num_keyboard; num++) {
 			did = &di_keyboard[num];
-			if (did->acquired && did->rawinput == raw->header.hDevice)
-				break;
+			if (did->connection != DIDC_RAW)
+				continue;
+			if (did->acquired) {
+				if (did->rawinput == h)
+					break;
+				if (h == NULL && num_keyboard == 1)
+					break;
+			}
 		}
 		if (num == num_keyboard) {
 			if (!istest && scancode == DIK_F12 && pressed && isfocus ())
@@ -1484,10 +1569,13 @@ static void di_dev_free (struct didata *did)
 {
 	if (did->lpdi)
 		IDirectInputDevice8_Release (did->lpdi);
+	if (did->parjoy != INVALID_HANDLE_VALUE)
+		CloseHandle (did->parjoy);
 	xfree (did->name);
 	xfree (did->sortname);
 	xfree (did->configname);
 	memset (did, 0, sizeof (struct didata));
+	did->parjoy = INVALID_HANDLE_VALUE;
 }
 
 static int di_do_init (void)
@@ -1534,6 +1622,8 @@ static int di_do_init (void)
 	initialize_windowsmouse ();
 	write_log (L"Catweasel joymouse initialization..\n");
 	initialize_catweasel ();
+//	write_log (L"Parallel joystick port initialization..\n");
+//	initialize_parjoyport ();
 	write_log (L"wintab tablet initialization..\n");
 	initialize_tablet ();
 	write_log (L"end\n");
@@ -2394,6 +2484,19 @@ static void read_joystick (void)
 					setjoybuttonstate (i, 0, cbuttons & 8);
 					setjoybuttonstate (i, 1, cbuttons & 4);
 					setjoybuttonstate (i, 2, cbuttons & 2);
+				}
+			}
+			continue;
+		} else if (did->connection == DIDC_PARJOY) {
+			DWORD ret;
+			PAR_QUERY_INFORMATION inf;
+			ret = 0;
+			if (DeviceIoControl (did->parjoy, IOCTL_PAR_QUERY_INFORMATION, NULL, 0, &inf, sizeof inf, &ret, NULL)) {
+				write_log (L"PARJOY: IOCTL_PAR_QUERY_INFORMATION = %u\n", GetLastError ());
+			} else {
+				if (inf.Status != did->oldparjoystatus.Status) {
+					write_log (L"PARJOY: %08x\n", inf.Status);
+					did->oldparjoystatus.Status = inf.Status;
 				}
 			}
 			continue;

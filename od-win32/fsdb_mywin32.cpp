@@ -246,7 +246,6 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	DWORD CreationDisposition = OPEN_EXISTING;
 	DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 	DWORD attr;
-	wstring fname;
 
 	mos = xmalloc (struct my_openfile_s, 1);
 	if (!mos)
@@ -267,9 +266,7 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	if (CreationDisposition == CREATE_ALWAYS && attr != INVALID_FILE_ATTRIBUTES &&
 		(attr & (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)))
 		SetFileAttributes (name, FILE_ATTRIBUTE_NORMAL);
-	fname = L"\\\\?\\";
-	fname += name;
-	h = CreateFile (fname.c_str(), DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+	h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		DWORD err = GetLastError();
 		if (err == ERROR_ACCESS_DENIED && (DesiredAccess & GENERIC_WRITE)) {

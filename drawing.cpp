@@ -212,7 +212,7 @@ static int bplres;
 static int plf1pri, plf2pri, bplxor;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
-static int brdsprt, brdblank, brdblank_changed;
+static int brdsprt, brdblank, brdblank_changed, hposendblank;
 
 bool picasso_requested_on;
 bool picasso_on;
@@ -674,12 +674,21 @@ STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 	return v;
 }
 
+STATIC_INLINE xcolnr getbgc (void)
+{
+#if 0
+	if (hposendblank)
+		return xcolors[0xf00];
+#endif
+	return (brdblank || hposendblank) ? 0 : colors_for_drawing.acolors[0];
+}
+
 static void fill_line_16 (uae_u8 *buf, unsigned int start, unsigned int stop)
 {
 	uae_u16 *b = (uae_u16 *)buf;
 	unsigned int i;
 	unsigned int rem = 0;
-	xcolnr col = brdblank ? 0 : colors_for_drawing.acolors[0];
+	xcolnr col = getbgc ();
 	if (((long)&b[start]) & 1)
 		b[start++] = (uae_u16) col;
 	if (start >= stop)
@@ -700,7 +709,7 @@ static void fill_line_32 (uae_u8 *buf, unsigned int start, unsigned int stop)
 {
 	uae_u32 *b = (uae_u32 *)buf;
 	unsigned int i;
-	xcolnr col = brdblank ? 0 : colors_for_drawing.acolors[0];
+	xcolnr col = getbgc ();
 	for (i = start; i < stop; i++)
 		b[i] = col;
 }
@@ -714,7 +723,7 @@ static void pfield_do_fill_line (int start, int stop)
 	}
 }
 
-STATIC_INLINE void fill_line_2 (int startpos, int len, int blank)
+STATIC_INLINE void fill_line2 (int startpos, int len)
 {
 	int shift;
 	int nints, nrem;
@@ -731,16 +740,16 @@ STATIC_INLINE void fill_line_2 (int startpos, int len, int blank)
 	nrem = nints & 7;
 	nints &= ~7;
 	start = (int *)(((uae_u8*)xlinebuffer) + (startpos << shift));
-	val = blank ? 0 : colors_for_drawing.acolors[0];
+	val = getbgc ();
 	for (; nints > 0; nints -= 8, start += 8) {
 		*start = val;
-		*(start + 1) = val;
-		*(start + 2) = val;
-		*(start + 3) = val;
-		*(start + 4) = val;
-		*(start + 5) = val;
-		*(start + 6) = val;
-		*(start + 7) = val;
+		*(start+1) = val;
+		*(start+2) = val;
+		*(start+3) = val;
+		*(start+4) = val;
+		*(start+5) = val;
+		*(start+6) = val;
+		*(start+7) = val;
 	}
 
 	switch (nrem) {
@@ -761,15 +770,14 @@ STATIC_INLINE void fill_line_2 (int startpos, int len, int blank)
 	}
 }
 
-STATIC_INLINE void fill_line (void)
+static void fill_line (void)
 {
-	int endpos = visible_left_border + gfxvidinfo.width;
-	int endposh = coord_hw_to_window_x (hsyncstartpos * 2);
-	if (endpos < endposh) {
-		fill_line_2 (visible_left_border, gfxvidinfo.width, brdblank);
+	if (hsyncstartposnative > visible_left_border + gfxvidinfo.width || hposendblank) {
+		fill_line2 (visible_left_border, gfxvidinfo.width);
 	} else {
-		fill_line_2 (visible_left_border, endposh - visible_left_border, brdblank);
-		fill_line_2 (endposh, gfxvidinfo.width - endposh, 1);
+		fill_line2 (visible_left_border, hsyncstartposnative);
+		hposendblank = 1;
+		fill_line2 (visible_left_border + hsyncstartposnative, gfxvidinfo.width - hsyncstartposnative);
 	}
 }
 
@@ -1849,8 +1857,12 @@ static bool isham (uae_u16 bplcon0)
 	return 0;
 }
 
-static void pfield_expand_dp_bplcon2 (int regno, int v)
+static void pfield_expand_dp_bplconx (int regno, int v)
 {
+	if (regno == 0xffff) {
+		hposendblank = 1;
+		return;
+	}
 	regno -= 0x1000;
 	switch (regno)
 	{
@@ -1907,7 +1919,6 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 	int lastpos = visible_left_border;
 	int endpos = visible_left_border + gfxvidinfo.width;
 	int diff = 1 << lores_shift;
-	int endposh = coord_hw_to_window_x (hsyncstartpos * 2);
 
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;
@@ -1926,17 +1937,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 		if (nextpos_in_range > lastpos) {
 			if (lastpos < playfield_start) {
 				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
-				if (t == endpos) {
-					if (lastpos < endposh)
-						(*worker_border) (lastpos, endposh);
-					// start of hsync, blank the rest of display
-					int blank = brdblank;
-					brdblank = 1;
-					(*worker_border) (endposh, endpos);
-					brdblank = blank;
-				} else {
-					(*worker_border) (lastpos, t);
-				}
+				(*worker_border) (lastpos, t);
 				lastpos = t;
 			}
 		}
@@ -1948,23 +1949,13 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 			}
 		}
 		if (nextpos_in_range > lastpos) {
-			if (lastpos >= playfield_end) {
-				if (nextpos_in_range > endposh) {
-					(*worker_border) (lastpos, endposh);
-					// start of hsync, blank the rest of display
-					int blank = brdblank;
-					brdblank = 1;
-					(*worker_border) (endposh, nextpos_in_range);
-					brdblank = blank;
-				} else {
-					(*worker_border) (lastpos, nextpos_in_range);
-				}
-			}
+			if (lastpos >= playfield_end)
+				(*worker_border) (lastpos, nextpos_in_range);
 			lastpos = nextpos_in_range;
 		}
 		if (i != dip_for_drawing->last_color_change) {
 			if (regno >= 0x1000) {
-				pfield_expand_dp_bplcon2 (regno, value);
+				pfield_expand_dp_bplconx (regno, value);
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -1974,7 +1965,6 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 			break;
 	}
 }
-
 enum double_how {
 	dh_buf,
 	dh_line,
@@ -2748,22 +2738,24 @@ void finish_drawing_frame (void)
 		if (where2 < 0)
 			continue;
 
+		hposendblank = 0;
 		pfield_draw_line (line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
+
 
 	/* clear possible old garbage at the bottom if emulated area become smaller */
 	for (i = last_max_ypos; i < gfxvidinfo.height; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
 		int where2 = amiga2aspect_line_map[i1];
-		xcolnr tmp;
 
 		if (where2 >= gfxvidinfo.height)
 			break;
 		if (where2 < 0)
 			continue;
-		tmp = colors_for_drawing.acolors[0];
-		colors_for_drawing.acolors[0] = getxcolor (0);
+
+		hposendblank = i >= last_max_ypos + 16;
+
 		xlinebuffer = gfxvidinfo.linemem;
 		if (xlinebuffer == 0)
 			xlinebuffer = row_map[where2];
@@ -2771,7 +2763,6 @@ void finish_drawing_frame (void)
 		fill_line ();
 		linestate[line] = LINE_UNDECIDED;
 		do_flush_line (where2);
-		colors_for_drawing.acolors[0] = tmp;
 	}
 
 	if (currprefs.leds_on_screen) {

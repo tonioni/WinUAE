@@ -174,7 +174,8 @@ int maxhpos = MAXHPOS_PAL;
 int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" maxvpos in fake 60hz modes)
-int hsyncstartpos;
+static int hsyncstartpos;
+int hsyncstartposnative;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int equ_vblank_endline = EQU_ENDLINE_PAL;
@@ -2496,6 +2497,7 @@ static void finish_decisions (void)
 	decide_line (hpos);
 	decide_fetch (hpos);
 
+	record_color_change2 (hsyncstartpos, 0xffff, 0);
 	if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {
 		if (fetch_state != fetch_not_started) {
 			write_log (L"fetch_state=%d plfleft=%d,len=%d,vpos=%d,hpos=%d\n",
@@ -2803,8 +2805,9 @@ void init_hz (void)
 		else
 			hsyncstartpos = maxhpos + hbstrt;
 	} else {
-		hsyncstartpos = maxhpos_short + 7;
+		hsyncstartpos = maxhpos_short + 13;
 	}
+	hsyncstartposnative = coord_hw_to_window_x (hsyncstartpos * 2);
 	eventtab[ev_hsync].oldcycles = get_cycles ();
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
@@ -5344,6 +5347,8 @@ static void events_dmal (int hp)
 		}
 		event2_newevent2 (hp, dmal_hpos + ((dmal & 2) ? 1 : 0), dmal_func);
 		dmal &= ~3;
+	} else if (currprefs.cachesize) {
+		dmal_func2 (0);
 	} else {
 		event2_newevent2 (hp, 17, dmal_func2);
 	}

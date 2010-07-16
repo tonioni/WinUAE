@@ -977,7 +977,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	return io_error;
 }
 
-static struct device_info *info_device (int unitnum, struct device_info *di)
+static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
 {
 	struct scsi_info *sif = &si[unitnum];
 	if (unitnum >= unitcnt)
@@ -1008,7 +1008,7 @@ void win32_aspi_media_change (TCHAR driveletter, int insert)
 			if (now != si[i].mediainserted) {
 				write_log (L"ASPI: media change %c %d\n", driveletter, insert);
 				si[i].mediainserted = now;
-				scsi_do_disk_change (i + 1, insert);
+				scsi_do_disk_change (i + 1, insert, NULL);
 			}
 		}
 	}
