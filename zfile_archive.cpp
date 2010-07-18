@@ -196,6 +196,8 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 					if ((mask & ZFD_CD) && ft) {
 						if (ext && !_tcsicmp (ext, L".iso"))
 							whf = 2;
+						if (ext && !_tcsicmp (ext, L".ccd"))
+							whf = 9;
 						if (ext && !_tcsicmp (ext, L".cue"))
 							whf = 10;
 					}

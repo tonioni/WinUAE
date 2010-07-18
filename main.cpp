@@ -390,6 +390,7 @@ void fixup_prefs (struct uae_prefs *p)
 		p->maprom = 0x0f000000;
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
+	blkdev_fix_prefs (p);
 	target_fixup_options (p);
 }
 

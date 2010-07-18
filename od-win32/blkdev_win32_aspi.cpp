@@ -44,7 +44,7 @@ struct scsi_info {
 	int isatapi;
 	int removable;
 };
-static struct scsi_info si[MAX_TOTAL_DEVICES];
+static struct scsi_info si[MAX_TOTAL_SCSI_DEVICES];
 static int unitcnt;
 
 static int getversion(const TCHAR *name, VS_FIXEDFILEINFO *ver)
@@ -710,7 +710,7 @@ static void scan_scsi_bus (SCSI *scgp, int flags)
 
 					write_log (L"ASPI: %d:%d:%d '%s' '%s' '%s' ",
 						scgp->addr.scsibus,scgp->addr.target,scgp->addr.lun, vend, prod, rev);
-					if (unitcnt < MAX_TOTAL_DEVICES) {
+					if (unitcnt < MAX_TOTAL_SCSI_DEVICES) {
 						struct scsi_info *cis = &si[unitcnt];
 						int use = 0;
 						write_log (L"[");
@@ -820,15 +820,6 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 
 static SCSI *scsi_handle;
 
-static int check_scsi_bus (int flags)
-{
-	if (open_driver (NULL)) {
-		close_driver ();
-		return 1;
-	}
-	return 0;
-}
-
 static int open_scsi_bus (int flags)
 {
 	SCSI *scgp = openscsi (-1, -1, -1);
@@ -885,7 +876,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 	return 1;
 }
 
-static int open_scsi_device (int unitnum)
+static int open_scsi_device (int unitnum, const TCHAR *ident)
 {
 	if (unitnum >= unitcnt)
 		return 0;
@@ -982,13 +973,14 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	struct scsi_info *sif = &si[unitnum];
 	if (unitnum >= unitcnt)
 		return 0;
+	di->open = sif->handle != 0;
 	di->bus = sif->scsibus;
 	di->target = sif->target;
 	di->lun = sif->lun;
 	di->media_inserted = mediacheck (unitnum);
 	di->type = sif->type;
 	mediacheck_full (unitnum, di);
-	di->id = unitnum + 1;
+	di->unitnum = unitnum + 1;
 	di->removable = sif->removable;
 	_tcscpy (di->label, sif->label);
 	if (log_scsi) {
@@ -1019,15 +1011,9 @@ static int check_isatapi (int unitnum)
 	return si[unitnum].isatapi;
 }
 
-static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info *dsi)
-{
-	dsi->buffer = si[unitnum].buf;
-	dsi->bufsize = DEVICE_SCSI_BUFSIZE;
-	return dsi;
-}
-
 struct device_functions devicefunc_win32_aspi = {
-	check_scsi_bus, open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
+	L"ASPI",
+	open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
 	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
+	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, 0
 };

@@ -772,12 +772,13 @@ STATIC_INLINE void fill_line2 (int startpos, int len)
 
 static void fill_line (void)
 {
-	if (hsyncstartposnative > visible_left_border + gfxvidinfo.width || hposendblank) {
+	int hs = coord_hw_to_window_x (hsyncstartpos * 2);
+	if (hs > visible_left_border + gfxvidinfo.width || hposendblank) {
 		fill_line2 (visible_left_border, gfxvidinfo.width);
 	} else {
-		fill_line2 (visible_left_border, hsyncstartposnative);
+		fill_line2 (visible_left_border, hs);
 		hposendblank = 1;
-		fill_line2 (visible_left_border + hsyncstartposnative, gfxvidinfo.width - hsyncstartposnative);
+		fill_line2 (visible_left_border + hs, gfxvidinfo.width - hs);
 	}
 }
 
@@ -1918,7 +1919,6 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 	int i;
 	int lastpos = visible_left_border;
 	int endpos = visible_left_border + gfxvidinfo.width;
-	int diff = 1 << lores_shift;
 
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;

@@ -98,7 +98,7 @@ struct scsi_data *scsi_alloc(int id, struct hd_hardfiledata *hfd)
 struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 {
 	struct scsi_data *sd;
-	if (!sys_command_open (DF_SCSI, nativeunit)) {
+	if (!sys_command_open (nativeunit)) {
 		write_log (L"SCSI: native scsi unit %d failed to open\n", nativeunit);
 		return NULL;
 	}
@@ -118,7 +118,7 @@ void scsi_free(struct scsi_data *sd)
 	if (!sd)
 		return;
 	if (sd->nativescsiunit >= 0) {
-		sys_command_close (DF_SCSI, sd->nativescsiunit);
+		sys_command_close (sd->nativescsiunit);
 	}
 	xfree(sd);
 }

@@ -1225,23 +1225,23 @@ static void freenativescsi (void)
 static void addnativescsi (void)
 {
 	int i, j;
-	int devices[MAX_TOTAL_DEVICES];
-	int types[MAX_TOTAL_DEVICES];
-	struct device_info dis[MAX_TOTAL_DEVICES];
+	int devices[MAX_TOTAL_SCSI_DEVICES];
+	int types[MAX_TOTAL_SCSI_DEVICES];
+	struct device_info dis[MAX_TOTAL_SCSI_DEVICES];
 
 	freenativescsi ();
 	i = 0;
-	while (i < MAX_TOTAL_DEVICES) {
+	while (i < MAX_TOTAL_SCSI_DEVICES) {
 		types[i] = -1;
 		devices[i] = -1;
-		if (sys_command_open (DF_SCSI, i)) {
-			if (sys_command_info (DF_SCSI, i, &dis[i], 0)) {
+		if (sys_command_open (i)) {
+			if (sys_command_info (i, &dis[i], 0)) {
 				devices[i] = i;
 				types[i] = 100 - i;
 				if (dis[i].type == INQ_ROMD)
 					types[i] = 1000 - i;
 			}
-			sys_command_close (DF_SCSI, i);
+			sys_command_close (i);
 		}
 		i++;
 	}

@@ -21,6 +21,8 @@ struct strlist {
 	int unknown;
 };
 
+#define MAX_TOTAL_SCSI_DEVICES 8
+
 /* maximum number native input devices supported (single type) */
 #define MAX_INPUT_DEVICES 8
 /* maximum number of native input device's buttons and axles supported */
@@ -282,8 +284,9 @@ struct uae_prefs {
 	TCHAR sername[256];
 	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
-	TCHAR cdimagefile[MAX_DPATH];
-	bool cdimagefileuse;
+	TCHAR cdimagefile[MAX_TOTAL_SCSI_DEVICES][MAX_DPATH];
+	bool cdimagefileuse[MAX_TOTAL_SCSI_DEVICES];
+	int cdscsidevicetype[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 
 	TCHAR path_floppy[256];

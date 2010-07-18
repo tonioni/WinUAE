@@ -908,8 +908,6 @@ static int initialize_rawinput (void)
 			} else if (did == di_keyboard) {
 				if (rdpdevice (buf))
 					continue;
-				if (rnum_kb < 2)
-					continue;
 				if (num_keyboard >= MAX_INPUT_DEVICES)
 					continue;
 				did += num_keyboard;
@@ -985,7 +983,7 @@ static int initialize_rawinput (void)
 	if (rnum_kb	&& num_keyboard < MAX_INPUT_DEVICES - 1) {
 		struct didata *did = di_keyboard + num_keyboard;
 		num_keyboard++;
-		rkb++;
+		rnum_kb++;
 		did->name = my_strdup (L"WinUAE null keyboard");
 		did->rawinput = NULL;
 		did->connection = DIDC_RAW;
@@ -1196,9 +1194,15 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		}
 		if (num == num_keyboard) {
-			if (!istest && scancode == DIK_F12 && pressed && isfocus ())
-				inputdevice_add_inputcode (AKS_ENTERGUI, 1);
-			return;
+			for (num = 0; num < num_keyboard; num++) {
+				if (did->connection == DIDC_RAW && did->acquired && did->rawinput == NULL)
+					break;
+			}
+			if (num == num_keyboard) {
+				if (!istest && scancode == DIK_F12 && pressed && isfocus ())
+					inputdevice_add_inputcode (AKS_ENTERGUI, 1);
+				return;
+			}
 		}
 
 		if (rawkeystate[scancode] == pressed) {

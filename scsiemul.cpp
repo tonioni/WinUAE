@@ -41,13 +41,12 @@
 #define ASYNC_REQUEST_NONE 0
 #define ASYNC_REQUEST_TEMP 1
 #define ASYNC_REQUEST_CHANGEINT 10
+#define ASYNC_REQUEST_FRAMEINT 11
 
 struct devstruct {
 	int unitnum, aunit;
 	int opencnt;
 	int changenum;
-	int allow_scsi;
-	int allow_ioctl;
 	int drivetype;
 	int iscd;
 	volatile uaecptr d_request[MAX_ASYNC_REQUESTS];
@@ -55,6 +54,13 @@ struct devstruct {
 	volatile uae_u32 d_request_data[MAX_ASYNC_REQUESTS];
 	struct device_info di;
 	uaecptr changeint;
+	int changeint_mediastate;
+
+	int configblocksize;
+	int volumelevel;
+	int fadeframes;
+	int fadetarget;
+	int fadecounter;
 
 	smp_comm_pipe requests;
 	int thread_running;
@@ -65,21 +71,23 @@ struct priv_devstruct {
 	int inuse;
 	int unit;
 	int mode;
-	int scsi;
-	int ioctl;
-	int noscsi;
 	int type;
 	int flags; /* OpenDevice() */
 };
 
-static struct devstruct devst[MAX_TOTAL_DEVICES];
+static struct devstruct devst[MAX_TOTAL_SCSI_DEVICES];
 static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
 static uae_sem_t change_sem;
 
-static struct device_info *devinfo (int mode, int unitnum, struct device_info *di)
+static struct device_info *devinfo (struct devstruct *devst, struct device_info *di)
 {
-	return sys_command_info (mode, unitnum, di, 0);
+	struct device_info *dio = sys_command_info (devst->unitnum, di, 0);
+	if (dio) {
+		if (!devst->configblocksize)
+			devst->configblocksize = dio->bytespersector;
+	}	
+	return dio;
 }
 
 static void io_log (const TCHAR *msg, uaecptr request)
@@ -94,8 +102,9 @@ static void io_log (const TCHAR *msg, uaecptr request)
 static struct devstruct *getdevstruct (int unit)
 {
 	int i;
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-		if (unit >= 0 && devst[i].aunit == unit) return &devst[i];
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		if (unit >= 0 && devst[i].aunit == unit)
+			return &devst[i];
 	}
 	return 0;
 }
@@ -139,10 +148,7 @@ static void dev_close_3 (struct devstruct *dev, struct priv_devstruct *pdev)
 	if (!dev->opencnt) return;
 	dev->opencnt--;
 	if (!dev->opencnt) {
-		if (pdev->scsi)
-			sys_command_close (DF_SCSI, dev->unitnum);
-		if (pdev->ioctl)
-			sys_command_close (DF_IOCTL, dev->unitnum);
+		sys_command_close (dev->unitnum);
 		pdev->inuse = 0;
 		write_comm_pipe_u32 (&dev->requests, 0, 1);
 	}
@@ -183,13 +189,6 @@ static int openfail (uaecptr ioreq, int error)
 	return (uae_u32)-1;
 }
 
-static void setpdev (struct priv_devstruct *pdev, struct devstruct *dev)
-{
-	pdev->scsi = dev->allow_scsi ? 1 : 0;
-	pdev->ioctl = dev->allow_scsi ? 0 : 1;
-	pdev->mode = dev->allow_scsi ? DF_SCSI : DF_IOCTL;
-}
-
 static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 {
 	uaecptr ioreq = m68k_areg (regs, 1);
@@ -201,23 +200,17 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 
 	if (log_scsi)
 		write_log (L"opening %s:%d ioreq=%08X\n", getdevname (type), unit, ioreq);
-	if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE)
+	if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE && get_word (ioreq + 0x12) > 0)
 		return openfail (ioreq, IOERR_BADLENGTH);
 	if (!dev)
 		return openfail (ioreq, 32); /* badunitnum */
 	if (!dev->opencnt) {
 		for (i = 0; i < MAX_OPEN_DEVICES; i++) {
 			pdev = &pdevst[i];
-			if (pdev->inuse == 0) break;
+			if (pdev->inuse == 0)
+				break;
 		}
-		if (type == UAEDEV_SCSI_ID && sys_command_open (dev->allow_scsi ? DF_SCSI : DF_IOCTL, dev->unitnum)) {
-			setpdev (pdev, dev);
-		}
-		if (type == UAEDEV_DISK_ID && sys_command_open (DF_IOCTL, dev->unitnum)) {
-			pdev->ioctl = 1;
-			pdev->mode = DF_IOCTL;
-		}
-		if (!pdev->scsi && !pdev->ioctl)
+		if (!sys_command_open (dev->unitnum))
 			return openfail (ioreq, IOERR_OPENFAIL);
 		pdev->type = type;
 		pdev->unit = unit;
@@ -270,53 +263,39 @@ static int is_async_request (struct devstruct *dev, uaecptr request)
 	return 0;
 }
 
-
+#if 0
 static int scsiemul_switchscsi (const TCHAR *name)
 {
 	struct devstruct *dev = NULL;
 	struct device_info *discsi, discsi2;
-	int i, j, opened[MAX_TOTAL_DEVICES];
+	int i, opened[MAX_TOTAL_SCSI_DEVICES];
 	bool wasopen = false;
 
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++)
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++)
 		opened[i] = sys_command_isopen (i);
 
 	dev = &devst[0];
-	if ((dev->allow_ioctl || dev->allow_scsi) && dev->opencnt)
+	if (dev->opencnt)
 		wasopen = true;
-	if (dev->allow_scsi)
-		sys_command_close (DF_SCSI, dev->unitnum);
-	if (dev->allow_ioctl)
-		sys_command_close (DF_IOCTL, dev->unitnum);
-	dev->allow_ioctl = 0;
-	dev->allow_scsi = 0;
+	sys_command_close (dev->unitnum);
 
 	dev = NULL;
-	for (j = 0; j < 2; j++) {
-		int mode = j == 0 ? DF_SCSI : DF_IOCTL;
-		if (!(device_func_init (j == 0 ? DEVICE_TYPE_SCSI : DEVICE_TYPE_ANY) & (1 << mode)))
-			continue;
+	if (device_func_init (DEVICE_TYPE_ANY)) {
 		if (devst[0].di.media_inserted < 0)
 			devst[0].di.media_inserted = 0;
 		i = 0;
-		while (i < MAX_TOTAL_DEVICES && dev == NULL) {
+		while (i < MAX_TOTAL_SCSI_DEVICES && dev == NULL) {
 			discsi = 0;
-			if (sys_command_open (mode, i)) {
-				discsi = sys_command_info (mode, i, &discsi2, 0);
+			if (sys_command_open ( i)) {
+				discsi = sys_command_info (i, &discsi2, 0);
 				if (discsi && discsi->type == INQ_ROMD) {
-					if (!_tcsicmp (currprefs.cdimagefile, discsi->label)) {
+					if (!_tcsicmp (currprefs.cdimagefile[0], discsi->label)) {
 						dev = &devst[0];
 						dev->unitnum = i;
-						dev->allow_scsi = j == 0 ? 1 : 0;
-						dev->allow_ioctl = j != 0 ? 1 : 0;
 						dev->drivetype = discsi->type;
 						memcpy (&dev->di, discsi, sizeof (struct device_info));
 						dev->iscd = 1;
-						write_log (L"%s mounted as uaescsi.device:0 (SCSI=%d IOCTL=%d)\n", discsi->label, dev->allow_scsi, dev->allow_ioctl);
-						if (dev->aunit >= 0) {
-							struct priv_devstruct *pdev = &pdevst[dev->aunit];
-							setpdev (pdev, dev);
-						}
+						write_log (L"%s mounted as uaescsi.device:0\n", discsi->label);
 						if (dev->di.media_inserted) {
 							dev->di.media_inserted = 0;
 							scsi_do_disk_change (dev->di.id, 1, NULL);
@@ -324,7 +303,7 @@ static int scsiemul_switchscsi (const TCHAR *name)
 					}
 				}
 				if (opened[i] == 0 && !wasopen)
-					sys_command_close (mode, i);
+					sys_command_close ( i);
 			}
 			i++;
 		}
@@ -333,49 +312,10 @@ static int scsiemul_switchscsi (const TCHAR *name)
 	}
 	return -1;
 }
-static int scsiemul_switchemu (const TCHAR *name)
-{
-	struct devstruct *dev = NULL;
-	struct device_info *discsi, discsi2;
+#endif
 
-	if (!device_func_init (DEVICE_TYPE_ANY | DEVICE_TYPE_ALLOWEMU))
-		return -1;
-	int opened = sys_command_isopen (0);
-	if (sys_command_open (DF_IOCTL, 0)) {
-		if (discsi = sys_command_info (DF_IOCTL, 0, &discsi2, 0)) {
-			dev = &devst[0];
-			dev->unitnum = 0;
-			dev->allow_scsi = 1;
-			dev->allow_ioctl = 1;
-			dev->drivetype = discsi->type;
-			memcpy (&dev->di, discsi, sizeof (struct device_info));
-			dev->iscd = 1;
-			write_log (L"IMG_EMU (%s) mounted as uaescsi.device:0\n", name);
-			if (dev->aunit >= 0) {
-				struct priv_devstruct *pdev = &pdevst[dev->aunit];
-				setpdev (pdev, dev);
-			}
-			dev->di.media_inserted = 0;
-		}
-		if (!opened)
-			sys_command_close (DF_IOCTL, 0);
-		return 0;
-	}
-	return -1;
-}
-
-int scsi_do_disk_device_change (void)
-{
-	int ret = scsiemul_switchscsi (currprefs.cdimagefile);
-	if (ret < 0) {
-		scsiemul_switchemu (currprefs.cdimagefile);
-	}
-	return ret;
-}
-
-// device_id = -1 and insert==0 -> all medias going away
 // pollmode is 1 if no change interrupts found -> increase time of media change
-int scsi_do_disk_change (int device_id, int insert, int *pollmode)
+int scsi_do_disk_change (int unitnum, int insert, int *pollmode)
 {
 	int i, j, ret;
 
@@ -383,19 +323,18 @@ int scsi_do_disk_change (int device_id, int insert, int *pollmode)
 	if (!change_sem)
 		return ret;
 	uae_sem_wait (&change_sem);
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		struct devstruct *dev = &devst[i];
-		if (dev->di.id == device_id || (device_id < 0 && i == 0)) {
+		if (dev->di.unitnum == unitnum + 1) {
 			ret = i;
-			if ((dev->di.media_inserted > 0 && insert == 0) || (dev->di.media_inserted <= 0 && insert)) {
+			if ((dev->changeint_mediastate > 0 && insert == 0) || (dev->changeint_mediastate <= 0 && insert)) {
+				dev->changeint_mediastate = insert;
 				if (pollmode)
 					*pollmode = 1;
 				if (dev->aunit >= 0) {
 					struct priv_devstruct *pdev = &pdevst[dev->aunit];
-					devinfo (pdev->mode, dev->unitnum, &dev->di);
+					devinfo (dev, &dev->di);
 				}
-				if (device_id < 0 && insert == 0)
-					dev->di.media_inserted = -1; // stay away!
 				dev->changenum++;
 				j = 0;
 				while (j < MAX_ASYNC_REQUESTS) {
@@ -483,18 +422,17 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 		write_log (L"asyncronous request=%08X aborted, error=%d\n", request, errcode);
 }
 
-static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
+static int command_read (struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
 	int blocksize = dev->di.bytespersector;
-	uae_u8 *temp;
 
 	length /= blocksize;
 	offset /= blocksize;
 	while (length > 0) {
-		temp = sys_command_read (mode, dev->unitnum, NULL, offset, 1);
-		if (!temp)
+		uae_u8 buffer[4096];
+		if (!sys_command_read (dev->unitnum, buffer, offset, 1))
 			return 20;
-		memcpyha_safe (data, temp, blocksize);
+		memcpyha_safe (data, buffer, blocksize);
 		data += blocksize;
 		offset++;
 		length--;
@@ -502,19 +440,16 @@ static int command_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 
 	return 0;
 }
 
-static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
+static int command_write (struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
 	uae_u32 blocksize = dev->di.bytespersector;
-	struct device_scsi_info dsi;
-
-	if (!sys_command_scsi_info (mode, dev->unitnum, &dsi))
-		return 20;
 	length /= blocksize;
 	offset /= blocksize;
 	while (length > 0) {
+		uae_u8 buffer[4096];
 		int err;
-		memcpyah_safe (dsi.buffer, data, blocksize);
-		err = sys_command_write (mode, dev->unitnum, NULL, offset, 1);
+		memcpyah_safe (buffer, data, blocksize);
+		err = sys_command_write (dev->unitnum, buffer, offset, 1);
 		if (!err)
 			return 20;
 		if (err < 0)
@@ -526,31 +461,35 @@ static int command_write (int mode, struct devstruct *dev, uaecptr data, uae_u64
 	return 0;
 }
 
-static int command_cd_read (int mode, struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
+static int command_cd_read (struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
 {
-	uae_u8 *temp;
 	uae_u32 len, sector, startoffset;
+	int blocksize;
 
+	blocksize = dev->configblocksize;
 	*io_actual = 0;
-	if (dev->di.bytespersector == 0)
-		dev->di.bytespersector = 2048;
-	startoffset = offset % dev->di.bytespersector;
+	startoffset = offset % blocksize;
 	offset -= startoffset;
-	sector = offset / dev->di.bytespersector;
+	sector = offset / blocksize;
 	while (length > 0) {
-		temp = sys_command_cd_read (mode, dev->unitnum, NULL, sector, 1);
-		if (!temp)
-			return 20;
+		uae_u8 temp[4096];
+		if (blocksize != 2048) {
+			if (!sys_command_cd_rawread (dev->unitnum, temp, sector, 1, blocksize))
+				return 20;
+		} else {
+			if (!sys_command_cd_read (dev->unitnum, temp, sector, 1))
+				return 20;
+		}
 		if (startoffset > 0) {
-			len = dev->di.bytespersector - startoffset;
+			len = blocksize - startoffset;
 			if (len > length) len = length;
 			memcpyha_safe (data, temp + startoffset, len);
 			length -= len;
 			data += len;
 			startoffset = 0;
 			*io_actual += len;
-		} else if (length >= dev->di.bytespersector) {
-			len = dev->di.bytespersector;
+		} else if (length >= blocksize) {
+			len = blocksize;
 			memcpyha_safe (data, temp, len);
 			length -= len;
 			data += len;
@@ -582,6 +521,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		return 0;
 	command = get_word (request + 28);
 
+//	write_log (L"%d: CMD=%04X DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n",
+//		command, io_data, io_length, io_offset, io_actual);
+
 	switch (command)
 	{
 	case CMD_READ:
@@ -589,13 +531,13 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		if (dev->drivetype == INQ_ROMD) {
-			io_error = command_cd_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+			io_error = command_cd_read (dev, io_data, io_offset, io_length, &io_actual);
 		} else {
 			if ((io_offset & bmask) || bmask == 0 || io_data == 0)
 				goto bad_command;
 			if ((io_length & bmask) || io_length == 0)
 				goto bad_len;
-			io_error = command_read (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+			io_error = command_read (dev, io_data, io_offset, io_length, &io_actual);
 		}
 		break;
 	case TD_READ64:
@@ -608,9 +550,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		if ((io_length & bmask) || io_length == 0)
 			goto bad_len;
 		if (dev->drivetype == INQ_ROMD)
-			io_error = command_cd_read (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+			io_error = command_cd_read (dev, io_data, io_offset64, io_length, &io_actual);
 		else
-			io_error = command_read (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+			io_error = command_read (dev, io_data, io_offset64, io_length, &io_actual);
 		break;
 
 	case CMD_WRITE:
@@ -623,7 +565,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		} else if ((io_length & bmask) || io_length == 0) {
 			goto bad_len;
 		} else {
-			io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+			io_error = command_write (dev, io_data, io_offset, io_length, &io_actual);
 		}
 		break;
 	case TD_WRITE64:
@@ -638,7 +580,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		} else if ((io_length & bmask) || io_length == 0) {
 			goto bad_len;
 		} else {
-			io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+			io_error = command_write (dev, io_data, io_offset64, io_length, &io_actual);
 		}
 		break;
 
@@ -652,7 +594,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		} else if ((io_length & bmask) || io_length == 0) {
 			goto bad_len;
 		} else {
-			io_error = command_write (pdev->mode, dev, io_data, io_offset, io_length, &io_actual);
+			io_error = command_write (dev, io_data, io_offset, io_length, &io_actual);
 		}
 		break;
 	case TD_FORMAT64:
@@ -667,7 +609,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		} else if ((io_length & bmask) || io_length == 0) {
 			goto bad_len;
 		} else {
-			io_error = command_write (pdev->mode, dev, io_data, io_offset64, io_length, &io_actual);
+			io_error = command_write (dev, io_data, io_offset64, io_length, &io_actual);
 		}
 		break;
 
@@ -681,19 +623,20 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_REMOVE:
 		io_actual = dev->changeint;
 		dev->changeint = io_data;
+		dev->changeint_mediastate = dev->di.media_inserted;
 		break;
 	case CMD_CHANGENUM:
 		io_actual = dev->changenum;
 		break;
 	case CMD_CHANGESTATE:
 		if (dev->di.media_inserted >= 0) {
-			io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->media_inserted > 0 ? 0 : 1;
+			io_actual = devinfo (dev, &dev->di)->media_inserted > 0 ? 0 : 1;
 		} else {
 			io_actual = 1;
 		}
 		break;
 	case CMD_PROTSTATUS:
-		io_actual = devinfo (pdev->mode, dev->unitnum, &dev->di)->write_protected ? -1 : 0;
+		io_actual = devinfo (dev, &dev->di)->write_protected ? -1 : 0;
 		break;
 	case CMD_GETDRIVETYPE:
 		io_actual = dev->drivetype;
@@ -706,7 +649,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_GETGEOMETRY:
 		{
 			struct device_info *di;
-			di = devinfo (pdev->mode, dev->unitnum, &dev->di);
+			di = devinfo (dev, &dev->di);
 			if (di->media_inserted <= 0)
 				goto no_media;
 			put_long (io_data + 0, di->bytespersector);
@@ -722,6 +665,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		}
 		break;
 	case CMD_ADDCHANGEINT:
+		dev->changeint_mediastate = dev->di.media_inserted;
 		io_error = add_async_request (dev, request, ASYNC_REQUEST_CHANGEINT, io_data);
 		if (!io_error)
 			async = 1;
@@ -729,14 +673,193 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case CMD_REMCHANGEINT:
 		release_async_request (dev, request);
 		break;
+
+	case CD_TOCLSN:
+	case CD_TOCMSF:
+	{
+		int msf = command == CD_TOCMSF;
+		struct cd_toc_head toc;
+		if (sys_command_cd_toc (dev->di.unitnum, &toc)) {
+			if (io_offset == 0 && io_length > 0) {
+				int pos = toc.lastaddress;
+				put_byte (io_data, toc.first_track);
+				put_byte (io_data + 1, toc.last_track);
+				if (msf)
+					pos = lsn2msf (pos);
+				put_long (io_data + 2, pos);
+				io_offset++;
+				io_length--;
+				io_data += 6;
+				io_actual++;
+			}
+			for (int i = toc.first_track_offset; i < toc.last_track_offset && io_length > 0; i++) {
+				if (io_offset == toc.toc[i].point) {
+					int pos = toc.toc[i].paddress;
+					put_byte (io_data, (toc.toc[i].control << 4) | toc.toc[i].adr);
+					put_byte (io_data + 1, toc.toc[i].point);
+					if (msf)
+						pos = lsn2msf (pos);
+					put_long (io_data + 2, pos);
+					io_offset++;
+					io_length--;
+					io_data += 6;
+					io_actual++;
+				}
+			}
+		} else {
+			io_error = CDERR_NotSpecified;
+		}
+	}
+	break;
+	case CD_ADDFRAMEINT:
+		io_error = add_async_request (dev, request, ASYNC_REQUEST_FRAMEINT, io_data);
+		if (!io_error)
+			async = 1;
+		break;
+	case CD_REMFRAMEINT:
+		release_async_request (dev, request);
+		break;
+	case CD_ATTENUATE:
+	{
+		if (io_offset != -1) {
+			dev->fadeframes = io_length & 0x7fff;
+			dev->fadetarget = io_offset & 0x7fff;
+		}
+		io_actual = dev->volumelevel;
+	}
+	break;
+	case CD_INFO:
+	{
+		uae_u16 status = 0;
+		struct cd_toc_head toc;
+		uae_u8 subq[SUBQ_SIZE] = { 0 };
+		sys_command_cd_qcode (dev->di.unitnum, subq);
+		status |= 1 << 0; // door closed
+		if (dev->di.media_inserted) {
+			status |= 1 << 1;
+			status |= 1 << 2; // motor on
+			if (sys_command_cd_toc (dev->di.unitnum, &toc)) {
+				status |= 1 << 3; // toc
+				if (subq[1] == AUDIO_STATUS_IN_PROGRESS || subq[1] == AUDIO_STATUS_PAUSED)
+					status |= 1 << 5; // audio play
+				if (subq[1] == AUDIO_STATUS_PAUSED)
+					status |= 1 << 6; // paused
+				if (isdatatrack (&toc, 0))
+					status |= 1 << 4; // data track
+			}
+		}
+		put_word (io_data +  0, 75);		// PlaySpeed
+		put_word (io_data +  2, 1200);		// ReadSpeed (randomly chose 16x)
+		put_word (io_data +  4, 1200);		// ReadXLSpeed
+		put_word (io_data +  6, dev->configblocksize); // SectorSize
+		put_word (io_data +  8, -1);		// XLECC
+		put_word (io_data + 10, 0);			// EjectReset
+		put_word (io_data + 12, 0);			// Reserved * 4
+		put_word (io_data + 14, 0);
+		put_word (io_data + 16, 0);
+		put_word (io_data + 18, 0);
+		put_word (io_data + 20, 1200);		// MaxSpeed
+		put_word (io_data + 22, 0xffff);	// AudioPrecision (volume)
+		put_word (io_data + 24, status);	// Status
+		put_word (io_data + 26, 0);			// Reserved2 * 4
+		put_word (io_data + 28, 0);
+		put_word (io_data + 30, 0);
+		put_word (io_data + 32, 0);
+		io_actual = 34;
+	}
+	break;
+	case CD_CONFIG:
+	{
+		while (get_long (io_data) != TAG_DONE) {
+			uae_u32 tag = get_long (io_data);
+			uae_u32 data = get_long (io_data + 4);
+			if (tag == 4) {
+				// TAGCD_SECTORSIZE
+				if (data == 2048 || data == 2336 || data == 2352)
+					dev->configblocksize = data;
+				else
+					io_error = IOERR_BADADDRESS;
+
+			}
+			io_data += 8;
+		}
+		break;
+	}
+	case CD_PAUSE:
+	{
+		int old = sys_command_cd_pause (dev->di.unitnum, io_length);
+		if (old >= 0)
+			io_actual = old;
+		else
+			io_error = IOERR_BADADDRESS;
+		break;
+	}
+	case CD_PLAYLSN:
+	{
+		int start = io_offset;
+		int end = io_length + start;
+		if (!sys_command_cd_play (dev->di.unitnum, start, end, 0, NULL))
+			io_error = IOERR_BADADDRESS;
+	}
+	break;
+	case CD_PLAYMSF:
+	{
+		int start = msf2lsn (io_offset);
+		int end = msf2lsn (io_length) + start;
+		if (!sys_command_cd_play (dev->di.unitnum, start, end, 0, NULL))
+			io_error = IOERR_BADADDRESS;
+	}
+	break;
+	case CD_PLAYTRACK:
+	{
+		struct cd_toc_head toc;
+		int ok = 0;
+		if (sys_command_cd_toc (dev->di.unitnum, &toc)) {
+			for (int i = toc.first_track_offset; i < toc.last_track_offset; i++) {
+				if (i == io_offset && i + io_length <= toc.last_track_offset) {
+					ok = sys_command_cd_play (dev->di.unitnum, toc.toc[i].address, toc.toc[i + io_length].address, 0, NULL);
+					break;
+				}
+			}
+		}
+		if (!ok)
+			io_error = IOERR_BADADDRESS;
+	}
+	break;
+	case CD_QCODEMSF:
+	case CD_QCODELSN:
+	{
+		uae_u8 subq[SUBQ_SIZE];
+		if (sys_command_cd_qcode (dev->di.unitnum, subq)) {
+			if (subq[1] == AUDIO_STATUS_IN_PROGRESS || subq[1] == AUDIO_STATUS_PAUSED) {
+				put_byte (io_data + 0, subq[4 + 0]);
+				put_byte (io_data + 1, frombcd (subq[4 + 1]));
+				put_byte (io_data + 2, frombcd (subq[4 + 2]));
+				put_byte (io_data + 3, subq[4 + 6]);
+				int trackpos = fromlongbcd (subq + 4 + 3);
+				int diskpos = fromlongbcd (subq + 4 + 7);
+				if (command == CD_QCODELSN) {
+					trackpos = msf2lsn (trackpos);
+					diskpos = msf2lsn (diskpos);
+				}
+				put_long (io_data + 4, trackpos);
+				put_long (io_data + 8, diskpos);
+				io_actual = 12;
+			} else {
+				io_error = CDERR_InvalidState;
+			}
+		} else {
+			io_error = IOERR_BADADDRESS;
+		}
+	}
+	break;
+
 	case HD_SCSICMD:
-		if (dev->allow_scsi && pdev->scsi) {
+		{
 			uae_u32 sdd = get_long (request + 40);
 			io_error = sys_command_scsi_direct (dev->unitnum, sdd);
 			if (log_scsi)
 				write_log (L"scsidev: did io: sdd %p request %p error %d\n", sdd, request, get_byte (request + 31));
-		} else {
-			io_error = IOERR_NOCMD;
 		}
 		break;
 	case NSCMD_DEVICEQUERY:
@@ -892,10 +1015,9 @@ static void dev_reset (void)
 {
 	int i, j;
 	struct devstruct *dev;
-	struct device_info *discsi, discsi2;
 	int unitnum = 0;
 
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dev = &devst[i];
 		if (dev->opencnt > 0) {
 			for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
@@ -904,10 +1026,7 @@ static void dev_reset (void)
 					abort_async (dev, request, 0, 0);
 			}
 			dev->opencnt = 1;
-			if (dev->allow_scsi)
-				sys_command_close (DF_SCSI, dev->unitnum);
-			if (dev->allow_ioctl)
-				sys_command_close (DF_IOCTL, dev->unitnum);
+			sys_command_close (dev->unitnum);
 		}
 		memset (dev, 0, sizeof (struct devstruct));
 		dev->unitnum = dev->aunit = -1;
@@ -915,52 +1034,39 @@ static void dev_reset (void)
 	for (i = 0; i < MAX_OPEN_DEVICES; i++)
 		memset (&pdevst[i], 0, sizeof (struct priv_devstruct));
 
-	int didswitch = -1;
-	if (currprefs.cdimagefile[0] || currprefs.cdimagefileuse)
-		didswitch = scsiemul_switchscsi (currprefs.cdimagefile);
-	if (didswitch < 0) {
-		device_func_init (DEVICE_TYPE_SCSI);
-		i = j = 0;
-		while (i < MAX_TOTAL_DEVICES) {
-			int mode = -1;
-			dev = &devst[i];
-			discsi = 0;
-			if (sys_command_open (DF_SCSI, j)) {
-				dev->allow_scsi = 1;
-				mode = DF_SCSI;
-			}
-			if (!dev->allow_scsi) {
-				if (sys_command_open (DF_IOCTL, j)) {
-					dev->allow_ioctl = 1;
-					mode = DF_IOCTL;
-				}
-			}
-			if (mode >= 0) {
-				discsi = sys_command_info (mode, j, &discsi2, 0);
-				sys_command_close (mode, j);
-			}
+	device_func_init (0);
+	i = 0;
+	while (i < MAX_TOTAL_SCSI_DEVICES) {
+		dev = &devst[i];
+		struct device_info *discsi, discsi2;
+		if (sys_command_open (i)) {
+			discsi = sys_command_info (i, &discsi2, 0);
 			if (discsi) {
-				dev->unitnum = j;
+				dev->unitnum = i;
 				dev->drivetype = discsi->type;
 				memcpy (&dev->di, discsi, sizeof (struct device_info));
+				dev->changeint_mediastate = discsi->media_inserted;
+				dev->configblocksize = discsi->bytespersector;
 				if (discsi->type == INQ_ROMD)
 					dev->iscd = 1;
 			}
-			i++;
-			j++;
 		}
+		i++;
 	}
 	unitnum = 0;
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dev = &devst[i];
+		if (dev->unitnum >= 0)
+			sys_command_close (dev->unitnum);
 		if (dev->unitnum >= 0 && dev->iscd) {
 			dev->aunit = unitnum;
+			dev->volumelevel = 0x7fff;
 			unitnum++;
 		}
 	}
 	if (unitnum == 0)
 		unitnum = 1;
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dev = &devst[i];
 		if (dev->unitnum >= 0) {
 			if (!dev->iscd) {

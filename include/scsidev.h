@@ -12,7 +12,7 @@ uaecptr scsidev_startup (uaecptr resaddr);
 void scsidev_install (void);
 void scsidev_reset (void);
 void scsidev_start_threads (void);
-int scsi_do_disk_change (int device_id, int insert, int *pollmode);
+int scsi_do_disk_change (int unitnum, int insert, int *pollmode);
 int scsi_do_disk_device_change (void);
 
 extern int log_scsi;

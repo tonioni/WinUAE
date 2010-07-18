@@ -174,8 +174,7 @@ int maxhpos = MAXHPOS_PAL;
 int maxhpos_short = MAXHPOS_PAL;
 int maxvpos = MAXVPOS_PAL;
 int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" maxvpos in fake 60hz modes)
-static int hsyncstartpos;
-int hsyncstartposnative;
+int hsyncstartpos;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int equ_vblank_endline = EQU_ENDLINE_PAL;
@@ -2807,7 +2806,6 @@ void init_hz (void)
 	} else {
 		hsyncstartpos = maxhpos_short + 13;
 	}
-	hsyncstartposnative = coord_hw_to_window_x (hsyncstartpos * 2);
 	eventtab[ev_hsync].oldcycles = get_cycles ();
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
@@ -5083,7 +5081,7 @@ static void vsync_handler (void)
 	picasso_handle_vsync ();
 #endif
 	audio_vsync ();
-	cdimage_vsync ();
+	blkdev_vsync ();
 
 	if (quit_program > 0) {
 		/* prevent possible infinite loop at wait_cycles().. */

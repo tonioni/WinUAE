@@ -332,7 +332,6 @@ static void fixcharset (TCHAR *s)
 TCHAR *validatevolumename (TCHAR *s)
 {
 	stripsemicolon (s);
-	stripspace (s);
 	fixcharset (s);
 	striplength (s, 30);
 	return s;

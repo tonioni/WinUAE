@@ -2139,17 +2139,13 @@ extern const TCHAR *get_aspi_path (int);
 
 static int get_aspi (int old)
 {
-	if ((old == UAESCSI_SPTI || old == UAESCSI_SPTISCAN) && os_winnt_admin)
-		return old;
 	if (old == UAESCSI_NEROASPI && get_aspi_path (1))
 		return old;
 	if (old == UAESCSI_FROGASPI && get_aspi_path (2))
 		return old;
 	if (old == UAESCSI_ADAPTECASPI && get_aspi_path (0))
 		return old;
-	if (os_winnt_admin)
-		return UAESCSI_SPTI;
-	else if (get_aspi_path (1))
+	if (get_aspi_path (1))
 		return UAESCSI_NEROASPI;
 	else if (get_aspi_path (2))
 		return UAESCSI_FROGASPI;
@@ -2508,7 +2504,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_automount_cddrives = 0;
 		p->win32_automount_netdrives = 0;
 		p->win32_kbledmode = 0;
-		p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
+		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_borderless = 0;
 		p->win32_powersavedisabled = 1;
 		p->sana2 = 0;
@@ -2521,7 +2517,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathend[0] = 0;
 	}
 	if (type == 1 || type == 0) {
-		p->win32_uaescsimode = get_aspi (p->win32_uaescsimode);
+		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_midioutdev = -2;
 		p->win32_midiindev = 0;
 		p->win32_automount_removable = 0;
@@ -2726,7 +2722,7 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (cfgfile_yesno (option, value, L"aspi", &vb)) {
-		p->win32_uaescsimode = false;
+		p->win32_uaescsimode = 0;
 		if (vb)
 			p->win32_uaescsimode = get_aspi (0);
 		if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
@@ -2770,8 +2766,11 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-	if (cfgfile_strval (option, value, L"uaescsimode", &p->win32_uaescsimode, scsimode, 0))
+	if (cfgfile_strval (option, value, L"uaescsimode", &p->win32_uaescsimode, scsimode, 0)) {
+		// do not forget me!
+		p->win32_uaescsimode = UAESCSI_CDEMU;
 		return 1;
+	}
 
 	if (cfgfile_intval (option, value, L"active_priority", &v, 1)) {
 		p->win32_active_priority = fetchpri (v, 1);

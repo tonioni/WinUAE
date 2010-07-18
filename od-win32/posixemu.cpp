@@ -281,7 +281,7 @@ int uae_start_thread (TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id 
 	hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
 	if (hThread) {
 		if (name) {
-			write_log (L"Thread '%s' started (%d)\n", name, hThread);
+			//write_log (L"Thread '%s' started (%d)\n", name, hThread);
 			SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
 		}
 	} else {

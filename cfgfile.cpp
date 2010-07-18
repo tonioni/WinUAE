@@ -29,6 +29,7 @@
 #include "filesys.h"
 #include "fsdb.h"
 #include "disk.h"
+#include "blkdev.h"
 #include "statusline.h"
 
 static int config_newfilesystem;
@@ -178,6 +179,7 @@ static const TCHAR *dongles[] =
 	L"rugby coach", L"cricket captain", L"leviathan",
 	NULL
 };
+static const TCHAR *cdmodes[] = { L"", L"image", L"ioctl", L"spti", L"aspi", 0 };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -554,8 +556,18 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
-	if (p->cdimagefile[0] || p->cdimagefileuse)
-		cfgfile_write_str (f, L"cdimage0", p->cdimagefile);
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		if (p->cdimagefile[i][0] || p->cdimagefileuse[i]) {
+			TCHAR tmp2[MAX_DPATH];
+			_stprintf (tmp, L"cdimage%d", i);
+			_tcscpy (tmp2, p->cdimagefile[i]);
+			if (p->cdscsidevicetype[i] != 0 || _tcschr (p->cdimagefile[i], ',')) {
+				_tcscat (tmp2, L",");
+				_tcscat (tmp2, cdmodes[p->cdscsidevicetype[i]]);
+			}
+			cfgfile_write_str (f, tmp, tmp2);
+		}
+	}
 
 	if (p->quitstatefile[0])
 		cfgfile_write_str (f, L"statefile_quit", p->quitstatefile);
@@ -1127,9 +1139,23 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 	}
 
-	if (cfgfile_path (option, value, L"cdimage0", p->cdimagefile, sizeof p->cdimagefile / sizeof (TCHAR))) {
-		p->cdimagefileuse = true;
-		return 1;
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		TCHAR tmp[20];
+		_stprintf (tmp, L"cdimage%d", i);
+		if (!_tcsicmp (option, tmp)) {
+			TCHAR *next = _tcsrchr (value, ',');
+			if (next) {
+				*next = 0;
+				TCHAR *next2 = _tcschr (next + 1, ':');
+				if (next2)
+					*next2 = 0;
+				cfgfile_intval (option, next + 1, tmp, &p->cdscsidevicetype[i], 1);
+			}
+			_tcsncpy (p->cdimagefile[i], value, sizeof p->cdimagefile[i]);
+			p->cdimagefile[i][sizeof p->cdimagefile[i] - 1] = 0;
+			p->cdimagefileuse[i] = true;
+			return 1;
+		}
 	}
 
 	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)) {
@@ -3606,6 +3632,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->input_magic_mouse_cursor = 0;
 
 	inputdevice_default_prefs (p);
+
+	blkdev_default_prefs (p);
 
 	zfile_fclose (default_file);
 	default_file = NULL;

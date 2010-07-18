@@ -1,4 +1,52 @@
 
+Beta 4:
+
+- rawinput was disabled if only one keyboard device was detected, input didn't work at all
+  in b3 because of null keyboard (detected only one rawinput keyboard = it was ignore but null
+  keyboard was still added later -> more than one keyboard -> do not fallback to directinput..)
+- redirect unknown rawinput messages to null keyboard (shouldn't happen but you never know..)
+- spaces not allowed in directory filesystem volume name (wrong validation routine used)
+- bottom border was half-blanked in some doublescanned modes
+
+Another major CD update. CD configuration unified, now any CD unit "slot" can point to different
+CD backend (image mounter + scsi emulation, IOCTL drive + scsi emulation, SPTI drive + scsi
+passthrough) On the fly changes fully supported. CD mess is nearly gone, code is finally structured
+logically without special cases. (this finally made SCSI emulation quite easy to implement)
+
+- SCSI emulation is now the default SCSI mode (CDFS and audio tracks always work, switch to
+  SPTI if you need advanced stuff like cd writing) Some audio CD players work for the first time
+  now because some SCSI commands have been obsoleted long time ago like PLAY TRACK/INDEX
+- CD audio DAE emulation does not attempt to play data tracks anymore
+- added most common CD audio SCSI commands to SCSI emulator, OS3.5+ PlayCD confirmed working.
+  Following new SCSI command added:
+  START/STOP, STOP PLAY/SCAN, SCAN, PLAY AUDIO MSF, PLAY AUDIO, PLAY CD, PLAY TRACK/INDEX,
+  PAUSE/RESUME, READ SUB-CHANNEL, READ TOC, MODE SENSE/MODE SELECT (cd audio volume page only),
+  READ CD and READ CF MSF (only audio extraction supported + subchannel options)
+- added CD audio io commands to uaescsi.device (most programs use HD_SCSICMD)
+- emulated INQUIRY vendor, product and revision fetched from real device if possible
+
+Testing:
+
+Load your normal WB3.x configuration (that uses uaescsi.device CDROMs), start emulation
+normally. (This and following betas force SCSI Emulation mode!) Report all changes,
+including logs, SCSI emulation logging is enabled.
+
+Notes:
+
+GUI selection overrides slot 0, for example if you normally have D:\ = uaescsi.device unit 0
+and E:\ = uaescsi.device unit 1, mounting a cd image "ejects" whatever is in unit 0 and
+replaces it with image file.
+
+If CD32 or CDTV is started in "autodetect" mode and it chose unit 1 or later (CD32/CDTV or
+Audio CD inserted), unit 0 changes are ignored until original drive becomes empty. This
+needs to be more intelligent.
+
+Configuration file accepts cdimage0 to cdimage7. Full syntax:
+cdimagex=image path or device name,cd backend(:reserved for future)
+Cd backend not mandatory. Supported CD backend names are:
+image, ioctl, spti and aspi. (this is autoselected when using GUI)
+
+Beta 3:
 
 - most debugger options now accept .b, .w and .l size extension (+special .3 if 3-byte word),
   old style separate size values (1, 2, 3 or 4) not supported anymore

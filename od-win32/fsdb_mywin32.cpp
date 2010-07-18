@@ -394,7 +394,7 @@ int my_getvolumeinfo (const TCHAR *root)
 		DWORD comlen;
 		DWORD flags;
 		if (GetVolumeInformation (volume, NULL, 0, NULL, &comlen, &flags, fsname, sizeof (fsname))) {
-			write_log (L"Volume %s FS=%s maxlen=%d flags=%08X\n", volume, fsname, comlen, flags);
+			//write_log (L"Volume %s FS=%s maxlen=%d flags=%08X\n", volume, fsname, comlen, flags);
 			if (flags & FILE_NAMED_STREAMS)
 				ret |= MYVOLUMEINFO_STREAMS;
 		}

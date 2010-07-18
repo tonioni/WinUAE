@@ -45,8 +45,6 @@ typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
 	UCHAR SenseBuf[32];
 } SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
 
-static int unitcnt = 0;
-
 struct dev_info_spti {
 	TCHAR *drvpath;
 	TCHAR *name;
@@ -62,15 +60,54 @@ struct dev_info_spti {
 	int bus, path, target, lun;
 	int scanmode;
 	uae_u8 *scsibuf;
+	bool open;
+	bool enabled;
+	struct device_info di;
 };
 
 static uae_sem_t scgp_sem;
-static struct dev_info_spti dev_info[MAX_TOTAL_DEVICES];
+static struct dev_info_spti dev_info[MAX_TOTAL_SCSI_DEVICES];
+static int unittable[MAX_TOTAL_SCSI_DEVICES];
+static int total_devices;
+static int bus_open;
 
-static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
+static int getunitnum (struct dev_info_spti *di)
+{
+	if (!di)
+		return -1;
+	int idx = di - &dev_info[0];
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		if (unittable[i] - 1 == idx)
+			return i;
+	}
+	return -1;
+}
+
+static struct dev_info_spti *unitcheck (int unitnum)
+{
+	if (unitnum < 0 || unitnum >= MAX_TOTAL_SCSI_DEVICES)
+		return NULL;
+	if (unittable[unitnum] <= 0)
+		return NULL;
+	unitnum = unittable[unitnum] - 1;
+	if (dev_info[unitnum].drvletter == 0)
+		return NULL;
+	return &dev_info[unitnum];
+}
+
+static struct dev_info_spti *unitisopen (int unitnum)
+{
+	struct dev_info_spti *di = unitcheck (unitnum);
+	if (!di)
+		return NULL;
+	if (di->open == false)
+		return NULL;
+	return di;
+}
+
+static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *err)
 {
 	DWORD status, returned;
-	struct dev_info_spti *di = &dev_info[unitnum];
 
 	*err = 0;
 	if (log_scsi) {
@@ -114,7 +151,7 @@ static int doscsi (int unitnum, SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER *swb, int *
 #define MODE_SELECT_10 0x55
 #define MODE_SENSE_10  0x5A
 
-static int execscsicmd (int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen)
+static int execscsicmd (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int inlen)
 {
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status;
@@ -136,7 +173,7 @@ static int execscsicmd (int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int i
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 	swb.spt.SenseInfoLength = 32;
 	memcpy (swb.spt.Cdb, data, len);
-	status = doscsi (unitnum, &swb, &err);
+	status = doscsi (di, unitnum, &swb, &err);
 	uae_sem_post (&scgp_sem);
 	dolen = swb.spt.DataTransferLength;
 	if (!status)
@@ -146,6 +183,10 @@ static int execscsicmd (int unitnum, uae_u8 *data, int len, uae_u8 *inbuf, int i
 
 static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 {
+	struct dev_info_spti *di = unitisopen (unitnum);
+	if (!di)
+		return -1;
+
 	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
 	DWORD status;
 	int sactual = 0, i;
@@ -176,7 +217,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	swb.spt.DataTransferLength = as->len;
 	swb.spt.DataBuffer = scsi_datap;
 
-	status = doscsi (unitnum, &swb, &err);
+	status = doscsi (di, unitnum, &swb, &err);
 
 	as->cmdactual = status == 0 ? 0 : scsi_cmd_len_orig; /* fake scsi_CmdActual */
 	as->status = swb.spt.ScsiStatus; /* scsi_Status */
@@ -213,7 +254,10 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 
 static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 {
-	int v = execscsicmd (unitnum, data, len, 0, 0);
+	struct dev_info_spti *di = unitisopen (unitnum);
+	if (!di)
+		return 0;
+	int v = execscsicmd (di, unitnum, data, len, 0, 0);
 	if (v < 0)
 		return 0;
 	return data;
@@ -221,73 +265,162 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 
 static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 {
-	int v = execscsicmd (unitnum, data, len, dev_info[unitnum].scsibuf, DEVICE_SCSI_BUFSIZE);
+	struct dev_info_spti *di = unitisopen (unitnum);
+	if (!di)
+		return 0;
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE);
 	if (v < 0)
 		return 0;
 	if (v == 0)
 		return 0;
 	if (outlen)
 		*outlen = v;
-	return dev_info[unitnum].scsibuf;
+	return di->scsibuf;
 }
 
-static int total_devices;
+static uae_u8 *execscsicmd_in_internal (struct dev_info_spti *di, int unitnum, uae_u8 *data, int len, int *outlen)
+{
+	int v = execscsicmd (di, unitnum, data, len, di->scsibuf, DEVICE_SCSI_BUFSIZE);
+	if (v < 0)
+		return 0;
+	if (v == 0)
+		return 0;
+	if (outlen)
+		*outlen = v;
+	return di->scsibuf;
+}
 
+static void close_scsi_device2 (struct dev_info_spti *di)
+{
+	if (di->open == false)
+		return;
+	if (di->handle != INVALID_HANDLE_VALUE)
+		CloseHandle (di->handle);
+	di->handle = INVALID_HANDLE_VALUE;
+	di->open = false;
+}
 
 static void close_scsi_device (int unitnum)
 {
-	if (dev_info[unitnum].handle != INVALID_HANDLE_VALUE) {
-		write_log (L"SPTI: unit %d closed\n", unitnum);
-		CloseHandle (dev_info[unitnum].handle);
-	}
-	dev_info[unitnum].handle = INVALID_HANDLE_VALUE;
+	struct dev_info_spti *di = unitisopen (unitnum);
+	if (!di)
+		return;
+	close_scsi_device2 (di);
+	unittable[unitnum] = 0;
 }
 
-static void free_scsi_device(int dev)
+static void free_scsi_device (struct dev_info_spti *di)
 {
-	close_scsi_device (dev);
-	xfree(dev_info[dev].name);
-	xfree(dev_info[dev].drvpath);
-	xfree(dev_info[dev].inquirydata);
-	VirtualFree (dev_info[dev].scsibuf, 0, MEM_RELEASE);
-	dev_info[dev].name = NULL;
-	dev_info[dev].drvpath = NULL;
-	dev_info[dev].inquirydata = NULL;
-	dev_info[dev].scsibuf = NULL;
-	memset(&dev_info[dev], 0, sizeof (struct dev_info_spti));
+	close_scsi_device2 (di);
+	xfree (di->name);
+	xfree (di->drvpath);
+	xfree (di->inquirydata);
+	VirtualFree (di->scsibuf, 0, MEM_RELEASE);
+	di->name = NULL;
+	di->drvpath = NULL;
+	di->inquirydata = NULL;
+	di->scsibuf = NULL;
+	memset (di, 0, sizeof (struct dev_info_spti));
 }
 
 static int rescan (void);
 
-static int check_scsi_bus (int flags)
+static void close_scsi_bus (void)
 {
-	return 1;
+	if (!bus_open) {
+		write_log (L"SPTI close_bus() when already closed!\n");
+		return;
+	}
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		free_scsi_device (&dev_info[i]);
+		unittable[i] = 0;
+	}
+	total_devices = 0;
+	bus_open = 0;
+	write_log (L"SPTI driver closed.\n");
 }
 
 static int open_scsi_bus (int flags)
 {
-	int i;
-
+	if (bus_open) {
+		write_log (L"SPTI open_bus() more than once!\n");
+		return 1;
+	}
 	total_devices = 0;
 	uae_sem_init (&scgp_sem, 0, 1);
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-		memset (&dev_info[i], 0, sizeof (struct dev_info_spti));
-		dev_info[i].handle = INVALID_HANDLE_VALUE;
-	}
 	rescan ();
+	bus_open = 1;
+	write_log (L"SPTI driver open, %d devices.\n", total_devices);
 	return total_devices;
 }
 
-static void close_scsi_bus (void)
+static int mediacheck (struct dev_info_spti *di, int unitnum)
 {
-	int i;
-	for (i = 0; i < total_devices; i++)
-		free_scsi_device (i);
+	uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
+	if (di->open == false)
+		return -1;
+	int v = execscsicmd (di, unitnum, cmd, sizeof cmd, 0, 0);
+	return v >= 0 ? 1 : 0;
 }
 
-static void checkcapabilities (int unitnum)
+static int mediacheck_full (struct dev_info_spti *di, int unitnum, struct device_info *dinfo)
 {
-	struct dev_info_spti *di = &dev_info[unitnum];
+	uae_u8 cmd1[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
+	uae_u8 *p;
+	int outlen;
+
+	dinfo->sectorspertrack = 0;
+	dinfo->trackspercylinder = 0;
+	dinfo->bytespersector = 0;
+	dinfo->cylinders = 0;
+	dinfo->write_protected = 1;
+	if (di->open == false)
+		return 0;
+	outlen = 32;
+	p = execscsicmd_in_internal (di, unitnum, cmd1, sizeof cmd1, &outlen);
+	if (p && outlen >= 8) {
+		dinfo->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
+		dinfo->sectorspertrack = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) + 1;
+		dinfo->trackspercylinder = 1;
+		dinfo->cylinders = 1;
+	}
+	if (di->type == INQ_DASD) {
+		uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0xf0,0 }; /* MODE SENSE */
+		outlen = 32;
+		p = execscsicmd_in_internal (di, unitnum, cmd2, sizeof cmd2, &outlen);
+		if (p && outlen >= 4) {
+			dinfo->write_protected = (p[3] & 0x80) ? 1 : 0;
+		}
+	}
+	//	write_log (L"mediacheck_full(%d,%d,%d,%d,%d)\n",
+	//	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
+	return 1;
+}
+
+static void update_device_info (int unitnum)
+{
+	struct dev_info_spti *dispti = unitisopen (unitnum);
+	if (!dispti)
+		return;
+	struct device_info *di = &dispti->di;
+	_tcscpy (di->label, dispti->drvletter ? dispti->drvlettername : dispti->name);
+	_tcscpy (di->mediapath, dispti->drvpath);
+	di->bus = 0;
+	di->target = unitnum;
+	di->lun = 0;
+	di->media_inserted = mediacheck (dispti, unitnum);
+	di->removable = dispti->removable;
+	mediacheck_full (dispti, unitnum, di);
+	di->type = dispti->type;
+	di->unitnum = unitnum + 1;
+	if (log_scsi) {
+		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
+			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
+	}
+}
+
+static void checkcapabilities (struct dev_info_spti *di)
+{
 	STORAGE_ADAPTER_DESCRIPTOR desc;
 	STORAGE_PROPERTY_QUERY query;
 	DWORD ret, status;
@@ -304,12 +437,12 @@ static void checkcapabilities (int unitnum)
 	}
 }
 
-static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
+static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 {
 	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
 	uae_u8 out[INQUIRY_SIZE] = { 0 };
 	int outlen = sizeof (out);
-	uae_u8 *p = execscsicmd_in (unitnum, cmd, sizeof (cmd), &outlen);
+	uae_u8 *p = execscsicmd_in_internal (di, unitnum, cmd, sizeof (cmd), &outlen);
 	int inqlen = 0;
 
 	di->isatapi = 0;
@@ -348,61 +481,11 @@ static int inquiry (int unitnum, struct dev_info_spti *di, uae_u8 *inquirydata)
 	return inqlen;
 }
 
-static int mediacheck (int unitnum)
-{
-	uae_u8 cmd [6] = { 0,0,0,0,0,0 }; /* TEST UNIT READY */
-	int v;
-	if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
-		return 0;
-	v = execscsicmd (unitnum, cmd, sizeof (cmd), 0, 0);
-	return v >= 0 ? 1 : 0;
-}
-
-static int mediacheck_full (int unitnum, struct device_info *di)
-{
-	uae_u8 cmd1[10] = { 0x25,0,0,0,0,0,0,0,0,0 }; /* READ CAPACITY */
-	uae_u8 *p;
-	int outlen;
-
-	di->sectorspertrack = 0;
-	di->trackspercylinder = 0;
-	di->bytespersector = 0;
-	di->cylinders = 0;
-	di->write_protected = 1;
-	if (dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
-		return 0;
-	outlen = 32;
-	p = execscsicmd_in (unitnum, cmd1, sizeof cmd1, &outlen);
-	if (p && outlen >= 8) {
-		di->bytespersector = (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
-		di->sectorspertrack = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) + 1;
-		di->trackspercylinder = 1;
-		di->cylinders = 1;
-	}
-	if (di->type == INQ_DASD) {
-		uae_u8 cmd2[10] = { 0x5a,0x08,0,0,0,0,0,0,0xf0,0 }; /* MODE SENSE */
-		outlen = 32;
-		p = execscsicmd_in (unitnum, cmd2, sizeof cmd2, &outlen);
-		if (p && outlen >= 4) {
-			di->write_protected = (p[3] & 0x80) ? 1 : 0;
-		}
-	}
-	//    write_log (L"mediacheck_full(%d,%d,%d,%d,%d)\n",
-	//	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
-	return 1;
-}
-
-int open_scsi_device (int unitnum)
+static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 {
 	HANDLE h;
 	TCHAR *dev;
-	struct dev_info_spti *di;
 
-	di = &dev_info[unitnum];
-	if (unitnum >= total_devices)
-		return 0;
-	if (!di)
-		return 0;
 	if (di->bus >= 0) {
 		dev = xmalloc (TCHAR, 100);
 		_stprintf (dev, L"\\\\.\\Scsi%d:", di->bus);
@@ -417,18 +500,18 @@ int open_scsi_device (int unitnum)
 		write_log (L"SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError (), dev);
 	} else {
 		uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
-		checkcapabilities (unitnum);
-		if (!inquiry (unitnum, di, inqdata)) {
+		checkcapabilities (di);
+		if (!inquiry (di, unitnum, inqdata)) {
 			write_log (L"SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
 				di->bus, di->path, di->target, di->lun);
-			close_scsi_device (unitnum);
+			close_scsi_device2 (di);
 			xfree (dev);
 			return 0;
 		}
 		inqdata[INQUIRY_SIZE] = 0;
 		di->name = my_strdup_ansi ((char*)inqdata + 8);
 		if (di->type == INQ_ROMD) {
-			dev_info[unitnum].mediainserted = mediacheck (unitnum);
+			di->mediainserted = mediacheck (di, unitnum);
 			write_log (L"SPTI: unit %d (%c:\\) opened [%s], %s, '%s'\n",
 				unitnum, di->drvletter ? di->drvletter : '*',
 				di->isatapi ? L"ATAPI" : L"SCSI",
@@ -441,19 +524,52 @@ int open_scsi_device (int unitnum)
 		di->inquirydata = xmalloc (uae_u8, INQUIRY_SIZE);
 		memcpy (di->inquirydata, inqdata, INQUIRY_SIZE);
 		xfree (dev);
+		update_device_info (unitnum);
+		di->open = true;
 		return 1;
 	}
 	xfree (dev);
 	return 0;
 }
+int open_scsi_device (int unitnum, const TCHAR *ident)
+{
+	struct dev_info_spti *di = NULL;
+	if (ident) {
+		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+			di = &dev_info[i];
+			if (unittable[i] == 0 && di->drvletter != 0) {
+				if (!_tcsicmp (di->drvlettername, ident)) {
+					unittable[unitnum] = i + 1;
+					if (open_scsi_device2 (di, unitnum))
+						return 1;
+					unittable[unitnum] = 0;
+					return 0;
+				}
+			}
+		}
+		return 0;
+	}
+	di = &dev_info[unitnum];
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		if (unittable[i] == unitnum + 1)
+			return 0;
+	}
+	if (di->enabled == 0)
+		return 0;
+	unittable[unitnum] = unitnum + 1;
+	if (open_scsi_device2 (di, unitnum))
+		return 1;
+	unittable[unitnum] = 0;
+	return 0;
+}
 
-static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int lunid, int scanmode)
+static int adddrive (const TCHAR *drvpath, int bus, int pathid, int targetid, int lunid, int scanmode)
 {
 	struct dev_info_spti *di;
 	int cnt = total_devices, i;
 	int freeit = 1;
 
-	if (cnt >= MAX_TOTAL_DEVICES)
+	if (cnt >= MAX_TOTAL_SCSI_DEVICES)
 		return 0;
 	for (i = 0; i < total_devices; i++) {
 		di = &dev_info[i];
@@ -470,6 +586,7 @@ static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int luni
 	di->lun = lunid;
 	di->scanmode = scanmode;
 	di->drvletter = 0;
+	di->enabled = true;
 
 	for (TCHAR drvletter = 'C'; drvletter <= 'Z'; drvletter++) {
 		TCHAR drvname[10];
@@ -490,7 +607,8 @@ static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int luni
 
 
 	total_devices++;
-	if (open_scsi_device (cnt)) {
+	unittable[cnt] = cnt + 1;
+	if (open_scsi_device2 (&dev_info[cnt], cnt)) {
 		for (i = 0; i < cnt; i++) {
 			if (!memcmp (di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
 				write_log (L"duplicate device, skipped..\n");
@@ -499,57 +617,42 @@ static int adddrive (TCHAR *drvpath, int bus, int pathid, int targetid, int luni
 		}
 		if (i == cnt) {
 			freeit = 0;
-			close_scsi_device (cnt);
+			close_scsi_device2 (&dev_info[cnt]);
 		}
 	}
 	if (freeit) {
-		free_scsi_device (cnt);
+		free_scsi_device (&dev_info[cnt]);
 		total_devices--;
 	}
+	unittable[cnt] = 0;
 	return 1;
-}
-
-static int getid (int unitnum)
-{
-	return dev_info[unitnum].drvletter ? dev_info[unitnum].drvletter : unitnum + 1;
 }
 
 static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
 {
-	struct dev_info_spti *dispti;
-	if (unitnum >= MAX_TOTAL_DEVICES || dev_info[unitnum].handle == INVALID_HANDLE_VALUE)
+	struct dev_info_spti *dispti = unitcheck (unitnum);
+	if (!dispti)
 		return NULL;
-	dispti = &dev_info[unitnum];
-	_tcscpy (di->label, dispti->drvletter ? dispti->drvlettername : dispti->name);
-	_tcscpy (di->mediapath, dispti->drvpath);
-	di->bus = 0;
-	di->target = unitnum;
-	di->lun = 0;
-	di->media_inserted = mediacheck (unitnum);
-	di->removable = dispti->removable;
-	mediacheck_full (unitnum, di);
-	di->type = dispti->type;
-	di->id = getid (unitnum);
-	if (log_scsi) {
-		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
-			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
-	}
+	if (!quick)
+		update_device_info (unitnum);
+	dispti->di.open = di->open;
+	memcpy (di, &dispti->di, sizeof (struct device_info));
 	return di;
 }
 
 void win32_spti_media_change (TCHAR driveletter, int insert)
 {
-	int i, now;
-
-	for (i = 0; i < total_devices; i++) {
-		if (dev_info[i].type == INQ_ROMD) {
-			now = mediacheck (i);
-			if (now != dev_info[i].mediainserted) {
-				write_log (L"SPTI: media change %c %d\n", dev_info[i].drvletter, insert);
-				dev_info[i].mediainserted = now;
-				scsi_do_disk_change (getid (i), insert, NULL);
+	for (int i = 0; i < total_devices; i++) {
+		struct dev_info_spti *di = &dev_info[i];
+		if (di->drvletter == driveletter && di->mediainserted != insert) {
+			write_log (L"SPTI: media change %c %d\n", dev_info[i].drvletter, insert);
+			di->mediainserted = insert;
+			int unitnum = getunitnum (di);
+			if (unitnum >= 0) {
+				update_device_info (unitnum);
+				scsi_do_disk_change (unitnum, insert, NULL);
 #ifdef RETROPLATFORM
-				rp_cd_image_change (i, dev_info[i].drvletter ? dev_info[i].drvlettername : dev_info[i].name);
+				rp_cd_image_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 #endif
 			}
 		}
@@ -558,21 +661,11 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 
 static int check_isatapi (int unitnum)
 {
-	return dev_info[unitnum].isatapi;
+	struct dev_info_spti *di = unitcheck (unitnum);
+	if (!di)
+		return 0;
+	return di->isatapi;
 }
-
-static struct device_scsi_info *scsi_info (int unitnum, struct device_scsi_info *dsi)
-{
-	dsi->buffer = dev_info[unitnum].scsibuf;
-	dsi->bufsize = DEVICE_SCSI_BUFSIZE;
-	return dsi;
-}
-
-struct device_functions devicefunc_win32_spti = {
-	check_scsi_bus, open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
-	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, scsi_info, 0
-};
 
 static int getCDROMProperty (int idx, HDEVINFO DevInfo, const GUID *guid)
 {
@@ -769,3 +862,11 @@ static int rescan (void)
 
 
 #endif
+
+
+struct device_functions devicefunc_win32_spti = {
+	L"SPTI",
+	open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
+	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, 0
+};

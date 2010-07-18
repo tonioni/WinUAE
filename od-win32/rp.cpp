@@ -196,7 +196,7 @@ static int cd_insert (int num, const TCHAR *name)
 {
 	if (num != 0)
 		return 0;
-	_tcscpy (changed_prefs.cdimagefile, name);
+	_tcscpy (changed_prefs.cdimagefile[0], name);
 	config_changed = 1;
 	return 1;
 }
@@ -834,17 +834,17 @@ void rp_fixup_options (struct uae_prefs *p)
 		}
 	}
 
-	for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
-		int v = sys_command_ismedia (DF_IOCTL, i, 1);
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		int v = sys_command_ismedia (i, 1);
 		if (v >= 0)
 			cd_mask |= 1 << i;
 	}
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 	if (cd_mask) {
-		for (i = 0; i < MAX_TOTAL_DEVICES; i++) {
+		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			if ((1 << i) & cd_mask) {
 				struct device_info di = { 0 };
-				if (sys_command_info (DF_IOCTL, i, &di, 0))
+				if (sys_command_info (i, &di, 0))
 					rp_cd_image_change (i, di.mediapath);
 			}
 		}

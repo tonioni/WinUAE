@@ -1,6 +1,11 @@
 
-#define MAX_TOTAL_DEVICES 8
 #define DEVICE_SCSI_BUFSIZE (65536 - 1024)
+
+#define SCSI_UNIT_NONE 0
+#define SCSI_UNIT_IMAGE 1
+#define SCSI_UNIT_IOCTL 2
+#define SCSI_UNIT_SPTI 3
+#define SCSI_UNIT_ASPI 4
 
 //#define device_debug write_log
 #define device_debug
@@ -45,13 +50,6 @@ struct cd_toc_head
 	struct cd_toc toc[MAX_TOC_ENTRIES];
 };
 
-#define DEVICE_TYPE_ANY 1
-#define DEVICE_TYPE_SCSI 2
-#define DEVICE_TYPE_IOCTL 3
-#define DEVICE_TYPE_ALLOWEMU   0x10000000
-#define DEVICE_TYPE_CHECKAVAIL 0x20000000
-#define DEVICE_TYPE_USE_OLD    0x40000000
-
 #define SUB_ENTRY_SIZE 12
 #define SUB_CHANNEL_SIZE 96
 #define SUBQ_SIZE (4 + 12)
@@ -63,10 +61,8 @@ struct cd_toc_head
 #define AUDIO_STATUS_PLAY_ERROR     0x14
 #define AUDIO_STATUS_NO_STATUS      0x15
 
-#define DF_SCSI 0
-#define DF_IOCTL 1
-
 struct device_info {
+	bool open;
     int type;
     int media_inserted;
     int removable;
@@ -76,15 +72,13 @@ struct device_info {
     int sectorspertrack;
     int bytespersector;
     int bus, target, lun;
-    int id;
+    int unitnum;
     TCHAR label[MAX_DPATH];
 	TCHAR mediapath[MAX_DPATH];
+	TCHAR vendorid[10];
+	TCHAR productid[18];
+	TCHAR revision[6];
 	struct cd_toc_head toc;
-};
-
-struct device_scsi_info {
-    uae_u8 *buffer;
-    int bufsize;
 };
 
 struct amigascsi
@@ -105,10 +99,9 @@ struct amigascsi
 typedef int (*check_bus_func)(int flags);
 typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
-typedef int (*open_device_func)(int);
+typedef int (*open_device_func)(int, const TCHAR*);
 typedef void (*close_device_func)(int);
 typedef struct device_info* (*info_device_func)(int, struct device_info*, int);
-typedef struct device_scsi_info* (*scsiinfo_func)(int, struct device_scsi_info*);
 typedef uae_u8* (*execscsicmd_out_func)(int, uae_u8*, int);
 typedef uae_u8* (*execscsicmd_in_func)(int, uae_u8*, int, int*);
 typedef int (*execscsicmd_direct_func)(int, struct amigascsi*);
@@ -118,68 +111,64 @@ typedef void (*play_subchannel_callback)(uae_u8*, int);
 typedef int (*pause_func)(int, int);
 typedef int (*stop_func)(int);
 typedef int (*play_func)(int, int, int, int, play_subchannel_callback);
-typedef void (*volume_func)(int, uae_u16);
+typedef uae_u32 (*volume_func)(int, uae_u16, uae_u16);
 typedef int (*qcode_func)(int, uae_u8*, int);
-typedef struct cd_toc_head* (*toc_func)(int);
-typedef uae_u8* (*read_func)(int, uae_u8*, int, int);
-typedef uae_u8* (*rawread_func)(int, uae_u8*, int, int, int);
+typedef int (*toc_func)(int, struct cd_toc_head*);
+typedef int (*read_func)(int, uae_u8*, int, int);
+typedef int (*rawread_func)(int, uae_u8*, int, int, int, uae_u16);
 typedef int (*write_func)(int, uae_u8*, int, int);
 typedef int (*isatapi_func)(int);
 typedef int (*ismedia_func)(int, int);
 
 struct device_functions {
-	check_bus_func checkbus;
-    open_bus_func openbus;
-    close_bus_func closebus;
-    open_device_func opendev;
-    close_device_func closedev;
-    info_device_func info;
-    execscsicmd_out_func exec_out;
-    execscsicmd_in_func exec_in;
-    execscsicmd_direct_func exec_direct;
+	const TCHAR *name;
+	open_bus_func openbus;
+	close_bus_func closebus;
+	open_device_func opendev;
+	close_device_func closedev;
+	info_device_func info;
+	execscsicmd_out_func exec_out;
+	execscsicmd_in_func exec_in;
+	execscsicmd_direct_func exec_direct;
 
-    pause_func pause;
-    stop_func stop;
-    play_func play;
+	pause_func pause;
+	stop_func stop;
+	play_func play;
 	volume_func volume;
-    qcode_func qcode;
-    toc_func toc;
-    read_func read;
-    rawread_func rawread;
-    write_func write;
+	qcode_func qcode;
+	toc_func toc;
+	read_func read;
+	rawread_func rawread;
+	write_func write;
 
-    isatapi_func isatapi;
-
-    scsiinfo_func scsiinfo;
-
-    ismedia_func ismedia;
+	isatapi_func isatapi;
+	ismedia_func ismedia;
 
 };
 
-extern struct device_functions *device_func[2];
+extern struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
 
 extern int device_func_init(int flags);
 extern void device_func_reset(void);
-extern int sys_command_open (int mode, int unitnum);
-extern void sys_command_close (int mode, int unitnum);
+extern int sys_command_open (int unitnum);
+extern void sys_command_close (int unitnum);
 extern int sys_command_isopen (int unitnum);
-extern void sys_command_setunit (int unitnum);
-extern struct device_info *sys_command_info (int mode, int unitnum, struct device_info *di, int);
-extern struct device_scsi_info *sys_command_scsi_info (int mode, int unitnum, struct device_scsi_info *di);
-extern void sys_command_cd_pause (int mode, int unitnum, int paused);
-extern void sys_command_cd_stop (int mode, int unitnum);
-extern int sys_command_cd_play (int mode, int unitnum, int startlsn, int endlsn, int);
-extern int sys_command_cd_play (int mode, int unitnum, int startlsn, int endlsn, int scan, play_subchannel_callback subfunc);
-extern void sys_command_cd_volume (int mode, int unitnum, uae_u16 volume);
-extern int sys_command_cd_qcode (int mode, int unitnum, uae_u8*);
-extern struct cd_toc_head *sys_command_cd_toc (int mode, int unitnum);
-extern uae_u8 *sys_command_cd_read (int mode, int unitnum, uae_u8 *data, int block, int size);
-extern uae_u8 *sys_command_cd_rawread (int mode, int unitnum, uae_u8 *data, int sector, int size, int sectorsize);
-extern uae_u8 *sys_command_read (int mode, int unitnum, uae_u8 *data, int block, int size);
-extern int sys_command_write (int mode, int unitnum, uae_u8 *data, int block, int size);
-extern int sys_command_scsi_direct_native(int unitnum, struct amigascsi *as);
+extern struct device_info *sys_command_info (int unitnum, struct device_info *di, int);
+extern int sys_command_cd_pause (int unitnum, int paused);
+extern void sys_command_cd_stop (int unitnum);
+extern int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int);
+extern int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int scan, play_subchannel_callback subfunc);
+extern uae_u32 sys_command_cd_volume (int unitnum, uae_u16 volume_left, uae_u16 volume_right);
+extern int sys_command_cd_qcode (int unitnum, uae_u8*);
+extern int sys_command_cd_toc (int unitnum, struct cd_toc_head*);
+extern int sys_command_cd_read (int unitnum, uae_u8 *data, int block, int size);
+extern int sys_command_cd_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize);
+extern int sys_command_cd_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize, uae_u8 scsicmd9, uae_u8 subs);
+extern int sys_command_read (int unitnum, uae_u8 *data, int block, int size);
+extern int sys_command_write (int unitnum, uae_u8 *data, int block, int size);
+extern int sys_command_scsi_direct_native (int unitnum, struct amigascsi *as);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
-extern int sys_command_ismedia (int mode, int unitnum, int quick);
+extern int sys_command_ismedia (int unitnum, int quick);
 
 extern void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);
 extern void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *data, int *datalen, int parm);
@@ -187,7 +176,7 @@ extern void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, u
 extern void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen);
 extern void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen);
 
-extern void cdimage_vsync (void);
+extern void blkdev_vsync (void);
 
 extern int msf2lsn (int msf);
 extern int lsn2msf (int lsn);
@@ -195,3 +184,9 @@ extern uae_u8 frombcd (uae_u8 v);
 extern uae_u8 tobcd (uae_u8 v);
 extern int fromlongbcd (uae_u8 *p);
 extern void tolongbcd (uae_u8 *p, int v);
+
+extern void blkdev_default_prefs (struct uae_prefs *p);
+extern void blkdev_fix_prefs (struct uae_prefs *p);
+extern int isaudiotrack (struct cd_toc_head*, int block);
+extern int isdatatrack (struct cd_toc_head*, int block);
+

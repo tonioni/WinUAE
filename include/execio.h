@@ -7,6 +7,29 @@
 #define IOERR_UNITBUSY	 -6
 #define IOERR_SELFTEST	 -7
 
+#define CDERR_NotSpecified   20   /* general catchall			  */
+#define CDERR_NoSecHdr	     21   /* couldn't even find a sector	  */
+#define CDERR_BadSecPreamble 22   /* sector looked wrong		  */
+#define CDERR_BadSecID	     23   /* ditto				  */
+#define CDERR_BadHdrSum      24   /* header had incorrect checksum	  */
+#define CDERR_BadSecSum      25   /* data had incorrect checksum	  */
+#define CDERR_TooFewSecs     26   /* couldn't find enough sectors	  */
+#define CDERR_BadSecHdr      27   /* another "sector looked wrong"	  */
+#define CDERR_WriteProt      28   /* can't write to a protected disk	  */
+#define CDERR_NoDisk	     29   /* no disk in the drive		  */
+#define CDERR_SeekError      30   /* couldn't find track 0		  */
+#define CDERR_NoMem	     31   /* ran out of memory			  */
+#define CDERR_BadUnitNum     32   /* asked for a unit > NUMUNITS	  */
+#define CDERR_BadDriveType   33   /* not a drive cd.device understands	  */
+#define CDERR_DriveInUse     34   /* someone else allocated the drive	  */
+#define CDERR_PostReset      35   /* user hit reset; awaiting doom	  */
+#define CDERR_BadDataType    36   /* data on disk is wrong type	  */
+#define CDERR_InvalidState   37   /* invalid cmd under current conditions */
+
+#define CDERR_Phase	     42   /* illegal or unexpected SCSI phase	  */
+#define CDERR_NoBoard	     50   /* open failed for non-existant board   */
+
+
 #define TDERR_DiskChanged 29
 
 #define CMD_INVALID	0
@@ -34,44 +57,58 @@
 #define TAG_SKIP   3
 #define TAG_USER   (1 << 31)
 
-#define     NSDEVTYPE_UNKNOWN       0
-#define     NSDEVTYPE_GAMEPORT      1
-#define     NSDEVTYPE_TIMER         2
-#define     NSDEVTYPE_KEYBOARD      3
-#define     NSDEVTYPE_INPUT         4
-#define     NSDEVTYPE_TRACKDISK     5
-#define     NSDEVTYPE_CONSOLE       6
-#define     NSDEVTYPE_SANA2         7
-#define     NSDEVTYPE_AUDIO         8
-#define     NSDEVTYPE_CLIPBOARD     9
-#define     NSDEVTYPE_PRINTER       10
-#define     NSDEVTYPE_SERIAL        11
-#define     NSDEVTYPE_PARALLEL      12
+#define NSDEVTYPE_UNKNOWN       0
+#define NSDEVTYPE_GAMEPORT      1
+#define NSDEVTYPE_TIMER         2
+#define NSDEVTYPE_KEYBOARD      3
+#define NSDEVTYPE_INPUT         4
+#define NSDEVTYPE_TRACKDISK     5
+#define NSDEVTYPE_CONSOLE       6
+#define NSDEVTYPE_SANA2         7
+#define NSDEVTYPE_AUDIO         8
+#define NSDEVTYPE_CLIPBOARD     9
+#define NSDEVTYPE_PRINTER       10
+#define NSDEVTYPE_SERIAL        11
+#define NSDEVTYPE_PARALLEL      12
 
-#define CMD_MOTOR	9
-#define CMD_SEEK	10
-#define CMD_FORMAT	11
-#define CMD_REMOVE	12
-#define CMD_CHANGENUM	13
-#define CMD_CHANGESTATE	14
-#define CMD_PROTSTATUS	15
-#define CMD_GETDRIVETYPE 18
-#define CMD_GETNUMTRACKS 19
-#define CMD_ADDCHANGEINT 20
-#define CMD_REMCHANGEINT 21
-#define CMD_GETGEOMETRY	22
-#define CMD_GETDRIVETYPE 18
-#define CMD_GETNUMTRACKS 19
-#define CMD_ADDCHANGEINT 20
-#define CMD_REMCHANGEINT 21
-#define CMD_GETGEOMETRY	22
-#define HD_SCSICMD 28
-
-/* Trackdisk64 support */
-#define TD_READ64 24
-#define TD_WRITE64 25
-#define TD_SEEK64 26
-#define TD_FORMAT64 27
+#define CMD_MOTOR			 9
+#define CMD_SEEK			10
+#define CMD_FORMAT			11
+#define CMD_REMOVE			12
+#define CMD_CHANGENUM		13
+#define CMD_CHANGESTATE		14
+#define CMD_PROTSTATUS		15
+#define CMD_GETDRIVETYPE	18
+#define CMD_GETNUMTRACKS	19
+#define CMD_ADDCHANGEINT	20
+#define CMD_REMCHANGEINT	21
+#define CMD_GETGEOMETRY		22
+#define CMD_GETDRIVETYPE	18
+#define CMD_GETNUMTRACKS	19
+#define CMD_ADDCHANGEINT	20
+#define CMD_REMCHANGEINT	21
+#define CMD_GETGEOMETRY		22
+#define CD_EJECT			23
+#define TD_READ64			24
+#define TD_WRITE64			25
+#define TD_SEEK64			26
+#define TD_FORMAT64			27
+#define HD_SCSICMD			28
+#define CD_INFO				32
+#define CD_CONFIG			33
+#define CD_TOCMSF			34
+#define CD_TOCLSN			35
+#define CD_READXL			36
+#define CD_PLAYTRACK		37
+#define CD_PLAYMSF			38
+#define CD_PLAYLSN			39
+#define CD_PAUSE			40
+#define CD_SEARCH			41
+#define CD_QCODEMSF			42
+#define CD_QCODELSN			43
+#define CD_ATTENUATE		44
+#define CD_ADDFRAMEINT		45
+#define CD_REMFRAMEINT		46
 
 /* New Style Devices (NSD) support */
 #define NSCMD_TD_READ64 0xc000
