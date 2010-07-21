@@ -3883,32 +3883,45 @@ static void getstartpaths (void)
 		posn[1] = 0;
 
 	if (path_type < 0 && start_data == 0 && key) {
-		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, SHGFP_TYPE_CURRENT, tmp))) {
-			// installed in Program Files?
-			if (_tcsnicmp (tmp, start_path_exe, _tcslen (tmp)) == 0) {
-				if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
-					fixtrailing (tmp);
-					_tcscpy (tmp2, tmp);
-					_tcscat (tmp2, L"Amiga Files");
-					CreateDirectory (tmp2, NULL);
-					_tcscat (tmp2, L"\\WinUAE");
-					CreateDirectory (tmp2, NULL);
-					v = GetFileAttributes (tmp2);
-					if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-						_tcscat (tmp2, L"\\");
-						path_type = PATH_TYPE_NEWWINUAE;
-						_tcscpy (tmp, tmp2);
-						_tcscat (tmp, L"Configurations");
-						CreateDirectory (tmp, NULL);
-						_tcscpy (tmp, tmp2);
-						_tcscat (tmp, L"Screenshots");
-						CreateDirectory (tmp, NULL);
-						_tcscpy (tmp, tmp2);
-						_tcscat (tmp, L"Savestates");
-						CreateDirectory (tmp, NULL);
-						_tcscpy (tmp, tmp2);
-						_tcscat (tmp, L"Screenshots");
-						CreateDirectory (tmp, NULL);
+		bool ispath = false;
+		_tcscpy (tmp2, start_path_exe);
+		_tcscat (tmp2, L"configurations\\configuration.cache");
+		v = GetFileAttributes (tmp2);
+		if (v != INVALID_FILE_ATTRIBUTES && !(v & FILE_ATTRIBUTE_DIRECTORY))
+			ispath = true;
+		_tcscpy (tmp2, start_path_exe);
+		_tcscat (tmp2, L"roms");
+		v = GetFileAttributes (tmp2);
+		if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY))
+			ispath = true;
+		if (!ispath) {
+			if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, SHGFP_TYPE_CURRENT, tmp))) {
+				// installed in Program Files?
+				if (_tcsnicmp (tmp, start_path_exe, _tcslen (tmp)) == 0) {
+					if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
+						fixtrailing (tmp);
+						_tcscpy (tmp2, tmp);
+						_tcscat (tmp2, L"Amiga Files");
+						CreateDirectory (tmp2, NULL);
+						_tcscat (tmp2, L"\\WinUAE");
+						CreateDirectory (tmp2, NULL);
+						v = GetFileAttributes (tmp2);
+						if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+							_tcscat (tmp2, L"\\");
+							path_type = PATH_TYPE_NEWWINUAE;
+							_tcscpy (tmp, tmp2);
+							_tcscat (tmp, L"Configurations");
+							CreateDirectory (tmp, NULL);
+							_tcscpy (tmp, tmp2);
+							_tcscat (tmp, L"Screenshots");
+							CreateDirectory (tmp, NULL);
+							_tcscpy (tmp, tmp2);
+							_tcscat (tmp, L"Savestates");
+							CreateDirectory (tmp, NULL);
+							_tcscpy (tmp, tmp2);
+							_tcscat (tmp, L"Screenshots");
+							CreateDirectory (tmp, NULL);
+						}
 					}
 				}
 			}

@@ -1073,7 +1073,7 @@ static void dev_reset (void)
 				dev->aunit = unitnum;
 				unitnum++;
 			}
-			write_log (L"%s:%d = '%s'\n", UAEDEV_SCSI, dev->aunit, dev->di.label);
+			write_log (L"%s:%d = %s:'%s'\n", UAEDEV_SCSI, dev->aunit, dev->di.backend, dev->di.label);
 		}
 		dev->di.label[0] = 0;
 	}

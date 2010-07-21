@@ -230,7 +230,7 @@ static int cdda_openwav (struct dev_info_ioctl *ciw)
 	wav.wFormatTag = WAVE_FORMAT_PCM;
 	mmr = waveOutOpen (&ciw->cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"CDDA: wave open %d\n", mmr);
+		write_log (L"IOCTL CDDA: wave open %d\n", mmr);
 		cdda_closewav (ciw);
 		return 0;
 	}
@@ -280,7 +280,7 @@ static void *cdda_play (void *v)
 			whdr[i].lpData = (LPSTR)px[i];
 			mmr = waveOutPrepareHeader (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
 			if (mmr != MMSYSERR_NOERROR) {
-				write_log (L"CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
+				write_log (L"IOCTL CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
 				goto end;
 			}
 			whdr[i].dwFlags |= WHDR_DONE;
@@ -290,7 +290,7 @@ static void *cdda_play (void *v)
 
 			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
 				Sleep (10);
-				if (!ciw->cdda_play)
+				if (ciw->cdda_play <= 0)
 					goto end;
 			}
 			bufon[bufnum] = 0;
@@ -299,7 +299,7 @@ static void *cdda_play (void *v)
 				cdda_pos = ciw->cdda_start;
 				oldplay = ciw->cdda_play;
 				firstloops = 25;
-				write_log (L"CDDA: playing from %d to %d\n", ciw->cdda_start, ciw->cdda_end);
+				write_log (L"IOCTL CDDA: playing from %d to %d\n", ciw->cdda_start, ciw->cdda_end);
 				ciw->subcodevalid = false;
 				while (ciw->cdda_paused && ciw->cdda_play > 0)
 					Sleep (10);
@@ -375,7 +375,7 @@ static void *cdda_play (void *v)
 				bufon[bufnum] = 1;
 				mmr = waveOutWrite (ciw->cdda_wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
 				if (mmr != MMSYSERR_NOERROR) {
-					write_log (L"CDDA: waveOutWrite %d\n", mmr);
+					write_log (L"IOCTL CDDA: waveOutWrite %d\n", mmr);
 					break;
 				}
 
@@ -421,7 +421,7 @@ end:
 	cdda_closewav (ciw);
 	VirtualFree (p, 0, MEM_RELEASE);
 	ciw->cdda_play = 0;
-	write_log (L"CDDA: thread killed\n");
+	write_log (L"IOCTL CDDA: thread killed\n");
 	return NULL;
 }
 
@@ -488,7 +488,7 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 	ciw->cdda_subfunc = subfunc;
 	ciw->cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
 	if (!ciw->cdda_play) {
-		uae_start_thread (L"cdda_play", cdda_play, ciw, NULL);
+		uae_start_thread (L"cdimage_cdda_play", cdda_play, ciw, NULL);
 	}
 	ciw->cdda_start = startlsn;
 	ciw->cdda_end = endlsn;
@@ -498,7 +498,7 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 	return 1;
 }
 
-static void sub_deinterleave (uae_u8 *s, uae_u8 *d)
+static void sub_deinterleave (const uae_u8 *s, uae_u8 *d)
 {
 	for (int i = 0; i < 8 * 12; i ++) {
 		int dmask = 0x80;
@@ -689,7 +689,7 @@ static void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
 	}
 }
 
-static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize, uae_u16 extra)
+static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize, uae_u32 extra)
 {
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
@@ -720,7 +720,8 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri,
 			p, IOCTL_DATA_BUFFER, &len, NULL)) {
 				DWORD err = GetLastError ();
-				write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d, ERR=%d\n", unitnum, sector, sectorsize, err);
+				write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d mode=%d, ERR=%d\n",
+					unitnum, sector, sectorsize, rri.TrackMode, err);
 		}
 		reseterrormode (ciw);
 		if (data) {
@@ -733,6 +734,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 		}
 		ciw->cd_last_pos = sector;
 	} else {
+		uae_u8 sectortype = extra >> 16;
 		uae_u8 cmd9 = extra >> 8;
 		int sync = (cmd9 >> 7) & 1;
 		int headercodes = (cmd9 >> 5) & 3;
@@ -748,6 +750,9 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 
 		if (isaudiotrack (&ciw->di.toc, sector)) {
 
+			if (sectortype != 0 && sectortype != 1)
+				return -2;
+
 			for (int i = 0; i < size; i++) {
 				uae_u8 *odata = data;
 				int blocksize = errorfield == 0 ? 2352 : (errorfield == 1 ? 2352 + 294 : 2352 + 296);
@@ -760,7 +765,8 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 				memset (p, 0, blocksize);
 				if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
 					DWORD err = GetLastError ();
-					write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d, ERR=%d\n", unitnum, sector, sectorsize, err);
+					write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d mode=%d, ERR=%d\n",
+						unitnum, sector, sectorsize, rri.TrackMode, err);
 					if (err) {
 						reseterrormode (ciw);
 						return ret;
@@ -1006,6 +1012,13 @@ static void update_device_info (int unitnum)
 	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
 	di->unitnum = unitnum + 1;
 	_tcscpy (di->label, ciw->drvlettername);
+	di->backend = L"IOCTL";
+}
+
+static void trim (TCHAR *s)
+{
+	while (_tcslen (s) > 0 && s[_tcslen (s) - 1] == ' ')
+		s[_tcslen (s) - 1] = 0;
 }
 
 /* open device level access to cd rom drive */
@@ -1021,6 +1034,7 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		write_log (L"IOCTL: failed to allocate buffer");
 		return 1;
 	}
+
 	_tcscpy (ciw->di.vendorid, L"UAE");
 	_stprintf (ciw->di.productid, L"SCSI CD%d IMG", unitnum);
 	_tcscpy (ciw->di.revision, L"0.1");
@@ -1030,20 +1044,24 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		memcpy (tmp, inquiry + 8, 8);
 		tmp[8] = 0;
 		s = au (tmp);
+		trim (s);
 		_tcscpy (ciw->di.vendorid, s);
 		xfree (s);
 		memcpy (tmp, inquiry + 16, 16);
 		tmp[16] = 0;
 		s = au (tmp);
+		trim (s);
 		_tcscpy (ciw->di.productid, s);
 		xfree (s);
 		memcpy (tmp, inquiry + 32, 4);
 		tmp[4] = 0;
 		s = au (tmp);
+		trim (s);
 		_tcscpy (ciw->di.revision, s);
 		xfree (s);
 		close_createfile (ciw);
 	}
+
 	if (!open_createfile (ciw, 0)) {
 		write_log (L"IOCTL: failed to open '%s', err=%d\n", ciw->devname, GetLastError ());
 		goto error;
@@ -1084,7 +1102,7 @@ static void sys_cddev_close (struct dev_info_ioctl *ciw, int unitnum)
 static int open_device (int unitnum, const TCHAR *ident)
 {
 	struct dev_info_ioctl *ciw = NULL;
-	if (ident) {
+	if (ident && ident[0]) {
 		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			ciw = &ciw32[i];
 			if (unittable[i] == 0 && ciw->drvletter != 0) {
@@ -1110,6 +1128,7 @@ static int open_device (int unitnum, const TCHAR *ident)
 	if (sys_cddev_open (ciw, unitnum) == 0)
 		return 1;
 	unittable[unitnum] = 0;
+	blkdev_cd_change (unitnum, ciw->drvlettername);
 	return 0;
 }
 static void close_device (int unitnum)
@@ -1118,6 +1137,7 @@ static void close_device (int unitnum)
 	if (!ciw)
 		return;
 	sys_cddev_close (ciw, unitnum);
+	blkdev_cd_change (unitnum, ciw->drvlettername);
 	unittable[unitnum] = 0;
 }
 
@@ -1216,9 +1236,7 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 			if (unitnum >= 0) {
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
-#ifdef RETROPLATFORM
-				rp_cd_image_change (unitnum, ciw->drvlettername);
-#endif
+				blkdev_cd_change (unitnum, ciw->drvlettername);
 			}
 		}
 	}

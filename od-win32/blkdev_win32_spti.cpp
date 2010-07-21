@@ -306,6 +306,7 @@ static void close_scsi_device (int unitnum)
 	if (!di)
 		return;
 	close_scsi_device2 (di);
+	blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 	unittable[unitnum] = 0;
 }
 
@@ -413,6 +414,7 @@ static void update_device_info (int unitnum)
 	mediacheck_full (dispti, unitnum, di);
 	di->type = dispti->type;
 	di->unitnum = unitnum + 1;
+	di->backend = L"SPTI";
 	if (log_scsi) {
 		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
 			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
@@ -526,6 +528,7 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		xfree (dev);
 		update_device_info (unitnum);
 		di->open = true;
+		blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 		return 1;
 	}
 	xfree (dev);
@@ -534,7 +537,7 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 int open_scsi_device (int unitnum, const TCHAR *ident)
 {
 	struct dev_info_spti *di = NULL;
-	if (ident) {
+	if (ident && ident[0]) {
 		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			di = &dev_info[i];
 			if (unittable[i] == 0 && di->drvletter != 0) {
@@ -651,9 +654,7 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 			if (unitnum >= 0) {
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
-#ifdef RETROPLATFORM
-				rp_cd_image_change (unitnum, di->drvletter ? di->drvlettername : di->name);
-#endif
+				blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 			}
 		}
 	}

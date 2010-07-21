@@ -874,7 +874,7 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 		}
 	}
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dst = save_cd (i, &len);
 		if (dst) {
 			_stprintf (name, L"CDU%d", i);

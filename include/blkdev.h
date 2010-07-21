@@ -1,7 +1,8 @@
 
 #define DEVICE_SCSI_BUFSIZE (65536 - 1024)
 
-#define SCSI_UNIT_NONE 0
+#define SCSI_UNIT_DISABLED -1
+#define SCSI_UNIT_DEFAULT 0
 #define SCSI_UNIT_IMAGE 1
 #define SCSI_UNIT_IOCTL 2
 #define SCSI_UNIT_SPTI 3
@@ -78,6 +79,7 @@ struct device_info {
 	TCHAR vendorid[10];
 	TCHAR productid[18];
 	TCHAR revision[6];
+	TCHAR *backend;
 	struct cd_toc_head toc;
 };
 
@@ -115,7 +117,7 @@ typedef uae_u32 (*volume_func)(int, uae_u16, uae_u16);
 typedef int (*qcode_func)(int, uae_u8*, int);
 typedef int (*toc_func)(int, struct cd_toc_head*);
 typedef int (*read_func)(int, uae_u8*, int, int);
-typedef int (*rawread_func)(int, uae_u8*, int, int, int, uae_u16);
+typedef int (*rawread_func)(int, uae_u8*, int, int, int, uae_u32);
 typedef int (*write_func)(int, uae_u8*, int, int);
 typedef int (*isatapi_func)(int);
 typedef int (*ismedia_func)(int, int);
@@ -190,3 +192,8 @@ extern void blkdev_fix_prefs (struct uae_prefs *p);
 extern int isaudiotrack (struct cd_toc_head*, int block);
 extern int isdatatrack (struct cd_toc_head*, int block);
 
+enum cd_standard_unit { CD_STANDARD_UNIT_AUDIO, CD_STANDARD_UNIT_CDTV, CD_STANDARD_UNIT_CD32 };
+
+extern int get_standard_cd_unit (enum cd_standard_unit csu);
+extern void close_standard_cd_unit (int);
+extern void blkdev_cd_change (int unitnum, const TCHAR *name);

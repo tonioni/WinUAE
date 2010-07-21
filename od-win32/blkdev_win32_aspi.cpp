@@ -983,6 +983,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	di->unitnum = unitnum + 1;
 	di->removable = sif->removable;
 	_tcscpy (di->label, sif->label);
+	di->backend = L"ASPI";
 	if (log_scsi) {
 		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d '%s'\n",
 			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->label);

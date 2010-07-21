@@ -69,6 +69,13 @@ struct jport {
 #define TABLET_MOUSEHACK 1
 #define TABLET_REAL 2
 
+struct cdslot
+{
+	TCHAR name[MAX_DPATH];
+	bool inuse;
+	int type;
+};
+
 struct wh {
 	int x, y;
 	int width, height;
@@ -284,9 +291,7 @@ struct uae_prefs {
 	TCHAR sername[256];
 	TCHAR amaxromfile[MAX_DPATH];
 	TCHAR a2065name[MAX_DPATH];
-	TCHAR cdimagefile[MAX_TOTAL_SCSI_DEVICES][MAX_DPATH];
-	bool cdimagefileuse[MAX_TOTAL_SCSI_DEVICES];
-	int cdscsidevicetype[MAX_TOTAL_SCSI_DEVICES];
+	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 
 	TCHAR path_floppy[256];

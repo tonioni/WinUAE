@@ -78,7 +78,7 @@ static volatile int dmac_dma;
 
 static volatile int activate_stch, cdrom_command_done, play_state, play_statewait;
 static volatile int cdrom_sector, cdrom_sectors, cdrom_length, cdrom_offset;
-static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready, cd_hunt;
+static volatile int cd_playing, cd_paused, cd_motor, cd_media, cd_error, cd_finished, cd_isready;
 static uae_u32 last_play_pos, last_play_end;
 
 static volatile int cdtv_hsync, dma_finished, cdtv_sectorsize;
@@ -185,8 +185,8 @@ static void cdaudiostop (void)
 static void cdaudiostopfp (void)
 {
 	cdaudiostop ();
-	cd_error = 1;
-	cd_audio_status = AUDIO_STATUS_PLAY_ERROR;
+	cd_audio_status = AUDIO_STATUS_NO_STATUS;
+	activate_stch = 1;
 }
 
 static int pause_audio (int pause)
@@ -673,7 +673,7 @@ static void dma_do_thread (void)
 		uae_u8 buffer[2352];
 		if (!didread || readsector != (cdrom_offset / cdtv_sectorsize)) {
 			readsector = cdrom_offset / cdtv_sectorsize;
-			if (cdtv_sectorsize == 2336)
+			if (cdtv_sectorsize != 2048)
 				didread = read_raw (readsector, buffer, cdtv_sectorsize);
 			else
 				didread = sys_command_cd_read (unitnum, buffer, readsector, 1);
@@ -721,20 +721,15 @@ static void *dev_thread (void *p)
 			{
 				int m = ismedia ();
 				if (m < 0) {
-					if (!cd_hunt) {
-						write_log (L"CDTV: device %d lost\n", unitnum);
-						activate_stch = 1;
-						cd_hunt = 1;
-						cd_media = 0;
-					}
+					write_log (L"CDTV: device %d lost\n", unitnum);
+					activate_stch = 1;
+					cd_media = 0;
 				} else if (m != cd_media) {
 					cd_media = m;
 					get_toc ();
 					activate_stch = 1;
 					if (cd_playing)
 						cd_error = 1;
-					if (!cd_media)
-						cd_hunt = 1;
 				}
 				if (cd_media)
 					get_qcode ();
@@ -956,6 +951,40 @@ static void tp_bput (int addr, uae_u8 v)
 
 static uae_u8 subtransferbuf[SUB_CHANNEL_SIZE];
 
+#define SUBCODE_CYCLES (2 * maxhpos)
+static int subcode_activecnt;
+
+static void subcode_interrupt (uae_u32 v)
+{
+	subcode_activecnt--;
+	if (subcode_activecnt > 0) {
+		if (subcode_activecnt > 1)
+			subcode_activecnt = 1;
+		return;
+	}
+
+	if (subcodeoffset < -1)
+		return;
+	if (sbcp && scor == 0) {
+		sbcp = 0;
+		// CD+G interrupt didn't read data fast enough, just abort until next packet
+		return;
+	}
+	if (scor < 0) {
+		scor = 0;
+		if (issub ()) {
+			subcodeoffset = 0;
+		}
+		tp_check_interrupts ();
+	}
+	if (subcodeoffset >= SUB_CHANNEL_SIZE)
+		return;
+	sbcp = 1;
+	tp_check_interrupts ();
+	subcode_activecnt++;
+	event2_newevent2 (SUBCODE_CYCLES, 0, subcode_interrupt);
+}
+
 static uae_u8 tp_bget (int addr)
 {
 	uae_u8 v = 0;
@@ -1050,38 +1079,6 @@ void cdtv_getdmadata (uae_u32 *acr)
 	*acr = dmac_acr;
 }
 
-static void do_hunt (void)
-{
-	int i;
-	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (sys_command_ismedia (i, 1) > 0)
-			break;
-	}
-	if (i == MAX_TOTAL_SCSI_DEVICES) {
-		if (unitnum >= 0 && sys_command_ismedia (unitnum, 1) >= 0)
-			return;
-		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-			if (sys_command_ismedia (i, 1) >= 0)
-				break;
-		}
-		if (i == MAX_TOTAL_SCSI_DEVICES)
-			return;
-	}
-	if (unitnum >= 0) {
-		cdaudiostop ();
-		int ou = unitnum;
-		unitnum = -1;
-		sys_command_close (ou);
-	}
-	if (sys_command_open (i) > 0) {
-		struct device_info di = { 0 };
-		sys_command_info (i, &di, 0);
-		unitnum = i;
-		cd_hunt = 0;
-		write_log (L"CDTV: autodetected unit %d ('%s')\n", unitnum, di.label);
-	}
-}
-
 static void checkint (void)
 {
 	int irq = 0;
@@ -1143,26 +1140,10 @@ void CDTV_hsync_handler (void)
 		tp_check_interrupts ();
 	}
 
-	if (sbcp == 0 && subcodeoffset > 0) {
-		sbcp = 1;
-		tp_check_interrupts ();
-	}
-
 	if (sten < 0) {
 		sten--;
 		if (sten < -3)
 			sten = 0;
-	}
-	if (scor < 0) {
-		scor--;
-		if (scor <= -2) {
-			if (issub ()) {
-				subcodeoffset = 0;
-				sbcp = 1;
-			}
-			scor = 0;
-			tp_check_interrupts ();
-		}
 	}
 
 	static int subchannelcounter;
@@ -1185,6 +1166,8 @@ void CDTV_hsync_handler (void)
 						subcodebufferoffset -= MAX_SUBCODEBUFFER;
 					sbcp = 0;
 					scor = 1;
+					subcode_activecnt++;
+					event2_newevent2 (SUBCODE_CYCLES, 0, subcode_interrupt);
 					tp_check_interrupts ();
 				}
 				uae_sem_post (&sub_sem);
@@ -1232,12 +1215,10 @@ void CDTV_hsync_handler (void)
 	subqcnt--;
 	if (subqcnt < 0) {
 		write_comm_pipe_u32 (&requests, 0x0101, 1);
-		if (cd_playing && !cd_hunt)
+		if (cd_playing)
 			subqcnt = 10;
 		else
 			subqcnt = 75;
-		if (cd_hunt)
-			do_hunt ();
 	}
 
 	if (activate_stch)
@@ -1558,70 +1539,12 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 
 static void open_unit (void)
 {
-	struct device_info di1, *di2;
-	int first = -1;
-	int cdtvunit = -1, audiounit = -1;
-	int opened[MAX_TOTAL_SCSI_DEVICES];
-	int i;
-
-	if (unitnum >= 0)
-		sys_command_close (unitnum);
-	unitnum = -1;
-	cdtv_reset ();
-	if (!device_func_init (0)) {
-		write_log (L"no CDROM support\n");
-		return;
-	}
-	for (unitnum = 0; unitnum < MAX_TOTAL_SCSI_DEVICES; unitnum++) {
-		opened[unitnum] = 0;
-		if (sys_command_open (unitnum)) {
-			opened[unitnum] = 1;
-			di2 = sys_command_info (unitnum, &di1, 0);
-			if (di2 && di2->type == INQ_ROMD) {
-				write_log (L"%s: ", di2->label);
-				if (first < 0)
-					first = unitnum;
-				if (get_toc () > 0) {
-					if (datatrack) {
-						uae_u8 buffer[2048];
-						if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
-							if (!memcmp (buffer + 8, "CDTV", 4)) {
-								write_log (L"CDTV\n");
-								if (cdtvunit < 0)
-									cdtvunit = unitnum;
-							}
-						}
-					} else {
-						write_log (L"Audio CD\n");
-						if (audiounit < 0)
-							audiounit = unitnum;
-					}
-				} else {
-					write_log (L"TOC read failed\n");
-				}
-			}
-		}
-	}
-	unitnum = audiounit;
-	if (cdtvunit >= 0)
-		unitnum = cdtvunit;
-	if (unitnum < 0)
-		unitnum = first;
-	if (unitnum >= 0)
-		opened[unitnum] = 0;
-	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (opened[i])
-			sys_command_close (i);
-	}
-	cd_media = 0;
-	if (unitnum >= 0) {
-		cd_media = ismedia () > 0 ? -1 : 0;
-		if (!cd_media)
-			cd_hunt = 1;
-		if (!get_toc())
-			cd_media = 0;
-		cdaudiostop ();
-	}
+	struct device_info di;
+	unitnum = get_standard_cd_unit (CD_STANDARD_UNIT_CDTV);
+	sys_command_info (unitnum, &di, 0);
+	write_log (L"using drive %s (unit %d, media %d)\n", di.label, unitnum, di.media_inserted);
+	/* make sure CD audio is not playing */
+	cdaudiostop ();
 }
 
 static void ew (int addr, uae_u32 value)

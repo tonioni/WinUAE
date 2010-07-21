@@ -437,6 +437,7 @@ struct zfile *archive_access_zip (struct znode *zn, int flags)
 	s = NULL;
 	if (unzOpenCurrentFile (uz) != UNZ_OK)
 		return 0;
+//	write_log (L"unpacking %s\n", zn->fullname);
 	z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 	if (z) {
 //		if (flags & FILE_PEEK)

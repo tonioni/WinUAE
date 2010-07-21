@@ -420,7 +420,6 @@ static uae_u8 *sector_buffer_info_1, *sector_buffer_info_2;
 
 static int unitnum = -1;
 static int cdromok = 0;
-static int cd_hunt;
 static bool akiko_inited;
 static volatile int mediachanged, mediacheckcounter;
 static volatile int frame2counter;
@@ -660,77 +659,10 @@ static int get_cdrom_toc (void)
 /* open device */
 static int sys_cddev_open (void)
 {
-	int first = -1;
-	struct device_info di1, *di2;
-	int cd32unit = -1;
-	int audiounit = -1;
-	int opened[MAX_TOTAL_SCSI_DEVICES];
-	int i;
-
-	for (unitnum = 0; unitnum < MAX_TOTAL_SCSI_DEVICES; unitnum++) {
-		opened[unitnum] = 0;
-		if (sys_command_open (unitnum)) {
-			opened[unitnum] = 1;
-			di2 = sys_command_info (unitnum, &di1, 0);
-			if (di2 && di2->type == INQ_ROMD) {
-				write_log (L"%s: ", di2->label);
-				if (first < 0)
-					first = unitnum;
-				if (!get_cdrom_toc ()) {
-					if (cdrom_data_end > 0) {
-						uae_u8 buffer[2048];
-						if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
-							uae_u8 *p = buffer;
-							if (!memcmp (p + 8, "CDTV", 4) || !memcmp (p + 8, "CD32", 4)) {
-								uae_u32 crc;
-								write_log (L"CD32 or CDTV");
-								if (cd32unit < 0)
-									cd32unit = unitnum;
-								if (sys_command_cd_read (unitnum, buffer, 21, 1)) {
-									crc = get_crc32 (buffer, 2048);
-									if (crc == 0xe56c340f)
-										write_log (L" [CD32.TM]");
-									write_log (L"\n");
-								}
-							} else {
-								write_log (L"non CD32/CDTV data CD\n");
-							}
-						} else {
-							write_log (L"read error\n");
-						}
-					} else {
-						write_log (L"Audio CD\n");
-						if (audiounit < 0)
-							audiounit = unitnum;
-					}
-				} else {
-					write_log (L"can't read TOC\n");
-				}
-			}
-		}
-	}
-	unitnum = audiounit;
-	if (cd32unit >= 0)
-		unitnum = cd32unit;
-	if (unitnum < 0)
-		unitnum = first;
-	if (unitnum >= 0)
-		opened[unitnum] = 0;
-	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (opened[i])
-			sys_command_close (i);
-	}
-	if (unitnum < 0)
-		return 1;
-	di2 = sys_command_info (unitnum, &di1, 0);
-	if (!di2) {
-		write_log (L"unit %d info failed\n", unitnum);
-		sys_command_close (unitnum);
-		return 1;
-	}
-	if (sys_command_ismedia (unitnum, 0) <= 0)
-		cd_hunt = 1;
-	write_log (L"using drive %s (unit %d, media %d)\n", di2->label, unitnum, di2->media_inserted);
+	struct device_info di;
+	unitnum = get_standard_cd_unit (CD_STANDARD_UNIT_CD32);
+	sys_command_info (unitnum, &di, 0);
+	write_log (L"using drive %s (unit %d, media %d)\n", di.label, unitnum, di.media_inserted);
 	/* make sure CD audio is not playing */
 	cdaudiostop_do ();
 	return 0;
@@ -803,11 +735,7 @@ static int cdrom_command_led (void)
 static int cdrom_command_media_status (void)
 {
 	cdrom_result_buffer[0] = 0x0a;
-	if (cd_hunt) {
-		cdrom_result_buffer[1] = 0x80;
-	} else {
-		cdrom_result_buffer[1] = sys_command_ismedia (unitnum, 0) > 0 ? 0x83: 0x80;
-	}
+	cdrom_result_buffer[1] = sys_command_ismedia (unitnum, 0) > 0 ? 0x83: 0x80;
 	return 2;
 }
 
@@ -1013,7 +941,10 @@ static void cdrom_run_command (void)
 			cdrom_command_buffer[i] = get_byte (cdtx_address + ((cdcomtxinx + i) & 0xff));
 			checksum += cdrom_command_buffer[i];
 #if AKIKO_DEBUG_IO_CMD
-			write_log (L"%02X ", cdrom_command_buffer[i]);
+			if (i == cmd_len)
+				write_log (L"(%02X) ", cdrom_command_buffer[i]); // checksum
+			else
+				write_log (L"%02X ", cdrom_command_buffer[i]);
 #endif
 		}
 		if (checksum != 0xff) {
@@ -1073,8 +1004,6 @@ static void cdrom_run_command_run (void)
 	cdrom_start_return_data (len);
 }
 
-extern void encode_l2 (uae_u8 *p, int address);
-
 /* DMA transfer one CD sector */
 static void cdrom_run_read (void)
 {
@@ -1108,8 +1037,7 @@ static void cdrom_run_read (void)
 		if (sector_buffer_info_1[sec] != 0xff && sector_buffer_info_1[sec] != 0) {
 			uae_u8 buf[2352];
 
-			memcpy (buf + 16, sector_buffer_1 + sec * 2048, 2048);
-			encode_l2 (buf, sector + 150);
+			memcpy (buf, sector_buffer_1 + sec * 2352, 2352);
 			buf[0] = 0;
 			buf[1] = 0;
 			buf[2] = 0;
@@ -1186,51 +1114,10 @@ static void akiko_internal (void)
 	}
 }
 
-static void do_hunt (void)
-{
-	int i;
-	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-		if (sys_command_ismedia (i, 1) > 0)
-			break;
-	}
-	if (i == MAX_TOTAL_SCSI_DEVICES) {
-		if (unitnum >= 0 && sys_command_ismedia (unitnum, 1) >= 0)
-			return;
-		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-			if (sys_command_ismedia (i, 1) >= 0)
-				break;
-		}
-		if (i == MAX_TOTAL_SCSI_DEVICES)
-			return;
-	}
-	if (unitnum >= 0) {
-		int ou = unitnum;
-		unitnum = -1;
-		sys_command_close (ou);
-	}
-	if (sys_command_open (i) > 0) {
-		struct device_info di = { 0 };
-		sys_command_info (i, &di, 0);
-		unitnum = i;
-		cd_hunt = 0;
-		lastmediastate = -1;
-		write_log (L"CD32: autodetected unit %d ('%s')\n", unitnum, di.label);
-	}
-}
-
 void AKIKO_hsync_handler (void)
 {
 	if (!currprefs.cs_cd32cd || !akiko_inited)
 		return;
-
-	if (cd_hunt) {
-		static int huntcnt;
-		if (huntcnt <= 0 && (!mediachanged || unitnum < 0)) {
-			do_hunt ();
-			huntcnt = 312 * 50 * 2;
-		}
-		huntcnt--;
-	}
 
 	framecounter--;
 	if (framecounter <= 0) {
@@ -1344,15 +1231,12 @@ static void *akiko_thread (void *null)
 			mediacheckcounter = 312 * 50 * 2;
 			int media = sys_command_ismedia (unitnum, 1);
 			if (media < 0) {
-				if (!cd_hunt) {
-					write_log (L"CD32: device unit %d lost\n", unitnum);
-					media = lastmediastate = cdrom_disk = 0;
-					mediachanged = 1;
-					cdaudiostop_do ();
-					cd_hunt = 1;
-				}
+				write_log (L"CD32: device unit %d lost\n", unitnum);
+				media = lastmediastate = cdrom_disk = 0;
+				mediachanged = 1;
+				cdaudiostop_do ();
 			} else if (media != lastmediastate) {
-				write_log (L"CD32: media changed = %d (hunt=%d)\n", media, cd_hunt);
+				write_log (L"CD32: media changed = %d\n", media);
 				lastmediastate = cdrom_disk = media;
 				mediachanged = 1;
 				cdaudiostop_do ();
@@ -1376,7 +1260,7 @@ static void *akiko_thread (void *null)
 				while (offset < SECTOR_BUFFER_SIZE) {
 					int ok = 0;
 					if (sector < cdrom_data_end)
-						ok = sys_command_cd_read (unitnum, sector_buffer_2 + offset * 2048, sector, 1);
+						ok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
 					sector_buffer_info_2[offset] = ok ? 3 : 0;
 					offset++;
 					sector++;
@@ -1764,14 +1648,10 @@ int akiko_init (void)
 {
 	if (currprefs.cs_cd32cd && cdromok == 0) {
 		unitnum = -1;
-		if (!device_func_init (0)) {
-			write_log (L"no CDROM support\n");
-			return 0;
-		}
 		if (!sys_cddev_open ()) {
 			cdromok = 1;
-			sector_buffer_1 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE * 2048);
-			sector_buffer_2 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE * 2048);
+			sector_buffer_1 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE * 2352);
+			sector_buffer_2 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE * 2352);
 			sector_buffer_info_1 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE);
 			sector_buffer_info_2 = xmalloc (uae_u8, SECTOR_BUFFER_SIZE);
 			sector_buffer_sector_1 = -1;

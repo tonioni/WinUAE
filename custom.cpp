@@ -61,7 +61,7 @@
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
-#define SPEEDUP
+//#define SPEEDUP
 #define AUTOSCALE_SPRITES 1
 
 #define SPRBORDER 0
@@ -1571,10 +1571,12 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 			finish_final_fetch (pos, fm);
 			return 1;
 		}
-		if (plf_state == plf_passed_stop)
+		if (plf_state == plf_passed_stop) {
 			plf_state = plf_passed_stop2;
-		else if (plf_state == plf_passed_stop2)
+		} else if (plf_state == plf_passed_stop2) {
 			plf_state = plf_end;
+		}
+
 	}
 
 	maybe_check (pos);
@@ -3101,7 +3103,8 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 
 static int test_copper_dangerous (unsigned int address)
 {
-	if ((address & 0x1fe) < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0 : 0x40) : 0x80)) {
+	int addr = address & 0x01fe;
+	if (addr < ((copcon & 2) ? ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0 : 0x40) : 0x80)) {
 		cop_state.state = COP_stop;
 		copper_enabled_thisline = 0;
 		unset_special (SPCFLAG_COPPER);
