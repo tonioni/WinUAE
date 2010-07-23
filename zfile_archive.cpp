@@ -188,28 +188,37 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 			if (zf->zipname && zf->zipname[0] == '#' && _tstol (zf->zipname + 1) == zipcnt)
 				select = -1;
 			if (select && we_have_file < 10) {
-				struct zfile *zt = archive_getzfile (zn, id, FILE_PEEK);
-				if (zt) {
-					int ft = zfile_gettype (zt);
-					TCHAR *ext = _tcsrchr (zn->fullname, '.');
-					int whf = 1;
-					if ((mask & ZFD_CD) && ft) {
-						if (ext && !_tcsicmp (ext, L".iso"))
-							whf = 2;
-						if (ext && !_tcsicmp (ext, L".ccd"))
-							whf = 9;
-						if (ext && !_tcsicmp (ext, L".cue"))
-							whf = 10;
+				struct zfile *zt = NULL;
+				TCHAR *ext = _tcsrchr (zn->fullname, '.');
+				int whf = 1;
+				int ft = 0;
+				if (mask & ZFD_CD) {
+					if (ext && !_tcsicmp (ext, L".iso")) {
+						whf = 2;
+						ft = ZFILE_CDIMAGE;
 					}
-					if ((select < 0 || ft) && whf > we_have_file) {
-						we_have_file = whf;
-						if (z)
-							zfile_fclose (z);
-						z = zt;
-						zt = NULL;
+					if (ext && !_tcsicmp (ext, L".ccd")) {
+						whf = 9;
+						ft = ZFILE_CDIMAGE;
 					}
-					zfile_fclose (zt);
+					if (ext && !_tcsicmp (ext, L".cue")) {
+						whf = 10;
+						ft = ZFILE_CDIMAGE;
+					}
+				} else {
+					zt = archive_getzfile (zn, id, FILE_PEEK);
+					ft = zfile_gettype (zt);
 				}
+				if ((select < 0 || ft) && whf > we_have_file) {
+					if (!zt)
+						zt = archive_getzfile (zn, id, FILE_PEEK);
+					we_have_file = whf;
+					if (z)
+						zfile_fclose (z);
+					z = zt;
+					zt = NULL;
+				}
+				zfile_fclose (zt);
 			}
 		}
 		zipcnt++;

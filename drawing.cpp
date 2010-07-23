@@ -2148,11 +2148,11 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 
 	} else {
 
-		xcolnr tmp = colors_for_drawing.acolors[0];
-		colors_for_drawing.acolors[0] = getxcolor (0);
+		int tmp = hposendblank;
+		hposendblank = 1;
 		fill_line ();
 		do_flush_line (gfx_ypos);
-		colors_for_drawing.acolors[0] = tmp;
+		hposendblank = tmp;
 
 	}
 }

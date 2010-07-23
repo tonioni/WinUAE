@@ -94,7 +94,7 @@ mp3decoder::mp3decoder()
 	LocalFree(mp3format);
 	LocalFree(waveFormat);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log(L"CUEMP3: couldn't open ACM mp3 decoder, %d\n", mmr);
+		write_log(L"MP3: couldn't open ACM mp3 decoder, %d\n", mmr);
 		throw exception();
 	}
 }
@@ -110,10 +110,10 @@ uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
 	ACMSTREAMHEADER mp3streamHead;
 	HACMSTREAM h = (HACMSTREAM)g_mp3stream;
 
-	write_log(L"CUEMP3: decoding '%s'..\n", zfile_getname(zf));
+	write_log(L"MP3: decoding '%s'..\n", zfile_getname(zf));
 	mmr = acmStreamSize(h, MP3_BLOCK_SIZE, &rawbufsize, ACM_STREAMSIZEF_SOURCE);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"CUEMP3: acmStreamSize, %d\n", mmr);
+		write_log (L"MP3: acmStreamSize, %d\n", mmr);
 		return NULL;
 	}
 	// allocate our I/O buffers
@@ -129,11 +129,11 @@ uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
 	mp3streamHead.cbDstLength = rawbufsize;
 	mmr = acmStreamPrepareHeader(h, &mp3streamHead, 0);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log(L"CUEMP3: acmStreamPrepareHeader, %d\n", mmr);
+		write_log(L"MP3: acmStreamPrepareHeader, %d\n", mmr);
 		return NULL;
 	}
 	zfile_fseek(zf, 0, SEEK_SET);
-	outbuf = xcalloc(uae_u8, maxsize);
+	outbuf = xcalloc(uae_u8, maxsize + 2352);
 	for (;;) {
 		int count = zfile_fread(mp3buf, 1, MP3_BLOCK_SIZE, zf);
 		if (count != MP3_BLOCK_SIZE)
@@ -141,7 +141,7 @@ uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
 		// convert the data
 		mmr = acmStreamConvert(h, &mp3streamHead, ACM_STREAMCONVERTF_BLOCKALIGN);
 		if (mmr != MMSYSERR_NOERROR) {
-			write_log(L"CUEMP3: acmStreamConvert, %d\n", mmr);
+			write_log(L"MP3: acmStreamConvert, %d\n", mmr);
 			return NULL;
 		}
 		if (outoffset + mp3streamHead.cbDstLengthUsed > maxsize)
@@ -152,17 +152,71 @@ uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
 	acmStreamUnprepareHeader(h, &mp3streamHead, 0);
 	LocalFree(rawbuf);
 	LocalFree(mp3buf);
-	write_log(L"CUEMP3: unpacked size %d bytes\n", outoffset);
+	write_log(L"MP3: unpacked size %d bytes\n", outoffset);
 	return outbuf;
 }
 
 uae_u32 mp3decoder::getsize (struct zfile *zf)
 {
 	uae_u32 size;
-	int frames;
+	int frames, sameframes;
+	int firstframe;
+	int oldbitrate;
+	int timelen = -1;
 
+	firstframe = -1;
+	oldbitrate = -1;
+	sameframes = -1;
 	frames = 0;
 	size = 0;
+	uae_u8 id3[10];
+
+	if (zfile_fread(id3, sizeof id3, 1, zf) != 1)
+		return 0;
+	if (id3[0] == 'I' && id3[1] == 'D' && id3[2] == '3' && id3[3] == 3 && id3[4] != 0xff && id3[6] < 0x80 && id3[7] < 0x80 && id3[8] < 0x80 && id3[9] < 0x80) {
+		int unsync = id3[5] & 0x80;
+		int exthead = id3[5] & 0x40;
+		int len = (id3[9] << 0) | (id3[8] << 7) | (id3[7] << 14) | (id3[6] << 21);
+		len &= 0x0fffffff;
+		uae_u8 *tag = xmalloc (uae_u8, len + 1);
+		if (zfile_fread (tag, len, 1, zf) != 1) {
+			xfree (tag);
+			return 0;
+		}
+		uae_u8 *p = tag;
+		if (exthead) {
+			int size = (p[4] << 21) | (p[5] << 14) | (p[6] << 7);
+			size &= 0x0fffffff;
+			p += size;
+			len -= size;
+		}
+		while (len > 0) {
+			int size = unsync ? (p[4] << 21) | (p[5] << 14) | (p[6] << 7) | (p[7] << 0) : (p[4] << 24) | (p[5] << 16) | (p[6] << 8) | (p[7] << 0);
+			size &= 0x0fffffff;
+			if (size > len)
+				break;
+			int compr = p[9] & 0x80;
+			int enc = p[9] & 0x40;
+			if (compr == 0 && enc == 0) {
+				if (!memcmp (p, "TLEN", 4)) {
+					uae_u8 *data = p + 10;
+					data[size] = 0;
+					if (data[0] ==  0)
+						timelen = atol ((char*)(data + 1));
+					else
+						timelen = _tstol ((wchar_t*)(data + 1));
+				}
+			}
+			size += 10;
+			p += size;
+			len -= size;
+		}
+		xfree (tag);
+	} else {
+		zfile_fseek(zf, -(int)sizeof id3, SEEK_CUR);
+	}
+
+
 	for (;;) {
 		int ver, layer, bitrate, freq, padding, bitindex, iscrc;
 		int samplerate, framelen, bitrateidx, channelmode;
@@ -175,6 +229,9 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 			zfile_fseek (zf, -3, SEEK_CUR);
 			continue;
 		}
+		if (firstframe < 0)
+			firstframe = zfile_ftell (zf);
+
 		ver = (header[1] >> 3) & 3;
 		if (ver == 1)
 			return 0;
@@ -212,7 +269,20 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 			return 0;
 		zfile_fseek(zf, framelen + iscrc - 4, SEEK_CUR);
 		frames++;
+		if (timelen > 0) {
+			size = ((uae_u64)timelen * freq * 2 * (isstereo ? 2 : 1)) / 1000;
+			break;
+		}
 		size += samplerate * 2 * (isstereo ? 2 : 1);
+		if (bitrate != oldbitrate) {
+			oldbitrate = bitrate;
+			sameframes++;
+		}
+		if (sameframes == 0 && frames > 100) {
+			// assume this is CBR MP3
+			size = samplerate * 2 * (isstereo ? 2 : 1) * ((zfile_size (zf) - firstframe) / ((samplerate / 8 * bitrate) / freq));
+			break;
+		}
 	}
 	return size;
 }

@@ -268,7 +268,7 @@ int zfile_gettype (struct zfile *z)
 			return ZFILE_NVR;
 		if (strcasecmp (ext, L"uae") == 0)
 			return ZFILE_CONFIGURATION;
-		if (strcasecmp (ext, L"cue") == 0 || strcasecmp (ext, L"iso") == 0)
+		if (strcasecmp (ext, L"cue") == 0 || strcasecmp (ext, L"iso") == 0 || strcasecmp (ext, L"ccd") == 0 || strcasecmp (ext, L"mds") == 0)
 			return ZFILE_CDIMAGE;
 	}
 	memset (buf, 0, sizeof (buf));

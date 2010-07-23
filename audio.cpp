@@ -1269,6 +1269,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 				// copy AUDxPT - 2 to internal latch instantly
 				cdp->pt = cdp->lc - 2;
 				cdp->dsr = false;
+				setirq (nr, 1);
 			} else {
 				// normal hardware behavior: latch it after first DMA fetch comes
 				cdp->dsr = true;
@@ -1307,7 +1308,8 @@ static void audio_state_channel2 (int nr, bool perfin)
 		cdp->have_dat = false;
 		cdp->losample = cdp->hisample = false;
 #endif
-		setirq (nr, 1);
+		if (!usehacks ())
+			setirq (nr, 10);
 		setdr (nr);
 		if (cdp->wlen != 1)
 			cdp->wlen = (cdp->wlen - 1) & 0xffff;

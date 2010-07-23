@@ -207,6 +207,168 @@ static int open_createfile (struct dev_info_ioctl *ciw, int fullaccess)
 	return 1;
 }
 
+
+typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
+	SCSI_PASS_THROUGH_DIRECT spt;
+	ULONG Filler;
+	UCHAR SenseBuf[32];
+} SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
+
+static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, int cmdlen, uae_u8 *data, int datalen)
+{
+	DWORD status, returned;
+	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
+	uae_u8 *p = ciw->tempbuffer;
+	if (!open_createfile (ciw, 1))
+		return 0;
+	memset (&swb, 0, sizeof (swb));
+	memcpy (swb.spt.Cdb, cmd, cmdlen);
+	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
+	swb.spt.CdbLength = cmdlen;
+	swb.spt.DataIn = SCSI_IOCTL_DATA_IN;
+	swb.spt.DataTransferLength = IOCTL_DATA_BUFFER;
+	swb.spt.DataBuffer = p;
+	memset (p, 0, IOCTL_DATA_BUFFER);
+	swb.spt.TimeOutValue = 80 * 60;
+	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
+	swb.spt.SenseInfoLength = 32;
+	seterrormode (ciw);
+	status = DeviceIoControl (ciw->h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
+		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
+		&returned, NULL);
+	reseterrormode (ciw);
+	if (!status) {
+		DWORD err = GetLastError ();
+		write_log (L"IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d ", unitnum, cmd[0], err);
+		return 0;
+	}
+	int tlen = swb.spt.DataTransferLength > datalen ? datalen : swb.spt.DataTransferLength;
+	memcpy (data, p, tlen);
+	return tlen;
+}
+
+static int spti_inquiry (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data)
+{
+	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
+	int len = sizeof cmd;
+
+	do_raw_scsi (ciw, unitnum, cmd, len, data, 256);
+	return 1;
+}
+
+static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int sector, int sectorsize)
+{
+	uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+	int tlen = sectorsize;
+
+	if (sectorsize == 2048 || sectorsize == 2336 || sectorsize == 2328) {
+		cmd[9] |= 1 << 4; // userdata
+	} else if (sectorsize >= 2352) {
+		cmd[9] |= 1 << 4; // userdata
+		cmd[9] |= 1 << 3; // EDC&ECC
+		cmd[9] |= 1 << 7; // sync
+		cmd[9] |= 3 << 5; // header code
+		if (sectorsize > 2352) {
+			cmd[10] |= 1; // RAW P-W
+		}
+		if (sectorsize > 2352 + SUB_CHANNEL_SIZE) {
+			cmd[9] |= 0x2 << 1; // C2
+		}
+	}
+	ciw->cd_last_pos = sector;
+	cmd[3] = (uae_u8)(sector >> 16);
+	cmd[4] = (uae_u8)(sector >> 8);
+	cmd[5] = (uae_u8)(sector >> 0);
+	if (unitnum >= 0)
+		gui_flicker_led (LED_CD, unitnum, 1);
+	int len = sizeof cmd;
+	return do_raw_scsi (ciw, unitnum,  cmd, len, data, tlen);
+}
+
+extern void encode_l2 (uae_u8 *p, int address);
+
+static int read_block (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int sector, int size, int sectorsize)
+{
+	int forcexp = 0;
+	RAW_READ_INFO rri;
+	DWORD len;
+	uae_u8 *p = ciw->tempbuffer;
+	int ret;
+	int xp = forcexp || (os_winxp && !os_vista) ? 1 : 0;
+
+	if (!open_createfile (ciw, xp))
+		return 0;
+	ret = 0;
+	while (size-- > 0) {
+		seterrormode (ciw);
+		rri.DiskOffset.QuadPart = sector * 2048;
+		rri.SectorCount = 1;
+		rri.TrackMode = (sectorsize > 2352 + 96) ? RawWithC2AndSubCode : RawWithSubCode;
+		len = sectorsize;
+		memset (p, 0, sectorsize);
+		if (!forcexp && DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
+			reseterrormode (ciw);
+			if (data) {
+				if (sectorsize >= 2352) {
+					memcpy (data, p, sectorsize);
+					data += sectorsize;
+					ret += sectorsize;
+				} else {
+					memcpy (data, p + 16, sectorsize);
+					data += sectorsize;
+					ret += sectorsize;
+				}
+			}
+			ciw->cd_last_pos = sector;
+		} else if (xp) {
+			int len = spti_read (ciw, unitnum, data, sector, sectorsize);
+			if (len) {
+				if (data) {
+					if (sectorsize >= 2352) {
+						memcpy (data, p, sectorsize);
+						data += sectorsize;
+						ret += sectorsize;
+					} else {
+						memcpy (data, p + 16, sectorsize);
+						data += sectorsize;
+						ret += sectorsize;
+					}
+				}
+				ciw->cd_last_pos = sector;
+			}
+		}
+		if (!ret) {
+			if (SetFilePointer (ciw->h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+				reseterrormode (ciw);
+				return ret;
+			}
+			DWORD dtotal = 0;
+			ReadFile (ciw->h, p, 2048, &dtotal, 0);
+			reseterrormode (ciw);
+			if (dtotal != 2048)
+				return ret;
+			if (sectorsize >= 2352) {
+				memset (data, 0, 16);
+				memcpy (data + 16, p, 2048);
+				encode_l2 (data, sector + 150);
+				if (sectorsize > 2352)
+					memset (data + 2352, 0, sectorsize - 2352);
+				sector++;
+				data += sectorsize;
+				ret += sectorsize;
+			} else if (sectorsize == 2048) {
+				memcpy (data, p, 2048);
+				sector++;
+				data += sectorsize;
+				ret += sectorsize;
+			}
+		}
+		sector++;
+	}
+	return ret;
+}
+
 static void cdda_closewav (struct dev_info_ioctl *ciw)
 {
 	if (ciw->cdda_wavehandle != NULL)
@@ -239,7 +401,6 @@ static int cdda_openwav (struct dev_info_ioctl *ciw)
 
 static void *cdda_play (void *v)
 {
-	DWORD len;
 	struct dev_info_ioctl *ciw = (struct dev_info_ioctl*)v;
 	int cdda_pos;
 	int num_sectors = CDDA_BUFFERS;
@@ -263,9 +424,9 @@ static void *cdda_play (void *v)
 		Sleep (10);
 	oldplay = -1;
 
-	p = (uae_u8*)VirtualAlloc (NULL, 2 * num_sectors * 4096, MEM_COMMIT, PAGE_READWRITE);
+	p = xmalloc (uae_u8, 2 * num_sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE);
 	px[0] = p;
-	px[1] = p + num_sectors * 4096;
+	px[1] = p + num_sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE;
 	bufon[0] = bufon[1] = 0;
 	bufnum = 0;
 	buffered = 0;
@@ -301,12 +462,13 @@ static void *cdda_play (void *v)
 				firstloops = 25;
 				write_log (L"IOCTL CDDA: playing from %d to %d\n", ciw->cdda_start, ciw->cdda_end);
 				ciw->subcodevalid = false;
-				while (ciw->cdda_paused && ciw->cdda_play > 0)
+				while (ciw->cdda_paused && ciw->cdda_play > 0) {
+					firstloops = -1;
 					Sleep (10);
+				}
 			}
 
 			if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
-				RAW_READ_INFO rri;
 				int sectors = num_sectors;
 
 				if (!isaudiotrack (&ciw->di.toc, cdda_pos))
@@ -316,23 +478,18 @@ static void *cdda_play (void *v)
 				ciw->subcodevalid = false;
 				memset (ciw->subcode, 0, sizeof ciw->subcode);
 
+				memset (px[bufnum], 0, sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE);
+
 				if (firstloops > 0) {
 
 					firstloops--;
 					if (ciw->cdda_subfunc)
 						ciw->cdda_subfunc (ciw->subcode, sectors);
-					memset (px[bufnum], 0, sectors * 2352);
 
 				} else {
 
 					firstloops = -1;
-					seterrormode (ciw);
-					rri.DiskOffset.QuadPart = 2048 * (cdda_pos + 0);
-					rri.SectorCount = sectors;
-					rri.TrackMode = RawWithSubCode;
-					if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, px[bufnum], sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE, &len, NULL)) {
-						DWORD err = GetLastError ();
-						write_log (L"IOCTL_CDROM_RAW_READ CDDA sector %d returned %d\n", cdda_pos, err);
+					if (!read_block (ciw, -1, px[bufnum], cdda_pos, sectors, 2352 + 96)) {
 						if (ciw->cdda_subfunc)
 							ciw->cdda_subfunc (ciw->subcode, sectors);
 					} else {
@@ -398,7 +555,6 @@ static void *cdda_play (void *v)
 
 			}
 
-
 			if (bufon[0] == 0 && bufon[1] == 0) {
 				while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
 					Sleep (10);
@@ -419,7 +575,7 @@ end:
 		waveOutUnprepareHeader  (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
 
 	cdda_closewav (ciw);
-	VirtualFree (p, 0, MEM_RELEASE);
+	xfree (p);
 	ciw->cdda_play = 0;
 	write_log (L"IOCTL CDDA: thread killed\n");
 	return NULL;
@@ -488,7 +644,7 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 	ciw->cdda_subfunc = subfunc;
 	ciw->cdda_scan = scan > 0 ? 10 : (scan < 0 ? 10 : 0);
 	if (!ciw->cdda_play) {
-		uae_start_thread (L"cdimage_cdda_play", cdda_play, ciw, NULL);
+		uae_start_thread (L"ioctl_cdda_play", cdda_play, ciw, NULL);
 	}
 	ciw->cdda_start = startlsn;
 	ciw->cdda_end = endlsn;
@@ -499,6 +655,20 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 }
 
 static void sub_deinterleave (const uae_u8 *s, uae_u8 *d)
+{
+	for (int i = 0; i < 8 * 12; i ++) {
+		int dmask = 0x80;
+		int smask = 1 << (7 - (i / 12));
+		(*d) = 0;
+		for (int j = 0; j < 8; j++) {
+			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
+			dmask >>= 1;
+		}
+		d++;
+	}
+}
+
+static void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
 {
 	for (int i = 0; i < 8 * 12; i ++) {
 		int dmask = 0x80;
@@ -608,131 +778,30 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
 
 }
 
-typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER {
-	SCSI_PASS_THROUGH_DIRECT spt;
-	ULONG Filler;
-	UCHAR SenseBuf[32];
-} SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
-
-static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, int cmdlen, uae_u8 *data, int datalen)
-{
-	DWORD status, returned;
-	SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER swb;
-	uae_u8 *p = ciw->tempbuffer;
-	if (!open_createfile (ciw, 1))
-		return 0;
-	memset (&swb, 0, sizeof (swb));
-	memcpy (swb.spt.Cdb, cmd, cmdlen);
-	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
-	swb.spt.CdbLength = cmdlen;
-	swb.spt.DataIn = SCSI_IOCTL_DATA_IN;
-	swb.spt.DataTransferLength = IOCTL_DATA_BUFFER;
-	swb.spt.DataBuffer = p;
-	memset (p, 0, IOCTL_DATA_BUFFER);
-	swb.spt.TimeOutValue = 80 * 60;
-	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
-	swb.spt.SenseInfoLength = 32;
-	seterrormode (ciw);
-	status = DeviceIoControl (ciw->h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
-		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
-		&swb, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
-		&returned, NULL);
-	reseterrormode (ciw);
-	if (!status) {
-		DWORD err = GetLastError ();
-		write_log (L"IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d ", unitnum, cmd[0], err);
-		return 0;
-	}
-	memcpy (data, p, swb.spt.DataTransferLength > datalen ? datalen : swb.spt.DataTransferLength);
-	return 1;
-}
-
-static int spti_inquiry (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data)
-{
-	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
-	int len = sizeof cmd;
-
-	do_raw_scsi (ciw, unitnum, cmd, len, data, 256);
-	return 1;
-}
-
-static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int sector, int sectorsize)
-{
-	/* number of bytes returned depends on type of track:
-	* CDDA = 2352
-	* Mode1 = 2048
-	* Mode2 = 2336
-	* Mode2 Form 1 = 2048
-	* Mode2 Form 2 = 2328
-	*/
-	uae_u8 cmd[12] = { 0xbe, 0, 0, 0, 0, 0, 0, 0, 1, 0x10, 0, 0 };
-	ciw->cd_last_pos = sector;
-	cmd[3] = (uae_u8)(sector >> 16);
-	cmd[4] = (uae_u8)(sector >> 8);
-	cmd[5] = (uae_u8)(sector >> 0);
-	gui_flicker_led (LED_CD, unitnum, 1);
-	int len = sizeof cmd;
-	return do_raw_scsi (ciw, unitnum,  cmd, len, data, sectorsize);
-}
-
-static void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
-{
-	for (int i = 0; i < 8 * 12; i ++) {
-		int dmask = 0x80;
-		int smask = 1 << (7 - (i / 12));
-		(*d) = 0;
-		for (int j = 0; j < 8; j++) {
-			(*d) |= (s[(i % 12) * 8 + j] & smask) ? dmask : 0;
-			dmask >>= 1;
-		}
-		d++;
-	}
-}
-
 static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int size, int sectorsize, uae_u32 extra)
 {
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
 		return 0;
 
-	RAW_READ_INFO rri;
-	DWORD len;
 	uae_u8 *p = ciw->tempbuffer;
 	int ret = 0;
 
 	if (log_scsi)
 		write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d\n", unitnum, sector, sectorsize);
-	if (!os_vista)
-		return spti_read (ciw, unitnum, data, sector, sectorsize);
-	if (!open_createfile (ciw, 1))
-		return 0;
 	cdda_stop (ciw);
 	gui_flicker_led (LED_CD, unitnum, 1);
 	if (sectorsize > 0) {
-		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048)
+		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048 &&
+			sectorsize != 2336 + 96 && sectorsize != 2352 + 96 && sectorsize != 2048 + 96)
 			return 0;
-		seterrormode (ciw);
-		rri.DiskOffset.QuadPart = sector * 2048;
-		rri.SectorCount = 1;
-		rri.TrackMode = RawWithSubCode;
-		len = sectorsize;
-		memset (p, 0, sectorsize);
-		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri,
-			p, IOCTL_DATA_BUFFER, &len, NULL)) {
-				DWORD err = GetLastError ();
-				write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d mode=%d, ERR=%d\n",
-					unitnum, sector, sectorsize, rri.TrackMode, err);
-		}
-		reseterrormode (ciw);
-		if (data) {
-			if (sectorsize == 2352)
-				memcpy (data, p, sectorsize);
-			else
-				memcpy (data, p + 16, sectorsize);
+		while (size-- > 0) {
+			if (!read_block (ciw, unitnum, data, sector, 1, sectorsize))
+				break;
 			data += sectorsize;
 			ret += sectorsize;
+			sector++;
 		}
-		ciw->cd_last_pos = sector;
 	} else {
 		uae_u8 sectortype = extra >> 16;
 		uae_u8 cmd9 = extra >> 8;
@@ -757,22 +826,12 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 				uae_u8 *odata = data;
 				int blocksize = errorfield == 0 ? 2352 : (errorfield == 1 ? 2352 + 294 : 2352 + 296);
 				int readblocksize = errorfield == 0 ? 2352 : 2352 + 296;
-				seterrormode (ciw);
-				rri.DiskOffset.QuadPart = sector * 2048;
-				rri.SectorCount = 1;
-				rri.TrackMode = errorfield > 0 ? RawWithC2AndSubCode : RawWithSubCode;
-				len = sectorsize;
-				memset (p, 0, blocksize);
-				if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
-					DWORD err = GetLastError ();
-					write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d mode=%d, ERR=%d\n",
-						unitnum, sector, sectorsize, rri.TrackMode, err);
-					if (err) {
-						reseterrormode (ciw);
-						return ret;
-					}
+
+				if (!read_block (ciw, unitnum, NULL, sector, 1, readblocksize)) {
+					reseterrormode (ciw);
+					return ret;
 				}
-				reseterrormode (ciw);
+
 				if (subs == 0) {
 					memcpy (data, p, blocksize);
 					data += blocksize;

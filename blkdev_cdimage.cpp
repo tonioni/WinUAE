@@ -13,6 +13,8 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
+#include <sys/timeb.h>
+
 #include "options.h"
 #include "blkdev.h"
 #include "zfile.h"
@@ -26,9 +28,14 @@
 #include "rp.h"
 #endif
 
+#define FLAC__NO_DLL
+#include "FLAC/stream_decoder.h"
+
 #define scsi_log write_log
 
 #define CDDA_BUFFERS 6
+
+enum audenc { AUDENC_NONE, AUDENC_PCM, AUDENC_MP3, AUDENC_FLAC };
 
 #define AUDIO_STATUS_NOT_SUPPORTED  0x00
 #define AUDIO_STATUS_IN_PROGRESS    0x11
@@ -53,7 +60,8 @@ struct cdtoc
 	int track;
 	int size;
 	int skipsize; // bytes to skip after each block
-	int mp3;
+	audenc enctype;
+	int writeoffset;
 	int subcode;
 };
 
@@ -115,6 +123,96 @@ static struct cdtoc *findtoc (struct cdunit *cdu, int *sectorp)
 	return NULL;
 }
 
+// WOHOO, library that supports virtual file access functions. Perfect!
+static void flac_metadata_callback (const FLAC__StreamDecoder *decoder, const FLAC__StreamMetadata *metadata, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	if (t->data)
+		return;
+	if(metadata->type == FLAC__METADATA_TYPE_STREAMINFO) {
+		t->filesize = metadata->data.stream_info.total_samples * (metadata->data.stream_info.bits_per_sample / 8) * metadata->data.stream_info.channels;
+	}
+}
+static void flac_error_callback (const FLAC__StreamDecoder *decoder, FLAC__StreamDecoderErrorStatus status, void *client_data)
+{
+	return;
+}
+static FLAC__StreamDecoderWriteStatus flac_write_callback (const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, const FLAC__int32 * const buffer[], void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	uae_u16 *p = (uae_u16*)(t->data + t->writeoffset);
+	int size = 4;
+	for (int i = 0; i < frame->header.blocksize && t->writeoffset < t->filesize - size; i++, t->writeoffset += size) {
+		*p++ = (FLAC__int16)buffer[0][i];
+		*p++ = (FLAC__int16)buffer[1][i];
+	}
+	return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+}
+static FLAC__StreamDecoderReadStatus file_read_callback (const FLAC__StreamDecoder *decoder, FLAC__byte buffer[], size_t *bytes, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	if (zfile_ftell (t->handle) >= zfile_size (t->handle))
+		return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
+	return zfile_fread (buffer, *bytes, 1, t->handle) ? FLAC__STREAM_DECODER_READ_STATUS_CONTINUE : FLAC__STREAM_DECODER_READ_STATUS_ABORT;
+}
+static FLAC__StreamDecoderSeekStatus file_seek_callback (const FLAC__StreamDecoder *decoder, FLAC__uint64 absolute_byte_offset, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	zfile_fseek (t->handle, absolute_byte_offset, SEEK_SET);
+	return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
+}
+static FLAC__StreamDecoderTellStatus file_tell_callback (const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	*absolute_byte_offset = zfile_ftell (t->handle);
+	return FLAC__STREAM_DECODER_TELL_STATUS_OK;
+}
+static FLAC__StreamDecoderLengthStatus file_len_callback (const FLAC__StreamDecoder *decoder, FLAC__uint64 *stream_length, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	*stream_length = zfile_size (t->handle);
+	return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
+}
+static FLAC__bool file_eof_callback (const FLAC__StreamDecoder *decoder, void *client_data)
+{
+	struct cdtoc *t = (struct cdtoc*)client_data;
+	return zfile_ftell (t->handle) >= zfile_size (t->handle);
+}
+
+static void flac_get_size (struct cdtoc *t)
+{
+	FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new ();
+	if (decoder) {
+		FLAC__stream_decoder_set_md5_checking (decoder, false);
+		int init_status = FLAC__stream_decoder_init_stream (decoder,
+			&file_read_callback, &file_seek_callback, &file_tell_callback,
+			&file_len_callback, &file_eof_callback,
+			&flac_write_callback, &flac_metadata_callback, &flac_error_callback, t);
+		FLAC__stream_decoder_process_until_end_of_metadata (decoder);
+		FLAC__stream_decoder_delete (decoder);
+	}
+}
+static uae_u8 *flac_get_data (struct cdtoc *t)
+{
+	if (t->data)
+		return t->data;
+	write_log (L"FLAC: unpacking '%s'..\n", zfile_getname (t->handle));
+	t->data = xcalloc (uae_u8,t->filesize + 2352);
+	t->writeoffset = 0;
+	FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new ();
+	if (decoder) {
+		FLAC__stream_decoder_set_md5_checking (decoder, false);
+		int init_status = FLAC__stream_decoder_init_stream (decoder,
+			&file_read_callback, &file_seek_callback, &file_tell_callback,
+			&file_len_callback, &file_eof_callback,
+			&flac_write_callback, &flac_metadata_callback, &flac_error_callback, t);
+		FLAC__stream_decoder_process_until_end_of_stream (decoder);
+		FLAC__stream_decoder_delete (decoder);
+		write_log (L"FLAC: %s unpacked\n", zfile_getname (t->handle));
+	}
+	return t->data;
+}
+
 #ifdef _WIN32
 
 static HWAVEOUT cdda_wavehandle;
@@ -140,7 +238,7 @@ static int cdda_openwav (void)
 	wav.wFormatTag = WAVE_FORMAT_PCM;
 	mmr = waveOutOpen (&cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"CDDA: wave open %d\n", mmr);
+		write_log (L"IMAGE CDDA: wave open %d\n", mmr);
 		cdda_closewav ();
 		return 0;
 	}
@@ -297,7 +395,9 @@ static void *cdda_play_func (void *v)
 			if (oldplay != cdu->cdda_play) {
 				struct cdtoc *t;
 				int sector;
+				struct _timeb tb;
 
+				_ftime (&tb);
 				cdda_pos = cdu->cdda_start;
 				oldplay = cdu->cdda_play;
 				cdu->cd_last_pos = cdda_pos;
@@ -308,19 +408,35 @@ static void *cdda_play_func (void *v)
 				} else {
 					write_log (L"IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %d, secoffset %d)\n",
 						cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector);
-					if (t->mp3 && !t->data) {
-						if (!mp3dec) {
-							try {
-								mp3dec = new mp3decoder();
-							} catch (exception) { };
+					if (!t->data) {
+						if (t->enctype == AUDENC_MP3) {
+							if (!mp3dec) {
+								try {
+									mp3dec = new mp3decoder();
+								} catch (exception) { };
+							}
+							if (mp3dec)
+								t->data = mp3dec->get (t->handle, t->filesize);
+						} else if (t->enctype == AUDENC_FLAC) {
+							flac_get_data (t);
 						}
-						if (mp3dec)
-							t->data = mp3dec->get (t->handle, t->filesize);
 					}
 				}
-				firstloops = 25;
-				while (cdu->cdda_paused && cdu->cdda_play > 0)
+				int millis;
+				struct _timeb tb2;
+				_ftime (&tb2);
+				millis = (tb2.time - tb.time) * 1000;
+				if (tb2.millitm >= tb.millitm)
+					millis += tb2.millitm - tb.millitm;
+				else
+					millis += 1000 - tb.millitm + tb2.millitm;
+				firstloops = 150 - millis * 75 / 1000;
+				while (cdu->cdda_paused && cdu->cdda_play > 0) {
 					Sleep (10);
+					firstloops = -1;
+				}
+				if (firstloops > 0)
+					firstloops /= num_sectors;
 			}
 
 			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
@@ -366,9 +482,10 @@ static void *cdda_play_func (void *v)
 							if (t->handle && !(t->ctrl & 4)) {
 								uae_u8 *dst = px[bufnum] + cnt * t->size;
 								int totalsize = t->size + t->skipsize;
-								if (t->mp3 && t->data) {
-									memcpy (dst, t->data + sector * totalsize + t->offset, t->size);
-								} else if (!t->mp3) {
+								if ((t->enctype == AUDENC_MP3 || t->enctype == AUDENC_FLAC) && t->data) {
+									if (t->filesize >= sector * totalsize + t->offset + t->size)
+										memcpy (dst, t->data + sector * totalsize + t->offset, t->size);
+								} else if (t->enctype == AUDENC_PCM) {
 									if (sector * totalsize + t->offset + totalsize < t->filesize) {
 										zfile_fseek (t->handle, sector * totalsize + t->offset, SEEK_SET);
 										zfile_fread (dst, t->size, 1, t->handle);
@@ -567,29 +684,42 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 	if (!cdu)
 		return 0;
 	struct cdtoc *t = findtoc (cdu, &sector);
-	int offset;
 
 	if (!t || t->handle == NULL)
 		return 0;
 	cdda_stop (cdu);
 	if (sectorsize > 0) {
-		offset = 0;
 		if (sectorsize == 2352 && t->size == 2048) {
 			// 2048 -> 2352
-			memset (data, 0, 16);
-			zfile_fseek (t->handle, t->offset + sector * t->size, SEEK_SET);
-			zfile_fread (data + 16, t->size, size, t->handle);
-			encode_l2 (data, sector + 150);
+			while (size-- > 0) {
+				memset (data, 0, 16);
+				zfile_fseek (t->handle, t->offset + sector * t->size, SEEK_SET);
+				zfile_fread (data + 16, t->size, 1, t->handle);
+				encode_l2 (data, sector + 150);
+				sector++;
+				data += sectorsize;
+			}
+		} else if (sectorsize == 2048 && t->size == 2352) {
+			// 2352 -> 2048
+			while (size-- > 0) {
+				zfile_fseek (t->handle, t->offset + sector * t->size + 16, SEEK_SET);
+				zfile_fread (data, sectorsize, 1, t->handle);
+				sector++;
+				data += sectorsize;
+			}
 		} else if (sectorsize == 2336 && t->size == 2352) {
 			// 2352 -> 2336
-			offset = 16;
-			memset (data, 0, offset);
-			zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
-			zfile_fread (data, sectorsize, size, t->handle);
+			while (size-- > 0) {
+				zfile_fseek (t->handle, t->offset + sector * t->size + 16, SEEK_SET);
+				zfile_fread (data, sectorsize, 1, t->handle);
+				sector++;
+				data += sectorsize;
+			}
 		} else if (sectorsize == t->size) {
 			// no change
 			zfile_fseek (t->handle, t->offset + sector * t->size, SEEK_SET);
 			zfile_fread (data, sectorsize, size, t->handle);
+			sector += size;
 		}
 		cdu->cd_last_pos = sector;
 		ret = sectorsize * size;
@@ -639,6 +769,7 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 	return ret;
 }
 
+// this only supports 2048 byte sectors
 static int command_read (int unitnum, uae_u8 *data, int sector, int size)
 {
 	struct cdunit *cdu = unitisopen (unitnum);
@@ -651,11 +782,20 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int size)
 	if (!t || t->handle == NULL)
 		return NULL;
 	cdda_stop (cdu);
-	offset = 0;
-	if (t->size > 2048)
+	if (t->size == 2848) {
+		int offset = 0;
+		zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
+		zfile_fread (data, size, 2048, t->handle);
+		sector += size;
+	} else {
 		offset = 16;
-	zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
-	zfile_fread (data, size, 2048, t->handle);
+		while (size-- > 0) {
+			zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
+			zfile_fread (data, size, 2048, t->handle);
+			data += 2048;
+			sector++;
+		}
+	}
 	cdu->cd_last_pos = sector;
 	return 1;
 }
@@ -859,10 +999,10 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 		goto end;
 
 	head = (MDS_Header*)mds;
-	if (!memcmp (&head, MEDIA_DESCRIPTOR, strlen (MEDIA_DESCRIPTOR) - 1))
+	if (!memcmp (&head, MEDIA_DESCRIPTOR, strlen (MEDIA_DESCRIPTOR)))
 		goto end;
 	if (head->version[0] != 1) {
-		write_log (L"unsupported version %d, only v.1 supported\n", head->version[0]);
+		write_log (L"unsupported MDS version %d, only v.1 supported\n", head->version[0]);
 		goto end;
 	}
 
@@ -1062,6 +1202,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 	int tracknum, index0, pregap;
 	int offset, secoffset, newfile;
 	TCHAR *fname, *fnametype;
+	audenc fnametypeid;
 	int ctrl;
 	mp3decoder *mp3dec = NULL;
 
@@ -1074,6 +1215,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 	ctrl = 0;
 	index0 = -1;
 	pregap = 0;
+	fnametypeid = AUDENC_NONE;
 
 	write_log (L"CUE TOC: '%s'\n", img);
 	for (;;) {
@@ -1089,11 +1231,18 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 			xfree (fname);
 			fname = my_strdup (nextstring (&p));
 			fnametype = nextstring (&p);
+			fnametypeid = AUDENC_NONE;
 			if (!fnametype)
 				break;
-			if (_tcsicmp (fnametype, L"BINARY") && _tcsicmp (fnametype, L"WAVE") && _tcsicmp (fnametype, L"MP3")) {
+			if (_tcsicmp (fnametype, L"BINARY") && _tcsicmp (fnametype, L"WAVE") && _tcsicmp (fnametype, L"MP3") && _tcsicmp (fnametype, L"FLAC")) {
 				write_log (L"CUE: unknown file type '%s' ('%s')\n", fnametype, fname);
 			}
+			if (!_tcsicmp (fnametype, L"WAVE"))
+				fnametypeid = AUDENC_PCM;
+			else if (!_tcsicmp (fnametype, L"MP3"))
+				fnametypeid = AUDENC_MP3;
+			else if (!_tcsicmp (fnametype, L"FLAC"))
+				fnametypeid = AUDENC_FLAC;
 			offset = 0;
 			newfile = 1;
 			ctrl = 0;
@@ -1224,7 +1373,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 					}
 					if (!secoffset)
 						t->offset = offset * t->size;
-					if (!_tcsicmp (fnametype, L"WAVE") && t->handle) {
+					if (fnametypeid == AUDENC_PCM && t->handle) {
 						struct zfile *zf = t->handle;
 						uae_u8 buf[16] = { 0 };
 						zfile_fread (buf, 12, 1, zf);
@@ -1243,8 +1392,9 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 							}
 							t->offset += zfile_ftell (zf);
 							t->filesize = size;
+							t->enctype = fnametypeid;
 						}
-					} else if (!_tcsicmp (fnametype, L"MP3") && t->handle) {
+					} else if (fnametypeid == AUDENC_MP3 && t->handle) {
 						if (!mp3dec) {
 							try {
 								mp3dec = new mp3decoder();
@@ -1254,8 +1404,12 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 							t->offset = 0;
 							t->filesize = mp3dec->getsize (t->handle);
 							if (t->filesize)
-								t->mp3 = 1;
+								t->enctype = fnametypeid;
 						}
+					} else if (fnametypeid == AUDENC_FLAC && t->handle) {
+						flac_get_size (t);
+						if (t->filesize)
+							t->enctype = fnametypeid;
 					}
 				}
 			}
@@ -1347,12 +1501,12 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 		write_log (L"%7d %02d:%02d:%02d",
 			t->address, (msf >> 16) & 0xff, (msf >> 8) & 0xff, (msf >> 0) & 0xff);
 		if (i < cdu->tracks)
-			write_log (L" %s %x %10d %s", (t->ctrl & 4) ? L"DATA    " : (t->subcode ? L"CDA+SUB" : L"CDA     "),
-				t->ctrl, t->offset, t->handle == NULL ? L"[FILE ERROR]" : L"");
+			write_log (L" %s %x %10d %10d %s", (t->ctrl & 4) ? L"DATA    " : (t->subcode ? L"CDA+SUB" : L"CDA     "),
+				t->ctrl, t->offset, t->filesize, t->handle == NULL ? L"[FILE ERROR]" : L"");
 		write_log (L"\n");
 		if (i < cdu->tracks)
 			write_log (L" - %s\n", t->fname);
-		if (t->handle)
+		if (t->handle && !t->filesize)
 			t->filesize = zfile_size (t->handle);
 	}
 

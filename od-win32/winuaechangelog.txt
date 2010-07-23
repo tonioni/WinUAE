@@ -1,4 +1,10 @@
 
+- few lines of non-filter scanlines was missing in bottom part of display
+- mp3 cd audio: detect audio length using ID3v2 TLEN tag if it exists, assume it is CBR MP3 if
+  first 100 frames have same bit rate, fallback to original slow full file scan if no tags and VBR
+- remove mp3 decoding time from audio playback delay time, better av sync if decoding takes less
+  than 2 seconds
+
 Beta 4:
 
 - rawinput was disabled if only one keyboard device was detected, input didn't work at all

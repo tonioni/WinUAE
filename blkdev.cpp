@@ -286,8 +286,8 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 					}
 				}
 				write_log (L"\n");
+				sys_command_close (unitnum);
 			}
-			sys_command_close (unitnum);
 		}
 	}
 	if (isaudio) {
