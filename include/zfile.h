@@ -78,6 +78,7 @@ extern TCHAR *zfile_geterror (void);
 #define ZFD_CD 32 //cue/iso, cue has priority over iso
 #define ZFD_DISKHISTORY 0x100 //allow diskhistory (if disk image)
 #define ZFD_CHECKONLY 0x200 //file exists checkc
+#define ZFD_DELAYEDOPEN 0x400 //do not unpack, just get metadata
 #define ZFD_NORMAL (ZFD_ARCHIVE|ZFD_UNPACK)
 #define ZFD_ALL 0x0000ffff
 

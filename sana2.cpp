@@ -168,7 +168,7 @@ struct mcast {
 	int cnt;
 };
 
-struct devstruct {
+struct s2devstruct {
 	int unit, opencnt, exclusive, promiscuous;
 	struct asyncreq *ar;
 	struct asyncreq *s2p;
@@ -197,7 +197,7 @@ struct devstruct {
 
 #define FLUSH_TIMEOUT 20
 
-struct priv_devstruct {
+struct priv_s2devstruct {
 	int inuse;
 	int unit;
 	int flags; /* OpenDevice() */
@@ -224,19 +224,19 @@ struct priv_devstruct {
 };
 
 static struct netdriverdata *td;
-static struct devstruct devst[MAX_TOTAL_NET_DEVICES];
-static struct priv_devstruct pdevst[MAX_OPEN_DEVICES];
+static struct s2devstruct devst[MAX_TOTAL_NET_DEVICES];
+static struct priv_s2devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
 static uae_sem_t change_sem, async_sem;
 
-static struct devstruct *getdevstruct (int unit)
+static struct s2devstruct *gets2devstruct (int unit)
 {
 	if (unit >= MAX_TOTAL_NET_DEVICES || unit < 0)
 		return 0;
 	return &devst[unit];
 }
 
-static struct priv_devstruct *getpdevstruct (uaecptr request)
+static struct priv_s2devstruct *getps2devstruct (uaecptr request)
 {
 	int i = get_long (request + 24);
 	if (i < 0 || i >= MAX_OPEN_DEVICES || pdevst[i].inuse == 0) {
@@ -247,7 +247,7 @@ static struct priv_devstruct *getpdevstruct (uaecptr request)
 }
 
 static void *dev_thread (void *devs);
-static int start_thread (struct devstruct *dev)
+static int start_thread (struct s2devstruct *dev)
 {
 	if (dev->thread_running)
 		return 1;
@@ -261,14 +261,14 @@ static int start_thread (struct devstruct *dev)
 static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 {
 	uae_u32 request = m68k_areg (regs, 1);
-	struct priv_devstruct *pdev = getpdevstruct (request);
-	struct devstruct *dev;
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
+	struct s2devstruct *dev;
 
 	if (!pdev) {
 		write_log (L"%s close with unknown request %08X!?\n", SANA2NAME, request);
 		return 0;
 	}
-	dev = getdevstruct (pdev->unit);
+	dev = gets2devstruct (pdev->unit);
 	if (!dev) {
 		write_log (L"%s:%d close with unknown request %08X!?\n", SANA2NAME, pdev->unit, request);
 		return 0;
@@ -349,8 +349,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	uae_u32 unit = m68k_dreg (regs, 0);
 	uae_u32 flags = m68k_dreg (regs, 1);
 	uaecptr buffermgmt;
-	struct devstruct *dev = getdevstruct (unit);
-	struct priv_devstruct *pdev = 0;
+	struct s2devstruct *dev = gets2devstruct (unit);
+	struct priv_s2devstruct *pdev = 0;
 	int i;
 	uaecptr tagp, tagpnext;
 
@@ -486,7 +486,7 @@ static void freepacket (struct s2packet *s2p)
 	xfree (s2p);
 }
 
-static void add_async_packet (struct devstruct *dev, struct s2packet *s2p, uaecptr request)
+static void add_async_packet (struct s2devstruct *dev, struct s2packet *s2p, uaecptr request)
 {
 	struct asyncreq *ar, *ar2;
 
@@ -503,7 +503,7 @@ static void add_async_packet (struct devstruct *dev, struct s2packet *s2p, uaecp
 	ar->request = request;
 }
 
-static void rem_async_packet (struct devstruct *dev, uaecptr request)
+static void rem_async_packet (struct s2devstruct *dev, uaecptr request)
 {
 	struct asyncreq *ar, *prevar;
 
@@ -527,7 +527,7 @@ static void rem_async_packet (struct devstruct *dev, uaecptr request)
 	uae_sem_post (&async_sem);
 }
 
-static struct asyncreq *get_async_request (struct devstruct *dev, uaecptr request, int ready)
+static struct asyncreq *get_async_request (struct s2devstruct *dev, uaecptr request, int ready)
 {
 	struct asyncreq *ar;
 	int ret = 0;
@@ -546,7 +546,7 @@ static struct asyncreq *get_async_request (struct devstruct *dev, uaecptr reques
 	return ar;
 }
 
-static int add_async_request (struct devstruct *dev, uaecptr request)
+static int add_async_request (struct s2devstruct *dev, uaecptr request)
 {
 	struct asyncreq *ar, *ar2;
 
@@ -568,7 +568,7 @@ static int add_async_request (struct devstruct *dev, uaecptr request)
 	return 1;
 }
 
-static int release_async_request (struct devstruct *dev, uaecptr request)
+static int release_async_request (struct s2devstruct *dev, uaecptr request)
 {
 	struct asyncreq *ar, *prevar;
 
@@ -595,7 +595,7 @@ static int release_async_request (struct devstruct *dev, uaecptr request)
 	return 0;
 }
 
-static void do_abort_async (struct devstruct *dev, uaecptr request)
+static void do_abort_async (struct s2devstruct *dev, uaecptr request)
 {
 	put_byte (request + 30, get_byte (request + 30) | 0x20);
 	put_byte (request + 31, IOERR_ABORTED);
@@ -603,7 +603,7 @@ static void do_abort_async (struct devstruct *dev, uaecptr request)
 	write_comm_pipe_u32 (&dev->requests, request, 1);
 }
 
-static void abort_async (struct devstruct *dev, uaecptr request)
+static void abort_async (struct s2devstruct *dev, uaecptr request)
 {
 	struct asyncreq *ar = get_async_request (dev, request, 1);
 	if (!ar) {
@@ -615,7 +615,7 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 	do_abort_async (dev, request);
 }
 
-static void signalasync (struct devstruct *dev, struct asyncreq *ar, int actual, int err)
+static void signalasync (struct s2devstruct *dev, struct asyncreq *ar, int actual, int err)
 {
 	uaecptr request = ar->request;
 	int command = get_word (request + 28);
@@ -691,7 +691,7 @@ static uae_u64 amigaaddrto64 (uaecptr d)
 	return addr;
 }
 
-static void addmulticastaddresses (struct devstruct *dev, uae_u64 start, uae_u64 end)
+static void addmulticastaddresses (struct s2devstruct *dev, uae_u64 start, uae_u64 end)
 {
 	struct mcast *mc, *mc2;
 
@@ -718,7 +718,7 @@ static void addmulticastaddresses (struct devstruct *dev, uae_u64 start, uae_u64
 		mc2->next = mc;
 	}
 }
-static int delmulticastaddresses (struct devstruct *dev, uae_u64 start, uae_u64 end)
+static int delmulticastaddresses (struct s2devstruct *dev, uae_u64 start, uae_u64 end)
 {
 	struct mcast *mc, *prevmc;
 
@@ -744,7 +744,7 @@ static int delmulticastaddresses (struct devstruct *dev, uae_u64 start, uae_u64 
 	return 0;
 }
 
-static struct s2packet *createreadpacket (struct devstruct *dev, const uae_u8 *d, int len)
+static struct s2packet *createreadpacket (struct s2devstruct *dev, const uae_u8 *d, int len)
 {
 	struct s2packet *s2p = xcalloc (struct s2packet, 1);
 	s2p->data = xmalloc (uae_u8, dev->td->mtu + ETH_HEADER_SIZE + 2);
@@ -753,7 +753,7 @@ static struct s2packet *createreadpacket (struct devstruct *dev, const uae_u8 *d
 	return s2p;
 }
 
-static int handleread (TrapContext *ctx, struct priv_devstruct *pdev, uaecptr request, uae_u8 *d, int len, int cmd)
+static int handleread (TrapContext *ctx, struct priv_s2devstruct *pdev, uaecptr request, uae_u8 *d, int len, int cmd)
 {
 	uae_u8 flags = get_byte (request + 30);
 	uaecptr data = get_long (request + 32 + 4 + 4 + SANA2_MAX_ADDR_BYTES * 2 + 4);
@@ -794,7 +794,7 @@ static int handleread (TrapContext *ctx, struct priv_devstruct *pdev, uaecptr re
 	return 1;
 }
 
-void uaenet_gotdata (struct devstruct *dev, const uae_u8 *d, int len)
+void uaenet_gotdata (struct s2devstruct *dev, const uae_u8 *d, int len)
 {
 	uae_u16 type;
 	struct mcast *mc;
@@ -853,7 +853,7 @@ static struct s2packet *createwritepacket (TrapContext *ctx, uaecptr request)
 	uaecptr srcaddr = request + 32 + 4 + 4;
 	uaecptr dstaddr = request + 32 + 4 + 4 + SANA2_MAX_ADDR_BYTES;
 	uae_u16 packettype = get_long (request + 32 + 4);
-	struct priv_devstruct *pdev = getpdevstruct (request);
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
 	struct s2packet *s2p;
 
 	if (!pdev)
@@ -881,7 +881,7 @@ static struct s2packet *createwritepacket (TrapContext *ctx, uaecptr request)
 	return s2p;
 }
 
-static int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
+static int uaenet_getdata (struct s2devstruct *dev, uae_u8 *d, int *len)
 {
 	int gotit;
 	struct asyncreq *ar;
@@ -895,7 +895,7 @@ static int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
 			int command = get_word (request + 28);
 			uae_u32 packettype = get_long (request + 32 + 4);
 			if (command == CMD_WRITE || command == S2_BROADCAST || command == S2_MULTICAST) {
-				struct priv_devstruct *pdev = getpdevstruct (request);
+				struct priv_s2devstruct *pdev = getps2devstruct (request);
 				struct asyncreq *ars2p = dev->s2p;
 				while (ars2p) {
 					if (ars2p->request == request) {
@@ -921,7 +921,7 @@ static int uaenet_getdata (struct devstruct *dev, uae_u8 *d, int *len)
 	return gotit;
 }
 
-void checkevents (struct devstruct *dev, int mask, int sem)
+void checkevents (struct s2devstruct *dev, int mask, int sem)
 {
 	struct asyncreq *ar;
 
@@ -942,7 +942,7 @@ void checkevents (struct devstruct *dev, int mask, int sem)
 		uae_sem_post (&async_sem);
 }
 
-static int checksize (uaecptr request, struct devstruct *dev)
+static int checksize (uaecptr request, struct s2devstruct *dev)
 {
 	uae_u32 datalength = get_long (request + 32 + 4 + 4 + SANA2_MAX_ADDR_BYTES * 2);
 
@@ -951,15 +951,15 @@ static int checksize (uaecptr request, struct devstruct *dev)
 	return 1;
 }
 
-static void flush (struct priv_devstruct *pdev)
+static void flush (struct priv_s2devstruct *pdev)
 {
 	struct asyncreq *ar;
-	struct devstruct *dev;
+	struct s2devstruct *dev;
 
-	dev = getdevstruct (pdev->unit);
+	dev = gets2devstruct (pdev->unit);
 	ar = dev->ar;
 	while (ar) {
-		if (!ar->ready && getpdevstruct (ar->request) == pdev) {
+		if (!ar->ready && getps2devstruct (ar->request) == pdev) {
 			ar->ready = 1;
 			do_abort_async (dev, ar->request);
 		}
@@ -967,7 +967,7 @@ static void flush (struct priv_devstruct *pdev)
 	}
 }
 
-static int dev_do_io_2 (struct devstruct *dev, uaecptr request, int quick)
+static int dev_do_io_2 (struct s2devstruct *dev, uaecptr request, int quick)
 {
 	uae_u8 flags = get_byte (request + 30);
 	uae_u32 command = get_word (request + 28);
@@ -982,7 +982,7 @@ static int dev_do_io_2 (struct devstruct *dev, uaecptr request, int quick)
 	uae_u32 wire_error = 0;
 	int i;
 	int async = 0;
-	struct priv_devstruct *pdev = getpdevstruct (request);
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
 
 	if (log_net)
 		write_log (L"S2: C=%02d T=%04X S=%02X%02X%02X%02X%02X%02X D=%02X%02X%02X%02X%02X%02X L=%d D=%08X SD=%08X BM=%08X\n",
@@ -1225,10 +1225,10 @@ end:
 	return async;
 }
 
-static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
+static int dev_do_io (struct s2devstruct *dev, uaecptr request, int quick)
 {
 	uae_u32 command = get_word (request + 28);
-	struct priv_devstruct *pdev = getpdevstruct (request);
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
 	uaecptr data = get_long (request + 32 + 4 + 4 + SANA2_MAX_ADDR_BYTES * 2 + 4);
 
 	put_byte (request + 31, 0);
@@ -1267,7 +1267,7 @@ static int dev_can_quick (uae_u32 command)
 	return 0;
 }
 
-static int dev_canquick (struct devstruct *dev, uaecptr request)
+static int dev_canquick (struct s2devstruct *dev, uaecptr request)
 {
 	uae_u32 command = get_word (request + 28);
 	return dev_can_quick (command);
@@ -1278,8 +1278,8 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 	uae_u32 request = m68k_areg (regs, 1);
 	uae_u8 flags = get_byte (request + 30);
 	int command = get_word (request + 28);
-	struct priv_devstruct *pdev = getpdevstruct (request);
-	struct devstruct *dev;
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
+	struct s2devstruct *dev;
 
 	put_byte (request + 8, NT_MESSAGE);
 	if (!pdev) {
@@ -1287,7 +1287,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 		put_byte (request + 31, 32);
 		return get_byte (request + 31);
 	}
-	dev = getdevstruct (pdev->unit);
+	dev = gets2devstruct (pdev->unit);
 	if (!dev) {
 		write_log (L"%s unknown iorequest (2) %08x\n", getdevname (), request);
 		put_byte (request + 31, 32);
@@ -1334,7 +1334,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 
 static void *dev_thread (void *devs)
 {
-	struct devstruct *dev = (struct devstruct*)devs;
+	struct s2devstruct *dev = (struct s2devstruct*)devs;
 
 	uae_set_thread_priority (NULL, 1);
 	dev->thread_running = 1;
@@ -1380,15 +1380,15 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 {
 	uae_u32 request = m68k_areg (regs, 1);
-	struct priv_devstruct *pdev = getpdevstruct (request);
-	struct devstruct *dev;
+	struct priv_s2devstruct *pdev = getps2devstruct (request);
+	struct s2devstruct *dev;
 
 	if (!pdev) {
 		write_log (L"%s abortio but no request %08x found!\n", getdevname(), request);
 		put_byte (request + 31, 32);
 		return get_byte (request + 31);
 	}
-	dev = getdevstruct (pdev->unit);
+	dev = gets2devstruct (pdev->unit);
 	if (!dev) {
 		write_log (L"%s (%d) abortio but no request %08x found!\n", getdevname(), pdev->unit, request);
 		put_byte (request + 31, 32);
@@ -1415,7 +1415,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 		pdevst[i].tmp = 0;
 
 	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
-		struct devstruct *dev = &devst[i];
+		struct s2devstruct *dev = &devst[i];
 		struct s2packet *p;
 		if (dev->online) {
 			while (dev->readqueue) {
@@ -1430,7 +1430,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 						int command = get_word (request + 28);
 						uae_u32 packettype = get_long (request + 32 + 4);
 						if (command == CMD_READ && (packettype == type || (packettype <= 1500 && type <= 1500))) {
-							struct priv_devstruct *pdev = getpdevstruct (request);
+							struct priv_s2devstruct *pdev = getps2devstruct (request);
 							if (pdev && pdev->tmp == 0) {
 								if (handleread (ctx, pdev, request, p->data, p->len, command)) {
 									if (log_net)
@@ -1455,7 +1455,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 						uaecptr request = ar->request;
 						int command = get_word (request + 28);
 						if (command == S2_READORPHAN) {
-							struct priv_devstruct *pdev = getpdevstruct (request);
+							struct priv_s2devstruct *pdev = getps2devstruct (request);
 							if (pdev && pdev->tmp <= 0) {
 								if (log_net)
 									write_log (L"-> %p Accepted, S2_READORPHAN, REQ=%08X LEN=%d\n", p, request, p->len);
@@ -1497,7 +1497,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 				uaecptr request = ar->request;
 				int command = get_word (request + 28);
 				if (command == S2_ONLINE) {
-					struct priv_devstruct *pdev = getpdevstruct (request);
+					struct priv_s2devstruct *pdev = getps2devstruct (request);
 					dev->packetsreceived = 0;
 					dev->packetssent = 0;
 					dev->baddata = 0;
@@ -1525,7 +1525,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 						write_comm_pipe_u32 (&dev->requests, request, 1);
 						uaenet_vsync_requested--;
 					} else {
-						struct priv_devstruct *pdev = getpdevstruct (request);
+						struct priv_s2devstruct *pdev = getps2devstruct (request);
 						if (pdev) {
 							dev->flush_timeout--;
 							if (dev->flush_timeout <= 0) {
@@ -1554,7 +1554,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 static void dev_reset (void)
 {
 	int i;
-	struct devstruct *dev;
+	struct s2devstruct *dev;
 	int unitnum = 0;
 
 	write_log (L"%s reset\n", getdevname());
@@ -1574,10 +1574,10 @@ static void dev_reset (void)
 		}
 		while (dev->mc)
 			delmulticastaddresses (dev, dev->mc->start, dev->mc->end);
-		memset (dev, 0, sizeof (struct devstruct));
+		memset (dev, 0, sizeof (struct s2devstruct));
 	}
 	for (i = 0; i < MAX_OPEN_DEVICES; i++)
-		memset (&pdevst[i], 0, sizeof (struct priv_devstruct));
+		memset (&pdevst[i], 0, sizeof (struct priv_s2devstruct));
 	uaenet_vsync_requested = 0;
 	uaenet_int_requested = 0;
 	irq_init = 0;

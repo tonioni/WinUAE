@@ -225,7 +225,7 @@ static int mungepacket (uae_u8 *packet, int len)
 	return ret;
 }
 
-static int getfunc (struct devstruct *dev, uae_u8 *d, int *len)
+static int getfunc (struct s2devstruct *dev, uae_u8 *d, int *len)
 {
 	int tlen;
 
@@ -249,7 +249,7 @@ static int mcfilter (const uae_u8 *data)
 	return 1; // just allow everything
 }
 
-static void gotfunc (struct devstruct *dev, const uae_u8 *data2, int len)
+static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
 {
 	int i;
 	int size, insize, first;

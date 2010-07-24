@@ -2781,6 +2781,15 @@ static void disk_doupdate_predict (int startcycle)
 	}
 }
 
+int disk_fifostatus (void)
+{
+	if (fifo_inuse[0] && fifo_inuse[1] && fifo_inuse[2])
+		return 1;
+	if (!fifo_inuse[0] && !fifo_inuse[1] && !fifo_inuse[2])
+		return -1;
+	return 0;
+}
+
 static bool doreaddma (void)
 {
 	if (dmaen (DMA_DISK) && bitoffset == 15 && dma_enable && dskdmaen == 2 && dsklength >= 0) {
@@ -2795,6 +2804,9 @@ static bool doreaddma (void)
 			}
 			DSKDAT (word);
 			dsklength--;
+		} else if (dsklength == 0 && disk_fifostatus () < 0) {
+			// zero length transfer wouldn't finish without this
+			disk_dmafinished ();
 		}
 		return true;
 	}
@@ -3279,14 +3291,6 @@ uae_u16 DSKDATR (void)
 		disk_dmafinished ();
 	}
 	return v;
-}
-int disk_fifostatus (void)
-{
-	if (fifo_inuse[0] && fifo_inuse[1] && fifo_inuse[2])
-		return 1;
-	if (!fifo_inuse[0] && !fifo_inuse[1] && !fifo_inuse[2])
-		return -1;
-	return 0;
 }
 
 uae_u16 disk_dmal (void)

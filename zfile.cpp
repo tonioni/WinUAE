@@ -147,7 +147,14 @@ static struct zcache *zcache_put (const TCHAR *name, struct zdiskimage *data)
 	zc->tm = time (NULL);
 	return zc;
 }
-	
+
+static void checkarchiveparent (struct zfile *z)
+{
+	// unpack completely if opened in PEEK mode
+	if (z->archiveparent)
+		archive_unpackzfile (z);
+}
+
 static struct zfile *zfile_create (struct zfile *prev)
 {
 	struct zfile *z;
@@ -191,10 +198,6 @@ void zfile_exit (void)
 
 void zfile_fclose (struct zfile *f)
 {
-	struct zfile *pl = NULL;
-	struct zfile *l  = zlist;
-	struct zfile *nxt;
-
 	//write_log (L"%p\n", f);
 	if (!f)
 		return;
@@ -211,6 +214,13 @@ void zfile_fclose (struct zfile *f)
 		if (f->parent->opencnt <= 0)
 			zfile_fclose (f->parent);
 	}
+	if (f->archiveparent) {
+		zfile_fclose (f->archiveparent);
+		f->archiveparent = NULL;
+	}
+	struct zfile *pl = NULL;
+	struct zfile *nxt;
+	struct zfile *l  = zlist;
 	while (l != f) {
 		if (l == 0) {
 			write_log (L"zfile: tried to free already freed or nonexisting filehandle!\n");
@@ -1836,6 +1846,8 @@ struct zfile *zfile_dup (struct zfile *zf)
 	struct zfile *nzf;
 	if (!zf)
 		return NULL;
+	if (zf->archiveparent)
+		checkarchiveparent (zf);
 	if (zf->userdata)
 		return NULL;
 	if (!zf->data && zf->dataseek) {
@@ -1846,12 +1858,17 @@ struct zfile *zfile_dup (struct zfile *zf)
 		memcpy (nzf->data, zf->data, zf->size);
 		nzf->size = zf->size;
 		nzf->datasize = zf->datasize;
-	} else if (zf->zipname) {
-		nzf = openzip (zf->name);
-		return nzf;
-	} else {
+	} else { 
+		if (zf->zipname) {
+			nzf = openzip (zf->name);
+			if (nzf)
+				return nzf;
+		}
+		FILE *ff = _tfopen (zf->name, zf->mode);
+		if (!ff)
+			return NULL;
 		nzf = zfile_create (zf);
-		nzf->f = _tfopen (zf->name, zf->mode);
+		nzf->f = ff;
 	}
 	zfile_fseek (nzf, zf->seek, SEEK_SET);
 	if (zf->name)
@@ -1997,8 +2014,10 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z)
 		return z->zfileread (b, l1, l2, z);
 	if (z->data) {
 		if (z->datasize < z->size && z->seek + l1 * l2 > z->datasize) {
-			write_log (L"zfile_fread(%s) attempted to read past PEEK_BYTES\n", z->name);
-
+			if (z->archiveparent) {
+				archive_unpackzfile (z);
+				return zfile_fread (b, l1, l2, z);
+			}
 			return 0;
 		}
 		if (z->seek + l1 * l2 > z->size) {
@@ -2037,6 +2056,8 @@ size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z)
 
 size_t zfile_fwrite (void *b, size_t l1, size_t l2, struct zfile *z)
 {
+	if (z->archiveparent)
+		return 0;
 	if (z->zfilewrite)
 		return z->zfilewrite (b, l1, l2, z);
 	if (z->parent && z->useparent)
@@ -2065,6 +2086,7 @@ size_t zfile_fputs (struct zfile *z, TCHAR *s)
 
 char *zfile_fgetsa (char *s, int size, struct zfile *z)
 {
+	checkarchiveparent (z);
 	if (z->data) {
 		char *os = s;
 		int i;
@@ -2090,6 +2112,7 @@ char *zfile_fgetsa (char *s, int size, struct zfile *z)
 
 TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z)
 {
+	checkarchiveparent (z);
 	if (z->data) {
 		char s2[MAX_DPATH];
 		char *p = s2;
@@ -2133,6 +2156,7 @@ int zfile_putc (int c, struct zfile *z)
 
 int zfile_getc (struct zfile *z)
 {
+	checkarchiveparent (z);
 	int out = -1;
 	if (z->data) {
 		if (z->seek < z->size) {
@@ -2159,14 +2183,10 @@ uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len)
 		zfile_fseek (z, 0, SEEK_SET);
 	}
 	b = xmalloc (uae_u8, len);
-	if (z->data) {
-		memcpy (b, z->data + offset, len);
-	} else {
-		pos = zfile_ftell (z);
-		zfile_fseek (z, offset, SEEK_SET);
-		zfile_fread (b, len, 1, z);
-		zfile_fseek (z, pos, SEEK_SET);
-	}
+	pos = zfile_ftell (z);
+	zfile_fseek (z, offset, SEEK_SET);
+	zfile_fread (b, len, 1, z);
+	zfile_fseek (z, pos, SEEK_SET);
 	return b;
 }
 

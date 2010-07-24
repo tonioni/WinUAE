@@ -11,6 +11,7 @@ struct zfile {
     uae_u8 *data; // unpacked data
     int dataseek; // use seek position even if real file
 	struct zfile *archiveparent; // set if parent is archive and this has not yet been unpacked (datasize < size)
+	int archiveid;
     uae_s64 size; // real size
 	uae_s64 datasize; // available size (not yet unpacked completely?)
     uae_s64 seek; // seek position
@@ -98,6 +99,7 @@ struct zarchive_info
 
 #define PEEK_BYTES 1024
 #define FILE_PEEK 1
+#define FILE_DELAYEDOPEN 2
 
 extern int zfile_is_ignore_ext (const TCHAR *name);
 
@@ -141,5 +143,6 @@ extern void archive_access_scan (struct zfile *zf, zfile_callback zc, void *user
 extern void archive_access_close (void *handle, unsigned int id);
 
 extern struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags);
+extern struct zfile *archive_unpackzfile (struct zfile *zf);
 
 extern struct zfile *decompress_zfd (struct zfile*);

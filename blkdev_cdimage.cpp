@@ -84,7 +84,6 @@ struct cdunit {
 	play_subchannel_callback cdda_subfunc;
 
 	int imagechange;
-	int donotmountme;
 	TCHAR newfile[MAX_DPATH];
 	uae_sem_t sub_sem;
 	struct device_info di;
@@ -92,6 +91,9 @@ struct cdunit {
 
 static struct cdunit cdunits[MAX_TOTAL_SCSI_DEVICES];
 static int bus_open;
+
+static volatile int cdimage_unpack_thread, cdimage_unpack_active;
+static smp_comm_pipe unpack_pipe;
 
 static struct cdunit *unitisopen (int unitnum)
 {
@@ -194,10 +196,7 @@ static void flac_get_size (struct cdtoc *t)
 }
 static uae_u8 *flac_get_data (struct cdtoc *t)
 {
-	if (t->data)
-		return t->data;
 	write_log (L"FLAC: unpacking '%s'..\n", zfile_getname (t->handle));
-	t->data = xcalloc (uae_u8,t->filesize + 2352);
 	t->writeoffset = 0;
 	FLAC__StreamDecoder *decoder = FLAC__stream_decoder_new ();
 	if (decoder) {
@@ -340,6 +339,51 @@ static void dosub (struct cdunit *cdu, struct cdtoc *t, int sector)
 	cdu->cdda_subfunc (d, 1);
 }
 
+
+static void *cdda_unpack_func (void *v)
+{
+	cdimage_unpack_thread = 1;
+	mp3decoder *mp3dec = NULL;
+
+	for (;;) {
+		uae_u32 cduidx = read_comm_pipe_u32_blocking (&unpack_pipe);
+		if (cdimage_unpack_thread == 0)
+			break;
+		uae_u32 tocidx = read_comm_pipe_u32_blocking (&unpack_pipe);
+		struct cdunit *cdu = &cdunits[cduidx];
+		struct cdtoc *t = &cdu->toc[tocidx];
+		if (t->handle) {
+			// force unpack if handle points to delayed zipped file
+			uae_s64 pos = zfile_ftell (t->handle);
+			zfile_fseek (t->handle, -1, SEEK_END);
+			uae_u8 b;
+			zfile_fread (&b, 1, 1, t->handle);
+			zfile_fseek (t->handle, pos, SEEK_SET);
+			if (!t->data && (t->enctype == AUDENC_MP3 || t->enctype == AUDENC_FLAC)) {
+				t->data = xcalloc (uae_u8, t->filesize + 2352);
+				cdimage_unpack_active = 1;
+				if (t->data) {
+					if (t->enctype == AUDENC_MP3) {
+						if (!mp3dec) {
+							try {
+								mp3dec = new mp3decoder();
+							} catch (exception) { };
+						}
+						if (mp3dec)
+							t->data = mp3dec->get (t->handle, t->data, t->filesize);
+					} else if (t->enctype == AUDENC_FLAC) {
+						flac_get_data (t);
+					}
+				}
+			}
+		}
+		cdimage_unpack_active = 2;
+	}
+	delete mp3dec;
+	cdimage_unpack_thread = -1;
+	return 0;
+}
+
 static void *cdda_play_func (void *v)
 {
 	int cdda_pos;
@@ -354,7 +398,6 @@ static void *cdda_play_func (void *v)
 	MMRESULT mmr;
 	int volume[2], volume_main;
 	int oldplay;
-	mp3decoder *mp3dec = NULL;
 	struct cdunit *cdu = (struct cdunit*)v;
 	int firstloops;
 
@@ -408,29 +451,17 @@ static void *cdda_play_func (void *v)
 				} else {
 					write_log (L"IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %d, secoffset %d)\n",
 						cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector);
-					if (!t->data) {
-						if (t->enctype == AUDENC_MP3) {
-							if (!mp3dec) {
-								try {
-									mp3dec = new mp3decoder();
-								} catch (exception) { };
-							}
-							if (mp3dec)
-								t->data = mp3dec->get (t->handle, t->filesize);
-						} else if (t->enctype == AUDENC_FLAC) {
-							flac_get_data (t);
-						}
-					}
+					// do this even if audio is not compressed, t->handle also could be
+					// compressed and we want to unpack it in background too
+					while (cdimage_unpack_active == 1)
+						Sleep (10);
+					cdimage_unpack_active = 0;
+					write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
+					write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
+					while (cdimage_unpack_active == 0)
+						Sleep (10);
 				}
-				int millis;
-				struct _timeb tb2;
-				_ftime (&tb2);
-				millis = (tb2.time - tb.time) * 1000;
-				if (tb2.millitm >= tb.millitm)
-					millis += tb2.millitm - tb.millitm;
-				else
-					millis += 1000 - tb.millitm + tb2.millitm;
-				firstloops = 150 - millis * 75 / 1000;
+				firstloops = 150;
 				while (cdu->cdda_paused && cdu->cdda_play > 0) {
 					Sleep (10);
 					firstloops = -1;
@@ -453,6 +484,8 @@ static void *cdda_play_func (void *v)
 				struct cdtoc *t;
 				int sector, cnt;
 				int dofinish = 0;
+
+				gui_flicker_led (LED_CD, cdu->di.unitnum - 1, LED_CD_AUDIO);
 
 				memset (px[bufnum], 0, num_sectors * 2352);
 
@@ -550,9 +583,11 @@ end:
 	for (i = 0; i < 2; i++)
 		waveOutUnprepareHeader  (cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
 
+	while (cdimage_unpack_active == 1)
+		Sleep (10);
+
 	cdda_closewav ();
 	xfree (p);
-	delete mp3dec;
 	cdu->cdda_play = 0;
 	write_log (L"IMAGE CDDA: thread killed\n");
 	return NULL;
@@ -782,7 +817,7 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int size)
 	if (!t || t->handle == NULL)
 		return NULL;
 	cdda_stop (cdu);
-	if (t->size == 2848) {
+	if (t->size == 2048) {
 		int offset = 0;
 		zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
 		zfile_fread (data, size, 2048, t->handle);
@@ -847,7 +882,6 @@ static int command_toc (int unitnum, struct cd_toc_head *th)
 	toc++;
 
 	memcpy (&cdu->di.toc, th, sizeof (struct cd_toc_head));
-	gui_flicker_led (LED_CD, unitnum, 1);
 	return 1;
 }
 
@@ -1237,9 +1271,8 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 			if (_tcsicmp (fnametype, L"BINARY") && _tcsicmp (fnametype, L"WAVE") && _tcsicmp (fnametype, L"MP3") && _tcsicmp (fnametype, L"FLAC")) {
 				write_log (L"CUE: unknown file type '%s' ('%s')\n", fnametype, fname);
 			}
-			if (!_tcsicmp (fnametype, L"WAVE"))
-				fnametypeid = AUDENC_PCM;
-			else if (!_tcsicmp (fnametype, L"MP3"))
+			fnametypeid = AUDENC_PCM;
+			if (!_tcsicmp (fnametype, L"MP3"))
 				fnametypeid = AUDENC_MP3;
 			else if (!_tcsicmp (fnametype, L"FLAC"))
 				fnametypeid = AUDENC_FLAC;
@@ -1298,14 +1331,14 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 				}
 
 				newfile = 0;
-				ztrack = zfile_fopen (fname, L"rb", ZFD_ARCHIVE);
+				ztrack = zfile_fopen (fname, L"rb", ZFD_ARCHIVE | ZFD_DELAYEDOPEN);
 				if (!ztrack) {
 					TCHAR tmp[MAX_DPATH];
 					_tcscpy (tmp, fname);
 					p = tmp + _tcslen (tmp);
 					while (p > tmp) {
 						if (*p == '/' || *p == '\\') {
-							ztrack = zfile_fopen (p + 1, L"rb", ZFD_ARCHIVE);
+							ztrack = zfile_fopen (p + 1, L"rb", ZFD_ARCHIVE | ZFD_DELAYEDOPEN);
 							if (ztrack) {
 								xfree (fname);
 								fname = my_strdup (p + 1);
@@ -1326,7 +1359,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 						s2[0] = 0;
 						_tcscat (tmp, L"\\");
 						_tcscat (tmp, fname);
-						ztrack = zfile_fopen (tmp, L"rb", ZFD_ARCHIVE);
+						ztrack = zfile_fopen (tmp, L"rb", ZFD_ARCHIVE | ZFD_DELAYEDOPEN);
 					}
 				}
 				t->track = tracknum;
@@ -1392,8 +1425,8 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 							}
 							t->offset += zfile_ftell (zf);
 							t->filesize = size;
-							t->enctype = fnametypeid;
 						}
+						t->enctype = fnametypeid;
 					} else if (fnametypeid == AUDENC_MP3 && t->handle) {
 						if (!mp3dec) {
 							try {
@@ -1532,7 +1565,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	struct cdunit *cdu = &cdunits[unitnum];
 	memset (di, 0, sizeof (struct device_info));
 	if (!cdu->enabled)
-		return 0;
+		return NULL;
 	di->open = cdu->open;
 	di->removable = 1;
 	di->bus = unitnum;
@@ -1595,6 +1628,12 @@ static int open_device (int unitnum, const TCHAR *ident)
 	cdu->cdda_volume[0] = 0x7fff;
 	cdu->cdda_volume[1] = 0x7fff;
 	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
+	if (cdimage_unpack_thread == 0) {
+		init_comm_pipe (&unpack_pipe, 10, 1);
+		uae_start_thread (L"cdimage_unpack", cdda_unpack_func, NULL, NULL);
+		while (cdimage_unpack_thread == 0)
+			Sleep (10);
+	}
 	return 1;
 }
 
@@ -1607,8 +1646,16 @@ static void close_device (int unitnum)
 	unload_image (cdu);
 	uae_sem_destroy (&cdu->sub_sem);
 	cdu->open = false;
-	cdu->enabled = false;
 	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
+	if (cdimage_unpack_thread) {
+		cdimage_unpack_thread = 0;
+		write_comm_pipe_u32 (&unpack_pipe, -1, 0);
+		write_comm_pipe_u32 (&unpack_pipe, -1, 1);
+		while (cdimage_unpack_thread == 0)
+			Sleep (10);
+		cdimage_unpack_thread = 0;
+		destroy_comm_pipe (&unpack_pipe);
+	}
 }
 
 static void close_bus (void)
@@ -1616,6 +1663,12 @@ static void close_bus (void)
 	if (!bus_open) {
 		write_log (L"IMAGE close_bus() when already closed!\n");
 		return;
+	}
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		struct cdunit *cdu = &cdunits[i];
+		if (cdu->open)
+			close_device (i);
+		cdu->enabled = false;
 	}
 	bus_open = 0;
 	write_log (L"IMAGE driver closed.\n");

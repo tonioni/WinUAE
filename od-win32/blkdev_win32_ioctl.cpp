@@ -281,7 +281,7 @@ static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int
 	cmd[4] = (uae_u8)(sector >> 8);
 	cmd[5] = (uae_u8)(sector >> 0);
 	if (unitnum >= 0)
-		gui_flicker_led (LED_CD, unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	int len = sizeof cmd;
 	return do_raw_scsi (ciw, unitnum,  cmd, len, data, tlen);
 }
@@ -473,6 +473,8 @@ static void *cdda_play (void *v)
 
 				if (!isaudiotrack (&ciw->di.toc, cdda_pos))
 					goto end; // data track?
+
+				gui_flicker_led (LED_CD, ciw->di.unitnum - 1, LED_CD_AUDIO);
 
 				uae_sem_wait (&ciw->sub_sem);
 				ciw->subcodevalid = false;
@@ -790,7 +792,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 	if (log_scsi)
 		write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d\n", unitnum, sector, sectorsize);
 	cdda_stop (ciw);
-	gui_flicker_led (LED_CD, unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	if (sectorsize > 0) {
 		if (sectorsize != 2336 && sectorsize != 2352 && sectorsize != 2048 &&
 			sectorsize != 2336 + 96 && sectorsize != 2352 + 96 && sectorsize != 2048 + 96)
@@ -878,7 +880,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 	cdda_stop (ciw);
 	ciw->cd_last_pos = sector;
 	while (cnt-- > 0) {
-		gui_flicker_led (LED_CD, unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 		seterrormode (ciw);
 		if (SetFilePointer (ciw->h, sector * ciw->di.bytespersector, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
 			reseterrormode (ciw);
@@ -890,7 +892,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 		break;
 	}
 	while (size-- > 0) {
-		gui_flicker_led (LED_CD, unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 		seterrormode (ciw);
 		if (write) {
 			if (data) {
@@ -928,7 +930,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 			}
 		}
 		reseterrormode (ciw);
-		gui_flicker_led (LED_CD, unitnum, 1);
+		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	}
 	return 1;
 }
@@ -998,7 +1000,7 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 
 	if (!open_createfile (ciw, 0))
 		return 0;
-	gui_flicker_led (LED_CD, unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	while (cnt-- > 0) {
 		seterrormode (ciw);
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof (CDROM_TOC), &len, NULL)) {
@@ -1045,7 +1047,7 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 	t->paddress = th->lastaddress;
 	t++;
 
-	gui_flicker_led (LED_CD, unitnum, 1);
+	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	memcpy (tocout, th, sizeof (struct cd_toc_head));
 	return 1;
 }

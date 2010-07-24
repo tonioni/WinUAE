@@ -5,6 +5,6 @@ class mp3decoder
 public:
 	mp3decoder();
 	~mp3decoder();
-	uae_u8 *get(struct zfile *zf, int maxsize);
+	uae_u8 *get(struct zfile *zf, uae_u8 *, int maxsize);
 	uae_u32 mp3decoder::getsize(struct zfile *zf);
 };

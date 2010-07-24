@@ -64,7 +64,7 @@ static bool debugchannel (int ch)
 
 STATIC_INLINE bool usehacks (void)
 {
-	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != -1;
+	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0;
 }
 
 #define SINC_QUEUE_MAX_AGE 2048

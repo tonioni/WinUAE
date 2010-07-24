@@ -914,7 +914,9 @@ static TCHAR *favoritepopup (HWND hwnd, int drive)
 					idx2--;
 					if (p2) {
 						fname = my_strdup (p2 + 1);
-						p2[0] = 0;
+						do {
+							*p2-- = 0;
+						} while (p2 > tmp2 && *p2 == ' ');
 						p2 = _tcschr (fname, '"');
 						if (p2)
 							*p2 = 0;
@@ -2440,6 +2442,8 @@ static BOOL CreateHardFile (HWND hDlg, UINT hfsizem, TCHAR *dostype, TCHAR *newp
 		if (dynamic) {
 			if (!_stscanf (dostype, L"%x", &dt))
 				dt = 0;
+			if (_tcslen (init_path) > 4 && !_tcsicmp (init_path + _tcslen (init_path) - 4, L".hdf"))
+				_tcscpy (init_path + _tcslen (init_path) - 4, L".vhd");
 			result = vhd_create (init_path, hfsize, dt);
 		} else {
 			SetCursor (LoadCursor (NULL, IDC_WAIT));
@@ -9095,7 +9099,7 @@ static ACCEL HarddiskAccel[] = {
 	{ 0, 0, 0 }
 };
 
-static void harddiskdlg_button (HWND hDlg, WPARAM wParam)
+static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 {
 	int button = LOWORD (wParam);
 	switch (button) {
@@ -9115,19 +9119,19 @@ static void harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		archivehd = 0;
 		if (CustomDialogBox (IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
-		break;
+		return 1;
 	case IDC_NEW_FSARCH:
 		archivehd = 1;
 		current_fsvdlg = empty_fsvdlg;
 		if (CustomDialogBox (IDD_FILESYS, hDlg, VolumeSettingsProc))
 			new_filesys (hDlg, -1);
-		break;
+		return 1;
 
 	case IDC_NEW_HF:
 		current_hfdlg = empty_hfdlg;
 		if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc))
 			new_hardfile (hDlg, -1);
-		break;
+		return 1;
 
 	case IDC_NEW_HD:
 		memset (&current_hfdlg, 0, sizeof (current_hfdlg));
@@ -9139,25 +9143,25 @@ static void harddiskdlg_button (HWND hDlg, WPARAM wParam)
 			if (CustomDialogBox (IDD_HARDDRIVE, hDlg, HarddriveSettingsProc))
 				new_harddrive (hDlg, -1);
 		}
-		break;
+		return 1;
 
 	case IDC_EDIT:
 		harddisk_edit (hDlg);
-		break;
+		return 1;
 
 	case IDC_REMOVE:
 		harddisk_remove (hDlg);
-		break;
+		return 1;
 
 	case IDC_UP:
 		harddisk_move (hDlg, 1);
 		clicked_entry--;
-		break;
+		return 1;
 
 	case IDC_DOWN:
 		harddisk_move (hDlg, 0);
 		clicked_entry++;
-		break;
+		return 1;
 
 	case IDC_MAPDRIVES_AUTO:
 		workprefs.win32_automount_removable = ischecked (hDlg, IDC_MAPDRIVES_AUTO);
@@ -9188,6 +9192,7 @@ static void harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		break;
 
 	}
+	return 0;
 }
 
 static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
@@ -9316,9 +9321,10 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 				hilitehd ();
 				break;
 			default:
-				harddiskdlg_button (hDlg, wParam);
-				InitializeListView (hDlg);
-				hilitehd ();
+				if (harddiskdlg_button (hDlg, wParam)) {
+					InitializeListView (hDlg);
+					hilitehd ();
+				}
 				break;
 			}
 		}

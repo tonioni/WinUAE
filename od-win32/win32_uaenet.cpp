@@ -156,7 +156,7 @@ static void *uaenet_trap_threadr (void *arg)
 		r = pcap_next_ex (sd->fp, &header, &pkt_data);
 		if (r == 1) {
 			uae_sem_wait (&sd->change_sem);
-			sd->gotfunc ((struct devstruct*)sd->user, pkt_data, header->len);
+			sd->gotfunc ((struct s2devstruct*)sd->user, pkt_data, header->len);
 			uae_sem_post (&sd->change_sem);
 		}
 		if (r < 0) {
@@ -180,7 +180,7 @@ static void *uaenet_trap_threadw (void *arg)
 		int donotwait = 0;
 		int towrite = sd->mtu;
 		uae_sem_wait (&sd->change_sem);
-		if (sd->getfunc ((struct devstruct*)sd->user, sd->writebuffer, &towrite)) {
+		if (sd->getfunc ((struct s2devstruct*)sd->user, sd->writebuffer, &towrite)) {
 			pcap_sendpacket (sd->fp, sd->writebuffer, towrite);
 			donotwait = 1;
 		}

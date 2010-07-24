@@ -24,6 +24,7 @@ static int scsiemu[MAX_TOTAL_SCSI_DEVICES];
 
 static struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
 static int openlist[MAX_TOTAL_SCSI_DEVICES];
+static int waspaused[MAX_TOTAL_SCSI_DEVICES];
 
 /* convert minutes, seconds and frames -> logical sector number */
 int msf2lsn (int msf)
@@ -316,12 +317,14 @@ int sys_command_isopen (int unitnum)
 
 int sys_command_open (int unitnum)
 {
+	waspaused[unitnum] = 0;
 	return sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : NULL);
 }
 
 
 void sys_command_close (int unitnum)
 {
+	waspaused[unitnum] = 0;
 	if (openlist[unitnum] <= 0)
 		write_log (L"BUG unit %d close: opencnt=%d!\n", unitnum, openlist[unitnum]);
 	if (device_func[unitnum]) {
@@ -352,6 +355,32 @@ int device_func_init (int flags)
 	install_driver (flags);
 	return 1;
 }
+
+void blkdev_entergui (void)
+{
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		waspaused[i] = 0;
+		struct device_info di;
+		if (sys_command_info (i, &di, 1)) {
+			if (sys_command_cd_pause (i, 1) == 0)
+				waspaused[i] = 1;
+		}
+	}
+}
+void blkdev_exitgui (void)
+{
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		if (waspaused[i]) {
+			struct device_info di;
+			if (sys_command_info (i, &di, 1)) {
+				sys_command_cd_pause (i, 0);
+			}
+		}
+		waspaused[i] = 0;
+	}
+}
+
+
 
 static TCHAR newimagefiles[MAX_TOTAL_SCSI_DEVICES][256];
 static int imagechangetime[MAX_TOTAL_SCSI_DEVICES];
@@ -656,6 +685,8 @@ int sys_command_ismedia (int unitnum, int quick)
 
 struct device_info *sys_command_info (int unitnum, struct device_info *di, int quick)
 {
+	if (failunit (unitnum))
+		return NULL;
 	return device_func[unitnum]->info (unitnum, di, quick);
 }
 
@@ -1466,7 +1497,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 
 	as->status = scsi_emulate (unitnum, cmd, as->cmd_len, scsi_datap, &datalen, replydata, &replylen, as->sensedata, &senselen);
 
-	as->cmdactual = as->status == 0 ? 0 : as->cmd_len; /* fake scsi_CmdActual */
+	as->cmdactual = as->status != 0 ? 0 : as->cmd_len; /* fake scsi_CmdActual */
 	if (as->status) {
 		io_error = 45; /* HFERR_BadStatus */
 		as->sense_len = senselen;
@@ -1584,3 +1615,4 @@ uae_u8 *restore_cd (int num, uae_u8 *src)
 }
 
 #endif
+

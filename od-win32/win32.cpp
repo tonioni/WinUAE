@@ -84,6 +84,7 @@
 #include "cdtv.h"
 #include "direct3d.h"
 #include "clipboard_win32.h"
+#include "blkdev.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -416,6 +417,7 @@ void resumepaused (int priority)
 #ifdef CDTV
 	cdtv_exitgui ();
 #endif
+	blkdev_exitgui ();
 	if (pausemouseactive)
 		setmouseactive (-1);
 	pausemouseactive = 0;
@@ -437,6 +439,7 @@ void setpaused (int priority)
 #ifdef CDTV
 	cdtv_entergui ();
 #endif
+	blkdev_entergui ();
 	pausemouseactive = 1;
 	if (isfullscreen () <= 0) {
 		pausemouseactive = mouseactive;

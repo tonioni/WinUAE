@@ -1,9 +1,58 @@
 
+- MP3/FLAC background decompression, no more delayed CDA startup if audio file
+  decompression takes more than 2 seconds
+- implemented "delayed decompression" zfile open flag, currently only zip backend supports it
+  and it is only enabled when using CD images. Most zipped CD images with big audio files
+  start almost instantly now
+- potential memory corruption crash in zfile_fclose() if file had parent file(s)
+- zero length disk DMA (used by some copy protections) never finished, broke in b1
+- fixed extra space characters in favorite menu items
+- pause uaescsi.device CDA when emulation is paused or GUI is open
+- uaescsi.device CDA lights green on screen CD led
+- cue/bin audio tracks were completely silent (cue/wav worked)
+- on the fly image switching didn't send uaescsi.device change interrupts correctly
+  if CDFS polling flag was disabled (empty drive without diskchange command)
+- new dynamic hardfiles have .vhd extension instead of .hdf
+
+Beta 5
+
+- version number bumped to 2.3
 - few lines of non-filter scanlines was missing in bottom part of display
+- audio DMA start interrupt is now immediate after starting DMA in too fast CPU modes
+  (normally when audio state changes to 5), fixes EasyACDDA hang. Seems to be
+  yet another audio.device bug when CPU and memory is "too fast"..
+
+More CD related changes and updates:
+
+- unified CD32/CDTV CD unit allocation, also internal unit number is always zero =
+  GUI CD media change now work as expected
+- CDTV frontpanel Stop now quits frontpanel/CD+G mode correctly
+- added more obsolete SCSI commands: PLAY AUDIO TRACK RELATIVE (10) and (12) and
+  PLAY AUDIO (12) (10-byte version was added in b4)
+- CDTV subchannel hardware interrupt timing improved, CD+G works in cycle-exact mode now
+- cd configuration code cleanups
+- added mds/mdf image format (only v1 and first session, v2 appears to be scrambled..)
+- cdimage0 in configuration file now disables all following units (backwards compatiblity)
+  add 2 or more cdimage[0-7]= lines in increasing order if you want multiple units configured
+- cue/ccd/iso/mds detection in zipped cd images stopped working
+- moved 2048 to 2352 byte sector conversion code to generic image mounter code from CD32
+  emulation, CD32 FMV ROM now detects VideoCDs (and then it hangs)
 - mp3 cd audio: detect audio length using ID3v2 TLEN tag if it exists, assume it is CBR MP3 if
-  first 100 frames have same bit rate, fallback to original slow full file scan if no tags and VBR
-- remove mp3 decoding time from audio playback delay time, better av sync if decoding takes less
+  first 100 frames have equal bit rate, fallback to original slow full file scan if no tags and VBR
+- remove mp3 decoding time from audio playback delay time, keeps av sync if decoding takes less
   than 2 seconds
+- FLAC CD audio tracks supported (cue/iso/flac), perhaps this will be useful in future..
+  (remember to redownload winuaeinclibs.zip if you want to recompile this or future versions)
+- note that currently both mp3 and flac decoding needs to finish before playback starts which
+  can take few seconds on slow machines
+- some XP-only CD access issues fixed, tested on VMware workstation (donated by Cloanto).
+  VirtualPC sucks too much.
+- when looking for cue/iso/ccd/mds inside archives: do not attempt to autodetect (unpack)
+  other files. CD image archives containing audio tracks should start faster now (all audio
+  tracks are still unpacked at startup but previously they were unpacked twice)
+
+Future todo: hardware IDE (ATAPI) and SCSI emulation to CD SCSI emulation connection, no big CD
+GUI updates until it has been designed. (won't be done in this beta series)
 
 Beta 4:
 
@@ -46,11 +95,6 @@ replaces it with image file.
 If CD32 or CDTV is started in "autodetect" mode and it chose unit 1 or later (CD32/CDTV or
 Audio CD inserted), unit 0 changes are ignored until original drive becomes empty. This
 needs to be more intelligent.
-
-Configuration file accepts cdimage0 to cdimage7. Full syntax:
-cdimagex=image path or device name,cd backend(:reserved for future)
-Cd backend not mandatory. Supported CD backend names are:
-image, ioctl, spti and aspi. (this is autoselected when using GUI)
 
 Beta 3:
 

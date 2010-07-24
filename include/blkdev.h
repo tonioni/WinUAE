@@ -197,3 +197,7 @@ enum cd_standard_unit { CD_STANDARD_UNIT_AUDIO, CD_STANDARD_UNIT_CDTV, CD_STANDA
 extern int get_standard_cd_unit (enum cd_standard_unit csu);
 extern void close_standard_cd_unit (int);
 extern void blkdev_cd_change (int unitnum, const TCHAR *name);
+
+extern void blkdev_entergui (void);
+extern void blkdev_exitgui (void);
+

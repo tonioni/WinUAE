@@ -24,6 +24,8 @@
 
 #include <zlib.h>
 
+#define unpack_log write_log
+
 static time_t fromdostime (uae_u32 dd)
 {
 	struct tm tm;
@@ -84,49 +86,6 @@ static struct zvolume *getzvolume (struct znode *parent, struct zfile *zf, unsig
 	return zv;
 }
 
-struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags)
-{
-	struct zfile *zf = NULL;
-
-	switch (id)
-	{
-	case ArchiveFormatZIP:
-		zf = archive_access_zip (zn, flags);
-		break;
-	case ArchiveFormat7Zip:
-		zf = archive_access_7z (zn);
-		break;
-	case ArchiveFormatRAR:
-		zf = archive_access_rar (zn);
-		break;
-	case ArchiveFormatLHA:
-		zf = archive_access_lha (zn);
-		break;
-	case ArchiveFormatLZX:
-		zf = archive_access_lzx (zn);
-		break;
-	case ArchiveFormatPLAIN:
-		zf = archive_access_plain (zn);
-		break;
-	case ArchiveFormatADF:
-		zf = archive_access_adf (zn);
-		break;
-	case ArchiveFormatRDB:
-		zf = archive_access_rdb (zn);
-		break;
-	case ArchiveFormatFAT:
-		zf = archive_access_fat (zn);
-		break;
-	case ArchiveFormatDIR:
-		zf = archive_access_dir (zn);
-		break;
-	case ArchiveFormatTAR:
-		zf = archive_access_tar (zn);
-		break;
-	}
-	return zf;
-}
-
 struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, unsigned int id, int dodefault, int *retcode, int index)
 {
 	struct zvolume *zv;
@@ -138,6 +97,7 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 	int diskimg;
 	int mask = zf->zfdmask;
 	int canhistory = (mask & ZFD_DISKHISTORY) && !(mask & ZFD_CHECKONLY);
+	int getflag = (mask &  ZFD_DELAYEDOPEN) ? FILE_DELAYEDOPEN : 0;
 
 	if (retcode)
 		*retcode = 0;
@@ -206,12 +166,12 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 						ft = ZFILE_CDIMAGE;
 					}
 				} else {
-					zt = archive_getzfile (zn, id, FILE_PEEK);
+					zt = archive_getzfile (zn, id, getflag);
 					ft = zfile_gettype (zt);
 				}
 				if ((select < 0 || ft) && whf > we_have_file) {
 					if (!zt)
-						zt = archive_getzfile (zn, id, FILE_PEEK);
+						zt = archive_getzfile (zn, id, getflag);
 					we_have_file = whf;
 					if (z)
 						zfile_fclose (z);
@@ -358,7 +318,6 @@ struct zfile *archive_access_tar (struct znode *zn)
 
 static void archive_close_zip (void *handle)
 {
-	unzClose (handle);
 }
 
 struct zvolume *archive_directory_zip (struct zfile *z)
@@ -373,7 +332,7 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 		return 0;
 	if (unzGoToFirstFile (uz) != UNZ_OK)
 		return 0;
-	zv = zvolume_alloc (z, ArchiveFormatZIP, uz, NULL);
+	zv = zvolume_alloc (z, ArchiveFormatZIP, NULL, NULL);
 	for (;;) {
 		char filename_inzip2[MAX_DPATH];
 		TCHAR c;
@@ -409,22 +368,29 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 		if (err != UNZ_OK)
 			break;
 	}
+	unzClose (uz);
 	zv->method = ArchiveFormatZIP;
 	return zv;
 }
 
 
-struct zfile *archive_access_zip (struct znode *zn, int flags)
+static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flags)
 {
-	struct zfile *z = NULL;
-	unzFile uz = zn->volume->handle;
-	int i, err;
+	unzFile uz;
+	int i;
 	TCHAR tmp[MAX_DPATH];
+	TCHAR *name = z ? z->archiveparent->name : zn->volume->root.fullname;
 	char *s;
 
-	_tcscpy (tmp, zn->fullname + _tcslen (zn->volume->root.fullname) + 1);
-	if (unzGoToFirstFile (uz) != UNZ_OK)
+	uz = unzOpen (z ? z->archiveparent : zn->volume->archive);
+	if (!uz)
 		return 0;
+	if (z)
+		_tcscpy (tmp, z->archiveparent->name);
+	else
+		_tcscpy (tmp, zn->fullname + _tcslen (zn->volume->root.fullname) + 1);
+	if (unzGoToFirstFile (uz) != UNZ_OK)
+		goto error;
 	for (i = 0; tmp[i]; i++) {
 		if (tmp[i] == '\\')
 			tmp[i] = '/';
@@ -439,22 +405,52 @@ struct zfile *archive_access_zip (struct znode *zn, int flags)
 		s = ua (tmp);
 		if (unzLocateFile (uz, s, 1) != UNZ_OK) {
 			xfree (s);
-			return 0;
+			goto error;
 		}
 	}
 	xfree (s);
 	s = NULL;
 	if (unzOpenCurrentFile (uz) != UNZ_OK)
-		return 0;
-//	write_log (L"unpacking %s\n", zn->fullname);
-	z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
+		goto error;
+	if (!z)
+		z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 	if (z) {
-//		if (flags & FILE_PEEK)
-//			z->datasize = PEEK_BYTES;
-		err = unzReadCurrentFile (uz, z->data, z->datasize);
+		int err = -1;
+		if (!(flags & FILE_DELAYEDOPEN) || z->size <= PEEK_BYTES) {
+			unpack_log (L"ZIP: unpacking %s, flags=%d\n", name, flags);
+			err = unzReadCurrentFile (uz, z->data, z->datasize);
+			unpack_log (L"ZIP: unpacked, code=%d\n", err);
+		} else {
+			z->archiveparent = zfile_dup (zn->volume->archive);
+			if (z->archiveparent) {
+				unpack_log (L"ZIP: delayed open '%s'\n", name);
+				xfree (z->archiveparent->name);
+				z->archiveparent->name = my_strdup (tmp);
+				z->datasize = PEEK_BYTES;
+				err = unzReadCurrentFile (uz, z->data, z->datasize);
+				unpack_log (L"ZIP: unpacked, code=%d\n", err);
+			} else {
+				unpack_log (L"ZIP: unpacking %s (failed DELAYEDOPEN)\n", name);
+				err = unzReadCurrentFile (uz, z->data, z->datasize);
+				unpack_log (L"ZIP: unpacked, code=%d\n", err);
+			}
+		}
 	}
 	unzCloseCurrentFile (uz);
+	unzClose (uz);
 	return z;
+error:
+	unzClose (uz);
+	return NULL;
+}
+
+static struct zfile *archive_access_zip (struct znode *zn, int flags)
+{
+	return archive_do_zip (zn, NULL, flags);
+}
+static struct zfile *archive_unpack_zip (struct zfile *zf)
+{
+	return archive_do_zip (NULL, zf, 0);
 }
 
 /* 7Z */
@@ -590,7 +586,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	return zv;
 }
 
-struct zfile *archive_access_7z (struct znode *zn)
+static struct zfile *archive_access_7z (struct znode *zn)
 {
 	SRes res;
 	struct zvolume *zv = zn->volume;
@@ -738,7 +734,7 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 	return zv;
 }
 
-struct zfile *archive_access_rar (struct znode *zn)
+static struct zfile *archive_access_rar (struct znode *zn)
 {
 	struct RARContext *rc = (struct RARContext*)zn->volume->handle;
 	int i;
@@ -935,7 +931,7 @@ struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id)
 }
 
 
-struct zfile *archive_access_arcacc (struct znode *zn)
+static struct zfile *archive_access_arcacc (struct znode *zn)
 {
 	struct zfile *zf;
 	struct zfile *z = zn->volume->archive;
@@ -1049,7 +1045,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	}
 	return zv;
 }
-struct zfile *archive_access_plain (struct znode *zn)
+static struct zfile *archive_access_plain (struct znode *zn)
 {
 	struct zfile *z;
 
@@ -1500,7 +1496,7 @@ static int sfsfindblock (struct adfhandle *adf, int btree, int theblock, struct 
 }
 
 
-struct zfile *archive_access_adf (struct znode *zn)
+static struct zfile *archive_access_adf (struct znode *zn)
 {
 	struct zfile *z = NULL;
 	int root, ffs;
@@ -1713,7 +1709,7 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 	return zv;
 }
 
-struct zfile *archive_access_rdb (struct znode *zn)
+static struct zfile *archive_access_rdb (struct znode *zn)
 {
 	struct zfile *z = zn->volume->archive;
 	struct zfile *zf;
@@ -1978,7 +1974,7 @@ struct zvolume *archive_directory_fat (struct zfile *z)
 	return zv;
 }
 
-struct zfile *archive_access_fat (struct znode *zn)
+static struct zfile *archive_access_fat (struct znode *zn)
 {
 	uae_u8 buf[512] = { 0 };
 	int fatbits = 12;
@@ -2047,8 +2043,72 @@ void archive_access_close (void *handle, unsigned int id)
 	}
 }
 
-struct zfile *archive_access_dir (struct znode *zn)
+static struct zfile *archive_access_dir (struct znode *zn)
 {
 	return zfile_fopen (zn->fullname, L"rb", 0);
 }
 
+
+struct zfile *archive_unpackzfile (struct zfile *zf)
+{
+	struct zfile *zout = NULL;
+	if (!zf->archiveparent)
+		return NULL;
+	unpack_log (L"delayed unpack '%s'\n", zf->name);
+	zf->datasize = zf->size;
+	switch (zf->archiveid)
+	{
+	case ArchiveFormatZIP:
+		zout = archive_unpack_zip (zf);
+		break;
+	}
+	zfile_fclose (zf->archiveparent);
+	zf->archiveparent = NULL;
+	zf->archiveid = 0;
+	return NULL;
+}
+
+struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags)
+{
+	struct zfile *zf = NULL;
+
+	switch (id)
+	{
+	case ArchiveFormatZIP:
+		zf = archive_access_zip (zn, flags);
+		break;
+	case ArchiveFormat7Zip:
+		zf = archive_access_7z (zn);
+		break;
+	case ArchiveFormatRAR:
+		zf = archive_access_rar (zn);
+		break;
+	case ArchiveFormatLHA:
+		zf = archive_access_lha (zn);
+		break;
+	case ArchiveFormatLZX:
+		zf = archive_access_lzx (zn);
+		break;
+	case ArchiveFormatPLAIN:
+		zf = archive_access_plain (zn);
+		break;
+	case ArchiveFormatADF:
+		zf = archive_access_adf (zn);
+		break;
+	case ArchiveFormatRDB:
+		zf = archive_access_rdb (zn);
+		break;
+	case ArchiveFormatFAT:
+		zf = archive_access_fat (zn);
+		break;
+	case ArchiveFormatDIR:
+		zf = archive_access_dir (zn);
+		break;
+	case ArchiveFormatTAR:
+		zf = archive_access_tar (zn);
+		break;
+	}
+	if (zf)
+		zf->archiveid = id;
+	return zf;
+}

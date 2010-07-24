@@ -99,13 +99,12 @@ mp3decoder::mp3decoder()
 	}
 }
 
-uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
+uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 {
 	MMRESULT mmr;
 	unsigned long rawbufsize = 0;
 	LPBYTE mp3buf;
 	LPBYTE rawbuf;
-	uae_u8 *outbuf = NULL;
 	int outoffset = 0;
 	ACMSTREAMHEADER mp3streamHead;
 	HACMSTREAM h = (HACMSTREAM)g_mp3stream;
@@ -133,7 +132,6 @@ uae_u8 *mp3decoder::get (struct zfile *zf, int maxsize)
 		return NULL;
 	}
 	zfile_fseek(zf, 0, SEEK_SET);
-	outbuf = xcalloc(uae_u8, maxsize + 2352);
 	for (;;) {
 		int count = zfile_fread(mp3buf, 1, MP3_BLOCK_SIZE, zf);
 		if (count != MP3_BLOCK_SIZE)
