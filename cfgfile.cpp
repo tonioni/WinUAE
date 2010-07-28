@@ -180,6 +180,7 @@ static const TCHAR *dongles[] =
 	NULL
 };
 static const TCHAR *cdmodes[] = { L"disabled", L"", L"image", L"ioctl", L"spti", L"aspi", 0 };
+static const TCHAR *cdconmodes[] = { L"", L"uae", L"ide", L"scsi", L"cdtv", L"cd32", 0 };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -231,7 +232,15 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 		xfree (p);
 		return p2;
 	}
-	return target_expand_environment (file);
+	TCHAR *s = target_expand_environment (file);
+	if (s) {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy (tmp, s);
+		xfree (s);
+		fullpath (tmp, sizeof tmp / sizeof (TCHAR));
+		s = my_strdup (tmp);
+	}
+	return s;
 }
 
 static int isdefault (const TCHAR *s)
@@ -1145,14 +1154,31 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		if (!_tcsicmp (option, tmp)) {
 			TCHAR *next = _tcsrchr (value, ',');
 			int type = SCSI_UNIT_DEFAULT;
+			int mode = 0;
+			int unitnum = 0;
 			if (next) {
 				*next++ = 0;
 				TCHAR *next2 = _tcschr (next, ':');
 				if (next2)
-					*next2 = 0;
+					*next2++ = 0;
 				int tmpval = 0;
-				if (cfgfile_intval (option, next, tmp, &type, 1))
+				type = match_string (cdmodes, next);
+				if (type < 0)
+					type = SCSI_UNIT_DEFAULT;
+				else
 					type--;
+				next = next2;
+				next2 = _tcschr (next, ':');
+				if (next2)
+					*next2++ = 0;
+				mode = match_string (cdconmodes, next);
+				if (mode < 0)
+					mode = 0;
+				next = next2;
+				next2 = _tcschr (next, ':');
+				if (next2)
+					*next2++ = 0;
+				cfgfile_intval (option, next, tmp, &unitnum, 1);
 			}
 			_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name);
 			p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
@@ -2207,12 +2233,17 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 			}
 		}
 empty_fs:
-		if (root)
+		if (root) {
+			if (_tcslen (root) > 3 && root[0] == 'H' && root[1] == 'D' && root[2] == '_') {
+				root += 2;
+				*root = ':';
+			}
 			str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
+		}
 #ifdef FILESYS
 		add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
 #endif
-		free (str);
+		xfree (str);
 		return 1;
 
 invalid_fs:

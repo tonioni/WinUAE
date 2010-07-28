@@ -834,11 +834,11 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	xfree (dst);
 #endif
 #ifdef CDTV
-	dst = save_dmac (&len);
-	save_chunk (f, dst, len, L"DMAC", 0);
-	xfree (dst);
 	dst = save_cdtv (&len);
 	save_chunk (f, dst, len, L"CDTV", 0);
+	xfree (dst);
+	dst = save_dmac (&len);
+	save_chunk (f, dst, len, L"DMAC", 0);
 	xfree (dst);
 #endif
 

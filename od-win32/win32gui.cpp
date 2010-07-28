@@ -472,6 +472,7 @@ int DirectorySelection (HWND hDlg, const GUID *guid, TCHAR *path)
 	ofn.lpstrInitialDir = path;
 	ofn.nMaxFile = MAX_DPATH;
 	val = GetFileDialog (&ofn, NULL, -1);
+	fullpath (path, MAX_DPATH);
 	return val;
 }
 
@@ -1202,18 +1203,18 @@ static struct romdata *scan_single_rom_2 (struct zfile *f)
 	}
 	if (!rd) {
 		write_log (L"!: Name='%s':%d\nCRC32=%08X SHA1=%s\n",
-			zfile_getname(f), size, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+			zfile_getname (f), size, get_crc32 (rombuf, size), get_sha1_txt (rombuf, size));
 	} else {
 		TCHAR tmp[MAX_DPATH];
 		getromname (rd, tmp);
 		write_log (L"*: %s:%d = %s\nCRC32=%08X SHA1=%s\n",
-			zfile_getname(f), size, tmp, get_crc32(rombuf, size), get_sha1_txt(rombuf, size));
+			zfile_getname (f), size, tmp, get_crc32 (rombuf, size), get_sha1_txt (rombuf, size));
 	}
 	xfree (rombuf);
 	return rd;
 }
 
-static struct romdata *scan_single_rom (TCHAR *path)
+static struct romdata *scan_single_rom (const TCHAR *path)
 {
 	struct zfile *z;
 	TCHAR tmp[MAX_DPATH];
@@ -1238,7 +1239,7 @@ static void abspathtorelative (TCHAR *name)
 		memmove (name, name + _tcslen (start_path_exe), (_tcslen (name) - _tcslen (start_path_exe) + 1) * sizeof (TCHAR));
 }
 
-static int addrom (UAEREG *fkey, struct romdata *rd, TCHAR *name)
+static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 {
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 
@@ -1251,10 +1252,12 @@ static int addrom (UAEREG *fkey, struct romdata *rd, TCHAR *name)
 		return 0;
 	getromname (rd, tmp2);
 	if (name) {
+		TCHAR name2[MAX_DPATH];
+		_tcscpy (name2, name);
 		_tcscat (tmp2, L" / \"");
 		if (getregmode ())
-			abspathtorelative (name);
-		_tcscat (tmp2, name);
+			abspathtorelative (name2);
+		_tcscat (tmp2, name2);
 		_tcscat (tmp2, L"\"");
 	}
 	if (rd->crc32 == 0xffffffff) {
@@ -1268,9 +1271,9 @@ static int addrom (UAEREG *fkey, struct romdata *rd, TCHAR *name)
 	return 1;
 }
 
-static int isromext (TCHAR *path)
+static int isromext (const TCHAR *path)
 {
-	TCHAR *ext;
+	const TCHAR *ext;
 	int i;
 
 	if (!path)
@@ -1374,12 +1377,14 @@ static int scan_rom_2 (struct zfile *f, void *vrsd)
 		getromname (rd, name);
 		scan_rom_hook (name, 3);
 		addrom (rsd->fkey, rd, path);
+		if (rd->type & ROMTYPE_KEY)
+			addkeyfile (path);
 		rsd->got = 1;
 	}
 	return 0;
 }
 
-static int scan_rom (TCHAR *path, UAEREG *fkey)
+static int scan_rom (const TCHAR *path, UAEREG *fkey)
 {
 	struct romscandata rsd = { fkey, 0 };
 	struct romdata *rd;
@@ -1482,7 +1487,7 @@ static void show_rom_list (void)
 	free (p);
 }
 
-static int scan_roms_2 (UAEREG *fkey, TCHAR *path)
+static int scan_roms_2 (UAEREG *fkey, const TCHAR *path)
 {
 	TCHAR buf[MAX_DPATH];
 	WIN32_FIND_DATA find_data;
@@ -1517,14 +1522,19 @@ static int scan_roms_2 (UAEREG *fkey, TCHAR *path)
 
 #define MAX_ROM_PATHS 10
 
-static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, TCHAR *path)
+static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, const TCHAR *path)
 {
 	int i, ret;
 	TCHAR pathp[MAX_DPATH];
 
 	ret = 0;
 	scan_rom_hook (NULL, 0);
+	pathp[0] = 0;
 	GetFullPathName (path, MAX_DPATH, pathp, NULL);
+	if (!pathp[0])
+		return ret;
+	if (_tcsicmp (pathp, start_path_exe) == 0)
+		return ret;
 	for (i = 0; i < MAX_ROM_PATHS; i++) {
 		if (paths[i] && !_tcsicmp (paths[i], pathp))
 			return ret;
@@ -1539,7 +1549,7 @@ static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, TCHAR *path)
 	return ret;
 }
 
-extern int get_rom_path (TCHAR *out, int mode);
+extern int get_rom_path (TCHAR *out, pathtype mode);
 
 int scan_roms (HWND hDlg, int show)
 {
@@ -1576,8 +1586,9 @@ int scan_roms (HWND hDlg, int show)
 		fetch_path (L"KickstartPath", path, sizeof path / sizeof (TCHAR));
 		cnt += scan_roms_3 (fkey, paths, path);
 		if (1) {
-			for(i = 0; i < MAX_ROM_PATHS; i++) {
-				ret = get_rom_path (path, i);
+			static pathtype pt[] = { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
+			for (i = 0; pt[i] != PATH_TYPE_END; i++) {
+				ret = get_rom_path (path, pt[i]);
 				if (ret < 0)
 					break;
 				cnt += scan_roms_3 (fkey, paths, path);
@@ -1946,16 +1957,17 @@ static void ejectfloppy (int n)
 	}
 }
 
-static void selectcd (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
+static void selectcd (struct uae_prefs *prefs, HWND hDlg, int num, int id, const TCHAR *full_path)
 {
 	SetDlgItemText (hDlg, id, full_path);
 	if (quickstart_cddrive[0])
 		eject_cd ();
 	_tcscpy (prefs->cdslots[0].name, full_path);
-	DISK_history_add (full_path, -1, HISTORY_CD, 0);
+	fullpath (prefs->cdslots[0].name, sizeof prefs->cdslots[0].name / sizeof (TCHAR));
+	DISK_history_add (prefs->cdslots[0].name, -1, HISTORY_CD, 0);
 }
 
-static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCHAR *full_path)
+static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, const TCHAR *full_path)
 {
 	if (iscd (num)) {
 		selectcd (prefs, hDlg, num, id, full_path);
@@ -1963,9 +1975,17 @@ static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, TCH
 	}
 	SetDlgItemText (hDlg, id, full_path);
 	_tcscpy(prefs->df[num], full_path);
-	DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+	fullpath (prefs->df[num], sizeof prefs->df[num] / sizeof (TCHAR));
+	DISK_history_add (prefs->df[num], -1, HISTORY_FLOPPY, 0);
 }
 
+static void setdpath (const TCHAR *name, const TCHAR *path)
+{
+	TCHAR tmp[MAX_DPATH];
+	_tcscpy (tmp, path);
+	fullpath (tmp, sizeof tmp / sizeof (TCHAR));
+	regsetstr (NULL, name, tmp);
+}
 
 // Common routine for popping up a file-requester
 // flag - 0 for floppy loading, 1 for floppy creation, 2 for loading hdf, 3 for saving hdf
@@ -2233,7 +2253,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 
 	if (multi)
 		openFileName.Flags |= OFN_ALLOWMULTISELECT;
-	if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 11 || flag == 16) {
+	if (flag == 1 || flag == 3 || flag == 5 || flag == 9 || flag == 16) {
 		if (!(result = GetSaveFileName_2 (hDlg, &openFileName, guid)))
 			write_log (L"GetSaveFileNameX() failed, err=%d.\n", GetLastError ());
 	} else {
@@ -2275,9 +2295,9 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		case IDC_PATH_NAME:
 		case IDC_PATH_FILESYS:
 			if (flag == 8) {
-				if(_tcsstr(full_path, L"Configurations\\")) {
-					_tcscpy(full_path, init_path);
-					_tcscat(full_path, file_name);
+				if(_tcsstr (full_path, L"Configurations\\")) {
+					_tcscpy (full_path, init_path);
+					_tcscat (full_path, file_name);
 				}
 			}
 			SetDlgItemText (hDlg, wParam, full_path);
@@ -2334,15 +2354,19 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			break;
 		case IDC_ROMFILE:
 			_tcscpy (workprefs.romfile, full_path);
+			fullpath (workprefs.romfile, MAX_DPATH);
 			break;
 		case IDC_ROMFILE2:
 			_tcscpy (workprefs.romextfile, full_path);
+			fullpath (workprefs.romextfile, MAX_DPATH);
 			break;
 		case IDC_FLASHFILE:
 			_tcscpy (workprefs.flashfile, full_path);
+			fullpath (workprefs.flashfile, MAX_DPATH);
 			break;
 		case IDC_CARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);
+			fullpath (workprefs.cartfile, MAX_DPATH);
 			break;
 		case IDC_INPREC_PLAY:
 			inprec_open (full_path, ischecked (hDlg, IDC_INPREC_PLAYMODE) ? -1 : -2);
@@ -2356,19 +2380,19 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
-					regsetstr (NULL, L"FloppyPath", openFileName.lpstrFile);
+					setdpath (L"FloppyPath", openFileName.lpstrFile);
 				}
 			} else if (flag == 2 || flag == 3) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
-					regsetstr (NULL, L"hdfPath", openFileName.lpstrFile);
+					setdpath (L"hdfPath", openFileName.lpstrFile);
 				}
 			} else if (flag == 17) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
 					*amiga_path = 0;
-					regsetstr (NULL, L"CDPath", openFileName.lpstrFile);
+					setdpath (L"CDPath", openFileName.lpstrFile);
 				}
 			}
 		}
@@ -4505,19 +4529,21 @@ static void resetregistry (void)
 	regdelete (NULL, L"QuickStartCompatibility");
 	regdelete (NULL, L"QuickStartHostConfig");
 	regdelete (NULL, L"ConfigurationCache");
+	regdelete (NULL, L"RelativePaths");
 	regdelete (NULL, L"DirectDraw_Secondary");
 	regdelete (NULL, L"ShownsupportedModes");
 }
 
-int path_type;
+pathtype path_type;
 static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	const GUID pathsguid = { 0x5674338c, 0x7a0b, 0x4565, { 0xbf, 0x75, 0x62, 0x8c, 0x80, 0x4a, 0xef, 0xf7 } };
 	void create_afnewdir(int);
 	static int recursive;
-	static int ptypes[10], numtypes;
+	static pathtype ptypes[10];
+	static int numtypes;
 	int val, selpath = 0;
-	TCHAR tmp[MAX_DPATH], pathmode[32];
+	TCHAR tmp[MAX_DPATH];
 
 	switch (msg)
 	{
@@ -4532,12 +4558,13 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		setac (hDlg, IDC_PATHS_AVIOUTPUT);
 		setac (hDlg, IDC_PATHS_RIP);
 		CheckDlgButton(hDlg, IDC_PATHS_CONFIGCACHE, configurationcache);
+		CheckDlgButton(hDlg, IDC_PATHS_RELATIVE, relativepaths);
 		currentpage = PATHS_ID;
 		ShowWindow (GetDlgItem (hDlg, IDC_RESETREGISTRY), FALSE);
 		numtypes = 0;
 		SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_RESETCONTENT, 0, 0L);
 		if (af_path_2005 & 1) {
-			WIN32GUI_LoadUIString (IDS_DEFAULT_AF2005, tmp, sizeof tmp / sizeof (TCHAR));
+			WIN32GUI_LoadUIString (IDS_DEFAULT_AF, tmp, sizeof tmp / sizeof (TCHAR));
 			SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 			if (path_type == PATH_TYPE_NEWAF)
 				selpath = numtypes;
@@ -4550,24 +4577,17 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				selpath = numtypes;
 			ptypes[numtypes++] = PATH_TYPE_NEWWINUAE;
 		}
-		if (af_path_2005 & 2) {
+		if ((af_path_2005 & 3) == 2) {
 			SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)L"AmigaForeverData");
 			if (path_type == PATH_TYPE_AMIGAFOREVERDATA)
 				selpath = numtypes;
 			ptypes[numtypes++] = PATH_TYPE_AMIGAFOREVERDATA;
 		}
-		if (af_path_old) {
-			WIN32GUI_LoadUIString (IDS_DEFAULT_AF, tmp, sizeof tmp / sizeof (TCHAR));
-			SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			if (path_type == PATH_TYPE_OLDAF)
-				selpath = numtypes;
-			ptypes[numtypes++] = PATH_TYPE_OLDAF;
-		}
 		WIN32GUI_LoadUIString (IDS_DEFAULT_WINUAE, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
-		if (path_type == 0)
+		if (path_type == PATH_TYPE_WINUAE || path_type == PATH_TYPE_DEFAULT)
 			selpath = numtypes;
-		ptypes[numtypes++] = 0;
+		ptypes[numtypes++] = PATH_TYPE_WINUAE;
 		SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
 		EnableWindow (GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
 		values_to_pathsdialog (hDlg);
@@ -4669,35 +4689,27 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				if (val == PATH_TYPE_WINUAE) {
 					_tcscpy (start_path_data, start_path_exe);
 					path_type = PATH_TYPE_WINUAE;
-					_tcscpy (pathmode, L"WinUAE");
 				} else if (val == PATH_TYPE_NEWWINUAE && start_path_new1[0]) {
 					_tcscpy (start_path_data, start_path_new1);
 					path_type = PATH_TYPE_NEWWINUAE;
 					create_afnewdir(0);
-					_tcscpy (pathmode, L"WinUAE_2");
-				} else if (val == PATH_TYPE_OLDAF && start_path_af[0]) {
-					_tcscpy (start_path_data, start_path_af);
-					_tcscpy (pathmode, L"AF");
-					path_type = PATH_TYPE_OLDAF;
 				} else if (val == PATH_TYPE_NEWAF && start_path_new1[0]) {
-					_tcscpy (pathmode, L"AF2005");
 					path_type = PATH_TYPE_NEWAF;
 					create_afnewdir(0);
 					_tcscpy (start_path_data, start_path_new1);
 				} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
-					_tcscpy (pathmode, L"AMIGAFOREVERDATA");
 					path_type = PATH_TYPE_AMIGAFOREVERDATA;
 					_tcscpy (start_path_data, start_path_new1);
 				}
 				SetCurrentDirectory (start_path_data);
-				regsetstr (NULL, L"PathMode", pathmode);
-				set_path (L"KickstartPath", NULL);
-				set_path (L"ConfigurationPath", NULL);
-				set_path (L"ScreenshotPath", NULL);
-				set_path (L"StatefilePath", NULL);
-				set_path (L"SaveimagePath", NULL);
-				set_path (L"VideoPath", NULL);
-				set_path (L"RipperPath", NULL);
+				setpathmode (path_type);
+				set_path (L"KickstartPath", NULL, path_type);
+				set_path (L"ConfigurationPath", NULL, path_type);
+				set_path (L"ScreenshotPath", NULL, path_type);
+				set_path (L"StatefilePath", NULL, path_type);
+				set_path (L"SaveimagePath", NULL, path_type);
+				set_path (L"VideoPath", NULL, path_type);
+				set_path (L"RipperPath", NULL, path_type);
 				values_to_pathsdialog (hDlg);
 				FreeConfigStore ();
 			}
@@ -4714,6 +4726,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		case IDC_PATHS_CONFIGCACHE:
 			configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
 			regsetint (NULL, L"ConfigurationCache", configurationcache);
+			break;
+		case IDC_PATHS_RELATIVE:
+			relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
+			regsetint (NULL, L"RelativePaths", relativepaths);
 			break;
 
 		}
@@ -4946,7 +4962,8 @@ static void testimage (HWND hDlg, int num)
 		break;
 	case 11:
 		quickstart_ok_floppy = 1;
-		if (quickstart_model != 1 && quickstart_model != 2 && quickstart_model != 4 && quickstart_model != 5 && quickstart_model != 6 && quickstart_model != 8) {
+		if (quickstart_model != 1 && quickstart_model != 2 && quickstart_model != 4 &&
+			quickstart_model != 5 && quickstart_model != 6 && quickstart_model != 8 && quickstart_model != 11) {
 			quickstart_model = 4;
 			messageid = IDS_IMGCHK_KS2;
 			reload = 1;
@@ -4954,7 +4971,7 @@ static void testimage (HWND hDlg, int num)
 		break;
 	case 12:
 		quickstart_ok_floppy = 1;
-		if (quickstart_model != 4) {
+		if (quickstart_model != 4 && quickstart_model != 8 && quickstart_model != 11) {
 			quickstart_model = 4;
 			messageid = IDS_IMGCHK_KS3;
 			reload = 1;
@@ -7006,7 +7023,6 @@ static void values_to_kickstartdlg (HWND hDlg)
 	SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
-	//CheckDlgButton(hDlg, IDC_HRTMON, workprefs.cart_internal == 1);
 }
 
 static void init_kickstart (HWND hDlg)
@@ -7118,12 +7134,6 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_MAPROM:
 			workprefs.maprom = ischecked (hDlg, IDC_MAPROM) ? 0x0f000000 : 0;
 			break;
-#if 0
-		case IDC_HRTMON:
-			workprefs.cart_internal = ischecked (hDlg, IDC_HRTMON) ? 1 : 0;
-			ew (hDlg, IDC_CARTFILE, workprefs.cart_internal == 1 ? FALSE : TRUE);
-			break;
-#endif
 		}
 		recursive--;
 		break;
@@ -7133,7 +7143,6 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 static void enable_for_miscdlg (HWND hDlg)
 {
-	ew (hDlg, IDC_DD_SURFACETYPE, full_property_sheet);
 	if (!full_property_sheet) {
 		ew (hDlg, IDC_JULIAN, TRUE);
 		ew (hDlg, IDC_CTRLF11, TRUE);
@@ -7158,7 +7167,7 @@ static void enable_for_miscdlg (HWND hDlg)
 	ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_OFF, !rp_isactive ());
-	ew (hDlg, IDC_DD_SURFACETYPE, workprefs.gfx_api == 0);
+	ew (hDlg, IDC_DD_SURFACETYPE, full_property_sheet && workprefs.gfx_api == 0);
 }
 
 static void misc_kbled (HWND hDlg, int v, int nv)
@@ -7437,8 +7446,10 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					break;
 				case IDC_DXMODE:
 					v = SendDlgItemMessage (hDlg, IDC_DXMODE, CB_GETCURSEL, 0, 0L);
-					if (v != CB_ERR)
+					if (v != CB_ERR) {
 						workprefs.gfx_api = v;
+						enable_for_miscdlg (hDlg);
+					}
 				break;
 				case IDC_DD_SURFACETYPE:
 					v = SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_GETCURSEL, 0, 0L);
@@ -8713,6 +8724,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
 {
 	DiskSelection (hDlg, IDC_PATH_NAME, 2, &workprefs, newpath);
 	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename, sizeof current_hfdlg.filename / sizeof (TCHAR));
+	fullpath (current_hfdlg.filename, sizeof current_hfdlg.filename / sizeof (TCHAR));
 	inithardfile (hDlg);
 	hardfile_testrdb (hDlg, &current_hfdlg);
 	updatehdfinfo (hDlg, 1);
@@ -10010,6 +10022,7 @@ static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 		loopmulti (path, NULL);
 		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
 			_tcscpy (workprefs.dfxlist[entry], dpath);
+			fullpath (workprefs.dfxlist[entry], MAX_DPATH);
 			lastentry = entry;
 			entry++;
 		}

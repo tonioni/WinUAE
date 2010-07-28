@@ -61,7 +61,7 @@
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
-//#define SPEEDUP
+#define SPEEDUP
 #define AUTOSCALE_SPRITES 1
 
 #define SPRBORDER 0
@@ -2737,7 +2737,7 @@ void init_hz (void)
 		hzc = 1;
 	if (beamcon0 != new_beamcon0) {
 		write_log (L"BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
-		vpos_count = 0;
+		vpos_count = vpos_count_prev = 0;
 	}
 	beamcon0 = new_beamcon0;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
@@ -2764,7 +2764,7 @@ void init_hz (void)
 		if (vpos_count < 10)
 			vpos_count = 10;
 		vblank_hz = (15600 + vpos_count - 1) / vpos_count;
-		maxvpos_nom = vpos_count;
+		maxvpos_nom = vpos_count - (lof_current ? 1 : 0);
 		reset_drawing ();
 	}
 	if (beamcon0 & 0x80) {
@@ -5106,7 +5106,7 @@ static void vsync_handler (void)
 		vpos_count = p96refresh_active;
 		vtotal = vpos_count;
 	}
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev) > 1))
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev)  > 1))
 		init_hz ();
 	if (lof_changed)
 		compute_vsynctime ();
@@ -5799,6 +5799,7 @@ void customreset (int hardreset)
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
 	vpos = 0;
+	vpos_count = vpos_count_prev = 0;
 
 	inputdevice_reset ();
 	timehack_alive = 0;
@@ -5817,7 +5818,6 @@ void customreset (int hardreset)
 	diwstate = DIW_waiting_start;
 	set_cycles (0);
 
-	vpos_count = vpos_count_prev = 0;
 	dmal = 0;
 	init_hz ();
 	vpos_lpen = -1;

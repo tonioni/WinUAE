@@ -2470,11 +2470,11 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 		p++;
 		w--;
 	}
-	v |= v << 32;
+	uae_u64 vv = v | (v << 32);
 	while (w >= 2 * 8) {
-		*((uae_u64*)p) ^= v;
+		*((uae_u64*)p) ^= vv;
 		p += 8;
-		*((uae_u64*)p) ^= v;
+		*((uae_u64*)p) ^= vv;
 		p += 8;
 		w -= 2 * 8;
 	}

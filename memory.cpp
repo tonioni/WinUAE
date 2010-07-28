@@ -2477,6 +2477,8 @@ void memory_reset (void)
 		map_banks (&mbres_bank, 0xDE, 1, 0);
 	if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
 		map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
+	if (currprefs.cs_cdtvcd)
+		cdtv_check_banks ();
 	if (currprefs.cs_mbdmac == 1)
 		a3000scsi_reset ();
 

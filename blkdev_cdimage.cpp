@@ -37,13 +37,6 @@
 
 enum audenc { AUDENC_NONE, AUDENC_PCM, AUDENC_MP3, AUDENC_FLAC };
 
-#define AUDIO_STATUS_NOT_SUPPORTED  0x00
-#define AUDIO_STATUS_IN_PROGRESS    0x11
-#define AUDIO_STATUS_PAUSED         0x12
-#define AUDIO_STATUS_PLAY_COMPLETE  0x13
-#define AUDIO_STATUS_PLAY_ERROR     0x14
-#define AUDIO_STATUS_NO_STATUS      0x15
-
 struct cdtoc
 {
 	struct zfile *handle;
@@ -1092,6 +1085,8 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 				t->subhandle = zfile_dup (t->handle);
 				t->skipsize = SUB_CHANNEL_SIZE;
 				t->size -= SUB_CHANNEL_SIZE;
+				if ((t->ctrl & 0x0c) != 4)
+					t->enctype = AUDENC_PCM;
 			}
 
 		}
@@ -1206,6 +1201,8 @@ static int parseccd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 				t->size = 2352;
 				t->offset = lba * t->size;
 				t->track = tracknum;
+				if ((control & 0x0c) != 4)
+					t->enctype = AUDENC_PCM;
 				if (zsub) {
 					t->subcode = 2;
 					t->subhandle = zfile_dup (zsub);
@@ -1475,7 +1472,7 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 	cdu->tracks = 0;
 	if (!img)
 		return 0;
-	zcue = zfile_fopen (img, L"rb", ZFD_ARCHIVE | ZFD_CD);
+	zcue = zfile_fopen (img, L"rb", ZFD_ARCHIVE | ZFD_CD | ZFD_DELAYEDOPEN);
 	if (!zcue)
 		return 0;
 

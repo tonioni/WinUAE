@@ -30,7 +30,7 @@ int romlist_count (void)
 	return romlist_cnt;
 }
 
-TCHAR *romlist_get (struct romdata *rd)
+TCHAR *romlist_get (const struct romdata *rd)
 {
 	int i;
 
@@ -43,7 +43,7 @@ TCHAR *romlist_get (struct romdata *rd)
 	return 0;
 }
 
-static struct romlist *romlist_getrl (struct romdata *rd)
+static struct romlist *romlist_getrl (const struct romdata *rd)
 {
 	int i;
 
@@ -57,7 +57,7 @@ static struct romlist *romlist_getrl (struct romdata *rd)
 }
 
 static void romlist_cleanup (void);
-void romlist_add (TCHAR *path, struct romdata *rd)
+void romlist_add (const TCHAR *path, struct romdata *rd)
 {
 	struct romlist *rl2;
 
@@ -73,7 +73,7 @@ void romlist_add (TCHAR *path, struct romdata *rd)
 }
 
 
-struct romdata *getromdatabypath (TCHAR *path)
+struct romdata *getromdatabypath (const TCHAR *path)
 {
 	int i;
 	for (i = 0; i < romlist_cnt; i++) {
@@ -88,7 +88,7 @@ struct romdata *getromdatabypath (TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 73
+#define NEXT_ROM_ID 74
 
 static struct romheader romheaders[] = {
 	{ L"Freezer Cartridges", 1 },
@@ -106,6 +106,8 @@ static struct romdata roms[] = {
 	0x869ae1b1, 0x801bbab3,0x2e3d3738,0x6dd1636d,0x4f1d6fa7,0xe21d5874 },
 	{ L"Cloanto Amiga Forever 2006 ROM key", 0, 0, 0, 0, 0, 750, 48, 0, 1, ROMTYPE_KEY, 0, 0, NULL,
 	0xb01c4b56, 0xbba8e5cd,0x118b8d92,0xafed5693,0x5eeb9770,0x2a662d8f },
+//	{ L"Cloanto Amiga Forever 2010 ROM key", 0, 0, 0, 0, 0, 1544, 73, 0, 1, ROMTYPE_KEY, 0, 0, NULL,
+//	0x8c4dd05c, 0x05034f62,0x0b5bb7b2,0x86954ea9,0x164fdb90,0xfb2897a4 },
 
 	{ L"KS ROM v1.0 (A1000)(NTSC)", 1, 0, 1, 0, L"A1000\0", 262144, 1, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
 	0x299790ff, 0x00C15406,0xBEB4B8AB,0x1A16AA66,0xC05860E1,0xA7C1AD79 },
@@ -377,7 +379,7 @@ static void romlist_cleanup (void)
 	}
 }
 
-struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, TCHAR *model, int all)
+struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, const TCHAR *model, int all)
 {
 	int i, j, ok, out, max;
 	struct romdata *rd;
@@ -457,7 +459,7 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, TC
 	return rdout;
 }
 
-struct romdata *getarcadiarombyname (TCHAR *name)
+struct romdata *getarcadiarombyname (const TCHAR *name)
 {
 	int i;
 	for (i = 0; roms[i].name; i++) {
@@ -465,7 +467,7 @@ struct romdata *getarcadiarombyname (TCHAR *name)
 			TCHAR *p = roms[i].name;
 			p = p + _tcslen (p) + 1;
 			if (_tcslen (name) >= _tcslen (p) + 4) {
-				TCHAR *p2 = name + _tcslen (name) - _tcslen (p) - 4;
+				const TCHAR *p2 = name + _tcslen (name) - _tcslen (p) - 4;
 				if (!memcmp (p, p2, _tcslen (p)) && !memcmp (p2 + _tcslen (p2) - 4, ".zip", 4))
 					return &roms[i];
 			}
@@ -516,7 +518,7 @@ static int kickstart_checksum_do (uae_u8 *mem, int size)
 	return cksum == 0xffffffff;
 }
 
-#define ROM_KEY_NUM 3
+#define ROM_KEY_NUM 4
 struct rom_key {
 	uae_u8 *key;
 	int size;
@@ -554,7 +556,7 @@ static void addkey (uae_u8 *key, int size, const TCHAR *name)
 	write_log (L"ROM KEY '%s' %d bytes loaded\n", name, size);
 }
 
-static void addkeyfile (const TCHAR *path)
+void addkeyfile (const TCHAR *path)
 {
 	struct zfile *f;
 	int keysize;
@@ -602,12 +604,12 @@ int get_keyring (void)
 	return num;
 }
 
-int load_keyring (struct uae_prefs *p, TCHAR *path)
+int load_keyring (struct uae_prefs *p, const TCHAR *path)
 {
 	uae_u8 *keybuf;
 	int keysize;
 	TCHAR tmp[MAX_PATH], *d;
-	int keyids[] = { 0, 48, -1 };
+	int keyids[] = { 0, 48, 73, -1 };
 	int cnt, i;
 
 	free_keyring ();
@@ -683,7 +685,7 @@ void free_keyring (void)
 	int i;
 	for (i = 0; i < ROM_KEY_NUM; i++)
 		xfree (keyring[i].key);
-	memset(keyring, 0, sizeof (struct rom_key) * ROM_KEY_NUM);
+	memset (keyring, 0, sizeof (struct rom_key) * ROM_KEY_NUM);
 }
 
 struct romdata *getromdatabyname (const TCHAR *name)
@@ -742,7 +744,7 @@ struct romdata *getromdatabycrc (uae_u32 crc32)
 	return 0;
 }
 
-static int cmpsha1 (uae_u8 *s1, struct romdata *rd)
+static int cmpsha1 (const uae_u8 *s1, const struct romdata *rd)
 {
 	int i;
 
@@ -756,7 +758,7 @@ static int cmpsha1 (uae_u8 *s1, struct romdata *rd)
 	return 0;
 }
 
-static struct romdata *checkromdata (uae_u8 *sha1, int size, uae_u32 mask)
+static struct romdata *checkromdata (const uae_u8 *sha1, int size, uae_u32 mask)
 {
 	int i = 0;
 	while (roms[i].name) {
@@ -914,7 +916,7 @@ struct romdata *getromdatabyzfile (struct zfile *f)
 	return rd;
 }
 
-void getromname	(struct romdata *rd, TCHAR *name)
+void getromname	(const struct romdata *rd, TCHAR *name)
 {
 	name[0] = 0;
 	if (!rd)
@@ -930,7 +932,7 @@ void getromname	(struct romdata *rd, TCHAR *name)
 		_stprintf (name + _tcslen (name), L" [%s]", rd->partnumber);
 }
 
-struct romlist *getromlistbyromdata (struct romdata *rd)
+struct romlist *getromlistbyromdata (const struct romdata *rd)
 {
 	int ids[2];
 
@@ -939,7 +941,7 @@ struct romlist *getromlistbyromdata (struct romdata *rd)
 	return getromlistbyids(ids);
 }
 
-struct romlist *getromlistbyids (int *ids)
+struct romlist *getromlistbyids (const int *ids)
 {
 	struct romdata *rd;
 	int i, j;
@@ -958,7 +960,7 @@ struct romlist *getromlistbyids (int *ids)
 	return NULL;
 }
 
-void romwarning (int *ids)
+void romwarning (const int *ids)
 {
 	int i, exp;
 	TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
@@ -1027,7 +1029,7 @@ static void mergecd32 (uae_u8 *dst, uae_u8 *src, int size)
 #endif
 }
 
-static void descramble (struct romdata *rd, uae_u8 *data, int size, int odd)
+static void descramble (const struct romdata *rd, uae_u8 *data, int size, int odd)
 {
 	int flags = rd->type;
 
@@ -1035,7 +1037,7 @@ static void descramble (struct romdata *rd, uae_u8 *data, int size, int odd)
 		descramble_nordicpro (data, size, odd);
 }
 
-static int read_rom_file (uae_u8 *buf, struct romdata *rd)
+static int read_rom_file (uae_u8 *buf, const struct romdata *rd)
 {
 	struct zfile *zf;
 	struct romlist *rl = romlist_getrl (rd);
@@ -1298,7 +1300,7 @@ int kickstart_checksum (uae_u8 *mem, int size)
 	return 1;
 }
 
-int configure_rom (struct uae_prefs *p, int *rom, int msg)
+int configure_rom (struct uae_prefs *p, const int *rom, int msg)
 {
 	struct romdata *rd;
 	TCHAR *path = 0;

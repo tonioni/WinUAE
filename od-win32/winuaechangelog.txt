@@ -1,4 +1,54 @@
 
+Beta 7:
+
+- reverted b5 audio hack, it breaks other programs and also it does not seem to
+  be audio.device bug after all but application calling CMD_WRITE with interrupts
+  disabled..
+- zipped iso was unnecessarily unpacked completely during scanning if cue was found
+  later
+- some drives/driver/Windows versions don't seem to like IOCTL_CDROM_RAW_READ, returns
+  ERROR_INVALID_FUNCTION (XP returned ERROR_INVALID_PARAMETER). Falls back to
+  SPTI SCSI passthrough in this situation and uses SCSI READ CD command
+- improved default ROM path handling
+- ccd and mds CDA was silent (b5)
+- higher CPU usage, display emulation debugging stuff.. (b5)
+- initial rom scan didn't load AF key files correctly
+- updated VPOSW fake 60hz support sometimes selected bogus 314 line timing for sound sync
+  (not really much difference, might have caused some extra SND% changes)
+- CD32 audio play status code was unreliable if new CDA play command was send without
+  stopping previous play state (Fightin' Spirit CD32)
+- CD32 state restore ignored statefile embedded CD image path (if included)
+- CD32 state save saved wrong command fifo offset, restoring state can send some
+  random commands to drive (old bug)
+- new CDTV state file support was quite unusable
+- state restore didn't initialize audio completely, samples playing while state was
+  restored could play incorrectly until sample (on any channel) ended or new sample
+  was started (old bug)
+- printscreen key saves screenshot when button is released (was when pressed)
+  quick workaround for Windows built-in screenshot not getting overridden in
+  rawinput keyboard mode (perhaps there is better way..)
+- "highend" quickstart mode was not in KS2.0+ check list
+- fullscreen 8-bit RTG and "match depth" RTG setting enabled and 32-bit display
+  mode selected in Display panel: 16-bit mode was selected with 32-bit mode
+  color settings.
+
+"Portable mode" updates: (and no stupid registry related comments again or..)
+
+- added -portable command line parameter which is same as "-ini winuae.ini",
+  creates ini in temp directory if winuae.exe directory is write protected
+- /<command line parameter name> also accepted
+- official support for relative paths added, checkbox in Paths panel, automatically
+  enabled when ini mode is started (ini missing or empty), all paths that are inside
+  of winuae directory are kept relative. Report all possible side-effects or paths that
+  are not in correct format. Currently all relative paths have .\ prefix, this may
+  disappear in future
+- do not set apppath in registry in ini-mode
+- real harddrive configuration path is now ":<name of device>" (was "HD_<name of device>")
+  (to prevent relative/absolute path conversion conflicts, field is unfortunately shared
+  with hdf paths), this is automatically converted when old config is loaded
+
+Beta 6:
+
 - MP3/FLAC background decompression, no more delayed CDA startup if audio file
   decompression takes more than 2 seconds
 - implemented "delayed decompression" zfile open flag, currently only zip backend supports it
@@ -14,7 +64,7 @@
   if CDFS polling flag was disabled (empty drive without diskchange command)
 - new dynamic hardfiles have .vhd extension instead of .hdf
 
-Beta 5
+Beta 5:
 
 - version number bumped to 2.3
 - few lines of non-filter scanlines was missing in bottom part of display

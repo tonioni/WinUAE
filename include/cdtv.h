@@ -6,6 +6,7 @@ extern addrbank dmac_bank;
 extern void cdtv_init (void);
 extern void cdtv_free (void);
 extern void CDTV_hsync_handler(void);
+extern void cdtv_check_banks (void);
 
 extern void cdtv_entergui (void);
 extern void cdtv_exitgui (void);

@@ -1493,7 +1493,7 @@ void expamem_reset (void)
 		card_map[cardno++] = expamem_map_clear;
 	}
 
-	if (cardno == 0)
+	if (cardno == 0 || savestate_state)
 		expamem_init_clear_zero ();
 	else
 		(*card_init[0]) ();

@@ -289,7 +289,8 @@ int sound_available = 0;
 void (*sample_handler) (void);
 static void (*sample_prehandler) (unsigned long best_evtime);
 
-float sample_evtime, scaled_sample_evtime;
+static float sample_evtime;
+float scaled_sample_evtime;
 
 static unsigned long last_cycles;
 static float next_sample_evtime;
@@ -1269,7 +1270,6 @@ static void audio_state_channel2 (int nr, bool perfin)
 				// copy AUDxPT - 2 to internal latch instantly
 				cdp->pt = cdp->lc - 2;
 				cdp->dsr = false;
-				setirq (nr, 1);
 			} else {
 				// normal hardware behavior: latch it after first DMA fetch comes
 				cdp->dsr = true;
@@ -1308,8 +1308,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		cdp->have_dat = false;
 		cdp->losample = cdp->hisample = false;
 #endif
-		if (!usehacks ())
-			setirq (nr, 10);
+		setirq (nr, 10);
 		setdr (nr);
 		if (cdp->wlen != 1)
 			cdp->wlen = (cdp->wlen - 1) & 0xffff;
@@ -1633,10 +1632,12 @@ void set_audio (void)
 		sample_prehandler = anti_prehandler;
 	}
 
-	audio_activate ();
-
 	if (currprefs.produce_sound == 0) {
 		eventtab[ev_audio].active = 0;
+		events_schedule ();
+	} else {
+		audio_activate ();
+		schedule_audio ();
 		events_schedule ();
 	}
 	config_changed = 1;
@@ -1914,68 +1915,11 @@ int init_audio (void)
 	return init_sound ();
 }
 
-
 void led_filter_audio (void)
 {
 	led_filter_on = 0;
 	if (led_filter_forced > 0 || (gui_data.powerled && led_filter_forced >= 0))
 		led_filter_on = 1;
-}
-
-uae_u8 *restore_audio (int i, uae_u8 *src)
-{
-	struct audio_channel_data *acd;
-	uae_u16 p;
-
-	acd = audio_channel + i;
-	acd->state = restore_u8 ();
-	acd->vol = restore_u8 ();
-	acd->intreq2 = restore_u8 () ? true : false;
-	p = restore_u8 ();
-	acd->dr = acd->dsr = false;
-	if (p & 1)
-		acd->dr = true;
-	if (p & 2)
-		acd->dsr = true;
-	acd->drhpos = 1;
-	acd->len = restore_u16 ();
-	acd->wlen = restore_u16 ();
-	p = restore_u16 ();
-	acd->per = p ? p * CYCLE_UNIT : PERIOD_MAX;
-	p = restore_u16 ();
-	acd->lc = restore_u32 ();
-	acd->pt = restore_u32 ();
-	acd->evtime = restore_u32 ();
-	last_cycles = get_cycles () - 1;
-	return src;
-}
-
-
-uae_u8 *save_audio (int i, int *len, uae_u8 *dstptr)
-{
-	struct audio_channel_data *acd;
-	uae_u8 *dst, *dstbak;
-	uae_u16 p;
-
-	if (dstptr)
-		dstbak = dst = dstptr;
-	else
-		dstbak = dst = xmalloc (uae_u8, 100);
-	acd = audio_channel + i;
-	save_u8 ((uae_u8)acd->state);
-	save_u8 (acd->vol);
-	save_u8 (acd->intreq2);
-	save_u8 ((acd->dr ? 1 : 0) | (acd->dsr ? 2 : 0));
-	save_u16 (acd->len);
-	save_u16 (acd->wlen);
-	p = acd->per == PERIOD_MAX ? 0 : acd->per / CYCLE_UNIT;
-	save_u16 (p);
-	save_u16 (acd->dat2);
-	save_u32 (acd->lc);
-	save_u32 (acd->pt);
-	save_u32 (acd->evtime);
-	*len = dst - dstbak;
-	return dstbak;
 }
 
 void audio_vsync (void)
@@ -2011,4 +1955,55 @@ void audio_vsync (void)
 	if (extrasamples < -99)
 		extrasamples = -99;
 #endif
+}
+
+uae_u8 *restore_audio (int nr, uae_u8 *src)
+{
+	struct audio_channel_data *acd = audio_channel + nr;
+	uae_u16 p;
+
+	acd->state = restore_u8 ();
+	acd->vol = restore_u8 ();
+	acd->intreq2 = restore_u8 () ? true : false;
+	p = restore_u8 ();
+	acd->dr = acd->dsr = false;
+	if (p & 1)
+		acd->dr = true;
+	if (p & 2)
+		acd->dsr = true;
+	acd->drhpos = 1;
+	acd->len = restore_u16 ();
+	acd->wlen = restore_u16 ();
+	p = restore_u16 ();
+	acd->per = p ? p * CYCLE_UNIT : PERIOD_MAX;
+	acd->dat = acd->dat2 = restore_u16 ();
+	acd->lc = restore_u32 ();
+	acd->pt = restore_u32 ();
+	acd->evtime = restore_u32 ();
+	acd->dmaenstore = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
+	return src;
+}
+
+uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
+{
+	struct audio_channel_data *acd = audio_channel + nr;
+	uae_u8 *dst, *dstbak;
+
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 100);
+	save_u8 (acd->state);
+	save_u8 (acd->vol);
+	save_u8 (acd->intreq2);
+	save_u8 ((acd->dr ? 1 : 0) | (acd->dsr ? 2 : 0));
+	save_u16 (acd->len);
+	save_u16 (acd->wlen);
+	save_u16 (acd->per == PERIOD_MAX ? 0 : acd->per / CYCLE_UNIT);
+	save_u16 (acd->dat);
+	save_u32 (acd->lc);
+	save_u32 (acd->pt);
+	save_u32 (acd->evtime);
+	*len = dst - dstbak;
+	return dstbak;
 }

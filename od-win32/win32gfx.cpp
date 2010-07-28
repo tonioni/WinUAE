@@ -1155,8 +1155,12 @@ static void update_gfxparams (void)
 		: currprefs.color_mode == 2 ? 16 : 32;
 	if (screen_is_picasso && currprefs.win32_rtgmatchdepth && isfullscreen () > 0) {
 		int pbits = picasso96_state.BytesPerPixel * 8;
-		if (pbits <= 8)
-			pbits = 16;
+		if (pbits <= 8) {
+			if (currentmode->current_depth == 32)
+				pbits = 32;
+			else
+				pbits = 16;
+		}
 		if (pbits == 24)
 			pbits = 32;
 		currentmode->current_depth = pbits;

@@ -63,6 +63,7 @@ struct dev_info_ioctl {
 	struct device_info di;
 	uae_sem_t sub_sem, sub_sem2;
 	bool open;
+	bool usesptiread;
 };
 
 static struct dev_info_ioctl ciw32[MAX_TOTAL_SCSI_DEVICES];
@@ -288,40 +289,90 @@ static int spti_read (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int
 
 extern void encode_l2 (uae_u8 *p, int address);
 
+static int read2048 (struct dev_info_ioctl *ciw, int sector)
+{
+	seterrormode (ciw);
+	if (SetFilePointer (ciw->h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+		reseterrormode (ciw);
+		return 0;
+	}
+	DWORD dtotal = 0;
+	ReadFile (ciw->h, ciw->tempbuffer, 2048, &dtotal, 0);
+	reseterrormode (ciw);
+	return dtotal;
+}
+
 static int read_block (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int sector, int size, int sectorsize)
 {
-	int forcexp = 0;
-	RAW_READ_INFO rri;
 	DWORD len;
 	uae_u8 *p = ciw->tempbuffer;
 	int ret;
-	int xp = forcexp || (os_winxp && !os_vista) ? 1 : 0;
+	int origsize = size;
+	int origsector = sector;
+	uae_u8 *origdata = data;
+	bool got;
 
-	if (!open_createfile (ciw, xp))
+retry:
+	if (!open_createfile (ciw, ciw->usesptiread ? 1 : 0))
 		return 0;
 	ret = 0;
 	while (size-- > 0) {
-		seterrormode (ciw);
-		rri.DiskOffset.QuadPart = sector * 2048;
-		rri.SectorCount = 1;
-		rri.TrackMode = (sectorsize > 2352 + 96) ? RawWithC2AndSubCode : RawWithSubCode;
-		len = sectorsize;
-		memset (p, 0, sectorsize);
-		if (!forcexp && DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
-			reseterrormode (ciw);
-			if (data) {
-				if (sectorsize >= 2352) {
-					memcpy (data, p, sectorsize);
+		got = false;
+		if (!ciw->usesptiread && (sectorsize == 2048 || sectorsize == 2352)) {
+			if (read2048 (ciw, sector) == 2048) {
+				if (sectorsize == 2352) {
+					memset (data, 0, 16);
+					memcpy (data + 16, p, 2048);
+					encode_l2 (data, sector + 150);
+					sector++;
 					data += sectorsize;
 					ret += sectorsize;
-				} else {
-					memcpy (data, p + 16, sectorsize);
+				} else if (sectorsize == 2048) {
+					memcpy (data, p, 2048);
+					sector++;
 					data += sectorsize;
 					ret += sectorsize;
 				}
+				ciw->cd_last_pos = sector;
+				got = true;
 			}
-			ciw->cd_last_pos = sector;
-		} else if (xp) {
+		}
+		if (!got && !ciw->usesptiread) {
+			RAW_READ_INFO rri;
+			rri.DiskOffset.QuadPart = sector * 2048;
+			rri.SectorCount = 1;
+			rri.TrackMode = (sectorsize > 2352 + 96) ? RawWithC2AndSubCode : RawWithSubCode;
+			len = sectorsize;
+			memset (p, 0, sectorsize);
+			seterrormode (ciw);
+			if (DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, p, IOCTL_DATA_BUFFER, &len, NULL)) {
+				reseterrormode (ciw);
+				if (data) {
+					if (sectorsize >= 2352) {
+						memcpy (data, p, sectorsize);
+						data += sectorsize;
+						ret += sectorsize;
+					} else {
+						memcpy (data, p + 16, sectorsize);
+						data += sectorsize;
+						ret += sectorsize;
+					}
+				}
+				ciw->cd_last_pos = sector;
+				got = true;
+			} else {
+				reseterrormode (ciw);
+				DWORD err = GetLastError ();
+				write_log (L"IOCTL_CDROM_RAW_READ(%d,%d) failed, err=%d\n", sector, rri.TrackMode, err);
+				if ((err == ERROR_INVALID_FUNCTION || err == ERROR_INVALID_PARAMETER) && origsector == sector && origdata == data) {
+					write_log (L"-> fallback to SPTI mode\n");
+					ciw->usesptiread = true;
+					size = origsize;
+					goto retry;
+				}
+			}
+		}
+		if (!got) {
 			int len = spti_read (ciw, unitnum, data, sector, sectorsize);
 			if (len) {
 				if (data) {
@@ -336,16 +387,11 @@ static int read_block (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, in
 					}
 				}
 				ciw->cd_last_pos = sector;
+				got = true;
 			}
 		}
-		if (!ret) {
-			if (SetFilePointer (ciw->h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
-				reseterrormode (ciw);
-				return ret;
-			}
-			DWORD dtotal = 0;
-			ReadFile (ciw->h, p, 2048, &dtotal, 0);
-			reseterrormode (ciw);
+		if (!got) {
+			int dtotal = read2048 (ciw, sector);
 			if (dtotal != 2048)
 				return ret;
 			if (sectorsize >= 2352) {
@@ -363,6 +409,7 @@ static int read_block (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, in
 				data += sectorsize;
 				ret += sectorsize;
 			}
+			got = true;
 		}
 		sector++;
 	}
@@ -414,6 +461,7 @@ static void *cdda_play (void *v)
 	int volume[2], volume_main;
 	int oldplay;
 	int firstloops;
+	int readblocksize = 2352 + 96;
 
 	for (i = 0; i < 2; i++) {
 		memset (&whdr[i], 0, sizeof (WAVEHDR));
@@ -424,9 +472,9 @@ static void *cdda_play (void *v)
 		Sleep (10);
 	oldplay = -1;
 
-	p = xmalloc (uae_u8, 2 * num_sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE);
+	p = xmalloc (uae_u8, 2 * num_sectors * readblocksize);
 	px[0] = p;
-	px[1] = p + num_sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE;
+	px[1] = p + num_sectors * readblocksize;
 	bufon[0] = bufon[1] = 0;
 	bufnum = 0;
 	buffered = 0;
@@ -460,7 +508,8 @@ static void *cdda_play (void *v)
 				cdda_pos = ciw->cdda_start;
 				oldplay = ciw->cdda_play;
 				firstloops = 25;
-				write_log (L"IOCTL CDDA: playing from %d to %d\n", ciw->cdda_start, ciw->cdda_end);
+				write_log (L"IOCTL%s CDDA: playing from %d to %d\n",
+					ciw->usesptiread ? L"(SPTI)" : L"", ciw->cdda_start, ciw->cdda_end);
 				ciw->subcodevalid = false;
 				while (ciw->cdda_paused && ciw->cdda_play > 0) {
 					firstloops = -1;
@@ -480,7 +529,7 @@ static void *cdda_play (void *v)
 				ciw->subcodevalid = false;
 				memset (ciw->subcode, 0, sizeof ciw->subcode);
 
-				memset (px[bufnum], 0, sectors * CD_RAW_SECTOR_WITH_SUBCODE_SIZE);
+				memset (px[bufnum], 0, sectors * readblocksize);
 
 				if (firstloops > 0) {
 
@@ -491,17 +540,17 @@ static void *cdda_play (void *v)
 				} else {
 
 					firstloops = -1;
-					if (!read_block (ciw, -1, px[bufnum], cdda_pos, sectors, 2352 + 96)) {
+					if (!read_block (ciw, -1, px[bufnum], cdda_pos, sectors, readblocksize)) {
 						if (ciw->cdda_subfunc)
 							ciw->cdda_subfunc (ciw->subcode, sectors);
 					} else {
 						for (i = 0; i < sectors; i++) {
-							memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, px[bufnum] + CD_RAW_SECTOR_WITH_SUBCODE_SIZE * i + 2352, SUB_CHANNEL_SIZE);
+							memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, px[bufnum] + readblocksize * i + 2352, SUB_CHANNEL_SIZE);
 						}
 						if (ciw->cdda_subfunc)
 							ciw->cdda_subfunc (ciw->subcode, sectors); 
 						for (i = 1; i < sectors; i++) {
-							memmove (px[bufnum] + 2352 * i, px[bufnum] + CD_RAW_SECTOR_WITH_SUBCODE_SIZE * i, 2352);
+							memmove (px[bufnum] + 2352 * i, px[bufnum] + readblocksize * i, 2352);
 						}
 						ciw->subcodevalid = true;
 					}

@@ -217,7 +217,7 @@ donormal:
 	return 1;
 
 oops:
-	screenshot_free();
+	screenshot_free ();
 	return 0;
 }
 
@@ -281,7 +281,7 @@ static int savepng (FILE *fp)
 }
 #endif
 
-static int savebmp(FILE *fp)
+static int savebmp (FILE *fp)
 {
 	BITMAPFILEHEADER bfh;
 	// write the file header, bitmap information and pixel data

@@ -174,15 +174,17 @@ void update_sound (int freq, int longframe, int linetoggle)
 			lines += 1.0;
 		hpos = maxhpos_short;
 	}
-#if 0
-	write_log (L"%d.%d %d.%d\n",
-		maxhpos_short, linetoggle ? 5 : 0,
-		maxvpos_nom + (lines == 1.0 ? 1 : 0), lines > 0 && lines < 1 ? 5 : 0);
-#endif
 	lines += maxvpos_nom;
 	scaled_sample_evtime_orig = hpos * lines * freq * CYCLE_UNIT / (float)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
 	sampler_evtime = hpos * lines * freq * CYCLE_UNIT;
+#if 0
+	lines -= maxvpos_nom;
+	write_log (L"%d.%d %d.%d %.2f\n",
+		maxhpos_short, linetoggle ? 5 : 0,
+		maxvpos_nom + (lines == 1.0 ? 1 : 0), lines > 0 && lines < 1 ? 5 : 0,
+		scaled_sample_evtime);
+#endif
 }
 
 static void clearbuffer_ds (struct sound_data *sd)
@@ -2236,7 +2238,7 @@ static int setget_master_volume_vista (int setvolume, int *volume, int *mute)
 	return ok == 2;
 }
 
-static void mcierr (TCHAR *str, DWORD err)
+static void mcierr (const TCHAR *str, DWORD err)
 {
 	TCHAR es[1000];
 	if (err == MMSYSERR_NOERROR)

@@ -282,7 +282,18 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (scancode_new == currprefs.win32_guikey && scancode_new != DIK_F12)
 		scancode = scancode_new;
 	
-	//write_log ( "keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
+	//write_log (L"keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
+
+	if (newstate == 0 && code == 0) {
+		switch (scancode)
+		{
+			case DIK_SYSRQ:
+			screenshot (specialpressed () ? 1 : 0, 1);
+			break;
+		}
+	}
+
+
 	if (newstate && code == 0) {
 
 		if (scancode == DIK_F12 || scancode == currprefs.win32_guikey) {
@@ -381,9 +392,6 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				if (v >= 0)
 					code = AKS_STATESAVEQUICK + v * 2 + ((shiftpressed () || ctrlpressed ()) ? 0 : 1);
 			}
-			break;
-		case DIK_SYSRQ:
-			screenshot (specialpressed () ? 1 : 0, 1);
 			break;
 		case DIK_PAUSE:
 			if (specialpressed ()) {

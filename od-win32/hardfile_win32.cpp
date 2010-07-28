@@ -317,7 +317,6 @@ static void trim (TCHAR *s)
 int isharddrive (const TCHAR *name)
 {
 	int i;
-
 	for (i = 0; i < hdf_getnumharddrives (); i++) {
 		if (!_tcscmp (uae_drives[i].device_name, name))
 			return i;
@@ -380,7 +379,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->handle = xcalloc (struct hardfilehandle, 1);
 	hfd->handle->h = INVALID_HANDLE_VALUE;
 	hfd_log (L"hfd open: '%s'\n", name);
-	if (_tcslen (name) > 4 && !_tcsncmp (name, L"HD_", 3)) {
+	if (name[0] == ':') {
 		hdf_init_target ();
 		i = isharddrive (name);
 		if (i >= 0) {
@@ -992,7 +991,7 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 	udi->removablemedia = devDesc->RemovableMedia;
 	write_log (L"device id string: '%s'\n", udi->device_name);
 	if (ignoreduplicates) {
-		_stprintf (orgname, L"HD_%s", udi->device_name);
+		_stprintf (orgname, L":%s", udi->device_name);
 		if (isharddrive (orgname) >= 0) {
 			write_log (L"duplicate device, ignored\n");
 			return 1;
@@ -1198,7 +1197,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			udi->offset = pi->StartingOffset.QuadPart;
 			udi->size = pi->PartitionLength.QuadPart;
 			write_log (L"used\n");
-			_stprintf (udi->device_name, L"HD_P#%d_%s", pi->PartitionNumber, orgname);
+			_stprintf (udi->device_name, L":P#%d_%s", pi->PartitionNumber, orgname);
 			udi->dangerous = -5;
 			udi++;
 			(*index2)++;
@@ -1221,7 +1220,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			goto end;
 	}
 amipartfound:
-	_stprintf (udi->device_name, L"HD_%s", orgname);
+	_stprintf (udi->device_name, L":%s", orgname);
 	{
 		int cnt = 1;
 		int off = _tcslen (udi->device_name);
@@ -1504,7 +1503,7 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 			else
 				_stprintf (tmp, L"%.1fM", ((double)(uae_u32)(size / (1024))) / 1024.0);
 		}
-		_stprintf (name, L"%10s [%s,%s] %s", dang, tmp, rw, uae_drives[index].device_name + 3);
+		_stprintf (name, L"%10s [%s,%s] %s", dang, tmp, rw, uae_drives[index].device_name + 1);
 		return name;
 	}
 	if (flags & 2)

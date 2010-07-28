@@ -26,6 +26,9 @@ extern void target_addtorecent (const TCHAR*, int);
 extern void target_run (void);
 extern void target_quit (void);
 extern bool get_plugin_path (TCHAR *out, int size, const TCHAR *path);
+extern void stripslashes (TCHAR *p);
+extern void fixtrailing (TCHAR *p);
+extern void fullpath (TCHAR *path, int size);
 
 extern int quit_program;
 extern bool console_emulation;

@@ -251,15 +251,15 @@ static void disk_date (uae_u8 *p)
 
 	time (&t);
 	today = localtime( &t );
-	_tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%Y", today);
+	_tcsftime (tmp, sizeof tmp / sizeof (TCHAR), L"%Y", today);
 	year = _tstoi (tmp);
-	_tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%j", today);
+	_tcsftime (tmp, sizeof tmp / sizeof (TCHAR), L"%j", today);
 	days = _tstoi (tmp) - 1;
-	_tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%H", today);
+	_tcsftime (tmp, sizeof tmp / sizeof (TCHAR), L"%H", today);
 	minutes = _tstoi (tmp) * 60;
-	_tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%M", today);
+	_tcsftime (tmp, sizeof tmp / sizeof (TCHAR), L"%M", today);
 	minutes += _tstoi (tmp);
-	_tcsftime (tmp, sizeof (tmp) / sizeof (TCHAR), L"%S", today);
+	_tcsftime (tmp, sizeof tmp / sizeof (TCHAR), L"%S", today);
 	ticks = _tstoi (tmp) * 50;
 	while (year > 1978) {
 		if ( !(year % 100) ? !(year % 400) : !(year % 4) ) days++;
@@ -276,7 +276,7 @@ static void createbootblock (uae_u8 *sector, int bootable)
 	memset (sector, 0, FS_FLOPPY_BLOCKSIZE);
 	memcpy (sector, "DOS", 3);
 	if (bootable)
-		memcpy (sector, bootblock, sizeof (bootblock));
+		memcpy (sector, bootblock, sizeof bootblock);
 }
 
 static void createrootblock (uae_u8 *sector, char *disk_name)
@@ -438,7 +438,7 @@ static int createimagefromexe (struct zfile *src, struct zfile *dst)
 	char *dirname1 = "s";
 	struct zfile *ss;
 
-	memset (bitmap, 0, sizeof (bitmap));
+	memset (bitmap, 0, sizeof bitmap);
 	zfile_fseek (src, 0, SEEK_END);
 	exesize = zfile_ftell (src);
 	blocks = (exesize + blocksize - 1) / blocksize;
@@ -769,7 +769,7 @@ TCHAR *DISK_get_saveimagepath (const TCHAR *name)
 		}
 		i--;
 	}
-	fetch_saveimagepath (path, sizeof (path), 1);
+	fetch_saveimagepath (path, sizeof path / sizeof (TCHAR), 1);
 	_stprintf (name1, L"%s%s_save.adf", path, name2 + i);
 	return name1;
 }
@@ -861,7 +861,7 @@ static bool diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, dri
 		*needwritefile = 1;
 		return wrprot2;
 	}
-	if (memcmp (exeheader, buffer, sizeof (exeheader)) == 0)
+	if (memcmp (exeheader, buffer, sizeof exeheader) == 0)
 		return 0;
 	if (wrprot1)
 		return wrprot2;
@@ -988,7 +988,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			offs += tid->len;
 		}
 
-	} else if (memcmp (exeheader, buffer, sizeof (exeheader)) == 0) {
+	} else if (memcmp (exeheader, buffer, sizeof exeheader) == 0) {
 		int i;
 		struct zfile *z = zfile_fopen_empty (NULL, L"", 512 * 1760);
 		createimagefromexe (drv->diskfile, z);
@@ -1686,7 +1686,7 @@ static void diskfile_update (struct zfile *diskfile, trackid *ti, int len, image
 	buf[3] = ti->type;
 	do_put_mem_long ((uae_u32 *) (buf + 4), ti->len);
 	do_put_mem_long ((uae_u32 *) (buf + 8), ti->bitlen);
-	zfile_fwrite (buf, sizeof (buf), 1, diskfile);
+	zfile_fwrite (buf, sizeof buf, 1, diskfile);
 	if (ti->len > (len + 7) / 8) {
 		zerobuf = xmalloc (uae_u8, ti->len);
 		memset (zerobuf, 0, ti->len);
@@ -1845,7 +1845,7 @@ static int drive_write_pcdos (drive *drv)
 	uae_u8 mark;
 	uae_u16 crc;
 
-	memset (sectable, 0, sizeof (sectable));
+	memset (sectable, 0, sizeof sectable);
 	memcpy (mbuf + fwlen, mbuf, fwlen * sizeof (uae_u16));
 	mend -= 518;
 	secbuf[0] = secbuf[1] = secbuf[2] = 0xa1;
@@ -2115,7 +2115,7 @@ void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk
 			tmp[4] = 0; tmp[5] = 0; tmp[6]=(uae_u8)(l >> 8); tmp[7] = (uae_u8)l;
 			tmp[8] = 0; tmp[9] = 0; tmp[10] = 0; tmp[11] = 0;
 			for (i = 0; i < tracks; i++)
-				zfile_fwrite (tmp, sizeof (tmp), 1, f);
+				zfile_fwrite (tmp, sizeof tmp, 1, f);
 			for (i = 0; i < tracks; i++)
 				zfile_fwrite (chunk, l, 1, f);
 		}

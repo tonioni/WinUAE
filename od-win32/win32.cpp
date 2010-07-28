@@ -127,7 +127,7 @@ static HANDLE AVTask;
 
 TCHAR VersionStr[256];
 TCHAR BetaStr[64];
-extern int path_type;
+extern pathtype path_type;
 
 int in_sizemove;
 int manual_painting_needed;
@@ -161,12 +161,11 @@ static CRITICAL_SECTION cs_time;
 TCHAR start_path_data[MAX_DPATH];
 TCHAR start_path_exe[MAX_DPATH];
 TCHAR start_path_plugins[MAX_DPATH];
-TCHAR start_path_af[MAX_DPATH]; /* OLD AF */
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 TCHAR help_file[MAX_DPATH];
-int af_path_2005, af_path_old;
-int quickstart = 1, configurationcache = 1;
+int af_path_2005;
+int quickstart = 1, configurationcache = 1, relativepaths = 0;
 
 static int multi_display = 1;
 static TCHAR *inipath = NULL;
@@ -1989,7 +1988,9 @@ typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 
 void logging_init (void)
 {
+#ifndef _WIN64
 	LPFN_ISWOW64PROCESS fnIsWow64Process;
+#endif
 	int wow64 = 0;
 	static int started;
 	static int first;
@@ -2033,7 +2034,7 @@ void logging_init (void)
 		L"\nEnd+F1 changes floppy 0, End+F2 changes floppy 1, etc."
 		L"\n");
 	tmp[0] = 0;
-	GetModuleFileName (NULL, tmp, sizeof (tmp) / sizeof (TCHAR));
+	GetModuleFileName (NULL, tmp, sizeof tmp / sizeof (TCHAR));
 	write_log (L"'%s'\n", tmp);
 	write_log (L"EXE: '%s', DATA: '%s', PLUGIN: '%s'\n", start_path_exe, start_path_data, start_path_plugins);
 	regstatus ();
@@ -2072,12 +2073,12 @@ uae_u8 *save_log (int bootlog, int *len)
 	return dst;
 }
 
-static void strip_slashes (TCHAR *p)
+void stripslashes (TCHAR *p)
 {
 	while (_tcslen (p) > 0 && (p[_tcslen (p) - 1] == '\\' || p[_tcslen (p) - 1] == '/'))
 		p[_tcslen (p) - 1] = 0;
 }
-static void fixtrailing (TCHAR *p)
+void fixtrailing (TCHAR *p)
 {
 	if (_tcslen(p) == 0)
 		return;
@@ -2085,9 +2086,35 @@ static void fixtrailing (TCHAR *p)
 		return;
 	_tcscat(p, L"\\");
 }
+// convert path to absolute or relative
+void fullpath (TCHAR *path, int size)
+{
+	if (path[0] == 0 || (path[0] == '\\' && path[1] == '\\') || path[0] == ':')
+		return;
+	if (relativepaths) {
+		TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
+		tmp1[0] = 0;
+		GetCurrentDirectory (sizeof tmp1 / sizeof (TCHAR), tmp1);
+		fixtrailing (tmp1);
+		tmp2[0] = 0;
+		int ret = GetFullPathName (path, sizeof tmp2 / sizeof (TCHAR), tmp2, NULL);
+		if (ret == 0 || ret >= sizeof tmp2 / sizeof (TCHAR))
+			return;
+		if (_tcsnicmp (tmp1, tmp2, _tcslen (tmp1)) == 0) { // tmp2 is inside tmp1
+			_tcscpy (path, L".\\");
+			_tcscat (path, tmp2 + _tcslen (tmp1));
+		} else {
+			_tcscpy (path, tmp2);
+		}
+	} else {
+		TCHAR tmp[MAX_DPATH];
+		_tcscpy (tmp, path);
+		GetFullPathName (tmp, size, path, NULL);
+	}
+}
 
 typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
-uae_u8 *target_load_keyfile (struct uae_prefs *p, TCHAR *path, int *sizep, TCHAR *name)
+uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *sizep, TCHAR *name)
 {
 	uae_u8 *keybuf = NULL;
 	HMODULE h;
@@ -2834,7 +2861,6 @@ static void createdir (const TCHAR *path)
 
 void fetch_saveimagepath (TCHAR *out, int size, int dir)
 {
-	assert (size > MAX_DPATH);
 	fetch_path (L"SaveimagePath", out, size);
 	if (dir) {
 		out[_tcslen (out) - 1] = 0;
@@ -2859,7 +2885,7 @@ void fetch_datapath (TCHAR *out, int size)
 	fetch_path (NULL, out, size);
 }
 
-static int isfilesindir (TCHAR *p)
+static int isfilesindir (const TCHAR *p)
 {
 	WIN32_FIND_DATA fd;
 	HANDLE h;
@@ -2885,13 +2911,15 @@ static int isfilesindir (TCHAR *p)
 	return 0;
 }
 
-void fetch_path (TCHAR *name, TCHAR *out, int size)
+void fetch_path (const TCHAR *name, TCHAR *out, int size)
 {
 	int size2 = size;
 
 	_tcscpy (out, start_path_data);
-	if (!name)
+	if (!name) {
+		fullpath (out, size);
 		return;
+	}
 	if (!_tcscmp (name, L"FloppyPath"))
 		_tcscat (out, L"..\\shared\\adf\\");
 	if (!_tcscmp (name, L"CDPath"))
@@ -2906,6 +2934,7 @@ void fetch_path (TCHAR *name, TCHAR *out, int size)
 		regquerystr (NULL, name, out, &size); 
 	if (GetFileAttributes (out) == INVALID_FILE_ATTRIBUTES)
 		_tcscpy (out, start_path_data);
+#if 0
 	if (out[0] == '\\' && (_tcslen (out) >= 2 && out[1] != '\\')) { /* relative? */
 		_tcscpy (out, start_path_data);
 		if (start_data >= 0) {
@@ -2913,23 +2942,25 @@ void fetch_path (TCHAR *name, TCHAR *out, int size)
 			regquerystr (NULL, name, out, &size2);
 		}
 	}
-	strip_slashes (out);
+#endif
+	stripslashes (out);
 	if (!_tcscmp (name, L"KickstartPath")) {
 		DWORD v = GetFileAttributes (out);
 		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
 			_tcscpy (out, start_path_data);
 	}
 	fixtrailing (out);
+	fullpath (out, size);
 }
 
-int get_rom_path (TCHAR *out, int mode)
+int get_rom_path (TCHAR *out, pathtype mode)
 {
 	TCHAR tmp[MAX_DPATH];
 
 	tmp[0] = 0;
 	switch (mode)
 	{
-	case 0:
+	case PATH_TYPE_DEFAULT:
 		{
 			if (!_tcscmp (start_path_data, start_path_exe))
 				_tcscpy (tmp, L".\\");
@@ -2944,37 +2975,51 @@ int get_rom_path (TCHAR *out, int mode)
 				} else {
 					_tcscpy (tmp2, tmp);
 					_tcscpy (tmp2, L"roms");
-					if (GetFileAttributes (tmp2) != INVALID_FILE_ATTRIBUTES)
+					if (GetFileAttributes (tmp2) != INVALID_FILE_ATTRIBUTES) {
 						_tcscpy (tmp, tmp2);
+					} else {
+						if (!get_rom_path (tmp, PATH_TYPE_NEWAF)) {
+							if (!get_rom_path (tmp, PATH_TYPE_AMIGAFOREVERDATA)) {
+								_tcscpy (tmp, start_path_data);
+							}
+						}
+					}
 				}
 			}
 		}
 		break;
-	case 1:
+	case PATH_TYPE_NEWAF:
 		{
 			TCHAR tmp2[MAX_DPATH];
 			_tcscpy (tmp2, start_path_new1);
 			_tcscat (tmp2, L"..\\system\\rom");
-			if (isfilesindir (tmp2))
+			if (isfilesindir (tmp2)) {
 				_tcscpy (tmp, tmp2);
+				break;
+			}
+			_tcscpy (tmp2, start_path_new1);
+			_tcscat (tmp2, L"..\\shared\\rom");
+			if (isfilesindir (tmp2)) {
+				_tcscpy (tmp, tmp2);
+				break;
+			}
 		}
 		break;
-	case 2:
+	case PATH_TYPE_AMIGAFOREVERDATA:
 		{
 			TCHAR tmp2[MAX_DPATH];
 			_tcscpy (tmp2, start_path_new2);
 			_tcscat (tmp2, L"system\\rom");
-			if (isfilesindir (tmp2))
+			if (isfilesindir (tmp2)) {
 				_tcscpy (tmp, tmp2);
-		}
-		break;
-	case 3:
-		{
-			TCHAR tmp2[MAX_DPATH];
-			_tcscpy (tmp2, start_path_af);
-			_tcscat (tmp2, L"..\\shared\\rom");
-			if (isfilesindir (tmp2))
+				break;
+			}
+			_tcscpy (tmp2, start_path_new2);
+			_tcscat (tmp2, L"shared\\rom");
+			if (isfilesindir (tmp2)) {
 				_tcscpy (tmp, tmp2);
+				break;
+			}
 		}
 		break;
 	default:
@@ -2984,12 +3029,13 @@ int get_rom_path (TCHAR *out, int mode)
 		_tcscpy (out, tmp);
 		fixtrailing (out);
 	}
+	if (out[0]) {
+		fullpath (out, MAX_DPATH);
+	}
 	return out[0] ? 1 : 0;
 }
 
-
-
-void set_path (TCHAR *name, TCHAR *path)
+void set_path (const TCHAR *name, TCHAR *path, pathtype mode)
 {
 	TCHAR tmp[MAX_DPATH];
 
@@ -3013,31 +3059,34 @@ void set_path (TCHAR *name, TCHAR *path)
 	} else {
 		_tcscpy (tmp, path);
 	}
-	strip_slashes (tmp);
+	stripslashes (tmp);
 	if (!_tcscmp (name, L"KickstartPath")) {
 		DWORD v = GetFileAttributes (tmp);
 		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
-			get_rom_path (tmp, 0);
-		if ((af_path_2005 & 1) && path_type == PATH_TYPE_NEWAF) {
-			get_rom_path (tmp, 1);
-		} else if ((af_path_2005 & 2) && path_type == PATH_TYPE_AMIGAFOREVERDATA) {
-			get_rom_path (tmp, 2);
-		} else if (af_path_old && path_type == PATH_TYPE_OLDAF) {
-			get_rom_path (tmp, 3);
+			get_rom_path (tmp, PATH_TYPE_DEFAULT);
+		if (mode == PATH_TYPE_NEWAF) {
+			get_rom_path (tmp, PATH_TYPE_NEWAF);
+		} else if (mode == PATH_TYPE_AMIGAFOREVERDATA) {
+			get_rom_path (tmp, PATH_TYPE_AMIGAFOREVERDATA);
 		}
 	}
 	fixtrailing (tmp);
+	fullpath (tmp, sizeof tmp / sizeof (TCHAR));
 	regsetstr (NULL, name, tmp);
 }
+void set_path (const TCHAR *name, TCHAR *path)
+{
+	set_path (name, path, PATH_TYPE_DEFAULT);
+}
 
-static void initpath (TCHAR *name, TCHAR *path)
+static void initpath (const TCHAR *name, TCHAR *path)
 {
 	if (regexists (NULL, name))
 		return;
 	set_path (name, NULL);
 }
 
-static void romlist_add2 (TCHAR *path, struct romdata *rd)
+static void romlist_add2 (const TCHAR *path, struct romdata *rd)
 {
 	if (getregmode ()) {
 		int ok = 0;
@@ -3335,6 +3384,7 @@ static struct  contextcommand cc_disk[] = {
 struct assext exts[] = {
 //	{ L".cue", L"-cdimage=\"%1\" -s use_gui=no", L"WinUAE CD image", IDI_DISKIMAGE, cc_cd },
 //	{ L".iso", L"-cdimage=\"%1\" -s use_gui=no", L"WinUAE CD image", IDI_DISKIMAGE, cc_cd },
+//	{ L".ccd", L"-cdimage=\"%1\" -s use_gui=no", L"WinUAE CD image", IDI_DISKIMAGE, cc_cd },
 	{ L".uae", L"-f \"%1\"", L"WinUAE configuration file", IDI_CONFIGFILE, NULL },
 	{ L".adf", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
 	{ L".adz", L"-0 \"%1\" -s use_gui=no", L"WinUAE floppy disk image", IDI_DISKIMAGE, cc_disk },
@@ -3354,7 +3404,7 @@ static void associate_init_extensions (void)
 		if (shell_associate_is (exts[i].ext))
 			exts[i].enabled = 1;
 	}
-	if (rp_param)
+	if (rp_param || inipath)
 		return;
 	// associate .uae by default when running for the first time
 	if (!regexiststree (NULL, L"FileAssociations")) {
@@ -3527,6 +3577,10 @@ static void WIN32_HandleRegistryStuff (void)
 		regqueryint (NULL, L"ConfigurationCache", &configurationcache);
 	else
 		regsetint (NULL, L"ConfigurationCache", configurationcache);
+	if (regexists (NULL, L"RelativePaths"))
+		regqueryint (NULL, L"RelativePaths", &relativepaths);
+	else
+		regsetint (NULL, L"RelativePaths", relativepaths);
 	regqueryint (NULL, L"QuickStartMode", &quickstart);
 	reopen_console ();
 	fetch_path (L"ConfigurationPath", path, sizeof (path) / sizeof (TCHAR));
@@ -3851,6 +3905,20 @@ bool get_plugin_path (TCHAR *out, int len, const TCHAR *path)
 	return false;
 }
 
+void setpathmode (pathtype pt)
+{
+	TCHAR pathmode[32] = { 0 };
+	if (pt == PATH_TYPE_WINUAE)
+		_tcscpy (pathmode, L"WinUAE");
+	if (pt == PATH_TYPE_NEWWINUAE)
+		_tcscpy (pathmode, L"WinUAE_2");
+	if (pt == PATH_TYPE_NEWAF)
+		_tcscpy (pathmode, L"AmigaForever");
+	if (pt == PATH_TYPE_AMIGAFOREVERDATA)
+		_tcscpy (pathmode, L"AMIGAFOREVERDATA");
+	regsetstr (NULL, L"PathMode", pathmode);
+}
+
 static void getstartpaths (void)
 {
 	TCHAR *posn, *p;
@@ -3860,7 +3928,7 @@ static void getstartpaths (void)
 	TCHAR xstart_path_uae[MAX_DPATH], xstart_path_old[MAX_DPATH];
 	TCHAR xstart_path_new1[MAX_DPATH], xstart_path_new2[MAX_DPATH];
 
-	path_type = -1;
+	path_type = PATH_TYPE_DEFAULT;
 	prevpath[0] = 0;
 	xstart_path_uae[0] = xstart_path_old[0] = xstart_path_new1[0] = xstart_path_new2[0] = 0;
 	key = regcreatetree (NULL, NULL);
@@ -3874,9 +3942,7 @@ static void getstartpaths (void)
 		path_type = PATH_TYPE_WINUAE;
 	if (!_tcscmp (prevpath, L"WinUAE_2"))
 		path_type = PATH_TYPE_NEWWINUAE;
-	if (!_tcscmp (prevpath, L"AF"))
-		path_type = PATH_TYPE_OLDAF;
-	if (!_tcscmp (prevpath, L"AF2005"))
+	if (!_tcscmp (prevpath, L"AF2005") || !_tcscmp (prevpath, L"AmigaForever"))
 		path_type = PATH_TYPE_NEWAF;
 	if (!_tcscmp (prevpath, L"AMIGAFOREVERDATA"))
 		path_type = PATH_TYPE_AMIGAFOREVERDATA;
@@ -3885,7 +3951,11 @@ static void getstartpaths (void)
 	if((posn = _tcsrchr (start_path_exe, '\\')))
 		posn[1] = 0;
 
-	if (path_type < 0 && start_data == 0 && key) {
+	if (path_type == PATH_TYPE_DEFAULT && inipath) {
+		path_type = PATH_TYPE_WINUAE;
+		_tcscpy (xstart_path_uae, start_path_exe);
+		relativepaths = 1;
+	} else if (path_type == PATH_TYPE_DEFAULT && start_data == 0 && key) {
 		bool ispath = false;
 		_tcscpy (tmp2, start_path_exe);
 		_tcscat (tmp2, L"configurations\\configuration.cache");
@@ -3942,63 +4012,40 @@ static void getstartpaths (void)
 		_tcscpy (xstart_path_uae, start_path_exe);
 	}
 
-	_tcscpy (tmp, start_path_exe);
-	_tcscat (tmp, L"..\\system\\rom\\rom.key");
-	v = GetFileAttributes (tmp);
-	if (v != INVALID_FILE_ATTRIBUTES) {
-		af_path_old = 1;
-		_tcscpy (xstart_path_old, start_path_exe);
-		_tcscat (xstart_path_old, L"..\\system\\");
-		_tcscpy (start_path_af, xstart_path_old);
-	} else {
-		_tcscpy (tmp, start_path_exe);
-		_tcscat (tmp, L"..\\shared\\rom\\rom.key");
-		v = GetFileAttributes (tmp);
-		if (v != INVALID_FILE_ATTRIBUTES) {
-			af_path_old = 1;
-			_tcscpy (xstart_path_old, start_path_exe);
-			_tcscat (xstart_path_old, L"..\\shared\\");
-			_tcscpy (start_path_af, xstart_path_old);
-		}
-	}
-
 	p = _wgetenv (L"AMIGAFOREVERDATA");
 	if (p) {
 		_tcscpy (tmp, p);
 		fixtrailing (tmp);
 		_tcscpy (start_path_new2, p);
-		fixtrailing (start_path_af);
 		v = GetFileAttributes (tmp);
 		if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-			_tcscpy (xstart_path_new2, start_path_af);
+			_tcscpy (xstart_path_new2, start_path_new2);
 			_tcscpy (xstart_path_new2, L"WinUAE\\");
 			af_path_2005 |= 2;
 		}
 	}
 
-	{
-		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
-			fixtrailing (tmp);
-			_tcscpy (tmp2, tmp);
-			_tcscat (tmp2, L"Amiga Files\\");
-			_tcscpy (tmp, tmp2);
-			_tcscat (tmp, L"WinUAE");
-			v = GetFileAttributes (tmp);
-			if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
-				TCHAR *p;
-				_tcscpy (xstart_path_new1, tmp2);
-				_tcscat (xstart_path_new1, L"WinUAE\\");
-				_tcscpy (xstart_path_uae, start_path_exe);
-				_tcscpy (start_path_new1, xstart_path_new1);
-				p = tmp2 + _tcslen (tmp2);
-				_tcscpy (p, L"System");
+	if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
+		fixtrailing (tmp);
+		_tcscpy (tmp2, tmp);
+		_tcscat (tmp2, L"Amiga Files\\");
+		_tcscpy (tmp, tmp2);
+		_tcscat (tmp, L"WinUAE");
+		v = GetFileAttributes (tmp);
+		if (v != INVALID_FILE_ATTRIBUTES && (v & FILE_ATTRIBUTE_DIRECTORY)) {
+			TCHAR *p;
+			_tcscpy (xstart_path_new1, tmp2);
+			_tcscat (xstart_path_new1, L"WinUAE\\");
+			_tcscpy (xstart_path_uae, start_path_exe);
+			_tcscpy (start_path_new1, xstart_path_new1);
+			p = tmp2 + _tcslen (tmp2);
+			_tcscpy (p, L"System");
+			if (isfilesindir (tmp2)) {
+				af_path_2005 |= 1;
+			} else {
+				_tcscpy (p, L"Shared");
 				if (isfilesindir (tmp2)) {
 					af_path_2005 |= 1;
-				} else {
-					_tcscpy (p, L"Shared");
-					if (isfilesindir (tmp2)) {
-						af_path_2005 |= 1;
-					}
 				}
 			}
 		}
@@ -4006,10 +4053,8 @@ static void getstartpaths (void)
 
 	if (start_data == 0) {
 		start_data = 1;
-		if (path_type == 0 && xstart_path_uae[0]) {
+		if (path_type == PATH_TYPE_WINUAE && xstart_path_uae[0]) {
 			_tcscpy (start_path_data, xstart_path_uae);
-		} else if (path_type == PATH_TYPE_OLDAF && af_path_old && xstart_path_old[0]) {
-			_tcscpy (start_path_data, xstart_path_old);
 		} else if (path_type == PATH_TYPE_NEWWINUAE && xstart_path_new1[0]) {
 			_tcscpy (start_path_data, xstart_path_new1);
 			create_afnewdir (0);
@@ -4018,13 +4063,8 @@ static void getstartpaths (void)
 			create_afnewdir (0);
 		} else if (path_type == PATH_TYPE_AMIGAFOREVERDATA && (af_path_2005 & 2) && xstart_path_new2[0]) {
 			_tcscpy (start_path_data, xstart_path_new2);
-		} else if (path_type < 0) {
-			path_type = 0;
+		} else if (path_type == PATH_TYPE_DEFAULT) {
 			_tcscpy (start_path_data, xstart_path_uae);
-			if (af_path_old) {
-				path_type = PATH_TYPE_OLDAF;
-				_tcscpy (start_path_data, xstart_path_old);
-			}
 			if (af_path_2005 & 1) {
 				path_type = PATH_TYPE_NEWAF;
 				create_afnewdir (1);
@@ -4054,8 +4094,7 @@ static void getstartpaths (void)
 		_tcscpy (start_path_data, start_path_exe);
 	}
 	fixtrailing (start_path_data);
-	GetFullPathName (start_path_data, sizeof tmp / sizeof (TCHAR), tmp, NULL);
-	_tcscpy (start_path_data, tmp);
+	fullpath (start_path_data, sizeof start_path_data / sizeof (TCHAR));
 	SetCurrentDirectory (start_path_data);
 
 	if (!start_path_plugins[0]) {
@@ -4071,8 +4110,9 @@ static void getstartpaths (void)
 		}
 	}
 	fixtrailing (start_path_plugins);
-	GetFullPathName (start_path_plugins, sizeof tmp / sizeof (TCHAR), tmp, NULL);
-	_tcscpy (start_path_plugins, tmp);
+	fullpath (start_path_plugins, sizeof start_path_plugins / sizeof (TCHAR));
+	setpathmode (path_type);
+
 }
 
 extern void test (void);
@@ -4120,95 +4160,134 @@ static void makeverstr (TCHAR *s)
 	}
 }
 
-static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
+static TCHAR *getdefaultini (void)
 {
-	if (!_tcscmp (arg, L"-convert") && np && np2) {
+	FILE *f;
+	TCHAR path[MAX_DPATH], orgpath[MAX_DPATH];
+	_tcscpy (path, _wpgmptr);
+	TCHAR *posn;
+	if((posn = _tcsrchr (path, '\\')))
+		posn[1] = 0;
+	_tcscat (path, L"winuae.ini");
+	_tcscpy (orgpath, path);
+#if 1
+	f = _tfopen (path, L"r+");
+	if (f) {
+		fclose (f);
+		return my_strdup (path);
+	}
+	f = _tfopen (path, L"w");
+	if (f) {
+		fclose (f);
+		return my_strdup (path);
+	}
+#endif
+	int v = GetTempPath (sizeof path / sizeof (TCHAR), path);
+	if (v == 0 || v > sizeof path / sizeof (TCHAR))
+		return my_strdup (orgpath);
+	_tcsncat (path, L"winuae.ini", sizeof path / sizeof (TCHAR));
+	f = _tfopen (path, L"w");
+	if (f) {
+		fclose (f);
+		return my_strdup (path);
+	}
+	return my_strdup (orgpath);
+}
+
+static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
+{
+	const TCHAR *arg = argx + 1;
+
+	if (argx[0] != '-' && argx[0] != '/')
+		return 0;
+
+	if (!_tcscmp (arg, L"convert") && np && np2) {
 		zfile_convertimage (np, np2);
 		return -1;
 	}
-	if (!_tcscmp (arg, L"-console")) {
+	if (!_tcscmp (arg, L"console")) {
 		console_started = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-cli")) {
+	if (!_tcscmp (arg, L"cli")) {
 		console_emulation = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-log")) {
+	if (!_tcscmp (arg, L"log")) {
 		console_logging = 1;
 		return 1;
 	}
 #ifdef FILESYS
-	if (!_tcscmp (arg, L"-rdbdump")) {
+	if (!_tcscmp (arg, L"rdbdump")) {
 		do_rdbdump = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-disableharddrivesafetycheck")) {
+	if (!_tcscmp (arg, L"disableharddrivesafetycheck")) {
 		//harddrive_dangerous = 0x1234dead;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-noaspifiltering")) {
+	if (!_tcscmp (arg, L"noaspifiltering")) {
 		aspi_allow_all = 1;
 		return 1;
 	}
 #endif
-	if (!_tcscmp (arg, L"-pngprint")) {
+	if (!_tcscmp (arg, L"pngprint")) {
 		pngprint = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-norawinput")) {
+	if (!_tcscmp (arg, L"norawinput")) {
 		no_rawinput = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-rawkeyboard")) {
+	if (!_tcscmp (arg, L"rawkeyboard")) {
 		// obsolete
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-directsound")) {
+	if (!_tcscmp (arg, L"directsound")) {
 		force_directsound = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-scsilog")) {
+	if (!_tcscmp (arg, L"scsilog")) {
 		log_scsi = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-netlog")) {
+	if (!_tcscmp (arg, L"netlog")) {
 		log_net = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-seriallog")) {
+	if (!_tcscmp (arg, L"seriallog")) {
 		log_uaeserial = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-clipboarddebug")) {
+	if (!_tcscmp (arg, L"clipboarddebug")) {
 		clipboard_debug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-rplog")) {
+	if (!_tcscmp (arg, L"rplog")) {
 		log_rp = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-nomultidisplay")) {
+	if (!_tcscmp (arg, L"nomultidisplay")) {
 		multi_display = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-legacypaths")) {
+	if (!_tcscmp (arg, L"legacypaths")) {
 		start_data = -2;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-screenshotbmp")) {
+	if (!_tcscmp (arg, L"screenshotbmp")) {
 		screenshotmode = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-psprintdebug")) {
+	if (!_tcscmp (arg, L"psprintdebug")) {
 		postscript_print_debugging = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-sounddebug")) {
+	if (!_tcscmp (arg, L"sounddebug")) {
 		sound_debug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-directcatweasel")) {
+	if (!_tcscmp (arg, L"directcatweasel")) {
 		force_direct_catweasel = 1;
 		if (np) {
 			force_direct_catweasel = getval (np);
@@ -4216,118 +4295,122 @@ static int parseargs (const TCHAR *arg, const TCHAR *np, const TCHAR *np2)
 		}
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-forcerdtsc")) {
+	if (!_tcscmp (arg, L"forcerdtsc")) {
 		userdtsc = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-ddsoftwarecolorkey")) {
+	if (!_tcscmp (arg, L"ddsoftwarecolorkey")) {
 		// obsolete
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-nod3d9ex")) {
+	if (!_tcscmp (arg, L"nod3d9ex")) {
 		D3DEX = 0;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-d3ddebug")) {
+	if (!_tcscmp (arg, L"d3ddebug")) {
 		d3ddebug = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-logflush")) {
+	if (!_tcscmp (arg, L"logflush")) {
 		extern int always_flush_log;
 		always_flush_log = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-ahidebug")) {
+	if (!_tcscmp (arg, L"ahidebug")) {
 		extern int ahi_debug;
 		ahi_debug = 2;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-ahidebug2")) {
+	if (!_tcscmp (arg, L"ahidebug2")) {
 		extern int ahi_debug;
 		ahi_debug = 3;
 		return 1;
 	}
-	if (!_tcscmp (arg, L"-quittogui")) {
+	if (!_tcscmp (arg, L"quittogui")) {
 		quit_to_gui = 1;
 		return 1;
+	}
+	if (!_tcscmp (arg, L"ini") && np) {
+		inipath = my_strdup (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, L"portable")) {
+		inipath = getdefaultini ();
+		return 2;
 	}
 
 	if (!np)
 		return 0;
 
-	if (!_tcscmp (arg, L"-ddforcemode")) {
+	if (!_tcscmp (arg, L"ddforcemode")) {
 		extern int ddforceram;
 		ddforceram = getval (np);
 		if (ddforceram < 0 || ddforceram > 3)
 			ddforceram = 0;
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-affinity")) {
+	if (!_tcscmp (arg, L"affinity")) {
 		cpu_affinity = getval (np);
 		if (cpu_affinity == 0)
 			cpu_affinity = original_affinity;
 		SetThreadAffinityMask (GetCurrentThread (), cpu_affinity);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-paffinity")) {
+	if (!_tcscmp (arg, L"paffinity")) {
 		cpu_paffinity = getval (np);
 		if (cpu_paffinity == 0)
 			cpu_paffinity = original_affinity;
 		SetProcessAffinityMask (GetCurrentProcess (), cpu_paffinity);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-datapath")) {
+	if (!_tcscmp (arg, L"datapath")) {
 		ExpandEnvironmentStrings (np, start_path_data, sizeof start_path_data / sizeof (TCHAR));
 		start_data = -1;
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-pluginpath")) {
+	if (!_tcscmp (arg, L"pluginpath")) {
 		ExpandEnvironmentStrings (np, start_path_plugins, sizeof start_path_plugins / sizeof (TCHAR));
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-maxmem")) {
+	if (!_tcscmp (arg, L"maxmem")) {
 		maxmem = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-soundmodeskip")) {
+	if (!_tcscmp (arg, L"soundmodeskip")) {
 		sound_mode_skip = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-ini")) {
-		inipath = my_strdup (np);
-		return 2;
-	}
-	if (!_tcscmp (arg, L"-p96skipmode")) {
+	if (!_tcscmp (arg, L"p96skipmode")) {
 		extern int p96skipmode;
 		p96skipmode = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-minidumpmode")) {
+	if (!_tcscmp (arg, L"minidumpmode")) {
 		minidumpmode = (MINIDUMP_TYPE)getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-jitevent")) {
+	if (!_tcscmp (arg, L"jitevent")) {
 		pissoff_value = getval (np);
 		return 2;
 	}
 #ifdef RETROPLATFORM
-	if (!_tcscmp (arg, L"-rphost")) {
+	if (!_tcscmp (arg, L"rphost")) {
 		rp_param = my_strdup (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-rpescapekey")) {
+	if (!_tcscmp (arg, L"rpescapekey")) {
 		rp_rpescapekey = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-rpescapeholdtime")) {
+	if (!_tcscmp (arg, L"rpescapeholdtime")) {
 		rp_rpescapeholdtime = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-rpscreenmode")) {
+	if (!_tcscmp (arg, L"rpscreenmode")) {
 		rp_screenmode = getval (np);
 		return 2;
 	}
-	if (!_tcscmp (arg, L"-rpinputmode")) {
+	if (!_tcscmp (arg, L"rpinputmode")) {
 		rp_inputmode = getval (np);
 		return 2;
 	}
@@ -4455,13 +4538,9 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 			KEY_WRITE | KEY_READ, NULL, &hWinUAEKey, &disposition);
 		if (hWinUAEKey == NULL) {
 			FILE *f;
-			TCHAR path[MAX_DPATH];
-			TCHAR *posn;
+			TCHAR *path;
 
-			_tcscpy (path, _wpgmptr);
-			if((posn = _tcsrchr (path, '\\')))
-				posn[1] = 0;
-			_tcscat (path, L"winuae.ini");
+			path = getdefaultini ();
 			f = _tfopen (path, L"r");
 			if (!f)
 				f = _tfopen (path, L"w");
@@ -4469,6 +4548,7 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 				fclose (f);
 				reginitializeinit (path);
 			}
+			xfree (path);
 		}
 	}
 	if (regquerystr (NULL, L"Commandline", tmp, &size))

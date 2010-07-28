@@ -18,8 +18,8 @@
 #define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L"6"
-#define WINUAEDATE MAKEBD(2010, 7, 24)
+#define WINUAEBETA L"7"
+#define WINUAEDATE MAKEBD(2010, 7, 28)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -78,20 +78,17 @@ extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;
-extern int quickstart, configurationcache;
+extern int quickstart, configurationcache, relativepaths;
 
 extern HKEY hWinUAEKey;
 extern int screen_is_picasso, scalepicasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
 extern int window_extra_width, window_extra_height;
-extern int af_path_2005, af_path_old;
-extern TCHAR start_path_af[MAX_DPATH], start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
-#define PATH_TYPE_WINUAE 0
-#define PATH_TYPE_NEWWINUAE 1
-#define PATH_TYPE_OLDAF 2
-#define PATH_TYPE_NEWAF 3
-#define PATH_TYPE_AMIGAFOREVERDATA 4
+extern int af_path_2005;
+extern TCHAR start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
+enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
+void setpathmode (pathtype pt);
 
 extern void sleep_millis (int ms);
 extern void sleep_millis_busy (int ms);
@@ -126,8 +123,9 @@ extern int CheckRM (TCHAR *DriveName);
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);
 void exit_gui (int);
-void fetch_path (TCHAR *name, TCHAR *out, int size);
-void set_path (TCHAR *name, TCHAR *path);
+void fetch_path (const TCHAR *name, TCHAR *out, int size);
+void set_path (const TCHAR *name, TCHAR *path);
+void set_path (const TCHAR *name, TCHAR *path, pathtype);
 void read_rom_list (void);
 void associate_file_extensions (void);
 
