@@ -58,7 +58,7 @@ static void to_amiga_start (void)
 {
 	if (!initialized)
 		return;
-	if (!clipboard_data)
+	if (!clipboard_data || get_long (clipboard_data) != 0)
 		return;
 	if (clipboard_debug) {
 		debugwrite (L"clipboard_p2a", to_amiga, to_amiga_size);
@@ -138,7 +138,7 @@ static TCHAR *amigatopc (const char *txt)
 }
 
 
-static void to_iff_text (TCHAR *pctxt)
+static void to_iff_text (const TCHAR *pctxt)
 {
 	uae_u8 b[] = { 'F','O','R','M',0,0,0,0,'F','T','X','T','C','H','R','S',0,0,0,0 };
 	uae_u32 size;
@@ -234,7 +234,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 		'C','A','M','G',0,0,0, 4,  0,0,0,0,
 	};
 
-	if (!GetObject(hbmp, sizeof bmp, &bmp))
+	if (!GetObject (hbmp, sizeof bmp, &bmp))
 		return;
 	w = bmp.bmWidth;
 	h = bmp.bmHeight;
@@ -398,7 +398,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 	xfree (bmp.bmBits);
 }
 
-static uae_u8 *iff_decomp (uae_u8 *addr, int w, int h, int planes)
+static uae_u8 *iff_decomp (const uae_u8 *addr, int w, int h, int planes)
 {
 	int y, i, w2;
 	uae_u8 *dst;

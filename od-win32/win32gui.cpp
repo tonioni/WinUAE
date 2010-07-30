@@ -1365,7 +1365,8 @@ static bool scan_rom_hook (const TCHAR *name, int line)
 static int scan_rom_2 (struct zfile *f, void *vrsd)
 {
 	struct romscandata *rsd = (struct romscandata*)vrsd;
-	TCHAR *path = zfile_getname(f);
+	const TCHAR *path = zfile_getname(f);
+	const TCHAR *romkey = L"rom.key";
 	struct romdata *rd;
 
 	scan_rom_hook (NULL, 0);
@@ -1380,6 +1381,8 @@ static int scan_rom_2 (struct zfile *f, void *vrsd)
 		if (rd->type & ROMTYPE_KEY)
 			addkeyfile (path);
 		rsd->got = 1;
+	} else if (_tcslen (path) > _tcslen (romkey) && !_tcsicmp (path + _tcslen (path) - _tcslen (romkey), romkey)) {
+		addkeyfile (path);
 	}
 	return 0;
 }
@@ -3888,21 +3891,21 @@ static INT_PTR CALLBACK InfoSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 	return FALSE;
 }
 
-static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, TCHAR *name, TCHAR *desc, TCHAR *path, int isdir, int expand, HTREEITEM parent)
+static HTREEITEM AddConfigNode (HWND hDlg, struct ConfigStruct *config, const TCHAR *name, const TCHAR *desc, const TCHAR *path, int isdir, int expand, HTREEITEM parent)
 {
 	TVINSERTSTRUCT is;
 	HWND TVhDlg;
 	TCHAR s[MAX_DPATH] = L"";
-	TCHAR file_name[MAX_DPATH], file_path[MAX_DPATH];
+	TCHAR file_name[MAX_DPATH] = L"", file_path[MAX_DPATH] = L"";
 
 	GetDlgItemText (hDlg, IDC_EDITNAME, file_name, MAX_DPATH);
 	GetDlgItemText (hDlg, IDC_EDITPATH, file_path, MAX_DPATH);
-	TVhDlg = GetDlgItem(hDlg, IDC_CONFIGTREE);
+	TVhDlg = GetDlgItem (hDlg, IDC_CONFIGTREE);
 	memset (&is, 0, sizeof (is));
 	is.hInsertAfter = isdir < 0 ? TVI_ROOT : TVI_SORT;
 	is.hParent = parent;
 	is.itemex.mask = TVIF_TEXT | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM;
-	if (!_tcscmp (file_name, name) && !_tcscmp (file_path, path)) {
+	if (name && path && !_tcscmp (file_name, name) && !_tcscmp (file_path, path)) {
 		is.itemex.state |= TVIS_SELECTED;
 		is.itemex.stateMask |= TVIS_SELECTED;
 	}
@@ -5487,9 +5490,6 @@ static void init_display_mode (HWND hDlg)
 			switch (d2)
 			{
 			case 15:
-				workprefs.color_mode = 1;
-				d = 2;
-				break;
 			case 16:
 				workprefs.color_mode = 2;
 				d = 2;

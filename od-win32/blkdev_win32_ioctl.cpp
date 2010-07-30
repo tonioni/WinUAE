@@ -64,6 +64,7 @@ struct dev_info_ioctl {
 	uae_sem_t sub_sem, sub_sem2;
 	bool open;
 	bool usesptiread;
+	bool slowunit;
 };
 
 static struct dev_info_ioctl ciw32[MAX_TOTAL_SCSI_DEVICES];
@@ -507,7 +508,7 @@ static void *cdda_play (void *v)
 			if (oldplay != ciw->cdda_play) {
 				cdda_pos = ciw->cdda_start;
 				oldplay = ciw->cdda_play;
-				firstloops = 25;
+				firstloops = ciw->slowunit ? 25 : 5;
 				write_log (L"IOCTL%s CDDA: playing from %d to %d\n",
 					ciw->usesptiread ? L"(SPTI)" : L"", ciw->cdda_start, ciw->cdda_end);
 				ciw->subcodevalid = false;
@@ -1122,6 +1123,7 @@ static void update_device_info (int unitnum)
 	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
 	di->unitnum = unitnum + 1;
 	_tcscpy (di->label, ciw->drvlettername);
+	di->slow_unit = ciw->slowunit;
 	di->backend = L"IOCTL";
 }
 
@@ -1209,7 +1211,7 @@ static void sys_cddev_close (struct dev_info_ioctl *ciw, int unitnum)
 	write_log (L"IOCTL: device '%s' closed\n", ciw->devname, unitnum);
 }
 
-static int open_device (int unitnum, const TCHAR *ident)
+static int open_device (int unitnum, const TCHAR *ident, int flags)
 {
 	struct dev_info_ioctl *ciw = NULL;
 	if (ident && ident[0]) {
@@ -1235,12 +1237,14 @@ static int open_device (int unitnum, const TCHAR *ident)
 	if (ciw->drvletter == 0)
 		return 0;
 	unittable[unitnum] = unitnum + 1;
+	ciw->slowunit = (flags & 1) != 0;
 	if (sys_cddev_open (ciw, unitnum) == 0)
 		return 1;
 	unittable[unitnum] = 0;
 	blkdev_cd_change (unitnum, ciw->drvlettername);
 	return 0;
 }
+
 static void close_device (int unitnum)
 {
 	struct dev_info_ioctl *ciw = unitcheck (unitnum);

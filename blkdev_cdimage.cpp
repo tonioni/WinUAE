@@ -75,6 +75,7 @@ struct cdunit {
 	int cd_last_pos;
 	int cdda_start, cdda_end;
 	play_subchannel_callback cdda_subfunc;
+	bool slowunit;
 
 	int imagechange;
 	TCHAR newfile[MAX_DPATH];
@@ -454,7 +455,7 @@ static void *cdda_play_func (void *v)
 					while (cdimage_unpack_active == 0)
 						Sleep (10);
 				}
-				firstloops = 150;
+				firstloops = cdu->slowunit ? 150 : 30;
 				while (cdu->cdda_paused && cdu->cdda_play > 0) {
 					Sleep (10);
 					firstloops = -1;
@@ -1564,6 +1565,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	if (!cdu->enabled)
 		return NULL;
 	di->open = cdu->open;
+	di->slow_unit = cdu->slowunit;
 	di->removable = 1;
 	di->bus = unitnum;
 	di->target = 0;
@@ -1612,7 +1614,7 @@ static void unload_image (struct cdunit *cdu)
 }
 
 
-static int open_device (int unitnum, const TCHAR *ident)
+static int open_device (int unitnum, const TCHAR *ident, int flags)
 {
 	struct cdunit *cdu = &cdunits[unitnum];
 
@@ -1624,6 +1626,7 @@ static int open_device (int unitnum, const TCHAR *ident)
 	cdu->enabled = true;
 	cdu->cdda_volume[0] = 0x7fff;
 	cdu->cdda_volume[1] = 0x7fff;
+	cdu->slowunit = (flags & 1) != 0;
 	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
 	if (cdimage_unpack_thread == 0) {
 		init_comm_pipe (&unpack_pipe, 10, 1);

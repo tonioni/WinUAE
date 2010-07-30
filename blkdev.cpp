@@ -24,7 +24,7 @@ static int scsiemu[MAX_TOTAL_SCSI_DEVICES];
 
 static struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
 static int openlist[MAX_TOTAL_SCSI_DEVICES];
-static int waspaused[MAX_TOTAL_SCSI_DEVICES];
+static int waspaused[MAX_TOTAL_SCSI_DEVICES], wasslow[MAX_TOTAL_SCSI_DEVICES];
 
 /* convert minutes, seconds and frames -> logical sector number */
 int msf2lsn (int msf)
@@ -219,13 +219,13 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 
 }
 
-static int sys_command_open_internal (int unitnum, const TCHAR *ident)
+static int sys_command_open_internal (int unitnum, const TCHAR *ident, cd_standard_unit csu)
 {
 	int ret = 0;
 	if (openlist[unitnum])
 		write_log (L"BUG unit %d open: opencnt=%d!\n", unitnum, openlist[unitnum]);
 	if (device_func[unitnum]) {
-		ret = device_func[unitnum]->opendev (unitnum, ident);
+		ret = device_func[unitnum]->opendev (unitnum, ident, csu != CD_STANDARD_UNIT_DEFAULT);
 		if (ret)
 			openlist[unitnum]++;
 	}
@@ -237,9 +237,9 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 	int unitnum = 0;
 	if (currprefs.cdslots[unitnum].name[0] || currprefs.cdslots[unitnum].inuse) {
 		device_func_init (SCSI_UNIT_IOCTL);
-		if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name)) {
+		if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu)) {
 			device_func_init (SCSI_UNIT_IMAGE);
-			if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name))
+			if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu))
 				goto fallback;
 		}
 		return unitnum;
@@ -251,7 +251,7 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 		_stprintf (vol, L"%c:\\", drive);
 		int drivetype = GetDriveType (vol);
 		if (drivetype == DRIVE_CDROM) {
-			if (sys_command_open_internal (unitnum, vol)) {
+			if (sys_command_open_internal (unitnum, vol, csu)) {
 				struct device_info di;
 				write_log (L"Scanning drive %s: ", vol);
 				if (sys_command_info (unitnum, &di, 0)) {
@@ -294,12 +294,12 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 	if (isaudio) {
 		TCHAR vol[100];
 		_stprintf (vol, L"%c:\\", isaudio);
-		if (sys_command_open_internal (unitnum, vol)) 
+		if (sys_command_open_internal (unitnum, vol, csu)) 
 			return unitnum;
 	}
 fallback:
 	device_func_init (SCSI_UNIT_IMAGE);
-	if (!sys_command_open_internal (unitnum, L"")) {
+	if (!sys_command_open_internal (unitnum, L"", csu)) {
 		write_log (L"image mounter failed to open as empty!?\n");
 		return -1;
 	}
@@ -318,7 +318,7 @@ int sys_command_isopen (int unitnum)
 int sys_command_open (int unitnum)
 {
 	waspaused[unitnum] = 0;
-	return sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : NULL);
+	return sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : NULL, CD_STANDARD_UNIT_DEFAULT);
 }
 
 
@@ -405,6 +405,7 @@ static void check_changes (int unitnum)
 		struct device_info di;
 		device_func[unitnum]->info (unitnum, &di, 0);
 		wasopen[unitnum] = di.open;
+		wasslow[unitnum] = di.slow_unit;
 		if (wasopen[unitnum]) {
 			device_func[unitnum]->closedev (unitnum);
 			if (currprefs.scsi)  {
@@ -430,7 +431,7 @@ static void check_changes (int unitnum)
 	write_log (L"CD: delayed insert '%s'\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>");
 	device_func_init (0);
 	if (wasopen[unitnum]) {
-		if (!device_func[unitnum]->opendev (unitnum, currprefs.cdslots[unitnum].name)) {
+		if (!device_func[unitnum]->opendev (unitnum, currprefs.cdslots[unitnum].name, wasslow[unitnum])) {
 			write_log (L"-> device open failed\n");
 		}
 	}

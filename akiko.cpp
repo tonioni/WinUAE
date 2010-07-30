@@ -29,8 +29,8 @@
 #include "newcpu.h"
 
 #define AKIKO_DEBUG_NVRAM 0
-#define AKIKO_DEBUG_IO 1
-#define AKIKO_DEBUG_IO_CMD 1
+#define AKIKO_DEBUG_IO 0
+#define AKIKO_DEBUG_IO_CMD 0
 
 // 43 48 49 4E 4F 4E 20 20 4F 2D 36 35 38 2D 32 20 32 34
 #define FIRMWAREVERSION "CHINON  O-658-2 24"
@@ -670,8 +670,12 @@ static int sys_cddev_open (void)
 /* close device */
 static void sys_cddev_close (void)
 {
-	cdaudiostop_do ();
-	sys_command_close (unitnum);
+	if (unitnum >= 0) {
+		cdaudiostop_do ();
+		sys_command_close (unitnum);
+	}
+	unitnum = -1;
+	
 }
 
 static int command_lengths[] = { 1,2,1,1,12,2,1,1,4,1,-1,-1,-1,-1,-1,-1 };
@@ -1587,9 +1591,7 @@ addrbank akiko_bank = {
 
 static void akiko_cdrom_free (void)
 {
-	if (unitnum >= 0)
-		sys_cddev_close ();
-	unitnum = -1;
+	sys_cddev_close ();
 	xfree (sector_buffer_1);
 	xfree (sector_buffer_2);
 	xfree (sector_buffer_info_1);
@@ -1614,9 +1616,9 @@ void akiko_reset (void)
 		cdcomtxinx = 0;
 		cdcomrxinx = 0;
 		cdcomtxcmp = 0;
+		lastmediastate = 0;
 	}
 	cdrom_led = 0;
-	lastmediastate = 0;
 	cdrom_receive_started = 0;
 	cd_initialized = 0;
 
@@ -1771,12 +1773,15 @@ uae_u8 *restore_akiko (uae_u8 *src)
 	akiko_read_offset = restore_u8 ();
 	akiko_write_offset = restore_u8 ();
 
-	cdrom_playing = cdrom_paused = 0;
+	cdrom_playing = cdrom_paused = cdrom_disk = 0;
 	v = restore_u32 ();
 	if (v & 1)
 		cdrom_playing = 1;
 	if (v & 2)
 		cdrom_paused = 1;
+	if (v & 4)
+		cdrom_disk = 1;
+	lastmediastate = cdrom_disk;
 
 	last_play_pos = msf2lsn (restore_u32 ());
 	last_play_end = msf2lsn (restore_u32 ());

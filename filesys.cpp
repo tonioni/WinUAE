@@ -1991,7 +1991,7 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 }
 
 
-static uae_u32 notifyhash (TCHAR *s)
+static uae_u32 notifyhash (const TCHAR *s)
 {
 	uae_u32 hash = 0;
 	while (*s)

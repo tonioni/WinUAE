@@ -2221,9 +2221,16 @@ void m68k_reset (int hardreset)
 #ifdef SAVESTATE
 	if (savestate_state == STATE_RESTORE || savestate_state == STATE_REWIND) {
 		m68k_setpc (regs.pc);
-		/* MakeFromSR () must not swap stack pointer */
-		regs.s = (regs.sr >> 13) & 1;
-		MakeFromSR ();
+		SET_XFLG ((regs.sr >> 4) & 1);
+		SET_NFLG ((regs.sr >> 3) & 1);
+		SET_ZFLG ((regs.sr >> 2) & 1);
+		SET_VFLG ((regs.sr >> 1) & 1);
+		SET_CFLG (regs.sr & 1);
+		regs.t1 = (regs.sr >> 15) & 1;
+		regs.t0 = (regs.sr >> 14) & 1;
+		regs.s  = (regs.sr >> 13) & 1;
+		regs.m  = (regs.sr >> 12) & 1;
+		regs.intmask = (regs.sr >> 8) & 7;
 		/* set stack pointer */
 		if (regs.s)
 			m68k_areg (regs, 7) = regs.isp;
@@ -3434,7 +3441,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr addr, uaecptr *nextpc, int 
 	m68kpc_offset = addr - m68k_getpc ();
 
 	if (buf)
-		memset (buf, 0, bufsize);
+		memset (buf, 0, bufsize * sizeof (TCHAR));
 	if (!table68k)
 		return;
 	while (cnt-- > 0) {
@@ -3862,6 +3869,7 @@ void restore_cpu_finish (void)
 	doint ();
 	if (regs.stopped)
 		set_special (SPCFLAG_STOP);
+	//activate_debugger ();
 }
 
 uae_u8 *restore_cpu_extra (uae_u8 *src)
@@ -3923,24 +3931,24 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 	save_u32 (model);					/* MODEL */
 	save_u32 (0x80000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
 	for (i = 0;i < 15; i++)
-		save_u32 (regs.regs[i]);			/* D0-D7 A0-A6 */
+		save_u32 (regs.regs[i]);		/* D0-D7 A0-A6 */
 	save_u32 (m68k_getpc ());			/* PC */
 	save_u16 (regs.irc);				/* prefetch */
 	save_u16 (regs.ir);					/* instruction prefetch */
 	MakeSR ();
 	save_u32 (!regs.s ? regs.regs[15] : regs.usp);	/* USP */
 	save_u32 (regs.s ? regs.regs[15] : regs.isp);	/* ISP */
-	save_u16 (regs.sr);					/* SR/CCR */
+	save_u16 (regs.sr);								/* SR/CCR */
 	save_u32 (regs.stopped ? CPUMODE_HALT : 0);		/* flags */
 	if (model >= 68010) {
-		save_u32 (regs.dfc);				/* DFC */
-		save_u32 (regs.sfc);				/* SFC */
-		save_u32 (regs.vbr);				/* VBR */
+		save_u32 (regs.dfc);			/* DFC */
+		save_u32 (regs.sfc);			/* SFC */
+		save_u32 (regs.vbr);			/* VBR */
 	}
 	if (model >= 68020) {
-		save_u32 (regs.caar);				/* CAAR */
-		save_u32 (regs.cacr);				/* CACR */
-		save_u32 (regs.msp);				/* MSP */
+		save_u32 (regs.caar);			/* CAAR */
+		save_u32 (regs.cacr);			/* CACR */
+		save_u32 (regs.msp);			/* MSP */
 	}
 	if (model >= 68030) {
 		save_u64 (crp_030);				/* CRP */
@@ -3948,20 +3956,20 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 		save_u32 (tt0_030);				/* TT0/AC0 */
 		save_u32 (tt1_030);				/* TT1/AC1 */
 		save_u32 (tc_030);				/* TCR */
-		save_u16 (mmusr_030);				/* MMUSR/ACUSR */
+		save_u16 (mmusr_030);			/* MMUSR/ACUSR */
 	}
 	if (model >= 68040) {
-		save_u32 (regs.itt0);				/* ITT0 */
-		save_u32 (regs.itt1);				/* ITT1 */
-		save_u32 (regs.dtt0);				/* DTT0 */
-		save_u32 (regs.dtt1);				/* DTT1 */
-		save_u32 (regs.tcr);				/* TCR */
-		save_u32 (regs.urp);				/* URP */
-		save_u32 (regs.srp);				/* SRP */
+		save_u32 (regs.itt0);			/* ITT0 */
+		save_u32 (regs.itt1);			/* ITT1 */
+		save_u32 (regs.dtt0);			/* DTT0 */
+		save_u32 (regs.dtt1);			/* DTT1 */
+		save_u32 (regs.tcr);			/* TCR */
+		save_u32 (regs.urp);			/* URP */
+		save_u32 (regs.srp);			/* SRP */
 	}
 	if (model >= 68060) {
-		save_u32 (regs.buscr);				/* BUSCR */
-		save_u32 (regs.pcr);				/* PCR */
+		save_u32 (regs.buscr);			/* BUSCR */
+		save_u32 (regs.pcr);			/* PCR */
 	}
 	khz = -1;
 	if (currprefs.m68k_speed == 0) {

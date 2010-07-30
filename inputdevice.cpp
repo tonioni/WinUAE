@@ -2104,7 +2104,7 @@ static void cap_check (void)
 			int isbutton = getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2);
 
 			if (cd32_pad_enabled[joy]) {
-				if (i != 0) // 3rd button?
+				if (i == 0) // 3rd button?
 					continue;
 				if (cd32padmode (p5dir, p5dat))
 					continue;
@@ -2274,7 +2274,7 @@ static uae_u16 handle_joystick_potgor (uae_u16 potgor)
 				potgor |= p5dat;
 
 
-			if (!cd32_pad_enabled[i]) {
+			if (!cd32_pad_enabled[i] || !cd32padmode (p5dir, p5dat)) {
 				potgor &= ~p9dat;
 				if (pot_cap[i][1] > 100)
 					potgor |= p9dat;

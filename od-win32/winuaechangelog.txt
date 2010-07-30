@@ -1,4 +1,14 @@
 
+Beta 8:
+
+- GUI configuration panel crash fix (b7)
+- do not emulate slow CDA startup in uaescsi.device mode
+- blue button was still broken in CD32 pad 2-button mode
+- removed obsolete 15-bit fullscreen mode support code
+- statefile restore failed if rarely used 68020 M status register bit was set
+- added protection against starting new transparent clipboard conversion
+  if previous hasn't fully finished yet
+
 Beta 7:
 
 - reverted b5 audio hack, it breaks other programs and also it does not seem to

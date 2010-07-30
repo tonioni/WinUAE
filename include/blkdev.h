@@ -80,6 +80,7 @@ struct device_info {
 	TCHAR productid[18];
 	TCHAR revision[6];
 	TCHAR *backend;
+	int slow_unit;
 	struct cd_toc_head toc;
 };
 
@@ -101,7 +102,7 @@ struct amigascsi
 typedef int (*check_bus_func)(int flags);
 typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
-typedef int (*open_device_func)(int, const TCHAR*);
+typedef int (*open_device_func)(int, const TCHAR*, int);
 typedef void (*close_device_func)(int);
 typedef struct device_info* (*info_device_func)(int, struct device_info*, int);
 typedef uae_u8* (*execscsicmd_out_func)(int, uae_u8*, int);
@@ -192,7 +193,7 @@ extern void blkdev_fix_prefs (struct uae_prefs *p);
 extern int isaudiotrack (struct cd_toc_head*, int block);
 extern int isdatatrack (struct cd_toc_head*, int block);
 
-enum cd_standard_unit { CD_STANDARD_UNIT_AUDIO, CD_STANDARD_UNIT_CDTV, CD_STANDARD_UNIT_CD32 };
+enum cd_standard_unit { CD_STANDARD_UNIT_DEFAULT, CD_STANDARD_UNIT_AUDIO, CD_STANDARD_UNIT_CDTV, CD_STANDARD_UNIT_CD32 };
 
 extern int get_standard_cd_unit (enum cd_standard_unit csu);
 extern void close_standard_cd_unit (int);

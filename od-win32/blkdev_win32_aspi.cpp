@@ -876,7 +876,7 @@ static int mediacheck_full (int unitnum, struct device_info *di)
 	return 1;
 }
 
-static int open_scsi_device (int unitnum, const TCHAR *ident)
+static int open_scsi_device (int unitnum, const TCHAR *ident, int flags)
 {
 	if (unitnum >= unitcnt)
 		return 0;

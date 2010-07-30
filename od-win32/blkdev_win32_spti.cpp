@@ -534,7 +534,8 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 	xfree (dev);
 	return 0;
 }
-int open_scsi_device (int unitnum, const TCHAR *ident)
+
+int open_scsi_device (int unitnum, const TCHAR *ident, int flags)
 {
 	struct dev_info_spti *di = NULL;
 	if (ident && ident[0]) {

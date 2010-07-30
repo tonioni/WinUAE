@@ -3128,11 +3128,11 @@ static void debug_1 (void)
 
 		case 'f':
 			if (inptr[0] == 'a') {
-				next_char(&inptr);
+				next_char (&inptr);
 				find_ea (&inptr);
 			} else if (inptr[0] == 'p') {
 				inptr++;
-				if (process_breakpoint(&inptr))
+				if (process_breakpoint (&inptr))
 					return;
 			} else {
 				if (instruction_breakpoint (&inptr))
