@@ -940,22 +940,22 @@ static TCHAR *favoritepopup (HWND hwnd, int drive)
 		if (srcdrive >= 0 && srcdrive <= 4) {
 			if (!morefiles) {
 				for (i = 0; i < 4; i++) {
-					if (workprefs.df[i][0] && srcdrive != i) {
+					if (workprefs.floppyslots[i].df[0] && srcdrive != i) {
 						TCHAR tmp[100];
 						_stprintf (tmp, L"[DF%c:]", i + '0');
 						fitem[idx].value = my_strdup (tmp);
-						fitem[idx].path = my_strdup (workprefs.df[i]);
+						fitem[idx].path = my_strdup (workprefs.floppyslots[i].df);
 						fitem[idx].type = 3 + i;
 						idx++;
 						fitem[idx].type = 0;
 					}
 				}
 			}
-			if (workprefs.df[srcdrive][0]) {
+			if (workprefs.floppyslots[srcdrive].df[0]) {
 				if (morefiles > 0) {
-					idx = getdeepfavdiskimage (workprefs.df[srcdrive], fitem, idx);
+					idx = getdeepfavdiskimage (workprefs.floppyslots[srcdrive].df, fitem, idx);
 				} else {
-					idx = getfavdiskimage (workprefs.df[srcdrive], fitem, idx);
+					idx = getfavdiskimage (workprefs.floppyslots[srcdrive].df, fitem, idx);
 					morefiles = -1;
 				}
 			}
@@ -967,8 +967,8 @@ static TCHAR *favoritepopup (HWND hwnd, int drive)
 			break;
 		if (ret <= idx) {
 			if (fitem[ret - 1].type == 2) {
-				_tcscpy (workprefs.df[dstdrive], fitem[ret - 1].value);
-				disk_insert (dstdrive, workprefs.df[dstdrive]);
+				_tcscpy (workprefs.floppyslots[dstdrive].df, fitem[ret - 1].value);
+				disk_insert (dstdrive, workprefs.floppyslots[dstdrive].df);
 				ret = 0;
 			}
 			break;
@@ -1956,7 +1956,7 @@ static void ejectfloppy (int n)
 	if (iscd (n)) {
 		eject_cd ();
 	} else {
-		workprefs.df[n][0] = 0;
+		workprefs.floppyslots[n].df[0] = 0;
 	}
 }
 
@@ -1977,9 +1977,9 @@ static void selectdisk (struct uae_prefs *prefs, HWND hDlg, int num, int id, con
 		return;
 	}
 	SetDlgItemText (hDlg, id, full_path);
-	_tcscpy(prefs->df[num], full_path);
-	fullpath (prefs->df[num], sizeof prefs->df[num] / sizeof (TCHAR));
-	DISK_history_add (prefs->df[num], -1, HISTORY_FLOPPY, 0);
+	_tcscpy(prefs->floppyslots[num].df, full_path);
+	fullpath (prefs->floppyslots[num].df, sizeof prefs->floppyslots[num].df / sizeof (TCHAR));
+	DISK_history_add (prefs->floppyslots[num].df, -1, HISTORY_FLOPPY, 0);
 }
 
 static void setdpath (const TCHAR *name, const TCHAR *path)
@@ -3238,7 +3238,7 @@ static int disk_in_drive (int entry)
 {
 	int i;
 	for (i = 0; i < 4; i++) {
-		if (_tcslen (workprefs.dfxlist[entry]) > 0 && !_tcscmp (workprefs.dfxlist[entry], workprefs.df[i]))
+		if (_tcslen (workprefs.dfxlist[entry]) > 0 && !_tcscmp (workprefs.dfxlist[entry], workprefs.floppyslots[i].df))
 			return i;
 	}
 	return -1;
@@ -3255,36 +3255,36 @@ static int disk_swap (int entry, int mode)
 	}
 	if ((drv = disk_in_drive (entry)) >= 0) {
 		if (mode < 0) {
-			workprefs.df[drv][0] = 0;
+			workprefs.floppyslots[drv].df[0] = 0;
 			return 1;
 		}
 
-		if (_tcscmp (workprefs.df[drv], currprefs.df[drv])) {
-			_tcscpy (workprefs.df[drv], currprefs.df[drv]);
-			disk_insert (drv, workprefs.df[drv]);
+		if (_tcscmp (workprefs.floppyslots[drv].df, currprefs.floppyslots[drv].df)) {
+			_tcscpy (workprefs.floppyslots[drv].df, currprefs.floppyslots[drv].df);
+			disk_insert (drv, workprefs.floppyslots[drv].df);
 		} else {
-			workprefs.df[drv][0] = 0;
+			workprefs.floppyslots[drv].df[0] = 0;
 		}
 		if (drvs[0] < 0 || drvs[1] < 0 || drvs[2] < 0 || drvs[3] < 0) {
 			drv++;
 			while (drv < 4 && drvs[drv] >= 0)
 				drv++;
-			if (drv < 4 && workprefs.dfxtype[drv] >= 0) {
-				_tcscpy (workprefs.df[drv], workprefs.dfxlist[entry]);
-				disk_insert (drv, workprefs.df[drv]);
+			if (drv < 4 && workprefs.floppyslots[drv].dfxtype >= 0) {
+				_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[entry]);
+				disk_insert (drv, workprefs.floppyslots[drv].df);
 			}
 		}
 		return 1;
 	}
 	for (i = 0; i < 4; i++) {
-		if (drvs[i] < 0 && workprefs.dfxtype[i] >= 0) {
-			_tcscpy (workprefs.df[i], workprefs.dfxlist[entry]);
-			disk_insert (i, workprefs.df[i]);
+		if (drvs[i] < 0 && workprefs.floppyslots[i].dfxtype >= 0) {
+			_tcscpy (workprefs.floppyslots[i].df, workprefs.dfxlist[entry]);
+			disk_insert (i, workprefs.floppyslots[i].df);
 			return 1;
 		}
 	}
-	_tcscpy (workprefs.df[0], workprefs.dfxlist[entry]);
-	disk_insert (0, workprefs.df[0]);
+	_tcscpy (workprefs.floppyslots[0].df, workprefs.dfxlist[entry]);
+	disk_insert (0, workprefs.floppyslots[0].df);
 	return 1;
 }
 
@@ -4774,7 +4774,7 @@ static void load_quickstart (HWND hDlg, int romcheck)
 	workprefs.nr_floppies = quickstart_floppy;
 	quickstart_ok = built_in_prefs (&workprefs, quickstart_model, quickstart_conf, quickstart_compa, romcheck);
 	workprefs.ntscmode = quickstart_ntsc != 0;
-	quickstart_cd = workprefs.dfxtype[1] == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
+	quickstart_cd = workprefs.floppyslots[1].dfxtype == DRV_NONE && (quickstart_model == 8 || quickstart_model == 9);
 	enable_for_quickstart (hDlg);
 	addfloppytype (hDlg, 0);
 	addfloppytype (hDlg, 1);
@@ -4829,10 +4829,10 @@ static void init_quickstartdlg (HWND hDlg)
 		regquerystr (NULL, L"QuickStartCDDrive", quickstart_cddrive, &size);
 		regqueryint (NULL, L"QuickStartNTSC", &quickstart_ntsc);
 		if (quickstart) {
-			workprefs.df[0][0] = 0;
-			workprefs.df[1][0] = 0;
-			workprefs.df[2][0] = 0;
-			workprefs.df[3][0] = 0;
+			workprefs.floppyslots[0].df[0] = 0;
+			workprefs.floppyslots[1].df[0] = 0;
+			workprefs.floppyslots[2].df[0] = 0;
+			workprefs.floppyslots[3].df[0] = 0;
 			workprefs.cdslots[0].name[0] = 0;
 			workprefs.cdslots[0].inuse = quickstart_cdtype > 0;
 			load_quickstart (hDlg, 1);
@@ -4944,11 +4944,11 @@ static void testimage (HWND hDlg, int num)
 
 	floppytooltip (hDlg, num, 0);
 	quickstart_ok_floppy = 0;
-	if (workprefs.dfxtype[0] < 0) {
+	if (workprefs.floppyslots[0].dfxtype < 0) {
 		quickstart_ok_floppy = 1;
 		return;
 	}
-	if (!workprefs.df[num][0])
+	if (!workprefs.floppyslots[num].df[0])
 		return;
 	ret = DISK_examine_image (&workprefs, num, &crc32);
 	if (!ret)
@@ -5006,12 +5006,12 @@ static void addallfloppies (HWND hDlg);
 
 static void setfloppytexts (HWND hDlg, int qs)
 {
-	SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.df[0]);
-	SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.df[1]);
-	SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.df[2]);
-	SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.df[3]);
-	SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.df[0]);
-	SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.df[1]);
+	SetDlgItemText (hDlg, IDC_DF0TEXT, workprefs.floppyslots[0].df);
+	SetDlgItemText (hDlg, IDC_DF1TEXT, workprefs.floppyslots[1].df);
+	SetDlgItemText (hDlg, IDC_DF2TEXT, workprefs.floppyslots[2].df);
+	SetDlgItemText (hDlg, IDC_DF3TEXT, workprefs.floppyslots[3].df);
+	SetDlgItemText (hDlg, IDC_DF0TEXTQ, workprefs.floppyslots[0].df);
+	SetDlgItemText (hDlg, IDC_DF1TEXTQ, workprefs.floppyslots[1].df);
 	if (!qs)
 		addallfloppies (hDlg);
 }
@@ -5192,15 +5192,15 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 	}
 	if (recursive == 0 && quickstart) {
 		recursive++;
-		if (_tcscmp (workprefs.df[0], df0) || workprefs.dfxtype[0] != dfxtype[0]) {
-			_tcscpy (df0, workprefs.df[0]);
-			dfxtype[0] = workprefs.dfxtype[0];
+		if (_tcscmp (workprefs.floppyslots[0].df, df0) || workprefs.floppyslots[0].dfxtype != dfxtype[0]) {
+			_tcscpy (df0, workprefs.floppyslots[0].df);
+			dfxtype[0] = workprefs.floppyslots[0].dfxtype;
 			testimage (hDlg, 0);
 			enable_for_quickstart (hDlg);
 		}
-		if (_tcscmp (workprefs.df[1], df1) || workprefs.dfxtype[1] != dfxtype[1]) {
-			_tcscpy (df1, workprefs.df[1]);
-			dfxtype[1] = workprefs.dfxtype[1];
+		if (_tcscmp (workprefs.floppyslots[1].df, df1) || workprefs.floppyslots[1].dfxtype != dfxtype[1]) {
+			_tcscpy (df1, workprefs.floppyslots[1].df);
+			dfxtype[1] = workprefs.floppyslots[1].dfxtype;
 			testimage (hDlg, 1);
 		}
 		recursive--;
@@ -8183,11 +8183,11 @@ static void values_to_sounddlg (HWND hDlg)
 			p += _tcslen (p) + 1;
 		}
 	}
-	if (workprefs.dfxclick[idx] < 0) {
+	if (workprefs.floppyslots[idx].dfxclick < 0) {
 		p = drivesounds;
 		i = DS_BUILD_IN_SOUNDS + (driveclick_pcdrivemask ? 2 : 0) + 1;
 		while (p && p[0]) {
-			if (!_tcsicmp (p, workprefs.dfxclickexternal[idx])) {
+			if (!_tcsicmp (p, workprefs.floppyslots[idx].dfxclickexternal)) {
 				SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, i, 0);
 				break;
 			}
@@ -8196,7 +8196,7 @@ static void values_to_sounddlg (HWND hDlg)
 		}
 
 	} else {
-		SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, workprefs.dfxclick[idx], 0);
+		SendDlgItemMessage (hDlg, IDC_SOUNDDRIVESELECT, CB_SETCURSEL, workprefs.floppyslots[idx].dfxclick, 0);
 	}
 
 	update_soundgui (hDlg);
@@ -8295,11 +8295,11 @@ static void values_from_sounddlg (HWND hDlg)
 				TCHAR *p = drivesounds;
 				while (j-- > 0)
 					p += _tcslen (p) + 1;
-				workprefs.dfxclick[idx] = -1;
-				_tcscpy (workprefs.dfxclickexternal[idx], p);
+				workprefs.floppyslots[idx].dfxclick = -1;
+				_tcscpy (workprefs.floppyslots[idx].dfxclickexternal, p);
 			} else {
-				workprefs.dfxclick[idx] = res;
-				workprefs.dfxclickexternal[idx][0] = 0;
+				workprefs.floppyslots[idx].dfxclick = res;
+				workprefs.floppyslots[idx].dfxclickexternal[0] = 0;
 			}
 		}
 	}
@@ -9421,8 +9421,8 @@ static void addfloppyhistory_2 (HWND hDlg, int n, int f_text, int type)
 		nn = 1;
 		text = workprefs.cdslots[0].name;
 	} else {
-		nn = workprefs.dfxtype[n] + 1;
-		text = workprefs.df[n];
+		nn = workprefs.floppyslots[n].dfxtype + 1;
+		text = workprefs.floppyslots[n].df;
 	}
 	SendDlgItemMessage (hDlg, f_text, WM_SETTEXT, 0, (LPARAM)text);
 	fkey = read_disk_history (type);
@@ -9524,7 +9524,7 @@ static void addcdtype (HWND hDlg, int id)
 static void addfloppytype (HWND hDlg, int n)
 {
 	int state, chk;
-	int nn = workprefs.dfxtype[n] + 1;
+	int nn = workprefs.floppyslots[n].dfxtype + 1;
 	int showcd = 0;
 	TCHAR *text;
 
@@ -9537,7 +9537,7 @@ static void addfloppytype (HWND hDlg, int n)
 	int f_si = floppybuttons[n][6];
 	int f_enable = floppybuttons[n][7];
 
-	text = workprefs.df[n];
+	text = workprefs.floppyslots[n].df;
 	if (currentpage == QUICKSTART_ID) {
 		TCHAR tmp[MAX_DPATH];
 		f_text = floppybuttonsq[n][0];
@@ -9614,8 +9614,8 @@ static void getfloppytype (HWND hDlg, int n)
 	int f_type = floppybuttons[n][3];
 	LRESULT val = SendDlgItemMessage (hDlg, f_type, CB_GETCURSEL, 0, 0L);
 
-	if (val != CB_ERR && workprefs.dfxtype[n] != val - 1) {
-		workprefs.dfxtype[n] = (int)val - 1;
+	if (val != CB_ERR && workprefs.floppyslots[n].dfxtype != val - 1) {
+		workprefs.floppyslots[n].dfxtype = (int)val - 1;
 		addfloppytype (hDlg, n);
 	}
 }
@@ -9629,8 +9629,8 @@ static void getfloppytypeq (HWND hDlg, int n)
 	if (iscd (n))
 		return;
 	chk = ischecked (hDlg, f_enable) ? 0 : -1;
-	if (chk != workprefs.dfxtype[n]) {
-		workprefs.dfxtype[n] = chk;
+	if (chk != workprefs.floppyslots[n].dfxtype) {
+		workprefs.floppyslots[n].dfxtype = chk;
 		addfloppytype (hDlg, n);
 	}
 	if (currentpage == QUICKSTART_ID) {
@@ -9685,7 +9685,7 @@ static void getfloppyname (HWND hDlg, int n, int cd, int f_text)
 	if (getfloppybox (hDlg, f_text, tmp, sizeof (tmp) / sizeof (TCHAR), cd ? HISTORY_CD : HISTORY_FLOPPY)) {
 		if (!cd) {
 			disk_insert (n, tmp);
-			_tcscpy (workprefs.df[n], tmp);
+			_tcscpy (workprefs.floppyslots[n].df, tmp);
 		} else {
 			if (quickstart_cddrive[0])
 				eject_cd ();
@@ -9712,7 +9712,7 @@ static void addallfloppies (HWND hDlg)
 static void floppysetwriteprotect (HWND hDlg, int n, int protect)
 {
 	if (!iscd (n)) {
-		disk_setwriteprotect (n, workprefs.df[n], protect);
+		disk_setwriteprotect (n, workprefs.floppyslots[n].df, protect);
 		addfloppytype (hDlg, n);
 	}
 }
@@ -9722,7 +9722,7 @@ static void deletesaveimage (HWND hDlg, int num)
 	TCHAR *p;
 	if (!iscd (num))
 		return;
-	p = DISK_get_saveimagepath (workprefs.df[num]);
+	p = DISK_get_saveimagepath (workprefs.floppyslots[num].df);
 	if (zfile_exists (p)) {
 		DeleteFile (p);
 		DISK_reinsert (num);
@@ -9735,10 +9735,10 @@ static void diskselect (HWND hDlg, WPARAM wParam, struct uae_prefs *p, int drv, 
 	int cd = iscd (drv);
 	MultiDiskSelection (hDlg, wParam, cd ? 17 : 0, &workprefs, defaultpath);
 	if (!cd) {
-		disk_insert (0, p->df[0]);
-		disk_insert (1, p->df[1]);
-		disk_insert (2, p->df[2]);
-		disk_insert (3, p->df[3]);
+		disk_insert (0, p->floppyslots[0].df);
+		disk_insert (1, p->floppyslots[1].df);
+		disk_insert (2, p->floppyslots[2].df);
+		disk_insert (3, p->floppyslots[3].df);
 	}
 	addfloppytype (hDlg, drv);
 	addfloppyhistory (hDlg);
@@ -10031,6 +10031,46 @@ static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
 	}
 }
 
+static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
+{
+	int list = 0;
+	while (list < MAX_SPARE_DRIVES) {
+		if (!strcasecmp (prefs->dfxlist[list], file))
+			break;
+		list++;
+	}
+	if (list == MAX_SPARE_DRIVES) {
+		list = 0;
+		while (list < MAX_SPARE_DRIVES) {
+			if (!prefs->dfxlist[list][0]) {
+				_tcscpy (prefs->dfxlist[list], file);
+				break;
+			}
+			list++;
+		}
+	}
+}
+
+static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
+{
+	struct zdirectory *zd = zfile_opendir_archive (file);
+	if (zd) {
+		TCHAR out[MAX_DPATH];
+		while (zfile_readdir_archive (zd, out, true)) {
+			struct zfile *zf = zfile_fopen (out, L"rb", ZFD_NORMAL);
+			if (zf) {
+				int type = zfile_gettype (zf);
+				if (type == ZFILE_DISKIMAGE)
+					diskswapper_addfile2 (prefs, out);
+				zfile_fclose (zf);
+			}
+		}
+		zfile_closedir_archive (zd);
+	} else {
+		diskswapper_addfile2 (prefs, file);
+	}
+}
+
 static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -10135,13 +10175,13 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				{
 					int drv = LOWORD (wParam) - 10201;
 					int i;
-					if (workprefs.dfxtype[drv] >= 0 && entry >= 0) {
+					if (workprefs.floppyslots[drv].dfxtype >= 0 && entry >= 0) {
 						for (i = 0; i < 4; i++) {
-							if (!_tcscmp (workprefs.df[i], workprefs.dfxlist[entry]))
-								workprefs.df[i][0] = 0;
+							if (!_tcscmp (workprefs.floppyslots[i].df, workprefs.dfxlist[entry]))
+								workprefs.floppyslots[i].df[0] = 0;
 						}
-						_tcscpy (workprefs.df[drv], workprefs.dfxlist[entry]);
-						disk_insert (drv, workprefs.df[drv]);
+						_tcscpy (workprefs.floppyslots[drv].df, workprefs.dfxlist[entry]);
+						disk_insert (drv, workprefs.floppyslots[drv].df);
 						InitializeListView (hDlg);
 						swapperhili (hDlg, entry);
 					}
@@ -10153,7 +10193,7 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			case 10208:
 				{
 					int drv = LOWORD (wParam) - 10201;
-					workprefs.df[drv][0] = 0;
+					workprefs.floppyslots[drv].df[0] = 0;
 					InitializeListView (hDlg);
 					swapperhili (hDlg, entry);
 				}
@@ -11944,7 +11984,7 @@ static int filterpreset_selected = -1, filterpreset_builtin = -1;
 static void enable_for_hw3ddlg (HWND hDlg)
 {
 	int v = workprefs.gfx_filter ? TRUE : FALSE;
-	int vv = FALSE, vv2 = FALSE, vv3 = FALSE, vv4 = FALSE;
+	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
 	int as = workprefs.gfx_filter_autoscale == 1 || workprefs.gfx_filter_autoscale == 2;
 	struct uae_filter *uf;
 	int i, isfilter;
@@ -11960,16 +12000,12 @@ static void enable_for_hw3ddlg (HWND hDlg)
 		}
 		i++;
 	}
-	if (v && (uf->x[0] || uf->x[1] || uf->x[2] || uf->x[3] || uf->x[4]))
+	if (v && uf->intmul)
 		vv = TRUE;
-	if (v && (uf->x[0] || uf->yuv))
+	if (v && uf->yuv)
 		vv2 = TRUE;
-	if (v && (uf->x[0] && !uf->yuv))
-		vv3 = TRUE;
-	if (v && uf->x[0])
-		vv4 = TRUE;
 	if (workprefs.gfx_api)
-		v = vv = vv2 = vv3 = vv4 = TRUE;
+		v = vv = vv2 = vv3 = TRUE;
 
 	ew (hDlg, IDC_FILTERHZ, v);
 	ew (hDlg, IDC_FILTERVZ, v);
@@ -11982,7 +12018,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERXLV, vv2);
 	ew (hDlg, IDC_FILTERXTRA, vv2);
 	ew (hDlg, IDC_FILTERDEFAULT, v);
-	ew (hDlg, IDC_FILTERFILTER, vv);
+	ew (hDlg, IDC_FILTERFILTER, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
@@ -11992,19 +12028,6 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERPRESETSAVE, filterpreset_builtin < 0);
 	ew (hDlg, IDC_FILTERPRESETLOAD, filterpreset_selected > 0);
 	ew (hDlg, IDC_FILTERPRESETDELETE, filterpreset_selected > 0 && filterpreset_builtin < 0);
-}
-
-static void makefilter (TCHAR *s, int x, int flags)
-{
-	_stprintf (s, L"%dx", x);
-	if ((flags & (UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32)) == (UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32)) {
-		_tcscat (s, L" (16bit/32bit)");
-		return;
-	}
-	if (flags & UAE_FILTER_MODE_16)
-		_tcscat (s, L" (16bit)");
-	if (flags & UAE_FILTER_MODE_32)
-		_tcscat (s, L" (32bit)");
 }
 
 static TCHAR *filtermultnames[] = { L"FS", L"1/2x", L"1x", L"2x", L"4x", L"6x", L"8x", NULL };
@@ -12077,7 +12100,7 @@ static struct filterpreset filterpresets[] =
 	{ NULL }
 };
 
-static int getfiltermult(HWND hDlg, DWORD dlg)
+static int getfiltermult (HWND hDlg, DWORD dlg)
 {
 	TCHAR tmp[100];
 	LRESULT v = SendDlgItemMessage (hDlg, dlg, CB_GETCURSEL, 0, 0L);
@@ -12126,7 +12149,7 @@ static void setfiltermult (HWND hDlg)
 static void values_to_hw3ddlg (HWND hDlg)
 {
 	TCHAR txt[100], tmp[100];
-	int i, j, fltnum, modenum;
+	int i, j, fltnum;
 	struct uae_filter *uf;
 	int fxidx, fxcnt;
 	UAEREG *fkey;
@@ -12243,25 +12266,23 @@ static void values_to_hw3ddlg (HWND hDlg)
 
 	fxidx = 0;
 	filter_extra[fxidx] = NULL;
-	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
 	if (workprefs.gfx_api) {
 		filter_extra[fxidx++] = filter_3d_extra;
 		filter_extra[fxidx] = NULL;
 	}
-	ew (hDlg, IDC_FILTERFILTER, uf != NULL);
-	if (uf && !uf->x[0]) {
-		modenum = 0;
-		for (i = 1; i <= 4; i++) {
-			if (uf->x[i]) {
-				makefilter (tmp, i, uf->x[i]);
-				SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
-				modenum++;
-			}
+	int filtermodenum = 0;
+	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_RESETCONTENT, 0, 0L);
+	if (workprefs.gfx_api) {
+		for (i = 0; i < 4; i++) {
+			TCHAR tmp[100];
+			_stprintf (tmp, L"%dx", i + 1);
+			SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_ADDSTRING, 0, (LPARAM)tmp);
+			filtermodenum++;
 		}
-		if (uf->yuv) {
-			filter_extra[fxidx++] = filter_pal_extra;
-			filter_extra[fxidx] = NULL;
-		}
+	}
+	if (uf && uf->yuv) {
+		filter_extra[fxidx++] = filter_pal_extra;
+		filter_extra[fxidx] = NULL;
 	}
 	SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETRANGE, TRUE, MAKELONG (   0, +1000));
 	SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPAGESIZE, 0, 1);
@@ -12298,11 +12319,9 @@ static void values_to_hw3ddlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERXL, TBM_SETPOS, TRUE, *(filter_selected->varw));
 		SetDlgItemInt (hDlg, IDC_FILTERXLV, *(filter_selected->varw), TRUE);
 	}
-
-	if (workprefs.gfx_filter_filtermode >= modenum)
+	if (workprefs.gfx_filter_filtermode >= filtermodenum)
 		workprefs.gfx_filter_filtermode = 0;
 	SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_SETCURSEL, workprefs.gfx_filter_filtermode, 0);
-
 	setfiltermult (hDlg);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERSLR, CB_RESETCONTENT, 0, 0L);
@@ -12462,25 +12481,26 @@ static void filter_handle (HWND hDlg)
 {
 	LRESULT item = SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR) {
-		TCHAR tmp[MAX_DPATH];
+		TCHAR tmp[MAX_DPATH], oldsh[MAX_DPATH];
 		int of = workprefs.gfx_filter;
 		int off = workprefs.gfx_filter_filtermode;
 		tmp[0] = 0;
+		_tcscpy (oldsh, workprefs.gfx_filtershader);
 		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
 		workprefs.gfx_filtershader[0] = 0;
 		workprefs.gfx_filter = 0;
 		workprefs.gfx_filter_filtermode = 0;
+		if (workprefs.gfx_api) {
+			LRESULT item2 = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
+			if (item2 != CB_ERR)
+				workprefs.gfx_filter_filtermode = (int)item2;
+		}
 		if (item > 0) {
 			if (item > UAE_FILTER_LAST) {
 				_stprintf (workprefs.gfx_filtershader, L"%s.fx", tmp + 5);
 			} else {
 				item--;
 				workprefs.gfx_filter = uaefilters[item].type;
-			}
-			if (workprefs.gfx_filter) {
-				item = SendDlgItemMessage (hDlg, IDC_FILTERFILTER, CB_GETCURSEL, 0, 0L);
-				if (item != CB_ERR)
-					workprefs.gfx_filter_filtermode = (int)item;
 			}
 			if (of != workprefs.gfx_filter || off != workprefs.gfx_filter_filtermode) {
 				values_to_hw3ddlg (hDlg);
@@ -13460,6 +13480,42 @@ static void centerWindow (HWND hDlg)
 	SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 
+static int floppyslot_addfile2 (struct uae_prefs *prefs, const TCHAR *file, int drv, int firstdrv, int maxdrv)
+{
+	_tcscpy (workprefs.floppyslots[drv].df, file);
+	disk_insert (drv, workprefs.floppyslots[drv].df);
+	drv++;
+	if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
+		drv = 0;
+	if (workprefs.floppyslots[drv].dfxtype < 0)
+		drv = 0;
+	if (drv == firstdrv)
+		return -1;
+	return drv;
+}
+static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *file, int drv, int firstdrv, int maxdrv)
+{
+	struct zdirectory *zd = zfile_opendir_archive (file);
+	if (zd) {
+		TCHAR out[MAX_DPATH];
+		while (zfile_readdir_archive (zd, out, true)) {
+			struct zfile *zf = zfile_fopen (out, L"rb", ZFD_NORMAL);
+			if (zf) {
+				int type = zfile_gettype (zf);
+				if (type == ZFILE_DISKIMAGE) {
+					drv = floppyslot_addfile2 (prefs, out, drv, firstdrv, maxdrv);
+					if (drv < 0)
+						break;
+				}
+			}
+		}
+		zfile_closedir_archive (zd);
+	} else {
+		drv = floppyslot_addfile2 (prefs, file, drv, firstdrv, maxdrv);
+	}
+	return drv;
+}
+
 static int do_filesys_insert (const TCHAR *root)
 {
 	if (filesys_insert (-1, NULL, root, 0, 0) == 0)
@@ -13469,7 +13525,7 @@ static int do_filesys_insert (const TCHAR *root)
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 {
-	int cnt, i, drv, harddrive, drvdrag, firstdrv, list;
+	int cnt, i, drv, harddrive, drvdrag, firstdrv;
 	TCHAR file[MAX_DPATH];
 	int dfxtext[] = { IDC_DF0TEXT, IDC_DF0TEXTQ, IDC_DF1TEXT, IDC_DF1TEXTQ, IDC_DF2TEXT, -1, IDC_DF3TEXT, -1 };
 	POINT pt;
@@ -13502,7 +13558,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	} else if (currentpage == FLOPPY_ID || currentpage == QUICKSTART_ID) {
 		for (i = 0; i < 4; i++) {
 			int id = dfxtext[i * 2 + (currentpage == QUICKSTART_ID ? 1 : 0)];
-			if (workprefs.dfxtype[i] >= 0 && id >= 0) {
+			if (workprefs.floppyslots[i].dfxtype >= 0 && id >= 0) {
 				if (GetPanelRect (GetDlgItem (panelDlg, id), &r)) {
 					if (PtInRect (&r, pt)) {
 						drv = i;
@@ -13562,34 +13618,13 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		{
 		case ZFILE_DISKIMAGE:
 			if (currentpage == DISK_ID) {
-				list = 0;
-				while (list < MAX_SPARE_DRIVES) {
-					if (!strcasecmp (prefs->dfxlist[list], file))
-						break;
-					list++;
-				}
-				if (list == MAX_SPARE_DRIVES) {
-					list = 0;
-					while (list < MAX_SPARE_DRIVES) {
-						if (!prefs->dfxlist[list][0]) {
-							_tcscpy (prefs->dfxlist[list], file);
-							break;
-						}
-						list++;
-					}
-				}
+				diskswapper_addfile (prefs, file);
 			} else if (currentpage == HARDDISK_ID) {
 				add_filesys_config (&workprefs, -1, NULL, L"", file, 0,
 					0, 0, 0, 0, 0, NULL, 0, 0);
 			} else {
-				_tcscpy (workprefs.df[drv], file);
-				disk_insert (drv, workprefs.df[drv]);
-				drv++;
-				if (drv >= (currentpage == QUICKSTART_ID ? 2 : 4))
-					drv = 0;
-				if (workprefs.dfxtype[drv] < 0)
-					drv = 0;
-				if (drv == firstdrv)
+				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
+				if (drv < 0)
 					i = cnt;
 			}
 			break;

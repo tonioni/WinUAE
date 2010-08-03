@@ -231,8 +231,10 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 			firstframe = zfile_ftell (zf);
 
 		ver = (header[1] >> 3) & 3;
-		if (ver == 1)
+		if (ver == 1) {
+			write_log (L"MP3: ver==1?!\n");
 			return 0;
+		}
 		if (ver == 0)
 			ver = 2;
 		else if (ver == 2)
@@ -240,13 +242,17 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 		else if (ver == 3)
 			ver = 0;
 		layer = 4 - ((header[1] >> 1) & 3);
-		if (layer == 4)
+		if (layer == 4) {
+			write_log (L"MP3: layer==4?!\n");
 			return 0;
+		}
 		iscrc = ((header[1] >> 0) & 1) ? 0 : 2;
 		bitrateidx = (header[2] >> 4) & 15;
 		freq = mp3_frequencies[(header[2] >> 2) & 3];
-		if (!freq)
+		if (!freq) {
+			write_log (L"MP3: reserved frequency?!\n");
 			return 0;
+		}
 		channelmode = (header[3] >> 6) & 3;
 		isstereo = channelmode != 3;
 		if (ver == 0) {
@@ -258,14 +264,18 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 				bitindex = 4;
 		}
 		bitrate = mp3_bitrates[bitindex * 16 + bitrateidx] * 1000;
-		if (bitrate <= 0)
+		if (bitrate <= 0) {
+			write_log (L"MP3: reserved bitrate?!\n");
 			return 0;
+		}
 		padding = (header[2] >> 1) & 1;
 		samplerate = mp3_samplesperframe[(layer - 1) * 3 + ver];
 		framelen = ((samplerate / 8 * bitrate) / freq) + padding;
-		if (framelen <= 4)
+		if (framelen <= 4) {
+			write_log (L"MP3: too small frame size?!\n");
 			return 0;
-		zfile_fseek(zf, framelen + iscrc - 4, SEEK_CUR);
+		}
+		zfile_fseek(zf, framelen - 4, SEEK_CUR);
 		frames++;
 		if (timelen > 0) {
 			size = ((uae_u64)timelen * freq * 2 * (isstereo ? 2 : 1)) / 1000;

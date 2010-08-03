@@ -456,8 +456,9 @@ static void cdaudiostop_do (void)
 
 static void cdaudiostop (void)
 {
-	cdrom_playing = 0;
+	cdrom_audiotimeout = 0;
 	cdrom_paused = 0;
+	cdrom_playing = 0;
 	write_comm_pipe_u32 (&requests, 0x0104, 1);
 }
 
@@ -543,7 +544,7 @@ static int cd_play_audio (int startlsn, int endlsn, int scan)
 
 	if (!cdrom_toc_cd_buffer.points)
 		return 0;
-	for (i = 0; i < cdrom_toc_cd_buffer.points; i++) {
+	for (i = cdrom_toc_cd_buffer.first_track_offset; i <= cdrom_toc_cd_buffer.last_track_offset; i++) {
 		s = &cdrom_toc_cd_buffer.toc[i];
 		addr = s->paddress;
 		if (s->track > 0 && s->track < 100 && addr >= startlsn)
@@ -557,6 +558,7 @@ static int cd_play_audio (int startlsn, int endlsn, int scan)
 		endlsn = s->paddress;
 		return 0;
 	}
+	qcode_valid = 0;
 	last_play_end = endlsn;
 	cdrom_audiotimeout = 0;
 	cdrom_paused = 0;
@@ -579,6 +581,9 @@ static int cd_qcode (uae_u8 *d)
 	last_play_pos = 0;
 	buf = qcode_buf;
 	as = buf[1];
+	buf[2] = 0x80;
+	if (!qcode_valid)
+		return 0;
 	if (cdrom_playing) // fake it!
 		as = AUDIO_STATUS_IN_PROGRESS;
 	if (as != AUDIO_STATUS_IN_PROGRESS && as != AUDIO_STATUS_PAUSED && as != AUDIO_STATUS_PLAY_COMPLETE && as != AUDIO_STATUS_NO_STATUS) /* audio status ok? */
@@ -587,6 +592,7 @@ static int cd_qcode (uae_u8 *d)
 	last_play_pos = msf2lsn (fromlongbcd (s + 7));
 	if (!d)
 		return 0;
+	buf[2] = 0;
 	/* ??? */
 	d[0] = 0;
 	/* CtlAdr */
@@ -614,6 +620,8 @@ static int cd_qcode (uae_u8 *d)
 			d[10] = tobcd ((uae_u8)(msf >> 0));
 		}
 	}
+//	write_log (L"%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X\n",
+//		d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11]);
 	return 0;
 }
 
@@ -869,11 +877,11 @@ static int cdrom_command_multi (void)
 		write_log (L"PLAY FROM %06X (%d) to %06X (%d) SCAN=%d\n",
 			seekpos, msf2lsn (seekpos), endpos, msf2lsn (endpos), scan);
 #endif
+		cdrom_playing = 1;
+		cdrom_result_buffer[1] |= CDS_PLAYING;
 		if (!cd_play_audio (seekpos, endpos, 0)) {
-			cdrom_result_buffer[1] = CDS_ERROR;
-		} else {
-			cdrom_playing = 1;
-			cdrom_result_buffer[1] |= CDS_PLAYING;
+			 // play didn't start, report it in next status packet
+			cdrom_audiotimeout = -3;
 		}
 	} else {
 #if AKIKO_DEBUG_IO_CMD
@@ -887,10 +895,10 @@ static int cdrom_command_multi (void)
 	return 2;
 }
 
-static int cdrom_playend_notify (void)
+static int cdrom_playend_notify (int err)
 {
 	cdrom_result_buffer[0] = 4;
-	cdrom_result_buffer[1] = 0x80;
+	cdrom_result_buffer[1] = err ? 0x80 : 0x00;
 	return 2;
 }
 
@@ -1093,7 +1101,11 @@ static void akiko_handler (void)
 		}
 	}
 	if (cdrom_audiotimeout == -2 && qcode_buf[1] != AUDIO_STATUS_IN_PROGRESS) {
-		cdrom_start_return_data (cdrom_playend_notify ());
+		cdrom_start_return_data (cdrom_playend_notify (0));
+		cdrom_audiotimeout = 0;
+	}
+	if (cdrom_audiotimeout == -3) {
+		cdrom_start_return_data (cdrom_playend_notify (1));
 		cdrom_audiotimeout = 0;
 	}
 
@@ -1616,7 +1628,7 @@ void akiko_reset (void)
 		cdcomtxinx = 0;
 		cdcomrxinx = 0;
 		cdcomtxcmp = 0;
-		lastmediastate = 0;
+		lastmediastate = -1;
 	}
 	cdrom_led = 0;
 	cdrom_receive_started = 0;

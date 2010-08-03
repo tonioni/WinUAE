@@ -262,6 +262,7 @@
 #define IDS_QS_CD_IMAGE                 267
 #define IDS_REMAPTITLE                  268
 #define IDS_FILTER_NOOVERLAYS           269
+#define IDS_STMENUNOCD                  270
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -1018,7 +1019,6 @@
 #define IDC_RTG_24BIT                   1789
 #define IDC_ASSOCIATELIST               1789
 #define IDC_PORT_TABLET                 1789
-#define IDC_PATHS_CONFIGCACHE2          1789
 #define IDC_PATHS_RELATIVE              1789
 #define IDC_RTG_32BIT                   1790
 #define IDC_ASSOCIATE_OFF               1790
@@ -1084,6 +1084,11 @@
 #define ID_DBG_TOGGLEBP                 40042
 #define ID_DBG_DELETEBPS                40043
 #define ID_DBG_SETTOPC                  40044
+#define ID_MENU_CDDRIVES                40045
+#define ID_CDDRIVES_EJECT               40046
+#define ID_ST_CDEJECTALL                40047
+#define ID_CDDRIVES_CD                  40048
+#define ID_ST_CD0                       40049
 
 // Next default values for new objects
 // 
@@ -1092,7 +1097,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        356
-#define _APS_NEXT_COMMAND_VALUE         40045
+#define _APS_NEXT_COMMAND_VALUE         40050
 #define _APS_NEXT_CONTROL_VALUE         1808
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

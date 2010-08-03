@@ -1211,9 +1211,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 							num -= 7;
 							if (nm->code == NM_RCLICK) {
 								disk_eject (num);
-							} else if (changed_prefs.dfxtype[num] >= 0) {
+							} else if (changed_prefs.floppyslots[num].dfxtype >= 0) {
 								DiskSelection (hWnd, IDC_DF0 + num, 0, &changed_prefs, 0);
-								disk_insert (num, changed_prefs.df[num]);
+								disk_insert (num, changed_prefs.floppyslots[num].df);
 							}
 						} else if (num == 4) {
 							if (nm->code == NM_CLICK) // POWER
@@ -1538,6 +1538,15 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 		case ID_ST_RESET:
 			uae_reset (0);
 			break;
+
+		case ID_ST_CDEJECTALL:
+			changed_prefs.cdslots[0].name[0] = 0;
+			changed_prefs.cdslots[0].inuse = false;
+			break;
+		case ID_ST_CD0:
+			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_CD_SELECT, 17, &changed_prefs, 0);
+			break;
+
 		case ID_ST_EJECTALL:
 			disk_eject (0);
 			disk_eject (1);
@@ -1546,20 +1555,21 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			break;
 		case ID_ST_DF0:
 			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF0, 0, &changed_prefs, 0);
-			disk_insert (0, changed_prefs.df[0]);
+			disk_insert (0, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF1:
 			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF1, 0, &changed_prefs, 0);
-			disk_insert (1, changed_prefs.df[0]);
+			disk_insert (1, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF2:
 			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF2, 0, &changed_prefs, 0);
-			disk_insert (2, changed_prefs.df[0]);
+			disk_insert (2, changed_prefs.floppyslots[0].df);
 			break;
 		case ID_ST_DF3:
 			DiskSelection (isfullscreen() > 0 ? NULL : hWnd, IDC_DF3, 0, &changed_prefs, 0);
-			disk_insert (3, changed_prefs.df[0]);
+			disk_insert (3, changed_prefs.floppyslots[0].df);
 			break;
+
 		}
 		break;
 	}
@@ -4998,30 +5008,47 @@ void systray (HWND hwnd, int remove)
 static void systraymenu (HWND hwnd)
 {
 	POINT pt;
-	HMENU menu, menu2, drvmenu;
+	HMENU menu, menu2, drvmenu, cdmenu;
 	int drvs[] = { ID_ST_DF0, ID_ST_DF1, ID_ST_DF2, ID_ST_DF3, -1 };
 	int i;
-	TCHAR text[100];
+	TCHAR text[100], text2[100];
 
 	WIN32GUI_LoadUIString (IDS_STMENUNOFLOPPY, text, sizeof (text) / sizeof (TCHAR));
+	WIN32GUI_LoadUIString (IDS_STMENUNOCD, text2, sizeof (text2) / sizeof (TCHAR));
 	GetCursorPos (&pt);
 	menu = LoadMenu (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDM_SYSTRAY));
 	if (!menu)
 		return;
 	menu2 = GetSubMenu (menu, 0);
 	drvmenu = GetSubMenu (menu2, 1);
+	cdmenu = GetSubMenu (menu2, 2);
 	EnableMenuItem (menu2, ID_ST_HELP, pHtmlHelp ? MF_ENABLED : MF_GRAYED);
 	i = 0;
 	while (drvs[i] >= 0) {
 		TCHAR s[MAX_DPATH];
-		if (currprefs.df[i][0])
-			_stprintf (s, L"DF%d: [%s]", i, currprefs.df[i]);
+		if (currprefs.floppyslots[i].df[0])
+			_stprintf (s, L"DF%d: [%s]", i, currprefs.floppyslots[i].df);
 		else
 			_stprintf (s, L"DF%d: [%s]", i, text);
 		ModifyMenu (drvmenu, drvs[i], MF_BYCOMMAND | MF_STRING, drvs[i], s);
-		EnableMenuItem (menu2, drvs[i], currprefs.dfxtype[i] < 0 ? MF_GRAYED : MF_ENABLED);
+		EnableMenuItem (menu2, drvs[i], currprefs.floppyslots[i].dfxtype < 0 ? MF_GRAYED : MF_ENABLED);
 		i++;
 	}
+	{
+		TCHAR s[MAX_DPATH];
+		if (currprefs.cdslots[0].inuse && currprefs.cdslots[0].name[0])
+			_stprintf (s, L"CD: [%s]", currprefs.cdslots[0].name);
+		else
+			_stprintf (s, L"CD: [%s]", text2);
+		ModifyMenu (cdmenu, ID_ST_CD0, MF_BYCOMMAND | MF_STRING, ID_ST_CD0, s);
+		int open = 0;
+		struct device_info di;
+		if (sys_command_info (0, &di, 1) && di.open)
+			open = 1;
+		EnableMenuItem (menu2, ID_ST_CD0, open == 0 ? MF_GRAYED : MF_ENABLED);
+	}
+
+
 	if (isfullscreen () <= 0)
 		SetForegroundWindow (hwnd);
 	TrackPopupMenu (menu2, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_RIGHTBUTTON,
@@ -5030,7 +5057,7 @@ static void systraymenu (HWND hwnd)
 	DestroyMenu (menu);
 }
 
-static void LLError(HMODULE m, const TCHAR *s)
+static void LLError (HMODULE m, const TCHAR *s)
 {
 	DWORD err;
 

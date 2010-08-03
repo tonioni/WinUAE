@@ -2792,20 +2792,20 @@ static void out_cd32io (uae_u32 pc)
 	{
 	case 0xe57cc0:
 	case 0xf04c34:
-		_stprintf (out, "opendevice");
+		_stprintf (out, L"opendevice");
 		break;
 	case 0xe57ce6:
 	case 0xf04c56:
-		_stprintf (out, "closedevice");
+		_stprintf (out, L"closedevice");
 		break;
 	case 0xe57e44:
 	case 0xf04f2c:
-		_stprintf (out, "beginio");
+		_stprintf (out, L"beginio");
 		ioreq = 1;
 		break;
 	case 0xe57ef2:
 	case 0xf0500e:
-		_stprintf (out, "abortio");
+		_stprintf (out, L"abortio");
 		ioreq = -1;
 		break;
 	}
@@ -2819,7 +2819,7 @@ static void out_cd32io (uae_u32 pc)
 	if (ioreq) {
 		static int cnt = 0;
 		int cmd = get_word (request + 28);
-#if 1
+#if 0
 		if (cmd == 37) {
 			cnt--;
 			if (cnt <= 0)
@@ -3032,7 +3032,7 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode)
 	if (!fault) {
 		TCHAR buf[100];
 		write_log (L"mmufixup=%d %04x %04x\n", mmufixup[0].reg, regs.wb3_status, regs.mmu_ssw);
-		m68k_disasm_2 (buf, 100, addr, NULL, 1, NULL, NULL, 0);
+		m68k_disasm_2 (buf, sizeof buf / sizeof (TCHAR), addr, NULL, 1, NULL, NULL, 0);
 		write_log (L"%s\n", buf);
 		m68k_dumpstate (stdout, NULL);
 	}

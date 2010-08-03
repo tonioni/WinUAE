@@ -239,7 +239,8 @@ static void to_iff_ilbm (HBITMAP hbmp)
 	w = bmp.bmWidth;
 	h = bmp.bmHeight;
 	bpp = bmp.bmBitsPixel;
-	if (bpp < 8)
+
+	if (bpp != 8 && bpp != 32)
 		return;
 	bmpw = (w * bpp / 8 + 3) & ~3;
 	size = bmpw * h;
@@ -363,7 +364,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 				p += ((w + 15) & ~15) / 8;
 			}
 		}
-	} else {
+	} else if (bpp == 32) {
 		for (y = 0; y < h; y++) {
 			uae_u32 *s = (uae_u32*)(((uae_u8*)bmp.bmBits) + y * bmpw);
 			int b, bb;

@@ -2050,7 +2050,7 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 	struct memwatch_node *mwn;
 
 	if (buf)
-		memset (buf, 0, bufsize);
+		memset (buf, 0, bufsize * sizeof (TCHAR));
 	for (i = 0; i < MEMWATCH_TOTAL; i++) {
 		if ((num >= 0 && num == i) || (num < 0)) {
 			mwn = &mwnodes[i];

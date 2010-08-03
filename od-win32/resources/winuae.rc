@@ -742,8 +742,8 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Filter Settings",-1,0,1,295,134
-    COMBOBOX        IDC_FILTERMODE,20,15,103,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_FILTERFILTER,132,15,83,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_FILTERMODE,20,15,149,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_FILTERFILTER,176,15,39,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Reset to defaults",IDC_FILTERDEFAULT,221,15,67,14
     RTEXT           "Horiz. size:",-1,7,61,46,10,SS_CENTERIMAGE
     CONTROL         "Slider1",IDC_FILTERHZ,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,99,54,152,19
@@ -1110,6 +1110,11 @@ BEGIN
             MENUITEM "DF2:",                        ID_ST_DF2
             MENUITEM "DF3:",                        ID_ST_DF3
         END
+        POPUP "CD drives"
+        BEGIN
+            MENUITEM "Eject",                       ID_ST_CDEJECTALL
+            MENUITEM "CD",                          ID_ST_CD0
+        END
         MENUITEM "Reset",                       ID_ST_RESET
         MENUITEM "Help",                        ID_ST_HELP
         MENUITEM "Quit WinUAE",                 ID_ST_QUIT
@@ -1446,6 +1451,7 @@ BEGIN
     IDS_QS_CD_IMAGE         "Image mode"
     IDS_REMAPTITLE          "Input captured. F12 = Exit. F11 = Skip current event in Remap mode."
     IDS_FILTER_NOOVERLAYS   "No overlays available"
+    IDS_STMENUNOCD          "No CD inserted"
 END
 
 STRINGTABLE

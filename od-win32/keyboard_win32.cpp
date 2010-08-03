@@ -362,10 +362,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				} else {
 					int i;
 					for (i = 0; i < 4; i++) {
-						if (!_tcscmp (currprefs.df[i], currprefs.dfxlist[num]))
-							changed_prefs.df[i][0] = 0;
+						if (!_tcscmp (currprefs.floppyslots[i].df, currprefs.dfxlist[num]))
+							changed_prefs.floppyslots[i].df[0] = 0;
 					}
-					_tcscpy (changed_prefs.df[swapperdrive], currprefs.dfxlist[num]);
+					_tcscpy (changed_prefs.floppyslots[swapperdrive].df, currprefs.dfxlist[num]);
 					config_changed = 1;
 				}
 			}

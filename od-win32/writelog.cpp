@@ -489,7 +489,7 @@ TCHAR* buf_out (TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 
 	if (buffer == NULL)
 		return 0;
-	count = _vsntprintf (buffer, (*bufsize) / sizeof (TCHAR) - 1, format, parms);
+	count = _vsntprintf (buffer, (*bufsize) - 1, format, parms);
 	va_end (parms);
 	*bufsize -= _tcslen (buffer);
 	return buffer + _tcslen (buffer);

@@ -2848,7 +2848,7 @@ struct zvolume *zfile_fopen_directory (const TCHAR *dirname)
 	return zv;
 }
 
-struct zvolume *zfile_fopen_archive (const TCHAR *filename)
+struct zvolume *zfile_fopen_archive (const TCHAR *filename, bool norecurse)
 {
 	struct zvolume *zv = NULL;
 	struct zfile *zf = zfile_fopen_nozip (filename, L"rb");
@@ -2871,11 +2871,11 @@ struct zvolume *zfile_fopen_archive (const TCHAR *filename)
 	}
 #endif
 	/* pointless but who cares? */
-	if (!zv)
+	if (!zv && !norecurse)
 		zv = archive_directory_plain (zf);
 
 #if RECURSIVE_ARCHIVES
-	if (zv)
+	if (zv && !norecurse)
 		zfile_fopen_archive_recurse (zv);
 #endif
 
@@ -2885,6 +2885,10 @@ struct zvolume *zfile_fopen_archive (const TCHAR *filename)
 		zfile_fclose (zf);
 
 	return zv;
+}
+struct zvolume *zfile_fopen_archive (const TCHAR *filename)
+{
+	return zfile_fopen_archive (filename, false);
 }
 
 struct zvolume *zfile_fopen_archive_root (const TCHAR *filename)
@@ -2977,19 +2981,34 @@ void zfile_fclose_archive (struct zvolume *zv)
 }
 
 struct zdirectory {
+	TCHAR *parentpath;
 	struct znode *first;
 	struct znode *n;
+	bool doclose;
+	struct zvolume *zv;
+	int cnt;
+	int offset;
+	TCHAR **filenames;
 };
 
 struct zdirectory *zfile_opendir_archive (const TCHAR *path)
 {
 	struct zvolume *zv = get_zvolume (path);
+	bool created = false;
+	if (zv == NULL) {
+		zv = zfile_fopen_archive (path, true);
+		created = true;
+	}
 	struct znode *zn = get_znode (zv, path, TRUE);
 	struct zdirectory *zd;
-
-	if (!zn || (!zn->child && !zn->vchild))
+	if (!zn || (!zn->child && !zn->vchild)) {
+		if (created)
+			zfile_fclose_archive (zv);
 		return NULL;
-	zd = xmalloc (struct zdirectory, 1);
+	}
+	zd = xcalloc (struct zdirectory, 1);
+	if (created)
+		zd->zv = zv;
 	if (zn->child) {
 		zd->n = zn->child;
 	} else {
@@ -3002,23 +3021,68 @@ struct zdirectory *zfile_opendir_archive (const TCHAR *path)
 		}
 		zd->n = zn->vchild->root.next;
 	}
+	zd->parentpath = my_strdup (path);
 	zd->first = zd->n;
 	return zd;
 }
 void zfile_closedir_archive (struct zdirectory *zd)
 {
+	if (!zd)
+		return;
+	zfile_fclose_archive (zd->zv);
+	xfree (zd->parentpath);
+	xfree (zd->filenames);
 	xfree (zd);
+}
+int zfile_readdir_archive (struct zdirectory *zd, TCHAR *out, bool fullpath)
+{
+	out[0] = 0;
+	if (!zd->n || (zd->filenames != NULL && zd->offset >= zd->cnt))
+		return 0;
+	if (zd->filenames == NULL) {
+		struct znode *n = zd->first;
+		int cnt = 0, len = 0;
+		while (n) {
+			cnt++;
+			len += _tcslen (n->name) + 1;
+			n = n->sibling;
+		}
+		n = zd->first;
+		uae_u8 *buf = xmalloc (uae_u8, cnt * sizeof (TCHAR*) + len * sizeof (TCHAR) * cnt);
+		zd->filenames = (TCHAR**)buf;
+		buf += cnt * sizeof (TCHAR*);
+		for (int i = 0; i < cnt; i++) {
+			zd->filenames[i] = (TCHAR*)buf;
+			_tcscpy ((TCHAR*)buf, n->name);
+			buf += (_tcslen (n->name) + 1) * sizeof (TCHAR);
+			n = n->sibling;
+		}
+		for (int i = 0; i < cnt; i++) {
+			for (int j = i + 1; j < cnt; j++) {
+				if (_tcscmp (zd->filenames[i], zd->filenames[j]) > 0) {
+					TCHAR *tmp = zd->filenames[i];
+					zd->filenames[i] = zd->filenames[j];
+					zd->filenames[j] = tmp;
+				}
+			}
+		}
+		zd->cnt = cnt;
+	}
+	if (fullpath) {
+		_tcscpy (out, zd->parentpath);
+		_tcscat (out, L"\\");
+	}
+	_tcscat (out, zd->filenames[zd->offset]);
+	zd->offset++;
+	return 1;
 }
 int zfile_readdir_archive (struct zdirectory *zd, TCHAR *out)
 {
-	if (!zd->n)
-		return 0;
-	_tcscpy (out, zd->n->name);
-	zd->n = zd->n->sibling;
-	return 1;
+	return zfile_readdir_archive (zd, out, false);
 }
 void zfile_resetdir_archive (struct zdirectory *zd)
 {
+	zd->offset = 0;
 	zd->n = zd->first;
 }
 

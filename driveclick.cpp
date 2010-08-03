@@ -141,56 +141,57 @@ void driveclick_init (void)
 	driveclick_free ();
 	vv = 0;
 	for (i = 0; i < 4; i++) {
+		struct floppyslot *fs = &currprefs.floppyslots[i];
 		for (j = 0; j < CLICK_TRACKS; j++)  {
 			drvs[i][DS_CLICK].indexes[j] = 0;
 			drvs[i][DS_CLICK].lengths[j] = 0;
 		}
-		if (currprefs.dfxclick[i]) {
-			if (currprefs.dfxclick[i] > 0) {
+		if (fs->dfxclick) {
+			if (fs->dfxclick > 0) {
 				v = 0;
-				switch(currprefs.dfxclick[i])
+				switch(fs->dfxclick)
 				{
 				case 1:
-					if (driveclick_loadresource (drvs[i], currprefs.dfxclick[i]))
+					if (driveclick_loadresource (drvs[i], fs->dfxclick))
 						v = 3;
 					for (j = 0; j < CLICK_TRACKS; j++)
 						drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 					wave_initialized = 1;
 					break;
 				default:
-					if (driveclick_fdrawcmd_open (currprefs.dfxclick[i] - 2))
+					if (driveclick_fdrawcmd_open (fs->dfxclick - 2))
 						v = 1;
 					break;
 				}
-			} else if (currprefs.dfxclick[i] == -1) {
+			} else if (fs->dfxclick == -1) {
 				TCHAR path2[MAX_DPATH];
 				wave_initialized = 1;
 				for (j = 0; j < CLICK_TRACKS; j++)
 					drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
 				get_plugin_path (path2, sizeof path2 / sizeof (TCHAR), L"floppysounds");
 				_stprintf (tmp, L"%sdrive_click_%s",
-					path2, currprefs.dfxclickexternal[i]);
+					path2, fs->dfxclickexternal);
 				v = loadsample (tmp, &drvs[i][DS_CLICK]);
 				if (v)
 					processclicks (&drvs[i][DS_CLICK]);
 				_stprintf (tmp, L"%sdrive_spin_%s",
-					path2, currprefs.dfxclickexternal[i]);
+					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SPIN]);
 				_stprintf (tmp, L"%sdrive_spinnd_%s",
-					path2, currprefs.dfxclickexternal[i]);
+					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SPINND]);
 				_stprintf (tmp, L"%sdrive_startup_%s",
-					path2, currprefs.dfxclickexternal[i]);
+					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_START]);
 				_stprintf (tmp, L"%sdrive_snatch_%s",
-					path2, currprefs.dfxclickexternal[i]);
+					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 			}
 			if (v == 0) {
 				int j;
 				for (j = 0; j < DS_END; j++)
 					freesample (&drvs[i][j]);
-				currprefs.dfxclick[i] = changed_prefs.dfxclick[i] = 0;
+				fs->dfxclick = changed_prefs.floppyslots[i].dfxclick = 0;
 			} else {
 				vv++;
 			}
@@ -239,7 +240,7 @@ static int driveclick_active (void)
 {
 	int i;
 	for (i = 0; i < 4; i++) {
-		if (currprefs.dfxclick[i]) {
+		if (currprefs.floppyslots[i].dfxclick) {
 			if (drv_spinning[i] || drv_starting[i])
 				return 1;
 		}
@@ -253,7 +254,7 @@ STATIC_INLINE uae_s16 getsample (void)
 	int div = 0, i;
 
 	for (i = 0; i < 4; i++) {
-		if (currprefs.dfxclick[i]) {
+		if (currprefs.floppyslots[i].dfxclick) {
 			struct drvsample *ds_start = &drvs[i][DS_START];
 			struct drvsample *ds_spin = drv_has_disk[i] ? &drvs[i][DS_SPIN] : &drvs[i][DS_SPINND];
 			struct drvsample *ds_click = &drvs[i][DS_CLICK];
@@ -422,14 +423,14 @@ void driveclick_click (int drive, int cyl)
 
 	if (!click_initialized)
 		return;
-	if (!currprefs.dfxclick[drive])
+	if (!currprefs.floppyslots[drive].dfxclick)
 		return;
 	if (prevcyl[drive] == 0 && cyl == 0) // "noclick" check
 		return;
 	dr_audio_activate ();
 	prevcyl[drive] = cyl;
 	if (!wave_initialized) {
-		driveclick_fdrawcmd_seek (currprefs.dfxclick[drive] - 2, cyl);
+		driveclick_fdrawcmd_seek (currprefs.floppyslots[drive].dfxclick - 2, cyl);
 		return;
 	}
 	mix ();
@@ -441,10 +442,10 @@ void driveclick_motor (int drive, int running)
 {
 	if (!click_initialized)
 		return;
-	if (!currprefs.dfxclick[drive])
+	if (!currprefs.floppyslots[drive].dfxclick)
 		return;
 	if (!wave_initialized) {
-		driveclick_fdrawcmd_motor (currprefs.dfxclick[drive] - 2, running);
+		driveclick_fdrawcmd_motor (currprefs.floppyslots[drive].dfxclick - 2, running);
 		return;
 	}
 	mix ();
@@ -471,7 +472,7 @@ void driveclick_insert (int drive, int eject)
 		return;
 	if (!wave_initialized)
 		return;
-	if (!currprefs.dfxclick[drive])
+	if (!currprefs.floppyslots[drive].dfxclick)
 		return;
 	if (eject)
 		drv_has_spun[drive] = 0;
@@ -490,19 +491,19 @@ void driveclick_check_prefs (void)
 	if (driveclick_active ())
 		dr_audio_activate ();
 	if (currprefs.dfxclickvolume != changed_prefs.dfxclickvolume ||
-		currprefs.dfxclick[0] != changed_prefs.dfxclick[0] ||
-		currprefs.dfxclick[1] != changed_prefs.dfxclick[1] ||
-		currprefs.dfxclick[2] != changed_prefs.dfxclick[2] ||
-		currprefs.dfxclick[3] != changed_prefs.dfxclick[3] ||
-		_tcscmp (currprefs.dfxclickexternal[0], changed_prefs.dfxclickexternal[0]) ||
-		_tcscmp (currprefs.dfxclickexternal[1], changed_prefs.dfxclickexternal[1]) ||
-		_tcscmp (currprefs.dfxclickexternal[2], changed_prefs.dfxclickexternal[2]) ||
-		_tcscmp (currprefs.dfxclickexternal[3], changed_prefs.dfxclickexternal[3]))
+		currprefs.floppyslots[0].dfxclick != changed_prefs.floppyslots[0].dfxclick ||
+		currprefs.floppyslots[1].dfxclick != changed_prefs.floppyslots[1].dfxclick ||
+		currprefs.floppyslots[2].dfxclick != changed_prefs.floppyslots[2].dfxclick ||
+		currprefs.floppyslots[3].dfxclick != changed_prefs.floppyslots[3].dfxclick ||
+		_tcscmp (currprefs.floppyslots[0].dfxclickexternal, changed_prefs.floppyslots[0].dfxclickexternal) ||
+		_tcscmp (currprefs.floppyslots[1].dfxclickexternal, changed_prefs.floppyslots[1].dfxclickexternal) ||
+		_tcscmp (currprefs.floppyslots[2].dfxclickexternal, changed_prefs.floppyslots[2].dfxclickexternal) ||
+		_tcscmp (currprefs.floppyslots[3].dfxclickexternal, changed_prefs.floppyslots[3].dfxclickexternal))
 	{
 		currprefs.dfxclickvolume = changed_prefs.dfxclickvolume;
 		for (i = 0; i < 4; i++) {
-			currprefs.dfxclick[i] = changed_prefs.dfxclick[i];
-			_tcscpy (currprefs.dfxclickexternal[i], changed_prefs.dfxclickexternal[i]);
+			currprefs.floppyslots[i].dfxclick = changed_prefs.floppyslots[i].dfxclick;
+			_tcscpy (currprefs.floppyslots[i].dfxclickexternal, changed_prefs.floppyslots[i].dfxclickexternal);
 		}
 		driveclick_init ();
 	}

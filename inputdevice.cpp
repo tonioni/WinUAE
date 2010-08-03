@@ -2226,7 +2226,7 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 		uae_u8 but = 0x40 << i;
 		uae_u16 p5dir = 0x0200 << (i * 4); /* output enable P5 */
 		uae_u16 p5dat = 0x0100 << (i * 4); /* data P5 */
-		if (!(potgo_value & p5dir) || !(potgo_value & p5dat)) {
+		if (cd32padmode (p5dir, p5dat)) {
 			if ((dra & but) && (pra & but) != oldstate[i]) {
 				if (!(pra & but)) {
 					cd32_shifter[i]--;
@@ -2714,7 +2714,7 @@ void inputdevice_handle_inputcode (void)
 	case AKS_DISKSWAPPER_INSERT1:
 	case AKS_DISKSWAPPER_INSERT2:
 	case AKS_DISKSWAPPER_INSERT3:
-		_tcscpy (changed_prefs.df[code - AKS_DISKSWAPPER_INSERT0], currprefs.dfxlist[swapperslot]);
+		_tcscpy (changed_prefs.floppyslots[code - AKS_DISKSWAPPER_INSERT0].df, currprefs.dfxlist[swapperslot]);
 		config_changed = 1;
 		break;
 

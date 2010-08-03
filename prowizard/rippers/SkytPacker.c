@@ -60,7 +60,7 @@ void Rip_SKYT ( void )
   Save_Rip ( "SKYT Packed module", SKYT_packer );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 261); /* 260 could be enough */
+    PW_i += 257;
 }
 
 
@@ -80,18 +80,21 @@ void Rip_SKYT ( void )
  *     (thx to Thomas Neumann)
  * 29 Nov 2003 : Update
  *   - another bug removed :(.
+ * 2 Aug 2010 : 
+ *   - cleaned up a bit
+ *   - track 0 was not correctly handled
+ * 3 Aug 2010 : 
+ *   - rewrote patternlist generation
 */
 
 void Depack_SKYT ( void )
 {
-  Uchar Pat_Pos;
-  Uchar *Whatever;
+  Uchar *Header, *Pattern;
   Uchar poss[37][2];
-  long i=0,j=0,k=0;
+  long i=0,j=0,k=0,l=0,m=0;
   long Total_Sample_Size=0;
-  long Track_Values[128][4];
-  long Track_Address;
-  long Where=PW_Start_Address;   /* main pointer to prevent fread() */
+  unsigned long ReadTrkPat[128][4], ReadPat[128];
+  long Where=PW_Start_Address;
   long Highest_Track = 0;
   FILE *out;
 
@@ -100,116 +103,148 @@ void Depack_SKYT ( void )
   if ( Save_Status == BAD )
     return;
 
-  BZERO ( Track_Values , 128*16 );
-
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  /* write title */
-  Whatever = (Uchar *) malloc (1024);
-  BZERO ( Whatever , 1024 );
-  /* title */
-  fwrite ( Whatever , 20 , 1 , out );
+  Header = (Uchar *)malloc(1084);
+  Pattern = (Uchar *)malloc(1024);
+  BZERO ( Header , 1084 );
+  BZERO ( Pattern , 1024 );
 
   /* read and write sample descriptions */
   for ( i=0 ; i<31 ; i++ )
   {
-    /*sample name*/
-    fwrite ( Whatever , 22 , 1 , out );
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
     /* write Size,Fine,Vol & Loop start */
-    fwrite ( &in_data[Where] , 6 , 1 , out );
+    Header[42+i*30] = in_data[Where];
+    Header[43+i*30] = in_data[Where+1];
+    Header[44+i*30] = in_data[Where+2];
+    Header[45+i*30] = in_data[Where+3];
+    Header[46+i*30] = in_data[Where+4];
+    Header[47+i*30] = in_data[Where+5];
+    Header[48+i*30] = in_data[Where+6];
+    Header[49+i*30] = in_data[Where+7];
     /* loop size */
-    Whatever[32] = in_data[Where+7];
     if ( (in_data[Where+6] == 0x00) && (in_data[Where+7] == 0x00) )
-      Whatever[32] = 0x01;
-    fwrite ( &in_data[Where+6] , 1 , 1 , out );
-    fwrite ( &Whatever[32] , 1 , 1 , out );
+      Header[49+i*30] = 0x01;
     Where += 8;
   }
   /*printf ( "Whole sample size : %ld\n" , Total_Sample_Size );*/
 
-  /* bypass 8 empty bytes and bypass "SKYT" ID*/
+  /* go to track addresses list */
   Where = PW_Start_Address + 260;
 
   /* pattern table lenght */
-  Pat_Pos = in_data[Where]+1;
+  Header[950] = in_data[Where]+1;
   Where += 1;
-  fwrite ( &Pat_Pos , 1 , 1 , out );
-  /*printf ( "Size of pattern list : %d\n" , Pat_Pos );*/
+  /*printf ( "Size of pattern list : %d\n" , Header[950] );*/
 
   /* write NoiseTracker byte */
-  Whatever[32] = 0x7f;
-  fwrite ( &Whatever[32] , 1 , 1 , out );
+  Header[951] = 0x7F;
 
-  /* read track numbers ... and deduce pattern list */
-  for ( i=0 ; i<Pat_Pos ; i++ )
+  /* pattern list */
+  /* those are tracks, being saved. Pattern list must be regenerated */
+  /* each track is 256 bytes (4*64 notes) */
+  for (i=0;i<Header[950];i++)
   {
-    for ( j=0 ; j<4 ; j++ )
-    {
-      Track_Values[i][j] = in_data[Where+1];
-      if ( Track_Values[i][j] > Highest_Track )
-	Highest_Track = Track_Values[i][j];
-      Where += 2;
-    }
+    ReadPat[i] = (in_data[Where+i*8+1]*256*256*256) + 
+      (in_data[Where+3+i*8]*256*256) +
+      (in_data[Where+5+i*8]*256) +
+      in_data[Where+7+i*8];
+    ReadTrkPat[i][0] = in_data[Where+i*8+1]-1;
+    ReadTrkPat[i][1] = in_data[Where+i*8+3]-1;
+    ReadTrkPat[i][2] = in_data[Where+i*8+5]-1;
+    ReadTrkPat[i][3] = in_data[Where+i*8+7]-1;
+    if ((ReadTrkPat[i][0] != 0xffffffff) && (ReadTrkPat[i][0] > Highest_Track))
+      Highest_Track = ReadTrkPat[i][0];
+    if ((ReadTrkPat[i][1] != 0xffffffff) && (ReadTrkPat[i][1] > Highest_Track))
+      Highest_Track = ReadTrkPat[i][1];
+    if ((ReadTrkPat[i][2] != 0xffffffff) && (ReadTrkPat[i][2] > Highest_Track))
+      Highest_Track = ReadTrkPat[i][2];
+    if ((ReadTrkPat[i][3] != 0xffffffff) && (ReadTrkPat[i][3] > Highest_Track))
+      Highest_Track = ReadTrkPat[i][3];
+    /*printf ("%x-%x-%x-%x\n",ReadTrkPat[i][0],ReadTrkPat[i][1],ReadTrkPat[i][2],ReadTrkPat[i][3]);*/
   }
-  /*printf ( "\nHighest track : %ld\n", Highest_Track );*/
+  /*printf ("highest track nbr : %lx\n", Highest_Track);*/
+  
+  /* sorting ?*/
+  k = 0; /* next min */
+  l = 0;
 
-  /* write pseudo pattern list */
-  for ( Whatever[0]=0x00 ; Whatever[0]<Pat_Pos ; Whatever[0]+=0x01 )
+  /* put the first pattern number */
+  /* could be stored several times */
+  for (j=0; j<Header[950] ; j++)
   {
-    fwrite ( &Whatever[0] , 1 , 1 , out );
-  }
-  Whatever[1] = 0x00;
-  while ( Whatever[0] != 128 )
-  {
-    fwrite ( &Whatever[1] , 1 , 1 , out );
-    Whatever[0] += 0x01;
+    m = 0x7fffffff; /* min */
+    /*search for min */
+    for (i=0; i<Header[950] ; i++)
+      if ((ReadPat[i]<m) && (ReadPat[i]>k))
+	    m = ReadPat[i];
+    /* if k == m then an already existing ref was found */
+    if (k==m)
+      continue;
+    /* m is the next minimum */
+    k = m;
+    for (i=0; i<Header[950] ; i++)
+      if (ReadPat[i] == k)
+	Header[952+i] = (unsigned char)l;
+    l++;
   }
 
   /* write ptk's ID */
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
-
-  /* bypass $00 unknown byte */
-  /*Where += 1;*/
+  Header[1080] = 'M';
+  Header[1081] = Header[1083] = '.';
+  Header[1082] = 'K';
+  fwrite (Header, 1084, 1, out);
 
   /* get track address */
-  Where = PW_Start_Address + 261 + (Pat_Pos*8) + 1;
-  Track_Address = Where;
-  /*printf ("Track_Address : %ld\n",Track_Address);*/
+  Where = PW_Start_Address + 261 + (Header[950]*8) + 1;
+  /*printf ("Address of 1st track : %lx\n",Where);*/
 
-
-  /* track data */
-  for ( i=0 ; i<Pat_Pos ; i++ )
+  /* l is the number of stored patterns */
+  /* rebuild pattern data now */
+  for (i=0;i<l-1;i++)
   {
-    BZERO ( Whatever , 1024 );
-    for ( j=0 ; j<4 ; j++ )
+    long min=50,max=0;
+    BZERO(Pattern,1024);
+    /* which pattern is it now ? */
+    for (j=0;j<Header[950];j++)
     {
-      /*Where = PW_Start_Address + Track_Address + (Track_Values[i][j]-1)*256;*/
-      Where = Track_Address + (Track_Values[i][j]-1)*256;
-      for ( k=0 ; k<64 ; k++ )
+      if (Header[952+j] == i)
+        break; /* found */
+    }
+    for (k=0;k<4;k++) /* loop on 4 tracks' refs*/
+    {
+      long d;
+
+      /* empty track */
+      if (ReadTrkPat[j][k] == 0xffffffff)
+        continue;
+
+      /* loop on notes */
+      for (d=0;d<64;d++)
       {
-        Whatever[k*16+j*4] = in_data[Where+1]&0xf0;
-        Whatever[k*16+j*4] |= poss[in_data[Where]][0];
-        Whatever[k*16+j*4+1] = poss[in_data[Where]][1];
-        Whatever[k*16+j*4+2] = (in_data[Where+1]<<4)&0xf0;
-        Whatever[k*16+j*4+2] |= in_data[Where+2];
-        Whatever[k*16+j*4+3] = in_data[Where+3];
-        Where += 4;
+        unsigned char note = in_data[Where+(ReadTrkPat[j][k]*256)+d*4];
+        /*if (note > 37)
+          printf ("\nbad note '%x' at %lx (ptk:%lx)(pattern:%ld)(voice:%ld)(row:%ld)(track:%lx)",
+          note, Where+(ReadTrkPat[j][k]*256)+d*4, k*4+d*16, i,k,d,ReadTrkPat[j][k]);*/
+	    Pattern[k*4+d*16] = poss[note][0];
+        Pattern[k*4+d*16+1] = poss[note][1];
+	    /* samples */
+        Pattern[k*4+d*16] |= (in_data[Where+(ReadTrkPat[j][k]*256)+d*4+1])&0xf0;
+        Pattern[k*4+d*16+2] = (in_data[Where+(ReadTrkPat[j][k]*256)+d*4+1])<<4;
+        Pattern[k*4+d*16+2] += in_data[Where+(ReadTrkPat[j][k]*256)+d*4+2];
+        Pattern[k*4+d*16+3] = in_data[Where+(ReadTrkPat[j][k]*256)+d*4+3];
       }
     }
-    fwrite ( Whatever , 1024 , 1 , out );
-    /*printf ( "+" );*/
+    fwrite ( Pattern , 1024 , 1 , out );
   }
-  free ( Whatever );
-  /*printf ( "\n" );*/
+  free ( Pattern );
+  free ( Header );
 
   /* sample data */
-  Where = Track_Address + Highest_Track*256;
+  Where += (Highest_Track+1)*256;
+  /*printf ("address of sample data : %ld\n",Where);*/
   fwrite ( &in_data[Where] , Total_Sample_Size , 1 , out );
 
   /* crap */

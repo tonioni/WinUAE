@@ -347,8 +347,10 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 		fetch_path (L"ScreenshotPath", path, sizeof (path) / sizeof (TCHAR));
 		CreateDirectory (path, NULL);
 		name[0] = 0;
-		if (currprefs.dfxtype[0] >= 0)
-			_tcscpy (name, currprefs.df[0]);
+		if (currprefs.floppyslots[0].dfxtype >= 0)
+			_tcscpy (name, currprefs.floppyslots[0].df);
+		else if (currprefs.cdslots[0].inuse)
+			_tcscpy (name, currprefs.cdslots[0].name);
 		if (!name[0])
 			underline[0] = 0;
 		namesplit (name);

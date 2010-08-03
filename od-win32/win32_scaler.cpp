@@ -20,19 +20,23 @@
 
 struct uae_filter uaefilters[] =
 {
-	{ UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+	{ UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
-	{ UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+	{ UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
-	{ UAE_FILTER_HQ, 0, 2, L"hq2x/3x/4x", L"hqx", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_HQ2X, 0, 2, L"hq2x", L"hq2x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, },
 
-	{ UAE_FILTER_SUPEREAGLE, 0, 2, L"SuperEagle", L"supereagle", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+	{ UAE_FILTER_HQ3X, 0, 3, L"hq3x", L"hq3x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_SUPER2XSAI, 0, 2, L"Super2xSaI", L"super2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+	{ UAE_FILTER_HQ4X, 0, 4, L"hq4x", L"hq4x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_2XSAI, 0, 2, L"2xSaI", L"2xsai", 0, 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, 0, 0 },
+	{ UAE_FILTER_SUPEREAGLE, 0, 2, L"SuperEagle", L"supereagle", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_PAL, 1, 1, L"PAL", L"pal", 0, UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32, 0, 0, 0 },
+	{ UAE_FILTER_SUPER2XSAI, 0, 2, L"Super2xSaI", L"super2xsai", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+
+	{ UAE_FILTER_2XSAI, 0, 2, L"2xSaI", L"2xsai", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+
+	{ UAE_FILTER_PAL, 1, 1, L"PAL", L"pal", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
 	{ 0 }
 };
@@ -107,7 +111,7 @@ static int vblscale2 (int v)
 static void fixh (int *ah, int *th)
 {
 	if (!(beamcon0 & 0x80)) {
-		int max = (572 / 2) << currprefs.gfx_vresolution;
+		int max = ((572 / 2) * scale) << currprefs.gfx_vresolution;
 		if (*ah > max)
 			*ah = max;
 		if (*th > max)
@@ -508,9 +512,10 @@ void S2X_free (void)
 	filteroffsety = 0;
 	filterxmult = 1000;
 	filterymult = 1000;
+	scale = 1;
 }
 
-void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
+void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 {
 	int flags = 0;
 	int res_shift;
@@ -530,12 +535,13 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 
 	if (!currprefs.gfx_filter || !usedfilter) {
 		usedfilter = &uaefilters[0];
-		mult = 1;
-	} else if (mult) {
-		flags = usedfilter->x[mult];
+		scale = 1;
+	} else {
+		scale = usedfilter->intmul;
+		flags = usedfilter->flags;
 		if ((ad == 16 && !(flags & UAE_FILTER_MODE_16)) || (ad == 32 && !(flags & UAE_FILTER_MODE_32))) {
 			usedfilter = &uaefilters[0];
-			mult = 1;
+			scale = 1;
 			changed_prefs.gfx_filter = usedfilter->type;
 		}
 	}
@@ -553,11 +559,13 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 	amiga_width = aw;
 	amiga_height = ah;
 	amiga_depth = ad;
-	scale = mult;
 
 	if (d3d) {
-		temp_width = dst_width * mult;
-		temp_height = dst_height * mult;
+		int m = currprefs.gfx_filter_filtermode + 1;
+		if (m < scale)
+			m = scale;
+		temp_width = dst_width * m;
+		temp_height = dst_height * m;
 	} else {
 		temp_width = dst_width * 3;
 		if (temp_width > dxcaps.maxwidth)
@@ -571,7 +579,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd)
 			temp_height = dst_height;
 	}
 
-	if (usedfilter->type == UAE_FILTER_HQ) {
+	if (usedfilter->type == UAE_FILTER_HQ2X || usedfilter->type == UAE_FILTER_HQ3X || usedfilter->type == UAE_FILTER_HQ4X) {
 		int w = amiga_width > dst_width ? amiga_width : dst_width;
 		int h = amiga_height > dst_height ? amiga_height : dst_height;
 		tempsurf2 = xmalloc (uae_u8, w * h * (amiga_depth / 8) * ((scale + 1) / 2));
@@ -648,7 +656,7 @@ void S2X_render (void)
 			ok = 1;
 		}
 
-	} else if (usedfilter->type == UAE_FILTER_HQ) { /* 32/2X+3X+4X */
+	} else if (usedfilter->type == UAE_FILTER_HQ2X || usedfilter->type == UAE_FILTER_HQ3X || usedfilter->type == UAE_FILTER_HQ4X) { /* 32/2X+3X+4X */
 
 #ifndef CPU_64_BIT
 
@@ -664,19 +672,19 @@ void S2X_render (void)
 				sptr += gfxvidinfo.rowbytes;
 			}
 			if (amiga_depth == 16 && dst_depth == 32) {
-				if (scale == 2)
+				if (usedfilter->type == UAE_FILTER_HQ2X)
 					hq2x_32 (tempsurf2, tempsurf3, aw, ah, aws * 4);
-				else if (scale == 3)
+				else if (usedfilter->type == UAE_FILTER_HQ3X)
 					hq3x_32 (tempsurf2, tempsurf3, aw, ah, aws * 4);
-				else if (scale == 4)
+				else if (usedfilter->type == UAE_FILTER_HQ4X)
 					hq4x_32 (tempsurf2, tempsurf3, aw, ah, aws * 4);
 				ok = 1;
 			} else if (amiga_depth == 16 && dst_depth == 16) {
-				if (scale == 2)
+				if (usedfilter->type == UAE_FILTER_HQ2X)
 					hq2x_16 (tempsurf2, tempsurf3, aw, ah, aws * 2);
-				else if (scale == 3)
+				else if (usedfilter->type == UAE_FILTER_HQ3X)
 					hq3x_16 (tempsurf2, tempsurf3, aw, ah, aws * 2);
-				else if (scale == 4)
+				else if (usedfilter->type == UAE_FILTER_HQ4X)
 					hq4x_16 (tempsurf2, tempsurf3, aw, ah, aws * 2);
 				ok = 1;
 			}
@@ -781,26 +789,9 @@ void S2X_refresh (void)
 
 int S2X_getmult (void)
 {
-	int j, i;
-
 	if (!usedfilter)
 		return 1;
-	j = 0;
-	for (i = 1; i <= 4; i++) {
-		if (usedfilter->x[i])
-			j++;
-	}
-	i = currprefs.gfx_filter_filtermode;
-	if (i >= j)
-		i = 0;
-	j = 0;
-	while (i >= 0) {
-		while (!usedfilter->x[j])
-			j++;
-		if(i-- > 0)
-			j++;
-	}
-	return j;
+	return usedfilter->intmul;
 }
 
 #endif

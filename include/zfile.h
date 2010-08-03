@@ -101,6 +101,7 @@ extern const TCHAR *uae_ignoreextensions[];
 extern const TCHAR *uae_diskimageextensions[];
 
 extern struct zvolume *zfile_fopen_archive (const TCHAR *filename);
+extern struct zvolume *zfile_fopen_archive (const TCHAR *filename, bool norecurse);
 extern struct zvolume *zfile_fopen_archive_root (const TCHAR *filename);
 extern void zfile_fclose_archive (struct zvolume *zv);
 extern int zfile_fs_usage_archive (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp);
@@ -108,6 +109,7 @@ extern int zfile_stat_archive (const TCHAR *path, struct _stat64 *statbuf);
 extern struct zdirectory *zfile_opendir_archive (const TCHAR *path);
 extern void zfile_closedir_archive (struct zdirectory *);
 extern int zfile_readdir_archive (struct zdirectory *, TCHAR*);
+extern int zfile_readdir_archive (struct zdirectory *, TCHAR*, bool fullpath);
 extern void zfile_resetdir_archive (struct zdirectory *);
 extern int zfile_fill_file_attrs_archive (const TCHAR *path, int *isdir, int *flags, TCHAR **comment);
 extern uae_s64 zfile_lseek_archive (struct zfile *d, uae_s64 offset, int whence);

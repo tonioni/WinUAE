@@ -309,10 +309,10 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->nr_floppies < 0 || p->nr_floppies > 4) {
 		write_log (L"Invalid number of floppies.  Using 4.\n");
 		p->nr_floppies = 4;
-		p->dfxtype[0] = 0;
-		p->dfxtype[1] = 0;
-		p->dfxtype[2] = 0;
-		p->dfxtype[3] = 0;
+		p->floppyslots[0].dfxtype = 0;
+		p->floppyslots[1].dfxtype = 0;
+		p->floppyslots[2].dfxtype = 0;
+		p->floppyslots[3].dfxtype = 0;
 		err = 1;
 	}
 	if (p->floppy_speed > 0 && p->floppy_speed < 10) {

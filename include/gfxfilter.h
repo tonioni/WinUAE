@@ -7,7 +7,7 @@ typedef unsigned long u32;
 
 extern void S2X_refresh (void);
 extern void S2X_render (void);
-extern void S2X_init (int dw, int dh, int aw, int ah, int mult, int ad, int dd);
+extern void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd);
 extern void S2X_free (void);
 extern int S2X_getmult (void);
 
@@ -49,12 +49,14 @@ extern "C"
 
 #define UAE_FILTER_NULL 1
 #define UAE_FILTER_SCALE2X 2
-#define UAE_FILTER_HQ 3
-#define UAE_FILTER_SUPEREAGLE 4
-#define UAE_FILTER_SUPER2XSAI 5
-#define UAE_FILTER_2XSAI 6
-#define UAE_FILTER_PAL 7
-#define UAE_FILTER_LAST 7
+#define UAE_FILTER_HQ2X 3
+#define UAE_FILTER_HQ3X 4
+#define UAE_FILTER_HQ4X 5
+#define UAE_FILTER_SUPEREAGLE 6
+#define UAE_FILTER_SUPER2XSAI 7
+#define UAE_FILTER_2XSAI 8
+#define UAE_FILTER_PAL 9
+#define UAE_FILTER_LAST 9
 
 #define UAE_FILTER_MODE_16 16
 #define UAE_FILTER_MODE_16_16 16
@@ -68,7 +70,7 @@ struct uae_filter
 {
     int type, yuv, intmul;
     TCHAR *name, *cfgname;
-    int x[6];
+    int flags;
 };
 
 extern struct uae_filter uaefilters[];

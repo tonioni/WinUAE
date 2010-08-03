@@ -1100,11 +1100,9 @@ static void updatemodes (void)
 		flags |= DM_W_FULLSCREEN;
 #if defined (GFXFILTER)
 	if (usedfilter) {
-		if (!usedfilter->x[0]) {
-			flags |= DM_SWSCALE;
-			if (currentmode->current_depth < 15)
-				currentmode->current_depth = 16;
-		}
+		flags |= DM_SWSCALE;
+		if (currentmode->current_depth < 15)
+			currentmode->current_depth = 16;
 	}
 #endif
 	if (currprefs.gfx_api) {
@@ -2367,7 +2365,6 @@ static BOOL doInit (void)
 	RGBFTYPE colortype;
 	int tmp_depth;
 	int ret = 0;
-	int mult = 0;
 
 	if (wasfullwindow_a == 0)
 		wasfullwindow_a = currprefs.gfx_afullscreen == GFX_FULLWINDOW ? 1 : -1;
@@ -2444,11 +2441,10 @@ static BOOL doInit (void)
 				if (currentmode->amiga_height > 960)
 					currentmode->amiga_height = 960;
 				if (usedfilter) {
-					mult = S2X_getmult ();
-					if ((usedfilter->x[mult] & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {
+					if ((usedfilter->flags & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {
 						currentmode->current_depth = currentmode->native_depth;
 					} else {
-						currentmode->current_depth = (usedfilter->x[mult] & UAE_FILTER_MODE_32) ? 32 : 16;
+						currentmode->current_depth = (usedfilter->flags & UAE_FILTER_MODE_32) ? 32 : 16;
 					}
 				}
 				currentmode->pitch = currentmode->amiga_width * currentmode->current_depth >> 3;
@@ -2523,12 +2519,12 @@ static BOOL doInit (void)
 	if (currentmode->flags & DM_SWSCALE) {
 		S2X_init (currentmode->native_width, currentmode->native_height,
 			currentmode->amiga_width, currentmode->amiga_height,
-			mult, currentmode->current_depth, currentmode->native_depth);
+			currentmode->current_depth, currentmode->native_depth);
 	}
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
-			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth);
+			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth, currprefs.gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free ();
 			gui_message (err);

@@ -198,7 +198,7 @@ static uae_u32 emulib_InsertDisk (uaecptr name, uae_u32 drive)
 		return 0; /* ENAMETOOLONG */
 
 	s = au (real_name);
-	_tcscpy (changed_prefs.df[drive], s);
+	_tcscpy (changed_prefs.floppyslots[drive].df, s);
 	xfree (s);
 
 	return 1;
@@ -246,7 +246,7 @@ static uae_u32 emulib_GetUaeConfig (uaecptr place)
 		put_byte (place + 35, 1);
 
 	for (j = 0; j < 4; j++) {
-		char *s = ua (currprefs.df[j]);
+		char *s = ua (currprefs.floppyslots[j].df);
 		for (i = 0; i < 256; i++)
 			put_byte (place + 36 + i + j * 256, s[i]);
 		xfree (s);
@@ -273,8 +273,8 @@ static uae_u32 emulib_GetDisk (uae_u32 drive, uaecptr name)
 	if (drive > 3)
 		return 0;
 
-	for (i = 0;i < 256; i++) {
-		put_byte (name + i, currprefs.df[drive][i]);
+	for (i = 0; i < 256; i++) {
+		put_byte (name + i, currprefs.floppyslots[drive].df[i]);
 	}
 	return 1;
 }

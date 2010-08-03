@@ -5620,9 +5620,9 @@ static void hsync_handler (void)
 	}
 	while (input_recording < 0 && inprec_pstart (INPREC_DISKINSERT)) {
 		int drv = inprec_pu8 ();
-		inprec_pstr (currprefs.df[drv]);
-		_tcscpy (changed_prefs.df[drv], currprefs.df[drv]);
-		disk_insert_force (drv, currprefs.df[drv]);
+		inprec_pstr (currprefs.floppyslots[drv].df);
+		_tcscpy (changed_prefs.floppyslots[drv].df, currprefs.floppyslots[drv].df);
+		disk_insert_force (drv, currprefs.floppyslots[drv].df);
 		inprec_pend ();
 	}
 

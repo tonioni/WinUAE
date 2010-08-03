@@ -1,4 +1,26 @@
 
+- when attempting to play CD32 data track: return normal "playing" status and "play ended
+  with error" flag in next status packet (Mission Impossible 2025 CD32)
+- return error status when CD32 qcode command packet is received and currently played CD
+  audio track is about to change (jumping "laser" in CD32 built-in CD player)
+- new D3D filter stupid design fault corrected, all 2x or higher D3D shader filters had
+  bad image quality because both internal source and destination textures had identical
+  size..
+- select box next to filter name is now D3D shader filter supersampling mode,
+  1x = normal, 2x = internal texture is twice the size of display etc.. Big texture
+  support required, makes some shader filters look more smoother when combined with
+  bilinear filtering (for example hq2x)
+- crash when entering or exiting GUI when ASPI SCSI mode enabled (b6)
+- cd32 pad shift register should stay in reset state in 2-button mode (F17 Challenge CD32)
+- added cd insert/eject to systray menu
+- added configuration file delayed cd insert, add "delay" to end of path ("cdimage0=<path>,delay"),
+  waits 3 seconds before inserting the cd, workaround for stupid CD32 games that only work
+  if CD is inserted after boot screen (F17 Challenge and Last Ninja 3, maybe others)
+- fixed cue+mp3 size detection if mp3 frames included checksum data
+- only accept 8 or 32-bit Windows clipboard image input (instead of crashing..)
+- diskswapper and floppy/quickstart archive dragndrop: add all disk images inside the
+  archive (I don't know why this was done ages ago..)
+
 Beta 8:
 
 - GUI configuration panel crash fix (b7)
@@ -7,7 +29,7 @@ Beta 8:
 - removed obsolete 15-bit fullscreen mode support code
 - statefile restore failed if rarely used 68020 M status register bit was set
 - added protection against starting new transparent clipboard conversion
-  if previous hasn't fully finished yet
+  if previous operation has not finished yet
 
 Beta 7:
 

@@ -73,7 +73,15 @@ struct cdslot
 {
 	TCHAR name[MAX_DPATH];
 	bool inuse;
+	bool delayed;
 	int type;
+};
+struct floppyslot
+{
+	TCHAR df[MAX_DPATH];
+	int dfxtype;
+	int dfxclick;
+	TCHAR dfxclickexternal[256];
 };
 
 struct wh {
@@ -276,8 +284,6 @@ struct uae_prefs {
 	bool cs_dipagnus;
 	bool cs_agnusbltbusybug;
 
-	TCHAR df[4][MAX_DPATH];
-	TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];
 	TCHAR romextfile[MAX_DPATH];
@@ -332,9 +338,8 @@ struct uae_prefs {
 	struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
 
 	int nr_floppies;
-	int dfxtype[4];
-	int dfxclick[4];
-	TCHAR dfxclickexternal[4][256];
+	struct floppyslot floppyslots[4];
+	TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
 	int dfxclickvolume;
 	int dfxclickchannelmask;
 

@@ -40,7 +40,7 @@ void consolehook_config (struct uae_prefs *p)
 	p->fastmem_size = 0x00800000;
 	p->bogomem_size = 0;
 	p->nr_floppies = 1;
-	p->dfxtype[1] = DRV_NONE;
+	p->floppyslots[1].dfxtype = DRV_NONE;
 	p->floppy_speed = 0;
 	p->start_gui = 0;
 	p->gfx_size_win.width = 320;

@@ -805,7 +805,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	/* floppy drives */
 	floppy_mask = 0;
 	for (i = 0; i < 4; i++) {
-		if (p->dfxtype[i] >= 0)
+		if (p->floppyslots[i].dfxtype >= 0)
 			floppy_mask |= 1 << i;
 	}
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);

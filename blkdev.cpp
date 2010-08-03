@@ -20,11 +20,14 @@
 #include "rp.h"
 #endif
 
+#define PRE_INSERT_DELAY (3 * (currprefs.ntscmode ? 60 : 50))
+
 static int scsiemu[MAX_TOTAL_SCSI_DEVICES];
 
 static struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
 static int openlist[MAX_TOTAL_SCSI_DEVICES];
 static int waspaused[MAX_TOTAL_SCSI_DEVICES], wasslow[MAX_TOTAL_SCSI_DEVICES];
+static int delayed[MAX_TOTAL_SCSI_DEVICES];
 
 /* convert minutes, seconds and frames -> logical sector number */
 int msf2lsn (int msf)
@@ -232,9 +235,50 @@ static int sys_command_open_internal (int unitnum, const TCHAR *ident, cd_standa
 	return ret;
 }
 
-int get_standard_cd_unit (enum cd_standard_unit csu)
+static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaudio)
+{
+	struct device_info di;
+	if (sys_command_info (unitnum, &di, 0)) {
+		write_log (L"Scanning drive %s: ", di.label);
+		if (di.media_inserted) {
+			if (isaudiotrack (&di.toc, 0)) {
+				if (*isaudio == 0)
+					*isaudio = drive;
+				write_log (L"CDA");
+			}
+			uae_u8 buffer[2048];
+			if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
+				if (!memcmp (buffer + 8, "CDTV", 4) || !memcmp (buffer + 8, "CD32", 4)) {
+					uae_u32 crc;
+					write_log (L"CD32 or CDTV");
+					if (sys_command_cd_read (unitnum, buffer, 21, 1)) {
+						crc = get_crc32 (buffer, sizeof buffer);
+						if (crc == 0xe56c340f) {
+							write_log (L" [CD32.TM]");
+							if (csu == CD_STANDARD_UNIT_CD32) {
+								write_log (L"\n");
+								return 1;
+							}
+						}
+					}
+					if (csu == CD_STANDARD_UNIT_CDTV || csu == CD_STANDARD_UNIT_CD32) {
+						write_log (L"\n");
+						return 1;
+					}
+				}
+			}
+		} else {
+			write_log (L"no media");
+		}
+	}
+	write_log (L"\n");
+	return 0;
+}
+
+static int get_standard_cd_unit2 (cd_standard_unit csu)
 {
 	int unitnum = 0;
+	int isaudio = 0;
 	if (currprefs.cdslots[unitnum].name[0] || currprefs.cdslots[unitnum].inuse) {
 		device_func_init (SCSI_UNIT_IOCTL);
 		if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu)) {
@@ -242,9 +286,9 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 			if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu))
 				goto fallback;
 		}
+		getunitinfo (unitnum, 0, csu, &isaudio);
 		return unitnum;
 	}
-	int isaudio = 0;
 	device_func_init (SCSI_UNIT_IOCTL);
 	for (int drive = 'C'; drive <= 'Z'; ++drive) {
 		TCHAR vol[100];
@@ -252,41 +296,8 @@ int get_standard_cd_unit (enum cd_standard_unit csu)
 		int drivetype = GetDriveType (vol);
 		if (drivetype == DRIVE_CDROM) {
 			if (sys_command_open_internal (unitnum, vol, csu)) {
-				struct device_info di;
-				write_log (L"Scanning drive %s: ", vol);
-				if (sys_command_info (unitnum, &di, 0)) {
-					if (di.media_inserted) {
-						if (isaudiotrack (&di.toc, 0)) {
-							if (isaudio == 0)
-								isaudio = drive;
-							write_log (L"CDA");
-						}
-						uae_u8 buffer[2048];
-						if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
-							if (!memcmp (buffer + 8, "CDTV", 4) || !memcmp (buffer + 8, "CD32", 4)) {
-								uae_u32 crc;
-								write_log (L"CD32 or CDTV");
-								if (sys_command_cd_read (unitnum, buffer, 21, 1)) {
-									crc = get_crc32 (buffer, sizeof buffer);
-									if (crc == 0xe56c340f) {
-										write_log (L" [CD32.TM]");
-										if (csu == CD_STANDARD_UNIT_CD32) {
-											write_log (L"\n");
-											return unitnum;
-										}
-									}
-								}
-								if (csu == CD_STANDARD_UNIT_CDTV || csu == CD_STANDARD_UNIT_CD32) {
-									write_log (L"\n");
-									return unitnum;
-								}
-							}
-						}
-					} else {
-						write_log (L"no media");
-					}
-				}
-				write_log (L"\n");
+				if (getunitinfo (unitnum, drive, csu, &isaudio))
+					return unitnum;
 				sys_command_close (unitnum);
 			}
 		}
@@ -305,6 +316,19 @@ fallback:
 	}
 	return unitnum;
 }
+
+int get_standard_cd_unit (cd_standard_unit csu)
+{
+	int unitnum = get_standard_cd_unit2 (csu);
+	if (unitnum < 0)
+		return -1;
+	delayed[unitnum] = 0;
+	if (currprefs.cdslots[unitnum].delayed) {
+		delayed[unitnum] = PRE_INSERT_DELAY;
+	}
+	return unitnum;
+}
+
 void close_standard_cd_unit (int unitnum)
 {
 	sys_command_close (unitnum);
@@ -389,6 +413,16 @@ static bool cdimagefileinuse[MAX_TOTAL_SCSI_DEVICES], wasopen[MAX_TOTAL_SCSI_DEV
 static void check_changes (int unitnum)
 {
 	bool changed = false;
+
+	if (device_func[unitnum] == NULL)
+		return;
+
+	if (delayed[unitnum]) {
+		delayed[unitnum]--;
+		if (delayed[unitnum] == 0)
+			write_log (L"CD: startup delayed insert '%s'\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>");
+		return;
+	}
 
 	if (_tcscmp (changed_prefs.cdslots[unitnum].name, currprefs.cdslots[unitnum].name) != 0)
 		changed = true;
@@ -676,6 +710,8 @@ int sys_command_ismedia (int unitnum, int quick)
 {
 	if (failunit (unitnum))
 		return -1;
+	if (delayed[unitnum])
+		return 0;
 	if (device_func[unitnum] == NULL) {
 		uae_u8 cmd[6] = { 0, 0, 0, 0, 0, 0 };
 		return do_scsi (unitnum, cmd, sizeof cmd);
@@ -688,7 +724,10 @@ struct device_info *sys_command_info (int unitnum, struct device_info *di, int q
 {
 	if (failunit (unitnum))
 		return NULL;
-	return device_func[unitnum]->info (unitnum, di, quick);
+	struct device_info *di2 = device_func[unitnum]->info (unitnum, di, quick);
+	if (di2 && delayed[unitnum])
+		di2->media_inserted = 0;
+	return di2;
 }
 
 #define MODE_SELECT_6 0x15

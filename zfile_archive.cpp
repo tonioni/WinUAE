@@ -25,6 +25,9 @@
 #include <zlib.h>
 
 #define unpack_log write_log
+#undef unpack_log
+#define unpack_log
+
 
 static time_t fromdostime (uae_u32 dd)
 {

@@ -518,7 +518,7 @@ static void ShowBreakpoints(void)
 	for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 		if (!bpnodes[i].enabled)
 			continue;
-		m68k_disasm_2(outbp, sizeof(outbp), bpnodes[i].addr, NULL, 1, NULL, NULL, 0);
+		m68k_disasm_2(outbp, sizeof outbp / sizeof (TCHAR), bpnodes[i].addr, NULL, 1, NULL, NULL, 0);
 		ULBS(outbp);
 		got = 1;
 	}
@@ -531,7 +531,7 @@ static void ShowBreakpoints(void)
 	for (i = 0; i < MEMWATCH_TOTAL; i++) {
 		if (mwnodes[i].size == 0)
 			continue;
-		memwatch_dump2(outw, sizeof(outw), i);
+		memwatch_dump2(outw, sizeof outw / sizeof (TCHAR), i);
 		ULBS(outw);
 		got = 1;
 	}
@@ -620,7 +620,7 @@ static void ShowDasm(int direction)
 	lines_old = SendMessage(hDasm, LB_GETCOUNT, 0, 0);
 	lines_new = GetLBOutputLines(hDasm);
 	for (i = 0; i < lines_new; i++) {
-		m68k_disasm_2(out, sizeof(out), addr, &addr, 1, NULL, NULL, 0);
+		m68k_disasm_2(out, sizeof out / sizeof (TCHAR), addr, &addr, 1, NULL, NULL, 0);
 		if (addr > dbgpage[currpage].dasmaddr)
 			UpdateListboxString(hDasm, i, out, FALSE);
 		else

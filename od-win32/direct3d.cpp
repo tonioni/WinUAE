@@ -9,6 +9,7 @@
 
 #define EFFECT_VERSION 2
 #define D3DX9DLL L"d3dx9_43.dll"
+#define TWOPASS 1
 
 #include "options.h"
 #include "xwin.h"
@@ -64,9 +65,9 @@ static D3DXMATRIX postproj;
 static D3DXVECTOR4 maskmult, maskshift;
 
 static int ledwidth, ledheight;
-static int twidth, theight, max_texture_w, max_texture_h;
-static int tin_w, tin_h, window_h, window_w;
-static int t_depth, mult;
+static int max_texture_w, max_texture_h;
+static int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
+static int t_depth, mult, multx;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode;
 static int resetcount;
@@ -89,12 +90,12 @@ static void ddraw_fs_hack_free (void)
 	if (!ddraw_fs)
 		return;
 	if (ddraw_fs == 2)
-		IDirectDraw7_RestoreDisplayMode (ddraw);
-	hr = IDirectDraw7_SetCooperativeLevel (ddraw, d3dhwnd, DDSCL_NORMAL);
+		ddraw->RestoreDisplayMode ();
+	hr = ddraw->SetCooperativeLevel (d3dhwnd, DDSCL_NORMAL);
 	if (FAILED (hr)) {
 		write_log (L"IDirectDraw7_SetCooperativeLevel CLEAR: %s\n", DXError (hr));
 	}
-	IDirectDraw7_Release (ddraw);
+	ddraw->Release ();
 	ddraw = NULL;
 	ddraw_fs = 0;
 
@@ -115,13 +116,13 @@ static int ddraw_fs_hack_init (void)
 		return 0;
 	}
 	ddraw_fs = 1;
-	hr = IDirectDraw7_SetCooperativeLevel (ddraw, d3dhwnd, DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
+	hr = ddraw->SetCooperativeLevel (d3dhwnd, DDSCL_ALLOWREBOOT | DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
 	if (FAILED (hr)) {
 		write_log (L"IDirectDraw7_SetCooperativeLevel SET: %s\n", DXError (hr));
 		ddraw_fs_hack_free ();
 		return 0;
 	}
-	hr = IDirectDraw7_SetDisplayMode (ddraw, dpp.BackBufferWidth, dpp.BackBufferHeight, t_depth, dpp.FullScreen_RefreshRateInHz, 0);
+	hr = ddraw->SetDisplayMode (dpp.BackBufferWidth, dpp.BackBufferHeight, t_depth, dpp.FullScreen_RefreshRateInHz, 0);
 	if (FAILED (hr)) {
 		write_log (L"IDirectDraw7_SetDisplayMode: %s\n", DXError (hr));
 		ddraw_fs_hack_free ();
@@ -179,11 +180,14 @@ static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 	static TCHAR buffer[1000];
 	TCHAR *s = NULL;
 
+	buffer[0] = 0;
 	if (Errors)
 		s = au ((char*)Errors->GetBufferPointer ());
-	_tcscpy (buffer, D3D_ErrorString (hr));
+	if (hr != S_OK)
+		_tcscpy (buffer, D3D_ErrorString (hr));
 	if (s) {
-		_tcscat (buffer, L" ");
+		if (buffer[0])
+			_tcscat (buffer, L" ");
 		_tcscat (buffer, s);
 	}
 	xfree (s);
@@ -264,8 +268,12 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 		INT Depth = D3DX_DEFAULT;
 
 		hParam = effect->GetParameter (NULL, iParam);
-		effect->GetParameterDesc (hParam, &ParamDesc);
-
+		hr = effect->GetParameterDesc (hParam, &ParamDesc);
+		if (FAILED (hr)) {
+			write_log (L"GetParameterDescParm(%d) failed: %s\n", D3DHEAD, iParam, D3DX_ErrorString (hr, NULL));
+			return 0;
+		}
+		hr = S_OK;
 		if(ParamDesc.Semantic != NULL) {
 			if(ParamDesc.Class == D3DXPC_MATRIX_ROWS || ParamDesc.Class == D3DXPC_MATRIX_COLUMNS) {
 				if(strcmpi(ParamDesc.Semantic, "world") == 0)
@@ -287,7 +295,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 					m_TexelSizeEffectHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_SCALAR && ParamDesc.Type == D3DXPT_FLOAT) {
 				if(strcmpi(ParamDesc.Semantic, "SCALING") == 0)
-					effect->GetFloat(hParam, &m_scale);
+					hr = effect->GetFloat(hParam, &m_scale);
 			} else if(ParamDesc.Class == D3DXPC_OBJECT && ParamDesc.Type == D3DXPT_TEXTURE) {
 				if(strcmpi(ParamDesc.Semantic, "SOURCETEXTURE") == 0)
 					m_SourceTextureEffectHandle = hParam;
@@ -301,39 +309,52 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 				LPCSTR pstrTechnique = NULL;
 
 				if(strcmpi(ParamDesc.Semantic, "COMBINETECHNIQUE") == 0) {
-					effect->GetString(hParam, &pstrTechnique);
+					hr = effect->GetString(hParam, &pstrTechnique);
 					m_CombineTechniqueEffectHandle = effect->GetTechniqueByName(pstrTechnique);
 				}
 				else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE") == 0) {
-					effect->GetString(hParam, &pstrTechnique);
+					hr = effect->GetString(hParam, &pstrTechnique);
 					m_PreprocessTechnique1EffectHandle = effect->GetTechniqueByName(pstrTechnique);
 				}
 				else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE1") == 0) {
-					effect->GetString(hParam, &pstrTechnique);
+					hr = effect->GetString(hParam, &pstrTechnique);
 					m_PreprocessTechnique2EffectHandle = effect->GetTechniqueByName(pstrTechnique);
 				}
 				else if(strcmpi(ParamDesc.Semantic, "NAME") == 0)
-					effect->GetString(hParam, &m_strName);
+					hr = effect->GetString(hParam, &m_strName);
+			}
+			if (FAILED (hr)) {
+				write_log (L"ParamDesc.Semantic failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, NULL));
+				return 0;
 			}
 		}
 
 		for(iAnnot = 0; iAnnot < ParamDesc.Annotations; iAnnot++) {
 			hAnnot = effect->GetAnnotation (hParam, iAnnot);
-			effect->GetParameterDesc(hAnnot, &AnnotDesc);
+			hr = effect->GetParameterDesc(hAnnot, &AnnotDesc);
+			if (FAILED (hr)) {
+				write_log (L"GetParameterDescAnnot(%d) failed: %s\n", D3DHEAD, iAnnot, D3DX_ErrorString (hr, NULL));
+				return 0;
+			}
+			hr = S_OK;
 			if(strcmpi(AnnotDesc.Name, "name") == 0)
-				effect->GetString(hAnnot, &pstrName);
+				hr = effect->GetString(hAnnot, &pstrName);
 			else if(strcmpi(AnnotDesc.Name, "function") == 0)
-				effect->GetString(hAnnot, &pstrFunction);
+				hr = effect->GetString(hAnnot, &pstrFunction);
 			else if(strcmpi(AnnotDesc.Name, "target") == 0)
-				effect->GetString(hAnnot, &pstrTarget);
+				hr = effect->GetString(hAnnot, &pstrTarget);
 			else if(strcmpi(AnnotDesc.Name, "width") == 0)
-				effect->GetInt(hAnnot, &Width);
+				hr = effect->GetInt(hAnnot, &Width);
 			else if(strcmpi(AnnotDesc.Name, "height") == 0)
-				effect->GetInt(hAnnot, &Height);
+				hr = effect->GetInt(hAnnot, &Height);
 			else if(strcmpi(AnnotDesc.Name, "depth") == 0)
-				effect->GetInt(hAnnot, &Depth);
+				hr = effect->GetInt(hAnnot, &Depth);
 			else if(strcmpi(AnnotDesc.Name, "type") == 0)
-				effect->GetString(hAnnot, &pstrTextureType);
+				hr = effect->GetString(hAnnot, &pstrTextureType);
+			if (FAILED (hr)) {
+				write_log (L"GetString/GetInt(%d) failed: %s\n", D3DHEAD, iAnnot, D3DX_ErrorString (hr, NULL));
+				return 0;
+			}
 		}
 
 		if(pstrFunction != NULL) {
@@ -725,6 +746,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 			}
 		}
 	} else {
+		write_log (L"%s: Attempting to load '%s'\n", D3DHEAD, tmp);
 		hr = D3DXCreateEffectCompilerFromFile (tmp, NULL, NULL, compileflags, &EffectCompiler, &Errors);
 		if (FAILED (hr)) {
 			write_log (L"%s: D3DXCreateEffectCompilerFromFile failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
@@ -732,14 +754,21 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		}
 	}
 
+	if (Errors) {
+		write_log (L"%s: '%s' warning: %s\n", D3DHEAD, shaderfile, D3DX_ErrorString (hr, Errors));
+		Errors->Release();
+		Errors = NULL;
+	}
+
 	hr = EffectCompiler->CompileEffect (0, &BufferEffect, &Errors);
 	if (FAILED (hr)) {
 		write_log (L"%s: CompileEffect failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
 		goto end;
 	}
+	void *bp = BufferEffect->GetBufferPointer ();
+	int bplen = BufferEffect->GetBufferSize ();
 	hr = D3DXCreateEffect (d3ddev,
-		BufferEffect->GetBufferPointer (),
-		BufferEffect->GetBufferSize (),
+		bp, bplen,
 		NULL, NULL,
 		0,
 		NULL, &effect, &Errors);
@@ -747,7 +776,11 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		write_log (L"%s: D3DXCreateEffect failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
 		goto end;
 	}
-	effect->GetDesc (&EffectDesc);
+	hr = effect->GetDesc (&EffectDesc);
+	if (FAILED (hr)) {
+		write_log (L"%s: effect->GetDesc() failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
+		goto end;
+	}
 	if (full) {
 		if (!psEffect_ParseParameters (EffectCompiler, effect))
 			goto end;
@@ -1000,29 +1033,36 @@ static LPDIRECT3DTEXTURE9 createtext (int w, int h, D3DFORMAT format)
 	return t;
 }
 
-static int createtexture (int w, int h)
+static int createtexture (int iw, int ih, int ow, int oh, int win_w, int win_h)
 {
 	HRESULT hr;
 
-	texture = createtext (w, h, tformat);
+	texture = createtext (iw, ih, tformat);
 	if (!texture)
 		return 0;
-	twidth = w;
-	theight = h;
-	write_log (L"%s: %d*%d texture allocated, bits per pixel %d\n", D3DHEAD, w, h, t_depth);
+	write_log (L"%s: %d*%d texture allocated, bits per pixel %d\n", D3DHEAD, iw, ih, t_depth);
+	int w, h;
+	if (ow > win_w * multx && oh > win_h * multx) {
+		w = ow;
+		h = oh;
+	} else {
+		w = win_w * multx;
+		h = win_h * multx;
+	}
 	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1,
 			D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpTempTexture, NULL))) {
 				write_log (L"%s: Failed to create working texture1: %s\n", D3DHEAD, D3D_ErrorString (hr));
 				return 0;
 	}
+	write_log (L"%s: %d*%d working texture allocated, bits per pixel %d\n", D3DHEAD, w, h, t_depth);
 	if (psActive) {
 		D3DLOCKED_BOX lockedBox;
-		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1,
+		if (FAILED (hr = d3ddev->CreateTexture (iw, ih, 1,
 			D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
 				write_log (L"%s: Failed to create temp texture: %s\n", D3DHEAD, D3D_ErrorString (hr));
 				return 0;
 		}
-		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1,
+		if (FAILED (hr = d3ddev->CreateTexture (iw, ih, 1,
 			D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2, NULL))) {
 				write_log (L"%s: Failed to create working texture2: %s\n", D3DHEAD, D3D_ErrorString (hr));
 				return 0;
@@ -1036,7 +1076,7 @@ static int createtexture (int w, int h)
 			write_log (L"%s: Failed to lock box of volume texture: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			return 0;
 		}
-		BuildHq2xLookupTexture (w, h, w, h,  (unsigned char*)lockedBox.pBits);
+		BuildHq2xLookupTexture (w, h, iw, ih,  (unsigned char*)lockedBox.pBits);
 		lpHq2xLookupTexture->UnlockBox (0);
 
 	}
@@ -1336,7 +1376,7 @@ static void setupscenecoords (void)
 	float dw, dh;
 	static RECT sr2, dr2, zr2;
 
-	//write_log (L"%dx%d %dx%d %dx%d\n", twidth, theight, tin_w, tin_h, window_w, window_h);
+	//write_log (L"%dx%d %dx%d %dx%d\n", tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
 	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 
@@ -1357,7 +1397,6 @@ static void setupscenecoords (void)
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 
-	//write_log (L"%.1fx%.1f %.1fx%.1f\n", dw, dh, w, h);
 
 	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
@@ -1366,13 +1405,47 @@ static void setupscenecoords (void)
 		+0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
 		0);
 
-	float sw = dw * tin_w / window_w + 0.5f;
-	float sh = dh * tin_h / window_h + 0.5f;
+	float sw = dw * tin_w / window_w;
+	float sh = dh * tin_h / window_h;
 	MatrixScaling (&m_matWorld, sw, sh, 1.0f);
 
+#if 0
+
+	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
+
+	float ww = dw * tin_w / window_w;
+	float hh = dh * tin_h / window_h;
+
+	MatrixTranslation (&m_matView,
+		  -0.5f + ww / 2 - zr.left - sr.left, // - (tin_w - 2 * zr.left - w),
+		   0.5f + hh / 2- zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
+		0);
+
+	MatrixOrthoOffCenterLH (&m_matProj, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+	MatrixOrthoOffCenterLH (&m_matProj, 0, dw, 0, dh, 0.0f, 1.0f);
+
+	float mx = w / ww;
+	float my = h / hh;
+
+	MatrixTranslation (&m_matView, 0.5f - 0.5f / window_w, 0.5f + 0.5f / window_h, 0.0f);
+	MatrixTranslation (&m_matView,
+		0.5f + (dw / 2) - (zr.left - sr.left),
+		0.5f + (dh / 2) - (zr.top - (tin_h - 2 * zr.top - h) + sr.top) * 0, // <- ???
+		0);
+
+
+	MatrixScaling (&m_matWorld, ww / w * dw, hh / h * dh, 1.0f);
+#endif
+
+
+	//write_log (L"%.1fx%.1f %.1fx%.1f %.1fx%.1f\n", dw, dh, w, h, ww, hh);
+
+	float ww = dw * tin_w / window_w;
+	float hh = dh * tin_h / window_h;
+
 	// ratio between Amiga texture and overlay texture
-	maskmult.x = sw * maskmult_x / w;
-	maskmult.y = sh * maskmult_y / h;
+	maskmult.x = ww * maskmult_x / w;
+	maskmult.y = hh * maskmult_y / h;
 
 	maskshift.x = 1.0f / maskmult_x;
 	maskshift.y = 1.0f / maskmult_y;
@@ -1390,7 +1463,7 @@ uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
 	int w, h;
 
 	*depth = t_depth;
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w, tin_h, mult, tin_w, tin_h);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 	p = gfxvidinfo.bufmem;
@@ -1408,8 +1481,8 @@ static void createvertex (void)
 	struct TLVERTEX *vertices;
 	float sizex, sizey;
 
-	sizex = 1.0;
-	sizey = 1.0;
+	sizex = 1.0f;
+	sizey = 1.0f;
 	if (FAILED (hr = vertexBuffer->Lock (0, 0, (void**)&vertices, 0))) {
 		write_log (L"%s: Vertexbuffer lock failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
@@ -1448,10 +1521,14 @@ static void settransform (void)
 	// Projection is (0,0,0) -> (1,1,1)
 	MatrixOrthoOffCenterLH (&m_matPreProj, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
 	// Align texels with pixels
-	MatrixTranslation (&m_matPreView, -0.5f / twidth, 0.5f / theight, 0.0f);
+	MatrixTranslation (&m_matPreView, -0.5f / tin_w, 0.5f / tin_h, 0.0f);
 	// Identity for world
 	D3DXMatrixIdentity (&m_matPreWorld);
 	psEffect_SetMatrices (&m_matProj, &m_matView, &m_matWorld);
+
+	MatrixOrthoOffCenterLH (&m_matProj2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+	MatrixTranslation (&m_matView2, 0.5f - 0.5f / window_w, 0.5f + 0.5f / window_h, 0.0f);
+	D3DXMatrixIdentity (&m_matWorld2);
 }
 
 static void invalidatedeviceobjects (void)
@@ -1539,7 +1616,7 @@ static int restoredeviceobjects (void)
 	HRESULT hr;
 
 	invalidatedeviceobjects ();
-	while (shaderon) {
+	while (shaderon > 0) {
 		postEffect = psEffect_LoadEffect (psEnabled ? L"_winuae.fx" : L"_winuae_old.fx", false);
 		if (!postEffect) {
 			shaderon = 0;
@@ -1548,7 +1625,6 @@ static int restoredeviceobjects (void)
 		if (currprefs.gfx_filtershader[0]) {
 			if (!(pEffect = psEffect_LoadEffect (currprefs.gfx_filtershader, true))) {
 				currprefs.gfx_filtershader[0] = changed_prefs.gfx_filtershader[0] = 0;
-				shaderon = 0;
 				break;
 			}
 		}
@@ -1564,7 +1640,7 @@ static int restoredeviceobjects (void)
 
 	createmask2texture (currprefs.gfx_filteroverlay);
 
-	if (!createtexture (tin_w, tin_h))
+	if (!createtexture (tin_w, tin_h, tout_w, tout_h, window_w, window_h))
 		return 0;
 	createledtexture ();
 
@@ -1625,7 +1701,7 @@ void D3D_free (void)
 	ddraw_fs_hack_free ();
 }
 
-const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth)
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
@@ -1779,7 +1855,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 			write_log (L"%s\n", errmsg);
 			write_log (L"%s: Retrying fullscreen with DirectDraw\n", D3DHEAD);
 			if (ddraw_fs_hack_init ()) {
-				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth);
+				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 				if (err2)
 					ddraw_fs_hack_free ();
 				return err2;
@@ -1788,7 +1864,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		if (d3d_ex && D3DEX) {
 			write_log (L"%s\n", errmsg);
 			D3DEX = 0;
-			return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth);
+			return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 		}
 		D3D_free ();
 		return errmsg;
@@ -1829,20 +1905,25 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(3,0) || d3dCaps.VertexShaderVersion < D3DVS_VERSION(3,0) || !psEnabled || max_texture_w < 4096 || max_texture_h < 4096 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (L"Disabling D3D9Ex\n");
-		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth);
+		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 	}
 	if (!shaderon)
 		write_log (L"Using non-shader version\n");
 
+	multx = mmult;
 	mult = S2X_getmult ();
-	t_w *= mult;
-	t_h *= mult;
+	tin_w = t_w * mult;
+	tin_h = t_h * mult;
+	tout_w = tin_w * multx;
+	tout_h = tin_h * multx;
 
-	if (max_texture_w < t_w || max_texture_h < t_h) {
+	if (max_texture_w < w_w  || max_texture_h < w_h) {
 		_stprintf (errmsg, L"%s: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d",
 			D3DHEAD, t_w, t_h, max_texture_w, max_texture_h);
 		return errmsg;
 	}
+	while (multx > 1 && (w_w * multx > max_texture_w || w_h * multx > max_texture_h))
+		multx--;
 
 	required_sl_texture_w = w_w;
 	required_sl_texture_h = w_h;
@@ -1868,14 +1949,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	}
 	window_w = w_w;
 	window_h = w_h;
-	tin_w = t_w;
-	tin_h = t_h;
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
-
-	MatrixOrthoOffCenterLH (&m_matProj2, 0, window_w, 0, window_h, 0.0f, 1.0f);
-	MatrixTranslation (&m_matView2, -0.5f + window_w / 2, 0.5f + window_h / 2, 0);
-	MatrixScaling (&m_matWorld2, window_w, window_h, 1.0f);
 
 	if (!restoredeviceobjects ()) {
 		D3D_free ();
@@ -1971,15 +2046,13 @@ static void D3D_render22 (void)
 	if (!isd3d ())
 		return;
 
-	setupscenecoords ();
-
 	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
 
 	if (FAILED (hr = d3ddev->BeginScene ())) {
 		write_log (L"%s: BeginScene: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
-	if (shaderon && postEffect) {
+	if (shaderon > 0 && postEffect) {
 		if (psActive) {
 			LPDIRECT3DSURFACE9 lpRenderTarget;
 			LPDIRECT3DSURFACE9 lpNewRenderTarget;
@@ -2014,27 +2087,27 @@ static void D3D_render22 (void)
 					}
 					psEffect_End (pEffect);
 				}
-				if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1) {
-					lpWorkTexture = lpWorkTexture2;
-					lpNewRenderTarget->Release ();
-					lpNewRenderTarget = NULL;
-					goto pass2;
-				}
 				if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
 					write_log (L"%s: Effect RenderTarget reset failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-				lpRenderTarget->Release ();
-				lpRenderTarget = NULL;
 				lpNewRenderTarget->Release ();
 				lpNewRenderTarget = NULL;
+				if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1) {
+					lpWorkTexture = lpWorkTexture2;
+					goto pass2;
+				}
+				lpRenderTarget->Release ();
+				lpRenderTarget = NULL;
 			}
 			psEffect_SetMatrices (&m_matProj2, &m_matView2, &m_matWorld2);
 
+#if TWOPASS
 			if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))
 				write_log (L"%s: GetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			if (FAILED (hr = lpTempTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
 				write_log (L"%s: GetSurfaceLevel: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			if (FAILED (hr = d3ddev->SetRenderTarget (0, lpNewRenderTarget)))
 				write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
+#endif
 			hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, d3ddebug ? 0x80 : 0), 0, 0);
 
 			uPasses = 0;
@@ -2048,11 +2121,12 @@ static void D3D_render22 (void)
 				}
 				psEffect_End (pEffect);
 			}
-
+#if TWOPASS
 			if (FAILED (hr = d3ddev->SetRenderTarget (0, lpRenderTarget)))
 				write_log (L"%s: SetRenderTarget: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			lpNewRenderTarget->Release ();
 			lpRenderTarget->Release ();
+#endif
 			srctex = lpTempTexture;
 
 		} else {
@@ -2060,6 +2134,10 @@ static void D3D_render22 (void)
 			srctex = texture;
 
 		}
+
+	}
+#if TWOPASS
+	if (shaderon > 0 && postEffect) {
 
 		if (masktexture) {
 			if (FAILED (hr = postEffect->SetTechnique (postTechnique)))
@@ -2099,10 +2177,11 @@ static void D3D_render22 (void)
 	} else {
 
 		// non-shader version
+		setupscenecoords ();
 		hr = d3ddev->SetTransform (D3DTS_PROJECTION, &m_matProj);
 		hr = d3ddev->SetTransform (D3DTS_VIEW, &m_matView);
 		hr = d3ddev->SetTransform (D3DTS_WORLD, &m_matWorld);
-		hr = d3ddev->SetTexture (0, texture);
+		hr = d3ddev->SetTexture (0, srctex);
 		hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 0, 2);
 		int bl = currprefs.gfx_filter_bilinear ? D3DTEXF_LINEAR : D3DTEXF_POINT;
 		hr = d3ddev->SetSamplerState (0, D3DSAMP_MINFILTER, bl);
@@ -2123,7 +2202,7 @@ static void D3D_render22 (void)
 		if (cursorsurfaced3d && cursor_v) {
 			D3DXMATRIX t;
 
-			MatrixScaling (&t, ((float)(window_w) / (tin_w + 2 * cursor_offset_x)), ((float)(window_h) / (tin_h + 2 * cursor_offset_y)), 0);
+			MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset_y)), 0);
 			v.x = cursor_x + cursor_offset_x;
 			v.y = cursor_y + cursor_offset_y;
 			v.z = 0;
@@ -2185,7 +2264,7 @@ static void D3D_render22 (void)
 		}
 		sprite->End ();
 	}
-
+#endif
 
 	hr = d3ddev->EndScene ();
 	if (FAILED (hr))
@@ -2238,9 +2317,9 @@ void D3D_flushtexture (int miny, int maxy)
 		RECT r;
 		maxy++;
 		r.left = 0;
-		r.right = twidth;
+		r.right = tin_w;
 		r.top = miny <= 0 ? 0 : miny;
-		r.bottom = maxy <= theight ? maxy : theight;
+		r.bottom = maxy <= tin_h ? maxy : tin_h;
 		if (r.top <= r.bottom) {
 			HRESULT hr = texture->AddDirtyRect (&r);
 			if (FAILED (hr))

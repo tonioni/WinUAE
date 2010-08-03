@@ -204,8 +204,10 @@ void audio_sampleripper (int mode)
 			rs->changed = 0;
 			fetch_ripperpath (path, sizeof (path));
 			name[0] = 0;
-			if (currprefs.dfxtype[0] >= 0)
-				_tcscpy (name, currprefs.df[0]);
+			if (currprefs.floppyslots[0].dfxtype >= 0)
+				_tcscpy (name, currprefs.floppyslots[0].df);
+			else if (currprefs.cdslots[0].inuse)
+				_tcscpy (name, currprefs.cdslots[0].name);
 			if (!name[0])
 				underline[0] = 0;
 			namesplit (name);

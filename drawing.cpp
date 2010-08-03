@@ -2188,6 +2188,7 @@ static void center_image (void)
 	} else {
 		visible_left_border = max_diwlastword - gfxvidinfo.width;
 	}
+
 	if (currprefs.gfx_xcenter_pos >= 0) {
 		int val = currprefs.gfx_xcenter_pos >> RES_MAX;
 #if 0

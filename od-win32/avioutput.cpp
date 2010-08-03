@@ -922,7 +922,7 @@ void AVIOutput_WriteVideo (void)
 		v = getFromBuffer (ae, 1);
 	} else {
 #if defined (GFXFILTER)
-		if (!usedfilter || (usedfilter && usedfilter->x[0]) || WIN32GFX_IsPicassoScreen ())
+		if (!usedfilter || WIN32GFX_IsPicassoScreen ())
 			v = getFromDC (ae);
 		else
 			v = getFromBuffer (ae, 0);

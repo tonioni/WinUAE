@@ -770,6 +770,8 @@ static uae_u8 *execscsicmd_out (int unitnum, uae_u8 *data, int len)
 	SCSI *scgp = si[unitnum].handle;
 	int v;
 
+	if (!scgp)
+		return NULL;
 	uae_sem_wait (&scgp_sem);
 	memset(scgp->scmd, 0, sizeof(struct scg_cmd));
 	scgp->scmd->cdb_len = len;
@@ -795,6 +797,8 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	SCSI *scgp = si[unitnum].handle;
 	int v;
 
+	if (!scgp)
+		return NULL;
 	uae_sem_wait (&scgp_sem);
 	memset(scgp->scmd, 0, sizeof(struct scg_cmd));
 	scgp->scmd->cdb_len = len;
@@ -812,7 +816,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	aspi_led (unitnum);
 	uae_sem_post (&scgp_sem);
 	if (v)
-		return 0;
+		return NULL;
 	if (outlen)
 		*outlen = scgp->scmd->size;
 	return si[unitnum].buf;
