@@ -10053,8 +10053,8 @@ static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
 
 static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
 {
-	struct zdirectory *zd = zfile_opendir_archive (file);
-	if (zd) {
+	struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
+	if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
 		TCHAR out[MAX_DPATH];
 		while (zfile_readdir_archive (zd, out, true)) {
 			struct zfile *zf = zfile_fopen (out, L"rb", ZFD_NORMAL);
@@ -13495,8 +13495,8 @@ static int floppyslot_addfile2 (struct uae_prefs *prefs, const TCHAR *file, int 
 }
 static int floppyslot_addfile (struct uae_prefs *prefs, const TCHAR *file, int drv, int firstdrv, int maxdrv)
 {
-	struct zdirectory *zd = zfile_opendir_archive (file);
-	if (zd) {
+	struct zdirectory *zd = zfile_opendir_archive (file, ZFD_ARCHIVE | ZFD_NORECURSE);
+	if (zd && zfile_readdir_archive (zd, NULL, true) > 1) {
 		TCHAR out[MAX_DPATH];
 		while (zfile_readdir_archive (zd, out, true)) {
 			struct zfile *zf = zfile_fopen (out, L"rb", ZFD_NORMAL);

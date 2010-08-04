@@ -79,6 +79,7 @@ extern TCHAR *zfile_geterror (void);
 #define ZFD_DISKHISTORY 0x100 //allow diskhistory (if disk image)
 #define ZFD_CHECKONLY 0x200 //file exists checkc
 #define ZFD_DELAYEDOPEN 0x400 //do not unpack, just get metadata
+#define ZFD_NORECURSE 0x10000 // do not recurse archives
 #define ZFD_NORMAL (ZFD_ARCHIVE|ZFD_UNPACK)
 #define ZFD_ALL 0x0000ffff
 
@@ -101,12 +102,13 @@ extern const TCHAR *uae_ignoreextensions[];
 extern const TCHAR *uae_diskimageextensions[];
 
 extern struct zvolume *zfile_fopen_archive (const TCHAR *filename);
-extern struct zvolume *zfile_fopen_archive (const TCHAR *filename, bool norecurse);
+extern struct zvolume *zfile_fopen_archive (const TCHAR *filename, int flags);
 extern struct zvolume *zfile_fopen_archive_root (const TCHAR *filename);
 extern void zfile_fclose_archive (struct zvolume *zv);
 extern int zfile_fs_usage_archive (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp);
 extern int zfile_stat_archive (const TCHAR *path, struct _stat64 *statbuf);
 extern struct zdirectory *zfile_opendir_archive (const TCHAR *path);
+extern struct zdirectory *zfile_opendir_archive (const TCHAR *path, int flags);
 extern void zfile_closedir_archive (struct zdirectory *);
 extern int zfile_readdir_archive (struct zdirectory *, TCHAR*);
 extern int zfile_readdir_archive (struct zdirectory *, TCHAR*, bool fullpath);

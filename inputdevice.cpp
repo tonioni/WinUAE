@@ -5613,6 +5613,18 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
 	return v;
 }
 
+// reject same joystick in parallel ports if it is already in normal ports, AF2008 workaround
+static bool checkjpc (struct uae_prefs *p, int portnum, int idnum)
+{
+	if (portnum < 2 || idnum < 0)
+		return true;
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		if (p->jports[i].id == idnum && portnum != i)
+			return false;
+	}
+	return true;
+}
+
 int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type)
 {
 	switch (type)
@@ -5634,6 +5646,8 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 					TCHAR *name1 = idf->get_friendlyname (i);
 					TCHAR *name2 = idf->get_uniquename (i);
 					if ((name1 && !_tcscmp (name1, value)) || (name2 && !_tcscmp (name2, value))) {
+						if (!checkjpc (p, portnum, idnum + 1))
+							return 0;
 						p->jports[portnum].id = idnum + i;
 						if (mode >= 0)
 							p->jports[portnum].mode = mode;
