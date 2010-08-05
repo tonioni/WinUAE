@@ -51,7 +51,7 @@ typedef struct {
 	WORD weight;
 	BYTE italic;
 	BYTE charset;
-	WCHAR typeface[0];
+	WCHAR typeface[1];
 } DLGTEMPLATEEX_END;
 
 typedef struct {
@@ -64,7 +64,7 @@ typedef struct {
 	short cy;
 	WORD id;
 	WORD reserved;
-	WCHAR windowClass[0];
+	WCHAR windowClass[1];
 	/* variable data after this */
 	/* sz_Or_Ord title; */
 	/* WORD extraCount; */
@@ -78,6 +78,18 @@ static wchar_t wfont_old[] = L"MS Sans Serif";
 static TCHAR font_vista[] = L"Segoe UI";
 static TCHAR font_xp[] = L"Tahoma";
 
+static BYTE *skiptextone (BYTE *s)
+{
+	s -= sizeof (WCHAR);
+	if (s[0] == 0xff && s[1] == 0xff) {
+		s += 4;
+		return s;
+	}
+	while (s[0] != 0 || s[1] != 0)
+		s += 2;
+	s += 2;
+	return s;
+}
 
 static BYTE *skiptext (BYTE *s)
 {
@@ -174,13 +186,13 @@ struct newresource *scaleresource (struct newresource *res, HWND parent)
 	d2 = (DLGTEMPLATEEX_END*)p;
 	p2 = p;
 	p2 += sizeof (DLGTEMPLATEEX_END);
-	p2 = skiptext (p2);
+	p2 = skiptextone (p2);
 	p2 = todword (p2);
 
 	modifytemplatefont (d, d2);
 
 	p += sizeof (DLGTEMPLATEEX_END);
-	p = skiptext (p);
+	p = skiptextone (p);
 	p = todword (p);
 
 	if (p != p2)
@@ -192,8 +204,8 @@ struct newresource *scaleresource (struct newresource *res, HWND parent)
 		dt = (DLGITEMTEMPLATEEX*)p;
 		modifyitem (d, d2, dt, ns->tmpl, mult);
 		p += sizeof (DLGITEMTEMPLATEEX);
-		p = skiptext(p);
-		p = skiptext(p);
+		p = skiptextone (p);
+		p = skiptext (p);
 		p += ((WORD*)p)[0];
 		p += sizeof (WORD);
 		p = todword (p);

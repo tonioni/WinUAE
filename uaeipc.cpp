@@ -164,6 +164,8 @@ void *createIPC (const TCHAR *name, int binary)
 void *geteventhandleIPC (void *vipc)
 {
 	struct uaeipc *ipc = (struct uaeipc*)vipc;
+	if (!ipc)
+		return INVALID_HANDLE_VALUE;
 	return ipc->olevent;
 }
 
@@ -199,6 +201,8 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 	BOOL ok;
 	DWORD ret, err;
 
+	if (!ipc)
+		return 0;
 	if (ipc->hipc == INVALID_HANDLE_VALUE)
 		return 0;
 	if (WaitForSingleObject(ipc->olevent, 0) != WAIT_OBJECT_0)
