@@ -584,6 +584,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
+	if (p->statefile[0])
+		cfgfile_write_str (f, L"statefile", p->statefile);
 	if (p->quitstatefile[0])
 		cfgfile_write_str (f, L"statefile_quit", p->quitstatefile);
 
@@ -761,7 +763,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_gamma", L"%d", p->gfx_gamma);
 	cfgfile_dwrite_str (f, L"gfx_filter_mask", p->gfx_filtermask);
 	if (p->gfx_filteroverlay[0]) {
-		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s:%d%s,%d%s,%d%s,%d%s",
+		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s%s",
+			p->gfx_filteroverlay, _tcschr (p->gfx_filteroverlay, ',') ? L"," : L"");
+
+#if 0
+		cfgfile_dwrite (f, L"gfx_filter_overlay", L"%s,%d%s:%d%s:%d%s:%d%s:%d%%",
 			p->gfx_filteroverlay,
 			p->gfx_filteroverlay_pos.x >= -24000 ? p->gfx_filteroverlay_pos.x : -p->gfx_filteroverlay_pos.x - 30000,
 			p->gfx_filteroverlay_pos.x >= -24000 ? L"" : L"%",
@@ -769,9 +775,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			p->gfx_filteroverlay_pos.y >= -24000 ? L"" : L"%",
 			p->gfx_filteroverlay_pos.width >= -24000 ? p->gfx_filteroverlay_pos.width : -p->gfx_filteroverlay_pos.width - 30000,
 			p->gfx_filteroverlay_pos.width >= -24000 ? L"" : L"%",
-			p->gfx_filteroverlay_pos.height >= -24000 ? p->gfx_filteroverlay_pos.height : -p->gfx_filteroverlay_pos.height - 300000,
-			p->gfx_filteroverlay_pos.height >= -24000 ? L"" : L"%"
+			p->gfx_filteroverlay_pos.height >= -24000 ? p->gfx_filteroverlay_pos.height : -p->gfx_filteroverlay_pos.height - 30000,
+			p->gfx_filteroverlay_pos.height >= -24000 ? L"" : L"%",
+			p->gfx_filteroverlay_overscan
 			);
+#endif
 	}
 #endif
 
@@ -1352,13 +1360,21 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 #ifdef GFXFILTER
 	if (_tcscmp (option, L"gfx_filter_overlay") == 0) {
-		TCHAR *s = _tcschr (value, ':');
+		TCHAR *s = _tcschr (value, ',');
+		p->gfx_filteroverlay_overscan = 0;
 		p->gfx_filteroverlay_pos.x = 0;
 		p->gfx_filteroverlay_pos.y = 0;
 		p->gfx_filteroverlay_pos.width = 0;
 		p->gfx_filteroverlay_pos.height = 0;
+		if (s)
+			*s = 0;
 		while (s) {
 			*s++ = 0;
+			p->gfx_filteroverlay_overscan = _tstol (s);
+			s = _tcschr (s, ':');
+			if (!s)
+				break;
+#if 0
 			p->gfx_filteroverlay_pos.x = _tstol (s);
 			s = _tcschr (s, ',');
 			if (!s)
@@ -1381,12 +1397,17 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 				p->gfx_filteroverlay_pos.width = -30000 - p->gfx_filteroverlay_pos.width;
 			*s++ = 0;
 			p->gfx_filteroverlay_pos.height = _tstol (s);
+			s = _tcschr (s, ',');
+			if (!s)
+				break;
+			if (s[-1] == '%')
+				p->gfx_filteroverlay_pos.height = -30000 - p->gfx_filteroverlay_pos.height;
+			*s++ = 0;
+			p->gfx_filteroverlay_overscan = _tstol (s);
 			TCHAR *s2 = _tcschr (s, ',');
 			if (s2)
 				*s2 = 0;
-			s = s + _tcslen (s);
-			if (s[-1] == '%')
-				p->gfx_filteroverlay_pos.height = -30000 - p->gfx_filteroverlay_pos.height;
+#endif
 			break;
 		}
 		_tcsncpy (p->gfx_filteroverlay, value, sizeof p->gfx_filteroverlay / sizeof (TCHAR) - 1);
@@ -1516,6 +1537,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (cfgfile_path (option, value, L"statefile", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+		_tcscpy (p->statefile, tmpbuf);
 		_tcscpy (savestate_fname, tmpbuf);
 		if (zfile_exists (savestate_fname)) {
 			savestate_state = STATE_DORESTORE;
@@ -1536,8 +1558,17 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					*p = 0;
 				}
 			}
-			if (!ok)
-				savestate_fname[0] = 0;
+			if (!ok) {
+				TCHAR tmp[MAX_DPATH];
+				fetch_statefilepath (tmp, sizeof tmp / sizeof (TCHAR));
+				_tcscat (tmp, savestate_fname);
+				if (zfile_exists (tmp)) {
+					_tcscpy (savestate_fname, tmp);
+					savestate_state = STATE_DORESTORE;
+				} else {
+					savestate_fname[0] = 0;
+				}
+			}
 		}
 		return 1;
 	}
@@ -3579,6 +3610,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
 	p->gfx_filter_autoscale = 0;
+	p->gfx_filteroverlay_overscan = 0;
 
 	_tcscpy (p->floppyslots[0].df, L"df0.adf");
 	_tcscpy (p->floppyslots[1].df, L"df1.adf");

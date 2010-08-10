@@ -42,8 +42,10 @@ static D3DDISPLAYMODEEX modeex;
 static IDirect3DDevice9 *d3ddev;
 static IDirect3DDevice9Ex *d3ddevex;
 static D3DSURFACE_DESC dsdbb;
-static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture, mask2texture;
-static int masktexture_w, masktexture_h, mask2texture_w, mask2texture_h;
+static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture, mask2texture, blanktexture;
+static int masktexture_w, masktexture_h;
+static float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
+static float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2, lpTempTexture;
 LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
@@ -54,6 +56,7 @@ static int devicelost;
 static int locked, fulllocked;
 static int cursor_offset_x, cursor_offset_y;
 static float maskmult_x, maskmult_y;
+static RECT mask2rect;
 
 static D3DXMATRIX m_matProj, m_matProj2;
 static D3DXMATRIX m_matWorld, m_matWorld2;
@@ -1198,6 +1201,33 @@ static void createscanlines (int force)
 	sltexture->UnlockRect (0);
 }
 
+static int findedge (D3DLOCKED_RECT *lock, int w, int h, int dx, int dy)
+{
+	int x = w / 2;
+	int y = h / 2;
+	
+	if (dx != 0)
+		x = dx < 0 ? 0 : w - 1;
+	if (dy != 0)
+		y = dy < 0 ? 0 : h - 1;
+	
+	for (;;) {
+		uae_u32 *p = (uae_u32*)((uae_u8*)lock->pBits + y * lock->Pitch + x * 4);
+		int alpha = (*p) >> 24;
+		if (alpha != 255)
+			break;
+		x -= dx;
+		y -= dy;
+		if (x <= 0 || y <= 0)
+			break;
+		if (x >= w - 1 || y >= h - 1)
+			break;
+	}
+	if (dx)
+		return x;
+	return y;
+}
+
 static int createmask2texture (const TCHAR *filename)
 {
 	struct zfile *zf;
@@ -1210,6 +1240,7 @@ static int createmask2texture (const TCHAR *filename)
 
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen ())
 		return 0;
+
 	zf = NULL;
 	for (int i = 0; i < 2; i++) {
 		if (i == 0) {
@@ -1218,18 +1249,48 @@ static int createmask2texture (const TCHAR *filename)
 		} else {
 			_tcscpy (tmp, filename);
 		}
+		TCHAR tmp2[MAX_DPATH], tmp3[MAX_DPATH];
+		_tcscpy (tmp3, tmp);
+		TCHAR *s = _tcsrchr (tmp3, '.');
+		if (s) {
+			TCHAR *s2 = s;
+			while (s2 > tmp3) {
+				TCHAR v = *s2;
+				if (v == '_') {
+					s = s2;
+					break;
+				}
+				if (v == 'X' || v == 'x') {
+					s2--;
+					continue;
+				}
+				if (!_istdigit (v))
+					break;
+				s2--;
+			}
+			_tcscpy (tmp2, s);
+			_stprintf (s, L"_%dx%d%s", window_w, window_h, tmp2);
+			zf = zfile_fopen (tmp3, L"rb", ZFD_NORMAL);
+			if (zf)
+				break;
+			float aspect = (float)window_w / window_h;
+			int ax = -1, ay = -1;
+			if (abs (aspect - 16.0 / 10.0) <= 0.1)
+				ax = 16, ay = 10;
+			if (abs (aspect - 16.0 / 9.0) <= 0.1)
+				ax = 16, ay = 9;
+			if (abs (aspect - 4.0 / 3.0) <= 0.1)
+				ax = 4, ay = 3;
+			if (ax > 0 && ay > 0) {
+				_stprintf (s, L"_%dx%d%s", ax, ay, tmp2);
+				zf = zfile_fopen (tmp3, L"rb", ZFD_NORMAL);
+				if (zf)
+					break;
+			}
+		}
 		zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
 		if (zf)
 			break;
-		TCHAR tmp2[MAX_DPATH];
-		TCHAR *s = _tcsrchr (tmp, '.');
-		if (s) {
-			_tcscpy (tmp2, s);
-			_stprintf (s, L"_%dx%d%s", window_w, window_h, tmp2);
-			zf = zfile_fopen (tmp, L"rb", ZFD_NORMAL);
-			if (zf)
-				break;
-		}
 	}
 	if (!zf) {
 		write_log (L"%s: couldn't open overlay '%s'\n", D3DHEAD, filename);
@@ -1240,7 +1301,7 @@ static int createmask2texture (const TCHAR *filename)
 	zfile_fread (buf, size, 1, zf);
 	zfile_fclose (zf);
 	hr = D3DXCreateTextureFromFileInMemoryEx (d3ddev, buf, size,
-		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8,
+		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8,
 		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
 	xfree (buf);
 	if (FAILED (hr)) {
@@ -1250,6 +1311,53 @@ static int createmask2texture (const TCHAR *filename)
 	mask2texture_w = dinfo.Width;
 	mask2texture_h = dinfo.Height;
 	mask2texture = tx;
+	mask2rect.left = 0;
+	mask2rect.top = 0;
+	mask2rect.right = mask2texture_w;
+	mask2rect.bottom = mask2texture_h;
+
+	D3DLOCKED_RECT lock;
+	if (SUCCEEDED (hr = mask2texture->LockRect (0, &lock, NULL, 0))) {
+		mask2rect.left = findedge (&lock, mask2texture_w, mask2texture_h, -1, 0);
+		mask2rect.right = findedge (&lock, mask2texture_w, mask2texture_h, 1, 0);
+		mask2rect.top = findedge (&lock, mask2texture_w, mask2texture_h, 0, -1);
+		mask2rect.bottom = findedge (&lock, mask2texture_w, mask2texture_h, 0, 1);
+		mask2texture->UnlockRect (0);
+	}
+	if (mask2rect.left >= mask2texture_w / 2 || mask2rect.top >= mask2texture_h / 2 ||
+		mask2rect.right <= mask2texture_w / 2 || mask2rect.bottom <= mask2texture_h / 2) {
+		mask2rect.left = 0;
+		mask2rect.top = 0;
+		mask2rect.right = mask2texture_w;
+		mask2rect.bottom = mask2texture_h;
+	}
+	mask2texture_multx = (float)window_w / mask2texture_w;
+	mask2texture_multy = (float)window_h / mask2texture_h;
+	mask2texture_offsetw = 0;
+
+	if (isfullscreen () > 0) {
+		struct MultiDisplay *md = getdisplay (&currprefs);
+		float deskw = md->rect.right - md->rect.left;
+		float deskh = md->rect.bottom - md->rect.top;
+		//deskw = 800; deskh = 600;
+		float dstratio = deskw / deskh;
+		float srcratio = mask2texture_w / mask2texture_h;
+		mask2texture_multx *= srcratio / dstratio;
+	} else {
+		mask2texture_multx = mask2texture_multy;
+	}
+
+	mask2texture_wh = window_h;
+	mask2texture_ww = mask2texture_w * mask2texture_multx; 
+
+	mask2texture_offsetw = (window_w - mask2texture_ww) / 2;
+
+	blanktexture = createtext (mask2texture_offsetw + 1, window_h, D3DFMT_X8R8G8B8);
+
+	write_log (L"%s: overlay '%s' %.0f*%.0f (%d*%d - %d*%d)\n",
+		D3DHEAD, tmp, mask2texture_w, mask2texture_h,
+		mask2rect.left, mask2rect.top, mask2rect.right, mask2rect.bottom);
+
 	return 1;
 end:
 	if (tx)
@@ -1289,7 +1397,7 @@ static int createmasktexture (const TCHAR *filename)
 	zfile_fread (buf, size, 1, zf);
 	zfile_fclose (zf);
 	hr = D3DXCreateTextureFromFileInMemoryEx (d3ddev, buf, size,
-		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, D3DUSAGE_DYNAMIC, D3DFMT_X8R8G8B8,
+		 D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT_NONPOW2, 1, D3DUSAGE_DYNAMIC, D3DFMT_X8R8G8B8,
 		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
 	xfree (buf);
 	if (FAILED (hr)) {
@@ -1372,6 +1480,9 @@ static void setupscenecoords (void)
 
 	//write_log (L"%dx%d %dx%d %dx%d\n", tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
+	float mw = mask2rect.right - mask2rect.left;
+	float mh = mask2rect.bottom - mask2rect.top;
+
 	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 
 	if (memcmp (&sr, &sr2, sizeof RECT) || memcmp (&dr, &dr2, sizeof RECT) || memcmp (&zr, &zr2, sizeof RECT)) {
@@ -1383,63 +1494,63 @@ static void setupscenecoords (void)
 		dr2 = dr;
 		zr2 = zr;
 	}
-	cursor_offset_x = -zr.left;
-	cursor_offset_y = -zr.top;
 
 	dw = dr.right - dr.left;
 	dh = dr.bottom - dr.top;
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 
-
 	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
-	MatrixTranslation (&m_matView,
-		-0.5f + dw * tin_w / window_w / 2 - zr.left - sr.left, // - (tin_w - 2 * zr.left - w),
-		+0.5f + dh * tin_h / window_h / 2 - zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
-		0);
+	float tx, ty;
+	float sw, sh;
 
-	float sw = dw * tin_w / window_w;
-	float sh = dh * tin_h / window_h;
+	if (mask2texture) {
+
+		float winw = mw * mask2texture_multx;
+		float winh = mh * mask2texture_multy;
+		dw *= winw / window_w;
+		dh *= winh / window_h;
+		tx = -0.5f + dw * tin_w / winw / 2;
+		ty = +0.5f + dh * tin_h / winh / 2;
+
+		float xshift = -zr.left - sr.left;
+		float yshift = +zr.top  + sr.top - (tin_h - h);
+
+		sw = dw * tin_w / window_w;
+		sh = dh * tin_h / window_h;
+
+		tx += xshift;
+		ty += yshift;
+
+
+	} else {
+
+		tx = -0.5f + dw * tin_w / window_w / 2;
+		ty = +0.5f + dh * tin_h / window_h / 2;
+
+		tx += - zr.left - sr.left; // - (tin_w - 2 * zr.left - w),
+		ty += + zr.top + sr.top - (tin_h - h);
+	
+		sw = dw * tin_w / window_w;
+		sh = dh * tin_h / window_h;
+	}
+
+	MatrixTranslation (&m_matView, tx, ty, 1.0f);
+
 	MatrixScaling (&m_matWorld, sw, sh, 1.0f);
 
-#if 0
+	cursor_offset_x = -zr.left;
+	cursor_offset_y = -zr.top;
 
-	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
+	//write_log (L"%.1fx%.1f %.1fx%.1f %.1fx%.1f\n", dw, dh, w, h, sw, sh);
 
-	float ww = dw * tin_w / window_w;
-	float hh = dh * tin_h / window_h;
+	// ratio between Amiga texture and overlay mask texture
+	float sw2 = dw * tin_w / window_w;
+	float sh2 = dh * tin_h / window_h;
 
-	MatrixTranslation (&m_matView,
-		  -0.5f + ww / 2 - zr.left - sr.left, // - (tin_w - 2 * zr.left - w),
-		   0.5f + hh / 2- zr.top - (tin_h - 2 * zr.top - h) + sr.top, // <- ???
-		0);
-
-	MatrixOrthoOffCenterLH (&m_matProj, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
-	MatrixOrthoOffCenterLH (&m_matProj, 0, dw, 0, dh, 0.0f, 1.0f);
-
-	float mx = w / ww;
-	float my = h / hh;
-
-	MatrixTranslation (&m_matView, 0.5f - 0.5f / window_w, 0.5f + 0.5f / window_h, 0.0f);
-	MatrixTranslation (&m_matView,
-		0.5f + (dw / 2) - (zr.left - sr.left),
-		0.5f + (dh / 2) - (zr.top - (tin_h - 2 * zr.top - h) + sr.top) * 0, // <- ???
-		0);
-
-
-	MatrixScaling (&m_matWorld, ww / w * dw, hh / h * dh, 1.0f);
-#endif
-
-
-	//write_log (L"%.1fx%.1f %.1fx%.1f %.1fx%.1f\n", dw, dh, w, h, ww, hh);
-
-	float ww = dw * tin_w / window_w;
-	float hh = dh * tin_h / window_h;
-
-	// ratio between Amiga texture and overlay texture
-	maskmult.x = ww * maskmult_x / w;
-	maskmult.y = hh * maskmult_y / h;
+	maskmult.x = sw2 * maskmult_x / w;
+	maskmult.y = sh2 * maskmult_y / h;
 
 	maskshift.x = 1.0f / maskmult_x;
 	maskshift.y = 1.0f / maskmult_y;
@@ -1447,7 +1558,6 @@ static void setupscenecoords (void)
 	D3DXMATRIX tmp;
 	D3DXMatrixMultiply (&tmp, &m_matWorld, &m_matView);
 	D3DXMatrixMultiply (&postproj, &tmp, &m_matProj);
-
 }
 
 uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
@@ -1521,6 +1631,7 @@ static void settransform (void)
 	psEffect_SetMatrices (&m_matProj, &m_matView, &m_matWorld);
 
 	MatrixOrthoOffCenterLH (&m_matProj2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+
 	MatrixTranslation (&m_matView2, 0.5f - 0.5f / window_w, 0.5f + 0.5f / window_h, 0.0f);
 	D3DXMatrixIdentity (&m_matWorld2);
 }
@@ -1550,6 +1661,10 @@ static void invalidatedeviceobjects (void)
 	if (mask2texture) {
 		mask2texture->Release ();
 		mask2texture = NULL;
+	}
+	if (blanktexture) {
+		blanktexture->Release ();
+		blanktexture = NULL;
 	}
 	if (lpTempTexture) {
 		lpTempTexture->Release ();
@@ -2203,27 +2318,35 @@ static void D3D_render22 (void)
 			sprite->SetTransform (&t);
 			sprite->Draw (cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
 			MatrixScaling (&t, 1, 1, 0);
+			sprite->Flush ();
 			sprite->SetTransform (&t);
 		}
 		if (mask2texture) {
 			D3DXMATRIX t;
-			float w = (float)window_w / mask2texture_w;
-			float h = (float)window_h / mask2texture_h;
+			RECT r;
+			float srcw = mask2texture_w;
+			float srch = mask2texture_h;
+			float aspectsrc = srcw / srch;
+			float aspectdst = (float)window_w / window_h;
+			float w, h;
 
+			w = mask2texture_multx;
+			h = mask2texture_multy;
+#if 0
 			if (currprefs.gfx_filteroverlay_pos.width > 0)
-				w = (float)currprefs.gfx_filteroverlay_pos.width / mask2texture_w;
+				w = (float)currprefs.gfx_filteroverlay_pos.width / srcw;
 			else if (currprefs.gfx_filteroverlay_pos.width == -1)
 				w = 1.0;
 			else if (currprefs.gfx_filteroverlay_pos.width <= -24000)
 				w = w * (-currprefs.gfx_filteroverlay_pos.width - 30000) / 100.0;
 
 			if (currprefs.gfx_filteroverlay_pos.height > 0)
-				h = (float)currprefs.gfx_filteroverlay_pos.height / mask2texture_h;
+				h = (float)currprefs.gfx_filteroverlay_pos.height / srch;
 			else if (currprefs.gfx_filteroverlay_pos.height == -1)
 				h = 1;
 			else if (currprefs.gfx_filteroverlay_pos.height <= -24000)
 				h = h * (-currprefs.gfx_filteroverlay_pos.height - 30000) / 100.0;
-
+#endif
 			MatrixScaling (&t, w, h, 0);
 
 			v.x = 0;
@@ -2244,11 +2367,40 @@ static void D3D_render22 (void)
 
 			v.x /= w;
 			v.y /= h;
+			v.x = v.y = 0;
 			v.z = 0;
+			v.x += mask2texture_offsetw / w;
+
+			r.left = 0;
+			r.top = 0;
+			r.right = mask2texture_w;
+			r.bottom = mask2texture_h;
+
 			sprite->SetTransform (&t);
-			sprite->Draw (mask2texture, NULL, NULL, &v, 0xffffffff);
+			sprite->Draw (mask2texture, &r, NULL, &v, 0xffffffff);
+			sprite->Flush ();
 			MatrixScaling (&t, 1, 1, 0);
 			sprite->SetTransform (&t);
+
+			if (mask2texture_offsetw > 0) {
+				v.x = 0;
+				v.y = 0;
+				r.left = 0;
+				r.top = 0;
+				r.right = mask2texture_offsetw + 1;
+				r.bottom = window_h;
+				sprite->Draw (blanktexture, &r, NULL, &v, 0xffffffff);
+				if (window_w > mask2texture_offsetw + mask2texture_ww) {
+					v.x = mask2texture_offsetw + mask2texture_ww;
+					v.y = 0;
+					r.left = 0;
+					r.top = 0;
+					r.right = window_w - (mask2texture_offsetw + mask2texture_ww) + 1;
+					r.bottom = window_h;
+					sprite->Draw (blanktexture, &r, NULL, &v, 0xffffffff);
+				}
+			}
+
 		}
 		if (ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen ()) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen ()))) {
 			v.x = 0;

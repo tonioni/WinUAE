@@ -5356,22 +5356,39 @@ static TCHAR *device_dupfix (uaecptr expbase, TCHAR *devname)
 	return my_strdup (newname);
 }
 
-static void dump_partinfo (uae_u8 *name, int num, uaecptr pp, int partblock)
+static void dump_partinfo (struct hardfiledata *hfd, const uae_u8 *name, int num, uaecptr pp, int partblock)
 {
 	TCHAR *s = au ((char*)name);
 	uae_u32 dostype = get_long (pp + 80);
 	uae_u64 size;
+	int blocksize, surfaces, spb, spt, reserved;
+	int lowcyl, highcyl;
+	uae_u32 block;
+	uae_u8 buf[512];
 
 	size = ((uae_u64)get_long (pp + 20)) * 4 * get_long (pp + 28) * get_long (pp + 36) * (get_long (pp + 56) - get_long (pp + 52) + 1);
+	blocksize = get_long (pp + 20) * 4;
+	surfaces = get_long (pp + 28);
+	spb = get_long (pp + 32);
+	spt = get_long (pp + 36);
+	reserved = get_long (pp + 40);
+	lowcyl = get_long (pp + 52);
+	highcyl = get_long (pp + 56);
 
 	write_log (L"RDB: '%s' dostype=%08X. PartBlock=%d\n", s, dostype, partblock);
 	write_log (L"BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n",
-		get_long (pp + 20) * 4, get_long (pp + 28), get_long (pp + 32));
+		blocksize, surfaces, spb);
 	write_log (L"SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n",
-		get_long (pp + 36), get_long (pp + 40), get_long (pp + 52), get_long (pp + 56), (uae_u32)(size >> 20));
-		
+		get_long (pp + 36), get_long (pp + 40), lowcyl, highcyl, (uae_u32)(size >> 20));
 	write_log (L"Buffers: %d, BufMemType: %08x, MaxTransfer: %08x, BootPri: %d\n",
 		get_long (pp + 60), get_long (pp + 64), get_long (pp + 68), get_long (pp + 76));
+
+	block = lowcyl * surfaces * spt;
+	if (hdf_read (hfd, buf, (uae_u64)blocksize * block, sizeof buf)) {
+		write_log (L"First block %d dostype: %08X\n", block, (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | (buf[3] << 0));
+	} else {
+		write_log (L"First block %d read failed!\n", block);
+	}
 	xfree (s);
 }
 
@@ -5493,7 +5510,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	put_long (parmpacket + 12, 0); /* Device flags */
 	for (i = 0; i < PP_MAXSIZE; i++)
 		put_byte (parmpacket + 16 + i, buf[128 + i]);
-	dump_partinfo (buf + 37, uip->devno, parmpacket, partblock);
+	dump_partinfo (hfd, buf + 37, uip->devno, parmpacket, partblock);
 	dostype = get_long (parmpacket + 80);
 
 	if (dostype == 0) {

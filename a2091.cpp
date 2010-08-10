@@ -1197,9 +1197,9 @@ static void freescsi (struct scsi_data *sd)
 	scsi_free (sd);
 }
 
-int addscsi (int ch, TCHAR *path, int blocksize, int readonly,
-	TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys, int scsi_level)
+int addscsi (int ch, const TCHAR *path, int blocksize, int readonly,
+	const TCHAR *devname, int sectors, int surfaces, int reserved,
+	int bootpri, const TCHAR *filesys, int scsi_level)
 {
 	struct hd_hardfiledata *hfd;
 
@@ -1269,9 +1269,9 @@ static void addnativescsi (void)
 	}
 }
 
-int a3000_add_scsi_unit (int ch, TCHAR *path, int blocksize, int readonly,
-	TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys)
+int a3000_add_scsi_unit (int ch, const TCHAR *path, int blocksize, int readonly,
+	const TCHAR *devname, int sectors, int surfaces, int reserved,
+	int bootpri, const TCHAR *filesys)
 {
 	return addscsi (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 2);
 }
@@ -1286,9 +1286,9 @@ void a3000scsi_free (void)
 	freenativescsi ();
 }
 
-int a2091_add_scsi_unit (int ch, TCHAR *path, int blocksize, int readonly,
-	TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys)
+int a2091_add_scsi_unit (int ch, const TCHAR *path, int blocksize, int readonly,
+	const TCHAR *devname, int sectors, int surfaces, int reserved,
+	int bootpri, const TCHAR *filesys)
 {
 	return addscsi (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 1);
 }

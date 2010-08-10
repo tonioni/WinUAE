@@ -731,7 +731,11 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 		} else if (sectorsize == 2048 && t->size == 2352) {
 			// 2352 -> 2048
 			while (size-- > 0) {
-				zfile_fseek (t->handle, t->offset + sector * t->size + 16, SEEK_SET);
+				uae_u8 b = 0;
+				zfile_fseek (t->handle, t->offset + sector * t->size + 15, SEEK_SET);
+				zfile_fread (&b, 1, 1, t->handle);
+				if (b == 2) // MODE2?
+					zfile_fseek (t->handle, t->offset + sector * t->size + 24, SEEK_SET);
 				zfile_fread (data, sectorsize, 1, t->handle);
 				sector++;
 				data += sectorsize;
@@ -806,21 +810,26 @@ static int command_read (int unitnum, uae_u8 *data, int sector, int size)
 		return 0;
 
 	struct cdtoc *t = findtoc (cdu, &sector);
-	int offset;
 
 	if (!t || t->handle == NULL)
 		return NULL;
 	cdda_stop (cdu);
 	if (t->size == 2048) {
-		int offset = 0;
-		zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
+		zfile_fseek (t->handle, t->offset + sector * t->size, SEEK_SET);
 		zfile_fread (data, size, 2048, t->handle);
 		sector += size;
 	} else {
-		offset = 16;
 		while (size-- > 0) {
-			zfile_fseek (t->handle, t->offset + sector * t->size + offset, SEEK_SET);
-			zfile_fread (data, size, 2048, t->handle);
+			if (t->size == 2352) {
+				uae_u8 b = 0;
+				zfile_fseek (t->handle, t->offset + sector * t->size + 15, SEEK_SET);
+				zfile_fread (&b, 1, 1, t->handle);
+				if (b == 2) // MODE2?
+					zfile_fseek (t->handle, t->offset + sector * t->size + 24, SEEK_SET);
+			} else {
+				zfile_fseek (t->handle, t->offset + sector * t->size + 16, SEEK_SET);
+			}
+			zfile_fread (data, 1, 2048, t->handle);
 			data += 2048;
 			sector++;
 		}

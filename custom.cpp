@@ -2736,7 +2736,7 @@ void init_hz (void)
 	if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
 		hzc = 1;
 	if (beamcon0 != new_beamcon0) {
-		write_log (L"BEAMCON0 %04x -> %04x\n", beamcon0, new_beamcon0);
+		write_log (L"BEAMCON0 %04x -> %04x PC%=%08x\n", beamcon0, new_beamcon0, M68K_GETPC);
 		vpos_count = vpos_count_prev = 0;
 	}
 	beamcon0 = new_beamcon0;
@@ -3740,6 +3740,7 @@ static void DIWSTRT (int hpos, uae_u16 v)
 {
 	if (diwstrt == v && ! diwhigh_written)
 		return;
+	decide_diw (hpos);
 	decide_line (hpos);
 	diwhigh_written = 0;
 	diwstrt = v;
@@ -3750,6 +3751,7 @@ static void DIWSTOP (int hpos, uae_u16 v)
 {
 	if (diwstop == v && ! diwhigh_written)
 		return;
+	decide_diw (hpos);
 	decide_line (hpos);
 	diwhigh_written = 0;
 	diwstop = v;
@@ -5915,7 +5917,10 @@ void dumpcustom (void)
 	console_out_f (L"COP1LC: %08lx, COP2LC: %08lx COPPTR: %08lx\n", (unsigned long)cop1lc, (unsigned long)cop2lc, cop_state.ip);
 	console_out_f (L"DIWSTRT: %04x DIWSTOP: %04x DDFSTRT: %04x DDFSTOP: %04x\n",
 		(unsigned int)diwstrt, (unsigned int)diwstop, (unsigned int)ddfstrt, (unsigned int)ddfstop);
-	console_out_f (L"BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x LOF=%d/%d\n", bplcon0, bplcon1, bplcon2, bplcon3, bplcon4, lof_current, lof_store);
+	console_out_f (L"BPLCON 0: %04x 1: %04x 2: %04x 3: %04x 4: %04x LOF=%d/%d HDIW=%d VDIW=%d\n",
+		bplcon0, bplcon1, bplcon2, bplcon3, bplcon4,
+		lof_current, lof_store,
+		hdiwstate == DIW_waiting_start ? 0 : 1, diwstate == DIW_waiting_start ? 0 : 1);
 	if (timeframes) {
 		console_out_f (L"Average frame time: %.2f ms [frames: %d time: %d]\n",
 			(double)frametime / timeframes, timeframes, frametime);

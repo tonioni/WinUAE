@@ -1050,7 +1050,6 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 
 	if (!open_createfile (ciw, 0))
 		return 0;
-	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	while (cnt-- > 0) {
 		seterrormode (ciw);
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof (CDROM_TOC), &len, NULL)) {
@@ -1097,7 +1096,6 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 	t->paddress = th->lastaddress;
 	t++;
 
-	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	memcpy (tocout, th, sizeof (struct cd_toc_head));
 	return 1;
 }

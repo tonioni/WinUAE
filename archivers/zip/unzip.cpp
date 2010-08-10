@@ -374,8 +374,11 @@ extern unzFile ZEXPORT unzOpen (struct zfile *fin)
 	if (unzlocal_getShort(fin,&number_entry_CD)!=UNZ_OK)
 		err=UNZ_ERRNO;
 
-	if ((number_entry_CD!=us.gi.number_entry) ||
-		(number_disk_with_CD!=0) ||
+//	if ((number_entry_CD!=us.gi.number_entry) ||
+//		(number_disk_with_CD!=0) ||
+//		(number_disk!=0))
+//		err=UNZ_BADZIPFILE;
+	if ((number_disk_with_CD!=0) ||
 		(number_disk!=0))
 		err=UNZ_BADZIPFILE;
 
@@ -791,11 +794,11 @@ local int unzlocal_CheckCurrentFileCoherencyHeader (unz_s *s, uInt *piSizeVar,
 		err=UNZ_ERRNO;
 	else if ((err==UNZ_OK) && (uData!=s->cur_file_info.compression_method))
 		err=UNZ_BADZIPFILE;
-
+/*
     if ((err==UNZ_OK) && (s->cur_file_info.compression_method!=0) &&
-			 (s->cur_file_info.compression_method!=Z_DEFLATED))
-	err=UNZ_BADZIPFILE;
-
+		(s->cur_file_info.compression_method!=Z_DEFLATED && s->cur_file_info.compression_method!=ZIP_BZIP2))
+		err=UNZ_BADZIPFILE;
+*/
 	if (unzlocal_getLong(s->file,&uData) != UNZ_OK) /* date/time */
 		err=UNZ_ERRNO;
 
@@ -882,8 +885,10 @@ extern int ZEXPORT unzOpenCurrentFile (unzFile file)
 	pfile_in_zip_read_info->stream_initialised=0;
 
 	if ((s->cur_file_info.compression_method!=0) &&
-	(s->cur_file_info.compression_method!=Z_DEFLATED))
+	(s->cur_file_info.compression_method!=Z_DEFLATED)) {
+		write_log (L"ZIP: unknown compression method %d\n", s->cur_file_info.compression_method);
 		err=UNZ_BADZIPFILE;
+	}
 	Store = s->cur_file_info.compression_method==0;
 
 	pfile_in_zip_read_info->crc32_wait=s->cur_file_info.crc;

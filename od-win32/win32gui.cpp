@@ -10009,28 +10009,6 @@ static void swapperhili (HWND hDlg, int entry)
 	SetDlgItemText (hDlg, IDC_DISKTEXT,  workprefs.dfxlist[entry]);
 }
 
-static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
-{
-	TCHAR path[MAX_DPATH];
-	int lastentry = entry;
-
-	path[0] = 0;
-	if (newpath)
-		_tcscpy (path, newpath);
-	if (MultiDiskSelection (hDlg, -1, 0, &changed_prefs, path)) {
-		TCHAR dpath[MAX_DPATH];
-		loopmulti (path, NULL);
-		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
-			_tcscpy (workprefs.dfxlist[entry], dpath);
-			fullpath (workprefs.dfxlist[entry], MAX_DPATH);
-			lastentry = entry;
-			entry++;
-		}
-		InitializeListView (hDlg);
-		swapperhili (hDlg, lastentry);
-	}
-}
-
 static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
 {
 	int list = 0;
@@ -10044,6 +10022,7 @@ static void diskswapper_addfile2 (struct uae_prefs *prefs, const TCHAR *file)
 		while (list < MAX_SPARE_DRIVES) {
 			if (!prefs->dfxlist[list][0]) {
 				_tcscpy (prefs->dfxlist[list], file);
+				fullpath (prefs->dfxlist[list], MAX_DPATH);
 				break;
 			}
 			list++;
@@ -10068,6 +10047,27 @@ static void diskswapper_addfile (struct uae_prefs *prefs, const TCHAR *file)
 		zfile_closedir_archive (zd);
 	} else {
 		diskswapper_addfile2 (prefs, file);
+	}
+}
+
+static void addswapperfile (HWND hDlg, int entry, TCHAR *newpath)
+{
+	TCHAR path[MAX_DPATH];
+	int lastentry = entry;
+
+	path[0] = 0;
+	if (newpath)
+		_tcscpy (path, newpath);
+	if (MultiDiskSelection (hDlg, -1, 0, &changed_prefs, path)) {
+		TCHAR dpath[MAX_DPATH];
+		loopmulti (path, NULL);
+		while (loopmulti (path, dpath) && entry < MAX_SPARE_DRIVES) {
+			diskswapper_addfile (&workprefs, path);
+			lastentry = entry;
+			entry++;
+		}
+		InitializeListView (hDlg);
+		swapperhili (hDlg, lastentry);
 	}
 }
 
@@ -11985,7 +11985,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 {
 	int v = workprefs.gfx_filter ? TRUE : FALSE;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
-	int as = workprefs.gfx_filter_autoscale == 1 || workprefs.gfx_filter_autoscale == 2;
+	int as = workprefs.gfx_filter_autoscale == 2;
 	struct uae_filter *uf;
 	int i, isfilter;
 

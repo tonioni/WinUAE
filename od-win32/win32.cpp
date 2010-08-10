@@ -2890,6 +2890,10 @@ void fetch_ripperpath (TCHAR *out, int size)
 {
 	fetch_path (L"RipperPath", out, size);
 }
+void fetch_statefilepath (TCHAR *out, int size)
+{
+	fetch_path (L"StatefilePath", out, size);
+}
 void fetch_datapath (TCHAR *out, int size)
 {
 	fetch_path (NULL, out, size);
@@ -2940,6 +2944,8 @@ void fetch_path (const TCHAR *name, TCHAR *out, int size)
 		_tcscat (out, L"..\\shared\\rom\\");
 	if (!_tcscmp (name, L"ConfigurationPath"))
 		_tcscat (out, L"Configurations\\");
+	if (!_tcscmp (name, L"StatefilePath"))
+		_tcscat (out, L"Savestates\\");
 	if (start_data >= 0)
 		regquerystr (NULL, name, out, &size); 
 	if (GetFileAttributes (out) == INVALID_FILE_ATTRIBUTES)

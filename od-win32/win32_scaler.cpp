@@ -179,8 +179,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	aws = aw * scale;
 	ahs = ah * scale;
 
-	extraw = -aws * filter_horiz_zoom / 2000;
-	extrah = -ahs * filter_vert_zoom / 2000;
+	extraw = -aws * (filter_horiz_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
+	extrah = -ahs * (filter_vert_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 
 	SetRect (sr, 0, 0, dst_width, dst_height);
 	SetRect (zr, 0, 0, 0, 0);
@@ -231,7 +231,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 
-			} else if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0) {
+			} else if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0 && !currprefs.gfx_filteroverlay[0]) {
 				static int lastresize = 0;
 				static int lastdelay = 1;
 				static int ocw, och, ocx, ocy, lcw, lch, lcx, lcy;
@@ -340,6 +340,11 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				sizeoffset (dr, zr, 0, diff);
 				filteroffsety += diff / 2;
 			}
+
+			v = filter_horiz_offset;
+			OffsetRect (zr, (int)(-v * aws / 1000.0), 0);
+			v = filter_vert_offset;
+			OffsetRect (zr, 0, (int)(-v * ahs / 1000.0));
 
 			diff = dr->right - dr->left;
 			filterxmult = diff * 1000 / (dst_width * scale);

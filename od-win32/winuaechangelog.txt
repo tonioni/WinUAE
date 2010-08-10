@@ -1,4 +1,29 @@
 
+Beta 10:
+
+- archive dragndrop worked too well, it unpacked everything, including adf filesystem etc..
+- do not expand zipped filename when dragdropping if zip only contains single file
+- insert floppy image dialog in disk swapper also "extracts" images inside selected archive
+- MODE1 "raw" 2352 data tracks didn't work in CDTV and image mounter + uaescsi.device non-direct scsi mode
+- MODE2 FORM1 data tracks didn't work in uaescsi.device SCSI emulation mode
+- CDTV mode didn't close CD handle when reseting
+- CDTV frame interrupts in non audio CD play mode stopped working (broke when CD+G was implemented)
+- overlay height configuration file setting was written incorrectly if it had non-zero value
+- statefile configuration entry is not lost when configuration is load and saved again
+- scan zip directory even if compression method is unknown
+- hardfile scsi emulation block validation checked against physical size, not virtual size:
+  direct-scsi filesystem installed on dynamic hardfile didn't work very well..
+- dynamic hdf corrupted data if hdf's physical file size grew over 4G
+- bezel overlay support improved, aspect ratio correction, visible area autodetection,
+  (image positioning is not yet pixel perfect)
+- pointless bezel configuration file size parameters (temporarily?) removed, bezel overlay
+  configuration needs to be reset (it had stupid design fault)
+- DIWSTRT/DIWSTOP writes didn't check if hdiw state should have changed since last hsync
+  (has always been broken but it wasn't really needed until Denise "bug" update in 2.0)
+  fixes Friday at Eight / Polka Brothers
+
+Beta 9:
+
 - when attempting to play CD32 data track: return normal "playing" status and "play ended
   with error" flag in next status packet (Mission Impossible 2025 CD32)
 - return error status when CD32 qcode command packet is received and currently played CD
@@ -10,7 +35,7 @@
   1x = normal, 2x = internal texture is twice the size of display etc.. Big texture
   support required, makes some shader filters look more smoother when combined with
   bilinear filtering (for example hq2x)
-- crash when entering or exiting GUI when ASPI SCSI mode enabled (b6)
+- crash when entering or exiting GUI when ASPI SCSI mode is enabled (b6)
 - cd32 pad shift register should stay in reset state in 2-button mode (F17 Challenge CD32)
 - added cd insert/eject to systray menu
 - added configuration file delayed cd insert, add "delay" to end of path ("cdimage0=<path>,delay"),
@@ -19,7 +44,7 @@
 - fixed cue+mp3 size detection if mp3 frames included checksum data
 - only accept 8 or 32-bit Windows clipboard image input (instead of crashing..)
 - diskswapper and floppy/quickstart archive dragndrop: add all disk images inside the
-  archive (I don't know why this was done ages ago..)
+  archive (I don't know why this was not done ages ago..)
 
 Beta 8:
 
