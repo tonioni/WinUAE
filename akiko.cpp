@@ -371,7 +371,7 @@ static uae_u32 akiko_c2p_read (int offset)
 #define CH_ERR_ABNORMALSEEK     0xf0 // %11110000
 #define CH_ERR_NODISK           0xf8 // %11111000
 
-static int framecounter, subcodecounter;
+static int subcodecounter;
 
 #define MAX_SUBCODEBUFFER 20
 static volatile int subcodebufferoffset, subcodebufferoffsetw;
@@ -399,7 +399,7 @@ static struct cd_toc_head cdrom_toc_cd_buffer;
 static uae_u8 qcode_buf[SUBQ_SIZE];
 static int qcode_valid;
 
-static int cdrom_disk, cdrom_paused, cdrom_playing;
+static int cdrom_disk, cdrom_paused, cdrom_playing, cdrom_audiostatus;
 static int cdrom_command_active;
 static int cdrom_command_length;
 static int cdrom_checksum_error, cdrom_unknown_command;
@@ -456,6 +456,7 @@ static void cdaudiostop_do (void)
 
 static void cdaudiostop (void)
 {
+	cdrom_audiostatus = 0;
 	cdrom_audiotimeout = 0;
 	cdrom_paused = 0;
 	cdrom_playing = 0;
@@ -500,6 +501,23 @@ static void subfunc (uae_u8 *data, int cnt)
 	uae_sem_post (&sub_sem);
 }
 
+static int statusfunc (int status)
+{
+	if (status < 0)
+		return 1000;
+	if (cdrom_audiostatus != status) {
+		if (status == AUDIO_STATUS_IN_PROGRESS) {
+			cdrom_playing = 1;
+			cdrom_audiotimeout = 1;
+		} 
+		if (cdrom_playing && status != AUDIO_STATUS_IN_PROGRESS && status != AUDIO_STATUS_PAUSED) {
+			cdrom_audiotimeout = -1;
+		}
+	}
+	cdrom_audiostatus = status;
+	return 0;
+}
+
 static void cdaudioplay_do (void)
 {
 	uae_u32 startlsn = read_comm_pipe_u32_blocking (&requests);
@@ -509,7 +527,7 @@ static void cdaudioplay_do (void)
 	if (unitnum < 0)
 		return;
 	sys_command_cd_pause (unitnum, 0);
-	sys_command_cd_play (unitnum, startlsn, endlsn, scan, subfunc);
+	sys_command_cd_play (unitnum, startlsn, endlsn, scan, statusfunc, subfunc);
 }
 
 static bool isaudiotrack (int startlsn)
@@ -584,9 +602,7 @@ static int cd_qcode (uae_u8 *d)
 	buf[2] = 0x80;
 	if (!qcode_valid)
 		return 0;
-	if (cdrom_playing) // fake it!
-		as = AUDIO_STATUS_IN_PROGRESS;
-	if (as != AUDIO_STATUS_IN_PROGRESS && as != AUDIO_STATUS_PAUSED && as != AUDIO_STATUS_PLAY_COMPLETE && as != AUDIO_STATUS_NO_STATUS) /* audio status ok? */
+	if (cdrom_audiostatus != AUDIO_STATUS_IN_PROGRESS && cdrom_audiostatus != AUDIO_STATUS_PAUSED)
 		return 0;
 	s = buf + 4;
 	last_play_pos = msf2lsn (fromlongbcd (s + 7));
@@ -878,11 +894,11 @@ static int cdrom_command_multi (void)
 			seekpos, msf2lsn (seekpos), endpos, msf2lsn (endpos), scan);
 #endif
 		cdrom_playing = 1;
-		cdrom_result_buffer[1] |= CDS_PLAYING;
 		if (!cd_play_audio (seekpos, endpos, 0)) {
-			 // play didn't start, report it in next status packet
+			// play didn't start, report it in next status packet
 			cdrom_audiotimeout = -3;
 		}
+		cdrom_result_buffer[1] |= CDS_PLAYING;
 	} else {
 #if AKIKO_DEBUG_IO_CMD
 		write_log (L"SEEKTO %06X\n",seekpos);
@@ -895,10 +911,15 @@ static int cdrom_command_multi (void)
 	return 2;
 }
 
-static int cdrom_playend_notify (int err)
+static int cdrom_playend_notify (int status)
 {
 	cdrom_result_buffer[0] = 4;
-	cdrom_result_buffer[1] = err ? 0x80 : 0x00;
+	if (status < 0)
+		cdrom_result_buffer[1] = 0x80; // error
+	else if (status == 0)
+		cdrom_result_buffer[1] = 0x08; // play started
+	else
+		cdrom_result_buffer[1] = 0x00; // play ended
 	return 2;
 }
 
@@ -1092,6 +1113,10 @@ static void akiko_handler (void)
 		get_cdrom_toc ();
 		return;
 	}
+	if (cdrom_audiotimeout == 1) { // play start
+		cdrom_start_return_data (cdrom_playend_notify (0));
+		cdrom_audiotimeout = 0;
+	}
 	if (cdrom_audiotimeout == -1) { // play finished (or disk end)
 		if (cdrom_playing) {
 			cdaudiostop ();
@@ -1100,12 +1125,13 @@ static void akiko_handler (void)
 			cdrom_audiotimeout = 0;
 		}
 	}
-	if (cdrom_audiotimeout == -2 && qcode_buf[1] != AUDIO_STATUS_IN_PROGRESS) {
-		cdrom_start_return_data (cdrom_playend_notify (0));
+	if (cdrom_audiotimeout == -2) { // play end notification
+		cdrom_start_return_data (cdrom_playend_notify (1));
 		cdrom_audiotimeout = 0;
 	}
-	if (cdrom_audiotimeout == -3) {
-		cdrom_start_return_data (cdrom_playend_notify (1));
+	 // play didn't start notification (illegal address)
+	if (cdrom_audiotimeout == -3) { // return error status
+		cdrom_start_return_data (cdrom_playend_notify (-1));
 		cdrom_audiotimeout = 0;
 	}
 
@@ -1134,6 +1160,7 @@ void AKIKO_hsync_handler (void)
 	if (!currprefs.cs_cd32cd || !akiko_inited)
 		return;
 
+	static float framecounter;
 	framecounter--;
 	if (framecounter <= 0) {
 		if (cdrom_seek_delay <= 0) {
@@ -1141,12 +1168,12 @@ void AKIKO_hsync_handler (void)
 		} else {
 			cdrom_seek_delay--;
 		}
-		framecounter = 1000000 / (63 * 75 * cdrom_speed);
+		framecounter += (float)maxvpos * vblank_hz / (75.0 * cdrom_speed);
 	}
 
 	subcodecounter--;
 	if (subcodecounter <= 0) {
-		if ((cdrom_flags & CDFLAG_SUBCODE) && subcodebufferoffset != subcodebufferoffsetw) {
+		if ((cdrom_flags & CDFLAG_SUBCODE) && cdrom_playing && subcodebufferoffset != subcodebufferoffsetw) {
 			uae_sem_wait (&sub_sem);
 			if (subcodebufferinuse[subcodebufferoffset]) {
 				if (cdrom_subcodeoffset >= 128)
@@ -1166,19 +1193,13 @@ void AKIKO_hsync_handler (void)
 			}
 			uae_sem_post (&sub_sem);
 		}
-		subcodecounter = 1000000 / (70 * 75 * cdrom_speed);
+		subcodecounter = maxvpos * vblank_hz / (75 * cdrom_speed) - 5;
 	}
 
 	if (frame2counter > 0)
 		frame2counter--;
 	if (mediacheckcounter > 0)
 		mediacheckcounter--;
-
-	if (cdrom_audiotimeout > 0) {
-		cdrom_audiotimeout--;
-		if (cdrom_audiotimeout == 0)
-			cdrom_audiotimeout = -1;
-	}
 
 	akiko_internal ();
 	akiko_handler ();
@@ -1224,16 +1245,6 @@ static void *akiko_thread (void *null)
 			if (unitnum >= 0 && sys_command_cd_qcode (unitnum, qcode_buf)) {
 				uae_u8 as = qcode_buf[1];
 				qcode_valid = 1;
-				if (as == AUDIO_STATUS_IN_PROGRESS) {
-					frame2counter /= 4;
-					if (cdrom_audiotimeout == 0) {
-						int lsn = msf2lsn (fromlongbcd (qcode_buf + 4 + 7));
-						// make sure audio play really ends because not all drives report position accurately
-						if ((lsn >= cdrom_toc_cd_buffer.lastaddress - 3 * 75 || lsn >= last_play_end - 3 * 75)) {
-							cdrom_audiotimeout = 3 * 312;
-						}
-					}
-				}
 			}
 		}
 

@@ -244,7 +244,6 @@ struct draw_info {
 extern int next_sprite_entry;
 
 extern struct decision line_decisions[2 * (MAXVPOS + 2) + 1];
-extern struct draw_info line_drawinfo[2][2 * (MAXVPOS + 2) + 1];
 
 extern uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 

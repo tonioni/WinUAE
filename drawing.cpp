@@ -1953,13 +1953,11 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 				(*worker_border) (lastpos, nextpos_in_range);
 			lastpos = nextpos_in_range;
 		}
-		if (i != dip_for_drawing->last_color_change) {
-			if (regno >= 0x1000) {
-				pfield_expand_dp_bplconx (regno, value);
-			} else {
-				color_reg_set (&colors_for_drawing, regno, value);
-				colors_for_drawing.acolors[regno] = getxcolor (value);
-			}
+		if (regno >= 0x1000) {
+			pfield_expand_dp_bplconx (regno, value);
+		} else if (regno >= 0) {
+			color_reg_set (&colors_for_drawing, regno, value);
+			colors_for_drawing.acolors[regno] = getxcolor (value);
 		}
 		if (lastpos >= endpos)
 			break;

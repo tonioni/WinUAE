@@ -80,7 +80,6 @@ struct device_info {
 	TCHAR productid[18];
 	TCHAR revision[6];
 	TCHAR *backend;
-	int slow_unit;
 	struct cd_toc_head toc;
 };
 
@@ -110,10 +109,11 @@ typedef uae_u8* (*execscsicmd_in_func)(int, uae_u8*, int, int*);
 typedef int (*execscsicmd_direct_func)(int, struct amigascsi*);
 
 typedef void (*play_subchannel_callback)(uae_u8*, int);
+typedef int (*play_status_callback)(int);
 
 typedef int (*pause_func)(int, int);
 typedef int (*stop_func)(int);
-typedef int (*play_func)(int, int, int, int, play_subchannel_callback);
+typedef int (*play_func)(int, int, int, int, play_status_callback, play_subchannel_callback);
 typedef uae_u32 (*volume_func)(int, uae_u16, uae_u16);
 typedef int (*qcode_func)(int, uae_u8*, int);
 typedef int (*toc_func)(int, struct cd_toc_head*);
@@ -160,7 +160,7 @@ extern struct device_info *sys_command_info (int unitnum, struct device_info *di
 extern int sys_command_cd_pause (int unitnum, int paused);
 extern void sys_command_cd_stop (int unitnum);
 extern int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int);
-extern int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int scan, play_subchannel_callback subfunc);
+extern int sys_command_cd_play (int unitnum, int startlsn, int endlsn, int scan, play_status_callback statusfunc, play_subchannel_callback subfunc);
 extern uae_u32 sys_command_cd_volume (int unitnum, uae_u16 volume_left, uae_u16 volume_right);
 extern int sys_command_cd_qcode (int unitnum, uae_u8*);
 extern int sys_command_cd_toc (int unitnum, struct cd_toc_head*);
