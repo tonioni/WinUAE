@@ -1,4 +1,36 @@
 
+Beta 12:
+
+- <drive letter>: without '\' in harddrive paths was detected as a relative path,
+  automatically add missing '\', it was commonly used in old config files
+- CD32 pad in 2-button mode usually returned non-existing 3rd button pressed
+- CD32 pad in 2-button mode didn't have pullup resistor emulation (was lost when
+  joystick pullups were removed in 2.2)
+- autocorrect CD32/CDTV CDA starting position if R-W subchannel data is detected, workaround
+  for a bug (happens on real CD32 and CDTV too) that can cause missed subchannel frames at
+  play startup causing corrupt or missing CD+G graphics
+- CD thread safety critical sections moved to common part from image mounter
+- CD image mounter in play state while replacing image: state was still reported as playing
+- do not enable rawinput if rawinput capable device is inserted after winuae has been started
+- 2x or larger filters changed RTG hardware mouse cursor size.. (D3D + hardware RTG cursor only)
+- scsi emulation always-on logging disabled, added -scsiemulog command line parameter
+
+Beta 11:
+
+- internal CD audio handling update, status change (starting, started, end, error) callback
+  added, CD32 and CDTV emulation does not poll for state changes anymore, better accuracy
+  in audio start and end timing. CD handling rewrite should be complete now.
+- CD image mounter is now thread safe, no more weird and random behavior if mounted image was
+  in use and image was ejected or replaced
+- fixed rare crash in display emulation (introduced when right border blanking update was added)
+- improved CD32 CD sound/animation timing
+- CD32 CD timing now works correctly in NTSC mode (previously used hardcoded PAL values)
+- "non-path" kickstart rom configuration file selection now only allows normal KS roms in
+  kickstart_rom variable and extended roms in kickstart_rom_ext variable
+- fixed D3D non-shader mode crash introduced in b9
+- bogus autofire mode was enabled if same joystick was custom configured in input panel and in gameports panel
+  (missing masking of flags variable, time to wear brown paper bag again..)
+
 Beta 10:
 
 - archive dragndrop worked too well, it unpacked everything, including adf filesystem etc..

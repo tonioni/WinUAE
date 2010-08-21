@@ -2,8 +2,9 @@
  Name    : RetroPlatformIPC_doc.txt
  Project : RPSampleGuest
  Client  : Cloanto Italia srl
+ Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
-         : Copyright © Cloanto Italia srl 2007-2008.
+         : Copyright © Cloanto Italia srl 2007-2009.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, mcb
@@ -38,6 +39,7 @@ Description:
       RPIPCGM_POWERLED (turns on the power LED in the GUI),
       RPIPCGM_DEVICES (one for each device category: tells the number of emulated devices),
       RPIPCGM_DEVICECONTENT (one for each device with an image file or peripheral attached),
+      RPIPCGM_DEVICEREADWRITE (one for each device with an image file or peripheral attached - optional for non-floppy/non-hard disk which are always read-only),
       RPIPCGM_TURBO (tells if some of the turbo modes are activated from the start),
       RPIPCGM_VOLUME (reports about starting volume level),
       RPIPCGM_SCREENMODE (communicates the screen mode, the clipping coordinates and the guest window handle);
@@ -45,7 +47,12 @@ Description:
    and send its handle using a RPIPCGM_SCREENMODE message, which must be the last
    of the initialization messages, since it displays the guest window
    and the host "frame window" (the part of the player user interface
-   with command and status icons which can be used to drag the guest window, etc.)
+   with command and status icons which can be used to drag the guest window, etc.);
+   in some circumstances the host may decide not to display the guest window
+   when receiving the RPIPCGM_SCREENMODE message (e.g. in Express mode
+   the guest may be immediately paused and an intro banner may be displayed;
+   when the intro banner is dismissed the guest is resumed from pause mode
+   and its window is displayed)
 Data sent:
    WPARAM = RP_FEATURE_* flags
 Response:
@@ -164,7 +171,8 @@ Message:
    RPIPCGM_DEVICEACTIVITY
 Description:
    this message can be used to turn on or off the activity indicator
-   of a specified device (like a LED on the original hardware);
+   of a specified device (like a LED on the original hardware)
+   or to notify the host about the status of a joystick;
    the indicator can also be "blinked", i.e. the host will turn the
    LED on and then off again after the specified amount of time
 Data sent:
@@ -180,7 +188,10 @@ Data sent:
             or to a <millisecond delay> value to turn on the activity LED
             for the specified amount of time (blink);
             the Flags value can be set
-            using one or more of the RP_DEVICEACTIVITY_* defines
+            using one or more of the RP_DEVICEACTIVITY_* defines;
+            in case the message references a RP_DEVICE_INPUTPORT device
+            connected to a joystick, the data sent via LPARAM
+            is a combination of RP_JOYSTICK_* values
 Response:
    none
 
@@ -225,6 +236,18 @@ Response:
 
 
 Message:
+   RPIPCGM_HOSTVERSION
+Description:
+    the guest can send a RPIPCGM_HOSTVERSION
+    to query the host about its version
+Data sent:
+   none
+Response:
+   LRESULT = major, minor and build versions combined into a single 32 bit value;
+             the RP_HOSTVERSION_* macros can be used to get specific information
+
+
+Message:
    RPIPCGM_PAUSE
 Description:
    the guest sends this message to the host
@@ -254,7 +277,32 @@ Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
            the szContent field of the structure
            contains an empty string when the guest
-           is ejecting something from the device
+           is ejecting something from the device;
+           szContent examples for CD and other physical drives supported by the guest:
+           - "D:\" = mount physical drive D: (full or empty, does not matter)
+	   - "C:\test.iso" = mount ISO image
+	   - "" = empty image drive ("image mode without image")
+	   - there is no specific message to indicate "empty physical drive" (what counts is that there is an association with the physical drive)
+Response:
+   none
+
+
+Message:
+   RPIPCGM_DEVICEREADWRITE
+Description:
+   the guest sends a RPIPCGM_DEVICEREADWRITE message
+   to notify the host about an initial status or a change in
+   the read/write protection status;
+   this notification is optional if the event
+   was requested by the host (see the RPIPCHM_DEVICEREADWRITE message);
+   if no initial status is sent, the status is assumed to be read/write
+   for floppy and hard disks, and read-only for all other devices
+   (CDs, cartridges, tapes, etc.)
+Data sent:
+   WPARAM = device category (RP_DEVICE_* value) and device number
+            combined with the MAKEWORD macro;
+            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0)
+   LPARAM = current device read/write status flags (RP_DEVICE_READONLY/RP_DEVICE_READWRITE)
 Response:
    none
 
@@ -448,6 +496,20 @@ Data sent:
            characters itself)
 Response:
    LRESULT = 1 if the guest successfully executed the command or 0 otherwise
+
+
+Message:
+   RPIPCHM_DEVICEREADWRITE
+Description:
+   the host sends a RPIPCHM_DEVICEREADWRITE message
+   to set the read/write protection status
+Data sent:
+   WPARAM = device category (RP_DEVICE_* value) and device number
+            combined with the MAKEWORD macro;
+            e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0)
+   LPARAM = current device read/write status flags (RP_DEVICE_READONLY/RP_DEVICE_READWRITE)
+Response:
+   LRESULT = 1 if the guest successfully executed the command or 0 otherwise (for example, because the image file itself is read-only, so that writing is not possible)
 
 
 Message:

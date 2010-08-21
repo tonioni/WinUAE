@@ -876,7 +876,6 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	int canauto;
 	const TCHAR *ext;
 
-	gui_disk_image_change (dnum, fname);
 	drive_image_free (drv);
 	DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32, &drv->diskfile);
 	drv->ddhd = 1;
@@ -885,6 +884,8 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->tracktiming[0] = 0;
 	drv->useturbo = 0;
 	drv->indexoffset = 0;
+
+	gui_disk_image_change (dnum, fname, drv->wrprot);
 
 	canauto = 0;
 	ext = _tcsrchr (fname, '.');
@@ -2005,7 +2006,7 @@ static void drive_eject (drive * drv)
 #ifdef DRIVESOUND
 	driveclick_insert (drv - floppy, 1);
 #endif
-	gui_disk_image_change (drv - floppy, NULL);
+	gui_disk_image_change (drv - floppy, NULL, drv->wrprot);
 	drive_image_free (drv);
 	drv->dskchange = 1;
 	drv->ddhd = 1;
@@ -2134,7 +2135,7 @@ int disk_getwriteprotect (const TCHAR *name)
 	return diskfile_iswriteprotect (name, &needwritefile, &drvtype);
 }
 
-static void diskfile_readonly (const TCHAR *name, int readonly)
+static void diskfile_readonly (const TCHAR *name, bool readonly)
 {
 	struct _stat64 st;
 	int mode, oldmode;
@@ -2143,7 +2144,8 @@ static void diskfile_readonly (const TCHAR *name, int readonly)
 		return;
 	oldmode = mode = st.st_mode;
 	mode &= ~FILEFLAG_WRITE;
-	if (!readonly) mode |= FILEFLAG_WRITE;
+	if (!readonly)
+		mode |= FILEFLAG_WRITE;
 	if (mode != oldmode)
 		chmod (name, mode);
 }
@@ -2170,7 +2172,7 @@ void DISK_reinsert (int num)
 	setdskchangetime (&floppy[num], 20);
 }
 
-int disk_setwriteprotect (int num, const TCHAR *name, int protect)
+int disk_setwriteprotect (int num, const TCHAR *name, bool writeprotected)
 {
 	int needwritefile, oldprotect;
 	struct zfile *zf1, *zf2;
@@ -2192,7 +2194,7 @@ int disk_setwriteprotect (int num, const TCHAR *name, int protect)
 	if (needwritefile && zf2 == 0)
 		disk_creatediskfile (name2, 1, drvtype, NULL);
 	zfile_fclose (zf2);
-	if (protect && iswritefileempty (name)) {
+	if (writeprotected && iswritefileempty (name)) {
 		for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 			if (!_tcscmp (name, floppy[i].newname))
 				drive_eject (&floppy[i]);
@@ -2201,8 +2203,8 @@ int disk_setwriteprotect (int num, const TCHAR *name, int protect)
 	}
 
 	if (!needwritefile)
-		diskfile_readonly (name, protect);
-	diskfile_readonly (name2, protect);
+		diskfile_readonly (name, writeprotected);
+	diskfile_readonly (name2, writeprotected);
 	DISK_reinsert (num);
 	return 1;
 }
@@ -3125,14 +3127,14 @@ void DSKLEN (uae_u16 v, int hpos)
 			break;
 	}
 	if (dr == 4) {
-		write_log (L"disk %s DMA started, drvmask=%x motormask=%x\n",
-			dskdmaen == 3 ? L"write" : L"read", selected ^ 15, motormask);
+		write_log (L"disk %s DMA started, drvmask=%x motormask=%x PC=%08x\n",
+			dskdmaen == 3 ? L"write" : L"read", selected ^ 15, motormask, M68K_GETPC);
 		noselected = 1;
 	} else {
 		if (disk_debug_logging > 0) {
-			write_log (L"disk %s DMA started, drvmask=%x track %d mfmpos %d dmaen=%d\n",
+			write_log (L"disk %s DMA started, drvmask=%x track %d mfmpos %d dmaen=%d PC=%08X\n",
 				dskdmaen == 3 ? L"write" : L"read", selected ^ 15,
-				floppy[dr].cyl * 2 + side, floppy[dr].mfmpos, dma_enable);
+				floppy[dr].cyl * 2 + side, floppy[dr].mfmpos, dma_enable, M68K_GETPC);
 			disk_dma_debugmsg ();
 		}
 	}

@@ -2,12 +2,13 @@
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
- Legal   : Copyright 2007, 2008 Cloanto Italia srl - All rights reserved. This
+ Support : http://www.retroplatform.com
+ Legal   : Copyright 2007-2010 Cloanto Italia srl - All rights reserved. This
          : file is made available under the terms of the GNU General Public
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2008-12-19 12:38:00
+ Updated : 2010-08-17 19:01:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -16,9 +17,9 @@
 
 #include <windows.h>
 
-#define RPLATFORM_API_VER       "1.1"
+#define RPLATFORM_API_VER       "1.2"
 #define RPLATFORM_API_VER_MAJOR  1
-#define RPLATFORM_API_VER_MINOR  1
+#define RPLATFORM_API_VER_MINOR  2
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -50,46 +51,48 @@
 #define RPIPCGM_PARENT          (WM_APP + 21)
 #define RPIPCGM_DEVICESEEK      (WM_APP + 22)
 #define RPIPCGM_CLOSE           (WM_APP + 23)
-
+#define RPIPCGM_DEVICEREADWRITE (WM_APP + 24)
+#define RPIPCGM_HOSTVERSION     (WM_APP + 25)
 
 // ****************************************************************************
 //  Host-to-Guest Messages
 // ****************************************************************************
 
-#define RPIPCHM_CLOSE          (WM_APP + 200)
-#define RPIPCHM_SCREENMODE     (WM_APP + 202)
-#define RPIPCHM_SCREENCAPTURE  (WM_APP + 203)
-#define RPIPCHM_PAUSE          (WM_APP + 204)
-#define RPIPCHM_DEVICECONTENT  (WM_APP + 205)
-#define RPIPCHM_RESET          (WM_APP + 206)
-#define RPIPCHM_TURBO          (WM_APP + 207)
-#define RPIPCHM_PING           (WM_APP + 208)
-#define RPIPCHM_VOLUME         (WM_APP + 209)
-#define RPIPCHM_ESCAPEKEY      (WM_APP + 210)
-#define RPIPCHM_EVENT          (WM_APP + 211)
-#define RPIPCHM_MOUSECAPTURE   (WM_APP + 212)
-#define RPIPCHM_SAVESTATE      (WM_APP + 213)
-#define RPIPCHM_LOADSTATE      (WM_APP + 214)
-#define RPIPCHM_FLUSH          (WM_APP + 215)
-
+#define RPIPCHM_CLOSE           (WM_APP + 200)
+#define RPIPCHM_SCREENMODE      (WM_APP + 202)
+#define RPIPCHM_SCREENCAPTURE   (WM_APP + 203)
+#define RPIPCHM_PAUSE           (WM_APP + 204)
+#define RPIPCHM_DEVICECONTENT   (WM_APP + 205)
+#define RPIPCHM_RESET           (WM_APP + 206)
+#define RPIPCHM_TURBO           (WM_APP + 207)
+#define RPIPCHM_PING            (WM_APP + 208)
+#define RPIPCHM_VOLUME          (WM_APP + 209)
+#define RPIPCHM_ESCAPEKEY       (WM_APP + 210)
+#define RPIPCHM_EVENT           (WM_APP + 211)
+#define RPIPCHM_MOUSECAPTURE    (WM_APP + 212)
+#define RPIPCHM_SAVESTATE       (WM_APP + 213)
+#define RPIPCHM_LOADSTATE       (WM_APP + 214)
+#define RPIPCHM_FLUSH           (WM_APP + 215)
+#define RPIPCHM_DEVICEREADWRITE (WM_APP + 216)
 
 // ****************************************************************************
 //  Message Data Structures and Defines
 // ****************************************************************************
 
 // Guest Features
-#define RP_FEATURE_POWERLED      0x00000001 // a power LED is emulated
-#define RP_FEATURE_SCREEN1X      0x00000002 // 1x mode is available
-#define RP_FEATURE_SCREEN2X      0x00000004 // 2x mode is available
-#define RP_FEATURE_SCREEN3X      0x00000008 // 3x mode is available
-#define RP_FEATURE_SCREEN4X      0x00000010 // 4x mode is available
-#define RP_FEATURE_FULLSCREEN    0x00000020 // full screen display is available
-#define RP_FEATURE_SCREENCAPTURE 0x00000040 // screen capture functionality is available (see RPIPCHM_SCREENCAPTURE message)
-#define RP_FEATURE_PAUSE         0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
-#define RP_FEATURE_TURBO         0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
-#define RP_FEATURE_VOLUME        0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
-#define RP_FEATURE_STATE         0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
-#define RP_FEATURE_SCANLINES     0x00000800 // scan lines video effect is available
+#define RP_FEATURE_POWERLED        0x00000001 // a power LED is emulated
+#define RP_FEATURE_SCREEN1X        0x00000002 // 1x mode is available
+#define RP_FEATURE_SCREEN2X        0x00000004 // 2x mode is available
+#define RP_FEATURE_SCREEN3X        0x00000008 // 3x mode is available
+#define RP_FEATURE_SCREEN4X        0x00000010 // 4x mode is available
+#define RP_FEATURE_FULLSCREEN      0x00000020 // full screen display is available
+#define RP_FEATURE_SCREENCAPTURE   0x00000040 // screen capture functionality is available (see RPIPCHM_SCREENCAPTURE message)
+#define RP_FEATURE_PAUSE           0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
+#define RP_FEATURE_TURBO           0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
+#define RP_FEATURE_VOLUME          0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
+#define RP_FEATURE_STATE           0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
+#define RP_FEATURE_SCANLINES       0x00000800 // scan lines video effect is available
+#define RP_FEATURE_DEVICEREADWRITE 0x00001000 // device read/write can be set at runtime on floppy and hard disks
 
 // Screen Modes
 #define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")
@@ -152,6 +155,23 @@ typedef struct RPDeviceContent
 #define RP_IPD_KEYBDL2   L"KeyboardLayout2" // second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
 #define RP_IPD_KEYBDL3   L"KeyboardLayout3" // third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
 
+// Joystick status flags
+#define RP_JOYSTICK_RIGHT    0x00000001 // right direction
+#define RP_JOYSTICK_LEFT     0x00000002 // left direction
+#define RP_JOYSTICK_DOWN     0x00000004 // down direction
+#define RP_JOYSTICK_UP       0x00000008 // up direction
+#define RP_JOYSTICK_BUTTON1  0x00000010 // button 1 - Fire 1 - CD32 Red
+#define RP_JOYSTICK_BUTTON2  0x00000020 // button 2 - Fire 2 - CD32 Blue
+#define RP_JOYSTICK_BUTTON3  0x00000040 // button 3 - Fire 3 - CD32 Yellow
+#define RP_JOYSTICK_BUTTON4  0x00000080 // button 4 - Fire 4 - CD32 Green
+#define RP_JOYSTICK_BUTTON5  0x00000100 // button 5 - CD32 Play
+#define RP_JOYSTICK_BUTTON6  0x00000200 // button 6 - CD32 Reverse 
+#define RP_JOYSTICK_BUTTON7  0x00000400 // button 7 - CD32 Forward
+
+// Device Read/Write status
+#define RP_DEVICE_READONLY   0 // the medium is write-protected
+#define RP_DEVICE_READWRITE  1 // the medium is read/write
+
 // Turbo Mode Functionalities
 #define RP_TURBO_CPU     0x00000001 // CPU
 #define RP_TURBO_FLOPPY  0x00000002 // floppy disk drive
@@ -168,7 +188,19 @@ typedef struct RPDeviceContent
 // RPIPCGM_DEVICEACTIVITY
 #define RP_DEVICEACTIVITY_GREEN    0x0000 // green led
 #define RP_DEVICEACTIVITY_RED      0x0001 // red led
-#define RP_DEVICEACTIVITY_READ     RP_DEVICEACTIVITY_GREEN // the device activity is about a read operation
-#define RP_DEVICEACTIVITY_WRITE    RP_DEVICEACTIVITY_RED   // the device activity is about a write operation
+#define RP_DEVICEACTIVITY_READ     RP_DEVICEACTIVITY_GREEN // device activity is a read operation
+#define RP_DEVICEACTIVITY_WRITE    RP_DEVICEACTIVITY_RED   // device activity is a write operation
+
+// RPIPCGM_HOSTVERSION
+//   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+//   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+//  +-----------------------+-------------------+-------------------+
+//  |         major         |      minor        |      build        |
+//  +-----------------------+-------------------+-------------------+
+#define RP_HOSTVERSION_MAJOR(ver)    (((ver) >> 20) & 0xFFF)
+#define RP_HOSTVERSION_MINOR(ver)    (((ver) >> 10) & 0x3FF)
+#define RP_HOSTVERSION_BUILD(ver)    ((ver) & 0x3FF)
+#define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
+
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

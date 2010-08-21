@@ -48,6 +48,10 @@
 #include "rp.h"
 #include "dongle.h"
 #include "cdtv.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#include "cloanto/RetroPlatformIPC.h"
+#endif
 
 extern int bootrom_header, bootrom_items;
 
@@ -774,9 +778,9 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 	}
 }
 
-static int getnum (TCHAR **pp)
+static int getnum (const TCHAR **pp)
 {
-	TCHAR *p = *pp;
+	const TCHAR *p = *pp;
 	int v;
 
 	if (!_tcsnicmp (p, L"false", 5))
@@ -793,11 +797,11 @@ static int getnum (TCHAR **pp)
 	*pp = p;
 	return v;
 }
-static TCHAR *getstring (TCHAR **pp)
+static TCHAR *getstring (const TCHAR **pp)
 {
 	int i;
 	static TCHAR str[1000];
-	TCHAR *p = *pp;
+	const TCHAR *p = *pp;
 
 	if (*p == 0)
 		return 0;
@@ -960,7 +964,7 @@ static bool readslot (TCHAR *parm, int num, int joystick, int button, struct uae
 	return true;
 }
 
-static struct inputevent *readevent (TCHAR *name, TCHAR **customp)
+static struct inputevent *readevent (const TCHAR *name, TCHAR **customp)
 {
 	int i = 1;
 	while (events[i].name) {
@@ -976,12 +980,13 @@ static struct inputevent *readevent (TCHAR *name, TCHAR **customp)
 	return &events[0];
 }
 
-void read_inputdevice_config (struct uae_prefs *pr, TCHAR *option, TCHAR *value)
+void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *value)
 {
 	struct uae_input_device *id = 0;
 	struct inputevent *ie;
 	int devnum, num, button, joystick, subnum, idnum, keynum;
-	TCHAR *p, *p2, *custom;
+	const TCHAR *p;
+	TCHAR *p2, *custom;
 
 	option += 6; /* "input." */
 	p = getstring (&option);
@@ -2104,12 +2109,13 @@ static void cap_check (void)
 			int isbutton = getbuttonstate (joy, i == 0 ? JOYBUTTON_3 : JOYBUTTON_2);
 
 			if (cd32_pad_enabled[joy]) {
-				if (i == 0) // 3rd button?
-					continue;
-				if (cd32padmode (p5dir, p5dat))
-					continue;
 				// only red and blue can be read if CD32 pad and only if it is in normal pad mode
 				isbutton |= getbuttonstate (joy, JOYBUTTON_CD32_BLUE);
+				// CD32 pad 3rd button line (P5) is always floating
+				if (i == 0)
+					isbutton = 0;
+				if (cd32padmode (p5dir, p5dat))
+					continue;
 			}
 
 			dong = dongle_analogjoy (joy, i);
@@ -2164,6 +2170,10 @@ static void cap_check (void)
 				if (!(potgo_value & pdir) && i == 1 && charge == 0)
 					charge = 2;
 			}
+			// CD32 pad in 2-button mode: blue button is not floating
+			if (cd32_pad_enabled[joy] && i == 1 && charge == 0)
+				charge = 2;
+		
 			/* official Commodore mouse has pull-up resistors in button lines
 			* NOTE: 3rd party mice may not have pullups! */
 			if (dong < 0 && (mouse_pullup && mouse_port[joy] && digital_port[joy][i]) && charge == 0)
@@ -2181,7 +2191,7 @@ static void cap_check (void)
 }
 
 
-uae_u8 handle_joystick_buttons (uae_u8 dra)
+uae_u8 handle_joystick_buttons (uae_u8 pra, uae_u8 dra)
 {
 	uae_u8 but = 0;
 	int i;
@@ -2192,9 +2202,9 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 		if (cd32_pad_enabled[i]) {
 			uae_u16 p5dir = 0x0200 << (i * 4);
 			uae_u16 p5dat = 0x0100 << (i * 4);
-			but |= 0x40 << i;
+			but |= mask;
 			if (!cd32padmode (p5dir, p5dat)) {
-				if (getbuttonstate (i, JOYBUTTON_CD32_RED))
+				if (getbuttonstate (i, JOYBUTTON_CD32_RED) || getbuttonstate (i, JOYBUTTON_1))
 					but &= ~mask;
 			}
 		} else {
@@ -2205,10 +2215,10 @@ uae_u8 handle_joystick_buttons (uae_u8 dra)
 				if (uaerand () & 1)
 					but |= mask;
 			}
-
+			if (dra & mask)
+				but = (but & ~mask) | (pra & mask);
 		}
 	}
-
 
 	if (inputdevice_logging & 4)
 		write_log (L"BFE001: %02X:%02X %x\n", dra, but, M68K_GETPC);
@@ -2836,10 +2846,17 @@ int handle_input_event (int nr, int state, int max, int autofire)
 		if (ie->type & 4) {
 			int old = joybutton[joy] & (1 << ie->data);
 
-			if (state)
+			if (state) {
 				joybutton[joy] |= 1 << ie->data;
-			else
+#ifdef RETROPLATFORM
+				rp_update_gameport (joy, RP_JOYSTICK_BUTTON1 << ie->data, 1);
+#endif
+			} else {
 				joybutton[joy] &= ~(1 << ie->data);
+#ifdef RETROPLATFORM
+				rp_update_gameport (joy, RP_JOYSTICK_BUTTON1 << ie->data, 0);
+#endif
+			}
 
 			if (ie->data == 0 && old != (joybutton[joy] & (1 << ie->data)) && currprefs.cpu_cycle_exact) {
 				// emulate contact bounce, 1st button only, others have capacitors
@@ -2971,7 +2988,12 @@ int handle_input_event (int nr, int state, int max, int autofire)
 				joydir[joy] |= DIR_UP;
 			if (bot)
 				joydir[joy] |= DIR_DOWN;
-
+#ifdef RETROPLATFORM
+			rp_update_gameport (joy, RP_JOYSTICK_LEFT, left);
+			rp_update_gameport (joy, RP_JOYSTICK_RIGHT, right);
+			rp_update_gameport (joy, RP_JOYSTICK_DOWN, bot);
+			rp_update_gameport (joy, RP_JOYSTICK_UP, top);
+#endif
 		}
 		break;
 	case 0: /* ->KEY */
@@ -4441,6 +4463,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	rp_input_change (1);
 	rp_input_change (2);
 	rp_input_change (3);
+	for (i = 0; i < MAX_JPORTS; i++)
+		rp_update_gameport (i, -1, 0);
 #endif
 
 	joybutton[0] = joybutton[1] = 0;
@@ -5457,7 +5481,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 		return;
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
-		handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state, max, id->flags[ID_AXIS_OFFSET + axis][i]);
+		handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state, max, id->flags[ID_AXIS_OFFSET + axis][i] & ID_FLAG_AUTOFIRE);
 	id2->states[axis] = state;
 }
 int getjoystickstate (int joy)

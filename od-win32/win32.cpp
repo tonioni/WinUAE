@@ -1477,7 +1477,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			} else {
 				oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
 			}
-			flags = DT_VCENTER | DT_SINGLELINE ;
+			flags = DT_VCENTER | DT_SINGLELINE;
 			if (tflags & 1) {
 				flags |= DT_CENTER;
 				lpDIS->rcItem.left++;
@@ -1668,39 +1668,39 @@ static int WIN32_RegisterClasses (void)
 		g_dwBackgroundColor = RGB (255, 0, 255);
 	ReleaseDC (NULL, hDC);
 
-	wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_OWNDC;
+	wc.style = CS_DBLCLKS | CS_OWNDC;
 	wc.lpfnWndProc = AmigaWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
 	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
+	wc.hCursor = LoadCursor (NULL, IDC_ARROW);
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"AmigaPowah";
 	wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
 	if (!RegisterClass (&wc))
 		return 0;
 
-	wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW | CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
+	wc.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
 	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
+	wc.hCursor = LoadCursor (NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush (black);
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"PCsuxRox";
 	if (!RegisterClass (&wc))
 		return 0;
 
-	wc.style = CS_BYTEALIGNCLIENT | CS_BYTEALIGNWINDOW;
+	wc.style = 0;
 	wc.lpfnWndProc = HiddenWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = DLGWINDOWEXTRA;
 	wc.hInstance = hInst;
 	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
-	wc.hCursor = NULL; //LoadCursor (NULL, IDC_ARROW);
+	wc.hCursor = NULL;
 	wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"Useless";
@@ -2101,6 +2101,9 @@ void fullpath (TCHAR *path, int size)
 {
 	if (path[0] == 0 || (path[0] == '\\' && path[1] == '\\') || path[0] == ':')
 		return;
+	/* <drive letter>: is supposed to mean same as <drive letter>:\ */
+	if (_istalpha (path[0]) && path[1] == ':' && path[2] == 0)
+		_tcscat (path, L"\\");
 	if (relativepaths) {
 		TCHAR tmp1[MAX_DPATH], tmp2[MAX_DPATH];
 		tmp1[0] = 0;
@@ -4265,6 +4268,11 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"scsilog")) {
 		log_scsi = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"scsiemulog")) {
+		extern int log_scsiemu;
+		log_scsiemu = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"netlog")) {

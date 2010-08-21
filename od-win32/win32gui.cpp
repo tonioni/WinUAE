@@ -9709,10 +9709,10 @@ static void addallfloppies (HWND hDlg)
 	addfloppyhistory (hDlg);
 }
 
-static void floppysetwriteprotect (HWND hDlg, int n, int protect)
+static void floppysetwriteprotect (HWND hDlg, int n, bool writeprotected)
 {
 	if (!iscd (n)) {
-		disk_setwriteprotect (n, workprefs.floppyslots[n].df, protect);
+		disk_setwriteprotect (n, workprefs.floppyslots[n].df, writeprotected);
 		addfloppytype (hDlg, n);
 	}
 }
@@ -14208,10 +14208,10 @@ void check_prefs_changed_gui (void)
 {
 }
 
-void gui_disk_image_change (int unitnum, const TCHAR *name)
+void gui_disk_image_change (int unitnum, const TCHAR *name, bool writeprotected)
 {
 #ifdef RETROPLATFORM
-	rp_disk_image_change (unitnum, name);
+	rp_disk_image_change (unitnum, name, writeprotected);
 #endif
 }
 

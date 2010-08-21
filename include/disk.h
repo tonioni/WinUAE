@@ -27,7 +27,7 @@ extern void DISK_update_adkcon (int hpos, uae_u16 v);
 extern void DISK_hsync (void);
 extern void DISK_reset (void);
 extern int disk_getwriteprotect (const TCHAR *name);
-extern int disk_setwriteprotect (int num, const TCHAR *name, int protect);
+extern int disk_setwriteprotect (int num, const TCHAR *name, bool writeprotected);
 extern void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk_name);
 extern void dumpdisk (void);
 extern int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck);

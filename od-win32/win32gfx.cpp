@@ -2524,7 +2524,7 @@ static BOOL doInit (void)
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
-			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth, currprefs.gfx_filter_filtermode + 1);
+			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free ();
 			gui_message (err);

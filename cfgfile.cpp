@@ -1194,7 +1194,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					*next2++ = 0;
 				cfgfile_intval (option, next, tmp, &unitnum, 1);
 			}
-			_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name / sizeof (TCHAR));
+			if (_tcslen (value) > 0)
+				_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name / sizeof (TCHAR));
 			p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
 			p->cdslots[i].inuse = true;
 			p->cdslots[i].type = type;
@@ -1650,9 +1651,9 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	return 0;
 }
 
-static void decode_rom_ident (TCHAR *romfile, int maxlen, TCHAR *ident)
+static void decode_rom_ident (TCHAR *romfile, int maxlen, const TCHAR *ident, int romflags)
 {
-	TCHAR *p;
+	const TCHAR *p;
 	int ver, rev, subver, subrev, round, i;
 	TCHAR model[64], *modelp;
 	struct romlist **rl;
@@ -1670,29 +1671,29 @@ static void decode_rom_ident (TCHAR *romfile, int maxlen, TCHAR *ident)
 		while (*p) {
 			TCHAR c = *p++;
 			int *pp1 = NULL, *pp2 = NULL;
-			if (_totupper(c) == 'V' && _istdigit(*p)) {
+			if (_totupper (c) == 'V' && _istdigit (*p)) {
 				pp1 = &ver;
 				pp2 = &rev;
-			} else if (_totupper(c) == 'R' && _istdigit(*p)) {
+			} else if (_totupper (c) == 'R' && _istdigit (*p)) {
 				pp1 = &subver;
 				pp2 = &subrev;
-			} else if (!_istdigit(c) && c != ' ') {
-				_tcsncpy (model, p - 1, (sizeof model) - 1);
+			} else if (!_istdigit (c) && c != ' ') {
+				_tcsncpy (model, p - 1, (sizeof model) / sizeof (TCHAR) - 1);
 				p += _tcslen (model);
 				modelp = model;
 			}
 			if (pp1) {
-				*pp1 = _tstol(p);
+				*pp1 = _tstol (p);
 				while (*p != 0 && *p != '.' && *p != ' ')
 					p++;
 				if (*p == '.') {
 					p++;
 					if (pp2)
-						*pp2 = _tstol(p);
+						*pp2 = _tstol (p);
 				}
 			}
 			if (*p == 0 || *p == ';') {
-				rl = getromlistbyident (ver, rev, subver, subrev, modelp, round);
+				rl = getromlistbyident (ver, rev, subver, subrev, modelp, romflags, round > 0);
 				if (rl) {
 					for (i = 0; rl[i]; i++) {
 						if (round) {
@@ -1812,7 +1813,7 @@ static void parse_addmem (struct uae_prefs *p, TCHAR *buf, int num)
 	p->custom_memory_sizes[num] = size;
 }
 
-static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *value)
+static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCHAR *value)
 {
 	int tmpval, dummyint, i;
 	bool tmpbool, dummybool;
@@ -1964,15 +1965,15 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, TCHAR *option, TCHAR *va
 		return 1;
 	}
 	if (cfgfile_string (option, value, L"kickstart_rom", p->romident, sizeof p->romident / sizeof (TCHAR))) {
-		decode_rom_ident (p->romfile, sizeof p->romfile / sizeof (TCHAR), p->romident);
+		decode_rom_ident (p->romfile, sizeof p->romfile / sizeof (TCHAR), p->romident, ROMTYPE_ALL_KICK);
 		return 1;
 	}
 	if (cfgfile_string (option, value, L"kickstart_ext_rom", p->romextident, sizeof p->romextident / sizeof (TCHAR))) {
-		decode_rom_ident (p->romextfile, sizeof p->romextfile / sizeof (TCHAR), p->romextident);
+		decode_rom_ident (p->romextfile, sizeof p->romextfile / sizeof (TCHAR), p->romextident, ROMTYPE_ALL_EXT);
 		return 1;
 	}
 	if (cfgfile_string (option, value, L"cart", p->cartident, sizeof p->cartident / sizeof (TCHAR))) {
-		decode_rom_ident (p->cartfile, sizeof p->cartfile / sizeof (TCHAR), p->cartident);
+		decode_rom_ident (p->cartfile, sizeof p->cartfile / sizeof (TCHAR), p->cartident, ROMTYPE_ALL_CART);
 		return 1;
 	}
 

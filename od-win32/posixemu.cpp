@@ -268,7 +268,7 @@ void uae_end_thread (uae_thread_id *tid)
 	}
 }
 
-int uae_start_thread (TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
+int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thread_id *tid)
 {
 	HANDLE hThread;
 	int result = 1;

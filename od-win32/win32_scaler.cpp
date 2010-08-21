@@ -796,6 +796,8 @@ int S2X_getmult (void)
 {
 	if (!usedfilter)
 		return 1;
+	if (screen_is_picasso)
+		return 1;
 	return usedfilter->intmul;
 }
 

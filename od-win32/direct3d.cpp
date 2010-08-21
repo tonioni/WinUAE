@@ -2149,7 +2149,7 @@ void D3D_clear (void)
 static void D3D_render22 (void)
 {
 	HRESULT hr;
-	LPDIRECT3DTEXTURE9 srctex;
+	LPDIRECT3DTEXTURE9 srctex = texture;
 	UINT uPasses, uPass;
 
 	if (!isd3d ())
@@ -2237,10 +2237,6 @@ static void D3D_render22 (void)
 			lpRenderTarget->Release ();
 #endif
 			srctex = lpTempTexture;
-
-		} else {
-
-			srctex = texture;
 
 		}
 

@@ -625,12 +625,8 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		action_replay_ciaread ();
 #endif
 		tmp = DISK_status() & 0x3c;
-		tmp |= handle_joystick_buttons (ciaadra);
+		tmp |= handle_joystick_buttons (ciaapra, ciaadra);
 		tmp |= (ciaapra | (ciaadra ^ 3)) & 0x03;
-		if (ciaadra & 0x40)
-			tmp = (tmp & ~0x40) | (ciaapra & 0x40);
-		if (ciaadra & 0x80)
-			tmp = (tmp & ~0x80) | (ciaapra & 0x80);
 		tmp = dongle_cia_read (0, reg, tmp);
 #if DONGLE_DEBUG > 0
 		if (notinrom())

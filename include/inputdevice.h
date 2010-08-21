@@ -106,7 +106,7 @@ INPUTEVENT_END
 
 extern void handle_cd32_joystick_cia (uae_u8, uae_u8);
 extern uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra);
-extern uae_u8 handle_joystick_buttons (uae_u8);
+extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
 extern int getbuttonstate (int joy, int button);
 extern int getjoystate (int joy);
 
@@ -162,7 +162,7 @@ extern void inputdevice_hsync (void);
 extern void inputdevice_reset (void);
 
 extern void write_inputdevice_config (struct uae_prefs *p, struct zfile *f);
-extern void read_inputdevice_config (struct uae_prefs *p, TCHAR *option, TCHAR *value);
+extern void read_inputdevice_config (struct uae_prefs *p, const TCHAR *option, TCHAR *value);
 extern void reset_inputdevice_config (struct uae_prefs *pr);
 extern int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type);
 extern int inputdevice_getjoyportdevice (int port, int val);

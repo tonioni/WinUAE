@@ -268,8 +268,10 @@ static void subfunc (uae_u8 *data, int cnt)
 }
 static int statusfunc (int status)
 {
-	if (status < 0)
+	if (status == -1)
 		return 500;
+	if (status == -2)
+		return 75;
 	if (cd_audio_status != status) {
 		if (status == AUDIO_STATUS_PLAY_COMPLETE || status == AUDIO_STATUS_PLAY_ERROR) {
 			cd_audio_finished = 1;
@@ -515,6 +517,8 @@ static void cdrom_command_thread (uae_u8 b)
 		if (cdrom_command_cnt_in == 7) {
 			cdrom_command_accepted (0, s, &cdrom_command_cnt_in);
 			cd_finished = 1;
+			sleep_millis (500);
+			activate_stch = 1;
 		}
 		break;
 	case 0x02: /* read */

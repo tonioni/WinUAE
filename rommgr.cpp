@@ -379,7 +379,7 @@ static void romlist_cleanup (void)
 	}
 }
 
-struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, const TCHAR *model, int all)
+struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, const TCHAR *model, int romflags, bool all)
 {
 	int i, j, ok, out, max;
 	struct romdata *rd;
@@ -406,7 +406,7 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, co
 			continue;
 		if (model && !_tcsicmp (model, rd->name))
 			ok = 2;
-		if (rd->ver == ver && (rev < 0 || rd->rev == rev)) {
+		if ((ver < 0 || rd->ver == ver) && (rev < 0 || rd->rev == rev)) {
 			if (subver >= 0) {
 				if (rd->subver == subver && (subrev < 0 || rd->subrev == subrev) && rd->subver > 0)
 					ok = 1;
@@ -419,7 +419,7 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, co
 		if (model && ok < 2) {
 			TCHAR *p = rd->model;
 			ok = 0;
-			while (*p) {
+			while (p && *p) {
 				if (!_tcscmp(rd->model, model)) {
 					ok = 1;
 					break;
@@ -427,7 +427,7 @@ struct romlist **getromlistbyident (int ver, int rev, int subver, int subrev, co
 				p = p + _tcslen(p) + 1;
 			}
 		}
-		if (!model && rd->type != ROMTYPE_KICK)
+		if (romflags && (rd->type & romflags) == 0)
 			ok = 0;
 		if (ok) {
 			if (all) {

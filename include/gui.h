@@ -17,7 +17,7 @@ extern void gui_changesettings (void);
 extern void gui_lock (void);
 extern void gui_unlock (void);
 extern void gui_flicker_led (int, int, int);
-extern void gui_disk_image_change (int, const TCHAR *);
+extern void gui_disk_image_change (int, const TCHAR *, bool writeprotected);
 extern unsigned int gui_ledstate;
 extern void gui_display (int shortcut);
 

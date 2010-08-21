@@ -503,8 +503,10 @@ static void subfunc (uae_u8 *data, int cnt)
 
 static int statusfunc (int status)
 {
-	if (status < 0)
-		return 1000;
+	if (status == -1)
+		return 0;
+	if (status == -2)
+		return 150;
 	if (cdrom_audiostatus != status) {
 		if (status == AUDIO_STATUS_IN_PROGRESS) {
 			cdrom_playing = 1;

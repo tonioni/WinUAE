@@ -175,146 +175,164 @@ void Rip_PP30 ( void )
  *   - Speed-up and Binary smaller.
  * update : 8 dec 2003
  *   - no more fopen ()
+ * update : 16 aug 2010
+ *   - rewrotte depacker for patternlist generation
 */
 
 void Depack_PP30 ( void )
 {
-  Uchar c1=0x00,c2=0x00;
-  short Max=0;
-  Uchar Tracks_Numbers[4][128];
-  short Tracks_PrePointers[512][64];
-  Uchar NOP=0x00; /* number of pattern */
-  Uchar *ReferenceTable;
-  Uchar *Whatever;
-  long i=0,j=0;
+  Uchar *Header, *Pattern;
+  Ulong ReadTrkPat[128][4], ReadPat[128];
+  long Highest_Track = 0;
+  long whereTableRef;
+  long i=0,j=0,k=0,l=0,m=0;
   long Total_Sample_Size=0;
-  long Where = PW_Start_Address;
+  long Where=PW_Start_Address;
   FILE *out;
 
   if ( Save_Status == BAD )
     return;
 
-  BZERO ( Tracks_Numbers , 4*128 );
-  BZERO ( Tracks_PrePointers , 512*64 );
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
 
-  /* title */
-  Whatever = (Uchar *) malloc (1024);
-  BZERO ( Whatever , 1024 );
-  fwrite ( Whatever , 20 , 1 , out );
+  Header = (Uchar *)malloc(1084);
+  Pattern = (Uchar *)malloc(1024);
+  BZERO ( Header , 1084 );
+  BZERO ( Pattern , 1024 );
 
   for ( i=0 ; i<31 ; i++ )
   {
-    /*sample name*/
-    fwrite ( Whatever , 22 , 1 , out );
-    /* sample siz */
     Total_Sample_Size += (((in_data[Where]*256)+in_data[Where+1])*2);
-    /* size,fine,vol,lstart,lsize */
-    fwrite ( &in_data[Where] , 8 , 1 , out );
+    /* siz,fine,vol,lstart,lsize */
+    Header[42+i*30] = in_data[Where];
+    Header[43+i*30] = in_data[Where+1];
+    Header[44+i*30] = in_data[Where+2];
+    Header[45+i*30] = in_data[Where+3];
+    Header[46+i*30] = in_data[Where+4];
+    Header[47+i*30] = in_data[Where+5];
+    Header[48+i*30] = in_data[Where+6];
+    Header[49+i*30] = in_data[Where+7];
     Where += 8;
   }
 
   /* pattern table lenght */
-  NOP = in_data[Where];
-  fwrite ( &NOP , 1 , 1 , out );
+  Header[950] = in_data[Where];
   Where += 1;
-  /*printf ( "Number of patterns : %d\n" , NOP );*/
+
+  /*printf ( "Number of patterns : %d\n" , Header[950] );*/
 
   /* NoiseTracker restart byte */
-  fwrite ( &in_data[Where] , 1 , 1 , out );
+  Header[951] = in_data[Where];
   Where += 1;
 
-  Max = 0;
-  for ( j=0 ; j<4 ; j++ )
+  // now, where = 0xFA
+  for (i=0;i<Header[950];i++)
   {
-    for ( i=0 ; i<128 ; i++ )
-    {
-      Tracks_Numbers[j][i] = in_data[Where];
-      Where += 1;
-      if ( Tracks_Numbers[j][i] > Max )
-        Max = Tracks_Numbers[j][i];
-    }
+    ReadPat[i] = (in_data[Where+i]*256*256*256) + 
+      (in_data[Where+i+128]*256*256) +
+      (in_data[Where+i+256]*256) +
+      in_data[Where+i+384];
+    ReadTrkPat[i][0] = in_data[Where+i];
+    ReadTrkPat[i][1] = in_data[Where+i+128];
+    ReadTrkPat[i][2] = in_data[Where+i+256];
+    ReadTrkPat[i][3] = in_data[Where+i+384];
+    if (ReadTrkPat[i][0] > Highest_Track)
+      Highest_Track = ReadTrkPat[i][0];
+    if (ReadTrkPat[i][1] > Highest_Track)
+      Highest_Track = ReadTrkPat[i][1];
+    if (ReadTrkPat[i][2] > Highest_Track)
+      Highest_Track = ReadTrkPat[i][2];
+    if (ReadTrkPat[i][3] > Highest_Track)
+      Highest_Track = ReadTrkPat[i][3];
+    /*printf ("%x-%x-%x-%x\n",ReadTrkPat[i][0],ReadTrkPat[i][1],ReadTrkPat[i][2],ReadTrkPat[i][3]);*/
   }
+  /*printf ( "Number of tracks : %d\n" , Highest_Track+1 );*/
 
-  /* write pattern table without any optimizing ! */
-  for ( c1=0x00 ; c1<NOP ; c1++ )
-    fwrite ( &c1 , 1 , 1 , out );
-  c2 = 0x00;
-  for ( ; c1<128 ; c1++ )
-    fwrite ( &c2 , 1 , 1 , out );
+  /* sorting ?*/
+  k = 0; /* next min */
+  l = 0;
 
-  Whatever[0] = 'M';
-  Whatever[1] = '.';
-  Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
-
-
-  /* PATTERN DATA code starts here */
-
-  /*printf ( "Highest track number : %d\n" , Max );*/
-  for ( j=0 ; j<=Max ; j++ )
+  /* put the first pattern number */
+  /* could be stored several times */
+  for (j=0; j<Header[950] ; j++)
   {
-    for ( i=0 ; i<64 ; i++ )
-    {
-      Tracks_PrePointers[j][i] = ((in_data[Where]*256)+
-                                   in_data[Where+1])/4;
-      Where += 2;
-    }
+    m = 0x7fffffff; /* min */
+    /*search for min */
+    for (i=0; i<Header[950] ; i++)
+      if ((ReadPat[i]<m) && (ReadPat[i]>k))
+	    m = ReadPat[i];
+    /* if k == m then an already existing ref was found */
+    if (k==m)
+      continue;
+    /* m is the next minimum */
+    k = m;
+    for (i=0; i<Header[950] ; i++)
+      if (ReadPat[i] == k)
+	Header[952+i] = (unsigned char)l;
+    l++;
   }
-
-  /* read "reference table" size */
-  j = ((in_data[Where]*256*256*256)+
-       (in_data[Where+1]*256*256)+
-       (in_data[Where+2]*256)+
-        in_data[Where+3]);
-  Where += 4;
+  if ( l != Header[950] )
+    l -= 1;
 
 
-  /* read "reference Table" */
-  ReferenceTable = (Uchar *) malloc ( j );
-  for ( i=0 ; i<j ; i++,Where+=1 )
-    ReferenceTable[i] = in_data[Where];
+  /* write ptk's ID */
+  Header[1080] = 'M';
+  Header[1081] = Header[1083] = '.';
+  Header[1082] = 'K';
+  fwrite (Header, 1084, 1, out);
 
-  /* NOW, the real shit takes place :) */
-  for ( i=0 ; i<NOP ; i++ )
+
+  /* put 'where' at track data level - after track list */
+  Where = PW_Start_Address + 762;
+
+
+  /* rebuild patterns now */
+  /* l is the number of stored patterns */
+  /* rebuild pattern data now */
+  whereTableRef = ((Highest_Track + 1)*128) + 4 + Where;
+  //printf ( "\nwhereTableRef : %ld\n",whereTableRef);
+  for (i=0;i<l;i++)
   {
-    BZERO ( Whatever , 1024 );
-    for ( j=0 ; j<64 ; j++ )
+    BZERO(Pattern,1024);
+    /* which pattern is it now ? */
+    for (j=0;j<Header[950];j++)
     {
-
-      Whatever[j*16]   = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [0][i]] [j]*4];
-      Whatever[j*16+1] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [0][i]] [j]*4+1];
-      Whatever[j*16+2] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [0][i]] [j]*4+2];
-      Whatever[j*16+3] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [0][i]] [j]*4+3];
-
-      Whatever[j*16+4] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [1][i]] [j]*4];
-      Whatever[j*16+5] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [1][i]] [j]*4+1];
-      Whatever[j*16+6] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [1][i]] [j]*4+2];
-      Whatever[j*16+7] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [1][i]] [j]*4+3];
-
-      Whatever[j*16+8] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [2][i]] [j]*4];
-      Whatever[j*16+9] = ReferenceTable[Tracks_PrePointers [Tracks_Numbers [2][i]] [j]*4+1];
-      Whatever[j*16+10]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [2][i]] [j]*4+2];
-      Whatever[j*16+11]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [2][i]] [j]*4+3];
-
-      Whatever[j*16+12]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [3][i]] [j]*4];
-      Whatever[j*16+13]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [3][i]] [j]*4+1];
-      Whatever[j*16+14]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [3][i]] [j]*4+2];
-      Whatever[j*16+15]= ReferenceTable[Tracks_PrePointers [Tracks_Numbers [3][i]] [j]*4+3];
-
+      if (Header[952+j] == i)
+        break; /* found */
     }
-    fwrite ( Whatever , 1024 , 1 , out );
-  }
-  free ( ReferenceTable );
-  free ( Whatever );
+    for (k=0;k<4;k++) /* loop on 4 tracks' refs*/
+    {
+      long d;
 
+      /* loop on notes */
+      for (d=0;d<64;d++)
+      {
+        /* read one ref value to be fetch in the reference table */
+        long val = (in_data[Where+(ReadTrkPat[j][k]*128)+(d*2)])*256
+             + in_data[Where+(ReadTrkPat[j][k]*128)+(d*2)+1];
+
+	    Pattern[k*4+d*16] = in_data[whereTableRef + val];
+        Pattern[k*4+d*16+1] = in_data[whereTableRef + val + 1];
+        Pattern[k*4+d*16+2] = in_data[whereTableRef + val + 2];
+        Pattern[k*4+d*16+3] = in_data[whereTableRef + val + 3];
+      }
+    }
+    fwrite ( Pattern , 1024 , 1 , out );
+  }
+  free ( Pattern );
+  free ( Header );
+
+  /* locate sample start addy - after reference table */
+  j = ((in_data[whereTableRef-4]*256*256*256)+
+       (in_data[whereTableRef-3]*256*256)+
+       (in_data[whereTableRef-2]*256)+
+        in_data[whereTableRef-1]);
+  /*printf ( "\nj:%ld - Where:%ld\n",j,Where );*/
 
   /* sample data */
-  /*printf ( "Total sample size : %ld\n" , Total_Sample_Size );*/
-  fwrite ( &in_data[Where] , Total_Sample_Size , 1 , out );
+  fwrite ( &in_data[j+whereTableRef] , Total_Sample_Size , 1 , out );
 
   Crap ( "  ProPacker v3.0  " , BAD , BAD , out );
 

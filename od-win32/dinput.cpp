@@ -114,6 +114,7 @@ static int oldleds, oldusedleds, newleds, oldusbleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
+static bool rawinput_decided;
 
 int no_rawinput = 0;
 int dinput_enum_all;
@@ -813,18 +814,11 @@ static void getvidpid (const TCHAR *devname, int *vid, int *pid, int *mi)
 
 static void addrkblabels (struct didata *did)
 {
-	int j = 0;
 	for (int k = 0; k < 254; k++) {
 		TCHAR tmp[100];
 		tmp[0] = 0;
-		if (rawkeyboardlabels[j] != NULL) {
-			if (rawkeyboardlabels[j][0]) {
-				_tcscpy (tmp, rawkeyboardlabels[j]);
-				j++;
-			}
-		} else {
-			j++;
-		}
+		if (rawkeyboardlabels[k] != NULL && rawkeyboardlabels[k][0])
+			_tcscpy (tmp, rawkeyboardlabels[k]);
 		if (!tmp[0])
 			_stprintf (tmp, L"KEY_%02X", k + 1);
 		did->buttonname[k] = my_strdup (tmp);
@@ -888,6 +882,14 @@ static int initialize_rawinput (void)
 			struct didata *did = type == RIM_TYPEMOUSE ? di_mouse : di_keyboard;
 			PRID_DEVICE_INFO rdi;
 			int v, j;
+
+			if (rawinput_decided) {
+				// must not enable rawinput later, even if rawinput capable device was plugged in
+				if (type == RIM_TYPEKEYBOARD && !rawinput_enabled_keyboard)
+					continue;
+				if (type == RIM_TYPEMOUSE && !rawinput_enabled_mouse)
+					continue;
+			}
 
 			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == -1)
 				continue;
@@ -1598,8 +1600,12 @@ static int di_do_init (void)
 		write_log (L"RawInput enumeration..\n");
 		initialize_rawinput ();
 	}
-	rawinput_enabled_keyboard = num_keyboard > 0;
-	rawinput_enabled_mouse = num_mouse > 0;
+
+	if (!rawinput_decided) {
+		rawinput_enabled_keyboard = num_keyboard > 0;
+		rawinput_enabled_mouse = num_mouse > 0;
+		rawinput_decided = true;
+	}
 
 	hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
 	if (FAILED(hr)) {

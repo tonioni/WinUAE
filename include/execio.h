@@ -7,27 +7,27 @@
 #define IOERR_UNITBUSY	 -6
 #define IOERR_SELFTEST	 -7
 
-#define CDERR_NotSpecified   20   /* general catchall			  */
-#define CDERR_NoSecHdr	     21   /* couldn't even find a sector	  */
-#define CDERR_BadSecPreamble 22   /* sector looked wrong		  */
-#define CDERR_BadSecID	     23   /* ditto				  */
-#define CDERR_BadHdrSum      24   /* header had incorrect checksum	  */
-#define CDERR_BadSecSum      25   /* data had incorrect checksum	  */
-#define CDERR_TooFewSecs     26   /* couldn't find enough sectors	  */
-#define CDERR_BadSecHdr      27   /* another "sector looked wrong"	  */
-#define CDERR_WriteProt      28   /* can't write to a protected disk	  */
-#define CDERR_NoDisk	     29   /* no disk in the drive		  */
-#define CDERR_SeekError      30   /* couldn't find track 0		  */
-#define CDERR_NoMem	     31   /* ran out of memory			  */
-#define CDERR_BadUnitNum     32   /* asked for a unit > NUMUNITS	  */
-#define CDERR_BadDriveType   33   /* not a drive cd.device understands	  */
-#define CDERR_DriveInUse     34   /* someone else allocated the drive	  */
-#define CDERR_PostReset      35   /* user hit reset; awaiting doom	  */
-#define CDERR_BadDataType    36   /* data on disk is wrong type	  */
-#define CDERR_InvalidState   37   /* invalid cmd under current conditions */
-
-#define CDERR_Phase	     42   /* illegal or unexpected SCSI phase	  */
-#define CDERR_NoBoard	     50   /* open failed for non-existant board   */
+#define IOERR_NotSpecified   20   /* general catchall			  */
+#define IOERR_NoSecHdr	     21   /* couldn't even find a sector	  */
+#define IOERR_BadSecPreamble 22   /* sector looked wrong		  */
+#define IOERR_BadSecID	     23   /* ditto				  */
+#define IOERR_BadHdrSum      24   /* header had incorrect checksum	  */
+#define IOERR_BadSecSum      25   /* data had incorrect checksum	  */
+#define IOERR_TooFewSecs     26   /* couldn't find enough sectors	  */
+#define IOERR_BadSecHdr      27   /* another "sector looked wrong"	  */
+#define IOERR_WriteProt      28   /* can't write to a protected disk	  */
+#define IOERR_NoDisk	     29   /* no disk in the drive		  */
+#define IOERR_SeekError      30   /* couldn't find track 0		  */
+#define IOERR_NoMem          31   /* ran out of memory			  */
+#define IOERR_BadUnitNum     32   /* asked for a unit > NUMUNITS	  */
+#define IOERR_BadDriveType   33   /* not a drive cd.device understands	  */
+#define IOERR_DriveInUse     34   /* someone else allocated the drive	  */
+#define IOERR_PostReset      35   /* user hit reset; awaiting doom	  */
+#define IOERR_BadDataType    36   /* data on disk is wrong type	  */
+#define IOERR_InvalidState   37   /* invalid cmd under current conditions */
+#define IOERR_BadStatus      45
+#define IOERR_Phase	         42   /* illegal or unexpected SCSI phase	  */
+#define IOERR_NoBoard        50   /* open failed for non-existant board   */
 
 
 #define TDERR_DiskChanged 29

@@ -707,7 +707,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 				}
 			}
 		} else {
-			io_error = CDERR_NotSpecified;
+			io_error = IOERR_NotSpecified;
 		}
 	}
 	break;
@@ -846,7 +846,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 				put_long (io_data + 8, diskpos);
 				io_actual = 12;
 			} else {
-				io_error = CDERR_InvalidState;
+				io_error = IOERR_InvalidState;
 			}
 		} else {
 			io_error = IOERR_BADADDRESS;

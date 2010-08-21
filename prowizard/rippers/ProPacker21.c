@@ -138,6 +138,8 @@ void Rip_PP21 ( void )
  *   - no more fopen ()
  * update : 20100814
  *   - rewrote depacker (no more useless patterns)
+ * update : 20100815
+ *   - removed unused var and ;
 */
 
 void Depack_PP21 ( void )
@@ -150,6 +152,7 @@ void Depack_PP21 ( void )
   long Total_Sample_Size=0;
   long Where=PW_Start_Address;
   FILE *out;
+  /*FILE *info;*/
 
   if ( Save_Status == BAD )
     return;
@@ -157,6 +160,7 @@ void Depack_PP21 ( void )
 
   sprintf ( Depacked_OutName , "%ld.mod" , Cpt_Filename-1 );
   out = PW_fopen ( Depacked_OutName , "w+b" );
+  /*info = PW_fopen ( "info.txt" , "w+b");*/
 
   Header = (Uchar *)malloc(1084);
   Pattern = (Uchar *)malloc(1024);
@@ -188,7 +192,7 @@ void Depack_PP21 ( void )
   Header[951] = in_data[Where];
   Where += 1;
 
-  // now, where = 0xFA
+  /* now, where = 0xFA*/
   for (i=0;i<Header[950];i++)
   {
     ReadPat[i] = (in_data[Where+i]*256*256*256) + 
@@ -207,9 +211,9 @@ void Depack_PP21 ( void )
       Highest_Track = ReadTrkPat[i][2];
     if (ReadTrkPat[i][3] > Highest_Track)
       Highest_Track = ReadTrkPat[i][3];
-    /*printf ("%x-%x-%x-%x\n",ReadTrkPat[i][0],ReadTrkPat[i][1],ReadTrkPat[i][2],ReadTrkPat[i][3]);*/
+    /*fprintf (info,"%x-%x-%x-%x (%ld)\n",ReadTrkPat[i][0],ReadTrkPat[i][1],ReadTrkPat[i][2],ReadTrkPat[i][3],ReadPat[i]);*/
   }
-  /*printf ( "Number of tracks : %d\n" , Highest_Track+1 );*/
+  /*fprintf ( info,"Number of tracks : %d\n\n" , Highest_Track+1 );*/
 
   /* sorting ?*/
   k = 0; /* next min */
@@ -234,7 +238,10 @@ void Depack_PP21 ( void )
 	Header[952+i] = (unsigned char)l;
     l++;
   }
-
+  if ( l != Header[950] )
+    l -= 1;
+  /*fprintf (info,"number of pattern stored : %ld\n\n",l);*/
+  //fflush (info);
 
   /* write ptk's ID */
   Header[1080] = 'M';
@@ -251,10 +258,11 @@ void Depack_PP21 ( void )
   /* l is the number of stored patterns */
   /* rebuild pattern data now */
   whereTableRef = ((Highest_Track + 1)*128) + 4 + Where;
-  printf ( "\nwhereTableRef : %ld\n",whereTableRef);
-  for (i=0;i<l-1;i++)
+  /*printf ( "\nwhereTableRef : %ld\n",whereTableRef);*/
+  for (i=0;i<l;i++)
   {
-    long min=50,max=0;
+    /*fprintf (info,"pattern %ld (/%ld)\n",i,l);*/
+    //fflush (info);
     BZERO(Pattern,1024);
     /* which pattern is it now ? */
     for (j=0;j<Header[950];j++)
@@ -298,6 +306,8 @@ void Depack_PP21 ( void )
 
   fflush ( out );
   fclose ( out );
+  /*fflush (info);
+  fclose (info);*/
 
   printf ( "done\n" );
   return; /* useless ... but */

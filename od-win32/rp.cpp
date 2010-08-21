@@ -31,6 +31,7 @@
 
 static int initialized;
 static RPGUESTINFO guestinfo;
+static int maxjports;
 
 TCHAR *rp_param = NULL;
 int rp_rpescapekey = 0x01;
@@ -38,6 +39,7 @@ int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
 int log_rp = 1;
+static int rp_revision, rp_version, rp_build;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = 1;
 
@@ -49,6 +51,7 @@ static int mousecapture, mousemagic;
 static int rp_filter, rp_filter_default;
 static int recursive_device, recursive;
 static int currentpausemode;
+static int gameportmask[MAX_JPORTS];
 
 static int cando (void)
 {
@@ -79,10 +82,8 @@ static const TCHAR *getmsg (int msg)
 	case RPIPCGM_REGISTER: return L"RPIPCGM_REGISTER";
 	case RPIPCGM_FEATURES: return L"RPIPCGM_FEATURES";
 	case RPIPCGM_CLOSED: return L"RPIPCGM_CLOSED";
-	case RPIPCGM_CLOSE: return L"RPIPCGM_CLOSE";
 	case RPIPCGM_ACTIVATED: return L"RPIPCGM_ACTIVATED";
 	case RPIPCGM_DEACTIVATED: return L"RPIPCGM_DEACTIVATED";
-	case RPIPCGM_PARENT: return L"RPIPCGM_PARENT";
 	case RPIPCGM_SCREENMODE: return L"RPIPCGM_SCREENMODE";
 	case RPIPCGM_POWERLED: return L"RPIPCGM_POWERLED";
 	case RPIPCGM_DEVICES: return L"RPIPCGM_DEVICES";
@@ -90,27 +91,33 @@ static const TCHAR *getmsg (int msg)
 	case RPIPCGM_MOUSECAPTURE: return L"RPIPCGM_MOUSECAPTURE";
 	case RPIPCGM_HOSTAPIVERSION: return L"RPIPCGM_HOSTAPIVERSION";
 	case RPIPCGM_PAUSE: return L"RPIPCGM_PAUSE";
-	case RPIPCGM_TURBO: return L"RPIPCGM_TURBO";
-	case RPIPCGM_VOLUME: return L"RPIPCGM_VOLUME";
 	case RPIPCGM_DEVICECONTENT: return L"RPIPCGM_DEVICECONTENT";
-	case RPIPCGM_DEVICESEEK: return L"RPIPCGM_DEVICESEEK";
+	case RPIPCGM_TURBO: return L"RPIPCGM_TURBO";
+	case RPIPCGM_PING: return L"RPIPCGM_PING";
+	case RPIPCGM_VOLUME: return L"RPIPCGM_VOLUME";
 	case RPIPCGM_ESCAPED: return L"RPIPCGM_ESCAPED";
+	case RPIPCGM_PARENT: return L"RPIPCGM_PARENT";
+	case RPIPCGM_DEVICESEEK: return L"RPIPCGM_DEVICESEEK";
+	case RPIPCGM_CLOSE: return L"RPIPCGM_CLOSE";
+	case RPIPCGM_DEVICEREADWRITE: return L"RPIPCGM_DEVICEREADWRITE";
+	case RPIPCGM_HOSTVERSION: return L"RPIPCGM_HOSTVERSION";
 
 	case RPIPCHM_CLOSE: return L"RPIPCHM_CLOSE";
 	case RPIPCHM_SCREENMODE: return L"RPIPCHM_SCREENMODE";
 	case RPIPCHM_SCREENCAPTURE: return L"RPIPCHM_SCREENCAPTURE";
 	case RPIPCHM_PAUSE: return L"RPIPCHM_PAUSE";
+	case RPIPCHM_DEVICECONTENT: return L"RPIPCHM_DEVICECONTENT";
 	case RPIPCHM_RESET: return L"RPIPCHM_RESET";
 	case RPIPCHM_TURBO: return L"RPIPCHM_TURBO";
-	case RPIPCHM_VOLUME: return L"RPIPCHM_VOLUME";
-	case RPIPCHM_EVENT: return L"RPIPCHM_EVENT";
-	case RPIPCHM_ESCAPEKEY: return L"RPIPCHM_ESCAPEKEY";
-	case RPIPCHM_MOUSECAPTURE: return L"RPIPCHM_MOUSECAPTURE";
-	case RPIPCHM_DEVICECONTENT: return L"RPIPCHM_DEVICECONTENT";
 	case RPIPCHM_PING: return L"RPIPCHM_PING";
+	case RPIPCHM_VOLUME: return L"RPIPCHM_VOLUME";
+	case RPIPCHM_ESCAPEKEY: return L"RPIPCHM_ESCAPEKEY";
+	case RPIPCHM_EVENT: return L"RPIPCHM_EVENT";
+	case RPIPCHM_MOUSECAPTURE: return L"RPIPCHM_MOUSECAPTURE";
 	case RPIPCHM_SAVESTATE: return L"RPIPCHM_SAVESTATE";
 	case RPIPCHM_LOADSTATE: return L"RPIPCHM_LOADSTATE";
 	case RPIPCHM_FLUSH: return L"RPIPCHM_FLUSH";
+	case RPIPCHM_DEVICEREADWRITE: return L"RPIPCHM_DEVICEREADWRITE";
 
 	default: return L"UNKNOWN";
 	}
@@ -169,7 +176,7 @@ static int port_insert (int num, const TCHAR *name)
 {
 	TCHAR tmp1[1000];
 
-	if (num < 0 || num >= MAX_JPORTS)
+	if (num < 0 || num >= maxjports)
 		return FALSE;
 	if (_tcslen (name) == 0) {
 		inputdevice_joyport_config (&changed_prefs, L"none", num, 0, 0);
@@ -685,6 +692,18 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return ret;
 		}
+	case RPIPCHM_DEVICEREADWRITE:
+		{
+			DWORD ret = FALSE;
+			int device = LOBYTE(wParam);
+			if (device == RP_DEVICE_FLOPPY) {
+				int num = HIBYTE(wParam);
+				if (lParam == RP_DEVICE_READONLY || lParam == RP_DEVICE_READWRITE) {
+					ret = disk_setwriteprotect (num, currprefs.floppyslots[num].df, lParam == RP_DEVICE_READONLY);
+				}
+			}
+			return ret ? (LPARAM)1 : 0;
+		}
 	}
 	return FALSE;
 }
@@ -699,6 +718,17 @@ static LRESULT CALLBACK RPHostMsgFunction (UINT uMessage, WPARAM wParam, LPARAM 
 	return lr;
 }
 
+static int rp_hostversion (int *ver, int *rev, int *build)
+{
+	LRESULT lr = 0;
+	if (!RPSendMessagex (RPIPCGM_HOSTVERSION, 0, 0, NULL, 0, &guestinfo, &lr))
+		return 0;
+	*ver = RP_HOSTVERSION_MAJOR(lr);
+	*rev = RP_HOSTVERSION_MINOR(lr);
+	*build = RP_HOSTVERSION_BUILD(lr);
+	return 1;
+}
+
 HRESULT rp_init (void)
 {
 	HRESULT hr;
@@ -706,7 +736,9 @@ HRESULT rp_init (void)
 	hr = RPInitializeGuest (&guestinfo, hInst, rp_param, RPHostMsgFunction, 0);
 	if (SUCCEEDED (hr)) {
 		initialized = TRUE;
-		write_log (L"rp_init('%s') succeeded\n", rp_param);
+		rp_version = rp_revision = rp_build = -1;
+		rp_hostversion (&rp_version, &rp_revision, &rp_build);
+		write_log (L"rp_init('%s') succeeded. Version: %d.%d.%d\n", rp_param, rp_version, rp_revision, rp_build);
 	} else {
 		write_log (L"rp_init('%s') failed, error code %08x\n", rp_param, hr);
 	}
@@ -726,6 +758,7 @@ void rp_free (void)
 	RPPostMessagex (RPIPCGM_CLOSED, 0, 0, &guestinfo);
 	RPUninitializeGuest (&guestinfo);
 }
+
 
 int rp_close (void)
 {
@@ -750,7 +783,7 @@ static void sendfeatures (void)
 
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
-	feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES;
+	feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES | RP_FEATURE_DEVICEREADWRITE;
 	if (!WIN32GFX_IsPicassoScreen ())
 		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN4X;
 	RPSendMessagex (RPIPCGM_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
@@ -788,6 +821,7 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	max_horiz_dbl = currprefs.gfx_max_horizontal;
 	max_vert_dbl = currprefs.gfx_max_vertical;
+	maxjports = (rp_version * 256 + rp_revision) >= 2 * 256 + 3 ? MAX_JPORTS : 2;
 
 	changed_prefs.win32_borderless = currprefs.win32_borderless = 1;
 	rp_filter_default = rp_filter = currprefs.gfx_filter;
@@ -810,11 +844,12 @@ void rp_fixup_options (struct uae_prefs *p)
 	}
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_INPUTPORT, (1 << MAX_JPORTS) - 1, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_INPUTPORT, (1 << maxjports) - 1, NULL, 0, &guestinfo, NULL);
 	rp_input_change (0);
 	rp_input_change (1);
 	rp_input_change (2);
 	rp_input_change (3);
+	gameportmask[0] = gameportmask[1] = gameportmask[2] = gameportmask[3] = 0;
 
 	hd_mask = 0;
 	cd_mask = 0;
@@ -845,12 +880,20 @@ void rp_fixup_options (struct uae_prefs *p)
 		}
 	}
 
-
 	rp_update_volume (&currprefs);
 	rp_turbo (currprefs.turbo_emulation);
 	for (i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, 0);
 	config_changed = 1;
+}
+
+static void rp_device_writeprotect (int dev, int num, bool writeprotected)
+{
+	if (!cando ())
+		return;
+	if (rp_version * 256 + rp_revision < 2 * 256 + 3)
+		return;
+	RPSendMessagex (RPIPCGM_DEVICEREADWRITE, MAKEWORD(dev, num), writeprotected ? RP_DEVICE_READONLY : RP_DEVICE_READWRITE, NULL, 0, &guestinfo, NULL);
 }
 
 static void rp_device_change (int dev, int num, const TCHAR *name)
@@ -883,6 +926,9 @@ void rp_input_change (int num)
 	TCHAR name[MAX_DPATH];
 	TCHAR *name2 = NULL, *name3 = NULL;
 
+	if (num >= maxjports)
+		return;
+
 	name[0] = 0;
 	if (JSEM_ISXARCADE1 (num, &currprefs)) {
 		j = 2;
@@ -914,9 +960,10 @@ void rp_input_change (int num)
 	}
 	rp_device_change (RP_DEVICE_INPUTPORT, num, name);
 }
-void rp_disk_image_change (int num, const TCHAR *name)
+void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {
 	rp_device_change (RP_DEVICE_FLOPPY, num, name);
+	rp_device_writeprotect (RP_DEVICE_FLOPPY, num, writeprotected);
 }
 void rp_harddrive_image_change (int num, const TCHAR *name)
 {
@@ -986,6 +1033,24 @@ void rp_update_leds (int led, int onoff, int write)
 			MAKELONG (onoff ? -1 : 0, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}
+}
+
+void rp_update_gameport (int port, int mask, int onoff)
+{
+	if (!cando ())
+		return;
+	if (port < 0 || port >= maxjports)
+		return;
+	if (rp_version * 256 + rp_revision < 2 * 256 + 3)
+		return;
+	int old = gameportmask[port];
+	if (onoff)
+		gameportmask[port] |= mask;
+	else
+		gameportmask[port] &= ~mask;
+	if (old != gameportmask[port])
+		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_INPUTPORT, port),
+			gameportmask[port], &guestinfo);
 }
 
 void rp_hd_activity (int num, int onoff, int write)
