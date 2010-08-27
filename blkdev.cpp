@@ -304,7 +304,7 @@ static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaud
 			}
 			uae_u8 buffer[2048];
 			if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
-				if (!memcmp (buffer + 8, "CDTV", 4) || !memcmp (buffer + 8, "CD32", 4)) {
+				if (!memcmp (buffer + 8, "CDTV", 4) || !memcmp (buffer + 8, "CD32", 4) || !memcmp (buffer + 8, "COMM", 4)) {
 					uae_u32 crc;
 					write_log (L"CD32 or CDTV");
 					if (sys_command_cd_read (unitnum, buffer, 21, 1)) {

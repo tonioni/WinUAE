@@ -24,8 +24,9 @@ extern HCURSOR normalcursor;
 extern HWND hStatusWnd;
 extern int default_freq;
 extern int normal_display_change_starting;
-extern int window_led_drives, window_led_drives_end;
+extern int window_led_drives, window_led_drives_end, window_led_joy_start;
 extern int window_led_hd, window_led_hd_end;
+extern int window_led_joys, window_led_joys_end;
 
 extern HDC gethdc (void);
 extern void releasehdc (HDC hdc);

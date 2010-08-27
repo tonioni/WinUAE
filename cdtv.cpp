@@ -198,6 +198,8 @@ static int pause_audio (int pause)
 
 static int read_sectors (int start, int length)
 {
+	if (cd_playing)
+		cdaudiostop ();
 #ifdef CDTV_DEBUG_CMD
 	write_log (L"READ DATA sector %d, %d sectors (blocksize=%d)\n", start, length, cdtv_sectorsize);
 #endif
@@ -207,8 +209,6 @@ static int read_sectors (int start, int length)
 	cdrom_length = length * cdtv_sectorsize;
 	cd_motor = 1;
 	cd_audio_status = AUDIO_STATUS_NOT_SUPPORTED;
-	if (cd_playing)
-		cdaudiostop ();
 	return 0;
 }
 
@@ -472,7 +472,7 @@ static int read_toc (int track, int msflsn, uae_u8 *out)
 static int cdrom_modeset (uae_u8 *cmd)
 {
 	cdtv_sectorsize = (cmd[2] << 8) | cmd[3];
-	if (cdtv_sectorsize != 2048 && cdtv_sectorsize != 2336) {
+	if (cdtv_sectorsize != 2048 && cdtv_sectorsize != 2336 && cdtv_sectorsize != 2352 && cdtv_sectorsize != 2328) {
 		write_log (L"CDTV: tried to set unknown sector size %d\n", cdtv_sectorsize);
 		cdtv_sectorsize = 2048;
 	}
@@ -631,47 +631,6 @@ static void cdrom_command_thread (uae_u8 b)
 	}
 }
 
-static int read_raw (int sector, uae_u8 *dst, int blocksize)
-{
-	int osector = sector - 150;
-	static struct zfile *f;
-	static int track;
-	int trackcnt;
-	TCHAR fname[MAX_DPATH];
-	uae_u32 prevlsn = 0;
-	struct cd_toc *t = &toc.toc[0];
-
-	trackcnt = 0;
-	for (;;) {
-		int lsn = t->paddress;
-		if (t->point >= 0xa0) {
-			t++;
-			continue;
-		}
-		if (sector < lsn - prevlsn)
-			break;
-		trackcnt++;
-		sector -= lsn - prevlsn;
-		prevlsn = lsn;
-		t++;
-	}
-	if (track != trackcnt) {
-		_stprintf (fname, L"track%d.bin", trackcnt);
-		zfile_fclose (f);
-		f = zfile_fopen (fname, L"rb", ZFD_NORMAL);
-		if (f)
-			write_log (L"opened '%s'\n", fname);
-		track = trackcnt;
-	}
-	if (f) {
-		write_log (L"CDTV fakeraw: %dx%d=%d\n", sector, blocksize, sector * blocksize);
-		zfile_fseek (f, sector * blocksize, SEEK_SET);
-		zfile_fread (dst, blocksize, 1, f);
-		return 1;
-	}
-	return sys_command_cd_rawread (unitnum, dst, osector, blocksize, 1);
-}
-
 static void dma_do_thread (void)
 {
 	static int readsector;
@@ -693,10 +652,8 @@ static void dma_do_thread (void)
 		uae_u8 buffer[2352];
 		if (!didread || readsector != (cdrom_offset / cdtv_sectorsize)) {
 			readsector = cdrom_offset / cdtv_sectorsize;
-			if (readsector > 3000)
-				write_log (L"");
 			if (cdtv_sectorsize != 2048)
-				didread = read_raw (readsector, buffer, cdtv_sectorsize);
+				didread = sys_command_cd_rawread (unitnum, buffer, readsector, 1, cdtv_sectorsize);
 			else
 				didread = sys_command_cd_read (unitnum, buffer, readsector, 1);
 			if (!didread) {
@@ -1960,14 +1917,3 @@ void restore_cdtv_finish (void)
 }
 
 #endif
-
-void cdtv_entergui (void)
-{
-	if (cd_playing && !cd_paused)
-		write_comm_pipe_u32 (&requests, 0x102, 1);
-}
-void cdtv_exitgui (void)
-{
-	if (cd_playing && !cd_paused)
-		write_comm_pipe_u32 (&requests, 0x103, 1);
-}

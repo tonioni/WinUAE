@@ -86,6 +86,9 @@
 #include "statusline.h"
 #include "zarchive.h"
 #include "win32_uaenet.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define ARCHIVE_STRING L"*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx"
 
@@ -1682,7 +1685,7 @@ static struct ConfigStruct *getconfigstorefrompath (TCHAR *path, TCHAR *out, int
 	return 0;
 }
 
-int target_cfgfile_load (struct uae_prefs *p, TCHAR *filename, int type, int isdefault)
+int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, int isdefault)
 {
 	int v, i, type2;
 	int ct, ct2, size;
@@ -2378,7 +2381,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			inprec_open (full_path, 1);
 			break;
 		}
-		if (!nosavepath) {
+		if (!nosavepath || 1) {
 			if (flag == 0 || flag == 1) {
 				amiga_path = _tcsstr (openFileName.lpstrFile, openFileName.lpstrFileTitle);
 				if (amiga_path && amiga_path != openFileName.lpstrFile) {
@@ -9394,6 +9397,8 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 		id = floppybuttonsq[num][0];
 	else
 		id = floppybuttons[num][0];
+	if (id < 0)
+		return;
 	ti.cbSize = sizeof (TOOLINFO);
 	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
 	ti.hwnd = hDlg;
@@ -9487,7 +9492,8 @@ static void addfloppyhistory (HWND hDlg)
 			f_text = floppybuttons[n][0];
 		else
 			f_text = IDC_DISKTEXT;
-		addfloppyhistory_2 (hDlg, n, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY);
+		if (f_text >= 0)
+			addfloppyhistory_2 (hDlg, n, f_text, iscd (n) ? HISTORY_CD : HISTORY_FLOPPY);
 	}
 }
 
@@ -9601,11 +9607,12 @@ static void addfloppytype (HWND hDlg, int n)
 	}
 	chk = !showcd && disk_getwriteprotect (text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
-		CheckDlgButton(hDlg, f_wp, chk);
+		CheckDlgButton (hDlg, f_wp, chk);
 	chk = !showcd && state && DISK_validate_filename (text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk);
-		ew (hDlg, f_wptext, chk);
+		if (f_wptext >= 0)
+			ew (hDlg, f_wptext, chk);
 	}
 }
 
@@ -14387,6 +14394,7 @@ void gui_led (int led, int on)
 			ptr[_tcslen (ptr) + 1] |= 8;
 		if (active2)
 			ptr[_tcslen (ptr) + 1] |= 16;
+		pos += window_led_joy_start;
 		PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((pos + 1) | type), (LPARAM)ptr);
 		if (tt != NULL)
 			PostMessage (hStatusWnd, SB_SETTIPTEXT, (WPARAM)(pos + 1), (LPARAM)tt);

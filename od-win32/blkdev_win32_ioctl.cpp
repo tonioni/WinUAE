@@ -150,8 +150,7 @@ static int win32_error (struct dev_info_ioctl *ciw, int unitnum, const TCHAR *fo
 	FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPTSTR)&lpMsgBuf, 0, NULL);
-	if (log_scsi)
-		write_log (L"IOCTL: unit=%d,%s,%d: %s\n", unitnum, buf, err, (TCHAR*)lpMsgBuf);
+	write_log (L"IOCTL ERR: unit=%d,%s,%d: %s\n", unitnum, buf, err, (TCHAR*)lpMsgBuf);
 	va_end (arglist);
 	return err;
 }
@@ -406,15 +405,9 @@ retry:
 			int len = spti_read (ciw, unitnum, data, sector, sectorsize);
 			if (len) {
 				if (data) {
-					if (sectorsize >= 2352) {
-						memcpy (data, p, sectorsize);
-						data += sectorsize;
-						ret += sectorsize;
-					} else {
-						memcpy (data, p + 16, sectorsize);
-						data += sectorsize;
-						ret += sectorsize;
-					}
+					memcpy (data, p, sectorsize);
+					data += sectorsize;
+					ret += sectorsize;
 				}
 				got = true;
 			}
@@ -543,6 +536,7 @@ static void *cdda_play (void *v)
 
 			if (oldplay != ciw->cdda_play) {
 				idleframes = 0;
+				bool seensub = false;
 				struct _timeb tb1, tb2;
 				_ftime (&tb1);
 				cdda_pos = ciw->cdda_start;
@@ -570,11 +564,12 @@ static void *cdda_play (void *v)
 							sub_deinterleave (dst + 2352, subbuf);
 							if (seenindex) {
 								for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
-									if (subbuf[i]) { // non-zero R-W subchannels
+									if (subbuf[i]) { // non-zero R-W subchannels?
 										int diff = cdda_pos - sector + 2;
 										write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
 										idleframes -= diff;
 										cdda_pos = sector;
+										seensub = true;
 										break;
 									}
 								}
@@ -591,6 +586,14 @@ static void *cdda_play (void *v)
 				diff -= ciw->cdda_delay;
 				if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
 					Sleep (-diff);
+				if (diff > 0 && !seensub) {
+					int ch = diff / 7 + 25;
+					if (ch > idleframes)
+						ch = idleframes;
+					idleframes -= ch;
+					cdda_pos += ch;
+				}
+
 				setstate (ciw, AUDIO_STATUS_IN_PROGRESS);
 			}
 
@@ -717,7 +720,7 @@ end:
 
 static void cdda_stop (struct dev_info_ioctl *ciw)
 {
-	if (ciw->cdda_play > 0) {
+	if (ciw->cdda_play != 0) {
 		ciw->cdda_play = -1;
 		while (ciw->cdda_play) {
 			Sleep (10);
@@ -985,6 +988,11 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 	if (!ciw)
 		return 0;
 
+	if (ciw->usesptiread)
+		return ioctl_command_rawread (unitnum, data, sector, size, 2048, 0);
+
+	cdda_stop (ciw);
+
 	DWORD dtotal;
 	int cnt = 3;
 	uae_u8 *p = ciw->tempbuffer;
@@ -992,7 +1000,6 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 
 	if (!open_createfile (ciw, 0))
 		return 0;
-	cdda_stop (ciw);
 	ciw->cd_last_pos = sector;
 	while (cnt-- > 0) {
 		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
@@ -1033,9 +1040,10 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 				return 0;
 			}
 			if (dtotal == 0) {
+				static int reported;
 				/* ESS Mega (CDTV) "fake" data area returns zero bytes and no error.. */
 				spti_read (ciw, unitnum, data, sector, 2048);
-				if (log_scsi)
+				if (reported++ < 100)
 					write_log (L"IOCTL unit %d, sector %d: ReadFile()==0. SPTI=%d\n", unitnum, sector, GetLastError ());
 				return 1;
 			}
@@ -1245,6 +1253,7 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	ioctl_command_stop (unitnum);
 	update_device_info (unitnum);
 	ciw->open = true;
+	//ciw->usesptiread = true;
 	write_log (L"IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n",
 		ciw->devname, ciw->di.vendorid, ciw->di.productid, ciw->di.revision,
 		unitnum, ciw->di.media_inserted);

@@ -21,6 +21,9 @@ extern void gui_disk_image_change (int, const TCHAR *, bool writeprotected);
 extern unsigned int gui_ledstate;
 extern void gui_display (int shortcut);
 
+extern void gui_gameport_button_change (int port, int button, int onoff);
+extern void gui_gameport_axis_change (int port, int axis, int state, int max);
+
 extern bool no_gui, quit_to_gui;
 
 #define LED_CD_ACTIVE 1

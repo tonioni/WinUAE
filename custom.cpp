@@ -206,6 +206,7 @@ struct sprite {
 };
 
 static struct sprite spr[MAX_SPRITES];
+static int plfstrt_sprite;
 
 uaecptr sprite_0;
 int sprite_0_width, sprite_0_height, sprite_0_doubled;
@@ -1803,6 +1804,7 @@ static void start_bpl_dma (int hpos, int hstart)
 		}
 	}
 
+	plfstrt_sprite = plfstrt;
 	fetch_start (hpos);
 	fetch_cycle = 0;
 	last_fetch_hpos = hstart;
@@ -4752,7 +4754,7 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	if (cycle && !s->dmacycle)
 		return; /* Superfrog intro flashing bee fix */
 
-	dma = hpos < plfstrt || diwstate != DIW_waiting_stop;
+	dma = hpos < plfstrt_sprite || diwstate != DIW_waiting_stop;
 	if (vpos == s->vstop || vpos == sprite_vblank_endline) {
 		s->dmastate = 0;
 		posctl = 1;
@@ -5603,10 +5605,12 @@ static void hsync_handler (void)
 			bsdsock_fake_int_handler ();
 	}
 
+	plfstrt_sprite = plfstrt;
 	/* See if there's a chance of a copper wait ending this line.  */
 	cop_state.hpos = 0;
 	cop_state.last_write = 0;
 	compute_spcflag_copper (maxhpos);
+
 	serial_hsynchandler ();
 #ifdef CUSTOM_SIMPLE
 	do_sprites (0);

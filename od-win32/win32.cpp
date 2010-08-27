@@ -87,6 +87,7 @@
 #include "blkdev.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
+#include "cloanto/RetroPlatformIPC.h"
 #endif
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
@@ -169,6 +170,10 @@ int quickstart = 1, configurationcache = 1, relativepaths = 0;
 
 static int multi_display = 1;
 static TCHAR *inipath = NULL;
+
+static int guijoybutton[MAX_JPORTS];
+static int guijoyaxis[MAX_JPORTS][4];
+static bool guijoychange;
 
 static int timeend (void)
 {
@@ -410,12 +415,6 @@ void resumepaused (int priority)
 	if (pause_emulation > priority)
 		return;
 	resumesoundpaused ();
-#ifdef CD32
-	akiko_exitgui ();
-#endif
-#ifdef CDTV
-	cdtv_exitgui ();
-#endif
 	blkdev_exitgui ();
 	if (pausemouseactive)
 		setmouseactive (-1);
@@ -432,12 +431,6 @@ void setpaused (int priority)
 		return;
 	pause_emulation = priority;
 	setsoundpaused ();
-#ifdef CD32
-	akiko_entergui ();
-#endif
-#ifdef CDTV
-	cdtv_entergui ();
-#endif
 	blkdev_entergui ();
 	pausemouseactive = 1;
 	if (isfullscreen () <= 0) {
@@ -739,6 +732,64 @@ void disablecapture (void)
 {
 	setmouseactive (0);
 }
+
+void gui_gameport_button_change (int port, int button, int onoff)
+{
+	//write_log (L"%d %d %d\n", port, button, onoff);
+#ifdef RETROPLATFORM
+	int mask = 0;
+	if (button == JOYBUTTON_CD32_PLAY)
+		mask = RP_JOYSTICK_BUTTON5;
+	if (button == JOYBUTTON_CD32_RWD)
+		mask = RP_JOYSTICK_BUTTON6;
+	if (button == JOYBUTTON_CD32_FFW)
+		mask = RP_JOYSTICK_BUTTON7;
+	if (button == JOYBUTTON_CD32_GREEN)
+		mask = RP_JOYSTICK_BUTTON4;
+	if (button == JOYBUTTON_3 || button == JOYBUTTON_CD32_YELLOW)
+		mask = RP_JOYSTICK_BUTTON3;
+	if (button == JOYBUTTON_1 || button == JOYBUTTON_CD32_RED)
+		mask = RP_JOYSTICK_BUTTON1;
+	if (button == JOYBUTTON_2 || button == JOYBUTTON_CD32_BLUE)
+		mask = RP_JOYSTICK_BUTTON2;
+	rp_update_gameport (port, mask, onoff);
+#endif
+	if (onoff)
+		guijoybutton[port] |= 1 << button;
+	else
+		guijoybutton[port] &= ~(1 << button);
+	guijoychange = true;
+}
+void gui_gameport_axis_change (int port, int axis, int state, int max)
+{
+	int onoff = state ? 100 : 0;
+	if (axis < 0 || axis > 3)
+		return;
+	if (max < 0) {
+		if (guijoyaxis[port][axis] == 0)
+			return;
+		if (guijoyaxis[port][axis] > 0)
+			guijoyaxis[port][axis]--;
+	} else {
+		if (state > max)
+			state = max;
+		if (state < 0)
+			state = 0;
+		guijoyaxis[port][axis] = max ? state * 127 / max : onoff;
+#ifdef RETROPLATFORM
+		if (axis == DIR_LEFT_BIT)
+			rp_update_gameport (port, RP_JOYSTICK_LEFT, onoff);
+		if (axis == DIR_RIGHT_BIT)
+			rp_update_gameport (port, DIR_RIGHT_BIT, onoff);
+		if (axis == DIR_UP_BIT)
+			rp_update_gameport (port, DIR_UP_BIT, onoff);
+		if (axis == DIR_DOWN_BIT)
+			rp_update_gameport (port, DIR_DOWN_BIT, onoff);
+#endif
+	}
+	guijoychange = true;
+}
+
 
 void setmouseactivexy (int x, int y, int dir)
 {
@@ -1317,6 +1368,32 @@ static int canstretch (void)
 	return 0;
 }
 
+static void plot (LPDRAWITEMSTRUCT lpDIS, int x, int y, int dx, int dy, int idx)
+{
+	COLORREF rgb;
+
+	x += dx;
+	y += dy;
+	if (idx == 0)
+		rgb = RGB(0x00,0x00,0xff);
+	else if (idx == 1)
+		rgb = RGB(0xff,0x00,0x00);
+	else if (idx == 2)
+		rgb = RGB(0xff,0xff,0x00);
+	else if (idx == 3)
+		rgb = RGB(0x00,0xff,0x00);
+	else
+		rgb = RGB(0x00,0x00,0x00);
+
+	SetPixel (lpDIS->hDC, x, y, rgb);
+
+	SetPixel (lpDIS->hDC, x + 1, y, rgb);
+	SetPixel (lpDIS->hDC, x - 1, y, rgb);
+
+	SetPixel (lpDIS->hDC, x, y + 1, rgb);
+	SetPixel (lpDIS->hDC, x, y - 1, rgb);
+}
+
 static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	static RECT myrect;
@@ -1463,32 +1540,85 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	{
 		LPDRAWITEMSTRUCT lpDIS = (LPDRAWITEMSTRUCT)lParam;
 		if (lpDIS->hwndItem == hStatusWnd) {
-			DWORD flags, tflags;
-			COLORREF oc;
-			TCHAR *txt = (TCHAR*)lpDIS->itemData;
-			tflags = txt[_tcslen (txt) + 1];
-			SetBkMode (lpDIS->hDC, TRANSPARENT);
-			if ((tflags & 2) == 0)
-				tflags &= ~(4 | 8 | 16);
-			if (tflags & 4) {
-				oc = SetTextColor (lpDIS->hDC, RGB(0xcc, 0x00, 0x00)); // writing
-			} else if (tflags & 8) {
-				oc = SetTextColor (lpDIS->hDC, RGB(0x00, 0xcc, 0x00)); // playing
+			if (lpDIS->itemID > 0 && lpDIS->itemID <= window_led_joy_start) {
+				int port = lpDIS->itemID - 1;
+				int x = (lpDIS->rcItem.right - lpDIS->rcItem.left + 1) / 2 + lpDIS->rcItem.left - 1;
+				int y = (lpDIS->rcItem.bottom - lpDIS->rcItem.top + 1) / 2 + lpDIS->rcItem.top - 1;
+				FillRect (lpDIS->hDC, &lpDIS->rcItem, (HBRUSH)(COLOR_3DFACE + 1));
+				for (int i = 0; i < 2; i++) {
+					int buttons = guijoybutton[port + i * 2];
+					int m = i == 0 ? 1 : 2;
+					bool got = false;
+					if (buttons & (1 << JOYBUTTON_CD32_BLUE)) {
+						plot (lpDIS, x - 1, y,  0,  0, 0);
+						got = true;
+					}
+					if (buttons & (1 << JOYBUTTON_CD32_RED)) {
+						plot (lpDIS, x + 1, y,  0,  0, 1);
+						got = true;
+					}
+					if (buttons & (1 << JOYBUTTON_CD32_YELLOW)) {
+						plot (lpDIS, x, y - 1,  0,  0, 2);
+						got = true;
+					}
+					if (buttons & (1 << JOYBUTTON_CD32_GREEN)) {
+						plot (lpDIS, x, y + 1,  0,  0, 3);
+						got = true;
+					}
+					if (!got) {
+						if (buttons & 1)
+							plot (lpDIS, x, y,  0,  0, 1);
+						if (buttons & 2)
+							plot (lpDIS, x, y,  0,  0, 0);
+						if (buttons & ~(1 | 2))
+							plot (lpDIS, x, y,  0,  0, -1);
+					}
+					for (int j = 0; j < 4; j++) {
+						int dx = 0, dy = 0;
+						int axis = guijoyaxis[port + i * 2][j];
+						if (j == DIR_LEFT_BIT)
+							dx = -1;
+						if (j == DIR_RIGHT_BIT)
+							dx = +1;
+						if (j == DIR_UP_BIT)
+							dy = -1;
+						if (j == DIR_DOWN_BIT)
+							dy = +1;
+						if (axis && (dx || dy)) {
+							dx *= axis * 8 / 127;
+							dy *= axis * 8 / 127;
+							plot (lpDIS, x, y,  dx, dy, -1);
+						}
+					}
+				}
 			} else {
-				oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+				DWORD flags, tflags;
+				COLORREF oc;
+				TCHAR *txt = (TCHAR*)lpDIS->itemData;
+				tflags = txt[_tcslen (txt) + 1];
+				SetBkMode (lpDIS->hDC, TRANSPARENT);
+				if ((tflags & 2) == 0)
+					tflags &= ~(4 | 8 | 16);
+				if (tflags & 4) {
+					oc = SetTextColor (lpDIS->hDC, RGB(0xcc, 0x00, 0x00)); // writing
+				} else if (tflags & 8) {
+					oc = SetTextColor (lpDIS->hDC, RGB(0x00, 0xcc, 0x00)); // playing
+				} else {
+					oc = SetTextColor (lpDIS->hDC, GetSysColor ((tflags & 2) ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+				}
+				flags = DT_VCENTER | DT_SINGLELINE;
+				if (tflags & 1) {
+					flags |= DT_CENTER;
+					lpDIS->rcItem.left++;
+					lpDIS->rcItem.right -= 3;
+				} else {
+					flags |= DT_LEFT;
+					lpDIS->rcItem.right--;
+					lpDIS->rcItem.left += 2;
+				}
+				DrawText (lpDIS->hDC, txt, _tcslen (txt), &lpDIS->rcItem, flags);
+				SetTextColor (lpDIS->hDC, oc);
 			}
-			flags = DT_VCENTER | DT_SINGLELINE;
-			if (tflags & 1) {
-				flags |= DT_CENTER;
-				lpDIS->rcItem.left++;
-				lpDIS->rcItem.right -= 3;
-			} else {
-				flags |= DT_LEFT;
-				lpDIS->rcItem.right--;
-				lpDIS->rcItem.left += 2;
-			}
-			DrawText (lpDIS->hDC, txt, _tcslen (txt), &lpDIS->rcItem, flags);
-			SetTextColor (lpDIS->hDC, oc);
 		}
 		break;
 	}
@@ -1598,6 +1728,12 @@ void handle_events (void)
 	MSG msg;
 	int was_paused = 0;
 	static int cnt;
+
+	if (guijoychange && window_led_joy_start > 0) {
+		guijoychange = false;
+		for (int i = 0; i < window_led_joy_start; i++)
+			PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((i + 1) | SBT_OWNERDRAW), (LPARAM)L"");
+	}
 
 	while (pause_emulation) {
 		if (pause_emulation && was_paused == 0) {
@@ -2665,15 +2801,14 @@ static const TCHAR *obsolete[] = {
 	L"killwinkeys", L"sound_force_primary", L"iconified_highpriority",
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
-	L"filesystem_codepage",
+	L"filesystem_codepage", L"aspi",
 	0
 };
 
-int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
+int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *value)
 {
 	TCHAR tmpbuf[CONFIG_BLEN];
 	int i, v;
-	bool vb;
 
 	int result = (cfgfile_yesno (option, value, L"middle_mouse", &p->win32_middle_mouse)
 		|| cfgfile_yesno (option, value, L"map_drives", &p->win32_automount_drives)
@@ -2764,15 +2899,6 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-	if (cfgfile_yesno (option, value, L"aspi", &vb)) {
-		p->win32_uaescsimode = 0;
-		if (vb)
-			p->win32_uaescsimode = get_aspi (0);
-		if (p->win32_uaescsimode < UAESCSI_ASPI_FIRST)
-			p->win32_uaescsimode = UAESCSI_ADAPTECASPI;
-		return 1;
-	}
-
 	if (cfgfile_string (option, value, L"rtg_vblank", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		if (!_tcscmp (tmpbuf, L"real")) {
 			p->win32_rtgvblankrate = -1;
@@ -2810,8 +2936,9 @@ int target_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (cfgfile_strval (option, value, L"uaescsimode", &p->win32_uaescsimode, scsimode, 0)) {
-		// do not forget me!
-		p->win32_uaescsimode = UAESCSI_CDEMU;
+		// force SCSIEMU if pre 2.3 configuration
+		if (p->config_version < ((2 << 16) | (3 << 8)))
+			p->win32_uaescsimode = UAESCSI_CDEMU;
 		return 1;
 	}
 
@@ -4241,6 +4368,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		do_rdbdump = 1;
 		return 1;
 	}
+	if (!_tcscmp (arg, L"hddump")) {
+		do_rdbdump = 2;
+		return 1;
+	}
 	if (!_tcscmp (arg, L"disableharddrivesafetycheck")) {
 		//harddrive_dangerous = 0x1234dead;
 		return 1;
@@ -5302,6 +5433,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	}
 #endif
 #endif
+	SetDllDirectory (L"");
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
 	InitCommonControls ();
 

@@ -168,8 +168,10 @@ void Rip_PP10 ( void )
  *     - overall speed and size optimizings.
  * Update: 19/04/00 (all pointed out by Thomas Neumann)
  *     - replen bug correction
- * Update: 15/05/10
+ * Update: 15/08/10
  *     - rewrote depacker for patternlist generation
+ * update : 23 aug 2010
+ *   - fixed yet another patternlist bug
 */
 
 void Depack_PP10 ( void )
@@ -221,7 +223,7 @@ void Depack_PP10 ( void )
   Header[951] = in_data[Where];
   Where += 1;
 
-  // now, where = 0xFA
+  /* now, where = 0xFA*/
   for (i=0;i<Header[950];i++)
   {
     ReadPat[i] = (in_data[Where+i]*256*256*256) + 
@@ -264,7 +266,11 @@ void Depack_PP10 ( void )
     k = m;
     for (i=0; i<Header[950] ; i++)
       if (ReadPat[i] == k)
-	Header[952+i] = (unsigned char)l;
+      {
+	    Header[952+i] = (unsigned char)l;
+	    j++;
+      }
+    j--;
     l++;
   }
   if ( l != Header[950] )

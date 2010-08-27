@@ -188,7 +188,7 @@
     <ClCompile Include="..\..\prowizard\rippers\FutureComposer13.c" />
     <ClCompile Include="..\..\prowizard\rippers\FutureComposer14.c" />
     <ClCompile Include="..\..\prowizard\rippers\FuzzacPacker.c" />
-    <ClCompile Include="..\..\prowizard\rippers\GameMusicCreator.c" />
+    <ClCompile Include="..\..\prowizard\rippers\GMC.c" />
     <ClCompile Include="..\..\prowizard\rippers\GNUPacker12.c" />
     <ClCompile Include="..\..\prowizard\rippers\GnuPlayer.c" />
     <ClCompile Include="..\..\prowizard\rippers\GPMO.c" />
@@ -210,9 +210,9 @@
     <ClCompile Include="..\..\prowizard\rippers\NoiseFromHeaven.c" />
     <ClCompile Include="..\..\prowizard\rippers\NoisePacker1.c" />
     <ClCompile Include="..\..\prowizard\rippers\NoisePacker2.c" />
-    <ClCompile Include="..\..\prowizard\rippers\NoisePacker3.c" />
     <ClCompile Include="..\..\prowizard\rippers\NoiseRunner.c" />
     <ClCompile Include="..\..\prowizard\rippers\NovoTrade.c" />
+    <ClCompile Include="..\..\prowizard\rippers\NP3.c" />
     <ClCompile Include="..\..\prowizard\rippers\PhaPacker.c" />
     <ClCompile Include="..\..\prowizard\rippers\PolkaPacker.c" />
     <ClCompile Include="..\..\prowizard\rippers\PowerMusic.c" />

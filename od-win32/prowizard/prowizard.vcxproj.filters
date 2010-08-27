@@ -96,9 +96,6 @@
     <ClCompile Include="..\..\prowizard\rippers\FuzzacPacker.c">
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\prowizard\rippers\GameMusicCreator.c">
-      <Filter>Source Files\Rippers</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\prowizard\rippers\GNUPacker12.c">
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
@@ -160,9 +157,6 @@
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\prowizard\rippers\NoisePacker2.c">
-      <Filter>Source Files\Rippers</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\prowizard\rippers\NoisePacker3.c">
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\prowizard\rippers\NoiseRunner.c">
@@ -355,6 +349,12 @@
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\prowizard\rippers\ZenPacker.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\GMC.c">
+      <Filter>Source Files\Rippers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\prowizard\rippers\NP3.c">
       <Filter>Source Files\Rippers</Filter>
     </ClCompile>
   </ItemGroup>

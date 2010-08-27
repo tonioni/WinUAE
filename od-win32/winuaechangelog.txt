@@ -1,4 +1,29 @@
 
+Beta 13:
+
+- addaq.x #x,Ax and subaq.x #x,Ax had too long cycle count (this was really stupid bug)
+- joystick type (default,mouse,joystick,analog joystick,etc..) was reset to default when
+  configuration was loaded
+- do not decide bitplane dma overriding sprite dma too early, DDFSTRT might get moved few
+  cycles before bitplane dma was originally supposed to start (Heimdall 2 AGA mouse cursor)
+- floppy panel DF0: "write-protected" text was getting disabled
+- SCSI emulation is only forced if version stored in configuration file is older than 2.3
+- CDTV MODE2FORM0 2336 byte sectors didn't work in image mode
+- Sherlock Holmes - Consulting Detective separate video tracks hack removed, working full image is available.
+- mds subchannel data wrong positioning fixed
+- fixed some rare thread syncronization issues when CDA was stopped
+- read also standard 2048 byte sectors using SPTI if CDA required SPTI mode, mixing IOCTL
+  and SPTI does not seem to be reliable
+- Brian the Lion CD32 starts CDA play at the very end of data track, obviously this must not
+  be an error, only return error if both current start and start + 2s is located inside data track
+- files inside archives didn't load if path was relative
+- paused CD32/CDTV was resumed after exiting GUI ("old-style" GUI pause/resume was not removed..)
+- directories selected via "favorite menu" also sets default path
+- prowizard updates
+
+- added ugly joystick/mouse direction status bar pointers (design stolen from Vice and
+  future AF player skin) Not sure if this was good idea..
+
 Beta 12:
 
 - <drive letter>: without '\' in harddrive paths was detected as a relative path,

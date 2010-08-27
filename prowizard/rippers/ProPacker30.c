@@ -114,24 +114,24 @@ short testPP30 ( void )
 /*printf ( "#6 (vol > 40 at : %ld)\n" , PW_Start_Address+PW_k+766+PW_j*4+2 );*/
       return BAD;
     }
-    /* break > 40 ? */
+    /* break > 64 ? */
     if ( ((in_data[PW_Start_Address+PW_k+766+PW_j*4+2]&0x0f)==0x0d) &&
-         (in_data[PW_Start_Address+PW_k+766+PW_j*4+3] > 0x40 ) )
+         (in_data[PW_Start_Address+PW_k+766+PW_j*4+3] > 0x64 ) )
     {
-/*printf ( "#6,1\n" );*/
+/*printf ( "#6,1 Start:%ld\n",PW_Start_Address );*/
       return BAD;
     }
     /* jump > 128 */
     if ( ((in_data[PW_Start_Address+PW_k+766+PW_j*4+2]&0x0f)==0x0b) &&
          (in_data[PW_Start_Address+PW_k+766+PW_j*4+3] > 0x7f ) )
     {
-/*printf ( "#6,2\n" );*/
+/*printf ( "#6,2 Start:%ld\n",PW_Start_Address );*/
       return BAD;
     }
     /* smp > 1f ? */
     if ((in_data[PW_Start_Address+PW_k+766+PW_j*4]&0xf0)>0x10)
     {
-/*printf ( "#6,3\n" );*/
+/*printf ( "#6,3 Start:%ld\n",PW_Start_Address );*/
       return BAD;
     }
   }
@@ -177,6 +177,8 @@ void Rip_PP30 ( void )
  *   - no more fopen ()
  * update : 16 aug 2010
  *   - rewrotte depacker for patternlist generation
+ * update : 23 aug 2010
+ *   - fixed yet another patternlist bug
 */
 
 void Depack_PP30 ( void )
@@ -227,7 +229,7 @@ void Depack_PP30 ( void )
   Header[951] = in_data[Where];
   Where += 1;
 
-  // now, where = 0xFA
+  /* now, where = 0xFA */
   for (i=0;i<Header[950];i++)
   {
     ReadPat[i] = (in_data[Where+i]*256*256*256) + 
@@ -270,11 +272,13 @@ void Depack_PP30 ( void )
     k = m;
     for (i=0; i<Header[950] ; i++)
       if (ReadPat[i] == k)
-	Header[952+i] = (unsigned char)l;
+      {
+      	Header[952+i] = (unsigned char)l;
+      	j++;
+      }
+    j--;
     l++;
   }
-  if ( l != Header[950] )
-    l -= 1;
 
 
   /* write ptk's ID */
@@ -292,7 +296,7 @@ void Depack_PP30 ( void )
   /* l is the number of stored patterns */
   /* rebuild pattern data now */
   whereTableRef = ((Highest_Track + 1)*128) + 4 + Where;
-  //printf ( "\nwhereTableRef : %ld\n",whereTableRef);
+  /*printf ( "\nwhereTableRef : %ld\n",whereTableRef);*/
   for (i=0;i<l;i++)
   {
     BZERO(Pattern,1024);

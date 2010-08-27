@@ -638,7 +638,7 @@ end:
 
 static void cdda_stop (struct cdunit *cdu)
 {
-	if (cdu->cdda_play > 0) {
+	if (cdu->cdda_play != 0) {
 		cdu->cdda_play = -1;
 		while (cdu->cdda_play) {
 			Sleep (10);
@@ -792,7 +792,11 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 		} else if (sectorsize == 2336 && t->size == 2352) {
 			// 2352 -> 2336
 			while (size-- > 0) {
-				zfile_fseek (t->handle, t->offset + sector * t->size + 16, SEEK_SET);
+				uae_u8 b = 0;
+				zfile_fseek (t->handle, t->offset + sector * t->size + 15, SEEK_SET);
+				zfile_fread (&b, 1, 1, t->handle);
+				if (b != 2 && b != 0) // MODE0 or MODE2 only allowed
+					return 0; 
 				zfile_fread (data, sectorsize, 1, t->handle);
 				sector++;
 				data += sectorsize;
@@ -806,8 +810,8 @@ static int command_rawread (int unitnum, uae_u8 *data, int sector, int size, int
 		cdu->cd_last_pos = sector;
 		ret = sectorsize * size;
 
-
 	} else {
+
 		uae_u8 sectortype = extra >> 16;
 		uae_u8 cmd9 = extra >> 8;
 		int sync = (cmd9 >> 7) & 1;
@@ -1146,7 +1150,7 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 			}
 
 			if (tb->subchannel && t->handle) {
-				t->suboffset = t->offset + t->size;
+				t->suboffset = t->size;
 				t->subcode = 1; // interleaved
 				t->subhandle = zfile_dup (t->handle);
 				t->skipsize = SUB_CHANNEL_SIZE;
@@ -1291,6 +1295,8 @@ static int parseccd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 		}
 
 	}
+	zfile_fclose (zimg);
+	zfile_fclose (zsub);
 	return cdu->tracks;
 }
 
@@ -1662,7 +1668,7 @@ static void unload_image (struct cdunit *cdu)
 {
 	int i;
 
-	for (i = 0; i < cdu->tracks; i++) {
+	for (i = 0; i < sizeof cdu->toc / sizeof (struct cdtoc); i++) {
 		struct cdtoc *t = &cdu->toc[i];
 		zfile_fclose (t->handle);
 		if (t->handle != t->subhandle)
@@ -1706,8 +1712,6 @@ static void close_device (int unitnum)
 	struct cdunit *cdu = &cdunits[unitnum];
 	if (cdu->open) {
 		cdda_stop (cdu);
-		unload_image (cdu);
-		uae_sem_destroy (&cdu->sub_sem);
 		cdu->open = false;
 		if (cdimage_unpack_thread) {
 			cdimage_unpack_thread = 0;
@@ -1718,6 +1722,8 @@ static void close_device (int unitnum)
 			cdimage_unpack_thread = 0;
 			destroy_comm_pipe (&unpack_pipe);
 		}
+		unload_image (cdu);
+		uae_sem_destroy (&cdu->sub_sem);
 	}
 	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
 }

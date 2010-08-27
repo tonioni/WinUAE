@@ -554,29 +554,35 @@ static bool isaudiotrack (int startlsn)
 	return true;
 }
 
+static struct cd_toc *get_track (int startlsn)
+{
+	for (int i = cdrom_toc_cd_buffer.first_track_offset + 1; i <= cdrom_toc_cd_buffer.last_track_offset; i++) {
+		struct cd_toc *s = &cdrom_toc_cd_buffer.toc[i];
+		uae_u32 addr = s->paddress;
+		if (startlsn < addr)
+			return s - 1;
+	}
+	return NULL;
+}
 
 static int last_play_end;
 static int cd_play_audio (int startlsn, int endlsn, int scan)
 {
 	struct cd_toc *s = NULL;
-	uae_u32 addr;
-	int i;
 
 	if (!cdrom_toc_cd_buffer.points)
 		return 0;
-	for (i = cdrom_toc_cd_buffer.first_track_offset; i <= cdrom_toc_cd_buffer.last_track_offset; i++) {
-		s = &cdrom_toc_cd_buffer.toc[i];
-		addr = s->paddress;
-		if (s->track > 0 && s->track < 100 && addr >= startlsn)
-			break;
-	}
+	s = get_track (startlsn);
 	if (s && (s->control & 0x0c) == 0x04) {
-		write_log (L"tried to play data track %d!\n", s->track);
-		s++;
+		s = get_track (startlsn + 150);
+		if (s && (s->control & 0x0c) == 0x04) {
+			write_log (L"tried to play data track %d!\n", s->track);
+			s++;
+			startlsn = s->paddress;
+			s++;
+			endlsn = s->paddress;
+		}
 		startlsn = s->paddress;
-		s++;
-		endlsn = s->paddress;
-		return 0;
 	}
 	qcode_valid = 0;
 	last_play_end = endlsn;
@@ -1843,17 +1849,6 @@ void restore_akiko_finish (void)
 }
 
 #endif
-
-void akiko_entergui (void)
-{
-	if (cdrom_playing)
-		write_comm_pipe_u32 (&requests, 0x0102, 1);
-}
-void akiko_exitgui (void)
-{
-	if (cdrom_playing)
-		write_comm_pipe_u32 (&requests, 0x0103, 1);
-}
 
 void akiko_mute (int muted)
 {

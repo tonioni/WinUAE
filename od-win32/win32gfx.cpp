@@ -99,6 +99,7 @@ static int screen_is_initialized;
 int display_change_requested, normal_display_change_starting;
 int window_led_drives, window_led_drives_end;
 int window_led_hd, window_led_hd_end;
+int window_led_joys, window_led_joys_end, window_led_joy_start;
 extern int console_logging;
 int window_extra_width, window_extra_height;
 
@@ -1957,8 +1958,9 @@ static void createstatuswindow (void)
 	RECT rc;
 	HLOCAL hloc;
 	LPINT lpParts;
-	int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width;
-	int num_parts = 11;
+	int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width, joy_width;
+	int joys = 0;
+	int num_parts = 11 + joys;
 	double scaleX, scaleY;
 	WINDOWINFO wi;
 	int extra;
@@ -1987,28 +1989,61 @@ static void createstatuswindow (void)
 	fps_width = (int)(64 * scaleX);
 	idle_width = (int)(64 * scaleX);
 	snd_width = (int)(72 * scaleX);
+	joy_width = (int)(24 * scaleX);
 	GetClientRect (hMainWnd, &rc);
 	/* Allocate an array for holding the right edge coordinates. */
-	hloc = LocalAlloc (LHND, sizeof (int) * num_parts);
+	hloc = LocalAlloc (LHND, sizeof (int) * (num_parts + 1));
 	if (hloc) {
+		int i = 0, i1, j;
 		lpParts = (LPINT)LocalLock (hloc);
-		/* Calculate the right edge coordinate for each part, and copy the coords
-		* to the array.  */
-		lpParts[0] = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - extra;
-		lpParts[1] = lpParts[0] + snd_width;
-		lpParts[2] = lpParts[1] + idle_width;
-		lpParts[3] = lpParts[2] + fps_width;
-		lpParts[4] = lpParts[3] + power_width;
-		lpParts[5] = lpParts[4] + hd_width;
-		lpParts[6] = lpParts[5] + cd_width;
-		lpParts[7] = lpParts[6] + drive_width;
-		lpParts[8] = lpParts[7] + drive_width;
-		lpParts[9] = lpParts[8] + drive_width;
-		lpParts[10] = lpParts[9] + drive_width;
-		window_led_drives = lpParts[6];
-		window_led_drives_end = lpParts[10];
-		window_led_hd = lpParts[4];
-		window_led_hd_end = lpParts[5];
+		/* Calculate the right edge coordinate for each part, and copy the coords to the array.  */
+		int startx = rc.right - (drive_width * 4) - power_width - idle_width - fps_width - cd_width - hd_width - snd_width - joys * joy_width - extra;
+		for (j = 0; j < joys; j++) {
+			lpParts[i] = startx;
+			i++;
+			startx += joy_width;
+		}
+		window_led_joy_start = i;
+		// snd
+		lpParts[i] = startx;
+		i++;
+		// cpu
+		lpParts[i] = lpParts[i - 1] + snd_width;
+		i++;
+		// fps
+		lpParts[i] = lpParts[i - 1] + idle_width;
+		i++;
+		// power
+		lpParts[i] = lpParts[i - 1] + fps_width;
+		i++;
+		i1 = i;
+		// hd
+		lpParts[i] = lpParts[i - 1] + power_width;
+		i++;
+		// cd
+		lpParts[i] = lpParts[i - 1] + hd_width;
+		i++;
+		// df0
+		lpParts[i] = lpParts[i - 1] + cd_width;
+		i++;
+		// df1
+		lpParts[i] = lpParts[i - 1] + drive_width;
+		i++;
+		// df2
+		lpParts[i] = lpParts[i - 1] + drive_width;
+		i++;
+		// df3
+		lpParts[i] = lpParts[i - 1] + drive_width;
+		i++;
+		// edge
+		lpParts[i] = lpParts[i - 1] + drive_width;
+
+		window_led_joys = lpParts[0];
+		window_led_joys_end = lpParts[1];
+		window_led_hd = lpParts[i1];
+		window_led_hd_end = lpParts[i1 + 1];
+		window_led_drives = lpParts[i1 + 2];
+		window_led_drives_end = lpParts[i1 + 6];
 
 		/* Create the parts */
 		SendMessage (hStatusWnd, SB_SETPARTS, (WPARAM)num_parts, (LPARAM)lpParts);

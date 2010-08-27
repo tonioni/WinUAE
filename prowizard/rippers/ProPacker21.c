@@ -140,6 +140,8 @@ void Rip_PP21 ( void )
  *   - rewrote depacker (no more useless patterns)
  * update : 20100815
  *   - removed unused var and ;
+ * update : 23 aug 2010
+ *   - fixed yet another patternlist bug
 */
 
 void Depack_PP21 ( void )
@@ -224,24 +226,37 @@ void Depack_PP21 ( void )
   for (j=0; j<Header[950] ; j++)
   {
     m = 0x7fffffff; /* min */
+    /*fprintf (info,"[%ld]pattern[%ld]",l,j);*/
     /*search for min */
     for (i=0; i<Header[950] ; i++)
       if ((ReadPat[i]<m) && (ReadPat[i]>k))
+      {
 	    m = ReadPat[i];
+	    /*fprintf (info,"(i:%ld)(min:%ld)(k:%ld)",i,m,k);*/
+      }
     /* if k == m then an already existing ref was found */
     if (k==m)
+    {
+      /*fprintf (info," <- pattern known (k:%ld - m:%ld)\n",k,m);*/
       continue;
+    }
+/*    else
+      fprintf (info,"\n");*/
     /* m is the next minimum */
     k = m;
     for (i=0; i<Header[950] ; i++)
       if (ReadPat[i] == k)
-	Header[952+i] = (unsigned char)l;
+      {
+        /*fprintf (info,"-> pos %ld gets %ld\n",i,l);*/
+        Header[952+i] = (unsigned char)l;
+        j++;
+      }
+    j--;
     l++;
   }
-  if ( l != Header[950] )
-    l -= 1;
+  /*fprintf (info,"\nnumber of pattern stored : %ld",l);*/
   /*fprintf (info,"number of pattern stored : %ld\n\n",l);*/
-  //fflush (info);
+  /*fprintf (info," (%ld)\n",l);*/
 
   /* write ptk's ID */
   Header[1080] = 'M';
@@ -262,7 +277,7 @@ void Depack_PP21 ( void )
   for (i=0;i<l;i++)
   {
     /*fprintf (info,"pattern %ld (/%ld)\n",i,l);*/
-    //fflush (info);
+    /*fflush (info);*/
     BZERO(Pattern,1024);
     /* which pattern is it now ? */
     for (j=0;j<Header[950];j++)

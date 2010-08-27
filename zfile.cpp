@@ -2418,7 +2418,7 @@ static struct zvolume *zvolume_alloc_2 (const TCHAR *name, struct zfile *z, unsi
 	root->volume = zv;
 	root->type = ZNODE_DIR;
 	i = 0;
-	if (name[0] != '/' && name[0] != '\\') {
+	if (name[0] != '/' && name[0] != '\\' && _tcsncmp (name, L".\\", 2) != 0) {
 		if (_tcschr (name, ':') == 0) {
 			for (i = _tcslen (name) - 1; i > 0; i--) {
 				if (name[i] == FSDB_DIR_SEPARATOR) {

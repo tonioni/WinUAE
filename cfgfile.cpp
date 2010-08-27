@@ -1494,27 +1494,27 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (_tcscmp (option, L"joyportfriendlyname0") == 0 || _tcscmp (option, L"joyportfriendlyname1") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname0") == 0 ? 0 : 1, 0, 2);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname0") == 0 ? 0 : 1, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, L"joyportfriendlyname2") == 0 || _tcscmp (option, L"joyportfriendlyname3") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname2") == 0 ? 2 : 3, 0, 2);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportfriendlyname2") == 0 ? 2 : 3, -1, 2);
 		return 1;
 	}
 	if (_tcscmp (option, L"joyportname0") == 0 || _tcscmp (option, L"joyportname1") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname0") == 0 ? 0 : 1, 0, 1);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname0") == 0 ? 0 : 1, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, L"joyportname2") == 0 || _tcscmp (option, L"joyportname3") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname2") == 0 ? 2 : 3, 0, 1);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyportname2") == 0 ? 2 : 3, -1, 1);
 		return 1;
 	}
 	if (_tcscmp (option, L"joyport0") == 0 || _tcscmp (option, L"joyport1") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport0") == 0 ? 0 : 1, 0, 0);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport0") == 0 ? 0 : 1, -1, 0);
 		return 1;
 	}
 	if (_tcscmp (option, L"joyport2") == 0 || _tcscmp (option, L"joyport3") == 0) {
-		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport2") == 0 ? 2 : 3, 0, 0);
+		inputdevice_joyport_config (p, value, _tcscmp (option, L"joyport2") == 0 ? 2 : 3, -1, 0);
 		return 1;
 	}
 	if (cfgfile_strval (option, value, L"joyport0mode", &p->jports[0].mode, joyportmodes, 0))
@@ -3107,13 +3107,13 @@ static int cfgfile_handle_custom_event (TCHAR *custom, int mode)
 }
 #endif
 
-int cmdlineparser (TCHAR *s, TCHAR *outp[], int max)
+int cmdlineparser (const TCHAR *s, TCHAR *outp[], int max)
 {
 	int j, cnt = 0;
 	int slash = 0;
 	int quote = 0;
 	TCHAR tmp1[MAX_DPATH];
-	TCHAR *prev;
+	const TCHAR *prev;
 	int doout;
 
 	doout = 0;

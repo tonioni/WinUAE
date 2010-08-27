@@ -88,10 +88,17 @@ static void rdbdump (HANDLE h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	int i, blocks;
 	TCHAR name[100];
 	FILE *f;
+	bool needfree = false;
 
-	blocks = (buf[132] << 24) | (buf[133] << 16) | (buf[134] << 8) | (buf[135] << 0);
-	if (blocks < 0 || blocks > 100000)
-		return;
+	if (buf) {
+		blocks = (buf[132] << 24) | (buf[133] << 16) | (buf[134] << 8) | (buf[135] << 0);
+		if (blocks < 0 || blocks > 100000)
+			return;
+	} else {
+		blocks = 16383;
+		buf = (uae_u8*)VirtualAlloc (NULL, CACHE_SIZE, MEM_COMMIT, PAGE_READWRITE);
+		needfree = true;
+	}
 	_stprintf (name, L"rdb_dump_%d.rdb", cnt);
 	f = _tfopen (name, L"wb");
 	if (!f)
@@ -107,6 +114,9 @@ static void rdbdump (HANDLE h, uae_u64 offset, uae_u8 *buf, int blocksize)
 		offset += blocksize;
 	}
 	fclose (f);
+	if (needfree)
+		VirtualFree (buf, 0, MEM_RELEASE);
+	write_log (L"'%s' saved\n", name);
 	cnt++;
 }
 
@@ -219,6 +229,7 @@ static int ismounted (const TCHAR *name, HANDLE hd)
 #define CA "Commodore\0Amiga\0"
 static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf, int blocksize)
 {
+	uae_u64 origoffset = offset;
 	int i, j, blocks = 63, empty = 1;
 	DWORD outlen;
 	LONG high;
@@ -252,6 +263,8 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 		}
 
 		if (!memcmp (buf + 2, "CIS@", 4) && !memcmp (buf + 16, CA, strlen (CA))) {
+			if (do_rdbdump)
+				rdbdump (h, offset, NULL, blocksize);
 			write_log (L"hd accepted (PCMCIA RAM)\n");
 			return -2;
 		}
@@ -284,12 +297,16 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 				regclosetree (fkey);
 			}
 			if (match) {
+				if (do_rdbdump > 1)
+					rdbdump (h, origoffset, NULL, blocksize);
 				write_log (L"hd accepted, enabled in registry!\n");
 				return -7;
 			}
 		}
 		mounted = ismounted (name, h);
 		if (!mounted) {
+			if (do_rdbdump > 1)
+				rdbdump (h, origoffset, NULL, blocksize);
 			write_log (L"hd accepted, not empty and not mounted in Windows\n");
 			return -8;
 		}
@@ -303,6 +320,8 @@ static int safetycheck (HANDLE h, const TCHAR *name, uae_u64 offset, uae_u8 *buf
 		//write_log (L"hd ignored, not empty and no RDB detected or Windows mounted\n");
 		//return 0;
 	}
+	if (do_rdbdump > 1)
+		rdbdump (h, origoffset, NULL, blocksize);
 	write_log (L"hd accepted (empty)\n");
 	return -9;
 }

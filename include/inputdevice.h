@@ -7,6 +7,25 @@
   * Copyright 2001-2002 Toni Wilen
   */
 
+#define DIR_LEFT_BIT 0
+#define DIR_RIGHT_BIT 1
+#define DIR_UP_BIT 2
+#define DIR_DOWN_BIT 3
+#define DIR_LEFT (1 << DIR_LEFT_BIT)
+#define DIR_RIGHT (1 << DIR_RIGHT_BIT)
+#define DIR_UP (1 << DIR_UP_BIT)
+#define DIR_DOWN (1 << DIR_DOWN_BIT)
+
+#define JOYBUTTON_1 0 /* fire/left mousebutton */
+#define JOYBUTTON_2 1 /* 2nd/right mousebutton */
+#define JOYBUTTON_3 2 /* 3rd/middle mousebutton */
+#define JOYBUTTON_CD32_PLAY 3
+#define JOYBUTTON_CD32_RWD 4
+#define JOYBUTTON_CD32_FFW 5
+#define JOYBUTTON_CD32_GREEN 6
+#define JOYBUTTON_CD32_YELLOW 7
+#define JOYBUTTON_CD32_RED 8
+#define JOYBUTTON_CD32_BLUE 9
 
 #define IDTYPE_JOYSTICK 0
 #define IDTYPE_MOUSE 1
