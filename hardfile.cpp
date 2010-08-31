@@ -982,6 +982,7 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x00: /* TEST UNIT READY */
 		if (nodisk (hfd))
 			goto nodisk;
+		scsi_len = 0;
 		break;
 	case 0x08: /* READ (6) */
 		if (nodisk (hfd))
@@ -1209,6 +1210,7 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	case 0x35: /* SYNCRONIZE CACHE (10) */
 		if (nodisk (hfd))
 			goto nodisk;
+		scsi_len = 0;
 		break;
 	case 0xa8: /* READ (12) */
 		if (nodisk (hfd))

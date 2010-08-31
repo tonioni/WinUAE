@@ -84,6 +84,7 @@ typedef double fptype;
 #endif
 #endif
 
+#define CPU_PIPELINE_MAX 2
 #define CPU000_MEM_CYCLE 4
 #define CPU000_CLOCK_MULT 2
 #define CPU020_MEM_CYCLE 3
@@ -113,6 +114,7 @@ struct cache040
 	bool valid[CACHELINES040];
 	uae_u32 tag[CACHELINES040];
 };
+
 
 struct regstruct
 {
@@ -164,8 +166,8 @@ struct regstruct
 	uae_u8 panic;
 	uae_u32 panic_pc, panic_addr;
 
-	uae_u32 prefetch020data;
-	uae_u32 prefetch020addr;
+	uae_u32 prefetch020data[CPU_PIPELINE_MAX];
+	uae_u32 prefetch020addr[CPU_PIPELINE_MAX];
 	int ce020memcycles;
 };
 

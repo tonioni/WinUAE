@@ -353,6 +353,7 @@ struct uae_prefs {
 	bool win32_alwaysontop;
 	bool win32_powersavedisabled;
 	bool win32_minimize_inactive;
+	int win32_statusbar;
 
 	int win32_active_priority;
 	int win32_inactive_priority;

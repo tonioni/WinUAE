@@ -846,6 +846,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	int mx, my;
 	int istablet = (GetMessageExtraInfo () & 0xFFFFFF00) == 0xFF515700;
 	static int mm, minimized, recursive, ignoremousemove;
+	static bool ignorelbutton;
 
 #if MSGDEBUG > 1
 	write_log (L"AWP: %x %x\n", hWnd, message);
@@ -867,6 +868,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			winuae_inactive (hWnd, minimized);
 		}
 		dx_check ();
+		break;
+	case WM_MOUSEACTIVATE:
+		if (isfocus () == 0)
+			ignorelbutton = true;
 		break;
 	case WM_ACTIVATEAPP:
 		if (!wParam && isfullscreen () <= 0 && currprefs.win32_minimize_inactive)
@@ -890,6 +895,16 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_LBUTTONDOWN:
 	case WM_LBUTTONDBLCLK:
 		if (!mouseactive && !gui_active && (!mousehack_alive () || currprefs.input_tablet != TABLET_MOUSEHACK || (currprefs.input_tablet == TABLET_MOUSEHACK && !currprefs.input_magic_mouse) || isfullscreen () > 0)) {
+			// borderless = do not capture with single-click
+			if (ignorelbutton) {
+				ignorelbutton = 0;
+				return 0;
+			}
+			if (message == WM_LBUTTONDOWN && isfullscreen () == 0 && currprefs.win32_borderless && !rp_isactive ()) {
+				// full-window drag
+				SendMessage (hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+				return 0;
+			}
 			setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 		} else if (dinput_winmouse () >= 0 && isfocus ()) {
 			setmousebuttonstate (dinput_winmouse (), 0, 1);
@@ -1544,7 +1559,12 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 				int port = lpDIS->itemID - 1;
 				int x = (lpDIS->rcItem.right - lpDIS->rcItem.left + 1) / 2 + lpDIS->rcItem.left - 1;
 				int y = (lpDIS->rcItem.bottom - lpDIS->rcItem.top + 1) / 2 + lpDIS->rcItem.top - 1;
-				FillRect (lpDIS->hDC, &lpDIS->rcItem, (HBRUSH)(COLOR_3DFACE + 1));
+				RECT r = lpDIS->rcItem;
+				r.left++;
+				r.right--;
+				r.top++;
+				r.bottom--;
+				FillRect (lpDIS->hDC, &r, (HBRUSH)(COLOR_3DFACE + 1));
 				for (int i = 0; i < 2; i++) {
 					int buttons = guijoybutton[port + i * 2];
 					int m = i == 0 ? 1 : 2;
@@ -1729,7 +1749,7 @@ void handle_events (void)
 	int was_paused = 0;
 	static int cnt;
 
-	if (guijoychange && window_led_joy_start > 0) {
+	if (hStatusWnd && guijoychange && window_led_joy_start > 0) {
 		guijoychange = false;
 		for (int i = 0; i < window_led_joy_start; i++)
 			PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((i + 1) | SBT_OWNERDRAW), (LPARAM)L"");
@@ -2694,6 +2714,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_rtgvblankrate = 0;
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
+		p->win32_statusbar = 1;
 	}
 	if (type == 1 || type == 0) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
@@ -2708,7 +2729,8 @@ void target_default_options (struct uae_prefs *p, int type)
 	}
 }
 
-static const TCHAR *scsimode[] = { L"SCSIEMU", L"SPTI", L"SPTI+SCSISCAN", L"AdaptecASPI", L"NeroASPI", L"FrogASPI", 0 };
+static const TCHAR *scsimode[] = { L"SCSIEMU", L"SPTI", L"SPTI+SCSISCAN", L"AdaptecASPI", L"NeroASPI", L"FrogASPI", NULL };
+static const TCHAR *statusbarmode[] = { L"none", L"normal", L"extended", NULL };
 
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
@@ -2748,6 +2770,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 		cfgfile_target_dwrite (f, L"rtg_vblank", L"%d", p->win32_rtgvblankrate);
 	cfgfile_target_dwrite_bool (f, L"borderless", p->win32_borderless);
 	cfgfile_target_dwrite_str (f, L"uaescsimode", scsimode[p->win32_uaescsimode]);
+	cfgfile_target_dwrite_str (f, L"statusbar", statusbarmode[p->win32_statusbar]);
 	cfgfile_target_dwrite (f, L"soundcard", L"%d", p->win32_soundcard);
 	if (sound_devices[p->win32_soundcard].cfgname)
 		cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard].cfgname);
@@ -2941,6 +2964,9 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 			p->win32_uaescsimode = UAESCSI_CDEMU;
 		return 1;
 	}
+
+	if (cfgfile_strval (option, value, L"statusbar", &p->win32_statusbar, statusbarmode, 0))
+		return 1;
 
 	if (cfgfile_intval (option, value, L"active_priority", &v, 1)) {
 		p->win32_active_priority = fetchpri (v, 1);

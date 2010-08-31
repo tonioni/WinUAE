@@ -1,8 +1,3 @@
-/* (27 dec 2001)
- *   added some checks to prevent readings outside of input file (in test 1)
- * (May 2002)
- *   added test_smps()
-*/
 /* testEUREKA() */
 /* Rip_EUREKA() */
 /* Depack_EUREKA() */
@@ -12,6 +7,13 @@
 #include "extern.h"
 
 
+/* (27 dec 2001)
+ *   added some checks to prevent readings outside of input file (in test 1)
+ * (May 2002)
+ *   added test_smps()
+ * (30/08/10)
+ *   changed #4.3 as the "remaining" patternlist isn't always 0x00
+*/
 short testEUREKA ( void )
 {
   /* test 1 */
@@ -84,9 +86,9 @@ short testEUREKA ( void )
   PW_k += 2; /* to be sure .. */
   while ( PW_k != 128 )
   {
-    if ( in_data[PW_Start_Address+952+PW_k] != 0 )
+    if ( in_data[PW_Start_Address+952+PW_k] > 0x64 )
     {
-/*printf ( "#4,3 (Start:%ld)\n" , PW_Start_Address );*/
+/*printf ( "#4,3 (Start:%ld)(PW_k:%ld)\n" , PW_Start_Address,PW_k );*/
       return BAD;
     }
     PW_k += 1;

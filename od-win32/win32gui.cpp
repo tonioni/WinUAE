@@ -7342,6 +7342,15 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)L"Direct3D");
 		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_SETCURSEL, workprefs.gfx_api, 0);
 
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Borderless");
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Minimal");
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Standard");
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Extended");
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_SETCURSEL,
+			workprefs.win32_borderless ? 0 : (workprefs.win32_statusbar + 1),
+			0);
+
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM *");
@@ -7452,6 +7461,17 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					if (v != CB_ERR) {
 						workprefs.gfx_api = v;
 						enable_for_miscdlg (hDlg);
+					}
+				break;
+				case IDC_WINDOWEDMODE:
+					v = SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_GETCURSEL, 0, 0L);
+					if (v != CB_ERR) {
+						workprefs.win32_borderless = 0;
+						workprefs.win32_statusbar = 0;
+						if (v == 0)
+							workprefs.win32_borderless = 1;
+						if (v > 0)
+							workprefs.win32_statusbar = v - 1;
 					}
 				break;
 				case IDC_DD_SURFACETYPE:
@@ -13549,17 +13569,19 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 	drvdrag = 0;
 	if (currentpage < 0) {
 		GetClientRect (hMainWnd, &r2);
-		GetClientRect (hStatusWnd, &r);
-		if (pt.y >= r2.bottom && pt.y < r2.bottom + r.bottom) {
-			if (pt.x >= window_led_drives && pt.x < window_led_drives_end && window_led_drives > 0) {
-				drv = pt.x - window_led_drives;
-				drv /= (window_led_drives_end - window_led_drives) / 4;
-				drvdrag = 1;
-				if (drv < 0 || drv > 3)
-					drv = 0;
-			}
-			if (pt.x >= window_led_hd && pt.x < window_led_hd_end && window_led_hd > 0) {
-				harddrive = 1;
+		if (hStatusWnd) {
+			GetClientRect (hStatusWnd, &r);
+			if (pt.y >= r2.bottom && pt.y < r2.bottom + r.bottom) {
+				if (pt.x >= window_led_drives && pt.x < window_led_drives_end && window_led_drives > 0) {
+					drv = pt.x - window_led_drives;
+					drv /= (window_led_drives_end - window_led_drives) / 4;
+					drvdrag = 1;
+					if (drv < 0 || drv > 3)
+						drv = 0;
+				}
+				if (pt.x >= window_led_hd && pt.x < window_led_hd_end && window_led_hd > 0) {
+					harddrive = 1;
+				}
 			}
 		}
 	} else if (currentpage == FLOPPY_ID || currentpage == QUICKSTART_ID) {

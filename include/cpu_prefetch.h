@@ -225,25 +225,7 @@ STATIC_INLINE void put_byte_ce020 (uaecptr addr, uae_u32 v)
 	mem_access_delay_byte_write_ce020 (addr, v);
 }
 
-extern void fill_icache020 (uae_u32);
-
-STATIC_INLINE uae_u32 get_word_ce020_prefetch (int o)
-{
-	uae_u32 pc = m68k_getpc () + o;
-
-	for (;;) {
-		if (pc == regs.prefetch020addr) {
-			uae_u32 v = regs.prefetch020data >> 16;
-			return v;
-		}
-		if (pc == regs.prefetch020addr + 2) {
-			uae_u32 v = regs.prefetch020data & 0xffff;
-			fill_icache020 (pc + 2);
-			return v;
-		}
-		fill_icache020 (pc);
-	}
-}
+extern uae_u32 get_word_ce020_prefetch (int);
 
 STATIC_INLINE uae_u32 get_long_ce020_prefetch (int o)
 {
@@ -281,7 +263,7 @@ STATIC_INLINE void m68k_do_rts_ce020 (void)
 
 #ifdef CPUEMU_21
 
-extern void fill_icache030 (uae_u32 addr);
+extern uae_u32 get_word_ce030_prefetch (int);
 extern void write_dcache030 (uaecptr, uae_u32, int);
 extern uae_u32 read_dcache030 (uaecptr, int);
 
@@ -311,24 +293,6 @@ STATIC_INLINE uae_u32 get_word_ce030 (uaecptr addr)
 STATIC_INLINE uae_u32 get_byte_ce030 (uaecptr addr)
 {
 	return read_dcache030 (addr, 0);
-}
-
-STATIC_INLINE uae_u32 get_word_ce030_prefetch (int o)
-{
-	uae_u32 pc = m68k_getpc () + o;
-
-	for (;;) {
-		if (pc == regs.prefetch020addr) {
-			uae_u32 v = regs.prefetch020data >> 16;
-			return v;
-		}
-		if (pc == regs.prefetch020addr + 2) {
-			uae_u32 v = regs.prefetch020data & 0xffff;
-			fill_icache030 (pc + 2);
-			return v;
-		}
-		fill_icache030 (pc);
-	}
 }
 
 STATIC_INLINE uae_u32 get_long_ce030_prefetch (int o)

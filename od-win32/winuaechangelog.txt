@@ -1,4 +1,23 @@
 
+Beta 14:
+
+- DSKSTEP and DSKSELx going inactive at the same time steps the rw-head normally
+  Fixes Euro Soccer stupid disk change detection.
+- uaehf.device HD_SCSICMD TEST UNIT READY returned an error (HDInstTools works again)
+- added 68020 CE-mode very approximate 2-stage CPU prefetch pipeline emulation (not that 68020
+  don't really have 2-stage prefetch but it still will be more compatible without major changes)
+  Fixes ATR and (partially) Last Ninja 3 CD32 graphics glitches, (missing blitter waits..)
+  also more compatible with self-modifying code
+- CD32/CDTV empty "image mode" tried to select physical drive
+- added windowed mode configuration GUI setting (borderless, minimal, normal, extended)
+  Extended is WIP and something you (and me?) should ignore
+- do not capture mouse if left mouse was clicked and WinUAE window had no focus
+  (now available via GUI = can't be totally useless anymore..)
+- borderless mode can be dragged by clicking mouse button once, only double click captures mouse
+- fixed epson printing emulation blank page when printing multiple text pages and later pages
+  didn't have any font or font style changes
+- more prowizard ripper updates
+
 Beta 13:
 
 - addaq.x #x,Ax and subaq.x #x,Ax had too long cycle count (this was really stupid bug)
@@ -20,9 +39,6 @@ Beta 13:
 - paused CD32/CDTV was resumed after exiting GUI ("old-style" GUI pause/resume was not removed..)
 - directories selected via "favorite menu" also sets default path
 - prowizard updates
-
-- added ugly joystick/mouse direction status bar pointers (design stolen from Vice and
-  future AF player skin) Not sure if this was good idea..
 
 Beta 12:
 

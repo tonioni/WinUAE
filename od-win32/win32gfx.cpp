@@ -1308,6 +1308,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
+	c |= currprefs.win32_statusbar != changed_prefs.win32_statusbar ? 32 : 0;
 	c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
 	c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (2 | 8 | 64) : 0;
 	c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (2 | 8 | 64) : 0;
@@ -1371,6 +1372,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 		currprefs.win32_borderless = changed_prefs.win32_borderless;
+		currprefs.win32_statusbar = changed_prefs.win32_statusbar;
 		currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
 		currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
 		currprefs.win32_rtgallowscaling = changed_prefs.win32_rtgallowscaling;
@@ -1959,7 +1961,7 @@ static void createstatuswindow (void)
 	HLOCAL hloc;
 	LPINT lpParts;
 	int drive_width, hd_width, cd_width, power_width, fps_width, idle_width, snd_width, joy_width;
-	int joys = 0;
+	int joys = currprefs.win32_statusbar > 1 ? 2 : 0;
 	int num_parts = 11 + joys;
 	double scaleX, scaleY;
 	WINDOWINFO wi;
@@ -1969,6 +1971,8 @@ static void createstatuswindow (void)
 		ShowWindow (hStatusWnd, SW_HIDE);
 		DestroyWindow (hStatusWnd);
 	}
+	if (currprefs.win32_statusbar == 0)
+		return;
 	hStatusWnd = CreateWindowEx (
 		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
@@ -2141,7 +2145,7 @@ static int create_windows_2 (void)
 	DWORD flags = 0;
 	int borderless = currprefs.win32_borderless;
 	DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	int cymenu = GetSystemMetrics (SM_CYMENU);
+	int cymenu = currprefs.win32_statusbar == 0 ? 0 : GetSystemMetrics (SM_CYMENU);
 	int cyborder = GetSystemMetrics (SM_CYBORDER);
 	int cxborder = GetSystemMetrics (SM_CXBORDER);
 	int gap = 3;

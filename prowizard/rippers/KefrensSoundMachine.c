@@ -71,7 +71,7 @@ void Rip_KSM ( void )
   Save_Rip ( "Kefrens Sound Machine module", KSM );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 2);  /* -1 should do but call it "just to be sure" :) */
+    PW_i += 2;  /* -1 should do but call it "just to be sure" :) */
 }
 
 
@@ -89,6 +89,9 @@ void Rip_KSM ( void )
  *      - added transciption for sample names
  * Another Update : 26 nov 2003
  *      - used htonl() so that use of addy is now portable on 68k archs
+ * update 30/08/10
+ *      - patternlist with only one pattern fixed
+ *      - conversion to STK instead of PTK
 */
 
 #define ON  1
@@ -196,14 +199,13 @@ void Depack_KSM ( void )
     }
     else
     {
-      Whatever[1] = 0x01;
-      fwrite ( Whatever , 2 , 1 , out );
+      c1 = 0x00;
+      c2 = 0x01;
+      fwrite ( &c1 , 1 , 1 , out );
+      fwrite ( &c2 , 1 , 1 , out );
     }
     Where += 32;
   }
-  Whatever[129] = 0x01;
-  for ( i=0 ; i<16 ; i++ )
-    fwrite ( &Whatever[100] , 30 , 1 , out );
   /*printf ( "ok\n" );*/
 
   /* pattern list */
@@ -308,11 +310,11 @@ void Depack_KSM ( void )
 
 
   /* write ID */
-  Whatever[0] = 'M';
+  /*Whatever[0] = 'M';
   Whatever[1] = '.';
   Whatever[2] = 'K';
-  Whatever[3] = '.';
-  fwrite ( Whatever , 4 , 1 , out );
+  Whatever[3] = '.';*/
+  /*fwrite ( Whatever , 4 , 1 , out );*/
 
   /* pattern data */
   /*printf ( "Converting pattern datas " );*/
@@ -371,7 +373,7 @@ void Depack_KSM ( void )
 
 
   /* crap */
-  Crap ( "Kefrens SndMachine" , BAD , BAD , out );
+  /*Crap ( "Kefrens SndMachine" , BAD , BAD , out );*/
 
   fflush ( out );
   fclose ( out );

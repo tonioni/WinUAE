@@ -36,7 +36,7 @@
 
 #include <math.h>
 
-//#define DEBUGPRINT L"c:\\d\\data_epsonq_raw_fixed_superscript_subscript_multi-strike.bin"
+//#define DEBUGPRINT L"C:\\Users\\twilen\\Desktop\\pages_1+2_raw.bin"
 int pngprint = 0;
 
 #ifdef C_LIBPNG
@@ -893,6 +893,9 @@ static void outputPage(void)
 		printerDC = NULL;
 		page = NULL;
 		cpage = NULL;
+		if (curFont)
+			DeleteObject (curFont);
+		curFont = NULL;
 	}
 }
 

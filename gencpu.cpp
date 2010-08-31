@@ -2321,7 +2321,8 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_full ();
 		break;
 	case i_Bcc:
-		// bcc.s and bcc.w cycles confirmed
+		// bcc.b branch: idle cycle, prefetch, prefetch
+		// bcc.b not branch: 2 idle cycles, prefetch
 		if (curi->size == sz_long) {
 			if (cpu_level < 2) {
 				addcycles000 (2);

@@ -1034,6 +1034,8 @@
 #define IDC_DXMODE                      1792
 #define IDC_RTG_VBLANKRATE              1793
 #define IDC_DF0WPTEXTQ                  1793
+#define IDC_DXMODE2                     1793
+#define IDC_WINDOWEDMODE                1793
 #define IDC_DF1WPTEXTQ                  1794
 #define IDC_INPUTMAPLIST                1797
 #define IDC_PORT1_REMAP                 1798

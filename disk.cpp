@@ -633,7 +633,7 @@ static void reset_drive (int num)
 static void update_drive_gui (int num)
 {
 	drive *drv = floppy + num;
-	bool writ = dskdmaen == 3 && drv->state && !(selected & (1 << num));
+	bool writ = dskdmaen == 3 && drv->state && !((selected | disabled) & (1 << num));
 
 	if (drv->state == gui_data.drive_motor[num]
 	&& drv->cyl == gui_data.drive_track[num]
@@ -1151,7 +1151,7 @@ static int drive_empty (drive * drv)
 	return drv->diskfile == 0;
 }
 
-static void drive_step (drive * drv)
+static void drive_step (drive * drv, int step_direction)
 {
 #ifdef CATWEASEL
 	if (drv->catweasel) {
@@ -1164,6 +1164,8 @@ static void drive_step (drive * drv)
 		return;
 	}
 #endif
+	if (!drive_empty (drv))
+		drv->dskchange = 0;
 	if (drv->steplimit && get_cycles() - drv->steplimitcycle < MIN_STEPLIMIT_CYCLE) {
 		if (disk_debug_logging > 1)
 			write_log (L" step ignored drive %d, %d",
@@ -1175,9 +1177,7 @@ static void drive_step (drive * drv)
 	* (stupid trackloaders with CPU delay loops)
 	*/
 	set_steplimit (drv);
-	if (!drive_empty (drv))
-		drv->dskchange = 0;
-	if (direction) {
+	if (step_direction) {
 		if (drv->cyl) {
 			drv->cyl--;
 #ifdef DRIVESOUND
@@ -2376,11 +2376,12 @@ static TCHAR *tobin (uae_u8 v)
 
 void DISK_select (uae_u8 data)
 {
-	int step_pulse, lastselected, dr;
-	static uae_u8 prevdata;
-	static int step;
+	int step_pulse, prev_selected, dr;
+	static uae_u8 prev_data;
+	static int prev_step;
 
-	lastselected = selected;
+	prev_selected = selected;
+
 	selected = (data >> 3) & 15;
 	side = 1 - ((data >> 2) & 1);
 	direction = (data >> 1) & 1;
@@ -2391,10 +2392,10 @@ void DISK_select (uae_u8 data)
 
 #ifdef AMAX
 	if (currprefs.amaxromfile[0])
-		amax_disk_select (data, prevdata);
+		amax_disk_select (data, prev_data);
 #endif
 
-	if ((prevdata & 0x80) != (data & 0x80)) {
+	if ((prev_data & 0x80) != (data & 0x80)) {
 		for (dr = 0; dr < 4; dr++) {
 			if (floppy[dr].indexhackmode > 1 && !(selected & (1 << dr))) {
 				floppy[dr].indexhack = 1;
@@ -2406,42 +2407,44 @@ void DISK_select (uae_u8 data)
 
 	if (disk_debug_logging > 1) {
 		write_log (L" %d%d%d%d% ", (selected & 1) ? 0 : 1, (selected & 2) ? 0 : 1, (selected & 4) ? 0 : 1, (selected & 8) ? 0 : 1);
-		if ((prevdata & 0x80) != (data & 0x80))
+		if ((prev_data & 0x80) != (data & 0x80))
 			write_log (L" dskmotor %d ", (data & 0x80) ? 1 : 0);
-		if ((prevdata & 0x02) != (data & 0x02))
+		if ((prev_data & 0x02) != (data & 0x02))
 			write_log (L" direct %d ", (data & 0x02) ? 1 : 0);
-		if ((prevdata & 0x04) != (data & 0x04))
+		if ((prev_data & 0x04) != (data & 0x04))
 			write_log (L" side %d ", (data & 0x04) ? 1 : 0);
 	}
 
-	if (step != step_pulse) {
+	// step goes high and drive was selected when step pulse changes: step
+	if (prev_step != step_pulse) {
 		if (disk_debug_logging > 1)
 			write_log (L" dskstep %d ", step_pulse);
-		step = step_pulse;
-		if (step && !savestate_state) {
+		prev_step = step_pulse;
+		if (prev_step && !savestate_state) {
 			for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
-				if (!((selected | disabled) & (1 << dr))) {
-					drive_step (floppy + dr);
+				if (!((prev_selected | disabled) & (1 << dr))) {
+					drive_step (floppy + dr, direction);
 					if (floppy[dr].indexhackmode > 1 && (data & 0x80))
 						floppy[dr].indexhack = 1;
 				}
 			}
 		}
 	}
+
 	if (!savestate_state) {
 		for (dr = 0; dr < MAX_FLOPPY_DRIVES; dr++) {
 			drive *drv = floppy + dr;
 			/* motor on/off workings tested with small assembler code on real Amiga 1200. */
 			/* motor/id flipflop is set only when drive select goes from high to low */
-			if (!(selected & (1 << dr)) && (lastselected & (1 << dr)) ) {
+			if (!(selected & (1 << dr)) && (prev_selected & (1 << dr)) ) {
 				drv->drive_id_scnt++;
 				drv->drive_id_scnt &= 31;
 				drv->idbit = (drv->drive_id & (1L << (31 - drv->drive_id_scnt))) ? 1 : 0;
 				if (!(disabled & (1 << dr))) {
-					if ((prevdata & 0x80) == 0 || (data & 0x80) == 0) {
+					if ((prev_data & 0x80) == 0 || (data & 0x80) == 0) {
 						/* motor off: if motor bit = 0 in prevdata or data -> turn motor on */
 						drive_motor (drv, 0);
-					} else if (prevdata & 0x80) {
+					} else if (prev_data & 0x80) {
 						/* motor on: if motor bit = 1 in prevdata only (motor flag state in data has no effect)
 						-> turn motor off */
 						drive_motor (drv, 1);
@@ -2461,7 +2464,7 @@ void DISK_select (uae_u8 data)
 		floppy[dr].state = (!(selected & (1 << dr))) | !floppy[dr].motoroff;
 		update_drive_gui (dr);
 	}
-	prevdata = data;
+	prev_data = data;
 	if (disk_debug_logging > 1)
 		write_log (L"\n");
 }

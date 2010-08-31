@@ -152,7 +152,7 @@ void Rip_Noisepacker1 ( void )
   Save_Rip ( "NoisePacker v1 module", Noisepacker1 );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 16);  /* 15 should do but call it "just to be sure" :) */
+    PW_i += 16;  /* 15 should do but call it "just to be sure" :) */
 }
 
 
@@ -165,6 +165,8 @@ void Rip_Noisepacker1 ( void )
  *                 Speed-up and Binary smaller.
  * Update:30/11/99
  *    - removed fopen() and attached funcs.
+ * update: 30/08/10
+ *    - Whatever wasn't cleaned up and was harmful when patternlist size was 1
 */
 void Depack_Noisepacker1 ( void )
 {
@@ -262,6 +264,7 @@ void Depack_Noisepacker1 ( void )
   /* write noisetracker byte */
   Whatever[0] = 0x7f;
   fwrite ( Whatever , 1 , 1 , out );
+  BZERO ( Whatever , 1024 );
 
   /* bypass 2 bytes ... seems always the same as in $02 */
   /* & bypass 2 other bytes which meaning is beside me */
