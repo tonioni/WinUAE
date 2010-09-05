@@ -28,7 +28,7 @@ extern void DISK_hsync (void);
 extern void DISK_reset (void);
 extern int disk_getwriteprotect (const TCHAR *name);
 extern int disk_setwriteprotect (int num, const TCHAR *name, bool writeprotected);
-extern void disk_creatediskfile (TCHAR *name, int type, drive_type adftype, TCHAR *disk_name);
+extern void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable);
 extern void dumpdisk (void);
 extern int DISK_history_add (const TCHAR *name, int idx, int type, int donotcheck);
 extern TCHAR *DISK_history_get (int idx, int type);

@@ -110,7 +110,7 @@ static int num_mouse, num_keyboard, num_joystick;
 static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
-static int oldleds, oldusedleds, newleds, oldusbleds;
+static int oldleds, oldusedleds, newleds, disabledleds;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
@@ -134,6 +134,116 @@ int dinput_winmousemode (void)
 	if (winmouse)
 		return winmousemode;
 	return 0;
+}
+
+
+static BYTE ledkeystate[256];
+
+static uae_u32 get_leds (void)
+{
+	uae_u32 led = 0;
+
+	GetKeyboardState (ledkeystate);
+	if (ledkeystate[VK_NUMLOCK] & 1)
+		led |= KBLED_NUMLOCKM;
+	if (ledkeystate[VK_CAPITAL] & 1)
+		led |= KBLED_CAPSLOCKM;
+	if (ledkeystate[VK_SCROLL] & 1)
+		led |= KBLED_SCROLLLOCKM;
+
+	if (currprefs.win32_kbledmode) {
+		oldleds = led;
+	} else if (!currprefs.win32_kbledmode && kbhandle != INVALID_HANDLE_VALUE) {
+#ifdef WINDDK
+		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
+		KEYBOARD_INDICATOR_PARAMETERS OutputBuffer;
+		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
+		ULONG ReturnedLength;
+
+		memset (&InputBuffer, 0, sizeof (InputBuffer));
+		memset (&OutputBuffer, 0, sizeof (OutputBuffer));
+		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_QUERY_INDICATORS,
+			&InputBuffer, DataLength, &OutputBuffer, DataLength, &ReturnedLength, NULL))
+			return 0;
+		led = 0;
+		if (OutputBuffer.LedFlags & KEYBOARD_NUM_LOCK_ON)
+			led |= KBLED_NUMLOCKM;
+		if (OutputBuffer.LedFlags & KEYBOARD_CAPS_LOCK_ON)
+			led |= KBLED_CAPSLOCKM;
+		if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON)
+			led |= KBLED_SCROLLLOCKM;
+#endif
+	}
+	return led;
+}
+
+static void kbevt (uae_u8 vk, uae_u8 sc)
+{
+	keybd_event (vk, 0, 0, 0);
+	keybd_event (vk, 0, KEYEVENTF_KEYUP, 0);
+}
+
+static void set_leds (uae_u32 led)
+{
+	if (currprefs.win32_kbledmode) {
+		if ((oldleds & KBLED_NUMLOCKM) != (led & KBLED_NUMLOCKM) && !(disabledleds & KBLED_NUMLOCKM)) {
+			kbevt (VK_NUMLOCK, 0x45);
+			oldleds ^= KBLED_NUMLOCKM;
+		}
+		if ((oldleds & KBLED_CAPSLOCKM) != (led & KBLED_CAPSLOCKM) && !(disabledleds & KBLED_CAPSLOCKM)) {
+			kbevt (VK_CAPITAL, 0x3a);
+			oldleds ^= KBLED_CAPSLOCKM;
+		}
+		if ((oldleds & KBLED_SCROLLLOCKM) != (led & KBLED_SCROLLLOCKM) && !(disabledleds & KBLED_SCROLLLOCKM)) {
+			kbevt (VK_SCROLL, 0x46);
+			oldleds ^= KBLED_SCROLLLOCKM;
+		}
+	} else if (kbhandle != INVALID_HANDLE_VALUE) {
+#ifdef WINDDK
+		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
+		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
+		ULONG ReturnedLength;
+
+		memset (&InputBuffer, 0, sizeof (InputBuffer));
+		if (led & KBLED_NUMLOCKM)
+			InputBuffer.LedFlags |= KEYBOARD_NUM_LOCK_ON;
+		if (led & KBLED_CAPSLOCKM)
+			InputBuffer.LedFlags |= KEYBOARD_CAPS_LOCK_ON;
+		if (led & KBLED_SCROLLLOCKM)
+			InputBuffer.LedFlags |= KEYBOARD_SCROLL_LOCK_ON;
+		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_SET_INDICATORS,
+			&InputBuffer, DataLength, NULL, 0, &ReturnedLength, NULL))
+			write_log (L"kbleds: DeviceIoControl() failed %d\n", GetLastError());
+#endif
+	}
+}
+
+static void update_leds (void)
+{
+	if (!currprefs.keyboard_leds_in_use)
+		return;
+	if (newleds != oldusedleds) {
+		oldusedleds = newleds;
+		set_leds (newleds);
+	}
+}
+
+void indicator_leds (int num, int state)
+{
+	int i;
+
+	if (!currprefs.keyboard_leds_in_use)
+		return;
+	disabledleds = 0;
+	for (i = 0; i < 3; i++) {
+		if (currprefs.keyboard_leds[i] == num + 1) {
+			newleds &= ~(1 << i);
+			if (state)
+				newleds |= 1 << i;
+		} else if (currprefs.keyboard_leds[i] <= 0) {
+			disabledleds |= 1 << i;
+		}
+	}
 }
 
 static int isrealbutton (struct didata *did, int num)
@@ -1184,6 +1294,37 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (scancode == 0xaa || scancode == 0)
 			return;
 
+		if (!istest) {
+			if (h == NULL) {
+				// swallow led key fake messages
+				if (currprefs.keyboard_leds[KBLED_NUMLOCKB] > 0 && scancode == DIK_NUMLOCK)
+					return;
+				if (currprefs.keyboard_leds[KBLED_CAPSLOCKB] > 0 && scancode == DIK_CAPITAL)
+					return;
+				if (currprefs.keyboard_leds[KBLED_SCROLLLOCKB] > 0 && scancode == DIK_SCROLL)
+					return;
+			} else {
+				static bool ch;
+				if (pressed) {
+					if (currprefs.keyboard_leds[KBLED_NUMLOCKB] > 0 && scancode == DIK_NUMLOCK) {
+						oldleds ^= KBLED_NUMLOCKM;
+						ch = true;
+					}
+					if (currprefs.keyboard_leds[KBLED_CAPSLOCKB] > 0 && scancode == DIK_CAPITAL) {
+						oldleds ^= KBLED_CAPSLOCKM;
+						ch = true;
+					}
+					if (currprefs.keyboard_leds[KBLED_SCROLLLOCKB] > 0 && scancode == DIK_SCROLL) {
+						oldleds ^= KBLED_SCROLLLOCKM;
+						ch = true;
+					}
+				} else if (ch && isfocus ()) {
+					ch = false;
+					set_leds (newleds);
+				}
+			}
+		}
+
 		for (num = 0; num < num_keyboard; num++) {
 			did = &di_keyboard[num];
 			if (did->connection != DIDC_RAW)
@@ -1965,120 +2106,6 @@ static int get_kb_widget_type (int kb, int num, TCHAR *name, uae_u32 *code)
 	if (code)
 		*code = di_keyboard[kb].buttonmappings[num];
 	return IDEV_WIDGET_KEY;
-}
-
-static BYTE ledkeystate[256];
-
-static uae_u32 get_leds (void)
-{
-	uae_u32 led = 0;
-
-	GetKeyboardState (ledkeystate);
-	if (ledkeystate[VK_NUMLOCK] & 1)
-		led |= KBLED_NUMLOCK;
-	if (ledkeystate[VK_CAPITAL] & 1)
-		led |= KBLED_CAPSLOCK;
-	if (ledkeystate[VK_SCROLL] & 1)
-		led |= KBLED_SCROLLLOCK;
-
-	if (currprefs.win32_kbledmode) {
-		oldusbleds = led;
-	} else if (!currprefs.win32_kbledmode && kbhandle != INVALID_HANDLE_VALUE) {
-#ifdef WINDDK
-		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
-		KEYBOARD_INDICATOR_PARAMETERS OutputBuffer;
-		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
-		ULONG ReturnedLength;
-
-		memset (&InputBuffer, 0, sizeof (InputBuffer));
-		memset (&OutputBuffer, 0, sizeof (OutputBuffer));
-		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_QUERY_INDICATORS,
-			&InputBuffer, DataLength, &OutputBuffer, DataLength, &ReturnedLength, NULL))
-			return 0;
-		led = 0;
-		if (OutputBuffer.LedFlags & KEYBOARD_NUM_LOCK_ON)
-			led |= KBLED_NUMLOCK;
-		if (OutputBuffer.LedFlags & KEYBOARD_CAPS_LOCK_ON)
-			led |= KBLED_CAPSLOCK;
-		if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON)
-			led |= KBLED_SCROLLLOCK;
-#endif
-	}
-	return led;
-}
-
-static void kbevt (uae_u8 vk, uae_u8 sc)
-{
-	if (0) {
-		INPUT inp[2] = { 0 };
-		int i;
-
-		for (i = 0; i < 2; i++) {
-			inp[i].type = INPUT_KEYBOARD;
-			inp[i].ki.wVk = vk;
-		}
-		inp[1].ki.dwFlags |= KEYEVENTF_KEYUP;
-		SendInput (1, inp, sizeof (INPUT));
-		SendInput (1, inp + 1, sizeof (INPUT));
-	} else {
-		keybd_event (vk, 0, 0, 0);
-		keybd_event (vk, 0, KEYEVENTF_KEYUP, 0);
-	}
-}
-
-static void set_leds (uae_u32 led)
-{
-	if (currprefs.win32_kbledmode) {
-		if ((oldusbleds & KBLED_NUMLOCK) != (led & KBLED_NUMLOCK))
-			kbevt (VK_NUMLOCK, 0x45);
-		if ((oldusbleds & KBLED_CAPSLOCK) != (led & KBLED_CAPSLOCK))
-			kbevt (VK_CAPITAL, 0x3a);
-		if ((oldusbleds & KBLED_SCROLLLOCK) != (led & KBLED_SCROLLLOCK))
-			kbevt (VK_SCROLL, 0x46);
-		oldusbleds = led;
-	} else if (kbhandle != INVALID_HANDLE_VALUE) {
-#ifdef WINDDK
-		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
-		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
-		ULONG ReturnedLength;
-
-		memset (&InputBuffer, 0, sizeof (InputBuffer));
-		if (led & KBLED_NUMLOCK)
-			InputBuffer.LedFlags |= KEYBOARD_NUM_LOCK_ON;
-		if (led & KBLED_CAPSLOCK)
-			InputBuffer.LedFlags |= KEYBOARD_CAPS_LOCK_ON;
-		if (led & KBLED_SCROLLLOCK)
-			InputBuffer.LedFlags |= KEYBOARD_SCROLL_LOCK_ON;
-		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_SET_INDICATORS,
-			&InputBuffer, DataLength, NULL, 0, &ReturnedLength, NULL))
-			write_log (L"kbleds: DeviceIoControl() failed %d\n", GetLastError());
-#endif
-	}
-}
-
-static void update_leds (void)
-{
-	if (!currprefs.keyboard_leds_in_use)
-		return;
-	if (newleds != oldusedleds) {
-		oldusedleds = newleds;
-		set_leds (newleds);
-	}
-}
-
-void indicator_leds (int num, int state)
-{
-	int i;
-
-	if (!currprefs.keyboard_leds_in_use)
-		return;
-	for (i = 0; i < 3; i++) {
-		if (currprefs.keyboard_leds[i] == num + 1) {
-			newleds &= ~(1 << i);
-			if (state)
-				newleds |= (1 << i);
-		}
-	}
 }
 
 static int init_kb (void)

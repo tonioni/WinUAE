@@ -1,4 +1,13 @@
 
+Beta 15:
+
+- swallow USB keyboard led mode phantom keypresses, do not touch non-enabled keyboard leds,
+  key pressess do not cause lost led state sync anymore. rawinput mode only.
+- floppy panel disk image creator can now create FFS and bootable images, pre-formatted
+  extended adf ("custom floppy") will be created if label is set or FFS or bootblock is ticked.
+  (empty label box = label will be "empty" when creation standard adf)
+- b1 plugin path detection didn't check exe location\plugins
+
 Beta 14:
 
 - DSKSTEP and DSKSELx going inactive at the same time steps the rw-head normally

@@ -193,6 +193,10 @@ static bool ischecked (HWND hDlg, DWORD id)
 {
 	return IsDlgButtonChecked (hDlg, id) == BST_CHECKED;
 }
+static void setchecked (HWND hDlg, DWORD id, bool checked)
+{
+	CheckDlgButton (hDlg, id, checked ? BST_CHECKED : BST_UNCHECKED);
+}
 static void setfocus (HWND hDlg, int id)
 {
 	SendMessage (hDlg, WM_NEXTDLGCTL, (WPARAM)GetDlgItem (hDlg, id), TRUE);
@@ -1564,7 +1568,6 @@ int scan_roms (HWND hDlg, int show)
 	int id, i, ret, keys, cnt;
 	UAEREG *fkey, *fkey2;
 	TCHAR *paths[MAX_ROM_PATHS];
-	HWND hwnd = 0;
 	MSG msg;
 
 	if (recursive)
@@ -1577,10 +1580,13 @@ int scan_roms (HWND hDlg, int show)
 		goto end;
 
 	infoboxdialogstate = true;
-	hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_INFOBOX), hDlg, InfoBoxDialogProc);
-	if (!hwnd)
-		goto end;
-	infoboxhwnd = hwnd;
+	infoboxhwnd = NULL;
+	if (!rp_isactive ()) {
+		HWND hwnd = CreateDialog (hUIDLL ? hUIDLL : hInst, MAKEINTRESOURCE (IDD_INFOBOX), hDlg, InfoBoxDialogProc);
+		if (!hwnd)
+			goto end;
+		infoboxhwnd = hwnd;
+	}
 
 	cnt = 0;
 	ret = 0;
@@ -1631,8 +1637,9 @@ int scan_roms (HWND hDlg, int show)
 	}
 
 end:
-	infoboxhwnd = NULL;
-	if (hwnd) {
+	if (infoboxhwnd) {
+		HWND hwnd = infoboxhwnd;
+		infoboxhwnd = NULL;
 		DestroyWindow (hwnd);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 			TranslateMessage (&msg);
@@ -2337,11 +2344,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				TCHAR disk_name[32];
 				disk_name[0] = 0; disk_name[31] = 0;
 				GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-				disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name);
+				disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE));
 			}
 			break;
 		case IDC_CREATE_RAW:
-			disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), NULL);
+			TCHAR disk_name[32];
+			disk_name[0] = 0; disk_name[31] = 0;
+			GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
+			disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE));
 			break;
 		case IDC_LOAD:
 			if (target_cfgfile_load (&workprefs, full_path, 0, 0) == 0) {
@@ -4082,7 +4092,7 @@ static void checkautoload (HWND	hDlg, struct ConfigStruct *config)
 		ct = 0;
 		ConfigToRegistry2 (ct, configtypepanel, -1);
 	}
-	CheckDlgButton(hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_CONFIGAUTO, ct ? BST_CHECKED : BST_UNCHECKED);
 	ew (hDlg, IDC_CONFIGAUTO, configtypepanel > 0 && config && !config->Directory ? TRUE : FALSE);
 	regqueryint (NULL, L"ConfigFile_NoAuto", &ct);
 	CheckDlgButton(hDlg, IDC_CONFIGNOLINK, ct ? BST_CHECKED : BST_UNCHECKED);
@@ -7047,7 +7057,7 @@ static void init_kickstart (HWND hDlg)
 	ew (hDlg, IDC_FLASHCHOOSER), FALSE);
 #endif
 	if (!regexiststree (NULL , L"DetectedROMs"))
-		scan_roms (NULL, 1);
+		scan_roms (NULL, rp_isactive () ? 0 : 1);
 }
 
 static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
@@ -9810,7 +9820,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 {
 	static int recursive = 0;
 	int i;
-	static TCHAR diskname[40] = { L"empty" };
+	static TCHAR diskname[40] = { L"" };
 
 	switch (msg)
 	{
@@ -9908,6 +9918,17 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			case IDC_DF3TYPE:
 				getfloppytype (hDlg, 3);
 				break;
+			case IDC_FLOPPYTYPE:
+				int val = SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L);
+				bool afloppy = val >= 0 && val <= 1;
+				ew (hDlg, IDC_FLOPPY_FFS, afloppy);
+				ew (hDlg, IDC_FLOPPY_BOOTABLE, afloppy);
+				ew (hDlg, IDC_CREATE_NAME, afloppy);
+				if (!afloppy) {
+					setchecked (hDlg, IDC_FLOPPY_FFS, false);
+					setchecked (hDlg, IDC_FLOPPY_BOOTABLE, false);
+				}
+				break;
 			}
 		}
 		switch (LOWORD (wParam))
@@ -9999,6 +10020,7 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			addfloppyhistory (hDlg);
 			break;
 		}
+		GetDlgItemText (hDlg, IDC_CREATE_NAME, diskname, 30);
 		recursive--;
 		break;
 

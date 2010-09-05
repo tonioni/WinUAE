@@ -2186,9 +2186,9 @@ void logging_init (void)
 	write_log (L"%s (%d.%d %s%s[%d])", VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? L" " : L"", os_winnt_admin);
-	write_log (L" %d-bit %X.%X %d",
+	write_log (L" %d-bit %X.%X.%X %d",
 		wow64 ? 64 : 32,
-		SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
+		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors);
 	write_log (L"\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
 		L"\n(c) 1998-2010 Toni Wilen      - Win32 port, core code updates."
@@ -2394,14 +2394,14 @@ static int get_aspi (int old)
 
 
 static void __cdecl wparse_cmdline (
-	_TSCHAR *cmdstart,
+	const _TSCHAR *cmdstart,
 	_TSCHAR **argv,
 	_TSCHAR *args,
 	int *numargs,
 	int *numchars
 	)
 {
-	_TSCHAR *p;
+	const _TSCHAR *p;
 	_TUCHAR c;
 	int inquote;                    /* 1 = inside quotes */
 	int copychar;                   /* 1 = copy char to *args */
@@ -2571,7 +2571,7 @@ static void __cdecl wparse_cmdline (
 
 #define MAX_ARGUMENTS 128
 
-static TCHAR **parseargstring (TCHAR *s)
+static TCHAR **parseargstring (const TCHAR *s)
 {
 	TCHAR **p;
 	int numa, numc;
@@ -2594,7 +2594,7 @@ static TCHAR **parseargstring (TCHAR *s)
 }
 
 
-static void shellexecute (TCHAR *command)
+static void shellexecute (const TCHAR *command)
 {
 	STARTUPINFO si = { 0 };
 	PROCESS_INFORMATION pi = { 0 };
@@ -2702,7 +2702,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_automount_removabledrives = 0;
 		p->win32_automount_cddrives = 0;
 		p->win32_automount_netdrives = 0;
-		p->win32_kbledmode = 0;
+		p->win32_kbledmode = 1;
 		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_borderless = 0;
 		p->win32_powersavedisabled = 1;
@@ -2715,6 +2715,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
+		p->gfx_api = 1;
 	}
 	if (type == 1 || type == 0) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
@@ -4269,22 +4270,24 @@ static void getstartpaths (void)
 	fullpath (start_path_data, sizeof start_path_data / sizeof (TCHAR));
 	SetCurrentDirectory (start_path_data);
 
+	// use path via command line?
 	if (!start_path_plugins[0]) {
+		// default path
 		_tcscpy (start_path_plugins, start_path_data);
+		_tcscat (start_path_plugins, WIN32_PLUGINDIR);
+	}
+	v = GetFileAttributes (start_path_plugins);
+	if (!start_path_plugins[0] || v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY)) {
+		// not found, exe path?
+		_tcscpy (start_path_plugins, start_path_exe);
 		_tcscat (start_path_plugins, WIN32_PLUGINDIR);
 		v = GetFileAttributes (start_path_plugins);
 		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY))
-			_tcscpy (start_path_plugins, start_path_data);
-	} else {
-		v = GetFileAttributes (start_path_plugins);
-		if (v == INVALID_FILE_ATTRIBUTES || !(v & FILE_ATTRIBUTE_DIRECTORY) || start_data == 0 || start_data == -2) {
-			_tcscpy (start_path_plugins, start_path_exe);
-		}
+			_tcscpy (start_path_plugins, start_path_data); // not found, very default path
 	}
 	fixtrailing (start_path_plugins);
 	fullpath (start_path_plugins, sizeof start_path_plugins / sizeof (TCHAR));
 	setpathmode (path_type);
-
 }
 
 extern void test (void);

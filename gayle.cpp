@@ -194,7 +194,7 @@ STATIC_INLINE void pw (int offset, uae_u16 w)
 	ide->secbuf[offset * 2 + 0] = (uae_u8)w;
 	ide->secbuf[offset * 2 + 1] = w >> 8;
 }
-static void ps (int offset, TCHAR *src, int max)
+static void ps (int offset, const TCHAR *src, int max)
 {
 	int i, len;
 	char *s;

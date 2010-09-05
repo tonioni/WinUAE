@@ -90,6 +90,7 @@ static void rdbdump (HANDLE h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	FILE *f;
 	bool needfree = false;
 
+	write_log (L"creating rdb dump.. offset=%I64X blocksize=%d\n", offset, blocksize);
 	if (buf) {
 		blocks = (buf[132] << 24) | (buf[133] << 16) | (buf[134] << 8) | (buf[135] << 0);
 		if (blocks < 0 || blocks > 100000)
@@ -101,8 +102,10 @@ static void rdbdump (HANDLE h, uae_u64 offset, uae_u8 *buf, int blocksize)
 	}
 	_stprintf (name, L"rdb_dump_%d.rdb", cnt);
 	f = _tfopen (name, L"wb");
-	if (!f)
+	if (!f) {
+		write_log (L"failed to create file '%s'\n", name);
 		return;
+	}
 	for (i = 0; i <= blocks; i++) {
 		DWORD outlen;
 		LONG high;
