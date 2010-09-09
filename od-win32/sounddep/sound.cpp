@@ -1122,11 +1122,11 @@ static int open_audio_ds (struct sound_data *sd, int index)
 	if (pdsb == NULL)
 		goto error;
 	hr = pdsb->QueryInterface (IID_IDirectSoundBuffer8, (LPVOID*)&s->lpDSBsecondary);
+	IDirectSound_Release (pdsb);
 	if (FAILED (hr))  {
 		write_log (L"DSSOUND: Secondary QueryInterface() failure: %s\n", DXError (hr));
 		goto error;
 	}
-	IDirectSound_Release (pdsb);
 	clearbuffer (sd);
 
 	return 1;

@@ -1462,12 +1462,12 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WT_PACKET:
 	case WM_WTSSESSION_CHANGE:
 		return AmigaWindowProc (hWnd, message, wParam, lParam);
-
+#if 0
 	case WM_DISPLAYCHANGE:
 		if (isfullscreen() <= 0 && !currprefs.gfx_filter && (wParam + 7) / 8 != DirectDraw_GetBytesPerPixel ())
 			WIN32GFX_DisplayChangeRequested ();
 		break;
-
+#endif
 	case WM_GETMINMAXINFO:
 		{
 			LPMINMAXINFO lpmmi;

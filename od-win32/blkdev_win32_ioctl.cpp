@@ -29,6 +29,8 @@
 #include <winioctl.h>
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <stddef.h>
+
+#include "cda_play.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -483,236 +485,182 @@ static void *cdda_play (void *v)
 	int num_sectors = CDDA_BUFFERS;
 	int bufnum;
 	int buffered;
-	uae_u8 *px[2], *p;
 	int bufon[2];
 	int i;
-	WAVEHDR whdr[2];
-	MMRESULT mmr;
-	int volume[2], volume_main;
 	int oldplay;
 	int idleframes;
 	int readblocksize = 2352 + 96;
-
-	for (i = 0; i < 2; i++) {
-		memset (&whdr[i], 0, sizeof (WAVEHDR));
-		whdr[i].dwFlags = WHDR_DONE;
-	}
 
 	while (ciw->cdda_play == 0)
 		Sleep (10);
 	oldplay = -1;
 
-	p = xmalloc (uae_u8, 2 * num_sectors * readblocksize);
-	px[0] = p;
-	px[1] = p + num_sectors * readblocksize;
 	bufon[0] = bufon[1] = 0;
 	bufnum = 0;
 	buffered = 0;
-	volume[0] = volume[1] = -1;
-	volume_main = -1;
 
-	if (cdda_openwav (ciw)) {
+	cda_audio *cda = new cda_audio (num_sectors);
 
-		for (i = 0; i < 2; i++) {
-			memset (&whdr[i], 0, sizeof (WAVEHDR));
-			whdr[i].dwBufferLength = 2352 * num_sectors;
-			whdr[i].lpData = (LPSTR)px[i];
-			mmr = waveOutPrepareHeader (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
-			if (mmr != MMSYSERR_NOERROR) {
-				write_log (L"IOCTL CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
-				goto end;
-			}
-			whdr[i].dwFlags |= WHDR_DONE;
-		}
+	while (ciw->cdda_play > 0) {
 
-		while (ciw->cdda_play > 0) {
+		cda->wait(bufnum);
+		if (ciw->cdda_play <= 0)
+			goto end;
+		bufon[bufnum] = 0;
 
-			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
+		if (oldplay != ciw->cdda_play) {
+			idleframes = 0;
+			bool seensub = false;
+			struct _timeb tb1, tb2;
+			_ftime (&tb1);
+			cdda_pos = ciw->cdda_start;
+			ciw->cd_last_pos = cdda_pos;
+			oldplay = ciw->cdda_play;
+			write_log (L"IOCTL%s CDDA: playing from %d to %d\n",
+				ciw->usesptiread ? L"(SPTI)" : L"", ciw->cdda_start, ciw->cdda_end);
+			ciw->subcodevalid = false;
+			idleframes = ciw->cdda_delay_frames;
+			while (ciw->cdda_paused && ciw->cdda_play > 0) {
 				Sleep (10);
-				if (ciw->cdda_play <= 0)
-					goto end;
+				idleframes = -1;
 			}
-			bufon[bufnum] = 0;
+			// force spin up
+			read_block (ciw, -1, cda->buffers[bufnum], cdda_pos, num_sectors, readblocksize);
 
-			if (oldplay != ciw->cdda_play) {
-				idleframes = 0;
-				bool seensub = false;
-				struct _timeb tb1, tb2;
-				_ftime (&tb1);
-				cdda_pos = ciw->cdda_start;
-				ciw->cd_last_pos = cdda_pos;
-				oldplay = ciw->cdda_play;
-				write_log (L"IOCTL%s CDDA: playing from %d to %d\n",
-					ciw->usesptiread ? L"(SPTI)" : L"", ciw->cdda_start, ciw->cdda_end);
-				ciw->subcodevalid = false;
-				idleframes = ciw->cdda_delay_frames;
-				while (ciw->cdda_paused && ciw->cdda_play > 0) {
-					Sleep (10);
-					idleframes = -1;
-				}
-				// force spin up
-				read_block (ciw, -1, px[bufnum], cdda_pos, num_sectors, readblocksize);
-
-				if (ciw->cdda_scan == 0) {
-					// find possible P-subchannel=1 and fudge starting point so that
-					// buggy CD32/CDTV software CD+G handling does not miss any frames
-					bool seenindex = false;
-					for (int sector = cdda_pos - 200; sector < cdda_pos; sector++) {
-						uae_u8 *dst = px[bufnum];
-						if (sector >= 0 && read_block (ciw, -1, dst, sector, 1, readblocksize)) {
-							uae_u8 subbuf[SUB_CHANNEL_SIZE];
-							sub_deinterleave (dst + 2352, subbuf);
-							if (seenindex) {
-								for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
-									if (subbuf[i]) { // non-zero R-W subchannels?
-										int diff = cdda_pos - sector + 2;
-										write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
-										idleframes -= diff;
-										cdda_pos = sector;
-										seensub = true;
-										break;
-									}
+			if (ciw->cdda_scan == 0) {
+				// find possible P-subchannel=1 and fudge starting point so that
+				// buggy CD32/CDTV software CD+G handling does not miss any frames
+				bool seenindex = false;
+				for (int sector = cdda_pos - 200; sector < cdda_pos; sector++) {
+					uae_u8 *dst = cda->buffers[bufnum];
+					if (sector >= 0 && read_block (ciw, -1, dst, sector, 1, readblocksize)) {
+						uae_u8 subbuf[SUB_CHANNEL_SIZE];
+						sub_deinterleave (dst + 2352, subbuf);
+						if (seenindex) {
+							for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
+								if (subbuf[i]) { // non-zero R-W subchannels?
+									int diff = cdda_pos - sector + 2;
+									write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
+									idleframes -= diff;
+									cdda_pos = sector;
+									seensub = true;
+									break;
 								}
-							} else if (subbuf[0] == 0xff) { // P == 1?
-								seenindex = true;
 							}
+						} else if (subbuf[0] == 0xff) { // P == 1?
+							seenindex = true;
 						}
 					}
 				}
-				cdda_pos -= idleframes;
+			}
+			cdda_pos -= idleframes;
 
-				_ftime (&tb2);
-				int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
-				diff -= ciw->cdda_delay;
-				if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
-					Sleep (-diff);
-				if (diff > 0 && !seensub) {
-					int ch = diff / 7 + 25;
-					if (ch > idleframes)
-						ch = idleframes;
-					idleframes -= ch;
-					cdda_pos += ch;
-				}
-
-				setstate (ciw, AUDIO_STATUS_IN_PROGRESS);
+			_ftime (&tb2);
+			int diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
+			diff -= ciw->cdda_delay;
+			if (idleframes >= 0 && diff < 0 && ciw->cdda_play > 0)
+				Sleep (-diff);
+			if (diff > 0 && !seensub) {
+				int ch = diff / 7 + 25;
+				if (ch > idleframes)
+					ch = idleframes;
+				idleframes -= ch;
+				cdda_pos += ch;
 			}
 
-			if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
-
-				if (idleframes <= 0 && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
-					setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
-					goto end; // data track?
-				}
-
-				gui_flicker_led (LED_CD, ciw->di.unitnum - 1, LED_CD_AUDIO);
-
-				uae_sem_wait (&ciw->sub_sem);
-
-				ciw->subcodevalid = false;
-				memset (ciw->subcode, 0, sizeof ciw->subcode);
-				memset (px[bufnum], 0, num_sectors * readblocksize);
-
-				if (cdda_pos >= 0) {
-					if (read_block (ciw, -1, px[bufnum], cdda_pos, num_sectors, readblocksize)) {
-						for (i = 0; i < num_sectors; i++) {
-							memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, px[bufnum] + readblocksize * i + 2352, SUB_CHANNEL_SIZE);
-						}
-						for (i = 1; i < num_sectors; i++) {
-							memmove (px[bufnum] + 2352 * i, px[bufnum] + readblocksize * i, 2352);
-						}
-						ciw->subcodevalid = true;
-					}
-				}
-
-				for (i = 0; i < num_sectors; i++) {
-					if (idleframes > 0) {
-						idleframes--;
-						memset (px[bufnum] + 2352 * i, 0, 2352);
-						memset (ciw->subcode + i * SUB_CHANNEL_SIZE, 0, SUB_CHANNEL_SIZE);
-					} else if (cdda_pos < ciw->cdda_start && ciw->cdda_scan == 0) {
-						memset (px[bufnum] + 2352 * i, 0, 2352);
-					}
-				}
-				if (idleframes > 0)
-					ciw->subcodevalid = false;
-
-				if (ciw->cdda_subfunc)
-					ciw->cdda_subfunc (ciw->subcode, num_sectors); 
-
-				uae_sem_post (&ciw->sub_sem);
-
-				if (ciw->subcodevalid) {
-					uae_sem_wait (&ciw->sub_sem2);
-					memcpy (ciw->subcodebuf, ciw->subcode + (num_sectors - 1) * SUB_CHANNEL_SIZE, SUB_CHANNEL_SIZE);
-					uae_sem_post (&ciw->sub_sem2);
-				}
-
-				volume_main = currprefs.sound_volume;
-				int vol_mult[2];
-				for (int j = 0; j < 2; j++) {
-					volume[j] = ciw->cdda_volume[j];
-					vol_mult[j] = (100 - volume_main) * volume[j] / 100;
-					if (vol_mult[j])
-						vol_mult[j]++;
-					if (vol_mult[j] >= 32768)
-						vol_mult[j] = 32768;
-				}
-				uae_s16 *p = (uae_s16*)(px[bufnum]);
-				for (i = 0; i < num_sectors * 2352 / 4; i++) {
-					p[i * 2 + 0] = p[i * 2 + 0] * vol_mult[0] / 32768;
-					p[i * 2 + 1] = p[i * 2 + 1] * vol_mult[1] / 32768;
-				}
-		
-				bufon[bufnum] = 1;
-				mmr = waveOutWrite (ciw->cdda_wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
-				if (mmr != MMSYSERR_NOERROR) {
-					write_log (L"IOCTL CDDA: waveOutWrite %d\n", mmr);
-					break;
-				}
-
-				if (ciw->cdda_scan) {
-					cdda_pos += ciw->cdda_scan * num_sectors;
-					if (cdda_pos < 0)
-						cdda_pos = 0;
-				} else  {
-					if (cdda_pos < 0 && cdda_pos + num_sectors >= 0)
-						cdda_pos = 0;
-					else
-						cdda_pos += num_sectors;
-				}
-
-				if (idleframes <= 0) {
-					if (cdda_pos - num_sectors < ciw->cdda_end && cdda_pos >= ciw->cdda_end) {
-						setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE);
-						ciw->cdda_play_finished = 1;
-						ciw->cdda_play = -1;
-						cdda_pos = ciw->cdda_end;
-					}
-					ciw->cd_last_pos = cdda_pos;
-				}
-			}
-
-			if (bufon[0] == 0 && bufon[1] == 0) {
-				while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
-					Sleep (10);
-				while (ciw->cdda_paused && ciw->cdda_play > 0)
-					Sleep (10);
-			}
-
-			bufnum = 1 - bufnum;
-
+			setstate (ciw, AUDIO_STATUS_IN_PROGRESS);
 		}
+
+		if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
+
+			if (idleframes <= 0 && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
+				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+				goto end; // data track?
+			}
+
+			gui_flicker_led (LED_CD, ciw->di.unitnum - 1, LED_CD_AUDIO);
+
+			uae_sem_wait (&ciw->sub_sem);
+
+			ciw->subcodevalid = false;
+			memset (ciw->subcode, 0, sizeof ciw->subcode);
+			memset (cda->buffers[bufnum], 0, num_sectors * readblocksize);
+
+			if (cdda_pos >= 0) {
+				if (read_block (ciw, -1, cda->buffers[bufnum], cdda_pos, num_sectors, readblocksize)) {
+					for (i = 0; i < num_sectors; i++) {
+						memcpy (ciw->subcode + i * SUB_CHANNEL_SIZE, cda->buffers[bufnum] + readblocksize * i + 2352, SUB_CHANNEL_SIZE);
+					}
+					for (i = 1; i < num_sectors; i++) {
+						memmove (cda->buffers[bufnum] + 2352 * i, cda->buffers[bufnum] + readblocksize * i, 2352);
+					}
+					ciw->subcodevalid = true;
+				}
+			}
+
+			for (i = 0; i < num_sectors; i++) {
+				if (idleframes > 0) {
+					idleframes--;
+					memset (cda->buffers[bufnum] + 2352 * i, 0, 2352);
+					memset (ciw->subcode + i * SUB_CHANNEL_SIZE, 0, SUB_CHANNEL_SIZE);
+				} else if (cdda_pos < ciw->cdda_start && ciw->cdda_scan == 0) {
+					memset (cda->buffers[bufnum] + 2352 * i, 0, 2352);
+				}
+			}
+			if (idleframes > 0)
+				ciw->subcodevalid = false;
+
+			if (ciw->cdda_subfunc)
+				ciw->cdda_subfunc (ciw->subcode, num_sectors); 
+
+			uae_sem_post (&ciw->sub_sem);
+
+			if (ciw->subcodevalid) {
+				uae_sem_wait (&ciw->sub_sem2);
+				memcpy (ciw->subcodebuf, ciw->subcode + (num_sectors - 1) * SUB_CHANNEL_SIZE, SUB_CHANNEL_SIZE);
+				uae_sem_post (&ciw->sub_sem2);
+			}
+
+			bufon[bufnum] = 1;
+			cda->setvolume (currprefs.sound_volume, ciw->cdda_volume[0], ciw->cdda_volume[1]);
+			if (!cda->play(bufnum)) {
+				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+				goto end; // data track?
+			}
+
+			if (ciw->cdda_scan) {
+				cdda_pos += ciw->cdda_scan * num_sectors;
+				if (cdda_pos < 0)
+					cdda_pos = 0;
+			} else  {
+				if (cdda_pos < 0 && cdda_pos + num_sectors >= 0)
+					cdda_pos = 0;
+				else
+					cdda_pos += num_sectors;
+			}
+
+			if (idleframes <= 0) {
+				if (cdda_pos - num_sectors < ciw->cdda_end && cdda_pos >= ciw->cdda_end) {
+					setstate (ciw, AUDIO_STATUS_PLAY_COMPLETE);
+					ciw->cdda_play_finished = 1;
+					ciw->cdda_play = -1;
+					cdda_pos = ciw->cdda_end;
+				}
+				ciw->cd_last_pos = cdda_pos;
+			}
+		}
+
+		while (ciw->cdda_paused && ciw->cdda_play > 0)
+			Sleep (10);
+
+		bufnum = 1 - bufnum;
+
 	}
 
 end:
 	ciw->subcodevalid = false;
-	while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
-		Sleep (10);
-	for (i = 0; i < 2; i++)
-		waveOutUnprepareHeader  (ciw->cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
+	delete cda;
 
-	cdda_closewav (ciw);
-	xfree (p);
 	ciw->cdda_play = 0;
 	write_log (L"IOCTL CDDA: thread killed\n");
 	return NULL;

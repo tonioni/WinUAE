@@ -1,4 +1,23 @@
 
+Beta 16:
+
+- removed old audio hack that was left accidentally, not needed since DMAL was emulated
+  (Murder, Mission Elevator etc.. compatibility hack is finally gone)
+- CD audio OS specific code was duplicated in ioctl and image mounter, moved to common
+  source file
+- LARGEADDRESSAWARE compiler flag was lost sometime ago, ~1.5G RAM is again possible under
+  64-bit Windows versions
+- second Z3 fast ram region was incorrectly mapped if "z3chip" was enabled
+- on some systems winuae stole focus when some other application attempted to open fullscreen
+  mode
+- Windows to Amiga clipboard conversion was not protected from starting new transfer when
+  previous was not yet received by Amiga-side (previous fix only handled Amiga to Windows
+  direction), usually caused crash when pressing printscreen in rawinput mode
+- 680x0 RTS emulation didn't check if new PC was odd (seems to have been missing since the
+  beginning?) This finally solves mysterious JIT crashes (thanks Glen!)
+- Epson printer emulation didn't flush print buffer when form feed command was received
+  (and some other commands that cause new page to be generated)
+
 Beta 15:
 
 - swallow USB keyboard led mode phantom keypresses, do not touch non-enabled keyboard leds,

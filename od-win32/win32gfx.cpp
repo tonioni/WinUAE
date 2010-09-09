@@ -96,7 +96,7 @@ static GUID *displayGUID;
 
 static struct winuae_currentmode currentmodestruct;
 static int screen_is_initialized;
-int display_change_requested, normal_display_change_starting;
+static int display_change_requested;
 int window_led_drives, window_led_drives_end;
 int window_led_hd, window_led_hd_end;
 int window_led_joys, window_led_joys_end, window_led_joy_start;
@@ -124,11 +124,6 @@ void WIN32GFX_DisablePicasso (void)
 void WIN32GFX_EnablePicasso (void)
 {
 	picasso_requested_on = 1;
-}
-
-void WIN32GFX_DisplayChangeRequested (void)
-{
-	display_change_requested = 1;
 }
 
 int isscreen (void)

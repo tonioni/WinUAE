@@ -2138,9 +2138,10 @@ static void gen_opcode (unsigned long int opcode)
 		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr; MakeFromSR ();\n");
-		    printf ("\tif (newpc & 1)\n");
+		    printf ("\tif (newpc & 1) {\n");
 		    printf ("\t\texception3 (0x%04X, m68k_getpc (), newpc);\n", opcode);
-		    printf ("\telse\n");
+			printf ("\t\t goto %s;\n", endlabelstr);
+			printf ("\t}\n");
 		    printf ("\t\tm68k_setpc (newpc);\n");
 			printf ("\tipl_fetch ();\n");
 		    need_endlabel = 1;
@@ -2159,14 +2160,16 @@ static void gen_opcode (unsigned long int opcode)
 			genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 			genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
 			printf ("\tm68k_areg (regs, 7) += offs;\n");
-			printf ("\tif (pc & 1)\n");
+			printf ("\tif (pc & 1) {\n");
 			printf ("\t\texception3 (0x%04X, m68k_getpc (), pc);\n", opcode);
-			printf ("\telse\n");
+			printf ("\t\tgoto %s;\n", endlabelstr);
+			printf ("\t}\n");
 			setpc ("pc");
 		}
 		/* PC is set and prefetch filled. */
 		m68k_pc_offset = 0;
 		fill_prefetch_full ();
+	    need_endlabel = 1;
 		break;
 	case i_LINK:
 		// ce confirmed
@@ -2203,6 +2206,7 @@ static void gen_opcode (unsigned long int opcode)
 		}
 		break;
 	case i_RTS:
+		printf ("\tuaecptr pc = m68k_getpc ();\n");
 		if (using_ce020 == 1)
 			printf ("\tm68k_do_rts_ce020 ();\n");
 		else if (using_ce020 == 2)
@@ -2215,9 +2219,16 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("\tm68k_do_rts_mmu ();\n");
 		else
 			printf ("\tm68k_do_rts ();\n");
+	    printf ("\tif (m68k_getpc () & 1) {\n");
+		printf ("\t\tuaecptr faultpc = m68k_getpc ();\n");
+		printf ("\t\tm68k_setpc (pc);\n");
+		printf ("\t\texception3 (0x%04X, pc, faultpc);\n", opcode);
+		printf ("\t\tgoto %s;\n", endlabelstr);
+		printf ("\t}\n");
 		count_read += 2;
 		m68k_pc_offset = 0;
 		fill_prefetch_full ();
+	    need_endlabel = 1;
 		break;
 	case i_TRAPV:
 		sync_m68k_pc ();

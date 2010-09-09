@@ -2307,6 +2307,8 @@ clipsignal
 	moveq #12,d1
 	bsr.w getrtbase
 	jsr (a0)
+	tst.l d0
+	beq.s .nowrite
 	; and now we should have the data in CLIP_WRITE_ALLOC
 	tst.l CLIP_WRITE_ALLOC(a5)
 	beq.s .nowrite

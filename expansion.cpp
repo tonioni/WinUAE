@@ -1168,7 +1168,7 @@ static void allocate_expamem (void)
 	z3fastmem_start = currprefs.z3fastmem_start;
 	if (currprefs.z3chipmem_size)
 		z3fastmem_start += currprefs.z3chipmem_size + 16 * 1024 * 1024;
-	z3fastmem2_start = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+	z3fastmem2_start = z3fastmem_start + currprefs.z3fastmem_size;
 
 	if (allocated_fastmem != currprefs.fastmem_size) {
 		free_fastmemory ();

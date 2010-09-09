@@ -34,6 +34,7 @@
 #include "custom.h"
 #include "dxwrap.h"
 #include "akiko.h"
+#include "clipboard.h"
 
 #ifdef WINDDK
 #include <winioctl.h>
@@ -1294,7 +1295,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		if (scancode == 0xaa || scancode == 0)
 			return;
 
+
 		if (!istest) {
+			if (scancode == DIK_SYSRQ)
+				clipboard_disable (!!pressed);
 			if (h == NULL) {
 				// swallow led key fake messages
 				if (currprefs.keyboard_leds[KBLED_NUMLOCKB] > 0 && scancode == DIK_NUMLOCK)

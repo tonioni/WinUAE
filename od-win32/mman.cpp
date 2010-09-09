@@ -63,14 +63,8 @@ static uae_u32 lowmem (void)
 	uae_u32 change = 0;
 	if (currprefs.z3fastmem_size + currprefs.z3fastmem2_size + currprefs.z3chipmem_size >= 8 * 1024 * 1024) {
 		if (currprefs.z3fastmem2_size) {
-			if (currprefs.z3fastmem2_size <= 128 * 1024 * 1024) {
-				change = currprefs.z3fastmem2_size;
-				currprefs.z3fastmem2_size = 0;
-			} else {
-				change = currprefs.z3fastmem2_size / 2;
-				currprefs.z3fastmem2_size /= 2;
-				changed_prefs.z3fastmem2_size = currprefs.z3fastmem2_size;
-			}
+			change = currprefs.z3fastmem2_size;
+			currprefs.z3fastmem2_size = 0;
 		} else if (currprefs.z3chipmem_size) {
 			if (currprefs.z3chipmem_size <= 16 * 1024 * 1024) {
 				change = currprefs.z3chipmem_size;
@@ -535,9 +529,9 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 				size, size >> 10, GetLastError ());
 		} else {
 			shmids[shmid].attached = result;
-			write_log (L"VirtualAlloc %08X - %08X %x (%dk) ok%s\n",
+			write_log (L"VirtualAlloc %08X - %08X %x (%dk) ok (%08X)%s\n",
 				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
-				size, size >> 10, p96special ? L" P96" : L"");
+				size, size >> 10, shmaddr, p96special ? L" P96" : L"");
 		}
 	}
 	return result;

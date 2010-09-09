@@ -36,7 +36,7 @@
 
 #include <math.h>
 
-//#define DEBUGPRINT L"C:\\Users\\twilen\\Desktop\\pages_1+2_raw.bin"
+//#define DEBUGPRINT L"C:\\Users\\twilen\\Desktop\\CMD_file.1"
 int pngprint = 0;
 
 #ifdef C_LIBPNG
@@ -901,6 +901,7 @@ static void outputPage(void)
 
 static void newPage(int save)
 {
+	printCharBuffer ();
 	if (save)
 		outputPage ();
 	if (page == NULL) {
@@ -1908,6 +1909,7 @@ static int processCommandChar(Bit8u ch)
 		}
 		return true;
 	case 0x0c:		// Form feed (FF)
+		printCharBuffer ();
 		if (style & STYLE_DOUBLEWIDTHONELINE)
 		{
 			style &= 0xFFFF - STYLE_DOUBLEWIDTHONELINE;

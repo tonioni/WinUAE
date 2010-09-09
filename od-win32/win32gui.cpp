@@ -13894,7 +13894,7 @@ static ACCEL EmptyAccel[] = {
 
 struct newresource *getresource (int tmpl)
 {
-	TCHAR rid[10];
+	TCHAR rid[20];
 	HRSRC hrsrc;
 	HGLOBAL res;
 	HINSTANCE inst = hUIDLL ? hUIDLL : hInst;
@@ -13915,9 +13915,15 @@ struct newresource *getresource (int tmpl)
 	if (!res)
 		return NULL;
 	resdata = LockResource (res);
+	if (!resdata)
+		return NULL;
 	size = SizeofResource (inst, hrsrc);
+	if (!size)
+		return NULL;
 	nr = xcalloc (struct newresource, 1);
 	newres = (LPCDLGTEMPLATEW)xmalloc (uae_u8, size);
+	if (!newres)
+		return NULL;
 	memcpy ((void*)newres, resdata, size);
 	nr->resource = newres;
 	nr->size = size;
@@ -13961,7 +13967,7 @@ HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 }
 
 static int init_page (int tmpl, int icon, int title,
-	INT_PTR (CALLBACK FAR *func) (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam), ACCEL *accels, TCHAR *help, int focusid)
+	INT_PTR (CALLBACK FAR *func) (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam), ACCEL *accels, const TCHAR *help, int focusid)
 {
 	LPTSTR lpstrTitle;
 	static int id = 0;
@@ -13969,8 +13975,10 @@ static int init_page (int tmpl, int icon, int title,
 	struct newresource *res;
 
 	res = getresource (tmpl);
-	if (!res)
+	if (!res) {
+		write_log (L"init_page(%d) failed\n", tmpl);
 		return -1;
+	}
 	ppage[id].nres = res;
 	ppage[id].icon = MAKEINTRESOURCE (icon);
 	if (title >= 0) {

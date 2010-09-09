@@ -237,7 +237,8 @@ STATIC_INLINE void m68k_incpci (int o)
 
 STATIC_INLINE void m68k_do_rts (void)
 {
-	m68k_setpc (get_long (m68k_areg (regs, 7)));
+	uae_u32 newpc = get_long (m68k_areg (regs, 7));
+	m68k_setpc (newpc);
 	m68k_areg (regs, 7) += 4;
 }
 STATIC_INLINE void m68k_do_rtsi (void)

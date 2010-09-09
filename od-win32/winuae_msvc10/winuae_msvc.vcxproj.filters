@@ -484,6 +484,9 @@
     <ClCompile Include="..\mp3decoder.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\cda_play.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

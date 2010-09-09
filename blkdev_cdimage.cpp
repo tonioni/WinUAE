@@ -23,6 +23,7 @@
 #include "threaddep/thread.h"
 #include "scsidev.h"
 #include "mp3decoder.h"
+#include "cda_play.h"
 #include "memory.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
@@ -210,38 +211,6 @@ static uae_u8 *flac_get_data (struct cdtoc *t)
 	return t->data;
 }
 
-#ifdef _WIN32
-
-static HWAVEOUT cdda_wavehandle;
-
-static void cdda_closewav (void)
-{
-	if (cdda_wavehandle != NULL)
-		waveOutClose (cdda_wavehandle);
-	cdda_wavehandle = NULL;
-}
-
-static int cdda_openwav (void)
-{
-	WAVEFORMATEX wav = { 0 };
-	MMRESULT mmr;
-
-	wav.cbSize = 0;
-	wav.nChannels = 2;
-	wav.nSamplesPerSec = 44100;
-	wav.wBitsPerSample = 16;
-	wav.nBlockAlign = wav.wBitsPerSample / 8 * wav.nChannels;
-	wav.nAvgBytesPerSec = wav.nBlockAlign * wav.nSamplesPerSec;
-	wav.wFormatTag = WAVE_FORMAT_PCM;
-	mmr = waveOutOpen (&cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
-	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"IMAGE CDDA: wave open %d\n", mmr);
-		cdda_closewav ();
-		return 0;
-	}
-	return 1;
-}
-
 static void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
 {
 	for (int i = 0; i < 8 * 12; i ++) {
@@ -386,255 +355,200 @@ static void *cdda_play_func (void *v)
 	int num_sectors = CDDA_BUFFERS;
 	int quit = 0;
 	int bufnum;
-	int buffered;
-	uae_u8 *px[2], *p;
 	int bufon[2];
-	int i;
-	WAVEHDR whdr[2];
-	MMRESULT mmr;
-	int volume[2], volume_main;
 	int oldplay;
 	int idleframes;
 	bool foundsub;
 	struct cdunit *cdu = (struct cdunit*)v;
 
-	for (i = 0; i < 2; i++) {
-		memset (&whdr[i], 0, sizeof (WAVEHDR));
-		whdr[i].dwFlags = WHDR_DONE;
-	}
-
 	while (cdu->cdda_play == 0)
 		Sleep (10);
 	oldplay = -1;
 
-	p = xmalloc (uae_u8, 2 * num_sectors * 4096);
-	px[0] = p;
-	px[1] = p + num_sectors * 4096;
 	bufon[0] = bufon[1] = 0;
 	bufnum = 0;
-	buffered = 0;
-	volume[0] = volume[1] = -1;
-	volume_main = -1;
 
-	if (cdda_openwav ()) {
+	cda_audio *cda = new cda_audio (num_sectors);
 
-		for (i = 0; i < 2; i++) {
-			memset (&whdr[i], 0, sizeof (WAVEHDR));
-			whdr[i].dwBufferLength = 2352 * num_sectors;
-			whdr[i].lpData = (LPSTR)px[i];
-			mmr = waveOutPrepareHeader (cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
-			if (mmr != MMSYSERR_NOERROR) {
-				write_log (L"IMAGE CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
+	while (cdu->cdda_play > 0) {
+
+		if (oldplay != cdu->cdda_play) {
+			struct cdtoc *t;
+			int sector, diff;
+			struct _timeb tb1, tb2;
+
+			idleframes = 0;
+			foundsub = false;
+			_ftime (&tb1);
+			cdda_pos = cdu->cdda_start;
+			oldplay = cdu->cdda_play;
+			sector = cdu->cd_last_pos = cdda_pos;
+			t = findtoc (cdu, &sector);
+			if (!t) {
+				write_log (L"IMAGE CDDA: illegal sector number %d\n", cdu->cdda_start);
+				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+			} else {
+				write_log (L"IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %d, secoffset %d)\n",
+					cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector);
+				// do this even if audio is not compressed, t->handle also could be
+				// compressed and we want to unpack it in background too
+				while (cdimage_unpack_active == 1)
+					Sleep (10);
+				cdimage_unpack_active = 0;
+				write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
+				write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
+				while (cdimage_unpack_active == 0)
+					Sleep (10);
+			}
+			idleframes = cdu->cdda_delay_frames;
+			while (cdu->cdda_paused && cdu->cdda_play > 0) {
+				Sleep (10);
+				idleframes = -1;
+			}
+
+			if (cdu->cdda_scan == 0) {
+				// find possible P-subchannel=1 and fudge starting point so that
+				// buggy CD32/CDTV software CD+G handling does not miss any frames
+				bool seenindex = false;
+				for (sector = cdda_pos - 200; sector < cdda_pos; sector++) {
+					int sec = sector;
+					t = findtoc (cdu, &sec);
+					if (t) {
+						uae_u8 subbuf[SUB_CHANNEL_SIZE];
+						getsub_deinterleaved (subbuf, cdu, t, sector);
+						if (seenindex) {
+							for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
+								if (subbuf[i]) { // non-zero R-W subchannels
+									int diff = cdda_pos - sector + 2;
+									write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
+									idleframes -= diff;
+									cdda_pos = sector;
+									break;
+								}
+							}
+						} else if (subbuf[0] == 0xff) { // P == 1?
+							seenindex = true;
+						}
+					}
+				}
+			}
+			cdda_pos -= idleframes;
+
+			_ftime (&tb2);
+			diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
+			diff -= cdu->cdda_delay;
+			if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
+				Sleep (-diff);
+			setstate (cdu, AUDIO_STATUS_IN_PROGRESS);
+		}
+
+		cda->wait(bufnum);
+		bufon[bufnum] = 0;
+		if (!cdu->cdda_play)
+			goto end;
+
+		if (idleframes <= 0 && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
+			setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+			goto end; // data track?
+		}
+
+		if ((cdda_pos < cdu->cdda_end || cdu->cdda_end == 0xffffffff) && !cdu->cdda_paused && cdu->cdda_play > 0) {
+			struct cdtoc *t;
+			int sector, cnt;
+			int dofinish = 0;
+
+			gui_flicker_led (LED_CD, cdu->di.unitnum - 1, LED_CD_AUDIO);
+
+			memset (cda->buffers[bufnum], 0, num_sectors * 2352);
+
+			for (cnt = 0; cnt < num_sectors; cnt++) {
+				uae_u8 *dst = cda->buffers[bufnum] + cnt * 2352;
+				uae_u8 subbuf[SUB_CHANNEL_SIZE];
+				sector = cdda_pos;
+
+				memset (subbuf, 0, SUB_CHANNEL_SIZE);
+
+				t = findtoc (cdu, &sector);
+				if (t) {
+					if (t->handle && !(t->ctrl & 4)) {
+						int totalsize = t->size + t->skipsize;
+						if ((t->enctype == AUDENC_MP3 || t->enctype == AUDENC_FLAC) && t->data) {
+							if (t->filesize >= sector * totalsize + t->offset + t->size)
+								memcpy (dst, t->data + sector * totalsize + t->offset, t->size);
+						} else if (t->enctype == AUDENC_PCM) {
+							if (sector * totalsize + t->offset + totalsize < t->filesize) {
+								zfile_fseek (t->handle, sector * totalsize + t->offset, SEEK_SET);
+								zfile_fread (dst, t->size, 1, t->handle);
+							}
+						}
+					}
+					getsub_deinterleaved (subbuf, cdu, t, cdda_pos);
+				}
+
+				if (idleframes > 0) {
+					idleframes--;
+					memset (dst, 0, 2352);
+					memset (subbuf, 0, SUB_CHANNEL_SIZE);
+				}
+
+				if (cdda_pos < cdu->cdda_start && cdu->cdda_scan == 0)
+					memset (dst, 0, 2352);
+
+				dosub (cdu, subbuf);
+
+				if (cdu->cdda_scan) {
+					cdda_pos += cdu->cdda_scan;
+					if (cdda_pos < 0)
+						cdda_pos = 0;
+				} else  {
+					cdda_pos++;
+				}
+
+				if (cdda_pos - num_sectors < cdu->cdda_end && cdda_pos >= cdu->cdda_end)
+					dofinish = 1;
+
+			}
+	
+			if (idleframes <= 0)
+				cdu->cd_last_pos = cdda_pos;
+
+			bufon[bufnum] = 1;
+			cda->setvolume (currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+			if (!cda->play (bufnum)) {
+				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
 				goto end;
 			}
-			whdr[i].dwFlags |= WHDR_DONE;
-		}
 
-		while (cdu->cdda_play > 0) {
-
-			if (oldplay != cdu->cdda_play) {
-				struct cdtoc *t;
-				int sector, diff;
-				struct _timeb tb1, tb2;
-
-				idleframes = 0;
-				foundsub = false;
-				_ftime (&tb1);
-				cdda_pos = cdu->cdda_start;
-				oldplay = cdu->cdda_play;
-				sector = cdu->cd_last_pos = cdda_pos;
-				t = findtoc (cdu, &sector);
-				if (!t) {
-					write_log (L"IMAGE CDDA: illegal sector number %d\n", cdu->cdda_start);
-					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
-				} else {
-					write_log (L"IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %d, secoffset %d)\n",
-						cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector);
-					// do this even if audio is not compressed, t->handle also could be
-					// compressed and we want to unpack it in background too
-					while (cdimage_unpack_active == 1)
-						Sleep (10);
-					cdimage_unpack_active = 0;
-					write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
-					write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
-					while (cdimage_unpack_active == 0)
-						Sleep (10);
-				}
-				idleframes = cdu->cdda_delay_frames;
-				while (cdu->cdda_paused && cdu->cdda_play > 0) {
-					Sleep (10);
-					idleframes = -1;
-				}
-
-				if (cdu->cdda_scan == 0) {
-					// find possible P-subchannel=1 and fudge starting point so that
-					// buggy CD32/CDTV software CD+G handling does not miss any frames
-					bool seenindex = false;
-					for (sector = cdda_pos - 200; sector < cdda_pos; sector++) {
-						int sec = sector;
-						t = findtoc (cdu, &sec);
-						if (t) {
-							uae_u8 subbuf[SUB_CHANNEL_SIZE];
-							getsub_deinterleaved (subbuf, cdu, t, sector);
-							if (seenindex) {
-								for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
-									if (subbuf[i]) { // non-zero R-W subchannels
-										int diff = cdda_pos - sector + 2;
-										write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
-										idleframes -= diff;
-										cdda_pos = sector;
-										break;
-									}
-								}
-							} else if (subbuf[0] == 0xff) { // P == 1?
-								seenindex = true;
-							}
-						}
-					}
-				}
-				cdda_pos -= idleframes;
-
-				_ftime (&tb2);
-				diff = (tb2.time * (uae_s64)1000 + tb2.millitm) - (tb1.time * (uae_s64)1000 + tb1.millitm);
-				diff -= cdu->cdda_delay;
-				if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
-					Sleep (-diff);
-				setstate (cdu, AUDIO_STATUS_IN_PROGRESS);
+			if (dofinish) {
+				setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE);
+				cdu->cdda_play = -1;
+				cdda_pos = cdu->cdda_end + 1;
 			}
 
-			while (!(whdr[bufnum].dwFlags & WHDR_DONE)) {
+		}
+
+		if (bufon[0] == 0 && bufon[1] == 0) {
+			while (cdu->cdda_paused && cdu->cdda_play > 0)
 				Sleep (10);
-				if (!cdu->cdda_play)
-					goto end;
-			}
-			bufon[bufnum] = 0;
-
-			if (idleframes <= 0 && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
-				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
-				goto end; // data track?
-			}
-
-			if ((cdda_pos < cdu->cdda_end || cdu->cdda_end == 0xffffffff) && !cdu->cdda_paused && cdu->cdda_play > 0) {
-				struct cdtoc *t;
-				int sector, cnt;
-				int dofinish = 0;
-
-				gui_flicker_led (LED_CD, cdu->di.unitnum - 1, LED_CD_AUDIO);
-
-				memset (px[bufnum], 0, num_sectors * 2352);
-
-				for (cnt = 0; cnt < num_sectors; cnt++) {
-					uae_u8 *dst = px[bufnum] + cnt * 2352;
-					uae_u8 subbuf[SUB_CHANNEL_SIZE];
-					sector = cdda_pos;
-
-					memset (subbuf, 0, SUB_CHANNEL_SIZE);
-
-					t = findtoc (cdu, &sector);
-					if (t) {
-						if (t->handle && !(t->ctrl & 4)) {
-							int totalsize = t->size + t->skipsize;
-							if ((t->enctype == AUDENC_MP3 || t->enctype == AUDENC_FLAC) && t->data) {
-								if (t->filesize >= sector * totalsize + t->offset + t->size)
-									memcpy (dst, t->data + sector * totalsize + t->offset, t->size);
-							} else if (t->enctype == AUDENC_PCM) {
-								if (sector * totalsize + t->offset + totalsize < t->filesize) {
-									zfile_fseek (t->handle, sector * totalsize + t->offset, SEEK_SET);
-									zfile_fread (dst, t->size, 1, t->handle);
-								}
-							}
-						}
-						getsub_deinterleaved (subbuf, cdu, t, cdda_pos);
-					}
-
-					if (idleframes > 0) {
-						idleframes--;
-						memset (dst, 0, 2352);
-						memset (subbuf, 0, SUB_CHANNEL_SIZE);
-					}
-
-					if (cdda_pos < cdu->cdda_start && cdu->cdda_scan == 0)
-						memset (dst, 0, 2352);
-
-					dosub (cdu, subbuf);
-
-					if (cdu->cdda_scan) {
-						cdda_pos += cdu->cdda_scan;
-						if (cdda_pos < 0)
-							cdda_pos = 0;
-					} else  {
-						cdda_pos++;
-					}
-
-					if (cdda_pos - num_sectors < cdu->cdda_end && cdda_pos >= cdu->cdda_end)
-						dofinish = 1;
-
-				}
-	
-				if (idleframes <= 0)
-					cdu->cd_last_pos = cdda_pos;
-
-				volume_main = currprefs.sound_volume;
-				int vol_mult[2];
-				for (int j = 0; j < 2; j++) {
-					volume[j] = cdu->cdda_volume[j];
-					vol_mult[j] = (100 - volume_main) * volume[j] / 100;
-					if (vol_mult[j])
-						vol_mult[j]++;
-					if (vol_mult[j] >= 32768)
-						vol_mult[j] = 32768;
-				}
-				uae_s16 *p = (uae_s16*)(px[bufnum]);
-				for (i = 0; i < num_sectors * 2352 / 4; i++) {
-					p[i * 2 + 0] = p[i * 2 + 0] * vol_mult[0] / 32768;
-					p[i * 2 + 1] = p[i * 2 + 1] * vol_mult[1] / 32768;
-				}
-
-				bufon[bufnum] = 1;
-				mmr = waveOutWrite (cdda_wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
-				if (mmr != MMSYSERR_NOERROR) {
-					write_log (L"IMAGE CDDA: waveOutWrite %d\n", mmr);
-					break;
-				}
-
-				if (dofinish) {
-					setstate (cdu, AUDIO_STATUS_PLAY_COMPLETE);
-					cdu->cdda_play = -1;
-					cdda_pos = cdu->cdda_end + 1;
-				}
-
-			}
-
-
-			if (bufon[0] == 0 && bufon[1] == 0) {
-				while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
-					Sleep (10);
-				while (cdu->cdda_paused && cdu->cdda_play > 0)
-					Sleep (10);
-			}
-
-			bufnum = 1 - bufnum;
-
 		}
+
+		bufnum = 1 - bufnum;
 	}
 
 end:
-	while (!(whdr[0].dwFlags & WHDR_DONE) || !(whdr[1].dwFlags & WHDR_DONE))
-		Sleep (10);
-	for (i = 0; i < 2; i++)
-		waveOutUnprepareHeader  (cdda_wavehandle, &whdr[i], sizeof (WAVEHDR));
+	cda->wait (0);
+	cda->wait (1);
 
 	while (cdimage_unpack_active == 1)
 		Sleep (10);
 
-	cdda_closewav ();
-	xfree (p);
+	delete cda;
+
 	cdu->cdda_play = 0;
 	write_log (L"IMAGE CDDA: thread killed\n");
 	return NULL;
 }
 
-#endif
 
 static void cdda_stop (struct cdunit *cdu)
 {

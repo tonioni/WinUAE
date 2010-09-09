@@ -5796,7 +5796,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	} else if (mode == 11) {
 		amiga_clipboard_got_data (m68k_areg (regs, 2), m68k_dreg (regs, 2), m68k_dreg (regs, 0) + 8);
 	} else if (mode == 12) {
-		amiga_clipboard_want_data ();
+		return amiga_clipboard_want_data ();
 	} else if (mode == 13) {
 		return amiga_clipboard_proc_start ();
 	} else if (mode == 14) {
