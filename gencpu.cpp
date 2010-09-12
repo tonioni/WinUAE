@@ -2117,30 +2117,26 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("\t\tuae_s16 sr = %s (a);\n", srcw);
 			printf ("\t\tuae_s32 pc = %s (a + 2);\n", srcl);
 			printf ("\t\tuae_s16 format = %s (a + 2 + 4);\n", srcw);
+			printf ("\t\tint frame = format >> 12;\n");
 			printf ("\t\tint offset = 8;\n");
-#if 0
-			genamode (Aipi, "7", sz_word, "sr", 1, 0, 0);
-		    genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
-		    genamode (Aipi, "7", sz_word, "format", 1, 0, 0);
-#endif
 			printf ("\t\tnewsr = sr; newpc = pc;\n");
-		    printf ("\t\tif ((format & 0xF000) == 0x0000) { m68k_areg (regs, 7) += offset; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0x1000) { m68k_areg (regs, 7) += offset; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0x2000) { m68k_areg (regs, 7) += offset + 4; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0x4000) { m68k_areg (regs, 7) += offset + 8; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0x8000) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
+		    printf ("\t\telse if (frame == 0x1) { m68k_areg (regs, 7) += offset; }\n");
+		    printf ("\t\telse if (frame == 0x2) { m68k_areg (regs, 7) += offset + 4; break; }\n");
+		    printf ("\t\telse if (frame == 0x4) { m68k_areg (regs, 7) += offset + 8; break; }\n");
 			if (using_mmu)
-		    	printf ("\t\telse if ((format & 0xF000) == 0x7000) { m68k_do_rte_mmu (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0x9000) { m68k_areg (regs, 7) += offset + 12; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0xa000) { m68k_areg (regs, 7) += offset + 24; break; }\n");
-		    printf ("\t\telse if ((format & 0xF000) == 0xb000) { m68k_areg (regs, 7) += offset + 84; break; }\n");
+		    	printf ("\t\telse if (frame == 0x7) { m68k_do_rte_mmu (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
+		    printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+		    printf ("\t\telse if (frame == 0x9) { m68k_areg (regs, 7) += offset + 12; break; }\n");
+		    printf ("\t\telse if (frame == 0xa) { m68k_areg (regs, 7) += offset + 24; break; }\n");
+		    printf ("\t\telse if (frame == 0xb) { m68k_areg (regs, 7) += offset + 84; break; }\n");
 		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception (14, 0); goto %s; }\n", endlabelstr);
 		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
 		    pop_braces (old_brace_level);
 		    printf ("\tregs.sr = newsr; MakeFromSR ();\n");
 		    printf ("\tif (newpc & 1) {\n");
-		    printf ("\t\texception3 (0x%04X, m68k_getpc (), newpc);\n", opcode);
-			printf ("\t\t goto %s;\n", endlabelstr);
+		    printf ("\t\texception3i (0x%04X, m68k_getpc (), newpc);\n", opcode);
+			printf ("\t\tgoto %s;\n", endlabelstr);
 			printf ("\t}\n");
 		    printf ("\t\tm68k_setpc (newpc);\n");
 			printf ("\tipl_fetch ();\n");
@@ -2155,17 +2151,20 @@ static void gen_opcode (unsigned long int opcode)
 			genamode (curi->smode, "srcreg", curi->size, "offs", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 			genamode (Aipi, "7", sz_long, "pc", GENA_GETV_FETCH, GENA_MOVEM_DO_INC, 0);
 			printf ("\tm68k_areg(regs, 7) += offs;\n");
-			setpc ("pc");
 		} else {
 			genamode (Aipi, "7", sz_long, "pc", 1, 0, 0);
 			genamode (curi->smode, "srcreg", curi->size, "offs", 1, 0, 0);
 			printf ("\tm68k_areg (regs, 7) += offs;\n");
 			printf ("\tif (pc & 1) {\n");
-			printf ("\t\texception3 (0x%04X, m68k_getpc (), pc);\n", opcode);
+			printf ("\t\texception3i (0x%04X, m68k_getpc (), pc);\n", opcode);
 			printf ("\t\tgoto %s;\n", endlabelstr);
 			printf ("\t}\n");
-			setpc ("pc");
 		}
+	    printf ("\tif (pc & 1) {\n");
+	    printf ("\t\texception3i (0x%04X, m68k_getpc(), pc);\n", opcode);
+		printf ("\t\tgoto %s;\n", endlabelstr);
+		printf ("\t}\n");
+		setpc ("pc");
 		/* PC is set and prefetch filled. */
 		m68k_pc_offset = 0;
 		fill_prefetch_full ();
@@ -2222,7 +2221,7 @@ static void gen_opcode (unsigned long int opcode)
 	    printf ("\tif (m68k_getpc () & 1) {\n");
 		printf ("\t\tuaecptr faultpc = m68k_getpc ();\n");
 		printf ("\t\tm68k_setpc (pc);\n");
-		printf ("\t\texception3 (0x%04X, pc, faultpc);\n", opcode);
+		printf ("\t\texception3i (0x%04X, pc, faultpc);\n", opcode);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
 		count_read += 2;

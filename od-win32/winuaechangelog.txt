@@ -1,4 +1,16 @@
 
+- removed duplicate "none" in filter list
+- RTD also missed address error check
+- MMU emulation bus error handler uses C++ exceptions again (like in original Aranym version),
+  removed some not so useful forced inlining, smaller executable.
+- decided to disable some MMU table caching and suddenly NetBSD crash disappeared, MMU emulation
+  is probably much slower now but at least it seems to work until proper fix is found,
+  (hopefully Aranym developers have some ideas) Debian 68k Sarge Linux confirmed working now
+- right border color "glitch" when waiting for hpos<7 in copper list broke in b3
+- only disable Direct3D9Ex if pixel shader support is < 2.0
+- do not open files smaller than blocksize (512 bytes) as a hardfile
+- hardfile dialog accepts dragged and dropped files
+
 Beta 16:
 
 - removed old audio hack that was left accidentally, not needed since DMAL was emulated

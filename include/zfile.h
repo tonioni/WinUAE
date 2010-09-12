@@ -103,7 +103,7 @@ extern const TCHAR *uae_diskimageextensions[];
 
 extern struct zvolume *zfile_fopen_archive (const TCHAR *filename);
 extern struct zvolume *zfile_fopen_archive (const TCHAR *filename, int flags);
-extern struct zvolume *zfile_fopen_archive_root (const TCHAR *filename);
+extern struct zvolume *zfile_fopen_archive_root (const TCHAR *filename, int flags);
 extern void zfile_fclose_archive (struct zvolume *zv);
 extern int zfile_fs_usage_archive (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp);
 extern int zfile_stat_archive (const TCHAR *path, struct _stat64 *statbuf);

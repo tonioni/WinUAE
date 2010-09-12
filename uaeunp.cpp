@@ -209,7 +209,7 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 	TCHAR fn[MAX_DPATH];
 	struct arcdir *ad;
 
-	zv = zfile_fopen_archive_root (src);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -377,7 +377,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	TCHAR fn[MAX_DPATH];
 
 	ret = 0;
-	zv = zfile_fopen_archive_root (src);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -421,7 +421,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 				return 0;
 			}
 
-			s = zfile_open_archive (tmp, 0);
+			s = zfile_open_archive (tmp, ZFD_ARCHIVE | ZFD_NORECURSE);
 			if (!s) {
 				geterror();
 				_tprintf (L"Couldn't open '%s' for reading\n", src);
@@ -472,7 +472,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	TCHAR fn[MAX_DPATH];
 
 	ret = 0;
-	zv = zfile_fopen_archive_root (src);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -514,7 +514,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 			}
 			found = 1;
 			dst = fn;
-			s = zfile_open_archive (tmp, 0);
+			s = zfile_open_archive (tmp, ZFD_NORECURSE);
 			if (!s) {
 				geterror();
 				_tprintf (L"Couldn't open '%s' for reading\n", tmp);
@@ -554,7 +554,7 @@ static int scanpath (TCHAR *src, TCHAR *outpath)
 	struct zdirectory *h;
 	TCHAR fn[MAX_DPATH];
 
-	zv = zfile_fopen_archive_root (src);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -721,6 +721,10 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 }
 
 /*
+
+0.8c:
+
+- do not extract archives inside archive in recursive extraction mode
 
 0.8b:
 

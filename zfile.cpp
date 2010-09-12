@@ -2903,7 +2903,7 @@ struct zvolume *zfile_fopen_archive (const TCHAR *filename)
 	return zfile_fopen_archive (filename, ZFD_ALL);
 }
 
-struct zvolume *zfile_fopen_archive_root (const TCHAR *filename)
+struct zvolume *zfile_fopen_archive_root (const TCHAR *filename, int flags)
 {
 	TCHAR path[MAX_DPATH], *p1, *p2, *lastp;
 	struct zvolume *zv = NULL;
@@ -2929,7 +2929,7 @@ struct zvolume *zfile_fopen_archive_root (const TCHAR *filename)
 		*p1 = 0;
 		lastp = p1;
 		if (my_existsfile (p2))
-			return zfile_fopen_archive (p2);
+			return zfile_fopen_archive (p2, flags);
 		num++;
 	}
 
@@ -3039,7 +3039,7 @@ struct zdirectory *zfile_opendir_archive (const TCHAR *path, int flags)
 }
 struct zdirectory *zfile_opendir_archive (const TCHAR *path)
 {
-	return zfile_opendir_archive (path, ZFD_ALL);
+	return zfile_opendir_archive (path, ZFD_ALL | ZFD_NORECURSE);
 }
 void zfile_closedir_archive (struct zdirectory *zd)
 {

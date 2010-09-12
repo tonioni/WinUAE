@@ -402,7 +402,7 @@ static void build_cpufunctbl (void)
 	if (currprefs.mmu_model) {
 		mmu_reset ();
 		mmu_set_tc (regs.tcr);
-		mmu_set_super (regs.s);
+		mmu_set_super (regs.s != 0);
 	}
 }
 
@@ -1243,7 +1243,7 @@ void REGPARAM2 MakeFromSR (void)
 		}
 	}
 	if (currprefs.mmu_model)
-		mmu_set_super (regs.s);
+		mmu_set_super (regs.s != 0);
 
 	doint ();
 	if (regs.t1 || regs.t0)
@@ -1590,7 +1590,7 @@ static void Exception_normal (int nr, uaecptr oldpc)
 			m68k_areg (regs, 7) = regs.isp;
 		regs.s = 1;
 		if (currprefs.mmu_model)
-			mmu_set_super (regs.s);
+			mmu_set_super (regs.s != 0);
 	}
 	if (currprefs.cpu_model > 68000) {
 		if (nr == 2 || nr == 3) {
@@ -2271,7 +2271,7 @@ void m68k_reset (int hardreset)
 	if (currprefs.mmu_model) {
 		mmu_reset ();
 		mmu_set_tc (regs.tcr);
-		mmu_set_super (regs.s);
+		mmu_set_super (regs.s != 0);
 	}
 
 	a3000_fakekick (0);
@@ -3050,6 +3050,29 @@ retry:
 	TRY (prb) {
 		for (;;) {
 			pc = regs.fault_pc = m68k_getpc ();
+#if 0
+			static int done;
+			if (pc == 0x16AF94) {
+				write_log (L"D0=%d A7=%08x\n", regs.regs[0], regs.regs[15]);
+				if (regs.regs[0] == 360) {
+					done = 1;
+					activate_debugger ();
+				}
+			}
+			if (pc == 0x16B01A) {
+				write_log (L"-> ERR\n");
+			}
+			if (pc == 0x16B018) {
+				write_log (L"->\n");
+			}
+			if (pc == 0x17967C || pc == 0x13b5e2 - 4) {
+				if (done) {
+					write_log (L"*\n");
+					mmu_dump_tables ();
+					activate_debugger ();
+				}
+			}
+#endif
 			opcode = x_prefetch (0);
 			count_instr (opcode);
 			do_cycles (cpu_cycles);
@@ -3087,10 +3110,15 @@ retry:
 		}
 		//activate_debugger ();
 		TRY (prb2) {
-			Exception (2, regs.fault_pc);
+			Exception (prb, regs.fault_pc);
 		} CATCH (prb2) {
 			write_log (L"MMU: double bus error, rebooting..\n");
+			regs.tcr = 0;
+			m68k_reset (0);
+			m68k_setpc (0xf80002);
+			mmu_reset ();
 			uae_reset (1);
+			return;
 		}
 		goto retry;
 	}
@@ -4409,7 +4437,7 @@ STATIC_INLINE void fill_icache030 (uae_u32 addr, int idx)
 
 STATIC_INLINE bool cancache030 (uaecptr addr)
 {
-	return  ce_cachable[addr >> 16];
+	return ce_cachable[addr >> 16] != 0;
 }
 
 // and finally the worst part, 68030 data cache..

@@ -2011,7 +2011,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		t_depth
 		);
 
-	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(3,0) || d3dCaps.VertexShaderVersion < D3DVS_VERSION(3,0) || !psEnabled || max_texture_w < 4096 || max_texture_h < 4096 || !shaderon) && d3d_ex) {
+	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (L"Disabling D3D9Ex\n");
 		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);

@@ -522,6 +522,9 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		if (shmaddr)
 			virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
 		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
+		if (result == NULL)
+			virtualfreewithlock (shmaddr, 0, MEM_DECOMMIT);
+		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
 		if (result == NULL) {
 			result = (void*)-1;
 			write_log (L"VirtualAlloc %08X - %08X %x (%dk) failed %d\n",

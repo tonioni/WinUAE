@@ -168,6 +168,8 @@ static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
 static HACCEL hAccelTable;
+static HWND customDlg;
+static int customDlgType;
 struct ToolTipHWNDS {
 	WNDPROC proc;
 	HWND hwnd;
@@ -8788,6 +8790,10 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	TCHAR tmp[MAX_DPATH];
 
 	switch (msg) {
+	case WM_DROPFILES:
+		dragdrop (hDlg, (HDROP)wParam, &changed_prefs, -1);
+		return FALSE;
+
 	case WM_INITDIALOG:
 		recursive++;
 		inithardfile (hDlg);
@@ -8796,6 +8802,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		updatehdfinfo (hDlg, 1);
 		setac (hDlg, IDC_PATH_NAME);
 		recursive--;
+		customDlgType = IDD_HARDFILE;
+		customDlg = hDlg;
 		return TRUE;
 
 	case WM_CONTEXTMENU:
@@ -12279,7 +12287,6 @@ static void values_to_hw3ddlg (HWND hDlg)
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
 	if (workprefs.gfx_api && D3D_goodenough ()) {
 		WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
-		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);
 		HANDLE h;
@@ -13658,6 +13665,13 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			}
 		}
 
+		if (customDlgType == IDD_HARDFILE) {
+			_tcscpy (current_hfdlg.filename, file);
+			SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename);
+			updatehdfinfo (customDlg, 1);
+			continue;
+		}
+
 		if (drvdrag) {
 			type = ZFILE_DISKIMAGE;
 		} else if (zip || harddrive) {
@@ -13945,6 +13959,8 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 		h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
 	}
+	customDlgType = 0;
+	customDlg = NULL;
 	freescaleresource (res);
 	return h;
 }

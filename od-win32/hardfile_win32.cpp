@@ -507,6 +507,10 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				goto end;
 			low &= ~(hfd->blocksize - 1);
 			hfd->physsize = hfd->virtsize = ((uae_u64)high2 << 32) | low;
+			if (hfd->physsize < hfd->blocksize || hfd->physsize == 0) {
+				write_log (L"HDF '%s' is too small\n", name);
+				goto end;
+			}
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			if (hfd->physsize < 64 * 1024 * 1024 && zmode) {
 				write_log (L"HDF '%s' re-opened in zfile-mode\n", name);
