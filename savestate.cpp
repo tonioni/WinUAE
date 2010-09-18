@@ -330,8 +330,8 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t 
 		&& _tcscmp (name, L"A3K1") != 0
 		&& _tcscmp (name, L"A3K2") != 0)
 	{
-		/* without zeros at the end old state files may not work */
-		mem = xcalloc (uae_u8, *totallen + 32);
+		/* extra bytes at the end needed to handle old statefiles that now have new fields */
+		mem = xcalloc (uae_u8, *totallen + 100);
 		if (!mem)
 			return NULL;
 		if (flags & 1) {

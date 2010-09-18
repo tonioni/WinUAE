@@ -3053,18 +3053,20 @@ retry:
 #if 0
 			static int done;
 			if (pc == 0x16AF94) {
-				write_log (L"D0=%d A7=%08x\n", regs.regs[0], regs.regs[15]);
+//				write_log (L"D0=%d A7=%08x\n", regs.regs[0], regs.regs[15]);
 				if (regs.regs[0] == 360) {
 					done = 1;
 					activate_debugger ();
 				}
 			}
+/*
 			if (pc == 0x16B01A) {
 				write_log (L"-> ERR\n");
 			}
 			if (pc == 0x16B018) {
 				write_log (L"->\n");
 			}
+*/
 			if (pc == 0x17967C || pc == 0x13b5e2 - 4) {
 				if (done) {
 					write_log (L"*\n");

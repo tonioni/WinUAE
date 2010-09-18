@@ -100,7 +100,6 @@ static int fifo_inuse[3];
 static int dma_enable, bitoffset, syncoffset;
 static uae_u16 word, dsksync;
 static unsigned long dsksync_cycles;
-static int cemode = 1;
 #define WORDSYNC_TIME 11
 /* Always carried through to the next line.  */
 static int disk_hpos;
@@ -3626,14 +3625,17 @@ uae_u8 *save_disk (int num, int *len, uae_u8 *dstptr)
 
 uae_u8 *restore_floppy (uae_u8 *src)
 {
-	word = restore_u16();
-	bitoffset = restore_u8();
-	dma_enable = restore_u8();
-	disk_hpos = restore_u8() << 8;
-	dskdmaen = restore_u8();
-	restore_u16 ();
-	//word |= restore_u16() << 16;
-
+	word = restore_u16 ();
+	bitoffset = restore_u8 ();
+	dma_enable = restore_u8 ();
+	disk_hpos = restore_u8 () << 8;
+	dskdmaen = restore_u8 ();
+	for (int i = 0; i < 3; i++) {
+		fifo[i] = restore_u16 ();
+		fifo_inuse[i] = restore_u8 () != 0;
+		if (dskdmaen == 0)
+			fifo_inuse[i] = false;
+	}
 	return src;
 }
 
@@ -3648,13 +3650,16 @@ uae_u8 *save_floppy(int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 2 + 1 + 1 + 1 + 1 + 2);
-	save_u16 (word);		/* current fifo (low word) */
-	save_u8 (bitoffset);	/* dma bit offset */
-	save_u8 (dma_enable);	/* disk sync found */
+		dstbak = dst = xmalloc (uae_u8, 100);
+	save_u16 (word);			/* shift register */
+	save_u8 (bitoffset);		/* dma bit offset */
+	save_u8 (dma_enable);		/* disk sync found */
 	save_u8 (disk_hpos >> 8);	/* next bit read position */
-	save_u8 (dskdmaen);		/* dma status */
-	save_u16 (0);		/* was current fifo (high word), but it was wrong???? */
+	save_u8 (dskdmaen);			/* dma status */
+	for (int i = 0; i < 3; i++) {
+		save_u16 (fifo[i]);
+		save_u8 (fifo_inuse[i] ? 1 : 0);
+	}
 
 	*len = dst - dstbak;
 	return dstbak;

@@ -320,8 +320,7 @@ static void mmu_bus_error(uaecptr addr, int fc, bool write, int size)
 /*
  * Update the atc line for a given address by doing a mmu lookup.
  */
-static uaecptr mmu_fill_atc_l2(uaecptr addr, bool super, bool data, bool write,
-							   struct mmu_atc_line *l)
+static uaecptr mmu_fill_atc_l2(uaecptr addr, bool super, bool data, bool write, struct mmu_atc_line *l)
 {
 	int res;
 	uae_u32 desc;

@@ -7655,8 +7655,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CPU5, FALSE);
 #endif
 
-	cpu_based_enable = workprefs.cpu_model >= 68020 &&
-		workprefs.address_space_24 == 0;
+	cpu_based_enable = workprefs.cpu_model >= 68020 && workprefs.address_space_24 == 0;
 
 	jitenable = cpu_based_enable;
 #ifndef JIT

@@ -306,6 +306,25 @@ static void fixthings_mouse (struct didata *did)
 
 static int rawinput_available, rawinput_registered_mouse, rawinput_registered_kb;
 
+static bool test_rawinput (int usage)
+{
+	RAWINPUTDEVICE rid = { 0 };
+
+	rid.usUsagePage = 1;
+	rid.usUsage = usage;
+	if (RegisterRawInputDevices (&rid, 1, sizeof (RAWINPUTDEVICE)) == FALSE) {
+		write_log (L"RAWINPUT test failed, usage=%d ERR=%d\n", usage, GetLastError ());
+		return false;
+	}
+	rid.dwFlags |= RIDEV_REMOVE;
+	if (RegisterRawInputDevices (&rid, 1, sizeof (RAWINPUTDEVICE)) == FALSE) {
+		write_log (L"RAWINPUT test failed (release), usage=%d, ERR=%d\n", usage, GetLastError ());
+		return false;
+	}
+	write_log (L"RAWINPUT test ok, usage=%d\n", usage);
+	return true;
+}
+
 static int register_rawinput (int flags)
 {
 	int num, rm, rkb;
@@ -862,7 +881,7 @@ static void rawinputfriendlynames (void)
 	}
 }
 
-static TCHAR *rawkeyboardlabels[256] =
+static const TCHAR *rawkeyboardlabels[256] =
 {
 	L"ESCAPE",
 	L"1",L"2",L"3",L"4",L"5",L"6",L"7",L"8",L"9",L"0",
@@ -877,12 +896,11 @@ static TCHAR *rawkeyboardlabels[256] =
 	L"NUMLOCK",L"SCROLL",L"NUMPAD7",L"NUMPAD8",L"NUMPAD9",L"SUBTRACT",
 	L"NUMPAD4",L"NUMPAD5",L"NUMPAD6",L"ADD",L"NUMPAD1",L"NUMPAD2",L"NUMPAD3",L"NUMPAD0",
 	L"DECIMAL",NULL,NULL,L"OEM_102",L"F11",L"F12",
-	L"F13",L"F14",L"F15",L"F16",NULL,NULL,NULL,NULL,NULL,NULL,
+	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+	L"F13",L"F14",L"F15",NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
-	NULL,NULL,
+	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	L"NUMPADEQUALS",NULL,NULL,
 	L"PREVTRACK",NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	L"NEXTTRACK",NULL,NULL,L"NUMPADENTER",L"RCONTROL",NULL,NULL,
@@ -1747,6 +1765,10 @@ static int di_do_init (void)
 	}
 
 	if (!rawinput_decided) {
+		if (num_mouse > 0 && !test_rawinput (2))
+			num_mouse = 0;
+		if (num_keyboard > 0 && !test_rawinput (6))
+			num_keyboard = 0;
 		rawinput_enabled_keyboard = num_keyboard > 0;
 		rawinput_enabled_mouse = num_mouse > 0;
 		rawinput_decided = true;

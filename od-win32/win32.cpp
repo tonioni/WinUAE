@@ -617,6 +617,8 @@ void setmouseactive (int active)
 #endif
 }
 
+static int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
+
 static void winuae_active (HWND hWnd, int minimized)
 {
 	struct threadpriorities *pri;
@@ -648,6 +650,11 @@ static void winuae_active (HWND hWnd, int minimized)
 		}
 		sound_closed = 0;
 	}
+#if 0
+	RegisterHotKey (hAmigaWnd, IDHOT_SNAPDESKTOP, 0, VK_SNAPSHOT);
+	for (int i = 0; hotkeys[i] >= 0; i++)
+		RegisterHotKey (hAmigaWnd, hotkeys[i], 0, hotkeys[i]);
+#endif
 	if (WIN32GFX_IsPicassoScreen ())
 		WIN32GFX_EnablePicasso ();
 	getcapslock ();
@@ -685,6 +692,11 @@ static void winuae_inactive (HWND hWnd, int minimized)
 		SetThreadExecutionState (ES_CONTINUOUS);
 	if (minimized)
 		exit_gui (0);
+#if 0
+	for (int i = 0; hotkeys[i] >= 0; i++)
+		UnregisterHotKey (hAmigaWnd, hotkeys[i]);
+	UnregisterHotKey (hAmigaWnd, IDHOT_SNAPDESKTOP);
+#endif
 	focus = 0;
 	wait_keyrelease ();
 	setmouseactive (0);

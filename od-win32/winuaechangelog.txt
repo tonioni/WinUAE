@@ -1,4 +1,15 @@
 
+Beta 18 (RC1):
+
+- F13/F14/F15 rawinput keycodes fixed (at least available on some apple usb keyboards)
+- removed default volume and mute keyboard mappings because in rawinput mode they
+  are always handled by Windows (which is annoying, I haven't found any simple way to
+  disable them, "disable hotkeys" flag only seems to disable Windows keys)
+- fall back to directinput if rawinput enumeration worked but RegisterRawInputDevices() returns error
+- Paula disk fifo statefile support
+
+Beta 17:
+
 - removed duplicate "none" in filter list
 - RTD also missed address error check
 - MMU emulation bus error handler uses C++ exceptions again (like in original Aranym version),
