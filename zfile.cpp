@@ -1244,13 +1244,12 @@ static const int plugins_7z_m[] = {
 	ZFD_ADF, ZFD_ADF, ZFD_ADF, ZFD_ARCHIVE
 };
 
-int iszip (struct zfile *z)
+int iszip (struct zfile *z, int mask)
 {
 	TCHAR *name = z->name;
 	TCHAR *ext = _tcsrchr (name, '.');
 	uae_u8 header[32];
 	int i;
-	int mask = ZFD_NORMAL;//z->zfdmask;
 
 	if (!ext)
 		return 0;
@@ -1322,6 +1321,10 @@ int iszip (struct zfile *z)
 	}
 #endif
 	return 0;
+}
+int iszip (struct zfile *z)
+{
+	return iszip (z, ZFD_NORMAL);
 }
 
 struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault, int mask, int *retcode, int index)
@@ -1548,6 +1551,11 @@ static struct zfile *openzip (const TCHAR *pname)
 	return 0;
 }
 
+static bool writeneeded (const TCHAR *mode)
+{
+	return _tcschr (mode, 'w') || _tcschr (mode, 'a') || _tcschr (mode, '+') || _tcschr (mode, 't');
+}
+
 static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int mask)
 {
 	struct zfile *l;
@@ -1561,7 +1569,7 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 #endif
 	l = openzip (name);
 	if (l) {
-		if (_tcsicmp (mode, L"rb") && _tcsicmp (mode, L"r")) {
+		if (writeneeded (mode)) {
 			zfile_fclose (l);
 			return 0;
 		}
@@ -1585,6 +1593,10 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 		if (stat (l->name, &st) != -1)
 			l->size = st.st_size;
 		l->f = f;
+		if (writeneeded (mode) && iszip (l, ZFD_ARCHIVE)) {
+			zfile_fclose (l);
+			return NULL;
+		}
 	}
 	return l;
 }
@@ -1639,7 +1651,6 @@ int zfile_zopen (const TCHAR *name, zfile_callback zc, void *user)
 	return 1;
 }
 
-
 /*
 * fopen() for a compressed file
 */
@@ -1655,7 +1666,7 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 	l = zfile_fopen_2 (path, mode, mask);
 	if (!l)
 		return 0;
-	if (_tcschr (mode, 'w') || _tcschr (mode, 'a'))
+	if (writeneeded (mode))
 		return l;
 	l2 = NULL;
 	while (cnt-- > 0) {

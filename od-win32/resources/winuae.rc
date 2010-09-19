@@ -1667,6 +1667,8 @@ BEGIN
     IDS_BUFFER_DOUBLE       "Double buffering"
     IDS_BUFFER_TRIPLE       "Triple buffering"
     IDS_AUTOSCALE_CENTER    "Automatic center"
+    IDS_AUTOSCALE_MAX       "Fullscreen (Max)"
+    IDS_AUTOSCALE_TV        "Fullscreen (TV)"
 END
 
 #endif    // English resources

@@ -135,7 +135,7 @@ static int bouncy;
 static signed long bouncy_cycles;
 #define BOUNCY_CYCLES 30
 
-int inprec_open (TCHAR *fname, int record)
+int inprec_open (const TCHAR *fname, int record)
 {
 	uae_u32 t = (uae_u32)time(0);
 	int i;
@@ -165,6 +165,11 @@ int inprec_open (TCHAR *fname, int record)
 		while (i-- > 0)
 			inprec_pu8 ();
 		inprec_p = inprec_plastptr;
+		if (inprec_pstart (INPREC_STATEFILE)) {
+			inprec_pstr (savestate_fname);
+			savestate_state = STATE_RESTORE;
+			inprec_pend ();
+		}
 		oldbuttons[0] = oldbuttons[1] = oldbuttons[2] = oldbuttons[3] = 0;
 		oldjoy[0] = oldjoy[1] = 0;
 		if (record < -1)
@@ -178,6 +183,11 @@ int inprec_open (TCHAR *fname, int record)
 		inprec_ru8 (UAESUBREV);
 		inprec_ru32 (t);
 		inprec_ru32 (0); // extra header size
+		if (savestate_state == STATE_DORESTORE) {
+			inprec_rstart (INPREC_STATEFILE);
+			inprec_rstr (savestate_fname);
+			inprec_rend ();
+		}
 	} else {
 		return 0;
 	}
@@ -188,7 +198,7 @@ int inprec_open (TCHAR *fname, int record)
 	return 1;
 }
 
-void inprec_close(void)
+void inprec_close (void)
 {
 	if (!inprec_zf)
 		return;
@@ -225,12 +235,13 @@ void inprec_ru32 (uae_u32 v)
 void inprec_rstr (const TCHAR *src)
 {
 	char *s = ua (src);
+	char *ss = s;
 	while(*s) {
 		inprec_ru8 (*s);
 		s++;
 	}
 	inprec_ru8 (0);
-	xfree (s);
+	xfree (ss);
 }
 void inprec_rstart (uae_u8 type)
 {
@@ -1793,7 +1804,7 @@ int getbuttonstate (int joy, int button)
 		inprec_ru8 (v);
 		inprec_rend ();
 	} else if (input_recording < 0) {
-		while(inprec_pstart (INPREC_JOYBUTTON)) {
+		while (inprec_pstart (INPREC_JOYBUTTON)) {
 			uae_u8 j = inprec_pu8 ();
 			uae_u8 but = inprec_pu8 ();
 			uae_u8 vv = inprec_pu8 ();

@@ -2387,10 +2387,12 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			fullpath (workprefs.cartfile, MAX_DPATH);
 			break;
 		case IDC_INPREC_PLAY:
-			inprec_open (full_path, ischecked (hDlg, IDC_INPREC_PLAYMODE) ? -1 : -2);
+			_tcscpy (workprefs.inprecfile, full_path);
+			workprefs.inprecmode = ischecked (hDlg, IDC_INPREC_PLAYMODE) ? -1 : -2;
 			break;
 		case IDC_INPREC_RECORD:
-			inprec_open (full_path, 1);
+			_tcscpy (workprefs.inprecfile, full_path);
+			workprefs.inprecmode = 1;
 			break;
 		}
 		if (!nosavepath || 1) {
@@ -12041,7 +12043,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 {
 	int v = workprefs.gfx_filter ? TRUE : FALSE;
 	int vv = FALSE, vv2 = FALSE, vv3 = FALSE;
-	int as = workprefs.gfx_filter_autoscale == 2;
+	int as = workprefs.gfx_filter_autoscale == AUTOSCALE_CENTER;
 	struct uae_filter *uf;
 	int i, isfilter;
 
@@ -12226,6 +12228,10 @@ static void values_to_hw3ddlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_TV, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_MAX, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_SCALING, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);

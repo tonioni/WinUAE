@@ -339,6 +339,8 @@
 #define IDS_BUFFER_DOUBLE               363
 #define IDS_BUFFER_TRIPLE               364
 #define IDS_AUTOSCALE_CENTER            365
+#define IDS_AUTOSCALE_MAX               366
+#define IDS_AUTOSCALE_TV                367
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1002,7 +1004,6 @@
 #define IDC_DF2ENABLE                   1776
 #define IDC_FS_SELECT_EJECT             1776
 #define IDC_FS_RW                       1777
-#define IDC_FLOPPY_FFS2                 1777
 #define IDC_FLOPPY_BOOTABLE             1777
 #define IDC_DF3ENABLE                   1778
 #define IDC_HDF_RW                      1778

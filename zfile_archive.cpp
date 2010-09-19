@@ -712,7 +712,6 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 	rc->OpenArchiveData.OpenMode = RAR_OM_LIST;
 	rc->hArcData = pRAROpenArchiveEx (&rc->OpenArchiveData);
 	if (rc->OpenArchiveData.OpenResult != 0) {
-		xfree (rc);
 		zfile_fclose_archive (zv);
 		return archive_directory_arcacc (z, ArchiveFormatRAR);
 	}

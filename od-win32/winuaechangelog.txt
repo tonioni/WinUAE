@@ -1,4 +1,9 @@
 
+- rar archives crashed if file was already open (due to design flaw, it was possible to
+  open archives even if requested mode was read-write)
+- added "fullscreen (max)" and "fullscreen (tv)" (approximate only) to "autoscale" select
+  menu, basically replaces old "FS" filter multiplier
+
 Beta 18 (RC1):
 
 - F13/F14/F15 rawinput keycodes fixed (at least available on some apple usb keyboards)

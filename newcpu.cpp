@@ -31,7 +31,7 @@
 #include "ar.h"
 #include "gayle.h"
 #include "cia.h"
-
+#include "inputdevice.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -3276,6 +3276,13 @@ void m68k_go (int may_quit)
 
 			quit_program = 0;
 			hardboot = 0;
+
+			if (currprefs.inprecfile[0] && currprefs.inprecmode < 0) {
+				inprec_open (currprefs.inprecfile, currprefs.inprecmode);
+				changed_prefs.inprecmode = currprefs.inprecmode = 0;
+				changed_prefs.inprecfile[0] = currprefs.inprecfile[0] = 0;
+			}
+
 #ifdef SAVESTATE
 			if (savestate_state == STATE_RESTORE)
 				restore_state (savestate_fname);
@@ -3297,6 +3304,12 @@ void m68k_go (int may_quit)
 			}
 			savestate_restore_finish ();
 #endif
+			if (currprefs.inprecfile[0] && currprefs.inprecmode > 0) {
+				inprec_open (currprefs.inprecfile, currprefs.inprecmode);
+				changed_prefs.inprecmode = currprefs.inprecmode = 0;
+				changed_prefs.inprecfile[0] = currprefs.inprecfile[0] = 0;
+			}
+
 			fill_prefetch_slow ();
 			if (currprefs.produce_sound == 0)
 				eventtab[ev_audio].active = 0;

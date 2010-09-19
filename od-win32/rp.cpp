@@ -488,9 +488,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (fs) {
 			if (smm == RP_SCREENMODE_XX) {
 				p->gfx_filter = rp_filter;
-				p->gfx_filter_horiz_zoom_mult = 0;
-				p->gfx_filter_vert_zoom_mult = 0;
-				//p->gfx_filter_autoscale = 1;
+				p->gfx_filter_autoscale = AUTOSCALE_STATIC_NOMINAL;
 			} else {
 				int mult;
 				int prevmult = 1;

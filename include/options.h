@@ -118,6 +118,13 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define GFX_FULLSCREEN 1
 #define GFX_FULLWINDOW 2
 
+#define AUTOSCALE_NONE 0
+#define AUTOSCALE_STATIC_NOMINAL 1
+#define AUTOSCALE_STATIC_MAX 2
+#define AUTOSCALE_NORMAL 3
+#define AUTOSCALE_RESIZE 4
+#define AUTOSCALE_CENTER 5
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -301,6 +308,8 @@ struct uae_prefs {
 	struct cdslot cdslots[MAX_TOTAL_SCSI_DEVICES];
 	TCHAR quitstatefile[MAX_DPATH];
 	TCHAR statefile[MAX_DPATH];
+	TCHAR inprecfile[MAX_DPATH];
+	int inprecmode;
 
 	TCHAR path_floppy[256];
 	TCHAR path_hardfile[256];

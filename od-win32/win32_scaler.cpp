@@ -215,11 +215,26 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		filterxmult = 1000 / scale;
 		filterymult = 1000 / scale;
 
-		cv = get_custom_limits (&cw, &ch, &cx, &cy);
+		if (currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_MAX || currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_NOMINAL) {
+			cw = (752 / 2) << currprefs.gfx_resolution;
+			ch = (572 / 2) << currprefs.gfx_vresolution;
+			cx = 0;
+			cy = 0;
+			cv = 1;
+			if (currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_NOMINAL) {
+				cw -= 80;
+				ch -= 50;
+				cx = 56;
+				cy = 20;
+			}
+		} else {
+			cv = get_custom_limits (&cw, &ch, &cx, &cy);
+		}
+
 		if (cv) {
 			int diff;
 
-			if (currprefs.gfx_filter_autoscale == 3) {
+			if (currprefs.gfx_filter_autoscale == AUTOSCALE_CENTER) {
 
 				int ww = cw * scale;
 				int hh = ch * scale;
@@ -231,7 +246,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 
-			} else if (currprefs.gfx_filter_autoscale == 2 && isfullscreen () == 0 && !currprefs.gfx_filteroverlay[0]) {
+			} else if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE && isfullscreen () == 0 && !currprefs.gfx_filteroverlay[0]) {
 				static int lastresize = 0;
 				static int lastdelay = 1;
 				static int ocw, och, ocx, ocy, lcw, lch, lcx, lcy;

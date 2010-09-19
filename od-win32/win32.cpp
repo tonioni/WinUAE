@@ -1386,7 +1386,7 @@ static int canstretch (void)
 {
 	if (isfullscreen () != 0)
 		return 0;
-	if (currprefs.gfx_filter_autoscale == 2)
+	if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE)
 		return 0;
 	if (!WIN32GFX_IsPicassoScreen ())
 		return 1;
@@ -3115,6 +3115,8 @@ void fetch_path (const TCHAR *name, TCHAR *out, int size)
 		_tcscat (out, L"Configurations\\");
 	if (!_tcscmp (name, L"StatefilePath"))
 		_tcscat (out, L"Savestates\\");
+	if (!_tcscmp (name, L"InputPath"))
+		_tcscat (out, L"Inputrecordings\\");
 	if (start_data >= 0)
 		regquerystr (NULL, name, out, &size); 
 	if (GetFileAttributes (out) == INVALID_FILE_ATTRIBUTES)
