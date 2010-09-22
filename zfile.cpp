@@ -248,6 +248,17 @@ static void removeext (TCHAR *s, TCHAR *ext)
 		s[_tcslen (s) - _tcslen (ext)] = 0;
 }
 
+static bool checkwrite (struct zfile *zf, int *retcode)
+{
+	if (zfile_needwrite (zf)) {
+		if (retcode)
+			*retcode = -1;
+		return true;
+	}
+	return false;
+}
+
+
 static uae_u8 exeheader[]={ 0x00,0x00,0x03,0xf3,0x00,0x00,0x00,0x00 };
 static TCHAR *diskimages[] = { L"adf", L"adz", L"ipf", L"fdi", L"dms", L"wrp", L"dsq", 0 };
 
@@ -507,7 +518,7 @@ end:
 	return z;
 }
 
-struct zfile *zfile_gunzip (struct zfile *z)
+static struct zfile *zfile_gunzip (struct zfile *z, int *retcode)
 {
 	uae_u8 header[2 + 1 + 1 + 4 + 1 + 1];
 	z_stream zs;
@@ -519,6 +530,8 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	struct zfile *z2;
 	uae_u8 b;
 
+	if (checkwrite (z, retcode))
+		return NULL;
 	_tcscpy (name, z->name);
 	memset (&zs, 0, sizeof (zs));
 	memset (header, 0, sizeof (header));
@@ -590,6 +603,10 @@ struct zfile *zfile_gunzip (struct zfile *z)
 	}
 	zfile_fclose (z);
 	return z2;
+}
+struct zfile *zfile_gunzip (struct zfile *z)
+{
+	return zfile_gunzip (z, NULL);
 }
 
 static void truncate880k (struct zfile *z)
@@ -736,6 +753,8 @@ static struct zfile *fdi (struct zfile *z, int index, int *retcode)
 	uae_u8 tmp[12];
 	struct zcache *zc;
 
+	if (checkwrite (z, retcode))
+		return NULL;
 	if (index > 2)
 		return NULL;
 
@@ -864,6 +883,9 @@ static struct zfile *ipf (struct zfile *z, int index, int *retcode)
 	uae_u8 tmp[12];
 	struct zcache *zc;
 
+	if (checkwrite (z, retcode))
+		return NULL;
+
 	if (index > 2)
 		return NULL;
 
@@ -980,11 +1002,13 @@ end:
 }
 #endif
 
-static struct zfile *dsq (struct zfile *z, int lzx)
+static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 {
 	struct zfile *zi = NULL;
 	struct zvolume *zv = NULL;
 
+	if (checkwrite (z, retcode))
+		return NULL;
 	if (lzx) {
 		zv = archive_directory_lzx (z);
 		if (zv) {
@@ -1035,8 +1059,13 @@ static struct zfile *dsq (struct zfile *z, int lzx)
 	return z;
 }
 
-static struct zfile *wrp (struct zfile *z)
+static struct zfile *wrp (struct zfile *z, int *retcode)
 {
+	if (zfile_needwrite (z)) {
+		if (retcode)
+			*retcode = -1;
+		return NULL;
+	}
 	return unwarp (z);
 }
 
@@ -1054,7 +1083,7 @@ static void SzFree(void *p, void *address)
 }
 #define XZ_OUT_SIZE 10000
 #define XZ_IN_SIZE 10000
-static struct zfile *xz (struct zfile *z)
+static struct zfile *xz (struct zfile *z, int *retcode)
 {
 	static bool iscrc;
 	ISzAlloc allocImp;
@@ -1063,6 +1092,8 @@ static struct zfile *xz (struct zfile *z)
 	struct zfile *zo = NULL;
 	uae_u8 out[XZ_OUT_SIZE], in[XZ_IN_SIZE];
 
+	if (checkwrite (z, retcode))
+		return NULL;
 	memset (&cx, 0, sizeof cx);
 	allocImp.Alloc = SzAlloc;
 	allocImp.Free = SzFree;
@@ -1130,6 +1161,8 @@ static struct zfile *dms (struct zfile *z, int index, int *retcode)
 	int i;
 	struct zfile *zextra[DMS_EXTRA_SIZE] = { 0 };
 
+	if (checkwrite (z, retcode))
+		return NULL;
 	if (recursive)
 		return NULL;
 	if (ext) {
@@ -1362,17 +1395,17 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 		if (mask & ZFD_UNPACK) {
 			if (index == 0) {
 				if (strcasecmp (ext, L"gz") == 0)
-					return zfile_gunzip (z);
+					return zfile_gunzip (z, retcode);
 				if (strcasecmp (ext, L"adz") == 0)
-					return zfile_gunzip (z);
+					return zfile_gunzip (z, retcode);
 				if (strcasecmp (ext, L"roz") == 0)
-					return zfile_gunzip (z);
+					return zfile_gunzip (z, retcode);
 				if (strcasecmp (ext, L"hdz") == 0)
-					return zfile_gunzip (z);
+					return zfile_gunzip (z, retcode);
 				if (strcasecmp (ext, L"wrp") == 0)
-					return wrp (z);
+					return wrp (z, retcode);
 				if (strcasecmp (ext, L"xz") == 0)
-					return xz (z);
+					return xz (z, retcode);
 			}
 			if (strcasecmp (ext, L"dms") == 0)
 				return dms (z, index, retcode);
@@ -1408,11 +1441,11 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 	if (mask & ZFD_UNPACK) {
 		if (index == 0) {
 			if (header[0] == 0x1f && header[1] == 0x8b)
-				return zfile_gunzip (z);
+				return zfile_gunzip (z, retcode);
 			if (header[0] == 'P' && header[1] == 'K' && header[2] == 'D')
-				return dsq (z, 0);
+				return dsq (z, 0, retcode);
 			if (header[0] == 0xfd && header[1] == 0x37 && header[2] == 0x7a && header[3] == 0x58 && header[4] == 0x5a && header[5] == 0)
-				return xz (z);
+				return xz (z, retcode);
 		}
 		if (header[0] == 'D' && header[1] == 'M' && header[2] == 'S' && header[3] == '!')
 			return dms (z, index, retcode);
@@ -1451,7 +1484,7 @@ struct zfile *zuncompress (struct znode *parent, struct zfile *z, int dodefault,
 	if (ext) {
 		if (mask & ZFD_UNPACK) {
 			if (strcasecmp (ext, L"dsq") == 0)
-				return dsq (z, 1);
+				return dsq (z, 1, retcode);
 		}
 		if (mask & ZFD_ADF) {
 			if (strcasecmp (ext, L"adf") == 0 && !memcmp (header, "DOS", 3))
@@ -1555,6 +1588,12 @@ static bool writeneeded (const TCHAR *mode)
 {
 	return _tcschr (mode, 'w') || _tcschr (mode, 'a') || _tcschr (mode, '+') || _tcschr (mode, 't');
 }
+bool zfile_needwrite (struct zfile *zf)
+{
+	if (!zf->mode)
+		return false;
+	return writeneeded (zf->mode);
+}
 
 static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int mask)
 {
@@ -1593,10 +1632,6 @@ static struct zfile *zfile_fopen_2 (const TCHAR *name, const TCHAR *mode, int ma
 		if (stat (l->name, &st) != -1)
 			l->size = st.st_size;
 		l->f = f;
-		if (writeneeded (mode) && iszip (l, ZFD_ARCHIVE)) {
-			zfile_fclose (l);
-			return NULL;
-		}
 	}
 	return l;
 }
@@ -1666,8 +1701,6 @@ static struct zfile *zfile_fopen_x (const TCHAR *name, const TCHAR *mode, int ma
 	l = zfile_fopen_2 (path, mode, mask);
 	if (!l)
 		return 0;
-	if (writeneeded (mode))
-		return l;
 	l2 = NULL;
 	while (cnt-- > 0) {
 		int rc;

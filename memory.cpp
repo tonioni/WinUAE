@@ -1999,15 +1999,15 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 	int id;
 	void *answer;
 	shmpiece *x;
+	static int recurse;
 
-	if (!canjit()) {
+	if (!canjit ()) {
 		nocanbang ();
 		return xcalloc (uae_u8, s + 4);
 	}
 
 	id = shmget (IPC_PRIVATE, s, 0x1ff, file);
 	if (id == -1) {
-		static int recurse;
 		uae_u8 *p;
 		nocanbang ();
 		if (recurse)
@@ -2031,8 +2031,13 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 		shm_start = x;
 		return (uae_u8*)answer;
 	}
+	if (recurse)
+		return NULL;
 	nocanbang ();
-	return mapped_malloc (s, file);
+	recurse++;
+	uae_u8 *r =  mapped_malloc (s, file);
+	recurse--;
+	return r;
 }
 
 #endif

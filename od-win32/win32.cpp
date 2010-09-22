@@ -2837,7 +2837,7 @@ static const TCHAR *obsolete[] = {
 	L"killwinkeys", L"sound_force_primary", L"iconified_highpriority",
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
-	L"filesystem_codepage", L"aspi",
+	L"filesystem_codepage", L"aspi", L"no_overlay",
 	0
 };
 

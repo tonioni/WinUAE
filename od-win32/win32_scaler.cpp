@@ -108,10 +108,12 @@ static int vblscale2 (int v)
 	return v;
 }
 
-static void fixh (int *ah, int *th)
+static void fixh (int *ah, int *th, int minh)
 {
 	if (!(beamcon0 & 0x80)) {
 		int max = ((572 / 2) * scale) << currprefs.gfx_vresolution;
+		if (minh && max < minh)
+			max = minh;
 		if (*ah > max)
 			*ah = max;
 		if (*th > max)
@@ -119,11 +121,11 @@ static void fixh (int *ah, int *th)
 	}
 }
 
-uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
+static uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_width, int dst_height, int dst_depth, int aw, int ah, int scale, int temp_width, int temp_height, uae_u8 *dptr, int pitch)
 {
 	int aws, ahs;
 
-	fixh (&ah, &temp_height);
+	fixh (&ah, &temp_height, dst_height);
 
 	aws = aw * scale;
 	ahs = ah * scale;
@@ -172,7 +174,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	fpux_save (&fpuv);
 
-	fixh (&ah, &temp_height);
+	fixh (&ah, &temp_height, dst_height);
 
 	getinit ();
 	ahs2 = vblscale (ah) * scale;
@@ -658,7 +660,7 @@ void S2X_render (void)
 	dptr = surfstart;
 	enddptr = dptr + pitch * temp_height;
 	if (!d3d) {
-		dptr = getfilterrect1 (&sr, &dr, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
+		dptr = getfilterrect1 (&sr, &dr, dst_width, dst_height, dst_depth, aw, ah, scale, temp_width, temp_height, dptr, pitch);
 	}
 
 	if (!dptr) /* weird things can happen */

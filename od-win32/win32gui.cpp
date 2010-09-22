@@ -4158,18 +4158,16 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath);
 		DeleteConfigTree (hDlg);
 		config = CreateConfigStore (config, TRUE);
-		config = fixloadconfig (hDlg, config);
 		ConfigToRegistry (config, configtypepanel);
-		InitializeConfigTreeView (hDlg);
+		config = initloadsave (hDlg, config);
 		InitializeConfig (hDlg, config);
 		break;
 	case IDC_QUICKSAVE:
 		HandleConfiguration (hDlg, CONFIG_SAVE, config, NULL);
 		DeleteConfigTree (hDlg);
 		config = CreateConfigStore (config, TRUE);
-		config = fixloadconfig (hDlg, config);
 		ConfigToRegistry (config, configtypepanel);
-		InitializeConfigTreeView (hDlg);
+		config = initloadsave (hDlg, config);
 		InitializeConfig (hDlg, config);
 		break;
 	case IDC_QUICKLOAD:
@@ -4198,8 +4196,8 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 		HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL);
 		DeleteConfigTree (hDlg);
 		config = CreateConfigStore (config, TRUE);
-		config = fixloadconfig (hDlg, config);
-		InitializeConfigTreeView (hDlg);
+		config = initloadsave (hDlg, config);
+		InitializeConfig (hDlg, config);
 		break;
 	case IDC_VIEWINFO:
 		if (workprefs.info[0]) {
@@ -4730,6 +4728,7 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				set_path (L"SaveimagePath", NULL, path_type);
 				set_path (L"VideoPath", NULL, path_type);
 				set_path (L"RipperPath", NULL, path_type);
+				set_path (L"InputPath", NULL, path_type);
 				values_to_pathsdialog (hDlg);
 				FreeConfigStore ();
 			}

@@ -106,6 +106,11 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 		*retcode = 0;
 	if (index > 0)
 		return NULL;
+	if (zfile_needwrite (zf)) {
+		if (retcode)
+			*retcode = -1;
+		return NULL;
+	}
 	zv = getzvolume (parent, zf, id);
 	if (!zv)
 		return NULL;
@@ -208,6 +213,11 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 
 struct zfile *archive_access_arcacc_select (struct zfile *zf, unsigned int id, int *retcode)
 {
+	if (zfile_needwrite (zf)) {
+		if (retcode)
+			*retcode = -1;
+		return NULL;
+	}
 	return zf;
 }
 
