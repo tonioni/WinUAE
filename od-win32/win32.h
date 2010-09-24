@@ -15,12 +15,12 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 1
+#define WINUAEPUBLICBETA 0
 #define LANG_DLL 1
 
-#define WINUAEBETA L"20"
-#define WINUAEDATE MAKEBD(2010, 9, 22)
-#define WINUAEEXTRA L"RC3"
+#define WINUAEBETA L""
+#define WINUAEDATE MAKEBD(2010, 9, 24)
+#define WINUAEEXTRA L""
 #define WINUAEREV L""
 
 #define IHF_WINDOWHIDDEN 6

@@ -1,4 +1,6 @@
 
+Final 2.3.0
+
 Beta 20 (RC3):
 
 - Configuration panel save and delete operations lost currently selected configuration entry
