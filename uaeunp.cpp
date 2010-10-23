@@ -36,7 +36,7 @@ void gui_message (const TCHAR *format, ...)
 {
 }
 
-int uaerand (void)
+uae_u32 uaerand (void)
 {
 	return rand ();
 }
@@ -377,7 +377,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	TCHAR fn[MAX_DPATH];
 
 	ret = 0;
-	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -457,7 +457,10 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	}
 	geterror ();
 	if (!found && !level) {
-		_tprintf (L"'%s' not found\n", fn);
+		if (dst[0])
+			_tprintf (L"'%s' not found\n", dst);
+		else
+			_tprintf (L"nothing extracted\n");
 	}
 	return ret;
 }
@@ -472,7 +475,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	TCHAR fn[MAX_DPATH];
 
 	ret = 0;
-	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
+	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
 		_tprintf (L"Couldn't open archive '%s'\n", src);
@@ -698,7 +701,7 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.8c by Toni Wilen (c)2010\n");
+		_tprintf (L"UAE unpacker uaeunp 0.8d by Toni Wilen (c)2010\n");
 		_tprintf (L"\n");
 		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");

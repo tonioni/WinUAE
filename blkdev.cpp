@@ -35,6 +35,10 @@ static int delayed[MAX_TOTAL_SCSI_DEVICES];
 static uae_sem_t unitsem[MAX_TOTAL_SCSI_DEVICES];
 static int unitsem_cnt[MAX_TOTAL_SCSI_DEVICES];
 
+static TCHAR newimagefiles[MAX_TOTAL_SCSI_DEVICES][256];
+static int imagechangetime[MAX_TOTAL_SCSI_DEVICES];
+static bool cdimagefileinuse[MAX_TOTAL_SCSI_DEVICES], wasopen[MAX_TOTAL_SCSI_DEVICES];
+
 /* convert minutes, seconds and frames -> logical sector number */
 int msf2lsn (int msf)
 {
@@ -421,11 +425,17 @@ void blkdev_cd_change (int unitnum, const TCHAR *name)
 
 void device_func_reset (void)
 {
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		wasopen[i] = false;
+		waspaused[i] = false;
+		imagechangetime[i] = 0;
+		cdimagefileinuse[i] = false;
+		newimagefiles[i][0] = 0;
+	}
 }
 
 int device_func_init (int flags)
 {
-	device_func_reset ();
 	blkdev_fix_prefs (&currprefs);
 	install_driver (flags);
 	return 1;
@@ -454,12 +464,6 @@ void blkdev_exitgui (void)
 		waspaused[i] = 0;
 	}
 }
-
-
-
-static TCHAR newimagefiles[MAX_TOTAL_SCSI_DEVICES][256];
-static int imagechangetime[MAX_TOTAL_SCSI_DEVICES];
-static bool cdimagefileinuse[MAX_TOTAL_SCSI_DEVICES], wasopen[MAX_TOTAL_SCSI_DEVICES];
 
 static void check_changes (int unitnum)
 {
@@ -1038,6 +1042,19 @@ static int addtocentry (uae_u8 **dstp, int *len, int point, int newpoint, int ms
 	return -1;
 }
 
+static int scsiemudrv (int unitnum, uae_u8 *cmd)
+{
+	if (failunit (unitnum))
+		return -1;
+	if (!getsem (unitnum))
+		return 0;
+	int v = 0;
+	if (device_func[unitnum]->scsiemu)
+		v = device_func[unitnum]->scsiemu (unitnum, cmd);
+	freesem (unitnum);
+	return v;
+}
+
 static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_info *di)
 {
 	int msf = cmd[0] == 0xb9;
@@ -1419,6 +1436,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		break;
 		case 0x1b: // START/STOP
 			sys_command_cd_stop (unitnum);
+			scsiemudrv (unitnum, cmdbuf);
 			scsi_len = 0;
 		break;
 		case 0x1e: // PREVENT/ALLOW MEDIA REMOVAL
@@ -1742,6 +1760,8 @@ uae_u8 *save_cd (int num, int *len)
 	uae_u8 *dstbak, *dst;
 
 	if (!currprefs.cdslots[num].inuse || num >= MAX_TOTAL_SCSI_DEVICES)
+		return NULL;
+	if (!currprefs.cs_cd32cd && !currprefs.cs_cdtvcd && !currprefs.scsi)
 		return NULL;
 	dstbak = dst = xmalloc (uae_u8, 4 + 256 + 4 + 4);
 	save_u32 (4);

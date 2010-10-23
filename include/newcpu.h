@@ -84,7 +84,7 @@ typedef double fptype;
 #endif
 #endif
 
-#define CPU_PIPELINE_MAX 2
+#define CPU_PIPELINE_MAX 3
 #define CPU000_MEM_CYCLE 4
 #define CPU000_CLOCK_MULT 2
 #define CPU020_MEM_CYCLE 3
@@ -123,6 +123,7 @@ struct regstruct
 	uae_u32 pc;
 	uae_u8 *pc_p;
 	uae_u8 *pc_oldp;
+	uae_u32 instruction_pc;
 
 	uae_u16 irc, ir;
 	uae_u32 spcflags;
@@ -135,6 +136,7 @@ struct regstruct
 	flagtype m;
 	flagtype x;
 	flagtype stopped;
+	int exception;
 	int intmask;
 	int ipl, ipl_pin;
 
@@ -157,7 +159,6 @@ struct regstruct
 	uae_u16 wb3_status;
 	int mmu_enabled;
 	int mmu_pagesize_8k;
-	uae_u32 fault_pc;
 #endif
 
 	uae_u32 pcr;
@@ -166,12 +167,34 @@ struct regstruct
 	uae_u8 panic;
 	uae_u32 panic_pc, panic_addr;
 
-	uae_u32 prefetch020data[CPU_PIPELINE_MAX];
-	uae_u32 prefetch020addr[CPU_PIPELINE_MAX];
+	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u32 prefetch020addr;
+	uae_u32 cacheholdingdata020;
+	uae_u32 cacheholdingaddr020;
 	int ce020memcycles;
 };
 
 extern struct regstruct regs;
+
+#define MAX_CPUTRACESIZE 128
+struct cputracememory
+{
+	uae_u32 addr;
+	uae_u32 data;
+	int mode;
+};
+
+struct cputracestruct
+{
+	uae_u32 regs[16];
+	uae_u32 usp, isp, pc;
+	uae_u16 ir, irc, sr, opcode;
+	int intmask, stopped, state;
+	int memoryoffset;
+	int cyclecounter, cyclecounter_pre, cyclecounter_post;
+	int readcounter, writecounter;
+	struct cputracememory ctm[MAX_CPUTRACESIZE];
+};
 
 STATIC_INLINE uae_u32 munge24 (uae_u32 x)
 {
@@ -198,7 +221,7 @@ STATIC_INLINE void unset_special (uae_u32 x)
 STATIC_INLINE void m68k_setpc (uaecptr newpc)
 {
 	regs.pc_p = regs.pc_oldp = get_real_address (newpc);
-	regs.fault_pc = regs.pc = newpc;
+	regs.instruction_pc = regs.pc = newpc;
 }
 
 STATIC_INLINE uaecptr m68k_getpc (void)
@@ -219,12 +242,12 @@ STATIC_INLINE void m68k_incpc (int o)
 
 STATIC_INLINE void m68k_setpc_mmu (uaecptr newpc)
 {
-	regs.fault_pc = regs.pc = newpc;
+	regs.instruction_pc = regs.pc = newpc;
 	regs.pc_p = regs.pc_oldp = 0;
 }
 STATIC_INLINE void m68k_setpci (uaecptr newpc)
 {
-	regs.fault_pc = regs.pc = newpc;
+	regs.instruction_pc = regs.pc = newpc;
 }
 STATIC_INLINE uaecptr m68k_getpci (void)
 {
@@ -241,23 +264,12 @@ STATIC_INLINE void m68k_do_rts (void)
 	m68k_setpc (newpc);
 	m68k_areg (regs, 7) += 4;
 }
-STATIC_INLINE void m68k_do_rtsi (void)
-{
-	m68k_setpci (get_long (m68k_areg (regs, 7)));
-	m68k_areg (regs, 7) += 4;
-}
 
 STATIC_INLINE void m68k_do_bsr (uaecptr oldpc, uae_s32 offset)
 {
 	m68k_areg (regs, 7) -= 4;
 	put_long (m68k_areg (regs, 7), oldpc);
 	m68k_incpc (offset);
-}
-STATIC_INLINE void m68k_do_bsri (uaecptr oldpc, uae_s32 offset)
-{
-	m68k_areg (regs, 7) -= 4;
-	put_long (m68k_areg (regs, 7), oldpc);
-	m68k_incpci (offset);
 }
 
 STATIC_INLINE uae_u32 get_ibyte (int o)
@@ -309,6 +321,8 @@ STATIC_INLINE uae_u32 next_ilongi (void)
 	return r;
 }
 
+extern uae_u32 (*x_prefetch)(int);
+extern uae_u32 (*x_prefetch_long)(int);
 extern uae_u32 (*x_get_byte)(uaecptr addr);
 extern uae_u32 (*x_get_word)(uaecptr addr);
 extern uae_u32 (*x_get_long)(uaecptr addr);
@@ -317,6 +331,12 @@ extern void (*x_put_word)(uaecptr addr, uae_u32 v);
 extern void (*x_put_long)(uaecptr addr, uae_u32 v);
 extern uae_u32 (*x_next_iword)(void);
 extern uae_u32 (*x_next_ilong)(void);
+extern uae_u32 (*x_get_ilong)(int);
+extern uae_u32 (*x_get_iword)(int);
+extern uae_u32 (*x_get_ibyte)(int);
+extern void (*x_do_cycles)(unsigned long);
+extern void (*x_do_cycles_pre)(unsigned long);
+extern void (*x_do_cycles_post)(unsigned long, uae_u32);
 
 extern uae_u32 REGPARAM3 x_get_disp_ea_020 (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
@@ -326,7 +346,6 @@ extern void m68k_setstopped (void);
 extern void m68k_resumestopped (void);
 
 extern uae_u32 REGPARAM3 get_disp_ea_020 (uae_u32 base, uae_u32 dp) REGPARAM;
-extern uae_u32 REGPARAM3 get_disp_ea_000 (uae_u32 base, uae_u32 dp) REGPARAM;
 extern uae_u32 REGPARAM3 get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
 extern void REGPARAM3 put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
 
@@ -337,7 +356,7 @@ extern int get_cpu_model (void);
 
 extern void REGPARAM3 MakeSR (void) REGPARAM;
 extern void REGPARAM3 MakeFromSR (void) REGPARAM;
-extern void REGPARAM3 Exception (int, uaecptr) REGPARAM;
+extern void REGPARAM3 Exception (int) REGPARAM;
 extern void NMI (void);
 extern void NMI_delayed (void);
 extern void prepare_interrupt (uae_u32);
@@ -345,7 +364,7 @@ extern void doint (void);
 extern void dump_counts (void);
 extern int m68k_move2c (int, uae_u32 *);
 extern int m68k_movec2 (int, uae_u32 *);
-extern void m68k_divl (uae_u32, uae_u32, uae_u16, uaecptr);
+extern void m68k_divl (uae_u32, uae_u32, uae_u16);
 extern void m68k_mull (uae_u32, uae_u32, uae_u16);
 extern void init_m68k (void);
 extern void init_m68k_full (void);
@@ -373,12 +392,12 @@ extern void fpu_reset (void);
 extern void fpux_save (int*);
 extern void fpux_restore (int*);
 
-extern void exception3 (uae_u32 opcode, uaecptr addr, uaecptr fault);
-extern void exception3i (uae_u32 opcode, uaecptr addr, uaecptr fault);
-extern void exception2 (uaecptr addr, uaecptr fault);
+extern void exception3 (uae_u32 opcode, uaecptr addr);
+extern void exception3i (uae_u32 opcode, uaecptr addr);
+extern void exception2 (uaecptr addr);
 extern void cpureset (void);
 
-extern void fill_prefetch_slow (void);
+extern void fill_prefetch (void);
 
 #define CPU_OP_NAME(a) op ## a
 
@@ -424,3 +443,7 @@ struct cpum2c {
 	TCHAR *regname;
 };
 extern struct cpum2c m2cregs[];
+
+extern bool is_cpu_tracer (void);
+extern bool set_cpu_tracer (bool force);
+extern bool can_cpu_tracer (void);

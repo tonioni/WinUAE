@@ -405,7 +405,7 @@ struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR 
 					tc->mac[0], tc->mac[1], tc->mac[2],
 					tc->mac[3], tc->mac[4], tc->mac[5], cnt++);
 				tc->active = 1;
-				tc->mtu = 1500;
+				tc->mtu = 1522;
 				tc->name = au (d->name);
 				tc->desc = au (d->description);
 			} else {

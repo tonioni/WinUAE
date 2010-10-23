@@ -631,73 +631,77 @@ void sortdisplays (void)
 		md1->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
 		md1->DisplayModes[0].depth = -1;
 		md1->disabled = 1;
-		if (DirectDraw_Start (md1->primary ? NULL : &md1->guid)) {
-			if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
-				int w = DirectDraw_CurrentWidth ();
-				int h = DirectDraw_CurrentHeight ();
-				int b = DirectDraw_GetCurrentDepth ();
-				int maxw = 0, maxh = 0;
-
-				DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES, modesCallback, md1);
-				idx2 = 0;
-				while (md1->DisplayModes[idx2].depth >= 0) {
-					struct PicassoResolution *pr = &md1->DisplayModes[idx2];
-					if (pr->res.width > maxw)
-						maxw = pr->res.width;
-					if (pr->res.height > maxh)
-						maxh = pr->res.height;
-					idx2++;
-				}
-				write_log (L"Desktop: W=%d H=%d B=%d. MaxW=%d MaxH=%d CXVS=%d CYVS=%d\n", w, h, b, maxw, maxh,
-					GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
-				idx = 0;
-				for (;;) {
-					int found;
-					DEVMODE dm;
-					dm.dmSize = sizeof dm;
-					dm.dmDriverExtra = 0;
-					if (!EnumDisplaySettingsEx (md1->primary ? NULL : md1->name3, idx, &dm, EDS_RAWMODE))
-						break;
-					idx2 = 0;
-					found = 0;
-					while (md1->DisplayModes[idx2].depth >= 0 && !found) {
-						struct PicassoResolution *pr = &md1->DisplayModes[idx2];
-						if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
-							for (i = 0; pr->refresh[i]; i++) {
-								if (pr->refresh[i] == dm.dmDisplayFrequency) {
-									found = 1;
-									break;
-								}
-							}
-						}
-						idx2++;
-					}
-					if (!found && dm.dmBitsPerPel > 8) {
-						int freq = 0;
-#if 0
-						write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
-							dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
-#endif
-						if (dm.dmFields & DM_DISPLAYFREQUENCY) {
-							freq = dm.dmDisplayFrequency;
-							if (freq < 10)
-								freq = 0;
-						}
-						if (freq < 75 && dm.dmPelsWidth <= maxw && dm.dmPelsHeight <= maxh) {
-							if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL))
-								addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, 1);
-						}
-					}
-					idx++;
-				}
-				//dhack();
-				sortmodes (md1);
-				modesList (md1);
-				DirectDraw_Release ();
-				if (md1->DisplayModes[0].depth >= 0)
-					md1->disabled = 0;
-			}
+		int w = GetSystemMetrics (SM_CXSCREEN);
+		int h = GetSystemMetrics (SM_CYSCREEN);
+		HDC hdc = GetDC (NULL);
+		int b = 0;
+		
+		if (hdc) {
+			b = GetDeviceCaps(hdc, BITSPIXEL) * GetDeviceCaps(hdc, PLANES);
+			ReleaseDC (NULL, hdc);
 		}
+
+		int maxw = 0, maxh = 0;
+		if (DirectDraw_Start (NULL)) {
+			DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES, modesCallback, md1);
+			idx2 = 0;
+			while (md1->DisplayModes[idx2].depth >= 0) {
+				struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+				if (pr->res.width > maxw)
+					maxw = pr->res.width;
+				if (pr->res.height > maxh)
+					maxh = pr->res.height;
+				idx2++;
+			}
+			DirectDraw_Release ();
+		}
+		write_log (L"Desktop: W=%d H=%d B=%d. MaxW=%d MaxH=%d CXVS=%d CYVS=%d\n", w, h, b, maxw, maxh,
+			GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
+		idx = 0;
+		for (;;) {
+			int found;
+			DEVMODE dm;
+			dm.dmSize = sizeof dm;
+			dm.dmDriverExtra = 0;
+			if (!EnumDisplaySettingsEx (md1->primary ? NULL : md1->name3, idx, &dm, EDS_RAWMODE))
+				break;
+			idx2 = 0;
+			found = 0;
+			while (md1->DisplayModes[idx2].depth >= 0 && !found) {
+				struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+				if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
+					for (i = 0; pr->refresh[i]; i++) {
+						if (pr->refresh[i] == dm.dmDisplayFrequency) {
+							found = 1;
+							break;
+						}
+					}
+				}
+				idx2++;
+			}
+			if (!found && dm.dmBitsPerPel > 8) {
+				int freq = 0;
+#if 0
+				write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
+					dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
+#endif
+				if (dm.dmFields & DM_DISPLAYFREQUENCY) {
+					freq = dm.dmDisplayFrequency;
+					if (freq < 10)
+						freq = 0;
+				}
+				if (freq < 75 && dm.dmPelsWidth <= maxw && dm.dmPelsHeight <= maxh) {
+					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL))
+						addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, 1);
+				}
+			}
+			idx++;
+		}
+		//dhack();
+		sortmodes (md1);
+		modesList (md1);
+		if (md1->DisplayModes[0].depth >= 0)
+		md1->disabled = 0;
 		i = 0;
 		while (md1->DisplayModes[i].depth > 0)
 			i++;
@@ -1289,8 +1293,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
 	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
-	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (2 | 8) : 0;
-	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (2 | 8) : 0;
+	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (128) : 0;
+	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
 	c |= currprefs.gfx_scanlines != changed_prefs.gfx_scanlines ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
@@ -1379,6 +1383,14 @@ int check_prefs_changed_gfx (void)
 			DirectDraw_Fill (NULL, 0);
 			DirectDraw_BlitToPrimary (NULL);
 		}
+		if (c & 128) {
+			if (currprefs.gfx_autoresolution) {
+				c |= 2 | 8;
+			} else {
+				drawing_init ();
+				S2X_reset ();
+			}
+		}
 		if ((c & 16) || ((c & 8) && keepfsmode)) {
 			if (reopen (c & 2))
 				c |= 2;
@@ -1398,7 +1410,7 @@ int check_prefs_changed_gfx (void)
 
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
-		init_hz ();
+		init_hz_full ();
 		return 1;
 	}
 
@@ -2466,10 +2478,19 @@ static BOOL doInit (void)
 		} else {
 #endif
 			currentmode->native_depth = currentmode->current_depth;
+			gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution;
+			gfxvidinfo.gfx_vresolution_reserved = currprefs.gfx_vresolution;
 #if defined (GFXFILTER)
 			if (currentmode->flags & (DM_D3D | DM_SWSCALE)) {
-				currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-				currentmode->amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
+				if (!currprefs.gfx_autoresolution) {
+					currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+					currentmode->amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
+				} else {
+					gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution == RES_SUPERHIRES ? RES_SUPERHIRES : RES_HIRES;
+					gfxvidinfo.gfx_vresolution_reserved = VRES_DOUBLE;
+					currentmode->amiga_width = AMIGA_WIDTH_MAX << gfxvidinfo.gfx_resolution_reserved;
+					currentmode->amiga_height = AMIGA_HEIGHT_MAX << gfxvidinfo.gfx_vresolution_reserved;
+				}
 				if (currprefs.gfx_resolution == RES_SUPERHIRES)
 					currentmode->amiga_height *= 2;
 				if (currentmode->amiga_height > 960)

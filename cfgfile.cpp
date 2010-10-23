@@ -165,8 +165,8 @@ static const TCHAR *maxhoriz[] = { L"lores", L"hires", L"superhires", 0 };
 static const TCHAR *maxvert[] = { L"nointerlace", L"interlace", 0 };
 static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
-static const TCHAR *autoscale[] = { L"none", L"standard", L"max", L"scale", L"resize", L"center", 0 };
-static const TCHAR *joyportmodes[] = { L"", L"mouse", L"djoy", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
+static const TCHAR *autoscale[] = { L"none", L"auto", L"standard", L"max", L"scale", L"resize", L"center", 0 };
+static const TCHAR *joyportmodes[] = { L"", L"mouse", L"djoy", L"gamepad", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
 static const TCHAR *joyaf[] = { L"none", L"normal", L"toggle", 0 };
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix_9pin", L"epson_matrix_24pin", L"epson_matrix_48pin", 0 };
 static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
@@ -190,7 +190,7 @@ static const TCHAR *obsolete[] = {
 	L"kickstart_key_file", L"fast_copper", L"sound_adjust",
 	L"serial_hardware_dtrdsr", L"gfx_filter_upscale",
 	L"gfx_correct_aspect", L"gfx_autoscale", L"parallel_sampler", L"parallel_ascii_emulation",
-	L"avoid_vid", L"avoid_dga", L"z3chipmem_size",
+	L"avoid_vid", L"avoid_dga", L"z3chipmem_size", L"state_replay_buffer", L"state_replay",
 	NULL
 };
 
@@ -888,9 +888,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		: p->keyboard_lang == KBD_LANG_IT ? L"it"
 		: L"FOO"));
 
-	cfgfile_dwrite_str (f, L"state_replay", p->statecapture ? L"yes" : L"no");
 	cfgfile_dwrite (f, L"state_replay_rate", L"%d", p->statecapturerate);
-	cfgfile_dwrite (f, L"state_replay_buffer", L"%d", p->statecapturebuffersize);
+	cfgfile_dwrite (f, L"state_replay_buffers", L"%d", p->statecapturebuffersize);
+	cfgfile_dwrite_bool (f, L"state_replay_autoplay", p->inprec_autoplay);
 	cfgfile_dwrite_bool (f, L"warp", p->turbo_emulation);
 
 #ifdef FILESYS
@@ -1218,7 +1218,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_intval (option, value, L"sound_latency", &p->sound_latency, 1)
 		|| cfgfile_intval (option, value, L"sound_max_buff", &p->sound_maxbsiz, 1)
 		|| cfgfile_intval (option, value, L"state_replay_rate", &p->statecapturerate, 1)
-		|| cfgfile_intval (option, value, L"state_replay_buffer", &p->statecapturebuffersize, 1)
+		|| cfgfile_intval (option, value, L"state_replay_buffers", &p->statecapturebuffersize, 1)
+		|| cfgfile_yesno (option, value, L"state_replay_autoplay", &p->inprec_autoplay)
 		|| cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)
 		|| cfgfile_intval (option, value, L"sound_volume", &p->sound_volume, 1)
 		|| cfgfile_intval (option, value, L"sound_stereo_separation", &p->sound_stereo_separation, 1)
@@ -1284,7 +1285,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"sound_auto", &p->sound_auto)
 		|| cfgfile_yesno (option, value, L"sound_stereo_swap_paula", &p->sound_stereo_swap_paula)
 		|| cfgfile_yesno (option, value, L"sound_stereo_swap_ahi", &p->sound_stereo_swap_ahi)
-		|| cfgfile_yesno (option, value, L"state_replay", &p->statecapture)
 		|| cfgfile_yesno (option, value, L"avoid_cmov", &p->avoid_cmov)
 		|| cfgfile_yesno (option, value, L"log_illegal_mem", &p->illegal_mem)
 		|| cfgfile_yesno (option, value, L"filesys_no_fsdb", &p->filesys_no_uaefsdb)
@@ -3604,13 +3604,13 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter = 0;
 	p->gfx_filtershader[0] = 0;
 	p->gfx_filtermask[0] = 0;
-	p->gfx_filter_horiz_zoom_mult = 0;
-	p->gfx_filter_vert_zoom_mult = 0;
+	p->gfx_filter_horiz_zoom_mult = 1000;
+	p->gfx_filter_vert_zoom_mult = 1000;
 	p->gfx_filter_bilinear = 0;
 	p->gfx_filter_filtermode = 0;
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
-	p->gfx_filter_autoscale = 0;
+	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
 	p->gfx_filteroverlay_overscan = 0;
 
 	_tcscpy (p->floppyslots[0].df, L"df0.adf");
@@ -3672,9 +3672,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->dfxclickvolume = 33;
 	p->dfxclickchannelmask = 0xffff;
 
-	p->statecapturebuffersize = 20 * 1024 * 1024;
+	p->statecapturebuffersize = 100;
 	p->statecapturerate = 5 * 50;
-	p->statecapture = 0;
+	p->inprec_autoplay = true;
 
 #ifdef UAE_MINI
 	default_prefs_mini (p, 0);
@@ -4394,13 +4394,6 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 
 void config_check_vsync (void)
 {
-	static int cnt = 0;
-	if (cnt == 0) {
-		/* resolution_check_change (); */
-		DISK_check_change ();
-		cnt = 5;
-	}
-	cnt--;
 	if (config_changed) {
 //		if (config_changed == 1)
 //			write_log (L"* configuration check trigger\n");

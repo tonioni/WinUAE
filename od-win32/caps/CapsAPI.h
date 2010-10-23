@@ -13,11 +13,13 @@
 //  5: generate unformatted data
 //  6: generate unformatted data, that changes each revolution
 //  7: directly use source memory buffer supplied with LockImageMemory
-//  8: flakey data is created on one revolution, updated with each lock
+//  8: flakey/weak data is created on one revolution, updated with each lock
 //  9: ...Info.type holds the expected structure type
 // 10: alternate density map as fractions
 // 11: overlap position is in bits
 // 12: tracklen is in bits, and the track buffer is bit sized
+// 13: track overlap or weak data is never updated, just initialized
+// 14: set weak bit generator seed value
 #define DI_LOCK_INDEX    DF_0
 #define DI_LOCK_ALIGN    DF_1
 #define DI_LOCK_DENVAR   DF_2
@@ -31,6 +33,8 @@
 #define DI_LOCK_DENALT   DF_10
 #define DI_LOCK_OVLBIT   DF_11
 #define DI_LOCK_TRKBIT   DF_12
+#define DI_LOCK_NOUPDATE DF_13
+#define DI_LOCK_SETWSEED DF_14
 
 #define CAPS_MAXPLATFORM 4
 #define CAPS_MTRS 5
@@ -112,6 +116,24 @@ struct CapsTrackInfoT1 {
 
 typedef struct CapsTrackInfoT1 *PCAPSTRACKINFOT1;
 
+// disk track information block
+struct CapsTrackInfoT2 {
+	UDWORD type;       // track type
+	UDWORD cylinder;   // cylinder#
+	UDWORD head;       // head#
+	UDWORD sectorcnt;  // available sectors
+	PUBYTE trackbuf;   // track buffer memory 
+	UDWORD tracklen;   // track buffer memory length
+	UDWORD timelen;    // timing buffer length
+	PUDWORD timebuf;   // timing buffer
+	SDWORD overlap;    // overlap position
+	UDWORD startbit;   // start position of the decoding
+	UDWORD wseed;      // weak bit generator data
+	UDWORD weakcnt;    // number of weak data areas
+};
+
+typedef struct CapsTrackInfoT2 *PCAPSTRACKINFOT2;
+
 #pragma pack(pop)
 
 // image type
@@ -122,10 +144,16 @@ enum {
 
 // platform IDs, not about configuration, but intended use
 enum {
-	ciipNA=0,    // invalid platform (dummy entry)
-	ciipAmiga,   // Amiga
-	ciipAtariST, // Atari ST
-	ciipPC       // PC
+	ciipNA=0, // invalid platform (dummy entry)
+	ciipAmiga,
+	ciipAtariST,
+	ciipPC,
+	ciipAmstradCPC,
+	ciipSpectrum,
+	ciipSamCoupe,
+	ciipArchimedes,
+	ciipC64,
+	ciipAtari8
 };
 
 // track type

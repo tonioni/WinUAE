@@ -401,7 +401,7 @@ static ALWAYS_INLINE bool mmu_fill_atc_l1(uaecptr addr, bool super, bool data, b
 		mmu_fill_atc_l2(addr, super, data, write, l);
 	}
 	if (!(data ? l->valid_data : l->valid_inst)) {
-		D(bug(L"MMU: non-resident page (%x,%x,%x)!\n", addr, regs.pc, regs.fault_pc));
+		D(bug(L"MMU: non-resident page (%x,%x,%x)!\n", addr, regs.pc, regs.instruction_pc));
 		goto fail;
 	}
 	if (write) {

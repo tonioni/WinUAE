@@ -436,7 +436,7 @@ static void ShowMisc(void)
 		free(p2);
 	}
 	for (i = 0; i < 4; i++) {
-		p = p2 = save_disk (i, &len, NULL);
+		p = p2 = save_disk (i, &len, NULL, false);
 		ULBS(L"");
 		ULBS(L"Drive DF%d: (%s)", i, (p[4] & 2) ? "disabled" : "enabled");
 		ULBS(L"ID %08X  Motor %s  Cylinder %2d  MFMPOS %d",

@@ -997,7 +997,7 @@ static void hrtmon_go (void)
 		old = get_long ((uaecptr)(regs.vbr + 0x8));
 		put_word (hrtmem_start + 0xc0000, 4);
 		put_long ((uaecptr)(regs.vbr + 8), get_long (hrtmem_start + 8));
-		Exception (2, 0);
+		Exception (2);
 		put_long ((uaecptr)(regs.vbr + 8), old);
 	} else if (cart_type == CART_SUPER4) {
 		uae_u32 v = get_long (hrtmem_start + 0x7c);
@@ -1076,7 +1076,7 @@ void check_prefs_changed_carts (int in_memory_reset)
 void action_replay_reset (void)
 {
 	if (hrtmemory) {
-		if (savestate_state == STATE_RESTORE) {
+		if (isrestore ()) {
 			if (m68k_getpc () >= hrtmem_start && m68k_getpc () <= hrtmem_start + hrtmem_size)
 				hrtmon_map_banks ();
 			else
@@ -1086,7 +1086,7 @@ void action_replay_reset (void)
 		if (action_replay_flag == ACTION_REPLAY_INACTIVE)
 			return;
 
-		if (savestate_state == STATE_RESTORE) {
+		if (isrestore ()) {
 			if (m68k_getpc () >= arrom_start && m68k_getpc () <= arrom_start + arrom_size) {
 				action_replay_flag = ACTION_REPLAY_ACTIVE;
 				hide_cart (0);

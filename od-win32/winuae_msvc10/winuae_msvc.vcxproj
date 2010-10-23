@@ -551,6 +551,8 @@
     <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
     <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
+    <ClCompile Include="..\..\inputrecord.cpp" />
+    <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />

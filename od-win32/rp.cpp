@@ -477,7 +477,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			p->gfx_size_fs.height = disp->rect.bottom - disp->rect.top;
 		}
 
-		p->gfx_filter = rp_filter_default;
+		//p->gfx_filter = rp_filter_default;
 		p->gfx_filter_horiz_zoom_mult = 1000;
 		p->gfx_filter_vert_zoom_mult = 1000;
 		//p->gfx_filter_autoscale = 0;
@@ -665,12 +665,12 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			TCHAR *s = (TCHAR*)pData;
 			DWORD ret = FALSE;
 			if (s == NULL) {
-				savestate_initsave (NULL, 0, TRUE);
+				savestate_initsave (NULL, 0, TRUE, true);
 				return 1;
 			}
 			if (vpos == 0) {
-				savestate_initsave (L"", 1, TRUE);
-				save_state (s, L"AF2008");
+				savestate_initsave (L"", 1, TRUE, true);
+				save_state (s, L"AmigaForever");
 				ret = 1;
 			} else {
 				//savestate_initsave (s, 1, TRUE);
@@ -825,6 +825,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_filter_default = rp_filter = currprefs.gfx_filter;
 	if (rp_filter == 0)
 		rp_filter = UAE_FILTER_NULL;
+	//p->gfx_api = 0;
 
 	fixup_size (p);
 	get_screenmode (&sm, p);

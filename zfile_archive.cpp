@@ -1064,7 +1064,7 @@ static struct zfile *archive_access_plain (struct znode *zn)
 	if (zn->offset) {
 		struct zfile *zf;
 		z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-		zf = zfile_fopen2 (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
+		zf = zfile_fopen (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
 		if (zf) {
 			zfile_fread (z->data, zn->size, 1, zf);
 			zfile_fclose (zf);

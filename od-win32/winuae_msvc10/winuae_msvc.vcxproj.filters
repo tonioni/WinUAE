@@ -487,6 +487,12 @@
     <ClCompile Include="..\cda_play.cpp">
       <Filter>win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\inputrecord.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\statusline.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

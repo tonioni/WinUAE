@@ -51,6 +51,7 @@ STATIC_INLINE unsigned long int get_cycles (void)
 STATIC_INLINE void set_cycles (unsigned long int x)
 {
 	currcycle = x;
+	eventtab[ev_hsync].oldcycles = x;
 #ifdef EVT_DEBUG
 	if (currcycle & (CYCLE_UNIT - 1))
 		write_log (L"%x\n", currcycle);
@@ -96,18 +97,3 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 
 #define do_cycles do_cycles_slow
 #define countdown pissoff
-
-/* This is a special-case function.  Normally, all events should lie in the
-future; they should only ever be active at the current cycle during
-do_cycles.  However, a snapshot is saved during do_cycles, and so when
-restoring it, we may have other events pending.  */
-
-STATIC_INLINE void handle_active_events (void)
-{
-	int i;
-	for (i = 0; i < ev_max; i++) {
-		if (eventtab[i].active && eventtab[i].evtime == currcycle) {
-			(*eventtab[i].handler)();
-		}
-	}
-}

@@ -155,7 +155,7 @@ read 1 byte to stop reset */
 #define IDE_GAYLE 0
 #define IDE_ADIDE 1
 
-#define MAX_IDE_MULTIPLE_SECTORS 128
+#define MAX_IDE_MULTIPLE_SECTORS 64
 #define SECBUF_SIZE (512 * (MAX_IDE_MULTIPLE_SECTORS * 2))
 
 struct ide_hdf
@@ -286,7 +286,7 @@ static void gayle_cs_change (uae_u8 mask, int onoff)
 			if (gayle_irq & GAYLE_IRQ_RESET)
 				uae_reset (0);
 			if (gayle_irq & GAYLE_IRQ_BERR)
-				Exception (2, 0);
+				Exception (2);
 		}
 	}
 }
@@ -1904,7 +1904,7 @@ static void initide (void)
 	int i;
 
 	alloc_ide_mem (idedrive, 4);
-	if (savestate_state == STATE_RESTORE)
+	if (isrestore ())
 		return;
 	ide_error = 1;
 	ide_sector = ide_nsector = 1;
@@ -1954,13 +1954,16 @@ uae_u8 *restore_gayle (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_gayle (int *len)
+uae_u8 *save_gayle (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
 	if (currprefs.cs_ide <= 0)
 		return NULL;
-	dstbak = dst = xmalloc (uae_u8, 1000);
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
 	save_u8 (currprefs.cs_ide);
 	save_u8 (gayle_int);
 	save_u8 (gayle_irq);
@@ -1971,7 +1974,7 @@ uae_u8 *save_gayle (int *len)
 	return dstbak;
 }
 
-uae_u8 *save_ide (int num, int *len)
+uae_u8 *save_ide (int num, int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	struct ide_hdf *ide;
@@ -1983,7 +1986,10 @@ uae_u8 *save_ide (int num, int *len)
 	ide = idedrive[num];
 	if (ide->hdhfd.size == 0)
 		return NULL;
-	dstbak = dst = xmalloc (uae_u8, 1000);
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
 	save_u32 (num);
 	save_u64 (ide->hdhfd.size);
 	save_string (ide->hdhfd.path);

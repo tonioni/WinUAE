@@ -324,7 +324,7 @@ static int play_cdtrack (uae_u8 *p)
 
 	end = last_cd_position;
 	start_found = end_found = 0;
-	for (j = 0; j < toc.points; j++) {
+	for (j = toc.first_track_offset; j <= toc.last_track_offset; j++) {
 		struct cd_toc *s = &toc.toc[j];
 		if (track_start == s->track) {
 			start_found++;
@@ -1771,11 +1771,16 @@ void cdtv_check_banks (void)
 
 #ifdef SAVESTATE
 
-uae_u8 *save_dmac (int *len)
+uae_u8 *save_dmac (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	
-	dstbak = dst = xmalloc (uae_u8, 1000);
+	if (!currprefs.cs_cdtvcd)
+		return NULL;
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
 
 	// model (0=original,1=rev2,2=superdmac)
 	save_u32 (1);
@@ -1806,13 +1811,17 @@ uae_u8 *restore_dmac (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_cdtv (int *len)
+uae_u8 *save_cdtv (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 
 	if (!currprefs.cs_cdtvcd)
 		return NULL;
-	dstbak = dst = xmalloc (uae_u8, 1000);
+
+	if (dstptr) 
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
 
 	save_u32 (1);
 

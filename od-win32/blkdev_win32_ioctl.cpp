@@ -1052,6 +1052,27 @@ static int ismedia (struct dev_info_ioctl *ciw, int unitnum)
 	return fetch_geometry (ciw, unitnum, &ciw->di);
 }
 
+static int eject (int unitnum, bool eject)
+{
+	DWORD len;
+	struct dev_info_ioctl *ciw = unitisopen (unitnum);
+
+	if (!ciw)
+		return 0;
+	if (!unitisopen (unitnum))
+		return 0;
+	cdda_stop (ciw);
+	if (!open_createfile (ciw, 0))
+		return 0;
+	int ret = 0;
+	seterrormode (ciw);
+	if (!DeviceIoControl (ciw->h, eject ? IOCTL_STORAGE_EJECT_MEDIA : IOCTL_STORAGE_LOAD_MEDIA, NULL, 0, NULL, 0, &len, NULL)) {
+		ret = 1;
+	}
+	reseterrormode (ciw);
+	return ret;
+}
+
 /* read toc */
 static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 {
@@ -1374,13 +1395,27 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 	}
 }
 
+static int ioctl_scsiemu (int unitnum, uae_u8 *cmd)
+{
+	uae_u8 c = cmd[0];
+	if (c == 0x1b) {
+		int mode = cmd[4] & 3;
+		if (mode == 2)
+			eject (unitnum, true);
+		else if (mode == 3)
+			eject (unitnum, false);
+		return 1;
+	}
+	return -1;
+}
+
 struct device_functions devicefunc_win32_ioctl = {
 	L"IOCTL",
 	open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
 	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_volume, ioctl_command_qcode,
 	ioctl_command_toc, ioctl_command_read, ioctl_command_rawread, ioctl_command_write,
-	0, ioctl_ismedia
+	0, ioctl_ismedia, ioctl_scsiemu
 };
 
 #endif

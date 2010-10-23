@@ -14,6 +14,7 @@ struct zfile {
 	int archiveid;
     uae_s64 size; // real size
 	uae_s64 datasize; // available size (not yet unpacked completely?)
+	uae_s64 allocsize; // memory allocated before realloc() needed again
     uae_s64 seek; // seek position
     int deleteafterclose;
     int textmode;

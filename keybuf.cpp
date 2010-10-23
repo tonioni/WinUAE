@@ -48,7 +48,7 @@ int get_next_key (void)
 
 int record_key (int kc)
 {
-	if (input_recording < 0 || pause_emulation)
+	if (pause_emulation)
 		return 0;
 	return record_key_direct (kc);
 }
@@ -73,12 +73,6 @@ int record_key_direct (int kc)
 		kc ^= AK_CTRL << 1;
 	}
 
-	if (input_recording > 0) {
-		inprec_rstart(INPREC_KEY);
-		inprec_ru8(kc);
-		inprec_rend();
-	}
-
 	keybuf[kpb_first] = kc;
 	kpb_first = kpb_next;
 	return 1;
@@ -89,24 +83,3 @@ void keybuf_init (void)
 	kpb_first = kpb_last = 0;
 	inputdevice_updateconfig (&currprefs);
 }
-
-#ifdef SAVESTATE
-
-uae_u8 *save_keyboard (int *len)
-{
-	uae_u8 *dst, *t;
-	dst = t = xmalloc (uae_u8, 8);
-	save_u32 (getcapslockstate () ? 1 : 0);
-	save_u32 (0);
-	*len = 8;
-	return t;
-}
-
-uae_u8 *restore_keyboard (uae_u8 *src)
-{
-	setcapslockstate (restore_u32 ());
-	restore_u32 ();
-	return src;
-}
-
-#endif /* SAVESTATE */

@@ -166,7 +166,7 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num)
 
 			if (implicit_rts) {
 				m68k_do_rts ();
-				fill_prefetch_slow ();
+				fill_prefetch ();
 			}
 		}
 	} else
@@ -318,7 +318,7 @@ static uae_u32 trap_Call68k (TrapContext *context, uaecptr func_addr)
 	/* Set PC to address of 68k call trap, so that it will be
 	* executed when emulator context resumes. */
 	m68k_setpc (m68k_call_trapaddr);
-	fill_prefetch_slow ();
+	fill_prefetch ();
 
 	/* Switch to emulator context. */
 	uae_sem_post (&context->switch_to_emu_sem);
@@ -359,7 +359,7 @@ static uae_u32 REGPARAM3 m68k_call_handler (TrapContext *dummy_ctx)
 
 	/* Set PC to address of 68k function to call. */
 	m68k_setpc (context->call68k_func_addr);
-	fill_prefetch_slow ();
+	fill_prefetch ();
 
 	/* End critical section: allow other traps run. */
 	uae_sem_post (&trap_mutex);

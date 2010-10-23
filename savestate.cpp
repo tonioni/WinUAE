@@ -61,27 +61,37 @@
 #include "gui.h"
 #include "audio.h"
 #include "filesys.h"
+#include "inputrecord.h"
+#include "disk.h"
 
 int savestate_state = 0;
+bool savestate_first_capture;
 
-#define MAX_STATERECORDS 1024 /* must be power of 2 */
-struct staterecord {
-	uae_u8 *start;
-	uae_u8 *end;
-	uae_u8 *next;
-	uae_u8 *cpu;
-};
+static bool new_blitter = false;
+
 static int replaycounter;
-static int replaylastreloaded = -1;
-static int frameextra;
 
 struct zfile *savestate_file;
-static uae_u8 *replaybuffer, *replaybufferend;
 static int savestate_docompress, savestate_specialdump, savestate_nodialogs;
-static int replaybuffersize;
 
 TCHAR savestate_fname[MAX_DPATH];
-static struct staterecord staterecords[MAX_STATERECORDS];
+
+#define STATEFILE_ALLOC_SIZE 600000
+static int statefile_alloc;
+static int staterecords_max = 1000;
+static int staterecords_first = 0;
+static struct zfile *staterecord_statefile;
+struct staterecord
+{
+	int len;
+	int inuse;
+	uae_u8 *cpu;
+	uae_u8 *data;
+	uae_u8 *end;
+	int inprecoffset;
+};
+
+static struct staterecord **staterecords;
 
 static void state_incompatible_warn (void)
 {
@@ -122,6 +132,29 @@ static void state_incompatible_warn (void)
 /* functions for reading/writing bytes, shorts and longs in big-endian
 * format independent of host machine's endianess */
 
+static uae_u8 *storepos;
+void save_store_pos_func (uae_u8 **dstp)
+{
+	storepos = *dstp;
+	*dstp += 4;
+}
+void save_store_size_func (uae_u8 **dstp)
+{
+	uae_u8 *p = storepos;
+	save_u32_func (&p, *dstp - storepos);
+}
+void restore_store_pos_func (uae_u8 **srcp)
+{
+	storepos = *srcp;
+	*srcp += 4;
+}
+void restore_store_size_func (uae_u8 **srcp)
+{
+	uae_u8 *p = storepos;
+	uae_u32 len = restore_u32_func (&p);
+	*srcp = storepos + len;
+}
+
 void save_u32_func (uae_u8 **dstp, uae_u32 v)
 {
 	uae_u8 *dst = *dstp;
@@ -153,7 +186,7 @@ void save_string_func (uae_u8 **dstp, const TCHAR *from)
 {
 	uae_u8 *dst = *dstp;
 	char *s, *s2;
-	s2 = s = ua (from);
+	s2 = s = uutf8 (from);
 	while (s && *s)
 		*dst++ = *s++;
 	*dst++ = 0;
@@ -209,7 +242,7 @@ TCHAR *restore_string_func (uae_u8 **dstp)
 		*top++ = v;
 	} while (v);
 	*dstp = dst;
-	s = au (to);
+	s = utf8u (to);
 	xfree (to);
 	return s;
 }
@@ -420,6 +453,7 @@ void restore_state (const TCHAR *filename)
 	zfile_fseek (f, 0, SEEK_END);
 	filesize = zfile_ftell (f);
 	zfile_fseek (f, 0, SEEK_SET);
+	savestate_state = STATE_RESTORE;
 	savestate_init ();
 
 	chunk = restore_chunk (f, name, &len, &totallen, &filepos);
@@ -427,6 +461,7 @@ void restore_state (const TCHAR *filename)
 		write_log (L"%s is not an AmigaStateFile\n", filename);
 		goto error;
 	}
+	write_log (L"STATERESTORE:\n");
 	config_changed = 1;
 	savestate_file = f;
 	restore_header (chunk);
@@ -439,7 +474,6 @@ void restore_state (const TCHAR *filename)
 	changed_prefs.mbresmem_low_size = 0;
 	changed_prefs.mbresmem_high_size = 0;
 	z3num = 0;
-	savestate_state = STATE_RESTORE;
 	for (;;) {
 		name[0] = 0;
 		chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
@@ -482,10 +516,14 @@ void restore_state (const TCHAR *filename)
 			restore_pram (totallen, filepos);
 			continue;
 #endif
+		} else if (!_tcscmp (name, L"CYCS")) {
+			end = restore_cycles (chunk);
 		} else if (!_tcscmp (name, L"CPU ")) {
 			end = restore_cpu (chunk);
 		} else if (!_tcscmp (name, L"CPUX"))
 			end = restore_cpu_extra (chunk);
+		else if (!_tcscmp (name, L"CPUT"))
+			end = restore_cpu_trace (chunk);
 #ifdef FPUEMU
 		else if (!_tcscmp (name, L"FPU "))
 			end = restore_fpu (chunk);
@@ -522,6 +560,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_input (chunk);
 		else if (!_tcscmp (name, L"CHPX"))
 			end = restore_custom_extra (chunk);
+		else if (!_tcscmp (name, L"CHPD"))
+			end = restore_custom_event_delay (chunk);
 		else if (!_tcscmp (name, L"AUD0"))
 			end = restore_audio (0, chunk);
 		else if (!_tcscmp (name, L"AUD1"))
@@ -532,6 +572,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_audio (3, chunk);
 		else if (!_tcscmp (name, L"BLIT"))
 			end = restore_blitter (chunk);
+		else if (!_tcscmp (name, L"BLTX"))
+			end = restore_blitter_new (chunk);
 		else if (!_tcscmp (name, L"DISK"))
 			end = restore_floppy (chunk);
 		else if (!_tcscmp (name, L"DSK0"))
@@ -542,6 +584,14 @@ void restore_state (const TCHAR *filename)
 			end = restore_disk (2, chunk);
 		else if (!_tcscmp (name, L"DSK3"))
 			end = restore_disk (3, chunk);
+		else if (!_tcscmp (name, L"DSD0"))
+			end = restore_disk2 (0, chunk);
+		else if (!_tcscmp (name, L"DSD1"))
+			end = restore_disk2 (1, chunk);
+		else if (!_tcscmp (name, L"DSD2"))
+			end = restore_disk2 (2, chunk);
+		else if (!_tcscmp (name, L"DSD3"))
+			end = restore_disk2 (3, chunk);
 		else if (!_tcscmp (name, L"KEYB"))
 			end = restore_keyboard (chunk);
 #ifdef AUTOCONFIG
@@ -582,6 +632,12 @@ void restore_state (const TCHAR *filename)
 			end = restore_ide (chunk);
 		else if (!_tcsncmp (name, L"CDU", 3))
 			end = restore_cd (name[3] - '0', chunk);
+		else if (!_tcsncmp (name, L"2065", 4))
+			end = restore_a2065 (chunk);
+
+		else if (!_tcsncmp (name, L"DMWP", 4))
+			end = restore_debug_memwatch (chunk);
+
 		else if (!_tcscmp (name, L"CONF"))
 			end = restore_configuration (chunk);
 		else if (!_tcscmp (name, L"LOG "))
@@ -598,11 +654,6 @@ void restore_state (const TCHAR *filename)
 			name, totallen, end - chunk);
 		xfree (chunk);
 	}
-	restore_disk_finish ();
-	restore_blitter_finish ();
-	restore_akiko_finish ();
-	restore_cdtv_finish ();
-	restore_p96_finish ();
 	target_addtorecent (filename, 0);
 	return;
 
@@ -617,17 +668,26 @@ error:
 
 void savestate_restore_finish (void)
 {
-	if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND)
+	if (!isrestore ())
 		return;
 	zfile_fclose (savestate_file);
 	savestate_file = 0;
-	savestate_state = 0;
 	restore_cpu_finish ();
-	init_hz ();
+	restore_audio_finish ();
+	restore_disk_finish ();
+	restore_blitter_finish ();
+	restore_akiko_finish ();
+	restore_cdtv_finish ();
+	restore_p96_finish ();
+	restore_a2065_finish ();
+	restore_cia_finish ();
+	savestate_state = 0;
+	init_hz_full ();
+	audio_activate ();
 }
 
 /* 1=compressed,2=not compressed,3=ram dump,4=audio dump */
-void savestate_initsave (const TCHAR *filename, int mode, int nodialogs)
+void savestate_initsave (const TCHAR *filename, int mode, int nodialogs, bool save)
 {
 	if (filename == NULL) {
 		savestate_fname[0] = 0;
@@ -640,6 +700,11 @@ void savestate_initsave (const TCHAR *filename, int mode, int nodialogs)
 	savestate_docompress = (mode == 1) ? 1 : 0;
 	savestate_specialdump = (mode == 3) ? 1 : (mode == 4) ? 2 : 0;
 	savestate_nodialogs = nodialogs;
+	new_blitter = false;
+	if (save) {
+		savestate_free ();
+		inprec_close (true);
+	}
 }
 
 static void save_rams (struct zfile *f, int comp)
@@ -675,52 +740,16 @@ static void save_rams (struct zfile *f, int comp)
 
 /* Save all subsystems */
 
-int save_state (const TCHAR *filename, const TCHAR *description)
+static int save_state_internal (struct zfile *f, const TCHAR *description, int comp, bool savepath)
 {
 	uae_u8 endhunk[] = { 'E', 'N', 'D', ' ', 0, 0, 0, 8 };
 	uae_u8 header[1000];
 	TCHAR tmp[100];
 	uae_u8 *dst;
-	struct zfile *f;
-	int len,i;
 	TCHAR name[5];
-	int comp = savestate_docompress;
+	int i, len;
 
-	if (!savestate_specialdump && !savestate_nodialogs) {
-		state_incompatible_warn ();
-		if (!save_filesys_cando ()) {
-			gui_message (L"Filesystem active. Try again later");
-			return -1;
-		}
-	}
-	savestate_nodialogs = 0;
-	custom_prepare_savestate ();
-	f = zfile_fopen (filename, L"w+b", 0);
-	if (!f)
-		return 0;
-	if (savestate_specialdump) {
-		size_t pos;
-		if (savestate_specialdump == 2)
-			write_wavheader (f, 0, 22050);
-		pos = zfile_ftell (f);
-		save_rams (f, -1);
-		if (savestate_specialdump == 2) {
-			int len, len2, i;
-			uae_u8 *tmp;
-			len = zfile_ftell (f) - pos;
-			tmp = xmalloc (uae_u8, len);
-			zfile_fseek(f, pos, SEEK_SET);
-			len2 = zfile_fread (tmp, 1, len, f);
-			for (i = 0; i < len2; i++)
-				tmp[i] += 0x80;
-			write_wavheader (f, len, 22050);
-			zfile_fwrite (tmp, len2, 1, f);
-			xfree (tmp);
-		}
-		zfile_fclose (f);
-		return 1;
-	}
-
+	write_log (L"STATESAVE (%s):\n", f ? zfile_getname (f) : L"<internal>");
 	dst = header;
 	save_u32 (0);
 	save_string (L"UAE");
@@ -729,12 +758,20 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	save_string (description);
 	save_chunk (f, header, dst-header, L"ASF ", 0);
 
+	dst = save_cycles (&len, 0);
+	save_chunk (f, dst, len, L"CYCS", 0);
+	xfree (dst);
+
 	dst = save_cpu (&len, 0);
 	save_chunk (f, dst, len, L"CPU ", 0);
 	xfree (dst);
 
 	dst = save_cpu_extra (&len, 0);
 	save_chunk (f, dst, len, L"CPUX", 0);
+	xfree (dst);
+
+	dst = save_cpu_trace (&len, 0);
+	save_chunk (f, dst, len, L"CPUT", 0);
 	xfree (dst);
 
 #ifdef FPUEMU
@@ -751,19 +788,26 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 
 	_tcscpy(name, L"DSKx");
 	for (i = 0; i < 4; i++) {
-		dst = save_disk (i, &len, 0);
+		dst = save_disk (i, &len, 0, savepath);
 		if (dst) {
 			name[3] = i + '0';
 			save_chunk (f, dst, len, name, 0);
 			xfree (dst);
 		}
 	}
+	_tcscpy(name, L"DSDx");
+	for (i = 0; i < 4; i++) {
+		dst = save_disk2 (i, &len, 0);
+		if (dst) {
+			name[3] = i + '0';
+			save_chunk (f, dst, len, name, comp);
+			xfree (dst);
+		}
+	}
+
+
 	dst = save_floppy (&len, 0);
 	save_chunk (f, dst, len, L"DISK", 0);
-	xfree (dst);
-
-	dst = save_blitter (&len, 0);
-	save_chunk (f, dst, len, L"BLIT", 0);
 	xfree (dst);
 
 	dst = save_custom (&len, 0, 0);
@@ -773,6 +817,19 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	dst = save_custom_extra (&len, 0);
 	save_chunk (f, dst, len, L"CHPX", 0);
 	xfree (dst);
+
+	dst = save_custom_event_delay (&len, 0);
+	save_chunk (f, dst, len, L"CHPD", 0);
+	xfree (dst);
+
+	dst = save_blitter_new (&len, 0);
+	save_chunk (f, dst, len, L"BLTX", 0);
+	xfree (dst);
+	if (new_blitter == false) {
+		dst = save_blitter (&len, 0);
+		save_chunk (f, dst, len, L"BLIT", 0);
+		xfree (dst);
+	}
 
 	dst = save_input (&len, 0);
 	save_chunk (f, dst, len, L"CINP", 0);
@@ -806,7 +863,7 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	save_chunk (f, dst, len, L"CIAB", 0);
 	xfree (dst);
 
-	dst = save_keyboard (&len);
+	dst = save_keyboard (&len, NULL);
 	save_chunk (f, dst, len, L"KEYB", 0);
 	xfree (dst);
 
@@ -814,6 +871,8 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	dst = save_expansion (&len, 0);
 	save_chunk (f, dst, len, L"EXPA", 0);
 #endif
+	dst = save_a2065 (&len, NULL);
+	save_chunk (f, dst, len, L"2065", 0);
 #ifdef PICASSO96
 	dst = save_p96 (&len, 0);
 	save_chunk (f, dst, len, L"P96 ", 0);
@@ -829,23 +888,23 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	} while ((dst = save_rom (0, &len, 0)));
 
 #ifdef CD32
-	dst = save_akiko (&len);
+	dst = save_akiko (&len, NULL);
 	save_chunk (f, dst, len, L"CD32", 0);
 	xfree (dst);
 #endif
 #ifdef CDTV
-	dst = save_cdtv (&len);
+	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, L"CDTV", 0);
 	xfree (dst);
-	dst = save_dmac (&len);
+	dst = save_dmac (&len, NULL);
 	save_chunk (f, dst, len, L"DMAC", 0);
 	xfree (dst);
 #endif
 
 #ifdef ACTION_REPLAY
-	dst = save_action_replay (&len, 0);
+	dst = save_action_replay (&len, NULL);
 	save_chunk (f, dst, len, L"ACTR", comp);
-	dst = save_hrtmon (&len, 0);
+	dst = save_hrtmon (&len, NULL);
 	save_chunk (f, dst, len, L"HRTM", comp);
 #endif
 #ifdef FILESYS
@@ -861,13 +920,13 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 		}
 	}
 #endif
-	dst = save_gayle (&len);
+	dst = save_gayle (&len, NULL);
 	if (dst) {
 		save_chunk (f, dst, len, L"GAYL", 0);
 		xfree(dst);
 	}
 	for (i = 0; i < 4; i++) {
-		dst = save_ide (i, &len);
+		dst = save_ide (i, &len, NULL);
 		if (dst) {
 			save_chunk (f, dst, len, L"IDE ", 0);
 			xfree (dst);
@@ -880,6 +939,12 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 			_stprintf (name, L"CDU%d", i);
 			save_chunk (f, dst, len, name, 0);
 		}
+	}
+
+	dst = save_debug_memwatch (&len, NULL);
+	if (dst) {
+		save_chunk (f, dst, len, L"DMWP", 0);
+		xfree(dst);
 	}
 
 	/* add fake END tag, makes it easy to strip CONF and LOG hunks */
@@ -899,10 +964,55 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 
 	zfile_fwrite (endhunk, 1, 8, f);
 
-	write_log (L"Save of '%s' complete\n", filename);
+	return 1;
+}
+
+int save_state (const TCHAR *filename, const TCHAR *description)
+{
+	struct zfile *f;
+	int comp = savestate_docompress;
+
+	if (!savestate_specialdump && !savestate_nodialogs) {
+		state_incompatible_warn ();
+		if (!save_filesys_cando ()) {
+			gui_message (L"Filesystem active. Try again later.");
+			return -1;
+		}
+	}
+	new_blitter = false;
+	savestate_nodialogs = 0;
+	custom_prepare_savestate ();
+	f = zfile_fopen (filename, L"w+b", 0);
+	if (!f)
+		return 0;
+	if (savestate_specialdump) {
+		size_t pos;
+		if (savestate_specialdump == 2)
+			write_wavheader (f, 0, 22050);
+		pos = zfile_ftell (f);
+		save_rams (f, -1);
+		if (savestate_specialdump == 2) {
+			int len, len2, i;
+			uae_u8 *tmp;
+			len = zfile_ftell (f) - pos;
+			tmp = xmalloc (uae_u8, len);
+			zfile_fseek(f, pos, SEEK_SET);
+			len2 = zfile_fread (tmp, 1, len, f);
+			for (i = 0; i < len2; i++)
+				tmp[i] += 0x80;
+			write_wavheader (f, len, 22050);
+			zfile_fwrite (tmp, len2, 1, f);
+			xfree (tmp);
+		}
+		zfile_fclose (f);
+		return 1;
+	}
+	int v = save_state_internal (f, description, comp, true);
+	if (v)
+		write_log (L"Save of '%s' complete\n", filename);
 	zfile_fclose (f);
 	savestate_state = 0;
-	return 1;
+	return v;
 }
 
 void savestate_quick (int slot, int save)
@@ -937,29 +1047,54 @@ void savestate_quick (int slot, int save)
 	}
 }
 
+bool savestate_check (void)
+{
+	if (vpos == 0 && !savestate_state) {
+		if (hsync_counter == 0 && input_play == INPREC_PLAY_NORMAL)
+			savestate_memorysave ();
+		savestate_capture (0);
+	}
+	if (savestate_state == STATE_DORESTORE) {
+		savestate_state = STATE_RESTORE;
+		return true;
+	} else if (savestate_state == STATE_DOREWIND) {
+		savestate_state = STATE_REWIND;
+		return true;
+	}
+	return false;
+}
+
+static int rewindmode;
+
+
 static struct staterecord *canrewind (int pos)
 {
-	int i;
-	struct staterecord *st;
-
-	if (!replaybuffer)
+	if (pos < 0)
+		pos += staterecords_max;
+	if (!staterecords)
 		return 0;
-	i = replaycounter;
-	st = &staterecords[i];
-	if (st->start)
-		return st;
-	return 0;
+	if (staterecords[pos] == NULL)
+		return NULL;
+	if (staterecords[pos]->inuse == 0)
+		return NULL;
+	if ((pos + 1) % staterecords_max  == staterecords_first)
+		return NULL;
+	return staterecords[pos];
 }
 
 int savestate_dorewind (int pos)
 {
+	rewindmode = pos;
+	if (pos < 0)
+		pos = replaycounter - 1;
 	if (canrewind (pos)) {
 		savestate_state = STATE_DOREWIND;
+		write_log (L"dorewind %d (%010d/%03d) -> %d\n", replaycounter - 1, hsync_counter, vsync_counter, pos);
 		return 1;
 	}
 	return 0;
 }
-
+#if 0
 void savestate_listrewind (void)
 {
 	int i = replaycounter;
@@ -982,33 +1117,55 @@ void savestate_listrewind (void)
 			i += MAX_STATERECORDS;
 	}
 }
+#endif
 
 void savestate_rewind (void)
 {
 	int len, i, dummy;
 	uae_u8 *p, *p2;
 	struct staterecord *st;
+	int pos;
+	bool rewind = false;
 
-	st = canrewind (1);
-	if (!st)
-		return;
-	frameextra = timeframes % currprefs.statecapturerate;
-	p =  st->start;
+	if (hsync_counter % currprefs.statecapturerate <= 25 && rewindmode <= -2) {
+		pos = replaycounter - 2;
+		rewind = true;
+	} else {
+		pos = replaycounter - 1;
+	}
+	st = canrewind (pos);
+	if (!st) {
+		rewind = false;
+		pos = replaycounter - 1;
+		st = canrewind (pos);
+		if (!st)
+			return;
+	}
+	p = st->data;
 	p2 = st->end;
-	write_log (L"rewinding from %d\n", replaycounter);
+	write_log (L"rewinding %d -> %d\n", replaycounter - 1, pos);
+	hsync_counter = restore_u32_func (&p);
+	vsync_counter = restore_u32_func (&p);
 	p = restore_cpu (p);
+	p = restore_cycles (p);
 	p = restore_cpu_extra (p);
+	if (restore_u32_func (&p))
+		p = restore_cpu_trace (p);
 #ifdef FPUEMU
 	if (restore_u32_func (&p))
 		p = restore_fpu (p);
 #endif
 	for (i = 0; i < 4; i++) {
 		p = restore_disk (i, p);
+		if (restore_u32_func (&p))
+			p = restore_disk2 (i, p);
 	}
 	p = restore_floppy (p);
 	p = restore_custom (p);
 	p = restore_custom_extra (p);
-	p = restore_blitter (p);
+	if (restore_u32_func (&p))
+		p = restore_custom_event_delay (p);
+	p = restore_blitter_new (p);
 	p = restore_custom_agacolors (p);
 	for (i = 0; i < 8; i++) {
 		p = restore_custom_sprite (i, p);
@@ -1018,8 +1175,14 @@ void savestate_rewind (void)
 	}
 	p = restore_cia (0, p);
 	p = restore_cia (1, p);
+	p = restore_keyboard (p);
+	p = restore_inputstate (p);
 #ifdef AUTOCONFIG
 	p = restore_expansion (p);
+#endif
+#ifdef PICASSO96
+	if (restore_u32_func (&p))
+		p = restore_p96 (p);
 #endif
 	len = restore_u32_func (&p);
 	memcpy (chipmemory, p, currprefs.chipmem_size > len ? len : currprefs.chipmem_size);
@@ -1038,70 +1201,144 @@ void savestate_rewind (void)
 #ifdef ACTION_REPLAY
 	if (restore_u32_func (&p))
 		p = restore_action_replay (p);
+	if (restore_u32_func (&p))
+		p = restore_hrtmon (p);
 #endif
+#ifdef CD32
+	if (restore_u32_func (&p))
+		p = restore_akiko (p);
+#endif
+#ifdef CDTV
+	if (restore_u32_func (&p))
+		p = restore_cdtv (p);
+	if (restore_u32_func (&p))
+		p = restore_dmac (p);
+#endif
+	if (restore_u32_func (&p))
+		p = restore_gayle (p);
+	for (i = 0; i < 4; i++) {
+		if (restore_u32_func (&p))
+			p = restore_ide (p);
+	}
 	p += 4;
 	if (p != p2) {
 		gui_message (L"reload failure, address mismatch %p != %p", p, p2);
 		uae_reset (0);
 		return;
 	}
-	st->start = st->next = 0;
-	replaycounter--;
-	if (replaycounter < 0)
-		replaycounter += MAX_STATERECORDS;
+	inprec_setposition (st->inprecoffset, pos);
+	write_log (L"state %d restored.  (%010d/%03d)\n", pos, hsync_counter, vsync_counter);
+	if (rewind) {
+		replaycounter--;
+		if (replaycounter < 0)
+			replaycounter += staterecords_max;
+		st = canrewind (replaycounter);
+		st->inuse = 0;
+	}
+
 }
 
 #define BS 10000
 
-static int bufcheck (uae_u8 **pp, int len)
+STATIC_INLINE int bufcheck (struct staterecord *sr, uae_u8 *p, int len)
 {
-	uae_u8 *p = *pp;
-	if (p + len + BS >= replaybuffer + replaybuffersize) {
-		//write_log (L"capture buffer wrap-around\n");
+	if (p - sr->data + BS + len >= sr->len)
 		return 1;
-	}
 	return 0;
+}
+
+void savestate_memorysave (void)
+{
+	new_blitter = true;
+	// create real statefile in memory too for later saving
+	zfile_fclose (staterecord_statefile);
+	staterecord_statefile = zfile_fopen_empty (NULL, L"statefile.inp.uss");
+	if (staterecord_statefile)
+		save_state_internal (staterecord_statefile, L"rerecording", 1, false);
 }
 
 void savestate_capture (int force)
 {
 	uae_u8 *p, *p2, *p3, *dst;
 	int i, len, tlen, retrycnt;
-	struct staterecord *st, *stn;
+	struct staterecord *st;
+	bool firstcapture = false;
 
 #ifdef FILESYS
 	if (nr_units ())
 		return;
 #endif
-	if (!replaybuffer)
+	if (!staterecords)
 		return;
-	if (!force && (!currprefs.statecapture || !currprefs.statecapturerate || ((timeframes + frameextra) % currprefs.statecapturerate)))
+	if (!input_record)
 		return;
+	if (currprefs.statecapturerate && hsync_counter == 0 && input_record == INPREC_RECORD_START && savestate_first_capture) {
+		// first capture
+		force = true;
+		firstcapture = true;
+		savestate_first_capture = false;
+	}
+	if (!force) {
+		if (currprefs.statecapturerate <= 0)
+			return;
+		if (hsync_counter % currprefs.statecapturerate)
+			return;
+	}
 
 	retrycnt = 0;
 retry2:
-	st = &staterecords[replaycounter];
-	if (st->next == 0) {
-		replaycounter = 0;
-		st = &staterecords[replaycounter];
-		st->next = replaybuffer;
+	st = staterecords[replaycounter];
+	if (st == NULL) {
+		st = (struct staterecord*)xmalloc (uae_u8, statefile_alloc);
+		st->len = statefile_alloc;
+	} else if (retrycnt > 0) {
+		st->len += STATEFILE_ALLOC_SIZE;
+		st = (struct staterecord*)xrealloc (uae_u8, st, st->len);
 	}
-	stn = &staterecords[(replaycounter + 1) & (MAX_STATERECORDS - 1)];
-	p = p2 = st->next;
+	if (st->len > statefile_alloc)
+		statefile_alloc = st->len;
+	st->inuse = 0;
+	st->data = (uae_u8*)(st + 1);
+	staterecords[replaycounter] = st;
+	retrycnt++;
+	p = p2 = st->data;
 	tlen = 0;
-	if (bufcheck (&p, 0))
+	save_u32_func (&p, hsync_counter);
+	save_u32_func (&p, vsync_counter);
+	tlen += 8;
+
+	if (bufcheck (st, p, 0))
 		goto retry;
-	stn->cpu = p;
+	st->cpu = p;
 	save_cpu (&len, p);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
+		goto retry;
+	save_cycles (&len, p);
+	tlen += len;
+	p += len;
+
+	if (bufcheck (st, p, 0))
 		goto retry;
 	save_cpu_extra (&len, p);
 	tlen += len;
 	p += len;
+
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_cpu_trace (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+
 #ifdef FPUEMU
-	if (bufcheck (&p, 0))
+	if (bufcheck (st, p, 0))
 		goto retry;
 	p3 = p;
 	save_u32_func (&p, 0);
@@ -1113,77 +1350,128 @@ retry2:
 	}
 #endif
 	for (i = 0; i < 4; i++) {
-		if (bufcheck (&p, 0))
+		if (bufcheck (st, p, 0))
 			goto retry;
-		save_disk (i, &len, p);
+		save_disk (i, &len, p, true);
 		tlen += len;
 		p += len;
+		p3 = p;
+		save_u32_func (&p, 0);
+		tlen += 4;
+		if (save_disk2 (i, &len, p)) {
+			save_u32_func (&p3, 1);
+			tlen += len;
+			p += len;
+		}
 	}
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
 		goto retry;
 	save_floppy (&len, p);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
 		goto retry;
 	save_custom (&len, p, 0);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
 		goto retry;
 	save_custom_extra (&len, p);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
 		goto retry;
-	save_blitter (&len, p);
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_custom_event_delay (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+
+	if (bufcheck (st, p, 0))
+		goto retry;
+	save_blitter_new (&len, p);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, 0))
 		goto retry;
 	save_custom_agacolors (&len, p);
 	tlen += len;
 	p += len;
 	for (i = 0; i < 8; i++) {
-		if (bufcheck (&p, 0))
+		if (bufcheck (st, p, 0))
 			goto retry;
 		save_custom_sprite (i, &len, p);
 		tlen += len;
 		p += len;
 	}
+
 	for (i = 0; i < 4; i++) {
-		if (bufcheck (&p, 0))
+		if (bufcheck (st, p, 0))
 			goto retry;
 		save_audio (i, &len, p);
 		tlen += len;
 		p += len;
 	}
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_cia (0, &len, p);
 	tlen += len;
 	p += len;
-	if (bufcheck (&p, 0))
+
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_cia (1, &len, p);
 	tlen += len;
 	p += len;
+
+	if (bufcheck (st, p, len))
+		goto retry;
+	save_keyboard (&len, p);
+	tlen += len;
+	p += len;
+
+	if (bufcheck (st, p, len))
+		goto retry;
+	save_inputstate (&len, p);
+	tlen += len;
+	p += len;
 #ifdef AUTOCONFIG
-	if (bufcheck (&p, 0))
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_expansion (&len, p);
 	tlen += len;
 	p += len;
 #endif
+#ifdef PICASSO96
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_p96 (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+#endif
 	dst = save_cram (&len);
-	if (bufcheck (&p, len))
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_u32_func (&p, len);
 	memcpy (p, dst, len);
 	tlen += len + 4;
 	p += len;
 	dst = save_bram (&len);
-	if (bufcheck (&p, len))
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_u32_func (&p, len);
 	memcpy (p, dst, len);
@@ -1191,14 +1479,14 @@ retry2:
 	p += len;
 #ifdef AUTOCONFIG
 	dst = save_fram (&len);
-	if (bufcheck (&p, len))
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_u32_func (&p, len);
 	memcpy (p, dst, len);
 	tlen += len + 4;
 	p += len;
 	dst = save_zram (&len, 0);
-	if (bufcheck (&p, len))
+	if (bufcheck (st, p, len))
 		goto retry;
 	save_u32_func (&p, len);
 	memcpy (p, dst, len);
@@ -1206,7 +1494,7 @@ retry2:
 	p += len;
 #endif
 #ifdef ACTION_REPLAY
-	if (bufcheck (&p, 0))
+	if (bufcheck (st, p, 0))
 		goto retry;
 	p3 = p;
 	save_u32_func (&p, 0);
@@ -1216,57 +1504,150 @@ retry2:
 		tlen += len;
 		p += len;
 	}
-#endif
-	save_u32_func (&p, tlen);
-	stn->next = p;
-	stn->start = p2;
-	stn->end = p;
-	replaylastreloaded = -1;
-	replaycounter++;
-	replaycounter &= (MAX_STATERECORDS - 1);
-	i = (replaycounter + 1) & (MAX_STATERECORDS - 1);
-	staterecords[i].next = staterecords[i].start = 0;
-	i = replaycounter - 1;
-	while (i != replaycounter) {
-		if (i < 0)
-			i += MAX_STATERECORDS;
-		st = &staterecords[i];
-		if (p2 <= st->start && p >= st->end) {
-			st->start = st->next = 0;
-			break;
-		}
-		i--;
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_hrtmon (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
 	}
-	//write_log (L"state capture %d (%d bytes)\n", replaycounter, p - p2);
+#endif
+#ifdef CD32
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_akiko (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+#endif
+#ifdef CDTV
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_cdtv (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_dmac (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+#endif
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_gayle (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
+	for (i = 0; i < 4; i++) {
+		if (bufcheck (st, p, 0))
+			goto retry;
+		p3 = p;
+		save_u32_func (&p, 0);
+		tlen += 4;
+		if (save_ide (i, &len, p)) {
+			save_u32_func (&p3, 1);
+			tlen += len;
+			p += len;
+		}
+	}
+	save_u32_func (&p, tlen);
+	st->end = p;
+	st->inuse = 1;
+	st->inprecoffset = inprec_getposition ();
+
+	replaycounter++;
+	if (replaycounter >= staterecords_max)
+		replaycounter -= staterecords_max;
+	if (replaycounter == staterecords_first) {
+		staterecords_first++;
+		if (staterecords_first >= staterecords_max)
+			staterecords_first -= staterecords_max;
+	}
+
+	write_log (L"state capture %d (%010d/%03d,%d/%d) (%d bytes, alloc %d)\n",
+		replaycounter, hsync_counter, vsync_counter,
+		hsync_counter % current_maxvpos (), current_maxvpos (),
+		st->end - st->data, statefile_alloc);
+
+	if (firstcapture) {
+		savestate_memorysave ();
+		input_record++;
+		for (i = 0; i < 4; i++) {
+			bool wp = true;
+			DISK_validate_filename (currprefs.floppyslots[i].df, false, &wp, NULL, NULL);
+			inprec_recorddiskchange (i, currprefs.floppyslots[i].df, wp);
+		}
+		input_record--;
+	}
+
+
 	return;
 retry:
-	staterecords[replaycounter].next = replaybuffer;
-	retrycnt++;
-	if (retrycnt > 1) {
-		write_log (L"can't save, too small capture buffer\n");
-		return;
-	}
-	goto retry2;
+	if (retrycnt < 10)
+		goto retry2;
+	write_log (L"can't save, too small capture buffer or out of memory\n");
+	return;
 }
 
 void savestate_free (void)
 {
-	xfree (replaybuffer);
-	replaybuffer = 0;
+	xfree (staterecords);
+	staterecords = NULL;
 }
 
 void savestate_init (void)
 {
 	savestate_free ();
-	memset (staterecords, 0, sizeof (staterecords));
 	replaycounter = 0;
-	replaylastreloaded = -1;
-	frameextra = 0;
-	if (currprefs.statecapture && currprefs.statecapturebuffersize && currprefs.statecapturerate) {
-		replaybuffersize = currprefs.statecapturebuffersize;
-		replaybuffer = xmalloc (uae_u8, replaybuffersize);
+	staterecords_max = currprefs.statecapturebuffersize;
+	if (input_record && savestate_state != STATE_DORESTORE) {
+		zfile_fclose (staterecord_statefile);
+		staterecord_statefile = NULL;
+		inprec_close (false);
+		staterecords = xcalloc (struct staterecord*, staterecords_max);
+		statefile_alloc = STATEFILE_ALLOC_SIZE;
+		inprec_open (NULL, NULL);
+		savestate_first_capture = true;
 	}
 }
+
+
+void statefile_save_recording (const TCHAR *filename)
+{
+	if (!staterecord_statefile)
+		return;
+	struct zfile *zf = zfile_fopen (filename, L"wb", 0);
+	if (zf) {
+		int len = zfile_size (staterecord_statefile);
+		uae_u8 *data = zfile_getdata (staterecord_statefile, 0, len);
+		zfile_fwrite (data, len, 1, zf);
+		xfree (data);
+		zfile_fclose (zf);
+		write_log (L"input statefile '%s' saved\n", filename);
+	}
+}
+
 
 /*
 

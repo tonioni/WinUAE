@@ -85,6 +85,7 @@
 #include "direct3d.h"
 #include "clipboard_win32.h"
 #include "blkdev.h"
+#include "inputrecord.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #include "cloanto/RetroPlatformIPC.h"
@@ -92,6 +93,7 @@
 
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
+extern int log_a2065, a2065_promiscuous;
 int log_scsi, log_net, uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
@@ -269,7 +271,7 @@ frame_time_t read_processor_time (void)
 
 	cnt++;
 	if (cnt > 1000000) {
-		write_log(L"**************\n");
+		write_log (L"**************\n");
 		cnt = 0;
 	}
 #endif
@@ -463,6 +465,7 @@ static void setmaintitle (HWND hwnd)
 		return;
 #endif
 	txt[0] = 0;
+	inprec_getstatus (txt);
 	if (config_filename[0]) {
 		_tcscat (txt, L"[");
 		_tcscat (txt, config_filename);
@@ -488,6 +491,11 @@ static void setmaintitle (HWND hwnd)
 	SetWindowText (hwnd, txt);
 }
 
+void refreshtitle (void)
+{
+	if (isfullscreen () == 0)
+		setmaintitle (hMainWnd);
+}
 
 #ifndef AVIOUTPUT
 static int avioutput_video = 0;
@@ -562,8 +570,10 @@ void setmouseactive (int active)
 
 	if (mouseactive > 0)
 		focus = 1;
+
 	if (focus) {
 		int donotfocus = 0;
+		HWND f = GetFocus ();
 		HWND fw = GetForegroundWindow ();
 		HWND w1 = hAmigaWnd;
 		HWND w2 = hMainWnd;
@@ -572,16 +582,11 @@ void setmouseactive (int active)
 		if (rp_isactive ())
 			w3 = rp_getparent ();
 #endif
-		if (isfullscreen () > 0 || (!(fw == w1 || fw == w2))) {
-			if (SetForegroundWindow (w2) == FALSE) {
-				if (SetForegroundWindow (w1) == FALSE) {
-					if (w3 == NULL || SetForegroundWindow (w3) == FALSE) {
-						donotfocus = 1;
-						write_log (L"wanted focus but SetForegroundWindow() failed\n");
-					}
-				}
-			}
-		}
+		if (f != w1 && f != w2)
+			donotfocus = 1;
+		if (w3 != NULL && f == w3)
+			donotfocus = 0;
+
 #ifdef RETROPLATFORM
 		if (rp_isactive () && isfullscreen () == 0)
 			donotfocus = 0;
@@ -589,10 +594,11 @@ void setmouseactive (int active)
 		if (isfullscreen () > 0)
 			donotfocus = 0;
 		if (donotfocus) {
-			focus = 0;
+			//focus = 0;
 			mouseactive = 0;
 		}
 	}
+
 	if (mouseactive) {
 		if (focus) {
 			if (!showcursor) {
@@ -743,6 +749,7 @@ void minimizewindow (void)
 void disablecapture (void)
 {
 	setmouseactive (0);
+	focus = 0;
 }
 
 void gui_gameport_button_change (int port, int button, int onoff)
@@ -1752,6 +1759,7 @@ int handle_msgpump (void)
 		TranslateMessage (&msg);
 		DispatchMessage (&msg);
 	}
+	while (checkIPC (globalipc, &currprefs));
 	return got;
 }
 
@@ -1792,11 +1800,13 @@ void handle_events (void)
 		if (quit_program)
 			break;
 	}
+#if 0
 	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 		TranslateMessage (&msg);
 		DispatchMessage (&msg);
 	}
 	while (checkIPC (globalipc, &currprefs));
+#endif
 	if (was_paused) {
 		resumepaused (was_paused);
 		sound_closed = 0;
@@ -2292,6 +2302,23 @@ void fullpath (TCHAR *path, int size)
 		_tcscpy (tmp, path);
 		GetFullPathName (tmp, size, path, NULL);
 	}
+}
+void getpathpart (TCHAR *outpath, int size, const TCHAR *inpath)
+{
+	_tcscpy (outpath, inpath);
+	TCHAR *p = _tcsrchr (outpath, '\\');
+	if (p)
+		p[0] = 0;
+	fixtrailing (outpath);
+}
+void getfilepart (TCHAR *out, int size, const TCHAR *path)
+{
+	out[0] = 0;
+	const TCHAR *p = _tcsrchr (path, '\\');
+	if (p)
+		_tcscpy (out, p + 1);
+	else
+		_tcscpy (out, path);
 }
 
 typedef DWORD (STDAPICALLTYPE *PFN_GetKey)(LPVOID lpvBuffer, DWORD dwSize);
@@ -3062,6 +3089,10 @@ void fetch_ripperpath (TCHAR *out, int size)
 void fetch_statefilepath (TCHAR *out, int size)
 {
 	fetch_path (L"StatefilePath", out, size);
+}
+void fetch_inputfilepath (TCHAR *out, int size)
+{
+	fetch_path (L"InputPath", out, size);
 }
 void fetch_datapath (TCHAR *out, int size)
 {
@@ -4134,7 +4165,7 @@ static void getstartpaths (void)
 	if (!_tcscmp (prevpath, L"AMIGAFOREVERDATA"))
 		path_type = PATH_TYPE_AMIGAFOREVERDATA;
 
-	_tcscpy (start_path_exe, _wpgmptr);
+	GetFullPathName (_wpgmptr, sizeof start_path_exe / sizeof (TCHAR), start_path_exe, NULL);
 	if((posn = _tcsrchr (start_path_exe, '\\')))
 		posn[1] = 0;
 
@@ -4156,8 +4187,9 @@ static void getstartpaths (void)
 			ispath = true;
 		if (!ispath) {
 			if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES, NULL, SHGFP_TYPE_CURRENT, tmp))) {
+				GetFullPathName (tmp, sizeof tmp / sizeof (TCHAR), tmp2, NULL);
 				// installed in Program Files?
-				if (_tcsnicmp (tmp, start_path_exe, _tcslen (tmp)) == 0) {
+				if (_tcsnicmp (tmp, tmp2, _tcslen (tmp)) == 0) {
 					if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_COMMON_DOCUMENTS, NULL, SHGFP_TYPE_CURRENT, tmp))) {
 						fixtrailing (tmp);
 						_tcscpy (tmp2, tmp);
@@ -4353,7 +4385,9 @@ static TCHAR *getdefaultini (void)
 {
 	FILE *f;
 	TCHAR path[MAX_DPATH], orgpath[MAX_DPATH];
-	_tcscpy (path, _wpgmptr);
+	path[0] = 0;
+	if (!GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL))
+		_tcscpy (path, _wpgmptr);
 	TCHAR *posn;
 	if((posn = _tcsrchr (path, '\\')))
 		posn[1] = 0;
@@ -4451,6 +4485,18 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"netlog")) {
 		log_net = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"a2065log")) {
+		log_a2065 = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"a2065log2")) {
+		log_a2065 = 2;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"a2065_promiscuous")) {
+		a2065_promiscuous = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"seriallog")) {
@@ -4589,6 +4635,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"jitevent")) {
 		pissoff_value = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, L"inputrecorddebug")) {
+		inputrecord_debug = getval (np);
 		return 2;
 	}
 #ifdef RETROPLATFORM
@@ -4793,12 +4843,11 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		for (i = 0; argv2[i]; i++)
 			write_log (L"%d: '%s'\n", i + 1, argv2[i]);
 	}
-	if (WIN32_RegisterClasses () && WIN32_InitLibraries () && DirectDraw_Start (NULL)) {
+	if (WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
 		DEVMODE devmode;
 		DWORD i;
 
 		WIN32_HandleRegistryStuff ();
-		DirectDraw_Release ();
 		write_log (L"Enumerating display devices.. \n");
 		enumeratedisplays (multi_display);
 		write_log (L"Sorting devices and modes..\n");
@@ -5028,7 +5077,8 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 						if (ppc != regs.pc_p) {
 							prevpc = (uae_u8*)ppc;
 						}
-						exception2 (opc, (uaecptr)p);
+						m68k_setpc ((uaecptr)p);
+						exception2 (opc);
 						lRet = EXCEPTION_CONTINUE_EXECUTION;
 					}
 			}

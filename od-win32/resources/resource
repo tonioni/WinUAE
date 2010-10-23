@@ -341,6 +341,8 @@
 #define IDS_AUTOSCALE_CENTER            365
 #define IDS_AUTOSCALE_MAX               366
 #define IDS_AUTOSCALE_TV                367
+#define IDS_JOYMODE_GAMEPAD             368
+#define IDS_AUTOSCALE_DEFAULT           369
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -427,6 +429,8 @@
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
+#define IDC_LORES_SMOOTHED2             1181
+#define IDC_AUTORESOLUTION              1181
 #define IDC_FRAMERATE                   1185
 #define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
@@ -657,8 +661,9 @@
 #define IDC_HIGHPRIORITY                1530
 #define IDC_MINIMIZED_NOSOUND           1530
 #define IDC_MINIMIZED_PAUSE             1531
-#define IDC_STATE_CAPTURE               1532
+#define IDC_STATEREC_RECORD             1532
 #define IDC_KBLED_USB                   1533
+#define IDC_STATEREC_CAPTURE2           1533
 #define IDC_SER_SHARED                  1553
 #define IDC_SER_CTSRTS                  1554
 #define IDC_SER_DIRECT                  1555
@@ -753,16 +758,16 @@
 #define IDC_SAMPLERIPPER_ACTIVATED      1616
 #define IDC_AVIOUTPUT_BORDER_TRIM       1617
 #define IDC_FILTERVZ                    1617
-#define IDC_INPREC_RECORD               1617
 #define IDC_AVIOUTPUT_AUDIO_STATIC      1618
 #define IDC_FILTERHO                    1618
 #define IDC_AVIOUTPUT_VIDEO_STATIC      1619
 #define IDC_FILTERVO                    1619
 #define IDC_AVIOUTPUT_8BIT              1620
-#define IDC_INPREC_PLAY                 1620
 #define IDC_FILTERASPECT                1620
+#define IDC_STATEREC_PLAY               1620
 #define IDC_AVIOUTPUT_24BIT             1621
 #define IDC_FILTERASPECT2               1621
+#define IDC_STATEREC_SAVE               1621
 #define IDC_AVIOUTPUT_WIDTH             1622
 #define IDC_AVIOUTPUT_HEIGHT            1623
 #define IDC_AVIOUTPUT_FRAME             1624
@@ -807,9 +812,7 @@
 #define IDC_ACTIVE_PRI                  1644
 #define IDC_MINIMIZED_PRIORITY          1645
 #define IDC_AVIOUTPUT_FRAMELIMITER      1645
-#define IDC_STATE_RATE                  1646
-#define IDC_INPREC_PLAYMODE             1646
-#define IDC_STATE_BUFFERSIZE            1647
+#define IDC_STATEREC_RATE               1646
 #define IDC_SOUNDDRIVESELECT            1647
 #define IDC_PANELTREE                   1647
 #define IDC_AVIOUTPUT_NOSOUNDOUTPUT     1647
@@ -828,7 +831,10 @@
 #define IDC_AVIOUTPUT_ORIGINALSIZE2     1650
 #define IDC_SCREENSHOT_ORIGINALSIZE     1650
 #define IDC_SOUNDCARDLIST               1651
+#define IDC_STATE_BUFFERSIZE2           1651
+#define IDC_STATEREC_BUFFERSIZE         1651
 #define IDC_SOUNDFREQ                   1652
+#define IDC_STATEREC_AUTOPLAY           1652
 #define IDC_SOUNDFREQTXT                1653
 #define IDC_PANEL_FRAME                 1653
 #define IDC_SOUNDFILTERTXT              1654
@@ -1101,7 +1107,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        356
+#define _APS_NEXT_RESOURCE_VALUE        370
 #define _APS_NEXT_COMMAND_VALUE         40050
 #define _APS_NEXT_CONTROL_VALUE         1808
 #define _APS_NEXT_SYMED_VALUE           101

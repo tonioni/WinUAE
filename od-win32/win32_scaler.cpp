@@ -43,6 +43,7 @@ struct uae_filter uaefilters[] =
 
 static int filteroffsetx, filteroffsety, filterxmult = 1000, filterymult = 1000;
 static int dst_width, dst_height, amiga_width, amiga_height, amiga_depth, dst_depth, scale;
+static int dst_width2, dst_height2, amiga_width2, amiga_height2, amiga_depth2, dst_depth2;
 static int temp_width, temp_height;
 uae_u8 *bufmem_ptr;
 static LPDIRECTDRAWSURFACE7 tempsurf;
@@ -51,6 +52,7 @@ static int cleartemp;
 static uae_u32 rc[256], gc[256], bc[256];
 static int deskw, deskh;
 static int d3d;
+static bool inited;
 
 void getfilteroffset (int *dx, int *dy, int *mx, int *my)
 {
@@ -188,8 +190,10 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	SetRect (zr, 0, 0, 0, 0);
 	dr->left = (temp_width - aws) /2;
 	dr->top =  (temp_height - ahs) / 2;
-	dr->left -= (dst_width - aws) / 2;
-	dr->top -= (dst_height - ahs) / 2;
+	if (currprefs.gfx_xcenter_pos < 0)
+		dr->left -= (dst_width - aws) / 2;
+	if (currprefs.gfx_ycenter_pos < 0)
+		dr->top -= (dst_height - ahs) / 2;
 	dr->right = dr->left + dst_width;
 	dr->bottom = dr->top + dst_height;
 
@@ -210,20 +214,39 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		dstratio = srcratio;
 	}
 
-	if (currprefs.gfx_filter_autoscale) {
+	int scalemode = currprefs.gfx_filter_autoscale;
+
+	if (scalemode == AUTOSCALE_STATIC_AUTO) {
+		if (currprefs.gfx_afullscreen) {
+			scalemode = AUTOSCALE_STATIC_NOMINAL;
+		} else {
+			int w1 = (800 / 2) << currprefs.gfx_resolution;
+			int w2 = (640 / 2) << currprefs.gfx_resolution;
+			int h1 = (600 / 2) << currprefs.gfx_vresolution;
+			int h2 = (480 / 2) << currprefs.gfx_vresolution;
+			int w = currprefs.gfx_size_win.width;
+			int h = currprefs.gfx_size_win.height;
+			if (w <= w1 && h <= h1 && w >= w2 && h >= h2)
+				scalemode = AUTOSCALE_NONE;
+			else
+				scalemode = AUTOSCALE_STATIC_NOMINAL;
+		}
+	}
+
+	if (scalemode) {
 		int cw, ch, cx, cy, cv;
 		static int oxmult, oymult;
 
 		filterxmult = 1000 / scale;
 		filterymult = 1000 / scale;
 
-		if (currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_MAX || currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_NOMINAL) {
+		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL) {
 			cw = (752 / 2) << currprefs.gfx_resolution;
 			ch = (572 / 2) << currprefs.gfx_vresolution;
 			cx = 0;
 			cy = 0;
 			cv = 1;
-			if (currprefs.gfx_filter_autoscale == AUTOSCALE_STATIC_NOMINAL) {
+			if (scalemode == AUTOSCALE_STATIC_NOMINAL) {
 				cw -= 80;
 				ch -= 50;
 				cx = 56;
@@ -236,7 +259,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		if (cv) {
 			int diff;
 
-			if (currprefs.gfx_filter_autoscale == AUTOSCALE_CENTER) {
+			if (scalemode == AUTOSCALE_CENTER) {
 
 				int ww = cw * scale;
 				int hh = ch * scale;
@@ -248,7 +271,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 
-			} else if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE && isfullscreen () == 0 && !currprefs.gfx_filteroverlay[0]) {
+			} else if (scalemode == AUTOSCALE_RESIZE && isfullscreen () == 0 && !currprefs.gfx_filteroverlay[0]) {
+
 				static int lastresize = 0;
 				static int lastdelay = 1;
 				static int ocw, och, ocx, ocy, lcw, lch, lcx, lcy;
@@ -520,6 +544,13 @@ void S2X_configure (int rb, int gb, int bb, int rs, int gs, int bs)
 	bufmem_ptr = 0;
 }
 
+void S2X_reset (void)
+{
+	if (!inited)
+		return;
+	S2X_init (dst_width2, dst_height2, amiga_width2, amiga_height2, dst_depth2, amiga_depth2);
+}
+
 void S2X_free (void)
 {
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
@@ -535,12 +566,21 @@ void S2X_free (void)
 	filterxmult = 1000;
 	filterymult = 1000;
 	scale = 1;
+	inited = false;
 }
 
 void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 {
 	int flags = 0;
 	int res_shift;
+
+	dst_width2 = dw;
+	dst_height2 = dh;
+	dst_depth2 = dd;
+	amiga_width2 = aw;
+	amiga_height2 = ah;
+	amiga_depth2 = ad;
+
 
 	S2X_free ();
 	d3d = currprefs.gfx_api;
@@ -614,7 +654,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 	}
 	if (!tempsurf && !d3d)
 		write_log (L"DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
-
+	inited = true;
 }
 
 void S2X_render (void)

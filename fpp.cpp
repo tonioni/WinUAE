@@ -851,7 +851,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 		fpu_op_illg (opcode, m68k_getpc () - oldpc);
 	}
 	if (cc)
-		Exception (7, oldpc - 2);
+		Exception (7);
 }
 
 void fpuop_bcc (uae_u32 opcode, uaecptr pc, uae_u32 extra)

@@ -2326,7 +2326,7 @@ void map_overlay (int chip)
 		map_banks (rb, 0, size, 0x80000);
 	}
 	fill_ce_banks ();
-	if (savestate_state != STATE_RESTORE && savestate_state != STATE_REWIND && valid_address (regs.pc, 4))
+	if (!isrestore () && valid_address (regs.pc, 4))
 		m68k_setpc (m68k_getpc ());
 }
 

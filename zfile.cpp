@@ -1827,7 +1827,6 @@ static struct zfile *zfile_fopenx2 (const TCHAR *name, const TCHAR *mode, int ma
 {
 	struct zfile *f;
 	TCHAR tmp[MAX_DPATH];
-	TCHAR dirsep[2] = { FSDB_DIR_SEPARATOR, '\0' };
 
 #ifdef _WIN32
 	if (isinternetfile (name))
@@ -1880,7 +1879,11 @@ struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask)
 {
 	return zfile_fopenx (name, mode, mask, 0);
 }
-struct zfile *zfile_fopen2 (const TCHAR *name, const TCHAR *mode, int mask, int index)
+struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode)
+{
+	return zfile_fopenx (name, mode, 0, 0);
+}
+struct zfile *zfile_fopen (const TCHAR *name, const TCHAR *mode, int mask, int index)
 {
 	return zfile_fopenx (name, mode, mask, index);
 }
@@ -1956,15 +1959,17 @@ struct zfile *zfile_fopen_empty (struct zfile *prev, const TCHAR *name, uae_u64 
 		}
 		l->size = size;
 		l->datasize = size;
+		l->allocsize = size;
 	} else {
-		l->data = xcalloc (uae_u8, 1);
+		l->data = xcalloc (uae_u8, 1000);
 		l->size = 0;
+		l->allocsize = 1000;
 	}
 	return l;
 }
 struct zfile *zfile_fopen_empty (struct zfile *prev, const TCHAR *name)
 {
-	return zfile_fopen_empty (prev, name, 10000);
+	return zfile_fopen_empty (prev, name, 0);
 }
 
 struct zfile *zfile_fopen_parent (struct zfile *z, const TCHAR *name, uae_u64 offset, uae_u64 size)
@@ -2004,6 +2009,24 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data)
 	l->datasize = size;
 	memcpy (l->data, data, size);
 	return l;
+}
+
+int zfile_truncate (struct zfile *z, uae_s64 size)
+{
+	if (z->data) {
+		if (z->size > size) {
+			z->size = size;
+			if (z->datasize > z->size)
+				z->datasize = z->size;
+			if (z->seek > z->size)
+				z->seek = z->size;
+			return 1;
+		}
+		return 0;
+	} else {
+		/* !!! */
+		return 0;
+	}
 }
 
 uae_s64 zfile_size (struct zfile *z)
@@ -2108,12 +2131,25 @@ size_t zfile_fwrite (void *b, size_t l1, size_t l2, struct zfile *z)
 		return 0;
 	if (z->data) {
 		int off = z->seek + l1 * l2;
-		if (off > z->size) {
-			z->data = xrealloc (uae_u8, z->data, off);
+		if (z->allocsize == 0) {
+			write_log (L"zfile_fwrite(data,%s) but allocsize=0!\n", z->name);
+			return 0;
+		}
+		if (off > z->allocsize) {
+			if (z->allocsize < off)
+				z->allocsize = off;
+			z->allocsize += z->size / 2;
+			if (z->allocsize < 10000)
+				z->allocsize = 10000;
+			z->data = xrealloc (uae_u8, z->data, z->allocsize);
 			z->datasize = z->size = off;
 		}
 		memcpy (z->data + z->seek, b, l1 * l2);
 		z->seek += l1 * l2;
+		if (z->seek > z->size)
+			z->size = z->seek;
+		if (z->size > z->datasize)
+			z->datasize = z->size;
 		return l2;
 	}
 	return fwrite (b, l1, l2, z->f);
@@ -2219,7 +2255,7 @@ int zfile_ferror (struct zfile *z)
 
 uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len)
 {
-	uae_s64 pos;
+	uae_s64 pos = zfile_ftell (z);
 	uae_u8 *b;
 	if (len < 0) {
 		zfile_fseek (z, 0, SEEK_END);
@@ -2227,7 +2263,6 @@ uae_u8 *zfile_getdata (struct zfile *z, uae_s64 offset, int len)
 		zfile_fseek (z, 0, SEEK_SET);
 	}
 	b = xmalloc (uae_u8, len);
-	pos = zfile_ftell (z);
 	zfile_fseek (z, offset, SEEK_SET);
 	zfile_fread (b, len, 1, z);
 	zfile_fseek (z, pos, SEEK_SET);
@@ -2336,7 +2371,6 @@ static struct zvolume *zvolume_list;
 
 static void recurparent (TCHAR *newpath, struct znode *zn, int recurse)
 {
-	TCHAR tmp[2] = { FSDB_DIR_SEPARATOR, 0 };
 	if (zn->parent && (&zn->volume->root != zn->parent || zn->volume->parentz == NULL)) {
 		if (&zn->volume->root == zn->parent && zn->volume->parentz == NULL && !_tcscmp (zn->name, zn->parent->name))
 			goto end;
@@ -2348,7 +2382,7 @@ static void recurparent (TCHAR *newpath, struct znode *zn, int recurse)
 	}
 end:
 	if (newpath[0])
-		_tcscat (newpath, tmp);
+		_tcscat (newpath, FSDB_DIR_SEPARATOR_S);
 	_tcscat (newpath, zn->name);
 }
 
@@ -2358,7 +2392,6 @@ static struct znode *znode_alloc (struct znode *parent, const TCHAR *name)
 	TCHAR tmpname[MAX_DPATH];
 	struct znode *zn = xcalloc (struct znode, 1);
 	struct znode *zn2;
-	TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 	_tcscpy (tmpname, name);
 	zn2 = parent->child;
@@ -2385,7 +2418,7 @@ static struct znode *znode_alloc (struct znode *parent, const TCHAR *name)
 
 	fullpath[0] = 0;
 	recurparent (fullpath, parent, FALSE);
-	_tcscat (fullpath, sep);
+	_tcscat (fullpath, FSDB_DIR_SEPARATOR_S);
 	_tcscat (fullpath, tmpname);
 #ifdef ZFILE_DEBUG
 	write_log (L"znode_alloc vol='%s' parent='%s' name='%s'\n", parent->volume->root.name, parent->name, name);
@@ -2601,7 +2634,7 @@ static struct zvolume *zfile_fopen_archive_data (struct znode *parent, struct zf
 
 static struct znode *get_znode (struct zvolume *zv, const TCHAR *ppath, int);
 
-static void zfile_fopen_archive_recurse2 (struct zvolume *zv, struct znode *zn)
+static void zfile_fopen_archive_recurse2 (struct zvolume *zv, struct znode *zn, int flags)
 {
 	struct zvolume *zvnew;
 	struct znode *zndir;
@@ -2628,7 +2661,7 @@ static void zfile_fopen_archive_recurse2 (struct zvolume *zv, struct znode *zn)
 	}
 }
 
-static int zfile_fopen_archive_recurse (struct zvolume *zv)
+static int zfile_fopen_archive_recurse (struct zvolume *zv, int flags)
 {
 	struct znode *zn;
 	int i, added;
@@ -2642,7 +2675,7 @@ static int zfile_fopen_archive_recurse (struct zvolume *zv)
 		if (ext && !zn->vchild && zn->type == ZNODE_FILE) {
 			for (i = 0; !done && archive_extensions[i]; i++) {
 				if (!strcasecmp (ext + 1, archive_extensions[i])) {
-					zfile_fopen_archive_recurse2 (zv, zn);
+					zfile_fopen_archive_recurse2 (zv, zn, flags);
 					done = 1;
 				}
 			}
@@ -2650,7 +2683,7 @@ static int zfile_fopen_archive_recurse (struct zvolume *zv)
 		if (!done) {
 			z = archive_getzfile (zn, zv->method, 0);
 			if (z && iszip (z))
-				zfile_fopen_archive_recurse2 (zv, zn);
+				zfile_fopen_archive_recurse2 (zv, zn, flags);
 		}
 		zn = zn->next;
 	}
@@ -2673,7 +2706,7 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 	if (!zvnew && !(flags & ZFD_NORECURSE)) {
 #if 1
 		zvnew = archive_directory_plain (zf);
-		zfile_fopen_archive_recurse (zvnew);
+		zfile_fopen_archive_recurse (zvnew, flags);
 		done = 1;
 #else
 		int rc;
@@ -2705,7 +2738,7 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 #endif
 	} else {
 		zvnew->parent = zv->parent;
-		zfile_fopen_archive_recurse (zvnew);
+		zfile_fopen_archive_recurse (zvnew, flags);
 		done = 1;
 	}
 	if (!done)
@@ -2787,11 +2820,10 @@ struct znode *znode_adddir (struct znode *parent, const TCHAR *name, struct zarc
 {
 	struct znode *zn;
 	TCHAR path[MAX_DPATH];
-	TCHAR sep[] = { FSDB_DIR_SEPARATOR, 0 };
 
 	path[0] = 0;
 	recurparent (path, parent, FALSE);
-	_tcscat (path, sep);
+	_tcscat (path, FSDB_DIR_SEPARATOR_S);
 	_tcscat (path, name);
 	zn = get_znode (parent->volume, path, FALSE);
 	if (zn)
@@ -2932,7 +2964,7 @@ struct zvolume *zfile_fopen_archive (const TCHAR *filename, int flags)
 
 #if RECURSIVE_ARCHIVES
 	if (zv && !(flags & ZFD_NORECURSE))
-		zfile_fopen_archive_recurse (zv);
+		zfile_fopen_archive_recurse (zv, flags);
 #endif
 
 	if (zv)

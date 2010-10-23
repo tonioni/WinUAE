@@ -93,6 +93,8 @@ struct vidbuf_description
     int maxblocklines; /* Set to 0 if you want calls to flush_line after each drawn line, or the number of
 			* lines that flush_block wants to/can handle (it isn't really useful to use another
 			* value than maxline here). */
+	int gfx_resolution_reserved; // reserved space for currprefs.gfx_resolution
+	int gfx_vresolution_reserved; // reserved space for currprefs.gfx_resolution
 };
 
 extern struct vidbuf_description gfxvidinfo;

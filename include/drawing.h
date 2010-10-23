@@ -277,6 +277,7 @@ extern void notice_interlace_seen (void);
 extern void frame_drawn (void);
 extern void redraw_frame (void);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy);
+extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 
 /* Finally, stuff that shouldn't really be shared.  */
 

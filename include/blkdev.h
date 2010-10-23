@@ -122,6 +122,7 @@ typedef int (*rawread_func)(int, uae_u8*, int, int, int, uae_u32);
 typedef int (*write_func)(int, uae_u8*, int, int);
 typedef int (*isatapi_func)(int);
 typedef int (*ismedia_func)(int, int);
+typedef int (*scsiemu_func)(int, uae_u8*);
 
 struct device_functions {
 	const TCHAR *name;
@@ -146,6 +147,8 @@ struct device_functions {
 
 	isatapi_func isatapi;
 	ismedia_func ismedia;
+
+	scsiemu_func scsiemu;
 
 };
 

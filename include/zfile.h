@@ -30,7 +30,8 @@ struct fs_filehandle
 typedef int (*zfile_callback)(struct zfile*, void*);
 
 extern struct zfile *zfile_fopen (const TCHAR *, const TCHAR *, int mask);
-extern struct zfile *zfile_fopen2 (const TCHAR *, const TCHAR *, int mask, int index);
+extern struct zfile *zfile_fopen (const TCHAR *, const TCHAR *);
+extern struct zfile *zfile_fopen (const TCHAR *, const TCHAR *, int mask, int index);
 extern struct zfile *zfile_fopen_empty (struct zfile*, const TCHAR *name, uae_u64 size);
 extern struct zfile *zfile_fopen_empty (struct zfile*, const TCHAR *name);
 extern struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data);
@@ -68,6 +69,7 @@ extern int zfile_convertimage (const TCHAR *src, const TCHAR *dst);
 extern struct zfile *zuncompress (struct znode*, struct zfile *z, int dodefault, int mask, int *retcode, int index);
 extern void zfile_seterror (const TCHAR *format, ...);
 extern TCHAR *zfile_geterror (void);
+extern int zfile_truncate (struct zfile *z, uae_s64 size);
 
 #define ZFD_NONE 0
 #define ZFD_ARCHIVE 1 //zip/lha..

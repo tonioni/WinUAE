@@ -10,6 +10,7 @@
 #include "zfile.h"
 #include "gui.h"
 #include "win32.h"
+#include "uae.h"
 
 #include "ComType.h"
 #include "CapsAPI.h"
@@ -18,8 +19,7 @@ static SDWORD caps_cont[4]= {-1, -1, -1, -1};
 static int caps_locked[4];
 static int caps_flags = DI_LOCK_DENVAR|DI_LOCK_DENNOISE|DI_LOCK_NOISE|DI_LOCK_UPDATEFD|DI_LOCK_TYPE|DI_LOCK_OVLBIT;
 static struct CapsVersionInfo cvi;
-static bool oldlib;
-#define LIB_TYPE 1
+static bool oldlib, canseed;
 
 typedef SDWORD (__cdecl* CAPSINIT)(void);
 static CAPSINIT pCAPSInit;
@@ -85,12 +85,13 @@ int caps_init (void)
 	pCAPSUnlockAllTracks = (CAPSUNLOCKALLTRACKS)GetProcAddress (h, "CAPSUnlockAllTracks");
 	pCAPSGetVersionInfo = (CAPSGETVERSIONINFO)GetProcAddress (h, "CAPSGetVersionInfo");
 	init = 1;
-	cvi.type = LIB_TYPE;
+	cvi.type = 1;
 	pCAPSGetVersionInfo (&cvi, 0);
 	write_log (L"CAPS: library version %d.%d (flags=%08X)\n", cvi.release, cvi.revision, cvi.flag);
 	oldlib = (cvi.flag & (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT)) != (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT);
 	if (!oldlib)
 		caps_flags |= DI_LOCK_TRKBIT | DI_LOCK_OVLBIT;
+	canseed = (cvi.flag & DI_LOCK_SETWSEED) != 0;
 	for (i = 0; i < 4; i++)
 		caps_cont[i] = pCAPSAddImage ();
 	return 1;
@@ -142,7 +143,7 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 
 	if (cvi.release < 4) { // pre-4.x bug workaround
 		struct CapsTrackInfoT1 cit;
-		cit.type = LIB_TYPE;
+		cit.type = 1;
 		if (pCAPSLockTrack ((PCAPSTRACKINFO)&cit, caps_cont[drv], 0, 0, caps_flags) == imgeIncompatible) {
 			if (!notified)
 				notify_user (NUMSG_OLDCAPS);
@@ -195,13 +196,29 @@ static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
 	}
 }
 
+static int load (struct CapsTrackInfoT2 *ci, int drv, int track)
+{
+	int flags;
+	
+	ci->type = 1;
+	flags = caps_flags;
+
+	if (canseed) {
+		flags |= DI_LOCK_SETWSEED;
+		ci->type = 2;
+		ci->wseed = uaerand ();
+	}
+	if (pCAPSLockTrack ((PCAPSTRACKINFO)ci, caps_cont[drv], track / 2, track & 1, flags) != imgeOk)
+		return 0;
+	return 1;
+}
+
 int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 {
 	int len;
-	struct CapsTrackInfoT1 ci;
+	struct CapsTrackInfoT2 ci;
 
-	ci.type = LIB_TYPE;
-	if (pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags) != imgeOk)
+	if (!load (&ci, drv, track))
 		return 0;
 	if (oldlib)
 		len = ci.tracklen * 8;
@@ -215,12 +232,11 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, int *tracklength, int *multirev, int *gapoffset)
 {
 	int len;
-	struct CapsTrackInfoT1 ci;
+	struct CapsTrackInfoT2 ci;
 
-	ci.type = LIB_TYPE;
 	if (tracktiming)
 		*tracktiming = 0;
-	if (pCAPSLockTrack ((PCAPSTRACKINFO)&ci, caps_cont[drv], track / 2, track & 1, caps_flags) != imgeOk)
+	if (!load (&ci, drv, track))
 		return 0;
 	*multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
 	if (oldlib) {

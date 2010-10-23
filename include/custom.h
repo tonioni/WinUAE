@@ -1,15 +1,15 @@
- /*
-  * UAE - The Un*x Amiga Emulator
-  *
-  * custom chip support
-  *
-  * (c) 1995 Bernd Schmidt
-  */
+/*
+* UAE - The Un*x Amiga Emulator
+*
+* custom chip support
+*
+* (c) 1995 Bernd Schmidt
+*/
 
 #include "machdep/rpt.h"
 
 /* These are the masks that are ORed together in the chipset_mask option.
- * If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
+* If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
 #define CSMASK_ECS_AGNUS 1
 #define CSMASK_ECS_DENISE 2
 #define CSMASK_AGA 4
@@ -18,7 +18,8 @@
 uae_u32 get_copper_address (int copno);
 
 extern int custom_init (void);
-extern void customreset (int hardreset);
+extern void custom_prepare (void);
+extern void custom_reset (int hardreset);
 extern int intlev (void);
 extern void dumpcustom (void);
 
@@ -28,7 +29,7 @@ extern void do_copper (void);
 extern void notice_new_xcolors (void);
 extern void notice_screen_contents_lost (void);
 extern void init_row_map (void);
-extern void init_hz (void);
+extern void init_hz_full (void);
 extern void init_custom (void);
 
 extern bool picasso_requested_on;
@@ -36,14 +37,13 @@ extern bool picasso_on;
 extern void set_picasso_hack_rate (int hz);
 
 /* Set to 1 to leave out the current frame in average frame time calculation.
- * Useful if the debugger was active.  */
+* Useful if the debugger was active.  */
 extern int bogusframe;
-extern unsigned long int hsync_counter;
+extern unsigned long int hsync_counter, vsync_counter;
 
 extern uae_u16 dmacon;
 extern uae_u16 intena, intreq, intreqr;
 
-extern int current_hpos (void);
 extern int vpos;
 
 extern int find_copper_record (uaecptr, int *, int *);
@@ -52,7 +52,7 @@ extern int n_frames;
 
 STATIC_INLINE int dmaen (unsigned int dmamask)
 {
-    return (dmamask & dmacon) && (dmacon & 0x200);
+	return (dmamask & dmacon) && (dmacon & 0x200);
 }
 
 #define SPCFLAG_STOP 2
@@ -130,11 +130,11 @@ extern frame_time_t syncbase;
 
 #define CYCLE_REFRESH	0x01
 #define CYCLE_STROBE	0x02
-#define CYCLE_MISC	0x04
+#define CYCLE_MISC		0x04
 #define CYCLE_SPRITE	0x08
 #define CYCLE_COPPER	0x10
 #define CYCLE_BLITTER	0x20
-#define CYCLE_CPU	0x40
+#define CYCLE_CPU		0x40
 #define CYCLE_CPUNASTY	0x80
 
 extern unsigned long frametime, timeframes;
@@ -142,8 +142,8 @@ extern int plfstrt, plfstop, plffirstline, plflastline;
 extern uae_u16 htotal, vtotal, beamcon0;
 
 /* 100 words give you 1600 horizontal pixels. Should be more than enough for
- * superhires. Don't forget to update the definition in genp2c.c as well.
- * needs to be larger for superhires support */
+* superhires. Don't forget to update the definition in genp2c.c as well.
+* needs to be larger for superhires support */
 #ifdef CUSTOM_SIMPLE
 #define MAX_WORDS_PER_LINE 50
 #else
@@ -178,26 +178,26 @@ extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 /* get resolution from bplcon0 */
 STATIC_INLINE int GET_RES_DENISE (uae_u16 con0)
 {
-    if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
-	con0 &= ~0x40;
-    return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE))
+		con0 &= ~0x40; // SUPERHIRES
+	return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
 }
 STATIC_INLINE int GET_RES_AGNUS (uae_u16 con0)
 {
-    if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
-	con0 &= ~0x40;
-    return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+		con0 &= ~0x40; // SUPERHIRES
+	return ((con0) & 0x8000) ? RES_HIRES : ((con0) & 0x40) ? RES_SUPERHIRES : RES_LORES;
 }
 /* get sprite width from FMODE */
 #define GET_SPRITEWIDTH(FMODE) ((((FMODE) >> 2) & 3) == 3 ? 64 : (((FMODE) >> 2) & 3) == 0 ? 16 : 32)
 /* Compute the number of bitplanes from a value written to BPLCON0  */
 STATIC_INLINE int GET_PLANES(uae_u16 bplcon0)
 {
-    if ((bplcon0 & 0x0010) && (bplcon0 & 0x7000))
-	return 0;
-    if (bplcon0 & 0x0010)
-	return 8;
-    return (bplcon0 >> 12) & 7;
+	if ((bplcon0 & 0x0010) && (bplcon0 & 0x7000))
+		return 0; // >8 planes = 0 planes
+	if (bplcon0 & 0x0010)
+		return 8; // AGA 8-planes bit
+	return (bplcon0 >> 12) & 7; // normal planes bits
 }
 
 extern void fpscounter_reset (void);
@@ -205,10 +205,11 @@ extern unsigned long idletime;
 extern int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy;
 
 struct customhack {
-    uae_u16 v;
-    int vpos, hpos;
+	uae_u16 v;
+	int vpos, hpos;
 };
 void customhack_put (struct customhack *ch, uae_u16 v, int hpos);
 uae_u16 customhack_get (struct customhack *ch, int hpos);
 extern void alloc_cycle_ext (int, int);
 extern bool ispal (void);
+extern int current_maxvpos (void);

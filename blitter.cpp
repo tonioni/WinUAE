@@ -30,6 +30,7 @@
 
 /* we must not change ce-mode while blitter is running.. */
 static int blitter_cycle_exact;
+static int blt_statefile_type;
 
 uae_u16 bltcon0, bltcon1;
 uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
@@ -44,7 +45,6 @@ static int blitonedot, blitsign, blitlinepixel;
 static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
 static int blit_ch;
-static int vblitsize, hblitsize;
 
 #ifdef BLITTER_DEBUG
 static int blitter_dontdo;
@@ -98,7 +98,9 @@ same in both block and line modes
 number of cycles, initial cycle, main cycle
 */
 
-static const int blit_cycle_diagram[][10] =
+#define DIAGSIZE 10
+
+static const int blit_cycle_diagram[][DIAGSIZE] =
 {
 	{ 2, 0,0,	    0,0 },		/* 0 */
 	{ 2, 0,0,	    0,4 },		/* 1 */
@@ -125,7 +127,7 @@ idle cycle added (still requires free bus cycle)
 
 */
 
-static const int blit_cycle_diagram_fill[][10] =
+static const int blit_cycle_diagram_fill[][DIAGSIZE] =
 {
 	{ 0 },						/* 0 */
 	{ 3, 0,0,0,	    0,4,0 },	/* 1 */
@@ -188,6 +190,36 @@ static const int blit_cycle_diagram_finalld[] =
 	2, 0,0,	    0,0
 };
 
+static int get_cycle_diagram_type (const int *diag)
+{
+	for (int i = 0; i < 16; i++) {
+		if (diag == &blit_cycle_diagram[i][0])
+			return i;
+		if (diag == &blit_cycle_diagram_fill[i][0])
+			return i + 0x40;
+	}
+	if (diag == blit_cycle_diagram_line)
+		return 0x80;
+	if (diag == blit_cycle_diagram_finald)
+		return 0x81;
+	if (diag == blit_cycle_diagram_finalld)
+		return 0x82;
+	return 0xff;
+}
+static const int *set_cycle_diagram_type (uae_u8 diag)
+{
+	if (diag >= 0x00 && diag <= 0x0f)
+		return &blit_cycle_diagram[diag][0];
+	if (diag >= 0x40 && diag <= 0x4f)
+		return &blit_cycle_diagram_fill[diag][0];
+	if (diag == 0x80)
+		return blit_cycle_diagram_line;
+	if (diag == 0x81)
+		return blit_cycle_diagram_finald;
+	if (diag == 0x82)
+		return blit_cycle_diagram_finalld;
+	return NULL;
+}
 
 void build_blitfilltable (void)
 {
@@ -336,23 +368,23 @@ static void blitter_dofast (void)
 	uae_u8 mt = bltcon0 & 0xFF;
 
 	blit_masktable[0] = blt_info.bltafwm;
-	blit_masktable[hblitsize - 1] &= blt_info.bltalwm;
+	blit_masktable[blt_info.hblitsize - 1] &= blt_info.bltalwm;
 
 	if (bltcon0 & 0x800) {
 		bltadatptr = bltapt;
-		bltapt += (hblitsize * 2 + blt_info.bltamod) * vblitsize;
+		bltapt += (blt_info.hblitsize * 2 + blt_info.bltamod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x400) {
 		bltbdatptr = bltbpt;
-		bltbpt += (hblitsize * 2 + blt_info.bltbmod) * vblitsize;
+		bltbpt += (blt_info.hblitsize * 2 + blt_info.bltbmod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x200) {
 		bltcdatptr = bltcpt;
-		bltcpt += (hblitsize * 2 + blt_info.bltcmod) * vblitsize;
+		bltcpt += (blt_info.hblitsize * 2 + blt_info.bltcmod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x100) {
 		bltddatptr = bltdpt;
-		bltdpt += (hblitsize * 2 + blt_info.bltdmod) * vblitsize;
+		bltdpt += (blt_info.hblitsize * 2 + blt_info.bltdmod) * blt_info.vblitsize;
 	}
 
 #ifdef SPEEDUP
@@ -366,9 +398,9 @@ static void blitter_dofast (void)
 		uaecptr dstp = 0;
 		int dodst = 0;
 
-		for (j = 0; j < vblitsize; j++) {
+		for (j = 0; j < blt_info.vblitsize; j++) {
 			blitfc = !!(bltcon1 & 0x4);
-			for (i = 0; i < hblitsize; i++) {
+			for (i = 0; i < blt_info.hblitsize; i++) {
 				uae_u32 bltadat, blitahold;
 				uae_u16 bltbdat;
 				if (bltadatptr) {
@@ -424,7 +456,7 @@ static void blitter_dofast (void)
 		blt_info.bltbhold = blitbhold;
 	}
 	blit_masktable[0] = 0xFFFF;
-	blit_masktable[hblitsize - 1] = 0xFFFF;
+	blit_masktable[blt_info.hblitsize - 1] = 0xFFFF;
 
 	bltstate = BLT_done;
 }
@@ -436,23 +468,23 @@ static void blitter_dofast_desc (void)
 	uae_u8 mt = bltcon0 & 0xFF;
 
 	blit_masktable[0] = blt_info.bltafwm;
-	blit_masktable[hblitsize - 1] &= blt_info.bltalwm;
+	blit_masktable[blt_info.hblitsize - 1] &= blt_info.bltalwm;
 
 	if (bltcon0 & 0x800) {
 		bltadatptr = bltapt;
-		bltapt -= (hblitsize*2 + blt_info.bltamod)*vblitsize;
+		bltapt -= (blt_info.hblitsize * 2 + blt_info.bltamod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x400) {
 		bltbdatptr = bltbpt;
-		bltbpt -= (hblitsize*2 + blt_info.bltbmod)*vblitsize;
+		bltbpt -= (blt_info.hblitsize * 2 + blt_info.bltbmod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x200) {
 		bltcdatptr = bltcpt;
-		bltcpt -= (hblitsize*2 + blt_info.bltcmod)*vblitsize;
+		bltcpt -= (blt_info.hblitsize * 2 + blt_info.bltcmod) * blt_info.vblitsize;
 	}
 	if (bltcon0 & 0x100) {
 		bltddatptr = bltdpt;
-		bltdpt -= (hblitsize*2 + blt_info.bltdmod)*vblitsize;
+		bltdpt -= (blt_info.hblitsize * 2 + blt_info.bltdmod) * blt_info.vblitsize;
 	}
 #ifdef SPEEDUP
 	if (blitfunc_dofast_desc[mt] && !blitfill) {
@@ -465,9 +497,9 @@ static void blitter_dofast_desc (void)
 		uaecptr dstp = 0;
 		int dodst = 0;
 
-		for (j = 0; j < vblitsize; j++) {
+		for (j = 0; j < blt_info.vblitsize; j++) {
 			blitfc = !!(bltcon1 & 0x4);
-			for (i = 0; i < hblitsize; i++) {
+			for (i = 0; i < blt_info.hblitsize; i++) {
 				uae_u32 bltadat, blitahold;
 				uae_u16 bltbdat;
 				if (bltadatptr) {
@@ -523,7 +555,7 @@ static void blitter_dofast_desc (void)
 		blt_info.bltbhold = blitbhold;
 	}
 	blit_masktable[0] = 0xFFFF;
-	blit_masktable[hblitsize - 1] = 0xFFFF;
+	blit_masktable[blt_info.hblitsize - 1] = 0xFFFF;
 
 	bltstate = BLT_done;
 }
@@ -633,7 +665,7 @@ static void blitter_line_proc (void)
 STATIC_INLINE void blitter_nxline (void)
 {
 	blineb = (blineb << 1) | (blineb >> 15);
-	vblitsize--;
+	blt_info.vblitsize--;
 	bltstate = BLT_read;
 }
 
@@ -645,7 +677,7 @@ static int blitter_vcounter1, blitter_vcounter2;
 
 static void decide_blitter_line (int hsync, int hpos)
 {
-	if (blit_final && vblitsize)
+	if (blit_final && blt_info.vblitsize)
 		blit_final = 0;
 	while (last_blitter_hpos < hpos) {
 		int c = channel_state (blit_cyclecounter);
@@ -707,7 +739,7 @@ static void decide_blitter_line (int hsync, int hpos)
 					record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
 					blitlinepixel = 0;
 				}
-				if (vblitsize == 0) {
+				if (blt_info.vblitsize == 0) {
 					bltdpt = bltcpt;
 					blit_final = 1;
 					blit_cyclecounter = 0;
@@ -742,7 +774,7 @@ static void actually_do_blit (void)
 				blitter_write ();
 				blitlinepixel = 0;
 			}
-			if (vblitsize == 0)
+			if (blt_info.vblitsize == 0)
 				bltstate = BLT_done;
 		} while (bltstate != BLT_done);
 		bltdpt = bltcpt;
@@ -798,7 +830,7 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 	bltadat = blt_info.bltadat;
 	if (blitter_hcounter1 == 0)
 		bltadat &= blt_info.bltafwm;
-	if (blitter_hcounter1 == hblitsize - 1)
+	if (blitter_hcounter1 == blt_info.hblitsize - 1)
 		bltadat &= blt_info.bltalwm;
 	if (blitdesc)
 		blitahold = (((uae_u32)bltadat << 16) | preva) >> blt_info.blitdownashift;
@@ -851,7 +883,7 @@ STATIC_INLINE void blitter_doddma (int hpos)
 	chipmem_agnus_wput2 (bltdpt, d);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
-	if (blitter_hcounter2 == hblitsize) {
+	if (blitter_hcounter2 == blt_info.hblitsize) {
 		blitter_hcounter2 = 0;
 		bltdpt += blit_modaddd;
 		blitter_vcounter2++;
@@ -909,7 +941,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 		if (bltcon0 & 0x100)
 			ddat1use = 1;
 		blitter_hcounter1++;
-		if (blitter_hcounter1 == hblitsize) {
+		if (blitter_hcounter1 == blt_info.hblitsize) {
 			blitter_hcounter1 = 0;
 			if (bltcon0 & 0x800)
 				bltapt += blit_modadda;
@@ -1049,14 +1081,14 @@ void decide_blitter (int hpos)
 				blit_cyclecounter++;
 				blit_totalcyclecounter++;
 			} else {
-				if (blitter_vcounter1 < vblitsize) {
+				if (blitter_vcounter1 < blt_info.vblitsize) {
 					blitter_dodma (c, last_blitter_hpos);
 				}
 				blit_cyclecounter++;
 				blit_totalcyclecounter++;
 			}
 
-			if (blitter_vcounter1 >= vblitsize && blitter_vcounter2 >= vblitsize) {
+			if (blitter_vcounter1 >= blt_info.vblitsize && blitter_vcounter2 >= blt_info.vblitsize) {
 				if (!ddat1use && !ddat2use) {
 					blitter_done (last_blitter_hpos);
 					return;
@@ -1065,7 +1097,7 @@ void decide_blitter (int hpos)
 			break;
 		}
 
-		if (!blit_final && blitter_vcounter1 == vblitsize && channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
+		if (!blit_final && blitter_vcounter1 == blt_info.vblitsize && channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
 			blitter_interrupt (last_blitter_hpos, 0);
 			blit_cyclecounter = 0;
 			blit_final = 1;
@@ -1130,9 +1162,9 @@ static void blit_bltset (int con)
 	blitfill = !!(bltcon1 & 0x18);
 
 	if (blitline) {
-		if (hblitsize != 2)
-			debugtest (DEBUGTEST_BLITTER, L"weird hblitsize in linemode: %d vsize=%d\n",
-			hblitsize, vblitsize);
+		if (blt_info.hblitsize != 2)
+			debugtest (DEBUGTEST_BLITTER, L"weird blt_info.hblitsize in linemode: %d vsize=%d\n",
+			blt_info.hblitsize, blt_info.vblitsize);
 		blit_diag = blit_cycle_diagram_line;
 	} else {
 		if (con & 2) {
@@ -1257,8 +1289,6 @@ static void do_blitter2 (int hpos, int copper)
 
 	bltstate = BLT_done;
 
-	hblitsize = blt_info.hblitsize;
-	vblitsize = blt_info.vblitsize;
 	blitter_cycle_exact = currprefs.blitter_cycle_exact;
 	blt_info.blitzero = 1;
 	preva = 0;
@@ -1285,10 +1315,10 @@ static void do_blitter2 (int hpos, int copper)
 		blitonedot = 0;
 		blitlinepixel = 0;
 		blitsing = bltcon1 & 0x2;
-		cycles = vblitsize;
+		cycles = blt_info.vblitsize;
 	} else {
-		blit_firstline_cycles = blit_first_cycle + (blit_diag[0] * hblitsize + cpu_cycles) * CYCLE_UNIT;
-		cycles = vblitsize * hblitsize;
+		blit_firstline_cycles = blit_first_cycle + (blit_diag[0] * blt_info.hblitsize + cpu_cycles) * CYCLE_UNIT;
+		cycles = blt_info.vblitsize * blt_info.hblitsize;
 	}
 
 	if (cleanstart) {
@@ -1310,7 +1340,7 @@ static void do_blitter2 (int hpos, int copper)
 		if (blit_ch & 8)
 			ch++;
 		write_log (L"blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X\n",
-			hblitsize, vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
+			blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
 			blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);
 		blitter_dump ();
 	}
@@ -1345,16 +1375,16 @@ static void do_blitter2 (int hpos, int copper)
 		blitter_hcounter1 = blitter_hcounter2 = 0;
 		blitter_vcounter1 = blitter_vcounter2 = 0;
 		if (blit_nod)
-			blitter_vcounter2 = vblitsize;
+			blitter_vcounter2 = blt_info.vblitsize;
 		blit_cyclecounter = -BLITTER_STARTUP_CYCLES;
 		blit_waitcyclecounter = copper;
 		blit_startcycles = 0;
-		blit_maxcyclecounter = hblitsize * vblitsize + 2;
+		blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize + 2;
 #endif
 		return;
 	}
 
-	if (vblitsize == 0 || (blitline && hblitsize != 2)) {
+	if (blt_info.vblitsize == 0 || (blitline && blt_info.hblitsize != 2)) {
 		blitter_done (hpos);
 		return;
 	}
@@ -1466,10 +1496,32 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
 
 #ifdef SAVESTATE
 
+void restore_blitter_finish (void)
+{
+	record_dma_reset ();
+	record_dma_reset ();
+	if (blt_statefile_type == 0) {
+		blit_interrupt = 1;
+		if (bltstate == BLT_init) {
+			write_log (L"blitter was started but DMA was inactive during save\n");
+			//do_blitter (0);
+		}
+		if (blt_delayed_irq < 0) {
+			if (intreq & 0x0040)
+				blt_delayed_irq = 3;
+			intreq &= 0x0040;
+		}
+	} else {
+		last_blitter_hpos = 0;
+		blit_modset ();
+	}
+}
+
 uae_u8 *restore_blitter (uae_u8 *src)
 {
 	uae_u32 flags = restore_u32();
 
+	blt_statefile_type = 0;
 	blt_delayed_irq = 0;
 	bltstate = BLT_done;
 	if (flags & 4) {
@@ -1484,22 +1536,6 @@ uae_u8 *restore_blitter (uae_u8 *src)
 		blt_delayed_irq = -1;
 	}
 	return src;
-}
-
-void restore_blitter_finish (void)
-{
-	record_dma_reset ();
-	record_dma_reset ();
-	blit_interrupt = 1;
-	if (bltstate == BLT_init) {
-		write_log (L"blitter was started but DMA was inactive during save\n");
-		//do_blitter (0);
-	}
-	if (blt_delayed_irq < 0) {
-		if (intreq & 0x0040)
-			blt_delayed_irq = 3;
-		intreq &= 0x0040;
-	}
 }
 
 uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
@@ -1522,6 +1558,171 @@ uae_u8 *save_blitter (int *len, uae_u8 *dstptr)
 	*len = dst - dstbak;
 	return dstbak;
 
+}
+
+// totally non-real-blitter-like state save but better than nothing..
+
+uae_u8 *restore_blitter_new (uae_u8 *src)
+{
+	uae_u8 state;
+	blt_statefile_type = 1;
+	blitter_cycle_exact = restore_u8 ();
+	state = restore_u8 ();
+
+	blit_first_cycle = restore_u32 ();
+	blit_last_cycle = restore_u32 ();
+	blit_waitcyclecounter = restore_u32 ();
+	blit_startcycles = restore_u32 ();
+	blit_maxcyclecounter = restore_u32 ();
+	blit_firstline_cycles = restore_u32 ();
+	blit_cyclecounter = restore_u32 ();
+	blit_slowdown = restore_u32 ();
+	blit_misscyclecounter = restore_u32 ();
+
+	blitter_hcounter1 = restore_u16 ();
+	blitter_hcounter2 = restore_u16 ();
+	blitter_vcounter1 = restore_u16 ();
+	blitter_vcounter2 = restore_u16 ();
+	blit_ch = restore_u8 ();
+	blit_dmacount = restore_u8 ();
+	blit_dmacount2 = restore_u8 ();
+	blit_nod = restore_u8 ();
+	blit_final = restore_u8 ();
+	blitfc = restore_u8 ();
+	blitife = restore_u8 ();
+
+	blt_info.blitbshift = restore_u8 ();
+	blt_info.blitdownbshift = restore_u8 ();
+	blt_info.blitashift = restore_u8 ();
+	blt_info.blitdownashift = restore_u8 ();
+
+	ddat1use = restore_u8 ();
+	ddat2use = restore_u8 ();
+	ddat1 = restore_u16 ();
+	ddat2 = restore_u16 ();
+
+	blitline = restore_u8 ();
+	blitfill = restore_u8 ();
+	blinea = restore_u16 ();
+	blineb = restore_u16 ();
+	blinea_shift = restore_u8 ();
+	blitonedot = restore_u8 ();
+	blitlinepixel = restore_u8 ();
+	blitsing = restore_u8 ();
+	blitlinepixel = restore_u8 ();
+	blit_interrupt = restore_u8 ();
+	blt_delayed_irq = restore_u8 ();
+	blt_info.blitzero = restore_u8 ();
+	blt_info.got_cycle = restore_u8 ();
+
+	blit_frozen = restore_u8 ();
+	blit_faulty = restore_u8 ();
+	original_ch = restore_u8 ();
+	original_fill = restore_u8 ();
+	original_line = restore_u8 ();
+
+	blit_diag = set_cycle_diagram_type (restore_u8 ());
+
+	if (restore_u16 () != 0x1234)
+		write_log (L"error\n");
+
+	blitter_nasty = restore_u8 ();
+
+	bltstate = BLT_done;
+	if (!blitter_cycle_exact) {
+		if (state > 0)
+			do_blitter (0, 0);
+	} else {
+		if (state == 1)
+			bltstate = BLT_init;
+		else if (state == 2)
+			bltstate = BLT_work;
+	}
+	return src;
+}
+
+uae_u8 *save_blitter_new (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak,*dst;
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+
+	uae_u8 state;
+	save_u8 (blitter_cycle_exact ? 1 : 0);
+	if (bltstate == BLT_done)
+		state = 0;
+	else if (bltstate == BLT_init)
+		state = 1;
+	else
+		state = 2;
+	save_u8 (state);
+
+	if (bltstate != BLT_done) {
+		write_log (L"BLITTER active while saving state\n");
+		blitter_dump ();
+	}
+
+	save_u32 (blit_first_cycle);
+	save_u32 (blit_last_cycle);
+	save_u32 (blit_waitcyclecounter);
+	save_u32 (blit_startcycles);
+	save_u32 (blit_maxcyclecounter);
+	save_u32 (blit_firstline_cycles);
+	save_u32 (blit_cyclecounter);
+	save_u32 (blit_slowdown);
+	save_u32 (blit_misscyclecounter);
+
+	save_u16 (blitter_hcounter1);
+	save_u16 (blitter_hcounter2);
+	save_u16 (blitter_vcounter1);
+	save_u16 (blitter_vcounter2);
+	save_u8 (blit_ch);
+	save_u8 (blit_dmacount);
+	save_u8 (blit_dmacount2);
+	save_u8 (blit_nod);
+	save_u8 (blit_final);
+	save_u8 (blitfc);
+	save_u8 (blitife);
+
+	save_u8 (blt_info.blitbshift);
+	save_u8 (blt_info.blitdownbshift);
+	save_u8 (blt_info.blitashift);
+	save_u8 (blt_info.blitdownashift);
+
+	save_u8 (ddat1use);
+	save_u8 (ddat2use);
+	save_u16 (ddat1);
+	save_u16 (ddat2);
+
+	save_u8 (blitline);
+	save_u8 (blitfill);
+	save_u16 (blinea);
+	save_u16 (blineb);
+	save_u8 (blinea_shift);
+	save_u8 (blitonedot);
+	save_u8 (blitlinepixel);
+	save_u8 (blitsing);
+	save_u8 (blitlinepixel);
+	save_u8 (blit_interrupt);
+	save_u8 (blt_delayed_irq);
+	save_u8 (blt_info.blitzero);
+	save_u8 (blt_info.got_cycle);
+	
+	save_u8 (blit_frozen);
+	save_u8 (blit_faulty);
+	save_u8 (original_ch);
+	save_u8 (original_fill);
+	save_u8 (original_line);
+	save_u8 (get_cycle_diagram_type (blit_diag));
+
+	save_u16 (0x1234);
+
+	save_u8 (blitter_nasty);
+
+	*len = dst - dstbak;
+	return dstbak;
 }
 
 #endif /* SAVESTATE */

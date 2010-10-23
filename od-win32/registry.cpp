@@ -382,14 +382,16 @@ int reginitializeinit (const TCHAR *ppath)
 	if (!ppath) {
 		int ok = 0;
 		TCHAR *posn;
-		_tcscpy (path, _wpgmptr);
+		path[0] = 0;
+		GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL);
 		if (_tcslen (path) > 4 && !_tcsicmp (path + _tcslen (path) - 4, L".exe")) {
 			_tcscpy (path + _tcslen (path) - 3, L"ini");
 			if (GetFileAttributes (path) != INVALID_FILE_ATTRIBUTES)
 				ok = 1;
 		}
 		if (!ok) {
-			_tcscpy (path, _wpgmptr);
+			path[0] = 0;
+			GetFullPathName (_wpgmptr, sizeof path / sizeof (TCHAR), path, NULL);
 			if((posn = _tcsrchr (path, '\\')))
 				posn[1] = 0;
 			_tcscat (path, L"winuae.ini");

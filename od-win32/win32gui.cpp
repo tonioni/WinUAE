@@ -48,6 +48,7 @@
 #include "filesys.h"
 #include "autoconf.h"
 #include "inputdevice.h"
+#include "inputrecord.h"
 #include "xwin.h"
 #include "keyboard.h"
 #include "zfile.h"
@@ -1280,7 +1281,7 @@ static int addrom (UAEREG *fkey, struct romdata *rd, const TCHAR *name)
 	return 1;
 }
 
-static int isromext (const TCHAR *path)
+static int isromext (const TCHAR *path, bool deepscan)
 {
 	const TCHAR *ext;
 	int i;
@@ -1297,6 +1298,8 @@ static int isromext (const TCHAR *path)
 		return 1;
 	if (_tcslen (ext) >= 2 && toupper(ext[0]) == 'U' && isdigit (ext[1]))
 		return 1;
+	if (!deepscan)
+		return 0;
 	for (i = 0; uae_archive_extensions[i]; i++) {
 		if (!_tcsicmp (ext, uae_archive_extensions[i]))
 			return 1;
@@ -1379,7 +1382,7 @@ static int scan_rom_2 (struct zfile *f, void *vrsd)
 	struct romdata *rd;
 
 	scan_rom_hook (NULL, 0);
-	if (!isromext (path))
+	if (!isromext (path, true))
 		return 0;
 	rd = scan_single_rom_2 (f);
 	if (rd) {
@@ -1396,13 +1399,13 @@ static int scan_rom_2 (struct zfile *f, void *vrsd)
 	return 0;
 }
 
-static int scan_rom (const TCHAR *path, UAEREG *fkey)
+static int scan_rom (const TCHAR *path, UAEREG *fkey, bool deepscan)
 {
 	struct romscandata rsd = { fkey, 0 };
 	struct romdata *rd;
 	int cnt = 0;
 
-	if (!isromext (path)) {
+	if (!isromext (path, deepscan)) {
 		//write_log("ROMSCAN: skipping file '%s', unknown extension\n", path);
 		return 0;
 	}
@@ -1499,7 +1502,7 @@ static void show_rom_list (void)
 	free (p);
 }
 
-static int scan_roms_2 (UAEREG *fkey, const TCHAR *path)
+static int scan_roms_2 (UAEREG *fkey, const TCHAR *path, bool deepscan)
 {
 	TCHAR buf[MAX_DPATH];
 	WIN32_FIND_DATA find_data;
@@ -1521,7 +1524,7 @@ static int scan_roms_2 (UAEREG *fkey, const TCHAR *path)
 		_tcscpy (tmppath, path);
 		_tcscat (tmppath, find_data.cFileName);
 		if (!(find_data.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY |FILE_ATTRIBUTE_SYSTEM)) && find_data.nFileSizeLow < 10000000) {
-			if (scan_rom (tmppath, fkey))
+			if (scan_rom (tmppath, fkey, deepscan))
 				ret = 1;
 		}
 		if (!scan_rom_hook (NULL, 0) || FindNextFile (handle, &find_data) == 0) {
@@ -1538,6 +1541,7 @@ static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, const TCHAR *path)
 {
 	int i, ret;
 	TCHAR pathp[MAX_DPATH];
+	bool deepscan = true;
 
 	ret = 0;
 	scan_rom_hook (NULL, 0);
@@ -1546,12 +1550,12 @@ static int scan_roms_3 (UAEREG *fkey, TCHAR **paths, const TCHAR *path)
 	if (!pathp[0])
 		return ret;
 	if (_tcsicmp (pathp, start_path_exe) == 0)
-		return ret;
+		deepscan = false; // do not scan root dir archives
 	for (i = 0; i < MAX_ROM_PATHS; i++) {
 		if (paths[i] && !_tcsicmp (paths[i], pathp))
 			return ret;
 	}
-	ret = scan_roms_2 (fkey, pathp);
+	ret = scan_roms_2 (fkey, pathp, deepscan);
 	for (i = 0; i < MAX_ROM_PATHS; i++) {
 		if (!paths[i]) {
 			paths[i] = my_strdup(pathp);
@@ -2121,14 +2125,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), DISK_FORMAT_STRING, sizeof (DISK_FORMAT_STRING) + sizeof (TCHAR));
-		defext = L"ADF";
+		defext = L"adf";
 		break;
 	case 1:
 		WIN32GUI_LoadUIString (IDS_CHOOSEBLANK, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_ADF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), L"(*.adf)\0*.adf\0", 15 * sizeof (TCHAR));
-		defext = L"ADF";
+		defext = L"adf";
 		break;
 	case 2:
 	case 3:
@@ -2136,7 +2140,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_HDF, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter),  HDF_FORMAT_STRING, sizeof (HDF_FORMAT_STRING) + sizeof (TCHAR));
-		defext = L"HDF";
+		defext = L"hdf";
 		break;
 	case 4:
 	case 5:
@@ -2144,21 +2148,21 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_UAE, szFormat, MAX_DPATH );
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), L"(*.uae)\0*.uae\0", 15 * sizeof (TCHAR));
-		defext = L"UAE";
+		defext = L"uae";
 		break;
 	case 6:
 		WIN32GUI_LoadUIString (IDS_SELECTROM, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_ROM, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), ROM_FORMAT_STRING, sizeof (ROM_FORMAT_STRING) + sizeof (TCHAR));
-		defext = L"ROM";
+		defext = L"rom";
 		break;
 	case 7:
 		WIN32GUI_LoadUIString (IDS_SELECTKEY, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_KEY, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), L"(*.key)\0*.key\0", 15 * sizeof (TCHAR));
-		defext = L"KEY";
+		defext = L"key";
 		break;
 	case 15:
 	case 16:
@@ -2166,7 +2170,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_INP, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), INP_FORMAT_STRING, sizeof (INP_FORMAT_STRING) + sizeof (TCHAR));
-		defext = L"IMP";
+		defext = L"inp";
 		break;
 	case 9:
 	case 10:
@@ -2203,14 +2207,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			*p = 0;
 			all = 0;
 		}
-		defext = L"USS";
+		defext = L"uss";
 		break;
 	case 11:
 		WIN32GUI_LoadUIString (IDS_SELECTFLASH, szTitle, MAX_DPATH);
 		WIN32GUI_LoadUIString (IDS_FLASH, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), L"(*.nvr)\0*.nvr\0", 15 * sizeof (TCHAR));
-		defext = L"NVR";
+		defext = L"nvr";
 		break;
 	case 8:
 	default:
@@ -2235,7 +2239,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 		WIN32GUI_LoadUIString (IDS_CD, szFormat, MAX_DPATH);
 		_stprintf (szFilter, L"%s ", szFormat);
 		memcpy (szFilter + _tcslen (szFilter), CD_FORMAT_STRING, sizeof (CD_FORMAT_STRING) + sizeof (TCHAR));
-		defext = L"CUE";
+		defext = L"cue";
 		break;
 	}
 	if (all) {
@@ -2338,8 +2342,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			selectdisk (prefs, hDlg, 3, IDC_DF3TEXT, full_path);
 			break;
 		case IDC_DOSAVESTATE:
+			savestate_initsave (full_path, openFileName.nFilterIndex, FALSE, true);
+			break;
 		case IDC_DOLOADSTATE:
-			savestate_initsave (full_path, openFileName.nFilterIndex, FALSE);
+			savestate_initsave (full_path, openFileName.nFilterIndex, FALSE, false);
 			break;
 		case IDC_CREATE:
 			{
@@ -2386,13 +2392,11 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			_tcscpy (workprefs.cartfile, full_path);
 			fullpath (workprefs.cartfile, MAX_DPATH);
 			break;
-		case IDC_INPREC_PLAY:
+		case IDC_STATEREC_PLAY:
+		case IDC_STATEREC_RECORD:
+		case IDC_STATEREC_SAVE:
 			_tcscpy (workprefs.inprecfile, full_path);
-			workprefs.inprecmode = ischecked (hDlg, IDC_INPREC_PLAYMODE) ? -1 : -2;
-			break;
-		case IDC_INPREC_RECORD:
 			_tcscpy (workprefs.inprecfile, full_path);
-			workprefs.inprecmode = 1;
 			break;
 		}
 		if (!nosavepath || 1) {
@@ -5702,6 +5706,8 @@ static void values_to_displaydlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
 	CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
 
+	CheckDlgButton (hDlg, IDC_AUTORESOLUTION, workprefs.gfx_autoresolution);
+
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_BUFFER_SINGLE, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)buffer);
@@ -5800,6 +5806,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.chipset_refreshrate = 0;
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
+	workprefs.gfx_autoresolution = ischecked (hDlg, IDC_AUTORESOLUTION);
 
 	if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE)
 	{
@@ -7169,16 +7176,11 @@ static void enable_for_miscdlg (HWND hDlg)
 		ew (hDlg, IDC_DOSAVESTATE, TRUE);
 		ew (hDlg, IDC_SCSIMODE, FALSE);
 		ew (hDlg, IDC_CLOCKSYNC, FALSE);
-		ew (hDlg, IDC_STATE_CAPTURE, FALSE);
-		ew (hDlg, IDC_STATE_RATE, FALSE);
-		ew (hDlg, IDC_STATE_BUFFERSIZE, FALSE);
 	} else {
 #if !defined (SCSIEMU)
 		EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
 #endif
 		ew (hDlg, IDC_DOSAVESTATE, FALSE);
-		ew (hDlg, IDC_STATE_RATE, workprefs.statecapture ? TRUE : FALSE);
-		ew (hDlg, IDC_STATE_BUFFERSIZE, workprefs.statecapture ? TRUE : FALSE);
 	}
 	ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
@@ -7305,8 +7307,6 @@ static void misc_setlang (int v)
 
 static void values_to_miscdlg (HWND hDlg)
 {
-	TCHAR txt[100];
-
 	if (currentpage == MISC1_ID) {
 
 		CheckDlgButton (hDlg, IDC_FOCUSMINIMIZE, workprefs.win32_minimize_inactive);
@@ -7321,31 +7321,12 @@ static void values_to_miscdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 		CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
 		CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
-		CheckDlgButton (hDlg, IDC_STATE_CAPTURE, workprefs.statecapture);
 		CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
 
 		misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 		misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
 		misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
 		CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
-
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)L"1");
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)L"5");
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)L"10");
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)L"20");
-		SendDlgItemMessage (hDlg, IDC_STATE_RATE, CB_ADDSTRING, 0, (LPARAM)L"30");
-		_stprintf (txt, L"%d", workprefs.statecapturerate / 50);
-		SendDlgItemMessage( hDlg, IDC_STATE_RATE, WM_SETTEXT, 0, (LPARAM)txt);
-
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"5");
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"10");
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"20");
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"50");
-		SendDlgItemMessage (hDlg, IDC_STATE_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"100");
-		_stprintf (txt, L"%d", workprefs.statecapturebuffersize / (1024 * 1024));
-		SendDlgItemMessage( hDlg, IDC_STATE_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)txt);
 
 		misc_scsi (hDlg);
 		misc_lang (hDlg);
@@ -7355,6 +7336,13 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_ADDSTRING, 0, (LPARAM)L"Direct3D");
 		SendDlgItemMessage (hDlg, IDC_DXMODE, CB_SETCURSEL, workprefs.gfx_api, 0);
 
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM *");
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"LocalVRAM");
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"SystemRAM");
+		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
+
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Borderless");
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)L"Minimal");
@@ -7363,13 +7351,6 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_SETCURSEL,
 			workprefs.win32_borderless ? 0 : (workprefs.win32_statusbar + 1),
 			0);
-
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"NonLocalVRAM");
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"DefaultRAM *");
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"LocalVRAM");
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_ADDSTRING, 0, (LPARAM)L"SystemRAM");
-		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
 
 	} else if (currentpage == MISC2_ID) {
 
@@ -7386,7 +7367,6 @@ static void values_to_miscdlg (HWND hDlg)
 
 static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	TCHAR txt[100];
 	int v, i;
 	static int recursive;
 
@@ -7455,13 +7435,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				case IDC_KBLED3:
 					misc_getkbled (hDlg, IDC_KBLED3, 2);
 					break;
-				case IDC_STATE_RATE:
-					getcbn (hDlg, IDC_STATE_RATE, txt, sizeof (txt) / sizeof (TCHAR));
-					workprefs.statecapturerate = _tstol (txt) * 50;
-					break;
-				case IDC_STATE_BUFFERSIZE:
-					getcbn (hDlg, IDC_STATE_BUFFERSIZE, txt, sizeof (txt) / sizeof (TCHAR));
-					break;
 				case IDC_LANGUAGE:
 					if (HIWORD (wParam) == CBN_SELENDOK) {
 						v = SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_GETCURSEL, 0, 0L);
@@ -7528,10 +7501,6 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		case IDC_DOLOADSTATE:
 			if (DiskSelection(hDlg, wParam, 10, &workprefs, 0))
 				savestate_state = STATE_DORESTORE;
-			break;
-		case IDC_STATE_CAPTURE:
-			workprefs.statecapture = ischecked (hDlg, IDC_STATE_CAPTURE);
-			enable_for_miscdlg (hDlg);
 			break;
 		case IDC_ILLEGAL:
 			workprefs.illegal_mem = ischecked (hDlg, IDC_ILLEGAL);
@@ -10961,6 +10930,8 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICK, tmp, MAX_DPATH);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_JOYMODE_GAMEPAD, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_JOYMODE_JOYSTICKANALOG, tmp, MAX_DPATH);
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 			WIN32GUI_LoadUIString (IDS_JOYMODE_MOUSE_CDTV, tmp, MAX_DPATH);
@@ -12228,6 +12199,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_RESETCONTENT, 0, 0L);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_DISABLED, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_TV, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_MAX, txt, sizeof (txt) / sizeof (TCHAR));
@@ -12834,6 +12807,9 @@ static void values_to_avioutputdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_AVIOUTPUT_ACTIVATED, avioutput_requested ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton (hDlg, IDC_SCREENSHOT_ORIGINALSIZE, screenshot_originalsize ? TRUE : FALSE);
 	CheckDlgButton (hDlg, IDC_SAMPLERIPPER_ACTIVATED, sampleripper_enabled ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_STATEREC_AUTOPLAY, workprefs.inprec_autoplay ? BST_CHECKED : BST_UNCHECKED);
 }
 
 static void values_from_avioutputdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -12864,6 +12840,9 @@ static void enable_for_avioutputdlg (HWND hDlg)
 		ew (hDlg, IDC_AVIOUTPUT_AUDIO_STATIC, TRUE);
 	}
 
+	ew (hDlg, IDC_STATEREC_RATE, !input_record && full_property_sheet ? TRUE : FALSE);
+	ew (hDlg, IDC_STATEREC_BUFFERSIZE, !input_record && full_property_sheet ? TRUE : FALSE);
+
 	if (avioutput_audio == AVIAUDIO_WAV) {
 		_tcscpy (tmp, L"Wave (internal)");
 	} else {
@@ -12893,11 +12872,11 @@ static void enable_for_avioutputdlg (HWND hDlg)
 
 	ew (hDlg, IDC_AVIOUTPUT_ACTIVATED, (!avioutput_audio && !avioutput_video) ? FALSE : TRUE);
 
-	ew (hDlg, IDC_INPREC_RECORD, input_recording >= 0);
-	CheckDlgButton (hDlg, IDC_INPREC_RECORD, input_recording > 0 ? BST_CHECKED : BST_UNCHECKED);
-	ew (hDlg, IDC_INPREC_PLAY, input_recording <= 0);
-	CheckDlgButton (hDlg, IDC_INPREC_PLAY, input_recording < 0 ? BST_CHECKED : BST_UNCHECKED);
-	ew (hDlg, IDC_INPREC_PLAYMODE, input_recording == 0);
+	CheckDlgButton (hDlg, IDC_STATEREC_RECORD, input_record ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton (hDlg, IDC_STATEREC_PLAY, input_play ? BST_CHECKED : BST_UNCHECKED);
+	ew (hDlg, IDC_STATEREC_RECORD, !(input_play == INPREC_PLAY_NORMAL && full_property_sheet));
+	ew (hDlg, IDC_STATEREC_SAVE, input_record == INPREC_RECORD_RERECORD || input_record == INPREC_RECORD_PLAYING);
+	ew (hDlg, IDC_STATEREC_PLAY, input_record != INPREC_RECORD_RERECORD);
 }
 
 static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -12917,6 +12896,30 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			fetch_path (L"VideoPath", avioutput_filename, sizeof (avioutput_filename) / sizeof (TCHAR));
 			_tcscat (avioutput_filename, L"output.avi");
 		}
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"-");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"1");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"2");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"5");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"10");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"20");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"30");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_ADDSTRING, 0, (LPARAM)L"60");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_RATE, CB_SETCURSEL, 0, 0);
+		if (workprefs.statecapturerate > 0) {
+			_stprintf (tmp, L"%d", workprefs.statecapturerate / 50);
+			SendDlgItemMessage( hDlg, IDC_STATEREC_RATE, WM_SETTEXT, 0, (LPARAM)tmp);
+		}
+
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"50");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"100");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"500");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"1000");
+		SendDlgItemMessage (hDlg, IDC_STATEREC_BUFFERSIZE, CB_ADDSTRING, 0, (LPARAM)L"10000");
+		_stprintf (tmp, L"%d", workprefs.statecapturebuffersize);
+		SendDlgItemMessage( hDlg, IDC_STATEREC_BUFFERSIZE, WM_SETTEXT, 0, (LPARAM)tmp);
+		
 
 	case WM_USER:
 		recursive++;
@@ -12939,12 +12942,9 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		if(recursive > 0)
 			break;
-
 		recursive++;
-
 		switch(wParam)
 		{
-
 		case IDC_AVIOUTPUT_FRAMELIMITER:
 			avioutput_framelimiter = ischecked (hDlg, IDC_AVIOUTPUT_FRAMELIMITER) ? 0 : 1;
 			AVIOutput_SetSettings ();
@@ -12965,22 +12965,47 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			screenshot_originalsize = ischecked (hDlg, IDC_SCREENSHOT_ORIGINALSIZE) ? 1 : 0;
 			regsetint (NULL, L"Screenshot_Original", screenshot_originalsize);
 			break;
-
-		case IDC_INPREC_PLAYMODE:
+		case IDC_STATEREC_SAVE:
+			if (input_record > INPREC_RECORD_NORMAL) {
+				if (DiskSelection (hDlg, wParam, 16, &workprefs, NULL)) {
+					TCHAR tmp[MAX_DPATH];
+					_tcscpy (tmp, workprefs.inprecfile);
+					_tcscat (tmp, L".uss");
+					inprec_save (workprefs.inprecfile, tmp);
+					statefile_save_recording (tmp);
+					workprefs.inprecfile[0] = 0;
+				}
+			}
 			break;
-		case IDC_INPREC_RECORD:
-			if (input_recording)
-				inprec_close ();
-			else
-				DiskSelection (hDlg, wParam, 16, &workprefs, NULL);
+		case IDC_STATEREC_RECORD:
+		{
+			if (input_play) {
+				inprec_playtorecord ();
+			} else if (input_record) {
+				inprec_close (true);
+			} else {
+				input_record = INPREC_RECORD_START;
+				set_special (SPCFLAG_MODE_CHANGE);
+			}
 			break;
-		case IDC_INPREC_PLAY:
-			if (input_recording)
-				inprec_close ();
-			else
-				DiskSelection (hDlg, wParam, 15, &workprefs, NULL);
+		}
+		case IDC_STATEREC_AUTOPLAY:
+			workprefs.inprec_autoplay = ischecked (hDlg, IDC_STATEREC_AUTOPLAY) ? 1 : 0;
 			break;
-
+		case IDC_STATEREC_PLAY:
+			if (input_record)
+				inprec_close (true);
+			if (input_play) {
+				inprec_close (true);
+			} else {
+				inprec_close (true);
+				if (DiskSelection (hDlg, wParam, 15, &workprefs, NULL)) {
+					input_play = INPREC_PLAY_NORMAL;
+					_tcscpy (currprefs.inprecfile, workprefs.inprecfile);
+					set_special (SPCFLAG_MODE_CHANGE);
+				}
+			}
+			break;
 #ifdef PROWIZARD
 		case IDC_PROWIZARD:
 			moduleripper ();
@@ -12993,15 +13018,12 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		case IDC_AVIOUTPUT_ACTIVATED:
 			avioutput_requested = !avioutput_requested;
-			SendMessage (hDlg, WM_HSCROLL, (WPARAM) NULL, (LPARAM) NULL);
 			if (!avioutput_requested)
 				AVIOutput_End ();
 			break;
-
 		case IDC_SCREENSHOT:
 			screenshot(1, 0);
 			break;
-
 		case IDC_AVIOUTPUT_AUDIO:
 			{
 				if (avioutput_enabled)
@@ -13014,7 +13036,6 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				}
 				break;
 			}
-
 		case IDC_AVIOUTPUT_VIDEO:
 			{
 				if (avioutput_enabled)
@@ -13030,7 +13051,6 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				enable_for_avioutputdlg (hDlg);
 				break;
 			}
-
 		case IDC_AVIOUTPUT_FILE:
 			{
 				OPENFILENAME ofn;
@@ -13063,7 +13083,23 @@ static INT_PTR CALLBACK AVIOutputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				}
 				break;
 			}
-
+		}
+		if (HIWORD (wParam) == CBN_SELENDOK || HIWORD (wParam) == CBN_KILLFOCUS || HIWORD (wParam) == CBN_EDITCHANGE)  {
+			switch (LOWORD (wParam))
+			{
+				case IDC_STATEREC_RATE:
+					getcbn (hDlg, IDC_STATEREC_RATE, tmp, sizeof tmp / sizeof (TCHAR));
+					workprefs.statecapturerate = _tstol (tmp) * 50;
+					if (workprefs.statecapturerate <= 0)
+						workprefs.statecapturerate = -1;
+					break;
+				case IDC_STATEREC_BUFFERSIZE:
+					getcbn (hDlg, IDC_STATEREC_BUFFERSIZE, tmp, sizeof tmp / sizeof (TCHAR));
+					workprefs.statecapturebuffersize = _tstol (tmp);
+					if (workprefs.statecapturebuffersize <= 0)
+						workprefs.statecapturebuffersize = 100;
+					break;
+			}
 		}
 
 		values_from_avioutputdlg (hDlg, msg, wParam, lParam);

@@ -20,13 +20,12 @@ extern volatile frame_time_t vsynctime, vsyncmintime;
 extern void reset_frame_rate_hack (void);
 extern int rpt_available;
 extern frame_time_t syncbase;
+extern unsigned long int vsync_cycles;
+extern unsigned long start_cycles;
 
 extern void compute_vsynctime (void);
 extern void init_eventtab (void);
-extern void do_cycles_ce (long cycles);
-extern void do_cycles_ce020 (int clocks);
-extern void do_cycles_ce020_mem (int clocks);
-extern void do_cycles_ce000 (int clocks);
+extern void do_cycles_ce (unsigned long cycles);
 extern int is_cycle_ce (void);
 
 extern unsigned long currcycle, nextevent, is_lastline;

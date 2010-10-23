@@ -1,4 +1,85 @@
 
+Beta 1
+
+!!!!!! NOTE: Re-recorder discussion will be opened later in another thread. All posts related to new input recorder
+in this thread will disappear. !!!!!
+
+- directory filesystem ACTION_LOCK_RECORD and ACTION_FREE_RECORD dos packets implemented (very rarely used)
+- CDTV CDA playback didn't work if play ending track was set to last track (Prehistorik CDTV)
+- reset CD support internal flags when reseting or loading new configuration
+- save chipset extra setting to statefile, previously state restore always restored full
+  advanced chipset configuration and reset chipset extra setting
+- 3-stage 68020 cycle-exact prefetch pipeline (not much difference compared to old one)
+- do not emulate very small audio periods exactly in non-cycle exact modes, this combined with
+  very short samples used huge amounts of CPU power (used by some stupid audio routines) (2.3.0)
+- when restoring state, sound was initialized after first frame, could have caused glitches
+  or missing sound if audio registers were modified during first frame
+- mouse counters (JOYxDAT) were not restored from statefile, fixes random statefile restore mouse jump
+- VPOSW ECS/AGA-only LOL-bit (long line) is hardwired to zero (can't be modified) in standard PAL mode
+- SCSI emulation START/STOP UNIT translated to physical drive load/eject command
+- combined volume and period modulation was broken in 2.3 audio update (probably never used in real world..)
+- added "gamepad" device type to gameports panel, has two differences compared to "joystick", 3 buttons
+  mapped and pullup resistors emulated (most Amiga compatible gamepads have pullups). It is not possible
+  to have pullups automatically in joystick mode because it can break some badly programmed single-button
+  games, some detect always pressed button in this situation.. (fixes Aladdin and other games that
+  only have working 2nd button if buttons have pullup resistors)
+- allow scanning of plain roms (no archives) in winuae root directory
+- A2065 statefile support (autoconfig location saved), max allowed transmit size was too small, big packets
+  were silently dropped, random lost transmit interrupts, broadcast packets being ignored if NIC chip
+  hardware multicast filter was disabled
+- change emulated board filesystem and Z3 board IDs because of ID conflicts with QuickNet Z2 board (2011/2)
+- set default filter to 1x (was FS) and enable new "default" scaling method that only scales if window
+  size is set to "large enough" or so small that image wouldn't fit, always scales in fullscreen modes.
+- "autoresolution" checkbox added to Display panel, automatically selects lowest used resolution setting
+  (lores screen = lores/nondoubled, lores and hires at the same time = hires/nondoubled etc..) Positioning
+  may not work correctly yet, glitches possible.. Enable some autoscaling settings if you don't want changing
+  display size..
+- do not attempt to steal focus in magic mouse mode if WinUAE is not active, it only messes up focus state
+- A500 power led fade tricks should really work now
+- less accurate CIA register access timing in JIT modes (not really much point in accuracy..)
+- "re-recorder" implemented (completely rewritten combined input/state recorder). More information
+  coming later.
+
+- many statefile related changes for input/state recorder compatibility, may break something else..
+  - WARNING: statefiles created with betas may not be compatible with future versions!
+  - save current track's data and density in statefile if disk drive motor was active (regenerated
+    raw track data/density after state restore may not be identical if using ipf or fdi images)
+  - state save/restore while disk DMA is active is now fully supported
+  - save strings in utf8 (should have been done long time ago during unicode updates..)
+  - useless DMAC chunk was saved in non-CDTV configurations (2.3.0)
+  - CD state chunks were saved even if selected configuration didn't have any CD drives (2.3.0)
+  - 68020 cache and prefetch pipeline saved and restored
+  - debugger memory watchpoints saved and restored
+  - save active (very rare) interrupt delays (interrupts that have been triggered but have not yet
+    been noticed by Paula)
+  - mid-instruction CPU state save support, restored state CPU state is now exactly same
+    as when state was saved (68000 CE only, 68020 CE later), previously current instruction
+    was simply restarted (this was really complex and non-trivial task, it is only easy if you
+    accept much higher CPU usage. Which isn't good idea...)
+  - full blitter statefile support in cycle exact mode, state capture/input recorder only currently.
+  This saves blitter emulation variables, not real hardware state (internal statemachine state, latches,
+  counters etc..) because internal structure is unknown. State capture only because it requires 100%
+  identical state after restore (normal blitter state forces current blit to finish). This is not
+  enabled in normal state saving because it is very difficult to keep state saving compatibility
+  between versions when state is hardcoded to current emulation implementation.
+
+- input recorder and state recorder completely rewritten and merged, it is now "re-recorder"
+  - desynch issues fixed
+  - input recording file is linked to statefile, statefile is automatically loaded with input file
+  - statefile/inputfile pair plus including all used disk images will be saved to disk when
+    "save recording" button is clicked (does not stop recording, can be saved multiple times)
+  - buffer size configuration replaced with number of states buffered (circular buffer)
+  - rewind operation change, less than 0.5s from latest state: remove newest state and jump to
+    previous state, more than 0.5s from last state: jump to newest save
+  - "rewind" = "Load previous state capture checkpoint" input event or "Load current state capture
+    cheakpoint" = "rewind" to newest capture checkpoint, never earlier
+  - rewind restore graphics glitches fixed
+  - cdtv/cd32 support (state recorder only, cd timing is not compatible with input recorder)
+  - automatic in-memory input recording, rewind automatically starts input recorder playback (if enabled),
+    any user input event (or end of input data) restarts recording.
+  - save checkpoints manually by using "Save state capture checkpoint" input event
+
+
 Final 2.3.0
 
 Beta 20 (RC3):

@@ -367,8 +367,8 @@ static TCHAR *writets (void)
 	p += _tcslen (p);
 	_stprintf (p, L"%03d", tb.millitm);
 	p += _tcslen (p);
-	if (timeframes || (vpos > 0 && current_hpos () > 0))
-		_stprintf (p, L" [%d %03dx%03d]", timeframes, current_hpos (), vpos);
+	if (vsync_counter != 0xffffffff)
+		_stprintf (p, L" [%d %03dx%03d]", vsync_counter, current_hpos (), vpos);
 	_tcscat (p, L": ");
 	return out;
 }

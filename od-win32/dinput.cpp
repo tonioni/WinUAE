@@ -137,6 +137,39 @@ int dinput_winmousemode (void)
 	return 0;
 }
 
+#if 0
+static LRESULT CALLBACK LowLevelKeyboardProc (int nCode, WPARAM wParam, LPARAM lParam)
+{
+	write_log (L"*");
+	if (nCode >= 0) {
+		KBDLLHOOKSTRUCT *k = (KBDLLHOOKSTRUCT*)lParam;
+		int vk = k->vkCode;
+		int sc = k->scanCode;
+		write_log (L"%02x %02x\n", vk, sc);
+	}
+	return CallNextHookEx (NULL, nCode, wParam, lParam);
+}
+
+static HHOOK kbhook;
+static void lock_kb (void)
+{
+	if (kbhook)
+		return;
+	kbhook = SetWindowsHookEx (WH_KEYBOARD_LL, LowLevelKeyboardProc, hInst, 0);
+	if (!kbhook)
+		write_log (L"SetWindowsHookEx %d\n", GetLastError ());
+	else
+		write_log (L"***************************\n");
+}
+static void unlock_kb (void)
+{
+	if (!kbhook)
+		return;
+	write_log (L"!!!!!!!!!!!!!!!!!!!!!!!!\n");
+	UnhookWindowsHookEx (kbhook);
+	kbhook = NULL;
+}
+#endif
 
 static BYTE ledkeystate[256];
 
@@ -2247,6 +2280,7 @@ static int acquire_kb (int num, int flags)
 		set_leds (oldusedleds);
 	}
 
+	//lock_kb ();
 	setcoop (&di_keyboard[num], DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, L"keyboard");
 	kb_do_refresh = ~0;
 	di_keyboard[num].acquired = -1;
@@ -2292,6 +2326,7 @@ static void unacquire_kb (int num)
 		}
 #endif
 	}
+	//unlock_kb ();
 }
 
 static int refresh_kb (LPDIRECTINPUTDEVICE8 lpdi, int num)

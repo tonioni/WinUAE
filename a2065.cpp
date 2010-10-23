@@ -17,8 +17,13 @@
 #include "a2065.h"
 #include "win32_uaenet.h"
 #include "crc32.h"
+#include "savestate.h"
+#include "autoconf.h"
 
-static int a2065_log = 0;
+int log_a2065 = 0;
+static int log_transmit = 1;
+static int log_receive = 1;
+int a2065_promiscuous = 0;
 
 #define RAP 0x4002
 #define RDP 0x4000
@@ -30,7 +35,7 @@ static int a2065_log = 0;
 
 static uae_u8 config[256];
 static uae_u8 boardram[RAM_SIZE];
-static uae_u16 csr[4];
+static volatile uae_u16 csr[4];
 static int rap;
 static int configured;
 
@@ -38,13 +43,13 @@ static struct netdriverdata *td;
 static void *sysdata;
 
 static int am_initialized;
-static int transmitnow;
+static volatile int transmitnow;
 static uae_u16 am_mode;
 static uae_u64 am_ladrf;
 static uae_u32 am_rdr, am_rdr_rlen, am_rdr_rdra;
 static uae_u32 am_tdr, am_tdr_tlen, am_tdr_tdra;
 static int tdr_offset, rdr_offset;
-static int byteswap, prom;
+static int byteswap, prom, fakeprom;
 static uae_u8 fakemac[6], realmac[6];
 static uae_u8 broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -142,7 +147,7 @@ static void dumppacket (TCHAR *n, uae_u8 *packet, int len)
 
 #define MAX_PACKET_SIZE 4000
 static uae_u8 transmitbuffer[MAX_PACKET_SIZE];
-static int transmitlen;
+static volatile int transmitlen;
 
 static int dofakemac (uae_u8 *packet)
 {
@@ -225,23 +230,6 @@ static int mungepacket (uae_u8 *packet, int len)
 	return ret;
 }
 
-static int getfunc (struct s2devstruct *dev, uae_u8 *d, int *len)
-{
-	int tlen;
-
-	tlen = transmitlen;
-	transmitlen = 0;
-	if (tlen > 0) {
-		if (tlen > *len)
-			return 0;
-		memcpy (d, transmitbuffer, tlen);
-		*len = tlen;
-		transmitnow = 1;
-		return 1;
-	}
-	return 0;
-}
-
 static int mcfilter (const uae_u8 *data)
 {
 	if (am_ladrf == 0) // multicast filter completely disabled?
@@ -249,7 +237,7 @@ static int mcfilter (const uae_u8 *data)
 	return 1; // just allow everything
 }
 
-static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
+static void gotfunc (struct s2devstruct *dev, const uae_u8 *databuf, int len)
 {
 	int i;
 	int size, insize, first;
@@ -258,44 +246,89 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
 	uae_u16 rmd0, rmd1, rmd2, rmd3;
 	uae_u32 crc32;
 	uae_u8 tmp[MAX_PACKET_SIZE], *data;
+	const uae_u8 *dstmac, *srcmac;
+
+	if (log_a2065 > 1 && log_receive) {
+		dstmac = databuf;
+		srcmac = databuf + 6;
+		write_log (L"A2065<!DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
+			dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5],
+			srcmac[6], srcmac[7], srcmac[8], srcmac[9], srcmac[10], srcmac[11],
+			(databuf[12] << 8) | databuf[13], len);
+	}
 
 	if (!(csr[0] & CSR0_RXON)) // receiver off?
 		return;
-	if (len < 60) // too short
+	if (len < 60) { // too short
+		if (log_a2065)
+			write_log (L"A2065: short frame, %d bytes\n", len);
 		return;
+	}
 
-	if (data2[0] & 0x80) {
+	dstmac = databuf;
+	srcmac = databuf + 6;
+
+	if ((dstmac[0] & 0x01) && memcmp (dstmac, broadcast, sizeof broadcast) != 0) {
 		// multicast
-		if (!mcfilter (data2))
+		if (!mcfilter (dstmac)) {
+			if (log_a2065 > 1)
+				write_log (L"mc filtered\n");
 			return;
+		}
 	} else {
 		// !promiscuous and dst != me and dst != broadcast
-		if (!prom && (memcmp (data2, realmac, sizeof realmac) != 0 && memcmp (data2, broadcast, sizeof broadcast) != 0))
+		if (!prom && (memcmp (dstmac, realmac, sizeof realmac) != 0 && memcmp (dstmac, broadcast, sizeof broadcast) != 0)) {
+			if (log_a2065 > 1)
+				write_log (L"not for me1\n");
 			return;
+		}
 	}
 
 	// src and dst = me? right, better drop it.
-	if (memcmp (data2, realmac, sizeof realmac) == 0 && memcmp (data2 + 6, realmac, sizeof realmac) == 0)
+	if (memcmp (dstmac, realmac, sizeof realmac) == 0 && memcmp (srcmac, realmac, sizeof realmac) == 0) {
+		if (log_a2065 > 1)
+			write_log (L"not for me2\n");
 		return;
+	}
 	// dst = broadcast and src = me? no thanks.
-	if (memcmp (data2, broadcast, sizeof broadcast) == 0 && memcmp (data2 + 6, realmac, sizeof realmac) == 0)
+	if (memcmp (dstmac, broadcast, sizeof broadcast) == 0 && memcmp (srcmac, realmac, sizeof realmac) == 0) {
+		if (log_a2065 > 1)
+			write_log (L"not for me3\n");
 		return;
+	}
 
-	memcpy (tmp, data2, len);
+	memcpy (tmp, databuf, len);
+#if 0
+	FILE *f = fopen("s:\\d\\wireshark2.cap", "rb");
+	fseek (f, 474, SEEK_SET);
+	fread (tmp, 342, 1, f);
+	fclose (f);
+	realmac[0] = 0xc8;
+	realmac[1] = 0x0a;
+	realmac[2] = 0xa9;
+	realmac[3] = 0x81;
+	realmac[4] = 0xff;
+	realmac[5] = 0x2f;
+	fakemac[3] = realmac[3];
+	fakemac[4] = realmac[4];
+	fakemac[5] = realmac[5];
+#endif
 	d = tmp;
-	if (a2065_log) {
-		if (memcmp (d, realmac, sizeof realmac) == 0) {
+	dstmac = d;
+	srcmac = d + 6;
+	if (log_a2065 && log_receive) {
+		if (memcmp (dstmac, realmac, sizeof realmac) == 0) {
 			write_log (L"A2065<-DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
-				d[0], d[1], d[2], d[3], d[4], d[5],
-				d[6], d[7], d[8], d[9], d[10], d[11],
+				dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5],
+				srcmac[6], srcmac[7], srcmac[8], srcmac[9], srcmac[10], srcmac[11],
 				(d[12] << 8) | d[13], len);
 		}
 	}
 	if (mungepacket (d, len)) {
-		if (a2065_log) {
+		if (log_a2065 && log_receive) {
 			write_log (L"A2065<*DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
-				d[0], d[1], d[2], d[3], d[4], d[5],
-				d[6], d[7], d[8], d[9], d[10], d[11],
+				dstmac[0], dstmac[1], dstmac[2], dstmac[3], dstmac[4], dstmac[5],
+				srcmac[6], srcmac[7], srcmac[8], srcmac[9], srcmac[10], srcmac[11],
 				(d[12] << 8) | d[13], len);
 		}
 	}
@@ -323,6 +356,7 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
 		addr &= RAM_MASK;
 
 		if (!(rmd1 & RX_OWN)) {
+			write_log (L"A2065: RECEIVE BUFFER ERROR\n");
 			if (!first) {
 				rmd1 |= RX_BUFF | RX_OFLO;
 				csr[0] &= ~CSR0_RXON;
@@ -331,6 +365,7 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
 			}
 			p[3] = rmd1 >> 8;
 			p[2] = rmd1 >> 0;
+			rethink_a2065 ();
 			return;
 		}
 
@@ -363,6 +398,22 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *data2, int len)
 	rethink_a2065 ();
 }
 
+static int getfunc (struct s2devstruct *dev, uae_u8 *d, int *len)
+{
+	if (transmitlen <= 0)
+		return 0;
+	if (transmitlen > *len) {
+		write_log (L"A2065: too large packet transmission attempt %d > %d\n", transmitlen, *len);
+		transmitlen = 0;
+		return 0;
+	}
+	memcpy (d, transmitbuffer, transmitlen);
+	*len = transmitlen;
+	transmitlen = 0;
+	transmitnow = 1;
+	return 1;
+}
+
 static void do_transmit (void)
 {
 	int i;
@@ -379,8 +430,13 @@ static void do_transmit (void)
 	tdr_offset %= am_tdr_tlen;
 	p = boardram + ((am_tdr_tdra + tdr_offset * 8) & RAM_MASK);
 	tmd1 = (p[3] << 8) | (p[2] << 0);
-	if (!(tmd1 & TX_OWN) || !(tmd1 & TX_STP))
+	if (!(tmd1 & TX_OWN) || !(tmd1 & TX_STP)) {
+		tdr_offset++;
 		return;
+	}
+	if (!(tmd1 & TX_ENP) && log_a2065 > 0)
+		write_log (L"A2065: chained transmit!?\n");
+
 	add_fcs = tmd1 & TX_ADD_FCS;
 
 	for (;;) {
@@ -395,8 +451,9 @@ static void do_transmit (void)
 
 		if (!(tmd1 & TX_OWN)) {
 			tmd3 |= TX_BUFF | TX_UFLO;
+			tmd1 |= TX_ERR;
 			csr[0] &= ~CSR0_TXON;
-			write_log (L"A2065: TRANSMIT BUFFER ERROR\n");
+			write_log (L"A2065: TRANSMIT OWN NOT SET\n");
 			err = 1;
 		} else {
 			tmd1 &= ~TX_OWN;
@@ -416,16 +473,21 @@ static void do_transmit (void)
 	}
 	if (outsize < 60) {
 		tmd3 |= TX_BUFF | TX_UFLO;
+		tmd1 |= TX_ERR;
 		csr[0] &= ~CSR0_TXON;
-		write_log (L"A2065: TRANSMIT SIZE %d\n", outsize);
+		write_log (L"A2065: TRANSMIT UNDERFLOW %d\n", outsize);
 		err = 1;
+		p[3] = tmd1 >> 8;
+		p[2] = tmd1 >> 0;
+		p[7] = tmd3 >> 8;
+		p[6] = tmd3 >> 0;
 	}
 
 	if (!err) {
 		uae_u8 *d = transmitbuffer;
 		if ((am_mode & MODE_DTCR) && !add_fcs)
 			outsize -= 4; // do not include checksum bytes
-		if (a2065_log) {
+		if (log_a2065 && log_transmit) {
 			write_log (L"A2065->DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
 				d[0], d[1], d[2], d[3], d[4], d[5],
 				d[6], d[7], d[8], d[9], d[10], d[11],
@@ -433,7 +495,7 @@ static void do_transmit (void)
 		}
 		transmitlen = outsize;
 		if (mungepacket (d, transmitlen)) {
-			if (a2065_log) {
+			if (log_a2065 && log_transmit) {
 				write_log (L"A2065*>DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n",
 					d[0], d[1], d[2], d[3], d[4], d[5],
 					d[6], d[7], d[8], d[9], d[10], d[11],
@@ -441,9 +503,19 @@ static void do_transmit (void)
 			}
 		}
 		uaenet_trigger (sysdata);
-		csr[0] |= CSR0_TINT;
-		rethink_a2065 ();
 	}
+	csr[0] |= CSR0_TINT;
+	rethink_a2065 ();
+}
+
+static void check_transmit (void)
+{
+	if (transmitlen > 0)
+		return;
+	if (!(csr[0] & CSR0_TXON))
+		return;
+	transmitnow = 0;
+	do_transmit ();
 }
 
 void a2065_hsync_handler (void)
@@ -452,37 +524,32 @@ void a2065_hsync_handler (void)
 
 	cnt--;
 	if (cnt < 0 || transmitnow) {
-		transmitnow = 0;
-		if ((csr[0] & CSR0_TXON) && transmitlen <= 0)
-			do_transmit ();
+		check_transmit ();
 		cnt = 15;
 	}
 }
 
 void rethink_a2065 (void)
 {
-	uae_u16 csr0 = csr[0];
-
+	uae_int_requested &= ~4;
 	if (!configured)
 		return;
-	if (csr0 & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON)) {
-		if (!(csr0 & CSR0_INTR)) {
-			csr0 |= CSR0_INTR;
-			if (csr0 & CSR0_INEA) {
-				INTREQ_0 (0x8000 | 0x0008);
-			}
-		}
-	} else {
-		csr0 &= ~CSR0_INTR;
-	}
-
-	csr[0] = csr0;
+	csr[0] &= ~CSR0_INTR;
+	if (csr[0] & (CSR0_BABL | CSR0_MISS | CSR0_MERR | CSR0_RINT | CSR0_TINT | CSR0_IDON))
+		csr[0] |= CSR0_INTR;
+	if ((csr[0] & (CSR0_INTR | CSR0_INEA)) == (CSR0_INTR | CSR0_INEA))
+		uae_int_requested |= 4;
 }
 
 static void chip_init (void)
 {
 	uae_u32 iaddr = ((csr[2] & 0xff) << 16) | csr[1];
 	uae_u8 *p = boardram + (iaddr & RAM_MASK);
+
+	write_log (L"A2065: Initialization block2:\n");
+	for (int i = 0; i < 24; i++)
+		write_log (L".%02X", p[i]);
+	write_log (L"\n");
 
 	am_mode = (p[0] << 8) | (p[1] << 0);
 	am_ladrf = ((uae_u64)p[15] << 56) | ((uae_u64)p[14] << 48) | ((uae_u64)p[13] << 40) | ((uae_u64)p[12] << 32) | (p[11] << 24) | (p[10] << 16) | (p[9] << 8) | (p[8] << 0);
@@ -495,7 +562,8 @@ static void chip_init (void)
 	am_tdr_tdra = am_tdr & 0x00fffff8;
 
 	prom = (am_mode & MODE_PROM) ? 1 : 0;
-
+	fakeprom = a2065_promiscuous ? 1 : 0;
+	
 	fakemac[0] = p[2];
 	fakemac[1] = p[3];
 	fakemac[2] = p[4];
@@ -503,8 +571,8 @@ static void chip_init (void)
 	fakemac[4] = p[6];
 	fakemac[5] = p[7];
 
-	write_log (L"A2065: %06X %d %d %d %06X %06X %02X:%02X:%02X:%02X:%02X:%02X\n",
-		iaddr, prom, am_rdr_rlen, am_tdr_tlen, am_rdr_rdra, am_tdr_tdra,
+	write_log (L"A2065: %04X %06X %d %d %d %d %06X %06X %02X:%02X:%02X:%02X:%02X:%02X\n",
+		am_mode, iaddr, prom, fakeprom, am_rdr_rlen, am_tdr_tlen, am_rdr_rdra, am_tdr_tdra,
 		fakemac[0], fakemac[1], fakemac[2], fakemac[3], fakemac[4], fakemac[5]);
 
 
@@ -516,7 +584,7 @@ static void chip_init (void)
 	if (td != NULL) {
 		if (!sysdata)
 			sysdata = xcalloc (uae_u8, uaenet_getdatalenght());
-		if (!uaenet_open (sysdata, td, NULL, gotfunc, getfunc, prom)) {
+		if (!uaenet_open (sysdata, td, NULL, gotfunc, getfunc, prom || fakeprom)) {
 			write_log (L"A2065: failed to initialize winpcap driver\n");
 		}
 	}
@@ -532,7 +600,7 @@ static uae_u16 chip_wget (uaecptr addr)
 			if (v & (CSR0_BABL | CSR0_CERR | CSR0_MISS | CSR0_MERR))
 				v |= CSR0_ERR;
 		}
-		if (a2065_log > 2)
+		if (log_a2065 > 2)
 			write_log (L"A2065_CHIPWGET: CSR%d=%04X PC=%08X\n", rap, v, M68K_GETPC);
 		return v;
 	}
@@ -548,85 +616,84 @@ static void chip_wput (uaecptr addr, uae_u16 v)
 
 	} else if (addr == RDP) {
 
-		uae_u16 reg = csr[rap];
-		uae_u16 oreg = reg;
+		uae_u16 oreg = csr[rap];
 		uae_u16 t;
 
-		if (a2065_log > 2)
+		if (log_a2065 > 2)
 			write_log (L"A2065_CHIPWPUT: CSR%d=%04X PC=%08X\n", rap, v & 0xffff, M68K_GETPC);
 
 		switch (rap)
 		{
 		case 0:
-			reg &= ~CSR0_INEA; reg |= v & CSR0_INEA;
+			csr[0] &= ~CSR0_INEA; csr[0] |= v & CSR0_INEA;
 			// bit = 1 -> set, bit = 0 -> nop
 			t = v & (CSR0_INIT | CSR0_STRT | CSR0_STOP | CSR0_TDMD);
-			reg |= t;
+			csr[0] |= t;
 			// bit = 1 -> clear, bit = 0 -> nop
 			t = v & (CSR0_IDON | CSR0_TINT | CSR0_RINT | CSR0_MERR | CSR0_MISS | CSR0_CERR | CSR0_BABL);
-			reg &= ~t;
-			reg &= ~CSR0_ERR;
+			csr[0] &= ~t;
+			csr[0] &= ~CSR0_ERR;
 
-			if ((reg & (CSR0_STOP | CSR0_STRT | CSR0_INIT)) == (CSR0_STOP | CSR0_STRT | CSR0_INIT))
-				reg &= ~(CSR0_STRT | CSR0_INIT);
-			if (reg & CSR0_INIT)
-				reg &= ~CSR0_STOP;
+			if ((csr[0] & (CSR0_STOP | CSR0_STRT | CSR0_INIT)) == (CSR0_STOP | CSR0_STRT | CSR0_INIT))
+				csr[0] &= ~(CSR0_STRT | CSR0_INIT);
+			if (csr[0] & CSR0_INIT)
+				csr[0] &= ~CSR0_STOP;
 
-			if ((reg & CSR0_STRT) && !(oreg & CSR0_STRT)) {
-				reg &= ~CSR0_STOP;
+			if ((csr[0] & CSR0_STRT) && !(oreg & CSR0_STRT)) {
+				csr[0] &= ~CSR0_STOP;
 				if (!(am_mode & MODE_DTX))
-					reg |= CSR0_TXON;
+					csr[0] |= CSR0_TXON;
 				if (!(am_mode & MODE_DRX))
-					reg |= CSR0_RXON;
-				if (a2065_log)
-					write_log (L"A2065: START\n");
+					csr[0] |= CSR0_RXON;
+				if (log_a2065)
+					write_log (L"A2065: START.\n");
 			}
 
-			if ((reg & CSR0_STOP) && !(oreg & CSR0_STOP)) {
-				reg = CSR0_STOP;
-				if (a2065_log)
-					write_log (L"A2065: STOP\n");
+			if ((csr[0] & CSR0_STOP) && !(oreg & CSR0_STOP)) {
+				csr[0] = CSR0_STOP;
+				if (log_a2065)
+					write_log (L"A2065: STOP.\n");
 				csr[3] = 0;
 				am_initialized = 0;
 			}
 
-			if ((reg & CSR0_INIT) && am_initialized == 0) {
-				if (a2065_log)
-					write_log (L"A2065: INIT\n");
+			if ((csr[0] & CSR0_INIT) && am_initialized == 0) {
+				if (log_a2065)
+					write_log (L"A2065: INIT.\n");
 				chip_init ();
-				reg |= CSR0_IDON;
+				csr[0] |= CSR0_IDON;
 				am_initialized = 1;
 			}
 
-			if ((reg & CSR0_STRT) && am_initialized) {
-				if (reg & CSR0_TDMD)
-					transmitnow = 1;
+			if ((csr[0] & CSR0_STRT) && am_initialized) {
+				if (csr[0] & CSR0_TDMD)
+					check_transmit ();
 			}
-			reg &= ~CSR0_TDMD;
+			csr[0] &= ~CSR0_TDMD;
 
+			rethink_a2065 ();
 			break;
 		case 1:
 			if (csr[0] & 4) {
-				reg = v;
-				reg &= ~1;
+				csr[1] = v;
+				csr[1] &= ~1;
 			}
 			break;
 		case 2:
 			if (csr[0] & 4) {
-				reg = v;
-				reg &= 0x00ff;
+				csr[2] = v;
+				csr[2] &= 0x00ff;
 			}
 			break;
 		case 3:
 			if (csr[0] & 4) {
-				reg = v;
-				reg &= 7;
+				csr[3] = v;
+				csr[3] &= 7;
 			}
-			byteswap = (reg & CSR3_BSWP) ? 1 : 0;
+			byteswap = (csr[3] & CSR3_BSWP) ? 1 : 0;
 			break;
 
 		}
-		csr[rap] = reg;
 	}
 }
 
@@ -640,7 +707,7 @@ static uae_u32 a2065_bget2 (uaecptr addr)
 	} else if (addr >= RAM_OFFSET) {
 		v = boardram[(addr & RAM_MASK) ^ 1];
 	}
-	if (a2065_log > 2)
+	if (log_a2065 > 2)
 		write_log (L"A2065_BGET: %08X -> %02X PC=%08X\n", addr, v & 0xff, M68K_GETPC);
 	return v;
 }
@@ -650,7 +717,7 @@ static void a2065_bput2 (uaecptr addr, uae_u32 v)
 	if (addr >= RAM_OFFSET) {
 		boardram[(addr & RAM_MASK) ^ 1] = v;
 	}
-	if (a2065_log > 2)
+	if (log_a2065 > 2)
 		write_log (L"A2065_BPUT: %08X <- %02X PC=%08X\n", addr, v & 0xff, M68K_GETPC);
 }
 
@@ -731,13 +798,13 @@ static void REGPARAM2 a2065_bput (uaecptr addr, uae_u32 b)
 	if (addr == 0x48 && !configured) {
 		map_banks (&a2065_bank, b, 0x10000 >> 16, 0x10000);
 		write_log (L"A2065 Z2 autoconfigured at %02X0000\n", b);
-		configured = 1;
+		configured = b;
 		expamem_next ();
 		return;
 	}
 	if (addr == 0x4c && !configured) {
 		write_log (L"A2065 DMAC AUTOCONFIG SHUT-UP!\n");
-		configured = 1;
+		configured = 0xff;
 		expamem_next ();
 		return;
 	}
@@ -773,10 +840,9 @@ static addrbank a2065_bank = {
 	a2065_lgeti, a2065_wgeti, ABFLAG_IO
 };
 
-void a2065_init (void)
+static void a2065_config (void)
 {
 	memset (config, 0xff, sizeof config);
-	configured = 0;
 	ew (0x00, 0xc0 | 0x01);
 	// hardware id
 	ew (0x04, 0x70);
@@ -812,7 +878,49 @@ void a2065_init (void)
 	fakemac[4] = realmac[4];
 	fakemac[5] = realmac[5];
 
-	/* KS autoconfig handles the rest */
-	map_banks (&a2065_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	if (configured) {
+		if (configured != 0xff)
+			map_banks (&a2065_bank, configured, 0x10000 >> 16, 0x10000);
+	} else {
+		/* KS autoconfig handles the rest */
+		map_banks (&a2065_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+	}
+}
 
+uae_u8 *save_a2065 (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak,*dst;
+
+	if (currprefs.a2065name[0] == 0)
+		return NULL;
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = (uae_u8*)malloc (16);
+	save_u32 (0);
+	save_u8 (configured);
+	for (int i = 0; i < 6; i++)
+		save_u8 (realmac[i]);
+	*len = dst - dstbak;
+	return dstbak;
+}
+uae_u8 *restore_a2065 (uae_u8 *src)
+{
+	restore_u32 ();
+	configured = restore_u8 ();
+	for (int i = 0; i < 6; i++)
+		realmac[i] = restore_u8 ();
+	return src;
+}
+
+void restore_a2065_finish (void)
+{
+	if (configured)
+		a2065_config ();
+}
+
+void a2065_init (void)
+{
+	configured = 0;
+	a2065_config ();
 }

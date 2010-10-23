@@ -126,8 +126,6 @@ INPUTEVENT_END
 extern void handle_cd32_joystick_cia (uae_u8, uae_u8);
 extern uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra);
 extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
-extern int getbuttonstate (int joy, int button);
-extern int getjoystate (int joy);
 
 #define MAGICMOUSE_BOTH 0
 #define MAGICMOUSE_NATIVE_ONLY 1
@@ -154,7 +152,6 @@ extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
 extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans, int **kbmaps);
-extern int handle_input_event (int nr, int state, int max, int autofire);
 extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
 extern int inputdevice_synccapslock (int, int*);
@@ -175,6 +172,8 @@ extern uae_u16 POT1DAT (void);
 extern void JOYTEST (uae_u16 v);
 extern uae_u16 JOY0DAT (void);
 extern uae_u16 JOY1DAT (void);
+extern void JOYSET (int num, uae_u16 v);
+extern uae_u16 JOYGET (int num);
 
 extern void inputdevice_vsync (void);
 extern void inputdevice_hsync (void);
@@ -211,10 +210,11 @@ extern void inputdevice_tablet_strobe (void);
 #define JSEM_MODE_DEFAULT 0
 #define JSEM_MODE_MOUSE 1
 #define JSEM_MODE_JOYSTICK 2
-#define JSEM_MODE_JOYSTICK_ANALOG 3
-#define JSEM_MODE_MOUSE_CDTV 4
-#define JSEM_MODE_JOYSTICK_CD32 5
-#define JSEM_MODE_LIGHTPEN 6
+#define JSEM_MODE_GAMEPAD 3
+#define JSEM_MODE_JOYSTICK_ANALOG 4
+#define JSEM_MODE_MOUSE_CDTV 5
+#define JSEM_MODE_JOYSTICK_CD32 6
+#define JSEM_MODE_LIGHTPEN 7
 
 #define JSEM_KBDLAYOUT 0
 #define JSEM_JOYS 100
@@ -236,33 +236,6 @@ extern int jsem_ismouse (int port, const struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
 
 extern int inputdevice_uaelib (TCHAR *, TCHAR *);
-
-#define INPREC_JOYPORT 1
-#define INPREC_JOYBUTTON 2
-#define INPREC_KEY 3
-#define INPREC_DISKINSERT 4
-#define INPREC_DISKREMOVE 5
-#define INPREC_VSYNC 6
-#define INPREC_CIAVSYNC 7
-#define INPREC_STATEFILE 0x7f
-#define INPREC_END 0xff
-#define INPREC_QUIT 0xfe
-
-extern int input_recording;
-extern void inprec_close (void);
-extern int inprec_open (const TCHAR*, int);
-extern void inprec_rend (void);
-extern void inprec_rstart (uae_u8);
-extern void inprec_ru8 (uae_u8);
-extern void inprec_ru16 (uae_u16);
-extern void inprec_ru32 (uae_u32);
-extern void inprec_rstr (const TCHAR*);
-extern int inprec_pstart (uae_u8);
-extern void inprec_pend (void);
-extern uae_u8 inprec_pu8 (void);
-extern uae_u16 inprec_pu16 (void);
-extern uae_u32 inprec_pu32 (void);
-extern int inprec_pstr (TCHAR*);
 
 extern int inputdevice_testread (int*, int*, int*);
 extern int inputdevice_istest (void);

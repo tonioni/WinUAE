@@ -49,6 +49,7 @@
 //#define TEST_AUDIO
 
 #define PERIOD_MIN 4
+#define PERIOD_MIN_NONCE 60
 
 int audio_channel_mask = 15;
 
@@ -1073,10 +1074,12 @@ static void audio_event_reset (void)
 {
 	int i;
 
-	last_cycles = get_cycles () - 1;
+	last_cycles = get_cycles ();
 	next_sample_evtime = scaled_sample_evtime;
-	for (i = 0; i < 4; i++)
-		zerostate (i);
+	if (!isrestore ()) {
+		for (i = 0; i < 4; i++)
+			zerostate (i);
+	}
 	schedule_audio ();
 	events_schedule ();
 	samplecnt = 0;
@@ -1180,23 +1183,23 @@ STATIC_INLINE void setdr (int nr)
 	}
 }
 
-static void loaddat (int nr)
+static void loaddat (int nr, bool modper)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 	int audav = adkcon & (0x01 << nr);
 	int audap = adkcon & (0x10 << nr);
-	if (audav || audap) {
-		if (nr > 3)
+	if (audav || (modper && audap)) {
+		if (nr >= 3)
 			return;
-		if (audav) {
-			cdp[1].vol = cdp->dat;
-		} else if (audap) {
+		if (modper && audap) {
 			if (cdp->dat == 0)
 				cdp[1].per = PERIOD_MAX;
 			else if (cdp->dat > PERIOD_MIN)
 				cdp[1].per = cdp->dat * CYCLE_UNIT;
 			else
 				cdp[1].per = PERIOD_MIN * CYCLE_UNIT;
+		} else	if (audav) {
+			cdp[1].vol = cdp->dat;
 		}
 	} else {
 #ifdef TEST_AUDIO
@@ -1209,6 +1212,10 @@ static void loaddat (int nr)
 #endif
 		cdp->dat2 = cdp->dat;
 	}
+}
+static void loaddat (int nr)
+{
+	loaddat (nr, false);
 }
 
 STATIC_INLINE void loadper (int nr)
@@ -1353,7 +1360,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 		if (!perfin)
 			return;
 		if (audap)
-			loaddat (nr);
+			loaddat (nr, true);
 		if (chan_ena) {
 			if (audap)
 				setdr (nr);
@@ -1438,7 +1445,7 @@ void audio_reset (void)
 #endif
 	reset_sound ();
 	memset (sound_filter_state, 0, sizeof sound_filter_state);
-	if (savestate_state != STATE_RESTORE) {
+	if (!isrestore ()) {
 		for (i = 0; i < 4; i++) {
 			cdp = &audio_channel[i];
 			memset (cdp, 0, sizeof *audio_channel);
@@ -1448,7 +1455,7 @@ void audio_reset (void)
 		}
 	}
 
-	last_cycles = get_cycles () - 1;
+	last_cycles = get_cycles ();
 	next_sample_evtime = scaled_sample_evtime;
 	schedule_audio ();
 	events_schedule ();
@@ -1563,7 +1570,7 @@ void set_audio (void)
 			}
 		}
 		next_sample_evtime = scaled_sample_evtime;
-		last_cycles = get_cycles () - 1;
+		last_cycles = get_cycles ();
 		compute_vsynctime ();
 	} else {
 		sound_volume (0);
@@ -1659,7 +1666,7 @@ void update_audio (void)
 
 	if (!isaudio ())
 		goto end;
-	if (savestate_state == STATE_RESTORE)
+	if (isrestore ())
 		goto end;
 	if (!is_audio_active ())
 		goto end;
@@ -1858,6 +1865,10 @@ void AUDxPER (int nr, uae_u16 v)
 		/* smaller values would cause extremely high cpu usage */
 		per = PERIOD_MIN * CYCLE_UNIT;
 	}
+	if (per < PERIOD_MIN_NONCE * CYCLE_UNIT && !currprefs.cpu_cycle_exact && (cdp->dmaenstore || cdp->state == 0)) {
+		/* DMAL emulation and low period can cause very very high cpu usage on slow performance PCs */
+		per = PERIOD_MIN_NONCE * CYCLE_UNIT;
+	}
 
 	if (cdp->per == PERIOD_MAX - 1 && per != PERIOD_MAX - 1) {
 		cdp->evtime = CYCLE_UNIT;
@@ -1966,11 +1977,19 @@ void audio_vsync (void)
 #endif
 }
 
+void restore_audio_finish (void)
+{
+	last_cycles = get_cycles ();
+	schedule_audio ();
+	events_schedule ();
+}
+
 uae_u8 *restore_audio (int nr, uae_u8 *src)
 {
 	struct audio_channel_data *acd = audio_channel + nr;
 	uae_u16 p;
 
+	zerostate (nr);
 	acd->state = restore_u8 ();
 	acd->vol = restore_u8 ();
 	acd->intreq2 = restore_u8 () ? true : false;

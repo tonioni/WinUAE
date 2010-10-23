@@ -704,60 +704,57 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define MAXFILESIZE32 (0x7fffffff)
 
 /* Passed as type to Lock() */
-#define SHARED_LOCK	-2  /* File is readable by others */
-#define ACCESS_READ	-2  /* Synonym */
+#define SHARED_LOCK		-2  /* File is readable by others */
+#define ACCESS_READ		-2  /* Synonym */
 #define EXCLUSIVE_LOCK	-1  /* No other access allowed  */
 #define ACCESS_WRITE	-1  /* Synonym */
 
 /* packet types */
-#define ACTION_CURRENT_VOLUME	7
-#define ACTION_LOCATE_OBJECT	8
-#define ACTION_RENAME_DISK	9
-#define ACTION_FREE_LOCK	15
+#define ACTION_CURRENT_VOLUME	 7
+#define ACTION_LOCATE_OBJECT	 8
+#define ACTION_RENAME_DISK		 9
+#define ACTION_FREE_LOCK		15
 #define ACTION_DELETE_OBJECT	16
 #define ACTION_RENAME_OBJECT	17
-#define ACTION_MORE_CACHE	18
-#define ACTION_COPY_DIR		19
-#define ACTION_SET_PROTECT	21
-#define ACTION_CREATE_DIR	22
+#define ACTION_MORE_CACHE		18
+#define ACTION_COPY_DIR			19
+#define ACTION_SET_PROTECT		21
+#define ACTION_CREATE_DIR		22
 #define ACTION_EXAMINE_OBJECT	23
-#define ACTION_EXAMINE_NEXT	24
-#define ACTION_DISK_INFO	25
-#define ACTION_INFO		26
-#define ACTION_FLUSH		27
-#define ACTION_SET_COMMENT	28
-#define ACTION_PARENT		29
-#define ACTION_SET_DATE		34
-#define ACTION_FIND_WRITE	1004
-#define ACTION_FIND_INPUT	1005
-#define ACTION_FIND_OUTPUT	1006
-#define ACTION_END		1007
-#define ACTION_SEEK		1008
+#define ACTION_EXAMINE_NEXT		24
+#define ACTION_DISK_INFO		25
+#define ACTION_INFO				26
+#define ACTION_FLUSH			27
+#define ACTION_SET_COMMENT		28
+#define ACTION_PARENT			29
+#define ACTION_SET_DATE			34
+#define ACTION_FIND_WRITE		1004
+#define ACTION_FIND_INPUT		1005
+#define ACTION_FIND_OUTPUT		1006
+#define ACTION_END				1007
+#define ACTION_SEEK				1008
 #define ACTION_WRITE_PROTECT	1023
 #define ACTION_IS_FILESYSTEM	1027
-#define ACTION_READ		'R'
-#define ACTION_WRITE		'W'
+#define ACTION_READ				 'R'
+#define ACTION_WRITE			 'W'
 
 /* 2.0+ packet types */
-#define ACTION_INHIBIT		31
+#define ACTION_INHIBIT			  31
 #define ACTION_SET_FILE_SIZE	1022
-#define ACTION_LOCK_RECORD	2008
-#define ACTION_FREE_RECORD	2009
-#define ACTION_SAME_LOCK	40
-#define ACTION_CHANGE_MODE	1028
-#define ACTION_FH_FROM_LOCK	1026
-#define ACTION_COPY_DIR_FH	1030
-#define ACTION_PARENT_FH	1031
-#define ACTION_EXAMINE_ALL	1033
-#define ACTION_EXAMINE_FH	1034
+#define ACTION_LOCK_RECORD		2008
+#define ACTION_FREE_RECORD		2009
+#define ACTION_SAME_LOCK		  40
+#define ACTION_CHANGE_MODE		1028
+#define ACTION_FH_FROM_LOCK		1026
+#define ACTION_COPY_DIR_FH		1030
+#define ACTION_PARENT_FH		1031
+#define ACTION_EXAMINE_ALL		1033
+#define ACTION_EXAMINE_FH		1034
 #define ACTION_EXAMINE_ALL_END	1035
 
-#define ACTION_MAKE_LINK	1021
-#define ACTION_READ_LINK	1024
-
-#define ACTION_FORMAT		1020
+#define ACTION_FORMAT			1020
 #define ACTION_IS_FILESYSTEM	1027
-#define ACTION_ADD_NOTIFY	4097
+#define ACTION_ADD_NOTIFY		4097
 #define ACTION_REMOVE_NOTIFY	4098
 
 #define ACTION_CHANGE_FILE_POSITION64  8001
@@ -765,7 +762,11 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_CHANGE_FILE_SIZE64      8003
 #define ACTION_GET_FILE_SIZE64         8004
 
-#define DISK_TYPE		0x444f5301 /* DOS\1 */
+/* not supported */
+#define ACTION_MAKE_LINK		1021
+#define ACTION_READ_LINK		1024
+
+#define DISK_TYPE 0x444f5301 /* DOS\1 */
 
 typedef struct {
 	uae_u32 uniq;
@@ -774,6 +775,17 @@ typedef struct {
 	/* The file we're going to look up next.  */
 	a_inode *curr_file;
 } ExamineKey;
+
+struct lockrecord
+{
+	struct lockrecord *next;
+	uae_u32 packet;
+	uae_u32 pos;
+	uae_u32 len;
+	uae_u32 mode;
+	uae_u32 timeout;
+	uae_u32 msg;
+};
 
 typedef struct key {
 	struct key *next;
@@ -784,6 +796,7 @@ typedef struct key {
 	int dosmode;
 	int createmode;
 	int notifyactive;
+	struct lockrecord *record;
 } Key;
 
 typedef struct notify {
@@ -842,6 +855,8 @@ typedef struct _unit {
 
 	/* Keys */
 	struct key *keys;
+
+	struct lockrecord *waitingrecords;
 
 	a_inode rootnode;
 	unsigned long aino_cache_size;
@@ -1128,23 +1143,6 @@ int filesys_eject (int nr)
 	return 1;
 }
 
-void filesys_vsync (void)
-{
-	Unit *u;
-
-	for (u = units; u; u = u->next) {
-		if (u->reinsertdelay > 0) {
-			u->reinsertdelay--;
-			if (u->reinsertdelay == 0) {
-				filesys_insert (u->unit, u->newvolume, u->newrootdir, u->newreadonly, u->newflags);
-				xfree (u->newvolume);
-				u->newvolume = NULL;
-				xfree (u->newrootdir);
-				u->newrootdir = NULL;
-			}
-		}
-	}
-}
 static void filesys_delayed_change (Unit *u, int frames, const TCHAR *rootdir, const TCHAR *volume, bool readonly, int flags)
 {
 	u->reinsertdelay = 50;
@@ -2116,7 +2114,7 @@ static void filesys_start_thread (UnitInfo *ui, int nr)
 	ui->unit_pipe = 0;
 	ui->back_pipe = 0;
 	ui->reset_state = FS_STARTUP;
-	if (savestate_state != STATE_RESTORE) {
+	if (!isrestore ()) {
 		ui->startup = 0;
 		ui->self = 0;
 	}
@@ -2129,7 +2127,7 @@ static void filesys_start_thread (UnitInfo *ui, int nr)
 		uae_start_thread (L"filesys", filesys_thread, (void *)ui, &ui->tid);
 	}
 #endif
-	if (savestate_state == STATE_RESTORE)
+	if (isrestore ())
 		startup_update_unit (ui->self, ui);
 }
 
@@ -2289,6 +2287,12 @@ static void free_key (Unit *unit, Key *k)
 			break;
 		}
 		prev = k1;
+	}
+
+	for (struct lockrecord *lr = k->record; lr;) {
+		struct lockrecord *next = lr->next;
+		xfree (lr);
+		lr = next;
 	}
 
 	if (k->fd != NULL)
@@ -2881,6 +2885,189 @@ int get_native_path (uae_u32 lock, TCHAR *out)
 		}
 	}
 	return -1;
+}
+
+
+#define REC_EXCLUSIVE 0
+#define REC_EXCLUSIVE_IMMED 1
+#define REC_SHARED 2
+#define REC_SHARED_IMMED 3
+
+static struct lockrecord *new_record (uae_u32 packet, uae_u32 pos, uae_u32 len, uae_u32 mode, uae_u32 timeout, uae_u32 msg)
+{
+	struct lockrecord *lr = xcalloc (struct lockrecord, 1);
+	lr->packet = packet;
+	lr->pos = pos;
+	lr->len = len;
+	lr->mode = mode;
+	lr->timeout = timeout * vblank_hz / 50;
+	lr->msg = msg;
+	return lr;
+}
+
+static bool record_hit (Unit *unit, Key *k, uae_u32 pos, uae_u32 len, uae_u32 mode)
+{
+	bool exclusive = mode == REC_EXCLUSIVE || mode == REC_EXCLUSIVE_IMMED;
+	for (Key *k2 = unit->keys; k2; k2 = k2->next) {
+		if (k2->aino->uniq == k->aino->uniq) {
+			if (k2 == k)
+				continue;
+			for (struct lockrecord *lr = k2->record; lr; lr = lr->next) {
+				bool exclusive2 = lr->mode == REC_EXCLUSIVE || lr->mode == REC_EXCLUSIVE_IMMED;
+				if (exclusive || exclusive2) {
+					uae_u32 a1 = pos;
+					uae_u32 a2 = pos + len;
+					uae_u32 b1 = lr->pos;
+					uae_u32 b2 = lr->pos + lr->len;
+					if (len && lr->len) {
+						bool hit = (a1 >= b1 && a1 < b2) || (a2 > b1 && a2 < b2) || (b1 >= a1 && b1 < a2) || (b2 > a1 && b2 < a2);
+						if (hit)
+							return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+static void record_timeout (Unit *unit)
+{
+	bool retry = true;
+	while (retry) {
+		retry = false;
+		struct lockrecord *prev = NULL;
+		for (struct lockrecord *lr = unit->waitingrecords; lr; lr = lr->next) {
+			lr->timeout--;
+			if (lr->timeout == 0) {
+				Key *k = lookup_key (unit, GET_PCK_ARG1 (lr->packet));
+				PUT_PCK_RES1 (lr->packet, DOS_FALSE);
+				PUT_PCK_RES2 (lr->packet, ERROR_LOCK_TIMEOUT);
+				// mark packet as complete
+				put_long (lr->msg + 4, 0xfffffffe);
+				uae_Signal (get_long (unit->volume + 176 - 32), 1 << 13);
+				if (prev)
+					prev->next = lr->next;
+				else
+					unit->waitingrecords = lr->next;
+				write_log (L"queued record timed out '%s',%d,%d,%d,%d\n", k ? k->aino->nname : L"NULL", lr->pos, lr->len, lr->mode, lr->timeout);
+				xfree (lr);
+				retry = true;
+				break;
+			}
+			prev = lr;
+		}
+	}
+}
+
+static void record_check_waiting (Unit *unit)
+{
+	bool retry = true;
+	while (retry) {
+		retry = false;
+		struct lockrecord *prev = NULL;
+		for (struct lockrecord *lr = unit->waitingrecords; lr; lr = lr->next) {
+			Key *k = lookup_key (unit, GET_PCK_ARG1 (lr->packet));
+			if (!k || !record_hit (unit, k, lr->pos, lr->len, lr->mode)) {
+				if (prev)
+					prev->next = lr->next;
+				else
+					unit->waitingrecords = lr->next;
+				write_log (L"queued record released '%s',%d,%d,%d,%d\n", k->aino->nname, lr->pos, lr->len, lr->mode, lr->timeout);
+				// mark packet as complete
+				put_long (lr->msg + 4, 0xffffffff);
+				xfree (lr);
+				retry = true;
+				break;
+			}
+			prev = lr;
+		}
+	}
+}
+
+static int action_lock_record (Unit *unit, dpacket packet, uae_u32 msg)
+{
+	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
+	uae_u32 pos = GET_PCK_ARG2 (packet);
+	uae_u32 len = GET_PCK_ARG3 (packet);
+	uae_u32 mode = GET_PCK_ARG4 (packet);
+	uae_u32 timeout = GET_PCK_ARG5 (packet);
+
+	bool exclusive = mode == REC_EXCLUSIVE || mode == REC_EXCLUSIVE_IMMED;
+
+	write_log (L"action_lock_record('%s',%d,%d,%d,%d)\n", k ? k->aino->nname : L"null", pos, len, mode, timeout);
+
+	if (!k || mode > REC_SHARED_IMMED) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_WRONG_TYPE);
+		return 1;
+	}
+
+	if (mode == REC_EXCLUSIVE_IMMED || mode == REC_SHARED_IMMED)
+		timeout = 0;
+
+	if (record_hit (unit, k, pos, len, mode)) {
+		if (timeout && msg) {
+			// queue it and do not reply
+			struct lockrecord *lr = new_record (packet, pos, len, mode, timeout, msg);
+			if (unit->waitingrecords) {
+				lr->next = unit->waitingrecords;
+				unit->waitingrecords = lr;
+			} else {
+				unit->waitingrecords = lr;
+			}
+			write_log (L"-> collision, timeout queued\n");
+			return -1;
+		}
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_LOCK_COLLISION);
+		write_log (L"-> ERROR_LOCK_COLLISION\n");
+		return 1;
+	}
+
+	struct lockrecord *lr = new_record (GET_PCK_ARG1 (packet), pos, len, mode, timeout, 0);
+	if (k->record) {
+		lr->next = k->record;
+		k->record = lr;
+	} else {
+		k->record = lr;
+	}
+	PUT_PCK_RES1 (packet, DOS_TRUE);
+	write_log (L"-> OK\n");
+	return 1;
+}
+
+static void action_free_record (Unit *unit, dpacket packet)
+{
+	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
+	uae_u32 pos = GET_PCK_ARG2 (packet);
+	uae_u32 len = GET_PCK_ARG3 (packet);
+
+	write_log (L"action_free_record('%s',%d,%d)\n", k ? k->aino->nname : L"null", pos, len);
+
+	if (!k) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_WRONG_TYPE);
+		return;
+	}
+
+	struct lockrecord *prev = NULL;
+	for (struct lockrecord *lr = k->record; lr; lr = lr->next) {
+		if (lr->pos == pos && lr->len == len) {
+			if (prev)
+				prev->next = lr->next;
+			else
+				k->record = lr->next;
+			xfree (lr);
+			write_log (L"->OK\n");
+			record_check_waiting (unit);
+			PUT_PCK_RES1 (packet, DOS_TRUE);
+			return;
+		}
+	}
+	write_log (L"-> ERROR_RECORD_NOT_LOCKED\n");
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	PUT_PCK_RES2 (packet, ERROR_RECORD_NOT_LOCKED);
 }
 
 #define EXALL_DEBUG 0
@@ -4824,12 +5011,12 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 	return 0;
 }
 
-static int handle_packet (Unit *unit, dpacket pck)
+static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 {
 	uae_s32 type = GET_PCK_TYPE (pck);
 	PUT_PCK_RES2 (pck, 0);
 
-	if (unit->inhibited && filesys_isvolume(unit)
+	if (unit->inhibited && filesys_isvolume (unit)
 		&& type != ACTION_INHIBIT && type != ACTION_MORE_CACHE
 		&& type != ACTION_DISK_INFO) {
 			PUT_PCK_RES1 (pck, DOS_FALSE);
@@ -4839,7 +5026,7 @@ static int handle_packet (Unit *unit, dpacket pck)
 	if (type != ACTION_INHIBIT && type != ACTION_CURRENT_VOLUME
 		&& type != ACTION_IS_FILESYSTEM && type != ACTION_MORE_CACHE
 		&& type != ACTION_WRITE_PROTECT
-		&& !filesys_isvolume(unit)) {
+		&& !filesys_isvolume (unit)) {
 			PUT_PCK_RES1 (pck, DOS_FALSE);
 			PUT_PCK_RES2 (pck, ERROR_NO_DISK);
 			return 1;
@@ -4887,6 +5074,8 @@ static int handle_packet (Unit *unit, dpacket pck)
 	case ACTION_REMOVE_NOTIFY: action_remove_notify (unit, pck); break;
 	case ACTION_EXAMINE_ALL: return action_examine_all (unit, pck);
 	case ACTION_EXAMINE_ALL_END: return action_examine_all_end (unit, pck);
+	case ACTION_LOCK_RECORD: return action_lock_record (unit, pck, msg); break;
+	case ACTION_FREE_RECORD: action_free_record (unit, pck); break;
 
 		/* OS4+ packet types */
 	case ACTION_CHANGE_FILE_POSITION64: action_change_file_position64 (unit, pck); break;
@@ -4895,8 +5084,6 @@ static int handle_packet (Unit *unit, dpacket pck)
 	case ACTION_GET_FILE_SIZE64: action_get_file_size64 (unit, pck); break;
 
 		/* unsupported packets */
-	case ACTION_LOCK_RECORD:
-	case ACTION_FREE_RECORD:
 	case ACTION_MAKE_LINK:
 	case ACTION_READ_LINK:
 	case ACTION_FORMAT:
@@ -4934,18 +5121,19 @@ static void *filesys_thread (void *unit_v)
 
 		put_long (get_long (morelocks), get_long (ui->self->locklist));
 		put_long (ui->self->locklist, morelocks);
-		if (! handle_packet (ui->self, pck)) {
+		int ret = handle_packet (ui->self, pck, msg);
+		if (!ret) {
 			PUT_PCK_RES1 (pck, DOS_FALSE);
 			PUT_PCK_RES2 (pck, ERROR_ACTION_NOT_KNOWN);
 		}
-		/* Mark the packet as processed for the list scan in the assembly code. */
-		put_long (msg + 4, 0xffffffff);
-		/* Acquire the message lock, so that we know we can safely send the
-		* message. */
+		if (ret >= 0) {
+			/* Mark the packet as processed for the list scan in the assembly code. */
+			put_long (msg + 4, 0xffffffff);
+		}
+		/* Acquire the message lock, so that we know we can safely send the message. */
 		ui->self->cmds_sent++;
-		/* The message is sent by our interrupt handler, so make sure an interrupt
-		* happens. */
-		do_uae_int_requested();
+		/* The message is sent by our interrupt handler, so make sure an interrupt happens. */
+		do_uae_int_requested ();
 		/* Send back the locks. */
 		if (get_long (ui->self->locklist) != 0)
 			write_comm_pipe_int (ui->back_pipe, (int)(get_long (ui->self->locklist)), 0);
@@ -4992,7 +5180,7 @@ static uae_u32 REGPARAM2 filesys_handler (TrapContext *context)
 	}
 #endif
 
-	if (! handle_packet (unit, packet_addr)) {
+	if (! handle_packet (unit, packet_addr, 0)) {
 error:
 		PUT_PCK_RES1 (packet_addr, DOS_FALSE);
 		PUT_PCK_RES2 (packet_addr, ERROR_ACTION_NOT_KNOWN);
@@ -5045,6 +5233,12 @@ void filesys_free_handles (void)
 			xfree (k1);
 		}
 		u->keys = NULL;
+		struct lockrecord *lrnext;
+		for (struct lockrecord *lr = u->waitingrecords; lr; lr = lrnext) {
+			lrnext = lr->next;
+			xfree (lr);
+		}
+		u->waitingrecords = NULL;
 		free_all_ainos (u, &u->rootnode);
 		u->rootnode.next = u->rootnode.prev = &u->rootnode;
 		u->aino_cache_size = 0;
@@ -5073,7 +5267,7 @@ static void filesys_reset2 (void)
 
 void filesys_reset (void)
 {
-	if (savestate_state == STATE_RESTORE)
+	if (isrestore ())
 		return;
 	filesys_reset2 ();
 	initialize_mountinfo ();
@@ -5114,7 +5308,7 @@ static void filesys_prepare_reset2 (void)
 
 void filesys_prepare_reset (void)
 {
-	if (savestate_state == STATE_RESTORE)
+	if (isrestore ())
 		return;
 	filesys_prepare_reset2 ();
 }
@@ -5817,6 +6011,25 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 		write_log (L"Unknown mousehack hook %d\n", mode);
 	}
 	return 1;
+}
+
+void filesys_vsync (void)
+{
+	Unit *u;
+
+	for (u = units; u; u = u->next) {
+		if (u->reinsertdelay > 0) {
+			u->reinsertdelay--;
+			if (u->reinsertdelay == 0) {
+				filesys_insert (u->unit, u->newvolume, u->newrootdir, u->newreadonly, u->newflags);
+				xfree (u->newvolume);
+				u->newvolume = NULL;
+				xfree (u->newrootdir);
+				u->newrootdir = NULL;
+			}
+		}
+		record_timeout (u);
+	}
 }
 
 void filesys_install (void)
