@@ -228,7 +228,8 @@ static int inprec_pstart (uae_u8 type)
 					write_log (L"\n");
 				}
 				cycleoffset = cycles - cycles2;
-				gui_message (L"INPREC OFFSET=%d\n", cycleoffset / CYCLE_UNIT);
+				gui_message (L"INPREC OFFSET=%d\n", (int)cycleoffset / CYCLE_UNIT);
+				activate_debugger ();
 			}
 			lastcycle = cycles;
 			inprec_plast = p;

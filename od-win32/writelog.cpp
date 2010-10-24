@@ -194,7 +194,7 @@ void close_console (void)
 		close_debug_window ();
 	} else if (consoleopen < 0) {
 		HWND hwnd = myGetConsoleWindow ();
-		if (hwnd) {
+		if (hwnd && !IsIconic (hwnd)) {
 			RECT r;
 			if (GetWindowRect (hwnd, &r)) {
 				r.bottom -= r.top;

@@ -6603,8 +6603,6 @@ uae_u8 *restore_custom (uae_u8 *src)
 	CLXCON (RW);			/* 098 CLXCON */
 	intena = intena_internal = RW;	/* 09A INTENA */
 	intreq = RW;			/* 09C INTREQ */
-	if (!currprefs.cs_dipagnus)
-		intreq |= 0x20;
 	intreq_internal = intreq;
 	adkcon = RW;			/* 09E ADKCON */
 	for (i = 0; i < 8; i++)
@@ -7259,7 +7257,7 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	struct dma_rec *dr;
 
 	hpos = dma_cycle ();
-	x_do_cycles (CYCLE_UNIT);
+	x_do_cycles_pre (CYCLE_UNIT);
 
 #ifdef DEBUGGER
 	if (debug_dma) {
@@ -7326,7 +7324,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 	int hpos;
 
 	hpos = dma_cycle ();
-	x_do_cycles (CYCLE_UNIT);
+	x_do_cycles_pre (CYCLE_UNIT);
 
 #ifdef DEBUGGER
 	if (debug_dma) {

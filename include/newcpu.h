@@ -84,6 +84,8 @@ typedef double fptype;
 #endif
 #endif
 
+#define MAX68020CYCLES 4
+
 #define CPU_PIPELINE_MAX 3
 #define CPU000_MEM_CYCLE 4
 #define CPU000_CLOCK_MULT 2
@@ -172,6 +174,7 @@ struct regstruct
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	int ce020memcycles;
+	int ce020tmpcycles;
 };
 
 extern struct regstruct regs;
@@ -190,6 +193,15 @@ struct cputracestruct
 	uae_u32 usp, isp, pc;
 	uae_u16 ir, irc, sr, opcode;
 	int intmask, stopped, state;
+
+	uae_u32 msp, vbr;
+	uae_u32 cacr, caar;
+	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u32 prefetch020addr;
+	uae_u32 cacheholdingdata020;
+	uae_u32 cacheholdingaddr020;
+	struct cache020 caches020[CACHELINES020];
+
 	int memoryoffset;
 	int cyclecounter, cyclecounter_pre, cyclecounter_post;
 	int readcounter, writecounter;

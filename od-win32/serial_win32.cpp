@@ -40,7 +40,7 @@ static int dtr;
 static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
 int serdev;
-int seriallog;
+int seriallog = 1;
 int serial_enet;
 
 void serial_open (void);
@@ -104,6 +104,8 @@ static TCHAR dochar (int v)
 	v &= 0xff;
 	if (v >= 32 && v < 127)
 		return v;
+	if (v == 10)
+		return 10;
 	return '.';
 }
 

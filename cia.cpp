@@ -156,9 +156,6 @@ static int CIA_update_check (void)
 
 	div10 = ccount % DIV10;
 
-	if (!ciaclocks)
-		return 0;
-
 	/* CIA A timers */
 	if ((ciaacra & 0x21) == 0x01) {
 		assert ((ciaata + 1) >= ciaclocks);

@@ -1,4 +1,9 @@
 
+- CIA timing issue in some situations (b1)
+- some 68020+ exceptions had wrong return address (b1)
+- do not attempt to save log window position if it is minimized
+- do not set vblank bit during state restore, old code that broke interrupt delaying and rerecorder timing
+
 Beta 1
 
 !!!!!! NOTE: Re-recorder discussion will be opened later in another thread. All posts related to new input recorder
