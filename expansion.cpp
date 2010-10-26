@@ -983,7 +983,7 @@ static void expamem_init_filesys (void)
 
 	expamem_write (0x08, no_shutup);
 
-	expamem_write (0x04, 82);
+	expamem_write (0x04, currprefs.maprom ? 2 : 82);
 	expamem_write (0x10, uae_id >> 8);
 	expamem_write (0x14, uae_id & 0xff);
 
@@ -1063,7 +1063,7 @@ static void expamem_init_z3fastmem_2 (addrbank *bank, uae_u32 start, uae_u32 siz
 
 	expamem_write (0x08, care_addr | no_shutup | force_z3 | (allocated > 0x800000 ? ext_size : Z3_MEM_AUTO));
 
-	expamem_write (0x04, 83);
+	expamem_write (0x04, currprefs.maprom ? 3 : 83);
 
 	expamem_write (0x10, uae_id >> 8);
 	expamem_write (0x14, uae_id & 0xff);

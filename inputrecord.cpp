@@ -8,6 +8,7 @@
 */
 
 #define INPUTRECORD_DEBUG 1
+#define ENABLE_DEBUGGER 0
 
 #define HEADERSIZE 12
 
@@ -228,8 +229,11 @@ static int inprec_pstart (uae_u8 type)
 					write_log (L"\n");
 				}
 				cycleoffset = cycles - cycles2;
+#if ENABLE_DEBUGGER == 0
 				gui_message (L"INPREC OFFSET=%d\n", (int)cycleoffset / CYCLE_UNIT);
+#else
 				activate_debugger ();
+#endif
 			}
 			lastcycle = cycles;
 			inprec_plast = p;
@@ -444,7 +448,6 @@ int inprec_open (const TCHAR *fname, const TCHAR *statefilename)
 	if (inputrecord_debug) {
 		if (disk_debug_logging < 1)
 			disk_debug_logging = 1 | 2;
-		inputdevice_logging |= 4 | 2;
 	}
 	write_log (L"inprec initialized '%s', play=%d rec=%d\n", fname ? fname : L"<internal>", input_play, input_record);
 	refreshtitle ();
@@ -753,6 +756,8 @@ void inprec_playtorecord (void)
 		p += len;
 	}
 	zfile_fwrite (inprec_buffer + header_end2, inprec_size - header_end2, 1, inprec_zf);
+	inprec_realtime (false);
+	savestate_capture_request ();
 }
 
 void inprec_setposition (int offset, int replaycounter)

@@ -1987,27 +1987,29 @@ void restore_audio_finish (void)
 uae_u8 *restore_audio (int nr, uae_u8 *src)
 {
 	struct audio_channel_data *acd = audio_channel + nr;
-	uae_u16 p;
 
 	zerostate (nr);
 	acd->state = restore_u8 ();
 	acd->vol = restore_u8 ();
 	acd->intreq2 = restore_u8 () ? true : false;
-	p = restore_u8 ();
+	uae_u8 flags = restore_u8 ();
 	acd->dr = acd->dsr = false;
-	if (p & 1)
+	if (flags & 1)
 		acd->dr = true;
-	if (p & 2)
+	if (flags & 2)
 		acd->dsr = true;
-	acd->drhpos = 1;
 	acd->len = restore_u16 ();
 	acd->wlen = restore_u16 ();
-	p = restore_u16 ();
+	uae_u16 p = restore_u16 ();
 	acd->per = p ? p * CYCLE_UNIT : PERIOD_MAX;
 	acd->dat = acd->dat2 = restore_u16 ();
 	acd->lc = restore_u32 ();
 	acd->pt = restore_u32 ();
 	acd->evtime = restore_u32 ();
+	if (flags & 0x80)
+		acd->drhpos = restore_u8 ();
+	else
+		acd->drhpos = 1;
 	acd->dmaenstore = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
 	return src;
 }
@@ -2024,7 +2026,7 @@ uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
 	save_u8 (acd->state);
 	save_u8 (acd->vol);
 	save_u8 (acd->intreq2);
-	save_u8 ((acd->dr ? 1 : 0) | (acd->dsr ? 2 : 0));
+	save_u8 ((acd->dr ? 1 : 0) | (acd->dsr ? 2 : 0) | 0x80);
 	save_u16 (acd->len);
 	save_u16 (acd->wlen);
 	save_u16 (acd->per == PERIOD_MAX ? 0 : acd->per / CYCLE_UNIT);
@@ -2032,6 +2034,7 @@ uae_u8 *save_audio (int nr, int *len, uae_u8 *dstptr)
 	save_u32 (acd->lc);
 	save_u32 (acd->pt);
 	save_u32 (acd->evtime);
+	save_u8 (acd->drhpos);
 	*len = dst - dstbak;
 	return dstbak;
 }

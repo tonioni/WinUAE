@@ -1,4 +1,71 @@
 
+Rerecorder features:
+
+Re-recorder = combined input and state recorder.
+
+- automatic (every n seconds) or manual ("Save state capture checkpoint" input event) in-memory state capture
+- circular buffered multiple state capture checkpoints (note that each state capture takes as much RAM as one uncompressed normal statefile), use "Load current state capture" to return to previous checkpoint and "Load previous state capture checkpoint" to return to previous (if more than 0.5s) or to older (if less than 0.5s to previous checkpoint) check points.
+- recording can be started from boot or you can use already existing statefile
+- When saving recording (can be done as many times as needed), following files will be created:
+  - input file (*.inp) Note that currently this includes debugging data.
+  - startup statefile (*.uss) This gets automatically loaded when starting playback.
+  - all disk image(s) that were used during recording. Used automatically when playing back.
+- during playback you can switch to recording mode any time by clicking "re-recording enabled" button (do not touch playback button). First state capture check point will be created automatically.
+- playback is 100% cycle-exactly identical to recording. Even single emulated clock cycle difference will be reported and can cause desynchs! (Amiga's shared chip ram between custom chip DMA and CPU makes this very difficult, even one incorrectly timed audio DMA fetch stealing single CPU cycle can mess up the timing completely)
+
+Requirements:
+
+MUST BE A500 most compatible (cycle-exact) Quickstart configuration.
+Only following hardware configuration entries can be modified:
+- chipset (ocs/ecs)
+- number of disk drives
+- memory size
+- Kickstart ROM
+
+This means no harddrives. Even unused or dismounted harddrive will mess up the timing.
+
+- standard and extended adf supported (including all compressed variants).
+- compatible ipf support requires 4.1 or newer library version (not yet released)
+
+- Warp mode is safe to use.
+- Most host GUI options can be changed while recording or playing. Changing input options may not be fully supported.
+
+All other hardware settings MUST BE exactly same as in original Quickstart configuration.
+(it may still work but you are on your own and you should keep your hands away from keyboard)
+
+Input file most likely won't be compatible with newer emulator versions if there is even single cycle exact mode
+timing update.
+
+It took over a month to make this usable. It takes less than one second to move this to "unsupported stupid feature" category. Think about it before posting anything stupid. (I don't care about this feature, I was bribed to do this :))
+
+
+
+- input recorder and state recorder completely rewritten and merged, it is now "re-recorder"
+  - desynch issues fixed
+  - input recording file is linked to statefile, statefile is automatically loaded with input file
+  - statefile/inputfile pair plus including all used disk images will be saved to disk when
+    "save recording" button is clicked (does not stop recording, can be saved multiple times)
+  - buffer size configuration replaced with number of states buffered (circular buffer)
+  - rewind operation change, less than 0.5s from latest state: remove newest state and jump to
+    previous state, more than 0.5s from last state: jump to newest save
+  - "rewind" = "Load previous state capture checkpoint" input event or "Load current state capture
+    cheakpoint" = "rewind" to newest capture checkpoint, never earlier
+  - rewind restore graphics glitches fixed
+  - cdtv/cd32 support (state recorder only, cd timing is not compatible with input recorder)
+  - automatic in-memory input recording, rewind automatically starts input recorder playback (if enabled),
+    any user input event (or end of input data) restarts recording.
+  - save checkpoints manually by using "Save state capture checkpoint" input event
+
+
+Beta 3:
+
+- ipf support only worked with not yet released library version (b1)
+- use original autoconfig IDs if maprom is enabled (blizkick detection checks for IDs, update probably needed in future)
+- stop blitter linedraw if bltcon0 is accessed while line draw is active (workaround for Boundless Void / Nemol)
+- Direct3D + LARGEADDRESSAWARE fix (possible fix for D3D blank screen problem?)
+
+Beta 2:
+
 - CIA timing issue in some situations (b1)
 - some 68020+ exceptions had wrong return address (b1)
 - do not attempt to save log window position if it is minimized
@@ -67,22 +134,6 @@ in this thread will disappear. !!!!!
   identical state after restore (normal blitter state forces current blit to finish). This is not
   enabled in normal state saving because it is very difficult to keep state saving compatibility
   between versions when state is hardcoded to current emulation implementation.
-
-- input recorder and state recorder completely rewritten and merged, it is now "re-recorder"
-  - desynch issues fixed
-  - input recording file is linked to statefile, statefile is automatically loaded with input file
-  - statefile/inputfile pair plus including all used disk images will be saved to disk when
-    "save recording" button is clicked (does not stop recording, can be saved multiple times)
-  - buffer size configuration replaced with number of states buffered (circular buffer)
-  - rewind operation change, less than 0.5s from latest state: remove newest state and jump to
-    previous state, more than 0.5s from last state: jump to newest save
-  - "rewind" = "Load previous state capture checkpoint" input event or "Load current state capture
-    cheakpoint" = "rewind" to newest capture checkpoint, never earlier
-  - rewind restore graphics glitches fixed
-  - cdtv/cd32 support (state recorder only, cd timing is not compatible with input recorder)
-  - automatic in-memory input recording, rewind automatically starts input recorder playback (if enabled),
-    any user input event (or end of input data) restarts recording.
-  - save checkpoints manually by using "Save state capture checkpoint" input event
 
 
 Final 2.3.0

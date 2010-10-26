@@ -546,16 +546,16 @@ static void cputracefunc_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 {
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset - 1];
 	ctm->data = v;
-	cputrace.cyclecounter_post = 0;
+	cputrace.cyclecounter_post = cycles;
 	cputrace.cyclecounter_pre = 0;
 	while (cycles >= CYCLE_UNIT) {
 		cycles -= CYCLE_UNIT;
-		cputrace.cyclecounter_post += CYCLE_UNIT;
+		cputrace.cyclecounter_post -= CYCLE_UNIT;
 		x2_do_cycles (CYCLE_UNIT);
 	}
 	if (cycles > 0) {
+		cputrace.cyclecounter_post -= cycles;
 		x2_do_cycles (cycles);
-		cputrace.cyclecounter_post += cycles;
 	}
 	cputrace.cyclecounter_post = 0;
 }
@@ -573,6 +573,8 @@ static void cputracefunc2_x_do_cycles (unsigned long cycles)
 	if (cycles > 0)
 		x_do_cycles (cycles);
 }
+// cyclecounter_pre = how many cycles we need to SWALLOW
+// -1 = rerun whole access
 static void cputracefunc2_x_do_cycles_pre (unsigned long cycles)
 {
 	if (cputrace.cyclecounter_pre == -1) {
@@ -591,17 +593,19 @@ static void cputracefunc2_x_do_cycles_pre (unsigned long cycles)
 	if (cycles > 0)
 		x_do_cycles (cycles);
 }
+// cyclecounter_post = how many cycles we need to WAIT
 static void cputracefunc2_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 {
-	if (cputrace.cyclecounter_post > cycles) {
-		cputrace.cyclecounter_post -= cycles;
-		return;
+	uae_u32 c;
+	if (cputrace.cyclecounter_post) {
+		c = cputrace.cyclecounter_post;
+		cputrace.cyclecounter_post = 0;
+	} else {
+		c = cycles;
 	}
-	cycles -= cputrace.cyclecounter_post;
-	cputrace.cyclecounter_post = 0;
 	check_trace ();
-	if (cycles > 0)
-		x_do_cycles (cycles);
+	if (c > 0)
+		x_do_cycles (c);
 }
 
 static void do_cycles_post (unsigned long cycles, uae_u32 v)
@@ -3539,11 +3543,18 @@ static void m68k_run_1_ce (void)
 		r->intmask = cputrace.intmask;
 		r->stopped = cputrace.stopped;
 		m68k_setpc (cputrace.pc);
-		if (cputrace.state > 1)
-			Exception (cputrace.state);
-		else if (cputrace.state == 1)
-			(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
-		if (regs.stopped)
+		if (!r->stopped) {
+			if (cputrace.state > 1) {
+				write_log (L"CPU TRACE: EXCEPTION %d\n", cputrace.state);
+				Exception (cputrace.state);
+			} else if (cputrace.state == 1) {
+				write_log (L"CPU TRACE: %04X\n", cputrace.opcode);
+				(*cpufunctbl[cputrace.opcode])(cputrace.opcode);
+			}
+		} else {
+			write_log (L"CPU TRACE: STOPPED\n");
+		}
+		if (r->stopped)
 			set_special (SPCFLAG_STOP);
 		set_cpu_tracer (false);
 		goto cont;
@@ -3848,10 +3859,12 @@ static void m68k_run_2ce (void)
 		memcpy (&caches020, &cputrace.caches020, sizeof caches020);
 
 		m68k_setpc (cputrace.pc);
-		if (cputrace.state > 1)
-			Exception (cputrace.state);
-		else if (cputrace.state == 1)
-			docodece020 (cputrace.opcode);
+		if (!r->stopped) {
+			if (cputrace.state > 1)
+				Exception (cputrace.state);
+			else if (cputrace.state == 1)
+				docodece020 (cputrace.opcode);
+		}
 		if (regs.stopped)
 			set_special (SPCFLAG_STOP);
 		set_cpu_tracer (false);
@@ -4773,7 +4786,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	save_u32 (cputrace.isp);
 	save_u16 (cputrace.sr);
 	save_u16 (cputrace.intmask);
-	save_u16 (cputrace.stopped);
+	save_u16 ((cputrace.stopped ? 1 : 0) | (regs.stopped ? 2 : 0));
 	save_u16 (cputrace.state);
 	save_u32 (cputrace.cyclecounter);
 	save_u32 (cputrace.cyclecounter_pre);

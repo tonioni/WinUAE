@@ -2334,7 +2334,7 @@ void inputdevice_handle_inputcode (void)
 
 	if (code == 0)
 		goto end;
-	if (needcputrace (code) && can_cpu_tracer () == true && is_cpu_tracer () == false) {
+	if (needcputrace (code) && can_cpu_tracer () == true && is_cpu_tracer () == false && !input_play && !input_record) {
 		if (set_cpu_tracer (true)) {
 			tracer_enable = 1;
 			return; // wait for next frame
@@ -3314,9 +3314,6 @@ static void scanevents (struct uae_prefs *p)
 			joydirpot[i][j] = 128 / (312 * 100 / currprefs.input_analog_joystick_mult) + (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
 		}
 	}
-
-	for (i = 0; i < MAX_JPORTS; i++)
-		joydir[i] = 0;
 
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		use_joysticks[i] = 0;
@@ -4413,6 +4410,37 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 	return true;
 }
 
+static void resetinput (void)
+{
+	if ((input_play || input_record) && hsync_counter > 0)
+		return;
+	cd32_shifter[0] = cd32_shifter[1] = 8;
+	for (int i = 0; i < MAX_JPORTS; i++) {
+		oleft[i] = 0;
+		oright[i] = 0;
+		otop[i] = 0;
+		obot[i] = 0;
+		oldmx[i] = -1;
+		oldmy[i] = -1;
+		joybutton[i] = 0;
+		joydir[i] = 0;
+		mouse_deltanoreset[i][0] = 0;
+		mouse_delta[i][0] = 0;
+		mouse_deltanoreset[i][1] = 0;
+		mouse_delta[i][1] = 0;
+		mouse_deltanoreset[i][2] = 0;
+		mouse_delta[i][2] = 0;
+	}
+	memset (keybuf, 0, sizeof keybuf);
+	for (int i = 0; i < INPUT_QUEUE_SIZE; i++)
+		input_queue[i].linecnt = input_queue[i].nextlinecnt = -1;
+
+	for (int i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
+		sublevdir[0][i] = i;
+		sublevdir[1][i] = MAX_INPUT_SUB_EVENT - i - 1;
+	}
+}
+
 void inputdevice_updateconfig (struct uae_prefs *prefs)
 {
 	int i;
@@ -4431,34 +4459,7 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 		rp_update_gameport (i, -1, 0);
 #endif
 
-	joybutton[0] = joybutton[1] = 0;
-	joydir[0] = joydir[1] = 0;
-	oldmx[0] = oldmx[1] = -1;
-	oldmy[0] = oldmy[1] = -1;
-	cd32_shifter[0] = cd32_shifter[1] = 8;
-	for (i = 0; i < 4; i++) {
-		oleft[i] = 0;
-		oright[i] = 0;
-		otop[i] = 0;
-		obot[i] = 0;
-	}
-	for (i = 0; i < MAX_JPORTS; i++) {
-		mouse_deltanoreset[i][0] = 0;
-		mouse_delta[i][0] = 0;
-		mouse_deltanoreset[i][1] = 0;
-		mouse_delta[i][1] = 0;
-		mouse_deltanoreset[i][2] = 0;
-		mouse_delta[i][2] = 0;
-	}
-	memset (keybuf, 0, sizeof keybuf);
-
-	for (i = 0; i < INPUT_QUEUE_SIZE; i++)
-		input_queue[i].linecnt = input_queue[i].nextlinecnt = -1;
-
-	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
-		sublevdir[0][i] = i;
-		sublevdir[1][i] = MAX_INPUT_SUB_EVENT - i - 1;
-	}
+	resetinput ();
 
 	joysticks = prefs->joystick_settings[prefs->input_selected_setting];
 	mice = prefs->mouse_settings[prefs->input_selected_setting];

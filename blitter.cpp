@@ -1161,10 +1161,17 @@ static void blit_bltset (int con)
 	blitline = bltcon1 & 1;
 	blitfill = !!(bltcon1 & 0x18);
 
+	// disable line draw if bltcon0 is written while it is active
+	if (!savestate_state && bltstate != BLT_done && blitline) {
+		blitline = 0;
+		bltstate = BLT_done;
+		write_log (L"BLITTER: register modification during linedraw!\n");
+	}
+
 	if (blitline) {
 		if (blt_info.hblitsize != 2)
 			debugtest (DEBUGTEST_BLITTER, L"weird blt_info.hblitsize in linemode: %d vsize=%d\n",
-			blt_info.hblitsize, blt_info.vblitsize);
+				blt_info.hblitsize, blt_info.vblitsize);
 		blit_diag = blit_cycle_diagram_line;
 	} else {
 		if (con & 2) {
@@ -1177,7 +1184,7 @@ static void blit_bltset (int con)
 		}
 		if (blitfill && !blitdesc)
 			debugtest (DEBUGTEST_BLITTER, L"fill without desc\n");
-		blit_diag = blitfill &&  blit_cycle_diagram_fill[blit_ch][0] ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];
+		blit_diag = blitfill && blit_cycle_diagram_fill[blit_ch][0] ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];
 	}
 	if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		debugtest (DEBUGTEST_BLITTER, L"ECS BLTCON1 DOFF-bit set\n");
@@ -1339,9 +1346,10 @@ static void do_blitter2 (int hpos, int copper)
 			ch++;
 		if (blit_ch & 8)
 			ch++;
-		write_log (L"blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X\n",
+		write_log (L"blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X %s\n",
 			blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
-			blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline, dmacon);
+			blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline,
+			dmacon, ((dmacon & (DMA_MASTER | DMA_BLITTER)) == (DMA_MASTER | DMA_BLITTER)) ? L"" : L" off!");
 		blitter_dump ();
 	}
 #endif

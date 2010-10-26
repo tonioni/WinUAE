@@ -199,17 +199,30 @@ static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
 static int load (struct CapsTrackInfoT2 *ci, int drv, int track)
 {
 	int flags;
+	struct CapsTrackInfoT1 ci1;
 	
-	ci->type = 1;
 	flags = caps_flags;
-
 	if (canseed) {
 		flags |= DI_LOCK_SETWSEED;
 		ci->type = 2;
 		ci->wseed = uaerand ();
+		if (pCAPSLockTrack ((PCAPSTRACKINFO)ci, caps_cont[drv], track / 2, track & 1, flags) != imgeOk)
+			return 0;
+	} else {
+		ci1.type = 1;
+		if (pCAPSLockTrack ((PCAPSTRACKINFO)&ci1, caps_cont[drv], track / 2, track & 1, flags) != imgeOk)
+			return 0;
+		ci->type = ci1.type;
+		ci->cylinder = ci1.cylinder;
+		ci->head = ci1.head;
+		ci->timebuf = ci1.timebuf;
+		ci->trackbuf = ci1.trackbuf;
+		ci->overlap = ci1.overlap;
+		ci->sectorcnt = ci1.sectorcnt;
+		ci->startbit = 0;
+		ci->timelen = ci1.timelen;
+		ci->tracklen = ci1.tracklen;
 	}
-	if (pCAPSLockTrack ((PCAPSTRACKINFO)ci, caps_cont[drv], track / 2, track & 1, flags) != imgeOk)
-		return 0;
 	return 1;
 }
 

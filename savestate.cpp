@@ -65,7 +65,7 @@
 #include "disk.h"
 
 int savestate_state = 0;
-bool savestate_first_capture;
+static int savestate_first_capture;
 
 static bool new_blitter = false;
 
@@ -632,9 +632,10 @@ void restore_state (const TCHAR *filename)
 			end = restore_ide (chunk);
 		else if (!_tcsncmp (name, L"CDU", 3))
 			end = restore_cd (name[3] - '0', chunk);
+#ifdef A2065
 		else if (!_tcsncmp (name, L"2065", 4))
 			end = restore_a2065 (chunk);
-
+#endif
 		else if (!_tcsncmp (name, L"DMWP", 4))
 			end = restore_debug_memwatch (chunk);
 
@@ -871,8 +872,10 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	dst = save_expansion (&len, 0);
 	save_chunk (f, dst, len, L"EXPA", 0);
 #endif
+#ifdef A2065
 	dst = save_a2065 (&len, NULL);
 	save_chunk (f, dst, len, L"2065", 0);
+#endif
 #ifdef PICASSO96
 	dst = save_p96 (&len, 0);
 	save_chunk (f, dst, len, L"P96 ", 0);
@@ -1272,11 +1275,13 @@ void savestate_capture (int force)
 		return;
 	if (!input_record)
 		return;
-	if (currprefs.statecapturerate && hsync_counter == 0 && input_record == INPREC_RECORD_START && savestate_first_capture) {
+	if (currprefs.statecapturerate && hsync_counter == 0 && input_record == INPREC_RECORD_START && savestate_first_capture > 0) {
 		// first capture
 		force = true;
 		firstcapture = true;
-		savestate_first_capture = false;
+	} else if (savestate_first_capture < 0) {
+		force = true;
+		firstcapture = false;
 	}
 	if (!force) {
 		if (currprefs.statecapturerate <= 0)
@@ -1284,6 +1289,7 @@ void savestate_capture (int force)
 		if (hsync_counter % currprefs.statecapturerate)
 			return;
 	}
+	savestate_first_capture = false;
 
 	retrycnt = 0;
 retry2:
@@ -1292,6 +1298,7 @@ retry2:
 		st = (struct staterecord*)xmalloc (uae_u8, statefile_alloc);
 		st->len = statefile_alloc;
 	} else if (retrycnt > 0) {
+		write_log (L"realloc %d -> %d\n", st->len, st->len + STATEFILE_ALLOC_SIZE);
 		st->len += STATEFILE_ALLOC_SIZE;
 		st = (struct staterecord*)xrealloc (uae_u8, st, st->len);
 	}
@@ -1444,6 +1451,7 @@ retry2:
 	save_inputstate (&len, p);
 	tlen += len;
 	p += len;
+
 #ifdef AUTOCONFIG
 	if (bufcheck (st, p, len))
 		goto retry;
@@ -1451,6 +1459,7 @@ retry2:
 	tlen += len;
 	p += len;
 #endif
+
 #ifdef PICASSO96
 	if (bufcheck (st, p, 0))
 		goto retry;
@@ -1463,6 +1472,7 @@ retry2:
 		p += len;
 	}
 #endif
+
 	dst = save_cram (&len);
 	if (bufcheck (st, p, len))
 		goto retry;
@@ -1616,19 +1626,24 @@ void savestate_free (void)
 	staterecords = NULL;
 }
 
+void savestate_capture_request (void)
+{
+	savestate_first_capture = -1;
+}
+
 void savestate_init (void)
 {
 	savestate_free ();
 	replaycounter = 0;
 	staterecords_max = currprefs.statecapturebuffersize;
+	staterecords = xcalloc (struct staterecord*, staterecords_max);
+	statefile_alloc = STATEFILE_ALLOC_SIZE;
 	if (input_record && savestate_state != STATE_DORESTORE) {
 		zfile_fclose (staterecord_statefile);
 		staterecord_statefile = NULL;
 		inprec_close (false);
-		staterecords = xcalloc (struct staterecord*, staterecords_max);
-		statefile_alloc = STATEFILE_ALLOC_SIZE;
 		inprec_open (NULL, NULL);
-		savestate_first_capture = true;
+		savestate_first_capture = 1;
 	}
 }
 

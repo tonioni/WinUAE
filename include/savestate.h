@@ -222,3 +222,4 @@ extern void savestate_rewind (void);
 extern int savestate_dorewind (int);
 extern void savestate_listrewind (void);
 extern void statefile_save_recording (const TCHAR*);
+extern void savestate_capture_request (void);

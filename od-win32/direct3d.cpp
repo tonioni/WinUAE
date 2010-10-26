@@ -7,6 +7,13 @@
 
 #if defined (D3D) && defined (GFXFILTER)
 
+#define D3DXFX_LARGEADDRESS_HANDLE
+#ifdef D3DXFX_LARGEADDRESS_HANDLE
+#define EFFECTCOMPILERFLAGS D3DXFX_LARGEADDRESSAWARE
+#else
+#define EFFECTCOMPILERFLAGS 0
+#endif
+
 #define EFFECT_VERSION 2
 #define D3DX9DLL L"d3dx9_43.dll"
 #define TWOPASS 1
@@ -58,13 +65,13 @@ static int cursor_offset_x, cursor_offset_y;
 static float maskmult_x, maskmult_y;
 static RECT mask2rect;
 
-static D3DXMATRIX m_matProj, m_matProj2;
-static D3DXMATRIX m_matWorld, m_matWorld2;
-static D3DXMATRIX m_matView, m_matView2;
-static D3DXMATRIX m_matPreProj;
-static D3DXMATRIX m_matPreView;
-static D3DXMATRIX m_matPreWorld;
-static D3DXMATRIX postproj;
+static D3DXMATRIXA16 m_matProj, m_matProj2;
+static D3DXMATRIXA16 m_matWorld, m_matWorld2;
+static D3DXMATRIXA16 m_matView, m_matView2;
+static D3DXMATRIXA16 m_matPreProj;
+static D3DXMATRIXA16 m_matPreView;
+static D3DXMATRIXA16 m_matPreWorld;
+static D3DXMATRIXA16 postproj;
 static D3DXVECTOR4 maskmult, maskshift;
 
 static int ledwidth, ledheight;
@@ -151,7 +158,7 @@ static TCHAR *D3D_ErrorString (HRESULT dival)
 	return dierr;
 }
 
-static D3DXMATRIX* MatrixOrthoOffCenterLH (D3DXMATRIX *pOut, float l, float r, float b, float t, float zn, float zf)
+static D3DXMATRIX* MatrixOrthoOffCenterLH (D3DXMATRIXA16 *pOut, float l, float r, float b, float t, float zn, float zf)
 {
 	pOut->_11=2.0f/r; pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=2.0f/t; pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -160,7 +167,7 @@ static D3DXMATRIX* MatrixOrthoOffCenterLH (D3DXMATRIX *pOut, float l, float r, f
 	return pOut;
 }
 
-static D3DXMATRIX* MatrixScaling (D3DXMATRIX *pOut, float sx, float sy, float sz)
+static D3DXMATRIX* MatrixScaling (D3DXMATRIXA16 *pOut, float sx, float sy, float sz)
 {
 	pOut->_11=sx;     pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=sy;     pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -169,7 +176,7 @@ static D3DXMATRIX* MatrixScaling (D3DXMATRIX *pOut, float sx, float sy, float sz
 	return pOut;
 }
 
-static D3DXMATRIX* MatrixTranslation (D3DXMATRIX *pOut, float tx, float ty, float tz)
+static D3DXMATRIX* MatrixTranslation (D3DXMATRIXA16 *pOut, float tx, float ty, float tz)
 {
 	pOut->_11=1.0f;   pOut->_12=0.0f;   pOut->_13=0.0f;  pOut->_14=0.0f;
 	pOut->_21=0.0f;   pOut->_22=1.0f;   pOut->_23=0.0f;  pOut->_24=0.0f;
@@ -264,6 +271,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 	for(iParam = 0; iParam < EffectDesc.Parameters; iParam++) {
 		LPCSTR pstrName = NULL;
 		LPCSTR pstrFunction = NULL;
+		D3DXHANDLE pstrFunctionHandle = NULL;
 		LPCSTR pstrTarget = NULL;
 		LPCSTR pstrTextureType = NULL;
 		INT Width = D3DX_DEFAULT;
@@ -310,21 +318,18 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 					m_Hq2xLookupTextureHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_OBJECT && ParamDesc.Type == D3DXPT_STRING) {
 				LPCSTR pstrTechnique = NULL;
-
 				if(strcmpi(ParamDesc.Semantic, "COMBINETECHNIQUE") == 0) {
 					hr = effect->GetString(hParam, &pstrTechnique);
 					m_CombineTechniqueEffectHandle = effect->GetTechniqueByName(pstrTechnique);
-				}
-				else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE") == 0) {
+				} else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE") == 0) {
 					hr = effect->GetString(hParam, &pstrTechnique);
 					m_PreprocessTechnique1EffectHandle = effect->GetTechniqueByName(pstrTechnique);
-				}
-				else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE1") == 0) {
+				} else if(strcmpi(ParamDesc.Semantic, "PREPROCESSTECHNIQUE1") == 0) {
 					hr = effect->GetString(hParam, &pstrTechnique);
 					m_PreprocessTechnique2EffectHandle = effect->GetTechniqueByName(pstrTechnique);
-				}
-				else if(strcmpi(ParamDesc.Semantic, "NAME") == 0)
+				} else if(strcmpi(ParamDesc.Semantic, "NAME") == 0) {
 					hr = effect->GetString(hParam, &m_strName);
+				}
 			}
 			if (FAILED (hr)) {
 				write_log (L"ParamDesc.Semantic failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, NULL));
@@ -340,27 +345,29 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 				return 0;
 			}
 			hr = S_OK;
-			if(strcmpi(AnnotDesc.Name, "name") == 0)
+			if(strcmpi(AnnotDesc.Name, "name") == 0) {
 				hr = effect->GetString(hAnnot, &pstrName);
-			else if(strcmpi(AnnotDesc.Name, "function") == 0)
+			} else if(strcmpi(AnnotDesc.Name, "function") == 0) {
 				hr = effect->GetString(hAnnot, &pstrFunction);
-			else if(strcmpi(AnnotDesc.Name, "target") == 0)
+				pstrFunctionHandle = effect->GetFunctionByName(pstrFunction);
+			} else if(strcmpi(AnnotDesc.Name, "target") == 0) {
 				hr = effect->GetString(hAnnot, &pstrTarget);
-			else if(strcmpi(AnnotDesc.Name, "width") == 0)
+			} else if(strcmpi(AnnotDesc.Name, "width") == 0) {
 				hr = effect->GetInt(hAnnot, &Width);
-			else if(strcmpi(AnnotDesc.Name, "height") == 0)
+			} else if(strcmpi(AnnotDesc.Name, "height") == 0) {
 				hr = effect->GetInt(hAnnot, &Height);
-			else if(strcmpi(AnnotDesc.Name, "depth") == 0)
+			} else if(strcmpi(AnnotDesc.Name, "depth") == 0) {
 				hr = effect->GetInt(hAnnot, &Depth);
-			else if(strcmpi(AnnotDesc.Name, "type") == 0)
+			} else if(strcmpi(AnnotDesc.Name, "type") == 0) {
 				hr = effect->GetString(hAnnot, &pstrTextureType);
+			}
 			if (FAILED (hr)) {
 				write_log (L"GetString/GetInt(%d) failed: %s\n", D3DHEAD, iAnnot, D3DX_ErrorString (hr, NULL));
 				return 0;
 			}
 		}
 
-		if(pstrFunction != NULL) {
+		if(pstrFunctionHandle != NULL) {
 			LPD3DXBUFFER pTextureShader = NULL;
 			LPD3DXBUFFER lpErrors = 0;
 
@@ -368,7 +375,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 				pstrTarget = "tx_1_0";
 
 			if(SUCCEEDED(hr = EffectCompiler->CompileShader(
-				pstrFunction, pstrTarget, 0, &pTextureShader, &lpErrors, NULL))) {
+				pstrFunctionHandle, pstrTarget, D3DXSHADER_SKIPVALIDATION|D3DXSHADER_DEBUG, &pTextureShader, &lpErrors, NULL))) {
 					LPD3DXTEXTURESHADER ppTextureShader;
 					if (lpErrors)
 						lpErrors->Release ();
@@ -710,6 +717,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
 	int canusefile = 0, existsfile = 0;
 
+	compileflags |= EFFECTCOMPILERFLAGS;
 	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
 	_tcscat (tmp, shaderfile);
 	if (!full) {
@@ -773,7 +781,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	hr = D3DXCreateEffect (d3ddev,
 		bp, bplen,
 		NULL, NULL,
-		0,
+		EFFECTCOMPILERFLAGS,
 		NULL, &effect, &Errors);
 	if (FAILED (hr)) {
 		write_log (L"%s: D3DXCreateEffect failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
@@ -816,7 +824,7 @@ end:
 	return effect;
 }
 
-static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXMATRIX *matWorld)
+static int psEffect_SetMatrices (D3DXMATRIXA16 *matProj, D3DXMATRIXA16 *matView, D3DXMATRIXA16 *matWorld)
 {
 	HRESULT hr;
 
@@ -842,7 +850,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 		}
 	}
 	if (m_MatWorldViewEffectHandle) {
-		D3DXMATRIX matWorldView;
+		D3DXMATRIXA16 matWorldView;
 		D3DXMatrixMultiply (&matWorldView, matWorld, matView);
 		hr = pEffect->SetMatrix (m_MatWorldViewEffectHandle, &matWorldView);
 		if (FAILED (hr)) {
@@ -851,7 +859,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 		}
 	}
 	if (m_MatViewProjEffectHandle) {
-		D3DXMATRIX matViewProj;
+		D3DXMATRIXA16 matViewProj;
 		D3DXMatrixMultiply (&matViewProj, matView, matProj);
 		hr = pEffect->SetMatrix (m_MatViewProjEffectHandle, &matViewProj);
 		if (FAILED (hr)) {
@@ -860,7 +868,7 @@ static int psEffect_SetMatrices (D3DXMATRIX *matProj, D3DXMATRIX *matView, D3DXM
 		}
 	}
 	if (m_MatWorldViewProjEffectHandle) {
-		D3DXMATRIX tmp, matWorldViewProj;
+		D3DXMATRIXA16 tmp, matWorldViewProj;
 		D3DXMatrixMultiply (&tmp, matWorld, matView);
 		D3DXMatrixMultiply (&matWorldViewProj, &tmp, matProj);
 		hr = pEffect->SetMatrix (m_MatWorldViewProjEffectHandle, &matWorldViewProj);
@@ -1555,9 +1563,9 @@ static void setupscenecoords (void)
 	maskshift.x = 1.0f / maskmult_x;
 	maskshift.y = 1.0f / maskmult_y;
 
-	D3DXMATRIX tmp;
-	D3DXMatrixMultiply (&tmp, &m_matWorld, &m_matView);
-	D3DXMatrixMultiply (&postproj, &tmp, &m_matProj);
+	D3DXMATRIXA16 tmpmatrix;
+	D3DXMatrixMultiply (&tmpmatrix, &m_matWorld, &m_matView);
+	D3DXMatrixMultiply (&postproj, &tmpmatrix, &m_matProj);
 }
 
 uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
@@ -1716,6 +1724,8 @@ static void invalidatedeviceobjects (void)
 	m_PreprocessTechnique2EffectHandle = NULL;
 	m_CombineTechniqueEffectHandle = NULL;
 	locked = 0;
+	maskshift.x = maskshift.y = maskshift.z = maskshift.w = 0;
+	maskmult.x = maskmult.y = maskmult.z = maskmult.w = 0;
 }
 
 static int restoredeviceobjects (void)
@@ -1776,8 +1786,6 @@ static int restoredeviceobjects (void)
 
 	hr = d3ddev->SetRenderState (D3DRS_CULLMODE, D3DCULL_NONE);
 	hr = d3ddev->SetRenderState (D3DRS_LIGHTING, FALSE);
-	hr = d3ddev->SetRenderState (D3DRS_ZENABLE, FALSE);
-	hr = d3ddev->SetRenderState (D3DRS_ALPHABLENDENABLE, FALSE);
 
 	setupscenecoords ();
 	settransform ();
@@ -2305,7 +2313,7 @@ static void D3D_render22 (void)
 		D3DXVECTOR3 v;
 		sprite->Begin (D3DXSPRITE_ALPHABLEND);
 		if (cursorsurfaced3d && cursor_v) {
-			D3DXMATRIX t;
+			D3DXMATRIXA16 t;
 
 			MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset_y)), 0);
 			v.x = cursor_x + cursor_offset_x;
@@ -2318,7 +2326,7 @@ static void D3D_render22 (void)
 			sprite->SetTransform (&t);
 		}
 		if (mask2texture) {
-			D3DXMATRIX t;
+			D3DXMATRIXA16 t;
 			RECT r;
 			float srcw = mask2texture_w;
 			float srch = mask2texture_h;
