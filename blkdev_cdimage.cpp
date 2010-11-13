@@ -1492,7 +1492,7 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 	}
 	if (!cdu->tracks) {
 		uae_u64 siz = zfile_size (zcue);
-		if (siz >= 16384 && (siz % 2048) == 0 || (siz % 2352) == 0) {
+		if (siz >= 16384 && ((siz % 2048) == 0 || (siz % 2352) == 0)) {
 			struct cdtoc *t = &cdu->toc[0];
 			cdu->tracks = 1;
 			t->ctrl = 4;
@@ -1501,11 +1501,14 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 			t->handle = zcue;
 			t->size = (siz % 2048) == 0 ? 2048 : 2352;
 			t->filesize = siz;
-			write_log (L"CUE: plain CD image mounted!\n");
+			write_log (L"CD: plain CD image mounted!\n");
 			cdu->toc[1].address = t->address + t->filesize / t->size;
 			zcue = NULL;
 		}
 	}
+
+	if (!cdu->tracks)
+		write_log (L"CD: couldn't mount '%s'!\n", img);
 
 	for (i = 0; i <= cdu->tracks; i++) {
 		struct cdtoc *t = &cdu->toc[i];

@@ -5996,6 +5996,8 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	} else if (mode == 14) {
 		amiga_clipboard_task_start (m68k_dreg (regs, 0));
 	} else if (mode == 15) {
+		if (!currprefs.clipboard_sharing)
+			return 0;
 		amiga_clipboard_init ();
 	} else if (mode == 16) {
 		uaecptr a2 = m68k_areg (regs, 2);

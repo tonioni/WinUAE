@@ -959,6 +959,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 		save_chunk (f, dst, len, L"CONF", comp);
 		xfree(dst);
 	}
+	len = 30000;
 	dst = save_log (TRUE, &len);
 	if (dst) {
 		save_chunk (f, dst, len, L"LOG ", comp);

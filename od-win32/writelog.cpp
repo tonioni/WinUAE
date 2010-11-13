@@ -373,35 +373,52 @@ static TCHAR *writets (void)
 	return out;
 }
 
-
 void write_dlog (const TCHAR *format, ...)
 {
 	int count;
 	TCHAR buffer[WRITE_LOG_BUF_SIZE];
-	TCHAR *ts;
+	int bufsize = WRITE_LOG_BUF_SIZE;
+	TCHAR *bufp;
 	va_list parms;
 
-	if (!SHOW_CONSOLE && !console_logging && !debugfile)
+	if (!cs_init)
 		return;
+
+	premsg ();
 
 	EnterCriticalSection (&cs);
 	va_start (parms, format);
-	count = _vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
-	ts = writets ();
+	bufp = buffer;
+	for (;;) {
+		count = _vsntprintf (bufp, bufsize - 1, format, parms);
+		if (count < 0) {
+			bufsize *= 10;
+			if (bufp != buffer)
+				xfree (bufp);
+			bufp = xmalloc (TCHAR, bufsize);
+			continue;
+		}
+		break;
+	}
+	bufp[bufsize - 1] = 0;
+	if (!_tcsncmp (bufp, L"write ", 6))
+		bufsize--;
+	if (bufp[0] == '*')
+		count++;
 	if (SHOW_CONSOLE || console_logging) {
-		if (lfdetected && ts)
-			writeconsole (ts);
-		writeconsole (buffer);
+		writeconsole (bufp);
 	}
 	if (debugfile) {
-		if (lfdetected && ts)
-			_ftprintf (debugfile, L"%s", ts);
-		_ftprintf (debugfile, L"%s", buffer);
+		_ftprintf (debugfile, L"%s", bufp);
 	}
 	lfdetected = 0;
-	if (_tcslen (buffer) > 0 && buffer[_tcslen(buffer) - 1] == '\n')
+	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
 		lfdetected = 1;
 	va_end (parms);
+	if (bufp != buffer)
+		xfree (bufp);
+	if (always_flush_log)
+		flush_log ();
 	LeaveCriticalSection (&cs);
 }
 
@@ -416,7 +433,7 @@ void write_log (const TCHAR *format, ...)
 	if (!cs_init)
 		return;
 
-	premsg();
+	premsg ();
 
 	EnterCriticalSection (&cs);
 	va_start (parms, format);

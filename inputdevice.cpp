@@ -126,7 +126,6 @@ static struct teststore testmode_wait[TESTMODE_MAX];
 
 static int bouncy;
 static signed long bouncy_cycles;
-#define BOUNCY_CYCLES 30
 
 static int handle_input_event (int nr, int state, int max, int autofire, bool canstoprecord, bool playbackevent);
 
@@ -185,13 +184,15 @@ static int **keyboard_default_kbmaps;
 static int mouse_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 static int oldm_axis[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
-static int mouse_x[MAX_JPORTS], mouse_y[MAX_JPORTS];
-static int mouse_delta[MAX_JPORTS][MAX_INPUT_DEVICE_EVENTS];
-static int mouse_deltanoreset[MAX_JPORTS][MAX_INPUT_DEVICE_EVENTS];
+#define MOUSE_AXIS_TOTAL 4
+
+static uae_s16 mouse_x[MAX_JPORTS], mouse_y[MAX_JPORTS];
+static uae_s16 mouse_delta[MAX_JPORTS][MOUSE_AXIS_TOTAL];
+static uae_s16 mouse_deltanoreset[MAX_JPORTS][MOUSE_AXIS_TOTAL];
 static int joybutton[MAX_JPORTS];
 static int joydir[MAX_JPORTS];
 static int joydirpot[MAX_JPORTS][2];
-static int mouse_frame_x[MAX_JPORTS], mouse_frame_y[MAX_JPORTS];
+static uae_s16 mouse_frame_x[MAX_JPORTS], mouse_frame_y[MAX_JPORTS];
 
 static int mouse_port[NORMAL_JPORTS];
 static int cd32_shifter[NORMAL_JPORTS];
@@ -531,6 +532,7 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 	cfgfile_write (f, L"input.analog_joystick_offset", L"%d", p->input_analog_joystick_offset);
 	cfgfile_write (f, L"input.mouse_speed", L"%d", p->input_mouse_speed);
 	cfgfile_write (f, L"input.autofire_speed", L"%d", p->input_autofire_linecnt);
+	cfgfile_dwrite (f, L"input.contact_bounce", L"%d", p->input_contact_bounce);
 	for (id = 0; id < MAX_INPUT_SETTINGS; id++) {
 		for (i = 0; i < MAX_INPUT_DEVICES; i++)
 			write_config (f, id, i, L"joystick", &p->joystick_settings[id][i], &joysticks2[i], &idev[IDTYPE_JOYSTICK]);
@@ -776,6 +778,8 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 		pr->input_analog_joystick_mult = _tstol (value);
 	if (!strcasecmp (p, L"analog_joystick_offset"))
 		pr->input_analog_joystick_offset = _tstol (value);
+	if (!strcasecmp (p, L"contact_bounce"))
+		pr->input_contact_bounce = _tstol (value);
 
 	idnum = _tstol (p);
 	if (idnum <= 0 || idnum > MAX_INPUT_SETTINGS)
@@ -2696,10 +2700,10 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 			}
 
 			if (ie->data == 0 && old != (joybutton[joy] & (1 << ie->data)) && currprefs.cpu_cycle_exact) {
-				if (!input_record && !input_play) {
+				if (!input_record && !input_play && currprefs.input_contact_bounce) {
 					// emulate contact bounce, 1st button only, others have capacitors
 					bouncy = 1;
-					bouncy_cycles = get_cycles () + CYCLE_UNIT * BOUNCY_CYCLES;
+					bouncy_cycles = get_cycles () + CYCLE_UNIT * currprefs.input_contact_bounce;
 				}
 			}
 
@@ -5745,6 +5749,14 @@ uae_u8 *save_inputstate (int *len, uae_u8 *dstptr)
 			save_u16 (joydirpot[i][j]);
 		}
 	}
+	for (int i = 0; i < NORMAL_JPORTS; i++) {
+		for (int j = 0; j < MOUSE_AXIS_TOTAL; j++) {
+			save_u16 (mouse_delta[i][j]);
+			save_u16 (mouse_deltanoreset[i][j]);
+		}
+		save_u16 (mouse_frame_x[i]);
+		save_u16 (mouse_frame_y[i]);
+	}
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -5765,6 +5777,14 @@ uae_u8 *restore_inputstate (uae_u8 *src)
 			pot_cap[i][j] = restore_u16 ();
 			joydirpot[i][j] = restore_u16 ();
 		}
+	}
+	for (int i = 0; i < NORMAL_JPORTS; i++) {
+		for (int j = 0; j < MOUSE_AXIS_TOTAL; j++) {
+			mouse_delta[i][j] = restore_u16 ();
+			mouse_deltanoreset[i][j] = restore_u16 ();
+		}
+		mouse_frame_x[i] = restore_u16 ();
+		mouse_frame_y[i] = restore_u16 ();
 	}
 	return src;
 }

@@ -349,6 +349,11 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (gclow > 0 && gcloh > 0)
 		ret = -1;
 
+	last_planes_vpos = (last_planes_vpos) & ~1;
+	plflastline_total = (plflastline_total) & ~1;
+	if (!plflastline_total)
+		plflastline_total = last_planes_vpos;
+
 	if (doublescan <= 0) {
 		int min = coord_diw_to_window_x (94);
 		int max = coord_diw_to_window_x (460);

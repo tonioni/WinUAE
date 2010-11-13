@@ -2679,7 +2679,7 @@ static void read_joystick (void)
 									data = 0;
 							}
 							if (axisold[i][k] != data) {
-								setjoystickstate (i, k, data, 32768);
+								setjoystickstate (i, k, data, 32767);
 								axisold[i][k] = data;
 							}
 						}

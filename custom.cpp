@@ -5088,7 +5088,6 @@ static void vsync_handler_pre (void)
 #endif
 	audio_vsync ();
 	blkdev_vsync ();
-	DISK_vsync ();
 	CIA_vsync_prehandler ();
 
 	if (quit_program > 0) {
@@ -5151,6 +5150,7 @@ static void vsync_handler_post (void)
 	if ((intreq & 0x0020) && (intena & 0x0020))
 		write_log (L"vblank interrupt not cleared\n");
 #endif
+	DISK_vsync ();
 	if (bplcon0 & 4)
 		lof_store = lof_store ? 0 : 1;
 	lof_current = lof_store;
@@ -5500,8 +5500,8 @@ static void hsync_handler_pre (bool isvsync)
 	}
 	set_hpos ();
 #if 0
-	static int ppp = 1;
-	if (input_record && hsync_counter == 50 * 313 + 1) {
+	static int ppp = 2;
+	if (input_record && hsync_counter == 100 * 313 + 1) {
 		ppp--;
 		if (ppp == 0)
 			activate_debugger ();
@@ -5845,6 +5845,7 @@ void custom_reset (int hardreset)
 		sprite_width = GET_SPRITEWIDTH (fmode);
 		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 		bltstate = BLT_done;
+		blit_interrupt = 1;
 		lof_store = lof_current = 1;
 	}
 
@@ -7174,9 +7175,9 @@ STATIC_INLINE int dma_cycle (void)
 {
 	int hpos, hpos_old;
 
-	if (cpu_tracer < 0)
-		return current_hpos ();
 	blitter_nasty = 1;
+	if (cpu_tracer == -1)
+		return current_hpos ();
 	for (;;) {
 		int bpldma;
 		int blitpri = dmacon & DMA_BLITPRI;

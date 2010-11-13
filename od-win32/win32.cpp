@@ -2249,8 +2249,8 @@ uae_u8 *save_log (int bootlog, int *len)
 	fseek (f, 0, SEEK_END);
 	size = ftell (f);
 	fseek (f, 0, SEEK_SET);
-	if (size > 30000)
-		size = 30000;
+	if (*len > 0 && size > *len)
+		size = *len;
 	if (size > 0) {
 		dst = xcalloc (uae_u8, size + 1);
 		if (dst)
@@ -5019,6 +5019,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 	int loglen;
 
 	musip = NULL;
+	loglen = 30000;
 	log = save_log (TRUE, &loglen);
 	if (log) {
 		musi.UserStreamArray = mus;
@@ -5028,6 +5029,7 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 		musp->Buffer = log;
 		musp->BufferSize = loglen;
 		musip = &musi;
+		loglen = 30000;
 		log = save_log (FALSE, &loglen);
 		if (log) {
 			musi.UserStreamCount++;

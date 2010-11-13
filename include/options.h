@@ -346,6 +346,7 @@ struct uae_prefs {
 	bool filesys_custom_uaefsdb;
 	bool mmkeyboard;
 	int uae_hide;
+	bool clipboard_sharing;
 
 	int mountitems;
 	struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
@@ -422,6 +423,7 @@ struct uae_prefs {
 	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	int dongle;
+	int input_contact_bounce;
 };
 
 extern int config_changed;

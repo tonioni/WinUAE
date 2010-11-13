@@ -202,6 +202,8 @@ struct cputracestruct
 	uae_u32 cacheholdingaddr020;
 	struct cache020 caches020[CACHELINES020];
 
+	uae_u32 startcycles;
+	int needendcycles;
 	int memoryoffset;
 	int cyclecounter, cyclecounter_pre, cyclecounter_post;
 	int readcounter, writecounter;

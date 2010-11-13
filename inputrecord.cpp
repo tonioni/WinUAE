@@ -207,7 +207,11 @@ static int inprec_pstart (uae_u8 type)
 		hc2_orig = hc2;
 		if (type2 == type && hc > hc2) {
 			write_log (L"INPREC: %010d/%03d > %010d/%03d: %d missed!\n", hc, hpos, hc2, hpos2, p[0]);
+#if ENABLE_DEBUGGER == 0
 			gui_message (L"INPREC missed error");
+#else
+			activate_debugger ();
+#endif
 			lastcycle = cycles;
 			inprec_plast = p;
 			inprec_plastptr = p + 12;
@@ -343,6 +347,9 @@ int inprec_open (const TCHAR *fname, const TCHAR *statefilename)
 		inprec_zf = zfile_fopen (fname, input_record ? L"wb" : L"rb", ZFD_NORMAL);
 	if (inprec_zf == NULL)
 		return 0;
+
+	currprefs.cs_rtc = changed_prefs.cs_rtc = 0;
+
 	inprec_path[0] = 0;
 	if (fname)
 		getpathpart (inprec_path, sizeof inprec_path / sizeof (TCHAR), fname);
@@ -534,13 +541,17 @@ void inprec_playdiskchange (void)
 	while (inprec_pstart (INPREC_DISKINSERT)) {
 		int drv = inprec_pu8 ();
 		bool wp = inprec_pu8 () != 0;
-		TCHAR tmp[MAX_DPATH];
+		TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 		inprec_pstr (tmp);
+		_tcscpy (tmp2, tmp);
 		if (!zfile_exists (tmp)) {
-			TCHAR tmp2[MAX_DPATH];
-			_tcscpy (tmp2, inprec_path);
-			_tcscat (tmp2, tmp);
-			_tcscpy (tmp, tmp2);
+			TCHAR tmp3[MAX_DPATH];
+			_tcscpy (tmp3, inprec_path);
+			_tcscat (tmp3, tmp);
+			_tcscpy (tmp, tmp3);
+		}
+		if (!zfile_exists (tmp)) {
+			gui_message (L"INPREC: Disk image\n'%s'\nnot found!\n", tmp2);
 		}
 		_tcscpy (currprefs.floppyslots[drv].df, tmp);
 		_tcscpy (changed_prefs.floppyslots[drv].df, tmp);
@@ -556,7 +567,7 @@ bool inprec_playevent (int *nr, int *state, int *max, int *autofire)
 	if (inprec_pstart (INPREC_EVENT)) {
 		*nr = inprec_ps16 ();
 		*state = inprec_ps16 ();
-		*max = inprec_ps16 ();
+		*max = inprec_pu16 ();
 		*autofire = inprec_ps16 () & 1;
 		inprec_pend ();
 		return true;
@@ -783,6 +794,32 @@ void inprec_setposition (int offset, int replaycounter)
 		inprec_realtime (false);
 }
 
+static void savelog (const TCHAR *path, const TCHAR *file)
+{
+	TCHAR tmp[MAX_DPATH];
+
+	_tcscpy (tmp, path);
+	_tcscat (tmp, file);
+	_tcscat (tmp, L".log.txt");
+	struct zfile *zfd = zfile_fopen (tmp, L"wb");
+	if (zfd) {
+		int loglen;
+		uae_u8 *log;
+		loglen = 0;
+		log = save_log (TRUE, &loglen);
+		if (log)
+			zfile_fwrite (log, loglen, 1, zfd);
+		xfree (log);
+		loglen = 0;
+		log = save_log (FALSE, &loglen);
+		if (log)
+			zfile_fwrite (log, loglen, 1, zfd);
+		xfree (log);
+		zfile_fclose (zfd);
+		write_log (L"log '%s' saved\n", tmp);
+	}
+}
+
 static int savedisk (const TCHAR *path, const TCHAR *file, uae_u8 *data, uae_u8 *outdata)
 {
 	int len = 0;
@@ -870,6 +907,7 @@ void inprec_save (const TCHAR *filename, const TCHAR *statefilename)
 		}
 		xfree (data);
 		zfile_fclose (zf);
+		savelog (path, file);
 		write_log (L"inputfile '%s' saved\n", filename);
 	} else {
 		write_log (L"failed to open '%s'\n", filename);

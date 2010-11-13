@@ -234,7 +234,6 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 #endif
 	addr &= 0xFFFF;
 	b = expamem[addr];
-	//write_log (L"%08x=%02X\n", addr, b);
 	return b;
 }
 

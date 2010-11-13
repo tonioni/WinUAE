@@ -44,11 +44,11 @@
 #else
 #define TRACE(x)
 #endif
-#define MIDI_INBUFFERS 800  //use 13 MB Buffer with this settings
+#define MIDI_INBUFFERS 100  //use 13 MB Buffer with this settings
 //on my system it work ok with 10 but who
 //know when windows rest for a while
 //with sysex size of 40 win can 8 sec sleep
-#define	INBUFFLEN 16000	      //if this is not enough a warning come
+#define	INBUFFLEN 24000	      //if this is not enough a warning come
 static int overflow,only_one_time;
 BOOL midi_ready = FALSE;
 BOOL midi_in_ready = FALSE;

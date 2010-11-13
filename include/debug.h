@@ -39,6 +39,7 @@ extern uaecptr dumpmem2 (uaecptr addr, TCHAR *out, int osize);
 extern void update_debug_info (void);
 extern int instruction_breakpoint (TCHAR **c);
 extern int debug_bankchange (int);
+extern void log_dma_record (void);
 
 #define BREAKPOINT_TOTAL 8
 struct breakpoint_node {

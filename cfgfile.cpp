@@ -690,6 +690,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"magic_mouse", p->input_magic_mouse);
 	cfgfile_dwrite_str (f, L"magic_mousecursor", magiccursors[p->input_magic_mouse_cursor]);
 	cfgfile_dwrite_str (f, L"absolute_mouse", abspointers[p->input_tablet]);
+	cfgfile_dwrite_bool (f, L"clipboard_sharing", p->clipboard_sharing);
 
 	cfgfile_write (f, L"gfx_display", L"%d", p->gfx_display);
 	cfgfile_write_str (f, L"gfx_display_name", p->gfx_display_name);
@@ -1294,6 +1295,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"magic_mouse", &p->input_magic_mouse)
 		|| cfgfile_yesno (option, value, L"warp", &p->turbo_emulation)
 		|| cfgfile_yesno (option, value, L"headless", &p->headless)
+		|| cfgfile_yesno (option, value, L"clipboard_sharing", &p->clipboard_sharing)
 		|| cfgfile_yesno (option, value, L"bsdsocket_emu", &p->socket_emu))
 		return 1;
 
@@ -3577,6 +3579,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->picasso96_nocustom = 1;
 	p->cart_internal = 1;
 	p->sana2 = 0;
+	p->clipboard_sharing = true;
 
 	p->cs_compatible = 1;
 	p->cs_rtc = 2;

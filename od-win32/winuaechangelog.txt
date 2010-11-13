@@ -1,4 +1,16 @@
 
+Beta 4:
+
+- automatically disable battery backed up clock when input recorder is enabled
+- automatic resize didn't set "configuration changed" flag when window size changed, size timeout also changed to 10 frames (was 50)
+- 2352 byte sector plain iso images didn't mount (misplaced parenthesis in mode test..)
+- exception return address error in non-JIT fastest possible CPU modes (b1)
+- increased MIDI sysex buffer size (16000 byte buffer is not large enough, some devices send about 18000 bytes)
+- copy also log file (if enabled) when saving input recording
+- clipboard sharing can be disabled (config file only)
+- joystick/mouse button contact bounce is now off by default (config file only)
+- Gayle ID update, 0xD1 (AA), 0xD0 (normal). Real A600/A1200 confirmed (unless there are other revisions)
+
 Rerecorder features:
 
 Re-recorder = combined input and state recorder.

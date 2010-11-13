@@ -1187,10 +1187,10 @@ static uae_u32 gayle2_read (uaecptr addr)
 	addr &= 0xffff;
 	if (addr == 0x1000) {
 		/* Gayle ID */
-		if ((gayle_id_cnt & 3) == 2)
-			v = 0x7f;
-		else
+		if (gayle_id_cnt == 0 || gayle_id_cnt == 1 || gayle_id_cnt == 3 || ((currprefs.chipset_mask & CSMASK_AGA) && gayle_id_cnt == 7))
 			v = 0x80;
+		else
+			v = 0x00;
 		gayle_id_cnt++;
 	}
 	return v;

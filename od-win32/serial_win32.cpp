@@ -278,7 +278,7 @@ void SERDAT (uae_u16 w)
 #endif
 
 	if (seriallog)
-		console_out_f (L"%c", dochar (w));
+		write_log (L"%c", dochar (w));
 
 	if (serper == 372) {
 		if (enforcermode & 2) {

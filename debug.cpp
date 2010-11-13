@@ -897,20 +897,27 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	return dr;
 }
 
-static void decode_dma_record (int hpos, int vpos, int toggle)
+static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 {
 	struct dma_rec *dr;
 	int h, i, maxh, cnt;
+	uae_u32 cycles;
 
 	if (!dma_record[0])
 		return;
 	dr = &dma_record[dma_record_toggle ^ toggle][vpos * NR_DMA_REC_HPOS];
-	console_out_f (L"Line: %02X %3d HPOS %02X %3d:\n", vpos, vpos, hpos, hpos);
+	if (logfile)
+		write_dlog (L"Line: %02X %3d HPOS %02X %3d:\n", vpos, vpos, hpos, hpos);
+	else
+		console_out_f (L"Line: %02X %3d HPOS %02X %3d:\n", vpos, vpos, hpos, hpos);
 	h = hpos;
 	dr += hpos;
 	maxh = hpos + 80;
 	if (maxh > maxhpos)
 		maxh = maxhpos;
+	cycles = vsync_cycles;
+	if (toggle)
+		cycles -= maxvpos * maxhpos * CYCLE_UNIT;
 	cnt = 0;
 	while (h < maxh) {
 		int col = 9;
@@ -977,7 +984,7 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 				l3[cl2++] = 'I';
 			if (dr->evt & DMA_EVENT_INTREQ)
 				l3[cl2++] = 'i';
-			_stprintf (l5 + cl, L"%08X", vsync_cycles + (vpos * maxhpos + (hpos + cnt)) * CYCLE_UNIT);
+			_stprintf (l5 + cl, L"%08X", cycles + (vpos * maxhpos + (hpos + cnt)) * CYCLE_UNIT);
 			if (i < cols - 1 && h < maxh - 1) {
 				l1[cl + col - 1] = 32;
 				l2[cl + col - 1] = 32;
@@ -987,13 +994,28 @@ static void decode_dma_record (int hpos, int vpos, int toggle)
 			}
 			cnt++;
 		}
-		console_out_f (L"%s\n", l1);
-		console_out_f (L"%s\n", l2);
-		console_out_f (L"%s\n", l3);
-		console_out_f (L"%s\n", l4);
-		console_out_f (L"%s\n", l5);
-		console_out_f (L"\n");
+		if (logfile) {
+			write_dlog (L"%s\n", l1);
+			write_dlog (L"%s\n", l2);
+			write_dlog (L"%s\n", l3);
+			write_dlog (L"%s\n", l4);
+			write_dlog (L"%s\n", l5);
+			write_dlog (L"\n");
+		} else {
+			console_out_f (L"%s\n", l1);
+			console_out_f (L"%s\n", l2);
+			console_out_f (L"%s\n", l3);
+			console_out_f (L"%s\n", l4);
+			console_out_f (L"%s\n", l5);
+			console_out_f (L"\n");
+		}
 	}
+}
+void log_dma_record (void)
+{
+	if (!debug_dma)
+		debug_dma = 1;
+	decode_dma_record (0, 0, 0, true);
 }
 
 void record_copper (uaecptr addr, int hpos, int vpos)
@@ -2447,6 +2469,59 @@ static void show_exec_lists (TCHAR t)
 	uaecptr execbase = get_long (4);
 	uaecptr list = 0, node;
 
+	if (_totupper (t) == 'I') {
+		static const int it[] = {  1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 };
+		static const int it2[] = { 1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 7 };
+		list = execbase + 84;
+		for (int i = 0; i < 16; i++) {
+			console_out_f (L"%2d %d: %08x\n", i + 1, it2[i], list);
+			if (it[i]) {
+				console_out_f (L"  [H] %08x\n", get_long (list));
+				node = get_long (list + 8);
+				if (node) {
+					uae_u8 *addr = get_real_address (get_long (node + 10));
+					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
+					console_out_f (L"      %08x (C=%08X D=%08X) '%s'\n", node, get_long (list + 4), get_long (list), name);
+					xfree (name);
+				}
+			} else {
+				int cnt = 0;
+				node = get_long (list);
+				node = get_long (node);
+				while (get_long (node)) {
+					uae_u8 *addr = get_real_address (get_long (node + 10));
+					TCHAR *name = addr ? au ((char*)addr) : au("<null>");
+					console_out_f (L"  [S] %08x (C=%08x D=%08X) '%s'\n", node, get_long (node + 18), get_long (node + 14), name);
+					if (i == 4 - 1 || i == 14 - 1) {
+						if (!_tcsicmp (name, L"cia-a") || !_tcsicmp (name, L"cia-b")) {
+							static const TCHAR *ciai[] = { L"A", L"B", L"ALRM", L"SP", L"FLG" };
+							uaecptr cia = node + 22;
+							for (int j = 0; j < 5; j++) {
+								uaecptr ciap = get_long (cia);
+								console_out_f (L"        %5s: %08x", ciai[j], ciap);
+								if (ciap) {
+									uae_u8 *addr2 = get_real_address (get_long (ciap + 10));
+									TCHAR *name2 = addr ? au ((char*)addr2) : au("<null>");
+									console_out_f (L" (C=%08x D=%08X) '%s'", get_long (ciap + 18), get_long (ciap + 14), name2);
+									xfree (name2);
+								}
+								console_out_f (L"\n");
+								cia += 4;
+							}
+						}
+					}
+					xfree (name);
+					node = get_long (node);
+					cnt++;
+				}
+				if (!cnt)
+					console_out_f (L"  [S] <none>\n");
+			}
+			list += 12;
+		}
+		return;
+	}
+
 	switch (_totupper (t))
 	{
 	case 'R':
@@ -3341,7 +3416,7 @@ static void debug_1 (void)
 				if (more_params (&inptr))
 					v2 = readint (&inptr);
 				if (debug_dma) {
-					decode_dma_record (v2, v1, cmd == 'v');
+					decode_dma_record (v2, v1, cmd == 'v', false);
 				} else {
 					debug_dma = v1 < 0 ? -v1 : 1;
 					console_out_f (L"DMA debugger enabled, mode=%d.\n", debug_dma);

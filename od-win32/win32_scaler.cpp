@@ -281,7 +281,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				lastresize--;
 				if (lastresize > 0) {
 					if (cw != lcw || ch != lch || cx != lcx || cy != lcy)
-						lastresize = 50;
+						lastresize = 10;
 					useold = 1;
 				} else if (lastdelay == 0) {
 					lastdelay = 2;
@@ -309,10 +309,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					och = ch;
 					ocx = cx;
 					ocy = cy;
-					lastresize = 50;
+					lastresize = 10;
 					lastdelay = 0;
 				}
-
 				SetRect (sr, 0, 0, cw * scale, ch * scale);
 				dr->left = (temp_width - aws) /2;
 				dr->top = (temp_height - ahs) / 2;
@@ -321,9 +320,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				OffsetRect (zr, cx * scale, cy * scale);
 				int ww = dr->right - dr->left;
 				int hh = dr->bottom - dr->top;
+				int oldwinw = currprefs.gfx_size_win.width;
+				int oldwinh = currprefs.gfx_size_win.width;
 				changed_prefs.gfx_size_win.width = ww;
 				changed_prefs.gfx_size_win.height = hh;
 				fixup_prefs_dimensions (&changed_prefs);
+				if (oldwinw != changed_prefs.gfx_size_win.width || oldwinh != changed_prefs.gfx_size_win.height)
+					config_changed = 1;
 				OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, -(changed_prefs.gfx_size_win.height - hh + 1) / 2);
 				filteroffsetx = -zr->left / scale;
 				filteroffsety = -zr->top / scale;
