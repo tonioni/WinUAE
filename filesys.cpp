@@ -2654,7 +2654,7 @@ static void
 	action_lock_from_fh (Unit *unit, dpacket packet)
 {
 	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
-	TRACE((L"ACTION_COPY_DIR_FH(0x%lx)\n", GET_PCK_ARG1 (packet)));
+	TRACE((L"ACTION_COPY_DIR_FH(0x%lx,'%s')\n", GET_PCK_ARG1 (packet), k ? k->aino->aname : L"<null>"));
 	if (k == 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		return;
@@ -3570,7 +3570,7 @@ no_more_entries:
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
 }
-
+extern void activate_debugger(void);
 static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallback)
 {
 	uaecptr fh = GET_PCK_ARG1 (packet) << 2;
@@ -3585,7 +3585,11 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	int isarch = unit->volflags & MYVOLUMEINFO_ARCHIVE;
 
 	TRACE((L"ACTION_FIND_*(0x%lx,0x%lx,\"%s\",%d,%d)\n", fh, lock, bstr (unit, name), mode, create));
+	TRACE((L"fh=%x lock=%x name=%x\n", fh, lock, name));
 	DUMPLOCK(unit, lock);
+
+	if (!_tcsicmp(bstr(unit,name), L"Nù"))
+		activate_debugger();
 
 	aino = find_aino (unit, lock, bstr (unit, name), &err);
 
@@ -5015,7 +5019,9 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 {
 	uae_s32 type = GET_PCK_TYPE (pck);
 	PUT_PCK_RES2 (pck, 0);
-
+#if TRACING_ENABLED > 0
+	write_log(L"packet=%d\n", type);
+#endif
 	if (unit->inhibited && filesys_isvolume (unit)
 		&& type != ACTION_INHIBIT && type != ACTION_MORE_CACHE
 		&& type != ACTION_DISK_INFO) {
@@ -5620,10 +5626,10 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		return -2;
 	}
 	for (rdblock = 0; rdblock < lastblock; rdblock++) {
-		hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
+		hdf_read_rdb (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
 		if (rdb_checksum ("RDSK", bufrdb, rdblock))
 			break;
-		hdf_read (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
+		hdf_read_rdb (hfd, bufrdb, rdblock * hfd->blocksize, hfd->blocksize);
 		if (!memcmp ("RDSK", bufrdb, 4)) {
 			bufrdb[0xdc] = 0;
 			bufrdb[0xdd] = 0;
@@ -5996,14 +6002,17 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	} else if (mode == 14) {
 		amiga_clipboard_task_start (m68k_dreg (regs, 0));
 	} else if (mode == 15) {
-		if (!currprefs.clipboard_sharing)
-			return 0;
 		amiga_clipboard_init ();
 	} else if (mode == 16) {
 		uaecptr a2 = m68k_areg (regs, 2);
 		input_mousehack_mouseoffset (a2);
-	} else if (mode == 100) {
-		return consolehook_activate () ? 1 : 0;
+	} else if (mode == 17) {
+		uae_u32 v = 0;
+		if (currprefs.clipboard_sharing)
+			v |= 1;
+		if (consolehook_activate ())
+			v |= 2;
+		return v;
 	} else if (mode == 101) {
 		consolehook_ret (m68k_areg (regs, 1), m68k_areg (regs, 2));
 	} else if (mode == 102) {

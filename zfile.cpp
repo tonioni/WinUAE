@@ -2706,8 +2706,10 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 	if (!zvnew && !(flags & ZFD_NORECURSE)) {
 #if 1
 		zvnew = archive_directory_plain (zf);
-		zfile_fopen_archive_recurse (zvnew, flags);
-		done = 1;
+		if (zvnew) {
+			zfile_fopen_archive_recurse (zvnew, flags);
+			done = 1;
+		}
 #else
 		int rc;
 		int index;
@@ -2736,7 +2738,7 @@ static struct zvolume *prepare_recursive_volume (struct zvolume *zv, const TCHAR
 			break; // TODO
 		}
 #endif
-	} else {
+	} else if (zvnew) {
 		zvnew->parent = zv->parent;
 		zfile_fopen_archive_recurse (zvnew, flags);
 		done = 1;

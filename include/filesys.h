@@ -99,6 +99,7 @@ extern struct hardfiledata *get_hardfile_data (int nr);
 extern int hdf_open (struct hardfiledata *hfd, const TCHAR *name);
 extern int hdf_dup (struct hardfiledata *dhfd, const struct hardfiledata *shfd);
 extern void hdf_close (struct hardfiledata *hfd);
+extern int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
 extern int hdf_getnumharddrives (void);

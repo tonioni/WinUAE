@@ -1,4 +1,10 @@
 
+- check clipboard sharing disabled state earlier, before any resource allocations
+- clipboard sharing option added to misc panel
+- fixed archive mounting crash if archive can't be fully unpacked (for example dms without filesystem)
+- autodetect byteswapped harddisk RDSK signature in blocks 0 to 15 (not just block 0)
+- fixed 68020+ non-JIT/non-CE but compatible mode set causing random errors in some situations (b1)
+
 Beta 4:
 
 - automatically disable battery backed up clock when input recorder is enabled

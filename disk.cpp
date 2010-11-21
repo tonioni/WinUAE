@@ -3189,7 +3189,6 @@ void DSKLEN (uae_u16 v, int hpos)
 		write_log (L"disk %s DMA started, drvmask=%x motormask=%x PC=%08x\n",
 			dskdmaen == 3 ? L"write" : L"read", selected ^ 15, motormask, M68K_GETPC);
 		noselected = 1;
-		activate_debugger();
 	} else {
 		if (disk_debug_logging > 0) {
 			write_log (L"disk %s DMA started, drvmask=%x track %d mfmpos %d dmaen=%d PC=%08X\n",

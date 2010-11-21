@@ -359,9 +359,8 @@ static int native_dos_op (uae_u32 mode, uae_u32 p1, uae_u32 p2, uae_u32 p3)
 	xfree (s);
 	return 0;
 }
-#ifndef UAEGFX_INTERNAL
+
 extern uae_u32 picasso_demux (uae_u32 arg, TrapContext *context);
-#endif
 
 static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 {
@@ -372,10 +371,8 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 #define ARG4 (get_long (m68k_areg (regs, 7) + 20))
 #define ARG5 (get_long (m68k_areg (regs, 7) + 24))
 
-#ifndef UAEGFX_INTERNAL
 	if (ARG0 >= 16 && ARG0 <= 39)
 		return picasso_demux (ARG0, context);
-#endif
 
 	switch (ARG0)
 	{
@@ -441,12 +438,6 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 		ARG0,
 		r->regs[0],r->regs[1],r->regs[2],r->regs[3],r->regs[4],r->regs[5],r->regs[6],r->regs[7],
 		r->regs[8],r->regs[9],r->regs[10],r->regs[11],r->regs[12],r->regs[13],r->regs[14],r->regs[15]);
-#ifdef UAEGFX_INTERNAL
-	if (ARG0 >= 16 && ARG0 <= 39) {
-		write_log (L"uaelib: obsolete Picasso96 uaelib hook called, call ignored\n");
-		return 0;
-	}
-#endif
 	v = uaelib_demux2 (context);
 	if (uaelib_debug)
 		write_log (L"=%08x\n", v);

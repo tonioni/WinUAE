@@ -122,6 +122,7 @@ struct CapsTrackInfoT2 {
 	UDWORD cylinder;   // cylinder#
 	UDWORD head;       // head#
 	UDWORD sectorcnt;  // available sectors
+	UDWORD sectorsize; // sector size, unused
 	PUBYTE trackbuf;   // track buffer memory 
 	UDWORD tracklen;   // track buffer memory length
 	UDWORD timelen;    // timing buffer length

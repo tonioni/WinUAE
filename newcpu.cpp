@@ -3964,8 +3964,10 @@ static void m68k_run_2p (void)
 	prefetch_pc = m68k_getpc ();
 	prefetch = x_get_long (prefetch_pc);
 	for (;;) {
-		uae_u16 opcode;
 		uae_u32 pc = m68k_getpc ();
+		uae_u16 opcode;
+
+		r->instruction_pc = pc;
 
 #if DEBUG_CD32CDTVIO
 		out_cd32io (m68k_getpc ());
@@ -3975,19 +3977,16 @@ static void m68k_run_2p (void)
 
 		if (pc == prefetch_pc) {
 			opcode = prefetch >> 16;
-			regs.instruction_pc = pc;
 		} else if (pc == prefetch_pc + 2) {
-			regs.instruction_pc = pc + 2;
 			opcode = prefetch;
 		} else {
-			regs.instruction_pc = pc;
 			opcode = x_get_word (pc);
+			prefetch_pc = pc + 2;
+			prefetch = x_get_long (prefetch_pc);
 		}
 
 		count_instr (opcode);
 
-		prefetch_pc = m68k_getpc () + 2;
-		prefetch = x_get_long (prefetch_pc);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
 		cpu_cycles &= cycles_mask;
 		cpu_cycles |= cycles_val;
@@ -5061,6 +5060,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, int writeaccess, int inst
 	last_writeaccess_for_exception_3 = writeaccess;
 	last_instructionaccess_for_exception_3 = instructionaccess;
 	Exception (3);
+	//activate_debugger();
 }
 
 void exception3 (uae_u32 opcode, uaecptr addr)

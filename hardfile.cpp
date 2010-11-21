@@ -356,7 +356,7 @@ static uae_u32 vhd_checksum (uae_u8 *p, int offset)
 	return ~sum;
 }
 
-static int hdf_open2 (struct hardfiledata *hfd, const TCHAR *pname)
+int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 {
 	uae_u8 tmp[512], tmp2[512];
 	uae_u32 v;
@@ -422,25 +422,6 @@ nonvhd:
 end:
 	hdf_close_target (hfd);
 	return 0;
-}
-
-int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
-{
-	int v;
-	uae_u8 buf[512];
-
-	v = hdf_open2 (hfd, pname);
-	if (!v)
-		return v;
-	memset (buf, 0, sizeof buf);
-	hdf_read (hfd, buf, 0, sizeof buf);
-	if (buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) { // AdIDE encoded "CPRM"
-		hfd->adide = 1;
-	}
-	if (!memcmp (buf, "DRKS", 4)) {
-		hfd->byteswap = 1;
-	}
-	return v;
 }
 
 void hdf_close (struct hardfiledata *hfd)
@@ -871,6 +852,28 @@ static void hdf_byteswap (void *v, int len)
 		b[i] = b[i + 1];
 		b[i + 1] = tmp;
 	}
+}
+
+int hdf_read_rdb (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+	int v;
+	v = hdf_read (hfd, buffer, offset, len);
+	if (v > 0 && offset < 16 * 512 && !hfd->byteswap && !hfd->adide)  {
+		uae_u8 *buf = (uae_u8*)buffer;
+		bool changed = false;
+		if (buf[0] == 0x39 && buf[1] == 0x10 && buf[2] == 0xd3 && buf[3] == 0x12) { // AdIDE encoded "CPRM"
+			hfd->adide = 1;
+			changed = true;
+			write_log (L"HDF: adide scrambling detected\n");
+		} else if (!memcmp (buf, "DRKS", 4)) {
+			hfd->byteswap = 1;
+			changed = true;
+			write_log (L"HDF: byteswapped RDB detected\n");
+		}
+		if (changed)
+			v = hdf_read (hfd, buffer, offset, len);
+	}
+	return v;
 }
 
 int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)

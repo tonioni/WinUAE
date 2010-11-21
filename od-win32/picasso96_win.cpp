@@ -132,6 +132,7 @@ static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
 int p96vblank;
 
+static int uaegfx_old;
 static uaecptr uaegfx_resname,
 	uaegfx_resid,
 	uaegfx_init,
@@ -4276,6 +4277,7 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
 void picasso_reset (void)
 {
 	uaegfx_base = 0;
+	uaegfx_old = 0;
 	interrupt_enabled = 0;
 }
 
@@ -4310,6 +4312,9 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	uaecptr openfunc, closefunc, expungefunc;
 	uaecptr findcardfunc, initcardfunc;
 	uaecptr exec = get_long (4);
+
+	if (uaegfx_old)
+		return NULL;
 
 	uaegfx_resid = ds (L"UAE Graphics Card 3.3");
 	uaegfx_vblankname = ds (L"UAE Graphics Card VBLANK");
@@ -4371,6 +4376,46 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 
 	write_log (L"uaegfx.card %d.%d init @%08X\n", UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);
 	return uaegfx_base;
+}
+
+uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
+{
+#define ARG0 (get_long (m68k_areg (regs, 7) + 4))
+
+	if (uaegfx_base) {
+		if (ARG0 >= 16 && ARG0 <= 39) {
+			write_log (L"uaelib: obsolete Picasso96 uaelib hook called, call ignored\n");
+			return 0;
+		}
+	}
+	if (!uaegfx_old) {
+		write_log (L"uaelib: uaelib hook in use\n");
+		uaegfx_old = 1;
+	}
+	switch (ARG0)
+	{
+     case 16: return picasso_FindCard (ctx);
+     case 17: return picasso_FillRect (ctx);
+     case 18: return picasso_SetSwitch (ctx);
+     case 19: return picasso_SetColorArray (ctx);
+     case 20: return picasso_SetDAC (ctx);
+     case 21: return picasso_SetGC (ctx);
+     case 22: return picasso_SetPanning (ctx);
+     case 23: return picasso_CalculateBytesPerRow (ctx);
+     case 24: return picasso_BlitPlanar2Chunky (ctx);
+     case 25: return picasso_BlitRect (ctx);
+     case 26: return picasso_SetDisplay (ctx);
+     case 27: return picasso_BlitTemplate (ctx);
+     case 28: return picasso_BlitRectNoMaskComplete (ctx);
+     case 29: return picasso_InitCard (ctx);
+     case 30: return picasso_BlitPattern (ctx);
+     case 31: return picasso_InvertRect (ctx);
+     case 32: return picasso_BlitPlanar2Direct (ctx);
+     //case 34: return picasso_WaitVerticalSync (ctx);
+     case 35: return allocated_gfxmem ? 1 : 0;
+	}
+
+	return 0;
 }
 
 void restore_p96_finish (void)

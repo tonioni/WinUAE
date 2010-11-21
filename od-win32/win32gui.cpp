@@ -7176,6 +7176,7 @@ static void enable_for_miscdlg (HWND hDlg)
 		ew (hDlg, IDC_DOSAVESTATE, TRUE);
 		ew (hDlg, IDC_SCSIMODE, FALSE);
 		ew (hDlg, IDC_CLOCKSYNC, FALSE);
+		ew (hDlg, IDC_CLIPBOARDSHARE, FALSE);
 	} else {
 #if !defined (SCSIEMU)
 		EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
@@ -7320,6 +7321,7 @@ static void values_to_miscdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
 		CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 		CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
+		CheckDlgButton (hDlg, IDC_CLIPBOARDSHARE, workprefs.clipboard_sharing);
 		CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
 		CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
 
@@ -7554,6 +7556,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_CLOCKSYNC:
 			workprefs.tod_hack = ischecked (hDlg, IDC_CLOCKSYNC);
+			break;
+		case IDC_CLIPBOARDSHARE:
+			workprefs.clipboard_sharing = ischecked (hDlg, IDC_CLIPBOARDSHARE);
 			break;
 		case IDC_NOTASKBARBUTTON:
 			workprefs.win32_notaskbarbutton = ischecked (hDlg, IDC_NOTASKBARBUTTON);

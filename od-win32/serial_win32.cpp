@@ -27,6 +27,7 @@
 
 #include "od-win32/parser.h"
 
+#define SERIALLOGGING 0
 #define SERIALDEBUG 0 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
 #define MODEMTEST   0 /* 0 or 1 */
@@ -40,7 +41,7 @@ static int dtr;
 static int serial_period_hsyncs, serial_period_hsync_counter;
 static int ninebit;
 int serdev;
-int seriallog = 1;
+int seriallog = 0;
 int serial_enet;
 
 void serial_open (void);
@@ -83,6 +84,10 @@ void SERPER (uae_u16 w)
 	serial_period_hsyncs = (((serper & 0x7fff) + 1) * 10) / maxhpos;
 	if (serial_period_hsyncs <= 0)
 		serial_period_hsyncs = 1;
+#if SERIALLOGGING > 0
+	serial_period_hsyncs = 1;
+	seriallog = 1;
+#endif
 	serial_period_hsync_counter = 0;
 
 	write_log (L"SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n", w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
