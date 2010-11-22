@@ -1,4 +1,6 @@
 
+Beta 5:
+
 - check clipboard sharing disabled state earlier, before any resource allocations
 - clipboard sharing option added to misc panel
 - fixed archive mounting crash if archive can't be fully unpacked (for example dms without filesystem)

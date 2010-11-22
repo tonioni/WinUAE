@@ -152,8 +152,6 @@ static int REGPARAM3 dummy_check (uaecptr addr, uae_u32 size) REGPARAM;
 
 static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 {
-	if (M68K_GETPC == 0xf81a16)
-		activate_debugger ();
 	if (illegal_count >= MAX_ILG)
 		return;
 	/* ignore Zorro3 expansion space */
