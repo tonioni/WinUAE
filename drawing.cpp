@@ -327,6 +327,12 @@ extern int firstword_bplcon1;
 
 static int gclow, gcloh, gclox, gcloy;
 
+void get_custom_topedge (int *x, int *y)
+{
+	*x = visible_left_border;
+	*y = minfirstline << currprefs.gfx_vresolution;
+}
+
 static void reset_custom_limits (void)
 {
 	gclow = gcloh = gclox = gcloy = 0;
@@ -2182,7 +2188,7 @@ static void center_image (void)
 			if (visible_left_border < prev_x_adjust && prev_x_adjust < min_diwstart && min_diwstart - visible_left_border <= 32)
 				visible_left_border = prev_x_adjust;
 		}
-	} else if ((beamcon0 & 0x80) && max_diwstop > 0) {
+	} else if ((beamcon0 & 0x80) && max_diwstop > 0 && !currprefs.gfx_filter_autoscale) {
 		int w = gfxvidinfo.width;
 		if (max_diwstop - min_diwstart < w)
 			visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
@@ -2192,25 +2198,14 @@ static void center_image (void)
 		visible_left_border = max_diwlastword - gfxvidinfo.width;
 	}
 
-	if (currprefs.gfx_xcenter_pos >= 0 && !currprefs.gfx_filter_autoscale) {
-		int val = currprefs.gfx_xcenter_pos >> RES_MAX;
-#if 0
-		if (currprefs.gfx_xcenter_size > 0) {
-			int diff = ((gfxvidinfo.width << (RES_MAX - currprefs.gfx_resolution)) - currprefs.gfx_xcenter_size) / 1;
-			write_log (L"%d %d\n", currprefs.gfx_xcenter_size, gfxvidinfo.width);
-			val -= diff >> RES_MAX;
-		}
-#endif
-		if (val < 56)
-			val = 56;
-		visible_left_border = val + (DIW_DDF_OFFSET << currprefs.gfx_resolution) - (DISPLAY_LEFT_SHIFT * 2 - (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
-	}
-
 	if (visible_left_border > max_diwlastword - 32)
 		visible_left_border = max_diwlastword - 32;
 	if (visible_left_border < 0)
 		visible_left_border = 0;
 	visible_left_border &= ~((xshift (1, lores_shift)) - 1);
+
+	//write_log (L"%d %d %d %d %d\n", max_diwlastword, gfxvidinfo.width, lores_shift, currprefs.gfx_resolution, visible_left_border);
+
 
 	linetoscr_x_adjust_bytes = visible_left_border * gfxvidinfo.pixbytes;
 
@@ -2235,25 +2230,13 @@ static void center_image (void)
 				thisframe_y_adjust = prev_y_adjust;
 		}
 	}
-	if (currprefs.gfx_ycenter_pos >= 0 && !currprefs.gfx_filter_autoscale) {
-		thisframe_y_adjust = currprefs.gfx_ycenter_pos >> 1;
-#if 0
-		if (currprefs.gfx_ycenter_size > 0) {
-			int diff = (currprefs.gfx_ycenter_size - (gfxvidinfo.height << (linedbl ? 0 : 1))) / 2;
-			thisframe_y_adjust += diff >> 1;
-		}
-#endif
-		if (thisframe_y_adjust + max_drawn_amiga_line > 2 * maxvpos_nom)
-			thisframe_y_adjust = 2 * maxvpos_nom - max_drawn_amiga_line;
-		if (thisframe_y_adjust < 0)
-			thisframe_y_adjust = 0;
-	} else {
+
 		/* Make sure the value makes sense */
-		if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_nom)
-			thisframe_y_adjust = maxvpos_nom - max_drawn_amiga_line;
-		if (thisframe_y_adjust < minfirstline)
-			thisframe_y_adjust = minfirstline;
-	}
+	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_nom)
+		thisframe_y_adjust = maxvpos_nom - max_drawn_amiga_line;
+	if (thisframe_y_adjust < minfirstline)
+		thisframe_y_adjust = minfirstline;
+
 	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
 	tmp = (maxvpos_nom - thisframe_y_adjust) << linedbl;
 	if (tmp != max_ypos_thisframe) {

@@ -126,6 +126,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define AUTOSCALE_NORMAL 4
 #define AUTOSCALE_RESIZE 5
 #define AUTOSCALE_CENTER 6
+#define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 
 struct uae_prefs {
 
@@ -297,6 +298,8 @@ struct uae_prefs {
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];
 	TCHAR romextfile[MAX_DPATH];
+	uae_u32 romextfile2addr;
+	TCHAR romextfile2[MAX_DPATH];
 	TCHAR romextident[256];
 	TCHAR flashfile[MAX_DPATH];
 	TCHAR cartfile[MAX_DPATH];

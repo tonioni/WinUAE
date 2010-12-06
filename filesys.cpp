@@ -3570,7 +3570,7 @@ no_more_entries:
 	PUT_PCK_RES1 (packet, DOS_FALSE);
 	PUT_PCK_RES2 (packet, ERROR_NO_MORE_ENTRIES);
 }
-extern void activate_debugger(void);
+
 static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallback)
 {
 	uaecptr fh = GET_PCK_ARG1 (packet) << 2;
@@ -3587,9 +3587,6 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	TRACE((L"ACTION_FIND_*(0x%lx,0x%lx,\"%s\",%d,%d)\n", fh, lock, bstr (unit, name), mode, create));
 	TRACE((L"fh=%x lock=%x name=%x\n", fh, lock, name));
 	DUMPLOCK(unit, lock);
-
-	if (!_tcsicmp(bstr(unit,name), L"Nù"))
-		activate_debugger();
 
 	aino = find_aino (unit, lock, bstr (unit, name), &err);
 

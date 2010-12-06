@@ -40,15 +40,16 @@ extern void update_debug_info (void);
 extern int instruction_breakpoint (TCHAR **c);
 extern int debug_bankchange (int);
 extern void log_dma_record (void);
+extern void debug_parser (const TCHAR *cmd, TCHAR *out, uae_u32 outsize);
 
-#define BREAKPOINT_TOTAL 8
+#define BREAKPOINT_TOTAL 20
 struct breakpoint_node {
     uaecptr addr;
     int enabled;
 };
 extern struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 
-#define MEMWATCH_TOTAL 8
+#define MEMWATCH_TOTAL 20
 struct memwatch_node {
 	uaecptr addr;
 	int size;

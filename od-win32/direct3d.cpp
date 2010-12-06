@@ -2430,11 +2430,7 @@ static void D3D_render22 (void)
 
 static void D3D_render2 (void)
 {   
-	int fpuv;
-
-	fpux_save (&fpuv);
 	D3D_render22 ();
-	fpux_restore (&fpuv);
 }
 
 void D3D_setcursor (int x, int y, int visible)

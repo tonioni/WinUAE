@@ -182,25 +182,24 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	ahs2 = vblscale (ah) * scale;
 	aws = aw * scale;
 	ahs = ah * scale;
-
+	//write_log (L"%d %d %d\n", dst_width, temp_width, aws);
 	extraw = -aws * (filter_horiz_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 	extrah = -ahs * (filter_vert_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 
 	SetRect (sr, 0, 0, dst_width, dst_height);
 	SetRect (zr, 0, 0, 0, 0);
-	dr->left = (temp_width - aws) /2;
-	dr->top =  (temp_height - ahs) / 2;
-	if (currprefs.gfx_xcenter_pos < 0)
-		dr->left -= (dst_width - aws) / 2;
-	if (currprefs.gfx_ycenter_pos < 0)
-		dr->top -= (dst_height - ahs) / 2;
-	dr->right = dr->left + dst_width;
-	dr->bottom = dr->top + dst_height;
+	dr->left = (temp_width - aws) / 2;
+	dr->top = (temp_height - ahs) / 2;
 
 	filteroffsetx = 0;
 	filteroffsety = 0;
 	float xmult = filter_horiz_zoom_mult;
 	float ymult = filter_vert_zoom_mult;
+
+	dr->left -= (dst_width - aws) / 2;
+	dr->top -= (dst_height - ahs) / 2;
+	dr->right = dr->left + dst_width;
+	dr->bottom = dr->top + dst_height;
 
 	srcratio = 4.0 / 3.0;
 	if (currprefs.gfx_filter_aspect > 0) {
@@ -247,13 +246,52 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			cy = 0;
 			cv = 1;
 			if (scalemode == AUTOSCALE_STATIC_NOMINAL) {
-				cw -= 80;
-				ch -= 50;
-				cx = 56;
-				cy = 20;
+				cw -= 40 << currprefs.gfx_resolution;
+				ch -= 25 << currprefs.gfx_vresolution;
+				cx = 28 << currprefs.gfx_resolution;
+				cy = 10 << currprefs.gfx_vresolution;
 			}
+		} else if (scalemode == AUTOSCALE_MANUAL) {
+			int v;
+
+			changed_prefs.gfx_filter_horiz_offset = currprefs.gfx_filter_horiz_offset = 0;
+			changed_prefs.gfx_filter_vert_offset = currprefs.gfx_filter_vert_offset = 0;
+			filter_horiz_offset = 0;
+			filter_vert_offset = 0;
+
+			get_custom_topedge(&cx, &cy);
+			//write_log (L"%dx%d %dx%d\n", cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
+
+			v = currprefs.gfx_xcenter_pos;
+			if (v >= 0)
+				cx = (v >> (RES_MAX - currprefs.gfx_resolution + 1)) - cx;
+
+			v = currprefs.gfx_ycenter_pos;
+			if (v >= 0)
+				cy = (v >> (VRES_MAX - currprefs.gfx_vresolution)) - cy;
+
+			v = currprefs.gfx_xcenter_size;
+			if (v <= 0)
+				cw = 752 * 2;
+			else
+				cw = v;
+			cw >>=  (RES_MAX - currprefs.gfx_resolution);
+
+			v = currprefs.gfx_ycenter_size;
+			if (v <= 0)
+				ch = 572;
+			else
+				ch = v;
+			ch >>= (VRES_MAX - currprefs.gfx_vresolution);
+
+			//write_log (L"%dx%d %dx%d %dx%d\n", currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
+
+			cv = 1;
+
 		} else {
+
 			cv = get_custom_limits (&cw, &ch, &cx, &cy);
+
 		}
 
 		if (cv) {
@@ -575,7 +613,6 @@ void S2X_free (void)
 void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 {
 	int flags = 0;
-	int res_shift;
 
 	dst_width2 = dw;
 	dst_height2 = dh;
@@ -610,14 +647,15 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 			changed_prefs.gfx_filter = usedfilter->type;
 		}
 	}
-
+#if 0
+	int res_shift;
 	res_shift = RES_MAX - currprefs.gfx_resolution;
 	if (currprefs.gfx_xcenter_size > 0 && (currprefs.gfx_xcenter_size >> res_shift) < aw)
 		aw = currprefs.gfx_xcenter_size >> res_shift;
 	res_shift = VRES_MAX - currprefs.gfx_vresolution;
 	if (currprefs.gfx_ycenter_size > 0 && (currprefs.gfx_ycenter_size >> res_shift) < ah)
 		ah = currprefs.gfx_ycenter_size >> res_shift;
-
+#endif
 	dst_width = dw;
 	dst_height = dh;
 	dst_depth = dd;

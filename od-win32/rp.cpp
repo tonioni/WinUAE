@@ -361,8 +361,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				totalhdbl, hres, totalvdbl, vres, full,
 				p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
 				p->gfx_size_win.width, p->gfx_size_win.height);
-		sm->lClipLeft = p->gfx_xcenter_pos <= 0 ? -1 : p->gfx_xcenter_pos;
-		sm->lClipTop = p->gfx_ycenter_pos <= 0 ? -1 : p->gfx_ycenter_pos;
+		sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
+		sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
 		if (full) {
 			sm->lClipWidth = LORES_WIDTH << RES_MAX;
 			sm->lClipHeight = LORES_HEIGHT << 1;
@@ -395,9 +395,9 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 static int shift (int val, int shift)
 {
-	if (shift >= 0)
+	if (shift > 0)
 		val >>= shift;
-	else
+	else if (shift < 0)
 		val <<= -shift;
 	return val;
 }
@@ -423,8 +423,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	if (log_rp)
 		write_log (L"SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d\n",
-		sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
-		hdbl, vdbl, display, fs);
+			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
+			hdbl, vdbl, display, fs);
 
 	if (!WIN32GFX_IsPicassoScreen ()) {
 
@@ -480,7 +480,6 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		//p->gfx_filter = rp_filter_default;
 		p->gfx_filter_horiz_zoom_mult = 1000;
 		p->gfx_filter_vert_zoom_mult = 1000;
-		//p->gfx_filter_autoscale = 0;
 		if (log_rp)
 			write_log (L"WW=%d WH=%d FW=%d FH=%d\n",
 				p->gfx_size_win.width, p->gfx_size_win.height,
@@ -488,7 +487,6 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (fs) {
 			if (smm == RP_SCREENMODE_XX) {
 				p->gfx_filter = rp_filter;
-				p->gfx_filter_autoscale = AUTOSCALE_STATIC_NOMINAL;
 			} else {
 				int mult;
 				int prevmult = 1;
@@ -509,12 +507,6 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 					p->gfx_filter_vert_zoom_mult = 1000 / mult;
 				}
 			}
-		} else {
-			if (hdbl != hres || vdbl != vres) {
-				p->gfx_filter = rp_filter;
-				p->gfx_filter_horiz_zoom_mult = shift (1000, hdbl - hres);
-				p->gfx_filter_vert_zoom_mult = shift (1000, vdbl - vres);
-			}
 		}
 
 	}
@@ -534,12 +526,18 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	p->gfx_xcenter_size = sm->lClipWidth;
 	p->gfx_ycenter_size = sm->lClipHeight;
 
+	if (p->gfx_xcenter_pos >= 0 || p->gfx_ycenter_pos >= 0)
+		p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
+	else
+		p->gfx_filter_autoscale = AUTOSCALE_STATIC_NOMINAL;
+
+	p->gfx_filter_scanlines = 0;
 	p->gfx_scanlines = 0;
 	if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
-		if (p->gfx_vresolution > VRES_NONDOUBLE) {
-			p->gfx_scanlines = 1;
-			p->gfx_filter_scanlines = 0;
-		}
+		p->gfx_scanlines = 1;
+		p->gfx_filter_scanlines = 8;
+		p->gfx_filter_scanlinelevel = 8;
+		p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	}
 
 	updatewinfsmode (p);

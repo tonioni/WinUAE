@@ -222,8 +222,9 @@ restart:
 			size = 0x10000000;
 		if (currprefs.z3fastmem_size || currprefs.z3fastmem2_size || currprefs.z3chipmem_size) {
 			z3size = currprefs.z3fastmem_size + currprefs.z3fastmem2_size + currprefs.z3chipmem_size + (currprefs.z3fastmem_start - 0x10000000);
-			if (currprefs.gfxmem_size)
-				rtgbarrier = 16 * 1024 * 1024;
+			if (currprefs.gfxmem_size) {
+				rtgbarrier = 16 * 1024 * 1024 - ((currprefs.z3fastmem_size + currprefs.z3fastmem2_size) & 0x00ffffff);
+			}
 			if (currprefs.z3chipmem_size && (currprefs.z3fastmem_size || currprefs.z3fastmem2_size))
 				z3chipbarrier = 16 * 1024 * 1024;
 		} else {

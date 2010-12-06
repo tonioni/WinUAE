@@ -257,6 +257,33 @@ static void flushconsole (void)
 	}
 }
 
+static TCHAR *console_buffer;
+static int console_buffer_size;
+
+TCHAR *setconsolemode (TCHAR *buffer, int maxlen)
+{
+	TCHAR *ret = NULL;
+	if (buffer) {
+		console_buffer = buffer;
+		console_buffer_size = maxlen;
+	} else {
+		ret = console_buffer;
+		console_buffer = NULL;
+	}
+	return ret;
+}
+
+static void console_put (const TCHAR *buffer)
+{
+	if (console_buffer) {
+		if (_tcslen (console_buffer) + _tcslen (buffer) < console_buffer_size)
+			_tcscat (console_buffer, buffer);
+	} else {
+		openconsole ();
+		writeconsole (buffer);
+	}
+}
+
 void console_out_f (const TCHAR *format,...)
 {
 	va_list parms;
@@ -265,13 +292,11 @@ void console_out_f (const TCHAR *format,...)
 	va_start (parms, format);
 	_vsntprintf (buffer, WRITE_LOG_BUF_SIZE - 1, format, parms);
 	va_end (parms);
-	openconsole ();
-	writeconsole (buffer);
+	console_put (buffer);
 }
 void console_out (const TCHAR *txt)
 {
-	openconsole ();
-	writeconsole (txt);
+	console_put (txt);
 }
 
 TCHAR console_getch (void)

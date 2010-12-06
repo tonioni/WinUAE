@@ -235,7 +235,7 @@ extern int jsem_isjoy (int port, const struct uae_prefs *p);
 extern int jsem_ismouse (int port, const struct uae_prefs *p);
 extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
 
-extern int inputdevice_uaelib (TCHAR *, TCHAR *);
+extern int inputdevice_uaelib (const TCHAR *, const TCHAR *);
 
 extern int inputdevice_testread (int*, int*, int*);
 extern int inputdevice_istest (void);

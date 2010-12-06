@@ -12216,6 +12216,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_CENTER, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_MANUAL, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETRANGE, TRUE, MAKELONG (-999, +999));
@@ -12400,15 +12402,23 @@ static void values_to_hw3ddlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
 		regclosetree (fkey);
 	}
+	int ho, vo;
+	if (workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+		ho = workprefs.gfx_xcenter_pos;
+		vo = workprefs.gfx_ycenter_pos;
+	} else {
+		ho = workprefs.gfx_filter_horiz_offset;
+		vo = workprefs.gfx_filter_vert_offset;
+	}
 
 	SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
 	SendDlgItemMessage (hDlg, IDC_FILTERVZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_zoom);
-	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_offset);
-	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPOS, TRUE, workprefs.gfx_filter_vert_offset);
+	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPOS, TRUE, ho);
+	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPOS, TRUE, vo);
 	SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERHOV, ho, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERVOV, vo, TRUE);
 }
 
 static void values_from_hw3ddlg (HWND hDlg)
@@ -12767,8 +12777,17 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					SendDlgItemMessage (hDlg, IDC_FILTERHZ, TBM_SETPOS, TRUE, workprefs.gfx_filter_horiz_zoom);
 				}
 			} else {
-				currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
-				currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+				if (currprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL) {
+					currprefs.gfx_xcenter_pos = workprefs.gfx_xcenter_pos = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+					currprefs.gfx_ycenter_pos = workprefs.gfx_ycenter_pos = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+					SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_xcenter_pos, TRUE);
+					SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_ycenter_pos, TRUE);
+				} else {
+					currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERHO), TBM_GETPOS, 0, 0);
+					currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = (int)SendMessage (GetDlgItem (hDlg, IDC_FILTERVO), TBM_GETPOS, 0, 0);
+					SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
+					SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
+				}
 			}
 			if (filter_selected) {
 				int *pw = filter_selected->varw;
@@ -12784,8 +12803,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			}
 			SetDlgItemInt (hDlg, IDC_FILTERHZV, workprefs.gfx_filter_horiz_zoom, TRUE);
 			SetDlgItemInt (hDlg, IDC_FILTERVZV, workprefs.gfx_filter_vert_zoom, TRUE);
-			SetDlgItemInt (hDlg, IDC_FILTERHOV, workprefs.gfx_filter_horiz_offset, TRUE);
-			SetDlgItemInt (hDlg, IDC_FILTERVOV, workprefs.gfx_filter_vert_offset, TRUE);
 			init_colors ();
 			notice_new_xcolors ();
 			reset_drawing ();

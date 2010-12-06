@@ -1681,6 +1681,7 @@ STRINGTABLE
 BEGIN
     IDS_JOYMODE_GAMEPAD     "Gamepad"
     IDS_AUTOSCALE_DEFAULT   "Default"
+    IDS_AUTOSCALE_MANUAL    "Manual"
 END
 
 #endif    // English resources

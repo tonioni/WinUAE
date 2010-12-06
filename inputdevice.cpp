@@ -142,7 +142,7 @@ static int isdevice (struct uae_input_device *id)
 	return 0;
 }
 
-int inputdevice_uaelib (TCHAR *s, TCHAR *parm)
+int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 {
 	int i;
 

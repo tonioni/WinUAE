@@ -30,6 +30,10 @@
 #include "filesys.h"
 #include "win32.h"
 
+#include <Avrt.h>
+
+extern HANDLE AVTask;
+
 /* Our Win32 implementation of this function */
 void gettimeofday (struct timeval *tv, void *blah)
 {
@@ -233,6 +237,8 @@ void uae_sem_destroy (uae_sem_t * event)
 	}
 }
 
+#ifndef _CONSOLE
+
 typedef unsigned (__stdcall *BEGINTHREADEX_FUNCPTR)(void *);
 
 struct thparms
@@ -282,7 +288,11 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 	if (hThread) {
 		if (name) {
 			//write_log (L"Thread '%s' started (%d)\n", name, hThread);
-			SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
+			if (!AVTask) {
+				SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
+			} else {
+				AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+			}
 		}
 	} else {
 		result = 0;
@@ -298,8 +308,13 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 int uae_start_thread_fast (void *(*f)(void *), void *arg, uae_thread_id *tid)
 {
 	int v = uae_start_thread (NULL, f, arg, tid);
-	if (*tid)
-		SetThreadPriority (*tid, THREAD_PRIORITY_HIGHEST);
+	if (*tid) {
+		if (!AVTask) {
+			SetThreadPriority (*tid, THREAD_PRIORITY_HIGHEST);
+		} else {
+			AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+		}
+	}
 	return v;
 }
 
@@ -329,8 +344,12 @@ void uae_set_thread_priority (uae_thread_id *tid, int pri)
 		pri2 = -1;
 	SetThreadPriority (th, pri2);
 #endif
-	if (!SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST))
-		SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-
+	if (!AVTask) {
+		if (!SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_HIGHEST))
+			SetThreadPriority (GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+	} else {
+		AvSetMmThreadPriority(AVTask, AVRT_PRIORITY_HIGH);
+	}
 }
 
+#endif

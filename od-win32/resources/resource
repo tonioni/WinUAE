@@ -343,6 +343,8 @@
 #define IDS_AUTOSCALE_TV                367
 #define IDS_JOYMODE_GAMEPAD             368
 #define IDS_AUTOSCALE_DEFAULT           369
+#define IDS_AUTOSCALE_MANUEL            370
+#define IDS_AUTOSCALE_MANUAL            370
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -738,7 +740,6 @@
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611
-#define IDC_CLOCKSYNC2                  1611
 #define IDC_CLIPBOARDSHARE              1611
 #define IDC_INPUTAMIGA                  1612
 #define IDC_BORDERLESS                  1612

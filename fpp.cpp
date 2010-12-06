@@ -113,15 +113,21 @@ float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
 
 #define MAKE_FPSR(r)  (regs).fp_result=(r)
 
+static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
+{
+#ifdef _WIN32
+	// RN, RZ, RM, RP
+	static unsigned int fp87_round[4] = { _RC_NEAR, _RC_CHOP, _RC_DOWN, _RC_UP };
+	// X, S, D, U
+	static unsigned int fp87_prec[4] = { _PC_64 , _PC_24 , _PC_53, 0 };
+	_control87(fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
+#else
 static uae_u16 x87_cw_tab[] = {
 	0x137f, 0x1f7f, 0x177f, 0x1b7f,	/* Extended */
 	0x107f, 0x1c7f, 0x147f, 0x187f,	/* Single */
 	0x127f, 0x1e7f, 0x167f, 0x1a7f,	/* Double */
 	0x137f, 0x1f7f, 0x177f, 0x1b7f	/* undefined */
 };
-/* Nearest, toZero, Down, Up */
-static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
-{
 #if USE_X86_FPUCW
 	uae_u16 x87_cw = x87_cw_tab[(m68k_cw >> 4) & 0xf];
 
@@ -131,6 +137,7 @@ static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 	}
 #elif defined(X86_ASSEMBLY)
 	__asm__ ("fldcw %0" : : "m" (*&x87_cw));
+#endif
 #endif
 #endif
 }

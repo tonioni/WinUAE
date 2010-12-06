@@ -1561,7 +1561,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	//write_log("R: %x (%x), PC=%08x\n", addr, addr >> 2, M68K_GETPC);
+//	write_log(L"R: %x (%x), PC=%08x\n", addr, (addr & 0xff) >> 2, M68K_GETPC);
 #ifdef CDTV
 	if (currprefs.cs_cdtvram && addr >= 0xdc8000)
 		return cdtv_battram_read (addr);
@@ -1642,7 +1642,7 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	//write_log("W: %x: %x, PC=%08x\n", addr, value & 0xff, M68K_GETPC);
+//	write_log(L"W: %x (%x): %x, PC=%08x\n", addr, (addr & 0xff) >> 2, value & 0xff, M68K_GETPC);
 #ifdef CDTV
 	if (currprefs.cs_cdtvram && addr >= 0xdc8000) {
 		cdtv_battram_write (addr, value);

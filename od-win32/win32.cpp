@@ -15,7 +15,7 @@
 
 #include "sysconfig.h"
 
-
+#define USETHREADCHARACTERICS 0
 #define _WIN32_WINNT 0x700 /* XButtons + MOUSEHWHEEL=XP, Jump List=Win7 */
 
 #include <windows.h>
@@ -126,7 +126,7 @@ static int start_data = 0;
 static void *tablet;
 HCURSOR normalcursor;
 static HWND hwndNextViewer;
-static HANDLE AVTask;
+HANDLE AVTask;
 
 TCHAR VersionStr[256];
 TCHAR BetaStr[64];
@@ -504,13 +504,15 @@ static int avioutput_video = 0;
 void setpriority (struct threadpriorities *pri)
 {
 	int err;
-	DWORD opri = GetPriorityClass (GetCurrentProcess ());
+	if (!AVTask) {
+		DWORD opri = GetPriorityClass (GetCurrentProcess ());
 
-	if (opri != IDLE_PRIORITY_CLASS && opri != NORMAL_PRIORITY_CLASS && opri != BELOW_NORMAL_PRIORITY_CLASS && opri != ABOVE_NORMAL_PRIORITY_CLASS)
-		return;
-	err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
-	if (!err)
-		write_log (L"priority set failed, %08X\n", GetLastError ());
+		if (opri != IDLE_PRIORITY_CLASS && opri != NORMAL_PRIORITY_CLASS && opri != BELOW_NORMAL_PRIORITY_CLASS && opri != ABOVE_NORMAL_PRIORITY_CLASS)
+			return;
+		err = SetPriorityClass (GetCurrentProcess (), pri->classvalue);
+		if (!err)
+			write_log (L"priority set failed, %08X\n", GetLastError ());
+	}
 }
 
 static void setcursorshape (void)
@@ -675,10 +677,11 @@ static void winuae_active (HWND hWnd, int minimized)
 #endif
 	clipboard_active (hAmigaWnd, 1);
 	SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
-#if 0
+#if USETHREADCHARACTERICS
 	if (os_vista && AVTask == NULL) {
 		DWORD taskIndex = 0;
-		AVTask = AvSetMmThreadCharacteristics (TEXT("Games"), &taskIndex);
+		if (!(AVTask = AvSetMmThreadCharacteristics (TEXT("Pro Audio"), &taskIndex)))
+			write_log (L"AvSetMmThreadCharacteristics failed: %d\n", GetLastError ());
 	}
 #endif
 }
@@ -689,7 +692,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	int wasfocus = focus;
 
 	write_log (L"winuae_inactive(%d)\n", minimized);
-#if 0
+#if USETHREADCHARACTERICS
 	if (AVTask)
 		AvRevertMmThreadCharacteristics (AVTask);
 	AVTask = NULL;
@@ -5499,7 +5502,7 @@ void fpux_restore (int *v)
 #ifndef _WIN64
 	if (v)
 		_controlfp (*v, _MCW_IC | _MCW_RC | _MCW_PC);
-	else
+#else
 		_controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
 #endif
 }

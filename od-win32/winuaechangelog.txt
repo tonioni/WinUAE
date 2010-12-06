@@ -1,4 +1,18 @@
 
+Beta 7:
+
+- RTG board start address was not 16M aligned if Z3 fast board smaller than 16M was enabled (no functional difference)
+- D3D mode was still modifying host FPU rounding modes
+- increased number of available breakpoints and memwatch points
+- debugger commands can be sent via uae-configuration (or custom input event)
+  uae-configuration dbg "debugger command" (remember quotes if debugger command has spaces)
+- Fullscreen Max/TV filter settings only worked if display panel resolution matched emulated resolution
+- added "Manual" filter option (originally used by AF, now added to GUI, positioning using absolute shres/laced coordinates) Ignore it.
+
+Beta 6:
+
+- "old" RTG interface added, used by AROS KS ROM replacement RTG driver
+
 Beta 5:
 
 - check clipboard sharing disabled state earlier, before any resource allocations

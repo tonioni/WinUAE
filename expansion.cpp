@@ -36,22 +36,22 @@
 /* 00 / 02 */
 /* er_Type */
 
-#define Z2_MEM_8MB	0x00 /* Size of Memory Block */
-#define Z2_MEM_4MB	0x07
-#define Z2_MEM_2MB	0x06
-#define Z2_MEM_1MB	0x05
+#define Z2_MEM_8MB		0x00 /* Size of Memory Block */
+#define Z2_MEM_4MB		0x07
+#define Z2_MEM_2MB		0x06
+#define Z2_MEM_1MB		0x05
 #define Z2_MEM_512KB	0x04
 #define Z2_MEM_256KB	0x03
 #define Z2_MEM_128KB	0x02
-#define Z2_MEM_64KB	0x01
+#define Z2_MEM_64KB		0x01
 /* extended definitions */
-#define Z2_MEM_16MB	0x00
-#define Z2_MEM_32MB	0x01
-#define Z2_MEM_64MB	0x02
+#define Z2_MEM_16MB		0x00
+#define Z2_MEM_32MB		0x01
+#define Z2_MEM_64MB		0x02
 #define Z2_MEM_128MB	0x03
 #define Z2_MEM_256MB	0x04
 #define Z2_MEM_512MB	0x05
-#define Z2_MEM_1GB	0x06
+#define Z2_MEM_1GB		0x06
 
 #define chainedconfig	0x08 /* Next config is part of the same card */
 #define rom_card	0x10 /* ROM vector is valid */
@@ -82,20 +82,20 @@
 /* ********************************************************** */
 /* 08 - 0A  */
 /* er_Flags */
-#define Z3_MEM_64KB	0x02
+#define Z3_MEM_64KB		0x02
 #define Z3_MEM_128KB	0x03
 #define Z3_MEM_256KB	0x04
 #define Z3_MEM_512KB	0x05
-#define Z3_MEM_1MB	0x06 /* Zorro III card subsize */
-#define Z3_MEM_2MB	0x07
-#define Z3_MEM_4MB	0x08
-#define Z3_MEM_6MB	0x09
-#define Z3_MEM_8MB	0x0a
-#define Z3_MEM_10MB	0x0b
-#define Z3_MEM_12MB	0x0c
-#define Z3_MEM_14MB	0x0d
-#define Z3_MEM_16MB	0x00
-#define Z3_MEM_AUTO	0x01
+#define Z3_MEM_1MB		0x06 /* Zorro III card subsize */
+#define Z3_MEM_2MB		0x07
+#define Z3_MEM_4MB		0x08
+#define Z3_MEM_6MB		0x09
+#define Z3_MEM_8MB		0x0a
+#define Z3_MEM_10MB		0x0b
+#define Z3_MEM_12MB		0x0c
+#define Z3_MEM_14MB		0x0d
+#define Z3_MEM_16MB		0x00
+#define Z3_MEM_AUTO		0x01
 #define Z3_MEM_defunct1	0x0e
 #define Z3_MEM_defunct2	0x0f
 
@@ -298,15 +298,13 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 					// Z3 P96 RAM
 					p2 = p96ram_start >> 16;
 				}
-				if (value != p2) {
-					put_word (regs.regs[11] + 0x20, p2);
-					put_word (regs.regs[11] + 0x28, p2);
-				}
+				put_word (regs.regs[11] + 0x20, p2);
+				put_word (regs.regs[11] + 0x28, p2);
 				// -Bernd Roesch
 				expamem_hi = p2;
 				(*card_map[ecard]) ();
 				ecard++;
-				if (value != p2)
+				if (p1 != p2)
 					write_log (L"   Card %d remapped %04x0000 -> %04x0000\n", ecard, p1, p2);
 				write_log (L"   Card %d (Zorro%s) done.\n", ecard, expamem_type () == 0xc0 ? L"II" : L"III");
 				if (ecard < cardno)
