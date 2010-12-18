@@ -198,6 +198,9 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	swb.spt.Length = sizeof (SCSI_PASS_THROUGH);
 	swb.spt.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, SenseBuf);
 
+	if (as->len > DEVICE_SCSI_BUFSIZE)
+		as->len = DEVICE_SCSI_BUFSIZE;
+
 	uae_sem_wait (&scgp_sem);
 
 	/* the Amiga does not tell us how long the timeout shall be, so make it _very_ long (specified in seconds) */
@@ -209,15 +212,19 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	if (as->sense_len > 32)
 		as->sense_len = 32;
 	swb.spt.SenseInfoLength  = (as->flags & 4) ? 4 : /* SCSIF_OLDAUTOSENSE */
-		(as->flags & 2) ? as->sense_len : /* SCSIF_AUTOSENSE */
-		32;
+		(as->flags & 2) ? as->sense_len : /* SCSIF_AUTOSENSE */ 32;
 	if (dev_info[unitnum].isatapi)
 		scsi_atapi_fixup_pre (swb.spt.Cdb, &as->cmd_len, &scsi_datap, &as->len, &parm);
+
+	memcpy (di->scsibuf, scsi_datap, as->len);
+
 	swb.spt.CdbLength = (UCHAR)as->cmd_len;
 	swb.spt.DataTransferLength = as->len;
-	swb.spt.DataBuffer = scsi_datap;
+	swb.spt.DataBuffer = di->scsibuf;
 
 	status = doscsi (di, unitnum, &swb, &err);
+
+	memcpy (scsi_datap, di->scsibuf, as->len);
 
 	as->cmdactual = status == 0 ? 0 : scsi_cmd_len_orig; /* fake scsi_CmdActual */
 	as->status = swb.spt.ScsiStatus; /* scsi_Status */
@@ -274,7 +281,7 @@ static uae_u8 *execscsicmd_in (int unitnum, uae_u8 *data, int len, int *outlen)
 	if (v == 0)
 		return 0;
 	if (outlen)
-		*outlen = v;
+		*outlen = v < *outlen ? v : *outlen;
 	return di->scsibuf;
 }
 

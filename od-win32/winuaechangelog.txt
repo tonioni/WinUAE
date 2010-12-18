@@ -1,4 +1,15 @@
 
+Beta 8:
+
+- mixed mode CD first audio track didn't always play (uaescsi.device only)
+- some CD/DVD drives refuse to read MODE 2 Form 1 data tracks if "only read Mode 2 Form 1" sector type set. "Any type" works..
+- SCSI emulation CDA paused state should automatically unpause when play request arrives
+- most SCSI commands in uaescsi.device SPTI mode were broken since SCSI emulation was implemented..
+  (SCSI/CD audio changes should fix for example T-Zero and The Shadow of the Third Moon CDA problems)
+- comma in cdimage command line was incorrectly handled
+- audio pitch errors if audio period rate was near minimum audio DMA time (2.3.0)
+- added basic doslist debugger command ("To")
+
 Beta 7:
 
 - RTG board start address was not 16M aligned if Z3 fast board smaller than 16M was enabled (no functional difference)

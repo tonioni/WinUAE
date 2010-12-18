@@ -23,7 +23,7 @@ extern void AUDxLEN (int nr, uae_u16 value);
 
 extern uae_u16 audio_dmal (void);
 extern void audio_state_machine (void);
-extern uaecptr audio_getpt (int nr, int reset);
+extern uaecptr audio_getpt (int nr, bool reset);
 
 extern int init_audio (void);
 extern void ahi_install (void);

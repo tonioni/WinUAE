@@ -489,6 +489,7 @@ static void *cdda_play (void *v)
 	int i;
 	int oldplay;
 	int idleframes;
+	int muteframes;
 	int readblocksize = 2352 + 96;
 
 	while (ciw->cdda_play == 0)
@@ -510,6 +511,7 @@ static void *cdda_play (void *v)
 
 		if (oldplay != ciw->cdda_play) {
 			idleframes = 0;
+			muteframes = 0;
 			bool seensub = false;
 			struct _timeb tb1, tb2;
 			_ftime (&tb1);
@@ -525,7 +527,10 @@ static void *cdda_play (void *v)
 				idleframes = -1;
 			}
 			// force spin up
-			read_block (ciw, -1, cda->buffers[bufnum], cdda_pos, num_sectors, readblocksize);
+			if (isaudiotrack (&ciw->di.toc, cdda_pos))
+				read_block (ciw, -1, cda->buffers[bufnum], cdda_pos, num_sectors, readblocksize);
+			if (!isaudiotrack (&ciw->di.toc, cdda_pos - 150))
+				muteframes = 75;
 
 			if (ciw->cdda_scan == 0) {
 				// find possible P-subchannel=1 and fudge starting point so that
@@ -533,7 +538,7 @@ static void *cdda_play (void *v)
 				bool seenindex = false;
 				for (int sector = cdda_pos - 200; sector < cdda_pos; sector++) {
 					uae_u8 *dst = cda->buffers[bufnum];
-					if (sector >= 0 && read_block (ciw, -1, dst, sector, 1, readblocksize)) {
+					if (sector >= 0 && isaudiotrack (&ciw->di.toc, sector) && read_block (ciw, -1, dst, sector, 1, readblocksize)) {
 						uae_u8 subbuf[SUB_CHANNEL_SIZE];
 						sub_deinterleave (dst + 2352, subbuf);
 						if (seenindex) {
@@ -573,8 +578,9 @@ static void *cdda_play (void *v)
 
 		if ((cdda_pos < ciw->cdda_end || ciw->cdda_end == 0xffffffff) && !ciw->cdda_paused && ciw->cdda_play) {
 
-			if (idleframes <= 0 && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
+			if (idleframes <= 0 && cdda_pos >= ciw->cdda_start && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
 				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
+				write_log (L"IOCTL: attempted to play data track %d\n", cdda_pos);
 				goto end; // data track?
 			}
 
@@ -599,6 +605,10 @@ static void *cdda_play (void *v)
 			}
 
 			for (i = 0; i < num_sectors; i++) {
+				if (muteframes > 0) {
+					memset (cda->buffers[bufnum] + 2352 * i, 0, 2352);
+					muteframes--;
+				}
 				if (idleframes > 0) {
 					idleframes--;
 					memset (cda->buffers[bufnum] + 2352 * i, 0, 2352);
@@ -623,7 +633,7 @@ static void *cdda_play (void *v)
 
 			bufon[bufnum] = 1;
 			cda->setvolume (currprefs.sound_volume, ciw->cdda_volume[0], ciw->cdda_volume[1]);
-			if (!cda->play(bufnum)) {
+			if (!cda->play (bufnum)) {
 				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
 				goto end; // data track?
 			}
@@ -650,7 +660,7 @@ static void *cdda_play (void *v)
 			}
 		}
 
-		while (ciw->cdda_paused && ciw->cdda_play > 0)
+		while (ciw->cdda_paused && ciw->cdda_play == oldplay)
 			Sleep (10);
 
 		bufnum = 1 - bufnum;

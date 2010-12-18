@@ -50,7 +50,7 @@ struct ev2
 };
 
 enum {
-    ev_hsync, ev_audio, ev_cia, ev_misc,
+    ev_hsync, ev_cia, ev_misc, ev_audio,
     ev_max
 };
 

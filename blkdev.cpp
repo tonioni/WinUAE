@@ -554,11 +554,15 @@ void blkdev_vsync (void)
 
 static int do_scsi (int unitnum, uae_u8 *cmd, int cmdlen)
 {
-	return 0;
+	uae_u8 *p = device_func[unitnum]->exec_out (unitnum, cmd, cmdlen);
+	return p != NULL;
 }
 static int do_scsi (int unitnum, uae_u8 *cmd, int cmdlen, uae_u8 *out, int outsize)
 {
-	return 0;
+	uae_u8 *p = device_func[unitnum]->exec_in (unitnum, cmd, cmdlen, &outsize);
+	if (p)
+		memcpy (out, p, outsize);
+	return p != NULL;
 }
 
 static int failunit (int unitnum)
@@ -730,9 +734,6 @@ int sys_command_cd_read (int unitnum, uae_u8 *data, int block, int size)
 		return 0;
 	if (device_func[unitnum]->read == NULL) {
 		uae_u8 cmd[12] = { 0xbe, 0, block >> 24, block >> 16, block >> 8, block >> 0, size >> 16, size >> 8, size >> 0, 0x10, 0, 0 };
-		cmd[1] = 2 << 3; // 2048
-		if (!do_scsi (unitnum, cmd, sizeof cmd, data, size * 2048))
-			cmd[1] = 4 << 3; // 2048 mode2
 		v = do_scsi (unitnum, cmd, sizeof cmd, data, size * 2048);
 	} else {
 		v = device_func[unitnum]->read (unitnum, data, block, size);
@@ -937,13 +938,13 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 {
 	int i;
 	for (i = 0; i < cdblen; i++) {
-		write_log (L"%s%02X", i > 0 ? "." : "", cdb[i]);
+		write_log (L"%s%02X", i > 0 ? L"." : L"", cdb[i]);
 	}
 	write_log (L"\n");
 	if (data) {
 		write_log (L"DATAOUT: %d\n", datalen);
 		for (i = 0; i < datalen && i < 100; i++)
-			write_log (L"%s%02X", i > 0 ? "." : "", data[i]);
+			write_log (L"%s%02X", i > 0 ? L"." : L"", data[i]);
 		if (datalen > 0)
 			write_log (L"\n");
 	}
@@ -954,13 +955,13 @@ void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
 	int i;
 	write_log (L"DATAIN: %d\n", datalen);
 	for (i = 0; i < datalen && i < 100 && data; i++)
-		write_log (L"%s%02X", i > 0 ? "." : "", data[i]);
+		write_log (L"%s%02X", i > 0 ? L"." : L"", data[i]);
 	if (data && datalen > 0)
 		write_log (L"\n");
 	if (senselen > 0) {
 		write_log (L"SENSE: %d,", senselen);
 		for (i = 0; i < senselen && i < 32; i++) {
-			write_log (L"%s%02X", i > 0 ? "." : "", sense[i]);
+			write_log (L"%s%02X", i > 0 ? L"." : L"", sense[i]);
 		}
 		write_log (L"\n");
 	}
@@ -1470,6 +1471,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 					goto errreq;
 				start = toc->toc[toc->first_track_offset + start].paddress;
 			}
+			sys_command_cd_pause (unitnum, 0);
 			sys_command_cd_play (unitnum, start, end, scan);
 			scsi_len = 0;
 		}
@@ -1490,6 +1492,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto errreq;
 			int start = toc->toc[toc->first_track_offset + strack - 1].paddress;
 			int end = etrack == toc->last_track ? toc->lastaddress : toc->toc[toc->first_track_offset + etrack - 1 + 1].paddress;
+			sys_command_cd_pause (unitnum, 0);
 			if (!sys_command_cd_play (unitnum, start, end, 0))
 				goto notdatatrack;
 			scsi_len = 0;
@@ -1511,6 +1514,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (end > di.toc.lastaddress)
 				end = di.toc.lastaddress;
 			if (len > 0) {
+				sys_command_cd_pause (unitnum, 0);
 				if (!sys_command_cd_play (unitnum, start, start + len, 0))
 					goto notdatatrack;
 			}
@@ -1534,6 +1538,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (start > end)
 				goto errreq;
 			if (start < end)
+				sys_command_cd_pause (unitnum, 0);
 				if (!sys_command_cd_play (unitnum, start, end, 0))
 					goto notdatatrack;
 			scsi_len = 0;
@@ -1546,7 +1551,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto nodisk;
 			int start = rl (cmdbuf + 2);
 			int len;
-			if (cmd= 0xa5)
+			if (cmd = 0xa5)
 				len = rl (cmdbuf + 6);
 			else
 				len = rw (cmdbuf + 7);
@@ -1559,6 +1564,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				int end = start + len;
 				if (end > di.toc.lastaddress)
 					end = di.toc.lastaddress;
+				sys_command_cd_pause (unitnum, 0);
 				if (!sys_command_cd_play (unitnum, start, end, 0))
 					goto notdatatrack;
 			}
@@ -1583,6 +1589,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (start > end)
 				goto errreq;
 			if (start < end) {
+				sys_command_cd_pause (unitnum, 0);
 				if (!sys_command_cd_play (unitnum, start, end, 0))
 					goto notdatatrack;
 			}

@@ -5321,7 +5321,7 @@ static void dmal_emu (uae_u32 v)
 	if (v >= 6) {
 		v -= 6;
 		int nr = v / 2;
-		uaecptr pt = audio_getpt (nr, v & 1);
+		uaecptr pt = audio_getpt (nr, (v & 1) != 0);
 		uae_u16 dat = chipmem_wget_indirect (pt);
 #ifdef DEBUGGER
 		if (debug_dma)
@@ -5358,6 +5358,7 @@ static void dmal_func (uae_u32 v)
 	dmal_emu (v);
 	events_dmal (0);
 }
+
 static void dmal_func2 (uae_u32 v)
 {
 	for (int i = 0; i < 6 + 8; i += 2) {
@@ -5386,7 +5387,7 @@ static void events_dmal (int hp)
 	} else if (currprefs.cachesize) {
 		dmal_func2 (0);
 	} else {
-		event2_newevent2 (hp, 17, dmal_func2);
+		event2_newevent2 (hp, 13, dmal_func2);
 	}
 }
 
@@ -5400,9 +5401,11 @@ static void events_dmal_hsync (void)
 	if (!dmal)
 		return;
 	dmal_hpos = 0;
-	for (int i = 0; i < 6 + 8; i += 2) {
-		if (dmal & (3 << i)) {
-			alloc_cycle_ext (i + 7, CYCLE_MISC);
+	if (currprefs.cpu_cycle_exact) {
+		for (int i = 0; i < 6 + 8; i += 2) {
+			if (dmal & (3 << i)) {
+				alloc_cycle_ext (i + 7, CYCLE_MISC);
+			}
 		}
 	}
 	events_dmal (7);
@@ -5531,7 +5534,6 @@ static void hsync_handler_post (bool isvsync)
 	} else if (currprefs.cs_ciaatod == 0 && isvsync) {
 		CIA_vsync_posthandler (ciasyncs);
 	}
-
 
 	if (vpos == equ_vblank_endline + 1 && lof_current != lof_store) {
 		// argh, line=0 field decision was wrong, someone did

@@ -3565,7 +3565,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
 	p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;
 	p->gfx_max_horizontal = RES_HIRES;
-	p->gfx_max_vertical = 1;
+	p->gfx_max_vertical = VRES_DOUBLE;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_backbuffers = 2;

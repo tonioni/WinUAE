@@ -568,7 +568,12 @@ static void parse_cmdline (int argc, TCHAR **argv)
 			exit (0);
 		} else if (_tcsncmp (argv[i], L"-cdimage=", 9) == 0) {
 			TCHAR *txt = parsetextpath (argv[i] + 9);
-			cfgfile_parse_option (&currprefs, L"cdimage0", txt, 0);
+			TCHAR *txt2 = xmalloc(TCHAR, _tcslen(txt) + 2);
+			_tcscpy(txt2, txt);
+			if (_tcsrchr(txt2, ',') != NULL)
+				_tcscat(txt2, L",");
+			cfgfile_parse_option (&currprefs, L"cdimage0", txt2, 0);
+			xfree(txt2);
 			xfree (txt);
 		} else {
 			if (argv[i][0] == '-' && argv[i][1] != '\0') {

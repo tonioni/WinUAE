@@ -170,6 +170,7 @@ extern int xbluecolor_s, xbluecolor_b, xbluecolor_m;
 #define RES_MAX 2
 #define VRES_NONDOUBLE 0
 #define VRES_DOUBLE 1
+#define VRES_QUAD 2
 #define VRES_MAX 1
 
 /* calculate shift depending on resolution (replaced "decided_hires ? 4 : 8") */

@@ -447,8 +447,9 @@ static void *cdda_play_func (void *v)
 		if (!cdu->cdda_play)
 			goto end;
 
-		if (idleframes <= 0 && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
+		if (idleframes <= 0 && cdda_pos >= cdu->cdda_start && !isaudiotrack (&cdu->di.toc, cdda_pos)) {
 			setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+			write_log (L"IMAGE CDDA: attempted to play data track %d\n", cdda_pos);
 			goto end; // data track?
 		}
 
@@ -528,7 +529,7 @@ static void *cdda_play_func (void *v)
 		}
 
 		if (bufon[0] == 0 && bufon[1] == 0) {
-			while (cdu->cdda_paused && cdu->cdda_play > 0)
+			while (cdu->cdda_paused && cdu->cdda_play == oldplay)
 				Sleep (10);
 		}
 
