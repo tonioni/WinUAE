@@ -554,7 +554,7 @@ static int add_filesys_unit (TCHAR *devname, TCHAR *volname, const TCHAR *rootdi
 {
 	int ret;
 
-	if (nr_units() >= MAX_FILESYSTEM_UNITS)
+	if (nr_units () >= MAX_FILESYSTEM_UNITS)
 		return -1;
 
 	ret = set_filesys_unit_1 (-1, devname, volname, rootdir, readonly,
@@ -6123,30 +6123,30 @@ static uae_u8 *restore_filesys_hardfile (UnitInfo *ui, uae_u8 *src)
 	struct hardfiledata *hfd = &ui->hf;
 	TCHAR *s;
 
-	hfd->virtsize = restore_u64();
-	hfd->offset = restore_u64();
-	hfd->nrcyls = restore_u32();
-	hfd->secspertrack = restore_u32();
-	hfd->surfaces = restore_u32();
-	hfd->reservedblocks = restore_u32();
-	hfd->blocksize = restore_u32();
-	hfd->readonly = restore_u32();
-	hfd->flags = restore_u32();
-	hfd->cylinders = restore_u32();
-	hfd->sectors = restore_u32();
-	hfd->heads = restore_u32();
-	s = restore_string();
+	hfd->virtsize = restore_u64 ();
+	hfd->offset = restore_u64 ();
+	hfd->nrcyls = restore_u32 ();
+	hfd->secspertrack = restore_u32 ();
+	hfd->surfaces = restore_u32 ();
+	hfd->reservedblocks = restore_u32 ();
+	hfd->blocksize = restore_u32 ();
+	hfd->readonly = restore_u32 ();
+	hfd->flags = restore_u32 ();
+	hfd->cylinders = restore_u32 ();
+	hfd->sectors = restore_u32 ();
+	hfd->heads = restore_u32 ();
+	s = restore_string ();
 	_tcscpy (hfd->vendor_id, s);
-	xfree(s);
-	s = restore_string();
+	xfree (s);
+	s = restore_string ();
 	_tcscpy (hfd->product_id, s);
-	xfree(s);
-	s = restore_string();
+	xfree (s);
+	s = restore_string ();
 	_tcscpy (hfd->product_rev, s);
-	xfree(s);
-	s = restore_string();
+	xfree (s);
+	s = restore_string ();
 	_tcscpy (hfd->device_name, s);
-	xfree(s);
+	xfree (s);
 	return src;
 }
 
@@ -6694,10 +6694,17 @@ uae_u8 *save_filesys (int num, int *len)
 	save_u32 (2); /* version */
 	save_u32 (ui->devno);
 	save_u16 (type);
-	save_string (ui->rootdir);
+	if (type == FILESYS_VIRTUAL)
+		save_path (ui->rootdir, SAVESTATE_PATH_VDIR);
+	else if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
+		save_path (ui->rootdir, SAVESTATE_PATH_HDF);
+	else if (type == FILESYS_HARDDRIVE)
+		save_path (ui->rootdir, SAVESTATE_PATH_HD);
+	else
+		save_path (ui->rootdir, SAVESTATE_PATH);
 	save_string (ui->devname);
 	save_string (ui->volname);
-	save_string (ui->filesysdir);
+	save_path (ui->filesysdir, SAVESTATE_PATH);
 	save_u8 (ui->bootpri);
 	save_u8 (ui->readonly);
 	save_u32 (ui->startup);
@@ -6717,20 +6724,28 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	TCHAR *devname = 0, *volname = 0, *rootdir = 0, *filesysdir = 0;
 	int bootpri;
 	bool readonly;
+	uae_u32 startup;
 
 	if (restore_u32 () != 2)
 		return src;
 	devno = restore_u32 ();
 	type = restore_u16 ();
-	rootdir = restore_string ();
+	if (type == FILESYS_VIRTUAL)
+		rootdir = restore_path (SAVESTATE_PATH_VDIR);
+	else if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
+		rootdir = restore_path (SAVESTATE_PATH_HDF);
+	else if (type == FILESYS_HARDDRIVE)
+		rootdir = restore_path (SAVESTATE_PATH_HD);
+	else
+		rootdir = restore_path (SAVESTATE_PATH);
 	devname = restore_string ();
 	volname = restore_string ();
-	filesysdir = restore_string ();
+	filesysdir = restore_path (SAVESTATE_PATH);
 	bootpri = restore_u8 ();
 	readonly = restore_u8 () != 0;
-	ui = &mountinfo.ui[devno];
-	ui->startup = restore_u32 ();
+	startup = restore_u32 ();
 	filesys_configdev = restore_u32 ();
+	ui = &mountinfo.ui[devno];
 	if (type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB) {
 		src = restore_filesys_hardfile (ui, src);
 		xfree (volname);
@@ -6742,6 +6757,8 @@ uae_u8 *restore_filesys (uae_u8 *src)
 			write_log (L"filesys '%s' failed to restore\n", rootdir);
 			goto end;
 	}
+	ui->devno = devno;
+	ui->startup = startup;
 	if (type == FILESYS_VIRTUAL)
 		src = restore_filesys_virtual (ui, src, devno);
 	write_log (L"'%s' restored\n", rootdir);

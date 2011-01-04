@@ -2216,7 +2216,7 @@ void logging_init (void)
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
 		SystemInfo.dwNumberOfProcessors);
 	write_log (L"\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation."
-		L"\n(c) 1998-2010 Toni Wilen      - Win32 port, core code updates."
+		L"\n(c) 1998-2011 Toni Wilen      - Win32 port, core code updates."
 		L"\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI."
 		L"\n(c) 1996-1999 Mathias Ortmann - Win32 port and bsdsocket support."
 		L"\n(c) 2000-2001 Bernd Meyer     - JIT engine."
@@ -4342,7 +4342,7 @@ static void getstartpaths (void)
 extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
-extern int pngprint;
+extern int pngprint, log_sercon;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4488,6 +4488,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"netlog")) {
 		log_net = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"serlog")) {
+		log_sercon = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"a2065log")) {

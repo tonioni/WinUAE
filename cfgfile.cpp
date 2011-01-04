@@ -505,12 +505,30 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		}
 	}
 
-	_stprintf (tmp, L"%s.rom_path", TARGET_NAME);
-	cfgfile_write_str (f, tmp, p->path_rom);
-	_stprintf (tmp, L"%s.floppy_path", TARGET_NAME);
-	cfgfile_write_str (f, tmp, p->path_floppy);
-	_stprintf (tmp, L"%s.hardfile_path", TARGET_NAME);
-	cfgfile_write_str (f, tmp, p->path_hardfile);
+	for (i = 0; i < MAX_PATHS; i++) {
+		if (p->path_rom.path[i][0]) {
+			_stprintf (tmp, L"%s.rom_path", TARGET_NAME);
+			cfgfile_write_str (f, tmp, p->path_rom.path[i]);
+		}
+	}
+	for (i = 0; i < MAX_PATHS; i++) {
+		if (p->path_floppy.path[i][0]) {
+			_stprintf (tmp, L"%s.floppy_path", TARGET_NAME);
+			cfgfile_write_str (f, tmp, p->path_floppy.path[i]);
+		}
+	}
+	for (i = 0; i < MAX_PATHS; i++) {
+		if (p->path_hardfile.path[i][0]) {
+			_stprintf (tmp, L"%s.hardfile_path", TARGET_NAME);
+			cfgfile_write_str (f, tmp, p->path_hardfile.path[i]);
+		}
+	}
+	for (i = 0; i < MAX_PATHS; i++) {
+		if (p->path_cd.path[i][0]) {
+			_stprintf (tmp, L"%s.cd_path", TARGET_NAME);
+			cfgfile_write_str (f, tmp, p->path_cd.path[i]);
+		}
+	}
 
 	cfg_write (L"; host-specific", f);
 
@@ -520,26 +538,26 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_str (f, L"use_gui", guimode1[p->start_gui]);
 	cfgfile_write_bool (f, L"use_debugger", p->start_debugger);
-	cfgfile_write_rom (f, p->path_rom, p->romfile, L"kickstart_rom_file");
-	cfgfile_write_rom (f, p->path_rom, p->romextfile, L"kickstart_ext_rom_file");
+	cfgfile_write_rom (f, p->path_rom.path[0], p->romfile, L"kickstart_rom_file");
+	cfgfile_write_rom (f, p->path_rom.path[0], p->romextfile, L"kickstart_ext_rom_file");
 	if (p->romextfile2addr) {
 		cfgfile_write (f, L"kickstart_ext_rom_file2_address", L"%x", p->romextfile2addr);
-		cfgfile_write_rom (f, p->path_rom, p->romextfile2, L"kickstart_ext_rom_file2");
+		cfgfile_write_rom (f, p->path_rom.path[0], p->romextfile2, L"kickstart_ext_rom_file2");
 	}
 	if (p->romident[0])
 		cfgfile_dwrite_str (f, L"kickstart_rom", p->romident);
 	if (p->romextident[0])
 		cfgfile_write_str (f, L"kickstart_ext_rom=", p->romextident);
-	str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->flashfile);
+	str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->flashfile);
 	cfgfile_write_str (f, L"flash_file", str);
 	xfree (str);
-	str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->cartfile);
+	str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->cartfile);
 	cfgfile_write_str (f, L"cart_file", str);
 	xfree (str);
 	if (p->cartident[0])
 		cfgfile_write_str (f, L"cart", p->cartident);
 	if (p->amaxromfile[0]) {
-		str = cfgfile_subst_path (p->path_rom, UNEXPANDED, p->amaxromfile);
+		str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->amaxromfile);
 		cfgfile_write_str (f, L"amax_rom_file", str);
 		xfree (str);
 	}
@@ -548,7 +566,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	p->nr_floppies = 4;
 	for (i = 0; i < 4; i++) {
-		str = cfgfile_subst_path (p->path_floppy, UNEXPANDED, p->floppyslots[i].df);
+		str = cfgfile_subst_path (p->path_floppy.path[0], UNEXPANDED, p->floppyslots[i].df);
 		_stprintf (tmp, L"floppy%d", i);
 		cfgfile_write_str (f, tmp, str);
 		xfree (str);
@@ -900,7 +918,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"warp", p->turbo_emulation);
 
 #ifdef FILESYS
-	write_filesys_config (p, UNEXPANDED, p->path_hardfile, f);
+	write_filesys_config (p, UNEXPANDED, p->path_hardfile.path[0], f);
 	if (p->filesys_no_uaefsdb)
 		cfgfile_write_bool (f, L"filesys_no_fsdb", p->filesys_no_uaefsdb);
 #endif
@@ -1019,6 +1037,23 @@ int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TC
 	return 1;
 }
 
+int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
+{
+	TCHAR tmploc[MAX_DPATH];
+	if (!cfgfile_string (option, value, name, tmploc, 256))
+		return 0;
+	for (int i = 0; i < MAX_PATHS; i++) {
+		if (mp->path[i][0] == 0 || (i == 0 && (!_tcscmp (mp->path[i], L".\\") || !_tcscmp (mp->path[i], L"./")))) {
+			TCHAR *s = target_expand_environment (tmploc);
+			_tcsncpy (mp->path[i], s, 256 - 1);
+			mp->path[i][256 - 1] = 0;
+			xfree (s);
+			return 1;
+		}
+	}
+	return 1;
+}
+
 int cfgfile_rom (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
 {
 	TCHAR id[MAX_DPATH];
@@ -1132,9 +1167,10 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		*tmpp = '\0';
 		if (_tcscmp (section, TARGET_NAME) == 0) {
 			/* We special case the various path options here.  */
-			if (cfgfile_path (option, value, L"rom_path", p->path_rom, sizeof p->path_rom / sizeof (TCHAR))
-				|| cfgfile_path (option, value, L"floppy_path", p->path_floppy, sizeof p->path_floppy / sizeof (TCHAR))
-				|| cfgfile_path (option, value, L"hardfile_path", p->path_hardfile, sizeof p->path_hardfile / sizeof (TCHAR)))
+			if (cfgfile_multipath (option, value, L"rom_path", &p->path_rom)
+				|| cfgfile_multipath (option, value, L"floppy_path", &p->path_floppy)
+				|| cfgfile_multipath (option, value, L"cd_path", &p->path_floppy)
+				|| cfgfile_multipath (option, value, L"hardfile_path", &p->path_hardfile))
 				return 1;
 			return target_parse_option (p, option, value);
 		}
@@ -2162,7 +2198,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			root = value;
 			aname = 0;
 		}
-		str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
+		str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile.path[0], root);
 #ifdef FILESYS
 		add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
 #endif
@@ -2257,7 +2293,7 @@ empty_fs:
 				root += 2;
 				*root = ':';
 			}
-			str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile, root);
+			str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile.path[0], root);
 		}
 #ifdef FILESYS
 		add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
@@ -2563,10 +2599,10 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	}
 
 	for (i = 0; i < 4; i++)
-		subst (p->path_floppy, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR));
-	subst (p->path_rom, p->romfile, sizeof p->romfile / sizeof (TCHAR));
-	subst (p->path_rom, p->romextfile, sizeof p->romextfile / sizeof (TCHAR));
-	subst (p->path_rom, p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR));
+		subst (p->path_floppy.path[0], p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR));
+	subst (p->path_rom.path[0], p->romfile, sizeof p->romfile / sizeof (TCHAR));
+	subst (p->path_rom.path[0], p->romextfile, sizeof p->romextfile / sizeof (TCHAR));
+	subst (p->path_rom.path[0], p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR));
 
 	return 1;
 }
@@ -3639,9 +3675,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	_tcscpy (p->flashfile, L"");
 	_tcscpy (p->cartfile, L"");
 
-	_tcscpy (p->path_rom, L"./");
-	_tcscpy (p->path_floppy, L"./");
-	_tcscpy (p->path_hardfile, L"./");
+	_tcscpy (p->path_rom.path[0], L"./");
+	_tcscpy (p->path_floppy.path[0], L"./");
+	_tcscpy (p->path_hardfile.path[0], L"./");
 
 	p->prtname[0] = 0;
 	p->sername[0] = 0;

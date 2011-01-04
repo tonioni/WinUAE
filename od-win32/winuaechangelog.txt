@@ -1,4 +1,17 @@
 
+Beta 9:
+
+- emulate mouse counter behavior 100% when joystick is connected (increase/decrease counter by 4 when
+  two lowest bits change from 0 to 3 or vice versa) Most likely no program cares..  Mouse cursor
+  movement is now exactly same as on real Amigas when moving joystick in mouse port..
+- "Delete Saveimage" button didn't work, broke when CD image GUI was added
+- save CPU/chipset ratio to statefile
+- attempt to load disk image and harddisk paths in statefiles from current dir, current adf/hardfile paths
+  and directory where statefile was loaded if original path or file is missing
+- harddrive statesaves didn't save correctly if more than 1 harddrive was configured
+- b3 "stop linedraw if blitter register modified while active" hack didn't always clear blitter active bit
+- stopped CPU in CE mode was saved incorrectly to statefile (introduced in some earlier beta)
+
 Beta 8:
 
 - mixed mode CD first audio track didn't always play (uaescsi.device only)

@@ -33,6 +33,16 @@ extern uae_u8 restore_u8_func (uae_u8 **);
 extern void save_string_func (uae_u8 **, const TCHAR*);
 extern TCHAR *restore_string_func (uae_u8 **);
 
+#define SAVESTATE_PATH 0
+#define SAVESTATE_PATH_FLOPPY 1
+#define SAVESTATE_PATH_VDIR 2
+#define SAVESTATE_PATH_HDF 3
+#define SAVESTATE_PATH_HD 4
+#define SAVESTATE_PATH_CD 5
+
+extern void save_path_func (uae_u8 **, const TCHAR*, int type);
+extern TCHAR *restore_path_func (uae_u8 **, int type);
+
 #define save_u64(x) save_u64_func (&dst, (x))
 #define save_u32(x) save_u32_func (&dst, (x))
 #define save_u16(x) save_u16_func (&dst, (x))
@@ -45,6 +55,10 @@ extern TCHAR *restore_string_func (uae_u8 **);
 
 #define save_string(x) save_string_func (&dst, (x))
 #define restore_string() restore_string_func (&src)
+
+#define save_path(x, p) save_path_func (&dst, (x), p)
+#define restore_path(p) restore_path_func (&src, p)
+
 
 /* save, restore and initialize routines for Amiga's subsystems */
 

@@ -1772,7 +1772,7 @@ uae_u8 *save_cd (int num, int *len)
 		return NULL;
 	dstbak = dst = xmalloc (uae_u8, 4 + 256 + 4 + 4);
 	save_u32 (4);
-	save_string (currprefs.cdslots[num].name);
+	save_path (currprefs.cdslots[num].name, SAVESTATE_PATH_CD);
 	save_u32 (currprefs.cdslots[num].type);
 	save_u32 (0);
 	*len = dst - dstbak;
@@ -1787,7 +1787,7 @@ uae_u8 *restore_cd (int num, uae_u8 *src)
 	if (num >= MAX_TOTAL_SCSI_DEVICES)
 		return NULL;
 	flags = restore_u32 ();
-	s = restore_string ();
+	s = restore_path (SAVESTATE_PATH_CD);
 	int type = restore_u32 ();
 	restore_u32 ();
 	if (flags & 4) {

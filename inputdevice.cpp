@@ -1643,31 +1643,34 @@ static void mouseupdate (int pct, int vsync)
 
 	for (i = 0; i < 2; i++) {
 
-		v = getvelocity (i, 0, pct);
-		mxd += v;
-		mouse_x[i] += v;
+		if (mouse_port[i]) {
 
-		v = getvelocity (i, 1, pct);
-		myd += v;
-		mouse_y[i] += v;
+			v = getvelocity (i, 0, pct);
+			mxd += v;
+			mouse_x[i] += v;
 
-		v = getvelocity (i, 2, pct);
-		if (v > 0)
-			record_key (0x7a << 1);
-		else if (v < 0)
-			record_key (0x7b << 1);
-		if (!mouse_deltanoreset[i][2])
-			mouse_delta[i][2] = 0;
+			v = getvelocity (i, 1, pct);
+			myd += v;
+			mouse_y[i] += v;
 
-		if (mouse_frame_x[i] - mouse_x[i] > max)
-			mouse_x[i] = mouse_frame_x[i] - max;
-		if (mouse_frame_x[i] - mouse_x[i] < -max)
-			mouse_x[i] = mouse_frame_x[i] + max;
+			v = getvelocity (i, 2, pct);
+			if (v > 0)
+				record_key (0x7a << 1);
+			else if (v < 0)
+				record_key (0x7b << 1);
+			if (!mouse_deltanoreset[i][2])
+				mouse_delta[i][2] = 0;
 
-		if (mouse_frame_y[i] - mouse_y[i] > max)
-			mouse_y[i] = mouse_frame_y[i] - max;
-		if (mouse_frame_y[i] - mouse_y[i] < -max)
-			mouse_y[i] = mouse_frame_y[i] + max;
+			if (mouse_frame_x[i] - mouse_x[i] > max)
+				mouse_x[i] = mouse_frame_x[i] - max;
+			if (mouse_frame_x[i] - mouse_x[i] < -max)
+				mouse_x[i] = mouse_frame_x[i] + max;
+
+			if (mouse_frame_y[i] - mouse_y[i] > max)
+				mouse_y[i] = mouse_frame_y[i] - max;
+			if (mouse_frame_y[i] - mouse_y[i] < -max)
+				mouse_y[i] = mouse_frame_y[i] + max;
+		}
 
 		if (!vsync) {
 			mouse_frame_x[i] = mouse_x[i];
@@ -1697,10 +1700,11 @@ static void readinput (void)
 
 }
 
-static uae_u16 getjoystate (int joy)
+static void joymousecounter (int joy)
 {
 	int left = 1, right = 1, top = 1, bot = 1;
-	uae_u16 v;
+	int b9, b8, b1, b0;
+	int cntx, cnty, ocntx, ocnty;
 
 	if (joydir[joy] & DIR_LEFT)
 		left = 0;
@@ -1710,18 +1714,35 @@ static uae_u16 getjoystate (int joy)
 		top = 0;
 	if (joydir[joy] & DIR_DOWN)
 		bot = 0;
+
+	b0 = (bot ^ right) ? 1 : 0;
+	b1 = (right ^ 1) ? 2 : 0;
+	b8 = (top ^ left) ? 1 : 0;
+	b9 = (left ^ 1) ? 2 : 0;
+
+	cntx = b0 | b1;
+	cnty = b8 | b9;
+	ocntx = mouse_x[joy] & 3;
+	ocnty = mouse_y[joy] & 3;
+
+	if (cntx == 3 && ocntx == 0)
+		mouse_x[joy] -= 4;
+	else if (cntx == 0 && ocntx == 3)
+		mouse_x[joy] += 4;
+	mouse_x[joy] = (mouse_x[joy] & 0xfc) | cntx;
+
+	if (cnty == 3 && ocnty == 0)
+		mouse_y[joy] -= 4;
+	else if (cnty == 0 && ocnty == 3)
+		mouse_y[joy] += 4;
+	mouse_y[joy] = (mouse_y[joy] & 0xfc) | cnty;
+}
+
+static uae_u16 getjoystate (int joy)
+{
+	uae_u16 v;
+
 	v = (uae_u8)mouse_x[joy] | (mouse_y[joy] << 8);
-	if (!left || !right || !top || !bot || !mouse_port[joy]) {
-		int b9, b8, b1, b0;
-		mouse_x[joy] &= ~3;
-		mouse_y[joy] &= ~3;
-		b0 = bot ^ right;
-		b1 = right ^ 1;
-		b8 = top ^ left;
-		b9 = left ^ 1;
-		v &= ~0x0303;
-		v |= (b0 << 0) | (b1 << 1) | (b8 << 8) | (b9 << 9);
-	}
 #ifdef DONGLE_DEBUG
 	if (notinrom ())
 		write_log (L"JOY%dDAT %04X %s\n", joy, v, debuginfo (0));
@@ -2338,7 +2359,7 @@ void inputdevice_handle_inputcode (void)
 
 	if (code == 0)
 		goto end;
-	if (needcputrace (code) && can_cpu_tracer () == true && is_cpu_tracer () == false && !input_play && !input_record) {
+	if (needcputrace (code) && can_cpu_tracer () == true && is_cpu_tracer () == false && !input_play && !input_record && !debugging) {
 		if (set_cpu_tracer (true)) {
 			tracer_enable = 1;
 			return; // wait for next frame
@@ -2911,6 +2932,9 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 				joydir[joy] |= DIR_UP;
 			if (bot)
 				joydir[joy] |= DIR_DOWN;
+			if (joy == 0 || joy == 1)
+				joymousecounter (joy); 
+
 			gui_gameport_axis_change (joy, DIR_LEFT_BIT, left, 0);
 			gui_gameport_axis_change (joy, DIR_RIGHT_BIT, right, 0);
 			gui_gameport_axis_change (joy, DIR_UP_BIT, top, 0);

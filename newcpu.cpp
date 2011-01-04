@@ -3333,6 +3333,8 @@ STATIC_INLINE int do_specialties (int cycles)
 	while (regs.spcflags & SPCFLAG_STOP) {
 		if (cpu_tracer > 0) {
 			cputrace.stopped = regs.stopped;
+			cputrace.intmask = regs.intmask;
+			cputrace.sr = regs.sr;
 			cputrace.state = 1;
 			cputrace.pc = m68k_getpc ();
 			cputrace.memoryoffset = 0;
@@ -4891,6 +4893,8 @@ uae_u8 *restore_cpu_extra (uae_u8 *src)
 	currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
 	if (flags & 4)
 		currprefs.m68k_speed = changed_prefs.m68k_speed = -1;
+	if (flags & 16)
+		currprefs.m68k_speed = changed_prefs.m68k_speed = (flags >> 24) * CYCLE_UNIT;
 
 	currprefs.cpu060_revision = changed_prefs.cpu060_revision = restore_u8 ();
 	currprefs.fpu_revision = changed_prefs.fpu_revision = restore_u8 ();
@@ -4913,6 +4917,9 @@ uae_u8 *save_cpu_extra (int *len, uae_u8 *dstptr)
 	flags |= currprefs.cpu_compatible ? 2 : 0;
 	flags |= currprefs.m68k_speed < 0 ? 4 : 0;
 	flags |= currprefs.cachesize > 0 ? 8 : 0;
+	flags |= currprefs.m68k_speed > 0 ? 16 : 0;
+	if (currprefs.m68k_speed > 0)
+		flags |= (currprefs.m68k_speed / CYCLE_UNIT) << 24;
 	save_u32 (flags);
 	save_u32 (currprefs.cpu_frequency);
 	save_u32 (currprefs.cpu_clock_multiplier);

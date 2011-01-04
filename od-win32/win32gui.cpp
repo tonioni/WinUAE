@@ -1623,7 +1623,7 @@ int scan_roms (HWND hDlg, int show)
 		break;
 	}
 	if (cnt == 0)
-		scan_roms_3 (fkey, paths, workprefs.path_rom);
+		scan_roms_3 (fkey, paths, workprefs.path_rom.path[0]);
 
 	for (i = 0; i < MAX_ROM_PATHS; i++)
 		xfree (paths[i]);
@@ -9739,7 +9739,7 @@ static void floppysetwriteprotect (HWND hDlg, int n, bool writeprotected)
 static void deletesaveimage (HWND hDlg, int num)
 {
 	TCHAR *p;
-	if (!iscd (num))
+	if (iscd (num))
 		return;
 	p = DISK_get_saveimagepath (workprefs.floppyslots[num].df);
 	if (zfile_exists (p)) {

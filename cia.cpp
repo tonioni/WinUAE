@@ -92,6 +92,7 @@ static void setclr (unsigned int *p, unsigned int val)
 static void RethinkICRA (void)
 {
 	if (ciaaimask & ciaaicr) {
+		//write_log (L"A");
 		ciaaicr |= 0x80;
 		send_interrupt (3, 2 * CYCLE_UNIT + CYCLE_UNIT / 2);
 	}
@@ -100,6 +101,7 @@ static void RethinkICRA (void)
 static void RethinkICRB (void)
 {
 	if (ciabimask & ciabicr) {
+		//write_log (L"B");
 		ciabicr |= 0x80;
 		send_interrupt (13, 2 * CYCLE_UNIT + CYCLE_UNIT / 2);
 	}

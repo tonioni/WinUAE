@@ -641,7 +641,7 @@ int load_keyring (struct uae_prefs *p, const TCHAR *path)
 			break;
 		case 2:
 			if (p) {
-				_tcscpy (tmp, p->path_rom);
+				_tcscpy (tmp, p->path_rom.path[0]);
 				_tcscat (tmp, L"rom.key");
 			}
 			break;

@@ -15,6 +15,12 @@ typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, 
 
 extern long int version;
 
+#define MAX_PATHS 8
+
+struct multipath {
+	TCHAR path[MAX_PATHS][256];
+};
+
 struct strlist {
 	struct strlist *next;
 	TCHAR *option, *value;
@@ -316,9 +322,10 @@ struct uae_prefs {
 	TCHAR inprecfile[MAX_DPATH];
 	bool inprec_autoplay;
 
-	TCHAR path_floppy[256];
-	TCHAR path_hardfile[256];
-	TCHAR path_rom[256];
+	struct multipath path_floppy;
+	struct multipath path_hardfile;
+	struct multipath path_rom;
+	struct multipath path_cd;
 
 	int m68k_speed;
 	int cpu_model;

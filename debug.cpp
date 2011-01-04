@@ -2515,6 +2515,7 @@ static void show_exec_lists (TCHAR t)
 		if (dosbase) {
 			uaecptr rootnode = get_long (dosbase + 34);
 			uaecptr dosinfo = get_long (rootnode + 24) << 2;
+			console_out_f (L"ROOTNODE: %08x DOSINFO: %08x\n", rootnode, dosinfo);
 			uaecptr doslist = get_long (dosinfo + 4) << 2;
 			while (doslist) {
 				int type = get_long (doslist + 4);

@@ -5361,7 +5361,7 @@ static void dmal_func (uae_u32 v)
 
 static void dmal_func2 (uae_u32 v)
 {
-	for (int i = 0; i < 6 + 8; i += 2) {
+	while (dmal) {
 		if (dmal & 3)
 			dmal_emu (dmal_hpos + ((dmal & 2) ? 1 : 0));
 		dmal_hpos += 2;
@@ -5371,11 +5371,10 @@ static void dmal_func2 (uae_u32 v)
 
 static void events_dmal (int hp)
 {
-	int i;
 	if (!dmal)
 		return;
 	if (currprefs.cpu_cycle_exact) {
-		for (i = 0; i < 6 + 8; i += 2) {
+		while (dmal) {
 			if (dmal & 3)
 				break;
 			hp += 2;
