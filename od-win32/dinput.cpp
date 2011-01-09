@@ -1734,7 +1734,7 @@ static BOOL di_enumcallback2 (LPCDIDEVICEINSTANCE lpddi, int joy)
 		_tcscpy (did->name, lpddi->tszInstanceName);
 	} else {
 		did->name = xmalloc (TCHAR, 100);
-		_stprintf (did->name, L"[no name]");
+		_tcscpy (did->name, L"[no name]");
 	}
 	trimws (did->name);
 	_stprintf (tmp, L"%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X %08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",

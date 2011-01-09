@@ -32,8 +32,9 @@ extern void rp_update_gameport (int port, int mask, int onoff);
 extern void rp_update_volume (struct uae_prefs*);
 extern void rp_update_leds (int, int, int);
 extern void rp_floppy_track (int floppy, int track);
-extern void rp_floppydrive_change (int num, int removed);
 extern void rp_hd_activity (int, int, int);
-extern void rp_hd_change (int, int);
 extern void rp_cd_activity (int, int);
-extern void rp_cd_change (int, int);
+
+void rp_floppy_device_enable (int num, bool enabled);
+void rp_hd_device_enable (int num, bool enabled);
+void rp_cd_device_enable (int num, bool enabled);

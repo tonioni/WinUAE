@@ -994,36 +994,36 @@ void rp_cd_image_change (int num, const TCHAR *name)
 	rp_device_change (RP_DEVICE_CD, num, name);
 }
 
-void rp_floppydrive_change (int num, int removed)
+void rp_floppy_device_enable (int num, bool enabled)
 {
 	if (!cando ())
 		return;
-	if (removed)
-		floppy_mask &= ~(1 << num);
-	else
+	if (enabled)
 		floppy_mask |= 1 << num;
+	else
+		floppy_mask &= ~(1 << num);
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_hd_change (int num, int removed)
+void rp_hd_device_enable (int num, bool enabled)
 {
 	if (!cando ())
 		return;
-	if (removed)
-		hd_mask &= ~(1 << num);
-	else
+	if (enabled)
 		hd_mask |= 1 << num;
+	else
+		hd_mask &= ~(1 << num);
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_cd_change (int num, int removed)
+void rp_cd_device_enable (int num, bool enabled)
 {
 	if (!cando ())
 		return;
-	if (removed)
-		cd_mask &= ~(1 << num);
-	else
+	if (enabled)
 		cd_mask |= 1 << num;
+	else
+		cd_mask &= ~(1 << num);
 	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 }
 

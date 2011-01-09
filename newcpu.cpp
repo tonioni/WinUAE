@@ -3331,6 +3331,25 @@ STATIC_INLINE int do_specialties (int cycles)
 	}
 
 	while (regs.spcflags & SPCFLAG_STOP) {
+
+		if (uae_int_requested) {
+			INTREQ_f (0x8008);
+			set_special (SPCFLAG_INT);
+		}
+		{
+			extern int volatile uaenet_int_requested;
+			if (uaenet_int_requested) {
+				INTREQ_f (0x8000 | 0x2000);
+				set_special (SPCFLAG_INT);
+			}
+		}
+		{
+			extern void bsdsock_fake_int_handler (void);
+			extern int volatile bsd_int_requested;
+			if (bsd_int_requested)
+				bsdsock_fake_int_handler ();
+		}
+
 		if (cpu_tracer > 0) {
 			cputrace.stopped = regs.stopped;
 			cputrace.intmask = regs.intmask;
@@ -3366,7 +3385,7 @@ STATIC_INLINE int do_specialties (int cycles)
 			return 1;
 		}
 
-		if (currprefs.cpu_idle && currprefs.m68k_speed != 0 && ((regs.spcflags & SPCFLAG_STOP)) == SPCFLAG_STOP) {
+		if (!uae_int_requested && currprefs.cpu_idle && currprefs.m68k_speed != 0 && ((regs.spcflags & SPCFLAG_STOP)) == SPCFLAG_STOP) {
 			/* sleep 1ms if STOP-instruction is executed */
 			if (1) {
 				static int sleepcnt, lvpos, zerocnt;

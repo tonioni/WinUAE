@@ -385,6 +385,9 @@ int get_standard_cd_unit (cd_standard_unit csu)
 	int unitnum = get_standard_cd_unit2 (csu);
 	if (unitnum < 0)
 		return -1;
+#ifdef RETROPLATFORM
+	rp_cd_device_enable (unitnum, true);
+#endif
 	delayed[unitnum] = 0;
 	if (currprefs.cdslots[unitnum].delayed) {
 		delayed[unitnum] = PRE_INSERT_DELAY;
@@ -405,11 +408,20 @@ int sys_command_isopen (int unitnum)
 int sys_command_open (int unitnum)
 {
 	waspaused[unitnum] = 0;
-	return sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : NULL, CD_STANDARD_UNIT_DEFAULT);
+	int v = sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : NULL, CD_STANDARD_UNIT_DEFAULT);
+	if (!v)
+		return 0;
+#ifdef RETROPLATFORM
+	rp_cd_device_enable (unitnum, true);
+#endif
+	return v;
 }
 
 void sys_command_close (int unitnum)
 {
+#ifdef RETROPLATFORM
+	rp_cd_device_enable (unitnum, false);
+#endif
 	sys_command_close_internal (unitnum);
 }
 
@@ -418,7 +430,6 @@ void blkdev_cd_change (int unitnum, const TCHAR *name)
 	struct device_info di;
 	sys_command_info (unitnum, &di, 1);
 #ifdef RETROPLATFORM
-	rp_cd_change (unitnum, di.media_inserted);
 	rp_cd_image_change (unitnum, name);
 #endif
 }

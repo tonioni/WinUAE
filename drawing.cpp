@@ -2238,7 +2238,7 @@ static void center_image (void)
 		thisframe_y_adjust = minfirstline;
 
 	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
-	tmp = (maxvpos_nom - thisframe_y_adjust) << linedbl;
+	tmp = (maxvpos_nom - thisframe_y_adjust + 1) << linedbl;
 	if (tmp != max_ypos_thisframe) {
 		last_max_ypos = tmp;
 		if (last_max_ypos < 0)
@@ -2525,11 +2525,9 @@ void finish_drawing_frame (void)
 			break;
 		if (where2 < 0)
 			continue;
-
 		hposblank = 0;
 		pfield_draw_line (line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
-
 
 	/* clear possible old garbage at the bottom if emulated area become smaller */
 	for (i = last_max_ypos; i < gfxvidinfo.height; i++) {

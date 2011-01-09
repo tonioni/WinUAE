@@ -3989,10 +3989,10 @@ static void
 	if (mode < 0)
 		whence = SEEK_SET;
 
-	TRACE((L"ACTION_SEEK(%s,%d,%d)\n", k->aino->nname, pos, mode));
+	old = fs_lseek (k->fd, 0, SEEK_CUR);
+	TRACE((L"ACTION_SEEK(%s,%d,%d)=%d\n", k->aino->nname, pos, mode, old));
 	gui_flicker_led (LED_HD, unit->unit, 1);
 
-	old = fs_lseek (k->fd, 0, SEEK_CUR);
 	{
 		uae_s64 temppos;
 		uae_s64 filesize = fs_lseek64 (k->fd, 0, SEEK_END);

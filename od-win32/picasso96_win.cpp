@@ -2274,6 +2274,12 @@ void picasso_enablescreen (int on)
 	checkrtglibrary();
 }
 
+static void resetpalette(void)
+{
+	for (int i = 0; i < 256; i++)
+		picasso96_state.CLUT[i].Pad = 0xff;
+}
+
 /*
 * SetColorArray:
 * a0: struct BoardInfo
@@ -2295,16 +2301,20 @@ static int updateclut (uaecptr clut, int start, int count)
 		int g = get_byte (clut + 1);
 		int b = get_byte (clut + 2);
 
-		changed |= (picasso96_state.CLUT[i].Red != r
+		//write_log(L"%d: %02x%02x%02x\n", i, r, g, b);
+		changed |= picasso96_state.CLUT[i].Red != r
 			|| picasso96_state.CLUT[i].Green != g
-			|| picasso96_state.CLUT[i].Blue != b);
-
+			|| picasso96_state.CLUT[i].Blue != b;
+		if (picasso96_state.CLUT[i].Pad) {
+			changed = 1;
+			picasso96_state.CLUT[i].Pad = 0;
+		}
 		picasso96_state.CLUT[i].Red = r;
 		picasso96_state.CLUT[i].Green = g;
 		picasso96_state.CLUT[i].Blue = b;
 		clut += 3;
 	}
-	picasso_palette ();
+	changed |= picasso_palette ();
 	return changed;
 }
 static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
@@ -3212,6 +3222,7 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 {
 	uae_u32 state = m68k_dreg (regs, 0);
 	P96TRACE ((L"SetDisplay(%d)\n", state));
+	resetpalette();
 	return !state;
 }
 
@@ -4300,6 +4311,7 @@ void picasso_reset (void)
 	uaegfx_active = 0;
 	interrupt_enabled = 0;
 	reserved_gfxmem = 0;
+	resetpalette();
 }
 
 void uaegfx_install_code (void)

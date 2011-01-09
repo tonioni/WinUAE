@@ -2365,7 +2365,7 @@ static void DISK_check_change (void)
 			currprefs.floppyslots[i].dfxtype = changed_prefs.floppyslots[i].dfxtype;
 			reset_drive (i);
 #ifdef RETROPLATFORM
-			rp_floppydrive_change (i, currprefs.floppyslots[i].dfxtype >= 0 ? 1 : 0);
+			rp_floppy_device_enable (i, currprefs.floppyslots[i].dfxtype >= 0);
 #endif
 		}
 	}

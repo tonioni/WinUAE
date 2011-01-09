@@ -1,4 +1,10 @@
 
+- fast multicore systems filesystem slowdown fix (always been there but "slower" CPUs didn't trigger it so easily)
+- last scanline was invisible in filtered doubled modes
+- sprite dma does not switch immediately off when DMACON sprite bit is cleared (Magic Demo / Diabolics)
+- do not autoswitch (button press on unused input device) if it would replace GamePorts custom remapped input device
+- fixed GamePorts parallel port configuration possible crash and wrong configuration
+
 Beta 9:
 
 - emulate mouse counter behavior 100% when joystick is connected (increase/decrease counter by 4 when

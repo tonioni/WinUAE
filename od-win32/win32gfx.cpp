@@ -55,7 +55,7 @@
 #endif
 
 #define AMIGA_WIDTH_MAX (752 / 2)
-#define AMIGA_HEIGHT_MAX (572 / 2)
+#define AMIGA_HEIGHT_MAX (574 / 2)
 
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
@@ -1615,7 +1615,8 @@ int picasso_palette (void)
 			| doMask256 (g, green_bits, green_shift)
 			| doMask256 (b, blue_bits, blue_shift))
 			| doMask256 (0xff, alpha_bits, alpha_shift);
-		if (v !=  picasso_vidinfo.clut[i]) {
+		if (v != picasso_vidinfo.clut[i]) {
+			//write_log (L"%d:%08x\n", i, v);
 			picasso_vidinfo.clut[i] = v;
 			changed = 1;
 		}

@@ -3363,6 +3363,7 @@ static BOOL debug_line (TCHAR *input)
 		case 'H':
 			{
 				int count, temp, badly, skip;
+				uae_u32 addr = 0;
 				uae_u32 oldpc = m68k_getpc ();
 				struct regstruct save_regs = regs;
 
@@ -3376,6 +3377,10 @@ static BOOL debug_line (TCHAR *input)
 					count = readint (&inptr);
 				else
 					count = 10;
+				if (count > 1000) {
+					addr = count;
+					count = MAX_HIST;
+				}
 				if (count < 0)
 					break;
 				skip = count;
@@ -3391,11 +3396,15 @@ static BOOL debug_line (TCHAR *input)
 				}
 				while (temp != lasthist) {
 					regs = history[temp];
-					m68k_setpc (history[temp].pc);
-					if (badly)
-						m68k_dumpstate (stdout, NULL);
-					else
-						m68k_disasm (stdout, history[temp].pc, NULL, 1);
+					if (history[temp].pc == addr || addr == 0) {
+						m68k_setpc (history[temp].pc);
+						if (badly)
+							m68k_dumpstate (stdout, NULL);
+						else
+							m68k_disasm (stdout, history[temp].pc, NULL, 1);
+						if (addr && history[temp].pc == addr)
+							break;
+					}
 					if (skip-- < 0)
 						break;
 					if (++temp == MAX_HIST)

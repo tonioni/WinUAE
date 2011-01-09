@@ -3081,7 +3081,7 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	if (num == 0 && otherbuttonpressed)
 		newport = newport ? 0 : 1;
 	if (currprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS) {
-		if (num == 0 || num == 1) {
+		if ((num == 0 || num == 1) && currprefs.jports[newport].id != JPORT_CUSTOM) {
 			int om = jsem_ismouse (num, &currprefs);
 			int om1 = jsem_ismouse (0, &currprefs);
 			int om2 = jsem_ismouse (1, &currprefs);
@@ -4271,8 +4271,8 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				if (gameports)
 					cleardev (joysticks, joy);
 				input_get_default_joystick (joysticks, joy, i, af, 0);
-				_tcsncpy (prefs->jports[i].name, idev[IDTYPE_MOUSE].get_friendlyname (joy), MAX_JPORTNAME - 1);
-				_tcsncpy (prefs->jports[i].configname, idev[IDTYPE_MOUSE].get_uniquename (joy), MAX_JPORTNAME - 1);
+				_tcsncpy (prefs->jports[i].name, idev[IDTYPE_JOYSTICK].get_friendlyname (joy), MAX_JPORTNAME - 1);
+				_tcsncpy (prefs->jports[i].configname, idev[IDTYPE_JOYSTICK].get_uniquename (joy), MAX_JPORTNAME - 1);
 				used[joy] = 1;
 				joymodes[i] = JSEM_MODE_JOYSTICK;
 			}

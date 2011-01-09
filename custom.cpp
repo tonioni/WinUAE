@@ -4749,7 +4749,8 @@ STATIC_INLINE void do_sprites_1 (int num, int cycle, int hpos)
 	struct sprite *s = &spr[num];
 	int dma, posctl = 0;
 	uae_u16 data;
-	int isdma = dmaen (DMA_SPRITE);
+	// fetch both sprite pairs even if DMA was switched off between sprites
+	int isdma = dmaen (DMA_SPRITE) || ((num & 1) && spr[num & ~1].dmacycle);
 
 	if (isdma && vpos == sprite_vblank_endline)
 		spr_arm (num, 0);
