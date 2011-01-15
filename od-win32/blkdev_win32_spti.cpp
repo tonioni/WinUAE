@@ -90,8 +90,8 @@ static struct dev_info_spti *unitcheck (int unitnum)
 	if (unittable[unitnum] <= 0)
 		return NULL;
 	unitnum = unittable[unitnum] - 1;
-	if (dev_info[unitnum].drvletter == 0)
-		return NULL;
+//	if (dev_info[unitnum].drvletter == 0)
+//		return NULL;
 	return &dev_info[unitnum];
 }
 
@@ -533,9 +533,10 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		di->inquirydata = xmalloc (uae_u8, INQUIRY_SIZE);
 		memcpy (di->inquirydata, inqdata, INQUIRY_SIZE);
 		xfree (dev);
-		update_device_info (unitnum);
 		di->open = true;
-		blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
+		update_device_info (unitnum);
+		if (di->type == INQ_ROMD)
+			blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 		return 1;
 	}
 	xfree (dev);

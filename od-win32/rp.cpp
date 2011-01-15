@@ -356,10 +356,10 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	if (WIN32GFX_IsPicassoScreen ()) {
 
 		full = p->gfx_pfullscreen;
-		sm->lClipTop = 0;
-		sm->lClipLeft = 0;
-		sm->lClipHeight = picasso96_state.Height;
-		sm->lClipWidth = picasso96_state.Width;
+		sm->lClipTop = -1;
+		sm->lClipLeft = -1;
+		sm->lClipWidth = -1;//picasso96_state.Width;
+		sm->lClipHeight = -1;//picasso96_state.Height;
 
 	} else {
 
@@ -523,6 +523,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	p->gfx_pfullscreen = fs;
 	p->gfx_afullscreen = fs;
+	p->win32_rtgscaleifsmall = fs == 2;
 #if 1
 	if (fs) {
 		p->gfx_filter_aspect = -1;
@@ -532,17 +533,19 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_filter_keep_aspect = 0;
 	}
 #endif
+	write_log(L"%dx%d %dx%d\n", sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight);
+#if 1
 	p->gfx_xcenter_pos = sm->lClipLeft;
 	p->gfx_ycenter_pos = sm->lClipTop;
 	if (sm->lClipWidth > 0)
 		p->gfx_xcenter_size = sm->lClipWidth;
 	if (sm->lClipHeight > 0)
 		p->gfx_ycenter_size = sm->lClipHeight;
-
 	if (p->gfx_xcenter_pos >= 0 || p->gfx_ycenter_pos >= 0)
 		p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
 	else
 		p->gfx_filter_autoscale = AUTOSCALE_STATIC_NOMINAL;
+#endif
 
 	//p->gfx_filter = rp_filter_default;
 	p->gfx_filter_horiz_zoom_mult = 1000 / hmult;

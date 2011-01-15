@@ -862,6 +862,7 @@ static void setconvert (void)
 	else
 		alloc_colors_rgb (5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	gfx_set_picasso_colors (picasso96_state.RGBFormat);
+	picasso_palette ();
 	if (host_mode != ohost_mode || picasso96_state.RGBFormat != orgbformat) {
 		write_log (L"RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n", d, host_mode, picasso96_state.RGBFormat, v);
 		ohost_mode = host_mode;

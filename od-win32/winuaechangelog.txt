@@ -1,4 +1,14 @@
 
+- random RTG color errors when switching to/from fullscreen 8-bit RTG modes
+- emulate chipset feature where custom dma pointer register write is ignored if next cycle uses same register for Agnus DMA access
+  (bitplanes added, sprites partially supported previously) fixes intro MoreNewStuffy by PlasmaForce
+- added execute drive diagnostics IDE command to Gayle IDE emulation (used by AROS ata.device)
+- some spurious IDE interrupts removed (AROS ata.device complained)
+- SPTI+SCSI SCAN ignored all detected non-CD devices (2.2.1)
+- joystick layout A: numpad enter was mapped to button 2, it should have been button 3 and only if gamepad joystick enabled
+
+Beta 10:
+
 - fast multicore systems filesystem slowdown fix (always been there but "slower" CPUs didn't trigger it so easily)
 - last scanline was invisible in filtered doubled modes
 - sprite dma does not switch immediately off when DMACON sprite bit is cleared (Magic Demo / Diabolics)

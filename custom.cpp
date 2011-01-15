@@ -3618,6 +3618,13 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
 	decide_line (hpos);
 	decide_fetch (hpos);
+	/* chipset feature: BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
+	 * this write goes nowhere (same happens with all DMA channels, not just BPL)
+	 * (intro MoreNewStuffy by PlasmaForce)
+	 */
+	/* only detect copper accesses to prevent too fast CPU mode glitches */
+	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1)
+		return;
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
 	bplptx[num] = (bplptx[num] & 0xffff0000) | (v & 0x0000fffe);
 	//write_log (L"%d:%d:BPL%dPTL %08X COP=%08x\n", hpos, vpos, num, bplpt[num], cop_state.ip);
