@@ -805,6 +805,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			);
 #endif
 	}
+
+	cfgfile_dwrite (f, L"gfx_center_horizontal_position", L"%d", p->gfx_xcenter_pos);
+	cfgfile_dwrite (f, L"gfx_center_vertical_position", L"%d", p->gfx_ycenter_pos);
+	cfgfile_dwrite (f, L"gfx_center_horizontal_size", L"%d", p->gfx_xcenter_size);
+	cfgfile_dwrite (f, L"gfx_center_vertical_size", L"%d", p->gfx_ycenter_size);
+
 #endif
 
 	cfgfile_write_bool (f, L"immediate_blits", p->immediate_blits);
@@ -3598,8 +3604,10 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_afullscreen = GFX_WINDOW;
 	p->gfx_pfullscreen = GFX_WINDOW;
 	p->gfx_xcenter = 0; p->gfx_ycenter = 0;
-	p->gfx_xcenter_pos = -1; p->gfx_ycenter_pos = -1;
-	p->gfx_xcenter_size = -1; p->gfx_ycenter_size = -1;
+	p->gfx_xcenter_pos = -1;
+	p->gfx_ycenter_pos = -1;
+	p->gfx_xcenter_size = -1;
+	p->gfx_ycenter_size = -1;
 	p->gfx_max_horizontal = RES_HIRES;
 	p->gfx_max_vertical = VRES_DOUBLE;
 	p->color_mode = 2;

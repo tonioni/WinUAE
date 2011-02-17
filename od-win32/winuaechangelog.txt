@@ -1,4 +1,24 @@
 
+Beta 12:
+
+- emulate A3000 Fat Gary/RAMSEY configuration address space mirroring (no real world effect but I was testing
+  m68k AROS ROM on my A3000 and noticed this mirroring)
+- hrtmon 2.32->2.33 update
+- hrtmon didn't work in cycle-exact modes
+- MIDI device names are also stored in configuration file (overrides old style id numbers)
+- in auto resize and center filter modes 1x/2x.. modifiers change window size
+- manual filter configuration size adjustments added, saved to config file
+- RTG: do not refresh area outside of bitmap if bitmap is smaller than RTG screen resolution (AROS does this)
+- some read write-only custom register changes, bset (and other similar instructions) don't have previously
+  read prefetch data appearing in data lines when reading (like most other instructions do), data is zero.
+  This explains why buggy programs that for example bset #x,$dff096 don't mess up register contents too much.
+  (Fixes Kefrens Party Intro by Wiz, coder thought that bset #10,$dff096 is the right way to enable blitter nasty)
+- sample ripper ignored most samples (broken when audio emulation was rewritten in 2.3)
+- topmost scanline was usually not visible in autoscale modes
+- weak bit copy protected ipfs broke in earlier betas (only if using latest dll)
+
+Beta 11:
+
 - random RTG color errors when switching to/from fullscreen 8-bit RTG modes
 - emulate chipset feature where custom dma pointer register write is ignored if next cycle uses same register for Agnus DMA access
   (bitplanes added, sprites partially supported previously) fixes intro MoreNewStuffy by PlasmaForce

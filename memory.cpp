@@ -2126,7 +2126,7 @@ static void allocate_memory (void)
 		bogomemory_allocated = 0;
 
 		allocated_bogomem = currprefs.bogomem_size;
-		if (allocated_bogomem == 0x180000)
+		if (allocated_bogomem >= 0x180000)
 			allocated_bogomem = 0x200000;
 		bogomem_mask = allocated_bogomem - 1;
 
@@ -2460,7 +2460,7 @@ void memory_reset (void)
 		int t = currprefs.bogomem_size >> 16;
 		if (t > 0x1C)
 			t = 0x1C;
-		if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || currprefs.cpu_model >= 68020))
+		if (t > 0x10 && ((currprefs.chipset_mask & CSMASK_AGA) || (currprefs.cpu_model >= 68020 && !currprefs.address_space_24)))
 			t = 0x10;
 		map_banks (&bogomem_bank, 0xC0, t, 0);
 	}

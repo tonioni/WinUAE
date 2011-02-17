@@ -222,7 +222,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			int w1 = (800 / 2) << currprefs.gfx_resolution;
 			int w2 = (640 / 2) << currprefs.gfx_resolution;
 			int h1 = (600 / 2) << currprefs.gfx_vresolution;
-			int h2 = (480 / 2) << currprefs.gfx_vresolution;
+			int h2 = (400 / 2) << currprefs.gfx_vresolution;
 			int w = currprefs.gfx_size_win.width;
 			int h = currprefs.gfx_size_win.height;
 			if (w <= w1 && h <= h1 && w >= w2 && h >= h2)
@@ -259,12 +259,12 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			filter_horiz_offset = 0;
 			filter_vert_offset = 0;
 
-			get_custom_topedge(&cx, &cy);
+			get_custom_topedge (&cx, &cy);
 			//write_log (L"%dx%d %dx%d\n", cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			v = currprefs.gfx_xcenter_pos;
 			if (v >= 0)
-				cx = (v >> (RES_MAX - currprefs.gfx_resolution + 1)) - cx;
+				cx = (v >> (RES_MAX - currprefs.gfx_resolution)) - cx;
 
 			v = currprefs.gfx_ycenter_pos;
 			if (v >= 0)
@@ -292,6 +292,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy);
 
+		}
+
+		if (currprefs.gfx_api == 0) {
+			if (cx < 0)
+				cx = 0;
+			if (cy < 0)
+				cy = 0;
 		}
 
 		if (cv) {
@@ -337,7 +344,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				lch = ch;
 				lcx = cx;
 				lcy = cy;
-				if (useold) {
+				if (useold && !config_changed) {
 					cw = ocw;
 					ch = och;
 					cx = ocx;
@@ -350,14 +357,20 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					lastresize = 10;
 					lastdelay = 0;
 				}
-				SetRect (sr, 0, 0, cw * scale, ch * scale);
+				double scalex = currprefs.gfx_filter_horiz_zoom_mult ? 1000.0 / currprefs.gfx_filter_horiz_zoom_mult : 1.0;
+				double scaley = currprefs.gfx_filter_vert_zoom_mult ? 1000.0 / currprefs.gfx_filter_vert_zoom_mult : 1.0;
+				SetRect (sr, 0, 0, cw * scale * scalex, ch * scale * scaley);
 				dr->left = (temp_width - aws) /2;
 				dr->top = (temp_height - ahs) / 2;
 				dr->right = dr->left + cw * scale;
 				dr->bottom = dr->top + ch * scale;
 				OffsetRect (zr, cx * scale, cy * scale);
-				int ww = dr->right - dr->left;
-				int hh = dr->bottom - dr->top;
+				int ww = (dr->right - dr->left) * scalex;
+				int hh = (dr->bottom - dr->top) * scaley;
+				if (currprefs.gfx_xcenter_size >= 0)
+					ww = currprefs.gfx_xcenter_size;
+				if (currprefs.gfx_ycenter_size >= 0)
+					hh = currprefs.gfx_ycenter_size;
 				int oldwinw = currprefs.gfx_size_win.width;
 				int oldwinh = currprefs.gfx_size_win.width;
 				changed_prefs.gfx_size_win.width = ww;

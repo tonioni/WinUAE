@@ -50,6 +50,7 @@ static int optimized_flags;
 #define GF_PREFETCH 16
 #define GF_FC 32
 #define GF_MOVE 64
+#define GF_IR2IRC 128
 
 /* For the current opcode, the next lower level that will have different code.
 * Initialized to -1 for each opcode. If it remains unchanged, indicates we
@@ -120,6 +121,7 @@ static int need_endlabel;
 static int n_braces, limit_braces;
 static int m68k_pc_offset;
 static int insn_n_cycles, insn_n_cycles020;
+static int ir2irc;
 
 static void fpulimit (void)
 {
@@ -338,13 +340,22 @@ static const char *gen_nextibyte (int flags)
 	return buffer;
 }
 
-static void irc2ir (void)
+static void irc2ir (bool dozero)
 {
 	if (!using_prefetch)
 		return;
+	if (ir2irc)
+		return;
+	ir2irc = 1;
 	printf ("\tregs.ir = regs.irc;\n");
+	if (dozero)
+		printf ("\tregs.irc = 0;\n");
 	if (using_ce)
 		printf ("\tipl_fetch ();\n");
+}
+static void irc2ir (void)
+{
+	irc2ir (false);
 }
 
 static int did_prefetch;
@@ -355,6 +366,7 @@ static void fill_prefetch_2 (void)
 		return;
 	printf ("\t%s (%d);\n", prefetch_word, m68k_pc_offset + 2);
 	did_prefetch = 1;
+	ir2irc = 0;
 	count_read++;
 	insn_n_cycles += 4;
 }
@@ -365,6 +377,7 @@ static void fill_prefetch_1 (int o)
 		return;
 	printf ("\t%s (%d);\n", prefetch_word, o);
 	did_prefetch = 1;
+	ir2irc = 0;
 	count_read++;
 	insn_n_cycles += 4;
 }
@@ -382,6 +395,7 @@ static void fill_prefetch_0 (void)
 		return;
 	printf ("\t%s (0);\n", prefetch_word);
 	did_prefetch = 1;
+	ir2irc = 0;
 	count_read++;
 	insn_n_cycles += 4;
 }
@@ -703,6 +717,8 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 
 	if (flags & GF_PREFETCH)
 		fill_prefetch_next ();
+	else if (flags & GF_IR2IRC)
+		irc2ir (true);
 
 	if (getv == 1) {
 		start_brace ();
@@ -1431,7 +1447,8 @@ static void gen_opcode (unsigned long int opcode)
 	struct instr *curi = table68k + opcode;
 
 	insn_n_cycles = using_prefetch ? 0 : 4;
-
+	ir2irc = 0;
+	
 	prefetch_long = NULL;
 	srcli = NULL;
 	srcbi = NULL;
@@ -1877,7 +1894,7 @@ static void gen_opcode (unsigned long int opcode)
 		break;
 	case i_BTST:
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
+		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_IR2IRC);
 		fill_prefetch_next ();
 		bsetcycles (curi);
 		printf ("\tSET_ZFLG (1 ^ ((dst >> src) & 1));\n");
@@ -1886,7 +1903,7 @@ static void gen_opcode (unsigned long int opcode)
 	case i_BCLR:
 	case i_BSET:
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
-		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
+		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_IR2IRC);
 		fill_prefetch_next ();
 		bsetcycles (curi);
 		// bclr needs 1 extra cycle

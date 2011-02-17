@@ -247,9 +247,7 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 		blue_shift = 11;
 		break;
 	case RGBFB_B5G5R5PC:
-		red_bits = 5;
-		green_bits = 5;
-		blue_bits = 5;
+		red_bits = green_bits = blue_bits = 5;
 		red_shift = 0;
 		green_shift = 5;
 		blue_shift = 10;

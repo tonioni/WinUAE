@@ -133,10 +133,6 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	fixup_prefs_dim2 (&prefs->gfx_size_win);
 	if (prefs->gfx_filter == 0 && prefs->gfx_filter_autoscale && !prefs->gfx_api)
 		prefs->gfx_filter = 1;
-	if (prefs->gfx_filter_autoscale == AUTOSCALE_RESIZE || prefs->gfx_filter_autoscale == AUTOSCALE_CENTER) {
-		prefs->gfx_filter_horiz_zoom_mult = 0;
-		prefs->gfx_filter_vert_zoom_mult = 0;
-	}
 }
 
 void fixup_cpu (struct uae_prefs *p)

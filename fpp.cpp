@@ -901,6 +901,9 @@ void fpuop_save (uae_u32 opcode)
 		return;
 	}
 
+//	if (regs.fpcr == 0 && regs.fpsr == 0 && regs.fpiar == 0 &&
+//		regs.fp[0] == 
+
 	if (currprefs.fpu_model == 68060) {
 		/* 12 byte 68060 IDLE frame.  */
 		if (incr < 0) {

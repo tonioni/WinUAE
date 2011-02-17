@@ -118,6 +118,7 @@ static const TCHAR *getmsg (int msg)
 	case RPIPCHM_LOADSTATE: return L"RPIPCHM_LOADSTATE";
 	case RPIPCHM_FLUSH: return L"RPIPCHM_FLUSH";
 	case RPIPCHM_DEVICEREADWRITE: return L"RPIPCHM_DEVICEREADWRITE";
+	case RPIPCHM_QUERYSCREENMODE: return L"RPIPCHM_QUERYSCREENMODE";
 
 	default: return L"UNKNOWN";
 	}
@@ -317,12 +318,16 @@ static void fixup_size (struct uae_prefs *prefs)
 
 static int getmult(int mult)
 {
-	if (mult <= 1)
-		return 0;
-	if (mult == 2)
-		return 1;
-	if (mult == 4)
+	if (mult >= 4 * 256)
 		return 2;
+	if (mult == 2 * 256)
+		return 1;
+	if (mult >= 1 * 256)
+		return 0;
+	if (mult >= 256 / 2)
+		return -1;
+	if (mult >= 256 / 4)
+		return -2;
 	return 0;
 }
 
@@ -340,7 +345,7 @@ static int shift (int val, int shift)
 #define LORES_HEIGHT 284
 static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 {
-	int m;
+	int m, cf;
 	int full = 0;
 	int hres, vres;
 	int totalhdbl = -1, totalvdbl = -1;
@@ -348,10 +353,11 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	hres = p->gfx_resolution;
 	vres = p->gfx_vresolution;
-	hmult = 1000 / p->gfx_filter_horiz_zoom_mult;
-	vmult = 1000 / p->gfx_filter_vert_zoom_mult;
+	hmult = p->gfx_filter_horiz_zoom_mult ? 1000 * 256 / p->gfx_filter_horiz_zoom_mult : 256;
+	vmult = p->gfx_filter_vert_zoom_mult ? 1000 * 256 / p->gfx_filter_vert_zoom_mult : 256;
 
 	m = RP_SCREENMODE_1X;
+	cf = 0;
 
 	if (WIN32GFX_IsPicassoScreen ()) {
 
@@ -407,6 +413,11 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			m = RP_SCREENMODE_XX;
 		if (p->gfx_filter_scanlines || p->gfx_scanlines)
 			m |= RP_SCREENMODE_SCANLINES;
+
+		if (p->gfx_xcenter_pos == 0 && p->gfx_ycenter_pos == 0)
+			cf |= RP_CLIPFLAGS_NOCLIP;
+		else if (p->gfx_filter_autoscale == AUTOSCALE_RESIZE || p->gfx_filter_autoscale == AUTOSCALE_NORMAL)
+			cf |= RP_CLIPFLAGS_AUTOCLIP;
 	}
 	if (full) {
 		m &= ~0x0000ff00;
@@ -414,7 +425,9 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	if (full > 1)
 		m |= RP_SCREENMODE_FULLWINDOW;
+
 	sm->dwScreenMode = m;
+	sm->dwClipFlags = cf;
 
 	if (log_rp)
 		write_log (L"GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n",
@@ -533,19 +546,34 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_filter_keep_aspect = 0;
 	}
 #endif
-	write_log(L"%dx%d %dx%d\n", sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight);
-#if 1
+	write_log(L"%dx%d %dx%d %08x\n", sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->dwClipFlags);
+
 	p->gfx_xcenter_pos = sm->lClipLeft;
 	p->gfx_ycenter_pos = sm->lClipTop;
 	if (sm->lClipWidth > 0)
 		p->gfx_xcenter_size = sm->lClipWidth;
 	if (sm->lClipHeight > 0)
 		p->gfx_ycenter_size = sm->lClipHeight;
-	if (p->gfx_xcenter_pos >= 0 || p->gfx_ycenter_pos >= 0)
+
+	if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+		if (!fs)
+			p->gfx_filter_autoscale = AUTOSCALE_RESIZE;
+		else
+			p->gfx_filter_autoscale = AUTOSCALE_NORMAL;
+		p->gfx_xcenter_pos = -1;
+		p->gfx_ycenter_pos = -1;
+		p->gfx_xcenter_size = -1;
+		p->gfx_ycenter_size = -1;
+	} else if (sm->dwClipFlags & RP_CLIPFLAGS_NOCLIP) {
+		p->gfx_xcenter_pos = 0;
+		p->gfx_ycenter_pos = 0;
+		p->gfx_xcenter_size = 1408;
+		p->gfx_ycenter_size = 568;
+	} else if (p->gfx_xcenter_pos >= 0 || p->gfx_ycenter_pos >= 0) {
 		p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
-	else
+	} else {
 		p->gfx_filter_autoscale = AUTOSCALE_STATIC_NOMINAL;
-#endif
+	}
 
 	//p->gfx_filter = rp_filter_default;
 	p->gfx_filter_horiz_zoom_mult = 1000 / hmult;
@@ -561,10 +589,13 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 
 	if (log_rp)
-		write_log (L"WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d\n",
+		write_log (L"WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d\n",
 			p->gfx_size_win.width, p->gfx_size_win.height,
 			p->gfx_size_fs.width, p->gfx_size_fs.height,
-			p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult);
+			p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
+			p->gfx_xcenter_pos, p->gfx_ycenter_pos,
+			p->gfx_xcenter_size, p->gfx_ycenter_size,
+			p->gfx_filter_autoscale);
 
 
 	updatewinfsmode (p);
@@ -727,6 +758,15 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return ret ? (LPARAM)1 : 0;
 		}
+	case RPIPCHM_FLUSH:
+		return 1;
+	case RPIPCHM_QUERYSCREENMODE:
+		{
+			struct RPScreenMode sm = { 0 };
+			get_screenmode (&sm, &currprefs);
+			RPSendMessagex (RPIPCGM_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
+			return 1;
+		}
 	}
 	return FALSE;
 }
@@ -756,6 +796,7 @@ HRESULT rp_init (void)
 {
 	HRESULT hr;
 
+	write_log (L"rp_init()\n");
 	hr = RPInitializeGuest (&guestinfo, hInst, rp_param, RPHostMsgFunction, 0);
 	if (SUCCEEDED (hr)) {
 		initialized = TRUE;
@@ -1032,13 +1073,20 @@ void rp_cd_device_enable (int num, bool enabled)
 
 void rp_floppy_track (int floppy, int track)
 {
+	static int oldtrack[4];
 	if (!cando ())
 		return;
+	if (oldtrack[floppy] == track)
+		return;
+	oldtrack[floppy] = track;
 	RPPostMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, &guestinfo);
 }
 
 void rp_update_leds (int led, int onoff, int write)
 {
+	static int oldled[5];
+	int ledstate;
+
 	if (!cando ())
 		return;
 	if (led < 0 || led > 4)
@@ -1046,14 +1094,23 @@ void rp_update_leds (int led, int onoff, int write)
 	switch (led)
 	{
 	case 0:
-		RPSendMessage (RPIPCGM_POWERLED, onoff >= 250 ? 100 : onoff * 10 / 26, 0, NULL, 0, &guestinfo, NULL);
+		ledstate = onoff >= 250 ? 100 : onoff * 10 / 26;
+		if (ledstate == oldled[led])
+			return;
+		oldled[led] = ledstate;
+		RPSendMessage (RPIPCGM_POWERLED, ledstate, 0, NULL, 0, &guestinfo, NULL);
 		break;
 	case 1:
 	case 2:
 	case 3:
 	case 4:
+		ledstate = onoff ? 1 : 0;
+		ledstate |= write ? 2 : 0;
+		if (ledstate == oldled[led])
+			return;
+		oldled[led] = ledstate;
 		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1),
-			MAKELONG (onoff ? -1 : 0, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
+			MAKELONG ((ledstate & 1) ? -1 : 0, (ledstate & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}
 }
@@ -1071,20 +1128,30 @@ void rp_update_gameport (int port, int mask, int onoff)
 		gameportmask[port] |= mask;
 	else
 		gameportmask[port] &= ~mask;
-	if (old != gameportmask[port])
+	if (old != gameportmask[port]) {
 		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_INPUTPORT, port),
 			gameportmask[port], &guestinfo);
+	}
 }
 
 void rp_hd_activity (int num, int onoff, int write)
 {
+	static int oldleds[MAX_TOTAL_SCSI_DEVICES];
+	static int state;
+
 	if (!cando ())
 		return;
 	if (num < 0)
 		return;
-	if (onoff)
+	state = onoff ? 1 : 0;
+	state |= write ? 2 : 0;
+	if (state == oldleds[num])
+		return;
+	oldleds[num] = state;
+	if (state & 1) {
 		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num),
-		MAKELONG (200, write ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), &guestinfo);
+			MAKELONG (200, (state & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), &guestinfo);
+	}
 }
 
 void rp_cd_activity (int num, int onoff)

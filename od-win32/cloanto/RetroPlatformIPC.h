@@ -3,12 +3,12 @@
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2010 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007-2011 Cloanto Italia srl - All rights reserved. This
          : file is made available under the terms of the GNU General Public
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2010-08-17 19:01:00
+ Updated : 2011-02-02 12:20:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -17,9 +17,9 @@
 
 #include <windows.h>
 
-#define RPLATFORM_API_VER       "1.2"
+#define RPLATFORM_API_VER       "1.4"
 #define RPLATFORM_API_VER_MAJOR  1
-#define RPLATFORM_API_VER_MINOR  2
+#define RPLATFORM_API_VER_MINOR  4
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -74,6 +74,7 @@
 #define RPIPCHM_LOADSTATE       (WM_APP + 214)
 #define RPIPCHM_FLUSH           (WM_APP + 215)
 #define RPIPCHM_DEVICEREADWRITE (WM_APP + 216)
+#define RPIPCHM_QUERYSCREENMODE (WM_APP + 217)
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -114,14 +115,39 @@
 #define RP_SCREENMODE_USETVM(m)     ((m) & RP_SCREENMODE_USETVMMASK) // given a mode 'm' returns the RP_SCREENMODE_USETVM_* value in it (automatic display mode selection in full screen modes)
 #define RP_SCREENMODE_MODE(m)       ((m) & RP_SCREENMODE_MODEMASK) // given a mode 'm' returns the #X mode
 
+// Clip Flags (used only from host to guest, never from guest to host)
+#define RP_CLIPFLAGS_AUTOCLIP		0x00000001 // ignore all 4 Clip values (same as all values = -1) and use "smart" offset and size
+#define RP_CLIPFLAGS_NOCLIP			0x00000002 // ignore all 4 Clip values (same as all values = -1) and use 0:0 offset and maximum possible size (probably ugly, but good for adjusting clip area manually)
+
+// Clip/Scale Examples
+//
+// An Amiga game with known clip offset/size will have lClipLeft/Top/Width/Height set, and no RP_CLIPFLAGS.
+// In windowed mode, the guest (e.g. WinUAE) will take the net clipped region and apply RP_SCREENMODE_xX scaling to that.
+// In RP_SCREENMODE_FULLWINDOW mode, the net clipped region will be "soft-scaled" to the maximum possible (not necessarily an integer scaling factor), centered and padded by a black border.
+// In one of the RP_SCREENMODE_FULLSCREEN modes, the net clipped region will be centered in the smallest possible compatible hardware mode (in consideration of RP_SCREENMODE_USETVM) and padded by a black border.
+// If an Amiga application sets a different Amiga chipset screen mode, the "container" window size will remain unchanged.
+// If an Amiga application sets a different RTG screen mode, the "container" window size will reflect the new RTG size (instead of the Amiga clip size) and apply RP_SCREENMODE_xX.
+//
+// An unknown Amiga application or one that has no known clip offset/size will start with RP_CLIPFLAGS_AUTOCLIP.
+// The guest (e.g. WinUAE) will apply whatever logic it can to minimize the visible overscan region.
+// The guest will send to the host the actual RPScreenMode data with the offset/size details that were applied.
+// In windowed mode, RP_SCREENMODE_xX scaling is applied like in the previous example.
+// RP_SCREENMODE_FULLWINDOW and RP_SCREENMODE_FULLSCREEN modes behave like in the previous example (scaling, etc.)
+// If an Amiga application sets a different Amiga or RTG chipset screen mode, the "container" window size may change.
+//
+// If the user wants to adjust clipping, or for automated grabs and calculations, it is possible to set RP_CLIPFLAGS_NOCLIP, which will widen the window to the maximum.
+//
+// Whenever the guest sets or changes the "container" window size (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends a RPScreenMode update to the host.
+
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // 0 = reset, -1 = ignore
-	LONG lClipTop;      // 0 = reset, -1 = ignore
-	LONG lClipWidth;    // 0 = reset, -1 = ignore
-	LONG lClipHeight;   // 0 = reset, -1 = ignore
+	LONG lClipLeft;     // -1 = ignore (0 is a valid value)
+	LONG lClipTop;      // -1 = ignore (0 is a valid value)
+	LONG lClipWidth;    // -1 = ignore
+	LONG lClipHeight;   // -1 = ignore
 	HWND hGuestWindow;  // only valid for RPIPCGM_SCREENMODE
+	DWORD dwClipFlags;	
 } RPSCREENMODE;
 
 // Device Categories

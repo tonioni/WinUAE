@@ -93,13 +93,16 @@ uae_u32 addmem (uae_u32 * dst, const uae_char *src, int len)
 static uae_u32 gettask (TrapContext *context)
 {
 	uae_u32 currtask, a1 = m68k_areg (regs, 1);
+	TCHAR *tskname;
 
 	m68k_areg (regs, 1) = 0;
 	currtask = CallLib (context, get_long (4), -0x126); /* FindTask */
 
 	m68k_areg (regs, 1) = a1;
 
-	BSDTRACE ((L"[%s] ", get_real_address (get_long (currtask + 10))));
+	tskname = au((char*)get_real_address (get_long (currtask + 10)));
+	BSDTRACE ((L"[%s] ", au));
+	xfree (tskname);
 	return currtask;
 }
 

@@ -132,7 +132,7 @@ Description:
    unless this is an asynchronous screen mode change
    (i.e. the guest returned the INVALID_HANDLE_VALUE
    response to a RPIPCHM_SCREENMODE host request);
-   at startup-time, the guest must create
+   at startup time, the guest must create
    a borderless and hidden window and send its handle
    using this message; the host will then take care
    of preparing, positioning and showing the guest window
@@ -171,9 +171,10 @@ Message:
    RPIPCGM_DEVICEACTIVITY
 Description:
    this message can be used to turn on or off the activity indicator
-   of a specified device (like a LED on the original hardware)
-   or to notify the host about the status of a joystick;
-   the indicator can also be "blinked", i.e. the host will turn the
+   of a specified device (a single LED on the original hardware)
+   or to notify the host about the status of a joystick (multiple buttons);
+   device LED indicators (e.g. the disk activity ones, not the joystick ones)
+   can also be "blinked", i.e. the host will turn the
    LED on and then off again after the specified amount of time
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
@@ -181,17 +182,19 @@ Data sent:
             e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0);
             the RP_ALL_DEVICES define may be used as device number
             to turn on or off all the activity leds for a device category
-   LPARAM = led status and flags combined with the MAKELONG macro;
-            e.g. MAKELONG(Status, Flags);
+   LPARAM = for non-joystick devices, LED status and flags are combined
+            with the MAKELONG macro;e.g. MAKELONG(Status, Flags);
             the Status value can be set to 0 to turn off the activity LED,
             to -1 to turn on the activity LED,
             or to a <millisecond delay> value to turn on the activity LED
             for the specified amount of time (blink);
             the Flags value can be set
             using one or more of the RP_DEVICEACTIVITY_* defines;
-            in case the message references a RP_DEVICE_INPUTPORT device
+            if the message references a RP_DEVICE_INPUTPORT device
             connected to a joystick, the data sent via LPARAM
-            is a combination of RP_JOYSTICK_* values
+            is a mask of RP_JOYSTICK_* values (no MAKELONG macro)
+            reflecting all buttons that are pressed (some may be
+            pressed simultaneously)
 Response:
    none
 
@@ -627,3 +630,15 @@ Data sent:
    none
 Response:
    LRESULT = 1 if the guest successfully executed the command or 0 otherwise
+
+
+Message:
+   RPIPCHM_QUERYSCREENMODE
+Description:
+   this message is used to ask the guest to send
+   a RPIPCGM_SCREENMODE notification as soon as possible
+   with updated screen mode and clipping information
+Data sent:
+   none
+Response:
+   LRESULT = 1 if the guest acknowledged the command or 0 otherwise

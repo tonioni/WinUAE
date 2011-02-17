@@ -196,15 +196,17 @@ static void mfmcopy (uae_u16 *mfm, uae_u8 *data, int len)
 	}
 }
 
-static int load (struct CapsTrackInfoT2 *ci, int drv, int track)
+static int load (struct CapsTrackInfoT2 *ci, int drv, int track, bool seed)
 {
 	int flags;
 	
 	flags = caps_flags;
 	if (canseed) {
-		flags |= DI_LOCK_SETWSEED;
 		ci->type = 2;
-		ci->wseed = uaerand ();
+		if (seed) {
+			flags |= DI_LOCK_SETWSEED;
+			ci->wseed = uaerand ();
+		}
 	} else {
 		ci->type = 1;
 	}
@@ -218,7 +220,7 @@ int caps_loadrevolution (uae_u16 *mfmbuf, int drv, int track, int *tracklength)
 	int len;
 	struct CapsTrackInfoT2 ci;
 
-	if (!load (&ci, drv, track))
+	if (!load (&ci, drv, track, false))
 		return 0;
 	if (oldlib)
 		len = ci.tracklen * 8;
@@ -236,7 +238,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 
 	if (tracktiming)
 		*tracktiming = 0;
-	if (!load (&ci, drv, track))
+	if (!load (&ci, drv, track, true))
 		return 0;
 	*multirev = (ci.type & CTIT_FLAG_FLAKEY) ? 1 : 0;
 	if (oldlib) {

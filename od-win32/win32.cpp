@@ -94,7 +94,9 @@
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
-int log_scsi, log_net, uaelib_debug;
+int log_scsi;
+int log_net;
+int uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
 
@@ -802,11 +804,11 @@ void gui_gameport_axis_change (int port, int axis, int state, int max)
 		if (axis == DIR_LEFT_BIT)
 			rp_update_gameport (port, RP_JOYSTICK_LEFT, onoff);
 		if (axis == DIR_RIGHT_BIT)
-			rp_update_gameport (port, DIR_RIGHT_BIT, onoff);
+			rp_update_gameport (port, RP_JOYSTICK_RIGHT, onoff);
 		if (axis == DIR_UP_BIT)
-			rp_update_gameport (port, DIR_UP_BIT, onoff);
+			rp_update_gameport (port, RP_JOYSTICK_UP, onoff);
 		if (axis == DIR_DOWN_BIT)
-			rp_update_gameport (port, DIR_DOWN_BIT, onoff);
+			rp_update_gameport (port, RP_JOYSTICK_DOWN, onoff);
 #endif
 	}
 	guijoychange = true;
@@ -2799,8 +2801,28 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, L"inactive_iconify", p->win32_minimize_inactive);
 
 	cfgfile_target_dwrite_bool (f, L"ctrl_f11_is_quit", p->win32_ctrl_F11_is_quit);
+
 	cfgfile_target_dwrite (f, L"midiout_device", L"%d", p->win32_midioutdev);
 	cfgfile_target_dwrite (f, L"midiin_device", L"%d", p->win32_midiindev);
+	if (p->win32_midioutdev < -1)
+		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"none");
+	else if (p->win32_midioutdev == -1)
+		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"default");
+	else if (p->win32_midioutdev >= 0 && p->win32_midioutdev < MAX_MIDI_PORTS) {
+		if (midioutportinfo[p->win32_midioutdev + 1].name == NULL)
+			p->win32_midioutdev = -1;
+		else
+			cfgfile_target_dwrite_str (f, L"midiout_device_name", midioutportinfo[p->win32_midioutdev + 1].name);
+	}
+	if (p->win32_midiindev < 0)
+		cfgfile_target_dwrite_str (f, L"midiin_device_name", L"none");
+	else if (p->win32_midiindev >= 0 && p->win32_midiindev < MAX_MIDI_PORTS) {
+		if (midiinportinfo[p->win32_midiindev].name == NULL)
+			p->win32_midiindev = -1;
+		else
+			cfgfile_target_dwrite_str (f, L"midiin_device_name", midiinportinfo[p->win32_midiindev].name);
+	}
+			
 	cfgfile_target_dwrite_bool (f, L"rtg_match_depth", p->win32_rtgmatchdepth);
 	cfgfile_target_dwrite_bool (f, L"rtg_scale_small", p->win32_rtgscaleifsmall);
 	cfgfile_target_dwrite_bool (f, L"rtg_scale_allow", p->win32_rtgallowscaling);
@@ -3050,6 +3072,28 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		}
 		return 1;
 	}
+
+	if (cfgfile_string (option, value, L"midiout_device_name", tmpbuf, 256)) {
+		p->win32_midioutdev = -2;
+		if (!_tcsicmp (tmpbuf, L"default") || (midioutportinfo[0].name && !_tcsicmp (tmpbuf, midioutportinfo[0].name)))
+			p->win32_midioutdev = -1;
+		for (int i = 0; midioutportinfo[i].name; i++) {
+			if (!_tcsicmp (midioutportinfo[i].name, tmpbuf)) {
+				p->win32_midioutdev = i - 1;
+			}
+		}
+		return 1;
+	}
+	if (cfgfile_string (option, value, L"midiin_device_name", tmpbuf, 256)) {
+		p->win32_midiindev = -1;
+		for (int i = 0; midiinportinfo[i].name; i++) {
+			if (!_tcsicmp (midiinportinfo[i].name, tmpbuf)) {
+				p->win32_midiindev = i;
+			}
+		}
+		return 1;
+	}
+
 
 	i = 0;
 	while (obsolete[i]) {
@@ -4895,6 +4939,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			globalipc = createIPC (L"WinUAE", 0);
 			serialipc = createIPC (COMPIPENAME, 1);
 			enumserialports ();
+			enummidiports ();
 			real_main (argc, argv);
 		}
 	}

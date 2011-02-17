@@ -236,7 +236,7 @@ void audio_sampleripper (int mode)
 static void do_samplerip (struct audio_channel_data *adp)
 {
 	struct ripped_sample *rs = ripped_samples, *prev;
-	int len = adp->len * 2;
+	int len = adp->wlen * 2;
 	uae_u8 *smp = chipmem_xlate_indirect (adp->pt);
 	int cnt = 0, i;
 
@@ -1325,6 +1325,8 @@ static void audio_state_channel2 (int nr, bool perfin)
 		if (cdp->wlen != 1)
 			cdp->wlen = (cdp->wlen - 1) & 0xffff;
 		cdp->state = 5;
+		if (sampleripper_enabled)
+			do_samplerip (cdp);
 		break;
 	case 5:
 		cdp->evtime = MAX_EV;

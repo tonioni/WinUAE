@@ -2997,7 +2997,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	if ((opcode & 0xF000) == 0xF000) {
 		if (warned < 20) {
 			//write_log (L"B-Trap %x at %x (%p)\n", opcode, pc, regs.pc_p);
-			warned++;
+			//warned++;
 		}
 		Exception (0xB);
 		//activate_debugger ();
@@ -3006,7 +3006,7 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	if ((opcode & 0xF000) == 0xA000) {
 		if (warned < 20) {
 			//write_log (L"A-Trap %x at %x (%p)\n", opcode, pc, regs.pc_p);
-			warned++;
+			//warned++;
 		}
 		Exception (0xA);
 		//activate_debugger();
@@ -3279,8 +3279,6 @@ STATIC_INLINE int do_specialties (int cycles)
 			hrtmon_breakenter ();
 		if (hrtmon_flag == ACTION_REPLAY_ACTIVATE)
 			hrtmon_enter ();
-		if (!(regs.spcflags & ~SPCFLAG_ACTION_REPLAY))
-			return 0;
 	}
 #endif
 	if ((regs.spcflags & SPCFLAG_ACTION_REPLAY) && action_replay_flag != ACTION_REPLAY_INACTIVE) {
@@ -4030,6 +4028,9 @@ static void m68k_run_2 (void)
 		r->instruction_pc = m68k_getpc ();
 		uae_u16 opcode = get_iword (0);
 		count_instr (opcode);
+
+//		if (regs.s == 0 && regs.regs[15] < 0x10040000 && regs.regs[15] > 0x10000000)
+//			activate_debugger();
 
 #if 0
 		if (!used[opcode]) {

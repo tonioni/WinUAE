@@ -3311,7 +3311,8 @@ static void DMACON (int hpos, uae_u16 v)
 static void MISC_handler (void)
 {
 	static bool dorecheck;
-	int i, recheck;
+	bool recheck;
+	int i;
 	evt mintime;
 	evt ct = get_cycles ();
 	static int recursive;
@@ -3322,17 +3323,17 @@ static void MISC_handler (void)
 	}
 	recursive++;
 	eventtab[ev_misc].active = 0;
-	recheck = 1;
+	recheck = true;
 	while (recheck) {
-		recheck = 0;
+		recheck = false;
 		mintime = ~0L;
 		for (i = 0; i < ev2_max; i++) {
 			if (eventtab2[i].active) {
 				if (eventtab2[i].evtime == ct) {
-					eventtab2[i].active = 0;
+					eventtab2[i].active = false;
 					eventtab2[i].handler (eventtab2[i].data);
 					if (dorecheck || eventtab2[i].active) {
-						recheck = 1;
+						recheck = true;
 						dorecheck = false;
 					}
 				} else {
@@ -3344,7 +3345,7 @@ static void MISC_handler (void)
 		}
 	}
 	if (mintime != ~0L) {
-		eventtab[ev_misc].active = 1;
+		eventtab[ev_misc].active = true;
 		eventtab[ev_misc].oldcycles = ct;
 		eventtab[ev_misc].evtime = ct + mintime;
 		events_schedule ();
@@ -3377,7 +3378,7 @@ STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func
 		}
 		next = no;
 	}
-	eventtab2[no].active = 1;
+	eventtab2[no].active = true;
 	eventtab2[no].evtime = et;
 	eventtab2[no].handler = func;
 	eventtab2[no].data = data;
@@ -3494,6 +3495,13 @@ static void INTENA (uae_u16 v)
 #endif
 }
 
+void INTREQ_nodelay (uae_u16 v)
+{
+	setclr (&intreq, v);
+	setclr (&intreq_internal, v);
+	doint ();
+}
+
 void INTREQ_f (uae_u16 v)
 {
 	if (use_eventmode (v)) {
@@ -3550,10 +3558,10 @@ static void ADKCON (int hpos, uae_u16 v)
 {
 	if (currprefs.produce_sound > 0)
 		update_audio ();
+	DISK_update (hpos);
 	DISK_update_adkcon (hpos, v);
 	setclr (&adkcon, v);
 	audio_update_adkmasks ();
-	DISK_update (hpos);
 	if ((v >> 11) & 1)
 		serial_uartbreak ((adkcon >> 11) & 1);
 }
@@ -5694,7 +5702,7 @@ static void hsync_handler_post (bool isvsync)
 		if (vpos > last_planes_vpos)
 			last_planes_vpos = vpos;
 		if (vpos >= minfirstline && first_planes_vpos == 0) {
-			first_planes_vpos = vpos;
+			first_planes_vpos = vpos > minfirstline ? vpos - 1 : vpos;
 		} else if (vpos == current_maxvpos () - 1) {
 			last_planes_vpos = vpos - 1;
 		}
@@ -6159,34 +6167,33 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 		if (!noput) {
 			int r;
 			uae_u16 old = last_custom_value1;
-			uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : 0xffff;//last_custom_value;
+			uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : 0xffff;
 			decide_line (hpos);
 			decide_fetch (hpos);
 			decide_blitter (hpos);
 			debug_wputpeek (0xdff000 + addr, l);
 			r = custom_wput_1 (hpos, addr, l, 1);
-			if (currprefs.chipset_mask & CSMASK_AGA) {
-				v = l;
-				last_custom_value1 = 0xffff;
-			} else if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-				v = old;
-			} else {
-				if ((addr & 0x1fe) == 0) {
-					if (is_cycle_ce ())
-						v = old;
-					else
-						v = l;
+			if (r) { // register don't exist
+				if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+					v = l;
 				} else {
-					v = old;
+					if ((addr & 0x1fe) == 0) {
+						if (is_cycle_ce ())
+							v = last_custom_value1;
+						else
+							v = l;
+					}
 				}
+			} else {
+				v = 0xffff;
 			}
 #if CUSTOM_DEBUG > 0
 			write_log (L"%08X read = %04X. Value written=%04X PC=%08x\n", 0xdff000 | addr, v, l, M68K_GETPC);
 #endif
-
+			return v;
 		}
-		return v;
 	}
+	last_custom_value1 = v;
 	return v;
 }
 
@@ -6241,6 +6248,8 @@ static uae_u32 REGPARAM2 custom_lget (uaecptr addr)
 }
 static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
+	if (!noget)
+		last_custom_value1 = value;
 	addr &= 0x1FE;
 	value &= 0xffff;
 #ifdef ACTION_REPLAY

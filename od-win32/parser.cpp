@@ -1320,8 +1320,40 @@ int enumserialports (void)
 	write_log (L"Parallel port enumeration..\n");
 	enumports_2 (parports, 0, true);
 	write_log (L"Port enumeration end\n");
+
 	return cnt;
 }
+
+int enummidiports (void)
+{
+	MIDIOUTCAPS midiOutCaps;
+	MIDIINCAPS midiInCaps;
+	int i, num, total;
+	
+	write_log (L"MIDI port enumeration..\n");
+	num = midiOutGetNumDevs ();
+	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS; i++) {
+		if (midiOutGetDevCaps (i - 1, &midiOutCaps, sizeof (midiOutCaps)) != MMSYSERR_NOERROR)
+			break;
+		midioutportinfo[i].name = my_strdup (midiOutCaps.szPname);
+		write_log (L"MIDI OUT: '%s' (%d/%d)\n", midioutportinfo[i].name, midiOutCaps.wMid, midiOutCaps.wPid);
+	}
+	total = num;
+
+	num = midiInGetNumDevs ();
+	for (i = 0; i < num && i < MAX_MIDI_PORTS; i++) {
+		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR)
+			break;
+		midiinportinfo[i].name = my_strdup (midiInCaps.szPname);
+		write_log (L"MIDI IN: '%s' (%d/%d)\n", midiinportinfo[i].name, midiInCaps.wMid, midiInCaps.wPid);
+	}
+	total += num;
+
+	write_log (L"MIDI port enumeration end\n");
+
+	return total;
+}
+
 
 void sernametodev (TCHAR *sername)
 {

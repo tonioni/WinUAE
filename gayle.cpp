@@ -1286,19 +1286,19 @@ static void mbres_write (uaecptr addr, uae_u32 val, int size)
 
 	if (MBRES_LOG > 0)
 		write_log (L"MBRES_WRITE %08X=%08X (%d) PC=%08X S=%d\n", addr, val, size, M68K_GETPC, regs.s);
-	if (regs.s) { /* CPU FC = supervisor only */
+	if (1 || regs.s) { /* CPU FC = supervisor only */
+		uae_u32 addr2 = addr & 3;
+		uae_u32 addr64 = (addr >> 6) & 3;
 		if (addr == 0x1002)
 			garyidoffset = -1;
-		if (addr == 0x03)
+		if (addr64 == 0 && addr2 == 0x03)
 			ramsey_config = val;
-		if (addr == 0x02)
+		if (addr2 == 0x02)
 			gary_coldboot = (val & 0x80) ? 1 : 0;
-		if (addr == 0x01)
+		if (addr2 == 0x01)
 			gary_toenb = (val & 0x80) ? 1 : 0;
-		if (addr == 0x00)
+		if (addr2 == 0x00)
 			gary_timeout = (val & 0x80) ? 1 : 0;
-	} else {
-		custom_bank.wput (addr, val);
 	}
 }
 
@@ -1307,35 +1307,47 @@ static uae_u32 mbres_read (uaecptr addr, int size)
 	uae_u32 v = 0;
 	addr &= 0xffff;
 
-	if (regs.s) { /* CPU FC = supervisor only */
+	if (1 || regs.s) { /* CPU FC = supervisor only (only newest ramsey/gary? never implemented?) */
+		uae_u32 addr2 = addr & 3;
+		uae_u32 addr64 = (addr >> 6) & 3;
 		/* Gary ID (I don't think this exists in real chips..) */
 		if (addr == 0x1002 && currprefs.cs_fatgaryrev >= 0) {
 			garyidoffset++;
 			garyidoffset &= 7;
 			v = (currprefs.cs_fatgaryrev << garyidoffset) & 0x80;
 		}
-		if (addr == 0x43) { /* RAMSEY revision */
-			if (currprefs.cs_ramseyrev >= 0)
-				v = currprefs.cs_ramseyrev;
-		}
-		if (addr == 0x03) { /* RAMSEY config */
-			if (currprefs.cs_ramseyrev >= 0)
-				v = ramsey_config;
-		}
-		if (addr == 0x02) { /* coldreboot flag */
-			if (currprefs.cs_fatgaryrev >= 0)
-				v = gary_coldboot ? 0x80 : 0x00;
-		}
-		if (addr == 0x01) { /* toenb flag */
-			if (currprefs.cs_fatgaryrev >= 0)
-				v = gary_toenb ? 0x80 : 0x00;
-		}
-		if (addr == 0x00) { /* timeout flag */
-			if (currprefs.cs_fatgaryrev >= 0)
-				v = gary_timeout ? 0x80 : 0x00;
+		for (;;) {
+			if (addr64 == 1 && addr2 == 0x03) { /* RAMSEY revision */
+				if (currprefs.cs_ramseyrev >= 0)
+					v = currprefs.cs_ramseyrev;
+				break;
+			}
+			if (addr64 == 0 && addr2 == 0x03) { /* RAMSEY config */
+				if (currprefs.cs_ramseyrev >= 0)
+					v = ramsey_config;
+				break;
+			}
+			if (addr2 == 0x03) {
+				v = 0xff;
+				break;
+			}
+			if (addr2 == 0x02) { /* coldreboot flag */
+				if (currprefs.cs_fatgaryrev >= 0)
+					v = gary_coldboot ? 0x80 : 0x00;
+			}
+			if (addr2 == 0x01) { /* toenb flag */
+				if (currprefs.cs_fatgaryrev >= 0)
+					v = gary_toenb ? 0x80 : 0x00;
+			}
+			if (addr2 == 0x00) { /* timeout flag */
+				if (currprefs.cs_fatgaryrev >= 0)
+					v = gary_timeout ? 0x80 : 0x00;
+			}
+			v |= 0x7f;
+			break;
 		}
 	} else {
-		v = custom_bank.wget (addr);
+		v = 0xff;
 	}
 	if (MBRES_LOG > 0)
 		write_log (L"MBRES_READ %08X=%08X (%d) PC=%08X S=%d\n", addr, v, size, M68K_GETPC, regs.s);

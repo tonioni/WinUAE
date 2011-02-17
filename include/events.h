@@ -36,14 +36,14 @@ typedef unsigned long int evt;
 
 struct ev
 {
-    int active;
+    bool active;
     evt evtime, oldcycles;
     evfunc handler;
 };
 
 struct ev2
 {
-    int active;
+    bool active;
     evt evtime;
     uae_u32 data;
     evfunc2 handler;
