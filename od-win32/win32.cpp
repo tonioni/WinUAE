@@ -3930,7 +3930,7 @@ static int betamessage (void)
 		dwType = REG_DWORD;
 		size = sizeof data;
 		if (hWinUAEKey && RegQueryValueEx (hWinUAEKey, L"Beta_Just_Shut_Up", 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
-			if (data == 68000) {
+			if (data == 68000 + 10) {
 				write_log (L"I was told to shut up :(\n");
 				return 1;
 			}

@@ -1,4 +1,15 @@
 
+Beta 13:
+
+- fixed RESET instruction compatibility problem introduced in previous betas, broke action replay roms.
+- BPLCON4 BPLAMx color changes were ignored in far right border (location where actual hpos is 0-7 or so)
+
+Known bugs not fixed in 2.3.1 (too large changes to do in this beta series):
+
+Codertrash / Mexx, crash after few parts. (Disk related)
+El Egg Tronic Quarts / Quadlite, not loading. (Disk related)
+Risky Woods, sound glitches. (CIA related)
+
 Beta 12:
 
 - emulate A3000 Fat Gary/RAMSEY configuration address space mirroring (no real world effect but I was testing

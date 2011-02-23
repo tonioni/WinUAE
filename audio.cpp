@@ -1140,7 +1140,7 @@ static void setirq (int nr, int which)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 #if DEBUG_AUDIO > 0
-	if (debugchannel (nr))
+	if (debugchannel (nr) && cdp->wlen > 1)
 		write_log (L"SETIRQ%d (%d,%d) PC=%08X\n", nr, which, isirq (nr) ? 1 : 0, M68K_GETPC);
 #endif
 	INTREQ_0 (0x8000 | (0x80 << nr));
@@ -1171,7 +1171,7 @@ STATIC_INLINE void setdr (int nr)
 	if (cdp->wlen == 1) {
 		cdp->dsr = true;
 #if DEBUG_AUDIO > 0
-		if (debugchannel (nr))
+		if (debugchannel (nr) && cdp->wlen > 1)
 			write_log (L"DSR%d PT=%08X PC=%08X\n", nr, cdp->pt, M68K_GETPC);
 #endif
 	}
@@ -1798,7 +1798,7 @@ void AUDxDAT (int nr, uae_u16 v, uaecptr addr)
 				if (sampleripper_enabled)
 					do_samplerip (cdp);
 #if DEBUG_AUDIO > 0
-				if (debugchannel (nr))
+				if (debugchannel (nr) && cdp->wlen > 1)
 					write_log (L"AUD%d looped, IRQ=%d, LC=%08X LEN=%d\n", nr, isirq (nr) ? 1 : 0, cdp->pt, cdp->wlen);
 #endif
 			} else {

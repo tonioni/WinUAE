@@ -338,7 +338,6 @@ static uae_u32 REGPARAM2 chipmem_wget_ce2 (uaecptr addr)
 	m = (uae_u16 *)(chipmemory + addr);
 	ce2_timeout ();
 	v = do_get_mem_word (m);
-	//last_custom_value = v;
 	return v;
 }
 
@@ -375,7 +374,6 @@ static void REGPARAM2 chipmem_wput_ce2 (uaecptr addr, uae_u32 w)
 	addr &= chipmem_mask;
 	m = (uae_u16 *)(chipmemory + addr);
 	ce2_timeout ();
-	//last_custom_value = w;
 	do_put_mem_word (m, w);
 }
 
@@ -407,7 +405,6 @@ static uae_u32 REGPARAM2 chipmem_wget (uaecptr addr)
 	addr &= chipmem_mask;
 	m = (uae_u16 *)(chipmemory + addr);
 	v = do_get_mem_word (m);
-	//last_custom_value = v;
 	return v;
 }
 
@@ -416,7 +413,6 @@ static uae_u32 REGPARAM2 chipmem_bget (uaecptr addr)
 	uae_u8 v;
 	addr &= chipmem_mask;
 	v = chipmemory[addr];
-	//last_custom_value = (v << 8) | v;
 	return v;
 }
 
@@ -435,14 +431,12 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 
 	addr &= chipmem_mask;
 	m = (uae_u16 *)(chipmemory + addr);
-	//last_custom_value = w;
 	do_put_mem_word (m, w);
 }
 
 void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
 {
 	addr &= chipmem_mask;
-	//last_custom_value = (b << 8) | b;
 	chipmemory[addr] = b;
 }
 

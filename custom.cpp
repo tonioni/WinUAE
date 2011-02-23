@@ -1924,9 +1924,10 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	if (thisline_decision.ctable == -1)
 		remember_ctable ();
 
-	if  (regno < 0x1000 && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
+	if  ((regno < 0x1000 || regno == 0x1000 + 0x10c) && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
 		struct draw_info *pdip = curr_drawinfo + prev_lineno;
 		int idx = pdip->last_color_change;
+		int extrahpos = regno == 0x1000 + 0x10c ? 1 : 0;
 		bool lastsync = false;
 		/* Move color changes in horizontal cycles 0 to HBLANK_OFFSET to end of previous line.
 		* Cycles 0 to HBLANK_OFFSET are visible in right border on real Amigas. (because of late hsync)
@@ -1937,7 +1938,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 		}
 		pdip->last_color_change++;
 		pdip->nr_color_changes++;
-		curr_color_changes[idx].linepos = (hpos + maxhpos) * 2;
+		curr_color_changes[idx].linepos = (hpos + maxhpos) * 2 + extrahpos;
 		curr_color_changes[idx].regno = regno;
 		curr_color_changes[idx].value = value;
 		if (lastsync) {
