@@ -6,7 +6,7 @@
 * (c) 1995 Bernd Schmidt
 */
 
-#define DEBUG_STUPID 0
+#define DEBUG_STUPID 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
