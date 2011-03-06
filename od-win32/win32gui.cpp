@@ -1636,7 +1636,7 @@ int scan_roms (HWND hDlg, int show)
 			if (!rd)
 				break;
 			if (rd->crc32 == 0xffffffff)
-				addrom(fkey, rd, NULL);
+				addrom (fkey, rd, NULL);
 			id++;
 		}
 		regclosetree (fkey2);
@@ -10722,7 +10722,7 @@ static void values_to_portsdlg (HWND hDlg)
 		int i;
 		LRESULT result = -1;
 		for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-			if (!_tcscmp (comports[i].dev, workprefs.sername)) {
+			if (!_tcscmp (comports[i].dev, workprefs.sername) || (!_tcsncmp (workprefs.sername, L"TCP:", 4) && !_tcsncmp (comports[i].dev, workprefs.sername, 4))) {
 				result = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L);
 				break;
 			}

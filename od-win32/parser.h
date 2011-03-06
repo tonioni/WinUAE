@@ -15,7 +15,7 @@ void setserstat (int mask, int onoff);
 int readser (int *buffer);
 int readseravail (void);
 void writeser (int c);
-int openser (TCHAR *sername);
+int openser (const TCHAR *sername);
 void closeser (void);
 void doserout (void);
 void closeprinter (void);

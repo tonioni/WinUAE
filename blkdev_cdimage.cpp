@@ -514,7 +514,7 @@ static void *cdda_play_func (void *v)
 				cdu->cd_last_pos = cdda_pos;
 
 			bufon[bufnum] = 1;
-			cda->setvolume (currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
+			cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, cdu->cdda_volume[0], cdu->cdda_volume[1]);
 			if (!cda->play (bufnum)) {
 				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
 				goto end;

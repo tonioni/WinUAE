@@ -635,6 +635,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, L"sound_filter", soundfiltermode1[p->sound_filter]);
 	cfgfile_write_str (f, L"sound_filter_type", soundfiltermode2[p->sound_filter_type]);
 	cfgfile_write (f, L"sound_volume", L"%d", p->sound_volume);
+	if (p->sound_volume_cd >= 0)
+		cfgfile_write (f, L"sound_volume_cd", L"%d", p->sound_volume_cd);
 	cfgfile_write_bool (f, L"sound_auto", p->sound_auto);
 	cfgfile_write_bool (f, L"sound_stereo_swap_paula", p->sound_stereo_swap_paula);
 	cfgfile_write_bool (f, L"sound_stereo_swap_ahi", p->sound_stereo_swap_ahi);
@@ -817,6 +819,11 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"ntsc", p->ntscmode);
 	cfgfile_write_bool (f, L"genlock", p->genlock);
 	cfgfile_dwrite_bool (f, L"show_leds", !!(p->leds_on_screen & STATUSLINE_CHIPSET));
+	if (p->osd_pos.y || p->osd_pos.x) {
+		cfgfile_dwrite (f, L"osd_position", L"%.1f%s:%.1f%s",
+			p->osd_pos.x >= 20000 ? (p->osd_pos.x - 30000) / 10.0 : (float)p->osd_pos.x, p->osd_pos.x >= 20000 ? L"%" : L"",
+			p->osd_pos.y >= 20000 ? (p->osd_pos.y - 30000) / 10.0 : (float)p->osd_pos.y, p->osd_pos.y >= 20000 ? L"%" : L"");
+	}
 	cfgfile_dwrite_bool (f, L"show_leds_rtg", !!(p->leds_on_screen & STATUSLINE_RTG));
 	cfgfile_dwrite (f, L"keyboard_leds", L"numlock:%s,capslock:%s,scrolllock:%s",
 		kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
@@ -1269,6 +1276,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"state_replay_autoplay", &p->inprec_autoplay)
 		|| cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)
 		|| cfgfile_intval (option, value, L"sound_volume", &p->sound_volume, 1)
+		|| cfgfile_intval (option, value, L"sound_volume_cd", &p->sound_volume_cd, 1)
 		|| cfgfile_intval (option, value, L"sound_stereo_separation", &p->sound_stereo_separation, 1)
 		|| cfgfile_intval (option, value, L"sound_stereo_mixing_delay", &p->sound_mixed_stereo_delay, 1)
 
@@ -1404,6 +1412,29 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_yesno (option, value, L"show_leds_rtg", &vb)) {
 		if (vb)
 			p->leds_on_screen |= STATUSLINE_RTG;
+		return 1;
+	}
+
+	if (!_tcscmp (option, L"osd_position")) {
+		TCHAR *s = value;
+		p->osd_pos.x = 0;
+		p->osd_pos.y = 0;
+		while (s) {
+			if (!_tcschr (s, ':'))
+				break;
+			p->osd_pos.x = _tstof (s) * 10.0;
+			s = _tcschr (s, ':');
+			if (!s)
+				break;
+			if (s[-1] == '%')
+				p->osd_pos.x += 30000;
+			s++;
+			p->osd_pos.y = _tstof (s) * 10.0;
+			s += _tcslen (s);
+			if (s[-1] == '%')
+				p->osd_pos.y += 30000;
+			break;
+		}
 		return 1;
 	}
 
@@ -3817,6 +3848,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->maprom = 0;
 	p->cachesize = 0;
 	p->socket_emu = 0;
+	p->sound_volume = 0;
+	p->sound_volume_cd = -1;
 
 	p->chipmem_size = 0x00080000;
 	p->bogomem_size = 0x00080000;

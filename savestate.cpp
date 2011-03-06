@@ -730,6 +730,7 @@ void savestate_restore_finish (void)
 	restore_p96_finish ();
 	restore_a2065_finish ();
 	restore_cia_finish ();
+	restore_debug_memwatch_finish ();
 	savestate_state = 0;
 	init_hz_full ();
 	audio_activate ();

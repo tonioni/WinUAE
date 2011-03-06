@@ -1738,6 +1738,18 @@ uae_u8 *restore_debug_memwatch (uae_u8 *src)
 	return src;
 }
 
+void restore_debug_memwatch_finish (void)
+{
+	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
+		struct memwatch_node *m = &mwnodes[i];
+		if (m->size) {
+			if (!memwatch_enabled)
+				initialize_memwatch (0);
+			return;
+		}
+	}
+}
+
 static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 {
 	int i, brk;

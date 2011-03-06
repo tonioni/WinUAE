@@ -2407,8 +2407,10 @@ static void D3D_render22 (void)
 
 		}
 		if (ledtexture && (((currprefs.leds_on_screen & STATUSLINE_RTG) && WIN32GFX_IsPicassoScreen ()) || ((currprefs.leds_on_screen & STATUSLINE_CHIPSET) && !WIN32GFX_IsPicassoScreen ()))) {
-			v.x = 0;
-			v.y = window_h - TD_TOTAL_HEIGHT;
+			int slx, sly;
+			statusline_getpos (&slx, &sly, window_w, window_h);
+			v.x = slx;
+			v.y = sly;
 			v.z = 0;
 			sprite->Draw (ledtexture, NULL, NULL, &v, 0xffffffff);
 		}

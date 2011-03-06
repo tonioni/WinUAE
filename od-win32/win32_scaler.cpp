@@ -568,22 +568,21 @@ static void statusline (void)
 	DDSURFACEDESC2 desc;
 	RECT sr, dr;
 	int y;
-	int lx, ly, sx;
+	int lx, ly;
+	int slx, sly;
 
 	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || !tempsurf)
 		return;
+	statusline_getpos (&slx, &sly, dst_width, dst_height);
 	lx = dst_width;
 	ly = dst_height;
-	sx = lx;
-	if (sx > dst_width)
-		sx = dst_width;
-	SetRect (&sr, 0, 0, sx, TD_TOTAL_HEIGHT);
-	SetRect (&dr, lx - sx, ly - TD_TOTAL_HEIGHT, lx, ly);
+	SetRect (&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT);
+	SetRect (&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT);
 	DirectDraw_BlitRect (tempsurf, &sr, NULL, &dr);
 	if (locksurface (tempsurf, &desc)) {
 		for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 			uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
-			draw_status_line_single (buf, dst_depth / 8, y, sx, rc, gc, bc, NULL);
+			draw_status_line_single (buf, dst_depth / 8, y, lx, rc, gc, bc, NULL);
 		}
 		unlocksurface (tempsurf);
 		DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);

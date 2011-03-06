@@ -16,6 +16,7 @@
 #include "zfile.h"
 #include "crc32.h"
 
+#include "autoconf.h"
 
 static struct romlist *rl;
 static int romlist_cnt;
@@ -102,6 +103,9 @@ static struct romheader romheaders[] = {
 { L"X", 0, 0, 0, 0, 0, size, id, 0, 0, flags, (grp << 16) | num, 0, pn, crc32, a, b, c, d, e },
 
 static struct romdata roms[] = {
+	{ L" AROS KS ROM (built-in)", 0, 0, 0, 0, L"AROS\0", 524288 * 2, 66, 0, 0, ROMTYPE_KICK, 0, 0, NULL,
+	0xffffffff, 0, 0, 0, 0, 0, L"AROS" },
+
 	{ L"Cloanto Amiga Forever ROM key", 0, 0, 0, 0, 0, 2069, 0, 0, 1, ROMTYPE_KEY, 0, 0, NULL,
 	0x869ae1b1, 0x801bbab3,0x2e3d3738,0x6dd1636d,0x4f1d6fa7,0xe21d5874 },
 	{ L"Cloanto Amiga Forever 2006 ROM key", 0, 0, 0, 0, 0, 750, 48, 0, 1, ROMTYPE_KEY, 0, 0, NULL,

@@ -50,7 +50,7 @@ struct ev2
 };
 
 enum {
-    ev_hsync, ev_cia, ev_misc, ev_audio,
+    ev_cia, ev_audio, ev_misc, ev_hsync,
     ev_max
 };
 
@@ -61,10 +61,6 @@ enum {
 
 extern struct ev eventtab[ev_max];
 extern struct ev2 eventtab2[ev2_max];
-
-extern void event2_newevent (int, evt, uae_u32);
-extern void event2_newevent2 (evt, uae_u32, evfunc2);
-extern void event2_remevent (int);
 
 #if 0
 #ifdef JIT
@@ -86,5 +82,65 @@ STATIC_INLINE bool cycles_in_range (unsigned long endcycles)
 	signed long c = get_cycles ();
 	return (signed long)endcycles - c > 0;
 }
+
+extern void MISC_handler (void);
+
+STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
+{
+	evt et;
+	static int next = ev2_misc;
+
+	et = t + get_cycles ();
+	if (no < 0) {
+		no = next;
+		for (;;) {
+			if (!eventtab2[no].active)
+				break;
+			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
+				eventtab2[no].handler (eventtab2[no].data);
+				break;
+			}
+			no++;
+			if (no == ev2_max)
+				no = ev2_misc;
+			if (no == next) {
+				write_log (L"out of event2's!\n");
+				return;
+			}
+		}
+		next = no;
+	}
+	eventtab2[no].active = true;
+	eventtab2[no].evtime = et;
+	eventtab2[no].handler = func;
+	eventtab2[no].data = data;
+	MISC_handler ();
+}
+
+STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
+{
+	if (((int)t) <= 0) {
+		func (data);
+		return;
+	}
+
+	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
+}
+
+STATIC_INLINE void event2_newevent (int no, evt t, uae_u32 data)
+{
+	event2_newevent_x (no, t, data, eventtab2[no].handler);
+}
+STATIC_INLINE void event2_newevent2 (evt t, uae_u32 data, evfunc2 func)
+{
+	event2_newevent_x (-1, t, data, func);
+}
+
+
+STATIC_INLINE void event2_remevent (int no)
+{
+	eventtab2[no].active = 0;
+}
+
 
 #endif

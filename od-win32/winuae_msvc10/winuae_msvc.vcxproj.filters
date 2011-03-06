@@ -283,9 +283,6 @@
     <ClCompile Include="..\..\epsonprinter.cpp">
       <Filter>common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ersatz.cpp">
-      <Filter>common</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\expansion.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -491,6 +488,12 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\statusline.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hrtmon.rom.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\aros.rom.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>

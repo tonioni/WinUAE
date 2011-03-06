@@ -2392,7 +2392,7 @@ void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
 	}
 }
 
-static void draw_status_line (int line)
+static void draw_status_line (int line, int statusy)
 {
 	int bpp, y;
 	uae_u8 *buf;
@@ -2405,7 +2405,7 @@ static void draw_status_line (int line)
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
 	buf = xlinebuffer;
-	draw_status_line_single (buf, bpp, y, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors, NULL);
+	draw_status_line_single (buf, bpp, statusy, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 static void draw_debug_status_line (int line)
@@ -2552,9 +2552,11 @@ void finish_drawing_frame (void)
 	}
 
 	if (currprefs.leds_on_screen) {
+		int slx, sly;
+		statusline_getpos (&slx, &sly, gfxvidinfo.width, gfxvidinfo.height);
 		for (i = 0; i < TD_TOTAL_HEIGHT; i++) {
-			int line = gfxvidinfo.height - TD_TOTAL_HEIGHT + i;
-			draw_status_line (line);
+			int line = sly + i;
+			draw_status_line (line, i);
 			do_flush_line (line);
 		}
 	}

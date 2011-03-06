@@ -632,7 +632,7 @@ static void *cdda_play (void *v)
 			}
 
 			bufon[bufnum] = 1;
-			cda->setvolume (currprefs.sound_volume, ciw->cdda_volume[0], ciw->cdda_volume[1]);
+			cda->setvolume (currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume, ciw->cdda_volume[0], ciw->cdda_volume[1]);
 			if (!cda->play (bufnum)) {
 				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
 				goto end; // data track?
@@ -1188,7 +1188,7 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	uae_u8 inquiry[256];
 	ciw->cdda_volume[0] = 0x7fff;
 	ciw->cdda_volume[1] = 0x7fff;
-	ciw->cdda_volume_main = currprefs.sound_volume;
+	ciw->cdda_volume_main = currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume;
 	/* buffer must be page aligned for device access */
 	ciw->tempbuffer = (uae_u8*)VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
 	if (!ciw->tempbuffer) {

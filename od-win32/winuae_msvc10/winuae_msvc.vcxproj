@@ -550,7 +550,9 @@
     <ClCompile Include="..\..\archivers\lzx\unlzx.cpp" />
     <ClCompile Include="..\..\archivers\wrp\warp.cpp" />
     <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
+    <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
+    <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
@@ -636,7 +638,6 @@
     <ClCompile Include="..\..\driveclick.cpp" />
     <ClCompile Include="..\..\enforcer.cpp" />
     <ClCompile Include="..\..\epsonprinter.cpp" />
-    <ClCompile Include="..\..\ersatz.cpp" />
     <ClCompile Include="..\..\expansion.cpp" />
     <ClCompile Include="..\..\fdi2raw.cpp" />
     <ClCompile Include="..\..\filesys.cpp" />

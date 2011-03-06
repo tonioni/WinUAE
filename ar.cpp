@@ -1742,10 +1742,6 @@ void action_replay_cleanup()
 #define TRUE 1
 #endif
 
-#ifdef ACTION_REPLAY_HRTMON
-#include "hrtmon.rom.cpp"
-#endif
-
 int hrtmon_lang = 0;
 
 static void hrtmon_configure(void)
@@ -1817,6 +1813,8 @@ int hrtmon_load (void)
 	hrtmem_mask = hrtmem_size - 1;
 	if (isinternal) {
 #ifdef ACTION_REPLAY_HRTMON
+		extern unsigned char hrtrom[];
+		extern unsigned int hrtrom_len;
 		struct zfile *zf;
 		zf = zfile_fopen_data (L"hrtrom.gz", hrtrom_len, hrtrom);
 		//	f = zfile_fopen (L"d:\\amiga\\amiga\\hrtmon\\src\\hrtmon.rom", L"rb", 0);

@@ -6,7 +6,7 @@
 * (c) 1995 Bernd Schmidt
 */
 
-#define DEBUG_STUPID 1
+#define DEBUG_STUPID 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -56,8 +56,6 @@ static void nocanbang (void)
 {
 	canbang = 0;
 }
-
-bool ersatzkickfile;
 
 uae_u32 allocated_chipmem;
 uae_u32 allocated_fastmem;
@@ -1747,6 +1745,33 @@ static void patch_kick (void)
 		kickstart_fix_checksum (kickmemory, kickmem_size);
 }
 
+extern unsigned char arosrom[];
+extern unsigned int arosrom_len;
+extern int seriallog;
+static bool load_kickstart_replacement (void)
+{
+	struct zfile *f;
+	
+	f = zfile_fopen_data (L"aros.gz", arosrom_len, arosrom);
+	if (!f)
+		return false;
+	f = zfile_gunzip (f);
+	if (!f)
+		return false;
+	kickmem_mask = 0x80000 - 1;
+	kickmem_size = 0x80000;
+	extendedkickmem_size = 0x80000;
+	extendedkickmem_type = EXTENDED_ROM_KS;
+	extendedkickmemory = mapped_malloc (extendedkickmem_size, L"rom_e0");
+	extendedkickmem_bank.baseaddr = extendedkickmemory;
+	read_kickstart (f, extendedkickmemory, extendedkickmem_size, 0, 1);
+	extendedkickmem_mask = extendedkickmem_size - 1;
+	read_kickstart (f, kickmemory, 0x80000, 1, 0);
+	zfile_fclose (f);
+	seriallog = -1;
+	return true;
+}
+
 static int load_kickstart (void)
 {
 	struct zfile *f;
@@ -1754,6 +1779,8 @@ static int load_kickstart (void)
 	int patched = 0;
 
 	cloanto_rom = 0;
+	if (!_tcscmp (currprefs.romfile, L":AROS"))
+		return load_kickstart_replacement ();
 	f = read_rom_name (currprefs.romfile);
 	_tcscpy (tmprom, currprefs.romfile);
 	if (f == NULL) {
@@ -1781,21 +1808,8 @@ static int load_kickstart (void)
 		}
 	}
 	addkeydir (currprefs.romfile);
-	if (f == NULL) { /* still no luck */
-#if defined(AMIGA)||defined(__POS__)
-#define USE_UAE_ERSATZ "USE_UAE_ERSATZ"
-		if( !getenv(USE_UAE_ERSATZ))
-		{
-			write_log (L"Using current ROM. (create ENV:%s to "
-				"use uae's ROM replacement)\n",USE_UAE_ERSATZ);
-			memcpy(kickmemory,(char*)0x1000000-kickmem_size,kickmem_size);
-			kickstart_checksum (kickmemory, kickmem_size);
-			goto chk_sum;
-		}
-#else
+	if (f == NULL) /* still no luck */
 		goto err;
-#endif
-	}
 
 	if (f != NULL) {
 		int filesize, size, maxsize;
@@ -2363,9 +2377,8 @@ void memory_reset (void)
 	if (_tcscmp (currprefs.romfile, changed_prefs.romfile) != 0
 		|| _tcscmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
 	{
-		write_log (L"ROM loader..\n");
+		write_log (L"ROM loader.. (%s)\n", currprefs.romfile);
 		kickstart_rom = 1;
-		ersatzkickfile = 0;
 		a1000_handle_kickstart (0);
 		xfree (a1000_bootrom);
 		a1000_bootrom = 0;
@@ -2387,14 +2400,7 @@ void memory_reset (void)
 				write_log (L"Failed to open '%s'\n", currprefs.romfile);
 				notify_user (NUMSG_NOROM);
 			}
-#ifdef AUTOCONFIG
-			init_ersatz_rom (kickmemory);
-			kickmem_mask = 262144 - 1;
-			kickmem_size = 262144;
-			ersatzkickfile = 1;
-#else
-			uae_restart (-1, NULL);
-#endif
+			load_kickstart_replacement ();
 		} else {
 			struct romdata *rd = getromdatabydata (kickmemory, kickmem_size);
 			if (rd) {
@@ -2619,10 +2625,10 @@ void memory_init (void)
 	currprefs.romextfile[0] = 0;
 
 #ifdef ACTION_REPLAY
-	action_replay_load();
-	action_replay_init(1);
+	action_replay_load ();
+	action_replay_init (1);
 #ifdef ACTION_REPLAY_HRTMON
-	hrtmon_load();
+	hrtmon_load ();
 #endif
 #endif
 }

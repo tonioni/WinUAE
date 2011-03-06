@@ -203,7 +203,7 @@ void audio_sampleripper (int mode)
 	while (rs) {
 		if (rs->changed) {
 			rs->changed = 0;
-			fetch_ripperpath (path, sizeof (path));
+			fetch_ripperpath (path, sizeof (path) / sizeof TCHAR);
 			name[0] = 0;
 			if (currprefs.floppyslots[0].dfxtype >= 0)
 				_tcscpy (name, currprefs.floppyslots[0].df);

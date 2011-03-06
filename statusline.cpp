@@ -16,6 +16,32 @@
 * Some code to put status information on the screen.
 */
 
+void statusline_getpos (int *x, int *y, int width, int height)
+{
+	if (currprefs.osd_pos.x >= 20000) {
+		if (currprefs.osd_pos.x >= 30000)
+			*y = width * (currprefs.osd_pos.x - 30000) / 1000;
+		else
+			*y = width - (width * (30000 - currprefs.osd_pos.y) / 1000);
+	} else {
+		if (currprefs.osd_pos.x >= 0)
+			*x = currprefs.osd_pos.x;
+		else
+			*x = -currprefs.osd_pos.x + 1;
+	}
+	if (currprefs.osd_pos.y >= 20000) {
+		if (currprefs.osd_pos.y >= 30000)
+			*y = (height - TD_TOTAL_HEIGHT) * (currprefs.osd_pos.y - 30000) / 1000;
+		else
+			*y = (height - TD_TOTAL_HEIGHT) - ((height - TD_TOTAL_HEIGHT) * (30000 - currprefs.osd_pos.y) / 1000);
+	} else {
+		if (currprefs.osd_pos.y >= 0)
+			*y = height - TD_TOTAL_HEIGHT - currprefs.osd_pos.y;
+		else
+			*y = -currprefs.osd_pos.y + 1;
+	}
+}
+
 static const char *numbers = { /* ugly  0123456789CHD%+- */
 	"+++++++--++++-+++++++++++++++++-++++++++++++++++++++++++++++++++++++++++++++-++++++-++++----++---+--------------"
 	"+xxxxx+--+xx+-+xxxxx++xxxxx++x+-+x++xxxxx++xxxxx++xxxxx++xxxxx++xxxxx++xxxx+-+x++x+-+xxx++-+xx+-+x---+----------"

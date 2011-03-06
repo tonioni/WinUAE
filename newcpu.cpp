@@ -24,7 +24,6 @@
 #include "cpu_prefetch.h"
 #include "autoconf.h"
 #include "traps.h"
-#include "ersatz.h"
 #include "debug.h"
 #include "gui.h"
 #include "savestate.h"
@@ -1977,7 +1976,7 @@ Illegal Instruction:
 - 2 idle cycles
 - prefetch
 
-Interrupt cycle diagram:
+Interrupt:
 
 - 6 idle cycles
 - write PC low word
@@ -2970,19 +2969,10 @@ unsigned long REGPARAM2 op_illg (uae_u32 opcode)
 	}
 
 #ifdef AUTOCONFIG
-	if (opcode == 0xFF0D) {
-		if (inrom) {
-			/* This is from the dummy Kickstart replacement */
-			uae_u16 arg = get_iword (2);
-			m68k_incpc (4);
-			ersatz_perform (arg);
-			fill_prefetch ();
-			return 4;
-		} else if (inrt) {
-			/* User-mode STOP replacement */
-			m68k_setstopped ();
-			return 4;
-		}
+	if (opcode == 0xFF0D && inrt) {
+		/* User-mode STOP replacement */
+		m68k_setstopped ();
+		return 4;
 	}
 
 	if ((opcode & 0xF000) == 0xA000 && inrt) {

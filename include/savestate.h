@@ -167,6 +167,7 @@ extern void restore_a2065_finish (void);
 
 extern uae_u8 *restore_debug_memwatch (uae_u8 *src);
 extern uae_u8 *save_debug_memwatch (int *len, uae_u8 *dstptr);
+extern void restore_debug_memwatch_finish (void);
 
 extern uae_u8 *save_cycles (int *len, uae_u8 *dstptr);
 extern uae_u8 *restore_cycles (uae_u8 *src);

@@ -11,6 +11,8 @@
 
 #undef SERIAL_ENET
 
+#include <Ws2tcpip.h>
+
 #include <windows.h>
 #include <winspool.h>
 #include <stdlib.h>
@@ -836,9 +838,148 @@ static int dataininput, dataininputcnt;
 static OVERLAPPED writeol, readol;
 static int writepending;
 
-int openser (TCHAR *sername)
+static WSADATA wsadata;
+static SOCKET serialsocket = INVALID_SOCKET;
+static SOCKET serialconn = INVALID_SOCKET;
+static PADDRINFOW socketinfo;
+static char socketaddr[sizeof SOCKADDR_INET];
+static BOOL tcpserial;
+
+static bool tcp_is_connected (void)
+{
+	socklen_t sa_len = sizeof SOCKADDR_INET;
+	if (serialsocket == INVALID_SOCKET)
+		return false;
+	if (serialconn == INVALID_SOCKET) {
+		struct timeval tv;
+		fd_set fd;
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+		fd.fd_array[0] = serialsocket;
+		fd.fd_count = 1;
+		if (select (1, &fd, NULL, NULL, &tv)) {
+			serialconn = accept (serialsocket, (struct sockaddr*)socketaddr, &sa_len);
+			if (serialconn != INVALID_SOCKET)
+				write_log (L"SERIRAL_TCP: connection accepted\n");
+		}
+	}
+	return serialconn != INVALID_SOCKET;
+}
+
+static void tcp_disconnect (void)
+{
+	if (serialconn == INVALID_SOCKET)
+		return;
+	closesocket (serialconn);
+	serialconn = INVALID_SOCKET;
+	write_log (L"SERIAL_TCP: disconnect\n");
+}
+
+static void closetcp (void)
+{
+	if (serialconn != INVALID_SOCKET)
+		closesocket (serialconn);
+	serialconn = INVALID_SOCKET;
+	if (serialsocket != INVALID_SOCKET)
+		closesocket (serialsocket);
+	serialsocket = INVALID_SOCKET;
+	if (socketinfo)
+		FreeAddrInfoW (socketinfo);
+	socketinfo = NULL;
+	WSACleanup ();
+}
+
+static int opentcp (const TCHAR *sername)
+{
+	int err;
+	TCHAR *port, *name;
+	const TCHAR *p;
+	bool waitmode = false;
+	const int one = 1;
+	const struct linger linger_1s = { 1, 1 };
+
+	if (WSAStartup (MAKEWORD (2, 2), &wsadata)) {
+		DWORD lasterror = WSAGetLastError ();
+		write_log (L"SERIAL_TCP: can't open '%s', error %d\n", sername, lasterror);
+		return 0;
+	}
+	name = my_strdup (sername);
+	port = NULL;
+	p = _tcschr (sername, ':');
+	if (p) {
+		name[p - sername] = 0;
+		port = my_strdup (p + 1);
+		const TCHAR *p2 = _tcschr (port, '/');
+		if (p2) {
+			port[p2 - port] = 0;
+			if (!_tcsicmp (p2 + 1, L"wait"))
+				waitmode = true;
+		}
+	}
+	if (port && port[0] == 0) {
+		xfree (port);
+		port = NULL;
+	}
+	if (!port)
+		port = 	my_strdup (L"1234");
+
+	err = GetAddrInfoW (name, port, NULL, &socketinfo);
+	if (err < 0) {
+		write_log (L"SERIAL_TCP: GetAddrInfoW() failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+	serialsocket = socket (socketinfo->ai_family, socketinfo->ai_socktype, socketinfo->ai_protocol);
+	if (serialsocket == INVALID_SOCKET) {
+		write_log(L"SERIAL_TCP: socket() failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+	err = bind (serialsocket, socketinfo->ai_addr, socketinfo->ai_addrlen);
+	if (err < 0) {
+		write_log(L"SERIAL_TCP: bind() failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+	err = listen (serialsocket, 1);
+	if (err < 0) {
+		write_log(L"SERIAL_TCP: listen() failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+	err = setsockopt (serialsocket, SOL_SOCKET, SO_LINGER, (char*)&linger_1s, sizeof linger_1s);
+	if (err < 0) {
+		write_log(L"SERIAL_TCP: setsockopt(SO_LINGER) failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+	err = setsockopt (serialsocket, SOL_SOCKET, SO_REUSEADDR, (char*)&one, sizeof one);
+	if (err < 0) {
+		write_log(L"SERIAL_TCP: setsockopt(SO_REUSEADDR) failed, %s:%s: %d\n", name, port, WSAGetLastError ());
+		goto end;
+	}
+
+	while (tcp_is_connected () == false) {
+		Sleep (1000);
+		write_log (L"SERIAL_TCP: waiting for connect...\n");
+	}
+
+	xfree (port);
+	xfree (name);
+	tcpserial = TRUE;
+	return 1;
+end:
+	xfree (port);
+	xfree (name);
+	closetcp ();
+	return 0;
+}
+
+int openser (const TCHAR *sername)
 {
 	COMMTIMEOUTS CommTimeOuts;
+
+	if (!_tcsnicmp (sername, L"TCP://", 6)) {
+		return opentcp (sername + 6);
+	}
+	if (!_tcsnicmp (sername, L"TCP:", 4)) {
+		return opentcp (sername + 4);
+	}
 
 	if (!(readevent = CreateEvent (NULL, TRUE, FALSE, NULL))) {
 		write_log (L"SERIAL: Failed to create r event!\n");
@@ -922,6 +1063,10 @@ int openser (TCHAR *sername)
 
 void closeser (void)
 {
+	if (tcpserial) {
+		closetcp ();
+		tcpserial = FALSE;
+	}
 	if (hCom != INVALID_HANDLE_VALUE)  {
 		CloseHandle (hCom);
 		hCom = INVALID_HANDLE_VALUE;
@@ -954,7 +1099,15 @@ static void outser (void)
 
 void writeser (int c)
 {
-	if (midi_ready) {
+	if (tcpserial) {
+		if (tcp_is_connected ()) {
+			char buf[1];
+			buf[0] = (char)c;
+			if (send (serialconn, buf, 1, 0) != 1) {
+				tcp_disconnect ();
+			}
+		}
+	} else if (midi_ready) {
 		BYTE outchar = (BYTE)c;
 		Midi_Parse (midi_output, &outchar);
 	} else {
@@ -988,7 +1141,25 @@ int readseravail (void)
 {
 	COMSTAT ComStat;
 	DWORD dwErrorFlags;
-	if (midi_ready) {
+
+	if (tcpserial) {
+		if (tcp_is_connected ()) {
+			struct timeval tv;
+			fd_set fd;
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			fd.fd_array[0] = serialconn;
+			fd.fd_count = 1;
+			int err = select (1, &fd, NULL, NULL, &tv);
+			if (err == SOCKET_ERROR) {
+				tcp_disconnect ();
+				return 0;
+			}
+			if (err > 0)
+				return 1;
+		}
+		return 0;
+	} else if (midi_ready) {
 		if (ismidibyte ())
 			return 1;
 	} else {
@@ -1011,8 +1182,20 @@ int readser (int *buffer)
 	DWORD dwErrorFlags;
 	DWORD actual;
 
-
-	if (midi_ready) {
+	if (tcpserial) {
+		if (tcp_is_connected ()) {
+			char buf[1];
+			buf[0] = 0;
+			int err = recv (serialconn, buf, 1, 0);
+			if (err == 1) {
+				*buffer = buf[0];
+				return 1;
+			} else {
+				tcp_disconnect ();
+			}
+		}
+		return 0;
+	} else if (midi_ready) {
 		*buffer = getmidibyte ();
 		if (*buffer < 0)
 			return 0;
@@ -1298,6 +1481,7 @@ int enumserialports (void)
 #endif
 
 	cnt = enumports_2 (comports, cnt, false);
+	j = 0;
 	for (i = 0; i < 10; i++) {
 		_stprintf (name, L"COM%d", i);
 		if (!QueryDosDevice (name, devname, sizeof devname / sizeof (TCHAR)))
@@ -1315,8 +1499,17 @@ int enumserialports (void)
 			comports[j].name = my_strdup (name);
 			write_log (L"SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
 			cnt++;
+			j++;
 		}
 	}
+
+	if (j < MAX_SERPAR_PORTS) {
+		comports[j].dev = my_strdup (L"TCP://0.0.0.0:1234");
+		comports[j].cfgname = my_strdup (comports[j].dev);
+		comports[j].name = my_strdup (comports[j].dev);
+		cnt++;
+	}
+
 	write_log (L"Parallel port enumeration..\n");
 	enumports_2 (parports, 0, true);
 	write_log (L"Port enumeration end\n");
@@ -1360,19 +1553,23 @@ void sernametodev (TCHAR *sername)
 	int i;
 
 	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-		if (!_tcscmp(sername, comports[i].cfgname)) {
+		if (!_tcscmp (sername, comports[i].cfgname)) {
 			_tcscpy (sername, comports[i].dev);
 			return;
 		}
 	}
+	if (!_tcsncmp (sername, L"TCP:", 4))
+		return;
 	sername[0] = 0;
 }
 
 void serdevtoname (TCHAR *sername)
 {
 	int i;
+	if (!_tcsncmp (sername, L"TCP:", 4))
+		return;
 	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-		if (!_tcscmp(sername, comports[i].dev)) {
+		if (!_tcscmp (sername, comports[i].dev)) {
 			_tcscpy (sername, comports[i].cfgname);
 			return;
 		}

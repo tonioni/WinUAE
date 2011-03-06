@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 2
 #define UAEMINOR 3
-#define UAESUBREV 1
+#define UAESUBREV 2
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -174,6 +174,7 @@ struct uae_prefs {
 	int sound_filter;
 	int sound_filter_type;
 	int sound_volume;
+	int sound_volume_cd;
 	bool sound_stereo_swap_paula;
 	bool sound_stereo_swap_ahi;
 	bool sound_auto;
@@ -250,6 +251,7 @@ struct uae_prefs {
 	int chipset_refreshrate;
 	int collision_level;
 	int leds_on_screen;
+	struct wh osd_pos;
 	int keyboard_leds[3];
 	bool keyboard_leds_in_use;
 	int scsi;

@@ -1400,7 +1400,7 @@ void expamem_reset (void)
 	allocate_expamem ();
 
 	/* check if Kickstart version is below 1.3 */
-	if (! ersatzkickfile && kickstart_version
+	if (kickstart_version
 		&& (/* Kickstart 1.0 & 1.1! */
 		kickstart_version == 0xFFFF
 		/* Kickstart < 1.3 */
@@ -1475,7 +1475,7 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef FILESYS
-	if (do_mount && ! ersatzkickfile) {
+	if (do_mount) {
 		card_init[cardno] = expamem_init_filesys;
 		card_map[cardno++] = expamem_map_filesys;
 	}

@@ -3309,7 +3309,7 @@ static void DMACON (int hpos, uae_u16 v)
 }
 
 
-static void MISC_handler (void)
+void MISC_handler (void)
 {
 	static bool dorecheck;
 	bool recheck;
@@ -3352,57 +3352,6 @@ static void MISC_handler (void)
 		events_schedule ();
 	}
 	recursive--;
-}
-
-STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
-{
-	evt et;
-	static int next = ev2_misc;
-
-	et = t + get_cycles ();
-	if (no < 0) {
-		no = next;
-		for (;;) {
-			if (!eventtab2[no].active)
-				break;
-			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
-				eventtab2[no].handler (eventtab2[no].data);
-				break;
-			}
-			no++;
-			if (no == ev2_max)
-				no = ev2_misc;
-			if (no == next) {
-				write_log (L"out of event2's! PC=%x\n", M68K_GETPC);
-				return;
-			}
-		}
-		next = no;
-	}
-	eventtab2[no].active = true;
-	eventtab2[no].evtime = et;
-	eventtab2[no].handler = func;
-	eventtab2[no].data = data;
-	MISC_handler ();
-}
-
-STATIC_INLINE void event2_newevent_x (int no, evt t, uae_u32 data, evfunc2 func)
-{
-	if (((int)t) <= 0) {
-		func (data);
-		return;
-	}
-
-	event2_newevent_xx (no, t * CYCLE_UNIT, data, func);
-}
-
-void event2_newevent (int no, evt t, uae_u32 data)
-{
-	event2_newevent_x (no, t, data, eventtab2[no].handler);
-}
-void event2_newevent2 (evt t, uae_u32 data, evfunc2 func)
-{
-	event2_newevent_x (-1, t, data, func);
 }
 
 static int irq_nmi;
@@ -5764,11 +5713,6 @@ static void hsync_handler (void)
 		}
 	}
 	hsync_handler_post (vs);
-}
-
-void event2_remevent (int no)
-{
-	eventtab2[no].active = 0;
 }
 
 void init_eventtab (void)
