@@ -527,6 +527,9 @@ static void do_sprites (int currhp);
 
 static void remember_ctable (void)
 {
+	/* This can happen when program program crashes very badly */
+	if (next_color_entry >= COLOR_TABLE_SIZE)
+		return;
 	if (remembered_color_entry == -1) {
 		/* The colors changed since we last recorded a color map. Record a
 		* new one. */

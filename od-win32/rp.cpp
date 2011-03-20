@@ -672,7 +672,10 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			switch (dc->btDeviceCategory)
 			{
 			case RP_DEVICE_FLOPPY:
-				disk_insert (num, n);
+				if (n == NULL || n[0] == 0)
+					disk_eject (num);
+				else
+					disk_insert (num, n);
 				ok = TRUE;
 				break;
 			case RP_DEVICE_INPUTPORT:

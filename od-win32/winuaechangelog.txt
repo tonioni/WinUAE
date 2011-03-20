@@ -1,4 +1,21 @@
 
+Beta 1:
+
+- added built-in AROS KS ROM (alpha development build), used by default if no ROM files available,
+  not very useful at this point but more compatible than very basic UAE KS replacement
+- serial port telnet server (win32.serial_port=tcp://host/port, add /wait to delay startup until client connects)
+- DSKLEN=0x8000 emulation timing improved (Codertrash / Mexx crash after fractal part)
+- improved disk wordsync bit timing (El Egg Tronic Quarts / Quadlite)
+- improved CIA emulation accuracy in cycle-exact modes (Risky Woods sound glitches)
+- fixed random sample ripper crash (ancient bug)
+- CDA sound volume configuration entry (sound_volume_cd), default = same as sound_volume value, no GUI yet
+- on screen led bar position configuration. config file only, "osd_position=x:y" 0:0 = default, negative value =
+  offset from top of screen, add % to make it percentage of display height (osd_position=0:95.0%),
+  x-coordinate positioning not fully supported yet)
+- restoring statefile with memwatch point didn't automatically enable debugger memwatch subsystem
+
+2.3.1
+
 Beta 13:
 
 - fixed RESET instruction compatibility problem introduced in previous betas, broke action replay roms.

@@ -5070,7 +5070,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, int writeaccess, int inst
 	if (currprefs.cpu_model >= 68040)
 		addr &= ~1;
 	if (currprefs.cpu_model <= 68010)
-		last_addr_for_exception_3 = m68k_getpc ();
+		last_addr_for_exception_3 = m68k_getpc () + 2;
 	else
 		last_addr_for_exception_3 = regs.instruction_pc;
 	last_fault_for_exception_3 = addr;

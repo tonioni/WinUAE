@@ -244,6 +244,24 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 	return s;
 }
 
+static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, const TCHAR *file, bool dir)
+{
+	for (int i = 0; i < MAX_PATHS; i++) {
+		if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0) {
+			TCHAR *s = cfgfile_subst_path (path, mp->path[i], file);
+			if (dir) {
+				if (my_existsdir (s))
+					return s;
+			} else {
+				if (zfile_exists (s))
+					return s;
+			}
+			xfree (s);
+		}
+	}
+	return cfgfile_subst_path (path, mp->path[0], file);
+}
+
 static int isdefault (const TCHAR *s)
 {
 	TCHAR tmp[MAX_DPATH];
@@ -1039,15 +1057,35 @@ int cfgfile_string (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	return 1;
 }
 
-int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz, struct multipath *mp)
 {
 	if (!cfgfile_string (option, value, name, location, maxsz))
 		return 0;
 	TCHAR *s = target_expand_environment (location);
 	_tcsncpy (location, s, maxsz - 1);
 	location[maxsz - 1] = 0;
+	if (mp) {
+		for (int i = 0; i < MAX_PATHS; i++) {
+			if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0) {
+				TCHAR np[MAX_DPATH];
+				_tcscpy (np, mp->path[i]);
+				fixtrailing (np);
+				_tcscat (np, s);
+				fullpath (np, sizeof np / sizeof (TCHAR));
+				if (zfile_exists (np)) {
+					_tcsncpy (location, np, maxsz - 1);
+					location[maxsz - 1] = 0;
+					break;
+				}
+			}
+		}
+	}
 	xfree (s);
 	return 1;
+}
+int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TCHAR *location, int maxsz)
+{
+	return cfgfile_path (option, value, name, location, maxsz, NULL);
 }
 
 int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *name, struct multipath *mp)
@@ -1182,7 +1220,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			/* We special case the various path options here.  */
 			if (cfgfile_multipath (option, value, L"rom_path", &p->path_rom)
 				|| cfgfile_multipath (option, value, L"floppy_path", &p->path_floppy)
-				|| cfgfile_multipath (option, value, L"cd_path", &p->path_floppy)
+				|| cfgfile_multipath (option, value, L"cd_path", &p->path_cd)
 				|| cfgfile_multipath (option, value, L"hardfile_path", &p->path_hardfile))
 				return 1;
 			return target_parse_option (p, option, value);
@@ -1191,7 +1229,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 		_stprintf (tmpbuf, L"diskimage%d", i);
-		if (cfgfile_path (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof (TCHAR))) {
+		if (cfgfile_path (option, value, tmpbuf, p->dfxlist[i], sizeof p->dfxlist[i] / sizeof (TCHAR), &p->path_floppy)) {
 #if 0
 			if (i < 4 && !p->df[i][0])
 				_tcscpy (p->df[i], p->dfxlist[i]);
@@ -2025,14 +2063,14 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strboolval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 		return 1;
 
-	if (cfgfile_path (option, value, L"kickstart_rom_file", p->romfile, sizeof p->romfile / sizeof (TCHAR))
-		|| cfgfile_path (option, value, L"kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
-		|| cfgfile_path (option, value, L"kickstart_ext_rom_file2", p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR))
+	if (cfgfile_path (option, value, L"kickstart_rom_file", p->romfile, sizeof p->romfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_path (option, value, L"kickstart_ext_rom_file", p->romextfile, sizeof p->romextfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_path (option, value, L"kickstart_ext_rom_file2", p->romextfile2, sizeof p->romextfile2 / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_rom (option, value, L"kickstart_rom_file_id", p->romfile, sizeof p->romfile / sizeof (TCHAR))
 		|| cfgfile_rom (option, value, L"kickstart_ext_rom_file_id", p->romextfile, sizeof p->romextfile / sizeof (TCHAR))
 		|| cfgfile_path (option, value, L"amax_rom_file", p->amaxromfile, sizeof p->amaxromfile / sizeof (TCHAR))
-		|| cfgfile_path (option, value, L"flash_file", p->flashfile, sizeof p->flashfile / sizeof (TCHAR))
-		|| cfgfile_path (option, value, L"cart_file", p->cartfile, sizeof p->cartfile / sizeof (TCHAR))
+		|| cfgfile_path (option, value, L"flash_file", p->flashfile, sizeof p->flashfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_path (option, value, L"cart_file", p->cartfile, sizeof p->cartfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_string (option, value, L"pci_devices", p->pci_devices, sizeof p->pci_devices / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"ghostscript_parameters", p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
@@ -2060,7 +2098,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 
 	for (i = 0; i < 4; i++) {
 		_stprintf (tmpbuf, L"floppy%d", i);
-		if (cfgfile_path (option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR)))
+		if (cfgfile_path (option, value, tmpbuf, p->floppyslots[i].df, sizeof p->floppyslots[i].df / sizeof (TCHAR), &p->path_floppy))
 			return 1;
 	}
 
@@ -2235,7 +2273,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 			root = value;
 			aname = 0;
 		}
-		str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile.path[0], root);
+		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, true);
 #ifdef FILESYS
 		add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
 #endif
@@ -2330,7 +2368,7 @@ empty_fs:
 				root += 2;
 				*root = ':';
 			}
-			str = cfgfile_subst_path (UNEXPANDED, p->path_hardfile.path[0], root);
+			str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, false);
 		}
 #ifdef FILESYS
 		add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);

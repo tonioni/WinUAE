@@ -148,6 +148,7 @@ extern uae_u8 *save_ide (int num, int *len, uae_u8*);
 
 extern uae_u8 *save_cd (int num, int *len);
 extern uae_u8 *restore_cd (int, uae_u8 *src);
+extern void restore_cd_finish (void);
 
 extern uae_u8 *save_configuration (int *len);
 extern uae_u8 *restore_configuration (uae_u8 *src);

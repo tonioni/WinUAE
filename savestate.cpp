@@ -253,10 +253,11 @@ TCHAR *restore_string_func (uae_u8 **dstp)
 TCHAR *restore_path_func (uae_u8 **dstp, int type)
 {
 	TCHAR *newpath;
-	TCHAR *s = restore_string_func (dstp);
+	TCHAR *s;
 	TCHAR *out = NULL;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
 
+	s = restore_string_func (dstp);
 	if (s[0] == 0)
 		return s;
 	if (zfile_exists (s))
@@ -279,6 +280,7 @@ TCHAR *restore_path_func (uae_u8 **dstp, int type)
 		if (newpath == NULL || newpath[0] == 0)
 			break;
 		_tcscpy (tmp2, newpath);
+		fixtrailing (tmp2);
 		_tcscat (tmp2, tmp);
 		fullpath (tmp2, sizeof tmp2 / sizeof (TCHAR));
 		if (zfile_exists (tmp2)) {
@@ -286,7 +288,7 @@ TCHAR *restore_path_func (uae_u8 **dstp, int type)
 			return my_strdup (tmp2);
 		}
 	}
-	getpathpart(tmp2, sizeof tmp2 / sizeof (TCHAR), savestate_fname);
+	getpathpart (tmp2, sizeof tmp2 / sizeof (TCHAR), savestate_fname);
 	_tcscat (tmp2, tmp);
 	if (zfile_exists (tmp2)) {
 		xfree (s);

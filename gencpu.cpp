@@ -707,7 +707,8 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 			offset = m68k_pc_offset_last;
 		}
 		printf ("\tif (%sa & 1) {\n", name);
-		incpc ("%d", offset);
+		if (offset > 2)
+			incpc ("%d", offset - 2);
 		printf ("\t\texception3 (opcode, %sa);\n", name);
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
