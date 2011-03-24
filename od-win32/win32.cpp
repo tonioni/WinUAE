@@ -4386,7 +4386,7 @@ static void getstartpaths (void)
 extern void test (void);
 extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeserial, clipboard_debug;
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
-extern int pngprint, log_sercon;
+extern int pngprint, log_sercon, midi_inbuflen;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4636,6 +4636,13 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 
 	if (!np)
 		return 0;
+
+	if (!_tcscmp (arg, L"midiinbuffer")) {
+		midi_inbuflen = getval (np);
+		if (midi_inbuflen < 16000)
+			midi_inbuflen = 16000;
+		return 2;
+	}
 
 	if (!_tcscmp (arg, L"ddforcemode")) {
 		extern int ddforceram;

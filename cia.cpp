@@ -61,7 +61,7 @@
 static unsigned int ciaaicr, ciaaimask, ciabicr, ciabimask;
 static unsigned int ciaacra, ciaacrb, ciabcra, ciabcrb;
 static unsigned int ciaastarta, ciaastartb, ciabstarta, ciabstartb;
-static unsigned int ciaaicr_reg, ciaaicr_old, ciabicr_reg, ciabicr_old;
+static unsigned int ciaaicr_reg, ciabicr_reg;
 
 /* Values of the CIA timers.  */
 static unsigned long ciaata, ciaatb, ciabta, ciabtb;
@@ -101,7 +101,7 @@ static void ICRA(uae_u32 data)
 {
 	if (ciaaimask & ciaaicr) {
 		ciaaicr |= 0x80;
-		INTREQ_0 (data);
+		INTREQ_0 (0x8000 | data);
 	}
 	ciaaicr_reg |= ciaaicr;
 }
@@ -109,30 +109,28 @@ static void ICRB(uae_u32 data)
 {
 	if (ciabimask & ciabicr) {
 		ciabicr |= 0x80;
-		INTREQ_0 (data);
+		INTREQ_0 (0x8000 | data);
 	}
 	ciabicr_reg |= ciabicr;
 }
 
 static void RethinkICRA (void)
 {
-	if (ciaaicr != ciaaicr_old) {
-		ciaaicr_old = ciaaicr;
+	if (ciaaicr) {
 		if (currprefs.cpu_cycle_exact)
-			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x8008, ICRA);
+			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x0008, ICRA);
 		else
-			ICRA (0x8008);
+			ICRA (0x0008);
 	}
 }
 
 static void RethinkICRB (void)
 {
-	if (ciabicr != ciabicr_old) {
-		ciabicr_old = ciabicr;
+	if (ciabicr) {
 		if (currprefs.cpu_cycle_exact)
-			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0xA000, ICRB);
+			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x2000, ICRB);
 		else
-			ICRB (0xA000);
+			ICRB (0x2000);
 	}
 }
 
@@ -656,8 +654,10 @@ void CIA_hsync_posthandler (bool dotod)
 			RethinkICRA ();
 			sleepyhead = 0;
 		} else if (!(++sleepyhead & 15)) {
-			if (ciaasdr_unread == 3)
+			if (ciaasdr_unread == 3) {
 				ciaaicr |= 8;
+				RethinkICRA ();
+			}
 			if (ciaasdr_unread < 3)
 				ciaasdr_unread = 0;	/* give up on this key event after unread for a long time */
 		}

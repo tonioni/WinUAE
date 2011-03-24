@@ -1773,6 +1773,8 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 			continue;
 		if (!(rwi & rwi2))
 			continue;
+		if (addr == 0x100)
+			write_log(L"*\n");
 		if (addr >= addr2 && addr < addr3)
 			brk = 1;
 		if (!brk && size == 2 && (addr + 1 >= addr2 && addr + 1 < addr3))
@@ -1837,16 +1839,29 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp)
 		}
 		if (m->frozen) {
 			if (m->val_enabled) {
-				int shift = addr - m->addr;
-				int max = 0;
-				if (m->val_size == 2) {
-					max = 1;
-					shift = 1 - ((addr - m->addr) & 1);
-				} else if (m->val_size == 4) {
-					max = 3;
-					shift = 3 - ((addr - m->addr) & 3);
+				int shift = (addr + size - 1) - (m->addr + m->val_size - 1);
+				uae_u32 sval;
+				uae_u32 mask;
+
+				if (m->val_size == 4)
+					mask = 0xffffffff;
+				else if (m->val_size == 2)
+					mask = 0x0000ffff;
+				else
+					mask = 0x000000ff;
+
+				sval = m->val;
+				if (shift < 0) {
+					shift = -8 * shift;
+					sval >>= shift;
+					mask >>= shift;
+				} else {
+					shift = 8 * shift;
+					sval <<= shift;
+					mask <<= shift;
 				}
-				*valp = m->val >> ((max - shift) * 8);
+				*valp = (sval & mask) | ((*valp) & ~mask);
+				write_log (L"%p %p %08x %08x %d\n", addr, m->addr, *valp, mask, shift);
 				return 1;
 			}
 			return 0;

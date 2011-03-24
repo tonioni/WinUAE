@@ -48,7 +48,9 @@
 //on my system it work ok with 10 but who
 //know when windows rest for a while
 //with sysex size of 40 win can 8 sec sleep
-#define	INBUFFLEN 24000	      //if this is not enough a warning come
+#define	INBUFFLEN 18000	      //if this is not enough a warning come
+int midi_inbuflen = INBUFFLEN;
+
 static int overflow,only_one_time;
 BOOL midi_ready = FALSE;
 BOOL midi_in_ready = FALSE;
@@ -252,9 +254,9 @@ static int MidiIn_Alloc(void)
 	if(!in_allocated)  {
 		for(i = 0; i < MIDI_INBUFFERS; i++)  {
 			if(!inbuffer[i]) {
-				inbuffer[i] = xmalloc(uae_u8, INBUFFLEN);
+				inbuffer[i] = xmalloc(uae_u8, midi_inbuflen);
 				if(inbuffer[i]) {
-					inbufferlength[i] = INBUFFLEN;
+					inbufferlength[i] = midi_inbuflen;
 					in_allocated++;
 				} else {
 					inbufferlength[i] = 0;
@@ -635,8 +637,8 @@ int Midi_Open(void)
 				} else {
 					for (i = 0;i < MIDI_INBUFFERS; i++) {
 						midiin[i].lpData = (LPSTR)inbuffer[i];
-						midiin[i].dwBufferLength = INBUFFLEN - 1;
-						midiin[i].dwBytesRecorded = INBUFFLEN - 1;
+						midiin[i].dwBufferLength = midi_inbuflen - 1;
+						midiin[i].dwBytesRecorded = midi_inbuflen - 1;
 						midiin[i].dwUser = 0;
 						midiin[i].dwFlags = 0;
 						result=midiInPrepareHeader(inHandle, &midiin[i], sizeof(MIDIHDR));

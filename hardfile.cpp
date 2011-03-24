@@ -1648,7 +1648,7 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 				outofbounds (cmd, offset64, len, hfd->virtsize);
 				goto bad_len;
 			}
-			put_long (request + 32, (uae_u32)cmd_write (hfd, dataptr, offset64, len));
+			actual = (uae_u32)cmd_write (hfd, dataptr, offset64, len);
 		}
 		break;
 

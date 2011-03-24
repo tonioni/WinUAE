@@ -1,4 +1,21 @@
 
+Beta 3:
+
+- TD_WRITE64, TD_FORMAT64, NSCMD_TD_WRITE64 and NSCMD_TD_FORMAT64 io_Actual was always zero
+- b1 CIA update broke CIA interrupts partially (keyboard problems etc..)
+- MIDI input buffer length command line parameter, -midiinbuffer 12345
+- AROS ROM updated, should work better again, previous one was quite broken
+
+Beta 2:
+
+- 68000 exception 3 emulation changes (again), many very old copy protections didn't work since last
+  large CPU emulation update (for example original Soldier of Light and Zoom!)
+- win32.floppy_path and win32.hardfile_path finally really do what they are supposed to do
+  (multiple paths supported, use paths if file not found using original path)
+- include non-CDTV/CD32 CD audio state in statefile. Currently ignored during restore
+- fixed color change table overflow crash that can happen when running amiga program crashes really badly
+- AROS ROM updated, now includes WB replacement
+
 Beta 1:
 
 - added built-in AROS KS ROM (alpha development build), used by default if no ROM files available,
