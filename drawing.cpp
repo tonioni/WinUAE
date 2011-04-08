@@ -1826,6 +1826,7 @@ static void pfield_expand_dp_bplcon (void)
 		frame_res = bplres;
 	if (bplres > 0)
 		can_use_lores = 0;
+	frame_res_lace = (dp_for_drawing->bplcon0 & 4) != 0;
 
 	plf1pri = dp_for_drawing->bplcon2 & 7;
 	plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
@@ -2779,7 +2780,6 @@ void notice_interlace_seen (void)
 	if (interlace_seen == 0)
 		frame_redraw_necessary = 2;
 	interlace_seen = 1;
-	frame_res_lace = 1;
 }
 
 void reset_drawing (void)

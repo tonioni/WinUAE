@@ -834,6 +834,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 #endif
 
 	cfgfile_write_bool (f, L"immediate_blits", p->immediate_blits);
+	cfgfile_write_bool (f, L"waiting_blits", p->waiting_blits);
 	cfgfile_write_bool (f, L"ntsc", p->ntscmode);
 	cfgfile_write_bool (f, L"genlock", p->genlock);
 	cfgfile_dwrite_bool (f, L"show_leds", !!(p->leds_on_screen & STATUSLINE_CHIPSET));
@@ -1972,6 +1973,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_yesno (option, value, L"immediate_blits", &p->immediate_blits)
+		|| cfgfile_yesno (option, value, L"waiting_blits", &p->waiting_blits)
 		|| cfgfile_yesno (option, value, L"cd32cd", &p->cs_cd32cd)
 		|| cfgfile_yesno (option, value, L"cd32c2p", &p->cs_cd32c2p)
 		|| cfgfile_yesno (option, value, L"cd32nvram", &p->cs_cd32nvram)
@@ -3686,6 +3688,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	target_default_options (p, type);
 
 	p->immediate_blits = 0;
+	p->waiting_blits = 0;
 	p->collision_level = 2;
 	p->leds_on_screen = 0;
 	p->keyboard_leds_in_use = 0;
@@ -3875,6 +3878,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->blitter_cycle_exact = 0;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->immediate_blits = 0;
+	p->waiting_blits = 0;
 	p->collision_level = 2;
 	p->produce_sound = 3;
 	p->scsi = 0;

@@ -1,4 +1,17 @@
 
+Beta 4:
+
+- added new autofire option. Button released = autofire. Button pressed = normal non-autofire firebutton.
+- 231b13 reset fix fixed again (A1000 and Arcadia emulation crash)
+- automatic resolution switch interlace detection was unreliable
+- show a message and refuse real harddrive write attempts to block zero (=RDB write attempt) if drive has one
+  or more mounted PC partitions. Partitioning is going to fail even if write appears to succeed.
+- screen mode change (fullscreen<>windowed or windowed mode window size change) released all currently pressed keys,
+  it should only happen when WinUAE loses focus, not when switching modes
+- window title bar mouse text shortened, F12 note added
+- stop the cpu and wait until blitter has finished if any blitter register is accessed while blitter is busy and
+  cpu mode is fastest possible
+
 Beta 3:
 
 - TD_WRITE64, TD_FORMAT64, NSCMD_TD_WRITE64 and NSCMD_TD_FORMAT64 io_Actual was always zero

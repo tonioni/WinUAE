@@ -1042,6 +1042,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_DESTROY:
 		ChangeClipboardChain (hWnd, hwndNextViewer); 
 		close_tablet (tablet);
+		wait_keyrelease ();
 		inputdevice_unacquire ();
 		dinput_window ();
 		return 0;

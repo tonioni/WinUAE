@@ -2236,7 +2236,7 @@ int ispressed (int key)
 	return 0;
 }
 
-void release_keys (void)
+static void release_keys (void)
 {
 	int i, j;
 
@@ -2311,7 +2311,6 @@ static void unacquire_kb (int num)
 			normalkb--;
 		di_keyboard[num].acquired = 0;
 	}
-	release_keys ();
 
 	if (currprefs.keyboard_leds_in_use) {
 		if (oldusedleds >= 0) {
@@ -2833,11 +2832,13 @@ static void setid (struct uae_input_device *uid, int i, int slot, int sub, int p
 static void setid (struct uae_input_device *uid, int i, int slot, int sub, int port, int evt, int af)
 {
 	setid (uid, i, slot, sub, port, evt);
-	uid[i].flags[slot][sub] &= ~(ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE);
+	uid[i].flags[slot][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
 	if (af >= JPORT_AF_NORMAL)
 		uid[i].flags[slot][sub] |= ID_FLAG_AUTOFIRE;
 	if (af == JPORT_AF_TOGGLE)
 		uid[i].flags[slot][sub] |= ID_FLAG_TOGGLE;
+	if (af == JPORT_AF_ALWAYS)
+		uid[i].flags[slot][sub] |= ID_FLAG_INVERTTOGGLE;
 }
 
 int input_get_default_mouse (struct uae_input_device *uid, int i, int port, int af)

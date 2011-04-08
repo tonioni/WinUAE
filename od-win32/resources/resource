@@ -263,6 +263,7 @@
 #define IDS_REMAPTITLE                  268
 #define IDS_FILTER_NOOVERLAYS           269
 #define IDS_STMENUNOCD                  270
+#define IDS_ON                          271
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -343,8 +344,11 @@
 #define IDS_AUTOSCALE_TV                367
 #define IDS_JOYMODE_GAMEPAD             368
 #define IDS_AUTOSCALE_DEFAULT           369
-#define IDS_AUTOSCALE_MANUEL            370
 #define IDS_AUTOSCALE_MANUAL            370
+#define IDS_PORT_AUTOFIRE               371
+#define IDS_PORT_AUTOFIRE_TOGGLE        372
+#define IDS_PORT_AUTOFIRE_ALWAYS        373
+#define IDS_PORT_AUTOFIRE_NO            374
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

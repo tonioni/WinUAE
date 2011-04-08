@@ -1789,6 +1789,7 @@ void gui_display (int shortcut)
 #ifdef D3D
 	D3D_guimode (TRUE);
 #endif
+	wait_keyrelease ();
 	inputdevice_unacquire ();
 	clearallkeys ();
 	setmouseactive (0);
@@ -2630,7 +2631,7 @@ static void setguititle (HWND phwnd)
 	if (phwnd)
 		hwnd = phwnd;
 	if (hwnd && !title[0]) {
-		GetWindowText (hwnd, title, sizeof (title) / sizeof (TCHAR));
+		GetWindowText (hwnd, title, sizeof title / sizeof (TCHAR));
 		if (_tcslen (WINUAEBETA) > 0) {
 			_tcscat (title, BetaStr);
 			if (_tcslen (WINUAEEXTRA) > 0) {
@@ -3320,12 +3321,16 @@ static void set_lventry_input (HWND list, int index)
 	TCHAR af[32], toggle[32];
 
 	inputdevice_get_mapping (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
-	if (flags & IDEV_MAPPED_AUTOFIRE_SET)
-		WIN32GUI_LoadUIString (IDS_YES, af, sizeof af / sizeof (TCHAR));
-	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
+	if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
+		if (flags & IDEV_MAPPED_INVERTTOGGLE)
+			WIN32GUI_LoadUIString (IDS_ON, af, sizeof af / sizeof (TCHAR));
+		else 
+			WIN32GUI_LoadUIString (IDS_YES, af, sizeof af / sizeof (TCHAR));
+	} else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE) {
 		WIN32GUI_LoadUIString (IDS_NO, af, sizeof af / sizeof (TCHAR));
-	else
+	} else {
 		_tcscpy (af, L"-");
+	}
 	if (flags & IDEV_MAPPED_TOGGLE)
 		WIN32GUI_LoadUIString (IDS_YES, toggle, sizeof toggle / sizeof (TCHAR));
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
@@ -10900,9 +10905,14 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		for (i = 0; joysaf[i] >= 0; i++) {
 			int id = joysaf[i];
 			SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0L);
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"No autofire");
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"Autofire");
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"Autofire (toggle)");
+			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_NO, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_TOGGLE, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+			WIN32GUI_LoadUIString (IDS_PORT_AUTOFIRE_ALWAYS, tmp, MAX_DPATH);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 
 		SendDlgItemMessage (hDlg, IDC_PORT_TABLET_CURSOR, CB_RESETCONTENT, 0, 0L);
@@ -11623,6 +11633,7 @@ static void input_find (HWND hDlg, int mode, int set)
 		ClipCursor (NULL);
 		ReleaseCapture ();
 		ShowCursor (TRUE);
+		wait_keyrelease ();
 		inputdevice_unacquire ();
 		for (int i = 0; rawdisable[i] >= 0; i += 3) {
 			HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
@@ -11856,8 +11867,17 @@ static void input_toggleautofire (void)
 		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;
+	if ((flags & (IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET)) == (IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET))
+		flags &= ~(IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET);
+	else if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
+		flags |= IDEV_MAPPED_INVERTTOGGLE;
+		flags &= ~IDEV_MAPPED_TOGGLE;
+	} else if (!(flags & (IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET)))
+		flags |= IDEV_MAPPED_AUTOFIRE_SET;
+	else
+		flags &= ~(IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET);
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-		name, custom, flags ^ IDEV_MAPPED_AUTOFIRE_SET, -1, input_selected_sub_num);
+		name, custom, flags, -1, input_selected_sub_num);
 }
 static void input_toggletoggle (void)
 {
@@ -11870,8 +11890,9 @@ static void input_toggletoggle (void)
 		&flags, NULL, name, custom, input_selected_sub_num);
 	if (evt <= 0)
 		return;
+	flags ^= IDEV_MAPPED_TOGGLE;
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
-		name, custom, flags ^ IDEV_MAPPED_TOGGLE, -1, input_selected_sub_num);
+		name, custom, flags, -1, input_selected_sub_num);
 }
 
 static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

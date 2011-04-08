@@ -38,6 +38,7 @@ struct hardfilehandle
 	int zfile;
 	struct zfile *zf;
 	HANDLE h;
+	BOOL firstwrite;
 };
 
 struct uae_driveinfo {
@@ -871,6 +872,17 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	poscheck (hfd, len);
 	memcpy (hfd->cache, buffer, len);
 	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
+		TCHAR *name = hfd->emptyname == NULL ? L"<unknown>" : hfd->emptyname;
+		if (offset == 0) {
+			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE)) {
+				hfd->handle->firstwrite = true;
+				if (ismounted (hfd->device_name, hfd->handle->h)) {
+					gui_message (L"\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions. Erase the drive or unmount all PC partitions first.", name);
+					hfd->readonly = 1;
+					return 0;
+				}
+			}
+		}
 		WriteFile (hfd->handle->h, hfd->cache, len, &outlen, NULL);
 		if (offset == 0) {
 			DWORD outlen2;
@@ -882,7 +894,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 				hdf_seek (hfd, offset);
 				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
 				if (memcmp (hfd->cache, tmp, tmplen) != 0 || outlen != len)
-					gui_message (L"Harddrive\n%s\nblock zero write failed!", hfd->emptyname == NULL ? L"<unknown>" : hfd->emptyname);
+					gui_message (L"\"%s\"\n\nblock zero write failed!", name);
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}
 		}
@@ -891,6 +903,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	}
 	return outlen;
 }
+
 int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
 	int got = 0;

@@ -259,7 +259,7 @@ static void gotfunc (struct s2devstruct *dev, const uae_u8 *databuf, int len)
 
 	if (!(csr[0] & CSR0_RXON)) // receiver off?
 		return;
-	if (len < 60) { // too short
+	if (len < 16) { // too short
 		if (log_a2065)
 			write_log (L"A2065: short frame, %d bytes\n", len);
 		return;

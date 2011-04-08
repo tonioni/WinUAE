@@ -1467,6 +1467,7 @@ BEGIN
     IDS_REMAPTITLE          "Input captured. F12 = Exit. F11 = Skip current event in Remap mode."
     IDS_FILTER_NOOVERLAYS   "No overlays available"
     IDS_STMENUNOCD          "No CD inserted"
+    IDS_ON                  "on"
 END
 
 STRINGTABLE
@@ -1544,8 +1545,8 @@ BEGIN
     IDS_TREEVIEW_HOST       "Host"
     IDS_TREEVIEW_MISC       "Miscellaneous"
     IDS_TREEVIEW_SETTINGS   "Settings"
-    IDS_WINUAETITLE_MMB     "[Mouse active - press ALT+TAB or middle mouse button to cancel]"
-    IDS_WINUAETITLE_NORMAL  "[Mouse active - press ALT+TAB to cancel]"
+    IDS_WINUAETITLE_MMB     "[ALT+TAB or middle mouse button untraps mouse - F12 opens settings]"
+    IDS_WINUAETITLE_NORMAL  "[ALT+TAB untraps mouse - F12 opens settings]"
     IDS_STARTEMULATION      "Start"
     IDS_TREEVIEW_ABOUT      "About"
 END
@@ -1682,6 +1683,10 @@ BEGIN
     IDS_JOYMODE_GAMEPAD     "Gamepad"
     IDS_AUTOSCALE_DEFAULT   "Default"
     IDS_AUTOSCALE_MANUAL    "Manual"
+    IDS_PORT_AUTOFIRE       "Autofire"
+    IDS_PORT_AUTOFIRE_TOGGLE "Autofire (toggle)"
+    IDS_PORT_AUTOFIRE_ALWAYS "Autofire (always)"
+    IDS_PORT_AUTOFIRE_NO    "No autofire"
 END
 
 #endif    // English resources

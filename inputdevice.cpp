@@ -366,7 +366,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 
 	slotorder = slotorder1;
 	// if gameports non-custom mapping in slot0 -> save slot4 as slot0
-	if (id->port[io][0] && !(id->flags[io][0] & ID_FLAG_GAMEPORTSCUSTOM))
+	if (id->port[io][0] && !(id->flags[io][0] & ID_FLAG_GAMEPORTSCUSTOM_MASK))
 		slotorder = slotorder2;
 
 	for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
@@ -382,7 +382,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 				break;
 		}
 		if (id->port[io][0] > 0) {
-			if (!(id->flags[io][0] & ID_FLAG_GAMEPORTSCUSTOM) && id->port[io][SPARE_SUB_EVENT] == 0)
+			if (!(id->flags[io][0] & ID_FLAG_GAMEPORTSCUSTOM_MASK) && id->port[io][SPARE_SUB_EVENT] == 0)
 				break;
 		}
 
@@ -429,7 +429,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 
 		slotorder = slotorder1;
 		// if gameports non-custom mapping in slot0 -> save slot4 as slot0
-		if (kbr->port[i][0] && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM))
+		if (kbr->port[i][0] && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM_MASK))
 			slotorder = slotorder2;
 
 		skip = 0;
@@ -451,7 +451,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 			kbr->port[i][SPARE_SUB_EVENT] &&
 			keyboard_default[k].evt == kbr->eventid[i][SPARE_SUB_EVENT] && keyboard_default[k].flags == (kbr->flags[i][SPARE_SUB_EVENT] & ID_FLAG_SAVE_MASK);
 
-		if (kbr->port[i][0] > 0 && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM) && 
+		if (kbr->port[i][0] > 0 && !(kbr->flags[i][0] & ID_FLAG_GAMEPORTSCUSTOM_MASK) && 
 			(kbr->eventid[i][1] <= 0 && kbr->eventid[i][2] <= 0 && kbr->eventid[i][3] <= 0) &&
 			(kbr->port[i][SPARE_SUB_EVENT] == 0 || isdefaultspare))
 			skip = 1;
@@ -482,7 +482,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 			p += _tcslen (p);
 			if (ok) {
 				// save port number + SPARE SLOT if needed
-				if (kbr->port[i][slotorder[j]] > 0 && (kbr->flags[i][slotorder[j]] & ID_FLAG_GAMEPORTSCUSTOM)) {
+				if (kbr->port[i][slotorder[j]] > 0 && (kbr->flags[i][slotorder[j]] & ID_FLAG_GAMEPORTSCUSTOM_MASK)) {
 					_stprintf (p, L".%d", kbr->port[i][slotorder[j]] - 1);
 					p += _tcslen (p);
 					if (idnum != GAMEPORT_INPUT_SETTINGS && j == 0 && kbr->port[i][SPARE_SUB_EVENT] && !isdefaultspare && slotorder == slotorder1) {
@@ -2254,7 +2254,7 @@ static void queue_input_event (int event, int state, int max, int linecnt, int a
 		iq->event = 0;
 		if (iq->state == 0)
 			handle_input_event (event, 0, 1, 0, false, false);
-	} else if (i < 0) {
+	} else if (state >= 0 && i < 0) {
 		for (i = 0; i < INPUT_QUEUE_SIZE; i++) {
 			iq = &input_queue[i];
 			if (iq->linecnt < 0)
@@ -3207,20 +3207,30 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		int evt = evt = id->eventid[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]];
 		int autofire = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 		int toggle = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_TOGGLE) ? 1 : 0;
+		int inverttoggle = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
 
 		if (state < 0) {
 			handle_input_event (evt, 1, 1, 0, true, false);
 			queue_input_event (evt, 0, 1, 1, 0); /* send release event next frame */
 			if (i == 0)
 				process_custom_event (id, ID_BUTTON_OFFSET + button, state);
+		} else if (inverttoggle) {
+			/* pressed = firebutton, not pressed = autofire */
+			if (state) {
+				queue_input_event (evt, -1, 0, 0, 1);
+				handle_input_event (evt, 1, 1, 0, true, false);
+			} else {
+				handle_input_event (evt, 1, 1, autofire, true, false);
+			}
+			if (i == 0)
+				process_custom_event (id, ID_BUTTON_OFFSET + button, 1);
 		} else if (toggle) {
-			int toggled;
 			if (!state)
 				continue;
 			if (omask & mask)
 				continue;
 			id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] ^= ID_FLAG_TOGGLED;
-			toggled = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_TOGGLED) ? 1 : 0;
+			int toggled = (id->flags[ID_BUTTON_OFFSET + button][sublevdir[state <= 0 ? 1 : 0][i]] & ID_FLAG_TOGGLED) ? 1 : 0;
 			handle_input_event (evt, toggled, 1, autofire, true, false);
 			if (i == 0)
 				process_custom_event (id, ID_BUTTON_OFFSET + button, toggled);
@@ -3654,11 +3664,13 @@ static void setautofireevent (struct uae_input_device *uid, int num, int sub, in
 	int *afp = af_ports[index];
 	for (int k = 0; afp[k] >= 0; k++) {
 		if (afp[k] == uid->eventid[num][sub]) {
-			uid->flags[num][sub] &= ~(ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE);
+			uid->flags[num][sub] &= ~ID_FLAG_AUTOFIRE_MASK;
 			if (af >= JPORT_AF_NORMAL)
 				uid->flags[num][sub] |= ID_FLAG_AUTOFIRE;
 			if (af == JPORT_AF_TOGGLE)
 				uid->flags[num][sub] |= ID_FLAG_TOGGLE;
+			if (af == JPORT_AF_ALWAYS)
+				uid->flags[num][sub] |= ID_FLAG_INVERTTOGGLE;
 			return;
 		}
 	}
@@ -3820,7 +3832,7 @@ static void cleardevgp (struct uae_input_device *uid, int num, bool nocustom, in
 	for (int i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 		for (int j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 			if (uid[num].port[i][j] == index + 1) {
-				if (nocustom && (uid[num].flags[i][j] & ID_FLAG_GAMEPORTSCUSTOM))
+				if (nocustom && (uid[num].flags[i][j] & ID_FLAG_GAMEPORTSCUSTOM_MASK))
 					continue;
 				uid[num].eventid[i][j] = 0;
 				uid[num].flags[i][j] = 0;
@@ -3838,7 +3850,7 @@ static void cleardevkbrgp (struct uae_input_device *uid, int num, bool nocustom,
 	for (int i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 		for (int j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 			if (uid[num].port[i][j] == index + 1) {
-				if (nocustom && (uid[num].flags[i][j] & ID_FLAG_GAMEPORTSCUSTOM))
+				if (nocustom && (uid[num].flags[i][j] & ID_FLAG_GAMEPORTSCUSTOM_MASK))
 					continue;
 				uid[num].eventid[i][j] = 0;
 				uid[num].flags[i][j] = 0;
@@ -3975,11 +3987,13 @@ static void setautofire (struct uae_input_device *uid, int port, int af)
 		for (int i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
 			for (int j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 				if (uid->eventid[i][j] == afp[k]) {
-					uid->flags[i][j] &= ~(ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE);
+					uid->flags[i][j] &= ~ID_FLAG_AUTOFIRE_MASK;
 					if (af >= JPORT_AF_NORMAL)
 						uid->flags[i][j] |= ID_FLAG_AUTOFIRE;
 					if (af == JPORT_AF_TOGGLE)
 						uid->flags[i][j] |= ID_FLAG_TOGGLE;
+					if (af == JPORT_AF_ALWAYS)
+						uid->flags[i][j] |= ID_FLAG_INVERTTOGGLE;
 				}
 			}
 		}
@@ -4421,7 +4435,7 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 	}
 	if (sub >= MAX_INPUT_SUB_EVENT)
 		sub = MAX_INPUT_SUB_EVENT - 1;
-	inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, port + 1, sub);
+	inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1, port + 1, sub);
 
 	joysticks = prefs->joystick_settings[prefs->input_selected_setting];
 	mice = prefs->mouse_settings[prefs->input_selected_setting];
@@ -4432,7 +4446,7 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 		inputdevice_get_mapping (devnum, num, &xflags, &xport, xname, xcustom, 0);
 		if (xport == 0)
 			inputdevice_set_mapping (devnum, num, xname, xcustom, xflags, MAX_JPORTS + 1, SPARE_SUB_EVENT);
-		inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM, port + 1, 0);
+		inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1, port + 1, 0);
 	}
 	return true;
 }
@@ -4656,6 +4670,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 			for (k = 0; k < MAX_INPUT_SUB_EVENT; k++) {/* send key release events in reverse order */
 				int autofire = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_AUTOFIRE) ? 1 : 0;
 				int toggle = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_TOGGLE) ? 1 : 0;
+				int inverttoggle = (na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
 				int evt = na->eventid[j][sublevdir[state == 0 ? 1 : 0][k]];
 				int toggled;
 
@@ -4674,7 +4689,15 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					continue;
 				}
 
-				if (toggle) {
+				if (inverttoggle) {
+					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] &= ~ID_FLAG_TOGGLED;
+					if (state) {
+						queue_input_event (evt, -1, 0, 0, 1);
+						handled |= handle_input_event (evt, 1, 1, 0, true, false);
+					} else {
+						handled |= handle_input_event (evt, 1, 1, autofire, true, false);
+					}
+				} else if (toggle) {
 					if (!state)
 						continue;
 					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] ^= ID_FLAG_TOGGLED;
@@ -5045,8 +5068,12 @@ int inputdevice_get_mapping (int devnum, int num, int *pflags, int *pport, TCHAR
 		flags |= IDEV_MAPPED_AUTOFIRE_SET;
 	if (flag & ID_FLAG_TOGGLE)
 		flags |= IDEV_MAPPED_TOGGLE;
-	if (flag & ID_FLAG_GAMEPORTSCUSTOM)
-		flags |= IDEV_MAPPED_GAMEPORTSCUSTOM;
+	if (flag & ID_FLAG_INVERTTOGGLE)
+		flags |= IDEV_MAPPED_INVERTTOGGLE;
+	if (flag & ID_FLAG_GAMEPORTSCUSTOM1)
+		flags |= IDEV_MAPPED_GAMEPORTSCUSTOM1;
+	if (flag & ID_FLAG_GAMEPORTSCUSTOM2)
+		flags |= IDEV_MAPPED_GAMEPORTSCUSTOM2;
 	if (!data)
 		return 0;
 	if (events[data].allow_mask & AM_AF)
@@ -5090,12 +5117,14 @@ int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *cust
 		return 0;
 	if (data >= 0) {
 		amask = events[eid].allow_mask;
-		flag &= ~(ID_FLAG_AUTOFIRE | ID_FLAG_TOGGLE | ID_FLAG_GAMEPORTSCUSTOM);
+		flag &= ~(ID_FLAG_AUTOFIRE_MASK | ID_FLAG_GAMEPORTSCUSTOM_MASK);
 		if (amask & AM_AF) {
 			flag |= (flags & IDEV_MAPPED_AUTOFIRE_SET) ? ID_FLAG_AUTOFIRE : 0;
 			flag |= (flags & IDEV_MAPPED_TOGGLE) ? ID_FLAG_TOGGLE : 0;
+			flag |= (flags & IDEV_MAPPED_INVERTTOGGLE) ? ID_FLAG_INVERTTOGGLE : 0;
 		}
-		flag |= (flags & IDEV_MAPPED_GAMEPORTSCUSTOM) ? ID_FLAG_GAMEPORTSCUSTOM : 0;
+		flag |= (flags & ID_FLAG_GAMEPORTSCUSTOM1) ? ID_FLAG_GAMEPORTSCUSTOM1 : 0;
+		flag |= (flags & ID_FLAG_GAMEPORTSCUSTOM2) ? ID_FLAG_GAMEPORTSCUSTOM2 : 0;
 		if (port >= 0)
 			portp = port;
 		put_event_data (idf, devindex, num, eid, custom, flag, portp, sub);

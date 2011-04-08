@@ -803,7 +803,7 @@ void uaenet_gotdata (struct s2devstruct *dev, const uae_u8 *d, int len)
 	if (!dev->online)
 		return;
 	/* drop if bogus size */
-	if (len < ETH_HEADER_SIZE  || len >= dev->td->mtu + ETH_HEADER_SIZE + 2)
+	if (len < 20  || len >= dev->td->mtu + ETH_HEADER_SIZE + 2)
 		return;
 	/* drop if dst == broadcast and src == me */
 	if (isbroadcast (d) && !memcmp (d + 6, dev->td->mac, ADDR_SIZE))

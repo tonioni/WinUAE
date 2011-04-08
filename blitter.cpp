@@ -1430,6 +1430,12 @@ void maybe_blit (int hpos, int hack)
 	if (savestate_state)
 		return;
 
+	if (dmaen (DMA_BLITTER) && (currprefs.waiting_blits || currprefs.m68k_speed < 0)) {
+		while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
+			x_do_cycles (8 * CYCLE_UNIT);
+		}
+	}
+
 	if (warned && dmaen (DMA_BLITTER) && blt_info.got_cycle) {
 		warned--;
 		debugtest (DEBUGTEST_BLITTER, L"program does not wait for blitter tc=%d\n",

@@ -2107,9 +2107,10 @@ static void gen_opcode (unsigned long int opcode)
 	case i_RESET:
 		fill_prefetch_next ();
 		printf ("\tcpureset ();\n");
+		sync_m68k_pc ();
 		addcycles000 (128);
 		if (using_prefetch) {
-			printf ("\tregs.irc = %s (4);\n", srcwi);
+			printf ("\tregs.irc = %s (2);\n", srcwi);
 			m68k_pc_offset = 0;
 		}
 		break;
