@@ -1,4 +1,18 @@
 
+Beta 5:
+
+- floppy step signal's previous state was not restored properly from statefile (possible one skipped
+  or one extra step when program steps for the first time after state was restored)
+- tight DSKBYTR() read loop sometimes triggered second index sync pulse after few cycles. Broke some
+  copy protections randomly. (for example original Double Dragon II)
+- enable Gayle ID register in CD32 mode. CD32 boot menu checks for Gayle ID and immediately exists if Gayle is not detected.
+  This must mean Akiko includes some (unused or never fully implemented?) parts of Gayle (at least ID register) because boot
+  menu works on a real CD32.
+- RESET instruction didn't work correctly in 68000 compatible non-ce (prefetch) mode (Arcadia/AR/A1000)
+- only use triple buffer if triple buffer selected and vsync enabled. Seems to fix (at least partially)
+  random Direct3D blank screen issue (also triple buffer in non-vsync modes is quite pointless)
+- configuration file chipset_refreshrate accepts now floating point values
+
 Beta 4:
 
 - added new autofire option. Button released = autofire. Button pressed = normal non-autofire firebutton.

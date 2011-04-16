@@ -575,3 +575,5 @@ extern void xfree (const void*);
 #define xfree(T) free(T)
 
 #endif
+
+#define DBLEQU(f, i) (abs ((f) - (i)) < 0.0001)

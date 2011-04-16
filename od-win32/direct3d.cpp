@@ -1831,7 +1831,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 
 	D3D_free2 ();
-	d3d_enabled = 0;
 	if (!currprefs.gfx_api) {
 		_tcscpy (errmsg, L"D3D: not enabled");
 		return errmsg;
@@ -1902,12 +1901,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen() <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = currprefs.gfx_backbuffers;
+	dpp.BackBufferCount = dpp.Windowed || !currprefs.gfx_avsync ? 1 : currprefs.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.Windowed || currprefs.gfx_backbuffers == 0 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_DEFAULT;
+	dpp.PresentationInterval = dpp.Windowed || currprefs.gfx_backbuffers == 0 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;

@@ -2483,8 +2483,10 @@ void memory_reset (void)
 		map_banks (&clock_bank, 0xDC, 1, 0); /* none clock */
 	if (currprefs.cs_fatgaryrev >= 0 || currprefs.cs_ramseyrev >= 0)
 		map_banks (&mbres_bank, 0xDE, 1, 0);
-	if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram)
+	if (currprefs.cs_cd32c2p || currprefs.cs_cd32cd || currprefs.cs_cd32nvram) {
 		map_banks (&akiko_bank, AKIKO_BASE >> 16, 1, 0);
+		map_banks (&gayle2_bank, 0xDD, 2, 0);
+	}
 	if (currprefs.cs_cdtvcd)
 		cdtv_check_banks ();
 	if (currprefs.cs_mbdmac == 1)

@@ -856,7 +856,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite (f, L"chipset",L"ecs_denise");
 	else
 		cfgfile_dwrite (f, L"chipset", L"ocs");
-	cfgfile_write (f, L"chipset_refreshrate", L"%d", p->chipset_refreshrate);
+	cfgfile_write (f, L"chipset_refreshrate", L"%f", p->chipset_refreshrate);
 	cfgfile_write_str (f, L"collision_level", collmode[p->collision_level]);
 
 	cfgfile_write_str(f, L"chipset_compatible", cscompa[p->cs_compatible]);
@@ -986,6 +986,17 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, b
 		*location = val != 0;
 	return 1;
 }
+
+int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *name, double *location)
+{
+	int base = 10;
+	TCHAR *endptr;
+	if (_tcscmp (option, name) != 0)
+		return 0;
+	*location = _tcstod (value, &endptr);
+	return 1;
+}
+
 
 int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, unsigned int *location, int scale)
 {
@@ -2023,7 +2034,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, L"cdtvramcard", &p->cs_cdtvcard, 1)
 		|| cfgfile_intval (option, value, L"fatgary", &p->cs_fatgaryrev, 1)
 		|| cfgfile_intval (option, value, L"ramsey", &p->cs_ramseyrev, 1)
-		|| cfgfile_intval (option, value, L"chipset_refreshrate", &p->chipset_refreshrate, 1)
+		|| cfgfile_doubleval (option, value, L"chipset_refreshrate", &p->chipset_refreshrate)
 		|| cfgfile_intval (option, value, L"fastmem_size", &p->fastmem_size, 0x100000)
 		|| cfgfile_intval (option, value, L"a3000mem_size", &p->mbresmem_low_size, 0x100000)
 		|| cfgfile_intval (option, value, L"mbresmem_size", &p->mbresmem_high_size, 0x100000)

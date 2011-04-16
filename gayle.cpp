@@ -1199,7 +1199,8 @@ static uae_u32 gayle2_read (uaecptr addr)
 	addr &= 0xffff;
 	if (addr == 0x1000) {
 		/* Gayle ID */
-		if (gayle_id_cnt == 0 || gayle_id_cnt == 1 || gayle_id_cnt == 3 || ((currprefs.chipset_mask & CSMASK_AGA) && gayle_id_cnt == 7))
+		if (gayle_id_cnt == 0 || gayle_id_cnt == 1 || gayle_id_cnt == 3 || ((currprefs.chipset_mask & CSMASK_AGA) && gayle_id_cnt == 7) ||
+			(currprefs.cs_cd32cd && !currprefs.cs_ide && !currprefs.cs_pcmcia && gayle_id_cnt == 2))
 			v = 0x80;
 		else
 			v = 0x00;

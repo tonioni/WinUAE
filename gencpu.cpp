@@ -2110,7 +2110,7 @@ static void gen_opcode (unsigned long int opcode)
 		sync_m68k_pc ();
 		addcycles000 (128);
 		if (using_prefetch) {
-			printf ("\tregs.irc = %s (2);\n", srcwi);
+			printf ("\t%s (2);\n", prefetch_word);
 			m68k_pc_offset = 0;
 		}
 		break;

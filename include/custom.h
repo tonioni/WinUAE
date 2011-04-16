@@ -112,7 +112,8 @@ extern int maxhpos, maxhpos_short;
 extern int maxvpos, maxvpos_nom;
 extern int hsyncstartpos;
 extern int minfirstline, vblank_endline, numscrlines;
-extern int vblank_hz, fake_vblank_hz, vblank_skip, doublescan;
+extern double vblank_hz, fake_vblank_hz;
+extern int vblank_skip, doublescan;
 extern frame_time_t syncbase;
 
 #define DMA_AUD0      0x0001

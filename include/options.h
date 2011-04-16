@@ -250,7 +250,7 @@ struct uae_prefs {
 	unsigned int chipset_mask;
 	bool ntscmode;
 	bool genlock;
-	int chipset_refreshrate;
+	double chipset_refreshrate;
 	int collision_level;
 	int leds_on_screen;
 	struct wh osd_pos;

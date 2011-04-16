@@ -680,7 +680,7 @@ void picasso_handle_vsync (void)
 	if (!picasso_on)
 		createwindowscursor (0, 0, 0, 0, 0, 1);
 
-	if (currprefs.chipset_refreshrate >= 100) {
+	if (currprefs.chipset_refreshrate >= 100.0) {
 		vsynccnt++;
 		if (vsynccnt < 2)
 			thisisvsync = 0;
@@ -3264,15 +3264,15 @@ void init_hz_p96 (void)
 	if (currprefs.win32_rtgvblankrate < 0 || isvsync ()) 
 		p96vblank = DirectDraw_CurrentRefreshRate ();
 	else if (currprefs.win32_rtgvblankrate == 0)
-		p96vblank = vblank_hz;
+		p96vblank = (int)(vblank_hz + 0.5);
 	else
 		p96vblank = currprefs.win32_rtgvblankrate;
 	if (p96vblank <= 0)
 		p96vblank = 60;
 	if (p96vblank >= 300)
 		p96vblank = 300;
-	p96syncrate = maxvpos * vblank_hz / p96vblank;
-	write_log (L"P96FREQ: %d*%d = %d / %d = %d\n", maxvpos, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
+	p96syncrate = maxvpos_nom * vblank_hz / p96vblank;
+	write_log (L"P96FREQ: %d*%.4f = %.4f / %d = %d\n", maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */

@@ -1134,7 +1134,7 @@ void CDTV_hsync_handler (void)
 	}
 
 	static int subchannelcounter;
-	int cntmax = maxvpos * vblank_hz / 75 - 6;
+	int cntmax = (int)(maxvpos * vblank_hz / 75 - 6);
 	if (subchannelcounter > 0)
 		subchannelcounter--;
 	if (subchannelcounter <= 0) {

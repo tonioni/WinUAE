@@ -940,8 +940,8 @@ void inprec_getstatus (TCHAR *title)
 	p = title + _tcslen (title);
 	int mvp = current_maxvpos ();
 	_stprintf (p, L"%03d %02d:%02d:%02d/%02d:%02d:%02d", replaypos,
-		lasthsync / (vblank_hz * mvp * 60), (lasthsync / (vblank_hz * mvp) % 60), (lasthsync / mvp) % vblank_hz,
-		endhsync / (vblank_hz * mvp * 60), (endhsync / (vblank_hz * mvp) % 60), (endhsync / mvp) % vblank_hz);
+		lasthsync / (vblank_hz * mvp * 60), ((int)(lasthsync / (vblank_hz * mvp)) % 60), (lasthsync / mvp) % (int)vblank_hz,
+		endhsync / (vblank_hz * mvp * 60), ((int)(endhsync / (vblank_hz * mvp)) % 60), (endhsync / mvp) % (int)vblank_hz);
 	p += _tcslen (p);
 	_tcscat (p, L"] ");
 

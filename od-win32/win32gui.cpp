@@ -5623,21 +5623,22 @@ static void values_to_displaydlg (HWND hDlg)
 	TCHAR *blah[1] = { Nth };
 	TCHAR *string = NULL;
 	int v;
+	double d;
 
 	init_display_mode (hDlg);
 
 	SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_size_win.width, FALSE);
 	SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_size_win.height, FALSE);
 
-	v = workprefs.chipset_refreshrate;
-	if (v == 0)
-		v = currprefs.ntscmode ? 60 : 50;
-	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, v);
-	_stprintf (buffer, L"%d", v);
+	d = workprefs.chipset_refreshrate;
+	if (abs (d) < 1)
+		d = currprefs.ntscmode ? 60.0 : 50.0;
+	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)d);
+	_stprintf (buffer, L"%0.2f", d);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 
 	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
-	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, v);
+	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, (int)v);
 	WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, sizeof buffer / sizeof (TCHAR));
 	LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
 	if (FormatMessage (FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
@@ -5776,7 +5777,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
 	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
-	workprefs.chipset_refreshrate = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
+	workprefs.chipset_refreshrate = (double)SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
 
 	{
 		TCHAR buffer[MAX_FRAMERATE_LENGTH];
@@ -5798,7 +5799,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			SetDlgItemText(hDlg, IDC_RATETEXT, string);
 			LocalFree(string);
 		}
-		_stprintf (buffer, L"%d", workprefs.chipset_refreshrate);
+		_stprintf (buffer, L"%.02f", workprefs.chipset_refreshrate);
 		SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 		workprefs.gfx_size_win.width  = GetDlgItemInt(hDlg, IDC_XSIZE, &success, FALSE);
 		if(!success)
@@ -5807,8 +5808,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if(!success)
 			workprefs.gfx_size_win.height = 600;
 	}
-	if (workprefs.chipset_refreshrate == (currprefs.ntscmode ? 60 : 50))
-		workprefs.chipset_refreshrate = 0;
+	if (abs (workprefs.chipset_refreshrate - (currprefs.ntscmode ? 60.0 : 50.0)) < 0.0001)
+		workprefs.chipset_refreshrate = 0.0;
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_autoresolution = ischecked (hDlg, IDC_AUTORESOLUTION);
@@ -7673,7 +7674,7 @@ static int getcpufreq (int m)
 {
 	int f;
 
-	f = workprefs.ntscmode ? 28636360.0 : 28375160.0;
+	f = workprefs.ntscmode ? 28636360 : 28375160;
 	return f * (m >> 8) / 8;
 }
 
@@ -7842,7 +7843,7 @@ static void values_from_cpudlg (HWND hDlg)
 			TCHAR txt[20];
 			SendDlgItemMessage (hDlg, IDC_CPU_FREQUENCY2, WM_GETTEXT, (WPARAM)sizeof (txt) / sizeof (TCHAR), (LPARAM)txt);
 			workprefs.cpu_clock_multiplier = 0;
-			workprefs.cpu_frequency = _tstof (txt) * 1000000.0;
+			workprefs.cpu_frequency = (int)(_tstof (txt) * 1000000.0);
 			if (workprefs.cpu_frequency < 1 * 1000000)
 				workprefs.cpu_frequency = 0;
 			if (workprefs.cpu_frequency >= 99 * 1000000)

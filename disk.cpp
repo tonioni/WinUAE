@@ -108,6 +108,7 @@ static unsigned long dsksync_cycles;
 /* Always carried through to the next line.  */
 int disk_hpos;
 static int disk_jitter;
+static int indexdecay;
 
 static uae_u8 prev_data;
 static int prev_step;
@@ -2417,7 +2418,7 @@ static TCHAR *tobin (uae_u8 v)
 void DISK_select_set (uae_u8 data)
 {
 	prev_data = data;
-	prev_step = 0;
+	prev_step = data & 1;
 }
 
 void DISK_select (uae_u8 data)
@@ -2669,8 +2670,12 @@ void DISK_handler (uae_u32 data)
 		fetchnextrevolution (&floppy[3]);
 	if (flag & DISK_WORDSYNC)
 		INTREQ (0x8000 | 0x1000);
-	if (flag & DISK_INDEXSYNC)
-		cia_diskindex ();
+	if (flag & DISK_INDEXSYNC) {
+		if (!indexdecay) {
+			indexdecay = 2;
+			cia_diskindex ();
+		}
+	}
 }
 
 static void disk_doupdate_write (drive * drv, int floppybits)
@@ -2779,7 +2784,6 @@ static void disk_doupdate_predict (int startcycle)
 		uae_u32 tword = word;
 		int countcycle = startcycle + (drv->floppybitcounter % drv->trackspeed);
 		int mfmpos = drv->mfmpos;
-		int indexhack = drv->indexhack;
 		while (countcycle < (maxhpos << 8)) {
 			if (drv->tracktiming[0])
 				updatetrackspeed (drv, mfmpos);
@@ -2798,10 +2802,8 @@ static void disk_doupdate_predict (int startcycle)
 			mfmpos %= drv->tracklen;
 			if (mfmpos == 0)
 				diskevent_flag |= DISK_REVOLUTION << (drv - floppy);
-			if (mfmpos == drv->indexoffset) {
+			if (mfmpos == drv->indexoffset)
 				diskevent_flag |= DISK_INDEXSYNC;
-				indexhack = 0;
-			}
 			if (dskdmaen != 3 && mfmpos == drv->skipoffset) {
 				update_jitter ();
 				int skipcnt = disk_jitter;
@@ -2810,10 +2812,8 @@ static void disk_doupdate_predict (int startcycle)
 					mfmpos %= drv->tracklen;
 					if (mfmpos == 0)
 						diskevent_flag |= DISK_REVOLUTION << (drv - floppy);
-					if (mfmpos == drv->indexoffset) {
+					if (mfmpos == drv->indexoffset)
 						diskevent_flag |= DISK_INDEXSYNC;
-						indexhack = 0;
-					}
 				}
 			}
 			if (diskevent_flag)
@@ -3036,6 +3036,8 @@ void DISK_hsync (void)
 		if (drv->steplimit)
 			drv->steplimit--;
 	}
+	if (indexdecay)
+		indexdecay--;
 	if (linecounter) {
 		linecounter--;
 		if (! linecounter)

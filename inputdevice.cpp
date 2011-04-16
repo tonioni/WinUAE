@@ -2542,10 +2542,10 @@ void inputdevice_handle_inputcode (void)
 			if (currprefs.chipset_refreshrate == 0)
 				currprefs.chipset_refreshrate = currprefs.ntscmode ? 60 : 50;
 			changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate + dir;
-			if (changed_prefs.chipset_refreshrate < 10)
-				changed_prefs.chipset_refreshrate = 10;
-			if (changed_prefs.chipset_refreshrate > 900)
-				changed_prefs.chipset_refreshrate = 900;
+			if (changed_prefs.chipset_refreshrate < 10.0)
+				changed_prefs.chipset_refreshrate = 10.0;
+			if (changed_prefs.chipset_refreshrate > 900.0)
+				changed_prefs.chipset_refreshrate = 900.0;
 			config_changed = 1;
 		}
 		break;
