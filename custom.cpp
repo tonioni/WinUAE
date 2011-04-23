@@ -182,13 +182,13 @@ int hsyncendpos, hsyncstartpos;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
 int equ_vblank_endline = EQU_ENDLINE_PAL;
-double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz;
+double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored;
 int vblank_skip, doublescan;
 frame_time_t syncbase;
 static int fmode;
 uae_u16 beamcon0, new_beamcon0;
 uae_u16 vtotal = MAXVPOS_PAL, htotal = MAXHPOS_PAL;
-static int maxvpos_stored, maxhpos_stored, vblank_hz_stored;
+static int maxvpos_stored, maxhpos_stored;
 static uae_u16 hsstop, hbstrt, hbstop, vsstop, vbstrt, vbstop, hsstrt, vsstrt, hcenter;
 static int ciavsyncmode;
 static int diw_hstrt, diw_hstop;
@@ -2850,7 +2850,7 @@ void init_hz (bool fullinit)
 		interlace_seen = (bplcon0 & 4) ? 1 : 0;
 		reset_drawing ();
 	}
-	if (DBLEQU (vblank_hz, 50) || DBLEQU (vblank_hz, 60) && isvsync () == 2) {
+	if ((DBLEQU (vblank_hz, 50) || DBLEQU (vblank_hz, 60)) && isvsync () == 2) {
 		if (getvsyncrate (currprefs.gfx_refreshrate) != vblank_hz)
 			vsync_switchmode (vblank_hz, currprefs.gfx_refreshrate);
 	}

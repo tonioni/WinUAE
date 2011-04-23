@@ -150,6 +150,7 @@ struct uae_prefs {
 	bool serial_demand;
 	bool serial_hwctsrts;
 	bool serial_direct;
+	int serial_stopbits;
 	bool parallel_demand;
 	int parallel_matrix_emulation;
 	bool parallel_postscript_emulation;

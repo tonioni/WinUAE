@@ -5123,8 +5123,8 @@ int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *cust
 			flag |= (flags & IDEV_MAPPED_TOGGLE) ? ID_FLAG_TOGGLE : 0;
 			flag |= (flags & IDEV_MAPPED_INVERTTOGGLE) ? ID_FLAG_INVERTTOGGLE : 0;
 		}
-		flag |= (flags & ID_FLAG_GAMEPORTSCUSTOM1) ? ID_FLAG_GAMEPORTSCUSTOM1 : 0;
-		flag |= (flags & ID_FLAG_GAMEPORTSCUSTOM2) ? ID_FLAG_GAMEPORTSCUSTOM2 : 0;
+		flag |= (flags & IDEV_MAPPED_GAMEPORTSCUSTOM1) ? ID_FLAG_GAMEPORTSCUSTOM1 : 0;
+		flag |= (flags & IDEV_MAPPED_GAMEPORTSCUSTOM2) ? ID_FLAG_GAMEPORTSCUSTOM2 : 0;
 		if (port >= 0)
 			portp = port;
 		put_event_data (idf, devindex, num, eid, custom, flag, portp, sub);

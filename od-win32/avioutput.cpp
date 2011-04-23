@@ -479,7 +479,7 @@ static int AVIOutput_AllocateVideo (void)
 {
 	avioutput_width = avioutput_height = avioutput_bits = 0;
 
-	avioutput_fps = vblank_hz;
+	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
 		avioutput_fps = ispal () ? 50 : 60;
 	if (avioutput_originalsize)

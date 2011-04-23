@@ -375,7 +375,6 @@
 #define IDC_DISPLAYSELECT               1024
 #define IDC_AUTOCONFIG                  1025
 #define IDC_PRINTERLIST                 1025
-#define IDC_RESOLUTION3                 1025
 #define IDC_RESOLUTIONDEPTH             1025
 #define IDC_CHIPMEM                     1026
 #define IDC_CREATELOGFILE               1026
@@ -400,7 +399,6 @@
 #define IDC_PORT3_JOYS                  1032
 #define IDC_PARALLEL                    1033
 #define IDC_PORT0_AF                    1033
-#define IDC_PORT0_AF2                   1034
 #define IDC_PORT1_AF                    1034
 #define IDC_JULIAN                      1040
 #define IDC_FOCUSMINIMIZE               1041
@@ -430,7 +428,6 @@
 #define IDC_RICHEDIT2                   1092
 #define IDC_CONTRIBUTORS                1124
 #define IDC_BLACKER_THAN_BLACK          1170
-#define IDC_BLIT32                      1173
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
 #define IDC_LORES_SMOOTHED              1179
@@ -717,7 +714,6 @@
 #define IDC_DF1TYPE                     1596
 #define IDC_DF2TYPE                     1597
 #define IDC_SOUNDSPEEDSLIDER            1598
-#define IDC_DF0TYPE4                    1598
 #define IDC_DF3TYPE                     1598
 #define IDC_SOUNDSPEEDTEXT              1599
 #define IDC_SOUNDSPEEDCAPTION           1600

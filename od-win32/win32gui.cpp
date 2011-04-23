@@ -5299,6 +5299,7 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_YCENTER, TRUE);
 	ew (hDlg, IDC_LM_SCANLINES, TRUE);
 	ew (hDlg, IDC_FRAMERATE2, !workprefs.gfx_avsync);
+	ew (hDlg, IDC_RATE2TEXT, !workprefs.gfx_avsync);
 	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
@@ -5634,7 +5635,7 @@ static void values_to_displaydlg (HWND hDlg)
 	if (abs (d) < 1)
 		d = currprefs.ntscmode ? 60.0 : 50.0;
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)d);
-	_stprintf (buffer, L"%0.2f", d);
+	_stprintf (buffer, L"%0.6f", d);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 
 	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
@@ -5764,6 +5765,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	int gfx_width = workprefs.gfx_size_win.width;
 	int gfx_height = workprefs.gfx_size_win.height;
 	LRESULT posn;
+	bool updaterate = false;
+	TCHAR tmp[200];
 
 	display_fromselect (SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0),
 		&workprefs.gfx_afullscreen, &workprefs.gfx_avsync, 0);
@@ -5777,38 +5780,57 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
 	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
-	workprefs.chipset_refreshrate = (double)SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
 
-	{
-		TCHAR buffer[MAX_FRAMERATE_LENGTH];
-		TCHAR Nth[MAX_NTH_LENGTH];
-		TCHAR *blah[1] = { Nth };
-		TCHAR *string = NULL;
-
-		WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH);
-		LoadNthString(workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH);
-		if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
-		{
-			DWORD dwLastError = GetLastError();
-			_stprintf (buffer, L"Every %s Frame", nth[workprefs.gfx_framerate - 1]);
-			SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
+	if (msg == WM_HSCROLL) {
+		i = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
+		if (i != (int)workprefs.chipset_refreshrate)
+			workprefs.chipset_refreshrate = (double)i;
+		updaterate = true;
+	} else if (LOWORD (wParam) == IDC_RATE2TEXT && HIWORD (wParam) == EN_KILLFOCUS) {
+		if (GetDlgItemText(hDlg, IDC_RATE2TEXT, tmp, sizeof tmp / sizeof (TCHAR))) {
+			workprefs.chipset_refreshrate = _tstof (tmp);
+			SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)workprefs.chipset_refreshrate);
+			updaterate = true;
 		}
-		else
-		{
-			SetDlgItemText(hDlg, IDC_RATETEXT, string);
-			LocalFree(string);
-		}
-		_stprintf (buffer, L"%.02f", workprefs.chipset_refreshrate);
-		SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
-		workprefs.gfx_size_win.width  = GetDlgItemInt(hDlg, IDC_XSIZE, &success, FALSE);
-		if(!success)
-			workprefs.gfx_size_win.width = 800;
-		workprefs.gfx_size_win.height = GetDlgItemInt(hDlg, IDC_YSIZE, &success, FALSE);
-		if(!success)
-			workprefs.gfx_size_win.height = 600;
 	}
-	if (abs (workprefs.chipset_refreshrate - (currprefs.ntscmode ? 60.0 : 50.0)) < 0.0001)
+
+	if (workprefs.chipset_refreshrate > 0 && workprefs.chipset_refreshrate < 1) {
+		workprefs.chipset_refreshrate = currprefs.ntscmode ? 60.0 : 50.0;
+		updaterate = true;
+	}
+	if (workprefs.chipset_refreshrate > 300) {
+		workprefs.chipset_refreshrate = currprefs.ntscmode ? 60.0 : 50.0;
+		updaterate = true;
+	}
+
+	TCHAR buffer[MAX_FRAMERATE_LENGTH];
+	TCHAR Nth[MAX_NTH_LENGTH];
+	TCHAR *blah[1] = { Nth };
+	TCHAR *string = NULL;
+
+	WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH);
+	LoadNthString(workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH);
+	if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+		buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0) {
+		DWORD dwLastError = GetLastError();
+		_stprintf (buffer, L"Every %s Frame", nth[workprefs.gfx_framerate - 1]);
+		SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
+	} else {
+		SetDlgItemText(hDlg, IDC_RATETEXT, string);
+		LocalFree(string);
+	}
+	if (updaterate) {
+		_stprintf (buffer, L"%.06f", workprefs.chipset_refreshrate);
+		SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
+	}
+	workprefs.gfx_size_win.width  = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
+	if(!success)
+		workprefs.gfx_size_win.width = 800;
+	workprefs.gfx_size_win.height = GetDlgItemInt (hDlg, IDC_YSIZE, &success, FALSE);
+	if(!success)
+		workprefs.gfx_size_win.height = 600;
+
+	if (DBLEQU (workprefs.chipset_refreshrate, currprefs.ntscmode ? 60.0 : 50.0))
 		workprefs.chipset_refreshrate = 0.0;
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */

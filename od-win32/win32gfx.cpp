@@ -1803,6 +1803,8 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 				currentmode->current_height != wc->current_height ||
 				currentmode->current_depth != wc->current_depth)
 				return -1;
+			if (!gfxvidinfo.bufmem_allocated)
+				return -1;
 		}
 	} else if (isfullscreen () == 0) {
 		/* windowed to windowed */
@@ -1957,7 +1959,8 @@ void close_windows (void)
 	S2X_free ();
 #endif
 	xfree (gfxvidinfo.realbufmem);
-	gfxvidinfo.realbufmem = 0;
+	gfxvidinfo.bufmem_allocated = false;
+	gfxvidinfo.realbufmem = NULL;
 	DirectDraw_Release ();
 	close_hwnds ();
 }
@@ -2512,8 +2515,8 @@ static BOOL doInit (void)
 				currentmode->amiga_height = currentmode->current_height;
 			}
 			gfxvidinfo.pixbytes = currentmode->current_depth >> 3;
-			gfxvidinfo.bufmem = 0;
-			gfxvidinfo.linemem = 0;
+			gfxvidinfo.bufmem = NULL;
+			gfxvidinfo.linemem = NULL;
 			gfxvidinfo.width = (currentmode->amiga_width + 7) & ~7;
 			gfxvidinfo.height = currentmode->amiga_height;
 			gfxvidinfo.maxblocklines = 0; // flush_screen actually does everything
@@ -2539,11 +2542,12 @@ static BOOL doInit (void)
 	xfree (gfxvidinfo.realbufmem);
 	gfxvidinfo.realbufmem = NULL;
 	gfxvidinfo.bufmem = NULL;
+	gfxvidinfo.bufmem_allocated = false;
 
 	if (!screen_is_picasso) {
 		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
 
-			;
+			gfxvidinfo.bufmem_allocated = true;
 
 		} else if (currentmode->flags & DM_SWSCALE) {
 
@@ -2555,6 +2559,7 @@ static BOOL doInit (void)
 			gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
 			gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
 			gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
+			gfxvidinfo.bufmem_allocated = true;
 
 		} else if (currentmode->flags & DM_D3D) {
 
@@ -2563,6 +2568,7 @@ static BOOL doInit (void)
 			gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
 			gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
 			gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
+			gfxvidinfo.bufmem_allocated = true;
 
 		}
 		init_row_map ();

@@ -638,6 +638,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"serial_on_demand", p->serial_demand);
 	cfgfile_write_bool (f, L"serial_hardware_ctsrts", p->serial_hwctsrts);
 	cfgfile_write_bool (f, L"serial_direct", p->serial_direct);
+	cfgfile_dwrite (f, L"serial_stopbits", L"%d", p->serial_stopbits);
 	cfgfile_write_str (f, L"scsi", scsimode[p->scsi]);
 	cfgfile_write_bool (f, L"uaeserial", p->uaeserial);
 	cfgfile_write_bool (f, L"sana2", p->sana2);
@@ -2029,6 +2030,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_intval (option, value, L"cachesize", &p->cachesize, 1)
+		|| cfgfile_intval (option, value, L"serial_stopbits", &p->serial_stopbits, 1)
 		|| cfgfile_intval (option, value, L"cpu060_revision", &p->cpu060_revision, 1)
 		|| cfgfile_intval (option, value, L"fpu_revision", &p->fpu_revision, 1)
 		|| cfgfile_intval (option, value, L"cdtvramcard", &p->cs_cdtvcard, 1)
@@ -3615,6 +3617,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->use_serial = 0;
 	p->serial_demand = 0;
 	p->serial_hwctsrts = 1;
+	p->serial_stopbits = 0;
 	p->parallel_demand = 0;
 	p->parallel_matrix_emulation = 0;
 	p->parallel_postscript_emulation = 0;

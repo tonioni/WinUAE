@@ -497,7 +497,7 @@ static void do_tod_hack (int dotod)
 	}
 
 	if (currprefs.cs_ciaatod == 0)
-		rate = vblank_hz;
+		rate = (int)(vblank_hz + 0.5);
 	else if (currprefs.cs_ciaatod == 1)
 		rate = 50;
 	else

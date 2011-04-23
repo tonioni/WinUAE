@@ -1026,7 +1026,7 @@ int openser (const TCHAR *sername)
 	dcb.ByteSize = 8;
 	dcb.Parity = NOPARITY;
 	dcb.fParity = FALSE;
-	dcb.StopBits = ONESTOPBIT;
+	dcb.StopBits = currprefs.serial_stopbits;
 
 	dcb.fDsrSensitivity = FALSE;
 	dcb.fOutxDsrFlow = FALSE;
@@ -1503,10 +1503,10 @@ int enumserialports (void)
 		}
 	}
 
-	if (j < MAX_SERPAR_PORTS) {
-		comports[j].dev = my_strdup (L"TCP://0.0.0.0:1234");
-		comports[j].cfgname = my_strdup (comports[j].dev);
-		comports[j].name = my_strdup (comports[j].dev);
+	if (cnt < MAX_SERPAR_PORTS) {
+		comports[cnt].dev = my_strdup (L"TCP://0.0.0.0:1234");
+		comports[cnt].cfgname = my_strdup (comports[cnt].dev);
+		comports[cnt].name = my_strdup (comports[cnt].dev);
 		cnt++;
 	}
 

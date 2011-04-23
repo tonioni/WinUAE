@@ -1,4 +1,17 @@
 
+Beta 6:
+
+- Display panel overwrites chipset_refreshrate decimal part only when slider is adjusted
+- Display panel directly accepts non-integer refresh rates
+- last serial port device was not listed (b1)
+- added serial_stopbits configuration parameter, sets Paula serial port emulation stop bit length.
+  (0 = 1bit, 1 = 1.5bits, 2 = 2bits) Technically it should always work but at least some USB
+  adapters don't seem to reliably read Amiga serial data at 19200 without setting it to 1 or 2.
+  (interestingly for example 115200 works fine, this is quite confusing)
+- Gameports panel remapping fixed (b4)
+- avioutput refresh rate was not rounded to nearest integer (b5)
+- fixed crash when switching from RTG mode to native mode (old bug, only in specific combination of filter and display settings)
+
 Beta 5:
 
 - floppy step signal's previous state was not restored properly from statefile (possible one skipped

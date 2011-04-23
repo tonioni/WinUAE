@@ -86,6 +86,7 @@ struct vidbuf_description
     uae_u8 *realbufmem;
     uae_u8 *linemem;
     uae_u8 *emergmem;
+	bool bufmem_allocated;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
     int width;

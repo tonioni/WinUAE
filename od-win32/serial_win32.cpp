@@ -152,7 +152,7 @@ static void checkreceive_enet (int mode)
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, doTCHAR (serdatr));
+	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
 #endif
 #endif
 }
@@ -211,7 +211,7 @@ static void checkreceive_serial (int mode)
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, doTCHAR (serdatr));
+	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
 #endif
 #endif
 }
@@ -249,7 +249,7 @@ static void checksend (int mode)
 		data_in_serdat = 0;
 		INTREQ (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
-		write_log (L"SERIAL: send %04X (%c)\n", serdatshift, doTCHAR (serdatshift));
+		write_log (L"SERIAL: send %04X (%c)\n", serdatshift, dochar (serdatshift));
 #endif
 	}
 }
@@ -304,7 +304,7 @@ void SERDAT (uae_u16 w)
 		checksend (1);
 
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: wrote 0x%04x (%c) PC=%x\n", w, doTCHAR (w), M68K_GETPC);
+	write_log (L"SERIAL: wrote 0x%04x (%c) PC=%x\n", w, dochar (w), M68K_GETPC);
 #endif
 
 	return;
@@ -322,7 +322,7 @@ uae_u16 SERDATR (void)
 	if (ovrun)
 		serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-	write_log ( "SERIAL: read 0x%04x (%c) %x\n", serdatr, doTCHAR (serdatr), M68K_GETPC);
+	write_log (L"SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), M68K_GETPC);
 #endif
 	ovrun = 0;
 	data_in_serdatr = 0;
