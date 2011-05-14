@@ -354,6 +354,13 @@ void fixup_prefs (struct uae_prefs *p)
 			p->cs_ramseyrev = 0x0f;
 			p->cs_mbdmac = 0;
 		}
+	} else if (p->cs_compatible == 0) {
+		if (p->cs_ide == IDE_A4000) {
+			if (p->cs_fatgaryrev < 0)
+				p->cs_fatgaryrev = 0;
+			if (p->cs_ramseyrev < 0)
+				p->cs_ramseyrev = 0x0f;
+		}
 	}
 	fixup_prefs_dimensions (p);
 

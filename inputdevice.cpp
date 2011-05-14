@@ -334,7 +334,7 @@ static bool write_slot (TCHAR *p, struct uae_input_device *uid, int i, int j)
 		_stprintf (p, L"%s.%d", events[uid->eventid[i][j]].confname, uid->flags[i][j] & ID_FLAG_SAVE_MASK);
 		ok = true;
 	} else {
-		_tcscat (p, L"NULL");
+		_tcscpy (p, L"NULL");
 	}
 	return ok;
 }
@@ -351,7 +351,7 @@ static void kbrlabel (TCHAR *s)
 	}
 }
 
-static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR *tmp1, struct uae_input_device *id)
+static void write_config2 (struct zfile *f, int idnum, int i, int offset, const TCHAR *extra, struct uae_input_device *id)
 {
 	TCHAR tmp2[200], tmp3[200], *p;
 	int evt, got, j, k;
@@ -361,6 +361,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 	int *slotorder;
 	int io = i + offset;
 
+	tmp2[0] = 0;
 	p = tmp2;
 	got = 0;
 
@@ -405,7 +406,7 @@ static void write_config2 (struct zfile *f, int idnum, int i, int offset, TCHAR 
 		}
 	}
 	if (p > tmp2) {
-		_stprintf (tmp3, L"input.%d.%s%d", idnum + 1, tmp1, i);
+		_stprintf (tmp3, L"input.%d.%s%d", idnum + 1, extra, i);
 		cfgfile_write_str (f, tmp3, tmp2);
 	}
 }
@@ -461,8 +462,8 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 			i++;
 			continue;
 		}
+		tmp2[0] = 0;
 		p = tmp2;
-		p[0] = 0;
 		for (j = 0; j < MAX_INPUT_SUB_EVENT; j++) {
 			TCHAR *custom = kbr->custom[i][slotorder[j]];
 			evt = kbr->eventid[i][slotorder[j]];
@@ -583,7 +584,7 @@ static TCHAR *getstring (const TCHAR **pp)
 static void reset_inputdevice_settings (struct uae_input_device *uid)
 {
 	for (int l = 0; l < MAX_INPUT_DEVICE_EVENTS; l++) {
-		for (int i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
+		for (int i = 0; i < MAX_INPUT_SUB_EVENT_ALL; i++) {
 			uid->eventid[l][i] = 0;
 			uid->flags[l][i] = 0;
 			xfree (uid->custom[l][i]);
@@ -662,7 +663,7 @@ static void clear_id (struct uae_input_device *id)
 #ifndef	_DEBUG
 	int i, j;
 	for (i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
-		for (j = 0; j < MAX_INPUT_SUB_EVENT; j++)
+		for (j = 0; j < MAX_INPUT_SUB_EVENT_ALL; j++)
 			xfree (id->custom[i][j]);
 	}
 #endif
@@ -4607,7 +4608,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_autofire_linecnt = 600;
 	for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
 		if (i == GAMEPORT_INPUT_SETTINGS) {
-			if (p->jports[0].id != JPORT_CUSTOM || p->jports[0].id != JPORT_CUSTOM) {
+			if (p->jports[0].id != JPORT_CUSTOM || p->jports[1].id != JPORT_CUSTOM) {
 				reset_inputdevice_slot (p, i);
 			}
 		}

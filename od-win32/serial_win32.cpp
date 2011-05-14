@@ -8,7 +8,6 @@
 *
 */
 
-
 #include "sysconfig.h"
 #ifdef SERIAL_ENET
 #include "enet/enet.h"

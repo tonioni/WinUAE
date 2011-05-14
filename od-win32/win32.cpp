@@ -456,7 +456,7 @@ static void checkpause (void)
 
 static int showcursor;
 
-extern TCHAR config_filename[MAX_DPATH];
+extern TCHAR config_filename[256];
 
 static void setmaintitle (HWND hwnd)
 {
@@ -468,7 +468,10 @@ static void setmaintitle (HWND hwnd)
 #endif
 	txt[0] = 0;
 	inprec_getstatus (txt);
-	if (config_filename[0]) {
+	if (currprefs.config_window_title[0]) {
+		_tcscat (txt, currprefs.config_window_title);
+		_tcscat (txt, L" - ");
+	} else if (config_filename[0]) {
 		_tcscat (txt, L"[");
 		_tcscat (txt, config_filename);
 		_tcscat (txt, L"] - ");

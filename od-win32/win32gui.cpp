@@ -128,7 +128,7 @@ extern TCHAR help_file[MAX_DPATH];
 
 extern int mouseactive;
 
-TCHAR config_filename[MAX_DPATH] = L"";
+TCHAR config_filename[256] = L"";
 static TCHAR stored_path[MAX_DPATH];
 
 #define Error(x) MessageBox (NULL, (x), L"WinUAE Error", MB_OK)
@@ -2641,11 +2641,18 @@ static void setguititle (HWND phwnd)
 		}
 	}
 	title2[0] = 0;
-	name = config_filename;
+	name = workprefs.config_window_title;
 	if (name && _tcslen (name) > 0) {
-		_tcscat (title2, L"[");
 		_tcscat (title2, name);
-		_tcscat (title2, L"] - ");
+		_tcscat (title2, L" - ");
+	}
+	if (!title2[0]) {
+		name = config_filename;
+		if (name && _tcslen (name) > 0) {
+			_tcscat (title2, L"[");
+			_tcscat (title2, name);
+			_tcscat (title2, L"] - ");
+		}
 	}
 	_tcscat (title2, title);
 	SetWindowText (hwnd, title2);
@@ -12679,6 +12686,8 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			currprefs.gfx_filter_vert_zoom = workprefs.gfx_filter_vert_zoom = 0;
 			currprefs.gfx_filter_horiz_offset = workprefs.gfx_filter_horiz_offset = 0;
 			currprefs.gfx_filter_vert_offset = workprefs.gfx_filter_vert_offset = 0;
+			currprefs.gfx_filter_horiz_zoom_mult = workprefs.gfx_filter_horiz_zoom_mult = 1000;
+			currprefs.gfx_filter_vert_zoom_mult = workprefs.gfx_filter_vert_zoom_mult = 1000;
 			values_to_hw3ddlg (hDlg);
 			updatedisplayarea ();
 			WIN32GFX_WindowMove ();

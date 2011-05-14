@@ -3597,7 +3597,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v)
 	if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
 		v &= ~0x00F1;
 	else if (! (currprefs.chipset_mask & CSMASK_AGA))
-		v &= ~0x00B1;
+		v &= ~0x00B0;
 	v &= ~(0x0200 | 0x0100 | 0x0080 | 0x0020);
 #if SPRBORDER
 	v |= 1;
@@ -3630,7 +3630,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
 		v &= ~0x00F1;
 	else if (! (currprefs.chipset_mask & CSMASK_AGA))
-		v &= ~0x00B1;
+		v &= ~0x00B0;
 	v &= ~(0x0200 | 0x0100 | 0x0080 | 0x0020);
 
 #if SPRBORDER

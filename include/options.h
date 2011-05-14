@@ -37,15 +37,16 @@ struct strlist {
 #define MAX_INPUT_SETTINGS 4
 #define GAMEPORT_INPUT_SETTINGS 3 // last slot is for gameport panel mappings
 #define MAX_INPUT_SUB_EVENT 4
+#define MAX_INPUT_SUB_EVENT_ALL 5
 #define SPARE_SUB_EVENT 4
 
 struct uae_input_device {
 	TCHAR *name;
 	TCHAR *configname;
-	uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT + 1];
-	TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT + 1];
-	uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT + 1];
-	uae_s8 port[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT + 1];
+	uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
+	TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
+	uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
+	uae_s8 port[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
 	uae_s16 extra[MAX_INPUT_DEVICE_EVENTS];
 	uae_s8 enabled;
 };
@@ -144,6 +145,7 @@ struct uae_prefs {
 	int config_version;
 	TCHAR config_hardware_path[MAX_DPATH];
 	TCHAR config_host_path[MAX_DPATH];
+	TCHAR config_window_title[256];
 
 	bool illegal_mem;
 	bool use_serial;

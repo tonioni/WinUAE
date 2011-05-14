@@ -646,6 +646,8 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 	else
 		alloc_colors_rgb (5, 6, 5, 11, 5, 0, 0, 0, 0, 0, rc, gc, bc);
 
+	if (WIN32GFX_IsPicassoScreen ())
+		return;
 
 	if (!currprefs.gfx_filter || !usedfilter) {
 		usedfilter = &uaefilters[0];

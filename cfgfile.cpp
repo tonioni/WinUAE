@@ -515,6 +515,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"config_version", L"%d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
 	cfgfile_write_str (f, L"config_hardware_path", p->config_hardware_path);
 	cfgfile_write_str (f, L"config_host_path", p->config_host_path);
+	cfgfile_write_str (f, L"config_window_title", p->config_window_title);
 
 	for (sl = p->all_lines; sl; sl = sl->next) {
 		if (sl->unknown) {
@@ -1383,6 +1384,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_path (option, value, L"floppy2soundext", p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_path (option, value, L"floppy3soundext", p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"gfx_display_name", p->gfx_display_name, sizeof p->gfx_display_name / sizeof (TCHAR))
+		|| cfgfile_string (option, value, L"config_window_title", p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"config_info", p->info, sizeof p->info / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"config_description", p->description, sizeof p->description / sizeof (TCHAR)))
 		return 1;
@@ -1615,7 +1617,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			tmpp = _tcschr (tmpp2, ',');
 			tmpp++;
 			wh[i].width = _tstol (tmpp);
-			while (*tmpp != ',' && *tmpp != 'x')
+			while (*tmpp != ',' && *tmpp != 'x' && *tmpp != '*')
 				tmpp++;
 			wh[i].height = _tstol (tmpp + 1);
 			tmpp2 = tmpp;
@@ -2672,6 +2674,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 				cfgfile_string (line1b, line2b, L"config_description", p->description, sizeof p->description / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, L"config_hardware_path", p->config_hardware_path, sizeof p->config_hardware_path / sizeof (TCHAR));
 				cfgfile_path (line1b, line2b, L"config_host_path", p->config_host_path, sizeof p->config_host_path / sizeof (TCHAR));
+				cfgfile_string (line1b, line2b, L"config_window_title", p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR));
 			}
 		}
 	}
