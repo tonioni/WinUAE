@@ -2763,7 +2763,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
-		p->gfx_api = 1;
+		p->gfx_api = os_vista ? 1 : 0;
 	}
 	if (type == 1 || type == 0) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;

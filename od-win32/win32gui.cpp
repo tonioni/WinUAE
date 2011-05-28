@@ -5457,16 +5457,27 @@ static int *getp_da (void)
 	return p;
 }
 
-static void update_da(void)
+static void set_da (HWND hDlg)
+{
+	int *p = getp_da ();
+	TCHAR buf[10];
+	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / 10);
+	_stprintf(buf, L"%.1f", (double)((*p) / 10.0));
+	SetDlgItemText (hDlg, IDC_DA_TEXT, buf);
+}
+
+static void update_da (HWND hDlg)
 {
 	currprefs.gfx_gamma = workprefs.gfx_gamma;
 	currprefs.gfx_luminance = workprefs.gfx_luminance;
 	currprefs.gfx_contrast = workprefs.gfx_contrast;
+	set_da (hDlg);
 	init_colors ();
-	init_custom();
+	init_custom ();
 	updatedisplayarea ();
 	WIN32GFX_WindowMove ();
 }
+
 static void handle_da (HWND hDlg)
 {
 	int *p;
@@ -5479,7 +5490,7 @@ static void handle_da (HWND hDlg)
 	if (v == *p)
 		return;
 	*p = v;
-	update_da();
+	update_da (hDlg);
 }
 
 void init_da (HWND hDlg)
@@ -5496,7 +5507,7 @@ void init_da (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETRANGE, TRUE, MAKELONG (-99, 99));
 	p = getp_da ();
 	if (p)
-		SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / 10);
+		set_da (hDlg);
 }
 
 static int gui_display_depths[3];
@@ -5941,9 +5952,11 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETRANGE, TRUE, MAKELONG (MIN_REFRESH_RATE, MAX_REFRESH_RATE));
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPAGESIZE, 0, 1);
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (1, 99));
+		recursive++;
 		init_displays_combo (hDlg);
 		init_resolution_combo (hDlg);
 		init_da (hDlg);
+		recursive--;
 
 	case WM_USER:
 		recursive++;
@@ -5963,8 +5976,8 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			p = getp_da();
 			if (p)
 				*p = 0;
-			init_da(hDlg);
-			update_da();
+			init_da (hDlg);
+			update_da (hDlg);
 		}
 		handle_da (hDlg);
 		values_from_displaydlg (hDlg, msg, wParam, lParam);
@@ -7781,6 +7794,8 @@ static void values_from_cpudlg (HWND hDlg)
 		: ischecked (hDlg, IDC_FPU3) ? 3 : 0;
 
 	/* When switching away from 68000, disable 24 bit addressing.  */
+	if (workprefs.cpu_model != newcpu && newcpu <= 68010)
+		newfpu = 0;
 	workprefs.cpu_model = newcpu;
 	switch(newcpu)
 	{
@@ -12461,7 +12476,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERHO, TBM_SETPOS, TRUE, ho);
 	SendDlgItemMessage (hDlg, IDC_FILTERVO, TBM_SETPOS, TRUE, vo);
 	SetDlgItemInt (hDlg, IDC_FILTERHZV, hz, TRUE);
-	SetDlgItemInt (hDlg, IDC_FILTERVZV, vo, TRUE);
+	SetDlgItemInt (hDlg, IDC_FILTERVZV, vz, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERHOV, ho, TRUE);
 	SetDlgItemInt (hDlg, IDC_FILTERVOV, vo, TRUE);
 }

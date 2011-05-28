@@ -450,6 +450,8 @@
 #define IDC_DA_SLIDER                   1193
 #define IDC_FRAMERATE2                  1194
 #define IDC_RATE2TEXT                   1195
+#define IDC_RATE2TEXT2                  1196
+#define IDC_DA_TEXT                     1196
 #define IDC_CPU0                        1200
 #define IDC_CPU1                        1201
 #define IDC_CPU2                        1202

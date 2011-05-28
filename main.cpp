@@ -247,8 +247,8 @@ void fixup_prefs (struct uae_prefs *p)
 		write_log (L"Unsupported bogomem size!\n");
 		err = 1;
 	}
-	if (p->bogomem_size > 0x100000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
-		p->bogomem_size = 0x100000;
+	if (p->bogomem_size > 0x180000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
+		p->bogomem_size = 0x180000;
 		write_log (L"Possible Gayle bogomem conflict fixed\n");
 	}
 	if (p->chipmem_size > 0x200000 && p->fastmem_size != 0) {

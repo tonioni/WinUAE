@@ -1584,8 +1584,8 @@ void set_audio (void)
 	delay = currprefs.sound_mixed_stereo_delay = changed_prefs.sound_mixed_stereo_delay;
 	mixed_mul1 = MIXED_STEREO_SCALE / 2 - sep;
 	mixed_mul2 = MIXED_STEREO_SCALE / 2 + sep;
-	mixed_stereo_size = delay > 0 ? (1 << (delay - 1)) - 1 : 0;
-	mixed_on = (sep > 0 && sep < MIXED_STEREO_MAX) || mixed_stereo_size > 0;
+	mixed_stereo_size = delay > 0 ? (1 << delay) - 1 : 0;
+	mixed_on = sep < MIXED_STEREO_MAX || mixed_stereo_size > 0;
 	if (mixed_on && old_mixed_size != mixed_stereo_size) {
 		saved_ptr = 0;
 		memset (right_word_saved, 0, sizeof right_word_saved);

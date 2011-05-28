@@ -1,4 +1,21 @@
 
+Beta 8 (RC1):
+
+- always disable FPU when using GUI to change CPU to 68000 or 68010
+- slow ram max is now 1.5M (was 1.0M) when Gayle features are enabled.
+- stereo separation 0% equaled 100% if stereo delay was 0 or 1
+- stereo delay 1 was same as 0
+- brightness/contrast/gamma read-only numeric value box added
+
+Beta 7:
+
+- borderblank only worked in AGA mode, BPLCON0 bit 0 was ignored in ECS Denise mode
+- config_window_title configuration entry added, text shown on GUI and main window title bar if set
+- delay allocation of filter buffers if current mode is RTG
+- fixed uninitialized buffer when writing joystick input settings to config file, possible worst case issue
+  was corrupt input configuration data in config file
+- AROS ROM updated
+
 Beta 6:
 
 - Display panel overwrites chipset_refreshrate decimal part only when slider is adjusted
