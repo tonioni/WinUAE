@@ -5716,7 +5716,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		goto error;
 	}
 
-	if (hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->virtsize)
+	if ((uae_u64)hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->virtsize)
 		write_log (L"RDB: WARNING: end of partition > size of disk!\n");
 
 	err = 2;

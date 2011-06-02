@@ -662,7 +662,6 @@ static void ide_write_sectors (int flags)
 	ide->data_offset = 0;
 	ide->status |= IDE_STATUS_DRQ;
 	ide->data_size = nsec * ide->blocksize;
-	ide->data_multi = 1;
 }
 
 static void ide_do_command (uae_u8 cmd)

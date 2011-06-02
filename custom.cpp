@@ -2954,7 +2954,7 @@ void init_custom (void)
 	update_mirrors();
 	create_cycle_diagram_table ();
 	reset_drawing ();
-	init_hz ();
+	init_hz_full ();
 	calcdiw ();
 }
 
@@ -5853,7 +5853,7 @@ void custom_reset (int hardreset)
 	diwstate = DIW_waiting_start;
 
 	dmal = 0;
-	init_hz ();
+	init_hz_full ();
 	vpos_lpen = -1;
 
 	audio_reset ();

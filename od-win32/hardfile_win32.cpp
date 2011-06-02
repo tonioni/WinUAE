@@ -1740,7 +1740,7 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	if (!cache)
 		goto err;
 	h = CreateFile (uae_drives[idx].device_path, GENERIC_READ, FILE_SHARE_READ, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING, NULL);
+		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		goto err;
 	size = uae_drives[idx].size;
