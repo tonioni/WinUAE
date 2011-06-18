@@ -25,7 +25,9 @@ extern int isfullscreen (void);
 extern void toggle_fullscreen (int);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
-extern bool vsync_switchmode (int, int);
+extern bool vsync_switchmode (int);
+extern bool vsync_busywait (void);
+extern double vblank_calibrate (bool);
 extern void doflashscreen (void);
 extern int flashscreen;
 extern void updatedisplayarea (void);
@@ -34,6 +36,7 @@ extern void flush_line (int);
 extern void flush_block (int, int);
 extern void flush_screen (int, int);
 extern void flush_clear_screen (void);
+extern void update_screen (void);
 
 extern int lockscr (int);
 extern void unlockscr (void);

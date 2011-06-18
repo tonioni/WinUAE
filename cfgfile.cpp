@@ -172,6 +172,7 @@ static const TCHAR *joyaf[] = { L"none", L"normal", L"toggle", 0 };
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix_9pin", L"epson_matrix_24pin", L"epson_matrix_48pin", 0 };
 static const TCHAR *aspects[] = { L"none", L"vga", L"tv", 0 };
 static const TCHAR *vsyncmodes[] = { L"false", L"true", L"autoswitch", 0 };
+static const TCHAR *vsyncmodes2[] = { L"normal", L"busywait", 0 };
 static const TCHAR *filterapi[] = { L"directdraw", L"direct3d", 0 };
 static const TCHAR *dongles[] =
 {
@@ -752,7 +753,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"gfx_autoresolution", p->gfx_autoresolution);
 	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_backbuffers);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
+	cfgfile_write_str (f, L"gfx_vsyncmode", vsyncmodes2[p->gfx_avsyncmode]);
 	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_pvsync]);
+	cfgfile_write_str (f, L"gfx_vsyncmode_picasso", vsyncmodes2[p->gfx_pvsyncmode]);
 	cfgfile_write_bool (f, L"gfx_lores", p->gfx_resolution == 0);
 	cfgfile_write_str (f, L"gfx_resolution", lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, L"gfx_lores_mode", loresmode[p->gfx_lores_mode]);
@@ -858,7 +861,56 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_dwrite (f, L"chipset",L"ecs_denise");
 	else
 		cfgfile_dwrite (f, L"chipset", L"ocs");
-	cfgfile_write (f, L"chipset_refreshrate", L"%f", p->chipset_refreshrate);
+	if (p->chipset_refreshrate > 0)
+		cfgfile_write (f, L"chipset_refreshrate", L"%f", p->chipset_refreshrate);
+
+	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
+		if (p->cr[i].rate <= 0)
+			continue;
+		struct chipset_refresh *cr = &p->cr[i];
+		_stprintf (tmp, L"%f", cr->rate);
+		TCHAR *s = tmp + _tcslen (tmp);
+		if (cr->label[0] > 0 && i < MAX_CHIPSET_REFRESH)
+			s += _stprintf (s, L",t=%s", cr->label);
+		if (cr->horiz > 0)
+			s += _stprintf (s, L",h=%d", cr->horiz);
+		if (cr->vert > 0)
+			s += _stprintf (s, L",v=%d", cr->vert);
+		if (cr->locked)
+			_tcscat (s, L",locked");
+		if (cr->ntsc > 0)
+			_tcscat (s, L",ntsc");
+		else if (cr->ntsc == 0)
+			_tcscat (s, L",pal");
+		if (cr->lace > 0)
+			_tcscat (s, L",lace");
+		else if (cr->lace == 0)
+			_tcscat (s, L",nlace");
+		if (cr->framelength > 0)
+			_tcscat (s, L",lof");
+		else if (cr->framelength == 0)
+			_tcscat (s, L",shf");
+		if (cr->vsync > 0)
+			_tcscat (s, L",vsync");
+		else if (cr->vsync == 0)
+			_tcscat (s, L",nvsync");
+		if (cr->commands[0]) {
+			_tcscat (s, L",");
+			_tcscat (s, cr->commands);
+			for (int j = 0; j < _tcslen (s); j++) {
+				if (s[j] == '\n')
+					s[j] = ',';
+			}
+			s[_tcslen (s) - 1] = 0;
+		}
+		if (i == CHIPSET_REFRESH_PAL)
+			cfgfile_dwrite (f, L"displaydata_pal", tmp);
+		else if (i == CHIPSET_REFRESH_NTSC)
+			cfgfile_dwrite (f, L"displaydata_ntsc", tmp);
+		else
+			cfgfile_dwrite (f, L"displaydata", tmp);
+	}
+
 	cfgfile_write_str (f, L"collision_level", collmode[p->collision_level]);
 
 	cfgfile_write_str(f, L"chipset_compatible", cscompa[p->cs_compatible]);
@@ -1456,15 +1508,23 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			return 1;
 		return cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync);
 	}
+	if (cfgfile_strval (option, value, L"gfx_vsyncmode", &p->gfx_avsyncmode, vsyncmodes2, 0))
+		return 1;
+	if (cfgfile_strval (option, value, L"gfx_vsyncmode_picasso", &p->gfx_pvsyncmode, vsyncmodes2, 0))
+		return 1;
 
 	if (cfgfile_yesno (option, value, L"show_leds", &vb)) {
 		if (vb)
 			p->leds_on_screen |= STATUSLINE_CHIPSET;
+		else
+			p->leds_on_screen &= ~STATUSLINE_CHIPSET;
 		return 1;
 	}
 	if (cfgfile_yesno (option, value, L"show_leds_rtg", &vb)) {
 		if (vb)
 			p->leds_on_screen |= STATUSLINE_RTG;
+		else
+			p->leds_on_screen &= ~STATUSLINE_RTG;
 		return 1;
 	}
 
@@ -1776,6 +1836,95 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					p->keyboard_leds_in_use = 1;
 			}
 			tmpp2 = tmpp;
+		}
+		return 1;
+	}
+
+	if (_tcscmp (option, L"displaydata") == 0 || _tcscmp (option, L"displaydata_pal") == 0 || _tcscmp (option, L"displaydata_ntsc") == 0) {
+		_tcsncpy (tmpbuf, value, sizeof tmpbuf / sizeof (TCHAR) - 1);
+		tmpbuf[sizeof tmpbuf / sizeof (TCHAR) - 1] = '\0';
+
+		int vert = -1, horiz = -1, lace = -1, ntsc = -1, framelength = -1, vsync = -1;
+		int locked = 0;
+		double rate = -1;
+		TCHAR cmd[MAX_DPATH], label[16] = { 0 };
+		TCHAR *tmpp = tmpbuf;
+		TCHAR *end = tmpbuf + _tcslen (tmpbuf);
+		cmd[0] = 0;
+		for (;;) {
+			TCHAR *next = _tcschr (tmpp, ',');
+			TCHAR *equals = _tcschr (tmpp, '=');
+
+			if (!next)
+				next = end;
+			if (equals == NULL || equals > next)
+				equals = NULL;
+			else
+				equals++;
+			*next = 0;
+
+			if (rate < 0)
+				rate = _tstof (tmpp);
+			else if (!_tcsnicmp (tmpp, L"v=", 2))
+				vert = _tstol (equals);
+			else if (!_tcsnicmp (tmpp, L"h=", 2))
+				horiz = _tstol (equals);
+			else if (!_tcsnicmp (tmpp, L"t=", 2))
+				_tcsncpy (label, equals, sizeof label / sizeof (TCHAR) - 1);
+			else if (equals) {
+				if (_tcslen (cmd) + _tcslen (tmpp) + 2 < sizeof (cmd) / sizeof(TCHAR)) {
+					_tcscat (cmd, tmpp);
+					_tcscat (cmd, L"\n");
+				}
+			}
+			if (!_tcsnicmp (tmpp, L"locked", 4))
+				locked = 1;
+			if (!_tcsnicmp (tmpp, L"nlace", 5))
+				lace = 0;
+			if (!_tcsnicmp (tmpp, L"lace", 4))
+				lace = 1;
+			if (!_tcsnicmp (tmpp, L"nvsync", 5))
+				vsync = 0;
+			if (!_tcsnicmp (tmpp, L"vsync", 4))
+				vsync = 1;
+			if (!_tcsnicmp (tmpp, L"ntsc", 4))
+				ntsc = 1;
+			if (!_tcsnicmp (tmpp, L"pal", 3))
+				ntsc = 0;
+			if (!_tcsnicmp (tmpp, L"lof", 3))
+				framelength = 1;
+			if (!_tcsnicmp (tmpp, L"shf", 3))
+				framelength = 0;
+			tmpp = next;
+			if (tmpp >= end)
+				break;
+			tmpp++;
+		}
+		if (rate > 0) {
+			for (int i = 0; i < MAX_CHIPSET_REFRESH; i++) {
+				if (_tcscmp (option, L"displaydata_pal") == 0) {
+					i = CHIPSET_REFRESH_PAL;
+					p->cr[i].rate = -1;
+					_tcscpy (label, L"PAL");
+				} else if (_tcscmp (option, L"displaydata_ntsc") == 0) {
+					i = CHIPSET_REFRESH_NTSC;
+					p->cr[i].rate = -1;
+					_tcscpy (label, L"NTSC");
+				}
+				if (p->cr[i].rate <= 0) {
+					p->cr[i].horiz = horiz;
+					p->cr[i].vert = vert;
+					p->cr[i].lace = lace;
+					p->cr[i].ntsc = ntsc;
+					p->cr[i].vsync = vsync;
+					p->cr[i].locked = locked != 0;
+					p->cr[i].framelength = framelength;
+					p->cr[i].rate = rate;
+					_tcscpy (p->cr[i].commands, cmd);
+					_tcscpy (p->cr[i].label, label);
+					break;
+				}
+			}
 		}
 		return 1;
 	}
@@ -2144,17 +2293,17 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 	}
 
 	if (cfgfile_string (option, value, L"mmu_model", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		p->mmu_model = _tstol(tmpbuf);
+		p->mmu_model = _tstol (tmpbuf);
 		return 1;
 	}
 
 	if (cfgfile_string (option, value, L"fpu_model", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		p->fpu_model = _tstol(tmpbuf);
+		p->fpu_model = _tstol (tmpbuf);
 		return 1;
 	}
 
 	if (cfgfile_string (option, value, L"cpu_model", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
-		p->cpu_model = _tstol(tmpbuf);
+		p->cpu_model = _tstol (tmpbuf);
 		p->fpu_model = 0;
 		return 1;
 	}
@@ -2562,6 +2711,24 @@ static void cfgfile_parse_separated_line (struct uae_prefs *p, TCHAR *line1b, TC
 			}
 		}
 	}
+}
+
+void cfgfile_parse_lines (struct uae_prefs *p, const TCHAR *lines, int type)
+{
+	TCHAR *buf = my_strdup (lines);
+	TCHAR *t = buf;
+	for (;;) {
+		if (_tcslen (t) == 0)
+			break;
+		TCHAR *t2 = _tcschr (t, '\n');
+		if (t2)
+			*t2 = 0;
+		cfgfile_parse_line (p, t, type);
+		if (!t2)
+			break;
+		t = t2 + 1;
+	}
+	xfree (buf);
 }
 
 void cfgfile_parse_line (struct uae_prefs *p, TCHAR *line, int type)
@@ -3700,7 +3867,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_max_vertical = VRES_DOUBLE;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
-	p->gfx_backbuffers = 2;
+	p->gfx_backbuffers = 1;
 
 	target_default_options (p, type);
 
@@ -3836,6 +4003,33 @@ void default_prefs (struct uae_prefs *p, int type)
 	inputdevice_default_prefs (p);
 
 	blkdev_default_prefs (p);
+
+	p->cr_selected = -1;
+	struct chipset_refresh *cr;
+	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
+		cr = &p->cr[i];
+		cr->rate = -1;
+	}
+	cr = &p->cr[CHIPSET_REFRESH_PAL];
+	cr->horiz = -1;
+	cr->vert = -1;
+	cr->lace = -1;
+	cr->vsync = - 1;
+	cr->framelength = -1;
+	cr->rate = 50.0;
+	cr->ntsc = 0;
+	cr->locked = false;
+	_tcscpy (cr->label, L"PAL");
+	cr = &p->cr[CHIPSET_REFRESH_NTSC];
+	cr->horiz = -1;
+	cr->vert = -1;
+	cr->lace = -1;
+	cr->vsync = - 1;
+	cr->framelength = -1;
+	cr->rate = 60.0;
+	cr->ntsc = 1;
+	cr->locked = false;
+	_tcscpy (cr->label, L"NTSC");
 
 	zfile_fclose (default_file);
 	default_file = NULL;

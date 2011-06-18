@@ -1,4 +1,7 @@
 
+#define AMIGA_WIDTH_MAX (752 / 2)
+#define AMIGA_HEIGHT_MAX (574 / 2)
+
 #ifdef GFXFILTER
 
 typedef unsigned char u8;

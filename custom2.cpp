@@ -236,7 +236,7 @@ uae_u8 cycle_line[256];
 #endif
 
 static uae_u16 bplxdat[8];
-static int bpl1dat_written, bpl1dat_early;
+static bool bpl1dat_written, bpl1dat_early, bpl1dat_done;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
@@ -1670,10 +1670,16 @@ static void update_fetch_x (int hpos, int fm)
 	if (nodraw ())
 		return;
 
+	if (hpos < 0x18)
+		return;
 	pos = last_fetch_hpos;
+	if (pos < 0x18)
+		pos = 0x18;
 	update_toscr_planes ();
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++) {
 		fetched[i] = bplxdat[i];
+		bplxdat[i] = 0;
+	}
 	beginning_of_plane_block (hpos, fm);
 	for (; pos < hpos; pos++) {
 
@@ -1818,16 +1824,22 @@ STATIC_INLINE void decide_fetch (int hpos)
 #endif
 			default: uae_abort (L"fetchmode corrupt");
 			}
-		} else if (0 && bpl1dat_written) {
-			// "pio" mode display
+		} else if (bpl1dat_written) {
+			// "PIO" mode display
+#if 1
+			if (!bpl1dat_done) {
+				bpl1dat_done = true;
+				//plfleft_real = thisline_decision.plfleft;
+			}
 			update_fetch_x (hpos, fetchmode);
+#endif
 		}
 		maybe_check (hpos);
 		last_fetch_hpos = hpos;
 	}
 }
 
-static void start_bpl_dma (int hpos, int hstart)
+static void start_bpl_processing (int hpos, int hstart, bool dma)
 {
 	if (first_bpl_vpos < 0)
 		first_bpl_vpos = vpos;
@@ -1844,7 +1856,8 @@ static void start_bpl_dma (int hpos, int hstart)
 	}
 
 	plfstrt_sprite = plfstrt;
-	fetch_start (hpos);
+	if (dma)
+		fetch_start (hpos);
 	fetch_cycle = 0;
 	last_fetch_hpos = hstart;
 	cycle_diagram_shift = last_fetch_hpos;
@@ -1887,7 +1900,7 @@ static void maybe_start_bpl_dma (int hpos)
 		return;
 	if (ddfstate != DIW_waiting_start)
 		plf_state = plf_passed_stop;
-	start_bpl_dma (hpos, hpos);
+	start_bpl_processing (hpos, hpos, true);
 }
 
 /* This function is responsible for turning on datafetch if necessary. */
@@ -1924,7 +1937,7 @@ STATIC_INLINE void decide_line (int hpos)
 		}
 		if (ok && diwstate == DIW_waiting_stop) {
 			if (dmaen (DMA_BITPLANE)) {
-				start_bpl_dma (hpos, plfstrt);
+				start_bpl_processing (hpos, plfstrt, true);
 				estimate_last_fetch_cycle (plfstrt);
 			}
 			last_decide_line_hpos = hpos;
@@ -2550,7 +2563,10 @@ static void finish_decisions (void)
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch (hpos);
-	finish_final_fetch (hpos, fetchmode);
+	if (bpl1dat_done) {
+		finish_final_fetch (hpos, fetchmode);
+		bpl1dat_done = 0;
+	}
 
 	record_color_change2 (hsyncstartpos, 0xffff, 0);
 	if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {
@@ -2778,13 +2794,21 @@ int current_maxvpos (void)
 /* set PAL/NTSC or custom timing variables */
 void init_hz (bool fullinit)
 {
-	int isntsc, islace;
+	int isntsc;
 	int odbl = doublescan, omaxvpos = maxvpos;
 	double ovblank = vblank_hz;
 	int hzc = 0;
 
 	if (fullinit)
 		vpos_count = vpos_count_prev = 0;
+
+	if (vsync_switchmode (-1, 0))
+		currprefs.gfx_avsync = changed_prefs.gfx_avsync = vsync_switchmode (-1, 0) ? 2 : 0;
+
+	if (!isvsync () && (DBLEQU (currprefs.chipset_refreshrate, 50) && !currprefs.ntscmode) ||
+		(DBLEQU (currprefs.chipset_refreshrate, 60) && currprefs.ntscmode)) {
+			currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate = 0.0;
+	}
 
 	doublescan = 0;
 	if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
@@ -2795,7 +2819,6 @@ void init_hz (bool fullinit)
 	}
 	beamcon0 = new_beamcon0;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	islace = (bplcon0 & 4) ? 1 : 0;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 	if (!isntsc) {
@@ -2872,49 +2895,16 @@ void init_hz (bool fullinit)
 	eventtab[ev_hsync].evtime = get_cycles () + HSYNCTIME;
 	events_schedule ();
 	if (hzc) {
-		interlace_seen = islace;
+		interlace_seen = (bplcon0 & 4) ? 1 : 0;
 		reset_drawing ();
 	}
-
-	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
-		struct chipset_refresh *cr = &currprefs.cr[i];
-		if ((cr->horiz < 0 || cr->horiz == maxhpos) &&
-			(cr->vert < 0 || cr->vert == maxvpos_nom) &&
-			(cr->ntsc < 0 || (cr->ntsc > 0 && isntsc) || (cr->ntsc == 0 && !isntsc)) &&
-			(cr->lace < 0 || (cr->lace > 0 && islace) || (cr->lace == 0 && !islace)) &&
-			(cr->framelength < 0 || (cr->framelength > 0 && lof_store) || (cr->framelength == 0 && !lof_store)) &&
-			(cr->vsync < 0 || (cr->vsync > 0 && isvsync ()) || (cr->vsync == 0 && !isvsync ()))) {
-				double v = -1;
-
-				if (isvsync ()) {
-					if (i == CHIPSET_REFRESH_PAL || i == CHIPSET_REFRESH_NTSC) {
-						if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
-							vsync_switchmode (vblank_hz > 55 ? 60 : 50);
-						}
-					}
-					if (isvsync () < 0) {
-						double v2;
-						changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = cr->rate;
-						v2 = vblank_calibrate (cr->locked);
-						if (!cr->locked)
-							v = v2;
-					}
-				} else {
-					if (cr->locked == true)
-						v = cr->rate;
-					else
-						v = vblank_hz;
-				}
-				if (v < 0)
-					v = cr->rate;
-				if (v > 0) {
-					changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
-					cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
-				}
-				break;
-		}
+	if ((DBLEQU (vblank_hz, 50) || DBLEQU (vblank_hz, 60)) && isvsync () && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
+		if (getvsyncrate (currprefs.gfx_refreshrate) != vblank_hz)
+			vsync_switchmode (vblank_hz, currprefs.gfx_refreshrate);
 	}
-
+	if (isvsync () > 0) {
+		changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = abs (currprefs.gfx_refreshrate);
+	}
 	maxvpos_total = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 2047 : 511;
 	if (maxvpos_total > MAXVPOS)
 		maxvpos_total = MAXVPOS;
@@ -2933,7 +2923,7 @@ void init_hz (bool fullinit)
 	inputdevice_tablet_strobe ();
 	write_log (L"%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d)\n",
 		isntsc ? L"NTSC" : L"PAL",
-		islace ? L" laced" : L"",
+		(bplcon0 & 4) ? L" interlaced" : L"",
 		doublescan > 0 ? L" dblscan" : L"",
 		vblank_hz, vblank_hz * maxvpos_nom,
 		maxhpos, maxvpos, lof_store ? 1 : 0);
@@ -3012,7 +3002,7 @@ void init_custom (void)
 	update_mirrors();
 	create_cycle_diagram_table ();
 	reset_drawing ();
-	init_hz ();
+	init_hz_full ();
 	calcdiw ();
 }
 
@@ -3798,6 +3788,7 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	if (num == 0) {
 		bpl1dat_written = 1;
 		if (thisline_decision.plfleft == -1) {
+			start_bpl_processing (hpos, hpos, false);
 			thisline_decision.plfleft = hpos;
 			compute_delay_offset ();
 		}
@@ -4581,7 +4572,7 @@ static void update_copper (int until_hpos)
 				continue;
 
 			hp = c_hpos & (cop_state.saved_i2 & 0xFE);
-			if (vp == cop_state.vcmp && hp < cop_state.hcmp)
+			if (vp <= cop_state.vcmp && hp < cop_state.hcmp)
 				break;
 
 			/* Now we know that the comparisons were successful.  We might still

@@ -79,7 +79,7 @@ static int max_texture_w, max_texture_h;
 static int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
 static int t_depth, mult, multx;
 static int required_sl_texture_w, required_sl_texture_h;
-static int vsync2, guimode;
+static int vsync2, guimode, maxscanline;
 static int resetcount;
 static int cursor_x, cursor_y, cursor_v;
 
@@ -202,6 +202,13 @@ static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 	}
 	xfree (s);
 	return buffer;
+}
+
+static int isd3d (void)
+{
+	if (devicelost || !d3ddev || !d3d_enabled)
+		return 0;
+	return 1;
 }
 
 static LPD3DXEFFECT postEffect;
@@ -716,9 +723,10 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	static int first;
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
 	int canusefile = 0, existsfile = 0;
+	bool plugin_path;
 
 	compileflags |= EFFECTCOMPILERFLAGS;
-	get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
+	plugin_path = get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
 	_tcscat (tmp, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
@@ -743,7 +751,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		if (FAILED (hr)) {
 			const char *str = psEnabled ? fx20 : fx10;
 			int len = strlen (str);
-			if (!existsfile || canusefile == 0) {
+			if ((!existsfile || canusefile == 0) && plugin_path) {
 				struct zfile *z = zfile_fopen (tmp, L"w", 0);
 				if (z) {
 					zfile_fwrite ((void*)str, len, 1, z);
@@ -1818,6 +1826,55 @@ void D3D_free (void)
 	ddraw_fs_hack_free ();
 }
 
+static bool getvblankstate (int *vpos)
+{
+	HRESULT hr;
+	D3DRASTER_STATUS rt;
+
+	*vpos = 0;
+	if (!isd3d ())
+		return false;
+	hr = d3ddev->GetRasterStatus (0, &rt);
+	if (FAILED (hr)) {
+		write_log (L"%s: GetRasterStatus %s\n", D3DHEAD, D3D_ErrorString (hr));
+		return false;
+	}
+	*vpos = rt.ScanLine;
+	if (rt.ScanLine > maxscanline)
+		maxscanline = rt.ScanLine;
+	if (rt.InVBlank != 0)
+		*vpos = -1;
+	return true;
+}
+
+bool D3D_waitvblankstate (bool state)
+{
+	int vpos;
+	for (;;) {
+		if (!getvblankstate (&vpos))
+			return false;
+		if (vpos < 0 || vpos >= maxscanline - 5) {
+			if (state)
+				return true;
+		} else {
+			if (!state)
+				return true;
+		}
+	}
+}
+
+bool D3D_vblank_busywait (void)
+{
+	int vpos;
+
+	for (;;) {
+		if (!getvblankstate (&vpos))
+			return false;
+		if (vpos <= 0 || vpos >= maxscanline - 5)
+			return true;
+	}
+}
+
 const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
@@ -1918,7 +1975,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (isfullscreen() > 0) {
 		dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
-		if (currprefs.gfx_avsync) {
+		if (currprefs.gfx_avsync && currprefs.gfx_avsyncmode == 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 			if (getvsyncrate (dpp.FullScreen_RefreshRateInHz) != dpp.FullScreen_RefreshRateInHz) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
@@ -2073,17 +2130,10 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		_stprintf (errmsg, L"%s: initialization failed.", D3DHEAD);
 		return errmsg;
 	}
-
+	maxscanline = 0;
 	d3d_enabled = 1;
 
 	return 0;
-}
-
-static int isd3d (void)
-{
-	if (devicelost || !d3ddev || !d3d_enabled)
-		return 0;
-	return 1;
 }
 
 static HRESULT reset (void)

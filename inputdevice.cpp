@@ -3044,7 +3044,7 @@ static int getoldport (struct uae_input_device *id)
 	return -1;
 }
 
-static int switchdevice (struct uae_input_device *id, int num, int button)
+static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 {
 	int i, j;
 	int ismouse = 0;
@@ -3054,8 +3054,6 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	int otherbuttonpressed = 0;
 
 	if (num >= 4)
-		return 0;
-	if (!button)
 		return 0;
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		if (id == &joysticks[i]) {
@@ -3079,8 +3077,12 @@ static int switchdevice (struct uae_input_device *id, int num, int button)
 	}
 	if (!name)
 		return 0;
-	if (num == 0 && otherbuttonpressed)
-		newport = newport ? 0 : 1;
+	if (buttonmode) {
+		if (num == 0 && otherbuttonpressed)
+			newport = newport ? 0 : 1;
+	} else {
+		newport = num ? 1 : 0;
+	}
 	if (currprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS) {
 		if ((num == 0 || num == 1) && currprefs.jports[newport].id != JPORT_CUSTOM) {
 			int om = jsem_ismouse (num, &currprefs);
@@ -3187,6 +3189,7 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)
 {
+	static frame_time_t switchdevice_timeout;
 	int i;
 	uae_u32 mask = 1 << button;
 	uae_u32 omask = id2->buttonmask & mask;
@@ -3197,8 +3200,15 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 	if (input_play)
 		return;
 	if (!id->enabled) {
-		if (state)
-			switchdevice (id, button, 1);
+		frame_time_t t = read_processor_time ();
+		if (state) {
+			switchdevice_timeout = t;
+		} else {
+			int port = button;
+			if (t - switchdevice_timeout >= syncbase) // 1s
+				port ^= 1;
+			switchdevice (id, port, true);
+		}
 		return;
 	}
 	if (button >= ID_BUTTON_TOTAL)
@@ -5504,7 +5514,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 		return;
 	if (!joysticks[joy].enabled) {
 		if (v1)
-			switchdevice (&joysticks[joy], axis * 2 + (v1 < 0 ? 0 : 1), 0);
+			switchdevice (&joysticks[joy], axis * 2 + (v1 < 0 ? 0 : 1), false);
 		return;
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++)
@@ -5699,7 +5709,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 		break;
 	case 0:
 		{
-			int start = JPORT_NONE, got = 0, max = 0;
+			int start = JPORT_NONE, got = 0, max = -1;
 			TCHAR *pp = 0;
 			if (_tcsncmp (value, L"kbd", 3) == 0) {
 				start = JSEM_KBDLAYOUT;
@@ -5723,7 +5733,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 				start = JPORT_CUSTOM;
 			}
 			if (got) {
-				if (pp) {
+				if (pp && max != 0) {
 					int v = _tstol (pp);
 					if (start >= 0) {
 						if (start == JSEM_KBDLAYOUT && v > 0)

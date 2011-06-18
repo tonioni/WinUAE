@@ -946,14 +946,26 @@ static uae_u32 REGPARAM2 dmac_lgeti (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 65535;
-	v = (dmac_wgeti(addr) << 16) | dmac_wgeti(addr + 2);
+	v = (dmac_wgeti (addr) << 16) | dmac_wgeti (addr + 2);
 	return v;
+}
+
+static int REGPARAM2 dmac_check (uaecptr addr, uae_u32 size)
+{
+	return 1;
+}
+
+static uae_u8 *REGPARAM2 dmac_xlate (uaecptr addr)
+{
+	addr &= rom_mask;
+	addr += rombank * rom_size;
+	return rom + addr;
 }
 
 addrbank dmaca2091_bank = {
 	dmac_lget, dmac_wget, dmac_bget,
 	dmac_lput, dmac_wput, dmac_bput,
-	default_xlate, default_check, NULL, L"A2091/A590",
+	dmac_xlate, dmac_check, NULL, L"A2091/A590",
 	dmac_lgeti, dmac_wgeti, ABFLAG_IO
 };
 
@@ -1348,13 +1360,16 @@ void a2091_init (void)
 		rd = rl->rd; 
 		z = read_rom (&rd);
 		if (z) {
+			int slotsize = 65536;
 			write_log (L"A590/A2091 BOOT ROM %d.%d ", rd->ver, rd->rev);
 			rom_size = rd->size;
-			rom = xmalloc (uae_u8, rom_size);
+			rom = xmalloc (uae_u8, slotsize);
 			if (rl->rd->id == 56)
 				rombankswitcher = 1;
 			zfile_fread (rom, rom_size, 1, z);
 			zfile_fclose (z);
+			for (int i = 1; i < slotsize / rom_size; i++)
+				memcpy (rom + i * rom_size, rom, rom_size);
 			rom_mask = rom_size - 1;
 		}
 	} else {

@@ -113,7 +113,7 @@ static int vblscale2 (int v)
 static void fixh (int *ah, int *th, int minh)
 {
 	if (!(beamcon0 & 0x80)) {
-		int max = ((572 / 2) * scale) << currprefs.gfx_vresolution;
+		int max = (AMIGA_HEIGHT_MAX * scale) << currprefs.gfx_vresolution;
 		if (minh && max < minh)
 			max = minh;
 		if (*ah > max)
@@ -240,8 +240,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		filterymult = 1000 / scale;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL) {
-			cw = (752 / 2) << currprefs.gfx_resolution;
-			ch = (572 / 2) << currprefs.gfx_vresolution;
+			cw = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+			ch = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 			cx = 0;
 			cy = 0;
 			cv = 1;
@@ -272,14 +272,14 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 			v = currprefs.gfx_xcenter_size;
 			if (v <= 0)
-				cw = 752 * 2;
+				cw = AMIGA_WIDTH_MAX * 4;
 			else
 				cw = v;
 			cw >>=  (RES_MAX - currprefs.gfx_resolution);
 
 			v = currprefs.gfx_ycenter_size;
 			if (v <= 0)
-				ch = 572;
+				ch = AMIGA_HEIGHT_MAX * 2;
 			else
 				ch = v;
 			ch >>= (VRES_MAX - currprefs.gfx_vresolution);

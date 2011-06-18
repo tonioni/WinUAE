@@ -4434,19 +4434,19 @@ static void SetupRichText(HWND hDlg, urlinfo *url)
 	CHARFORMAT CharFormat;
 	CharFormat.cbSize = sizeof (CharFormat);
 
-	SetDlgItemText(hDlg, url->id, url->display);
-	SendDlgItemMessage(hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
+	SetDlgItemText (hDlg, url->id, url->display);
+	SendDlgItemMessage (hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
 	CharFormat.dwMask   |= CFM_UNDERLINE | CFM_SIZE | CFM_FACE | CFM_COLOR;
 	CharFormat.dwEffects = url->state ? CFE_UNDERLINE : 0;
 	CharFormat.yHeight = 10 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
 
-	CharFormat.crTextColor = GetSysColor(COLOR_ACTIVECAPTION);
+	CharFormat.crTextColor = GetSysColor (COLOR_ACTIVECAPTION);
 	_tcscpy (CharFormat.szFaceName, os_vista ? L"Segoe UI" : L"Tahoma");
-	SendDlgItemMessage(hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
-	SendDlgItemMessage(hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_3DFACE));
+	SendDlgItemMessage (hDlg, url->id, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&CharFormat);
+	SendDlgItemMessage (hDlg, url->id, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 }
 
-static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+static void url_handler (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int last_rectangle = -1;
 	int i;
@@ -4459,35 +4459,35 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	for (i = 0; urls[i].id >= 0; i++)
 	{
 		RECT rect;
-		GetWindowRect(GetDlgItem(hDlg, urls[i].id), &rect);
-		ScreenToClient(hDlg, (POINT*)&rect);
-		ScreenToClient(hDlg, (POINT*)&rect.right);
-		if(PtInRect(&rect, point))
+		GetWindowRect (GetDlgItem(hDlg, urls[i].id), &rect);
+		ScreenToClient (hDlg, (POINT*)&rect);
+		ScreenToClient (hDlg, (POINT*)&rect.right);
+		if (PtInRect (&rect, point))
 		{
 			if(msg == WM_LBUTTONDOWN)
 			{
 				ShellExecute (NULL, NULL, urls[i].url , NULL, NULL, SW_SHOWNORMAL);
-				SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+				SetCursor (LoadCursor(NULL, MAKEINTRESOURCE (IDC_ARROW)));
 			}
 			else
 			{
 				if(i != last_rectangle)
 				{
 					// try and load the system hand (Win2000+)
-					m_hCursor = LoadCursor(NULL, MAKEINTRESOURCE(IDC_HAND) );
+					m_hCursor = LoadCursor (NULL, MAKEINTRESOURCE (IDC_HAND) );
 					if (!m_hCursor)
 					{
 						// retry with our fallback hand
-						m_hCursor = LoadCursor(hInst, MAKEINTRESOURCE(IDC_MYHAND) );
+						m_hCursor = LoadCursor (hInst, MAKEINTRESOURCE (IDC_MYHAND) );
 					}
-					SetCursor(m_hCursor);
+					SetCursor (m_hCursor);
 					urls[i].state = TRUE;
-					SetupRichText(hDlg, &urls[i]);
+					SetupRichText (hDlg, &urls[i]);
 
 					if(last_rectangle != -1)
 					{
 						urls[last_rectangle].state = FALSE;
-						SetupRichText(hDlg, &urls[last_rectangle]);
+						SetupRichText (hDlg, &urls[last_rectangle]);
 					}
 				}
 			}
@@ -4499,9 +4499,9 @@ static void url_handler(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	if(!found && last_rectangle >= 0)
 	{
-		SetCursor(LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW)));
+		SetCursor (LoadCursor (NULL, MAKEINTRESOURCE (IDC_ARROW)));
 		urls[last_rectangle].state = FALSE;
-		SetupRichText(hDlg, &urls[last_rectangle]);
+		SetupRichText (hDlg, &urls[last_rectangle]);
 		last_rectangle = -1;
 	}
 }
@@ -5302,11 +5302,10 @@ static void enable_for_displaydlg (HWND hDlg)
 	rtg = FALSE;
 #endif
 	ew (hDlg, IDC_SCREENMODE_RTG, rtg);
+	ew (hDlg, IDC_SCREENMODE_RTG2, rtg);
 	ew (hDlg, IDC_XCENTER, TRUE);
 	ew (hDlg, IDC_YCENTER, TRUE);
 	ew (hDlg, IDC_LM_SCANLINES, TRUE);
-	ew (hDlg, IDC_FRAMERATE2, !workprefs.gfx_avsync);
-	ew (hDlg, IDC_RATE2TEXT, !workprefs.gfx_avsync);
 	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
@@ -5330,14 +5329,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
 	}
 	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
-}
-
-static DWORD idnth[] = { IDS_SECOND, IDS_THIRD, IDS_FOURTH, IDS_FIFTH, IDS_SIXTH, IDS_SEVENTH, IDS_EIGHTH, IDS_NINTH, IDS_TENTH, -1 };
-static void LoadNthString( DWORD value, TCHAR *nth, DWORD dwNthMax )
-{
-	nth[0] = 0;
-	if (value >= 1 && value <= 9)
-		WIN32GUI_LoadUIString(idnth[value - 1], nth, dwNthMax);
 }
 
 static int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
@@ -5572,6 +5563,7 @@ static void init_display_mode (HWND hDlg)
 
 }
 
+#if 0
 static int display_toselect (int fs, int vsync, int p96)
 {
 	if (p96)
@@ -5634,13 +5626,12 @@ static void display_fromselect (int val, int *fs, int *vsync, int p96)
 		break;
 	}
 }
+#endif
 
 static void values_to_displaydlg (HWND hDlg)
 {
 	TCHAR buffer[MAX_DPATH], buffer2[MAX_DPATH];
-	TCHAR Nth[MAX_NTH_LENGTH];
-	TCHAR *blah[1] = { Nth };
-	TCHAR *string = NULL;
+	int rates[MAX_CHIPSET_REFRESH_TOTAL];
 	int v;
 	double d;
 
@@ -5649,71 +5640,90 @@ static void values_to_displaydlg (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_size_win.width, FALSE);
 	SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_size_win.height, FALSE);
 
-	d = workprefs.chipset_refreshrate;
-	if (abs (d) < 1)
-		d = currprefs.ntscmode ? 60.0 : 50.0;
-	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)d);
-	_stprintf (buffer, L"%0.6f", d);
+	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_RESETCONTENT, 0, 0);
+	v = 0;
+	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
+		struct chipset_refresh *cr = &workprefs.cr[i];
+		if (cr->rate > 0) {
+			_tcscpy (buffer, cr->label);
+			if (!buffer[0])
+				_stprintf (buffer, L"%d", i);
+			SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_ADDSTRING, 0, (LPARAM)buffer);
+			d = workprefs.chipset_refreshrate;
+			if (abs (d) < 1)
+				d = currprefs.ntscmode ? 60.0 : 50.0;
+			if (abs (cr->rate - d) < 1.5 && workprefs.cr_selected < 0) {
+				workprefs.cr_selected = i;
+			}
+			rates[i] = v;
+			v++;
+		}
+	}
+	if (workprefs.cr_selected < 0 || workprefs.cr[workprefs.cr_selected].rate <= 0)
+		workprefs.cr_selected = CHIPSET_REFRESH_PAL;
+	struct chipset_refresh *selectcr = &workprefs.cr[workprefs.cr_selected];
+	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_SETCURSEL, rates[workprefs.cr_selected], 0);
+	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)(selectcr->rate + 0.5));
+	_stprintf (buffer, L"%.6f", selectcr->locked || full_property_sheet ? selectcr->rate : workprefs.chipset_refreshrate);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
+	CheckDlgButton (hDlg, IDC_RATE2ENABLE, selectcr->locked);
+	ew (hDlg, IDC_RATE2TEXT, selectcr->locked != 0);
+	ew (hDlg, IDC_FRAMERATE2, selectcr->locked != 0);
 
 	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, (int)v);
-	WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, sizeof buffer / sizeof (TCHAR));
-	LoadNthString (v - 1, Nth, MAX_NTH_LENGTH);
-	if (FormatMessage (FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-		buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0)
-	{
-		DWORD dwLastError = GetLastError();
-		_stprintf (buffer, L"Every %s Frame", nth[v - 1]);
-		SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
-	} else {
-		SetDlgItemText( hDlg, IDC_RATETEXT, string);
-		LocalFree(string);
-	}
 
 	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_vresolution + (workprefs.gfx_scanlines ? 1 : 0));
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_RESETCONTENT, 0, 0);
 
 	WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
-
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
-
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer2, sizeof buffer2 / sizeof (TCHAR));
-	_stprintf (buffer + _tcslen (buffer), L" + %s", buffer2);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
-
-	WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer / sizeof (TCHAR));
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer2, sizeof buffer2 / sizeof (TCHAR));
-	_stprintf (buffer + _tcslen (buffer), L" + %s", buffer2);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
-
-
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
+
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)L"-");
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	_tcscpy(buffer2, L" (new)");
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
+	_tcscat (buffer, buffer2);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
+	_tcscat (buffer, buffer2);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
-		display_toselect (workprefs.gfx_afullscreen, workprefs.gfx_avsync, 0), 0);
-
+		workprefs.gfx_afullscreen, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL,
+		workprefs.gfx_avsync == 0 ? 0 : workprefs.gfx_avsync + workprefs.gfx_avsyncmode * 2, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
+
 	WIN32GUI_LoadUIString(IDS_SCREEN_WINDOWED, buffer, sizeof buffer / sizeof (TCHAR));
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
-	_stprintf (buffer + _tcslen (buffer), L" + %s", buffer2);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLSCREEN, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer2, sizeof buffer2 / sizeof (TCHAR));
-	_stprintf (buffer + _tcslen (buffer), L" + %s", buffer2);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
-	_stprintf (buffer + _tcslen (buffer), L" + %s", buffer2);
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
+
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)L"-");
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
+	_tcscat (buffer, buffer2);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,
-		display_toselect (workprefs.gfx_pfullscreen, workprefs.gfx_pvsync, 1), 0);
+		workprefs.gfx_pfullscreen, 0);
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL,
+		workprefs.gfx_pvsync == 0 ? 0 : workprefs.gfx_pvsync + workprefs.gfx_pvsyncmode, 0);
 
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_RES_LORES, buffer, sizeof buffer / sizeof (TCHAR));
@@ -5783,73 +5793,92 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	int gfx_width = workprefs.gfx_size_win.width;
 	int gfx_height = workprefs.gfx_size_win.height;
 	LRESULT posn;
-	bool updaterate = false;
 	TCHAR tmp[200];
 
-	display_fromselect (SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0),
-		&workprefs.gfx_afullscreen, &workprefs.gfx_avsync, 0);
-	display_fromselect (SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0),
-		&workprefs.gfx_pfullscreen, &workprefs.gfx_pvsync, 1);
+	workprefs.gfx_afullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
+	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE2, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_avsync = 0;
+	workprefs.gfx_avsyncmode = 0;
+	if (i > 0) {
+		i--;
+		workprefs.gfx_avsync = (i & 1) + 1;
+		workprefs.gfx_avsyncmode = i >= 2 ? 1 : 0;
+	}
 
-	workprefs.gfx_lores_mode     = ischecked (hDlg, IDC_LORES_SMOOTHED);
-	workprefs.gfx_scandoubler     = ischecked (hDlg, IDC_FLICKERFIXER);
+	workprefs.gfx_pfullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
+	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG2, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_pvsync = 0;
+	workprefs.gfx_pvsyncmode = 0;
+	if (i > 0) {
+		i--;
+		workprefs.gfx_pvsync = 1;
+		workprefs.gfx_pvsyncmode = i >= 1 ? 1 : 0;
+	}
+	
+	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
+	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
 	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
 	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
 	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
 
-	if (msg == WM_HSCROLL) {
-		i = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
-		if (i != (int)workprefs.chipset_refreshrate)
-			workprefs.chipset_refreshrate = (double)i;
-		updaterate = true;
-	} else if (LOWORD (wParam) == IDC_RATE2TEXT && HIWORD (wParam) == EN_KILLFOCUS) {
-		if (GetDlgItemText(hDlg, IDC_RATE2TEXT, tmp, sizeof tmp / sizeof (TCHAR))) {
-			workprefs.chipset_refreshrate = _tstof (tmp);
-			SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)workprefs.chipset_refreshrate);
+	bool updaterate = false, updateslider = false;
+	TCHAR label[16];
+	label[0] = 0;
+	SendDlgItemMessage (hDlg, IDC_RATE2BOX, WM_GETTEXT, sizeof label / sizeof (TCHAR), (LPARAM)label);
+	struct chipset_refresh *cr;
+	for (i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
+		cr = &workprefs.cr[i];
+		if (!_tcscmp (label, cr->label) || (cr->label[0] == 0 && _tstol (label) == i)) {
+			if (workprefs.cr_selected != i) {
+				workprefs.cr_selected = i;
+				updaterate = true;
+				updateslider = true;
+			}
+			break;
+		}
+	}
+	cr = &workprefs.cr[workprefs.cr_selected];
+	cr->locked = ischecked (hDlg, IDC_RATE2ENABLE) != 0;
+	if (!cr->locked) {
+		if (msg == WM_HSCROLL) {
+			i = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
+			if (i != (int)cr->rate)
+				cr->rate = (double)i;
 			updaterate = true;
+		} else if (LOWORD (wParam) == IDC_RATE2TEXT && HIWORD (wParam) == EN_KILLFOCUS) {
+			if (GetDlgItemText(hDlg, IDC_RATE2TEXT, tmp, sizeof tmp / sizeof (TCHAR))) {
+				cr->rate = _tstof (tmp);
+				updaterate = true;
+				updateslider = true;
+			}
+		}
+		if (cr->rate > 0 && cr->rate < 1) {
+			cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+			updaterate = true;
+		}
+		if (cr->rate > 300) {
+			cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+			updaterate = true;
+		}
+		if (updaterate) {
+			TCHAR buffer[20];
+			_stprintf (buffer, L"%.6f", cr->rate);
+			SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
+		}
+		if (updateslider) {
+			SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)cr->rate);
 		}
 	}
 
-	if (workprefs.chipset_refreshrate > 0 && workprefs.chipset_refreshrate < 1) {
-		workprefs.chipset_refreshrate = currprefs.ntscmode ? 60.0 : 50.0;
-		updaterate = true;
-	}
-	if (workprefs.chipset_refreshrate > 300) {
-		workprefs.chipset_refreshrate = currprefs.ntscmode ? 60.0 : 50.0;
-		updaterate = true;
-	}
-
-	TCHAR buffer[MAX_FRAMERATE_LENGTH];
-	TCHAR Nth[MAX_NTH_LENGTH];
-	TCHAR *blah[1] = { Nth };
-	TCHAR *string = NULL;
-
-	WIN32GUI_LoadUIString(IDS_FRAMERATE, buffer, MAX_FRAMERATE_LENGTH);
-	LoadNthString(workprefs.gfx_framerate - 1, Nth, MAX_NTH_LENGTH);
-	if(FormatMessage(FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_ALLOCATE_BUFFER,
-		buffer, 0, 0, (LPTSTR)&string, MAX_FRAMERATE_LENGTH + MAX_NTH_LENGTH, (va_list *)blah ) == 0) {
-		DWORD dwLastError = GetLastError();
-		_stprintf (buffer, L"Every %s Frame", nth[workprefs.gfx_framerate - 1]);
-		SetDlgItemText(hDlg, IDC_RATETEXT, buffer);
-	} else {
-		SetDlgItemText(hDlg, IDC_RATETEXT, string);
-		LocalFree(string);
-	}
-	if (updaterate) {
-		_stprintf (buffer, L"%.06f", workprefs.chipset_refreshrate);
-		SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
-	}
-	workprefs.gfx_size_win.width  = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
+	workprefs.gfx_size_win.width = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);
 	if(!success)
 		workprefs.gfx_size_win.width = 800;
 	workprefs.gfx_size_win.height = GetDlgItemInt (hDlg, IDC_YSIZE, &success, FALSE);
 	if(!success)
 		workprefs.gfx_size_win.height = 600;
 
-	if (DBLEQU (workprefs.chipset_refreshrate, currprefs.ntscmode ? 60.0 : 50.0))
-		workprefs.chipset_refreshrate = 0.0;
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_autoresolution = ischecked (hDlg, IDC_AUTORESOLUTION);
@@ -5982,6 +6011,9 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		handle_da (hDlg);
 		values_from_displaydlg (hDlg, msg, wParam, lParam);
 		enable_for_displaydlg (hDlg);
+		if (LOWORD (wParam) == IDC_RATE2ENABLE) {
+			values_to_displaydlg (hDlg);
+		}
 		recursive--;
 		break;
 

@@ -1,4 +1,33 @@
 
+- new vsync option
+  * does not need extra buffers (very little input lag), make sure "no buffering"
+    is selected
+  * works also in windowed/fullwindow mode
+  * attemps to autodetect exact refresh rate, ignores what Windows/driver reports
+  * less busy waiting, no more continuous 100% CPU usage
+  * much more stable than "normal" vsync
+  - old vsync is currently always forced to new mode
+  Usual vsync restrictions still apply: do not use fastest possible modes, 50Hz capable
+  display and driver required if you want proper PAL speed.
+  Old vsync support may disappear later.
+- keep old joystick Gameports setting if no joysticks detected when loading config file
+- another method to enable unconfigured joystick: quick firebutton press = joystick port,
+  long press = mouse port
+- unconfigured joystick move left/right can also be used to enable joystick
+- DirectDraw and 2x filter = non-centered image, broke few releases ago
+- IDE multiple sector writes fixed (2.3.2 final fixed spurious interrupts but fix wasn't
+  complete, last interrupt didn't always arrive causing driver to hang)
+- set IDE CHS/LBA address after read/write command has finished as explained in ATA-1
+  spec (last accessed sector, not next sector). This is undefined in later ATA spec
+  versions, but AOS IDE driver >256 sector transfers corrupt data if this is not
+  handled exactly as ATA-1 spec says. (Infamous "max transfer problem")
+- detect and log split >256 block IDE transfers
+- only load OFS from RDB if partition and RDB filesystem dostype matches exactly
+- create _winuae.fx only if full D3D plugin path exists
+- A590/A2091 boot ROM was mapped non-executable, crashed on 68020+ CPUs
+
+2.3.2
+
 Beta 8 (RC1):
 
 - always disable FPU when using GUI to change CPU to 68000 or 68010

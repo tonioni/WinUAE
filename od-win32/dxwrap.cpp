@@ -1174,3 +1174,29 @@ void dx_check (void)
 		return;
 	dxdata.islost = 1;
 }
+
+bool DirectDraw_waitvblankstate (bool state)
+{
+	BOOL vb;
+	HRESULT hr;
+
+	dx_check ();
+	if (dxdata.islost)
+		return false;
+	for (;;) {
+		hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vb);
+		if (FAILED (hr)) {
+			write_log (L"IDirectDraw7_GetVerticalBlankStatus %s\n", DXError (hr));
+			return false;
+		}
+		if ((vb && state) || (!vb && !state))
+			return true;
+	}
+}
+
+bool DirectDraw_vblank_busywait (void)
+{
+	if (!DirectDraw_waitvblankstate (true))
+		return false;
+	return true;
+}

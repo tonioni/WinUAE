@@ -392,8 +392,10 @@
 #define IDC_SAMPLERLIST                 1028
 #define IDC_DISPLAY_BUFFERCNT           1028
 #define IDC_PORT0_JOYSMODE              1029
+#define IDC_SCREENMODE_NATIVE2          1029
 #define IDC_SLOWMEM                     1030
 #define IDC_PORT1_JOYSMODE              1030
+#define IDC_SCREENMODE_RTG2             1030
 #define IDC_MBMEM2                      1031
 #define IDC_PORT2_JOYS                  1031
 #define IDC_PORT3_JOYS                  1032
@@ -430,11 +432,13 @@
 #define IDC_BLACKER_THAN_BLACK          1170
 #define IDC_BLITIMM                     1174
 #define IDC_LORES                       1176
+#define IDC_RATE2BOX                    1177
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
 #define IDC_AUTORESOLUTION              1181
+#define IDC_AUTORESOLUTION2             1182
+#define IDC_RATE2ENABLE                 1182
 #define IDC_FRAMERATE                   1185
-#define IDC_RATETEXT                    1186
 #define IDC_XSIZE                       1187
 #define IDC_YSIZE                       1188
 #define IDC_INPUTAUTOFIRERATE           1188
@@ -450,7 +454,6 @@
 #define IDC_DA_SLIDER                   1193
 #define IDC_FRAMERATE2                  1194
 #define IDC_RATE2TEXT                   1195
-#define IDC_RATE2TEXT2                  1196
 #define IDC_DA_TEXT                     1196
 #define IDC_CPU0                        1200
 #define IDC_CPU1                        1201

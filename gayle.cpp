@@ -174,6 +174,7 @@ struct ide_hdf
 	int num;
 	int type;
 	int blocksize;
+	int maxtransferstate;
 };
 
 static struct ide_hdf *idedrive[4];
@@ -551,7 +552,7 @@ static int get_nsec (int lba48)
 	else
 		return ide_nsector == 0 ? 256 : ide_nsector;
 }
-static void dec_nsec (int lba48, int v)
+static int dec_nsec (int lba48, int v)
 {
 	if (lba48) {
 		uae_u16 nsec;
@@ -559,8 +560,10 @@ static void dec_nsec (int lba48, int v)
 		ide_nsector -= v;
 		ide_nsector2 = nsec >> 8;
 		ide_nsector = nsec & 0xff;
+		return (ide_nsector2 << 8) | ide_nsector;
 	} else {
 		ide_nsector -= v;
+		return ide_nsector;
 	}
 }
 
@@ -602,6 +605,28 @@ static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsi
 	}
 }
 
+static void check_maxtransfer (int state)
+{
+	if (state == 1) {
+		// transfer was started
+		if (ide->maxtransferstate < 2 && ide_nsector == 0) {
+			ide->maxtransferstate = 1;
+		} else if (ide->maxtransferstate == 2) {
+			// second transfer was started (part of split)
+			write_log (L"IDE maxtransfer check detected split >256 block transfer\n");
+			ide->maxtransferstate = 0;
+		} else {
+			ide->maxtransferstate = 0;
+		}
+	} else if (state == 2) {
+		// address was read
+		if (ide->maxtransferstate == 1)
+			ide->maxtransferstate++;
+		else
+			ide->maxtransferstate = 0;
+	}
+}
+
 static void ide_read_sectors (int flags)
 {
 	unsigned int cyl, head, sec, nsec;
@@ -613,6 +638,7 @@ static void ide_read_sectors (int flags)
 		ide_fail ();
 		return;
 	}
+	check_maxtransfer(1);
 	gui_flicker_led (LED_HD, ide->num, 1);
 	nsec = get_nsec (lba48);
 	get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
@@ -641,6 +667,7 @@ static void ide_write_sectors (int flags)
 		ide_fail ();
 		return;
 	}
+	check_maxtransfer(1);
 	gui_flicker_led (LED_HD, ide->num, 2);
 	nsec = get_nsec (lba48);
 	get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
@@ -720,7 +747,10 @@ static void ide_do_command (uae_u8 cmd)
 
 static uae_u16 ide_get_data (void)
 {
-	int irq = 0;
+	unsigned int cyl, head, sec, nsec;
+	uae_u64 lba;
+	bool irq = false;
+	bool last = false;
 	uae_u16 v;
 
 	if (IDE_LOG > 4)
@@ -732,12 +762,10 @@ static uae_u16 ide_get_data (void)
 			return 0xffff;
 		return 0;
 	}
+	nsec = 0;
 	if (ide->data_offset == 0 && ide->data_size >= 0) {
-		unsigned int cyl, head, sec, nsec;
-		uae_u64 lba;
-
-		nsec = get_nsec (ide->lba48);
 		get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
+		nsec = get_nsec (ide->lba48);
 		if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
 			nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
 		if (nsec <= 0) {
@@ -748,8 +776,8 @@ static uae_u16 ide_get_data (void)
 		if (nsec > ide->data_multi)
 			nsec = ide->data_multi;
 		hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
-		put_lbachs (ide, lba, cyl, head, sec, nsec, ide->lba48);
-		dec_nsec (ide->lba48, nsec);
+		if (!dec_nsec (ide->lba48, nsec))
+			last = true;
 		if (IDE_LOG > 1)
 			write_log (L"IDE%d read, read %d bytes to buffer\n", ide->num, nsec * ide->blocksize);
 	}
@@ -761,7 +789,7 @@ static uae_u16 ide_get_data (void)
 	} else {
 		ide->data_size -= 2;
 		if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-			irq = 1;
+			irq = true;
 			ide->data_offset = 0;
 		}
 	}
@@ -770,13 +798,16 @@ static uae_u16 ide_get_data (void)
 		if (IDE_LOG > 1)
 			write_log (L"IDE%d read finished\n", ide->num);
 	}
+	if (nsec) {
+		put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec, ide->lba48);
+	}
 	if (irq) {
 		ide_interrupt ();
 	}
 	return v;
 }
 
-static void ide_write_drive (void)
+static void ide_write_drive (bool last)
 {
 	unsigned int cyl, head, sec, nsec;
 	uae_u64 lba;
@@ -786,7 +817,7 @@ static void ide_write_drive (void)
 		return;
 	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
 	hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, ide->data_offset);
-	put_lbachs (ide, lba, cyl, head, sec, nsec, ide->lba48);
+	put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec, ide->lba48);
 	dec_nsec (ide->lba48, nsec);
 	if (IDE_LOG > 1)
 		write_log (L"IDE%d write interrupt, %d bytes written\n", ide->num, ide->data_offset);
@@ -808,15 +839,15 @@ static void ide_put_data (uae_u16 v)
 	ide->secbuf[ide->data_offset + 0] = v >> 8;
 	ide->data_offset += 2;
 	ide->data_size -= 2;
-	if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-		irq = 1;
-		ide_write_drive ();
-	}
 	if (ide->data_size == 0) {
-		ide_write_drive ();
+		irq = 1;
+		ide_write_drive (true);
 		ide->status &= ~IDE_STATUS_DRQ;
 		if (IDE_LOG > 1)
 			write_log (L"IDE%d write finished\n", ide->num);
+	} else if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
+		irq = 1;
+		ide_write_drive (false);
 	}
 	if (irq)
 		ide_interrupt ();
@@ -899,6 +930,7 @@ static uae_u32 ide_read (uaecptr addr)
 			v = ide_sector2;
 		else
 			v = ide_sector;
+		check_maxtransfer (2);
 		break;
 	case IDE_LCYL:
 		if (ide_devcon & 0x80)

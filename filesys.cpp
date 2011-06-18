@@ -5747,7 +5747,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	for (;;) {
 		if (fileblock == -1) {
 			if (!fsnode)
-				write_log (L"RDB: required FS %08X not in FileSystem.resource or in RDB\n", dostype);
+				write_log (L"RDB: FS %08X not in FileSystem.resource or in RDB\n", dostype);
 			goto error;
 		}
 		if (!legalrdbblock (uip, fileblock)) {
@@ -5761,7 +5761,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 			goto error;
 		}
 		fileblock = rl (buf + 16);
-		if ((dostype >> 8) == (rl (buf + 32) >> 8))
+		uae_u32 rdbdostype = rl (buf + 32);
+		if (((dostype >> 8) == (rdbdostype >> 8) && (dostype != 0x444f5300 && (dostype & 0xffffff00) == 0x444f5300)) || (dostype == rdbdostype))
 			break;
 	}
 	newversion = (buf[36] << 8) | buf[37];

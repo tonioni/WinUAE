@@ -320,7 +320,7 @@ static void figure_processor_speed_rdtsc (void)
 	oldpri = GetThreadPriority (th);
 	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
 	dummythread_die = -1;
-	CloseHandle((HANDLE)_beginthread (&dummythread, 0, 0));
+	_beginthread (&dummythread, 0, 0);
 	sleep_millis (500);
 	clockrate = win32_read_processor_time ();
 	sleep_millis (500);
@@ -2719,6 +2719,9 @@ void target_quit (void)
 
 void target_fixup_options (struct uae_prefs *p)
 {
+	if (p->gfx_avsync)
+		p->gfx_avsyncmode = 1;
+
 #ifdef RETROPLATFORM
 	rp_fixup_options (p);
 #endif

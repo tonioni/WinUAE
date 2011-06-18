@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 2
 #define UAEMINOR 3
-#define UAESUBREV 2
+#define UAESUBREV 3
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -136,6 +136,24 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 
+#define MAX_CHIPSET_REFRESH 10
+#define MAX_CHIPSET_REFRESH_TOTAL (MAX_CHIPSET_REFRESH + 2)
+#define CHIPSET_REFRESH_PAL (MAX_CHIPSET_REFRESH + 0)
+#define CHIPSET_REFRESH_NTSC (MAX_CHIPSET_REFRESH + 1)
+struct chipset_refresh
+{
+	bool locked;
+	int horiz;
+	int vert;
+	int lace;
+	int ntsc;
+	int vsync;
+	int framelength;
+	double rate;
+	TCHAR label[16];
+	TCHAR commands[256];
+};
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -214,6 +232,7 @@ struct uae_prefs {
 	bool gfx_scandoubler;
 	int gfx_refreshrate;
 	int gfx_avsync, gfx_pvsync;
+	int gfx_avsyncmode, gfx_pvsyncmode;
 	int gfx_resolution;
 	int gfx_vresolution;
 	int gfx_lores_mode;
@@ -254,6 +273,8 @@ struct uae_prefs {
 	bool ntscmode;
 	bool genlock;
 	double chipset_refreshrate;
+	struct chipset_refresh cr[MAX_CHIPSET_REFRESH + 2];
+	int cr_selected;
 	int collision_level;
 	int leds_on_screen;
 	struct wh osd_pos;
@@ -493,6 +514,7 @@ extern void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type
 extern int cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int *type, int ignorelink, int userconfig);
 extern int cfgfile_save (struct uae_prefs *p, const TCHAR *filename, int);
 extern void cfgfile_parse_line (struct uae_prefs *p, TCHAR *, int);
+extern void cfgfile_parse_lines (struct uae_prefs *p, const TCHAR *, int);
 extern int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int);
 extern int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);

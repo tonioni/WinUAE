@@ -171,7 +171,6 @@ void fixup_cpu (struct uae_prefs *p)
 		p->mmu_model = 0;
 }
 
-
 void fixup_prefs (struct uae_prefs *p)
 {
 	int err = 0;
