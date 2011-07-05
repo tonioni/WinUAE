@@ -215,7 +215,7 @@ static int match_string (const TCHAR *table[], const TCHAR *str)
 	return -1;
 }
 
-TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *file)
+static TCHAR *cfgfile_subst_path2 (const TCHAR *path, const TCHAR *subst, const TCHAR *file)
 {
 	/* @@@ use strcasecmp for some targets.  */
 	if (_tcslen (path) > 0 && _tcsncmp (file, path, _tcslen (path)) == 0) {
@@ -234,7 +234,15 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 		xfree (p);
 		return p2;
 	}
-	TCHAR *s = target_expand_environment (file);
+	return NULL;
+}
+
+TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *file)
+{
+	TCHAR *s = cfgfile_subst_path2 (path, subst, file);
+	if (s)
+		return s;
+	s = target_expand_environment (file);
 	if (s) {
 		TCHAR tmp[MAX_DPATH];
 		_tcscpy (tmp, s);
@@ -245,11 +253,21 @@ TCHAR *cfgfile_subst_path (const TCHAR *path, const TCHAR *subst, const TCHAR *f
 	return s;
 }
 
-static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, const TCHAR *file, bool dir)
+static TCHAR *cfgfile_get_multipath2 (struct multipath *mp, const TCHAR *path, const TCHAR *file, bool dir)
 {
 	for (int i = 0; i < MAX_PATHS; i++) {
-		if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0) {
-			TCHAR *s = cfgfile_subst_path (path, mp->path[i], file);
+		if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0 && (file[0] != '/' && file[0] != '\\' && !_tcschr(file, ':'))) {
+			TCHAR *s = NULL;
+			if (path)
+				s = cfgfile_subst_path2 (path, mp->path[i], file);
+			if (!s) {
+				TCHAR np[MAX_DPATH];
+				_tcscpy (np, mp->path[i]);
+				fixtrailing (np);
+				_tcscat (np, file);
+				fullpath (np, sizeof np / sizeof (TCHAR));
+				s = my_strdup (np);
+			}
 			if (dir) {
 				if (my_existsdir (s))
 					return s;
@@ -260,6 +278,34 @@ static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, 
 			xfree (s);
 		}
 	}
+	return NULL;
+}
+
+static TCHAR *cfgfile_get_multipath (struct multipath *mp, const TCHAR *path, const TCHAR *file, bool dir)
+{
+	TCHAR *s = cfgfile_get_multipath2 (mp, path, file, dir);
+	if (s)
+		return s;
+	return my_strdup (file);
+}
+
+static TCHAR *cfgfile_put_multipath (struct multipath *mp, const TCHAR *s)
+{
+	for (int i = 0; i < MAX_PATHS; i++) {
+		if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0) {
+			if (_tcsnicmp (mp->path[i], s, _tcslen (mp->path[i])) == 0) {
+				return my_strdup (s + _tcslen (mp->path[i]));
+			}
+		}
+	}
+	return my_strdup (s);
+}
+
+static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, const TCHAR *file, bool dir)
+{
+	TCHAR *s = cfgfile_get_multipath2 (mp, path, file, dir);
+	if (s)
+		return s;
 	return cfgfile_subst_path (path, mp->path[0], file);
 }
 
@@ -413,9 +459,10 @@ void cfgfile_target_dwrite (struct zfile *f, const TCHAR *option, const TCHAR *f
 	va_end (parms);
 }
 
-static void cfgfile_write_rom (struct zfile *f, const TCHAR *path, const TCHAR *romfile, const TCHAR *name)
+static void cfgfile_write_rom (struct zfile *f, struct multipath *mp, const TCHAR *romfile, const TCHAR *name)
 {
-	TCHAR *str = cfgfile_subst_path (path, UNEXPANDED, romfile);
+	TCHAR *str = cfgfile_subst_path (mp->path[0], UNEXPANDED, romfile);
+	str = cfgfile_put_multipath (mp, str);
 	cfgfile_write_str (f, name, str);
 	struct zfile *zf = zfile_fopen (str, L"rb", ZFD_ALL);
 	if (zf) {
@@ -433,9 +480,20 @@ static void cfgfile_write_rom (struct zfile *f, const TCHAR *path, const TCHAR *
 
 }
 
+static void cfgfile_write_path (struct zfile *f, struct multipath *mp, const TCHAR *option, const TCHAR *value)
+{
+	TCHAR *s = cfgfile_put_multipath (mp, value);
+	cfgfile_write_str (f, option, s);
+	xfree (s);
+}
+static void cfgfile_dwrite_path (struct zfile *f, struct multipath *mp, const TCHAR *option, const TCHAR *value)
+{
+	TCHAR *s = cfgfile_put_multipath (mp, value);
+	cfgfile_dwrite_str (f, option, s);
+	xfree (s);
+}
 
-static void write_filesys_config (struct uae_prefs *p, const TCHAR *unexpanded,
-	const TCHAR *default_path, struct zfile *f)
+static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 {
 	int i;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
@@ -453,7 +511,7 @@ static void write_filesys_config (struct uae_prefs *p, const TCHAR *unexpanded,
 			bp = -128;
 		if (uci->donotmount)
 			bp = -129;
-		str = cfgfile_subst_path (default_path, unexpanded, uci->rootdir);
+		str = cfgfile_put_multipath (&p->path_hardfile, uci->rootdir);
 		if (!uci->ishdf) {
 			_stprintf (tmp, L"%s,%s:%s:%s,%d", uci->readonly ? L"ro" : L"rw",
 				uci->devname ? uci->devname : L"", uci->volname, str, bp);
@@ -505,7 +563,7 @@ static void write_compatibility_cpu (struct zfile *f, struct uae_prefs *p)
 void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
 	struct strlist *sl;
-	TCHAR *str, tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH];
 	int i;
 
 	cfgfile_write_str (f, L"config_description", p->description);
@@ -558,38 +616,29 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write_str (f, L"use_gui", guimode1[p->start_gui]);
 	cfgfile_write_bool (f, L"use_debugger", p->start_debugger);
-	cfgfile_write_rom (f, p->path_rom.path[0], p->romfile, L"kickstart_rom_file");
-	cfgfile_write_rom (f, p->path_rom.path[0], p->romextfile, L"kickstart_ext_rom_file");
+	cfgfile_write_rom (f, &p->path_rom, p->romfile, L"kickstart_rom_file");
+	cfgfile_write_rom (f, &p->path_rom, p->romextfile, L"kickstart_ext_rom_file");
 	if (p->romextfile2addr) {
 		cfgfile_write (f, L"kickstart_ext_rom_file2_address", L"%x", p->romextfile2addr);
-		cfgfile_write_rom (f, p->path_rom.path[0], p->romextfile2, L"kickstart_ext_rom_file2");
+		cfgfile_write_rom (f, &p->path_rom, p->romextfile2, L"kickstart_ext_rom_file2");
 	}
 	if (p->romident[0])
 		cfgfile_dwrite_str (f, L"kickstart_rom", p->romident);
 	if (p->romextident[0])
 		cfgfile_write_str (f, L"kickstart_ext_rom=", p->romextident);
-	str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->flashfile);
-	cfgfile_write_str (f, L"flash_file", str);
-	xfree (str);
-	str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->cartfile);
-	cfgfile_write_str (f, L"cart_file", str);
-	xfree (str);
+	cfgfile_write_path (f, &p->path_rom, L"flash_file", p->flashfile);
+	cfgfile_write_path (f, &p->path_rom, L"cart_file", p->cartfile);
 	if (p->cartident[0])
 		cfgfile_write_str (f, L"cart", p->cartident);
-	if (p->amaxromfile[0]) {
-		str = cfgfile_subst_path (p->path_rom.path[0], UNEXPANDED, p->amaxromfile);
-		cfgfile_write_str (f, L"amax_rom_file", str);
-		xfree (str);
-	}
+	if (p->amaxromfile[0])
+		cfgfile_write_path (f, &p->path_rom, L"amax_rom_file", p->amaxromfile);
 
 	cfgfile_write_bool (f, L"kickshifter", p->kickshifter);
 
 	p->nr_floppies = 4;
 	for (i = 0; i < 4; i++) {
-		str = cfgfile_subst_path (p->path_floppy.path[0], UNEXPANDED, p->floppyslots[i].df);
 		_stprintf (tmp, L"floppy%d", i);
-		cfgfile_write_str (f, tmp, str);
-		xfree (str);
+		cfgfile_write_path (f, &p->path_floppy, tmp, p->floppyslots[i].df);
 		_stprintf (tmp, L"floppy%dtype", i);
 		cfgfile_dwrite (f, tmp, L"%d", p->floppyslots[i].dfxtype);
 		_stprintf (tmp, L"floppy%dsound", i);
@@ -604,7 +653,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	for (i = 0; i < MAX_SPARE_DRIVES; i++) {
 		if (p->dfxlist[i][0]) {
 			_stprintf (tmp, L"diskimage%d", i);
-			cfgfile_dwrite_str (f, tmp, p->dfxlist[i]);
+			cfgfile_dwrite_path (f, &p->path_floppy, tmp, p->dfxlist[i]);
 		}
 	}
 
@@ -612,7 +661,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (p->cdslots[i].name[0] || p->cdslots[i].inuse) {
 			TCHAR tmp2[MAX_DPATH];
 			_stprintf (tmp, L"cdimage%d", i);
-			_tcscpy (tmp2, p->cdslots[i].name);
+			TCHAR *s = cfgfile_put_multipath (&p->path_cd, p->cdslots[i].name);
+			_tcscpy (tmp2, s);
+			xfree (s);
 			if (p->cdslots[i].type != SCSI_UNIT_DEFAULT || _tcschr (p->cdslots[i].name, ',') || p->cdslots[i].delayed) {
 				_tcscat (tmp2, L",");
 				if (p->cdslots[i].delayed) {
@@ -1004,7 +1055,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"warp", p->turbo_emulation);
 
 #ifdef FILESYS
-	write_filesys_config (p, UNEXPANDED, p->path_hardfile.path[0], f);
+	write_filesys_config (p, f);
 	if (p->filesys_no_uaefsdb)
 		cfgfile_write_bool (f, L"filesys_no_fsdb", p->filesys_no_uaefsdb);
 #endif
@@ -1132,7 +1183,7 @@ int cfgfile_path (const TCHAR *option, const TCHAR *value, const TCHAR *name, TC
 	location[maxsz - 1] = 0;
 	if (mp) {
 		for (int i = 0; i < MAX_PATHS; i++) {
-			if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0) {
+			if (mp->path[i][0] && _tcscmp (mp->path[i], L".\\") != 0 && _tcscmp (mp->path[i], L"./") != 0 && (location[0] != '/' && location[0] != '\\' && !_tcschr(location, ':'))) {
 				TCHAR np[MAX_DPATH];
 				_tcscpy (np, mp->path[i]);
 				fixtrailing (np);
@@ -1164,6 +1215,7 @@ int cfgfile_multipath (const TCHAR *option, const TCHAR *value, const TCHAR *nam
 			TCHAR *s = target_expand_environment (tmploc);
 			_tcsncpy (mp->path[i], s, 256 - 1);
 			mp->path[i][256 - 1] = 0;
+			fixtrailing (mp->path[i]);
 			xfree (s);
 			return 1;
 		}
@@ -1352,8 +1404,11 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 					*next2++ = 0;
 				cfgfile_intval (option, next, tmp, &unitnum, 1);
 			}
-			if (_tcslen (value) > 0)
-				_tcsncpy (p->cdslots[i].name, value, sizeof p->cdslots[i].name / sizeof (TCHAR));
+			if (_tcslen (value) > 0) {
+				TCHAR *s = cfgfile_get_multipath (&p->path_cd, NULL, value, false);
+				_tcsncpy (p->cdslots[i].name, s, sizeof p->cdslots[i].name / sizeof (TCHAR));
+				xfree (s);
+			}
 			p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
 			p->cdslots[i].inuse = true;
 			p->cdslots[i].type = type;

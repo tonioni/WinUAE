@@ -94,6 +94,7 @@
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
+extern bool rawinput_enabled_hid;
 int log_scsi;
 int log_net;
 int uaelib_debug;
@@ -2719,8 +2720,10 @@ void target_quit (void)
 
 void target_fixup_options (struct uae_prefs *p)
 {
+#if 0
 	if (p->gfx_avsync)
 		p->gfx_avsyncmode = 1;
+#endif
 
 #ifdef RETROPLATFORM
 	rp_fixup_options (p);
@@ -3708,7 +3711,9 @@ static void associate_init_extensions (void)
 		}
 		if (setit) {
 			if (RegCreateKeyEx (rkey, rpath, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key1, &disposition) == ERROR_SUCCESS) {
+				DWORD val = 1;
 				RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)_wpgmptr, (_tcslen (_wpgmptr) + 1) * sizeof (TCHAR));
+				RegSetValueEx (key1, L"UseUrl", 0, REG_DWORD, (LPBYTE)&val, sizeof val);
 				RegCloseKey (key1);
 				SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 			}
@@ -4520,6 +4525,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		no_rawinput = 1;
 		return 1;
 	}
+	if (!_tcscmp (arg, L"rawhid")) {
+		rawinput_enabled_hid = true;
+		return 1;
+	}
 	if (!_tcscmp (arg, L"rawkeyboard")) {
 		// obsolete
 		return 1;
@@ -4843,7 +4852,7 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 	TCHAR tmp[MAX_DPATH];
 	int size = sizeof tmp / sizeof (TCHAR);
 
-	reginitializeinit (inipath);
+	reginitializeinit (&inipath);
 	hWinUAEKey = NULL;
 	if (getregmode () == 0 || WINUAEPUBLICBETA > 0) {
 		/* Create/Open the hWinUAEKey which points our config-info */
@@ -4859,7 +4868,7 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 				f = _tfopen (path, L"w");
 			if (f) {
 				fclose (f);
-				reginitializeinit (path);
+				reginitializeinit (&path);
 			}
 			xfree (path);
 		}

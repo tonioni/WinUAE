@@ -1,4 +1,19 @@
 
+Beta 2:
+
+- experimental joystick raw input support, enable using -rawhid command line parameter.
+- D3D blank screen problem should be really fixed now
+- empty winuae.ini now does exact same as -portable command line parameter
+- harddrive paths relative to win32.hardfile_path didn't work
+- config file full paths are converted to relative if path matches win32.xxx_path entries
+- ignore new displaydata vsync stuff if RTG mode is currently in use
+- Display panel new vsync refresh rate GUI really works now
+- uaescsi.device cd image on the fly switching was unreliable
+- uaescsi.device crash when switching images (I could only duplicate it with AROS CDFS)
+- AROS ROM updated
+
+Beta 1:
+
 - new vsync option
   * does not need extra buffers (very little input lag), make sure "no buffering"
     is selected

@@ -6,7 +6,7 @@ typedef struct UAEREG {
 } UAEREG;
 
 extern int getregmode (void);
-extern int reginitializeinit (const TCHAR *path);
+extern int reginitializeinit (TCHAR **path);
 extern void regstatus (void);
 
 extern int regsetstr (UAEREG*, const TCHAR *name, const TCHAR *str);

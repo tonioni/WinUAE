@@ -2876,42 +2876,44 @@ void init_hz (bool fullinit)
 		reset_drawing ();
 	}
 
-	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
-		struct chipset_refresh *cr = &currprefs.cr[i];
-		if ((cr->horiz < 0 || cr->horiz == maxhpos) &&
-			(cr->vert < 0 || cr->vert == maxvpos_nom) &&
-			(cr->ntsc < 0 || (cr->ntsc > 0 && isntsc) || (cr->ntsc == 0 && !isntsc)) &&
-			(cr->lace < 0 || (cr->lace > 0 && islace) || (cr->lace == 0 && !islace)) &&
-			(cr->framelength < 0 || (cr->framelength > 0 && lof_store) || (cr->framelength == 0 && !lof_store)) &&
-			(cr->vsync < 0 || (cr->vsync > 0 && isvsync ()) || (cr->vsync == 0 && !isvsync ()))) {
-				double v = -1;
+	if (!picasso_on) {
+		for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
+			struct chipset_refresh *cr = &currprefs.cr[i];
+			if ((cr->horiz < 0 || cr->horiz == maxhpos) &&
+				(cr->vert < 0 || cr->vert == maxvpos_nom) &&
+				(cr->ntsc < 0 || (cr->ntsc > 0 && isntsc) || (cr->ntsc == 0 && !isntsc)) &&
+				(cr->lace < 0 || (cr->lace > 0 && islace) || (cr->lace == 0 && !islace)) &&
+				(cr->framelength < 0 || (cr->framelength > 0 && lof_store) || (cr->framelength == 0 && !lof_store)) &&
+				(cr->vsync < 0 || (cr->vsync > 0 && isvsync ()) || (cr->vsync == 0 && !isvsync ()))) {
+					double v = -1;
 
-				if (isvsync ()) {
-					if (i == CHIPSET_REFRESH_PAL || i == CHIPSET_REFRESH_NTSC) {
-						if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
-							vsync_switchmode (vblank_hz > 55 ? 60 : 50);
+					if (isvsync ()) {
+						if (i == CHIPSET_REFRESH_PAL || i == CHIPSET_REFRESH_NTSC) {
+							if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
+								vsync_switchmode (vblank_hz > 55 ? 60 : 50);
+							}
 						}
-					}
-					if (isvsync () < 0) {
-						double v2;
-						changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = cr->rate;
-						v2 = vblank_calibrate (cr->locked);
-						if (!cr->locked)
-							v = v2;
-					}
-				} else {
-					if (cr->locked == true)
+						if (isvsync () < 0) {
+							double v2;
+							v2 = vblank_calibrate (cr->locked ? vblank_hz : cr->rate, cr->locked);
+							if (!cr->locked)
+								v = v2;
+						}
+					} else {
+						if (cr->locked == false) {
+							changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = vblank_hz;
+							break;
+						}
 						v = cr->rate;
-					else
-						v = vblank_hz;
-				}
-				if (v < 0)
-					v = cr->rate;
-				if (v > 0) {
-					changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
-					cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
-				}
-				break;
+					}
+					if (v < 0)
+						v = cr->rate;
+					if (v > 0) {
+						changed_prefs.chipset_refreshrate = v;
+						cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
+					}
+					break;
+			}
 		}
 	}
 

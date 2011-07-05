@@ -17,6 +17,7 @@ extern int D3D_goodenough (void);
 extern void D3D_setcursor (int x, int y, int visible);
 extern bool D3D_vblank_busywait (void);
 extern bool D3D_waitvblankstate (bool);
+extern double D3D_getrefreshrate (void);
 extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 
 #define CURSORMAXWIDTH 64

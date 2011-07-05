@@ -1493,7 +1493,7 @@ static int mouseedge (void)
 		goto end;
 	}
 	ib = get_intuitionbase ();
-	if (!ib)
+	if (!ib || get_word (ib + 20) < 31) // version < 31
 		return 0;
 	x = get_word (ib + 70);
 	y = get_word (ib + 68);

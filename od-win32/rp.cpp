@@ -565,6 +565,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_xcenter_size = -1;
 		p->gfx_ycenter_size = -1;
 	} else if (sm->dwClipFlags & RP_CLIPFLAGS_NOCLIP) {
+		if (!fs)
+			p->gfx_filter_autoscale = AUTOSCALE_RESIZE;
+		else
+			p->gfx_filter_autoscale = AUTOSCALE_NORMAL;
 		p->gfx_xcenter_pos = 0;
 		p->gfx_ycenter_pos = 0;
 		p->gfx_xcenter_size = 1408;

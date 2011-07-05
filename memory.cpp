@@ -6,7 +6,7 @@
 * (c) 1995 Bernd Schmidt
 */
 
-#define DEBUG_STUPID 0
+#define DEBUG_STUPID 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -124,7 +124,7 @@ __inline__ void byteput (uaecptr addr, uae_u32 b)
 int addr_valid (TCHAR *txt, uaecptr addr, uae_u32 len)
 {
 	addrbank *ab = &get_mem_bank(addr);
-	if (ab == 0 || !(ab->flags & ABFLAG_RAM) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address (addr, len)) {
+	if (ab == 0 || !(ab->flags & (ABFLAG_RAM | ABFLAG_ROM)) || addr < 0x100 || len < 0 || len > 16777215 || !valid_address (addr, len)) {
 		write_log (L"corrupt %s pointer %x (%d) detected!\n", txt, addr, len);
 		return 0;
 	}

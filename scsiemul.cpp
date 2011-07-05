@@ -86,8 +86,8 @@ static struct device_info *devinfo (struct devstruct *devst, struct device_info 
 	if (dio) {
 		if (!devst->configblocksize)
 			devst->configblocksize = dio->bytespersector;
-	}	
-	return dio;
+	}
+	return di;
 }
 
 static void io_log (const TCHAR *msg, uaecptr request)

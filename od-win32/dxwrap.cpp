@@ -672,9 +672,11 @@ HRESULT DirectDraw_ReleaseDC (HDC hdc)
 int DirectDraw_GetVerticalBlankStatus (void)
 {
 	BOOL status;
+	if (!dxdata.ddinit)
+		return -1;
 	if (FAILED (IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &status)))
 		return -1;
-	return status;
+	return status ? 1 : 0;
 }
 void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc)
 {
@@ -683,6 +685,8 @@ void DirectDraw_GetPrimaryPixelFormat (DDSURFACEDESC2 *desc)
 }
 DWORD DirectDraw_CurrentRefreshRate (void)
 {
+	if (!dxdata.ddinit)
+		return -1;
 	DirectDraw_GetDisplayMode ();
 	return dxdata.native.dwRefreshRate;
 }

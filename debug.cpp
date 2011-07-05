@@ -2455,7 +2455,7 @@ static void print_task_info (uaecptr node)
 
 	console_out_f (L"%08X: ", node);
 	s = au ((char*)get_real_address (get_long (node + 10)));
-	console_out_f (process ? L" PROCESS '%s'" : L" TASK    '%s'\n", s);
+	console_out_f (process ? L" PROCESS '%s'\n" : L" TASK    '%s'\n", s);
 	xfree (s);
 	if (process) {
 		uaecptr cli = BPTR2APTR (get_long (node + 172));

@@ -370,7 +370,7 @@ void regclosetree (UAEREG *key)
 
 static uae_u8 crcok[20] = { 0xaf,0xb7,0x36,0x15,0x05,0xca,0xe6,0x9d,0x23,0x17,0x4d,0x50,0x2b,0x5c,0xc3,0x64,0x38,0xb8,0x4e,0xfc };
 
-int reginitializeinit (const TCHAR *ppath)
+int reginitializeinit (TCHAR **pppath)
 {
 	UAEREG *r = NULL;
 	TCHAR tmp1[1000];
@@ -378,6 +378,7 @@ int reginitializeinit (const TCHAR *ppath)
 	int s, v1, v2, v3;
 	TCHAR path[MAX_DPATH], fpath[MAX_PATH];
 	FILE *f;
+	TCHAR *ppath = *pppath;
 
 	if (!ppath) {
 		int ok = 0;
@@ -453,6 +454,8 @@ fail:
 	regsetstr (r, L"info1", L"This is unsupported file. Compatibility between versions is not guaranteed.");
 	regsetstr (r, L"info2", L"Incompatible ini-files may be re-created from scratch!");
 	regclosetree (r);
+	if (*pppath == NULL)
+		*pppath = my_strdup (path);
 	return 1;
 end:
 	inimode = 0;

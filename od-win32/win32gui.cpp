@@ -5647,7 +5647,7 @@ static void values_to_displaydlg (HWND hDlg)
 		if (cr->rate > 0) {
 			_tcscpy (buffer, cr->label);
 			if (!buffer[0])
-				_stprintf (buffer, L"%d", i);
+				_stprintf (buffer, L":%d", i);
 			SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_ADDSTRING, 0, (LPARAM)buffer);
 			d = workprefs.chipset_refreshrate;
 			if (abs (d) < 1)
@@ -5667,6 +5667,7 @@ static void values_to_displaydlg (HWND hDlg)
 	_stprintf (buffer, L"%.6f", selectcr->locked || full_property_sheet ? selectcr->rate : workprefs.chipset_refreshrate);
 	SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
 	CheckDlgButton (hDlg, IDC_RATE2ENABLE, selectcr->locked);
+
 	ew (hDlg, IDC_RATE2TEXT, selectcr->locked != 0);
 	ew (hDlg, IDC_FRAMERATE2, selectcr->locked != 0);
 
@@ -5830,18 +5831,21 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	struct chipset_refresh *cr;
 	for (i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		cr = &workprefs.cr[i];
-		if (!_tcscmp (label, cr->label) || (cr->label[0] == 0 && _tstol (label) == i)) {
+		if (!_tcscmp (label, cr->label) || (cr->label[0] == 0 && label[0] == ':' &&_tstol (label + 1) == i)) {
 			if (workprefs.cr_selected != i) {
 				workprefs.cr_selected = i;
 				updaterate = true;
 				updateslider = true;
+				CheckDlgButton (hDlg, IDC_RATE2ENABLE, cr->locked);
+				ew (hDlg, IDC_FRAMERATE2, cr->locked != 0);
+				ew (hDlg, IDC_RATE2TEXT, cr->locked != 0);
+			} else {
+				cr->locked = ischecked (hDlg, IDC_RATE2ENABLE) != 0;
 			}
 			break;
 		}
 	}
-	cr = &workprefs.cr[workprefs.cr_selected];
-	cr->locked = ischecked (hDlg, IDC_RATE2ENABLE) != 0;
-	if (!cr->locked) {
+	if (cr->locked) {
 		if (msg == WM_HSCROLL) {
 			i = SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_GETPOS, 0, 0);
 			if (i != (int)cr->rate)
@@ -5854,22 +5858,26 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				updateslider = true;
 			}
 		}
-		if (cr->rate > 0 && cr->rate < 1) {
-			cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
-			updaterate = true;
-		}
-		if (cr->rate > 300) {
-			cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
-			updaterate = true;
-		}
-		if (updaterate) {
-			TCHAR buffer[20];
-			_stprintf (buffer, L"%.6f", cr->rate);
-			SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
-		}
-		if (updateslider) {
-			SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)cr->rate);
-		}
+	} else if (i == CHIPSET_REFRESH_PAL) {
+		cr->rate = 50.0;
+	} else if (i == CHIPSET_REFRESH_NTSC) {
+		cr->rate = 60.0;
+	}
+	if (cr->rate > 0 && cr->rate < 1) {
+		cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+		updaterate = true;
+	}
+	if (cr->rate > 300) {
+		cr->rate = currprefs.ntscmode ? 60.0 : 50.0;
+		updaterate = true;
+	}
+	if (updaterate) {
+		TCHAR buffer[20];
+		_stprintf (buffer, L"%.6f", cr->rate);
+		SetDlgItemText (hDlg, IDC_RATE2TEXT, buffer);
+	}
+	if (updateslider) {
+		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)cr->rate);
 	}
 
 	workprefs.gfx_size_win.width = GetDlgItemInt (hDlg, IDC_XSIZE, &success, FALSE);

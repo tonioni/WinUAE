@@ -1051,7 +1051,7 @@ static void fill_prefetch_quick (void)
 	regs.irc = get_word (m68k_getpc () + 2);
 }
 
-unsigned long cycles_mask, cycles_val;
+static unsigned long cycles_mask, cycles_val;
 
 static void update_68k_cycles (void)
 {

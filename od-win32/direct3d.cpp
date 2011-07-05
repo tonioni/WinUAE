@@ -83,6 +83,7 @@ static int vsync2, guimode, maxscanline;
 static int resetcount;
 static int cursor_x, cursor_y, cursor_v;
 
+#define NUMVERTICES 8
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
 struct TLVERTEX {
 	D3DXVECTOR3 position;       // vertex position
@@ -1607,6 +1608,7 @@ static void createvertex (void)
 		write_log (L"%s: Vertexbuffer lock failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return;
 	}
+	memset (vertices, 0, sizeof (struct TLVERTEX) * NUMVERTICES);
 	//Setup vertices
 	vertices[0].position.x = -0.5f; vertices[0].position.y = -0.5f;
 	vertices[0].diffuse  = 0xFFFFFFFF;
@@ -1633,7 +1635,8 @@ static void createvertex (void)
 	vertices[7].position.x = 1.0f; vertices[7].position.y = 1.0f;
 	vertices[7].diffuse  = 0xFFFFFF00;
 	vertices[7].texcoord.x = 1.0f; vertices[7].texcoord.y = 0.0f;
-	hr = vertexBuffer->Unlock ();
+	if (FAILED(hr = vertexBuffer->Unlock ()))
+		write_log (L"%s: Vertexbuffer unlock failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 }
 
 static void settransform (void)
@@ -1780,15 +1783,15 @@ static int restoredeviceobjects (void)
 	cursorsurfaced3d = createtext (curw, curh, D3DFMT_A8R8G8B8);
 	cursor_v = 0;
 
-	vbsize = sizeof (struct TLVERTEX) * 8;
-	if (FAILED (hr = d3ddev->SetFVF (D3DFVF_TLVERTEX)))
-		write_log (L"%s: SetFVF failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+	vbsize = sizeof (struct TLVERTEX) * NUMVERTICES;
 	if (FAILED (hr = d3ddev->CreateVertexBuffer (vbsize, D3DUSAGE_WRITEONLY,
 		D3DFVF_TLVERTEX, D3DPOOL_DEFAULT, &vertexBuffer, NULL))) {
 			write_log (L"%s: failed to create vertex buffer: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			return 0;
 	}
 	createvertex ();
+	if (FAILED (hr = d3ddev->SetFVF (D3DFVF_TLVERTEX)))
+		write_log (L"%s: SetFVF failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	if (FAILED (hr = d3ddev->SetStreamSource (0, vertexBuffer, 0, sizeof (struct TLVERTEX))))
 		write_log (L"%s: SetStreamSource failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 
@@ -1853,6 +1856,11 @@ bool D3D_waitvblankstate (bool state)
 	for (;;) {
 		if (!getvblankstate (&vpos))
 			return false;
+		while (vpos > maxscanline) {
+			maxscanline = vpos;
+			if (!getvblankstate (&vpos))
+				return false;
+		}
 		if (vpos < 0 || vpos >= maxscanline - 5) {
 			if (state)
 				return true;
@@ -1956,7 +1964,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		write_log (L"%s: GetDeviceCaps failed %s\n", D3DHEAD, D3D_ErrorString (hr));
 
 	memset (&dpp, 0, sizeof (dpp));
-	dpp.Windowed = isfullscreen() <= 0;
+	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
 	dpp.BackBufferCount = dpp.Windowed || !currprefs.gfx_avsync ? 1 : currprefs.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -2064,7 +2072,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		write_log (L"DYNAMIC ");
 	write_log (L"\n");
 
-	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s %d-bit\n",
+	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s %d-bit %d\n",
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
@@ -2072,7 +2080,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		dpp.Windowed ? 0 : dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
 		currprefs.gfx_avsync ? L" VSYNC" : L"",
-		t_depth
+		t_depth, adapter
 		);
 
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
@@ -2614,6 +2622,18 @@ void D3D_getpixelformat (int depth, int *rb, int *gb, int *bb, int *rs, int *gs,
 		*a = 0;
 		break;
 	}
+}
+
+double D3D_getrefreshrate (void)
+{
+	HRESULT hr;
+	D3DDISPLAYMODE dmode;
+	if (!isd3d ())
+		return -1;
+	hr = d3ddev->GetDisplayMode (0, &dmode);
+	if (FAILED (hr))
+		return -1;
+	return dmode.RefreshRate;
 }
 
 void D3D_guimode (int guion)

@@ -27,7 +27,7 @@ extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int);
 extern bool vsync_busywait (void);
-extern double vblank_calibrate (bool);
+extern double vblank_calibrate (double, bool);
 extern void doflashscreen (void);
 extern int flashscreen;
 extern void updatedisplayarea (void);

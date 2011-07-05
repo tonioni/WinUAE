@@ -1415,20 +1415,22 @@ int check_prefs_changed_gfx (void)
 		return 1;
 	}
 
+	bool changed = false;
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		if (currprefs.cr[i].rate != changed_prefs.cr[i].rate ||
 			currprefs.cr[i].locked != changed_prefs.cr[i].locked) {
 				memcpy (&currprefs.cr[i], &changed_prefs.cr[i], sizeof (struct chipset_refresh));
-				init_hz_full ();
+				changed = true;
 		}
 	}
-#if 0
+	if (changed) {
+		init_hz_full ();
+	}
 	if (currprefs.chipset_refreshrate != changed_prefs.chipset_refreshrate) {
 		currprefs.chipset_refreshrate = changed_prefs.chipset_refreshrate;
 		init_hz_full ();
 		return 1;
 	}
-#endif
 
 	if (currprefs.gfx_filter_autoscale != changed_prefs.gfx_filter_autoscale ||
 		currprefs.gfx_xcenter_pos != changed_prefs.gfx_xcenter_pos ||
@@ -2162,6 +2164,16 @@ bool waitvblankstate (bool state)
 	}
 }
 
+double getcurrentvblankrate (void)
+{
+	if (remembered_vblank)
+		return remembered_vblank;
+	if (currprefs.gfx_api)
+		return D3D_getrefreshrate ();
+	else
+		return DirectDraw_CurrentRefreshRate ();
+}
+
 #include <process.h>
 static volatile int dummythread_die;
 int dummy_counter;
@@ -2172,7 +2184,7 @@ static void _cdecl dummythread (void *dummy)
 		dummy_counter++;
 }
 
-double vblank_calibrate (bool waitonly)
+double vblank_calibrate (double approx_vblank, bool waitonly)
 {
 	frame_time_t t1, t2;
 	double tsum, tsum2, tval, tfirst;
@@ -2182,7 +2194,7 @@ double vblank_calibrate (bool waitonly)
 	if (remembered_vblank > 0)
 		return remembered_vblank;
 	if (waitonly) {
-		vblankbase = (syncbase / currprefs.chipset_refreshrate) * 3 / 4;
+		vblankbase = (syncbase / approx_vblank) * 3 / 4;
 		remembered_vblank = -1;
 		return -1;
 	}

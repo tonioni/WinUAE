@@ -541,9 +541,9 @@ static void check_changes (int unitnum)
 	if (wasopen[unitnum]) {
 		if (!device_func[unitnum]->opendev (unitnum, currprefs.cdslots[unitnum].name, 0)) {
 			write_log (L"-> device open failed\n");
+			wasopen[unitnum] = 0;
 		}
 	}
-	wasopen[unitnum] = 0;
 	if (currprefs.scsi) {
 		struct device_info di;
 		device_func[unitnum]->info (unitnum, &di, 0);
