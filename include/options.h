@@ -143,6 +143,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 struct chipset_refresh
 {
 	bool locked;
+	bool rtg;
 	int horiz;
 	int vert;
 	int lace;

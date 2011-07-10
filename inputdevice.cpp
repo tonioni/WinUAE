@@ -1483,7 +1483,7 @@ static int mouseedge (void)
 	static int melast_x, melast_y;
 	static int isnonzero;
 
-	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0)
+	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0 || isfullscreen ())
 		return 0;
 	if (magicmouse_ibase == 0xffffffff)
 		return 0;

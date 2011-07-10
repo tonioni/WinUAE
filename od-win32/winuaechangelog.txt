@@ -1,4 +1,9 @@
 
+Beta 3:
+
+- tearing in new vsync modes should be completely gone, without introducing any extra latency
+- Display panel buffering option now does nothing in new vsync modes
+
 Beta 2:
 
 - experimental joystick raw input support, enable using -rawhid command line parameter.

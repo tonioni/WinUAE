@@ -36,7 +36,8 @@ extern void flush_line (int);
 extern void flush_block (int, int);
 extern void flush_screen (int, int);
 extern void flush_clear_screen (void);
-extern void update_screen (void);
+extern bool render_screen (void);
+extern void show_screen (void);
 
 extern int lockscr (int);
 extern void unlockscr (void);

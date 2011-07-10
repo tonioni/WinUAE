@@ -5797,13 +5797,26 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	TCHAR tmp[200];
 
 	workprefs.gfx_afullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
+	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
+	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
+	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
+	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
+	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
+
 	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE2, CB_GETCURSEL, 0, 0);
+	int oldmode = workprefs.gfx_avsyncmode;
 	workprefs.gfx_avsync = 0;
 	workprefs.gfx_avsyncmode = 0;
 	if (i > 0) {
 		i--;
 		workprefs.gfx_avsync = (i & 1) + 1;
 		workprefs.gfx_avsyncmode = i >= 2 ? 1 : 0;
+		if (workprefs.gfx_avsyncmode != oldmode && workprefs.gfx_avsyncmode) {
+			workprefs.gfx_backbuffers = 0;
+			SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_backbuffers, 0);
+		}
 	}
 
 	workprefs.gfx_pfullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
@@ -5816,14 +5829,6 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.gfx_pvsyncmode = i >= 1 ? 1 : 0;
 	}
 	
-	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
-	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
-	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
-	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
-	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
-	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
-	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
-
 	bool updaterate = false, updateslider = false;
 	TCHAR label[16];
 	label[0] = 0;

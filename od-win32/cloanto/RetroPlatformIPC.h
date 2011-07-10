@@ -8,7 +8,7 @@
          : License version 2 as published by the Free Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2011-02-02 12:20:00
+ Updated : 2011-07-07 00:04:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -17,9 +17,9 @@
 
 #include <windows.h>
 
-#define RPLATFORM_API_VER       "1.4"
+#define RPLATFORM_API_VER       "1.5"
 #define RPLATFORM_API_VER_MAJOR  1
-#define RPLATFORM_API_VER_MINOR  4
+#define RPLATFORM_API_VER_MINOR  5
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -94,23 +94,28 @@
 #define RP_FEATURE_STATE           0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
 #define RP_FEATURE_SCANLINES       0x00000800 // scan lines video effect is available
 #define RP_FEATURE_DEVICEREADWRITE 0x00001000 // device read/write can be set at runtime on floppy and hard disks
+#define RP_FEATURE_RESIZE_SUBPIXEL 0x00002000 // supports sub-pixel scaling of windowed and full-screen modes (i.e. not just integer multipliers like 1X, 2X, etc., but stretch to fill any desired pixel size)
+#define RP_FEATURE_RESIZE_STRETCH  0x00004000 // supports "stretch to fill" (without preserving original ratio) in full-screen mode or with lTargetWidth and lTargetHeight set
 
 // Screen Modes
 #define RP_SCREENMODE_1X            0x00000000 // 1x window or full-screen mode ("CGA mode")
 #define RP_SCREENMODE_2X            0x00000001 // 2x window or full-screen mode ("VGA mode")
 #define RP_SCREENMODE_3X            0x00000002 // 3x window or full-screen mode ("triple CGA mode")
 #define RP_SCREENMODE_4X            0x00000003 // 4x window or full-screen mode ("double VGA mode")
-#define RP_SCREENMODE_XX            0x000000FF // autoset maximum nX (integer n, preserve ratio)
+#define RP_SCREENMODE_WW            0x000000FE // scale WindoW to lTargetWidth/lTargetHeight (default: maximum possible integer multiplication, no subpixel stretching, preserve ratio)
+#define RP_SCREENMODE_XX            0x000000FF // autoset maximum nX (default: maximum possible integer multiplication, no subpixel stretching, preserve ratio)
 #define RP_SCREENMODE_MODEMASK      0x000000FF
 #define RP_SCREENMODE_FULLSCREEN_1	0x00000100 // full screen on primary (default) display
 #define RP_SCREENMODE_FULLSCREEN_2	0x00000200 // full screen on secondary display (fallback to 1 if unavailable)
 #define RP_SCREENMODE_DISPLAYMASK	0x0000FF00
-#define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" when in fullscreen (no gfx card full screen)
+#define RP_SCREENMODE_FULLWINDOW	0x00010000 // use "full window" (desktop size) when in full screen (no gfx card full screen)
 #define RP_SCREENMODE_USETVM_NEVER  0x00000000 // never use TV modes
 #define RP_SCREENMODE_USETVM_ALWAYS 0x00020000 // always use TV modes
 #define RP_SCREENMODE_USETVM_AUTO   0x00040000 // use all available modes
 #define RP_SCREENMODE_USETVMMASK    0x00060000
 #define RP_SCREENMODE_SCANLINES     0x00080000 // show video scan lines
+#define RP_SCREENMODE_SUBPIXEL      0x00100000 // use sub-pixel (non-integer) scaling in full-screen = "XX" mode, or with lTargetWidth and lTargetHeight set (if not set may add black bars)
+#define RP_SCREENMODE_STRETCH       0x00200000 // "stretch to fill" (do not preserve original ratio) in full-screen = "XX" mode, or with lTargetWidth and lTargetHeight set (if not set may add black bars)
 #define RP_SCREENMODE_DISPLAY(m)    (((m) & RP_SCREENMODE_DISPLAYMASK) >> 8) // given a mode 'm' returns the display number (1-255) or 0 if full screen is not active
 #define RP_SCREENMODE_USETVM(m)     ((m) & RP_SCREENMODE_USETVMMASK) // given a mode 'm' returns the RP_SCREENMODE_USETVM_* value in it (automatic display mode selection in full screen modes)
 #define RP_SCREENMODE_MODE(m)       ((m) & RP_SCREENMODE_MODEMASK) // given a mode 'm' returns the #X mode
@@ -119,35 +124,85 @@
 #define RP_CLIPFLAGS_AUTOCLIP		0x00000001 // ignore all 4 Clip values (same as all values = -1) and use "smart" offset and size
 #define RP_CLIPFLAGS_NOCLIP			0x00000002 // ignore all 4 Clip values (same as all values = -1) and use 0:0 offset and maximum possible size (probably ugly, but good for adjusting clip area manually)
 
-// Clip/Scale Examples
 //
-// An Amiga game with known clip offset/size will have lClipLeft/Top/Width/Height set, and no RP_CLIPFLAGS.
+// Integer vs. subpixel scaling, and stretching with or without original ratio
+//
+// By default, the guest is only expected to be able to scale (resize) the window by an integer number of times, e.g. 1X, 2X, 3X, etc., as indicated in RP_FEATURE_SCREEN...
+// This means that when going to full-screen or full-window mode or a window mode with lTargetWidth and lTargetHeight set, the content will be an integer number of times the original, and surrounded by black bars if necessary.
+//
+// In a known-size target (e.g. full-screen), unless RP_SCREENMODE_SUBPIXEL or RP_SCREENMODE_STRETCH are set, there may be up to four black bars to fill any unused space.
+//
+// RP_SCREENMODE_SUBPIXEL (used only if RP_FEATURE_RESIZE_SUBPIXEL was set) allows for subpixel resize scenarios beyond integer 1X, 2X, etc. This is both in full-screen/window and in window mode.
+//
+// In a known-size target (e.g. full-screen), RP_SCREENMODE_SUBPIXEL allows for "stretch to fill" with black areas only on two sides out of four (e.g. 4:3 displayed on 16:9 will fill to the top and bottom, and have bars only on the left and right).
+//
+// RP_SCREENMODE_STRETCH (used only if RP_FEATURE_RESIZE_STRETCH was set) allows to break (not respect) the original screen ratio.
+//
+// In theory RP_SCREENMODE_STRETCH could be used alone (without RP_SCREENMODE_SUBPIXEL), but it probably doesn'd make practical sense. In any case, the theoretical result would be scaling with different integer values for X and Y.
+//
+// RP_SCREENMODE_SUBPIXEL combined with RP_SCREENMODE_STRETCH allows for maximum "stretch to fill" with no black areas.
+//
+//
+// Typical scenarios:
+//
+// - Window mode without lTargetWidth and lTargetHeight set (user clicks 1X, 2X, etc. to resize)
+// - Window mode with lTargetWidth and lTargetHeight set (user resizes via window resize corner)
+// - Full-screen mode
+// - Real-time clip changes (users clicks a control and uses cursor keys to visually adjust clip)
+//
+//
+// Full-window Examples
+//
+// Example 1: No RP_SCREENMODE_SUBPIXEL, no RP_SCREENMODE_STRETCH: maximum integer scaling (can have black bars on up to four sides)
+//
+// Example 2: RP_SCREENMODE_SUBPIXEL, no RP_SCREENMODE_STRETCH: maximum "soft" scaling keeping ratio (can have black bars on two sides)
+//
+// Example 3: RP_SCREENMODE_SUBPIXEL combined with RP_SCREENMODE_STRETCH: maximum "stretch to fill" with no black areas
+//
+// There is a (theoretical) fourth case (RP_SCREENMODE_STRETCH without RP_SCREENMODE_SUBPIXEL), which could result in different integer multiplications along each axis. The player will not request such a mode.
+//
+//
+// Clipping Examples
+//
+// In the following examples it is assumed that RP_SCREENMODE_SUBPIXEL and RP_SCREENMODE_STRETCH are cleared unless specified otherwise.
+//
+// Example 1: An Amiga game with known clip offset/size will have lClipLeft/Top/Width/Height set, and no RP_CLIPFLAGS.
 // In windowed mode, the guest (e.g. WinUAE) will take the net clipped region and apply RP_SCREENMODE_xX scaling to that.
-// In RP_SCREENMODE_FULLWINDOW mode, the net clipped region will be "soft-scaled" to the maximum possible (not necessarily an integer scaling factor), centered and padded by a black border.
+// In RP_SCREENMODE_FULLWINDOW mode, the net clipped region will be scaled to the maximum possible (not necessarily an integer scaling factor, if RP_SCREENMODE_SUBPIXEL and RP_SCREENMODE_STRETCH are set), centered and padded by black bars if necessary (unless RP_SCREENMODE_SUBPIXEL and RP_SCREENMODE_STRETCH are set).
 // In one of the RP_SCREENMODE_FULLSCREEN modes, the net clipped region will be centered in the smallest possible compatible hardware mode (in consideration of RP_SCREENMODE_USETVM) and padded by a black border.
-// If an Amiga application sets a different Amiga chipset screen mode, the "container" window size will remain unchanged.
+// If an Amiga application sets a different Amiga chipset screen mode, the "container" window size will remain unchanged (because it is still constrained by the clipping values).
 // If an Amiga application sets a different RTG screen mode, the "container" window size will reflect the new RTG size (instead of the Amiga clip size) and apply RP_SCREENMODE_xX.
 //
-// An unknown Amiga application or one that has no known clip offset/size will start with RP_CLIPFLAGS_AUTOCLIP.
+// Example 2: An unknown Amiga application or one that has no known clip offset/size will start with RP_CLIPFLAGS_AUTOCLIP.
 // The guest (e.g. WinUAE) will apply whatever logic it can to minimize the visible overscan region.
 // The guest will send to the host the actual RPScreenMode data with the offset/size details that were applied.
 // In windowed mode, RP_SCREENMODE_xX scaling is applied like in the previous example.
 // RP_SCREENMODE_FULLWINDOW and RP_SCREENMODE_FULLSCREEN modes behave like in the previous example (scaling, etc.)
-// If an Amiga application sets a different Amiga or RTG chipset screen mode, the "container" window size may change.
+// If an Amiga application sets a different Amiga or RTG chipset screen mode, the "container" window size may change (because it is not constrained by any host-set clipping values), in consideration of RP_SCREENMODE_xX.
 //
-// If the user wants to adjust clipping, or for automated grabs and calculations, it is possible to set RP_CLIPFLAGS_NOCLIP, which will widen the window to the maximum.
 //
-// Whenever the guest sets or changes the "container" window size (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends a RPScreenMode update to the host.
+// Notes
+//
+// If the user wants to adjust clipping, or for automated grabs and calculations, it is possible to set RP_CLIPFLAGS_NOCLIP, which will widen the window to the maximum (within lTargetWidth+lTargetHeight/full-screen constraints).
+//
+// Whenever the guest sets or changes the "container" window size or scaling factor (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends an RPScreenMode update to the host.
+//
+// In window mode, if no lTargetWidth and lTargetHeight are set, when the host asks for a change in clipping (net content size), the host window size will be adjusted taking into account the current integer multiplication factor.
+//
+// In window mode, after a change of clipping or size, the player may have to reset the visual hilight of the 1X, 2X etc. buttons according to new RPIPCGM_SCREENMODE data (setting a hilight if the correct scaling button is present in the user interface, or removing all hilights if the corresponding button is missing).
+//
 
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // -1 = ignore (0 is a valid value)
-	LONG lClipTop;      // -1 = ignore (0 is a valid value)
-	LONG lClipWidth;    // -1 = ignore
-	LONG lClipHeight;   // -1 = ignore
+	LONG lClipLeft;     // in guest pixel units; -1 = ignore (0 is a valid value)
+	LONG lClipTop;      // in guest pixel units; -1 = ignore (0 is a valid value)
+	LONG lClipWidth;    // in guest pixel units; -1 = ignore
+	LONG lClipHeight;   // in guest pixel units; -1 = ignore
 	HWND hGuestWindow;  // only valid for RPIPCGM_SCREENMODE
-	DWORD dwClipFlags;	
+	DWORD dwClipFlags;	// clip flags (or 0)
+	LONG lTargetWidth;  // in exact host pixels; if set, must also set lTargetHeight; ignored unless RP_SCREENMODE_WW is set (resulting size is result of clipping and scaling); RP_SCREENMODE_SUBPIXEL and RP_SCREENMODE_STRETCH are taken into account
+	LONG lTargetHeight; // in exact host pixels, used with lTargetWidth
 } RPSCREENMODE;
 
 // Device Categories
@@ -190,9 +245,10 @@ typedef struct RPDeviceContent
 #define RP_JOYSTICK_BUTTON2  0x00000020 // button 2 - Fire 2 - CD32 Blue
 #define RP_JOYSTICK_BUTTON3  0x00000040 // button 3 - Fire 3 - CD32 Yellow
 #define RP_JOYSTICK_BUTTON4  0x00000080 // button 4 - Fire 4 - CD32 Green
-#define RP_JOYSTICK_BUTTON5  0x00000100 // button 5 - CD32 Play
-#define RP_JOYSTICK_BUTTON6  0x00000200 // button 6 - CD32 Reverse 
-#define RP_JOYSTICK_BUTTON7  0x00000400 // button 7 - CD32 Forward
+#define RP_JOYSTICK_BUTTON5  0x00000100 // button 5 - CDTV/CD32 Play/Pause
+#define RP_JOYSTICK_BUTTON6  0x00000200 // button 6 - CDTV/CD32 Reverse
+#define RP_JOYSTICK_BUTTON7  0x00000400 // button 7 - CDTV/CD32 Forward
+// To clarify: Where is the CDTV Stop button? Does the CD32 joypad have Stop?
 
 // Device Read/Write status
 #define RP_DEVICE_READONLY   0 // the medium is write-protected

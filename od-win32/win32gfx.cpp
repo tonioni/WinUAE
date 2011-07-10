@@ -106,7 +106,7 @@ int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 static int wasfullwindow_a, wasfullwindow_p;
-static int vblankbase;
+static int vblankbasewait, vblankbasefull;
 
 int screen_is_picasso = 0;
 
@@ -831,17 +831,41 @@ void flush_screen (int a, int b)
 {
 }
 
-void update_screen (void)
+static bool render_ok;
+
+bool render_screen (void)
 {
+	bool v = false;
+
+	render_ok = false;
 	if (dx_islost ())
-		return;
+		return render_ok;
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
 	if (currentmode->flags & DM_D3D) {
-		D3D_flip ();
+		v = D3D_renderframe ();
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		S2X_render ();
+		v = true;
+#endif
+	} else if (currentmode->flags & DM_DDRAW) {
+		v = true;
+	}
+	render_ok = v;
+	return render_ok;
+}
+
+void show_screen (void)
+{
+	if (dx_islost ())
+		return;
+	if (!render_ok)
+		return;
+	if (currentmode->flags & DM_D3D) {
+		D3D_showframe ();
+#ifdef GFXFILTER
+	} else if (currentmode->flags & DM_SWSCALE) {
 		DirectDraw_Flip (1);
 #endif
 	} else if (currentmode->flags & DM_DDRAW) {
@@ -1047,7 +1071,8 @@ void gfx_unlock_picasso (void)
 			p96_double_buffer_needs_flushing = 0;
 		}
 		D3D_unlocktexture ();
-		D3D_flip ();
+		if (D3D_renderframe ())
+			D3D_showframe ();
 	} else {
 		DirectDraw_SurfaceUnlock ();
 		if (p96_double_buffer_needs_flushing) {
@@ -2194,7 +2219,8 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	if (remembered_vblank > 0)
 		return remembered_vblank;
 	if (waitonly) {
-		vblankbase = (syncbase / approx_vblank) * 3 / 4;
+		vblankbasefull = syncbase / approx_vblank;
+		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
 		remembered_vblank = -1;
 		return -1;
 	}
@@ -2254,7 +2280,8 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	}
 	if (tsum >= 85)
 		tsum /= 2;
-	vblankbase = (syncbase / tsum) * 3 / 4;
+	vblankbasefull = (syncbase / tsum);
+	vblankbasewait = (syncbase / tsum) * 3 / 4;
 	write_log (L"VSync calibration: %.6fHz\n", tsum);
 	remembered_vblank = tsum;
 	return tsum;
@@ -2264,11 +2291,23 @@ bool vsync_busywait (void)
 {
 	bool v;
 	static frame_time_t prevtime;
+	static bool framelost;
 
 	if (currprefs.turbo_emulation)
 		return true;
 
-	while (read_processor_time () - prevtime < vblankbase)
+	if (!framelost && read_processor_time () - prevtime > vblankbasefull) {
+		framelost = true;
+		prevtime = read_processor_time ();
+		return true;
+	}
+	if (framelost) {
+		framelost = false;
+		prevtime = read_processor_time ();
+		return true;
+	}
+
+	while (read_processor_time () - prevtime < vblankbasewait)
 		sleep_millis (1);
 	v = false;
 	if (currprefs.gfx_api) {
