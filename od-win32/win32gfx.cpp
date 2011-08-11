@@ -1302,7 +1302,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_avsyncmode != changed_prefs.gfx_avsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_pvsyncmode != changed_prefs.gfx_pvsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 2 | 16 : 0;
-	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8) : 0;
+	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 
 	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;

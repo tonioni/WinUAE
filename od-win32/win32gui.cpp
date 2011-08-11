@@ -110,7 +110,7 @@ static int restart_requested;
 static int full_property_sheet = 1;
 static struct uae_prefs *pguiprefs;
 struct uae_prefs workprefs;
-static int currentpage;
+static int currentpage = -1;
 static int qs_request_reset;
 static int qs_override;
 int gui_active;
@@ -10542,10 +10542,10 @@ static void updatejoyport (HWND hDlg)
 				break;
 		}
 		for (j = 0; j < inputdevice_get_device_total (IDTYPE_JOYSTICK); j++, total++)
-			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_JOYSTICK, j));
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_JOYSTICK, j));
 		if (i < 2) {
 			for (j = 0; j < inputdevice_get_device_total (IDTYPE_MOUSE); j++, total++)
-				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name(IDTYPE_MOUSE, j));
+				SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_MOUSE, j));
 		}
 		if (v == JPORT_CUSTOM) {
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)L"<Custom mapping>");
@@ -13572,7 +13572,15 @@ static HWND updatePanel (int id)
 	return panelDlg;
 }
 
-static HTREEITEM CreateFolderNode (HWND TVhDlg, int nameid, HTREEITEM parent, int nodeid, int sub)
+static void checkpagelabel (int id, int sub, const TCHAR *label)
+{
+	if (!label || _tcsicmp (label, currprefs.win32_guipage))
+		return;
+	currentpage = id;
+	configtypepanel = configtype = sub;
+}
+
+static HTREEITEM CreateFolderNode (HWND TVhDlg, int nameid, HTREEITEM parent, int nodeid, int sub, const TCHAR *label)
 {
 	TVINSERTSTRUCT is;
 	TCHAR txt[100];
@@ -13588,10 +13596,11 @@ static HTREEITEM CreateFolderNode (HWND TVhDlg, int nameid, HTREEITEM parent, in
 	is.itemex.iSelectedImage = C_PAGES;
 	is.itemex.state = TVIS_BOLD | TVIS_EXPANDED;
 	is.itemex.stateMask = TVIS_BOLD | TVIS_EXPANDED;
+	checkpagelabel (nodeid, sub, label);
 	return TreeView_InsertItem (TVhDlg, &is);
 }
 
-static void CreateNode (HWND TVhDlg, int page, HTREEITEM parent)
+static void CreateNode (HWND TVhDlg, int page, HTREEITEM parent, const TCHAR *label)
 {
 	TVINSERTSTRUCT is;
 	struct GUIPAGE *p;
@@ -13608,15 +13617,16 @@ static void CreateNode (HWND TVhDlg, int page, HTREEITEM parent)
 	is.itemex.iImage = p->himg;
 	is.itemex.iSelectedImage = is.itemex.iImage;
 	p->tv = TreeView_InsertItem (TVhDlg, &is);
+	checkpagelabel (page, 0, label);
 }
-#define CN(page) CreateNode(TVhDlg, page, p);
+#define CN(page, label) CreateNode(TVhDlg, page, p, label);
 
-static void createTreeView (HWND hDlg, int currentpage)
+static void createTreeView (HWND hDlg)
 {
 	HWND TVhDlg;
 	int i;
 	HIMAGELIST himl;
-	HTREEITEM p, root;
+	HTREEITEM p, root, p1, p2;
 
 	himl = ImageList_Create (16, 16, ILC_COLOR8 | ILC_MASK, C_PAGES + 1, 0);
 	if (himl) {
@@ -13631,38 +13641,43 @@ static void createTreeView (HWND hDlg, int currentpage)
 	TVhDlg = GetDlgItem (hDlg, IDC_PANELTREE);
 	TreeView_SetImageList (TVhDlg, himl, TVSIL_NORMAL);
 
-	p = root = CreateFolderNode (TVhDlg, IDS_TREEVIEW_SETTINGS, NULL, ABOUT_ID, 0);
-	CN (ABOUT_ID);
-	CN (PATHS_ID);
-	CN (QUICKSTART_ID);
-	CN (LOADSAVE_ID);
+	p = root = CreateFolderNode (TVhDlg, IDS_TREEVIEW_SETTINGS, NULL, ABOUT_ID, 0, NULL);
+	CN (ABOUT_ID, L"about");
+	CN (PATHS_ID, L"path");
+	CN (QUICKSTART_ID, L"quickstart");
+	CN (LOADSAVE_ID, L"configuration");
 #if FRONTEND == 1
-	CN (FRONTEND_ID);
+	CN (FRONTEND_ID, L"frontend");
 #endif
 
-	p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HARDWARE, root, LOADSAVE_ID, CONFIG_TYPE_HARDWARE);
-	CN (CPU_ID);
-	CN (CHIPSET_ID);
-	CN (CHIPSET2_ID);
-	CN (KICKSTART_ID);
-	CN (MEMORY_ID);
-	CN (FLOPPY_ID);
-	CN (HARDDISK_ID);
-	CN (EXPANSION_ID);
+	p1 = p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HARDWARE, root, LOADSAVE_ID, CONFIG_TYPE_HARDWARE, L"configuration_hardware");
+	CN (CPU_ID, L"cpu");
+	CN (CHIPSET_ID, L"chipset");
+	CN (CHIPSET2_ID, L"chipset2");
+	CN (KICKSTART_ID, L"rom");
+	CN (MEMORY_ID, L"ram");
+	CN (FLOPPY_ID, L"floppy");
+	CN (HARDDISK_ID, L"harddisk");
+	CN (EXPANSION_ID, L"expansion");
 
-	p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HOST, root, LOADSAVE_ID, CONFIG_TYPE_HOST);
-	CN (DISPLAY_ID);
-	CN (SOUND_ID);
-	CN (GAMEPORTS_ID);
-	CN (IOPORTS_ID);
-	CN (INPUT_ID);
-	CN (AVIOUTPUT_ID);
-	CN (HW3D_ID);
-	CN (DISK_ID);
-	CN (MISC1_ID);
-	CN (MISC2_ID);
+	p2 = p = CreateFolderNode (TVhDlg, IDS_TREEVIEW_HOST, root, LOADSAVE_ID, CONFIG_TYPE_HOST, L"configuration_host");
+	CN (DISPLAY_ID, L"display");
+	CN (SOUND_ID, L"sound");
+	CN (GAMEPORTS_ID, L"gameport");
+	CN (IOPORTS_ID, L"ioport");
+	CN (INPUT_ID, L"input");
+	CN (AVIOUTPUT_ID, L"output");
+	CN (HW3D_ID, L"filter");
+	CN (DISK_ID, L"swapper");
+	CN (MISC1_ID, L"misc");
+	CN (MISC2_ID, L"misc2");
 
-	TreeView_SelectItem (TVhDlg, ppage[currentpage].tv);
+	if (configtypepanel == 1)
+		TreeView_SelectItem (TVhDlg, p1);
+	else if (configtypepanel == 2)
+		TreeView_SelectItem (TVhDlg, p2);
+	else
+		TreeView_SelectItem (TVhDlg, ppage[currentpage].tv);
 }
 
 static int dialog_x_offset, dialog_y_offset;
@@ -13997,7 +14012,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 		ShowWindow (GetDlgItem (guiDlg, IDC_RESTARTEMU), full_property_sheet ? SW_HIDE : SW_SHOW);
 		centerWindow (hDlg);
-		createTreeView (hDlg, currentpage);
+		createTreeView (hDlg);
 		updatePanel (currentpage);
 		addnotifications (hDlg, FALSE, TRUE);
 		return TRUE;

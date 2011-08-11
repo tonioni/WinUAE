@@ -358,6 +358,7 @@ STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 	last_custom_value1 = w;
 #ifndef BLITTER_DEBUG_NO_D
 	chipmem_wput_indirect (addr, w);
+	debug_wputpeekdma (addr, w);
 #endif
 }
 
@@ -581,6 +582,7 @@ STATIC_INLINE void blitter_write (void)
 			return;
 		last_custom_value1 = blt_info.bltddat;
 		chipmem_wput_indirect (bltdpt, blt_info.bltddat);
+		debug_wputpeekdma (bltdpt, blt_info.bltddat);
 	}
 	bltstate = BLT_next;
 }

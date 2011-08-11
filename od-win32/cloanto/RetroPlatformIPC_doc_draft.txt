@@ -4,11 +4,12 @@
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
-         : Copyright © Cloanto Italia srl 2007-2009.
+         : Copyright © Cloanto Italia srl 2007-2011.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, mcb
  Created : 2007-08-23 10:08:25
+ Updated : 2011-07-28 11:26:00
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -30,12 +31,13 @@ Description:
 Message:
    RPIPCGM_FEATURES
 Description:
-   the guest uses this message to tell the host
+   the guest uses this sequence of messages to tell the host
    about the features it supports;
    at startup time, the guest sends initialization messages
    so that the host can adapt the GUI based on the reported features;
    these messages include:
       RPIPCGM_FEATURES (describes guest features),
+      RPIPCGM_INPUTDEVICE (enumerates available input devices)
       RPIPCGM_POWERLED (turns on the power LED in the GUI),
       RPIPCGM_DEVICES (one for each device category: tells the number of emulated devices),
       RPIPCGM_DEVICECONTENT (one for each device with an image file or peripheral attached),
@@ -55,6 +57,21 @@ Description:
    and its window is displayed)
 Data sent:
    WPARAM = RP_FEATURE_* flags
+Response:
+   none
+
+
+Message:
+   RPIPCGM_INPUTDEVICE
+Description:
+   the guest sends one or more RPIPCGM_INPUTDEVICE messages
+   after sending the RPIPCGM_FEATURES messages, but before
+   sending the final RPIPCGM_SCREENMODE message, which also
+   indicates that no more RPIPCGM_INPUTDEVICE messages will follow.
+   The messages enumerate the input-type devices (RP_DEVICECATEGORY_INPUTPORT
+   category) found on the host.
+Data sent:
+   pData = a RPDEVICEDESCRIPTION structure (see RetroPlatformIPC.h);
 Response:
    none
 
@@ -181,9 +198,9 @@ Data sent:
             combined with the MAKEWORD macro;
             e.g. MAKEWORD(RP_DEVICE_FLOPPY, 0);
             the RP_ALL_DEVICES define may be used as device number
-            to turn on or off all the activity leds for a device category
+            to turn on or off all the activity LEDs for a device category
    LPARAM = for non-joystick devices, LED status and flags are combined
-            with the MAKELONG macro;e.g. MAKELONG(Status, Flags);
+            with the MAKELONG macro; e.g. MAKELONG(Status, Flags);
             the Status value can be set to 0 to turn off the activity LED,
             to -1 to turn on the activity LED,
             or to a <millisecond delay> value to turn on the activity LED
@@ -228,7 +245,7 @@ Message:
 Description:
     the guest can send a RPIPCGM_HOSTAPIVERSION to query the host
     about the RetroPlatform API version it implements;
-    since the guest plugin already asks for a minimim version of the API
+    since the guest plugin already asks for a minimum version of the API
     on the host side, this message can be used to check the host API version
     and enable optional functionality
 Data sent:
@@ -259,7 +276,7 @@ Description:
    (see the RPIPCHM_PAUSE message) must not be notified,
    unless the guest returned the value 2 as RPIPCHM_PAUSE response;
    note: when paused, the guest should release the mouse (if captured);
-   during pause moude, the mouse should never be captured
+   during pause mode, the mouse should never be captured
 Data sent:
    WPARAM = non-zero when the guest enters pause mode
             or zero when the guest exits from pause mode
@@ -274,8 +291,12 @@ Description:
    to notify the host that an image file (e.g. a floppy disk image)
    or a peripheral (e.g. a joystick)
    has been loaded into (or ejected from) an emulated device;
-   this notification must not be sent when the event
-   has been requested by the host (see the RPIPCHM_DEVICECONTENT message)
+   this notification does not need to (must not) be sent when the event
+   has been requested by the host (see the RPIPCHM_DEVICECONTENT message).
+   If the host requested an unavailable device (e.g. tablet), the guest
+   should send an LRESULT 0 (error) in reply to the RPIPCHM_DEVICECONTENT
+   message, followed by an RPIPCGM_DEVICECONTENT message
+   indicating the actual content (empty, previous device, similar device, etc.)
 Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
            the szContent field of the structure
@@ -298,9 +319,8 @@ Description:
    the read/write protection status;
    this notification is optional if the event
    was requested by the host (see the RPIPCHM_DEVICEREADWRITE message);
-   if no initial status is sent, the status is assumed to be read/write
-   for floppy and hard disks, and read-only for all other devices
-   (CDs, cartridges, tapes, etc.)
+   used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD,
+   RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
@@ -379,7 +399,8 @@ Message:
    RPIPCGM_DEVICESEEK
 Description:
    this message can be used to notify the host about a seek operation
-   of a specified device (e.g. the head of a disk drive changes position);
+   of a specified device (e.g. the head of a disk drive changes position;
+   to keep messages at a minimum, avoid repeat messages for the same position);
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
             combined with the MAKEWORD macro;
@@ -437,7 +458,7 @@ Description:
 Data sent:
    pData = a RPSCREENMODE structure, with screen mode values/flags
    and clipping coordinates (the hGuestWindow field is ignored);
-   as regards the clipping coordinates, the fields set to 0 mean "reset"
+   as regards the clipping coordinates, the fields set to 0 means "reset"
    (no offset for lClipLeft/lClipTop, maximum size if lClipWidth/lClipHeight)
    and fields set to -1 are ignored (left unchanged); units are in pixels;
    for Amiga systems, where pixels may have different sizes, horizontal
@@ -455,7 +476,7 @@ Message:
    RPIPCHM_SCREENCAPTURE
 Description:
    with this message the host asks the guest to save its screen
-   to the the specified file in BMP format
+   to the specified file in BMP format
 Data sent:
    pData = (Unicode) full path and name of the file to save
            (note: the file may exist and can be overwritten)
@@ -469,7 +490,7 @@ Description:
    the RPIPCHM_PAUSE message sets the guest into pause mode
    or resumes the guest from pause mode;
    note: when paused, the guest should release the mouse (if captured);
-   during pause moude, the mouse should never be captured
+   during pause mode, the mouse should never be captured
 Data sent:
    WPARAM = non-zero to set the guest into pause mode
             or zero to resume the guest from pause mode
@@ -491,12 +512,10 @@ Description:
 Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
            if the szContent field of the structure
-           contains an empty string, the guest should
+           contains an empty string, or if
+           btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and
+           dwInputDevice == RP_INPUTDEVICE_EMPTY, the guest should
            unload the current content from the device;
-           for joysticks, szContent may contain multiple identifiers
-           using the "Joystick1\ProductGUID InstanceGUID\ProductName" format
-           (ProductName is last and may contain unescaped backslash
-           characters itself)
 Response:
    LRESULT = 1 if the guest successfully executed the command or 0 otherwise
 
@@ -588,6 +607,20 @@ Response:
 
 
 Message:
+   RPIPCHM_GUESTAPIVERSION
+Description:
+    the host can send a RPIPCHM_GUESTAPIVERSION to query the guest
+    about the RetroPlatform API version it implements;
+    this message can be used to check the guest API version
+    and enable optional functionality
+Data sent:
+   none
+Response:
+   LRESULT = major and minor version combined with the MAKELONG macro
+             (e.g. LOWORD(lr) = major version; HIWORD(lr) = minor version)
+
+
+Message:
    RPIPCHM_MOUSECAPTURE
 Description:
    the host uses this message to ask the guest
@@ -602,7 +635,7 @@ Message:
    RPIPCHM_SAVESTATE
 Description:
    with this message the host asks the guest to save
-   the emulation status to the the specified file
+   the emulation status to the specified file
 Data sent:
    pData = (Unicode) full path and name of the file to save
 Response:
@@ -613,7 +646,7 @@ Message:
    RPIPCHM_LOADSTATE
 Description:
    with this message the host asks the guest to load
-   the emulation status from the the specified file
+   the emulation status from the specified file
 Data sent:
    pData = (Unicode) full path and name of the file to load
 Response:
@@ -629,7 +662,7 @@ Description:
 Data sent:
    none
 Response:
-   LRESULT = 1 if the guest successfully executed the command or 0 otherwise
+   LRESULT = 1 if all data was flushed (the guest successfully executed the command or no flush was necessary) or 0 otherwise
 
 
 Message:

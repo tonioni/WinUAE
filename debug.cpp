@@ -2515,11 +2515,11 @@ static uaecptr get_base (const uae_char *name)
 		b = &get_mem_bank (v2);
 		if (!b || !b->check (v2, 20))
 			goto fail;
-		if (b->flags != ABFLAG_ROM && b->flags != ABFLAG_RAM)
-			return 0;
-		p = b->xlateaddr (v2);
-		if (!memcmp (p, name, strlen (name) + 1))
-			return v;
+		if (b->flags == ABFLAG_ROM || b->flags == ABFLAG_RAM) {
+			p = b->xlateaddr (v2);
+			if (!memcmp (p, name, strlen (name) + 1))
+				return v;
+		}
 	}
 	return 0;
 fail:

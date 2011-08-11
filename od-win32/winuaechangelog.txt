@@ -1,4 +1,21 @@
 
+Beta 4:
+
+- rawinput was not enabled properly in all situations (mainly affected -rawhid parameter)
+- write log message if D3D command pipeline flush fails or is not supported (tearing in new vsync mode)
+- added win32.gui_page=<name of panel> configuration entry, selects default panel when GUI opens
+- magic mouse in fullwindow mode only uncaptures if mouse would move to another monitor
+- quickstart mode now sets sound mode to "disabled but emulated" if it was "disabled", previously
+  it was always set to "emulated".
+- CD/CD image switching on the fly was unreliable (different problem than b2 fix)
+- optimization that detects if sprite changed has not been working for ages
+- sprites above or below bitplane area and AGA border sprite bit set caused graphics garbage around the mouse cursor in some situations.
+- possible fix for autoresolution aspect ratio problems when filter aspect ratio setting is enabled
+- removed default scroll lock -> inhibit screen updates key mapping
+- AROS ROM updated
+
+Remaining new vsync updates coming later...
+
 Beta 3:
 
 - tearing in new vsync modes should be completely gone, without introducing any extra latency

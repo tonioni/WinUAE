@@ -100,6 +100,7 @@ int log_net;
 int uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
+int extraframewait = 5;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -245,10 +246,15 @@ void sleep_millis (int ms)
 frame_time_t read_processor_time_qpf (void)
 {
 	LARGE_INTEGER counter;
+	frame_time_t t;
 	QueryPerformanceCounter (&counter);
 	if (qpcdivisor == 0)
-		return (frame_time_t)(counter.LowPart);
-	return (frame_time_t)(counter.QuadPart >> qpcdivisor);
+		t = (frame_time_t)(counter.LowPart);
+	else
+		t = (frame_time_t)(counter.QuadPart >> qpcdivisor);
+	if (!t)
+		t++;
+	return t;
 }
 frame_time_t read_processor_time_rdtsc (void)
 {
@@ -264,6 +270,8 @@ frame_time_t read_processor_time_rdtsc (void)
 	/* very high speed CPU's RDTSC might overflow without this.. */
 	foo >>= 6;
 	foo |= bar << 26;
+	if (!foo)
+		foo++;
 #endif
 	return foo;
 }
@@ -838,6 +846,13 @@ void setmouseactivexy (int x, int y, int dir)
 	if (!dir) {
 		x += (amigawin_rect.right - amigawin_rect.left) / 2;
 		y += (amigawin_rect.bottom - amigawin_rect.top) / 2;
+	}
+	if (isfullscreen () < 0) {
+		POINT pt;
+		pt.x = x;
+		pt.y = y;
+		if (MonitorFromPoint (pt, MONITOR_DEFAULTTONULL) == NULL)
+			return;
 	}
 	if (mouseactive) {
 		disablecapture ();
@@ -2869,7 +2884,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, L"exec_after", p->win32_commandpathend);
 	cfgfile_target_dwrite_str (f, L"parjoyport0", p->win32_parjoyport0);
 	cfgfile_target_dwrite_str (f, L"parjoyport1", p->win32_parjoyport1);
-
+	cfgfile_target_dwrite_str (f, L"gui_page", p->win32_guipage);
 }
 
 static int fetchpri (int pri, int defpri)
@@ -2936,6 +2951,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_string (option, value, L"exec_after", p->win32_commandpathend, sizeof p->win32_commandpathend / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"parjoyport0", p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"parjoyport1", p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof (TCHAR))
+		|| cfgfile_string (option, value, L"gui_page", p->win32_guipage, sizeof p->win32_guipage / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 		|| cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)
@@ -4713,6 +4729,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"inputrecorddebug")) {
 		inputrecord_debug = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, L"extraframewait")) {
+		extraframewait = getval (np);
 		return 2;
 	}
 #ifdef RETROPLATFORM

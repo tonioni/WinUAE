@@ -6,6 +6,8 @@
 * Copyright 2002 - 2010 Toni Wilen
 */
 
+bool rawinput_enabled_hid = false;
+
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
 #define DI_DEBUG
@@ -110,6 +112,7 @@ struct didata {
 	uae_s32 axismax[MAX_MAPPINGS];
 	uae_s32 axismin[MAX_MAPPINGS];
 	uae_s16 axisusagepage[MAX_MAPPINGS];
+	bool analogstick;
 
 	uae_s16 buttonmappings[MAX_MAPPINGS];
 	TCHAR *buttonname[MAX_MAPPINGS];
@@ -138,7 +141,6 @@ static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmouse
 static int normalkb, superkb, rawkb;
 static int rawhid;
 static bool rawinput_enabled_mouse, rawinput_enabled_keyboard;
-bool rawinput_enabled_hid = false;
 static bool rawinput_decided;
 
 static uae_s16 axisold[MAX_INPUT_DEVICES][256];
@@ -384,7 +386,7 @@ static bool test_rawinput (int usage)
 	return true;
 }
 
-static int register_rawinput (int flags)
+static int doregister_rawinput (bool add)
 {
 	int num, rm, rkb, rhid;
 	RAWINPUTDEVICE rid[2 + MAX_INPUT_DEVICES];
@@ -457,8 +459,8 @@ static int register_rawinput (int flags)
 	if (num == 0)
 		return 1;
 	if (RegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
-		write_log (L"RAWINPUT registration failed %d (%d,%d->%d,%d->%d,%d->%d)\n",
-			GetLastError (), num,
+		write_log (L"RAWINPUT %sregistration failed %d (%d,%d->%d,%d->%d,%d->%d)\n",
+			add ? L"" : L"un", GetLastError (), num,
 			rawinput_registered_mouse, rm,
 			rawinput_registered_kb, rkb,
 			rawinput_registered_hid, rhid);
@@ -468,6 +470,15 @@ static int register_rawinput (int flags)
 	rawinput_registered_kb = rkb;
 	rawinput_registered_hid = rhid;
 	return 1;
+}
+
+static int register_rawinput (int flags)
+{
+	return doregister_rawinput (true);
+}
+static int unregister_rawinput (int flags)
+{
+	return doregister_rawinput (false);
 }
 
 static void cleardid (struct didata *did)
@@ -1426,6 +1437,7 @@ static bool initialize_rawinput (void)
 												did->axismax[axiscnt] = vcaps[i].LogicalMax < 0 || vcaps[i].LogicalMax > 65535 ? 65535 : vcaps[i].LogicalMax;
 												did->axistype[axiscnt] = hidtable[ht].type;
 												axiscnt++;
+												did->analogstick = true;
 											}
 											break;
 										}
@@ -2039,6 +2051,8 @@ static BOOL CALLBACK EnumObjectsCallback (const DIDEVICEOBJECTINSTANCE* pdidoi, 
 			return DIENUM_CONTINUE;
 		did->axismappings[did->axles] = DIDFT_GETINSTANCE (pdidoi->dwType);
 		did->axisname[did->axles] = my_strdup (pdidoi->tszName);
+		if (pdidoi->wUsagePage == 1 && (pdidoi->wUsage == 0x30 || pdidoi->wUsage == 0x31))
+			did->analogstick = true;
 		if (did->type == DID_JOYSTICK)
 			sort = makesort_joy (&pdidoi->guidType, &did->axismappings[did->axles]);
 		else if (did->type == DID_MOUSE)
@@ -2408,6 +2422,7 @@ static void close_mouse (void)
 	for (i = 0; i < num_mouse; i++)
 		di_dev_free (&di_mouse[i]);
 	supermouse = normalmouse = rawmouse = winmouse = 0;
+	unregister_rawinput (0);
 	di_free ();
 }
 
@@ -2463,6 +2478,7 @@ static void unacquire_mouse (int num)
 			normalmouse--;
 		di_mouse[num].acquired = 0;
 	}
+	unregister_rawinput (0);
 }
 
 static void read_mouse (void)
@@ -2641,6 +2657,7 @@ static int init_kb (void)
 				write_log (L"keyboard CreateDevice failed, %s\n", DXError (hr));
 		}
 	}
+	register_rawinput (0);
 	keyboard_german = 0;
 	if ((LOWORD(GetKeyboardLayout (0)) & 0x3ff) == 7)
 		keyboard_german = 1;
@@ -2658,6 +2675,7 @@ static void close_kb (void)
 	for (i = 0; i < num_keyboard; i++)
 		di_dev_free (&di_keyboard[i]);
 	superkb = normalkb = rawkb = 0;
+	unregister_rawinput (0);
 	di_free ();
 }
 
@@ -2762,6 +2780,7 @@ static void unacquire_kb (int num)
 		}
 #endif
 	}
+	unregister_rawinput (0);
 	//unlock_kb ();
 }
 
@@ -3208,6 +3227,7 @@ static int init_joystick (void)
 			}
 		}
 	}
+	register_rawinput (0);
 	return 1;
 }
 
@@ -3221,6 +3241,7 @@ static void close_joystick (void)
 	for (i = 0; i < num_joystick; i++)
 		di_dev_free (&di_joystick[i]);
 	rawhid = 0;
+	unregister_rawinput (0);
 	di_free ();
 }
 
@@ -3273,6 +3294,7 @@ static void unacquire_joystick (int num)
 			rawhid--;
 	}
 	di_joystick[num].acquired = 0;
+	unregister_rawinput (0);
 }
 
 static int get_joystick_flags (int num)
@@ -3469,3 +3491,39 @@ int input_get_default_joystick_analog (struct uae_input_device *uid, int i, int 
 	return 0;
 }
 
+#ifdef RETROPLATFORM
+#include "cloanto/RetroPlatformIPC.h"
+int rp_input_enum (struct RPInputDeviceDescription *desc, int index)
+{
+	memset (desc, 0, sizeof (struct RPInputDeviceDescription));
+	if (index < num_joystick) {
+		struct didata *did = &di_joystick[index];
+		_tcscpy (desc->szHostInputName, did->name);
+		_tcscpy (desc->szHostInputID, did->configname);
+		desc->dwHostInputType = RP_HOSTINPUT_JOYSTICK;
+		desc->dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
+		if (did->buttons > 2)
+			desc->dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_GAMEPAD;
+		if (did->buttons >= 7)
+			desc->dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
+		desc->dwHostInputProductID = did->pid;
+		desc->dwHostInputVendorID = did->vid;
+		if (did->analogstick)
+			desc->dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_ANALOGSTICK;
+		return index + 1;
+	} else if (index < num_joystick + num_mouse) {
+		struct didata *did = &di_mouse[index - num_joystick];
+		_tcscpy (desc->szHostInputName, did->name);
+		_tcscpy (desc->szHostInputID, did->configname);
+		desc->dwHostInputType = RP_HOSTINPUT_MOUSE;
+		desc->dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_MOUSE;
+		desc->dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_LIGHTPEN;
+		desc->dwHostInputProductID = did->pid;
+		desc->dwHostInputVendorID = did->vid;
+		if (did->wininput)
+			desc->dwFlags |= RP_HOSTINPUTFLAGS_MOUSE_SMART;
+		return index + 1;
+	}
+	return -1;
+}
+#endif

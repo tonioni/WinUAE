@@ -1972,12 +1972,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = newvsync ? 0 : (dpp.Windowed || !currprefs.gfx_avsync ? 1 : currprefs.gfx_backbuffers);
+	dpp.BackBufferCount = newvsync ? 0 : currprefs.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.Windowed || currprefs.gfx_backbuffers == 0 || newvsync ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = (dpp.Windowed || currprefs.gfx_backbuffers == 0 || newvsync) ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2148,10 +2148,15 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3d_enabled = 1;
 
 	if (newvsync) {
-		d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
+		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
+		if (FAILED (hr))
+			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
-	if (d3ddevex)
-		d3ddevex->SetMaximumFrameLatency (1);
+	if (d3ddevex) {
+		hr = d3ddevex->SetMaximumFrameLatency (1);
+		if (FAILED (hr))
+			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+	}
 
 	return 0;
 }
@@ -2578,8 +2583,15 @@ bool D3D_renderframe (void)
 	}
 
 	if (query) {
-		if (SUCCEEDED (query->Issue (D3DISSUE_END))) {
+		HRESULT hr = query->Issue (D3DISSUE_END);
+		if (SUCCEEDED (hr)) {
 			while (query->GetData (NULL, 0, D3DGETDATA_FLUSH) == S_FALSE);
+		} else {
+			static int reported;
+			if (reported < 10) {
+				reported++;
+				write_log (L"query->Issue (D3DISSUE_END) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			}
 		}
 	}
 	return true;

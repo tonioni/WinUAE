@@ -1483,7 +1483,7 @@ static int mouseedge (void)
 	static int melast_x, melast_y;
 	static int isnonzero;
 
-	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0 || isfullscreen ())
+	if (currprefs.input_magic_mouse == 0 || currprefs.input_tablet > 0)
 		return 0;
 	if (magicmouse_ibase == 0xffffffff)
 		return 0;
@@ -3055,6 +3055,10 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 
 	if (num >= 4)
 		return 0;
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+		return 0;
+#endif
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		if (id == &joysticks[i]) {
 			name = idev[IDTYPE_JOYSTICK].get_uniquename (i);
@@ -4887,12 +4891,12 @@ static int is_event_used (const struct inputdevice_functions *id, int devnum, in
 // device based index from global device index
 int inputdevice_get_device_index (int devnum)
 {
-	if (devnum < idev[IDTYPE_JOYSTICK].get_num())
+	if (devnum < idev[IDTYPE_JOYSTICK].get_num ())
 		return devnum;
-	else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num())
-		return devnum - idev[IDTYPE_JOYSTICK].get_num();
-	else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num() + idev[IDTYPE_KEYBOARD].get_num())
-		return devnum - idev[IDTYPE_JOYSTICK].get_num() - idev[IDTYPE_MOUSE].get_num();
+	else if (devnum < idev[IDTYPE_JOYSTICK].get_num () + idev[IDTYPE_MOUSE].get_num ())
+		return devnum - idev[IDTYPE_JOYSTICK].get_num ();
+	else if (devnum < idev[IDTYPE_JOYSTICK].get_num () + idev[IDTYPE_MOUSE].get_num () + idev[IDTYPE_KEYBOARD].get_num ())
+		return devnum - idev[IDTYPE_JOYSTICK].get_num () - idev[IDTYPE_MOUSE].get_num ();
 	else
 		return -1;
 }
@@ -4902,19 +4906,19 @@ static int getdevnum (int type, int devnum)
 	if (type == IDTYPE_JOYSTICK)
 		return devnum;
 	if (type == IDTYPE_MOUSE)
-		return idev[IDTYPE_JOYSTICK].get_num() + devnum;
+		return idev[IDTYPE_JOYSTICK].get_num () + devnum;
 	if (type == IDTYPE_KEYBOARD)
-		return idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num() + devnum;
+		return idev[IDTYPE_JOYSTICK].get_num () + idev[IDTYPE_MOUSE].get_num () + devnum;
 	return -1;
 }
 
 static int gettype (int devnum)
 {
-	if (devnum < idev[IDTYPE_JOYSTICK].get_num())
+	if (devnum < idev[IDTYPE_JOYSTICK].get_num ())
 		return IDTYPE_JOYSTICK;
-	else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num())
+	else if (devnum < idev[IDTYPE_JOYSTICK].get_num () + idev[IDTYPE_MOUSE].get_num ())
 		return IDTYPE_MOUSE;
-	else if (devnum < idev[IDTYPE_JOYSTICK].get_num() + idev[IDTYPE_MOUSE].get_num() + idev[IDTYPE_KEYBOARD].get_num())
+	else if (devnum < idev[IDTYPE_JOYSTICK].get_num () + idev[IDTYPE_MOUSE].get_num () + idev[IDTYPE_KEYBOARD].get_num ())
 		return IDTYPE_KEYBOARD;
 	else
 		return -1;
@@ -5676,7 +5680,7 @@ int jsem_iskbdjoy (int port, const struct uae_prefs *p)
 	return v;
 }
 
-int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, int mode, int type)
+int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int portnum, int mode, int type)
 {
 	switch (type)
 	{
@@ -5710,7 +5714,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, TCHAR *value, int portnum, 
 	case 0:
 		{
 			int start = JPORT_NONE, got = 0, max = -1;
-			TCHAR *pp = 0;
+			const TCHAR *pp = 0;
 			if (_tcsncmp (value, L"kbd", 3) == 0) {
 				start = JSEM_KBDLAYOUT;
 				pp = value + 3;

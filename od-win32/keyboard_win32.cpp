@@ -411,9 +411,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				code = AKS_PAUSE;
 			}
 			break;
+#if 0
 		case DIK_SCROLL:
 			code = AKS_INHIBITSCREEN;
 			break;
+#endif
 		case DIK_NUMPADMINUS:
 			if (specialpressed ()) {
 				if (shiftpressed ())

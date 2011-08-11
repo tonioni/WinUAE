@@ -1383,7 +1383,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 		return 0;
 	if (!quick)
 		update_device_info (unitnum);
-	ciw->di.open = di->open;
+	ciw->di.open = ciw->open;
 	memcpy (di, &ciw->di, sizeof (struct device_info));
 	return di;
 }

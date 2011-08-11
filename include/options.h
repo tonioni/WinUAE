@@ -135,6 +135,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define AUTOSCALE_RESIZE 5
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
+#define AUTOSCALE_INTEGER 8
 
 #define MAX_CHIPSET_REFRESH 10
 #define MAX_CHIPSET_REFRESH_TOTAL (MAX_CHIPSET_REFRESH + 2)
@@ -440,6 +441,7 @@ struct uae_prefs {
 	TCHAR win32_commandpathend[MAX_DPATH];
 	TCHAR win32_parjoyport0[MAX_DPATH];
 	TCHAR win32_parjoyport1[MAX_DPATH];
+	TCHAR win32_guipage[32];
 
 	int statecapturerate, statecapturebuffersize;
 

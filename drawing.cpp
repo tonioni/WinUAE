@@ -2134,7 +2134,11 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 			int i;
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++)
 				draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
+			uae_u16 oxor = bplxor;
+			memset (pixdata.apixels, 0, sizeof pixdata);
+			bplxor = 0;
 			do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);
+			bplxor = oxor;
 
 		} else {
 
@@ -2173,8 +2177,8 @@ static void center_image (void)
 	int prev_y_adjust = thisframe_y_adjust;
 	int tmp;
 
+	int w = gfxvidinfo.width; // > currprefs.gfx_size.width ? gfxvidinfo.width - (gfxvidinfo.width - currprefs.gfx_size.width) / 2 : gfxvidinfo.width;
 	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
-		int w = gfxvidinfo.width;
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
 			/* Try to center. */
@@ -2190,13 +2194,12 @@ static void center_image (void)
 				visible_left_border = prev_x_adjust;
 		}
 	} else if ((beamcon0 & 0x80) && max_diwstop > 0 && !currprefs.gfx_filter_autoscale) {
-		int w = gfxvidinfo.width;
 		if (max_diwstop - min_diwstart < w)
 			visible_left_border = (max_diwstop - min_diwstart - w) / 2 + min_diwstart;
 		else
 			visible_left_border = max_diwstop - w - (max_diwstop - min_diwstart - w) / 2;
 	} else {
-		visible_left_border = max_diwlastword - gfxvidinfo.width;
+		visible_left_border = max_diwlastword - w;
 	}
 
 	if (visible_left_border > max_diwlastword - 32)

@@ -369,6 +369,7 @@ static int filter (int input, struct filter_state *fs)
 
 	case FILTER_NONE:
 		return input;
+
 	case FILTER_MODEL_A500:
 		fs->rc1 = a500e_filter1_a0 * input + (1 - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET;
 		fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1-a500e_filter2_a0) * fs->rc2;

@@ -3951,7 +3951,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->picasso96_nocustom = 1;
 	p->cart_internal = 1;
 	p->sana2 = 0;
-	p->clipboard_sharing = true;
+	p->clipboard_sharing = false;
 
 	p->cs_compatible = 1;
 	p->cs_rtc = 2;
@@ -4152,7 +4152,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
 	p->collision_level = 2;
-	p->produce_sound = 3;
+	if (p->produce_sound < 1)
+		p->produce_sound = 1;
 	p->scsi = 0;
 	p->uaeserial = 0;
 	p->cpu_idle = 0;
@@ -4164,6 +4165,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->socket_emu = 0;
 	p->sound_volume = 0;
 	p->sound_volume_cd = -1;
+	p->clipboard_sharing = false;
 
 	p->chipmem_size = 0x00080000;
 	p->bogomem_size = 0x00080000;
