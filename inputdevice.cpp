@@ -3353,8 +3353,8 @@ static void scanevents (struct uae_prefs *p)
 {
 	int i, j, k, ei;
 	const struct inputevent *e;
-	int n_joy = idev[IDTYPE_JOYSTICK].get_num();
-	int n_mouse = idev[IDTYPE_MOUSE].get_num();
+	int n_joy = idev[IDTYPE_JOYSTICK].get_num ();
+	int n_mouse = idev[IDTYPE_MOUSE].get_num ();
 
 	cd32_pad_enabled[0] = cd32_pad_enabled[1] = 0;
 	parport_joystick_enabled = 0;
@@ -3425,7 +3425,7 @@ static void scanevents (struct uae_prefs *p)
 	memset (scancodeused, 0, sizeof scancodeused);
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		use_keyboards[i] = 0;
-		if (keyboards[i].enabled && i < idev[IDTYPE_KEYBOARD].get_num()) {
+		if (keyboards[i].enabled && i < idev[IDTYPE_KEYBOARD].get_num ()) {
 			j = 0;
 			while (j < MAX_INPUT_DEVICE_EVENTS && keyboards[i].extra[j] >= 0) {
 				use_keyboards[i] = 1;

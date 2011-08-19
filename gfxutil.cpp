@@ -294,7 +294,7 @@ void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, i
 		int j;
 
 		if (currprefs.gfx_blackerthanblack) {
-			j = i * 15 / 16;
+			j = i * 15 / 16 + 15;
 		} else {  
 			j = i;
 		}
@@ -329,7 +329,7 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 	int bpp = rw + gw + bw + aw;
 	int i, j;
 
-	video_calc_gammatable();
+	video_calc_gammatable ();
 	j = 256;
 	for (i = 0; i < 4096; i++) {
 		int r = ((i >> 8) << 4) | (i >> 8);

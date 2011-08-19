@@ -9365,7 +9365,6 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		pages[HARDDISK_ID] = hDlg;
 		currentpage = HARDDISK_ID;
 		Button_SetElevationRequiredState (GetDlgItem (hDlg, IDC_NEW_HD), TRUE);
-		EnableWindow (GetDlgItem (hDlg, IDC_NEW_HD), os_winnt_admin > 1 ? TRUE : FALSE);
 
 	case WM_USER:
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_AUTO, workprefs.win32_automount_removable);

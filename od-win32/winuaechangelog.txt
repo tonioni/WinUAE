@@ -1,4 +1,19 @@
 
+Beta 5:
+
+- CD image audio play buffer size increased, some system have glitchy sound if buffer is too small
+- on the fly resolution change didn't reset all parameters
+- resolution autoswitch now uses startup resolution and doubling values as highest supported mode
+  (internal display buffer needs to be as big as max supported mode and it can't be re-allocated
+  on the fly without major display glitches)
+- RTG modes were rendered twice/frame, caused performance loss (b1)
+- do not add >2M chip RAM to memory list if it is already added (perhaps m68k AROS does this automatically in future)
+- borderblank change didn't redraw all changed scanlines
+- key/button mapped to mouse directions didn't work
+- Add Harddrive allowed without admin privielges, removable drives do not seem to require extra privileges. (anymore?)
+- b4 sprite optimization fix was broken
+- automatic scaling max scaling values adjusted, now 3.x max overscan fits completely on screen
+
 Beta 4:
 
 - rawinput was not enabled properly in all situations (mainly affected -rawhid parameter)

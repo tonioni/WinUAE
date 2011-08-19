@@ -838,7 +838,7 @@ bool render_screen (void)
 	bool v = false;
 
 	render_ok = false;
-	if (dx_islost ())
+	if (picasso_on || dx_islost ())
 		return render_ok;
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
@@ -858,7 +858,7 @@ bool render_screen (void)
 
 void show_screen (void)
 {
-	if (dx_islost ())
+	if (picasso_on || dx_islost ())
 		return;
 	if (!render_ok)
 		return;
@@ -1419,6 +1419,7 @@ int check_prefs_changed_gfx (void)
 			if (currprefs.gfx_autoresolution) {
 				c |= 2 | 8;
 			} else {
+				c |= 16;
 				drawing_init ();
 				S2X_reset ();
 			}
@@ -2659,20 +2660,26 @@ static BOOL doInit (void)
 		} else {
 #endif
 			currentmode->native_depth = currentmode->current_depth;
-			gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution;
-			gfxvidinfo.gfx_vresolution_reserved = currprefs.gfx_vresolution;
+
+			if (currprefs.gfx_resolution > gfxvidinfo.gfx_resolution_reserved)
+				gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution;
+			if (currprefs.gfx_vresolution > gfxvidinfo.gfx_vresolution_reserved)
+				gfxvidinfo.gfx_vresolution_reserved = currprefs.gfx_resolution;
+
+			//gfxvidinfo.gfx_resolution_reserved = RES_SUPERHIRES;
+
 #if defined (GFXFILTER)
 			if (currentmode->flags & (DM_D3D | DM_SWSCALE)) {
 				if (!currprefs.gfx_autoresolution) {
 					currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 					currentmode->amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 				} else {
-					gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution == RES_SUPERHIRES ? RES_SUPERHIRES : RES_HIRES;
-					gfxvidinfo.gfx_vresolution_reserved = VRES_DOUBLE;
+					//gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution == RES_SUPERHIRES ? RES_SUPERHIRES : RES_HIRES;
+					//gfxvidinfo.gfx_vresolution_reserved = VRES_DOUBLE;
 					currentmode->amiga_width = AMIGA_WIDTH_MAX << gfxvidinfo.gfx_resolution_reserved;
 					currentmode->amiga_height = AMIGA_HEIGHT_MAX << gfxvidinfo.gfx_vresolution_reserved;
 				}
-				if (currprefs.gfx_resolution == RES_SUPERHIRES)
+				if (gfxvidinfo.gfx_resolution_reserved == RES_SUPERHIRES)
 					currentmode->amiga_height *= 2;
 				if (currentmode->amiga_height > 960)
 					currentmode->amiga_height = 960;

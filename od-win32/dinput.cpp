@@ -12,7 +12,8 @@ bool rawinput_enabled_hid = false;
 
 #define DI_DEBUG
 //#define DI_DEBUG2
-//#define DI_DEBUG_RAWINPUT
+#define DI_DEBUG_RAWINPUT_KB 0
+#define DI_DEBUG_RAWINPUT_MOUSE 0
 #define IGNOREEVERYTHING 0
 
 #include "sysconfig.h"
@@ -1574,7 +1575,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			if (did->rawinput == h)
 				break;
 		}
-#ifdef DI_DEBUG_RAWINPUT
+#if DI_DEBUG_RAWINPUT_MOUSE
 		write_log (L"HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n",
 			raw->header.hDevice,
 			rm->usFlags,
@@ -1786,7 +1787,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		int scancode = rk->MakeCode & 0x7f;
 		int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
-#ifdef DI_DEBUG_RAWINPUT
+#if DI_DEBUG_RAWINPUT_KB
 		write_log (L"HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x SC=%x\n",
 			raw->header.hDevice,
 			rk->MakeCode,
@@ -1801,7 +1802,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			return;
 		if (scancode == 0) {
 			scancode = MapVirtualKey (rk->VKey, MAPVK_VK_TO_VSC);
-#ifdef DI_DEBUG_RAWINPUT
+#if DI_DEBUG_RAWINPUT_KB
 			write_log (L"VK->CODE: %x\n", scancode);
 #endif
 		}

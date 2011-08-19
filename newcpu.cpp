@@ -3779,6 +3779,14 @@ retry:
 		for (;;) {
 			pc = regs.instruction_pc = regs.instruction_pc = m68k_getpc ();
 #if 0
+			if (regs.regs[8+1] == 0x5b) {
+				static int cnt = 6;
+				cnt--;
+				if (cnt > 0)
+					activate_debugger();
+			}
+#endif
+#if 0
 			static int done;
 			if (pc == 0x16AF94) {
 //				write_log (L"D0=%d A7=%08x\n", regs.regs[0], regs.regs[15]);

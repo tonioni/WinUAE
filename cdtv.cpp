@@ -53,7 +53,7 @@
 #define MODEL_NAME "MATSHITA0.96"
 /* also MATSHITA0.97 exists but is apparently rare */
 
-#define MAX_SUBCODEBUFFER 16
+#define MAX_SUBCODEBUFFER 36
 static volatile int subcodebufferoffset, subcodebufferoffsetw, subcodeoffset;
 static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
 static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];

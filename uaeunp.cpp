@@ -457,8 +457,8 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	}
 	geterror ();
 	if (!found && !level) {
-		if (dst[0])
-			_tprintf (L"'%s' not found\n", dst);
+		if (filename[0])
+			_tprintf (L"'%s' not found\n", filename);
 		else
 			_tprintf (L"nothing extracted\n");
 	}
@@ -701,7 +701,7 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.8d by Toni Wilen (c)2010\n");
+		_tprintf (L"UAE unpacker uaeunp 0.8e by Toni Wilen (c)2011\n");
 		_tprintf (L"\n");
 		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
 		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
@@ -724,6 +724,10 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 }
 
 /*
+
+0.8e:
+
+- DSQ extra header supported
 
 0.8c:
 

@@ -373,7 +373,7 @@ static uae_u32 akiko_c2p_read (int offset)
 
 static int subcodecounter;
 
-#define MAX_SUBCODEBUFFER 20
+#define MAX_SUBCODEBUFFER 36
 static volatile int subcodebufferoffset, subcodebufferoffsetw;
 static uae_u8 subcodebufferinuse[MAX_SUBCODEBUFFER];
 static uae_u8 subcodebuffer[MAX_SUBCODEBUFFER * SUB_CHANNEL_SIZE];

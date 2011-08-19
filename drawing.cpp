@@ -322,8 +322,8 @@ extern int firstword_bplcon1;
 
 #define MIN_DISPLAY_W 256
 #define MIN_DISPLAY_H 192
-#define MAX_DISPLAY_W 352
-#define MAX_DISPLAY_H 276
+#define MAX_DISPLAY_W 362
+#define MAX_DISPLAY_H 283
 
 static int gclow, gcloh, gclox, gcloy;
 
@@ -361,7 +361,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 		plflastline_total = last_planes_vpos;
 
 	if (doublescan <= 0) {
-		int min = coord_diw_to_window_x (94);
+		int min = coord_diw_to_window_x (92);
 		int max = coord_diw_to_window_x (460);
 		if (diwfirstword_total < min)
 			diwfirstword_total = min;
@@ -2163,7 +2163,7 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 	} else {
 
 		int tmp = hposblank;
-		hposblank = 1;
+		hposblank = brdblank;
 		fill_line ();
 		do_flush_line (gfx_ypos);
 		hposblank = tmp;
@@ -2177,7 +2177,8 @@ static void center_image (void)
 	int prev_y_adjust = thisframe_y_adjust;
 	int tmp;
 
-	int w = gfxvidinfo.width; // > currprefs.gfx_size.width ? gfxvidinfo.width - (gfxvidinfo.width - currprefs.gfx_size.width) / 2 : gfxvidinfo.width;
+	int w = gfxvidinfo.width;
+	; // > currprefs.gfx_size.width ? gfxvidinfo.width - (gfxvidinfo.width - currprefs.gfx_size.width) / 2 : gfxvidinfo.width;
 	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
@@ -2210,10 +2211,9 @@ static void center_image (void)
 
 	//write_log (L"%d %d %d %d %d\n", max_diwlastword, gfxvidinfo.width, lores_shift, currprefs.gfx_resolution, visible_left_border);
 
-
 	linetoscr_x_adjust_bytes = visible_left_border * gfxvidinfo.pixbytes;
 
-	visible_right_border = visible_left_border + gfxvidinfo.width;
+	visible_right_border = visible_left_border + w;
 	if (visible_right_border > max_diwlastword)
 		visible_right_border = max_diwlastword;
 
@@ -2278,10 +2278,17 @@ static void init_drawing_frame (void)
 					if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
 						int nr = m >> 1;
 						int nl = (m & 1) == 0 ? 0 : 1;
+
+						if (nr < currprefs.gfx_autoresolution_minh)
+							nr = currprefs.gfx_autoresolution_minh;
+						if (nl < currprefs.gfx_autoresolution_minv)
+							nl = currprefs.gfx_autoresolution_minv;
+
 						if (nr > gfxvidinfo.gfx_resolution_reserved)
 							nr = gfxvidinfo.gfx_resolution_reserved;
 						if (nl > gfxvidinfo.gfx_vresolution_reserved)
 							nl = gfxvidinfo.gfx_vresolution_reserved;
+
 						if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
 							changed_prefs.gfx_resolution = nr;
 							changed_prefs.gfx_vresolution = nl;
@@ -2580,6 +2587,8 @@ void finish_drawing_frame (void)
 #ifdef ECS_DENISE
 	if (brdblank_changed) {
 		last_max_ypos = max_ypos_thisframe;
+		for (i = 0; i < sizeof linestate / sizeof *linestate; i++)
+			linestate[i] = LINE_UNDECIDED;
 		notice_screen_contents_lost ();
 		brdblank_changed = 0;
 	}

@@ -286,12 +286,13 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				cx = 28 << currprefs.gfx_resolution;
 				cy = 10 << currprefs.gfx_vresolution;
 			}
+
 			if (scalemode == AUTOSCALE_INTEGER) {
 				int maxw = currprefs.gfx_size.width;
 				int maxh = currprefs.gfx_size.height;
 				int mult = 1;
 
-				if (currprefs.gfx_xcenter_pos > 0 || currprefs.gfx_xcenter_pos > 0)
+				if (currprefs.gfx_xcenter_pos > 0 || currprefs.gfx_xcenter_size > 0)
 					getmanualpos (&cx, &cy, &cw, &ch);
 
 				if (cw > maxw || ch > maxh) {

@@ -38,7 +38,7 @@
 #include <ntddscsi.h>
 
 #define IOCTL_DATA_BUFFER 8192
-#define CDDA_BUFFERS 6
+#define CDDA_BUFFERS 14
 
 struct dev_info_ioctl {
 	HANDLE h;

@@ -442,9 +442,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	disp = getdisplay (p);
 
 	if (log_rp) {
-		write_log (L"SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d\n",
+		write_log (L"SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d smm=%d\n",
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
-			hdbl, vdbl, display, fs);
+			hdbl, vdbl, display, fs, smm);
 		write_log (L"aspect=%d stretch=%d force=%d integer=%d\n",
 			keepaspect, stretch, forcesize, integerscale);
 	}
@@ -517,6 +517,11 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	} else if (integerscale) {
 		hmult = vmult = 1;
 		p->gfx_filter_autoscale = AUTOSCALE_INTEGER;
+		if (sm->lClipWidth > 0)
+			p->gfx_xcenter_size = sm->lClipWidth;
+		if (sm->lClipHeight > 0)
+			p->gfx_ycenter_size = sm->lClipHeight;
+
 	}
 
 	if (keepaspect) {

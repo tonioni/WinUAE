@@ -1028,8 +1028,23 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 			int blocksize = (buf[10] << 8) | buf[11];
 			struct zfile *zo;
 			int size = blocks * blocksize;
-			int off = buf[3] == 0x13 ? 52 : 32;
+			int off;
 			int i;
+			uae_u8 *bitmap = NULL;
+			uae_u8 *nullsector;
+
+			nullsector = xcalloc (uae_u8, blocksize);
+			if (buf[3] == 0x13) {
+				off = 52;
+				if (buf[off - 1] == 1) {
+					bitmap = &buf[off];
+					off += (blocks + 7) / 8;
+				} else if (buf[off - 1] > 1) {
+					write_log (L"unknown DSQ extra header type %d\n", buf[off - 1]);
+				}
+			} else {
+				off = 32;
+			}
 
 			if (size < 1760 * 512)
 				size = 1760 * 512;
@@ -1043,13 +1058,21 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 			}
 			zo = zfile_fopen_empty (z, fn, size);
 			xfree (fn);
-			for (i = 0; i < blocks / (sectors / heads); i++) {
-				zfile_fwrite (buf + off, sectors * blocksize / heads, 1, zo);
-				off += sectors * (blocksize + 16) / heads;
+			for (i = 0; i < blocks; i++) {
+				int bmoff = i - 2;
+				if (bmoff >= 0 && bitmap && (bitmap[bmoff / 8] & (1 << ((bmoff & 7))))) {
+					zfile_fwrite (nullsector, blocksize, 1, zo);
+				} else {
+					zfile_fwrite (buf + off, blocksize, 1, zo);
+					off += blocksize;
+				}
+				if ((i % sectors) == sectors - 1)
+					off += sectors * 16;
 			}
 			zfile_fclose_archive (zv);
 			zfile_fclose (z);
 			xfree (buf);
+			xfree (nullsector);
 			return zo;
 		}
 		xfree (buf);
