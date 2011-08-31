@@ -144,7 +144,8 @@ static const TCHAR *soundfiltermode2[] = { L"standard", L"enhanced", 0 };
 static const TCHAR *lorestype1[] = { L"lores", L"hires", L"superhires", 0 };
 static const TCHAR *lorestype2[] = { L"true", L"false", 0 };
 static const TCHAR *loresmode[] = { L"normal", L"filtered", 0 };
-static const TCHAR *vertmode[] = { L"single", L"double", L"quadruple", 0 };
+static const TCHAR *horizmode[] = { L"vertical", L"lores", L"hires", L"superhires", 0 };
+static const TCHAR *vertmode[] = { L"horizontal", L"single", L"double", L"quadruple", 0 };
 #ifdef GFXFILTER
 static const TCHAR *filtermode2[] = { L"1x", L"2x", L"3x", L"4x", 0 };
 #endif
@@ -310,17 +311,19 @@ static TCHAR *cfgfile_subst_path_load (const TCHAR *path, struct multipath *mp, 
 	return cfgfile_subst_path (path, mp->path[0], file);
 }
 
-static int isdefault (const TCHAR *s)
+static bool isdefault (const TCHAR *s)
 {
 	TCHAR tmp[MAX_DPATH];
 	if (!default_file || uaeconfig)
-		return 0;
+		return false;
 	zfile_fseek (default_file, 0, SEEK_SET);
 	while (zfile_fgets (tmp, sizeof tmp / sizeof (TCHAR), default_file)) {
+		if (tmp[0] && tmp[_tcslen (tmp) - 1] == '\n')
+			tmp[_tcslen (tmp) - 1] = 0;
 		if (!_tcscmp (tmp, s))
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 static size_t cfg_write (void *b, struct zfile *z)
@@ -803,8 +806,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"gfx_height_fullscreen", L"%d", p->gfx_size_fs.height);
 	cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_refreshrate);
 	cfgfile_write_bool (f, L"gfx_autoresolution", p->gfx_autoresolution);
-	cfgfile_dwrite (f, L"gfx_autoresolution_min_vertical", lorestype1[p->gfx_autoresolution_minv]);
-	cfgfile_dwrite (f, L"gfx_autoresolution_min_horizontal", vertmode[p->gfx_autoresolution_minh]);
+	cfgfile_dwrite (f, L"gfx_autoresolution_min_vertical", vertmode[p->gfx_autoresolution_minv + 1]);
+	cfgfile_dwrite (f, L"gfx_autoresolution_min_horizontal", horizmode[p->gfx_autoresolution_minh + 1]);
 
 	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_backbuffers);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
@@ -1434,6 +1437,15 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
+	if (cfgfile_strval (option, value, L"gfx_autoresolution_min_vertical", &p->gfx_autoresolution_minv, vertmode, 0)) {
+		p->gfx_autoresolution_minv--;
+		return 1;
+	}
+	if (cfgfile_strval (option, value, L"gfx_autoresolution_min_horizontal", &p->gfx_autoresolution_minh, horizmode, 0)) {
+		p->gfx_autoresolution_minh--;
+		return 1;
+	}
+
 	if (cfgfile_intval (option, value, L"sound_latency", &p->sound_latency, 1)
 		|| cfgfile_intval (option, value, L"sound_max_buff", &p->sound_maxbsiz, 1)
 		|| cfgfile_intval (option, value, L"state_replay_rate", &p->statecapturerate, 1)
@@ -1455,10 +1467,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
 		|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, L"gfx_autoresolution", &p->gfx_autoresolution)
-		|| cfgfile_strval (option, value, L"gfx_autoresolution_min_vertical", &p->gfx_autoresolution_minv, lorestype1, 0)
-		|| cfgfile_strval (option, value, L"gfx_autoresolution_min_horizontal", &p->gfx_autoresolution_minh, vertmode, 0)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_backbuffers, 1)
-
+		
 		|| cfgfile_intval (option, value, L"gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
 		|| cfgfile_intval (option, value, L"gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
 		|| cfgfile_intval (option, value, L"gfx_center_horizontal_size", &p->gfx_xcenter_size, 1)
@@ -1791,6 +1801,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 
 	if (cfgfile_path (option, value, L"statefile_quit", p->quitstatefile, sizeof p->quitstatefile / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_string (option, value, L"statefile_name", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
+		fetch_statefilepath (savestate_fname, sizeof savestate_fname / sizeof (TCHAR));
+		_tcscat (savestate_fname, tmpbuf);
+		if (_tcslen (savestate_fname) >= 4 && _tcsicmp (savestate_fname + _tcslen (savestate_fname) - 4, L".uss"))
+			_tcscat (savestate_fname, L".uss");
+		return 1;
+	}
 
 	if (cfgfile_path (option, value, L"statefile", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		_tcscpy (p->statefile, tmpbuf);
@@ -3932,6 +3950,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_ycenter_size = -1;
 	p->gfx_max_horizontal = RES_HIRES;
 	p->gfx_max_vertical = VRES_DOUBLE;
+	p->gfx_autoresolution_minv = 0;
+	p->gfx_autoresolution_minh = 0;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_backbuffers = 1;
@@ -4100,7 +4120,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
 	zfile_fclose (default_file);
 	default_file = NULL;
-	f = zfile_fopen_empty (NULL, L"configstore", 100000);
+	f = zfile_fopen_empty (NULL, L"configstore");
 	if (f) {
 		uaeconfig++;
 		cfgfile_save_options (f, p, 0);

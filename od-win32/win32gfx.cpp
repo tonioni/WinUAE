@@ -54,9 +54,6 @@
 #include "rp.h"
 #endif
 
-#define AMIGA_WIDTH_MAX (752 / 2)
-#define AMIGA_HEIGHT_MAX (574 / 2)
-
 #define DM_DX_FULLSCREEN 1
 #define DM_W_FULLSCREEN 2
 #define DM_D3D_FULLSCREEN 16
@@ -934,8 +931,8 @@ void flush_clear_screen (void)
 {
 	if (lockscr (true)) {
 		int y;
-		for (y = 0; y < gfxvidinfo.height; y++) {
-			memset (gfxvidinfo.bufmem + y * gfxvidinfo.rowbytes, 0, gfxvidinfo.width * gfxvidinfo.pixbytes);
+		for (y = 0; y < gfxvidinfo.outheight; y++) {
+			memset (gfxvidinfo.bufmem + y * gfxvidinfo.rowbytes, 0, gfxvidinfo.outwidth * gfxvidinfo.pixbytes);
 		}
 		unlockscr ();
 		flush_screen (0, 0);
@@ -2288,29 +2285,34 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	return tsum;
 }
 
-bool vsync_busywait (void)
+bool vsync_busywait (int *freetime)
 {
 	bool v;
 	static frame_time_t prevtime;
 	static bool framelost;
+	frame_time_t t;
 
+	*freetime = 0;
 	if (currprefs.turbo_emulation)
 		return true;
 
-	if (!framelost && read_processor_time () - prevtime > vblankbasefull) {
+	t = read_processor_time ();
+
+	if (!framelost && t - prevtime > vblankbasefull) {
 		framelost = true;
-		prevtime = read_processor_time ();
-		return true;
-	}
-	if (framelost) {
-		framelost = false;
-		prevtime = read_processor_time ();
 		return true;
 	}
 
-	while (read_processor_time () - prevtime < vblankbasewait)
-		sleep_millis (1);
+	*freetime = (t - prevtime) * 100 / vblankbasefull;
+	if (*freetime > 99)
+		*freetime = 99;
+	else if (*freetime < 0)
+		*freetime = 0;
+
 	v = false;
+	while (!framelost && read_processor_time () - prevtime < vblankbasewait)
+		sleep_millis (1);
+	framelost = false;
 	if (currprefs.gfx_api) {
 		v = D3D_vblank_busywait ();
 	} else {
@@ -2674,8 +2676,6 @@ static BOOL doInit (void)
 					currentmode->amiga_width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 					currentmode->amiga_height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 				} else {
-					//gfxvidinfo.gfx_resolution_reserved = currprefs.gfx_resolution == RES_SUPERHIRES ? RES_SUPERHIRES : RES_HIRES;
-					//gfxvidinfo.gfx_vresolution_reserved = VRES_DOUBLE;
 					currentmode->amiga_width = AMIGA_WIDTH_MAX << gfxvidinfo.gfx_resolution_reserved;
 					currentmode->amiga_height = AMIGA_HEIGHT_MAX << gfxvidinfo.gfx_vresolution_reserved;
 				}
@@ -2701,8 +2701,8 @@ static BOOL doInit (void)
 			gfxvidinfo.pixbytes = currentmode->current_depth >> 3;
 			gfxvidinfo.bufmem = NULL;
 			gfxvidinfo.linemem = NULL;
-			gfxvidinfo.width = (currentmode->amiga_width + 7) & ~7;
-			gfxvidinfo.height = currentmode->amiga_height;
+			gfxvidinfo.outwidth = (currentmode->amiga_width + 7) & ~7;
+			gfxvidinfo.outheight = currentmode->amiga_height;
 			gfxvidinfo.maxblocklines = 0; // flush_screen actually does everything
 			gfxvidinfo.rowbytes = currentmode->pitch;
 			break;
@@ -2756,6 +2756,9 @@ static BOOL doInit (void)
 
 		}
 		init_row_map ();
+	} else {
+		gfxvidinfo.inwidth = gfxvidinfo.outwidth = currentmode->current_width;
+		gfxvidinfo.inheight = gfxvidinfo.outheight = currentmode->current_height;
 	}
 	init_colors ();
 
@@ -2763,14 +2766,12 @@ static BOOL doInit (void)
 #if defined (GFXFILTER)
 	S2X_free ();
 	if (currentmode->flags & DM_SWSCALE) {
-		S2X_init (currentmode->native_width, currentmode->native_height,
-			currentmode->amiga_width, currentmode->amiga_height,
-			currentmode->current_depth, currentmode->native_depth);
+		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);
 	}
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
-			currentmode->amiga_width, currentmode->amiga_height, currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
+			currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free ();
 			gui_message (err);

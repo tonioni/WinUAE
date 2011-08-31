@@ -865,11 +865,11 @@ static int getFromBuffer (struct avientry *ae, int original)
 	if (!src)
 		return 0;
 	dst += dpitch * avioutput_height;
-	for (y = 0; y < (gfxvidinfo.height > avioutput_height ? avioutput_height : gfxvidinfo.height); y++) {
+	for (y = 0; y < (gfxvidinfo.inheight > avioutput_height ? avioutput_height : gfxvidinfo.inheight); y++) {
 		uae_u8 *d;
 		dst -= dpitch;
 		d = dst;
-		for (x = 0; x < (gfxvidinfo.width > avioutput_width ? avioutput_width : gfxvidinfo.width); x++) {
+		for (x = 0; x < (gfxvidinfo.inwidth > avioutput_width ? avioutput_width : gfxvidinfo.inwidth); x++) {
 			if (avioutput_bits == 8) {
 				*d++ = src[x];
 			} else if (avioutput_bits == 16) {
@@ -946,8 +946,8 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 		if (!avioutput_init)
 			goto error;
 
-		actual_width = gfxvidinfo.width;
-		actual_height = gfxvidinfo.height;
+		actual_width = gfxvidinfo.inwidth;
+		actual_height = gfxvidinfo.inheight;
 
 		// GetDIBits tends to change this and ruins palettized output
 		ae->lpbi->biClrUsed = (avioutput_bits <= 8) ? 1 << avioutput_bits : 0;

@@ -876,7 +876,12 @@ STATIC_INLINE void blitter_doddma (int hpos)
 		ddat1use = 0;
 		wd = 1;
 	} else {
-		write_log (L"BLITTER: D-channel without nothing to do?\n");
+		static int warn = 10;
+		if (warn > 0) {
+			warn--;
+			write_log (L"BLITTER: D-channel without nothing to do?\n");
+		}
+		blitter_vcounter2 = blitter_vcounter1 = blt_info.vblitsize;
 		return;
 	}
 	alloc_cycle_ext (hpos, CYCLE_BLITTER);

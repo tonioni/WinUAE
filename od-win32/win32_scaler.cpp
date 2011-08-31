@@ -576,8 +576,8 @@ uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 	*depth = amiga_depth;
 	if (usedfilter == NULL)
 		return NULL;
-	*widthp = gfxvidinfo.width;
-	*heightp = gfxvidinfo.height;
+	*widthp = gfxvidinfo.outwidth;
+	*heightp = gfxvidinfo.outheight;
 	if (pitch)
 		*pitch = gfxvidinfo.rowbytes;
 	*depth = gfxvidinfo.pixbytes * 8;
@@ -641,7 +641,7 @@ void S2X_reset (void)
 {
 	if (!inited)
 		return;
-	S2X_init (dst_width2, dst_height2, amiga_width2, amiga_height2, dst_depth2, amiga_depth2);
+	S2X_init (dst_width2, dst_height2, amiga_depth2);
 }
 
 void S2X_free (void)
@@ -662,16 +662,16 @@ void S2X_free (void)
 	inited = false;
 }
 
-void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
+void S2X_init (int dw, int dh, int dd)
 {
 	int flags = 0;
 
 	dst_width2 = dw;
 	dst_height2 = dh;
 	dst_depth2 = dd;
-	amiga_width2 = aw;
-	amiga_height2 = ah;
-	amiga_depth2 = ad;
+	amiga_width2 = gfxvidinfo.inwidth;
+	amiga_height2 = gfxvidinfo.inheight;
+	amiga_depth2 = gfxvidinfo.pixbytes * 8;
 
 
 	S2X_free ();
@@ -679,7 +679,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
 	if (d3d)
-		dd = ad;
+		dd = amiga_depth2;
 
 	if (dd == 32)
 		alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, rc, gc, bc);
@@ -695,7 +695,7 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 	} else {
 		scale = usedfilter->intmul;
 		flags = usedfilter->flags;
-		if ((ad == 16 && !(flags & UAE_FILTER_MODE_16)) || (ad == 32 && !(flags & UAE_FILTER_MODE_32))) {
+		if ((amiga_depth2 == 16 && !(flags & UAE_FILTER_MODE_16)) || (amiga_depth2 == 32 && !(flags & UAE_FILTER_MODE_32))) {
 			usedfilter = &uaefilters[0];
 			scale = 1;
 			changed_prefs.gfx_filter = usedfilter->type;
@@ -713,9 +713,9 @@ void S2X_init (int dw, int dh, int aw, int ah, int ad, int dd)
 	dst_width = dw;
 	dst_height = dh;
 	dst_depth = dd;
-	amiga_width = aw;
-	amiga_height = ah;
-	amiga_depth = ad;
+	amiga_width = gfxvidinfo.inwidth;
+	amiga_height = gfxvidinfo.inheight;
+	amiga_depth = gfxvidinfo.pixbytes * 8;
 
 	if (d3d) {
 		int m = currprefs.gfx_filter_filtermode + 1;

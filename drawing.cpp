@@ -446,9 +446,9 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
 		return ret;
 	if (doublescan <= 0) {
-		if (dx > gfxvidinfo.width / 3)
+		if (dx > gfxvidinfo.outwidth / 3)
 			return ret;
-		if (dy > gfxvidinfo.height / 3)
+		if (dy > gfxvidinfo.outheight / 3)
 			return ret;
 	}
 
@@ -784,12 +784,12 @@ STATIC_INLINE void fill_line2 (int startpos, int len)
 static void fill_line (void)
 {
 	int hs = coord_hw_to_window_x (hsyncstartpos * 2);
-	if (hs >= gfxvidinfo.width || hposblank) {
-		fill_line2 (visible_left_border, gfxvidinfo.width);
+	if (hs >= gfxvidinfo.outwidth || hposblank) {
+		fill_line2 (visible_left_border, gfxvidinfo.outwidth);
 	} else {
 		fill_line2 (visible_left_border, hs);
 		hposblank = 1;
-		fill_line2 (visible_left_border + hs, gfxvidinfo.width - hs);
+		fill_line2 (visible_left_border + hs, gfxvidinfo.outwidth - hs);
 	}
 }
 
@@ -1682,22 +1682,24 @@ static void pfield_doline (int lineno)
 void init_row_map (void)
 {
 	int i, j;
-	if (gfxvidinfo.height > MAX_VIDHEIGHT) {
+	if (gfxvidinfo.outheight > MAX_VIDHEIGHT) {
 		write_log (L"Resolution too high, aborting\n");
 		abort ();
 	}
 	j = 0;
-	for (i = gfxvidinfo.height; i < MAX_VIDHEIGHT + 1; i++)
+	for (i = gfxvidinfo.outheight; i < MAX_VIDHEIGHT + 1; i++)
 		row_map[i] = row_tmp;
-	for (i = 0; i < gfxvidinfo.height; i++, j += gfxvidinfo.rowbytes)
+	for (i = 0; i < gfxvidinfo.outheight; i++, j += gfxvidinfo.rowbytes)
 		row_map[i] = gfxvidinfo.bufmem + j;
+	gfxvidinfo.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+	gfxvidinfo.inheight = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
 }
 
 static void init_aspect_maps (void)
 {
 	int i, maxl;
 
-	if (gfxvidinfo.height == 0)
+	if (gfxvidinfo.outheight == 0)
 		/* Do nothing if the gfx driver hasn't initialized the screen yet */
 		return;
 
@@ -1714,16 +1716,16 @@ static void init_aspect_maps (void)
 
 	/* At least for this array the +1 is necessary. */
 	amiga2aspect_line_map = xmalloc (int, (MAXVPOS + 1) * 2 + 1);
-	native2amiga_line_map = xmalloc (int, gfxvidinfo.height);
+	native2amiga_line_map = xmalloc (int, gfxvidinfo.outheight);
 
 	maxl = (MAXVPOS + 1) << linedbld;
 	min_ypos_for_screen = minfirstline << linedbl;
 	max_drawn_amiga_line = -1;
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
-		if (v >= gfxvidinfo.height && max_drawn_amiga_line == -1)
+		if (v >= gfxvidinfo.outheight && max_drawn_amiga_line == -1)
 			max_drawn_amiga_line = i - min_ypos_for_screen;
-		if (i < min_ypos_for_screen || v >= gfxvidinfo.height)
+		if (i < min_ypos_for_screen || v >= gfxvidinfo.outheight)
 			v = -1;
 		amiga2aspect_line_map[i] = v;
 	}
@@ -1731,19 +1733,19 @@ static void init_aspect_maps (void)
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
 		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (gfxvidinfo.height - (maxvpos_nom << linedbl)) >> 1;
+		extra_y_adjust = (gfxvidinfo.outheight - (maxvpos_nom << linedbl)) >> 1;
 		if (extra_y_adjust < 0)
 			extra_y_adjust = 0;
 	}
 
-	for (i = 0; i < gfxvidinfo.height; i++)
+	for (i = 0; i < gfxvidinfo.outheight; i++)
 		native2amiga_line_map[i] = -1;
 
 	for (i = maxl - 1; i >= min_ypos_for_screen; i--) {
 		int j;
 		if (amiga2aspect_line_map[i] == -1)
 			continue;
-		for (j = amiga2aspect_line_map[i]; j < gfxvidinfo.height && native2amiga_line_map[j] == -1; j++)
+		for (j = amiga2aspect_line_map[i]; j < gfxvidinfo.outheight && native2amiga_line_map[j] == -1; j++)
 			native2amiga_line_map[j] = i >> linedbl;
 	}
 }
@@ -1930,7 +1932,7 @@ STATIC_INLINE void do_color_changes (line_draw_func worker_border, line_draw_fun
 {
 	int i;
 	int lastpos = visible_left_border;
-	int endpos = visible_left_border + gfxvidinfo.width;
+	int endpos = visible_left_border + gfxvidinfo.outwidth;
 
 	for (i = dip_for_drawing->first_color_change; i <= dip_for_drawing->last_color_change; i++) {
 		int regno = curr_color_changes[i].regno;
@@ -2087,14 +2089,14 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 		do_color_changes (pfield_do_fill_line, pfield_do_linetoscr);
 
 		if (dh == dh_emerg)
-			memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
+			memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 
 		do_flush_line (gfx_ypos);
 		if (do_double) {
 			if (dh == dh_emerg)
-				memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
+				memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 			else if (dh == dh_buf)
-				memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.pixbytes * gfxvidinfo.width);
+				memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 			do_flush_line (follow_ypos);
 		}
 
@@ -2149,14 +2151,14 @@ static void pfield_draw_line (int lineno, int gfx_ypos, int follow_ypos)
 		}
 
 		if (dh == dh_emerg)
-			memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
+			memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 
 		do_flush_line (gfx_ypos);
 		if (do_double) {
 			if (dh == dh_emerg)
-				memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.width);
+				memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 			else if (dh == dh_buf)
-				memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.pixbytes * gfxvidinfo.width);
+				memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.pixbytes * gfxvidinfo.outwidth);
 			do_flush_line (follow_ypos);
 		}
 
@@ -2177,8 +2179,7 @@ static void center_image (void)
 	int prev_y_adjust = thisframe_y_adjust;
 	int tmp;
 
-	int w = gfxvidinfo.width;
-	; // > currprefs.gfx_size.width ? gfxvidinfo.width - (gfxvidinfo.width - currprefs.gfx_size.width) / 2 : gfxvidinfo.width;
+	int w = gfxvidinfo.inwidth;
 	if (currprefs.gfx_xcenter && !currprefs.gfx_filter_autoscale && max_diwstop > 0) {
 
 		if (max_diwstop - min_diwstart < w && currprefs.gfx_xcenter == 2)
@@ -2279,10 +2280,18 @@ static void init_drawing_frame (void)
 						int nr = m >> 1;
 						int nl = (m & 1) == 0 ? 0 : 1;
 
-						if (nr < currprefs.gfx_autoresolution_minh)
+						if (currprefs.gfx_autoresolution_minh < 0) {
+							if (nr < nl)
+								nr = nl;
+						} else if (nr < currprefs.gfx_autoresolution_minh) {
 							nr = currprefs.gfx_autoresolution_minh;
-						if (nl < currprefs.gfx_autoresolution_minv)
+						}
+						if (currprefs.gfx_autoresolution_minv < 0) {
+							if (nl < nr)
+								nl = nr;
+						} else if (nr < currprefs.gfx_autoresolution_minv) {
 							nl = currprefs.gfx_autoresolution_minv;
+						}
 
 						if (nr > gfxvidinfo.gfx_resolution_reserved)
 							nr = gfxvidinfo.gfx_resolution_reserved;
@@ -2411,12 +2420,12 @@ static void draw_status_line (int line, int statusy)
 	if (!(currprefs.leds_on_screen & STATUSLINE_CHIPSET) || (currprefs.leds_on_screen & STATUSLINE_TARGET))
 		return;
 	bpp = gfxvidinfo.pixbytes;
-	y = line - (gfxvidinfo.height - TD_TOTAL_HEIGHT);
+	y = line - (gfxvidinfo.outheight - TD_TOTAL_HEIGHT);
 	xlinebuffer = gfxvidinfo.linemem;
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
 	buf = xlinebuffer;
-	draw_status_line_single (buf, bpp, statusy, gfxvidinfo.width, xredcolors, xgreencolors, xbluecolors, NULL);
+	draw_status_line_single (buf, bpp, statusy, gfxvidinfo.outwidth, xredcolors, xgreencolors, xbluecolors, NULL);
 }
 
 static void draw_debug_status_line (int line)
@@ -2424,7 +2433,7 @@ static void draw_debug_status_line (int line)
 	xlinebuffer = gfxvidinfo.linemem;
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[line];
-	debug_draw_cycles (xlinebuffer, gfxvidinfo.pixbytes, line, gfxvidinfo.width, gfxvidinfo.height, xredcolors, xgreencolors, xbluecolors);
+	debug_draw_cycles (xlinebuffer, gfxvidinfo.pixbytes, line, gfxvidinfo.outwidth, gfxvidinfo.outheight, xredcolors, xgreencolors, xbluecolors);
 }
 
 #define LIGHTPEN_HEIGHT 12
@@ -2459,7 +2468,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
 	for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
-		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.width)
+		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.outwidth)
 			putpixel (xlinebuffer, gfxvidinfo.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
 		p++;
 	}
@@ -2473,12 +2482,12 @@ static void lightpen_update (void)
 
 	if (lightpen_x < LIGHTPEN_WIDTH + 1)
 		lightpen_x = LIGHTPEN_WIDTH + 1;
-	if (lightpen_x >= gfxvidinfo.width - LIGHTPEN_WIDTH - 1)
-		lightpen_x = gfxvidinfo.width - LIGHTPEN_WIDTH - 2;
+	if (lightpen_x >= gfxvidinfo.outwidth - LIGHTPEN_WIDTH - 1)
+		lightpen_x = gfxvidinfo.outwidth - LIGHTPEN_WIDTH - 2;
 	if (lightpen_y < LIGHTPEN_HEIGHT + 1)
 		lightpen_y = LIGHTPEN_HEIGHT + 1;
-	if (lightpen_y >= gfxvidinfo.height - LIGHTPEN_HEIGHT - 1)
-		lightpen_y = gfxvidinfo.height - LIGHTPEN_HEIGHT - 2;
+	if (lightpen_y >= gfxvidinfo.outheight - LIGHTPEN_HEIGHT - 1)
+		lightpen_y = gfxvidinfo.outheight - LIGHTPEN_HEIGHT - 2;
 	if (lightpen_y >= max_ypos_thisframe - LIGHTPEN_HEIGHT - 1)
 		lightpen_y = max_ypos_thisframe - LIGHTPEN_HEIGHT - 2;
 
@@ -2532,7 +2541,7 @@ void finish_drawing_frame (void)
 		int where2;
 
 		where2 = amiga2aspect_line_map[i1];
-		if (where2 >= gfxvidinfo.height)
+		if (where2 >= gfxvidinfo.outheight)
 			break;
 		if (where2 < 0)
 			continue;
@@ -2541,12 +2550,12 @@ void finish_drawing_frame (void)
 	}
 
 	/* clear possible old garbage at the bottom if emulated area become smaller */
-	for (i = last_max_ypos; i < gfxvidinfo.height; i++) {
+	for (i = last_max_ypos; i < gfxvidinfo.outheight; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
 		int where2 = amiga2aspect_line_map[i1];
 
-		if (where2 >= gfxvidinfo.height)
+		if (where2 >= gfxvidinfo.outheight)
 			break;
 		if (where2 < 0)
 			continue;
@@ -2564,7 +2573,7 @@ void finish_drawing_frame (void)
 
 	if (currprefs.leds_on_screen) {
 		int slx, sly;
-		statusline_getpos (&slx, &sly, gfxvidinfo.width, gfxvidinfo.height);
+		statusline_getpos (&slx, &sly, gfxvidinfo.outwidth, gfxvidinfo.outheight);
 		for (i = 0; i < TD_TOTAL_HEIGHT; i++) {
 			int line = sly + i;
 			draw_status_line (line, i);
@@ -2572,7 +2581,7 @@ void finish_drawing_frame (void)
 		}
 	}
 	if (debug_dma > 1) {
-		for (i = 0; i < gfxvidinfo.height; i++) {
+		for (i = 0; i < gfxvidinfo.outheight; i++) {
 			int line = i;
 			draw_debug_status_line (line);
 			do_flush_line (line);

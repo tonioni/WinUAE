@@ -26,7 +26,7 @@ extern void toggle_fullscreen (int);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int);
-extern bool vsync_busywait (void);
+extern bool vsync_busywait (int*);
 extern double vblank_calibrate (double, bool);
 extern void doflashscreen (void);
 extern int flashscreen;
@@ -93,8 +93,10 @@ struct vidbuf_description
 	bool bufmem_allocated;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
-    int width;
-    int height;
+    int outwidth;	/* reserved space */
+    int outheight;
+	int inwidth; /* needed space in current resolution setting */
+	int inheight;
     int maxblocklines; /* Set to 0 if you want calls to flush_line after each drawn line, or the number of
 			* lines that flush_block wants to/can handle (it isn't really useful to use another
 			* value than maxline here). */

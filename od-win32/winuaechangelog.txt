@@ -1,4 +1,18 @@
 
+Beta 6:
+
+- added "statefile_name" configuration file entry, sets default statefile name (normally "default.uss")
+- fixed jittery raw mouse movement
+- resolution autoswitch should now work correctly, no more strange centering without autoscale.
+- analog stick mapped as a mouse had wrong and unstable speed
+- rarely used configuration entries were only supposed to be written if they had non-default value.
+  re-saving configuration will reduce size of most config files. Older bug.
+- "Integer scaling" visible in GUI (AF specific feature originally), selects biggest integer scaling
+  ratio that still fits on screen
+- "VSync (new)" renamed to "Low latency VSync"
+- Input panel configuration #1-#3 can be renamed by manually editing config file (input.x.name=name)
+- GUI allows FPU in cycle exact modes. Not much point but if you really want to enable it..
+
 Beta 5:
 
 - CD image audio play buffer size increased, some system have glitchy sound if buffer is too small
@@ -10,7 +24,7 @@ Beta 5:
 - do not add >2M chip RAM to memory list if it is already added (perhaps m68k AROS does this automatically in future)
 - borderblank change didn't redraw all changed scanlines
 - key/button mapped to mouse directions didn't work
-- Add Harddrive allowed without admin privielges, removable drives do not seem to require extra privileges. (anymore?)
+- add Harddrive allowed without admin privileges, removable drives do not seem to require extra privileges. (anymore?)
 - b4 sprite optimization fix was broken
 - automatic scaling max scaling values adjusted, now 3.x max overscan fits completely on screen
 

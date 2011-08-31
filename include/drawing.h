@@ -17,6 +17,9 @@
 #define MAX_PLANES 6
 #endif
 
+#define AMIGA_WIDTH_MAX (752 / 2)
+#define AMIGA_HEIGHT_MAX (574 / 2)
+
 //#define NEWHSYNC
 
 #ifdef NEWHSYNC

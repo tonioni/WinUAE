@@ -5691,12 +5691,9 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	_tcscpy(buffer2, L" (new)");
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
-	_tcscat (buffer, buffer2);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
-	_tcscat (buffer, buffer2);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
@@ -7706,7 +7703,6 @@ static void enable_for_cpudlg (HWND hDlg)
 {
 	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
-	BOOL fpu;
 
 	/* These four items only get enabled when adjustable CPU style is enabled */
 	ew (hDlg, IDC_SPEED, workprefs.m68k_speed > 0);
@@ -7748,11 +7744,8 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier);
 
-	fpu = TRUE;
-	if (workprefs.cpu_model > 68030 || workprefs.cpu_compatible || workprefs.cpu_cycle_exact)
-		fpu = FALSE;
-	ew (hDlg, IDC_FPU1, fpu);
-	ew (hDlg, IDC_FPU2, fpu);
+	ew (hDlg, IDC_FPU1, TRUE);
+	ew (hDlg, IDC_FPU2, TRUE);
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
 }
@@ -11318,10 +11311,8 @@ static void init_inputdlg (HWND hDlg)
 	TCHAR buf[100], txt[100];
 
 	SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_RESETCONTENT, 0, 0L);
-	WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof (buf) / sizeof (TCHAR));
 	for (i = 0; i < GAMEPORT_INPUT_SETTINGS; i++) {
-		_stprintf (txt, buf, i + 1);
-		SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_ADDSTRING, 0, (LPARAM)txt);
+		SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_ADDSTRING, 0, (LPARAM)workprefs.input_config_name[i]);
 	}
 	WIN32GUI_LoadUIString (IDS_INPUT_GAMEPORTS, buf, sizeof (buf) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_ADDSTRING, 0, (LPARAM)buf);
@@ -12314,6 +12305,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_CENTER, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_MANUAL, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_INTEGER, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 

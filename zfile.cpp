@@ -1034,6 +1034,7 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 			uae_u8 *nullsector;
 
 			nullsector = xcalloc (uae_u8, blocksize);
+			sectors /= heads;
 			if (buf[3] == 0x13) {
 				off = 52;
 				if (buf[off - 1] == 1) {
@@ -1058,16 +1059,26 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 			}
 			zo = zfile_fopen_empty (z, fn, size);
 			xfree (fn);
+			int seccnt = 0;
 			for (i = 0; i < blocks; i++) {
 				int bmoff = i - 2;
-				if (bmoff >= 0 && bitmap && (bitmap[bmoff / 8] & (1 << ((bmoff & 7))))) {
+				int boff = -1;
+				uae_u32 mask = 0;
+				if (bitmap) {
+					boff = (bmoff / 32) * 4;
+					mask = (bitmap[boff] << 24) | (bitmap[boff + 1] << 16) | (bitmap[boff + 2] << 8) | (bitmap[boff + 3]);
+				}
+				if (bmoff >= 0 && boff >= 0 && (mask & (1 << (bmoff & 31)))) {
 					zfile_fwrite (nullsector, blocksize, 1, zo);
 				} else {
 					zfile_fwrite (buf + off, blocksize, 1, zo);
 					off += blocksize;
+					seccnt++;
 				}
-				if ((i % sectors) == sectors - 1)
-					off += sectors * 16;
+				if ((i % sectors) == sectors - 1) {
+					off += seccnt * 16;
+					seccnt = 0;
+				}
 			}
 			zfile_fclose_archive (zv);
 			zfile_fclose (z);

@@ -5068,13 +5068,15 @@ static void framewait (void)
 		show_screen ();
 		return;
 	} else if (vs < 0) {
+		int freetime;
+		extern int extraframewait;
 		vsyncmintime = vsynctime;
 		render_screen ();
-		vsync_busywait ();
+		vsync_busywait (&freetime);
 		show_screen ();
-		extern int extraframewait;
-		if (extraframewait)
+		if (extraframewait) {
 			sleep_millis (extraframewait);
+		}
 		return;
 	}
 	render_screen ();

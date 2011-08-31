@@ -464,6 +464,7 @@ struct uae_prefs {
 	struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
+	TCHAR input_config_name[GAMEPORT_INPUT_SETTINGS][256];
 	int dongle;
 	int input_contact_bounce;
 };

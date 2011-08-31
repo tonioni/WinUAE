@@ -535,6 +535,11 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 	cfgfile_write (f, L"input.autofire_speed", L"%d", p->input_autofire_linecnt);
 	cfgfile_dwrite (f, L"input.contact_bounce", L"%d", p->input_contact_bounce);
 	for (id = 0; id < MAX_INPUT_SETTINGS; id++) {
+		TCHAR tmp[MAX_DPATH];
+		if (id < GAMEPORT_INPUT_SETTINGS) {
+			_stprintf (tmp, L"input.%d.name", id + 1);
+			cfgfile_dwrite_str (f, tmp, p->input_config_name[id]);
+		}
 		for (i = 0; i < MAX_INPUT_DEVICES; i++)
 			write_config (f, id, i, L"joystick", &p->joystick_settings[id][i], &joysticks2[i], &idev[IDTYPE_JOYSTICK]);
 		for (i = 0; i < MAX_INPUT_DEVICES; i++)
@@ -786,6 +791,12 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 	if (idnum <= 0 || idnum > MAX_INPUT_SETTINGS)
 		return;
 	idnum--;
+
+	if (!_tcscmp (option, L"name")) {
+		if (idnum < GAMEPORT_INPUT_SETTINGS)
+			_tcscpy (pr->input_config_name[idnum], value);
+		return;
+	} 
 
 	if (_tcsncmp (option, L"mouse.", 6) == 0) {
 		p = option + 6;
@@ -1458,12 +1469,12 @@ static void mousehack_helper (void)
 		y -= fdy * fmy / 1000 - 2;
 		if (x < 0)
 			x = 0;
-		if (x >= gfxvidinfo.width)
-			x = gfxvidinfo.width - 1;
+		if (x >= gfxvidinfo.outwidth)
+			x = gfxvidinfo.outwidth - 1;
 		if (y < 0)
 			y = 0;
-		if (y >= gfxvidinfo.height)
-			y = gfxvidinfo.height - 1;
+		if (y >= gfxvidinfo.outheight)
+			y = gfxvidinfo.outheight - 1;
 		x = coord_native_to_amiga_x (x);
 		y = coord_native_to_amiga_y (y) << 1;
 	}
@@ -2677,8 +2688,8 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	case 5: /* lightpen/gun */
 		{
 			if (lightpen_x < 0 && lightpen_y < 0) {
-				lightpen_x = gfxvidinfo.width / 2;
-				lightpen_y = gfxvidinfo.height / 2;
+				lightpen_x = gfxvidinfo.outwidth / 2;
+				lightpen_y = gfxvidinfo.outheight / 2;
 			}
 			if (ie->type == 0) {
 				int delta = 0;
@@ -2764,7 +2775,11 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 
 			if (ie->data & IE_INVERT)
 				delta = -delta;
-			mouse_delta[joy][unit] += delta;
+
+			if (max)
+				mouse_delta[joy][unit] = delta;
+			else
+				mouse_delta[joy][unit] += delta;
 
 			max = 32;
 			if (unit) {
@@ -4612,7 +4627,7 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 
 	inputdevice_init ();
 	p->input_selected_setting = GAMEPORT_INPUT_SETTINGS;
-	p->input_joymouse_multiplier = 20;
+	p->input_joymouse_multiplier = 100;
 	p->input_joymouse_deadzone = 33;
 	p->input_joystick_deadzone = 33;
 	p->input_joymouse_speed = 10;

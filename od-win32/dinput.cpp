@@ -1633,10 +1633,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					lasty[num] = rm->lLastY;
 				}
 			} else {
-				if (rm->lLastX != lastx[num])
-					setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-				if (rm->lLastY != lasty[num])
-					setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+				setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+				setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
 				lastx[num] = rm->lLastX;
 				lasty[num] = rm->lLastY;
 			}

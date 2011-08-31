@@ -349,6 +349,9 @@
 #define IDS_PORT_AUTOFIRE_TOGGLE        372
 #define IDS_PORT_AUTOFIRE_ALWAYS        373
 #define IDS_PORT_AUTOFIRE_NO            374
+#define IDS_AUTOSCALE_INTEGER           375
+#define IDS_SCREEN_VSYNC2_AUTOSWITCH    376
+#define IDS_SCREEN_VSYNC2               377
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -436,7 +439,6 @@
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
 #define IDC_AUTORESOLUTION              1181
-#define IDC_AUTORESOLUTION2             1182
 #define IDC_RATE2ENABLE                 1182
 #define IDC_FRAMERATE                   1185
 #define IDC_XSIZE                       1187

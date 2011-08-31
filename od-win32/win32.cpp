@@ -100,7 +100,7 @@ int log_net;
 int uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
-int extraframewait = 5;
+int extraframewait = 0;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -2747,6 +2747,7 @@ void target_fixup_options (struct uae_prefs *p)
 
 void target_default_options (struct uae_prefs *p, int type)
 {
+	TCHAR buf[MAX_DPATH];
 	if (type == 2 || type == 0) {
 		p->win32_middle_mouse = 1;
 		p->win32_logfile = 0;
@@ -2785,6 +2786,9 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
 		p->gfx_api = os_vista ? 1 : 0;
+		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
+		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
+			_stprintf (p->input_config_name[i], buf, i + 1);
 	}
 	if (type == 1 || type == 0) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
