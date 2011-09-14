@@ -1081,7 +1081,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 
 		/* High-density or diskspare disk? */
 		drv->num_tracks = 0;
-		if (size > 160 * 11 * 512) { // larger than standard adf?
+		if (size > 160 * 11 * 512 + 511) { // larger than standard adf?
 			for (i = 80; i <= 83; i++) {
 				if (size == i * 22 * 512 * 2) { // HD
 					drv->ddhd = 2;
@@ -3561,8 +3561,10 @@ void restore_disk_finish (void)
 	currprefs.nr_floppies = changed_prefs.nr_floppies = cnt;
 	DISK_check_change ();
 	setamax ();
+#if 0
 	if (dskdmaen)
 		dumpdisk ();
+#endif
 }
 
 uae_u8 *restore_disk (int num,uae_u8 *src)

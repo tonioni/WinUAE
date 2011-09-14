@@ -5630,7 +5630,7 @@ static void display_fromselect (int val, int *fs, int *vsync, int p96)
 
 static void values_to_displaydlg (HWND hDlg)
 {
-	TCHAR buffer[MAX_DPATH], buffer2[MAX_DPATH];
+	TCHAR buffer[MAX_DPATH];
 	int rates[MAX_CHIPSET_REFRESH_TOTAL];
 	int v;
 	double d;
@@ -5714,8 +5714,7 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)L"-");
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
-	_tcscat (buffer, buffer2);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,

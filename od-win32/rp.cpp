@@ -673,6 +673,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				break;
 			case RP_DEVICE_INPUTPORT:
 				ok = port_insert (num, dc->dwInputDevice, dc->dwFlags, n);
+				if (ok)
+					inputdevice_updateconfig (&currprefs);
 				break;
 			case RP_DEVICE_CD:
 				ok = cd_insert (num, n);
@@ -863,6 +865,8 @@ static void sendenum (void)
 			_tcscpy (desc.szHostInputName, p1);
 			desc.dwHostInputType= RP_HOSTINPUT_KEYJOY_MAP1 + cnt;
 			desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
+			if (cnt == 0)
+				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 			if (log_rp)
 				write_log(L"Enum%d: '%s' '%s'\n", cnt, desc.szHostInputName, desc.szHostInputID);
 			RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
@@ -1045,8 +1049,8 @@ void rp_input_change (int num)
 	} else if (m >= 0) {
 		_tcscpy (name, inputdevice_get_device_unique_name (IDTYPE_MOUSE, m));
 	}
-	mode = 0;
-	for (int i = 0; i < inputdevmode[i * 2]; i++) {
+	mode = RP_INPUTDEVICE_EMPTY;
+	for (int i = 0; inputdevmode[i * 2]; i++) {
 		if (inputdevmode[i * 2 + 1] == currprefs.jports[num].mode) {
 			mode = inputdevmode[i * 2 + 0];
 			break;

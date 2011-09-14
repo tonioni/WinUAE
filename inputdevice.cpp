@@ -2966,10 +2966,15 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 
 static void inputdevice_checkconfig (void)
 {
-	if (currprefs.jports[0].id != changed_prefs.jports[0].id ||
+	if (
+		currprefs.jports[0].id != changed_prefs.jports[0].id ||
 		currprefs.jports[1].id != changed_prefs.jports[1].id ||
 		currprefs.jports[2].id != changed_prefs.jports[2].id ||
 		currprefs.jports[3].id != changed_prefs.jports[3].id ||
+		currprefs.jports[0].mode != changed_prefs.jports[0].mode ||
+		currprefs.jports[1].mode != changed_prefs.jports[1].mode ||
+		currprefs.jports[2].mode != changed_prefs.jports[2].mode ||
+		currprefs.jports[3].mode != changed_prefs.jports[3].mode ||
 		currprefs.input_selected_setting != changed_prefs.input_selected_setting ||
 		currprefs.input_joymouse_multiplier != changed_prefs.input_joymouse_multiplier ||
 		currprefs.input_joymouse_deadzone != changed_prefs.input_joymouse_deadzone ||

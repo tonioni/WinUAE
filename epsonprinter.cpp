@@ -1198,7 +1198,7 @@ static void setupBitImage(Bit8u dens, Bit16u numCols, int pin9)
 	if (pins == 9) {
 		if (pin9) {
 			bitGraph.pin9 = true;
-			bitGraph.bytesColumn = 2;
+			bitGraph.bytesColumn = 1;
 		}	
 		bitGraph.vertDens = 72;
 	}

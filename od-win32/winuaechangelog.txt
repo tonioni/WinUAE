@@ -1,4 +1,8 @@
 
+- do not misdetect standard adf images that have small amount of garbage data appended at the end of file
+- forgotten experimental code removed. (b1, broke Sequential 18Frames! part)
+- ECS superhires sprite color fixed (Didn't handle "color scrambling")
+
 Beta 6:
 
 - added "statefile_name" configuration file entry, sets default statefile name (normally "default.uss")

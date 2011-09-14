@@ -1112,7 +1112,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			mx -= mouseposx;
 			my -= mouseposy;
 
-			//write_log (L"%d %d %d %d %d %d %d\n", wm, mouseactive, focus, mx, my, mouseposx, mouseposy);
+			//write_log (L"%d %d %d %d %d %d %dx%d %dx%d\n", wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 			if (recapture && isfullscreen () <= 0) {
 				setmouseactive (1);
 				return 0;

@@ -2551,7 +2551,6 @@ static void finish_decisions (void)
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch (hpos);
-	finish_final_fetch (hpos, fetchmode);
 
 	record_color_change2 (hsyncstartpos, 0xffff, 0);
 	if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {

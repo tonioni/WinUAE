@@ -873,12 +873,16 @@ STATIC_INLINE uae_u8 render_sprites (int pos, int dualpf, uae_u8 apixel, int aga
 STATIC_INLINE uae_u32 shsprite (int dpix, uae_u32 spix_val, uae_u32 v, int spr)
 {
 	uae_u8 sprcol;
+	uae_u16 scol;
 	if (!spr)
 		return v;
 	sprcol = render_sprites (dpix, 0, spix_val, 0);
-	if (sprcol)
-		return colors_for_drawing.color_regs_ecs[sprcol];
-	return v;
+	if (!sprcol)
+		return v;
+	/* good enough for now.. */ 
+	scol = colors_for_drawing.color_regs_ecs[sprcol] & 0xccc;
+	scol |= scol >> 2;
+	return xcolors[scol];
 }
 
 static int NOINLINE linetoscr_16_sh (int spix, int dpix, int stoppos, int spr)
