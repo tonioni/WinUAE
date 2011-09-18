@@ -9,6 +9,8 @@
 *
 */
 
+//#define EXP_DEBUG
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -234,6 +236,9 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 #endif
 	addr &= 0xFFFF;
 	b = expamem[addr];
+#ifdef EXP_DEBUG
+	write_log (L"expamem_bget %x %x\n", addr, b);
+#endif
 	return b;
 }
 
@@ -267,6 +272,9 @@ static void REGPARAM2 expamem_lput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 {
+#ifdef EXP_DEBUG
+	write_log (L"expamem_wput %x %x\n", addr, value);
+#endif
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
@@ -319,6 +327,9 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 
 static void REGPARAM2 expamem_bput (uaecptr addr, uae_u32 value)
 {
+#ifdef EXP_DEBUG
+	write_log (L"expamem_bput %x %x\n", addr, value);
+#endif
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
@@ -638,6 +649,9 @@ static uae_u32 REGPARAM2 filesys_lget (uaecptr addr)
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesysory + addr;
+#ifdef EXP_DEBUG
+	write_log (L"filesys_lget %x %x\n", addr, do_get_mem_long ((uae_u32 *)m));
+#endif
 	return do_get_mem_long ((uae_u32 *)m);
 }
 
@@ -650,6 +664,9 @@ static uae_u32 REGPARAM2 filesys_wget (uaecptr addr)
 	addr -= filesys_start & 65535;
 	addr &= 65535;
 	m = filesysory + addr;
+#ifdef EXP_DEBUG
+	write_log (L"filesys_wget %x %x\n", addr, do_get_mem_word ((uae_u16 *)m));
+#endif
 	return do_get_mem_word ((uae_u16 *)m);
 }
 
@@ -660,6 +677,9 @@ static uae_u32 REGPARAM2 filesys_bget (uaecptr addr)
 #endif
 	addr -= filesys_start & 65535;
 	addr &= 65535;
+#ifdef EXP_DEBUG
+	write_log (L"filesys_bget %x %x\n", addr, filesysory[addr]);
+#endif
 	return filesysory[addr];
 }
 
@@ -683,6 +703,9 @@ static void REGPARAM2 filesys_bput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
+#endif
+#ifdef EXP_DEBUG
+	write_log (L"filesys_bput %x %x\n", addr, b);
 #endif
 }
 

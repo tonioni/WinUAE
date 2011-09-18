@@ -1058,20 +1058,20 @@ void rp_input_change (int num)
 	}
 	if (log_rp)
 		write_log(L"PORT%d: '%s':%d\n", num, name, mode);
-	rp_device_change (RP_DEVICE_INPUTPORT, num, mode, false, name);
+	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, false, name);
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {
 	rp_device_change (RP_DEVICE_FLOPPY, num, 0, writeprotected == false, name);
-	rp_device_writeprotect (RP_DEVICE_FLOPPY, num, writeprotected);
+	rp_device_writeprotect (RP_DEVICECATEGORY_FLOPPY, num, writeprotected);
 }
 void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
 {
-	rp_device_change (RP_DEVICE_HD, num, 0, readonly, name);
+	rp_device_change (RP_DEVICECATEGORY_HD, num, 0, readonly, name);
 }
 void rp_cd_image_change (int num, const TCHAR *name)
 {
-	rp_device_change (RP_DEVICE_CD, num, 0, 0, name);
+	rp_device_change (RP_DEVICECATEGORY_CD, num, 0, 0, name);
 }
 
 void rp_floppy_device_enable (int num, bool enabled)
@@ -1082,7 +1082,7 @@ void rp_floppy_device_enable (int num, bool enabled)
 		floppy_mask |= 1 << num;
 	else
 		floppy_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_hd_device_enable (int num, bool enabled)
@@ -1093,7 +1093,7 @@ void rp_hd_device_enable (int num, bool enabled)
 		hd_mask |= 1 << num;
 	else
 		hd_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_cd_device_enable (int num, bool enabled)
@@ -1104,7 +1104,7 @@ void rp_cd_device_enable (int num, bool enabled)
 		cd_mask |= 1 << num;
 	else
 		cd_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_floppy_track (int floppy, int track)
@@ -1115,7 +1115,7 @@ void rp_floppy_track (int floppy, int track)
 	if (oldtrack[floppy] == track)
 		return;
 	oldtrack[floppy] = track;
-	RPPostMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICE_FLOPPY, floppy), track, &guestinfo);
+	RPPostMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, floppy), track, &guestinfo);
 }
 
 void rp_update_leds (int led, int onoff, int write)
@@ -1145,7 +1145,7 @@ void rp_update_leds (int led, int onoff, int write)
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_FLOPPY, led - 1),
+		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - 1),
 			MAKELONG ((ledstate & 1) ? -1 : 0, (ledstate & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}
@@ -1165,7 +1165,7 @@ void rp_update_gameport (int port, int mask, int onoff)
 	else
 		gameportmask[port] &= ~mask;
 	if (old != gameportmask[port]) {
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_INPUTPORT, port),
+		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_INPUTPORT, port),
 			gameportmask[port], &guestinfo);
 	}
 }
@@ -1185,7 +1185,7 @@ void rp_hd_activity (int num, int onoff, int write)
 		return;
 	oldleds[num] = state;
 	if (state & 1) {
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_HD, num),
+		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_HD, num),
 			MAKELONG (200, (state & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), &guestinfo);
 	}
 }
@@ -1198,10 +1198,10 @@ void rp_cd_activity (int num, int onoff)
 		return;
 	if (onoff && !(cd_mask & (1 << num))) {
 		cd_mask |= 1 << num;
-		RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+		RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 	}
 	if (onoff) {
-		RPPostMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICE_CD, num),
+		RPPostMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_CD, num),
 			MAKELONG (200, RP_DEVICEACTIVITY_READ), &guestinfo);
 	}
 }

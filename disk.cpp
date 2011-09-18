@@ -2700,7 +2700,7 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 				floppy[dr].mfmpos %= drv->tracklen;
 			}
 		}
-		if (dmaen (DMA_DISK) && dskdmaen == 3 && dsklength > 0 && (!(adkcon &0x400) || dma_enable) && fifo_filled) {
+		if (dmaen (DMA_DISK) && dskdmaen == 3 && dsklength > 0 && (!(adkcon & 0x400) || dma_enable) && fifo_filled) {
 			bitoffset++;
 			bitoffset &= 15;
 			if (!bitoffset) {
@@ -2915,7 +2915,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			else
 				word |= getonebit (drv->bigmfmbuf, drv->mfmpos);
 		}
-		//write_log (L"%08X bo=%d so=%d mfmpos=%d dma=%d\n", (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos,dma_enable);
+		//write_log (L"%08X bo=%d so=%d mfmpos=%d dma=%d\n", (word & 0xffffff), bitoffset, syncoffset, drv->mfmpos, dma_enable);
 		drv->mfmpos++;
 		drv->mfmpos %= drv->tracklen;
 		if (drv->mfmpos == drv->indexoffset) {
