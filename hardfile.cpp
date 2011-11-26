@@ -315,6 +315,7 @@ int hdf_hd_open (struct hd_hardfiledata *hfd, const TCHAR *path, int blocksize, 
 	memset (hfd, 0, sizeof (struct hd_hardfiledata));
 	hfd->bootpri = bootpri;
 	hfd->hfd.blocksize = blocksize;
+	hfd->hfd.readonly = readonly;
 	if (!hdf_open (&hfd->hfd, path))
 		return 0;
 	hfd->path = my_strdup(path);

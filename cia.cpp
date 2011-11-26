@@ -82,8 +82,10 @@ static int ciaatodon, ciabtodon;
 static unsigned int ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_cnt;
 static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
-static int kbstate, kback, ciaasdr_unread;
-static unsigned int sleepyhead;
+#define KBACK_WAIT 1
+#define KBACK_ACTIVE 2
+#define KBACK_GOT 3
+static int kbstate, kback;
 
 static uae_u8 serbits;
 static int warned = 10;
@@ -538,7 +540,7 @@ static void setcode (uae_u8 keycode)
 static void sendrw (void)
 {
 	setcode (AK_RESETWARNING);
-	ciaasdr_unread = 1;
+	kback = KBACK_WAIT;
 	ciaaicr |= 8;
 	RethinkICRA ();
 	write_log (L"KB: sent reset warning code (phase=%d)\n", resetwarning_phase);
@@ -568,26 +570,29 @@ static void resetwarning_check (void)
 		if (resetwarning_timer <= 0) {
 			write_log (L"KB: reset warning forced reset. Phase=%d\n", resetwarning_phase);
 			resetwarning_phase = -1;
+			kback = 0;
 			uae_reset (0);
 		}
 	}
 	if (resetwarning_phase == 1) {
-		if (kback && !(ciaacra & 0x40) && ciaasdr_unread == 2) {
+		if (kback == KBACK_GOT) { /* first AK_RESETWARNING handshake received */
 			write_log (L"KB: reset warning second phase..\n");
 			resetwarning_phase = 2;
 			resetwarning_timer = maxvpos_nom * 5;
 			sendrw ();
 		}
 	} else if (resetwarning_phase == 2) {
-		if (ciaacra & 0x40) {
+		if (kback >= KBACK_ACTIVE) { /* second AK_RESETWARNING handshake active */
 			resetwarning_phase = 3;
 			write_log (L"KB: reset warning SP = output\n");
-			resetwarning_timer = 10 * maxvpos_nom * vblank_hz; /* wait max 10s */
+			/* System won't reset until handshake signal becomes inactive or 10s has passed */
+			resetwarning_timer = 10 * maxvpos_nom * vblank_hz;
 		}
 	} else if (resetwarning_phase == 3) {
-		if (!(ciaacra & 0x40)) {
+		if (kback != KBACK_ACTIVE) { /* second AK_RESETWARNING handshake disabled */
 			write_log (L"KB: reset warning end by software. reset.\n");
 			resetwarning_phase = -1;
+			kback = 0;
 			uae_reset (0);
 		}
 	}
@@ -613,54 +618,28 @@ void CIA_hsync_posthandler (bool dotod)
 		resetwarning_check ();
 		while (keys_available ())
 			get_next_key ();
-	} else if ((keys_available () || kbstate < 3) && kback && (ciaacra & 0x40) == 0 && (hsync_counter & 15) == 0) {
-		/*
-		* This hack lets one possible ciaaicr cycle go by without any key
-		* being read, for every cycle in which a key is pulled out of the
-		* queue.  If no hack is used, a lot of key events just get lost
-		* when you type fast.  With a simple hack that waits for ciaasdr
-		* to be read before feeding it another, it will keep up until the
-		* queue gets about 14 characters ahead and then lose events, and
-		* the mouse pointer will freeze while typing is being taken in.
-		* With this hack, you can type 30 or 40 characters ahead with little
-		* or no lossage, and the mouse doesn't get stuck.  The tradeoff is
-		* that the total slowness of typing appearing on screen is worse.
-		*/
-		if (ciaasdr_unread == 2) {
-			ciaasdr_unread = 0;
-		} else if (ciaasdr_unread == 0) {
-			switch (kbstate) {
+	} else if ((keys_available () || kbstate < 3) && (kback == 0 || kback == KBACK_GOT) && (hsync_counter & 15) == 0) {
+		switch (kbstate)
+		{
 			case 0:
 				ciaasdr = 0; /* powerup resync */
 				kbstate++;
-				ciaasdr_unread = 3;
 				break;
 			case 1:
 				setcode (AK_INIT_POWERUP);
 				kbstate++;
-				ciaasdr_unread = 3;
 				break;
 			case 2:
 				setcode (AK_TERM_POWERUP);
 				kbstate++;
-				ciaasdr_unread = 3;
 				break;
 			case 3:
 				ciaasdr = ~get_next_key ();
-				ciaasdr_unread = 1;      /* interlock to prevent lost keystrokes */
 				break;
-			}
-			ciaaicr |= 8;
-			RethinkICRA ();
-			sleepyhead = 0;
-		} else if (!(++sleepyhead & 15)) {
-			if (ciaasdr_unread == 3) {
-				ciaaicr |= 8;
-				RethinkICRA ();
-			}
-			if (ciaasdr_unread < 3)
-				ciaasdr_unread = 0;	/* give up on this key event after unread for a long time */
 		}
+		kback = KBACK_WAIT;
+		ciaaicr |= 8;
+		RethinkICRA ();
 	}
 }
 
@@ -871,8 +850,6 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		}
 		return (uae_u8)(ciaatol >> 16);
 	case 12:
-		if (ciaasdr_unread >= 1)
-			ciaasdr_unread = 2;
 		return ciaasdr;
 	case 13:
 		tmp = ciaaicr_reg;
@@ -1129,8 +1106,10 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		CIA_update ();
 		ciaasdr = val;
 		if (ciaacra & 0x40) {
-			kback = 1;
+			kback = KBACK_ACTIVE;
 		} else {
+			if (kback == KBACK_ACTIVE)
+				kback = KBACK_GOT;
 			ciaasdr_cnt = 0;
 		}
 		if ((ciaacra & 0x41) == 0x41 && ciaasdr_cnt == 0)
@@ -1145,9 +1124,12 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		val &= 0x7f; /* bit 7 is unused */
 		if ((val & 1) && !(ciaacra & 1))
 			ciaastarta = CIASTARTCYCLESCRA;
-		if (!(ciaacra & 0x40) && (val & 0x40))
-			kback = 1;
 		ciaacra = val;
+		if (ciaacra & 0x40) {
+			kback = KBACK_ACTIVE;
+		} else if (kback == KBACK_ACTIVE) {
+			kback = KBACK_GOT;
+		}
 		if (ciaacra & 0x10) {
 			ciaacra &= ~0x10;
 			ciaata = ciaala;
@@ -1331,7 +1313,7 @@ void CIA_reset (void)
 		tod_hack_enabled = 312 * 50 * 10;
 #endif
 
-	kback = 1;
+	kback = 0;
 	serbits = 0;
 	oldovl = 1;
 	oldcd32mute = 1;
@@ -1340,8 +1322,6 @@ void CIA_reset (void)
 
 	if (!savestate_state) {
 		kbstate = 0;
-		ciaasdr_unread = 0;
-		sleepyhead = 0;
 		ciaatlatch = ciabtlatch = 0;
 		ciaapra = 0; ciaadra = 0;
 		ciaatod = ciabtod = 0; ciaatodon = ciabtodon = 0;
@@ -1998,8 +1978,9 @@ uae_u8 *save_keyboard (int *len, uae_u8 *dstptr)
 	save_u32 (getcapslockstate () ? 1 : 0);
 	save_u32 (1);
 	save_u8 (kbstate);
-	save_u8 (ciaasdr_unread);
-	save_u8 (sleepyhead);
+	save_u8 (0);
+	save_u8 (0);
+	save_u8 (kback);
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -2009,8 +1990,9 @@ uae_u8 *restore_keyboard (uae_u8 *src)
 	setcapslockstate (restore_u32 () & 1);
 	uae_u32 v = restore_u32 ();
 	kbstate = restore_u8 ();
-	ciaasdr_unread = restore_u8 ();
-	sleepyhead = restore_u8 ();
+	restore_u8 ();
+	restore_u8 ();
+	kback = restore_u8 ();
 	if (!(v & 1))
 		kbstate = 3;
 	return src;

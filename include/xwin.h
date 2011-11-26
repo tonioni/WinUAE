@@ -32,15 +32,15 @@ extern void doflashscreen (void);
 extern int flashscreen;
 extern void updatedisplayarea (void);
 
-extern void flush_line (int);
-extern void flush_block (int, int);
-extern void flush_screen (int, int);
-extern void flush_clear_screen (void);
+extern void flush_line (struct vidbuffer*, int);
+extern void flush_block (struct vidbuffer*, int, int);
+extern void flush_screen (struct vidbuffer*, int, int);
+extern void flush_clear_screen (struct vidbuffer*);
 extern bool render_screen (void);
 extern void show_screen (void);
 
-extern int lockscr (int);
-extern void unlockscr (void);
+extern int lockscr (struct vidbuffer*, bool);
+extern void unlockscr (struct vidbuffer*);
 
 extern int debuggable (void);
 extern void LED (int);
@@ -62,16 +62,6 @@ extern void setup_dither (int bits, allocfunc_type allocfunc);
 extern void DitherLine (uae_u8 *l, uae_u16 *r4g4b4, int x, int y, uae_s16 len, int bits) ASM_SYM_FOR_FUNC("DitherLine");
 extern double getvsyncrate (double hz);
 
-struct vidbuf_description
-{
-    /* Function implemented by graphics driver */
-    void (*flush_line)         (struct vidbuf_description *gfxinfo, int line_no);
-    void (*flush_block)        (struct vidbuf_description *gfxinfo, int first_line, int end_line);
-    void (*flush_screen)       (struct vidbuf_description *gfxinfo, int first_line, int end_line);
-    void (*flush_clear_screen) (struct vidbuf_description *gfxinfo);
-    int  (*lockscr)            (struct vidbuf_description *gfxinfo);
-    void (*unlockscr)          (struct vidbuf_description *gfxinfo);
-
     /* The graphics code has a choice whether it wants to use a large buffer
      * for the whole display, or only a small buffer for a single line.
      * If you use a large buffer:
@@ -86,22 +76,64 @@ struct vidbuf_description
      *   - set linemem to point at your buffer
      *   - implement flush_line to copy a single line to the screen
      */
-    uae_u8 *bufmem, *bufmemend;
-    uae_u8 *realbufmem;
+struct vidbuffer
+{
+    /* Function implemented by graphics driver */
+    void (*flush_line)         (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int line_no);
+    void (*flush_block)        (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int end_line);
+    void (*flush_screen)       (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int first_line, int end_line);
+    void (*flush_clear_screen) (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
+    int  (*lockscr)            (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
+    void (*unlockscr)          (struct vidbuf_description *gfxinfo, struct vidbuffer *vb);
     uae_u8 *linemem;
     uae_u8 *emergmem;
+
+	uae_u8 *bufmem, *bufmemend;
+    uae_u8 *realbufmem;
 	bool bufmem_allocated;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
-    int outwidth;	/* reserved space */
-    int outheight;
-	int inwidth; /* needed space in current resolution setting */
+	/* size of this buffer */
+	int width;
+	int height;
+	/* size of max visible image */
+	int outwidth;
+	int outheight;
+	/* nominal size of image for centering */
+	int inwidth;
 	int inheight;
+	/* same but doublescan multiplier included */
+	int inwidth2;
+	int inheight2;
+	/* use drawbuffer instead */
+	bool nativepositioning;
+	/* extra width, chipset hpos extra in right border */
+	int extrawidth;
+
+	int xoffset; /* superhires pixels from left edge */
+	int yoffset; /* lines from top edge */
+};
+
+extern bool isnativevidbuf (void);
+
+struct vidbuf_description
+{
+
     int maxblocklines; /* Set to 0 if you want calls to flush_line after each drawn line, or the number of
 			* lines that flush_block wants to/can handle (it isn't really useful to use another
 			* value than maxline here). */
+
+    struct vidbuffer drawbuffer;
+	/* output buffer when using A2024 emulation */
+	struct vidbuffer tempbuffer;
+
+	struct vidbuffer *inbuffer;
+	struct vidbuffer *outbuffer;
+
 	int gfx_resolution_reserved; // reserved space for currprefs.gfx_resolution
 	int gfx_vresolution_reserved; // reserved space for currprefs.gfx_resolution
+	int xchange; /* how many superhires pixels in one pixel in buffer */
+	int ychange; /* how many interlaced lines in one line in buffer */
 };
 
 extern struct vidbuf_description gfxvidinfo;

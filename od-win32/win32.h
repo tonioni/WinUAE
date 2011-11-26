@@ -15,12 +15,12 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L""
-//#define WINUAEBETA L"Beta 7"
-#define WINUAEDATE MAKEBD(2011, 9, 18)
+//#define WINUAEBETA L""
+#define WINUAEBETA L"Beta 1"
+#define WINUAEDATE MAKEBD(2011, 11, 26)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -154,7 +154,7 @@ extern void logging_cleanup (void);
 
 extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec);
 
-#define MAX_SOUND_DEVICES 32
+#define MAX_SOUND_DEVICES 100
 #define SOUND_DEVICE_DS 1
 #define SOUND_DEVICE_AL 2
 #define SOUND_DEVICE_PA 3
@@ -169,8 +169,8 @@ struct sound_device
     int panum;
     int type;
 };
-extern struct sound_device sound_devices[MAX_SOUND_DEVICES];
-extern struct sound_device record_devices[MAX_SOUND_DEVICES];
+extern struct sound_device *sound_devices[MAX_SOUND_DEVICES];
+extern struct sound_device *record_devices[MAX_SOUND_DEVICES];
 
 struct contextcommand
 {

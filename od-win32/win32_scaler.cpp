@@ -100,6 +100,8 @@ static int vblscale2 (int v)
 	static int o;
 	int n;
 
+	if (!isnativevidbuf ())
+		return v;
 	n = (beamcon0 & 0x80) + maxvpos_nom;
 	if (n != o)
 		cleartemp = 1;
@@ -112,6 +114,8 @@ static int vblscale2 (int v)
 
 static void fixh (int *ah, int *th, int minh)
 {
+	if (!isnativevidbuf ())
+		return;
 	if (!(beamcon0 & 0x80)) {
 		int max = (AMIGA_HEIGHT_MAX * scale) << currprefs.gfx_vresolution;
 		if (minh && max < minh)
@@ -150,6 +154,7 @@ static void sizeoffset (RECT *dr, RECT *zr, int w, int h)
 static void getmanualpos (int *cxp, int *cyp, int *cwp, int *chp)
 {
 	int v, cx, cy, cw, ch;
+	bool native = isnativevidbuf ();
 
 	cx = *cxp;
 	cy = *cyp;
@@ -163,14 +168,14 @@ static void getmanualpos (int *cxp, int *cyp, int *cwp, int *chp)
 
 	v = currprefs.gfx_xcenter_size;
 	if (v <= 0)
-		cw = AMIGA_WIDTH_MAX * 4;
+		cw = native ? AMIGA_WIDTH_MAX * 4 : gfxvidinfo.outbuffer->outwidth;
 	else
 		cw = v;
 	cw >>=  (RES_MAX - currprefs.gfx_resolution);
 
 	v = currprefs.gfx_ycenter_size;
 	if (v <= 0)
-		ch = AMIGA_HEIGHT_MAX * 2;
+		ch = native ? AMIGA_HEIGHT_MAX * 2 : gfxvidinfo.outbuffer->outheight;
 	else
 		ch = v;
 	ch >>= (VRES_MAX - currprefs.gfx_vresolution);
@@ -190,6 +195,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	int v;
 	int extraw, extrah;
 	int fpuv;
+	bool specialmode = !isnativevidbuf ();
+
 
 	int filter_horiz_zoom = currprefs.gfx_filter_horiz_zoom;
 	int filter_vert_zoom = currprefs.gfx_filter_vert_zoom;
@@ -226,15 +233,16 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	dr->left = (temp_width - aws) / 2;
 	dr->top = (temp_height - ahs) / 2;
 
+	dr->left -= (dst_width - gfxvidinfo.outbuffer->inwidth2) / 2;
+	dr->top -= (dst_height - gfxvidinfo.outbuffer->inheight2) / 2;
+
+	dr->right = dr->left + dst_width;
+	dr->bottom = dr->top + dst_height;
+
 	filteroffsetx = 0;
 	filteroffsety = 0;
 	float xmult = filter_horiz_zoom_mult;
 	float ymult = filter_vert_zoom_mult;
-
-	dr->left -= (dst_width - aws) / 2;
-	dr->top -= (dst_height - ahs) / 2;
-	dr->right = dr->left + dst_width;
-	dr->bottom = dr->top + dst_height;
 
 	srcratio = 4.0 / 3.0;
 	if (currprefs.gfx_filter_aspect > 0) {
@@ -250,7 +258,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	int scalemode = currprefs.gfx_filter_autoscale;
 
-	if (scalemode == AUTOSCALE_STATIC_AUTO) {
+	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
 		if (currprefs.gfx_afullscreen) {
 			scalemode = AUTOSCALE_STATIC_NOMINAL;
 		} else {
@@ -275,16 +283,24 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		filterymult = 1000 / scale;
 
 		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER) {
-			cw = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-			ch = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
-			cx = 0;
-			cy = 0;
-			cv = 1;
-			if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER) {
-				cw -= 40 << currprefs.gfx_resolution;
-				ch -= 25 << currprefs.gfx_vresolution;
-				cx = 28 << currprefs.gfx_resolution;
-				cy = 10 << currprefs.gfx_vresolution;
+
+			if (specialmode) {
+				cx = 0;
+				cy = 0;
+				cw = gfxvidinfo.outbuffer->outwidth;
+				ch = gfxvidinfo.outbuffer->outheight;
+			} else {
+				cw = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+				ch = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;
+				cx = 0;
+				cy = 0;
+				cv = 1;
+				if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER) {
+					cw -= 40 << currprefs.gfx_resolution;
+					ch -= 25 << currprefs.gfx_vresolution;
+					cx = 28 << currprefs.gfx_resolution;
+					cy = 10 << currprefs.gfx_vresolution;
+				}
 			}
 
 			if (scalemode == AUTOSCALE_INTEGER) {
@@ -570,18 +586,19 @@ end:
 
 uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 {
+	struct vidbuffer *vb = gfxvidinfo.outbuffer;
 
 	*widthp = 0;
 	*heightp = 0;
 	*depth = amiga_depth;
 	if (usedfilter == NULL)
 		return NULL;
-	*widthp = gfxvidinfo.outwidth;
-	*heightp = gfxvidinfo.outheight;
+	*widthp = vb->width;
+	*heightp = vb->height;
 	if (pitch)
-		*pitch = gfxvidinfo.rowbytes;
-	*depth = gfxvidinfo.pixbytes * 8;
-	return gfxvidinfo.bufmem;
+		*pitch = vb->rowbytes;
+	*depth = vb->pixbytes * 8;
+	return vb->bufmem;
 #if 0
 	RECT dr, sr, zr;
 	uae_u8 *p;
@@ -593,10 +610,10 @@ uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 	}
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
-	p = gfxvidinfo.bufmem;
+	p = vb->bufmem;
 	if (pitch)
-		*pitch = gfxvidinfo.rowbytes;
-	p += (zr.top - (h / 2)) * gfxvidinfo.rowbytes + (zr.left - (w / 2)) * amiga_depth / 8;
+		*pitch = vb->rowbytes;
+	p += (zr.top - (h / 2)) * vb->rowbytes + (zr.left - (w / 2)) * amiga_depth / 8;
 	*widthp = w;
 	*heightp = h;
 	return p;
@@ -665,13 +682,14 @@ void S2X_free (void)
 void S2X_init (int dw, int dh, int dd)
 {
 	int flags = 0;
+	struct vidbuffer *vb = gfxvidinfo.outbuffer;
 
 	dst_width2 = dw;
 	dst_height2 = dh;
 	dst_depth2 = dd;
-	amiga_width2 = gfxvidinfo.inwidth;
-	amiga_height2 = gfxvidinfo.inheight;
-	amiga_depth2 = gfxvidinfo.pixbytes * 8;
+	amiga_width2 = vb->width;
+	amiga_height2 = vb->height;
+	amiga_depth2 = vb->pixbytes * 8;
 
 
 	S2X_free ();
@@ -713,9 +731,9 @@ void S2X_init (int dw, int dh, int dd)
 	dst_width = dw;
 	dst_height = dh;
 	dst_depth = dd;
-	amiga_width = gfxvidinfo.inwidth;
-	amiga_height = gfxvidinfo.inheight;
-	amiga_depth = gfxvidinfo.pixbytes * 8;
+	amiga_width = vb->width;
+	amiga_height = vb->height;
+	amiga_depth = vb->pixbytes * 8;
 
 	if (d3d) {
 		int m = currprefs.gfx_filter_filtermode + 1;
@@ -754,6 +772,7 @@ void S2X_init (int dw, int dh, int dd)
 
 void S2X_render (void)
 {
+	struct vidbuffer *vb = gfxvidinfo.outbuffer;
 	int aw, ah, aws, ahs;
 	uae_u8 *dptr, *enddptr, *sptr, *endsptr;
 	int ok = 0;
@@ -772,8 +791,8 @@ void S2X_render (void)
 	if (aw < 16)
 		return;
 
-	sptr = gfxvidinfo.bufmem;
-	endsptr = gfxvidinfo.bufmemend;
+	sptr = vb->bufmem;
+	endsptr = vb->bufmemend;
 	bufmem_ptr = sptr;
 
 	if (d3d) {
@@ -806,10 +825,10 @@ void S2X_render (void)
 	if (usedfilter->type == UAE_FILTER_SCALE2X) { /* 16+32/2X */
 
 		if (amiga_depth == 16 && dst_depth == 16) {
-			AdMame2x (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+			AdMame2x (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 			ok = 1;
 		} else if (amiga_depth == 32 && dst_depth == 32) {
-			AdMame2x32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+			AdMame2x32 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 			ok = 1;
 		}
 
@@ -826,7 +845,7 @@ void S2X_render (void)
 				int w = aw * (amiga_depth / 8);
 				memcpy (dptr2, sptr, w);
 				dptr2 += w;
-				sptr += gfxvidinfo.rowbytes;
+				sptr += vb->rowbytes;
 			}
 			if (amiga_depth == 16 && dst_depth == 32) {
 				if (usedfilter->type == UAE_FILTER_HQ2X)
@@ -860,10 +879,10 @@ void S2X_render (void)
 
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {
-				SuperEagle_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				SuperEagle_16 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			} else if (dst_depth == 32) {
-				SuperEagle_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				SuperEagle_32 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			}
 		}
@@ -872,10 +891,10 @@ void S2X_render (void)
 
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {
-				Super2xSaI_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				Super2xSaI_16 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			} else if (dst_depth == 32) {
-				Super2xSaI_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				Super2xSaI_32 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			}
 		}
@@ -884,10 +903,10 @@ void S2X_render (void)
 
 		if (scale == 2 && amiga_depth == 16) {
 			if (dst_depth == 16) {
-				_2xSaI_16 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				_2xSaI_16 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			} else if (dst_depth == 32) {
-				_2xSaI_32 (sptr, gfxvidinfo.rowbytes, dptr, pitch, aw, ah);
+				_2xSaI_32 (sptr, vb->rowbytes, dptr, pitch, aw, ah);
 				ok = 1;
 			}
 		}
@@ -895,10 +914,10 @@ void S2X_render (void)
 	} else if (usedfilter->type == UAE_FILTER_PAL) { /* 16/32/1X */
 
 		if (amiga_depth == 32 && dst_depth == 32) {
-			PAL_1x1_32 ((uae_u32*)sptr, gfxvidinfo.rowbytes, (uae_u32*)dptr, pitch, aw, ah);
+			PAL_1x1_32 ((uae_u32*)sptr, vb->rowbytes, (uae_u32*)dptr, pitch, aw, ah);
 			ok = 1;
 		} else if (amiga_depth == 16 && dst_depth == 16) {
-			PAL_1x1_16 ((uae_u16*)sptr, gfxvidinfo.rowbytes, (uae_u16*)dptr, pitch, aw, ah);
+			PAL_1x1_16 ((uae_u16*)sptr, vb->rowbytes, (uae_u16*)dptr, pitch, aw, ah);
 			ok = 1;
 		}
 
@@ -908,7 +927,7 @@ void S2X_render (void)
 			int y;
 			for (y = 0; y < ah; y++) {
 				memcpy (dptr, sptr, aw * dst_depth / 8);
-				sptr += gfxvidinfo.rowbytes;
+				sptr += vb->rowbytes;
 				dptr += pitch;
 			}
 		}

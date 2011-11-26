@@ -8,8 +8,8 @@
 */
 
 #define UAEMAJOR 2
-#define UAEMINOR 3
-#define UAESUBREV 3
+#define UAEMINOR 4
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -136,6 +136,11 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 #define AUTOSCALE_INTEGER 8
+
+#define MONITOREMU_NONE 0
+#define MONITOREMU_AUTO 1
+#define MONITOREMU_A2024 2
+#define MONITOREMU_GRAFFITI 3
 
 #define MAX_CHIPSET_REFRESH 10
 #define MAX_CHIPSET_REFRESH_TOTAL (MAX_CHIPSET_REFRESH + 2)
@@ -275,6 +280,7 @@ struct uae_prefs {
 	unsigned int chipset_mask;
 	bool ntscmode;
 	bool genlock;
+	int monitoremu;
 	double chipset_refreshrate;
 	struct chipset_refresh cr[MAX_CHIPSET_REFRESH + 2];
 	int cr_selected;

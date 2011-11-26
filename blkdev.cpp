@@ -483,6 +483,7 @@ void blkdev_exitgui (void)
 static void check_changes (int unitnum)
 {
 	bool changed = false;
+	bool gotsem = false;
 
 	if (device_func[unitnum] == NULL)
 		return;
@@ -501,7 +502,7 @@ static void check_changes (int unitnum)
 
 	if (changed) {
 		if (unitsem[unitnum])
-			getsem (unitnum, true);
+			gotsem = getsem (unitnum, true);
 		cdimagefileinuse[unitnum] = changed_prefs.cdslots[unitnum].inuse;
 		_tcscpy (newimagefiles[unitnum], changed_prefs.cdslots[unitnum].name);
 		changed_prefs.cdslots[unitnum].name[0] = currprefs.cdslots[unitnum].name[0] = 0;
@@ -523,8 +524,10 @@ static void check_changes (int unitnum)
 #ifdef RETROPLATFORM
 		rp_cd_image_change (unitnum, NULL); 
 #endif
-		if (unitsem[unitnum])
+		if (gotsem) {
 			freesem (unitnum);
+			gotsem = false;
+		}
 	}
 	if (imagechangetime[unitnum] == 0)
 		return;
@@ -532,12 +535,12 @@ static void check_changes (int unitnum)
 	if (imagechangetime[unitnum] > 0)
 		return;
 	if (unitsem[unitnum])
-		getsem (unitnum, true);
+		gotsem = getsem (unitnum, true);
 	_tcscpy (currprefs.cdslots[unitnum].name, newimagefiles[unitnum]);
 	_tcscpy (changed_prefs.cdslots[unitnum].name, newimagefiles[unitnum]);
 	currprefs.cdslots[unitnum].inuse = changed_prefs.cdslots[unitnum].inuse = cdimagefileinuse[unitnum];
 	newimagefiles[unitnum][0] = 0;
-	write_log (L"CD: delayed insert '%s' (open=%d)\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>", wasopen[unitnum] ? 1 : 0);
+	write_log (L"CD: delayed insert '%s' (open=%d,unit=%d)\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>", wasopen[unitnum] ? 1 : 0, unitnum);
 	device_func_init (0);
 	if (wasopen[unitnum]) {
 		if (!device_func[unitnum]->opendev (unitnum, currprefs.cdslots[unitnum].name, 0)) {
@@ -551,13 +554,19 @@ static void check_changes (int unitnum)
 		struct device_info di;
 		device_func[unitnum]->info (unitnum, &di, 0);
 		int pollmode;
+		if (gotsem) {
+			freesem (unitnum);
+			gotsem = false;
+		}
 		scsi_do_disk_change (unitnum, 1, &pollmode);
 	}
 #ifdef RETROPLATFORM
 	rp_cd_image_change (unitnum, currprefs.cdslots[unitnum].name);
 #endif
-	if (unitsem[unitnum])
+	if (gotsem) {
 		freesem (unitnum);
+		gotsem = false;
+	}
 
 	config_changed = 1;
 

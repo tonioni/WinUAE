@@ -1469,12 +1469,12 @@ static void mousehack_helper (void)
 		y -= fdy * fmy / 1000 - 2;
 		if (x < 0)
 			x = 0;
-		if (x >= gfxvidinfo.outwidth)
-			x = gfxvidinfo.outwidth - 1;
+		if (x >= gfxvidinfo.outbuffer->outwidth)
+			x = gfxvidinfo.outbuffer->outwidth - 1;
 		if (y < 0)
 			y = 0;
-		if (y >= gfxvidinfo.outheight)
-			y = gfxvidinfo.outheight - 1;
+		if (y >= gfxvidinfo.outbuffer->outheight)
+			y = gfxvidinfo.outbuffer->outheight - 1;
 		x = coord_native_to_amiga_x (x);
 		y = coord_native_to_amiga_y (y) << 1;
 	}
@@ -1858,6 +1858,8 @@ uae_u8 handle_parport_joystick (int port, uae_u8 pra, uae_u8 dra)
 				v &= ~4;
 			if (getbuttonstate (3, 0))
 				v &= ~1;
+			if (getbuttonstate (2, 1) || getbuttonstate (3, 1))
+				v &= ~2; /* spare */
 		}
 		return v;
 	default:
@@ -2688,8 +2690,8 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	case 5: /* lightpen/gun */
 		{
 			if (lightpen_x < 0 && lightpen_y < 0) {
-				lightpen_x = gfxvidinfo.outwidth / 2;
-				lightpen_y = gfxvidinfo.outheight / 2;
+				lightpen_x = gfxvidinfo.outbuffer->outwidth / 2;
+				lightpen_y = gfxvidinfo.outbuffer->outheight / 2;
 			}
 			if (ie->type == 0) {
 				int delta = 0;
@@ -3523,12 +3525,12 @@ static int rem_port2[] = {
 };
 static int rem_port3[] = {
 	INPUTEVENT_PAR_JOY1_LEFT, INPUTEVENT_PAR_JOY1_RIGHT, INPUTEVENT_PAR_JOY1_UP, INPUTEVENT_PAR_JOY1_DOWN,
-	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON, INPUTEVENT_PAR_JOY1_2ND_BUTTON,
 	-1
 };
 static int rem_port4[] = {
 	INPUTEVENT_PAR_JOY2_LEFT, INPUTEVENT_PAR_JOY2_RIGHT, INPUTEVENT_PAR_JOY2_UP, INPUTEVENT_PAR_JOY2_DOWN,
-	INPUTEVENT_PAR_JOY2_FIRE_BUTTON,
+	INPUTEVENT_PAR_JOY2_FIRE_BUTTON, INPUTEVENT_PAR_JOY2_2ND_BUTTON,
 	-1
 };
 
@@ -3542,11 +3544,11 @@ static int af_port2[] = {
 	-1
 };
 static int af_port3[] = {
-	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON, INPUTEVENT_PAR_JOY1_2ND_BUTTON,
 	-1
 };
 static int af_port4[] = {
-	INPUTEVENT_PAR_JOY2_FIRE_BUTTON,
+	INPUTEVENT_PAR_JOY2_FIRE_BUTTON, INPUTEVENT_PAR_JOY2_2ND_BUTTON,
 	-1
 };
 static int *af_ports[] = { af_port1, af_port2, af_port3, af_port4 };
@@ -3584,10 +3586,20 @@ static int ip_joycd322[] = {
 };
 static int ip_parjoy1[] = {
 	INPUTEVENT_PAR_JOY1_LEFT, INPUTEVENT_PAR_JOY1_RIGHT, INPUTEVENT_PAR_JOY1_UP, INPUTEVENT_PAR_JOY1_DOWN,
-	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON, INPUTEVENT_PAR_JOY1_2ND_BUTTON,
 	-1
 };
 static int ip_parjoy2[] = {
+	INPUTEVENT_PAR_JOY2_LEFT, INPUTEVENT_PAR_JOY2_RIGHT, INPUTEVENT_PAR_JOY2_UP, INPUTEVENT_PAR_JOY2_DOWN,
+	INPUTEVENT_PAR_JOY2_FIRE_BUTTON, INPUTEVENT_PAR_JOY2_2ND_BUTTON,
+	-1
+};
+static int ip_parjoy1default[] = {
+	INPUTEVENT_PAR_JOY1_LEFT, INPUTEVENT_PAR_JOY1_RIGHT, INPUTEVENT_PAR_JOY1_UP, INPUTEVENT_PAR_JOY1_DOWN,
+	INPUTEVENT_PAR_JOY1_FIRE_BUTTON,
+	-1
+};
+static int ip_parjoy2default[] = {
 	INPUTEVENT_PAR_JOY2_LEFT, INPUTEVENT_PAR_JOY2_RIGHT, INPUTEVENT_PAR_JOY2_UP, INPUTEVENT_PAR_JOY2_DOWN,
 	INPUTEVENT_PAR_JOY2_FIRE_BUTTON,
 	-1
@@ -4342,7 +4354,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				else if (JSEM_ISXARCADE2 (i, prefs))
 					kb = keyboard_default_kbmaps[KBR_DEFAULT_MAP_XA2];
 				if (kb) {
-					setcompakb (kb, i == 3 ? ip_parjoy2 : ip_parjoy1, i, prefs->jports[i].autofire);
+					setcompakb (kb, i == 3 ? ip_parjoy2default : ip_parjoy1default, i, prefs->jports[i].autofire);
 					used[joy] = 1;
 					joymodes[i] = JSEM_MODE_JOYSTICK;
 				}

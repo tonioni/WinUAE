@@ -614,29 +614,30 @@ static int ds_init_record (struct DSAHI *dsahip)
 {
 	uae_u32 pbase = get_long (dsahip->audioctrl + ahiac_DriverData);
 	int freq = get_long (dsahip->audioctrl + ahiac_MixFreq);
-	struct sound_device *sd;
-	int device;
+	struct sound_device **sd;
+	int device, cnt;
 	char *s;
 
 	if (!freq)
 		return 0;
 	device = dsahip->input;
 	sd = record_devices;
+	cnt = 0;
 	for (;;) {
-		if (sd->type == SOUND_DEVICE_AL) {
+		if (sd[cnt] && sd[cnt]->type == SOUND_DEVICE_AL) {
 			if (device <= 0)
 				break;
 			device--;
 		}
-		sd++;
-		if (sd->name == NULL)
+		cnt++;
+		if (sd[cnt] == NULL)
 			return 0;
 	}
 	dsahip->record_samples = UAE_RECORDSAMPLES;
 	dsahip->record_ch = 2;
 	dsahip->record_bytespersample = 2;
 	alClear ();
-	s = ua (sd->alname);
+	s = ua (sd[cnt]->alname);
 	dsahip->al_recorddev = alcCaptureOpenDevice (s, freq, AL_FORMAT_STEREO16, dsahip->record_samples);
 	xfree (s);
 	if (dsahip->al_recorddev == NULL)
@@ -652,23 +653,25 @@ static int ds_init (struct DSAHI *dsahip)
 {
 	int freq = 44100;
 	int v;
-	struct sound_device *sd;
+	struct sound_device **sd;
 	int device;
 	char *s;
+	int cnt;
 
 	device = dsahip->output;
 	sd = sound_devices;
+	cnt = 0;
 	for (;;) {
-		if (sd->type == SOUND_DEVICE_AL) {
+		if (sd[cnt] && sd[cnt]->type == SOUND_DEVICE_AL) {
 			if (device <= 0)
 				break;
 			device--;
 		}
-		sd++;
-		if (sd->name == NULL)
+		cnt++;
+		if (sd[cnt] == NULL)
 			return 0;
 	}
-	s = ua (sd->alname);
+	s = ua (sd[cnt]->alname);
 	dsahip->al_dev = alcOpenDevice (s);
 	xfree (s);
 	if (!dsahip->al_dev)
@@ -703,7 +706,7 @@ static int ds_init (struct DSAHI *dsahip)
 	dsahip->tmpbuffer_size = 1000000;
 	dsahip->tmpbuffer = xmalloc (uae_u8, dsahip->tmpbuffer_size);
 	if (ahi_debug)
-		write_log (L"AHI: OpenAL initialized: %s\n", sound_devices[dsahip->output].name);
+		write_log (L"AHI: OpenAL initialized: %s\n", sound_devices[dsahip->output]->name);
 
 	return 1;
 error:
@@ -1309,15 +1312,15 @@ static uae_u32 init (TrapContext *ctx)
 	xahi_copyright = ds (L"GPL");
 	xahi_version = ds (L"uae2 0.2 (xx.xx.2008)\r\n");
 	j = 0;
-	for (i = 0; sound_devices[i].name; i++) {
-		if (sound_devices[i].type == SOUND_DEVICE_AL)
-			xahi_output[j++] = ds (sound_devices[i].name);
+	for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+		if (sound_devices[i]->type == SOUND_DEVICE_AL)
+			xahi_output[j++] = ds (sound_devices[i]->name);
 	}
 	xahi_output_num = j;
 	j = 0;
-	for (i = 0; record_devices[i].name; i++) {
-		if (record_devices[i].type == SOUND_DEVICE_AL)
-			xahi_input[j++] = ds (record_devices[i].name);
+	for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+		if (record_devices[i]->type == SOUND_DEVICE_AL)
+			xahi_input[j++] = ds (record_devices[i]->name);
 	}
 	xahi_input_num = j;
 	return 1;

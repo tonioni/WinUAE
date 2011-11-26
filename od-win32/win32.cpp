@@ -894,6 +894,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #if MSGDEBUG > 1
 	write_log (L"AWP: %x %x\n", hWnd, message);
 #endif
+
+	switch (message)
+	{
+	case WM_INPUT:
+		handle_rawinput (lParam);
+		DefWindowProc (hWnd, message, wParam, lParam);
+		return 0;
+	}
+
 	if (ignore_messages_all)
 		return DefWindowProc (hWnd, message, wParam, lParam);
 
@@ -948,7 +957,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				SendMessage (hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 				return 0;
 			}
-			setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
+			if (!pause_emulation)
+				setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 		} else if (dinput_winmouse () >= 0 && isfocus ()) {
 			setmousebuttonstate (dinput_winmouse (), 0, 1);
 		}
@@ -1299,11 +1309,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		if(currprefs.win32_ctrl_F11_is_quit && wParam == VK_F4)
 			return 0;
 		break;
-
-	case WM_INPUT:
-		handle_rawinput (lParam);
-		DefWindowProc (hWnd, message, wParam, lParam);
-		return 0;
 
 	case WM_NOTIFY:
 		{
@@ -2177,8 +2182,11 @@ int debuggable (void)
 void toggle_mousegrab (void)
 {
 }
+
 #define LOG_BOOT L"winuaebootlog.txt"
 #define LOG_NORMAL L"winuaelog.txt"
+
+static bool createbootlog = true;
 
 void logging_open (int bootlog, int append)
 {
@@ -2188,8 +2196,11 @@ void logging_open (int bootlog, int append)
 #ifndef	SINGLEFILE
 	if (currprefs.win32_logfile)
 		_stprintf (debugfilename, L"%s%s", start_path_data, LOG_NORMAL);
-	if (bootlog)
+	if (bootlog) {
 		_stprintf (debugfilename, L"%s%s", start_path_data, LOG_BOOT);
+		if (!createbootlog)
+			bootlog = -1;
+	}
 	if (debugfilename[0]) {
 		if (!debugfile)
 			debugfile = log_open (debugfilename, append, bootlog);
@@ -2837,19 +2848,19 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"none");
 	else if (p->win32_midioutdev == -1)
 		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"default");
-	else if (p->win32_midioutdev >= 0 && p->win32_midioutdev < MAX_MIDI_PORTS) {
-		if (midioutportinfo[p->win32_midioutdev + 1].name == NULL)
+	else if (p->win32_midioutdev >= 0 && p->win32_midioutdev < MAX_MIDI_PORTS - 1) {
+		if (midioutportinfo[p->win32_midioutdev + 1] == NULL)
 			p->win32_midioutdev = -1;
 		else
-			cfgfile_target_dwrite_str (f, L"midiout_device_name", midioutportinfo[p->win32_midioutdev + 1].name);
+			cfgfile_target_dwrite_str (f, L"midiout_device_name", midioutportinfo[p->win32_midioutdev + 1]->name);
 	}
 	if (p->win32_midiindev < 0)
 		cfgfile_target_dwrite_str (f, L"midiin_device_name", L"none");
 	else if (p->win32_midiindev >= 0 && p->win32_midiindev < MAX_MIDI_PORTS) {
-		if (midiinportinfo[p->win32_midiindev].name == NULL)
+		if (midiinportinfo[p->win32_midiindev] == NULL)
 			p->win32_midiindev = -1;
 		else
-			cfgfile_target_dwrite_str (f, L"midiin_device_name", midiinportinfo[p->win32_midiindev].name);
+			cfgfile_target_dwrite_str (f, L"midiin_device_name", midiinportinfo[p->win32_midiindev]->name);
 	}
 			
 	cfgfile_target_dwrite_bool (f, L"rtg_match_depth", p->win32_rtgmatchdepth);
@@ -2866,13 +2877,13 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, L"uaescsimode", scsimode[p->win32_uaescsimode]);
 	cfgfile_target_dwrite_str (f, L"statusbar", statusbarmode[p->win32_statusbar]);
 	cfgfile_target_dwrite (f, L"soundcard", L"%d", p->win32_soundcard);
-	if (sound_devices[p->win32_soundcard].cfgname)
-		cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard].cfgname);
+	if (p->win32_soundcard >= 0 && p->win32_soundcard < MAX_SOUND_DEVICES && sound_devices[p->win32_soundcard])
+		cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard]->cfgname);
 	cfgfile_target_dwrite_bool (f, L"soundcard_exclusive", p->win32_soundexclusive);
-	if (p->win32_samplersoundcard >= 0) {
+	if (p->win32_samplersoundcard >= 0 && p->win32_samplersoundcard < MAX_SOUND_DEVICES) {
 		cfgfile_target_dwrite (f, L"samplersoundcard", L"%d", p->win32_samplersoundcard);
-		if (record_devices[p->win32_samplersoundcard].cfgname)
-			cfgfile_target_dwrite_str (f, L"samplersoundcardname", record_devices[p->win32_samplersoundcard].cfgname);
+		if (record_devices[p->win32_samplersoundcard])
+			cfgfile_target_dwrite_str (f, L"samplersoundcardname", record_devices[p->win32_samplersoundcard]->cfgname);
 	}
 
 	cfgfile_target_dwrite (f, L"cpu_idle", L"%d", p->cpu_idle);
@@ -2973,17 +2984,17 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 
 		num = p->win32_soundcard;
 		p->win32_soundcard = -1;
-		for (i = 0; sound_devices[i].cfgname; i++) {
+		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i] ; i++) {
 			if (i < num)
 				continue;
-			if (!_tcscmp (sound_devices[i].cfgname, tmpbuf)) {
+			if (!_tcscmp (sound_devices[i]->cfgname, tmpbuf)) {
 				p->win32_soundcard = i;
 				break;
 			}
 		}
 		if (p->win32_soundcard < 0) {
-			for (i = 0; sound_devices[i].cfgname; i++) {
-				if (!_tcscmp (sound_devices[i].cfgname, tmpbuf)) {
+			for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+				if (!_tcscmp (sound_devices[i]->cfgname, tmpbuf)) {
 					p->win32_soundcard = i;
 					break;
 				}
@@ -2998,17 +3009,17 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 
 		num = p->win32_samplersoundcard;
 		p->win32_samplersoundcard = -1;
-		for (i = 0; record_devices[i].cfgname; i++) {
+		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 			if (i < num)
 				continue;
-			if (!_tcscmp (record_devices[i].cfgname, tmpbuf)) {
+			if (!_tcscmp (record_devices[i]->cfgname, tmpbuf)) {
 				p->win32_samplersoundcard = i;
 				break;
 			}
 		}
 		if (p->win32_samplersoundcard < 0) {
-			for (i = 0; record_devices[i].cfgname; i++) {
-				if (!_tcscmp (record_devices[i].cfgname, tmpbuf)) {
+			for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+				if (!_tcscmp (record_devices[i]->cfgname, tmpbuf)) {
 					p->win32_samplersoundcard = i;
 					break;
 				}
@@ -3105,10 +3116,10 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 
 	if (cfgfile_string (option, value, L"midiout_device_name", tmpbuf, 256)) {
 		p->win32_midioutdev = -2;
-		if (!_tcsicmp (tmpbuf, L"default") || (midioutportinfo[0].name && !_tcsicmp (tmpbuf, midioutportinfo[0].name)))
+		if (!_tcsicmp (tmpbuf, L"default") || (midioutportinfo[0] && !_tcsicmp (tmpbuf, midioutportinfo[0]->name)))
 			p->win32_midioutdev = -1;
-		for (int i = 0; midioutportinfo[i].name; i++) {
-			if (!_tcsicmp (midioutportinfo[i].name, tmpbuf)) {
+		for (int i = 0; i < MAX_MIDI_PORTS && midioutportinfo[i]; i++) {
+			if (!_tcsicmp (midioutportinfo[i]->name, tmpbuf)) {
 				p->win32_midioutdev = i - 1;
 			}
 		}
@@ -3116,8 +3127,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	}
 	if (cfgfile_string (option, value, L"midiin_device_name", tmpbuf, 256)) {
 		p->win32_midiindev = -1;
-		for (int i = 0; midiinportinfo[i].name; i++) {
-			if (!_tcsicmp (midiinportinfo[i].name, tmpbuf)) {
+		for (int i = 0; i < MAX_MIDI_PORTS && midiinportinfo[i]; i++) {
+			if (!_tcsicmp (midiinportinfo[i]->name, tmpbuf)) {
 				p->win32_midiindev = i;
 			}
 		}
@@ -4667,7 +4678,16 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"portable")) {
 		inipath = getdefaultini ();
+		createbootlog = false;
 		return 2;
+	}
+	if (!_tcscmp (arg, L"bootlog")) {
+		createbootlog = true;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"nobootlog")) {
+		createbootlog = false;
+		return 1;
 	}
 
 	if (!np)
@@ -4952,14 +4972,14 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		sortdisplays ();
 		write_log (L"Display buffer mode = %d\n", ddforceram);
 		enumerate_sound_devices ();
-		for (i = 0; sound_devices[i].name; i++) {
-			int type = sound_devices[i].type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), sound_devices[i].name);
+		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
+			int type = sound_devices[i]->type;
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), sound_devices[i]->name);
 		}
 		write_log (L"Enumerating recording devices:\n");
-		for (i = 0; record_devices[i].name; i++) {
-			int type = record_devices[i].type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), record_devices[i].name);
+		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
+			int type = record_devices[i]->type;
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), record_devices[i]->name);
 		}
 		write_log (L"done\n");
 		memset (&devmode, 0, sizeof (devmode));

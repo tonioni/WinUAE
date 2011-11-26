@@ -1582,7 +1582,7 @@ static void setupscenecoords (void)
 	D3DXMatrixMultiply (&postproj, &tmpmatrix, &m_matProj);
 }
 
-uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
+uae_u8 *getfilterbuffer3d (struct vidbuffer *vb, int *widthp, int *heightp, int *pitch, int *depth)
 {
 	RECT dr, sr, zr;
 	uae_u8 *p;
@@ -1592,10 +1592,10 @@ uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth)
 	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
-	p = gfxvidinfo.bufmem;
+	p = vb->bufmem;
 	if (pitch)
-		*pitch = gfxvidinfo.rowbytes;
-	p += (zr.top - h / 2) * gfxvidinfo.rowbytes + (zr.left - w / 2) * t_depth / 8;
+		*pitch = vb->rowbytes;
+	p += (zr.top - h / 2) * vb->rowbytes + (zr.left - w / 2) * t_depth / 8;
 	*widthp = w;
 	*heightp = h;
 	return p;
@@ -1892,7 +1892,7 @@ bool D3D_vblank_busywait (void)
 	}
 }
 
-const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
@@ -1904,8 +1904,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	bool newvsync = currprefs.gfx_avsync && currprefs.gfx_avsyncmode && !picasso_on;
-	int t_w = gfxvidinfo.outwidth;
-	int t_h = gfxvidinfo.outheight;
+
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -2048,7 +2047,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			write_log (L"%s\n", errmsg);
 			write_log (L"%s: Retrying fullscreen with DirectDraw\n", D3DHEAD);
 			if (ddraw_fs_hack_init ()) {
-				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, depth, mult);
+				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 				if (err2)
 					ddraw_fs_hack_free ();
 				return err2;
@@ -2057,7 +2056,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		if (d3d_ex && D3DEX) {
 			write_log (L"%s\n", errmsg);
 			D3DEX = 0;
-			return D3D_init (ahwnd, w_w, w_h, depth, mult);
+			return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 		}
 		D3D_free ();
 		return errmsg;
@@ -2098,7 +2097,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (L"Disabling D3D9Ex\n");
-		return D3D_init (ahwnd, w_w, w_h, depth, mult);
+		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
 	}
 	if (!shaderon)
 		write_log (L"Using non-shader version\n");

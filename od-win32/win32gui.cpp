@@ -5322,6 +5322,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #endif
 	ew (hDlg, IDC_FASTCOPPER, enable);
 	ew (hDlg, IDC_GENLOCK, full_property_sheet);
+	ew (hDlg, IDC_MONITOREMU, full_property_sheet);
 	ew (hDlg, IDC_BLITIMM, enable);
 	if (enable == FALSE) {
 		workprefs.immediate_blits = 0;
@@ -6067,22 +6068,9 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
 	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"Generic");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CDTV");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CD32");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A500");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A500+");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A600");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A1000");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A1200");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A2000");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A3000");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A3000T");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A4000");
-	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A4000T");
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
+	SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_SETCURSEL, workprefs.monitoremu, 0);
+
 }
 
 static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6123,6 +6111,9 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		workprefs.cs_compatible = nn;
 		built_in_chipset_prefs (&workprefs);
 	}
+	nn = SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_GETCURSEL, 0, 0);
+	if (nn != CB_ERR)
+		workprefs.monitoremu = nn;
 }
 
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6133,6 +6124,29 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 	case WM_INITDIALOG:
 		pages[CHIPSET_ID] = hDlg;
 		currentpage = CHIPSET_ID;
+
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"Generic");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CDTV");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CD32");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A500");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A500+");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A600");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A1000");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A1200");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A2000");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A3000");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A3000T");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A4000");
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A4000T");
+
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"-");
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"Autodetect");
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"A2024");
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"Graffiti");
+
 #ifndef	AGA
 		ew (hDlg, IDC_AGA, FALSE);
 #endif
@@ -8117,7 +8131,7 @@ static void update_soundgui (HWND hDlg)
 	_stprintf (txt, L"%d%%", 100 - workprefs.dfxclickvolume);
 	SetDlgItemText (hDlg, IDC_SOUNDDRIVEVOLUME2, txt);
 
-	canexc = sound_devices[workprefs.win32_soundcard].type == SOUND_DEVICE_WASAPI;
+	canexc = sound_devices[workprefs.win32_soundcard]->type == SOUND_DEVICE_WASAPI;
 	ew (hDlg, IDC_SOUND_EXCLUSIVE, canexc);
 	if (!canexc)
 		workprefs.win32_soundexclusive = 0;
@@ -8432,10 +8446,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			numdevs = enumerate_sound_devices ();
 			for (card = 0; card < numdevs; card++) {
 				TCHAR tmp[MAX_DPATH];
-				int type = sound_devices[card].type;
+				int type = sound_devices[card]->type;
 				_stprintf (tmp, L"%s: %s",
 					type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
-					sound_devices[card].name);
+					sound_devices[card]->name);
 				SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
 			if (numdevs == 0)
@@ -10422,10 +10436,9 @@ static INT_PTR CALLBACK SwapperDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 static PRINTER_INFO_1 *pInfo = NULL;
 static DWORD dwEnumeratedPrinters = 0;
-#define MAX_PRINTERS 10
-struct serparportinfo comports[MAX_SERPAR_PORTS];
-struct midiportinfo midiinportinfo[MAX_MIDI_PORTS];
-struct midiportinfo midioutportinfo[MAX_MIDI_PORTS];
+struct serparportinfo *comports[MAX_SERPAR_PORTS];
+struct midiportinfo *midiinportinfo[MAX_MIDI_PORTS];
+struct midiportinfo *midioutportinfo[MAX_MIDI_PORTS];
 static int ghostscript_available;
 
 static int joyxprevious[4];
@@ -10715,7 +10728,7 @@ static void values_from_portsdlg (HWND hDlg)
 	item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR && item > 0) {
 		workprefs.use_serial = 1;
-		_tcscpy (workprefs.sername, comports[item - 1].dev);
+		_tcscpy (workprefs.sername, comports[item - 1]->dev);
 	} else {
 		workprefs.use_serial = 0;
 		workprefs.sername[0] = 0;
@@ -10807,8 +10820,8 @@ static void values_to_portsdlg (HWND hDlg)
 	} else {
 		int i;
 		LRESULT result = -1;
-		for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-			if (!_tcscmp (comports[i].dev, workprefs.sername) || (!_tcsncmp (workprefs.sername, L"TCP:", 4) && !_tcsncmp (comports[i].dev, workprefs.sername, 4))) {
+		for (i = 0; i < MAX_SERPAR_PORTS && comports[i]; i++) {
+			if (!_tcscmp (comports[i]->dev, workprefs.sername) || (!_tcsncmp (workprefs.sername, L"TCP:", 4) && !_tcsncmp (comports[i]->dev, workprefs.sername, 4))) {
 				result = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_SETCURSEL, i + 1, 0L);
 				break;
 			}
@@ -10861,8 +10874,8 @@ static void init_portsdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	for (port = 0; port < MAX_SERPAR_PORTS && comports[port].name; port++) {
-		SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port].name);
+	for (port = 0; port < MAX_SERPAR_PORTS && comports[port]; port++) {
+		SendDlgItemMessage (hDlg, IDC_SERIAL, CB_ADDSTRING, 0, (LPARAM)comports[port]->name);
 	}
 
 	SendDlgItemMessage (hDlg, IDC_PRINTERTYPELIST, CB_RESETCONTENT, 0, 0L);
@@ -10882,12 +10895,12 @@ static void init_portsdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
 	enumerate_sound_devices ();
-	for (int card = 0; record_devices[card].type; card++) {
-		int type = record_devices[card].type;
+	for (int card = 0; card < MAX_SOUND_DEVICES && record_devices[card]; card++) {
+		int type = record_devices[card]->type;
 		TCHAR tmp[MAX_DPATH];
 		_stprintf (tmp, L"%s: %s",
 			type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
-			record_devices[card].name);
+			record_devices[card]->name);
 		if (type == SOUND_DEVICE_DS)
 			SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
@@ -10931,15 +10944,15 @@ static void init_portsdlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	for (port = 0; midioutportinfo[port].name; port++) {
-		SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midioutportinfo[port].name);
+	for (port = 0; port < MAX_MIDI_PORTS && midioutportinfo[port]; port++) {
+		SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_ADDSTRING, 0, (LPARAM)midioutportinfo[port]->name);
 	}
 	ew (hDlg, IDC_MIDIOUTLIST, port > 0);
 
 	SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_RESETCONTENT, 0, 0L);
 	SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-	for (port = 0; midiinportinfo[port].name; port++) {
-		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)midiinportinfo[port].name);
+	for (port = 0; port < MAX_MIDI_PORTS && midiinportinfo[port]; port++) {
+		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_ADDSTRING, 0, (LPARAM)midiinportinfo[port]->name);
 	}
 	bNoMidiIn = port == 0;
 	ew (hDlg, IDC_MIDIINLIST, port > 0);

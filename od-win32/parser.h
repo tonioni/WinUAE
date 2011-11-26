@@ -33,23 +33,23 @@ void serialuartbreak (int);
 extern void unload_ghostscript (void);
 extern int load_ghostscript (void);
 
-#define MAX_MIDI_PORTS 16
+#define MAX_MIDI_PORTS 100
 struct midiportinfo
 {
     TCHAR *name;
 };
-extern struct midiportinfo midiinportinfo[MAX_MIDI_PORTS];
-extern struct midiportinfo midioutportinfo[MAX_MIDI_PORTS];
+extern struct midiportinfo *midiinportinfo[MAX_MIDI_PORTS];
+extern struct midiportinfo *midioutportinfo[MAX_MIDI_PORTS];
 
-#define MAX_SERPAR_PORTS 32
+#define MAX_SERPAR_PORTS 100
 struct serparportinfo
 {
     TCHAR *dev;
     TCHAR *cfgname;
     TCHAR *name;
 };
-extern struct serparportinfo comports[MAX_SERPAR_PORTS];
-extern struct serparportinfo parports[MAX_SERPAR_PORTS];
+extern struct serparportinfo *comports[MAX_SERPAR_PORTS];
+extern struct serparportinfo *parports[MAX_SERPAR_PORTS];
 
 extern int enumserialports (void);
 extern int enummidiports (void);

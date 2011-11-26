@@ -168,7 +168,7 @@ static const TCHAR *maxhoriz[] = { L"lores", L"hires", L"superhires", 0 };
 static const TCHAR *maxvert[] = { L"nointerlace", L"interlace", 0 };
 static const TCHAR *abspointers[] = { L"none", L"mousehack", L"tablet", 0 };
 static const TCHAR *magiccursors[] = { L"both", L"native", L"host", 0 };
-static const TCHAR *autoscale[] = { L"none", L"auto", L"standard", L"max", L"scale", L"resize", L"center", L"manual", 0 };
+static const TCHAR *autoscale[] = { L"none", L"auto", L"standard", L"max", L"scale", L"resize", L"center", L"manual", L"integer", 0 };
 static const TCHAR *joyportmodes[] = { L"", L"mouse", L"djoy", L"gamepad", L"ajoy", L"cdtvjoy", L"cd32joy", L"lightpen", 0 };
 static const TCHAR *joyaf[] = { L"none", L"normal", L"toggle", 0 };
 static const TCHAR *epsonprinter[] = { L"none", L"ascii", L"epson_matrix_9pin", L"epson_matrix_24pin", L"epson_matrix_48pin", 0 };
@@ -185,6 +185,7 @@ static const TCHAR *dongles[] =
 };
 static const TCHAR *cdmodes[] = { L"disabled", L"", L"image", L"ioctl", L"spti", L"aspi", 0 };
 static const TCHAR *cdconmodes[] = { L"", L"uae", L"ide", L"scsi", L"cdtv", L"cd32", 0 };
+static const TCHAR *specialmonitors[] = { L"none", L"autodetect", L"a2024", L"graffiti", 0 };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -900,6 +901,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, L"waiting_blits", p->waiting_blits);
 	cfgfile_write_bool (f, L"ntsc", p->ntscmode);
 	cfgfile_write_bool (f, L"genlock", p->genlock);
+	cfgfile_dwrite_str (f, L"monitoremu", specialmonitors[p->monitoremu]);
 	cfgfile_dwrite_bool (f, L"show_leds", !!(p->leds_on_screen & STATUSLINE_CHIPSET));
 	if (p->osd_pos.y || p->osd_pos.x) {
 		cfgfile_dwrite (f, L"osd_position", L"%.1f%s:%.1f%s",
@@ -1369,58 +1371,64 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		TCHAR tmp[20];
 		_stprintf (tmp, L"cdimage%d", i);
 		if (!_tcsicmp (option, tmp)) {
-			p->cdslots[i].delayed = false;
-			TCHAR *next = _tcsrchr (value, ',');
-			int type = SCSI_UNIT_DEFAULT;
-			int mode = 0;
-			int unitnum = 0;
-			for (;;) {
-				if (!next)
-					break;
-				*next++ = 0;
-				TCHAR *next2 = _tcschr (next, ':');
-				if (next2)
-					*next2++ = 0;
-				int tmpval = 0;
-				if (!_tcsicmp (next, L"delay")) {
-					p->cdslots[i].delayed = true;
+			if (!_tcsicmp (value, L"autodetect")) {
+				p->cdslots[i].type = SCSI_UNIT_DEFAULT;
+				p->cdslots[i].inuse = true;
+				p->cdslots[i].name[0] = 0;
+			} else {
+				p->cdslots[i].delayed = false;
+				TCHAR *next = _tcsrchr (value, ',');
+				int type = SCSI_UNIT_DEFAULT;
+				int mode = 0;
+				int unitnum = 0;
+				for (;;) {
+					if (!next)
+						break;
+					*next++ = 0;
+					TCHAR *next2 = _tcschr (next, ':');
+					if (next2)
+						*next2++ = 0;
+					int tmpval = 0;
+					if (!_tcsicmp (next, L"delay")) {
+						p->cdslots[i].delayed = true;
+						next = next2;
+						if (!next)
+							break;
+						next2 = _tcschr (next, ':');
+						if (next2)
+							*next2++ = 0;
+					}
+					type = match_string (cdmodes, next);
+					if (type < 0)
+						type = SCSI_UNIT_DEFAULT;
+					else
+						type--;
 					next = next2;
 					if (!next)
 						break;
 					next2 = _tcschr (next, ':');
 					if (next2)
 						*next2++ = 0;
+					mode = match_string (cdconmodes, next);
+					if (mode < 0)
+						mode = 0;
+					next = next2;
+					if (!next)
+						break;
+					next2 = _tcschr (next, ':');
+					if (next2)
+						*next2++ = 0;
+					cfgfile_intval (option, next, tmp, &unitnum, 1);
 				}
-				type = match_string (cdmodes, next);
-				if (type < 0)
-					type = SCSI_UNIT_DEFAULT;
-				else
-					type--;
-				next = next2;
-				if (!next)
-					break;
-				next2 = _tcschr (next, ':');
-				if (next2)
-					*next2++ = 0;
-				mode = match_string (cdconmodes, next);
-				if (mode < 0)
-					mode = 0;
-				next = next2;
-				if (!next)
-					break;
-				next2 = _tcschr (next, ':');
-				if (next2)
-					*next2++ = 0;
-				cfgfile_intval (option, next, tmp, &unitnum, 1);
+				if (_tcslen (value) > 0) {
+					TCHAR *s = cfgfile_get_multipath (&p->path_cd, NULL, value, false);
+					_tcsncpy (p->cdslots[i].name, s, sizeof p->cdslots[i].name / sizeof (TCHAR));
+					xfree (s);
+				}
+				p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
+				p->cdslots[i].inuse = true;
+				p->cdslots[i].type = type;
 			}
-			if (_tcslen (value) > 0) {
-				TCHAR *s = cfgfile_get_multipath (&p->path_cd, NULL, value, false);
-				_tcsncpy (p->cdslots[i].name, s, sizeof p->cdslots[i].name / sizeof (TCHAR));
-				xfree (s);
-			}
-			p->cdslots[i].name[sizeof p->cdslots[i].name - 1] = 0;
-			p->cdslots[i].inuse = true;
-			p->cdslots[i].type = type;
 			// disable all following units
 			i++;
 			while (i < MAX_TOTAL_SCSI_DEVICES) {
@@ -1495,6 +1503,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_contrast", &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, L"gfx_gamma", &p->gfx_gamma, 1)
 		|| cfgfile_string (option, value, L"gfx_filter_mask", p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
+
 #endif
 		|| cfgfile_intval (option, value, L"floppy0sound", &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, L"floppy1sound", &p->floppyslots[1].dfxclick, 1)
@@ -2311,6 +2320,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value, L"comp_trustnaddr", &p->comptrustnaddr, compmode, 0)
 		|| cfgfile_strval (option, value, L"collision_level", &p->collision_level, collmode, 0)
 		|| cfgfile_strval (option, value, L"parallel_matrix_emulation", &p->parallel_matrix_emulation, epsonprinter, 0)
+		|| cfgfile_strval (option, value, L"monitoremu", &p->monitoremu, specialmonitors, 0)
 		|| cfgfile_strboolval (option, value, L"comp_flushmode", &p->comp_hardflush, flushmode, 0))
 		return 1;
 

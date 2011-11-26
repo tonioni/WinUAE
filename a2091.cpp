@@ -837,7 +837,7 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
 	v |= dmac_bget2 (addr + 1) << 16;
 	v |= dmac_bget2 (addr + 2) << 8;
 	v |= dmac_bget2 (addr + 3);
-#ifdef A2091_DEBUG
+#if A2091_DEBUG > 0
 	if (addr >= 0x40 && addr < ROM_OFFSET)
 		write_log (L"dmac_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
 #endif

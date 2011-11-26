@@ -496,6 +496,9 @@
     <ClCompile Include="..\..\aros.rom.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\specialmonitors.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

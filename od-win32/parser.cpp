@@ -1329,7 +1329,7 @@ void doflashscreen (void)
 	init_colors ();
 	picasso_refresh ();
 	reset_drawing ();
-	flush_screen (0, 0);
+	flush_screen (gfxvidinfo.outbuffer, 0, 0);
 }
 
 void hsyncstuff (void)
@@ -1365,7 +1365,7 @@ void hsyncstuff (void)
 					init_colors ();
 					reset_drawing ();
 					picasso_refresh ();
-					flush_screen (0, 0);
+					flush_screen (gfxvidinfo.outbuffer, 0, 0);
 				}
 			}
 		}
@@ -1384,7 +1384,7 @@ void hsyncstuff (void)
 const static GUID GUID_DEVINTERFACE_PARALLEL = {0x97F76EF0,0xF883,0x11D0,
 {0xAF,0x1F,0x00,0x00,0xF8,0x00,0x84,0x5C}};
 
-static int enumports_2 (struct serparportinfo *pi, int cnt, bool parport)
+static int enumports_2 (struct serparportinfo **pi, int cnt, bool parport)
 {
 	// Create a device information set that will be the container for
 	// the device interfaces.
@@ -1423,19 +1423,20 @@ static int enumports_2 (struct serparportinfo *pi, int cnt, bool parport)
 					(PBYTE)desc, sizeof (desc), NULL);
 				if (bSuccess && cnt < MAX_SERPAR_PORTS) {
 					TCHAR *p;
-					pi[cnt].dev = my_strdup (pDetData->DevicePath);
-					pi[cnt].name = my_strdup (fname);
+					pi[cnt] = xcalloc (struct serparportinfo, 1);
+					pi[cnt]->dev = my_strdup (pDetData->DevicePath);
+					pi[cnt]->name = my_strdup (fname);
 					p = _tcsstr (fname, parport ? L"(LPT" : L"(COM");
 					if (p && (p[5] == ')' || p[6] == ')')) {
-						pi[cnt].cfgname = xmalloc (TCHAR, 100);
+						pi[cnt]->cfgname = xmalloc (TCHAR, 100);
 						if (isdigit(p[5]))
-							_stprintf (pi[cnt].cfgname, parport ? L"LPT%c%c" : L"COM%c%c", p[4], p[5]);
+							_stprintf (pi[cnt]->cfgname, parport ? L"LPT%c%c" : L"COM%c%c", p[4], p[5]);
 						else
-							_stprintf (pi[cnt].cfgname, parport ? L"LPT%c" : L"COM%c", p[4]);
+							_stprintf (pi[cnt]->cfgname, parport ? L"LPT%c" : L"COM%c", p[4]);
 					} else {
-						pi[cnt].cfgname = my_strdup (pDetData->DevicePath);
+						pi[cnt]->cfgname = my_strdup (pDetData->DevicePath);
 					}
-					write_log (L"%s: '%s' = '%s' = '%s'\n", parport ? L"PARPORT" : L"SERPORT", pi[cnt].name, pi[cnt].cfgname, pi[cnt].dev);
+					write_log (L"%s: '%s' = '%s' = '%s'\n", parport ? L"PARPORT" : L"SERPORT", pi[cnt]->name, pi[cnt]->cfgname, pi[cnt]->dev);
 					cnt++;
 				}
 			} else {
@@ -1457,7 +1458,7 @@ end:
 	return cnt;
 }
 
-static struct serparportinfo parports[MAX_SERPAR_PORTS];
+static struct serparportinfo *parports[MAX_SERPAR_PORTS];
 
 int enumserialports (void)
 {
@@ -1487,26 +1488,40 @@ int enumserialports (void)
 		if (!QueryDosDevice (name, devname, sizeof devname / sizeof (TCHAR)))
 			continue;
 		for(j = 0; j < cnt; j++) {
-			if (!_tcscmp (comports[j].cfgname, name))
+			if (!_tcscmp (comports[j]->cfgname, name))
 				break;
 		}
 		if (j == cnt) {
 			if (cnt >= MAX_SERPAR_PORTS)
 				break;
-			comports[j].dev = xmalloc (TCHAR, 100);
-			_stprintf (comports[cnt].dev, L"\\.\\\\%s", name);
-			comports[j].cfgname = my_strdup (name);
-			comports[j].name = my_strdup (name);
-			write_log (L"SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j].name, comports[j].dev, devname);
+			comports[j] = xcalloc(struct serparportinfo, 1);
+			comports[j]->dev = xmalloc (TCHAR, 100);
+			_stprintf (comports[cnt]->dev, L"\\.\\\\%s", name);
+			comports[j]->cfgname = my_strdup (name);
+			comports[j]->name = my_strdup (name);
+			write_log (L"SERPORT: %d:'%s' = '%s' (%s)\n", cnt, comports[j]->name, comports[j]->dev, devname);
 			cnt++;
 			j++;
 		}
 	}
 
+	for (i = 0; i < cnt; i++) {
+		for (j = i + 1; j < cnt; j++) {
+			if (_tcsicmp (comports[i]->name, comports[j]->name) > 0) {
+				struct serparportinfo *spi;
+				spi = comports[i];
+				comports[i] = comports[j];
+				comports[j] = spi;
+			}
+		}
+	}
+
+
 	if (cnt < MAX_SERPAR_PORTS) {
-		comports[cnt].dev = my_strdup (L"TCP://0.0.0.0:1234");
-		comports[cnt].cfgname = my_strdup (comports[cnt].dev);
-		comports[cnt].name = my_strdup (comports[cnt].dev);
+		comports[cnt] = xcalloc(struct serparportinfo, 1);
+		comports[cnt]->dev = my_strdup (L"TCP://0.0.0.0:1234");
+		comports[cnt]->cfgname = my_strdup (comports[cnt]->dev);
+		comports[cnt]->name = my_strdup (comports[cnt]->dev);
 		cnt++;
 	}
 
@@ -1521,26 +1536,48 @@ int enummidiports (void)
 {
 	MIDIOUTCAPS midiOutCaps;
 	MIDIINCAPS midiInCaps;
-	int i, num, total;
+	int i, j, num, total;
 	
 	write_log (L"MIDI port enumeration..\n");
 	num = midiOutGetNumDevs ();
-	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS; i++) {
+	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS - 1; i++) {
 		if (midiOutGetDevCaps (i - 1, &midiOutCaps, sizeof (midiOutCaps)) != MMSYSERR_NOERROR)
 			break;
-		midioutportinfo[i].name = my_strdup (midiOutCaps.szPname);
-		write_log (L"MIDI OUT: '%s' (%d/%d)\n", midioutportinfo[i].name, midiOutCaps.wMid, midiOutCaps.wPid);
+		midioutportinfo[i] = xcalloc (struct midiportinfo, 1);
+		midioutportinfo[i]->name = my_strdup (midiOutCaps.szPname);
+		write_log (L"MIDI OUT: '%s' (%d/%d)\n", midioutportinfo[i]->name, midiOutCaps.wMid, midiOutCaps.wPid);
 	}
-	total = num;
+	total = num + 1;
+	for (i = 1; i < num + 1; i++) {
+		for (j = i + 1; j < num + 1; j++) {
+			if (_tcsicmp (midioutportinfo[i]->name, midioutportinfo[j]->name) > 0) {
+				struct midiportinfo *mi;
+				mi = midioutportinfo[i];
+				midioutportinfo[i] = midioutportinfo[j];
+				midioutportinfo[j] = mi;
+			}
+		}
+	}
 
 	num = midiInGetNumDevs ();
-	for (i = 0; i < num && i < MAX_MIDI_PORTS; i++) {
+	for (i = 0; i < num && i < MAX_MIDI_PORTS - 1; i++) {
 		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR)
 			break;
-		midiinportinfo[i].name = my_strdup (midiInCaps.szPname);
-		write_log (L"MIDI IN: '%s' (%d/%d)\n", midiinportinfo[i].name, midiInCaps.wMid, midiInCaps.wPid);
+		midiinportinfo[i] = xcalloc (struct midiportinfo, 1);
+		midiinportinfo[i]->name = my_strdup (midiInCaps.szPname);
+		write_log (L"MIDI IN: '%s' (%d/%d)\n", midiinportinfo[i]->name, midiInCaps.wMid, midiInCaps.wPid);
 	}
 	total += num;
+	for (i = 0; i < num; i++) {
+		for (j = i + 1; j < num; j++) {
+			if (_tcsicmp (midiinportinfo[i]->name, midiinportinfo[j]->name) > 0) {
+				struct midiportinfo *mi;
+				mi = midiinportinfo[i];
+				midiinportinfo[i] = midiinportinfo[j];
+				midiinportinfo[j] = mi;
+			}
+		}
+	}
 
 	write_log (L"MIDI port enumeration end\n");
 
@@ -1552,9 +1589,9 @@ void sernametodev (TCHAR *sername)
 {
 	int i;
 
-	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-		if (!_tcscmp (sername, comports[i].cfgname)) {
-			_tcscpy (sername, comports[i].dev);
+	for (i = 0; i < MAX_SERPAR_PORTS && comports[i]; i++) {
+		if (!_tcscmp (sername, comports[i]->cfgname)) {
+			_tcscpy (sername, comports[i]->dev);
 			return;
 		}
 	}
@@ -1568,9 +1605,9 @@ void serdevtoname (TCHAR *sername)
 	int i;
 	if (!_tcsncmp (sername, L"TCP:", 4))
 		return;
-	for (i = 0; i < MAX_SERPAR_PORTS && comports[i].name; i++) {
-		if (!_tcscmp (sername, comports[i].dev)) {
-			_tcscpy (sername, comports[i].cfgname);
+	for (i = 0; i < MAX_SERPAR_PORTS && comports[i]; i++) {
+		if (!_tcscmp (sername, comports[i]->dev)) {
+			_tcscpy (sername, comports[i]->cfgname);
 			return;
 		}
 	}

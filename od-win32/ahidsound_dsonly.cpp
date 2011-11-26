@@ -338,10 +338,10 @@ static int ahi_init_sound_win32 (void)
 	ahisndbuffer = xmalloc (uae_u8, ahisndbufsize + 32);
 	if (!ahisndbuffer)
 		return 0;
-	if (sound_devices[currprefs.win32_soundcard].type != SOUND_DEVICE_DS)
+	if (sound_devices[currprefs.win32_soundcard]->type != SOUND_DEVICE_DS)
 		hr = DirectSoundCreate (NULL, &lpDS2, NULL);
 	else
-		hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard].guid, &lpDS2, NULL);
+		hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard]->guid, &lpDS2, NULL);
 	if (FAILED (hr)) {
 		write_log (L"AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
 		return 0;

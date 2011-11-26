@@ -130,8 +130,8 @@ int paula_sndbufsize;
 
 static uae_sem_t sound_sem, sound_init_sem;
 
-struct sound_device sound_devices[MAX_SOUND_DEVICES];
-struct sound_device record_devices[MAX_SOUND_DEVICES];
+struct sound_device *sound_devices[MAX_SOUND_DEVICES];
+struct sound_device *record_devices[MAX_SOUND_DEVICES];
 static int num_sound_devices, num_record_devices;
 
 static struct sound_data sdpaula;
@@ -548,7 +548,7 @@ static int open_audio_pa (struct sound_data *sd, int index)
 	int freq = sd->freq;
 	int ch = sd->channels;
 	int size;
-	int dev = sound_devices[index].panum;
+	int dev = sound_devices[index]->panum;
 	const PaDeviceInfo *di;
 	PaStreamParameters p;
 	PaError err;
@@ -620,7 +620,7 @@ static int open_audio_pa (struct sound_data *sd, int index)
 		s->pasoundbuffer[i] = xcalloc (uae_u8, sd->sndbufsize);
 	name = au (di->name);
 	write_log (L"PASOUND: CH=%d,FREQ=%d (%s) '%s' buffer %d\n",
-		ch, freq, sound_devices[index].name, name, sd->sndbufsize);
+		ch, freq, sound_devices[index]->name, name, sd->sndbufsize);
 	xfree (name);
 	return 1;
 end:
@@ -667,7 +667,7 @@ static int open_audio_al (struct sound_data *sd, int index)
 		sd->sndbufsize = SND_MAX_BUFFER;
 	s->al_bufsize = size;
 	s->al_bigbuffer = xcalloc (uae_u8, s->al_bufsize);
-	name = ua (sound_devices[index].alname);
+	name = ua (sound_devices[index]->alname);
 	s->al_dev = alcOpenDevice (name);
 	xfree (name);
 	if (!s->al_dev)
@@ -699,7 +699,7 @@ static int open_audio_al (struct sound_data *sd, int index)
 		goto error;
 
 	write_log (L"ALSOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d)\n",
-		s->al_format, ch, freq, sound_devices[index].alname,
+		s->al_format, ch, freq, sound_devices[index]->alname,
 		sd->sndbufsize, s->al_bufsize);
 	return 1;
 
@@ -756,12 +756,12 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		goto error;
 	}
 
-	if (sound_devices[index].alname == NULL)
+	if (sound_devices[index]->alname == NULL)
 		hr = s->pEnumerator->GetDefaultAudioEndpoint (eRender, eMultimedia, &s->pDevice);
 	else
-		hr = s->pEnumerator->GetDevice (sound_devices[index].alname, &s->pDevice);
+		hr = s->pEnumerator->GetDevice (sound_devices[index]->alname, &s->pDevice);
 	if (FAILED (hr)) {
-		write_log (L"WASAPI: GetDevice(%s) %08X\n", sound_devices[index].alname ? sound_devices[index].alname : L"NULL", hr);
+		write_log (L"WASAPI: GetDevice(%s) %08X\n", sound_devices[index]->alname ? sound_devices[index]->alname : L"NULL", hr);
 		goto error;
 	}
 
@@ -1024,7 +1024,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 
 	recalc_offsets (sd);
 
-	hr = DirectSoundCreate8 (&sound_devices[index].guid, &s->lpDS, NULL);
+	hr = DirectSoundCreate8 (&sound_devices[index]->guid, &s->lpDS, NULL);
 	if (FAILED (hr))  {
 		write_log (L"DSSOUND: DirectSoundCreate8() failure: %s\n", DXError (hr));
 		return 0;
@@ -1092,7 +1092,7 @@ static int open_audio_ds (struct sound_data *sd, int index)
 		wavfmt.Format.nAvgBytesPerSec = wavfmt.Format.nBlockAlign * wavfmt.Format.nSamplesPerSec;
 
 		write_log (L"DSSOUND: %08X,CH=%d,FREQ=%d '%s' buffer %d (%d), dist %d\n",
-			ksmode, ch, freq, sound_devices[index].name,
+			ksmode, ch, freq, sound_devices[index]->name,
 			s->max_sndbufsize / sd->samplesize, s->max_sndbufsize, s->snd_configsize / sd->samplesize);
 
 		memset (&sound_buffer, 0, sizeof (sound_buffer));
@@ -1145,13 +1145,13 @@ int open_sound_device (struct sound_data *sd, int index, int exclusive, int bufs
 	sd->freq = freq;
 	sd->channels = channels;
 	sd->paused = 1;
-	if (sound_devices[index].type == SOUND_DEVICE_AL)
+	if (sound_devices[index]->type == SOUND_DEVICE_AL)
 		ret = open_audio_al (sd, index);
-	else if (sound_devices[index].type == SOUND_DEVICE_DS)
+	else if (sound_devices[index]->type == SOUND_DEVICE_DS)
 		ret = open_audio_ds (sd, index);
-	else if (sound_devices[index].type == SOUND_DEVICE_PA)
+	else if (sound_devices[index]->type == SOUND_DEVICE_PA)
 		ret = open_audio_pa (sd, index);
-	else if (sound_devices[index].type == SOUND_DEVICE_WASAPI)
+	else if (sound_devices[index]->type == SOUND_DEVICE_WASAPI)
 		ret = open_audio_wasapi (sd, index, exclusive);
 	sd->samplesize = sd->channels * 2;
 	return ret;
@@ -1903,24 +1903,26 @@ void finish_sound_buffer (void)
 
 static BOOL CALLBACK DSEnumProc (LPGUID lpGUID, LPCTSTR lpszDesc, LPCTSTR lpszDrvName, LPVOID lpContext)
 {
-	struct sound_device *sd = (struct sound_device*)lpContext;
+	struct sound_device **sd = (struct sound_device**)lpContext;
 	int i;
 
 	for (i = 0; i < MAX_SOUND_DEVICES; i++) {
-		if (sd[i].name == NULL)
+		if (sd[i] == NULL)
 			break;
 	}
 	if (i >= MAX_SOUND_DEVICES)
 		return TRUE;
+
+	sd[i] = xcalloc (struct sound_device, 1);
 	if (lpGUID != NULL)
-		memcpy (&sd[i].guid, lpGUID, sizeof (GUID));
-	sd[i].name = my_strdup (lpszDesc);
-	sd[i].type = SOUND_DEVICE_DS;
-	sd[i].cfgname = my_strdup (sd[i].name);
+		memcpy (&sd[i]->guid, lpGUID, sizeof (GUID));
+	sd[i]->name = my_strdup (lpszDesc);
+	sd[i]->type = SOUND_DEVICE_DS;
+	sd[i]->cfgname = my_strdup (sd[i]->name);
 	return TRUE;
 }
 
-static void wasapi_enum (struct sound_device *sd)
+static void wasapi_enum (struct sound_device **sdp)
 {
 	HRESULT hr;
 	IMMDeviceEnumerator *enumerator;
@@ -1929,9 +1931,8 @@ static void wasapi_enum (struct sound_device *sd)
 
 	write_log (L"Enumerating WASAPI devices...\n");
 	for (cnt = 0; cnt < MAX_SOUND_DEVICES; cnt++) {
-		if (sd->name == NULL)
+		if (sdp[cnt] == NULL)
 			break;
-		sd++;
 	}
 	if (cnt >= MAX_SOUND_DEVICES)
 		return;
@@ -1968,20 +1969,20 @@ static void wasapi_enum (struct sound_device *sd)
 					if (devid && devname) {
 						TCHAR tmp[MAX_DPATH];
 						if (i == 0) {
-							sd->cfgname = my_strdup (L"WASAPI:Default Audio Device");
-							sd->type = SOUND_DEVICE_WASAPI;
-							sd->name = my_strdup (L"Default Audio Device");
-							sd->alname = NULL;
-							sd++;
+							sdp[cnt] = xcalloc (struct sound_device, 1);
+							sdp[cnt]->cfgname = my_strdup (L"WASAPI:Default Audio Device");
+							sdp[cnt]->type = SOUND_DEVICE_WASAPI;
+							sdp[cnt]->name = my_strdup (L"Default Audio Device");
+							sdp[cnt]->alname = NULL;
 							cnt++;
 						}
 						if (cnt < MAX_SOUND_DEVICES) {
 							_stprintf (tmp, L"WASAPI:%s", devname);
-							sd->cfgname = my_strdup (tmp);
-							sd->type = SOUND_DEVICE_WASAPI;
-							sd->name = my_strdup (devname);
-							sd->alname = my_strdup (devid);
-							sd++;
+							sdp[cnt] = xcalloc (struct sound_device, 1);
+							sdp[cnt]->cfgname = my_strdup (tmp);
+							sdp[cnt]->type = SOUND_DEVICE_WASAPI;
+							sdp[cnt]->name = my_strdup (devname);
+							sdp[cnt]->alname = my_strdup (devid);
 							cnt++;
 						}
 					}
@@ -1995,20 +1996,20 @@ static void wasapi_enum (struct sound_device *sd)
 	}
 }
 
-static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)
+static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)
 {
-	struct sound_device *sd;
 	while (pDeviceNames && *pDeviceNames) {
 		ALCdevice *pDevice;
 		const char *devname;
 		int i, ok;
+
 		for (i = 0; i < MAX_SOUND_DEVICES; i++) {
-			sd = &sds[i];
-			if (sd->name == NULL)
+			if (sds[i] == NULL)
 				break;
 		}
 		if (i >= MAX_SOUND_DEVICES)
 			return;
+
 		devname = pDeviceNames;
 		if (ppDefaultDevice)
 			devname = ppDefaultDevice;
@@ -2035,19 +2036,20 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
 		}
 		if (ok) {
 			TCHAR tmp[MAX_DPATH];
-			sd->type = SOUND_DEVICE_AL;
+			sds[i] = xcalloc (struct sound_device, 1);
+			sds[i]->type = SOUND_DEVICE_AL;
 			if (ppDefaultDevice) {
 				TCHAR *tdevname = au (devname);
 				_stprintf (tmp, L"Default [%s]", tdevname);
 				xfree (tdevname);
-				sd->alname = my_strdup_ansi (ppDefaultDevice);
-				sd->name = my_strdup (tmp);
+				sds[i]->alname = my_strdup_ansi (ppDefaultDevice);
+				sds[i]->name = my_strdup (tmp);
 			} else {
-				sd->alname = my_strdup_ansi (pDeviceNames);
-				sd->name = my_strdup_ansi (pDeviceNames);
+				sds[i]->alname = my_strdup_ansi (pDeviceNames);
+				sds[i]->name = my_strdup_ansi (pDeviceNames);
 			}
-			_stprintf (tmp, L"OPENAL:%s", sd->alname);
-			sd->cfgname = my_strdup (tmp);
+			_stprintf (tmp, L"OPENAL:%s", sds[i]->alname);
+			sds[i]->cfgname = my_strdup (tmp);
 		}
 		if (ppDefaultDevice)
 			ppDefaultDevice = NULL;
@@ -2057,9 +2059,8 @@ static void OpenALEnumerate (struct sound_device *sds, const char *pDeviceNames,
 }
 #define PORTAUDIO 1
 #if PORTAUDIO
-static void PortAudioEnumerate (struct sound_device *sds)
+static void PortAudioEnumerate (struct sound_device **sds)
 {
-	struct sound_device *sd;
 	int num;
 	int i, j;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH], *s1, *s2;
@@ -2083,22 +2084,22 @@ static void PortAudioEnumerate (struct sound_device *sds)
 		if (hai->type == paDirectSound || hai->type == paMME)
 			continue;
 		for (i = 0; i < MAX_SOUND_DEVICES; i++) {
-			sd = &sds[i];
-			if (sd->name == NULL)
+			if (sds[i] == NULL)
 				break;
 		}
 		if (i >= MAX_SOUND_DEVICES)
 			return;
+		sds[i] = xcalloc (struct sound_device, 1);
 		s1 = au (hai->name);
 		s2 = au (di->name);
 		_stprintf (tmp, L"[%s] %s", s1, s2);
 		xfree (s2);
 		xfree (s1);
-		sd->type = SOUND_DEVICE_PA;
-		sd->name = my_strdup (tmp);
+		sds[i]->type = SOUND_DEVICE_PA;
+		sds[i]->name = my_strdup (tmp);
 		_stprintf (tmp2, L"PORTAUDIO:%s", tmp);
-		sd->cfgname = my_strdup (tmp2);
-		sd->panum = j;
+		sds[i]->cfgname = my_strdup (tmp2);
+		sds[i]->panum = j;
 	}
 }
 #endif
@@ -2177,11 +2178,11 @@ int enumerate_sound_devices (void)
 #endif
 		write_log (L"Enumeration end\n");
 		for (num_sound_devices = 0; num_sound_devices < MAX_SOUND_DEVICES; num_sound_devices++) {
-			if (sound_devices[num_sound_devices].name == NULL)
+			if (sound_devices[num_sound_devices] == NULL)
 				break;
 		}
 		for (num_record_devices = 0; num_record_devices < MAX_SOUND_DEVICES; num_record_devices++) {
-			if (record_devices[num_record_devices].name == NULL)
+			if (record_devices[num_record_devices] == NULL)
 				break;
 		}
 	}

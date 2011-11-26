@@ -244,7 +244,8 @@ static uaecptr bplpt[8], bplptx[8];
 /*static int blitcount[256];  blitter debug */
 
 static struct color_entry current_colors;
-static unsigned int bplcon0, bplcon1, bplcon2, bplcon3, bplcon4;
+unsigned int bplcon0;
+static unsigned int bplcon1, bplcon2, bplcon3, bplcon4;
 static unsigned int bplcon0d, bplcon0dd, bplcon0_res, bplcon0_planes, bplcon0_planes_limit;
 static unsigned int diwstrt, diwstop, diwhigh;
 static int diwhigh_written;
@@ -2945,6 +2946,54 @@ void init_hz (bool fullinit)
 		vblank_hz_stored = vblank_hz;
 	}
 
+	if (beamcon0 & 0x80) {
+		int res = GET_RES_AGNUS (bplcon0);
+		int vres = islace ? 1 : 0;
+		int res2, vres2;
+		
+		res2 = currprefs.gfx_resolution;
+		if (doublescan)
+			res2++;
+		if (res2 > RES_MAX)
+			res2 = RES_MAX;
+		
+		vres2 = currprefs.gfx_vresolution;
+		if (islace && !vres2)
+			vres2++;
+		if (doublescan && !islace)
+			vres2--;
+
+		if (vres2 < 0)
+			vres2 = 0;
+		if (vres2 > VRES_QUAD)
+			vres2 = VRES_QUAD;
+
+		gfxvidinfo.drawbuffer.inwidth = (((hbstrt > hbstop ? 0 : (maxhpos - (hbstop - hbstrt))) * 2) << res2);
+		gfxvidinfo.drawbuffer.extrawidth = 0;
+		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
+
+		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline) << vres2;
+		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
+
+	} else {
+		gfxvidinfo.drawbuffer.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+		gfxvidinfo.drawbuffer.extrawidth = 8;
+		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
+		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline) << currprefs.gfx_vresolution;
+		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
+	}
+
+
+	if (gfxvidinfo.drawbuffer.inwidth > gfxvidinfo.drawbuffer.width)
+		gfxvidinfo.drawbuffer.inwidth = gfxvidinfo.drawbuffer.width;
+	if (gfxvidinfo.drawbuffer.inwidth2 > gfxvidinfo.drawbuffer.width)
+		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.width;
+
+	if (gfxvidinfo.drawbuffer.inheight > gfxvidinfo.drawbuffer.height)
+		gfxvidinfo.drawbuffer.inheight = gfxvidinfo.drawbuffer.height;
+	if (gfxvidinfo.drawbuffer.inheight2 > gfxvidinfo.drawbuffer.height)
+		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.height;
+
 	compute_vsynctime ();
 #ifdef PICASSO96
 	init_hz_p96 ();
@@ -3710,7 +3759,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		v &= ~0x00F1;
 	else if (! (currprefs.chipset_mask & CSMASK_AGA))
 		v &= ~0x00B0;
-	v &= ~(0x0200 | 0x0100 | 0x0080 | 0x0020);
+	v &= ~(0x0080 | 0x0020);
 
 #if SPRBORDER
 	v |= 1;
@@ -5072,6 +5121,10 @@ static void framewait (void)
 		vsyncmintime = vsynctime;
 		render_screen ();
 		vsync_busywait (&freetime);
+
+		curr_time = read_processor_time ();
+		vsyncmintime = curr_time + vsynctime * 8 / 10;
+
 		show_screen ();
 		if (extraframewait) {
 			sleep_millis (extraframewait);
@@ -5212,11 +5265,8 @@ static void vsync_handler_post (void)
 				}
 			}
 #endif
-	} else if (currprefs.m68k_speed == 0) {
-		framewait ();
 	} else {
-		if (render_screen ())
-			show_screen ();
+		framewait ();
 	}
 
 #if CUSTOM_DEBUG > 1

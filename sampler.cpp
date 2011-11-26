@@ -49,7 +49,7 @@ static int capture_init (void)
 	wavfmt.nAvgBytesPerSec = wavfmt.nBlockAlign * wavfmt.nSamplesPerSec;
 	wavfmt.cbSize = 0;
 
-	hr = DirectSoundCaptureCreate (&record_devices[currprefs.win32_samplersoundcard].guid, &lpDS2r, NULL);
+	hr = DirectSoundCaptureCreate (&record_devices[currprefs.win32_samplersoundcard]->guid, &lpDS2r, NULL);
 	if (FAILED (hr)) {
 		write_log (L"SAMPLER: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
 		return 0;

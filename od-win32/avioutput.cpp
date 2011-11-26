@@ -859,17 +859,17 @@ static int getFromBuffer (struct avientry *ae, int original)
 	if (original) {
 		src = getfilterbuffer (&w, &h, &spitch, &d);
 	} else {
-		spitch = gfxvidinfo.rowbytes;
+		spitch = gfxvidinfo.outbuffer->rowbytes;
 		src = bufmem_ptr;
 	}
 	if (!src)
 		return 0;
 	dst += dpitch * avioutput_height;
-	for (y = 0; y < (gfxvidinfo.inheight > avioutput_height ? avioutput_height : gfxvidinfo.inheight); y++) {
+	for (y = 0; y < (gfxvidinfo.outbuffer->outheight > avioutput_height ? avioutput_height : gfxvidinfo.outbuffer->outheight); y++) {
 		uae_u8 *d;
 		dst -= dpitch;
 		d = dst;
-		for (x = 0; x < (gfxvidinfo.inwidth > avioutput_width ? avioutput_width : gfxvidinfo.inwidth); x++) {
+		for (x = 0; x < (gfxvidinfo.outbuffer->outwidth > avioutput_width ? avioutput_width : gfxvidinfo.outbuffer->outwidth); x++) {
 			if (avioutput_bits == 8) {
 				*d++ = src[x];
 			} else if (avioutput_bits == 16) {
@@ -946,8 +946,8 @@ static int AVIOutput_AVIWriteVideo_Thread (struct avientry *ae)
 		if (!avioutput_init)
 			goto error;
 
-		actual_width = gfxvidinfo.inwidth;
-		actual_height = gfxvidinfo.inheight;
+		actual_width = gfxvidinfo.outbuffer->outwidth;
+		actual_height = gfxvidinfo.outbuffer->outheight;
 
 		// GetDIBits tends to change this and ruins palettized output
 		ae->lpbi->biClrUsed = (avioutput_bits <= 8) ? 1 << avioutput_bits : 0;

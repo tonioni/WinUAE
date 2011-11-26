@@ -158,9 +158,16 @@ read 1 byte to stop reset */
 #define MAX_IDE_MULTIPLE_SECTORS 64
 #define SECBUF_SIZE (512 * (MAX_IDE_MULTIPLE_SECTORS * 2))
 
+struct ide_registers
+{
+	uae_u8 ide_select, ide_nsector, ide_sector, ide_lcyl, ide_hcyl, ide_devcon, ide_error, ide_feat;
+	uae_u8 ide_nsector2, ide_sector2, ide_lcyl2, ide_hcyl2, ide_feat2;
+};
+
 struct ide_hdf
 {
 	struct hd_hardfiledata hdhfd;
+	struct ide_registers *regs;
 
 	uae_u8 secbuf[SECBUF_SIZE];
 	int data_offset;
@@ -178,14 +185,13 @@ struct ide_hdf
 };
 
 static struct ide_hdf *idedrive[4];
+static struct ide_registers ideregs[2];
 struct hd_hardfiledata *pcmcia_sram;
 static int pcmcia_card;
 static int pcmcia_readonly;
 
 static int gayle_id_cnt;
 static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
-static uae_u8 ide_select, ide_nsector, ide_sector, ide_lcyl, ide_hcyl, ide_devcon, ide_error, ide_feat;
-static uae_u8 ide_nsector2, ide_sector2, ide_lcyl2, ide_hcyl2, ide_feat2;
 static int ide_drv, ide2, ide_splitter;
 
 static struct ide_hdf *ide;
@@ -215,17 +221,18 @@ static void ps (int offset, const TCHAR *src, int max)
 
 static int isideirq (void)
 {
+	int i;
 	if (!idedrive)
 		return 0;
-	if (ide_devcon & 2)
-		return 0;
-	if (idedrive[ide_drv] == NULL)
-		return 0;
-	if (idedrive[ide_drv]->irq || idedrive[ide_drv + 2]->irq) {
-		/* IDE killer feature. Do not eat interrupt to make booting faster. */
-		if (idedrive[ide_drv]->irq && idedrive[ide_drv]->hdhfd.size == 0)
-			idedrive[ide_drv]->irq = 0;
-		return 1;
+	for (i = 0; i < 2; i++) {
+		if (ideregs[i].ide_devcon & 2)
+			continue;
+		if (idedrive[i]->irq || idedrive[i + 2]->irq) {
+			/* IDE killer feature. Do not eat interrupt to make booting faster. */
+			if (idedrive[i]->irq && idedrive[i]->hdhfd.size == 0)
+				idedrive[i]->irq = 0;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -364,7 +371,7 @@ static uae_u8 read_gayle_cs (void)
 
 static void ide_interrupt (void)
 {
-	if (ide_devcon & 2)
+	if (ide->regs->ide_devcon & 2)
 		return;
 	//ide->status |= IDE_STATUS_BSY;
 	ide->irq_delay = 2;
@@ -380,7 +387,7 @@ static void ide_interrupt_do (struct ide_hdf *ide)
 
 static void ide_fail_err (uae_u8 err)
 {
-	ide_error |= err;
+	ide->regs->ide_error |= err;
 	if (ide_drv == 1 && idedrive[ide2 + 1]->hdhfd.size == 0)
 		idedrive[ide2]->status |= IDE_STATUS_ERR;
 	ide->status |= IDE_STATUS_ERR;
@@ -404,8 +411,8 @@ static void ide_data_ready (void)
 static void ide_recalibrate (void)
 {
 	write_log (L"IDE%d recalibrate\n", ide->num);
-	ide_sector = 0;
-	ide_lcyl = ide_hcyl = 0;
+	ide->regs->ide_sector = 0;
+	ide->regs->ide_lcyl = ide->regs->ide_hcyl = 0;
 	ide_interrupt ();
 }
 static void ide_identify_drive (void)
@@ -435,7 +442,7 @@ static void ide_identify_drive (void)
 	pw (20, 3);
 	pw (21, ide->blocksize);
 	pw (22, 4);
-	ps (23, L"0.3", 8); /* firmware revision */
+	ps (23, L"0.4", 8); /* firmware revision */
 	_stprintf (tmp, L"UAE-IDE %s", ide->hdhfd.hfd.product_id);
 	ps (27, tmp, 40); /* model */
 	pw (47, MAX_IDE_MULTIPLE_SECTORS >> (ide->blocksize / 512 - 1)); /* max sectors in multiple mode */
@@ -485,18 +492,18 @@ static void ide_identify_drive (void)
 
 static void ide_execute_drive_diagnostics (void)
 {
-	ide_error = 1;
-	ide_sector = ide_nsector = 1;
-	ide_select = 0;
-	ide_lcyl = ide_hcyl = 0;
+	ide->regs->ide_error = 1;
+	ide->regs->ide_sector = ide->regs->ide_nsector = 1;
+	ide->regs->ide_select = 0;
+	ide->regs->ide_lcyl = ide->regs->ide_hcyl = 0;
 	ide->status &= ~IDE_STATUS_BSY;
 }
 
 static void ide_initialize_drive_parameters (void)
 {
 	if (ide->hdhfd.size) {
-		ide->hdhfd.secspertrack = ide_nsector == 0 ? 256 : ide_nsector;
-		ide->hdhfd.heads = (ide_select & 15) + 1;
+		ide->hdhfd.secspertrack = ide->regs->ide_nsector == 0 ? 256 : ide->regs->ide_nsector;
+		ide->hdhfd.heads = (ide->regs->ide_select & 15) + 1;
 		ide->hdhfd.cyls = (ide->hdhfd.size / ide->blocksize) / (ide->hdhfd.secspertrack * ide->hdhfd.heads);
 		if (ide->hdhfd.heads * ide->hdhfd.cyls * ide->hdhfd.secspertrack > 16515072 || ide->lba48) {
 			ide->hdhfd.cyls = ide->hdhfd.cyls_def;
@@ -504,7 +511,7 @@ static void ide_initialize_drive_parameters (void)
 			ide->hdhfd.secspertrack = ide->hdhfd.secspertrack_def;
 		}
 	} else {
-		ide_error |= IDE_ERR_ABRT;
+		ide->regs->ide_error |= IDE_ERR_ABRT;
 		ide->status |= IDE_STATUS_ERR;
 	}
 	write_log (L"IDE%d initialize drive parameters, CYL=%d,SPT=%d,HEAD=%d\n",
@@ -513,33 +520,33 @@ static void ide_initialize_drive_parameters (void)
 }
 static void ide_set_multiple_mode (void)
 {
-	write_log (L"IDE%d drive multiple mode = %d\n", ide->num, ide_nsector);
-	ide->multiple_mode = ide_nsector;
+	write_log (L"IDE%d drive multiple mode = %d\n", ide->num, ide->regs->ide_nsector);
+	ide->multiple_mode = ide->regs->ide_nsector;
 	ide_interrupt ();
 }
 static void ide_set_features (void)
 {
-	int type = ide_nsector >> 3;
-	int mode = ide_nsector & 7;
+	int type = ide->regs->ide_nsector >> 3;
+	int mode = ide->regs->ide_nsector & 7;
 
-	write_log (L"IDE%d set features %02X (%02X)\n", ide->num, ide_feat, ide_nsector);
+	write_log (L"IDE%d set features %02X (%02X)\n", ide->num, ide->regs->ide_feat, ide->regs->ide_nsector);
 	ide_fail ();
 }
 
 static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, unsigned int *head, unsigned int *sec, int lba48)
 {
-	if (lba48 && (ide_select & 0x40)) {
+	if (lba48 && (ide->regs->ide_select & 0x40)) {
 		uae_u64 lba;
-		lba = (ide_hcyl << 16) | (ide_lcyl << 8) | ide_sector;
-		lba |= ((ide_hcyl2 << 16) | (ide_lcyl2 << 8) | ide_sector2) << 24;
+		lba = (ide->regs->ide_hcyl << 16) | (ide->regs->ide_lcyl << 8) | ide->regs->ide_sector;
+		lba |= ((ide->regs->ide_hcyl2 << 16) | (ide->regs->ide_lcyl2 << 8) | ide->regs->ide_sector2) << 24;
 		*lbap = lba;
 	} else {
-		if (ide_select & 0x40) {
-			*lbap = ((ide_select & 15) << 24) | (ide_hcyl << 16) | (ide_lcyl << 8) | ide_sector;
+		if (ide->regs->ide_select & 0x40) {
+			*lbap = ((ide->regs->ide_select & 15) << 24) | (ide->regs->ide_hcyl << 16) | (ide->regs->ide_lcyl << 8) | ide->regs->ide_sector;
 		} else {
-			*cyl = (ide_hcyl << 8) | ide_lcyl;
-			*head = ide_select & 15;
-			*sec = ide_sector;
+			*cyl = (ide->regs->ide_hcyl << 8) | ide->regs->ide_lcyl;
+			*head = ide->regs->ide_select & 15;
+			*sec = ide->regs->ide_sector;
 			*lbap = (((*cyl) * ide->hdhfd.heads + (*head)) * ide->hdhfd.secspertrack) + (*sec) - 1;
 		}
 	}
@@ -548,22 +555,22 @@ static void get_lbachs (struct ide_hdf *ide, uae_u64 *lbap, unsigned int *cyl, u
 static int get_nsec (int lba48)
 {
 	if (lba48)
-		return (ide_nsector == 0 && ide_nsector2 == 0) ? 65536 : (ide_nsector2 * 256 + ide_nsector);
+		return (ide->regs->ide_nsector == 0 && ide->regs->ide_nsector2 == 0) ? 65536 : (ide->regs->ide_nsector2 * 256 + ide->regs->ide_nsector);
 	else
-		return ide_nsector == 0 ? 256 : ide_nsector;
+		return ide->regs->ide_nsector == 0 ? 256 : ide->regs->ide_nsector;
 }
 static int dec_nsec (int lba48, int v)
 {
 	if (lba48) {
 		uae_u16 nsec;
-		nsec = ide_nsector2 * 256 + ide_nsector;
-		ide_nsector -= v;
-		ide_nsector2 = nsec >> 8;
-		ide_nsector = nsec & 0xff;
-		return (ide_nsector2 << 8) | ide_nsector;
+		nsec = ide->regs->ide_nsector2 * 256 + ide->regs->ide_nsector;
+		ide->regs->ide_nsector -= v;
+		ide->regs->ide_nsector2 = nsec >> 8;
+		ide->regs->ide_nsector = nsec & 0xff;
+		return (ide->regs->ide_nsector2 << 8) | ide->regs->ide_nsector;
 	} else {
-		ide_nsector -= v;
-		return ide_nsector;
+		ide->regs->ide_nsector -= v;
+		return ide->regs->ide_nsector;
 	}
 }
 
@@ -571,21 +578,21 @@ static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsi
 {
 	if (lba48) {
 		lba += inc;
-		ide_hcyl = (lba >> 16) & 0xff;
-		ide_lcyl = (lba >> 8) & 0xff;
-		ide_sector = lba & 0xff;
+		ide->regs->ide_hcyl = (lba >> 16) & 0xff;
+		ide->regs->ide_lcyl = (lba >> 8) & 0xff;
+		ide->regs->ide_sector = lba & 0xff;
 		lba >>= 24;
-		ide_hcyl2 = (lba >> 16) & 0xff;
-		ide_lcyl2 = (lba >> 8) & 0xff;
-		ide_sector2 = lba & 0xff;
+		ide->regs->ide_hcyl2 = (lba >> 16) & 0xff;
+		ide->regs->ide_lcyl2 = (lba >> 8) & 0xff;
+		ide->regs->ide_sector2 = lba & 0xff;
 	} else {
-		if (ide_select & 0x40) {
+		if (ide->regs->ide_select & 0x40) {
 			lba += inc;
-			ide_select &= ~15;
-			ide_select |= (lba >> 24) & 15;
-			ide_hcyl = (lba >> 16) & 0xff;
-			ide_lcyl = (lba >> 8) & 0xff;
-			ide_sector = lba & 0xff;
+			ide->regs->ide_select &= ~15;
+			ide->regs->ide_select |= (lba >> 24) & 15;
+			ide->regs->ide_hcyl = (lba >> 16) & 0xff;
+			ide->regs->ide_lcyl = (lba >> 8) & 0xff;
+			ide->regs->ide_sector = lba & 0xff;
 		} else {
 			sec += inc;
 			while (sec >= ide->hdhfd.secspertrack) {
@@ -596,11 +603,11 @@ static void put_lbachs (struct ide_hdf *ide, uae_u64 lba, unsigned int cyl, unsi
 					cyl++;
 				}
 			}
-			ide_select &= ~15;
-			ide_select |= head;
-			ide_sector = sec;
-			ide_hcyl = cyl >> 8;
-			ide_lcyl = (uae_u8)cyl;
+			ide->regs->ide_select &= ~15;
+			ide->regs->ide_select |= head;
+			ide->regs->ide_sector = sec;
+			ide->regs->ide_hcyl = cyl >> 8;
+			ide->regs->ide_lcyl = (uae_u8)cyl;
 		}
 	}
 }
@@ -609,7 +616,7 @@ static void check_maxtransfer (int state)
 {
 	if (state == 1) {
 		// transfer was started
-		if (ide->maxtransferstate < 2 && ide_nsector == 0) {
+		if (ide->maxtransferstate < 2 && ide->regs->ide_nsector == 0) {
 			ide->maxtransferstate = 1;
 		} else if (ide->maxtransferstate == 2) {
 			// second transfer was started (part of split)
@@ -698,7 +705,7 @@ static void ide_do_command (uae_u8 cmd)
 	if (IDE_LOG > 1)
 		write_log (L"**** IDE%d command %02X\n", ide->num, cmd);
 	ide->status &= ~ (IDE_STATUS_DRDY | IDE_STATUS_DRQ | IDE_STATUS_ERR);
-	ide_error = 0;
+	ide->regs->ide_error = 0;
 
 	if (cmd == 0x10) { /* recalibrate */
 		ide_recalibrate ();
@@ -737,7 +744,7 @@ static void ide_do_command (uae_u8 cmd)
 	} else if (cmd == 0xe0 || cmd == 0xe1 || cmd == 0xe7 || cmd == 0xea) { /* standby now/idle/flush cache/flush cache ext */
 		ide_interrupt ();
 	} else if (cmd == 0xe5) { /* check power mode */
-		ide_nsector = 0xff;
+		ide->regs->ide_nsector = 0xff;
 		ide_interrupt ();
 	} else {
 		ide_fail ();
@@ -912,47 +919,47 @@ static uae_u32 ide_read (uaecptr addr)
 	switch (ide_reg)
 	{
 	case IDE_DRVADDR:
-		v = ((ide_drv ? 2 : 1) | ((ide_select & 15) << 2)) ^ 0xff;
+		v = ((ide_drv ? 2 : 1) | ((ide->regs->ide_select & 15) << 2)) ^ 0xff;
 		break;
 	case IDE_DATA:
 		break;
 	case IDE_ERROR:
-		v = ide_error;
+		v = ide->regs->ide_error;
 		break;
 	case IDE_NSECTOR:
-		if (ide_devcon & 0x80)
-			v = ide_nsector2;
+		if (ide->regs->ide_devcon & 0x80)
+			v = ide->regs->ide_nsector2;
 		else
-			v = ide_nsector;
+			v = ide->regs->ide_nsector;
 		break;
 	case IDE_SECTOR:
-		if (ide_devcon & 0x80)
-			v = ide_sector2;
+		if (ide->regs->ide_devcon & 0x80)
+			v = ide->regs->ide_sector2;
 		else
-			v = ide_sector;
+			v = ide->regs->ide_sector;
 		check_maxtransfer (2);
 		break;
 	case IDE_LCYL:
-		if (ide_devcon & 0x80)
-			v = ide_lcyl2;
+		if (ide->regs->ide_devcon & 0x80)
+			v = ide->regs->ide_lcyl2;
 		else
-			v = ide_lcyl;
+			v = ide->regs->ide_lcyl;
 		break;
 	case IDE_HCYL:
-		if (ide_devcon & 0x80)
-			v = ide_hcyl2;
+		if (ide->regs->ide_devcon & 0x80)
+			v = ide->regs->ide_hcyl2;
 		else
-			v = ide_hcyl;
+			v = ide->regs->ide_hcyl;
 		break;
 	case IDE_SELECT:
-		v = ide_select;
+		v = ide->regs->ide_select;
 		break;
 	case IDE_STATUS:
 		ide->irq = 0; /* fall through */
 	case IDE_DEVCON: /* ALTSTATUS when reading */
 		if (ide->hdhfd.size == 0) {
 			v = 0;
-			if (ide_error)
+			if (ide->regs->ide_error)
 				v |= IDE_STATUS_ERR;
 		} else {
 			v = ide->status;
@@ -985,8 +992,8 @@ static void ide_write (uaecptr addr, uae_u32 val)
 	}
 	if (addr >= 0x4000)
 		return;
-	ide_devcon &= ~0x80; /* clear HOB */
 	ide_reg = get_ide_reg (addr);
+	ide->regs->ide_devcon &= ~0x80; /* clear HOB */
 	if (IDE_LOG > 2 && ide_reg > 0)
 		write_log (L"IDE%d register %d=%02X\n", ide->num, ide_reg, (uae_u32)val & 0xff);
 	switch (ide_reg)
@@ -994,34 +1001,34 @@ static void ide_write (uaecptr addr, uae_u32 val)
 	case IDE_DRVADDR:
 		break;
 	case IDE_DEVCON:
-		if ((ide_devcon & 4) == 0 && (val & 4) != 0)
+		if ((ide->regs->ide_devcon & 4) == 0 && (val & 4) != 0)
 			ide_execute_drive_diagnostics ();
-		ide_devcon = val;
+		ide->regs->ide_devcon = val;
 		break;
 	case IDE_DATA:
 		break;
 	case IDE_ERROR:
-		ide_feat2 = ide_feat;
-		ide_feat = val;
+		ide->regs->ide_feat2 = ide->regs->ide_feat;
+		ide->regs->ide_feat = val;
 		break;
 	case IDE_NSECTOR:
-		ide_nsector2 = ide_nsector;
-		ide_nsector = val;
+		ide->regs->ide_nsector2 = ide->regs->ide_nsector;
+		ide->regs->ide_nsector = val;
 		break;
 	case IDE_SECTOR:
-		ide_sector2 = ide_sector;
-		ide_sector = val;
+		ide->regs->ide_sector2 = ide->regs->ide_sector;
+		ide->regs->ide_sector = val;
 		break;
 	case IDE_LCYL:
-		ide_lcyl2 = ide_lcyl;
-		ide_lcyl = val;
+		ide->regs->ide_lcyl2 = ide->regs->ide_lcyl;
+		ide->regs->ide_lcyl = val;
 		break;
 	case IDE_HCYL:
-		ide_hcyl2 = ide_hcyl;
-		ide_hcyl = val;
+		ide->regs->ide_hcyl2 = ide->regs->ide_hcyl;
+		ide->regs->ide_hcyl = val;
 		break;
 	case IDE_SELECT:
-		ide_select = val;
+		ide->regs->ide_select = val;
 		ide_drv = (val & 0x10) ? 1 : 0;
 		break;
 	case IDE_STATUS:
@@ -1229,7 +1236,7 @@ static uae_u32 gayle2_read (uaecptr addr)
 	uae_u8 v = 0;
 	addr &= 0xffff;
 	if (addr == 0x1000) {
-		/* Gayle ID */
+		/* Gayle ID. Gayle = 0xd0. AA Gayle = 0xd1 */
 		if (gayle_id_cnt == 0 || gayle_id_cnt == 1 || gayle_id_cnt == 3 || ((currprefs.chipset_mask & CSMASK_AGA) && gayle_id_cnt == 7) ||
 			(currprefs.cs_cd32cd && !currprefs.cs_ide && !currprefs.cs_pcmcia && gayle_id_cnt == 2))
 			v = 0x80;
@@ -1962,10 +1969,14 @@ static void initide (void)
 	alloc_ide_mem (idedrive, 4);
 	if (isrestore ())
 		return;
-	ide_error = 1;
-	ide_sector = ide_nsector = 1;
-	ide_select = 0;
-	ide_lcyl = ide_hcyl = ide_devcon = ide_feat = 0;
+	for (i = 0; i < 2; i++) {
+		ideregs[i].ide_error = 1;
+		ideregs[i].ide_sector = ideregs[i].ide_nsector = 1;
+		ideregs[i].ide_select = 0;
+		ideregs[i].ide_lcyl = ideregs[i].ide_hcyl = ideregs[i].ide_devcon = ideregs[i].ide_feat = 0;
+		idedrive[i * 2 + 0]->regs = &ideregs[i];
+		idedrive[i * 2 + 1]->regs = &ideregs[i];
+	}
 	ide_drv = 0;
 	ide_splitter = 0;
 	if (idedrive[2]->hdhfd.size) {
@@ -2006,7 +2017,8 @@ uae_u8 *restore_gayle (uae_u8 *src)
 	gayle_cs = restore_u8 ();
 	gayle_cs_mask = restore_u8 ();
 	gayle_cfg = restore_u8 ();
-	ide_error = 0;
+	ideregs[0].ide_error = 0;
+	ideregs[1].ide_error = 0;
 	return src;
 }
 
@@ -2055,19 +2067,19 @@ uae_u8 *save_ide (int num, int *len, uae_u8 *dstptr)
 	save_u32 (ide->hdhfd.cyls);
 	save_u32 (ide->hdhfd.heads);
 	save_u32 (ide->hdhfd.secspertrack);
-	save_u8 (ide_select);
-	save_u8 (ide_nsector);
-	save_u8 (ide_nsector2);
-	save_u8 (ide_sector);
-	save_u8 (ide_sector2);
-	save_u8 (ide_lcyl);
-	save_u8 (ide_lcyl2);
-	save_u8 (ide_hcyl);
-	save_u8 (ide_hcyl2);
-	save_u8 (ide_feat);
-	save_u8 (ide_feat2);
-	save_u8 (ide_error);
-	save_u8 (ide_devcon);
+	save_u8 (ide->regs->ide_select);
+	save_u8 (ide->regs->ide_nsector);
+	save_u8 (ide->regs->ide_nsector2);
+	save_u8 (ide->regs->ide_sector);
+	save_u8 (ide->regs->ide_sector2);
+	save_u8 (ide->regs->ide_lcyl);
+	save_u8 (ide->regs->ide_lcyl2);
+	save_u8 (ide->regs->ide_hcyl);
+	save_u8 (ide->regs->ide_hcyl2);
+	save_u8 (ide->regs->ide_feat);
+	save_u8 (ide->regs->ide_feat2);
+	save_u8 (ide->regs->ide_error);
+	save_u8 (ide->regs->ide_devcon);
 	save_u64 (ide->hdhfd.hfd.virtual_size);
 	save_u32 (ide->hdhfd.hfd.secspertrack);
 	save_u32 (ide->hdhfd.hfd.heads);
@@ -2095,19 +2107,19 @@ uae_u8 *restore_ide (uae_u8 *src)
 	ide->hdhfd.cyls = restore_u32 ();
 	ide->hdhfd.heads = restore_u32 ();
 	ide->hdhfd.secspertrack = restore_u32 ();
-	ide_select = restore_u8 ();
-	ide_nsector = restore_u8 ();
-	ide_sector = restore_u8 ();
-	ide_lcyl = restore_u8 ();
-	ide_hcyl = restore_u8 ();
-	ide_feat = restore_u8 ();
-	ide_nsector2 = restore_u8 ();
-	ide_sector2 = restore_u8 ();
-	ide_lcyl2 = restore_u8 ();
-	ide_hcyl2 = restore_u8 ();
-	ide_feat2 = restore_u8 ();
-	ide_error = restore_u8 ();
-	ide_devcon = restore_u8 ();
+	ide->regs->ide_select = restore_u8 ();
+	ide->regs->ide_nsector = restore_u8 ();
+	ide->regs->ide_sector = restore_u8 ();
+	ide->regs->ide_lcyl = restore_u8 ();
+	ide->regs->ide_hcyl = restore_u8 ();
+	ide->regs->ide_feat = restore_u8 ();
+	ide->regs->ide_nsector2 = restore_u8 ();
+	ide->regs->ide_sector2 = restore_u8 ();
+	ide->regs->ide_lcyl2 = restore_u8 ();
+	ide->regs->ide_hcyl2 = restore_u8 ();
+	ide->regs->ide_feat2 = restore_u8 ();
+	ide->regs->ide_error = restore_u8 ();
+	ide->regs->ide_devcon = restore_u8 ();
 	ide->hdhfd.hfd.virtual_size = restore_u64 ();
 	ide->hdhfd.hfd.secspertrack = restore_u32 ();
 	ide->hdhfd.hfd.heads = restore_u32 ();

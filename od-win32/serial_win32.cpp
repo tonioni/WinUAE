@@ -26,7 +26,7 @@
 
 #include "od-win32/parser.h"
 
-#define SERIALLOGGING 0
+#define SERIALLOGGING 1
 #define SERIALDEBUG 0 /* 0, 1, 2 3 */
 #define SERIALHSDEBUG 0
 #define MODEMTEST   0 /* 0 or 1 */

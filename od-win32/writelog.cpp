@@ -546,7 +546,8 @@ FILE *log_open (const TCHAR *name, int append, int bootlog)
 	cs_init = 1;
 
 	if (name != NULL) {
-		f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
+		if (bootlog >= 0)
+			f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
 		bootlogmode = bootlog;
 	} else if (1) {
 		TCHAR *c = GetCommandLine ();
@@ -566,7 +567,8 @@ FILE *log_open (const TCHAR *name, int append, int bootlog)
 
 void log_close (FILE *f)
 {
-	fclose (f);
+	if (f)
+		fclose (f);
 }
 
 void jit_abort (const TCHAR *format,...)

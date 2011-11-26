@@ -938,6 +938,7 @@
 #define IDC_CS_EXT                      1712
 #define IDC_CS_CIAA_TOD3                1713
 #define IDC_SOUND_DS                    1713
+#define IDC_MONITOREMU                  1713
 #define IDC_CS_COMPATIBLE               1714
 #define IDC_CS_RAMSEYREV                1715
 #define IDC_SOUND_WASAPI                1715

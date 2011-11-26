@@ -787,7 +787,7 @@ int WIN32GFX_AdjustScreenmode (struct MultiDisplay *md, int *pwidth, int *pheigh
 static int flushymin, flushymax;
 #define FLUSH_DIFF 50
 
-static void flushit (int lineno)
+static void flushit (struct vidbuffer *vb, int lineno)
 {
 	if (!currprefs.gfx_api)
 		return;
@@ -813,18 +813,18 @@ static void flushit (int lineno)
 	}
 }
 
-void flush_line (int lineno)
+void flush_line (struct vidbuffer *vb, int lineno)
 {
-	flushit (lineno);
+	flushit (vb, lineno);
 }
 
-void flush_block (int first, int last)
+void flush_block (struct vidbuffer *vb, int first, int last)
 {
-	flushit (first);
-	flushit (last);
+	flushit (vb, first);
+	flushit (vb, last);
 }
 
-void flush_screen (int a, int b)
+void flush_screen (struct vidbuffer *vb, int a, int b)
 {
 }
 
@@ -876,16 +876,17 @@ static uae_u8 *ddraw_dolock (void)
 		dx_check ();
 		return 0;
 	}
-	gfxvidinfo.bufmem = DirectDraw_GetSurfacePointer ();
-	gfxvidinfo.rowbytes = DirectDraw_GetSurfacePitch ();
+	gfxvidinfo.outbuffer->bufmem = DirectDraw_GetSurfacePointer ();
+	gfxvidinfo.outbuffer->rowbytes = DirectDraw_GetSurfacePitch ();
 	init_row_map ();
 	clear_inhibit_frame (IHF_WINDOWHIDDEN);
-	return gfxvidinfo.bufmem;
+	return gfxvidinfo.outbuffer->bufmem;
 }
 
-int lockscr (int fullupdate)
+int lockscr (struct vidbuffer *vb, bool fullupdate)
 {
 	int ret = 0;
+
 	if (!isscreen ())
 		return ret;
 	flushymin = currentmode->amiga_height;
@@ -897,8 +898,8 @@ int lockscr (int fullupdate)
 			ret = 1;
 		} else {
 			ret = 0;
-			gfxvidinfo.bufmem = D3D_locktexture (&gfxvidinfo.rowbytes, fullupdate);
-			if (gfxvidinfo.bufmem) {
+			vb->bufmem = D3D_locktexture (&vb->rowbytes, fullupdate);
+			if (vb->bufmem) {
 				init_row_map ();
 				ret = 1;
 			}
@@ -912,7 +913,7 @@ int lockscr (int fullupdate)
 	return ret;
 }
 
-void unlockscr (void)
+void unlockscr (struct vidbuffer *vb)
 {
 	if (currentmode->flags & DM_D3D) {
 		if (currentmode->flags & DM_SWSCALE)
@@ -927,15 +928,15 @@ void unlockscr (void)
 	}
 }
 
-void flush_clear_screen (void)
+void flush_clear_screen (struct vidbuffer *vb)
 {
-	if (lockscr (true)) {
+	if (lockscr (vb, true)) {
 		int y;
-		for (y = 0; y < gfxvidinfo.outheight; y++) {
-			memset (gfxvidinfo.bufmem + y * gfxvidinfo.rowbytes, 0, gfxvidinfo.outwidth * gfxvidinfo.pixbytes);
+		for (y = 0; y < vb->height; y++) {
+			memset (vb->bufmem + y * vb->rowbytes, 0, vb->width * vb->pixbytes);
 		}
-		unlockscr ();
-		flush_screen (0, 0);
+		unlockscr (vb);
+		flush_screen (vb, 0, 0);
 	}
 }
 
@@ -1230,6 +1231,7 @@ static int open_windows (int full)
 	int ret, i;
 
 	inputdevice_unacquire ();
+	wait_keyrelease ();
 	reset_sound ();
 	in_sizemove = 0;
 
@@ -1834,7 +1836,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 				currentmode->current_height != wc->current_height ||
 				currentmode->current_depth != wc->current_depth)
 				return -1;
-			if (!gfxvidinfo.bufmem_allocated)
+			if (!gfxvidinfo.outbuffer->bufmem_allocated)
 				return -1;
 		}
 	} else if (isfullscreen () == 0) {
@@ -1989,9 +1991,12 @@ void close_windows (void)
 #if defined (GFXFILTER)
 	S2X_free ();
 #endif
-	xfree (gfxvidinfo.realbufmem);
-	gfxvidinfo.bufmem_allocated = false;
-	gfxvidinfo.realbufmem = NULL;
+	xfree (gfxvidinfo.drawbuffer.realbufmem);
+	xfree (gfxvidinfo.tempbuffer.realbufmem);
+	gfxvidinfo.drawbuffer.bufmem_allocated = false;
+	gfxvidinfo.drawbuffer.realbufmem = NULL;
+	gfxvidinfo.tempbuffer.bufmem_allocated = false;
+	gfxvidinfo.tempbuffer.realbufmem = NULL;
 	DirectDraw_Release ();
 	close_hwnds ();
 }
@@ -2580,6 +2585,38 @@ static int set_ddraw (void)
 	return 1;
 }
 
+static void allocsoftbuffer(struct vidbuffer *buf, int flags, int width, int height, int depth)
+{
+	if (!(flags & (DM_SWSCALE | DM_D3D)))
+		return;
+
+	buf->pixbytes = (depth + 7) / 8;
+	buf->width = (width + 7) & ~7;
+	buf->height = height;
+
+	if (flags & DM_SWSCALE) {
+
+		int w = width * 2;
+		int h = height * 2;
+		int size = (w * 2) * (h * 3) * buf->pixbytes;
+		buf->realbufmem = xmalloc (uae_u8, size);
+		memset (buf->realbufmem, 0, size);
+		buf->bufmem = buf->realbufmem + (w + (w * 2) * h) * buf->pixbytes;
+		buf->rowbytes = w * 2 * buf->pixbytes;
+		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
+		buf->bufmem_allocated = true;
+
+	} else if (flags & DM_D3D) {
+
+		int size = width * height * buf->pixbytes;
+		buf->realbufmem = xmalloc (uae_u8, size);
+		buf->bufmem = buf->realbufmem;
+		buf->rowbytes = currentmode->amiga_width * buf->pixbytes;
+		buf->bufmemend = buf->bufmem + size;
+		buf->bufmem_allocated = true;
+	}
+}
+
 static int create_windows (void)
 {
 	if (!create_windows_2 ())
@@ -2668,7 +2705,7 @@ static BOOL doInit (void)
 			if (currprefs.gfx_vresolution > gfxvidinfo.gfx_vresolution_reserved)
 				gfxvidinfo.gfx_vresolution_reserved = currprefs.gfx_resolution;
 
-			//gfxvidinfo.gfx_resolution_reserved = RES_SUPERHIRES;
+			//gfxvidinfo.drawbuffer.gfx_resolution_reserved = RES_SUPERHIRES;
 
 #if defined (GFXFILTER)
 			if (currentmode->flags & (DM_D3D | DM_SWSCALE)) {
@@ -2681,8 +2718,17 @@ static BOOL doInit (void)
 				}
 				if (gfxvidinfo.gfx_resolution_reserved == RES_SUPERHIRES)
 					currentmode->amiga_height *= 2;
-				if (currentmode->amiga_height > 960)
-					currentmode->amiga_height = 960;
+				if (currentmode->amiga_height > 1024)
+					currentmode->amiga_height = 1024;
+
+				gfxvidinfo.drawbuffer.inwidth = gfxvidinfo.drawbuffer.outwidth = currentmode->amiga_width;
+				gfxvidinfo.drawbuffer.inheight = gfxvidinfo.drawbuffer.outheight = currentmode->amiga_height;
+				if (currprefs.monitoremu) {
+					if (currentmode->amiga_width < 1024)
+						currentmode->amiga_width = 1024;
+					if (currentmode->amiga_height < 1024)
+						currentmode->amiga_height = 1024;
+				}
 				if (usedfilter) {
 					if ((usedfilter->flags & (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) == (UAE_FILTER_MODE_16 | UAE_FILTER_MODE_32)) {
 						currentmode->current_depth = currentmode->native_depth;
@@ -2698,13 +2744,11 @@ static BOOL doInit (void)
 				currentmode->amiga_width = currentmode->current_width;
 				currentmode->amiga_height = currentmode->current_height;
 			}
-			gfxvidinfo.pixbytes = currentmode->current_depth >> 3;
-			gfxvidinfo.bufmem = NULL;
-			gfxvidinfo.linemem = NULL;
-			gfxvidinfo.outwidth = (currentmode->amiga_width + 7) & ~7;
-			gfxvidinfo.outheight = currentmode->amiga_height;
+			gfxvidinfo.drawbuffer.pixbytes = currentmode->current_depth >> 3;
+			gfxvidinfo.drawbuffer.bufmem = NULL;
+			gfxvidinfo.drawbuffer.linemem = NULL;
 			gfxvidinfo.maxblocklines = 0; // flush_screen actually does everything
-			gfxvidinfo.rowbytes = currentmode->pitch;
+			gfxvidinfo.drawbuffer.rowbytes = currentmode->pitch;
 			break;
 #ifdef PICASSO96
 		}
@@ -2721,44 +2765,45 @@ static BOOL doInit (void)
 	picasso_vidinfo.depth = currentmode->current_depth;
 	picasso_vidinfo.offset = 0;
 #endif
-	gfxvidinfo.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
+	gfxvidinfo.drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
-	xfree (gfxvidinfo.realbufmem);
-	gfxvidinfo.realbufmem = NULL;
-	gfxvidinfo.bufmem = NULL;
-	gfxvidinfo.bufmem_allocated = false;
+	xfree (gfxvidinfo.drawbuffer.realbufmem);
+	gfxvidinfo.drawbuffer.realbufmem = NULL;
+	gfxvidinfo.drawbuffer.bufmem = NULL;
+	gfxvidinfo.drawbuffer.bufmem_allocated = false;
+
+	gfxvidinfo.outbuffer = &gfxvidinfo.drawbuffer;
+	gfxvidinfo.inbuffer = &gfxvidinfo.drawbuffer;
 
 	if (!screen_is_picasso) {
 		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
 
-			gfxvidinfo.bufmem_allocated = true;
+			gfxvidinfo.drawbuffer.bufmem_allocated = true;
 
-		} else if (currentmode->flags & DM_SWSCALE) {
+		} else {
 
-			int w = currentmode->amiga_width * 2;
-			int h = currentmode->amiga_height * 2;
-			int size = (w * 2) * (h * 3) * gfxvidinfo.pixbytes;
-			gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
-			memset (gfxvidinfo.realbufmem, 0, size);
-			gfxvidinfo.bufmem = gfxvidinfo.realbufmem + (w + (w * 2) * h) * gfxvidinfo.pixbytes;
-			gfxvidinfo.rowbytes = w * 2 * gfxvidinfo.pixbytes;
-			gfxvidinfo.bufmemend = gfxvidinfo.realbufmem + size - gfxvidinfo.rowbytes;
-			gfxvidinfo.bufmem_allocated = true;
+			allocsoftbuffer(&gfxvidinfo.drawbuffer, currentmode->flags,
+				currentmode->current_width > currentmode->amiga_width ? currentmode->current_width : currentmode->amiga_width,
+				currentmode->current_height > currentmode->amiga_height ? currentmode->current_height : currentmode->amiga_height,
+				currentmode->current_depth);
+			if (currprefs.monitoremu)
+				allocsoftbuffer(&gfxvidinfo.tempbuffer, currentmode->flags,
+					currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
+					currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,
+					currentmode->current_depth);
 
-		} else if (currentmode->flags & DM_D3D) {
+			if (currentmode->current_width > gfxvidinfo.drawbuffer.outwidth)
+				gfxvidinfo.drawbuffer.outwidth = currentmode->current_width;
+			if (gfxvidinfo.drawbuffer.outwidth > gfxvidinfo.drawbuffer.width)
+				gfxvidinfo.drawbuffer.outwidth = gfxvidinfo.drawbuffer.width;
 
-			int size = currentmode->amiga_width * currentmode->amiga_height * gfxvidinfo.pixbytes;
-			gfxvidinfo.realbufmem = xmalloc (uae_u8, size);
-			gfxvidinfo.bufmem = gfxvidinfo.realbufmem;
-			gfxvidinfo.rowbytes = currentmode->amiga_width * gfxvidinfo.pixbytes;
-			gfxvidinfo.bufmemend = gfxvidinfo.bufmem + size;
-			gfxvidinfo.bufmem_allocated = true;
+			if (currentmode->current_height > gfxvidinfo.drawbuffer.outheight)
+				gfxvidinfo.drawbuffer.outheight = currentmode->current_height;
+			if (gfxvidinfo.drawbuffer.outheight > gfxvidinfo.drawbuffer.height)
+				gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.height;
 
 		}
 		init_row_map ();
-	} else {
-		gfxvidinfo.inwidth = gfxvidinfo.outwidth = currentmode->current_width;
-		gfxvidinfo.inheight = gfxvidinfo.outheight = currentmode->current_height;
 	}
 	init_colors ();
 
@@ -2771,6 +2816,8 @@ static BOOL doInit (void)
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
+			screen_is_picasso ? picasso_vidinfo.width : gfxvidinfo.outbuffer->width,
+			screen_is_picasso ? picasso_vidinfo.height : gfxvidinfo.outbuffer->height,
 			currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free ();

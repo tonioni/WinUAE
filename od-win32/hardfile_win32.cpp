@@ -517,9 +517,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				write_log (L"HDF '%s' re-opened in zfile-mode\n", name);
 				CloseHandle (h);
 				hfd->handle->h = INVALID_HANDLE_VALUE;
-				hfd->handle->zf = zfile_fopen(name, hfd->readonly ? L"rb" : L"r+b", ZFD_NORMAL);
+				hfd->handle->zf = zfile_fopen (name, L"rb", ZFD_NORMAL);
 				hfd->handle->zfile = 1;
-				if (!h)
+				if (!hfd->handle->zf)
 					goto end;
 				zfile_fseek (hfd->handle->zf, 0, SEEK_END);
 				hfd->physsize = hfd->virtsize = zfile_ftell (hfd->handle->zf);
