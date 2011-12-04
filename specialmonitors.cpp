@@ -15,6 +15,59 @@ extern unsigned int bplcon0;
 
 static uae_u8 graffiti_palette[256 * 4];
 
+STATIC_INLINE bool FR(struct vidbuffer *src, uae_u8 *dataline)
+{
+	if (src->pixbytes == 4)
+		return (dataline[2] & 0x80) != 0;
+	else
+		return ((dataline[1] >> 7) & 1) != 0;
+}
+STATIC_INLINE bool FG(struct vidbuffer *src, uae_u8 *dataline)
+{
+	if (src->pixbytes == 4)
+		return (dataline[1] & 0x80) != 0;
+	else
+		return ((dataline[1] >> 2) & 1) != 0;
+}
+STATIC_INLINE bool FB(struct vidbuffer *src, uae_u8 *dataline)
+{
+	if (src->pixbytes == 4)
+		return (dataline[0] & 0x80) != 0;
+	else
+		return ((dataline[0] >> 4) & 1) != 0;
+}
+STATIC_INLINE bool FI(struct vidbuffer *src, uae_u8 *dataline)
+{
+	if (src->pixbytes == 4)
+		return (dataline[0] & 0x10) != 0;
+	else
+		return ((dataline[0] >> 1) & 1) != 0;
+}
+
+
+STATIC_INLINE void PRGB(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u8 g, uae_u8 b)
+{
+	if (dst->pixbytes == 4) {
+		dataline[0] = b;
+		dataline[1] = g;
+		dataline[2] = r;
+	} else {
+		r >>= 3;
+		g >>= 2;
+		b >>= 3;
+		((uae_u16*)dataline)[0] = (r << 11) | (g << 5) | b;
+	}
+}
+
+static void clearmonitor(struct vidbuffer *dst)
+{
+	uae_u8 *p = dst->bufmem;
+	for (int y = 0; y < dst->height; y++) {
+		memset(p, 0, dst->width * dst->pixbytes);
+		p += dst->rowbytes;
+	}
+}
+
 static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 {
 	int y, x;
@@ -29,6 +82,9 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 	if (!(bplcon0 & 0x0100)) // GAUD
 		return false;
+
+	if (monitor != MONITOREMU_GRAFFITI)
+		clearmonitor(dst);
 
 	command = true;
 	found = false;
@@ -66,13 +122,13 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 			uae_u8 mask = 0x80;
 			uae_u8 chunky[4] = { 0, 0, 0, 0 };
 			while (mask) {
-				if (srcp[2] & 0x80) // R
+				if (FR(src, srcp)) // R
 					chunky[3] |= mask;
-				if (srcp[1] & 0x80) // G
+				if (FG(src, srcp)) // G
 					chunky[2] |= mask;
-				if (srcp[0] & 0x80) // B
+				if (FB(src, srcp)) // B
 					chunky[1] |= mask;
-				if (srcp[0] & 0x10) // I
+				if (FI(src, srcp)) // I
 					chunky[0] |= mask;
 				srcp += xadd;
 				mask >>= 1;
@@ -140,23 +196,15 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 					r = graffiti_palette[c * 4 + 0];
 					g = graffiti_palette[c * 4 + 1];
 					b = graffiti_palette[c * 4 + 2];
-					dstp[2] = r;
-					dstp[1] = g;
-					dstp[0] = b;
+					PRGB(dst, dstp, r, g, b);
 					dstp += dst->pixbytes;
-					dstp[2] = r;
-					dstp[1] = g;
-					dstp[0] = b;
+					PRGB(dst, dstp, r, g, b);
 					dstp += dst->pixbytes;
 					
 					if (gfxvidinfo.xchange == 1 && !hires) {
-						dstp[2] = r;
-						dstp[1] = g;
-						dstp[0] = b;
+						PRGB(dst, dstp, r, g, b);
 						dstp += dst->pixbytes;
-						dstp[2] = r;
-						dstp[1] = g;
-						dstp[0] = b;
+						PRGB(dst, dstp, r, g, b);
 						dstp += dst->pixbytes;
 					}
 				}
@@ -194,64 +242,74 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	int panel_width, panel_width_draw, panel_height, srcxoffset;
 	bool f64, interlace, expand, wpb, less16;
 	uae_u8 enp, dpl;
-	bool hires;
+	bool hires, ntsc, found;
 	int idline;
 	int total_width, total_height;
 	
-	idline = currprefs.ntscmode ? 21 : 29;
-
-	if (src->yoffset > (idline << VRES_MAX))
-		return false;
-
 	dbl = gfxvidinfo.ychange == 1 ? 2 : 1;
 	doff = (128 * 2 / gfxvidinfo.xchange) * src->pixbytes;
-	// min 178 max 234
-	dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((200 << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
+	found = false;
+
+	for (idline = 21; idline <= 29; idline += 8) {
+		if (src->yoffset > (idline << VRES_MAX))
+			continue;
+		// min 178 max 234
+		dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((200 << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
 
 #if 0
-	write_log (L"%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n",
-		dataline[0 * doff + 0], dataline[0 * doff + 1], dataline[0 * doff + 2],
-		dataline[1 * doff + 0], dataline[1 * doff + 1], dataline[1 * doff + 2],
-		dataline[2 * doff + 0], dataline[2 * doff + 1], dataline[2 * doff + 2],
-		dataline[3 * doff + 0], dataline[3 * doff + 1], dataline[3 * doff + 2]);
+		write_log (L"%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n",
+			dataline[0 * doff + 0], dataline[0 * doff + 1], dataline[0 * doff + 2],
+			dataline[1 * doff + 0], dataline[1 * doff + 1], dataline[1 * doff + 2],
+			dataline[2 * doff + 0], dataline[2 * doff + 1], dataline[2 * doff + 2],
+			dataline[3 * doff + 0], dataline[3 * doff + 1], dataline[3 * doff + 2]);
 #endif
 
+		if (FB(src, &dataline[0 * doff]))			// 0:B = 0
+			continue;
+		if (!FI(src, &dataline[0 * doff]))			// 0:I = 1
+			continue;
+		if (FI(src, &dataline[2 * doff]))			// 2:I = 0
+			continue;
+		if (!FI(src, &dataline[3 * doff]))			// 3:I = 1
+			continue;
+
+		ntsc = idline < 26;
+		found = true;
+		break;
+	}
+
+	if (!found)
+		return false;
+
 	px = py = 0;
-	if (dataline[1 * doff + 0] & 0x80) // 1:B FN2
+	if (FB(src, &dataline[1 * doff])) // 1:B FN2
 		px |= 2;
-	if (dataline[1 * doff + 1] & 0x80) // 1:G FN1
+	if (FG(src, &dataline[1 * doff])) // 1:G FN1
 		px |= 1;
-	if (dataline[1 * doff + 2] & 0x80) // 1:R FN0
+	if (FR(src, &dataline[1 * doff])) // 1:R FN0
 		py |= 1;
 
-	f64 = (dataline[0 * doff + 2] & 0x80) != 0;			// 0:R
-	interlace = (dataline[0 * doff + 1] & 0x80) != 0;	// 0:G (*Always zero)
-	if ((dataline[0 * doff + 0] & 0x80) != 0)			// 0:B = 0
-		return false;
-	if ((dataline[0 * doff + 0] & 0x10) == 0)			// 0:I = 1
-		return false;
-	expand = (dataline[1 * doff + 0] & 0x10) != 0;		// 1:I (*Always set)
-	enp = (dataline[2 * doff + 2] & 0x80) ? 1 : 0;		// 2:R (*ENP=3)
-	enp |= (dataline[2 * doff + 1] & 0x80) ? 2 : 0;		// 2:G
-	wpb = (dataline[2 * doff + 0] & 0x80) != 0;			// 2:B (*Always zero)
-	if ((dataline[2 * doff + 0] & 0x10) != 0)			// 2:I = 0
-		return false;
-	dpl = (dataline[3 * doff + 2] & 0x80) ? 1 : 0;		// 3:R (*DPL=3)
-	dpl |= (dataline[3 * doff + 1] & 0x80) ? 2 : 0;		// 3:G
-	less16 = (dataline[3 * doff + 0] & 0x80) != 0;		// 3:B
-	if ((dataline[3 * doff + 0] & 0x10) == 0)			// 3:I = 1
-		return false;
+	f64 = FR(src, &dataline[0 * doff]) != 0;		// 0:R
+	interlace = FG(src, &dataline[0 * doff]) != 0;	// 0:G (*Always zero)
+	expand = FI(src, &dataline[1 * doff]) != 0;		// 1:I (*Always set)
+	enp = FR(src, &dataline[2 * doff]) ? 1 : 0;		// 2:R (*ENP=3)
+	enp |= FG(src, &dataline[2 * doff]) ? 2 : 0;	// 2:G
+	wpb = FB(src, &dataline[2 * doff]) != 0;		// 2:B (*Always zero)
+	dpl = FR(src, &dataline[3 * doff]) ? 1 : 0;		// 3:R (*DPL=3)
+	dpl |= FG(src, &dataline[3 * doff]) ? 2 : 0;	// 3:G
+	less16 = FB(src, &dataline[3 * doff]) != 0;		// 3:B
 
 	/* (*) = AOS A2024 driver static bits. Not yet implemented in emulation. */
 
 	if (f64) {
 		panel_width = 336;
-		panel_width_draw = 352;
+		panel_width_draw = px == 2 ? 352 : 336;
 		pxcnt = 3;
 		hires = false;
 		srcxoffset = 113;
 		if (px > 2)
 			return false;
+		total_width = 336 + 336 + 352;
 	} else {
 		panel_width = 512;
 		panel_width_draw = 512;
@@ -260,9 +318,13 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		srcxoffset = 129;
 		if (px > 1)
 			return false;
+		total_width = 512 + 512;
 	}
-	panel_height = currprefs.ntscmode ? 400 : 512;
+	panel_height = ntsc ? 400 : 512;
 
+	if (monitor != MONITOREMU_A2024) {
+		clearmonitor(dst);
+	}
 
 #if 0
 	write_log (L"0 = F6-4:%d INTERLACE:%d\n", f64, interlace);
@@ -279,9 +341,6 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		px, py);
 #endif
 
-	total_width = panel_width * (pxcnt - 1) + panel_width_draw;
-	if (total_width > 1024)
-		total_width = 1024;
 	if (less16) {
 		total_width -= 16;
 		if (px == pxcnt - 1)
@@ -302,29 +361,36 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		int x;
 		for (x = 0; x < (panel_width_draw * 2) / gfxvidinfo.xchange; x++) {
 			uae_u8 c1 = 0, c2 = 0;
-			if (srcp[2] & 0x80) // R
+			if (FR(src, srcp)) // R
 				c1 |= 2;
-			if (srcp[1] & 0x80) // G
+			if (FG(src, srcp)) // G
 				c2 |= 2;
-			if (srcp[0] & 0x80) // B
+			if (FB(src, srcp)) // B
 				c1 |= 1;
-			if (srcp[0] & 0x10) // I
+			if (FI(src, srcp)) // I
 				c2 |= 1;
+			if (dpl == 0) {
+				c1 = c2 = 0;
+			} else if (dpl == 1) {
+				c1 &= 1;
+				c1 |= c1 << 1;
+				c2 &= 1;
+				c2 |= c2 << 1;
+			} else if (dpl == 2) {
+				c1 &= 2;
+				c1 |= c1 >> 1;
+				c2 &= 2;
+				c2 |= c2 >> 1;
+			}
 			if (dbl == 1) {
 				c1 = (c1 + c2 + 1) / 2;
 				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2);
-				dstp1[0] = c1;
-				dstp1[1] = c1;
-				dstp1[2] = c1;
+				PRGB(dst, dstp1, c1, c1, c1);
 			} else {
 				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2);
 				c2 = (c2 << 6) | (c2 << 4) | (c2 << 2);
-				dstp1[0] = c1;
-				dstp1[1] = c1;
-				dstp1[2] = c1;
-				dstp2[0] = c2;
-				dstp2[1] = c2;
-				dstp2[2] = c2;
+				PRGB(dst, dstp1, c1, c1, c1);
+				PRGB(dst, dstp2, c2, c2, c2);
 				dstp2 += dst->pixbytes;
 			}
 			srcp += src->pixbytes;
@@ -350,7 +416,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 
 	if (monitor != MONITOREMU_A2024) {
 		monitor = MONITOREMU_A2024;
-		write_log (L"A2024 %dHz mode\n", hires ? 10 : 15);
+		write_log (L"A2024 %dHz %s mode\n", hires ? 10 : 15, ntsc ? L"NTSC" : L"PAL");
 	}
 
 	return true;
@@ -358,9 +424,6 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 
 static bool emulate_specialmonitors2(struct vidbuffer *src, struct vidbuffer *dst)
 {
-	if (src->pixbytes != 4)
-		return false;
-
 	if (currprefs.monitoremu == MONITOREMU_AUTO) {
 		automatic = true;
 		bool v = a2024(src, dst);
@@ -382,6 +445,7 @@ bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
 {
 	if (!emulate_specialmonitors2(src, dst)) {
 		if (monitor) {
+			clearmonitor(dst);
 			monitor = 0;
 			write_log (L"Native mode\n");
 		}

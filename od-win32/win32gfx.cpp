@@ -1327,6 +1327,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (128) : 0;
 	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
 	c |= currprefs.gfx_scanlines != changed_prefs.gfx_scanlines ? (2 | 8) : 0;
+	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
@@ -1391,6 +1392,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 		currprefs.gfx_vresolution = changed_prefs.gfx_vresolution;
 		currprefs.gfx_scanlines = changed_prefs.gfx_scanlines;
+		currprefs.monitoremu = changed_prefs.monitoremu;
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
@@ -2290,6 +2292,10 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	return tsum;
 }
 
+static int frame_missed, frame_counted, frame_errors;
+static int frame_usage, frame_usage_avg, frame_usage_total;
+extern int log_vsync;
+
 bool vsync_busywait (int *freetime)
 {
 	bool v;
@@ -2297,22 +2303,33 @@ bool vsync_busywait (int *freetime)
 	static bool framelost;
 	frame_time_t t;
 
+	if (log_vsync) {
+		console_out_f(L"%8d %8d %3d%% (%3d%%)\r", frame_counted, frame_missed, frame_usage, frame_usage_avg);
+	}
+
 	*freetime = 0;
-	if (currprefs.turbo_emulation)
+	if (currprefs.turbo_emulation) {
+		frame_missed++;
 		return true;
+	}
 
 	t = read_processor_time ();
 
 	if (!framelost && t - prevtime > vblankbasefull) {
 		framelost = true;
+		frame_missed++;
 		return true;
 	}
 
-	*freetime = (t - prevtime) * 100 / vblankbasefull;
-	if (*freetime > 99)
-		*freetime = 99;
-	else if (*freetime < 0)
-		*freetime = 0;
+	frame_usage = (t - prevtime) * 100 / vblankbasefull;
+	if (frame_usage > 99)
+		frame_usage = 99;
+	else if (frame_usage < 0)
+		frame_usage = 0;
+	frame_usage_total += frame_usage;
+	*freetime = frame_usage;
+	if (frame_counted)
+		frame_usage_avg = frame_usage_total / frame_counted;
 
 	v = false;
 	while (!framelost && read_processor_time () - prevtime < vblankbasewait)
@@ -2325,8 +2342,10 @@ bool vsync_busywait (int *freetime)
 	}
 	if (v) {
 		prevtime = read_processor_time ();
+		frame_counted++;
 		return true;
 	}
+	frame_errors++;
 	return false;
 }
 
@@ -2939,6 +2958,10 @@ void toggle_fullscreen (int mode)
 HDC gethdc (void)
 {
 	HDC hdc = 0;
+
+	frame_missed = frame_counted = frame_errors = 0;
+	frame_usage = frame_usage_avg = frame_usage_total = 0;
+
 #ifdef OPENGL
 	if (OGL_isenabled ())
 		return OGL_getDC (0);

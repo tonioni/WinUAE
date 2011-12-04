@@ -505,7 +505,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 	TCHAR *hdcontrollers[] = { L"uae",
 		L"ide0", L"ide1", L"ide2", L"ide3",
 		L"scsi0", L"scsi1", L"scsi2", L"scsi3", L"scsi4", L"scsi5", L"scsi6",
-		L"scsram", L"scside" }; /* scsram = smart card sram = pcmcia sram card */
+		L"scsram", L"scide" }; /* scsram = smart card sram = pcmcia sram card */
 
 	for (i = 0; i < p->mountitems; i++) {
 		struct uaedev_config_info *uci = &p->mountconfig[i];
@@ -2620,6 +2620,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 					}
 					if (_tcslen (hdc) >= 6 && !_tcsncmp (hdc, L"scsram", 6))
 						hdcv = HD_CONTROLLER_PCMCIA_SRAM;
+					if (_tcslen (hdc) >= 5 && !_tcsncmp (hdc, L"scide", 6))
+						hdcv = HD_CONTROLLER_PCMCIA_IDE;
 				}
 			}
 		}

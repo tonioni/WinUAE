@@ -67,7 +67,7 @@ FILE *debugfile = NULL;
 int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
-int always_flush_log = 0;
+int always_flush_log = 1;
 
 #define WRITE_LOG_BUF_SIZE 4096
 

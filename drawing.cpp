@@ -2232,7 +2232,7 @@ static void center_image (void)
 		}
 	} else if (gfxvidinfo.drawbuffer.extrawidth) {
 		visible_left_border = max_diwlastword - w;
-		visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
+		//visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
 	} else {
 		visible_left_border = 0;
 	}
@@ -2862,6 +2862,17 @@ void notice_interlace_seen (void)
 	interlace_seen = 1;
 }
 
+static void clearbuffer(struct vidbuffer *dst)
+{
+	if (!dst->bufmem_allocated)
+		return;
+	uae_u8 *p = dst->bufmem;
+	for (int y = 0; y < dst->height; y++) {
+		memset(p, 0, dst->width * dst->pixbytes);
+		p += dst->rowbytes;
+	}
+}
+
 void reset_drawing (void)
 {
 	unsigned int i;
@@ -2889,6 +2900,9 @@ void reset_drawing (void)
 	lightpen_y1 = lightpen_y2 = -1;
 
 	reset_custom_limits ();
+
+	clearbuffer (&gfxvidinfo.drawbuffer);
+	clearbuffer (&gfxvidinfo.tempbuffer);
 }
 
 void drawing_init (void)

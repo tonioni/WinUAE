@@ -638,6 +638,8 @@ static void initialize_mountinfo (void)
 			}
 		} else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
 			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
+		} else if (uci->controller == HD_CONTROLLER_PCMCIA_IDE) {
+			gayle_add_pcmcia_ide_unit (uci->rootdir, uci->readonly);
 		}
 	}
 	filesys_addexternals ();

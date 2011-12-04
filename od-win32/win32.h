@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA L""
-#define WINUAEBETA L"Beta 1"
-#define WINUAEDATE MAKEBD(2011, 11, 26)
+#define WINUAEBETA L"Beta 2"
+#define WINUAEDATE MAKEBD(2011, 12, 4)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -120,7 +120,7 @@ extern void send_tablet_proximity (int);
 
 void addnotifications (HWND hwnd, int remove, int isgui);
 int win32_hardfile_media_change (const TCHAR *drvname, int inserted);
-extern int CheckRM (TCHAR *DriveName);
+extern int CheckRM (const TCHAR *DriveName);
 void systray (HWND hwnd, int remove);
 void systraymenu (HWND hwnd);
 void exit_gui (int);

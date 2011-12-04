@@ -1,7 +1,7 @@
 
 
 /* Determines if this drive-letter currently has a disk inserted */
-int CheckRM (TCHAR *DriveName)
+int CheckRM (const TCHAR *DriveName)
 {
 	TCHAR filename[MAX_DPATH];
 	DWORD dwHold;
@@ -16,9 +16,9 @@ int CheckRM (TCHAR *DriveName)
 
 /* This function makes sure the volume-name being requested is not already in use, or any of the following
 illegal values: */
-static TCHAR *illegal_volumenames[] = { L"SYS", L"DEVS", L"LIBS", L"FONTS", L"C", L"L", L"S" };
+static const TCHAR *illegal_volumenames[] = { L"SYS", L"DEVS", L"LIBS", L"FONTS", L"C", L"L", L"S" };
 
-static int valid_volumename (struct uaedev_mount_info *mountinfo, TCHAR *volumename, int fullcheck)
+static int valid_volumename (struct uaedev_mount_info *mountinfo, const TCHAR *volumename, int fullcheck)
 {
 	int i, result = 1, illegal_count = sizeof (illegal_volumenames) / sizeof(TCHAR*);
 	for (i = 0; i < illegal_count; i++) {

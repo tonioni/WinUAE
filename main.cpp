@@ -236,9 +236,9 @@ void fixup_prefs (struct uae_prefs *p)
 		err = 1;
 	}
 
-	if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0)) {
-		p->z3fastmem_size = p->gfxmem_size = 0;
-		write_log (L"Can't use a graphics card or Zorro III fastmem when using a 24 bit\n"
+	if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0 || p->z3fastmem2_size != 0 || p->z3chipmem_size != 0)) {
+		p->z3fastmem_size = p->z3fastmem2_size = p->gfxmem_size = p->z3chipmem_size = 0;
+		write_log (L"Can't use a graphics card or 32-bit memory when using a 24 bit\n"
 			L"address space - sorry.\n");
 	}
 	if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000) {

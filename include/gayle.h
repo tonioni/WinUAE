@@ -5,7 +5,9 @@ extern int gayle_add_ide_unit (int ch, TCHAR *path, int blocksize, int readonly,
 		       TCHAR *devname, int sectors, int surfaces, int reserved,
 		       int bootpri, TCHAR *filesys);
 extern int gayle_modify_pcmcia_sram_unit (const TCHAR *path, int readonly, int insert);
+extern int gayle_modify_pcmcia_ide_unit (const TCHAR *path, int readonly, int insert);
 extern int gayle_add_pcmcia_sram_unit (const TCHAR *path, int readonly);
+extern int gayle_add_pcmcia_ide_unit (const TCHAR *path, int readonly);
 extern void gayle_free_units (void);
 extern void rethink_gayle (void);
 extern void gayle_map_pcmcia (void);

@@ -2958,8 +2958,6 @@ void init_hz (bool fullinit)
 			res2 = RES_MAX;
 		
 		vres2 = currprefs.gfx_vresolution;
-		if (islace && !vres2)
-			vres2++;
 		if (doublescan && !islace)
 			vres2--;
 
@@ -2976,11 +2974,13 @@ void init_hz (bool fullinit)
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	} else {
+
 		gfxvidinfo.drawbuffer.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-		gfxvidinfo.drawbuffer.extrawidth = 8;
+		gfxvidinfo.drawbuffer.extrawidth = 1;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline) << currprefs.gfx_vresolution;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
+
 	}
 
 
@@ -7294,7 +7294,7 @@ STATIC_INLINE int dma_cycle (void)
 	blitter_nasty = 1;
 	if (cpu_tracer == -1)
 		return current_hpos ();
-	for (;;) {
+	while (currprefs.cpu_cycle_exact) {
 		int bpldma;
 		int blitpri = dmacon & DMA_BLITPRI;
 		hpos_old = current_hpos ();

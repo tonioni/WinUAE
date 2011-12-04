@@ -3727,6 +3727,11 @@ void InitializeListView (HWND hDlg)
 				_tcscpy(devname_str, L"*SCSRAM*");
 				_tcscpy (volname_str, L"n/a");
 				_tcscpy (bootpri_str, L"n/a");
+			} else if (uci->controller == HD_CONTROLLER_PCMCIA_IDE) {
+				_tcscpy (blocksize_str, L"n/a");
+				_tcscpy(devname_str, L"*SCIDE*");
+				_tcscpy (volname_str, L"n/a");
+				_tcscpy (bootpri_str, L"n/a");
 			} else if (type == FILESYS_HARDFILE) {
 				_stprintf (blocksize_str, L"%d", uci->blocksize);
 				_tcscpy (devname_str, uci->devname);
@@ -5322,7 +5327,6 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #endif
 	ew (hDlg, IDC_FASTCOPPER, enable);
 	ew (hDlg, IDC_GENLOCK, full_property_sheet);
-	ew (hDlg, IDC_MONITOREMU, full_property_sheet);
 	ew (hDlg, IDC_BLITIMM, enable);
 	if (enable == FALSE) {
 		workprefs.immediate_blits = 0;
@@ -8707,6 +8711,7 @@ static void inithdcontroller (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)L"SCSI5");
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)L"SCSI6");
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)L"SCSRAM");
+	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_ADDSTRING, 0, (LPARAM)L"SC IDE");
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, 0, 0);
 }
 

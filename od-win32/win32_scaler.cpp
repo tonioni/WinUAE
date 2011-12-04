@@ -80,6 +80,8 @@ static int vblscale (int v)
 	static int o;
 	int n, v2;
 
+	if (!isnativevidbuf ())
+		return v;
 	n = (beamcon0 & 0x80) + maxvpos_nom;
 	if (n != o)
 		cleartemp = 1;

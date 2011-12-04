@@ -65,6 +65,8 @@ static bool debugchannel (int ch)
 
 STATIC_INLINE bool usehacks (void)
 {
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68020)
+		return false;
 	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0;
 }
 

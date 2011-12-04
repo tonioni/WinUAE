@@ -97,6 +97,7 @@ extern int log_a2065, a2065_promiscuous;
 extern bool rawinput_enabled_hid;
 int log_scsi;
 int log_net;
+int log_vsync;
 int uaelib_debug;
 int pissoff_value = 25000;
 unsigned int fpucontrol;
@@ -4599,6 +4600,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, L"seriallog")) {
 		log_uaeserial = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"vsynclog")) {
+		log_vsync = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"clipboarddebug")) {

@@ -1,4 +1,65 @@
 
+Beta 2:
+
+- Adjusted horizontal positioning, full overscan was not visible.
+- Clear display buffers when monitor type or refresh rate changes.
+- A2024 1-plane mode brightness level fixed (DPL bits implemented)
+- Fix A2024 10Hz flickering near panel borders.
+- 16-bit color supported in A2024/Graffiti emulation.
+- Disable audio emulation hacks if 68020 CE (previously only if 68000 CE)
+- Switching from CE to non-CE on the fly froze the emulated machine in some situations until mode was switched back to CE.
+- PCMCIA CF IDE emulation added ("SC IDE" controller type), originally developed for AROS m68k PCMCIA CF IDE support testing.
+- Fastest possible without JIT + low latency vsync should work much better now (but probably still not good enough)
+
+Beta 1:
+
+- Number of supported serial ports, MIDI ports and sound devices increased, allocated dynamically.
+- Fixed crash if more than max supported serial ports or MIDI ports found.
+- Sort MIDI and serial ports alphabetically.
+- Hardfile write protection has never worked, only worked when using real harddrives.
+- Very old keyboard handshake emulation hack removed, now following key code won't arrive until current key
+  code has been handshaked properly. I guess this hack was needed when CIA emulation was not good enough.
+- Parallel joystick adapter unused pin added to Input panel (spare/2nd button) World Cup 1990 parallel
+  port joystick adapter uses this pin.
+- Gayle IDE emulation IDE doubler mode improved, both buses are now separate, supports drivers that
+  send command to drive on another bus when drive on other bus is still processing previous
+  command (Linux/NetBSD/AROS)
+- Emulate disk write with enabled wordsync. Write does not start until wordsync marker has been found
+  on disk. Some games accidentally enable wordsync bit when writing. Previously write never started.
+- Saving configuration crashed if scale mode was set to integer.
+- -portable disables winuaebootlog.txt, also added -bootlog and -nobootlog parameters.
+- Switching from physical CD to image or vice versa didn't send uaescsi.device change notifications
+- Support added for special screen modes that can have different "input" and "output" resolutions
+  or positioning. On the fly switching also supported.
+- A2024 and Graffiti emulation implemented, uses above system. Configuration in chipset panel,
+  autodetect = attempts to detect if mode is normal, A2024 or Graffiti.
+- All programmed display modes (DBLPAL/NTSC, MULTISCAN etc..) should be always centered, exact
+  display positioning configuration is now taken from sync position custom registers.
+- Normal modes may also have better centering without extra configuration.
+- Mode switching can leave old graphics garbage, this will be fixed later.
+
+A2024 and Graffiti emulation notes:
+- 32-bit display mode required.
+- Direct3D or DirectDraw + null filter mode required. (=Does not work if DirectDraw + no filter)
+- Make sure display resolution (lores/hires/shres) is equal or higher than required resolution:
+  * A2024 10Hz: lores
+  * A2024 15Hz: hires (loss of every other pixel if lores)
+  * A2024 only tested using WB drivers (which don't use all A2024 special features)
+  * Graffiti lores: hires (does not work at all if lores)
+  * Graffiti hires (AGA required): shres (does not work at all if hires or lores)
+- A2024 output resolutions: 1024x1024 (PAL), 1024x800 (NTSC), OCS chipset: 1008x1024 or 1008x800.
+- Yes, weird A2024 refresh behavior is normal, single display is built from multiple frames!
+- A2024 enabled but special mode line not detected: fall back to normal native display. Real
+  A2024 would show 8 grayscale screen. This is not (yet? Pointless feature?) emulated.
+
+NOTE.NOTE.NOTE.NOTE: Because display positioning has been changed:
+- Remove all custom filter positioning settings first!
+- Also test without enabled horizontal or vertical centering.
+
+NOTE2:NOTE2:NOTE2: This can also change again during beta period. It won't be compatible with old versions.
+
+2.3.3
+
 Beta 7:
 
 - do not misdetect standard adf images that have small amount of garbage data appended at the end of file
