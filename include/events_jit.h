@@ -58,8 +58,13 @@ STATIC_INLINE void set_cycles (unsigned long int x)
 #endif
 }
 
+extern volatile bool thread_vblank_found;
+
 STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 {
+	if (thread_vblank_found && pissoff > 0)
+		cycles_do_special ();
+
 	if ((pissoff -= cycles_to_add) >= 0)
 		return;
 
@@ -71,7 +76,7 @@ STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 		int v = rpt - vsyncmintime;
 		if (v > (int)syncbase || v < -((int)syncbase))
 			vsyncmintime = rpt;
-		if (v < 0) {
+		if (v < 0 && !thread_vblank_found && !currprefs.turbo_emulation) {
 			pissoff = pissoff_value * CYCLE_UNIT;
 			return;
 		}

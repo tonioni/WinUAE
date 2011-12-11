@@ -21,10 +21,12 @@ STATIC_INLINE void events_schedule (void)
 	nextevent = currcycle + mintime;
 }
 
+extern volatile bool thread_vblank_found;
+
 STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 {
 	if (is_lastline && eventtab[ev_hsync].evtime - currcycle <= cycles_to_add
-		&& (long int)(read_processor_time () - vsyncmintime) < 0)
+		&& (long int)(read_processor_time () - vsyncmintime) < 0 && !thread_vblank_found)
 		return;
 
 	while ((nextevent - currcycle) <= cycles_to_add) {

@@ -26,11 +26,14 @@ extern void toggle_fullscreen (int);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int);
-extern bool vsync_busywait (int*);
+extern void vsync_busywait_end (void);
+extern bool vsync_busywait_do (int*);
+extern void vsync_busywait_start (void);
 extern double vblank_calibrate (double, bool);
 extern void doflashscreen (void);
 extern int flashscreen;
 extern void updatedisplayarea (void);
+extern int isvsync (void);
 
 extern void flush_line (struct vidbuffer*, int);
 extern void flush_block (struct vidbuffer*, int, int);
@@ -91,6 +94,7 @@ struct vidbuffer
 	uae_u8 *bufmem, *bufmemend;
     uae_u8 *realbufmem;
 	bool bufmem_allocated;
+	bool bufmem_lockable;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
 	/* size of this buffer */

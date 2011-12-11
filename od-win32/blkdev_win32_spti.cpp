@@ -652,7 +652,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	return di;
 }
 
-void win32_spti_media_change (TCHAR driveletter, int insert)
+bool win32_spti_media_change (TCHAR driveletter, int insert)
 {
 	for (int i = 0; i < total_devices; i++) {
 		struct dev_info_spti *di = &dev_info[i];
@@ -664,9 +664,11 @@ void win32_spti_media_change (TCHAR driveletter, int insert)
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
 				blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
+				return true;
 			}
 		}
 	}
+	return false;
 }
 
 static int check_isatapi (int unitnum)

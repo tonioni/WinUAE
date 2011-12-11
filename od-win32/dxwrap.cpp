@@ -1184,8 +1184,7 @@ bool DirectDraw_waitvblankstate (bool state)
 	BOOL vb;
 	HRESULT hr;
 
-	dx_check ();
-	if (dxdata.islost)
+	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
 		return false;
 	for (;;) {
 		hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vb);
@@ -1202,5 +1201,21 @@ bool DirectDraw_vblank_busywait (void)
 {
 	if (!DirectDraw_waitvblankstate (true))
 		return false;
+	return true;
+}
+
+bool DirectDraw_getvblankstate (bool *state)
+{
+	BOOL vb;
+	HRESULT hr;
+
+	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
+		return false;
+	hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vb);
+	if (FAILED (hr)) {
+		write_log (L"IDirectDraw7_GetVerticalBlankStatus %s\n", DXError (hr));
+		return false;
+	}
+	*state = vb != 0;
 	return true;
 }

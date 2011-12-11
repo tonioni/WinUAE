@@ -14,6 +14,7 @@ extern void real_main (int, TCHAR **);
 extern void usage (void);
 extern void parse_cmdline (int argc, TCHAR **argv);
 extern void sleep_millis (int ms);
+extern void sleep_millis_main (int ms);
 extern void sleep_millis_busy (int ms);
 extern int sleep_resolution;
 

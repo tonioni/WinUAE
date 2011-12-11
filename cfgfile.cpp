@@ -1017,7 +1017,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	if (p->m68k_speed > 0)
 		cfgfile_write (f, L"finegrain_cpu_speed", L"%d", p->m68k_speed);
 	else
-		cfgfile_write_str (f, L"cpu_speed", p->m68k_speed == -1 ? L"max" : L"real");
+		cfgfile_write_str (f, L"cpu_speed", p->m68k_speed < 0 ? L"max" : L"real");
 
 	/* do not reorder start */
 	write_compatibility_cpu(f, p);

@@ -1852,8 +1852,6 @@ static bool getvblankstate (int *vpos)
 		return false;
 	}
 	*vpos = rt.ScanLine;
-	if (rt.ScanLine > maxscanline)
-		maxscanline = rt.ScanLine;
 	if (rt.InVBlank != 0)
 		*vpos = -1;
 	return true;
@@ -1892,6 +1890,20 @@ bool D3D_vblank_busywait (void)
 	}
 }
 
+bool D3D_vblank_getstate (bool *state)
+{
+	int vpos;
+	if (!getvblankstate (&vpos))
+		return false;
+	if (vpos <= 0 || vpos >= maxscanline - 5) {
+		*state = true;
+		return true;
+	}
+	*state = false;
+	return true;
+}
+
+
 const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
@@ -1903,7 +1915,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	HINSTANCE d3dDLL, d3dx;
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
-	bool newvsync = currprefs.gfx_avsync && currprefs.gfx_avsyncmode && !picasso_on;
+	int vsync = isvsync ();
 
 
 	D3D_free2 ();
@@ -1977,12 +1989,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = newvsync ? 0 : currprefs.gfx_backbuffers;
+	dpp.BackBufferCount = vsync == -1 ? 0 : (vsync == -2 ? 2 : currprefs.gfx_backbuffers);
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = (dpp.Windowed || currprefs.gfx_backbuffers == 0 || newvsync) ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = (dpp.Windowed || dpp.BackBufferCount == 0 || vsync == -1) ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2152,7 +2164,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	maxscanline = 0;
 	d3d_enabled = 1;
 
-	if (newvsync) {
+	if (vsync == -1) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));

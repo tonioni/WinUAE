@@ -7792,7 +7792,7 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckRadioButton (hDlg, IDC_CPU0, IDC_CPU5, cpu_ids[cpu]);
 	CheckRadioButton (hDlg, IDC_FPU0, IDC_FPU3, fpu_ids[workprefs.fpu_model == 0 ? 0 : (workprefs.fpu_model == 68881 ? 1 : (workprefs.fpu_model == 68882 ? 2 : 3))]);
 
-	if (workprefs.m68k_speed == -1)
+	if (workprefs.m68k_speed < 0)
 		CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_HOST);
 	else if (workprefs.m68k_speed == 0)
 		CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_68000);

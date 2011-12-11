@@ -132,6 +132,7 @@ void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 bool DirectDraw_vblank_busywait (void);
 bool DirectDraw_waitvblankstate (bool);
+bool DirectDraw_getvblankstate (bool*);
 
 void dx_check (void);
 int dx_islost (void);

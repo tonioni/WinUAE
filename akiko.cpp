@@ -400,7 +400,7 @@ static uae_u8 qcode_buf[SUBQ_SIZE];
 static int qcode_valid;
 
 static int cdrom_disk, cdrom_paused, cdrom_playing, cdrom_audiostatus;
-static int cdrom_command_active;
+static int cdrom_command_active, cdrom_command_startdelay, cdrom_command_idle;
 static int cdrom_command_length;
 static int cdrom_checksum_error, cdrom_unknown_command;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
@@ -435,6 +435,10 @@ static void checkint (void)
 
 static void set_status (uae_u32 status)
 {
+#if AKIKO_DEBUG_IO
+	if (!(cdrom_intreq & status))
+		write_log (L"Akiko INTREQ %08x (%08x)\n", status, cdrom_intreq | status);
+#endif
 	cdrom_intreq |= status;
 	checkint ();
 	cdrom_led ^= LED_CD_ACTIVE2;
@@ -767,6 +771,14 @@ static int cdrom_command_led (void)
 	return 0;
 }
 
+static int cdrom_command_idle_status (void)
+{
+	cdrom_result_buffer[0] = 0x0a;
+	cdrom_result_buffer[1] = 0x70;
+	write_log (L"X");
+	return 2;
+}
+
 static int cdrom_command_media_status (void)
 {
 	cdrom_result_buffer[0] = 0x0a;
@@ -948,16 +960,20 @@ static void cdrom_run_command (void)
 
 	if (!(cdrom_flags & CDFLAG_TXD))
 		return;
+	if (cdrom_command_startdelay)
+		return;
 	for (;;) {
 		if (cdrom_command_active)
 			return;
 		if (cdcomtxinx == cdcomtxcmp)
 			return;
 		cdrom_command = get_byte (cdtx_address + cdcomtxinx);
+#if 1
 		if ((cdrom_command & 0xf0) == 0) {
 			cdcomtxinx = (cdcomtxinx + 1) & 0xff;
 			return;
 		}
+#endif
 		cdrom_checksum_error = 0;
 		cdrom_unknown_command = 0;
 
@@ -1050,7 +1066,7 @@ static void cdrom_run_read (void)
 	int i, sector, inc;
 	int read = 0;
 	int sec;
-	static int seccnt;
+	int seccnt;
 
 	if (!(cdrom_flags & CDFLAG_ENABLE))
 		return;
@@ -1094,8 +1110,8 @@ static void cdrom_run_read (void)
 		if (sector_buffer_info_1[sec] != 0xff)
 			sector_buffer_info_1[sec]--;
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"read sector=%d, scnt=%d -> %d. %08X\n",
-			cdrom_data_offset, cdrom_sector_counter, sector, cdrom_addressdata + seccnt * 4096);
+		write_log (L"read sector=%d, scnt=%d -> %d. %d %08X\n",
+			cdrom_data_offset, cdrom_sector_counter, sector, seccnt, cdrom_addressdata + seccnt * 4096);
 #endif
 	} else {
 		inc = 0;
@@ -1161,12 +1177,25 @@ static void akiko_internal (void)
 		if (!cdrom_command_active)
 			cdrom_run_command_run ();
 	}
+#if 0
+	if (!cdrom_playing && !cdrom_command_active) {
+		cdrom_command_idle++;
+		if (cdrom_command_idle > 1000) {
+			cdrom_command_idle = 0;
+			cdrom_start_return_data (cdrom_command_idle_status ());
+		}
+	}
+#endif
 }
 
 void AKIKO_hsync_handler (void)
 {
 	if (!currprefs.cs_cd32cd || !akiko_inited)
 		return;
+
+	if (cdrom_command_startdelay > 0) {
+		cdrom_command_startdelay--;
+	}
 
 	static float framecounter;
 	framecounter--;
@@ -1520,7 +1549,7 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	case 0x12:
 	case 0x13:
 		akiko_put_long (&cdrom_addressdata, addr - 0x10, v);
-		cdrom_addressdata &= 0x00ff0000;
+		cdrom_addressdata &= 0x00fff000;
 		break;
 	case 0x14:
 	case 0x15:
@@ -1538,6 +1567,8 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	case 0x1d:
 		cdrom_intreq &= ~CDINTERRUPT_TXDMADONE;
 		cdcomtxcmp = v;
+		if (cdrom_command_active == 0)
+			cdrom_command_startdelay = 2;
 		break;
 	case 0x1f:
 		cdrom_intreq &= ~CDINTERRUPT_RXDMADONE;

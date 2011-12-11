@@ -63,12 +63,19 @@ static bool debugchannel (int ch)
 	return ((1 << ch) & DEBUG_CHANNEL_MASK) != 0;
 }
 
-STATIC_INLINE bool usehacks (void)
+STATIC_INLINE bool usehacks1 (void)
+{
+	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0;
+}
+
+#if 0
+STATIC_INLINE bool usehacks2 (void)
 {
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68020)
 		return false;
 	return currprefs.cpu_model >= 68020 || currprefs.m68k_speed != 0;
 }
+#endif
 
 #define SINC_QUEUE_MAX_AGE 2048
 /* Queue length 128 implies minimum emulated period of 16. I add a few extra
@@ -107,6 +114,9 @@ struct audio_channel_data {
 	bool have_dat;
 	int per_original;
 #endif
+	/* too fast cpu fixes */
+	uaecptr ptx;
+	bool ptx_written;
 };
 
 static int samplecnt;
@@ -1156,6 +1166,10 @@ static void newsample (int nr, sample8_t sample)
 	if (!debugchannel (nr))
 		sample = 0;
 #endif
+#if DEBUG_AUDIO > 1
+	if (debugchannel (nr))
+		write_log (L"SAMPLE%d: %02x\n", nr, sample & 0xff);
+#endif
 	if (!(audio_channel_mask & (1 << nr)))
 		sample = 0;
 	cdp->last_sample = cdp->current_sample;
@@ -1227,7 +1241,7 @@ STATIC_INLINE void loadper (int nr)
 
 	cdp->evtime = cdp->per;
 	if (cdp->evtime < CYCLE_UNIT)
-		write_log (L"loadper%d bug %d\n", nr, cdp->evtime);
+		write_log (L"LOADPER%d bug %d\n", nr, cdp->evtime);
 }
 
 
@@ -1249,7 +1263,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 	}
 	audio_activate ();
 
-	if ((cdp->state == 2 || cdp->state == 3) && usehacks () && !chan_ena && old_dma) {
+	if ((cdp->state == 2 || cdp->state == 3) && usehacks1 () && !chan_ena && old_dma) {
 		// DMA switched off, state=2/3 and "too fast CPU": kill DMA instantly
 		// or CPU timed DMA wait routines in common tracker players will lose notes
 #if DEBUG_AUDIO > 0
@@ -1276,27 +1290,23 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->dr = true;
 			cdp->drhpos = hpos;
 			cdp->wlen = cdp->len;
-			// too fast CPU and some tracker players: enable DMA, CPU delay, update AUDxPT with loop position
-			if (usehacks ()) {
-				// copy AUDxPT - 2 to internal latch instantly
-				cdp->pt = cdp->lc - 2;
-				cdp->dsr = false;
-			} else {
-				// normal hardware behavior: latch it after first DMA fetch comes
-				cdp->dsr = true;
-			}
+			cdp->ptx_written = false;
+			cdp->dsr = true;
 #if TEST_AUDIO > 0
 			cdp->have_dat = false;
 #endif
 #if DEBUG_AUDIO > 0
-			if (debugchannel (nr))
+			if (debugchannel (nr)) {
 				write_log (L"%d:0>1: LEN=%d PC=%08x\n", nr, cdp->wlen, M68K_GETPC);
+				if (cdp->wlen == 1)
+					write_log (L"*");
+			}
 #endif
 		} else if (cdp->dat_written && !isirq (nr)) {
 			cdp->state = 2;
 			setirq (nr, 0);
 			loaddat (nr);
-			if (usehacks () && cdp->per < 10 * CYCLE_UNIT) {
+			if (usehacks1 () && cdp->per < 10 * CYCLE_UNIT) {
 				// make sure audio.device AUDxDAT startup returns to idle state before DMA is enabled
 				newsample (nr, (cdp->dat2 >> 0) & 0xff);
 				zerostate (nr);
@@ -1343,6 +1353,10 @@ static void audio_state_channel2 (int nr, bool perfin)
 		if (debugchannel (nr))
 			write_log (L"%d:>5: LEN=%d PT=%08X PC=%08X\n", nr, cdp->wlen, cdp->pt, M68K_GETPC);
 #endif
+		if (cdp->ptx_written) {
+			cdp->ptx_written = 0;
+			cdp->lc = cdp->ptx;
+		}
 		loaddat (nr);
 		if (napnav)
 			setdr (nr);
@@ -1782,9 +1796,10 @@ void AUDxDAT (int nr, uae_u16 v, uaecptr addr)
 	int chan_ena = (dmacon & DMA_MASTER) && (dmacon & (1 << nr));
 
 #if DEBUG_AUDIO > 0
-	if (debugchannel (nr) && (DEBUG_AUDIO > 1 || (!chan_ena || addr == 0xffffffff || (cdp->state != 2 && cdp->state != 3))))
+	if (debugchannel (nr) && (DEBUG_AUDIO > 1 || (!chan_ena || addr == 0xffffffff || (cdp->state != 2 && cdp->state != 3)))) {
 		write_log (L"AUD%dDAT: %04X ADDR=%08X LEN=%d/%d %d,%d,%d %06X\n", nr,
 		v, addr, cdp->wlen, cdp->len, cdp->state, chan_ena, isirq (nr) ? 1 : 0, M68K_GETPC);
+	}
 #endif
 	cdp->dat = v;
 	cdp->dat_written = true;
@@ -1837,7 +1852,15 @@ void AUDxLCH (int nr, uae_u16 v)
 	struct audio_channel_data *cdp = audio_channel + nr;
 	audio_activate ();
 	update_audio ();
-	cdp->lc = (cdp->lc & 0xffff) | ((uae_u32)v << 16);
+
+	// someone wants to update PT but DSR has not yet been processed.
+	// too fast CPU and some tracker players: enable DMA, CPU delay, update AUDxPT with loop position
+	if (usehacks1 () && ((cdp->dsr && cdp->state == 1) || cdp->ptx_written)) {
+		cdp->ptx = cdp->lc;
+		cdp->ptx_written = true;
+	} else {
+		cdp->lc = (cdp->lc & 0xffff) | ((uae_u32)v << 16);
+	}
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
 		write_log (L"AUD%dLCH: %04X %08X\n", nr, v, M68K_GETPC);
@@ -1849,7 +1872,12 @@ void AUDxLCL (int nr, uae_u16 v)
 	struct audio_channel_data *cdp = audio_channel + nr;
 	audio_activate ();
 	update_audio ();
-	cdp->lc = (cdp->lc & ~0xffff) | (v & 0xFFFE);
+	if (usehacks1 () && ((cdp->dsr && cdp->state == 1) || cdp->ptx_written)) {
+		cdp->ptx = cdp->lc;
+		cdp->ptx_written = true;
+	} else {
+		cdp->lc = (cdp->lc & ~0xffff) | (v & 0xFFFE);
+	}
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
 		write_log (L"AUD%dLCL: %04X %08X\n", nr, v, M68K_GETPC);
@@ -1953,7 +1981,7 @@ void audio_vsync (void)
 {
 #if SOUNDSTUFF > 0
 	int max, min;
-	int vsync = isfullscreen () > 0 && currprefs.gfx_avsync;
+	int vsync = isvsync ();
 	static int lastdir;
 
 	if (!vsync) {

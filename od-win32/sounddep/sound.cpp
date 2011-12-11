@@ -27,6 +27,7 @@
 #include "savestate.h"
 #include "driveclick.h"
 #include "gensound.h"
+#include "xwin.h"
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -141,11 +142,6 @@ int setup_sound (void)
 {
 	sound_available = 1;
 	return 1;
-}
-
-static int isvsync (void)
-{
-	return currprefs.gfx_avsync && currprefs.gfx_afullscreen == GFX_FULLSCREEN;
 }
 
 float scaled_sample_evtime_orig;

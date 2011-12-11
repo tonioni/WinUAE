@@ -1388,7 +1388,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	return di;
 }
 
-void win32_ioctl_media_change (TCHAR driveletter, int insert)
+bool win32_ioctl_media_change (TCHAR driveletter, int insert)
 {
 	for (int i = 0; i < total_devices; i++) {
 		struct dev_info_ioctl *ciw = &ciw32[i];
@@ -1400,9 +1400,11 @@ void win32_ioctl_media_change (TCHAR driveletter, int insert)
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
 				blkdev_cd_change (unitnum, ciw->drvlettername);
+				return true;
 			}
 		}
 	}
+	return false;
 }
 
 static int ioctl_scsiemu (int unitnum, uae_u8 *cmd)

@@ -995,7 +995,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	return di;
 }
 
-void win32_aspi_media_change (TCHAR driveletter, int insert)
+bool win32_aspi_media_change (TCHAR driveletter, int insert)
 {
 	int i, now;
 
@@ -1006,9 +1006,11 @@ void win32_aspi_media_change (TCHAR driveletter, int insert)
 				write_log (L"ASPI: media change %c %d\n", driveletter, insert);
 				si[i].mediainserted = now;
 				scsi_do_disk_change (i + 1, insert, NULL);
+				return true;
 			}
 		}
 	}
+	return false;
 }
 
 static int check_isatapi (int unitnum)

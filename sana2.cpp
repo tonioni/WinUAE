@@ -377,10 +377,10 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	pdev->unit = unit;
 	pdev->flags = flags;
 	pdev->inuse = 1;
-	pdev->td = &td[unit];
+	pdev->td = td ? &td[unit] : NULL;
 	pdev->promiscuous = (flags & SANA2OPF_PROM) ? 1 : 0;
 
-	if (pdev->td->active == 0)
+	if (pdev->td == NULL || pdev->td->active == 0)
 		return openfail (ioreq, IOERR_OPENFAIL);
 
 	if (dev->opencnt == 0) {
@@ -393,7 +393,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 		}
 		write_log (L"%s: initializing unit %d\n", getdevname (), unit);
 		dev->td = pdev->td;
-		dev->adapter = pdev->td->active;
+		dev->adapter = pdev->td ? pdev->td->active : 0;
 		if (dev->adapter) {
 			dev->online = 1;
 			dev->configured = 1;

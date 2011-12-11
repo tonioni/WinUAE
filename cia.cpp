@@ -1974,7 +1974,7 @@ uae_u8 *save_keyboard (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 4 + 4 + 1 + 1 + 1);
+		dstbak = dst = xmalloc (uae_u8, 4 + 4 + 1 + 1 + 1 + 1);
 	save_u32 (getcapslockstate () ? 1 : 0);
 	save_u32 (1);
 	save_u8 (kbstate);

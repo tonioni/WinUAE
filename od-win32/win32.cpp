@@ -225,13 +225,14 @@ static int init_mmtimer (void)
 	return 1;
 }
 
-void sleep_millis (int ms)
+static void sleep_millis2 (int ms, bool main)
 {
 	UINT TimerEvent;
-	int start;
+	int start = 0;
 	int cnt;
 
-	start = read_processor_time ();
+	if (main)
+		start = read_processor_time ();
 	EnterCriticalSection (&cs_time);
 	cnt = timehandlecounter++;
 	if (timehandlecounter >= MAX_TIMEHANDLES)
@@ -241,8 +242,19 @@ void sleep_millis (int ms)
 	WaitForSingleObject (timehandle[cnt], ms);
 	ResetEvent (timehandle[cnt]);
 	timeKillEvent (TimerEvent);
-	idletime += read_processor_time () - start;
+	if (main)
+		idletime += read_processor_time () - start;
 }
+
+void sleep_millis_main (int ms)
+{
+	sleep_millis2 (ms, true);
+}
+void sleep_millis (int ms)
+{
+	sleep_millis2 (ms, false);
+}
+
 
 frame_time_t read_processor_time_qpf (void)
 {
@@ -1209,9 +1221,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return TRUE;
 	case WM_DEVICECHANGE:
 		{
-			extern void win32_spti_media_change (TCHAR driveletter, int insert);
-			extern void win32_ioctl_media_change (TCHAR driveletter, int insert);
-			extern void win32_aspi_media_change (TCHAR driveletter, int insert);
+			extern bool win32_spti_media_change (TCHAR driveletter, int insert);
+			extern bool win32_ioctl_media_change (TCHAR driveletter, int insert);
+			extern bool win32_aspi_media_change (TCHAR driveletter, int insert);
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
 			static int waitfornext;
 
@@ -1245,11 +1257,12 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 								else
 									inserted = 0;
 								if (pBVol->dbcv_flags & DBTF_MEDIA) {
+									bool matched = false;
 #ifdef WINDDK
-									win32_spti_media_change (drive, inserted);
-									win32_ioctl_media_change (drive, inserted);
+									matched |= win32_spti_media_change (drive, inserted);
+									matched |= win32_ioctl_media_change (drive, inserted);
 #endif
-									win32_aspi_media_change (drive, inserted);
+									matched |= win32_aspi_media_change (drive, inserted);
 								}
 								if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 									write_log (L"WM_DEVICECHANGE '%s' type=%d inserted=%d\n", drvname, type, inserted);
@@ -4018,7 +4031,7 @@ static int dxdetect (void)
 #endif
 }
 
-int os_winnt, os_winnt_admin, os_64bit, os_win7, os_vista, os_winxp;
+int os_winnt, os_winnt_admin, os_64bit, os_win7, os_vista, os_winxp, cpu_number;
 
 static int isadminpriv (void)
 {
@@ -4115,6 +4128,7 @@ static int osdetect (void)
 		if (SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
 			os_64bit = 1;
 	}
+	cpu_number = SystemInfo.dwNumberOfProcessors;
 	if (!os_winnt)
 		return 0;
 	os_winnt_admin = isadminpriv ();

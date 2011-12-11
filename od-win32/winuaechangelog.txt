@@ -1,4 +1,22 @@
 
+Beta 3:
+
+- Fixed DirectDraw mode crash (b1)
+- Fixed uaenet.device crash if program attempted to open it but winpcap was not installed. (old)
+- Added CD32 drive emulation hack, CD32 Mutation Gold Compilation games now load (but they didn't work on my real CD32 either so technically
+  not working is correct behavior. This hack is removed if it breaks other programs)
+- Too fast CPU audio hack update, one of the hacks actually caused sound glitches with some strange sound routines.
+- Do not blank screen if display can't be shown (DirectDraw display position negative upper left coordinates), now sets coordinates to zero.
+- Keyboard statesave buffer overflow (b1)
+
+- Experimental new vsync mode for fastest possible/JIT CPU modes. Tested using WHDLoad demos and games.
+  - Uses secondary thread which polls vblank state continuously. There is no way to get signal/message/whatever during vblank. Stupid Windows.
+  - Activates automatically if 2 or more CPUs/cores detected and fastest possible/JIT and low latency mode selected.
+  - JIT is also supported.
+  - Works in windowed and fullscreen modes (just like normal low latency vsync).
+  - This mode is currently buffered, used to hide horrible tearing (flip timing is much more complex if fastest possible CPU), will be hopefully improved later.
+  - Sound pitch changes possible, this also needs some improving later.
+
 Beta 2:
 
 - Adjusted horizontal positioning, full overscan was not visible.

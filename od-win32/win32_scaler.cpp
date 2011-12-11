@@ -951,7 +951,11 @@ end:
 		getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
 		//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
 		OffsetRect (&sr, zr.left, zr.top);
-		if (sr.left >= 0 && sr.top >= 0 && sr.right < temp_width && sr.bottom < temp_height) {
+		if (sr.left < 0)
+			sr.left = 0;
+		if (sr.top < 0)
+			sr.top = 0;
+		if (sr.right < temp_width && sr.bottom < temp_height) {
 			if (sr.left < sr.right && sr.top < sr.bottom)
 				DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
 		}

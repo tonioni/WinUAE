@@ -1728,7 +1728,7 @@ void cdtv_init (void)
 		init_comm_pipe (&requests, 100, 1);
 		uae_start_thread (L"cdtv", dev_thread, NULL, NULL);
 		while (!thread_alive)
-			sleep_millis(10);
+			sleep_millis (10);
 		uae_sem_init (&sub_sem, 0, 1);
 	}
 	write_comm_pipe_u32 (&requests, 0x0104, 1);

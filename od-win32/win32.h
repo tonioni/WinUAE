@@ -20,7 +20,7 @@
 
 //#define WINUAEBETA L""
 #define WINUAEBETA L"Beta 2"
-#define WINUAEDATE MAKEBD(2011, 12, 4)
+#define WINUAEDATE MAKEBD(2011, 12, 11)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -75,7 +75,7 @@ extern int framecnt;
 extern TCHAR prtname[];
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
-extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7;
+extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7, cpu_number;
 extern OSVERSIONINFO osVersion;
 extern int paraport_mask;
 extern int gui_active;
@@ -92,6 +92,7 @@ enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_T
 void setpathmode (pathtype pt);
 
 extern void sleep_millis (int ms);
+extern void sleep_millis_main (int ms);
 extern void sleep_millis_busy (int ms);
 extern void wait_keyrelease (void);
 extern void keyboard_settrans (void);

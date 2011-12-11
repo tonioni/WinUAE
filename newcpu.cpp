@@ -3388,7 +3388,7 @@ STATIC_INLINE int do_specialties (int cycles)
 					lvpos = vpos;
 					if (sleepcnt < 0) {
 						sleepcnt = IDLETIME / 2;
-						sleep_millis (1);
+						sleep_millis_main (1);
 					}
 				}
 			}

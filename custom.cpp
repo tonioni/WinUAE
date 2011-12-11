@@ -411,7 +411,7 @@ int rpt_available = 0;
 
 void reset_frame_rate_hack (void)
 {
-	if (currprefs.m68k_speed != -1)
+	if (currprefs.m68k_speed >= 0)
 		return;
 
 	if (! rpt_available) {
@@ -2725,13 +2725,6 @@ static int islinetoggle (void)
 		linetoggle = 1; // hardwired NTSC Agnus
 	}
 	return linetoggle;
-}
-
-static int isvsync (void)
-{
-	if (picasso_on || !currprefs.gfx_avsync || (currprefs.gfx_avsync == 0 && !currprefs.gfx_afullscreen))
-		return 0;
-	return currprefs.gfx_avsyncmode == 0 ? 1 : -1;
 }
 
 int vsynctime_orig;
@@ -5119,31 +5112,46 @@ static void framewait (void)
 		int freetime;
 		extern int extraframewait;
 		vsyncmintime = vsynctime;
-		render_screen ();
-		vsync_busywait (&freetime);
+		
+		if (vs == -2) {
 
-		curr_time = read_processor_time ();
-		vsyncmintime = curr_time + vsynctime * 8 / 10;
+			show_screen ();
+			vsync_busywait_end ();
+			vsync_busywait_do (&freetime);
+			curr_time = read_processor_time ();
+			vsyncmintime = curr_time + vsynctime;
+			render_screen ();
+			vsync_busywait_start ();
 
-		show_screen ();
-		if (extraframewait) {
-			sleep_millis (extraframewait);
+		} else {
+
+			render_screen ();
+			vsync_busywait_do (&freetime);
+			curr_time = read_processor_time ();
+			vsyncmintime = curr_time + vsynctime;
+			show_screen ();
+			if (extraframewait)
+				sleep_millis (extraframewait);
+
 		}
 		return;
 	}
-	render_screen ();
+	bool didrender = false;
+	if (!picasso_on)
+		didrender = render_screen ();
 	for (;;) {
 		double v = rpt_vsync () / (syncbase / 1000.0);
 		if (v >= -4)
 			break;
-		sleep_millis (2);
+		sleep_millis_main (2);
 	}
 	curr_time = start = read_processor_time ();
 	while (rpt_vsync () < 0);
 	curr_time = read_processor_time ();
 	vsyncmintime = curr_time + vsynctime;
 	idletime += read_processor_time() - start;
-	show_screen ();
+	if (didrender)
+		show_screen ();
 }
 
 static frame_time_t frametime2;
@@ -5231,6 +5239,11 @@ static void vsync_handler_pre (void)
 // emulated hardware vsync
 static void vsync_handler_post (void)
 {
+	static frame_time_t prevtime;
+
+	//write_log (L"%d %d %d\n", vsynctime, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
+	prevtime = read_processor_time ();
+
 	fpscounter ();
 
 	if (!isvsync ()
@@ -5241,7 +5254,7 @@ static void vsync_handler_post (void)
 #ifdef JIT
 			if (!currprefs.cachesize) {
 #endif
-				if (currprefs.m68k_speed == -1) {
+				if (currprefs.m68k_speed < 0) {
 					frame_time_t curr_time = read_processor_time ();
 					vsyncmintime += vsynctime;
 					/* @@@ Mathias? How do you think we should do this? */
@@ -5250,8 +5263,8 @@ static void vsync_handler_post (void)
 					if ((long int)(curr_time - vsyncmintime) > 0 || rpt_did_reset)
 						vsyncmintime = curr_time + vsynctime;
 					rpt_did_reset = 0;
-					render_screen ();
-					show_screen ();
+					if (render_screen ())
+						show_screen ();
 				} else if (rpt_available) {
 					framewait ();
 				}
@@ -5317,7 +5330,7 @@ static long int diff32 (frame_time_t x, frame_time_t y)
 }
 static void frh_handler (void)
 {
-	if (currprefs.m68k_speed == -1) {
+	if (currprefs.m68k_speed < 0) {
 		frame_time_t curr_time = read_processor_time ();
 		vsyncmintime += vsynctime * N_LINES / maxvpos_nom;
 		/* @@@ Mathias? How do you think we should do this? */
@@ -5330,7 +5343,7 @@ static void frh_handler (void)
 		/* Allow this to be one frame's worth of cycles out */
 		while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
 			vsyncmintime += vsynctime * N_LINES / maxvpos_nom;
-			if (currprefs.turbo_emulation)
+			if (currprefs.turbo_emulation || thread_vblank_found)
 				break;
 		}
 	}
@@ -5555,7 +5568,7 @@ static void set_hpos (void)
 }
 
 // this finishes current line
-static void hsync_handler_pre (bool isvsync)
+static void hsync_handler_pre (bool onvsync)
 {
 	int hpos = current_hpos ();
 
@@ -5619,7 +5632,7 @@ static void hsync_handler_pre (bool isvsync)
 	vpos_count++;
 	if (vpos >= maxvpos_total)
 		vpos = 0;
-	if (isvsync) {
+	if (onvsync) {
 		vpos = 0;
 		vsync_counter++;
 	}
@@ -5635,7 +5648,7 @@ static void hsync_handler_pre (bool isvsync)
 }
 
 // this prepares for new line
-static void hsync_handler_post (bool isvsync)
+static void hsync_handler_post (bool onvsync)
 {
 	last_copper_hpos = 0;
 #ifdef CPUEMU_12
@@ -5653,7 +5666,7 @@ static void hsync_handler_post (bool isvsync)
 			CIA_vsync_posthandler (1);
 			cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 		}
-	} else if (currprefs.cs_ciaatod == 0 && isvsync) {
+	} else if (currprefs.cs_ciaatod == 0 && onvsync) {
 		CIA_vsync_posthandler (ciasyncs);
 	}
 
@@ -5676,7 +5689,7 @@ static void hsync_handler_post (bool isvsync)
 		}
 	}
 
-	if (isvsync) {
+	if (onvsync) {
 		// vpos_count >= MAXVPOS just to not crash if VPOSW writes prevent vsync completely
 		if ((bplcon0 & 8) && !lightpen_triggered) {
 			vpos_lpen = vpos - 1;
@@ -5727,7 +5740,7 @@ static void hsync_handler_post (bool isvsync)
 
 #ifdef JIT
 	if (currprefs.cachesize) {
-		if (currprefs.m68k_speed == -1) {
+		if (currprefs.m68k_speed < 0) {
 			static int count = 0;
 			count++;
 			if (trigger_frh (count)) {
@@ -5739,7 +5752,7 @@ static void hsync_handler_post (bool isvsync)
 		}
 	} else {
 #endif
-		is_lastline = vpos + 1 == maxvpos + lof_store && currprefs.m68k_speed == -1;
+		is_lastline = vpos + 1 == maxvpos + lof_store && currprefs.m68k_speed < 0;
 #ifdef JIT
 	}
 #endif

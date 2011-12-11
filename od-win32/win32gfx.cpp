@@ -77,6 +77,7 @@
 struct uae_filter *usedfilter;
 static int scalepicasso;
 static double remembered_vblank;
+static volatile int vblankthread_mode, vblankthread_counter;
 
 struct winuae_currentmode {
 	unsigned int flags;
@@ -103,11 +104,30 @@ int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 static int wasfullwindow_a, wasfullwindow_p;
-static int vblankbasewait, vblankbasefull;
+static int vblankbasewait, vblankbasewait2, vblankbasefull;
 
 int screen_is_picasso = 0;
 
 extern int reopen (int);
+
+#define VBLANKTH_KILL 0
+#define VBLANKTH_CALIBRATE 1
+#define VBLANKTH_IDLE 2
+#define VBLANKTH_ACTIVE_WAIT 3
+#define VBLANKTH_ACTIVE 4
+#define VBLANKTH_ACTIVE_START 5
+
+static void changevblankthreadmode (int newmode)
+{
+	int t = vblankthread_counter;
+	thread_vblank_found = false;
+	if (vblankthread_mode <= 0 || vblankthread_mode == newmode)
+		return;
+	vblankthread_mode = newmode;
+	while (t == vblankthread_counter && vblankthread_mode > 0)
+		sleep_millis (1);
+	thread_vblank_found = false;
+}
 
 int WIN32GFX_IsPicassoScreen (void)
 {
@@ -925,6 +945,7 @@ void unlockscr (struct vidbuffer *vb)
 		return;
 	} else if (currentmode->flags & DM_DDRAW) {
 		DirectDraw_SurfaceUnlock ();
+		gfxvidinfo.outbuffer->bufmem = NULL;
 	}
 }
 
@@ -1229,6 +1250,8 @@ static void update_gfxparams (void)
 static int open_windows (int full)
 {
 	int ret, i;
+
+	changevblankthreadmode (VBLANKTH_IDLE);
 
 	inputdevice_unacquire ();
 	wait_keyrelease ();
@@ -1838,7 +1861,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 				currentmode->current_height != wc->current_height ||
 				currentmode->current_depth != wc->current_depth)
 				return -1;
-			if (!gfxvidinfo.outbuffer->bufmem_allocated)
+			if (!gfxvidinfo.outbuffer->bufmem_lockable)
 				return -1;
 		}
 	} else if (isfullscreen () == 0) {
@@ -1979,6 +2002,7 @@ int graphics_setup (void)
 
 void graphics_leave (void)
 {
+	changevblankthreadmode (VBLANKTH_KILL);
 	close_windows ();
 }
 
@@ -1989,6 +2013,7 @@ uae_u32 OSDEP_minimize_uae (void)
 
 void close_windows (void)
 {
+	changevblankthreadmode (VBLANKTH_IDLE);
 	reset_sound();
 #if defined (GFXFILTER)
 	S2X_free ();
@@ -1996,8 +2021,10 @@ void close_windows (void)
 	xfree (gfxvidinfo.drawbuffer.realbufmem);
 	xfree (gfxvidinfo.tempbuffer.realbufmem);
 	gfxvidinfo.drawbuffer.bufmem_allocated = false;
+	gfxvidinfo.drawbuffer.bufmem_lockable = false;
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.tempbuffer.bufmem_allocated = false;
+	gfxvidinfo.tempbuffer.bufmem_lockable = false;
 	gfxvidinfo.tempbuffer.realbufmem = NULL;
 	DirectDraw_Release ();
 	close_hwnds ();
@@ -2185,12 +2212,25 @@ static int getbestmode (int nextbest)
 }
 
 
-bool waitvblankstate (bool state)
+static bool waitvblankstate (bool state)
 {
 	if (currprefs.gfx_api) {
 		return D3D_waitvblankstate (state);
 	} else {
 		return DirectDraw_waitvblankstate (state);
+	}
+}
+
+static bool getvblankstate (bool *state)
+{
+	if (currprefs.gfx_api) {
+		if (!D3D_vblank_getstate (state))
+			return false;
+		return true;
+	} else {
+		if (!DirectDraw_getvblankstate (state))
+			return false;
+		return true;
 	}
 }
 
@@ -2204,15 +2244,62 @@ double getcurrentvblankrate (void)
 		return DirectDraw_CurrentRefreshRate ();
 }
 
+static bool threaded_vsync = false;
+volatile bool thread_vblank_found;
+static volatile frame_time_t vblank_prev_time, thread_vblank_time;
+
 #include <process.h>
-static volatile int dummythread_die;
-int dummy_counter;
-static void _cdecl dummythread (void *dummy)
+
+static void _cdecl vblankthread (void *dummy)
 {
-	SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
-	while (!dummythread_die)
-		dummy_counter++;
+	while (vblankthread_mode > VBLANKTH_KILL) {
+		vblankthread_counter++;
+		if (vblankthread_mode == VBLANKTH_CALIBRATE) {
+			// calibrate mode, try to keep CPU power saving inactive
+			SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
+			while (vblankthread_mode == 0)
+				vblankthread_counter++;
+			SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_ABOVE_NORMAL);
+		} else if (vblankthread_mode == VBLANKTH_IDLE) {
+			// idle mode
+			Sleep(20);
+		} else if (vblankthread_mode == VBLANKTH_ACTIVE_WAIT) {
+			sleep_millis (1);
+		} else if (vblankthread_mode == VBLANKTH_ACTIVE_START) {
+			// do not start until vblank has been passed
+			bool vb = false;
+			bool ok = getvblankstate (&vb);
+			if (vb == false)
+				vblankthread_mode = VBLANKTH_ACTIVE;
+			else
+				sleep_millis (1);
+		} else if (vblankthread_mode == VBLANKTH_ACTIVE) {
+			// busy wait mode
+			frame_time_t t = read_processor_time ();
+			bool donotwait = false;
+			if (!thread_vblank_found) {
+				if (t - thread_vblank_time > vblankbasewait2) {
+					bool vb = false;
+					bool ok = getvblankstate (&vb);
+					if (!ok || vb) {
+						thread_vblank_found = true;
+						//write_log (L"%d\n", t - thread_vblank_time);
+						thread_vblank_time = t;
+					}
+					donotwait = true;
+				}
+			}
+			if (t - vblank_prev_time > vblankbasefull * 3)
+				vblankthread_mode = VBLANKTH_IDLE;
+			if (!donotwait)
+				sleep_millis (1);
+		} else {
+			break;
+		}
+	}
+	vblankthread_mode = -1;
 }
+
 
 double vblank_calibrate (double approx_vblank, bool waitonly)
 {
@@ -2221,20 +2308,27 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	int maxcnt, maxtotal, total, cnt, tcnt2;
 	HANDLE th;
 	
-	if (remembered_vblank > 0)
+	threaded_vsync = (cpu_number > 1 && currprefs.m68k_speed < 0);
+
+	if (remembered_vblank > 0 && (!threaded_vsync || (threaded_vsync && vblankthread_mode > 0)))
 		return remembered_vblank;
 	if (waitonly) {
 		vblankbasefull = syncbase / approx_vblank;
 		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
+		vblankbasewait2 = (syncbase / approx_vblank) * 5 / 10;
 		remembered_vblank = -1;
 		return -1;
 	}
+
 	th = GetCurrentThread ();
 	int oldpri = GetThreadPriority (th);
 	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
-	dummythread_die = -1;
-	dummy_counter = 0;
-	_beginthread (&dummythread, 0, 0);
+	if (vblankthread_mode <= VBLANKTH_KILL) {
+		vblankthread_mode = VBLANKTH_CALIBRATE;
+		_beginthread (&vblankthread, 0, 0);
+	} else {
+		changevblankthreadmode (VBLANKTH_CALIBRATE);
+	}
 	sleep_millis (100);
 	maxtotal = 10;
 	maxcnt = maxtotal;
@@ -2246,28 +2340,28 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		cnt = total;
 		for (cnt = 0; cnt < total; cnt++) {
 			if (!waitvblankstate (true))
-				return -1;
+				goto fail;
 			if (!waitvblankstate (false))
-				return -1;
+				goto fail;
 			if (!waitvblankstate (true))
-				return -1;
+				goto fail;
 			t1 = read_processor_time ();
 			if (!waitvblankstate (false))
-				return -1;
+				goto fail;
 			if (!waitvblankstate (true))
-				return -1;
+				goto fail;
 			t2 = read_processor_time ();
 			tval = (double)syncbase / (t2 - t1);
 			if (cnt == 0)
 				tfirst = tval;
 			if (abs (tval - tfirst) > 1) {
-				write_log (L"very unstable vsync! %.6f vs %.6f, retrying..\n", tval, tfirst);
+				write_log (L"Very unstable vsync! %.6f vs %.6f, retrying..\n", tval, tfirst);
 				break;
 			}
 			tsum2 += tval;
 			tcnt2++;
 			if (abs (tval - tfirst) > 0.1) {
-				write_log (L"unstable vsync! %.6f vs %.6f\n", tval, tfirst);
+				write_log (L"Unstable vsync! %.6f vs %.6f\n", tval, tfirst);
 				break;
 			}
 			tsum += tval;
@@ -2275,11 +2369,11 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		if (cnt >= total)
 			break;
 	}
-	dummythread_die = 0;
+	changevblankthreadmode (VBLANKTH_IDLE);
 	SetThreadPriority (th, oldpri);
 	if (maxcnt >= maxtotal) {
 		tsum = tsum2 / tcnt2;
-		write_log (L"unstable vsync reporting, using average value\n");
+		write_log (L"Unstable vsync reporting, using average value\n");
 	} else {
 		tsum /= total;
 	}
@@ -2287,36 +2381,66 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		tsum /= 2;
 	vblankbasefull = (syncbase / tsum);
 	vblankbasewait = (syncbase / tsum) * 3 / 4;
-	write_log (L"VSync calibration: %.6fHz\n", tsum);
+	vblankbasewait2 = (syncbase / tsum) * 5 / 10;
+	write_log (L"VSync calibration: %.6fHz. Units = %d Mode = %s\n", tsum, vblankbasefull, threaded_vsync ? L"threaded" : L"normal");
 	remembered_vblank = tsum;
+	vblank_prev_time = read_processor_time ();
 	return tsum;
+fail:
+	write_log (L"VSync calibration failed\n");
+	changed_prefs.gfx_avsync = 0;
+	return -1;
 }
 
 static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
 
-bool vsync_busywait (int *freetime)
+void vsync_busywait_end (void)
+{
+//	frame_time_t t = read_processor_time ();
+
+	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
+
+//	write_log (L"%d\n", t - thread_vblank_time);
+
+//	if (t - vblank_prev_time > vblankbasefull + vblankbasefull * 1 / 3) {
+//		frame_missed++;
+//		waitvblankstate (true);
+//	}
+}
+
+void vsync_busywait_start (void)
+{
+	changevblankthreadmode (VBLANKTH_ACTIVE_START);
+	vblank_prev_time = thread_vblank_time;
+}
+
+bool vsync_busywait_do (int *freetime)
 {
 	bool v;
-	static frame_time_t prevtime;
 	static bool framelost;
+	int ti;
 	frame_time_t t;
+	frame_time_t prevtime = vblank_prev_time;
 
-	if (log_vsync) {
-		console_out_f(L"%8d %8d %3d%% (%3d%%)\r", frame_counted, frame_missed, frame_usage, frame_usage_avg);
-	}
-
-	*freetime = 0;
-	if (currprefs.turbo_emulation) {
+	t = read_processor_time ();
+	ti = t - prevtime;
+	if (ti > 2 * vblankbasefull || ti < -2 * vblankbasefull) {
+		waitvblankstate (false);
+		t = read_processor_time ();
+		vblank_prev_time = t;
+		thread_vblank_time = t;
 		frame_missed++;
 		return true;
 	}
 
-	t = read_processor_time ();
+	if (log_vsync) {
+		console_out_f(L"F:%8d M:%8d E:%8d %3d%% (%3d%%) %10d\r", frame_counted, frame_missed, frame_errors, frame_usage, frame_usage_avg, (t - vblank_prev_time) - vblankbasefull);
+	}
 
-	if (!framelost && t - prevtime > vblankbasefull) {
-		framelost = true;
+	*freetime = 0;
+	if (currprefs.turbo_emulation) {
 		frame_missed++;
 		return true;
 	}
@@ -2332,16 +2456,33 @@ bool vsync_busywait (int *freetime)
 		frame_usage_avg = frame_usage_total / frame_counted;
 
 	v = false;
-	while (!framelost && read_processor_time () - prevtime < vblankbasewait)
-		sleep_millis (1);
-	framelost = false;
-	if (currprefs.gfx_api) {
-		v = D3D_vblank_busywait ();
+
+	if (threaded_vsync) {
+
+		framelost = false;
+		v = true;
+
 	} else {
-		v = DirectDraw_vblank_busywait ();
+
+		if (!framelost && t - prevtime > vblankbasefull) {
+			framelost = true;
+			frame_missed++;
+			return true;
+		}
+
+		while (!framelost && read_processor_time () - prevtime < vblankbasewait)
+			sleep_millis_main (1);
+
+		framelost = false;
+		if (currprefs.gfx_api) {
+			v = D3D_vblank_busywait ();
+		} else {
+			v = DirectDraw_vblank_busywait ();
+		}
 	}
+
 	if (v) {
-		prevtime = read_processor_time ();
+		vblank_prev_time = read_processor_time ();
 		frame_counted++;
 		return true;
 	}
@@ -2606,14 +2747,23 @@ static int set_ddraw (void)
 
 static void allocsoftbuffer(struct vidbuffer *buf, int flags, int width, int height, int depth)
 {
-	if (!(flags & (DM_SWSCALE | DM_D3D)))
-		return;
 
 	buf->pixbytes = (depth + 7) / 8;
 	buf->width = (width + 7) & ~7;
 	buf->height = height;
 
-	if (flags & DM_SWSCALE) {
+	if ((flags & DM_DDRAW) && !(flags & (DM_D3D | DM_SWSCALE))) {
+
+		if (buf != &gfxvidinfo.drawbuffer)
+			return;
+
+		buf->bufmem = NULL;
+		buf->bufmemend = NULL;
+		buf->realbufmem = NULL;
+		buf->bufmem_allocated = false;
+		buf->bufmem_lockable = true;
+
+	} else if (flags & DM_SWSCALE) {
 
 		int w = width * 2;
 		int h = height * 2;
@@ -2624,6 +2774,7 @@ static void allocsoftbuffer(struct vidbuffer *buf, int flags, int width, int hei
 		buf->rowbytes = w * 2 * buf->pixbytes;
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
 		buf->bufmem_allocated = true;
+		buf->bufmem_lockable = true;
 
 	} else if (flags & DM_D3D) {
 
@@ -2633,6 +2784,8 @@ static void allocsoftbuffer(struct vidbuffer *buf, int flags, int width, int hei
 		buf->rowbytes = currentmode->amiga_width * buf->pixbytes;
 		buf->bufmemend = buf->bufmem + size;
 		buf->bufmem_allocated = true;
+		buf->bufmem_lockable = true;
+
 	}
 }
 
@@ -2790,38 +2943,32 @@ static BOOL doInit (void)
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem_allocated = false;
+	gfxvidinfo.drawbuffer.bufmem_lockable = false;
 
 	gfxvidinfo.outbuffer = &gfxvidinfo.drawbuffer;
 	gfxvidinfo.inbuffer = &gfxvidinfo.drawbuffer;
 
 	if (!screen_is_picasso) {
-		if ((currentmode->flags & DM_DDRAW) && !(currentmode->flags & (DM_D3D | DM_SWSCALE))) {
-
-			gfxvidinfo.drawbuffer.bufmem_allocated = true;
-
-		} else {
-
-			allocsoftbuffer(&gfxvidinfo.drawbuffer, currentmode->flags,
-				currentmode->current_width > currentmode->amiga_width ? currentmode->current_width : currentmode->amiga_width,
-				currentmode->current_height > currentmode->amiga_height ? currentmode->current_height : currentmode->amiga_height,
+		allocsoftbuffer(&gfxvidinfo.drawbuffer, currentmode->flags,
+			currentmode->current_width > currentmode->amiga_width ? currentmode->current_width : currentmode->amiga_width,
+			currentmode->current_height > currentmode->amiga_height ? currentmode->current_height : currentmode->amiga_height,
+			currentmode->current_depth);
+		if (currprefs.monitoremu)
+			allocsoftbuffer(&gfxvidinfo.tempbuffer, currentmode->flags,
+				currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
+				currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,
 				currentmode->current_depth);
-			if (currprefs.monitoremu)
-				allocsoftbuffer(&gfxvidinfo.tempbuffer, currentmode->flags,
-					currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
-					currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,
-					currentmode->current_depth);
 
-			if (currentmode->current_width > gfxvidinfo.drawbuffer.outwidth)
-				gfxvidinfo.drawbuffer.outwidth = currentmode->current_width;
-			if (gfxvidinfo.drawbuffer.outwidth > gfxvidinfo.drawbuffer.width)
-				gfxvidinfo.drawbuffer.outwidth = gfxvidinfo.drawbuffer.width;
+		if (currentmode->current_width > gfxvidinfo.drawbuffer.outwidth)
+			gfxvidinfo.drawbuffer.outwidth = currentmode->current_width;
+		if (gfxvidinfo.drawbuffer.outwidth > gfxvidinfo.drawbuffer.width)
+			gfxvidinfo.drawbuffer.outwidth = gfxvidinfo.drawbuffer.width;
 
-			if (currentmode->current_height > gfxvidinfo.drawbuffer.outheight)
-				gfxvidinfo.drawbuffer.outheight = currentmode->current_height;
-			if (gfxvidinfo.drawbuffer.outheight > gfxvidinfo.drawbuffer.height)
-				gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.height;
+		if (currentmode->current_height > gfxvidinfo.drawbuffer.outheight)
+			gfxvidinfo.drawbuffer.outheight = currentmode->current_height;
+		if (gfxvidinfo.drawbuffer.outheight > gfxvidinfo.drawbuffer.height)
+			gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.height;
 
-		}
 		init_row_map ();
 	}
 	init_colors ();
