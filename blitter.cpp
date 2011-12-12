@@ -1480,6 +1480,10 @@ int blitnasty (void)
 		return 0;
 	if (!dmaen (DMA_BLITTER))
 		return 0;
+	if (blitter_cycle_exact) {
+		blitter_force_finish ();
+		return -1;
+	}
 	if (blit_last_cycle >= blit_diag[0] && blit_dmacount == blit_diag[0])
 		return 0;
 	cycles = (get_cycles () - blit_first_cycle) / CYCLE_UNIT;

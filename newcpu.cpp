@@ -3299,12 +3299,15 @@ STATIC_INLINE int do_specialties (int cycles)
 
 	while ((regs.spcflags & SPCFLAG_BLTNASTY) && dmaen (DMA_BLITTER) && cycles > 0 && !currprefs.blitter_cycle_exact) {
 		int c = blitnasty ();
-		if (c > 0) {
+		if (c < 0) {
+			break;
+		} else if (c > 0) {
 			cycles -= c * CYCLE_UNIT * 2;
 			if (cycles < CYCLE_UNIT)
 				cycles = 0;
-		} else
+		} else {
 			c = 4;
+		}
 		x_do_cycles (c * CYCLE_UNIT);
 		if (regs.spcflags & SPCFLAG_COPPER)
 			do_copper ();

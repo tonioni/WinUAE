@@ -1,4 +1,17 @@
 
+Beta 4:
+
+- Another switching from CE mode to non-CE hang fix. (Blitter nasty related)
+- Another too fast CPU audio hack update, fixes random glitches (Uridium II, Moonstone, probably many others)
+- Low latency vsync buffering change, selected buffering mode can be modified now.
+  - No buffering is same as previously
+  - Double and triple buffering can be enabled, increases latency but can reduce random jumps.
+- Fastest possible CPU low latency vsync update:
+  - Works now without buffering
+  - Flips buffers in vblank thread (Flipping timing is correct now, tearing gone)
+  
+Normal vsync may still be broken.
+
 Beta 3:
 
 - Fixed DirectDraw mode crash (b1)

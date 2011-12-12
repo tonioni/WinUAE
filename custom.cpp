@@ -142,6 +142,7 @@ static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0;
 static int scandoubled_line;
+static bool vsync_rendered;
 
 /* Stupid genlock-detection prevention hack.
 * We should stop calling vsync_handler() and
@@ -5115,12 +5116,10 @@ static void framewait (void)
 		
 		if (vs == -2) {
 
-			show_screen ();
 			vsync_busywait_end ();
 			vsync_busywait_do (&freetime);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
-			render_screen ();
 			vsync_busywait_start ();
 
 		} else {
@@ -5204,6 +5203,8 @@ static void fpscounter (void)
 // vsync functions that are not hardware timing related
 static void vsync_handler_pre (void)
 {
+	vsync_rendered = false;
+
 	if (bogusframe > 0)
 		bogusframe--;
 
@@ -5756,6 +5757,10 @@ static void hsync_handler_post (bool onvsync)
 #ifdef JIT
 	}
 #endif
+	if (is_lastline && isvsync () == -2 && !vsync_rendered) {
+		vsync_rendered = true;
+		render_screen ();
+	}
 
 	if (!nocustom ()) {
 		int lineno = vpos;

@@ -78,6 +78,7 @@ struct uae_filter *usedfilter;
 static int scalepicasso;
 static double remembered_vblank;
 static volatile int vblankthread_mode, vblankthread_counter;
+static CRITICAL_SECTION cs_render;
 
 struct winuae_currentmode {
 	unsigned int flags;
@@ -859,6 +860,7 @@ bool render_screen (void)
 		return render_ok;
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
+	EnterCriticalSection (&cs_render);
 	if (currentmode->flags & DM_D3D) {
 		v = D3D_renderframe ();
 #ifdef GFXFILTER
@@ -869,6 +871,7 @@ bool render_screen (void)
 	} else if (currentmode->flags & DM_DDRAW) {
 		v = true;
 	}
+	LeaveCriticalSection (&cs_render);
 	render_ok = v;
 	return render_ok;
 }
@@ -879,6 +882,7 @@ void show_screen (void)
 		return;
 	if (!render_ok)
 		return;
+	EnterCriticalSection (&cs_render);
 	if (currentmode->flags & DM_D3D) {
 		D3D_showframe ();
 #ifdef GFXFILTER
@@ -888,6 +892,7 @@ void show_screen (void)
 	} else if (currentmode->flags & DM_DDRAW) {
 		DirectDraw_Flip (1);
 	}
+	LeaveCriticalSection (&cs_render);
 }
 
 static uae_u8 *ddraw_dolock (void)
@@ -1985,6 +1990,7 @@ void machdep_free (void)
 
 int graphics_init (void)
 {
+	InitializeCriticalSection (&cs_render);
 	gfxmode_reset ();
 	return open_windows (1);
 }
@@ -2283,6 +2289,7 @@ static void _cdecl vblankthread (void *dummy)
 					bool ok = getvblankstate (&vb);
 					if (!ok || vb) {
 						thread_vblank_found = true;
+						show_screen ();
 						//write_log (L"%d\n", t - thread_vblank_time);
 						thread_vblank_time = t;
 					}
@@ -2315,7 +2322,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	if (waitonly) {
 		vblankbasefull = syncbase / approx_vblank;
 		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
-		vblankbasewait2 = (syncbase / approx_vblank) * 5 / 10;
+		vblankbasewait2 = (syncbase / approx_vblank) * 7 / 10;
 		remembered_vblank = -1;
 		return -1;
 	}
@@ -2369,7 +2376,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		if (cnt >= total)
 			break;
 	}
-	changevblankthreadmode (VBLANKTH_IDLE);
+	changevblankthreadmode (threaded_vsync ? VBLANKTH_IDLE : VBLANKTH_KILL);
 	SetThreadPriority (th, oldpri);
 	if (maxcnt >= maxtotal) {
 		tsum = tsum2 / tcnt2;

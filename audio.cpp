@@ -117,6 +117,7 @@ struct audio_channel_data {
 	/* too fast cpu fixes */
 	uaecptr ptx;
 	bool ptx_written;
+	bool ptx_tofetch;
 };
 
 static int samplecnt;
@@ -1052,7 +1053,8 @@ static void zerostate (int nr)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
 #if DEBUG_AUDIO > 0
-	write_log (L"%d: ZEROSTATE\n", nr);
+	if (debugchannel (nr))
+		write_log (L"%d: ZEROSTATE\n", nr);
 #endif
 	cdp->state = 0;
 	cdp->evtime = MAX_EV;
@@ -1166,7 +1168,7 @@ static void newsample (int nr, sample8_t sample)
 	if (!debugchannel (nr))
 		sample = 0;
 #endif
-#if DEBUG_AUDIO > 1
+#if DEBUG_AUDIO > 2
 	if (debugchannel (nr))
 		write_log (L"SAMPLE%d: %02x\n", nr, sample & 0xff);
 #endif
@@ -1223,7 +1225,7 @@ static void loaddat (int nr, bool modper)
 		cdp->hisample = cdp->losample = true;
 		cdp->have_dat = false;
 #endif
-#if DEBUG_AUDIO > 1
+#if DEBUG_AUDIO > 2
 		if (debugchannel (nr))
 			write_log (L"LOAD%dDAT: New:%04x, Old:%04x\n", nr, cdp->dat, cdp->dat2);
 #endif
@@ -1267,7 +1269,8 @@ static void audio_state_channel2 (int nr, bool perfin)
 		// DMA switched off, state=2/3 and "too fast CPU": kill DMA instantly
 		// or CPU timed DMA wait routines in common tracker players will lose notes
 #if DEBUG_AUDIO > 0
-		write_log (L"%d: INSTADMAOFF\n", nr, M68K_GETPC);
+		if (debugchannel (nr))
+			write_log (L"%d: INSTADMAOFF\n", nr, M68K_GETPC);
 #endif
 		newsample (nr, (cdp->dat2 >> 0) & 0xff);
 		if (napnav)
@@ -1291,6 +1294,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->drhpos = hpos;
 			cdp->wlen = cdp->len;
 			cdp->ptx_written = false;
+			cdp->ptx_tofetch = true;
 			cdp->dsr = true;
 #if TEST_AUDIO > 0
 			cdp->have_dat = false;
@@ -1844,6 +1848,7 @@ uaecptr audio_getpt (int nr, bool reset)
 	cdp->pt += 2;
 	if (reset)
 		cdp->pt = cdp->lc;
+	cdp->ptx_tofetch = false;
 	return p;
 }
 
@@ -1855,7 +1860,7 @@ void AUDxLCH (int nr, uae_u16 v)
 
 	// someone wants to update PT but DSR has not yet been processed.
 	// too fast CPU and some tracker players: enable DMA, CPU delay, update AUDxPT with loop position
-	if (usehacks1 () && ((cdp->dsr && cdp->state == 1) || cdp->ptx_written)) {
+	if (usehacks1 () && ((cdp->ptx_tofetch && cdp->state == 1) || cdp->ptx_written)) {
 		cdp->ptx = cdp->lc;
 		cdp->ptx_written = true;
 	} else {
@@ -1863,7 +1868,7 @@ void AUDxLCH (int nr, uae_u16 v)
 	}
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
-		write_log (L"AUD%dLCH: %04X %08X\n", nr, v, M68K_GETPC);
+		write_log (L"AUD%dLCH: %04X %08X (%d) (%d %d %08x)\n", nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
 #endif
 }
 
@@ -1872,7 +1877,7 @@ void AUDxLCL (int nr, uae_u16 v)
 	struct audio_channel_data *cdp = audio_channel + nr;
 	audio_activate ();
 	update_audio ();
-	if (usehacks1 () && ((cdp->dsr && cdp->state == 1) || cdp->ptx_written)) {
+	if (usehacks1 () && ((cdp->ptx_tofetch && cdp->state == 1) || cdp->ptx_written)) {
 		cdp->ptx = cdp->lc;
 		cdp->ptx_written = true;
 	} else {
@@ -1880,7 +1885,7 @@ void AUDxLCL (int nr, uae_u16 v)
 	}
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
-		write_log (L"AUD%dLCL: %04X %08X\n", nr, v, M68K_GETPC);
+		write_log (L"AUD%dLCL: %04X %08X (%d) (%d %d %08x)\n", nr, v, M68K_GETPC, cdp->state, cdp->dsr, cdp->ptx_written, cdp->ptx);
 #endif
 }
 

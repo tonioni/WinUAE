@@ -1989,12 +1989,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = vsync == -1 ? 0 : (vsync == -2 ? 2 : currprefs.gfx_backbuffers);
+	dpp.BackBufferCount = currprefs.gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = (dpp.Windowed || dpp.BackBufferCount == 0 || vsync == -1) ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = dpp.BackBufferCount <= 1 || dpp.Windowed ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2006,7 +2006,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (isfullscreen () > 0) {
 		dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
-		if (currprefs.gfx_avsync && currprefs.gfx_avsyncmode == 0) {
+		if (vsync > 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 			if (getvsyncrate (dpp.FullScreen_RefreshRateInHz) != dpp.FullScreen_RefreshRateInHz) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
@@ -2095,14 +2095,16 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		write_log (L"DYNAMIC ");
 	write_log (L"\n");
 
-	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s %d-bit %d\n",
+	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s VS=%d B=%d%s%s %d-bit %d\n",
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 		max_texture_w, max_texture_h,
 		dpp.Windowed ? 0 : dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
-		currprefs.gfx_avsync ? L" VSYNC" : L"",
+		vsync, dpp.BackBufferCount,
+		dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
+		currprefs.gfx_backbuffers == 0 ? L"E" : L"", 
 		t_depth, adapter
 	);
 
@@ -2164,13 +2166,15 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	maxscanline = 0;
 	d3d_enabled = 1;
 
-	if (vsync == -1) {
-		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
-		if (FAILED (hr))
-			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+	if (vsync < 0) {
+		if (currprefs.gfx_backbuffers == 0) {
+			hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
+			if (FAILED (hr))
+				write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+		}
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (1);
+		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 ? 1 : 0);
 		if (FAILED (hr))
 			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}

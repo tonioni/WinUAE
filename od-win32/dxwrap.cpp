@@ -6,6 +6,7 @@
 #include "dxwrap.h"
 #include "win32gfx.h"
 #include "statusline.h"
+#include "xwin.h"
 
 #include <d3d9.h>
 #include <dxerr.h>
@@ -344,7 +345,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		DWORD oldflags = desc.dwFlags;
 		desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
 		desc.ddsCaps.dwCaps |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-		desc.dwBackBufferCount = currprefs.gfx_backbuffers;
+		desc.dwBackBufferCount = currprefs.gfx_backbuffers == 0 ? 1 : currprefs.gfx_backbuffers;
 		if (desc.dwBackBufferCount > 0) {
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 			if (SUCCEEDED (ddrval)) {
@@ -904,12 +905,13 @@ static void flip (void)
 	int result = 0;
 	HRESULT ddrval = DD_OK;
 	DWORD flags = DDFLIP_WAIT;
+	int vsync = isvsync ();
 
-	if (currprefs.turbo_emulation)
+	if (currprefs.turbo_emulation || (vsync && currprefs.gfx_backbuffers <= 1))
 		flags |= DDFLIP_NOVSYNC;
 	if (dxdata.backbuffers == 2) {
 		DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
-		if (currprefs.gfx_avsync) {
+		if (vsync) {
 			if (vblank_skip >= 0 || currprefs.turbo_emulation) {
 				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 			} else {
@@ -925,11 +927,7 @@ static void flip (void)
 			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags| DDFLIP_NOVSYNC);
 		}
 	} else if(dxdata.backbuffers == 1) {
-		if (currprefs.gfx_avsync) { 
-			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-		} else {
-			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
-		}
+		ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
 		DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 	}
 	if (ddrval == DDERR_SURFACELOST) {
