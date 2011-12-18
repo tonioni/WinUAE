@@ -1838,12 +1838,14 @@ void D3D_free (void)
 	ddraw_fs_hack_free ();
 }
 
-static bool getvblankstate (int *vpos)
+static int prevvblankpos;
+
+bool D3D_getvblankpos (int *vpos)
 {
 	HRESULT hr;
 	D3DRASTER_STATUS rt;
 
-	*vpos = 0;
+	*vpos = -2;
 	if (!isd3d ())
 		return false;
 	hr = d3ddev->GetRasterStatus (0, &rt);
@@ -1851,24 +1853,30 @@ static bool getvblankstate (int *vpos)
 		write_log (L"%s: GetRasterStatus %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return false;
 	}
+	if (rt.ScanLine > maxscanline)
+		maxscanline = rt.ScanLine;
 	*vpos = rt.ScanLine;
+	prevvblankpos = rt.ScanLine;
 	if (rt.InVBlank != 0)
 		*vpos = -1;
 	return true;
 }
 
-bool D3D_waitvblankstate (bool state)
+bool D3D_waitvblankstate (bool state, int *maxvpos)
 {
 	int vpos;
 	for (;;) {
-		if (!getvblankstate (&vpos))
+		int omax = maxscanline;
+		if (!D3D_getvblankpos (&vpos))
 			return false;
-		while (vpos > maxscanline) {
-			maxscanline = vpos;
-			if (!getvblankstate (&vpos))
+		while (omax != maxscanline) {
+			omax = maxscanline;
+			if (!D3D_getvblankpos (&vpos))
 				return false;
 		}
-		if (vpos < 0 || vpos >= maxscanline - 5) {
+		if (maxvpos)
+			*maxvpos = maxscanline;
+		if (vpos < 0) {
 			if (state)
 				return true;
 		} else {
@@ -1883,19 +1891,28 @@ bool D3D_vblank_busywait (void)
 	int vpos;
 
 	for (;;) {
-		if (!getvblankstate (&vpos))
+		int opos = prevvblankpos;
+		if (!D3D_getvblankpos (&vpos))
 			return false;
-		if (vpos <= 0 || vpos >= maxscanline - 5)
+		if (opos > maxscanline / 2 && vpos < maxscanline / 5)
+			return true;
+		if (vpos <= 0)
 			return true;
 	}
 }
 
 bool D3D_vblank_getstate (bool *state)
 {
-	int vpos;
-	if (!getvblankstate (&vpos))
+	int vpos, opos;
+
+	opos = prevvblankpos;
+	if (!D3D_getvblankpos (&vpos))
 		return false;
-	if (vpos <= 0 || vpos >= maxscanline - 5) {
+	if (opos > maxscanline / 2 && vpos < maxscanline / 5) {
+		*state = true;
+		return true;
+	}
+	if (vpos <= 0) {
 		*state = true;
 		return true;
 	}

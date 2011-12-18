@@ -1984,12 +1984,13 @@ void led_filter_audio (void)
 
 void audio_vsync (void)
 {
+#if 0
 #if SOUNDSTUFF > 0
 	int max, min;
 	int vsync = isvsync ();
 	static int lastdir;
 
-	if (!vsync) {
+	if (1 || !vsync) {
 		extrasamples = 0;
 		return;
 	}
@@ -2014,6 +2015,7 @@ void audio_vsync (void)
 		extrasamples = 99;
 	if (extrasamples < -99)
 		extrasamples = -99;
+#endif
 #endif
 }
 

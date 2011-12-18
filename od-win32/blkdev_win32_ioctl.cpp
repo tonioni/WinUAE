@@ -1038,8 +1038,11 @@ static int fetch_geometry (struct dev_info_ioctl *ciw, int unitnum, struct devic
 	seterrormode (ciw);
 	while (cnt-- > 0) {
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_GET_DRIVE_GEOMETRY, NULL, 0, &geom, sizeof (geom), &len, NULL)) {
-			if (win32_error (ciw, unitnum, L"IOCTL_CDROM_GET_DRIVE_GEOMETRY") < 0)
-				continue;
+			DWORD err = GetLastError ();
+			if (err == ERROR_WRONG_DISK) {
+				if (win32_error (ciw, unitnum, L"IOCTL_CDROM_GET_DRIVE_GEOMETRY") < 0)
+					continue;
+			}
 			reseterrormode (ciw);
 			uae_sem_post (&ciw->sub_sem);
 			return 0;
@@ -1084,7 +1087,7 @@ static int eject (int unitnum, bool eject)
 }
 
 /* read toc */
-static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
+static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hide_errors)
 {
 	struct dev_info_ioctl *ciw = unitisopen (unitnum);
 	if (!ciw)
@@ -1105,9 +1108,12 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 	while (cnt-- > 0) {
 		seterrormode (ciw);
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_READ_TOC, NULL, 0, toc, sizeof (CDROM_TOC), &len, NULL)) {
+			DWORD err = GetLastError ();
 			reseterrormode (ciw);
-			if (win32_error (ciw, unitnum, L"IOCTL_CDROM_READ_TOC") < 0)
-				continue;
+			if (!hide_errors || (hide_errors && err == ERROR_WRONG_DISK)) {
+				if (win32_error (ciw, unitnum, L"IOCTL_CDROM_READ_TOC") < 0)
+					continue;
+			}
 			return 0;
 		}
 		reseterrormode (ciw);
@@ -1151,6 +1157,10 @@ static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
 	memcpy (tocout, th, sizeof (struct cd_toc_head));
 	return 1;
 }
+static int ioctl_command_toc (int unitnum, struct cd_toc_head *tocout)
+{
+	return ioctl_command_toc2 (unitnum, tocout, false);
+}
 
 static void update_device_info (int unitnum)
 {
@@ -1167,7 +1177,7 @@ static void update_device_info (int unitnum)
 	if (fetch_geometry (ciw, unitnum, di)) { // || ioctl_command_toc (unitnum))
 		di->media_inserted = 1;
 	}
-	ioctl_command_toc (unitnum, &di->toc);
+	ioctl_command_toc2 (unitnum, &di->toc, true);
 	di->removable = ciw->type == DRIVE_CDROM ? 1 : 0;
 	di->write_protected = ciw->type == DRIVE_CDROM ? 1 : 0;
 	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;

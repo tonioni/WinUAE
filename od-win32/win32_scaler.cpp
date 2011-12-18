@@ -114,7 +114,7 @@ static int vblscale2 (int v)
 	return v;
 }
 
-static void fixh (int *ah, int *th, int minh)
+static void fixh (int *ah, int minh)
 {
 	if (!isnativevidbuf ())
 		return;
@@ -124,8 +124,7 @@ static void fixh (int *ah, int *th, int minh)
 			max = minh;
 		if (*ah > max)
 			*ah = max;
-		if (*th > max)
-			*th = max;
+
 	}
 }
 
@@ -133,7 +132,7 @@ static uae_u8 *getfilterrect1 (RECT *sr, RECT *dr, int dst_width, int dst_height
 {
 	int aws, ahs;
 
-	fixh (&ah, &temp_height, dst_height);
+	fixh (&ah, dst_height);
 
 	aws = aw * scale;
 	ahs = ah * scale;
@@ -220,7 +219,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	fpux_save (&fpuv);
 
-	fixh (&ah, &temp_height, dst_height);
+	fixh (&ah, dst_height);
 
 	getinit ();
 	ahs2 = vblscale (ah) * scale;

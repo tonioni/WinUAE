@@ -5,6 +5,8 @@
 #include <ddraw.h>
 #include <d3d9.h>
 
+#define MAX_DISPLAYS 10
+
 extern int ddforceram;
 extern int useoverlay;
 
@@ -56,15 +58,14 @@ struct PicassoResolution
 	int depth;   /* depth in bytes-per-pixel */
 	int residx;
 	int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */
-	int refreshtype[MAX_REFRESH_RATES]; /* 0=dx,1=enumdisplaysettings */
+	int refreshtype[MAX_REFRESH_RATES]; /* 0=normal,1=enumdisplaysettings+raw */
 	TCHAR name[25];
 	/* Bit mask of RGBFF_xxx values.  */
 	uae_u32 colormodes;
-	int nondx;
+	int rawmode;
 };
 extern GUID *displayGUID;
 
-#define MAX_DISPLAYS 10
 struct MultiDisplay {
 	int primary, disabled, gdi;
 	GUID guid;
@@ -86,7 +87,7 @@ extern TCHAR *outGUID (const GUID *guid);
 
 HRESULT DirectDraw_GetDisplayMode (void);
 void DirectDraw_Release(void);
-int DirectDraw_Start(GUID *guid);
+int DirectDraw_Start(void);
 void clearsurface(LPDIRECTDRAWSURFACE7 surf);
 int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc);
 void unlocksurface (LPDIRECTDRAWSURFACE7 surf);
@@ -102,8 +103,6 @@ HRESULT DirectDraw_SetCooperativeLevel (HWND window, int fullscreen, int doset);
 HRESULT DirectDraw_CreateClipper (void);
 HRESULT DirectDraw_SetClipper(HWND hWnd);
 RGBFTYPE DirectDraw_GetSurfacePixelFormat(LPDDSURFACEDESC2 surface);
-HRESULT DirectDraw_EnumDisplayModes(DWORD flags, LPDDENUMMODESCALLBACK2 callback, void *context);
-HRESULT DirectDraw_EnumDisplays(LPDDENUMCALLBACKEXA callback);
 DWORD DirectDraw_CurrentWidth (void);
 DWORD DirectDraw_CurrentHeight (void);
 DWORD DirectDraw_GetCurrentDepth (void);
@@ -131,7 +130,7 @@ void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 bool DirectDraw_vblank_busywait (void);
-bool DirectDraw_waitvblankstate (bool);
+bool DirectDraw_waitvblankstate (bool, int*);
 bool DirectDraw_getvblankstate (bool*);
 
 void dx_check (void);

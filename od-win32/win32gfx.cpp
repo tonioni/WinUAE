@@ -92,7 +92,6 @@ struct winuae_currentmode {
 };
 
 struct MultiDisplay Displays[MAX_DISPLAYS];
-static GUID *displayGUID;
 
 static struct winuae_currentmode currentmodestruct;
 static int screen_is_initialized;
@@ -105,7 +104,7 @@ int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 static int wasfullwindow_a, wasfullwindow_p;
-static int vblankbasewait, vblankbasewait2, vblankbasefull;
+static int vblankbasewait, vblankbasewait2, vblankbasewait3, vblankbasefull;
 
 int screen_is_picasso = 0;
 
@@ -203,7 +202,7 @@ static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play 
 struct MultiDisplay *getdisplay (struct uae_prefs *p)
 {
 	int i;
-	int display = p->gfx_display;
+	int display = p->gfx_display - 1;
 
 	i = 0;
 	while (Displays[i].name) {
@@ -219,6 +218,8 @@ struct MultiDisplay *getdisplay (struct uae_prefs *p)
 		exit (0);
 	}
 	if (display >= i)
+		display = 0;
+	if (display < 0)
 		display = 0;
 	return &Displays[display];
 }
@@ -394,7 +395,7 @@ oops:
 	return 0;
 }
 
-static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int nondx)
+static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int rawmode)
 {
 	int ct;
 	int i, j;
@@ -422,7 +423,7 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 			}
 			if (j < MAX_REFRESH_RATES) {
 				md->DisplayModes[i].refresh[j] = rate;
-				md->DisplayModes[i].refreshtype[j] = nondx;
+				md->DisplayModes[i].refreshtype[j] = rawmode;
 				md->DisplayModes[i].refresh[j + 1] = 0;
 				return;
 			}
@@ -434,46 +435,17 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 		i++;
 	if (i >= MAX_PICASSO_MODES - 1)
 		return;
-	md->DisplayModes[i].nondx = nondx;
+	md->DisplayModes[i].rawmode = rawmode;
 	md->DisplayModes[i].res.width = w;
 	md->DisplayModes[i].res.height = h;
 	md->DisplayModes[i].depth = d;
 	md->DisplayModes[i].refresh[0] = rate;
-	md->DisplayModes[i].refreshtype[0] = nondx;
+	md->DisplayModes[i].refreshtype[0] = rawmode;
 	md->DisplayModes[i].refresh[1] = 0;
 	md->DisplayModes[i].colormodes = ct;
 	md->DisplayModes[i + 1].depth = -1;
 	_stprintf (md->DisplayModes[i].name, L"%dx%d, %d-bit",
 		md->DisplayModes[i].res.width, md->DisplayModes[i].res.height, md->DisplayModes[i].depth * 8);
-}
-
-static HRESULT CALLBACK modesCallback (LPDDSURFACEDESC2 modeDesc, LPVOID context)
-{
-	struct MultiDisplay *md = (struct MultiDisplay*)context;
-	RGBFTYPE colortype;
-	int depth, ct;
-
-	colortype = DirectDraw_GetSurfacePixelFormat (modeDesc);
-	ct = 1 << colortype;
-	depth = 0;
-	if (ct & RGBMASK_8BIT)
-		return DDENUMRET_OK;
-	else if (ct & RGBMASK_15BIT)
-		depth = 15;
-	else if (ct & RGBMASK_16BIT)
-		depth = 16;
-	else if (ct & RGBMASK_24BIT)
-		return DDENUMRET_OK;
-	else if (ct & RGBMASK_32BIT)
-		depth = 32;
-	if (depth == 0)
-		return DDENUMRET_OK;
-	if (colortype == RGBFB_NONE)
-		return DDENUMRET_OK;
-	if (modeDesc->dwWidth > 2560 || modeDesc->dwHeight > 2048)
-		return DDENUMRET_OK;
-	addmode (md, modeDesc->dwWidth, modeDesc->dwHeight, depth, modeDesc->dwRefreshRate, 0);
-	return DDENUMRET_OK;
 }
 
 static int _cdecl resolution_compare (const void *a, const void *b)
@@ -529,7 +501,7 @@ static void modesList (struct MultiDisplay *md)
 
 	i = 0;
 	while (md->DisplayModes[i].depth >= 0) {
-		write_log (L"%d: %s%s (", i, md->DisplayModes[i].nondx ? L"!" : L"", md->DisplayModes[i].name);
+		write_log (L"%d: %s%s (", i, md->DisplayModes[i].rawmode ? L"!" : L"", md->DisplayModes[i].name);
 		j = 0;
 		while (md->DisplayModes[i].refresh[j] > 0) {
 			if (j > 0)
@@ -545,71 +517,55 @@ static void modesList (struct MultiDisplay *md)
 	}
 }
 
-BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPVOID ctx, HMONITOR hm)
+static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM data)
 {
 	struct MultiDisplay *md = Displays;
 	MONITORINFOEX lpmi;
-	TCHAR tmp[200];
-	TCHAR *desc = au (adesc);
-	TCHAR *name = au (aname);
-	int ret = 0;
-
-	while (md->name) {
-		if (md - Displays >= MAX_DISPLAYS)
-			goto end;
+	lpmi.cbSize = sizeof lpmi;
+	GetMonitorInfo(h, (LPMONITORINFO)&lpmi);
+	while (md - Displays < MAX_DISPLAYS) {
+		if (!_tcscmp (md->name3, lpmi.szDevice)) {
+			TCHAR tmp[1000];
+			md->rect = lpmi.rcMonitor;
+			if (md->rect.left == 0 && md->rect.top == 0)
+				_stprintf (tmp, L"%s (%d*%d)", md->name, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
+			else
+				_stprintf (tmp, L"%s (%d*%d) [%d*%d]", md->name, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+			xfree (md->name);
+			md->name = my_strdup (tmp);
+			return TRUE;
+		}
 		md++;
 	}
-	lpmi.cbSize = sizeof (lpmi);
-	if (guid == 0) {
-		POINT pt = { 0, 0 };
-		md->primary = 1;
-		GetMonitorInfo (MonitorFromPoint(pt, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&lpmi);
-	} else {
-		memcpy (&md->guid,  guid, sizeof (GUID));
-		GetMonitorInfo (hm, (LPMONITORINFO)&lpmi);
-	}
-	md->rect = lpmi.rcMonitor;
-	if (md->rect.left == 0 && md->rect.top == 0)
-		_stprintf (tmp, L"%s (%d*%d)", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
-	else
-		_stprintf (tmp, L"%s (%d*%d) [%d*%d]", desc, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
-	md->name = my_strdup (tmp);
-	md->name2 = my_strdup (desc);
-	md->name3 = my_strdup (name);
-	write_log (L"'%s' '%s' %s\n", desc, name, outGUID(guid));
-	ret = 1;
-end:
-	xfree (name);
-	xfree (desc);
-	return ret;
-}
-
-static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM data)
-{
-	MONITORINFOEX lpmi;
-	int cnt = *((int*)data);
-	if (!Displays[cnt].name)
-		return FALSE;
-	lpmi.cbSize = sizeof (lpmi);
-	GetMonitorInfo(h, (LPMONITORINFO)&lpmi);
-	Displays[cnt].rect = *rect;
-	Displays[cnt].gdi = TRUE;
-	(*((int*)data))++;
 	return TRUE;
 }
 
-void enumeratedisplays (int multi)
+void enumeratedisplays (void)
 {
-	if (multi) {
-		int cnt = 1;
-		DirectDraw_EnumDisplays (displaysCallback);
-		EnumDisplayMonitors (NULL, NULL, monitorEnumProc, (LPARAM)&cnt);
-	} else {
-		write_log (L"Multimonitor detection disabled\n");
-		Displays[0].primary = 1;
-		Displays[0].name = L"Display";
-		Displays[0].disabled = 0;
+	struct MultiDisplay *md = Displays;
+	int adapterindex = 0;
+	DISPLAY_DEVICE add;
+	add.cb = sizeof add;
+	while (EnumDisplayDevices (NULL, adapterindex, &add, 0)) {
+		int monitorindex = 0;
+		adapterindex++;
+		if (add.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
+			continue;
+		DISPLAY_DEVICE mdd;
+		mdd.cb = sizeof mdd;
+		while (EnumDisplayDevices (add.DeviceName, monitorindex, &mdd, 0)) {
+			monitorindex++;
+			if (md - Displays >= MAX_DISPLAYS)
+				return;
+			md->name3 = my_strdup (add.DeviceName);
+			md->name2 = my_strdup (mdd.DeviceKey);
+			md->name = my_strdup (mdd.DeviceString);
+			if (add.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)
+				md->primary = 1;
+			md++;
+		}
 	}
+	EnumDisplayMonitors (NULL, NULL, monitorEnumProc, NULL);
 }
 
 static int makesort (struct MultiDisplay *md)
@@ -627,7 +583,7 @@ static int makesort (struct MultiDisplay *md)
 void sortdisplays (void)
 {
 	struct MultiDisplay *md1, *md2, tmp;
-	int i, idx, idx2;
+	int i, idx;
 
 	md1 = Displays;
 	while (md1->name) {
@@ -660,61 +616,45 @@ void sortdisplays (void)
 			ReleaseDC (NULL, hdc);
 		}
 
-		int maxw = 0, maxh = 0;
-		if (DirectDraw_Start (NULL)) {
-			DirectDraw_EnumDisplayModes (DDEDM_REFRESHRATES, modesCallback, md1);
-			idx2 = 0;
-			while (md1->DisplayModes[idx2].depth >= 0) {
-				struct PicassoResolution *pr = &md1->DisplayModes[idx2];
-				if (pr->res.width > maxw)
-					maxw = pr->res.width;
-				if (pr->res.height > maxh)
-					maxh = pr->res.height;
-				idx2++;
-			}
-			DirectDraw_Release ();
-		}
-		write_log (L"Desktop: W=%d H=%d B=%d. MaxW=%d MaxH=%d CXVS=%d CYVS=%d\n", w, h, b, maxw, maxh,
+		write_log (L"Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n", w, h, b,
 			GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
-		idx = 0;
-		for (;;) {
-			int found;
+		for (int mode = 0; mode < 2; mode++) {
 			DEVMODE dm;
 			dm.dmSize = sizeof dm;
 			dm.dmDriverExtra = 0;
-			if (!EnumDisplaySettingsEx (md1->primary ? NULL : md1->name3, idx, &dm, EDS_RAWMODE))
-				break;
-			idx2 = 0;
-			found = 0;
-			while (md1->DisplayModes[idx2].depth >= 0 && !found) {
-				struct PicassoResolution *pr = &md1->DisplayModes[idx2];
-				if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
-					for (i = 0; pr->refresh[i]; i++) {
-						if (pr->refresh[i] == dm.dmDisplayFrequency) {
-							found = 1;
-							break;
+			idx = 0;
+			while (EnumDisplaySettingsEx (md1->name3, idx, &dm, mode ? EDS_RAWMODE : 0)) {
+				int found = 0;
+				int idx2 = 0;
+				while (md1->DisplayModes[idx2].depth >= 0 && !found) {
+					struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+					if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
+						for (i = 0; pr->refresh[i]; i++) {
+							if (pr->refresh[i] == dm.dmDisplayFrequency) {
+								found = 1;
+								break;
+							}
 						}
 					}
+					idx2++;
 				}
-				idx2++;
-			}
-			if (!found && dm.dmBitsPerPel > 8) {
-				int freq = 0;
+				if (!found && dm.dmBitsPerPel > 8) {
+					int freq = 0;
 #if 0
-				write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
-					dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
+					write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
+						dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
 #endif
-				if (dm.dmFields & DM_DISPLAYFREQUENCY) {
-					freq = dm.dmDisplayFrequency;
-					if (freq < 10)
-						freq = 0;
+					if (dm.dmFields & DM_DISPLAYFREQUENCY) {
+						freq = dm.dmDisplayFrequency;
+						if (freq < 10)
+							freq = 0;
+					}
+					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL)) {
+						addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, mode);
+					}
 				}
-				if (freq < 75 && dm.dmPelsWidth <= maxw && dm.dmPelsHeight <= maxh) {
-					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL))
-						addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, 1);
-				}
+				idx++;
 			}
-			idx++;
 		}
 		//dhack();
 		sortmodes (md1);
@@ -727,7 +667,6 @@ void sortdisplays (void)
 		write_log (L"'%s', %d display modes (%s)\n", md1->name, i, md1->disabled ? L"disabled" : L"enabled");
 		md1++;
 	}
-	displayGUID = NULL;
 }
 
 /* DirectX will fail with "Mode not supported" if we try to switch to a full
@@ -1270,9 +1209,8 @@ static int open_windows (int full)
 #ifdef OPENGL
 	OGL_free ();
 #endif
-	if (!DirectDraw_Start (displayGUID))
+	if (!DirectDraw_Start ())
 		return 0;
-	write_log (L"DirectDraw GUID=%s\n", outGUID (displayGUID));
 
 	init_round = 0;
 	ret = -2;
@@ -1285,7 +1223,7 @@ static int open_windows (int full)
 		init_round++;
 		if (ret < -9) {
 			DirectDraw_Release ();
-			if (!DirectDraw_Start (displayGUID))
+			if (!DirectDraw_Start ())
 				return 0;
 		}
 	} while (ret < 0);
@@ -1464,6 +1402,7 @@ int check_prefs_changed_gfx (void)
 		init_custom ();
 		if (c & 4) {
 			pause_sound ();
+			reset_sound ();
 			resume_sound ();
 		}
 		inputdevice_acquire (TRUE);
@@ -1626,13 +1565,10 @@ static int alpha;
 void init_colors (void)
 {
 	/* init colors */
-	switch(currentmode->current_depth / 8)
-	{
-	case 1:
-		break;
-	case 2:
-	case 3:
-	case 4:
+	if (currentmode->flags & DM_D3D) {
+		D3D_getpixelformat (currentmode->current_depth,
+			&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
+	} else {
 		red_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (red_mask));
 		green_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (green_mask));
 		blue_bits = bits_in_mask (DirectDraw_GetPixelFormatBitMask (blue_mask));
@@ -1641,14 +1577,6 @@ void init_colors (void)
 		blue_shift = mask_shift (DirectDraw_GetPixelFormatBitMask (blue_mask));
 		alpha_bits = 0;
 		alpha_shift = 0;
-		break;
-	}
-
-	if (currentmode->flags & DM_D3D) {
-#ifdef D3D
-		D3D_getpixelformat (currentmode->current_depth,
-			&red_bits, &green_bits, &blue_bits, &red_shift, &green_shift, &blue_shift, &alpha_bits, &alpha_shift, &alpha);
-#endif
 	}
 
 	if (!(currentmode->flags & (DM_D3D))) {
@@ -1997,9 +1925,6 @@ int graphics_init (void)
 
 int graphics_setup (void)
 {
-	if (!DirectDraw_Start (NULL))
-		return 0;
-	DirectDraw_Release ();
 #ifdef PICASSO96
 	InitPicasso96 ();
 #endif
@@ -2218,15 +2143,14 @@ static int getbestmode (int nextbest)
 }
 
 
-static bool waitvblankstate (bool state)
+static bool waitvblankstate (bool state, int *maxvpos)
 {
 	if (currprefs.gfx_api) {
-		return D3D_waitvblankstate (state);
+		return D3D_waitvblankstate (state, maxvpos);
 	} else {
-		return DirectDraw_waitvblankstate (state);
+		return DirectDraw_waitvblankstate (state, maxvpos);
 	}
 }
-
 static bool getvblankstate (bool *state)
 {
 	if (currprefs.gfx_api) {
@@ -2239,7 +2163,6 @@ static bool getvblankstate (bool *state)
 		return true;
 	}
 }
-
 double getcurrentvblankrate (void)
 {
 	if (remembered_vblank)
@@ -2248,6 +2171,20 @@ double getcurrentvblankrate (void)
 		return D3D_getrefreshrate ();
 	else
 		return DirectDraw_CurrentRefreshRate ();
+}
+static int getvblankpos (void)
+{
+	int vpos = -2;
+	if (currprefs.gfx_api) {
+		if (!D3D_getvblankpos (&vpos))
+			return -2;
+		return vpos;
+	} else {
+		bool state;
+		if (!DirectDraw_getvblankstate (&state))
+			return -2;
+		return state ? -1 : 0;
+	}
 }
 
 static bool threaded_vsync = false;
@@ -2265,15 +2202,16 @@ static void _cdecl vblankthread (void *dummy)
 			SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_LOWEST);
 			while (vblankthread_mode == 0)
 				vblankthread_counter++;
-			SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_ABOVE_NORMAL);
+			SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_HIGHEST);
 		} else if (vblankthread_mode == VBLANKTH_IDLE) {
 			// idle mode
-			Sleep(20);
+			Sleep (100);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_WAIT) {
 			sleep_millis (1);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
 			bool vb = false;
+			getvblankstate (&vb);
 			bool ok = getvblankstate (&vb);
 			if (vb == false)
 				vblankthread_mode = VBLANKTH_ACTIVE;
@@ -2292,8 +2230,10 @@ static void _cdecl vblankthread (void *dummy)
 						show_screen ();
 						//write_log (L"%d\n", t - thread_vblank_time);
 						thread_vblank_time = t;
+						vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
 					}
-					donotwait = true;
+					if (t - thread_vblank_time > vblankbasewait3 && cpu_number > 2)
+						donotwait = true;
 				}
 			}
 			if (t - vblank_prev_time > vblankbasefull * 3)
@@ -2307,114 +2247,22 @@ static void _cdecl vblankthread (void *dummy)
 	vblankthread_mode = -1;
 }
 
-
-double vblank_calibrate (double approx_vblank, bool waitonly)
-{
-	frame_time_t t1, t2;
-	double tsum, tsum2, tval, tfirst;
-	int maxcnt, maxtotal, total, cnt, tcnt2;
-	HANDLE th;
-	
-	threaded_vsync = (cpu_number > 1 && currprefs.m68k_speed < 0);
-
-	if (remembered_vblank > 0 && (!threaded_vsync || (threaded_vsync && vblankthread_mode > 0)))
-		return remembered_vblank;
-	if (waitonly) {
-		vblankbasefull = syncbase / approx_vblank;
-		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
-		vblankbasewait2 = (syncbase / approx_vblank) * 7 / 10;
-		remembered_vblank = -1;
-		return -1;
-	}
-
-	th = GetCurrentThread ();
-	int oldpri = GetThreadPriority (th);
-	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
-	if (vblankthread_mode <= VBLANKTH_KILL) {
-		vblankthread_mode = VBLANKTH_CALIBRATE;
-		_beginthread (&vblankthread, 0, 0);
-	} else {
-		changevblankthreadmode (VBLANKTH_CALIBRATE);
-	}
-	sleep_millis (100);
-	maxtotal = 10;
-	maxcnt = maxtotal;
-	tsum2 = 0;
-	tcnt2 = 0;
-	for (maxcnt = 0; maxcnt < maxtotal; maxcnt++) {
-		total = 10;
-		tsum = 0;
-		cnt = total;
-		for (cnt = 0; cnt < total; cnt++) {
-			if (!waitvblankstate (true))
-				goto fail;
-			if (!waitvblankstate (false))
-				goto fail;
-			if (!waitvblankstate (true))
-				goto fail;
-			t1 = read_processor_time ();
-			if (!waitvblankstate (false))
-				goto fail;
-			if (!waitvblankstate (true))
-				goto fail;
-			t2 = read_processor_time ();
-			tval = (double)syncbase / (t2 - t1);
-			if (cnt == 0)
-				tfirst = tval;
-			if (abs (tval - tfirst) > 1) {
-				write_log (L"Very unstable vsync! %.6f vs %.6f, retrying..\n", tval, tfirst);
-				break;
-			}
-			tsum2 += tval;
-			tcnt2++;
-			if (abs (tval - tfirst) > 0.1) {
-				write_log (L"Unstable vsync! %.6f vs %.6f\n", tval, tfirst);
-				break;
-			}
-			tsum += tval;
-		}
-		if (cnt >= total)
-			break;
-	}
-	changevblankthreadmode (threaded_vsync ? VBLANKTH_IDLE : VBLANKTH_KILL);
-	SetThreadPriority (th, oldpri);
-	if (maxcnt >= maxtotal) {
-		tsum = tsum2 / tcnt2;
-		write_log (L"Unstable vsync reporting, using average value\n");
-	} else {
-		tsum /= total;
-	}
-	if (tsum >= 85)
-		tsum /= 2;
-	vblankbasefull = (syncbase / tsum);
-	vblankbasewait = (syncbase / tsum) * 3 / 4;
-	vblankbasewait2 = (syncbase / tsum) * 5 / 10;
-	write_log (L"VSync calibration: %.6fHz. Units = %d Mode = %s\n", tsum, vblankbasefull, threaded_vsync ? L"threaded" : L"normal");
-	remembered_vblank = tsum;
-	vblank_prev_time = read_processor_time ();
-	return tsum;
-fail:
-	write_log (L"VSync calibration failed\n");
-	changed_prefs.gfx_avsync = 0;
-	return -1;
-}
-
 static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
 
-void vsync_busywait_end (void)
+frame_time_t vsync_busywait_end (void)
 {
-//	frame_time_t t = read_processor_time ();
-
+	while (!thread_vblank_found && vblankthread_mode == VBLANKTH_ACTIVE)
+		sleep_millis (1);
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
-
-//	write_log (L"%d\n", t - thread_vblank_time);
-
-//	if (t - vblank_prev_time > vblankbasefull + vblankbasefull * 1 / 3) {
-//		frame_missed++;
-//		waitvblankstate (true);
-//	}
+	for (;;) {
+		int vpos = getvblankpos ();
+		if (vpos != -1) {
+			break;
+		}
+	}
+	return thread_vblank_time;
 }
 
 void vsync_busywait_start (void)
@@ -2434,7 +2282,7 @@ bool vsync_busywait_do (int *freetime)
 	t = read_processor_time ();
 	ti = t - prevtime;
 	if (ti > 2 * vblankbasefull || ti < -2 * vblankbasefull) {
-		waitvblankstate (false);
+		waitvblankstate (false, NULL);
 		t = read_processor_time ();
 		vblank_prev_time = t;
 		thread_vblank_time = t;
@@ -2495,6 +2343,102 @@ bool vsync_busywait_do (int *freetime)
 	}
 	frame_errors++;
 	return false;
+}
+
+double vblank_calibrate (double approx_vblank, bool waitonly)
+{
+	frame_time_t t1, t2;
+	double tsum, tsum2, tval, tfirst;
+	int maxcnt, maxtotal, total, cnt, tcnt2;
+	HANDLE th;
+	int maxvpos, div;
+	
+	threaded_vsync = (cpu_number > 1 && currprefs.m68k_speed < 0);
+
+	if (remembered_vblank > 0 && (!threaded_vsync || (threaded_vsync && vblankthread_mode > 0)))
+		return remembered_vblank;
+	if (waitonly) {
+		vblankbasefull = syncbase / approx_vblank;
+		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
+		vblankbasewait2 = (syncbase / approx_vblank) * 7 / 10;
+		vblankbasewait3 = (syncbase / approx_vblank) * 9 / 10;
+		remembered_vblank = -1;
+		return -1;
+	}
+
+	th = GetCurrentThread ();
+	int oldpri = GetThreadPriority (th);
+	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
+	if (vblankthread_mode <= VBLANKTH_KILL) {
+		vblankthread_mode = VBLANKTH_CALIBRATE;
+		_beginthread (&vblankthread, 0, 0);
+	} else {
+		changevblankthreadmode (VBLANKTH_CALIBRATE);
+	}
+	sleep_millis (100);
+	maxtotal = 10;
+	maxcnt = maxtotal;
+	tsum2 = 0;
+	tcnt2 = 0;
+	for (maxcnt = 0; maxcnt < maxtotal; maxcnt++) {
+		total = 10;
+		tsum = 0;
+		cnt = total;
+		for (cnt = 0; cnt < total; cnt++) {
+			if (!waitvblankstate (true, NULL))
+				goto fail;
+			if (!waitvblankstate (false, NULL))
+				goto fail;
+			if (!waitvblankstate (true, NULL))
+				goto fail;
+			t1 = read_processor_time ();
+			if (!waitvblankstate (false, NULL))
+				goto fail;
+			if (!waitvblankstate (true, &maxvpos))
+				goto fail;
+			t2 = read_processor_time ();
+			tval = (double)syncbase / (t2 - t1);
+			if (cnt == 0)
+				tfirst = tval;
+			if (abs (tval - tfirst) > 1) {
+				write_log (L"Very unstable vsync! %.6f vs %.6f, retrying..\n", tval, tfirst);
+				break;
+			}
+			tsum2 += tval;
+			tcnt2++;
+			if (abs (tval - tfirst) > 0.1) {
+				write_log (L"Unstable vsync! %.6f vs %.6f\n", tval, tfirst);
+				break;
+			}
+			tsum += tval;
+		}
+		if (cnt >= total)
+			break;
+	}
+	changevblankthreadmode (VBLANKTH_IDLE);
+	SetThreadPriority (th, oldpri);
+	if (maxcnt >= maxtotal) {
+		tsum = tsum2 / tcnt2;
+		write_log (L"Unstable vsync reporting, using average value\n");
+	} else {
+		tsum /= total;
+	}
+	div = 1;
+	if (tsum >= 85)
+		div = 2;
+	tsum2 = tsum / div;
+	vblankbasefull = (syncbase / tsum2);
+	vblankbasewait = (syncbase / tsum2) * 3 / 4;
+	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
+	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
+	write_log (L"VSync calibration: %.6fHz/%d=%.6fHz. MaxV=%d Units=%d Mode=%s\n", tsum, div, tsum2, maxvpos, vblankbasefull, threaded_vsync ? L"threaded" : L"normal");
+	remembered_vblank = tsum2;
+	vblank_prev_time = read_processor_time ();
+	return tsum;
+fail:
+	write_log (L"VSync calibration failed\n");
+	changed_prefs.gfx_avsync = 0;
+	return -1;
 }
 
 static int create_windows_2 (void)
@@ -2807,7 +2751,6 @@ static BOOL doInit (void)
 {
 	int fs_warning = -1;
 	TCHAR tmpstr[300];
-	RGBFTYPE colortype;
 	int tmp_depth;
 	int ret = 0;
 
@@ -2816,7 +2759,6 @@ static BOOL doInit (void)
 		wasfullwindow_a = currprefs.gfx_afullscreen == GFX_FULLWINDOW ? 1 : -1;
 	if (wasfullwindow_p == 0)
 		wasfullwindow_p = currprefs.gfx_pfullscreen == GFX_FULLWINDOW ? 1 : -1;
-	colortype = DirectDraw_GetPixelFormat ();
 	gfxmode_reset ();
 
 	for (;;) {
@@ -2830,9 +2772,6 @@ static BOOL doInit (void)
 			currentmode->native_height = rc.bottom - rc.top;
 		}
 
-		write_log (L"W=%d H=%d B=%d CT=%d\n",
-			DirectDraw_CurrentWidth (), DirectDraw_CurrentHeight (), DirectDraw_GetCurrentDepth (), colortype);
-
 		if (isfullscreen() <= 0 && !(currentmode->flags & (DM_D3D))) {
 			currentmode->current_depth = DirectDraw_GetCurrentDepth ();
 			updatemodes ();
@@ -2841,11 +2780,7 @@ static BOOL doInit (void)
 			updatemodes ();
 		}
 
-		if (colortype == RGBFB_NONE) {
-			fs_warning = IDS_UNSUPPORTEDSCREENMODE_1;
-		} else if (colortype == RGBFB_CLUT) {
-			fs_warning = IDS_UNSUPPORTEDSCREENMODE_2;
-		} else if (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
+		if (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
 			currentmode->current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
 				if (!console_logging)
 					fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
@@ -2858,7 +2793,7 @@ static BOOL doInit (void)
 			DirectDraw_Release ();
 			_stprintf (tmpstr, szMessage, szMessage2);
 			gui_message (tmpstr);
-			DirectDraw_Start (displayGUID);
+			DirectDraw_Start ();
 			if (screen_is_picasso)
 				changed_prefs.gfx_pfullscreen = currprefs.gfx_pfullscreen = GFX_FULLSCREEN;
 			else
@@ -3056,16 +2991,11 @@ void updatewinfsmode (struct uae_prefs *p)
 	} else {
 		p->gfx_size = p->gfx_size_win;
 	}
-	displayGUID = NULL;
 	md = getdisplay (p);
 	if (md->disabled) {
 		p->gfx_display = 0;
 		md = getdisplay (p);
 	}
-	if (!md->primary)
-		displayGUID = &md->guid;
-	if (isfullscreen () == 0)
-		displayGUID = NULL;
 	config_changed = 1;
 }
 

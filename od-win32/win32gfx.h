@@ -4,7 +4,7 @@
 #include <ddraw.h>
 
 extern void sortdisplays (void);
-extern void enumeratedisplays (int);
+extern void enumeratedisplays (void);
 
 int WIN32GFX_IsPicassoScreen (void);
 int WIN32GFX_GetWidth (void);

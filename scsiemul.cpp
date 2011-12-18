@@ -527,7 +527,6 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	switch (command)
 	{
 	case CMD_READ:
-		//write_log (L"CMD_READ %08x %d %d %08x\n", io_data, io_offset, io_length, bmask);
 		if (dev->di.media_inserted <= 0)
 			goto no_media;
 		if (dev->drivetype == INQ_ROMD) {
@@ -899,8 +898,13 @@ static int dev_can_quick (uae_u32 command)
 	case CMD_CHANGESTATE:
 	case CMD_PROTSTATUS:
 	case CMD_GETDRIVETYPE:
-	case CMD_GETNUMTRACKS:
 		return 1;
+	case CMD_GETNUMTRACKS:
+	case CMD_ADDCHANGEINT:
+	case CMD_REMCHANGEINT:
+	case CD_ADDFRAMEINT:
+	case CD_REMFRAMEINT:
+		return -1;
 	}
 	return 0;
 }
@@ -918,6 +922,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 	int command = get_word (request + 28);
 	struct priv_devstruct *pdev = getpdevstruct (request);
 	struct devstruct *dev;
+	int canquick;
 
 	put_byte (request + 8, NT_MESSAGE);
 	if (!pdev) {
@@ -930,9 +935,9 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 		return get_byte (request + 31);
 	}
 	put_byte (request + 31, 0);
-	if ((flags & 1) && dev_canquick (dev, request)) {
-		if (dev_do_io (dev, request))
-			write_log (L"device %s command %d bug with IO_QUICK\n", getdevname (pdev->type), command);
+	canquick = dev_canquick (dev, request);
+	if (((flags & 1) && canquick) || (canquick < 0)) {
+		dev_do_io (dev, request);
 		return get_byte (request + 31);
 	} else {
 		add_async_request (dev, request, ASYNC_REQUEST_TEMP, 0);
@@ -1010,6 +1015,17 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 }
 
 #define BTL2UNIT(bus, target, lun) (2 * (bus) + (target) / 8) * 100 + (lun) * 10 + (target % 8)
+
+uae_u16 scsi_get_cd_drive_mask (void)
+{
+	uae_u16 mask = 0;
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		struct devstruct *dev = &devst[i];
+		if (dev->iscd)
+			mask |= 1 << i;
+	}
+	return mask;
+}
 
 static void dev_reset (void)
 {

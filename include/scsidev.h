@@ -14,6 +14,7 @@ void scsidev_reset (void);
 void scsidev_start_threads (void);
 int scsi_do_disk_change (int unitnum, int insert, int *pollmode);
 int scsi_do_disk_device_change (void);
+uae_u16 scsi_get_cd_drive_mask (void);
 
 extern int log_scsi;
 

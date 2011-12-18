@@ -1,4 +1,26 @@
 
+Beta 5:
+
+- Removed obsolete fake (50), (60), (100) and (120) refresh rates.
+- Primary Display Driver monitor selection removed.
+- Only primary monitor allowed >75Hz modes.
+- Does not load or use ddraw.dll anymore if D3D mode enabled.
+- Display and mode enumeration rewritten (does not use ddraw aymore).
+- DirectDraw mode vertical positioning fixed (was always on top of screen)
+- Fixed Sound panel crash if sound card id stored in configuration file was larger than available number of sound card drivers.
+- Handle situation where PortAudio Pa_IsFormatSupported() returns true but Pa_OpenStream() fails with paInvalidSampleRate.
+  (Usually seems to happen when requesting 44100Hz but hardware supports only 48000Hz) 
+- VSync sound syncronization improved (All types: DirectSound, WASAPI, OpenAL and PortAudio)
+- SND% blue/yellow/red flickering fix, previously flickering speed changed depending on buffer size.
+- More fastest possible/JIT low latency vsync updates.
+
+- AROS CDFS is now UAE boot ROM built-in. "Include CD/DVD drives.." now has two modes:
+  - if uaescsi.device is not enabled: mount as Windows drive (same as previously) This mode may disappear in the future.
+  - if uaescsi.device is enabled: mount using built-in CDFS. (Correct file names, protection flags, audio tracks etc..) There is no need to install
+  Amiga-side CDFS anymore. I am not sure if AROS CDFS if good enough but at least it appears to work..
+
+  "Include CD/DVD drives.." (+uaescsi.device) can now be used to install OS3.0+ safely. KS2.0+ only. (CDFS requires 2.0+ features)
+
 Beta 4:
 
 - Another switching from CE mode to non-CE hang fix. (Blitter nasty related)

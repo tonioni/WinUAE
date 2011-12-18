@@ -46,6 +46,9 @@
 
 #include "sounddep/sound.h"
 
+#define PA_BUFFERSIZE (262144 * 4)
+#define PA_CALLBACKBUFFERS 8
+
 struct sound_dp
 {
 	// directsound
@@ -77,16 +80,15 @@ struct sound_dp
 
 	// portaudio
 
-	volatile int patoggle;
-	volatile int pacounter;
-	uae_u8 *pasoundbuffer[2];
+	uae_u8 *pasoundbuffer;
+	volatile int pareadoffset, pawriteoffset;
 	int pasndbufsize;
 	int paframesperbuffer;
 	PaStream *pastream;
-	HANDLE paevent;
-	int opacounter;
 	int pablocking;
 	int pavolume;
+	int pacallbacksize;
+	bool pafinishsb;
 
 	// wasapi
 
@@ -103,17 +105,22 @@ struct sound_dp
 	UINT32 bufferFrameCount;
 	UINT64 wasapiframes;
 	int wasapiexclusive;
-	int framecounter;
 	int sndbuf;
 	int wasapigoodsize;
 	int sndbufframes;
+
+
+	double avg_correct;
+	double cnt_correct;
 };
+
+#define SND_STATUSCNT 10
 
 #define ADJUST_SIZE 30
 #define EXP 2.1
 
 #define ADJUST_VSSIZE 10
-#define EXPVS 1.3
+#define EXPVS 1.7
 
 int sound_debug = 0;
 int sound_mode_skip = 0;
@@ -134,6 +141,7 @@ static uae_sem_t sound_sem, sound_init_sem;
 struct sound_device *sound_devices[MAX_SOUND_DEVICES];
 struct sound_device *record_devices[MAX_SOUND_DEVICES];
 static int num_sound_devices, num_record_devices;
+static time_t delayed_start;
 
 static struct sound_data sdpaula;
 static struct sound_data *sdp = &sdpaula;
@@ -181,6 +189,65 @@ void update_sound (double freq, int longframe, int linetoggle)
 		maxvpos_nom + (lines == 1.0 ? 1 : 0), lines > 0 && lines < 1 ? 5 : 0,
 		scaled_sample_evtime);
 #endif
+}
+
+extern int vsynctime_orig;
+
+#ifndef AVIOUTPUT
+static int avioutput_audio;
+#endif
+
+void sound_setadjust (double v)
+{
+	float mult;
+
+	if (v < -5)
+		v = -5;
+	if (v > 5)
+		v = 5;
+
+	mult = (1000.0 + v);
+	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
+		mult = 1000.0;
+	if (isvsync () || (avioutput_audio && avioutput_enabled && !currprefs.cachesize)) {
+		vsynctime = vsynctime_orig;
+		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
+	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
+		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
+		scaled_sample_evtime = scaled_sample_evtime_orig;
+	} else {
+		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
+		scaled_sample_evtime = scaled_sample_evtime_orig;
+	}
+}
+
+static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granulaty)
+{
+	static int tfprev;
+
+	s->avg_correct += sync;
+	s->cnt_correct++;
+
+	if (granulaty < 10)
+		granulaty = 10;
+
+	if (tfprev != timeframes) {
+		double skipmode;
+		double avg = s->avg_correct / s->cnt_correct;
+		if ((0 || sound_debug) && (tfprev % 10) == 0) {
+			write_log (L"%+4d %7.1f %7.1f %6d\n", sndbuf, avg, sync, granulaty);
+		}
+		gui_data.sndbuf = sndbuf;
+		skipmode = sync / 100.0;
+
+		if (skipmode > 1)
+			skipmode = 1;
+		if (skipmode < -1)
+			skipmode = -1;
+
+		sound_setadjust (avg / (5000 / granulaty));
+		tfprev = timeframes;
+	}
 }
 
 static void clearbuffer_ds (struct sound_data *sd)
@@ -236,7 +303,6 @@ static void resume_audio_wasapi (struct sound_data *sd)
 	if (FAILED (hr))
 		write_log (L"WASAPI: Start() %08X\n", hr);
 	s->wasapiframes = 0;
-	s->framecounter = 0;
 	s->sndbuf = 0;
 }
 
@@ -256,9 +322,12 @@ static void pause_audio_ds (struct sound_data *sd)
 }
 static void resume_audio_ds (struct sound_data *sd)
 {
+	struct sound_dp *s = sd->data;
 	sd->paused = 0;
 	clearbuffer (sd);
 	sd->waiting_for_buffer = 1;
+	s->avg_correct = 0;
+	s->cnt_correct = 0;
 }
 static void pause_audio_pa (struct sound_data *sd)
 {
@@ -270,6 +339,10 @@ static void pause_audio_pa (struct sound_data *sd)
 static void resume_audio_pa (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
+	s->pawriteoffset = 0;
+	s->pareadoffset = 0;
+	s->pacallbacksize = 0;
+	s->pafinishsb = false;
 	PaError err = Pa_StartStream (s->pastream);
 	if (err != paNoError)
 		write_log (L"PASOUND: Pa_StartStream() error %d (%s)\n", err, Pa_GetErrorText (err));
@@ -472,10 +545,23 @@ static DWORD fillsupportedmodes (struct sound_data *sd, int freq, struct dsaudio
 	return speakerconfig;
 }
 
+static int padiff (int write, int read)
+{
+	int diff;
+	diff = write - read;
+	if (diff > PA_BUFFERSIZE / 2)
+		diff = PA_BUFFERSIZE - write + read;
+	else if (diff < -PA_BUFFERSIZE / 2)
+		diff = PA_BUFFERSIZE - read + write;
+	return diff;
+}
 
 static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
+
+	s->pafinishsb = true;
+
 	if (s->pavolume) {
 		int vol = 65536 - s->pavolume * 655;
 		for (int i = 0; i < sd->sndbufsize / sizeof (uae_u16); i++) {
@@ -484,17 +570,52 @@ static void finish_sound_buffer_pa (struct sound_data *sd, uae_u16 *sndbuffer)
 		}
 	}
 	if (s->pablocking) {
-		if (s->paframesperbuffer != sd->sndbufsize / (sd->channels * 2)) {
-			write_log (L"sound buffer size mistmatch %d <> %d\n", s->paframesperbuffer, sd->sndbufsize / (sd->channels * 2));
-		} else {
-			Pa_WriteStream (s->pastream, sndbuffer, s->paframesperbuffer); 
+
+		int avail;
+		time_t t = 0;
+		for (;;) {
+			avail = Pa_GetStreamWriteAvailable (s->pastream);
+			if (avail < 0 || avail >= s->pasndbufsize)
+				break;
+			if (!t) {
+				t = time (NULL) + 2;
+			} else if (time (NULL) >= t) {
+				write_log (L"PA: audio stuck!? %d\n", avail);
+				break;
+			}
+			sleep_millis (1);
 		}
+		int pos = avail - s->paframesperbuffer;
+		docorrection (s, -pos * 1000 / (s->paframesperbuffer), -pos, 100);
+		Pa_WriteStream (s->pastream, sndbuffer, s->pasndbufsize); 
+
 	} else {
-		int cnt = 2000 / 10;
-		while (s->opacounter == s->pacounter && s->pastream && !sd->paused && cnt-- >= 0)
-			WaitForSingleObject (s->paevent, 10);
-		s->opacounter = s->pacounter;
-		memcpy (s->pasoundbuffer[s->patoggle], sndbuffer, sd->sndbufsize);
+
+		if (!s->pacallbacksize)
+			return;
+
+		int diff = padiff (s->pawriteoffset, s->pareadoffset);
+		int samplediff = diff / sd->samplesize;
+		samplediff -= s->pacallbacksize * PA_CALLBACKBUFFERS;
+		docorrection (s, samplediff * 1000 / (s->pacallbacksize * PA_CALLBACKBUFFERS / 2), samplediff, s->pacallbacksize);
+
+		while (diff > PA_BUFFERSIZE / 4 && s->pastream && !sd->paused) {
+			gui_data.sndbuf_status = 1;
+			statuscnt = SND_STATUSCNT;
+			sleep_millis (1);
+			diff = padiff (s->pawriteoffset, s->pareadoffset);
+		}
+
+		if (sd->sndbufsize + s->pawriteoffset > PA_BUFFERSIZE) {
+			int partsize = PA_BUFFERSIZE - s->pawriteoffset;
+			memcpy (s->pasoundbuffer + s->pawriteoffset, sndbuffer, partsize);
+			memcpy (s->pasoundbuffer, (uae_u8*)sndbuffer + partsize, sd->sndbufsize - partsize);
+			s->pawriteoffset = sd->sndbufsize - partsize;
+		} else {
+			memcpy (s->pasoundbuffer + s->pawriteoffset, sndbuffer, sd->sndbufsize);
+			s->pawriteoffset = s->pawriteoffset + sd->sndbufsize;
+		}
+
 	}
 }
 
@@ -506,44 +627,56 @@ static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer
 {
 	struct sound_data *sd = (struct sound_data*)userData;
 	struct sound_dp *s = sd->data;
+	int bytestocopy;
+	int diff;
 
-	if (framesPerBuffer != sd->sndbufsize / (sd->channels * 2)) {
-		write_log (L"sound buffer size mistmatch %d <> %d\n", framesPerBuffer, sd->sndbufsize / (sd->channels * 2));
-	} else {
-		memcpy (outputBuffer, s->pasoundbuffer[s->patoggle], sd->sndbufsize);
+	if (!framesPerBuffer || !s->pafinishsb)
+		return paContinue;
+
+	if (!s->pacallbacksize)
+		s->pawriteoffset = (PA_CALLBACKBUFFERS + 1) * framesPerBuffer * sd->samplesize;
+	
+	s->pacallbacksize = framesPerBuffer;
+
+	bytestocopy = framesPerBuffer * sd->samplesize;
+	diff = padiff (s->pawriteoffset, s->pareadoffset + bytestocopy);
+	if (diff <= 0) {
+		memset (outputBuffer, 0, bytestocopy);
+		gui_data.sndbuf_status = 2;
+		bytestocopy -= -diff;
+		statuscnt = SND_STATUSCNT;
 	}
-	s->patoggle ^= 1;
-	s->pacounter++;
-	SetEvent (s->paevent);
+	if (bytestocopy > 0) {
+		if (bytestocopy + s->pareadoffset > PA_BUFFERSIZE) {
+			int partsize = PA_BUFFERSIZE - s->pareadoffset;
+			memcpy (outputBuffer, s->pasoundbuffer + s->pareadoffset, partsize);
+			memcpy ((uae_u8*)outputBuffer + partsize, s->pasoundbuffer, bytestocopy - partsize);
+			s->pareadoffset = bytestocopy - partsize;
+		} else {
+			memcpy (outputBuffer, s->pasoundbuffer + s->pareadoffset, bytestocopy);
+			s->pareadoffset = s->pareadoffset + bytestocopy;
+		}
+	}
+
 	return paContinue;
 }
 
 static void close_audio_pa (struct sound_data *sd)
 {
 	struct sound_dp *s = sd->data;
-	int i;
 
 	if (s->pastream)
 		Pa_CloseStream (s->pastream);
 	s->pastream = NULL;
-	for (i = 0; i < 2; i++) {
-		xfree (s->pasoundbuffer[i]);
-		s->pasoundbuffer[i] = NULL;
-	}
-	if (s->paevent) {
-		SetEvent (s->paevent);
-		CloseHandle (s->paevent);
-	}
-	s->paevent = NULL;
+	xfree (s->pasoundbuffer);
+	s->pasoundbuffer = NULL;
 }
 
 static int open_audio_pa (struct sound_data *sd, int index)
 {
 	struct sound_dp *s = sd->data;
-	int i;
 	int freq = sd->freq;
 	int ch = sd->channels;
-	int size;
 	int dev = sound_devices[index]->panum;
 	const PaDeviceInfo *di;
 	PaStreamParameters p;
@@ -552,71 +685,89 @@ static int open_audio_pa (struct sound_data *sd, int index)
 	TCHAR *errtxt;
 	int defaultrate = 0;
 
-	size = sd->sndbufsize;
-	s->paframesperbuffer = size;
+	s->paframesperbuffer = sd->sndbufsize; 
+	s->pasndbufsize = sd->sndbufsize / 32;
+	sd->sndbufsize = s->pasndbufsize * ch * 2;
+	if (sd->sndbufsize > SND_MAX_BUFFER)
+		sd->sndbufsize = SND_MAX_BUFFER;
+
 	sd->devicetype = SOUND_DEVICE_PA;
 	memset (&p, 0, sizeof p);
 	di = Pa_GetDeviceInfo (dev);
 	for (;;) {
-		int err2;
-		p.channelCount = ch;
-		p.device = dev;
-		p.hostApiSpecificStreamInfo = NULL;
-		p.sampleFormat = paInt16;
-		p.suggestedLatency = di->defaultLowOutputLatency;
-		p.hostApiSpecificStreamInfo = NULL; 
+		for (;;) {
+			int err2;
+			p.channelCount = ch;
+			p.device = dev;
+			p.hostApiSpecificStreamInfo = NULL;
+			p.sampleFormat = paInt16;
+			p.suggestedLatency = di->defaultLowOutputLatency;
+			p.hostApiSpecificStreamInfo = NULL; 
 
-		err = Pa_IsFormatSupported (NULL, &p, freq);
-		if (err == paFormatIsSupported)
-			break;
-		err2 = err;
-		errtxt = au (Pa_GetErrorText (err));
-		write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
-		xfree (errtxt);
-		if (err == paInvalidChannelCount) {
-			if (ch > 2) {
-				ch = sd->channels = 2;
+			err = Pa_IsFormatSupported (NULL, &p, freq);
+			if (err == paFormatIsSupported)
+				break;
+fixfreq:
+			err2 = err;
+			errtxt = au (Pa_GetErrorText (err));
+			write_log (L"PASOUND: sound format not supported, ch=%d, rate=%d. %s\n", freq, ch, errtxt);
+			xfree (errtxt);
+			if (err == paInvalidChannelCount) {
+				if (ch > 2) {
+					ch = sd->channels = 2;
+					continue;
+				}
+				goto end;
+			}
+			if (freq < 44000 && err == paInvalidSampleRate) {
+				freq = 44000;
+				sd->freq = freq;
+				continue;
+			}
+			if (freq < 48000 && err == paInvalidSampleRate) {
+				freq = 48000;
+				sd->freq = freq;
+				continue;
+			}
+			if (freq != di->defaultSampleRate && err == paInvalidSampleRate && !defaultrate) {
+				freq = di->defaultSampleRate;
+				sd->freq = freq;
+				defaultrate = 1;
 				continue;
 			}
 			goto end;
 		}
-		if (freq < 44000 && err == paInvalidSampleRate) {
-			freq = 44000;
-			sd->freq = freq;
-			continue;
+
+		sd->samplesize = ch * 16 / 8;
+#if 0
+		s->pablocking = 1;
+		err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, NULL, NULL);
+#else
+		err = paUnanticipatedHostError;
+#endif
+		if (err == paUnanticipatedHostError) { // could be "blocking not supported"
+			s->pablocking = 0;
+			err = Pa_OpenStream (&s->pastream, NULL, &p, freq, paFramesPerBufferUnspecified, paNoFlag, portAudioCallback, sd);
 		}
-		if (freq < 48000 && err == paInvalidSampleRate) {
-			freq = 48000;
-			sd->freq = freq;
-			continue;
+		if (err == paInvalidSampleRate || err == paInvalidChannelCount)
+			goto fixfreq;
+		if (err != paNoError) {
+			errtxt = au (Pa_GetErrorText (err));
+			write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, errtxt);
+			xfree (errtxt);
+			goto end;
 		}
-		if (freq != di->defaultSampleRate && err == paInvalidSampleRate && !defaultrate) {
-			freq = di->defaultSampleRate;
-			sd->freq = freq;
-			defaultrate = 1;
-			continue;
-		}
-		goto end;
+		break;
 	}
-	sd->sndbufsize = size * ch * 2;
-	//    s->pablocking = 1;
-	//    err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, NULL, NULL);
-	//    if (err != paNoError) {
-	s->pablocking = 0;
-	err = Pa_OpenStream (&s->pastream, NULL, &p, freq, s->paframesperbuffer, paNoFlag, portAudioCallback, sd);
-	if (err != paNoError) {
-		errtxt = au (Pa_GetErrorText (err));
-		write_log (L"PASOUND: Pa_OpenStream() error %d (%s)\n", err, errtxt);
-		xfree (errtxt);
-		goto end;
+
+	if (!s->pablocking) {
+		s->pasoundbuffer = xcalloc (uae_u8, PA_BUFFERSIZE);
 	}
-	//    }
-	s->paevent = CreateEvent (NULL, FALSE, FALSE, NULL);
-	for (i = 0; i < 2; i++)
-		s->pasoundbuffer[i] = xcalloc (uae_u8, sd->sndbufsize);
+
 	name = au (di->name);
-	write_log (L"PASOUND: CH=%d,FREQ=%d (%s) '%s' buffer %d\n",
-		ch, freq, sound_devices[index]->name, name, sd->sndbufsize);
+	write_log (L"PASOUND: CH=%d,FREQ=%d (%s) '%s' buffer %d/%d (%s)\n",
+		ch, freq, sound_devices[index]->name, name,
+		s->pasndbufsize, s->paframesperbuffer, s->pablocking ? L"push" : L"pull");
 	xfree (name);
 	return 1;
 end:
@@ -868,10 +1019,11 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		sd->freq = pwfx_saved->nSamplesPerSec;
 	}
 
-	size = sd->sndbufsize * sd->channels * 16 / 8;
+	sd->samplesize = sd->channels * 16 / 8;
+	size = sd->sndbufsize * sd->samplesize;
 	s->snd_configsize = size;
 	sd->sndbufsize = size / 32;
-	size /= (sd->channels * 16 / 8);
+	size /= sd->samplesize;
 
 	s->bufferFrameCount = (UINT32)( // frames =
 		1.0 * s->hnsRequestedDuration * // hns *
@@ -959,12 +1111,12 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		}
 	}
 #endif
-	v = s->bufferFrameCount * sd->channels * 16 / 8;
+	v = s->bufferFrameCount * sd->samplesize;
 	v /= 2;
 	if (sd->sndbufsize > v)
 		sd->sndbufsize = v;
 	s->wasapigoodsize =s->bufferFrameCount / 2;
-	s->sndbufframes = sd->sndbufsize / (sd->channels * 16 / 8);
+	s->sndbufframes = sd->sndbufsize / sd->samplesize;
 
 	write_log(L"WASAPI: '%s'\nWASAPI: EX=%d CH=%d FREQ=%d BUF=%d (%d)\n",
 		name, s->wasapiexclusive, sd->channels, sd->freq, sd->sndbufsize, s->bufferFrameCount);
@@ -1265,6 +1417,7 @@ int init_sound (void)
 		return 0;
 	sdp->paused = 1;
 	driveclick_reset ();
+	reset_sound ();
 	resume_sound ();
 	return 1;
 }
@@ -1292,6 +1445,10 @@ void reset_sound (void)
 	if (!have_sound)
 		return;
 	clearbuffer (sdp);
+	if (isvsync ())
+		delayed_start = time (NULL) + 1;
+	else
+		delayed_start = 0;
 }
 
 static void disable_sound (void)
@@ -1305,37 +1462,6 @@ static void reopen_sound (void)
 	close_sound ();
 	open_sound ();
 }
-
-
-extern int vsynctime_orig;
-
-#ifndef AVIOUTPUT
-static int avioutput_audio;
-#endif
-
-void sound_setadjust (double v)
-{
-	float mult;
-
-	if (v >= -5 && v <= 5)
-		v = 0;
-
-	mult = (1000.0 + v);
-	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
-		mult = 1000.0;
-	if (isvsync () || (avioutput_audio && avioutput_enabled && !currprefs.cachesize)) {
-		vsynctime = vsynctime_orig;
-		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
-	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
-		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
-		scaled_sample_evtime = scaled_sample_evtime_orig;
-	} else {
-		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
-		scaled_sample_evtime = scaled_sample_evtime_orig;
-	}
-}
-
-#define SND_STATUSCNT 10
 
 #define cf(x) if ((x) >= s->dsoundbuf) (x) -= s->dsoundbuf;
 
@@ -1386,24 +1512,13 @@ static void finish_sound_buffer_al (struct sound_data *sd, uae_u16 *sndbuffer)
 {
 	struct sound_dp *s = sd->data;
 	static int tfprev;
-	static int statuscnt;
 	int v, v2;
-	double m, skipmode;
 
 	if (!sd->waiting_for_buffer)
 		return;
 	if (savestate_state)
 		return;
 
-	if (sd == sdp) {
-		if (statuscnt > 0) {
-			statuscnt--;
-			if (statuscnt == 0)
-				gui_data.sndbuf_status = 0;
-		}
-		if (gui_data.sndbuf_status == 3)
-			gui_data.sndbuf_status = 0;
-	}
 	alGetError ();
 
 	memcpy (s->al_bigbuffer + s->al_offset, sndbuffer, sd->sndbufsize);
@@ -1463,6 +1578,10 @@ static void finish_sound_buffer_al (struct sound_data *sd, uae_u16 *sndbuffer)
 		alGetSourcei (s->al_Source, AL_BYTE_OFFSET, &v);
 		alcheck (sd, 7);
 		v -= s->al_offset;
+
+		docorrection (s, 100 * v / sd->sndbufsize, v / sd->samplesize, 100);
+
+#if 0
 		gui_data.sndbuf = 100 * v / sd->sndbufsize;
 		m = gui_data.sndbuf / 100.0;
 
@@ -1493,6 +1612,7 @@ static void finish_sound_buffer_al (struct sound_data *sd, uae_u16 *sndbuffer)
 			tfprev = timeframes;
 			sound_setadjust (skipmode);
 		}
+#endif
 	}
 
 	alcheck (sd, 0);
@@ -1572,9 +1692,9 @@ int get_offset_sound_device (struct sound_data *sd)
 static double sync_sound (double m)
 {
 	double skipmode;
-	if (isvsync ()) {
+	if (isvsync () || 1) {
 
-		skipmode = pow (m < 0 ? -m : m, EXP) / 10;
+		skipmode = pow (m < 0 ? -m : m, EXPVS) / 10;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_VSSIZE)
@@ -1601,7 +1721,6 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	struct sound_dp *s = sd->data;
 	HRESULT hr;
 	BYTE *pData;
-	double skipmode;
 	UINT32 numFramesPadding;
 	int avail;
 	int stuck = 2000;
@@ -1610,12 +1729,6 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 	if (sd->paused)
 		return;
 
-	s->framecounter++;
-	if (s->framecounter > 50) {
-		s->sndbuf = s->sndbuf / s->framecounter;
-		s->framecounter = 2;
-	}
-
 	for (;;) {
 		hr = s->pAudioClient->GetCurrentPadding (&numFramesPadding);
 		if (FAILED (hr)) {
@@ -1623,8 +1736,13 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 			return;
 		}
 		avail = s->bufferFrameCount - numFramesPadding;
-		if (avail >= s->sndbufframes)
+		if (avail >= s->sndbufframes) {
+			if (avail >= s->wasapigoodsize * 2 - s->sndbufframes * 1) {
+				statuscnt = SND_STATUSCNT;
+				gui_data.sndbuf_status = 2;
+			}
 			break;
+		}
 		gui_data.sndbuf_status = 1;
 		statuscnt = SND_STATUSCNT;
 		sleep_millis (1);
@@ -1637,12 +1755,9 @@ static void finish_sound_buffer_wasapi (struct sound_data *sd, uae_u16 *sndbuffe
 		}
 		oldpadding = numFramesPadding;
 	}
-	s->sndbuf += (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize;
-	gui_data.sndbuf = s->sndbuf / s->framecounter;
-	if (s->framecounter == 2) {
-		skipmode = sync_sound (gui_data.sndbuf / 70.0);
-		sound_setadjust (skipmode);
-	}
+
+	docorrection (s, (s->wasapigoodsize - avail) * 1000 / s->wasapigoodsize, s->wasapigoodsize - avail, 100);
+
 	hr = s->pRenderClient->GetBuffer (s->sndbufframes, &pData);
 	if (SUCCEEDED (hr)) {
 		memcpy (pData, sndbuffer, sd->sndbufsize);
@@ -1809,18 +1924,25 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 	if (sd == sdp) {
 		double vdiff, m, skipmode;
 
-		vdiff = diff - s->snd_writeoffset;
-		m = 100.0 * vdiff / s->max_sndbufsize;
+		vdiff = (diff - s->snd_writeoffset) / sd->samplesize;
+		m = 100.0 * vdiff / (s->max_sndbufsize / sd->samplesize);
 		skipmode = sync_sound (m);
 
 		if (tfprev != timeframes) {
 			gui_data.sndbuf = vdiff * 1000 / (s->snd_maxoffset - s->snd_writeoffset);
+			s->avg_correct += vdiff;
+			s->cnt_correct++;
+			double adj = (s->avg_correct / s->cnt_correct) / 50.0;
 			if ((0 || sound_debug) && !(tfprev % 10))
-				write_log (L"b=%4d,%5d,%5d,%5d d=%5d vd=%5.0f s=%+02.1f\n",
+				write_log (L"%d,%d,%d,%d d%5d vd%5.0f s%+02.1f %.0f %+02.1f\n",
 				sd->sndbufsize / sd->samplesize, s->snd_configsize / sd->samplesize, s->max_sndbufsize / sd->samplesize,
-				s->dsoundbuf / sd->samplesize, diff / sd->samplesize, vdiff, skipmode);
+				s->dsoundbuf / sd->samplesize, diff / sd->samplesize, vdiff, skipmode, s->avg_correct / s->cnt_correct, adj);
 			tfprev = timeframes;
-			sound_setadjust (skipmode);
+			if (skipmode > 1)
+				skipmode = 1;
+			if (skipmode < -1)
+				skipmode = -1;
+			sound_setadjust (skipmode + adj);
 		}
 	}
 
@@ -1868,6 +1990,8 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 
 void finish_sound_buffer (void)
 {
+	static unsigned long tframe;
+
 	if (currprefs.turbo_emulation)
 		return;
 	if (currprefs.sound_stereo_swap_paula) {
@@ -1887,7 +2011,15 @@ void finish_sound_buffer (void)
 #endif
 	if (!have_sound)
 		return;
-	if (statuscnt > 0) {
+
+	if (delayed_start) {
+		if (delayed_start > time (NULL))
+			return;
+		delayed_start = 0;
+	}
+
+	if (statuscnt > 0 && tframe != timeframes) {
+		tframe = timeframes;
 		statuscnt--;
 		if (statuscnt == 0)
 			gui_data.sndbuf_status = 0;

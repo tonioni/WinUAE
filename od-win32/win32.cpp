@@ -175,7 +175,6 @@ TCHAR help_file[MAX_DPATH];
 int af_path_2005;
 int quickstart = 1, configurationcache = 1, relativepaths = 0;
 
-static int multi_display = 1;
 static TCHAR *inipath = NULL;
 
 static int guijoybutton[MAX_JPORTS];
@@ -2970,7 +2969,6 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, L"midi_device", &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, L"midiout_device", &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, L"midiin_device", &p->win32_midiindev, 1)
-		|| cfgfile_intval (option, value, L"soundcard", &p->win32_soundcard, 1)
 		|| cfgfile_intval (option, value, L"samplersoundcard", &p->win32_samplersoundcard, 1)
 		|| cfgfile_yesno (option, value, L"soundcard_exclusive", &p->win32_soundexclusive)
 		|| cfgfile_yesno (option, value, L"notaskbarbutton", &p->win32_notaskbarbutton)
@@ -2992,6 +2990,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	if (cfgfile_yesno (option, value, L"rtg_scale_allow", &p->win32_rtgallowscaling))
 		return 1;
+
+	if (cfgfile_intval (option, value, L"soundcard", &p->win32_soundcard, 1)) {
+		if (p->win32_soundcard < 0 || p->win32_soundcard >= MAX_SOUND_DEVICES || sound_devices[p->win32_soundcard] == NULL)
+			p->win32_soundcard = 0;
+		return 1;
+	}
 
 	if (cfgfile_string (option, value, L"soundcardname", tmpbuf, sizeof tmpbuf / sizeof (TCHAR))) {
 		int i, num;
@@ -4629,7 +4633,6 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, L"nomultidisplay")) {
-		multi_display = 0;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"legacypaths")) {
@@ -4986,7 +4989,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 
 		WIN32_HandleRegistryStuff ();
 		write_log (L"Enumerating display devices.. \n");
-		enumeratedisplays (multi_display);
+		enumeratedisplays ();
 		write_log (L"Sorting devices and modes..\n");
 		sortdisplays ();
 		write_log (L"Display buffer mode = %d\n", ddforceram);

@@ -103,6 +103,7 @@ static void aino_test_init (a_inode *aino)
 
 uaecptr filesys_initcode;
 static uae_u32 fsdevname, filesys_configdev;
+static uae_u32 cdfs_devname, cdfs_control;
 static int filesys_in_interrupt;
 static uae_u32 mountertask;
 static int automountunit = -1;
@@ -5202,7 +5203,11 @@ static void init_filesys_diagentry (void)
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2100), EXPANSION_explibname);
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2104), filesys_configdev);
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
-	do_put_mem_long ((uae_u32 *)(filesysory + 0x210c), nr_units ());
+	if (currprefs.scsi && currprefs.win32_automount_cddrives)
+		do_put_mem_word ((uae_u16 *)(filesysory + 0x210c),  scsi_get_cd_drive_mask ());
+	else
+		do_put_mem_word ((uae_u16 *)(filesysory + 0x210c), 0);
+	do_put_mem_word ((uae_u16 *)(filesysory + 0x210e), nr_units ());
 	native2amiga_startup ();
 }
 
@@ -5402,15 +5407,22 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 
 static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
 {
+	int iscd = (m68k_dreg (regs, 6) & 0x80000000) != 0;
 	uaecptr devicenode = m68k_areg (regs, 3);
 	uaecptr parmpacket = m68k_areg (regs, 1);
 	uaecptr fsres = get_long (parmpacket + PP_FSRES);
 	uaecptr fsnode;
 	uae_u32 dostype, dostype2;
 	UnitInfo *uip = mountinfo.ui;
-	int no = m68k_dreg (regs, 6);
+	int no = m68k_dreg (regs, 6) & 0x7fffffff;
 	int unit_no = no & 65535;
-	int type = is_hardfile (unit_no);
+	int type;
+	
+	if (iscd) {
+		type = FILESYS_CD;
+	} else {
+		type = is_hardfile (unit_no);
+	}
 
 	if (type == FILESYS_VIRTUAL)
 		return 0;
@@ -5452,28 +5464,51 @@ static uae_u32 REGPARAM2 filesys_init_storeinfo (TrapContext *context)
 	return ret;
 }
 
+
+#define CDFS_DOSTYPE 0x43445644
+static uae_u8 *cdfs_handler;
+static int cdfs_handler_len;
+
 /* Remember a pointer AmigaOS gave us so we can later use it to identify
 * which unit a given startup message belongs to.  */
 static uae_u32 REGPARAM2 filesys_dev_remember (TrapContext *context)
 {
-	int no = m68k_dreg (regs, 6);
+	int iscd = (m68k_dreg (regs, 6) & 0x80000000) != 0;
+	int no = m68k_dreg (regs, 6) & 0x7fffffff;
 	int unit_no = no & 65535;
 	int sub_no = no >> 16;
-	UnitInfo *uip = &mountinfo.ui[unit_no];
+	UnitInfo *uip = NULL;
 	int i;
 	uaecptr devicenode = m68k_areg (regs, 3);
 	uaecptr parmpacket = m68k_areg (regs, 1);
+	int fssize;
+	uae_u8 *fs;
+
+	if (iscd) {
+		fssize = cdfs_handler_len;
+		fs = cdfs_handler;
+		if (get_long (devicenode + 5 * 4) < 10000)  // stack
+			put_long (devicenode + 5 * 4, 10000);
+	} else {
+		uip = &mountinfo.ui[unit_no];
+		fssize = uip->rdb_filesyssize;
+		fs = uip->rdb_filesysstore;
+	}
 
 	/* copy filesystem loaded from RDB */
 	if (get_long (parmpacket + PP_FSPTR)) {
-		for (i = 0; i < uip->rdb_filesyssize; i++)
-			put_byte (get_long (parmpacket + PP_FSPTR) + i, uip->rdb_filesysstore[i]);
-		xfree (uip->rdb_filesysstore);
+		for (i = 0; i < fssize; i++)
+			put_byte (get_long (parmpacket + PP_FSPTR) + i, fs[i]);
+	}
+
+	if (!iscd) {
+		xfree (fs);
 		uip->rdb_filesysstore = 0;
 		uip->rdb_filesyssize = 0;
+		if (m68k_dreg (regs, 3) >= 0)
+			uip->startup = get_long (devicenode + 28);
 	}
-	if (m68k_dreg (regs, 3) >= 0)
-		uip->startup = get_long (devicenode + 28);
+
 	return devicenode;
 }
 
@@ -5905,7 +5940,7 @@ static void get_new_device (int type, uaecptr parmpacket, TCHAR **devname, uaecp
 	if (*devname == 0 || _tcslen (*devname) == 0) {
 		int un = unit_no;
 		for (;;) {
-			_stprintf (buffer, L"DH%d", un++);
+			_stprintf (buffer, type == FILESYS_CD ? L"CD%d" : L"DH%d", un++);
 			if (!device_isdup (expbase, buffer))
 				break;
 		}
@@ -5913,7 +5948,9 @@ static void get_new_device (int type, uaecptr parmpacket, TCHAR **devname, uaecp
 		_tcscpy (buffer, *devname);
 	}
 	*devname_amiga = ds (device_dupfix (expbase, buffer));
-	if (type == FILESYS_VIRTUAL)
+	if (type == FILESYS_CD)
+		write_log (L"FS: mounted CD unit %s\n", buffer);
+	else if (type == FILESYS_VIRTUAL)
 		write_log (L"FS: mounted virtual unit %s (%s)\n", buffer, mountinfo.ui[unit_no].rootdir);
 	else
 		write_log (L"FS: mounted HDF unit %s (%04x-%08x, %s)\n", buffer,
@@ -5926,61 +5963,121 @@ static void get_new_device (int type, uaecptr parmpacket, TCHAR **devname, uaecp
 static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 {
 	UnitInfo *uip = mountinfo.ui;
-	int no = m68k_dreg (regs, 6);
+	int no = m68k_dreg (regs, 6) & 0x7fffffff;
+	int iscd = (m68k_dreg (regs, 6) & 0x80000000) != 0;
 	int unit_no = no & 65535;
 	int sub_no = no >> 16;
-	int type = is_hardfile (unit_no);
+	int type;
 	uaecptr parmpacket = m68k_areg (regs, 0);
 
-	if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
-		/* RDB hardfile */
-		uip[unit_no].devno = unit_no;
-		return rdb_mount (&uip[unit_no], unit_no, sub_no, parmpacket);
-	}
-	if (sub_no)
-		return -2;
-	write_log (L"Mounting uaehf.device %d (%d):\n", unit_no, sub_no);
-	get_new_device (type, parmpacket, &uip[unit_no].devname, &uip[unit_no].devname_amiga, unit_no);
-	uip[unit_no].devno = unit_no;
-	put_long (parmpacket, uip[unit_no].devname_amiga);
-	put_long (parmpacket + 8, uip[unit_no].devno);
-	put_long (parmpacket + 12, 0); /* Device flags */
-	put_long (parmpacket + 16, 16); /* Env. size */
-	put_long (parmpacket + 24, 0); /* unused */
-	put_long (parmpacket + 44, 0); /* unused */
-	put_long (parmpacket + 48, 0); /* interleave */
-	put_long (parmpacket + 60, 50); /* Number of buffers */
-	put_long (parmpacket + 64, 0); /* Buffer mem type */
-	put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
-	put_long (parmpacket + 72, ~1); /* addMask (?) */
-	put_long (parmpacket + 76, uip[unit_no].bootpri); /* bootPri */
-	put_long (parmpacket + 80, 0x444f5300); /* DOS\0 */
-	if (type == FILESYS_VIRTUAL) {
-		put_long (parmpacket + 4, fsdevname);
-		put_long (parmpacket + 20, 1024 >> 2); /* longwords per block */
-		put_long (parmpacket + 28, 15); /* heads */
+	if (iscd) {
+
+		TCHAR *cdname = NULL;
+		uaecptr cdname_amiga;
+		type = FILESYS_CD;
+		write_log (L"Mounting uaescsi.device %d:\n", unit_no);
+		get_new_device (type, parmpacket, &cdname, &cdname_amiga, unit_no);
+		put_long (parmpacket, cdname_amiga);
+		put_long (parmpacket + 4, cdfs_devname);
+		put_long (parmpacket + 8, unit_no);
+		put_long (parmpacket + 12, 0); /* Device flags */
+		put_long (parmpacket + 16, 19); /* Env. size */
+		put_long (parmpacket + 20, 2048 >> 2); /* longwords per block */
+		put_long (parmpacket + 24, 0); /* unused */
+		put_long (parmpacket + 28, 1); /* heads */
 		put_long (parmpacket + 32, 1); /* sectors per block */
-		put_long (parmpacket + 36, 127); /* sectors per track */
-		put_long (parmpacket + 40, 2); /* reserved blocks */
+		put_long (parmpacket + 36, 1); /* sectors per track */
+		put_long (parmpacket + 40, 0); /* reserved blocks */
+		put_long (parmpacket + 44, 0); /* unused */
+		put_long (parmpacket + 48, 0); /* interleave */
 		put_long (parmpacket + 52, 0); /* lowCyl */
-		put_long (parmpacket + 56, 1); /* hiCyl */
+		put_long (parmpacket + 56, 0); /* hiCyl */
+		put_long (parmpacket + 60, 50); /* Number of buffers */
+		put_long (parmpacket + 64, 0); /* Buffer mem type */
+		put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
+		put_long (parmpacket + 72, ~1); /* addMask (?) */
+		put_long (parmpacket + 76, -128); /* bootPri */
+		put_long (parmpacket + 80, CDFS_DOSTYPE);
+		put_long (parmpacket + 84, 0); /* baud */
+		put_long (parmpacket + 88, cdfs_control >> 2); /* Control. BSTR! */
+		put_long (parmpacket + 92, 0); /* bootblocks */
+
+		uaecptr fsres = get_long (parmpacket + PP_FSRES);
+		bool cdfs = false;
+		if (fsres) {
+			uaecptr fsnode = get_long (fsres + 18);
+			while (get_long (fsnode)) {
+				if (get_long (fsnode + 14) == CDFS_DOSTYPE) {
+					cdfs = true;
+					break;
+				}
+				fsnode = get_long (fsnode);
+			}
+		} else {
+			write_log (L"CDFS: FileSystem.resource not found, this shouldn't happen!\n");
+			cdfs = true;
+		}
+
+		if (!cdfs) {
+			put_long (parmpacket + PP_FSSIZE, cdfs_handler_len);
+			addfakefilesys (parmpacket, CDFS_DOSTYPE);
+		}
+
+		return type;
+
 	} else {
-		put_long (parmpacket + 4, ROM_hardfile_resname);
-		put_long (parmpacket + 20, uip[unit_no].hf.blocksize >> 2); /* longwords per block */
-		put_long (parmpacket + 28, uip[unit_no].hf.surfaces); /* heads */
-		put_long (parmpacket + 32, 1); /* sectors per block */
-		put_long (parmpacket + 36, uip[unit_no].hf.secspertrack); /* sectors per track */
-		put_long (parmpacket + 40, uip[unit_no].hf.reservedblocks); /* reserved blocks */
-		put_long (parmpacket + 52, 0); /* lowCyl */
-		put_long (parmpacket + 56, uip[unit_no].hf.nrcyls <= 0 ? 0 : uip[unit_no].hf.nrcyls - 1); /* hiCyl */
+
+		type = is_hardfile (unit_no);
+		if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
+			/* RDB hardfile */
+			uip[unit_no].devno = unit_no;
+			return rdb_mount (&uip[unit_no], unit_no, sub_no, parmpacket);
+		}
+		if (sub_no)
+			return -2;
+		write_log (L"Mounting uaehf.device %d (%d):\n", unit_no, sub_no);
+		get_new_device (type, parmpacket, &uip[unit_no].devname, &uip[unit_no].devname_amiga, unit_no);
+		uip[unit_no].devno = unit_no;
+		put_long (parmpacket, uip[unit_no].devname_amiga);
+		put_long (parmpacket + 8, uip[unit_no].devno);
+		put_long (parmpacket + 12, 0); /* Device flags */
+		put_long (parmpacket + 16, 16); /* Env. size */
+		put_long (parmpacket + 24, 0); /* unused */
+		put_long (parmpacket + 44, 0); /* unused */
+		put_long (parmpacket + 48, 0); /* interleave */
+		put_long (parmpacket + 60, 50); /* Number of buffers */
+		put_long (parmpacket + 64, 0); /* Buffer mem type */
+		put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
+		put_long (parmpacket + 72, ~1); /* addMask (?) */
+		put_long (parmpacket + 76, uip[unit_no].bootpri); /* bootPri */
+		put_long (parmpacket + 80, 0x444f5300); /* DOS\0 */
+		if (type == FILESYS_VIRTUAL) {
+			put_long (parmpacket + 4, fsdevname);
+			put_long (parmpacket + 20, 1024 >> 2); /* longwords per block */
+			put_long (parmpacket + 28, 15); /* heads */
+			put_long (parmpacket + 32, 1); /* sectors per block */
+			put_long (parmpacket + 36, 127); /* sectors per track */
+			put_long (parmpacket + 40, 2); /* reserved blocks */
+			put_long (parmpacket + 52, 0); /* lowCyl */
+			put_long (parmpacket + 56, 1); /* hiCyl */
+		} else {
+			put_long (parmpacket + 4, ROM_hardfile_resname);
+			put_long (parmpacket + 20, uip[unit_no].hf.blocksize >> 2); /* longwords per block */
+			put_long (parmpacket + 28, uip[unit_no].hf.surfaces); /* heads */
+			put_long (parmpacket + 32, 1); /* sectors per block */
+			put_long (parmpacket + 36, uip[unit_no].hf.secspertrack); /* sectors per track */
+			put_long (parmpacket + 40, uip[unit_no].hf.reservedblocks); /* reserved blocks */
+			put_long (parmpacket + 52, 0); /* lowCyl */
+			put_long (parmpacket + 56, uip[unit_no].hf.nrcyls <= 0 ? 0 : uip[unit_no].hf.nrcyls - 1); /* hiCyl */
+		}
+		if (type == FILESYS_HARDFILE)
+			type = dofakefilesys (&uip[unit_no], parmpacket);
+		if (uip[unit_no].bootpri < -127)
+			m68k_dreg (regs, 7) = m68k_dreg (regs, 7) & ~1; /* do not boot */
+		if (uip[unit_no].bootpri < -128)
+			return -1; /* do not mount */
+		return type;
 	}
-	if (type == FILESYS_HARDFILE)
-		type = dofakefilesys (&uip[unit_no], parmpacket);
-	if (uip[unit_no].bootpri < -127)
-		m68k_dreg (regs, 7) = m68k_dreg (regs, 7) & ~1; /* do not boot */
-	if (uip[unit_no].bootpri < -128)
-		return -1; /* do not mount */
-	return type;
 }
 
 static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
@@ -6052,10 +6149,12 @@ void filesys_install (void)
 	uae_sem_init (&singlethread_int_sem, 0, 1);
 	uae_sem_init (&test_sem, 0, 1);
 
-	ROM_filesys_resname = ds(L"UAEunixfs.resource");
-	ROM_filesys_resid = ds(L"UAE unixfs 0.4");
+	ROM_filesys_resname = ds_ansi ("UAEunixfs.resource");
+	ROM_filesys_resid = ds_ansi ("UAE unixfs 0.4");
 
-	fsdevname = ds (L"uae.device"); /* does not really exist */
+	fsdevname = ds_ansi ("uae.device"); /* does not really exist */
+	cdfs_devname = ds_ansi ("uaescsi.device");
+	cdfs_control = ds_bstr_ansi ("ROCKRIDGE JOLIET MAYBELOWERCASE SCANINTERVAL=-1 DE=.1 RE=.2");
 
 	ROM_filesys_diagentry = here ();
 	calltrap (deftrap2 (filesys_diagentry, 0, L"filesys_diagentry"));
@@ -6103,6 +6202,9 @@ void filesys_install (void)
 	org (loop);
 }
 
+extern unsigned char cdfs_rom[];
+extern unsigned int cdfs_rom_len;
+
 void filesys_install_code (void)
 {
 	uae_u32 a, b;
@@ -6117,7 +6219,12 @@ void filesys_install_code (void)
 	EXPANSION_bootcode = a + bootrom_header + bootrom_items * 4 - 4;
 	b = a + bootrom_header + 3 * 4 - 4;
 	filesys_initcode = a + dlg (b) + bootrom_header - 4;
+
+	cdfs_handler = zfile_load_data (L"cdfs.gz", cdfs_rom, cdfs_rom_len, &cdfs_handler_len);
+
 }
+
+#include "cdrom-handler.cpp"
 
 #include "od-win32/win32_filesys.cpp"
 

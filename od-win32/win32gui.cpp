@@ -1832,6 +1832,7 @@ void gui_display (int shortcut)
 			savestate_state = STATE_DORESTORE;
 	}
 	manual_painting_needed--; /* So that WM_PAINT doesn't need to use custom refreshing */
+	reset_sound ();
 	resumepaused (9);
 	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	inputdevice_config_change_test ();
@@ -5336,67 +5337,26 @@ static void enable_for_chipsetdlg (HWND hDlg)
 	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
 }
 
-static int fakerefreshrates[] = { 50, 60, 100, 120, 0 };
-struct storedrefreshrate
-{
-	int rate, type;
-};
-static struct storedrefreshrate storedrefreshrates[MAX_REFRESH_RATES + 1];
-
 static void init_frequency_combo (HWND hDlg, int dmode)
 {
-	int i, j, freq;
+	int i;
 	TCHAR hz[20], hz2[20], txt[100];
 	LRESULT index;
 	struct MultiDisplay *md = getdisplay (&workprefs);
-
-	i = 0; index = 0;
-	while (dmode >= 0 && (freq = md->DisplayModes[dmode].refresh[i]) > 0 && index < MAX_REFRESH_RATES) {
-		storedrefreshrates[index].rate = freq;
-		storedrefreshrates[index++].type = md->DisplayModes[dmode].refreshtype[i];
-		i++;
-	}
-	i = 0;
-	while ((freq = fakerefreshrates[i]) > 0 && index < MAX_REFRESH_RATES) {
-		for (j = 0; j < index; j++) {
-			if (storedrefreshrates[j].rate == freq)
-				break;
-		}
-		if (j == index) {
-			storedrefreshrates[index].rate = -freq;
-			storedrefreshrates[index++].type = 0;
-		}
-		i++;
-	}
-	storedrefreshrates[index].rate = 0;
-	for (i = 0; i < index; i++) {
-		for (j = i + 1; j < index; j++) {
-			if (abs (storedrefreshrates[i].rate) >= abs (storedrefreshrates[j].rate)) {
-				struct storedrefreshrate srr;
-				memcpy (&srr, &storedrefreshrates[i], sizeof (struct storedrefreshrate));
-				memcpy (&storedrefreshrates[i], &storedrefreshrates[j], sizeof (struct storedrefreshrate));
-				memcpy (&storedrefreshrates[j], &srr, sizeof (struct storedrefreshrate));
-			}
-		}
-	}
 
 	hz[0] = hz2[0] = 0;
 	SendDlgItemMessage(hDlg, IDC_REFRESHRATE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_VSYNC_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)txt);
-	for (i = 0; i < index; i++) {
-		freq = storedrefreshrates[i].rate;
-		if (freq < 0) {
-			freq = -freq;
-			_stprintf (hz, L"(%dHz)", freq);
-		} else {
-			_stprintf (hz, L"%dHz", freq);
-		}
+	for (i = 0; md->DisplayModes[dmode].refresh[i] > 0; i++) {
+		int freq =  md->DisplayModes[dmode].refresh[i];
+		int type = md->DisplayModes[dmode].refreshtype[i];
+		_stprintf (hz, L"%dHz", freq);
 		if (freq == 50 || freq == 100)
 			_tcscat (hz, L" PAL");
 		if (freq == 60 || freq == 120)
 			_tcscat (hz, L" NTSC");
-		if (storedrefreshrates[i].type)
+		if (type)
 			_tcscat (hz, L" (*)");
 		if (abs (workprefs.gfx_refreshrate) == freq)
 			_tcscpy (hz2, hz);
@@ -5768,7 +5728,7 @@ static void init_resolution_combo (HWND hDlg)
 	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
 		if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx != idx) {
 			_stprintf (tmp, L"%dx%d", md->DisplayModes[i].res.width, md->DisplayModes[i].res.height);
-			if (md->DisplayModes[i].nondx)
+			if (md->DisplayModes[i].rawmode)
 				_tcscat (tmp, L" (*)");
 			SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
 			idx = md->DisplayModes[i].residx;
@@ -5783,15 +5743,17 @@ static void init_displays_combo (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)Displays[i].name);
 		i++;
 	}
-	if (workprefs.gfx_display >= i)
+	if (workprefs.gfx_display > i)
 		workprefs.gfx_display = 0;
-	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, workprefs.gfx_display, 0);
+	if (workprefs.gfx_display < 1)
+		workprefs.gfx_display = 1;
+	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, workprefs.gfx_display - 1, 0);
 }
 
 static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	BOOL success = FALSE;
-	int i, j;
+	int i;
 	int gfx_width = workprefs.gfx_size_win.width;
 	int gfx_height = workprefs.gfx_size_win.height;
 	LRESULT posn;
@@ -5893,14 +5855,35 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_autoresolution = ischecked (hDlg, IDC_AUTORESOLUTION);
 
+	int dmode = -1;
+	struct MultiDisplay *md = getdisplay (&workprefs);
+	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
+	LRESULT posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
+	if (posn1 != CB_ERR && posn2 != CB_ERR) {
+		for (dmode = 0; md->DisplayModes[dmode].depth >= 0; dmode++) {
+			if (md->DisplayModes[dmode].residx == posn1)
+				break;
+		}
+		if (md->DisplayModes[dmode].depth > 0) {
+			i = dmode;
+			while (md->DisplayModes[dmode].residx == posn1) {
+				if (md->DisplayModes[dmode].depth == gui_display_depths[posn2])
+					break;
+				dmode++;
+			}
+			if (md->DisplayModes[dmode].residx != posn1)
+			dmode = i;
+		}
+	}
+
 	if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE)
 	{
 		if (LOWORD (wParam) == IDC_DISPLAYSELECT) {
 			posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR && posn != workprefs.gfx_display) {
+			if (posn != CB_ERR && posn + 1 != workprefs.gfx_display) {
 				if (Displays[posn].disabled)
 					posn = 0;
-				workprefs.gfx_display = posn;
+				workprefs.gfx_display = posn + 1;
 				init_resolution_combo (hDlg);
 				init_display_mode (hDlg);
 			}
@@ -5909,32 +5892,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			posn = SendDlgItemMessage (hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
 			if (posn != CB_ERR)
 				workprefs.gfx_resolution = posn;
-		} else if (LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) {
-			struct MultiDisplay *md = getdisplay (&workprefs);
-			LRESULT posn1, posn2;
-			posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
-			if (posn1 == CB_ERR)
-				return;
-			posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
-			if (posn2 == CB_ERR)
-				return;
-			for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-				if (md->DisplayModes[i].residx == posn1)
-					break;
-			}
-			if (md->DisplayModes[i].depth < 0)
-				return;
-			j = i;
-			while (md->DisplayModes[i].residx == posn1) {
-				if (md->DisplayModes[i].depth == gui_display_depths[posn2])
-					break;
-				i++;
-			}
-			if (md->DisplayModes[i].residx != posn1)
-				i = j;
-			workprefs.gfx_size_fs.width  = md->DisplayModes[i].res.width;
-			workprefs.gfx_size_fs.height = md->DisplayModes[i].res.height;
-			switch(md->DisplayModes[i].depth)
+		} else if ((LOWORD (wParam) == IDC_RESOLUTION || LOWORD(wParam) == IDC_RESOLUTIONDEPTH) && dmode >= 0) {
+			workprefs.gfx_size_fs.width  = md->DisplayModes[dmode].res.width;
+			workprefs.gfx_size_fs.height = md->DisplayModes[dmode].res.height;
+			switch(md->DisplayModes[dmode].depth)
 			{
 			case 2:
 				workprefs.color_mode = 2;
@@ -5951,19 +5912,16 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			SetDlgItemInt (hDlg, IDC_XSIZE, workprefs.gfx_size_win.width, FALSE);
 			SetDlgItemInt (hDlg, IDC_YSIZE, workprefs.gfx_size_win.height, FALSE);
 			init_frequency_combo (hDlg, i);
-		} else if (LOWORD (wParam) == IDC_REFRESHRATE) {
-			LRESULT posn1, posn2;
+		} else if (LOWORD (wParam) == IDC_REFRESHRATE && dmode >= 0) {
+			LRESULT posn1;
 			posn1 = SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_GETCURSEL, 0, 0);
 			if (posn1 == CB_ERR)
-				return;
-			posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
-			if (posn2 == CB_ERR)
 				return;
 			if (posn1 == 0) {
 				workprefs.gfx_refreshrate = 0;
 			} else {
 				posn1--;
-				workprefs.gfx_refreshrate = storedrefreshrates[posn1].rate;
+				workprefs.gfx_refreshrate = md->DisplayModes[dmode].refresh[posn1];
 			}
 			values_to_displaydlg (hDlg);
 		} else if (LOWORD (wParam) == IDC_DA_MODE) {
@@ -14737,6 +14695,7 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 	if (!gui_active) {
 		if (flipflop)
 			ShowWindow (hAmigaWnd, SW_RESTORE);
+		reset_sound ();
 		resume_sound ();
 		setmouseactive (focuso > 0 ? 1 : 0);
 	}
@@ -14790,6 +14749,7 @@ void gui_message (const TCHAR *format,...)
 	if (!gui_active) {
 		if (flipflop)
 			ShowWindow (hAmigaWnd, SW_RESTORE);
+		reset_sound ();
 		resume_sound ();
 		setmouseactive (focuso > 0 ? 1 : 0);
 	}

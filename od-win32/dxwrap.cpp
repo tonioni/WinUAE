@@ -1075,15 +1075,70 @@ static void getcaps (void)
 	showcaps (&hc);
 }
 
-int DirectDraw_Start (GUID *guid)
+static int guidcounter;
+static GUID monitorguids[MAX_DISPLAYS];
+
+static BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPVOID ctx, HMONITOR hm)
 {
-	static int d3ddone;
-	static int first;
+	if (guidcounter >= MAX_DISPLAYS)
+		return FALSE;
+	if (guid == NULL)
+		return TRUE;
+	memcpy (&monitorguids[guidcounter], guid, sizeof GUID);
+	guidcounter++;
+	return TRUE;
+}
+
+int DirectDraw_Start (void)
+{
+	static int first, firstdd;
 	HRESULT ddrval;
 	LPDIRECT3D9 d3d;
 	D3DCAPS9 d3dCaps;
 	HINSTANCE d3dDLL;
+	GUID *guid;
 
+	dxdata.statuswidth = 800;
+	dxdata.statusheight = TD_TOTAL_HEIGHT;
+
+	if (!first) {
+		d3dDLL = LoadLibrary (L"D3D9.DLL");
+		if (d3dDLL) {
+			d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
+			if (d3d) {
+				if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps))) {
+					dxcaps.maxwidth = d3dCaps.MaxTextureWidth;
+					dxcaps.maxheight = d3dCaps.MaxTextureHeight;
+					write_log (L"Max hardware surface size: %dx%d\n", dxcaps.maxwidth, dxcaps.maxheight);
+				}
+				IDirect3D9_Release (d3d);
+			}
+			FreeLibrary (d3dDLL);
+		}
+		if (dxcaps.maxwidth < 2048)
+			dxcaps.maxwidth = 2048;
+		if (dxcaps.maxheight < 2048)
+			dxcaps.maxheight = 2048;
+
+		first = 1;
+	}
+
+	if (currprefs.gfx_api) {
+		return 1;
+	}
+
+	if (!guidcounter)
+		DirectDrawEnumerateExA (displaysCallback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
+
+	guid = NULL;
+	if (isfullscreen () > 0) {
+		int disp = currprefs.gfx_display - 1;
+		if (disp < 0)
+			disp = 0;
+		if (disp >= guidcounter)
+			disp = 0;
+		guid = &monitorguids[disp];
+	}
 	dxdata.islost = 0;
 	if (dxdata.ddinit) {
 		if (guid == NULL && dxdata.ddzeroguid)
@@ -1117,33 +1172,9 @@ int DirectDraw_Start (GUID *guid)
 	}
 #endif
 
-	dxdata.statuswidth = 800;
-	dxdata.statusheight = TD_TOTAL_HEIGHT;
-	if (!d3ddone) {
-		d3dDLL = LoadLibrary (L"D3D9.DLL");
-		if (d3dDLL) {
-			d3d = Direct3DCreate9 (D3D9b_SDK_VERSION);
-			if (d3d) {
-				if (SUCCEEDED (IDirect3D9_GetDeviceCaps (d3d, 0, D3DDEVTYPE_HAL, &d3dCaps))) {
-					dxcaps.maxwidth = d3dCaps.MaxTextureWidth;
-					dxcaps.maxheight = d3dCaps.MaxTextureHeight;
-					write_log (L"Max hardware surface size: %dx%d\n", dxcaps.maxwidth, dxcaps.maxheight);
-				}
-				IDirect3D9_Release (d3d);
-			}
-			FreeLibrary (d3dDLL);
-		}
-		d3ddone = 1;
-	}
-	if (dxcaps.maxwidth < 2048)
-		dxcaps.maxwidth = 2048;
-	if (dxcaps.maxheight < 2048)
-		dxcaps.maxheight = 2048;
-
-	if (!first) {
-		first = 1;
+	if (!firstdd)
 		getcaps ();
-	}
+	firstdd = 1;
 
 	if (SUCCEEDED (DirectDraw_GetDisplayMode ())) {
 		dxdata.ddinit = 1;
@@ -1177,11 +1208,13 @@ void dx_check (void)
 	dxdata.islost = 1;
 }
 
-bool DirectDraw_waitvblankstate (bool state)
+bool DirectDraw_waitvblankstate (bool state, int *maxvpos)
 {
 	BOOL vb;
 	HRESULT hr;
 
+	if (maxvpos)
+		*maxvpos = -1;
 	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
 		return false;
 	for (;;) {
@@ -1197,7 +1230,7 @@ bool DirectDraw_waitvblankstate (bool state)
 
 bool DirectDraw_vblank_busywait (void)
 {
-	if (!DirectDraw_waitvblankstate (true))
+	if (!DirectDraw_waitvblankstate (true, NULL))
 		return false;
 	return true;
 }

@@ -15,6 +15,7 @@ extern void dw (uae_u16);
 extern void dl (uae_u32);
 extern uae_u32 ds_ansi (const uae_char*);
 extern uae_u32 ds (const TCHAR*);
+extern uae_u32 ds_bstr_ansi (const uae_char*);
 extern uae_u8 dbg (uaecptr);
 extern void calltrap (uae_u32);
 extern void org (uae_u32);

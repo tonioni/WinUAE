@@ -6,6 +6,8 @@
   * Copyright 1995-1997 Bernd Schmidt
   */
 
+#include "machdep/rpt.h"
+
 typedef uae_u32 xcolnr;
 
 typedef int (*allocfunc_type)(int, int, int, xcolnr *);
@@ -26,7 +28,7 @@ extern void toggle_fullscreen (int);
 extern void toggle_mousegrab (void);
 extern void desktop_coords (int *dw, int *dh, int *x, int *y, int *w, int *h);
 extern bool vsync_switchmode (int);
-extern void vsync_busywait_end (void);
+extern frame_time_t vsync_busywait_end (void);
 extern bool vsync_busywait_do (int*);
 extern void vsync_busywait_start (void);
 extern double vblank_calibrate (double, bool);

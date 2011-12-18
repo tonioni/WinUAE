@@ -5116,7 +5116,7 @@ static void framewait (void)
 		
 		if (vs == -2) {
 
-			vsync_busywait_end ();
+			curr_time = vsync_busywait_end ();
 			vsync_busywait_do (&freetime);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
@@ -5203,8 +5203,6 @@ static void fpscounter (void)
 // vsync functions that are not hardware timing related
 static void vsync_handler_pre (void)
 {
-	vsync_rendered = false;
-
 	if (bogusframe > 0)
 		bogusframe--;
 
@@ -5234,13 +5232,17 @@ static void vsync_handler_pre (void)
 
 	sampler_vsync ();
 
-	vsync_handle_redraw (lof_store, lof_changed);
+	if (!vsync_rendered)
+		vsync_handle_redraw (lof_store, lof_changed);
+	vsync_rendered = true;
 }
 
 // emulated hardware vsync
 static void vsync_handler_post (void)
 {
 	static frame_time_t prevtime;
+
+	vsync_rendered = false;
 
 	//write_log (L"%d %d %d\n", vsynctime, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
 	prevtime = read_processor_time ();
@@ -5757,10 +5759,6 @@ static void hsync_handler_post (bool onvsync)
 #ifdef JIT
 	}
 #endif
-	if (is_lastline && isvsync () == -2 && !vsync_rendered) {
-		vsync_rendered = true;
-		render_screen ();
-	}
 
 	if (!nocustom ()) {
 		int lineno = vpos;
@@ -5861,6 +5859,13 @@ static void hsync_handler_post (bool onvsync)
 	if (diw_change > 0)
 		diw_change--;
 
+
+	if (is_lastline && isvsync () == -2 && !vsync_rendered) {
+		/* last line, render the frame as early as possible */
+		vsync_rendered = true;
+		vsync_handle_redraw (lof_store, lof_changed);
+		render_screen ();
+	}
 
 #if 0
 	{
@@ -7311,6 +7316,8 @@ STATIC_INLINE int dma_cycle (void)
 
 	blitter_nasty = 1;
 	if (cpu_tracer == -1)
+		return current_hpos ();
+	if (!currprefs.cpu_cycle_exact)
 		return current_hpos ();
 	while (currprefs.cpu_cycle_exact) {
 		int bpldma;

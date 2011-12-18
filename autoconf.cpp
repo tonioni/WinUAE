@@ -167,6 +167,19 @@ uae_u32 ds (const TCHAR *str)
 	return v;
 }
 
+uae_u32 ds_bstr_ansi (const uae_char *str)
+{
+	int len;
+ 
+	len = strlen (str) + 2;
+	rt_straddr -= len;
+	while (rt_straddr & 3)
+		rt_straddr--;
+	rtarea[rt_straddr] = len - 2;
+	strcpy ((uae_char*)rtarea + rt_straddr + 1, str);
+	return addr (rt_straddr);
+}
+
 void calltrap (uae_u32 n)
 {
 	dw (0xA000 + n);

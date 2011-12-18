@@ -2032,7 +2032,7 @@ struct zfile *zfile_fopen_parent (struct zfile *z, const TCHAR *name, uae_u64 of
 	return l;
 }
 
-struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data)
+struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, const uae_u8 *data)
 {
 	struct zfile *l;
 
@@ -2044,6 +2044,24 @@ struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, uae_u8 *data)
 	memcpy (l->data, data, size);
 	return l;
 }
+
+uae_u8 *zfile_load_data (const TCHAR *name, const uae_u8 *data,int datalen, int *outlen)
+{
+	struct zfile *zf, *f;
+	int size;
+	uae_u8 *out;
+	
+	zf = zfile_fopen_data (name, datalen, data);
+	f = zfile_gunzip (zf);
+	size = f->datasize;
+	zfile_fseek (f, 0, SEEK_SET);
+	out = xmalloc (uae_u8, size);
+	zfile_fread (out, 1, size, f);
+	zfile_fclose (f);
+	*outlen = size;
+	return out;
+}
+
 
 int zfile_truncate (struct zfile *z, uae_s64 size)
 {
