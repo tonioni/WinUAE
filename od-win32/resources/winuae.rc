@@ -303,8 +303,8 @@ BEGIN
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,154,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,154,119,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,165,121,10
-    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,188,101,10
-    CONTROL         "Include CD/DVD drives..",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,177,100,10
+    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,177,101,10
+    CONTROL         "CDFS automount CD/DVD drives.",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,189,201,10
     CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,177,115,10
     CONTROL         "Include removable drives..",IDC_MAPDRIVES_REMOVABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,165,100,10

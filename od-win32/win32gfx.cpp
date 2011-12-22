@@ -2274,6 +2274,7 @@ bool vblank_getstate (bool *state)
 {
 	int vp, opos;
 
+	*state = false;
 	opos = prevvblankpos;
 	if (!getvblankpos (&vp))
 		return false;
@@ -2451,11 +2452,12 @@ bool vsync_busywait_do (int *freetime)
 			return true;
 		}
 
-		while (!framelost && read_processor_time () - prevtime < vblankbasewait)
+		while (!framelost && read_processor_time () - prevtime < vblankbasewait) {
 			sleep_millis_main (1);
+		}
 
 		framelost = false;
-		vblank_busywait ();
+		v = vblank_busywait ();
 	}
 
 	if (v) {
@@ -2474,7 +2476,7 @@ struct remembered_vsync
 	struct remembered_vsync *next;
 	int width, height, depth, rate, mode;
 	bool rtg;
-	double remembered_rate;
+	double remembered_rate, remembered_rate2;
 };
 
 double vblank_calibrate (double approx_vblank, bool waitonly)
@@ -2502,10 +2504,10 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	rv = vsyncmemory;
 	while (rv) {
 		if (rv->width == width && rv->height == height && rv->depth == depth && rv->rate == rate && rv->mode == mode && rv->rtg == picasso_on) {
-			approx_vblank = rv->remembered_rate;
-			rval = approx_vblank;
+			approx_vblank = rv->remembered_rate2;
+			rval = rv->remembered_rate;
 			waitonly = true;
-			write_log (L"VSync calibration: remembered rate %.6fHz\n", rval);
+			write_log (L"VSync calibration: remembered rate %.6fHz (%.6fHz)\n", rval, approx_vblank);
 			break;
 		}
 		rv = rv->next;
@@ -2518,6 +2520,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
 		vblankbasewait2 = (syncbase / approx_vblank) * 70 / 100;
 		vblankbasewait3 = (syncbase / approx_vblank) * 90 / 100;
+		vblank_prev_time = read_processor_time ();
 		return rval;
 	}
 
@@ -2591,7 +2594,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
 	write_log (L"VSync calibration: %.6fHz/%d=%.6fHz. MaxV=%d Units=%d Mode=%s\n", tsum, div, tsum2, maxvpos, vblankbasefull, threaded_vsync ? L"threaded" : L"normal");
-	remembered_vblank = tsum2;
+	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	
 	rv = xcalloc (struct remembered_vsync, 1);
@@ -2601,7 +2604,8 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	rv->rate = rate;
 	rv->mode = isfullscreen ();
 	rv->rtg = picasso_on;
-	rv->remembered_rate = tsum2;
+	rv->remembered_rate = tsum;
+	rv->remembered_rate2 = tsum2;
 	if (vsyncmemory == NULL) {
 		vsyncmemory = rv;
 	} else {

@@ -57,7 +57,7 @@
 #include "arcadia.h"
 #include "drawing.h"
 #include "fsdb.h"
-
+#include "blkdev.h"
 #include "dxwrap.h"
 #include "win32.h"
 #include "registry.h"
@@ -9438,6 +9438,12 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 					if (val > 0)
 						workprefs.cdslots[0].inuse = true;
 
+				}
+				if (full_property_sheet) {
+					for (int i = 1; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+						if (workprefs.cdslots[i].inuse == false)
+							workprefs.cdslots[i].type = SCSI_UNIT_DISABLED;
+					}
 				}
 				addcdtype (hDlg, IDC_CD_TYPE);
 				addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);

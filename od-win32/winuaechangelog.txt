@@ -1,4 +1,10 @@
 
+Beta 7:
+
+- vsync in non-fastest CPU modes fix (b6)
+- Renamed "Include CD/DVD drives.."
+- Disable other uaescsi.device CD drives if image mode or drive letter is selected from CD type select menu.
+
 Beta 6:
 
 New vsync should finally work in all modes.
