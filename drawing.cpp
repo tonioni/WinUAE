@@ -1836,7 +1836,7 @@ STATIC_INLINE void do_flush_screen (struct vidbuffer *vb, int start, int stop)
 	unlockscr (vb);
 	if (start <= stop)
 		flush_screen (vb, start, stop);
-	else if (isvsync ())
+	else if (isvsync_chipset ())
 		flush_screen (vb, 0, 0); /* vsync mode */
 }
 
@@ -2771,7 +2771,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 		else if (currprefs.cpu_cycle_exact)
 			init_hardware_for_drawing_frame ();
 	} else {
-		if (isvsync ())
+		if (isvsync_chipset ())
 			flush_screen (gfxvidinfo.inbuffer, 0, 0); /* vsync mode */
 	}
 	gui_flicker_led (-1, 0, 0);
@@ -2926,11 +2926,28 @@ void drawing_init (void)
 	reset_drawing ();
 }
 
-int isvsync (void)
+int isvsync_chipset (void)
 {
 	if (picasso_on || !currprefs.gfx_avsync || (currprefs.gfx_avsync == 0 && !currprefs.gfx_afullscreen))
 		return 0;
 	if (currprefs.gfx_avsyncmode == 0)
 		return 1;
 	return currprefs.m68k_speed < 0 ? -2 : -1;
+}
+
+int isvsync_rtg (void)
+{
+	if (!picasso_on || !currprefs.gfx_pvsync || (currprefs.gfx_pvsync == 0 && !currprefs.gfx_pfullscreen))
+		return 0;
+	if (currprefs.gfx_pvsyncmode == 0)
+		return 1;
+	return currprefs.m68k_speed < 0 ? -2 : -1;
+}
+
+int isvsync (void)
+{
+	if (picasso_on)
+		return isvsync_rtg ();
+	else
+		return isvsync_chipset ();
 }

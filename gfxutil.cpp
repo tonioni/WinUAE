@@ -56,6 +56,8 @@ int bits_in_mask (unsigned long mask)
 int mask_shift (unsigned long mask)
 {
 	int n = 0;
+	if (!mask)
+		return 0;
 	while (!(mask & 1)) {
 		n++;
 		mask >>= 1;

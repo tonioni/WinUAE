@@ -2782,7 +2782,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_ctrl_F11_is_quit = 0;
 		p->win32_soundcard = 0;
 		p->win32_samplersoundcard = -1;
-		p->win32_soundexclusive = 0;
 		p->win32_minimize_inactive = 0;
 		p->win32_active_priority = 1;
 		p->win32_inactive_priority = 2;
@@ -2889,14 +2888,13 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, L"borderless", p->win32_borderless);
 	cfgfile_target_dwrite_str (f, L"uaescsimode", scsimode[p->win32_uaescsimode]);
 	cfgfile_target_dwrite_str (f, L"statusbar", statusbarmode[p->win32_statusbar]);
-	cfgfile_target_dwrite (f, L"soundcard", L"%d", p->win32_soundcard);
+	cfgfile_target_write (f, L"soundcard", L"%d", p->win32_soundcard);
 	if (p->win32_soundcard >= 0 && p->win32_soundcard < MAX_SOUND_DEVICES && sound_devices[p->win32_soundcard])
-		cfgfile_target_dwrite_str (f, L"soundcardname", sound_devices[p->win32_soundcard]->cfgname);
-	cfgfile_target_dwrite_bool (f, L"soundcard_exclusive", p->win32_soundexclusive);
+		cfgfile_target_write_str (f, L"soundcardname", sound_devices[p->win32_soundcard]->cfgname);
 	if (p->win32_samplersoundcard >= 0 && p->win32_samplersoundcard < MAX_SOUND_DEVICES) {
-		cfgfile_target_dwrite (f, L"samplersoundcard", L"%d", p->win32_samplersoundcard);
+		cfgfile_target_write (f, L"samplersoundcard", L"%d", p->win32_samplersoundcard);
 		if (record_devices[p->win32_samplersoundcard])
-			cfgfile_target_dwrite_str (f, L"samplersoundcardname", record_devices[p->win32_samplersoundcard]->cfgname);
+			cfgfile_target_write_str (f, L"samplersoundcardname", record_devices[p->win32_samplersoundcard]->cfgname);
 	}
 
 	cfgfile_target_dwrite (f, L"cpu_idle", L"%d", p->cpu_idle);
@@ -2942,7 +2940,7 @@ static const TCHAR *obsolete[] = {
 	L"killwinkeys", L"sound_force_primary", L"iconified_highpriority",
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
-	L"filesystem_codepage", L"aspi", L"no_overlay",
+	L"filesystem_codepage", L"aspi", L"no_overlay", L"soundcard_exclusive",
 	0
 };
 
@@ -2970,7 +2968,6 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, L"midiout_device", &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, L"midiin_device", &p->win32_midiindev, 1)
 		|| cfgfile_intval (option, value, L"samplersoundcard", &p->win32_samplersoundcard, 1)
-		|| cfgfile_yesno (option, value, L"soundcard_exclusive", &p->win32_soundexclusive)
 		|| cfgfile_yesno (option, value, L"notaskbarbutton", &p->win32_notaskbarbutton)
 		|| cfgfile_yesno (option, value, L"always_on_top", &p->win32_alwaysontop)
 		|| cfgfile_yesno (option, value, L"powersavedisabled", &p->win32_powersavedisabled)
@@ -3562,6 +3559,9 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 	const TCHAR *defprogid;
 	UAEREG *fkey;
 
+	if (!icon)
+		icon = IDI_APPICON;
+
 	_tcscpy (progid2, progid);
 	_tcscat (progid2, ext2 ? ext2 : extension);
 	if (os_winnt_admin > 1)
@@ -3609,10 +3609,11 @@ static int shell_associate_2 (const TCHAR *extension, TCHAR *shellcommand, TCHAR
 	}
 	cc = NULL;
 	struct contextcommand ccs[2];
+	memset (ccs, 0, sizeof ccs);
 	if ((command || shellcommand)) {
 		ccs[0].command = command;
 		ccs[0].shellcommand = shellcommand;
-		ccs[1].command = NULL;
+		ccs[0].icon = IDI_APPICON;
 		cc = &ccs[0];
 	}
 	if (cc) {
@@ -3746,15 +3747,15 @@ static void associate_init_extensions (void)
 		TCHAR rpath[MAX_DPATH];
 		HKEY rkey = HKEY_LOCAL_MACHINE;
 		HKEY key1;
-		int setit = 1;
+		bool setit = true;
 
 		_tcscpy (rpath, L"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\winuae.exe");
 		if (RegOpenKeyEx (rkey, rpath, 0, KEY_READ, &key1) == ERROR_SUCCESS) {
 			TCHAR tmp[MAX_DPATH];
 			DWORD size = sizeof tmp / sizeof (TCHAR);
 			if (RegQueryValueEx (key1, NULL, NULL, NULL, (LPBYTE)tmp, &size) == ERROR_SUCCESS) {
-				if (!_tcscmp (tmp, _wpgmptr))
-					setit = 0;
+				if (!_tcsicmp (tmp, _wpgmptr))
+					setit = false;
 			}
 			RegCloseKey (key1);
 		}
@@ -3763,6 +3764,9 @@ static void associate_init_extensions (void)
 				DWORD val = 1;
 				RegSetValueEx (key1, L"", 0, REG_SZ, (CONST BYTE *)_wpgmptr, (_tcslen (_wpgmptr) + 1) * sizeof (TCHAR));
 				RegSetValueEx (key1, L"UseUrl", 0, REG_DWORD, (LPBYTE)&val, sizeof val);
+				_tcscpy (rpath, start_path_exe);
+				rpath[_tcslen (rpath) - 1] = 0;
+				RegSetValueEx (key1, L"Path", 0, REG_SZ, (CONST BYTE *)rpath, (_tcslen (rpath) + 1) * sizeof (TCHAR));
 				RegCloseKey (key1);
 				SHChangeNotify (SHCNE_ASSOCCHANGED, 0, 0, 0); 
 			}
@@ -4996,12 +5000,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		enumerate_sound_devices ();
 		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 			int type = sound_devices[i]->type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), sound_devices[i]->name);
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA"))), sound_devices[i]->name);
 		}
 		write_log (L"Enumerating recording devices:\n");
 		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 			int type = record_devices[i]->type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : L"PA")), record_devices[i]->name);
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA"))), record_devices[i]->name);
 		}
 		write_log (L"done\n");
 		memset (&devmode, 0, sizeof (devmode));

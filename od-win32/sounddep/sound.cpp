@@ -427,7 +427,7 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 		hr = IDirectSoundBuffer_SetVolume (s->lpDSBsecondary, vol);
 		if (FAILED (hr))
 			write_log (L"DSSOUND: SetVolume(%d) failed: %s\n", vol, DXError (hr));
-	} else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 		if (s->pAudioVolume) {
 			float vol = 0.0;
 			if (volume < 100 && !mute)
@@ -1115,7 +1115,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	v /= 2;
 	if (sd->sndbufsize > v)
 		sd->sndbufsize = v;
-	s->wasapigoodsize =s->bufferFrameCount / 2;
+	s->wasapigoodsize = s->bufferFrameCount / 2;
 	s->sndbufframes = sd->sndbufsize / sd->samplesize;
 
 	write_log(L"WASAPI: '%s'\nWASAPI: EX=%d CH=%d FREQ=%d BUF=%d (%d)\n",
@@ -1284,23 +1284,25 @@ error:
 	return 0;
 }
 
-int open_sound_device (struct sound_data *sd, int index, int exclusive, int bufsize, int freq, int channels)
+int open_sound_device (struct sound_data *sd, int index, int bufsize, int freq, int channels)
 {
 	int ret = 0;
 	struct sound_dp *sdp = xcalloc (struct sound_dp, 1);
+	int type = sound_devices[index]->type;
+	
 	sd->data = sdp;
 	sd->sndbufsize = bufsize;
 	sd->freq = freq;
 	sd->channels = channels;
 	sd->paused = 1;
-	if (sound_devices[index]->type == SOUND_DEVICE_AL)
+	if (type == SOUND_DEVICE_AL)
 		ret = open_audio_al (sd, index);
-	else if (sound_devices[index]->type == SOUND_DEVICE_DS)
+	else if (type == SOUND_DEVICE_DS)
 		ret = open_audio_ds (sd, index);
-	else if (sound_devices[index]->type == SOUND_DEVICE_PA)
+	else if (type == SOUND_DEVICE_PA)
 		ret = open_audio_pa (sd, index);
-	else if (sound_devices[index]->type == SOUND_DEVICE_WASAPI)
-		ret = open_audio_wasapi (sd, index, exclusive);
+	else if (type == SOUND_DEVICE_WASAPI || type == SOUND_DEVICE_WASAPI_EXCLUSIVE)
+		ret = open_audio_wasapi (sd, index, type == SOUND_DEVICE_WASAPI_EXCLUSIVE);
 	sd->samplesize = sd->channels * 2;
 	return ret;
 }
@@ -1313,7 +1315,7 @@ void close_sound_device (struct sound_data *sd)
 		close_audio_ds (sd);
 	else if (sd->devicetype == SOUND_DEVICE_PA)
 		close_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI)
+	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		close_audio_wasapi (sd);
 	xfree (sd->data);
 	sd->data = NULL;
@@ -1327,7 +1329,7 @@ void pause_sound_device (struct sound_data *sd)
 		pause_audio_ds (sd);
 	else if (sd->devicetype == SOUND_DEVICE_PA)
 		pause_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI)
+	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		pause_audio_wasapi (sd);
 }
 void resume_sound_device (struct sound_data *sd)
@@ -1338,7 +1340,7 @@ void resume_sound_device (struct sound_data *sd)
 		resume_audio_ds (sd);
 	else if (sd->devicetype == SOUND_DEVICE_PA)
 		resume_audio_pa (sd);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI)
+	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		resume_audio_wasapi (sd);
 	sd->paused = 0;
 }
@@ -1367,7 +1369,7 @@ static int open_sound (void)
 	if (currprefs.win32_soundcard >= num)
 		currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
 	ch = get_audio_nativechannels (currprefs.sound_stereo);
-	ret = open_sound_device (sdp, currprefs.win32_soundcard, currprefs.win32_soundexclusive, size, currprefs.sound_freq, ch);
+	ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, ch);
 	if (!ret)
 		return 0;
 	currprefs.sound_freq = changed_prefs.sound_freq = sdp->freq;
@@ -1653,7 +1655,7 @@ int blocking_sound_device (struct sound_data *sd)
 			return 0;
 		return 1;
 
-	} else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
 
 		//	if (WaitForSingleObject (s->wasapihandle, 0) == WAIT_TIMEOUT)
 		//	    return 0;
@@ -1984,7 +1986,7 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 		finish_sound_buffer_ds (sd, sndbuffer);
 	else if (sd->devicetype == SOUND_DEVICE_PA)
 		finish_sound_buffer_pa (sd, sndbuffer);
-	else if (sd->devicetype == SOUND_DEVICE_WASAPI)
+	else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE)
 		finish_sound_buffer_wasapi (sd, sndbuffer);
 }
 
@@ -2055,7 +2057,7 @@ static void wasapi_enum (struct sound_device **sdp)
 	HRESULT hr;
 	IMMDeviceEnumerator *enumerator;
 	IMMDeviceCollection *col;
-	int i, cnt;
+	int i, cnt, cnt2, start;
 
 	write_log (L"Enumerating WASAPI devices...\n");
 	for (cnt = 0; cnt < MAX_SOUND_DEVICES; cnt++) {
@@ -2064,6 +2066,7 @@ static void wasapi_enum (struct sound_device **sdp)
 	}
 	if (cnt >= MAX_SOUND_DEVICES)
 		return;
+	start = cnt;
 
 	hr = CoCreateInstance (__uuidof(MMDeviceEnumerator), NULL,
 		CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&enumerator);
@@ -2095,19 +2098,17 @@ static void wasapi_enum (struct sound_device **sdp)
 						dev->Release ();
 					}
 					if (devid && devname) {
-						TCHAR tmp[MAX_DPATH];
 						if (i == 0) {
 							sdp[cnt] = xcalloc (struct sound_device, 1);
-							sdp[cnt]->cfgname = my_strdup (L"WASAPI:Default Audio Device");
+							sdp[cnt]->cfgname = my_strdup (L"Default Audio Device");
 							sdp[cnt]->type = SOUND_DEVICE_WASAPI;
 							sdp[cnt]->name = my_strdup (L"Default Audio Device");
 							sdp[cnt]->alname = NULL;
 							cnt++;
 						}
 						if (cnt < MAX_SOUND_DEVICES) {
-							_stprintf (tmp, L"WASAPI:%s", devname);
 							sdp[cnt] = xcalloc (struct sound_device, 1);
-							sdp[cnt]->cfgname = my_strdup (tmp);
+							sdp[cnt]->cfgname = my_strdup (devname);
 							sdp[cnt]->type = SOUND_DEVICE_WASAPI;
 							sdp[cnt]->name = my_strdup (devname);
 							sdp[cnt]->alname = my_strdup (devid);
@@ -2122,6 +2123,21 @@ static void wasapi_enum (struct sound_device **sdp)
 		}
 		enumerator->Release ();
 	}
+	cnt2 = cnt;
+	for (i = start; i < cnt2; i++) {
+		TCHAR buf[1000];
+		_stprintf (buf, L"WASAPIX:%s", sdp[i]->cfgname);
+		sdp[cnt] = xcalloc (struct sound_device, 1);
+		sdp[cnt]->cfgname = my_strdup (buf);
+		sdp[cnt]->name = my_strdup (sdp[i]->name);
+		sdp[cnt]->alname = sdp[i]->alname ? my_strdup (sdp[i]->alname) : NULL;
+		_stprintf (buf, L"WASAPI:%s", sdp[i]->cfgname);
+		sdp[cnt]->type = SOUND_DEVICE_WASAPI_EXCLUSIVE;
+		xfree (sdp[i]->cfgname);
+		sdp[i]->cfgname = my_strdup (buf);
+		cnt++;
+	}
+
 }
 
 static void OpenALEnumerate (struct sound_device **sds, const char *pDeviceNames, const char *ppDefaultDevice, int skipdetect)

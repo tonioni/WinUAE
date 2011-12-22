@@ -795,7 +795,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"clipboard_sharing", p->clipboard_sharing);
 
 	cfgfile_write (f, L"gfx_display", L"%d", p->gfx_display);
-	cfgfile_write_str (f, L"gfx_display_name", p->gfx_display_name);
+	cfgfile_dwrite_str (f, L"gfx_display_name", p->gfx_display_name);
 	cfgfile_write (f, L"gfx_framerate", L"%d", p->gfx_framerate);
 	cfgfile_write (f, L"gfx_width", L"%d", p->gfx_size_win.width); /* compatibility with old versions */
 	cfgfile_write (f, L"gfx_height", L"%d", p->gfx_size_win.height); /* compatibility with old versions */
@@ -811,6 +811,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_autoresolution_min_horizontal", horizmode[p->gfx_autoresolution_minh + 1]);
 
 	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_backbuffers);
+	cfgfile_write (f, L"gfx_backbuffers_rtg", L"%d", p->gfx_rtg_backbuffers);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
 	cfgfile_write_str (f, L"gfx_vsyncmode", vsyncmodes2[p->gfx_avsyncmode]);
 	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_pvsync]);
@@ -1476,6 +1477,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, L"gfx_autoresolution", &p->gfx_autoresolution)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_backbuffers, 1)
+		|| cfgfile_intval (option, value, L"gfx_backbuffers_rtg", &p->gfx_rtg_backbuffers, 1)
 		
 		|| cfgfile_intval (option, value, L"gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
 		|| cfgfile_intval (option, value, L"gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
@@ -3967,6 +3969,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_backbuffers = 1;
+	p->gfx_rtg_backbuffers = 2;
 
 	target_default_options (p, type);
 

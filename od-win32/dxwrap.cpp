@@ -334,6 +334,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	HRESULT ddrval;
 	DDSURFACEDESC2 desc = { 0 };
 	LPDIRECTDRAWSURFACE7 surf;
+	int bb = WIN32GFX_IsPicassoScreen () ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
 
 	width = (width + 7) & ~7;
 	desc.dwSize = sizeof (desc);
@@ -345,7 +346,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		DWORD oldflags = desc.dwFlags;
 		desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
 		desc.ddsCaps.dwCaps |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-		desc.dwBackBufferCount = currprefs.gfx_backbuffers == 0 ? 1 : currprefs.gfx_backbuffers;
+		desc.dwBackBufferCount = bb == 0 ? 1 : bb;
 		if (desc.dwBackBufferCount > 0) {
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 			if (SUCCEEDED (ddrval)) {
@@ -904,10 +905,11 @@ static void flip (void)
 {
 	int result = 0;
 	HRESULT ddrval = DD_OK;
-	DWORD flags = DDFLIP_WAIT;
+	DWORD flags = DDFLIP_DONOTWAIT;
 	int vsync = isvsync ();
+	int bb = WIN32GFX_IsPicassoScreen () ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
 
-	if (currprefs.turbo_emulation || (vsync && currprefs.gfx_backbuffers <= 1))
+	if (currprefs.turbo_emulation || (vsync && bb == 0))
 		flags |= DDFLIP_NOVSYNC;
 	if (dxdata.backbuffers == 2) {
 		DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
@@ -927,7 +929,9 @@ static void flip (void)
 			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags| DDFLIP_NOVSYNC);
 		}
 	} else if(dxdata.backbuffers == 1) {
-		ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
+		if (!vsync)
+			flags |= DDFLIP_NOVSYNC;
+		ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 		DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 	}
 	if (ddrval == DDERR_SURFACELOST) {
@@ -1208,45 +1212,32 @@ void dx_check (void)
 	dxdata.islost = 1;
 }
 
-bool DirectDraw_waitvblankstate (bool state, int *maxvpos)
+bool DD_getvblankpos (int *vpos)
 {
-	BOOL vb;
 	HRESULT hr;
+	DWORD sl;
+	BOOL vbs;
 
-	if (maxvpos)
-		*maxvpos = -1;
+	*vpos = -2;
 	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
 		return false;
-	for (;;) {
-		hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vb);
-		if (FAILED (hr)) {
-			write_log (L"IDirectDraw7_GetVerticalBlankStatus %s\n", DXError (hr));
+	hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vbs);
+	if (FAILED (hr)) {
+		write_log (L"IDirectDraw7_GetVerticalBlankStatus() failed, %s\n", DXError (hr));
+		return false;
+	}
+	sl = -2;
+	if (!vbs) {
+		hr = IDirectDraw7_GetScanLine (dxdata.maindd, &sl);
+		if (hr == 0x88760219) { // "vertical blank is in progress"
+			vbs = TRUE;
+		} else if (FAILED (hr) ) {
+			write_log (L"IDirectDraw7_GetScanLine() failed, %s\n", DXError (hr));
 			return false;
 		}
-		if ((vb && state) || (!vb && !state))
-			return true;
 	}
-}
-
-bool DirectDraw_vblank_busywait (void)
-{
-	if (!DirectDraw_waitvblankstate (true, NULL))
-		return false;
-	return true;
-}
-
-bool DirectDraw_getvblankstate (bool *state)
-{
-	BOOL vb;
-	HRESULT hr;
-
-	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
-		return false;
-	hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vb);
-	if (FAILED (hr)) {
-		write_log (L"IDirectDraw7_GetVerticalBlankStatus %s\n", DXError (hr));
-		return false;
-	}
-	*state = vb != 0;
+	*vpos = sl;
+	if (vbs)
+		*vpos = -1;
 	return true;
 }

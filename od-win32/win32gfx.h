@@ -33,6 +33,8 @@ extern void releasehdc (HDC hdc);
 extern void close_windows (void);
 extern void updatewinfsmode (struct uae_prefs *p);
 extern int is3dmode (void);
+extern void gfx_lock (void);
+extern void gfx_unlock (void);
 
 void DX_Fill (int dstx, int dsty, int width, int height, uae_u32 color);
 void DX_Blit (int x, int y, int w, int h);

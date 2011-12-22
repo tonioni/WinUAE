@@ -67,9 +67,11 @@ struct PicassoResolution
 extern GUID *displayGUID;
 
 struct MultiDisplay {
-	int primary, disabled, gdi;
+	bool primary;
 	GUID guid;
-	TCHAR *name, *name2, *name3;
+	TCHAR *adaptername, *adapterid, *adapterkey;
+	TCHAR *monitorname, *monitorid;
+	TCHAR *fullname;
 	struct PicassoResolution *DisplayModes;
 	RECT rect;
 };
@@ -129,9 +131,7 @@ int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAW
 void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color);
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
-bool DirectDraw_vblank_busywait (void);
-bool DirectDraw_waitvblankstate (bool, int*);
-bool DirectDraw_getvblankstate (bool*);
+bool DD_getvblankpos (int *vpos);
 
 void dx_check (void);
 int dx_islost (void);

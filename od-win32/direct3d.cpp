@@ -62,7 +62,7 @@ static ID3DXSprite *sprite;
 static HWND d3dhwnd;
 static int devicelost;
 static int locked, fulllocked;
-static int cursor_offset_x, cursor_offset_y;
+static int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 static float maskmult_x, maskmult_y;
 static RECT mask2rect;
 
@@ -82,7 +82,8 @@ static int t_depth, mult, multx;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode, maxscanline;
 static int resetcount;
-static int cursor_x, cursor_y, cursor_v;
+static double cursor_x, cursor_y;
+static bool cursor_v;
 
 #define NUMVERTICES 8
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
@@ -1790,7 +1791,7 @@ static int restoredeviceobjects (void)
 
 	int curw = CURSORMAXWIDTH, curh = CURSORMAXHEIGHT;
 	cursorsurfaced3d = createtext (curw, curh, D3DFMT_A8R8G8B8);
-	cursor_v = 0;
+	cursor_v = false;
 
 	vbsize = sizeof (struct TLVERTEX) * NUMVERTICES;
 	if (FAILED (hr = d3ddev->CreateVertexBuffer (vbsize, D3DUSAGE_WRITEONLY,
@@ -1838,8 +1839,6 @@ void D3D_free (void)
 	ddraw_fs_hack_free ();
 }
 
-static int prevvblankpos;
-
 bool D3D_getvblankpos (int *vpos)
 {
 	HRESULT hr;
@@ -1856,67 +1855,8 @@ bool D3D_getvblankpos (int *vpos)
 	if (rt.ScanLine > maxscanline)
 		maxscanline = rt.ScanLine;
 	*vpos = rt.ScanLine;
-	prevvblankpos = rt.ScanLine;
 	if (rt.InVBlank != 0)
 		*vpos = -1;
-	return true;
-}
-
-bool D3D_waitvblankstate (bool state, int *maxvpos)
-{
-	int vpos;
-	for (;;) {
-		int omax = maxscanline;
-		if (!D3D_getvblankpos (&vpos))
-			return false;
-		while (omax != maxscanline) {
-			omax = maxscanline;
-			if (!D3D_getvblankpos (&vpos))
-				return false;
-		}
-		if (maxvpos)
-			*maxvpos = maxscanline;
-		if (vpos < 0) {
-			if (state)
-				return true;
-		} else {
-			if (!state)
-				return true;
-		}
-	}
-}
-
-bool D3D_vblank_busywait (void)
-{
-	int vpos;
-
-	for (;;) {
-		int opos = prevvblankpos;
-		if (!D3D_getvblankpos (&vpos))
-			return false;
-		if (opos > maxscanline / 2 && vpos < maxscanline / 5)
-			return true;
-		if (vpos <= 0)
-			return true;
-	}
-}
-
-bool D3D_vblank_getstate (bool *state)
-{
-	int vpos, opos;
-
-	opos = prevvblankpos;
-	if (!D3D_getvblankpos (&vpos))
-		return false;
-	if (opos > maxscanline / 2 && vpos < maxscanline / 5) {
-		*state = true;
-		return true;
-	}
-	if (vpos <= 0) {
-		*state = true;
-		return true;
-	}
-	*state = false;
 	return true;
 }
 
@@ -1933,7 +1873,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
-
+	int bb = picasso_on ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -2006,12 +1946,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = currprefs.gfx_backbuffers;
+	dpp.BackBufferCount = bb;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.BackBufferCount <= 1 || dpp.Windowed ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = dpp.BackBufferCount == 0 || dpp.Windowed ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2037,7 +1977,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3dhwnd = ahwnd;
 	t_depth = depth;
 
-	flags = D3DCREATE_FPU_PRESERVE;
+	flags = D3DCREATE_FPU_PRESERVE | D3DCREATE_MULTITHREADED;
 	// Check if hardware vertex processing is available
 	if(d3dCaps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
 		flags |= D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE;
@@ -2121,7 +2061,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		dpp.Windowed ? L"" : L" FS",
 		vsync, dpp.BackBufferCount,
 		dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
-		currprefs.gfx_backbuffers == 0 ? L"E" : L"", 
+		bb == 0 ? L"E" : L"", 
 		t_depth, adapter
 	);
 
@@ -2183,15 +2123,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	maxscanline = 0;
 	d3d_enabled = 1;
 
-	if (vsync < 0) {
-		if (currprefs.gfx_backbuffers == 0) {
-			hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
-			if (FAILED (hr))
-				write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-		}
+	if (vsync < 0 && bb == 0) {
+		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
+		if (FAILED (hr))
+			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 ? 1 : 0);
+		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && bb == 0 ? 1 : 0);
 		if (FAILED (hr))
 			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -2427,9 +2365,9 @@ static void D3D_render2 (void)
 		if (cursorsurfaced3d && cursor_v) {
 			D3DXMATRIXA16 t;
 
-			MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset_y)), 0);
-			v.x = cursor_x + cursor_offset_x;
-			v.y = cursor_y + cursor_offset_y;
+			MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset2_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset2_y)), 0);
+			v.x = cursor_x + cursor_offset2_x;
+			v.y = cursor_y + cursor_offset2_y;
 			v.z = 0;
 			sprite->SetTransform (&t);
 			sprite->Draw (cursorsurfaced3d, NULL, NULL, &v, 0xffffffff);
@@ -2535,10 +2473,13 @@ static void D3D_render2 (void)
 		write_log (L"%s: EndScene() %s\n", D3DHEAD, D3D_ErrorString (hr));
 }
 
-void D3D_setcursor (int x, int y, int visible)
+void D3D_setcursor (int x, int y, int width, int height, bool visible)
 {
-	cursor_x = x;
-	cursor_y = y;
+	cursor_offset2_x = cursor_offset_x * window_w / width;
+	cursor_offset2_y = cursor_offset_y * window_h / height;
+
+	cursor_x = x * window_w / width;
+	cursor_y = y * window_h / height;
 	cursor_v = visible;
 }
 

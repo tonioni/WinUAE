@@ -5652,10 +5652,12 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)L"-");
+#if 0
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+#endif
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
@@ -5664,7 +5666,7 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
 		workprefs.gfx_afullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL,
-		workprefs.gfx_avsync == 0 ? 0 : workprefs.gfx_avsync + workprefs.gfx_avsyncmode * 2, 0);
+		workprefs.gfx_avsync, 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
@@ -5677,15 +5679,21 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)L"-");
+#if 0
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+#endif
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,
 		workprefs.gfx_pfullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL,
-		workprefs.gfx_pvsync == 0 ? 0 : workprefs.gfx_pvsync + workprefs.gfx_pvsyncmode, 0);
+		workprefs.gfx_pvsync, 0);
 
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_RES_LORES, buffer, sizeof buffer / sizeof (TCHAR));
@@ -5735,19 +5743,75 @@ static void init_resolution_combo (HWND hDlg)
 		}
 	}
 }
+
 static void init_displays_combo (HWND hDlg)
 {
-	int i = 0;
+	TCHAR *adapter = L"";
+	struct MultiDisplay *md = Displays;
+	int cnt = 0, cnt2 = 0;
+	int displaynum;
+	int idx = 0;
+
+	displaynum = workprefs.gfx_display - 1;
+	if (displaynum < 0)
+		displaynum = 0;
 	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_RESETCONTENT, 0, 0);
-	while (Displays[i].name) {
-		SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)Displays[i].name);
-		i++;
+	while (md->monitorname) {
+		if (_tcscmp (md->adapterkey, adapter) != 0) {
+			SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)md->adaptername);
+			adapter = md->adapterkey;
+			cnt++;
+		}
+		TCHAR buf[MAX_DPATH];
+		_stprintf (buf, L"  %s", md->fullname);
+		SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)buf);
+		if (displaynum == cnt2)
+			idx = cnt;
+		md++;
+		cnt2++;
+		cnt++;
 	}
-	if (workprefs.gfx_display > i)
-		workprefs.gfx_display = 0;
-	if (workprefs.gfx_display < 1)
-		workprefs.gfx_display = 1;
-	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, workprefs.gfx_display - 1, 0);
+	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, idx, 0);
+}
+
+static void get_displays_combo (HWND hDlg)
+{
+	struct MultiDisplay *md = Displays;
+	LRESULT posn;
+	TCHAR *adapter = L"";
+	int cnt = 0, cnt2 = 0;
+	int displaynum;
+
+	posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
+	if (posn == CB_ERR)
+		return;
+
+	displaynum = workprefs.gfx_display - 1;
+	if (displaynum < 0)
+		displaynum = 0;
+	while (md->monitorname) {
+		int foundnum = -1;
+		if (_tcscmp (md->adapterkey, adapter) != 0) {
+			adapter = md->adapterkey;
+			if (posn == cnt)
+				foundnum = cnt2;
+			cnt++;
+		}
+		if (posn == cnt)
+			foundnum = cnt2;
+		if (foundnum >= 0) {
+			if (foundnum == displaynum)
+				return;
+			workprefs.gfx_display = foundnum + 1;
+			init_displays_combo (hDlg);
+			init_resolution_combo (hDlg);
+			init_display_mode (hDlg);
+			return;
+		}
+		cnt++;
+		cnt2++;
+		md++;
+	}
 }
 
 static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -5775,7 +5839,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (i > 0) {
 		i--;
 		workprefs.gfx_avsync = (i & 1) + 1;
-		workprefs.gfx_avsyncmode = i >= 2 ? 1 : 0;
+		workprefs.gfx_avsyncmode = 1;
 	}
 
 	workprefs.gfx_pfullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
@@ -5784,8 +5848,8 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_pvsyncmode = 0;
 	if (i > 0) {
 		i--;
-		workprefs.gfx_pvsync = 1;
-		workprefs.gfx_pvsyncmode = i >= 1 ? 1 : 0;
+		workprefs.gfx_pvsync = (i & 1) + 1;
+		workprefs.gfx_pvsyncmode = 1;
 	}
 	
 	bool updaterate = false, updateslider = false;
@@ -5879,14 +5943,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE)
 	{
 		if (LOWORD (wParam) == IDC_DISPLAYSELECT) {
-			posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR && posn + 1 != workprefs.gfx_display) {
-				if (Displays[posn].disabled)
-					posn = 0;
-				workprefs.gfx_display = posn + 1;
-				init_resolution_combo (hDlg);
-				init_display_mode (hDlg);
-			}
+			get_displays_combo (hDlg);
 			return;
 		} else if (LOWORD (wParam) == IDC_LORES) {
 			posn = SendDlgItemMessage (hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
@@ -8074,7 +8131,7 @@ extern int soundpercent;
 
 static void update_soundgui (HWND hDlg)
 {
-	int bufsize, canexc;
+	int bufsize;
 	TCHAR txt[20];
 
 	bufsize = exact_log2 (workprefs.sound_maxbsiz / 1024);
@@ -8088,13 +8145,6 @@ static void update_soundgui (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
 	_stprintf (txt, L"%d%%", 100 - workprefs.dfxclickvolume);
 	SetDlgItemText (hDlg, IDC_SOUNDDRIVEVOLUME2, txt);
-
-	canexc = sound_devices[workprefs.win32_soundcard]->type == SOUND_DEVICE_WASAPI;
-	ew (hDlg, IDC_SOUND_EXCLUSIVE, canexc);
-	if (!canexc)
-		workprefs.win32_soundexclusive = 0;
-	CheckDlgButton (hDlg, IDC_SOUND_EXCLUSIVE, workprefs.win32_soundexclusive);
-
 }
 
 static int soundfreqs[] = { 11025, 15000, 22050, 32000, 44100, 48000, 0 };
@@ -8311,7 +8361,6 @@ static void values_from_sounddlg (HWND hDlg)
 	}
 
 	workprefs.sound_interpol = SendDlgItemMessage (hDlg, IDC_SOUNDINTERPOLATION, CB_GETCURSEL, 0, 0);
-	workprefs.win32_soundexclusive = ischecked (hDlg, IDC_SOUND_EXCLUSIVE);
 	soundcard = SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_GETCURSEL, 0, 0L);
 	if (soundcard != workprefs.win32_soundcard && soundcard != CB_ERR) {
 		workprefs.win32_soundcard = soundcard;
@@ -8406,7 +8455,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				TCHAR tmp[MAX_DPATH];
 				int type = sound_devices[card]->type;
 				_stprintf (tmp, L"%s: %s",
-					type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
+					type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : (type == SOUND_DEVICE_WASAPI ? L"WASAPI" : L"WASAPI EX"))),
 					sound_devices[card]->name);
 				SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
@@ -12876,9 +12925,11 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				*pc = v;
 				SetDlgItemInt (hDlg, IDC_FILTERXLV, v, TRUE);
 			}
-			init_colors ();
-			notice_new_xcolors ();
-			reset_drawing ();
+			if (!full_property_sheet) {
+				init_colors ();
+				notice_new_xcolors ();
+				reset_drawing ();
+			}
 			updatedisplayarea ();
 			WIN32GFX_WindowMove ();
 			recursive--;
@@ -14560,13 +14611,13 @@ void gui_led (int led, int on)
 		on &= 1;
 	} else if (led == LED_FPS) {
 		double fps = (double)gui_data.fps / 10.0;
-		extern int p96vblank;
+		extern double p96vblank;
 		pos = 2;
 		ptr = drive_text + pos * 16;
 		if (fps > 999.9)
 			fps = 999.9;
 		if (picasso_on)
-			_stprintf (ptr, L"%d [%.1f]", p96vblank, fps);
+			_stprintf (ptr, L"%.1f [%.1f]", p96vblank, fps);
 		else
 			_stprintf (ptr, L"FPS: %.1f", fps);
 		if (pause_emulation) {

@@ -31,10 +31,13 @@ extern bool vsync_switchmode (int);
 extern frame_time_t vsync_busywait_end (void);
 extern bool vsync_busywait_do (int*);
 extern void vsync_busywait_start (void);
+bool vsync_busywait_check (void);
 extern double vblank_calibrate (double, bool);
 extern void doflashscreen (void);
 extern int flashscreen;
 extern void updatedisplayarea (void);
+extern int isvsync_chipset (void);
+extern int isvsync_rtg (void);
 extern int isvsync (void);
 
 extern void flush_line (struct vidbuffer*, int);
@@ -43,6 +46,7 @@ extern void flush_screen (struct vidbuffer*, int, int);
 extern void flush_clear_screen (struct vidbuffer*);
 extern bool render_screen (void);
 extern void show_screen (void);
+extern bool show_screen_maybe (void);
 
 extern int lockscr (struct vidbuffer*, bool);
 extern void unlockscr (struct vidbuffer*);

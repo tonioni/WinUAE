@@ -253,6 +253,7 @@ struct uae_prefs {
 	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
 	bool gfx_blackerthanblack;
 	int gfx_backbuffers;
+	int gfx_rtg_backbuffers;
 	int gfx_api;
 	int color_mode;
 
@@ -439,7 +440,6 @@ struct uae_prefs {
 	int win32_uaescsimode;
 	int win32_soundcard;
 	int win32_samplersoundcard;
-	bool win32_soundexclusive;
 	bool win32_norecyclebin;
 	int win32_specialkey;
 	int win32_guikey;

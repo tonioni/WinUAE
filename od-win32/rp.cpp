@@ -433,6 +433,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	minimized = 0;
 	if (display) {
 		p->gfx_display = display;
+		p->gfx_display_name[0] = 0;
 		if (sm->dwScreenMode & RP_SCREENMODE_FULLWINDOW)
 			fs = 2;
 		else

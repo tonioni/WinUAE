@@ -1,4 +1,18 @@
 
+Beta 6:
+
+New vsync should finally work in all modes.
+
+- Removed sound exclusive checkbox, WASAPI exclusive modes are now listed in select menu.
+- New RTG vsync using low latency sync method, currently always triple buffered.
+- Display selection GUI changed again, now lists both display adapter(s) and connected monitor(s).
+- Associated ".uae" didn't set correct icon id (right click on .uae shows wrong or missing icon). Reset .uae association again to fix it.
+- Fixed filter panel hang in some situations before emulation was started.
+- Low latency vsync keeps list of modes that have already been calibrated, switching back to remembered mode uses stored calibration value.
+- Unreliable old-style vsync options are gone. Replaced by low latency + double or triple buffered mode.
+- DirectDraw low latency vsync fully implemented.
+- RTG hardware cursor positioning fixed in aspect ratio corrected full window modes.
+
 Beta 5:
 
 - Removed obsolete fake (50), (60), (100) and (120) refresh rates.
@@ -10,7 +24,7 @@ Beta 5:
 - Fixed Sound panel crash if sound card id stored in configuration file was larger than available number of sound card drivers.
 - Handle situation where PortAudio Pa_IsFormatSupported() returns true but Pa_OpenStream() fails with paInvalidSampleRate.
   (Usually seems to happen when requesting 44100Hz but hardware supports only 48000Hz) 
-- VSync sound syncronization improved (All types: DirectSound, WASAPI, OpenAL and PortAudio)
+- VSync sound syncronization improved (All types: DirectSound, WASAPI, OpenAL and PortAudio). Note that buffer settings are not same between device types.
 - SND% blue/yellow/red flickering fix, previously flickering speed changed depending on buffer size.
 - More fastest possible/JIT low latency vsync updates.
 

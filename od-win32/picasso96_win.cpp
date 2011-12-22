@@ -131,7 +131,7 @@ static HCURSOR wincursor;
 static int wincursor_shown;
 static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
-int p96vblank;
+double p96vblank;
 
 static int uaegfx_old, uaegfx_active;
 static uae_u32 reserved_gfxmem;
@@ -581,6 +581,7 @@ static void setupcursor (void)
 	D3DLOCKED_RECT locked;
 	HRESULT hr;
 
+	gfx_lock ();
 	setupcursor_needed = 1;
 	if (cursorsurfaced3d) {
 		if (SUCCEEDED (hr = cursorsurfaced3d->LockRect (0, &locked, NULL, 0))) {
@@ -602,11 +603,11 @@ static void setupcursor (void)
 			cursorsurfaced3d->UnlockRect (0);
 			setupcursor_needed = 0;
 			P96TRACE_SPR((L"cursorsurface3d updated\n"));
-			return;
 		} else {
 			P96TRACE_SPR((L"cursorsurfaced3d LockRect() failed %08x\n", hr));
 		}
 	}
+	gfx_unlock ();
 }
 
 static void disablemouse (void)
@@ -617,7 +618,7 @@ static void disablemouse (void)
 		return;
 	if (!currprefs.gfx_api)
 		return;
-	D3D_setcursor (0, 0, 0);
+	D3D_setcursor (0, 0, 0, 0, false);
 }
 
 static int newcursor_x, newcursor_y;
@@ -640,7 +641,7 @@ static void mouseupdate (void)
 
 	if (!currprefs.gfx_api)
 		return;
-	D3D_setcursor (x, y, cursorvisible);
+	D3D_setcursor (x, y, picasso96_state.Width, picasso96_state.Height, cursorvisible);
 }
 
 static int framecnt;
@@ -652,7 +653,7 @@ static int doskip (void)
 	return framecnt > 0;
 }
 
-static void picasso_trigger_vblank (void)
+void picasso_trigger_vblank (void)
 {
 	if (!ABI_interrupt || !uaegfx_base || !interrupt_enabled || currprefs.win32_rtgvblankrate < -1)
 		return;
@@ -662,19 +663,26 @@ static void picasso_trigger_vblank (void)
 		INTREQ (0x8000 | 0x0008);
 }
 
-static int isvsync (void)
+static bool rtg_render (void)
 {
-	if (currprefs.gfx_pfullscreen && currprefs.gfx_pvsync)
-		return 1;
-	if (currprefs.gfx_pvsync && currprefs.gfx_pvsyncmode)
-		return -1;
-	return 0;
+	int flushed = 0;
+	if (doskip () && p96skipmode == 0) {
+		;
+	} else {
+		flushed = flushpixels ();
+	}
+	return flushed == 0;
+}
+static void rtg_show (void)
+{
+	gfx_unlock_picasso ();
 }
 
-void picasso_handle_vsync (void)
+static void picasso_handle_vsync2 (void)
 {
 	static int vsynccnt;
 	int thisisvsync = 1;
+	int vsync = isvsync_rtg ();
 
 #ifdef RETROPLATFORM
 	rp_vsync ();
@@ -684,36 +692,48 @@ void picasso_handle_vsync (void)
 	if (!picasso_on)
 		createwindowscursor (0, 0, 0, 0, 0, 1);
 
-	if (currprefs.chipset_refreshrate >= 100.0) {
+	if (vsync >= 0 && currprefs.chipset_refreshrate >= 85) {
 		vsynccnt++;
 		if (vsynccnt < 2)
 			thisisvsync = 0;
 		vsynccnt = 0;
 	}
 
-	if (thisisvsync && currprefs.win32_rtgvblankrate == 0 && !isvsync ())
+	if (thisisvsync && currprefs.win32_rtgvblankrate == 0 && !vsync)
 		picasso_trigger_vblank ();
 
 	if (!picasso_on)
-		return;
-	if (dx_islost ())
 		return;
 
 	framecnt++;
 	mouseupdate ();
 
 	if (thisisvsync) {
-		int flushed = 0;
-		if (doskip () && p96skipmode == 0) {
-			;
-		} else {
-			flushed = flushpixels ();
-		}
-		if (!flushed)
-			gfx_unlock_picasso ();
+		if (rtg_render ())
+			rtg_show ();
 	}
 	if (setupcursor_needed)
 		setupcursor ();
+}
+
+void picasso_handle_vsync (void)
+{
+	int vsync = isvsync_rtg ();
+
+	if (vsync == -2) {
+		vsync_busywait_end ();
+		vsync_busywait_do (NULL);
+		framecnt++;
+		bool rendered = rtg_render ();
+		picasso_trigger_vblank ();
+		clipboard_vsync ();
+		vsync_busywait_start ();
+		mouseupdate ();
+		if (rendered)
+			rtg_show ();
+	} else {
+		picasso_handle_vsync2 ();
+	}
 }
 
 static int set_panning_called = 0;
@@ -1530,7 +1550,7 @@ exit:
 		if (GetCursor () != NULL)
 			SetCursor (NULL);
 	} else {
-		if (wincursor == oldwincursor)
+		if (wincursor == oldwincursor && normalcursor != NULL)
 			SetCursor (normalcursor);
 	}
 	if (oldwincursor)
@@ -3233,25 +3253,15 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 void picasso_handle_hsync (void)
 {
 	static int p96hsync;
+	int vsync = isvsync_rtg ();
 
 	if (currprefs.gfxmem_size == 0)
 		return;
-	if (currprefs.win32_rtgvblankrate == 0 && !isvsync ())
+	if (currprefs.win32_rtgvblankrate == 0 && !vsync)
 		return;
-	if (WIN32GFX_IsPicassoScreen () && isvsync ()) {
-		int vbs = DirectDraw_GetVerticalBlankStatus ();
-		if (vbs <= 0) {
-			if (p96hsync > 0)
-				p96hsync = -1;
-			return;
-		} else {
-			if (p96hsync >= 0)
-				return;
-			p96hsync = 0;
-		}
-	} else {
-		p96hsync--;
-	}
+	if (vsync == -2)
+		return;
+	p96hsync--;
 	if (p96hsync <= 0) {
 		picasso_trigger_vblank ();
 		p96hsync = p96syncrate;
@@ -3260,14 +3270,14 @@ void picasso_handle_hsync (void)
 
 void init_hz_p96 (void)
 {
-	if (currprefs.win32_rtgvblankrate < 0 || isvsync ())  {
+	if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg ())  {
 		double rate = getcurrentvblankrate ();
 		if (rate < 0)
-			p96vblank = (int)(vblank_hz + 0.5);
+			p96vblank = vblank_hz;
 		else
-			p96vblank = (int)(getcurrentvblankrate () + 0.5);
+			p96vblank = getcurrentvblankrate ();
 	} else if (currprefs.win32_rtgvblankrate == 0) {
-		p96vblank = (int)(vblank_hz + 0.5);
+		p96vblank = vblank_hz;
 	} else {
 		p96vblank = currprefs.win32_rtgvblankrate;
 	}
@@ -3276,7 +3286,7 @@ void init_hz_p96 (void)
 	if (p96vblank >= 300)
 		p96vblank = 300;
 	p96syncrate = maxvpos_nom * vblank_hz / p96vblank;
-	write_log (L"P96FREQ: %d*%.4f = %.4f / %d = %d\n", maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
+	write_log (L"P96FREQ: %d*%.4f = %.4f / %.1f = %d\n", maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */
@@ -3949,7 +3959,8 @@ static int flushpixels (void)
 	if (!currprefs.gfx_api && (currprefs.leds_on_screen & STATUSLINE_RTG)) {
 		if (dst == NULL) {
 			dst = gfx_lock_picasso (false);
-			lock = 1;
+			if (dst)
+				lock = 1;
 		}
 		if (dst) {
 			statusline (dst);

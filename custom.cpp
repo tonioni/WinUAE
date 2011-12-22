@@ -126,6 +126,7 @@ long cycles_to_hsync_event;
 unsigned long int vsync_cycles;
 static int extra_cycle;
 unsigned long start_cycles;
+bool vsync_check;
 
 static int rpt_did_reset;
 struct ev eventtab[ev_max];
@@ -2735,7 +2736,7 @@ void compute_vsynctime (void)
 	fake_vblank_hz = 0;
 	if (abs (currprefs.chipset_refreshrate) > 0.1) {
 		vblank_hz = currprefs.chipset_refreshrate;
-		if (isvsync ()) {
+		if (isvsync_chipset ()) {
 			vblank_skip = 1;
 			if (!fake_vblank_hz && getvsyncrate (vblank_hz) != vblank_hz) {
 				vblank_hz = getvsyncrate (vblank_hz);
@@ -2884,17 +2885,17 @@ void init_hz (bool fullinit)
 			(cr->lace < 0 || (cr->lace > 0 && islace) || (cr->lace == 0 && !islace)) &&
 			(cr->framelength < 0 || (cr->framelength > 0 && lof_store) || (cr->framelength == 0 && !lof_store) || (cr->framelength >= 0 && islace)) &&
 			((cr->rtg && picasso_on) || (!cr->rtg && !picasso_on)) &&
-			(cr->vsync < 0 || (cr->vsync > 0 && isvsync ()) || (cr->vsync == 0 && !isvsync ()))) {
+			(cr->vsync < 0 || (cr->vsync > 0 && isvsync_chipset ()) || (cr->vsync == 0 && !isvsync_chipset ()))) {
 				double v = -1;
 
 				if (!picasso_on) {
-					if (isvsync ()) {
+					if (isvsync_chipset ()) {
 						if (i == CHIPSET_REFRESH_PAL || i == CHIPSET_REFRESH_NTSC) {
 							if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
 								vsync_switchmode (vblank_hz > 55 ? 60 : 50);
 							}
 						}
-						if (isvsync () < 0) {
+						if (isvsync_chipset () < 0) {
 							double v2;
 							v2 = vblank_calibrate (cr->locked ? vblank_hz : cr->rate, cr->locked);
 							if (!cr->locked)
@@ -5102,7 +5103,7 @@ static void framewait (void)
 {
 	frame_time_t curr_time;
 	frame_time_t start;
-	int vs = isvsync ();
+	int vs = isvsync_chipset ();
 
 	if (vs > 0) {
 		vsyncmintime = vsynctime;
@@ -5117,7 +5118,7 @@ static void framewait (void)
 		if (vs == -2) {
 
 			curr_time = vsync_busywait_end ();
-			vsync_busywait_do (&freetime);
+			vsync_busywait_do (NULL);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			vsync_busywait_start ();
@@ -5209,7 +5210,8 @@ static void vsync_handler_pre (void)
 	handle_events ();
 
 #ifdef PICASSO96
-	picasso_handle_vsync ();
+	if (isvsync_rtg () >= 0)
+		picasso_handle_vsync ();
 #endif
 	audio_vsync ();
 	blkdev_vsync ();
@@ -5249,7 +5251,7 @@ static void vsync_handler_post (void)
 
 	fpscounter ();
 
-	if (!isvsync ()
+	if (!isvsync_chipset ()
 #ifdef AVIOUTPUT
 		&& ((avioutput_framelimiter && avioutput_enabled) || !avioutput_enabled)
 #endif
@@ -5346,7 +5348,7 @@ static void frh_handler (void)
 		/* Allow this to be one frame's worth of cycles out */
 		while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
 			vsyncmintime += vsynctime * N_LINES / maxvpos_nom;
-			if (currprefs.turbo_emulation || thread_vblank_found)
+			if (currprefs.turbo_emulation || vblank_found_chipset || vblank_found_rtg)
 				break;
 		}
 	}
@@ -5860,11 +5862,17 @@ static void hsync_handler_post (bool onvsync)
 		diw_change--;
 
 
-	if (is_lastline && isvsync () == -2 && !vsync_rendered) {
+	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered) {
 		/* last line, render the frame as early as possible */
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed);
 		render_screen ();
+		show_screen_maybe ();
+		vsync_check = true;
+	}
+	if (isvsync_rtg () < 0) {
+		if (vblank_found_rtg || vsync_busywait_check () == false)
+			picasso_handle_vsync ();
 	}
 
 #if 0
