@@ -484,7 +484,7 @@ TCHAR *outGUID (const GUID *guid)
 	static TCHAR gb[64];
 	if (guid == NULL)
 		return L"NULL";
-	_stprintf (gb, L"%08X-%04X-%04X-%02X%02X%02X%02X%02X%02X%02X%02X",
+	_stprintf (gb, L"{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
 		guid->Data1, guid->Data2, guid->Data3,
 		guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
 		guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);

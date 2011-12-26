@@ -126,7 +126,8 @@ uae_u32 p96rc[256], p96gc[256], p96bc[256];
 static int cursorwidth, cursorheight, cursorok;
 static uae_u8 *cursordata;
 static uae_u32 cursorrgb[4], cursorrgbn[4];
-static int cursorvisible, cursordeactivate, setupcursor_needed;
+static int cursordeactivate, setupcursor_needed;
+static bool cursorvisible;
 static HCURSOR wincursor;
 static int wincursor_shown;
 static uaecptr boardinfo, ABI_interrupt;
@@ -635,7 +636,7 @@ static void mouseupdate (void)
 		cursordeactivate--;
 		if (cursordeactivate == 0) {
 			disablemouse ();
-			cursorvisible = 0;
+			cursorvisible = false;
 		}
 	}
 
@@ -696,7 +697,8 @@ static void picasso_handle_vsync2 (void)
 		vsynccnt++;
 		if (vsynccnt < 2)
 			thisisvsync = 0;
-		vsynccnt = 0;
+		else
+			vsynccnt = 0;
 	}
 
 	if (thisisvsync && currprefs.win32_rtgvblankrate == 0 && !vsync)
@@ -720,7 +722,7 @@ void picasso_handle_vsync (void)
 {
 	int vsync = isvsync_rtg ();
 
-	if (vsync == -2) {
+	if (vsync < 0) {
 		vsync_busywait_end ();
 		vsync_busywait_do (NULL);
 		framecnt++;
@@ -1706,7 +1708,7 @@ static uae_u32 REGPARAM2 picasso_SetSprite (TrapContext *ctx)
 		return 0;
 	if (activate) {
 		picasso_SetSpriteImage (ctx);
-		cursorvisible = 1;
+		cursorvisible = true;
 	} else {
 		cursordeactivate = 2;
 	}
@@ -2084,7 +2086,7 @@ static void inituaegfx (uaecptr ABI)
 {
 	uae_u32 flags;
 
-	cursorvisible = 0;
+	cursorvisible = false;
 	cursorok = 0;
 	cursordeactivate = 0;
 	write_log (L"RTG mode mask: %x\n", currprefs.picasso96_modeflags);
@@ -3246,7 +3248,7 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 {
 	uae_u32 state = m68k_dreg (regs, 0);
 	P96TRACE ((L"SetDisplay(%d)\n", state));
-	resetpalette();
+	resetpalette ();
 	return !state;
 }
 
@@ -3259,7 +3261,7 @@ void picasso_handle_hsync (void)
 		return;
 	if (currprefs.win32_rtgvblankrate == 0 && !vsync)
 		return;
-	if (vsync == -2)
+	if (vsync < 0)
 		return;
 	p96hsync--;
 	if (p96hsync <= 0) {

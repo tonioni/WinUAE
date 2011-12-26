@@ -99,7 +99,7 @@ struct vidbuffer
 
 	uae_u8 *bufmem, *bufmemend;
     uae_u8 *realbufmem;
-	bool bufmem_allocated;
+	uae_u8 *bufmem_allocated;
 	bool bufmem_lockable;
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */

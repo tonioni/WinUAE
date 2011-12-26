@@ -41,6 +41,7 @@ struct sound_data
 	int freq;
 	int samplesize;
 	int sndbufsize;
+	int sndbufframes;
 	struct sound_dp *data;
 };
 
@@ -157,3 +158,4 @@ extern int sounddrivermask;
 #define SOUNDDRIVER_WASAPI 2
 #define SOUNDDRIVER_OPENAL 4
 #define SOUNDDRIVER_PORTAUDIO 8
+#define SOUNDDRIVE_XAUDIO2 16

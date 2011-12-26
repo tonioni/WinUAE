@@ -2679,7 +2679,7 @@ void hardware_line_completed (int lineno)
 #endif
 }
 
-STATIC_INLINE void check_picasso (void)
+void check_picasso (void)
 {
 #ifdef PICASSO96
 	if (picasso_on && picasso_redraw_necessary)
@@ -2862,11 +2862,11 @@ void notice_interlace_seen (void)
 	interlace_seen = 1;
 }
 
-static void clearbuffer(struct vidbuffer *dst)
+static void clearbuffer (struct vidbuffer *dst)
 {
 	if (!dst->bufmem_allocated)
 		return;
-	uae_u8 *p = dst->bufmem;
+	uae_u8 *p = dst->bufmem_allocated;
 	for (int y = 0; y < dst->height; y++) {
 		memset(p, 0, dst->width * dst->pixbytes);
 		p += dst->rowbytes;

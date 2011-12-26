@@ -5687,9 +5687,10 @@ static void values_to_displaydlg (HWND hDlg)
 #endif
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
+#if 0
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
-
+#endif
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,
 		workprefs.gfx_pfullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL,
@@ -8455,7 +8456,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				TCHAR tmp[MAX_DPATH];
 				int type = sound_devices[card]->type;
 				_stprintf (tmp, L"%s: %s",
-					type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : (type == SOUND_DEVICE_WASAPI ? L"WASAPI" : L"WASAPI EX"))),
+					type == SOUND_DEVICE_XAUDIO2 ? L"XAudio2" : (type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : (type == SOUND_DEVICE_WASAPI ? L"WASAPI" : L"WASAPI EX")))),
 					sound_devices[card]->name);
 				SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
 			}
@@ -10913,7 +10914,7 @@ static void init_portsdlg (HWND hDlg)
 		int type = record_devices[card]->type;
 		TCHAR tmp[MAX_DPATH];
 		_stprintf (tmp, L"%s: %s",
-			type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI")),
+			type == SOUND_DEVICE_XAUDIO2 ? L"XAudio2" : (type == SOUND_DEVICE_DS ? L"DSOUND" : (type == SOUND_DEVICE_AL ? L"OpenAL" : (type == SOUND_DEVICE_PA ? L"PortAudio" : L"WASAPI"))),
 			record_devices[card]->name);
 		if (type == SOUND_DEVICE_DS)
 			SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -11584,8 +11585,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					}
 					if (type2 != IDEV_WIDGET_BUTTON && type2 != IDEV_WIDGET_KEY)
 						return;
-				}
-				if (type == IDEV_WIDGET_AXIS) {
+				} else if (type == IDEV_WIDGET_AXIS) {
 					skipbuttonaxis = false;
 					if (type2 == IDEV_WIDGET_BUTTON || type2 == IDEV_WIDGET_KEY)
 						return;
@@ -11676,7 +11676,6 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					if (cnt == 1 && !toggle)
 						return;
 				}
-
 				if (rawmode == 1) {
 					inputdevice_set_device_status (devnum, TRUE);
 					values_to_inputdlg (hDlg);

@@ -5203,11 +5203,11 @@ static void init_filesys_diagentry (void)
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2100), EXPANSION_explibname);
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2104), filesys_configdev);
 	do_put_mem_long ((uae_u32 *)(filesysory + 0x2108), EXPANSION_doslibname);
+	do_put_mem_word ((uae_u16 *)(filesysory + 0x210e), nr_units ());
 	if (currprefs.scsi && currprefs.win32_automount_cddrives)
 		do_put_mem_word ((uae_u16 *)(filesysory + 0x210c),  scsi_get_cd_drive_mask ());
 	else
 		do_put_mem_word ((uae_u16 *)(filesysory + 0x210c), 0);
-	do_put_mem_word ((uae_u16 *)(filesysory + 0x210e), nr_units ());
 	native2amiga_startup ();
 }
 
@@ -5996,7 +5996,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 		put_long (parmpacket + 64, 0); /* Buffer mem type */
 		put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
 		put_long (parmpacket + 72, ~1); /* addMask (?) */
-		put_long (parmpacket + 76, -128); /* bootPri */
+		put_long (parmpacket + 76, scsi_get_cd_drive_media_mask () & (1 << unit_no) ? -80 : -128); /* bootPri */
 		put_long (parmpacket + 80, CDFS_DOSTYPE);
 		put_long (parmpacket + 84, 0); /* baud */
 		put_long (parmpacket + 88, cdfs_control >> 2); /* Control. BSTR! */

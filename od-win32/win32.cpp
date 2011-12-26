@@ -94,7 +94,7 @@
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
-extern bool rawinput_enabled_hid;
+extern int rawinput_enabled_hid;
 int log_scsi;
 int log_net;
 int log_vsync;
@@ -2172,7 +2172,6 @@ static int WIN32_InitLibraries (void)
 		pre_gui_message (L"No QueryPerformanceFrequency() supported, exiting..\n");
 		return 0;
 	}
-	rpt_available = 1;
 	figure_processor_speed ();
 	if (!timebegin ()) {
 		pre_gui_message (L"MMTimer second initialization failed, exiting..");
@@ -2759,10 +2758,8 @@ void target_quit (void)
 
 void target_fixup_options (struct uae_prefs *p)
 {
-#if 0
-	if (p->gfx_avsync)
-		p->gfx_avsyncmode = 1;
-#endif
+	if (p->win32_automount_cddrives && !p->scsi)
+		p->scsi = 1;
 
 #ifdef RETROPLATFORM
 	rp_fixup_options (p);
@@ -2809,6 +2806,8 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
 		p->gfx_api = os_vista ? 1 : 0;
+		if (p->gfx_filter == 0 && p->gfx_api)
+			p->gfx_filter = 1;
 		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
 			_stprintf (p->input_config_name[i], buf, i + 1);
@@ -4580,7 +4579,11 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, L"rawhid")) {
-		rawinput_enabled_hid = true;
+		rawinput_enabled_hid = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, L"norawhid")) {
+		rawinput_enabled_hid = 0;
 		return 1;
 	}
 	if (!_tcscmp (arg, L"rawkeyboard")) {
@@ -5000,12 +5003,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		enumerate_sound_devices ();
 		for (i = 0; i < MAX_SOUND_DEVICES && sound_devices[i]; i++) {
 			int type = sound_devices[i]->type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA"))), sound_devices[i]->name);
+			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_XAUDIO2 ? L"XA" : (type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA")))), sound_devices[i]->name);
 		}
 		write_log (L"Enumerating recording devices:\n");
 		for (i = 0; i < MAX_SOUND_DEVICES && record_devices[i]; i++) {
 			int type = record_devices[i]->type;
-			write_log (L"%d:%s: %s\n", i, type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA"))), record_devices[i]->name);
+			write_log (L"%d:%s: %s\n", i,  type == SOUND_DEVICE_XAUDIO2 ? L"XA" : (type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA")))), record_devices[i]->name);
 		}
 		write_log (L"done\n");
 		memset (&devmode, 0, sizeof (devmode));

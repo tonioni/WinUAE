@@ -78,7 +78,7 @@ static void getinit (void)
 static int vblscale (int v)
 {
 	static int o;
-	int n, v2;
+	int n, v2, vo;
 
 	if (!isnativevidbuf ())
 		return v;
@@ -94,13 +94,17 @@ static int vblscale (int v)
 		v2 = MAXVPOS_PAL;
 	if (abs (v2 - maxvpos_nom) <= 3)
 		return v;
-	v = v * maxvpos_nom / v2;
-	return v;
+	vo = v * maxvpos_nom / v2;
+	if (vo > v + 60)
+		vo = v + 60;
+	else if (vo < v - 60)
+		vo = v - 60;
+	return vo;
 }
 static int vblscale2 (int v)
 {
 	static int o;
-	int n;
+	int n, vo;
 
 	if (!isnativevidbuf ())
 		return v;
@@ -110,7 +114,11 @@ static int vblscale2 (int v)
 	o = n;
 	if (beamcon0 & 0x80)
 		return v;
-	v = v * maxvpos_nom / MAXVPOS_PAL;
+	vo = v * maxvpos_nom / MAXVPOS_PAL;
+	if (vo > v + 60)
+		vo = v + 60;
+	else if (vo < v - 60)
+		vo = v - 60;
 	return v;
 }
 
@@ -120,6 +128,8 @@ static void fixh (int *ah, int minh)
 		return;
 	if (!(beamcon0 & 0x80)) {
 		int max = (AMIGA_HEIGHT_MAX * scale) << currprefs.gfx_vresolution;
+		if (*ah > AMIGA_HEIGHT_MAX * 2)
+			return;
 		if (minh && max < minh)
 			max = minh;
 		if (*ah > max)

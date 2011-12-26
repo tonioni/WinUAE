@@ -126,7 +126,6 @@ long cycles_to_hsync_event;
 unsigned long int vsync_cycles;
 static int extra_cycle;
 unsigned long start_cycles;
-bool vsync_check;
 
 static int rpt_did_reset;
 struct ev eventtab[ev_max];
@@ -409,17 +408,10 @@ uae_u32 get_copper_address (int copno)
 	}
 }
 
-int rpt_available = 0;
-
 void reset_frame_rate_hack (void)
 {
 	if (currprefs.m68k_speed >= 0)
 		return;
-
-	if (! rpt_available) {
-		currprefs.m68k_speed = 0;
-		return;
-	}
 
 	rpt_did_reset = 1;
 	is_lastline = 0;
@@ -5099,6 +5091,15 @@ static int rpt_vsync (void)
 	return v;
 }
 
+static void rtg_vsynccheck (void)
+{
+	int vs = isvsync_rtg ();
+	if (vs < 0) {
+		if (vblank_found_rtg || vsync_busywait_check () == false)
+			picasso_handle_vsync ();
+	}
+}
+
 static void framewait (void)
 {
 	frame_time_t curr_time;
@@ -5116,7 +5117,7 @@ static void framewait (void)
 		vsyncmintime = vsynctime;
 		
 		if (vs == -2) {
-
+			// fastest possible
 			curr_time = vsync_busywait_end ();
 			vsync_busywait_do (NULL);
 			curr_time = read_processor_time ();
@@ -5143,10 +5144,12 @@ static void framewait (void)
 		double v = rpt_vsync () / (syncbase / 1000.0);
 		if (v >= -4)
 			break;
+		rtg_vsynccheck ();
 		sleep_millis_main (2);
 	}
 	curr_time = start = read_processor_time ();
-	while (rpt_vsync () < 0);
+	while (rpt_vsync () < 0)
+		rtg_vsynccheck ();
 	curr_time = read_processor_time ();
 	vsyncmintime = curr_time + vsynctime;
 	idletime += read_processor_time() - start;
@@ -5270,12 +5273,12 @@ static void vsync_handler_post (void)
 					rpt_did_reset = 0;
 					if (render_screen ())
 						show_screen ();
-				} else if (rpt_available) {
+				} else {
 					framewait ();
 				}
 #ifdef JIT
 			} else {
-				if (rpt_available && currprefs.m68k_speed == 0) {
+				if (currprefs.m68k_speed == 0) {
 					framewait ();
 				} else {
 					if (render_screen ())
@@ -5863,17 +5866,13 @@ static void hsync_handler_post (bool onvsync)
 
 
 	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered) {
-		/* last line, render the frame as early as possible */
+		/* fastest possible + last line, render the frame as early as possible */
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed);
 		render_screen ();
 		show_screen_maybe ();
-		vsync_check = true;
 	}
-	if (isvsync_rtg () < 0) {
-		if (vblank_found_rtg || vsync_busywait_check () == false)
-			picasso_handle_vsync ();
-	}
+	rtg_vsynccheck ();
 
 #if 0
 	{

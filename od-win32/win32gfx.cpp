@@ -902,16 +902,18 @@ int lockscr (struct vidbuffer *vb, bool fullupdate)
 void unlockscr (struct vidbuffer *vb)
 {
 	if (currentmode->flags & DM_D3D) {
-		if (currentmode->flags & DM_SWSCALE)
+		if (currentmode->flags & DM_SWSCALE) {
 			S2X_render ();
-		else
+		} else {
 			D3D_flushtexture (flushymin, flushymax);
+			vb->bufmem = NULL;
+		}
 		D3D_unlocktexture ();
 	} else if (currentmode->flags & DM_SWSCALE) {
 		return;
 	} else if (currentmode->flags & DM_DDRAW) {
 		DirectDraw_SurfaceUnlock ();
-		gfxvidinfo.outbuffer->bufmem = NULL;
+		vb->bufmem = NULL;
 	}
 }
 
@@ -2005,12 +2007,8 @@ void close_windows (void)
 #endif
 	xfree (gfxvidinfo.drawbuffer.realbufmem);
 	xfree (gfxvidinfo.tempbuffer.realbufmem);
-	gfxvidinfo.drawbuffer.bufmem_allocated = false;
-	gfxvidinfo.drawbuffer.bufmem_lockable = false;
-	gfxvidinfo.drawbuffer.realbufmem = NULL;
-	gfxvidinfo.tempbuffer.bufmem_allocated = false;
-	gfxvidinfo.tempbuffer.bufmem_lockable = false;
-	gfxvidinfo.tempbuffer.realbufmem = NULL;
+	memset (&gfxvidinfo.drawbuffer, 0, sizeof (struct vidbuffer));
+	memset (&gfxvidinfo.tempbuffer, 0, sizeof (struct vidbuffer));
 	DirectDraw_Release ();
 	close_hwnds ();
 }
@@ -2513,7 +2511,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		rv = rv->next;
 	}
 	
-	threaded_vsync = isvsync () == -2;
+	threaded_vsync = isvsync_chipset () == -2 || isvsync_rtg () < 0;
 
 	if (waitonly) {
 		vblankbasefull = syncbase / approx_vblank;
@@ -2877,12 +2875,11 @@ static int set_ddraw (void)
 
 static void allocsoftbuffer (struct vidbuffer *buf, int flags, int width, int height, int depth)
 {
-
 	buf->pixbytes = (depth + 7) / 8;
 	buf->width = (width + 7) & ~7;
 	buf->height = height;
 
-	if ((flags & DM_DDRAW) && !(flags & (DM_D3D | DM_SWSCALE))) {
+	if (!(flags & DM_SWSCALE)) {
 
 		if (buf != &gfxvidinfo.drawbuffer)
 			return;
@@ -2890,30 +2887,18 @@ static void allocsoftbuffer (struct vidbuffer *buf, int flags, int width, int he
 		buf->bufmem = NULL;
 		buf->bufmemend = NULL;
 		buf->realbufmem = NULL;
-		buf->bufmem_allocated = false;
+		buf->bufmem_allocated = NULL;
 		buf->bufmem_lockable = true;
 
 	} else if (flags & DM_SWSCALE) {
 
-		int w = width * 2;
-		int h = height * 2;
+		int w = buf->width * 2;
+		int h = buf->height * 2;
 		int size = (w * 2) * (h * 3) * buf->pixbytes;
-		buf->realbufmem = xmalloc (uae_u8, size);
-		memset (buf->realbufmem, 0, size);
-		buf->bufmem = buf->realbufmem + (w + (w * 2) * h) * buf->pixbytes;
+		buf->realbufmem = xcalloc (uae_u8, size);
+		buf->bufmem_allocated = buf->bufmem = buf->realbufmem + (w + (w * 2) * h) * buf->pixbytes;
 		buf->rowbytes = w * 2 * buf->pixbytes;
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
-		buf->bufmem_allocated = true;
-		buf->bufmem_lockable = true;
-
-	} else if (flags & DM_D3D) {
-
-		int size = width * height * buf->pixbytes;
-		buf->realbufmem = xmalloc (uae_u8, size);
-		buf->bufmem = buf->realbufmem;
-		buf->rowbytes = currentmode->amiga_width * buf->pixbytes;
-		buf->bufmemend = buf->bufmem + size;
-		buf->bufmem_allocated = true;
 		buf->bufmem_lockable = true;
 
 	}
@@ -3063,7 +3048,7 @@ static BOOL doInit (void)
 	xfree (gfxvidinfo.drawbuffer.realbufmem);
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem = NULL;
-	gfxvidinfo.drawbuffer.bufmem_allocated = false;
+	gfxvidinfo.drawbuffer.bufmem_allocated = NULL;
 	gfxvidinfo.drawbuffer.bufmem_lockable = false;
 
 	gfxvidinfo.outbuffer = &gfxvidinfo.drawbuffer;

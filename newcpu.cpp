@@ -1051,15 +1051,21 @@ static void fill_prefetch_quick (void)
 	regs.irc = get_word (m68k_getpc () + 2);
 }
 
-static unsigned long cycles_mask, cycles_val;
+static unsigned long cycles_mask, cycles_val, cycles_shift;
 
 static void update_68k_cycles (void)
 {
 	cycles_mask = 0;
+	cycles_shift = 0;
 	cycles_val = currprefs.m68k_speed;
 	if (currprefs.m68k_speed < 1) {
 		cycles_mask = 0xFFFFFFFF;
 		cycles_val = 0;
+	}
+	if (currprefs.m68k_speed == 0 && currprefs.cpu_model >= 68020) {
+		cycles_shift = 2;
+		cycles_val = CYCLE_UNIT / 2;
+		cycles_mask = ~((CYCLE_UNIT / 2) - 1);
 	}
 	currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier;
 	currprefs.cpu_frequency = changed_prefs.cpu_frequency;
@@ -4009,6 +4015,7 @@ static void m68k_run_2p (void)
 		count_instr (opcode);
 
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
+		cpu_cycles >>= cycles_shift;
 		cpu_cycles &= cycles_mask;
 		cpu_cycles |= cycles_val;
 		if (r->spcflags) {
@@ -4041,6 +4048,7 @@ static void m68k_run_2 (void)
 #endif	
 		do_cycles (cpu_cycles);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
+		cpu_cycles >>= cycles_shift;
 		cpu_cycles &= cycles_mask;
 		cpu_cycles |= cycles_val;
 		if (r->spcflags) {
@@ -4058,6 +4066,7 @@ static void m68k_run_mmu (void)
 		do_cycles (cpu_cycles);
 		mmu_backup_regs = regs;
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
+		cpu_cycles >>= cycles_shift;
 		cpu_cycles &= cycles_mask;
 		cpu_cycles |= cycles_val;
 		if (mmu_triggered)

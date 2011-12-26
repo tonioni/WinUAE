@@ -1951,7 +1951,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.BackBufferCount == 0 || dpp.Windowed ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = dpp.BackBufferCount == 0 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2475,11 +2475,15 @@ static void D3D_render2 (void)
 
 void D3D_setcursor (int x, int y, int width, int height, bool visible)
 {
-	cursor_offset2_x = cursor_offset_x * window_w / width;
-	cursor_offset2_y = cursor_offset_y * window_h / height;
-
-	cursor_x = x * window_w / width;
-	cursor_y = y * window_h / height;
+	if (width && height) {
+		cursor_offset2_x = cursor_offset_x * window_w / width;
+		cursor_offset2_y = cursor_offset_y * window_h / height;
+		cursor_x = x * window_w / width;
+		cursor_y = y * window_h / height;
+	} else {
+		cursor_x = cursor_y = 0;
+		cursor_offset2_x = cursor_offset2_y = 0;
+	}
 	cursor_v = visible;
 }
 

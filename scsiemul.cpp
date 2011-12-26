@@ -1016,9 +1016,9 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 
 #define BTL2UNIT(bus, target, lun) (2 * (bus) + (target) / 8) * 100 + (lun) * 10 + (target % 8)
 
-uae_u16 scsi_get_cd_drive_mask (void)
+uae_u32 scsi_get_cd_drive_mask (void)
 {
-	uae_u16 mask = 0;
+	uae_u32 mask = 0;
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		struct devstruct *dev = &devst[i];
 		if (dev->iscd)
@@ -1026,7 +1026,16 @@ uae_u16 scsi_get_cd_drive_mask (void)
 	}
 	return mask;
 }
-
+uae_u32 scsi_get_cd_drive_media_mask (void)
+{
+	uae_u32 mask = 0;
+	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		struct devstruct *dev = &devst[i];
+		if (dev->iscd && dev->changeint_mediastate)
+			mask |= 1 << i;
+	}
+	return mask;
+}
 static void dev_reset (void)
 {
 	int i, j;

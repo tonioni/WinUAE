@@ -15,12 +15,12 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 1
+#define WINUAEPUBLICBETA 0
 #define LANG_DLL 1
 
 //#define WINUAEBETA L""
-#define WINUAEBETA L"Beta 7"
-#define WINUAEDATE MAKEBD(2011, 12, 22)
+#define WINUAEBETA L"Beta 8"
+#define WINUAEDATE MAKEBD(2011, 12, 26)
 #define WINUAEEXTRA L""
 #define WINUAEREV L""
 
@@ -161,6 +161,7 @@ extern LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pException
 #define SOUND_DEVICE_PA 3
 #define SOUND_DEVICE_WASAPI 4
 #define SOUND_DEVICE_WASAPI_EXCLUSIVE 5
+#define SOUND_DEVICE_XAUDIO2 6
 
 struct sound_device
 {

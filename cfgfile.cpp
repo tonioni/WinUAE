@@ -3971,8 +3971,6 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_backbuffers = 1;
 	p->gfx_rtg_backbuffers = 2;
 
-	target_default_options (p, type);
-
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
 	p->collision_level = 2;
@@ -4132,6 +4130,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	cr->ntsc = 1;
 	cr->locked = false;
 	_tcscpy (cr->label, L"NTSC");
+
+	target_default_options (p, type);
 
 	zfile_fclose (default_file);
 	default_file = NULL;

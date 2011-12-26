@@ -1,4 +1,23 @@
 
+Beta 8:
+
+- Fixed D3D RTG hardware cursor stupid divide by zero crash introduced in b6
+- Old "Include CD/DVD drives.." now always mounts in CDFS + uaescsi.device mode (uaescsi.device is automatically enabled)
+- Approximate CPU speed and 68020: divide A500 instruction cycle counts by 4.
+- RTG vsync and >=100Hz display didn't work correctly.
+- RTG vsync and non-fastest CPU speed mode fixed.
+- Removed RTG autovsync setting, it does not make any sense.
+- Fixed D3D + no filter crash in some situations.
+- CDFS CD mounted drives are now bootable but only if media is present when drive is mounted to prevent ugly "No disk present in device CDx:" requesters.
+- Display vertical position was wrong if A2024 or Graffiti emulation was enabled.
+- AROS ROM updated.
+- Low latency USB HID game controller raw input mode is now the default (except if Windows XP, it should work but enumerated device paths are wrong),
+  old custom input mappings compatibility is not guaranteed, DirectInput is still used for any non-HID devices.
+- Fixed HID analog stick handling if reported range was -val to +val instead of 0 to +val, also other small updates.
+- USB HID device name detection improved, less generic names, better match with DirectInput device names.
+
+Test all input devices and report any strange behavior!
+
 Beta 7:
 
 - vsync in non-fastest CPU modes fix (b6)
