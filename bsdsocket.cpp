@@ -101,7 +101,7 @@ static uae_u32 gettask (TrapContext *context)
 	m68k_areg (regs, 1) = a1;
 
 	tskname = au((char*)get_real_address (get_long (currtask + 10)));
-	BSDTRACE ((L"[%s] ", au));
+	BSDTRACE ((L"[%s] ", tskname));
 	xfree (tskname);
 	return currtask;
 }
@@ -263,7 +263,7 @@ void addtosigqueue (SB, int events)
 	}
 	sb->dosignal = 1;
 
-	bsd_int_requested = 1;
+	bsd_int_requested |= 1;
 
 	unlocksigqueue ();
 
@@ -513,7 +513,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 
 		put_pointer (result + offsetof (struct UAEBSDBase, sb), sb);
 
-		BSDTRACE ((L"%0lx [%d]\n", result, opencount));
+		BSDTRACE ((L"%0x [%d]\n", result, opencount));
 	} else
 		BSDTRACE ((L"failed (out of memory)\n"));
 

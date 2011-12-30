@@ -131,6 +131,24 @@ void gfx_unlock (void)
 	LeaveCriticalSection (&screen_cs);
 }
 
+int vsync_busy_wait_mode;
+
+static void vsync_sleep (bool preferbusy)
+{
+	int bb = picasso_on ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
+	bool dowait;
+
+	if (vsync_busy_wait_mode == 0) {
+		dowait = bb || !preferbusy;
+	} else if (vsync_busy_wait_mode < 0) {
+		dowait = true;
+	} else {
+		dowait = false;
+	}
+	if (dowait)
+		sleep_millis_main (1);
+}
+
 static void changevblankthreadmode (int newmode)
 {
 	int t = vblankthread_counter;
@@ -141,13 +159,13 @@ static void changevblankthreadmode (int newmode)
 	vblankthread_mode = newmode;
 	if (newmode == VBLANKTH_KILL) {
 		flipthread_mode = 0;
-		SetEvent(flipevent);
+		SetEvent (flipevent);
 		while (flipthread_mode == 0)
-			sleep_millis (1);
-		CloseHandle(flipevent);
+			sleep_millis_main (1);
+		CloseHandle (flipevent);
 	}
 	while (t == vblankthread_counter && vblankthread_mode > 0)
-		sleep_millis (1);
+		vsync_sleep (false);
 }
 
 int WIN32GFX_IsPicassoScreen (void)
@@ -632,6 +650,7 @@ void sortdisplays (void)
 		md1->DisplayModes[0].depth = -1;
 
 		write_log (L"%s [%s]\n", md1->adaptername, md1->monitorname);
+		write_log (L"-: %d*%d [%d*%d]\n", md1->rect.right - md1->rect.left, md1->rect.bottom - md1->rect.top, md1->rect.left, md1->rect.top);
 		for (int mode = 0; mode < 2; mode++) {
 			DEVMODE dm;
 			dm.dmSize = sizeof dm;
@@ -2253,7 +2272,7 @@ static bool waitvblankstate (bool state, int *maxvpos)
 	}
 }
 
-bool vblank_busywait (void)
+bool vblank_wait (void)
 {
 	int vp;
 
@@ -2261,10 +2280,11 @@ bool vblank_busywait (void)
 		int opos = prevvblankpos;
 		if (!getvblankpos (&vp))
 			return false;
-		if (opos > maxscanline / 2 && vp < maxscanline / 5)
+		if (opos > maxscanline / 2 && vp < maxscanline / 4)
 			return true;
 		if (vp <= 0)
 			return true;
+		vsync_sleep (true);
 	}
 }
 
@@ -2276,7 +2296,7 @@ bool vblank_getstate (bool *state)
 	opos = prevvblankpos;
 	if (!getvblankpos (&vp))
 		return false;
-	if (opos > maxscanline / 2 && vp < maxscanline / 5) {
+	if (opos > maxscanline / 2 && vp < maxscanline / 4) {
 		*state = true;
 		return true;
 	}
@@ -2374,8 +2394,10 @@ bool vsync_busywait_check (void)
 
 frame_time_t vsync_busywait_end (void)
 {
-	while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE)
-		sleep_millis (1);
+
+	while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
+		vsync_sleep (true);
+	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
 	for (;;) {
 		int vp;
@@ -2384,6 +2406,7 @@ frame_time_t vsync_busywait_end (void)
 			//write_log (L"%d ", vpos);
 			break;
 		}
+		vsync_sleep (true);
 	}
 	return thread_vblank_time;
 }
@@ -2451,11 +2474,12 @@ bool vsync_busywait_do (int *freetime)
 		}
 
 		while (!framelost && read_processor_time () - prevtime < vblankbasewait) {
-			sleep_millis_main (1);
+			vsync_sleep (false);
 		}
 
 		framelost = false;
-		v = vblank_busywait ();
+		v = vblank_wait ();
+
 	}
 
 	if (v) {

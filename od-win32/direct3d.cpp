@@ -44,6 +44,7 @@ static D3DFORMAT tformat;
 static int d3d_enabled, d3d_ex;
 static IDirect3D9 *d3d;
 static IDirect3D9Ex *d3dex;
+static IDirect3DSwapChain9 *d3dswapchain;
 static D3DPRESENT_PARAMETERS dpp;
 static D3DDISPLAYMODEEX modeex;
 static IDirect3DDevice9 *d3ddev;
@@ -65,6 +66,7 @@ static int locked, fulllocked;
 static int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 static float maskmult_x, maskmult_y;
 static RECT mask2rect;
+static bool wasstilldrawing_broken;
 
 static D3DXMATRIXA16 m_matProj, m_matProj2;
 static D3DXMATRIXA16 m_matWorld, m_matWorld2;
@@ -1386,8 +1388,6 @@ end:
 
 static int createmasktexture (const TCHAR *filename)
 {
-	int ww = window_w;
-	int hh = window_h;
 	struct zfile *zf;
 	int size;
 	uae_u8 *buf;
@@ -1435,7 +1435,7 @@ static int createmasktexture (const TCHAR *filename)
 		masktexture = tx;
 		tx = NULL;
 	} else {
-		masktexture = createtext (ww, hh, D3DFMT_X8R8G8B8);
+		masktexture = createtext (window_w, window_h, D3DFMT_X8R8G8B8);
 		if (FAILED (hr)) {
 			write_log (L"%s: mask texture creation failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 			goto end;
@@ -1477,8 +1477,8 @@ static int createmasktexture (const TCHAR *filename)
 		masktexture_h = maskdesc.Height;
 	}
 	write_log (L"%s: mask %d*%d (%d*%d) ('%s') texture allocated\n", D3DHEAD, masktexture_w, masktexture_h, txdesc.Width, txdesc.Height, filename);
-	maskmult_x = (float)ww / masktexture_w;
-	maskmult_y = (float)hh / masktexture_h;
+	maskmult_x = (float)window_w / masktexture_w;
+	maskmult_y = (float)window_h / masktexture_h;
 
 	return 1;
 end:
@@ -1817,6 +1817,10 @@ static int restoredeviceobjects (void)
 static void D3D_free2 (void)
 {
 	invalidatedeviceobjects ();
+	if (d3dswapchain)  {
+		d3dswapchain->Release ();
+		d3dswapchain = NULL;
+	}
 	if (d3ddev) {
 		d3ddev->Release ();
 		d3ddev = NULL;
@@ -1847,7 +1851,10 @@ bool D3D_getvblankpos (int *vpos)
 	*vpos = -2;
 	if (!isd3d ())
 		return false;
-	hr = d3ddev->GetRasterStatus (0, &rt);
+	if (d3dswapchain)
+		hr = d3dswapchain->GetRasterStatus (&rt);
+	else
+		hr = d3ddev->GetRasterStatus (0, &rt);
 	if (FAILED (hr)) {
 		write_log (L"%s: GetRasterStatus %s\n", D3DHEAD, D3D_ErrorString (hr));
 		return false;
@@ -1860,6 +1867,23 @@ bool D3D_getvblankpos (int *vpos)
 	return true;
 }
 
+static int getd3dadapter (IDirect3D9 *d3d)
+{
+	struct MultiDisplay *md = getdisplay (&currprefs);
+	int num = d3d->GetAdapterCount ();
+	HMONITOR winmon;
+	POINT pt;
+
+	pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
+	pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
+	winmon = MonitorFromPoint (pt, MONITOR_DEFAULTTONEAREST);
+	for (int i = 0; i < num; i++) {
+		HMONITOR d3dmon = d3d->GetAdapterMonitor (i);
+		if (d3dmon == winmon)
+			return i;
+	}
+	return D3DADAPTER_DEFAULT;
+}
 
 const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
 {
@@ -1926,11 +1950,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	else
 		D3DHEAD = L"D3D9";
 
-	adapter = currprefs.gfx_display - 1;
-	if (adapter < 0)
-		adapter = 0;
-	if (adapter >= d3d->GetAdapterCount ())
-		adapter = 0;
+
+	adapter = getd3dadapter (d3d);
 
 	modeex.Size = sizeof modeex;
 	if (d3dex && D3DEX) {
@@ -2060,7 +2081,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		dpp.Windowed ? 0 : dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
 		vsync, dpp.BackBufferCount,
-		dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
+		dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
 		bb == 0 ? L"E" : L"", 
 		t_depth, adapter
 	);
@@ -2097,6 +2118,11 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		changed_prefs.gfx_filter_scanlines = currprefs.gfx_filter_scanlines = 0;
 	}
 
+	hr = d3ddev->GetSwapChain (0, &d3dswapchain);
+	if (FAILED (hr)) {
+		write_log (L"%s: GetSwapChain() failed, %s\n", D3DHEAD, D3D_ErrorString (hr));
+	}
+
 	switch (depth)
 	{
 		case 32:
@@ -2122,6 +2148,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	}
 	maxscanline = 0;
 	d3d_enabled = 1;
+	wasstilldrawing_broken = true;
 
 	if (vsync < 0 && bb == 0) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
@@ -2191,6 +2218,36 @@ int D3D_needreset (void)
 	return 0;
 }
 
+static void D3D_showframe2 (bool dowait)
+{
+	HRESULT hr;
+
+	if (!isd3d ())
+		return;
+	for (;;) {
+		if (d3dswapchain)
+			hr = d3dswapchain->Present (NULL, NULL, NULL, NULL, dowait ? 0 : D3DPRESENT_DONOTWAIT);
+		else
+			hr = d3ddev->Present (NULL, NULL, NULL, NULL);
+		if (hr == D3DERR_WASSTILLDRAWING) {
+			wasstilldrawing_broken = false;
+		} else if (hr == S_PRESENT_OCCLUDED) {
+			return;
+		} else {
+			if (hr != FAILED (hr)) {
+				write_log (L"%s: Present() %s\n", D3DHEAD, D3D_ErrorString (hr));
+				if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {
+					devicelost = 1;
+				}
+			}
+			return;
+		}
+		if (!dowait)
+			return;
+		sleep_millis (1);
+	}
+}
+
 void D3D_clear (void)
 {
 	int i;
@@ -2200,7 +2257,7 @@ void D3D_clear (void)
 		return;
 	for (i = 0; i < 2; i++) {
 		hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, d3ddebug ? 0x80 : 0x00), 0, 0);
-		hr = d3ddev->Present (NULL, NULL, NULL, NULL);
+		D3D_showframe2 (true);		
 	}
 }
 
@@ -2552,13 +2609,8 @@ uae_u8 *D3D_locktexture (int *pitch, int fullupdate)
 
 bool D3D_renderframe (void)
 {
-	static int frameskip;
-
 	if (!isd3d ())
 		return false;
-	if (currprefs.turbo_emulation && isfullscreen () > 0 && frameskip-- > 0)
-		return false;
-	frameskip = 50;
 
 	D3D_render2 ();
 	if (vsync2 && !currprefs.turbo_emulation) {
@@ -2582,16 +2634,16 @@ bool D3D_renderframe (void)
 
 void D3D_showframe (void)
 {
-	HRESULT hr;
-
-	if (!isd3d ())
-		return;
-	hr = d3ddev->Present (NULL, NULL, NULL, NULL);
-	if (FAILED (hr)) {
-		write_log (L"%s: Present() %s\n", D3DHEAD, D3D_ErrorString (hr));
-		if (hr == D3DERR_DEVICELOST) {
-			devicelost = 1;
+	if (currprefs.turbo_emulation) {
+		if (!(dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) && wasstilldrawing_broken) {
+			static int frameskip;
+			if (currprefs.turbo_emulation && frameskip-- > 0)
+				return;
+			frameskip = 50;
 		}
+		D3D_showframe2 (false);
+	} else {
+		D3D_showframe2 (true);
 	}
 }
 
@@ -2600,9 +2652,9 @@ void D3D_refresh (void)
 	if (!isd3d ())
 		return;
 	D3D_render2 ();
-	D3D_showframe ();
+	D3D_showframe2 (true);
 	D3D_render2 ();
-	D3D_showframe ();
+	D3D_showframe2 (true);
 	createscanlines (0);
 }
 

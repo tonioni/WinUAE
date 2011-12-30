@@ -2021,6 +2021,11 @@ static BOOL CheckOnline(SB)
 	return bReturn;
 }
 
+#define GET_STATE_FREE 0
+#define GET_STATE_ACTIVE 1
+#define GET_STATE_CANCEL 2
+#define GET_STATE_FINISHED 3
+
 static unsigned int thread_get2 (void *indexp)
 {
 	int index = *((int*)indexp);
@@ -2039,10 +2044,7 @@ static unsigned int thread_get2 (void *indexp)
 		if (bsd->hGetEvents[index] == NULL)
 			break;
 
-		if (bsd->threadGetargs_inuse[index] == -1)
-			bsd->threadGetargs_inuse[index] = 0;
-
-		if (bsd->threadGetargs_inuse[index]) {
+		if (bsd->threadGetargs_inuse[index] == GET_STATE_ACTIVE) {
 			args = &bsd->threadGetargs[index];
 			sb = args->sb;
 
@@ -2065,7 +2067,7 @@ static unsigned int thread_get2 (void *indexp)
 					} else {
 						host = gethostbyaddr (name_rp, namelen, addrtype);
 					}
-					if (bsd->threadGetargs_inuse[index] != -1) {
+					if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
 						// No CTRL-C Signal
 						if (host == 0) {
 							// Error occured
@@ -2089,7 +2091,7 @@ static unsigned int thread_get2 (void *indexp)
 				else
 					name_rp = "";
 				proto = getprotobyname (name_rp);
-				if (bsd->threadGetargs_inuse[index] != -1) { // No CTRL-C Signal
+				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) { // No CTRL-C Signal
 					if (proto == 0) {
 						// Error occured
 						SETERRNO;
@@ -2125,7 +2127,7 @@ static unsigned int thread_get2 (void *indexp)
 						name_rp = (char*)get_real_address (nameport);
 					serv = getservbyname(name_rp, proto_rp);
 				}
-				if (bsd->threadGetargs_inuse[index] != -1) {
+				if (bsd->threadGetargs_inuse[index] != GET_STATE_CANCEL) {
 					// No CTRL-C Signal
 					if (serv == 0) {
 						// Error occured
@@ -2140,10 +2142,12 @@ static unsigned int thread_get2 (void *indexp)
 
 			BSDTRACE((L"-> "));
 
-			if (bsd->threadGetargs_inuse[index] != -1)
+			if (bsd->threadGetargs_inuse[index] == GET_STATE_ACTIVE)
 				SETSIGNAL;
 
-			bsd->threadGetargs_inuse[index] = 0;
+			locksigqueue ();
+			bsd->threadGetargs_inuse[index] = GET_STATE_FINISHED;
+			unlocksigqueue ();
 
 		}
 	}
@@ -2165,27 +2169,36 @@ static volatile struct threadargs *run_get_thread(TrapContext *context, SB, stru
 {
 	int i;
 
+	locksigqueue ();
+
 	for (i = 0; i < MAX_GET_THREADS; i++)  {
-		if (bsd->threadGetargs_inuse[i] == -1) {
-			bsd->threadGetargs_inuse[i] = 0;
+		if (bsd->threadGetargs_inuse[i] == GET_STATE_FINISHED) {
+			bsd->threadGetargs_inuse[i] = GET_STATE_FREE;
 		}
-		if (bsd->hGetThreads[i] && !bsd->threadGetargs_inuse[i])
+		if (bsd->hGetThreads[i] && bsd->threadGetargs_inuse[i] == GET_STATE_FREE) {
 			break;
+		}
 	}
 
 	if (i >= MAX_GET_THREADS) {
 		for (i = 0; i < MAX_GET_THREADS; i++) {
 			if (bsd->hGetThreads[i] == NULL) {
+				bsd->threadGetargs_inuse[i] = GET_STATE_FREE;
 				bsd->hGetEvents[i] = CreateEvent(NULL,FALSE,FALSE,NULL);
-				bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
+				if (bsd->hGetEvents[i])
+					bsd->hGetThreads[i] = THREAD(thread_get, &threadindextable[i]);
 				if (bsd->hGetEvents[i] == NULL || bsd->hGetThreads[i] == NULL) {
-					bsd->hGetThreads[i] = NULL;
+					if (bsd->hGetEvents[i])
+						CloseHandle (bsd->hGetEvents[i]);
+					bsd->hGetEvents[i] = NULL;
 					write_log (L"BSDSOCK: ERROR - Thread/Event creation failed - error code: %d\n",
 						GetLastError());
 					bsdsocklib_seterrno(sb, 12); // ENOMEM
 					sb->resultval = -1;
+					unlocksigqueue ();
 					return 0;
 				}
+				bsdsetpriority (bsd->hGetThreads[i]);
 				break;
 			}
 		}
@@ -2195,19 +2208,23 @@ static volatile struct threadargs *run_get_thread(TrapContext *context, SB, stru
 		write_log (L"BSDSOCK: ERROR - Too many gethostbyname()s\n");
 		bsdsocklib_seterrno(sb, 12); // ENOMEM
 		sb->resultval = -1;
+		unlocksigqueue ();
 		return 0;
 	} else {
-		bsdsetpriority (bsd->hGetThreads[i]);
 		memcpy (&bsd->threadGetargs[i], args, sizeof (struct threadargs));
-		bsd->threadGetargs_inuse[i] = 1;
+		bsd->threadGetargs_inuse[i] = GET_STATE_ACTIVE;
 		SetEvent(bsd->hGetEvents[i]);
 	}
 
+	unlocksigqueue ();
+
 	sb->eintr = 0;
-	while (bsd->threadGetargs_inuse[i] != 0 && sb->eintr == 0) {
+	while (bsd->threadGetargs_inuse[i] != GET_STATE_FINISHED && sb->eintr == 0) {
 		WAITSIGNAL;
-		if (sb->eintr == 1)
-			bsd->threadGetargs_inuse[i] = -1;
+		locksigqueue ();
+		if (sb->eintr == 1 && bsd->threadGetargs_inuse[i] != GET_STATE_FINISHED)
+			bsd->threadGetargs_inuse[i] = GET_STATE_CANCEL;
+		unlocksigqueue ();
 	}
 	CANCELSIGNAL;
 

@@ -1076,7 +1076,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location)
 {
-	if (_tcscmp (option, name) != 0)
+	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
 	if (strcasecmp (value, L"yes") == 0 || strcasecmp (value, L"y") == 0
 		|| strcasecmp (value, L"true") == 0 || strcasecmp (value, L"t") == 0)
@@ -1108,7 +1108,7 @@ int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *nam
 {
 	int base = 10;
 	TCHAR *endptr;
-	if (_tcscmp (option, name) != 0)
+	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
 	*location = _tcstod (value, &endptr);
 	return 1;
@@ -1119,7 +1119,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 {
 	int base = 10;
 	TCHAR *endptr;
-	if (_tcscmp (option, name) != 0)
+	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
 	/* I guess octal isn't popular enough to worry about here...  */
 	if (value[0] == '0' && _totupper (value[1]) == 'X')
@@ -1154,7 +1154,7 @@ int cfgfile_intval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, const TCHAR *table[], int more)
 {
 	int val;
-	if (_tcscmp (option, name) != 0)
+	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
 	val = match_string (table, value);
 	if (val == -1) {
@@ -2681,7 +2681,7 @@ static int isutf8ext (TCHAR *s)
 	return 0;
 }
 
-static int cfgfile_separate_linea (char *line, TCHAR *line1b, TCHAR *line2b)
+static int cfgfile_separate_linea (const TCHAR *filename, char *line, TCHAR *line1b, TCHAR *line2b)
 {
 	char *line1, *line2;
 	int i;
@@ -2690,7 +2690,7 @@ static int cfgfile_separate_linea (char *line, TCHAR *line1b, TCHAR *line2b)
 	line2 = strchr (line, '=');
 	if (! line2) {
 		TCHAR *s = au (line1);
-		write_log (L"CFGFILE: linea was incomplete with only %s\n", s);
+		write_log (L"CFGFILE: '%s', linea was incomplete with only %s\n", filename, s);
 		xfree (s);
 		return 0;
 	}
@@ -2923,7 +2923,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 				p->all_lines = u;
 				continue;
 			}
-			if (!cfgfile_separate_linea (linea, line1b, line2b))
+			if (!cfgfile_separate_linea (filename, linea, line1b, line2b))
 				continue;
 			type1 = type2 = 0;
 			if (cfgfile_yesno (line1b, line2b, L"config_hardware", &type1) ||

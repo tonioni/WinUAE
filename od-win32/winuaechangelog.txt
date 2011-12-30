@@ -1,4 +1,26 @@
 
+- USB HID game controller support really works now. (HID signed value handling is a bit special)
+  Also added pad quirks list from Linux, some game pads apparently report bad minimum and maximum range
+  values, this also includes Logitech G13 stick which was not listed (reported range is -127 to 127,
+  real range is 0 to 255) and this caused the b8 problem because I assumed it was supposed to work that way
+  which of course broke other correctly working devices with negative minimum range.
+- D3D and DirectDraw fullscreen mode monitor selection improved, it wasn't reliable if system had
+  more than 1 display adapter(s). (Win32 EnumDisplayDevices(), DirectDraw and Direct3D monitor indexes
+  are not guaranteed to be same)
+- Adjusted sound buffer range, old 1 is new 2, 2 is 3, and so on. Old 7 is too big, most drivers won't
+  accept it and new vsync can work with buffer smaller than old 1. (Buffer size "0" or "1/2" would have
+  been too confusing..) In other words, if you load old configuration, only value shown in GUI increases by one,
+  real buffer size does not change.
+- Fixed Graffiti emulation crash in if Graffiti hires mode was detected but emulation was
+  not configured for superhires support. (Only in some situations)
+- Disable genlock detected option if A2024 or Graffiti enabled, this is impossible configuration and would only slow down
+  emulation (forces Graffiti emulation to keep looking for command codes continuously)
+- PC keyboard emulation mode, maps keys like F12, End, Home etc.. to Amiga key codes (afaik same key codes are also used by AROS, OS4 and MorphOS).
+  Num Lock opens the GUI by default (Only remaining key that is more or less free), all other special UAE key mappings are disabled.
+  Config file only at the moment: input.keyboard_type=pc
+- Do not include "raw" display modes (marked as "!") in RTG resolution list.
+- Old vsync mode is back (native only, non-fastest CPU mode compatible only)
+
 Beta 8:
 
 - Fixed D3D RTG hardware cursor stupid divide by zero crash introduced in b6

@@ -5107,11 +5107,14 @@ static void framewait (void)
 	int vs = isvsync_chipset ();
 
 	if (vs > 0) {
+
 		vsyncmintime = vsynctime;
 		render_screen ();
 		show_screen ();
 		return;
+
 	} else if (vs < 0) {
+
 		int freetime;
 		extern int extraframewait;
 		vsyncmintime = vsynctime;
@@ -5132,11 +5135,12 @@ static void framewait (void)
 			vsyncmintime = curr_time + vsynctime;
 			show_screen ();
 			if (extraframewait)
-				sleep_millis (extraframewait);
+				sleep_millis_main (extraframewait);
 
 		}
 		return;
 	}
+
 	bool didrender = false;
 	if (!picasso_on)
 		didrender = render_screen ();

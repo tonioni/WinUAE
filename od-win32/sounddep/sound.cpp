@@ -132,7 +132,7 @@ struct sound_dp
 #define EXP 2.1
 
 #define ADJUST_VSSIZE 10
-#define EXPVS 1.7
+#define EXPVS 1.6
 
 int sound_debug = 0;
 int sound_mode_skip = 0;
@@ -209,14 +209,17 @@ extern int vsynctime_orig;
 static int avioutput_audio;
 #endif
 
+#define ADJUST_LIMIT 7
+#define ADJUST_LIMIT2 1.5
+
 void sound_setadjust (double v)
 {
 	float mult;
 
-	if (v < -5)
-		v = -5;
-	if (v > 5)
-		v = 5;
+	if (v < -ADJUST_LIMIT)
+		v = -ADJUST_LIMIT;
+	if (v > ADJUST_LIMIT)
+		v = ADJUST_LIMIT;
 
 	mult = (1000.0 + v);
 	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
@@ -233,6 +236,7 @@ void sound_setadjust (double v)
 	}
 }
 
+
 static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granulaty)
 {
 	static int tfprev;
@@ -244,20 +248,23 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 		granulaty = 10;
 
 	if (tfprev != timeframes) {
-		double skipmode;
+		double skipmode, avgskipmode;
 		double avg = s->avg_correct / s->cnt_correct;
-		if ((1 || sound_debug) && (tfprev % 10) == 0) {
-			write_log (L"%+4d %7.1f %7.1f %6d\n", sndbuf, avg, sync, granulaty);
+
+		skipmode = sync / 10.0;
+		avgskipmode = avg / (10000.0 / granulaty);
+
+		if ((0 || sound_debug) && (tfprev % 10) == 0) {
+			write_log (L"%+05d S=%7.1f AVG=%7.1f (IMM=%7.1f + AVG=%7.1f = %7.1f)\n", sndbuf, sync, avg, skipmode, avgskipmode, skipmode + avgskipmode);
 		}
 		gui_data.sndbuf = sndbuf;
-		skipmode = sync / 100.0;
 
-		if (skipmode > 1)
-			skipmode = 1;
-		if (skipmode < -1)
-			skipmode = -1;
+		if (skipmode > ADJUST_LIMIT2)
+			skipmode = ADJUST_LIMIT2;
+		if (skipmode < -ADJUST_LIMIT2)
+			skipmode = -ADJUST_LIMIT2;
 
-		sound_setadjust (avg / (5000 / granulaty));
+		sound_setadjust (skipmode + avgskipmode);
 		tfprev = timeframes;
 	}
 }
@@ -1863,7 +1870,7 @@ static double sync_sound (double m)
 	double skipmode;
 	if (isvsync () || 1) {
 
-		skipmode = pow (m < 0 ? -m : m, EXPVS) / 10;
+		skipmode = pow (m < 0 ? -m : m, EXPVS) / 8;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_VSSIZE)
@@ -2155,10 +2162,10 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 				sd->sndbufsize / sd->samplesize, s->snd_configsize / sd->samplesize, s->max_sndbufsize / sd->samplesize,
 				s->dsoundbuf / sd->samplesize, diff / sd->samplesize, vdiff, skipmode, s->avg_correct / s->cnt_correct, adj);
 			tfprev = timeframes;
-			if (skipmode > 1)
-				skipmode = 1;
-			if (skipmode < -1)
-				skipmode = -1;
+			if (skipmode > ADJUST_LIMIT2)
+				skipmode = ADJUST_LIMIT2;
+			if (skipmode < -ADJUST_LIMIT2)
+				skipmode = -ADJUST_LIMIT2;
 			sound_setadjust (skipmode + adj);
 		}
 	}

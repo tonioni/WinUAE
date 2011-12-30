@@ -43,7 +43,7 @@
 //#define DBG_KEYBD 1
 //#define DEBUG_KBD
 
-static struct uae_input_device_kbr_default keytrans[] = {
+static struct uae_input_device_kbr_default keytrans_amiga[] = {
 
 	{ DIK_ESCAPE, INPUTEVENT_KEY_ESC },
 
@@ -143,6 +143,7 @@ static struct uae_input_device_kbr_default keytrans[] = {
 	{ DIK_DELETE, INPUTEVENT_KEY_DEL },
 	{ DIK_HOME, INPUTEVENT_KEY_AMIGA_RIGHT },
 	{ DIK_NEXT, INPUTEVENT_KEY_HELP },
+	{ DIK_PRIOR, INPUTEVENT_SPC_FREEZEBUTTON },
 
 	{ DIK_LBRACKET, INPUTEVENT_KEY_LEFTBRACKET },
 	{ DIK_RBRACKET, INPUTEVENT_KEY_RIGHTBRACKET },
@@ -159,15 +160,14 @@ static struct uae_input_device_kbr_default keytrans[] = {
 //	{ DIK_VOLUMEUP, INPUTEVENT_SPC_MASTER_VOLUME_UP },
 //	{ DIK_MUTE, INPUTEVENT_SPC_MASTER_VOLUME_MUTE },
 
-	{ DIK_HOME, INPUTEVENT_KEY_70 },
-	{ DIK_END, INPUTEVENT_KEY_71 },
-//    { DIK_SYSRQ, INPUTEVENT_KEY_6E },
-//    { DIK_F12, INPUTEVENT_KEY_6F },
-	{ DIK_INSERT, INPUTEVENT_KEY_47 },
-//    { DIK_PRIOR, INPUTEVENT_KEY_48 },
-	{ DIK_PRIOR, INPUTEVENT_SPC_FREEZEBUTTON },
-	{ DIK_NEXT, INPUTEVENT_KEY_49 },
-	{ DIK_F11, INPUTEVENT_KEY_4B },
+//	{ DIK_HOME, INPUTEVENT_KEY_70 },
+	{ DIK_END, INPUTEVENT_KEY_END },
+//	{ DIK_SYSRQ, INPUTEVENT_KEY_6E },
+//	{ DIK_F12, INPUTEVENT_KEY_6F },
+//	{ DIK_INSERT, INPUTEVENT_KEY_47 },
+//	{ DIK_PRIOR, INPUTEVENT_KEY_48 },
+//	{ DIK_NEXT, INPUTEVENT_KEY_49 },
+	{ DIK_F11, INPUTEVENT_KEY_F11 },
 
 	{ DIK_MEDIASTOP, INPUTEVENT_KEY_CDTV_STOP },
 	{ DIK_PLAYPAUSE, INPUTEVENT_KEY_CDTV_PLAYPAUSE },
@@ -175,6 +175,137 @@ static struct uae_input_device_kbr_default keytrans[] = {
 	{ DIK_NEXTTRACK, INPUTEVENT_KEY_CDTV_NEXT },
 
 	{ -1, 0 }
+};
+
+static struct uae_input_device_kbr_default keytrans_pc1[] = {
+
+	{ DIK_ESCAPE, INPUTEVENT_KEY_ESC },
+
+	{ DIK_F1, INPUTEVENT_KEY_F1 },
+	{ DIK_F2, INPUTEVENT_KEY_F2 },
+	{ DIK_F3, INPUTEVENT_KEY_F3 },
+	{ DIK_F4, INPUTEVENT_KEY_F4 },
+	{ DIK_F5, INPUTEVENT_KEY_F5 },
+	{ DIK_F6, INPUTEVENT_KEY_F6 },
+	{ DIK_F7, INPUTEVENT_KEY_F7 },
+	{ DIK_F8, INPUTEVENT_KEY_F8 },
+	{ DIK_F9, INPUTEVENT_KEY_F9 },
+	{ DIK_F10, INPUTEVENT_KEY_F10 },
+	{ DIK_F11, INPUTEVENT_KEY_F11 },
+	{ DIK_F12, INPUTEVENT_KEY_F12 },
+
+	{ DIK_1, INPUTEVENT_KEY_1 },
+	{ DIK_2, INPUTEVENT_KEY_2 },
+	{ DIK_3, INPUTEVENT_KEY_3 },
+	{ DIK_4, INPUTEVENT_KEY_4 },
+	{ DIK_5, INPUTEVENT_KEY_5 },
+	{ DIK_6, INPUTEVENT_KEY_6 },
+	{ DIK_7, INPUTEVENT_KEY_7 },
+	{ DIK_8, INPUTEVENT_KEY_8 },
+	{ DIK_9, INPUTEVENT_KEY_9 },
+	{ DIK_0, INPUTEVENT_KEY_0 },
+
+	{ DIK_TAB, INPUTEVENT_KEY_TAB },
+
+	{ DIK_A, INPUTEVENT_KEY_A },
+	{ DIK_B, INPUTEVENT_KEY_B },
+	{ DIK_C, INPUTEVENT_KEY_C },
+	{ DIK_D, INPUTEVENT_KEY_D },
+	{ DIK_E, INPUTEVENT_KEY_E },
+	{ DIK_F, INPUTEVENT_KEY_F },
+	{ DIK_G, INPUTEVENT_KEY_G },
+	{ DIK_H, INPUTEVENT_KEY_H },
+	{ DIK_I, INPUTEVENT_KEY_I },
+	{ DIK_J, INPUTEVENT_KEY_J },
+	{ DIK_K, INPUTEVENT_KEY_K },
+	{ DIK_L, INPUTEVENT_KEY_L },
+	{ DIK_M, INPUTEVENT_KEY_M },
+	{ DIK_N, INPUTEVENT_KEY_N },
+	{ DIK_O, INPUTEVENT_KEY_O },
+	{ DIK_P, INPUTEVENT_KEY_P },
+	{ DIK_Q, INPUTEVENT_KEY_Q },
+	{ DIK_R, INPUTEVENT_KEY_R },
+	{ DIK_S, INPUTEVENT_KEY_S },
+	{ DIK_T, INPUTEVENT_KEY_T },
+	{ DIK_U, INPUTEVENT_KEY_U },
+	{ DIK_W, INPUTEVENT_KEY_W },
+	{ DIK_V, INPUTEVENT_KEY_V },
+	{ DIK_X, INPUTEVENT_KEY_X },
+	{ DIK_Y, INPUTEVENT_KEY_Y },
+	{ DIK_Z, INPUTEVENT_KEY_Z },
+
+	{ DIK_CAPITAL, INPUTEVENT_KEY_CAPS_LOCK, ID_FLAG_TOGGLE },
+
+	{ DIK_NUMPAD1, INPUTEVENT_KEY_NP_1 },
+	{ DIK_NUMPAD2, INPUTEVENT_KEY_NP_2 },
+	{ DIK_NUMPAD3, INPUTEVENT_KEY_NP_3 },
+	{ DIK_NUMPAD4, INPUTEVENT_KEY_NP_4 },
+	{ DIK_NUMPAD5, INPUTEVENT_KEY_NP_5 },
+	{ DIK_NUMPAD6, INPUTEVENT_KEY_NP_6 },
+	{ DIK_NUMPAD7, INPUTEVENT_KEY_NP_7 },
+	{ DIK_NUMPAD8, INPUTEVENT_KEY_NP_8 },
+	{ DIK_NUMPAD9, INPUTEVENT_KEY_NP_9 },
+	{ DIK_NUMPAD0, INPUTEVENT_KEY_NP_0 },
+	{ DIK_DECIMAL, INPUTEVENT_KEY_NP_PERIOD },
+	{ DIK_ADD, INPUTEVENT_KEY_NP_ADD },
+	{ DIK_SUBTRACT, INPUTEVENT_KEY_NP_SUB },
+	{ DIK_MULTIPLY, INPUTEVENT_KEY_NP_MUL },
+	{ DIK_DIVIDE, INPUTEVENT_KEY_NP_DIV },
+	{ DIK_NUMPADENTER, INPUTEVENT_KEY_ENTER },
+
+	{ DIK_MINUS, INPUTEVENT_KEY_SUB },
+	{ DIK_EQUALS, INPUTEVENT_KEY_EQUALS },
+	{ DIK_BACK, INPUTEVENT_KEY_BACKSPACE },
+	{ DIK_RETURN, INPUTEVENT_KEY_RETURN },
+	{ DIK_SPACE, INPUTEVENT_KEY_SPACE },
+
+	{ DIK_LSHIFT, INPUTEVENT_KEY_SHIFT_LEFT },
+	{ DIK_LCONTROL, INPUTEVENT_KEY_CTRL },
+	{ DIK_LWIN, INPUTEVENT_KEY_AMIGA_LEFT },
+	{ DIK_LMENU, INPUTEVENT_KEY_ALT_LEFT },
+	{ DIK_RMENU, INPUTEVENT_KEY_ALT_RIGHT },
+	{ DIK_RWIN, INPUTEVENT_KEY_AMIGA_RIGHT },
+	{ DIK_APPS, INPUTEVENT_KEY_APPS },
+	{ DIK_RCONTROL, INPUTEVENT_KEY_CTRL_RIGHT },
+	{ DIK_RSHIFT, INPUTEVENT_KEY_SHIFT_RIGHT },
+
+	{ DIK_UP, INPUTEVENT_KEY_CURSOR_UP },
+	{ DIK_DOWN, INPUTEVENT_KEY_CURSOR_DOWN },
+	{ DIK_LEFT, INPUTEVENT_KEY_CURSOR_LEFT },
+	{ DIK_RIGHT, INPUTEVENT_KEY_CURSOR_RIGHT },
+
+	{ DIK_LBRACKET, INPUTEVENT_KEY_LEFTBRACKET },
+	{ DIK_RBRACKET, INPUTEVENT_KEY_RIGHTBRACKET },
+	{ DIK_SEMICOLON, INPUTEVENT_KEY_SEMICOLON },
+	{ DIK_APOSTROPHE, INPUTEVENT_KEY_SINGLEQUOTE },
+	{ DIK_GRAVE, INPUTEVENT_KEY_BACKQUOTE },
+	{ DIK_BACKSLASH, INPUTEVENT_KEY_2B },
+	{ DIK_COMMA, INPUTEVENT_KEY_COMMA },
+	{ DIK_PERIOD, INPUTEVENT_KEY_PERIOD },
+	{ DIK_SLASH, INPUTEVENT_KEY_DIV },
+	{ DIK_OEM_102, INPUTEVENT_KEY_30 },
+
+	{ DIK_INSERT, INPUTEVENT_KEY_INSERT },
+	{ DIK_DELETE, INPUTEVENT_KEY_DEL },
+	{ DIK_HOME, INPUTEVENT_KEY_HOME },
+	{ DIK_END, INPUTEVENT_KEY_END },
+    { DIK_PRIOR, INPUTEVENT_KEY_PAGEUP },
+	{ DIK_NEXT, INPUTEVENT_KEY_PAGEDOWN },
+	{ DIK_SCROLL, INPUTEVENT_KEY_HELP },
+    { DIK_SYSRQ, INPUTEVENT_KEY_SYSRQ },
+
+	{ DIK_MEDIASTOP, INPUTEVENT_KEY_CDTV_STOP },
+	{ DIK_PLAYPAUSE, INPUTEVENT_KEY_CDTV_PLAYPAUSE },
+	{ DIK_PREVTRACK, INPUTEVENT_KEY_CDTV_PREV },
+	{ DIK_NEXTTRACK, INPUTEVENT_KEY_CDTV_NEXT },
+
+	{ -1, 0 }
+};
+
+static struct uae_input_device_kbr_default *keytrans[] = {
+	keytrans_amiga,
+	keytrans_pc1,
+	keytrans_pc1
 };
 
 static int kb_np[] = { DIK_NUMPAD4, -1, DIK_NUMPAD6, -1, DIK_NUMPAD8, -1, DIK_NUMPAD2, -1, DIK_NUMPAD0, DIK_NUMPAD5, -1, DIK_DECIMAL, -1, DIK_NUMPADENTER, -1, -1 };
@@ -206,7 +337,9 @@ extern int ispressed (int key);
 
 static int specialkeycode (void)
 {
-	return currprefs.win32_specialkey;
+	if (currprefs.input_keyboard_type == 0)
+		return currprefs.win32_specialkey;
+	return -1;
 }
 static int specialpressed (void)
 {
@@ -273,26 +406,30 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 {
 	int code = 0;
 	int scancode_new;
+	int defaultguikey;
+	bool amode = currprefs.input_keyboard_type == 0;
 	static int swapperdrive = 0;
 
 	if (scancode == specialkeycode ())
 		return;
 
-	if (scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
+	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
 		code = AKS_QUIT;
 
 	scancode_new = scancode;
 	if (!specialpressed () && inputdevice_iskeymapped (keyboard, scancode))
 		scancode = 0;
+	
+	defaultguikey = amode ? DIK_F12 : DIK_NUMLOCK;
 	// GUI must be always available
-	if (scancode_new == DIK_F12 && currprefs.win32_guikey < 0)
+	if (scancode_new == defaultguikey && currprefs.win32_guikey < 0)
 		scancode = scancode_new;
-	if (scancode_new == currprefs.win32_guikey && scancode_new != DIK_F12)
+	if (scancode_new == currprefs.win32_guikey && scancode_new != defaultguikey)
 		scancode = scancode_new;
 	
 	//write_log (L"keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
 
-	if (newstate == 0 && code == 0) {
+	if (amode && newstate == 0 && code == 0) {
 		switch (scancode)
 		{
 			case DIK_SYSRQ:
@@ -304,7 +441,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 
 	if (newstate && code == 0) {
 
-		if (scancode == DIK_F12 || scancode == currprefs.win32_guikey) {
+		if (scancode == defaultguikey || scancode == currprefs.win32_guikey) {
 			if (ctrlpressed ()) {
 				code = AKS_TOGGLEDEFAULTSCREEN;
 			} else if (shiftpressed () || specialpressed ()) {
@@ -316,6 +453,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				code = AKS_ENTERGUI;
 			}
 		}
+
+	}
+
+	if (newstate && code == 0 && amode) {
 
 		switch (scancode)
 		{

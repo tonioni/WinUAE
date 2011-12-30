@@ -1997,6 +1997,10 @@ static void picasso96_alloc2 (TrapContext *ctx)
 
 	i = 0;
 	while (DisplayModes[i].depth >= 0) {
+		if (DisplayModes[i].rawmode) {
+			i++;
+			continue;
+		}
 		j = i;
 		size += PSSO_LibResolution_sizeof;
 		while (missmodes[misscnt * 2] == 0)

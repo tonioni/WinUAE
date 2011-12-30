@@ -83,9 +83,6 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 	if (!(bplcon0 & 0x0100)) // GAUD
 		return false;
 
-	if (monitor != MONITOREMU_GRAFFITI)
-		clearmonitor(dst);
-
 	command = true;
 	found = false;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
@@ -112,7 +109,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 	dstbuf = dst->bufmem + (((ystart << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * dst->rowbytes + (((xstart << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * dst->pixbytes;
 
 	y = 0;
-	while (srcend > srcbuf) {
+	while (srcend > srcbuf && dst->bufmemend > dstbuf) {
 		uae_u8 *srcp = srcbuf + extrapix;
 		uae_u8 *dstp = dstbuf;
 
@@ -161,6 +158,10 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 							} else {
 								hires = false;
 							}
+							if (xpixadd == 0) // shres needed
+								return false;
+							if (monitor != MONITOREMU_GRAFFITI)
+								clearmonitor(dst);
 						} else if (cmd & 4) {
 							if ((cmd & 3) == 1) {
 								read_mask = parm;

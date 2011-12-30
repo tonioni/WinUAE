@@ -91,6 +91,7 @@ struct didata {
 	LPDIRECTINPUTDEVICE8 lpdi;
 	HANDLE rawinput;
 	HIDP_CAPS hidcaps;
+	HIDP_VALUE_CAPS hidvcaps[MAX_MAPPINGS];
 	PCHAR hidbuffer, hidbufferprev;
 	PHIDP_PREPARSED_DATA hidpreparseddata;
 	int maxusagelistlength;
@@ -109,9 +110,6 @@ struct didata {
 	TCHAR *axisname[MAX_MAPPINGS];
 	uae_s16 axissort[MAX_MAPPINGS];
 	uae_s16 axistype[MAX_MAPPINGS];
-	uae_s32 axismax[MAX_MAPPINGS];
-	uae_s32 axismin[MAX_MAPPINGS];
-	uae_s16 axisusagepage[MAX_MAPPINGS];
 	bool analogstick;
 
 	uae_s16 buttonmappings[MAX_MAPPINGS];
@@ -906,18 +904,18 @@ static void sortobjects (struct didata *did)
 {
 	int i, j;
 	uae_s16 tmpi;
-	uae_s32 tmpl;
 	TCHAR *tmpc;
 
 	for (i = 0; i < did->axles; i++) {
 		for (j = i + 1; j < did->axles; j++) {
 			if (did->axissort[i] > did->axissort[j]) {
+				HIDP_VALUE_CAPS tmpvcaps;
 				tmpi = did->axismappings[i]; did->axismappings[i] = did->axismappings[j]; did->axismappings[j] = tmpi;
 				tmpi = did->axissort[i]; did->axissort[i] = did->axissort[j]; did->axissort[j] = tmpi;
 				tmpi = did->axistype[i]; did->axistype[i] = did->axistype[j]; did->axistype[j] = tmpi;
-				tmpl = did->axismax[i]; did->axismax[i] = did->axismax[j]; did->axismax[j] = tmpl;
-				tmpl = did->axismin[i]; did->axismin[i] = did->axismin[j]; did->axismin[j] = tmpl;
-				tmpi = did->axisusagepage[i]; did->axisusagepage[i] = did->axisusagepage[j]; did->axisusagepage[j] = tmpi;
+				memcpy (&tmpvcaps, &did->hidvcaps[i], sizeof tmpvcaps);
+				memcpy (&did->hidvcaps[i], &did->hidvcaps[j], sizeof tmpvcaps);
+				memcpy (&did->hidvcaps[j], &tmpvcaps, sizeof tmpvcaps);
 				tmpc = did->axisname[i]; did->axisname[i] = did->axisname[j]; did->axisname[j] = tmpc;
 			}
 		}
@@ -936,12 +934,15 @@ static void sortobjects (struct didata *did)
 
 #ifdef DI_DEBUG
 	if (did->axles + did->buttons > 0) {
-		write_log (L"%s:\n", did->name);
+		write_log (L"%s: (%x/%x)\n", did->name, did->vid, did->pid);
 		if (did->connection == DIDC_DX)
 			write_log (L"PGUID=%s\n", outGUID (&did->pguid));
 		for (i = 0; i < did->axles; i++) {
-			write_log (L"%02X %03d '%s' (%d, [%d - %d])\n",
-				did->axismappings[i], did->axismappings[i], did->axisname[i], did->axissort[i], did->axismin[i], did->axismax[i]);
+			HIDP_VALUE_CAPS *caps = &did->hidvcaps[i];
+			write_log (L"%02X %03d '%s' (%d, [%d - %d, %d - %d, %d %d %d])\n",
+				did->axismappings[i], did->axismappings[i], did->axisname[i], did->axissort[i],
+				caps->LogicalMin, caps->LogicalMax, caps->PhysicalMin, caps->PhysicalMax,
+				caps->BitSize, caps->Units, caps->UnitsExp);
 		}
 		for (i = 0; i < did->buttons; i++) {
 			write_log (L"%02X %03d '%s' (%d)\n",
@@ -1180,6 +1181,94 @@ static const struct hiddesc hidtable[] =
 	{ 0xba, 2, 0xba, L"Rudder", 0 },
 	{ 0 }
 };
+
+static int extractbits (uae_u32 val, int bits, bool issigned)
+{
+	if (issigned)
+		return val & (1 << (bits - 1)) ? val | (-1 << bits) : val;
+	else
+		return val & ((1 << bits) - 1);
+}
+
+struct hidquirk
+{
+	uae_u16 vid, pid;
+};
+
+#define USB_VENDOR_ID_LOGITECH		0x046d
+#define USB_DEVICE_ID_LOGITECH_G13	0xc2ab
+#define USB_VENDOR_ID_AASHIMA		0x06d6
+#define USB_DEVICE_ID_AASHIMA_GAMEPAD	0x0025
+#define USB_DEVICE_ID_AASHIMA_PREDATOR	0x0026
+#define USB_VENDOR_ID_ALPS		0x0433
+#define USB_DEVICE_ID_IBM_GAMEPAD	0x1101
+#define USB_VENDOR_ID_CHIC		0x05fe
+#define USB_DEVICE_ID_CHIC_GAMEPAD	0x0014
+#define USB_VENDOR_ID_DWAV		0x0eef
+#define USB_DEVICE_ID_EGALAX_TOUCHCONTROLLER	0x0001
+#define USB_VENDOR_ID_MOJO		0x8282
+#define USB_DEVICE_ID_RETRO_ADAPTER	0x3201
+#define USB_VENDOR_ID_HAPP		0x078b
+#define USB_DEVICE_ID_UGCI_DRIVING	0x0010
+#define USB_DEVICE_ID_UGCI_FLYING	0x0020
+#define USB_DEVICE_ID_UGCI_FIGHTING	0x0030
+#define USB_VENDOR_ID_NATSU		0x08b7
+#define USB_DEVICE_ID_NATSU_GAMEPAD	0x0001
+#define USB_VENDOR_ID_NEC		0x073e
+#define USB_DEVICE_ID_NEC_USB_GAME_PAD	0x0301
+#define USB_VENDOR_ID_NEXTWINDOW	0x1926
+#define USB_DEVICE_ID_NEXTWINDOW_TOUCHSCREEN	0x0003
+#define USB_VENDOR_ID_SAITEK		0x06a3
+#define USB_DEVICE_ID_SAITEK_RUMBLEPAD	0xff17
+#define USB_VENDOR_ID_TOPMAX		0x0663
+#define USB_DEVICE_ID_TOPMAX_COBRAPAD	0x0103
+
+static const struct hidquirk quirks[] =  {
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_G13 },
+	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD },
+	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR },
+	{ USB_VENDOR_ID_ALPS, USB_DEVICE_ID_IBM_GAMEPAD },
+	{ USB_VENDOR_ID_CHIC, USB_DEVICE_ID_CHIC_GAMEPAD },
+	{ USB_VENDOR_ID_DWAV, USB_DEVICE_ID_EGALAX_TOUCHCONTROLLER },
+	{ USB_VENDOR_ID_MOJO, USB_DEVICE_ID_RETRO_ADAPTER },
+	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_DRIVING },
+	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_FLYING },
+	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_FIGHTING },
+	{ USB_VENDOR_ID_NATSU, USB_DEVICE_ID_NATSU_GAMEPAD },
+	{ USB_VENDOR_ID_NEC, USB_DEVICE_ID_NEC_USB_GAME_PAD },
+	{ USB_VENDOR_ID_NEXTWINDOW, USB_DEVICE_ID_NEXTWINDOW_TOUCHSCREEN },
+	{ USB_VENDOR_ID_SAITEK, USB_DEVICE_ID_SAITEK_RUMBLEPAD },
+	{ USB_VENDOR_ID_TOPMAX, USB_DEVICE_ID_TOPMAX_COBRAPAD },
+	{ 0 }
+};
+
+static void fixhidvcaps (RID_DEVICE_INFO_HID *hid, HIDP_VALUE_CAPS *caps)
+{
+	int pid = hid->dwProductId;
+	int vid = hid->dwVendorId;
+	ULONG mask = (1 << caps->BitSize) - 1;
+	/* min is always signed.
+	 * if min < 0, max is signed, otherwise it is unsigned
+	 */
+	if (caps->PhysicalMin >= 0)
+		caps->PhysicalMax = (uae_u32)(caps->PhysicalMax & mask);
+	else
+		caps->PhysicalMax = (uae_s32)caps->PhysicalMax;
+
+	if (caps->LogicalMin >= 0)
+		caps->LogicalMax = (uae_u32)(caps->LogicalMax & mask);
+	else
+		caps->LogicalMax = (uae_s32)caps->LogicalMax;
+
+	for (int i = 0; quirks[i].vid; i++) {
+		if (vid == quirks[i].vid && pid == quirks[i].pid) {
+			caps->LogicalMin = 0;
+			caps->LogicalMax = 255;
+			break;
+		}
+	}
+
+}
 
 static bool initialize_rawinput (void)
 {
@@ -1438,9 +1527,8 @@ static bool initialize_rawinput (void)
 														did->axisname[axiscnt] = my_strdup (tmp);
 														did->axissort[axiscnt] = hidtable[ht].priority * 2 + l;
 														did->axismappings[axiscnt] = acnt;
-														did->axisusagepage[axiscnt] = vcaps[i].UsagePage;
-														did->axismin[axiscnt] = vcaps[i].LogicalMin;
-														did->axismax[axiscnt] = vcaps[i].LogicalMax < 0 || vcaps[i].LogicalMax > 65535 ? 65535 : vcaps[i].LogicalMax;
+														memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+														fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
 														did->axistype[axiscnt] = l + 1;
 														axiscnt++;
 													}
@@ -1449,9 +1537,8 @@ static bool initialize_rawinput (void)
 												did->axissort[axiscnt] = hidtable[ht].priority * 2;
 												did->axisname[axiscnt] = my_strdup (hidtable[ht].name);
 												did->axismappings[axiscnt] = acnt;
-												did->axisusagepage[axiscnt] = vcaps[i].UsagePage;
-												did->axismin[axiscnt] = vcaps[i].LogicalMin;
-												did->axismax[axiscnt] = vcaps[i].LogicalMax < 0 || vcaps[i].LogicalMax > 65535 ? 65535 : vcaps[i].LogicalMax;
+												memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+												fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
 												did->axistype[axiscnt] = hidtable[ht].type;
 												axiscnt++;
 												did->analogstick = true;
@@ -1724,19 +1811,22 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					for (int axisnum = 0; axisnum < did->axles; axisnum++) {
 						ULONG val;
 						int usage = did->axismappings[axisnum];
-						if (HidP_GetUsageValue (HidP_Input, did->axisusagepage[axisnum], 0, usage, &val, did->hidpreparseddata, rawdata, hid->dwSizeHid) == HIDP_STATUS_SUCCESS) {
+						NTSTATUS status;
+						
+						status = HidP_GetUsageValue (HidP_Input, did->hidvcaps[axisnum].UsagePage, 0, usage, &val, did->hidpreparseddata, rawdata, hid->dwSizeHid);
+						if (status == HIDP_STATUS_SUCCESS) {
 
 							int data = 0;
-							int range = 0;
 							int digitalrange = 0;
+							HIDP_VALUE_CAPS *vcaps = &did->hidvcaps[axisnum];
 							int type = did->axistype[axisnum];
+							int logicalrange = (vcaps->LogicalMax - vcaps->LogicalMin) / 2;
+							uae_u32 mask = (1 << vcaps->BitSize) - 1;
 
 							if (type == AXISTYPE_POV_X || type == AXISTYPE_POV_Y) {
 
-								int min = did->axismin[axisnum];
-								range = 127;
-								digitalrange = range * 2 / 3;
-								if (did->axismax[axisnum] - min == 7) {
+								int min = vcaps->LogicalMin;
+								if (vcaps->LogicalMax - min == 7) {
 									if (val == min + 0 && type == AXISTYPE_POV_Y)
 										data = -127;
 									if (val == min + 2 && type == AXISTYPE_POV_X)
@@ -1756,52 +1846,49 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 										data = -127;
 								}
 
-							} else if (type == AXISTYPE_SLIDER || type == AXISTYPE_DIAL) {
-
-								range = (did->axismax[axisnum] - did->axismin[axisnum]) / 2;
-								digitalrange = range * 2 / 3;
-								data = (int)val - range;
-								//write_log (L"%d %d: %d\n", num, axisnum, data);
-								if (istest) {
-									if (data < -digitalrange)
-										data = -range;
-									else if (data > digitalrange)
-										data = range;
-									else
-										data = 0;
-								}
-
 							} else {
 
-								range = (did->axismax[axisnum] - did->axismin[axisnum]) / 2;
-								digitalrange = range * 2 / 3;
-								data = ((int)val) - range; 
-								//write_log (L"%d %d: (%d-%d) %d\n", num, axisnum, did->axismin[axisnum], did->axismax[axisnum], data);
+								int v;
+
+								v = extractbits (val, vcaps->BitSize, vcaps->LogicalMin < 0);
+						
+								if (v < vcaps->LogicalMin)
+									v = vcaps->LogicalMin;
+								else if (v > vcaps->LogicalMax)
+									v = vcaps->LogicalMax;
+
+								v -= logicalrange + vcaps->LogicalMin;
+
+								//if (axisnum == 0)
+								//	write_log (L"%d\n", v);
+
+								data = v;
+
+								digitalrange = logicalrange * 2 / 3;
 								if (istest) {
 									if (data < -digitalrange)
-										data = -range;
+										data = -logicalrange;
 									else if (data > digitalrange)
-										data = range;
+										data = logicalrange;
 									else
 										data = 0;
 									//write_log (L"%d %d: (%d-%d) %d\n", num, axisnum, did->axismin[axisnum], did->axismax[axisnum], data);
 								}
-
 							}
 
-							if (data != axisold[num][axisnum] && range) {
+							if (data != axisold[num][axisnum] && logicalrange) {
 								//write_log (L"%d %d: %d->%d\n", num, axisnum, axisold[num][axisnum], data);
 								axisold[num][axisnum] = data;
 								int bstate = -1;
 								for (j = 0; j < did->buttons; j++) {
 									if (did->buttonaxisparent[j] >= 0 && did->buttonmappings[j] == usage) {
-										if (did->buttonaxisparentdir[j] == 0 && data > digitalrange)
+										if (did->buttonaxisparentdir[j] == 0 && data < -digitalrange)
 											bstate = j;
-										else if (did->buttonaxisparentdir[j] && data < -digitalrange)
+										else if (did->buttonaxisparentdir[j] && data > digitalrange)
 											bstate = j;
 									}
 								}
-								setjoystickstate (num, axisnum, data, range);
+								setjoystickstate (num, axisnum, data, logicalrange);
 								if (bstate >= 0)
 									setjoybuttonstate (num, bstate, -1);
 							}
@@ -2732,6 +2819,8 @@ static uae_u32 kb_do_refresh;
 
 int ispressed (int key)
 {
+	if (key < 0 || key > 255)
+		return 0;
 	int i;
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		if (di_keycodes[i][key])

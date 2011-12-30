@@ -103,6 +103,8 @@
 #define CONFIG_HOST L"Host"
 #define CONFIG_HARDWARE L"Hardware"
 
+#define SOUND_BUFFER_MULTIPLIER 1024
+
 static wstring szNone;
 
 static int allow_quit;
@@ -5651,22 +5653,23 @@ static void values_to_displaydlg (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
 
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)L"-");
-#if 0
+	
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_NONE, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
+	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
+#if 1
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #endif
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
-	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
 		workprefs.gfx_afullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL,
-		workprefs.gfx_avsync, 0);
+		workprefs.gfx_avsync + (workprefs.gfx_avsyncmode || !workprefs.gfx_avsync ? 0 : 2), 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
@@ -5840,7 +5843,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (i > 0) {
 		i--;
 		workprefs.gfx_avsync = (i & 1) + 1;
-		workprefs.gfx_avsyncmode = 1;
+		workprefs.gfx_avsyncmode = (i < 2) ? 1 : 0;
 	}
 
 	workprefs.gfx_pfullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
@@ -8135,7 +8138,7 @@ static void update_soundgui (HWND hDlg)
 	int bufsize;
 	TCHAR txt[20];
 
-	bufsize = exact_log2 (workprefs.sound_maxbsiz / 1024);
+	bufsize = exact_log2 (workprefs.sound_maxbsiz / SOUND_BUFFER_MULTIPLIER) + 1;
 	_stprintf (txt, L"%d", bufsize);
 	SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
@@ -8263,9 +8266,9 @@ static void values_to_sounddlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
 
 	workprefs.sound_maxbsiz = 1 << exact_log2 (workprefs.sound_maxbsiz);
-	if (workprefs.sound_maxbsiz < 2048)
-		workprefs.sound_maxbsiz = 2048;
-	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, exact_log2 (workprefs.sound_maxbsiz / 2048));
+	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
+		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER;
+	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, exact_log2 (workprefs.sound_maxbsiz / SOUND_BUFFER_MULTIPLIER));
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
@@ -8488,7 +8491,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		break;
 
 	case WM_HSCROLL:
-		workprefs.sound_maxbsiz = 2048 << SendMessage (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
+		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER << SendMessage (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
 		workprefs.sound_volume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
 		workprefs.dfxclickvolume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 		update_soundgui (hDlg);

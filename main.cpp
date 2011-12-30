@@ -133,10 +133,10 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	fixup_prefs_dim2 (&prefs->gfx_size_win);
 	if (prefs->gfx_filter == 0 && prefs->gfx_filter_autoscale && !prefs->gfx_api)
 		prefs->gfx_filter = 1;
-	if (prefs->gfx_avsync)
-		prefs->gfx_avsyncmode = 1;
 	if (prefs->gfx_pvsync)
 		prefs->gfx_pvsyncmode = 1;
+	if (prefs->gfx_avsync && !prefs->gfx_avsyncmode && prefs->gfx_backbuffers < 2)
+		prefs->gfx_backbuffers = 2;
 }
 
 void fixup_cpu (struct uae_prefs *p)
@@ -365,6 +365,12 @@ void fixup_prefs (struct uae_prefs *p)
 				p->cs_ramseyrev = 0x0f;
 		}
 	}
+	/* Can't fit genlock and A2024 or Graffiti at the same time,
+	 * also Graffiti uses genlock audio bit as an enable signal
+	 */
+	if (p->genlock && p->monitoremu)
+		p->genlock = false;
+
 	fixup_prefs_dimensions (p);
 
 #if !defined (JIT)

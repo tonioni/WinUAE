@@ -351,12 +351,12 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 			if (SUCCEEDED (ddrval)) {
 				DDSCAPS2 ddscaps;
-				memset (&ddscaps, 0, sizeof (ddscaps));
+				memset (&ddscaps, 0, sizeof ddscaps);
 				ddscaps.dwCaps = DDSCAPS_BACKBUFFER;
 				ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.primary, &ddscaps, &dxdata.flipping[0]);
 				if(SUCCEEDED (ddrval)) {
 					if (desc.dwBackBufferCount > 1) {
-						memset (&ddscaps, 0, sizeof (ddscaps));
+						memset (&ddscaps, 0, sizeof ddscaps);
 						ddscaps.dwCaps = DDSCAPS_FLIP;
 						ddrval = IDirectDrawSurface7_GetAttachedSurface (dxdata.flipping[0], &ddscaps, &dxdata.flipping[1]);
 					}
@@ -1079,22 +1079,32 @@ static void getcaps (void)
 	showcaps (&hc);
 }
 
-static int guidcounter;
 static GUID monitorguids[MAX_DISPLAYS];
 
 static BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPVOID ctx, HMONITOR hm)
 {
-	if (guidcounter >= MAX_DISPLAYS)
-		return FALSE;
+	HMONITOR winmon;
+	POINT pt;
+	int i;
+
 	if (guid == NULL)
 		return TRUE;
-	memcpy (&monitorguids[guidcounter], guid, sizeof GUID);
-	guidcounter++;
+	for (i = 0; Displays[i].monitorname; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
+		pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
+		winmon = MonitorFromPoint (pt, MONITOR_DEFAULTTONEAREST);
+		if (hm == winmon) {
+			memcpy (&monitorguids[i], guid, sizeof GUID);
+			return TRUE;
+		}
+	}
 	return TRUE;
 }
 
 int DirectDraw_Start (void)
 {
+	static bool guidsenumerated;
 	static int first, firstdd;
 	HRESULT ddrval;
 	LPDIRECT3D9 d3d;
@@ -1131,15 +1141,17 @@ int DirectDraw_Start (void)
 		return 1;
 	}
 
-	if (!guidcounter)
+	if (!guidsenumerated) {
+		guidsenumerated = true;
 		DirectDrawEnumerateExA (displaysCallback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
+	}
 
 	guid = NULL;
 	if (isfullscreen () > 0) {
 		int disp = currprefs.gfx_display - 1;
 		if (disp < 0)
 			disp = 0;
-		if (disp >= guidcounter)
+		if (disp >= MAX_DISPLAYS)
 			disp = 0;
 		guid = &monitorguids[disp];
 	}

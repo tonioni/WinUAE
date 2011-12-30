@@ -158,7 +158,7 @@ extern void inputdevice_updateconfig (struct uae_prefs *prefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
-extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans, int **kbmaps);
+extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default **trans, int **kbmaps);
 extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
 extern int inputdevice_synccapslock (int, int*);

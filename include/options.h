@@ -67,6 +67,10 @@ struct jport {
 #define JPORT_AF_TOGGLE 2
 #define JPORT_AF_ALWAYS 3
 
+#define KBTYPE_AMIGA 0
+#define KBTYPE_PC1 1
+#define KBTYPE_PC2 2
+
 #define MAX_SPARE_DRIVES 20
 #define MAX_CUSTOM_MEMORY_ADDRS 2
 
@@ -467,6 +471,7 @@ struct uae_prefs {
 	int input_tablet;
 	bool input_magic_mouse;
 	int input_magic_mouse_cursor;
+	int input_keyboard_type;
 	struct uae_input_device joystick_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device mouse_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];
 	struct uae_input_device keyboard_settings[MAX_INPUT_SETTINGS][MAX_INPUT_DEVICES];

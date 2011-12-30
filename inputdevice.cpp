@@ -158,7 +158,7 @@ int inputdevice_uaelib (const TCHAR *s, const TCHAR *parm)
 static struct uae_input_device *joysticks;
 static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
-static struct uae_input_device_kbr_default *keyboard_default;
+static struct uae_input_device_kbr_default *keyboard_default, **keyboard_default_table;
 
 #define KBR_DEFAULT_MAP_FIRST 0
 #define KBR_DEFAULT_MAP_LAST 5
@@ -520,6 +520,8 @@ static void write_config (struct zfile *f, int idnum, int devnum, TCHAR *name, s
 		write_config2 (f, idnum, i, ID_BUTTON_OFFSET, tmp1, id);
 }
 
+static const TCHAR *kbtypes[] = { L"amiga", L"pc", NULL };
+
 void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 {
 	int i, id;
@@ -533,6 +535,7 @@ void write_inputdevice_config (struct uae_prefs *p, struct zfile *f)
 	cfgfile_write (f, L"input.analog_joystick_offset", L"%d", p->input_analog_joystick_offset);
 	cfgfile_write (f, L"input.mouse_speed", L"%d", p->input_mouse_speed);
 	cfgfile_write (f, L"input.autofire_speed", L"%d", p->input_autofire_linecnt);
+	cfgfile_dwrite_str (f, L"input.keyboard_type", kbtypes[p->input_keyboard_type]);
 	cfgfile_dwrite (f, L"input.contact_bounce", L"%d", p->input_contact_bounce);
 	for (id = 0; id < MAX_INPUT_SETTINGS; id++) {
 		TCHAR tmp[MAX_DPATH];
@@ -662,6 +665,18 @@ static void set_kbr_default (struct uae_prefs *p, int index, int devnum)
 	}
 }
 
+static void inputdevice_default_kb (struct uae_prefs *p)
+{
+	keyboard_default = keyboard_default_table[p->input_keyboard_type];
+	for (int i = 0; i < MAX_INPUT_SETTINGS; i++) {
+		if (i == GAMEPORT_INPUT_SETTINGS) {
+			if (p->jports[0].id != JPORT_CUSTOM || p->jports[1].id != JPORT_CUSTOM) {
+				reset_inputdevice_slot (p, i);
+			}
+		}
+		set_kbr_default (p, i, -1);
+	}
+}
 
 static void clear_id (struct uae_input_device *id)
 {
@@ -784,6 +799,11 @@ void read_inputdevice_config (struct uae_prefs *pr, const TCHAR *option, TCHAR *
 		pr->input_analog_joystick_mult = _tstol (value);
 	if (!strcasecmp (p, L"analog_joystick_offset"))
 		pr->input_analog_joystick_offset = _tstol (value);
+	if (!strcasecmp (p, L"keyboard_type")) {
+		cfgfile_strval (option, value, NULL, &pr->input_analog_joystick_offset, kbtypes, 0);
+		inputdevice_default_kb (pr);
+	}
+
 	if (!strcasecmp (p, L"contact_bounce"))
 		pr->input_contact_bounce = _tstol (value);
 
@@ -4533,6 +4553,8 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 {
 	int i;
 
+	keyboard_default = keyboard_default_table[currprefs.input_keyboard_type];
+
 	copyjport (&changed_prefs, &currprefs, 0);
 	copyjport (&changed_prefs, &currprefs, 1);
 	copyjport (&changed_prefs, &currprefs, 2);
@@ -4637,12 +4659,12 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 	config_changed = 1;
 }
 
+
 // set default prefs to all input configuration settings
 void inputdevice_default_prefs (struct uae_prefs *p)
 {
-	int i;
-
 	inputdevice_init ();
+
 	p->input_selected_setting = GAMEPORT_INPUT_SETTINGS;
 	p->input_joymouse_multiplier = 100;
 	p->input_joymouse_deadzone = 33;
@@ -4652,20 +4674,14 @@ void inputdevice_default_prefs (struct uae_prefs *p)
 	p->input_analog_joystick_offset = -1;
 	p->input_mouse_speed = 100;
 	p->input_autofire_linecnt = 600;
-	for (i = 0; i < MAX_INPUT_SETTINGS; i++) {
-		if (i == GAMEPORT_INPUT_SETTINGS) {
-			if (p->jports[0].id != JPORT_CUSTOM || p->jports[1].id != JPORT_CUSTOM) {
-				reset_inputdevice_slot (p, i);
-			}
-		}
-		set_kbr_default (p, i, -1);
-	}
+	p->input_keyboard_type = 0;
+	inputdevice_default_kb (p);
 }
 
 // set default keyboard and keyboard>joystick layouts
-void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *trans, int **kbmaps)
+void inputdevice_setkeytranslation (struct uae_input_device_kbr_default **trans, int **kbmaps)
 {
-	keyboard_default = trans;
+	keyboard_default_table = trans;
 	keyboard_default_kbmaps = kbmaps;
 }
 
@@ -4774,7 +4790,7 @@ static void sendmmcodes (int code, int newstate)
 	uae_u8 b;
 
 	b = RAW_STEALTH | IECODE_UP_PREFIX;
-	record_key(((b << 1) | (b >> 7)) & 0xff);
+	record_key (((b << 1) | (b >> 7)) & 0xff);
 	b = IECODE_UP_PREFIX;
 	if ((code >> 8) == 0x01)
 		b |= STEALTHF_E0KEY;

@@ -2868,7 +2868,7 @@ static void clearbuffer (struct vidbuffer *dst)
 		return;
 	uae_u8 *p = dst->bufmem_allocated;
 	for (int y = 0; y < dst->height; y++) {
-		memset(p, 0, dst->width * dst->pixbytes);
+		memset (p, 0, dst->width * dst->pixbytes);
 		p += dst->rowbytes;
 	}
 }
