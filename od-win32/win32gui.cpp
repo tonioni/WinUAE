@@ -1797,11 +1797,11 @@ void gui_display (int shortcut)
 	setmouseactive (0);
 
 	w = h = -1;
-	if (!WIN32GFX_IsPicassoScreen () && currprefs.gfx_afullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
+	if (!WIN32GFX_IsPicassoScreen () && currprefs.gfx_apmode[0].gfx_fullscreen && (currprefs.gfx_size.width < gui_width || currprefs.gfx_size.height < gui_height)) {
 		w = currprefs.gfx_size.width;
 		h = currprefs.gfx_size.height;
 	}
-	if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_pfullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
+	if (WIN32GFX_IsPicassoScreen () && currprefs.gfx_apmode[1].gfx_fullscreen && (picasso96_state.Width < gui_width || picasso96_state.Height < gui_height)) {
 		w = currprefs.gfx_size.width;
 		h = currprefs.gfx_size.height;
 	}
@@ -5486,7 +5486,7 @@ static void init_display_mode (HWND hDlg)
 		break;
 	}
 
-	if (workprefs.gfx_afullscreen) {
+	if (workprefs.gfx_apmode[0].gfx_fullscreen) {
 		d2 = d;
 		if ((index = WIN32GFX_AdjustScreenmode (md, &workprefs.gfx_size_fs.width, &workprefs.gfx_size_fs.height, &d2)) >= 0) {
 			switch (d2)
@@ -5653,23 +5653,21 @@ static void values_to_displaydlg (HWND hDlg)
 	WIN32GUI_LoadUIString(IDS_SCREEN_FULLWINDOW, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_ADDSTRING, 0, (LPARAM)buffer);
 
-	
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_NONE, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC2_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-#if 1
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_SCREEN_VSYNC_AUTOSWITCH, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_ADDSTRING, 0, (LPARAM)buffer);
-#endif
+
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_SETCURSEL,
-		workprefs.gfx_afullscreen, 0);
+		workprefs.gfx_apmode[0].gfx_fullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_SETCURSEL,
-		workprefs.gfx_avsync + (workprefs.gfx_avsyncmode || !workprefs.gfx_avsync ? 0 : 2), 0);
+		workprefs.gfx_apmode[0].gfx_vsync + (workprefs.gfx_apmode[0].gfx_vsyncmode || !workprefs.gfx_apmode[0].gfx_vsync ? 0 : 2), 0);
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_RESETCONTENT, 0, 0);
@@ -5695,9 +5693,9 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_ADDSTRING, 0, (LPARAM)buffer);
 #endif
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG, CB_SETCURSEL,
-		workprefs.gfx_pfullscreen, 0);
+		workprefs.gfx_apmode[1].gfx_fullscreen, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_RTG2, CB_SETCURSEL,
-		workprefs.gfx_pvsync, 0);
+		workprefs.gfx_apmode[1].gfx_vsync, 0);
 
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_RES_LORES, buffer, sizeof buffer / sizeof (TCHAR));
@@ -5724,7 +5722,7 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)buffer);
 	WIN32GUI_LoadUIString(IDS_BUFFER_TRIPLE, buffer, sizeof buffer / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)buffer);
-	SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_backbuffers, 0);
+	SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[0].gfx_backbuffers, 0);
 
 	init_da (hDlg);
 }
@@ -5827,33 +5825,33 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	LRESULT posn;
 	TCHAR tmp[200];
 
-	workprefs.gfx_afullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_apmode[0].gfx_fullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
 	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
 	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
 	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
-	workprefs.gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_apmode[0].gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
 
 	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_NATIVE2, CB_GETCURSEL, 0, 0);
-	int oldmode = workprefs.gfx_avsyncmode;
-	workprefs.gfx_avsync = 0;
-	workprefs.gfx_avsyncmode = 0;
+	int oldmode = workprefs.gfx_apmode[0].gfx_vsyncmode;
+	workprefs.gfx_apmode[0].gfx_vsync = 0;
+	workprefs.gfx_apmode[0].gfx_vsyncmode = 0;
 	if (i > 0) {
 		i--;
-		workprefs.gfx_avsync = (i & 1) + 1;
-		workprefs.gfx_avsyncmode = (i < 2) ? 1 : 0;
+		workprefs.gfx_apmode[0].gfx_vsync = (i & 1) + 1;
+		workprefs.gfx_apmode[0].gfx_vsyncmode = (i < 2) ? 1 : 0;
 	}
 
-	workprefs.gfx_pfullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
+	workprefs.gfx_apmode[1].gfx_fullscreen = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG, CB_GETCURSEL, 0, 0);
 	i = SendDlgItemMessage (hDlg, IDC_SCREENMODE_RTG2, CB_GETCURSEL, 0, 0);
-	workprefs.gfx_pvsync = 0;
-	workprefs.gfx_pvsyncmode = 0;
+	workprefs.gfx_apmode[1].gfx_vsync = 0;
+	workprefs.gfx_apmode[1].gfx_vsyncmode = 0;
 	if (i > 0) {
 		i--;
-		workprefs.gfx_pvsync = (i & 1) + 1;
-		workprefs.gfx_pvsyncmode = 1;
+		workprefs.gfx_apmode[1].gfx_vsync = (i & 1) + 1;
+		workprefs.gfx_apmode[1].gfx_vsyncmode = 1;
 	}
 	
 	bool updaterate = false, updateslider = false;

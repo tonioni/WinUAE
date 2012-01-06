@@ -319,7 +319,6 @@ static int CIA_update_check (void)
 		ciaaicr |= 8; icr = 1;
 	}
 	if (bovfla) {
-		//write_log (L"INT %x\n", M68K_GETPC);
 		ciabicr |= 1; icr |= 2;
 		ciabta = ciabla;
 		if (ciabcra & 0x8) {
@@ -1365,7 +1364,7 @@ void dumpcia (void)
 	console_out_f (L"TOD %06x (%06x) ALARM %06x %c%c CYC=%08X\n",
 		ciaatod, ciaatol, ciaaalarm, ciaatlatch ? 'L' : ' ', ciaatodon ? ' ' : 'S', get_cycles ());
 	console_out_f (L"B: CRA %02x CRB %02x ICR %02x IM %02x TA %04x (%04x) TB %04x (%04x)\n",
-		ciabcra, ciabcrb, ciaaicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
+		ciabcra, ciabcrb, ciabicr, ciabimask, ciabta, ciabla, ciabtb, ciablb);
 	console_out_f (L"TOD %06x (%06x) ALARM %06x %c%c CLK=%d\n",
 		ciabtod, ciabtol, ciabalarm, ciabtlatch ? 'L' : ' ', ciabtodon ? ' ' : 'S', div10 / CYCLE_UNIT);
 }

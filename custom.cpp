@@ -70,8 +70,8 @@
 STATIC_INLINE bool nocustom (void)
 {
 	if (picasso_on && currprefs.picasso96_nocustom)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 void uae_abort (const TCHAR *format,...)
@@ -2883,7 +2883,7 @@ void init_hz (bool fullinit)
 				if (!picasso_on) {
 					if (isvsync_chipset ()) {
 						if (i == CHIPSET_REFRESH_PAL || i == CHIPSET_REFRESH_NTSC) {
-							if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_avsync == 2 && currprefs.gfx_afullscreen > 0) {
+							if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
 								vsync_switchmode (vblank_hz > 55 ? 60 : 50);
 							}
 						}
@@ -3574,7 +3574,8 @@ void INTREQ_nodelay (uae_u16 v)
 void INTREQ_f (uae_u16 v)
 {
 	if (use_eventmode (v)) {
-		send_intreq_do (v);
+		setclr (&intreq, v);
+		send_intreq_do (intreq);
 	} else {
 		setclr (&intreq, v);
 		setclr (&intreq_internal, v);
@@ -3589,15 +3590,18 @@ void INTREQ_0 (uae_u16 v)
 #endif
 
 	uae_u16 old = intreq;
+	uae_u16 mask = v & 0x7fff;
 	setclr (&intreq, v);
 
-	if (!(v & 0x8000) && old == intreq)
-		return;
-
 	if (use_eventmode (v)) {
+		// don't bother to waste time for interrupt queuing if nothing changes
+		if (old == intreq && intreq_internal == intreq)
+			return;
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY, intreq, send_intreq_do);
 	} else {
 		intreq_internal = intreq;
+		if (intreq == old)
+			return;
 		if (v & 0x8000)
 			doint ();
 	}

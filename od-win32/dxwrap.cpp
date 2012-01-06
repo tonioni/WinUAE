@@ -32,7 +32,7 @@ HRESULT DirectDraw_GetDisplayMode (void)
 
 static LPDIRECTDRAWSURFACE7 getlocksurface (void)
 {
-	if (dxdata.backbuffers > 0 && currprefs.gfx_afullscreen > 0 && !WIN32GFX_IsPicassoScreen ())
+	if (dxdata.backbuffers > 0 && currprefs.gfx_apmode[0].gfx_fullscreen > 0 && !WIN32GFX_IsPicassoScreen ())
 		return dxdata.flipping[0];
 	return dxdata.secondary;
 }
@@ -334,7 +334,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	HRESULT ddrval;
 	DDSURFACEDESC2 desc = { 0 };
 	LPDIRECTDRAWSURFACE7 surf;
-	int bb = WIN32GFX_IsPicassoScreen () ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
+	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	width = (width + 7) & ~7;
 	desc.dwSize = sizeof (desc);
@@ -346,7 +346,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		DWORD oldflags = desc.dwFlags;
 		desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
 		desc.ddsCaps.dwCaps |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-		desc.dwBackBufferCount = bb == 0 ? 1 : bb;
+		desc.dwBackBufferCount = ap->gfx_backbuffers == 0 ? 1 : ap->gfx_backbuffers;
 		if (desc.dwBackBufferCount > 0) {
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 			if (SUCCEEDED (ddrval)) {
@@ -907,9 +907,9 @@ static void flip (void)
 	HRESULT ddrval = DD_OK;
 	DWORD flags = DDFLIP_DONOTWAIT;
 	int vsync = isvsync ();
-	int bb = WIN32GFX_IsPicassoScreen () ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
+	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
-	if (currprefs.turbo_emulation || (vsync && bb == 0))
+	if (currprefs.turbo_emulation || !ap->gfx_vflip)
 		flags |= DDFLIP_NOVSYNC;
 	if (dxdata.backbuffers == 2) {
 		DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);

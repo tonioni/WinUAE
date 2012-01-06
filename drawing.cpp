@@ -2310,9 +2310,9 @@ static void init_drawing_frame (void)
 			frame_res_cnt--;
 			if (frame_res_cnt == 0) {
 				int m = frame_res * 2 + frame_res_lace;
-				struct wh *dst = currprefs.gfx_afullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
+				struct wh *dst = currprefs.gfx_apmode[0].gfx_fullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
 				while (m < 6) {
-					struct wh *src = currprefs.gfx_afullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
+					struct wh *src = currprefs.gfx_apmode[0].gfx_fullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
 					if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
 						int nr = m >> 1;
 						int nl = (m & 1) == 0 ? 0 : 1;
@@ -2928,18 +2928,18 @@ void drawing_init (void)
 
 int isvsync_chipset (void)
 {
-	if (picasso_on || !currprefs.gfx_avsync || (currprefs.gfx_avsync == 0 && !currprefs.gfx_afullscreen))
+	if (picasso_on || !currprefs.gfx_apmode[0].gfx_vsync || (currprefs.gfx_apmode[0].gfx_vsync == 0 && !currprefs.gfx_apmode[0].gfx_fullscreen))
 		return 0;
-	if (currprefs.gfx_avsyncmode == 0)
+	if (currprefs.gfx_apmode[0].gfx_vsyncmode == 0)
 		return 1;
 	return currprefs.m68k_speed < 0 ? -2 : -1;
 }
 
 int isvsync_rtg (void)
 {
-	if (!picasso_on || !currprefs.gfx_pvsync || (currprefs.gfx_pvsync == 0 && !currprefs.gfx_pfullscreen))
+	if (!picasso_on || !currprefs.gfx_apmode[1].gfx_vsync || (currprefs.gfx_apmode[1].gfx_vsync == 0 && !currprefs.gfx_apmode[1].gfx_fullscreen))
 		return 0;
-	if (currprefs.gfx_pvsyncmode == 0)
+	if (currprefs.gfx_apmode[1].gfx_vsyncmode == 0)
 		return 1;
 	return currprefs.m68k_speed < 0 ? -2 : -1;
 }

@@ -135,11 +135,11 @@ int vsync_busy_wait_mode;
 
 static void vsync_sleep (bool preferbusy)
 {
-	int bb = picasso_on ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	bool dowait;
 
 	if (vsync_busy_wait_mode == 0) {
-		dowait = bb || !preferbusy;
+		dowait = ap->gfx_backbuffers || !preferbusy;
 	} else if (vsync_busy_wait_mode < 0) {
 		dowait = true;
 	} else {
@@ -196,10 +196,8 @@ static void clearscreen (void)
 
 static int isfullscreen_2 (struct uae_prefs *p)
 {
-	if (screen_is_picasso)
-		return p->gfx_pfullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_pfullscreen == GFX_FULLWINDOW ? -1 : 0);
-	else
-		return p->gfx_afullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_afullscreen == GFX_FULLWINDOW ? -1 : 0);
+	int idx = screen_is_picasso ? 1 : 0;
+	return p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLWINDOW ? -1 : 0);
 }
 int isfullscreen (void)
 {
@@ -848,8 +846,8 @@ bool render_screen (void)
 
 bool show_screen_maybe (void)
 {
-	int bb = picasso_on ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
-	if (!bb)
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	if (!ap->gfx_backbuffers)
 		return false;
 	SetEvent (flipevent);
 	return true;
@@ -1101,7 +1099,7 @@ void gfx_unlock_picasso (void)
 		D3D_unlocktexture ();
 		if (D3D_renderframe ()) {
 			render_ok = true;
-			if (currprefs.gfx_rtg_backbuffers == 0 || isvsync_rtg () >= 0)
+			if (currprefs.gfx_apmode[1].gfx_backbuffers == 0 || isvsync_rtg () >= 0)
 				show_screen ();
 			else
 				SetEvent (flipevent);
@@ -1201,15 +1199,15 @@ static void update_gfxparams (void)
 		currentmode->current_width = picasso96_state.Width;
 		currentmode->current_height = picasso96_state.Height;
 		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
-		if (currprefs.gfx_pvsync)
-			currentmode->vsync = 1 + currprefs.gfx_pvsyncmode;
+		if (currprefs.gfx_apmode[1].gfx_vsync)
+			currentmode->vsync = 1 + currprefs.gfx_apmode[1].gfx_vsyncmode;
 	} else {
 #endif
 		currentmode->current_width = currprefs.gfx_size.width;
 		currentmode->current_height = currprefs.gfx_size.height;
 		currentmode->frequency = abs (currprefs.gfx_refreshrate);
-		if (currprefs.gfx_avsync)
-			currentmode->vsync = 1 + currprefs.gfx_avsyncmode;
+		if (currprefs.gfx_apmode[0].gfx_vsync)
+			currentmode->vsync = 1 + currprefs.gfx_apmode[0].gfx_vsyncmode;
 #ifdef PICASSO96
 	}
 #endif
@@ -1331,12 +1329,12 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_size_win.y != changed_prefs.gfx_size_win.y ? 16 : 0;
 #endif
 	c |= currprefs.color_mode != changed_prefs.color_mode ? 2 | 16 : 0;
-	c |= currprefs.gfx_afullscreen != changed_prefs.gfx_afullscreen ? 16 : 0;
-	c |= currprefs.gfx_pfullscreen != changed_prefs.gfx_pfullscreen ? 16 : 0;
-	c |= currprefs.gfx_avsync != changed_prefs.gfx_avsync ? 2 | 16 : 0;
-	c |= currprefs.gfx_pvsync != changed_prefs.gfx_pvsync ? 2 | 16 : 0;
-	c |= currprefs.gfx_avsyncmode != changed_prefs.gfx_avsyncmode ? 2 | 16 : 0;
-	c |= currprefs.gfx_pvsyncmode != changed_prefs.gfx_pvsyncmode ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[0].gfx_fullscreen != changed_prefs.gfx_apmode[0].gfx_fullscreen ? 16 : 0;
+	c |= currprefs.gfx_apmode[1].gfx_fullscreen != changed_prefs.gfx_apmode[1].gfx_fullscreen ? 16 : 0;
+	c |= currprefs.gfx_apmode[0].gfx_vsync != changed_prefs.gfx_apmode[0].gfx_vsync ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[1].gfx_vsync != changed_prefs.gfx_apmode[1].gfx_vsync ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[0].gfx_vsyncmode != changed_prefs.gfx_apmode[0].gfx_vsyncmode ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[1].gfx_vsyncmode != changed_prefs.gfx_apmode[1].gfx_vsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 2 | 16 : 0;
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
@@ -1371,8 +1369,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
 	c |= _tcscmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
-	c |= currprefs.gfx_backbuffers != changed_prefs.gfx_backbuffers ? (2 | 8) : 0;
-	c |= currprefs.gfx_rtg_backbuffers != changed_prefs.gfx_rtg_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[0].gfx_backbuffers != changed_prefs.gfx_apmode[0].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[1].gfx_backbuffers != changed_prefs.gfx_apmode[1].gfx_backbuffers ? (2 | 8) : 0;
 
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
@@ -1387,15 +1385,15 @@ int check_prefs_changed_gfx (void)
 	if (display_change_requested || c)
 	{
 		int keepfsmode = 
-			currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen && 
-			currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen;
+			currprefs.gfx_apmode[0].gfx_fullscreen == changed_prefs.gfx_apmode[0].gfx_fullscreen && 
+			currprefs.gfx_apmode[1].gfx_fullscreen == changed_prefs.gfx_apmode[1].gfx_fullscreen;
 		cfgfile_configuration_change (1);
 
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 		currprefs.color_mode = changed_prefs.color_mode;
 		currprefs.gfx_api = changed_prefs.gfx_api;
 
-		if (changed_prefs.gfx_afullscreen == GFX_FULLSCREEN) { 
+		if (changed_prefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN) { 
 			if (currprefs.gfx_api != changed_prefs.gfx_api)
 				display_change_requested = 1;
 		}
@@ -1437,8 +1435,8 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_display = changed_prefs.gfx_display;
 		_tcscpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
-		currprefs.gfx_backbuffers = changed_prefs.gfx_backbuffers;
-		currprefs.gfx_rtg_backbuffers = changed_prefs.gfx_rtg_backbuffers;
+		currprefs.gfx_apmode[0].gfx_backbuffers = changed_prefs.gfx_apmode[0].gfx_backbuffers;
+		currprefs.gfx_apmode[1].gfx_backbuffers = changed_prefs.gfx_apmode[1].gfx_backbuffers;
 
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
@@ -1731,31 +1729,30 @@ static void open_screen (void)
 
 static int ifs (struct uae_prefs *p)
 {
-	if (screen_is_picasso)
-		return p->gfx_pfullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_pfullscreen == GFX_FULLWINDOW ? -1 : 0);
-	else
-		return p->gfx_afullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_afullscreen == GFX_FULLWINDOW ? -1 : 0);
+	int idx = screen_is_picasso ? 1 : 0;
+	return p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLWINDOW ? -1 : 0);
 }
 
 static int reopen (int full)
 {
 	int quick = 0;
+	int idx = screen_is_picasso ? 1 : 0;
 
 	updatewinfsmode (&changed_prefs);
 
-	if (changed_prefs.gfx_afullscreen != currprefs.gfx_afullscreen && !screen_is_picasso)
+	if (changed_prefs.gfx_apmode[0].gfx_fullscreen != currprefs.gfx_apmode[0].gfx_fullscreen && !screen_is_picasso)
 		full = 1;
-	if (changed_prefs.gfx_pfullscreen != currprefs.gfx_pfullscreen && screen_is_picasso)
+	if (changed_prefs.gfx_apmode[1].gfx_fullscreen != currprefs.gfx_apmode[1].gfx_fullscreen && screen_is_picasso)
 		full = 1;
 
 	/* fullscreen to fullscreen? */
-	if (isfullscreen () > 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen &&
-		currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen && currprefs.gfx_afullscreen == GFX_FULLSCREEN) {
+	if (isfullscreen () > 0 && currprefs.gfx_apmode[0].gfx_fullscreen == changed_prefs.gfx_apmode[0].gfx_fullscreen &&
+		currprefs.gfx_apmode[1].gfx_fullscreen == changed_prefs.gfx_apmode[1].gfx_fullscreen && currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN) {
 			quick = 1;
 	}
 	/* windowed to windowed */
-	if (isfullscreen () <= 0 && currprefs.gfx_afullscreen == changed_prefs.gfx_afullscreen &&
-		currprefs.gfx_pfullscreen == changed_prefs.gfx_pfullscreen) {
+	if (isfullscreen () <= 0 && currprefs.gfx_apmode[0].gfx_fullscreen == changed_prefs.gfx_apmode[0].gfx_fullscreen &&
+		currprefs.gfx_apmode[1].gfx_fullscreen == changed_prefs.gfx_apmode[1].gfx_fullscreen) {
 			quick = 1;
 	}
 
@@ -1765,12 +1762,12 @@ static int reopen (int full)
 	currprefs.gfx_size_win.height = changed_prefs.gfx_size_win.height;
 	currprefs.gfx_size_win.x = changed_prefs.gfx_size_win.x;
 	currprefs.gfx_size_win.y = changed_prefs.gfx_size_win.y;
-	currprefs.gfx_afullscreen = changed_prefs.gfx_afullscreen;
-	currprefs.gfx_pfullscreen = changed_prefs.gfx_pfullscreen;
-	currprefs.gfx_avsync = changed_prefs.gfx_avsync;
-	currprefs.gfx_pvsync = changed_prefs.gfx_pvsync;
-	currprefs.gfx_avsyncmode = changed_prefs.gfx_avsyncmode;
-	currprefs.gfx_pvsyncmode = changed_prefs.gfx_pvsyncmode;
+	currprefs.gfx_apmode[0].gfx_fullscreen = changed_prefs.gfx_apmode[0].gfx_fullscreen;
+	currprefs.gfx_apmode[1].gfx_fullscreen = changed_prefs.gfx_apmode[1].gfx_fullscreen;
+	currprefs.gfx_apmode[0].gfx_vsync = changed_prefs.gfx_apmode[0].gfx_vsync;
+	currprefs.gfx_apmode[1].gfx_vsync = changed_prefs.gfx_apmode[1].gfx_vsync;
+	currprefs.gfx_apmode[0].gfx_vsyncmode = changed_prefs.gfx_apmode[0].gfx_vsyncmode;
+	currprefs.gfx_apmode[1].gfx_vsyncmode = changed_prefs.gfx_apmode[1].gfx_vsyncmode;
 	currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
 	config_changed = 1;
 
@@ -1819,8 +1816,8 @@ bool vsync_switchmode (int hz)
 	oldmode = found;
 	oldhz = hz;
 	if (!found) {
-		changed_prefs.gfx_avsync = 0;
-		if (currprefs.gfx_avsync != changed_prefs.gfx_avsync) {
+		changed_prefs.gfx_apmode[0].gfx_vsync = 0;
+		if (currprefs.gfx_apmode[0].gfx_vsync != changed_prefs.gfx_apmode[0].gfx_vsync) {
 			config_changed = 1;
 		}
 		write_log (L"refresh rate changed to %d but no matching screenmode found, vsync disabled\n", hz);
@@ -1902,7 +1899,7 @@ void gfx_set_picasso_state (int on)
 	updatemodes ();
 	update_gfxparams ();
 	clearscreen ();
-	if (currprefs.gfx_afullscreen != currprefs.gfx_pfullscreen || (currprefs.gfx_afullscreen == GFX_FULLSCREEN && currprefs.gfx_api)) {
+	if (currprefs.gfx_apmode[0].gfx_fullscreen != currprefs.gfx_apmode[1].gfx_fullscreen || (currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN && currprefs.gfx_api)) {
 		mode = 1;
 	} else {
 		mode = modeswitchneeded (&wc);
@@ -2358,7 +2355,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 						vblank_found = true;
 						if (isvsync_chipset () < 0) {
 							vblank_found_chipset = true;
-							if (!currprefs.gfx_backbuffers)
+							if (!currprefs.gfx_apmode[0].gfx_backbuffers)
 								show_screen ();
 						} else if (isvsync_rtg () < 0) {
 							vblank_found_rtg = true;
@@ -2373,7 +2370,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			}
 			if (t - vblank_prev_time > vblankbasefull * 3)
 				vblankthread_mode = VBLANKTH_IDLE;
-			if (!donotwait || currprefs.gfx_backbuffers || picasso_on)
+			if (!donotwait || currprefs.gfx_apmode[0].gfx_backbuffers || picasso_on)
 				sleep_millis (1);
 		} else {
 			break;
@@ -2511,6 +2508,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	int width, height, depth, rate, mode;
 	struct remembered_vsync *rv;
 	double rval = -1;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	if (picasso_on) {
 		width = picasso96_state.Width;
@@ -2638,7 +2636,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	return tsum;
 fail:
 	write_log (L"VSync calibration failed\n");
-	changed_prefs.gfx_avsync = 0;
+	ap->gfx_vsync = 0;
 	return -1;
 }
 
@@ -2944,9 +2942,9 @@ static BOOL doInit (void)
 
 	remembered_vblank = -1;
 	if (wasfullwindow_a == 0)
-		wasfullwindow_a = currprefs.gfx_afullscreen == GFX_FULLWINDOW ? 1 : -1;
+		wasfullwindow_a = currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
 	if (wasfullwindow_p == 0)
-		wasfullwindow_p = currprefs.gfx_pfullscreen == GFX_FULLWINDOW ? 1 : -1;
+		wasfullwindow_p = currprefs.gfx_apmode[1].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
 	gfxmode_reset ();
 
 	for (;;) {
@@ -2983,9 +2981,9 @@ static BOOL doInit (void)
 			gui_message (tmpstr);
 			DirectDraw_Start ();
 			if (screen_is_picasso)
-				changed_prefs.gfx_pfullscreen = currprefs.gfx_pfullscreen = GFX_FULLSCREEN;
+				changed_prefs.gfx_apmode[1].gfx_fullscreen = currprefs.gfx_apmode[1].gfx_fullscreen = GFX_FULLSCREEN;
 			else
-				changed_prefs.gfx_afullscreen = currprefs.gfx_afullscreen = GFX_FULLSCREEN;
+				changed_prefs.gfx_apmode[0].gfx_fullscreen = currprefs.gfx_apmode[0].gfx_fullscreen = GFX_FULLSCREEN;
 			updatewinfsmode (&currprefs);
 			updatewinfsmode (&changed_prefs);
 			currentmode->current_depth = tmp_depth;
@@ -3185,7 +3183,7 @@ void updatewinfsmode (struct uae_prefs *p)
 
 void toggle_fullscreen (int mode)
 {
-	int *p = picasso_on ? &changed_prefs.gfx_pfullscreen : &changed_prefs.gfx_afullscreen;
+	int *p = picasso_on ? &changed_prefs.gfx_apmode[1].gfx_fullscreen : &changed_prefs.gfx_apmode[0].gfx_fullscreen;
 	int wfw = picasso_on ? wasfullwindow_p : wasfullwindow_a;
 	int v = *p;
 

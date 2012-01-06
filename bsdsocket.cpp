@@ -1183,7 +1183,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 {
 	struct socketbase *sb = get_socketbase (context);
 	uae_u32 tagptr = m68k_areg (regs, 0);
-	uae_u32 tagsprocessed = 1;
+	uae_u32 tagsprocessed = 0;
 	uae_u32 currtag;
 	uae_u32 currval;
 
@@ -1194,39 +1194,52 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 		currval = get_long (tagptr + 4);
 		tagsprocessed++;
 
-		switch (currtag) {
-		case TAG_DONE:
-			BSDTRACE ((L"TAG_DONE"));
-			tagsprocessed = 0;
-			goto done;
-		case TAG_IGNORE:
-			BSDTRACE ((L"TAG_IGNORE"));
-			break;
-		case TAG_MORE:
-			BSDTRACE ((L"TAG_MORE(0x%lx)", currval));
-			tagptr = currval;
-			break;
-		case TAG_SKIP:
-			BSDTRACE ((L"TAG_SKIP(%d)", currval));
-			tagptr += currval * 8;
-			break;
+		if (!(currtag & TAG_USER)) {
 
-		default:
-			if (currtag & TAG_USER) {
-				BSDTRACE ((L"SBTM_"));
-				BSDTRACE ((currtag & 0x0001 ? L"SET" : L"GET"));
-				BSDTRACE ((currtag & 0x8000 ? L"REF(" : L"VAL("));
+			switch (currtag)
+			{
+				case TAG_DONE:
+					BSDTRACE ((L"TAG_DONE"));
+					tagsprocessed = 0;
+					goto done;
+				case TAG_IGNORE:
+					BSDTRACE ((L"TAG_IGNORE"));
+					break;
+				case TAG_MORE:
+					BSDTRACE ((L"TAG_MORE(0x%lx)", currval));
+					tagptr = currval;
+					break;
+				case TAG_SKIP:
+					BSDTRACE ((L"TAG_SKIP(%d)", currval));
+					tagptr += currval * 8;
+					break;
+				default:
+					write_log (L"bsdsocket: WARNING: Unsupported tag type (%08x) in SocketBaseTagList(%x)\n",
+						currtag, m68k_areg (regs, 0));
+					goto done;
+			}
 
-				switch ((currtag >> 1) & SBTS_CODE) {
+		} else {
+
+			BSDTRACE ((L"SBTM_"));
+			BSDTRACE ((currtag & 0x0001 ? L"SET" : L"GET"));
+			BSDTRACE ((currtag & 0x8000 ? L"REF(" : L"VAL("));
+
+			switch ((currtag >> 1) & SBTS_CODE)
+			{
 				case SBTC_BREAKMASK:
 					BSDTRACE ((L"SBTC_BREAKMASK),0x%lx", currval));
 					tagcopy (currtag, currval, tagptr, &sb->eintrsigs);
 					break;
-				case SBTC_SIGEVENTMASK:
+				case SBTC_SIGIOMASK:
 					BSDTRACE ((L"SBTC_SIGEVENTMASK),0x%lx", currval));
 					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
 					break;
-				case SBTC_SIGIOMASK:
+				case SBTC_SIGURGMASK:
+					BSDTRACE ((L"SBTC_SIGURGMASK),0x%lx", currval));
+					//tagcopy (currtag, currval, tagptr, &sb->eventsigs);
+					break;
+				case SBTC_SIGEVENTMASK:
 					BSDTRACE ((L"SBTC_SIGEVENTMASK),0x%lx", currval));
 					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
 					break;
@@ -1246,9 +1259,22 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						put_long (tagptr + 4, sb->dtablesize);
 					}
 					break;
+#if 0
+				case SBTC_FDCALLBACK:
+					break;
+				case SBTC_LOGSTAT:
+					break;
+				case SBTC_LOGTAGPTR:
+					break;
+				case SBTC_LOGFACILITY:
+					break;
+				case SBTC_LOGMASK:
+					break;
+#endif
 				case SBTC_ERRNOSTRPTR:
 					if (currtag & 1) {
 						BSDTRACE ((L"ERRNOSTRPTR),invalid"));
+						goto done;
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
@@ -1267,6 +1293,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 				case SBTC_HERRNOSTRPTR:
 					if (currtag & 1) {
 						BSDTRACE ((L"HERRNOSTRPTR),invalid"));
+						goto done;
 					} else {
 						unsigned long ulTmp;
 						if (currtag & 0x8000) { /* SBTM_GETREF */
@@ -1282,6 +1309,14 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						}
 					}
 					break;
+#if 0
+				case SBTC_IOERRNOSTRPTR:
+					break;
+				case SBTC_S2ERRNOSTRPTR:
+					break;
+				case SBTC_S2WERRNOSTRPTR:
+					break;
+#endif
 				case SBTC_ERRNOBYTEPTR:
 					BSDTRACE ((L"SBTC_ERRNOBYTEPTR),0x%lx", currval));
 					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
@@ -1305,16 +1340,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 				default:
 					write_log (L"bsdsocket: WARNING: Unsupported tag type (%08x) in SocketBaseTagList(%x)\n",
 						currtag, m68k_areg (regs, 0));
-					break;
-				}
-			} else {
-				BSDTRACE ((L"TAG_UNKNOWN(0x%x)", currtag));
-				/* Aminetradio uses 0x00004e55 as an ending tag */
-				if ((currtag & 0xffff8000) == 0) {
-					write_log (L"bsdsocket: WARNING: Corrupted SocketBaseTagList(%x) tag detected (%08x)\n",
-						m68k_areg (regs, 0), currtag);
 					goto done;
-				}
 			}
 		}
 

@@ -339,7 +339,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	if (WIN32GFX_IsPicassoScreen ()) {
 
-		full = p->gfx_pfullscreen;
+		full = p->gfx_apmode[1].gfx_fullscreen;
 		sm->lClipTop = -1;
 		sm->lClipLeft = -1;
 		sm->lClipWidth = -1;//picasso96_state.Width;
@@ -347,7 +347,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	} else {
 
-		full = p->gfx_afullscreen;
+		full = p->gfx_apmode[0].gfx_fullscreen;
 
 		totalhdbl = hres;
 		if (hres > max_horiz_dbl)
@@ -505,8 +505,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 	}
 
-	p->gfx_pfullscreen = fs;
-	p->gfx_afullscreen = fs;
+	p->gfx_apmode[1].gfx_fullscreen = fs;
+	p->gfx_apmode[0].gfx_fullscreen = fs;
 	p->win32_rtgscaleifsmall = fs == 2;
 	p->gfx_xcenter_pos = sm->lClipLeft;
 	p->gfx_ycenter_pos = sm->lClipTop;

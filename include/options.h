@@ -165,6 +165,15 @@ struct chipset_refresh
 	TCHAR commands[256];
 };
 
+struct apmode
+{
+	int gfx_fullscreen;
+	int gfx_vsync;
+	bool gfx_vflip;
+	int gfx_vsyncmode;
+	int gfx_backbuffers;
+};
+
 struct uae_prefs {
 
 	struct strlist *all_lines;
@@ -243,21 +252,17 @@ struct uae_prefs {
 	int gfx_autoresolution_minv, gfx_autoresolution_minh;
 	bool gfx_scandoubler;
 	int gfx_refreshrate;
-	int gfx_avsync, gfx_pvsync;
-	int gfx_avsyncmode, gfx_pvsyncmode;
+	struct apmode gfx_apmode[2];
 	int gfx_resolution;
 	int gfx_vresolution;
 	int gfx_lores_mode;
 	int gfx_scanlines;
-	int gfx_afullscreen, gfx_pfullscreen;
 	int gfx_xcenter, gfx_ycenter;
 	int gfx_xcenter_pos, gfx_ycenter_pos;
 	int gfx_xcenter_size, gfx_ycenter_size;
 	int gfx_max_horizontal, gfx_max_vertical;
 	int gfx_saturation, gfx_luminance, gfx_contrast, gfx_gamma;
 	bool gfx_blackerthanblack;
-	int gfx_backbuffers;
-	int gfx_rtg_backbuffers;
 	int gfx_api;
 	int color_mode;
 

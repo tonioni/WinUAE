@@ -96,10 +96,8 @@ STATIC_INLINE void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func
 		for (;;) {
 			if (!eventtab2[no].active)
 				break;
-			if (eventtab2[no].evtime == et && eventtab2[no].handler == func) {
-				eventtab2[no].handler (eventtab2[no].data);
+			if (eventtab2[no].evtime == et && eventtab2[no].handler == func && eventtab2[no].data == data)
 				break;
-			}
 			no++;
 			if (no == ev2_max)
 				no = ev2_misc;

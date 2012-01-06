@@ -1897,7 +1897,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
-	int bb = picasso_on ? currprefs.gfx_rtg_backbuffers : currprefs.gfx_backbuffers;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -1967,12 +1967,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;
 	dpp.BackBufferFormat = mode.Format;
-	dpp.BackBufferCount = bb;
+	dpp.BackBufferCount = ap->gfx_backbuffers;
 	dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 	dpp.BackBufferWidth = w_w;
 	dpp.BackBufferHeight = w_h;
-	dpp.PresentationInterval = dpp.BackBufferCount == 0 ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
+	dpp.PresentationInterval = !ap->gfx_vflip ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;
 
 	modeex.Width = w_w;
 	modeex.Height = w_h;
@@ -2082,7 +2082,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		dpp.Windowed ? L"" : L" FS",
 		vsync, dpp.BackBufferCount,
 		dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
-		bb == 0 ? L"E" : L"", 
+		ap->gfx_backbuffers == 0 ? L"E" : L"", 
 		t_depth, adapter
 	);
 
@@ -2150,13 +2150,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3d_enabled = 1;
 	wasstilldrawing_broken = true;
 
-	if (vsync < 0 && bb == 0) {
+	if (vsync < 0 && ap->gfx_backbuffers == 0) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && bb == 0 ? 1 : 0);
+		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_backbuffers == 0 ? 1 : 0);
 		if (FAILED (hr))
 			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}

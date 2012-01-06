@@ -810,19 +810,19 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, L"gfx_autoresolution_min_vertical", vertmode[p->gfx_autoresolution_minv + 1]);
 	cfgfile_dwrite (f, L"gfx_autoresolution_min_horizontal", horizmode[p->gfx_autoresolution_minh + 1]);
 
-	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_backbuffers);
-	cfgfile_write (f, L"gfx_backbuffers_rtg", L"%d", p->gfx_rtg_backbuffers);
-	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_avsync]);
-	cfgfile_write_str (f, L"gfx_vsyncmode", vsyncmodes2[p->gfx_avsyncmode]);
-	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_pvsync]);
-	cfgfile_write_str (f, L"gfx_vsyncmode_picasso", vsyncmodes2[p->gfx_pvsyncmode]);
+	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_apmode[0].gfx_backbuffers);
+	cfgfile_write (f, L"gfx_backbuffers_rtg", L"%d", p->gfx_apmode[1].gfx_backbuffers);
+	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_apmode[0].gfx_vsync]);
+	cfgfile_write_str (f, L"gfx_vsyncmode", vsyncmodes2[p->gfx_apmode[0].gfx_vsyncmode]);
+	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_apmode[1].gfx_vsync]);
+	cfgfile_write_str (f, L"gfx_vsyncmode_picasso", vsyncmodes2[p->gfx_apmode[1].gfx_vsyncmode]);
 	cfgfile_write_bool (f, L"gfx_lores", p->gfx_resolution == 0);
 	cfgfile_write_str (f, L"gfx_resolution", lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, L"gfx_lores_mode", loresmode[p->gfx_lores_mode]);
 	cfgfile_write_bool (f, L"gfx_flickerfixer", p->gfx_scandoubler);
 	cfgfile_write_str (f, L"gfx_linemode", linemode[p->gfx_vresolution * 2 + p->gfx_scanlines]);
-	cfgfile_write_str (f, L"gfx_fullscreen_amiga", fullmodes[p->gfx_afullscreen]);
-	cfgfile_write_str (f, L"gfx_fullscreen_picasso", fullmodes[p->gfx_pfullscreen]);
+	cfgfile_write_str (f, L"gfx_fullscreen_amiga", fullmodes[p->gfx_apmode[0].gfx_fullscreen]);
+	cfgfile_write_str (f, L"gfx_fullscreen_picasso", fullmodes[p->gfx_apmode[1].gfx_fullscreen]);
 	cfgfile_write_str (f, L"gfx_center_horizontal", centermode1[p->gfx_xcenter]);
 	cfgfile_write_str (f, L"gfx_center_vertical", centermode1[p->gfx_ycenter]);
 	cfgfile_write_str (f, L"gfx_colour_mode", colormode1[p->color_mode]);
@@ -1476,8 +1476,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
 		|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, L"gfx_autoresolution", &p->gfx_autoresolution)
-		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_backbuffers, 1)
-		|| cfgfile_intval (option, value, L"gfx_backbuffers_rtg", &p->gfx_rtg_backbuffers, 1)
+		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_apmode[0].gfx_backbuffers, 1)
+		|| cfgfile_intval (option, value, L"gfx_backbuffers_rtg", &p->gfx_apmode[1].gfx_backbuffers, 1)
 		
 		|| cfgfile_intval (option, value, L"gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
 		|| cfgfile_intval (option, value, L"gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
@@ -1553,8 +1553,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, L"gfx_resolution", &p->gfx_resolution, lorestype1, 0)
 		|| cfgfile_strval (option, value, L"gfx_lores", &p->gfx_resolution, lorestype2, 0)
 		|| cfgfile_strval (option, value, L"gfx_lores_mode", &p->gfx_lores_mode, loresmode, 0)
-		|| cfgfile_strval (option, value, L"gfx_fullscreen_amiga", &p->gfx_afullscreen, fullmodes, 0)
-		|| cfgfile_strval (option, value, L"gfx_fullscreen_picasso", &p->gfx_pfullscreen, fullmodes, 0)
+		|| cfgfile_strval (option, value, L"gfx_fullscreen_amiga", &p->gfx_apmode[0].gfx_fullscreen, fullmodes, 0)
+		|| cfgfile_strval (option, value, L"gfx_fullscreen_picasso", &p->gfx_apmode[1].gfx_fullscreen, fullmodes, 0)
 		|| cfgfile_strval (option, value, L"gfx_center_horizontal", &p->gfx_xcenter, centermode1, 1)
 		|| cfgfile_strval (option, value, L"gfx_center_vertical", &p->gfx_ycenter, centermode1, 1)
 		|| cfgfile_strval (option, value, L"gfx_center_horizontal", &p->gfx_xcenter, centermode2, 0)
@@ -1583,18 +1583,18 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 	if (_tcscmp (option, L"gfx_vsync") == 0) {
-		if (cfgfile_strval (option, value, L"gfx_vsync", &p->gfx_avsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, L"gfx_vsync", &p->gfx_apmode[0].gfx_vsync, vsyncmodes, 0) >= 0)
 			return 1;
-		return cfgfile_yesno (option, value, L"gfx_vsync", &p->gfx_avsync);
+		return cfgfile_yesno (option, value, L"gfx_vsync", &p->gfx_apmode[0].gfx_vsync);
 	}
 	if (_tcscmp (option, L"gfx_vsync_picasso") == 0) {
-		if (cfgfile_strval (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, L"gfx_vsync_picasso", &p->gfx_apmode[1].gfx_vsync, vsyncmodes, 0) >= 0)
 			return 1;
-		return cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_pvsync);
+		return cfgfile_yesno (option, value, L"gfx_vsync_picasso", &p->gfx_apmode[1].gfx_vsync);
 	}
-	if (cfgfile_strval (option, value, L"gfx_vsyncmode", &p->gfx_avsyncmode, vsyncmodes2, 0))
+	if (cfgfile_strval (option, value, L"gfx_vsyncmode", &p->gfx_apmode[0].gfx_vsyncmode, vsyncmodes2, 0))
 		return 1;
-	if (cfgfile_strval (option, value, L"gfx_vsyncmode_picasso", &p->gfx_pvsyncmode, vsyncmodes2, 0))
+	if (cfgfile_strval (option, value, L"gfx_vsyncmode_picasso", &p->gfx_apmode[1].gfx_vsyncmode, vsyncmodes2, 0))
 		return 1;
 
 	if (cfgfile_yesno (option, value, L"show_leds", &vb)) {
@@ -3097,8 +3097,8 @@ static void parse_gfx_specs (struct uae_prefs *p, const TCHAR *spec)
 	p->gfx_scanlines = _tcschr (x2, 'D') != 0;
 	if (p->gfx_scanlines)
 		p->gfx_vresolution = VRES_DOUBLE;
-	p->gfx_afullscreen = _tcschr (x2, 'a') != 0;
-	p->gfx_pfullscreen = _tcschr (x2, 'p') != 0;
+	p->gfx_apmode[0].gfx_fullscreen = _tcschr (x2, 'a') != 0;
+	p->gfx_apmode[1].gfx_fullscreen = _tcschr (x2, 'p') != 0;
 
 	free (x0);
 	return;
@@ -3955,8 +3955,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	}
 	p->gfx_resolution = RES_HIRES;
 	p->gfx_vresolution = VRES_DOUBLE;
-	p->gfx_afullscreen = GFX_WINDOW;
-	p->gfx_pfullscreen = GFX_WINDOW;
+	p->gfx_apmode[0].gfx_fullscreen = GFX_WINDOW;
+	p->gfx_apmode[1].gfx_fullscreen = GFX_WINDOW;
 	p->gfx_xcenter = 0; p->gfx_ycenter = 0;
 	p->gfx_xcenter_pos = -1;
 	p->gfx_ycenter_pos = -1;
@@ -3968,8 +3968,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_autoresolution_minh = 0;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
-	p->gfx_backbuffers = 1;
-	p->gfx_rtg_backbuffers = 2;
+	p->gfx_apmode[0].gfx_backbuffers = 1;
+	p->gfx_apmode[1].gfx_backbuffers = 2;
 
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;

@@ -1,4 +1,24 @@
 
+Beta 10:
+
+- RTG mode list should always list all monitors' supported resolutions.
+- PAL filter display positioning is now same as other filters.
+- Removed obsolete right control key hack, Amiga does not have right control key, it was only originally
+  needed to handle keyboard layout B in old UAE versions.
+- Cycle-exact mode and very heavy interrupt activity caused lost internal interrupt event in some very rare
+  situations, bug introduced long time ago. (Guardian Dragon II / Kefrens random hang, probably others too)
+- In non-vsync modes only triple buffering enables vsynced page flipping, other modes flip instantly
+  for better performance (and possibly introduces tearing but it is better than bad performance)
+- Log more complete RDB dump when mounting RDB hardfile or real harddrive using UAE controller.
+- bsdsocket emulation tweaks. SocketBaseTagList() more compatible with AmiTCP (emulate weird behavior of
+  breaking tag list processing if unknown tag detected, some programs actually don't even have a TAG_END..),
+  get/setsockopt more compatible ("Unknown optlen (1)" log error messages) Convert SO_SNDTIMEO and
+  SO_RCVTIMEO time values between milliseconds and struct timeval.
+- HID input stuck button fixed if multiple buttons were kept pressed while releasing another button.
+- HID input configuration loading didn't always match devices correctly
+
+Beta 9:
+
 - USB HID game controller support really works now. (HID signed value handling is a bit special)
   Also added pad quirks list from Linux, some game pads apparently report bad minimum and maximum range
   values, this also includes Logitech G13 stick which was not listed (reported range is -127 to 127,

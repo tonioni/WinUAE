@@ -4422,22 +4422,33 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
 		int match = -1;
 		for (j = 0; j < MAX_INPUT_DEVICES; j++) {
 			if (aname2 && uid[j].configname) {
+				bool matched = false;
 				TCHAR bname[MAX_DPATH];
 				TCHAR bname2[MAX_DPATH];
 				TCHAR *p1 ,*p2;
 				_tcscpy (bname, uid[j].configname);
 				_tcscpy (bname2, aname2);
-				p1 = _tcschr (bname, ' ');
-				p2 = _tcschr (bname2, ' ');
-				if (p1 && p2 && p1 - bname == p2 - bname2) {
+				// strip possible local guid part
+				p1 = _tcschr (bname, '{');
+				p2 = _tcschr (bname2, '{');
+				if (!p1 && !p2) {
+					// check possible directinput names too
+					p1 = _tcschr (bname, ' ');
+					p2 = _tcschr (bname2, ' ');
+				}
+				if (!_tcscmp (bname, bname2)) {
+					matched = true;
+				} else if (p1 && p2 && p1 - bname == p2 - bname2) {
 					*p1 = 0;
 					*p2 = 0;
-					if (bname && !_tcscmp (bname2, bname)) {
-						if (match >= 0)
-							match = -2;
-						else
-							match = j;
-					}
+					if (bname && !_tcscmp (bname2, bname))
+						matched = true;
+				}
+				if (matched) {
+					if (match >= 0)
+						match = -2;
+					else
+						match = j;
 				}
 				if (match == -2)
 					break;
@@ -4446,16 +4457,21 @@ static void matchdevices (struct inputdevice_functions *inf, struct uae_input_de
 		// multiple matches -> use complete local-only id string for comparisons
 		if (match == -2) {
 			for (j = 0; j < MAX_INPUT_DEVICES; j++) {
-				TCHAR *bname = uid[j].configname;
-				if (aname2 && bname && !_tcscmp (aname2, bname))
+				TCHAR *bname2 = uid[j].configname;
+				if (aname2 && bname2 && !_tcscmp (aname2, bname2)) {
 					match = j;
+					break;
+				}
 			}
 		}
 		if (match < 0) {
+			// no match, try friend names
 			for (j = 0; j < MAX_INPUT_DEVICES; j++) {
-				TCHAR *bname = uid[j].name;
-				if (aname2 && bname && !_tcscmp (aname2, bname))
+				TCHAR *bname1 = uid[j].name;
+				if (aname1 && bname1 && !_tcscmp (aname1, bname1)) {
 					match = j;
+					break;
+				}
 			}
 		}
 		if (match >= 0) {

@@ -1951,6 +1951,21 @@ static int p96depth (int depth)
 	return ok;
 }
 
+static int _cdecl resolution_compare (const void *a, const void *b)
+{
+	struct PicassoResolution *ma = (struct PicassoResolution *)a;
+	struct PicassoResolution *mb = (struct PicassoResolution *)b;
+	if (ma->res.width < mb->res.width)
+		return -1;
+	if (ma->res.width > mb->res.width)
+		return 1;
+	if (ma->res.height < mb->res.height)
+		return -1;
+	if (ma->res.height > mb->res.height)
+		return 1;
+	return ma->depth - mb->depth;
+}
+
 static int missmodes[] = { 320, 200, 320, 240, 320, 256, 640, 400, 640, 480, 640, 512, 800, 600, 1024, 768, 1280, 1024, -1 };
 
 static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 size);
@@ -1959,8 +1974,6 @@ static void picasso96_alloc2 (TrapContext *ctx)
 {
 	int i, j, size, cnt;
 	int misscnt, depths;
-	struct MultiDisplay *md = getdisplay (&currprefs);
-	struct PicassoResolution *DisplayModes = md->DisplayModes;
 
 	xfree (newmodes);
 	newmodes = NULL;
@@ -1968,7 +1981,6 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	if (allocated_gfxmem == 0)
 		return;
 	misscnt = 0;
-	cnt = 0;
 	newmodes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
 	size = 0;
 
@@ -1984,51 +1996,66 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	if (p96depth (32))
 		depths++;
 
-	i = 0;
-	while (DisplayModes[i].depth >= 0) {
-		for (j = 0; missmodes[j * 2] >= 0; j++) {
-			if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
-				missmodes[j * 2 + 0] = 0;
-				missmodes[j * 2 + 1] = 0;
+	for (int mon = 0; Displays[mon].monitorname; mon++) {
+		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
+		i = 0;
+		while (DisplayModes[i].depth >= 0) {
+			for (j = 0; missmodes[j * 2] >= 0; j++) {
+				if (DisplayModes[i].res.width == missmodes[j * 2 + 0] && DisplayModes[i].res.height == missmodes[j * 2 + 1]) {
+					missmodes[j * 2 + 0] = 0;
+					missmodes[j * 2 + 1] = 0;
+				}
 			}
+			i++;
 		}
-		i++;
 	}
 
-	i = 0;
-	while (DisplayModes[i].depth >= 0) {
-		if (DisplayModes[i].rawmode) {
-			i++;
-			continue;
-		}
-		j = i;
-		size += PSSO_LibResolution_sizeof;
-		while (missmodes[misscnt * 2] == 0)
-			misscnt++;
-		if (missmodes[misscnt * 2] >= 0) {
-			int w = DisplayModes[i].res.width;
-			int h = DisplayModes[i].res.height;
-			if (w > missmodes[misscnt * 2 + 0] || (w == missmodes[misscnt * 2 + 0] && h > missmodes[misscnt * 2 + 1])) {
-				struct PicassoResolution *pr = &newmodes[cnt];
-				memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
-				pr->res.width = missmodes[misscnt * 2 + 0];
-				pr->res.height = missmodes[misscnt * 2 + 1];
-				_stprintf (pr->name, L"%dx%d FAKE", pr->res.width, pr->res.height);
-				size += PSSO_ModeInfo_sizeof * depths;
-				cnt++;
-				misscnt++;
+	cnt = 0;
+	for (int mon = 0; Displays[mon].monitorname; mon++) {
+		struct PicassoResolution *DisplayModes = Displays[mon].DisplayModes;
+		i = 0;
+		while (DisplayModes[i].depth >= 0) {
+			if (DisplayModes[i].rawmode) {
+				i++;
 				continue;
 			}
-		}
-		memcpy (&newmodes[cnt], &DisplayModes[i], sizeof (struct PicassoResolution));
-		size += PSSO_ModeInfo_sizeof * depths;
-		i++;
-		cnt++;
-		while (DisplayModes[i].depth >= 0
-			&& DisplayModes[i].res.width == DisplayModes[j].res.width
-			&& DisplayModes[i].res.height == DisplayModes[j].res.height)
+			j = i;
+			size += PSSO_LibResolution_sizeof;
+			while (missmodes[misscnt * 2] == 0)
+				misscnt++;
+			if (missmodes[misscnt * 2] >= 0) {
+				int w = DisplayModes[i].res.width;
+				int h = DisplayModes[i].res.height;
+				if (w > missmodes[misscnt * 2 + 0] || (w == missmodes[misscnt * 2 + 0] && h > missmodes[misscnt * 2 + 1])) {	
+					struct PicassoResolution *pr = &newmodes[cnt];
+					memcpy (pr, &DisplayModes[i], sizeof (struct PicassoResolution));
+					pr->res.width = missmodes[misscnt * 2 + 0];
+					pr->res.height = missmodes[misscnt * 2 + 1];
+					_stprintf (pr->name, L"%dx%d FAKE", pr->res.width, pr->res.height);
+					size += PSSO_ModeInfo_sizeof * depths;
+					cnt++;
+					misscnt++;
+					continue;
+				}
+			}
+			int k;
+			for (k = 0; k < cnt; k++) {
+				if (newmodes[k].res.width == DisplayModes[i].res.width &&
+					newmodes[k].res.height == DisplayModes[i].res.height &&
+					newmodes[k].depth == DisplayModes[i].depth)
+					break;
+			}
+			if (k >= cnt) {
+				memcpy (&newmodes[cnt], &DisplayModes[i], sizeof (struct PicassoResolution));
+				size += PSSO_ModeInfo_sizeof * depths;
+				cnt++;
+			}
 			i++;
+		}
 	}
+	qsort (newmodes, cnt, sizeof (struct PicassoResolution), resolution_compare);
+
+
 #if MULTIDISPLAY
 	for (i = 0; Displays[i].name; i++) {
 		size += PSSO_LibResolution_sizeof;

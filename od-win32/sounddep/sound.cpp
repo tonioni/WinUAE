@@ -209,8 +209,8 @@ extern int vsynctime_orig;
 static int avioutput_audio;
 #endif
 
-#define ADJUST_LIMIT 7
-#define ADJUST_LIMIT2 1.5
+#define ADJUST_LIMIT 6
+#define ADJUST_LIMIT2 1
 
 void sound_setadjust (double v)
 {
@@ -1870,7 +1870,7 @@ static double sync_sound (double m)
 	double skipmode;
 	if (isvsync () || 1) {
 
-		skipmode = pow (m < 0 ? -m : m, EXPVS) / 8;
+		skipmode = pow (m < 0 ? -m : m, EXPVS) / 9;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_VSSIZE)

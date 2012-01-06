@@ -203,7 +203,8 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
 	pitcht /= sizeof (*trg);
 
 	src = src + pitchs * ys + xs - 2;
-	trg = trg + pitcht * yt + xt;
+	trg = trg + pitcht * yt + xt + 2;
+
 	if (width < 8) {
 		wstart = width;
 		wfast = 0;
@@ -264,7 +265,7 @@ void PAL_1x1_32(uae_u32 *src, int pitchs, uae_u32 *trg, int pitcht, int width, i
 
 		line = lineptr0;
 		linepre = lineptr1;
-		for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
+		for (x = 0; x < (wfast << 3) + wend + wstart - 2; x++) {
 
 			l = line[0];
 			u = (line[1] + linepre[1]) / 8;
@@ -303,7 +304,7 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
 	pitcht /= sizeof (*trg);
 
 	src = src + pitchs * ys + xs - 2;
-	trg = trg + pitcht * yt + xt;
+	trg = trg + pitcht * yt + xt + 2;
 	if (width < 8) {
 		wstart = width;
 		wfast = 0;
@@ -364,7 +365,7 @@ void PAL_1x1_16(uae_u16 *src, int pitchs, uae_u16 *trg, int pitcht, int width, i
 
 		line = lineptr0;
 		linepre = lineptr1;
-		for (x = 0; x < (wfast << 3) + wend + wstart; x++) {
+		for (x = 0; x < (wfast << 3) + wend + wstart - 2; x++) {
 
 			l = line[0];
 			u = (line[1] + linepre[1]) / 8;

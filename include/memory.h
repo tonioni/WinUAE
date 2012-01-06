@@ -296,7 +296,7 @@ STATIC_INLINE int valid_address (uaecptr addr, uae_u32 size)
 	return get_mem_bank (addr).check(addr, size);
 }
 
-extern int addr_valid (TCHAR*, uaecptr,uae_u32);
+extern int addr_valid (const TCHAR*, uaecptr,uae_u32);
 
 /* For faster access in custom chip emulation.  */
 extern uae_u32 REGPARAM3 chipmem_lget (uaecptr) REGPARAM;

@@ -14,6 +14,7 @@ int rawinput_enabled_hid = -1;
 //#define DI_DEBUG2
 #define DI_DEBUG_RAWINPUT_KB 0
 #define DI_DEBUG_RAWINPUT_MOUSE 0
+#define DI_DEBUG_RAWINPUT_HID 0
 #define IGNOREEVERYTHING 0
 
 #include "sysconfig.h"
@@ -455,15 +456,15 @@ static int doregister_rawinput (bool add)
 			}
 		}
 	}
-	if (num == 0)
-		return 1;
-	if (RegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
-		write_log (L"RAWINPUT %sregistration failed %d (%d,%d->%d,%d->%d,%d->%d)\n",
-			add ? L"" : L"un", GetLastError (), num,
-			rawinput_registered_mouse, rm,
-			rawinput_registered_kb, rkb,
-			rawinput_registered_hid, rhid);
-		return 0;
+	if (num > 0) {
+		if (RegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
+			write_log (L"RAWINPUT %sregistration failed %d (%d,%d->%d,%d->%d,%d->%d)\n",
+				add ? L"" : L"un", GetLastError (), num,
+				rawinput_registered_mouse, rm,
+				rawinput_registered_kb, rkb,
+				rawinput_registered_hid, rhid);
+			return 0;
+		}
 	}
 	rawinput_registered_mouse = rm;
 	rawinput_registered_kb = rkb;
@@ -1759,7 +1760,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		PRAWHID hid = &raw->data.hid;
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
-#if 0
+#if DI_DEBUG_RAWINPUT_HID
 		uae_u8 *r = hid->bRawData;
 		write_log (L"%d %d %02x%02x%02x%02x%02x%02x%02x\n", hid->dwCount, hid->dwSizeHid,
 			r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
@@ -1788,7 +1789,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 								break;
 						}
 						if (j == did->maxusagelistlength || did->prevusagelist[j].Usage == 0) {
-							//write_log (L"%d/%d ON\n", did->usagelist[k].UsagePage, did->usagelist[k].Usage);
+#if DI_DEBUG_RAWINPUT_HID
+							write_log (L"%d/%d ON\n", did->usagelist[k].UsagePage, did->usagelist[k].Usage);
+#endif
 							for (int l = 0; l < did->buttons; l++) {
 								if (did->buttonmappings[l] == did->usagelist[k].Usage)
 									setjoybuttonstate (num, l, 1);
@@ -1799,9 +1802,11 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					}
 					for (j = 0; j < did->maxusagelistlength; j++) {
 						if (did->prevusagelist[j].Usage) {
-							//write_log (L"%d/%d OFF\n", did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);
+#if DI_DEBUG_RAWINPUT_HID
+							write_log (L"%d/%d OFF\n", did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);
+#endif
 							for (int l = 0; l < did->buttons; l++) {
-								if (did->buttonmappings[l] == did->prevusagelist[k].Usage)
+								if (did->buttonmappings[l] == did->prevusagelist[j].Usage)
 									setjoybuttonstate (num, l, 0);
 							}
 						}

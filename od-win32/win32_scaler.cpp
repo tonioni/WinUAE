@@ -270,7 +270,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	int scalemode = currprefs.gfx_filter_autoscale;
 
 	if (!specialmode && scalemode == AUTOSCALE_STATIC_AUTO) {
-		if (currprefs.gfx_afullscreen) {
+		if (currprefs.gfx_apmode[0].gfx_fullscreen) {
 			scalemode = AUTOSCALE_STATIC_NOMINAL;
 		} else {
 			int w1 = (800 / 2) << currprefs.gfx_resolution;
