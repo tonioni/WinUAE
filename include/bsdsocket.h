@@ -59,6 +59,11 @@ struct socketbase {
     uae_u32 eintrsigs;		/* EINTR sigmask */
     int eintr;			/* interrupted by eintrsigs? */
     int eventindex;		/* current socket looked at by GetSocketEvents() to prevent starvation */
+	uae_u32 logstat;
+	uae_u32 logptr;
+	uae_u32 logmask;
+	uae_u32 logfacility;
+	uaecptr fdcallback;
 
     /* host-specific fields below */
 #ifdef _WIN32
@@ -118,6 +123,10 @@ struct UAEBSDBase {
 /* socket properties */
 #define SF_BLOCKING 0x80000000
 #define SF_BLOCKINGINPROGRESS 0x40000000
+/* STBC_FDCALLBACK */
+#define FDCB_FREE  0
+#define FDCB_ALLOC 1
+#define FDCB_CHECK 2
 
 uae_u32 addstr (uae_u32 * dst, const TCHAR *src);
 uae_u32 addstr_ansi (uae_u32 * dst, const uae_char *src);
@@ -138,11 +147,11 @@ extern void sigsockettasks (void);
 extern void locksigqueue (void);
 extern void unlocksigqueue (void);
 
-extern BOOL checksd(SB, int sd);
-extern void setsd(SB, int , SOCKET_TYPE);
-extern int getsd (SB, SOCKET_TYPE);
+extern BOOL checksd(TrapContext*, SB, int sd);
+extern void setsd(TrapContext*, SB, int , SOCKET_TYPE);
+extern int getsd (TrapContext*, SB, SOCKET_TYPE);
 extern SOCKET_TYPE getsock (SB, int);
-extern void releasesock (SB, int);
+extern void releasesock (TrapContext*, SB, int);
 
 extern void waitsig (TrapContext *context, SB);
 extern void cancelsig (TrapContext *context, SB);
@@ -152,10 +161,10 @@ extern void host_sbcleanup (SB);
 extern void host_sbreset (void);
 extern void host_closesocketquick (SOCKET_TYPE);
 
-extern int host_dup2socket (SB, int, int);
-extern int host_socket (SB, int, int, int);
-extern uae_u32 host_bind (SB, uae_u32, uae_u32, uae_u32);
-extern uae_u32 host_listen (SB, uae_u32, uae_u32);
+extern int host_dup2socket (TrapContext *, SB, int, int);
+extern int host_socket (TrapContext *, SB, int, int, int);
+extern uae_u32 host_bind (TrapContext *, SB, uae_u32, uae_u32, uae_u32);
+extern uae_u32 host_listen (TrapContext *, SB, uae_u32, uae_u32);
 extern void host_accept (TrapContext *, SB, uae_u32, uae_u32, uae_u32);
 extern void host_sendto (TrapContext *, SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
 extern void host_recvfrom (TrapContext *, SB, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32, uae_u32);
@@ -189,6 +198,7 @@ extern void host_getprotobynumber (TrapContext *, SB, uae_u32);
 extern uae_u32 host_vsyslog (void);
 extern uae_u32 host_Dup2Socket (void);
 extern uae_u32 host_gethostname (uae_u32, uae_u32);
+extern uae_u32 callfdcallback (TrapContext *context, SB, uae_u32 fd, uae_u32 action);
 
 extern uaecptr bsdlib_startup (uaecptr);
 extern void bsdlib_install (void);

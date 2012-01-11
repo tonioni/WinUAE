@@ -1752,12 +1752,14 @@ static void init_aspect_maps (void)
 	max_drawn_amiga_line = -1;
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
-		if (v >= gfxvidinfo.drawbuffer.height && max_drawn_amiga_line == -1)
+		if (v >= gfxvidinfo.drawbuffer.height && max_drawn_amiga_line < 0)
 			max_drawn_amiga_line = i - min_ypos_for_screen;
 		if (i < min_ypos_for_screen || v >= gfxvidinfo.drawbuffer.height)
 			v = -1;
 		amiga2aspect_line_map[i] = v;
 	}
+	if (max_drawn_amiga_line < 0)
+		max_drawn_amiga_line = maxl - min_ypos_for_screen;
 	max_drawn_amiga_line >>= linedbl;
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {

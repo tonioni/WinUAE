@@ -590,7 +590,7 @@ static int cd_play_audio (int startlsn, int endlsn, int scan)
 	}
 	qcode_valid = 0;
 	last_play_end = endlsn;
-	cdrom_audiotimeout = 0;
+	cdrom_audiotimeout = 10;
 	cdrom_paused = 0;
 	write_comm_pipe_u32 (&requests, 0x0110, 0);
 	write_comm_pipe_u32 (&requests, startlsn, 0);
@@ -1137,7 +1137,10 @@ static void akiko_handler (void)
 		get_cdrom_toc ();
 		return;
 	}
+	if (cdrom_audiotimeout > 1)
+		cdrom_audiotimeout--;
 	if (cdrom_audiotimeout == 1) { // play start
+		cdrom_playing = 1;
 		cdrom_start_return_data (cdrom_playend_notify (0));
 		cdrom_audiotimeout = 0;
 	}
@@ -1227,6 +1230,7 @@ void AKIKO_hsync_handler (void)
 				if (subcodebufferoffset >= MAX_SUBCODEBUFFER)
 					subcodebufferoffset -= MAX_SUBCODEBUFFER;
 				set_status (CDINTERRUPT_SUBCODE);
+				write_log (L"*");
 			}
 			uae_sem_post (&sub_sem);
 		}

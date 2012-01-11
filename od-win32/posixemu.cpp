@@ -77,6 +77,7 @@ static void get_time (time_t t, long *days, long *mins, long *ticks)
 	*ticks = t * 50;
 }
 
+#if 0
 static DWORD getattr (const TCHAR *name, LPFILETIME lpft, uae_s64 *size)
 {
 	HANDLE hFind;
@@ -95,23 +96,43 @@ static DWORD getattr (const TCHAR *name, LPFILETIME lpft, uae_s64 *size)
 
 	return fd.dwFileAttributes;
 }
+#endif
 
 int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 {
-	DWORD attr;
+	DWORD attr, ok;
 	FILETIME ft, lft;
+	HANDLE h;
+	BY_HANDLE_FILE_INFORMATION fi;
 
-	if ((attr = getattr (name, &ft, &statbuf->st_size)) == (DWORD)~0) {
+	// FILE_FLAG_BACKUP_SEMANTICS = can also "open" directories
+	h = CreateFile (name, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		write_log (L"Stat CreateFile(%s) failed: %d\n", name, GetLastError ());
 		return -1;
-	} else {
-		statbuf->st_mode = (attr & FILE_ATTRIBUTE_READONLY) ? FILEFLAG_READ : FILEFLAG_READ | FILEFLAG_WRITE;
-		if (attr & FILE_ATTRIBUTE_ARCHIVE)
-			statbuf->st_mode |= FILEFLAG_ARCHIVE;
-		if (attr & FILE_ATTRIBUTE_DIRECTORY)
-			statbuf->st_mode |= FILEFLAG_DIR;
-		FileTimeToLocalFileTime (&ft,&lft);
-		statbuf->st_mtime = (long)((*(__int64 *)&lft-((__int64)(369*365+89)*(__int64)(24*60*60)*(__int64)10000000))/(__int64)10000000);
 	}
+	ok = GetFileInformationByHandle (h, &fi);
+	CloseHandle (h);
+
+	attr = 0;
+	ft.dwHighDateTime = ft.dwLowDateTime = 0;
+	if (ok) {
+		attr = fi.dwFileAttributes;
+		ft = fi.ftLastWriteTime;
+		statbuf->st_size = ((uae_u64)fi.nFileSizeHigh << 32) | fi.nFileSizeLow;
+	} else {
+		write_log (L"GetFileInformationByHandle(%s) failed: %d\n", name, GetLastError ());
+		return -1;
+	}
+
+	statbuf->st_mode = (attr & FILE_ATTRIBUTE_READONLY) ? FILEFLAG_READ : FILEFLAG_READ | FILEFLAG_WRITE;
+	if (attr & FILE_ATTRIBUTE_ARCHIVE)
+		statbuf->st_mode |= FILEFLAG_ARCHIVE;
+	if (attr & FILE_ATTRIBUTE_DIRECTORY)
+		statbuf->st_mode |= FILEFLAG_DIR;
+	FileTimeToLocalFileTime (&ft,&lft);
+	statbuf->st_mtime = (long)((*(__int64 *)&lft-((__int64)(369*365+89)*(__int64)(24*60*60)*(__int64)10000000))/(__int64)10000000);
+
 	return 0;
 }
 

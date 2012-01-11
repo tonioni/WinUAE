@@ -1,4 +1,19 @@
 
+Beta 11:
+
+- SocketBaseTagList() must not report unknown tag error unless tag is really unknown, not just
+  unsupported. SBTC_LOGx tags are now "supported" because some programs sets them and they also
+  do not want to get any errors.
+- bsdsocket.library SBTC_IOERRNOSTRPTR, SBTC_S2ERRNOSTRPTR and SBTC_S2WERRNOSTRPTR implemented.
+- bsdsocket.library SBTC_FDCALLBACK implemented. Should fix (SAS-C compiled only?) Unix ports that
+  use both socket and plain file FDs.
+- Multiple bsdsocket emulation thread safety fixes. Should finally fix all YAM hangs.
+- Directory filesystem internal file size access update, previously Examine() and friends returned old
+  file size if file size changed (either inside or outside of emulation) until file was closed.
+  (fixes Subversion bad request 400 error)
+- Built-in zip unarchiver utf-8 encoded file name support implemented
+- Vertical centering and small enough display size: vertical positioning was really wrong.
+
 Beta 10:
 
 - RTG mode list should always list all monitors' supported resolutions.

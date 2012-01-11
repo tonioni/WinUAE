@@ -357,7 +357,11 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 		err = unzGetCurrentFileInfo (uz, &file_info, filename_inzip2, sizeof (filename_inzip2), NULL, 0, NULL, 0);
 		if (err != UNZ_OK)
 			return 0;
-		filename_inzip = au (filename_inzip2);
+		if (file_info.flag & (1 << 11)) { // UTF-8 encoded
+			filename_inzip = utf8u (filename_inzip2);
+		} else {
+			filename_inzip = au (filename_inzip2);
+		}
 		dd = file_info.dosDate;
 		t = fromdostime (dd);
 		memset (&zai, 0, sizeof zai);
