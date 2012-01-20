@@ -468,8 +468,7 @@ static int doregister_rawinput (void)
 		}
 	}
 
-	write_log (L"RegisterRawInputDevices = %d (%d)\n", activate, num);
-
+	//write_log (L"RegisterRawInputDevices = %d (%d)\n", activate, num);
 	if (RegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
 		write_log (L"RAWINPUT %sregistration failed %d\n",
 			add ? L"" : L"un", GetLastError ());
@@ -1695,14 +1694,13 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 		if (isfocus () > 0 || istest) {
 			static int lastx[MAX_INPUT_DEVICES], lasty[MAX_INPUT_DEVICES];
-			static int lastmbr[MAX_INPUT_DEVICES], lastmb[MAX_INPUT_DEVICES];
+			static int lastmbr[MAX_INPUT_DEVICES];
 			for (i = 0; i < (5 > did->buttons ? did->buttons : 5); i++) {
 				if (rm->usButtonFlags & (3 << (i * 2))) {
 					int state = (rm->usButtonFlags & (1 << (i * 2))) ? 1 : 0;
+					if (!istest && i == 2 && currprefs.win32_middle_mouse)
+						continue;
 					setmousebuttonstate (num, i, state);
-					lastmb[num] &= ~(1 << i);
-					if (state)
-						lastmb[num] |= 1 << i;
 				}
 			}
 			if (did->buttons > 5) {
@@ -2687,7 +2685,7 @@ static void read_mouse (void)
 								if (k == 0)
 									uae_quit ();
 #endif
-								if ((currprefs.win32_middle_mouse && k != 2) || !(currprefs.win32_middle_mouse))
+								if ((currprefs.win32_middle_mouse && k != 2) || !currprefs.win32_middle_mouse || istest)
 									setmousebuttonstate (i, k, state);
 							}
 						}

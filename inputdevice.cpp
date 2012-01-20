@@ -2669,6 +2669,7 @@ int handle_custom_event (TCHAR *custom)
 		p = nextp;
 	}
 	xfree(buf);
+	config_changed = 1;
 	return 0;
 }
 
@@ -3229,7 +3230,7 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 			custom = id->custom[offset][idx - 2];
 	}
 	handle_custom_event (custom);
-	id->flags[offset][0] &= ~0x8000;
+	id->flags[offset][0] &= ~(1 << 15);
 	id->flags[offset][0] |= custompos << 15;
 }
 

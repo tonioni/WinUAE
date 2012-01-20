@@ -1774,12 +1774,18 @@ static void m (void)
 	mm++;
 }
 
+static void flipgui (bool opengui)
+{
+	D3D_guimode (opengui);
+	if (opengui)
+		DirectDraw_FlipToGDISurface ();
+}
+
 static int GetSettings (int all_options, HWND hwnd);
 /* if drive is -1, show the full GUI, otherwise file-requester for DF[drive] */
 void gui_display (int shortcut)
 {
 	static int here;
-	HRESULT hr;
 	int w, h;
 
 	if (here)
@@ -1788,9 +1794,7 @@ void gui_display (int shortcut)
 	gui_active++;
 	setpaused (9);
 	screenshot_prepare ();
-#ifdef D3D
-	D3D_guimode (TRUE);
-#endif
+	flipgui (true);
 	wait_keyrelease ();
 	inputdevice_unacquire ();
 	clearallkeys ();
@@ -1809,12 +1813,6 @@ void gui_display (int shortcut)
 	if (w > 0 && h > 0)
 		scaleresource_setmaxsize (w, h);
 	manual_painting_needed++; /* So that WM_PAINT will refresh the display */
-
-	if (isfullscreen () > 0) {
-		hr = DirectDraw_FlipToGDISurface ();
-		if (FAILED (hr))
-			write_log (L"FlipToGDISurface failed, %s\n", DXError (hr));
-	}
 
 	flush_log ();
 
@@ -1841,9 +1839,7 @@ void gui_display (int shortcut)
 	clearallkeys ();
 	inputdevice_acquire (TRUE);
 	setmouseactive (1);
-#ifdef D3D
-	D3D_guimode (FALSE);
-#endif
+	flipgui (false);
 #ifdef AVIOUTPUT
 	AVIOutput_Begin ();
 #endif
@@ -14680,11 +14676,8 @@ void gui_filename (int num, const TCHAR *name)
 {
 }
 
-
 static int fsdialog (HWND *hwnd, DWORD *flags)
 {
-	HRESULT hr;
-
 	if (gui_active) {
 		*hwnd = guiDlg;
 		*flags |= MB_SETFOREGROUND;
@@ -14693,9 +14686,7 @@ static int fsdialog (HWND *hwnd, DWORD *flags)
 	*hwnd = hAmigaWnd;
 	if (isfullscreen () <= 0)
 		return 0;
-	hr = DirectDraw_FlipToGDISurface ();
-	if (FAILED (hr))
-		write_log (L"FlipToGDISurface failed, %s\n", DXError (hr));
+	flipgui (true);
 	*flags |= MB_SETFOREGROUND;
 	*flags |= MB_TOPMOST;
 	return 0;
@@ -14750,6 +14741,7 @@ int gui_message_multibutton (int flags, const TCHAR *format,...)
 	ret = MessageBox (hwnd, msg, szTitle, mbflags);
 
 	if (!gui_active) {
+		flipgui (false);
 		if (flipflop)
 			ShowWindow (hAmigaWnd, SW_RESTORE);
 		reset_sound ();
@@ -14804,6 +14796,7 @@ void gui_message (const TCHAR *format,...)
 		write_log (L"MessageBox(%s) failed, err=%d\n", msg, GetLastError ());
 
 	if (!gui_active) {
+		flipgui (false);
 		if (flipflop)
 			ShowWindow (hAmigaWnd, SW_RESTORE);
 		reset_sound ();

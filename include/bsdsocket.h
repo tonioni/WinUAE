@@ -38,7 +38,8 @@ struct socketbase {
     struct socketbase *next;
     struct socketbase *nextsig;	/* queue for tasks to signal */
 
-    int dosignal;		/* signal flag */
+    uaecptr sysbase;
+	int dosignal;		/* signal flag */
     uae_u32 ownertask;		/* task that opened the library */
     int signal;			/* signal allocated for that task */
     int sb_errno, sb_herrno;	/* errno and herrno variables */

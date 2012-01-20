@@ -163,6 +163,7 @@ static void changevblankthreadmode (int newmode)
 		while (flipthread_mode == 0)
 			sleep_millis_main (1);
 		CloseHandle (flipevent);
+		flipevent = NULL;
 	}
 	while (t == vblankthread_counter && vblankthread_mode > 0)
 		vsync_sleep (false);
@@ -2210,7 +2211,6 @@ static int getbestmode (int nextbest)
 	return 0;
 }
 
-static bool threaded_vsync = false;
 static volatile frame_time_t vblank_prev_time, thread_vblank_time;
 
 #include <process.h>
@@ -2414,6 +2414,11 @@ void vsync_busywait_start (void)
 	vblank_prev_time = thread_vblank_time;
 }
 
+static bool isthreadedvsync (void)
+{
+	return isvsync_chipset () <= -2 || isvsync_rtg () < 0;
+}
+
 bool vsync_busywait_do (int *freetime)
 {
 	bool v;
@@ -2457,7 +2462,7 @@ bool vsync_busywait_do (int *freetime)
 
 	v = false;
 
-	if (threaded_vsync) {
+	if (isthreadedvsync ()) {
 
 		framelost = false;
 		v = true;
@@ -2533,8 +2538,6 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		rv = rv->next;
 	}
 	
-	threaded_vsync = isvsync_chipset () == -2 || isvsync_rtg () < 0;
-
 	if (waitonly) {
 		vblankbasefull = syncbase / approx_vblank;
 		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
@@ -2613,7 +2616,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	vblankbasewait = (syncbase / tsum2) * 3 / 4;
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
-	write_log (L"VSync calibration: %.6fHz/%d=%.6fHz. MaxV=%d Units=%d Mode=%s\n", tsum, div, tsum2, maxvpos, vblankbasefull, threaded_vsync ? L"threaded" : L"normal");
+	write_log (L"VSync calibration: %.6fHz/%d=%.6fHz. MaxV=%d Units=%d\n", tsum, div, tsum2, maxvpos, vblankbasefull);
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	

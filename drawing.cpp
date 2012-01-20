@@ -2715,6 +2715,29 @@ void redraw_frame (void)
 	flush_screen (gfxvidinfo.inbuffer, 0, 0);
 }
 
+void vsync_handle_check (void)
+{
+	check_picasso ();
+
+	int changed = check_prefs_changed_gfx ();
+	if (changed > 0) {
+		reset_drawing ();
+		init_row_map ();
+		init_aspect_maps ();
+		notice_screen_contents_lost ();
+		notice_new_xcolors ();
+	} else if (changed < 0) {
+		reset_drawing ();
+		init_row_map ();
+		init_aspect_maps ();
+		notice_screen_contents_lost ();
+		notice_new_xcolors ();
+	}
+	check_prefs_changed_audio ();
+	check_prefs_changed_custom ();
+	check_prefs_changed_cpu ();
+}
+
 void vsync_handle_redraw (int long_frame, int lof_changed)
 {
 	last_redraw_point++;
@@ -2747,26 +2770,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 		}
 
 		count_frame ();
-		check_picasso ();
-
-		int changed = check_prefs_changed_gfx ();
-		if (changed > 0) {
-			reset_drawing ();
-			init_row_map ();
-			init_aspect_maps ();
-			notice_screen_contents_lost ();
-			notice_new_xcolors ();
-		} else if (changed < 0) {
-			reset_drawing ();
-			init_row_map ();
-			init_aspect_maps ();
-			notice_screen_contents_lost ();
-			notice_new_xcolors ();
-		}
-
-		check_prefs_changed_audio ();
-		check_prefs_changed_custom ();
-		check_prefs_changed_cpu ();
 
 		if (framecnt == 0)
 			init_drawing_frame ();
@@ -2934,7 +2937,9 @@ int isvsync_chipset (void)
 		return 0;
 	if (currprefs.gfx_apmode[0].gfx_vsyncmode == 0)
 		return 1;
-	return currprefs.m68k_speed < 0 ? -2 : -1;
+	if (currprefs.m68k_speed >= 0)
+		return -1;
+	return currprefs.cachesize ? -3 : -2;
 }
 
 int isvsync_rtg (void)
@@ -2943,7 +2948,9 @@ int isvsync_rtg (void)
 		return 0;
 	if (currprefs.gfx_apmode[1].gfx_vsyncmode == 0)
 		return 1;
-	return currprefs.m68k_speed < 0 ? -2 : -1;
+	if (currprefs.m68k_speed >= 0)
+		return -1;
+	return currprefs.cachesize ? -3 : -2;
 }
 
 int isvsync (void)

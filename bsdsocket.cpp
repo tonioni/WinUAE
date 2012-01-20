@@ -285,17 +285,13 @@ volatile int bsd_int_requested;
 
 void addtosigqueue (SB, int events)
 {
-#if 0
-	uae_u32 ot, sts;
-#endif
-
 	locksigqueue ();
 
 	if (events)
 		sb->sigstosend |= sb->eventsigs;
 	else
 		sb->sigstosend |= ((uae_u32) 1) << sb->signal;
-#if 1
+
 	if (!sb->dosignal) {
 		sb->nextsig = sbsigqueue;
 		sbsigqueue = sb;
@@ -305,23 +301,9 @@ void addtosigqueue (SB, int events)
 	bsd_int_requested |= 1;
 
 	unlocksigqueue ();
-
-#else
-
-	ot = sb->ownertask;
-	sts = sb->sigstosend;
-
-	sb->sigstosend = 0;
-
-	unlocksigqueue ();
-
-	if (sts)
-		uae_Signal (ot, sts);
-#endif
-
 }
 
-#if 1
+
 void bsdsock_fake_int_handler(void)
 {
 	locksigqueue ();
@@ -345,50 +327,18 @@ void bsdsock_fake_int_handler(void)
 	unlocksigqueue ();
 }
 
-#else
-
-static uae_u32 REGPARAM2 bsdsock_int_handler (TrapContext *context)
-{
-	SB;
-
-	locksigqueue ();
-	bsd_int_requested = 0;
-
-	if (sbsigqueue != NULL) {
-
-		for (sb = sbsigqueue; sb; sb = sb->nextsig) {
-			if (sb->dosignal == 1) {
-				struct regstruct sbved_regs = context->regs;
-				m68k_areg (regs, 1) = sb->ownertask;
-				m68k_dreg (regs, 0) = sb->sigstosend;
-				CallLib (context, get_long (4), -0x144); /* Signal() */
-				context->regs = sbved_regs;
-				sb->sigstosend = 0;
-			}
-			sb->dosignal = 0;
-		}
-
-		sbsigqueue = NULL;
-	}
-
-	unlocksigqueue ();
-
-	return 0;
-}
-#endif
-
 void waitsig (TrapContext *context, SB)
 {
 	long sigs;
 	m68k_dreg (regs, 0) = (((uae_u32) 1) << sb->signal) | sb->eintrsigs;
-	if ((sigs = CallLib (context, get_long (4), -0x13e)) & sb->eintrsigs) { /* Wait */
+	if ((sigs = CallLib (context, sb->sysbase, -0x13e)) & sb->eintrsigs) { /* Wait */
 		sockabort (sb);
 		bsdsocklib_seterrno (sb, 4); /* EINTR */
 
 		// Set signal
 		m68k_dreg (regs, 0) = sigs;
 		m68k_dreg (regs, 1) = sb->eintrsigs;
-		sigs = CallLib (context, get_long (4), -0x132); /* SetSignal() */
+		sigs = CallLib (context, sb->sysbase, -0x132); /* SetSignal() */
 
 		sb->eintr = 1;
 	} else
@@ -397,16 +347,14 @@ void waitsig (TrapContext *context, SB)
 
 void cancelsig (TrapContext *context, SB)
 {
-#if 1
 	locksigqueue ();
 	if (sb->dosignal)
 		sb->dosignal = 2;
 	unlocksigqueue ();
-#endif
+
 	m68k_dreg (regs, 0) = 0;
 	m68k_dreg (regs, 1) = ((uae_u32) 1) << sb->signal;
-	CallLib (context, get_long (4), -0x132); /* SetSignal() */
-
+	CallLib (context, sb->sysbase, -0x132); /* SetSignal() */
 }
 
 /* Allocate and initialize per-task state structure */
@@ -417,9 +365,10 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 
 	if ((sb = xcalloc (struct socketbase, 1)) != NULL) {
 		sb->ownertask = gettask (context);
+		sb->sysbase = get_long (4);
 
 		m68k_dreg (regs, 0) = -1;
-		sb->signal = CallLib (context, get_long (4), -0x14A); /* AllocSignal */
+		sb->signal = CallLib (context, sb->sysbase, -0x14A); /* AllocSignal */
 
 		if (sb->signal == -1) {
 			write_log (L"bsdsocket: ERROR: Couldn't allocate signal for task 0x%lx.\n", sb->ownertask);
@@ -438,6 +387,9 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 			sb->dtable[i] = -1;
 
 		sb->eintrsigs = 0x1000; /* SIGBREAKF_CTRL_C */
+
+		sb->logfacility = 1 << 3; /* LOG_USER */
+		sb->logmask = 0xff;
 
 		if (!host_sbinit (context, sb)) {
 			/* @@@ free everything   */
@@ -467,24 +419,24 @@ static void free_socketbase (TrapContext *context)
 
 	if ((sb = get_socketbase (context)) != NULL) {
 		m68k_dreg (regs, 0) = sb->signal;
-		CallLib (context, get_long (4), -0x150); /* FreeSignal */
+		CallLib (context, sb->sysbase, -0x150); /* FreeSignal */
 
 		if (sb->hostent) {
 			m68k_areg (regs, 1) = sb->hostent;
 			m68k_dreg (regs, 0) = sb->hostentsize;
-			CallLib (context, get_long (4), -0xD2); /* FreeMem */
+			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		if (sb->protoent) {
 			m68k_areg (regs, 1) = sb->protoent;
 			m68k_dreg (regs, 0) = sb->protoentsize;
-			CallLib (context, get_long (4), -0xD2); /* FreeMem */
+			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		if (sb->servent) {
 			m68k_areg (regs, 1) = sb->servent;
 			m68k_dreg (regs, 0) = sb->serventsize;
-			CallLib (context, get_long (4), -0xD2); /* FreeMem */
+			CallLib (context, sb->sysbase, -0xD2); /* FreeMem */
 
 		}
 		host_sbcleanup (sb);
@@ -548,7 +500,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 		m68k_areg (regs, 2) = 0;
 		m68k_dreg (regs, 0) = sizeof (struct UAEBSDBase);
 		m68k_dreg (regs, 1) = 0;
-		result = CallLib (context, get_long (4), -0x54); /* MakeLibrary */
+		result = CallLib (context, sb->sysbase, -0x54); /* MakeLibrary */
 
 		put_pointer (result + offsetof (struct UAEBSDBase, sb), sb);
 
@@ -806,7 +758,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
 
 	sd = getsd (context, sb, s);
 
-	BSDTRACE ((L"%d\n", sd));
+	BSDTRACE ((L" -> Socket=%d\n", sd));
 
 	if (sd != -1) {
 		sb->ftable[sd - 1] = sockdata->sockpoolflags[i];
@@ -1600,7 +1552,7 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 
 	m68k_dreg (regs, 0) = tmp1;
 	m68k_dreg (regs, 1) = 0;
-	tmp1 = CallLib (context, get_long (4), -0xC6); /* AllocMem */
+	tmp1 = CallLib (context, m68k_areg (regs, 6), -0xC6); /* AllocMem */
 
 	if (!tmp1) {
 		write_log (L"bsdsocket: FATAL: Ran out of memory while creating bsdsocket.library!\n");

@@ -2710,12 +2710,12 @@ double D3D_getrefreshrate (void)
 	return dmode.RefreshRate;
 }
 
-void D3D_guimode (int guion)
+void D3D_guimode (bool guion)
 {
 	HRESULT hr;
 	if (!isd3d ())
 		return;
-	hr = d3ddev->SetDialogBoxMode (guion);
+	hr = d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);
 	if (FAILED (hr))
 		write_log (L"%s: SetDialogBoxMode %s\n", D3DHEAD, D3D_ErrorString (hr));
 	guimode = guion;

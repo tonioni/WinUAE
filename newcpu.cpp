@@ -1096,12 +1096,12 @@ static void prefs_changed_cpu (void)
 	currprefs.mmu_model = changed_prefs.mmu_model;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
-	currprefs.blitter_cycle_exact = changed_prefs.cpu_cycle_exact;
+	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
 }
 
 void check_prefs_changed_cpu (void)
 {
-	bool changed = 0;
+	bool changed = false;
 
 	if (!config_changed)
 		return;
@@ -1119,23 +1119,24 @@ void check_prefs_changed_cpu (void)
 			if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
 				fill_prefetch_quick ();
 			build_cpufunctbl ();
-			changed = 1;
+			changed = true;
 	}
 	if (changed
 		|| currprefs.m68k_speed != changed_prefs.m68k_speed
 		|| currprefs.cpu_clock_multiplier != changed_prefs.cpu_clock_multiplier
 		|| currprefs.cpu_frequency != changed_prefs.cpu_frequency) {
 			currprefs.m68k_speed = changed_prefs.m68k_speed;
-			reset_frame_rate_hack ();
 			update_68k_cycles ();
-			changed = 1;
+			changed = true;
 	}
 
 	if (currprefs.cpu_idle != changed_prefs.cpu_idle) {
 		currprefs.cpu_idle = changed_prefs.cpu_idle;
 	}
-	if (changed)
+	if (changed) {
 		set_special (SPCFLAG_BRK);
+		reset_frame_rate_hack ();
+	}
 
 }
 
@@ -2426,8 +2427,6 @@ void REGPARAM2 Exception (int nr)
 
 STATIC_INLINE void do_interrupt (int nr)
 {
-	static int cnt;
-
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_CPUIRQ, current_hpos (), vpos);
 

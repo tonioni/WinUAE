@@ -1,4 +1,31 @@
 
+Beta 13:
+
+- bsdsocket emulation: use SOCK_DGRAM if requesting IPPROTO_UDP + SOCK_RAW. Raw sockets require
+  admin privileges and have restrictions (introduced in XP SP 2 / Vista). This partially fixes Genesis
+  traceroute, UDP packets are now transmitted (Wireshark detects it) but for some reason it is not
+  possible to receive ICMP packets using winsock anymore (but ping that both sends and receives
+  ICMP packets do work fine, so it seems you can only receive replies to your own packets)
+- bsdsocket emulation WaitSelect() incorrectly cleared break mask signals, this caused programs like
+  traceroute to not exit with CTRL+C.
+- Swallow raw input mouse middle mouse button presses if middle mouse button is set to untrap mouse.
+- WinUAE Windows dialogs (not GUI or file dialogs) may have been invisible in some situations in
+  fullscreen D3D mode.
+- Some on the fly config changes caused side-effects if new vsync mode was enabled, for example
+  JIT on<>off or fastest possible<>approximate caused graphics corruption.
+- Switching on the fly to/from fastest possible CPU to approximate or cycle-exact mode in low latency
+  vsync didn't switch to correct internal vblank detection mode.
+- It was possible to enable both JIT and cycle-exact using uae-configuration which froze the emulation
+  until GUI was entered and exited (which fixed the bad configuration). Now this conflicting
+  configuration is detected and JIT is automatically disabled.
+- Built-in CDFS crashed if CD was unreadable (empty CD-R).
+- Input panel custom event configuration changes didn't trigger until some other config entry changed
+  or GUI was entered.
+
+Beta 12:
+
+- Quick beta update: blitter cycle-exact mode was not cycle-exact in b10 and b11 release builds.
+
 Beta 11:
 
 - SocketBaseTagList() must not report unknown tag error unless tag is really unknown, not just

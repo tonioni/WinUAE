@@ -143,6 +143,7 @@ static enum nln_how nextline_how;
 static int lof_changed = 0;
 static int scandoubled_line;
 static bool vsync_rendered;
+static int jitcount = 0;
 
 /* Stupid genlock-detection prevention hack.
 * We should stop calling vsync_handler() and
@@ -410,6 +411,7 @@ uae_u32 get_copper_address (int copno)
 
 void reset_frame_rate_hack (void)
 {
+	jitcount = 0;
 	if (currprefs.m68k_speed >= 0)
 		return;
 
@@ -848,9 +850,9 @@ static void record_color_change2 (int hpos, int regno, unsigned long value)
 	curr_color_changes[next_color_change].regno = -1;
 }
 
-static int isehb (uae_u16 bplcon0, uae_u16 bplcon2)
+static bool isehb (uae_u16 bplcon0, uae_u16 bplcon2)
 {
-	int bplehb;
+	bool bplehb;
 	if (currprefs.chipset_mask & CSMASK_AGA)
 		bplehb = (bplcon0 & 0x7010) == 0x6000;
 	else if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
@@ -1998,14 +2000,14 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	}
 }
 
-static void record_register_change (int hpos, int regno, unsigned long value)
+static void record_register_change (int hpos, int regno, uae_u16 value)
 {
 	if (regno == 0x100) { // BPLCON0
 		if (value & 0x800)
 			thisline_decision.ham_seen = 1;
-		thisline_decision.ehb_seen = !! isehb (value, bplcon2);
+		thisline_decision.ehb_seen = isehb (value, bplcon2);
 	} else if (regno == 0x104) { // BPLCON2
-		thisline_decision.ehb_seen = !! isehb (value, bplcon2);
+		thisline_decision.ehb_seen = isehb (value, bplcon2);
 	}
 	record_color_change (hpos, regno + 0x1000, value);
 }
@@ -2630,6 +2632,7 @@ static void finish_decisions (void)
 		next_color_change = 0;
 		dip->nr_color_changes = 0;
 		dip->first_color_change = 0;
+		dip->last_color_change = 0;
 	}
 }
 
@@ -3590,7 +3593,6 @@ void INTREQ_0 (uae_u16 v)
 #endif
 
 	uae_u16 old = intreq;
-	uae_u16 mask = v & 0x7fff;
 	setclr (&intreq, v);
 
 	if (use_eventmode (v)) {
@@ -5123,7 +5125,7 @@ static void framewait (void)
 		extern int extraframewait;
 		vsyncmintime = vsynctime;
 		
-		if (vs == -2) {
+		if (vs == -2 || vs == -3) {
 			// fastest possible
 			curr_time = vsync_busywait_end ();
 			vsync_busywait_do (NULL);
@@ -5245,9 +5247,16 @@ static void vsync_handler_pre (void)
 
 	sampler_vsync ();
 
-	if (!vsync_rendered)
+	if (!vsync_rendered) {
 		vsync_handle_redraw (lof_store, lof_changed);
-	vsync_rendered = true;
+		vsync_rendered = true;
+		if (isvsync_chipset () == -3) {
+			render_screen ();
+			show_screen_maybe ();
+		}
+	}
+
+	vsync_handle_check ();
 }
 
 // emulated hardware vsync
@@ -5757,12 +5766,11 @@ static void hsync_handler_post (bool onvsync)
 #ifdef JIT
 	if (currprefs.cachesize) {
 		if (currprefs.m68k_speed < 0) {
-			static int count = 0;
-			count++;
-			if (trigger_frh (count)) {
+			jitcount++;
+			if (trigger_frh (jitcount)) {
 				frh_handler ();
 			}
-			is_lastline = trigger_frh (count + 1) && ! rpt_did_reset;
+			is_lastline = trigger_frh (jitcount + 1) && ! rpt_did_reset;
 		} else {
 			is_lastline = 0;
 		}
@@ -5871,7 +5879,6 @@ static void hsync_handler_post (bool onvsync)
 	}
 	if (diw_change > 0)
 		diw_change--;
-
 
 	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered) {
 		/* fastest possible + last line, render the frame as early as possible */
@@ -5998,6 +6005,7 @@ void custom_reset (int hardreset)
 
 		FMODE (0, 0);
 		CLXCON (0);
+		CLXCON2 (0);
 		setup_fmodes (0);
 		sprite_width = GET_SPRITEWIDTH (fmode);
 		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;

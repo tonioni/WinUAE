@@ -8,7 +8,7 @@ extern void D3D_showframe (void);
 extern uae_u8 *D3D_locktexture(int*,int);
 extern void D3D_unlocktexture(void);
 extern void D3D_flushtexture (int miny, int maxy);
-extern void D3D_guimode (int guion);
+extern void D3D_guimode (bool);
 extern HDC D3D_getDC(HDC hdc);
 extern int D3D_isenabled (void);
 extern int D3D_needreset (void);

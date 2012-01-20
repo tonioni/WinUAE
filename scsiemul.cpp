@@ -521,8 +521,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 		return 0;
 	command = get_word (request + 28);
 
-//	write_log (L"%d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n",
-//		command, io_data, io_length, io_offset, io_actual);
+	if (log_scsi)
+		write_log (L"%d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n",
+			command, io_data, io_length, io_offset, io_actual);
 
 	switch (command)
 	{

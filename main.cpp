@@ -179,8 +179,15 @@ void fixup_cpu (struct uae_prefs *p)
 			p->fpu_model = 68060;
 		break;
 	}
+
 	if (p->cpu_model != 68040)
 		p->mmu_model = 0;
+
+	if (p->cachesize && p->cpu_cycle_exact)
+		p->cachesize = 0;
+
+	if (p->immediate_blits && p->blitter_cycle_exact)
+		p->immediate_blits = false;
 }
 
 void fixup_prefs (struct uae_prefs *p)

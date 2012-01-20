@@ -1503,8 +1503,8 @@ BEGIN
     IDS_SCREEN_WINDOWED     "Windowed"
     IDS_SCREEN_FULLSCREEN   "Fullscreen"
     IDS_SCREEN_FULLWINDOW   "Full-window"
-    IDS_SCREEN_VSYNC        "Legacy"
-    IDS_SCREEN_VSYNC_AUTOSWITCH "Legacy, 50/60Hz switch"
+    IDS_SCREEN_VSYNC        "Legacy VSync"
+    IDS_SCREEN_VSYNC_AUTOSWITCH "Legacy VS, 50/60Hz"
     IDS_SOUND_MONO          "Mono"
     IDS_SOUND_MIXED         "Mixed"
     IDS_SOUND_STEREO        "Stereo"
@@ -1694,9 +1694,9 @@ BEGIN
     IDS_PORT_AUTOFIRE_ALWAYS "Autofire (always)"
     IDS_PORT_AUTOFIRE_NO    "No autofire"
     IDS_AUTOSCALE_INTEGER   "Integer scaling"
-    IDS_SCREEN_VSYNC2_AUTOSWITCH "Low latency, 50/60Hz"
-    IDS_SCREEN_VSYNC2       "Low latency"
-    IDS_SCREEN_VSYNC_NONE   "(VSync)"
+    IDS_SCREEN_VSYNC2_AUTOSWITCH "Low latency VS, 50/60Hz"
+    IDS_SCREEN_VSYNC2       "Low latency VSync"
+    IDS_SCREEN_VSYNC_NONE   "-"
 END
 
 #endif    // English resources
