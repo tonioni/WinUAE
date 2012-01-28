@@ -19,9 +19,10 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA L""
-#define WINUAEBETA L"Beta 13"
-#define WINUAEDATE MAKEBD(2012, 1, 20)
+#define WINUAEBETA L"Beta 14"
+#define WINUAEDATE MAKEBD(2012, 1, 28)
 #define WINUAEEXTRA L""
+//#define WINUAEEXTRA L"AmiKit Preview"
 #define WINUAEREV L""
 
 #define IHF_WINDOWHIDDEN 6

@@ -7,14 +7,11 @@
 */
 
 int rawinput_enabled_hid = -1;
+int rawinput_log = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
 #define DI_DEBUG 1
-#define DI_DEBUG2 0
-#define DI_DEBUG_RAWINPUT_KB 0
-#define DI_DEBUG_RAWINPUT_MOUSE 0
-#define DI_DEBUG_RAWINPUT_HID 0
 #define IGNOREEVERYTHING 0
 
 #include "sysconfig.h"
@@ -367,6 +364,7 @@ static void fixthings_mouse (struct didata *did)
 
 static int rawinput_available;
 static bool rawinput_registered;
+static int rawinput_reg;
 
 static bool test_rawinput (int usage)
 {
@@ -374,12 +372,12 @@ static bool test_rawinput (int usage)
 
 	rid.usUsagePage = 1;
 	rid.usUsage = usage;
-	if (RegisterRawInputDevices (&rid, 1, sizeof (RAWINPUTDEVICE)) == FALSE) {
+	if (RegisterRawInputDevices (&rid, 1, sizeof RAWINPUTDEVICE) == FALSE) {
 		write_log (L"RAWINPUT test failed, usage=%d ERR=%d\n", usage, GetLastError ());
 		return false;
 	}
 	rid.dwFlags |= RIDEV_REMOVE;
-	if (RegisterRawInputDevices (&rid, 1, sizeof (RAWINPUTDEVICE)) == FALSE) {
+	if (RegisterRawInputDevices (&rid, 1, sizeof RAWINPUTDEVICE) == FALSE) {
 		write_log (L"RAWINPUT test failed (release), usage=%d, ERR=%d\n", usage, GetLastError ());
 		return false;
 	}
@@ -469,11 +467,16 @@ static int doregister_rawinput (void)
 	}
 
 	//write_log (L"RegisterRawInputDevices = %d (%d)\n", activate, num);
-	if (RegisterRawInputDevices (rid, num, sizeof (RAWINPUTDEVICE)) == FALSE) {
+	rawinput_reg = num;
+	if (!add)
+		rawinput_reg = -rawinput_reg;
+	//write_log (L"+++++++++++++++++++++++++++%x\n", hMainWnd);
+	if (RegisterRawInputDevices (rid, num, sizeof RAWINPUTDEVICE) == FALSE) {
 		write_log (L"RAWINPUT %sregistration failed %d\n",
 			add ? L"" : L"un", GetLastError ());
 		return 0;
 	}
+	//write_log (L"-------------------------- %x\n", hMainWnd);
 
 	return 1;
 }
@@ -932,7 +935,7 @@ static void sortobjects (struct didata *did)
 
 #if DI_DEBUG
 	if (did->axles + did->buttons > 0) {
-		write_log (L"%s: (%x/%x)\n", did->name, did->vid, did->pid);
+		write_log (L"%s: (%04X/%04X)\n", did->name, did->vid, did->pid);
 		if (did->connection == DIDC_DX)
 			write_log (L"PGUID=%s\n", outGUID (&did->pguid));
 		for (i = 0; i < did->axles; i++) {
@@ -1678,17 +1681,17 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					break;
 			}
 		}
-#if DI_DEBUG_RAWINPUT_MOUSE
-		write_log (L"HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n",
-			raw->header.hDevice,
-			rm->usFlags,
-			rm->usButtonFlags,
-			rm->usButtonData,
-			rm->ulRawButtons,
-			rm->lLastX,
-			rm->lLastY,
-			rm->ulExtraInformation, num < num_mouse ? num + 1 : -1);
-#endif
+		if (rawinput_log & 2)
+			write_log (L"HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n",
+				raw->header.hDevice,
+				rm->usFlags,
+				rm->usButtonFlags,
+				rm->usButtonData,
+				rm->ulRawButtons,
+				rm->lLastX,
+				rm->lLastY,
+				rm->ulExtraInformation, num < num_mouse ? num + 1 : -1);
+
 		if (num == num_mouse)
 			return;
 
@@ -1757,11 +1760,11 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		PRAWHID hid = &raw->data.hid;
 		HANDLE h = raw->header.hDevice;
 		PCHAR rawdata;
-#if DI_DEBUG_RAWINPUT_HID
-		uae_u8 *r = hid->bRawData;
-		write_log (L"%d %d %02x%02x%02x%02x%02x%02x%02x\n", hid->dwCount, hid->dwSizeHid,
-			r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
-#endif
+		if (rawinput_log & 4) {
+			uae_u8 *r = hid->bRawData;
+			write_log (L"%d %d %02x%02x%02x%02x%02x%02x%02x\n", hid->dwCount, hid->dwSizeHid,
+				r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+		}
 		for (num = 0; num < num_joystick; num++) {
 			did = &di_joystick[num];
 			if (did->connection != DIDC_RAW)
@@ -1786,9 +1789,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 								break;
 						}
 						if (j == did->maxusagelistlength || did->prevusagelist[j].Usage == 0) {
-#if DI_DEBUG_RAWINPUT_HID
-							write_log (L"%d/%d ON\n", did->usagelist[k].UsagePage, did->usagelist[k].Usage);
-#endif
+							if (rawinput_log & 4)
+								write_log (L"%d/%d ON\n", did->usagelist[k].UsagePage, did->usagelist[k].Usage);
+
 							for (int l = 0; l < did->buttons; l++) {
 								if (did->buttonmappings[l] == did->usagelist[k].Usage)
 									setjoybuttonstate (num, l, 1);
@@ -1799,9 +1802,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 					}
 					for (j = 0; j < did->maxusagelistlength; j++) {
 						if (did->prevusagelist[j].Usage) {
-#if DI_DEBUG_RAWINPUT_HID
-							write_log (L"%d/%d OFF\n", did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);
-#endif
+							if (rawinput_log & 4)
+								write_log (L"%d/%d OFF\n", did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);
+
 							for (int l = 0; l < did->buttons; l++) {
 								if (did->buttonmappings[l] == did->prevusagelist[j].Usage)
 									setjoybuttonstate (num, l, 0);
@@ -1907,24 +1910,24 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		int scancode = rk->MakeCode & 0x7f;
 		int pressed = (rk->Flags & RI_KEY_BREAK) ? 0 : 1;
 
-#if DI_DEBUG_RAWINPUT_KB
-		write_log (L"HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x SC=%x\n",
-			raw->header.hDevice,
-			rk->MakeCode,
-			rk->Flags,
-			rk->VKey,
-			rk->Message,
-			rk->ExtraInformation,
-			scancode);
-#endif
+		if (rawinput_log & 1)
+			write_log (L"HANDLE=%x CODE=%x Flags=%x VK=%x MSG=%x EXTRA=%x SC=%x\n",
+				raw->header.hDevice,
+				rk->MakeCode,
+				rk->Flags,
+				rk->VKey,
+				rk->Message,
+				rk->ExtraInformation,
+				scancode);
+
 		// eat E1 extended keys
 		if (rk->Flags & (RI_KEY_E1))
 			return;
 		if (scancode == 0) {
 			scancode = MapVirtualKey (rk->VKey, MAPVK_VK_TO_VSC);
-#if DI_DEBUG_RAWINPUT_KB
-			write_log (L"VK->CODE: %x\n", scancode);
-#endif
+			if (rawinput_log & 1)
+				write_log (L"VK->CODE: %x\n", scancode);
+
 		}
 		if (rk->VKey == 0xff || (rk->Flags & RI_KEY_E0))
 			scancode |= 0x80;
@@ -2024,13 +2027,18 @@ void handle_rawinput (LPARAM lParam)
 
 	if (!rawinput_available)
 		return;
-	GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof (RAWINPUTHEADER));
-	if (dwSize <= sizeof (lpb)) {
-		if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
-			raw = (RAWINPUT*)lpb;
-			handle_rawinput_2 (raw);
-			DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+	if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof (RAWINPUTHEADER)) >= 0) {
+		if (dwSize <= sizeof (lpb)) {
+			if (GetRawInputData ((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof (RAWINPUTHEADER)) == dwSize) {
+				raw = (RAWINPUT*)lpb;
+				handle_rawinput_2 (raw);
+				DefRawInputProc (&raw, 1, sizeof (RAWINPUTHEADER));
+			} else {
+				write_log (L"GetRawInputData(%d) failed, %d\n", dwSize, GetLastError ());
+			}
 		}
+	}  else {
+		write_log (L"GetRawInputData(-1) failed, %d\n", GetLastError ());
 	}
 }
 
@@ -2570,6 +2578,11 @@ static int acquire_mouse (int num, int flags)
 	DIPROPDWORD dipdw;
 	HRESULT hr;
 
+	if (num < 0) {
+		doregister_rawinput ();
+		return 1;
+	}
+
 	unacquire (lpdi, L"mouse");
 	if (did->connection == DIDC_DX && lpdi) {
 		setcoop (&di_mouse[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), L"mouse");
@@ -2597,12 +2610,15 @@ static int acquire_mouse (int num, int flags)
 		} else
 			normalmouse++;
 	}
-	doregister_rawinput ();
 	return di_mouse[num].acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_mouse (int num)
 {
+	if (num < 0) {
+		doregister_rawinput ();
+		return;
+	}
 	unacquire (di_mouse[num].lpdi, L"mouse");
 	if (di_mouse[num].acquired > 0) {
 		if (di_mouse[num].rawinput)
@@ -2615,7 +2631,6 @@ static void unacquire_mouse (int num)
 			normalmouse--;
 		di_mouse[num].acquired = 0;
 	}
-	doregister_rawinput ();
 }
 
 static void read_mouse (void)
@@ -2661,9 +2676,9 @@ static void read_mouse (void)
 				int dimofs = didod[j].dwOfs;
 				int data = didod[j].dwData;
 				int state = (data & 0x80) ? 1 : 0;
-#if DI_DEBUG2
-				write_log (L"MOUSE: %d OFF=%d DATA=%d STATE=%d\n", i, dimofs, data, state);
-#endif
+				if (rawinput_log & 8)
+					write_log (L"MOUSE: %d OFF=%d DATA=%d STATE=%d\n", i, dimofs, data, state);
+
 				if (istest || isfocus () > 0) {
 					for (k = 0; k < did->axles; k++) {
 						if (did->axismappings[k] == dimofs)
@@ -2846,8 +2861,14 @@ static void release_keys (void)
 
 static int acquire_kb (int num, int flags)
 {
-	LPDIRECTINPUTDEVICE8 lpdi = di_keyboard[num].lpdi;
+	LPDIRECTINPUTDEVICE8 lpdi;
 
+	if (num < 0) {
+		doregister_rawinput ();
+		return 1;
+	}
+
+	lpdi = di_keyboard[num].lpdi;
 	unacquire (lpdi, L"keyboard");
 	if (currprefs.keyboard_leds_in_use) {
 #ifdef WINDDK
@@ -2885,14 +2906,17 @@ static int acquire_kb (int num, int flags)
 			normalkb++;
 		di_keyboard[num].acquired = 1;
 	}
-	doregister_rawinput ();
 	return di_keyboard[num].acquired > 0 ? 1 : 0;
 }
 
 static void unacquire_kb (int num)
 {
-	LPDIRECTINPUTDEVICE8 lpdi = di_keyboard[num].lpdi;
-
+	LPDIRECTINPUTDEVICE8 lpdi;
+	if (num < 0) {
+		doregister_rawinput ();
+		return;
+	}
+	lpdi = di_keyboard[num].lpdi;
 	unacquire (lpdi, L"keyboard");
 	if (di_keyboard[num].acquired > 0) {
 		if (di_keyboard[num].rawinput)
@@ -2917,7 +2941,6 @@ static void unacquire_kb (int num)
 		}
 #endif
 	}
-	doregister_rawinput ();
 	//unlock_kb ();
 }
 
@@ -3278,18 +3301,17 @@ static void read_joystick (void)
 						if (bstate >= 0 && axisold[i][k] != bstate) {
 							setjoybuttonstate (i, k, bstate);
 							axisold[i][k] = bstate;
-#if DI_DEBUG2
-							write_log (L"AB:NUM=%d OFF=%d AXIS=%d DIR=%d NAME=%s VAL=%d STATE=%d BS=%d\n",
-								k, dimofs, axis, dir, did->buttonname[k], data, state, bstate);
-#endif
+							if (rawinput_log & 8)
+								write_log (L"AB:NUM=%d OFF=%d AXIS=%d DIR=%d NAME=%s VAL=%d STATE=%d BS=%d\n",
+									k, dimofs, axis, dir, did->buttonname[k], data, state, bstate);
+
 						}
 
 
 					} else if (did->buttonaxisparent[k] < 0 && did->buttonmappings[k] == dimofs) {
-#if DI_DEBUG2
-						write_log (L"B:NUM=%d OFF=%d NAME=%s VAL=%d STATE=%d\n",
-							k, dimofs, did->buttonname[k], data, state);
-#endif
+						if (rawinput_log & 8)
+							write_log (L"B:NUM=%d OFF=%d NAME=%s VAL=%d STATE=%d\n",
+								k, dimofs, did->buttonname[k], data, state);
 						setjoybuttonstate (i, k, state);
 					}
 				}
@@ -3300,14 +3322,13 @@ static void read_joystick (void)
 							setjoystickstate (i, k, (data2 >= 20250 && data2 <= 33750) ? -1 : (data2 >= 2250 && data2 <= 15750) ? 1 : 0, 1);
 						} else if (did->axistype[k] == 2) {
 							setjoystickstate (i, k, ((data2 >= 29250 && data2 <= 33750) || (data2 >= 0 && data2 <= 6750)) ? -1 : (data2 >= 11250 && data2 <= 24750) ? 1 : 0, 1);
-#if DI_DEBUG2
-							write_log (L"P:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data2);
-#endif
+							if (rawinput_log & 8)
+								write_log (L"P:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data2);
 						} else if (did->axistype[k] == 0) {
-#if DI_DEBUG2
-							if (data < -20000 || data > 20000)
-								write_log (L"A:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data);
-#endif
+							if (rawinput_log & 8) {
+								if (data < -20000 || data > 20000)
+									write_log (L"A:NUM=%d OFF=%d NAME=%s VAL=%d\n", k, dimofs, did->axisname[k], data);
+							}
 							if (istest) {
 								if (data < -20000)
 									data = -20000;
@@ -3393,10 +3414,15 @@ void dinput_window (void)
 
 static int acquire_joystick (int num, int flags)
 {
-	LPDIRECTINPUTDEVICE8 lpdi = di_joystick[num].lpdi;
+	LPDIRECTINPUTDEVICE8 lpdi;
 	DIPROPDWORD dipdw;
 	HRESULT hr;
 
+	if (num < 0) {
+		doregister_rawinput ();
+		return 1;
+	}
+	lpdi = di_joystick[num].lpdi;
 	unacquire (lpdi, L"joystick");
 	if (di_joystick[num].connection == DIDC_DX && lpdi) {
 		setcoop (&di_joystick[num], flags ? (DISCL_FOREGROUND | DISCL_EXCLUSIVE) : (DISCL_BACKGROUND | DISCL_NONEXCLUSIVE), L"joystick");
@@ -3416,7 +3442,6 @@ static int acquire_joystick (int num, int flags)
 	} else {
 		di_joystick[num].acquired = 1;
 	}
-	doregister_rawinput ();
 	return di_joystick[num].acquired > 0 ? 1 : 0;
 }
 
@@ -3424,13 +3449,17 @@ static void unacquire_joystick (int num)
 {
 	struct didata *did = &di_joystick[num];
 
+	if (num < 0) {
+		doregister_rawinput ();
+		return;
+	}
+
 	unacquire (did->lpdi, L"joystick");
 	if (did->connection == DIDC_RAW) {
 		if (di_joystick[num].acquired)
 			rawhid--;
 	}
 	di_joystick[num].acquired = 0;
-	doregister_rawinput ();
 }
 
 static int get_joystick_flags (int num)

@@ -487,7 +487,7 @@ BEGIN
     GROUPBOX        "Miscellaneous Options",IDC_STATIC,4,2,293,165
     CONTROL         "Untrap = middle button",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,19,110,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,43,109,10
-    CONTROL         "Native on-screen display",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,139,109,10
+    CONTROL         "Native on-screen display",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,182,103,109,10
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,67,109,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,55,110,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,3,207,294,29
@@ -512,13 +512,14 @@ BEGIN
     CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,103,111,10
     CONTROL         "Faster RTG [] Enables less accurate custom chipset emulation mode when Picasso96 is enabled.",IDC_FASTERRTG,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,19,115,111,10
-    CONTROL         "RTG on-screen display",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,151,109,10
+    CONTROL         "RTG on-screen display",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,182,114,109,10
     RTEXT           "Graphics API:",IDC_STATIC,130,62,79,10,SS_CENTERIMAGE
     COMBOBOX        IDC_DXMODE,213,60,79,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Minimize when focus is lost",IDC_FOCUSMINIMIZE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,31,110,10
     RTEXT           "Windowed style:",IDC_STATIC,128,45,81,10,SS_CENTERIMAGE
     COMBOBOX        IDC_WINDOWEDMODE,213,43,79,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Clipboard sharing",IDC_CLIPBOARDSHARE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,127,111,10
+    CONTROL         "Allow native code",IDC_NATIVECODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,139,111,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 249
@@ -1697,6 +1698,11 @@ BEGIN
     IDS_SCREEN_VSYNC2_AUTOSWITCH "Low latency VS, 50/60Hz"
     IDS_SCREEN_VSYNC2       "Low latency VSync"
     IDS_SCREEN_VSYNC_NONE   "-"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_INPUTQUALIFIER      "Qualifiers"
 END
 
 #endif    // English resources

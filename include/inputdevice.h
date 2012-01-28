@@ -51,10 +51,15 @@ extern struct inputdevice_functions inputdevicefunc_mouse;
 extern struct inputdevice_functions inputdevicefunc_keyboard;
 extern int pause_emulation;
 
+struct uae_input_device_default_node
+{
+	int evt;
+	int flags;
+};
+
 struct uae_input_device_kbr_default {
     int scancode;
-    int evt;
-	int flags;
+    struct uae_input_device_default_node node[MAX_INPUT_SUB_EVENT];
 };
 
 struct inputevent {
@@ -66,6 +71,8 @@ struct inputevent {
 	int data;
 };
 
+#define MAX_INPUT_QUALIFIERS (8+4)
+
 /* event flags */
 #define ID_FLAG_AUTOFIRE 1
 #define ID_FLAG_TOGGLE 2
@@ -73,10 +80,28 @@ struct inputevent {
 #define ID_FLAG_GAMEPORTSCUSTOM2 8
 #define ID_FLAG_INVERTTOGGLE 16
 
-#define ID_FLAG_SAVE_MASK 0xff
 #define ID_FLAG_GAMEPORTSCUSTOM_MASK (ID_FLAG_GAMEPORTSCUSTOM1 | ID_FLAG_GAMEPORTSCUSTOM2)
 #define ID_FLAG_AUTOFIRE_MASK (ID_FLAG_TOGGLE | ID_FLAG_INVERTTOGGLE | ID_FLAG_AUTOFIRE)
-#define ID_FLAG_TOGGLED 0x100
+#define ID_FLAG_CANRELEASE 0x2000
+#define ID_FLAG_TOGGLED 0x4000
+#define ID_FLAG_CUSTOMEVENT_TOGGLED 0x8000
+#define ID_FLAG_QUALIFIER1 0x00010000
+#define ID_FLAG_QUALIFIER2 0x00020000
+#define ID_FLAG_QUALIFIER3 0x00040000
+#define ID_FLAG_QUALIFIER4 0x00080000
+#define ID_FLAG_QUALIFIER5 0x00100000
+#define ID_FLAG_QUALIFIER6 0x00200000
+#define ID_FLAG_QUALIFIER7 0x00400000
+#define ID_FLAG_QUALIFIER8 0x00800000
+#define ID_FLAG_QUALIFIER_SPECIAL 0x01000000
+#define ID_FLAG_QUALIFIER_SHIFT 0x02000000
+#define ID_FLAG_QUALIFIER_CONTROL 0x04000000
+#define ID_FLAG_QUALIFIER_ALT 0x08000000
+#define ID_FLAG_QUALIFIER_MASK 0x0fff0000
+
+#define ID_FLAG_SAVE_MASK_CONFIG 0xff
+#define ID_FLAG_SAVE_MASK_QUALIFIERS ID_FLAG_QUALIFIER_MASK
+#define ID_FLAG_SAVE_MASK_FULL (ID_FLAG_SAVE_MASK_CONFIG | ID_FLAG_SAVE_MASK_QUALIFIERS)
 
 #define IDEV_WIDGET_NONE 0
 #define IDEV_WIDGET_BUTTON 1
@@ -90,6 +115,19 @@ struct inputevent {
 #define IDEV_MAPPED_INVERTTOGGLE 8
 #define IDEV_MAPPED_GAMEPORTSCUSTOM1 16
 #define IDEV_MAPPED_GAMEPORTSCUSTOM2 32
+#define IDEV_MAPPED_QUALIFIER1 0x00010000
+#define IDEV_MAPPED_QUALIFIER2 0x00020000
+#define IDEV_MAPPED_QUALIFIER3 0x00040000
+#define IDEV_MAPPED_QUALIFIER4 0x00080000
+#define IDEV_MAPPED_QUALIFIER5 0x00100000
+#define IDEV_MAPPED_QUALIFIER6 0x00200000
+#define IDEV_MAPPED_QUALIFIER7 0x00400000
+#define IDEV_MAPPED_QUALIFIER8 0x00800000
+#define IDEV_MAPPED_QUALIFIER_SPECIAL 0x01000000
+#define IDEV_MAPPED_QUALIFIER_SHIFT 0x02000000
+#define IDEV_MAPPED_QUALIFIER_CONTROL 0x04000000
+#define IDEV_MAPPED_QUALIFIER_ALT 0x08000000
+#define IDEV_MAPPED_QUALIFIER_MASK 0x0fff0000
 
 #define ID_BUTTON_OFFSET 0
 #define ID_BUTTON_TOTAL 32
@@ -101,7 +139,7 @@ extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devn
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, int flags, int port, int sub);
 extern int inputdevice_get_mapping (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
-extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum);
+extern void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum, int selectedwidget);
 extern void inputdevice_swap_ports (struct uae_prefs *p, int devnum);
 extern void inputdevice_swap_compa_ports (struct uae_prefs *p, int portswap);
 extern void inputdevice_config_change (void);
@@ -158,6 +196,7 @@ extern void inputdevice_updateconfig (struct uae_prefs *prefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
+extern void inputdevice_checkqualifierkeycode (int keyboard, int scancode, int state);
 extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default **trans, int **kbmaps);
 extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
@@ -212,6 +251,8 @@ extern void inputdevice_tablet (int x, int y, int z,
 	      int ax, int ay, int az);
 extern void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay, int maxaz, int xres, int yres);
 extern void inputdevice_tablet_strobe (void);
+
+extern int input_getqualifiers (void);
 
 
 #define JSEM_MODE_DEFAULT 0

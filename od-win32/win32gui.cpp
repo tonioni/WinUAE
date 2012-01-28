@@ -1779,6 +1779,8 @@ static void flipgui (bool opengui)
 	D3D_guimode (opengui);
 	if (opengui)
 		DirectDraw_FlipToGDISurface ();
+	else
+		vblank_reset ();
 }
 
 static int GetSettings (int all_options, HWND hwnd);
@@ -1839,13 +1841,13 @@ void gui_display (int shortcut)
 	clearallkeys ();
 	inputdevice_acquire (TRUE);
 	setmouseactive (1);
-	flipgui (false);
 #ifdef AVIOUTPUT
 	AVIOutput_Begin ();
 #endif
 	fpscounter_reset ();
 	screenshot_free ();
 	write_disk_history ();
+	flipgui (false);
 	gui_active--;
 	here--;
 }
@@ -3318,6 +3320,27 @@ static int disk_swap (int entry, int mode)
 
 static int input_selected_device, input_selected_widget, input_total_devices;
 static int input_selected_event, input_selected_sub_num;
+static int input_copy_from;
+
+static void getqualifiername (TCHAR *p, int mask)
+{
+	int i, j;
+	*p = 0;
+	if (mask == IDEV_MAPPED_QUALIFIER_SPECIAL) {
+		_tcscpy (p, L"*");
+	} else if (mask == IDEV_MAPPED_QUALIFIER_SHIFT) {
+		_tcscpy (p, L"Shift");
+	} else if (mask == IDEV_MAPPED_QUALIFIER_CONTROL) {
+		_tcscpy (p, L"Ctrl");
+	} else if (mask == IDEV_MAPPED_QUALIFIER_ALT) {
+		_tcscpy (p, L"Alt");
+	} else {
+		for (i = IDEV_MAPPED_QUALIFIER1, j = 0; i <= IDEV_MAPPED_QUALIFIER8; i <<= 1, j++) {
+			if (i == mask)
+				_stprintf (p, L"%d", j + 1);
+		}
+	}
+}
 
 static void set_lventry_input (HWND list, int index)
 {
@@ -3342,7 +3365,7 @@ static void set_lventry_input (HWND list, int index)
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
 		WIN32GUI_LoadUIString (IDS_NO, toggle, sizeof toggle / sizeof (TCHAR));
 	else
-		_tcscpy (toggle, L"-");
+		_tcscpy (toggle, L"-");	
 	if (port > 0) {
 		TCHAR tmp[256];
 		_tcscpy (tmp, name);
@@ -3351,13 +3374,28 @@ static void set_lventry_input (HWND list, int index)
 	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
 	ListView_SetItemText (list, index, 2, af);
 	ListView_SetItemText (list, index, 3, toggle);
+	_tcscpy (name, L"-");	
+	if (flags & IDEV_MAPPED_QUALIFIER_MASK) {
+		TCHAR *p;
+		p = name;
+		for (i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+			int mask = IDEV_MAPPED_QUALIFIER1 << i;
+			if (flags & mask) {
+				if (p != name)
+					*p++ = ',';
+				getqualifiername (p, mask);
+				p += _tcslen (p);
+			}
+		}
+	}
+	ListView_SetItemText (list, index, 4, name);
 	sub = 0;
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 		if (inputdevice_get_mapping (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
 			sub++;
 	}
 	_stprintf (name, L"%d", sub);
-	ListView_SetItemText (list, index, 4, name);
+	ListView_SetItemText (list, index, 5, name);
 }
 
 static void update_listview_input (HWND hDlg)
@@ -3491,7 +3529,7 @@ static void update_listview_inputmap (HWND hDlg)
 static int clicked_entry = -1;
 
 #define LOADSAVE_COLUMNS 2
-#define INPUT_COLUMNS 5
+#define INPUT_COLUMNS 6
 #define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
 #define MISC2_COLUMNS 2
@@ -3559,7 +3597,8 @@ void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
-		_tcscpy (column_heading[4], L"#");
+		WIN32GUI_LoadUIString (IDS_INPUTQUALIFIER, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
+		_tcscpy (column_heading[5], L"#");
 		list = GetDlgItem (hDlg, IDC_INPUTLIST);
 
 	} else if (hDlg == pages[INPUTMAP_ID]) {
@@ -3642,7 +3681,8 @@ void InitializeListView (HWND hDlg)
 		listview_column_width[1] = 260;
 		listview_column_width[2] = 65;
 		listview_column_width[3] = 65;
-		listview_column_width[4] = 30;
+		listview_column_width[4] = 65;
+		listview_column_width[5] = 30;
 		update_listview_input (hDlg);
 
 	} else if (lv_type == LV_INPUTMAP) {
@@ -7293,6 +7333,7 @@ static void enable_for_miscdlg (HWND hDlg)
 		ew (hDlg, IDC_SCSIMODE, FALSE);
 		ew (hDlg, IDC_CLOCKSYNC, FALSE);
 		ew (hDlg, IDC_CLIPBOARDSHARE, FALSE);
+		ew (hDlg, IDC_NATIVECODE, FALSE);
 	} else {
 #if !defined (SCSIEMU)
 		EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
@@ -7438,6 +7479,7 @@ static void values_to_miscdlg (HWND hDlg)
 		CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
 		CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
 		CheckDlgButton (hDlg, IDC_CLIPBOARDSHARE, workprefs.clipboard_sharing);
+		CheckDlgButton (hDlg, IDC_NATIVECODE, workprefs.native_code);
 		CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
 		CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
 
@@ -7675,6 +7717,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDC_CLIPBOARDSHARE:
 			workprefs.clipboard_sharing = ischecked (hDlg, IDC_CLIPBOARDSHARE);
+			break;
+		case IDC_NATIVECODE:
+			workprefs.native_code = ischecked (hDlg, IDC_NATIVECODE);
 			break;
 		case IDC_NOTASKBARBUTTON:
 			workprefs.win32_notaskbarbutton = ischecked (hDlg, IDC_NOTASKBARBUTTON);
@@ -11349,7 +11394,9 @@ static void init_inputdlg (HWND hDlg)
 	}
 	WIN32GUI_LoadUIString (IDS_INPUT_COPY_DEFAULT, buf, sizeof (buf) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)buf);
-	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_SETCURSEL, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)L"Default");
+	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_ADDSTRING, 0, (LPARAM)L"Default (PC KB)");
+	SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_SETCURSEL, input_copy_from, 0);
 
 
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_RESETCONTENT, 0, 0L);
@@ -11951,10 +11998,8 @@ static void input_copy (HWND hDlg)
 	LRESULT src = SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L);
 	if (src == CB_ERR)
 		return;
-	int v = (int)src;
-	if (v >= 0 && v <= 3) {
-		inputdevice_copy_single_config (&workprefs, v, workprefs.input_selected_setting, input_selected_device);
-	}
+	input_copy_from = src;
+	inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device, input_selected_widget);
 	init_inputdlg (hDlg);
 }
 
@@ -11980,6 +12025,69 @@ static void input_toggleautofire (void)
 		flags &= ~(IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET);
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
 		name, custom, flags, -1, input_selected_sub_num);
+}
+
+static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
+{
+	int i, item;
+	HMENU menu;
+	POINT pt;
+
+	menu = CreatePopupMenu ();
+	for (i = 0; i < num; i++) {
+		MENUITEMINFO mii = { 0 };
+		mii.cbSize = sizeof mii;
+		mii.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
+		mii.fType = MFT_STRING;
+		mii.fState = MFS_ENABLED;
+		if (flags[i])
+			mii.fState |= MFS_CHECKED;
+		mii.wID = i + 1;
+		mii.dwTypeData = items[i];
+		mii.cch = _tcslen (mii.dwTypeData);
+		InsertMenuItem (menu, -1, TRUE, &mii);
+	}
+	GetCursorPos (&pt);
+	item = TrackPopupMenu (menu, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+		pt.x, pt.y, 0, hwnd, NULL);
+	PostMessage (hwnd, WM_NULL, 0, 0);
+	DestroyMenu (menu);
+	return item - 1;
+}
+
+static void input_qualifiers (HWND hDlg)
+{
+	int flags, evt, item;
+	TCHAR name[256];
+	TCHAR custom[MAX_DPATH];
+	TCHAR *names[MAX_INPUT_QUALIFIERS];
+	int mflags[MAX_INPUT_QUALIFIERS];
+	TCHAR tmp[MAX_DPATH];
+	
+	if (input_selected_device < 0 || input_selected_widget < 0)
+		return;
+	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+		&flags, NULL, name, custom, input_selected_sub_num);
+	if (evt <= 0)
+		name[0] = 0;
+	
+	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << i);
+		mflags[i] = 0;
+		if (flags & (IDEV_MAPPED_QUALIFIER1 << i))
+			mflags[i] = 1;
+		names[i] = my_strdup (tmp);
+	}
+	item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS);
+	if (item >= 0)
+		flags ^= IDEV_MAPPED_QUALIFIER1 << item;
+
+	inputdevice_set_mapping (input_selected_device, input_selected_widget,
+		name, custom, flags, -1, input_selected_sub_num);
+
+	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+		xfree (names[i]);
+	}
 }
 static void input_toggletoggle (void)
 {
@@ -12086,6 +12194,13 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			list = nmlistview->hdr.hwndFrom;
 			switch (nmlistview->hdr.code)
 			{
+			case NM_RDBLCLK:
+			case NM_RCLICK:
+				input_selected_widget = -1;
+				ListView_SetItemState (list, -1, 0, LVIS_SELECTED);
+				update_listview_input (hDlg);
+				init_inputdlg_2 (hDlg);
+				break;
 			case NM_DBLCLK:
 				dblclick = 1;
 				/* fall-through */
@@ -12098,7 +12213,9 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 						input_toggleautofire ();
 					if (row == 3 && entry == oldentry)
 						input_toggletoggle ();
-					if (row == 4) {
+					if (row == 4 && entry == oldentry)
+						input_qualifiers (hDlg);
+					if (row == 5) {
 						input_selected_sub_num++;
 						if (input_selected_sub_num >= MAX_INPUT_SUB_EVENT)
 							input_selected_sub_num = 0;
@@ -12107,7 +12224,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				} else {
 					input_selected_widget = -1;
 				}
-				if (dblclick)
+				if (dblclick && row <= 1)
 					doinputcustom (hDlg, 0);
 				update_listview_input (hDlg);
 				init_inputdlg_2 (hDlg);

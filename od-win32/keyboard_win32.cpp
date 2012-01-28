@@ -47,16 +47,16 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 
 	{ DIK_ESCAPE, INPUTEVENT_KEY_ESC },
 
-	{ DIK_F1, INPUTEVENT_KEY_F1 },
-	{ DIK_F2, INPUTEVENT_KEY_F2 },
-	{ DIK_F3, INPUTEVENT_KEY_F3 },
-	{ DIK_F4, INPUTEVENT_KEY_F4 },
-	{ DIK_F5, INPUTEVENT_KEY_F5 },
+	{  DIK_F1,  INPUTEVENT_KEY_F1, 0, INPUTEVENT_SPC_FLOPPY0, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY0, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
+	{  DIK_F2,  INPUTEVENT_KEY_F2, 0, INPUTEVENT_SPC_FLOPPY1, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY1, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
+	{  DIK_F3,  INPUTEVENT_KEY_F3, 0, INPUTEVENT_SPC_FLOPPY2, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY2, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
+	{  DIK_F4,  INPUTEVENT_KEY_F4, 0, INPUTEVENT_SPC_FLOPPY3, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_EFLOPPY3, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
 
-	{ DIK_F6, INPUTEVENT_KEY_F6 },
-	{ DIK_F7, INPUTEVENT_KEY_F7 },
-	{ DIK_F8, INPUTEVENT_KEY_F8 },
-	{ DIK_F9, INPUTEVENT_KEY_F9 },
+	{  DIK_F5,  INPUTEVENT_KEY_F5, 0, INPUTEVENT_SPC_STATERESTOREDIALOG, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_STATESAVEDIALOG, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
+	{  DIK_F6,  INPUTEVENT_KEY_F6 },
+	{  DIK_F7,  INPUTEVENT_KEY_F7 },
+	{  DIK_F8,  INPUTEVENT_KEY_F8 },
+	{  DIK_F9,  INPUTEVENT_KEY_F9 },
 	{ DIK_F10, INPUTEVENT_KEY_F10 },
 
 	{ DIK_1, INPUTEVENT_KEY_1 },
@@ -112,10 +112,10 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 	{ DIK_NUMPAD9, INPUTEVENT_KEY_NP_9 },
 	{ DIK_NUMPAD0, INPUTEVENT_KEY_NP_0 },
 	{ DIK_DECIMAL, INPUTEVENT_KEY_NP_PERIOD },
-	{ DIK_ADD, INPUTEVENT_KEY_NP_ADD },
-	{ DIK_SUBTRACT, INPUTEVENT_KEY_NP_SUB },
-	{ DIK_MULTIPLY, INPUTEVENT_KEY_NP_MUL },
-	{ DIK_DIVIDE, INPUTEVENT_KEY_NP_DIV },
+	{ DIK_ADD, INPUTEVENT_KEY_NP_ADD, 0, INPUTEVENT_SPC_VOLUME_UP, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_UP, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL, INPUTEVENT_SPC_INCREASE_REFRESHRATE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT  },
+	{ DIK_SUBTRACT, INPUTEVENT_KEY_NP_SUB, 0, INPUTEVENT_SPC_VOLUME_DOWN, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_DOWN, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL, INPUTEVENT_SPC_DECREASE_REFRESHRATE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT  },
+	{ DIK_MULTIPLY, INPUTEVENT_KEY_NP_MUL, 0, INPUTEVENT_SPC_VOLUME_MUTE, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_MASTER_VOLUME_MUTE, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_CONTROL },
+	{ DIK_DIVIDE, INPUTEVENT_KEY_NP_DIV, 0, INPUTEVENT_SPC_STATEREWIND, ID_FLAG_QUALIFIER_SPECIAL },
 	{ DIK_NUMPADENTER, INPUTEVENT_KEY_ENTER },
 
 	{ DIK_MINUS, INPUTEVENT_KEY_SUB },
@@ -124,15 +124,15 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 	{ DIK_RETURN, INPUTEVENT_KEY_RETURN },
 	{ DIK_SPACE, INPUTEVENT_KEY_SPACE },
 
-	{ DIK_LSHIFT, INPUTEVENT_KEY_SHIFT_LEFT },
-	{ DIK_LCONTROL, INPUTEVENT_KEY_CTRL },
+	{ DIK_LSHIFT, INPUTEVENT_KEY_SHIFT_LEFT, 0, INPUTEVENT_SPC_QUALIFIER_SHIFT },
+	{ DIK_LCONTROL, INPUTEVENT_KEY_CTRL, 0, INPUTEVENT_SPC_QUALIFIER_CONTROL },
 	{ DIK_LWIN, INPUTEVENT_KEY_AMIGA_LEFT },
-	{ DIK_LMENU, INPUTEVENT_KEY_ALT_LEFT },
-	{ DIK_RMENU, INPUTEVENT_KEY_ALT_RIGHT },
+	{ DIK_LMENU, INPUTEVENT_KEY_ALT_LEFT, 0, INPUTEVENT_SPC_QUALIFIER_ALT },
+	{ DIK_RMENU, INPUTEVENT_KEY_ALT_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_ALT },
 	{ DIK_RWIN, INPUTEVENT_KEY_AMIGA_RIGHT },
 	{ DIK_APPS, INPUTEVENT_KEY_AMIGA_RIGHT },
-	{ DIK_RCONTROL, INPUTEVENT_KEY_CTRL },
-	{ DIK_RSHIFT, INPUTEVENT_KEY_SHIFT_RIGHT },
+	{ DIK_RCONTROL, INPUTEVENT_KEY_CTRL, 0, INPUTEVENT_SPC_QUALIFIER_CONTROL },
+	{ DIK_RSHIFT, INPUTEVENT_KEY_SHIFT_RIGHT, 0, INPUTEVENT_SPC_QUALIFIER_SHIFT },
 
 	{ DIK_UP, INPUTEVENT_KEY_CURSOR_UP },
 	{ DIK_DOWN, INPUTEVENT_KEY_CURSOR_DOWN },
@@ -155,19 +155,12 @@ static struct uae_input_device_kbr_default keytrans_amiga[] = {
 	{ DIK_PERIOD, INPUTEVENT_KEY_PERIOD },
 	{ DIK_SLASH, INPUTEVENT_KEY_DIV },
 	{ DIK_OEM_102, INPUTEVENT_KEY_30 },
+	{ DIK_SYSRQ, INPUTEVENT_SPC_SCREENSHOT_CLIPBOARD, 0, INPUTEVENT_SPC_SCREENSHOT_CLIPBOARD, ID_FLAG_QUALIFIER_SPECIAL },
 
-//	{ DIK_VOLUMEDOWN, INPUTEVENT_SPC_MASTER_VOLUME_DOWN },
-//	{ DIK_VOLUMEUP, INPUTEVENT_SPC_MASTER_VOLUME_UP },
-//	{ DIK_MUTE, INPUTEVENT_SPC_MASTER_VOLUME_MUTE },
+	{ DIK_END, INPUTEVENT_SPC_QUALIFIER_SPECIAL },
+	{ DIK_PAUSE, INPUTEVENT_SPC_PAUSE, 0, INPUTEVENT_SPC_WARP, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_IRQ7, ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SHIFT },
 
-//	{ DIK_HOME, INPUTEVENT_KEY_70 },
-	{ DIK_END, INPUTEVENT_KEY_END },
-//	{ DIK_SYSRQ, INPUTEVENT_KEY_6E },
-//	{ DIK_F12, INPUTEVENT_KEY_6F },
-//	{ DIK_INSERT, INPUTEVENT_KEY_47 },
-//	{ DIK_PRIOR, INPUTEVENT_KEY_48 },
-//	{ DIK_NEXT, INPUTEVENT_KEY_49 },
-	{ DIK_F11, INPUTEVENT_KEY_F11 },
+	{ DIK_F12, INPUTEVENT_SPC_ENTERGUI, 0, INPUTEVENT_SPC_ENTERDEBUGGER, ID_FLAG_QUALIFIER_SPECIAL, INPUTEVENT_SPC_ENTERDEBUGGER, ID_FLAG_QUALIFIER_SHIFT, INPUTEVENT_SPC_TOGGLEDEFAULTSCREEN, ID_FLAG_QUALIFIER_CONTROL },
 
 	{ DIK_MEDIASTOP, INPUTEVENT_KEY_CDTV_STOP },
 	{ DIK_PLAYPAUSE, INPUTEVENT_KEY_CDTV_PLAYPAUSE },
@@ -333,32 +326,21 @@ static int *kbmaps[] = {
 	kb_xa1, kb_xa2, kb_arcadia, kb_arcadiaxa, kb_cdtv
 };
 
-extern int ispressed (int key);
-
-static int specialkeycode (void)
-{
-	if (currprefs.input_keyboard_type == 0)
-		return currprefs.win32_specialkey;
-	return -1;
-}
 static int specialpressed (void)
 {
-	return ispressed (specialkeycode ());
+	return input_getqualifiers () & ID_FLAG_QUALIFIER_SPECIAL;
 }
-
 static int shiftpressed (void)
 {
-	return ispressed (DIK_LSHIFT) || ispressed (DIK_RSHIFT);
+	return input_getqualifiers () & ID_FLAG_QUALIFIER_SHIFT;
 }
-
 static int altpressed (void)
 {
-	return ispressed (DIK_LMENU) || ispressed (DIK_RMENU);
+	return input_getqualifiers () & ID_FLAG_QUALIFIER_ALT;
 }
-
 static int ctrlpressed (void)
 {
-	return ispressed (DIK_LCONTROL) || ispressed (DIK_RCONTROL);
+	return input_getqualifiers () & ID_FLAG_QUALIFIER_CONTROL;
 }
 
 static int capslockstate;
@@ -397,7 +379,7 @@ void clearallkeys (void)
 	inputdevice_updateconfig (&currprefs);
 }
 
-static int np[] = {
+static const int np[] = {
 	DIK_NUMPAD0, 0, DIK_NUMPADPERIOD, 0, DIK_NUMPAD1, 1, DIK_NUMPAD2, 2,
 	DIK_NUMPAD3, 3, DIK_NUMPAD4, 4, DIK_NUMPAD5, 5, DIK_NUMPAD6, 6, DIK_NUMPAD7, 7,
 	DIK_NUMPAD8, 8, DIK_NUMPAD9, 9, -1 };
@@ -408,10 +390,15 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	int scancode_new;
 	int defaultguikey;
 	bool amode = currprefs.input_keyboard_type == 0;
+	bool special = false;
 	static int swapperdrive = 0;
 
-	if (scancode == specialkeycode ())
+#if 0
+	if (scancode == specialkeycode ()) {
+		inputdevice_checkqualifierkeycode (keyboard, scancode, newstate);
 		return;
+	}
+#endif
 
 	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
 		code = AKS_QUIT;
@@ -429,37 +416,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	
 	//write_log (L"keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
 
-	if (amode && newstate == 0 && code == 0) {
-		switch (scancode)
-		{
-			case DIK_SYSRQ:
-			screenshot (specialpressed () ? 1 : 0, 1);
-			break;
-		}
-	}
-
-
-	if (newstate && code == 0) {
-
-		if (scancode == defaultguikey || scancode == currprefs.win32_guikey) {
-			if (ctrlpressed ()) {
-				code = AKS_TOGGLEDEFAULTSCREEN;
-			} else if (shiftpressed () || specialpressed ()) {
-				if (isfullscreen() <= 0) {
-					disablecapture ();
-					code = AKS_ENTERDEBUGGER;
-				}
-			} else {
-				code = AKS_ENTERGUI;
-			}
-		}
-
-	}
-
 	if (newstate && code == 0 && amode) {
 
 		switch (scancode)
 		{
+#if 0
 		case DIK_F1:
 		case DIK_F2:
 		case DIK_F3:
@@ -473,6 +434,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 						code = AKS_FLOPPY0 + (scancode - DIK_F1);
 				}
 			}
+			special = true;
 			break;
 		case DIK_F5:
 #if 0
@@ -489,7 +451,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				else
 					code = AKS_STATERESTOREDIALOG;
 			}
+			special = true;
 			break;
+#endif
+
 		case DIK_1:
 		case DIK_2:
 		case DIK_3:
@@ -517,6 +482,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 					_tcscpy (changed_prefs.floppyslots[swapperdrive].df, currprefs.dfxlist[num]);
 					config_changed = 1;
 				}
+				special = true;
 			}
 			break;
 		case DIK_NUMPAD0:
@@ -540,8 +506,10 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				}
 				if (v >= 0)
 					code = AKS_STATESAVEQUICK + v * 2 + ((shiftpressed () || ctrlpressed ()) ? 0 : 1);
+				special = true;
 			}
 			break;
+#if 0
 		case DIK_PAUSE:
 			if (specialpressed ()) {
 				if (shiftpressed ())
@@ -551,6 +519,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 			} else {
 				code = AKS_PAUSE;
 			}
+			special = true;
 			break;
 #if 0
 		case DIK_SCROLL:
@@ -566,6 +535,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				else
 					code = AKS_VOLDOWN;
 			}
+			special = true;
 			break;
 		case DIK_NUMPADPLUS:
 			if (specialpressed ()) {
@@ -576,6 +546,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				else
 					code = AKS_VOLUP;
 			}
+			special = true;
 			break;
 		case DIK_NUMPADSTAR:
 			if (specialpressed ()) {
@@ -584,11 +555,14 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				else
 					code = AKS_VOLMUTE;
 			}
+			special = true;
 			break;
 		case DIK_NUMPADSLASH:
 			if (specialpressed ())
 				code = AKS_STATEREWIND;
+			special = true;
 			break;
+#endif
 		}
 	}
 
@@ -596,6 +570,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		inputdevice_add_inputcode (code, 1);
 		return;
 	}
+
 
 	scancode = scancode_new;
 	if (!specialpressed () && newstate) {
@@ -612,8 +587,11 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 			capslockstate = host_scrolllockstate;
 		}
 	}
-	if (specialpressed ())
+
+	if (special) {
+		inputdevice_checkqualifierkeycode (keyboard, scancode, newstate);
 		return;
+	}
 
 	inputdevice_translatekeycode (keyboard, scancode, newstate);
 }

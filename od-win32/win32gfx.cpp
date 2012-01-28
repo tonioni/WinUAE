@@ -1371,6 +1371,7 @@ int check_prefs_changed_gfx (void)
 	c |= _tcscmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[0].gfx_backbuffers != changed_prefs.gfx_apmode[0].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[0].gfx_interlaced != changed_prefs.gfx_apmode[0].gfx_interlaced ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[1].gfx_backbuffers != changed_prefs.gfx_apmode[1].gfx_backbuffers ? (2 | 8) : 0;
 
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
@@ -1437,6 +1438,7 @@ int check_prefs_changed_gfx (void)
 		_tcscpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
 		currprefs.gfx_apmode[0].gfx_backbuffers = changed_prefs.gfx_apmode[0].gfx_backbuffers;
+		currprefs.gfx_apmode[0].gfx_interlaced = changed_prefs.gfx_apmode[0].gfx_interlaced;
 		currprefs.gfx_apmode[1].gfx_backbuffers = changed_prefs.gfx_apmode[1].gfx_backbuffers;
 
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
@@ -2269,7 +2271,7 @@ static bool waitvblankstate (bool state, int *maxvpos)
 	}
 }
 
-bool vblank_wait (void)
+static bool vblank_wait (void)
 {
 	int vp;
 
@@ -2285,7 +2287,7 @@ bool vblank_wait (void)
 	}
 }
 
-bool vblank_getstate (bool *state)
+static bool vblank_getstate (bool *state)
 {
 	int vp, opos;
 
@@ -2305,6 +2307,13 @@ bool vblank_getstate (bool *state)
 	return true;
 }
 
+void vblank_reset (void)
+{
+	if (currprefs.gfx_api)
+		D3D_vblank_reset ();
+	else
+		DD_vblank_reset ();
+}
 
 static unsigned int __stdcall flipthread (void *dummy)
 {
@@ -2501,19 +2510,21 @@ struct remembered_vsync
 	int width, height, depth, rate, mode;
 	bool rtg;
 	double remembered_rate, remembered_rate2;
+	int maxscanline, maxvpos;
 };
 
 double vblank_calibrate (double approx_vblank, bool waitonly)
 {
 	frame_time_t t1, t2;
-	double tsum, tsum2, tval, tfirst;
+	double tsum, tsum2, tval, tfirst, div;
 	int maxcnt, maxtotal, total, cnt, tcnt2;
 	HANDLE th;
-	int maxvpos, div;
+	int maxvpos, mult;
 	int width, height, depth, rate, mode;
 	struct remembered_vsync *rv;
 	double rval = -1;
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	bool remembered = false;
 
 	if (picasso_on) {
 		width = picasso96_state.Width;
@@ -2524,6 +2535,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		height = currentmode->native_height;
 		depth = (currentmode->native_depth + 7) / 8;
 	}
+
 	rate = currprefs.gfx_refreshrate;
 	mode = isfullscreen ();
 	rv = vsyncmemory;
@@ -2531,22 +2543,15 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		if (rv->width == width && rv->height == height && rv->depth == depth && rv->rate == rate && rv->mode == mode && rv->rtg == picasso_on) {
 			approx_vblank = rv->remembered_rate2;
 			rval = rv->remembered_rate;
+			maxscanline = rv->maxscanline;
+			maxvpos = rv->maxvpos;
 			waitonly = true;
-			write_log (L"VSync calibration: remembered rate %.6fHz (%.6fHz)\n", rval, approx_vblank);
-			break;
+			remembered = true;
+			goto skip;
 		}
 		rv = rv->next;
 	}
 	
-	if (waitonly) {
-		vblankbasefull = syncbase / approx_vblank;
-		vblankbasewait = (syncbase / approx_vblank) * 3 / 4;
-		vblankbasewait2 = (syncbase / approx_vblank) * 70 / 100;
-		vblankbasewait3 = (syncbase / approx_vblank) * 90 / 100;
-		vblank_prev_time = read_processor_time ();
-		return rval;
-	}
-
 	th = GetCurrentThread ();
 	int oldpri = GetThreadPriority (th);
 	SetThreadPriority (th, THREAD_PRIORITY_HIGHEST);
@@ -2561,8 +2566,10 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		changevblankthreadmode (VBLANKTH_CALIBRATE);
 	}
 	sleep_millis (100);
+
 	maxtotal = 10;
 	maxcnt = maxtotal;
+	maxscanline = 0;
 	tsum2 = 0;
 	tcnt2 = 0;
 	for (maxcnt = 0; maxcnt < maxtotal; maxcnt++) {
@@ -2608,34 +2615,49 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	} else {
 		tsum /= total;
 	}
-	div = 1;
-	if (tsum >= 85)
-		div = 2;
+
+skip:
+	if (waitonly)
+		tsum = approx_vblank;
+
+	getvsyncrate (tsum, &mult);
+	if (mult < 0)
+		div = 2.0;
+	else if (mult > 0)
+		div = 0.5;
+	else
+		div = 1.0;
 	tsum2 = tsum / div;
+
 	vblankbasefull = (syncbase / tsum2);
 	vblankbasewait = (syncbase / tsum2) * 3 / 4;
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
-	write_log (L"VSync calibration: %.6fHz/%d=%.6fHz. MaxV=%d Units=%d\n", tsum, div, tsum2, maxvpos, vblankbasefull);
+	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MaxV=%d Units=%d\n", waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, maxvpos, vblankbasefull);
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	
-	rv = xcalloc (struct remembered_vsync, 1);
-	rv->width = width;
-	rv->height = height;
-	rv->depth = depth;
-	rv->rate = rate;
-	rv->mode = isfullscreen ();
-	rv->rtg = picasso_on;
-	rv->remembered_rate = tsum;
-	rv->remembered_rate2 = tsum2;
-	if (vsyncmemory == NULL) {
-		vsyncmemory = rv;
-	} else {
-		rv->next = vsyncmemory;
-		vsyncmemory = rv;
-	} 
+	if (!remembered) {
+		rv = xcalloc (struct remembered_vsync, 1);
+		rv->width = width;
+		rv->height = height;
+		rv->depth = depth;
+		rv->rate = rate;
+		rv->mode = isfullscreen ();
+		rv->rtg = picasso_on;
+		rv->remembered_rate = tsum;
+		rv->remembered_rate2 = tsum2;
+		rv->maxscanline = maxscanline;
+		rv->maxvpos = maxvpos;
+		if (vsyncmemory == NULL) {
+			vsyncmemory = rv;
+		} else {
+			rv->next = vsyncmemory;
+			vsyncmemory = rv;
+		}
+	}
 	
+	vblank_reset ();
 	return tsum;
 fail:
 	write_log (L"VSync calibration failed\n");

@@ -94,7 +94,7 @@
 extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
-extern int rawinput_enabled_hid;
+extern int rawinput_enabled_hid, rawinput_log;
 int log_scsi;
 int log_net;
 int log_vsync;
@@ -692,7 +692,6 @@ static void winuae_active (HWND hWnd, int minimized)
 	if (WIN32GFX_IsPicassoScreen ())
 		WIN32GFX_EnablePicasso ();
 	getcapslock ();
-	inputdevice_acquire (FALSE);
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);
 	if (isfullscreen() != 0 && !gui_active)
@@ -2785,7 +2784,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_iconified_priority = 3;
 		p->win32_notaskbarbutton = 0;
 		p->win32_alwaysontop = 0;
-		p->win32_specialkey = 0xcf; // DIK_END
 		p->win32_guikey = -1;
 		p->win32_automount_removable = 0;
 		p->win32_automount_drives = 0;
@@ -2900,7 +2898,6 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, L"notaskbarbutton", p->win32_notaskbarbutton);
 	cfgfile_target_dwrite_bool (f, L"always_on_top", p->win32_alwaysontop);
 	cfgfile_target_dwrite_bool (f, L"no_recyclebin", p->win32_norecyclebin);
-	cfgfile_target_dwrite (f, L"specialkey", L"0x%x", p->win32_specialkey);
 	if (p->win32_guikey >= 0)
 		cfgfile_target_dwrite (f, L"guikey", L"0x%x", p->win32_guikey);
 	cfgfile_target_dwrite (f, L"kbledmode", L"%d", p->win32_kbledmode);
@@ -2940,6 +2937,7 @@ static const TCHAR *obsolete[] = {
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
 	L"filesystem_codepage", L"aspi", L"no_overlay", L"soundcard_exclusive",
+	L"specialkey",
 	0
 };
 
@@ -2975,7 +2973,6 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_string (option, value, L"parjoyport0", p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"parjoyport1", p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof (TCHAR))
 		|| cfgfile_string (option, value, L"gui_page", p->win32_guipage, sizeof p->win32_guipage / sizeof (TCHAR))
-		|| cfgfile_intval (option, value, L"specialkey", &p->win32_specialkey, 1)
 		|| cfgfile_intval (option, value, L"guikey", &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, L"kbledmode", &p->win32_kbledmode, 1)
 		|| cfgfile_intval (option, value, L"cpu_idle", &p->cpu_idle, 1));
@@ -4723,6 +4720,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	if (!np)
 		return 0;
 
+	if (!_tcscmp (arg, L"inputlog")) {
+		rawinput_log = getval (np);
+		return 2;
+	}
 	if (!_tcscmp (arg, L"vsyncbusywait")) {
 		vsync_busy_wait_mode = getval (np);
 		return 2;

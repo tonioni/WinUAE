@@ -1,4 +1,36 @@
 
+Beta 14:
+
+- Input panel qualifier key/button support. I think this was requested many many years ago.
+  (I didn't originally plan to this now but someone reminded me few days ago..)
+  - Any key or button can be configured as a qualifier (like a shift or control key that modifies behavior
+    of other keys)
+  - Any Input Target can be configured to require qualifiers. Input Target only triggers if it's
+    Input Source and all configured qualifiers are active at the same time.
+  - If multiple slots are configured, only slot(s) that have matching qualifier will be triggered,
+    for example if slot 1 has qualifier and slot 2 has none: Only slot 2 triggers if Input Source matches
+    without qualifier active and only slot 1 if Input Source matches with active qualifier.
+  - Same qualifer code (1-8) can be configured to more than one key/button.
+  - Qualifier(s) set to any other types than keys or buttons is currently undefined.
+  - End ("*" in GUI), Shift, Alt and Control keys are mapped to built-in qualifiers.
+  - Most previously hardwired key mappings (END+F1 etc..) are now implemented using Input qualifier system
+    Exceptions: F12 so that there is no way for users to accidentally disable GUI access.
+    END+<number> and END+<numpad number> disk swapper and statefile shortcuts, I didn't want to add 30+
+    new mostly pointless input targets.. Disabled if END-key's qualifier flag is removed.
+  - Qualifiers and custom events: slots 1 to 4 and 5 to 8 can have different qualifiers.
+
+- Doubled number of input target slots (4 to 8)
+- "Copy from"-button corrupted memory.
+- Added keyboard default options to "Copy from"-button. Can select either Amiga or PC default mapping.
+- TODO: restore only single input target to default.
+
+- Less than 35Hz vsync display refresh rate: show only every other frame.
+- Workaround for strange Windows feature or a bug. First call raw input RegisterRawInputDevices() to unregister
+  HID devices and then immediately call to register them again: Windows randomly stops reporting HID events.
+- Windows to Amiga clipboard sharing wrong string size if string contained cr/lf line endings.
+- Low latency VSync screen mode switch fixes and updates.
+- Native code execution (winlauch.alib etc..) is not anymore allowed by default. Option in misc panel.
+
 Beta 13:
 
 - bsdsocket emulation: use SOCK_DGRAM if requesting IPPROTO_UDP + SOCK_RAW. Raw sockets require

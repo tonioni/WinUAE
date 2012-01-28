@@ -684,6 +684,7 @@ static void picasso_handle_vsync2 (void)
 	static int vsynccnt;
 	int thisisvsync = 1;
 	int vsync = isvsync_rtg ();
+	int mult;
 
 #ifdef RETROPLATFORM
 	rp_vsync ();
@@ -693,7 +694,8 @@ static void picasso_handle_vsync2 (void)
 	if (!picasso_on)
 		createwindowscursor (0, 0, 0, 0, 0, 1);
 
-	if (vsync >= 0 && currprefs.chipset_refreshrate >= 85) {
+	getvsyncrate (currprefs.chipset_refreshrate, &mult);
+	if (vsync >= 0 && mult < 0) {
 		vsynccnt++;
 		if (vsynccnt < 2)
 			thisisvsync = 0;

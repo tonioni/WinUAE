@@ -632,6 +632,8 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 100: // open dll
 		{
+			if (!currprefs.native_code)
+				return 0;
 			TCHAR *dlldir = TEXT ("winuae_dll");
 			TCHAR *dllname;
 			uaecptr dllptr;
@@ -682,37 +684,44 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 
 	case 101:	//get dll label
 		{
-			HMODULE m;
-			uaecptr funcaddr;
-			char *funcname;
-			m = (HMODULE) m68k_dreg (regs, 1);
-			funcaddr = m68k_areg (regs, 0);
-			funcname = (char*)get_real_address (funcaddr);
-			return (uae_u32) GetProcAddress (m, funcname);
+			if (currprefs.native_code) {
+				HMODULE m;
+				uaecptr funcaddr;
+				char *funcname;
+				m = (HMODULE) m68k_dreg (regs, 1);
+				funcaddr = m68k_areg (regs, 0);
+				funcname = (char*)get_real_address (funcaddr);
+				return (uae_u32) GetProcAddress (m, funcname);
+			}
+			return 0;
 		}
 
 	case 102:	//execute native code
 		{
-			uae_u32 ret;
-			unsigned long rate1;
-			double v;
-			rate1 = read_processor_time ();
-			ret = emulib_ExecuteNativeCode2 (context);
-			rate1 = read_processor_time () - rate1;
-			v = syncdivisor * rate1;
-			if (v > 0) {
-				if (v > 1000000 * CYCLE_UNIT)
-					v = 1000000 * CYCLE_UNIT;
-				do_extra_cycles ((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
+			uae_u32 ret = 0;
+			if (currprefs.native_code) {
+				unsigned long rate1;
+				double v;
+				rate1 = read_processor_time ();
+				ret = emulib_ExecuteNativeCode2 (context);
+				rate1 = read_processor_time () - rate1;
+				v = syncdivisor * rate1;
+				if (v > 0) {
+					if (v > 1000000 * CYCLE_UNIT)
+						v = 1000000 * CYCLE_UNIT;
+					do_extra_cycles ((unsigned long)(syncdivisor * rate1)); //compensate the time stay in native func
+				}
 			}
 			return ret;
 		}
 
 	case 103:	//close dll
 		{
-			HMODULE libaddr;
-			libaddr = (HMODULE) m68k_dreg (regs, 1);
-			FreeLibrary (libaddr);
+			if (currprefs.native_code) {
+				HMODULE libaddr;
+				libaddr = (HMODULE) m68k_dreg (regs, 1);
+				FreeLibrary (libaddr);
+			}
 			return 0;
 		}
 #endif
@@ -743,6 +752,9 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			free(bswap_buffer);
 			bswap_buffer = (void*)malloc(bswap_buffer_size);
 		}
+		if (!bswap_buffer)
+			return 0;
+
 		__asm {
 			mov esi, dword ptr [src]
 			mov edi, dword ptr [bswap_buffer]
@@ -805,6 +817,8 @@ BSWAP_WORD_END:
 			free(bswap_buffer);
 			bswap_buffer = (void*)malloc(bswap_buffer_size);
 		}
+		if (!bswap_buffer)
+			return 0;
 		__asm {
 			mov esi, dword ptr [src]
 			mov edi, dword ptr [bswap_buffer]

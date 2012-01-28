@@ -16,10 +16,17 @@
 
 #include <math.h>
 
-double getvsyncrate (double hz)
+double getvsyncrate (double hz, int *mult)
 {
-	if (hz > 85)
+	if (hz > 85) {
+		*mult = -1;
 		return hz / 2;
+	}
+	if (hz < 35) {
+		*mult = 1;
+		return hz * 2;
+	}
+	*mult = 0;
 	return hz;
 }
 

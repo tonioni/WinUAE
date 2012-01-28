@@ -153,7 +153,7 @@ static void to_iff_text (const TCHAR *pctxt)
 
 	s = ua (pctxt);
 	txt = pctoamiga (s);
-	txtlen = strlen (s);
+	txtlen = strlen (txt);
 	xfree (to_amiga);
 	size = txtlen + sizeof b + (txtlen & 1) - 8;
 	b[4] = size >> 24;

@@ -793,6 +793,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, L"magic_mousecursor", magiccursors[p->input_magic_mouse_cursor]);
 	cfgfile_dwrite_str (f, L"absolute_mouse", abspointers[p->input_tablet]);
 	cfgfile_dwrite_bool (f, L"clipboard_sharing", p->clipboard_sharing);
+	cfgfile_dwrite_bool (f, L"native_code", p->native_code);
 
 	cfgfile_write (f, L"gfx_display", L"%d", p->gfx_display);
 	cfgfile_dwrite_str (f, L"gfx_display_name", p->gfx_display_name);
@@ -812,6 +813,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 
 	cfgfile_write (f, L"gfx_backbuffers", L"%d", p->gfx_apmode[0].gfx_backbuffers);
 	cfgfile_write (f, L"gfx_backbuffers_rtg", L"%d", p->gfx_apmode[1].gfx_backbuffers);
+	if (p->gfx_apmode[0].gfx_interlaced)
+		cfgfile_write_bool (f, L"gfx_interlace", p->gfx_apmode[0].gfx_interlaced);
 	cfgfile_write_str (f, L"gfx_vsync", vsyncmodes[p->gfx_apmode[0].gfx_vsync]);
 	cfgfile_write_str (f, L"gfx_vsyncmode", vsyncmodes2[p->gfx_apmode[0].gfx_vsyncmode]);
 	cfgfile_write_str (f, L"gfx_vsync_picasso", vsyncmodes[p->gfx_apmode[1].gfx_vsync]);
@@ -929,6 +932,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (p->cr[i].rate <= 0)
 			continue;
 		struct chipset_refresh *cr = &p->cr[i];
+		cr->index = i;
 		_stprintf (tmp, L"%f", cr->rate);
 		TCHAR *s = tmp + _tcslen (tmp);
 		if (cr->label[0] > 0 && i < MAX_CHIPSET_REFRESH)
@@ -1478,6 +1482,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"gfx_autoresolution", &p->gfx_autoresolution)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_apmode[0].gfx_backbuffers, 1)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers_rtg", &p->gfx_apmode[1].gfx_backbuffers, 1)
+		|| cfgfile_yesno (option, value, L"gfx_interlace", &p->gfx_apmode[0].gfx_interlaced)
 		
 		|| cfgfile_intval (option, value, L"gfx_center_horizontal_position", &p->gfx_xcenter_pos, 1)
 		|| cfgfile_intval (option, value, L"gfx_center_vertical_position", &p->gfx_ycenter_pos, 1)
@@ -1539,6 +1544,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, L"warp", &p->turbo_emulation)
 		|| cfgfile_yesno (option, value, L"headless", &p->headless)
 		|| cfgfile_yesno (option, value, L"clipboard_sharing", &p->clipboard_sharing)
+		|| cfgfile_yesno (option, value, L"native_code", &p->native_code)
 		|| cfgfile_yesno (option, value, L"bsdsocket_emu", &p->socket_emu))
 		return 1;
 
@@ -3991,6 +3997,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cart_internal = 1;
 	p->sana2 = 0;
 	p->clipboard_sharing = false;
+	p->native_code = false;
 
 	p->cs_compatible = 1;
 	p->cs_rtc = 2;
@@ -4108,9 +4115,11 @@ void default_prefs (struct uae_prefs *p, int type)
 	struct chipset_refresh *cr;
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		cr = &p->cr[i];
+		cr->index = i;
 		cr->rate = -1;
 	}
 	cr = &p->cr[CHIPSET_REFRESH_PAL];
+	cr->index = CHIPSET_REFRESH_PAL;
 	cr->horiz = -1;
 	cr->vert = -1;
 	cr->lace = -1;
@@ -4121,6 +4130,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	cr->locked = false;
 	_tcscpy (cr->label, L"PAL");
 	cr = &p->cr[CHIPSET_REFRESH_NTSC];
+	cr->index = CHIPSET_REFRESH_NTSC;
 	cr->horiz = -1;
 	cr->vert = -1;
 	cr->lace = -1;

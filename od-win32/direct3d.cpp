@@ -937,8 +937,8 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DTEXTURE9
 		fDims.x = (FLOAT) Desc.Width;
 		fDims.y = (FLOAT) Desc.Height;
 	}
-	fTexelSize.x = 1 / fDims.x;
-	fTexelSize.y = 1 / fDims.y;
+	fTexelSize.x = 1.0f / fDims.x;
+	fTexelSize.y = 1.0f / fDims.y;
 	if (m_SourceDimsEffectHandle) {
 		hr = pEffect->SetVector (m_SourceDimsEffectHandle, &fDims);
 		if (FAILED (hr)) {
@@ -1867,6 +1867,12 @@ bool D3D_getvblankpos (int *vpos)
 	return true;
 }
 
+void D3D_vblank_reset (void)
+{
+	if (!isd3d ())
+		return;
+}
+
 static int getd3dadapter (IDirect3D9 *d3d)
 {
 	struct MultiDisplay *md = getdisplay (&currprefs);
@@ -1977,7 +1983,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	modeex.Width = w_w;
 	modeex.Height = w_h;
 	modeex.RefreshRate = 0;
-	modeex.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
+	modeex.ScanLineOrdering = ap->gfx_interlaced ? D3DSCANLINEORDERING_INTERLACED : D3DSCANLINEORDERING_PROGRESSIVE;
 	modeex.Format = mode.Format;
 
 	vsync2 = 0;
@@ -1986,11 +1992,14 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-			if (getvsyncrate (dpp.FullScreen_RefreshRateInHz) != dpp.FullScreen_RefreshRateInHz) {
+			getvsyncrate (dpp.FullScreen_RefreshRateInHz, &mult);
+			if (mult < 0) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				else
-					vsync2 = 1;
+					vsync2 = -1;
+			} else if (mult > 0) {
+				vsync2 = 1;
 			}
 		}
 	}
@@ -2078,7 +2087,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 		max_texture_w, max_texture_h,
-		dpp.Windowed ? 0 : dpp.FullScreen_RefreshRateInHz,
+		dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
 		vsync, dpp.BackBufferCount,
 		dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
@@ -2609,11 +2618,18 @@ uae_u8 *D3D_locktexture (int *pitch, int fullupdate)
 
 bool D3D_renderframe (void)
 {
+	static int vsync2_cnt;
+
 	if (!isd3d ())
 		return false;
 
+	if (vsync2 > 0) {
+		vsync2_cnt ^= 1;
+		if (vsync2_cnt == 0)
+			return true;
+	}
 	D3D_render2 ();
-	if (vsync2 && !currprefs.turbo_emulation) {
+	if (vsync2 < 0 && !currprefs.turbo_emulation) {
 		D3D_render2 ();
 	}
 

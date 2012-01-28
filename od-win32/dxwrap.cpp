@@ -418,6 +418,9 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 	if (dxdata.fsmodeset && dxdata.width == width && dxdata.height == height &&
 		dxdata.depth == bits && dxdata.freq == freq)
 		return DD_OK;
+
+	getvsyncrate (freq, &dxdata.vblank_skip);
+	dxdata.vblank_skip_cnt = 0;
 	ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
 	if (FAILED (ddrval)) {
 		write_log (L"IDirectDraw7_SetDisplayMode: %s\n", DXError (ddrval));
@@ -900,39 +903,60 @@ void DirectDraw_FillPrimary (void)
 	DirectDraw_FillSurface (dxdata.primary, NULL, 0);
 }
 
-extern int vblank_skip;
 static void flip (void)
 {
 	int result = 0;
 	HRESULT ddrval = DD_OK;
 	DWORD flags = DDFLIP_DONOTWAIT;
 	int vsync = isvsync ();
+	bool novsync = false;
 	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
-	if (currprefs.turbo_emulation || !ap->gfx_vflip)
+	if (currprefs.turbo_emulation || !ap->gfx_vflip) {
+		novsync = true;
 		flags |= DDFLIP_NOVSYNC;
+	}
 	if (dxdata.backbuffers == 2) {
 		DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
 		if (vsync) {
-			if (vblank_skip >= 0 || currprefs.turbo_emulation) {
+			if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
 				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+			} else if (dxdata.vblank_skip > 0) {
+				dxdata.vblank_skip_cnt ^= 1;
+				if (dxdata.vblank_skip_cnt == 0)
+					return;
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+			} else if (flipinterval_supported && !novsync) {
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
 			} else {
-				if (flipinterval_supported) {
-					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
-				} else {
-					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-					DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
-					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-				}
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 			}
 		} else {
 			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags| DDFLIP_NOVSYNC);
 		}
 	} else if(dxdata.backbuffers == 1) {
-		if (!vsync)
-			flags |= DDFLIP_NOVSYNC;
-		ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-		DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+		if (vsync) {
+			if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+			} else if (dxdata.vblank_skip > 0) {
+				dxdata.vblank_skip_cnt ^= 1;
+				if (dxdata.vblank_skip_cnt == 0)
+					return;
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+			} else if (flipinterval_supported && !novsync) {
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
+			} else {
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+			}
+			DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+		} else {
+			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
+			DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+		}
 	}
 	if (ddrval == DDERR_SURFACELOST) {
 		static int recurse;
@@ -1252,4 +1276,12 @@ bool DD_getvblankpos (int *vpos)
 	if (vbs)
 		*vpos = -1;
 	return true;
+}
+
+void DD_vblank_reset (void)
+{
+	dx_check ();
+	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
+		return;
+	IDirectDraw7_WaitForVerticalBlank (dxdata.maindd, DDWAITVB_BLOCKBEGIN, NULL);
 }

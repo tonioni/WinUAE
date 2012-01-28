@@ -22,6 +22,7 @@ struct ddstuff
 	DWORD overlayflags;
 	int fsmodeset, backbuffers;
 	int width, height, depth, freq;
+	int vblank_skip, vblank_skip_cnt;
 	int swidth, sheight;
 	DDSURFACEDESC2 native;
 	DDSURFACEDESC2 locksurface;
@@ -131,6 +132,7 @@ void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 bool DD_getvblankpos (int *vpos);
+void DD_vblank_reset (void);
 
 void dx_check (void);
 int dx_islost (void);

@@ -36,16 +36,17 @@ struct strlist {
 /* 4 different customization settings */
 #define MAX_INPUT_SETTINGS 4
 #define GAMEPORT_INPUT_SETTINGS 3 // last slot is for gameport panel mappings
-#define MAX_INPUT_SUB_EVENT 4
-#define MAX_INPUT_SUB_EVENT_ALL 5
-#define SPARE_SUB_EVENT 4
+
+#define MAX_INPUT_SUB_EVENT 8
+#define MAX_INPUT_SUB_EVENT_ALL 9
+#define SPARE_SUB_EVENT 8
 
 struct uae_input_device {
 	TCHAR *name;
 	TCHAR *configname;
 	uae_s16 eventid[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
 	TCHAR *custom[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
-	uae_u16 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
+	uae_u32 flags[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
 	uae_s8 port[MAX_INPUT_DEVICE_EVENTS][MAX_INPUT_SUB_EVENT_ALL];
 	uae_s16 extra[MAX_INPUT_DEVICE_EVENTS];
 	uae_s8 enabled;
@@ -152,6 +153,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define CHIPSET_REFRESH_NTSC (MAX_CHIPSET_REFRESH + 1)
 struct chipset_refresh
 {
+	int index;
 	bool locked;
 	bool rtg;
 	int horiz;
@@ -172,6 +174,7 @@ struct apmode
 	bool gfx_vflip;
 	int gfx_vsyncmode;
 	int gfx_backbuffers;
+	bool gfx_interlaced;
 };
 
 struct uae_prefs {
@@ -404,6 +407,7 @@ struct uae_prefs {
 	bool mmkeyboard;
 	int uae_hide;
 	bool clipboard_sharing;
+	bool native_code;
 
 	int mountitems;
 	struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
@@ -450,7 +454,6 @@ struct uae_prefs {
 	int win32_soundcard;
 	int win32_samplersoundcard;
 	bool win32_norecyclebin;
-	int win32_specialkey;
 	int win32_guikey;
 	int win32_kbledmode;
 	TCHAR win32_commandpathstart[MAX_DPATH];
