@@ -2777,7 +2777,7 @@ int current_maxvpos (void)
 	return maxvpos + (lof_store ? 1 : 0);
 }
 
-static struct chipset_refresh *get_chipset_refresh (void)
+struct chipset_refresh *get_chipset_refresh (void)
 {
 	int islace = (bplcon0 & 4) ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
@@ -3799,9 +3799,6 @@ static void BPLCON0 (int hpos, uae_u16 v)
 #endif
 	if (bplcon0 == v)
 		return;
-
-	if ((bplcon0 & 4) != (v & 4))
-		write_log (L"lace=%d\n", v & 4);
 
 	if (!issyncstopped ()) {
 		vpos_previous = vpos;
@@ -5175,7 +5172,7 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 			// fastest possible
 			curr_time = vsync_busywait_end ();
-			vsync_busywait_do (NULL);
+			vsync_busywait_do (NULL, interlace_seen != 0, lof_store);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			vsync_busywait_start ();
@@ -5183,7 +5180,7 @@ static void framewait (void)
 		} else {
 
 			render_screen ();
-			vsync_busywait_do (&freetime);
+			vsync_busywait_do (&freetime, interlace_seen != 0, lof_store);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			show_screen ();

@@ -1,8 +1,25 @@
 
+Beta 15:
+
+- Append 'i' to PC resolutions that are interlaced. (TV Out, VGA + 15KHz hacks etc..)
+- Low latency Amiga interlace mode odd/even fields are now in sync with output's odd/even fields,
+  if output resolution is also interlaced.
+- Set cpu speed to "real" if it was fastest possible originally when switching cycle-exact on the fly
+  using uae-configuration.
+- MIDI device IDs are correct again (b1)
+- Display panel displaydata PAL/NTSC/etc select box now mirrors currently active emulated setting.
+- "Default refresh rate" skipped every other frame in DirectDraw mode (b14)
+- gfx_autoresolution_min_vertical and gfx_autoresolution_min_horizontal support on the fly adjustment
+  using uae-configuration.
+- Write winuaebootlog.txt to Windows temp directory if original directory is read-only.
+- Directory harddrives configured as unbootable are now really unbootable under KS 1.3.
+- Mequa's optimized Akiko C2P added.
+- HID raw input mask overflow when HID bitsize was 32. (PPJoy)
+
 Beta 14:
 
 - Input panel qualifier key/button support. I think this was requested many many years ago.
-  (I didn't originally plan to this now but someone reminded me few days ago..)
+  (I didn't originally plan to do this now but someone reminded me few days ago..)
   - Any key or button can be configured as a qualifier (like a shift or control key that modifies behavior
     of other keys)
   - Any Input Target can be configured to require qualifiers. Input Target only triggers if it's
@@ -105,7 +122,7 @@ Beta 9:
   accept it and new vsync can work with buffer smaller than old 1. (Buffer size "0" or "1/2" would have
   been too confusing..) In other words, if you load old configuration, only value shown in GUI increases by one,
   real buffer size does not change.
-- Fixed Graffiti emulation crash in if Graffiti hires mode was detected but emulation was
+- Fixed Graffiti emulation crash if Graffiti hires mode was detected but emulation was
   not configured for superhires support. (Only in some situations)
 - Disable genlock detected option if A2024 or Graffiti enabled, this is impossible configuration and would only slow down
   emulation (forces Graffiti emulation to keep looking for command codes continuously)

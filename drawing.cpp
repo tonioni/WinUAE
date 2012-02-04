@@ -2328,7 +2328,7 @@ static void init_drawing_frame (void)
 						if (currprefs.gfx_autoresolution_minv < 0) {
 							if (nl < nr)
 								nl = nr;
-						} else if (nr < currprefs.gfx_autoresolution_minv) {
+						} else if (nl < currprefs.gfx_autoresolution_minv) {
 							nl = currprefs.gfx_autoresolution_minv;
 						}
 

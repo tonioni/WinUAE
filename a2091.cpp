@@ -957,7 +957,6 @@ static int REGPARAM2 dmac_check (uaecptr addr, uae_u32 size)
 
 static uae_u8 *REGPARAM2 dmac_xlate (uaecptr addr)
 {
-	write_log (L"%x ", addr);
 	addr &= rom_mask;
 	addr += rombank * rom_size;
 	return rom + addr;

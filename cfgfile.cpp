@@ -689,6 +689,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, L"statefile_quit", p->quitstatefile);
 
 	cfgfile_write (f, L"nr_floppies", L"%d", p->nr_floppies);
+	cfgfile_dwrite_bool (f, L"floppy_write_protect", p->floppy_read_only);
 	cfgfile_write (f, L"floppy_speed", L"%d", p->floppy_speed);
 	cfgfile_write (f, L"floppy_volume", L"%d", p->dfxclickvolume);
 	cfgfile_dwrite (f, L"floppy_channel_mask", L"0x%x", p->dfxclickchannelmask);
@@ -2279,6 +2280,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, L"comp_midopt", &p->comp_midopt)
 		|| cfgfile_yesno (option, value, L"comp_lowopt", &p->comp_lowopt)
 		|| cfgfile_yesno (option, value, L"rtg_nocustom", &p->picasso96_nocustom)
+		|| cfgfile_yesno (option, value, L"floppy_write_protected", &p->floppy_read_only)
 		|| cfgfile_yesno (option, value, L"uaeserial", &p->uaeserial))
 		return 1;
 
@@ -4084,6 +4086,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->custom_memory_sizes[1] = 0;
 
 	p->nr_floppies = 2;
+	p->floppy_read_only = false;
 	p->floppyslots[0].dfxtype = DRV_35_DD;
 	p->floppyslots[1].dfxtype = DRV_35_DD;
 	p->floppyslots[2].dfxtype = DRV_NONE;

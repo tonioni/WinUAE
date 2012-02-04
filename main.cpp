@@ -186,6 +186,9 @@ void fixup_cpu (struct uae_prefs *p)
 	if (p->cachesize && p->cpu_cycle_exact)
 		p->cachesize = 0;
 
+	if (p->cpu_cycle_exact && p->m68k_speed < 0)
+		p->m68k_speed = 0;
+
 	if (p->immediate_blits && p->blitter_cycle_exact)
 		p->immediate_blits = false;
 }

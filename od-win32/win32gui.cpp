@@ -1780,7 +1780,7 @@ static void flipgui (bool opengui)
 	if (opengui)
 		DirectDraw_FlipToGDISurface ();
 	else
-		vblank_reset ();
+		vblank_reset (-1);
 }
 
 static int GetSettings (int all_options, HWND hwnd);
@@ -5645,6 +5645,7 @@ static void values_to_displaydlg (HWND hDlg)
 
 	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_RESETCONTENT, 0, 0);
 	v = 0;
+	struct chipset_refresh *selectcr = full_property_sheet ? (workprefs.ntscmode ? &workprefs.cr[CHIPSET_REFRESH_NTSC] : &workprefs.cr[CHIPSET_REFRESH_PAL]) : get_chipset_refresh () ;
 	for (int i = 0; i < MAX_CHIPSET_REFRESH_TOTAL; i++) {
 		struct chipset_refresh *cr = &workprefs.cr[i];
 		if (cr->rate > 0) {
@@ -5655,16 +5656,17 @@ static void values_to_displaydlg (HWND hDlg)
 			d = workprefs.chipset_refreshrate;
 			if (abs (d) < 1)
 				d = currprefs.ntscmode ? 60.0 : 50.0;
-			if (abs (cr->rate - d) < 1.5 && workprefs.cr_selected < 0) {
+			if (selectcr && selectcr->index == cr->index)
 				workprefs.cr_selected = i;
-			}
 			rates[i] = v;
 			v++;
 		}
 	}
+
+
 	if (workprefs.cr_selected < 0 || workprefs.cr[workprefs.cr_selected].rate <= 0)
 		workprefs.cr_selected = CHIPSET_REFRESH_PAL;
-	struct chipset_refresh *selectcr = &workprefs.cr[workprefs.cr_selected];
+	selectcr = &workprefs.cr[workprefs.cr_selected];
 	SendDlgItemMessage(hDlg, IDC_RATE2BOX, CB_SETCURSEL, rates[workprefs.cr_selected], 0);
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPOS, TRUE, (LPARAM)(selectcr->rate + 0.5));
 	_stprintf (buffer, L"%.6f", selectcr->locked || full_property_sheet ? selectcr->rate : workprefs.chipset_refreshrate);
@@ -5773,7 +5775,7 @@ static void init_resolution_combo (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_RESETCONTENT, 0, 0);
 	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
 		if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx != idx) {
-			_stprintf (tmp, L"%dx%d", md->DisplayModes[i].res.width, md->DisplayModes[i].res.height);
+			_stprintf (tmp, L"%dx%d%s", md->DisplayModes[i].res.width, md->DisplayModes[i].res.height, md->DisplayModes[i].lace ? L"i" : L"");
 			if (md->DisplayModes[i].rawmode)
 				_tcscat (tmp, L" (*)");
 			SendDlgItemMessage(hDlg, IDC_RESOLUTION, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -6172,6 +6174,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
+	TCHAR buffer[MAX_DPATH];
 
 	switch (msg) {
 	case WM_INITDIALOG:
@@ -6180,7 +6183,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"");
-		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"Generic");
+		WIN32GUI_LoadUIString(IDS_GENERIC, buffer, sizeof buffer / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CDTV");
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"CD32");
 		SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_ADDSTRING, 0, (LPARAM)L"A500");
@@ -6196,7 +6200,8 @@ static INT_PTR CALLBACK ChipsetDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"-");
-		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"Autodetect");
+		WIN32GUI_LoadUIString(IDS_AUTODETECT, buffer, sizeof buffer / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)buffer);
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"A2024");
 		SendDlgItemMessage (hDlg, IDC_MONITOREMU, CB_ADDSTRING, 0, (LPARAM)L"Graffiti");
 
@@ -9774,10 +9779,10 @@ static void addfloppytype (HWND hDlg, int n)
 		}
 		CheckDlgButton (hDlg, f_enable, state ? BST_CHECKED : BST_UNCHECKED);
 	}
-	chk = !showcd && disk_getwriteprotect (text) && state == TRUE ? BST_CHECKED : 0;
+	chk = !showcd && disk_getwriteprotect (&workprefs, text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
 		CheckDlgButton (hDlg, f_wp, chk);
-	chk = !showcd && state && DISK_validate_filename (text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
+	chk = !showcd && state && DISK_validate_filename (&workprefs, text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk);
 		if (f_wptext >= 0)
@@ -9888,7 +9893,7 @@ static void addallfloppies (HWND hDlg)
 static void floppysetwriteprotect (HWND hDlg, int n, bool writeprotected)
 {
 	if (!iscd (n)) {
-		disk_setwriteprotect (n, workprefs.floppyslots[n].df, writeprotected);
+		disk_setwriteprotect (&workprefs, n, workprefs.floppyslots[n].df, writeprotected);
 		addfloppytype (hDlg, n);
 	}
 }
@@ -10729,6 +10734,23 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 
 }
 
+static int midi2dev (struct midiportinfo **mid, int idx, int def)
+{
+	if (idx < 0)
+		return def;
+	if (mid[idx] == NULL)
+		return def;
+	return mid[idx]->devid;
+}
+static int midi2devidx (struct midiportinfo **mid, int devid)
+{
+	for (int i = 0; i < MAX_MIDI_PORTS; i++) {
+		if (mid[i] != NULL && mid[i]->devid == devid)
+			return i;
+	}
+	return -1;
+}
+
 static void values_from_portsdlg (HWND hDlg)
 {
 	int v;
@@ -10774,11 +10796,11 @@ static void values_from_portsdlg (HWND hDlg)
 #endif
 	}
 
-	workprefs.win32_midioutdev = SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0) - 2;
+	workprefs.win32_midioutdev = midi2dev (midioutportinfo, SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_GETCURSEL, 0, 0) - 1, -2);
 	if (bNoMidiIn || workprefs.win32_midioutdev < -1) {
 		workprefs.win32_midiindev = -1;
 	} else {
-		workprefs.win32_midiindev = SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0) - 1;
+		workprefs.win32_midiindev = midi2dev (midiinportinfo, SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_GETCURSEL, 0, 0) - 1, -1);
 	}
 	ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
@@ -10859,9 +10881,9 @@ static void values_to_portsdlg (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_PS_PARAMS, workprefs.ghostscript_parameters);
 
 	SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_SETCURSEL, result, 0);
-	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, workprefs.win32_midioutdev + 2, 0);
+	SendDlgItemMessage (hDlg, IDC_MIDIOUTLIST, CB_SETCURSEL, midi2devidx (midioutportinfo, workprefs.win32_midioutdev) + 1, 0);
 	if (workprefs.win32_midiindev >= 0)
-		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, workprefs.win32_midiindev + 1, 0);
+		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, midi2devidx (midiinportinfo, workprefs.win32_midiindev) + 1, 0);
 	else
 		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0);
 	ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);

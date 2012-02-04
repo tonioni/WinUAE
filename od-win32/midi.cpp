@@ -300,7 +300,7 @@ static void MidiIn_Free( void )
 	only_one_time = 0;
 }
 
-static uae_u8 plen[128] = {
+static const uae_u8 plen[128] = {
 	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
 	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
 	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
@@ -507,7 +507,6 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 	}
 	if(wMsg == MIM_LONGDATA) {
 		LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
-		static long synum;
 		TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
 		if (exitin == 1)
 			goto end; //for safeness midi want close
@@ -615,6 +614,8 @@ int Midi_Open(void)
 	unsigned long result = 0, i;
 	TCHAR err[MAX_DPATH];
 
+	if (currprefs.win32_midioutdev < -1)
+		return 0;
 	if((result = midiOutOpen(&outHandle, currprefs.win32_midioutdev, 0, 0,CALLBACK_NULL))) {
 		write_log (L"MIDI OUT: error %s / %d while opening port %d\n", getmidiouterr(err, result), result, currprefs.win32_midioutdev);
 		result = 0;
@@ -622,7 +623,7 @@ int Midi_Open(void)
 		InitializeCriticalSection(&cs_proc);
 		// We don't need input for output...
 		if((currprefs.win32_midiindev >= 0) &&
-			(result = midiInOpen( &inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
+			(result = midiInOpen(&inHandle, currprefs.win32_midiindev, (DWORD_PTR)MidiInProc, 0, CALLBACK_FUNCTION|MIDI_IO_STATUS))) {
 				write_log (L"MIDI IN: error %s / %d while opening port %d\n", getmidiinerr(err, result), result, currprefs.win32_midiindev);
 		} else {
 			midi_in_ready = TRUE;

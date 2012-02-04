@@ -265,6 +265,8 @@
 #define IDS_STMENUNOCD                  270
 #define IDS_ON                          271
 #define IDS_INPUTQUALIFIER              272
+#define IDS_GENERIC                     273
+#define IDS_AUTODETECT                  274
 #define IDS_NUMSG_NEEDEXT2              300
 #define IDS_NUMSG_NOROMKEY              301
 #define IDS_NUMSG_KSROMCRCERROR         302
@@ -756,7 +758,6 @@
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_PORT_MOUSETRICK             1613
-#define IDC_CLIPBOARDSHARE2             1613
 #define IDC_NATIVECODE                  1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614

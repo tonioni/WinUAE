@@ -1545,7 +1545,8 @@ int enummidiports (void)
 			break;
 		midioutportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midioutportinfo[i]->name = my_strdup (midiOutCaps.szPname);
-		write_log (L"MIDI OUT: '%s' (%d/%d)\n", midioutportinfo[i]->name, midiOutCaps.wMid, midiOutCaps.wPid);
+		midioutportinfo[i]->devid = i - 1;
+		write_log (L"MIDI OUT: %d:'%s' (%d/%d)\n", midioutportinfo[i]->devid, midioutportinfo[i]->name, midiOutCaps.wMid, midiOutCaps.wPid);
 	}
 	total = num + 1;
 	for (i = 1; i < num + 1; i++) {
@@ -1565,7 +1566,8 @@ int enummidiports (void)
 			break;
 		midiinportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midiinportinfo[i]->name = my_strdup (midiInCaps.szPname);
-		write_log (L"MIDI IN: '%s' (%d/%d)\n", midiinportinfo[i]->name, midiInCaps.wMid, midiInCaps.wPid);
+		midiinportinfo[i]->devid = i;
+		write_log (L"MIDI IN: %d:'%s' (%d/%d)\n", midiinportinfo[i]->devid, midiinportinfo[i]->name, midiInCaps.wMid, midiInCaps.wPid);
 	}
 	total += num;
 	for (i = 0; i < num; i++) {

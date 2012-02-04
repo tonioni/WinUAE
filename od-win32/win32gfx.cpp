@@ -104,6 +104,9 @@ int window_extra_width, window_extra_height;
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 static int wasfullwindow_a, wasfullwindow_p;
 static int vblankbasewait, vblankbasewait2, vblankbasewait3, vblankbasefull;
+static bool vblankbaselace;
+static int vblankbaselace_chipset;
+static bool vblankthread_oddeven;
 
 int screen_is_picasso = 0;
 
@@ -434,10 +437,24 @@ oops:
 	return 0;
 }
 
-static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int rawmode)
+static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 {
 	int ct;
 	int i, j;
+	int w = dm->dmPelsWidth;
+	int h = dm->dmPelsHeight;
+	int d = dm->dmBitsPerPel;
+	bool lace = false;
+
+	int freq = 0;
+	if (dm->dmFields & DM_DISPLAYFREQUENCY) {
+		freq = dm->dmDisplayFrequency;
+		if (freq < 10)
+			freq = 0;
+	}
+	if (dm->dmFields & DM_DISPLAYFLAGS) {
+		lace = (dm->dmDisplayFlags & DM_INTERLACED) != 0;
+	}
 
 	ct = 0;
 	if (d == 8)
@@ -457,11 +474,11 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 	while (md->DisplayModes[i].depth >= 0) {
 		if (md->DisplayModes[i].depth == d && md->DisplayModes[i].res.width == w && md->DisplayModes[i].res.height == h) {
 			for (j = 0; j < MAX_REFRESH_RATES; j++) {
-				if (md->DisplayModes[i].refresh[j] == 0 || md->DisplayModes[i].refresh[j] == rate)
+				if (md->DisplayModes[i].refresh[j] == 0 || md->DisplayModes[i].refresh[j] == freq)
 					break;
 			}
 			if (j < MAX_REFRESH_RATES) {
-				md->DisplayModes[i].refresh[j] = rate;
+				md->DisplayModes[i].refresh[j] = freq;
 				md->DisplayModes[i].refreshtype[j] = rawmode;
 				md->DisplayModes[i].refresh[j + 1] = 0;
 				return;
@@ -475,16 +492,19 @@ static void addmode (struct MultiDisplay *md, int w, int h, int d, int rate, int
 	if (i >= MAX_PICASSO_MODES - 1)
 		return;
 	md->DisplayModes[i].rawmode = rawmode;
+	md->DisplayModes[i].lace = lace;
 	md->DisplayModes[i].res.width = w;
 	md->DisplayModes[i].res.height = h;
 	md->DisplayModes[i].depth = d;
-	md->DisplayModes[i].refresh[0] = rate;
+	md->DisplayModes[i].refresh[0] = freq;
 	md->DisplayModes[i].refreshtype[0] = rawmode;
 	md->DisplayModes[i].refresh[1] = 0;
 	md->DisplayModes[i].colormodes = ct;
 	md->DisplayModes[i + 1].depth = -1;
-	_stprintf (md->DisplayModes[i].name, L"%dx%d, %d-bit",
-		md->DisplayModes[i].res.width, md->DisplayModes[i].res.height, md->DisplayModes[i].depth * 8);
+	_stprintf (md->DisplayModes[i].name, L"%dx%d%s, %d-bit",
+		md->DisplayModes[i].res.width, md->DisplayModes[i].res.height,
+		lace ? L"i" : L"",
+		md->DisplayModes[i].depth * 8);
 }
 
 static int _cdecl resolution_compare (const void *a, const void *b)
@@ -676,13 +696,8 @@ void sortdisplays (void)
 					write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
 						dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
 #endif
-					if (dm.dmFields & DM_DISPLAYFREQUENCY) {
-						freq = dm.dmDisplayFrequency;
-						if (freq < 10)
-							freq = 0;
-					}
 					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL)) {
-						addmode (md1, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, freq, mode);
+						addmode (md1, &dm, mode);
 					}
 				}
 				idx++;
@@ -1362,6 +1377,8 @@ int check_prefs_changed_gfx (void)
 
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (128) : 0;
 	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
+	c |= currprefs.gfx_autoresolution_minh != changed_prefs.gfx_autoresolution_minh ? (128) : 0;
+	c |= currprefs.gfx_autoresolution_minv != changed_prefs.gfx_autoresolution_minv ? (128) : 0;
 	c |= currprefs.gfx_scanlines != changed_prefs.gfx_scanlines ? (2 | 8) : 0;
 	c |= currprefs.monitoremu != changed_prefs.monitoremu ? (2 | 8) : 0;
 
@@ -1429,6 +1446,8 @@ int check_prefs_changed_gfx (void)
 
 		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 		currprefs.gfx_vresolution = changed_prefs.gfx_vresolution;
+		currprefs.gfx_autoresolution_minh = changed_prefs.gfx_autoresolution_minh;
+		currprefs.gfx_autoresolution_minv = changed_prefs.gfx_autoresolution_minv;
 		currprefs.gfx_scanlines = changed_prefs.gfx_scanlines;
 		currprefs.monitoremu = changed_prefs.monitoremu;
 
@@ -2243,6 +2262,8 @@ static bool getvblankpos (int *vp)
 	prevvblankpos = sl;
 	if (sl > maxscanline)
 		maxscanline = sl;
+	if (sl > 0)
+		vblankthread_oddeven = (sl & 1) != 0;
 	*vp = sl;
 	return true;
 }
@@ -2307,12 +2328,12 @@ static bool vblank_getstate (bool *state)
 	return true;
 }
 
-void vblank_reset (void)
+void vblank_reset (double freq)
 {
 	if (currprefs.gfx_api)
-		D3D_vblank_reset ();
+		D3D_vblank_reset (freq);
 	else
-		DD_vblank_reset ();
+		DD_vblank_reset (freq);
 }
 
 static unsigned int __stdcall flipthread (void *dummy)
@@ -2326,6 +2347,17 @@ static unsigned int __stdcall flipthread (void *dummy)
 	}
 	flipthread_mode = -1;
 	return 0;
+}
+
+static bool vblanklaceskip (void)
+{
+	if (vblankbaselace_chipset >= 0 && vblankbaselace) {
+		if ((vblankbaselace_chipset && !vblankthread_oddeven) || (!vblankbaselace_chipset && vblankthread_oddeven)) {
+			write_log (L"Interlaced frame type mismatch %d<>%d\n", vblankbaselace_chipset, vblankthread_oddeven);
+			return true;
+		}
+	}
+	return false;
 }
 
 static unsigned int __stdcall vblankthread (void *dummy)
@@ -2357,7 +2389,13 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			frame_time_t t = read_processor_time ();
 			bool donotwait = false;
 			if (!vblank_found) {
-				if (t - thread_vblank_time > vblankbasewait2) {
+				// immediate vblank if mismatched frame type 
+				if (isvsync_chipset () < 0 && vblanklaceskip ()) {
+					vblank_found = true;
+					vblank_found_chipset = true;
+					vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
+					donotwait = true;
+				} else if (t - thread_vblank_time > vblankbasewait2) {
 					bool vb = false;
 					bool ok = vblank_getstate (&vb);
 					if (!ok || vb) {
@@ -2398,6 +2436,20 @@ bool vsync_busywait_check (void)
 	return vblankthread_mode == VBLANKTH_ACTIVE || vblankthread_mode == VBLANKTH_ACTIVE_WAIT;
 }
 
+static void vsync_notvblank (void)
+{
+	for (;;) {
+		int vp;
+		if (!getvblankpos (&vp))
+			return;
+		if (vp > 0) {
+			//write_log (L"%d ", vpos);
+			break;
+		}
+		vsync_sleep (true);
+	}
+}
+
 frame_time_t vsync_busywait_end (void)
 {
 
@@ -2405,15 +2457,7 @@ frame_time_t vsync_busywait_end (void)
 		vsync_sleep (true);
 	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
-	for (;;) {
-		int vp;
-		getvblankpos (&vp);
-		if (vp != -1) {
-			//write_log (L"%d ", vpos);
-			break;
-		}
-		vsync_sleep (true);
-	}
+	vsync_notvblank ();
 	return thread_vblank_time;
 }
 
@@ -2428,13 +2472,18 @@ static bool isthreadedvsync (void)
 	return isvsync_chipset () <= -2 || isvsync_rtg () < 0;
 }
 
-bool vsync_busywait_do (int *freetime)
+bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 {
 	bool v;
 	static bool framelost;
 	int ti;
 	frame_time_t t;
 	frame_time_t prevtime = vblank_prev_time;
+
+	if (lace)
+		vblankbaselace_chipset = oddeven;
+	else
+		vblankbaselace_chipset = -1;
 
 	t = read_processor_time ();
 	ti = t - prevtime;
@@ -2477,19 +2526,28 @@ bool vsync_busywait_do (int *freetime)
 		v = true;
 
 	} else {
+		bool doskip = false;
 
 		if (!framelost && t - prevtime > vblankbasefull) {
 			framelost = true;
 			frame_missed++;
 			return true;
 		}
+		
+		vsync_notvblank ();
 
-		while (!framelost && read_processor_time () - prevtime < vblankbasewait) {
-			vsync_sleep (false);
+		if (vblanklaceskip ())
+			doskip = true;
+
+		if (!doskip) {
+			while (!framelost && read_processor_time () - prevtime < vblankbasewait) {
+				vsync_sleep (false);
+			}
+			v = vblank_wait ();
+		} else {
+			v = true;
 		}
-
 		framelost = false;
-		v = vblank_wait ();
 
 	}
 
@@ -2508,7 +2566,7 @@ struct remembered_vsync
 {
 	struct remembered_vsync *next;
 	int width, height, depth, rate, mode;
-	bool rtg;
+	bool rtg, lace;
 	double remembered_rate, remembered_rate2;
 	int maxscanline, maxvpos;
 };
@@ -2525,6 +2583,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	double rval = -1;
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	bool remembered = false;
+	bool lace = false;
 
 	if (picasso_on) {
 		width = picasso96_state.Width;
@@ -2545,6 +2604,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 			rval = rv->remembered_rate;
 			maxscanline = rv->maxscanline;
 			maxvpos = rv->maxvpos;
+			lace = rv->lace;
 			waitonly = true;
 			remembered = true;
 			goto skip;
@@ -2573,10 +2633,11 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	tsum2 = 0;
 	tcnt2 = 0;
 	for (maxcnt = 0; maxcnt < maxtotal; maxcnt++) {
-		total = 10;
+		total = 5;
 		tsum = 0;
 		cnt = total;
 		for (cnt = 0; cnt < total; cnt++) {
+			int maxvpos1, maxvpos2;
 			if (!waitvblankstate (true, NULL))
 				goto fail;
 			if (!waitvblankstate (false, NULL))
@@ -2586,10 +2647,18 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 			t1 = read_processor_time ();
 			if (!waitvblankstate (false, NULL))
 				goto fail;
-			if (!waitvblankstate (true, &maxvpos))
+			maxscanline = 0;
+			if (!waitvblankstate (true, &maxvpos1))
+				goto fail;
+			if (!waitvblankstate (false, NULL))
+				goto fail;
+			maxscanline = 0;
+			if (!waitvblankstate (true, &maxvpos2))
 				goto fail;
 			t2 = read_processor_time ();
-			tval = (double)syncbase / (t2 - t1);
+			maxvpos = maxvpos1 > maxvpos2 ? maxvpos1 : maxvpos2;
+			// count two fields: works with interlaced modes too.
+			tval = (double)syncbase * 2.0 / (t2 - t1);
 			if (cnt == 0)
 				tfirst = tval;
 			if (abs (tval - tfirst) > 1) {
@@ -2603,6 +2672,8 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 				break;
 			}
 			tsum += tval;
+			if (abs (maxvpos1 - maxvpos2) == 1)
+				lace = true;
 		}
 		if (cnt >= total)
 			break;
@@ -2633,7 +2704,9 @@ skip:
 	vblankbasewait = (syncbase / tsum2) * 3 / 4;
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
-	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MaxV=%d Units=%d\n", waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, maxvpos, vblankbasefull);
+	vblankbaselace = lace;
+	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MaxV=%d%s Units=%d\n",
+		waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, maxvpos, lace ? L"i" : L"", vblankbasefull);
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	
@@ -2649,6 +2722,7 @@ skip:
 		rv->remembered_rate2 = tsum2;
 		rv->maxscanline = maxscanline;
 		rv->maxvpos = maxvpos;
+		rv->lace = lace;
 		if (vsyncmemory == NULL) {
 			vsyncmemory = rv;
 		} else {
@@ -2657,7 +2731,7 @@ skip:
 		}
 	}
 	
-	vblank_reset ();
+	vblank_reset (tsum);
 	return tsum;
 fail:
 	write_log (L"VSync calibration failed\n");

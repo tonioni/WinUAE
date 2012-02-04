@@ -2826,8 +2826,19 @@ void target_default_options (struct uae_prefs *p, int type)
 static const TCHAR *scsimode[] = { L"SCSIEMU", L"SPTI", L"SPTI+SCSISCAN", L"AdaptecASPI", L"NeroASPI", L"FrogASPI", NULL };
 static const TCHAR *statusbarmode[] = { L"none", L"normal", L"extended", NULL };
 
+static struct midiportinfo *getmidiport (struct midiportinfo **mi, int devid)
+{
+	for (int i = 0; i < MAX_MIDI_PORTS; i++) {
+		if (mi[i] != NULL && mi[i]->devid == devid)
+			return mi[i];
+	}
+	return NULL;
+}
+
 void target_save_options (struct zfile *f, struct uae_prefs *p)
 {
+	struct midiportinfo *midp;
+
 	cfgfile_target_dwrite_bool (f, L"middle_mouse", p->win32_middle_mouse);
 	cfgfile_target_dwrite_bool (f, L"logfile", p->win32_logfile);
 	cfgfile_target_dwrite_bool (f, L"map_drives", p->win32_automount_drives);
@@ -2853,24 +2864,20 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 
 	cfgfile_target_dwrite (f, L"midiout_device", L"%d", p->win32_midioutdev);
 	cfgfile_target_dwrite (f, L"midiin_device", L"%d", p->win32_midiindev);
+
+	midp = getmidiport (midioutportinfo, p->win32_midioutdev);
 	if (p->win32_midioutdev < -1)
 		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"none");
-	else if (p->win32_midioutdev == -1)
+	else if (p->win32_midioutdev == -1 || midp == NULL)
 		cfgfile_target_dwrite_str (f, L"midiout_device_name", L"default");
-	else if (p->win32_midioutdev >= 0 && p->win32_midioutdev < MAX_MIDI_PORTS - 1) {
-		if (midioutportinfo[p->win32_midioutdev + 1] == NULL)
-			p->win32_midioutdev = -1;
-		else
-			cfgfile_target_dwrite_str (f, L"midiout_device_name", midioutportinfo[p->win32_midioutdev + 1]->name);
-	}
-	if (p->win32_midiindev < 0)
+	else
+		cfgfile_target_dwrite_str (f, L"midiout_device_name", midp->name);
+
+	midp = getmidiport (midiinportinfo, p->win32_midiindev);
+	if (p->win32_midiindev < 0 || midp == NULL)
 		cfgfile_target_dwrite_str (f, L"midiin_device_name", L"none");
-	else if (p->win32_midiindev >= 0 && p->win32_midiindev < MAX_MIDI_PORTS) {
-		if (midiinportinfo[p->win32_midiindev] == NULL)
-			p->win32_midiindev = -1;
-		else
-			cfgfile_target_dwrite_str (f, L"midiin_device_name", midiinportinfo[p->win32_midiindev]->name);
-	}
+	else
+		cfgfile_target_dwrite_str (f, L"midiin_device_name", midp->name);
 			
 	cfgfile_target_dwrite_bool (f, L"rtg_match_depth", p->win32_rtgmatchdepth);
 	cfgfile_target_dwrite_bool (f, L"rtg_scale_small", p->win32_rtgscaleifsmall);
@@ -3131,7 +3138,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 			p->win32_midioutdev = -1;
 		for (int i = 0; i < MAX_MIDI_PORTS && midioutportinfo[i]; i++) {
 			if (!_tcsicmp (midioutportinfo[i]->name, tmpbuf)) {
-				p->win32_midioutdev = i - 1;
+				p->win32_midioutdev = midioutportinfo[i]->devid;
 			}
 		}
 		return 1;
@@ -3140,7 +3147,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		p->win32_midiindev = -1;
 		for (int i = 0; i < MAX_MIDI_PORTS && midiinportinfo[i]; i++) {
 			if (!_tcsicmp (midiinportinfo[i]->name, tmpbuf)) {
-				p->win32_midiindev = i;
+				p->win32_midiindev = midiinportinfo[i]->devid;
 			}
 		}
 		return 1;

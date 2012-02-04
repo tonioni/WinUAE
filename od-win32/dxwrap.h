@@ -64,11 +64,12 @@ struct PicassoResolution
 	/* Bit mask of RGBFF_xxx values.  */
 	uae_u32 colormodes;
 	int rawmode;
+	bool lace;
 };
 
 struct MultiDisplay {
 	bool primary;
-	GUID guid;
+	GUID ddguid;
 	TCHAR *adaptername, *adapterid, *adapterkey;
 	TCHAR *monitorname, *monitorid;
 	TCHAR *fullname;
@@ -90,6 +91,7 @@ extern TCHAR *outGUID (const GUID *guid);
 HRESULT DirectDraw_GetDisplayMode (void);
 void DirectDraw_Release(void);
 int DirectDraw_Start(void);
+void DirectDraw_get_GUIDs (void);
 void clearsurface(LPDIRECTDRAWSURFACE7 surf);
 int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc);
 void unlocksurface (LPDIRECTDRAWSURFACE7 surf);
@@ -132,7 +134,7 @@ void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color
 void DirectDraw_Fill (RECT *rect, uae_u32 color);
 void DirectDraw_FillPrimary (void);
 bool DD_getvblankpos (int *vpos);
-void DD_vblank_reset (void);
+void DD_vblank_reset (double freq);
 
 void dx_check (void);
 int dx_islost (void);

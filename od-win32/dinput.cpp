@@ -1183,12 +1183,17 @@ static const struct hiddesc hidtable[] =
 	{ 0 }
 };
 
+static uae_u32 hidmask (int bits)
+{
+	 return bits >= 32 ? 0xffffffff : (1 << bits) - 1;
+}
+
 static int extractbits (uae_u32 val, int bits, bool issigned)
 {
 	if (issigned)
-		return val & (1 << (bits - 1)) ? val | (-1 << bits) : val;
+		return val & (hidmask (bits)) ? val | (bits >= 32 ? 0x80000000 : (-1 << bits)) : val;
 	else
-		return val & ((1 << bits) - 1);
+		return val & hidmask (bits);
 }
 
 struct hidquirk
@@ -1247,7 +1252,7 @@ static void fixhidvcaps (RID_DEVICE_INFO_HID *hid, HIDP_VALUE_CAPS *caps)
 {
 	int pid = hid->dwProductId;
 	int vid = hid->dwVendorId;
-	ULONG mask = (1 << caps->BitSize) - 1;
+	ULONG mask = hidmask (caps->BitSize);
 	/* min is always signed.
 	 * if min < 0, max is signed, otherwise it is unsigned
 	 */
@@ -1826,7 +1831,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 							HIDP_VALUE_CAPS *vcaps = &did->hidvcaps[axisnum];
 							int type = did->axistype[axisnum];
 							int logicalrange = (vcaps->LogicalMax - vcaps->LogicalMin) / 2;
-							uae_u32 mask = (1 << vcaps->BitSize) - 1;
+							uae_u32 mask = hidmask (vcaps->BitSize);
 
 							if (type == AXISTYPE_POV_X || type == AXISTYPE_POV_Y) {
 
@@ -2407,7 +2412,7 @@ static int di_do_init (void)
 		rawinput_enabled_hid = 0;
 
 	hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
-	if (FAILED(hr)) {
+	if (FAILED (hr)) {
 		write_log (L"DirectInput8Create failed, %s\n", DXError (hr));
 	} else {
 		if (dinput_enum_all) {

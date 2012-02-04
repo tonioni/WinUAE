@@ -96,6 +96,7 @@ struct TLVERTEX {
 };
 
 static int ddraw_fs;
+static int ddraw_fs_attempt;
 static LPDIRECTDRAW7 ddraw;
 
 static void ddraw_fs_hack_free (void)
@@ -122,10 +123,11 @@ static int ddraw_fs_hack_init (void)
 	struct MultiDisplay *md;
 
 	ddraw_fs_hack_free ();
+	DirectDraw_get_GUIDs ();
 	md = getdisplay (&currprefs);
 	if (!md)
 		return 0;
-	hr = DirectDrawCreateEx (md->primary ? NULL : &md->guid, (LPVOID*)&ddraw, IID_IDirectDraw7, NULL);
+	hr = DirectDrawCreateEx (md->primary ? NULL : &md->ddguid, (LPVOID*)&ddraw, IID_IDirectDraw7, NULL);
 	if (FAILED (hr)) {
 		write_log (L"DirectDrawCreateEx failed, %s\n", DXError (hr));
 		return 0;
@@ -139,9 +141,17 @@ static int ddraw_fs_hack_init (void)
 	}
 	hr = ddraw->SetDisplayMode (dpp.BackBufferWidth, dpp.BackBufferHeight, t_depth, dpp.FullScreen_RefreshRateInHz, 0);
 	if (FAILED (hr)) {
-		write_log (L"IDirectDraw7_SetDisplayMode: %s\n", DXError (hr));
-		ddraw_fs_hack_free ();
-		return 0;
+		write_log (L"1:IDirectDraw7_SetDisplayMode: %s\n", DXError (hr));
+		if (dpp.FullScreen_RefreshRateInHz && isvsync_chipset () < 0) {
+			hr = ddraw->SetDisplayMode (dpp.BackBufferWidth, dpp.BackBufferHeight, t_depth, 0, 0);
+			if (FAILED (hr))
+				write_log (L"2:IDirectDraw7_SetDisplayMode: %s\n", DXError (hr));
+		}
+		if (FAILED (hr)) {
+			write_log (L"IDirectDraw7_SetDisplayMode: %s\n", DXError (hr));
+			ddraw_fs_hack_free ();
+			return 0;
+		}
 	}
 	ddraw_fs = 2;
 	return 1;
@@ -1867,7 +1877,7 @@ bool D3D_getvblankpos (int *vpos)
 	return true;
 }
 
-void D3D_vblank_reset (void)
+void D3D_vblank_reset (double freq)
 {
 	if (!isd3d ())
 		return;
@@ -1987,21 +1997,28 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	modeex.Format = mode.Format;
 
 	vsync2 = 0;
+	int hzmult = 0;
 	if (isfullscreen () > 0) {
 		dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-			getvsyncrate (dpp.FullScreen_RefreshRateInHz, &mult);
-			if (mult < 0) {
+			getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
+			if (hzmult < 0) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				else
 					vsync2 = -1;
-			} else if (mult > 0) {
+			} else if (hzmult > 0) {
 				vsync2 = 1;
 			}
 		}
+	}
+	if (vsync < 0) {
+		vsync2 = 0;
+		getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
+		if (hzmult > 0)
+			vsync2 = 1;
 	}
 
 	d3dhwnd = ahwnd;
@@ -2184,6 +2201,7 @@ static HRESULT reset (void)
 int D3D_needreset (void)
 {
 	HRESULT hr;
+	bool do_dd = false;
 
 	if (!devicelost)
 		return -1;
@@ -2212,11 +2230,25 @@ int D3D_needreset (void)
 		restoredeviceobjects ();
 		return -1;
 	} else if (hr == D3DERR_DEVICELOST) {
+		write_log (L"%s: D3DERR_DEVICELOST\n", D3DHEAD);
 		invalidatedeviceobjects ();
 		return 0;
-	} else if (SUCCEEDED (hr)) {
+	} else if (hr == S_PRESENT_MODE_CHANGED) {
+		write_log (L"%s: S_PRESENT_MODE_CHANGED (%d,%d)\n", D3DHEAD, ddraw_fs, ddraw_fs_attempt);
+		if (!ddraw_fs) {
+			ddraw_fs_attempt++;
+			if (ddraw_fs_attempt >= 5) {
+				do_dd = true;
+			}
+		}
+	} 
+	if (SUCCEEDED (hr)) {
 		devicelost = 0;
 		invalidatedeviceobjects ();
+		if (do_dd) {
+			write_log (L"%s: S_PRESENT_MODE_CHANGED, Retrying fullscreen with DirectDraw\n", D3DHEAD);
+			ddraw_fs_hack_init ();
+		}
 		hr = reset ();
 		if (FAILED (hr))
 			write_log (L"%s: Reset failed %s\n", D3DHEAD, D3D_ErrorString (hr));
@@ -2240,20 +2272,27 @@ static void D3D_showframe2 (bool dowait)
 			hr = d3ddev->Present (NULL, NULL, NULL, NULL);
 		if (hr == D3DERR_WASSTILLDRAWING) {
 			wasstilldrawing_broken = false;
+			if (!dowait)
+				return;
+			sleep_millis (1);
+			continue;
 		} else if (hr == S_PRESENT_OCCLUDED) {
-			return;
-		} else {
-			if (hr != FAILED (hr)) {
-				write_log (L"%s: Present() %s\n", D3DHEAD, D3D_ErrorString (hr));
-				if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {
-					devicelost = 1;
-				}
+			;
+		} else if (hr == S_PRESENT_MODE_CHANGED) {
+			// In most cases mode actually didn't change but
+			// D3D is just being stupid and not accepting
+			// all modes that DirectDraw does accept,
+			// for example interlaced or EDS_RAWMODE modes!
+			devicelost = 1;
+		} else if (FAILED (hr)) {
+			write_log (L"%s: Present() %s\n", D3DHEAD, D3D_ErrorString (hr));
+			if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {
+				devicelost = 1;
 			}
-			return;
+		} else {
+			ddraw_fs_attempt = 0;
 		}
-		if (!dowait)
-			return;
-		sleep_millis (1);
+		return;
 	}
 }
 

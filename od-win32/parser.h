@@ -37,6 +37,7 @@ extern int load_ghostscript (void);
 struct midiportinfo
 {
     TCHAR *name;
+	UINT devid;
 };
 extern struct midiportinfo *midiinportinfo[MAX_MIDI_PORTS];
 extern struct midiportinfo *midioutportinfo[MAX_MIDI_PORTS];

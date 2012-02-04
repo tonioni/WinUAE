@@ -18,11 +18,13 @@
 
 double getvsyncrate (double hz, int *mult)
 {
+	if (hz < 0)
+		return 0;
 	if (hz > 85) {
 		*mult = -1;
 		return hz / 2;
 	}
-	if (hz < 35) {
+	if (hz < 35 && hz > 0) {
 		*mult = 1;
 		return hz * 2;
 	}

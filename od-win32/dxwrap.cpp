@@ -1120,15 +1120,24 @@ static BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPV
 		winmon = MonitorFromPoint (pt, MONITOR_DEFAULTTONEAREST);
 		if (hm == winmon) {
 			memcpy (&monitorguids[i], guid, sizeof GUID);
+			memcpy (&md->ddguid, guid, sizeof GUID);
 			return TRUE;
 		}
 	}
 	return TRUE;
 }
 
-int DirectDraw_Start (void)
+void DirectDraw_get_GUIDs (void)
 {
 	static bool guidsenumerated;
+	if (guidsenumerated)
+		return;
+	guidsenumerated = true;
+	DirectDrawEnumerateExA (displaysCallback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
+}
+
+int DirectDraw_Start (void)
+{
 	static int first, firstdd;
 	HRESULT ddrval;
 	LPDIRECT3D9 d3d;
@@ -1165,10 +1174,7 @@ int DirectDraw_Start (void)
 		return 1;
 	}
 
-	if (!guidsenumerated) {
-		guidsenumerated = true;
-		DirectDrawEnumerateExA (displaysCallback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
-	}
+	DirectDraw_get_GUIDs ();
 
 	guid = NULL;
 	if (isfullscreen () > 0) {
@@ -1251,10 +1257,10 @@ void dx_check (void)
 bool DD_getvblankpos (int *vpos)
 {
 	HRESULT hr;
-	DWORD sl;
+	DWORD sl, slstate;
 	BOOL vbs;
 
-	*vpos = -2;
+	*vpos = -10;
 	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
 		return false;
 	hr = IDirectDraw7_GetVerticalBlankStatus (dxdata.maindd, &vbs);
@@ -1262,24 +1268,41 @@ bool DD_getvblankpos (int *vpos)
 		write_log (L"IDirectDraw7_GetVerticalBlankStatus() failed, %s\n", DXError (hr));
 		return false;
 	}
-	sl = -2;
+	slstate = 4;
+	sl = -1;
 	if (!vbs) {
+		slstate = 3;
 		hr = IDirectDraw7_GetScanLine (dxdata.maindd, &sl);
 		if (hr == 0x88760219) { // "vertical blank is in progress"
 			vbs = TRUE;
+			slstate = 2;
+			sl = -1;
 		} else if (FAILED (hr) ) {
 			write_log (L"IDirectDraw7_GetScanLine() failed, %s\n", DXError (hr));
 			return false;
 		}
 	}
-	*vpos = sl;
 	if (vbs)
 		*vpos = -1;
+	else
+		*vpos = sl;
+
+#if 0
+	static DWORD oldsl, oldslstate;
+	if (oldsl != sl || oldslstate != slstate) {
+		write_log (L"%d:%d ", sl, slstate);
+		oldsl = sl;
+		oldslstate = slstate;
+	}
+#endif
+
 	return true;
 }
 
-void DD_vblank_reset (void)
+void DD_vblank_reset (double freq)
 {
+	getvsyncrate (freq, &dxdata.vblank_skip);
+	dxdata.vblank_skip_cnt = 0;
 	dx_check ();
 	if ((dxdata.primary == NULL && dxdata.fsmodeset > 0) || dxdata.islost || !dxdata.maindd)
 		return;

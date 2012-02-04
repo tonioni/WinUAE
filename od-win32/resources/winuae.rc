@@ -1703,6 +1703,8 @@ END
 STRINGTABLE
 BEGIN
     IDS_INPUTQUALIFIER      "Qualifiers"
+    IDS_GENERIC             "Generic"
+    IDS_AUTODETECT          "Autodetect"
 END
 
 #endif    // English resources

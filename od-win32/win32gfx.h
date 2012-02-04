@@ -41,5 +41,5 @@ void DX_Blit (int x, int y, int w, int h);
 void centerdstrect (RECT *);
 struct MultiDisplay *getdisplay (struct uae_prefs *p);
 double getcurrentvblankrate (void);
-void vblank_reset (void);
+void vblank_reset (double freq);
 #endif

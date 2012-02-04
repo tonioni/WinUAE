@@ -726,7 +726,7 @@ void picasso_handle_vsync (void)
 
 	if (vsync < 0) {
 		vsync_busywait_end ();
-		vsync_busywait_do (NULL);
+		vsync_busywait_do (NULL, false, false);
 		framecnt++;
 		bool rendered = rtg_render ();
 		picasso_trigger_vblank ();

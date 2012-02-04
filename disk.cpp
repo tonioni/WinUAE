@@ -674,18 +674,17 @@ static void update_drive_gui (int num)
 
 static void drive_fill_bigbuf (drive * drv,int);
 
-int DISK_validate_filename (const TCHAR *fname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf)
+int DISK_validate_filename (struct uae_prefs *p, const TCHAR *fname, int leave_open, bool *wrprot, uae_u32 *crc32, struct zfile **zf)
 {
 	if (zf)
 		*zf = NULL;
 	if (crc32)
 		*crc32 = 0;
+	if (wrprot)
+		*wrprot = p->floppy_read_only ? 1 : 0;
 	if (leave_open || !zf) {
 		struct zfile *f = zfile_fopen (fname, L"r+b", ZFD_NORMAL | ZFD_DISKHISTORY);
-		if (f) {
-			if (wrprot)
-				*wrprot = 0;
-		} else {
+		if (!f) {
 			if (wrprot)
 				*wrprot = 1;
 			f = zfile_fopen (fname, L"rb", ZFD_NORMAL | ZFD_DISKHISTORY);
@@ -795,14 +794,14 @@ TCHAR *DISK_get_saveimagepath (const TCHAR *name)
 	return name1;
 }
 
-static struct zfile *getwritefile (const TCHAR *name, bool *wrprot)
+static struct zfile *getwritefile (struct uae_prefs *p, const TCHAR *name, bool *wrprot)
 {
 	struct zfile *zf;
-	DISK_validate_filename (DISK_get_saveimagepath (name), 1, wrprot, NULL, &zf);
+	DISK_validate_filename (p, DISK_get_saveimagepath (name), 1, wrprot, NULL, &zf);
 	return zf;
 }
 
-static int iswritefileempty (const TCHAR *name)
+static int iswritefileempty (struct uae_prefs *p, const TCHAR *name)
 {
 	struct zfile *zf;
 	bool wrprot;
@@ -810,7 +809,7 @@ static int iswritefileempty (const TCHAR *name)
 	trackid td[MAX_TRACKS];
 	int tracks, ddhd, i, ret;
 
-	zf = getwritefile (name, &wrprot);
+	zf = getwritefile (p, name, &wrprot);
 	if (!zf) return 1;
 	zfile_fread (buffer, sizeof (char), 8, zf);
 	if (strncmp ((uae_char*)buffer, "UAE-1ADF", 8))
@@ -825,11 +824,11 @@ static int iswritefileempty (const TCHAR *name)
 	return 1;
 }
 
-static int openwritefile (drive *drv, int create)
+static int openwritefile (struct uae_prefs *p, drive *drv, int create)
 {
 	bool wrprot = 0;
 
-	drv->writediskfile = getwritefile (currprefs.floppyslots[drv - &floppy[0]].df, &wrprot);
+	drv->writediskfile = getwritefile (p, currprefs.floppyslots[drv - &floppy[0]].df, &wrprot);
 	if (drv->writediskfile) {
 		drv->wrprot = wrprot;
 		if (!read_header_ext2 (drv->writediskfile, drv->writetrackdata, &drv->write_num_tracks, 0)) {
@@ -846,7 +845,7 @@ static int openwritefile (drive *drv, int create)
 	return drv->writediskfile ? 1 : 0;
 }
 
-static bool diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, drive_type *drvtype)
+static bool diskfile_iswriteprotect (struct uae_prefs *p, const TCHAR *fname, int *needwritefile, drive_type *drvtype)
 {
 	struct zfile *zf1, *zf2;
 	bool wrprot1 = 0, wrprot2 = 1;
@@ -854,14 +853,14 @@ static bool diskfile_iswriteprotect (const TCHAR *fname, int *needwritefile, dri
 
 	*needwritefile = 0;
 	*drvtype = DRV_35_DD;
-	DISK_validate_filename (fname, 1, &wrprot1, NULL, &zf1);
+	DISK_validate_filename (p, fname, 1, &wrprot1, NULL, &zf1);
 	if (!zf1)
 		return 1;
 	if (zfile_iscompressed (zf1)) {
 		wrprot1 = 1;
 		*needwritefile = 1;
 	}
-	zf2 = getwritefile (fname, &wrprot2);
+	zf2 = getwritefile (p, fname, &wrprot2);
 	zfile_fclose (zf2);
 	zfile_fread (buffer, sizeof (char), 25, zf1);
 	zfile_fclose (zf1);
@@ -898,7 +897,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	const TCHAR *ext;
 
 	drive_image_free (drv);
-	DISK_validate_filename (fname, 1, &drv->wrprot, &drv->crc32, &drv->diskfile);
+	DISK_validate_filename (p, fname, 1, &drv->wrprot, &drv->crc32, &drv->diskfile);
 	drv->ddhd = 1;
 	drv->num_secs = 0;
 	drv->hard_num_cyls = p->floppyslots[dnum].dfxtype == DRV_525_SD ? 40 : 80;
@@ -1128,7 +1127,7 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			tid->revolutions = 1;
 		}
 	}
-	openwritefile (drv, 0);
+	openwritefile (p, drv, 0);
 	drive_settype_id (drv); /* Set DD or HD drive */
 	drive_fill_bigbuf (drv, 1);
 	drv->mfmpos = uaerand ();
@@ -1240,7 +1239,7 @@ static int drive_writeprotected (drive * drv)
 	if (drv->catweasel)
 		return 1;
 #endif
-	return drv->wrprot || drv->diskfile == NULL;
+	return currprefs.floppy_read_only || drv->wrprot || drv->diskfile == NULL;
 }
 
 static int drive_running (drive * drv)
@@ -2171,11 +2170,11 @@ void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 
 }
 
-int disk_getwriteprotect (const TCHAR *name)
+int disk_getwriteprotect (struct uae_prefs *p, const TCHAR *name)
 {
 	int needwritefile;
 	drive_type drvtype;
-	return diskfile_iswriteprotect (name, &needwritefile, &drvtype);
+	return diskfile_iswriteprotect (p, name, &needwritefile, &drvtype);
 }
 
 static void diskfile_readonly (const TCHAR *name, bool readonly)
@@ -2215,7 +2214,7 @@ void DISK_reinsert (int num)
 	setdskchangetime (&floppy[num], 100);
 }
 
-int disk_setwriteprotect (int num, const TCHAR *name, bool writeprotected)
+int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool writeprotected)
 {
 	int needwritefile, oldprotect;
 	struct zfile *zf1, *zf2;
@@ -2224,20 +2223,22 @@ int disk_setwriteprotect (int num, const TCHAR *name, bool writeprotected)
 	TCHAR *name2;
 	drive_type drvtype;
 
-	oldprotect = diskfile_iswriteprotect (name, &needwritefile, &drvtype);
-	DISK_validate_filename (name, 1, &wrprot1, NULL, &zf1);
+	oldprotect = diskfile_iswriteprotect (p, name, &needwritefile, &drvtype);
+	DISK_validate_filename (p, name, 1, &wrprot1, NULL, &zf1);
 	if (!zf1)
+		return 0;
+	if (wrprot1 && p->floppy_read_only)
 		return 0;
 	if (zfile_iscompressed (zf1))
 		wrprot1 = 1;
 	zfile_fclose (zf1);
-	zf2 = getwritefile (name, &wrprot2);
+	zf2 = getwritefile (p, name, &wrprot2);
 	name2 = DISK_get_saveimagepath (name);
 
 	if (needwritefile && zf2 == 0)
 		disk_creatediskfile (name2, 1, drvtype, NULL, false, false);
 	zfile_fclose (zf2);
-	if (writeprotected && iswritefileempty (name)) {
+	if (writeprotected && iswritefileempty (p, name)) {
 		for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {
 			if (!_tcscmp (name, floppy[i].newname))
 				drive_eject (&floppy[i]);
@@ -2611,7 +2612,7 @@ void dumpdisk (void)
 		if (!(disabled & (1 << i))) {
 			console_out_f (L"Drive %d: motor %s cylinder %2d sel %s %s mfmpos %d/%d\n",
 				i, drv->motoroff ? L"off" : L" on", drv->cyl, (selected & (1 << i)) ? L"no" : L"yes",
-				drive_writeprotected(drv) ? L"ro" : L"rw", drv->mfmpos, drv->tracklen);
+				drive_writeprotected (drv) ? L"ro" : L"rw", drv->mfmpos, drv->tracklen);
 			if (drv->motoroff == 0) {
 				w = word;
 				for (j = 0; j < 15; j++) {
