@@ -392,12 +392,13 @@ struct uae_prefs {
 	uae_u32 z3fastmem_start;
 	uae_u32 z3chipmem_size;
 	uae_u32 z3chipmem_start;
-	uae_u32 fastmem_size;
+	uae_u32 fastmem_size, fastmem2_size;
 	uae_u32 chipmem_size;
 	uae_u32 bogomem_size;
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
-	uae_u32 gfxmem_size;
+	uae_u32 rtgmem_size;
+	int rtgmem_type;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 
@@ -554,6 +555,7 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
 extern void fixup_cpu (struct uae_prefs *prefs);
+extern uae_s32 getz2size (struct uae_prefs *p);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

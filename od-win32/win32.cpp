@@ -651,7 +651,7 @@ void setmouseactive (int active)
 #endif
 }
 
-static int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
+static const int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
 
 static void winuae_active (HWND hWnd, int minimized)
 {
@@ -760,6 +760,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
 			}
 		}
 	}
+	wait_keyrelease ();
 	setpriority (pri);
 #ifdef FILESYS
 	filesys_flush_cache ();

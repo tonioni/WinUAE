@@ -1493,8 +1493,8 @@ static void illg_init (void)
 		}
 		addr = end - 1;
 	}
-	if (currprefs.gfxmem_size)
-		memset (illghdebug + (p96ram_start >> 16), 3, currprefs.gfxmem_size >> 16);
+	if (currprefs.rtgmem_size)
+		memset (illghdebug + (p96ram_start >> 16), 3, currprefs.rtgmem_size >> 16);
 
 	i = 0;
 	while (custd[i].name) {

@@ -934,7 +934,7 @@ static void flip (void)
 				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 			}
 		} else {
-			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags| DDFLIP_NOVSYNC);
+			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 		}
 	} else if(dxdata.backbuffers == 1) {
 		if (vsync) {
@@ -951,10 +951,10 @@ static void flip (void)
 				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 				DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 			}
-			DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 		} else {
-			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_NOVSYNC);
+			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 			DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
 		}
 	}

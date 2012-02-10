@@ -14,7 +14,7 @@
 #define EFFECTCOMPILERFLAGS 0
 #endif
 
-#define EFFECT_VERSION 2
+#define EFFECT_VERSION 3
 #define D3DX9DLL L"d3dx9_43.dll"
 #define TWOPASS 1
 
@@ -67,6 +67,7 @@ static int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 static float maskmult_x, maskmult_y;
 static RECT mask2rect;
 static bool wasstilldrawing_broken;
+static HANDLE filenotificationhandle;
 
 static D3DXMATRIXA16 m_matProj, m_matProj2;
 static D3DXMATRIXA16 m_matWorld, m_matWorld2;
@@ -75,7 +76,7 @@ static D3DXMATRIXA16 m_matPreProj;
 static D3DXMATRIXA16 m_matPreView;
 static D3DXMATRIXA16 m_matPreWorld;
 static D3DXMATRIXA16 postproj;
-static D3DXVECTOR4 maskmult, maskshift;
+static D3DXVECTOR4 maskmult, maskshift, texelsize;
 
 static int ledwidth, ledheight;
 static int max_texture_w, max_texture_h;
@@ -233,6 +234,7 @@ static D3DXHANDLE postTechnique, postTechniquePlain, postTechniqueAlpha;
 static D3DXHANDLE postMatrixSource;
 static D3DXHANDLE postMaskMult, postMaskShift;
 static D3DXHANDLE postFilterMode;
+static D3DXHANDLE postTexelSize;
 
 static LPD3DXEFFECT pEffect;
 static D3DXEFFECT_DESC EffectDesc;
@@ -269,7 +271,8 @@ static int postEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3
 	postMaskMult = effect->GetParameterByName (NULL, "maskmult");
 	postMaskShift = effect->GetParameterByName (NULL, "maskshift");
 	postFilterMode = effect->GetParameterByName (NULL, "filtermode");
-	if (!postMaskShift || !postMaskMult || !postFilterMode || !postMatrixSource) {
+	postTexelSize = effect->GetParameterByName (NULL, "texelsize");
+	if (!postMaskShift || !postMaskMult || !postFilterMode || !postMatrixSource || !postTexelSize) {
 		gui_message (L"Mismatched _winuae.fx! Exiting..");
 		abort ();
 	}
@@ -518,7 +521,7 @@ int D3D_canshaders (void)
 
 static const char *fx10 = {
 
-"// 2 (version)\n"
+"// 3 (version)\n"
 "//\n"
 "// WinUAE Direct3D post processing shader\n"
 "//\n"
@@ -528,6 +531,7 @@ static const char *fx10 = {
 "uniform extern float2 maskmult;\n"
 "uniform extern float2 maskshift;\n"
 "uniform extern int filtermode;\n"
+"uniform extern float2 texelsize;\n"
 "\n"
 "// final possibly filtered Amiga output\n"
 "texture SourceTexture : SOURCETEXTURE;\n"
@@ -623,7 +627,7 @@ static const char *fx10 = {
 
 static const char *fx20 = {
 
-"// 2 (version)\n"
+"// 3 (version)\n"
 "//\n"
 "// WinUAE Direct3D post processing shader\n"
 "//\n"
@@ -633,6 +637,7 @@ static const char *fx20 = {
 "uniform extern float2 maskmult;\n"
 "uniform extern float2 maskshift;\n"
 "uniform extern int filtermode;\n"
+"uniform extern float2 texelsize;\n"
 "\n"
 "// final possibly filtered Amiga output\n"
 "texture SourceTexture : SOURCETEXTURE;\n"
@@ -742,6 +747,8 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 
 	compileflags |= EFFECTCOMPILERFLAGS;
 	plugin_path = get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
+	if (filenotificationhandle == NULL)
+		filenotificationhandle  = FindFirstChangeNotification (tmp, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
 	_tcscat (tmp, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
@@ -766,6 +773,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		if (FAILED (hr)) {
 			const char *str = psEnabled ? fx20 : fx10;
 			int len = strlen (str);
+#if 0
 			if ((!existsfile || canusefile == 0) && plugin_path) {
 				struct zfile *z = zfile_fopen (tmp, L"w", 0);
 				if (z) {
@@ -773,6 +781,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 					zfile_fclose (z);
 				}
 			}
+#endif
 			hr = D3DXCreateEffectCompiler (str, len, NULL, NULL, compileflags, &EffectCompiler, &Errors);
 			if (FAILED (hr)) {
 				write_log (L"%s: D3DXCreateEffectCompilerFromResource failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
@@ -840,6 +849,7 @@ end:
 				psPreProcess = TRUE;
 		}
 	}
+
 	if (ret)
 		write_log (L"%s: pixelshader filter '%s' enabled\n", D3DHEAD, tmp);
 	else
@@ -1086,6 +1096,8 @@ static int createtexture (int iw, int ih, int ow, int oh, int win_w, int win_h)
 		return 0;
 	}
 	write_log (L"%s: %d*%d working texture allocated, bits per pixel %d\n", D3DHEAD, w, h, t_depth);
+	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
+
 	if (psActive) {
 		D3DLOCKED_BOX lockedBox;
 		if (FAILED (hr = d3ddev->CreateTexture (iw, ih, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
@@ -1826,6 +1838,9 @@ static int restoredeviceobjects (void)
 
 static void D3D_free2 (void)
 {
+	if (filenotificationhandle  != NULL)
+		FindCloseChangeNotification  (filenotificationhandle);
+	filenotificationhandle = NULL;
 	invalidatedeviceobjects ();
 	if (d3dswapchain)  {
 		d3dswapchain->Release ();
@@ -2017,8 +2032,14 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (vsync < 0) {
 		vsync2 = 0;
 		getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
-		if (hzmult > 0)
+		if (hzmult > 0) {
 			vsync2 = 1;
+		} else if (hzmult < 0 && ap->gfx_vflip) {
+			if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+				dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
+			else
+				vsync2 = -1;
+		}
 	}
 
 	d3dhwnd = ahwnd;
@@ -2176,7 +2197,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3d_enabled = 1;
 	wasstilldrawing_broken = true;
 
-	if (vsync < 0 && ap->gfx_backbuffers == 0) {
+	if (vsync < 0 && ap->gfx_vflip == false) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
@@ -2235,12 +2256,14 @@ int D3D_needreset (void)
 		return 0;
 	} else if (hr == S_PRESENT_MODE_CHANGED) {
 		write_log (L"%s: S_PRESENT_MODE_CHANGED (%d,%d)\n", D3DHEAD, ddraw_fs, ddraw_fs_attempt);
+#if 0
 		if (!ddraw_fs) {
 			ddraw_fs_attempt++;
 			if (ddraw_fs_attempt >= 5) {
 				do_dd = true;
 			}
 		}
+#endif
 	} 
 	if (SUCCEEDED (hr)) {
 		devicelost = 0;
@@ -2283,7 +2306,8 @@ static void D3D_showframe2 (bool dowait)
 			// D3D is just being stupid and not accepting
 			// all modes that DirectDraw does accept,
 			// for example interlaced or EDS_RAWMODE modes!
-			devicelost = 1;
+			//devicelost = 1;
+			;
 		} else if (FAILED (hr)) {
 			write_log (L"%s: Present() %s\n", D3DHEAD, D3D_ErrorString (hr));
 			if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {
@@ -2429,6 +2453,7 @@ static void D3D_render2 (void)
 		hr = postEffect->SetMatrix (postMatrixSource, &postproj);
 		hr = postEffect->SetVector (postMaskMult, &maskmult);
 		hr = postEffect->SetVector (postMaskShift, &maskshift);
+		hr = postEffect->SetVector (postTexelSize, &texelsize);
 
 		uPasses = 0;
 		if (psEffect_Begin (postEffect, psEffect_None, &uPasses)) {
@@ -2627,7 +2652,7 @@ void D3D_flushtexture (int miny, int maxy)
 	}
 }
 
-uae_u8 *D3D_locktexture (int *pitch, int fullupdate)
+uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 {
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
@@ -2662,15 +2687,20 @@ bool D3D_renderframe (void)
 	if (!isd3d ())
 		return false;
 
+	if (filenotificationhandle != NULL) {
+		while (WaitForSingleObject (filenotificationhandle, 0) == WAIT_OBJECT_0) {
+			FindNextChangeNotification (filenotificationhandle);
+			devicelost = 2;
+		}
+	}
+
 	if (vsync2 > 0) {
 		vsync2_cnt ^= 1;
 		if (vsync2_cnt == 0)
 			return true;
 	}
+
 	D3D_render2 ();
-	if (vsync2 < 0 && !currprefs.turbo_emulation) {
-		D3D_render2 ();
-	}
 
 	if (query) {
 		HRESULT hr = query->Issue (D3DISSUE_END);
@@ -2699,6 +2729,9 @@ void D3D_showframe (void)
 		D3D_showframe2 (false);
 	} else {
 		D3D_showframe2 (true);
+		if (vsync2 < 0 && !currprefs.turbo_emulation) {
+			D3D_showframe2 (true);
+		}
 	}
 }
 

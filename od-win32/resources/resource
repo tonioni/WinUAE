@@ -1060,6 +1060,8 @@
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_WINDOWEDMODE                1793
 #define IDC_DF1WPTEXTQ                  1794
+#define IDC_RTG_8BIT2                   1794
+#define IDC_RTG_Z2Z3                    1794
 #define IDC_INPUTMAPLIST                1797
 #define IDC_PORT1_REMAP                 1798
 #define IDC_PORT0_REMAP                 1799

@@ -186,6 +186,7 @@ static const TCHAR *dongles[] =
 static const TCHAR *cdmodes[] = { L"disabled", L"", L"image", L"ioctl", L"spti", L"aspi", 0 };
 static const TCHAR *cdconmodes[] = { L"", L"uae", L"ide", L"scsi", L"cdtv", L"cd32", 0 };
 static const TCHAR *specialmonitors[] = { L"none", L"autodetect", L"a2024", L"graffiti", 0 };
+static const TCHAR *rtgtype[] = { L"ZorroII", L"ZorroIII", 0 };
 
 static const TCHAR *obsolete[] = {
 	L"accuracy", L"gfx_opengl", L"gfx_32bit_blits", L"32bit_blits",
@@ -1010,13 +1011,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"ics_agnus", p->cs_dipagnus);
 
 	cfgfile_write (f, L"fastmem_size", L"%d", p->fastmem_size / 0x100000);
+	cfgfile_dwrite (f, L"fastmem2_size", L"%d", p->fastmem2_size / 0x100000);
 	cfgfile_write (f, L"a3000mem_size", L"%d", p->mbresmem_low_size / 0x100000);
 	cfgfile_write (f, L"mbresmem_size", L"%d", p->mbresmem_high_size / 0x100000);
 	cfgfile_write (f, L"z3mem_size", L"%d", p->z3fastmem_size / 0x100000);
-	cfgfile_write (f, L"z3mem2_size", L"%d", p->z3fastmem2_size / 0x100000);
+	cfgfile_dwrite (f, L"z3mem2_size", L"%d", p->z3fastmem2_size / 0x100000);
 	cfgfile_write (f, L"z3mem_start", L"0x%x", p->z3fastmem_start);
 	cfgfile_write (f, L"bogomem_size", L"%d", p->bogomem_size / 0x40000);
-	cfgfile_write (f, L"gfxcard_size", L"%d", p->gfxmem_size / 0x100000);
+	cfgfile_write (f, L"gfxcard_size", L"%d", p->rtgmem_size / 0x100000);
+	cfgfile_write_str (f, L"gfxcard_type", rtgtype[p->rtgmem_type]);
 	cfgfile_write (f, L"chipmem_size", L"%d", p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 	cfgfile_dwrite (f, L"megachipmem_size", L"%d", p->z3chipmem_size / 0x100000);
 
@@ -2293,6 +2296,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, L"ramsey", &p->cs_ramseyrev, 1)
 		|| cfgfile_doubleval (option, value, L"chipset_refreshrate", &p->chipset_refreshrate)
 		|| cfgfile_intval (option, value, L"fastmem_size", &p->fastmem_size, 0x100000)
+		|| cfgfile_intval (option, value, L"fastmem2_size", &p->fastmem2_size, 0x100000)
 		|| cfgfile_intval (option, value, L"a3000mem_size", &p->mbresmem_low_size, 0x100000)
 		|| cfgfile_intval (option, value, L"mbresmem_size", &p->mbresmem_high_size, 0x100000)
 		|| cfgfile_intval (option, value, L"z3mem_size", &p->z3fastmem_size, 0x100000)
@@ -2300,7 +2304,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_intval (option, value, L"megachipmem_size", &p->z3chipmem_size, 0x100000)
 		|| cfgfile_intval (option, value, L"z3mem_start", &p->z3fastmem_start, 1)
 		|| cfgfile_intval (option, value, L"bogomem_size", &p->bogomem_size, 0x40000)
-		|| cfgfile_intval (option, value, L"gfxcard_size", &p->gfxmem_size, 0x100000)
+		|| cfgfile_intval (option, value, L"gfxcard_size", &p->rtgmem_size, 0x100000)
+		|| cfgfile_strval (option, value, L"gfxcard_type", &p->rtgmem_type, rtgtype, 0)
 		|| cfgfile_intval (option, value, L"rtg_modes", &p->picasso96_modeflags, 1)
 		|| cfgfile_intval (option, value, L"floppy_speed", &p->floppy_speed, 1)
 		|| cfgfile_intval (option, value, L"floppy_write_length", &p->floppy_write_length, 1)
@@ -3358,7 +3363,7 @@ int parse_cmdline_option (struct uae_prefs *p, TCHAR c, const TCHAR *arg)
 		break;
 
 	case 'U':
-		p->gfxmem_size = _tstoi (arg) * 0x100000;
+		p->rtgmem_size = _tstoi (arg) * 0x100000;
 		break;
 
 	case 'F':
@@ -3977,7 +3982,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_apmode[0].gfx_backbuffers = 1;
-	p->gfx_apmode[1].gfx_backbuffers = 2;
+	p->gfx_apmode[1].gfx_backbuffers = 1;
 
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
@@ -4072,6 +4077,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->ntscmode = 0;
 
 	p->fastmem_size = 0x00000000;
+	p->fastmem2_size = 0x00000000;
 	p->mbresmem_low_size = 0x00000000;
 	p->mbresmem_high_size = 0x00000000;
 	p->z3fastmem_size = 0x00000000;
@@ -4079,7 +4085,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->z3fastmem_start = 0x10000000;
 	p->chipmem_size = 0x00080000;
 	p->bogomem_size = 0x00080000;
-	p->gfxmem_size = 0x00000000;
+	p->rtgmem_size = 0x00000000;
+	p->rtgmem_type = 1;
 	p->custom_memory_addrs[0] = 0;
 	p->custom_memory_sizes[0] = 0;
 	p->custom_memory_addrs[1] = 0;
@@ -4229,7 +4236,8 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->z3fastmem_size = 0x00000000;
 	p->z3fastmem2_size = 0x00000000;
 	p->z3chipmem_size = 0x00000000;
-	p->gfxmem_size = 0x00000000;
+	p->rtgmem_size = 0x00000000;
+	p->rtgmem_type = 1;
 
 	p->cs_rtc = 0;
 	p->cs_a1000ram = false;
@@ -4626,7 +4634,7 @@ static int bip_super (struct uae_prefs *p, int config, int compa, int romcheck)
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x400000;
 	p->z3fastmem_size = 8 * 1024 * 1024;
-	p->gfxmem_size = 8 * 1024 * 1024;
+	p->rtgmem_size = 16 * 1024 * 1024;
 	p->cpu_model = 68040;
 	p->fpu_model = 68040;
 	p->chipset_mask = CSMASK_AGA | CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE;

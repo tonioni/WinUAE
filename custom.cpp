@@ -142,7 +142,7 @@ static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0, interlace_changed = 0;
 static int scandoubled_line;
-static bool vsync_rendered;
+static bool vsync_rendered, frame_shown;
 static int jitcount = 0;
 
 /* Stupid genlock-detection prevention hack.
@@ -5139,10 +5139,9 @@ static int rpt_vsync (void)
 
 static void rtg_vsynccheck (void)
 {
-	int vs = isvsync_rtg ();
-	if (vs < 0) {
-		if (vblank_found_rtg || vsync_busywait_check () == false)
-			picasso_handle_vsync ();
+	if (vblank_found_rtg) {
+		vblank_found_rtg = false;
+		picasso_handle_vsync ();
 	}
 }
 
@@ -5157,6 +5156,7 @@ static void framewait (void)
 		vsyncmintime = vsynctime;
 		render_screen ();
 		show_screen ();
+		frame_shown = true;
 		return;
 
 	} else if (vs < 0) {
@@ -5172,7 +5172,7 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 			// fastest possible
 			curr_time = vsync_busywait_end ();
-			vsync_busywait_do (NULL, interlace_seen != 0, lof_store);
+			vsync_busywait_do (NULL, interlace_seen != 0, lof_store != 0);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			vsync_busywait_start ();
@@ -5180,12 +5180,16 @@ static void framewait (void)
 		} else {
 
 			render_screen ();
-			vsync_busywait_do (&freetime, interlace_seen != 0, lof_store);
+			bool show = show_screen_maybe (false);
+			vsync_busywait_do (&freetime, interlace_seen != 0, lof_store != 0);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
-			show_screen ();
-			if (extraframewait)
-				sleep_millis_main (extraframewait);
+			if (!show) {	
+				show_screen ();
+				if (extraframewait)
+					sleep_millis_main (extraframewait);
+			}
+			frame_shown = true;
 
 		}
 		return;
@@ -5209,6 +5213,7 @@ static void framewait (void)
 	idletime += read_processor_time() - start;
 	if (didrender)
 		show_screen ();
+	frame_shown = true;
 }
 
 static frame_time_t frametime2;
@@ -5294,9 +5299,12 @@ static void vsync_handler_pre (void)
 	if (!vsync_rendered) {
 		vsync_handle_redraw (lof_store, lof_changed);
 		vsync_rendered = true;
-		if (vblank_hz_state != 0 && isvsync_chipset () == -3) {
+		if (vblank_hz_state) {
 			render_screen ();
-			show_screen_maybe ();
+			if (!frame_shown) {
+				frame_shown = true;
+				show_screen_maybe (true);
+			}
 		}
 	}
 
@@ -5314,6 +5322,7 @@ static void vsync_handler_post (void)
 	static frame_time_t prevtime;
 
 	vsync_rendered = false;
+	frame_shown = false;
 
 	//write_log (L"%d %d %d\n", vsynctime, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
 	prevtime = read_processor_time ();
@@ -5339,6 +5348,7 @@ static void vsync_handler_post (void)
 					rpt_did_reset = 0;
 					if (render_screen ())
 						show_screen ();
+					frame_shown = true;
 				} else {
 					framewait ();
 				}
@@ -5349,6 +5359,7 @@ static void vsync_handler_post (void)
 				} else {
 					if (render_screen ())
 						show_screen ();
+					frame_shown = true;
 				}
 			}
 #endif
@@ -5933,14 +5944,15 @@ static void hsync_handler_post (bool onvsync)
 	if (diw_change > 0)
 		diw_change--;
 
-	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered) {
-		/* fastest possible + last line, render the frame as early as possible */
+	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == false) {
+		/* fastest possible + last line and no vflip wait: render the frame as early as possible */
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed);
 		if (vblank_hz_state) {
 			render_screen ();
-			show_screen_maybe ();
+			show_screen_maybe (true);
 		}
+		frame_shown = true;
 	}
 	rtg_vsynccheck ();
 

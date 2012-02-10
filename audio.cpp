@@ -1294,7 +1294,11 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->drhpos = hpos;
 			cdp->wlen = cdp->len;
 			cdp->ptx_written = false;
-			cdp->ptx_tofetch = true;
+			/* Some programs first start short empty sample and then later switch to
+			 * real sample, we must not enable the hack in this case
+			 */
+			if (cdp->wlen > 2)
+				cdp->ptx_tofetch = true;
 			cdp->dsr = true;
 #if TEST_AUDIO > 0
 			cdp->have_dat = false;
@@ -1302,8 +1306,6 @@ static void audio_state_channel2 (int nr, bool perfin)
 #if DEBUG_AUDIO > 0
 			if (debugchannel (nr)) {
 				write_log (L"%d:0>1: LEN=%d PC=%08x\n", nr, cdp->wlen, M68K_GETPC);
-				if (cdp->wlen == 1)
-					write_log (L"*");
 			}
 #endif
 		} else if (cdp->dat_written && !isirq (nr)) {

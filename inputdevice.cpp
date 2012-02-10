@@ -60,7 +60,7 @@ extern int bootrom_header, bootrom_items;
 // 16 = potgo
 // 32 = vsync
 
-int inputdevice_logging = 0;
+int inputdevice_logging = 1;
 
 #define IE_INVERT 0x80
 #define IE_CDTV 0x100

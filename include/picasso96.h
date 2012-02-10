@@ -563,7 +563,7 @@ extern void gfx_set_picasso_modeinfo (int w, int h, int d, int rgbfmt);
 extern void gfx_set_picasso_baseaddr (uaecptr);
 extern void gfx_set_picasso_state (int on);
 extern uae_u8 *gfx_lock_picasso (void);
-extern void gfx_unlock_picasso (void);
+extern void gfx_unlock_picasso (bool);
 extern int picasso_display_mode_index (uae_u32 x, uae_u32 y, uae_u32 d);
 extern int picasso_nr_resolutions (void);
 extern void picasso_clip_mouse (int *, int *);

@@ -153,7 +153,6 @@ static uae_sem_t sound_sem, sound_init_sem;
 struct sound_device *sound_devices[MAX_SOUND_DEVICES];
 struct sound_device *record_devices[MAX_SOUND_DEVICES];
 static int num_sound_devices, num_record_devices;
-static time_t delayed_start;
 
 static struct sound_data sdpaula;
 static struct sound_data *sdp = &sdpaula;
@@ -1621,10 +1620,6 @@ void reset_sound (void)
 	if (!have_sound)
 		return;
 	clearbuffer (sdp);
-	if (isvsync_chipset ())
-		delayed_start = time (NULL) + 1;
-	else
-		delayed_start = 0;
 }
 
 static void disable_sound (void)
@@ -2240,12 +2235,6 @@ void finish_sound_buffer (void)
 #endif
 	if (!have_sound)
 		return;
-
-	if (delayed_start) {
-		if (delayed_start > time (NULL))
-			return;
-		delayed_start = 0;
-	}
 
 	if (statuscnt > 0 && tframe != timeframes) {
 		tframe = timeframes;

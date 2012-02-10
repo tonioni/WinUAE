@@ -95,7 +95,7 @@
 
 #define DISK_FORMAT_STRING L"(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;*.wrp;*.dsq;*.st;" ARCHIVE_STRING L"\0"
 #define ROM_FORMAT_STRING L"(*.rom;*.roz)\0*.rom;*.roz;" ARCHIVE_STRING L"\0"
-#define USS_FORMAT_STRING_RESTORE L"(*.uss)\0*.uss;*.gz;"  ARCHIVE_STRING L"\0"
+#define USS_FORMAT_STRING_RESTORE L"(*.uss)\0*.uss;*.gz;" ARCHIVE_STRING L"\0"
 #define USS_FORMAT_STRING_SAVE L"(*.uss)\0*.uss\0"
 #define HDF_FORMAT_STRING L"(*.hdf;*.vhd;*.rdf;*.hdz;*.rdz)\0*.hdf;*.vhd;*.rdf;*.hdz;*.rdz\0"
 #define INP_FORMAT_STRING L"(*.inp)\0*.inp\0"
@@ -1149,7 +1149,8 @@ static HWND cachedlist = NULL;
 #define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : ((max_z3fastmem >> 20) < 2560) ? 15 : ((max_z3fastmem >> 20) < 3072) ? 16 : 17))
 #define MAX_Z3_CHIPMEM 7
 #define MIN_P96_MEM 0
-#define MAX_P96_MEM ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
+#define MAX_P96_MEM_Z3 ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
+#define MAX_P96_MEM_Z2 4
 #define MIN_MB_MEM 0
 #define MAX_MB_MEM 7
 
@@ -6480,10 +6481,10 @@ static INT_PTR CALLBACK ChipsetDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPA
 
 static void enable_for_memorydlg (HWND hDlg)
 {
-	int z3 = ! workprefs.address_space_24;
+	int z3 = true;
 	int fast = workprefs.chipmem_size <= 0x200000;
-	int rtg = workprefs.gfxmem_size && full_property_sheet;
-	int rtg2 = workprefs.gfxmem_size;
+	int rtg = workprefs.rtgmem_size && full_property_sheet;
+	int rtg2 = workprefs.rtgmem_size;
 
 #ifndef AUTOCONFIG
 	z3 = FALSE;
@@ -6505,6 +6506,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_MBRAM2, z3);
 	ew (hDlg, IDC_MBMEM2, z3);
 
+	ew (hDlg, IDC_RTG_Z2Z3, full_property_sheet);
 	ew (hDlg, IDC_RTG_8BIT, rtg);
 	ew (hDlg, IDC_RTG_16BIT, rtg);
 	ew (hDlg, IDC_RTG_24BIT, rtg);
@@ -6629,11 +6631,27 @@ static void values_to_memorydlg (HWND hDlg)
 		mem_size = 6;
 	else
 		mem_size = 7;
+	int max_mem = MAX_P96_MEM_Z3;
+	if (!workprefs.rtgmem_type) {
+		int v = workprefs.rtgmem_size;
+		max_mem = 0;
+		workprefs.rtgmem_size = 1024 * 1024;
+		while (getz2size (&workprefs) > 0) {
+			workprefs.rtgmem_size *= 2;
+			max_mem++;
+		}
+		workprefs.rtgmem_size = v;
+		if (workprefs.rtgmem_size > 8 * 1024 * 1024)
+			mem_size = 8 * 1024 * 1024;
+		while (getz2size (&workprefs) < 0 && workprefs.rtgmem_size > 0)
+			workprefs.rtgmem_size -= 1024 * 1024;
+	}
+	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, max_mem));
 	SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_Z3CHIPRAM, memsize_names[msi_z3chip[mem_size]]);
 
 	mem_size = 0;
-	switch (workprefs.gfxmem_size) {
+	switch (workprefs.rtgmem_size) {
 	case 0x00000000: mem_size = 0; break;
 	case 0x00100000: mem_size = 1; break;
 	case 0x00200000: mem_size = 2; break;
@@ -6647,8 +6665,10 @@ static void values_to_memorydlg (HWND hDlg)
 	case 0x20000000: mem_size = 10; break;
 	case 0x40000000: mem_size = 11; break;
 	}
+
 	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_P96RAM, memsize_names[msi_gfx[mem_size]]);
+	SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_SETCURSEL, workprefs.rtgmem_type, 0);
 	SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_SETCURSEL, (workprefs.picasso96_modeflags & RGBFF_CLUT) ? 1 : 0, 0);
 	SendDlgItemMessage (hDlg, IDC_RTG_16BIT, CB_SETCURSEL,
 		(manybits (workprefs.picasso96_modeflags, RGBFF_R5G6B5PC | RGBFF_R5G6B5PC | RGBFF_R5G6B5 | RGBFF_R5G5B5 | RGBFF_B5G6R5PC | RGBFF_B5G5R5PC)) ? 1 :
@@ -6851,6 +6871,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			enumerated = 1;
 		}
 		expansion_net (hDlg);
+		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)L"Zorro II");
+		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)L"Zorro III (*)");
 		WIN32GUI_LoadUIString(IDS_ALL, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RTG_8BIT, CB_ADDSTRING, 0, (LPARAM)L"(8bit)");
@@ -6876,7 +6899,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"A8B8G8R8");
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"R8G8B8A8");
 		SendDlgItemMessage (hDlg, IDC_RTG_32BIT, CB_ADDSTRING, 0, (LPARAM)L"B8G8R8A8 (*)");
-		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, MAX_P96_MEM));
+		SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, workprefs.rtgmem_type ? MAX_P96_MEM_Z3 : MAX_P96_MEM_Z2));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_RESETCONTENT, 0, 0);
 		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
@@ -6906,7 +6929,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		break;
 
 	case WM_HSCROLL:
-		workprefs.gfxmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
+		workprefs.rtgmem_size = memsizes[msi_gfx[SendMessage (GetDlgItem (hDlg, IDC_P96MEM), TBM_GETPOS, 0, 0)]];
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
 		break;
@@ -6973,6 +6996,12 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 							workprefs.win32_rtgscaleaspectratio = 16 * 256 + 9;
 						if (v == 6)
 							workprefs.win32_rtgscaleaspectratio = 16 * 256 + 10;
+					}
+					break;
+				case IDC_RTG_Z2Z3:
+					v = SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_GETCURSEL, 0, 0L);
+					if (v != CB_ERR) {
+						workprefs.rtgmem_type = v;
 					}
 					break;
 				case IDC_RTG_8BIT:
@@ -13069,7 +13098,6 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			if (!full_property_sheet) {
 				init_colors ();
 				notice_new_xcolors ();
-				reset_drawing ();
 			}
 			updatedisplayarea ();
 			WIN32GFX_WindowMove ();

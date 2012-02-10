@@ -122,7 +122,8 @@ extern int reopen (int);
 static volatile bool vblank_found;
 static volatile int flipthread_mode;
 volatile bool vblank_found_chipset, vblank_found_rtg;
-static HANDLE flipevent;
+static HANDLE flipevent, flipevent2;
+static volatile int flipevent_mode;
 static CRITICAL_SECTION screen_cs;
 
 void gfx_lock (void)
@@ -142,7 +143,7 @@ static void vsync_sleep (bool preferbusy)
 	bool dowait;
 
 	if (vsync_busy_wait_mode == 0) {
-		dowait = ap->gfx_backbuffers || !preferbusy;
+		dowait = ap->gfx_vflip || !preferbusy;
 	} else if (vsync_busy_wait_mode < 0) {
 		dowait = true;
 	} else {
@@ -166,10 +167,11 @@ static void changevblankthreadmode (int newmode)
 		while (flipthread_mode == 0)
 			sleep_millis_main (1);
 		CloseHandle (flipevent);
+		CloseHandle (flipevent2);
 		flipevent = NULL;
+		flipevent2 = NULL;
 	}
-	while (t == vblankthread_counter && vblankthread_mode > 0)
-		vsync_sleep (false);
+	while (t == vblankthread_counter && vblankthread_mode > 0);
 }
 
 int WIN32GFX_IsPicassoScreen (void)
@@ -860,12 +862,29 @@ bool render_screen (void)
 	return render_ok;
 }
 
-bool show_screen_maybe (void)
+static void waitflipevent (void)
+{
+	while (flipevent_mode) {
+		if (WaitForSingleObject (flipevent2, 10) == WAIT_ABANDONED)
+			break;
+	}
+}
+static void doflipevent (void)
+{
+	waitflipevent ();
+	flipevent_mode = 1;
+	SetEvent (flipevent);
+}
+
+bool show_screen_maybe (bool show)
 {
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
-	if (!ap->gfx_backbuffers)
+	if (ap->gfx_vsync >= 0 || !ap->gfx_vflip) {
+		if (show)
+			show_screen ();
 		return false;
-	SetEvent (flipevent);
+	}
+	doflipevent ();
 	return true;
 }
 
@@ -1071,7 +1090,7 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 
 static bool rtg_locked;
 
-static uae_u8 *gfx_lock_picasso2 (int fullupdate)
+static uae_u8 *gfx_lock_picasso2 (bool fullupdate)
 {
 	if (currprefs.gfx_api) {
 		int pitch;
@@ -1087,7 +1106,7 @@ static uae_u8 *gfx_lock_picasso2 (int fullupdate)
 		return DirectDraw_GetSurfacePointer ();
 	}
 }
-uae_u8 *gfx_lock_picasso (int fullupdate)
+uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 {
 	if (rtg_locked) {
 		write_log (L"rtg already locked!\n");
@@ -1095,41 +1114,56 @@ uae_u8 *gfx_lock_picasso (int fullupdate)
 	}
 	EnterCriticalSection (&screen_cs);
 	uae_u8 *p = gfx_lock_picasso2 (fullupdate);
-	if (!p)
+	if (!p) {
 		LeaveCriticalSection (&screen_cs);
-	else
-		rtg_locked = true;
+	} else {
+		if (doclear) {
+			uae_u8 *p2 = p;
+			for (int h = 0; h < picasso_vidinfo.height; h++) {
+				memset (p2, 0, picasso_vidinfo.width * picasso_vidinfo.pixbytes);
+				p2 += picasso_vidinfo.rowbytes;
+			}
+		}
+	}
 	return p;
 }
 
-void gfx_unlock_picasso (void)
+void gfx_unlock_picasso (bool dorender)
 {
 	if (!rtg_locked)
 		EnterCriticalSection (&screen_cs);
 	rtg_locked = false;
 	if (currprefs.gfx_api) {
-		if (p96_double_buffer_needs_flushing) {
-			D3D_flushtexture (p96_double_buffer_first, p96_double_buffer_last);
-			p96_double_buffer_needs_flushing = 0;
+		if (dorender) {
+			if (p96_double_buffer_needs_flushing) {
+				D3D_flushtexture (p96_double_buffer_first, p96_double_buffer_last);
+				p96_double_buffer_needs_flushing = 0;
+			}
 		}
 		D3D_unlocktexture ();
-		if (D3D_renderframe ()) {
-			render_ok = true;
-			if (currprefs.gfx_apmode[1].gfx_backbuffers == 0 || isvsync_rtg () >= 0)
-				show_screen ();
-			else
-				SetEvent (flipevent);
+		if (dorender) {
+			if (D3D_renderframe ()) {
+				LeaveCriticalSection (&screen_cs);
+				render_ok = true;
+				show_screen_maybe (true);
+			} else {
+				LeaveCriticalSection (&screen_cs);
+			}
+		} else {
+			LeaveCriticalSection (&screen_cs);
 		}
 	} else {
 		DirectDraw_SurfaceUnlock ();
-		if (p96_double_buffer_needs_flushing) {
-			DX_Blit96 (p96_double_buffer_firstx, p96_double_buffer_first,
-				p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
-				p96_double_buffer_last - p96_double_buffer_first + 1);
-			p96_double_buffer_needs_flushing = 0;
+		if (dorender) {
+			if (p96_double_buffer_needs_flushing) {
+				DX_Blit96 (p96_double_buffer_firstx, p96_double_buffer_first,
+					p96_double_buffer_lastx - p96_double_buffer_firstx + 1,
+					p96_double_buffer_last - p96_double_buffer_first + 1);
+				p96_double_buffer_needs_flushing = 0;
+			}
 		}
+		LeaveCriticalSection (&screen_cs);
 	}
-	LeaveCriticalSection (&screen_cs);
 }
 
 static void close_hwnds (void)
@@ -2039,7 +2073,8 @@ uae_u32 OSDEP_minimize_uae (void)
 void close_windows (void)
 {
 	changevblankthreadmode (VBLANKTH_IDLE);
-	reset_sound();
+	waitflipevent ();
+	reset_sound ();
 #if defined (GFXFILTER)
 	S2X_free ();
 #endif
@@ -2344,7 +2379,10 @@ static unsigned int __stdcall flipthread (void *dummy)
 		if (flipthread_mode == 0)
 			break;
 		show_screen ();
+		flipevent_mode = 0;
+		SetEvent (flipevent2);
 	}
+	flipevent_mode = 0;
 	flipthread_mode = -1;
 	return 0;
 }
@@ -2362,7 +2400,9 @@ static bool vblanklaceskip (void)
 
 static unsigned int __stdcall vblankthread (void *dummy)
 {
+	static bool firstvblankbasewait2; // if >85Hz mode
 	while (vblankthread_mode > VBLANKTH_KILL) {
+		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 		vblankthread_counter++;
 		if (vblankthread_mode == VBLANKTH_CALIBRATE) {
 			// calibrate mode, try to keep CPU power saving inactive
@@ -2374,10 +2414,11 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			// idle mode
 			Sleep (100);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_WAIT) {
-			sleep_millis (1);
+			sleep_millis (ap->gfx_vflip ? 2 : 1);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
 			bool vb = false;
+			firstvblankbasewait2 = false;
 			vblank_getstate (&vb);
 			bool ok = vblank_getstate (&vb);
 			if (vb == false)
@@ -2397,16 +2438,21 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					donotwait = true;
 				} else if (t - thread_vblank_time > vblankbasewait2) {
 					bool vb = false;
-					bool ok = vblank_getstate (&vb);
+					bool ok;
+					if (firstvblankbasewait2 == false) {
+						firstvblankbasewait2 = true;
+						vblank_getstate (&vb);
+					}
+					ok = vblank_getstate (&vb);
 					if (!ok || vb) {
 						vblank_found = true;
 						if (isvsync_chipset () < 0) {
 							vblank_found_chipset = true;
-							if (!currprefs.gfx_apmode[0].gfx_backbuffers)
+							if (!ap->gfx_vflip) {
 								show_screen ();
-						} else if (isvsync_rtg () < 0) {
-							vblank_found_rtg = true;
+							}
 						}
+						vblank_found_rtg = true;
 						//write_log (L"%d\n", t - thread_vblank_time);
 						thread_vblank_time = t;
 						vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
@@ -2417,8 +2463,8 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			}
 			if (t - vblank_prev_time > vblankbasefull * 3)
 				vblankthread_mode = VBLANKTH_IDLE;
-			if (!donotwait || currprefs.gfx_apmode[0].gfx_backbuffers || picasso_on)
-				sleep_millis (1);
+			if (!donotwait || ap->gfx_vflip == true || picasso_on)
+				sleep_millis (ap->gfx_vflip ? 2 : 1);
 		} else {
 			break;
 		}
@@ -2452,12 +2498,11 @@ static void vsync_notvblank (void)
 
 frame_time_t vsync_busywait_end (void)
 {
-
+	vsync_notvblank ();
 	while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
 		vsync_sleep (true);
 	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
-	vsync_notvblank ();
 	return thread_vblank_time;
 }
 
@@ -2534,8 +2579,6 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 			return true;
 		}
 		
-		vsync_notvblank ();
-
 		if (vblanklaceskip ())
 			doskip = true;
 
@@ -2620,7 +2663,9 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		vblankthread_mode = VBLANKTH_CALIBRATE;
 		_beginthreadex (NULL, 0, vblankthread, 0, 0, &th);
 		flipthread_mode = 1;
+		flipevent_mode = 0;
 		flipevent = CreateEvent (NULL, FALSE, FALSE, NULL);
+		flipevent2 = CreateEvent (NULL, FALSE, FALSE, NULL);
 		_beginthreadex (NULL, 0, flipthread, 0, 0, &th);
 	} else {
 		changevblankthreadmode (VBLANKTH_CALIBRATE);

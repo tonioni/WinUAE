@@ -86,7 +86,7 @@ int p96hsync_counter, full_refresh;
 #define P96TRACING_ENABLED 1
 #define P96TRACING_LEVEL 1
 #endif
-static int flushpixels (void);
+static bool flushpixels (void);
 #if P96TRACING_ENABLED
 #define P96TRACE(x) do { write_log x; } while(0)
 #else
@@ -133,6 +133,7 @@ static int wincursor_shown;
 static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
 double p96vblank;
+static int rtg_clear_flag;
 
 static int uaegfx_old, uaegfx_active;
 static uae_u32 reserved_gfxmem;
@@ -666,17 +667,21 @@ void picasso_trigger_vblank (void)
 
 static bool rtg_render (void)
 {
-	int flushed = 0;
+	bool flushed = false;
 	if (doskip () && p96skipmode == 0) {
 		;
 	} else {
 		flushed = flushpixels ();
 	}
-	return flushed == 0;
+	return flushed;
 }
 static void rtg_show (void)
 {
-	gfx_unlock_picasso ();
+	gfx_unlock_picasso (true);
+}
+static void rtg_clear (void)
+{
+	rtg_clear_flag = 3;
 }
 
 static void picasso_handle_vsync2 (void)
@@ -713,32 +718,67 @@ static void picasso_handle_vsync2 (void)
 	mouseupdate ();
 
 	if (thisisvsync) {
-		if (rtg_render ())
+		if (!rtg_render ())
 			rtg_show ();
 	}
 	if (setupcursor_needed)
 		setupcursor ();
 }
 
+static int p96hsync;
+
 void picasso_handle_vsync (void)
 {
 	int vsync = isvsync_rtg ();
+	
+	if (!picasso_on) {
+		picasso_trigger_vblank ();
+		return;
+	}
 
 	if (vsync < 0) {
+		p96hsync = 0;
 		vsync_busywait_end ();
 		vsync_busywait_do (NULL, false, false);
 		framecnt++;
+		mouseupdate ();
 		bool rendered = rtg_render ();
 		picasso_trigger_vblank ();
 		clipboard_vsync ();
 		vsync_busywait_start ();
-		mouseupdate ();
-		if (rendered)
+		if (!rendered)
 			rtg_show ();
 	} else {
 		picasso_handle_vsync2 ();
 	}
 }
+
+void picasso_handle_hsync (void)
+{
+	int vsync = isvsync_rtg ();
+
+	if (vsync < 0) {
+		p96hsync++;
+		if (p96hsync >= p96syncrate * 3) {
+			p96hsync = 0;
+			// kickstart vblank vsync_busywait stuff
+			picasso_handle_vsync ();
+		}
+		return;
+	}
+
+	if (currprefs.rtgmem_size == 0)
+		return;
+	if (currprefs.win32_rtgvblankrate == 0 && !vsync)
+		return;
+
+	p96hsync++;
+	if (p96hsync >= p96syncrate) {
+		picasso_trigger_vblank ();
+		p96hsync = 0;
+	}
+}
+
 
 static int set_panning_called = 0;
 
@@ -915,6 +955,7 @@ void picasso_refresh (void)
 	full_refresh = 1;
 	setconvert ();
 	setupcursor ();
+	rtg_clear ();
 
 	/* Make sure that the first time we show a Picasso video mode, we don't blit any crap.
 	* We can do this by checking if we have an Address yet. 
@@ -1740,7 +1781,7 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 {
 	uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
 	/* NOTES: See BoardInfo struct definition in Picasso96 dev info */
-	if (!uaegfx_active)
+	if (!uaegfx_active || !gfxmem_start)
 		return 0;
 	if (uaegfx_base) {
 		put_long (uaegfx_base + CARD_BOARDINFO, AmigaBoardInfo);
@@ -2403,6 +2444,7 @@ static uae_u32 REGPARAM2 picasso_SetDAC (TrapContext *ctx)
 	* Lets us keep track of what pixel format the Amiga is thinking about in our frame-buffer */
 
 	P96TRACE((L"SetDAC()\n"));
+	rtg_clear ();
 	return 1;
 }
 
@@ -3285,24 +3327,6 @@ static uae_u32 REGPARAM2 picasso_SetDisplay (TrapContext *ctx)
 	return !state;
 }
 
-void picasso_handle_hsync (void)
-{
-	static int p96hsync;
-	int vsync = isvsync_rtg ();
-
-	if (currprefs.gfxmem_size == 0)
-		return;
-	if (currprefs.win32_rtgvblankrate == 0 && !vsync)
-		return;
-	if (vsync < 0)
-		return;
-	p96hsync--;
-	if (p96hsync <= 0) {
-		picasso_trigger_vblank ();
-		p96hsync = p96syncrate;
-	}
-}
-
 void init_hz_p96 (void)
 {
 	if (currprefs.win32_rtgvblankrate < 0 || isvsync_rtg ())  {
@@ -3877,7 +3901,7 @@ static void copyall (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight)
 	}
 }
 
-static int flushpixels (void)
+static bool flushpixels (void)
 {
 	int i;
 	uae_u8 *src = p96ram_start + natmem_offset;
@@ -3901,16 +3925,16 @@ static int flushpixels (void)
 		pwidth, pheight);
 #endif
 	if (!picasso_vidinfo.extra_mem || !gwwbuf || src_start >= src_end)
-		return 0;
+		return false;
 
 	if (flashscreen) {
 		full_refresh = 1;
 	}
-	if (full_refresh)
+	if (full_refresh || rtg_clear_flag)
 		full_refresh = -1;
 
 	for (;;) {
-		int dofull;
+		bool dofull;
 
 		gwwcnt = 0;
 
@@ -3934,7 +3958,9 @@ static int flushpixels (void)
 
 		dofull = gwwcnt >= ((src_end - src_start) / gwwpagesize) * 80 / 100;
 
-		dst = gfx_lock_picasso (dofull);
+		dst = gfx_lock_picasso (dofull, rtg_clear_flag != 0);
+		if (rtg_clear_flag)
+			rtg_clear_flag--;
 		if (dst == NULL)
 			break;
 		lock = 1;
@@ -3993,7 +4019,7 @@ static int flushpixels (void)
 
 	if (!currprefs.gfx_api && (currprefs.leds_on_screen & STATUSLINE_RTG)) {
 		if (dst == NULL) {
-			dst = gfx_lock_picasso (false);
+			dst = gfx_lock_picasso (false, false);
 			if (dst)
 				lock = 1;
 		}
@@ -4013,7 +4039,7 @@ static int flushpixels (void)
 	}
 
 	if (lock)
-		gfx_unlock_picasso ();
+		gfx_unlock_picasso (true);
 	if (dst && gwwcnt) {
 		if (doskip () && p96skipmode == 3) {
 			;
@@ -4022,7 +4048,7 @@ static int flushpixels (void)
 		}
 		full_refresh = 0;
 	}
-	return lock;
+	return lock != 0; 
 }
 
 static uae_u32 REGPARAM2 gfxmem_lgetx (uaecptr addr)
@@ -4426,7 +4452,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	uaecptr findcardfunc, initcardfunc;
 	uaecptr exec = get_long (4);
 
-	if (uaegfx_old)
+	if (uaegfx_old || !gfxmem_start)
 		return NULL;
 
 	uaegfx_resid = ds (L"UAE Graphics Card 3.3");
@@ -4566,7 +4592,7 @@ uae_u8 *restore_p96 (uae_u8 *src)
 	set_gc_called = !!(flags & 2);
 	set_panning_called = !!(flags & 4);
 	interrupt_enabled = !!(flags & 32);
-	changed_prefs.gfxmem_size = restore_u32 ();
+	changed_prefs.rtgmem_size = restore_u32 ();
 	picasso96_state.Address = restore_u32 ();
 	picasso96_state.RGBFormat = (RGBFTYPE)restore_u32 ();
 	picasso96_state.Width = restore_u16 ();
@@ -4595,7 +4621,7 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	uae_u8 *dstbak, *dst;
 	int i;
 
-	if (currprefs.gfxmem_size == 0)
+	if (currprefs.rtgmem_size == 0)
 		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;
@@ -4604,7 +4630,7 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	save_u32 (2);
 	save_u32 ((picasso_on ? 1 : 0) | (set_gc_called ? 2 : 0) | (set_panning_called ? 4 : 0) |
 		(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0));
-	save_u32 (currprefs.gfxmem_size);
+	save_u32 (currprefs.rtgmem_size);
 	save_u32 (picasso96_state.Address);
 	save_u32 (picasso96_state.RGBFormat);
 	save_u16 (picasso96_state.Width);

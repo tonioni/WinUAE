@@ -141,8 +141,8 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = false;
-		if (ap->gfx_backbuffers >= 2 || (ap->gfx_backbuffers >= 2 && ap->gfx_vsync && ap->gfx_vsyncmode) || (ap->gfx_backbuffers >= 1 && ap->gfx_vsync && !ap->gfx_vsyncmode))
-			ap->gfx_vflip = true;
+		if (ap->gfx_backbuffers >= 1)
+			ap->gfx_vflip = true; // true = wait for vblank flip, false = immediate flip
 	}
 
 }
@@ -193,6 +193,20 @@ void fixup_cpu (struct uae_prefs *p)
 		p->immediate_blits = false;
 }
 
+uae_s32 getz2size (struct uae_prefs *p)
+{
+	ULONG start;
+	start = p->fastmem_size;
+	if (p->rtgmem_size && !p->rtgmem_type) {
+		while (start & (p->rtgmem_size - 1) && start < 8 * 1024 * 1024)
+			start += 1024 * 1024;
+		if (start + p->rtgmem_size > 8 * 1024 * 1024)
+			return -1;
+	}
+	start += p->rtgmem_size;
+	return start;
+}
+
 void fixup_prefs (struct uae_prefs *p)
 {
 	int err = 0;
@@ -214,16 +228,17 @@ void fixup_prefs (struct uae_prefs *p)
 		write_log (L"Unsupported fastmem size %x!\n", p->fastmem_size);
 		err = 1;
 	}
-	if ((p->gfxmem_size & (p->gfxmem_size - 1)) != 0
-		|| (p->gfxmem_size != 0 && (p->gfxmem_size < 0x100000 || p->gfxmem_size > max_z3fastmem / 2)))
+	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0
+		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || p->rtgmem_size > max_z3fastmem / 2)))
 	{
-		write_log (L"Unsupported graphics card memory size %x (%x)!\n", p->gfxmem_size, max_z3fastmem / 2);
-		if (p->gfxmem_size > max_z3fastmem / 2)
-			p->gfxmem_size = max_z3fastmem / 2;
+		write_log (L"Unsupported graphics card memory size %x (%x)!\n", p->rtgmem_size, max_z3fastmem / 2);
+		if (p->rtgmem_size > max_z3fastmem / 2)
+			p->rtgmem_size = max_z3fastmem / 2;
 		else
-			p->gfxmem_size = 0;
+			p->rtgmem_size = 0;
 		err = 1;
 	}
+
 	if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
 		|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > max_z3fastmem)))
 	{
@@ -258,10 +273,9 @@ void fixup_prefs (struct uae_prefs *p)
 		err = 1;
 	}
 
-	if (p->address_space_24 && (p->gfxmem_size != 0 || p->z3fastmem_size != 0 || p->z3fastmem2_size != 0 || p->z3chipmem_size != 0)) {
-		p->z3fastmem_size = p->z3fastmem2_size = p->gfxmem_size = p->z3chipmem_size = 0;
-		write_log (L"Can't use a graphics card or 32-bit memory when using a 24 bit\n"
-			L"address space - sorry.\n");
+	if (p->address_space_24 && (p->z3fastmem_size != 0 || p->z3fastmem2_size != 0 || p->z3chipmem_size != 0)) {
+		p->z3fastmem_size = p->z3fastmem2_size = p->z3chipmem_size = 0;
+		write_log (L"Can't use a graphics card or 32-bit memory when using a 24 bit\naddress space.\n");
 	}
 	if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000) {
 		p->bogomem_size = 0;
@@ -285,6 +299,14 @@ void fixup_prefs (struct uae_prefs *p)
 		p->mbresmem_high_size = 0;
 		write_log (L"Unsupported Motherboard RAM size\n");
 	}
+
+	if (p->address_space_24 && p->rtgmem_size)
+		p->rtgmem_type = 0;
+	if (!p->rtgmem_type && (p->chipmem_size > 2 * 1024 * 1024 || getz2size (p) > 8 * 1024 * 1024 || getz2size (p) < 0)) {
+		p->rtgmem_size = 0;
+		write_log (L"Too large Z2 RTG memory size\n");
+	}
+
 
 #if 0
 	if (p->m68k_speed < -1 || p->m68k_speed > 20) {
@@ -330,10 +352,10 @@ void fixup_prefs (struct uae_prefs *p)
 		p->z3fastmem_size = 0;
 		err = 1;
 	}
-	if (p->gfxmem_size > 0 && (p->cpu_model < 68020 || p->address_space_24)) {
-		write_log (L"Picasso96 can't be used with a 68000/68010 or 68EC020 emulation. It\n"
-			L"requires a 68020 emulation. Turning off Picasso96.\n");
-		p->gfxmem_size = 0;
+	if (p->rtgmem_size > 0 && p->rtgmem_type && (p->cpu_model < 68020 || p->address_space_24)) {
+		write_log (L"RTG can't be used with a 68000/68010 or 68EC020 emulation. It\n"
+			L"requires a 68020 emulation. Turning off RTG.\n");
+		p->rtgmem_size = 0;
 		err = 1;
 	}
 #if !defined (BSDSOCKET)
@@ -415,7 +437,7 @@ void fixup_prefs (struct uae_prefs *p)
 #ifndef AUTOCONFIG
 	p->z3fastmem_size = 0;
 	p->fastmem_size = 0;
-	p->gfxmem_size = 0;
+	p->rtgmem_size = 0;
 #endif
 #if !defined (BSDSOCKET)
 	p->socket_emu = 0;

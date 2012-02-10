@@ -2159,17 +2159,28 @@ static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
 	gayle_common_write (addr, value);
 }
 
+static ULONG getz2endaddr (void)
+{
+	ULONG start;
+	start = currprefs.fastmem_size;
+	if (currprefs.rtgmem_size && !currprefs.rtgmem_type) {
+		while (start & (currprefs.rtgmem_size - 1) && start < 4 * 1024 * 1024)
+			start += 1024 * 1024;
+	}
+	return start + 2 * 1024 * 1024;
+}
+
 void gayle_map_pcmcia (void)
 {
 	if (currprefs.cs_pcmcia == 0)
 		return;
 	if (pcmcia_card == 0 || (gayle_cs & GAYLE_CS_DIS)) {
 		map_banks (&dummy_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
 			map_banks (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	} else {
 		map_banks (&gayle_attr_bank, 0xa0, 8, 0);
-		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && currprefs.fastmem_size <= 4 * 1024 * 1024)
+		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
 			map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	}
 }

@@ -7,6 +7,9 @@
 */
 
 int rawinput_enabled_hid = -1;
+// 1 = keyboard
+// 2 = mouse
+// 4 = joystick
 int rawinput_log = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */

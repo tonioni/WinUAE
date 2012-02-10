@@ -1,4 +1,33 @@
 
+Beta 16:
+
+- AROS CDFS update, disabled annoying and pointless "Write protected" requester.
+- Reload shader filter automatically if shader file's modification date changes,
+  quicker to experiment with filters, changes will be visible immediately.
+- Added texelsize as a parameter to _winuae.fx shader, needed to quickly access other
+  pixels (not just current pixel), version number bumped to 3.
+- DirectDraw mode screen blanked when adjusting slider settings on the fly.
+- Reordered emulated autoconfig boards, first comes all Z2 boards and then all Z3 boards.
+  KS1.x stops autoconfig process when first Z3 board is found, previously filesystem "board"
+  was after Z3 boards causing UAE controller HDs to not mount under 1.3 if Z3 or RTG was
+  enabled. Debugger 'dm' command also shows name of current autoconfig board in autoconfig
+  config space if autoconfig didn't finish.
+- Picasso_FindCard() will now return error if RTG board is not fully autoconfigured.
+- Added RTG Z2/Z3 board mode selection. NOTE: both Z2 Fast RAM and Z2 RTG RAM must fit in 8MB
+  Z2 autoconfig region.
+- Removed NO_SHUTUP flags from emulated autoconfig devices, AOS is now allowed to "shut up" the card
+  (usually can only happen if there is no free config space) and continue autoconfig process.
+  Probably never happens but maybe someday it is needed.
+- Clear RTG screen buffer when switching modes, sometimes previous graphics was visible on border
+  area if RTG resolution changes without host screen mode change.
+- Low latency vsync partial rewrite, fastest possible CPU/JIT should have better peformance
+  compared to previous betas, triple buffering is not needed anymore, double and triple should
+  have exact same performance, triple only increases latency. RTG low latency vsync should
+  be stable now, some hangs also fixed.
+
+NOTE: Previous betas saved gfx_backbuffers_rtg=2 to configuration file, edit it or remove it manually if
+you want to use double buffer (=1) RTG mode which is also the default now. There is no GUI option yet.
+
 Beta 15:
 
 - Append 'i' to PC resolutions that are interlaced. (TV Out, VGA + 15KHz hacks etc..)
