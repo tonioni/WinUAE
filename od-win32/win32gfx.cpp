@@ -871,6 +871,8 @@ static void waitflipevent (void)
 }
 static void doflipevent (void)
 {
+	if (flipevent == NULL)
+		return;
 	waitflipevent ();
 	flipevent_mode = 1;
 	SetEvent (flipevent);
@@ -879,7 +881,7 @@ static void doflipevent (void)
 bool show_screen_maybe (bool show)
 {
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
-	if (ap->gfx_vsync >= 0 || !ap->gfx_vflip) {
+	if (!ap->gfx_vflip || ap->gfx_vsyncmode == 0 || !ap->gfx_vsync) {
 		if (show)
 			show_screen ();
 		return false;
@@ -1117,6 +1119,7 @@ uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 	if (!p) {
 		LeaveCriticalSection (&screen_cs);
 	} else {
+		rtg_locked = true;
 		if (doclear) {
 			uae_u8 *p2 = p;
 			for (int h = 0; h < picasso_vidinfo.height; h++) {
@@ -1409,6 +1412,10 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
 	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
+	c |= currprefs.gfx_luminance != changed_prefs.gfx_luminance ? (1|8) : 0;
+	c |= currprefs.gfx_contrast != changed_prefs.gfx_contrast ? (1|8) : 0;
+	c |= currprefs.gfx_gamma != changed_prefs.gfx_gamma ? (1|8) : 0;
+
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (128) : 0;
 	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
 	c |= currprefs.gfx_autoresolution_minh != changed_prefs.gfx_autoresolution_minh ? (128) : 0;
@@ -1477,6 +1484,10 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_filter_gamma = changed_prefs.gfx_filter_gamma;
 		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 		//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
+
+		currprefs.gfx_luminance = changed_prefs.gfx_luminance;
+		currprefs.gfx_contrast = changed_prefs.gfx_contrast;
+		currprefs.gfx_gamma = changed_prefs.gfx_gamma;
 
 		currprefs.gfx_resolution = changed_prefs.gfx_resolution;
 		currprefs.gfx_vresolution = changed_prefs.gfx_vresolution;
@@ -1793,6 +1804,7 @@ static int reopen (int full)
 {
 	int quick = 0;
 	int idx = screen_is_picasso ? 1 : 0;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	updatewinfsmode (&changed_prefs);
 
@@ -1831,6 +1843,9 @@ static int reopen (int full)
 		return 1;
 
 	open_windows (0);
+
+	if (isvsync () < 0)
+		vblank_calibrate (0, false);
 
 	if (isfullscreen () <= 0)
 		DirectDraw_FillPrimary ();
@@ -2500,7 +2515,7 @@ frame_time_t vsync_busywait_end (void)
 {
 	vsync_notvblank ();
 	while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
-		vsync_sleep (true);
+		vsync_sleep (false);
 	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
 	return thread_vblank_time;
@@ -2508,6 +2523,7 @@ frame_time_t vsync_busywait_end (void)
 
 void vsync_busywait_start (void)
 {
+	vsync_notvblank ();
 	changevblankthreadmode (VBLANKTH_ACTIVE_START);
 	vblank_prev_time = thread_vblank_time;
 }

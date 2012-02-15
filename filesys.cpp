@@ -5787,13 +5787,13 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 
 	rdbmnt
 	flags = rl (buf + 20);
-	if (flags & 2) { /* do not mount */
+	if ((flags & 2) || uip->bootpri <= -129) { /* do not mount */
 		err = -1;
 		write_log (L"RDB: Automount disabled, not mounting\n");
 		goto error;
 	}
 
-	if (!(flags & 1)) /* not bootable */
+	if (!(flags & 1) || uip->bootpri <= -128) /* not bootable */
 		m68k_dreg (regs, 7) = m68k_dreg (regs, 7) & ~1;
 
 	buf[37 + buf[36]] = 0; /* zero terminate BSTR */

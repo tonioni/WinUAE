@@ -54,6 +54,10 @@
 #include "ncr_scsi.h"
 #include "blkdev.h"
 #include "sampler.h"
+#include "clipboard.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -140,10 +144,14 @@ static int lof_current; // what display device thinks
 static int lol;
 static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
-static int lof_changed = 0, interlace_changed = 0;
+static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
 static int scandoubled_line;
 static bool vsync_rendered, frame_shown;
 static int jitcount = 0;
+
+#define LOF_TOGGLES_NEEDED 4
+#define NLACE_CNT_NEEDED 50
+static int lof_togglecnt_lace, lof_togglecnt_nlace, lof_previous, nlace_cnt;
 
 /* Stupid genlock-detection prevention hack.
 * We should stop calling vsync_handler() and
@@ -1831,7 +1839,7 @@ static void start_bpl_dma (int hpos, int hstart)
 	if (first_bpl_vpos < 0)
 		first_bpl_vpos = vpos;
 
-	if (doflickerfix () && interlace_seen && !scandoubled_line) {
+	if (doflickerfix () && interlace_seen > 0 && !scandoubled_line) {
 		int i;
 		for (i = 0; i < 8; i++) {
 			prevbpl[lof_current][vpos][i] = bplptx[i];
@@ -2777,9 +2785,39 @@ int current_maxvpos (void)
 	return maxvpos + (lof_store ? 1 : 0);
 }
 
+static void checklacecount (bool lace)
+{
+	if (!interlace_changed) {
+		if (nlace_cnt >= NLACE_CNT_NEEDED && lace) {
+			lof_togglecnt_lace = LOF_TOGGLES_NEEDED;
+			lof_togglecnt_nlace = 0;
+			write_log (L"immediate lace\n");
+			nlace_cnt = 0;
+		} else if (nlace_cnt <= -NLACE_CNT_NEEDED && !lace) {
+			lof_togglecnt_nlace = LOF_TOGGLES_NEEDED;
+			lof_togglecnt_lace = 0;
+			write_log (L"immediate nlace\n");
+			nlace_cnt = 0;
+		}
+	}
+	if (lace) {
+		if (nlace_cnt > 0)
+			nlace_cnt = 0;
+		nlace_cnt--;
+		if (nlace_cnt < -NLACE_CNT_NEEDED * 2)
+			nlace_cnt = -NLACE_CNT_NEEDED * 2;
+	} else if (!lace) {
+		if (nlace_cnt < 0)
+			nlace_cnt = 0;
+		nlace_cnt++;
+		if (nlace_cnt > NLACE_CNT_NEEDED * 2)
+			nlace_cnt = NLACE_CNT_NEEDED * 2;
+	}
+}
+
 struct chipset_refresh *get_chipset_refresh (void)
 {
-	int islace = (bplcon0 & 4) ? 1 : 0;
+	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
 
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
@@ -2806,7 +2844,7 @@ static bool changed_chipset_refresh (void)
 
 static void compute_framesync (void)
 {
-	int islace = (bplcon0 & 4) ? 1 : 0;
+	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	bool found = false;
 
@@ -2856,7 +2894,7 @@ static void compute_framesync (void)
 		changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = vblank_hz;
 	}
 	stored_chipset_refresh = cr;
-	interlace_changed = islace;
+	interlace_changed = 0;
 
 	if (beamcon0 & 0x80) {
 		int res = GET_RES_AGNUS (bplcon0);
@@ -2908,14 +2946,15 @@ static void compute_framesync (void)
 
 	compute_vsynctime ();
 
-	write_log (L"%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d\n",
+	write_log (L"%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s)\n",
 		isntsc ? L"NTSC" : L"PAL",
 		islace ? L" laced" : L"",
 		doublescan > 0 ? L" dblscan" : L"",
 		vblank_hz, vblank_hz * maxvpos_nom,
 		maxhpos, maxvpos, lof_store ? 1 : 0,
-		cr ? cr->index : -1
-		);
+		cr ? cr->index : -1,
+		cr != NULL && cr->label != NULL ? cr->label : L"<unknown>"
+	);
 
 	config_changed = 1;
 }
@@ -2940,7 +2979,7 @@ void init_hz (bool fullinit)
 	}
 	beamcon0 = new_beamcon0;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
-	islace = (bplcon0 & 4) ? 1 : 0;
+	islace = (interlace_seen) ? 1 : 0;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
 	if (!isntsc) {
@@ -3249,15 +3288,15 @@ static void VPOSW (uae_u16 v)
 		write_log (L"VPOSW %04X PC=%08x\n", v, M68K_GETPC);
 #endif
 	if (lof_store != ((v & 0x8000) ? 1 : 0)) {
-		lof_changed = 1;
 		lof_store = (v & 0x8000) ? 1 : 0;
+		lof_changing = lof_store ? 1 : -1;
 	}
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 		lol = (v & 0x0080) ? 1 : 0;
 		if (!islinetoggle ())
 			lol = 0;
 	}
-	if (lof_changed)
+	if (lof_changing)
 		return;
 	vpos &= 0x00ff;
 	v &= 7;
@@ -3804,6 +3843,9 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		vpos_previous = vpos;
 		hpos_previous = hpos;
 	}
+
+	if ((bplcon0 & 4) != (v & 4))
+		checklacecount ((v & 4) != 0);
 
 	bplcon0 = v;
 
@@ -5291,10 +5333,12 @@ static void vsync_handler_pre (void)
 		timehack_alive--;
 
 	inputdevice_vsync ();
-
 	filesys_vsync ();
-
 	sampler_vsync ();
+	clipboard_vsync ();
+#ifdef RETROPLATFORM
+	rp_vsync ();
+#endif
 
 	if (!vsync_rendered) {
 		vsync_handle_redraw (lof_store, lof_changed);
@@ -5303,7 +5347,7 @@ static void vsync_handler_pre (void)
 			render_screen ();
 			if (!frame_shown) {
 				frame_shown = true;
-				show_screen_maybe (true);
+				show_screen_maybe (isvsync_chipset () >= 0);
 			}
 		}
 	}
@@ -5314,6 +5358,7 @@ static void vsync_handler_pre (void)
 		vblank_hz_state = 1;
 
 	vsync_handle_check ();
+	checklacecount ((bplcon0 & 4) != 0);
 }
 
 // emulated hardware vsync
@@ -5372,9 +5417,26 @@ static void vsync_handler_post (void)
 		write_log (L"vblank interrupt not cleared\n");
 #endif
 	DISK_vsync ();
+
 	if (bplcon0 & 4)
 		lof_store = lof_store ? 0 : 1;
 	lof_current = lof_store;
+	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
+		interlace_changed = notice_interlace_seen (true);
+	} else if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED) {
+		interlace_changed = notice_interlace_seen (false);
+		if (interlace_changed) {
+			if (currprefs.gfx_scandoubler && currprefs.gfx_vresolution)
+				notice_screen_contents_lost ();
+		}
+	}
+	if (lof_changing) {
+		// still same? Trigger change now.
+		if ((!lof_store && lof_changing < 0) || (lof_store && lof_changing > 0)) {
+			lof_changed = 1;
+		}
+		lof_changing = 0;
+	}
 
 	if (debug_copper)
 		record_copper_reset ();
@@ -5385,14 +5447,11 @@ static void vsync_handler_post (void)
 		vpos_count = p96refresh_active;
 		vtotal = vpos_count;
 	}
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev)  > 1))
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev)  > 1) || lof_changed)
 		init_hz ();
-	else if (lof_changed || interlace_changed != ((bplcon0 & 4) ? 1 : 0) || changed_chipset_refresh ())
+	else if (interlace_changed || changed_chipset_refresh ())
 		compute_framesync ();
-#if 0
-	if (lof_changed)
-		compute_vsynctime ();
-#endif
+
 	vpos_count_prev = vpos_count;
 
 	lof_changed = 0;
@@ -5682,7 +5741,7 @@ static void hsync_handler_pre (bool onvsync)
 			lightpen_triggered = 1;
 		}
 		hardware_line_completed (next_lineno);
-		if (doflickerfix () && interlace_seen)
+		if (doflickerfix () && interlace_seen > 0)
 			hsync_scandoubler ();
 	}
 
@@ -5759,11 +5818,25 @@ static void hsync_handler_post (bool onvsync)
 		CIA_vsync_posthandler (ciasyncs);
 	}
 
-	if (vpos == equ_vblank_endline + 1 && lof_current != lof_store) {
-		// argh, line=0 field decision was wrong, someone did
-		// something stupid and changed LOF
-		// lof_current = lof_store;
-		// don't really know what to do here exactly without corrupt display
+	if (vpos == equ_vblank_endline + 1) {
+		if (lof_current != lof_store) {
+			// argh, line=0 field decision was wrong, someone did
+			// something stupid and changed LOF
+			// lof_current = lof_store;
+			// don't really know what to do here exactly without corrupt display
+		}
+		if (lof_store != lof_previous) {
+			if (lof_togglecnt_lace < LOF_TOGGLES_NEEDED)
+				lof_togglecnt_lace++;
+			if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED)
+				lof_togglecnt_nlace = 0;
+		} else {
+			if (lof_togglecnt_nlace < LOF_TOGGLES_NEEDED)
+				lof_togglecnt_nlace++;
+			if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED)
+				lof_togglecnt_lace = 0;
+		}
+		lof_previous = lof_store;
 	}
 
 	inputdevice_hsync ();
@@ -5849,10 +5922,8 @@ static void hsync_handler_post (bool onvsync)
 		int lineno = vpos;
 		if (lineno >= MAXVPOS)
 			lineno %= MAXVPOS;
-		if ((bplcon0 & 4) && currprefs.gfx_vresolution)
-			notice_interlace_seen ();
 		nextline_how = nln_normal;
-		if (doflickerfix () && interlace_seen) {
+		if (doflickerfix () && interlace_seen > 0) {
 			lineno *= 2;
 		} else if (currprefs.gfx_vresolution && (doublescan <= 0 || interlace_seen > 0)) {
 			lineno *= 2;
@@ -5950,7 +6021,7 @@ static void hsync_handler_post (bool onvsync)
 		vsync_handle_redraw (lof_store, lof_changed);
 		if (vblank_hz_state) {
 			render_screen ();
-			show_screen_maybe (true);
+			show_screen_maybe (false);
 		}
 		frame_shown = true;
 	}
@@ -6121,6 +6192,10 @@ void custom_reset (int hardreset)
 	dmal = 0;
 	init_hz_full ();
 	vpos_lpen = -1;
+	lof_changing = 0;
+	lof_togglecnt_nlace = lof_togglecnt_lace = 0;
+	lof_previous = lof_store;
+	nlace_cnt = NLACE_CNT_NEEDED;
 
 	audio_reset ();
 	if (!isrestore ()) {
@@ -6726,7 +6801,7 @@ static void REGPARAM2 custom_bput (uaecptr addr, uae_u32 value)
 	}
 }
 
-static void REGPARAM2 custom_lput(uaecptr addr, uae_u32 value)
+static void REGPARAM2 custom_lput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;

@@ -406,8 +406,11 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	} else {
 		ddrval = DD_FALSE;
 	}
-	write_log (L"DDRAW: primary surface %p, secondary %p (%dx%dx%d) bb=%d\n",
-		dxdata.primary, surf, width, height, dxdata.native.ddpfPixelFormat.dwRGBBitCount, dxdata.backbuffers);
+	write_log (L"DDRAW: %dx%d B=%d%s %d-bit\n",
+		width, height,
+		ap->gfx_backbuffers, ap->gfx_vflip ? L"W" : L"I",
+		dxdata.native.ddpfPixelFormat.dwRGBBitCount
+		);
 	return ddrval;
 }
 

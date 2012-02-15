@@ -562,7 +562,7 @@ static void releasecapture (void)
 	showcursor = 0;
 }
 
-void setmouseactive (int active)
+static void setmouseactive2 (int active, bool allowpause)
 {
 	//write_log (L"setmouseactive %d->%d\n", mouseactive, active);
 	if (active == 0)
@@ -642,7 +642,7 @@ void setmouseactive (int active)
 	} else {
 		inputdevice_acquire (FALSE);
 	}
-	if (!active)
+	if (!active && allowpause)
 		checkpause ();
 	setmaintitle (hMainWnd);
 #ifdef RETROPLATFORM
@@ -650,8 +650,12 @@ void setmouseactive (int active)
 	rp_mouse_magic (magicmouse_alive ());
 #endif
 }
+void setmouseactive (int active)
+{
+	setmouseactive2 (active, true);
+}
 
-static const int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
+static int hotkeys[] = { VK_VOLUME_UP, VK_VOLUME_DOWN, VK_VOLUME_MUTE, -1 };
 
 static void winuae_active (HWND hWnd, int minimized)
 {
@@ -677,9 +681,9 @@ static void winuae_active (HWND hWnd, int minimized)
 		if (sound_closed < 0) {
 			resumesoundpaused ();
 		} else {
-			if (currprefs.win32_iconified_pause)
+			if (currprefs.win32_iconified_pause && !currprefs.win32_inactive_pause)
 				resumepaused (1);
-			if (currprefs.win32_inactive_pause)
+			else if (currprefs.win32_inactive_pause)
 				resumepaused (2);
 		}
 		sound_closed = 0;
@@ -694,7 +698,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	getcapslock ();
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);
-	if (isfullscreen() != 0 && !gui_active)
+	if (isfullscreen () != 0 && !gui_active)
 		setmouseactive (1);
 #ifdef LOGITECHLCD
 	if (!minimized)
@@ -760,7 +764,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
 			}
 		}
 	}
-	wait_keyrelease ();
 	setpriority (pri);
 #ifdef FILESYS
 	filesys_flush_cache ();
@@ -775,10 +778,29 @@ void minimizewindow (void)
 	ShowWindow (hMainWnd, SW_MINIMIZE);
 }
 
+void enablecapture (void)
+{
+	setmouseactive (1);
+	if (sound_closed < 0) {
+		resumesoundpaused ();
+		sound_closed = 0;
+	}
+	if (currprefs.win32_inactive_pause) {
+		resumepaused (2);
+	}
+}
+
 void disablecapture (void)
 {
 	setmouseactive (0);
 	focus = 0;
+	if (currprefs.win32_inactive_pause && sound_closed == 0) {
+		setpaused (2);
+		sound_closed = 1;
+	} else if (currprefs.win32_inactive_nosound && sound_closed == 0) {
+		setsoundpaused ();
+		sound_closed = -1;
+	}
 }
 
 void gui_gameport_button_change (int port, int button, int onoff)
@@ -1136,7 +1158,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 			//write_log (L"%d %d %d %d %d %d %dx%d %dx%d\n", wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 			if (recapture && isfullscreen () <= 0) {
-				setmouseactive (1);
+				enablecapture ();
 				return 0;
 			}
 			if (wm < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {

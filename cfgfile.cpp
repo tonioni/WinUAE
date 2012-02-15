@@ -1010,6 +1010,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"agnus_bltbusybug", p->cs_agnusbltbusybug);
 	cfgfile_dwrite_bool (f, L"ics_agnus", p->cs_dipagnus);
 
+	cfgfile_dwrite_bool (f, L"autoconfig", p->autoconfig);
 	cfgfile_write (f, L"fastmem_size", L"%d", p->fastmem_size / 0x100000);
 	cfgfile_dwrite (f, L"fastmem2_size", L"%d", p->fastmem2_size / 0x100000);
 	cfgfile_write (f, L"a3000mem_size", L"%d", p->mbresmem_low_size / 0x100000);
@@ -2261,6 +2262,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, L"denise_noehb", &p->cs_denisenoehb)
 		|| cfgfile_yesno (option, value, L"ics_agnus", &p->cs_dipagnus)
 		|| cfgfile_yesno (option, value, L"agnus_bltbusybug", &p->cs_agnusbltbusybug)
+		|| cfgfile_yesno (option, value, L"autoconfig", &p->autoconfig)
 
 		|| cfgfile_yesno (option, value, L"kickshifter", &p->kickshifter)
 		|| cfgfile_yesno (option, value, L"ntsc", &p->ntscmode)
@@ -2664,6 +2666,10 @@ invalid_fs:
 
 int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int type)
 {
+	if (!_tcscmp (option, L"debug")) {
+		write_log (L"CONFIG DEBUG: '%s'\n", value);
+		return 1;
+	}
 	if (!_tcscmp (option, L"config_hardware"))
 		return 1;
 	if (!_tcscmp (option, L"config_host"))
@@ -3981,8 +3987,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_autoresolution_minh = 0;
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
-	p->gfx_apmode[0].gfx_backbuffers = 1;
-	p->gfx_apmode[1].gfx_backbuffers = 1;
+	p->gfx_apmode[0].gfx_backbuffers = 2;
+	p->gfx_apmode[1].gfx_backbuffers = 2;
 
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
@@ -4091,6 +4097,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->custom_memory_sizes[0] = 0;
 	p->custom_memory_addrs[1] = 0;
 	p->custom_memory_sizes[1] = 0;
+	p->autoconfig = true;
 
 	p->nr_floppies = 2;
 	p->floppy_read_only = false;
@@ -4414,11 +4421,10 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 
 static int bip_a1000 (struct uae_prefs *p, int config, int compa, int romcheck)
 {
-	int roms[4];
+	int roms[2];
 
 	roms[0] = 24;
-	roms[1] = 23;
-	roms[2] = -1;
+	roms[1] = -1;
 	p->chipset_mask = 0;
 	p->bogomem_size = 0;
 	p->sound_filter = FILTER_SOUND_ON;
@@ -4754,20 +4760,27 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 
 	p->cs_a1000ram = 0;
 	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 0;
-	p->cs_cdtvcd = p->cs_cdtvram = 0;
+	p->cs_cdtvcd = p->cs_cdtvram = p->cs_cdtvscsi = 0;
+	p->cs_a2091 = p->cs_a4091 = 0;
 	p->cs_fatgaryrev = -1;
 	p->cs_ide = 0;
 	p->cs_ramseyrev = -1;
 	p->cs_deniserev = -1;
 	p->cs_agnusrev = -1;
+	p->cs_denisenoehb = 0;
+	p->cs_dipagnus = 0;
+	p->cs_agnusbltbusybug = 0;
 	p->cs_mbdmac = 0;
-	p->cs_a2091 = 0;
 	p->cs_pcmcia = 0;
 	p->cs_ksmirror_e0 = 1;
+	p->cs_ksmirror_a8 = 0;
 	p->cs_ciaoverlay = 1;
 	p->cs_ciaatod = 0;
+	p->cs_rtc = 1;
+	p->cs_rtc_adjust_mode = p->cs_rtc_adjust = 0;
 	p->cs_df0idhw = 1;
 	p->cs_resetwarning = 1;
+	p->cs_slowmemisfast = 0;
 
 	switch (p->cs_compatible)
 	{

@@ -738,7 +738,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	LPD3DXBUFFER Errors = NULL;
 	LPD3DXBUFFER BufferEffect = NULL;
 	HRESULT hr;
-	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
 	LPD3DXEFFECT effect = NULL;
 	static int first;
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
@@ -747,8 +747,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 
 	compileflags |= EFFECTCOMPILERFLAGS;
 	plugin_path = get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), L"filtershaders\\direct3d");
-	if (filenotificationhandle == NULL)
-		filenotificationhandle  = FindFirstChangeNotification (tmp, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+	_tcscpy (tmp3, tmp);
 	_tcscat (tmp, shaderfile);
 	if (!full) {
 		struct zfile *z = zfile_fopen (tmp, L"r", 0);
@@ -773,15 +772,13 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 		if (FAILED (hr)) {
 			const char *str = psEnabled ? fx20 : fx10;
 			int len = strlen (str);
-#if 0
-			if ((!existsfile || canusefile == 0) && plugin_path) {
+			if (!existsfile && plugin_path) {
 				struct zfile *z = zfile_fopen (tmp, L"w", 0);
 				if (z) {
 					zfile_fwrite ((void*)str, len, 1, z);
 					zfile_fclose (z);
 				}
 			}
-#endif
 			hr = D3DXCreateEffectCompiler (str, len, NULL, NULL, compileflags, &EffectCompiler, &Errors);
 			if (FAILED (hr)) {
 				write_log (L"%s: D3DXCreateEffectCompilerFromResource failed: %s\n", D3DHEAD, D3DX_ErrorString (hr, Errors));
@@ -832,6 +829,8 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 			goto end;
 	}
 	ret = 1;
+	if (plugin_path && filenotificationhandle == NULL)
+		filenotificationhandle  = FindFirstChangeNotification (tmp3, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
 end:
 	if (Errors)
 		Errors->Release ();
@@ -1685,6 +1684,9 @@ static void settransform (void)
 
 static void invalidatedeviceobjects (void)
 {
+	if (filenotificationhandle  != NULL)
+		FindCloseChangeNotification  (filenotificationhandle);
+	filenotificationhandle = NULL;
 	if (query) {
 		query->Release();
 		query = NULL;
@@ -1838,9 +1840,6 @@ static int restoredeviceobjects (void)
 
 static void D3D_free2 (void)
 {
-	if (filenotificationhandle  != NULL)
-		FindCloseChangeNotification  (filenotificationhandle);
-	filenotificationhandle = NULL;
 	invalidatedeviceobjects ();
 	if (d3dswapchain)  {
 		d3dswapchain->Release ();
@@ -2120,16 +2119,15 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		write_log (L"DYNAMIC ");
 	write_log (L"\n");
 
-	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s VS=%d B=%d%s%s %d-bit %d\n",
+	write_log (L"%s: PS=%d.%d VS=%d.%d %d*%d*%d%s VS=%d B=%d%s %d-bit %d\n",
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 		max_texture_w, max_texture_h,
 		dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
-		vsync, dpp.BackBufferCount,
-		dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE ? L"I" : L"F",
-		ap->gfx_backbuffers == 0 ? L"E" : L"", 
+		vsync, ap->gfx_backbuffers,
+		ap->gfx_vflip ? L"W" : L"I", 
 		t_depth, adapter
 	);
 
@@ -2203,7 +2201,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_backbuffers == 0 ? 1 : 0);
+		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 ? 1 : 0);
 		if (FAILED (hr))
 			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -2680,6 +2678,25 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 	return (uae_u8*)lock.pBits;
 }
 
+static void flushgpu (bool wait)
+{
+	if (query) {
+		HRESULT hr = query->Issue (D3DISSUE_END);
+		if (SUCCEEDED (hr)) {
+			while (query->GetData (NULL, 0, D3DGETDATA_FLUSH) == S_FALSE) {
+				if (!wait)
+					return;
+			}
+		} else {
+			static int reported;
+			if (reported < 10) {
+				reported++;
+				write_log (L"%s: query->Issue (D3DISSUE_END) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
+			}
+		}
+	}
+}
+
 bool D3D_renderframe (void)
 {
 	static int vsync2_cnt;
@@ -2691,6 +2708,7 @@ bool D3D_renderframe (void)
 		while (WaitForSingleObject (filenotificationhandle, 0) == WAIT_OBJECT_0) {
 			FindNextChangeNotification (filenotificationhandle);
 			devicelost = 2;
+			write_log (L"%s: Shader file modification notification\n", D3DHEAD);
 		}
 	}
 
@@ -2701,19 +2719,8 @@ bool D3D_renderframe (void)
 	}
 
 	D3D_render2 ();
+	flushgpu (false);
 
-	if (query) {
-		HRESULT hr = query->Issue (D3DISSUE_END);
-		if (SUCCEEDED (hr)) {
-			while (query->GetData (NULL, 0, D3DGETDATA_FLUSH) == S_FALSE);
-		} else {
-			static int reported;
-			if (reported < 10) {
-				reported++;
-				write_log (L"query->Issue (D3DISSUE_END) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
-			}
-		}
-	}
 	return true;
 }
 
@@ -2733,6 +2740,7 @@ void D3D_showframe (void)
 			D3D_showframe2 (true);
 		}
 	}
+	flushgpu (true);
 }
 
 void D3D_refresh (void)

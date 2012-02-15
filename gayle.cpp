@@ -523,13 +523,16 @@ static void ide_identify_drive (void)
 	}
 }
 
-static void ide_execute_drive_diagnostics (void)
+static void ide_execute_drive_diagnostics (bool irq)
 {
 	ide->regs->ide_error = 1;
 	ide->regs->ide_sector = ide->regs->ide_nsector = 1;
 	ide->regs->ide_select = 0;
 	ide->regs->ide_lcyl = ide->regs->ide_hcyl = 0;
-	ide->status &= ~IDE_STATUS_BSY;
+	if (irq)
+		ide_interrupt ();
+	else
+		ide->status = ~IDE_STATUS_BSY;
 }
 
 static void ide_initialize_drive_parameters (void)
@@ -745,7 +748,7 @@ static void ide_do_command (uae_u8 cmd)
 	} else if (cmd == 0xec) { /* identify drive */
 		ide_identify_drive ();
 	} else if (cmd == 0x90) { /* execute drive diagnostics */
-		ide_execute_drive_diagnostics ();
+		ide_execute_drive_diagnostics (true);
 	} else if (cmd == 0x91) { /* initialize drive parameters */
 		ide_initialize_drive_parameters ();
 	} else if (cmd == 0xc6) { /* set multiple mode */
@@ -985,7 +988,7 @@ static void ide_write_reg (int ide_reg, uae_u32 val)
 		break;
 	case IDE_DEVCON:
 		if ((ide->regs->ide_devcon & 4) == 0 && (val & 4) != 0)
-			ide_execute_drive_diagnostics ();
+			ide_execute_drive_diagnostics (false);
 		ide->regs->ide_devcon = val;
 		break;
 	case IDE_DATA:

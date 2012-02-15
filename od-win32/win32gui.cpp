@@ -8770,8 +8770,8 @@ static void sethardfile (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, current_hfdlg.autoboot);
 	CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, current_hfdlg.donotmount);
 	ew (hDlg, IDC_HDF_RDB, !rdb);
-	ew (hDlg, IDC_HDF_AUTOBOOT, !rdb);
-	ew (hDlg, IDC_HDF_DONOTMOUNT, !rdb);
+	ew (hDlg, IDC_HDF_AUTOBOOT, TRUE);
+	ew (hDlg, IDC_HDF_DONOTMOUNT, TRUE);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 }
 

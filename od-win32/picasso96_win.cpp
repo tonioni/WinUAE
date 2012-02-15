@@ -690,17 +690,15 @@ static void picasso_handle_vsync2 (void)
 	int thisisvsync = 1;
 	int vsync = isvsync_rtg ();
 	int mult;
+	bool rendered = false;
 
-#ifdef RETROPLATFORM
-	rp_vsync ();
-#endif
-
-	clipboard_vsync ();
-	if (!picasso_on)
-		createwindowscursor (0, 0, 0, 0, 0, 1);
+	if (vsync < 0) {
+		vsync_busywait_end ();
+		vsync_busywait_do (NULL, false, false);
+	}
 
 	getvsyncrate (currprefs.chipset_refreshrate, &mult);
-	if (vsync >= 0 && mult < 0) {
+	if (vsync && mult < 0) {
 		vsynccnt++;
 		if (vsynccnt < 2)
 			thisisvsync = 0;
@@ -708,55 +706,53 @@ static void picasso_handle_vsync2 (void)
 			vsynccnt = 0;
 	}
 
-	if (thisisvsync && currprefs.win32_rtgvblankrate == 0 && !vsync)
-		picasso_trigger_vblank ();
-
-	if (!picasso_on)
-		return;
-
 	framecnt++;
 	mouseupdate ();
 
 	if (thisisvsync) {
-		if (!rtg_render ())
-			rtg_show ();
+		rendered = rtg_render ();
 	}
 	if (setupcursor_needed)
 		setupcursor ();
+	if (thisisvsync)
+		picasso_trigger_vblank ();
+
+	if (vsync < 0) {
+		vsync_busywait_start ();
+	}
+
+	if (thisisvsync && !rendered)
+		rtg_show ();
 }
 
 static int p96hsync;
 
 void picasso_handle_vsync (void)
 {
-	int vsync = isvsync_rtg ();
-	
+	if (currprefs.rtgmem_size == 0)
+		return;
+
 	if (!picasso_on) {
+		createwindowscursor (0, 0, 0, 0, 0, 1);
 		picasso_trigger_vblank ();
 		return;
 	}
 
+	int vsync = isvsync_rtg ();
 	if (vsync < 0) {
 		p96hsync = 0;
-		vsync_busywait_end ();
-		vsync_busywait_do (NULL, false, false);
-		framecnt++;
-		mouseupdate ();
-		bool rendered = rtg_render ();
-		picasso_trigger_vblank ();
-		clipboard_vsync ();
-		vsync_busywait_start ();
-		if (!rendered)
-			rtg_show ();
-	} else {
+		picasso_handle_vsync2 ();
+	} else if (currprefs.win32_rtgvblankrate == 0) {
 		picasso_handle_vsync2 ();
 	}
 }
 
 void picasso_handle_hsync (void)
 {
-	int vsync = isvsync_rtg ();
+	if (currprefs.rtgmem_size == 0)
+		return;
 
+	int vsync = isvsync_rtg ();
 	if (vsync < 0) {
 		p96hsync++;
 		if (p96hsync >= p96syncrate * 3) {
@@ -767,14 +763,17 @@ void picasso_handle_hsync (void)
 		return;
 	}
 
-	if (currprefs.rtgmem_size == 0)
-		return;
-	if (currprefs.win32_rtgvblankrate == 0 && !vsync)
+	if (currprefs.win32_rtgvblankrate == 0)
 		return;
 
 	p96hsync++;
 	if (p96hsync >= p96syncrate) {
-		picasso_trigger_vblank ();
+		if (!picasso_on) {
+			createwindowscursor (0, 0, 0, 0, 0, 1);
+			picasso_trigger_vblank ();
+		} else {
+			picasso_handle_vsync2 ();
+		}
 		p96hsync = 0;
 	}
 }
@@ -982,7 +981,6 @@ void picasso_refresh (void)
 			width = picasso96_state.Width;
 			height = picasso96_state.Height;
 		}
-		flushpixels ();
 	} else {
 		write_log (L"ERROR - picasso_refresh() can't refresh!\n");
 	}

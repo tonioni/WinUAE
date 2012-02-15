@@ -1194,7 +1194,7 @@ static uae_u32 hidmask (int bits)
 static int extractbits (uae_u32 val, int bits, bool issigned)
 {
 	if (issigned)
-		return val & (hidmask (bits)) ? val | (bits >= 32 ? 0x80000000 : (-1 << bits)) : val;
+		return (val & (bits >= 32 ? 0x80000000 : (1 << (bits - 1)))) ? val | (bits >= 32 ? 0x80000000 : (-1 << bits)) : val;
 	else
 		return val & hidmask (bits);
 }
@@ -1872,8 +1872,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 								v -= logicalrange + vcaps->LogicalMin;
 
-								//if (axisnum == 0)
-								//	write_log (L"%d\n", v);
+								if (axisnum == 0)
+									write_log (L"%d\n", v);
 
 								data = v;
 

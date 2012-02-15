@@ -277,7 +277,7 @@ extern void vsync_handle_check (void);
 extern void init_hardware_for_drawing_frame (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
-extern void notice_interlace_seen (void);
+extern bool notice_interlace_seen (bool);
 extern void frame_drawn (void);
 extern void redraw_frame (void);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy);

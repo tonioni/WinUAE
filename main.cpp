@@ -131,8 +131,6 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 {
 	fixup_prefs_dim2 (&prefs->gfx_size_fs);
 	fixup_prefs_dim2 (&prefs->gfx_size_win);
-	if (prefs->gfx_filter == 0 && prefs->gfx_filter_autoscale && !prefs->gfx_api)
-		prefs->gfx_filter = 1;
 	if (prefs->gfx_apmode[1].gfx_vsync)
 		prefs->gfx_apmode[1].gfx_vsyncmode = 1;
 	if (prefs->gfx_apmode[0].gfx_vsync && !prefs->gfx_apmode[0].gfx_vsyncmode && prefs->gfx_apmode[0].gfx_backbuffers < 1)
@@ -141,10 +139,24 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = false;
-		if (ap->gfx_backbuffers >= 1)
-			ap->gfx_vflip = true; // true = wait for vblank flip, false = immediate flip
+		if (ap->gfx_vsync) {
+			if (ap->gfx_vsyncmode) {
+				// low latency vsync: no flip only if no-buffer
+				if (ap->gfx_backbuffers >= 1)
+					ap->gfx_vflip = true; // true = wait for vblank flip, false = immediate flip
+			} else {
+				// legacy vsync: always wait for flip
+				ap->gfx_vflip = true;
+			}
+		} else {
+			// no vsync: wait if tripple bufferirng
+			if (ap->gfx_backbuffers >= 2)
+				ap->gfx_vflip = true;
+		}
 	}
 
+	if (prefs->gfx_filter == 0 && ((prefs->gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[0].gfx_vsyncmode)))
+		prefs->gfx_filter = 1;
 }
 
 void fixup_cpu (struct uae_prefs *p)

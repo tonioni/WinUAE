@@ -2746,6 +2746,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 
 		if (framecnt == 0)
 			finish_drawing_frame ();
+#if 0
 		if (interlace_seen > 0) {
 			interlace_seen = -1;
 		} else if (interlace_seen == -1) {
@@ -2753,6 +2754,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 			if (currprefs.gfx_scandoubler && currprefs.gfx_vresolution)
 				notice_screen_contents_lost ();
 		}
+#endif
 
 		if (quit_program < 0) {
 #ifdef SAVESTATE
@@ -2859,12 +2861,25 @@ static void gfxbuffer_reset (void)
 	gfxvidinfo.drawbuffer.unlockscr          = dummy_unlock;
 }
 
-void notice_interlace_seen (void)
+bool notice_interlace_seen (bool lace)
 {
+	bool changed = false;
 	// non-lace to lace switch (non-lace active at least one frame)?
-	if (interlace_seen == 0)
-		frame_redraw_necessary = 2;
-	interlace_seen = 1;
+	if (lace) {
+		if (interlace_seen == 0) {
+			frame_redraw_necessary = 2;
+			changed = true;
+			write_log (L"->lace\n");
+		}
+		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
+	} else {
+		if (interlace_seen) {
+			changed = true;
+			write_log (L"->non-lace\n");
+		}
+		interlace_seen = 0;
+	}
+	return changed;
 }
 
 static void clearbuffer (struct vidbuffer *dst)

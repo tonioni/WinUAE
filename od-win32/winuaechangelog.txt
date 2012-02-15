@@ -1,4 +1,32 @@
 
+Beta 17:
+
+- Fixed b16 low latency vsync issues.
+- Possible fix for no buffer vsync tearing in D3D mode on some systems.
+- Tweaked b4 too fast cpu audio hack, it broke routines that start playing empty sample (with length=1)
+  and then near immediately reset audio pointer to correct sample. Hack detected this as a bad
+  behavior and "fixed" it causing corrupt sound. (Game Solid 2 AGA)
+- Release keys before pausing, stuck Alt if Alt-Tab pressed and emulation was set to pause when inactive.
+- Magic mouse triggered window activation/deactivation didn't handle inactive pause or sound correctly.
+- UAE controller mounted RDB hardfiles support bootable and do not mount checkboxes. "Do not mount" ticked
+  = ignore all RDB hardfile partitions, "Bootable" unticked = do not boot from any RDB hardfile
+  partition. Other boot priority values are ignored.
+- Execute drive diagnostics IDE command should also set interrupt state (if enabled)
+- Enable null filter if none and low latency vsync selected. It can't work with "none" filter.
+- gfx_contrast/gfx_luminance/gfx_gamma didn't work on the fly using uae-configuration.
+- Interlace mode detection rewritten. This should improve interlace emulation of weird programs
+  doing weird things with interlace... Do not simply mirror BPLCON0 LACE bit but also check
+  that LOF bit toggles correctly.
+- Only enable vblank waits in non-vsync modes if triple buffering is enabled. I always forget that
+  it is bad idea because on some systems it works fine, on some others it causes huge slowdowns.
+- Some Advanced Chipset panel settings were not overridden if compatible settings was enabled.
+  This could have caused strange compatibility problems even in Quickstart modes if default.uae
+  had modified advanced chipset config entries.
+- On the fly RTG vsync mode switch does not freeze the emulation anymore.
+- Fixed A1000 Quickstart ROM missing message.
+- KS 1.2 or older: map Z2 FastRAM as a non-autoconfig memory board.
+- HID joystick negative axis values broke in b15.
+
 Beta 16:
 
 - AROS CDFS update, disabled annoying and pointless "Write protected" requester.
