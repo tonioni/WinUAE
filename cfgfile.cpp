@@ -193,7 +193,7 @@ static const TCHAR *obsolete[] = {
 	L"gfx_immediate_blits", L"gfx_ntsc", L"win32", L"gfx_filter_bits",
 	L"sound_pri_cutoff", L"sound_pri_time", L"sound_min_buff", L"sound_bits",
 	L"gfx_test_speed", L"gfxlib_replacement", L"enforcer", L"catweasel_io",
-	L"kickstart_key_file", L"fast_copper", L"sound_adjust",
+	L"kickstart_key_file", L"fast_copper", L"sound_adjust", L"sound_latency",
 	L"serial_hardware_dtrdsr", L"gfx_filter_upscale",
 	L"gfx_correct_aspect", L"gfx_autoscale", L"parallel_sampler", L"parallel_ascii_emulation",
 	L"avoid_vid", L"avoid_dga", L"z3chipmem_size", L"state_replay_buffer", L"state_replay",
@@ -709,7 +709,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"sound_stereo_mixing_delay", L"%d", p->sound_mixed_stereo_delay >= 0 ? p->sound_mixed_stereo_delay : 0);
 	cfgfile_write (f, L"sound_max_buff", L"%d", p->sound_maxbsiz);
 	cfgfile_write (f, L"sound_frequency", L"%d", p->sound_freq);
-	cfgfile_write (f, L"sound_latency", L"%d", p->sound_latency);
 	cfgfile_write_str (f, L"sound_interpol", interpolmode[p->sound_interpol]);
 	cfgfile_write_str (f, L"sound_filter", soundfiltermode1[p->sound_filter]);
 	cfgfile_write_str (f, L"sound_filter_type", soundfiltermode2[p->sound_filter_type]);
@@ -1010,7 +1009,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, L"agnus_bltbusybug", p->cs_agnusbltbusybug);
 	cfgfile_dwrite_bool (f, L"ics_agnus", p->cs_dipagnus);
 
-	cfgfile_dwrite_bool (f, L"autoconfig", p->autoconfig);
+	cfgfile_dwrite_bool (f, L"fastmem_autoconfig", p->fastmem_autoconfig);
 	cfgfile_write (f, L"fastmem_size", L"%d", p->fastmem_size / 0x100000);
 	cfgfile_dwrite (f, L"fastmem2_size", L"%d", p->fastmem2_size / 0x100000);
 	cfgfile_write (f, L"a3000mem_size", L"%d", p->mbresmem_low_size / 0x100000);
@@ -1449,12 +1448,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 	}
 
-	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)) {
-		/* backwards compatibility */
-		p->sound_latency = 1000 * (p->sound_maxbsiz >> 1) / p->sound_freq;
-		return 1;
-	}
-
 	if (cfgfile_strval (option, value, L"gfx_autoresolution_min_vertical", &p->gfx_autoresolution_minv, vertmode, 0)) {
 		p->gfx_autoresolution_minv--;
 		return 1;
@@ -1464,7 +1457,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
-	if (cfgfile_intval (option, value, L"sound_latency", &p->sound_latency, 1)
+	if (cfgfile_intval (option, value, L"sound_frequency", &p->sound_freq, 1)
 		|| cfgfile_intval (option, value, L"sound_max_buff", &p->sound_maxbsiz, 1)
 		|| cfgfile_intval (option, value, L"state_replay_rate", &p->statecapturerate, 1)
 		|| cfgfile_intval (option, value, L"state_replay_buffers", &p->statecapturebuffersize, 1)
@@ -2262,7 +2255,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, L"denise_noehb", &p->cs_denisenoehb)
 		|| cfgfile_yesno (option, value, L"ics_agnus", &p->cs_dipagnus)
 		|| cfgfile_yesno (option, value, L"agnus_bltbusybug", &p->cs_agnusbltbusybug)
-		|| cfgfile_yesno (option, value, L"autoconfig", &p->autoconfig)
+		|| cfgfile_yesno (option, value, L"fastmem_autoconfig", &p->fastmem_autoconfig)
 
 		|| cfgfile_yesno (option, value, L"kickshifter", &p->kickshifter)
 		|| cfgfile_yesno (option, value, L"ntsc", &p->ntscmode)
@@ -3930,7 +3923,6 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->sound_mixed_stereo_delay = 0;
 	p->sound_freq = DEFAULT_SOUND_FREQ;
 	p->sound_maxbsiz = DEFAULT_SOUND_MAXB;
-	p->sound_latency = 100;
 	p->sound_interpol = 1;
 	p->sound_filter = FILTER_SOUND_EMUL;
 	p->sound_filter_type = 0;
@@ -3988,7 +3980,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->color_mode = 2;
 	p->gfx_blackerthanblack = 0;
 	p->gfx_apmode[0].gfx_backbuffers = 2;
-	p->gfx_apmode[1].gfx_backbuffers = 2;
+	p->gfx_apmode[1].gfx_backbuffers = 1;
 
 	p->immediate_blits = 0;
 	p->waiting_blits = 0;
@@ -4097,7 +4089,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->custom_memory_sizes[0] = 0;
 	p->custom_memory_addrs[1] = 0;
 	p->custom_memory_sizes[1] = 0;
-	p->autoconfig = true;
+	p->fastmem_autoconfig = true;
 
 	p->nr_floppies = 2;
 	p->floppy_read_only = false;
@@ -4860,7 +4852,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ramseyrev = 0x0f;
 		p->cs_ide = IDE_A4000;
 		p->cs_mbdmac = 0;
-		p->cs_ksmirror_a8 = 1;
+		p->cs_ksmirror_a8 = 0;
+		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaoverlay = 0;
 		break;
 	case CP_A4000T: // A4000T
@@ -4869,7 +4862,8 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ramseyrev = 0x0f;
 		p->cs_ide = IDE_A4000;
 		p->cs_mbdmac = 2;
-		p->cs_ksmirror_a8 = 1;
+		p->cs_ksmirror_a8 = 0;
+		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaoverlay = 0;
 		break;
 	}

@@ -182,9 +182,10 @@ BEGIN
     RTEXT           "Chip:",IDC_STATIC,19,25,32,15,SS_CENTERIMAGE
     RTEXT           "Slow:",IDC_STATIC,144,25,32,15,SS_CENTERIMAGE
     RTEXT           "Z3 Fast:",IDC_STATIC,144,49,32,15,SS_CENTERIMAGE
-    RTEXT           "32-bit Chip:",IDC_STATIC,99,73,78,15,SS_CENTERIMAGE
+    RTEXT           "32-bit Chip:",IDC_STATIC,136,74,41,15,SS_CENTERIMAGE
     CONTROL         "",IDC_Z3CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,71,60,20
     EDITTEXT        IDC_Z3CHIPRAM,243,76,34,12,ES_CENTER | ES_READONLY
+    CONTROL         "Autoconfig Fast RAM",IDC_FASTMEMAUTOCONFIG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,76,101,10
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 241
@@ -1007,24 +1008,24 @@ IDD_EXPANSION DIALOGEX 0, 0, 300, 206
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,44,53,10,SS_NOTIFY | SS_CENTERIMAGE
-    CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,40,60,20
-    EDITTEXT        IDC_P96RAM,152,43,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "RTG Graphics Card",IDC_STATIC,5,12,291,113
+    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,35,53,10,SS_NOTIFY | SS_CENTERIMAGE
+    CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,31,60,20
+    EDITTEXT        IDC_P96RAM,152,34,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "RTG Graphics Card",IDC_STATIC,5,1,291,124
     CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,74,162,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,65,162,10
     CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,62,163,10
-    COMBOBOX        IDC_RTG_8BIT,211,41,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_16BIT,211,56,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_24BIT,211,71,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_32BIT,211,86,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,53,163,10
+    COMBOBOX        IDC_RTG_8BIT,211,21,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_16BIT,211,36,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_24BIT,211,51,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_32BIT,211,66,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,86,162,10
-    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,106,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Aspect ratio:",IDC_STATIC,153,107,52,10,SS_CENTERIMAGE
-    RTEXT           "Refresh rate:",IDC_STATIC,22,108,51,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_RTG_VBLANKRATE,77,106,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,77,162,10
+    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,108,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Aspect ratio:",IDC_STATIC,215,95,60,10,SS_CENTERIMAGE
+    CTEXT           "Refresh rate:",IDC_STATIC,28,95,64,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_RTG_VBLANKRATE,24,108,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,142,148,120,10
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation. WinPcap required.",IDC_SANA2,
@@ -1037,7 +1038,10 @@ BEGIN
     CONTROL         "Catweasel Z2 emulation [] Catweasel MK2 Zorro II card emulation. Physical Windows compatible Catweasel card and drivers required.",IDC_CATWEASEL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,148,101,10
     GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,5,130,117,66
-    COMBOBOX        IDC_RTG_Z2Z3,211,21,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_Z2Z3,26,14,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Buffer mode:",IDC_STATIC,112,95,81,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_RTG_BUFFERCNT,111,108,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Color modes:",IDC_STATIC,215,9,62,10,SS_CENTERIMAGE
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 300, 240
@@ -1411,7 +1415,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
+    IDS_CONTRIBUTORS2       "Arnljot Arntsen, Bill Panagouleas, Cloanto - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"

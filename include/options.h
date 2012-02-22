@@ -214,7 +214,6 @@ struct uae_prefs {
 	int sound_mixed_stereo_delay;
 	int sound_freq;
 	int sound_maxbsiz;
-	int sound_latency;
 	int sound_interpol;
 	int sound_filter;
 	int sound_filter_type;
@@ -393,6 +392,7 @@ struct uae_prefs {
 	uae_u32 z3chipmem_size;
 	uae_u32 z3chipmem_start;
 	uae_u32 fastmem_size, fastmem2_size;
+	bool fastmem_autoconfig;
 	uae_u32 chipmem_size;
 	uae_u32 bogomem_size;
 	uae_u32 mbresmem_low_size;
@@ -401,7 +401,6 @@ struct uae_prefs {
 	int rtgmem_type;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
-	bool autoconfig;
 
 	bool kickshifter;
 	bool filesys_no_uaefsdb;

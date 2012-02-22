@@ -1,4 +1,19 @@
 
+Beta 18:
+
+- Z2 Fast Autoconfig on/off checkbox added.
+- RTG double/triple buffering option added ("no buffer" is not supported in RTG mode)
+- Do nothing if Load From or Save From file dialogs are canceled.
+- Input panel mode (Configuration #1-#3) also autoswitches joysticks/mice using "GamePorts" method
+  (GamePorts setting overrides Input settings) if GamePorts panel port is not set to "none".
+  (autoswitch = press button on non-configured joystick or mouse = enables it automatically)
+- Task bar click minimize didn't enable minimized state.
+- Accept non-power of 2 sound buffer size.
+- GUI sound buffer range changed, previously next size was always previous * 2. Now buffer sizes are
+  256, 512, 768, 1024, 1536, 2048, 3072, 4096, 8192 and 16384 samples.
+- Fixed NTSC and 100% floppy speed mode disk errors in some situations.
+- A4000 Quickstart/advanced chipset configuration updates, 0xc0 to 0xcf is chipset mirror, ROM mirrors don't exist.
+
 Beta 17:
 
 - Fixed b16 low latency vsync issues.

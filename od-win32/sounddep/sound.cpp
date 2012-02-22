@@ -1533,8 +1533,7 @@ static int open_sound (void)
 	stereo would have been enabled and we'd have done the shift by
 	two anyway).  */
 	size >>= 2;
-	if (size & (size - 1))
-		size = DEFAULT_SOUND_MAXB;
+	size &= ~63;
 	if (size < 64)
 		size = 64;
 

@@ -2491,6 +2491,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
+static bool dooddevenskip;
 
 bool vsync_busywait_check (void)
 {
@@ -2513,9 +2514,11 @@ static void vsync_notvblank (void)
 
 frame_time_t vsync_busywait_end (void)
 {
-	vsync_notvblank ();
-	while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
-		vsync_sleep (false);
+	if (!dooddevenskip) {
+		vsync_notvblank ();
+		while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
+			vsync_sleep (false);
+		}
 	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
 	return thread_vblank_time;
@@ -2523,7 +2526,9 @@ frame_time_t vsync_busywait_end (void)
 
 void vsync_busywait_start (void)
 {
-	vsync_notvblank ();
+	if (!dooddevenskip) {
+		vsync_notvblank ();
+	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_START);
 	vblank_prev_time = thread_vblank_time;
 }
@@ -2540,6 +2545,8 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	int ti;
 	frame_time_t t;
 	frame_time_t prevtime = vblank_prev_time;
+
+	dooddevenskip = false;
 
 	if (lace)
 		vblankbaselace_chipset = oddeven;
@@ -2595,8 +2602,10 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 			return true;
 		}
 		
-		if (vblanklaceskip ())
+		if (vblanklaceskip ()) {
 			doskip = true;
+			dooddevenskip = true;
+		}
 
 		if (!doskip) {
 			while (!framelost && read_processor_time () - prevtime < vblankbasewait) {

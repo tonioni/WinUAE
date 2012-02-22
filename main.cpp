@@ -149,7 +149,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 				ap->gfx_vflip = true;
 			}
 		} else {
-			// no vsync: wait if tripple bufferirng
+			// no vsync: wait if triple bufferirng
 			if (ap->gfx_backbuffers >= 2)
 				ap->gfx_vflip = true;
 		}

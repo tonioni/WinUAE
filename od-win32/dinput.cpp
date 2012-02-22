@@ -1872,9 +1872,6 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 								v -= logicalrange + vcaps->LogicalMin;
 
-								if (axisnum == 0)
-									write_log (L"%d\n", v);
-
 								data = v;
 
 								digitalrange = logicalrange * 2 / 3;

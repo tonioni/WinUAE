@@ -1060,8 +1060,9 @@
 #define IDC_DF0WPTEXTQ                  1793
 #define IDC_WINDOWEDMODE                1793
 #define IDC_DF1WPTEXTQ                  1794
-#define IDC_RTG_8BIT2                   1794
 #define IDC_RTG_Z2Z3                    1794
+#define IDC_RTG_BACKBUFFERS             1795
+#define IDC_RTG_BUFFERCNT               1795
 #define IDC_INPUTMAPLIST                1797
 #define IDC_PORT1_REMAP                 1798
 #define IDC_PORT0_REMAP                 1799
@@ -1075,6 +1076,7 @@
 #define IDC_CD_TEXT                     1805
 #define IDC_CD_TYPE                     1806
 #define IDC_CD_SELECT                   1807
+#define IDC_FASTMEMAUTOCONFIG           1808
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1125,7 +1127,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        370
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1808
+#define _APS_NEXT_CONTROL_VALUE         1809
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

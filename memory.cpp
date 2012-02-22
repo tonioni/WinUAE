@@ -2462,8 +2462,13 @@ void memory_reset (void)
 		bnk = 0x20 + (currprefs.fastmem_size >> 16);
 	bnk_end = gayle ? 0xBF : 0xA0;
 	map_banks (&dummy_bank, bnk, bnk_end - bnk, 0);
-	if (gayle)
-		map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
+	if (gayle) {
+		 // a4000 = custom chips from 0xc0 to 0xd0
+		if (currprefs.cs_ide == IDE_A4000)
+			map_banks (&dummy_bank, 0xd0, 8, 0);
+		else
+			map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);
+	}
 
 	if (bogomemory != 0) {
 		int t = currprefs.bogomem_size >> 16;

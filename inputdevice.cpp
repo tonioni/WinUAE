@@ -3187,7 +3187,8 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	} else {
 		newport = num ? 1 : 0;
 	}
-	if (currprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS) {
+	/* "GamePorts" switch if in GamePorts mode or Input mode and GamePorts port was not NONE */
+	if (currprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS || currprefs.jports[newport].id != JPORT_NONE) {
 		if ((num == 0 || num == 1) && currprefs.jports[newport].id != JPORT_CUSTOM) {
 			int om = jsem_ismouse (num, &currprefs);
 			int om1 = jsem_ismouse (0, &currprefs);

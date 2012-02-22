@@ -1161,7 +1161,7 @@ static HWND cachedlist = NULL;
 #define MIN_REFRESH_RATE 1
 #define MAX_REFRESH_RATE 10
 #define MIN_SOUND_MEM 0
-#define MAX_SOUND_MEM 6
+#define MAX_SOUND_MEM 9
 
 struct romscandata {
 	UAEREG *fkey;
@@ -3178,6 +3178,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	TCHAR name[MAX_DPATH], desc[MAX_DPATH];
 	TCHAR path[MAX_DPATH];
 	static TCHAR full_path[MAX_DPATH];
+	int ok = 1;
 
 	full_path[0] = 0;
 	name[0] = 0;
@@ -3203,12 +3204,12 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	switch (flag)
 	{
 	case CONFIG_SAVE_FULL:
-		DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, newpath);
+		ok = DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, newpath);
 		break;
 
 	case CONFIG_LOAD_FULL:
-		DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, newpath);
-		EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
+		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, newpath)))
+			EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
 		break;
 
 	case CONFIG_SAVE:
@@ -3233,6 +3234,7 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 				WIN32GUI_LoadUIString (IDS_COULDNOTLOADCONFIG, szMessage, MAX_DPATH);
 				pre_gui_message (szMessage);
 				config_filename[0] = 0;
+				ok = 0;
 			} else {
 				ew (hDlg, IDC_VIEWINFO, workprefs.info[0]);
 			}
@@ -3255,13 +3257,15 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 					DeleteFile (path);
 					write_log (L"deleted config '%s'\n", path);
 					config_filename[0] = 0;
+			} else {
+				ok = 0;
 			}
 		}
 		break;
 	}
 
 	setguititle (NULL);
-	return full_path;
+	return ok ? full_path : NULL;
 }
 
 
@@ -4216,49 +4220,56 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 	switch (LOWORD (wParam))
 	{
 	case IDC_SAVE:
-		HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath);
-		DeleteConfigTree (hDlg);
-		config = CreateConfigStore (config, TRUE);
-		ConfigToRegistry (config, configtypepanel);
-		config = initloadsave (hDlg, config);
-		InitializeConfig (hDlg, config);
+		if (HandleConfiguration (hDlg, CONFIG_SAVE_FULL, config, newpath)) {
+			DeleteConfigTree (hDlg);
+			config = CreateConfigStore (config, TRUE);
+			ConfigToRegistry (config, configtypepanel);
+			config = initloadsave (hDlg, config);
+			InitializeConfig (hDlg, config);
+		}
 		break;
 	case IDC_QUICKSAVE:
-		HandleConfiguration (hDlg, CONFIG_SAVE, config, NULL);
-		DeleteConfigTree (hDlg);
-		config = CreateConfigStore (config, TRUE);
-		ConfigToRegistry (config, configtypepanel);
-		config = initloadsave (hDlg, config);
-		InitializeConfig (hDlg, config);
+		if (HandleConfiguration (hDlg, CONFIG_SAVE, config, NULL)) {
+			DeleteConfigTree (hDlg);
+			config = CreateConfigStore (config, TRUE);
+			ConfigToRegistry (config, configtypepanel);
+			config = initloadsave (hDlg, config);
+			InitializeConfig (hDlg, config);
+		}
 		break;
 	case IDC_QUICKLOAD:
 		*pcfgfile = HandleConfiguration (hDlg, CONFIG_LOAD, config, NULL);
-		ConfigToRegistry (config, configtypepanel);
-		InitializeConfig (hDlg, config);
-		if (full_property_sheet) {
-			inputdevice_updateconfig (&workprefs);
-		} else {
-			uae_restart (-1, *pcfgfile);
-			exit_gui(1);
+		if (*pcfgfile) {
+			ConfigToRegistry (config, configtypepanel);
+			InitializeConfig (hDlg, config);
+			if (full_property_sheet) {
+				inputdevice_updateconfig (&workprefs);
+			} else {
+				uae_restart (-1, *pcfgfile);
+				exit_gui(1);
+			}
 		}
 		break;
 	case IDC_LOAD:
 		*pcfgfile = HandleConfiguration (hDlg, CONFIG_LOAD_FULL, config, newpath);
-		ConfigToRegistry (config, configtypepanel);
-		InitializeConfig (hDlg, config);
-		if (full_property_sheet) {
-			inputdevice_updateconfig (&workprefs);
-		} else {
-			uae_restart (-1, *pcfgfile);
-			exit_gui(1);
+		if (*pcfgfile) {
+			ConfigToRegistry (config, configtypepanel);
+			InitializeConfig (hDlg, config);
+			if (full_property_sheet) {
+				inputdevice_updateconfig (&workprefs);
+			} else {
+				uae_restart (-1, *pcfgfile);
+				exit_gui(1);
+			}
 		}
 		break;
 	case IDC_DELETE:
-		HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL);
-		DeleteConfigTree (hDlg);
-		config = CreateConfigStore (config, TRUE);
-		config = initloadsave (hDlg, config);
-		InitializeConfig (hDlg, config);
+		if (HandleConfiguration (hDlg, CONFIG_DELETE, config, NULL)) {
+			DeleteConfigTree (hDlg);
+			config = CreateConfigStore (config, TRUE);
+			config = initloadsave (hDlg, config);
+			InitializeConfig (hDlg, config);
+		}
 		break;
 	case IDC_VIEWINFO:
 		if (workprefs.info[0]) {
@@ -4366,10 +4377,12 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 								struct ConfigStruct *config = (struct ConfigStruct*)pitem.lParam;
 								if (config && !config->Directory) {
 									cfgfile = HandleConfiguration (hDlg, CONFIG_LOAD, config, NULL);
-									ConfigToRegistry (config, configtypepanel);
-									if (!full_property_sheet)
-										uae_restart (0, cfgfile);
-									exit_gui (1);
+									if (cfgfile) {
+										ConfigToRegistry (config, configtypepanel);
+										if (!full_property_sheet)
+											uae_restart (0, cfgfile);
+										exit_gui (1);
+									}
 								}
 							}
 						}
@@ -6497,6 +6510,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_Z3CHIPMEM, z3);
 	ew (hDlg, IDC_FASTMEM, fast);
 	ew (hDlg, IDC_FASTRAM, fast);
+	ew (hDlg, IDC_FASTMEMAUTOCONFIG, fast);
 	ew (hDlg, IDC_FASTTEXT, fast);
 	ew (hDlg, IDC_GFXCARDTEXT, z3);
 	ew (hDlg, IDC_P96RAM, z3);
@@ -6516,6 +6530,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_RTG_SCALE_ALLOW, rtg2);
 	ew (hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 	ew (hDlg, IDC_RTG_VBLANKRATE, rtg2);
+	ew (hDlg, IDC_RTG_BUFFERCNT, rtg2);
 }
 
 static int manybits (int v, int mask)
@@ -6847,6 +6862,7 @@ static void values_to_expansiondlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_SCSIDEVICE, workprefs.scsi == 1);
 	CheckDlgButton (hDlg, IDC_SANA2, workprefs.sana2);
 	CheckDlgButton (hDlg, IDC_A2065, workprefs.a2065name[0] ? 1 : 0);
+	SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_SETCURSEL, workprefs.gfx_apmode[1].gfx_backbuffers == 0 ? 0 : workprefs.gfx_apmode[1].gfx_backbuffers - 1, 0);
 	cw = catweasel_detect ();
 	ew (hDlg, IDC_CATWEASEL, cw);
 	if (!cw && workprefs.catweasel < 100)
@@ -6918,6 +6934,11 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)L"60");
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)L"70");
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)L"75");
+		SendDlgItemMessage(hDlg, IDC_RTG_BUFFERCNT, CB_RESETCONTENT, 0, 0);
+		WIN32GUI_LoadUIString(IDS_BUFFER_DOUBLE, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage(hDlg, IDC_RTG_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString(IDS_BUFFER_TRIPLE, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage(hDlg, IDC_RTG_BUFFERCNT, CB_ADDSTRING, 0, (LPARAM)tmp);
 
 	case WM_USER:
 		recursive++;
@@ -6979,6 +7000,13 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				uae_u32 mask = workprefs.picasso96_modeflags;
 				switch (LOWORD (wParam))
 				{
+				case  IDC_RTG_BUFFERCNT:
+					v = SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_GETCURSEL, 0, 0L);
+					if (v != CB_ERR) {
+						v++;
+						workprefs.gfx_apmode[1].gfx_backbuffers = v;
+					}
+					break;
 				case IDC_RTG_SCALE_ASPECTRATIO:
 					v = SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
@@ -7119,12 +7147,20 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
 		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
+
 
 	case WM_USER:
-		recursive++;
+		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
 		fix_values_memorydlg ();
 		values_to_memorydlg (hDlg);
 		enable_for_memorydlg (hDlg);
+		recursive--;
+		break;
+
+	case WM_COMMAND:
+		recursive++;
+		workprefs.fastmem_autoconfig = ischecked (hDlg, IDC_FASTMEMAUTOCONFIG);
 		recursive--;
 		break;
 
@@ -8206,12 +8242,21 @@ static void sound_loaddrivesamples (void)
 
 extern int soundpercent;
 
+static const int sndbufsizes[] = { 1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 32768, 65536, -1 };
+
+static int getsoundbufsizeindex (int size)
+{
+	int idx;
+	for (idx = 0; sndbufsizes[idx] < size && sndbufsizes[idx + 1] >= 0 ; idx++);
+	return idx;
+}
+
 static void update_soundgui (HWND hDlg)
 {
 	int bufsize;
 	TCHAR txt[20];
 
-	bufsize = exact_log2 (workprefs.sound_maxbsiz / SOUND_BUFFER_MULTIPLIER) + 1;
+	bufsize = getsoundbufsizeindex (workprefs.sound_maxbsiz) + 1;
 	_stprintf (txt, L"%d", bufsize);
 	SetDlgItemText (hDlg, IDC_SOUNDBUFFERMEM, txt);
 
@@ -8236,9 +8281,6 @@ static void values_to_sounddlg (HWND hDlg)
 	TCHAR txt[100], txt2[100], *p;
 	int i, selected;
 	LRESULT idx;
-
-	if (workprefs.sound_maxbsiz & (workprefs.sound_maxbsiz - 1))
-		workprefs.sound_maxbsiz = DEFAULT_SOUND_MAXB;
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDFILTER, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_SOUND_FILTER_OFF, txt, sizeof (txt) / sizeof (TCHAR));
@@ -8338,10 +8380,9 @@ static void values_to_sounddlg (HWND hDlg)
 
 	CheckDlgButton (hDlg, IDC_SOUND_AUTO, workprefs.sound_auto);
 
-	workprefs.sound_maxbsiz = 1 << exact_log2 (workprefs.sound_maxbsiz);
 	if (workprefs.sound_maxbsiz < SOUND_BUFFER_MULTIPLIER)
 		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER;
-	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, exact_log2 (workprefs.sound_maxbsiz / SOUND_BUFFER_MULTIPLIER));
+	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, getsoundbufsizeindex (workprefs.sound_maxbsiz));
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
@@ -8564,7 +8605,11 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		break;
 
 	case WM_HSCROLL:
-		workprefs.sound_maxbsiz = SOUND_BUFFER_MULTIPLIER << SendMessage (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
+		if ((HWND)lParam == GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM)) {
+			int v = SendMessage (GetDlgItem (hDlg, IDC_SOUNDBUFFERRAM), TBM_GETPOS, 0, 0);
+			if (v >= 0)
+				workprefs.sound_maxbsiz = sndbufsizes[v];
+		}
 		workprefs.sound_volume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
 		workprefs.dfxclickvolume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 		update_soundgui (hDlg);

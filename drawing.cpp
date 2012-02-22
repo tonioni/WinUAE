@@ -2869,13 +2869,13 @@ bool notice_interlace_seen (bool lace)
 		if (interlace_seen == 0) {
 			frame_redraw_necessary = 2;
 			changed = true;
-			write_log (L"->lace\n");
+			write_log (L"->lace PC=%x\n", m68k_getpc ());
 		}
 		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
 	} else {
 		if (interlace_seen) {
 			changed = true;
-			write_log (L"->non-lace\n");
+			write_log (L"->non-lace PC=%x\n", m68k_getpc ());
 		}
 		interlace_seen = 0;
 	}

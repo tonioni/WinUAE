@@ -949,6 +949,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		dx_check ();
 		break;
 	case WM_ACTIVATE:
+		//write_log (L"active %d\n", LOWORD(wParam));
 		if (LOWORD (wParam) == WA_INACTIVE) {
 			minimized = HIWORD (wParam) ? 1 : 0;
 			winuae_inactive (hWnd, minimized);
@@ -1328,6 +1329,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				switch (wParam & 0xfff0)
 				{
 				case SC_MINIMIZE:
+					winuae_inactive (hWnd, 1);
 					break;
 				case SC_RESTORE:
 					break;
@@ -2967,7 +2969,7 @@ static const TCHAR *obsolete[] = {
 	L"sound_sync", L"sound_tweak", L"directx6", L"sound_style",
 	L"file_path", L"iconified_nospeed", L"activepriority", L"magic_mouse",
 	L"filesystem_codepage", L"aspi", L"no_overlay", L"soundcard_exclusive",
-	L"specialkey",
+	L"specialkey", L"sound_speed_tweak", L"sound_lag",
 	0
 };
 

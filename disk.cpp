@@ -59,8 +59,8 @@ static int longwritemode = 0;
 #define FLOPPY_WRITE_MAXLEN 0x3800
 /* This works out to 350 */
 #define FLOPPY_GAP_LEN (FLOPPY_WRITE_LEN - 11 * 544)
-/* (cycles/bitcell) << 8, normal = ((2us/280ns)<<8) = ~1829.5714 */
-#define NORMAL_FLOPPY_SPEED (currprefs.ntscmode ? 1811 : 1829)
+/* (cycles/bitcell) << 8, normal = ((2us/280ns)<<8) = ~1828.5714 */
+#define NORMAL_FLOPPY_SPEED (currprefs.ntscmode ? 1812 : 1829)
 /* max supported floppy drives, for small memory systems */
 #define MAX_FLOPPY_DRIVES 4
 
@@ -1736,10 +1736,11 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	uae_u32 odd, even, chksum, id, dlong;
 	uae_u8 *secdata;
 	uae_u8 secbuf[544];
-	uae_u16 *mend = mbuf + length;
+	uae_u16 *mend = mbuf + length, *mstart;
 	int shift = 0;
 
 	memset (sectable, 0, MAX_SECTORS * sizeof (int));
+	mstart = mbuf;
 	memcpy (mbuf + fwlen, mbuf, fwlen * sizeof (uae_u16));
 	mend -= (4 + 16 + 8 + 512);
 	while (secwritten < drvsec) {
@@ -1767,7 +1768,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 
 		trackoffs = (id & 0xff00) >> 8;
 		if (trackoffs + 1 > drvsec) {
-			write_log (L"Disk decode: weird sector number %d (%04x)\n", trackoffs, id);
+			write_log (L"Disk decode: weird sector number %d (%08X, %d)\n", trackoffs, id, mbuf - mstart);
 			if (filetype == ADF_EXT2)
 				return 2;
 			continue;
@@ -2725,30 +2726,32 @@ static void disk_doupdate_write (drive * drv, int floppybits)
 						dskpt += 2;
 					}
 				}
-				uae_u16 w = DSKDATR ();
-				for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
-					drive *drv2 = &floppy[dr];
-					if (drives[dr]) {
-						drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
-						drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
-						drv2->writtento = 1;
+				if (disk_fifostatus () >= 0) {
+					uae_u16 w = DSKDATR ();
+					for (dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
+						drive *drv2 = &floppy[dr];
+						if (drives[dr]) {
+							drv2->bigmfmbuf[drv2->mfmpos >> 4] = w;
+							drv2->bigmfmbuf[(drv2->mfmpos >> 4) + 1] = 0x5555;
+							drv2->writtento = 1;
+						}
+	#ifdef AMAX
+						if (currprefs.amaxromfile[0])
+							amax_diskwrite (w);
+	#endif
 					}
-#ifdef AMAX
-					if (currprefs.amaxromfile[0])
-						amax_diskwrite (w);
-#endif
-				}
-				dsklength--;
-				if (dsklength <= 0) {
-					disk_dmafinished ();
-					for (int dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
-						drive *drv = &floppy[dr];
-						drv->writtento = 0;
-						if (drv->motoroff)
-							continue;
-						if (selected & (1 << dr))
-							continue;
-						drive_write_data (drv);
+					dsklength--;
+					if (dsklength <= 0) {
+						disk_dmafinished ();
+						for (int dr = 0; dr < MAX_FLOPPY_DRIVES ; dr++) {
+							drive *drv = &floppy[dr];
+							drv->writtento = 0;
+							if (drv->motoroff)
+								continue;
+							if (selected & (1 << dr))
+								continue;
+							drive_write_data (drv);
+						}
 					}
 				}
 			}
@@ -2854,14 +2857,14 @@ int disk_fifostatus (void)
 	return 0;
 }
 
-static bool doreaddma (void)
+static int doreaddma (void)
 {
 	if (dmaen (DMA_DISK) && bitoffset == 15 && dma_enable && dskdmaen == DSKDMA_READ && dsklength >= 0) {
 		if (dsklength > 0) {
 			// DSKLEN == 1: finish without DMA transfer.
 			if (dsklength == 1 && dsklength2 == 1) {
 				disk_dmafinished ();
-				return false;
+				return 0;
 			}
 			// fast disk modes, just flush the fifo
 			if (currprefs.floppy_speed > 100 && fifo_inuse[0] && fifo_inuse[1] && fifo_inuse[2]) {
@@ -2871,12 +2874,17 @@ static bool doreaddma (void)
 					dskpt += 2;
 				}
 			}
-			DSKDAT (word);
-			dsklength--;
+			if (disk_fifostatus () > 0) {
+				write_log (L"doreaddma() fifo overflow detected, retrying..\n");
+				return -1;
+			} else {
+				DSKDAT (word);
+				dsklength--;
+			}
 		}
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
 static void disk_doupdate_read_nothing (int floppybits)
@@ -2919,6 +2927,7 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 	mfmbuf[7] = 0x4444;
 	*/
 	while (floppybits >= drv->trackspeed) {
+		int oldmfmpos = drv->mfmpos;
 		if (drv->tracktiming[0])
 			updatetrackspeed (drv, drv->mfmpos);
 		word <<= 1;
@@ -2941,7 +2950,10 @@ static void disk_doupdate_read (drive * drv, int floppybits)
 			drv->mfmpos += disk_jitter;
 			drv->mfmpos %= drv->tracklen;
 		}
-		doreaddma ();
+		if (doreaddma () < 0) {
+			drv->mfmpos = oldmfmpos;
+			return;
+		}
 		if ((bitoffset & 7) == 7) {
 			dskbytr_val = word & 0xff;
 			dskbytr_val |= 0x8000;

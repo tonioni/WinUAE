@@ -1437,8 +1437,6 @@ void expamem_reset (void)
 	allocate_expamem ();
 	expamem_bank.name = L"Autoconfig [reset]";
 
-	if (!currprefs.autoconfig)
-		do_mount = 0;
 	/* check if Kickstart version is below 1.3 */
 	if (kickstart_version && do_mount
 		&& (/* Kickstart 1.0 & 1.1! */
@@ -1447,17 +1445,21 @@ void expamem_reset (void)
 		|| kickstart_version < 34))
 	{
 		/* warn user */
-		write_log (L"Kickstart version is below 1.3!  Disabling autoconfig devices.\n");
+		write_log (L"Kickstart version is below 1.3!  Disabling automount devices.\n");
 		do_mount = 0;
 	}
 	if (need_uae_boot_rom () == 0)
 		do_mount = 0;
 	if (fastmemory != NULL && currprefs.chipmem_size <= 2 * 1024 * 1024) {
+		if (currprefs.fastmem_autoconfig) {
+			fastmem_bank.name = L"Fast memory";
 			card_name[cardno] = L"Z2Fast";
 			card_init[cardno] = expamem_init_fastcard;
 			card_map[cardno++] = expamem_map_fastcard;
-		if (!currprefs.autoconfig || !do_mount)
+		} else {
+			fastmem_bank.name = L"Fast memory (non-autoconfig)";
 			map_banks (&fastmem_bank, 0x00200000 >> 16, allocated_fastmem >> 16, 0);
+		}
 	}
 
 #ifdef CDTV

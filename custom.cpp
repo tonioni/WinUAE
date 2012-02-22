@@ -5214,7 +5214,7 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 			// fastest possible
 			curr_time = vsync_busywait_end ();
-			vsync_busywait_do (NULL, interlace_seen != 0, lof_store != 0);
+			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			vsync_busywait_start ();
@@ -5223,7 +5223,7 @@ static void framewait (void)
 
 			render_screen ();
 			bool show = show_screen_maybe (false);
-			vsync_busywait_do (&freetime, interlace_seen != 0, lof_store != 0);
+			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time + vsynctime;
 			if (!show) {	
@@ -5619,12 +5619,14 @@ static void dmal_emu (uae_u32 v)
 		uaecptr pt = disk_getpt ();
 		// disk_fifostatus() needed in >100% disk speed modes
 		if (w) {
+			// write to disk
 			if (disk_fifostatus () <= 0) {
 				dat = chipmem_wget_indirect (pt);
 				last_custom_value1 = dat;
 				DSKDAT (dat);
 			}
 		} else {
+			// read from disk
 			if (disk_fifostatus () >= 0) {
 				dat = DSKDATR ();
 				chipmem_wput_indirect (pt, dat);
@@ -5928,7 +5930,7 @@ static void hsync_handler_post (bool onvsync)
 		} else if (currprefs.gfx_vresolution && (doublescan <= 0 || interlace_seen > 0)) {
 			lineno *= 2;
 			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && currprefs.gfx_scanlines == false ? nln_doubled : nln_nblack;
-			if ((bplcon0 & 4) || (interlace_seen > 0 && !lof_current)) {
+			if (interlace_seen) {
 				if (!lof_current) {
 					lineno++;
 					nextline_how = nln_lower;
