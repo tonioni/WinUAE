@@ -58,7 +58,8 @@ STATIC_INLINE void set_cycles (unsigned long int x)
 #endif
 }
 
-extern volatile bool vblank_found_chipset, vblank_found_rtg;
+extern volatile bool vblank_found_chipset;
+extern volatile bool vblank_found_rtg;
 
 STATIC_INLINE void do_cycles_slow (unsigned long cycles_to_add)
 {

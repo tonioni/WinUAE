@@ -5426,8 +5426,7 @@ static void vsync_handler_post (void)
 	} else if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED) {
 		interlace_changed = notice_interlace_seen (false);
 		if (interlace_changed) {
-			if (currprefs.gfx_scandoubler && currprefs.gfx_vresolution)
-				notice_screen_contents_lost ();
+			notice_screen_contents_lost ();
 		}
 	}
 	if (lof_changing) {
@@ -6017,7 +6016,7 @@ static void hsync_handler_post (bool onvsync)
 	if (diw_change > 0)
 		diw_change--;
 
-	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == false) {
+	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == 0) {
 		/* fastest possible + last line and no vflip wait: render the frame as early as possible */
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed);

@@ -408,7 +408,7 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 	}
 	write_log (L"DDRAW: %dx%d B=%d%s %d-bit\n",
 		width, height,
-		ap->gfx_backbuffers, ap->gfx_vflip ? L"W" : L"I",
+		ap->gfx_backbuffers, ap->gfx_vflip < 0 ? L"WE" : (ap->gfx_vflip > 0 ? L"WS" : L"I"),
 		dxdata.native.ddpfPixelFormat.dwRGBBitCount
 		);
 	return ddrval;

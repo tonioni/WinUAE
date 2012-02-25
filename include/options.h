@@ -171,7 +171,10 @@ struct apmode
 {
 	int gfx_fullscreen;
 	int gfx_vsync;
-	bool gfx_vflip;
+	// 0 = immediate flip
+	// -1 = wait for flip, before frame ends
+	// 1 = wait for flip, after new frame has started
+	int gfx_vflip;
 	int gfx_vsyncmode;
 	int gfx_backbuffers;
 	bool gfx_interlaced;
@@ -430,7 +433,9 @@ struct uae_prefs {
 	bool win32_minimize_inactive;
 	int win32_statusbar;
 
-	int win32_active_priority;
+	int win32_active_capture_priority;
+	bool win32_active_nocapture_pause;
+	bool win32_active_nocapture_nosound;
 	int win32_inactive_priority;
 	bool win32_inactive_pause;
 	bool win32_inactive_nosound;

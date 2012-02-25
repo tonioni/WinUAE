@@ -116,11 +116,24 @@ float  fp_1e0 = 1, fp_1e1 = 10, fp_1e2 = 100, fp_1e4 = 10000;
 static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 {
 #ifdef _WIN32
+	static int ex = 0;
 	// RN, RZ, RM, RP
 	static unsigned int fp87_round[4] = { _RC_NEAR, _RC_CHOP, _RC_DOWN, _RC_UP };
 	// X, S, D, U
 	static unsigned int fp87_prec[4] = { _PC_64 , _PC_24 , _PC_53, 0 };
-	_control87(fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
+	
+#if 0
+	if (m68k_cw & (0x0100 | 0x0200))
+		ex |= _EM_INEXACT;
+	if (m68k_cw & (0x0400))
+		ex |= _EM_ZERODIVIDE;
+	if (m68k_cw & (0x0800))
+		ex |= _EM_UNDERFLOW;
+	if (m68k_cw & (0x1000))
+		ex |= _EM_OVERFLOW;
+#endif
+
+	_control87(ex | fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
 #else
 static uae_u16 x87_cw_tab[] = {
 	0x137f, 0x1f7f, 0x177f, 0x1b7f,	/* Extended */
@@ -1050,7 +1063,7 @@ static void fround (int reg)
 	regs.fp[reg] = (float)regs.fp[reg];
 }
 
-void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
+static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 {
 	int reg;
 	fptype src;
@@ -1642,11 +1655,29 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 	op_illg (opcode);
 }
 
+void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
+{
+	regs.fpsr_highbyte = 0;
+	fpuop_arithmetic2 (opcode, extra);
+	if (regs.fpsr_highbyte) {
+		regs.fpsr &= 0xffff00ff;
+		regs.fpsr |= regs.fpsr_highbyte;
+		regs.fpsr |= regs.fpsr_highbyte << 8;
+		write_log (L"FPU exception: %04x\n", regs.fpsr);
+	}
+}
+
+
 void fpu_reset (void)
 {
 	regs.fpcr = regs.fpsr = regs.fpiar = 0;
 	regs.fp_result = 1;
 	fpux_restore (NULL);
+}
+
+void fpp_setexcept (uae_u16 mask)
+{
+	regs.fpsr_highbyte |= mask >> 8;
 }
 
 uae_u8 *restore_fpu (uae_u8 *src)
@@ -1703,3 +1734,4 @@ uae_u8 *save_fpu (int *len, uae_u8 *dstptr)
 	*len = dst - dstbak;
 	return dstbak;
 }
+

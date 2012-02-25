@@ -138,20 +138,22 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
-		ap->gfx_vflip = false;
+		ap->gfx_vflip = 0;
 		if (ap->gfx_vsync) {
 			if (ap->gfx_vsyncmode) {
 				// low latency vsync: no flip only if no-buffer
 				if (ap->gfx_backbuffers >= 1)
-					ap->gfx_vflip = true; // true = wait for vblank flip, false = immediate flip
+					ap->gfx_vflip = -1;
+				if (!i && ap->gfx_backbuffers == 2)
+					ap->gfx_vflip = 1;
 			} else {
 				// legacy vsync: always wait for flip
-				ap->gfx_vflip = true;
+				ap->gfx_vflip = -1;
 			}
 		} else {
 			// no vsync: wait if triple bufferirng
 			if (ap->gfx_backbuffers >= 2)
-				ap->gfx_vflip = true;
+				ap->gfx_vflip = -1;
 		}
 	}
 
@@ -475,7 +477,9 @@ void fixup_prefs (struct uae_prefs *p)
 		p->maprom = 0x0f000000;
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
+
 	blkdev_fix_prefs (p);
+
 	target_fixup_options (p);
 }
 

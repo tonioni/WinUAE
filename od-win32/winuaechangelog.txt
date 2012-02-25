@@ -1,4 +1,11 @@
 
+Beta 19:
+
+- Triple buffered native chipset low latency vsync uses slightly different flipping method
+  and also does not force min D3D framelatency value.
+- Added active but mouse uncaptured pause/no sound option.
+- Interlace to non-laced switch graphics corruption fixed (b17)
+
 Beta 18:
 
 - Z2 Fast Autoconfig on/off checkbox added.

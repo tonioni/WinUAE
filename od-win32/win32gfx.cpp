@@ -121,7 +121,8 @@ extern int reopen (int);
 
 static volatile bool vblank_found;
 static volatile int flipthread_mode;
-volatile bool vblank_found_chipset, vblank_found_rtg;
+volatile bool vblank_found_chipset;
+volatile bool vblank_found_rtg;
 static HANDLE flipevent, flipevent2;
 static volatile int flipevent_mode;
 static CRITICAL_SECTION screen_cs;
@@ -157,7 +158,8 @@ static void changevblankthreadmode (int newmode)
 {
 	int t = vblankthread_counter;
 	vblank_found = false;
-	vblank_found_chipset = vblank_found_rtg = false;
+	vblank_found_chipset = false;
+	vblank_found_rtg = false;
 	if (vblankthread_mode <= 0 || vblankthread_mode == newmode)
 		return;
 	vblankthread_mode = newmode;
@@ -886,8 +888,11 @@ bool show_screen_maybe (bool show)
 			show_screen ();
 		return false;
 	}
-	doflipevent ();
-	return true;
+	if (ap->gfx_vflip < 0) {
+		doflipevent ();
+		return true;
+	}
+	return false;
 }
 
 void show_screen (void)
@@ -1355,7 +1360,7 @@ static int open_windows (int full)
 		return ret;
 	}
 
-	setpriority (&priorities[currprefs.win32_active_priority]);
+	setpriority (&priorities[currprefs.win32_active_capture_priority]);
 	if (!rp_isactive () && full)
 		setmouseactive (-1);
 	for (i = 0; i < NUM_LEDS; i++)
@@ -1604,9 +1609,11 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds[2] != changed_prefs.keyboard_leds[2] ||
 		currprefs.win32_minimize_inactive != changed_prefs.win32_minimize_inactive ||
 		currprefs.win32_middle_mouse != changed_prefs.win32_middle_mouse ||
-		currprefs.win32_active_priority != changed_prefs.win32_active_priority ||
+		currprefs.win32_active_capture_priority != changed_prefs.win32_active_capture_priority ||
 		currprefs.win32_inactive_priority != changed_prefs.win32_inactive_priority ||
 		currprefs.win32_iconified_priority != changed_prefs.win32_iconified_priority ||
+		currprefs.win32_active_nocapture_nosound != changed_prefs.win32_active_nocapture_nosound ||
+		currprefs.win32_active_nocapture_pause != changed_prefs.win32_active_nocapture_pause ||
 		currprefs.win32_inactive_nosound != changed_prefs.win32_inactive_nosound ||
 		currprefs.win32_inactive_pause != changed_prefs.win32_inactive_pause ||
 		currprefs.win32_iconified_nosound != changed_prefs.win32_iconified_nosound ||
@@ -1619,9 +1626,11 @@ int check_prefs_changed_gfx (void)
 		currprefs.keyboard_leds[1] = changed_prefs.keyboard_leds[1];
 		currprefs.keyboard_leds[2] = changed_prefs.keyboard_leds[2];
 		currprefs.win32_middle_mouse = changed_prefs.win32_middle_mouse;
-		currprefs.win32_active_priority = changed_prefs.win32_active_priority;
+		currprefs.win32_active_capture_priority = changed_prefs.win32_active_capture_priority;
 		currprefs.win32_inactive_priority = changed_prefs.win32_inactive_priority;
 		currprefs.win32_iconified_priority = changed_prefs.win32_iconified_priority;
+		currprefs.win32_active_nocapture_nosound = changed_prefs.win32_active_nocapture_nosound;
+		currprefs.win32_active_nocapture_pause = changed_prefs.win32_active_nocapture_pause;
 		currprefs.win32_inactive_nosound = changed_prefs.win32_inactive_nosound;
 		currprefs.win32_inactive_pause = changed_prefs.win32_inactive_pause;
 		currprefs.win32_iconified_nosound = changed_prefs.win32_iconified_nosound;
@@ -1633,7 +1642,7 @@ int check_prefs_changed_gfx (void)
 		resume_sound ();
 		inputdevice_acquire (TRUE);
 #ifndef	_DEBUG
-		setpriority (&priorities[currprefs.win32_active_priority]);
+		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 #endif
 		return 1;
 	}
@@ -2296,7 +2305,7 @@ double getcurrentvblankrate (void)
 		return DirectDraw_CurrentRefreshRate ();
 }
 
-static int maxscanline, prevvblankpos;
+static int maxscanline, minscanline, prevvblankpos;
 
 static bool getvblankpos (int *vp)
 {
@@ -2312,8 +2321,11 @@ static bool getvblankpos (int *vp)
 	prevvblankpos = sl;
 	if (sl > maxscanline)
 		maxscanline = sl;
-	if (sl > 0)
+	if (sl > 0) {
 		vblankthread_oddeven = (sl & 1) != 0;
+		if (sl < minscanline || minscanline < 0)
+			minscanline = sl;
+	}
 	*vp = sl;
 	return true;
 }
@@ -2350,7 +2362,7 @@ static bool vblank_wait (void)
 		int opos = prevvblankpos;
 		if (!getvblankpos (&vp))
 			return false;
-		if (opos > maxscanline / 2 && vp < maxscanline / 4)
+		if (opos > maxscanline / 2 && vp < maxscanline / 3)
 			return true;
 		if (vp <= 0)
 			return true;
@@ -2366,7 +2378,7 @@ static bool vblank_getstate (bool *state)
 	opos = prevvblankpos;
 	if (!getvblankpos (&vp))
 		return false;
-	if (opos > maxscanline / 2 && vp < maxscanline / 4) {
+	if (opos > maxscanline / 2 && vp < maxscanline / 3) {
 		*state = true;
 		return true;
 	}
@@ -2444,9 +2456,10 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			// busy wait mode
 			frame_time_t t = read_processor_time ();
 			bool donotwait = false;
+			int vs = isvsync_chipset ();
 			if (!vblank_found) {
 				// immediate vblank if mismatched frame type 
-				if (isvsync_chipset () < 0 && vblanklaceskip ()) {
+				if (vs < 0 && vblanklaceskip ()) {
 					vblank_found = true;
 					vblank_found_chipset = true;
 					vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
@@ -2461,7 +2474,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					ok = vblank_getstate (&vb);
 					if (!ok || vb) {
 						vblank_found = true;
-						if (isvsync_chipset () < 0) {
+						if (vs < 0) {
 							vblank_found_chipset = true;
 							if (!ap->gfx_vflip) {
 								show_screen ();
@@ -2478,7 +2491,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			}
 			if (t - vblank_prev_time > vblankbasefull * 3)
 				vblankthread_mode = VBLANKTH_IDLE;
-			if (!donotwait || ap->gfx_vflip == true || picasso_on)
+			if (!donotwait || ap->gfx_vflip || picasso_on)
 				sleep_millis (ap->gfx_vflip ? 2 : 1);
 		} else {
 			break;
@@ -2526,8 +2539,12 @@ frame_time_t vsync_busywait_end (void)
 
 void vsync_busywait_start (void)
 {
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	if (!dooddevenskip) {
 		vsync_notvblank ();
+		if (ap->gfx_vflip > 0) {
+			doflipevent ();
+		}
 	}
 	changevblankthreadmode (VBLANKTH_ACTIVE_START);
 	vblank_prev_time = thread_vblank_time;
@@ -2700,6 +2717,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	maxtotal = 10;
 	maxcnt = maxtotal;
 	maxscanline = 0;
+	minscanline = -1;
 	tsum2 = 0;
 	tcnt2 = 0;
 	for (maxcnt = 0; maxcnt < maxtotal; maxcnt++) {
@@ -2775,8 +2793,8 @@ skip:
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
 	vblankbaselace = lace;
-	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MaxV=%d%s Units=%d\n",
-		waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, maxvpos, lace ? L"i" : L"", vblankbasefull);
+	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d\n",
+		waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, minscanline, maxvpos, lace ? L"i" : L"", vblankbasefull);
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	

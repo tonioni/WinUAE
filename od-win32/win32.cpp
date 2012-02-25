@@ -467,14 +467,6 @@ void setpaused (int priority)
 #endif
 }
 
-static void checkpause (void)
-{
-	if (currprefs.win32_inactive_pause) {
-		setpaused (1);
-		setpriority (&priorities[currprefs.win32_inactive_priority]);
-	}
-}
-
 static int showcursor;
 
 extern TCHAR config_filename[256];
@@ -638,13 +630,24 @@ static void setmouseactive2 (int active, bool allowpause)
 			setcursor (-30000, -30000);
 		}
 		inputdevice_acquire (TRUE);
-		setpriority (&priorities[currprefs.win32_active_priority]);
+		setpriority (&priorities[currprefs.win32_active_capture_priority]);
+		if (currprefs.win32_active_nocapture_pause) {
+			resumepaused (1);
+		} else if (currprefs.win32_active_nocapture_nosound && sound_closed < 0) {
+			resumesoundpaused ();
+		}
 	} else {
 		inputdevice_acquire (FALSE);
 	}
-	if (!active && allowpause)
-		checkpause ();
-	setmaintitle (hMainWnd);
+	if (!active && allowpause) {
+		if (currprefs.win32_active_nocapture_pause) {
+			setpaused (1);
+		} else if (currprefs.win32_active_nocapture_nosound) {
+			setsoundpaused ();
+			sound_closed = -1;
+		}
+		setmaintitle (hMainWnd);
+	}
 #ifdef RETROPLATFORM
 	rp_mouse_capture (active);
 	rp_mouse_magic (magicmouse_alive ());
@@ -671,7 +674,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	focus = 1;
 	pri = &priorities[currprefs.win32_inactive_priority];
 	if (!minimized)
-		pri = &priorities[currprefs.win32_active_priority];
+		pri = &priorities[currprefs.win32_active_capture_priority];
 	setpriority (pri);
 
 	if (!avioutput_video) {
@@ -754,6 +757,14 @@ static void winuae_inactive (HWND hWnd, int minimized)
 			if (!avioutput_video) {
 				set_inhibit_frame (IHF_WINDOWHIDDEN);
 			}
+		} else if (mouseactive) {
+			if (currprefs.win32_active_nocapture_pause) {
+				setpaused (2);
+				sound_closed = 1;
+			} else if (currprefs.win32_active_nocapture_nosound) {
+				setsoundpaused ();
+				sound_closed = -1;
+			}
 		} else {
 			if (currprefs.win32_inactive_pause) {
 				setpaused (2);
@@ -785,7 +796,7 @@ void enablecapture (void)
 		resumesoundpaused ();
 		sound_closed = 0;
 	}
-	if (currprefs.win32_inactive_pause) {
+	if (currprefs.win32_inactive_pause || currprefs.win32_active_nocapture_pause) {
 		resumepaused (2);
 	}
 }
@@ -794,10 +805,10 @@ void disablecapture (void)
 {
 	setmouseactive (0);
 	focus = 0;
-	if (currprefs.win32_inactive_pause && sound_closed == 0) {
+	if (currprefs.win32_active_nocapture_pause && sound_closed == 0) {
 		setpaused (2);
 		sound_closed = 1;
-	} else if (currprefs.win32_inactive_nosound && sound_closed == 0) {
+	} else if (currprefs.win32_active_nocapture_nosound && sound_closed == 0) {
 		setsoundpaused ();
 		sound_closed = -1;
 	}
@@ -992,7 +1003,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 				SendMessage (hAmigaWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 				return 0;
 			}
-			if (!pause_emulation)
+			if (!pause_emulation || currprefs.win32_active_nocapture_pause)
 				setmouseactive ((message == WM_LBUTTONDBLCLK || isfullscreen() > 0) ? 2 : 1);
 		} else if (dinput_winmouse () >= 0 && isfocus ()) {
 			setmousebuttonstate (dinput_winmouse (), 0, 1);
@@ -2785,6 +2796,23 @@ void target_fixup_options (struct uae_prefs *p)
 	if (p->win32_automount_cddrives && !p->scsi)
 		p->scsi = 1;
 
+	bool paused = false;
+	bool nosound = false;
+	if (!paused) {
+		paused = p->win32_active_nocapture_pause;
+		nosound = p->win32_active_nocapture_nosound;
+	} else {
+		p->win32_active_nocapture_pause = p->win32_active_nocapture_nosound = true;
+		nosound = true;
+	}
+	if (!paused) {
+		paused = p->win32_inactive_pause;
+		nosound = p->win32_inactive_nosound;
+	} else {
+		p->win32_inactive_pause = p->win32_inactive_nosound = true;
+		nosound = true;
+	}
+
 #ifdef RETROPLATFORM
 	rp_fixup_options (p);
 #endif
@@ -2796,6 +2824,8 @@ void target_default_options (struct uae_prefs *p, int type)
 	if (type == 2 || type == 0) {
 		p->win32_middle_mouse = 1;
 		p->win32_logfile = 0;
+		p->win32_active_nocapture_pause = 0;
+		p->win32_active_nocapture_nosound = 0;
 		p->win32_iconified_nosound = 1;
 		p->win32_iconified_pause = 1;
 		p->win32_inactive_nosound = 0;
@@ -2804,7 +2834,8 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_soundcard = 0;
 		p->win32_samplersoundcard = -1;
 		p->win32_minimize_inactive = 0;
-		p->win32_active_priority = 1;
+		p->win32_active_capture_priority = 1;
+		//p->win32_active_nocapture_priority = 1;
 		p->win32_inactive_priority = 2;
 		p->win32_iconified_priority = 3;
 		p->win32_notaskbarbutton = 0;
@@ -2876,7 +2907,12 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	sernametodev (p->sername);
 	cfgfile_target_dwrite_str (f, L"parallel_port", p->prtname[0] ? p->prtname : L"none");
 
-	cfgfile_target_dwrite (f, L"active_priority", L"%d", priorities[p->win32_active_priority].value);
+	cfgfile_target_dwrite (f, L"active_priority", L"%d", priorities[p->win32_active_capture_priority].value);
+#if 0
+	cfgfile_target_dwrite (f, L"active_not_captured_priority", L"%d", priorities[p->win32_active_nocapture_priority].value);
+#endif
+	cfgfile_target_dwrite_bool (f, L"active_not_captured_nosound", p->win32_active_nocapture_nosound);
+	cfgfile_target_dwrite_bool (f, L"active_not_captured_pause", p->win32_active_nocapture_pause);
 	cfgfile_target_dwrite (f, L"inactive_priority", L"%d", priorities[p->win32_inactive_priority].value);
 	cfgfile_target_dwrite_bool (f, L"inactive_nosound", p->win32_inactive_nosound);
 	cfgfile_target_dwrite_bool (f, L"inactive_pause", p->win32_inactive_pause);
@@ -2987,6 +3023,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno (option, value, L"logfile", &p->win32_logfile)
 		|| cfgfile_yesno (option, value, L"networking", &p->socket_emu)
 		|| cfgfile_yesno (option, value, L"borderless", &p->win32_borderless)
+		|| cfgfile_yesno (option, value, L"active_not_captured_pause", &p->win32_active_nocapture_pause)
+		|| cfgfile_yesno (option, value, L"active_not_captured_nosound", &p->win32_active_nocapture_nosound)
 		|| cfgfile_yesno (option, value, L"inactive_pause", &p->win32_inactive_pause)
 		|| cfgfile_yesno (option, value, L"inactive_nosound", &p->win32_inactive_nosound)
 		|| cfgfile_yesno (option, value, L"iconified_pause", &p->win32_iconified_pause)
@@ -3117,14 +3155,18 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	if (cfgfile_strval (option, value, L"statusbar", &p->win32_statusbar, statusbarmode, 0))
 		return 1;
 
-	if (cfgfile_intval (option, value, L"active_priority", &v, 1)) {
-		p->win32_active_priority = fetchpri (v, 1);
+	if (cfgfile_intval (option, value, L"active_priority", &v, 1) || cfgfile_intval (option, value, L"activepriority", &v, 1)) {
+		p->win32_active_capture_priority = fetchpri (v, 1);
+		p->win32_active_nocapture_pause = false;
+		p->win32_active_nocapture_nosound = false;
 		return 1;
 	}
-	if (cfgfile_intval (option, value, L"activepriority", &v, 1)) {
-		p->win32_active_priority = fetchpri (v, 1);
+#if 0
+	if (cfgfile_intval (option, value, L"active_not_captured_priority", &v, 1)) {
+		p->win32_active_nocapture_priority = fetchpri (v, 1);
 		return 1;
 	}
+#endif
 	if (cfgfile_intval (option, value, L"inactive_priority", &v, 1)) {
 		p->win32_inactive_priority = fetchpri (v, 1);
 		return 1;
@@ -5237,6 +5279,20 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 	PEXCEPTION_RECORD er = pExceptionPointers->ExceptionRecord;
 	PCONTEXT ctx = pExceptionPointers->ContextRecord;
 
+#if 0
+	if (ec >= EXCEPTION_FLT_DENORMAL_OPERAND && ec <= EXCEPTION_FLT_UNDERFLOW) {
+		extern void fpp_setexcept (uae_u16);
+		if (ec == EXCEPTION_FLT_INEXACT_RESULT)
+			fpp_setexcept (0x0100 | 0x0200);
+		else if (ec == EXCEPTION_FLT_OVERFLOW)
+			fpp_setexcept (0x1000);
+		else if (ec == EXCEPTION_FLT_UNDERFLOW)
+			fpp_setexcept (0x0800);
+		else if (ec == EXCEPTION_FLT_DIVIDE_BY_ZERO)
+			fpp_setexcept (0x0400);
+		return EXCEPTION_CONTINUE_EXECUTION;
+	}
+#endif
 	/* Check possible access violation in 68010+/compatible mode disabled if PC points to non-existing memory */
 #if 1
 	if (ec == EXCEPTION_ACCESS_VIOLATION && !er->ExceptionFlags &&

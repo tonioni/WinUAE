@@ -677,6 +677,8 @@
 #define IDC_STATEREC_RECORD             1532
 #define IDC_KBLED_USB                   1533
 #define IDC_STATEREC_CAPTURE2           1533
+#define IDC_ACTIVE_PAUSE                1534
+#define IDC_ACTIVE_NOSOUND              1535
 #define IDC_SER_SHARED                  1553
 #define IDC_SER_CTSRTS                  1554
 #define IDC_SER_DIRECT                  1555
@@ -1061,7 +1063,6 @@
 #define IDC_WINDOWEDMODE                1793
 #define IDC_DF1WPTEXTQ                  1794
 #define IDC_RTG_Z2Z3                    1794
-#define IDC_RTG_BACKBUFFERS             1795
 #define IDC_RTG_BUFFERCNT               1795
 #define IDC_INPUTMAPLIST                1797
 #define IDC_PORT1_REMAP                 1798

@@ -2127,7 +2127,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? L"" : L" FS",
 		vsync, ap->gfx_backbuffers,
-		ap->gfx_vflip ? L"W" : L"I", 
+		ap->gfx_vflip < 0 ? L"WE" : (ap->gfx_vflip > 0 ? L"WS" :  L"I"), 
 		t_depth, adapter
 	);
 
@@ -2195,13 +2195,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	d3d_enabled = 1;
 	wasstilldrawing_broken = true;
 
-	if (vsync < 0 && ap->gfx_vflip == false) {
+	if (vsync < 0 && ap->gfx_vflip == 0) {
 		hr = d3ddev->CreateQuery(D3DQUERYTYPE_EVENT, &query);
 		if (FAILED (hr))
 			write_log (L"%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 ? 1 : 0);
+		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_vflip <= 0 ? 1 : 0);
 		if (FAILED (hr))
 			write_log (L"%s: SetMaximumFrameLatency() failed: %s\n", D3DHEAD, D3D_ErrorString (hr));
 	}

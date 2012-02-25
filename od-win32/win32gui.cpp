@@ -7410,10 +7410,58 @@ static void enable_for_miscdlg (HWND hDlg)
 #endif
 		ew (hDlg, IDC_DOSAVESTATE, FALSE);
 	}
+
 	ew (hDlg, IDC_ASSOCIATELIST, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_ON, !rp_isactive ());
 	ew (hDlg, IDC_ASSOCIATE_OFF, !rp_isactive ());
 	ew (hDlg, IDC_DD_SURFACETYPE, full_property_sheet && workprefs.gfx_api == 0);
+
+	bool paused = false;
+	bool nosound = false;
+	ew (hDlg, IDC_ACTIVE_PAUSE, paused == false);
+	ew (hDlg, IDC_ACTIVE_NOSOUND, nosound == false && paused == false);
+	if (!paused) {
+		paused = workprefs.win32_active_nocapture_pause;
+		if (!nosound)
+			nosound = workprefs.win32_active_nocapture_nosound;
+		else
+			workprefs.win32_active_nocapture_nosound = true;
+	} else {
+		workprefs.win32_active_nocapture_pause = workprefs.win32_active_nocapture_nosound = true;
+		nosound = true;
+	}
+	if (paused)
+		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, TRUE);
+	if (nosound || paused)
+		CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, TRUE);
+	ew (hDlg, IDC_INACTIVE_PAUSE, paused == false);
+	ew (hDlg, IDC_INACTIVE_NOSOUND, nosound == false && paused == false);
+	if (!paused) {
+		paused = workprefs.win32_inactive_pause;
+		if (!nosound)
+			nosound = workprefs.win32_inactive_nosound;
+		else
+			workprefs.win32_inactive_nosound = true;
+	} else {
+		workprefs.win32_inactive_pause = workprefs.win32_inactive_nosound = true;
+		nosound = true;
+	}
+	if (paused)
+		CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, TRUE);
+	if (nosound || paused)
+		CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, TRUE);
+	ew (hDlg, IDC_MINIMIZED_PAUSE, paused == false);
+	ew (hDlg, IDC_MINIMIZED_NOSOUND, nosound == false && paused == false);
+	if (!paused) {
+		paused = workprefs.win32_iconified_pause;
+		if (!nosound)
+			nosound = workprefs.win32_iconified_nosound;
+		else
+			workprefs.win32_iconified_nosound = true;
+	} else {
+		workprefs.win32_iconified_pause = workprefs.win32_iconified_nosound = true;
+		nosound = true;
+	}
 }
 
 static void misc_kbled (HWND hDlg, int v, int nv)
@@ -7584,11 +7632,13 @@ static void values_to_miscdlg (HWND hDlg)
 
 	} else if (currentpage == MISC2_ID) {
 
+		CheckDlgButton (hDlg, IDC_ACTIVE_PAUSE, workprefs.win32_active_nocapture_pause);
+		CheckDlgButton (hDlg, IDC_ACTIVE_NOSOUND, workprefs.win32_active_nocapture_nosound || workprefs.win32_active_nocapture_pause);
 		CheckDlgButton (hDlg, IDC_INACTIVE_PAUSE, workprefs.win32_inactive_pause);
 		CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, workprefs.win32_inactive_nosound || workprefs.win32_inactive_pause);
 		CheckDlgButton (hDlg, IDC_MINIMIZED_PAUSE, workprefs.win32_iconified_pause);
 		CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, workprefs.win32_iconified_nosound || workprefs.win32_iconified_pause);
-		misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_priority);
+		misc_addpri (hDlg, IDC_ACTIVE_PRIORITY, workprefs.win32_active_capture_priority);
 		misc_addpri (hDlg, IDC_INACTIVE_PRIORITY, workprefs.win32_inactive_priority);
 		misc_addpri (hDlg, IDC_MINIMIZED_PRIORITY, workprefs.win32_iconified_priority);
 
@@ -7705,7 +7755,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 		} else if (currentpage == MISC2_ID) {
-			misc_getpri (hDlg, IDC_ACTIVE_PRIORITY, &workprefs.win32_active_priority);
+			misc_getpri (hDlg, IDC_ACTIVE_PRIORITY, &workprefs.win32_active_capture_priority);
 			misc_getpri (hDlg, IDC_INACTIVE_PRIORITY, &workprefs.win32_inactive_priority);
 			misc_getpri (hDlg, IDC_MINIMIZED_PRIORITY, &workprefs.win32_iconified_priority);
 		}
@@ -7769,6 +7819,17 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (workprefs.win32_inactive_pause)
 				CheckDlgButton (hDlg, IDC_INACTIVE_NOSOUND, BST_CHECKED);
 			workprefs.win32_inactive_nosound = ischecked (hDlg, IDC_INACTIVE_NOSOUND);
+			enable_for_miscdlg (hDlg);
+			break;
+		case IDC_ACTIVE_NOSOUND:
+			if (!ischecked (hDlg, IDC_ACTIVE_NOSOUND))
+				CheckDlgButton (hDlg, IDC_ACTIVE_PAUSE, BST_UNCHECKED);
+		case IDC_ACTIVE_PAUSE:
+			workprefs.win32_active_nocapture_pause = ischecked (hDlg, IDC_ACTIVE_PAUSE);
+			if (workprefs.win32_active_nocapture_pause)
+				CheckDlgButton (hDlg, IDC_ACTIVE_NOSOUND, BST_CHECKED);
+			workprefs.win32_active_nocapture_nosound = ischecked (hDlg, IDC_ACTIVE_NOSOUND);
+			enable_for_miscdlg (hDlg);
 			break;
 		case IDC_MINIMIZED_NOSOUND:
 			if (!ischecked (hDlg, IDC_MINIMIZED_NOSOUND))
@@ -7778,6 +7839,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (workprefs.win32_iconified_pause)
 				CheckDlgButton (hDlg, IDC_MINIMIZED_NOSOUND, BST_CHECKED);
 			workprefs.win32_iconified_nosound = ischecked (hDlg, IDC_MINIMIZED_NOSOUND);
+			enable_for_miscdlg (hDlg);
 			break;
 		case IDC_CTRLF11:
 			workprefs.win32_ctrl_F11_is_quit = ischecked (hDlg, IDC_CTRLF11);
