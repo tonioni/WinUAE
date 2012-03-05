@@ -4837,6 +4837,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_fatgaryrev = 0;
 		p->cs_ramseyrev = 0x0d;
 		p->cs_mbdmac = 1;
+		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 		break;
 	case CP_A3000T: // A3000T
@@ -4844,6 +4845,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_fatgaryrev = 0;
 		p->cs_ramseyrev = 0x0d;
 		p->cs_mbdmac = 1;
+		p->cs_ksmirror_e0 = 0;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 		break;
 	case CP_A4000: // A4000

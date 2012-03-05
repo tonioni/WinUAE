@@ -47,13 +47,13 @@
 #define Z2_MEM_128KB	0x02
 #define Z2_MEM_64KB		0x01
 /* extended definitions */
-#define Z2_MEM_16MB		0x00
-#define Z2_MEM_32MB		0x01
-#define Z2_MEM_64MB		0x02
-#define Z2_MEM_128MB	0x03
-#define Z2_MEM_256MB	0x04
-#define Z2_MEM_512MB	0x05
-#define Z2_MEM_1GB		0x06
+#define Z3_MEM_16MB		0x00
+#define Z3_MEM_32MB		0x01
+#define Z3_MEM_64MB		0x02
+#define Z3_MEM_128MB	0x03
+#define Z3_MEM_256MB	0x04
+#define Z3_MEM_512MB	0x05
+#define Z3_MEM_1GB		0x06
 
 #define chainedconfig	0x08 /* Next config is part of the same card */
 #define rom_card	0x10 /* ROM vector is valid */
@@ -84,22 +84,22 @@
 /* ********************************************************** */
 /* 08 - 0A  */
 /* er_Flags */
-#define Z3_MEM_64KB		0x02
-#define Z3_MEM_128KB	0x03
-#define Z3_MEM_256KB	0x04
-#define Z3_MEM_512KB	0x05
-#define Z3_MEM_1MB		0x06 /* Zorro III card subsize */
-#define Z3_MEM_2MB		0x07
-#define Z3_MEM_4MB		0x08
-#define Z3_MEM_6MB		0x09
-#define Z3_MEM_8MB		0x0a
-#define Z3_MEM_10MB		0x0b
-#define Z3_MEM_12MB		0x0c
-#define Z3_MEM_14MB		0x0d
-#define Z3_MEM_16MB		0x00
-#define Z3_MEM_AUTO		0x01
-#define Z3_MEM_defunct1	0x0e
-#define Z3_MEM_defunct2	0x0f
+#define Z3_SS_MEM_SAME		0x00
+#define Z3_SS_MEM_AUTO		0x01
+#define Z3_SS_MEM_64KB		0x02
+#define Z3_SS_MEM_128KB		0x03
+#define Z3_SS_MEM_256KB		0x04
+#define Z3_SS_MEM_512KB		0x05
+#define Z3_SS_MEM_1MB		0x06 /* Zorro III card subsize */
+#define Z3_SS_MEM_2MB		0x07
+#define Z3_SS_MEM_4MB		0x08
+#define Z3_SS_MEM_6MB		0x09
+#define Z3_SS_MEM_8MB		0x0a
+#define Z3_SS_MEM_10MB		0x0b
+#define Z3_SS_MEM_12MB		0x0c
+#define Z3_SS_MEM_14MB		0x0d
+#define Z3_SS_MEM_defunct1	0x0e
+#define Z3_SS_MEM_defunct2	0x0f
 
 #define force_z3	0x10 /* *MUST* be set if card is Z3 */
 #define ext_size	0x20 /* Use extended size table for bits 0-2 of er_Type */
@@ -1086,18 +1086,26 @@ static void expamem_init_z3fastmem_2 (addrbank *bank, uae_u32 start, uae_u32 siz
 		: allocated == 0x200000 ? Z2_MEM_2MB
 		: allocated == 0x400000 ? Z2_MEM_4MB
 		: allocated == 0x800000 ? Z2_MEM_8MB
-		: allocated == 0x1000000 ? Z2_MEM_16MB
-		: allocated == 0x2000000 ? Z2_MEM_32MB
-		: allocated == 0x4000000 ? Z2_MEM_64MB
-		: allocated == 0x8000000 ? Z2_MEM_128MB
-		: allocated == 0x10000000 ? Z2_MEM_256MB
-		: allocated == 0x20000000 ? Z2_MEM_512MB
-		: Z2_MEM_1GB);
+		: allocated == 0x1000000 ? Z3_MEM_16MB
+		: allocated == 0x2000000 ? Z3_MEM_32MB
+		: allocated == 0x4000000 ? Z3_MEM_64MB
+		: allocated == 0x8000000 ? Z3_MEM_128MB
+		: allocated == 0x10000000 ? Z3_MEM_256MB
+		: allocated == 0x20000000 ? Z3_MEM_512MB
+		: Z3_MEM_1GB);
+	int subsize = (allocated == 0x100000 ? Z3_SS_MEM_1MB
+		: allocated == 0x200000 ? Z3_SS_MEM_2MB
+		: allocated == 0x400000 ? Z3_SS_MEM_4MB
+		: allocated == 0x800000 ? Z3_SS_MEM_8MB
+		: Z3_SS_MEM_SAME);
+
+	if (allocated < 0x1000000)
+		code = Z3_MEM_16MB; /* Z3 physical board size is always at least 16M */
 
 	expamem_init_clear ();
 	expamem_write (0x00, add_memory | zorroIII | code);
 
-	expamem_write (0x08, care_addr | force_z3 | (allocated > 0x800000 ? ext_size : Z3_MEM_AUTO));
+	expamem_write (0x08, care_addr | force_z3 | (allocated > 0x800000 ? ext_size : subsize));
 
 	expamem_write (0x04, currprefs.maprom ? 3 : 83);
 
@@ -1148,23 +1156,26 @@ static void expamem_init_gfxcard (bool z3)
 		: allocated_gfxmem == 0x200000 ? Z2_MEM_2MB
 		: allocated_gfxmem == 0x400000 ? Z2_MEM_4MB
 		: allocated_gfxmem == 0x800000 ? Z2_MEM_8MB
-		: allocated_gfxmem == 0x1000000 ? Z2_MEM_16MB
-		: allocated_gfxmem == 0x2000000 ? Z2_MEM_32MB
-		: allocated_gfxmem == 0x4000000 ? Z2_MEM_64MB
-		: allocated_gfxmem == 0x8000000 ? Z2_MEM_128MB
-		: allocated_gfxmem == 0x10000000 ? Z2_MEM_256MB
-		: allocated_gfxmem == 0x20000000 ? Z2_MEM_512MB
-		: Z2_MEM_1GB);
-	int subsize = (allocated_gfxmem == 0x100000 ? Z3_MEM_1MB
-		: allocated_gfxmem == 0x200000 ? Z3_MEM_2MB
-		: allocated_gfxmem == 0x400000 ? Z3_MEM_4MB
-		: allocated_gfxmem == 0x800000 ? Z3_MEM_8MB
-		: 0);
+		: allocated_gfxmem == 0x1000000 ? Z3_MEM_16MB
+		: allocated_gfxmem == 0x2000000 ? Z3_MEM_32MB
+		: allocated_gfxmem == 0x4000000 ? Z3_MEM_64MB
+		: allocated_gfxmem == 0x8000000 ? Z3_MEM_128MB
+		: allocated_gfxmem == 0x10000000 ? Z3_MEM_256MB
+		: allocated_gfxmem == 0x20000000 ? Z3_MEM_512MB
+		: Z3_MEM_1GB);
+	int subsize = (allocated_gfxmem == 0x100000 ? Z3_SS_MEM_1MB
+		: allocated_gfxmem == 0x200000 ? Z3_SS_MEM_2MB
+		: allocated_gfxmem == 0x400000 ? Z3_SS_MEM_4MB
+		: allocated_gfxmem == 0x800000 ? Z3_SS_MEM_8MB
+		: Z3_SS_MEM_SAME);
+
+	if (allocated_gfxmem < 0x1000000 && z3)
+		code = Z3_MEM_16MB; /* Z3 physical board size is always at least 16M */
 
 	expamem_init_clear ();
 	expamem_write (0x00, (z3 ? zorroIII : zorroII) | code);
 
-	expamem_write (0x08, care_addr | (z3 ? force_z3 | ext_size | subsize : 0));
+	expamem_write (0x08, care_addr | (z3 ? (force_z3 | (allocated_gfxmem > 0x800000 ? ext_size: subsize)) : 0));
 	expamem_write (0x04, 96);
 
 	expamem_write (0x10, uae_id >> 8);

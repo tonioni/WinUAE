@@ -33,8 +33,6 @@ struct ddstuff
 	int islost, isoverlay;
 
 	LPDIRECTDRAWSURFACE7 statussurface;
-	int statuswidth, statusheight;
-
 };
 struct ddcaps
 {

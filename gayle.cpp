@@ -2162,17 +2162,6 @@ static void REGPARAM2 gayle_common_bput (uaecptr addr, uae_u32 value)
 	gayle_common_write (addr, value);
 }
 
-static ULONG getz2endaddr (void)
-{
-	ULONG start;
-	start = currprefs.fastmem_size;
-	if (currprefs.rtgmem_size && !currprefs.rtgmem_type) {
-		while (start & (currprefs.rtgmem_size - 1) && start < 4 * 1024 * 1024)
-			start += 1024 * 1024;
-	}
-	return start + 2 * 1024 * 1024;
-}
-
 void gayle_map_pcmcia (void)
 {
 	if (currprefs.cs_pcmcia == 0)

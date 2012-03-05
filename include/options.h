@@ -560,7 +560,6 @@ extern int cfgfile_configuration_change (int);
 extern void fixup_prefs_dimensions (struct uae_prefs *prefs);
 extern void fixup_prefs (struct uae_prefs *prefs);
 extern void fixup_cpu (struct uae_prefs *prefs);
-extern uae_s32 getz2size (struct uae_prefs *p);
 
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);

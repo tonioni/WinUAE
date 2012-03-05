@@ -2791,12 +2791,12 @@ static void checklacecount (bool lace)
 		if (nlace_cnt >= NLACE_CNT_NEEDED && lace) {
 			lof_togglecnt_lace = LOF_TOGGLES_NEEDED;
 			lof_togglecnt_nlace = 0;
-			write_log (L"immediate lace\n");
+			//write_log (L"immediate lace\n");
 			nlace_cnt = 0;
 		} else if (nlace_cnt <= -NLACE_CNT_NEEDED && !lace) {
 			lof_togglecnt_nlace = LOF_TOGGLES_NEEDED;
 			lof_togglecnt_lace = 0;
-			write_log (L"immediate nlace\n");
+			//write_log (L"immediate nlace\n");
 			nlace_cnt = 0;
 		}
 	}
@@ -2967,7 +2967,7 @@ void init_hz (bool fullinit)
 	double ovblank = vblank_hz;
 	int hzc = 0;
 
-	if (fullinit)
+	if (fullinit || (vpos_count_prev && abs (vpos_count - vpos_count_prev) <= 1))
 		vpos_count = vpos_count_prev = 0;
 
 	doublescan = 0;
@@ -5423,6 +5423,9 @@ static void vsync_handler_post (void)
 	lof_current = lof_store;
 	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
 		interlace_changed = notice_interlace_seen (true);
+		if (interlace_changed) {
+			notice_screen_contents_lost ();
+		}
 	} else if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED) {
 		interlace_changed = notice_interlace_seen (false);
 		if (interlace_changed) {
@@ -5446,10 +5449,11 @@ static void vsync_handler_post (void)
 		vpos_count = p96refresh_active;
 		vtotal = vpos_count;
 	}
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (abs (vpos_count - vpos_count_prev)  > 1) || lof_changed)
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (vpos_count_prev && (abs (vpos_count - vpos_count_prev) > 1)) || lof_changed) {
 		init_hz ();
-	else if (interlace_changed || changed_chipset_refresh ())
+	} else if (interlace_changed || changed_chipset_refresh ()) {
 		compute_framesync ();
+	}
 
 	vpos_count_prev = vpos_count;
 

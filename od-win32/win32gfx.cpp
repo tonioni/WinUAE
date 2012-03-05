@@ -3264,12 +3264,13 @@ static BOOL doInit (void)
 	gfxvidinfo.inbuffer = &gfxvidinfo.drawbuffer;
 
 	if (!screen_is_picasso) {
-		allocsoftbuffer(&gfxvidinfo.drawbuffer, currentmode->flags,
+
+		allocsoftbuffer (&gfxvidinfo.drawbuffer, currentmode->flags,
 			currentmode->current_width > currentmode->amiga_width ? currentmode->current_width : currentmode->amiga_width,
 			currentmode->current_height > currentmode->amiga_height ? currentmode->current_height : currentmode->amiga_height,
 			currentmode->current_depth);
 		if (currprefs.monitoremu)
-			allocsoftbuffer(&gfxvidinfo.tempbuffer, currentmode->flags,
+			allocsoftbuffer (&gfxvidinfo.tempbuffer, currentmode->flags,
 				currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
 				currentmode->amiga_height > 1024 ? currentmode->amiga_height : 1024,
 				currentmode->current_depth);
@@ -3291,9 +3292,6 @@ static BOOL doInit (void)
 
 #if defined (GFXFILTER)
 	S2X_free ();
-	if (currentmode->flags & DM_SWSCALE) {
-		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);
-	}
 #ifdef D3D
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height,
@@ -3312,6 +3310,9 @@ static BOOL doInit (void)
 		}
 	}
 #endif
+	if (currentmode->flags & DM_SWSCALE) {
+		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);
+	}
 #endif
 	screen_is_initialized = 1;
 	picasso_refresh ();

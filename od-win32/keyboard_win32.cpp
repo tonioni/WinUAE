@@ -399,6 +399,13 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 		return;
 	}
 #endif
+#if 0
+	if (scancode == DIK_F10) {
+		extern bool showoverlay;
+		showoverlay = !showoverlay;
+		return;
+	}
+#endif
 
 	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
 		code = AKS_QUIT;

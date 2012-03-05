@@ -1,4 +1,17 @@
 
+Beta 20:
+
+- Fixed DirectDraw on screen led status bar surface allocation error when switching modes in some situations.
+- A3000 quickstart CIA mapping fixed (no mirrors, can't enable both CIAs at the same time, only original Gary does this)
+  and 0xc0-0xcf added (same as A4000) Only affects very badly behaving programs, programs that most likely wouldn't run
+  on A3000 or A4000, with or without this change.
+- Do not fully recalculate display parameters if only long/short field state changes.
+- Lace<>non-lace mode switch scanline flashing effect hopefully fixed (may also break something else..)
+- Overlay graphics Direct3D mode should have more correct positioning again (still not exactly right)
+- Z3 board <16M RAM size autoconfig data makes more sense.
+- Upper half of 8M RTG Z2 board was overridden by Gayle PCMCIA address space if enabled.
+- Windows 8 Consumer Preview tested, didn't notice any problems. WARNING: No Windows 8 discussion here!
+
 Beta 19:
 
 - Triple buffered native chipset low latency vsync uses slightly different flipping method

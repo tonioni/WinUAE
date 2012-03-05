@@ -1387,12 +1387,12 @@ addrbank cia_bank = {
 	cia_lgeti, cia_wgeti, ABFLAG_IO
 };
 
-// Gayle does not enable CIA /CS lines if both CIAs are selected
-// Non-Gayle based Amigas enable both CIAs in this situation
+// Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
+// Old Gary based Amigas enable both CIAs in this situation
 
-STATIC_INLINE int isgayle (void)
+STATIC_INLINE int issinglecia (void)
 {
-	return (currprefs.cs_ide == IDE_A600A1200 || currprefs.cs_pcmcia);
+	return currprefs.cs_ide || currprefs.cs_pcmcia || currprefs.cs_mbdmac;
 }
 
 static void cia_wait_pre (void)
@@ -1448,7 +1448,7 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 	v = 0xff;
 	switch ((addr >> 12) & 3) {
 	case 0:
-		if (!isgayle ())
+		if (!issinglecia ())
 			v = (addr & 1) ? ReadCIAA (r) : ReadCIAB (r);
 		break;
 	case 1:
@@ -1484,7 +1484,7 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 	switch ((addr >> 12) & 3)
 	{
 	case 0:
-		if (!isgayle ())
+		if (!issinglecia ())
 			v = (ReadCIAB (r) << 8) | ReadCIAA (r);
 		break;
 	case 1:
@@ -1535,7 +1535,7 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 	cia_wait_pre ();
-	if (!isgayle () || (addr & 0x3000) != 0) {
+	if (!issinglecia () || (addr & 0x3000) != 0) {
 		if ((addr & 0x2000) == 0)
 			WriteCIAB (r, value);
 		if ((addr & 0x1000) == 0)
@@ -1556,7 +1556,7 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 	special_mem |= S_WRITE;
 #endif
 	cia_wait_pre ();
-	if (!isgayle () || (addr & 0x3000) != 0) {
+	if (!issinglecia () || (addr & 0x3000) != 0) {
 		if ((addr & 0x2000) == 0)
 			WriteCIAB (r, value >> 8);
 		if ((addr & 0x1000) == 0)

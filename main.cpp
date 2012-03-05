@@ -207,19 +207,7 @@ void fixup_cpu (struct uae_prefs *p)
 		p->immediate_blits = false;
 }
 
-uae_s32 getz2size (struct uae_prefs *p)
-{
-	ULONG start;
-	start = p->fastmem_size;
-	if (p->rtgmem_size && !p->rtgmem_type) {
-		while (start & (p->rtgmem_size - 1) && start < 8 * 1024 * 1024)
-			start += 1024 * 1024;
-		if (start + p->rtgmem_size > 8 * 1024 * 1024)
-			return -1;
-	}
-	start += p->rtgmem_size;
-	return start;
-}
+
 
 void fixup_prefs (struct uae_prefs *p)
 {

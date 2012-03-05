@@ -2610,7 +2610,8 @@ void finish_drawing_frame (void)
 			xlinebuffer = row_map[where2];
 		xlinebuffer -= linetoscr_x_adjust_bytes;
 		fill_line ();
-		linestate[line] = LINE_UNDECIDED;
+		if (line < max_ypos_thisframe)
+			linestate[line] = LINE_UNDECIDED;
 		do_flush_line (vb, where2);
 	}
 
@@ -2813,7 +2814,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		break;
 	case nln_lower:
 		if (state[-1] == LINE_UNDECIDED)
-			state[-1] = LINE_BLACK;
+			state[-1] = LINE_DECIDED; //LINE_BLACK;
 		*state = changed ? LINE_DECIDED : LINE_DONE;
 		break;
 	case nln_upper:
@@ -2821,7 +2822,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 		if (state[1] == LINE_UNDECIDED
 			|| state[1] == LINE_REMEMBERED_AS_PREVIOUS
 			|| state[1] == LINE_AS_PREVIOUS)
-			state[1] = LINE_BLACK;
+			state[1] = LINE_DECIDED; //LINE_BLACK;
 		break;
 	}
 }
@@ -2867,15 +2868,14 @@ bool notice_interlace_seen (bool lace)
 	// non-lace to lace switch (non-lace active at least one frame)?
 	if (lace) {
 		if (interlace_seen == 0) {
-			frame_redraw_necessary = 2;
 			changed = true;
-			write_log (L"->lace PC=%x\n", m68k_getpc ());
+			//write_log (L"->lace PC=%x\n", m68k_getpc ());
 		}
 		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
 	} else {
 		if (interlace_seen) {
 			changed = true;
-			write_log (L"->non-lace PC=%x\n", m68k_getpc ());
+			//write_log (L"->non-lace PC=%x\n", m68k_getpc ());
 		}
 		interlace_seen = 0;
 	}

@@ -40,6 +40,8 @@ extern int D3DEX, d3ddebug;
 static TCHAR *D3DHEAD = L"-";
 static int psEnabled, psActive, psPreProcess, shaderon;
 
+static bool showoverlay = true;
+
 static D3DFORMAT tformat;
 static int d3d_enabled, d3d_ex;
 static IDirect3D9 *d3d;
@@ -54,6 +56,7 @@ static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture, mask2text
 static IDirect3DQuery9 *query;
 static int masktexture_w, masktexture_h;
 static float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
+static float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 static float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
 static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2, lpTempTexture;
 LPDIRECT3DTEXTURE9 cursorsurfaced3d;
@@ -65,7 +68,7 @@ static int devicelost;
 static int locked, fulllocked;
 static int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 static float maskmult_x, maskmult_y;
-static RECT mask2rect;
+RECT mask2rect;
 static bool wasstilldrawing_broken;
 static HANDLE filenotificationhandle;
 
@@ -525,7 +528,7 @@ static const char *fx10 = {
 "//\n"
 "// WinUAE Direct3D post processing shader\n"
 "//\n"
-"// by Toni Wilen 2010\n"
+"// by Toni Wilen 2012\n"
 "\n"
 "uniform extern float4x4 mtx;\n"
 "uniform extern float2 maskmult;\n"
@@ -631,7 +634,7 @@ static const char *fx20 = {
 "//\n"
 "// WinUAE Direct3D post processing shader\n"
 "//\n"
-"// by Toni Wilen 2010\n"
+"// by Toni Wilen 2012\n"
 "\n"
 "uniform extern float4x4 mtx;\n"
 "uniform extern float2 maskmult;\n"
@@ -1280,6 +1283,10 @@ static int createmask2texture (const TCHAR *filename)
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 
+	if (mask2texture)
+		mask2texture->Release();
+	mask2texture = NULL;
+
 	if (filename[0] == 0 || WIN32GFX_IsPicassoScreen ())
 		return 0;
 
@@ -1394,11 +1401,37 @@ static int createmask2texture (const TCHAR *filename)
 
 	mask2texture_offsetw = (window_w - mask2texture_ww) / 2;
 
-	blanktexture = createtext (mask2texture_offsetw + 1, window_h, D3DFMT_X8R8G8B8);
+	if (mask2texture_offsetw > 0)
+		blanktexture = createtext (mask2texture_offsetw + 1, window_h, D3DFMT_X8R8G8B8);
 
-	write_log (L"%s: overlay '%s' %.0f*%.0f (%d*%d - %d*%d)\n",
+	float xmult = mask2texture_multx;
+	float ymult = mask2texture_multy;
+
+	mask2rect.left *= xmult;
+	mask2rect.right *= xmult;
+	mask2rect.top *= ymult;
+	mask2rect.bottom *= ymult;
+	mask2texture_wwx = mask2texture_w * xmult;
+	if (mask2texture_wwx > window_w)
+		mask2texture_wwx = window_w;
+	if (mask2texture_wwx < mask2rect.right - mask2rect.left)
+		mask2texture_wwx = mask2rect.right - mask2rect.left;
+	if (mask2texture_wwx > mask2texture_ww)
+		mask2texture_wwx = mask2texture_ww;
+
+	mask2texture_minusx = - ((window_w - mask2rect.right) + mask2rect.left);
+	if (mask2texture_offsetw > 0)
+		mask2texture_minusx += mask2texture_offsetw * xmult;
+	
+
+	mask2texture_minusy = -(window_h - (mask2rect.bottom - mask2rect.top));
+
+	mask2texture_hhx = mask2texture_h * ymult;
+
+	write_log (L"%s: overlay '%s' %.0f*%.0f (%d*%d - %d*%d) (%d*%d)\n",
 		D3DHEAD, tmp, mask2texture_w, mask2texture_h,
-		mask2rect.left, mask2rect.top, mask2rect.right, mask2rect.bottom);
+		mask2rect.left, mask2rect.top, mask2rect.right, mask2rect.bottom,
+		mask2rect.right - mask2rect.left, mask2rect.bottom - mask2rect.top);
 
 	return 1;
 end:
@@ -1511,6 +1544,29 @@ end:
 	return 0;
 }
 
+bool getscalerect (float *mx, float *my, float *sx, float *sy)
+{
+	if (!mask2texture)
+		return false;
+
+	float mw = mask2rect.right - mask2rect.left;
+	float mh = mask2rect.bottom - mask2rect.top;
+
+	float mxt = (float)mw / gfxvidinfo.outbuffer->inwidth2;
+	float myt = (float)mh / gfxvidinfo.outbuffer->inheight2;
+
+	*mx = mask2texture_minusx / mxt;
+	*my = mask2texture_minusy / myt;
+
+	*sx = -((mask2texture_ww - mask2rect.right) - (mask2rect.left)) / 2;
+	*sy = -((mask2texture_wh - mask2rect.bottom) - (mask2rect.top)) / 2;
+
+	*sx /= mxt;
+	*sy /= myt;
+
+	return true;
+}
+
 static void setupscenecoords (void)
 {
 	RECT sr, dr, zr;
@@ -1520,9 +1576,6 @@ static void setupscenecoords (void)
 	static RECT sr2, dr2, zr2;
 
 	//write_log (L"%dx%d %dx%d %dx%d\n", tin_w, tin_h, tin_w, tin_h, window_w, window_h);
-
-	float mw = mask2rect.right - mask2rect.left;
-	float mh = mask2rect.bottom - mask2rect.top;
 
 	resmult = 1 << (gfxvidinfo.gfx_resolution_reserved - currprefs.gfx_resolution);
 	vresmult = 1 << (gfxvidinfo.gfx_vresolution_reserved - currprefs.gfx_vresolution);
@@ -1549,36 +1602,46 @@ static void setupscenecoords (void)
 	float tx, ty;
 	float sw, sh;
 
-	if (mask2texture) {
+	if (0 && mask2texture) {
 
-		float winw = mw * mask2texture_multx;
-		float winh = mh * mask2texture_multy;
-		dw *= winw / window_w;
-		dh *= winh / window_h;
-		tx = -0.5f + dw * tin_w / winw / 2;
-		ty = +0.5f + dh * tin_h / winh / 2;
+		float mw = mask2rect.right - mask2rect.left;
+		float mh = mask2rect.bottom - mask2rect.top;
 
-		float xshift = -zr.left - sr.left;
-		float yshift = +zr.top  + sr.top - (tin_h - h);
+		tx = -0.5f + dw * tin_w / mw / 2;
+		ty = +0.5f + dh * tin_h / mh / 2;
 
-		sw = dw * tin_w / window_w;
-		sh = dh * tin_h / window_h;
+		float xshift = -zr.left;
+		float yshift = -zr.top;
+
+		sw = dw * tin_w / gfxvidinfo.outbuffer->inwidth2;
+		sw *= mw / window_w;
+
+		tx = -0.5f + window_w / 2;
+
+		sh = dh * tin_h / gfxvidinfo.outbuffer->inheight2;
+		sh *= mh / window_h;
+
+		ty = +0.5f + window_h / 2;
 
 		tx += xshift;
 		ty += yshift;
-
 
 	} else {
 
 		tx = -0.5f + dw * tin_w / window_w / 2;
 		ty = +0.5f + dh * tin_h / window_h / 2;
 
-		tx += - zr.left - sr.left; // - (tin_w - 2 * zr.left - w),
-		ty += + zr.top + sr.top - (tin_h - h);
+		float xshift = - zr.left - sr.left; // - (tin_w - 2 * zr.left - w),
+		float yshift = + zr.top + sr.top - (tin_h - h);
 	
 		sw = dw * tin_w / window_w;
 		sh = dh * tin_h / window_h;
+
+		tx += xshift;
+		ty += yshift;
+
 	}
+
 
 	MatrixTranslation (&m_matView, tx, ty, 1.0f);
 
@@ -1593,8 +1656,8 @@ static void setupscenecoords (void)
 	float sw2 = dw * tin_w / window_w;
 	float sh2 = dh * tin_h / window_h;
 
-	maskmult.x = sw2 * maskmult_x / w;
-	maskmult.y = sh2 * maskmult_y / h;
+	maskmult.x = 1; //sw2 * maskmult_x / w;
+	maskmult.y = 1; //sh2 * maskmult_y / h;
 
 	maskshift.x = 1.0f / maskmult_x;
 	maskshift.y = 1.0f / maskmult_y;
@@ -2139,6 +2202,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (!shaderon)
 		write_log (L"Using non-shader version\n");
 
+	window_w = w_w;
+	window_h = w_h;
 	multx = mmult;
 	mult = S2X_getmult ();
 	tin_w = t_w * mult;
@@ -2181,8 +2246,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 			tformat = D3DFMT_R5G6B5;
 		break;
 	}
-	window_w = w_w;
-	window_h = w_h;
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
@@ -2557,10 +2620,11 @@ static void D3D_render2 (void)
 			r.top = 0;
 			r.right = mask2texture_w;
 			r.bottom = mask2texture_h;
-
-			sprite->SetTransform (&t);
-			sprite->Draw (mask2texture, &r, NULL, &v, 0xffffffff);
-			sprite->Flush ();
+			if (showoverlay) {
+				sprite->SetTransform (&t);
+				sprite->Draw (mask2texture, &r, NULL, &v, 0xffffffff);
+				sprite->Flush ();
+			}
 			MatrixScaling (&t, 1, 1, 0);
 			sprite->SetTransform (&t);
 

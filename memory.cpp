@@ -2349,10 +2349,38 @@ void map_overlay (int chip)
 		m68k_setpc (m68k_getpc ());
 }
 
+uae_s32 getz2size (struct uae_prefs *p)
+{
+	ULONG start;
+	start = p->fastmem_size;
+	if (p->rtgmem_size && !p->rtgmem_type) {
+		while (start & (p->rtgmem_size - 1) && start < 8 * 1024 * 1024)
+			start += 1024 * 1024;
+		if (start + p->rtgmem_size > 8 * 1024 * 1024)
+			return -1;
+	}
+	start += p->rtgmem_size;
+	return start;
+}
+
+ULONG getz2endaddr (void)
+{
+	ULONG start;
+	start = currprefs.fastmem_size;
+	if (currprefs.rtgmem_size && !currprefs.rtgmem_type) {
+		if (!start)
+			start = 0x00200000;
+		while (start & (currprefs.rtgmem_size - 1) && start < 4 * 1024 * 1024)
+			start += 1024 * 1024;
+	}
+	return start + 2 * 1024 * 1024;
+}
+
+
 void memory_reset (void)
 {
 	int bnk, bnk_end;
-	int gayle;
+	bool gayleorfatgary;
 
 	be_cnt = 0;
 	currprefs.chipmem_size = changed_prefs.chipmem_size;
@@ -2369,7 +2397,7 @@ void memory_reset (void)
 	currprefs.cs_fatgaryrev = changed_prefs.cs_fatgaryrev;
 	currprefs.cs_ramseyrev = changed_prefs.cs_ramseyrev;
 
-	gayle = (currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0;
+	gayleorfatgary = (currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0 || currprefs.cs_mbdmac;
 
 	need_hardreset = 0;
 	/* Use changed_prefs, as m68k_reset is called later.  */
@@ -2448,23 +2476,21 @@ void memory_reset (void)
 	if (cloanto_rom && currprefs.maprom < 0x01000000)
 		currprefs.maprom = changed_prefs.maprom = 0;
 
-	gayle = currprefs.cs_ksmirror_a8 || currprefs.cs_pcmcia || currprefs.cs_ide > 0;
-
 	map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
 	map_banks (&cia_bank, 0xA0, 32, 0);
 	if (!currprefs.cs_a1000ram)
 		/* D80000 - DDFFFF not mapped (A1000 = custom chips) */
 		map_banks (&dummy_bank, 0xD8, 6, 0);
 
-	/* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if Gayle) */
+	/* map "nothing" to 0x200000 - 0x9FFFFF (0xBEFFFF if Gayle or Fat Gary) */
 	bnk = allocated_chipmem >> 16;
 	if (bnk < 0x20 + (currprefs.fastmem_size >> 16))
 		bnk = 0x20 + (currprefs.fastmem_size >> 16);
-	bnk_end = gayle ? 0xBF : 0xA0;
+	bnk_end = gayleorfatgary ? 0xBF : 0xA0;
 	map_banks (&dummy_bank, bnk, bnk_end - bnk, 0);
-	if (gayle) {
-		 // a4000 = custom chips from 0xc0 to 0xd0
-		if (currprefs.cs_ide == IDE_A4000)
+	if (gayleorfatgary) {
+		 // a3000 or a4000 = custom chips from 0xc0 to 0xd0
+		if (currprefs.cs_ide == IDE_A4000 || currprefs.cs_mbdmac)
 			map_banks (&dummy_bank, 0xd0, 8, 0);
 		else
 			map_banks (&dummy_bank, 0xc0, 0xd8 - 0xc0, 0);

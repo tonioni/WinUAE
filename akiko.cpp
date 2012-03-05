@@ -772,11 +772,14 @@ static void sys_cddev_close (void)
 
 static int command_lengths[] = { 1,2,1,1,12,2,1,1,4,1,-1,-1,-1,-1,-1,-1 };
 
-static void cdrom_start_return_data (int len)
+static int cdrom_start_return_data (int len)
 {
-	if (len <= 0 || cdrom_receive_started > 0)
-		return;
+	if (cdrom_receive_started > 0)
+		return 0;
+	if (len <= 0)
+		return -1;
 	cdrom_receive_started = len;
+	return 1;
 }
 
 static void cdrom_return_data (void)
@@ -831,7 +834,6 @@ static int cdrom_command_idle_status (void)
 {
 	cdrom_result_buffer[0] = 0x0a;
 	cdrom_result_buffer[1] = 0x70;
-	write_log (L"X");
 	return 2;
 }
 
@@ -1186,11 +1188,13 @@ static void akiko_handler (void)
 		return;
 
 	if (mediachanged) {
-		mediachanged = 0;
-		cdrom_start_return_data (cdrom_command_media_status ());
-		get_cdrom_toc ();
-		/* do not remove! first try may fail */
-		get_cdrom_toc ();
+		if (cdrom_start_return_data (0) < 0) {
+			cdrom_start_return_data (cdrom_command_media_status ());
+			mediachanged = 0;
+			get_cdrom_toc ();
+			/* do not remove! first try may fail */
+			get_cdrom_toc ();
+		}
 		return;
 	}
 	if (cdrom_audiotimeout > 1)

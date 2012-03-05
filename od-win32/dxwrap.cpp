@@ -16,6 +16,8 @@ struct ddstuff dxdata;
 struct ddcaps dxcaps;
 static int flipinterval_supported = 1;
 int ddforceram = DDFORCED_DEFAULT;
+static int statuswidth = 800;
+static int statusheight = TD_TOTAL_HEIGHT;
 
 HRESULT DirectDraw_GetDisplayMode (void)
 {
@@ -324,7 +326,7 @@ int dx_testck (void)
 static void createstatussurface (void)
 {
 	releaser (dxdata.statussurface, IDirectDrawSurface7_Release);
-	dxdata.statussurface = allocsurface_2 (dxdata.statuswidth, dxdata.statusheight, FALSE);
+	dxdata.statussurface = allocsurface_2 (statuswidth, statusheight, FALSE);
 	if (dxdata.statussurface)
 		clearsurf (dxdata.statussurface, 0);
 }
@@ -1122,6 +1124,7 @@ static BOOL CALLBACK displaysCallback (GUID *guid, char *adesc, char *aname, LPV
 		pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
 		winmon = MonitorFromPoint (pt, MONITOR_DEFAULTTONEAREST);
 		if (hm == winmon) {
+			write_log(L"%s = %s\n", md->fullname, outGUID (guid));
 			memcpy (&monitorguids[i], guid, sizeof GUID);
 			memcpy (&md->ddguid, guid, sizeof GUID);
 			return TRUE;
@@ -1136,7 +1139,9 @@ void DirectDraw_get_GUIDs (void)
 	if (guidsenumerated)
 		return;
 	guidsenumerated = true;
+	write_log (L"DirectDraw displays:\n");
 	DirectDrawEnumerateExA (displaysCallback, 0, DDENUM_DETACHEDSECONDARYDEVICES | DDENUM_ATTACHEDSECONDARYDEVICES);
+	write_log (L"End\n");
 }
 
 int DirectDraw_Start (void)
@@ -1147,9 +1152,6 @@ int DirectDraw_Start (void)
 	D3DCAPS9 d3dCaps;
 	HINSTANCE d3dDLL;
 	GUID *guid;
-
-	dxdata.statuswidth = 800;
-	dxdata.statusheight = TD_TOTAL_HEIGHT;
 
 	if (!first) {
 		d3dDLL = LoadLibrary (L"D3D9.DLL");
@@ -1232,6 +1234,7 @@ int DirectDraw_Start (void)
 			dxdata.ddzeroguid = 0;
 			memcpy (&dxdata.ddguid, guid, sizeof (GUID));
 		}
+		write_log (L"DirectDraw Display GUID = %s\n", outGUID (guid));
 		return 1;
 	}
 oops:
