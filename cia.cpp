@@ -45,6 +45,7 @@
 #define CIAB_DEBUG_R 0
 #define CIAB_DEBUG_W 0
 #define DONGLE_DEBUG 0
+#define KB_DEBUG 0
 
 #define TOD_HACK
 
@@ -82,10 +83,8 @@ static int ciaatodon, ciabtodon;
 static unsigned int ciaapra, ciaaprb, ciaadra, ciaadrb, ciaasdr, ciaasdr_cnt;
 static unsigned int ciabprb, ciabdra, ciabdrb, ciabsdr, ciabsdr_cnt;
 static int div10;
-#define KBACK_WAIT 1
-#define KBACK_ACTIVE 2
-#define KBACK_GOT 3
-static int kbstate, kback;
+static int kbstate, kblostsynccnt;
+static uae_u8 kbcode;
 
 static uae_u8 serbits;
 static int warned = 10;
@@ -533,13 +532,13 @@ static int resetwarning_phase, resetwarning_timer;
 
 static void setcode (uae_u8 keycode)
 {
-	ciaasdr = ~((keycode << 1) | (keycode >> 7));
+	kbcode = ~((keycode << 1) | (keycode >> 7));
 }
 
 static void sendrw (void)
 {
 	setcode (AK_RESETWARNING);
-	kback = KBACK_WAIT;
+	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
 	ciaaicr |= 8;
 	RethinkICRA ();
 	write_log (L"KB: sent reset warning code (phase=%d)\n", resetwarning_phase);
@@ -569,29 +568,29 @@ static void resetwarning_check (void)
 		if (resetwarning_timer <= 0) {
 			write_log (L"KB: reset warning forced reset. Phase=%d\n", resetwarning_phase);
 			resetwarning_phase = -1;
-			kback = 0;
+			kblostsynccnt = 0;
 			uae_reset (0);
 		}
 	}
 	if (resetwarning_phase == 1) {
-		if (kback == KBACK_GOT) { /* first AK_RESETWARNING handshake received */
+		if (!kblostsynccnt) { /* first AK_RESETWARNING handshake received */
 			write_log (L"KB: reset warning second phase..\n");
 			resetwarning_phase = 2;
 			resetwarning_timer = maxvpos_nom * 5;
 			sendrw ();
 		}
 	} else if (resetwarning_phase == 2) {
-		if (kback >= KBACK_ACTIVE) { /* second AK_RESETWARNING handshake active */
+		if (ciaacra & 0x40) { /* second AK_RESETWARNING handshake active */
 			resetwarning_phase = 3;
 			write_log (L"KB: reset warning SP = output\n");
 			/* System won't reset until handshake signal becomes inactive or 10s has passed */
 			resetwarning_timer = 10 * maxvpos_nom * vblank_hz;
 		}
 	} else if (resetwarning_phase == 3) {
-		if (kback != KBACK_ACTIVE) { /* second AK_RESETWARNING handshake disabled */
+		if (!(ciaacra & 0x40)) { /* second AK_RESETWARNING handshake disabled */
 			write_log (L"KB: reset warning end by software. reset.\n");
 			resetwarning_phase = -1;
-			kback = 0;
+			kblostsynccnt = 0;
 			uae_reset (0);
 		}
 	}
@@ -599,6 +598,17 @@ static void resetwarning_check (void)
 
 void CIA_hsync_prehandler (void)
 {
+}
+
+static void keyreq (void)
+{
+#if KB_DEBUG
+	write_log (L"code=%x\n", kbcode);
+#endif
+	ciaasdr = kbcode;
+	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
+	ciaaicr |= 8;
+	RethinkICRA ();
 }
 
 void CIA_hsync_posthandler (bool dotod)
@@ -617,11 +627,11 @@ void CIA_hsync_posthandler (bool dotod)
 		resetwarning_check ();
 		while (keys_available ())
 			get_next_key ();
-	} else if ((keys_available () || kbstate < 3) && (kback == 0 || kback == KBACK_GOT) && (hsync_counter & 15) == 0) {
+	} else if ((keys_available () || kbstate < 3) && !kblostsynccnt && (hsync_counter & 15) == 0) {
 		switch (kbstate)
 		{
 			case 0:
-				ciaasdr = 0; /* powerup resync */
+				kbcode = 0; /* powerup resync */
 				kbstate++;
 				break;
 			case 1:
@@ -633,12 +643,10 @@ void CIA_hsync_posthandler (bool dotod)
 				kbstate++;
 				break;
 			case 3:
-				ciaasdr = ~get_next_key ();
+				kbcode = ~get_next_key ();
 				break;
 		}
-		kback = KBACK_WAIT;
-		ciaaicr |= 8;
-		RethinkICRA ();
+		keyreq ();
 	}
 }
 
@@ -686,6 +694,16 @@ void CIA_vsync_prehandler (void)
 {
 	led_vsync ();
 	CIA_handler ();
+	if (kblostsynccnt > 0) {
+		kblostsynccnt -= maxvpos;
+		if (kblostsynccnt <= 0) {
+			kblostsynccnt = 0;
+			keyreq ();
+#if KB_DEBUG
+			write_log (L"lostsync\n");
+#endif
+		}
+	}
 }
 
 void CIA_vsync_posthandler (bool dotod)
@@ -1104,13 +1122,6 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 	case 12:
 		CIA_update ();
 		ciaasdr = val;
-		if (ciaacra & 0x40) {
-			kback = KBACK_ACTIVE;
-		} else {
-			if (kback == KBACK_ACTIVE)
-				kback = KBACK_GOT;
-			ciaasdr_cnt = 0;
-		}
 		if ((ciaacra & 0x41) == 0x41 && ciaasdr_cnt == 0)
 			ciaasdr_cnt = 8 * 2;
 		CIA_calctimers ();
@@ -1123,12 +1134,14 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		val &= 0x7f; /* bit 7 is unused */
 		if ((val & 1) && !(ciaacra & 1))
 			ciaastarta = CIASTARTCYCLESCRA;
-		ciaacra = val;
-		if (ciaacra & 0x40) {
-			kback = KBACK_ACTIVE;
-		} else if (kback == KBACK_ACTIVE) {
-			kback = KBACK_GOT;
+		if ((val & 0x40) != (ciaacra & 0x40)) {
+			/* todo: check if low to high or high to low only */
+			kblostsynccnt = 0;
+#if KB_DEBUG
+			write_log (L"KB_ACK %02x->%02x\n", val, ciaacra);
+#endif
 		}
+		ciaacra = val;
 		if (ciaacra & 0x10) {
 			ciaacra &= ~0x10;
 			ciaata = ciaala;
@@ -1312,7 +1325,7 @@ void CIA_reset (void)
 		tod_hack_enabled = 312 * 50 * 10;
 #endif
 
-	kback = 0;
+	kblostsynccnt = 0;
 	serbits = 0;
 	oldovl = 1;
 	oldcd32mute = 1;
@@ -1973,13 +1986,15 @@ uae_u8 *save_keyboard (int *len, uae_u8 *dstptr)
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
-		dstbak = dst = xmalloc (uae_u8, 4 + 4 + 1 + 1 + 1 + 1);
+		dstbak = dst = xmalloc (uae_u8, 4 + 4 + 1 + 1 + 1 + 1 + 1 + 2);
 	save_u32 (getcapslockstate () ? 1 : 0);
 	save_u32 (1);
 	save_u8 (kbstate);
 	save_u8 (0);
 	save_u8 (0);
-	save_u8 (kback);
+	save_u8 (0);
+	save_u8 (kbcode);
+	save_u16 (kblostsynccnt);
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -1991,9 +2006,11 @@ uae_u8 *restore_keyboard (uae_u8 *src)
 	kbstate = restore_u8 ();
 	restore_u8 ();
 	restore_u8 ();
-	kback = restore_u8 ();
+	 restore_u8 ();
 	if (!(v & 1))
 		kbstate = 3;
+	kbcode = restore_u8 ();
+	kblostsynccnt = restore_u16 ();
 	return src;
 }
 

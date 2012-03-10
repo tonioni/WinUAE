@@ -1656,8 +1656,8 @@ static void setupscenecoords (void)
 	float sw2 = dw * tin_w / window_w;
 	float sh2 = dh * tin_h / window_h;
 
-	maskmult.x = 1; //sw2 * maskmult_x / w;
-	maskmult.y = 1; //sh2 * maskmult_y / h;
+	maskmult.x = sw2 * maskmult_x / w;
+	maskmult.y = sh2 * maskmult_y / h;
 
 	maskshift.x = 1.0f / maskmult_x;
 	maskshift.y = 1.0f / maskmult_y;
@@ -1930,11 +1930,16 @@ void D3D_free (void)
 	ddraw_fs_hack_free ();
 }
 
+#define VBLANKDEBUG 0
+
 bool D3D_getvblankpos (int *vpos)
 {
 	HRESULT hr;
 	D3DRASTER_STATUS rt;
-
+#if VBLANKDEBUG
+	static UINT lastline;
+	static BOOL lastinvblank;
+#endif
 	*vpos = -2;
 	if (!isd3d ())
 		return false;
@@ -1949,6 +1954,13 @@ bool D3D_getvblankpos (int *vpos)
 	if (rt.ScanLine > maxscanline)
 		maxscanline = rt.ScanLine;
 	*vpos = rt.ScanLine;
+#if VBLANKDEBUG
+	if (lastline != rt.ScanLine || lastinvblank != rt.InVBlank) {
+		write_log(L"%d:%d ", rt.InVBlank ? 1 : 0, rt.ScanLine);
+		lastline = rt.ScanLine;
+		lastinvblank = rt.InVBlank;
+	}
+#endif
 	if (rt.InVBlank != 0)
 		*vpos = -1;
 	return true;
@@ -2076,7 +2088,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	vsync2 = 0;
 	int hzmult = 0;
 	if (isfullscreen () > 0) {
-		dpp.FullScreen_RefreshRateInHz = currprefs.gfx_refreshrate > 0 ? currprefs.gfx_refreshrate : 0;
+		dpp.FullScreen_RefreshRateInHz = ap->gfx_refreshrate > 0 ? ap->gfx_refreshrate : 0;
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;

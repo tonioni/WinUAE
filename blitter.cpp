@@ -789,6 +789,19 @@ static void actually_do_blit (void)
 	}
 }
 
+static void blitter_doit (void)
+{
+	#ifdef BLITTER_DEBUG
+	if (!blitter_dontdo)
+		actually_do_blit ();
+	else
+		bltstate = BLT_done;
+#else
+	actually_do_blit ();
+#endif
+	blitter_done (current_hpos ());
+}
+
 void blitter_handler (uae_u32 data)
 {
 	static int blitter_stuck;
@@ -809,15 +822,7 @@ void blitter_handler (uae_u32 data)
 		blit_slowdown = -1;
 		return;
 	}
-#ifdef BLITTER_DEBUG
-	if (!blitter_dontdo)
-		actually_do_blit ();
-	else
-		bltstate = BLT_done;
-#else
-	actually_do_blit ();
-#endif
-	blitter_done (current_hpos ());
+	blitter_doit ();
 }
 
 #ifdef CPUEMU_12
@@ -1408,12 +1413,14 @@ static void do_blitter2 (int hpos, int copper)
 	}
 
 	blt_info.got_cycle = 1;
-	if (currprefs.immediate_blits)
-		cycles = 1;
-
 	blit_waitcyclecounter = 0;
-	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
-	event2_newevent (ev2_blitter, blit_cyclecounter, 0);
+
+	if (currprefs.immediate_blits) {
+		blitter_doit ();
+	} else {
+		blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
+		event2_newevent (ev2_blitter, blit_cyclecounter, 0);
+	}
 }
 
 void do_blitter (int hpos, int copper)
@@ -1441,6 +1448,8 @@ void maybe_blit (int hpos, int hack)
 		while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
 			x_do_cycles (8 * CYCLE_UNIT);
 		}
+		if (bltstate == BLT_done)
+			return;
 	}
 
 	if (warned && dmaen (DMA_BLITTER) && blt_info.got_cycle) {

@@ -99,7 +99,7 @@ int log_scsi;
 int log_net;
 int log_vsync;
 int uaelib_debug;
-int pissoff_value = 25000;
+int pissoff_value = 25000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait = 0;
 
@@ -4856,7 +4856,7 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 2;
 	}
 	if (!_tcscmp (arg, L"jitevent")) {
-		pissoff_value = getval (np);
+		pissoff_value = getval (np) * CYCLE_UNIT;
 		return 2;
 	}
 	if (!_tcscmp (arg, L"inputrecorddebug")) {
@@ -5070,7 +5070,6 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			write_log (L"%d: '%s'\n", i + 1, argv2[i]);
 	}
 	if (WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
-		DEVMODE devmode;
 		DWORD i;
 
 		WIN32_HandleRegistryStuff ();
@@ -5090,6 +5089,8 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			write_log (L"%d:%s: %s\n", i,  type == SOUND_DEVICE_XAUDIO2 ? L"XA" : (type == SOUND_DEVICE_DS ? L"DS" : (type == SOUND_DEVICE_AL ? L"AL" : (type == SOUND_DEVICE_WASAPI ? L"WA" : (type == SOUND_DEVICE_WASAPI_EXCLUSIVE ? L"WX" : L"PA")))), record_devices[i]->name);
 		}
 		write_log (L"done\n");
+#if 0
+		DEVMODE devmode;
 		memset (&devmode, 0, sizeof (devmode));
 		devmode.dmSize = sizeof (DEVMODE);
 		if (EnumDisplaySettings (NULL, ENUM_CURRENT_SETTINGS, &devmode)) {
@@ -5099,6 +5100,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			else
 				default_freq = 60;
 		}
+#endif
 		WIN32_InitLang ();
 		WIN32_InitHtmlHelp ();
 		DirectDraw_Release ();

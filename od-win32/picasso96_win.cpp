@@ -1840,7 +1840,7 @@ static void FillBoardInfo (uaecptr amigamemptr, struct LibResolution *res, int w
 	put_byte (amigamemptr + PSSO_ModeInfo_second_union, 14);
 
 	put_long (amigamemptr + PSSO_ModeInfo_PixelClock,
-		width * height * (currprefs.gfx_refreshrate ? abs (currprefs.gfx_refreshrate) : default_freq));
+		width * height * (currprefs.gfx_apmode[1].gfx_refreshrate ? abs (currprefs.gfx_apmode[1].gfx_refreshrate) : default_freq));
 }
 
 struct modeids {
@@ -2361,11 +2361,11 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 }
 
 
-static void init_picasso_screen(void);
+static void init_picasso_screen (void);
 void picasso_enablescreen (int on)
 {
 	if (!init_picasso_screen_called)
-		init_picasso_screen();
+		init_picasso_screen ();
 
 	picasso_refresh ();
 	checkrtglibrary();

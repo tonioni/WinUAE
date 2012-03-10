@@ -14,7 +14,9 @@
 
 #if defined(NATMEM_OFFSET)
 
+/* JIT can access few bytes outside of memory block of it executes code at the very end of memory block */
 #define BARRIER 32
+
 #define MAXZ3MEM 0x7F000000
 #define MAXZ3MEM64 0xF0000000
 
@@ -423,7 +425,7 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		if(!_tcscmp (shmids[shmid].name, L"chip")) {
 			shmaddr=natmem_offset;
 			got = TRUE;
-			if ((currprefs.fastmem_size == 0 && (currprefs.rtgmem_size == 0 && !currprefs.rtgmem_type)) || currprefs.chipmem_size < 2 * 1024 * 1024)
+			if (getz2endaddr () <= 2 * 1024 * 1024 || currprefs.chipmem_size < 2 * 1024 * 1024)
 				size += BARRIER;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"kick")) {
@@ -464,10 +466,13 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		}
 		if(!_tcscmp (shmids[shmid].name, L"ramsey_low")) {
 			shmaddr=natmem_offset + a3000lmem_start;
+			if (!currprefs.mbresmem_high_size)
+				size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"ramsey_high")) {
 			shmaddr=natmem_offset + a3000hmem_start;
+			size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"z3")) {

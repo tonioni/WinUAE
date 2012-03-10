@@ -202,7 +202,7 @@ void update_sound (double freq, int longframe, int linetoggle)
 #endif
 }
 
-extern int vsynctime_orig;
+extern int vsynctimebase_orig;
 
 #ifndef AVIOUTPUT
 static int avioutput_audio;
@@ -224,13 +224,13 @@ void sound_setadjust (double v)
 	if (avioutput_audio && avioutput_enabled && avioutput_nosoundsync)
 		mult = 1000.0;
 	if (isvsync_chipset () || (avioutput_audio && avioutput_enabled && !currprefs.cachesize)) {
-		vsynctime = vsynctime_orig;
+		vsynctimebase = vsynctimebase_orig;
 		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
 	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
-		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
+		vsynctimebase = (long)(((double)vsynctimebase_orig) * mult / 1000.0);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	} else {
-		vsynctime = (long)(((double)vsynctime_orig) * mult / 1000.0);
+		vsynctimebase = (long)(((double)vsynctimebase_orig) * mult / 1000.0);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	}
 }

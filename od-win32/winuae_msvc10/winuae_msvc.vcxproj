@@ -556,6 +556,7 @@
     <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
     <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
+    <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />

@@ -103,7 +103,7 @@ int window_extra_width, window_extra_height;
 
 static struct winuae_currentmode *currentmode = &currentmodestruct;
 static int wasfullwindow_a, wasfullwindow_p;
-static int vblankbasewait, vblankbasewait2, vblankbasewait3, vblankbasefull;
+static int vblankbasewait1, vblankbasewait2, vblankbasewait3, vblankbasefull;
 static bool vblankbaselace;
 static int vblankbaselace_chipset;
 static bool vblankthread_oddeven;
@@ -150,11 +150,11 @@ static void vsync_sleep (bool preferbusy)
 	} else {
 		dowait = false;
 	}
-	if (dowait)
+	if (dowait && currprefs.m68k_speed >= 0)
 		sleep_millis_main (1);
 }
 
-static void changevblankthreadmode (int newmode)
+static void changevblankthreadmode_do (int newmode, bool fast)
 {
 	int t = vblankthread_counter;
 	vblank_found = false;
@@ -173,7 +173,18 @@ static void changevblankthreadmode (int newmode)
 		flipevent = NULL;
 		flipevent2 = NULL;
 	}
-	while (t == vblankthread_counter && vblankthread_mode > 0);
+	if (!fast) {
+		while (t == vblankthread_counter && vblankthread_mode > 0);
+	}
+}
+
+static void changevblankthreadmode (int newmode)
+{
+	changevblankthreadmode_do (newmode, false);
+}
+static void changevblankthreadmode_fast (int newmode)
+{
+	changevblankthreadmode_do (newmode, true);
 }
 
 int WIN32GFX_IsPicassoScreen (void)
@@ -237,12 +248,11 @@ int WIN32GFX_GetHeight (void)
 static int init_round;
 static BOOL doInit (void);
 
-int default_freq = 0;
+int default_freq = 60;
 
 HWND hStatusWnd = NULL;
 
 static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
-
 
 struct MultiDisplay *getdisplay (struct uae_prefs *p)
 {
@@ -1256,14 +1266,19 @@ static void update_gfxparams (void)
 	if (screen_is_picasso) {
 		currentmode->current_width = picasso96_state.Width;
 		currentmode->current_height = picasso96_state.Height;
-		currentmode->frequency = abs (currprefs.gfx_refreshrate > default_freq ? currprefs.gfx_refreshrate : default_freq);
+		if (currprefs.win32_rtgvblankrate == 0)
+			currentmode->frequency = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
+		else if (currprefs.win32_rtgvblankrate < 0)
+			currentmode->frequency = 0;
+		else
+			currentmode->frequency = abs (currprefs.gfx_apmode[1].gfx_refreshrate >= 50 ? currprefs.gfx_apmode[1].gfx_refreshrate : 50);
 		if (currprefs.gfx_apmode[1].gfx_vsync)
 			currentmode->vsync = 1 + currprefs.gfx_apmode[1].gfx_vsyncmode;
 	} else {
 #endif
 		currentmode->current_width = currprefs.gfx_size.width;
 		currentmode->current_height = currprefs.gfx_size.height;
-		currentmode->frequency = abs (currprefs.gfx_refreshrate);
+		currentmode->frequency = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
 		if (currprefs.gfx_apmode[0].gfx_vsync)
 			currentmode->vsync = 1 + currprefs.gfx_apmode[0].gfx_vsyncmode;
 #ifdef PICASSO96
@@ -1393,7 +1408,8 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[1].gfx_vsync != changed_prefs.gfx_apmode[1].gfx_vsync ? 2 | 16 : 0;
 	c |= currprefs.gfx_apmode[0].gfx_vsyncmode != changed_prefs.gfx_apmode[0].gfx_vsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_apmode[1].gfx_vsyncmode != changed_prefs.gfx_apmode[1].gfx_vsyncmode ? 2 | 16 : 0;
-	c |= currprefs.gfx_refreshrate != changed_prefs.gfx_refreshrate ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[0].gfx_refreshrate != changed_prefs.gfx_apmode[0].gfx_refreshrate ? 2 | 16 : 0;
+	c |= currprefs.gfx_apmode[1].gfx_refreshrate != changed_prefs.gfx_apmode[1].gfx_refreshrate ? 2 | 16 : 0;
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 
@@ -1845,7 +1861,8 @@ static int reopen (int full)
 	currprefs.gfx_apmode[1].gfx_vsync = changed_prefs.gfx_apmode[1].gfx_vsync;
 	currprefs.gfx_apmode[0].gfx_vsyncmode = changed_prefs.gfx_apmode[0].gfx_vsyncmode;
 	currprefs.gfx_apmode[1].gfx_vsyncmode = changed_prefs.gfx_apmode[1].gfx_vsyncmode;
-	currprefs.gfx_refreshrate = changed_prefs.gfx_refreshrate;
+	currprefs.gfx_apmode[0].gfx_refreshrate = changed_prefs.gfx_apmode[0].gfx_refreshrate;
+	currprefs.gfx_apmode[1].gfx_refreshrate = changed_prefs.gfx_apmode[1].gfx_refreshrate;
 	config_changed = 1;
 
 	if (!quick)
@@ -1905,9 +1922,9 @@ bool vsync_switchmode (int hz)
 	} else {
 		newh = found->res.height;
 		changed_prefs.gfx_size_fs.height = newh;
-		changed_prefs.gfx_refreshrate = hz;
+		changed_prefs.gfx_apmode[0].gfx_refreshrate = hz;
 		if (changed_prefs.gfx_size_fs.height != currprefs.gfx_size_fs.height ||
-			changed_prefs.gfx_refreshrate != currprefs.gfx_refreshrate) {
+			changed_prefs.gfx_apmode[0].gfx_refreshrate != currprefs.gfx_apmode[0].gfx_refreshrate) {
 			write_log (L"refresh rate changed to %d, new screenmode %dx%d\n", hz, w, newh);
 			config_changed = 1;
 		}
@@ -2310,6 +2327,9 @@ static int maxscanline, minscanline, prevvblankpos;
 static bool getvblankpos (int *vp)
 {
 	int sl;
+#if 0
+	frame_time_t t = read_processor_time ();
+#endif
 	*vp = -2;
 	if (currprefs.gfx_api) {
 		if (!D3D_getvblankpos (&sl))
@@ -2318,6 +2338,10 @@ static bool getvblankpos (int *vp)
 		if (!DD_getvblankpos (&sl))
 			return false;
 	}
+#if 0
+	t = read_processor_time () - t;
+	write_log (L"(%d:%d)", t, sl);
+#endif	
 	prevvblankpos = sl;
 	if (sl > maxscanline)
 		maxscanline = sl;
@@ -2414,6 +2438,11 @@ static unsigned int __stdcall flipthread (void *dummy)
 	return 0;
 }
 
+static int frame_missed, frame_counted, frame_errors;
+static int frame_usage, frame_usage_avg, frame_usage_total;
+extern int log_vsync;
+static bool dooddevenskip;
+
 static bool vblanklaceskip (void)
 {
 	if (vblankbaselace_chipset >= 0 && vblankbaselace) {
@@ -2441,7 +2470,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			// idle mode
 			Sleep (100);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_WAIT) {
-			sleep_millis (ap->gfx_vflip ? 2 : 1);
+			sleep_millis (ap->gfx_vflip && currprefs.m68k_speed >= 0 ? 2 : 1);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
 			bool vb = false;
@@ -2456,8 +2485,8 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			// busy wait mode
 			frame_time_t t = read_processor_time ();
 			bool donotwait = false;
-			int vs = isvsync_chipset ();
 			if (!vblank_found) {
+				int vs = isvsync_chipset ();
 				// immediate vblank if mismatched frame type 
 				if (vs < 0 && vblanklaceskip ()) {
 					vblank_found = true;
@@ -2470,6 +2499,9 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					if (firstvblankbasewait2 == false) {
 						firstvblankbasewait2 = true;
 						vblank_getstate (&vb);
+						if (!dooddevenskip && ap->gfx_vflip > 0) {
+							doflipevent ();
+						}
 					}
 					ok = vblank_getstate (&vb);
 					if (!ok || vb) {
@@ -2489,10 +2521,14 @@ static unsigned int __stdcall vblankthread (void *dummy)
 						donotwait = true;
 				}
 			}
-			if (t - vblank_prev_time > vblankbasefull * 3)
+			if (t - vblank_prev_time > vblankbasefull * 3) {
+				vblank_found = true;
+				vblank_found_rtg = true;
+				vblank_found_chipset = true;
 				vblankthread_mode = VBLANKTH_IDLE;
+			}
 			if (!donotwait || ap->gfx_vflip || picasso_on)
-				sleep_millis (ap->gfx_vflip ? 2 : 1);
+				sleep_millis (ap->gfx_vflip && currprefs.m68k_speed >= 0 ? 2 : 1);
 		} else {
 			break;
 		}
@@ -2500,11 +2536,6 @@ static unsigned int __stdcall vblankthread (void *dummy)
 	vblankthread_mode = -1;
 	return 0;
 }
-
-static int frame_missed, frame_counted, frame_errors;
-static int frame_usage, frame_usage_avg, frame_usage_total;
-extern int log_vsync;
-static bool dooddevenskip;
 
 bool vsync_busywait_check (void)
 {
@@ -2530,15 +2561,16 @@ frame_time_t vsync_busywait_end (void)
 	if (!dooddevenskip) {
 		vsync_notvblank ();
 		while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
-			vsync_sleep (false);
+			vsync_sleep (currprefs.m68k_speed < 0);
 		}
 	}
-	changevblankthreadmode (VBLANKTH_ACTIVE_WAIT);
+	changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
 	return thread_vblank_time;
 }
 
 void vsync_busywait_start (void)
 {
+#if 0
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	if (!dooddevenskip) {
 		vsync_notvblank ();
@@ -2546,7 +2578,8 @@ void vsync_busywait_start (void)
 			doflipevent ();
 		}
 	}
-	changevblankthreadmode (VBLANKTH_ACTIVE_START);
+#endif
+	changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
 	vblank_prev_time = thread_vblank_time;
 }
 
@@ -2625,7 +2658,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		}
 
 		if (!doskip) {
-			while (!framelost && read_processor_time () - prevtime < vblankbasewait) {
+			while (!framelost && read_processor_time () - prevtime < vblankbasewait1) {
 				vsync_sleep (false);
 			}
 			v = vblank_wait ();
@@ -2680,7 +2713,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		depth = (currentmode->native_depth + 7) / 8;
 	}
 
-	rate = currprefs.gfx_refreshrate;
+	rate = ap->gfx_refreshrate;
 	mode = isfullscreen ();
 	rv = vsyncmemory;
 	while (rv) {
@@ -2789,7 +2822,7 @@ skip:
 	tsum2 = tsum / div;
 
 	vblankbasefull = (syncbase / tsum2);
-	vblankbasewait = (syncbase / tsum2) * 3 / 4;
+	vblankbasewait1 = (syncbase / tsum2) * 75 / 100;
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
 	vblankbaselace = lace;
@@ -3305,6 +3338,7 @@ static BOOL doInit (void)
 			changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
 			currentmode->current_depth = currentmode->native_depth;
 			gfxmode_reset ();
+			DirectDraw_Start ();
 			ret = -1;
 			goto oops;
 		}

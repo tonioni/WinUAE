@@ -178,6 +178,7 @@ struct apmode
 	int gfx_vsyncmode;
 	int gfx_backbuffers;
 	bool gfx_interlaced;
+	int gfx_refreshrate;
 };
 
 struct uae_prefs {
@@ -256,7 +257,6 @@ struct uae_prefs {
 	bool gfx_autoresolution;
 	int gfx_autoresolution_minv, gfx_autoresolution_minh;
 	bool gfx_scandoubler;
-	int gfx_refreshrate;
 	struct apmode gfx_apmode[2];
 	int gfx_resolution;
 	int gfx_vresolution;

@@ -123,19 +123,12 @@ STATIC_INLINE void sync_copper (int hpos);
 
 /* Events */
 
-unsigned long int event_cycles, nextevent, is_lastline, currcycle;
-long cycles_to_next_event;
-long max_cycles_to_next_event;
-long cycles_to_hsync_event;
 unsigned long int vsync_cycles;
 static int extra_cycle;
-unsigned long start_cycles;
 
 static int rpt_did_reset;
 struct ev eventtab[ev_max];
 struct ev2 eventtab2[ev2_max];
-
-volatile frame_time_t vsynctime, vsyncmintime;
 
 int vpos;
 static int vpos_count, vpos_count_prev;
@@ -426,8 +419,8 @@ void reset_frame_rate_hack (void)
 		return;
 
 	rpt_did_reset = 1;
-	is_lastline = 0;
-	vsyncmintime = read_processor_time () + vsynctime;
+	is_syncline = 0;
+	vsyncmintime = read_processor_time () + vsynctimebase;
 	write_log (L"Resetting frame rate hack\n");
 }
 
@@ -2734,7 +2727,7 @@ static int islinetoggle (void)
 	return linetoggle;
 }
 
-int vsynctime_orig;
+int vsynctimebase_orig;
 
 void compute_vsynctime (void)
 {
@@ -2755,9 +2748,9 @@ void compute_vsynctime (void)
 	if (!fake_vblank_hz)
 		fake_vblank_hz = vblank_hz;
 	if (currprefs.turbo_emulation)
-		vsynctime = vsynctime_orig = 1;
+		vsynctimebase = vsynctimebase_orig = 1;
 	else
-		vsynctime = vsynctime_orig = syncbase / fake_vblank_hz;
+		vsynctimebase = vsynctimebase_orig = syncbase / fake_vblank_hz;
 #if 0
 	if (!picasso_on) {
 		updatedisplayarea ();
@@ -3507,52 +3500,6 @@ static void DMACON (int hpos, uae_u16 v)
 	}
 
 	events_schedule();
-}
-
-
-void MISC_handler (void)
-{
-	static bool dorecheck;
-	bool recheck;
-	int i;
-	evt mintime;
-	evt ct = get_cycles ();
-	static int recursive;
-
-	if (recursive) {
-		dorecheck = true;
-		return;
-	}
-	recursive++;
-	eventtab[ev_misc].active = 0;
-	recheck = true;
-	while (recheck) {
-		recheck = false;
-		mintime = ~0L;
-		for (i = 0; i < ev2_max; i++) {
-			if (eventtab2[i].active) {
-				if (eventtab2[i].evtime == ct) {
-					eventtab2[i].active = false;
-					eventtab2[i].handler (eventtab2[i].data);
-					if (dorecheck || eventtab2[i].active) {
-						recheck = true;
-						dorecheck = false;
-					}
-				} else {
-					evt eventtime = eventtab2[i].evtime - ct;
-					if (eventtime < mintime)
-						mintime = eventtime;
-				}
-			}
-		}
-	}
-	if (mintime != ~0L) {
-		eventtab[ev_misc].active = true;
-		eventtab[ev_misc].oldcycles = ct;
-		eventtab[ev_misc].evtime = ct + mintime;
-		events_schedule ();
-	}
-	recursive--;
 }
 
 static int irq_nmi;
@@ -5195,11 +5142,10 @@ static void framewait (void)
 
 	if (vs > 0) {
 
-		vsyncmintime = vsynctime;
+		curr_time = read_processor_time ();
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
-		return;
 
 	} else if (vs < 0) {
 
@@ -5209,15 +5155,15 @@ static void framewait (void)
 		if (!vblank_hz_state)
 			return;
 
-		vsyncmintime = vsynctime;
-
 		if (vs == -2 || vs == -3) {
+
 			// fastest possible
-			curr_time = vsync_busywait_end ();
-			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
-			vsyncmintime = curr_time + vsynctime;
+			vsync_busywait_end ();
+			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
+			vsyncmintime = curr_time;
+			vsyncmaxtime = curr_time + vsynctimebase;
 
 		} else {
 
@@ -5225,7 +5171,7 @@ static void framewait (void)
 			bool show = show_screen_maybe (false);
 			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
-			vsyncmintime = curr_time + vsynctime;
+			vsyncmintime = curr_time + vsynctimebase;
 			if (!show) {	
 				show_screen ();
 				if (extraframewait)
@@ -5234,6 +5180,16 @@ static void framewait (void)
 			frame_shown = true;
 
 		}
+		return;
+	}
+	if (currprefs.m68k_speed < 0) {
+		curr_time = read_processor_time ();
+		if (curr_time - vsyncmaxtime >= 0 && curr_time - vsyncmaxtime < vsynctimebase) {
+			vsyncmaxtime = curr_time + vsynctimebase - (curr_time - vsyncmaxtime);
+		} else {
+			vsyncmaxtime = curr_time + vsynctimebase;
+		}
+		vsyncmintime = curr_time;
 		return;
 	}
 
@@ -5250,9 +5206,9 @@ static void framewait (void)
 	curr_time = start = read_processor_time ();
 	while (rpt_vsync () < 0)
 		rtg_vsynccheck ();
-	curr_time = read_processor_time ();
-	vsyncmintime = curr_time + vsynctime;
 	idletime += read_processor_time() - start;
+	curr_time = read_processor_time ();
+	vsyncmintime = vsyncmaxtime = curr_time + vsynctimebase;
 	if (didrender)
 		show_screen ();
 	frame_shown = true;
@@ -5285,7 +5241,7 @@ static void fpscounter (void)
 	frametime2 += last;
 	timeframes++;
 	if ((timeframes % mcnt) == 0) {
-		double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctime * mcnt));
+		double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctimebase * mcnt));
 		int fps = frametime2 == 0 ? 0 : (syncbase * mcnt) / (frametime2 / 10);
 		if (fps > 9999)
 			fps = 9999;
@@ -5369,48 +5325,12 @@ static void vsync_handler_post (void)
 	vsync_rendered = false;
 	frame_shown = false;
 
-	//write_log (L"%d %d %d\n", vsynctime, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
+	//write_log (L"%d %d %d\n", vsynctimebase, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
 	prevtime = read_processor_time ();
 
 	fpscounter ();
 
-	if (!isvsync_chipset ()
-#ifdef AVIOUTPUT
-		&& ((avioutput_framelimiter && avioutput_enabled) || !avioutput_enabled)
-#endif
-		) {
-#ifdef JIT
-			if (!currprefs.cachesize) {
-#endif
-				if (currprefs.m68k_speed < 0) {
-					frame_time_t curr_time = read_processor_time ();
-					vsyncmintime += vsynctime;
-					/* @@@ Mathias? How do you think we should do this? */
-					/* If we are too far behind, or we just did a reset, adjust the
-					* needed time. */
-					if ((long int)(curr_time - vsyncmintime) > 0 || rpt_did_reset)
-						vsyncmintime = curr_time + vsynctime;
-					rpt_did_reset = 0;
-					if (render_screen ())
-						show_screen ();
-					frame_shown = true;
-				} else {
-					framewait ();
-				}
-#ifdef JIT
-			} else {
-				if (currprefs.m68k_speed == 0) {
-					framewait ();
-				} else {
-					if (render_screen ())
-						show_screen ();
-					frame_shown = true;
-				}
-			}
-#endif
-	} else {
-		framewait ();
-	}
+	framewait ();
 
 #if CUSTOM_DEBUG > 1
 	if ((intreq & 0x0020) && (intena & 0x0020))
@@ -5465,41 +5385,6 @@ static void vsync_handler_post (void)
 
 	vsync_cycles = get_cycles ();
 }
-
-#ifdef JIT
-
-#define N_LINES 8
-
-STATIC_INLINE int trigger_frh (int v)
-{
-	return (v & (N_LINES - 1)) == 0;
-}
-
-static long int diff32 (frame_time_t x, frame_time_t y)
-{
-	return (long int)(x - y);
-}
-static void frh_handler (void)
-{
-	if (currprefs.m68k_speed < 0) {
-		frame_time_t curr_time = read_processor_time ();
-		vsyncmintime += vsynctime * N_LINES / maxvpos_nom;
-		/* @@@ Mathias? How do you think we should do this? */
-		/* If we are too far behind, or we just did a reset, adjust the
-		* needed time. */
-		if (rpt_did_reset) {
-			vsyncmintime = curr_time + vsynctime;
-			rpt_did_reset = 0;
-		}
-		/* Allow this to be one frame's worth of cycles out */
-		while (diff32 (curr_time, vsyncmintime + vsynctime) > 0) {
-			vsyncmintime += vsynctime * N_LINES / maxvpos_nom;
-			if (currprefs.turbo_emulation || vblank_found_chipset || vblank_found_rtg)
-				break;
-		}
-	}
-}
-#endif
 
 static void copper_check (int n)
 {
@@ -5699,7 +5584,7 @@ static void events_dmal_hsync (void)
 	events_dmal (7);
 }
 
-static bool is_vsync (void)
+static bool is_custom_vsync (void)
 {
 	int vp = vpos + 1;
 	int vpc = vpos_count + 1;
@@ -5902,25 +5787,47 @@ static void hsync_handler_post (bool onvsync)
 	}
 #endif
 
-
 	events_dmal_hsync ();
 
+	if (currprefs.m68k_speed < 0) {
+		if (vpos + 1 == maxvpos + lof_store) {
+			/* really last line, just run the cpu emulation until whole vsync time has been used */
+			is_syncline = 1;
+			vsyncmintime = vsyncmaxtime;
+		} else {
+			/* end of scanline, run cpu emulation as long as we still have time */
+			vsyncmintime += vsynctimebase / maxvpos_nom;
+			if (!vblank_found_chipset && (int)vsyncmaxtime - (int)vsyncmintime > 0) {
+				is_syncline = -1;
+				frame_time_t rpt = read_processor_time ();
+				/* No extra time left? Skip it */
+				if ((int)rpt - (int)vsyncmintime >= 0)
+					is_syncline = 0;
+			}
+		}
+	}
+
+#if 0
 #ifdef JIT
 	if (currprefs.cachesize) {
 		if (currprefs.m68k_speed < 0) {
 			jitcount++;
-			if (trigger_frh (jitcount)) {
+			if (isvsync () >= 0 && trigger_frh (jitcount)) {
 				frh_handler ();
 			}
-			is_lastline = trigger_frh (jitcount + 1) && ! rpt_did_reset;
+			is_syncline = (trigger_frh (jitcount + 1) && ! rpt_did_reset) ? -1 : 0;
+			//write_log (L"%d %d\n", jitcount & (N_LINES - 1), is_syncline);
 		} else {
-			is_lastline = 0;
+			is_syncline = 0;
 		}
+		if (vpos + 1 == maxvpos + lof_store)
+			is_syncline = 1;
 	} else {
 #endif
-		is_lastline = vpos + 1 == maxvpos + lof_store && currprefs.m68k_speed < 0;
+	is_syncline = (vpos + 1 == maxvpos + lof_store && currprefs.m68k_speed < 0) ? 1 : 0;
 #ifdef JIT
 	}
+#endif
 #endif
 
 	if (!nocustom ()) {
@@ -6020,7 +5927,7 @@ static void hsync_handler_post (bool onvsync)
 	if (diw_change > 0)
 		diw_change--;
 
-	if (is_lastline && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == 0) {
+	if (is_syncline > 0 && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == 0) {
 		/* fastest possible + last line and no vflip wait: render the frame as early as possible */
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed);
@@ -6030,6 +5937,7 @@ static void hsync_handler_post (bool onvsync)
 		}
 		frame_shown = true;
 	}
+
 	rtg_vsynccheck ();
 
 #if 0
@@ -6048,7 +5956,7 @@ static void hsync_handler_post (bool onvsync)
 
 static void hsync_handler (void)
 {
-	bool vs = is_vsync ();
+	bool vs = is_custom_vsync ();
 	hsync_handler_pre (vs);
 	if (vs) {
 		vsync_handler_pre ();

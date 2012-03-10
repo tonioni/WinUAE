@@ -3471,17 +3471,23 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	uae_u32 dos, crc, crc2;
 	int wasdelayed = drv->dskchange_time;
 	int sectable[MAX_SECTORS];
+	int oldcyl, oldside;
 
 	ret = 0;
+	*crc32 = 0;
+	oldcyl = drv->cyl;
+	oldside = side;
 	drv->cyl = 0;
 	side = 0;
-	*crc32 = 0;
-	if (!drive_insert (drv, p, num, p->floppyslots[num].df, true))
+	if (!drive_insert (drv, p, num, p->floppyslots[num].df, true) || !drv->diskfile) {
+		drv->cyl = oldcyl;
+		side = oldside;
 		return 1;
-	if (!drv->diskfile)
-		return 1;
+	}
 	*crc32 = zfile_crc32 (drv->diskfile);
 	decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, sectable, 1);
+	drv->cyl = oldcyl;
+	side = oldside;
 	if (sectable[0] == 0 || sectable[1] == 0) {
 		ret = 2;
 		goto end;

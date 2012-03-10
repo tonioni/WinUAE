@@ -1,4 +1,34 @@
 
+Beta 21: (Fastest possible vsync should be fixed finally, only some testing left to do)
+
+- Direct3D masks and scanlines fixed, forgotten testing code.. (b20)
+- 2.3.2 "stop the cpu and wait until blitter has finished if any blitter register is accessed while blitter is busy and
+  cpu mode is fastest possible" was broken and could cause side-effects in some situations.
+- Direct3D to DirectDraw fallback if DirectX is not recent enough crashed. (b5)
+- Keyboard lost sync state emulated, needed with some programs that don't handshake all buffered key codes but still clear
+  the CIA keyboard interrupt flag, this caused dead keyboard after b1 update. Now keyboard should be fully emulated.
+- Quickstart panel disk insert always reset track position to zero. (forgot to restore old track after checking disk
+  type and bootable state, bug since Quickstart was introduced!) Fixes Wrath of Demon disk swaps.
+- Z2 RTG changes broke chip RAM "memory barrier" causing crash if JIT executed code at the very end of chip RAM. (b16)
+  
+I finally really examined and even understood (I think..) how fastest possible and JIT modes handle CPU emulation,
+(in reality fastest possible without JIT didn't really handle it all, other UAE ports most likely have exact same issue):
+Some unnecessary and big event code inlining also removed (shorter code, should be faster on modern CPUs due to less cache trashing)
+
+- Huge improvement in fastest possible CPU (with or without JIT) + low latency vsync performance.
+- Fastest possible without JIT performance improved in non-vsync modes. It now executes small chunks of extra code after
+  each scanline instead (as long as there is time, the faster the host CPU, the more extra time there is) of single huge
+  chunk just before vsync. JIT basically does the same but because it has "unknown" timing, it may execute "too much"
+  code first and then skip multiple scanlines until there is enough time again.
+- Immediate blitter is now 100% immediate. Fastest possible (with or without JIT) performance greatly improved (10x+ possible!)
+  if program does lots of small blits. Previously, even in immediate blitter mode, blitter wait caused CPU emulator to waste
+  its extra "fastest possible time slot" by doing absolutely nothing else than waiting the blitter that never happened. It can't
+  happen until next scanline, during extra fastest CPU "slots" chipset emulation has to be paused.
+
+Fastest possible CPU throttling option will be also possible, this will be done later..
+
+NOTE: Above changes WILL break some games/demos that (accidentally) worked previously. It is 100% guaranteed!
+  
 Beta 20:
 
 - Fixed DirectDraw on screen led status bar surface allocation error when switching modes in some situations.

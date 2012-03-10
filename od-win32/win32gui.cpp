@@ -5410,7 +5410,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 			_tcscat (hz, L" NTSC");
 		if (type)
 			_tcscat (hz, L" (*)");
-		if (abs (workprefs.gfx_refreshrate) == freq)
+		if (abs (workprefs.gfx_apmode[0].gfx_refreshrate) == freq)
 			_tcscpy (hz2, hz);
 		SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)hz);
 	}
@@ -5420,7 +5420,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 	if (index == CB_ERR) {
 		WIN32GUI_LoadUIString (IDS_VSYNC_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
 		SendDlgItemMessage(hDlg, IDC_REFRESHRATE, CB_SELECTSTRING, i, (LPARAM)txt);
-		workprefs.gfx_refreshrate = 0;
+		workprefs.gfx_apmode[0].gfx_refreshrate = 0;
 	}
 }
 
@@ -6029,10 +6029,10 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			if (posn1 == CB_ERR)
 				return;
 			if (posn1 == 0) {
-				workprefs.gfx_refreshrate = 0;
+				workprefs.gfx_apmode[0].gfx_refreshrate = 0;
 			} else {
 				posn1--;
-				workprefs.gfx_refreshrate = md->DisplayModes[dmode].refresh[posn1];
+				workprefs.gfx_apmode[0].gfx_refreshrate = md->DisplayModes[dmode].refresh[posn1];
 			}
 			values_to_displaydlg (hDlg);
 		} else if (LOWORD (wParam) == IDC_DA_MODE) {

@@ -807,7 +807,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, L"gfx_height_windowed", L"%d", p->gfx_size_win.height);
 	cfgfile_write (f, L"gfx_width_fullscreen", L"%d", p->gfx_size_fs.width);
 	cfgfile_write (f, L"gfx_height_fullscreen", L"%d", p->gfx_size_fs.height);
-	cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_refreshrate);
+	cfgfile_write (f, L"gfx_refreshrate", L"%d", p->gfx_apmode[0].gfx_refreshrate);
+	cfgfile_dwrite (f, L"gfx_refreshrate_rtg", L"%d", p->gfx_apmode[1].gfx_refreshrate);
 	cfgfile_write_bool (f, L"gfx_autoresolution", p->gfx_autoresolution);
 	cfgfile_dwrite (f, L"gfx_autoresolution_min_vertical", vertmode[p->gfx_autoresolution_minv + 1]);
 	cfgfile_dwrite (f, L"gfx_autoresolution_min_horizontal", horizmode[p->gfx_autoresolution_minh + 1]);
@@ -1476,7 +1477,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, L"gfx_left_windowed", &p->gfx_size_win.y, 1)
 		|| cfgfile_intval (option, value, L"gfx_width_fullscreen", &p->gfx_size_fs.width, 1)
 		|| cfgfile_intval (option, value, L"gfx_height_fullscreen", &p->gfx_size_fs.height, 1)
-		|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_refreshrate, 1)
+		|| cfgfile_intval (option, value, L"gfx_refreshrate", &p->gfx_apmode[0].gfx_refreshrate, 1)
+		|| cfgfile_intval (option, value, L"gfx_refreshrate_rtg", &p->gfx_apmode[1].gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, L"gfx_autoresolution", &p->gfx_autoresolution)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers", &p->gfx_apmode[0].gfx_backbuffers, 1)
 		|| cfgfile_intval (option, value, L"gfx_backbuffers_rtg", &p->gfx_apmode[1].gfx_backbuffers, 1)
