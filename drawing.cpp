@@ -327,6 +327,7 @@ extern int first_planes_vpos, last_planes_vpos;
 extern int diwfirstword_total, diwlastword_total;
 extern int ddffirstword_total, ddflastword_total;
 extern int firstword_bplcon1;
+extern int lof_store;
 
 #define MIN_DISPLAY_W 256
 #define MIN_DISPLAY_H 192
@@ -377,12 +378,18 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (gclow > 0 && gcloh > 0)
 		ret = -1;
 
-	last_planes_vpos = (last_planes_vpos) & ~1;
-	plflastline_total = (plflastline_total) & ~1;
+	if (interlace_seen) {
+		// interlace = only use long frames
+		if (!lof_store)
+			return 1;
+		last_planes_vpos++;
+		plflastline_total++;
+	}
+
 	if (!plflastline_total)
 		plflastline_total = last_planes_vpos;
 
-	if (doublescan <= 0) {
+	if (doublescan <= 0 && !programmedmode) {
 		int min = coord_diw_to_window_x (92);
 		int max = coord_diw_to_window_x (460);
 		if (diwfirstword_total < min)
@@ -443,7 +450,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (w == 0 || h == 0)
 		return 0;
 
-	if (doublescan <= 0) {
+	if (doublescan <= 0 && !programmedmode) {
 		if ((w >> currprefs.gfx_resolution) < MIN_DISPLAY_W) {
 			dx += (w - (MIN_DISPLAY_W << currprefs.gfx_resolution)) / 2;
 			w = MIN_DISPLAY_W << currprefs.gfx_resolution;
@@ -467,7 +474,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 
 	if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
 		return ret;
-	if (doublescan <= 0) {
+	if (doublescan <= 0 && !programmedmode) {
 		if (dx > gfxvidinfo.outbuffer->inwidth / 3)
 			return ret;
 		if (dy > gfxvidinfo.outbuffer->inheight / 3)
@@ -482,11 +489,12 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	*ph = h;
 	*pdx = dx;
 	*pdy = dy;
-
+#if 1
 	write_log (L"Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
 	write_log (L"First: %d Last: %d MinV: %d MaxV: %d Min: %d\n",
 		plffirstline_total, plflastline_total,
 		first_planes_vpos, last_planes_vpos, minfirstline);
+#endif
 	return 1;
 }
 

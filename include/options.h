@@ -380,6 +380,7 @@ struct uae_prefs {
 	struct multipath path_cd;
 
 	int m68k_speed;
+	int m68k_speed_throttle;
 	int cpu_model;
 	int mmu_model;
 	int cpu060_revision;

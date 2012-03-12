@@ -132,7 +132,7 @@ struct ev2 eventtab2[ev2_max];
 
 int vpos;
 static int vpos_count, vpos_count_prev;
-static int lof_store; // real bit in custom registers
+int lof_store; // real bit in custom registers
 static int lof_current; // what display device thinks
 static int lol;
 static int next_lineno, prev_lineno;
@@ -189,6 +189,7 @@ double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
 int doublescan;
+bool programmedmode;
 frame_time_t syncbase;
 static int fmode;
 uae_u16 beamcon0, new_beamcon0;
@@ -2964,6 +2965,7 @@ void init_hz (bool fullinit)
 		vpos_count = vpos_count_prev = 0;
 
 	doublescan = 0;
+	programmedmode = false;
 	if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
 		hzc = 1;
 	if (beamcon0 != new_beamcon0) {
@@ -3017,6 +3019,7 @@ void init_hz (bool fullinit)
 		maxvpos_nom = maxvpos;
 		equ_vblank_endline = -1;
 		doublescan = htotal <= 164 ? 1 : 0;
+		programmedmode = true;
 		dumpsync ();
 		hzc = 1;
 	}
@@ -5143,6 +5146,7 @@ static void framewait (void)
 	if (vs > 0) {
 
 		curr_time = read_processor_time ();
+		vsyncmaxtime = curr_time + vsynctimebase;
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
@@ -5163,7 +5167,7 @@ static void framewait (void)
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
 			vsyncmintime = curr_time;
-			vsyncmaxtime = curr_time + vsynctimebase;
+			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100;
 
 		} else {
 
@@ -5185,9 +5189,9 @@ static void framewait (void)
 	if (currprefs.m68k_speed < 0) {
 		curr_time = read_processor_time ();
 		if (curr_time - vsyncmaxtime >= 0 && curr_time - vsyncmaxtime < vsynctimebase) {
-			vsyncmaxtime = curr_time + vsynctimebase - (curr_time - vsyncmaxtime);
+			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100 - (curr_time - vsyncmaxtime);
 		} else {
-			vsyncmaxtime = curr_time + vsynctimebase;
+			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100;
 		}
 		vsyncmintime = curr_time;
 		return;
@@ -5793,10 +5797,13 @@ static void hsync_handler_post (bool onvsync)
 		if (vpos + 1 == maxvpos + lof_store) {
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
 			is_syncline = 1;
-			vsyncmintime = vsyncmaxtime;
+			if (currprefs.m68k_speed_throttle)
+				vsyncmintime = read_processor_time (); /* end of CPU emulation time */
+			else
+				vsyncmintime = vsyncmaxtime; /* emulate if still time left */
 		} else {
 			/* end of scanline, run cpu emulation as long as we still have time */
-			vsyncmintime += vsynctimebase / maxvpos_nom;
+			vsyncmintime += (vsynctimebase * (100 - currprefs.m68k_speed_throttle)) / (maxvpos_nom * 100);
 			if (!vblank_found_chipset && (int)vsyncmaxtime - (int)vsyncmintime > 0) {
 				is_syncline = -1;
 				frame_time_t rpt = read_processor_time ();
@@ -5806,29 +5813,6 @@ static void hsync_handler_post (bool onvsync)
 			}
 		}
 	}
-
-#if 0
-#ifdef JIT
-	if (currprefs.cachesize) {
-		if (currprefs.m68k_speed < 0) {
-			jitcount++;
-			if (isvsync () >= 0 && trigger_frh (jitcount)) {
-				frh_handler ();
-			}
-			is_syncline = (trigger_frh (jitcount + 1) && ! rpt_did_reset) ? -1 : 0;
-			//write_log (L"%d %d\n", jitcount & (N_LINES - 1), is_syncline);
-		} else {
-			is_syncline = 0;
-		}
-		if (vpos + 1 == maxvpos + lof_store)
-			is_syncline = 1;
-	} else {
-#endif
-	is_syncline = (vpos + 1 == maxvpos + lof_store && currprefs.m68k_speed < 0) ? 1 : 0;
-#ifdef JIT
-	}
-#endif
-#endif
 
 	if (!nocustom ()) {
 		int lineno = vpos;

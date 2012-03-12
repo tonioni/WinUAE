@@ -3384,8 +3384,11 @@ STATIC_INLINE int do_specialties (int cycles)
 		}
 
 		if (!uae_int_requested && currprefs.cpu_idle && currprefs.m68k_speed != 0 && ((regs.spcflags & SPCFLAG_STOP)) == SPCFLAG_STOP) {
-			/* sleep 1ms if STOP-instruction is executed */
-			if (1) {
+			/* sleep 1ms if STOP-instruction is executed
+			 * but only if we have free frametime left to prevent slowdown
+			 */
+			frame_time_t rpt = read_processor_time ();
+			if ((int)rpt - (int)vsyncmaxtime < 0) {
 				static int sleepcnt, lvpos, zerocnt;
 				if (vpos != lvpos) {
 					sleepcnt--;

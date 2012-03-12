@@ -114,6 +114,7 @@ extern int hsyncstartpos;
 extern int minfirstline, vblank_endline, numscrlines;
 extern double vblank_hz, fake_vblank_hz;
 extern int vblank_skip, doublescan;
+extern bool programmedmode;
 extern frame_time_t syncbase;
 
 #define DMA_AUD0      0x0001

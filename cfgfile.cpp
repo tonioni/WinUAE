@@ -32,10 +32,11 @@
 #include "blkdev.h"
 #include "statusline.h"
 #include "debug.h"
+#include "calc.h"
 
 static int config_newfilesystem;
 static struct strlist *temp_lines;
-static struct zfile *default_file;
+static struct zfile *default_file, *configstore;
 static int uaeconfig;
 static int unicode_config = 0;
 
@@ -201,6 +202,7 @@ static const TCHAR *obsolete[] = {
 };
 
 #define UNEXPANDED L"$(FILE_PATH)"
+
 
 static void trimwsa (char *s)
 {
@@ -2659,8 +2661,69 @@ invalid_fs:
 	return 0;
 }
 
+
+static bool createconfigstore (struct uae_prefs*);
+static int getconfigstoreline (const TCHAR *option, TCHAR *value);
+
+static void calcformula (struct uae_prefs *prefs, TCHAR *in)
+{
+	TCHAR out[MAX_DPATH], configvalue[CONFIG_BLEN];
+	TCHAR *p = out;
+	double val;
+	int cnt1, cnt2;
+	static bool updatestore;
+
+	if (_tcslen (in) < 2 || in[0] != '[' || in[_tcslen (in) - 1] != ']')
+		return;
+	if (!configstore || updatestore)
+		createconfigstore (prefs);
+	updatestore = false;
+	if (!configstore)
+		return;
+	cnt1 = cnt2 = 0;
+	for (int i = 1; i < _tcslen (in) - 1; i++) {
+		TCHAR c = _totupper (in[i]);
+		if (c >= 'A' && c <='Z') {
+			TCHAR *start = &in[i];
+			while (_istalnum (c) || c == '_' || c == '.') {
+				i++;
+				c = in[i];
+			}
+			TCHAR store = in[i];
+			in[i] = 0;
+			//write_log (L"'%s'\n", start);
+			if (!getconfigstoreline (start, configvalue))
+				return;
+			_tcscpy (p, configvalue);
+			p += _tcslen (p);
+			in[i] = store;
+			i--;
+			cnt1++;
+		} else {
+			cnt2++;
+			*p ++= c;
+		}
+	}
+	*p = 0;
+	if (cnt1 == 0 && cnt2 == 0)
+		return;
+	/* single config entry only? */
+	if (cnt1 == 1 && cnt2 == 0) {
+		_tcscpy (in, out);
+		updatestore = true;
+		return;
+	}
+	if (calc (out, &val)) {
+		_stprintf (in, L"%d", (int)val);
+		updatestore = true;
+		return;
+	}
+}
+
 int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int type)
 {
+	calcformula (p, value);
+
 	if (!_tcscmp (option, L"debug")) {
 		write_log (L"CONFIG DEBUG: '%s'\n", value);
 		return 1;
@@ -2701,6 +2764,9 @@ static int cfgfile_separate_linea (const TCHAR *filename, char *line, TCHAR *lin
 	int i;
 
 	line1 = line;
+	line1 += strspn (line1, "\t \r\n");
+	if (*line1 == ';')
+		return 0;
 	line2 = strchr (line, '=');
 	if (! line2) {
 		TCHAR *s = au (line1);
@@ -2741,6 +2807,9 @@ static int cfgfile_separate_line (TCHAR *line, TCHAR *line1b, TCHAR *line2b)
 	int i;
 
 	line1 = line;
+	line1 += _tcsspn (line1, L"\t \r\n");
+	if (*line1 == ';')
+		return 0;
 	line2 = _tcschr (line, '=');
 	if (! line2) {
 		write_log (L"CFGFILE: line was incomplete with only %s\n", line1);
@@ -2859,6 +2928,40 @@ static void subst (TCHAR *p, TCHAR *f, int n)
 	_tcsncpy (f, str, n - 1);
 	f[n - 1] = '\0';
 	free (str);
+}
+
+static int getconfigstoreline (const TCHAR *option, TCHAR *value)
+{
+	TCHAR tmp[CONFIG_BLEN * 2], tmp2[CONFIG_BLEN * 2];
+	int idx = 0;
+
+	if (!configstore)
+		return 0;
+	zfile_fseek (configstore, 0, SEEK_SET);
+	for (;;) {
+		if (!zfile_fgets (tmp, sizeof tmp / sizeof (TCHAR), configstore))
+			return 0;
+		if (!cfgfile_separate_line (tmp, tmp2, value))
+			continue;
+		if (!_tcsicmp (option, tmp2))
+			return 1;
+	}
+}
+
+static bool createconfigstore (struct uae_prefs *p)
+{
+	uae_u8 zero = 0;
+	zfile_fclose (configstore);
+	configstore = zfile_fopen_empty (NULL, L"configstore", 50000);
+	if (!configstore)
+		return false;
+	zfile_fseek (configstore, 0, SEEK_SET);
+	uaeconfig++;
+	cfgfile_save_options (configstore, p, 0);
+	uaeconfig--;
+	cfg_write (&zero, configstore);
+	zfile_fseek (configstore, 0, SEEK_SET);
+	return true;
 }
 
 static char *cfg_fgets (char *line, int max, struct zfile *fh)
@@ -3449,23 +3552,6 @@ void cfgfile_addcfgparam (TCHAR *line)
 	temp_lines = u;
 }
 
-static int getconfigstoreline (struct zfile *z, TCHAR *option, TCHAR *value)
-{
-	TCHAR tmp[CONFIG_BLEN * 2];
-	int idx = 0;
-
-	for (;;) {
-		TCHAR b = 0;
-		if (zfile_fread (&b, 1, sizeof (TCHAR), z) != 1)
-			return 0;
-		tmp[idx++] = b;
-		tmp[idx] = 0;
-		if (b == '\n' || b == 0)
-			break;
-	}
-	return cfgfile_separate_line (tmp, option, value);
-}
-
 #if 0
 static int cfgfile_handle_custom_event (TCHAR *custom, int mode)
 {
@@ -3591,7 +3677,6 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 	int argv, i;
 	uae_u32 err;
 	TCHAR zero = 0;
-	static struct zfile *configstore;
 	static TCHAR *configsearch;
 	static int configsearchfound;
 
@@ -3688,22 +3773,15 @@ uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, u
 	argv = cmdlineparser (parms, argc, UAELIB_MAX_PARSE);
 
 	if (argv <= 1 && index == 0xffffffff) {
-		zfile_fclose (configstore);
+		createconfigstore (&currprefs);
 		xfree (configsearch);
-		configstore = zfile_fopen_empty (NULL, L"configstore", 50000);
 		configsearch = NULL;
-		if (argv > 0 && _tcslen (argc[0]) > 0)
-			configsearch = my_strdup (argc[0]);
 		if (!configstore) {
 			err = 20;
 			goto end;
 		}
-		zfile_fseek (configstore, 0, SEEK_SET);
-		uaeconfig++;
-		cfgfile_save_options (configstore, &currprefs, 0);
-		uaeconfig--;
-		cfg_write (&zero, configstore);
-		zfile_fseek (configstore, 0, SEEK_SET);
+		if (argv > 0 && _tcslen (argc[0]) > 0)
+			configsearch = my_strdup (argc[0]);
 		err = 0xffffffff;
 		configsearchfound = 0;
 		goto end;
@@ -4062,6 +4140,7 @@ void default_prefs (struct uae_prefs *p, int type)
 
 	p->fpu_model = 0;
 	p->cpu_model = 68000;
+	p->m68k_speed_throttle = 0;
 	p->cpu_clock_multiplier = 0;
 	p->cpu_frequency = 0;
 	p->mmu_model = 0;

@@ -1,4 +1,10 @@
 
+Beta 22: (RC1)
+
+- CPU Idle limit added, do not sleep if there are no frame time left, no more slowdowns if CPU Idle is set too high.
+- Only use long frames to recalculate interlace autoscale positiong. (Autoscale jitter in some interlace setups)
+- Autoscale didn't always ignore standard mode display limits when displaying programmed display modes.
+  
 Beta 21: (Fastest possible vsync should be fixed finally, only some testing left to do)
 
 - Direct3D masks and scanlines fixed, forgotten testing code.. (b20)

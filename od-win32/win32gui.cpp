@@ -12170,8 +12170,6 @@ static void input_toggleautofire (void)
 		return;
 	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, name, custom, input_selected_sub_num);
-	if (evt <= 0)
-		return;
 	if ((flags & (IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET)) == (IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET))
 		flags &= ~(IDEV_MAPPED_INVERTTOGGLE | IDEV_MAPPED_AUTOFIRE_SET);
 	else if (flags & IDEV_MAPPED_AUTOFIRE_SET) {

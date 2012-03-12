@@ -2256,7 +2256,9 @@ TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z)
 				break;
 			}
 			*p = z->data[z->seek++];
-			if (*p == '\n') {
+			if (*p == 0 && i == 0)
+				return NULL;
+			if (*p == '\n' || *p == 0) {
 				p++;
 				break;
 			}

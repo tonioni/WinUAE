@@ -5750,6 +5750,7 @@ void fpux_restore (int *v)
 typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
+
 int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
 	SETPROCESSDPIAWARE pSetProcessDPIAware;
@@ -5797,6 +5798,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		pSetProcessDPIAware ();
 	log_open (NULL, 0, 0);
 
+	
 	__try {
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);
 	} __except(WIN32_ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
