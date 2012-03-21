@@ -183,15 +183,27 @@ void my_close (struct my_openfile_s *mos)
 
 uae_s64 int my_lseek (struct my_openfile_s *mos, uae_s64 int offset, int whence)
 {
-	LARGE_INTEGER li;
+	LARGE_INTEGER li, old;
 
+	old.QuadPart = 0;
+	old.LowPart = SetFilePointer (mos->h, 0, &old.HighPart, FILE_CURRENT);
+	if (old.LowPart == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR)
+		return -1;
 	li.QuadPart = offset;
 	li.LowPart = SetFilePointer (mos->h, li.LowPart, &li.HighPart,
 		whence == SEEK_SET ? FILE_BEGIN : (whence == SEEK_END ? FILE_END : FILE_CURRENT));
 	if (li.LowPart == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR)
-		li.QuadPart = -1;
+		return -1;
+	return old.QuadPart;
+}
+uae_s64 int my_fsize (struct my_openfile_s *mos)
+{
+	LARGE_INTEGER li;
+	if (!GetFileSizeEx (mos->h, &li))
+		return -1;
 	return li.QuadPart;
 }
+
 
 unsigned int my_read (struct my_openfile_s *mos, void *b, unsigned int size)
 {
@@ -339,6 +351,8 @@ int dos_errno (void)
 	case ERROR_BAD_UNIT:
 	case ERROR_REQUEST_ABORTED:
 	case ERROR_INVALID_HANDLE:
+	case ERROR_BAD_NETPATH:
+	case ERROR_DEV_NOT_EXIST:
 		return ERROR_OBJECT_NOT_AROUND;
 
 	case ERROR_HANDLE_DISK_FULL:

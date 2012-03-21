@@ -2795,7 +2795,6 @@ void target_fixup_options (struct uae_prefs *p)
 {
 	if (p->win32_automount_cddrives && !p->scsi)
 		p->scsi = 1;
-
 	bool paused = false;
 	bool nosound = false;
 	if (!paused) {

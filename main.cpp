@@ -133,8 +133,6 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	fixup_prefs_dim2 (&prefs->gfx_size_win);
 	if (prefs->gfx_apmode[1].gfx_vsync)
 		prefs->gfx_apmode[1].gfx_vsyncmode = 1;
-	if (prefs->gfx_apmode[0].gfx_vsync && !prefs->gfx_apmode[0].gfx_vsyncmode && prefs->gfx_apmode[0].gfx_backbuffers < 1)
-		prefs->gfx_apmode[0].gfx_backbuffers = 1;
 
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
@@ -149,6 +147,8 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			} else {
 				// legacy vsync: always wait for flip
 				ap->gfx_vflip = -1;
+				if (ap->gfx_backbuffers < 1)
+					ap->gfx_backbuffers = 1;
 			}
 		} else {
 			// no vsync: wait if triple bufferirng

@@ -505,6 +505,9 @@
     <ClCompile Include="..\..\calc.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\isofs.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

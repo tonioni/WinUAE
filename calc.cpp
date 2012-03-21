@@ -3,9 +3,6 @@
 *
 * Infix->RPN conversion and calculation
 *
-* Copyright 1995-2002 Bernd Schmidt
-* Copyright 1995 Alessandro Bissacco
-* Copyright 2000-2010 Toni Wilen
 */
 
 

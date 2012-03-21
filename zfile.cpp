@@ -3282,9 +3282,14 @@ int zfile_stat_archive (const TCHAR *path, struct _stat64 *s)
 
 uae_s64 zfile_lseek_archive (struct zfile *d, uae_s64 offset, int whence)
 {
-	if (zfile_fseek (d, offset, whence))
+	uae_s64 old = zfile_ftell (d);
+	if (old < 0 || zfile_fseek (d, offset, whence))
 		return -1;
-	return zfile_ftell (d);
+	return old;
+}
+uae_s64 zfile_fsize_archive (struct zfile *d)
+{
+	return zfile_size (d);
 }
 
 unsigned int zfile_read_archive (struct zfile *d, void *b, unsigned int size)

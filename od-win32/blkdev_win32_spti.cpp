@@ -663,6 +663,7 @@ bool win32_spti_media_change (TCHAR driveletter, int insert)
 			if (unitnum >= 0) {
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
+				filesys_do_disk_change (unitnum, insert != 0);
 				blkdev_cd_change (unitnum, di->drvletter ? di->drvlettername : di->name);
 				return true;
 			}

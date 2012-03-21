@@ -143,7 +143,7 @@ static int win32_error (struct dev_info_ioctl *ciw, int unitnum, const TCHAR *fo
 	if (err == ERROR_WRONG_DISK) {
 		write_log (L"IOCTL: media change, re-opening device\n");
 		sys_cddev_close (ciw, unitnum);
-		if (!sys_cddev_open (ciw, unitnum))
+		if (sys_cddev_open (ciw, unitnum))
 			write_log (L"IOCTL: re-opening failed!\n");
 		return -1;
 	}
@@ -1409,6 +1409,7 @@ bool win32_ioctl_media_change (TCHAR driveletter, int insert)
 			if (unitnum >= 0) {
 				update_device_info (unitnum);
 				scsi_do_disk_change (unitnum, insert, NULL);
+				filesys_do_disk_change (unitnum, insert != 0);
 				blkdev_cd_change (unitnum, ciw->drvlettername);
 				return true;
 			}

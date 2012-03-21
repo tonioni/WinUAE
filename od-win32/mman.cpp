@@ -466,13 +466,10 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		}
 		if(!_tcscmp (shmids[shmid].name, L"ramsey_low")) {
 			shmaddr=natmem_offset + a3000lmem_start;
-			if (!currprefs.mbresmem_high_size)
-				size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"ramsey_high")) {
 			shmaddr=natmem_offset + a3000hmem_start;
-			size += BARRIER;
 			got = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, L"z3")) {

@@ -10,20 +10,26 @@ struct zfile;
 struct zvolume;
 struct zdirectory;
 
+#define FS_DIRECTORY 0
+#define FS_ARCHIVE 1
+#define FS_CDFS 2
+
 struct fs_dirhandle
 {
-	int isarch;
+	int fstype;
 	union {
 		struct zdirectory *zd;
 		struct my_opendir_s *od;
+		struct cd_opendir_s *isod;
 	};
 };
 struct fs_filehandle
 {
-	int isarch;
+	int fstype;
 	union {
 		struct zfile *zf;
 		struct my_openfile_s *of;
+		struct cd_openfile_s *isof;
 	};
 };
 
@@ -118,6 +124,7 @@ extern int zfile_readdir_archive (struct zdirectory *, TCHAR*, bool fullpath);
 extern void zfile_resetdir_archive (struct zdirectory *);
 extern int zfile_fill_file_attrs_archive (const TCHAR *path, int *isdir, int *flags, TCHAR **comment);
 extern uae_s64 zfile_lseek_archive (struct zfile *d, uae_s64 offset, int whence);
+extern uae_s64 zfile_fsize_archive (struct zfile *d);
 extern unsigned int zfile_read_archive (struct zfile *d, void *b, unsigned int size);
 extern void zfile_close_archive (struct zfile *d);
 extern struct zfile *zfile_open_archive (const TCHAR *path, int flags);

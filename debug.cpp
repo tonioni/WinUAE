@@ -3052,35 +3052,39 @@ static void debug_sprite (TCHAR **inptr)
 					ww2 = get_long (addr2 + 4);
 				}
 			} else if (size == 4) {
-				w1 = get_long (addr) << 16;
-				w2 = get_long (addr + 4) << 16;
-				w1 <<= 16;
-				w2 <<= 16;
-				w1 |= get_long (addr);
-				w2 |= get_long (addr2 + 4);
+				w1 = get_long (addr + 0);
+				w2 = get_long (addr + 8);
+				w1 <<= 32;
+				w2 <<= 32;
+				w1 |= get_long (addr + 4);
+				w2 |= get_long (addr + 12);
 				if (addr2) {
-					ww1 = get_long (addr2) << 16;
-					ww2 = get_long (addr2 + 4) << 16;
-					ww1 <<= 16;
-					ww2 <<= 16;
-					ww1 |= get_long (addr2);
-					ww2 |= get_long (addr2 + 4);
+					ww1 = get_long (addr2 + 0);
+					ww2 = get_long (addr2 + 8);
+					ww1 <<= 32;
+					ww2 <<= 32;
+					ww1 |= get_long (addr2 + 4);
+					ww2 |= get_long (addr2 + 12);
 				}
 			}
 			width = size * 16;
 			for (x = 0; x < width; x++) {
-				int v1 = (w1 >> (width - x)) & 1;
-				int v2 = (w2 >> (width - x)) & 1;
+				int v1 = w1 & 1;
+				int v2 = w2 & 1;
 				int v = v1 * 2 + v2;
+				w1 >>= 1;
+				w2 >>= 1;
 				if (addr2) {
-					int vv1 = (ww1 >> (width - x)) & 1;
-					int vv2 = (ww2 >> (width - x)) & 1;
+					int vv1 = ww1 & 1;
+					int vv2 = ww2 & 1;
 					int vv = vv1 * 2 + vv2;
+					vv1 >>= 1;
+					vv2 >>= 1;
 					v *= 4;
 					v += vv;
-					tmp[x] = v >= 10 ? 'A' + v - 10 : v + '0';
+					tmp[width - (x + 1)] = v >= 10 ? 'A' + v - 10 : v + '0';
 				} else {
-					tmp[x] = v + '0';
+					tmp[width - (x + 1)] = v + '0';
 				}
 			}
 			tmp[width] = 0;
@@ -3089,7 +3093,7 @@ static void debug_sprite (TCHAR **inptr)
 
 		console_out_f (L"Sprite address %08X, width = %d\n", saddr, size * 16);
 		console_out_f (L"OCS: StartX=%d StartY=%d EndY=%d\n", xpos, ypos, ypose);
-		console_out_f (L"ECS: StartX=%d (%d.%d) StartY=%d EndY=%d%s\n", xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs, ecs ? " (*)" : "");
+		console_out_f (L"ECS: StartX=%d (%d.%d) StartY=%d EndY=%d%s\n", xpos_ecs, xpos_ecs / 4, xpos_ecs & 3, ypos_ecs, ypose_ecs, ecs ? L" (*)" : L"");
 		console_out_f (L"Attach: %d. AGA SSCAN/SH10 bit: %d\n", attach, sh10);
 
 		addr += size * 4;

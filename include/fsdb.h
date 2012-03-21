@@ -71,7 +71,7 @@ typedef struct a_inode_struct {
     /* AmigaOS protection bits.  */
     int amigaos_mode;
     /* Unique number for identification.  */
-    uae_u32 uniq;
+    uae_u64 uniq;
     /* For a directory that is being ExNext()ed, the number of child ainos
        which must be kept locked in core.  */
     unsigned long locked_children;
@@ -95,6 +95,7 @@ typedef struct a_inode_struct {
     unsigned int volflags;
     /* not equaling unit.mountcount -> not in this volume */
     unsigned int mountcount;
+	uae_u64 uniq_external;
 #ifdef AINO_DEBUG
     uae_u32 checksum2;
 #endif
@@ -142,6 +143,7 @@ void my_setfilehidden (const TCHAR *path, bool hidden);
 extern struct my_openfile_s *my_open (const TCHAR*, int);
 extern void my_close (struct my_openfile_s*);
 extern uae_s64 my_lseek (struct my_openfile_s*, uae_s64, int);
+extern uae_s64 my_fsize (struct my_openfile_s*);
 extern unsigned int my_read (struct my_openfile_s*, void*, unsigned int);
 extern unsigned int my_write (struct my_openfile_s*, void*, unsigned int);
 extern int my_truncate (const TCHAR *name, uae_u64 len);
@@ -159,5 +161,6 @@ extern int custom_fsdb_used_as_nname (a_inode *base, const TCHAR *nname);
 #define MYVOLUMEINFO_STREAMS 2
 #define MYVOLUMEINFO_ARCHIVE 4
 #define MYVOLUMEINFO_REUSABLE 8
+#define MYVOLUMEINFO_CDFS 16
 
 extern int my_getvolumeinfo (const TCHAR *root);

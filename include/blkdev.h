@@ -205,3 +205,4 @@ extern void blkdev_cd_change (int unitnum, const TCHAR *name);
 extern void blkdev_entergui (void);
 extern void blkdev_exitgui (void);
 
+bool filesys_do_disk_change (int, bool);

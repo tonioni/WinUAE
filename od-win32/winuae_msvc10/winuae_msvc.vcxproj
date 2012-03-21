@@ -560,6 +560,7 @@
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
+    <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />

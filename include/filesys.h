@@ -92,6 +92,8 @@ struct hd_hardfiledata {
 
 #define MAX_FILESYSTEM_UNITS 30
 
+#define USE_CDFS 2
+
 struct uaedev_mount_info;
 extern struct uaedev_mount_info options_mountinfo;
 

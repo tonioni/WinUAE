@@ -1,4 +1,35 @@
 
+Beta 23:
+
+- CPU Idle change improved, b22 caused major slowdowns on some systems.
+- MB RAM option + JIT enabled detected wrong amount of RAM. (Can't have extra memory barrier there)
+- Directory filesystem ACTION_DISK_INFO and seek updates (ACTION SEEK had some problems in archive mode)
+- Sprite debugger showed 64-bit AGA sprite shape totally wrong.
+- END + PrinScreen (Screenshot to file) used incorrectly screenshot to clipoard input event.
+- Legacy vsync was horribly slow (b22)
+- optimized normal safe "unixfs warning: Bad pointer passed for read" directory filesystem situation.
+- added win32 ERROR_BAD_NETPATH = AOS ERROR_OBJECT_NOT_AROUND mapping directory filesystem error handler.
+- improved filesystem volume insert/removal stability.
+- config file/uae-configuration/custom input math formula (+-*/ and parenthesis) support.
+  For example it is now possible to increase or decrease any numeric configuration entry,
+  very simple example: "gfx_filter_horiz_offset=[gfx_filter_horiz_offset+1]". Multiple variables and
+  complex formulas fully supported. This was already in previous beta because it was too experimental,
+  but I guess it can be considered "official" now because of CDFS delay..
+- A500 advanced chipset extra option always enabled RTC (real time clock), should have been enabled only
+  when more than 0.5M RAM configured.
+- built-in AOS CDFS removed, unfortunately it is not license compatible (non-commercial usage only).
+  I was too blind to not notice it months ago.
+- CDFS replaced with host native Linux isofs/directory filesystem wrapper which works quite differently
+  but should have exactly same behavior from Amiga program point of view. Uses filesystem emulation but
+  accesses CD data using Linux isofs filesystem code that directly reads CD sectors via IOCTL native API
+  or UAE built-in CD image support.
+  Amiga specific rock ridge 'AS' extension (protection flags and file comment) is not supported yet.
+  Does anyone know any example CDs or images?
+- AROS ROM updated.
+
+New isofs/directory filesystem CDFS hybrid needs testing! 2.4.0 final waits until CDFS is guaranteed working.
+
+
 Beta 22: (RC1)
 
 - CPU Idle limit added, do not sleep if there are no frame time left, no more slowdowns if CPU Idle is set too high.

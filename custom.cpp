@@ -5150,6 +5150,7 @@ static void framewait (void)
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
+		return;
 
 	} else if (vs < 0) {
 
