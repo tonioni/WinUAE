@@ -305,7 +305,7 @@ BEGIN
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,154,119,10
     CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,166,121,10
     CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,178,101,10
-    CONTROL         "CDFS automount CD/DVD drives.",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,190,160,10
+    CONTROL         "CDFS automount CD/DVD drives",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,190,160,10
     CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,178,115,10
     CONTROL         "Include removable drives..",IDC_MAPDRIVES_REMOVABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,166,100,10

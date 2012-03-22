@@ -64,6 +64,9 @@ struct inode
 	bool linked;
 	int usecnt;
 	int lockcnt;
+	bool i_isaflags;
+	uae_u8 i_aflags;
+	TCHAR *i_comment;
 };
 
 struct super_block
@@ -86,6 +89,7 @@ static void free_inode(struct inode *inode)
 		return;
 	inode->i_sb->inode_cnt--;
 	xfree(inode->name);
+	xfree(inode->i_comment);
 	xfree(inode);
 }
 
@@ -110,11 +114,11 @@ static void unlock_inode(struct inode *inode)
 static void iput(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
-	struct inode *in;
 
 	if (!inode || inode->linked)
 		return;
 #if 0
+	struct inode *in;
 	while (inode->i_sb->inode_cnt > MAX_CACHE_INODE_COUNT) {
 		/* not very fast but better than nothing.. */
 		struct inode *minin = NULL, *mininprev = NULL;
@@ -143,9 +147,10 @@ static void iput(struct inode *inode)
 	sb->inode_cnt++;
 }
 
-static struct inode *find_inode(struct super_block *sb, uae_u32 uniq)
+static struct inode *find_inode(struct super_block *sb, uae_u64 uniq)
 {
 	struct inode *inode = sb->inodes;
+	/* Need hash tables... Later... */
 	while (inode) {
 		if (inode->i_ino == uniq) {
 			inode->usecnt++;
@@ -878,9 +883,6 @@ repeat:
 			goto out;	/* Something got screwed up here */
 
 		switch (sig) {
-		case SIG('A', 'S'):
-			write_log (L"Amiga rockridge extension not yet implemented!\n");
-			break;
 		case SIG('R', 'R'):
 			if ((rr->u.RR.flags[0] & RR_NM) == 0)
 				goto out;
@@ -985,13 +987,26 @@ repeat:
 			goto out;	/* Something got screwed up here */
 
 		switch (sig) {
-#ifndef CONFIG_ZISOFS		/* No flag for SF or ZF */
-		case SIG('R', 'R'):
-			if ((rr->u.RR.flags[0] &
-			     (RR_PX | RR_TF | RR_SL | RR_CL)) == 0)
-				goto out;
+		case SIG('A', 'S'):
+		{
+			char *p = &rr->u.AS.data[0];
+			if (rr->u.AS.flags & 1) { // PROTECTION
+				inode->i_isaflags = true;
+				inode->i_aflags = p[3];
+				p += 4;
+			}
+			if (rr->u.AS.flags & 2) { // COMMENT
+				const int maxcomment = 80;
+				if (!inode->i_comment)
+					inode->i_comment = xcalloc (TCHAR, maxcomment + 1);
+				int l = p[0];
+				char t = p[l];
+				p[l] = 0;
+				au_copy (inode->i_comment + _tcslen (inode->i_comment), maxcomment + 1 - l, p + 1);
+				p[l] = t;
+			}
 			break;
-#endif
+		}
 		case SIG('S', 'P'):
 			if (check_sp(rr, inode))
 				goto out;
@@ -2386,15 +2401,21 @@ bool isofs_readdir(struct cd_opendir_s *od, TCHAR *name, uae_u64 *uniq)
 	return do_isofs_readdir(od->inode, &od->f, od->tmp1, (struct iso_directory_record*)od->tmp2, name, uniq) != 0;
 }
 
-void isofss_fill_file_attrs(void *sbp, uae_u64 parent, int *dir, int *flags, uae_u64 uniq)
+void isofss_fill_file_attrs(void *sbp, uae_u64 parent, int *dir, int *flags, TCHAR **comment, uae_u64 uniq)
 {
 	struct super_block *sb = (struct super_block*)sbp;
 	struct inode *inode = find_inode(sb, uniq);
 	if (!inode)
 		return;
 
+	*comment = NULL;
 	*dir = XS_ISDIR(inode->i_mode) ? 1 : 0;
-	*flags = 0;
+	if (inode->i_isaflags)
+		*flags = inode->i_aflags;
+	else
+		*flags = 0;
+	if (inode->i_comment)
+		*comment = my_strdup(inode->i_comment);
 }
 
 void isofs_stat(void *sbp, uae_u64 uniq, struct _stat64 *statbuf)
@@ -2432,6 +2453,31 @@ bool isofs_exists(void *sbp, uae_u64 parent, const TCHAR *name, uae_u64 *uniq)
 		return true;
 	}
 	return false;
+}
+
+void isofs_dispose_inode(void *sbp, uae_u64 uniq)
+{
+	struct super_block *sb = (struct super_block*)sbp;
+	struct inode *inode;
+	struct inode *old = NULL, *prev = NULL;
+
+	inode = sb->inodes;
+	while (inode) {
+		if (inode->i_ino == uniq) {
+			old = inode;
+			break;
+		}
+		prev = inode;
+		inode = inode->next;
+	}
+	if (!old)
+		return;
+
+	if (prev)
+		prev->next = old->next;
+	else
+		sb->inodes = old->next;
+	free_inode(old);
 }
 
 struct cd_openfile_s

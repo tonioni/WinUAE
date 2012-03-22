@@ -1554,6 +1554,13 @@ static void dispose_aino (Unit *unit, a_inode **aip, a_inode *aino)
 		fsdb_dir_writeback (aino->parent);
 
 	*aip = aino->sibling;
+
+	if (unit->volflags & MYVOLUMEINFO_ARCHIVE) {
+		;
+	} else if (unit->volflags & MYVOLUMEINFO_CDFS) {
+		isofs_dispose_inode (unit->ui.cdfs_superblock, aino->uniq_external);
+	}
+
 	xfree (aino->aname);
 	xfree (aino->comment);
 	xfree (aino->nname);
@@ -1905,11 +1912,13 @@ static int fill_file_attrs (Unit *u, a_inode *base, a_inode *c)
 		return 1;
 	} else if (u->volflags & MYVOLUMEINFO_CDFS) {
 		int isdir, flags;
-		isofss_fill_file_attrs (u->ui.cdfs_superblock, base->uniq_external, &isdir, &flags, c->uniq_external);
+		TCHAR *comment;
+		isofss_fill_file_attrs (u->ui.cdfs_superblock, base->uniq_external, &isdir, &flags, &comment, c->uniq_external);
 		c->dir = isdir;
 		c->amigaos_mode = 0;
 		if (flags >= 0)
 			c->amigaos_mode = flags;
+		c->comment = comment;
 		return 1;
 	} else {
 		return fsdb_fill_file_attrs (base, c);
@@ -3344,7 +3353,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
 		zfile_stat_archive (aino->nname, &statbuf);
 	else if (unit->volflags & MYVOLUMEINFO_CDFS)
-		;
+		isofs_stat (unit->cdfs_superblock, aino->uniq_external, &statbuf);
 	else
 		stat (aino->nname, &statbuf);
 
@@ -5881,6 +5890,13 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 		write_log (L"First block %d read failed!\n", block);
 	}
 	xfree (s);
+
+	if ((uae_u64)highcyl * spt * surfaces * blocksize > hfd->virtsize) {
+		write_log (L"RDB: WARNING: end of partition > size of disk! (%I64u > %I64u)\n",
+			(uae_u64)highcyl * spt * surfaces * blocksize, hfd->virtsize);
+	}
+
+
 }
 
 static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, uae_u8 *buf, int readblocksize)
@@ -6021,6 +6037,11 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		write_log (L"RDSK dump end\n");
 	}
 
+	if ((uae_u64)hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->virtsize) {
+		write_log (L"RDB: WARNING: RDSK header disk size > disk size! (%I64u > %I64u)\n",
+			(uae_u64)hfd->cylinders * hfd->sectors * hfd->heads, hfd->virtsize);
+	}
+
 	for (i = 0; i <= partnum; i++) {
 		if (i == 0)
 			partblock = rl (bufrdb + 28);
@@ -6066,9 +6087,6 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		err = -1;
 		goto error;
 	}
-
-	if ((uae_u64)hfd->cylinders * hfd->sectors * hfd->heads * blocksize > hfd->virtsize)
-		write_log (L"RDB: WARNING: end of partition > size of disk!\n");
 
 	err = 2;
 
@@ -6324,7 +6342,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 		put_long (parmpacket + 64, 0); /* Buffer mem type */
 		put_long (parmpacket + 68, 0x7FFFFFFF); /* largest transfer */
 		put_long (parmpacket + 72, ~1); /* addMask (?) */
-		put_long (parmpacket + 76, scsi_get_cd_drive_media_mask () & (1 << cd_unit_no) ? -80 : -128); /* bootPri */
+		put_long (parmpacket + 76, scsi_get_cd_drive_media_mask () & (1 << cd_unit_no) ? -127 : -128); /* bootPri */
 		put_long (parmpacket + 80, CDFS_DOSTYPE);
 		put_long (parmpacket + 84, 0); /* baud */
 		put_long (parmpacket + 88, cdfs_control >> 2); /* Control. BSTR! */

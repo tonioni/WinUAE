@@ -311,7 +311,7 @@ static const uae_u8 plen[128] = {
 	1,1,2,1,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-#define DBGOUT_MIDI_BYTE(x) TRACE(( "MIDI: 0x%02x\n", (x) ))
+#define DBGOUT_MIDI_BYTE(x) TRACE((L"MIDI: 0x%02x\n", (x) ))
 
 /*
 * FUNCTION:   Midi_Parse
@@ -345,16 +345,16 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 				switch(data)
 				{
 				case MIDI_CLOCK:
-					TRACE(( "MIDI: MIDI_CLOCK\n" ));
+					TRACE((L"MIDI: MIDI_CLOCK\n" ));
 					break;
 				case MIDI_START:
-					TRACE(( "MIDI: MIDI_START\n" ));
+					TRACE((L"MIDI: MIDI_START\n" ));
 					break;
 				case MIDI_CONTINUE:
-					TRACE(( "MIDI: MIDI_CONTINUE\n" ));
+					TRACE((L"MIDI: MIDI_CONTINUE\n" ));
 					break;
 				case MIDI_STOP:
-					TRACE(( "MIDI: MIDI_STOP\n" ));
+					TRACE((L"MIDI: MIDI_STOP\n" ));
 					break;
 				default:
 					break;
@@ -432,7 +432,7 @@ static long midi_inptr = 0, midi_inlast = 0;
 static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-		TRACE(("add1byte buffer full %d %d (%02X)\n", midi_inlast, midi_inptr, w));
+		TRACE((L"add1byte buffer full %d %d (%02X)\n", midi_inlast, midi_inptr, w));
 		return;
 	}
 	midibuf[midi_inlast++] = (uae_u8)w;
@@ -440,7 +440,7 @@ static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-		TRACE(("add2byte buffer full %d %d (%04X)\n", midi_inlast, midi_inptr, w));
+		TRACE((L"add2byte buffer full %d %d (%04X)\n", midi_inlast, midi_inptr, w));
 		return;
 	}
 	midibuf[midi_inlast++] = (uae_u8)w;
@@ -450,7 +450,7 @@ static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
 	if(midi_inlast >= BUFFLEN - 10) {
-		TRACE(("add3byte buffer full %d %d (%08X)\n", midi_inlast, midi_inptr, w));
+		TRACE((L"add3byte buffer full %d %d (%08X)\n", midi_inlast, midi_inptr, w));
 		return;
 	}
 	midibuf[midi_inlast++] = (uae_u8)w;
@@ -479,7 +479,7 @@ LONG getmidibyte(void) //return midibyte or -1 if none
 		gui_message(szMessage);
 		overflow = 0;
 	}
-	TRACE(("getmidibyte(%02X)\n", midibuf[midi_inptr]));
+	TRACE((L"getmidibyte(%02X)\n", midibuf[midi_inptr]));
 	if (midibuf[midi_inptr] >= 0xf0) { // only check for free buffers if status sysex
 		for (i = 0;i < MIDI_INBUFFERS;i++) {
 			if (midiin[i].dwFlags == (MHDR_DONE|MHDR_PREPARED)) {
@@ -503,23 +503,23 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 {
 	EnterCriticalSection (&cs_proc);
 	if(wMsg == MIM_ERROR) {
-		TRACE(("MIDI Data Lost\n"));
+		TRACE((L"MIDI Data Lost\n"));
 	}
 	if(wMsg == MIM_LONGDATA) {
 		LPMIDIHDR midiin = (LPMIDIHDR)dwParam1;
-		TRACE(("MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
+		TRACE((L"MIM_LONGDATA bytes=%d ts=%u\n", midiin->dwBytesRecorded, dwParam2));
 		if (exitin == 1)
 			goto end; //for safeness midi want close
 		if ((midi_inlast + midiin->dwBytesRecorded) >= (BUFFLEN-6)) {
 			overflow = 1;
-			TRACE(("MIDI overflow1\n"));
+			TRACE((L"MIDI overflow1\n"));
 			//for safeness if buffer too full (should not occur)
 			goto end;
 		}
 		if (midiin->dwBufferLength == midiin->dwBytesRecorded) {
 			//for safeness if buffer too full (should not occur)
 			overflow = 1;
-			TRACE(("MIDI overflow2\n"));
+			TRACE((L"MIDI overflow2\n"));
 			goto end;
 		}
 		memcpy(&midibuf[midi_inlast], midiin->lpData, midiin->dwBytesRecorded);
@@ -528,7 +528,7 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 
 	if(wMsg == MM_MIM_DATA || wMsg == MM_MIM_MOREDATA) {
 		BYTE state = (BYTE)dwParam1;
-		TRACE(("%s %08X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
+		TRACE((L"%s %08X\n", wMsg == MM_MIM_DATA ? "MM_MIM_DATA" : "MM_MIM_MOREDATA", dwParam1));
 		if(state == 254)
 			goto end;
 		if(state < 0xf0)
