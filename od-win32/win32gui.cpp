@@ -8958,7 +8958,7 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 	sethardfile (hDlg);
 }
 
-static void updatehdfinfo (HWND hDlg, int force)
+static void updatehdfinfo (HWND hDlg, bool force)
 {
 	static uae_u64 bsize;
 	static uae_u8 id[512];
@@ -8967,12 +8967,14 @@ static void updatehdfinfo (HWND hDlg, int force)
 	TCHAR idtmp[9];
 
 	if (force) {
+		bool open = false;
 		struct hardfiledata hfd;
 		memset (id, 0, sizeof id);
 		memset (&hfd, 0, sizeof hfd);
 		hfd.readonly = 1;
 		hfd.blocksize = 512;
 		if (hdf_open (&hfd, current_hfdlg.filename)) {
+			open = true;
 			for (i = 0; i < 16; i++) {
 				hdf_read (&hfd, id, i * 512, 512);
 				bsize = hfd.virtsize;
@@ -8981,16 +8983,16 @@ static void updatehdfinfo (HWND hDlg, int force)
 			}
 			if (i == 16)
 				hdf_read (&hfd, id, 0, 512);
-			hdf_close (&hfd);
 		}
+		if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
+			getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors);
+			current_hfdlg.original = 0;
+		}
+		hdf_close (&hfd);
 	}
 
 	cyls = 0;
 	if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
-		if (bsize >= 512 * 1024 * 1024 && current_hfdlg.original) {
-			getchsgeometry (bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors);
-			current_hfdlg.original = 0;
-		}
 		cyls = bsize / (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces);
 	}
 	blocks = cyls * (current_hfdlg.sectors * current_hfdlg.surfaces);
@@ -9029,7 +9031,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
 	fullpath (current_hfdlg.filename, sizeof current_hfdlg.filename / sizeof (TCHAR));
 	inithardfile (hDlg);
 	hardfile_testrdb (hDlg, &current_hfdlg);
-	updatehdfinfo (hDlg, 1);
+	updatehdfinfo (hDlg, true);
 	sethardfile (hDlg);
 }
 
@@ -9066,7 +9068,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		inithardfile (hDlg);
 		sethardfile (hDlg);
 		sethfdostype (hDlg, 0);
-		updatehdfinfo (hDlg, 1);
+		updatehdfinfo (hDlg, true);
 		setac (hDlg, IDC_PATH_NAME);
 		recursive--;
 		customDlgType = IDD_HARDFILE;
@@ -9171,14 +9173,14 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
 		if (_tcscmp (tmp, current_hfdlg.filename)) {
 			_tcscpy (current_hfdlg.filename, tmp);
-			updatehdfinfo (hDlg, 1);
+			updatehdfinfo (hDlg, true);
 		}
 		GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename / sizeof (TCHAR));
 		GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename / sizeof (TCHAR));
 		posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
 		if (posn != CB_ERR)
 			current_hfdlg.controller = posn;
-		updatehdfinfo (hDlg, 0);
+		updatehdfinfo (hDlg, false);
 		recursive--;
 
 		break;
@@ -14143,7 +14145,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		if (customDlgType == IDD_HARDFILE) {
 			_tcscpy (current_hfdlg.filename, file);
 			SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename);
-			updatehdfinfo (customDlg, 1);
+			updatehdfinfo (customDlg, true);
 			continue;
 		}
 

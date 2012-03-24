@@ -80,6 +80,7 @@ static D3DXMATRIXA16 m_matPreView;
 static D3DXMATRIXA16 m_matPreWorld;
 static D3DXMATRIXA16 postproj;
 static D3DXVECTOR4 maskmult, maskshift, texelsize;
+static D3DXVECTOR4 fakesize;
 
 static int ledwidth, ledheight;
 static int max_texture_w, max_texture_h;
@@ -959,8 +960,10 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DTEXTURE9
 		fDims.x = (FLOAT) Desc.Width;
 		fDims.y = (FLOAT) Desc.Height;
 	}
+
 	fTexelSize.x = 1.0f / fDims.x;
 	fTexelSize.y = 1.0f / fDims.y;
+
 	if (m_SourceDimsEffectHandle) {
 		hr = pEffect->SetVector (m_SourceDimsEffectHandle, &fDims);
 		if (FAILED (hr)) {
@@ -1597,6 +1600,11 @@ static void setupscenecoords (void)
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 
+	fakesize.x = w;
+	fakesize.y = h;
+	fakesize.w = 1;
+	fakesize.z = 1;
+
 	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
 
 	float tx, ty;
@@ -1636,6 +1644,9 @@ static void setupscenecoords (void)
 	
 		sw = dw * tin_w / window_w;
 		sh = dh * tin_h / window_h;
+
+		sw -= 0.5f;
+		sh += 0.5f;
 
 		tx += xshift;
 		ty += yshift;
@@ -1734,14 +1745,14 @@ static void settransform (void)
 	// Projection is (0,0,0) -> (1,1,1)
 	MatrixOrthoOffCenterLH (&m_matPreProj, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
 	// Align texels with pixels
-	MatrixTranslation (&m_matPreView, -0.5f / tin_w, 0.5f / tin_h, 0.0f);
+	MatrixTranslation (&m_matPreView, -0.5f / tout_w, 0.5f / tout_h, 0.0f);
 	// Identity for world
 	D3DXMatrixIdentity (&m_matPreWorld);
 	psEffect_SetMatrices (&m_matProj, &m_matView, &m_matWorld);
 
 	MatrixOrthoOffCenterLH (&m_matProj2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
 
-	MatrixTranslation (&m_matView2, 0.5f - 0.5f / window_w, 0.5f + 0.5f / window_h, 0.0f);
+	MatrixTranslation (&m_matView2, 0.5f - 0.5f / tout_w, 0.5f + 0.5f / tout_h, 0.0f);
 	D3DXMatrixIdentity (&m_matWorld2);
 }
 

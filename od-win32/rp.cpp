@@ -296,7 +296,7 @@ static void fixup_size (struct uae_prefs *prefs)
 	write_log(L"-> %dx%d\n", prefs->gfx_size_win.width, prefs->gfx_size_win.height);
 }
 
-static int getmult(int mult)
+static int getmult (int mult)
 {
 	if (mult >= 4 * 256)
 		return 2;
@@ -928,15 +928,17 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	write_log (L"rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n",
 		rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
-	write_log (L"w=%dx%d fs=%dx%d pos=%dx%d %dx%d\n",
-		p->gfx_size_win.width, p->gfx_size_win.height,
-		p->gfx_size_fs.width, p->gfx_size_fs.height,
-		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
-		p->gfx_xcenter_size, p->gfx_ycenter_size);
 
 	max_horiz_dbl = currprefs.gfx_max_horizontal;
 	max_vert_dbl = currprefs.gfx_max_vertical;
 	maxjports = (rp_version * 256 + rp_revision) >= 2 * 256 + 3 ? MAX_JPORTS : 2;
+
+	write_log (L"w=%dx%d fs=%dx%d pos=%dx%d %dx%d HV=%d,%d J=%d\n",
+		p->gfx_size_win.width, p->gfx_size_win.height,
+		p->gfx_size_fs.width, p->gfx_size_fs.height,
+		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
+		p->gfx_xcenter_size, p->gfx_ycenter_size,
+		max_horiz_dbl, max_vert_dbl, maxjports);
 
 	sendfeatures ();
 	sendenum ();

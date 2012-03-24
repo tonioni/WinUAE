@@ -1,4 +1,14 @@
 
+Beta 25: (RC3)
+
+- CDFS ACTION_EXAMINE_ALL fixed.
+- CDFS file/directory search now uses simple hash table for better performance.
+- Fixed crash introduced in b23 if filesystem was asked to open directory that couldn't be opened.
+- Directory filesystem host memory leak fixed (leaked few bytes when filehandle was closed). Very old bug.
+- Autodetect old-style geometry if >512M OFS/FFS partition harddrive was created with older UAE version.
+- Some rare DMS files didn't unpack properly.
+- Possible fix for diagonal artifact in some D3D filter modes.
+
 Beta 24: (RC2)
 
 - CDFS Amiga Rock Ridge 'AS' extension support added. (comments and protection flags)

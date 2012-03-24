@@ -19,7 +19,8 @@
 #include "isofs.h"
 
 #define MAX_CACHED_BH_COUNT 100
-#define MAX_CACHE_INODE_COUNT 10
+//#define MAX_CACHE_INODE_COUNT 10
+#define HASH_SIZE 65536
 
 #define CD_BLOCK_SIZE 2048
 #define ISOFS_INVALID_MODE -1
@@ -69,6 +70,7 @@ struct inode
 	TCHAR *i_comment;
 };
 
+
 struct super_block
 {
 	int s_high_sierra;
@@ -81,12 +83,20 @@ struct super_block
 	struct buffer_head *buffer_heads;
 	int bh_count;
 	bool unknown_media;
+	struct inode *hash[HASH_SIZE];
+	int hash_miss, hash_hit;
 };
+
+static int gethashindex(struct inode *inode)
+{
+	return inode->i_ino & (HASH_SIZE - 1);
+}
 
 static void free_inode(struct inode *inode)
 {
 	if (!inode)
 		return;
+	inode->i_sb->hash[gethashindex(inode)] = NULL;
 	inode->i_sb->inode_cnt--;
 	xfree(inode->name);
 	xfree(inode->i_comment);
@@ -110,6 +120,7 @@ static void unlock_inode(struct inode *inode)
 {
 	inode->lockcnt--;
 }
+
 
 static void iput(struct inode *inode)
 {
@@ -145,12 +156,21 @@ static void iput(struct inode *inode)
 	sb->inodes = inode;
 	inode->linked = true;
 	sb->inode_cnt++;
+	sb->hash[gethashindex(inode)] = inode;
 }
 
 static struct inode *find_inode(struct super_block *sb, uae_u64 uniq)
 {
-	struct inode *inode = sb->inodes;
-	/* Need hash tables... Later... */
+	struct inode *inode;
+
+	inode = sb->hash[uniq & (HASH_SIZE - 1)];
+	if (inode && inode->i_ino == uniq) {
+		sb->hash_hit++;
+		return inode;
+	}
+	sb->hash_miss++;
+
+	inode = sb->inodes;
 	while (inode) {
 		if (inode->i_ino == uniq) {
 			inode->usecnt++;
@@ -2333,6 +2353,7 @@ void isofs_unmount(void *sbp)
 
 	if (!sb)
 		return;
+	write_log (L"miss: %d hit: %d\n", sb->hash_miss, sb->hash_hit);
 	inode = sb->inodes;
 	while (inode) {
 		struct inode *next = inode->next;

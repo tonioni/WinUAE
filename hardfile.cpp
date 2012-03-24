@@ -142,34 +142,90 @@ static void getchs (struct hardfiledata *hfd, int *cyl, int *cylsec, int *head, 
 		*cyl, *cylsec, *head, *tracksec);
 }
 
-void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspertrack)
+static void getchsgeometry2 (uae_u64 size, int *pcyl, int *phead, int *psectorspertrack, int mode)
 {
-	int sptt[] = { 63, 127, 255, -1 };
+	int sptt[4];
 	int i, spt, head, cyl;
 	uae_u64 total = (unsigned int)(size / 512);
 
-	for (i = 0; sptt[i] >= 0; i++) {
-		spt = sptt[i];
-		for (head = 4; head <= 16;head++) {
-			cyl = total / (head * spt);
-			if (size <= 512 * 1024 * 1024) {
-				if (cyl <= 1023)
-					break;
-			} else {
-				if (cyl < 16383)
-					break;
-				if (cyl < 32767 && head >= 5)
-					break;
-				if (cyl <= 65535)
-					break;
+	if (mode == 1) {
+		// old-style head=1, spt=32 always mode
+		head = 1;
+		spt = 32;
+		cyl = total / (head * spt);
+
+	} else {
+
+		sptt[0] = 63;
+		sptt[1] = 127;
+		sptt[2] = 255;
+		sptt[3] = -1;
+
+		for (i = 0; sptt[i] >= 0; i++) {
+			spt = sptt[i];
+			for (head = 4; head <= 16;head++) {
+				cyl = total / (head * spt);
+				if (size <= 512 * 1024 * 1024) {
+					if (cyl <= 1023)
+						break;
+				} else {
+					if (cyl < 16383)
+						break;
+					if (cyl < 32767 && head >= 5)
+						break;
+					if (cyl <= 65535)
+						break;
+				}
 			}
+			if (head <= 16)
+				break;
 		}
-		if (head <= 16)
-			break;
+
 	}
+
 	*pcyl = cyl;
 	*phead = head;
 	*psectorspertrack = spt;
+}
+
+void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspertrack)
+{
+	getchsgeometry2 (size, pcyl, phead, psectorspertrack, 0);
+}
+
+void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int *phead, int *psectorspertrack)
+{
+	uae_u8 block[512];
+	int i;
+
+	if (size <= 512 * 1024 * 1024) {
+		*phead = 1;
+		*psectorspertrack = 32;
+	}
+	memset (block, 0, sizeof block);
+	if (hfd) {
+		hdf_read (hfd, block, 0, 512);
+		if (block[0] == 'D' && block[1] == 'O' && block[2] == 'S') {
+			int mode;
+			for (mode = 0; mode < 2; mode++) {
+				uae_u32 rootblock;
+				uae_u32 chk = 0;
+				getchsgeometry2 (size, pcyl, phead, psectorspertrack, mode);
+				rootblock = (2 + ((*pcyl) * (*phead) * (*psectorspertrack) - 1)) / 2;
+				memset (block, 0, sizeof block);
+				hdf_read (hfd, block, (uae_u64)rootblock * 512, 512);
+				for (i = 0; i < 512; i += 4)
+					chk += (block[i] << 24) | (block[i + 1] << 16) | (block[i + 2] << 8) | (block[i + 3] << 0);
+				if (!chk && block[0] == 0 && block[1] == 0 && block[2] == 0 && block[3] == 2 &&
+					block[4] == 0 && block[5] == 0 && block[6] == 0 && block[7] == 0 && 
+					block[8] == 0 && block[9] == 0 && block[10] == 0 && block[11] == 0 && 
+					block[508] == 0 && block[509] == 0 && block[510] == 0 && block[511] == 1) {
+						return;
+				}
+			}
+		}
+	}
+	getchsgeometry2 (size, pcyl, phead, psectorspertrack, 2);
 }
 
 static void getchshd (struct hardfiledata *hfd, int *pcyl, int *phead, int *psectorspertrack)

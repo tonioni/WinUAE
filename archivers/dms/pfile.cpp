@@ -242,6 +242,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		if (cmd == CMD_SHOWBANNER) /*  Banner is in the first track  */
 			ret = Process_Track(fi,NULL,b1,b2,cmd,opt,geninfo,extra);
 		else {
+			Init_Decrunchers();
 			for (;;) {
 				int ok = 0;
 				ret = Process_Track(fi,fo,b1,b2,cmd,opt,geninfo,extra);
@@ -299,6 +300,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	USHORT hcrc, dcrc, usum, number, pklen1, pklen2, unpklen, l;
 	UCHAR cmode, flags;
 	int crcerr = 0;
+	bool normaltrack;
 
 
 	l = (USHORT)zfile_fread(b1,1,THLEN,fi);
@@ -357,10 +359,12 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 
 	//if (pwd && (number!=80)) dms_decrypt(b1,pklen1);
 
+	normaltrack = false;
 	if ((cmd == CMD_UNPACK) && (number<80) && (unpklen>2048)) {
 		memset(b2, 0, unpklen);
-		if (!crcerr)
+		if (!crcerr) {
 			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+		}
 		if (number == 0 && zfile_ftell (fo) == 512 * 22) {
 			// did we have another cylinder 0 already?
 			uae_u8 *p;
@@ -373,6 +377,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 		zfile_fseek (fo, number * 512 * 22 * ((dmsflags & DMSFLAG_HD) ? 2 : 1), SEEK_SET);
 		if (zfile_fwrite(b2,1,(size_t)unpklen,fo) != unpklen)
 			return ERR_CANTWRITE;
+		normaltrack = true;
 	} else if (number == 0 && unpklen == 1024) {
 		memset(b2, 0, unpklen);
 		if (!crcerr)
@@ -383,17 +388,24 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	if (crcerr)
 		return NO_PROBLEM;
 
-	if (number == 0xffff && extra){
-		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-		addextra(L"Banner", extra, b2, unpklen);
+	if (number == 0xffff) {
+		if (extra){
+			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+			addextra(L"Banner", extra, b2, unpklen);
+		}
 		//printbandiz(b2,unpklen);
 	}
 
-	if (number == 80 && extra) {
-		Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-		addextra(L"FILEID.DIZ", extra, b2, unpklen);
+	if (number == 80) {
+		if (extra) {
+			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
+			addextra(L"FILEID.DIZ", extra, b2, unpklen);
+		}
 		//printbandiz(b2,unpklen);
 	}
+
+	if (!normaltrack)
+		Init_Decrunchers();
 
 	return NO_PROBLEM;
 
@@ -440,6 +452,7 @@ static USHORT Unpack_Track_2(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen
 				if (Unpack_HEAVY(b1,b2,flags | 8,pklen2)) return ERR_BADDECR;
 			}
 			if (flags & 4) {
+				memset(b1,0,unpklen);
 				/*  Unpack with RLE only if this flag is set  */
 				if (Unpack_RLE(b2,b1,unpklen)) return ERR_BADDECR;
 				memcpy(b2,b1,(size_t)unpklen);

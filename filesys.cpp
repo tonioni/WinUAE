@@ -1052,13 +1052,17 @@ static struct fs_dirhandle *fs_opendir (Unit *u, a_inode *aino)
 	fsd->fstype = (u->volflags & MYVOLUMEINFO_ARCHIVE) ? FS_ARCHIVE : ((u->volflags & MYVOLUMEINFO_CDFS) ? FS_CDFS : FS_DIRECTORY);
 	if (fsd->fstype == FS_ARCHIVE) {
 		fsd->zd = zfile_opendir_archive (aino->nname);
+		if (fsd->zd)
+			return fsd;
 	} else if (fsd->fstype == FS_DIRECTORY) {
 		fsd->od = my_opendir (aino->nname);
+		if (fsd->od)
+			return fsd;
 	} else if (fsd->fstype == FS_CDFS) {
 		fsd->isod = isofs_opendir (u->ui.cdfs_superblock, aino->uniq_external);
+		if (fsd->isod)
+			return fsd;
 	}
-	if (fsd)
-		return fsd;
 	xfree (fsd);
 	return NULL;
 }
@@ -1080,26 +1084,32 @@ static struct fs_filehandle *fs_openfile (Unit *u, a_inode *aino, int flags)
 	fsf->fstype = (u->volflags & MYVOLUMEINFO_ARCHIVE) ? FS_ARCHIVE : ((u->volflags & MYVOLUMEINFO_CDFS) ? FS_CDFS : FS_DIRECTORY);
 	if (fsf->fstype == FS_ARCHIVE) {
 		fsf->zf = zfile_open_archive (aino->nname, flags);
+		if (fsf->zf)
+			return fsf;
 	} else if (fsf->fstype == FS_DIRECTORY) {
 		fsf->of = my_open (aino->nname, flags);
-	} else {
+		if (fsf->of)
+			return fsf;
+	} else if (fsf->fstype == FS_CDFS) {
 		fsf->isof = isofs_openfile (u->ui.cdfs_superblock, aino->uniq_external, flags);
+		if (fsf->isof)
+			return fsf;
 	}
-	if (fsf)
-		return fsf;
 	xfree (fsf);
 	return NULL;
 }
-static void fs_closefile (struct fs_filehandle *fd)
+static void fs_closefile (struct fs_filehandle *fsf)
 {
-	if (!fd)
+	if (!fsf)
 		return;
-	if (fd->fstype == FS_ARCHIVE)
-		zfile_close_archive (fd->zf);
-	else if (fd->fstype == FS_DIRECTORY)
-		my_close (fd->of);
-	else if (fd->fstype == FS_CDFS)
-		isofs_closefile (fd->isof);
+	if (fsf->fstype == FS_ARCHIVE) {
+		zfile_close_archive (fsf->zf);
+	} else if (fsf->fstype == FS_DIRECTORY) {
+		my_close (fsf->of);
+	} else if (fsf->fstype == FS_CDFS) {
+		isofs_closefile (fsf->isof);
+	}
+	xfree (fsf);
 }
 static unsigned int fs_read (struct fs_filehandle *fsf, void *b, unsigned int size)
 {
@@ -1113,9 +1123,7 @@ static unsigned int fs_read (struct fs_filehandle *fsf, void *b, unsigned int si
 }
 static unsigned int fs_write (struct fs_filehandle *fsf, void *b, unsigned int size)
 {
-	if (fsf->fstype == FS_ARCHIVE)
-		return 0;
-	else if (fsf->fstype == FS_DIRECTORY)
+	if (fsf->fstype == FS_DIRECTORY)
 		return my_write (fsf->of, b, size);
 	return 0;
 }
@@ -1581,7 +1589,7 @@ static int flush_cache (Unit *unit, int num)
 	int i = 0;
 	int cnt = 100;
 
-	write_log (L"FILESYS: flushing cache unit %d (max %d items)\n", unit->unit, num);
+	//write_log (L"FILESYS: flushing cache unit %d (max %d items)\n", unit->unit, num);
 	if (num == 0)
 		num = -1;
 	while (i < num || num < 0) {
@@ -3467,6 +3475,7 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 	if (base == 0)
 		base = &unit->rootnode;
 	for (;;) {
+		uae_u64 uniq = 0;
 		d = eak->dirhandle;
 		if (!eak->fn) {
 			do {
@@ -3474,6 +3483,8 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 					ok = zfile_readdir_archive (d->zd, fn);
 				else if (d->fstype == FS_DIRECTORY)
 					ok = my_readdir (d->od, fn);
+				else if (d->fstype == FS_CDFS)
+					ok = isofs_readdir (d->isod, fn, &uniq);
 				else
 					ok = 0;
 			} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid (fn));
@@ -3484,7 +3495,7 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 			xfree (eak->fn);
 			eak->fn = NULL;
 		}
-		aino = lookup_child_aino_for_exnext (unit, base, fn, &err, 0);
+		aino = lookup_child_aino_for_exnext (unit, base, fn, &err, uniq);
 		if (!aino)
 			return 0;
 		eak->id = unit->exallid++;
@@ -3719,7 +3730,6 @@ static void populate_directory (Unit *unit, a_inode *base)
 {
 	struct fs_dirhandle *d;
 	a_inode *aino;
-	uae_u64 uniq = 0;
 
 	d = fs_opendir (unit, base);
 	if (!d)
@@ -3731,6 +3741,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 	TRACE((L"Populating directory, child %p, locked_children %d\n",
 		base->child, base->locked_children));
 	for (;;) {
+		uae_u64 uniq = 0;
 		TCHAR fn[MAX_DPATH];
 		int ok;
 		uae_u32 err;
