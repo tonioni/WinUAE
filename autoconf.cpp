@@ -177,7 +177,7 @@ uae_u32 ds_bstr_ansi (const uae_char *str)
 		rt_straddr--;
 	rtarea[rt_straddr] = len - 2;
 	strcpy ((uae_char*)rtarea + rt_straddr + 1, str);
-	return addr (rt_straddr);
+	return addr (rt_straddr) >> 2;
 }
 
 void calltrap (uae_u32 n)

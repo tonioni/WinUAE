@@ -791,6 +791,8 @@ void minimizewindow (void)
 
 void enablecapture (void)
 {
+	if (pause_emulation > 2)
+		return;
 	setmouseactive (1);
 	if (sound_closed < 0) {
 		resumesoundpaused ();

@@ -397,6 +397,8 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		m |= RP_SCREENMODE_FULLWINDOW;
 
 	sm->dwScreenMode = m  | (storeflags & (RP_SCREENMODE_STRETCH | RP_SCREENMODE_SUBPIXEL));
+	sm->lTargetHeight = 0;
+	sm->lTargetWidth = 0;
 	if ((storeflags & RP_SCREENMODE_MODEMASK) == RP_SCREENMODE_XX) {
 		sm->dwScreenMode &= ~RP_SCREENMODE_MODEMASK;
 		sm->dwScreenMode |= RP_SCREENMODE_XX;
@@ -634,7 +636,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RPIPCHM_PAUSE:
 		currentpausemode = pause_emulation;
 		if (wParam ? 1 : 0 != pause_emulation ? 1 : 0) {
-			pausemode (wParam ? 1 : 0);
+			pausemode (wParam ? -1 : 0);
 			if (wParam) {
 				currentpausemode = -1;
 				return 2;
@@ -880,7 +882,8 @@ static void sendenum (void)
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
 		if (log_rp)
-			write_log(L"Enum%d: '%s' '%s'\n", cnt, desc.szHostInputName, desc.szHostInputID);
+			write_log(L"Enum%d: '%s' '%s' (%x/%x)\n",
+				cnt, desc.szHostInputName, desc.szHostInputID, desc.dwHostInputVendorID, desc.dwHostInputProductID);
 		RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	}
 }

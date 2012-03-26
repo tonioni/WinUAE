@@ -1,3 +1,17 @@
+- cpu throttling
+- custom event autofire
+- cycle exact mode scanline sync
+- restore only single input target to default.
+
+
+
+
+Beta 25: (RC4)
+
+- CDFS missing features added: HighCyl value and volume creation timestamp.
+  I think all features are now done.
+- CDFS media change stability improved (removing unreadable CD crashed)
+- Forgot to mention: UAE CDFS also works fine under KS 1.x. (AROS CDFS was 2.0+)
 
 Beta 25: (RC3)
 

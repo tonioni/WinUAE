@@ -305,30 +305,10 @@ static void isofs_normalize_block_and_offset(struct iso_directory_record* de, un
 #endif
 }
 
-/* 
- * We have to convert from a MM/DD/YY format to the Unix ctime format.
- * We have to take into account leap years and all of that good stuff.
- * Unfortunately, the kernel does not have the information on hand to
- * take into account daylight savings time, but it shouldn't matter.
- * The time stored should be localtime (with or without DST in effect),
- * and the timezone offset should hold the offset required to get back
- * to GMT.  Thus  we should always be correct.
- */
-
-static int iso_date(char * p, int flag)
+static int make_date(int year, int month, int day, int hour, int minute, int second, int tz)
 {
-	int year, month, day, hour, minute, second, tz;
 	int crtime, days, i;
 
-	year = p[0] - 70;
-	month = p[1];
-	day = p[2];
-	hour = p[3];
-	minute = p[4];
-	second = p[5];
-	if (flag == 0) tz = p[6]; /* High sierra has no time zone */
-	else tz = 0;
-	
 	if (year < 0) {
 		crtime = 0;
 	} else {
@@ -380,7 +360,64 @@ static int iso_date(char * p, int flag)
 	return crtime;
 }
 
+/* 
+ * We have to convert from a MM/DD/YY format to the Unix ctime format.
+ * We have to take into account leap years and all of that good stuff.
+ * Unfortunately, the kernel does not have the information on hand to
+ * take into account daylight savings time, but it shouldn't matter.
+ * The time stored should be localtime (with or without DST in effect),
+ * and the timezone offset should hold the offset required to get back
+ * to GMT.  Thus  we should always be correct.
+ */
 
+static int iso_date(char * p, int flag)
+{
+	int year, month, day, hour, minute, second, tz;
+
+	year = p[0] - 70;
+	month = p[1];
+	day = p[2];
+	hour = p[3];
+	minute = p[4];
+	second = p[5];
+	if (flag == 0) tz = p[6]; /* High sierra has no time zone */
+	else tz = 0;
+	
+	return make_date(year, month, day, hour, minute, second, tz);
+}
+
+static int iso_ltime(char *p)
+{
+	int year, month, day, hour, minute, second;
+	char t;
+
+	t = p[4];
+	p[4] = 0;
+	year = atol(p);
+	p[4] = t;
+	t = p[6];
+	p[6] = 0;
+	month = atol(p + 4);
+	p[6] = t;
+	t = p[8];
+	p[8] = 0;
+	day = atol(p + 6);
+	p[8] = t;
+	t = p[10];
+	p[10] = 0;
+	hour = atol(p + 8);
+	p[10] = t;
+	t = p[12];
+	p[12] = 0;
+	minute = atol(p + 10);
+	p[12] = t;
+	t = p[14];
+	p[14] = 0;
+	second = atol(p + 12);
+	p[14] = t;
+
+	return make_date(year - 1970, month, day, hour, minute, second, 0);
+}
 
 
 static int isofs_read_level3_size(struct inode *inode)
@@ -1641,6 +1678,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent, uae_u
 	int table, error = -EINVAL;
 	unsigned int vol_desc_start;
 	TCHAR *volume_name = NULL, *ch;
+	uae_u32 volume_date;
 
 	//save_mount_options(s, data);
 
@@ -1809,6 +1847,7 @@ root_found:
 	write_log (L"ISOFS: System ID: %s", ch);
 	xfree(ch);
 	volume_name = getname(pri->volume_id, 32);
+	volume_date = iso_ltime(pri->creation_date);
 	write_log (L" Volume ID: '%s'\n", volume_name);
 	if (!strncmp(pri->system_id, ISO_SYSTEM_ID_CDTV, strlen(ISO_SYSTEM_ID_CDTV)))
 		sbi->s_cdtv = 1;
@@ -1938,6 +1977,7 @@ root_found:
 	iput(inode);
 	s->root = inode;
 	inode->name = volume_name;
+	inode->i_ctime.tv_sec = volume_date;
 	*uniq = inode->i_ino;
 	return 0;
 
@@ -2379,12 +2419,19 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 		return true;
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
 	if (sys_command_ismedia (sb->unitnum, true)) {
+		struct device_info di;
+		uae_u32 totalblocks = 0;
 		ii->media = true;
+		di.cylinders = 0;
+		if (sys_command_info (sb->unitnum, &di, true))
+			totalblocks = di.cylinders * di.sectorspertrack * di.trackspercylinder;
 		ii->unknown_media = sb->unknown_media;
 		ii->blocksize = 2048;
 		if (sb->root) {
 			_tcscpy (ii->volumename, sb->root->name);
 			ii->blocks = sbi->s_max_size;
+			ii->totalblocks = totalblocks ? totalblocks : ii->blocks;
+			ii->creation = sb->root->i_ctime.tv_sec;
 		}
 	}
 	return true;

@@ -23,6 +23,7 @@
 ; 2009.01.20 clipboard sharing
 ; 2009.12.27 console hook
 ; 2010.05.27 Z3Chip
+; 2011.12.17 built-in CDFS support
 
 AllocMem = -198
 FreeMem = -210
@@ -70,6 +71,14 @@ bootcode:
 
 residenthack
 	movem.l d0-d2/a0-a2/a6,-(sp)
+
+	move.w #$FF38,d0
+	moveq #17,d1
+	bsr.w getrtbase
+	jsr (a0)
+	tst.l d0
+	beq.s .rsh
+
 	move.l 4.w,a6
 	cmp.w #37,20(a6)
 	bcs.s .rsh
@@ -151,16 +160,17 @@ FSIN_explibok:
 	move.l d0,a4
 
 	tst.l $10c(a5)
-	beq.s FSIN_none
+	beq.w FSIN_none
 
 	move.l #PP_TOTAL,d0
 	move.l #$10001,d1
 	jsr AllocMem(a6)
 	move.l d0,a3  ; param packet
 	move.l a4,PP_EXPLIB(a3)
+
 	moveq #0,d6
 FSIN_init_units:
-	cmp.l $10c(a5),d6
+	cmp.w $10e(a5),d6
 	bcc.b FSIN_units_ok
 	move.l d6,-(sp)
 FSIN_nextsub:
@@ -181,8 +191,27 @@ FSIN_nextsub:
 FSIN_nomoresub:	
 	move.l (sp)+,d6
 	addq.w #1,d6
-	bra.b  FSIN_init_units
+	bra.b FSIN_init_units
 FSIN_units_ok:
+
+	tst.w d5
+	beq.s CDIN_done
+	moveq #0,d6
+CDIN_init_units:
+	move.w $10c(a5),d0
+	btst d6,d0
+	beq.s CDIN_next
+	movem.l	d6/a3,-(sp)
+	move.l a3,a0
+	bset #31,d6
+	bsr.w make_cd_dev
+	movem.l (sp)+,d6/a3
+CDIN_next:
+	addq.w #1,d6
+	cmp.w #8,d6
+	bne.s CDIN_init_units
+CDIN_done:
+
 	move.l 4.w,a6
 	move.l a3,a1
 	move.l #PP_TOTAL,d0
@@ -224,7 +253,6 @@ FSIN_none:
 ;FSIN_scandone:
 ;	jsr -$007e(a6) ; Enable
 
-
 filesys_dev_storeinfo
 	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
 	cmp.w #36,20(a6)
@@ -233,6 +261,11 @@ filesys_dev_storeinfo
 FSIN_ksold
 
 	; add >2MB-6MB chip RAM to memory list
+	lea $210000,a1
+	; do not add if RAM detected already
+	jsr -$216(a6) ; TypeOfMem
+	tst.l d0
+	bne.s FSIN_chip_done
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0)
@@ -347,8 +380,8 @@ EXTS_loop:
 	jsr -366(a6) ; PutMsg
 	bra.b EXTS_loop
 EXTS_signal_reply:
-        cmp.w #2,d0
-        bgt.b EXTS_reply
+	cmp.w #2,d0
+	bgt.b EXTS_reply
 	move.l d1,d0
 	jsr -$144(a6)	; Signal
 	bra.b EXTS_loop
@@ -554,7 +587,7 @@ r0	move.l d7,d0
 ree	moveq #0,d7
 	bra.s r0
 
-fsres
+fsres:
 	movem.l d1/a0-a2/a6,-(sp)
 	move.l 4.w,a6
 	lea $150(a6),a0 ;ResourceList
@@ -897,6 +930,100 @@ action_exall
 	tst.l (a0) ; eac_Entries == 0 -> get more
 	rts
 
+	; mount CD drives using built-in AROS CDFS + uaescsi.device
+
+make_cd_dev: ; IN: A0 param_packet, D6: unit_no | 0x80000000 (=CD)
+	bsr.w	fsres
+	move.l d0,PP_FSRES(a0) ; pointer to FileSystem.resource
+	move.l a0,-(sp)
+	move.w #$FFFC,d0 ; filesys base
+	bsr.w getrtbase
+	move.l (a0),a5
+	move.w #$FF28,d0 ; fill in unit-dependent info (filesys_dev_storeinfo)
+	bsr.w getrtbase
+	move.l a0,a1
+	move.l (sp)+,a0
+	clr.l PP_FSSIZE(a0) ; filesystem size
+	clr.l PP_FSPTR(a0) ; filesystem memory
+	jsr (a1)
+	tst.l d0
+	beq.w .fail
+
+	; allocate memory for loaded filesystem
+	move.l PP_FSSIZE(a0),d0
+	beq.s .nofs
+	bmi.s .nofs
+	move.l a0,-(sp)
+	moveq #1,d1
+	move.l 4.w,a6
+	jsr  AllocMem(a6)
+	move.l (sp)+,a0
+	move.l d0,PP_FSPTR(a0)
+	beq.w .fail
+.nofs
+
+	move.l a4,a6
+	move.l a0,-(sp)
+	jsr -144(a6) ; MakeDosNode()
+	move.l (sp)+,a0 ; parmpacket
+	move.l a0,a1
+	move.l d0,a3 ; devicenode
+	move.w #$FF20,d0 ; record in ui.startup (filesys_dev_remember)
+	bsr.w getrtbase
+	jsr (a0)
+	moveq #0,d0
+	move.l d0,8(a3)          ; dn_Task
+	move.l d0,16(a3)         ; dn_Handler
+	move.l d0,32(a3)         ; dn_SegList
+
+	move.l PP_FSPTR(a1),d0
+	beq.s	.nofs2
+	move.l d0,a0
+	bsr.w relocate
+	movem.l d0/a0-a1,-(sp)
+	move.l PP_FSSIZE(a1),d0
+	move.l PP_FSPTR(a1),a1
+	move.l 4.w,a6
+	jsr FreeMem(a6)
+	movem.l (sp)+,d0/a0-a1
+	bsr.w addfs
+.nofs2
+	move.w #$FF18,d0 ; update dn_SegList if needed (filesys_dev_bootfilesys)
+	bsr.w getrtbase
+	jsr (a0)
+
+	move.b 79(a1),d3 ; bootpri
+	cmp.b #-128,d3
+	beq.s .cdnoboot
+	move.l 4.w,a6
+	moveq #20,d0
+	move.l #65536+1,d1
+	jsr  AllocMem(a6)
+	move.l d0,a1 ; bootnode
+	move.w #$1000,d0
+	or.b d3,d0
+	move.w d0,8(a1)
+	move.l $104(a5),10(a1) ; filesys_configdev
+	move.l a3,16(a1) ; devicenode
+	lea.l 74(a4),a0 ; MountList
+	jsr -$0084(a6) ;Forbid
+	jsr -270(a6) ; Enqueue()
+	jsr -$008a(a6) ;Permit
+	bra.s .fail
+.cdnoboot:
+	move.l a1,a2 ; bootnode
+	move.l a3,a0 ; parmpacket
+	moveq #0,d1
+	move.l d1,a1
+	moveq #1,d1 ; ADNF_STARTPROC (v36+)
+	moveq #-20,d0
+	move.l a4,a6 ; expansion base
+	jsr  -150(a6) ; AddDosNode
+
+.fail:
+	rts
+
+	; mount harddrives, virtual or hdf
 
 make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36+
 	; A4: expansionbase
@@ -930,15 +1057,15 @@ make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36
 mountalways
 	; allocate memory for loaded filesystem
 	move.l PP_FSSIZE(a0),d0
-	beq.s nordbfs1
-	bmi.s nordbfs1
+	beq.s .nordbfs1
+	bmi.s .nordbfs1
 	move.l a0,-(sp)
 	moveq #1,d1
 	move.l 4.w,a6
 	jsr  AllocMem(a6)
 	move.l (sp)+,a0
 	move.l d0,PP_FSPTR(a0)
-nordbfs1:
+.nordbfs1:
 
 	tst.l d3
 	bpl.s do_mount
@@ -1005,23 +1132,23 @@ MKDV_is_filesys:
 MKDV_doboot:
 	btst #0,d7
 	beq.b MKDV_noboot
+	cmp.b #-128,d3
+	beq.s MKDV_noboot
 
 	move.l 4.w,a6
-	moveq.l #20,d0
-	moveq.l #0,d1
+	moveq #20,d0
+	move.l #65536+1,d1
 	jsr  AllocMem(a6)
 	move.l d0,a1 ; bootnode
-	moveq #0,d0
-	move.l d0,(a1)
-	move.l d0,4(a1)
-	move.w d0,14(a1)
 	move.w #$1000,d0
 	or.b d3,d0
 	move.w d0,8(a1)
 	move.l $104(a5),10(a1) ; filesys_configdev
-	move.l a3,16(a1)        ; devicenode
+	move.l a3,16(a1) ; devicenode
 	lea.l  74(a4),a0 ; MountList
+	jsr -$0084(a6) ;Forbid
 	jsr  -270(a6) ; Enqueue()
+	jsr -$008a(a6) ;Permit
 	moveq #0,d0
 	rts
 
@@ -1035,7 +1162,8 @@ MKDV_noboot:
 	btst #2,d7
 	beq.s .nob
 	moveq #1,d1 ; ADNF_STARTPROC (v36+)
-.nob	moveq #-20,d0
+.nob
+	moveq #-128,d0
 	move.l a4,a6 ; expansion base
 	jsr  -150(a6) ; AddDosNode
 	btst #1,d7
@@ -1219,22 +1347,35 @@ FSML_loop:
 	bset #13,d0 ; SIGBREAK_CTRL_D
 	jsr -$013e(a6) ;Wait
 .msg
-	; disk changed?
+	; SIGBREAK_CTRL_D = disk change notification from native code
 	tst.b 172(a3)
 	beq.s .nodc
+	; call filesys_media_change_reply (pre)
+	move.w #$ff58,d0 ; fsmisc_helper
+	bsr.w getrtbase
+	moveq #1,d0 ; filesys_media_change_reply
+	jsr (a0)
+	tst.l d0
+	beq.s .nodc2
 	bsr.w diskchange
+.nodc2
 	clr.b 172(a3)
+	; call filesys_media_change_reply (post)
+	move.w #$ff58,d0 ; fsmisc_helper
+	bsr.w getrtbase
+	moveq #2,d0 ; filesys_media_change_reply
+	jsr (a0)
 .nodc
 	move.l a4,d0
-	beq.s FSML_loop
+	beq.s nonnotif
 
 	; notify reply?
 	cmp.w #38, 18(a4)
-	bne.s nonotif
+	bne.s nonnotif
 	cmp.l #NOTIFY_CLASS, 20(a4)
-	bne.s nonotif
+	bne.s nonnotif
 	cmp.w #NOTIFY_CODE, 24(a4)
-	bne.s nonotif
+	bne.s nonnotif
 	move.l 26(a4),a0 ; NotifyRequest
 	move.l 12(a0),d0 ; flags
 	and.l #NRF_WAIT_REPLY|NRF_MAGIC,d0
@@ -1245,22 +1386,27 @@ FSML_loop:
 	move.l a4,a1
 	move.b #8,(a1)
 	jsr -366(a6) ; PutMsg
-	bra.s FSML_loop
+	bra.w FSML_loop
 nonoti
 	move.l a4,a1
 	moveq #38,d0
 	jsr FreeMem(a6)
 	bra.w FSML_loop
 
-nonotif
+nonnotif
+	moveq #-2,d2 ; lock timeout "done" value
+	move.l a4,d0
+	beq.s FSML_check_queue_other
 	move.l 10(a4),d3 ; ln_Name
 	bne.b FSML_FromDOS
+	moveq #-1,d2 ; normal "done" value
 
 	; It's a dummy packet indicating that some queued command finished.
 	move.w #$FF50,d0 ; exter_int_helper
 	bsr.w getrtbase
 	moveq.l #1,d0
 	jsr (a0)
+FSML_check_queue_other:
 	; Go through the queue and reply all those that finished.
 	lea.l 4(a3),a2
 	move.l (a2),a0
@@ -1272,7 +1418,8 @@ FSML_check_old:
 	; This field may be accessed concurrently by several UAE threads.
 	; This _should_ be harmless on all reasonable machines.
 	move.l 4(a0),d0
-	bpl.b FSML_check_next
+	cmp.l d0,d2
+	bne.b FSML_check_next
 	movem.l a0/a1,-(a7)
 	move.l 10(a0),a4
 	bsr.b ReplyOne
@@ -1328,8 +1475,9 @@ FSML_ReplyOne2:
 	bsr.w action_exall
 	bne.s FSML_ReplyOne3
 	; Arghh.. we need more entries. (some buggy programs fail if eac_Entries = 0 with continue enabled)
-	move.w #$ff58,d0
+	move.w #$ff58,d0 ; fsmisc_helper
 	bsr.w getrtbase
+	moveq #0,d0 ; exall
 	jsr (a0)
 	bra.s .exaretry
 	
@@ -2061,6 +2209,14 @@ CLIP_END = (CLIP_POINTER_PREFS+32)
 
 clipboard_init:
 	movem.l a5/a6,-(sp)
+
+	move.w #$FF38,d0
+	moveq #17,d1
+	bsr.w getrtbase
+	jsr (a0)
+	btst #0,d0
+	beq.s .noclip
+
 	move.l 4.w,a6
 	move.l #CLIP_END,d0
 	move.l #$10001,d1
@@ -2082,7 +2238,7 @@ clipboard_init:
 	moveq #-10,d0
 	move.l #10000,d1
 	bsr.w createproc
-
+.noclip
 	moveq #0,d0
 	movem.l (sp)+,a5/a6
 	rts
@@ -2413,13 +2569,15 @@ cliphook:
 
 consolehook:
 	move.l 4.w,a6
+
 	moveq #-1,d2
 	move.w #$FF38,d0
-	moveq #100,d1
+	moveq #17,d1
 	bsr.w getrtbase
 	jsr (a0)
-	tst.l d0
+	btst #1,d0
 	beq.s .ch2
+
 	moveq #0,d2
 	jsr -$0084(a6) ;Forbid
 	lea 350(a6),a0 ;DeviceList

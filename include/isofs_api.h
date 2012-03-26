@@ -8,7 +8,9 @@ struct isofs_info
 	bool unknown_media;
 	TCHAR volumename[256];
 	uae_u32 blocks;
+	uae_u32 totalblocks;
 	uae_u32 blocksize;
+	time_t creation;
 };
 
 void *isofs_mount(int unitnum, uae_u64 *uniq);
