@@ -189,6 +189,8 @@ uae_s64 int my_lseek (struct my_openfile_s *mos, uae_s64 int offset, int whence)
 	old.LowPart = SetFilePointer (mos->h, 0, &old.HighPart, FILE_CURRENT);
 	if (old.LowPart == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR)
 		return -1;
+	if (offset == 0 && whence == SEEK_CUR)
+		return old.QuadPart;
 	li.QuadPart = offset;
 	li.LowPart = SetFilePointer (mos->h, li.LowPart, &li.HighPart,
 		whence == SEEK_SET ? FILE_BEGIN : (whence == SEEK_END ? FILE_END : FILE_CURRENT));

@@ -2813,10 +2813,6 @@ void target_fixup_options (struct uae_prefs *p)
 		p->win32_inactive_pause = p->win32_inactive_nosound = true;
 		nosound = true;
 	}
-
-#ifdef RETROPLATFORM
-	rp_fixup_options (p);
-#endif
 }
 
 void target_default_options (struct uae_prefs *p, int type)
@@ -5073,6 +5069,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	if (WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
 		DWORD i;
 
+#ifdef RETROPLATFORM
+		if (rp_param != NULL) {
+			if (FAILED (rp_init ()))
+				goto end;
+		}
+#endif
 		WIN32_HandleRegistryStuff ();
 		write_log (L"Enumerating display devices.. \n");
 		enumeratedisplays ();
@@ -5121,7 +5123,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 			real_main (argc, argv);
 		}
 	}
-
+end:
 	closeIPC (globalipc);
 	closeIPC (serialipc);
 	write_disk_history ();

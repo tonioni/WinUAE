@@ -1,12 +1,11 @@
-- cpu throttling
-- custom event autofire
-- cycle exact mode scanline sync
-- restore only single input target to default.
 
+Beta 27: (RC5)
 
+- Saving directory filesystem statefile crashed (b23)
+- "unixfs warning" optimization fix, ACTION_READ when file seek position was at the end
+  file returned bad result. (b23)
 
-
-Beta 25: (RC4)
+Beta 26: (RC4)
 
 - CDFS missing features added: HighCyl value and volume creation timestamp.
   I think all features are now done.

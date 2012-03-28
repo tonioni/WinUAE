@@ -18,6 +18,8 @@
 
 #include <float.h>
 
+#define AUTORESIZE_FRAME_DELAY 10
+
 struct uae_filter uaefilters[] =
 {
 	{ UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
@@ -793,7 +795,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				lastresize--;
 				if (lastresize > 0) {
 					if (cw != lcw || ch != lch || cx != lcx || cy != lcy)
-						lastresize = 10;
+						lastresize = AUTORESIZE_FRAME_DELAY;
 					useold = 1;
 				} else if (lastdelay == 0) {
 					lastdelay = 2;
@@ -821,7 +823,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					och = ch;
 					ocx = cx;
 					ocy = cy;
-					lastresize = 10;
+					lastresize = AUTORESIZE_FRAME_DELAY;
 					lastdelay = 0;
 				}
 				double scalex = currprefs.gfx_filter_horiz_zoom_mult > 0 ? 1000.0 / currprefs.gfx_filter_horiz_zoom_mult : 1.0;

@@ -71,7 +71,7 @@ typedef struct a_inode_struct {
     /* AmigaOS protection bits.  */
     int amigaos_mode;
     /* Unique number for identification.  */
-    uae_u64 uniq;
+    uae_u32 uniq;
     /* For a directory that is being ExNext()ed, the number of child ainos
        which must be kept locked in core.  */
     unsigned long locked_children;

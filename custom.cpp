@@ -1986,22 +1986,6 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 		}
 	}
 	record_color_change2 (hpos, regno, value);
-
-	if (regno == 0 && value != 0 && vpos >= 20) {
-		// autoscale if COLOR00 changes in top or bottom of screen
-		if (vpos >= minfirstline) {
-			int vpos2 = autoscale_bordercolors ? minfirstline : vpos;
-			if (first_planes_vpos == 0)
-				first_planes_vpos = vpos2 - 2;
-			if (plffirstline_total == current_maxvpos ())
-				plffirstline_total = vpos2 - 2;
-			if (vpos2 > last_planes_vpos || vpos2 > plflastline_total)
-				plflastline_total = last_planes_vpos = vpos2 + 3;
-			autoscale_bordercolors = 0;
-		} else {
-			autoscale_bordercolors++;
-		}
-	}
 }
 
 static void record_register_change (int hpos, int regno, uae_u16 value)
@@ -4293,6 +4277,7 @@ static uae_u16 COLOR_READ (int num)
 
 static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 {
+	bool colzero = false;
 	v &= 0xFFF;
 #ifdef AGA
 	if (currprefs.chipset_mask & CSMASK_AGA) {
@@ -4324,8 +4309,11 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 			color_regs_aga_genlock[colreg] = v >> 15;
 		}
 		cval = (cr << 16) | (cg << 8) | cb;
+		if (cval && colreg == 0)
+			colzero = true;
+
 		if (cval == current_colors.color_regs_aga[colreg])
-			return;
+			goto end;
 
 		/* Call this with the old table still intact. */
 		record_color_change (hpos, colreg, cval);
@@ -4334,8 +4322,10 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 		current_colors.acolors[colreg] = getxcolor (cval);
 	} else {
 #endif
+		if (num && v == 0)
+			colzero = true;
 		if (current_colors.color_regs_ecs[num] == v)
-			return;
+			goto end;
 		/* Call this with the old table still intact. */
 		record_color_change (hpos, num, v);
 		remembered_color_entry = -1;
@@ -4344,6 +4334,23 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 #ifdef AGA
 	}
 #endif
+end:
+	if (copper_access && colzero && vpos >= 20) {
+		// autoscale if copper changes COLOR00 on top or bottom of screen
+		if (vpos >= minfirstline) {
+			int vpos2 = autoscale_bordercolors ? minfirstline : vpos;
+			if (first_planes_vpos == 0)
+				first_planes_vpos = vpos2 - 2;
+			if (plffirstline_total == current_maxvpos ())
+				plffirstline_total = vpos2 - 2;
+			if (vpos2 > last_planes_vpos || vpos2 > plflastline_total)
+				plflastline_total = last_planes_vpos = vpos2 + 3;
+			autoscale_bordercolors = 0;
+		} else {
+			autoscale_bordercolors++;
+		}
+	}
+
 }
 
 /* The copper code.  The biggest nightmare in the whole emulator.

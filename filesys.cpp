@@ -56,13 +56,18 @@
 #include "isofs_api.h"
 
 #define TRACING_ENABLED 0
-#define TRACE2(x) do { write_log x; } while(0)
 #if TRACING_ENABLED
 #define TRACE(x) do { write_log x; } while(0)
 #define DUMPLOCK(u,x) dumplock(u,x)
+#if TRACING_ENABLED > 1
+#define TRACE2(x) do { write_log x; } while(0)
+#else
+#define TRACE2(x)
+#endif
 #else
 #define TRACE(x)
 #define DUMPLOCK(u,x)
+#define TRACE2(x)
 #endif
 
 static uae_sem_t test_sem;
@@ -1682,7 +1687,7 @@ static void recycle_aino (Unit *unit, a_inode *new_aino)
 		/* Still in use */
 		return;
 
-	TRACE ((L"Recycling; cache size %d, total_locked %d\n",
+	TRACE2((L"Recycling; cache size %d, total_locked %d\n",
 		unit->aino_cache_size, unit->total_locked_ainos));
 	if (unit->aino_cache_size > 5000 + unit->total_locked_ainos) {
 		/* Reap a few. */
@@ -3775,7 +3780,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 		base->locked_children++;
 		unit->total_locked_ainos++;
 	}
-	TRACE((L"Populating directory, child %p, locked_children %d\n",
+	TRACE2((L"Populating directory, child %p, locked_children %d\n",
 		base->child, base->locked_children));
 	for (;;) {
 		uae_u64 uniq = 0;
@@ -4144,7 +4149,7 @@ static void
 	Key *k = lookup_key (unit, GET_PCK_ARG1 (packet));
 	uaecptr addr = GET_PCK_ARG2 (packet);
 	uae_u32 size = GET_PCK_ARG3 (packet);
-	uae_u32 actual;
+	uae_u32 actual = 0;
 
 	if (k == 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -4155,24 +4160,32 @@ static void
 	gui_flicker_led (LED_HD, unit->unit, 1);
 
 	if (size == 0) {
-		actual = 0;
 		PUT_PCK_RES1 (packet, 0);
 		PUT_PCK_RES2 (packet, 0);
 	} else if (!valid_address (addr, size)) {
 		/* check if filesize < size */
-		uae_s64 cur, filesize;
+		uae_s64 filesize, cur;
 
-		cur = fs_lseek64 (k->fd, 0, SEEK_CUR);
 		filesize = fs_fsize64 (k->fd);
+		cur = k->file_pos;
 		if (size > filesize - cur)
 			size = filesize - cur;
 
-		if (!valid_address (addr, size)) {
+		if (size == 0) {
+			PUT_PCK_RES1 (packet, 0);
+			PUT_PCK_RES2 (packet, 0);
+		} else if (!valid_address (addr, size)) {
 			/* it really crosses memory boundary */
 			uae_u8 *buf;
 			
 			write_log (L"unixfs warning: Bad pointer passed for read: %08x, size %d\n", addr, size);
 			/* ugh this is inefficient but easy */
+
+			if (fs_lseek64 (k->fd, k->file_pos, SEEK_SET) < 0) {
+				PUT_PCK_RES1 (packet, 0);
+				PUT_PCK_RES2 (packet, dos_errno ());
+				return;
+			}
 
 			buf = xmalloc (uae_u8, size);
 			if (!buf) {
@@ -4180,6 +4193,7 @@ static void
 				PUT_PCK_RES2 (packet, ERROR_NO_FREE_STORE);
 				return;
 			}
+
 			actual = fs_read (k->fd, buf, size);
 
 			if (actual < 0) {
@@ -4200,6 +4214,13 @@ static void
 	if (size) {
 		/* normal fast read */
 		uae_u8 *realpt = get_real_address (addr);
+
+		if (fs_lseek64 (k->fd, k->file_pos, SEEK_SET) < 0) {
+			PUT_PCK_RES1 (packet, 0);
+			PUT_PCK_RES2 (packet, dos_errno ());
+			return;
+		}
+
 		actual = fs_read (k->fd, realpt, size);
 
 		if (actual == 0) {
@@ -4249,10 +4270,24 @@ static void
 		PUT_PCK_RES2 (packet, 0);
 	} else if (valid_address (addr, size)) {
 		uae_u8 *realpt = get_real_address (addr);
+
+		if (fs_lseek64 (k->fd, k->file_pos, SEEK_SET) < 0) {
+			PUT_PCK_RES1 (packet, 0);
+			PUT_PCK_RES2 (packet, dos_errno ());
+			return;
+		}
+
 		actual = fs_write (k->fd, realpt, size);
 	} else {
 		write_log (L"unixfs warning: Bad pointer passed for write: %08x, size %d\n", addr, size);
 		/* ugh this is inefficient but easy */
+
+		if (fs_lseek64 (k->fd, k->file_pos, SEEK_SET) < 0) {
+			PUT_PCK_RES1 (packet, 0);
+			PUT_PCK_RES2 (packet, dos_errno ());
+			return;
+		}
+
 		buf = xmalloc (uae_u8, size);
 		if (!buf) {
 			PUT_PCK_RES1 (packet, -1);
@@ -4286,6 +4321,7 @@ static void
 	uae_s64 res;
 	uae_s64 cur;
 	int whence = SEEK_CUR;
+	uae_s64 temppos, filesize;
 
 	if (k == 0) {
 		PUT_PCK_RES1 (packet, -1);
@@ -4298,38 +4334,32 @@ static void
 	if (mode < 0)
 		whence = SEEK_SET;
 
-	cur = fs_lseek (k->fd, 0, SEEK_CUR);
-	TRACE((L"ACTION_SEEK(%s,%d,%d)=%d\n", k->aino->nname, pos, mode, old));
+	cur = k->file_pos;
+	TRACE((L"ACTION_SEEK(%s,%d,%d)=%d\n", k->aino->nname, pos, mode, cur));
 	gui_flicker_led (LED_HD, unit->unit, 1);
 
-	{
-		uae_s64 temppos;
-		uae_s64 filesize = fs_fsize64 (k->fd);
-
-		if (whence == SEEK_CUR)
-			temppos = cur + pos;
-		if (whence == SEEK_SET)
-			temppos = pos;
-		if (whence == SEEK_END)
-			temppos = filesize + pos;
-		if (filesize < temppos) {
-			res = -1;
-			PUT_PCK_RES1 (packet, res);
-			PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
-			return;
-		}
+	filesize = fs_fsize64 (k->fd);
+	if (whence == SEEK_CUR)
+		temppos = cur + pos;
+	if (whence == SEEK_SET)
+		temppos = pos;
+	if (whence == SEEK_END)
+		temppos = filesize + pos;
+	if (filesize < temppos) {
+		PUT_PCK_RES1 (packet, -1);
+		PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
+		return;
 	}
-	res = fs_lseek64 (k->fd, pos, whence);
 
+	res = fs_lseek64 (k->fd, pos, whence);
 	if (-1 == res || cur > MAXFILESIZE32) {
 		PUT_PCK_RES1 (packet, -1);
 		PUT_PCK_RES2 (packet, ERROR_SEEK_ERROR);
 		fs_lseek64 (k->fd, cur, SEEK_SET);
-		res = cur;
 	} else {
 		PUT_PCK_RES1 (packet, cur);
+		k->file_pos = fs_lseek64 (k->fd, 0, SEEK_CUR);
 	}
-	k->file_pos = res;
 }
 
 static void
@@ -5224,7 +5254,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 					lockend = get_long (lockend);
 					cnt++;
 				}
-				TRACE((L"message_lock: %d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
+				TRACE2((L"message_lock: %d %x %x %x\n", cnt, locks, lockend, m68k_areg (regs, 3)));
 				put_long (lockend, get_long (m68k_areg (regs, 3)));
 				put_long (m68k_areg (regs, 3), locks);
 			}
@@ -5326,7 +5356,7 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	if (unit->cdfs_superblock)
 		write_log(L"unit=%x packet=%d\n", unit, type);
 #endif
-#if TRACING_ENABLED > 0
+#if TRACING_ENABLED > 1
 	write_log(L"unit=%x packet=%d\n", unit, type);
 #endif
 	if (unit->inhibited && filesys_isvolume (unit)
@@ -7039,7 +7069,7 @@ static int recurse_aino (UnitInfo *ui, a_inode *a, int cnt, uae_u8 **dstp)
 		if (a->elock || a->shlock || a->uniq == 0) {
 			if (dst) {
 				TCHAR *fn;
-				write_log (L"%04x s=%d e=%d d=%d '%s' '%s'\n", a->uniq, a->shlock, a->elock, a->dir, a->aname, a->nname);
+				write_log (L"uniq=%d s=%d e=%d d=%d '%s' '%s'\n", a->uniq, a->shlock, a->elock, a->dir, a->aname, a->nname);
 				fn = getfullaname(a);
 				write_log (L"->'%s'\n", fn);
 				save_u64 (a->uniq);
@@ -7076,11 +7106,10 @@ static uae_u8 *save_key (uae_u8 *dst, Key *k)
 	size = fs_fsize (k->fd);
 	save_u32 ((uae_u32)size);
 	save_u64 (k->aino->uniq);
-	fs_lseek (k->fd, k->file_pos, SEEK_SET);
 	save_string (fn);
 	save_u64 (k->file_pos);
 	save_u64 (size);
-	write_log (L"'%s' uniq=%d size=%d seekpos=%d mode=%d dosmode=%d\n",
+	write_log (L"'%s' uniq=%d size=%I64d seekpos=%I64d mode=%d dosmode=%d\n",
 		fn, k->uniq, size, k->file_pos, k->createmode, k->dosmode);
 	xfree (fn);
 	return dst;

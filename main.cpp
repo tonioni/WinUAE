@@ -53,7 +53,9 @@
 #include "dongle.h"
 #include "sampler.h"
 #include "consolehook.h"
-
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 #ifdef USE_SDL
 #include "SDL.h"
 #endif
@@ -158,6 +160,8 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	}
 
 	if (prefs->gfx_filter == 0 && ((prefs->gfx_filter_autoscale && !prefs->gfx_api) || (prefs->gfx_apmode[0].gfx_vsyncmode)))
+		prefs->gfx_filter = 1;
+	if (prefs->gfx_filter == 0 && prefs->monitoremu)
 		prefs->gfx_filter = 1;
 }
 
@@ -412,6 +416,7 @@ void fixup_prefs (struct uae_prefs *p)
 	 */
 	if (p->genlock && p->monitoremu)
 		p->genlock = false;
+
 
 	fixup_prefs_dimensions (p);
 
@@ -896,6 +901,9 @@ static int real_main2 (int argc, TCHAR **argv)
 #endif
 
 	fixup_prefs (&currprefs);
+#ifdef RETROPLATFORM
+	rp_fixup_options (&currprefs);
+#endif
 	changed_prefs = currprefs;
 	target_run ();
 	/* force sound settings change */
