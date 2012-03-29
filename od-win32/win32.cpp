@@ -5745,8 +5745,6 @@ void fpux_restore (int *v)
 #ifndef _WIN64
 	if (v)
 		_controlfp (*v, _MCW_IC | _MCW_RC | _MCW_PC);
-#else
-		_controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
 #endif
 }
 

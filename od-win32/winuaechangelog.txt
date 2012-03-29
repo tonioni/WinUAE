@@ -1,4 +1,6 @@
 
+2.4.0
+
 Beta 27: (RC5)
 
 - Saving directory filesystem statefile crashed (b23)

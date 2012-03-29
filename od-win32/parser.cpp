@@ -1541,8 +1541,11 @@ int enummidiports (void)
 	write_log (L"MIDI port enumeration..\n");
 	num = midiOutGetNumDevs ();
 	for (i = 0; i < num + 1 && i < MAX_MIDI_PORTS - 1; i++) {
-		if (midiOutGetDevCaps (i - 1, &midiOutCaps, sizeof (midiOutCaps)) != MMSYSERR_NOERROR)
+		MMRESULT r = midiOutGetDevCaps (i - 1, &midiOutCaps, sizeof (midiOutCaps));
+		if (r != MMSYSERR_NOERROR) {
+			num = i;
 			break;
+		}
 		midioutportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midioutportinfo[i]->name = my_strdup (midiOutCaps.szPname);
 		midioutportinfo[i]->devid = i - 1;
@@ -1562,8 +1565,10 @@ int enummidiports (void)
 
 	num = midiInGetNumDevs ();
 	for (i = 0; i < num && i < MAX_MIDI_PORTS - 1; i++) {
-		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR)
+		if (midiInGetDevCaps (i, &midiInCaps, sizeof (midiInCaps)) != MMSYSERR_NOERROR) {
+			num = i;
 			break;
+		}
 		midiinportinfo[i] = xcalloc (struct midiportinfo, 1);
 		midiinportinfo[i]->name = my_strdup (midiInCaps.szPname);
 		midiinportinfo[i]->devid = i;

@@ -1002,7 +1002,8 @@ void rp_fixup_options (struct uae_prefs *p)
 	}
 
 	rp_update_volume (&currprefs);
-	rp_turbo (currprefs.turbo_emulation);
+	rp_turbo_cpu (currprefs.turbo_emulation);
+	rp_turbo_floppy (currprefs.floppy_speed == 0);
 	for (i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, 0);
 	config_changed = 1;
@@ -1262,13 +1263,22 @@ void rp_activate (int active, LPARAM lParam)
 	RPSendMessagex (active ? RPIPCGM_ACTIVATED : RPIPCGM_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
 }
 
-void rp_turbo (int active)
+void rp_turbo_cpu (int active)
 {
 	if (!cando ())
 		return;
 	if (recursive_device)
 		return;
 	RPSendMessagex (RPIPCGM_TURBO, RP_TURBO_CPU, active ? RP_TURBO_CPU : 0, NULL, 0, &guestinfo, NULL);
+}
+
+void rp_turbo_floppy (int active)
+{
+	if (!cando ())
+		return;
+	if (recursive_device)
+		return;
+	RPSendMessagex (RPIPCGM_TURBO, RP_TURBO_FLOPPY, active ? RP_TURBO_FLOPPY : 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_set_hwnd (HWND hWnd)

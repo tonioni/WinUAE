@@ -197,8 +197,7 @@
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\tun;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WINVER=0x0500;_DEBUG;WIN32_IE=0x0700;WIN32;WIN64;_CRT_SECURE_NO_WARNINGS;D3D_DEBUG_INFO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ExceptionHandling>
-      </ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -220,7 +219,7 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;avrt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;avrt.lib;hid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>

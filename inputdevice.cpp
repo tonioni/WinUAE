@@ -5934,7 +5934,7 @@ void warpmode (int mode)
 	}
 	compute_vsynctime ();
 #ifdef RETROPLATFORM
-	rp_turbo (currprefs.turbo_emulation);
+	rp_turbo_cpu (currprefs.turbo_emulation);
 #endif
 	changed_prefs.turbo_emulation = currprefs.turbo_emulation;
 	config_changed = 1;
