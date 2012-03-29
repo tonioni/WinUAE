@@ -90,7 +90,7 @@ static int isdebug (uaecptr addr)
 static uae_u8 io_bget (uaecptr addr)
 {
 	addr &= 0xffff;
-	write_log (L"FMV: IO byte read access %08x!\n", addr);
+	write_log (_T("FMV: IO byte read access %08x!\n"), addr);
 	return 0;
 }
 static uae_u16 io_wget (uaecptr addr)
@@ -103,25 +103,25 @@ static uae_u16 io_wget (uaecptr addr)
 static void io_bput (uaecptr addr, uae_u8 v)
 {
 	addr &= 0xffff;
-	write_log (L"FMV: IO byte write access %08x!\n", addr);
+	write_log (_T("FMV: IO byte write access %08x!\n"), addr);
 }
 static void io_wput (uaecptr addr, uae_u16 v)
 {
 	addr &= 0xffff;
 	if (addr != 0)
 		return;
-	write_log (L"FMV: IO=%04x\n", v);
+	write_log (_T("FMV: IO=%04x\n"), v);
 	io_reg = v;
 }
 
 static uae_u8 l64111_bget (uaecptr addr)
 {
-	write_log (L"FMV: L64111 byte read access %08x!\n", addr);
+	write_log (_T("FMV: L64111 byte read access %08x!\n"), addr);
 	return 0;
 }
 static void l64111_bput (uaecptr addr, uae_u8 v)
 {
-	write_log (L"FMV: L64111 byte write access %08x!\n", addr);
+	write_log (_T("FMV: L64111 byte write access %08x!\n"), addr);
 }
 
 static uae_u16 l64111_wget (uaecptr addr)
@@ -129,7 +129,7 @@ static uae_u16 l64111_wget (uaecptr addr)
 	addr >>= 1;
 	addr &= 31;
 #if FMV_DEBUG > 0
-	write_log (L"FMV: L64111 read reg %d -> %04x\n", addr, l64111regs[addr]);
+	write_log (_T("FMV: L64111 read reg %d -> %04x\n"), addr, l64111regs[addr]);
 #endif
 	if (addr == 4)
 		return l64111intstatus1;
@@ -144,7 +144,7 @@ static void l64111_wput (uaecptr addr, uae_u16 v)
 	addr &= 31;
 
 #if FMV_DEBUG > 0
-	write_log (L"FMV: L64111 write reg %d = %04x\n", addr, v);
+	write_log (_T("FMV: L64111 write reg %d = %04x\n"), addr, v);
 #endif
 
 	if (addr == 4) {
@@ -163,32 +163,32 @@ static void l64111_wput (uaecptr addr, uae_u16 v)
 static uae_u8 cl450_bget (uaecptr addr)
 {
 	addr &= 0xff;
-	write_log (L"FMV: CL450 byte read access %08x!\n", addr);
+	write_log (_T("FMV: CL450 byte read access %08x!\n"), addr);
 	return 0;
 }
 static uae_u16 cl450_wget (uaecptr addr)
 {
 	addr &= 0xff;
 	addr >>= 1;
-	write_log (L"FMV: CL450 read reg %d\n", addr);
+	write_log (_T("FMV: CL450 read reg %d\n"), addr);
 	return 0;
 }
 static void cl450_bput (uaecptr addr, uae_u8 v)
 {
 	addr &= 0xff;
-	write_log (L"FMV: CL450 byte write access %08x!\n", addr);
+	write_log (_T("FMV: CL450 byte write access %08x!\n"), addr);
 }
 static void cl450_wput (uaecptr addr, uae_u16 v)
 {
 	addr &= 0xff;
-	write_log (L"FMV: CL450 write reg %d = %04x\n", addr, v);
+	write_log (_T("FMV: CL450 write reg %d = %04x\n"), addr, v);
 }
 
 static uae_u8 romram_bget (uaecptr addr)
 {
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"romram_bget %08X PC=%08X\n", addr, M68K_GETPC);
+		write_log (_T("romram_bget %08X PC=%08X\n"), addr, M68K_GETPC);
 #endif
 	if (addr >= IO_BASE && addr < VRAM_BASE)
 		return 0;
@@ -198,7 +198,7 @@ static uae_u16 romram_wget (uaecptr addr)
 {
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"romram_wget %08X PC=%08X\n", addr, M68K_GETPC);
+		write_log (_T("romram_wget %08X PC=%08X\n"), addr, M68K_GETPC);
 #endif
 	if (addr >= IO_BASE && addr < VRAM_BASE)
 		return 0;
@@ -210,7 +210,7 @@ static void ram_bput (uaecptr addr, uae_u8 v)
 		return;
 	rom[addr] = v;
 	if (isdebug (addr)) {
-		write_log (L"ram_bput %08X=%02X PC=%08X\n", addr, v & 0xff, M68K_GETPC);
+		write_log (_T("ram_bput %08X=%02X PC=%08X\n"), addr, v & 0xff, M68K_GETPC);
 	}
 }
 static void ram_wput (uaecptr addr, uae_u16 v)
@@ -220,7 +220,7 @@ static void ram_wput (uaecptr addr, uae_u16 v)
 	rom[addr + 0] = v >> 8;
 	rom[addr + 1] = v >> 0;
 	if (isdebug (addr)) {
-		write_log (L"ram_wput %08X=%04X PC=%08X\n", addr, v & 0xffff, M68K_GETPC);
+		write_log (_T("ram_wput %08X=%04X PC=%08X\n"), addr, v & 0xffff, M68K_GETPC);
 	}
 }
 
@@ -241,7 +241,7 @@ static uae_u32 REGPARAM2 fmv_wget (uaecptr addr)
 
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"fmv_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
+		write_log (_T("fmv_wget %08X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -252,7 +252,7 @@ static uae_u32 REGPARAM2 fmv_lget (uaecptr addr)
 	v = (fmv_wget (addr) << 16) | (fmv_wget (addr + 2) << 0);
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"fmv_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
+		write_log (_T("fmv_lget %08X=%08X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -280,7 +280,7 @@ static void REGPARAM2 fmv_wput (uaecptr addr, uae_u32 w)
 	addr &= fmv_mask;
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"fmv_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
+		write_log (_T("fmv_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
 #endif
 	int mask = addr & BANK_MASK;
 	if (mask == L64111_BASE)
@@ -297,7 +297,7 @@ static void REGPARAM2 fmv_lput (uaecptr addr, uae_u32 w)
 {
 #ifdef FMV_DEBUG
 	if (isdebug (addr))
-		write_log (L"fmv_lput %08X=%08X PC=%08X\n", addr, w, M68K_GETPC);
+		write_log (_T("fmv_lput %08X=%08X PC=%08X\n"), addr, w, M68K_GETPC);
 #endif
 	fmv_wput (addr + 0, w >> 16);
 	fmv_wput (addr + 2, w >>  0);
@@ -333,7 +333,7 @@ static uae_u32 REGPARAM2 fmv_wgeti (uaecptr addr)
 	if (addr < rom_size)
 		return do_get_mem_word ((uae_u16 *)m);
 #ifdef FMV_DEBUG
-	write_log (L"fmv_wgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
+	write_log (_T("fmv_wgeti %08X %08X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -351,7 +351,7 @@ static uae_u32 REGPARAM2 fmv_lgeti (uaecptr addr)
 	if (addr < rom_size)
 		return do_get_mem_long ((uae_u32 *)m);
 #ifdef FMV_DEBUG
-	write_log (L"fmv_lgeti %08X %08X PC=%08X\n", addr, v, M68K_GETPC);
+	write_log (_T("fmv_lgeti %08X %08X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -373,7 +373,7 @@ static uae_u8 *REGPARAM2 fmv_xlate (uaecptr addr)
 static addrbank fmv_bank = {
 	fmv_lget, fmv_wget, fmv_bget,
 	fmv_lput, fmv_wput, fmv_bput,
-	fmv_xlate, fmv_check, NULL, L"CD32 FMV module",
+	fmv_xlate, fmv_check, NULL, _T("CD32 FMV module"),
 	fmv_lgeti, fmv_wgeti, ABFLAG_ROM | ABFLAG_IO
 };
 
@@ -386,7 +386,7 @@ void cd32_fmv_init (uaecptr start)
 	struct romdata *rd;
 	struct zfile *z;
 
-	write_log (L"CD32 FMV mapped @$%lx\n", start);
+	write_log (_T("CD32 FMV mapped @$%lx\n"), start);
 	if (start != fmv_start)
 		return;
 	if (!rl)
@@ -394,8 +394,8 @@ void cd32_fmv_init (uaecptr start)
 	rd = rl->rd;
 	z = read_rom (&rd);
 	if (z) {
-		write_log (L"CD32 FMV ROM %d.%d\n", rd->ver, rd->rev);
-		rom = mapped_malloc (fmv_size, L"fast");
+		write_log (_T("CD32 FMV ROM %d.%d\n"), rd->ver, rd->rev);
+		rom = mapped_malloc (fmv_size, _T("fast"));
 		if (rom)
 			zfile_fread (rom, rd->size, 1, z);
 		zfile_fclose (z);

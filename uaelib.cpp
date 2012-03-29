@@ -135,7 +135,7 @@ static uae_u32 REGPARAM2 emulib_ChgCMemSize (uae_u32 memsize)
 	if (memsize != 0x80000 && memsize != 0x100000 &&
 		memsize != 0x200000) {
 			memsize = 0x200000;
-			write_log (L"Unsupported chipmem size!\n");
+			write_log (_T("Unsupported chipmem size!\n"));
 	}
 	m68k_dreg (regs, 0) = 0;
 
@@ -153,7 +153,7 @@ static uae_u32 REGPARAM2 emulib_ChgSMemSize (uae_u32 memsize)
 	if (memsize != 0x80000 && memsize != 0x100000 &&
 		memsize != 0x180000 && memsize != 0x1C0000) {
 			memsize = 0;
-			write_log (L"Unsupported bogomem size!\n");
+			write_log (_T("Unsupported bogomem size!\n"));
 	}
 
 	m68k_dreg (regs, 0) = 0;
@@ -171,7 +171,7 @@ static uae_u32 REGPARAM2 emulib_ChgFMemSize (uae_u32 memsize)
 	if (memsize != 0x100000 && memsize != 0x200000 &&
 		memsize != 0x400000 && memsize != 0x800000) {
 			memsize = 0;
-			write_log (L"Unsupported fastmem size!\n");
+			write_log (_T("Unsupported fastmem size!\n"));
 	}
 	m68k_dreg (regs, 0) = 0;
 	changed_prefs.fastmem_size = memsize;
@@ -410,7 +410,7 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 	case 86:
 		if (valid_address (ARG1, 1)) {
 			TCHAR *s = au ((char*)get_real_address (ARG1));
-			write_log (L"DBG: %s\n", s);
+			write_log (_T("DBG: %s\n"), s);
 			xfree (s);
 			return 1;
 		}
@@ -434,13 +434,13 @@ static uae_u32 REGPARAM2 uaelib_demux (TrapContext *context)
 	struct regstruct *r = &regs;
 
 	if (uaelib_debug)
-		write_log (L"%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n",
+		write_log (_T("%d: %08x %08x %08x %08x %08x %08x %08x %08x, %08x %08x %08x %08x %08x %08x %08x %08x\n"),
 		ARG0,
 		r->regs[0],r->regs[1],r->regs[2],r->regs[3],r->regs[4],r->regs[5],r->regs[6],r->regs[7],
 		r->regs[8],r->regs[9],r->regs[10],r->regs[11],r->regs[12],r->regs[13],r->regs[14],r->regs[15]);
 	v = uaelib_demux2 (context);
 	if (uaelib_debug)
-		write_log (L"=%08x\n", v);
+		write_log (_T("=%08x\n"), v);
 	return v;
 }
 
@@ -460,7 +460,7 @@ void emulib_install (void)
 	dw ((rtarea_base >> 16) | get_word (rtarea_base + 36));
 	dw (get_word (rtarea_base + 38) + 12);
 #endif
-	calltrap (deftrapres (uaelib_demux, 0, L"uaelib_demux"));
+	calltrap (deftrapres (uaelib_demux, 0, _T("uaelib_demux")));
 	dw (RTS);
 	org (a);
 }

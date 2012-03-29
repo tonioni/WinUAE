@@ -42,7 +42,7 @@ static int REGPARAM3 rtarea_check (uaecptr addr, uae_u32 size) REGPARAM;
 addrbank rtarea_bank = {
 	rtarea_lget, rtarea_wget, rtarea_bget,
 	rtarea_lput, rtarea_wput, rtarea_bput,
-	rtarea_xlate, rtarea_check, NULL, L"UAE Boot ROM",
+	rtarea_xlate, rtarea_check, NULL, _T("UAE Boot ROM"),
 	rtarea_lget, rtarea_wget, ABFLAG_ROMIN
 };
 
@@ -188,7 +188,7 @@ void calltrap (uae_u32 n)
 void org (uae_u32 a)
 {
 	if ( ((a & 0xffff0000) != 0x00f00000) && ((a & 0xffff0000) != rtarea_base) )
-		write_log (L"ORG: corrupt address! %08X", a);
+		write_log (_T("ORG: corrupt address! %08X"), a);
 	rt_addr = a & 0xffff;
 }
 
@@ -204,7 +204,7 @@ void align (int b)
 
 static uae_u32 REGPARAM2 nullfunc (TrapContext *context)
 {
-	write_log (L"Null function called\n");
+	write_log (_T("Null function called\n"));
 	return 0;
 }
 
@@ -223,9 +223,9 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *context)
 
 void rtarea_init_mem (void)
 {
-	rtarea = mapped_malloc (0x10000, L"rtarea");
+	rtarea = mapped_malloc (0x10000, _T("rtarea"));
 	if (!rtarea) {
-		write_log (L"virtual memory exhausted (rtarea)!\n");
+		write_log (_T("virtual memory exhausted (rtarea)!\n"));
 		abort ();
 	}
 	rtarea_bank.baseaddr = rtarea;
@@ -244,12 +244,12 @@ void rtarea_init (void)
 	rtarea_init_mem ();
 	memset (rtarea, 0, 0x10000);
 
-	_stprintf (uaever, L"uae-%d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
+	_stprintf (uaever, _T("uae-%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 
 	EXPANSION_uaeversion = ds (uaever);
-	EXPANSION_explibname = ds (L"expansion.library");
-	EXPANSION_doslibname = ds (L"dos.library");
-	EXPANSION_uaedevname = ds (L"uae.device");
+	EXPANSION_explibname = ds (_T("expansion.library"));
+	EXPANSION_doslibname = ds (_T("dos.library"));
+	EXPANSION_uaedevname = ds (_T("uae.device"));
 
 	deftrap (NULL); /* Generic emulator trap */
 
@@ -259,13 +259,13 @@ void rtarea_init (void)
 	a = here();
 	/* Dummy trap - removing this breaks the filesys emulation. */
 	org (rtarea_base + 0xFF00);
-	calltrap (deftrap2 (nullfunc, TRAPFLAG_NO_RETVAL, L""));
+	calltrap (deftrap2 (nullfunc, TRAPFLAG_NO_RETVAL, _T("")));
 
 	org (rtarea_base + 0xFF80);
-	calltrap (deftrapres (getchipmemsize, TRAPFLAG_DORET, L"getchipmemsize"));
+	calltrap (deftrapres (getchipmemsize, TRAPFLAG_DORET, _T("getchipmemsize")));
 
 	org (rtarea_base + 0xFF10);
-	calltrap (deftrapres (uae_puts, TRAPFLAG_NO_RETVAL, L"uae_puts"));
+	calltrap (deftrapres (uae_puts, TRAPFLAG_NO_RETVAL, _T("uae_puts")));
 	dw (RTS);
 
 	org (a);
@@ -292,7 +292,7 @@ void rtarea_setup (void)
 {
 	uaecptr base = need_uae_boot_rom ();
 	if (base) {
-		write_log (L"RTAREA located at %08X\n", base);
+		write_log (_T("RTAREA located at %08X\n"), base);
 		rtarea_base = base;
 	}
 }

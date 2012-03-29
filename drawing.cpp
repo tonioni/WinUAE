@@ -255,7 +255,7 @@ static void xlinecheck (unsigned int start, unsigned int end)
 		ok = 0;
 
 	if (!ok) {
-		write_log (L"*** %d-%d (%dx%dx%d %d) %p\n",
+		write_log (_T("*** %d-%d (%dx%dx%d %d) %p\n"),
 			start - min, end - min, gfxvidinfo.drawbuffer.width, gfxvidinfo.drawbuffer.height,
 			gfxvidinfo.drawbuffer.pixbytes, gfxvidinfo.drawbuffer.rowbytes,
 			xlinebuffer);
@@ -490,8 +490,8 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	*pdx = dx;
 	*pdy = dy;
 #if 1
-	write_log (L"Display Size: %dx%d Offset: %dx%d\n", w, h, dx, dy);
-	write_log (L"First: %d Last: %d MinV: %d MaxV: %d Min: %d\n",
+	write_log (_T("Display Size: %dx%d Offset: %dx%d\n"), w, h, dx, dy);
+	write_log (_T("First: %d Last: %d MinV: %d MaxV: %d Min: %d\n"),
 		plffirstline_total, plflastline_total,
 		first_planes_vpos, last_planes_vpos, minfirstline);
 #endif
@@ -1722,7 +1722,7 @@ void init_row_map (void)
 {
 	int i, j;
 	if (gfxvidinfo.drawbuffer.height > MAX_VIDHEIGHT) {
-		write_log (L"Resolution too high, aborting\n");
+		write_log (_T("Resolution too high, aborting\n"));
 		abort ();
 	}
 	j = 0;
@@ -2042,7 +2042,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	{
 	case LINE_REMEMBERED_AS_PREVIOUS:
 //		if (!warned) // happens when program messes up with VPOSW
-//			write_log (L"Shouldn't get here... this is a bug.\n"), warned++;
+//			write_log (_T("Shouldn't get here... this is a bug.\n")), warned++;
 		return;
 
 	case LINE_BLACK:
@@ -2254,7 +2254,7 @@ static void center_image (void)
 		visible_left_border = 0;
 	visible_left_border &= ~((xshift (1, lores_shift)) - 1);
 
-	//write_log (L"%d %d %d %d %d\n", max_diwlastword, gfxvidinfo.drawbuffer.width, lores_shift, currprefs.gfx_resolution, visible_left_border);
+	//write_log (_T("%d %d %d %d %d\n"), max_diwlastword, gfxvidinfo.drawbuffer.width, lores_shift, currprefs.gfx_resolution, visible_left_border);
 
 	linetoscr_x_adjust_bytes = visible_left_border * gfxvidinfo.drawbuffer.pixbytes;
 
@@ -2348,7 +2348,7 @@ static void init_drawing_frame (void)
 						if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
 							changed_prefs.gfx_resolution = nr;
 							changed_prefs.gfx_vresolution = nl;
-							write_log (L"RES -> %d LINE -> %d\n", nr, nl);
+							write_log (_T("RES -> %d LINE -> %d\n"), nr, nl);
 							config_changed = 1;
 						}
 						if (src->width > 0 && src->height > 0) {
@@ -2770,7 +2770,7 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 			if (!savestate_state) {
 				if (currprefs.quitstatefile[0]) {
 					savestate_initsave (currprefs.quitstatefile, 1, 1, true); 
-					save_state (currprefs.quitstatefile, L"");
+					save_state (currprefs.quitstatefile, _T(""));
 				}
 			}
 #endif
@@ -2877,13 +2877,13 @@ bool notice_interlace_seen (bool lace)
 	if (lace) {
 		if (interlace_seen == 0) {
 			changed = true;
-			//write_log (L"->lace PC=%x\n", m68k_getpc ());
+			//write_log (_T("->lace PC=%x\n"), m68k_getpc ());
 		}
 		interlace_seen = currprefs.gfx_vresolution ? 1 : -1;
 	} else {
 		if (interlace_seen) {
 			changed = true;
-			//write_log (L"->non-lace PC=%x\n", m68k_getpc ());
+			//write_log (_T("->non-lace PC=%x\n"), m68k_getpc ());
 		}
 		interlace_seen = 0;
 	}

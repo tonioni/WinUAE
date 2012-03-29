@@ -37,7 +37,7 @@ void lha_make_table(short nchar, unsigned char bitlen[], short tablebits, unsign
 		total += weight[i] * count[i];
 	}
 	if ((total & 0xffff) != 0)
-		error(L"make_table()", L"Bad table (5)\n");
+		error(_T("make_table()"), _T("Bad table (5)\n"));
 
 	/* shift data for make table. */
 	m = 16 - tablebits;

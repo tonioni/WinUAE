@@ -51,7 +51,7 @@ extern uae_u32 CallFunc (TrapContext *context, uaecptr func);
 void init_traps (void);
 void init_extended_traps (void);
 
-#define deftrap(f) define_trap((f), 0, L"")
+#define deftrap(f) define_trap((f), 0, _T(""))
 #define deftrap2(f, mode, str) define_trap((f), (mode), (str))
 #define deftrapres(f, mode, str) define_trap((f), (mode | TRAPFLAG_UAERES), (str))
 

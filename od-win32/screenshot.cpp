@@ -100,7 +100,7 @@ int screenshot_prepare (void)
 
 	screenshot_free ();
 
-	regqueryint (NULL, L"Screenshot_Original", &screenshot_originalsize);
+	regqueryint (NULL, _T("Screenshot_Original"), &screenshot_originalsize);
 
 	if (screenshot_originalsize && !WIN32GFX_IsPicassoScreen ()) {
 		int spitch, dpitch, x, y;
@@ -238,7 +238,7 @@ static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
 	TCHAR *name = au ("unknown");
 	if (png_ptr != NULL && png_ptr->error_ptr != NULL)
 		name = au ((char*)png_ptr->error_ptr);
-	write_log (L"%s: libpng warning: %s\n", name, message);
+	write_log (_T("%s: libpng warning: %s\n"), name, message);
 	xfree (name);
 }
 
@@ -327,11 +327,11 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 		TCHAR filename[MAX_DPATH];
 		TCHAR path[MAX_DPATH];
 		TCHAR name[MAX_DPATH];
-		TCHAR underline[] = L"_";
+		TCHAR underline[] = _T("_");
 		int number = 0;
 
 		if (spath) {
-			fp = _tfopen (spath, L"wb");
+			fp = _tfopen (spath, _T("wb"));
 			if (fp) {
 #if PNG_SCREENSHOTS > 0
 				if (screenshotmode)
@@ -344,7 +344,7 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 				goto oops;
 			}
 		}
-		fetch_path (L"ScreenshotPath", path, sizeof (path) / sizeof (TCHAR));
+		fetch_path (_T("ScreenshotPath"), path, sizeof (path) / sizeof (TCHAR));
 		CreateDirectory (path, NULL);
 		name[0] = 0;
 		if (currprefs.floppyslots[0].dfxtype >= 0)
@@ -357,11 +357,11 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 
 		while(++number < 1000) // limit 999 iterations / screenshots
 		{
-			_stprintf (filename, L"%s%s%s%03d.%s", path, name, underline, number, screenshotmode ? L"png" : L"bmp");
-			if ((fp = _tfopen (filename, L"rb")) == NULL) // does file not exist?
+			_stprintf (filename, _T("%s%s%s%03d.%s"), path, name, underline, number, screenshotmode ? _T("png") : _T("bmp"));
+			if ((fp = _tfopen (filename, _T("rb"))) == NULL) // does file not exist?
 			{
 				int ok = 0;
-				if ((fp = _tfopen (filename, L"wb")) == NULL)
+				if ((fp = _tfopen (filename, _T("wb"))) == NULL)
 					goto oops; // error
 #if PNG_SCREENSHOTS > 0
 				if (screenshotmode)
@@ -373,7 +373,7 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 				fp = NULL;
 				if (!ok)
 					goto oops;
-				write_log (L"Screenshot saved as \"%s\"\n", filename);
+				write_log (_T("Screenshot saved as \"%s\"\n"), filename);
 				allok = 1;
 				break;
 			}

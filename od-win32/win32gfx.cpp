@@ -269,7 +269,7 @@ struct MultiDisplay *getdisplay (struct uae_prefs *p)
 		i++;
 	}
 	if (i == 0) {
-		gui_message (L"no display adapters! Exiting");
+		gui_message (_T("no display adapters! Exiting"));
 		exit (0);
 	}
 	if (display >= i)
@@ -404,17 +404,17 @@ static int set_ddraw_2 (void)
 					}
 				}
 				if (got == FALSE) {
-					write_log (L"set_ddraw: refresh rate %d not supported\n", freq);
+					write_log (_T("set_ddraw: refresh rate %d not supported\n"), freq);
 					freq = 0;
 				}
 			}
-			write_log (L"set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n", width, height, bits, freq);
+			write_log (_T("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n"), width, height, bits, freq);
 			ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 			if (SUCCEEDED (ddrval))
 				break;
 			olderr = ddrval;
 			if (freq) {
-				write_log (L"set_ddraw: failed, trying without forced refresh rate\n");
+				write_log (_T("set_ddraw: failed, trying without forced refresh rate\n"));
 				DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
 				ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
 				if (SUCCEEDED (ddrval))
@@ -433,7 +433,7 @@ static int set_ddraw_2 (void)
 			goto oops;
 		ddrval = DirectDraw_CreateMainSurface (width, height);
 		if (FAILED(ddrval)) {
-			write_log (L"set_ddraw: couldn't CreateSurface() for primary because %s.\n", DXError (ddrval));
+			write_log (_T("set_ddraw: couldn't CreateSurface() for primary because %s.\n"), DXError (ddrval));
 			goto oops;
 		}
 		ddrval = DirectDraw_SetClipper (hAmigaWnd);
@@ -445,7 +445,7 @@ static int set_ddraw_2 (void)
 		}
 	}
 
-	write_log (L"set_ddraw: %dx%d@%d-bytes\n", width, height, bits);
+	write_log (_T("set_ddraw: %dx%d@%d-bytes\n"), width, height, bits);
 	return 1;
 oops:
 	return 0;
@@ -515,9 +515,9 @@ static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 	md->DisplayModes[i].refresh[1] = 0;
 	md->DisplayModes[i].colormodes = ct;
 	md->DisplayModes[i + 1].depth = -1;
-	_stprintf (md->DisplayModes[i].name, L"%dx%d%s, %d-bit",
+	_stprintf (md->DisplayModes[i].name, _T("%dx%d%s, %d-bit"),
 		md->DisplayModes[i].res.width, md->DisplayModes[i].res.height,
-		lace ? L"i" : L"",
+		lace ? _T("i") : _T(""),
 		md->DisplayModes[i].depth * 8);
 }
 
@@ -574,18 +574,18 @@ static void modesList (struct MultiDisplay *md)
 
 	i = 0;
 	while (md->DisplayModes[i].depth >= 0) {
-		write_log (L"%d: %s%s (", i, md->DisplayModes[i].rawmode ? L"!" : L"", md->DisplayModes[i].name);
+		write_log (_T("%d: %s%s ("), i, md->DisplayModes[i].rawmode ? _T("!") : _T(""), md->DisplayModes[i].name);
 		j = 0;
 		while (md->DisplayModes[i].refresh[j] > 0) {
 			if (j > 0)
-				write_log (L",");
+				write_log (_T(","));
 			if (md->DisplayModes[i].refreshtype[j])
-				write_log (L"!%d", md->DisplayModes[i].refresh[j]);
+				write_log (_T("!%d"), md->DisplayModes[i].refresh[j]);
 			else
-				write_log (L"%d", md->DisplayModes[i].refresh[j]);
+				write_log (_T("%d"), md->DisplayModes[i].refresh[j]);
 			j++;
 		}
-		write_log (L")\n");
+		write_log (_T(")\n"));
 		i++;
 	}
 }
@@ -601,9 +601,9 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 			TCHAR tmp[1000];
 			md->rect = lpmi.rcMonitor;
 			if (md->rect.left == 0 && md->rect.top == 0)
-				_stprintf (tmp, L"%s (%d*%d)", md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
+				_stprintf (tmp, _T("%s (%d*%d)"), md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
 			else
-				_stprintf (tmp, L"%s (%d*%d) [%d*%d]", md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+				_stprintf (tmp, _T("%s (%d*%d) [%d*%d]"), md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
 			xfree (md->fullname);
 			md->fullname = my_strdup (tmp);
 			return TRUE;
@@ -674,7 +674,7 @@ void sortdisplays (void)
 		b = GetDeviceCaps(hdc, BITSPIXEL) * GetDeviceCaps(hdc, PLANES);
 		ReleaseDC (NULL, hdc);
 	}
-	write_log (L"Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n", w, h, b,
+	write_log (_T("Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n"), w, h, b,
 		GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
 
 	md1 = Displays;
@@ -682,8 +682,8 @@ void sortdisplays (void)
 		md1->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
 		md1->DisplayModes[0].depth = -1;
 
-		write_log (L"%s [%s]\n", md1->adaptername, md1->monitorname);
-		write_log (L"-: %d*%d [%d*%d]\n", md1->rect.right - md1->rect.left, md1->rect.bottom - md1->rect.top, md1->rect.left, md1->rect.top);
+		write_log (_T("%s [%s]\n"), md1->adaptername, md1->monitorname);
+		write_log (_T("-: %d*%d [%d*%d]\n"), md1->rect.right - md1->rect.left, md1->rect.bottom - md1->rect.top, md1->rect.left, md1->rect.top);
 		for (int mode = 0; mode < 2; mode++) {
 			DEVMODE dm;
 			dm.dmSize = sizeof dm;
@@ -707,7 +707,7 @@ void sortdisplays (void)
 				if (!found && dm.dmBitsPerPel > 8) {
 					int freq = 0;
 #if 0
-					write_log (L"EnumDisplaySettings(%dx%dx%d %dHz %08x)\n",
+					write_log (_T("EnumDisplaySettings(%dx%dx%d %dHz %08x)\n"),
 						dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
 #endif
 					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL)) {
@@ -723,7 +723,7 @@ void sortdisplays (void)
 		i = 0;
 		while (md1->DisplayModes[i].depth > 0)
 			i++;
-		write_log (L"%d display modes.\n", i);
+		write_log (_T("%d display modes.\n"), i);
 		md1++;
 	}
 }
@@ -1126,7 +1126,7 @@ static uae_u8 *gfx_lock_picasso2 (bool fullupdate)
 uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 {
 	if (rtg_locked) {
-		write_log (L"rtg already locked!\n");
+		write_log (_T("rtg already locked!\n"));
 		abort ();
 	}
 	EnterCriticalSection (&screen_cs);
@@ -1780,7 +1780,7 @@ int picasso_palette (void)
 			| doMask256 (b, blue_bits, blue_shift))
 			| doMask256 (0xff, alpha_bits, alpha_shift);
 		if (v != picasso_vidinfo.clut[i]) {
-			//write_log (L"%d:%08x\n", i, v);
+			//write_log (_T("%d:%08x\n"), i, v);
 			picasso_vidinfo.clut[i] = v;
 			changed = 1;
 		}
@@ -1917,7 +1917,7 @@ bool vsync_switchmode (int hz)
 		if (currprefs.gfx_apmode[0].gfx_vsync != changed_prefs.gfx_apmode[0].gfx_vsync) {
 			config_changed = 1;
 		}
-		write_log (L"refresh rate changed to %d but no matching screenmode found, vsync disabled\n", hz);
+		write_log (_T("refresh rate changed to %d but no matching screenmode found, vsync disabled\n"), hz);
 		return false;
 	} else {
 		newh = found->res.height;
@@ -1925,7 +1925,7 @@ bool vsync_switchmode (int hz)
 		changed_prefs.gfx_apmode[0].gfx_refreshrate = hz;
 		if (changed_prefs.gfx_size_fs.height != currprefs.gfx_size_fs.height ||
 			changed_prefs.gfx_apmode[0].gfx_refreshrate != currprefs.gfx_apmode[0].gfx_refreshrate) {
-			write_log (L"refresh rate changed to %d, new screenmode %dx%d\n", hz, w, newh);
+			write_log (_T("refresh rate changed to %d, new screenmode %dx%d\n"), hz, w, newh);
 			config_changed = 1;
 		}
 		return true;
@@ -2240,7 +2240,7 @@ static int createnotification (HWND hwnd)
 
 	if(!hDevNotify) 
 	{
-		write_log (L"RegisterDeviceNotification failed: %d\n", GetLastError());
+		write_log (_T("RegisterDeviceNotification failed: %d\n"), GetLastError());
 		return FALSE;
 	}
 
@@ -2275,7 +2275,7 @@ static int getbestmode (int nextbest)
 		struct PicassoResolution *pr = &md->DisplayModes[i];
 		int r = pr->res.width > pr->res.height ? 1 : 0;
 		if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height && r == ratio) {
-			write_log (L"FS: %dx%d -> %dx%d (%d)\n", currentmode->native_width, currentmode->native_height,
+			write_log (_T("FS: %dx%d -> %dx%d (%d)\n"), currentmode->native_width, currentmode->native_height,
 				pr->res.width, pr->res.height, ratio);
 			currentmode->native_width = pr->res.width;
 			currentmode->native_height = pr->res.height;
@@ -2290,7 +2290,7 @@ static int getbestmode (int nextbest)
 		struct PicassoResolution *pr = &md->DisplayModes[i];
 		int r = pr->res.width > pr->res.height ? 1 : 0;
 		if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
-			write_log (L"FS: %dx%d -> %dx%d\n", currentmode->native_width, currentmode->native_height,
+			write_log (_T("FS: %dx%d -> %dx%d\n"), currentmode->native_width, currentmode->native_height,
 				pr->res.width, pr->res.height);
 			currentmode->native_width = pr->res.width;
 			currentmode->native_height = pr->res.height;
@@ -2334,7 +2334,7 @@ static bool getvblankpos (int *vp)
 	}
 #if 0
 	t = read_processor_time () - t;
-	write_log (L"(%d:%d)", t, sl);
+	write_log (_T("(%d:%d)"), t, sl);
 #endif	
 	prevvblankpos = sl;
 	if (sl > maxscanline)
@@ -2441,7 +2441,7 @@ static bool vblanklaceskip (void)
 {
 	if (vblankbaselace_chipset >= 0 && vblankbaselace) {
 		if ((vblankbaselace_chipset && !vblankthread_oddeven) || (!vblankbaselace_chipset && vblankthread_oddeven)) {
-			write_log (L"Interlaced frame type mismatch %d<>%d\n", vblankbaselace_chipset, vblankthread_oddeven);
+			write_log (_T("Interlaced frame type mismatch %d<>%d\n"), vblankbaselace_chipset, vblankthread_oddeven);
 			return true;
 		}
 	}
@@ -2507,7 +2507,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 							}
 						}
 						vblank_found_rtg = true;
-						//write_log (L"%d\n", t - thread_vblank_time);
+						//write_log (_T("%d\n"), t - thread_vblank_time);
 						thread_vblank_time = t;
 						vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
 					}
@@ -2543,7 +2543,7 @@ static void vsync_notvblank (void)
 		if (!getvblankpos (&vp))
 			return;
 		if (vp > 0) {
-			//write_log (L"%d ", vpos);
+			//write_log (_T("%d "), vpos);
 			break;
 		}
 		vsync_sleep (true);
@@ -2609,7 +2609,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	}
 
 	if (log_vsync) {
-		console_out_f(L"F:%8d M:%8d E:%8d %3d%% (%3d%%) %10d\r", frame_counted, frame_missed, frame_errors, frame_usage, frame_usage_avg, (t - vblank_prev_time) - vblankbasefull);
+		console_out_f(_T("F:%8d M:%8d E:%8d %3d%% (%3d%%) %10d\r"), frame_counted, frame_missed, frame_errors, frame_usage, frame_usage_avg, (t - vblank_prev_time) - vblankbasefull);
 	}
 
 	if (freetime)
@@ -2777,13 +2777,13 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 			if (cnt == 0)
 				tfirst = tval;
 			if (abs (tval - tfirst) > 1) {
-				write_log (L"Very unstable vsync! %.6f vs %.6f, retrying..\n", tval, tfirst);
+				write_log (_T("Very unstable vsync! %.6f vs %.6f, retrying..\n"), tval, tfirst);
 				break;
 			}
 			tsum2 += tval;
 			tcnt2++;
 			if (abs (tval - tfirst) > 0.1) {
-				write_log (L"Unstable vsync! %.6f vs %.6f\n", tval, tfirst);
+				write_log (_T("Unstable vsync! %.6f vs %.6f\n"), tval, tfirst);
 				break;
 			}
 			tsum += tval;
@@ -2797,7 +2797,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	SetThreadPriority (th, oldpri);
 	if (maxcnt >= maxtotal) {
 		tsum = tsum2 / tcnt2;
-		write_log (L"Unstable vsync reporting, using average value\n");
+		write_log (_T("Unstable vsync reporting, using average value\n"));
 	} else {
 		tsum /= total;
 	}
@@ -2820,8 +2820,8 @@ skip:
 	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
 	vblankbaselace = lace;
-	write_log (L"VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d\n",
-		waitonly ? L"remembered" : L"calibrated", tsum, div, tsum2, minscanline, maxvpos, lace ? L"i" : L"", vblankbasefull);
+	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d\n"),
+		waitonly ? _T("remembered") : _T("calibrated"), tsum, div, tsum2, minscanline, maxvpos, lace ? _T("i") : _T(""), vblankbasefull);
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	
@@ -2849,7 +2849,7 @@ skip:
 	vblank_reset (tsum);
 	return tsum;
 fail:
-	write_log (L"VSync calibration failed\n");
+	write_log (_T("VSync calibration failed\n"));
 	ap->gfx_vsync = 0;
 	return -1;
 }
@@ -2939,7 +2939,7 @@ static int create_windows_2 (void)
 		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
 			SetCursorPos (x + w / 2, y + h / 2);
-		write_log (L"window already open\n");
+		write_log (_T("window already open\n"));
 #ifdef RETROPLATFORM
 		rp_set_hwnd (hAmigaWnd);
 #endif
@@ -2961,8 +2961,8 @@ static int create_windows_2 (void)
 		int oldx, oldy;
 		int first = 2;
 
-		regqueryint (NULL, L"MainPosX", &stored_x);
-		regqueryint (NULL, L"MainPosY", &stored_y);
+		regqueryint (NULL, _T("MainPosX"), &stored_x);
+		regqueryint (NULL, _T("MainPosY"), &stored_y);
 
 		while (first) {
 			first--;
@@ -2991,7 +2991,7 @@ static int create_windows_2 (void)
 			win_y_diff = rc.top - oldy;
 
 			if (MonitorFromRect (&rc, MONITOR_DEFAULTTONULL) == NULL) {
-				write_log (L"window coordinates are not visible on any monitor, reseting..\n");
+				write_log (_T("window coordinates are not visible on any monitor, reseting..\n"));
 				stored_x = stored_y = 0;
 				continue;
 			}
@@ -3010,13 +3010,13 @@ static int create_windows_2 (void)
 		if (!borderless) {
 			RECT rc2;
 			hMainWnd = CreateWindowEx (WS_EX_ACCEPTFILES | exstyle | flags,
-				L"PCsuxRox", L"WinUAE",
+				_T("PCsuxRox"), _T("WinUAE"),
 				style,
 				rc.left, rc.top,
 				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
 				NULL, NULL, hInst, NULL);
 			if (!hMainWnd) {
-				write_log (L"main window creation failed\n");
+				write_log (_T("main window creation failed\n"));
 				return 0;
 			}
 			GetWindowRect (hMainWnd, &rc2);
@@ -3051,21 +3051,21 @@ static int create_windows_2 (void)
 	if (rp_isactive () && !dxfs && !d3dfs && !fsw) {
 		HWND parent = rp_getparent ();
 		hAmigaWnd = CreateWindowEx (dxfs || d3dfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
-			L"AmigaPowah", L"WinUAE",
+			_T("AmigaPowah"), _T("WinUAE"),
 			WS_POPUP,
 			x, y, w, h,
 			parent, NULL, hInst, NULL);
 	} else {
 		hAmigaWnd = CreateWindowEx (
 			((dxfs || d3dfs || currprefs.win32_alwaysontop) ? WS_EX_TOPMOST : WS_EX_ACCEPTFILES) | exstyle,
-			L"AmigaPowah", L"WinUAE",
+			_T("AmigaPowah"), _T("WinUAE"),
 			((dxfs || d3dfs || currprefs.headless) ? WS_POPUP : (WS_CLIPCHILDREN | WS_CLIPSIBLINGS | (hMainWnd ? WS_VISIBLE | WS_CHILD : WS_VISIBLE | WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX))),
 			x, y, w, h,
 			borderless ? NULL : (hMainWnd ? hMainWnd : NULL),
 			NULL, hInst, NULL);
 	}
 	if (!hAmigaWnd) {
-		write_log (L"creation of amiga window failed\n");
+		write_log (_T("creation of amiga window failed\n"));
 		close_hwnds ();
 		return 0;
 	}

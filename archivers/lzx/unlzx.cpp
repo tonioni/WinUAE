@@ -667,7 +667,7 @@ struct zfile *archive_access_lzx (struct znode *zn)
 		unpsize -= decrunch_length;
 		crc_calc (pdest, decrunch_length);
 	    } else {
-		write_log (L"LZX corrupt compressed data %s\n", zn->name);
+		write_log (_T("LZX corrupt compressed data %s\n"), zn->name);
 		goto end;
 	    }
 	}
@@ -812,7 +812,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  else
 	   abort = 0; /* continue */
 
-	  //write_log (L"unp=%6d mrg=%6d pack=%6d off=%6d %s\n", unpack_size, merge_size, pack_size, zn->offset, zai.name);
+	  //write_log (_T("unp=%6d mrg=%6d pack=%6d off=%6d %s\n"), unpack_size, merge_size, pack_size, zn->offset, zai.name);
 
 
 	 }

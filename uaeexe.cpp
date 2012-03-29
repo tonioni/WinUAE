@@ -30,7 +30,7 @@ void uaeexe_install (void)
 
 	loop = here ();
 	org (UAEEXE_ORG);
-	calltrap (deftrapres (uaeexe_server, 0, L"uaeexe_server"));
+	calltrap (deftrapres (uaeexe_server, 0, _T("uaeexe_server")));
 	dw (RTS);
 	org (loop);
 }
@@ -76,7 +76,7 @@ int uaeexe (const TCHAR *cmd)
 NOMEM:
 	return UAEEXE_NOMEM;
 NORUN:
-	write_log (L"Remote cli is not running.\n");
+	write_log (_T("Remote cli is not running.\n"));
 	return UAEEXE_NOTRUNNING;
 }
 
@@ -111,7 +111,7 @@ static uae_u32 REGPARAM2 uaeexe_server (TrapContext *context)
 
 	if (ARG (0) && !running) {
 		running = 1;
-		write_log (L"Remote CLI started.\n");
+		write_log (_T("Remote CLI started.\n"));
 	}
 
 	cmd = get_cmd ();
@@ -126,7 +126,7 @@ static uae_u32 REGPARAM2 uaeexe_server (TrapContext *context)
 	len = ARG (1);
 	s = ua (cmd);
 	strncpy (dst, s, len);
-	write_log (L"Sending '%s' to remote cli\n", cmd);
+	write_log (_T("Sending '%s' to remote cli\n"), cmd);
 	xfree (s);
 	xfree (cmd);
 	return ARG (0);

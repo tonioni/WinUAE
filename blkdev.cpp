@@ -172,7 +172,7 @@ static void install_driver (int flags)
 				if (device_func[i] == devicetable[j]) {
 					int ok = device_func[i]->openbus (0);
 					driver_installed[j] = 1;
-					write_log (L"%s driver installed, ok=%d\n", device_func[i]->name, ok);
+					write_log (_T("%s driver installed, ok=%d\n"), device_func[i]->name, ok);
 					break;
 				}
 			}
@@ -250,7 +250,7 @@ static bool getsem (int unitnum, bool dowait)
 	if (gotit)
 		unitsem_cnt[unitnum]++;
 	if (unitsem_cnt[unitnum] > 1)
-		write_log (L"CD: unitsem%d acquire mismatch! cnt=%d\n", unitnum, unitsem_cnt[unitnum]);
+		write_log (_T("CD: unitsem%d acquire mismatch! cnt=%d\n"), unitnum, unitsem_cnt[unitnum]);
 	return gotit;
 }
 static bool getsem (int unitnum)
@@ -261,7 +261,7 @@ static void freesem (int unitnum)
 {
 	unitsem_cnt[unitnum]--;
 	if (unitsem_cnt[unitnum] < 0)
-		write_log (L"CD: unitsem%d release mismatch! cnt=%d\n", unitnum, unitsem_cnt[unitnum]);
+		write_log (_T("CD: unitsem%d release mismatch! cnt=%d\n"), unitnum, unitsem_cnt[unitnum]);
 	uae_sem_post (&unitsem[unitnum]);
 }
 static void sys_command_close_internal (int unitnum)
@@ -269,7 +269,7 @@ static void sys_command_close_internal (int unitnum)
 	getsem (unitnum, true);
 	waspaused[unitnum] = 0;
 	if (openlist[unitnum] <= 0)
-		write_log (L"BUG unit %d close: opencnt=%d!\n", unitnum, openlist[unitnum]);
+		write_log (_T("BUG unit %d close: opencnt=%d!\n"), unitnum, openlist[unitnum]);
 	if (device_func[unitnum]) {
 		device_func[unitnum]->closedev (unitnum);
 		if (openlist[unitnum] > 0)
@@ -289,7 +289,7 @@ static int sys_command_open_internal (int unitnum, const TCHAR *ident, cd_standa
 		uae_sem_init (&unitsem[unitnum], 0, 1);
 	getsem (unitnum, true);
 	if (openlist[unitnum])
-		write_log (L"BUG unit %d open: opencnt=%d!\n", unitnum, openlist[unitnum]);
+		write_log (_T("BUG unit %d open: opencnt=%d!\n"), unitnum, openlist[unitnum]);
 	if (device_func[unitnum]) {
 		ret = device_func[unitnum]->opendev (unitnum, ident, csu != CD_STANDARD_UNIT_DEFAULT);
 		if (ret)
@@ -303,39 +303,39 @@ static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaud
 {
 	struct device_info di;
 	if (sys_command_info (unitnum, &di, 0)) {
-		write_log (L"Scanning drive %s: ", di.label);
+		write_log (_T("Scanning drive %s: "), di.label);
 		if (di.media_inserted) {
 			if (isaudiotrack (&di.toc, 0)) {
 				if (*isaudio == 0)
 					*isaudio = drive;
-				write_log (L"CDA");
+				write_log (_T("CDA"));
 			}
 			uae_u8 buffer[2048];
 			if (sys_command_cd_read (unitnum, buffer, 16, 1)) {
 				if (!memcmp (buffer + 8, "CDTV", 4) || !memcmp (buffer + 8, "CD32", 4) || !memcmp (buffer + 8, "COMM", 4)) {
 					uae_u32 crc;
-					write_log (L"CD32 or CDTV");
+					write_log (_T("CD32 or CDTV"));
 					if (sys_command_cd_read (unitnum, buffer, 21, 1)) {
 						crc = get_crc32 (buffer, sizeof buffer);
 						if (crc == 0xe56c340f) {
-							write_log (L" [CD32.TM]");
+							write_log (_T(" [CD32.TM]"));
 							if (csu == CD_STANDARD_UNIT_CD32) {
-								write_log (L"\n");
+								write_log (_T("\n"));
 								return 1;
 							}
 						}
 					}
 					if (csu == CD_STANDARD_UNIT_CDTV || csu == CD_STANDARD_UNIT_CD32) {
-						write_log (L"\n");
+						write_log (_T("\n"));
 						return 1;
 					}
 				}
 			}
 		} else {
-			write_log (L"no media");
+			write_log (_T("no media"));
 		}
 	}
-	write_log (L"\n");
+	write_log (_T("\n"));
 	return 0;
 }
 
@@ -359,7 +359,7 @@ static int get_standard_cd_unit2 (cd_standard_unit csu)
 	device_func_init (SCSI_UNIT_IOCTL);
 	for (int drive = 'C'; drive <= 'Z'; ++drive) {
 		TCHAR vol[100];
-		_stprintf (vol, L"%c:\\", drive);
+		_stprintf (vol, _T("%c:\\"), drive);
 		int drivetype = GetDriveType (vol);
 		if (drivetype == DRIVE_CDROM) {
 			if (sys_command_open_internal (unitnum, vol, csu)) {
@@ -371,14 +371,14 @@ static int get_standard_cd_unit2 (cd_standard_unit csu)
 	}
 	if (isaudio) {
 		TCHAR vol[100];
-		_stprintf (vol, L"%c:\\", isaudio);
+		_stprintf (vol, _T("%c:\\"), isaudio);
 		if (sys_command_open_internal (unitnum, vol, csu)) 
 			return unitnum;
 	}
 fallback:
 	device_func_init (SCSI_UNIT_IMAGE);
-	if (!sys_command_open_internal (unitnum, L"", csu)) {
-		write_log (L"image mounter failed to open as empty!?\n");
+	if (!sys_command_open_internal (unitnum, _T(""), csu)) {
+		write_log (_T("image mounter failed to open as empty!?\n"));
 		return -1;
 	}
 	return unitnum;
@@ -499,7 +499,7 @@ static void check_changes (int unitnum)
 	if (delayed[unitnum]) {
 		delayed[unitnum]--;
 		if (delayed[unitnum] == 0)
-			write_log (L"CD: startup delayed insert '%s'\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>");
+			write_log (_T("CD: startup delayed insert '%s'\n"), currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : _T("<EMPTY>"));
 		return;
 	}
 
@@ -529,7 +529,7 @@ static void check_changes (int unitnum)
 				filesys_do_disk_change (unitnum, 0);
 			}
 		}
-		write_log (L"CD: eject (%s) open=%d\n", pollmode ? L"slow" : L"fast", wasopen[unitnum] ? 1 : 0);
+		write_log (_T("CD: eject (%s) open=%d\n"), pollmode ? _T("slow") : _T("fast"), wasopen[unitnum] ? 1 : 0);
 #ifdef RETROPLATFORM
 		rp_cd_image_change (unitnum, NULL); 
 #endif
@@ -549,14 +549,14 @@ static void check_changes (int unitnum)
 	_tcscpy (changed_prefs.cdslots[unitnum].name, newimagefiles[unitnum]);
 	currprefs.cdslots[unitnum].inuse = changed_prefs.cdslots[unitnum].inuse = cdimagefileinuse[unitnum];
 	newimagefiles[unitnum][0] = 0;
-	write_log (L"CD: delayed insert '%s' (open=%d,unit=%d)\n", currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : L"<EMPTY>", wasopen[unitnum] ? 1 : 0, unitnum);
+	write_log (_T("CD: delayed insert '%s' (open=%d,unit=%d)\n"), currprefs.cdslots[unitnum].name[0] ? currprefs.cdslots[unitnum].name : _T("<EMPTY>"), wasopen[unitnum] ? 1 : 0, unitnum);
 	device_func_init (0);
 	if (wasopen[unitnum]) {
 		if (!device_func[unitnum]->opendev (unitnum, currprefs.cdslots[unitnum].name, 0)) {
-			write_log (L"-> device open failed\n");
+			write_log (_T("-> device open failed\n"));
 			wasopen[unitnum] = 0;
 		} else {
-			write_log (L"-> device reopened\n");
+			write_log (_T("-> device reopened\n"));
 		}
 	}
 	if (currprefs.scsi && wasopen[unitnum]) {
@@ -975,32 +975,32 @@ void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 {
 	int i;
 	for (i = 0; i < cdblen; i++) {
-		write_log (L"%s%02X", i > 0 ? L"." : L"", cdb[i]);
+		write_log (_T("%s%02X"), i > 0 ? _T(".") : _T(""), cdb[i]);
 	}
-	write_log (L"\n");
+	write_log (_T("\n"));
 	if (data) {
-		write_log (L"DATAOUT: %d\n", datalen);
+		write_log (_T("DATAOUT: %d\n"), datalen);
 		for (i = 0; i < datalen && i < 100; i++)
-			write_log (L"%s%02X", i > 0 ? L"." : L"", data[i]);
+			write_log (_T("%s%02X"), i > 0 ? _T(".") : _T(""), data[i]);
 		if (datalen > 0)
-			write_log (L"\n");
+			write_log (_T("\n"));
 	}
 }
 
 void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen)
 {
 	int i;
-	write_log (L"DATAIN: %d\n", datalen);
+	write_log (_T("DATAIN: %d\n"), datalen);
 	for (i = 0; i < datalen && i < 100 && data; i++)
-		write_log (L"%s%02X", i > 0 ? L"." : L"", data[i]);
+		write_log (_T("%s%02X"), i > 0 ? _T(".") : _T(""), data[i]);
 	if (data && datalen > 0)
-		write_log (L"\n");
+		write_log (_T("\n"));
 	if (senselen > 0) {
-		write_log (L"SENSE: %d,", senselen);
+		write_log (_T("SENSE: %d,"), senselen);
 		for (i = 0; i < senselen && i < 32; i++) {
-			write_log (L"%s%02X", i > 0 ? L"." : L"", sense[i]);
+			write_log (_T("%s%02X"), i > 0 ? _T(".") : _T(""), sense[i]);
 		}
-		write_log (L"\n");
+		write_log (_T("\n"));
 	}
 }
 
@@ -1133,7 +1133,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		goto end;
 	}
 	if (log_scsiemu)
-		write_log (L"SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%08X LEN=%d\n", unitnum,
+		write_log (_T("SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%08X LEN=%d\n"), unitnum,
 			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], 
 			cmdbuf[7], cmdbuf[8], cmdbuf[9], cmdbuf[10], cmdbuf[11],
 			scsi_cmd_len, scsi_data, *data_len);
@@ -1208,7 +1208,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (cmdbuf[0] == 0x5a)
 			dbd = 1;
 		if (log_scsiemu)
-			write_log (L"MODE SENSE PC=%d CODE=%d DBD=%d\n", pc, pcode, dbd);
+			write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
 		p = r;
 		if (cmdbuf[0] == 0x5a) {
 			p[0] = 8 - 1;
@@ -1676,7 +1676,7 @@ notdatatrack:
 
 	default:
 err:
-		write_log (L"CDEMU: unsupported scsi command 0x%02X\n", cmdbuf[0]);
+		write_log (_T("CDEMU: unsupported scsi command 0x%02X\n"), cmdbuf[0]);
 errreq:
 		lr = -1;
 		status = 2; /* CHECK CONDITION */
@@ -1691,7 +1691,7 @@ end:
 	*reply_len = lr;
 	*sense_len = ls;
 	if (cmdbuf[0] && log_scsiemu)
-		write_log (L"-> DATAOUT=%d ST=%d SENSELEN=%d\n", scsi_len, status, ls);
+		write_log (_T("-> DATAOUT=%d ST=%d SENSELEN=%d\n"), scsi_len, status, ls);
 	return status;
 }
 

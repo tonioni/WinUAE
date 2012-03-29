@@ -21,7 +21,7 @@
 #include "ncr_scsi.h"
 #include "zfile.h"
 
-#define NCRNAME L"NCR53C710"
+#define NCRNAME _T("NCR53C710")
 #define NCR_REGS 0x40
 
 #define ROM_VECTOR 0x0200
@@ -44,70 +44,70 @@ struct ncrscsi {
 
 static struct ncrscsi regsinfo[] =
 {
-	L"SCNTL0",	 0,  3,
-	L"SCNTL1",	 1,  2,
-	L"SDID",	 2,  1,
-	L"SIEN",	 3,  0,
-	L"SCID",	 4,  7,
-	L"SXFER",	 5,  6,
-	L"SODL",	 6,  5,
-	L"SOCL",	 7,  4,
-	L"SFBR",	 8, 11,
-	L"SIDL",	 9, 10,
-	L"SBDL",	10, -1,
-	L"SBCL",	11,  8,
-	L"DSTAT",	12, 15,
-	L"SSTAT0",	13, 14,
-	L"SSTAT1",	14, 13,
-	L"SSTAT2",	15, 12,
-	L"DSA0",	16, 19,
-	L"DSA1",	17, 18,
-	L"DSA2",	18, 17,
-	L"DSA3",	19, 16,
-	L"CTEST0",	20, 23,
-	L"CTEST1",	21, 22,
-	L"CTEST2",	22, 21,
-	L"CTEST3",	23, 20,
-	L"CTEST4",	24, 27,
-	L"CTEST5",	25, 26,
-	L"CTEST6",	26, 25,
-	L"CTEST7",	27, 24,
-	L"TEMP0",	28, 31,
-	L"TEMP1",	29, 30,
-	L"TEMP2",	30, 29,
-	L"TEMP3",	31, 28,
-	L"DFIFO",	32, 35,
-	L"ISTAT",	33, 34,
-	L"CTEST8",	34, 33,
-	L"LCRC",	35, 32,
-	L"DBC0",	36, 39,
-	L"DBC1",	37, 38,
-	L"DBC2",	38, 37,
-	L"DCMD",	39, 36,
-	L"DNAD0",	40, 43,
-	L"DNAD1",	41, 42,
-	L"DNAD2",	42, 41,
-	L"DNAD3",	43, 40,
-	L"DSP0",	44, 47,
-	L"DSP1",	45, 46,
-	L"DSP2",	46, 45,
-	L"DSP3",	47, 44,
-	L"DSPS0",	48, 51,
-	L"DSPS1",	49, 50,
-	L"DSPS2",	50, 49,
-	L"DSPS3",	51, 48,
-	L"SCRATCH0",	52, 55,
-	L"SCRATCH1",	53, 54,
-	L"SCRATCH2",	54, 53,
-	L"SCRATCH3",	55, 52,
-	L"DMODE",	56, 59,
-	L"DIEN",	57, 58,
-	L"DWT",	58, 57,
-	L"DCNTL",	59, 56,
-	L"ADDER0",	60, 63,
-	L"ADDER1",	61, 62,
-	L"ADDER2",	62, 61,
-	L"ADDER3",	63, 60,
+	_T("SCNTL0"),	 0,  3,
+	_T("SCNTL1"),	 1,  2,
+	_T("SDID"),	 2,  1,
+	_T("SIEN"),	 3,  0,
+	_T("SCID"),	 4,  7,
+	_T("SXFER"),	 5,  6,
+	_T("SODL"),	 6,  5,
+	_T("SOCL"),	 7,  4,
+	_T("SFBR"),	 8, 11,
+	_T("SIDL"),	 9, 10,
+	_T("SBDL"),	10, -1,
+	_T("SBCL"),	11,  8,
+	_T("DSTAT"),	12, 15,
+	_T("SSTAT0"),	13, 14,
+	_T("SSTAT1"),	14, 13,
+	_T("SSTAT2"),	15, 12,
+	_T("DSA0"),	16, 19,
+	_T("DSA1"),	17, 18,
+	_T("DSA2"),	18, 17,
+	_T("DSA3"),	19, 16,
+	_T("CTEST0"),	20, 23,
+	_T("CTEST1"),	21, 22,
+	_T("CTEST2"),	22, 21,
+	_T("CTEST3"),	23, 20,
+	_T("CTEST4"),	24, 27,
+	_T("CTEST5"),	25, 26,
+	_T("CTEST6"),	26, 25,
+	_T("CTEST7"),	27, 24,
+	_T("TEMP0"),	28, 31,
+	_T("TEMP1"),	29, 30,
+	_T("TEMP2"),	30, 29,
+	_T("TEMP3"),	31, 28,
+	_T("DFIFO"),	32, 35,
+	_T("ISTAT"),	33, 34,
+	_T("CTEST8"),	34, 33,
+	_T("LCRC"),	35, 32,
+	_T("DBC0"),	36, 39,
+	_T("DBC1"),	37, 38,
+	_T("DBC2"),	38, 37,
+	_T("DCMD"),	39, 36,
+	_T("DNAD0"),	40, 43,
+	_T("DNAD1"),	41, 42,
+	_T("DNAD2"),	42, 41,
+	_T("DNAD3"),	43, 40,
+	_T("DSP0"),	44, 47,
+	_T("DSP1"),	45, 46,
+	_T("DSP2"),	46, 45,
+	_T("DSP3"),	47, 44,
+	_T("DSPS0"),	48, 51,
+	_T("DSPS1"),	49, 50,
+	_T("DSPS2"),	50, 49,
+	_T("DSPS3"),	51, 48,
+	_T("SCRATCH0"),	52, 55,
+	_T("SCRATCH1"),	53, 54,
+	_T("SCRATCH2"),	54, 53,
+	_T("SCRATCH3"),	55, 52,
+	_T("DMODE"),	56, 59,
+	_T("DIEN"),	57, 58,
+	_T("DWT"),	58, 57,
+	_T("DCNTL"),	59, 56,
+	_T("ADDER0"),	60, 63,
+	_T("ADDER1"),	61, 62,
+	_T("ADDER2"),	62, 61,
+	_T("ADDER3"),	63, 60,
 	NULL
 };
 
@@ -119,7 +119,7 @@ static TCHAR *regname (uaecptr addr)
 		if (regsinfo[i].le == addr)
 			return regsinfo[i].name;
 	}
-	return L"?";
+	return _T("?");
 }
 
 #define SCNTL0_REG                      0x03
@@ -253,14 +253,14 @@ static void INT2(void)
 	if (ncrregs[SIEN_REG] == 0)
 		return;
 	INTREQ (0x8000 | 0x0008);
-	write_log (L"IRQ\n");
+	write_log (_T("IRQ\n"));
 }
 
 
 static uae_u8 read_rombyte (uaecptr addr)
 {
 	uae_u8 v = rom[addr];
-	//write_log (L"%08X = %02X PC=%08X\n", addr, v, M68K_GETPC);
+	//write_log (_T("%08X = %02X PC=%08X\n"), addr, v, M68K_GETPC);
 	return v;
 }
 
@@ -279,7 +279,7 @@ void ncr_bput2 (uaecptr addr, uae_u32 val)
 		INT2();
 		break;
 	}
-	write_log (L"%s write %04X (%s) = %02X PC=%08X\n", NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
+	write_log (_T("%s write %04X (%s) = %02X PC=%08X\n"), NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
 	ncrregs[addr] = val;
 }
 
@@ -306,7 +306,7 @@ uae_u32 ncr_bget2 (uaecptr addr)
 		v &= 0x0f; // revision 0
 		break;
 	}
-	write_log (L"%s read  %04X (%s) = %02X PC=%08X\n", NCRNAME, addr, regname(addr), v, M68K_GETPC);
+	write_log (_T("%s read  %04X (%s) = %02X PC=%08X\n"), NCRNAME, addr, regname(addr), v, M68K_GETPC);
 	if (v2 != v)
 		ncrregs[addr] = v2;
 	return v;
@@ -325,7 +325,7 @@ static uae_u32 REGPARAM2 ncr_lget (uaecptr addr)
 		(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
-		write_log (L"ncr_lget %08X=%08X PC=%08X\n", addr, v, M68K_GETPC);
+		write_log (_T("ncr_lget %08X=%08X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -340,7 +340,7 @@ static uae_u32 REGPARAM2 ncr_wget (uaecptr addr)
 	v = (ncr_bget2 (addr) << 8) | ncr_bget2 (addr + 1);
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
-		write_log (L"ncr_wget %08X=%04X PC=%08X\n", addr, v, M68K_GETPC);
+		write_log (_T("ncr_wget %08X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
 }
@@ -369,7 +369,7 @@ static void REGPARAM2 ncr_lput (uaecptr addr, uae_u32 l)
 	addr &= board_mask;
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
-		write_log (L"ncr_lput %08X=%08X PC=%08X\n", addr, l, M68K_GETPC);
+		write_log (_T("ncr_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
 #endif
 	ncr_bput2 (addr, l >> 24);
 	ncr_bput2 (addr + 1, l >> 16);
@@ -386,14 +386,14 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 	addr &= board_mask;
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
-		write_log (L"ncr_wput %04X=%04X PC=%08X\n", addr, w & 65535, M68K_GETPC);
+		write_log (_T("ncr_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
 #endif
 	if (addr == 0x44 && !configured) {
 		uae_u32 value = (p96ram_start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff)) >> 16;
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);
-		write_log (L"A4091 Z3 autoconfigured at %04X0000\n", value);
+		write_log (_T("A4091 Z3 autoconfigured at %04X0000\n"), value);
 		configured = 1;
 		expamem_next();
 		return;
@@ -410,7 +410,7 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 	b &= 0xff;
 	addr &= board_mask;
 	if (addr == 0x4c && !configured) {
-		write_log (L"A4091 AUTOCONFIG SHUT-UP!\n");
+		write_log (_T("A4091 AUTOCONFIG SHUT-UP!\n"));
 		configured = 1;
 		expamem_next();
 		return;
@@ -423,7 +423,7 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 static addrbank ncr_bank = {
 	ncr_lget, ncr_wget, ncr_bget,
 	ncr_lput, ncr_wput, ncr_bput,
-	default_xlate, default_check, NULL, L"A4091",
+	default_xlate, default_check, NULL, _T("A4091"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -487,7 +487,7 @@ void ncr_init (void)
 		struct romdata *rd = rl->rd;
 		z = read_rom (&rd);
 		if (z) {
-			write_log (L"A4091 BOOT ROM %d.%d\n", rd->ver, rd->rev);
+			write_log (_T("A4091 BOOT ROM %d.%d\n"), rd->ver, rd->rev);
 			rom = xmalloc (uae_u8, ROM_SIZE * 4);
 			for (i = 0; i < ROM_SIZE; i++) {
 				uae_u8 b;

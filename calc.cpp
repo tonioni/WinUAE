@@ -130,7 +130,7 @@ static bool shunting_yard(const TCHAR *input, TCHAR *output)
                 // If no left parentheses are encountered, either the separator was misplaced
                 // or parentheses were mismatched.
                 if(!pe)   {
-                    calc_log ((L"Error: separator or parentheses mismatched\n"));
+                    calc_log ((_T("Error: separator or parentheses mismatched\n")));
                     return false;
                 }
             }
@@ -181,7 +181,7 @@ static bool shunting_yard(const TCHAR *input, TCHAR *output)
                 }
                 // If the stack runs out without finding a left parenthesis, then there are mismatched parentheses.
                 if(!pe)  {
-                    calc_log ((L"Error: parentheses mismatched\n"));
+                    calc_log ((_T("Error: parentheses mismatched\n")));
                     return false;
                 }
                 // Pop the left parenthesis from the stack, but not onto the output queue.
@@ -197,7 +197,7 @@ static bool shunting_yard(const TCHAR *input, TCHAR *output)
                 }
             }
             else  {
-                calc_log ((L"Unknown token %c\n", c));
+                calc_log ((_T("Unknown token %c\n"), c));
                 return false; // Unknown token
             }
         }
@@ -277,7 +277,7 @@ static TCHAR *stacktostr (struct calcstack *st)
 	static TCHAR out[256];
 	if (st->s)
 		return st->s;
-	_stprintf(out, L"%f", st->val);
+	_stprintf(out, _T("%f"), st->val);
 	return out;
 }
 
@@ -315,8 +315,8 @@ static bool execution_order(const TCHAR *input, double *outval)
         }
                 // Otherwise, the token is an operator  (operator here includes both operators, and functions).
         else if(is_operator(c) || is_function(c))    {
-                        _stprintf(res, L"_%02d", rn);
-                        calc_log ((L"%s = ", res));
+                        _stprintf(res, _T("_%02d"), rn);
+                        calc_log ((_T("%s = "), res));
                         ++rn;
                         // It is known a priori that the operator takes n arguments.
                         unsigned int nargs = op_arg_count(c);
@@ -328,14 +328,14 @@ static bool execution_order(const TCHAR *input, double *outval)
                         // Else, Pop the top n values from the stack.
                         // Evaluate the operator, with the values as arguments.
                         if(is_function(c)) {
-                                calc_log ((L"%c(", c));
+                                calc_log ((_T("%c("), c));
                                 while(nargs > 0){
                                         sc = &stack[sl - nargs]; // to remove reverse order of arguments
                                         if(nargs > 1)   {
-                                                calc_log ((L"%s, ", sc));
+                                                calc_log ((_T("%s, "), sc));
                                         }
                                         else {
-                                                calc_log ((L"%s)\n", sc));
+                                                calc_log ((_T("%s)\n"), sc));
                                         }
                                         --nargs;
                                 }
@@ -346,15 +346,15 @@ static bool execution_order(const TCHAR *input, double *outval)
                                         sc = &stack[sl - 1];
                                         sl--;
 										val = docalc1 (c, sc, val);
-										calc_log ((L"%c %s = %f;\n", c, stacktostr(sc), val));
+										calc_log ((_T("%c %s = %f;\n"), c, stacktostr(sc), val));
                                }
                                 else   {
                                         sc = &stack[sl - 2];
-                                        calc_log ((L"%s %c ", stacktostr(sc), c));
+                                        calc_log ((_T("%s %c "), stacktostr(sc), c));
                                         sc2 = &stack[sl - 1];
 										val = docalc2 (c, sc, sc2);
                                          sl--;sl--;
-                                        calc_log ((L"%s = %f;\n", stacktostr(sc2), val));
+                                        calc_log ((_T("%s = %f;\n"), stacktostr(sc2), val));
                                }
                         }
                         // Push the returned results, if any, back onto the stack.
@@ -369,7 +369,7 @@ static bool execution_order(const TCHAR *input, double *outval)
         if(sl == 1) {
                 sc = &stack[sl - 1];
                 sl--;
-				calc_log ((L"result = %f\n", val));
+				calc_log ((_T("result = %f\n"), val));
 				if (outval)
 					*outval = val;
 				ok = true;
@@ -424,12 +424,12 @@ static bool parse_values(const TCHAR *ins, TCHAR *out)
 bool calc(const TCHAR *input, double *outval)
 {
     TCHAR output[IOBUFFERS], output2[IOBUFFERS];
-    calc_log ((L"IN: '%s'\n", input));
+    calc_log ((_T("IN: '%s'\n"), input));
 	if (parse_values(input, output2)) {
 		if(shunting_yard(output2, output))    {
-			calc_log ((L"RPN OUT: %s\n", output));
+			calc_log ((_T("RPN OUT: %s\n"), output));
 			if(!execution_order(output, outval)) {
-				calc_log ((L"PARSE ERROR!\n"));
+				calc_log ((_T("PARSE ERROR!\n")));
 			} else {
 				return true;
 			}

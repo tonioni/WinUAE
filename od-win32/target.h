@@ -12,12 +12,12 @@
 #define TARGET_NO_ZFILE
 #define DONT_PARSE_CMDLINE
 #else
-#define TARGET_NAME L"win32"
+#define TARGET_NAME _T("win32")
 #endif
 #define TARGET_PROVIDES_DEFAULT_PREFS
 #define TARGET_NO_DITHER
 
 #define NO_MAIN_IN_MAIN_C
 
-#define OPTIONSFILENAME L"default.uae"
+#define OPTIONSFILENAME _T("default.uae")
 

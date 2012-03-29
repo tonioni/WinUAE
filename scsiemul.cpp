@@ -30,9 +30,9 @@
 
 #define CDDEV_COMMANDS
 
-#define UAEDEV_SCSI L"uaescsi.device"
+#define UAEDEV_SCSI _T("uaescsi.device")
 #define UAEDEV_SCSI_ID 1
-#define UAEDEV_DISK L"uaedisk.device"
+#define UAEDEV_DISK _T("uaedisk.device")
 #define UAEDEV_DISK_ID 2
 
 #define MAX_ASYNC_REQUESTS 20
@@ -93,7 +93,7 @@ static struct device_info *devinfo (struct devstruct *devst, struct device_info 
 static void io_log (const TCHAR *msg, uaecptr request)
 {
 	if (log_scsi)
-		write_log (L"%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n",
+		write_log (_T("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n"),
 		msg, request, get_word (request + 28), get_long (request + 40),
 		get_long (request + 36), get_long (request + 44),
 		get_long (request + 32), get_byte (request + 31));
@@ -113,7 +113,7 @@ static struct priv_devstruct *getpdevstruct (uaecptr request)
 {
 	int i = get_long (request + 24);
 	if (i < 0 || i >= MAX_OPEN_DEVICES || pdevst[i].inuse == 0) {
-		write_log (L"uaescsi.device: corrupt iorequest %08X %d\n", request, i);
+		write_log (_T("uaescsi.device: corrupt iorequest %08X %d\n"), request, i);
 		return 0;
 	}
 	return &pdevst[i];
@@ -127,7 +127,7 @@ static TCHAR *getdevname (int type)
 	case UAEDEV_DISK_ID:
 		return UAEDEV_DISK;
 	default:
-		return L"NULL";
+		return _T("NULL");
 	}
 }
 
@@ -138,7 +138,7 @@ static int start_thread (struct devstruct *dev)
 		return 1;
 	init_comm_pipe (&dev->requests, 100, 1);
 	uae_sem_init (&dev->sync_sem, 0, 0);
-	uae_start_thread (L"uaescsi", dev_thread, dev, NULL);
+	uae_start_thread (_T("uaescsi"), dev_thread, dev, NULL);
 	uae_sem_wait (&dev->sync_sem);
 	return dev->thread_running;
 }
@@ -164,7 +164,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 		return 0;
 	dev = getdevstruct (pdev->unit);
 	if (log_scsi)
-		write_log (L"%s:%d close, req=%08X\n", getdevname (pdev->type), pdev->unit, request);
+		write_log (_T("%s:%d close, req=%08X\n"), getdevname (pdev->type), pdev->unit, request);
 	if (!dev)
 		return 0;
 	dev_close_3 (dev, pdev);
@@ -199,7 +199,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 	int i;
 
 	if (log_scsi)
-		write_log (L"opening %s:%d ioreq=%08X\n", getdevname (type), unit, ioreq);
+		write_log (_T("opening %s:%d ioreq=%08X\n"), getdevname (type), unit, ioreq);
 	if (get_word (ioreq + 0x12) < IOSTDREQ_SIZE && get_word (ioreq + 0x12) > 0)
 		return openfail (ioreq, IOERR_BADLENGTH);
 	if (!dev)
@@ -295,7 +295,7 @@ static int scsiemul_switchscsi (const TCHAR *name)
 						dev->drivetype = discsi->type;
 						memcpy (&dev->di, discsi, sizeof (struct device_info));
 						dev->iscd = 1;
-						write_log (L"%s mounted as uaescsi.device:0\n", discsi->label);
+						write_log (_T("%s mounted as uaescsi.device:0\n"), discsi->label);
 						if (dev->di.media_inserted) {
 							dev->di.media_inserted = 0;
 							scsi_do_disk_change (dev->di.id, 1, NULL);
@@ -362,7 +362,7 @@ static int add_async_request (struct devstruct *dev, uaecptr request, int type, 
 	int i;
 
 	if (log_scsi)
-		write_log (L"async request %08x (%d) added\n", request, type);
+		write_log (_T("async request %08x (%d) added\n"), request, type);
 	i = 0;
 	while (i < MAX_ASYNC_REQUESTS) {
 		if (dev->d_request[i] == request) {
@@ -390,7 +390,7 @@ static int release_async_request (struct devstruct *dev, uaecptr request)
 	int i = 0;
 
 	if (log_scsi)
-		write_log (L"async request %p removed\n", request);
+		write_log (_T("async request %p removed\n"), request);
 	while (i < MAX_ASYNC_REQUESTS) {
 		if (dev->d_request[i] == request) {
 			int type = dev->d_request_type[i];
@@ -419,7 +419,7 @@ static void abort_async (struct devstruct *dev, uaecptr request, int errcode, in
 	}
 	i = release_async_request (dev, request);
 	if (i >= 0 && log_scsi)
-		write_log (L"asyncronous request=%08X aborted, error=%d\n", request, errcode);
+		write_log (_T("asyncronous request=%08X aborted, error=%d\n"), request, errcode);
 }
 
 static int command_read (struct devstruct *dev, uaecptr data, uae_u64 offset, uae_u32 length, uae_u32 *io_actual)
@@ -522,7 +522,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	command = get_word (request + 28);
 
 	if (log_scsi)
-		write_log (L"%d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n",
+		write_log (_T("%d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n"),
 			command, io_data, io_length, io_offset, io_actual);
 
 	switch (command)
@@ -859,7 +859,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 			uae_u32 sdd = get_long (request + 40);
 			io_error = sys_command_scsi_direct (dev->unitnum, sdd);
 			if (log_scsi)
-				write_log (L"scsidev: did io: sdd %p request %p error %d\n", sdd, request, get_byte (request + 31));
+				write_log (_T("scsidev: did io: sdd %p request %p error %d\n"), sdd, request, get_byte (request + 31));
 		}
 		break;
 	case NSCMD_DEVICEQUERY:
@@ -885,7 +885,7 @@ no_media:
 	}
 	put_long (request + 32, io_actual);
 	put_byte (request + 31, io_error);
-	io_log (L"dev_io",request);
+	io_log (_T("dev_io"),request);
 	return async;
 }
 
@@ -969,7 +969,7 @@ static void *dev_thread (void *devs)
 			uae_ReplyMsg (request);
 		} else {
 			if (log_scsi)
-				write_log (L"%s:%d async request %08X\n", getdevname(0), dev->unitnum, request);
+				write_log (_T("%s:%d async request %08X\n"), getdevname(0), dev->unitnum, request);
 		}
 		uae_sem_post (&change_sem);
 	}
@@ -980,7 +980,7 @@ static uae_u32 REGPARAM2 dev_init_2 (TrapContext *context, int type)
 {
 	uae_u32 base = m68k_dreg (regs,0);
 	if (log_scsi)
-		write_log (L"%s init\n", getdevname (type));
+		write_log (_T("%s init\n"), getdevname (type));
 	return base;
 }
 
@@ -1010,7 +1010,7 @@ static uae_u32 REGPARAM2 dev_abortio (TrapContext *context)
 	}
 	put_byte (request + 31, IOERR_ABORTED);
 	if (log_scsi)
-		write_log (L"abortio %s unit=%d, request=%08X\n", getdevname (pdev->type), pdev->unit, request);
+		write_log (_T("abortio %s unit=%d, request=%08X\n"), getdevname (pdev->type), pdev->unit, request);
 	abort_async (dev, request, IOERR_ABORTED, 0);
 	return 0;
 }
@@ -1099,7 +1099,7 @@ static void dev_reset (void)
 				dev->aunit = unitnum;
 				unitnum++;
 			}
-			write_log (L"%s:%d = %s:'%s'\n", UAEDEV_SCSI, dev->aunit, dev->di.backend, dev->di.label);
+			write_log (_T("%s:%d = %s:'%s'\n"), UAEDEV_SCSI, dev->aunit, dev->di.backend, dev->di.label);
 		}
 		dev->di.label[0] = 0;
 	}
@@ -1119,7 +1119,7 @@ static uaecptr diskdev_startup (uaecptr resaddr)
 	/* Build a struct Resident. This will set up and initialize
 	* the cd.device */
 	if (log_scsi)
-		write_log (L"diskdev_startup(0x%x)\n", resaddr);
+		write_log (_T("diskdev_startup(0x%x)\n"), resaddr);
 	put_word (resaddr + 0x0, 0x4AFC);
 	put_long (resaddr + 0x2, resaddr);
 	put_long (resaddr + 0x6, resaddr + 0x1A); /* Continue scan here */
@@ -1137,7 +1137,7 @@ uaecptr scsidev_startup (uaecptr resaddr)
 	if (currprefs.scsi != 1)
 		return resaddr;
 	if (log_scsi)
-		write_log (L"scsidev_startup(0x%x)\n", resaddr);
+		write_log (_T("scsidev_startup(0x%x)\n"), resaddr);
 	/* Build a struct Resident. This will set up and initialize
 	* the uaescsi.device */
 	put_word (resaddr + 0x0, 0x4AFC);
@@ -1162,10 +1162,10 @@ static void diskdev_install (void)
 	if (currprefs.scsi != 1)
 		return;
 	if (log_scsi)
-		write_log (L"diskdev_install(): 0x%x\n", here ());
+		write_log (_T("diskdev_install(): 0x%x\n"), here ());
 
 	ROM_diskdev_resname = ds (UAEDEV_DISK);
-	ROM_diskdev_resid = ds (L"UAE disk.device 0.1");
+	ROM_diskdev_resid = ds (_T("UAE disk.device 0.1"));
 
 	/* initcode */
 	initcode = here ();
@@ -1241,10 +1241,10 @@ void scsidev_install (void)
 	if (currprefs.scsi != 1)
 		return;
 	if (log_scsi)
-		write_log (L"scsidev_install(): 0x%x\n", here ());
+		write_log (_T("scsidev_install(): 0x%x\n"), here ());
 
 	ROM_scsidev_resname = ds (UAEDEV_SCSI);
-	ROM_scsidev_resid = ds (L"UAE scsi.device 0.2");
+	ROM_scsidev_resid = ds (_T("UAE scsi.device 0.2"));
 
 	/* initcode */
 	initcode = here ();
@@ -1345,7 +1345,7 @@ void scsidev_start_threads (void)
 	if (currprefs.scsi != 1) /* quite useless.. */
 		return;
 	if (log_scsi)
-		write_log (L"scsidev_start_threads()\n");
+		write_log (_T("scsidev_start_threads()\n"));
 	uae_sem_init (&change_sem, 0, 1);
 }
 

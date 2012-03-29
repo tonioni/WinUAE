@@ -22,23 +22,23 @@
 
 struct uae_filter uaefilters[] =
 {
-	{ UAE_FILTER_NULL, 0, 1, L"Null filter", L"null", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
+	{ UAE_FILTER_NULL, 0, 1, _T("Null filter"), _T("null"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
-	{ UAE_FILTER_SCALE2X, 0, 2, L"Scale2X", L"scale2x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
+	{ UAE_FILTER_SCALE2X, 0, 2, _T("Scale2X"), _T("scale2x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
-	{ UAE_FILTER_HQ2X, 0, 2, L"hq2x", L"hq2x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, },
+	{ UAE_FILTER_HQ2X, 0, 2, _T("hq2x"), _T("hq2x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32, },
 
-	{ UAE_FILTER_HQ3X, 0, 3, L"hq3x", L"hq3x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_HQ3X, 0, 3, _T("hq3x"), _T("hq3x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_HQ4X, 0, 4, L"hq4x", L"hq4x", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_HQ4X, 0, 4, _T("hq4x"), _T("hq4x"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_SUPEREAGLE, 0, 2, L"SuperEagle", L"supereagle", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_SUPEREAGLE, 0, 2, _T("SuperEagle"), _T("supereagle"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_SUPER2XSAI, 0, 2, L"Super2xSaI", L"super2xsai", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_SUPER2XSAI, 0, 2, _T("Super2xSaI"), _T("super2xsai"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_2XSAI, 0, 2, L"2xSaI", L"2xsai", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
+	{ UAE_FILTER_2XSAI, 0, 2, _T("2xSaI"), _T("2xsai"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_16_32 },
 
-	{ UAE_FILTER_PAL, 1, 1, L"PAL", L"pal", UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
+	{ UAE_FILTER_PAL, 1, 1, _T("PAL"), _T("pal"), UAE_FILTER_MODE_16_16 | UAE_FILTER_MODE_32_32 },
 
 	{ 0 }
 };
@@ -236,7 +236,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	ahs2 = vblscale (ah) * scale;
 	aws = aw * scale;
 	ahs = ah * scale;
-	//write_log (L"%d %d %d\n", dst_width, temp_width, aws);
+	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);
 	extraw = -aws * (filter_horiz_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 	extrah = -ahs * (filter_vert_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 
@@ -325,7 +325,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					maxw = (maxw + mult - 1) / mult;
 					maxh = (maxh + mult - 1) / mult;
 				}
-				//write_log(L"(%dx%d) (%dx%d) ww=%d hh=%d w=%d h=%d m=%d\n", cx, cy, cw, ch, currprefs.gfx_size.width, currprefs.gfx_size.height, maxw, maxh, mult);
+				//write_log(_T("(%dx%d) (%dx%d) ww=%d hh=%d w=%d h=%d m=%d\n"), cx, cy, cw, ch, currprefs.gfx_size.width, currprefs.gfx_size.height, maxw, maxh, mult);
 				cx -= (maxw - cw) / 2;
 				cw = maxw;
 				cy -= (maxh - ch) / 2;
@@ -340,11 +340,11 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			filter_vert_offset = 0;
 
 			get_custom_topedge (&cx, &cy);
-			//write_log (L"%dx%d %dx%d\n", cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
+			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos (&cx, &cy, &cw, &ch);
 
-			//write_log (L"%dx%d %dx%d %dx%d\n", currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
+			//write_log (_T("%dx%d %dx%d %dx%d\n"), currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
 
 			cv = 1;
 
@@ -630,7 +630,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	ahs2 = vblscale (ah) * scale;
 	aws = aw * scale;
 	ahs = ah * scale;
-	//write_log (L"%d %d %d\n", dst_width, temp_width, aws);
+	//write_log (_T("%d %d %d\n"), dst_width, temp_width, aws);
 	extraw = -aws * (filter_horiz_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 	extrah = -ahs * (filter_vert_zoom - currprefs.gfx_filteroverlay_overscan * 10) / 2000;
 
@@ -734,7 +734,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					maxw = (maxw + mult - 1) / mult;
 					maxh = (maxh + mult - 1) / mult;
 				}
-				//write_log(L"(%dx%d) (%dx%d) ww=%d hh=%d w=%d h=%d m=%d\n", cx, cy, cw, ch, currprefs.gfx_size.width, currprefs.gfx_size.height, maxw, maxh, mult);
+				//write_log(_T("(%dx%d) (%dx%d) ww=%d hh=%d w=%d h=%d m=%d\n"), cx, cy, cw, ch, currprefs.gfx_size.width, currprefs.gfx_size.height, maxw, maxh, mult);
 				cx -= (maxw - cw) / 2;
 				cw = maxw;
 				cy -= (maxh - ch) / 2;
@@ -749,11 +749,11 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			filter_vert_offset = 0;
 
 			get_custom_topedge (&cx, &cy);
-			//write_log (L"%dx%d %dx%d\n", cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
+			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos (&cx, &cy, &cw, &ch);
 
-			//write_log (L"%dx%d %dx%d %dx%d\n", currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
+			//write_log (_T("%dx%d %dx%d %dx%d\n"), currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
 
 			cv = 1;
 
@@ -1187,7 +1187,7 @@ void S2X_init (int dw, int dh, int dd)
 			tempsurf = allocsurface (temp_width, temp_height);
 	}
 	if (!tempsurf && !d3d)
-		write_log (L"DDRAW: failed to create temp surface (%dx%d)\n", temp_width, temp_height);
+		write_log (_T("DDRAW: failed to create temp surface (%dx%d)\n"), temp_width, temp_height);
 	inited = true;
 }
 
@@ -1368,7 +1368,7 @@ end:
 		unlocksurface (tempsurf);
 	
 		getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
-		//write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n", dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
+		//write_log (_T("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n"), dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
 		OffsetRect (&sr, zr.left, zr.top);
 		if (sr.left < 0)
 			sr.left = 0;

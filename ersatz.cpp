@@ -104,7 +104,7 @@ static void ersatz_doio (void)
 		break;
 
 	default:
-		write_log (L"Only CMD_READ supported in DoIO()\n");
+		write_log (_T("Only CMD_READ supported in DoIO()\n"));
 		ersatz_failed ();
 	}
 	{
@@ -129,7 +129,7 @@ static void ersatz_init (void)
 	uaecptr a;
 
 	already_failed = 0;
-	write_log (L"initializing kickstart replacement\n");
+	write_log (_T("initializing kickstart replacement\n"));
 	if (disk_empty (0)) {
 		already_failed = 1;
 		notify_user (NUMSG_KICKREP);
@@ -171,9 +171,9 @@ static void ersatz_init (void)
 	/* kickstart disk loader */
 	if (get_long (0x4000) == 0x4b49434b) {
 		/* a kickstart disk was found in drive 0! */
-		write_log (L"Loading Kickstart rom image from Kickstart disk\n");
+		write_log (_T("Loading Kickstart rom image from Kickstart disk\n"));
 		/* print some notes... */
-		write_log (L"NOTE: if UAE crashes set CPU to 68000 and/or chipmem size to 512KB!\n");
+		write_log (_T("NOTE: if UAE crashes set CPU to 68000 and/or chipmem size to 512KB!\n"));
 
 		/* read rom image from kickstart disk */
 		put_word (request + 0x1C, 2);
@@ -260,7 +260,7 @@ void ersatz_perform (uae_u16 what)
 		break;
 
 	case EOP_NIMP:
-		write_log (L"Unimplemented Kickstart function called\n");
+		write_log (_T("Unimplemented Kickstart function called\n"));
 		ersatz_failed ();
 
 		/* fall through */
@@ -270,7 +270,7 @@ void ersatz_perform (uae_u16 what)
 
 	case EOP_OPENLIB:
 	default:
-		write_log (L"Internal error. Giving up.\n");
+		write_log (_T("Internal error. Giving up.\n"));
 		ersatz_failed ();
 	}
 }

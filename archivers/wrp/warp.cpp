@@ -403,8 +403,8 @@ struct zfile *unwarp(struct zfile *zf)
 		if (!iswrp (buf))
 			break;
 		if (!nf) {
-			nf = zfile_fopen_empty (zf, L"zipped.wrp", 1760 * 512);
-			tmpf = zfile_fopen_empty (zf, L"tmp", outsize2);
+			nf = zfile_fopen_empty (zf, _T("zipped.wrp"), 1760 * 512);
+			tmpf = zfile_fopen_empty (zf, _T("tmp"), outsize2);
 		}
 		track = (buf[10] << 8) | buf[11];
 		algo = buf[19];
@@ -447,19 +447,19 @@ struct zfile *unwarp(struct zfile *zf)
 			}
 			break;
 		default:
-			write_log (L"WRP unknown compression method %d, track=%d,size=%d\n", algo, track, side);
+			write_log (_T("WRP unknown compression method %d, track=%d,size=%d\n"), algo, track, side);
 			goto end;
 			break;
 		}
 		if (err) {
-			write_log (L"WRP corrupt data, track=%d,side=%d,err=%d\n", track, side, err);
+			write_log (_T("WRP corrupt data, track=%d,side=%d,err=%d\n"), track, side, err);
 		} else {
 			uae_u16 crc2;
 			int os = zfile_ftell (tmpf);
 			data = zfile_getdata (tmpf, 0, os);
 			crc2 = wrpcrc16 (wrpcrc16table, data, os);
 			if (crc != crc2)
-				write_log (L"WRP crc error %04x<>%04x, track=%d,side=%d\n", crc, crc2, track, side);
+				write_log (_T("WRP crc error %04x<>%04x, track=%d,side=%d\n"), crc, crc2, track, side);
 			xfree (data);
 		}
 		if (dstpos >= 0) {

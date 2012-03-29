@@ -139,7 +139,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 #if 0
 						//if (cmd != 0)
-							write_log(L"X=%d Y=%d %02x = %02x (%d %d)\n", x, y, cmd, parm, color, color2);
+							write_log(_T("X=%d Y=%d %02x = %02x (%d %d)\n"), x, y, cmd, parm, color, color2);
 #endif
 
 						if (automatic && cmd >= 0x40)
@@ -226,7 +226,7 @@ static bool graffiti(struct vidbuffer *src, struct vidbuffer *dst)
 
 	if (monitor != MONITOREMU_GRAFFITI) {
 		monitor = MONITOREMU_GRAFFITI;
-		write_log (L"GRAFFITI %s mode\n", hires ? L"hires" : L"lores");
+		write_log (_T("GRAFFITI %s mode\n"), hires ? _T("hires") : _T("lores"));
 	}
 
 	return true;
@@ -258,7 +258,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 		dataline = src->bufmem + (((idline << VRES_MAX) - src->yoffset) / gfxvidinfo.ychange) * src->rowbytes + (((200 << RES_MAX) - src->xoffset) / gfxvidinfo.xchange) * src->pixbytes;
 
 #if 0
-		write_log (L"%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n",
+		write_log (_T("%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x\n"),
 			dataline[0 * doff + 0], dataline[0 * doff + 1], dataline[0 * doff + 2],
 			dataline[1 * doff + 0], dataline[1 * doff + 1], dataline[1 * doff + 2],
 			dataline[2 * doff + 0], dataline[2 * doff + 1], dataline[2 * doff + 2],
@@ -328,13 +328,13 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 	}
 
 #if 0
-	write_log (L"0 = F6-4:%d INTERLACE:%d\n", f64, interlace);
-	write_log (L"1 = FN:%d EXPAND:%d\n", py + px *2, expand);
-	write_log (L"2 = ENP:%d WPB=%d\n", enp, wpb);
-	write_log (L"3 = DPL:%d LESS16=%d\n", dpl, less16);
+	write_log (_T("0 = F6-4:%d INTERLACE:%d\n"), f64, interlace);
+	write_log (_T("1 = FN:%d EXPAND:%d\n"), py + px *2, expand);
+	write_log (_T("2 = ENP:%d WPB=%d\n"), enp, wpb);
+	write_log (_T("3 = DPL:%d LESS16=%d\n"), dpl, less16);
 #endif
 #if 0
-	write_log (L"%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x %dx%d\n",
+	write_log (_T("%02x%02x%02x %02x%02x%02x %02x%02x%02x %02x%02x%02x %dx%d\n"),
 		dataline[0 * doff + 0], dataline[0 * doff + 1], dataline[0 * doff + 2],
 		dataline[1 * doff + 0], dataline[1 * doff + 1], dataline[1 * doff + 2],
 		dataline[2 * doff + 0], dataline[2 * doff + 1], dataline[2 * doff + 2],
@@ -417,7 +417,7 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 
 	if (monitor != MONITOREMU_A2024) {
 		monitor = MONITOREMU_A2024;
-		write_log (L"A2024 %dHz %s mode\n", hires ? 10 : 15, ntsc ? L"NTSC" : L"PAL");
+		write_log (_T("A2024 %dHz %s mode\n"), hires ? 10 : 15, ntsc ? _T("NTSC") : _T("PAL"));
 	}
 
 	return true;
@@ -448,7 +448,7 @@ bool emulate_specialmonitors(struct vidbuffer *src, struct vidbuffer *dst)
 		if (monitor) {
 			clearmonitor(dst);
 			monitor = 0;
-			write_log (L"Native mode\n");
+			write_log (_T("Native mode\n"));
 		}
 		return false;
 	}

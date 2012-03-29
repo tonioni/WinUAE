@@ -141,7 +141,7 @@ void event2_newevent_xx (int no, evt t, uae_u32 data, evfunc2 func)
 			if (no == ev2_max)
 				no = ev2_misc;
 			if (no == next) {
-				write_log (L"out of event2's!\n");
+				write_log (_T("out of event2's!\n"));
 				return;
 			}
 		}

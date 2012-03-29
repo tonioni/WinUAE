@@ -394,12 +394,12 @@ typedef struct RPDeviceContent_Legacy
 #define RP_DEVICE_INPUTPORT RP_DEVICECATEGORY_INPUTPORT
 #define RP_DEVICE_CATEGORIES RP_DEVICECATEGORY_COUNT
 // Legacy Host Side Input Port Devices
-#define RP_IPD_MOUSE1    L"Mouse1" // \0\0-terminated first mouse type ("Mouse1\0\0" = default Windows mouse, or exact mouse described as "Mouse1\\\?\HID#VID_046D&PID_C521&MI_00#8&3b7afb0d&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd\0\0")
-#define RP_IPD_JOYSTICK1 L"Joystick1" // \0\0-terminated first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_JOYSTICK2 L"Joystick2" // \0\0-terminated second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_JOYSTICK3 L"Joystick3" // \0\0-terminated third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_KEYBDL1   L"KeyboardLayout1" // \0\0-terminated first joystick emulation keyboard layout (e.g. Keyboard Layout A for WinUAE)
-#define RP_IPD_KEYBDL2   L"KeyboardLayout2" // \0\0-terminated second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
-#define RP_IPD_KEYBDL3   L"KeyboardLayout3" // \0\0-terminated third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
+#define RP_IPD_MOUSE1    _T("Mouse1") // \0\0-terminated first mouse type ("Mouse1\0\0" = default Windows mouse, or exact mouse described as "Mouse1\\\?\HID#VID_046D&PID_C521&MI_00#8&3b7afb0d&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd\0\0")
+#define RP_IPD_JOYSTICK1 _T("Joystick1") // \0\0-terminated first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_JOYSTICK2 _T("Joystick2") // \0\0-terminated second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_JOYSTICK3 _T("Joystick3") // \0\0-terminated third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_KEYBDL1   _T("KeyboardLayout1") // \0\0-terminated first joystick emulation keyboard layout (e.g. Keyboard Layout A for WinUAE)
+#define RP_IPD_KEYBDL2   _T("KeyboardLayout2") // \0\0-terminated second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
+#define RP_IPD_KEYBDL3   _T("KeyboardLayout3") // \0\0-terminated third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

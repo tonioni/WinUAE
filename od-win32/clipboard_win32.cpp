@@ -41,14 +41,14 @@ static void debugwrite (const TCHAR *name, uae_u8 *p, int size)
 	cnt = 0;
 	for (;;) {
 		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, L"%s.%03d.dat", name, cnt);
-		f = _tfopen (tmp, L"rb");
+		_stprintf (tmp, _T("%s.%03d.dat"), name, cnt);
+		f = _tfopen (tmp, _T("rb"));
 		if (f) {
 			fclose (f);
 			cnt++;
 			continue;
 		}
-		f = _tfopen (tmp, L"wb");
+		f = _tfopen (tmp, _T("wb"));
 		if (f) {
 			fwrite (p, size, 1, f);
 			fclose (f);
@@ -64,10 +64,10 @@ static void to_amiga_start (void)
 	if (!clipboard_data || get_long (clipboard_data) != 0)
 		return;
 	if (clipboard_debug) {
-		debugwrite (L"clipboard_p2a", to_amiga, to_amiga_size);
+		debugwrite (_T("clipboard_p2a"), to_amiga, to_amiga_size);
 	}
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: to_amiga %08x %d\n", clipboard_data, to_amiga_size);
+	write_log (_T("clipboard: to_amiga %08x %d\n"), clipboard_data, to_amiga_size);
 #endif
 	put_long (clipboard_data, to_amiga_size);
 	uae_Signal (get_long (clipboard_data + 8), 1 << 13);
@@ -215,7 +215,7 @@ static void from_iff_text (uaecptr ftxt, uae_u32 len)
 			addr++;
 	}
 	if (txt == NULL) {
-		clipboard_put_text (L"");
+		clipboard_put_text (_T(""));
 	} else {
 		TCHAR *pctxt = amigatopc (txt);
 		clipboard_put_text (pctxt);
@@ -255,7 +255,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 		return;
 	}
 #if DEBUG_CLIP > 0
-	write_log (L"BMP2IFF: W=%d H=%d bpp=%d\n", w, h, bpp);
+	write_log (_T("BMP2IFF: W=%d H=%d bpp=%d\n"), w, h, bpp);
 #endif
 	iffbpp = bpp > 8 ? 24 : bpp;
 	cnt = 0;
@@ -281,7 +281,7 @@ static void to_iff_ilbm (HBITMAP hbmp)
 			iffbpp++;
 		}
 #if DEBUG_CLIP > 0
-		write_log (L"BMP2IFF: Colors=%d BPP=%d\n", cnt, iffbpp);
+		write_log (_T("BMP2IFF: Colors=%d BPP=%d\n"), cnt, iffbpp);
 #endif
 	}
 
@@ -511,7 +511,7 @@ static void from_iff_ilbm (uaecptr ilbm, uae_u32 len)
 			body = 1;
 
 #if DEBUG_CLIP > 0
-			write_log (L"W=%d H=%d planes=%d mask=%d comp=%d CAMG=%08x\n", w, h, planes, masking, compr, camg);
+			write_log (_T("W=%d H=%d planes=%d mask=%d comp=%d CAMG=%08x\n"), w, h, planes, masking, compr, camg);
 #endif
 
 			ham = 0; ehb = 0;
@@ -669,7 +669,7 @@ static void from_iff (uaecptr data, uae_u32 len)
 		return;
 	addr = get_real_address (data);
 	if (clipboard_debug)
-		debugwrite (L"clipboard_a2p", addr, len);
+		debugwrite (_T("clipboard_a2p"), addr, len);
 	if (memcmp ("FORM", addr, 4))
 		return;
 	if (!memcmp ("FTXT", addr + 8, 4))
@@ -693,13 +693,13 @@ static void clipboard_read (HWND hwnd)
 		return;
 	if (to_amiga) {
 #if DEBUG_CLIP > 0
-		write_log (L"clipboard: read windows clipboard but ignored because previous clip transfer still active\n");
+		write_log (_T("clipboard: read windows clipboard but ignored because previous clip transfer still active\n"));
 #endif
 		return;
 	}
 	clipboard_change = 0;
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: read windows clipboard\n");
+	write_log (_T("clipboard: read windows clipboard\n"));
 #endif
 	if (!OpenClipboard (hwnd))
 		return;
@@ -716,7 +716,7 @@ static void clipboard_read (HWND hwnd)
 			TCHAR *lptstr = (TCHAR*)GlobalLock (hglb); 
 			if (lptstr != NULL) {
 #if DEBUG_CLIP > 0
-				write_log (L"clipboard: CF_UNICODETEXT '%s'\n", lptstr);
+				write_log (_T("clipboard: CF_UNICODETEXT '%s'\n"), lptstr);
 #endif
 				to_iff_text (lptstr);
 				GlobalUnlock (hglb);
@@ -726,7 +726,7 @@ static void clipboard_read (HWND hwnd)
 		HBITMAP hbmp = (HBITMAP)GetClipboardData (CF_BITMAP);
 		if (hbmp != NULL) {
 #if DEBUG_CLIP > 0
-			write_log (L"clipboard: CF_BITMAP\n");
+			write_log (_T("clipboard: CF_BITMAP\n"));
 #endif
 			to_iff_ilbm (hbmp);
 		}
@@ -749,7 +749,7 @@ static void clipboard_free_delayed (void)
 void clipboard_changed (HWND hwnd)
 {
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: windows clipboard changed message\n");
+	write_log (_T("clipboard: windows clipboard changed message\n"));
 #endif
 	if (!clipboard_data || !initialized)
 		return;
@@ -775,7 +775,7 @@ static int clipboard_put_bmp_real (HBITMAP hbmp)
 	CloseClipboard ();
 	clipopen--;
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: BMP written to windows clipboard\n");
+	write_log (_T("clipboard: BMP written to windows clipboard\n"));
 #endif
 	return ret;
 }
@@ -800,7 +800,7 @@ static int clipboard_put_text_real (const TCHAR *txt)
 	CloseClipboard ();
 	clipopen--;
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: text written to windows clipboard\n");
+	write_log (_T("clipboard: text written to windows clipboard\n"));
 #endif
 	return ret;
 }
@@ -827,13 +827,13 @@ static int clipboard_put_bmp (HBITMAP hbmp)
 void amiga_clipboard_die (void)
 {
 	signaling = 0;
-	write_log (L"clipboard not initialized\n");
+	write_log (_T("clipboard not initialized\n"));
 }
 
 void amiga_clipboard_init (void)
 {
 	signaling = 0;
-	write_log (L"clipboard initialized\n");
+	write_log (_T("clipboard initialized\n"));
 	initialized = 1;
 	clipboard_read (chwnd);
 }
@@ -842,12 +842,12 @@ void amiga_clipboard_task_start (uaecptr data)
 {
 	clipboard_data = data;
 	signaling = 1;
-	write_log (L"clipboard task init: %08x\n", clipboard_data);
+	write_log (_T("clipboard task init: %08x\n"), clipboard_data);
 }
 
 uae_u32 amiga_clipboard_proc_start (void)
 {
-	write_log (L"clipboard process init: %08x\n", clipboard_data);
+	write_log (_T("clipboard process init: %08x\n"), clipboard_data);
 	signaling = 1;
 	return clipboard_data;
 }
@@ -856,12 +856,12 @@ void amiga_clipboard_got_data (uaecptr data, uae_u32 size, uae_u32 actual)
 {
 	uae_u8 *addr;
 	if (!initialized) {
-		write_log (L"clipboard: got_data() before initialized!?\n");
+		write_log (_T("clipboard: got_data() before initialized!?\n"));
 		return;
 	}
 	addr = get_real_address (data);
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: <-amiga, %08x, %08x %d %d\n", clipboard_data, data, size, actual);
+	write_log (_T("clipboard: <-amiga, %08x, %08x %d %d\n"), clipboard_data, data, size, actual);
 #endif
 	from_iff (data, actual);
 }
@@ -873,12 +873,12 @@ int amiga_clipboard_want_data (void)
 	addr = get_long (clipboard_data + 4);
 	size = get_long (clipboard_data);
 	if (!initialized) {
-		write_log (L"clipboard: want_data() before initialized!? (%08x %08x %d)\n", clipboard_data, addr, size);
+		write_log (_T("clipboard: want_data() before initialized!? (%08x %08x %d)\n"), clipboard_data, addr, size);
 		to_amiga = NULL;
 		return 0;
 	}
 	if (size != to_amiga_size) {
-		write_log (L"clipboard: size %d <> %d mismatch!?\n", size, to_amiga_size);
+		write_log (_T("clipboard: size %d <> %d mismatch!?\n"), size, to_amiga_size);
 		to_amiga = NULL;
 		return 0;
 	}
@@ -888,7 +888,7 @@ int amiga_clipboard_want_data (void)
 	}
 	xfree (to_amiga);
 #if DEBUG_CLIP > 0
-	write_log (L"clipboard: ->amiga, %08x, %08x %d (%d) bytes\n", clipboard_data, addr, size, to_amiga_size);
+	write_log (_T("clipboard: ->amiga, %08x, %08x %d (%d) bytes\n"), clipboard_data, addr, size, to_amiga_size);
 #endif
 	to_amiga = NULL;
 	to_amiga_size = 0;
@@ -928,7 +928,7 @@ void clipboard_vsync (void)
 	if (task && native2amiga_isfree ()) {
 		uae_Signal (task, 1 << 13);
 #if DEBUG_CLIP > 0
-		write_log (L"clipboard: signal %08x\n", clipboard_data);
+		write_log (_T("clipboard: signal %08x\n"), clipboard_data);
 #endif
 	}
 	vdelay = 50;
@@ -936,7 +936,7 @@ void clipboard_vsync (void)
 
 void clipboard_reset (void)
 {
-	write_log (L"clipboard: reset (%08x)\n", clipboard_data);
+	write_log (_T("clipboard: reset (%08x)\n"), clipboard_data);
 	vdelay = 100;
 	clipboard_free_delayed ();
 	clipboard_data = 0;

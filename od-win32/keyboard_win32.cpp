@@ -421,7 +421,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (scancode_new == currprefs.win32_guikey && scancode_new != defaultguikey)
 		scancode = scancode_new;
 	
-	//write_log (L"keyboard = %d scancode = 0x%02x state = %d\n", keyboard, scancode, newstate );
+	//write_log (_T("keyboard = %d scancode = 0x%02x state = %d\n"), keyboard, scancode, newstate );
 
 	if (newstate && code == 0 && amode) {
 
@@ -449,7 +449,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 				disk_prevnext (0, -1);
 				return;
 				//crap++;
-				//write_log (L"%d\n", crap);
+				//write_log (_T("%d\n"), crap);
 			}
 #endif
 			if (specialpressed ()) {

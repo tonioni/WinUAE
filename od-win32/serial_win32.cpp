@@ -95,7 +95,7 @@ void SERPER (uae_u16 w)
 
 	serial_period_hsync_counter = 0;
 
-	write_log (L"SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n", w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
+	write_log (_T("SERIAL: period=%d, baud=%d, hsyncs=%d, bits=%d, PC=%x\n"), w, baud, serial_period_hsyncs, ninebit ? 9 : 8, M68K_GETPC);
 
 	if (ninebit)
 		baud *= 2;
@@ -135,7 +135,7 @@ static void checkreceive_enet (int mode)
 			ovrun = 1;
 			INTREQ (0x8000 | 0x0800);
 			while (enet_readser (&recdata));
-			write_log (L"SERIAL: overrun\n");
+			write_log (_T("SERIAL: overrun\n"));
 		}
 		return;
 	}
@@ -151,7 +151,7 @@ static void checkreceive_enet (int mode)
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
+	write_log (_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar (serdatr));
 #endif
 #endif
 }
@@ -174,7 +174,7 @@ static void checkreceive_serial (int mode)
 			ovrun = 1;
 			INTREQ (0x8000 | 0x0800);
 			while (readser (&recdata));
-			write_log (L"SERIAL: overrun\n");
+			write_log (_T("SERIAL: overrun\n"));
 		}
 		return;
 	}
@@ -192,7 +192,7 @@ static void checkreceive_serial (int mode)
 			} else {
 				ninebitdata = recdata;
 				if ((ninebitdata & ~1) != 0xa8) {
-					write_log (L"SERIAL: 9-bit serial emulation sync lost, %02X != %02X\n", ninebitdata & ~1, 0xa8);
+					write_log (_T("SERIAL: 9-bit serial emulation sync lost, %02X != %02X\n"), ninebitdata & ~1, 0xa8);
 					ninebitdata = 0;
 					return;
 				}
@@ -210,7 +210,7 @@ static void checkreceive_serial (int mode)
 	data_in_serdatr = 1;
 	serial_check_irq ();
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: received %02X (%c)\n", serdatr & 0xff, dochar (serdatr));
+	write_log (_T("SERIAL: received %02X (%c)\n"), serdatr & 0xff, dochar (serdatr));
 #endif
 #endif
 }
@@ -248,7 +248,7 @@ static void checksend (int mode)
 		data_in_serdat = 0;
 		INTREQ (0x8000 | 0x0001);
 #if SERIALDEBUG > 2
-		write_log (L"SERIAL: send %04X (%c)\n", serdatshift, dochar (serdatshift));
+		write_log (_T("SERIAL: send %04X (%c)\n"), serdatshift, dochar (serdatshift));
 #endif
 	}
 }
@@ -276,25 +276,25 @@ void SERDAT (uae_u16 w)
 
 	if (!(w & 0x3ff)) {
 #if SERIALDEBUG > 1
-		write_log (L"SERIAL: zero serial word written?! PC=%x\n", M68K_GETPC);
+		write_log (_T("SERIAL: zero serial word written?! PC=%x\n"), M68K_GETPC);
 #endif
 		return;
 	}
 
 #if SERIALDEBUG > 1
 	if (data_in_serdat) {
-		write_log (L"SERIAL: program wrote to SERDAT but old byte wasn't fetched yet\n");
+		write_log (_T("SERIAL: program wrote to SERDAT but old byte wasn't fetched yet\n"));
 	}
 #endif
 
 	if (seriallog)
-		write_log (L"%c", dochar (w));
+		write_log (_T("%c"), dochar (w));
 
 	if (serper == 372) {
 		if (enforcermode & 2) {
-			console_out_f (L"%c", dochar (w));
+			console_out_f (_T("%c"), dochar (w));
 			if (w == 256 + 10)
-				console_out (L"\n");
+				console_out (_T("\n"));
 		}
 	}
 
@@ -303,7 +303,7 @@ void SERDAT (uae_u16 w)
 		checksend (1);
 
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: wrote 0x%04x (%c) PC=%x\n", w, dochar (w), M68K_GETPC);
+	write_log (_T("SERIAL: wrote 0x%04x (%c) PC=%x\n"), w, dochar (w), M68K_GETPC);
 #endif
 
 	return;
@@ -321,7 +321,7 @@ uae_u16 SERDATR (void)
 	if (ovrun)
 		serdatr |= 0x8000;
 #if SERIALDEBUG > 2
-	write_log (L"SERIAL: read 0x%04x (%c) %x\n", serdatr, dochar (serdatr), M68K_GETPC);
+	write_log (_T("SERIAL: read 0x%04x (%c) %x\n"), serdatr, dochar (serdatr), M68K_GETPC);
 #endif
 	ovrun = 0;
 	data_in_serdatr = 0;
@@ -369,7 +369,7 @@ static uae_u8 oldserbits;
 static void serial_status_debug (TCHAR *s)
 {
 #if SERIALHSDEBUG > 1
-	write_log (L"%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n", s,
+	write_log (_T("%s: DTR=%d RTS=%d CD=%d CTS=%d DSR=%d\n"), s,
 		(oldserbits & 0x80) ? 0 : 1, (oldserbits & 0x40) ? 0 : 1,
 		(oldserbits & 0x20) ? 0 : 1, (oldserbits & 0x10) ? 0 : 1, (oldserbits & 0x08) ? 0 : 1);
 #endif
@@ -435,7 +435,7 @@ uae_u8 serial_readstatus (uae_u8 dir)
 	oldserbits &= ~(0x08 | 0x10 | 0x20);
 	oldserbits |= serbits;
 
-	serial_status_debug (L"read");
+	serial_status_debug (_T("read"));
 
 	return oldserbits;
 }
@@ -457,12 +457,12 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 			if (newstate & 0x40) {
 				setserstat (TIOCM_RTS, 0);
 #if SERIALHSDEBUG > 0
-				write_log (L"SERIAL: RTS cleared\n");
+				write_log (_T("SERIAL: RTS cleared\n"));
 #endif
 			} else {
 				setserstat (TIOCM_RTS, 1);
 #if SERIALHSDEBUG > 0
-				write_log (L"SERIAL: RTS set\n");
+				write_log (_T("SERIAL: RTS set\n"));
 #endif
 			}
 		}
@@ -470,20 +470,20 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 
 #if 0 /* CIA io-pins can be read even when set to output.. */
 	if ((newstate & 0x20) != (oldserbits & 0x20) && (dir & 0x20))
-		write_log (L"SERIAL: warning, program tries to use CD as an output!\n");
+		write_log (_T("SERIAL: warning, program tries to use CD as an output!\n"));
 	if ((newstate & 0x10) != (oldserbits & 0x10) && (dir & 0x10))
-		write_log (L"SERIAL: warning, program tries to use CTS as an output!\n");
+		write_log (_T("SERIAL: warning, program tries to use CTS as an output!\n"));
 	if ((newstate & 0x08) != (oldserbits & 0x08) && (dir & 0x08))
-		write_log (L"SERIAL: warning, program tries to use DSR as an output!\n");
+		write_log (_T("SERIAL: warning, program tries to use DSR as an output!\n"));
 #endif
 
 	if (logcnt > 0) {
 		if (((newstate ^ oldserbits) & 0x40) && !(dir & 0x40)) {
-			write_log (L"SERIAL: warning, program tries to use RTS as an input! PC=%x\n", M68K_GETPC);
+			write_log (_T("SERIAL: warning, program tries to use RTS as an input! PC=%x\n"), M68K_GETPC);
 			logcnt--;
 		}
 		if (((newstate ^ oldserbits) & 0x80) && !(dir & 0x80)) {
-			write_log (L"SERIAL: warning, program tries to use DTR as an input! PC=%x\n", M68K_GETPC);
+			write_log (_T("SERIAL: warning, program tries to use DTR as an input! PC=%x\n"), M68K_GETPC);
 			logcnt--;
 		}
 	}
@@ -493,14 +493,14 @@ uae_u8 serial_writestatus (uae_u8 newstate, uae_u8 dir)
 	oldserbits &= ~(0x80 | 0x40);
 	newstate &= 0x80 | 0x40;
 	oldserbits |= newstate;
-	serial_status_debug (L"write");
+	serial_status_debug (_T("write"));
 
 	return oldserbits;
 }
 
 static int enet_is (TCHAR *name)
 {
-	return !_tcsnicmp (name, L"ENET:", 5);
+	return !_tcsnicmp (name, _T("ENET:"), 5);
 }
 
 void serial_open (void)
@@ -513,7 +513,7 @@ void serial_open (void)
 		enet_open (currprefs.sername);
 	} else {
 		if(!openser (currprefs.sername)) {
-			write_log (L"SERIAL: Could not open device %s\n", currprefs.sername);
+			write_log (_T("SERIAL: Could not open device %s\n"), currprefs.sername);
 			return;
 		}
 	}
@@ -582,7 +582,7 @@ static void enet_service (int serveronly)
 				{
 					case ENET_EVENT_TYPE_CONNECT:
 						address = evt.peer->address;
-						write_log (L"ENET_SERVER: connect from %d.%d.%d.%d:%u\n",
+						write_log (_T("ENET_SERVER: connect from %d.%d.%d.%d:%u\n"),
 							(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff,
 							address.port);
 						evt.peer->data = 0;
@@ -602,7 +602,7 @@ static void enet_service (int serveronly)
 					break;
 					case ENET_EVENT_TYPE_DISCONNECT:
 						address = evt.peer->address;
-						write_log (L"ENET_SERVER: disconnect from %d.%d.%d.%d:%u\n",
+						write_log (_T("ENET_SERVER: disconnect from %d.%d.%d.%d:%u\n"),
 							(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff,
 							address.port);
 					break;
@@ -615,7 +615,7 @@ static void enet_service (int serveronly)
 				switch (evt.type)
 				{
 					default:
-					write_log (L"ENET_CLIENT: %d\n", evt.type);
+					write_log (_T("ENET_CLIENT: %d\n"), evt.type);
 					break;
 				}
 			}
@@ -631,7 +631,7 @@ static void enet_disconnect (ENetPeer *peer)
 	if (!peer)
 		return;
 
-	write_log (L"ENET_CLIENT: disconnecting..\n");
+	write_log (_T("ENET_CLIENT: disconnecting..\n"));
 	enet_peer_disconnect (peer, 0);
 	while (cnt-- > 0) {
 		enet_service (1);
@@ -644,13 +644,13 @@ static void enet_disconnect (ENetPeer *peer)
 				break;
 
 			case ENET_EVENT_TYPE_DISCONNECT:
-				write_log (L"ENET_CLIENT: disconnection succeeded\n");
+				write_log (_T("ENET_CLIENT: disconnection succeeded\n"));
 				enetpeer = NULL;
 				return;
 			}
 		}
 	}
-	write_log (L"ENET_CLIENT: disconnection forced\n");
+	write_log (_T("ENET_CLIENT: disconnection forced\n"));
 	enet_peer_reset (enetpeer);
 	enetpeer = NULL;
 }
@@ -679,7 +679,7 @@ int enet_open (TCHAR *name)
 	if (!initialized) {
 		int err = enet_initialize ();
 		if (err) {
-			write_log (L"ENET: initialization failed: %d\n", err);
+			write_log (_T("ENET: initialization failed: %d\n"), err);
 			return 0;
 		}
 		initialized = 1;
@@ -687,37 +687,37 @@ int enet_open (TCHAR *name)
 	
 	enet_close ();
 	enetmode = 0;
-	if (!_tcsnicmp (name, L"ENET:H", 6)) {
+	if (!_tcsnicmp (name, _T("ENET:H"), 6)) {
 		address.host = ENET_HOST_ANY;
 		address.port = 1234;
 		enethost = enet_host_create (&address, 2, 0, 0);
 		if (enethost == NULL) {
-			write_log (L"ENET_SERVER: enet_host_create(server) failed\n");
+			write_log (_T("ENET_SERVER: enet_host_create(server) failed\n"));
 			enet_close ();
 			return 0;
 		}
-		write_log (L"ENET_SERVER: server created\n");
+		write_log (_T("ENET_SERVER: server created\n"));
 		enetmode = 1;
 	} else {
 		enetmode = -1;
 	}
 	enetclient = enet_host_create (NULL, 1, 0, 0);
 	if (enetclient == NULL) {
-		write_log (L"ENET_CLIENT: enet_host_create(client) failed\n");
+		write_log (_T("ENET_CLIENT: enet_host_create(client) failed\n"));
 		enet_close ();
 		return 0;
 	}
-	write_log (L"ENET_CLIENT: client created\n");
+	write_log (_T("ENET_CLIENT: client created\n"));
 	enet_address_set_host (&address, enetmode > 0 ? "127.0.0.1" : "192.168.0.10");
 	address.port = 1234;
 	enetpeer = enet_host_connect (enetclient, &address, 2);
 	if (enetpeer == NULL) {
-		write_log (L"ENET_CLIENT: connection to host %d.%d.%d.%d:%d failed\n",
+		write_log (_T("ENET_CLIENT: connection to host %d.%d.%d.%d:%d failed\n"),
 			(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff, address.port);
 		enet_host_destroy (enetclient);
 		enetclient = NULL;
 	}
-	write_log (L"ENET_CLIENT: connecting to %d.%d.%d.%d:%d...\n",
+	write_log (_T("ENET_CLIENT: connecting to %d.%d.%d.%d:%d...\n"),
 		(address.host >> 0) & 0xff, (address.host >> 8) & 0xff, (address.host >> 16) & 0xff, (address.host >> 24) & 0xff, address.port);
 	cnt = 10 * 5;
 	while (cnt-- > 0) {
@@ -729,7 +729,7 @@ int enet_open (TCHAR *name)
 		}
 	}
 	if (cnt <= 0) {
-		write_log (L"ENET_CLIENT: connection failed, no response in 5 seconds\n");
+		write_log (_T("ENET_CLIENT: connection failed, no response in 5 seconds\n"));
 		enet_close ();
 		return 0;
 	}
@@ -737,7 +737,7 @@ int enet_open (TCHAR *name)
 	p = enet_packet_create (data, sizeof data, ENET_PACKET_FLAG_RELIABLE);
 	enet_peer_send (enetpeer, 0, p);
 	enet_host_flush (enetclient);
-	write_log (L"ENET: connected\n");
+	write_log (_T("ENET: connected\n"));
 	serial_enet = 1;
 	return 1;
 }
@@ -750,7 +750,7 @@ void enet_writeser (uae_u16 w)
 	memcpy (data, "UAE_", 4);
 	data[4] = w >> 8;
 	data[5] = w >> 0;
-	write_log (L"W=%04X ", w);
+	write_log (_T("W=%04X "), w);
 	p = enet_packet_create (data, 6, ENET_PACKET_FLAG_RELIABLE);
 	enet_peer_send (enetpeer, 0, p);
 	enet_host_flush (enetclient);
@@ -767,7 +767,7 @@ int enet_readser (uae_u16 *data)
 	if (enet_receive_off_r == enet_receive_off_w)
 		return 0;
 	*data = enet_receive[enet_receive_off_r++];
-	write_log (L"R=%04X ", *data);
+	write_log (_T("R=%04X "), *data);
 	enet_receive_off_r &= 0xff;
 	return 1;
 }

@@ -94,7 +94,7 @@ mp3decoder::mp3decoder()
 	LocalFree(mp3format);
 	LocalFree(waveFormat);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log(L"MP3: couldn't open ACM mp3 decoder, %d\n", mmr);
+		write_log(_T("MP3: couldn't open ACM mp3 decoder, %d\n"), mmr);
 		throw exception();
 	}
 }
@@ -109,10 +109,10 @@ uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 	ACMSTREAMHEADER mp3streamHead;
 	HACMSTREAM h = (HACMSTREAM)g_mp3stream;
 
-	write_log(L"MP3: decoding '%s'..\n", zfile_getname(zf));
+	write_log(_T("MP3: decoding '%s'..\n"), zfile_getname(zf));
 	mmr = acmStreamSize(h, MP3_BLOCK_SIZE, &rawbufsize, ACM_STREAMSIZEF_SOURCE);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"MP3: acmStreamSize, %d\n", mmr);
+		write_log (_T("MP3: acmStreamSize, %d\n"), mmr);
 		return NULL;
 	}
 	// allocate our I/O buffers
@@ -128,7 +128,7 @@ uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 	mp3streamHead.cbDstLength = rawbufsize;
 	mmr = acmStreamPrepareHeader(h, &mp3streamHead, 0);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log(L"MP3: acmStreamPrepareHeader, %d\n", mmr);
+		write_log(_T("MP3: acmStreamPrepareHeader, %d\n"), mmr);
 		return NULL;
 	}
 	zfile_fseek(zf, 0, SEEK_SET);
@@ -139,7 +139,7 @@ uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 		// convert the data
 		mmr = acmStreamConvert(h, &mp3streamHead, ACM_STREAMCONVERTF_BLOCKALIGN);
 		if (mmr != MMSYSERR_NOERROR) {
-			write_log(L"MP3: acmStreamConvert, %d\n", mmr);
+			write_log(_T("MP3: acmStreamConvert, %d\n"), mmr);
 			return NULL;
 		}
 		if (outoffset + mp3streamHead.cbDstLengthUsed > maxsize)
@@ -150,7 +150,7 @@ uae_u8 *mp3decoder::get (struct zfile *zf, uae_u8 *outbuf, int maxsize)
 	acmStreamUnprepareHeader(h, &mp3streamHead, 0);
 	LocalFree(rawbuf);
 	LocalFree(mp3buf);
-	write_log(L"MP3: unpacked size %d bytes\n", outoffset);
+	write_log(_T("MP3: unpacked size %d bytes\n"), outoffset);
 	return outbuf;
 }
 
@@ -232,7 +232,7 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 
 		ver = (header[1] >> 3) & 3;
 		if (ver == 1) {
-			write_log (L"MP3: ver==1?!\n");
+			write_log (_T("MP3: ver==1?!\n"));
 			return 0;
 		}
 		if (ver == 0)
@@ -243,14 +243,14 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 			ver = 0;
 		layer = 4 - ((header[1] >> 1) & 3);
 		if (layer == 4) {
-			write_log (L"MP3: layer==4?!\n");
+			write_log (_T("MP3: layer==4?!\n"));
 			return 0;
 		}
 		iscrc = ((header[1] >> 0) & 1) ? 0 : 2;
 		bitrateidx = (header[2] >> 4) & 15;
 		freq = mp3_frequencies[(header[2] >> 2) & 3];
 		if (!freq) {
-			write_log (L"MP3: reserved frequency?!\n");
+			write_log (_T("MP3: reserved frequency?!\n"));
 			return 0;
 		}
 		channelmode = (header[3] >> 6) & 3;
@@ -265,14 +265,14 @@ uae_u32 mp3decoder::getsize (struct zfile *zf)
 		}
 		bitrate = mp3_bitrates[bitindex * 16 + bitrateidx] * 1000;
 		if (bitrate <= 0) {
-			write_log (L"MP3: reserved bitrate?!\n");
+			write_log (_T("MP3: reserved bitrate?!\n"));
 			return 0;
 		}
 		padding = (header[2] >> 1) & 1;
 		samplerate = mp3_samplesperframe[(layer - 1) * 3 + ver];
 		framelen = ((samplerate / 8 * bitrate) / freq) + padding;
 		if (framelen <= 4) {
-			write_log (L"MP3: too small frame size?!\n");
+			write_log (_T("MP3: too small frame size?!\n"));
 			return 0;
 		}
 		zfile_fseek(zf, framelen - 4, SEEK_CUR);

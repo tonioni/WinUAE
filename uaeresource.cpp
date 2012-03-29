@@ -88,8 +88,8 @@ void uaeres_install (void)
 	uae_u32 initcode, getfunc;
 	TCHAR tmp[100];
 
-	_stprintf (tmp, L"UAE resource %d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
-	res_name = ds (L"uae.resource");
+	_stprintf (tmp, _T("UAE resource %d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
+	res_name = ds (_T("uae.resource"));
 	res_id = ds (tmp);
 
 	/* initcode */

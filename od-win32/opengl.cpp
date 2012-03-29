@@ -67,7 +67,7 @@ static void testerror (TCHAR *s)
 	GLint err = glGetError();
 	if (err == 0)
 	    return;
-	write_log (L"OpenGL error %d (%s)\n", err, s);
+	write_log (_T("OpenGL error %d (%s)\n"), err, s);
     }
 }
 
@@ -169,12 +169,12 @@ static int InitMultisample(HDC hDC, PIXELFORMATDESCRIPTOR *pfd)
 	    if (valid && numFormats >= 1) {
 		arbMultisampleSupported = i;
 		arbMultisampleFormat = pixelFormat;
-		write_log (L"OPENGL: max FSAA = %d\n", i);
+		write_log (_T("OPENGL: max FSAA = %d\n"), i);
 		return arbMultisampleSupported;
 	    }
 	}
 	// Return The Valid Format
-	write_log (L"OPENGL: no FSAA support detected\n");
+	write_log (_T("OPENGL: no FSAA support detected\n"));
 	return  arbMultisampleSupported;
 }
 #endif
@@ -188,7 +188,7 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 
     ogl_enabled = 0;
     if (currprefs.gfx_filter != UAE_FILTER_OPENGL) {
-	_tcscpy (errmsg, L"OPENGL: not enabled");
+	_tcscpy (errmsg, _T("OPENGL: not enabled"));
 	return errmsg;
     }
 
@@ -202,7 +202,7 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     total_textures = 2;
 
     if (isfullscreen() > 0 && WIN32GFX_GetDepth (TRUE) < 15) {
-	_tcscpy (errmsg, L"OPENGL: display depth must be at least 15 bit");
+	_tcscpy (errmsg, _T("OPENGL: display depth must be at least 15 bit"));
 	return errmsg;
     }
 
@@ -220,7 +220,7 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if (!arbMultisampleSupported) {
 	    PixelFormat = ChoosePixelFormat (openglhdc, &pfd);	// Find A Compatible Pixel Format
 	    if (PixelFormat == 0) {				// Did We Find A Compatible Format?
-		_tcscpy (errmsg, L"OPENGL: can't find suitable pixelformat");
+		_tcscpy (errmsg, _T("OPENGL: can't find suitable pixelformat"));
 		return errmsg;
 	    }
 	} else {
@@ -228,17 +228,17 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	}
 
 	if (!SetPixelFormat (openglhdc, PixelFormat, &pfd)) {
-	    _stprintf (errmsg, L"OPENGL: can't set pixelformat %x", PixelFormat);
+	    _stprintf (errmsg, _T("OPENGL: can't set pixelformat %x"), PixelFormat);
 	    return errmsg;
 	}
 
 	if (!(hrc = wglCreateContext (openglhdc))) {
-	    _tcscpy (errmsg, L"OPENGL: can't create gl rendering context");
+	    _tcscpy (errmsg, _T("OPENGL: can't create gl rendering context"));
 	    return errmsg;
 	}
 
 	if (!wglMakeCurrent (openglhdc, hrc)) {
-	    _tcscpy (errmsg, L"OPENGL: can't activate gl rendering context");
+	    _tcscpy (errmsg, _T("OPENGL: can't activate gl rendering context"));
 	    return errmsg;
 	}
 #ifdef FSAA
@@ -256,28 +256,28 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     glGetIntegerv (GL_MAX_TEXTURE_SIZE, &max_texture_size);
     required_texture_size = 2 << exact_log2 (t_width > t_height ? t_width : t_height);
     if (max_texture_size < t_width || max_texture_size < t_height) {
-	_stprintf (errmsg, L"OPENGL: %d * %d or bigger texture support required\nYour gfx card's maximum texture size is only %d * %d",
+	_stprintf (errmsg, _T("OPENGL: %d * %d or bigger texture support required\nYour gfx card's maximum texture size is only %d * %d"),
 	    required_texture_size, required_texture_size, max_texture_size, max_texture_size);
 	return errmsg;
     }
     required_sl_texture_size = 2 << exact_log2 (w_width > w_height ? w_width : w_height);
     if (currprefs.gfx_filter_scanlines > 0 && (max_texture_size < w_width || max_texture_size < w_height)) {
-	gui_message (L"OPENGL: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n"
-	    L"Scanlines disabled.",
+	gui_message (_T("OPENGL: %d * %d or bigger texture support required for scanlines (max is only %d * %d)\n")
+	    _T("Scanlines disabled."),
 	    required_sl_texture_size, required_sl_texture_size, max_texture_size, max_texture_size);
 	changed_prefs.gfx_filter_scanlines = currprefs.gfx_filter_scanlines = 0;
     }
 
     ext1 = glGetString (GL_EXTENSIONS);
     if (!init)
-	write_log (L"OpenGL extensions: %s\n", ext1);
+	write_log (_T("OpenGL extensions: %s\n"), ext1);
     if (strstr (ext1, "EXT_packed_pixels"))
 	packed_pixels = 1;
     if (strstr (ext1, "WGL_EXT_swap_control")) {
 	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress ("wglSwapIntervalEXT");
 	wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress ("wglGetSwapIntervalEXT");
 	if (!wglGetSwapIntervalEXT || !wglSwapIntervalEXT) {
-	    write_log (L"OPENGL: WGL_EXT_swap_control extension found but no wglGetSwapIntervalEXT or wglSwapIntervalEXT found!?\n");
+	    write_log (_T("OPENGL: WGL_EXT_swap_control extension found but no wglGetSwapIntervalEXT or wglSwapIntervalEXT found!?\n"));
 	    wglSwapIntervalEXT = 0;
 	    wglGetSwapIntervalEXT = 0;
 	}
@@ -290,8 +290,8 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     ti2d_type = -1;
     if (depth == 15 || depth == 16) {
 	if (!packed_pixels) {
-	    _stprintf (errmsg, L"OPENGL: can't use 15/16 bit screen depths because\n"
-		L"EXT_packed_pixels extension was not found.");
+	    _stprintf (errmsg, _T("OPENGL: can't use 15/16 bit screen depths because\n")
+		_T("EXT_packed_pixels extension was not found."));
 	    OGL_free ();
 	    return errmsg;
 	}
@@ -310,7 +310,7 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	}
     }
     if (ti2d_type < 0) {
-	_stprintf (errmsg, L"OPENGL: Only 15, 16 or 32 bit screen depths supported (was %d)", depth);
+	_stprintf (errmsg, _T("OPENGL: Only 15, 16 or 32 bit screen depths supported (was %d)"), depth);
 	OGL_free ();
 	return errmsg;
     }
@@ -338,7 +338,7 @@ const TCHAR *OGL_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
     OGL_refresh ();
     init = 1;
 
-    write_log (L"OPENGL: using texture depth %d texture size %d * %d scanline texture size %d * %d\n",
+    write_log (_T("OPENGL: using texture depth %d texture size %d * %d scanline texture size %d * %d\n"),
 	depth, required_texture_size, required_texture_size, required_sl_texture_size, required_sl_texture_size);
     return 0;
 }
@@ -472,7 +472,7 @@ static void OGL_dorender (int newtex)
     float dw, dh;
 
     getfilterrect2 (&dr, &sr, &zr, w_width, w_height, t_width, t_height, 1, t_width, t_height);
-//    write_log (L"(%d %d %d %d) - (%d %d %d %d) (%d %d)\n",
+//    write_log (_T("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n"),
 //	dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
     dw = dr.right - dr.left;
     dh = dr.bottom - dr.top;
@@ -481,7 +481,7 @@ static void OGL_dorender (int newtex)
 
     multx = dw * t_width / w_width;
     multy = dh * t_height / w_height;
-//    write_log (L"%fx%f\n", multx, multy);
+//    write_log (_T("%fx%f\n"), multx, multy);
 
     x1 = -0.5f + dw * t_width / w_width / 2 - zr.left - sr.left;
     y1 =  0.5f + dh * t_height / w_height / 2 - zr.top - (t_height - 2 * zr.top - h) + sr.top;

@@ -55,13 +55,13 @@ int get_fs_usage (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp)
 	ULARGE_INTEGER FreeBytesAvailable, TotalNumberOfBytes, TotalNumberOfFreeBytes;
 
 	if (!GetFullPathName (path, sizeof buf2 / sizeof (TCHAR), buf2, NULL)) {
-		write_log (L"GetFullPathName('%s') failed err=%d\n", path, GetLastError ());
+		write_log (_T("GetFullPathName('%s') failed err=%d\n"), path, GetLastError ());
 		return -1;
 	}
 
-	if (!_tcsncmp (buf2, L"\\\\", 2)) {
+	if (!_tcsncmp (buf2, _T("\\\\"), 2)) {
 		TCHAR *p;
-		_tcscat (buf2, L"\\");
+		_tcscat (buf2, _T("\\"));
 		p = _tcschr (buf2 + 2, '\\');
 		if (!p)
 			return -1;
@@ -74,7 +74,7 @@ int get_fs_usage (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp)
 	}
 
 	if (!GetDiskFreeSpaceEx (buf2, &FreeBytesAvailable, &TotalNumberOfBytes, &TotalNumberOfFreeBytes)) {
-		write_log (L"GetDiskFreeSpaceEx('%s') failed err=%d\n", buf2, GetLastError ());
+		write_log (_T("GetDiskFreeSpaceEx('%s') failed err=%d\n"), buf2, GetLastError ());
 		return -1;
 	}
 

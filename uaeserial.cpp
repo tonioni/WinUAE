@@ -133,13 +133,13 @@ static uae_sem_t change_sem, async_sem;
 
 static TCHAR *getdevname (void)
 {
-	return L"uaeserial.device";
+	return _T("uaeserial.device");
 }
 
 static void io_log (TCHAR *msg, uaecptr request)
 {
 	if (log_uaeserial)
-		write_log (L"%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n",
+		write_log (_T("%s: %08X %d %08X %d %d io_actual=%d io_error=%d\n"),
 		msg, request, get_word (request + 28), get_long (request + 40),
 		get_long (request + 36), get_long (request + 44),
 		get_long (request + 32), get_byte (request + 31));
@@ -160,7 +160,7 @@ static int start_thread (struct devstruct *dev)
 {
 	init_comm_pipe (&dev->requests, 100, 1);
 	uae_sem_init (&dev->sync_sem, 0, 0);
-	uae_start_thread (L"uaeserial", dev_thread, dev, NULL);
+	uae_start_thread (_T("uaeserial"), dev_thread, dev, NULL);
 	uae_sem_wait (&dev->sync_sem);
 	return dev->thread_running;
 }
@@ -182,7 +182,7 @@ static uae_u32 REGPARAM2 dev_close (TrapContext *context)
 	if (!dev)
 		return 0;
 	if (log_uaeserial)
-		write_log (L"%s:%d close, req=%x\n", getdevname(), dev->unit, request);
+		write_log (_T("%s:%d close, req=%x\n"), getdevname(), dev->unit, request);
 	dev_close_3 (dev);
 	put_long (request + 24, 0);
 	put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) - 1);
@@ -213,13 +213,13 @@ static int setparams (struct devstruct *dev, uaecptr req)
 	rbuffer = get_long (req + io_RBufLen);
 	v = get_long (req + io_ExtFlags);
 	if (v) {
-		write_log (L"UAESER: io_ExtFlags=%08x, not supported\n", v);
+		write_log (_T("UAESER: io_ExtFlags=%08x, not supported\n"), v);
 		return 5;
 	}
 	baud = get_long (req + io_Baud);
 	v = get_byte (req + io_SerFlags);
 	if (v & SERF_EOFMODE) {
-		write_log (L"UAESER: SERF_EOFMODE not supported\n");
+		write_log (_T("UAESER: SERF_EOFMODE not supported\n"));
 		return 5;
 	}
 	xonxoff = (v & SERF_XDISABLED) ? 0 : 1;
@@ -234,16 +234,16 @@ static int setparams (struct devstruct *dev, uaecptr req)
 	wbits = get_byte (req + io_WriteLen);
 	sbits = get_byte (req + io_StopBits);
 	if ((rbits != 7 && rbits != 8) || (wbits != 7 && wbits != 8) || (sbits != 1 && sbits != 2) || rbits != wbits) {
-		write_log (L"UAESER: Read=%d, Write=%d, Stop=%d, not supported\n", rbits, wbits, sbits);
+		write_log (_T("UAESER: Read=%d, Write=%d, Stop=%d, not supported\n"), rbits, wbits, sbits);
 		return 5;
 	}
-	write_log (L"%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06X\n",
+	write_log (_T("%s:%d BAUD=%d BUF=%d BITS=%d+%d RTSCTS=%d PAR=%d XO=%06X\n"),
 		getdevname(), dev->unit,
 		baud, rbuffer, rbits, sbits, rtscts, parity, xonxoff);
 	v = uaeser_setparams (dev->sysdata, baud, rbuffer,
 		rbits, sbits, rtscts, parity, xonxoff);
 	if (v) {
-		write_log (L"->failed\n");
+		write_log (_T("->failed\n"));
 		return v;
 	}
 	return 0;
@@ -296,7 +296,7 @@ static uae_u32 REGPARAM2 dev_open (TrapContext *context)
 		return openfail (ioreq, err);
 	}
 	if (log_uaeserial)
-		write_log (L"%s:%d open ioreq=%08X\n", getdevname(), unit, ioreq);
+		write_log (_T("%s:%d open ioreq=%08X\n"), getdevname(), unit, ioreq);
 	start_thread (dev);
 
 	put_word (m68k_areg (regs, 6) + 32, get_word (m68k_areg (regs, 6) + 32) + 1);
@@ -334,7 +334,7 @@ static int add_async_request (struct devstruct *dev, uaecptr request)
 	struct asyncreq *ar, *ar2;
 
 	if (log_uaeserial)
-		write_log (L"%s:%d async request %x added\n", getdevname(), dev->unit, request);
+		write_log (_T("%s:%d async request %x added\n"), getdevname(), dev->unit, request);
 
 	uae_sem_wait (&async_sem);
 	ar = xcalloc (struct asyncreq, 1);
@@ -367,14 +367,14 @@ static int release_async_request (struct devstruct *dev, uaecptr request)
 			uae_sem_post (&async_sem);
 			xfree (ar);
 			if (log_uaeserial)
-				write_log (L"%s:%d async request %x removed\n", getdevname(), dev->unit, request);
+				write_log (_T("%s:%d async request %x removed\n"), getdevname(), dev->unit, request);
 			return 1;
 		}
 		prevar = ar;
 		ar = ar->next;
 	}
 	uae_sem_post (&async_sem);
-	write_log (L"%s:%d async request %x not found for removal!\n", getdevname(), dev->unit, request);
+	write_log (_T("%s:%d async request %x not found for removal!\n"), getdevname(), dev->unit, request);
 	return 0;
 }
 
@@ -382,11 +382,11 @@ static void abort_async (struct devstruct *dev, uaecptr request)
 {
 	struct asyncreq *ar = get_async_request (dev, request, 1);
 	if (!ar) {
-		write_log (L"%s:%d: abort async but no request %x found!\n", getdevname(), dev->unit, request);
+		write_log (_T("%s:%d: abort async but no request %x found!\n"), getdevname(), dev->unit, request);
 		return;
 	}
 	if (log_uaeserial)
-		write_log (L"%s:%d asyncronous request=%08X aborted\n", getdevname(), dev->unit, request);
+		write_log (_T("%s:%d asyncronous request=%08X aborted\n"), getdevname(), dev->unit, request);
 	put_byte (request + 31, IOERR_ABORTED);
 	put_byte (request + 30, get_byte (request + 30) | 0x20);
 	write_comm_pipe_u32 (&dev->requests, request, 1);
@@ -452,13 +452,13 @@ void uaeser_signal (void *vdev, int sigmask)
 				}
 				break;
 			default:
-				write_log (L"%s:%d incorrect async request %x (cmd=%d) signaled?!", getdevname(), dev->unit, request, command);
+				write_log (_T("%s:%d incorrect async request %x (cmd=%d) signaled?!"), getdevname(), dev->unit, request, command);
 				break;
 			}
 
 			if (io_done) {
 				if (log_uaeserial)
-					write_log (L"%s:%d async request %x completed\n", getdevname(), dev->unit, request);
+					write_log (_T("%s:%d async request %x completed\n"), getdevname(), dev->unit, request);
 				put_long (request + 32, io_actual);
 				put_byte (request + 31, io_error);
 				ar->ready = 1;
@@ -502,7 +502,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	if (!dev)
 		return 0;
 	command = get_word (request + 28);
-	io_log (L"dev_io_START",request);
+	io_log (_T("dev_io_START"),request);
 
 	switch (command)
 	{
@@ -552,7 +552,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request, int quick)
 	}
 	put_long (request + 32, io_actual);
 	put_byte (request + 31, io_error);
-	io_log (L"dev_io_END",request);
+	io_log (_T("dev_io_END"),request);
 	return async;
 }
 
@@ -576,7 +576,7 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 	put_byte (request + 31, 0);
 	if ((flags & 1) && dev_canquick (dev, request)) {
 		if (dev_do_io (dev, request, 1))
-			write_log (L"device %s:%d command %d bug with IO_QUICK\n", getdevname(), dev->unit, command);
+			write_log (_T("device %s:%d command %d bug with IO_QUICK\n"), getdevname(), dev->unit, command);
 		return get_byte (request + 31);
 	} else {
 		put_byte (request + 30, get_byte (request + 30) & ~1);
@@ -618,7 +618,7 @@ static uae_u32 REGPARAM2 dev_init (TrapContext *context)
 {
 	uae_u32 base = m68k_dreg (regs, 0);
 	if (log_uaeserial)
-		write_log (L"%s init\n", getdevname ());
+		write_log (_T("%s init\n"), getdevname ());
 	return base;
 }
 
@@ -661,7 +661,7 @@ uaecptr uaeserialdev_startup (uaecptr resaddr)
 	if (!currprefs.uaeserial)
 		return resaddr;
 	if (log_uaeserial)
-		write_log (L"uaeserialdev_startup(0x%x)\n", resaddr);
+		write_log (_T("uaeserialdev_startup(0x%x)\n"), resaddr);
 	/* Build a struct Resident. This will set up and initialize
 	* the serial.device */
 	put_word (resaddr + 0x0, 0x4AFC);
@@ -686,8 +686,8 @@ void uaeserialdev_install (void)
 	if (!currprefs.uaeserial)
 		return;
 
-	ROM_uaeserialdev_resname = ds (L"uaeserial.device");
-	ROM_uaeserialdev_resid = ds (L"UAE serial.device 0.1");
+	ROM_uaeserialdev_resname = ds (_T("uaeserial.device"));
+	ROM_uaeserialdev_resid = ds (_T("UAE serial.device 0.1"));
 
 	/* initcode */
 	initcode = here ();

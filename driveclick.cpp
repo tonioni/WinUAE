@@ -66,13 +66,13 @@ static int loadsample (TCHAR *path, struct drvsample *ds)
 	int size;
 	TCHAR name[MAX_DPATH];
 
-	f = zfile_fopen (path, L"rb", ZFD_NORMAL);
+	f = zfile_fopen (path, _T("rb"), ZFD_NORMAL);
 	if (!f) {
 		_tcscpy (name, path);
-		_tcscat (name, L".wav");
-		f = zfile_fopen (name, L"rb", ZFD_NORMAL);
+		_tcscat (name, _T(".wav"));
+		f = zfile_fopen (name, _T("rb"), ZFD_NORMAL);
 		if (!f) {
-			write_log (L"driveclick: can't open '%s' (or '%s')\n", path, name);
+			write_log (_T("driveclick: can't open '%s' (or '%s')\n"), path, name);
 			return 0;
 		}
 	}
@@ -168,22 +168,22 @@ void driveclick_init (void)
 				wave_initialized = 1;
 				for (j = 0; j < CLICK_TRACKS; j++)
 					drvs[i][DS_CLICK].lengths[j] = drvs[i][DS_CLICK].len;
-				get_plugin_path (path2, sizeof path2 / sizeof (TCHAR), L"floppysounds");
-				_stprintf (tmp, L"%sdrive_click_%s",
+				get_plugin_path (path2, sizeof path2 / sizeof (TCHAR), _T("floppysounds"));
+				_stprintf (tmp, _T("%sdrive_click_%s"),
 					path2, fs->dfxclickexternal);
 				v = loadsample (tmp, &drvs[i][DS_CLICK]);
 				if (v)
 					processclicks (&drvs[i][DS_CLICK]);
-				_stprintf (tmp, L"%sdrive_spin_%s",
+				_stprintf (tmp, _T("%sdrive_spin_%s"),
 					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SPIN]);
-				_stprintf (tmp, L"%sdrive_spinnd_%s",
+				_stprintf (tmp, _T("%sdrive_spinnd_%s"),
 					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SPINND]);
-				_stprintf (tmp, L"%sdrive_startup_%s",
+				_stprintf (tmp, _T("%sdrive_startup_%s"),
 					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_START]);
-				_stprintf (tmp, L"%sdrive_snatch_%s",
+				_stprintf (tmp, _T("%sdrive_snatch_%s"),
 					path2, fs->dfxclickexternal);
 				v += loadsample (tmp, &drvs[i][DS_SNATCH]);
 			}

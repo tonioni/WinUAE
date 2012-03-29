@@ -87,13 +87,13 @@ cda_audio::cda_audio(int num_sectors)
 
 	hr = DirectSoundCreate8 (&sound_devices[currprefs.win32_soundcard].guid, &ds, NULL);
 	if (FAILED (hr))  {
-		write_log (L"CDA: DirectSoundCreate8() failure: %s\n", DXError (hr));
+		write_log (_T("CDA: DirectSoundCreate8() failure: %s\n"), DXError (hr));
 		return;
 	}
 
 	hr = ds->SetCooperativeLevel (hMainWnd, DSSCL_PRIORITY);
 	if (FAILED (hr)) {
-		write_log (L"CDA: Can't set cooperativelevel: %s\n", DXError (hr));
+		write_log (_T("CDA: Can't set cooperativelevel: %s\n"), DXError (hr));
 		return;
 	}
 
@@ -117,18 +117,18 @@ cda_audio::cda_audio(int num_sectors)
 
 	hr = ds->CreateSoundBuffer (&desc, &pdsb, NULL);
 	if (FAILED (hr)) {
-		write_log (L"CDA: IDirectSound_CreateSoundBuffer %s\n", DXError (hr));
+		write_log (_T("CDA: IDirectSound_CreateSoundBuffer %s\n"), DXError (hr));
 		return;
 	}
 	hr = pdsb->QueryInterface (IID_IDirectSoundBuffer8, (LPVOID*)&dsbuf);
 	IDirectSound_Release (pdsb);
 	if (FAILED (hr))  {
-		write_log (L"CDA: Secondary QueryInterface() failure: %s\n", DXError (hr));
+		write_log (_T("CDA: Secondary QueryInterface() failure: %s\n"), DXError (hr));
 		return;
 	}
 	hr = dsbuf->QueryInterface (IID_IDirectSoundNotify, (LPVOID*)&dsnotify);
 	if (FAILED (hr))  {
-		write_log (L"CDA: IID_IDirectSoundNotify QueryInterface() failure: %s\n", DXError (hr));
+		write_log (_T("CDA: IID_IDirectSoundNotify QueryInterface() failure: %s\n"), DXError (hr));
 		return;
 	}
 
@@ -146,7 +146,7 @@ cda_audio::cda_audio(int num_sectors)
 	MMRESULT mmr;
 	mmr = waveOutOpen (&wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"IMAGE CDDA: wave open %d\n", mmr);
+		write_log (_T("IMAGE CDDA: wave open %d\n"), mmr);
 		return;
 	}
 	this->num_sectors = num_sectors;
@@ -156,7 +156,7 @@ cda_audio::cda_audio(int num_sectors)
 		whdr[i].lpData = (LPSTR)buffers[i];
 		mmr = waveOutPrepareHeader (wavehandle, &whdr[i], sizeof (WAVEHDR));
 		if (mmr != MMSYSERR_NOERROR) {
-			write_log (L"IMAGE CDDA: waveOutPrepareHeader %d:%d\n", i, mmr);
+			write_log (_T("IMAGE CDDA: waveOutPrepareHeader %d:%d\n"), i, mmr);
 			return;
 		}
 		whdr[i].dwFlags |= WHDR_DONE;
@@ -183,7 +183,7 @@ void cda_audio::setvolume(int master, int left, int right)
 		vol = (LONG)((DSBVOLUME_MIN / 2) + (-DSBVOLUME_MIN / 2) * log (1 + (2.718281828 - 1) * (1 - volume / 100.0)));
 	HRESULT hr = dsbuf->SetVolume(vol);
 	if (FAILED (hr))
-		write_log (L"CDA: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+		write_log (_T("CDA: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
 #endif
 }
 bool cda_audio::play(int bufnum)
@@ -194,11 +194,11 @@ bool cda_audio::play(int bufnum)
 	DWORD status;
 	HRESULT hr = dsbuf->GetStatus (&status);
 	if (FAILED (hr)) {
-		write_log (L"CDA: GetStatus() failed: %s\n", DXError (hr));
+		write_log (_T("CDA: GetStatus() failed: %s\n"), DXError (hr));
 		return false;
 	}
 	if (status & DSBSTATUS_BUFFERLOST) {
-		write_log (L"CDA: bufferlost\n");
+		write_log (_T("CDA: bufferlost\n"));
 		return false;
 	}
 	if ((status & (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) != (DSBSTATUS_PLAYING | DSBSTATUS_LOOPING)) {
@@ -221,7 +221,7 @@ bool cda_audio::play(int bufnum)
 	}
 	MMRESULT mmr = waveOutWrite (wavehandle, &whdr[bufnum], sizeof (WAVEHDR));
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"IMAGE CDDA: waveOutWrite %d\n", mmr);
+		write_log (_T("IMAGE CDDA: waveOutWrite %d\n"), mmr);
 		return false;
 	}
 	return true;

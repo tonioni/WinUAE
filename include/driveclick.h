@@ -36,11 +36,11 @@ extern void driveclick_check_prefs (void);
 extern uae_s16 *decodewav (uae_u8 *s, int *len);
 
 #define DS_BUILD_IN_SOUNDS 1
-#define DS_NAME_CLICK L"drive_click_"
-#define DS_NAME_SPIN L"drive_spin_"
-#define DS_NAME_SPIN_ND L"drive_spinnd_"
-#define DS_NAME_START L"drive_start_"
-#define DS_NAME_SNATCH L"drive_snatch_"
+#define DS_NAME_CLICK _T("drive_click_")
+#define DS_NAME_SPIN _T("drive_spin_")
+#define DS_NAME_SPIN_ND _T("drive_spinnd_")
+#define DS_NAME_START _T("drive_start_")
+#define DS_NAME_SNATCH _T("drive_snatch_")
 
 extern int driveclick_fdrawcmd_open (int);
 extern void driveclick_fdrawcmd_close (int);

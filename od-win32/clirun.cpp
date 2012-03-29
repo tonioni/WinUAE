@@ -56,7 +56,7 @@ static BOOL WINAPI ctrlhandler (DWORD type)
 	return TRUE;
 }
 
-#define conpar L"-console"
+#define conpar _T("-console")
 
 static int runmain (int argc, wchar_t *argv[])
 {
@@ -77,10 +77,10 @@ static int runmain (int argc, wchar_t *argv[])
 		return 0;
 	cmd = (TCHAR*)malloc ((len + 4 + 1) * sizeof (TCHAR));
 	_tcscpy (cmd, argv[0]);
-	if (_tcsicmp (cmd + len - 4, L".com"))
-		_tcscat (cmd + len, L".exe");
+	if (_tcsicmp (cmd + len - 4, _T(".com")))
+		_tcscat (cmd + len, _T(".exe"));
 	else
-		_tcscpy (cmd + len - 4, L".exe");
+		_tcscpy (cmd + len - 4, _T(".exe"));
 
 	parmlen = 0;
 	for (i = 1; i < argc; i++) {
@@ -90,18 +90,18 @@ static int runmain (int argc, wchar_t *argv[])
 	}
 	parms2 = (TCHAR*)malloc ((_tcslen (cmd) + 1 + parmlen + 1 + _tcslen (conpar) + 1) * sizeof (TCHAR));
 	_tcscpy (parms2, cmd);
-	_tcscat (parms2, L" ");
+	_tcscat (parms2, _T(" "));
 	_tcscat (parms2, conpar);
 	for (i = 1; i < argc; i++) {
 		int isspace = 0;
-		_tcscat (parms2, L" ");
+		_tcscat (parms2, _T(" "));
 		if (_tcschr (argv[i], ' '))
 			isspace = 1;
 		if (isspace)
-			_tcscat (parms2, L"\"");
+			_tcscat (parms2, _T("\""));
 		_tcscat (parms2, argv[i]);
 		if (isspace)
-			_tcscat (parms2, L"\"");
+			_tcscat (parms2, _T("\""));
 	}
 
 	cp = GetCurrentProcess ();
@@ -147,7 +147,7 @@ static int runmain (int argc, wchar_t *argv[])
 		NULL, NULL, TRUE,
 		CREATE_SUSPENDED | CREATE_NEW_CONSOLE | GetPriorityClass (GetCurrentProcess ()),
 		NULL, NULL, &si, &pi)) {
-			_tprintf (L"CreateProcess(%s) failed\n", cmd);
+			_tprintf (_T("CreateProcess(%s) failed\n"), cmd);
 			goto end;
 	}
 
@@ -184,42 +184,42 @@ static int runxfd(int argc,wchar_t *argv[])
 	TCHAR *parms[5];
 	FILE *f;
 
-	_tprintf(L"uaexfd 0.1b by Toni Wilen (c)2010\n");
+	_tprintf(_T("uaexfd 0.1b by Toni Wilen (c)2010\n"));
 	if (argc < 2) {
-		_tprintf(L"uaexfd <source> [<destination>]");
+		_tprintf(_T("uaexfd <source> [<destination>]"));
 		return 0;
 	}
-	if (GetFileAttributes(L"xfd.uae") == INVALID_FILE_ATTRIBUTES) {
-		_tprintf(L"xfd.uae missing\n");
+	if (GetFileAttributes(_T("xfd.uae")) == INVALID_FILE_ATTRIBUTES) {
+		_tprintf(_T("xfd.uae missing\n"));
 		return 0;
 	}
-	if (GetFileAttributes(L"uaexfd.zip") == INVALID_FILE_ATTRIBUTES) {
-		_tprintf(L"uaexfd.zip missing\n");
+	if (GetFileAttributes(_T("uaexfd.zip")) == INVALID_FILE_ATTRIBUTES) {
+		_tprintf(_T("uaexfd.zip missing\n"));
 		return 0;
 	}
 	dst = src = argv[1];
 	if (GetFileAttributes(src) == INVALID_FILE_ATTRIBUTES) {
-		_tprintf(L"can't open '%s'\n", src);
+		_tprintf(_T("can't open '%s'\n"), src);
 		return 0;
 	}
 	if (argc >= 3)
 		dst = argv[2];
-	DeleteFile(L"xfd-in-file.dat");	
-	DeleteFile(L"xfd-out-file.dat");
-	DeleteFile(L"xfd-out-text.txt");
-	CopyFile(src, L"xfd-in-file.dat", FALSE);
-	parms[0] = L"winuae.com";
-	parms[1] = L"-f";
-	parms[2] = L"xfd.uae";
-	parms[3] = L"-datapath";
-	parms[4] = L".";
+	DeleteFile(_T("xfd-in-file.dat"));	
+	DeleteFile(_T("xfd-out-file.dat"));
+	DeleteFile(_T("xfd-out-text.txt"));
+	CopyFile(src, _T("xfd-in-file.dat"), FALSE);
+	parms[0] = _T("winuae.com");
+	parms[1] = _T("-f");
+	parms[2] = _T("xfd.uae");
+	parms[3] = _T("-datapath");
+	parms[4] = _T(".");
 	parms[5] = NULL;
 	if (!runmain(5, parms)) {
-		if (GetFileAttributes(L"xfd-out-file.dat") != INVALID_FILE_ATTRIBUTES) {
+		if (GetFileAttributes(_T("xfd-out-file.dat")) != INVALID_FILE_ATTRIBUTES) {
 			DeleteFile(dst);
-			MoveFile(L"xfd-out-file.dat", dst);
+			MoveFile(_T("xfd-out-file.dat"), dst);
 		}
-		f = _tfopen(L"xfd-out-text.txt", L"rb");
+		f = _tfopen(_T("xfd-out-text.txt"), _T("rb"));
 		if (f) {
 			char tmp[1000];
 			while (fgets(tmp, sizeof tmp, f)) {
@@ -243,15 +243,15 @@ static int runxfd(int argc,wchar_t *argv[])
 			}
 			fclose(f);
 		} else {
-			_tprintf(L"startup failed\n");
+			_tprintf(_T("startup failed\n"));
 		}
 	}
-	DeleteFile(L"xfd-in-file.dat");	
-	DeleteFile(L"xfd-out-file.dat");
-	DeleteFile(L"xfd-out-text.txt");
-	DeleteFile(L"winuaebootlog.txt");
-	RemoveDirectory(L"Host");
-	RemoveDirectory(L"Hardware");
+	DeleteFile(_T("xfd-in-file.dat"));	
+	DeleteFile(_T("xfd-out-file.dat"));
+	DeleteFile(_T("xfd-out-text.txt"));
+	DeleteFile(_T("winuaebootlog.txt"));
+	RemoveDirectory(_T("Host"));
+	RemoveDirectory(_T("Hardware"));
 	return 0;
 }
 

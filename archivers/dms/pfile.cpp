@@ -44,14 +44,14 @@ static void printbandiz(UCHAR *, USHORT);
 
 static int passfound, passretries;
 
-static TCHAR modes[7][7]={L"NOCOMP",L"SIMPLE",L"QUICK ",L"MEDIUM",L"DEEP  ",L"HEAVY1",L"HEAVY2"};
+static TCHAR modes[7][7]={_T("NOCOMP"),_T("SIMPLE"),_T("QUICK "),_T("MEDIUM"),_T("DEEP  "),_T("HEAVY1"),_T("HEAVY2")};
 static USHORT PWDCRC;
 
 UCHAR *dms_text;
 
 static void log_error(int track)
 {
-	write_log (L"DMS: Ignored error on track %d!\n", track);
+	write_log (_T("DMS: Ignored error on track %d!\n"), track);
 }
 
 static void addextra(TCHAR *name, struct zfile **extra, uae_u8 *p, int size)
@@ -149,18 +149,18 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 	if (dolog) {
 
 		pv = (USHORT)(c_version/100);
-		write_log (L" Created with DMS version %d.%02d ",pv,c_version-pv*100);
+		write_log (_T(" Created with DMS version %d.%02d "),pv,c_version-pv*100);
 		if (geninfo & 0x80)
-			write_log (L"Registered\n");
+			write_log (_T("Registered\n"));
 		else
-			write_log (L"Evaluation\n");
+			write_log (_T("Evaluation\n"));
 
-		write_log (L" Creation date : %s",ctime(&date));
-		write_log (L" Lowest track in archive : %d\n",from);
-		write_log (L" Highest track in archive : %d\n",to);
-		write_log (L" Packed data size : %lu\n",pkfsize);
-		write_log (L" Unpacked data size : %lu\n",unpkfsize);
-		write_log (L" Disk type of archive : ");
+		write_log (_T(" Creation date : %s"),ctime(&date));
+		write_log (_T(" Lowest track in archive : %d\n"),from);
+		write_log (_T(" Highest track in archive : %d\n"),to);
+		write_log (_T(" Packed data size : %lu\n"),pkfsize);
+		write_log (_T(" Unpacked data size : %lu\n"),unpkfsize);
+		write_log (_T(" Disk type of archive : "));
 
 		/*  The original DMS from SDS software (DMS up to 1.11) used other values    */
 		/*  in disk type to indicate formats as MS-DOS, AMax and Mac, but it was     */
@@ -171,49 +171,49 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 			case 0:
 			case 1:
 				/* Can also be a non-dos disk */
-				write_log (L"AmigaOS 1.0 OFS\n");
+				write_log (_T("AmigaOS 1.0 OFS\n"));
 				break;
 			case 2:
-				write_log (L"AmigaOS 2.0 FFS\n");
+				write_log (_T("AmigaOS 2.0 FFS\n"));
 				break;
 			case 3:
-				write_log (L"AmigaOS 3.0 OFS / International\n");
+				write_log (_T("AmigaOS 3.0 OFS / International\n"));
 				break;
 			case 4:
-				write_log (L"AmigaOS 3.0 FFS / International\n");
+				write_log (_T("AmigaOS 3.0 FFS / International\n"));
 				break;
 			case 5:
-				write_log (L"AmigaOS 3.0 OFS / Dir Cache\n");
+				write_log (_T("AmigaOS 3.0 OFS / Dir Cache\n"));
 				break;
 			case 6:
-				write_log (L"AmigaOS 3.0 FFS / Dir Cache\n");
+				write_log (_T("AmigaOS 3.0 FFS / Dir Cache\n"));
 				break;
 			case 7:
-				write_log (L"FMS Amiga System File\n");
+				write_log (_T("FMS Amiga System File\n"));
 				break;
 			default:
-				write_log (L"Unknown\n");
+				write_log (_T("Unknown\n"));
 		}
 
-		write_log (L" Compression mode used : ");
+		write_log (_T(" Compression mode used : "));
 		if (cmode>6)
-			write_log (L"Unknown !\n");
+			write_log (_T("Unknown !\n"));
 		else
-			write_log (L"%s\n",modes[cmode]);
+			write_log (_T("%s\n"),modes[cmode]);
 
-		write_log (L" General info : ");
-		if ((geninfo==0)||(geninfo==0x80)) write_log (L"None");
-		if (geninfo & 1) write_log (L"NoZero ");
-		if (geninfo & 2) write_log (L"Encrypted ");
-		if (geninfo & 4) write_log (L"Appends ");
-		if (geninfo & 8) write_log (L"Banner ");
-		if (geninfo & 16) write_log (L"HD ");
-		if (geninfo & 32) write_log (L"MS-DOS ");
-		if (geninfo & 64) write_log (L"DMS_DEV_Fixed ");
-		if (geninfo & 256) write_log (L"FILEID.DIZ");
-		write_log (L"\n");
+		write_log (_T(" General info : "));
+		if ((geninfo==0)||(geninfo==0x80)) write_log (_T("None"));
+		if (geninfo & 1) write_log (_T("NoZero "));
+		if (geninfo & 2) write_log (_T("Encrypted "));
+		if (geninfo & 4) write_log (_T("Appends "));
+		if (geninfo & 8) write_log (_T("Banner "));
+		if (geninfo & 16) write_log (_T("HD "));
+		if (geninfo & 32) write_log (_T("MS-DOS "));
+		if (geninfo & 64) write_log (_T("DMS_DEV_Fixed "));
+		if (geninfo & 256) write_log (_T("FILEID.DIZ"));
+		write_log (_T("\n"));
 
-		write_log (L" Info Header CRC : %04X\n\n",hcrc);
+		write_log (_T(" Info Header CRC : %04X\n\n"),hcrc);
 
 	}
 
@@ -227,8 +227,8 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 
 
 	if (dolog)	{
-		write_log (L" Track   Plength  Ulength  Cmode   USUM  HCRC  DCRC Cflag\n");
-		write_log (L" ------  -------  -------  ------  ----  ----  ---- -----\n");
+		write_log (_T(" Track   Plength  Ulength  Cmode   USUM  HCRC  DCRC Cflag\n"));
+		write_log (_T(" ------  -------  -------  ------  ----  ----  ---- -----\n"));
 	}
 
 	//	if (((cmd==CMD_UNPACK) || (cmd==CMD_SHOWBANNER)) && (geninfo & 2) && (!pwd))
@@ -256,14 +256,14 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 					uae_u8 b1[THLEN];
 
 					if (zfile_fread(b1,1,THLEN,fi) != 1) {
-						write_log (L"DMS: unexpected end of file\n");
+						write_log (_T("DMS: unexpected end of file\n"));
 						break;
 					}
-					write_log (L"DMS: corrupted track, searching for next track header..\n");
+					write_log (_T("DMS: corrupted track, searching for next track header..\n"));
 					if (b1[0] == 'T' && b1[1] == 'R') {
 						USHORT hcrc = (USHORT)((b1[THLEN-2] << 8) | b1[THLEN-1]);
 						if (CreateCRC(b1,(ULONG)(THLEN-2)) == hcrc) {
-							write_log (L"DMS: found checksum correct track header, retrying..\n");
+							write_log (_T("DMS: found checksum correct track header, retrying..\n"));
 							zfile_fseek (fi, SEEK_CUR, -THLEN);
 							ok = 1;
 							break;
@@ -277,7 +277,7 @@ USHORT DMS_Process_File(struct zfile *fi, struct zfile *fo, USHORT cmd, USHORT o
 		}
 	}
 
-	if ((cmd == CMD_VIEWFULL) || (cmd == CMD_SHOWDIZ) || (cmd == CMD_SHOWBANNER)) write_log (L"\n");
+	if ((cmd == CMD_VIEWFULL) || (cmd == CMD_SHOWDIZ) || (cmd == CMD_SHOWBANNER)) write_log (_T("\n"));
 
 	if (ret == DMS_FILE_END) ret = NO_PROBLEM;
 
@@ -330,19 +330,19 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	dcrc = (USHORT)((b1[16] << 8) | b1[17]);	/*  Track Data CRC BEFORE unpacking  */
 
 	if (dolog)
-		write_log (L"DMS: track=%d\n", number);
+		write_log (_T("DMS: track=%d\n"), number);
 
 	if (dolog) {
 		if (number==80)
-			write_log (L" FileID   ");
+			write_log (_T(" FileID   "));
 		else if (number==0xffff)
-			write_log (L" Banner   ");
+			write_log (_T(" Banner   "));
 		else if ((number==0) && (unpklen==1024))
-			write_log (L" FakeBB   ");
+			write_log (_T(" FakeBB   "));
 		else
-			write_log (L"   %2d     ",(short)number);
+			write_log (_T("   %2d     "),(short)number);
 
-		write_log (L"%5d    %5d   %s  %04X  %04X  %04X    %0d\n", pklen1, unpklen, modes[cmode], usum, hcrc, dcrc, flags);
+		write_log (_T("%5d    %5d   %s  %04X  %04X  %04X    %0d\n"), pklen1, unpklen, modes[cmode], usum, hcrc, dcrc, flags);
 	}
 
 	if ((pklen1 > TRACK_BUFFER_LEN) || (pklen2 >TRACK_BUFFER_LEN) || (unpklen > TRACK_BUFFER_LEN)) return ERR_BIGTRACK;
@@ -371,7 +371,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 			zfile_fseek (fo, 0, SEEK_SET);
 			p = xcalloc (uae_u8, 512 * 22);
 			zfile_fread (p, 512 * 22, 1, fo);
-			addextra(L"BigFakeBootBlock", extra, p, 512 * 22);
+			addextra(_T("BigFakeBootBlock"), extra, p, 512 * 22);
 			xfree (p);
 		}
 		zfile_fseek (fo, number * 512 * 22 * ((dmsflags & DMSFLAG_HD) ? 2 : 1), SEEK_SET);
@@ -382,7 +382,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 		memset(b2, 0, unpklen);
 		if (!crcerr)
 			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-		addextra(L"FakeBootBlock", extra, b2, unpklen);
+		addextra(_T("FakeBootBlock"), extra, b2, unpklen);
 	}
 
 	if (crcerr)
@@ -391,7 +391,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	if (number == 0xffff) {
 		if (extra){
 			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-			addextra(L"Banner", extra, b2, unpklen);
+			addextra(_T("Banner"), extra, b2, unpklen);
 		}
 		//printbandiz(b2,unpklen);
 	}
@@ -399,7 +399,7 @@ static USHORT Process_Track(struct zfile *fi, struct zfile *fo, UCHAR *b1, UCHAR
 	if (number == 80) {
 		if (extra) {
 			Unpack_Track(b1, b2, pklen2, unpklen, cmode, flags, number, pklen1, usum, dmsflags & DMSFLAG_ENCRYPTED);
-			addextra(L"FILEID.DIZ", extra, b2, unpklen);
+			addextra(_T("FILEID.DIZ"), extra, b2, unpklen);
 		}
 		//printbandiz(b2,unpklen);
 	}
@@ -513,7 +513,7 @@ static USHORT Unpack_Track(UCHAR *b1, UCHAR *b2, USHORT pklen2, USHORT unpklen, 
 			if (usum1 == dms_Calc_CheckSum(b2,(ULONG)unpklen)) {
 				passfound = maybeencrypted;
 				if (passfound)
-					write_log (L"DMS: decryption key = 0x%04X\n", prevpass);
+					write_log (_T("DMS: decryption key = 0x%04X\n"), prevpass);
 				err = NO_PROBLEM;
 				pass = prevpass;
 				break;
@@ -549,7 +549,7 @@ static void printbandiz(UCHAR *m, USHORT len){
 			TCHAR *u;
 			*i=0;
 			u = au ((char*)j);
-			write_log (L"%s\n",u);
+			write_log (_T("%s\n"),u);
 			xfree (u);
 			j=i+1;
 		}

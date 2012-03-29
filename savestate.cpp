@@ -362,7 +362,7 @@ static void save_chunk (struct zfile *f, uae_u8 *chunk, size_t len, TCHAR *name,
 	if (len2)
 		zfile_fwrite (zero, 1, len2, f);
 
-	write_log (L"Chunk '%s' chunk size %d (%d)\n", name, chunklen, len);
+	write_log (_T("Chunk '%s' chunk size %d (%d)\n"), name, chunklen, len);
 }
 
 static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t *totallen, size_t *filepos)
@@ -404,14 +404,14 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t 
 	}
 	/* chunk data.  RAM contents will be loaded during the reset phase,
 	   no need to malloc multiple megabytes here.  */
-	if (_tcscmp (name, L"CRAM") != 0
-		&& _tcscmp (name, L"BRAM") != 0
-		&& _tcscmp (name, L"FRAM") != 0
-		&& _tcscmp (name, L"ZRAM") != 0
-		&& _tcscmp (name, L"ZCRM") != 0
-		&& _tcscmp (name, L"PRAM") != 0
-		&& _tcscmp (name, L"A3K1") != 0
-		&& _tcscmp (name, L"A3K2") != 0)
+	if (_tcscmp (name, _T("CRAM")) != 0
+		&& _tcscmp (name, _T("BRAM")) != 0
+		&& _tcscmp (name, _T("FRAM")) != 0
+		&& _tcscmp (name, _T("ZRAM")) != 0
+		&& _tcscmp (name, _T("ZCRM")) != 0
+		&& _tcscmp (name, _T("PRAM")) != 0
+		&& _tcscmp (name, _T("A3K1")) != 0
+		&& _tcscmp (name, _T("A3K2")) != 0)
 	{
 		/* extra bytes at the end needed to handle old statefiles that now have new fields */
 		mem = xcalloc (uae_u8, *totallen + 100);
@@ -463,7 +463,7 @@ static uae_u8 *restore_log (uae_u8 *src)
 {
 #if OPEN_LOG > 0
 	TCHAR *s = utf8u (src);
-	write_log (L"%s\n", s);
+	write_log (_T("%s\n"), s);
 	xfree (s);
 #endif
 	src += strlen ((char*)src) + 1;
@@ -478,7 +478,7 @@ static void restore_header (uae_u8 *src)
 	emuname = restore_string ();
 	emuversion = restore_string ();
 	description = restore_string ();
-	write_log (L"Saved with: '%s %s', description: '%s'\n",
+	write_log (_T("Saved with: '%s %s', description: '%s'\n"),
 		emuname, emuversion, description);
 	xfree (description);
 	xfree (emuversion);
@@ -497,7 +497,7 @@ void restore_state (const TCHAR *filename)
 	int z3num;
 
 	chunk = 0;
-	f = zfile_fopen (filename, L"rb", ZFD_NORMAL);
+	f = zfile_fopen (filename, _T("rb"), ZFD_NORMAL);
 	if (!f)
 		goto error;
 	zfile_fseek (f, 0, SEEK_END);
@@ -507,11 +507,11 @@ void restore_state (const TCHAR *filename)
 	savestate_init ();
 
 	chunk = restore_chunk (f, name, &len, &totallen, &filepos);
-	if (!chunk || _tcsncmp (name, L"ASF ", 4)) {
-		write_log (L"%s is not an AmigaStateFile\n", filename);
+	if (!chunk || _tcsncmp (name, _T("ASF "), 4)) {
+		write_log (_T("%s is not an AmigaStateFile\n"), filename);
 		goto error;
 	}
-	write_log (L"STATERESTORE:\n");
+	write_log (_T("STATERESTORE:\n"));
 	config_changed = 1;
 	savestate_file = f;
 	restore_header (chunk);
@@ -527,181 +527,181 @@ void restore_state (const TCHAR *filename)
 	for (;;) {
 		name[0] = 0;
 		chunk = end = restore_chunk (f, name, &len, &totallen, &filepos);
-		write_log (L"Chunk '%s' size %d (%d)\n", name, len, totallen);
-		if (!_tcscmp (name, L"END ")) {
+		write_log (_T("Chunk '%s' size %d (%d)\n"), name, len, totallen);
+		if (!_tcscmp (name, _T("END "))) {
 #ifdef _DEBUG
 			if (filesize > filepos + 8)
 				continue;
 #endif
 			break;
 		}
-		if (!_tcscmp (name, L"CRAM")) {
+		if (!_tcscmp (name, _T("CRAM"))) {
 			restore_cram (totallen, filepos);
 			continue;
-		} else if (!_tcscmp (name, L"BRAM")) {
+		} else if (!_tcscmp (name, _T("BRAM"))) {
 			restore_bram (totallen, filepos);
 			continue;
-		} else if (!_tcscmp (name, L"A3K1")) {
+		} else if (!_tcscmp (name, _T("A3K1"))) {
 			restore_a3000lram (totallen, filepos);
 			continue;
-		} else if (!_tcscmp (name, L"A3K2")) {
+		} else if (!_tcscmp (name, _T("A3K2"))) {
 			restore_a3000hram (totallen, filepos);
 			continue;
 #ifdef AUTOCONFIG
-		} else if (!_tcscmp (name, L"FRAM")) {
+		} else if (!_tcscmp (name, _T("FRAM"))) {
 			restore_fram (totallen, filepos);
 			continue;
-		} else if (!_tcscmp (name, L"ZRAM")) {
+		} else if (!_tcscmp (name, _T("ZRAM"))) {
 			restore_zram (totallen, filepos, z3num++);
 			continue;
-		} else if (!_tcscmp (name, L"ZCRM")) {
+		} else if (!_tcscmp (name, _T("ZCRM"))) {
 			restore_zram (totallen, filepos, -1);
 			continue;
-		} else if (!_tcscmp (name, L"BORO")) {
+		} else if (!_tcscmp (name, _T("BORO"))) {
 			restore_bootrom (totallen, filepos);
 			continue;
 #endif
 #ifdef PICASSO96
-		} else if (!_tcscmp (name, L"PRAM")) {
+		} else if (!_tcscmp (name, _T("PRAM"))) {
 			restore_pram (totallen, filepos);
 			continue;
 #endif
-		} else if (!_tcscmp (name, L"CYCS")) {
+		} else if (!_tcscmp (name, _T("CYCS"))) {
 			end = restore_cycles (chunk);
-		} else if (!_tcscmp (name, L"CPU ")) {
+		} else if (!_tcscmp (name, _T("CPU "))) {
 			end = restore_cpu (chunk);
-		} else if (!_tcscmp (name, L"CPUX"))
+		} else if (!_tcscmp (name, _T("CPUX")))
 			end = restore_cpu_extra (chunk);
-		else if (!_tcscmp (name, L"CPUT"))
+		else if (!_tcscmp (name, _T("CPUT")))
 			end = restore_cpu_trace (chunk);
 #ifdef FPUEMU
-		else if (!_tcscmp (name, L"FPU "))
+		else if (!_tcscmp (name, _T("FPU ")))
 			end = restore_fpu (chunk);
 #endif
 #ifdef MMUEMU
-		else if (!_tcscmp (name, L"MMU "))
+		else if (!_tcscmp (name, _T("MMU ")))
 			end = restore_mmu (chunk);
 #endif
-		else if (!_tcscmp (name, L"AGAC"))
+		else if (!_tcscmp (name, _T("AGAC")))
 			end = restore_custom_agacolors (chunk);
-		else if (!_tcscmp (name, L"SPR0"))
+		else if (!_tcscmp (name, _T("SPR0")))
 			end = restore_custom_sprite (0, chunk);
-		else if (!_tcscmp (name, L"SPR1"))
+		else if (!_tcscmp (name, _T("SPR1")))
 			end = restore_custom_sprite (1, chunk);
-		else if (!_tcscmp (name, L"SPR2"))
+		else if (!_tcscmp (name, _T("SPR2")))
 			end = restore_custom_sprite (2, chunk);
-		else if (!_tcscmp (name, L"SPR3"))
+		else if (!_tcscmp (name, _T("SPR3")))
 			end = restore_custom_sprite (3, chunk);
-		else if (!_tcscmp (name, L"SPR4"))
+		else if (!_tcscmp (name, _T("SPR4")))
 			end = restore_custom_sprite (4, chunk);
-		else if (!_tcscmp (name, L"SPR5"))
+		else if (!_tcscmp (name, _T("SPR5")))
 			end = restore_custom_sprite (5, chunk);
-		else if (!_tcscmp (name, L"SPR6"))
+		else if (!_tcscmp (name, _T("SPR6")))
 			end = restore_custom_sprite (6, chunk);
-		else if (!_tcscmp (name, L"SPR7"))
+		else if (!_tcscmp (name, _T("SPR7")))
 			end = restore_custom_sprite (7, chunk);
-		else if (!_tcscmp (name, L"CIAA"))
+		else if (!_tcscmp (name, _T("CIAA")))
 			end = restore_cia (0, chunk);
-		else if (!_tcscmp (name, L"CIAB"))
+		else if (!_tcscmp (name, _T("CIAB")))
 			end = restore_cia (1, chunk);
-		else if (!_tcscmp (name, L"CHIP"))
+		else if (!_tcscmp (name, _T("CHIP")))
 			end = restore_custom (chunk);
-		else if (!_tcscmp (name, L"CINP"))
+		else if (!_tcscmp (name, _T("CINP")))
 			end = restore_input (chunk);
-		else if (!_tcscmp (name, L"CHPX"))
+		else if (!_tcscmp (name, _T("CHPX")))
 			end = restore_custom_extra (chunk);
-		else if (!_tcscmp (name, L"CHPD"))
+		else if (!_tcscmp (name, _T("CHPD")))
 			end = restore_custom_event_delay (chunk);
-		else if (!_tcscmp (name, L"AUD0"))
+		else if (!_tcscmp (name, _T("AUD0")))
 			end = restore_audio (0, chunk);
-		else if (!_tcscmp (name, L"AUD1"))
+		else if (!_tcscmp (name, _T("AUD1")))
 			end = restore_audio (1, chunk);
-		else if (!_tcscmp (name, L"AUD2"))
+		else if (!_tcscmp (name, _T("AUD2")))
 			end = restore_audio (2, chunk);
-		else if (!_tcscmp (name, L"AUD3"))
+		else if (!_tcscmp (name, _T("AUD3")))
 			end = restore_audio (3, chunk);
-		else if (!_tcscmp (name, L"BLIT"))
+		else if (!_tcscmp (name, _T("BLIT")))
 			end = restore_blitter (chunk);
-		else if (!_tcscmp (name, L"BLTX"))
+		else if (!_tcscmp (name, _T("BLTX")))
 			end = restore_blitter_new (chunk);
-		else if (!_tcscmp (name, L"DISK"))
+		else if (!_tcscmp (name, _T("DISK")))
 			end = restore_floppy (chunk);
-		else if (!_tcscmp (name, L"DSK0"))
+		else if (!_tcscmp (name, _T("DSK0")))
 			end = restore_disk (0, chunk);
-		else if (!_tcscmp (name, L"DSK1"))
+		else if (!_tcscmp (name, _T("DSK1")))
 			end = restore_disk (1, chunk);
-		else if (!_tcscmp (name, L"DSK2"))
+		else if (!_tcscmp (name, _T("DSK2")))
 			end = restore_disk (2, chunk);
-		else if (!_tcscmp (name, L"DSK3"))
+		else if (!_tcscmp (name, _T("DSK3")))
 			end = restore_disk (3, chunk);
-		else if (!_tcscmp (name, L"DSD0"))
+		else if (!_tcscmp (name, _T("DSD0")))
 			end = restore_disk2 (0, chunk);
-		else if (!_tcscmp (name, L"DSD1"))
+		else if (!_tcscmp (name, _T("DSD1")))
 			end = restore_disk2 (1, chunk);
-		else if (!_tcscmp (name, L"DSD2"))
+		else if (!_tcscmp (name, _T("DSD2")))
 			end = restore_disk2 (2, chunk);
-		else if (!_tcscmp (name, L"DSD3"))
+		else if (!_tcscmp (name, _T("DSD3")))
 			end = restore_disk2 (3, chunk);
-		else if (!_tcscmp (name, L"KEYB"))
+		else if (!_tcscmp (name, _T("KEYB")))
 			end = restore_keyboard (chunk);
 #ifdef AUTOCONFIG
-		else if (!_tcscmp (name, L"EXPA"))
+		else if (!_tcscmp (name, _T("EXPA")))
 			end = restore_expansion (chunk);
 #endif
-		else if (!_tcscmp (name, L"ROM "))
+		else if (!_tcscmp (name, _T("ROM ")))
 			end = restore_rom (chunk);
 #ifdef PICASSO96
-		else if (!_tcscmp (name, L"P96 "))
+		else if (!_tcscmp (name, _T("P96 ")))
 			end = restore_p96 (chunk);
 #endif
 #ifdef ACTION_REPLAY
-		else if (!_tcscmp (name, L"ACTR"))
+		else if (!_tcscmp (name, _T("ACTR")))
 			end = restore_action_replay (chunk);
-		else if (!_tcscmp (name, L"HRTM"))
+		else if (!_tcscmp (name, _T("HRTM")))
 			end = restore_hrtmon (chunk);
 #endif
 #ifdef FILESYS
-		else if (!_tcscmp (name, L"FSYS"))
+		else if (!_tcscmp (name, _T("FSYS")))
 			end = restore_filesys (chunk);
-		else if (!_tcscmp (name, L"FSYC"))
+		else if (!_tcscmp (name, _T("FSYC")))
 			end = restore_filesys_common (chunk);
 #endif
 #ifdef CD32
-		else if (!_tcscmp (name, L"CD32"))
+		else if (!_tcscmp (name, _T("CD32")))
 			end = restore_akiko (chunk);
 #endif
 #ifdef CDTV
-		else if (!_tcscmp (name, L"CDTV"))
+		else if (!_tcscmp (name, _T("CDTV")))
 			end = restore_cdtv (chunk);
-		else if (!_tcscmp (name, L"DMAC"))
+		else if (!_tcscmp (name, _T("DMAC")))
 			end = restore_dmac (chunk);
 #endif
-		else if (!_tcscmp (name, L"GAYL"))
+		else if (!_tcscmp (name, _T("GAYL")))
 			end = restore_gayle (chunk);
-		else if (!_tcscmp (name, L"IDE "))
+		else if (!_tcscmp (name, _T("IDE ")))
 			end = restore_ide (chunk);
-		else if (!_tcsncmp (name, L"CDU", 3))
+		else if (!_tcsncmp (name, _T("CDU"), 3))
 			end = restore_cd (name[3] - '0', chunk);
 #ifdef A2065
-		else if (!_tcsncmp (name, L"2065", 4))
+		else if (!_tcsncmp (name, _T("2065"), 4))
 			end = restore_a2065 (chunk);
 #endif
-		else if (!_tcsncmp (name, L"DMWP", 4))
+		else if (!_tcsncmp (name, _T("DMWP"), 4))
 			end = restore_debug_memwatch (chunk);
 
-		else if (!_tcscmp (name, L"CONF"))
+		else if (!_tcscmp (name, _T("CONF")))
 			end = restore_configuration (chunk);
-		else if (!_tcscmp (name, L"LOG "))
+		else if (!_tcscmp (name, _T("LOG ")))
 			end = restore_log (chunk);
 		else {
 			end = chunk + len;
-			write_log (L"unknown chunk '%s' size %d bytes\n", name, len);
+			write_log (_T("unknown chunk '%s' size %d bytes\n"), name, len);
 		}
 		if (end == NULL)
-			write_log (L"Chunk '%s', size %d bytes was not accepted!\n",
+			write_log (_T("Chunk '%s', size %d bytes was not accepted!\n"),
 			name, len);
 		else if (totallen != end - chunk)
-			write_log (L"Chunk '%s' total size %d bytes but read %d bytes!\n",
+			write_log (_T("Chunk '%s' total size %d bytes but read %d bytes!\n"),
 			name, totallen, end - chunk);
 		xfree (chunk);
 	}
@@ -765,28 +765,28 @@ static void save_rams (struct zfile *f, int comp)
 	int len;
 
 	dst = save_cram (&len);
-	save_chunk (f, dst, len, L"CRAM", comp);
+	save_chunk (f, dst, len, _T("CRAM"), comp);
 	dst = save_bram (&len);
-	save_chunk (f, dst, len, L"BRAM", comp);
+	save_chunk (f, dst, len, _T("BRAM"), comp);
 	dst = save_a3000lram (&len);
-	save_chunk (f, dst, len, L"A3K1", comp);
+	save_chunk (f, dst, len, _T("A3K1"), comp);
 	dst = save_a3000hram (&len);
-	save_chunk (f, dst, len, L"A3K2", comp);
+	save_chunk (f, dst, len, _T("A3K2"), comp);
 #ifdef AUTOCONFIG
 	dst = save_fram (&len);
-	save_chunk (f, dst, len, L"FRAM", comp);
+	save_chunk (f, dst, len, _T("FRAM"), comp);
 	dst = save_zram (&len, 0);
-	save_chunk (f, dst, len, L"ZRAM", comp);
+	save_chunk (f, dst, len, _T("ZRAM"), comp);
 	dst = save_zram (&len, 1);
-	save_chunk (f, dst, len, L"ZRAM", comp);
+	save_chunk (f, dst, len, _T("ZRAM"), comp);
 	dst = save_zram (&len, -1);
-	save_chunk (f, dst, len, L"ZCRM", comp);
+	save_chunk (f, dst, len, _T("ZCRM"), comp);
 	dst = save_bootrom (&len);
-	save_chunk (f, dst, len, L"BORO", comp);
+	save_chunk (f, dst, len, _T("BORO"), comp);
 #endif
 #ifdef PICASSO96
 	dst = save_pram (&len);
-	save_chunk (f, dst, len, L"PRAM", comp);
+	save_chunk (f, dst, len, _T("PRAM"), comp);
 #endif
 }
 
@@ -801,44 +801,44 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	TCHAR name[5];
 	int i, len;
 
-	write_log (L"STATESAVE (%s):\n", f ? zfile_getname (f) : L"<internal>");
+	write_log (_T("STATESAVE (%s):\n"), f ? zfile_getname (f) : _T("<internal>"));
 	dst = header;
 	save_u32 (0);
-	save_string (L"UAE");
-	_stprintf (tmp, L"%d.%d.%d", UAEMAJOR, UAEMINOR, UAESUBREV);
+	save_string (_T("UAE"));
+	_stprintf (tmp, _T("%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 	save_string (tmp);
 	save_string (description);
-	save_chunk (f, header, dst-header, L"ASF ", 0);
+	save_chunk (f, header, dst-header, _T("ASF "), 0);
 
 	dst = save_cycles (&len, 0);
-	save_chunk (f, dst, len, L"CYCS", 0);
+	save_chunk (f, dst, len, _T("CYCS"), 0);
 	xfree (dst);
 
 	dst = save_cpu (&len, 0);
-	save_chunk (f, dst, len, L"CPU ", 0);
+	save_chunk (f, dst, len, _T("CPU "), 0);
 	xfree (dst);
 
 	dst = save_cpu_extra (&len, 0);
-	save_chunk (f, dst, len, L"CPUX", 0);
+	save_chunk (f, dst, len, _T("CPUX"), 0);
 	xfree (dst);
 
 	dst = save_cpu_trace (&len, 0);
-	save_chunk (f, dst, len, L"CPUT", 0);
+	save_chunk (f, dst, len, _T("CPUT"), 0);
 	xfree (dst);
 
 #ifdef FPUEMU
 	dst = save_fpu (&len,0 );
-	save_chunk (f, dst, len, L"FPU ", 0);
+	save_chunk (f, dst, len, _T("FPU "), 0);
 	xfree (dst);
 #endif
 
 #ifdef MMUEMU
 	dst = save_mmu (&len, 0);
-	save_chunk (f, dst, len, L"MMU ", 0);
+	save_chunk (f, dst, len, _T("MMU "), 0);
 	xfree (dst);
 #endif
 
-	_tcscpy(name, L"DSKx");
+	_tcscpy(name, _T("DSKx"));
 	for (i = 0; i < 4; i++) {
 		dst = save_disk (i, &len, 0, savepath);
 		if (dst) {
@@ -847,7 +847,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 			xfree (dst);
 		}
 	}
-	_tcscpy(name, L"DSDx");
+	_tcscpy(name, _T("DSDx"));
 	for (i = 0; i < 4; i++) {
 		dst = save_disk2 (i, &len, 0);
 		if (dst) {
@@ -859,39 +859,39 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 
 
 	dst = save_floppy (&len, 0);
-	save_chunk (f, dst, len, L"DISK", 0);
+	save_chunk (f, dst, len, _T("DISK"), 0);
 	xfree (dst);
 
 	dst = save_custom (&len, 0, 0);
-	save_chunk (f, dst, len, L"CHIP", 0);
+	save_chunk (f, dst, len, _T("CHIP"), 0);
 	xfree (dst);
 
 	dst = save_custom_extra (&len, 0);
-	save_chunk (f, dst, len, L"CHPX", 0);
+	save_chunk (f, dst, len, _T("CHPX"), 0);
 	xfree (dst);
 
 	dst = save_custom_event_delay (&len, 0);
-	save_chunk (f, dst, len, L"CHPD", 0);
+	save_chunk (f, dst, len, _T("CHPD"), 0);
 	xfree (dst);
 
 	dst = save_blitter_new (&len, 0);
-	save_chunk (f, dst, len, L"BLTX", 0);
+	save_chunk (f, dst, len, _T("BLTX"), 0);
 	xfree (dst);
 	if (new_blitter == false) {
 		dst = save_blitter (&len, 0);
-		save_chunk (f, dst, len, L"BLIT", 0);
+		save_chunk (f, dst, len, _T("BLIT"), 0);
 		xfree (dst);
 	}
 
 	dst = save_input (&len, 0);
-	save_chunk (f, dst, len, L"CINP", 0);
+	save_chunk (f, dst, len, _T("CINP"), 0);
 	xfree (dst);
 
 	dst = save_custom_agacolors (&len, 0);
-	save_chunk (f, dst, len, L"AGAC", 0);
+	save_chunk (f, dst, len, _T("AGAC"), 0);
 	xfree (dst);
 
-	_tcscpy (name, L"SPRx");
+	_tcscpy (name, _T("SPRx"));
 	for (i = 0; i < 8; i++) {
 		dst = save_custom_sprite (i, &len, 0);
 		name[3] = i + '0';
@@ -899,7 +899,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 		xfree (dst);
 	}
 
-	_tcscpy (name, L"AUDx");
+	_tcscpy (name, _T("AUDx"));
 	for (i = 0; i < 4; i++) {
 		dst = save_audio (i, &len, 0);
 		name[3] = i + '0';
@@ -908,28 +908,28 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	}
 
 	dst = save_cia (0, &len, 0);
-	save_chunk (f, dst, len, L"CIAA", 0);
+	save_chunk (f, dst, len, _T("CIAA"), 0);
 	xfree (dst);
 
 	dst = save_cia (1, &len, 0);
-	save_chunk (f, dst, len, L"CIAB", 0);
+	save_chunk (f, dst, len, _T("CIAB"), 0);
 	xfree (dst);
 
 	dst = save_keyboard (&len, NULL);
-	save_chunk (f, dst, len, L"KEYB", 0);
+	save_chunk (f, dst, len, _T("KEYB"), 0);
 	xfree (dst);
 
 #ifdef AUTOCONFIG
 	dst = save_expansion (&len, 0);
-	save_chunk (f, dst, len, L"EXPA", 0);
+	save_chunk (f, dst, len, _T("EXPA"), 0);
 #endif
 #ifdef A2065
 	dst = save_a2065 (&len, NULL);
-	save_chunk (f, dst, len, L"2065", 0);
+	save_chunk (f, dst, len, _T("2065"), 0);
 #endif
 #ifdef PICASSO96
 	dst = save_p96 (&len, 0);
-	save_chunk (f, dst, len, L"P96 ", 0);
+	save_chunk (f, dst, len, _T("P96 "), 0);
 #endif
 	save_rams (f, comp);
 
@@ -937,38 +937,38 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	do {
 		if (!dst)
 			break;
-		save_chunk (f, dst, len, L"ROM ", 0);
+		save_chunk (f, dst, len, _T("ROM "), 0);
 		xfree (dst);
 	} while ((dst = save_rom (0, &len, 0)));
 
 #ifdef CD32
 	dst = save_akiko (&len, NULL);
-	save_chunk (f, dst, len, L"CD32", 0);
+	save_chunk (f, dst, len, _T("CD32"), 0);
 	xfree (dst);
 #endif
 #ifdef CDTV
 	dst = save_cdtv (&len, NULL);
-	save_chunk (f, dst, len, L"CDTV", 0);
+	save_chunk (f, dst, len, _T("CDTV"), 0);
 	xfree (dst);
 	dst = save_dmac (&len, NULL);
-	save_chunk (f, dst, len, L"DMAC", 0);
+	save_chunk (f, dst, len, _T("DMAC"), 0);
 	xfree (dst);
 #endif
 
 #ifdef ACTION_REPLAY
 	dst = save_action_replay (&len, NULL);
-	save_chunk (f, dst, len, L"ACTR", comp);
+	save_chunk (f, dst, len, _T("ACTR"), comp);
 	dst = save_hrtmon (&len, NULL);
-	save_chunk (f, dst, len, L"HRTM", comp);
+	save_chunk (f, dst, len, _T("HRTM"), comp);
 #endif
 #ifdef FILESYS
 	dst = save_filesys_common (&len);
 	if (dst) {
-		save_chunk (f, dst, len, L"FSYC", 0);
+		save_chunk (f, dst, len, _T("FSYC"), 0);
 		for (i = 0; i < nr_units (); i++) {
 			dst = save_filesys (i, &len);
 			if (dst) {
-				save_chunk (f, dst, len, L"FSYS", 0);
+				save_chunk (f, dst, len, _T("FSYS"), 0);
 				xfree (dst);
 			}
 		}
@@ -976,13 +976,13 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 #endif
 	dst = save_gayle (&len, NULL);
 	if (dst) {
-		save_chunk (f, dst, len, L"GAYL", 0);
+		save_chunk (f, dst, len, _T("GAYL"), 0);
 		xfree(dst);
 	}
 	for (i = 0; i < 4; i++) {
 		dst = save_ide (i, &len, NULL);
 		if (dst) {
-			save_chunk (f, dst, len, L"IDE ", 0);
+			save_chunk (f, dst, len, _T("IDE "), 0);
 			xfree (dst);
 		}
 	}
@@ -990,14 +990,14 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		dst = save_cd (i, &len);
 		if (dst) {
-			_stprintf (name, L"CDU%d", i);
+			_stprintf (name, _T("CDU%d"), i);
 			save_chunk (f, dst, len, name, 0);
 		}
 	}
 
 	dst = save_debug_memwatch (&len, NULL);
 	if (dst) {
-		save_chunk (f, dst, len, L"DMWP", 0);
+		save_chunk (f, dst, len, _T("DMWP"), 0);
 		xfree(dst);
 	}
 
@@ -1007,13 +1007,13 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 
 	dst = save_configuration (&len);
 	if (dst) {
-		save_chunk (f, dst, len, L"CONF", comp);
+		save_chunk (f, dst, len, _T("CONF"), comp);
 		xfree(dst);
 	}
 	len = 30000;
 	dst = save_log (TRUE, &len);
 	if (dst) {
-		save_chunk (f, dst, len, L"LOG ", comp);
+		save_chunk (f, dst, len, _T("LOG "), comp);
 		xfree (dst);
 	}
 
@@ -1030,14 +1030,14 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	if (!savestate_specialdump && !savestate_nodialogs) {
 		state_incompatible_warn ();
 		if (!save_filesys_cando ()) {
-			gui_message (L"Filesystem active. Try again later.");
+			gui_message (_T("Filesystem active. Try again later."));
 			return -1;
 		}
 	}
 	new_blitter = false;
 	savestate_nodialogs = 0;
 	custom_prepare_savestate ();
-	f = zfile_fopen (filename, L"w+b", 0);
+	f = zfile_fopen (filename, _T("w+b"), 0);
 	if (!f)
 		return 0;
 	if (savestate_specialdump) {
@@ -1064,7 +1064,7 @@ int save_state (const TCHAR *filename, const TCHAR *description)
 	}
 	int v = save_state_internal (f, description, comp, true);
 	if (v)
-		write_log (L"Save of '%s' complete\n", filename);
+		write_log (_T("Save of '%s' complete\n"), filename);
 	zfile_fclose (f);
 	savestate_state = 0;
 	return v;
@@ -1081,24 +1081,24 @@ void savestate_quick (int slot, int save)
 		while (i >= 0 && savestate_fname[i] != '.')
 			i--;
 		if (i <= 0) {
-			write_log (L"savestate name skipped '%s'\n", savestate_fname);
+			write_log (_T("savestate name skipped '%s'\n"), savestate_fname);
 			return;
 		}
 	}
-	_tcscpy (savestate_fname + i, L".uss");
+	_tcscpy (savestate_fname + i, _T(".uss"));
 	if (slot > 0)
-		_stprintf (savestate_fname + i, L"_%d.uss", slot);
+		_stprintf (savestate_fname + i, _T("_%d.uss"), slot);
 	if (save) {
-		write_log (L"saving '%s'\n", savestate_fname);
+		write_log (_T("saving '%s'\n"), savestate_fname);
 		savestate_docompress = 1;
-		save_state (savestate_fname, L"");
+		save_state (savestate_fname, _T(""));
 	} else {
 		if (!zfile_exists (savestate_fname)) {
-			write_log (L"staterestore, file '%s' not found\n", savestate_fname);
+			write_log (_T("staterestore, file '%s' not found\n"), savestate_fname);
 			return;
 		}
 		savestate_state = STATE_DORESTORE;
-		write_log (L"staterestore starting '%s'\n", savestate_fname);
+		write_log (_T("staterestore starting '%s'\n"), savestate_fname);
 	}
 }
 
@@ -1144,7 +1144,7 @@ int savestate_dorewind (int pos)
 		pos = replaycounter - 1;
 	if (canrewind (pos)) {
 		savestate_state = STATE_DOREWIND;
-		write_log (L"dorewind %d (%010d/%03d) -> %d\n", replaycounter - 1, hsync_counter, vsync_counter, pos);
+		write_log (_T("dorewind %d (%010d/%03d) -> %d\n"), replaycounter - 1, hsync_counter, vsync_counter, pos);
 		return 1;
 	}
 	return 0;
@@ -1165,7 +1165,7 @@ void savestate_listrewind (void)
 			break;
 		p = st->cpu + 17 * 4;
 		pc = restore_u32_func (&p);
-		console_out_f (L"%d: PC=%08X %c\n", cnt, pc, regs.pc == pc ? '*' : ' ');
+		console_out_f (_T("%d: PC=%08X %c\n"), cnt, pc, regs.pc == pc ? '*' : ' ');
 		cnt++;
 		i--;
 		if (i < 0)
@@ -1198,7 +1198,7 @@ void savestate_rewind (void)
 	}
 	p = st->data;
 	p2 = st->end;
-	write_log (L"rewinding %d -> %d\n", replaycounter - 1, pos);
+	write_log (_T("rewinding %d -> %d\n"), replaycounter - 1, pos);
 	hsync_counter = restore_u32_func (&p);
 	vsync_counter = restore_u32_func (&p);
 	p = restore_cpu (p);
@@ -1277,12 +1277,12 @@ void savestate_rewind (void)
 	}
 	p += 4;
 	if (p != p2) {
-		gui_message (L"reload failure, address mismatch %p != %p", p, p2);
+		gui_message (_T("reload failure, address mismatch %p != %p"), p, p2);
 		uae_reset (0);
 		return;
 	}
 	inprec_setposition (st->inprecoffset, pos);
-	write_log (L"state %d restored.  (%010d/%03d)\n", pos, hsync_counter, vsync_counter);
+	write_log (_T("state %d restored.  (%010d/%03d)\n"), pos, hsync_counter, vsync_counter);
 	if (rewind) {
 		replaycounter--;
 		if (replaycounter < 0)
@@ -1307,9 +1307,9 @@ void savestate_memorysave (void)
 	new_blitter = true;
 	// create real statefile in memory too for later saving
 	zfile_fclose (staterecord_statefile);
-	staterecord_statefile = zfile_fopen_empty (NULL, L"statefile.inp.uss");
+	staterecord_statefile = zfile_fopen_empty (NULL, _T("statefile.inp.uss"));
 	if (staterecord_statefile)
-		save_state_internal (staterecord_statefile, L"rerecording", 1, false);
+		save_state_internal (staterecord_statefile, _T("rerecording"), 1, false);
 }
 
 void savestate_capture (int force)
@@ -1350,7 +1350,7 @@ retry2:
 		st = (struct staterecord*)xmalloc (uae_u8, statefile_alloc);
 		st->len = statefile_alloc;
 	} else if (retrycnt > 0) {
-		write_log (L"realloc %d -> %d\n", st->len, st->len + STATEFILE_ALLOC_SIZE);
+		write_log (_T("realloc %d -> %d\n"), st->len, st->len + STATEFILE_ALLOC_SIZE);
 		st->len += STATEFILE_ALLOC_SIZE;
 		st = (struct staterecord*)xrealloc (uae_u8, st, st->len);
 	}
@@ -1647,7 +1647,7 @@ retry2:
 			staterecords_first -= staterecords_max;
 	}
 
-	write_log (L"state capture %d (%010d/%03d,%d/%d) (%d bytes, alloc %d)\n",
+	write_log (_T("state capture %d (%010d/%03d,%d/%d) (%d bytes, alloc %d)\n"),
 		replaycounter, hsync_counter, vsync_counter,
 		hsync_counter % current_maxvpos (), current_maxvpos (),
 		st->end - st->data, statefile_alloc);
@@ -1668,7 +1668,7 @@ retry2:
 retry:
 	if (retrycnt < 10)
 		goto retry2;
-	write_log (L"can't save, too small capture buffer or out of memory\n");
+	write_log (_T("can't save, too small capture buffer or out of memory\n"));
 	return;
 }
 
@@ -1704,14 +1704,14 @@ void statefile_save_recording (const TCHAR *filename)
 {
 	if (!staterecord_statefile)
 		return;
-	struct zfile *zf = zfile_fopen (filename, L"wb", 0);
+	struct zfile *zf = zfile_fopen (filename, _T("wb"), 0);
 	if (zf) {
 		int len = zfile_size (staterecord_statefile);
 		uae_u8 *data = zfile_getdata (staterecord_statefile, 0, len);
 		zfile_fwrite (data, len, 1, zf);
 		xfree (data);
 		zfile_fclose (zf);
-		write_log (L"input statefile '%s' saved\n", filename);
+		write_log (_T("input statefile '%s' saved\n"), filename);
 	}
 }
 

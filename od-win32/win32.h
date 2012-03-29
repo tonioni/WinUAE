@@ -15,20 +15,20 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA L""
-//#define WINUAEBETA L"Beta 0"
+//#define WINUAEBETA _T("")
+#define WINUAEBETA _T("Beta 0")
 #define WINUAEDATE MAKEBD(2012, 3, 29)
-#define WINUAEEXTRA L""
-//#define WINUAEEXTRA L"AmiKit Preview"
-#define WINUAEREV L""
+#define WINUAEEXTRA _T("")
+//#define WINUAEEXTRA _T("AmiKit Preview")
+#define WINUAEREV _T("")
 
 #define IHF_WINDOWHIDDEN 6
 #define NORMAL_WINDOW_STYLE (WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX)
 
-#define WINUAEAPPNAME L"Arabuusimiehet.WinUAE"
+#define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
 extern HMODULE hUIDLL;
 extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 extern RECT amigawin_rect, mainwin_rect;
@@ -132,7 +132,7 @@ void set_path (const TCHAR *name, TCHAR *path, pathtype);
 void read_rom_list (void);
 void associate_file_extensions (void);
 
-#define WIN32_PLUGINDIR L"plugins\\"
+#define WIN32_PLUGINDIR _T("plugins\\")
 HMODULE WIN32_LoadLibrary (const TCHAR *);
 HMODULE WIN32_LoadLibrary2 (const TCHAR *);
 int isdllversion (const TCHAR *name, int version, int revision, int subver, int subrev);

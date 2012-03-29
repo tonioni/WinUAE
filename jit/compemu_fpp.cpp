@@ -151,20 +151,20 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		    float si = (float) li;
 
 		    if (li == (int) si) {
-			//write_log (L"converted immediate LONG constant to SINGLE\n");
+			//write_log (_T("converted immediate LONG constant to SINGLE\n"));
 			fmovs_ri(treg,*(uae_u32 *)&si);
 			return 1;
 		    }
-		    //write_log (L"immediate LONG constant\n");
+		    //write_log (_T("immediate LONG constant\n"));
 		    fmovl_ri(treg,li);
 		    return 2;
 		  }
 		case 1:
-		    //write_log (L"immediate SINGLE constant\n");
+		    //write_log (_T("immediate SINGLE constant\n"));
 		    fmovs_ri(treg,comp_get_ilong(m68k_pc_offset-4));
 		    return 1;
 		case 2:
-		    //write_log (L"immediate LONG DOUBLE constant\n");
+		    //write_log (_T("immediate LONG DOUBLE constant\n"));
 		    fmov_ext_ri(treg,comp_get_ilong(m68k_pc_offset-4),
 				  comp_get_ilong(m68k_pc_offset-8),
 				(comp_get_ilong(m68k_pc_offset-12)>>16)&0xffff);
@@ -173,7 +173,7 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		  {
 		    float si = (float)(uae_s16)comp_get_iword(m68k_pc_offset-2);
 
-		    //write_log (L"converted immediate WORD constant to SINGLE\n");
+		    //write_log (_T("converted immediate WORD constant to SINGLE\n"));
 		    fmovs_ri(treg,*(uae_u32 *)&si);
 		    return 1;
 		  }
@@ -184,11 +184,11 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		    float si = (float)*(double *)longarray;
 
 		    if (*(double *)longarray == (double)si) {
-			//write_log (L"SPEED GAIN: converted a DOUBLE constant to SINGLE\n");
+			//write_log (_T("SPEED GAIN: converted a DOUBLE constant to SINGLE\n"));
 			fmovs_ri(treg,*(uae_u32 *)&si);
 			return 1;
 		    }
-		    //write_log (L"immediate DOUBLE constant\n");
+		    //write_log (_T("immediate DOUBLE constant\n"));
 		    fmov_ri(treg,longarray[0],longarray[1]);
 		    return 2;
 		 }
@@ -196,7 +196,7 @@ STATIC_INLINE int comp_fp_get (uae_u32 opcode, uae_u16 extra, int treg)
 		  {
 		    float si = (float)(uae_s8)comp_get_ibyte(m68k_pc_offset-2);
 
-		    //write_log (L"immediate BYTE constant converted to SINGLE\n");
+		    //write_log (_T("immediate BYTE constant converted to SINGLE\n"));
 		    fmovs_ri(treg,*(uae_u32 *)&si);
 		    return 1;
 		  }
@@ -365,7 +365,7 @@ STATIC_INLINE int comp_fp_put (uae_u32 opcode, uae_u16 extra)
 	     break;
 	  }
 	 default: /* All other modes are not allowed for FPx to <EA> */
-	    write_log (L"JIT FMOVE FPx,<EA> Mode is not allowed %04x %04x\n",opcode,extra);
+	    write_log (_T("JIT FMOVE FPx,<EA> Mode is not allowed %04x %04x\n"),opcode,extra);
 	    return -1;
 	}
     }
@@ -467,7 +467,7 @@ void comp_fscc_opp (uae_u32 opcode, uae_u16 extra)
     }
 
 #if DEBUG_FPP
-    write_log (L"JIT: fscc_opp at %08lx\n", M68K_GETPC);
+    write_log (_T("JIT: fscc_opp at %08lx\n"), M68K_GETPC);
 #endif
 
     if (extra&0x20) {  /* only cc from 00 to 1f are defined */
@@ -990,14 +990,14 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 		mov_l_rr((opcode & 7)+8,ad);
 	    return;
 	} /* no break */
-	write_log (L"fallback from JIT FMOVEM dynamic register list\n");
+	write_log (_T("fallback from JIT FMOVEM dynamic register list\n"));
 	FAIL(1);
 	return;
 #endif
      case 2: /* from <EA> to FPx */
 	dont_care_fflags();
 	if ((extra & 0xfc00) == 0x5c00) { /* FMOVECR */
-	    //write_log (L"JIT FMOVECR %x\n", opmode);
+	    //write_log (_T("JIT FMOVECR %x\n"), opmode);
 	    switch (opmode) {
 		case 0x00:
 		    fmov_pi(dreg);
@@ -1448,7 +1448,7 @@ void comp_fpp_opp (uae_u32 opcode, uae_u16 extra)
 	fmov_rr(FP_RESULT,dreg);
 	return;
      default:
-	write_log (L"Unsupported JIT-FPU instruction: 0x%04x %04x\n",opcode,extra);
+	write_log (_T("Unsupported JIT-FPU instruction: 0x%04x %04x\n"),opcode,extra);
 	FAIL(1);
 	return;
     }

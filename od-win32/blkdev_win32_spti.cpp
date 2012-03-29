@@ -111,7 +111,7 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 
 	*err = 0;
 	if (log_scsi) {
-		write_log (L"SCSI, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
+		write_log (_T("SCSI, H=%X:%d:%d:%d:%d: "), di->handle, di->bus, di->path, di->target, di->lun);
 		scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 			swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? (uae_u8*)swb->spt.DataBuffer : NULL, swb->spt.DataTransferLength);
 	}
@@ -129,8 +129,8 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 	if (!status) {
 		int lasterror = GetLastError();
 		*err = lasterror;
-		write_log (L"SCSI ERROR, H=%X:%d:%d:%d:%d: ", di->handle, di->bus, di->path, di->target, di->lun);
-		write_log (L"Status = %d, Error code = %d, LastError=%d\n", status, swb->spt.ScsiStatus, lasterror);
+		write_log (_T("SCSI ERROR, H=%X:%d:%d:%d:%d: "), di->handle, di->bus, di->path, di->target, di->lun);
+		write_log (_T("Status = %d, Error code = %d, LastError=%d\n"), status, swb->spt.ScsiStatus, lasterror);
 		scsi_log_before (swb->spt.Cdb, swb->spt.CdbLength,
 			swb->spt.DataIn == SCSI_IOCTL_DATA_OUT ? (uae_u8*)swb->spt.DataBuffer : 0,swb->spt.DataTransferLength);
 	}
@@ -336,7 +336,7 @@ static int rescan (void);
 static void close_scsi_bus (void)
 {
 	if (!bus_open) {
-		write_log (L"SPTI close_bus() when already closed!\n");
+		write_log (_T("SPTI close_bus() when already closed!\n"));
 		return;
 	}
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
@@ -345,20 +345,20 @@ static void close_scsi_bus (void)
 	}
 	total_devices = 0;
 	bus_open = 0;
-	write_log (L"SPTI driver closed.\n");
+	write_log (_T("SPTI driver closed.\n"));
 }
 
 static int open_scsi_bus (int flags)
 {
 	if (bus_open) {
-		write_log (L"SPTI open_bus() more than once!\n");
+		write_log (_T("SPTI open_bus() more than once!\n"));
 		return 1;
 	}
 	total_devices = 0;
 	uae_sem_init (&scgp_sem, 0, 1);
 	rescan ();
 	bus_open = 1;
-	write_log (L"SPTI driver open, %d devices.\n", total_devices);
+	write_log (_T("SPTI driver open, %d devices.\n"), total_devices);
 	return total_devices;
 }
 
@@ -400,7 +400,7 @@ static int mediacheck_full (struct dev_info_spti *di, int unitnum, struct device
 			dinfo->write_protected = (p[3] & 0x80) ? 1 : 0;
 		}
 	}
-	//	write_log (L"mediacheck_full(%d,%d,%d,%d,%d)\n",
+	//	write_log (_T("mediacheck_full(%d,%d,%d,%d,%d)\n"),
 	//	di->bytespersector, di->sectorspertrack, di->trackspercylinder, di->cylinders, di->write_protected);
 	return 1;
 }
@@ -421,9 +421,9 @@ static void update_device_info (int unitnum)
 	mediacheck_full (dispti, unitnum, di);
 	di->type = dispti->type;
 	di->unitnum = unitnum + 1;
-	di->backend = L"SPTI";
+	di->backend = _T("SPTI");
 	if (log_scsi) {
-		write_log (L"MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n",
+		write_log (_T("MI=%d TP=%d WP=%d CY=%d BK=%d RMB=%d '%s'\n"),
 			di->media_inserted, di->type, di->write_protected, di->cylinders, di->bytespersector, di->removable, di->label);
 	}
 }
@@ -441,7 +441,7 @@ static void checkcapabilities (struct dev_info_spti *di)
 		&query, sizeof query, &desc, sizeof desc, &ret, NULL);
 	if (status) {
 		if (desc.Version > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
-			write_log (L"SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n",
+			write_log (_T("SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n"),
 			desc.BusType, desc.MaximumTransferLength, desc.AlignmentMask);
 	}
 }
@@ -459,7 +459,7 @@ static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 	di->type = 0x1f;
 	if (!p) {
 		if (log_scsi)
-			write_log (L"SPTI: INQUIRY failed\n");
+			write_log (_T("SPTI: INQUIRY failed\n"));
 		return 0;
 	}
 	inqlen = outlen > INQUIRY_SIZE ? INQUIRY_SIZE : outlen;
@@ -481,7 +481,7 @@ static int inquiry (struct dev_info_spti *di, int unitnum, uae_u8 *inquirydata)
 			memcpy (tmp, p + 16, 16);
 			tmp[16] = 0;
 			s2 = au (tmp);
-			write_log (L"SPTI: INQUIRY: %02X%02X%02X %d '%s' '%s'\n",
+			write_log (_T("SPTI: INQUIRY: %02X%02X%02X %d '%s' '%s'\n"),
 				p[0], p[1], p[2], di->isatapi, s1, s2);
 			xfree (s2);
 			xfree (s1);
@@ -497,7 +497,7 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 
 	if (di->bus >= 0) {
 		dev = xmalloc (TCHAR, 100);
-		_stprintf (dev, L"\\\\.\\Scsi%d:", di->bus);
+		_stprintf (dev, _T("\\\\.\\Scsi%d:"), di->bus);
 	} else {
 		dev = my_strdup (di->drvpath);
 	}
@@ -506,12 +506,12 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 	h = CreateFile(dev,GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
 	di->handle = h;
 	if (h == INVALID_HANDLE_VALUE) {
-		write_log (L"SPTI: failed to open unit %d err=%d ('%s')\n", unitnum, GetLastError (), dev);
+		write_log (_T("SPTI: failed to open unit %d err=%d ('%s')\n"), unitnum, GetLastError (), dev);
 	} else {
 		uae_u8 inqdata[INQUIRY_SIZE + 1] = { 0 };
 		checkcapabilities (di);
 		if (!inquiry (di, unitnum, inqdata)) {
-			write_log (L"SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n", unitnum, dev,
+			write_log (_T("SPTI: inquiry failed unit %d ('%s':%d:%d:%d:%d)\n"), unitnum, dev,
 				di->bus, di->path, di->target, di->lun);
 			close_scsi_device2 (di);
 			xfree (dev);
@@ -521,13 +521,13 @@ static int open_scsi_device2 (struct dev_info_spti *di, int unitnum)
 		di->name = my_strdup_ansi ((char*)inqdata + 8);
 		if (di->type == INQ_ROMD) {
 			di->mediainserted = mediacheck (di, unitnum);
-			write_log (L"SPTI: unit %d (%c:\\) opened [%s], %s, '%s'\n",
+			write_log (_T("SPTI: unit %d (%c:\\) opened [%s], %s, '%s'\n"),
 				unitnum, di->drvletter ? di->drvletter : '*',
-				di->isatapi ? L"ATAPI" : L"SCSI",
-				di->mediainserted ? L"media inserted" : L"drive empty",
+				di->isatapi ? _T("ATAPI") : _T("SCSI"),
+				di->mediainserted ? _T("media inserted") : _T("drive empty"),
 				di->name);
 		} else {
-			write_log (L"SPTI: unit %d, type %d, '%s'\n",
+			write_log (_T("SPTI: unit %d, type %d, '%s'\n"),
 				unitnum, di->type, di->name);
 		}
 		di->inquirydata = xmalloc (uae_u8, INQUIRY_SIZE);
@@ -588,7 +588,7 @@ static int adddrive (const TCHAR *drvpath, int bus, int pathid, int targetid, in
 		if (!_tcscmp (drvpath, di->drvpath))
 			return 0;
 	}
-	write_log (L"SPTI: unit %d '%s' added\n", total_devices, drvpath);
+	write_log (_T("SPTI: unit %d '%s' added\n"), total_devices, drvpath);
 	di = &dev_info[total_devices];
 	di->drvpath = my_strdup (drvpath);
 	di->type = 0;
@@ -603,10 +603,10 @@ static int adddrive (const TCHAR *drvpath, int bus, int pathid, int targetid, in
 	for (TCHAR drvletter = 'C'; drvletter <= 'Z'; drvletter++) {
 		TCHAR drvname[10];
 		TCHAR volname[MAX_DPATH], volname2[MAX_DPATH];
-		_stprintf (drvname, L"%c:\\", drvletter);
+		_stprintf (drvname, _T("%c:\\"), drvletter);
 		if (GetVolumeNameForVolumeMountPoint (drvname, volname, sizeof volname / sizeof (TCHAR))) {
 			TCHAR drvpath2[MAX_DPATH];
-			_stprintf (drvpath2, L"%s\\", di->drvpath);
+			_stprintf (drvpath2, _T("%s\\"), di->drvpath);
 			if (GetVolumeNameForVolumeMountPoint (drvpath2, volname2, sizeof volname2 / sizeof (TCHAR))) {
 				if (!_tcscmp (volname, volname2)) {
 					di->drvletter = drvletter;
@@ -623,7 +623,7 @@ static int adddrive (const TCHAR *drvpath, int bus, int pathid, int targetid, in
 	if (open_scsi_device2 (&dev_info[cnt], cnt)) {
 		for (i = 0; i < cnt; i++) {
 			if (!memcmp (di->inquirydata, dev_info[i].inquirydata, INQUIRY_SIZE) && di->scanmode != dev_info[i].scanmode) {
-				write_log (L"duplicate device, skipped..\n");
+				write_log (_T("duplicate device, skipped..\n"));
 				break;
 			}
 		}
@@ -657,7 +657,7 @@ bool win32_spti_media_change (TCHAR driveletter, int insert)
 	for (int i = 0; i < total_devices; i++) {
 		struct dev_info_spti *di = &dev_info[i];
 		if (di->drvletter == driveletter && di->mediainserted != insert) {
-			write_log (L"SPTI: media change %c %d\n", dev_info[i].drvletter, insert);
+			write_log (_T("SPTI: media change %c %d\n"), dev_info[i].drvletter, insert);
 			di->mediainserted = insert;
 			int unitnum = getunitnum (di);
 			if (unitnum >= 0) {
@@ -758,7 +758,7 @@ static void scanscsi (void)
 
 	idx = 0;
 	for (;;) {
-		_stprintf (DeviceName, L"\\\\.\\Scsi%d:", idx++);
+		_stprintf (DeviceName, _T("\\\\.\\Scsi%d:"), idx++);
 		h = CreateFile (DeviceName,
 			GENERIC_READ | GENERIC_WRITE,
 			0,
@@ -777,7 +777,7 @@ static void scanscsi (void)
 			0,
 			&bytesTransferred,
 			NULL)) {
-				write_log (L"Rescan SCSI port %d failed [Error %d]\n", idx - 1, GetLastError());
+				write_log (_T("Rescan SCSI port %d failed [Error %d]\n"), idx - 1, GetLastError());
 				CloseHandle (h);
 				continue;
 		}
@@ -794,7 +794,7 @@ static void scanscsi (void)
 			NULL);
 
 		if (!status) {
-			write_log (L"Error in IOCTL_SCSI_GET_INQUIRY_DATA\n" );
+			write_log (_T("Error in IOCTL_SCSI_GET_INQUIRY_DATA\n") );
 			CloseHandle (h);
 			continue;
 		}
@@ -807,13 +807,13 @@ static void scanscsi (void)
 				TCHAR label[100];
 				int type = InquiryData->InquiryData[0] & 0x1f;
 				Claimed = InquiryData->DeviceClaimed;
-				write_log (L"SCSI=%d Initiator=%d Path=%d Target=%d LUN=%d Claimed=%s Type=%d\n",
+				write_log (_T("SCSI=%d Initiator=%d Path=%d Target=%d LUN=%d Claimed=%s Type=%d\n"),
 					idx - 1,
 					BusData->InitiatorBusId, InquiryData->PathId, InquiryData->TargetId,
-					InquiryData->Lun, Claimed ? L"Yes" : L"No ", type);
+					InquiryData->Lun, Claimed ? _T("Yes") : _T("No "), type);
 				if (Claimed == 0 && !luncheck) {
 					luncheck = 1;
-					_stprintf (label, L"SCSI(%d):%d:%d:%d:%d", idx - 1, BusData->InitiatorBusId,
+					_stprintf (label, _T("SCSI(%d):%d:%d:%d:%d"), idx - 1, BusData->InitiatorBusId,
 						InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun);
 					adddrive (label, idx - 1, InquiryData->PathId, InquiryData->TargetId, InquiryData->Lun, 3);
 				}
@@ -829,7 +829,7 @@ static const GUID *guids[] = {
 	&GUID_DEVCLASS_IMAGE,
 	&GUID_DEVCLASS_TAPEDRIVE,
 	NULL };
-static const TCHAR *scsinames[] = { L"Tape", L"Scanner", L"Changer", NULL };
+static const TCHAR *scsinames[] = { _T("Tape"), _T("Scanner"), _T("Changer"), NULL };
 
 static int rescan (void)
 {
@@ -853,7 +853,7 @@ static int rescan (void)
 		for (idx = 0; idx < max; idx++) {
 			TCHAR tmp[100];
 			HANDLE h;
-			_stprintf (tmp, L"\\\\.\\%s%d", scsinames[idx2], idx);
+			_stprintf (tmp, _T("\\\\.\\%s%d"), scsinames[idx2], idx);
 			h = CreateFile (tmp, GENERIC_READ | GENERIC_WRITE,
 				FILE_SHARE_READ | FILE_SHARE_WRITE,
 				NULL, OPEN_EXISTING, 0, NULL);
@@ -866,9 +866,9 @@ static int rescan (void)
 		}
 	}
 	if (currprefs.win32_uaescsimode == UAESCSI_SPTISCAN) {
-		write_log (L"SCSI adapter enumeration..\n");
+		write_log (_T("SCSI adapter enumeration..\n"));
 		scanscsi ();
-		write_log (L"SCSI adapter enumeration ends\n");
+		write_log (_T("SCSI adapter enumeration ends\n"));
 	}
 	return 1;
 }
@@ -878,7 +878,7 @@ static int rescan (void)
 
 
 struct device_functions devicefunc_win32_spti = {
-	L"SPTI",
+	_T("SPTI"),
 	open_scsi_bus, close_scsi_bus, open_scsi_device, close_scsi_device, info_device,
 	execscsicmd_out, execscsicmd_in, execscsicmd_direct,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, check_isatapi, 0, 0

@@ -52,7 +52,7 @@ int ioport_init (void)
 		return initialized > 0 ? 1 : 0;
 
 #ifndef IOPORT_EMU
-	ioh = WIN32_LoadLibrary (L"tvicport.dll");
+	ioh = WIN32_LoadLibrary (_T("tvicport.dll"));
 	if (ioh) {
 		for (;;) {
 			pOpenTVicPort = (OPENTVICPORT)GetProcAddress (ioh, "OpenTVicPort");
@@ -61,25 +61,25 @@ int ioport_init (void)
 			pReadPort = (READPORT)GetProcAddress (ioh, "ReadPort");
 			pWritePort = (WRITEPORT)GetProcAddress (ioh, "WritePort");
 			if (!pOpenTVicPort || !pCloseTVicPort || !pIsDriverOpened || !pReadPort || !pWritePort) {
-				write_log (L"IO: incompatible tvicport.dll\n");
+				write_log (_T("IO: incompatible tvicport.dll\n"));
 				break;
 			}
 			if (!pOpenTVicPort()) {
-				write_log (L"IO: tvicport.dll failed to initialize\n");
+				write_log (_T("IO: tvicport.dll failed to initialize\n"));
 				break;
 			}
 			if (!pIsDriverOpened()) {
-				write_log (L"IO: tvicport.dll failed to initialize!\n");
+				write_log (_T("IO: tvicport.dll failed to initialize!\n"));
 				pCloseTVicPort();
 				break;
 			}
 			initialized = 1;
-			write_log (L"IO: tvicport.dll initialized\n");
+			write_log (_T("IO: tvicport.dll initialized\n"));
 			return 1;
 		}
 	}
 	FreeLibrary(ioh);
-	ioh = WIN32_LoadLibrary (L"winio.dll");
+	ioh = WIN32_LoadLibrary (_T("winio.dll"));
 	if (ioh) {
 		for (;;) {
 			pInitializeWinIo = (INITIALIZEWINIO)GetProcAddress (ioh, "InitializeWinIo");
@@ -87,23 +87,23 @@ int ioport_init (void)
 			pGetPortVal = (GETPORTVAL)GetProcAddress (ioh, "GetPortVal");
 			pSetPortVal = (SETPORTVAL)GetProcAddress (ioh, "SetPortVal");
 			if (!pInitializeWinIo || !pShutdownWinIo || !pGetPortVal || !pSetPortVal) {
-				write_log (L"IO: incompatible winio.dll\n");
+				write_log (_T("IO: incompatible winio.dll\n"));
 				break;
 			}
 			__try {
 				initialized = pInitializeWinIo() ? 2 : 0;
 			} __except (EXCEPTION_EXECUTE_HANDLER) {
-				write_log (L"IO: winio.dll initialization failed\n");
+				write_log (_T("IO: winio.dll initialization failed\n"));
 			}
 			if (!initialized)
 				break;
-			write_log (L"IO: winio.dll initialized\n");
+			write_log (_T("IO: winio.dll initialized\n"));
 			return 1;
 		}
 	}
 	FreeLibrary(ioh);
 	initialized = -1;
-	write_log (L"IO: tvicport.dll or winio.dll failed to initialize\n");
+	write_log (_T("IO: tvicport.dll or winio.dll failed to initialize\n"));
 	return 0;
 #else
 	initialized = 1;
@@ -191,9 +191,9 @@ int paraport_init (void)
 	HANDLE pp;
 
 	paraport_free ();
-	para = WIN32_LoadLibrary(L"ParaPort.dll");
+	para = WIN32_LoadLibrary(_T("ParaPort.dll"));
 	if (!para) {
-		write_log (L"PARAPORT: no ParaPort.dll, direct parallel port emulation disabled\n");
+		write_log (_T("PARAPORT: no ParaPort.dll, direct parallel port emulation disabled\n"));
 		return 0;
 	}
 	pp_closeport = (closePort)GetProcAddress (para, "closePort");
@@ -201,10 +201,10 @@ int paraport_init (void)
 	pp_getportinfo = (getPortInfo)GetProcAddress (para, "getPortInfo");
 	pp_openport = (openPort)GetProcAddress (para, "openPort");
 	if (!pp_openport || !pp_closeport || !pp_executecycle) {
-		write_log (L"PARAPORT: GetProcAddress() failed\n");
+		write_log (_T("PARAPORT: GetProcAddress() failed\n"));
 		paraport_free ();
 	}
-	write_log (L"PARAPORT:");
+	write_log (_T("PARAPORT:"));
 	for (i = 0; i < 4 ; i++) {
 		char tmp[10];
 		sprintf (tmp, "LPT%d", i + 1);
@@ -216,8 +216,8 @@ int paraport_init (void)
 		pp = 0;
 	}
 	if (!mask)
-		write_log (L"no parallel ports detected");
-	write_log (L"\n");
+		write_log (_T("no parallel ports detected"));
+	write_log (_T("\n"));
 	return mask;
 }
 
@@ -235,17 +235,17 @@ int paraport_open (TCHAR *port)
 	pport = pp_openport (port2);
 	xfree (port2);
 	if (!pport) {
-		write_log (L"PARAPORT: couldn't open '%s'\n", port);
+		write_log (_T("PARAPORT: couldn't open '%s'\n"), port);
 		paraport_free ();
 		return 0;
 	}
 	_tcscpy (oldport, port);
-	write_log (L"PARAPORT: port '%s' opened\n", port);
+	write_log (_T("PARAPORT: port '%s' opened\n"), port);
 	memset (c, 0, sizeof (PARAPORT_CYCLE));
 	c[0].MaskControl = PARAPORT_MASK_CONTROL | PARAPORT_MASK_CONTROL_DIRECTION;
 	c[0].Control = PARAPORT_MASK_CONTROL_INIT | PARAPORT_MASK_CONTROL_DIRECTION;
 	if (!pp_executecycle (pport, c, 1)) {
-		write_log (L"PARAPORT: init executeCycle failed\n");
+		write_log (_T("PARAPORT: init executeCycle failed\n"));
 	}
 	return 1;
 }
@@ -261,20 +261,20 @@ int parallel_direct_write_status (uae_u8 v, uae_u8 dir)
 	memset (c, 0, sizeof (PARAPORT_CYCLE));
 	c[0].MaskControl = PARAPORT_MASK_CONTROL_SELECTIN;
 	if ((dir & 1)) {
-		write_log (L"PARAPORT: BUSY can't be output\n");
+		write_log (_T("PARAPORT: BUSY can't be output\n"));
 		ok = 0;
 	}
 	if ((dir & 2)) {
-		write_log (L"PARAPORT: POUT can't be output\n");
+		write_log (_T("PARAPORT: POUT can't be output\n"));
 		ok = 0;
 	}
 	if ((dir & 4) && !(v & 4))
 		c[0].Control |= PARAPORT_MASK_CONTROL_SELECTIN;
 	if (!pp_executecycle (pport, c, 1)) {
-		write_log (L"PARAPORT: write executeCycle failed, CTL=%02X DIR=%02X\n", v & 7, dir & 7);
+		write_log (_T("PARAPORT: write executeCycle failed, CTL=%02X DIR=%02X\n"), v & 7, dir & 7);
 		return 0;
 	}
-	para_log (L"PARAPORT: write CTL=%02X DIR=%02X\n", v & 7, dir & 7);
+	para_log (_T("PARAPORT: write CTL=%02X DIR=%02X\n"), v & 7, dir & 7);
 	return ok;
 }
 
@@ -290,7 +290,7 @@ int parallel_direct_read_status (uae_u8 *vp)
 	memset (c + 0, 0, sizeof (PARAPORT_CYCLE));
 	c[0].MaskStatus = PARAPORT_MASK_STATUS;
 	if (!pp_executecycle (pport, c, 1)) {
-		write_log (L"PARAPORT: CTL read executeCycle failed\n");
+		write_log (_T("PARAPORT: CTL read executeCycle failed\n"));
 		return 0;
 	}
 	if (c[0].Status & PARAPORT_MASK_STATUS_SELECT)
@@ -307,7 +307,7 @@ int parallel_direct_read_status (uae_u8 *vp)
 	} else {
 		oldack = 0;
 	}
-	para_log (L"PARAPORT: read CTL=%02X\n", v);
+	para_log (_T("PARAPORT: read CTL=%02X\n"), v);
 	v &= 7;
 	*vp &= ~7;
 	*vp |= v;
@@ -322,7 +322,7 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 	if (!pport)
 		return 0;
 	if (dir != 0xff) {
-		write_log (L"PARAPORT: unsupported mixed i/o attempted, DATA=%02X DIR=%02X, ignored\n", v, dir);
+		write_log (_T("PARAPORT: unsupported mixed i/o attempted, DATA=%02X DIR=%02X, ignored\n"), v, dir);
 		return 0;
 	}
 	memset (c, 0, 3 * sizeof (PARAPORT_CYCLE));
@@ -337,10 +337,10 @@ int parallel_direct_write_data (uae_u8 v, uae_u8 dir)
 	c[2].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
 
 	if (!pp_executecycle (pport, c, 3)) {
-		write_log (L"PARAPORT: write executeCycle failed, data=%02X\n", v);
+		write_log (_T("PARAPORT: write executeCycle failed, data=%02X\n"), v);
 		return 0;
 	}
-	para_log (L"PARAPORT: write DATA=%02X\n", v);
+	para_log (_T("PARAPORT: write DATA=%02X\n"), v);
 	return 1;
 }
 
@@ -364,11 +364,11 @@ int parallel_direct_read_data (uae_u8 *v)
 	c[2].MaskControl = PARAPORT_MASK_CONTROL_STROBE;
 
 	if (!pp_executecycle (pport, c, 3)) {
-		write_log (L"PARAPORT: DATA read executeCycle failed\n");
+		write_log (_T("PARAPORT: DATA read executeCycle failed\n"));
 		return 0;
 	}
 	*v = c[0].Data;
-	para_log (L"PARAPORT: read DATA=%02X\n", v);
+	para_log (_T("PARAPORT: read DATA=%02X\n"), v);
 	return ok;
 }
 

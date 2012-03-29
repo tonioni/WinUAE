@@ -44,25 +44,25 @@ static int lcd_init (void)
 	ret = lgLcdInit ();
 	if (ret != ERROR_SUCCESS) {
 		if (ret == RPC_S_SERVER_UNAVAILABLE || ret == ERROR_OLD_WIN_VERSION) {
-			write_log (L"LCD: Logitech LCD system not detected\n");
+			write_log (_T("LCD: Logitech LCD system not detected\n"));
 			return 0;
 		}
-		write_log (L"LCD: lgLcdInit() returned %d\n", ret);
+		write_log (_T("LCD: lgLcdInit() returned %d\n"), ret);
 		return 0;
 	}
 	memset (&cctx, 0, sizeof (cctx));
-	cctx.appFriendlyName = L"WinUAE";
+	cctx.appFriendlyName = _T("WinUAE");
 	cctx.isPersistent = TRUE;
 	cctx.isAutostartable = FALSE;
 	ret = lgLcdConnect (&cctx);
 	if (ret != ERROR_SUCCESS) {
-		write_log (L"LCD: lgLcdConnect() returned %d\n", ret);
+		write_log (_T("LCD: lgLcdConnect() returned %d\n"), ret);
 		lcd_close ();
 		return 0;
 	}
 	ret = lgLcdEnumerateEx (cctx.connection, 0, &desc);
 	if (ret != ERROR_SUCCESS) {
-		write_log (L"LCD: lgLcdEnumerateEx() returned %d\n", ret);
+		write_log (_T("LCD: lgLcdEnumerateEx() returned %d\n"), ret);
 		lcd_close ();
 		return 0;
 	}
@@ -75,7 +75,7 @@ static int lcd_init (void)
 	octx.index = 0;
 	ret = lgLcdOpen (&octx);
 	if (ret != ERROR_SUCCESS) {
-		write_log (L"LCD: lgLcdOpen() returned %d\n", ret);
+		write_log (_T("LCD: lgLcdOpen() returned %d\n"), ret);
 		lcd_close ();
 		return 0;
 	}
@@ -94,7 +94,7 @@ static int lcd_init (void)
 	memcpy (origbitmap, bitmap, desc.Width * desc.Height);
 	DeleteDC (dc);
 
-	write_log (L"LCD: '%s' enabled\n", desc.deviceDisplayName);
+	write_log (_T("LCD: '%s' enabled\n"), desc.deviceDisplayName);
 	return 1;
 }
 

@@ -51,7 +51,7 @@ static int capture_init (void)
 
 	hr = DirectSoundCaptureCreate (&record_devices[currprefs.win32_samplersoundcard]->guid, &lpDS2r, NULL);
 	if (FAILED (hr)) {
-		write_log (L"SAMPLER: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
+		write_log (_T("SAMPLER: DirectSoundCaptureCreate() failure: %s\n"), DXError (hr));
 		return 0;
 	}
 	memset (&sound_buffer_rec, 0, sizeof (DSCBUFFERDESC));
@@ -62,17 +62,17 @@ static int capture_init (void)
 
 	hr = lpDS2r->CreateCaptureBuffer (&sound_buffer_rec, &lpDSB2r, NULL);
 	if (FAILED (hr)) {
-		write_log (L"SAMPLER: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
+		write_log (_T("SAMPLER: CreateCaptureSoundBuffer() failure: %s\n"), DXError(hr));
 		return 0;
 	}
 
 	hr = lpDSB2r->Start (DSCBSTART_LOOPING);
 	if (FAILED (hr)) {
-		write_log (L"SAMPLER: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
+		write_log (_T("SAMPLER: DirectSoundCaptureBuffer_Start failed: %s\n"), DXError (hr));
 		return 0;
 	}
 	samplebuffer = xcalloc (uae_u8, SAMPLEBUFFER * SAMPLESIZE);
-	write_log (L"SAMPLER: Parallel port sampler initialized\n");
+	write_log (_T("SAMPLER: Parallel port sampler initialized\n"));
 	return 1;
 }
 
@@ -81,7 +81,7 @@ static void capture_free (void)
 	if (lpDSB2r) {
 		lpDSB2r->Stop ();
 		lpDSB2r->Release ();
-		write_log (L"SAMPLER: Parallel port sampler freed\n");
+		write_log (_T("SAMPLER: Parallel port sampler freed\n"));
 	}
 	lpDSB2r = NULL;
 	if (lpDS2r)
@@ -180,7 +180,7 @@ uae_u8 sampler_getsample (int channel)
 		if (diff2 < 0)
 			diffsample = -diffsample;
 #endif	
-//		write_log (L"%d:%.1f\n", diff, diffsample);
+//		write_log (_T("%d:%.1f\n"), diff, diffsample);
 
 		cap_pos += SAMPLEBUFFER * SAMPLESIZE;
 		if (cap_pos < 0)

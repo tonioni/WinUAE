@@ -45,7 +45,7 @@ static struct sockd *sockdata;
 uae_u32 strncpyha (uae_u32 dst, const uae_char *src, int size)
 {
 	uae_u32 res = dst;
-	if (!addr_valid (L"strncpyha", dst, size))
+	if (!addr_valid (_T("strncpyha"), dst, size))
 		return res;
 	while (size--) {
 		put_byte (dst++, *src);
@@ -101,7 +101,7 @@ static uae_u32 gettask (TrapContext *context)
 	m68k_areg (regs, 1) = a1;
 
 	tskname = au((char*)get_real_address (get_long (currtask + 10)));
-	BSDTRACE ((L"[%s] ", tskname));
+	BSDTRACE ((_T("[%s] "), tskname));
 	xfree (tskname);
 	return currtask;
 }
@@ -149,11 +149,11 @@ uae_u32 callfdcallback (TrapContext *context, SB, uae_u32 fd, uae_u32 action)
 	uae_u32 v;
 	if (!sb->fdcallback)
 		return 0;
-	BSDTRACE((L"FD_CALLBACK(%d,%d) ", fd, action));
+	BSDTRACE((_T("FD_CALLBACK(%d,%d) "), fd, action));
 	m68k_dreg (regs, 0) = fd;
 	m68k_dreg (regs, 1) = action;
 	v = CallFunc (context, sb->fdcallback);
-	BSDTRACE((L"-> %d\n", v));
+	BSDTRACE((_T("-> %d\n"), v));
 	return v;
 }
 
@@ -177,7 +177,7 @@ BOOL checksd(TrapContext *context, SB, int sd)
 				return TRUE;
 		}
 	}
-	BSDTRACE((L"checksd FALSE s 0x%x sd %d\n",s,sd));
+	BSDTRACE((_T("checksd FALSE s 0x%x sd %d\n"),s,sd));
 	return FALSE;
 }
 
@@ -237,25 +237,25 @@ int getsd (TrapContext *context, SB, SOCKET_TYPE s)
 SOCKET_TYPE getsock (SB, int sd)
 {
 	if ((unsigned int) (sd - 1) >= (unsigned int) sb->dtablesize) {
-		BSDTRACE ((L"Invalid Socket Descriptor (%d)\n", sd));
+		BSDTRACE ((_T("Invalid Socket Descriptor (%d)\n"), sd));
 		bsdsocklib_seterrno (sb, 38); /* ENOTSOCK */
 		return -1;
 	}
 	if (sb->dtable[sd - 1] == INVALID_SOCKET) {
 		struct socketbase *sb1, *nsb;
 		uaecptr ot;
-		if (!addr_valid (L"getsock1", sb->ownertask + 10, 4))
+		if (!addr_valid (_T("getsock1"), sb->ownertask + 10, 4))
 			return -1;
 		ot = get_long (sb->ownertask + 10);
-		if (!addr_valid (L"getsock2", ot, 1))
+		if (!addr_valid (_T("getsock2"), ot, 1))
 			return -1;
 		// Fix for Newsrog (All Tasks of Newsrog using the same dtable)
 		for (sb1 = socketbases; sb1; sb1 = nsb) {
 			uaecptr ot1;
-			if (!addr_valid (L"getsock3", sb1->ownertask + 10, 4))
+			if (!addr_valid (_T("getsock3"), sb1->ownertask + 10, 4))
 				break;
 			ot1 = get_long (sb1->ownertask + 10);
-			if (!addr_valid (L"getsock4", ot1, 1))
+			if (!addr_valid (_T("getsock4"), ot1, 1))
 				break;
 			if (strcmp((char*)get_real_address (ot1), (char*)get_real_address (ot)) == 0) {
 				// Task with same name already exists -> use same dtable
@@ -371,7 +371,7 @@ static struct socketbase *alloc_socketbase (TrapContext *context)
 		sb->signal = CallLib (context, sb->sysbase, -0x14A); /* AllocSignal */
 
 		if (sb->signal == -1) {
-			write_log (L"bsdsocket: ERROR: Couldn't allocate signal for task 0x%lx.\n", sb->ownertask);
+			write_log (_T("bsdsocket: ERROR: Couldn't allocate signal for task 0x%lx.\n"), sb->ownertask);
 			free (sb);
 			return NULL;
 		}
@@ -478,7 +478,7 @@ static void free_socketbase (TrapContext *context)
 
 static uae_u32 REGPARAM2 bsdsocklib_Expunge (TrapContext *context)
 {
-	BSDTRACE ((L"Expunge() -> [ignored]\n"));
+	BSDTRACE ((_T("Expunge() -> [ignored]\n")));
 	return 0;
 }
 
@@ -490,7 +490,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 	int opencount;
 	SB;
 
-	BSDTRACE ((L"OpenLibrary() -> "));
+	BSDTRACE ((_T("OpenLibrary() -> ")));
 
 	if ((sb = alloc_socketbase (context)) != NULL) {
 		put_word (SockLibBase + 32, opencount = get_word (SockLibBase + 32) + 1);
@@ -504,9 +504,9 @@ static uae_u32 REGPARAM2 bsdsocklib_Open (TrapContext *context)
 
 		put_pointer (result + offsetof (struct UAEBSDBase, sb), sb);
 
-		BSDTRACE ((L"%0x [%d]\n", result, opencount));
+		BSDTRACE ((_T("%0x [%d]\n"), result, opencount));
 	} else
-		BSDTRACE ((L"failed (out of memory)\n"));
+		BSDTRACE ((_T("failed (out of memory)\n")));
 
 	return result;
 }
@@ -526,7 +526,7 @@ static uae_u32 REGPARAM2 bsdsocklib_Close (TrapContext *context)
 	m68k_dreg (regs, 0) = negsize + get_word (base + 18);
 	CallLib (context, get_long (4), -0xD2); /* FreeMem */
 
-	BSDTRACE ((L"CloseLibrary() -> [%d]\n", opencount));
+	BSDTRACE ((_T("CloseLibrary() -> [%d]\n"), opencount));
 
 	return 0;
 }
@@ -674,7 +674,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SetSocketSignals (TrapContext *context)
 {
 	struct socketbase *sb = get_socketbase (context);
 
-	BSDTRACE ((L"SetSocketSignals(0x%08lx,0x%08lx,0x%08lx) -> ", m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2)));
+	BSDTRACE ((_T("SetSocketSignals(0x%08lx,0x%08lx,0x%08lx) -> "), m68k_dreg (regs, 0), m68k_dreg (regs, 1), m68k_dreg (regs, 2)));
 	sb->eintrsigs = m68k_dreg (regs, 0);
 	sb->eventsigs = m68k_dreg (regs, 1);
 
@@ -746,19 +746,19 @@ static uae_u32 REGPARAM2 bsdsocklib_ObtainSocket (TrapContext *context)
 
 	id = m68k_dreg (regs, 0);
 
-	BSDTRACE ((L"ObtainSocket(%d,%d,%d,%d) -> ", id, m68k_dreg (regs, 1), m68k_dreg (regs, 2), m68k_dreg (regs, 3)));
+	BSDTRACE ((_T("ObtainSocket(%d,%d,%d,%d) -> "), id, m68k_dreg (regs, 1), m68k_dreg (regs, 2), m68k_dreg (regs, 3)));
 
 	i = sockpoolindex (id);
 
 	if (i == -1) {
-		BSDTRACE ((L"[invalid key]\n"));
+		BSDTRACE ((_T("[invalid key]\n")));
 		return -1;
 	}
 	s = sockdata->sockpoolsocks[i];
 
 	sd = getsd (context, sb, s);
 
-	BSDTRACE ((L" -> Socket=%d\n", sd));
+	BSDTRACE ((_T(" -> Socket=%d\n"), sd));
 
 	if (sd != -1) {
 		sb->ftable[sd - 1] = sockdata->sockpoolflags[i];
@@ -784,7 +784,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 	id = m68k_dreg (regs, 1);
 
 	sd++;
-	BSDTRACE ((L"ReleaseSocket(%d,%d) -> ", sd, id));
+	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
 
 	s = getsock (sb, sd);
 
@@ -792,7 +792,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 		flags = sb->ftable[sd - 1];
 
 		if (flags & REP_ALL) {
-			write_log (L"bsdsocket: ERROR: ReleaseSocket() is not supported for sockets with async event notification enabled!\n");
+			write_log (_T("bsdsocket: ERROR: ReleaseSocket() is not supported for sockets with async event notification enabled!\n"));
 			return -1;
 		}
 		releasesock (context, sb, sd);
@@ -809,24 +809,24 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseSocket (TrapContext *context)
 			id = curruniqid;
 		} else if (id < 0 && id > 65535) {
 			if (sockpoolindex (id) != -1) {
-				BSDTRACE ((L"[unique ID already exists]\n"));
+				BSDTRACE ((_T("[unique ID already exists]\n")));
 				return -1;
 			}
 		}
 		i = sockpoolindex (-1);
 
 		if (i == -1) {
-			BSDTRACE ((L"-1\n"));
-			write_log (L"bsdsocket: ERROR: Global socket pool overflow\n");
+			BSDTRACE ((_T("-1\n")));
+			write_log (_T("bsdsocket: ERROR: Global socket pool overflow\n"));
 			return -1;
 		}
 		sockdata->sockpoolids[i] = id;
 		sockdata->sockpoolsocks[i] = s;
 		sockdata->sockpoolflags[i] = flags;
 
-		BSDTRACE ((L"id %d s 0x%x\n", id,s));
+		BSDTRACE ((_T("id %d s 0x%x\n"), id,s));
 	} else {
-		BSDTRACE ((L"[invalid socket descriptor]\n"));
+		BSDTRACE ((_T("[invalid socket descriptor]\n")));
 		return -1;
 	}
 
@@ -847,7 +847,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 	id = m68k_dreg (regs, 1);
 
 	sd++;
-	BSDTRACE ((L"ReleaseSocket(%d,%d) -> ", sd, id));
+	BSDTRACE ((_T("ReleaseSocket(%d,%d) -> "), sd, id));
 
 	s = getsock (sb, sd);
 
@@ -855,7 +855,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 		flags = sb->ftable[sd - 1];
 
 		if (flags & REP_ALL) {
-			write_log (L"bsdsocket: ERROR: ReleaseCopyOfSocket() is not supported for sockets with async event notification enabled!\n");
+			write_log (_T("bsdsocket: ERROR: ReleaseCopyOfSocket() is not supported for sockets with async event notification enabled!\n"));
 			return -1;
 		}
 		if (id == UNIQUE_ID) {
@@ -869,26 +869,26 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 			id = curruniqid;
 		} else if (id < 0 && id > 65535) {
 			if (sockpoolindex (id) != -1) {
-				BSDTRACE ((L"[unique ID already exists]\n"));
+				BSDTRACE ((_T("[unique ID already exists]\n")));
 				return -1;
 			}
 		}
 		i = sockpoolindex (-1);
 
 		if (i == -1) {
-			BSDTRACE ((L"-1\n"));
-			write_log (L"bsdsocket: ERROR: Global socket pool overflow\n");
+			BSDTRACE ((_T("-1\n")));
+			write_log (_T("bsdsocket: ERROR: Global socket pool overflow\n"));
 			return -1;
 		}
 		sockdata->sockpoolids[i] = id;
 		sockdata->sockpoolsocks[i] = s;
 		sockdata->sockpoolflags[i] = flags;
 
-		BSDTRACE ((L"id %d s 0x%x\n", id,s));
+		BSDTRACE ((_T("id %d s 0x%x\n"), id,s));
 
 	} else {
 
-		BSDTRACE ((L"[invalid socket descriptor]\n"));
+		BSDTRACE ((_T("[invalid socket descriptor]\n")));
 		return -1;
 	}
 
@@ -899,7 +899,7 @@ static uae_u32 REGPARAM2 bsdsocklib_ReleaseCopyOfSocket (TrapContext *context)
 static uae_u32 REGPARAM2 bsdsocklib_Errno (TrapContext *context)
 {
 	struct socketbase *sb = get_socketbase (context);
-	BSDTRACE ((L"Errno() -> %d\n", sb->sb_errno));
+	BSDTRACE ((_T("Errno() -> %d\n"), sb->sb_errno));
 	return sb->sb_errno;
 }
 
@@ -909,12 +909,12 @@ static uae_u32 REGPARAM2 bsdsocklib_SetErrnoPtr (TrapContext *context)
 	struct socketbase *sb = get_socketbase (context);
 	uae_u32 errnoptr = m68k_areg (regs, 0), size = m68k_dreg (regs, 0);
 
-	BSDTRACE ((L"SetErrnoPtr(0x%lx,%d) -> ", errnoptr, size));
+	BSDTRACE ((_T("SetErrnoPtr(0x%lx,%d) -> "), errnoptr, size));
 
 	if (size == 1 || size == 2 || size == 4) {
 		sb->errnoptr = errnoptr;
 		sb->errnosize = size;
-		BSDTRACE ((L"OK\n"));
+		BSDTRACE ((_T("OK\n")));
 		return 0;
 	}
 	bsdsocklib_seterrno (sb, 22); /* EINVAL */
@@ -939,21 +939,21 @@ static uae_u32 REGPARAM2 bsdsocklib_inet_addr (TrapContext *context)
 /* Inet_LnaOf(in)(d0) */
 static uae_u32 REGPARAM2 bsdsocklib_Inet_LnaOf (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: Inet_LnaOf()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: Inet_LnaOf()\n"));
 	return 0;
 }
 
 /* Inet_NetOf(in)(d0) */
 static uae_u32 REGPARAM2 bsdsocklib_Inet_NetOf (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: Inet_NetOf()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: Inet_NetOf()\n"));
 	return 0;
 }
 
 /* Inet_MakeAddr(net, host)(d0/d1) */
 static uae_u32 REGPARAM2 bsdsocklib_Inet_MakeAddr (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: Inet_MakeAddr()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: Inet_MakeAddr()\n"));
 	return 0;
 }
 
@@ -983,14 +983,14 @@ static uae_u32 REGPARAM2 bsdsocklib_gethostbyaddr (TrapContext *context)
 /* getnetbyname(name)(a0) */
 static uae_u32 REGPARAM2 bsdsocklib_getnetbyname (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: getnetbyname()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: getnetbyname()\n"));
 	return 0;
 }
 
 /* getnetbyaddr(net, type)(d0/d1) */
 static uae_u32 REGPARAM2 bsdsocklib_getnetbyaddr (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: getnetbyaddr()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: getnetbyaddr()\n"));
 	return 0;
 }
 
@@ -1030,7 +1030,7 @@ static uae_u32 REGPARAM2 bsdsocklib_getprotobynumber (TrapContext *context)
 /* Syslog(level, format, ap)(d0/a0/a1) */
 static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: vsyslog()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: vsyslog()\n"));
 	return 0;
 }
 
@@ -1044,13 +1044,13 @@ static uae_u32 REGPARAM2 bsdsocklib_Dup2Socket (TrapContext *context)
 
 static uae_u32 REGPARAM2 bsdsocklib_sendmsg (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: sendmsg()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: sendmsg()\n"));
 	return 0;
 }
 
 static uae_u32 REGPARAM2 bsdsocklib_recvmsg (TrapContext *context)
 {
-	write_log (L"bsdsocket: UNSUPPORTED: recvmsg()\n");
+	write_log (_T("bsdsocket: UNSUPPORTED: recvmsg()\n"));
 	return 0;
 }
 
@@ -1061,44 +1061,44 @@ static uae_u32 REGPARAM2 bsdsocklib_gethostname (TrapContext *context)
 
 static uae_u32 REGPARAM2 bsdsocklib_gethostid (TrapContext *context)
 {
-	write_log (L"bsdsocket: WARNING: Process '%s' calls deprecated function gethostid() - returning 127.0.0.1\n",
+	write_log (_T("bsdsocket: WARNING: Process '%s' calls deprecated function gethostid() - returning 127.0.0.1\n"),
 		get_real_address (get_long (gettask (context) + 10)));
 	return 0x7f000001;
 }
 
 static const TCHAR *errortexts[] =
-{L"No error", L"Operation not permitted", L"No such file or directory",
-L"No such process", L"Interrupted system call", L"Input/output error", L"Device not configured",
-L"Argument list too long", L"Exec format error", L"Bad file descriptor", L"No child processes",
-L"Resource deadlock avoided", L"Cannot allocate memory", L"Permission denied", L"Bad address",
-L"Block device required", L"Device busy", L"Object exists", L"Cross-device link",
-L"Operation not supported by device", L"Not a directory", L"Is a directory", L"Invalid argument",
-L"Too many open files in system", L"Too many open files", L"Inappropriate ioctl for device",
-L"Text file busy", L"File too large", L"No space left on device", L"Illegal seek",
-L"Read-only file system", L"Too many links", L"Broken pipe", L"Numerical argument out of domain",
-L"Result too large", L"Resource temporarily unavailable", L"Operation now in progress",
-L"Operation already in progress", L"Socket operation on non-socket", L"Destination address required",
-L"Message too long", L"Protocol wrong type for socket", L"Protocol not available",
-L"Protocol not supported", L"Socket type not supported", L"Operation not supported",
-L"Protocol family not supported", L"Address family not supported by protocol family",
-L"Address already in use", L"Can't assign requested address", L"Network is down",
-L"Network is unreachable", L"Network dropped connection on reset", L"Software caused connection abort",
-L"Connection reset by peer", L"No buffer space available", L"Socket is already connected",
-L"Socket is not connected", L"Can't send after socket shutdown", L"Too many references: can't splice",
-L"Connection timed out", L"Connection refused", L"Too many levels of symbolic links",
-L"File name too long", L"Host is down", L"No route to host", L"Directory not empty",
-L"Too many processes", L"Too many users", L"Disc quota exceeded", L"Stale NFS file handle",
-L"Too many levels of remote in path", L"RPC struct is bad", L"RPC version wrong",
-L"RPC prog. not avail", L"Program version wrong", L"Bad procedure for program", L"No locks available",
-L"Function not implemented", L"Inappropriate file type or format", L"PError 0"};
+{_T("No error"), _T("Operation not permitted"), _T("No such file or directory"),
+_T("No such process"), _T("Interrupted system call"), _T("Input/output error"), _T("Device not configured"),
+_T("Argument list too long"), _T("Exec format error"), _T("Bad file descriptor"), _T("No child processes"),
+_T("Resource deadlock avoided"), _T("Cannot allocate memory"), _T("Permission denied"), _T("Bad address"),
+_T("Block device required"), _T("Device busy"), _T("Object exists"), _T("Cross-device link"),
+_T("Operation not supported by device"), _T("Not a directory"), _T("Is a directory"), _T("Invalid argument"),
+_T("Too many open files in system"), _T("Too many open files"), _T("Inappropriate ioctl for device"),
+_T("Text file busy"), _T("File too large"), _T("No space left on device"), _T("Illegal seek"),
+_T("Read-only file system"), _T("Too many links"), _T("Broken pipe"), _T("Numerical argument out of domain"),
+_T("Result too large"), _T("Resource temporarily unavailable"), _T("Operation now in progress"),
+_T("Operation already in progress"), _T("Socket operation on non-socket"), _T("Destination address required"),
+_T("Message too long"), _T("Protocol wrong type for socket"), _T("Protocol not available"),
+_T("Protocol not supported"), _T("Socket type not supported"), _T("Operation not supported"),
+_T("Protocol family not supported"), _T("Address family not supported by protocol family"),
+_T("Address already in use"), _T("Can't assign requested address"), _T("Network is down"),
+_T("Network is unreachable"), _T("Network dropped connection on reset"), _T("Software caused connection abort"),
+_T("Connection reset by peer"), _T("No buffer space available"), _T("Socket is already connected"),
+_T("Socket is not connected"), _T("Can't send after socket shutdown"), _T("Too many references: can't splice"),
+_T("Connection timed out"), _T("Connection refused"), _T("Too many levels of symbolic links"),
+_T("File name too long"), _T("Host is down"), _T("No route to host"), _T("Directory not empty"),
+_T("Too many processes"), _T("Too many users"), _T("Disc quota exceeded"), _T("Stale NFS file handle"),
+_T("Too many levels of remote in path"), _T("RPC struct is bad"), _T("RPC version wrong"),
+_T("RPC prog. not avail"), _T("Program version wrong"), _T("Bad procedure for program"), _T("No locks available"),
+_T("Function not implemented"), _T("Inappropriate file type or format"), _T("PError 0")};
 
 static uae_u32 errnotextptrs[sizeof (errortexts) / sizeof (*errortexts)];
 static const uae_u32 number_sys_error = sizeof (errortexts) / sizeof (*errortexts);
 
 
 static const TCHAR *herrortexts[] =
-{L"No error", L"Unknown host", L"Host name lookup failure", L"Unknown server error",
-L"No address associated with name"};
+{_T("No error"), _T("Unknown host"), _T("Host name lookup failure"), _T("Unknown server error"),
+_T("No address associated with name")};
 
 static uae_u32 herrnotextptrs[sizeof (herrortexts) / sizeof (*herrortexts)];
 static const uae_u32 number_host_error = sizeof (herrortexts) / sizeof (*herrortexts);
@@ -1106,18 +1106,18 @@ static const uae_u32 number_host_error = sizeof (herrortexts) / sizeof (*herrort
 
 static const TCHAR *sana2io_errlist[] = 
 {
-  L"No error",				/* S2ERR_NO_ERROR */
-  L"Resource allocation failure",	/* S2ERR_NO_RESOURCES */
-  L"Unknown error code (2)", 
-  L"Invalid argument",			/* S2ERR_BAD_ARGUMENT */
-  L"Inappropriate state",		/* S2ERR_BAD_STATE */
-  L"Invalid address",			/* S2ERR_BAD_ADDRESS */
-  L"Requested packet too large",		/* S2ERR_MTU_EXCEEDED */
-  L"Unknown error (7)",
-  L"Command is not supporter",		/* S2ERR_NOT_SUPPORTED */
-  L"Driver software error detected",	/* S2ERR_SOFTWARE */
-  L"Device driver is offline",		/* S2ERR_OUTOFSERVICE */
-  L"Transmission attempt failed"		/* S2ERR_TX_FAILURE */
+  _T("No error"),				/* S2ERR_NO_ERROR */
+  _T("Resource allocation failure"),	/* S2ERR_NO_RESOURCES */
+  _T("Unknown error code (2)"), 
+  _T("Invalid argument"),			/* S2ERR_BAD_ARGUMENT */
+  _T("Inappropriate state"),		/* S2ERR_BAD_STATE */
+  _T("Invalid address"),			/* S2ERR_BAD_ADDRESS */
+  _T("Requested packet too large"),		/* S2ERR_MTU_EXCEEDED */
+  _T("Unknown error (7)"),
+  _T("Command is not supporter"),		/* S2ERR_NOT_SUPPORTED */
+  _T("Driver software error detected"),	/* S2ERR_SOFTWARE */
+  _T("Device driver is offline"),		/* S2ERR_OUTOFSERVICE */
+  _T("Transmission attempt failed")		/* S2ERR_TX_FAILURE */
 };
 
 static uae_u32 sana2iotextptrs[sizeof (sana2io_errlist) / sizeof (*sana2io_errlist)];
@@ -1126,25 +1126,25 @@ static const uae_u32 number_sana2io_error = sizeof (sana2io_errlist) / sizeof (*
 
 static const TCHAR *sana2wire_errlist[] = 
 {
-  L"Generic error: 0",                   /* S2WERR_GENERIC_ERROR */
-  L"Unit not configured",		/* S2WERR_NOT_CONFIGURED */
-  L"Unit is currently online",		/* S2WERR_UNIT_ONLINE */
-  L"Unit is currently offline",		/* S2WERR_UNIT_OFFLINE */
-  L"Protocol already tracked",		/* S2WERR_ALREADY_TRACKED */
-  L"Protocol not tracked",		/* S2WERR_NOT_TRACKED */
-  L"Buff management function error",	/* S2WERR_BUFF_ERROR */
-  L"Source address error",		/* S2WERR_SRC_ADDRESS */
-  L"Destination address error",		/* S2WERR_DST_ADDRESS */
-  L"Broadcast address error",		/* S2WERR_BAD_BROADCAST */
-  L"Multicast address error",		/* S2WERR_BAD_MULTICAST */
-  L"Multicast address list full",	/* S2WERR_MULTICAST_FULL */
-  L"Unsupported event class",		/* S2WERR_BAD_EVENT */
-  L"Statdata failed sanity check",	/* S2WERR_BAD_STATDATA */
-  L"Unknown wire error (14)",
-  L"Attempt to config twice",		/* S2WERR_IS_CONFIGURED */
-  L"Null pointer detected",		/* S2WERR_NULL_POINTER */
-  L"tx failed - too many retries",	/* S2WERR_TOO_MANY_RETIRES */
-  L"Driver fixable HW error"		/* S2WERR_RCVREL_HDW_ERR */
+  _T("Generic error: 0"),                   /* S2WERR_GENERIC_ERROR */
+  _T("Unit not configured"),		/* S2WERR_NOT_CONFIGURED */
+  _T("Unit is currently online"),		/* S2WERR_UNIT_ONLINE */
+  _T("Unit is currently offline"),		/* S2WERR_UNIT_OFFLINE */
+  _T("Protocol already tracked"),		/* S2WERR_ALREADY_TRACKED */
+  _T("Protocol not tracked"),		/* S2WERR_NOT_TRACKED */
+  _T("Buff management function error"),	/* S2WERR_BUFF_ERROR */
+  _T("Source address error"),		/* S2WERR_SRC_ADDRESS */
+  _T("Destination address error"),		/* S2WERR_DST_ADDRESS */
+  _T("Broadcast address error"),		/* S2WERR_BAD_BROADCAST */
+  _T("Multicast address error"),		/* S2WERR_BAD_MULTICAST */
+  _T("Multicast address list full"),	/* S2WERR_MULTICAST_FULL */
+  _T("Unsupported event class"),		/* S2WERR_BAD_EVENT */
+  _T("Statdata failed sanity check"),	/* S2WERR_BAD_STATDATA */
+  _T("Unknown wire error (14)"),
+  _T("Attempt to config twice"),		/* S2WERR_IS_CONFIGURED */
+  _T("Null pointer detected"),		/* S2WERR_NULL_POINTER */
+  _T("tx failed - too many retries"),	/* S2WERR_TOO_MANY_RETIRES */
+  _T("Driver fixable HW error")		/* S2WERR_RCVREL_HDW_ERR */
 };
 
 static uae_u32 sana2wiretextptrs[sizeof (sana2wire_errlist) / sizeof (*sana2wire_errlist)];
@@ -1153,21 +1153,21 @@ static const uae_u32 number_sana2wire_error = sizeof (sana2wire_errlist) / sizeo
 
 static const TCHAR *io_errlist[] = 
 { 
-  L"Unknown error",			/* 0 */
-  L"Device or unit failed to open",	/* IOERR_OPENFAIL */
-  L"Request aborted",			/* IOERR_ABORTED */
-  L"Command not supported by device",	/* IOERR_NOCMD */
-  L"Invalid length",			/* IOERR_BADLENGTH */
-  L"Invalid address",			/* IOERR_BADADDRESS */
-  L"Requested unit is busy",		/* IOERR_UNITBUSY */
-  L"Hardware self-test failed"		/* IOERR_SELFTEST */
+  _T("Unknown error"),			/* 0 */
+  _T("Device or unit failed to open"),	/* IOERR_OPENFAIL */
+  _T("Request aborted"),			/* IOERR_ABORTED */
+  _T("Command not supported by device"),	/* IOERR_NOCMD */
+  _T("Invalid length"),			/* IOERR_BADLENGTH */
+  _T("Invalid address"),			/* IOERR_BADADDRESS */
+  _T("Requested unit is busy"),		/* IOERR_UNITBUSY */
+  _T("Hardware self-test failed")		/* IOERR_SELFTEST */
 };
 
 static uae_u32 iotextptrs[sizeof (io_errlist) / sizeof (*io_errlist)];
 static const uae_u32 number_io_error = sizeof (io_errlist) / sizeof (*io_errlist);
 
 
-static const TCHAR * const strErr = L"Errlist lookup error";
+static const TCHAR * const strErr = _T("Errlist lookup error");
 static uae_u32 strErrptr;
 
 
@@ -1245,7 +1245,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 	uae_u32 currtag;
 	uae_u32 currval;
 
-	BSDTRACE ((L"SocketBaseTagList("));
+	BSDTRACE ((_T("SocketBaseTagList(")));
 
 	for (;;) {
 		currtag = get_long (tagptr);
@@ -1257,59 +1257,59 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 			switch (currtag)
 			{
 				case TAG_DONE:
-					BSDTRACE ((L"TAG_DONE"));
+					BSDTRACE ((_T("TAG_DONE")));
 					tagsprocessed = 0;
 					goto done;
 				case TAG_IGNORE:
-					BSDTRACE ((L"TAG_IGNORE"));
+					BSDTRACE ((_T("TAG_IGNORE")));
 					break;
 				case TAG_MORE:
-					BSDTRACE ((L"TAG_MORE(0x%lx)", currval));
+					BSDTRACE ((_T("TAG_MORE(0x%lx)"), currval));
 					tagptr = currval;
 					break;
 				case TAG_SKIP:
-					BSDTRACE ((L"TAG_SKIP(%d)", currval));
+					BSDTRACE ((_T("TAG_SKIP(%d)"), currval));
 					tagptr += currval * 8;
 					break;
 				default:
-					write_log (L"bsdsocket: WARNING: Unsupported tag type (%08x) in SocketBaseTagList(%x)\n",
+					write_log (_T("bsdsocket: WARNING: Unsupported tag type (%08x) in SocketBaseTagList(%x)\n"),
 						currtag, m68k_areg (regs, 0));
 					goto done;
 			}
 
 		} else {
 
-			BSDTRACE ((L"SBTM_"));
-			BSDTRACE ((currtag & 0x0001 ? L"SET" : L"GET"));
-			BSDTRACE ((currtag & 0x8000 ? L"REF(" : L"VAL("));
+			BSDTRACE ((_T("SBTM_")));
+			BSDTRACE ((currtag & 0x0001 ? _T("SET") : _T("GET")));
+			BSDTRACE ((currtag & 0x8000 ? _T("REF(") : _T("VAL(")));
 
 			switch ((currtag >> 1) & SBTS_CODE)
 			{
 				case SBTC_BREAKMASK:
-					BSDTRACE ((L"SBTC_BREAKMASK),0x%x,0x%x", currval, sb->eintrsigs));
+					BSDTRACE ((_T("SBTC_BREAKMASK),0x%x,0x%x"), currval, sb->eintrsigs));
 					tagcopy (currtag, currval, tagptr, &sb->eintrsigs);
 					break;
 				case SBTC_SIGIOMASK:
-					BSDTRACE ((L"SBTC_SIGIOMASK),0x%x,0x%x", currval, sb->eventsigs));
+					BSDTRACE ((_T("SBTC_SIGIOMASK),0x%x,0x%x"), currval, sb->eventsigs));
 					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
 					break;
 				case SBTC_SIGURGMASK:
-					BSDTRACE ((L"SBTC_SIGURGMASK),0x%x", currval));
+					BSDTRACE ((_T("SBTC_SIGURGMASK),0x%x"), currval));
 					break;
 				case SBTC_SIGEVENTMASK:
-					BSDTRACE ((L"SBTC_SIGEVENTMASK),0x%x,0x%x", currval, sb->eventsigs));
+					BSDTRACE ((_T("SBTC_SIGEVENTMASK),0x%x,0x%x"), currval, sb->eventsigs));
 					tagcopy (currtag, currval, tagptr, &sb->eventsigs);
 					break;
 				case SBTC_ERRNO:
-					BSDTRACE ((L"SBTC_ERRNO),%x,%d", currval, sb->sb_errno));
+					BSDTRACE ((_T("SBTC_ERRNO),%x,%d"), currval, sb->sb_errno));
 					tagcopy (currtag, currval, tagptr, (uae_u32*)&sb->sb_errno);
 					break;
 				case SBTC_HERRNO:
-					BSDTRACE ((L"SBTC_HERRNO),%x,%d", currval, sb->sb_herrno));
+					BSDTRACE ((_T("SBTC_HERRNO),%x,%d"), currval, sb->sb_herrno));
 					tagcopy (currtag, currval, tagptr, (uae_u32*)&sb->sb_herrno);
 					break;
 				case SBTC_DTABLESIZE:
-					BSDTRACE ((L"SBTC_DTABLESIZE),0x%lx", currval));
+					BSDTRACE ((_T("SBTC_DTABLESIZE),0x%lx"), currval));
 					if (currtag & 1) {
 						bsdsocklib_SetDTableSize(sb, currval);
 					} else {
@@ -1318,33 +1318,33 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 
 				case SBTC_FDCALLBACK:
-					BSDTRACE ((L"SBTC_FDCALLBACK),%08x", currval));
+					BSDTRACE ((_T("SBTC_FDCALLBACK),%08x"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->fdcallback);
 					break;
 
 				case SBTC_LOGSTAT:
-					BSDTRACE ((L"SBTC_LOGSTAT),%08x", currval));
+					BSDTRACE ((_T("SBTC_LOGSTAT),%08x"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->logstat);
 					sb->logstat &= 0xff;
 					break;
 				case SBTC_LOGTAGPTR:
-					BSDTRACE ((L"SBTC_LOGTAGPTR),%08x", currval));
+					BSDTRACE ((_T("SBTC_LOGTAGPTR),%08x"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->logptr);
 					break;
 				case SBTC_LOGFACILITY:
-					BSDTRACE ((L"SBTC_LOGFACILITY),%08x", currval));
+					BSDTRACE ((_T("SBTC_LOGFACILITY),%08x"), currval));
 					if (((currtag & 1) && currval != 0 && (currval & ~LOG_FACMASK)) || !(currtag & 1))
 						tagcopy (currtag, currval, tagptr, &sb->logfacility);
 					break;
 				case SBTC_LOGMASK:
-					BSDTRACE ((L"SBTC_LOGMASK),%08x", currval));
+					BSDTRACE ((_T("SBTC_LOGMASK),%08x"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->logmask);
 					sb->logmask &= 0xff;
 					break;
 
 				case SBTC_IOERRNOSTRPTR:
 					if (currtag & 1) {
-						BSDTRACE ((L"IOERRNOSTRPTR),invalid"));
+						BSDTRACE ((_T("IOERRNOSTRPTR),invalid")));
 						goto done;
 					} else {
 						unsigned long ulTmp;
@@ -1353,7 +1353,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
-						BSDTRACE ((L"IOERRNOSTRPTR),%d", ulTmp));
+						BSDTRACE ((_T("IOERRNOSTRPTR),%d"), ulTmp));
 						if (ulTmp < number_sys_error) {
 							tagcopy (currtag, currval, tagptr, &iotextptrs[ulTmp]);
 						} else {
@@ -1363,7 +1363,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 				case SBTC_S2ERRNOSTRPTR:
 					if (currtag & 1) {
-						BSDTRACE ((L"S2ERRNOSTRPTR),invalid"));
+						BSDTRACE ((_T("S2ERRNOSTRPTR),invalid")));
 						goto done;
 					} else {
 						unsigned long ulTmp;
@@ -1372,7 +1372,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
-						BSDTRACE ((L"S2ERRNOSTRPTR),%d", ulTmp));
+						BSDTRACE ((_T("S2ERRNOSTRPTR),%d"), ulTmp));
 						if (ulTmp < number_sys_error) {
 							tagcopy (currtag, currval, tagptr, &sana2iotextptrs[ulTmp]);
 						} else {
@@ -1382,7 +1382,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 				case SBTC_S2WERRNOSTRPTR:
 					if (currtag & 1) {
-						BSDTRACE ((L"S2WERRNOSTRPTR),invalid"));
+						BSDTRACE ((_T("S2WERRNOSTRPTR),invalid")));
 						goto done;
 					} else {
 						unsigned long ulTmp;
@@ -1391,7 +1391,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
-						BSDTRACE ((L"S2WERRNOSTRPTR),%d", ulTmp));
+						BSDTRACE ((_T("S2WERRNOSTRPTR),%d"), ulTmp));
 						if (ulTmp < number_sys_error) {
 							tagcopy (currtag, currval, tagptr, &sana2wiretextptrs[ulTmp]);
 						} else {
@@ -1401,7 +1401,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 				case SBTC_ERRNOSTRPTR:
 					if (currtag & 1) {
-						BSDTRACE ((L"ERRNOSTRPTR),invalid"));
+						BSDTRACE ((_T("ERRNOSTRPTR),invalid")));
 						goto done;
 					} else {
 						unsigned long ulTmp;
@@ -1410,7 +1410,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
-						BSDTRACE ((L"ERRNOSTRPTR),%d", ulTmp));
+						BSDTRACE ((_T("ERRNOSTRPTR),%d"), ulTmp));
 						if (ulTmp < number_sys_error) {
 							tagcopy (currtag, currval, tagptr, &errnotextptrs[ulTmp]);
 						} else {
@@ -1420,7 +1420,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 				case SBTC_HERRNOSTRPTR:
 					if (currtag & 1) {
-						BSDTRACE ((L"HERRNOSTRPTR),invalid"));
+						BSDTRACE ((_T("HERRNOSTRPTR),invalid")));
 						goto done;
 					} else {
 						unsigned long ulTmp;
@@ -1429,7 +1429,7 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 						} else { /* SBTM_GETVAL */
 							ulTmp = currval;
 						}
-						BSDTRACE ((L"HERRNOSTRPTR),%d", ulTmp));
+						BSDTRACE ((_T("HERRNOSTRPTR),%d"), ulTmp));
 						if (ulTmp < number_host_error) {
 							tagcopy (currtag, currval, tagptr, &herrnotextptrs[ulTmp]);
 						} else {
@@ -1439,38 +1439,38 @@ static uae_u32 REGPARAM2 bsdsocklib_SocketBaseTagList (TrapContext *context)
 					break;
 
 				case SBTC_ERRNOBYTEPTR:
-					BSDTRACE ((L"SBTC_ERRNOBYTEPTR),0x%lx", currval));
+					BSDTRACE ((_T("SBTC_ERRNOBYTEPTR),0x%lx"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 1;
 					break;
 				case SBTC_ERRNOWORDPTR:
-					BSDTRACE ((L"SBTC_ERRNOWORDPTR),0x%lx", currval));
+					BSDTRACE ((_T("SBTC_ERRNOWORDPTR),0x%lx"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 2;
 					break;
 				case SBTC_ERRNOLONGPTR:
-					BSDTRACE ((L"SBTC_ERRNOLONGPTR),0x%lx", currval));
+					BSDTRACE ((_T("SBTC_ERRNOLONGPTR),0x%lx"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->errnoptr);
 					sb->errnosize = 4;
 					break;
 				case SBTC_HERRNOLONGPTR:
-					BSDTRACE ((L"SBTC_HERRNOLONGPTR),0x%lx", currval));
+					BSDTRACE ((_T("SBTC_HERRNOLONGPTR),0x%lx"), currval));
 					tagcopy (currtag, currval, tagptr, &sb->herrnoptr);
 					sb->herrnosize = 4;
 					break;
 				default:
-					write_log (L"bsdsocket: WARNING: Unsupported tag type (%08x=%d) in SocketBaseTagList(%x)\n",
+					write_log (_T("bsdsocket: WARNING: Unsupported tag type (%08x=%d) in SocketBaseTagList(%x)\n"),
 						currtag, (currtag / 2) & SBTS_CODE, m68k_areg (regs, 0));
 					goto done;
 			}
 		}
 
-		BSDTRACE ((L","));
+		BSDTRACE ((_T(",")));
 		tagptr += 8;
 	}
 
 done:
-	BSDTRACE ((L") -> %d\n", tagsprocessed));
+	BSDTRACE ((_T(") -> %d\n"), tagsprocessed));
 
 	return tagsprocessed;
 }
@@ -1483,7 +1483,7 @@ static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents (TrapContext *context)
 	int flags;
 	uae_u32 ptr = m68k_areg (regs, 0);
 
-	BSDTRACE ((L"GetSocketEvents(0x%x) -> ", ptr));
+	BSDTRACE ((_T("GetSocketEvents(0x%x) -> "), ptr));
 
 	for (i = sb->dtablesize; i--; sb->eventindex++) {
 		if (sb->eventindex >= sb->dtablesize)
@@ -1494,13 +1494,13 @@ static uae_u32 REGPARAM2 bsdsocklib_GetSocketEvents (TrapContext *context)
 			if (flags) {
 				sb->ftable[sb->eventindex] &= ~SET_ALL;
 				put_long (m68k_areg (regs, 0), flags >> 8);
-				BSDTRACE ((L"%d (0x%x)\n", sb->eventindex + 1, flags >> 8));
+				BSDTRACE ((_T("%d (0x%x)\n"), sb->eventindex + 1, flags >> 8));
 				return sb->eventindex; // xxx
 			}
 		}
 	}
 #endif
-	BSDTRACE ((L"-1\n"));
+	BSDTRACE ((_T("-1\n")));
 	return -1;
 }
 
@@ -1519,7 +1519,7 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 	uae_u32 tmp1;
 	int i;
 
-	write_log (L"Creating UAE bsdsocket.library 4.1\n");
+	write_log (_T("Creating UAE bsdsocket.library 4.1\n"));
 	if (SockLibBase)
 		bsdlib_reset ();
 
@@ -1531,7 +1531,7 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 	tmp1 = CallLib (context, m68k_areg (regs, 6), -0x54); /* MakeLibrary */
 
 	if (!tmp1) {
-		write_log (L"bsdoscket: FATAL: Cannot create bsdsocket.library!\n");
+		write_log (_T("bsdoscket: FATAL: Cannot create bsdsocket.library!\n"));
 		return 0;
 	}
 	m68k_areg (regs, 1) = tmp1;
@@ -1555,7 +1555,7 @@ static uae_u32 REGPARAM2 bsdsocklib_init (TrapContext *context)
 	tmp1 = CallLib (context, m68k_areg (regs, 6), -0xC6); /* AllocMem */
 
 	if (!tmp1) {
-		write_log (L"bsdsocket: FATAL: Ran out of memory while creating bsdsocket.library!\n");
+		write_log (_T("bsdsocket: FATAL: Ran out of memory while creating bsdsocket.library!\n"));
 		return 0;
 	}
 
@@ -1592,12 +1592,12 @@ void bsdlib_reset (void)
 
 	SockLibBase = 0;
 
-	write_log (L"BSDSOCK: cleanup start..\n");
+	write_log (_T("BSDSOCK: cleanup start..\n"));
 	host_sbcleanup (NULL);
 	for (sb = socketbases; sb; sb = nsb) {
 		nsb = sb->next;
 
-		write_log (L"BSDSOCK: cleanup start socket %x\n", sb);
+		write_log (_T("BSDSOCK: cleanup start socket %x\n"), sb);
 		host_sbcleanup (sb);
 
 		free (sb->dtable);
@@ -1605,7 +1605,7 @@ void bsdlib_reset (void)
 
 		free (sb);
 	}
-	write_log (L"BSDSOCK: cleanup end\n");
+	write_log (_T("BSDSOCK: cleanup end\n"));
 
 	socketbases = NULL;
 #if 1
@@ -1620,7 +1620,7 @@ void bsdlib_reset (void)
 	}
 
 	host_sbreset ();
-	write_log (L"BSDSOCK: cleanup finished\n");
+	write_log (_T("BSDSOCK: cleanup finished\n"));
 }
 
 static const TrapHandler sockfuncs[] = {
@@ -1640,19 +1640,19 @@ static const TrapHandler sockfuncs[] = {
 };
 
 static const TCHAR * const funcnames[] = {
-	L"bsdsocklib_init", L"bsdsocklib_Open", L"bsdsocklib_Close", L"bsdsocklib_Expunge",
-	L"bsdsocklib_socket", L"bsdsocklib_bind", L"bsdsocklib_listen", L"bsdsocklib_accept",
-	L"bsdsocklib_connect", L"bsdsocklib_sendto", L"bsdsocklib_send", L"bsdsocklib_recvfrom", L"bsdsocklib_recv",
-	L"bsdsocklib_shutdown", L"bsdsocklib_setsockopt", L"bsdsocklib_getsockopt", L"bsdsocklib_getsockname",
-	L"bsdsocklib_getpeername", L"bsdsocklib_IoctlSocket", L"bsdsocklib_CloseSocket", L"bsdsocklib_WaitSelect",
-	L"bsdsocklib_SetSocketSignals", L"bsdsocklib_getdtablesize", L"bsdsocklib_ObtainSocket", L"bsdsocklib_ReleaseSocket",
-	L"bsdsocklib_ReleaseCopyOfSocket", L"bsdsocklib_Errno", L"bsdsocklib_SetErrnoPtr", L"bsdsocklib_Inet_NtoA",
-	L"bsdsocklib_inet_addr", L"bsdsocklib_Inet_LnaOf", L"bsdsocklib_Inet_NetOf", L"bsdsocklib_Inet_MakeAddr",
-	L"bsdsocklib_inet_network", L"bsdsocklib_gethostbyname", L"bsdsocklib_gethostbyaddr", L"bsdsocklib_getnetbyname",
-	L"bsdsocklib_getnetbyaddr", L"bsdsocklib_getservbyname", L"bsdsocklib_getservbyport", L"bsdsocklib_getprotobyname",
-	L"bsdsocklib_getprotobynumber", L"bsdsocklib_vsyslog", L"bsdsocklib_Dup2Socket", L"bsdsocklib_sendmsg",
-	L"bsdsocklib_recvmsg", L"bsdsocklib_gethostname", L"bsdsocklib_gethostid", L"bsdsocklib_SocketBaseTagList",
-	L"bsdsocklib_GetSocketEvents"
+	_T("bsdsocklib_init"), _T("bsdsocklib_Open"), _T("bsdsocklib_Close"), _T("bsdsocklib_Expunge"),
+	_T("bsdsocklib_socket"), _T("bsdsocklib_bind"), _T("bsdsocklib_listen"), _T("bsdsocklib_accept"),
+	_T("bsdsocklib_connect"), _T("bsdsocklib_sendto"), _T("bsdsocklib_send"), _T("bsdsocklib_recvfrom"), _T("bsdsocklib_recv"),
+	_T("bsdsocklib_shutdown"), _T("bsdsocklib_setsockopt"), _T("bsdsocklib_getsockopt"), _T("bsdsocklib_getsockname"),
+	_T("bsdsocklib_getpeername"), _T("bsdsocklib_IoctlSocket"), _T("bsdsocklib_CloseSocket"), _T("bsdsocklib_WaitSelect"),
+	_T("bsdsocklib_SetSocketSignals"), _T("bsdsocklib_getdtablesize"), _T("bsdsocklib_ObtainSocket"), _T("bsdsocklib_ReleaseSocket"),
+	_T("bsdsocklib_ReleaseCopyOfSocket"), _T("bsdsocklib_Errno"), _T("bsdsocklib_SetErrnoPtr"), _T("bsdsocklib_Inet_NtoA"),
+	_T("bsdsocklib_inet_addr"), _T("bsdsocklib_Inet_LnaOf"), _T("bsdsocklib_Inet_NetOf"), _T("bsdsocklib_Inet_MakeAddr"),
+	_T("bsdsocklib_inet_network"), _T("bsdsocklib_gethostbyname"), _T("bsdsocklib_gethostbyaddr"), _T("bsdsocklib_getnetbyname"),
+	_T("bsdsocklib_getnetbyaddr"), _T("bsdsocklib_getservbyname"), _T("bsdsocklib_getservbyport"), _T("bsdsocklib_getprotobyname"),
+	_T("bsdsocklib_getprotobynumber"), _T("bsdsocklib_vsyslog"), _T("bsdsocklib_Dup2Socket"), _T("bsdsocklib_sendmsg"),
+	_T("bsdsocklib_recvmsg"), _T("bsdsocklib_gethostname"), _T("bsdsocklib_gethostid"), _T("bsdsocklib_SocketBaseTagList"),
+	_T("bsdsocklib_GetSocketEvents")
 };
 
 static uae_u32 sockfuncvecs[sizeof (sockfuncs) / sizeof (*sockfuncs)];
@@ -1688,8 +1688,8 @@ void bsdlib_install (void)
 	if (!init_socket_layer ())
 		return;
 
-	res_name = ds (L"bsdsocket.library");
-	res_id = ds (L"UAE bsdsocket.library 4.1");
+	res_name = ds (_T("bsdsocket.library"));
+	res_id = ds (_T("UAE bsdsocket.library 4.1"));
 
 	for (i = 0; i < (int) (sizeof (sockfuncs) / sizeof (sockfuncs[0])); i++) {
 		sockfuncvecs[i] = here ();
@@ -1737,7 +1737,7 @@ void bsdlib_install (void)
 	dl (datatable);
 	dl (*sockfuncvecs);
 
-	write_log (L"bsdsocked.library installed\n");
+	write_log (_T("bsdsocked.library installed\n"));
 }
 
 #endif /* ! BSDSOCKET */

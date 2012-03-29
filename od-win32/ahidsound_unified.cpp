@@ -157,9 +157,9 @@ void ahi_close_sound (void)
     if (lpDSB2) {
 	hr = IDirectSoundBuffer_Stop (lpDSB2);
 	if(FAILED (hr))
-	    write_log (L"AHI: SoundStop() failure: %s\n", DXError (hr));
+	    write_log (_T("AHI: SoundStop() failure: %s\n"), DXError (hr));
     } else {
-	write_log (L"AHI: Sound Stopped...\n");
+	write_log (_T("AHI: Sound Stopped...\n"));
     }
 
     if (lpDSB2)
@@ -276,7 +276,7 @@ void ahi_updatesound (int force)
 
     hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     if(hr == DSERR_BUFFERLOST) {
-	write_log (L"AHI: lostbuf %d %x\n", pos, amigablksize);
+	write_log (_T("AHI: lostbuf %d %x\n"), pos, amigablksize);
 	IDirectSoundBuffer_Restore (lpDSB2);
 	hr = IDirectSoundBuffer_Lock (lpDSB2, oldpos, amigablksize * 4, &dwData1, &dwBytes1, &dwData2, &dwBytes2, 0);
     }
@@ -328,7 +328,7 @@ static int ahi_init_record_win32 (void)
     // Record begin
     hr = DirectSoundCaptureCreate (NULL, &lpDS2r, NULL);
     if (FAILED (hr)) {
-	write_log (L"AHI: DirectSoundCaptureCreate() failure: %s\n", DXError (hr));
+	write_log (_T("AHI: DirectSoundCaptureCreate() failure: %s\n"), DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
@@ -340,19 +340,19 @@ static int ahi_init_record_win32 (void)
 
     hr = IDirectSoundCapture_CreateCaptureBuffer (lpDS2r, &sound_buffer_rec, &lpDSB2r, NULL);
     if (FAILED (hr)) {
-	write_log (L"AHI: CreateCaptureSoundBuffer() failure: %s\n", DXError(hr));
+	write_log (_T("AHI: CreateCaptureSoundBuffer() failure: %s\n"), DXError(hr));
 	record_enabled = -1;
 	return 0;
     }
 
     hr = IDirectSoundCaptureBuffer_Start (lpDSB2r, DSCBSTART_LOOPING);
     if (FAILED (hr)) {
-	write_log (L"AHI: DirectSoundCaptureBuffer_Start failed: %s\n", DXError (hr));
+	write_log (_T("AHI: DirectSoundCaptureBuffer_Start failed: %s\n"), DXError (hr));
 	record_enabled = -1;
 	return 0;
     }
     record_enabled = 1;
-    write_log (L"AHI: Init AHI Audio Recording \n");
+    write_log (_T("AHI: Init AHI Audio Recording \n"));
     return 1;
 }
 
@@ -366,7 +366,7 @@ void setvolume_ahi (int vol)
 	return;
     hr = IDirectSoundBuffer_SetVolume (lpDSB2, vol);
     if (FAILED (hr))
-	write_log (L"AHI: SetVolume(%d) failed: %s\n", vol, DXError (hr));
+	write_log (_T("AHI: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
 #endif
 }
 
@@ -396,7 +396,7 @@ static int ahi_init_sound_win32 (void)
     if (!ret)
 	return 0;
 
-    write_log (L"AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n",
+    write_log (_T("AHI: Init AHI Sound Rate %d, Channels %d, Bits %d, Buffsize %d\n"),
 	sound_freq_ahi, sound_channels_ahi, sound_bits_ahi, amigablksize);
 
     wavfmt.wFormatTag = WAVE_FORMAT_PCM;
@@ -413,7 +413,7 @@ static int ahi_init_sound_win32 (void)
     else
 	hr = DirectSoundCreate (&sound_devices[currprefs.win32_soundcard].guid, &lpDS2, NULL);
     if (FAILED (hr)) {
-	write_log (L"AHI: DirectSoundCreate() failure: %s\n", DXError (hr));
+	write_log (_T("AHI: DirectSoundCreate() failure: %s\n"), DXError (hr));
 	return 0;
     }
     memset (&sound_buffer, 0, sizeof (DSBUFFERDESC));
@@ -426,18 +426,18 @@ static int ahi_init_sound_win32 (void)
     hr = IDirectSound_GetCaps (lpDS2, &DSCaps);
     if (SUCCEEDED (hr)) {
 	if (DSCaps.dwFlags & DSCAPS_EMULDRIVER)
-	    write_log (L"AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n");
+	    write_log (_T("AHI: Your DirectSound Driver is emulated via WaveOut - yuck!\n"));
     }
     if (FAILED (IDirectSound_SetCooperativeLevel (lpDS2, hMainWnd, DSSCL_PRIORITY)))
 	return 0;
     hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSBprimary2, NULL);
     if (FAILED (hr)) {
-	write_log (L"AHI: CreateSoundBuffer() failure: %s\n", DXError(hr));
+	write_log (_T("AHI: CreateSoundBuffer() failure: %s\n"), DXError(hr));
 	return 0;
     }
     hr = IDirectSoundBuffer_SetFormat (lpDSBprimary2, &wavfmt);
     if (FAILED (hr)) {
-	write_log (L"AHI: SetFormat() failure: %s\n", DXError (hr));
+	write_log (_T("AHI: SetFormat() failure: %s\n"), DXError (hr));
 	return 0;
     }
     sound_buffer.dwBufferBytes = ahisndbufsize;
@@ -447,13 +447,13 @@ static int ahi_init_sound_win32 (void)
     sound_buffer.guid3DAlgorithm = GUID_NULL;
     hr = IDirectSound_CreateSoundBuffer (lpDS2, &sound_buffer, &lpDSB2, NULL);
     if (FAILED (hr)) {
-	write_log (L"AHI: CreateSoundBuffer() failure: %s\n", DXError (hr));
+	write_log (_T("AHI: CreateSoundBuffer() failure: %s\n"), DXError (hr));
 	return 0;
     }
 
     hr = IDirectSoundBuffer_GetFormat (lpDSBprimary2,&wavfmt,500,0);
     if (FAILED (hr)) {
-	write_log (L"AHI: GetFormat() failure: %s\n", DXError (hr));
+	write_log (_T("AHI: GetFormat() failure: %s\n"), DXError (hr));
 	return 0;
     }
 #endif
@@ -734,28 +734,28 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 		_tcscpy (newdllpath, dpath + _tcslen (start_path_data));
 		if (!_tcsncmp (newdllpath, dlldir, _tcslen (dlldir))) /* remove "winuae_dll" */
 		    _tcscpy (newdllpath, dpath + _tcslen (start_path_data) + 1 + _tcslen (dlldir));
-		_stprintf (dpath, L"%s%s%s", start_path_data, WIN32_PLUGINDIR, newdllpath);
+		_stprintf (dpath, _T("%s%s%s"), start_path_data, WIN32_PLUGINDIR, newdllpath);
 		h = LoadLibrary (dpath);
 		if (h == NULL)
-		    write_log (L"native open: '%s' = %d\n", dpath, GetLastError ());
+		    write_log (_T("native open: '%s' = %d\n"), dpath, GetLastError ());
 		if (h == NULL) {
-		    _stprintf (dpath, L"%s%s\\%s", start_path_data, dlldir, newdllpath);
+		    _stprintf (dpath, _T("%s%s\\%s"), start_path_data, dlldir, newdllpath);
 		    h = LoadLibrary (dllname);
 		    if (h == NULL)
-			write_log (L"fallback native open: '%s' = %d\n", dpath, GetLastError ());
+			write_log (_T("fallback native open: '%s' = %d\n"), dpath, GetLastError ());
 		}
 	    } else {
-		write_log (L"native open outside of installation dir '%s'!\n", dpath);
+		write_log (_T("native open outside of installation dir '%s'!\n"), dpath);
 	    }
 	    xfree (dllname);
 #if 0
 	    if (h == NULL) {
 		h = LoadLibrary (filepart);
-		write_log (L"native file open: '%s' = %p\n", filepart, h);
+		write_log (_T("native file open: '%s' = %p\n"), filepart, h);
 		if (h == NULL) {
 		    _stprintf (dpath, "%s%s%s", start_path_data, WIN32_PLUGINDIR, filepart);
 		    h = LoadLibrary (dpath);
-		    write_log (L"native path open: '%s' = %p\n", dpath, h);
+		    write_log (_T("native path open: '%s' = %p\n"), dpath, h);
 		}
 	    }
 #endif

@@ -96,7 +96,7 @@ int my_rmdir (const TCHAR *name)
 	}
 	cnt = 0;
 	while (my_readdir (od, tname)) {
-		if (!_tcscmp (tname, L".") || !_tcscmp (tname, L".."))
+		if (!_tcscmp (tname, _T(".")) || !_tcscmp (tname, _T("..")))
 			continue;
 		cnt++;
 		break;
@@ -129,7 +129,7 @@ struct my_opendir_s {
 
 struct my_opendir_s *my_opendir (const TCHAR *name)
 {
-	return my_opendir (name, L"*.*");
+	return my_opendir (name, _T("*.*"));
 }
 struct my_opendir_s *my_opendir (const TCHAR *name, const TCHAR *mask)
 {
@@ -137,7 +137,7 @@ struct my_opendir_s *my_opendir (const TCHAR *name, const TCHAR *mask)
 	TCHAR tmp[MAX_DPATH];
 
 	_tcscpy (tmp, name);
-	_tcscat (tmp, L"\\");
+	_tcscat (tmp, _T("\\"));
 	_tcscat (tmp, mask);
 	mod = xmalloc (struct my_opendir_s, 1);
 	if (!mod)
@@ -290,7 +290,7 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 				err = GetLastError();
 		}
 		if (h == INVALID_HANDLE_VALUE) {
-			write_log (L"failed to open '%s' %x %x err=%d\n", name, DesiredAccess, CreationDisposition, err);
+			write_log (_T("failed to open '%s' %x %x err=%d\n"), name, DesiredAccess, CreationDisposition, err);
 			xfree (mos);
 			mos = NULL;
 			goto err;
@@ -298,7 +298,7 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	}
 	mos->h = h;
 err:
-	//write_log (L"open '%s' = %x\n", name, mos ? mos->h : 0);
+	//write_log (_T("open '%s' = %x\n"), name, mos ? mos->h : 0);
 	return mos;
 }
 
@@ -315,14 +315,14 @@ int my_truncate (const TCHAR *name, uae_u64 len)
 		li.QuadPart = len;
 		li.LowPart = SetFilePointer (hFile, li.LowPart, &li.HighPart, FILE_BEGIN);
 		if (li.LowPart == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR) {
-			write_log (L"truncate: SetFilePointer() failure for %s to posn %d\n", name, len);
+			write_log (_T("truncate: SetFilePointer() failure for %s to posn %d\n"), name, len);
 		} else {
 			if (SetEndOfFile (hFile) == TRUE)
 				result = 0;
 		}
 		CloseHandle (hFile);
 	} else {
-		write_log (L"truncate: CreateFile() failed to open %s\n", name);
+		write_log (_T("truncate: CreateFile() failed to open %s\n"), name);
 	}
 	return result;
 }
@@ -331,7 +331,7 @@ int dos_errno (void)
 {
 	DWORD e = GetLastError ();
 
-	//write_log (L"ec=%d\n", e);
+	//write_log (_T("ec=%d\n"), e);
 	switch (e) {
 	case ERROR_NOT_ENOUGH_MEMORY:
 	case ERROR_OUTOFMEMORY:
@@ -377,7 +377,7 @@ int dos_errno (void)
 		{
 			static int done;
 			if (!done)
-				gui_message (L"Unimplemented error %d\nContact author!", e);
+				gui_message (_T("Unimplemented error %d\nContact author!"), e);
 			done = 1;
 		}
 		return ERROR_NOT_IMPLEMENTED;
@@ -405,13 +405,13 @@ int my_getvolumeinfo (const TCHAR *root)
 	ret |= MYVOLUMEINFO_READONLY;
 	*/
 	pGetVolumePathName = (GETVOLUMEPATHNAME)GetProcAddress(
-		GetModuleHandle (L"kernel32.dll"), "GetVolumePathNameW");
+		GetModuleHandle (_T("kernel32.dll")), "GetVolumePathNameW");
 	if (pGetVolumePathName && pGetVolumePathName (root, volume, sizeof (volume))) {
 		TCHAR fsname[MAX_DPATH];
 		DWORD comlen;
 		DWORD flags;
 		if (GetVolumeInformation (volume, NULL, 0, NULL, &comlen, &flags, fsname, sizeof (fsname))) {
-			//write_log (L"Volume %s FS=%s maxlen=%d flags=%08X\n", volume, fsname, comlen, flags);
+			//write_log (_T("Volume %s FS=%s maxlen=%d flags=%08X\n"), volume, fsname, comlen, flags);
 			if (flags & FILE_NAMED_STREAMS)
 				ret |= MYVOLUMEINFO_STREAMS;
 		}
@@ -425,16 +425,16 @@ FILE *my_opentext (const TCHAR *name)
 	uae_u8 tmp[4];
 	int v;
 
-	f = _tfopen (name, L"rb");
+	f = _tfopen (name, _T("rb"));
 	if (!f)
 		return NULL;
 	v = fread (tmp, 1, 4, f);
 	fclose (f);
 	if (v == 4) {
 		if (tmp[0] == 0xef && tmp[1] == 0xbb && tmp[2] == 0xbf)
-			return _tfopen (name, L"r, ccs=UTF-8");
+			return _tfopen (name, _T("r, ccs=UTF-8"));
 		if (tmp[0] == 0xff && tmp[1] == 0xfe)
-			return _tfopen (name, L"r, ccs=UTF-16LE");
+			return _tfopen (name, _T("r, ccs=UTF-16LE"));
 	}
-	return _tfopen (name, L"r");
+	return _tfopen (name, _T("r"));
 }

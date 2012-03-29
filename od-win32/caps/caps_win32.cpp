@@ -47,7 +47,7 @@ int caps_init (void)
 	static int init, noticed;
 	int i;
 	HMODULE h;
-	TCHAR *dllname = L"CAPSImg.dll";
+	TCHAR *dllname = _T("CAPSImg.dll");
 
 	if (init)
 		return 1;
@@ -55,7 +55,7 @@ int caps_init (void)
 	if (!h) {
 		TCHAR tmp[MAX_DPATH];
 		if (SUCCEEDED (SHGetFolderPath (NULL, CSIDL_PROGRAM_FILES_COMMON, NULL, 0, tmp))) {
-			_tcscat (tmp, L"\\Software Preservation Society\\");
+			_tcscat (tmp, _T("\\Software Preservation Society\\"));
 			_tcscat (tmp, dllname);
 			h = LoadLibrary (tmp);
 			if (!h) {
@@ -87,7 +87,7 @@ int caps_init (void)
 	init = 1;
 	cvi.type = 1;
 	pCAPSGetVersionInfo (&cvi, 0);
-	write_log (L"CAPS: library version %d.%d (flags=%08X)\n", cvi.release, cvi.revision, cvi.flag);
+	write_log (_T("CAPS: library version %d.%d (flags=%08X)\n"), cvi.release, cvi.revision, cvi.flag);
 	oldlib = (cvi.flag & (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT)) != (DI_LOCK_TRKBIT | DI_LOCK_OVLBIT);
 	if (!oldlib)
 		caps_flags |= DI_LOCK_TRKBIT | DI_LOCK_OVLBIT;
@@ -134,7 +134,7 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 				notify_user (NUMSG_OLDCAPS);
 			notified = 1;
 		}
-		write_log (L"caps: CAPSLockImageMemory() returned %d\n", ret);
+		write_log (_T("caps: CAPSLockImageMemory() returned %d\n"), ret);
 		return 0;
 	}
 	caps_locked[drv] = 1;
@@ -156,8 +156,8 @@ int caps_loadimage (struct zfile *zf, int drv, int *num_tracks)
 
 	ret = pCAPSLoadImage(caps_cont[drv], caps_flags);
 	cdt = &ci.crdt;
-	_stprintf (s1, L"%d.%d.%d %d:%d:%d", cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
-	write_log (L"caps: type:%d date:%s rel:%d rev:%d\n",
+	_stprintf (s1, _T("%d.%d.%d %d:%d:%d"), cdt->day, cdt->month, cdt->year, cdt->hour, cdt->min, cdt->sec);
+	write_log (_T("caps: type:%d date:%s rel:%d rev:%d\n"),
 		ci.type, s1, ci.release, ci.revision);
 	return 1;
 }
@@ -248,7 +248,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 		len = ci.tracklen;
 		*gapoffset = ci.overlap >= 0 ? ci.overlap : -1;
 	}
-	//write_log (L"%d %d %d %d\n", track, len, ci.tracklen, ci.overlap);
+	//write_log (_T("%d %d %d %d\n"), track, len, ci.tracklen, ci.overlap);
 	*tracklength = len;
 	mfmcopy (mfmbuf, ci.trackbuf, len);
 #if 0
@@ -263,7 +263,7 @@ int caps_loadtrack (uae_u16 *mfmbuf, uae_u16 *tracktiming, int drv, int track, i
 			tracktiming[i] = (uae_u16)ci.timebuf[i];
 	}
 #if 0
-	write_log (L"caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n",
+	write_log (_T("caps: drive:%d track:%d len:%d multi:%d timing:%d type:%d overlap:%d\n"),
 		drv, track, len, *multirev, ci.timelen, type, ci.overlap);
 #endif
 	return 1;

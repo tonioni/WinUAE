@@ -72,11 +72,11 @@ typedef struct {
 #include <poppack.h>
 
 static int font_vista_ok;
-static wchar_t wfont_vista[] = L"Segoe UI";
-static wchar_t wfont_xp[] = L"Tahoma";
-static wchar_t wfont_old[] = L"MS Sans Serif";
-static TCHAR font_vista[] = L"Segoe UI";
-static TCHAR font_xp[] = L"Tahoma";
+static wchar_t wfont_vista[] = _T("Segoe UI");
+static wchar_t wfont_xp[] = _T("Tahoma");
+static wchar_t wfont_old[] = _T("MS Sans Serif");
+static TCHAR font_vista[] = _T("Segoe UI");
+static TCHAR font_xp[] = _T("Tahoma");
 
 static BYTE *skiptextone (BYTE *s)
 {

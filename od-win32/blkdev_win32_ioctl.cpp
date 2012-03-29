@@ -129,7 +129,7 @@ static int mcierr (TCHAR *str, DWORD err)
 	if (err == MMSYSERR_NOERROR)
 		return MMSYSERR_NOERROR;
 	if (mciGetErrorString (err, es, sizeof es))
-		write_log (L"MCIErr: %s: %d = '%s'\n", str, err, es);
+		write_log (_T("MCIErr: %s: %d = '%s'\n"), str, err, es);
 	return err;
 }
 
@@ -141,10 +141,10 @@ static int win32_error (struct dev_info_ioctl *ciw, int unitnum, const TCHAR *fo
 	DWORD err = GetLastError ();
 
 	if (err == ERROR_WRONG_DISK) {
-		write_log (L"IOCTL: media change, re-opening device\n");
+		write_log (_T("IOCTL: media change, re-opening device\n"));
 		sys_cddev_close (ciw, unitnum);
 		if (sys_cddev_open (ciw, unitnum))
-			write_log (L"IOCTL: re-opening failed!\n");
+			write_log (_T("IOCTL: re-opening failed!\n"));
 		return -1;
 	}
 	va_start (arglist, format);
@@ -152,7 +152,7 @@ static int win32_error (struct dev_info_ioctl *ciw, int unitnum, const TCHAR *fo
 	FormatMessage (FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPTSTR)&lpMsgBuf, 0, NULL);
-	write_log (L"IOCTL ERR: unit=%d,%s,%d: %s\n", unitnum, buf, err, (TCHAR*)lpMsgBuf);
+	write_log (_T("IOCTL ERR: unit=%d,%s,%d: %s\n"), unitnum, buf, err, (TCHAR*)lpMsgBuf);
 	va_end (arglist);
 	return err;
 }
@@ -162,10 +162,10 @@ static int close_createfile (struct dev_info_ioctl *ciw)
 	ciw->fullaccess = 0;
 	if (ciw->h != INVALID_HANDLE_VALUE) {
 		if (log_scsi)
-			write_log (L"IOCTL: IOCTL close\n");
+			write_log (_T("IOCTL: IOCTL close\n"));
 		CloseHandle (ciw->h);
 		if (log_scsi)
-			write_log (L"IOCTL: IOCTL close completed\n");
+			write_log (_T("IOCTL: IOCTL close completed\n"));
 		ciw->h = INVALID_HANDLE_VALUE;
 		return 1;
 	}
@@ -185,7 +185,7 @@ static int open_createfile (struct dev_info_ioctl *ciw, int fullaccess)
 		}
 	}
 	if (log_scsi)
-		write_log (L"IOCTL: opening IOCTL %s\n", ciw->devname);
+		write_log (_T("IOCTL: opening IOCTL %s\n"), ciw->devname);
 	for (;;) {
 		if (fullaccess) {
 			ciw->h = CreateFile (ciw->devname, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -204,13 +204,13 @@ static int open_createfile (struct dev_info_ioctl *ciw, int fullaccess)
 		}
 		if (ciw->h != INVALID_HANDLE_VALUE)
 			break;
-		write_log (L"IOCTL: failed to open '%s', err=%d\n", ciw->devname, GetLastError ());
+		write_log (_T("IOCTL: failed to open '%s', err=%d\n"), ciw->devname, GetLastError ());
 		return 0;
 	}
 	if (!DeviceIoControl (ciw->h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &len, NULL))
-		write_log (L"IOCTL: FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n", GetLastError ());
+		write_log (_T("IOCTL: FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), GetLastError ());
 	if (log_scsi)
-		write_log (L"IOCTL: IOCTL open completed\n");
+		write_log (_T("IOCTL: IOCTL open completed\n"));
 	return 1;
 }
 
@@ -247,7 +247,7 @@ static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, in
 	reseterrormode (ciw);
 	if (!status) {
 		DWORD err = GetLastError ();
-		write_log (L"IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d ", unitnum, cmd[0], err);
+		write_log (_T("IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d "), unitnum, cmd[0], err);
 		return 0;
 	}
 	int tlen = swb.spt.DataTransferLength > datalen ? datalen : swb.spt.DataTransferLength;
@@ -394,9 +394,9 @@ retry:
 			} else {
 				reseterrormode (ciw);
 				DWORD err = GetLastError ();
-				write_log (L"IOCTL_CDROM_RAW_READ(%d,%d) failed, err=%d\n", sector, rri.TrackMode, err);
+				write_log (_T("IOCTL_CDROM_RAW_READ(%d,%d) failed, err=%d\n"), sector, rri.TrackMode, err);
 				if ((err == ERROR_INVALID_FUNCTION || err == ERROR_INVALID_PARAMETER) && origsector == sector && origdata == data) {
-					write_log (L"-> fallback to SPTI mode\n");
+					write_log (_T("-> fallback to SPTI mode\n"));
 					ciw->usesptiread = true;
 					size = origsize;
 					goto retry;
@@ -463,7 +463,7 @@ static int cdda_openwav (struct dev_info_ioctl *ciw)
 	wav.wFormatTag = WAVE_FORMAT_PCM;
 	mmr = waveOutOpen (&ciw->cdda_wavehandle, WAVE_MAPPER, &wav, 0, 0, WAVE_ALLOWSYNC | WAVE_FORMAT_DIRECT);
 	if (mmr != MMSYSERR_NOERROR) {
-		write_log (L"IOCTL CDDA: wave open %d\n", mmr);
+		write_log (_T("IOCTL CDDA: wave open %d\n"), mmr);
 		cdda_closewav (ciw);
 		return 0;
 	}
@@ -518,8 +518,8 @@ static void *cdda_play (void *v)
 			cdda_pos = ciw->cdda_start;
 			ciw->cd_last_pos = cdda_pos;
 			oldplay = ciw->cdda_play;
-			write_log (L"IOCTL%s CDDA: playing from %d to %d\n",
-				ciw->usesptiread ? L"(SPTI)" : L"", ciw->cdda_start, ciw->cdda_end);
+			write_log (_T("IOCTL%s CDDA: playing from %d to %d\n"),
+				ciw->usesptiread ? _T("(SPTI)") : _T(""), ciw->cdda_start, ciw->cdda_end);
 			ciw->subcodevalid = false;
 			idleframes = ciw->cdda_delay_frames;
 			while (ciw->cdda_paused && ciw->cdda_play > 0) {
@@ -545,7 +545,7 @@ static void *cdda_play (void *v)
 							for (int i = 2 * SUB_ENTRY_SIZE; i < SUB_CHANNEL_SIZE; i++) {
 								if (subbuf[i]) { // non-zero R-W subchannels?
 									int diff = cdda_pos - sector + 2;
-									write_log (L"-> CD+G start pos fudge -> %d (%d)\n", sector, -diff);
+									write_log (_T("-> CD+G start pos fudge -> %d (%d)\n"), sector, -diff);
 									idleframes -= diff;
 									cdda_pos = sector;
 									seensub = true;
@@ -580,7 +580,7 @@ static void *cdda_play (void *v)
 
 			if (idleframes <= 0 && cdda_pos >= ciw->cdda_start && !isaudiotrack (&ciw->di.toc, cdda_pos)) {
 				setstate (ciw, AUDIO_STATUS_PLAY_ERROR);
-				write_log (L"IOCTL: attempted to play data track %d\n", cdda_pos);
+				write_log (_T("IOCTL: attempted to play data track %d\n"), cdda_pos);
 				goto end; // data track?
 			}
 
@@ -672,7 +672,7 @@ end:
 	delete cda;
 
 	ciw->cdda_play = 0;
-	write_log (L"IOCTL CDDA: thread killed\n");
+	write_log (_T("IOCTL CDDA: thread killed\n"));
 	return NULL;
 }
 
@@ -748,7 +748,7 @@ static int ioctl_command_play (int unitnum, int startlsn, int endlsn, int scan, 
 		return 0;
 	}
 	if (!ciw->cdda_play) {
-		uae_start_thread (L"ioctl_cdda_play", cdda_play, ciw, NULL);
+		uae_start_thread (_T("ioctl_cdda_play"), cdda_play, ciw, NULL);
 	}
 	ciw->cdda_start = startlsn;
 	ciw->cdda_end = endlsn;
@@ -817,7 +817,7 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
 			memset (ciw->tempbuffer, 0, CD_RAW_SECTOR_WITH_SUBCODE_SIZE);
 			if (!DeviceIoControl (ciw->h, IOCTL_CDROM_RAW_READ, &rri, sizeof rri, ciw->tempbuffer, CD_RAW_SECTOR_WITH_SUBCODE_SIZE, &len, NULL)) {
 				DWORD err = GetLastError ();
-				write_log (L"IOCTL_CDROM_RAW_READ SUBQ CDDA sector %d returned %d\n", pos, err);
+				write_log (_T("IOCTL_CDROM_RAW_READ SUBQ CDDA sector %d returned %d\n"), pos, err);
 			}
 			reseterrormode (ciw);
 			uae_u8 subbuf[SUB_CHANNEL_SIZE];
@@ -848,7 +848,7 @@ static int ioctl_command_qcode (int unitnum, uae_u8 *buf, int sector)
 		tolongbcd (p + 3, msf);
 	}
 
-//	write_log (L"%6d %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n",
+//	write_log (_T("%6d %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
 //		pos, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11]);
 	return 1;
 
@@ -864,7 +864,7 @@ static int ioctl_command_rawread (int unitnum, uae_u8 *data, int sector, int siz
 	int ret = 0;
 
 	if (log_scsi)
-		write_log (L"IOCTL rawread unit=%d sector=%d blocksize=%d\n", unitnum, sector, sectorsize);
+		write_log (_T("IOCTL rawread unit=%d sector=%d blocksize=%d\n"), unitnum, sector, sectorsize);
 	cdda_stop (ciw);
 	gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 	if (sectorsize > 0) {
@@ -964,7 +964,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 		seterrormode (ciw);
 		if (SetFilePointer (ciw->h, sector * ciw->di.bytespersector, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
 			reseterrormode (ciw);
-			if (win32_error (ciw, unitnum, L"SetFilePointer") < 0)
+			if (win32_error (ciw, unitnum, _T("SetFilePointer")) < 0)
 				continue;
 			return 0;
 		}
@@ -982,7 +982,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 			if (!WriteFile (ciw->h, p, blocksize, &dtotal, 0)) {
 				int err;
 				reseterrormode (ciw);
-				err = win32_error (ciw, unitnum, L"WriteFile");
+				err = win32_error (ciw, unitnum, _T("WriteFile"));
 				if (err < 0)
 					continue;
 				if (err == ERROR_WRITE_PROTECT)
@@ -993,7 +993,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 			dtotal = 0;
 			if (!ReadFile (ciw->h, p, blocksize, &dtotal, 0)) {
 				reseterrormode (ciw);
-				if (win32_error (ciw, unitnum, L"ReadFile") < 0)
+				if (win32_error (ciw, unitnum, _T("ReadFile")) < 0)
 					continue;
 				return 0;
 			}
@@ -1002,7 +1002,7 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 				/* ESS Mega (CDTV) "fake" data area returns zero bytes and no error.. */
 				spti_read (ciw, unitnum, data, sector, 2048);
 				if (reported++ < 100)
-					write_log (L"IOCTL unit %d, sector %d: ReadFile()==0. SPTI=%d\n", unitnum, sector, GetLastError ());
+					write_log (_T("IOCTL unit %d, sector %d: ReadFile()==0. SPTI=%d\n"), unitnum, sector, GetLastError ());
 				return 1;
 			}
 			if (data) {
@@ -1040,7 +1040,7 @@ static int fetch_geometry (struct dev_info_ioctl *ciw, int unitnum, struct devic
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_GET_DRIVE_GEOMETRY, NULL, 0, &geom, sizeof (geom), &len, NULL)) {
 			DWORD err = GetLastError ();
 			if (err == ERROR_WRONG_DISK) {
-				if (win32_error (ciw, unitnum, L"IOCTL_CDROM_GET_DRIVE_GEOMETRY") < 0)
+				if (win32_error (ciw, unitnum, _T("IOCTL_CDROM_GET_DRIVE_GEOMETRY")) < 0)
 					continue;
 			}
 			reseterrormode (ciw);
@@ -1111,7 +1111,7 @@ static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hid
 			DWORD err = GetLastError ();
 			reseterrormode (ciw);
 			if (!hide_errors || (hide_errors && err == ERROR_WRONG_DISK)) {
-				if (win32_error (ciw, unitnum, L"IOCTL_CDROM_READ_TOC") < 0)
+				if (win32_error (ciw, unitnum, _T("IOCTL_CDROM_READ_TOC")) < 0)
 					continue;
 			}
 			return 0;
@@ -1173,7 +1173,7 @@ static void update_device_info (int unitnum)
 	di->lun = 0;
 	di->media_inserted = 0;
 	di->bytespersector = 2048;
-	_stprintf (di->mediapath, L"\\\\.\\%c:", ciw->drvletter);
+	_stprintf (di->mediapath, _T("\\\\.\\%c:"), ciw->drvletter);
 	if (fetch_geometry (ciw, unitnum, di)) { // || ioctl_command_toc (unitnum))
 		di->media_inserted = 1;
 	}
@@ -1183,7 +1183,7 @@ static void update_device_info (int unitnum)
 	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
 	di->unitnum = unitnum + 1;
 	_tcscpy (di->label, ciw->drvlettername);
-	di->backend = L"IOCTL";
+	di->backend = _T("IOCTL");
 }
 
 static void trim (TCHAR *s)
@@ -1202,13 +1202,13 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	/* buffer must be page aligned for device access */
 	ciw->tempbuffer = (uae_u8*)VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
 	if (!ciw->tempbuffer) {
-		write_log (L"IOCTL: failed to allocate buffer");
+		write_log (_T("IOCTL: failed to allocate buffer"));
 		return 1;
 	}
 
-	_tcscpy (ciw->di.vendorid, L"UAE");
-	_stprintf (ciw->di.productid, L"SCSI CD%d IMG", unitnum);
-	_tcscpy (ciw->di.revision, L"0.1");
+	_tcscpy (ciw->di.vendorid, _T("UAE"));
+	_stprintf (ciw->di.productid, _T("SCSI CD%d IMG"), unitnum);
+	_tcscpy (ciw->di.revision, _T("0.1"));
 	if (spti_inquiry (ciw, unitnum, inquiry)) {
 		char tmp[20];
 		TCHAR *s;
@@ -1234,7 +1234,7 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	}
 
 	if (!open_createfile (ciw, 0)) {
-		write_log (L"IOCTL: failed to open '%s', err=%d\n", ciw->devname, GetLastError ());
+		write_log (_T("IOCTL: failed to open '%s', err=%d\n"), ciw->devname, GetLastError ());
 		goto error;
 	}
 	uae_sem_init (&ciw->sub_sem, 0, 1);
@@ -1243,12 +1243,12 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	update_device_info (unitnum);
 	ciw->open = true;
 	//ciw->usesptiread = true;
-	write_log (L"IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n",
+	write_log (_T("IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n"),
 		ciw->devname, ciw->di.vendorid, ciw->di.productid, ciw->di.revision,
 		unitnum, ciw->di.media_inserted);
 	return 0;
 error:
-	win32_error (ciw, unitnum, L"CreateFile");
+	win32_error (ciw, unitnum, _T("CreateFile"));
 	VirtualFree (ciw->tempbuffer, 0, MEM_RELEASE);
 	ciw->tempbuffer = NULL;
 	CloseHandle (ciw->h);
@@ -1268,7 +1268,7 @@ static void sys_cddev_close (struct dev_info_ioctl *ciw, int unitnum)
 	uae_sem_destroy (&ciw->sub_sem);
 	uae_sem_destroy (&ciw->sub_sem2);
 	ciw->open = false;
-	write_log (L"IOCTL: device '%s' closed\n", ciw->devname, unitnum);
+	write_log (_T("IOCTL: device '%s' closed\n"), ciw->devname, unitnum);
 }
 
 static int open_device (int unitnum, const TCHAR *ident, int flags)
@@ -1319,7 +1319,7 @@ static int total_devices;
 static void close_bus (void)
 {
 	if (!bus_open) {
-		write_log (L"IOCTL close_bus() when already closed!\n");
+		write_log (_T("IOCTL close_bus() when already closed!\n"));
 		return;
 	}
 	total_devices = 0;
@@ -1330,7 +1330,7 @@ static void close_bus (void)
 		unittable[i] = 0;
 	}
 	bus_open = 0;
-	write_log (L"IOCTL driver closed.\n");
+	write_log (_T("IOCTL driver closed.\n"));
 }
 
 static int open_bus (int flags)
@@ -1339,30 +1339,30 @@ static int open_bus (int flags)
 	int drive;
 
 	if (bus_open) {
-		write_log (L"IOCTL open_bus() more than once!\n");
+		write_log (_T("IOCTL open_bus() more than once!\n"));
 		return 1;
 	}
 	total_devices = 0;
 	dwDriveMask = GetLogicalDrives ();
 	if (log_scsi)
-		write_log (L"IOCTL: drive mask = %08X\n", dwDriveMask);
+		write_log (_T("IOCTL: drive mask = %08X\n"), dwDriveMask);
 	dwDriveMask >>= 2; // Skip A and B drives...
 	for (drive = 'C'; drive <= 'Z' && total_devices < MAX_TOTAL_SCSI_DEVICES; drive++) {
 		if (dwDriveMask & 1) {
 			int dt;
 			TCHAR tmp[10];
-			_stprintf (tmp, L"%c:\\", drive);
+			_stprintf (tmp, _T("%c:\\"), drive);
 			dt = GetDriveType (tmp);
 			if (log_scsi)
-				write_log (L"IOCTL: drive %c type %d\n", drive, dt);
+				write_log (_T("IOCTL: drive %c type %d\n"), drive, dt);
 			if (dt == DRIVE_CDROM) {
 				if (log_scsi)
-					write_log (L"IOCTL: drive %c: = unit %d\n", drive, total_devices);
+					write_log (_T("IOCTL: drive %c: = unit %d\n"), drive, total_devices);
 				ciw32[total_devices].drvletter = drive;
 				_tcscpy (ciw32[total_devices].drvlettername, tmp);
 				ciw32[total_devices].type = dt;
 				ciw32[total_devices].di.bytespersector = 2048;
-				_stprintf (ciw32[total_devices].devname, L"\\\\.\\%c:", drive);
+				_stprintf (ciw32[total_devices].devname, _T("\\\\.\\%c:"), drive);
 				ciw32[total_devices].h = INVALID_HANDLE_VALUE;
 				total_devices++;
 			}
@@ -1370,7 +1370,7 @@ static int open_bus (int flags)
 		dwDriveMask >>= 1;
 	}
 	bus_open = 1;
-	write_log (L"IOCTL driver open, %d devices.\n", total_devices);
+	write_log (_T("IOCTL driver open, %d devices.\n"), total_devices);
 	return total_devices;
 }
 
@@ -1403,7 +1403,7 @@ bool win32_ioctl_media_change (TCHAR driveletter, int insert)
 	for (int i = 0; i < total_devices; i++) {
 		struct dev_info_ioctl *ciw = &ciw32[i];
 		if (ciw->drvletter == driveletter && ciw->di.media_inserted != insert) {
-			write_log (L"IOCTL: media change %s %d\n", ciw->drvlettername, insert);
+			write_log (_T("IOCTL: media change %s %d\n"), ciw->drvlettername, insert);
 			ciw->di.media_inserted = insert;
 			int unitnum = getunitnum (ciw);
 			if (unitnum >= 0) {
@@ -1433,7 +1433,7 @@ static int ioctl_scsiemu (int unitnum, uae_u8 *cmd)
 }
 
 struct device_functions devicefunc_win32_ioctl = {
-	L"IOCTL",
+	_T("IOCTL"),
 	open_bus, close_bus, open_device, close_device, info_device,
 	0, 0, 0,
 	ioctl_command_pause, ioctl_command_stop, ioctl_command_play, ioctl_command_volume, ioctl_command_qcode,

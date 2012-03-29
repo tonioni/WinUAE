@@ -31,7 +31,7 @@ static void err (const char *func, const WCHAR *w, const char *c, UINT cp)
 		fwrite (zero, 1, 1, f);
 	fwrite (&err, 4, 1, f);
 	fclose (f);
-	write_log (L"CP=%d,ERR=%d\n", cp, err);
+	write_log (_T("CP=%d,ERR=%d\n"), cp, err);
 #endif
 }
 
@@ -254,19 +254,19 @@ WCHAR *au_fs_copy (TCHAR *dst, int maxlen, const char *src)
 static void mbtwc (UINT cp, DWORD flags, LPCSTR src, int len, LPWSTR dst, int maxlen)
 {
 	DWORD err;
-	//write_log (L"CP=%08X F=%x %p %02X %02X %d %p %04X %04X %d", cp, flags, src, (unsigned char)src[0], (unsigned char)src[1], len, dst, dst[0], dst[1], maxlen);
+	//write_log (_T("CP=%08X F=%x %p %02X %02X %d %p %04X %04X %d"), cp, flags, src, (unsigned char)src[0], (unsigned char)src[1], len, dst, dst[0], dst[1], maxlen);
 	err = MultiByteToWideChar (cp, flags, src, len, dst, maxlen);
-	//write_log (L"=%d %04X %04X\n", err, dst[0], dst[1]);
+	//write_log (_T("=%d %04X %04X\n"), err, dst[0], dst[1]);
 	if (err)
 		return;
 	err = GetLastError ();
-	write_log (L"\nMBTWC %u:%d\n", cp, err);
+	write_log (_T("\nMBTWC %u:%d\n"), cp, err);
 #if 0
 	if (cp != CP_ACP) {
 		cp = CP_ACP;
 		if (MultiByteToWideChar (cp, flags, src, len, dst, maxlen)) {
 			err = GetLastError ();
-			write_log (L"MBTWC2 %u:%d\n", cp, err);
+			write_log (_T("MBTWC2 %u:%d\n"), cp, err);
 		}
 	}
 #endif
@@ -286,7 +286,7 @@ void unicode_init (void)
 	ac = GetACP ();
 	if (ac == 1251) // cyrillic -> always use 1251
 		fscodepage = 1251;
-	write_log (L"Filesystem charset (ACP=%u,FSCP=%u):\n", ac, fscodepage);
+	write_log (_T("Filesystem charset (ACP=%u,FSCP=%u):\n"), ac, fscodepage);
 	minac = 0x7f;
 	maxac = 0x9f;
 	for (i = 0; i < 256; i++) {
@@ -303,11 +303,11 @@ void unicode_init (void)
 		mbtwc (CP_ACP, 0, src, 1, dst1, 1);
 		mbtwc (fscodepage, 0, src, 1, dst2, 1);
 		if (dst2[0] != dst1[0])
-			write_log (L" %02X: %04X (%04X)", i, dst1[0], dst2[0]);
+			write_log (_T(" %02X: %04X (%04X)"), i, dst1[0], dst2[0]);
 		else
-			write_log (L" %02X: %04X       ", i, dst1[0]);
+			write_log (_T(" %02X: %04X       "), i, dst1[0]);
 		if ((i & 3) == 3)
-			write_log (L"\n");
+			write_log (_T("\n"));
 		if (i < 32 || (i >= minac && i <= maxac))
 			aufstable[i] = dst1[0];
 		else
@@ -315,7 +315,7 @@ void unicode_init (void)
 		if (aufstable[i] == 0)
 			aufstable[i] = (unsigned char)i;
 	}		
-	write_log (L"End\n");
+	write_log (_T("End\n"));
 }
 
 int same_aname (const TCHAR *an1, const TCHAR *an2)

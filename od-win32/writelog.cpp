@@ -34,17 +34,17 @@ static void premsg (void)
 	ws = au_fs (ast);
 
 	MessageBoxA(NULL, "español", "ANSI", MB_OK);
-	MessageBoxW(NULL, L"español", L"UTF-16", MB_OK);
+	MessageBoxW(NULL, _T("español"), _T("UTF-16"), MB_OK);
 
-	as = ua (L"español");
+	as = ua (_T("español"));
 	MessageBoxA(NULL, as, "ANSI:2", MB_OK);
 	ws = au (as);
-	MessageBoxW(NULL, ws, L"UTF-16:2", MB_OK);
+	MessageBoxW(NULL, ws, _T("UTF-16:2"), MB_OK);
 	xfree (ws);
 	xfree (as);
 
 	ws = au ("español");
-	MessageBoxW(NULL, ws, L"UTF-16:3", MB_OK);
+	MessageBoxW(NULL, ws, _T("UTF-16:3"), MB_OK);
 	as = ua (ws);
 	MessageBoxA(NULL, as, "ANSI:3", MB_OK);
 	xfree (ws);
@@ -119,7 +119,7 @@ static void openconsole (void)
 		if (consoleopen > 0 || debuggerinitializing)
 			return;
 		if (debugger_type < 0) {
-			regqueryint (NULL, L"DebuggerType", &debugger_type);
+			regqueryint (NULL, _T("DebuggerType"), &debugger_type);
 			if (debugger_type <= 0)
 				debugger_type = 2;
 			openconsole();
@@ -147,7 +147,7 @@ void debugger_change (int mode)
 		debugger_type = mode;
 	if (debugger_type != 1 && debugger_type != 2)
 		debugger_type = 2;
-	regsetint (NULL, L"DebuggerType", debugger_type);
+	regsetint (NULL, _T("DebuggerType"), debugger_type);
 	openconsole ();
 }
 
@@ -163,13 +163,13 @@ void reopen_console (void)
 	if (hwnd) {
 		int newpos = 1;
 		int x, y, w, h;
-		if (!regqueryint (NULL, L"LoggerPosX", &x))
+		if (!regqueryint (NULL, _T("LoggerPosX"), &x))
 			newpos = 0;
-		if (!regqueryint (NULL, L"LoggerPosY", &y))
+		if (!regqueryint (NULL, _T("LoggerPosY"), &y))
 			newpos = 0;
-		if (!regqueryint (NULL, L"LoggerPosW", &w))
+		if (!regqueryint (NULL, _T("LoggerPosW"), &w))
 			newpos = 0;
-		if (!regqueryint (NULL, L"LoggerPosH", &h))
+		if (!regqueryint (NULL, _T("LoggerPosH"), &h))
 			newpos = 0;
 		if (newpos) {
 			RECT rc;
@@ -199,10 +199,10 @@ void close_console (void)
 			if (GetWindowRect (hwnd, &r)) {
 				r.bottom -= r.top;
 				r.right -= r.left;
-				regsetint (NULL, L"LoggerPosX", r.left);
-				regsetint (NULL, L"LoggerPosY", r.top);
-				regsetint (NULL, L"LoggerPosW", r.right);
-				regsetint (NULL, L"LoggerPosH", r.bottom);
+				regsetint (NULL, _T("LoggerPosX"), r.left);
+				regsetint (NULL, _T("LoggerPosY"), r.top);
+				regsetint (NULL, _T("LoggerPosW"), r.right);
+				regsetint (NULL, _T("LoggerPosH"), r.bottom);
 			}
 		}
 		FreeConsole ();
@@ -380,7 +380,7 @@ static TCHAR *writets (void)
 		return NULL;
 	_ftime (&tb);
 	t = localtime (&tb.time);
-	_tcsftime (curts, sizeof curts / sizeof (TCHAR), L"%Y-%m-%d %H:%M:%S\n", t);
+	_tcsftime (curts, sizeof curts / sizeof (TCHAR), _T("%Y-%m-%d %H:%M:%S\n"), t);
 	p = out;
 	*p = 0;
 	if (_tcsncmp (curts, lastts, _tcslen (curts) - 3)) { // "xx\n"
@@ -388,13 +388,13 @@ static TCHAR *writets (void)
 		p += _tcslen (p);
 		_tcscpy (lastts, curts);
 	}
-	_tcsftime (p, sizeof out / sizeof (TCHAR) - (p - out) , L"%S-", t);
+	_tcsftime (p, sizeof out / sizeof (TCHAR) - (p - out) , _T("%S-"), t);
 	p += _tcslen (p);
-	_stprintf (p, L"%03d", tb.millitm);
+	_stprintf (p, _T("%03d"), tb.millitm);
 	p += _tcslen (p);
 	if (vsync_counter != 0xffffffff)
-		_stprintf (p, L" [%d %03dx%03d]", vsync_counter, current_hpos (), vpos);
-	_tcscat (p, L": ");
+		_stprintf (p, _T(" [%d %03dx%03d]"), vsync_counter, current_hpos (), vpos);
+	_tcscat (p, _T(": "));
 	return out;
 }
 
@@ -426,7 +426,7 @@ void write_dlog (const TCHAR *format, ...)
 		break;
 	}
 	bufp[bufsize - 1] = 0;
-	if (!_tcsncmp (bufp, L"write ", 6))
+	if (!_tcsncmp (bufp, _T("write "), 6))
 		bufsize--;
 	if (bufp[0] == '*')
 		count++;
@@ -434,7 +434,7 @@ void write_dlog (const TCHAR *format, ...)
 		writeconsole (bufp);
 	}
 	if (debugfile) {
-		_ftprintf (debugfile, L"%s", bufp);
+		_ftprintf (debugfile, _T("%s"), bufp);
 	}
 	lfdetected = 0;
 	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
@@ -475,7 +475,7 @@ void write_log (const TCHAR *format, ...)
 		break;
 	}
 	bufp[bufsize - 1] = 0;
-	if (!_tcsncmp (bufp, L"write ", 6))
+	if (!_tcsncmp (bufp, _T("write "), 6))
 		bufsize--;
 	ts = writets ();
 	if (bufp[0] == '*')
@@ -487,8 +487,8 @@ void write_log (const TCHAR *format, ...)
 	}
 	if (debugfile) {
 		if (lfdetected && ts)
-			_ftprintf (debugfile, L"%s", ts);
-		_ftprintf (debugfile, L"%s", bufp);
+			_ftprintf (debugfile, _T("%s"), ts);
+		_ftprintf (debugfile, _T("%s"), bufp);
 	}
 	lfdetected = 0;
 	if (_tcslen (bufp) > 0 && bufp[_tcslen (bufp) - 1] == '\n')
@@ -547,20 +547,20 @@ FILE *log_open (const TCHAR *name, int append, int bootlog)
 
 	if (name != NULL) {
 		if (bootlog >= 0) {
-			f = _tfopen (name, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
+			f = _tfopen (name, append ? _T("a, ccs=UTF-8") : _T("wt, ccs=UTF-8"));
 			if (!f && bootlog) {
 				TCHAR tmp[MAX_DPATH];
 				tmp[0] = 0;
 				if (GetTempPath (MAX_DPATH, tmp) > 0) {
-					_tcscat (tmp, L"glog.txt");
-					f = _tfopen (tmp, append ? L"a, ccs=UTF-8" : L"wt, ccs=UTF-8");
+					_tcscat (tmp, _T("glog.txt"));
+					f = _tfopen (tmp, append ? _T("a, ccs=UTF-8") : _T("wt, ccs=UTF-8"));
 				}
 			}
 		}
 		bootlogmode = bootlog;
 	} else if (1) {
 		TCHAR *c = GetCommandLine ();
-		if (_tcsstr (c, L" -console")) {
+		if (_tcsstr (c, _T(" -console"))) {
 			if (GetStdHandle (STD_INPUT_HANDLE) && GetStdHandle (STD_OUTPUT_HANDLE)) {
 				consoleopen = -1;
 				realconsole = 1;
@@ -592,7 +592,7 @@ void jit_abort (const TCHAR *format,...)
 	writeconsole (buffer);
 	va_end (parms);
 	if (!happened)
-		gui_message (L"JIT: Serious error:\n%s", buffer);
+		gui_message (_T("JIT: Serious error:\n%s"), buffer);
 	happened = 1;
 	uae_reset (1);
 }

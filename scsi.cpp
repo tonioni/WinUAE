@@ -40,7 +40,7 @@ int scsi_data_dir(struct scsi_data *sd)
 			return 0;
 		}
 	}
-	write_log (L"SCSI command %02X, no direction specified (IN?)!\n", sd->cmd[0]);
+	write_log (_T("SCSI command %02X, no direction specified (IN?)!\n"), sd->cmd[0]);
 	return -2;
 }
 
@@ -99,7 +99,7 @@ struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 {
 	struct scsi_data *sd;
 	if (!sys_command_open (nativeunit)) {
-		write_log (L"SCSI: native scsi unit %d failed to open\n", nativeunit);
+		write_log (_T("SCSI: native scsi unit %d failed to open\n"), nativeunit);
 		return NULL;
 	}
 	sd = xcalloc (struct scsi_data, 1);
@@ -133,13 +133,13 @@ int scsi_send_data(struct scsi_data *sd, uae_u8 b)
 {
 	if (sd->direction) {
 		if (sd->offset >= SCSI_DATA_BUFFER_SIZE) {
-			write_log (L"SCSI data buffer overflow!\n");
+			write_log (_T("SCSI data buffer overflow!\n"));
 			return 0;
 		}
 		sd->buffer[sd->offset++] = b;
 	} else {
 		if (sd->offset >= 16) {
-			write_log (L"SCSI command buffer overflow!\n");
+			write_log (_T("SCSI command buffer overflow!\n"));
 			return 0;
 		}
 		sd->cmd[sd->offset++] = b;

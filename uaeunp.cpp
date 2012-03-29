@@ -104,10 +104,10 @@ static void geterror (void)
 	TCHAR *err = zfile_geterror ();
 	if (!err)
 		return;
-	_tprintf (L"%s\n", err);
+	_tprintf (_T("%s\n"), err);
 }
 
-static const TCHAR *prots = L"HSPARWED";
+static const TCHAR *prots = _T("HSPARWED");
 
 struct arcdir {
 	TCHAR *name;
@@ -152,32 +152,32 @@ static void dolist (struct arcdir **filelist, struct arcdir *adp, int entries, i
 					}
 					protflags[j] = 0;
 				} else {
-					_tcscpy (protflags, L"--------");
+					_tcscpy (protflags, _T("--------"));
 				}
 
 				if (ad->dt > 0) {
 					dt = _gmtime64 (&ad->dt);
-					_tcsftime (dates, sizeof (dates) / sizeof (TCHAR), L"%Y/%m/%d %H:%M:%S", dt);
+					_tcsftime (dates, sizeof (dates) / sizeof (TCHAR), _T("%Y/%m/%d %H:%M:%S"), dt);
 				} else {
-					_tcscpy (dates, L"-------------------");
+					_tcscpy (dates, _T("-------------------"));
 				}
 
 				for (j = 0; j < level; j++)
-					_tprintf (L" ");
+					_tprintf (_T(" "));
 				if (ad->iscrc > 0)
-					_stprintf (crcs, L"%08X", ad->crc32);
+					_stprintf (crcs, _T("%08X"), ad->crc32);
 				else if (ad->iscrc < 0)
-					_tcscpy (crcs, L"????????");
+					_tcscpy (crcs, _T("????????"));
 				else
-					_tcscpy (crcs, L"--------");
+					_tcscpy (crcs, _T("--------"));
 				if (ad->isdir > 0)
-					_tprintf (L"     [DIR] %s %s          %s\n", protflags, dates, ad->name);
+					_tprintf (_T("     [DIR] %s %s          %s\n"), protflags, dates, ad->name);
 				else if (ad->isdir < 0)
-					_tprintf (L"    [VDIR] %s %s          %s\n", protflags, dates, ad->name);
+					_tprintf (_T("    [VDIR] %s %s          %s\n"), protflags, dates, ad->name);
 				else
-					_tprintf (L"%10I64d %s %s %s %s\n", ad->size, protflags, dates, crcs, ad->name);
+					_tprintf (_T("%10I64d %s %s %s %s\n"), ad->size, protflags, dates, crcs, ad->name);
 				if (ad->comment)
-					_tprintf (L" \"%s\"\n", ad->comment);
+					_tprintf (_T(" \"%s\"\n"), ad->comment);
 				if (ad->nextlevel >= 0) {
 					level++;
 					dolist (filelist, adp, entries, ad - adp, level);
@@ -212,17 +212,17 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
-		_tprintf (L"Couldn't open archive '%s'\n", src);
+		_tprintf (_T("Couldn't open archive '%s'\n"), src);
 		return 0;
 	}
 	h = zfile_opendir_archive (src);
 	if (!h) {
 		_tcscpy (p, src);
-		_tcscat (p, L".DIR");
+		_tcscat (p, _T(".DIR"));
 		h = zfile_opendir_archive (src);
 		if (!h) {
 			geterror();
-			_tprintf (L"Couldn't open directory '%s'\n", src);
+			_tprintf (_T("Couldn't open directory '%s'\n"), src);
 			return 0;
 		}
 	}
@@ -328,20 +328,20 @@ static int docrclist (const TCHAR *src)
 	TCHAR path[MAX_DPATH];
 
 	_tcscpy (path, src);
-	_tcscat (path, L"\\*.*");
+	_tcscat (path, _T("\\*.*"));
 	h = FindFirstFile (path, &ffd);
 	while (h) {
 		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			if (!_tcscmp (ffd.cFileName, L".") || !_tcscmp (ffd.cFileName, L".."))
+			if (!_tcscmp (ffd.cFileName, _T(".")) || !_tcscmp (ffd.cFileName, _T("..")))
 				goto next;
 			_tcscpy (path, src);
-			_tcscat (path, L"\\");
+			_tcscat (path, _T("\\"));
 			_tcscat (path, ffd.cFileName);
 			docrclist (path);
 		} else {
 			TCHAR path2[MAX_DPATH];
 			_tcscpy (path, src);
-			_tcscat (path, L"\\");
+			_tcscat (path, _T("\\"));
 			_tcscat (path, ffd.cFileName);
 			GetFullPathName (path, MAX_DPATH, path2, NULL);
 			resetlist ();
@@ -380,13 +380,13 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
-		_tprintf (L"Couldn't open archive '%s'\n", src);
+		_tprintf (_T("Couldn't open archive '%s'\n"), src);
 		return 0;
 	}
 	h = zfile_opendir_archive (src);
 	if (!h) {
 		geterror();
-		_tprintf (L"Couldn't open directory '%s'\n", src);
+		_tprintf (_T("Couldn't open directory '%s'\n"), src);
 		return 0;
 	}
 	while (zfile_readdir_archive (h, fn)) {
@@ -400,7 +400,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 			_tcscat (tmp, sep);
 			_tcscat (tmp, fn);
 			if (!zfile_stat_archive (tmp, &st)) {
-				_tprintf (L"Couldn't stat '%s'\n", tmp);
+				_tprintf (_T("Couldn't stat '%s'\n"), tmp);
 				continue;
 			}
 			if (dst == NULL || all)
@@ -417,14 +417,14 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 					setdate (dst, st.st_mtime);
 					continue;
 				}
-				_tprintf (L"Directory extraction not yet supported\n");
+				_tprintf (_T("Directory extraction not yet supported\n"));
 				return 0;
 			}
 
 			s = zfile_open_archive (tmp, ZFD_ARCHIVE | ZFD_NORECURSE);
 			if (!s) {
 				geterror();
-				_tprintf (L"Couldn't open '%s' for reading\n", src);
+				_tprintf (_T("Couldn't open '%s' for reading\n"), src);
 				continue;
 			}
 			zfile_fseek (s, 0, SEEK_END);
@@ -434,14 +434,14 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 			if (b) {
 				if (zfile_fread (b, size, 1, s) == 1) {
 					if (out) {
-						_tprintf (L"\n");
+						_tprintf (_T("\n"));
 						fwrite (b, size, 1, stdout);
 					} else {
-						d = zfile_fopen (dst, L"wb", 0);
+						d = zfile_fopen (dst, _T("wb"), 0);
 						if (d) {
 							if (zfile_fwrite (b, size, 1, d) == 1) {
 								ret = 1;
-								_tprintf (L"%s extracted, %d bytes\n", dst, size);
+								_tprintf (_T("%s extracted, %d bytes\n"), dst, size);
 							}
 							zfile_fclose (d);
 							setdate (dst, st.st_mtime);
@@ -458,9 +458,9 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 	geterror ();
 	if (!found && !level) {
 		if (filename[0])
-			_tprintf (L"'%s' not found\n", filename);
+			_tprintf (_T("'%s' not found\n"), filename);
 		else
-			_tprintf (L"nothing extracted\n");
+			_tprintf (_T("nothing extracted\n"));
 	}
 	return ret;
 }
@@ -478,13 +478,13 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	zv = zfile_fopen_archive_root (src, ZFD_ALL);
 	if (zv == NULL) {
 		geterror();
-		_tprintf (L"Couldn't open archive '%s'\n", src);
+		_tprintf (_T("Couldn't open archive '%s'\n"), src);
 		return 0;
 	}
 	h = zfile_opendir_archive (src);
 	if (!h) {
 		geterror();
-		_tprintf (L"Couldn't open directory '%s'\n", src);
+		_tprintf (_T("Couldn't open directory '%s'\n"), src);
 		return 0;
 	}
 	while (zfile_readdir_archive (h, fn)) {
@@ -498,7 +498,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 		_tcscat (tmp, fn);
 		zfile_fill_file_attrs_archive (tmp, &isdir, &flags, NULL);
 		if (isdir) {
-			TCHAR *p = _tcsstr (fn, L".DIR");
+			TCHAR *p = _tcsstr (fn, _T(".DIR"));
 			if (isdir == ZNODE_VDIR && p && _tcslen (p) == 4) {
 				p[0] = 0;
 				if (pattern_match (fn, match))
@@ -520,7 +520,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 			s = zfile_open_archive (tmp, ZFD_NORECURSE);
 			if (!s) {
 				geterror();
-				_tprintf (L"Couldn't open '%s' for reading\n", tmp);
+				_tprintf (_T("Couldn't open '%s' for reading\n"), tmp);
 				continue;
 			}
 			zfile_fseek (s, 0, SEEK_END); 
@@ -529,11 +529,11 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 			b = xcalloc (uae_u8, size);
 			if (b) {
 				if (zfile_fread (b, size, 1, s) == 1) {
-					d = zfile_fopen (dst, L"wb", 0);
+					d = zfile_fopen (dst, _T("wb"), 0);
 					if (d) {
 						if (zfile_fwrite (b, size, 1, d) == 1) {
 							ret = 1;
-							_tprintf (L"%s extracted, %d bytes\n", dst, size);
+							_tprintf (_T("%s extracted, %d bytes\n"), dst, size);
 						}
 						zfile_fclose (d);
 						setdate (dst, st.st_mtime);
@@ -546,7 +546,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 	}
 	geterror ();
 	if (!found && !level) {
-		_tprintf (L"'%s' not matched\n", match);
+		_tprintf (_T("'%s' not matched\n"), match);
 	}
 	return ret;
 }
@@ -560,13 +560,13 @@ static int scanpath (TCHAR *src, TCHAR *outpath)
 	zv = zfile_fopen_archive_root (src, ZFD_ALL | ZFD_NORECURSE);
 	if (zv == NULL) {
 		geterror();
-		_tprintf (L"Couldn't open archive '%s'\n", src);
+		_tprintf (_T("Couldn't open archive '%s'\n"), src);
 		return 0;
 	}
 	h = zfile_opendir_archive (src);
 	if (!h) {
 		geterror();
-		_tprintf (L"Couldn't open directory '%s'\n", src);
+		_tprintf (_T("Couldn't open directory '%s'\n"), src);
 		return 0;
 	}
 	while (zfile_readdir_archive (h, fn)) {
@@ -602,47 +602,47 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	resetlist ();
 
 	for (i = 0; i < argc && i < 32; i++) {
-		if (!_tcsicmp (argv[i], L"-crclist")) {
+		if (!_tcsicmp (argv[i], _T("-crclist"))) {
 			crclist = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"o")) {
+		if (!_tcsicmp (argv[i], _T("o"))) {
 			out = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"-o")) {
+		if (!_tcsicmp (argv[i], _T("-o"))) {
 			out = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"l")) {
+		if (!_tcsicmp (argv[i], _T("l"))) {
 			list = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"-l")) {
+		if (!_tcsicmp (argv[i], _T("-l"))) {
 			list = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"x")) {
+		if (!_tcsicmp (argv[i], _T("x"))) {
 			xtract = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"-x")) {
+		if (!_tcsicmp (argv[i], _T("-x"))) {
 			xtract = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"e")) {
+		if (!_tcsicmp (argv[i], _T("e"))) {
 			extract = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"-e")) {
+		if (!_tcsicmp (argv[i], _T("-e"))) {
 			extract = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"*")) {
+		if (!_tcsicmp (argv[i], _T("*"))) {
 			all = 1;
 			used[i] = 1;
 		}
-		if (!_tcsicmp (argv[i], L"**")) {
+		if (!_tcsicmp (argv[i], _T("**"))) {
 			all = -1;
 			used[i] = 1;
 		}
@@ -679,13 +679,13 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 	//    scanpath (tmppath, path);
 
 	if (crclist) {
-		docrclist (L".");
+		docrclist (_T("."));
 		ok = 1;
 	} else if (!list && match) {
 		unpack2 (path, match, 0);
 		ok = 1;
 	} else if (!list && !parm2 && all > 0) {
-		unpack2 (path, L"*", 0);
+		unpack2 (path, _T("*"), 0);
 		ok = 1;
 	} else if (!list && extract && parm2) {
 		unpack2 (path, parm2, 0);
@@ -701,24 +701,24 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (L"UAE unpacker uaeunp 0.8e by Toni Wilen (c)2011\n");
-		_tprintf (L"\n");
-		_tprintf (L"List: \"uaeunp (-l) <path>\"\n");
-		_tprintf (L"List all recursively: \"uaeunp -l <path> **\"\n");
-		_tprintf (L"Extract to file: \"uaeunp (-x) <path> <filename> [<dst name>]\"\n");
-		_tprintf (L"Extract all (single directory): \"uaeunp (-x) <path> *\"\n");
-		_tprintf (L"Extract all (recursively): \"uaeunp (-x) <path> **\"\n");
-		_tprintf (L"Extract all (recursively, current dir): \"uaeunp -e <path> <match string>\"\n");
-		_tprintf (L"Output to console: \"uaeunp (-x) -o <path> <filename>\"\n");
-		_tprintf (L"\n");
-		_tprintf (L"Supported disk image formats:\n");
-		_tprintf (L" ADF, HDF (VHD), DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n");
-		_tprintf (L"Supported filesystems:\n");
-		_tprintf (L" OFS, FFS, SFS, SFS2 and FAT12\n");
-		_tprintf (L"Supported archive formats:\n");
-		_tprintf (L" 7ZIP, LHA, LZX, RAR (unrar.dll), TAR, ZIP, ArchiveAccess.DLL\n");
-		_tprintf (L"Miscellaneous formats:\n");
-		_tprintf (L" RDB partition table, GZIP, XZ\n");
+		_tprintf (_T("UAE unpacker uaeunp 0.8e by Toni Wilen (c)2011\n"));
+		_tprintf (_T("\n"));
+		_tprintf (_T("List: \"uaeunp (-l) <path>\"\n"));
+		_tprintf (_T("List all recursively: \"uaeunp -l <path> **\"\n"));
+		_tprintf (_T("Extract to file: \"uaeunp (-x) <path> <filename> [<dst name>]\"\n"));
+		_tprintf (_T("Extract all (single directory): \"uaeunp (-x) <path> *\"\n"));
+		_tprintf (_T("Extract all (recursively): \"uaeunp (-x) <path> **\"\n"));
+		_tprintf (_T("Extract all (recursively, current dir): \"uaeunp -e <path> <match string>\"\n"));
+		_tprintf (_T("Output to console: \"uaeunp (-x) -o <path> <filename>\"\n"));
+		_tprintf (_T("\n"));
+		_tprintf (_T("Supported disk image formats:\n"));
+		_tprintf (_T(" ADF, HDF (VHD), DMS, encrypted DMS, IPF, FDI, DSQ, WRP\n"));
+		_tprintf (_T("Supported filesystems:\n"));
+		_tprintf (_T(" OFS, FFS, SFS, SFS2 and FAT12\n"));
+		_tprintf (_T("Supported archive formats:\n"));
+		_tprintf (_T(" 7ZIP, LHA, LZX, RAR (unrar.dll), TAR, ZIP, ArchiveAccess.DLL\n"));
+		_tprintf (_T("Miscellaneous formats:\n"));
+		_tprintf (_T(" RDB partition table, GZIP, XZ\n"));
 	}
 	return 0;
 }

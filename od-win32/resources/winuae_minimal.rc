@@ -115,9 +115,9 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "Screen",IDC_SCREENRESTEXT,4,0,292,67,BS_LEFT
-    COMBOBOX        IDC_DISPLAYSELECT,59,10,225,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DISPLAYSELECT,10,10,279,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_RESOLUTION,59,27,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_REFRESHRATE,187,27,97,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_REFRESHRATE,187,27,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     EDITTEXT        IDC_XSIZE,59,48,48,12,ES_NUMBER
     EDITTEXT        IDC_YSIZE,114,48,47,12,ES_NUMBER
     GROUPBOX        "Settings",IDC_SETTINGSTEXT,4,73,209,137
@@ -138,8 +138,8 @@ BEGIN
     EDITTEXT        IDC_RATE2TEXT,143,192,41,12,ES_AUTOHSCROLL
     COMBOBOX        IDC_RESOLUTIONDEPTH,134,27,46,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Filtered low resolution",IDC_LORES_SMOOTHED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,125,89,10
-    COMBOBOX        IDC_SCREENMODE_NATIVE,39,85,67,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_SCREENMODE_RTG,39,103,67,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCREENMODE_NATIVE,39,85,63,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCREENMODE_RTG,39,103,63,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Native:",IDC_STATIC,9,85,23,15,SS_CENTERIMAGE
     RTEXT           "RTG:",IDC_STATIC,8,101,24,15,SS_CENTERIMAGE
     PUSHBUTTON      "Reset to defaults",IDC_DA_RESET,221,218,75,14
@@ -147,12 +147,12 @@ BEGIN
     COMBOBOX        IDC_LORES,103,152,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Remove interlace artifacts",IDC_FLICKERFIXER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,139,99,10
     RTEXT           "Windowed:",IDC_STATIC,13,46,40,15,SS_CENTERIMAGE
-    RTEXT           "Fullscreen:",IDC_STATIC,13,19,40,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_DISPLAY_BUFFERCNT,187,47,97,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Fullscreen:",IDC_STATIC,11,27,40,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_DISPLAY_BUFFERCNT,187,47,102,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Resolution autoswitch",IDC_AUTORESOLUTION,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,120,139,89,10
     EDITTEXT        IDC_DA_TEXT,167,218,46,12,ES_AUTOHSCROLL | ES_READONLY
-    COMBOBOX        IDC_SCREENMODE_NATIVE2,112,85,95,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_SCREENMODE_RTG2,112,103,95,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCREENMODE_NATIVE2,108,85,99,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_SCREENMODE_RTG2,108,103,99,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_RATE2BOX,143,173,60,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "",IDC_RATE2ENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,194,193,8,10
 END
@@ -182,9 +182,10 @@ BEGIN
     RTEXT           "Chip:",IDC_STATIC,19,25,32,15,SS_CENTERIMAGE
     RTEXT           "Slow:",IDC_STATIC,144,25,32,15,SS_CENTERIMAGE
     RTEXT           "Z3 Fast:",IDC_STATIC,144,49,32,15,SS_CENTERIMAGE
-    RTEXT           "32-bit Chip:",IDC_STATIC,99,73,78,15,SS_CENTERIMAGE
+    RTEXT           "32-bit Chip:",IDC_STATIC,136,74,41,15,SS_CENTERIMAGE
     CONTROL         "",IDC_Z3CHIPMEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,179,71,60,20
     EDITTEXT        IDC_Z3CHIPRAM,243,76,34,12,ES_CENTER | ES_READONLY
+    CONTROL         "Autoconfig Fast RAM",IDC_FASTMEMAUTOCONFIG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,29,76,101,10
 END
 
 IDD_CPU DIALOGEX 0, 0, 300, 241
@@ -302,12 +303,12 @@ BEGIN
     PUSHBUTTON      "&Properties",IDC_EDIT,235,172,60,15
     CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,154,100,10
     CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,154,119,10
-    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,165,121,10
-    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,188,101,10
-    CONTROL         "Include CD/DVD drives..",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,177,100,10
-    CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,177,115,10
+    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,166,121,10
+    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,178,101,10
+    CONTROL         "CDFS automount CD/DVD drives",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,190,160,10
+    CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,178,115,10
     CONTROL         "Include removable drives..",IDC_MAPDRIVES_REMOVABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,165,100,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,166,100,10
     COMBOBOX        IDC_CD_TEXT,5,224,289,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Eject",IDC_CD_EJECT,265,204,30,15
     PUSHBUTTON      "Select image file",IDC_CD_SELECT,90,204,98,15
@@ -324,12 +325,12 @@ BEGIN
     CONTROL         "Disabled",IDC_SOUND0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,13,35,101,10
     CONTROL         "Disabled, but emulated",IDC_SOUND1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,53,102,10
     CONTROL         "Enabled",IDC_SOUND2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,13,71,102,10
-    GROUPBOX        "Volume",IDC_STATIC,132,36,164,31
-    CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,137,44,105,20
-    EDITTEXT        IDC_SOUNDVOLUME2,247,47,40,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "Sound Buffer Size",IDC_STATIC,132,73,164,31
-    CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,137,81,105,19
-    EDITTEXT        IDC_SOUNDBUFFERMEM,247,84,40,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "Volume",IDC_STATIC,132,20,164,31
+    CONTROL         "",IDC_SOUNDVOLUME,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,137,29,105,20
+    EDITTEXT        IDC_SOUNDVOLUME2,247,32,40,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "Sound Buffer Size",IDC_STATIC,132,59,164,31
+    CONTROL         "Slider1",IDC_SOUNDBUFFERRAM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,137,67,105,19
+    EDITTEXT        IDC_SOUNDBUFFERMEM,247,70,40,12,ES_CENTER | ES_READONLY
     GROUPBOX        "Settings",IDC_SOUNDINTERPOLATION2,6,106,290,60
     LTEXT           "Frequency:",IDC_SOUNDFREQTXT,11,140,53,8,SS_CENTERIMAGE
     COMBOBOX        IDC_SOUNDFREQ,13,149,51,75,CBS_DROPDOWN | WS_VSCROLL | WS_TABSTOP
@@ -351,7 +352,6 @@ BEGIN
     COMBOBOX        IDC_SOUNDSWAP,73,149,62,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Swap channels:",IDC_SOUNDSWAPTXT,74,140,61,8,SS_CENTERIMAGE
     CONTROL         "Automatic switching",IDC_SOUND_AUTO,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,14,89,103,10
-    CONTROL         "Exclusive mode",IDC_SOUND_EXCLUSIVE,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,137,25,154,10
     CONTROL         "DirectSound",IDC_SOUND_DS,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,235,181,55,10
     CONTROL         "WASAPI",IDC_SOUND_WASAPI,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,235,193,53,10
     CONTROL         "OpenAL",IDC_SOUND_OPENAL,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,235,205,53,10
@@ -488,7 +488,7 @@ BEGIN
     GROUPBOX        "Miscellaneous Options",IDC_STATIC,4,2,293,165
     CONTROL         "Untrap = middle button",IDC_JULIAN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,19,110,10
     CONTROL         "Show GUI on startup",IDC_SHOWGUI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,43,109,10
-    CONTROL         "Native on-screen display",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,139,109,10
+    CONTROL         "Native on-screen display",IDC_SHOWLEDS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,182,103,109,10
     CONTROL         "Don't show taskbar button",IDC_NOTASKBARBUTTON,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,67,109,10
     CONTROL         "Use CTRL-F11 to quit",IDC_CTRLF11,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,55,110,10
     GROUPBOX        "Keyboard LEDs",IDC_STATIC,3,207,294,29
@@ -513,13 +513,14 @@ BEGIN
     CONTROL         "Synchronize clock",IDC_CLOCKSYNC,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,103,111,10
     CONTROL         "Faster RTG [] Enables less accurate custom chipset emulation mode when Picasso96 is enabled.",IDC_FASTERRTG,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,19,115,111,10
-    CONTROL         "RTG on-screen display",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,151,109,10
+    CONTROL         "RTG on-screen display",IDC_SHOWLEDSRTG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,182,114,109,10
     RTEXT           "Graphics API:",IDC_STATIC,130,62,79,10,SS_CENTERIMAGE
     COMBOBOX        IDC_DXMODE,213,60,79,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Minimize when focus is lost",IDC_FOCUSMINIMIZE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,31,110,10
     RTEXT           "Windowed style:",IDC_STATIC,128,45,81,10,SS_CENTERIMAGE
     COMBOBOX        IDC_WINDOWEDMODE,213,43,79,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Clipboard sharing",IDC_CLIPBOARDSHARE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,127,111,10
+    CONTROL         "Allow native code",IDC_NATIVECODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,139,111,10
 END
 
 IDD_HARDFILE DIALOGEX 0, 0, 299, 249
@@ -601,11 +602,11 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,175,65,48,15
 END
 
-IDD_CHIPSET DIALOGEX 0, 65490, 300, 165
+IDD_CHIPSET DIALOGEX 0, 65490, 300, 188
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Chipset",IDC_STATIC,14,11,145,90
+    GROUPBOX        "Chipset",IDC_STATIC,14,11,145,111
     CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,26,51,10
     CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
@@ -618,24 +619,26 @@ BEGIN
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,26,51,10
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,58,50,10
-    GROUPBOX        "Options",IDC_STATIC,168,11,114,89
+    GROUPBOX        "Options",IDC_STATIC,168,11,114,111
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,33,96,10
     CONTROL         "Cycle-exact [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,46,100,10
-    GROUPBOX        "Collision Level",IDC_STATIC,14,105,267,48
+    GROUPBOX        "Collision Level",IDC_STATIC,14,128,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,121,59,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,144,59,10
     CONTROL         "Sprites only [] Emulate only sprite vs. sprite collisions.",IDC_COLLISION1,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,137,62,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,160,62,10
     CONTROL         "Sprites and Sprites vs. Playfield [] Recommended collision emulation level.",IDC_COLLISION2,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,121,161,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,144,161,10
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,137,119,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,160,119,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,59,100,10
     COMBOBOX        IDC_CS_EXT,100,80,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Chipset Extra",IDC_STATIC,25,79,52,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,178,99,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "External display hardware:",IDC_STATIC,174,78,100,15,SS_CENTERIMAGE
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 65490, 300, 247
@@ -809,23 +812,26 @@ IDD_MISC2 DIALOGEX 0, 0, 300, 244
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "When Active",IDC_STATIC,8,7,88,73
-    RTEXT           "Run at priority:",IDC_ACTIVE_PRI,14,17,52,10,SS_CENTERIMAGE | WS_TABSTOP
+    GROUPBOX        "When Active",IDC_STATIC,8,7,88,81
+    CTEXT           "Run at priority:",IDC_ACTIVE_PRI,14,17,77,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_ACTIVE_PRIORITY,14,29,76,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "When Inactive",IDC_STATIC,102,7,92,73
-    RTEXT           "Run at priority:",IDC_INACTIVE_PRI,109,17,51,10,SS_CENTERIMAGE | WS_TABSTOP
+    GROUPBOX        "When Inactive",IDC_STATIC,102,7,92,81
+    CTEXT           "Run at priority:",IDC_INACTIVE_PRI,109,17,75,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_INACTIVE_PRIORITY,109,29,76,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Pause emulation",IDC_INACTIVE_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,109,50,69,10
-    CONTROL         "Disable sound",IDC_INACTIVE_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,109,63,79,10
-    GROUPBOX        "When Minimized",IDC_STATIC,199,7,92,73
-    RTEXT           "Run at priority:",IDC_MINIMIZED_PRI,207,18,51,10,SS_CENTERIMAGE | WS_TABSTOP
+    CONTROL         "Pause emulation",IDC_INACTIVE_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,109,61,69,10
+    CONTROL         "Disable sound",IDC_INACTIVE_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,109,74,79,10
+    GROUPBOX        "When Minimized",IDC_STATIC,199,7,92,81
+    CTEXT           "Run at priority:",IDC_MINIMIZED_PRI,207,18,75,10,SS_CENTERIMAGE | WS_TABSTOP
     COMBOBOX        IDC_MINIMIZED_PRIORITY,207,29,76,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Pause emulation",IDC_MINIMIZED_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,50,69,10
-    CONTROL         "Disable sound",IDC_MINIMIZED_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,63,79,10
-    CONTROL         "",IDC_ASSOCIATELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,19,94,164,100
-    GROUPBOX        "File Extension Associations",IDC_STATIC,8,83,186,138
-    PUSHBUTTON      "Deassociate all",IDC_ASSOCIATE_OFF,108,200,75,14
-    PUSHBUTTON      "Associate all",IDC_ASSOCIATE_ON,19,200,75,14
+    CONTROL         "Pause emulation",IDC_MINIMIZED_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,61,69,10
+    CONTROL         "Disable sound",IDC_MINIMIZED_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,74,79,10
+    CONTROL         "",IDC_ASSOCIATELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,19,104,164,100
+    GROUPBOX        "File Extension Associations",IDC_STATIC,8,93,186,138
+    PUSHBUTTON      "Deassociate all",IDC_ASSOCIATE_OFF,108,210,75,14
+    PUSHBUTTON      "Associate all",IDC_ASSOCIATE_ON,19,210,75,14
+    CONTROL         "Pause emulation",IDC_ACTIVE_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,61,69,10
+    CONTROL         "Disable sound",IDC_ACTIVE_NOSOUND,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,17,74,79,10
+    CTEXT           "Mouse uncaptured:",IDC_STATIC,18,44,72,15,SS_CENTERIMAGE
 END
 
 IDD_DISK DIALOGEX 0, 0, 300, 242
@@ -1005,24 +1011,24 @@ IDD_EXPANSION DIALOGEX 0, 0, 300, 206
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,44,53,10,SS_NOTIFY | SS_CENTERIMAGE
-    CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,40,60,20
-    EDITTEXT        IDC_P96RAM,152,43,34,12,ES_CENTER | ES_READONLY
-    GROUPBOX        "RTG Graphics Card",IDC_STATIC,5,12,291,113
+    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,25,35,53,10,SS_NOTIFY | SS_CENTERIMAGE
+    CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,31,60,20
+    EDITTEXT        IDC_P96RAM,152,34,34,12,ES_CENTER | ES_READONLY
+    GROUPBOX        "RTG Graphics Card",IDC_STATIC,5,1,291,124
     CONTROL         "Scale if smaller than display size setting",IDC_RTG_SCALE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,74,162,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,65,162,10
     CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,62,163,10
-    COMBOBOX        IDC_RTG_8BIT,211,29,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_16BIT,211,44,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_24BIT,211,59,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_RTG_32BIT,211,74,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,53,163,10
+    COMBOBOX        IDC_RTG_8BIT,211,21,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_16BIT,211,36,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_24BIT,211,51,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_32BIT,211,66,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,86,162,10
-    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,101,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Aspect ratio:",IDC_STATIC,153,102,52,10,SS_CENTERIMAGE
-    RTEXT           "Refresh rate:",IDC_STATIC,22,103,51,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_RTG_VBLANKRATE,77,101,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,77,162,10
+    COMBOBOX        IDC_RTG_SCALE_ASPECTRATIO,211,108,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Aspect ratio:",IDC_STATIC,215,95,60,10,SS_CENTERIMAGE
+    CTEXT           "Refresh rate:",IDC_STATIC,28,95,64,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_RTG_VBLANKRATE,24,108,68,150,CBS_DROPDOWN | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,142,148,120,10
     CONTROL         "uaenet.device [] Sana 2 compatible network device emulation. WinPcap required.",IDC_SANA2,
@@ -1035,6 +1041,10 @@ BEGIN
     CONTROL         "Catweasel Z2 emulation [] Catweasel MK2 Zorro II card emulation. Physical Windows compatible Catweasel card and drivers required.",IDC_CATWEASEL,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,148,101,10
     GROUPBOX        "Miscellaneous Expansions",IDC_STATIC,5,130,117,66
+    COMBOBOX        IDC_RTG_Z2Z3,26,14,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Buffer mode:",IDC_STATIC,112,95,81,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_RTG_BUFFERCNT,111,108,84,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Color modes:",IDC_STATIC,215,9,62,10,SS_CENTERIMAGE
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 300, 240
@@ -1064,8 +1074,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,3,3,0
- PRODUCTVERSION 2,3,3,0
+ FILEVERSION 2,4,0,0
+ PRODUCTVERSION 2,4,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1081,12 +1091,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "2.3.3.0"
+            VALUE "FileVersion", "2.4.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2011 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2012 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "2.3.3.0"
+            VALUE "ProductVersion", "2.4.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1238,8 +1248,13 @@ BEGIN
     BEGIN
     END
 
+    IDD_FILESYS, DIALOG
+    BEGIN
+    END
+
     IDD_CHIPSET, DIALOG
     BEGIN
+        BOTTOMMARGIN, 165
     END
 
     IDD_CHIPSET2, DIALOG
@@ -1387,7 +1402,7 @@ BEGIN
     IDS_SELECTFILESYSROOT   "Please select the root directory of the file system..."
     IDS_DEFAULTMIDIOUT      "Default MIDI-Out Device"
     IDS_CONTRIBUTORS1       "Bernd Schmidt - The Grand-Master\nSam Jordan - Custom-chip, floppy-DMA, etc.\nMathias Ortmann - Original WinUAE Main Guy, BSD Socket support\nBrian King - Picasso96 Support, Integrated GUI for WinUAE, previous WinUAE Main Guy\nToni Wilen - Core updates, WinUAE Main Guy\nGustavo Goedert/Peter Remmers/Michael Sontheimer/Tomi Hakala/Tim Gunn/Nemo Pohle - DOS Port Stuff\nSamuel Devulder/Olaf Barthel/Sam Jordan - Amiga Ports\nKrister Bergman - XFree86 and OS/2 Port\nA. Blanchard/Ernesto Corvi - MacOS Port\nChristian Bauer - BeOS Port\nIan Stephenson - NextStep Port\nPeter Teichmann - Acorn/RiscOS Port\nStefan Reinauer - ZorroII/III AutoConfig, Serial Support\nChristian Schmitt/Chris Hames - Serial Support\nHerman ten Brugge - 68020/68881 Emulation Code\nTauno Taipaleenmaki - Various UAE-Control/UAE-Library Support\nBrett Eden/Tim Gunn/Paolo Besser/Nemo Pohle - Various Docs and Web-Sites\nGeorg Veichtlbauer - Help File coordinator, German GUI\nFulvio Leonardi - Italian translator for WinUAE\n"
-    IDS_CONTRIBUTORS2       "Bill Panagouleas - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
+    IDS_CONTRIBUTORS2       "Arnljot Arntsen, Bill Panagouleas, Cloanto - Hardware support\nSpecial thanks to Alexander Kneer and Tobias Abt (The Picasso96 Team)\nSteven Weiser  - Postscript printing emulation idea and testing.\nPéter Tóth /Balázs Rátkai/Iván Herczeg/András Arató - Hungarian translation.\nKarsten Bock, Gavin Fance, Dirk Trowe and Christian Schindler - Freezer cartridge hardware support.\nMikko Nieminen - Demo compatibility testing.\nArabuusimiehet - [This information is on a need-to-know basis]"
     IDS_INVALIDPRTPORT      "The printer you have in this configuration is not valid on this machine.\n"
     IDS_RESTOREUSS          "Restore a WinUAE snapshot file"
     IDS_USS                 "WinUAE snapshot files"
@@ -1481,8 +1496,8 @@ BEGIN
     IDS_SCREEN_WINDOWED     "Windowed"
     IDS_SCREEN_FULLSCREEN   "Fullscreen"
     IDS_SCREEN_FULLWINDOW   "Full-window"
-    IDS_SCREEN_VSYNC        "VSync"
-    IDS_SCREEN_VSYNC_AUTOSWITCH "AutoVSync"
+    IDS_SCREEN_VSYNC        "Legacy VSync"
+    IDS_SCREEN_VSYNC_AUTOSWITCH "Legacy VS, 50/60Hz"
     IDS_SOUND_MONO          "Mono"
     IDS_SOUND_MIXED         "Mixed"
     IDS_SOUND_STEREO        "Stereo"
@@ -1672,8 +1687,16 @@ BEGIN
     IDS_PORT_AUTOFIRE_ALWAYS "Autofire (always)"
     IDS_PORT_AUTOFIRE_NO    "No autofire"
     IDS_AUTOSCALE_INTEGER   "Integer scaling"
-    IDS_SCREEN_VSYNC2_AUTOSWITCH "Low latency AutoVSync"
+    IDS_SCREEN_VSYNC2_AUTOSWITCH "Low latency VS, 50/60Hz"
     IDS_SCREEN_VSYNC2       "Low latency VSync"
+    IDS_SCREEN_VSYNC_NONE   "-"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_INPUTQUALIFIER      "Qualifiers"
+    IDS_GENERIC             "Generic"
+    IDS_AUTODETECT          "Autodetect"
 END
 
 #endif    // English resources

@@ -1,5 +1,5 @@
 
-#define COMPIPENAME L"WinUAE_COM"
+#define COMPIPENAME _T("WinUAE_COM")
 
 extern void *createIPC (const TCHAR *name, int);
 extern void closeIPC (void*);

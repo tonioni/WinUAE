@@ -32,7 +32,7 @@ struct uaeipc
 static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize)
 {
 	out[0] = 0;
-	if (!_tcsncmp (in, L"CFG ", 4) || !_tcsncmp (in, L"EVT ", 4)) {
+	if (!_tcsncmp (in, _T("CFG "), 4) || !_tcsncmp (in, _T("EVT "), 4)) {
 		TCHAR tmpout[256];
 		int index = -1;
 		int cnt = 0;
@@ -44,8 +44,8 @@ static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize
 			index++;
 			if (_tcslen (tmpout) > 0) {
 				if (_tcslen (out) == 0)
-					_tcscat (out, L"200 ");
-				_tcsncat (out, L"\n", outsize);
+					_tcscat (out, _T("200 "));
+				_tcsncat (out, _T("\n"), outsize);
 				_tcsncat (out, tmpout, outsize);
 			}
 			cnt++;
@@ -53,9 +53,9 @@ static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize
 				break;
 		}
 		if (_tcslen (out) == 0)
-			_tcscat (out, L"404");
+			_tcscat (out, _T("404"));
 	} else {
-		_tcscpy (out, L"501");
+		_tcscpy (out, _T("501"));
 	}
 }
 
@@ -67,19 +67,19 @@ static int listenIPC (void *vipc)
 	memset(&ipc->ol, 0, sizeof (OVERLAPPED));
 	ipc->ol.hEvent = ipc->olevent;
 	if (ConnectNamedPipe(ipc->hipc, &ipc->ol)) {
-		write_log (L"IPC: ConnectNamedPipe init failed, err=%d\n", GetLastError());
+		write_log (_T("IPC: ConnectNamedPipe init failed, err=%d\n"), GetLastError());
 		closeIPC(ipc);
 		return 0;
 	}
 	err = GetLastError();
 	if (err == ERROR_PIPE_CONNECTED) {
 		if (SetEvent(ipc->olevent)) {
-			write_log (L"IPC: ConnectNamedPipe SetEvent failed, err=%d\n", GetLastError());
+			write_log (_T("IPC: ConnectNamedPipe SetEvent failed, err=%d\n"), GetLastError());
 			closeIPC(ipc);
 			return 0;
 		}
 	} else if (err != ERROR_IO_PENDING) {
-		write_log (L"IPC: ConnectNamedPipe failed, err=%d\n", err);
+		write_log (_T("IPC: ConnectNamedPipe failed, err=%d\n"), err);
 		closeIPC(ipc);
 		return 0;
 	}
@@ -92,7 +92,7 @@ static void disconnectIPC (void *vipc)
 	ipc->readpending = ipc->writepending = FALSE;
 	if (ipc->connected) {
 		if (!DisconnectNamedPipe(ipc->hipc))
-			write_log (L"IPC: DisconnectNamedPipe failed, err=%d\n", GetLastError());
+			write_log (_T("IPC: DisconnectNamedPipe failed, err=%d\n"), GetLastError());
 		ipc->connected = FALSE;
 	}
 }
@@ -133,10 +133,10 @@ void *createIPC (const TCHAR *name, int binary)
 	ipc->olevent = INVALID_HANDLE_VALUE;
 	ipc->binary = 1;
 	while (cnt < 10) {
-		_stprintf (tmpname, L"\\\\.\\pipe\\%s", name);
+		_stprintf (tmpname, _T("\\\\.\\pipe\\%s"), name);
 		if (cnt > 0) {
 			TCHAR *p = tmpname + _tcslen (tmpname);
-			_stprintf (p, L"_%d", cnt);
+			_stprintf (p, _T("_%d"), cnt);
 		}
 		ipc->hipc = CreateNamedPipe (tmpname,
 			PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
@@ -153,7 +153,7 @@ void *createIPC (const TCHAR *name, int binary)
 		}
 		break;
 	}
-	write_log (L"IPC: Named Pipe '%s' open\n", tmpname);
+	write_log (_T("IPC: Named Pipe '%s' open\n"), tmpname);
 	ipc->olevent = CreateEvent(NULL, TRUE, TRUE, NULL);
 	if (listenIPC(ipc))
 		return ipc;
@@ -218,7 +218,7 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 		xfree (ipc->outmsg[ipc->outmessages--]);
 		err = GetLastError ();
 		if (!ok && err != ERROR_IO_PENDING) {
-			write_log (L"IPC: WriteFile() err=%d\n", err);
+			write_log (_T("IPC: WriteFile() err=%d\n"), err);
 			resetIPC (ipc);
 			return 0;
 		}
@@ -231,12 +231,12 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 			err = GetLastError ();
 			if (err == ERROR_IO_INCOMPLETE)
 				return 0;
-			write_log (L"IPC: GetOverlappedResult error %d\n", err);
+			write_log (_T("IPC: GetOverlappedResult error %d\n"), err);
 			resetIPC (ipc);
 			return 0;
 		}
 		if (!ipc->connected) {
-			write_log (L"IPC: Pipe connected\n");
+			write_log (_T("IPC: Pipe connected\n"));
 			ipc->connected = TRUE;
 			return 0;
 		}
@@ -256,9 +256,9 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 				ipc->readpending = TRUE;
 				return 0;
 			} else if (err == ERROR_BROKEN_PIPE) {
-				write_log (L"IPC: IPC client disconnected\n");
+				write_log (_T("IPC: IPC client disconnected\n"));
 			} else {
-				write_log (L"IPC: ReadFile() err=%d\n", err);
+				write_log (_T("IPC: ReadFile() err=%d\n"), err);
 			}
 			resetIPC (ipc);
 			return 0;
@@ -268,14 +268,14 @@ int checkIPC (void *vipc, struct uae_prefs *p)
 	if (ipc->binary) {
 
 	} else {
-		write_log (L"IPC: got message '%s'\n", ipc->buffer);
+		write_log (_T("IPC: got message '%s'\n"), ipc->buffer);
 		parsemessage ((TCHAR*)ipc->buffer, p, (TCHAR*)ipc->outbuf, sizeof ipc->outbuf);
 		memset (&ipc->ol, 0, sizeof (OVERLAPPED));
 		ipc->ol.hEvent = ipc->olevent;
 		ok = WriteFile (ipc->hipc, ipc->outbuf, strlen ((char*)ipc->outbuf) + 1, &ret, &ipc->ol);
 		err = GetLastError ();
 		if (!ok && err != ERROR_IO_PENDING) {
-			write_log (L"IPC: WriteFile() err=%d\n", err);
+			write_log (_T("IPC: WriteFile() err=%d\n"), err);
 			resetIPC (ipc);
 			return 0;
 		}

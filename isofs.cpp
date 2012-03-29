@@ -512,12 +512,12 @@ out_nomem:
 	return -ENOMEM;
 
 out_noread:
-	write_log (L"ISOFS: unable to read i-node block %lu\n", block);
+	write_log (_T("ISOFS: unable to read i-node block %lu\n"), block);
 	xfree(tmpde);
 	return -EIO;
 
 out_toomany:
-	write_log (L"ISOFS: More than 100 file sections ?!?, aborting... isofs_read_level3_size: inode=%lu\n", inode->i_ino);
+	write_log (_T("ISOFS: More than 100 file sections ?!?, aborting... isofs_read_level3_size: inode=%lu\n"), inode->i_ino);
 	goto out;
 }
 
@@ -618,20 +618,20 @@ static int isofs_read_inode(struct inode *inode)
 		inode->i_size &= 0x00ffffff;
 
 	if (de->interleave[0]) {
-		write_log (L"ISOFS: Interleaved files not (yet) supported.\n");
+		write_log (_T("ISOFS: Interleaved files not (yet) supported.\n"));
 		inode->i_size = 0;
 	}
 
 	/* I have no idea what file_unit_size is used for, so
 	   we will flag it for now */
 	if (de->file_unit_size[0] != 0) {
-		write_log (L"ISOFS: File unit size != 0 for ISO file (%ld).\n", inode->i_ino);
+		write_log (_T("ISOFS: File unit size != 0 for ISO file (%ld).\n"), inode->i_ino);
 	}
 
 	/* I have no idea what other flag bits are used for, so
 	   we will flag it for now */
 	if((de->flags[-high_sierra] & ~2)!= 0){
-		write_log (L"ISOFS: Unusual flag settings for ISO file (%ld %x).\n", inode->i_ino, de->flags[-high_sierra]);
+		write_log (_T("ISOFS: Unusual flag settings for ISO file (%ld %x).\n"), inode->i_ino, de->flags[-high_sierra]);
 	}
 
 	inode->i_mtime.tv_sec =
@@ -700,7 +700,7 @@ out:
 	return ret;
 
 out_badread:
-	write_log(L"ISOFS: unable to read i-node block\n");
+	write_log(_T("ISOFS: unable to read i-node block\n"));
 fail:
 	goto out;
 }
@@ -803,7 +803,7 @@ static int rock_continue(struct rock_state *rs)
 	rs->buffer = NULL;
 
 	if ((unsigned)rs->cont_offset > blocksize - min_de_size || (unsigned)rs->cont_size > blocksize || (unsigned)(rs->cont_offset + rs->cont_size) > blocksize) {
-		write_log (L"rock: corrupted directory entry. extent=%d, offset=%d, size=%d\n", rs->cont_extent, rs->cont_offset, rs->cont_size);
+		write_log (_T("rock: corrupted directory entry. extent=%d, offset=%d, size=%d\n"), rs->cont_extent, rs->cont_offset, rs->cont_size);
 		ret = -EIO;
 		goto out;
 	}
@@ -828,7 +828,7 @@ static int rock_continue(struct rock_state *rs)
 			rs->cont_offset = 0;
 			return 0;
 		}
-		write_log (L"Unable to read rock-ridge attributes\n");
+		write_log (_T("Unable to read rock-ridge attributes\n"));
 	}
 out:
 	xfree(rs->buffer);
@@ -890,8 +890,8 @@ static int rock_check_overflow(struct rock_state *rs, int sig)
 	}
 	len += offsetof(struct rock_ridge, u);
 	if (len > rs->len) {
-		write_log(L"rock: directory entry would overflow storage\n");
-		write_log(L"rock: sig=0x%02x, size=%d, remaining=%d\n", sig, len, rs->len);
+		write_log(_T("rock: directory entry would overflow storage\n"));
+		write_log(_T("rock: sig=0x%02x, size=%d, remaining=%d\n"), sig, len, rs->len);
 		return -EIO;
 	}
 	return 0;
@@ -969,7 +969,7 @@ repeat:
 				break;
 
 			if (rr->u.NM.flags & ~1) {
-				write_log(L"Unsupported NM flag settings (%d)\n", rr->u.NM.flags);
+				write_log(_T("Unsupported NM flag settings (%d)\n"), rr->u.NM.flags);
 				break;
 			}
 			if ((strlen(retname) + rr->len - 5) >= 254) {
@@ -1075,13 +1075,13 @@ repeat:
 			break;
 		case SIG('E', 'R'):
 			ISOFS_SB(inode->i_sb)->s_rock = 1;
-			write_log(L"ISO 9660 Extensions: ");
+			write_log(_T("ISO 9660 Extensions: "));
 			{
 				int p;
 				for (p = 0; p < rr->u.ER.len_id; p++)
-					write_log(L"%c", rr->u.ER.data[p]);
+					write_log(_T("%c"), rr->u.ER.data[p]);
 			}
-			write_log(L"\n");
+			write_log(_T("\n"));
 			break;
 		case SIG('P', 'X'):
 			inode->i_mode = isonum_733(rr->u.PX.mode);
@@ -1174,7 +1174,7 @@ repeat:
 						inode->i_size += 1;
 						break;
 					default:
-						write_log(L"Symlink component flag not implemented\n");
+						write_log(_T("Symlink component flag not implemented\n"));
 					}
 					slen -= slp->len + 2;
 					oldslp = slp;
@@ -1204,7 +1204,7 @@ repeat:
 			symlink_len = inode->i_size;
 			break;
 		case SIG('R', 'E'):
-			write_log(L"Attempt to read inode for relocated directory\n");
+			write_log(_T("Attempt to read inode for relocated directory\n"));
 			goto out;
 		case SIG('C', 'L'):
 			ISOFS_I(inode)->i_first_extent = isonum_733(rr->u.CL.location);
@@ -1322,7 +1322,7 @@ static char *get_symlink_chunk(char *rpnt, struct rock_ridge *rr, char *plimit)
 			*rpnt++ = '/';
 			break;
 		default:
-			write_log(L"Symlink component flag not implemented (%d)\n", slp->flags);
+			write_log(_T("Symlink component flag not implemented (%d)\n"), slp->flags);
 		}
 		slen -= slp->len + 2;
 		oldslp = slp;
@@ -1572,7 +1572,7 @@ static int isofs_get_blocks(struct inode *inode, uae_u32 iblock, struct buffer_h
 		 * I/O errors.
 		 */
 		if (b_off > ((inode->i_size) >> ISOFS_BUFFER_BITS(inode))) {
-			write_log (L"ISOFS: block >= EOF (%lu, %llu)\n", b_off, (unsigned long long)inode->i_size);
+			write_log (_T("ISOFS: block >= EOF (%lu, %llu)\n"), b_off, (unsigned long long)inode->i_size);
 			goto abort;
 		}
 
@@ -1596,7 +1596,7 @@ static int isofs_get_blocks(struct inode *inode, uae_u32 iblock, struct buffer_h
 			iput(ninode);
 
 			if (++section > 100) {
-				write_log (L"ISOFS: More than 100 file sections ?!? aborting...\n");
+				write_log (_T("ISOFS: More than 100 file sections ?!? aborting...\n"));
 				goto abort;
 			}
 		}
@@ -1735,7 +1735,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent, uae_u
 						else if (sec->escape[2] == 0x45)
 							joliet_level = 3;
 
-						write_log (L"ISO 9660 Extensions: Microsoft Joliet Level %d\n", joliet_level);
+						write_log (_T("ISO 9660 Extensions: Microsoft Joliet Level %d\n"), joliet_level);
 					}
 					goto root_found;
 				} else {
@@ -1839,16 +1839,16 @@ root_found:
 	first_data_zone = isonum_733(rootp->extent) + isonum_711(rootp->ext_attr_length);
 	sbi->s_firstdatazone = first_data_zone;
 
-	write_log (L"ISOFS: Max size:%d   Log zone size:%d\n", sbi->s_max_size, 1UL << sbi->s_log_zone_size);
-	write_log (L"ISOFS: First datazone:%d\n", sbi->s_firstdatazone);
+	write_log (_T("ISOFS: Max size:%d   Log zone size:%d\n"), sbi->s_max_size, 1UL << sbi->s_log_zone_size);
+	write_log (_T("ISOFS: First datazone:%d\n"), sbi->s_firstdatazone);
 	if(sbi->s_high_sierra)
-		write_log(L"ISOFS: Disc in High Sierra format.\n");
+		write_log(_T("ISOFS: Disc in High Sierra format.\n"));
 	ch = getname(pri->system_id, 4);
-	write_log (L"ISOFS: System ID: %s", ch);
+	write_log (_T("ISOFS: System ID: %s"), ch);
 	xfree(ch);
 	volume_name = getname(pri->volume_id, 32);
 	volume_date = iso_ltime(pri->creation_date);
-	write_log (L" Volume ID: '%s'\n", volume_name);
+	write_log (_T(" Volume ID: '%s'\n"), volume_name);
 	if (!strncmp(pri->system_id, ISO_SYSTEM_ID_CDTV, strlen(ISO_SYSTEM_ID_CDTV)))
 		sbi->s_cdtv = 1;
 
@@ -1918,7 +1918,7 @@ root_found:
 	 * correct Joliet root directory.
 	 */
 	if (sbi->s_rock == 1 && joliet_level && rootdir_empty(s, sbi->s_firstdatazone)) {
-		write_log(L"ISOFS: primary root directory is empty. Disabling Rock Ridge and switching to Joliet.\n");
+		write_log(_T("ISOFS: primary root directory is empty. Disabling Rock Ridge and switching to Joliet.\n"));
 		sbi->s_rock = 0;
 	}
 
@@ -1936,7 +1936,7 @@ root_found:
 		sbi->s_rock = 0;
 		if (sbi->s_firstdatazone != first_data_zone) {
 			sbi->s_firstdatazone = first_data_zone;
-			write_log (L"ISOFS: changing to secondary root\n");
+			write_log (_T("ISOFS: changing to secondary root\n"));
 			iput(inode);
 			inode = isofs_iget(s, sbi->s_firstdatazone, 0, NULL);
 			if (IS_ERR(inode))
@@ -1955,7 +1955,7 @@ root_found:
 
 	/* Make sure the root inode is a directory */
 	if (!XS_ISDIR(inode->i_mode)) {
-		write_log (L"isofs_fill_super: root inode is not a directory. Corrupted media?\n");
+		write_log (_T("isofs_fill_super: root inode is not a directory. Corrupted media?\n"));
 		goto out_iput;
 	}
 
@@ -1988,24 +1988,24 @@ out_iput:
 	iput(inode);
 	goto out_no_inode;
 out_no_root:
-	write_log (L"ISOFS: get root inode failed\n");
+	write_log (_T("ISOFS: get root inode failed\n"));
 out_no_inode:
 #ifdef CONFIG_JOLIET
 	unload_nls(sbi->s_nls_iocharset);
 #endif
 	goto out_freesbi;
 out_no_read:
-	write_log (L"ISOFS: bread failed, dev=%d, iso_blknum=%d, block=%d\n", s->unitnum, iso_blknum, block);
+	write_log (_T("ISOFS: bread failed, dev=%d, iso_blknum=%d, block=%d\n"), s->unitnum, iso_blknum, block);
 	goto out_freebh;
 out_bad_zone_size:
-	write_log(L"ISOFS: Bad logical zone size %ld\n", sbi->s_log_zone_size);
+	write_log(_T("ISOFS: Bad logical zone size %ld\n"), sbi->s_log_zone_size);
 	goto out_freebh;
 out_bad_size:
-	write_log (L"ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n", orig_zonesize, opt.blocksize);
+	write_log (_T("ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n"), orig_zonesize, opt.blocksize);
 	goto out_freebh;
 out_unknown_format:
 	if (!silent)
-		write_log (L"ISOFS: Unable to identify CD-ROM format.\n");
+		write_log (_T("ISOFS: Unable to identify CD-ROM format.\n"));
 out_freebh:
 	brelse(bh);
 	brelse(pri_bh);
@@ -2134,7 +2134,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 		dpnt = de->name;
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < dlen + sizeof(struct iso_directory_record)) {
-			write_log (L"iso9660: Corrupted directory entry in block %lu of inode %lu\n", block, dir->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %lu\n"), block, dir->i_ino);
 			return 0;
 		}
 
@@ -2277,7 +2277,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp, char *tmpnam
 		}
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < de->name_len[0] + sizeof(struct iso_directory_record)) {
-			write_log (L"iso9660: Corrupted directory entry in block %lu of inode %lu\n", block, inode->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %lu\n"), block, inode->i_ino);
 			return 0;
 		}
 
@@ -2393,7 +2393,7 @@ void isofs_unmount(void *sbp)
 
 	if (!sb)
 		return;
-	write_log (L"miss: %d hit: %d\n", sb->hash_miss, sb->hash_hit);
+	write_log (_T("miss: %d hit: %d\n"), sb->hash_miss, sb->hash_hit);
 	inode = sb->inodes;
 	while (inode) {
 		struct inode *next = inode->next;

@@ -38,7 +38,7 @@
 static void irq (void)
 {
 #if AKIKO_DEBUG_IO > 1
-	write_log (L"Akiko Interrupt\n");
+	write_log (_T("Akiko Interrupt\n"));
 #endif
 	if (!(intreq & 8)) {
 		INTREQ_0 (0x8000 | 0x0008);
@@ -82,9 +82,9 @@ static void nvram_write (int offset, int len)
 
 	if (!currprefs.cs_cd32nvram)
 		return;
-	f = zfile_fopen (currprefs.flashfile, L"rb+", ZFD_NORMAL);
+	f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
 	if (!f) {
-		f = zfile_fopen (currprefs.flashfile, L"wb", 0);
+		f = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
 		if (!f) return;
 		zfile_fwrite (cd32_nvram, NVRAM_SIZE, 1, f);
 	}
@@ -99,7 +99,7 @@ static void nvram_read (void)
 
 	if (!currprefs.cs_cd32nvram)
 		return;
-	f = zfile_fopen (currprefs.flashfile, L"rb", ZFD_NORMAL);
+	f = zfile_fopen (currprefs.flashfile, _T("rb"), ZFD_NORMAL);
 	memset (cd32_nvram, 0, NVRAM_SIZE);
 	if (!f) return;
 	zfile_fread (cd32_nvram, NVRAM_SIZE, 1, f);
@@ -118,14 +118,14 @@ static void i2c_do (void)
 			bitcounter = 0;
 			direction = -1;
 #if AKIKO_DEBUG_NVRAM
-			write_log (L"START\n");
+			write_log (_T("START\n"));
 #endif
 			return;
 		} else if(sda_out && !osda) { /* STOP-condition? */
 			state = I2C_WAIT;
 			bitcounter = -1;
 #if AKIKO_DEBUG_NVRAM
-			write_log (L"STOP\n");
+			write_log (_T("STOP\n"));
 #endif
 			if (direction > 0) {
 				memcpy (cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), nvram_writetmp, NVRAM_PAGE_SIZE);
@@ -133,10 +133,10 @@ static void i2c_do (void)
 				direction = -1;
 				gui_flicker_led (LED_MD, 0, 2);
 #if AKIKO_DEBUG_NVRAM
-				write_log (L"NVRAM write address %04X:", nvram_address & ~(NVRAM_PAGE_SIZE - 1));
+				write_log (_T("NVRAM write address %04X:"), nvram_address & ~(NVRAM_PAGE_SIZE - 1));
 				for (i = 0; i < NVRAM_PAGE_SIZE; i++)
-					write_log (L"%02X", nvram_writetmp[i]);
-				write_log (L"\n");
+					write_log (_T("%02X"), nvram_writetmp[i]);
+				write_log (_T("\n"));
 
 #endif
 			}
@@ -149,7 +149,7 @@ static void i2c_do (void)
 			if (scl_out && !oscl) {
 				if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-					write_log (L"RB %02X ", nvram_byte, M68K_GETPC);
+					write_log (_T("RB %02X "), nvram_byte, M68K_GETPC);
 #endif
 					sda_in = 0; /* ACK */
 					if (direction > 0) {
@@ -160,7 +160,7 @@ static void i2c_do (void)
 						bitcounter = -1;
 					}
 				} else {
-					//write_log (L"NVRAM received bit %d, offset %d\n", sda_out, bitcounter);
+					//write_log (_T("NVRAM received bit %d, offset %d\n"), sda_out, bitcounter);
 					nvram_byte <<= 1;
 					nvram_byte |= sda_out;
 					bitcounter++;
@@ -173,12 +173,12 @@ static void i2c_do (void)
 					nvram_byte = cd32_nvram[nvram_address];
 				sda_dir_nvram = 1;
 				sda_in = (nvram_byte & 0x80) ? 1 : 0;
-				//write_log (L"NVRAM sent bit %d, offset %d\n", sda_in, bitcounter);
+				//write_log (_T("NVRAM sent bit %d, offset %d\n"), sda_in, bitcounter);
 				nvram_byte <<= 1;
 				bitcounter++;
 				if (bitcounter == 8) {
 #if AKIKO_DEBUG_NVRAM
-					write_log (L"NVRAM sent byte %02X address %04X PC=%08X\n", cd32_nvram[nvram_address], nvram_address, M68K_GETPC);
+					write_log (_T("NVRAM sent byte %02X address %04X PC=%08X\n"), cd32_nvram[nvram_address], nvram_address, M68K_GETPC);
 #endif
 					nvram_address++;
 					nvram_address &= NVRAM_SIZE - 1;
@@ -194,7 +194,7 @@ static void i2c_do (void)
 	{
 	case I2C_DEVICEADDR:
 		if ((nvram_byte & 0xf0) != 0xa0) {
-			write_log (L"WARNING: I2C_DEVICEADDR: device address != 0xA0\n");
+			write_log (_T("WARNING: I2C_DEVICEADDR: device address != 0xA0\n"));
 			state = I2C_WAIT;
 			return;
 		}
@@ -212,14 +212,14 @@ static void i2c_do (void)
 		}
 		bitcounter = 0;
 #if AKIKO_DEBUG_NVRAM
-		write_log (L"I2C_DEVICEADDR: rw %d, address %02Xxx PC=%08X\n", nvram_rw, nvram_address >> 8, M68K_GETPC);
+		write_log (_T("I2C_DEVICEADDR: rw %d, address %02Xxx PC=%08X\n"), nvram_rw, nvram_address >> 8, M68K_GETPC);
 #endif
 		break;
 	case I2C_WORDADDR:
 		nvram_address &= 0x300;
 		nvram_address |= nvram_byte;
 #if AKIKO_DEBUG_NVRAM
-		write_log (L"I2C_WORDADDR: address %04X PC=%08X\n", nvram_address, M68K_GETPC);
+		write_log (_T("I2C_WORDADDR: address %04X PC=%08X\n"), nvram_address, M68K_GETPC);
 #endif
 		if (direction < 0) {
 			memcpy (nvram_writetmp, cd32_nvram + (nvram_address & ~(NVRAM_PAGE_SIZE - 1)), NVRAM_PAGE_SIZE);
@@ -493,7 +493,7 @@ static void set_status (uae_u32 status)
 {
 #if AKIKO_DEBUG_IO
 	if (!(cdrom_intreq & status))
-		write_log (L"Akiko INTREQ %08x (%08x)\n", status, cdrom_intreq | status);
+		write_log (_T("Akiko INTREQ %08x (%08x)\n"), status, cdrom_intreq | status);
 #endif
 	cdrom_intreq |= status;
 	checkint ();
@@ -534,19 +534,19 @@ static void subfunc (uae_u8 *data, int cnt)
 		if (subcodebufferinuse[i])
 			total++;
 	}
-	write_log (L"%d ", total);
+	write_log (_T("%d "), total);
 #endif
 	if (subcodebufferinuse[subcodebufferoffsetw]) {
 		memset (subcodebufferinuse, 0,sizeof (subcodebufferinuse));
 		subcodebufferoffsetw = subcodebufferoffset = 0;
 		uae_sem_post (&sub_sem);
-		write_log (L"CD32: subcode buffer overflow 1\n");
+		write_log (_T("CD32: subcode buffer overflow 1\n"));
 		return;
 	}
 	int offset = subcodebufferoffsetw;
 	while (cnt > 0) {
 		if (subcodebufferinuse[offset]) {
-			write_log (L"CD32: subcode buffer overflow 2\n");
+			write_log (_T("CD32: subcode buffer overflow 2\n"));
 			break;
 		}
 		subcodebufferinuse[offset] = 1;
@@ -608,7 +608,7 @@ static bool isaudiotrack (int startlsn)
 		s++;
 	}
 	if (s && (s->control & 0x0c) == 0x04) {
-		write_log (L"tried to play data track %d!\n", s->track);
+		write_log (_T("tried to play data track %d!\n"), s->track);
 		return false;
 	}
 	return true;
@@ -636,7 +636,7 @@ static int cd_play_audio (int startlsn, int endlsn, int scan)
 	if (s && (s->control & 0x0c) == 0x04) {
 		s = get_track (startlsn + 150);
 		if (s && (s->control & 0x0c) == 0x04) {
-			write_log (L"tried to play data track %d!\n", s->track);
+			write_log (_T("tried to play data track %d!\n"), s->track);
 			s++;
 			startlsn = s->paddress;
 			s++;
@@ -704,7 +704,7 @@ static int cd_qcode (uae_u8 *d)
 			d[10] = tobcd ((uae_u8)(msf >> 0));
 		}
 	}
-//	write_log (L"%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X\n",
+//	write_log (_T("%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X\n"),
 //		d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11]);
 	return 0;
 }
@@ -753,7 +753,7 @@ static int sys_cddev_open (void)
 	struct device_info di;
 	unitnum = get_standard_cd_unit (CD_STANDARD_UNIT_CD32);
 	sys_command_info (unitnum, &di, 0);
-	write_log (L"using drive %s (unit %d, media %d)\n", di.label, unitnum, di.media_inserted);
+	write_log (_T("using drive %s (unit %d, media %d)\n"), di.label, unitnum, di.media_inserted);
 	/* make sure CD audio is not playing */
 	cdaudiostop_do ();
 	return 0;
@@ -794,19 +794,19 @@ static void cdrom_return_data (void)
 	if (!(cdrom_flags & CDFLAG_RXD))
 		return;
 #if AKIKO_DEBUG_IO_CMD
-	write_log (L"OUT:");
+	write_log (_T("OUT:"));
 #endif
 	checksum = 0xff;
 	for (i = 0; i < len; i++) {
 		checksum -= cdrom_result_buffer[i];
 		put_byte (cmd_buf + ((cdcomrxinx + i) & 0xff), cdrom_result_buffer[i]);
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"%02X ", cdrom_result_buffer[i]);
+		write_log (_T("%02X "), cdrom_result_buffer[i]);
 #endif
 	}
 	put_byte (cmd_buf + ((cdcomrxinx + len) & 0xff), checksum);
 #if AKIKO_DEBUG_IO_CMD
-	write_log (L"(%02X)\n", checksum);
+	write_log (_T("(%02X)\n"), checksum);
 #endif
 	cdcomrxinx += len + 1;
 	cdcomrxinx &= 0xff;
@@ -957,7 +957,7 @@ static int cdrom_command_multi (void)
 				cdrom_seek_delay = 100;
 		}
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"READ DATA %06X (%d) - %06X (%d) SPD=%dx PC=%08X\n",
+		write_log (_T("READ DATA %06X (%d) - %06X (%d) SPD=%dx PC=%08X\n"),
 			seekpos, cdrom_data_offset, endpos, cdrom_data_offset_end, cdrom_speed, M68K_GETPC);
 #endif
 		cdrom_result_buffer[1] |= 0x02;
@@ -968,7 +968,7 @@ static int cdrom_command_multi (void)
 		else if (cdrom_command_buffer[7] & 0x08)
 			scan = -1;
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"PLAY FROM %06X (%d) to %06X (%d) SCAN=%d\n",
+		write_log (_T("PLAY FROM %06X (%d) to %06X (%d) SCAN=%d\n"),
 			seekpos, msf2lsn (seekpos), endpos, msf2lsn (endpos), scan);
 #endif
 		cdrom_playing = 1;
@@ -979,7 +979,7 @@ static int cdrom_command_multi (void)
 		cdrom_result_buffer[1] |= CDS_PLAYING;
 	} else {
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"SEEKTO %06X\n",seekpos);
+		write_log (_T("SEEKTO %06X\n"),seekpos);
 #endif
 		if (seekpos < 150)
 			cdrom_toc_counter = 0;
@@ -1038,7 +1038,7 @@ static void cdrom_run_command (void)
 		cmd_len = command_lengths[cdrom_command & 0x0f];
 		if (cmd_len < 0) {
 #if AKIKO_DEBUG_IO_CMD
-			write_log (L"unknown command %x\n", cdrom_command & 0x0f);
+			write_log (_T("unknown command %x\n"), cdrom_command & 0x0f);
 #endif
 			cdrom_unknown_command = 1;
 			cdrom_command_active = 1;
@@ -1048,7 +1048,7 @@ static void cdrom_run_command (void)
 		}
 
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"IN:");
+		write_log (_T("IN:"));
 #endif
 		checksum = 0;
 		for (i = 0; i < cmd_len + 1; i++) {
@@ -1056,19 +1056,19 @@ static void cdrom_run_command (void)
 			checksum += cdrom_command_buffer[i];
 #if AKIKO_DEBUG_IO_CMD
 			if (i == cmd_len)
-				write_log (L"(%02X) ", cdrom_command_buffer[i]); // checksum
+				write_log (_T("(%02X) "), cdrom_command_buffer[i]); // checksum
 			else
-				write_log (L"%02X ", cdrom_command_buffer[i]);
+				write_log (_T("%02X "), cdrom_command_buffer[i]);
 #endif
 		}
 		if (checksum != 0xff) {
 #if AKIKO_DEBUG_IO_CMD
-			write_log (L" checksum error");
+			write_log (_T(" checksum error"));
 #endif
 			cdrom_checksum_error = 1;
 		}
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"\n");
+		write_log (_T("\n"));
 #endif
 		cdrom_command_active = 1;
 		cdrom_command_length = cmd_len;
@@ -1168,7 +1168,7 @@ static void cdrom_run_read (void)
 		if (sector_buffer_info_1[sec] != 0xff)
 			sector_buffer_info_1[sec]--;
 #if AKIKO_DEBUG_IO_CMD
-		write_log (L"read sector=%d, scnt=%d -> %d. %d %08X\n",
+		write_log (_T("read sector=%d, scnt=%d -> %d. %d %08X\n"),
 			cdrom_data_offset, cdrom_sector_counter, sector, seccnt, cdrom_addressdata + seccnt * 4096);
 #endif
 	} else {
@@ -1290,7 +1290,7 @@ void AKIKO_hsync_handler (void)
 				if (subcodebufferoffset >= MAX_SUBCODEBUFFER)
 					subcodebufferoffset -= MAX_SUBCODEBUFFER;
 				set_status (CDINTERRUPT_SUBCODE);
-				write_log (L"*");
+				write_log (_T("*"));
 			}
 			uae_sem_post (&sub_sem);
 		}
@@ -1353,12 +1353,12 @@ static void *akiko_thread (void *null)
 			mediacheckcounter = 312 * 50 * 2;
 			int media = sys_command_ismedia (unitnum, 1);
 			if (media < 0) {
-				write_log (L"CD32: device unit %d lost\n", unitnum);
+				write_log (_T("CD32: device unit %d lost\n"), unitnum);
 				media = lastmediastate = cdrom_disk = 0;
 				mediachanged = 1;
 				cdaudiostop_do ();
 			} else if (media != lastmediastate) {
-				write_log (L"CD32: media changed = %d\n", media);
+				write_log (_T("CD32: media changed = %d\n"), media);
 				lastmediastate = cdrom_disk = media;
 				mediachanged = 1;
 				cdaudiostop_do ();
@@ -1375,7 +1375,7 @@ static void *akiko_thread (void *null)
 			(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
 				memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
-				write_log (L"filling buffer sector=%d (max=%d)\n", sector, cdrom_data_end);
+				write_log (_T("filling buffer sector=%d (max=%d)\n"), sector, cdrom_data_end);
 #endif
 				sector_buffer_sector_2 = sector;
 				offset = 0;
@@ -1511,14 +1511,14 @@ static uae_u32 akiko_bget2 (uaecptr addr, int msg)
 		}
 
 	default:
-		write_log (L"akiko_bget: unknown address %08X PC=%08X\n", addr, M68K_GETPC);
+		write_log (_T("akiko_bget: unknown address %08X PC=%08X\n"), addr, M68K_GETPC);
 		v = 0;
 		break;
 	}
 	akiko_internal ();
 	uae_sem_post (&akiko_sem);
 	if (msg && addr < 0x30 && AKIKO_DEBUG_IO)
-		write_log (L"akiko_bget %08X: %08X %02X\n", M68K_GETPC, addr, v & 0xff);
+		write_log (_T("akiko_bget %08X: %08X %02X\n"), M68K_GETPC, addr, v & 0xff);
 	return v;
 }
 
@@ -1540,7 +1540,7 @@ static uae_u32 REGPARAM2 akiko_wget (uaecptr addr)
 	v = akiko_bget2 (addr + 1, 0);
 	v |= akiko_bget2 (addr + 0, 0) << 8;
 	if (addr < 0x30 && AKIKO_DEBUG_IO)
-		write_log (L"akiko_wget %08X: %08X %04X\n", M68K_GETPC, addr, v & 0xffff);
+		write_log (_T("akiko_wget %08X: %08X %04X\n"), M68K_GETPC, addr, v & 0xffff);
 	return v;
 }
 
@@ -1557,7 +1557,7 @@ static uae_u32 REGPARAM2 akiko_lget (uaecptr addr)
 	v |= akiko_bget2 (addr + 1, 0) << 16;
 	v |= akiko_bget2 (addr + 0, 0) << 24;
 	if (addr < 0x30 && (addr != 4 && addr != 8) && AKIKO_DEBUG_IO)
-		write_log (L"akiko_lget %08X: %08X %08X\n", M68K_GETPC, addr, v);
+		write_log (_T("akiko_lget %08X: %08X %08X\n"), M68K_GETPC, addr, v);
 	return v;
 }
 
@@ -1569,7 +1569,7 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 	v &= 0xff;
 
 	if(msg && addr < 0x30 && AKIKO_DEBUG_IO)
-		write_log (L"akiko_bput %08X: %08X=%02X\n", M68K_GETPC, addr, v & 0xff);
+		write_log (_T("akiko_bput %08X: %08X=%02X\n"), M68K_GETPC, addr, v & 0xff);
 
 	switch (addr)
 	{
@@ -1667,7 +1667,7 @@ static void akiko_bput2 (uaecptr addr, uae_u32 v, int msg)
 		}
 
 	default:
-		write_log (L"akiko_bput: unknown address %08X=%02X PC=%08X\n", addr, v & 0xff, M68K_GETPC);
+		write_log (_T("akiko_bput: unknown address %08X=%02X PC=%08X\n"), addr, v & 0xff, M68K_GETPC);
 		break;
 	}
 	akiko_internal ();
@@ -1689,7 +1689,7 @@ static void REGPARAM2 akiko_wput (uaecptr addr, uae_u32 v)
 #endif
 	addr &= 0xfff;
 	if((addr < 0x30 && AKIKO_DEBUG_IO))
-		write_log (L"akiko_wput %08X: %08X=%04X\n", M68K_GETPC, addr, v & 0xffff);
+		write_log (_T("akiko_wput %08X: %08X=%04X\n"), M68K_GETPC, addr, v & 0xffff);
 	akiko_bput2 (addr + 1, v & 0xff, 0);
 	akiko_bput2 (addr + 0, v >> 8, 0);
 }
@@ -1701,7 +1701,7 @@ static void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
 #endif
 	addr &= 0xffff;
 	if(addr < 0x30 && AKIKO_DEBUG_IO)
-		write_log (L"akiko_lput %08X: %08X=%08X\n", M68K_GETPC, addr, v);
+		write_log (_T("akiko_lput %08X: %08X=%08X\n"), M68K_GETPC, addr, v);
 	akiko_bput2 (addr + 3, (v >> 0) & 0xff, 0);
 	akiko_bput2 (addr + 2, (v >> 8) & 0xff, 0);
 	akiko_bput2 (addr + 1, (v >> 16) & 0xff, 0);
@@ -1711,7 +1711,7 @@ static void REGPARAM2 akiko_lput (uaecptr addr, uae_u32 v)
 addrbank akiko_bank = {
 	akiko_lget, akiko_wget, akiko_bget,
 	akiko_lput, akiko_wput, akiko_bput,
-	default_xlate, default_check, NULL, L"Akiko",
+	default_xlate, default_check, NULL, _T("Akiko"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
@@ -1790,7 +1790,7 @@ int akiko_init (void)
 	if (!akiko_thread_running) {
 		akiko_thread_running = 1;
 		init_comm_pipe (&requests, 100, 1);
-		uae_start_thread (L"akiko", akiko_thread, 0, NULL);
+		uae_start_thread (_T("akiko"), akiko_thread, 0, NULL);
 	}
 	akiko_inited = true;
 	return 1;

@@ -73,61 +73,61 @@ static int isrecursive (void)
 static void outhex (const uae_u8 *s)
 {
 	for (;;) {
-		write_log (L"%02X%02X ", s[0], s[1]);
+		write_log (_T("%02X%02X "), s[0], s[1]);
 		if (s[0] == 0 && s[1] == 0)
 			break;
 		s += 2;
 	}
-	write_log (L"\n");
+	write_log (_T("\n"));
 }
 
 static const TCHAR *getmsg (int msg)
 {
 	switch (msg)
 	{
-	case RPIPCGM_REGISTER: return L"RPIPCGM_REGISTER";
-	case RPIPCGM_FEATURES: return L"RPIPCGM_FEATURES";
-	case RPIPCGM_CLOSED: return L"RPIPCGM_CLOSED";
-	case RPIPCGM_ACTIVATED: return L"RPIPCGM_ACTIVATED";
-	case RPIPCGM_DEACTIVATED: return L"RPIPCGM_DEACTIVATED";
-	case RPIPCGM_SCREENMODE: return L"RPIPCGM_SCREENMODE";
-	case RPIPCGM_POWERLED: return L"RPIPCGM_POWERLED";
-	case RPIPCGM_DEVICES: return L"RPIPCGM_DEVICES";
-	case RPIPCGM_DEVICEACTIVITY: return L"RPIPCGM_DEVICEACTIVITY";
-	case RPIPCGM_MOUSECAPTURE: return L"RPIPCGM_MOUSECAPTURE";
-	case RPIPCGM_HOSTAPIVERSION: return L"RPIPCGM_HOSTAPIVERSION";
-	case RPIPCGM_PAUSE: return L"RPIPCGM_PAUSE";
-	case RPIPCGM_DEVICECONTENT: return L"RPIPCGM_DEVICECONTENT";
-	case RPIPCGM_TURBO: return L"RPIPCGM_TURBO";
-	case RPIPCGM_PING: return L"RPIPCGM_PING";
-	case RPIPCGM_VOLUME: return L"RPIPCGM_VOLUME";
-	case RPIPCGM_ESCAPED: return L"RPIPCGM_ESCAPED";
-	case RPIPCGM_PARENT: return L"RPIPCGM_PARENT";
-	case RPIPCGM_DEVICESEEK: return L"RPIPCGM_DEVICESEEK";
-	case RPIPCGM_CLOSE: return L"RPIPCGM_CLOSE";
-	case RPIPCGM_DEVICEREADWRITE: return L"RPIPCGM_DEVICEREADWRITE";
-	case RPIPCGM_HOSTVERSION: return L"RPIPCGM_HOSTVERSION";
-	case RPIPCGM_INPUTDEVICE: return L"RPIPCGM_INPUTDEVICE";
+	case RPIPCGM_REGISTER: return _T("RPIPCGM_REGISTER");
+	case RPIPCGM_FEATURES: return _T("RPIPCGM_FEATURES");
+	case RPIPCGM_CLOSED: return _T("RPIPCGM_CLOSED");
+	case RPIPCGM_ACTIVATED: return _T("RPIPCGM_ACTIVATED");
+	case RPIPCGM_DEACTIVATED: return _T("RPIPCGM_DEACTIVATED");
+	case RPIPCGM_SCREENMODE: return _T("RPIPCGM_SCREENMODE");
+	case RPIPCGM_POWERLED: return _T("RPIPCGM_POWERLED");
+	case RPIPCGM_DEVICES: return _T("RPIPCGM_DEVICES");
+	case RPIPCGM_DEVICEACTIVITY: return _T("RPIPCGM_DEVICEACTIVITY");
+	case RPIPCGM_MOUSECAPTURE: return _T("RPIPCGM_MOUSECAPTURE");
+	case RPIPCGM_HOSTAPIVERSION: return _T("RPIPCGM_HOSTAPIVERSION");
+	case RPIPCGM_PAUSE: return _T("RPIPCGM_PAUSE");
+	case RPIPCGM_DEVICECONTENT: return _T("RPIPCGM_DEVICECONTENT");
+	case RPIPCGM_TURBO: return _T("RPIPCGM_TURBO");
+	case RPIPCGM_PING: return _T("RPIPCGM_PING");
+	case RPIPCGM_VOLUME: return _T("RPIPCGM_VOLUME");
+	case RPIPCGM_ESCAPED: return _T("RPIPCGM_ESCAPED");
+	case RPIPCGM_PARENT: return _T("RPIPCGM_PARENT");
+	case RPIPCGM_DEVICESEEK: return _T("RPIPCGM_DEVICESEEK");
+	case RPIPCGM_CLOSE: return _T("RPIPCGM_CLOSE");
+	case RPIPCGM_DEVICEREADWRITE: return _T("RPIPCGM_DEVICEREADWRITE");
+	case RPIPCGM_HOSTVERSION: return _T("RPIPCGM_HOSTVERSION");
+	case RPIPCGM_INPUTDEVICE: return _T("RPIPCGM_INPUTDEVICE");
 
-	case RPIPCHM_CLOSE: return L"RPIPCHM_CLOSE";
-	case RPIPCHM_SCREENMODE: return L"RPIPCHM_SCREENMODE";
-	case RPIPCHM_SCREENCAPTURE: return L"RPIPCHM_SCREENCAPTURE";
-	case RPIPCHM_PAUSE: return L"RPIPCHM_PAUSE";
-	case RPIPCHM_DEVICECONTENT: return L"RPIPCHM_DEVICECONTENT";
-	case RPIPCHM_RESET: return L"RPIPCHM_RESET";
-	case RPIPCHM_TURBO: return L"RPIPCHM_TURBO";
-	case RPIPCHM_PING: return L"RPIPCHM_PING";
-	case RPIPCHM_VOLUME: return L"RPIPCHM_VOLUME";
-	case RPIPCHM_ESCAPEKEY: return L"RPIPCHM_ESCAPEKEY";
-	case RPIPCHM_EVENT: return L"RPIPCHM_EVENT";
-	case RPIPCHM_MOUSECAPTURE: return L"RPIPCHM_MOUSECAPTURE";
-	case RPIPCHM_SAVESTATE: return L"RPIPCHM_SAVESTATE";
-	case RPIPCHM_LOADSTATE: return L"RPIPCHM_LOADSTATE";
-	case RPIPCHM_FLUSH: return L"RPIPCHM_FLUSH";
-	case RPIPCHM_DEVICEREADWRITE: return L"RPIPCHM_DEVICEREADWRITE";
-	case RPIPCHM_QUERYSCREENMODE: return L"RPIPCHM_QUERYSCREENMODE";
-	case RPIPCHM_GUESTAPIVERSION : return L"RPIPCHM_GUESTAPIVERSION";
-	default: return L"UNKNOWN";
+	case RPIPCHM_CLOSE: return _T("RPIPCHM_CLOSE");
+	case RPIPCHM_SCREENMODE: return _T("RPIPCHM_SCREENMODE");
+	case RPIPCHM_SCREENCAPTURE: return _T("RPIPCHM_SCREENCAPTURE");
+	case RPIPCHM_PAUSE: return _T("RPIPCHM_PAUSE");
+	case RPIPCHM_DEVICECONTENT: return _T("RPIPCHM_DEVICECONTENT");
+	case RPIPCHM_RESET: return _T("RPIPCHM_RESET");
+	case RPIPCHM_TURBO: return _T("RPIPCHM_TURBO");
+	case RPIPCHM_PING: return _T("RPIPCHM_PING");
+	case RPIPCHM_VOLUME: return _T("RPIPCHM_VOLUME");
+	case RPIPCHM_ESCAPEKEY: return _T("RPIPCHM_ESCAPEKEY");
+	case RPIPCHM_EVENT: return _T("RPIPCHM_EVENT");
+	case RPIPCHM_MOUSECAPTURE: return _T("RPIPCHM_MOUSECAPTURE");
+	case RPIPCHM_SAVESTATE: return _T("RPIPCHM_SAVESTATE");
+	case RPIPCHM_LOADSTATE: return _T("RPIPCHM_LOADSTATE");
+	case RPIPCHM_FLUSH: return _T("RPIPCHM_FLUSH");
+	case RPIPCHM_DEVICEREADWRITE: return _T("RPIPCHM_DEVICEREADWRITE");
+	case RPIPCHM_QUERYSCREENMODE: return _T("RPIPCHM_QUERYSCREENMODE");
+	case RPIPCHM_GUESTAPIVERSION : return _T("RPIPCHM_GUESTAPIVERSION");
+	default: return _T("UNKNOWN");
 	}
 }
 
@@ -135,7 +135,7 @@ static void trimws (TCHAR *s)
 {
 	/* Delete trailing whitespace.  */
 	int len = _tcslen (s);
-	while (len > 0 && _tcscspn (s + len - 1, L"\t \r\n") == 0)
+	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
 }
 
@@ -156,7 +156,7 @@ static int port_insert (int num, int devicetype, DWORD flags, const TCHAR *name)
 	if (num < 0 || num >= maxjports)
 		return FALSE;
 	if (_tcslen (name) == 0) {
-		inputdevice_joyport_config (&changed_prefs, L"none", num, 0, 0);
+		inputdevice_joyport_config (&changed_prefs, _T("none"), num, 0, 0);
 		return TRUE;
 	}
 	devicetype2 = -1;
@@ -171,9 +171,9 @@ static int port_insert (int num, int devicetype, DWORD flags, const TCHAR *name)
 
 	for (int i = 0; i < 10; i++) {
 		TCHAR tmp2[100];
-		_stprintf (tmp2, L"KeyboardLayout%d", i);
+		_stprintf (tmp2, _T("KeyboardLayout%d"), i);
 		if (!_tcscmp (tmp2, name)) {
-			_stprintf (tmp2, L"kbd%d", i + 1);
+			_stprintf (tmp2, _T("kbd%d"), i + 1);
 			return inputdevice_joyport_config (&changed_prefs, tmp2, num, devicetype2, 0);
 		}
 	}
@@ -196,7 +196,7 @@ static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RP
 	int dolog = log_rp;
 
 	if (!pInfo) {
-		write_log (L"RPPOST: pInfo == NULL!\n");
+		write_log (_T("RPPOST: pInfo == NULL!\n"));
 		return FALSE;
 	}
 	if (uMessage == RPIPCGM_DEVICESEEK || uMessage == RPIPCGM_DEVICEACTIVITY)
@@ -205,14 +205,14 @@ static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RP
 	cnt++;
 	ncnt = cnt;
 	if (dolog)
-		write_log (L"RPPOST_%d->\n", ncnt);
+		write_log (_T("RPPOST_%d->\n"), ncnt);
 	v = RPPostMessage (uMessage, wParam, lParam, pInfo);
 	recursive--;
 	if (dolog) {
-		write_log (L"RPPOST_%d(%s [%d], %08x, %08x)\n", ncnt,
+		write_log (_T("RPPOST_%d(%s [%d], %08x, %08x)\n"), ncnt,
 			getmsg (uMessage), uMessage - WM_APP, wParam, lParam);
 		if (v == FALSE)
-			write_log (L"ERROR %d\n", GetLastError ());
+			write_log (_T("ERROR %d\n"), GetLastError ());
 	}
 	return v;
 }
@@ -226,11 +226,11 @@ static BOOL RPSendMessagex (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	int dolog = log_rp;
 
 	if (!pInfo) {
-		write_log (L"RPSEND: pInfo == NULL!\n");
+		write_log (_T("RPSEND: pInfo == NULL!\n"));
 		return FALSE;
 	}
 	if (!pInfo->hHostMessageWindow) {
-		write_log (L"RPSEND: pInfo->hHostMessageWindow == NULL!\n");
+		write_log (_T("RPSEND: pInfo->hHostMessageWindow == NULL!\n"));
 		return FALSE;
 	}
 	if (uMessage == RPIPCGM_DEVICESEEK)
@@ -239,14 +239,14 @@ static BOOL RPSendMessagex (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	cnt++;
 	ncnt = cnt;
 	if (dolog)
-		write_log (L"RPSEND_%d->\n", ncnt);
+		write_log (_T("RPSEND_%d->\n"), ncnt);
 	v = RPSendMessage (uMessage, wParam, lParam, pData, dwDataSize, pInfo, plResult);
 	recursive--;
 	if (dolog) {
-		write_log (L"RPSEND_%d(%s [%d], %08x, %08x, %08x, %d)\n", ncnt,
+		write_log (_T("RPSEND_%d(%s [%d], %08x, %08x, %08x, %d)\n"), ncnt,
 			getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize);
 		if (v == FALSE)
-			write_log (L"ERROR %d\n", GetLastError ());
+			write_log (_T("ERROR %d\n"), GetLastError ());
 	}
 	return v;
 }
@@ -268,7 +268,7 @@ static void fixup_size (struct uae_prefs *prefs)
 	if (done)
 		return;
 	done = 1;
-	write_log(L"fixup_size(%d,%d)\n", prefs->gfx_xcenter_size, prefs->gfx_ycenter_size);
+	write_log(_T("fixup_size(%d,%d)\n"), prefs->gfx_xcenter_size, prefs->gfx_ycenter_size);
 	if (prefs->gfx_xcenter_size > 0) {
 		int hres = prefs->gfx_resolution;
 		if (prefs->gfx_filter) {
@@ -293,7 +293,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		prefs->gfx_size_win.height = (prefs->gfx_ycenter_size * 2) >> (VRES_QUAD - vres);
 		prefs->gfx_filter_autoscale = 0;
 	}
-	write_log(L"-> %dx%d\n", prefs->gfx_size_win.width, prefs->gfx_size_win.height);
+	write_log(_T("-> %dx%d\n"), prefs->gfx_size_win.width, prefs->gfx_size_win.height);
 }
 
 static int getmult (int mult)
@@ -370,7 +370,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			m = RP_SCREENMODE_4X;
 
 		if (log_rp)
-			write_log (L"GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d\n",
+			write_log (_T("GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d\n"),
 				totalhdbl, hres, totalvdbl, vres, full,
 				p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
 				p->gfx_size_win.width, p->gfx_size_win.height,
@@ -411,7 +411,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	sm->dwClipFlags = cf;
 
 	if (log_rp)
-		write_log (L"GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n",
+		write_log (_T("GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
 			totalhdbl, hres, totalvdbl, vres, p->gfx_display, full);
 }
@@ -445,10 +445,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	disp = getdisplay (p);
 
 	if (log_rp) {
-		write_log (L"SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d smm=%d\n",
+		write_log (_T("SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d smm=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
 			hdbl, vdbl, display, fs, smm);
-		write_log (L"aspect=%d stretch=%d force=%d integer=%d\n",
+		write_log (_T("aspect=%d stretch=%d force=%d integer=%d\n"),
 			keepaspect, stretch, forcesize, integerscale);
 	}
 
@@ -536,7 +536,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 
 	if (log_rp)
-		write_log(L"%dx%d %dx%d %dx%d %08x HM=%d VM=%d\n",
+		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%d VM=%d\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
 
 	if (!integerscale) {
@@ -584,7 +584,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 
 	if (log_rp)
-		write_log (L"WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n",
+		write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
 			p->gfx_size_win.width, p->gfx_size_win.height,
 			p->gfx_size_fs.width, p->gfx_size_fs.height,
 			p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
@@ -602,11 +602,11 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
 	if (log_rp) {
-		write_log (L"RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n",
+		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n"),
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
 		if (uMessage == RPIPCHM_DEVICECONTENT) {
 			struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
-			write_log (L" Cat=%d Num=%d Flags=%08x '%s'\n",
+			write_log (_T(" Cat=%d Num=%d Flags=%08x '%s'\n"),
 				dc->btDeviceCategory, dc->btDeviceNumber, dc->dwFlags, dc->szContent);
 		}
 	}
@@ -614,7 +614,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	switch (uMessage)
 	{
 	default:
-		write_log (L"RP: Unknown or unsupported command %x\n", uMessage);
+		write_log (_T("RP: Unknown or unsupported command %x\n"), uMessage);
 		break;
 	case RPIPCHM_PING:
 		return TRUE;
@@ -726,8 +726,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				return 1;
 			}
 			if (vpos == 0) {
-				savestate_initsave (L"", 1, TRUE, true);
-				save_state (s, L"AmigaForever");
+				savestate_initsave (_T(""), 1, TRUE, true);
+				save_state (s, _T("AmigaForever"));
 				ret = 1;
 			} else {
 				//savestate_initsave (s, 1, TRUE);
@@ -799,15 +799,15 @@ HRESULT rp_init (void)
 {
 	HRESULT hr;
 
-	write_log (L"rp_init()\n");
+	write_log (_T("rp_init()\n"));
 	hr = RPInitializeGuest (&guestinfo, hInst, rp_param, RPHostMsgFunction, 0);
 	if (SUCCEEDED (hr)) {
 		initialized = TRUE;
 		rp_version = rp_revision = rp_build = -1;
 		rp_hostversion (&rp_version, &rp_revision, &rp_build);
-		write_log (L"rp_init('%s') succeeded. Version: %d.%d.%d\n", rp_param, rp_version, rp_revision, rp_build);
+		write_log (_T("rp_init('%s') succeeded. Version: %d.%d.%d\n"), rp_param, rp_version, rp_revision, rp_build);
 	} else {
-		write_log (L"rp_init('%s') failed, error code %08x\n", rp_param, hr);
+		write_log (_T("rp_init('%s') failed, error code %08x\n"), rp_param, hr);
 	}
 	xfree (rp_param);
 	rp_param = NULL;
@@ -854,7 +854,7 @@ static void sendenum (void)
 	int cnt;
 
 	WIN32GUI_LoadUIString (IDS_KEYJOY, tmp, sizeof tmp / sizeof (TCHAR));
-	_tcscat (tmp, L"\n");
+	_tcscat (tmp, _T("\n"));
 	p1 = tmp;
 	cnt = 0;
 	for (;;) {
@@ -863,7 +863,7 @@ static void sendenum (void)
 			TCHAR tmp2[100];
 			*p2++ = 0;
 			memset (&desc, 0, sizeof desc);
-			_stprintf (tmp2, L"KeyboardLayout%d", cnt);
+			_stprintf (tmp2, _T("KeyboardLayout%d"), cnt);
 			_tcscpy (desc.szHostInputID, tmp2);
 			_tcscpy (desc.szHostInputName, p1);
 			desc.dwHostInputType= RP_HOSTINPUT_KEYJOY_MAP1 + cnt;
@@ -871,7 +871,7 @@ static void sendenum (void)
 			if (cnt == 0)
 				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 			if (log_rp)
-				write_log(L"Enum%d: '%s' '%s'\n", cnt, desc.szHostInputName, desc.szHostInputID);
+				write_log(_T("Enum%d: '%s' '%s'\n"), cnt, desc.szHostInputName, desc.szHostInputID);
 			RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 			cnt++;
 			p1 = p2;
@@ -882,7 +882,7 @@ static void sendenum (void)
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
 		if (log_rp)
-			write_log(L"Enum%d: '%s' '%s' (%x/%x)\n",
+			write_log(_T("Enum%d: '%s' '%s' (%x/%x)\n"),
 				cnt, desc.szHostInputName, desc.szHostInputID, desc.dwHostInputVendorID, desc.dwHostInputProductID);
 		RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	}
@@ -929,14 +929,14 @@ void rp_fixup_options (struct uae_prefs *p)
 	if (!initialized)
 		return;
 
-	write_log (L"rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n",
+	write_log (_T("rp_fixup_options(escapekey=%d,escapeholdtime=%d,screenmode=%d,inputmode=%d)\n"),
 		rp_rpescapekey, rp_rpescapeholdtime, rp_screenmode, rp_inputmode);
 
 	max_horiz_dbl = currprefs.gfx_max_horizontal;
 	max_vert_dbl = currprefs.gfx_max_vertical;
 	maxjports = (rp_version * 256 + rp_revision) >= 2 * 256 + 3 ? MAX_JPORTS : 2;
 
-	write_log (L"w=%dx%d fs=%dx%d pos=%dx%d %dx%d HV=%d,%d J=%d\n",
+	write_log (_T("w=%dx%d fs=%dx%d pos=%dx%d %dx%d HV=%d,%d J=%d\n"),
 		p->gfx_size_win.width, p->gfx_size_win.height,
 		p->gfx_size_fs.width, p->gfx_size_fs.height,
 		p->gfx_xcenter_pos, p->gfx_ycenter_pos,
@@ -1032,7 +1032,7 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 	if (content)
 		_tcscpy (dc.szContent, content);
 	if (log_rp)
-		write_log (L"RPIPCGM_DEVICECONTENT cat=%d num=%d type=%d '%s'\n",
+		write_log (_T("RPIPCGM_DEVICECONTENT cat=%d num=%d type=%d '%s'\n"),
 		dc.btDeviceCategory, dc.btDeviceNumber, dc.dwInputDevice, dc.szContent);
 	RPSendMessagex (RPIPCGM_DEVICECONTENT, 0, 0, &dc, sizeof(struct RPDeviceContent), &guestinfo, NULL);
 }
@@ -1050,7 +1050,7 @@ void rp_input_change (int num)
 
 	name[0] = 0;
 	if (k >= 0) {
-		_stprintf (name, L"KeyboardLayout%d", k);
+		_stprintf (name, _T("KeyboardLayout%d"), k);
 	} else if (j >= 0) {
 		_tcscpy (name, inputdevice_get_device_unique_name (IDTYPE_JOYSTICK, j));
 	} else if (m >= 0) {
@@ -1064,7 +1064,7 @@ void rp_input_change (int num)
 		}
 	}
 	if (log_rp)
-		write_log(L"PORT%d: '%s':%d\n", num, name, mode);
+		write_log(_T("PORT%d: '%s':%d\n"), num, name, mode);
 	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, false, name);
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)

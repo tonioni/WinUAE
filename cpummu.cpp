@@ -57,7 +57,7 @@ static void mmu_dump_ttr(const TCHAR * label, uae_u32 ttr)
 	from_addr = ttr & MMU_TTR_LOGICAL_BASE;
 	to_addr = (ttr & MMU_TTR_LOGICAL_MASK) << 8;
 
-	D(bug(L"%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d\n",
+	D(bug(_T("%s: [%08lx] %08lx - %08lx enabled=%d supervisor=%d wp=%d cm=%02d\n"),
 			label, ttr,
 			from_addr, to_addr,
 			ttr & MMU_TTR_BIT_ENABLED ? 1 : 0,
@@ -84,7 +84,7 @@ void mmu_make_transparent_region(uaecptr baseaddr, uae_u32 size, int datamode)
 	*ttr |= ((baseaddr + size - 1) & MMU_TTR_LOGICAL_BASE) >> 8;
 	*ttr |= MMU_TTR_BIT_ENABLED;
 
-	D(bug(L"MMU: map transparent mapping of %08x\n", *ttr));
+	D(bug(_T("MMU: map transparent mapping of %08x\n"), *ttr));
 }
 
 /* check if an address matches a ttr */
@@ -142,7 +142,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 	uaecptr ptr_des_addr, page_addr,
 		root_log, ptr_log, page_log;
 
-	D(bug(L"%s: root=%lx\n", label, root_ptr));
+	D(bug(_T("%s: root=%lx\n"), label, root_ptr));
 
 	for (root_idx = 0; root_idx < ROOT_TABLE_SIZE; root_idx++) {
 		root_des = phys_get_long(root_ptr + root_idx);
@@ -150,7 +150,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 		if ((root_des & 2) == 0)
 			continue;	/* invalid */
 
-		D(bug(L"ROOT: %03d U=%d W=%d UDT=%02d\n", root_idx,
+		D(bug(_T("ROOT: %03d U=%d W=%d UDT=%02d\n"), root_idx,
 				root_des & 8 ? 1 : 0,
 				root_des & 4 ? 1 : 0,
 				root_des & 3
@@ -205,7 +205,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 			if (n_pages_used == -1)
 				continue;
 
-			D(bug(L" PTR: %03d U=%d W=%d UDT=%02d\n", ptr_idx,
+			D(bug(_T(" PTR: %03d U=%d W=%d UDT=%02d\n"), ptr_idx,
 				ptr_des & 8 ? 1 : 0,
 				ptr_des & 4 ? 1 : 0,
 				ptr_des & 3
@@ -216,7 +216,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 				page_des = page_info[page_idx].match;
 
 				if ((page_des & MMU_PDT_MASK) == 2) {
-					D(bug(L"  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n",
+					D(bug(_T("  PAGE: %03d-%03d log=%08lx INDIRECT --> addr=%08lx\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -224,7 +224,7 @@ static void mmu_dump_table(const char * label, uaecptr root_ptr)
 						  ));
 
 				} else {
-					D(bug(L"  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n",
+					D(bug(_T("  PAGE: %03d-%03d log=%08lx addr=%08lx UR=%02d G=%d U1/0=%d S=%d CM=%d M=%d U=%d W=%d\n"),
 							page_info[page_idx].start_idx,
 							page_info[page_idx].start_idx + page_info[page_idx].n_pages - 1,
 							page_info[page_idx].log,
@@ -255,7 +255,7 @@ void mmu_dump_atc(void)
 		for (j = 0; j < ATC_L2_SIZE; j++) {
 			if (atc_l2[i][j].tag == 0x8000)
 				continue;
-			D(bug(L"ATC[%02d] G=%d TT=%d M=%d WP=%d VD=%d VI=%d tag=%08x --> phys=%08x\n",
+			D(bug(_T("ATC[%02d] G=%d TT=%d M=%d WP=%d VD=%d VI=%d tag=%08x --> phys=%08x\n"),
 				j, atc_l2[i][j].global, atc_l2[i][j].tt, atc_l2[i][j].modified,
 				atc_l2[i][j].write_protect, atc_l2[i][j].valid_data, atc_l2[i][j].valid_inst,
 				atc_l2[i][j].tag, atc_l2[i][j].phys));
@@ -267,11 +267,11 @@ void mmu_dump_atc(void)
 /* {{{ mmu_dump_tables */
 void mmu_dump_tables(void)
 {
-	D(bug(L"URP: %08x   SRP: %08x  MMUSR: %x  TC: %x\n", regs.urp, regs.srp, regs.mmusr, regs.tcr));
-	mmu_dump_ttr(L"DTT0", regs.dtt0);
-	mmu_dump_ttr(L"DTT1", regs.dtt1);
-	mmu_dump_ttr(L"ITT0", regs.itt0);
-	mmu_dump_ttr(L"ITT1", regs.itt1);
+	D(bug(_T("URP: %08x   SRP: %08x  MMUSR: %x  TC: %x\n"), regs.urp, regs.srp, regs.mmusr, regs.tcr));
+	mmu_dump_ttr(_T("DTT0"), regs.dtt0);
+	mmu_dump_ttr(_T("DTT1"), regs.dtt1);
+	mmu_dump_ttr(_T("ITT0"), regs.itt0);
+	mmu_dump_ttr(_T("ITT1"), regs.itt1);
 	mmu_dump_atc();
 #if DEBUG
 	mmu_dump_table("SRP", regs.srp);
@@ -310,9 +310,9 @@ static void mmu_bus_error(uaecptr addr, int fc, bool write, int size)
 	regs.mmu_fault_addr = addr;
 	regs.mmu_ssw = ssw | MMU_SSW_ATC;
 
-	D(bug(L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x PC=%08x\n", fc, write, addr, ssw, m68k_getpc()));
+	D(bug(_T("BUS ERROR: fc=%d w=%d log=%08x ssw=%04x PC=%08x\n"), fc, write, addr, ssw, m68k_getpc()));
 
-	//write_log(L"BUS ERROR: fc=%d w=%d log=%08x ssw=%04x PC=%08x\n", fc, write, addr, ssw, m68k_getpc());
+	//write_log(_T("BUS ERROR: fc=%d w=%d log=%08x ssw=%04x PC=%08x\n"), fc, write, addr, ssw, m68k_getpc());
 	//activate_debugger();
 
 	THROW(2);
@@ -362,7 +362,7 @@ static uaecptr mmu_fill_atc_l2(uaecptr addr, bool super, bool data, bool write, 
 	TRY(prb) {
 		desc = mmu_lookup_pagetable(addr, super, write);
 #if DEBUG > 2
-		D(bug(L"translate: %x,%u,%u,%u -> %x\n", addr, super, write, data, desc));
+		D(bug(_T("translate: %x,%u,%u,%u -> %x\n"), addr, super, write, data, desc));
 #endif
 		RESTORE_EXCEPTION;
 	}
@@ -402,12 +402,12 @@ static ALWAYS_INLINE bool mmu_fill_atc_l1(uaecptr addr, bool super, bool data, b
 		mmu_fill_atc_l2(addr, super, data, write, l);
 	}
 	if (!(data ? l->valid_data : l->valid_inst)) {
-		D(bug(L"MMU: non-resident page (%x,%x,%x)!\n", addr, regs.pc, regs.instruction_pc));
+		D(bug(_T("MMU: non-resident page (%x,%x,%x)!\n"), addr, regs.pc, regs.instruction_pc));
 		goto fail;
 	}
 	if (write) {
 		if (l->write_protect) {
-			D(bug(L"MMU: write protected (via %s) %lx\n", l->tt ? "ttr" : "atc", addr));
+			D(bug(_T("MMU: write protected (via %s) %lx\n"), l->tt ? "ttr" : "atc", addr));
 			goto fail;
 		}
 		if (!l->modified)
@@ -468,7 +468,7 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, bool super, bool wri
 	desc_addr = (desc & MMU_ROOT_PTR_ADDR_MASK) | i;
 	desc = phys_get_long(desc_addr);
 	if ((desc & 2) == 0) {
-		D(bug(L"MMU: invalid root descriptor for %lx\n", addr));
+		D(bug(_T("MMU: invalid root descriptor for %lx\n"), addr));
 		return 0;
 	}
 
@@ -481,7 +481,7 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, bool super, bool wri
 	desc_addr = (desc & MMU_ROOT_PTR_ADDR_MASK) | i;
 	desc = phys_get_long(desc_addr);
 	if ((desc & 2) == 0) {
-		D(bug(L"MMU: invalid ptr descriptor for %lx\n", addr));
+		D(bug(_T("MMU: invalid ptr descriptor for %lx\n"), addr));
 		return 0;
 	}
 	wp |= desc;
@@ -504,7 +504,7 @@ static uaecptr REGPARAM2 mmu_lookup_pagetable(uaecptr addr, bool super, bool wri
 		desc = phys_get_long(desc_addr);
 	}
 	if ((desc & 1) == 0) {
-		D(bug(L"MMU: invalid page descriptor log=%08lx desc=%08lx @%08lx\n", addr, desc, desc_addr));
+		D(bug(_T("MMU: invalid page descriptor log=%08lx desc=%08lx @%08lx\n"), addr, desc, desc_addr));
 		return desc;
 	}
 
@@ -913,11 +913,11 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 		glob = (opcode & 8) != 0;
 
 		if (opcode & 16) {
-			D(bug(L"pflusha(%u,%u)\n", glob, regs.dfc));
+			D(bug(_T("pflusha(%u,%u)\n"), glob, regs.dfc));
 			mmu_flush_atc_all(glob);
 		} else {
 			addr = m68k_areg(regs, regno);
-			D(bug(L"pflush(%u,%u,%x)\n", glob, regs.dfc, addr));
+			D(bug(_T("pflush(%u,%u,%x)\n"), glob, regs.dfc, addr));
 			mmu_flush_atc(addr, super, glob);
 		}
 		flush_internals();
@@ -932,7 +932,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 		regno = opcode & 7;
 		write = (opcode & 32) == 0;
 		addr = m68k_areg(regs, regno);
-		D(bug(L"PTEST%c (A%d) %08x DFC=%d\n", write ? 'W' : 'R', regno, addr, regs.dfc));
+		D(bug(_T("PTEST%c (A%d) %08x DFC=%d\n"), write ? 'W' : 'R', regno, addr, regs.dfc));
 		mmu_flush_atc(addr, super, true);
 		SAVE_EXCEPTION;
 		TRY(prb) {
@@ -956,7 +956,7 @@ void REGPARAM2 mmu_op_real(uae_u32 opcode, uae_u16 extra)
 			regs.mmusr = MMU_MMUSR_B;
 		}
 		RESTORE_EXCEPTION;
-		D(bug(L"PTEST result: mmusr %08x\n", regs.mmusr));
+		D(bug(_T("PTEST result: mmusr %08x\n"), regs.mmusr));
 	} else
 		op_illg (opcode);
 }
@@ -1033,7 +1033,7 @@ void REGPARAM2 mmu_set_tc(uae_u16 tc)
 	regs.mmu_pagesize_8k = tc & 0x4000 ? 1 : 0;
 	mmu_flush_atc_all(true);
 
-	write_log(L"MMU: enabled=%d page8k=%d\n", regs.mmu_enabled, regs.mmu_pagesize_8k);
+	write_log(_T("MMU: enabled=%d page8k=%d\n"), regs.mmu_enabled, regs.mmu_pagesize_8k);
 }
 
 void REGPARAM2 mmu_set_super(bool super)

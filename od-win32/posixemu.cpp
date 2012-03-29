@@ -108,7 +108,7 @@ int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 	// FILE_FLAG_BACKUP_SEMANTICS = can also "open" directories
 	h = CreateFile (name, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
-		write_log (L"Stat CreateFile(%s) failed: %d\n", name, GetLastError ());
+		write_log (_T("Stat CreateFile(%s) failed: %d\n"), name, GetLastError ());
 		return -1;
 	}
 	ok = GetFileInformationByHandle (h, &fi);
@@ -121,7 +121,7 @@ int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 		ft = fi.ftLastWriteTime;
 		statbuf->st_size = ((uae_u64)fi.nFileSizeHigh << 32) | fi.nFileSizeLow;
 	} else {
-		write_log (L"GetFileInformationByHandle(%s) failed: %d\n", name, GetLastError ());
+		write_log (_T("GetFileInformationByHandle(%s) failed: %d\n"), name, GetLastError ());
 		return -1;
 	}
 
@@ -308,7 +308,7 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 	hThread = (HANDLE)_beginthreadex (NULL, 0, thread_init, thp, 0, &foo);
 	if (hThread) {
 		if (name) {
-			//write_log (L"Thread '%s' started (%d)\n", name, hThread);
+			//write_log (_T("Thread '%s' started (%d)\n"), name, hThread);
 			if (!AVTask) {
 				SetThreadPriority (hThread, THREAD_PRIORITY_HIGHEST);
 			} else {
@@ -317,7 +317,7 @@ int uae_start_thread (const TCHAR *name, void *(*f)(void *), void *arg, uae_thre
 		}
 	} else {
 		result = 0;
-		write_log (L"Thread '%s' failed to start!?\n", name ? name : L"<unknown>");
+		write_log (_T("Thread '%s' failed to start!?\n"), name ? name : _T("<unknown>"));
 	}
 	if (tid)
 		*tid = hThread;

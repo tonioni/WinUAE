@@ -286,11 +286,11 @@ uae_u32	catweasel_do_bget (uaecptr addr)
 	buf1[0] = (uae_u8)addr;
 	if (handle != INVALID_HANDLE_VALUE) {
 		if (!DeviceIoControl (handle, CW_PEEKREG_FULL, buf1, 1, buf2, 1, &did_read, 0))
-			write_log (L"catweasel_do_bget %02x fail err=%d\n", buf1[0], GetLastError ());
+			write_log (_T("catweasel_do_bget %02x fail err=%d\n"), buf1[0], GetLastError ());
 	} else {
 		buf2[0] = ioport_read (cwc.iobase + addr);
 	}
-	//write_log (L"G %02X %02X %d\n", buf1[0], buf2[0], did_read);
+	//write_log (_T("G %02X %02X %d\n"), buf1[0], buf2[0], did_read);
 	return buf2[0];
 }
 
@@ -305,11 +305,11 @@ void catweasel_do_bput (uaecptr	addr, uae_u32 b)
 	buf[1] = b;
 	if (handle != INVALID_HANDLE_VALUE) {
 		if (!DeviceIoControl (handle, CW_POKEREG_FULL, buf, 2, 0, 0, &did_read, 0))
-			write_log (L"catweasel_do_bput %02x=%02x fail err=%d\n", buf[0], buf[1], GetLastError ());
+			write_log (_T("catweasel_do_bput %02x=%02x fail err=%d\n"), buf[0], buf[1], GetLastError ());
 	} else {
 		ioport_write (cwc.iobase + addr, b);
 	}
-	//write_log (L"P %02X %02X %d\n", (uae_u8)addr, (uae_u8)b, did_read);
+	//write_log (_T("P %02X %02X %d\n"), (uae_u8)addr, (uae_u8)b, did_read);
 }
 
 #include "core.cw4.cpp"
@@ -358,21 +358,21 @@ static int catweasel4_configure (void)
 	sleep_millis(10);
 
 	if (cw_config_done()) {
-		write_log (L"CW: FPGA already configured, skipping core upload\n");
+		write_log (_T("CW: FPGA already configured, skipping core upload\n"));
 		return 1;
 	}
 	cw_resetFPGA();
 	sleep_millis(10);
 	if (cw_config_done()) {
-		write_log (L"CW: FPGA failed to reset!\n");
+		write_log (_T("CW: FPGA failed to reset!\n"));
 		return 0;
 	}
-	f = zfile_fopen(L"core.cw4", L"rb", ZFD_NORMAL);
+	f = zfile_fopen(_T("core.cw4"), _T("rb"), ZFD_NORMAL);
 	if (!f) {
-		f = zfile_fopen_data (L"core.cw4.gz", core_len, core);
+		f = zfile_fopen_data (_T("core.cw4.gz"), core_len, core);
 		f = zfile_gunzip (f);
 	}
-	write_log (L"CW: starting core upload, this will take few seconds\n");
+	write_log (_T("CW: starting core upload, this will take few seconds\n"));
 	t = time(NULL) + 10; // give up if upload takes more than 10s
 	for (;;) {
 		uae_u8 b;
@@ -381,7 +381,7 @@ static int catweasel4_configure (void)
 		ioport_write (cwc.iobase + 3, (b & 1) ? 67 : 65);
 		while (!cw_fpga_ready()) {
 			if (time(NULL) >= t) {
-				write_log (L"CW: FPGA core upload got stuck!?\n");
+				write_log (_T("CW: FPGA core upload got stuck!?\n"));
 				cw_resetFPGA();
 				return 0;
 			}
@@ -389,21 +389,21 @@ static int catweasel4_configure (void)
 		ioport_write (cwc.iobase + 192, b);
 	}
 	if (!cw_config_done()) {
-		write_log (L"CW: FPGA didn't accept the core!\n");
+		write_log (_T("CW: FPGA didn't accept the core!\n"));
 		cw_resetFPGA();
 		return 0;
 	}
 	sleep_millis(10);
-	write_log (L"CW: core uploaded successfully\n");
+	write_log (_T("CW: core uploaded successfully\n"));
 	return 1;
 }
 
 #include <setupapi.h>
 #include <cfgmgr32.h>
 
-#define PCI_CW_MK3 L"PCI\\VEN_E159&DEV_0001&SUBSYS_00021212"
-#define PCI_CW_MK4 L"PCI\\VEN_E159&DEV_0001&SUBSYS_00035213"
-#define PCI_CW_MK4_BUG L"PCI\\VEN_E159&DEV_0001&SUBSYS_00025213"
+#define PCI_CW_MK3 _T("PCI\\VEN_E159&DEV_0001&SUBSYS_00021212")
+#define PCI_CW_MK4 _T("PCI\\VEN_E159&DEV_0001&SUBSYS_00035213")
+#define PCI_CW_MK4_BUG _T("PCI\\VEN_E159&DEV_0001&SUBSYS_00025213")
 
 extern int os_winnt;
 int force_direct_catweasel;
@@ -496,7 +496,7 @@ static int direct_detect(void)
 					if (resId == ResType_IO) {
 						PIO_RESOURCE pIoData = (PIO_RESOURCE)resDesData;
 						if(pIoData->IO_Header.IOD_Alloc_End-pIoData->IO_Header.IOD_Alloc_Base+1) {
-							write_log (L"CW: PCI SCAN: CWMK%d @%I64X - %I64X\n", cw,
+							write_log (_T("CW: PCI SCAN: CWMK%d @%I64X - %I64X\n"), cw,
 								pIoData->IO_Header.IOD_Alloc_Base,pIoData->IO_Header.IOD_Alloc_End);
 							cwc.iobase = (int)pIoData->IO_Header.IOD_Alloc_Base;
 							cwc.direct_type = cw;
@@ -549,7 +549,7 @@ int catweasel_init(void)
 				i = currprefs.catweasel;
 			if (currprefs.catweasel < 0)
 				i = -currprefs.catweasel + 1;
-			_stprintf (name, L"\\\\.\\CAT%d_F0", i);
+			_stprintf (name, _T("\\\\.\\CAT%d_F0"), i);
 			handle = CreateFile (name, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 			if (handle != INVALID_HANDLE_VALUE || currprefs.catweasel > 0)
@@ -563,7 +563,7 @@ int catweasel_init(void)
 	}
 
 	if (handle == INVALID_HANDLE_VALUE) {
-		_tcscpy (name, L"[DIRECT]");
+		_tcscpy (name, _T("[DIRECT]"));
 		if (cwc.direct_type && ioport_init()) {
 			cwc.direct_access = 1;
 			if (cwc.direct_type == 4 && catweasel4_configure()) {
@@ -581,24 +581,24 @@ int catweasel_init(void)
 			}
 		}
 		if (cwc.type == 0) {
-			write_log (L"CW: No Catweasel detected\n");
+			write_log (_T("CW: No Catweasel detected\n"));
 			goto fail;
 		}
 	}
 
 	if (!cwc.direct_type) {
 		if (!DeviceIoControl (handle, CW_GET_VERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-			write_log (L"CW: CW_GET_VERSION failed %d\n", GetLastError ());
+			write_log (_T("CW: CW_GET_VERSION failed %d\n"), GetLastError ());
 			goto fail;
 		}
 		s = au ((char*)buffer);
-		write_log (L"CW driver version string '%s'\n", s);
+		write_log (_T("CW driver version string '%s'\n"), s);
 		xfree (s);
 		if (!DeviceIoControl (handle, CW_GET_HWVERSION, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-			write_log (L"CW: CW_GET_HWVERSION failed %d\n", GetLastError ());
+			write_log (_T("CW: CW_GET_HWVERSION failed %d\n"), GetLastError ());
 			goto fail;
 		}
-		write_log (L"CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n",
+		write_log (_T("CW: v=%d 14=%d 28=%d 56=%d joy=%d dpm=%d sid=%d kb=%d sidfifo=%d\n"),
 			buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5],
 			buffer[6], buffer[7], ((uae_u32*)(buffer + 8))[0]);
 		cwc.can_joy = (buffer[4] & 1) ? 2 : 0;
@@ -606,7 +606,7 @@ int catweasel_init(void)
 		cwc.can_kb = buffer[7] & 1;
 		cwc.can_mouse = (buffer[4] & 2) ? 2 : 0;
 		if (!DeviceIoControl (handle, CW_LOCK_EXCLUSIVE, 0, 0, buffer, sizeof (buffer), &len, 0)) {
-			write_log (L"CW: CW_LOCK_EXCLUSIVE failed %d\n", GetLastError ());
+			write_log (_T("CW: CW_LOCK_EXCLUSIVE failed %d\n"), GetLastError ());
 			goto fail;
 		}
 		model = *((uae_u32*)(buffer + 4));
@@ -615,7 +615,7 @@ int catweasel_init(void)
 		cwc.iobase = base;
 		if (!cwc.direct_access) {
 			if (!DeviceIoControl (handle, CW_UNLOCK_EXCLUSIVE, 0, 0, 0, 0, &len, 0)) {
-				write_log (L"CW: CW_UNLOCK_EXCLUSIVE failed %d\n", GetLastError ());
+				write_log (_T("CW: CW_UNLOCK_EXCLUSIVE failed %d\n"), GetLastError ());
 			}
 		}
 		if (cwc.type == CATWEASEL_TYPE_MK4 && cwc.can_sid)
@@ -641,20 +641,20 @@ int catweasel_init(void)
 	}
 
 	//catweasel_init_controller(&cwc);
-	_stprintf (tmp, L"CW: Catweasel MK%d @%08x (%s) enabled. %s.",
-		cwc.type, (int)cwc.iobase, name, cwc.direct_access ? L"DIRECTIO": L"API");
+	_stprintf (tmp, _T("CW: Catweasel MK%d @%08x (%s) enabled. %s."),
+		cwc.type, (int)cwc.iobase, name, cwc.direct_access ? _T("DIRECTIO"): _T("API"));
 	if (cwc.direct_access) {
 		if (cwc.can_sid) {
 			TCHAR *p = tmp + _tcslen (tmp);
 			catweasel_detect_sid ();
-			_stprintf (p, L" SID0=%d", cwc.sid[0]);
+			_stprintf (p, _T(" SID0=%d"), cwc.sid[0]);
 			if (cwc.can_sid > 1) {
 				p += _tcslen (p);
-				_stprintf (p, L" SID1=%d", cwc.sid[1]);
+				_stprintf (p, _T(" SID1=%d"), cwc.sid[1]);
 			}
 		}
 	}
-	write_log (L"%s\n", tmp);
+	write_log (_T("%s\n"), tmp);
 	detected = 1;
 
 	return 1;
@@ -692,12 +692,12 @@ int catweasel_detect (void)
 
 	detected = -1;
 	for (i = 0; i < 4; i++) {
-		_stprintf (name, L"\\\\.\\CAT%u_F0", i);
+		_stprintf (name, _T("\\\\.\\CAT%u_F0"), i);
 		h = CreateFile (name, GENERIC_READ, FILE_SHARE_WRITE|FILE_SHARE_READ, 0,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 		if (h != INVALID_HANDLE_VALUE) {
 			CloseHandle (h);
-			write_log (L"CW: Windows driver device detected '%s'\n", name);
+			write_log (_T("CW: Windows driver device detected '%s'\n"), name);
 			detected = 1;
 			return TRUE;
 		}

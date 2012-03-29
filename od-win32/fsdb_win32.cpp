@@ -31,8 +31,8 @@ static int fsdb_debug = 0;
 #define NUM_EVILCHARS 7
 static TCHAR evilchars[NUM_EVILCHARS] = { '\\', '*', '?', '\"', '<', '>', '|' };
 
-#define UAEFSDB_BEGINS L"__uae___"
-#define UAEFSDB_BEGINSX L"__uae___*"
+#define UAEFSDB_BEGINS _T("__uae___")
+#define UAEFSDB_BEGINSX _T("__uae___*")
 #define UAEFSDB_LEN 604
 #define UAEFSDB2_LEN 1632
 
@@ -64,9 +64,9 @@ static TCHAR *make_uaefsdbpath (const TCHAR *dir, const TCHAR *name)
 	if (!p)
 		return NULL;
 	if (name)
-		_stprintf (p, L"%s\\%s:%s", dir, name, FSDB_FILE);
+		_stprintf (p, _T("%s\\%s:%s"), dir, name, FSDB_FILE);
 	else
-		_stprintf (p, L"%s:%s", dir, FSDB_FILE);
+		_stprintf (p, _T("%s:%s"), dir, FSDB_FILE);
 	return p;
 }
 
@@ -81,7 +81,7 @@ static int read_uaefsdb (const TCHAR *dir, const TCHAR *name, uae_u8 *fsdb)
 	h = CreateFile (p, GENERIC_READ, 0,
 		NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (fsdb_debug)
-		write_log (L"read_uaefsdb '%s' = %x\n", p, h);
+		write_log (_T("read_uaefsdb '%s' = %x\n"), p, h);
 	xfree (p);
 	if (h != INVALID_HANDLE_VALUE) {
 		memset (fsdb, 0, UAEFSDB2_LEN);
@@ -90,11 +90,11 @@ static int read_uaefsdb (const TCHAR *dir, const TCHAR *name, uae_u8 *fsdb)
 		if (read == UAEFSDB_LEN || read == UAEFSDB2_LEN) {
 			if (fsdb_debug) {
 				TCHAR *an, *nn, *co;
-				write_log (L"->ok\n");
+				write_log (_T("->ok\n"));
 				an = au_fs ((char*)fsdb + 5);
 				nn = au_fs ((char*)fsdb + 262);
 				co = au_fs ((char*)fsdb + 519);
-				write_log (L"v=%02x flags=%08x an='%s' nn='%s' c='%s'\n",
+				write_log (_T("v=%02x flags=%08x an='%s' nn='%s' c='%s'\n"),
 					fsdb[0], ((uae_u32*)(fsdb+1))[0], an, nn, co);
 				xfree (co);
 				xfree (nn);
@@ -104,7 +104,7 @@ static int read_uaefsdb (const TCHAR *dir, const TCHAR *name, uae_u8 *fsdb)
 		}
 	}
 	if (fsdb_debug)
-		write_log (L"->fail %d, %d\n", read, GetLastError ());
+		write_log (_T("->fail %d, %d\n"), read, GetLastError ());
 	memset (fsdb, 0, UAEFSDB2_LEN);
 	return 0;
 }
@@ -117,7 +117,7 @@ static int delete_uaefsdb (const TCHAR *dir)
 	p = make_uaefsdbpath (dir, NULL);
 	ret = DeleteFile (p);
 	if (fsdb_debug)
-		write_log (L"delete_uaefsdb '%s' = %d\n", p, ret);
+		write_log (_T("delete_uaefsdb '%s' = %d\n"), p, ret);
 	xfree (p);
 	return ret;
 }
@@ -151,8 +151,8 @@ static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
 		an = au_fs ((char*)fsdb + 5);
 		nn = au_fs ((char*)fsdb + 262);
 		co = au_fs ((char*)fsdb + 519);
-		write_log (L"write_uaefsdb '%s' = %x\n", p, h);
-		write_log (L"v=%02x flags=%08x an='%s' nn='%s' c='%s'\n",
+		write_log (_T("write_uaefsdb '%s' = %x\n"), p, h);
+		write_log (_T("v=%02x flags=%08x an='%s' nn='%s' c='%s'\n"),
 			fsdb[0], ((uae_u32*)(fsdb+1))[0], an, nn, co);
 		xfree (co);
 		xfree (nn);
@@ -166,7 +166,7 @@ static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
 				h = CreateFile (p, GENERIC_WRITE, 0,
 					NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 				if (fsdb_debug)
-					write_log (L"write_uaefsdb (2) '%s' = %x\n", p, h);
+					write_log (_T("write_uaefsdb (2) '%s' = %x\n"), p, h);
 			}
 		}
 	}
@@ -175,13 +175,13 @@ static int write_uaefsdb (const TCHAR *dir, uae_u8 *fsdb)
 		CloseHandle (h);
 		if (written == UAEFSDB2_LEN) {
 			if (fsdb_debug)
-				write_log (L"->ok\n");
+				write_log (_T("->ok\n"));
 			ret = 1;
 			goto end;
 		}
 	}
 	if (fsdb_debug)
-		write_log (L"->fail %d, %d\n", written, GetLastError ());
+		write_log (_T("->fail %d, %d\n"), written, GetLastError ());
 
 	DeleteFile (p);
 end:
@@ -214,7 +214,7 @@ static void create_uaefsdb (a_inode *aino, uae_u8 *buf, int winmode)
 	strncpy ((char*)buf + 5 + 257, s, 256);
 	buf[5 + 257 + 256] = '\0';
 	xfree (s);
-	s = ua_fs (aino->comment ? aino->comment : L"", -1);
+	s = ua_fs (aino->comment ? aino->comment : _T(""), -1);
 	strncpy ((char*)buf + 5 + 2 * 257, s, 80);
 	buf[5 + 2 * 257 + 80] = '\0';
 	xfree (s);
@@ -259,7 +259,7 @@ static a_inode *aino_from_buf (a_inode *base, uae_u8 *buf, int *winmode)
 	aino->dirty = 0;
 	aino->db_offset = 0;
 	if((mode = GetFileAttributes (aino->nname)) == INVALID_FILE_ATTRIBUTES) {
-		write_log (L"xGetFileAttributes('%s') failed! error=%d, aino=%p\n",
+		write_log (_T("xGetFileAttributes('%s') failed! error=%d, aino=%p\n"),
 			aino->nname, GetLastError (), aino);
 		return aino;
 	}
@@ -328,7 +328,7 @@ int fsdb_name_invalid (const TCHAR *n)
 	int v = fsdb_name_invalid_2 (n);
 	if (v <= 0)
 		return v;
-	write_log (L"FILESYS: '%s' illegal filename\n", n);
+	write_log (_T("FILESYS: '%s' illegal filename\n"), n);
 	return v;
 }
 
@@ -353,7 +353,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 	int reset = 0;
 
 	if((mode = GetFileAttributes(aino->nname)) == INVALID_FILE_ATTRIBUTES) {
-		write_log (L"GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n",
+		write_log (_T("GetFileAttributes('%s') failed! error=%d, aino=%p dir=%d\n"),
 			aino->nname, GetLastError(), aino, aino->dir);
 		return 0;
 	}
@@ -369,7 +369,7 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		xfree (aino_from_buf (base, fsdb, &winmode));
 		if (winmode == mode) /* no Windows-side editing? */
 			return 1;
-		write_log (L"FS: '%s' protection flags edited from Windows-side\n", aino->nname);
+		write_log (_T("FS: '%s' protection flags edited from Windows-side\n"), aino->nname);
 		reset = 1;
 		/* edited from Windows-side -> use Windows side flags instead */
 	}
@@ -506,7 +506,7 @@ TCHAR *fsdb_create_unique_nname (a_inode *base, const TCHAR *suggestion)
 	for (;;) {
 		TCHAR *p = build_nname (base->nname, tmp);
 		if (!fsdb_exists (p)) {
-			write_log (L"unique name: %s\n", p);
+			write_log (_T("unique name: %s\n"), p);
 			return p;
 		}
 		xfree (p);

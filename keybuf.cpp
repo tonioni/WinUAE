@@ -42,7 +42,7 @@ int get_next_key (void)
 	key = keybuf[kpb_last];
 	if (++kpb_last == 256)
 		kpb_last = 0;
-	//write_log (L"%02x:%d\n", key >> 1, key & 1);
+	//write_log (_T("%02x:%d\n"), key >> 1, key & 1);
 	return key;
 }
 
@@ -60,11 +60,11 @@ int record_key_direct (int kc)
 	int k = kc >> 1;
 	int b = !(kc & 1);
 
-	//write_log (L"got kc %02X\n", ((kc << 7) | (kc >> 1)) & 0xff);
+	//write_log (_T("got kc %02X\n"), ((kc << 7) | (kc >> 1)) & 0xff);
 	if (kpb_next == 256)
 		kpb_next = 0;
 	if (kpb_next == kpb_last) {
-		write_log (L"Keyboard buffer overrun. Congratulations.\n");
+		write_log (_T("Keyboard buffer overrun. Congratulations.\n"));
 		return 0;
 	}
 #if 0

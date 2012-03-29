@@ -886,7 +886,7 @@ extern int ZEXPORT unzOpenCurrentFile (unzFile file)
 
 	if ((s->cur_file_info.compression_method!=0) &&
 	(s->cur_file_info.compression_method!=Z_DEFLATED)) {
-		write_log (L"ZIP: unknown compression method %d\n", s->cur_file_info.compression_method);
+		write_log (_T("ZIP: unknown compression method %d\n"), s->cur_file_info.compression_method);
 		err=UNZ_BADZIPFILE;
 	}
 	Store = s->cur_file_info.compression_method==0;

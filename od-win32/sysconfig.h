@@ -519,4 +519,4 @@
 #define HAVE_WINDOWS_H 1
 
 #define FSDB_DIR_SEPARATOR '\\'
-#define FSDB_DIR_SEPARATOR_S L"\\"
+#define FSDB_DIR_SEPARATOR_S _T("\\")

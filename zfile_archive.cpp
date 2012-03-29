@@ -161,15 +161,15 @@ struct zfile *archive_access_select (struct znode *parent, struct zfile *zf, uns
 				int whf = 1;
 				int ft = 0;
 				if (mask & ZFD_CD) {
-					if (ext && !_tcsicmp (ext, L".iso")) {
+					if (ext && !_tcsicmp (ext, _T(".iso"))) {
 						whf = 2;
 						ft = ZFILE_CDIMAGE;
 					}
-					if (ext && !_tcsicmp (ext, L".ccd")) {
+					if (ext && !_tcsicmp (ext, _T(".ccd"))) {
 						whf = 9;
 						ft = ZFILE_CDIMAGE;
 					}
-					if (ext && !_tcsicmp (ext, L".cue")) {
+					if (ext && !_tcsicmp (ext, _T(".cue"))) {
 						whf = 10;
 						ft = ZFILE_CDIMAGE;
 					}
@@ -434,22 +434,22 @@ static struct zfile *archive_do_zip (struct znode *zn, struct zfile *z, int flag
 	if (z) {
 		int err = -1;
 		if (!(flags & FILE_DELAYEDOPEN) || z->size <= PEEK_BYTES) {
-			unpack_log (L"ZIP: unpacking %s, flags=%d\n", name, flags);
+			unpack_log (_T("ZIP: unpacking %s, flags=%d\n"), name, flags);
 			err = unzReadCurrentFile (uz, z->data, z->datasize);
-			unpack_log (L"ZIP: unpacked, code=%d\n", err);
+			unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 		} else {
 			z->archiveparent = zfile_dup (zn->volume->archive);
 			if (z->archiveparent) {
-				unpack_log (L"ZIP: delayed open '%s'\n", name);
+				unpack_log (_T("ZIP: delayed open '%s'\n"), name);
 				xfree (z->archiveparent->name);
 				z->archiveparent->name = my_strdup (tmp);
 				z->datasize = PEEK_BYTES;
 				err = unzReadCurrentFile (uz, z->data, z->datasize);
-				unpack_log (L"ZIP: unpacked, code=%d\n", err);
+				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			} else {
-				unpack_log (L"ZIP: unpacking %s (failed DELAYEDOPEN)\n", name);
+				unpack_log (_T("ZIP: unpacking %s (failed DELAYEDOPEN)\n"), name);
 				err = unzReadCurrentFile (uz, z->data, z->datasize);
-				unpack_log (L"ZIP: unpacked, code=%d\n", err);
+				unpack_log (_T("ZIP: unpacked, code=%d\n"), err);
 			}
 		}
 	}
@@ -570,7 +570,7 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 	SzArEx_Init (&ctx->db);
 	res = SzArEx_Open (&ctx->db, &ctx->lookStream.s, &allocImp, &allocTempImp);
 	if (res != SZ_OK) {
-		write_log (L"7Z: SzArchiveOpen %s returned %d\n", zfile_getname (z), res);
+		write_log (_T("7Z: SzArchiveOpen %s returned %d\n"), zfile_getname (z), res);
 		xfree (ctx);
 		return NULL;
 	}
@@ -621,7 +621,7 @@ static struct zfile *archive_access_7z (struct znode *zn)
 		z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 		zfile_fwrite (ctx->outBuffer + offset, zn->size, 1, z);
 	} else {
-		write_log (L"7Z: SzExtract %s returned %d\n", zn->fullname, res);
+		write_log (_T("7Z: SzExtract %s returned %d\n"), zn->fullname, res);
 	}
 	return z;
 }
@@ -656,7 +656,7 @@ static int canrar (void)
 		{
 			HMODULE rarlib;
 
-			rarlib = WIN32_LoadLibrary (L"unrar.dll");
+			rarlib = WIN32_LoadLibrary (_T("unrar.dll"));
 			if (rarlib) {
 				TCHAR tmp[MAX_DPATH];
 				tmp[0] = 0;
@@ -672,9 +672,9 @@ static int canrar (void)
 					israr = 1;
 					if (pRARGetDllVersion)
 						version = pRARGetDllVersion ();
-					write_log (L"%s version %08X detected\n", tmp, version);
+					write_log (_T("%s version %08X detected\n"), tmp, version);
 					if (version < 4) {
-						write_log (L"Too old unrar.dll, must be at least version 4\n");
+						write_log (_T("Too old unrar.dll, must be at least version 4\n"));
 						israr = -1;
 					}
 
@@ -836,9 +836,9 @@ static int arcacc_init (struct zfile *zf)
 {
 	if (arcacc_mod)
 		return 1;
-	arcacc_mod = WIN32_LoadLibrary (L"archiveaccess.dll");
+	arcacc_mod = WIN32_LoadLibrary (_T("archiveaccess.dll"));
 	if (!arcacc_mod) {
-		write_log (L"failed to open archiveaccess.dll ('%s')\n", zfile_getname (zf));
+		write_log (_T("failed to open archiveaccess.dll ('%s')\n"), zfile_getname (zf));
 		return 0;
 	}
 	aaOpenArchive = (aapOpenArchive) GetProcAddress (arcacc_mod, "aaOpenArchive");
@@ -847,7 +847,7 @@ static int arcacc_init (struct zfile *zf)
 	aaExtract = (aapExtract) GetProcAddress (arcacc_mod, "aaExtract");
 	aaCloseArchive = (aapCloseArchive) GetProcAddress (arcacc_mod, "aaCloseArchive");
 	if (!aaOpenArchive || !aaGetFileCount || !aaGetFileInfo || !aaExtract || !aaCloseArchive) {
-		write_log (L"Missing functions in archiveaccess.dll. Old version?\n");
+		write_log (_T("Missing functions in archiveaccess.dll. Old version?\n"));
 		arcacc_free ();
 		return 0;
 	}
@@ -1028,7 +1028,7 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 		char *an = ua (zai.name);
 		char *data = xmalloc (char, 1 + strlen (an) + 1 + 1 + 1);
 		sprintf (data, "\"%s\"\n", an);
-		zn = addfile (zv, z, L"s/startup-sequence", (uae_u8*)data, strlen (data));
+		zn = addfile (zv, z, _T("s/startup-sequence"), (uae_u8*)data, strlen (data));
 		xfree (data);
 		xfree (an);
 	}
@@ -1068,7 +1068,7 @@ static struct zfile *archive_access_plain (struct znode *zn)
 	if (zn->offset) {
 		struct zfile *zf;
 		z = zfile_fopen_empty (zn->volume->archive, zn->fullname, zn->size);
-		zf = zfile_fopen (zfile_getname (zn->volume->archive), L"rb", zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
+		zf = zfile_fopen (zfile_getname (zn->volume->archive), _T("rb"), zn->volume->archive->zfdmask & ~ZFD_ADF, zn->offset - 1);
 		if (zf) {
 			zfile_fread (z->data, zn->size, 1, zf);
 			zfile_fclose (zf);
@@ -1588,7 +1588,7 @@ static struct zfile *archive_access_adf (struct znode *zn)
 		for (i = 0; i < sfsblockcnt; i++)
 			bsize += sfsblocks[i].length * adf->blocksize;
 		if (bsize < size)
-			write_log (L"SFS extracting error, %s size mismatch %d<%d\n", z->name, bsize, size);
+			write_log (_T("SFS extracting error, %s size mismatch %d<%d\n"), z->name, bsize, size);
 
 		dst = z->data;
 		block = zn->offset;
@@ -1691,15 +1691,15 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 
 		dos = tochar (buf + 192, 4);
 
-		if (!memcmp (dos, L"DOS", 3))
+		if (!memcmp (dos, _T("DOS"), 3))
 			rootblock = ((size / blocksize) - 1 + 2) / 2;
 		else
 			rootblock = 0;
 
 		devname = getBSTR (buf + 36);
-		_stprintf (tmp, L"%s.hdf", devname);
+		_stprintf (tmp, _T("%s.hdf"), devname);
 		memset (&zai, 0, sizeof zai);
-		_stprintf (comment, L"FS=%s LO=%d HI=%d HEADS=%d SPT=%d RES=%d BLOCK=%d ROOT=%d",
+		_stprintf (comment, _T("FS=%s LO=%d HI=%d HEADS=%d SPT=%d RES=%d BLOCK=%d ROOT=%d"),
 			dos, lowcyl, highcyl, surf, spt, reserved, blocksize, rootblock);
 		zai.comment = comment;
 		xfree (dos);
@@ -1714,7 +1714,7 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 	zfile_fseek (z, 0, SEEK_SET);
 	p = buf;
 	zfile_fread (buf, 1, 512, z);
-	zai.name = L"rdb_dump.dat";
+	zai.name = _T("rdb_dump.dat");
 	bs = rl (p + 16);
 	zai.size = rl (p + 140) * bs;
 	zai.comment = NULL;
@@ -1985,7 +1985,7 @@ struct zvolume *archive_directory_fat (struct zfile *z)
 	dataregion = rootdir + rootentries * 32 / 512;
 
 	zv = zvolume_alloc (z, ArchiveFormatFAT, NULL, NULL);
-	fatdirectory (z, zv, L"", rootdir, rootentries, sectorspercluster, reserved, dataregion, fatbits);
+	fatdirectory (z, zv, _T(""), rootdir, rootentries, sectorspercluster, reserved, dataregion, fatbits);
 	zv->method = ArchiveFormatFAT;
 	return zv;
 }
@@ -2061,7 +2061,7 @@ void archive_access_close (void *handle, unsigned int id)
 
 static struct zfile *archive_access_dir (struct znode *zn)
 {
-	return zfile_fopen (zn->fullname, L"rb", 0);
+	return zfile_fopen (zn->fullname, _T("rb"), 0);
 }
 
 
@@ -2070,7 +2070,7 @@ struct zfile *archive_unpackzfile (struct zfile *zf)
 	struct zfile *zout = NULL;
 	if (!zf->archiveparent)
 		return NULL;
-	unpack_log (L"delayed unpack '%s'\n", zf->name);
+	unpack_log (_T("delayed unpack '%s'\n"), zf->name);
 	zf->datasize = zf->size;
 	switch (zf->archiveid)
 	{

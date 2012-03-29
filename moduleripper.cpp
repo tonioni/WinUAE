@@ -72,7 +72,7 @@ void moduleripper (void)
 		prowizard_search (buf, size);
 #ifdef _WIN32
 	} __except(ExceptionFilter (GetExceptionInformation (), GetExceptionCode ())) {
-		write_log (L"prowizard scan crashed\n");
+		write_log (_T("prowizard scan crashed\n"));
 	}
 #endif
 	if (!got)
@@ -95,7 +95,7 @@ FILE *moduleripper_fopen (const char *aname, const char *amode)
 	fetch_ripperpath (tmp, sizeof tmp);
 	name = au (aname);
 	mode = au (amode);
-	_stprintf (tmp2, L"%s%s", tmp, name);
+	_stprintf (tmp2, _T("%s%s"), tmp, name);
 	f = _tfopen (tmp2, mode);
 	xfree (mode);
 	xfree (name);

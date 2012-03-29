@@ -34,7 +34,7 @@ static int drive_write_adf_amigados (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *write
 		do {
 			while (*mbuf++ != 0x4489) {
 				if (mbuf >= mend) {
-					write_log (L"* track %d, unexpected end of data\n", track);
+					write_log (_T("* track %d, unexpected end of data\n"), track);
 					return 1;
 				}
 			}
@@ -47,7 +47,7 @@ static int drive_write_adf_amigados (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *write
 
 		trackoffs = (id & 0xff00) >> 8;
 		if (trackoffs > 10) {
-			write_log (L"* track %d, corrupt sector number %d\n", track, trackoffs);
+			write_log (_T("* track %d, corrupt sector number %d\n"), track, trackoffs);
 			goto next;
 		}
 		/* this sector is already ok? */
@@ -62,7 +62,7 @@ static int drive_write_adf_amigados (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *write
 
 			dlong = (odd << 1) | even;
 			if (dlong) {
-				write_log (L"* track %d, sector %d header crc error\n", track, trackoffs);
+				write_log (_T("* track %d, sector %d header crc error\n"), track, trackoffs);
 				goto next;
 			}
 			chksum ^= odd ^ even;
@@ -90,7 +90,7 @@ static int drive_write_adf_amigados (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *write
 		}
 		mbuf += 256;
 		if (chksum) {
-			write_log (L"* track %d, sector %d data crc error\n", track, trackoffs);
+			write_log (_T("* track %d, sector %d data crc error\n"), track, trackoffs);
 			goto next;
 		}
 		memcpy (writebuffer + trackoffs * 512, secbuf + 32, 512);
@@ -181,7 +181,7 @@ static int drive_write_adf_pc (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *writebuffer
 					*outsize = sectors * 512;
 					return 0;
 				}
-				write_log (L"* track %d, unexpected end of data\n", track);
+				write_log (_T("* track %d, unexpected end of data\n"), track);
 				return 1;
 			}
 			shift++;
@@ -217,14 +217,14 @@ static int drive_write_adf_pc (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *writebuffer
 			tmp[0] = 0xa1; tmp[1] = 0xa1; tmp[2] = 0xa1; tmp[3] = mark;
 			tmp[4] = cyl; tmp[5] = head; tmp[6] = sector; tmp[7] = size;
 			if (get_crc16 (tmp, 8) != crc || cyl != track / 2 || head != (track & 1) || size != 2 || sector < 1 || sector > 20) {
-				write_log (L"PCDOS: track %d, corrupted sector header\n", track);
+				write_log (_T("PCDOS: track %d, corrupted sector header\n"), track);
 				continue;
 			}
 			sector--;
 			continue;
 		}
 		if (mark != 0xfb) {
-			write_log (L"PCDOS: track %d: unknown address mark %02X\n", track, mark);
+			write_log (_T("PCDOS: track %d: unknown address mark %02X\n"), track, mark);
 			continue;
 		}
 		if (sector < 0)
@@ -236,7 +236,7 @@ static int drive_write_adf_pc (uae_u16 *mbuf, uae_u16 *mend, uae_u8 *writebuffer
 		sector = 0;
 		crc = (mfmdecode (&mbuf, shift) << 8) | mfmdecode (&mbuf, shift);
 		if (get_crc16 (secbuf, 3 + 1 + 512) != crc) {
-			write_log (L"PCDOS: track %d, sector %d data checksum error\n",
+			write_log (_T("PCDOS: track %d, sector %d data checksum error\n"),
 				track, sector + 1);
 			continue;
 		}

@@ -12,7 +12,7 @@ static void LLError(const TCHAR *s)
 
     if (err == ERROR_MOD_NOT_FOUND || err == ERROR_DLL_NOT_FOUND)
 	return;
-    write_log (L"%s failed to open %d\n", s, err);
+    write_log (_T("%s failed to open %d\n"), s, err);
 }
 
 void notify_user (int n)
@@ -59,15 +59,15 @@ HMODULE WIN32_LoadLibrary (const TCHAR *name)
 #endif
 	s = xmalloc (TCHAR, _tcslen (start_path_exe) + _tcslen (WIN32_PLUGINDIR) + _tcslen (newname) + 1);
 	if (s) {
-	    _stprintf (s, L"%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
+	    _stprintf (s, _T("%s%s%s"), start_path_exe, WIN32_PLUGINDIR, newname);
 	    m = LoadLibrary (s);
 	    if (m)
 		goto end;
-	    _stprintf (s, L"%s%s", start_path_exe, newname);
+	    _stprintf (s, _T("%s%s"), start_path_exe, newname);
 	    m = LoadLibrary (s);
 	    if (m)
 		goto end;
-	    _stprintf (s, L"%s%s%s", start_path_exe, WIN32_PLUGINDIR, newname);
+	    _stprintf (s, _T("%s%s%s"), start_path_exe, WIN32_PLUGINDIR, newname);
 	    LLError(s);
 	    xfree (s);
 	}

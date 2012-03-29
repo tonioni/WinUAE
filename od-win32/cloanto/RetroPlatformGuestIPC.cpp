@@ -22,7 +22,7 @@ static LRESULT CALLBACK RPGuestWndProc(HWND hWnd, UINT message, WPARAM wParam, L
 
 static const _TCHAR g_szHostWndClass[]  = _T(RPIPC_HostWndClass);
 static const _TCHAR g_szGuestWndClass[] = _T(RPIPC_GuestWndClass);
-static const WCHAR g_szRegistration[]   = L"Cloanto(R) RetroPlatform(TM)";
+static const WCHAR g_szRegistration[]   = _T("Cloanto(R) RetroPlatform(TM)");
 
 
 

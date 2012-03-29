@@ -8,7 +8,7 @@
   */
 
 #ifndef FSDB_FILE
-#define FSDB_FILE L"_UAEFSDB.___"
+#define FSDB_FILE _T("_UAEFSDB.___")
 #endif
 
 #ifndef FSDB_DIR_SEPARATOR
