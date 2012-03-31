@@ -254,29 +254,40 @@ HWND hStatusWnd = NULL;
 
 static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
 
-struct MultiDisplay *getdisplay (struct uae_prefs *p)
+static struct MultiDisplay *getdisplay2 (struct uae_prefs *p, int index)
 {
-	int i;
-	int display = p->gfx_display - 1;
+	int max;
+	int display = index < 0 ? p->gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display - 1 : index;
 
-	i = 0;
-	while (Displays[i].monitorname) {
-		struct MultiDisplay *md = &Displays[i];
-		if (p->gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_display_name))
-			return md;
-		if (p->gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_display_name))
-			return md;
-		i++;
+	max = 0;
+	while (Displays[max].monitorname) {
+		if (index < 0) {
+			struct MultiDisplay *md = &Displays[max];
+			if (screen_is_picasso) {
+				if (p->gfx_apmode[APMODE_RTG].gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_apmode[APMODE_RTG].gfx_display_name))
+					return md;
+			} else {
+				if (p->gfx_apmode[APMODE_NATIVE].gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_apmode[APMODE_NATIVE].gfx_display_name))
+					return md;
+			}
+		}
+		max++;
 	}
-	if (i == 0) {
+	if (max == 0) {
 		gui_message (_T("no display adapters! Exiting"));
 		exit (0);
 	}
-	if (display >= i)
+	if (index >= 0 && display >= max)
+		return NULL;
+	if (display >= max)
 		display = 0;
 	if (display < 0)
 		display = 0;
 	return &Displays[display];
+}
+struct MultiDisplay *getdisplay (struct uae_prefs *p)
+{
+	return getdisplay2 (p, -1);
 }
 
 void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
@@ -1446,8 +1457,10 @@ int check_prefs_changed_gfx (void)
 
 	c |= currprefs.gfx_lores_mode != changed_prefs.gfx_lores_mode ? (2 | 8) : 0;
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
-	c |= currprefs.gfx_display != changed_prefs.gfx_display ? (2|4|8) : 0;
-	c |= _tcscmp (currprefs.gfx_display_name, changed_prefs.gfx_display_name) ? (2|4|8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_display != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display ? (2|4|8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_display != changed_prefs.gfx_apmode[APMODE_RTG].gfx_display ? (2|4|8) : 0;
+	c |= _tcscmp (currprefs.gfx_apmode[APMODE_NATIVE].gfx_display_name, changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display_name) ? (2|4|8) : 0;
+	c |= _tcscmp (currprefs.gfx_apmode[APMODE_RTG].gfx_display_name, changed_prefs.gfx_apmode[APMODE_RTG].gfx_display_name) ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[0].gfx_backbuffers != changed_prefs.gfx_apmode[0].gfx_backbuffers ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[0].gfx_interlaced != changed_prefs.gfx_apmode[0].gfx_interlaced ? (2 | 8) : 0;
@@ -1519,8 +1532,10 @@ int check_prefs_changed_gfx (void)
 
 		currprefs.gfx_lores_mode = changed_prefs.gfx_lores_mode;
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
-		currprefs.gfx_display = changed_prefs.gfx_display;
-		_tcscpy (currprefs.gfx_display_name, changed_prefs.gfx_display_name);
+		currprefs.gfx_apmode[APMODE_NATIVE].gfx_display = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display;
+		currprefs.gfx_apmode[APMODE_RTG].gfx_display = changed_prefs.gfx_apmode[APMODE_RTG].gfx_display;
+		_tcscpy (currprefs.gfx_apmode[APMODE_NATIVE].gfx_display_name, changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display_name);
+		_tcscpy (currprefs.gfx_apmode[APMODE_RTG].gfx_display_name, changed_prefs.gfx_apmode[APMODE_RTG].gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
 		currprefs.gfx_apmode[0].gfx_backbuffers = changed_prefs.gfx_apmode[0].gfx_backbuffers;
 		currprefs.gfx_apmode[0].gfx_interlaced = changed_prefs.gfx_apmode[0].gfx_interlaced;
@@ -2250,56 +2265,69 @@ static int createnotification (HWND hwnd)
 
 static int getbestmode (int nextbest)
 {
-	int i, startidx, disp;
-	struct MultiDisplay *md = getdisplay (&currprefs);
+	int i, startidx;
+	struct MultiDisplay *md;
 	int ratio;
+	int index = -1;
 
-	ratio = currentmode->native_width > currentmode->native_height ? 1 : 0;
-	disp = currprefs.gfx_display;
-	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-		struct PicassoResolution *pr = &md->DisplayModes[i];
-		if (pr->res.width == currentmode->native_width && pr->res.height == currentmode->native_height)
-			break;
-	}
-	if (md->DisplayModes[i].depth >= 0) {
-		if (!nextbest)
-			return 1;
-		while (md->DisplayModes[i].res.width == currentmode->native_width && md->DisplayModes[i].res.height == currentmode->native_height)
-			i++;
-	} else {
-		i = 0;
-	}
-	// first iterate only modes that have similar aspect ratio
-	startidx = i;
-	for (; md->DisplayModes[i].depth >= 0; i++) {
-		struct PicassoResolution *pr = &md->DisplayModes[i];
-		int r = pr->res.width > pr->res.height ? 1 : 0;
-		if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height && r == ratio) {
-			write_log (_T("FS: %dx%d -> %dx%d (%d)\n"), currentmode->native_width, currentmode->native_height,
-				pr->res.width, pr->res.height, ratio);
-			currentmode->native_width = pr->res.width;
-			currentmode->native_height = pr->res.height;
-			currentmode->current_width = currentmode->native_width;
-			currentmode->current_height = currentmode->native_height;
-			return 1;
+	for(;;) {
+		md = getdisplay2 (&currprefs, index);
+		if (!md)
+			return 0;
+		ratio = currentmode->native_width > currentmode->native_height ? 1 : 0;
+		for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+			struct PicassoResolution *pr = &md->DisplayModes[i];
+			if (pr->res.width == currentmode->native_width && pr->res.height == currentmode->native_height)
+				break;
 		}
-	}
-	// still not match? check all modes
-	i = startidx;
-	for (; md->DisplayModes[i].depth >= 0; i++) {
-		struct PicassoResolution *pr = &md->DisplayModes[i];
-		int r = pr->res.width > pr->res.height ? 1 : 0;
-		if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
-			write_log (_T("FS: %dx%d -> %dx%d\n"), currentmode->native_width, currentmode->native_height,
-				pr->res.width, pr->res.height);
-			currentmode->native_width = pr->res.width;
-			currentmode->native_height = pr->res.height;
-			currentmode->current_width = currentmode->native_width;
-			currentmode->current_height = currentmode->native_height;
-			return 1;
+		if (md->DisplayModes[i].depth >= 0) {
+			if (!nextbest)
+				break;
+			while (md->DisplayModes[i].res.width == currentmode->native_width && md->DisplayModes[i].res.height == currentmode->native_height)
+				i++;
+		} else {
+			i = 0;
 		}
+		// first iterate only modes that have similar aspect ratio
+		startidx = i;
+		for (; md->DisplayModes[i].depth >= 0; i++) {
+			struct PicassoResolution *pr = &md->DisplayModes[i];
+			int r = pr->res.width > pr->res.height ? 1 : 0;
+			if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height && r == ratio) {
+				write_log (_T("FS: %dx%d -> %dx%d (%d)\n"), currentmode->native_width, currentmode->native_height,
+					pr->res.width, pr->res.height, ratio);
+				currentmode->native_width = pr->res.width;
+				currentmode->native_height = pr->res.height;
+				currentmode->current_width = currentmode->native_width;
+				currentmode->current_height = currentmode->native_height;
+				break;
+			}
+		}
+		// still not match? check all modes
+		i = startidx;
+		for (; md->DisplayModes[i].depth >= 0; i++) {
+			struct PicassoResolution *pr = &md->DisplayModes[i];
+			int r = pr->res.width > pr->res.height ? 1 : 0;
+			if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height) {
+				write_log (_T("FS: %dx%d -> %dx%d\n"), currentmode->native_width, currentmode->native_height,
+					pr->res.width, pr->res.height);
+				currentmode->native_width = pr->res.width;
+				currentmode->native_height = pr->res.height;
+				currentmode->current_width = currentmode->native_width;
+				currentmode->current_height = currentmode->native_height;
+				break;
+			}
+		}
+		index++;
 	}
-	return 0;
+	if (index >= 0) {
+		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = 
+			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = index;
+		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] =
+			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] = 0;
+		write_log (L"Monitor switched to '%s'\n", md->adaptername);
+	}
+	return 1;
 }
 
 static volatile frame_time_t vblank_prev_time, thread_vblank_time;
@@ -3144,6 +3172,9 @@ static int create_windows (void)
 {
 	if (!create_windows_2 ())
 		return 0;
+
+
+
 	return set_ddraw ();
 }
 

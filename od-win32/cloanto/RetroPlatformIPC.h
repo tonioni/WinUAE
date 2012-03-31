@@ -3,12 +3,12 @@
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2011 Cloanto Italia srl - All rights reserved. This
-         : file is made available under the terms of the GNU General Public
-         : License version 2 as published by the Free Software Foundation.
+ Legal   : Copyright 2007-2012 Cloanto Italia srl - All rights reserved. This
+         : file is made available under the terms of the Mozilla Public License
+         : version 2.0 as published by Mozilla Corporation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2011-08-02 16:52:00
+ Updated : 2012-03-27 16:00:00
  Comment : RP Player interprocess communication include file
  *****************************************************************************/
 
@@ -17,9 +17,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "3.0"
+#define RETROPLATFORM_API_VER       "3.2"
 #define RETROPLATFORM_API_VER_MAJOR  3
-#define RETROPLATFORM_API_VER_MINOR  0
+#define RETROPLATFORM_API_VER_MINOR  2
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -29,54 +29,54 @@
 //  Guest-to-Host Messages
 // ****************************************************************************
 
-#define RPIPCGM_REGISTER            (WM_APP + 0)
-#define RPIPCGM_FEATURES            (WM_APP + 1)
-#define RPIPCGM_CLOSED              (WM_APP + 2)
-#define RPIPCGM_ACTIVATED           (WM_APP + 3)
-#define RPIPCGM_DEACTIVATED         (WM_APP + 4)
-#define RPIPCGM_ENABLED             (WM_APP + 5)
-#define RPIPCGM_DISABLED            (WM_APP + 6)
-#define RPIPCGM_SCREENMODE          (WM_APP + 9)
-#define RPIPCGM_POWERLED            (WM_APP + 10)
-#define RPIPCGM_DEVICES             (WM_APP + 11)
-#define RPIPCGM_DEVICEACTIVITY      (WM_APP + 12)
-#define RPIPCGM_MOUSECAPTURE        (WM_APP + 13)
-#define RPIPCGM_HOSTAPIVERSION      (WM_APP + 14)
-#define RPIPCGM_PAUSE               (WM_APP + 15)
-#define RPIPCGM_TURBO               (WM_APP + 17)
-#define RPIPCGM_PING                (WM_APP + 18)
-#define RPIPCGM_VOLUME              (WM_APP + 19)
-#define RPIPCGM_ESCAPED             (WM_APP + 20)
-#define RPIPCGM_PARENT              (WM_APP + 21)
-#define RPIPCGM_DEVICESEEK          (WM_APP + 22)
-#define RPIPCGM_CLOSE               (WM_APP + 23)
-#define RPIPCGM_DEVICEREADWRITE     (WM_APP + 24)
-#define RPIPCGM_HOSTVERSION         (WM_APP + 25)
-#define RPIPCGM_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
-#define RPIPCGM_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_HOST_REGISTER            (WM_APP + 0)
+#define RP_IPC_TO_HOST_FEATURES            (WM_APP + 1)
+#define RP_IPC_TO_HOST_CLOSED              (WM_APP + 2)
+#define RP_IPC_TO_HOST_ACTIVATED           (WM_APP + 3)
+#define RP_IPC_TO_HOST_DEACTIVATED         (WM_APP + 4)
+#define RP_IPC_TO_HOST_ENABLED             (WM_APP + 5)
+#define RP_IPC_TO_HOST_DISABLED            (WM_APP + 6)
+#define RP_IPC_TO_HOST_SCREENMODE          (WM_APP + 9)
+#define RP_IPC_TO_HOST_POWERLED            (WM_APP + 10)
+#define RP_IPC_TO_HOST_DEVICES             (WM_APP + 11)
+#define RP_IPC_TO_HOST_DEVICEACTIVITY      (WM_APP + 12)
+#define RP_IPC_TO_HOST_MOUSECAPTURE        (WM_APP + 13)
+#define RP_IPC_TO_HOST_HOSTAPIVERSION      (WM_APP + 14)
+#define RP_IPC_TO_HOST_PAUSE               (WM_APP + 15)
+#define RP_IPC_TO_HOST_TURBO               (WM_APP + 17)
+#define RP_IPC_TO_HOST_PING                (WM_APP + 18)
+#define RP_IPC_TO_HOST_VOLUME              (WM_APP + 19)
+#define RP_IPC_TO_HOST_ESCAPED             (WM_APP + 20)
+#define RP_IPC_TO_HOST_PARENT              (WM_APP + 21)
+#define RP_IPC_TO_HOST_DEVICESEEK          (WM_APP + 22)
+#define RP_IPC_TO_HOST_CLOSE               (WM_APP + 23)
+#define RP_IPC_TO_HOST_DEVICEREADWRITE     (WM_APP + 24)
+#define RP_IPC_TO_HOST_HOSTVERSION         (WM_APP + 25)
+#define RP_IPC_TO_HOST_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
+#define RP_IPC_TO_HOST_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
 
 // ****************************************************************************
 //  Host-to-Guest Messages
 // ****************************************************************************
 
-#define RPIPCHM_CLOSE               (WM_APP + 200)
-#define RPIPCHM_SCREENMODE          (WM_APP + 202)
-#define RPIPCHM_SCREENCAPTURE       (WM_APP + 203)
-#define RPIPCHM_PAUSE               (WM_APP + 204)
-#define RPIPCHM_RESET               (WM_APP + 206)
-#define RPIPCHM_TURBO               (WM_APP + 207)
-#define RPIPCHM_PING                (WM_APP + 208)
-#define RPIPCHM_VOLUME              (WM_APP + 209)
-#define RPIPCHM_ESCAPEKEY           (WM_APP + 210)
-#define RPIPCHM_EVENT               (WM_APP + 211)
-#define RPIPCHM_MOUSECAPTURE        (WM_APP + 212)
-#define RPIPCHM_SAVESTATE           (WM_APP + 213)
-#define RPIPCHM_LOADSTATE           (WM_APP + 214)
-#define RPIPCHM_FLUSH               (WM_APP + 215)
-#define RPIPCHM_DEVICEREADWRITE     (WM_APP + 216)
-#define RPIPCHM_QUERYSCREENMODE     (WM_APP + 217)
-#define RPIPCHM_GUESTAPIVERSION     (WM_APP + 218) // introduced in RetroPlatform API 3.0
-#define RPIPCHM_DEVICECONTENT       (WM_APP + 219) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_GUEST_CLOSE               (WM_APP + 200)
+#define RP_IPC_TO_GUEST_SCREENMODE          (WM_APP + 202)
+#define RP_IPC_TO_GUEST_SCREENCAPTURE       (WM_APP + 203)
+#define RP_IPC_TO_GUEST_PAUSE               (WM_APP + 204)
+#define RP_IPC_TO_GUEST_RESET               (WM_APP + 206)
+#define RP_IPC_TO_GUEST_TURBO               (WM_APP + 207)
+#define RP_IPC_TO_GUEST_PING                (WM_APP + 208)
+#define RP_IPC_TO_GUEST_VOLUME              (WM_APP + 209)
+#define RP_IPC_TO_GUEST_ESCAPEKEY           (WM_APP + 210)
+#define RP_IPC_TO_GUEST_EVENT               (WM_APP + 211)
+#define RP_IPC_TO_GUEST_MOUSECAPTURE        (WM_APP + 212)
+#define RP_IPC_TO_GUEST_SAVESTATE           (WM_APP + 213)
+#define RP_IPC_TO_GUEST_LOADSTATE           (WM_APP + 214)
+#define RP_IPC_TO_GUEST_FLUSH               (WM_APP + 215)
+#define RP_IPC_TO_GUEST_DEVICEREADWRITE     (WM_APP + 216)
+#define RP_IPC_TO_GUEST_QUERYSCREENMODE     (WM_APP + 217)
+#define RP_IPC_TO_GUEST_GUESTAPIVERSION     (WM_APP + 218) // introduced in RetroPlatform API 3.0
+#define RP_IPC_TO_GUEST_DEVICECONTENT       (WM_APP + 219) // extended in RetroPlatform API 3.0
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -89,11 +89,11 @@
 #define RP_FEATURE_SCREEN3X        			0x00000008 // 3x mode is available
 #define RP_FEATURE_SCREEN4X        			0x00000010 // 4x mode is available
 #define RP_FEATURE_FULLSCREEN      			0x00000020 // fullscreen display is available
-#define RP_FEATURE_SCREENCAPTURE   			0x00000040 // screen capture functionality is available (see RPIPCHM_SCREENCAPTURE message)
-#define RP_FEATURE_PAUSE           			0x00000080 // pause functionality is available (see RPIPCHM_PAUSE message)
-#define RP_FEATURE_TURBO           			0x00000100 // turbo mode functionality is available (see RPIPCHM_TURBO message)
-#define RP_FEATURE_VOLUME          			0x00000200 // volume adjustment is possible (see RPIPCHM_VOLUME message)
-#define RP_FEATURE_STATE           			0x00000400 // loading and saving of emulation state is supported (see RPIPCHM_SAVESTATE/RPIPCHM_LOADSTATE message)
+#define RP_FEATURE_SCREENCAPTURE   			0x00000040 // screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
+#define RP_FEATURE_PAUSE           			0x00000080 // pause functionality is available (see RP_IPC_TO_GUEST_PAUSE message)
+#define RP_FEATURE_TURBO           			0x00000100 // turbo mode functionality is available (see RP_IPC_TO_GUEST_TURBO message)
+#define RP_FEATURE_VOLUME          			0x00000200 // volume adjustment is possible (see RP_IPC_TO_GUEST_VOLUME message)
+#define RP_FEATURE_STATE           			0x00000400 // loading and saving of emulation state is supported (see RP_IPC_TO_GUEST_SAVESTATE/RP_IPC_TO_GUEST_LOADSTATE message)
 #define RP_FEATURE_SCANLINES       			0x00000800 // scan lines video effect is available
 #define RP_FEATURE_DEVICEREADWRITE 			0x00001000 // device read/write can be set at runtime on floppy and hard disks
 #define RP_FEATURE_SCALING_SUBPIXEL 		0x00002000 // supports sub-pixel scaling of windowed and fullscreen modes (i.e. not just integer multipliers like 1X, 2X, etc., but stretch to fill any desired pixel size)
@@ -115,7 +115,7 @@ typedef struct RPScreenMode
 	LONG lClipTop;      // in guest pixel units; -1 = ignore (0 is a valid value)
 	LONG lClipWidth;    // in guest pixel units; -1 = ignore
 	LONG lClipHeight;   // in guest pixel units; -1 = ignore
-	HWND hGuestWindow;  // only valid for RPIPCGM_SCREENMODE
+	HWND hGuestWindow;  // only valid for RP_IPC_TO_HOST_SCREENMODE
 	DWORD dwClipFlags;	// clip flags (or 0)
 	LONG lTargetWidth;  // in exact host pixels; if set, must also set lTargetHeight; ignored unless RP_SCREENMODE_SCALE_TARGET is set (resulting size is result of clipping and scaling); RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH are taken into account
 	LONG lTargetHeight; // in exact host pixels, used with lTargetWidth
@@ -127,7 +127,7 @@ typedef struct RPScreenMode
 #define RP_SCREENMODE_SCALE_3X      		0x00000002 // 3x window or fullscreen mode ("triple CGA mode")
 #define RP_SCREENMODE_SCALE_4X      		0x00000003 // 4x window or fullscreen mode ("double VGA mode")
 #define RP_SCREENMODE_SCALE_TARGET     		0x000000FE // scale to maximum within lTargetWidth/lTargetHeight (default: maximum possible integer multiplication, no subpixel stretching, preserve ratio; may change to non-integer mode depending on RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH)
-#define RP_SCREENMODE_SCALE_MAX        		0x000000FF // scale to auto-determined maximum size (default: maximum possible nX integer multiplication, no subpixel stretching, preserve ratio; may change to non-integer mode depending on RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH); must be set in fullscreen modes
+#define RP_SCREENMODE_SCALE_MAX        		0x000000FF // scale to auto-determined maximum size (default: maximum possible nX integer multiplication, no subpixel stretching, preserve ratio; may change to non-integer mode depending on RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH); must be set in fullscreen (shared or exclusive) modes
 #define RP_SCREENMODE_SCALEMASK      		0x000000FF
 #define RP_SCREENMODE_SCALE(m)       		((m) & RP_SCREENMODE_SCALEMASK) // returns the #X mode
 
@@ -223,16 +223,16 @@ typedef struct RPScreenMode
 //
 // In window mode, if no lTargetWidth and lTargetHeight are set, when the host asks for a change in clipping (net content size), the host window size will be adjusted taking into account the current integer multiplication factor.
 //
-// In window mode, after a change of clipping or size, the player may have to reset the visual hilight of the 1X, 2X etc. buttons according to new RPIPCGM_SCREENMODE data (setting a hilight if the correct scaling button is present in the user interface, or removing all hilights if the corresponding button is missing).
+// In window mode, after a change of clipping or size, the player may have to reset the visual hilight of the 1X, 2X etc. buttons according to new RP_IPC_TO_HOST_SCREENMODE data (setting a hilight if the correct scaling button is present in the user interface, or removing all hilights if the corresponding button is missing).
 //
 
 
-// RPInputDeviceDescription (used by initial host device enumeration via RPIPCGM_INPUTDEVICE, right after RPIPCGM_FEATURES and before RPIPCGM_SCREENMODE)
+// RPInputDeviceDescription (used by initial host device enumeration via RP_IPC_TO_HOST_INPUTDEVICE, right after RP_IPC_TO_HOST_FEATURES and before RP_IPC_TO_HOST_SCREENMODE)
 
 typedef struct RPInputDeviceDescription
 {
     DWORD dwHostInputType;              // host-side input device type (RP_HOSTINPUT_MOUSE, RP_HOSTINPUT_JOYSTICK, etc.)
-	WCHAR szHostInputID[260];           // host device "ProductGUID InstanceGUID", GUID, etc. (can be any format, as long as string is unique across all devices)
+	WCHAR szHostInputID[260];           // host device "ProductGUID InstanceGUID", GUID, etc. (can be any format, as long as string is unique across all devices; keyboard layout strings must not contain spaces)
 	WCHAR szHostInputName[260];         // host device product description string ("5-Axis,12-Button with POV", "HID keyboard device", etc.) as listed by Windows; identical devices will result in identical strings (it is up to the host to add " (2)" etc. to the display names)
 	DWORD dwHostInputVendorID;          // host device Vendor ID (identification as issued by usb.org and found in USB and DirectInput device descriptors), or 0 if not available
 	DWORD dwHostInputProductID;         // host device Product ID (identification as assigned by manufacturer and used in USB and DirectInput device descriptors), or 0 if not available
@@ -241,8 +241,7 @@ typedef struct RPInputDeviceDescription
 } RPINPUTDEVICEDESCRIPTION;
 
 
-
-// RPDeviceContent (used by RPIPCGM_DEVICECONTENT and RPIPCHM_DEVICECONTENT)
+// RPDeviceContent (used by RP_IPC_TO_HOST_DEVICECONTENT and RP_IPC_TO_GUEST_DEVICECONTENT)
 
 typedef struct RPDeviceContent
 {
@@ -250,8 +249,27 @@ typedef struct RPDeviceContent
 	BYTE btDeviceNumber;                // device number (range 0..31), e.g. Amiga floppy drive unit 0, C64 disk unit 8 or 9, etc.
     DWORD dwInputDevice;                // (guest-side) input device type (RP_INPUTDEVICE_MOUSE, RP_INPUTDEVICE_JOYSTICK, etc.); currently set to 0 if not RP_DEVICE_INPUTPORT
 	DWORD dwFlags;	                    // flags (or 0); e.g. see RP_DEVICEFLAGS_MOUSE_ (for "mouse hack"), RP_DEVICEFLAGS_RW_ (for read/write status)
-	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT, then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
+	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT, then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); see comment for format of KeyboardCustom string; szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
 } RPDEVICECONTENT;
+
+
+//
+// Keyboard layouts for joystick emulation
+//
+// These are virtual devices enumerated and named by the guest, rather than by the operating system. Any device name set by the guest will do, as long as it does not contain space characters.
+//
+// In the initial device enumeration (guest to host), the szHostInputID strings are enumerated with names like
+// "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" and "KeyboardCustom"
+//
+// In dwHostInputType:
+// - "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" are flagged
+//   RP_HOSTINPUT_KEYJOY_MAP1, RP_HOSTINPUT_KEYJOY_MAP2, RP_HOSTINPUT_KEYJOY_MAP3
+// - "KeyboardCustom" is flagged RP_HOSTINPUT_KEYJOY_CUSTOM
+//
+// In RP_IPC_TO_GUEST_DEVICECONTENT (host to guest) messages, the key code strings are appended to the device string in szContent.
+// For example:
+// "KeyboardCustom Left=0xC8 Right=0xD0 Up=0xCB Down=0xCD Fire=0x39"
+//
 
 
 // Device Categories
@@ -262,27 +280,29 @@ typedef struct RPDeviceContent
 #define RP_DEVICECATEGORY_TAPE      4 // cassette tape drive
 #define RP_DEVICECATEGORY_CARTRIDGE 5 // expansion cartridge
 #define RP_DEVICECATEGORY_INPUTPORT 6 // input port (hosts an INPUTDEVICE: mouse, joystick, joystick emulated via keyboard, etc.)
-#define RP_DEVICECATEGORY_COUNT     7 // total number of device categories
+#define RP_DEVICECATEGORY_KEYBOARD  7 // keyboard
+#define RP_DEVICECATEGORY_COUNT     8 // total number of device categories
 
-#define RP_ALL_DEVICES             32 // constant for the RPIPCGM_DEVICEACTIVITY message (to turn on/off all LEDs for a device category)
+#define RP_ALL_DEVICES             32 // constant for the RP_IPC_TO_HOST_DEVICEACTIVITY message (to turn on/off all LEDs for a device category)
 
 
 // Host Input Device Types (used to enumerate host devices)
-#define RP_HOSTINPUT_MOUSE         0 // Mouse/trackball (supports relative moves)
-#define RP_HOSTINPUT_TABLET        1 // Pen tablet (no relative moves, only absolute positions)
-#define RP_HOSTINPUT_JOYSTICK      2 // PC joystick, gamepad, trackball, etc.
-#define RP_HOSTINPUT_KEYJOY_MAP1   3 // Keyboard Layout 1; Amiga/C64: Keyboard Layout A for WinUAE/VICE (numeric keypad, 0 to fire, etc.)
-#define RP_HOSTINPUT_KEYJOY_MAP2   4 // Keyboard Layout 2; Amiga/C64: Keyboard Layout B for WinUAE/VICE (cursor keys, right Control to fire, etc.)
-#define RP_HOSTINPUT_KEYJOY_MAP3   5 // Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
-#define RP_HOSTINPUT_ARCADE_LEFT   6 // Left part of arcade dual joystick input device ("player 1")
-#define RP_HOSTINPUT_ARCADE_RIGHT  7 // Right part of arcade dual joystick input device ("player 2")
-#define RP_HOSTINPUT_COUNT         8 // total number of device types
+#define RP_HOSTINPUT_MOUSE          0 // Mouse/trackball (supports relative moves)
+#define RP_HOSTINPUT_TABLET         1 // Pen tablet (no relative moves, only absolute positions)
+#define RP_HOSTINPUT_JOYSTICK       2 // PC joystick, gamepad, trackball, etc.
+#define RP_HOSTINPUT_KEYJOY_MAP1    3 // Keyboard Layout 1; Amiga/C64: Keyboard Layout A for WinUAE/VICE (8, 2, 4, 6 on keypad, 0 to fire, etc.)
+#define RP_HOSTINPUT_KEYJOY_MAP2    4 // Keyboard Layout 2; Amiga/C64: Keyboard Layout B for WinUAE/VICE (cursor keys, right Control to fire, etc.)
+#define RP_HOSTINPUT_KEYJOY_MAP3    5 // Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
+#define RP_HOSTINPUT_ARCADE_LEFT    6 // Left part of arcade dual joystick input device ("player 1")
+#define RP_HOSTINPUT_ARCADE_RIGHT   7 // Right part of arcade dual joystick input device ("player 2")
+#define RP_HOSTINPUT_KEYJOY_CUSTOM  8 // Custom Keyboard Layout (e.g. "KeyboardCustom Left=0xC8 Right=0xD0 Up=0xCB Down=0xCD Fire=0x39" set in szContent)
+#define RP_HOSTINPUT_COUNT          9 // total number of device types
 
 // Host Input Device Flags
-#define RP_HOSTINPUTFLAGS_MOUSE_RAW     0x00000000  // Individual raw mouse device with no acceleration
+#define RP_HOSTINPUTFLAGS_MOUSE_RAW     0x00000000  // Individual raw mouse device with no acceleration (multi-mouse warning: RAW and SMART devices cannot be used simultaneously)
 #define RP_HOSTINPUTFLAGS_MOUSE_SMART   0x00000001  // System pointer mouse with acceleration and aggregation of multiple devices
 #define RP_HOSTINPUTFLAGS_MOUSEMASK     0x00000001
-#define RP_HOSTINPUTFLAGS_MOUSE(m)      ((m) & RP_DEVICEFLAGS_MOUSEMASK) // returns RP_HOSTINPUTFLAGS_MOUSE_RAW or RP_HOSTINPUTFLAGS_MOUSE_SMART
+#define RP_HOSTINPUTFLAGS_MOUSE(m)      ((m) & RP_HOSTINPUTFLAGS_MOUSEMASK) // returns RP_HOSTINPUTFLAGS_MOUSE_RAW or RP_HOSTINPUTFLAGS_MOUSE_SMART
 
 
 // Guest Input Device Types (used to describe what the host side device is mapped to on the guest side)
@@ -297,7 +317,7 @@ typedef struct RPDeviceContent
 #define RP_INPUTDEVICE_TABLET	    8 // [currently unused] Pen tablet (no relative moves, only absolute positions); on Amiga: pressure support as per Electronic Arts Tablet.library
 #define RP_INPUTDEVICE_COUNT        9 // total number of device types
 
-// Device Read/Write status (used in RPIPCGM_DEVICECONTENT, RPIPCHM_DEVICECONTENT; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
+// Device Read/Write status (used in RP_IPC_TO_HOST_DEVICECONTENT, RP_IPC_TO_GUEST_DEVICECONTENT; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
 #define RP_DEVICEFLAGS_RW_READONLY          0x00000000  // the medium is write-protected
 #define RP_DEVICEFLAGS_RW_READWRITE         0x00000001  // the medium is read/write
 #define RP_DEVICEFLAGS_RWMASK               0x00000001
@@ -323,7 +343,7 @@ typedef struct RPDeviceContent
 #define RP_JOYSTICK_BUTTON7  0x00000400 // button 7 - CDTV/CD32 Forward
 
 
-// Device Read/Write status (used in RPIPCGM_DEVICEREADWRITE, RPIPCHM_DEVICEREADWRITE; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
+// Device Read/Write status (used in RP_IPC_TO_HOST_DEVICEREADWRITE, RP_IPC_TO_GUEST_DEVICEREADWRITE; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
 #define RP_DEVICE_READONLY   0 // the medium is write-protected
 #define RP_DEVICE_READWRITE  1 // the medium is read/write
 
@@ -336,17 +356,17 @@ typedef struct RPDeviceContent
 #define RP_RESET_SOFT  0 // soft reset
 #define RP_RESET_HARD  1 // hard reset
 
-// RPIPCGM_MOUSECAPTURE/RPIPCHM_MOUSECAPTURE
+// RP_IPC_TO_HOST_MOUSECAPTURE/RP_IPC_TO_GUEST_MOUSECAPTURE
 #define RP_MOUSECAPTURE_CAPTURED     0x00000001
 #define RP_MOUSECAPTURE_MAGICMOUSE   0x00000002
 
-// RPIPCGM_DEVICEACTIVITY
+// RP_IPC_TO_HOST_DEVICEACTIVITY
 #define RP_DEVICEACTIVITY_GREEN    0x0000 // green led
 #define RP_DEVICEACTIVITY_RED      0x0001 // red led
 #define RP_DEVICEACTIVITY_READ     RP_DEVICEACTIVITY_GREEN // device activity is a read operation
 #define RP_DEVICEACTIVITY_WRITE    RP_DEVICEACTIVITY_RED   // device activity is a write operation
 
-// RPIPCGM_HOSTVERSION
+// RP_IPC_TO_HOST_HOSTVERSION
 //   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
 //   1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
 //  +-----------------------+-------------------+-------------------+
@@ -359,8 +379,8 @@ typedef struct RPDeviceContent
 
 
 // Legacy Compatibility (pre-3.0)
-#define RPIPCGM_DEVICECONTENT_LEGACY   (WM_APP + 16)
-#define RPIPCHM_DEVICECONTENT_LEGACY   (WM_APP + 205)
+#define RP_IPC_TO_HOST_DEVICECONTENT_LEGACY   (WM_APP + 16)
+#define RP_IPC_TO_GUEST_DEVICECONTENT_LEGACY   (WM_APP + 205)
 #define RPLATFORM_API_VER RETROPLATFORM_API_VER
 #define RPLATFORM_API_VER_MAJOR RETROPLATFORM_API_VER_MAJOR
 #define RPLATFORM_API_VER_MINOR RETROPLATFORM_API_VER_MINOR
@@ -394,12 +414,57 @@ typedef struct RPDeviceContent_Legacy
 #define RP_DEVICE_INPUTPORT RP_DEVICECATEGORY_INPUTPORT
 #define RP_DEVICE_CATEGORIES RP_DEVICECATEGORY_COUNT
 // Legacy Host Side Input Port Devices
-#define RP_IPD_MOUSE1    _T("Mouse1") // \0\0-terminated first mouse type ("Mouse1\0\0" = default Windows mouse, or exact mouse described as "Mouse1\\\?\HID#VID_046D&PID_C521&MI_00#8&3b7afb0d&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd\0\0")
-#define RP_IPD_JOYSTICK1 _T("Joystick1") // \0\0-terminated first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_JOYSTICK2 _T("Joystick2") // \0\0-terminated second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_JOYSTICK3 _T("Joystick3") // \0\0-terminated third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
-#define RP_IPD_KEYBDL1   _T("KeyboardLayout1") // \0\0-terminated first joystick emulation keyboard layout (e.g. Keyboard Layout A for WinUAE)
-#define RP_IPD_KEYBDL2   _T("KeyboardLayout2") // \0\0-terminated second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
-#define RP_IPD_KEYBDL3   _T("KeyboardLayout3") // \0\0-terminated third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
+#define RP_IPD_MOUSE1    L"Mouse1" // \0\0-terminated first mouse type ("Mouse1\0\0" = default Windows mouse, or exact mouse described as "Mouse1\\\?\HID#VID_046D&PID_C521&MI_00#8&3b7afb0d&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd\0\0")
+#define RP_IPD_JOYSTICK1 L"Joystick1" // \0\0-terminated first joystick type (e.g. standard joystick for WinUAE, described as "Joystick1\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_JOYSTICK2 L"Joystick2" // \0\0-terminated second joystick type (e.g. X-Arcade (Left) joystick for WinUAE, described as "Joystick2\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_JOYSTICK3 L"Joystick3" // \0\0-terminated third joystick type (e.g. X-Arcade (Right) joystick for WinUAE, described as "Joystick3\0ProductGUID InstanceGUID\0ProductName\0\0"); ProductName must be stripped of trailing spaces, if any
+#define RP_IPD_KEYBDL1   L"KeyboardLayout1" // \0\0-terminated first joystick emulation keyboard layout (e.g. Keyboard Layout A for WinUAE)
+#define RP_IPD_KEYBDL2   L"KeyboardLayout2" // \0\0-terminated second joystick emulation keyboard layout (e.g. Keyboard Layout B for WinUAE)
+#define RP_IPD_KEYBDL3   L"KeyboardLayout3" // \0\0-terminated third joystick emulation keyboard layout (e.g. Keyboard Layout C for WinUAE)
+// Messages
+#define RPIPCGM_REGISTER RP_IPC_TO_HOST_REGISTER
+#define RPIPCGM_FEATURES RP_IPC_TO_HOST_FEATURES
+#define RPIPCGM_CLOSED RP_IPC_TO_HOST_CLOSED
+#define RPIPCGM_ACTIVATED RP_IPC_TO_HOST_ACTIVATED
+#define RPIPCGM_DEACTIVATED RP_IPC_TO_HOST_DEACTIVATED
+#define RPIPCGM_ENABLED RP_IPC_TO_HOST_ENABLED
+#define RPIPCGM_DISABLED RP_IPC_TO_HOST_DISABLED
+#define RPIPCGM_SCREENMODE RP_IPC_TO_HOST_SCREENMODE
+#define RPIPCGM_POWERLED RP_IPC_TO_HOST_POWERLED
+#define RPIPCGM_DEVICES RP_IPC_TO_HOST_DEVICES
+#define RPIPCGM_DEVICEACTIVITY RP_IPC_TO_HOST_DEVICEACTIVITY
+#define RPIPCGM_MOUSECAPTURE RP_IPC_TO_HOST_MOUSECAPTURE
+#define RPIPCGM_HOSTAPIVERSION RP_IPC_TO_HOST_HOSTAPIVERSION
+#define RPIPCGM_PAUSE RP_IPC_TO_HOST_PAUSE
+#define RPIPCGM_TURBO RP_IPC_TO_HOST_TURBO
+#define RPIPCGM_PING RP_IPC_TO_HOST_PING
+#define RPIPCGM_VOLUME RP_IPC_TO_HOST_VOLUME
+#define RPIPCGM_ESCAPED RP_IPC_TO_HOST_ESCAPED
+#define RPIPCGM_PARENT RP_IPC_TO_HOST_PARENT
+#define RPIPCGM_DEVICESEEK RP_IPC_TO_HOST_DEVICESEEK
+#define RPIPCGM_CLOSE RP_IPC_TO_HOST_CLOSE
+#define RPIPCGM_DEVICEREADWRITE RP_IPC_TO_HOST_DEVICEREADWRITE
+#define RPIPCGM_HOSTVERSION RP_IPC_TO_HOST_HOSTVERSION
+#define RPIPCGM_INPUTDEVICE RP_IPC_TO_HOST_INPUTDEVICE
+#define RPIPCGM_DEVICECONTENT RP_IPC_TO_HOST_DEVICECONTENT
+#define RPIPCHM_CLOSE RP_IPC_TO_GUEST_CLOSE
+#define RPIPCHM_SCREENMODE RP_IPC_TO_GUEST_SCREENMODE
+#define RPIPCHM_SCREENCAPTURE RP_IPC_TO_GUEST_SCREENCAPTURE
+#define RPIPCHM_PAUSE RP_IPC_TO_GUEST_PAUSE
+#define RPIPCHM_RESET RP_IPC_TO_GUEST_RESET
+#define RPIPCHM_TURBO RP_IPC_TO_GUEST_TURBO
+#define RPIPCHM_PING RP_IPC_TO_GUEST_PING
+#define RPIPCHM_VOLUME RP_IPC_TO_GUEST_VOLUME
+#define RPIPCHM_ESCAPEKEY RP_IPC_TO_GUEST_ESCAPEKEY
+#define RPIPCHM_EVENT RP_IPC_TO_GUEST_EVENT
+#define RPIPCHM_MOUSECAPTURE RP_IPC_TO_GUEST_MOUSECAPTURE
+#define RPIPCHM_SAVESTATE RP_IPC_TO_GUEST_SAVESTATE
+#define RPIPCHM_LOADSTATE RP_IPC_TO_GUEST_LOADSTATE
+#define RPIPCHM_FLUSH RP_IPC_TO_GUEST_FLUSH
+#define RPIPCHM_DEVICEREADWRITE RP_IPC_TO_GUEST_DEVICEREADWRITE
+#define RPIPCHM_QUERYSCREENMODE RP_IPC_TO_GUEST_QUERYSCREENMODE
+#define RPIPCHM_GUESTAPIVERSION RP_IPC_TO_GUEST_GUESTAPIVERSION
+#define RPIPCHM_DEVICECONTENT RP_IPC_TO_GUEST_DEVICECONTENT
+// End of Legacy Compatibility
 
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

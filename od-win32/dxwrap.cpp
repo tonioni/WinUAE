@@ -34,7 +34,7 @@ HRESULT DirectDraw_GetDisplayMode (void)
 
 static LPDIRECTDRAWSURFACE7 getlocksurface (void)
 {
-	if (dxdata.backbuffers > 0 && currprefs.gfx_apmode[0].gfx_fullscreen > 0 && !WIN32GFX_IsPicassoScreen ())
+	if (dxdata.backbuffers > 0 && currprefs.gfx_apmode[APMODE_NATIVE].gfx_fullscreen > 0 && !WIN32GFX_IsPicassoScreen ())
 		return dxdata.flipping[0];
 	return dxdata.secondary;
 }
@@ -1183,7 +1183,8 @@ int DirectDraw_Start (void)
 
 	guid = NULL;
 	if (isfullscreen () > 0) {
-		int disp = currprefs.gfx_display - 1;
+		MultiDisplay *md = getdisplay (&currprefs);
+		int disp = md - Displays;
 		if (disp < 0)
 			disp = 0;
 		if (disp >= MAX_DISPLAYS)

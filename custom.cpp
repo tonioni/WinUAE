@@ -453,7 +453,7 @@ STATIC_INLINE void alloc_cycle_maybe (int hpos, int type)
 		alloc_cycle (hpos, type);
 }
 
-void alloc_cycle_ext(int hpos, int type)
+void alloc_cycle_ext (int hpos, int type)
 {
 	alloc_cycle (hpos, type);
 }
@@ -5128,9 +5128,9 @@ static void do_savestate(void);
 
 static int rpt_vsync (void)
 {
-	int v = read_processor_time () - vsyncmaxtime;
+	int v = read_processor_time () - vsyncwaittime;
 	if (v > (int)syncbase || v < -((int)syncbase)) {
-		vsyncmintime = vsyncmaxtime = read_processor_time ();
+		vsyncmintime = vsyncmaxtime = vsyncwaittime = read_processor_time ();
 		v = 0;
 	}
 	return v;
@@ -5153,7 +5153,7 @@ static void framewait (void)
 	if (vs > 0) {
 
 		curr_time = read_processor_time ();
-		vsyncmaxtime = curr_time + vsynctimebase;
+		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
@@ -5174,8 +5174,10 @@ static void framewait (void)
 			vsync_busywait_end ();
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
+
 			vsyncmintime = curr_time;
-			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100;
+			vsyncwaittime = curr_time + vsynctimebase;
+			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
 
 		} else {
 
@@ -5184,6 +5186,7 @@ static void framewait (void)
 			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
 			vsyncmintime = curr_time;
+			vsyncwaittime = curr_time + vsynctimebase;
 			vsyncmaxtime = curr_time + vsynctimebase;
 			if (!show) {	
 				show_screen ();
@@ -5195,37 +5198,53 @@ static void framewait (void)
 		}
 		return;
 	}
+
 	if (currprefs.m68k_speed < 0) {
+
+		for (;;) {
+			double v = rpt_vsync () / (syncbase / 1000.0);
+			if (v >= -4)
+				break;
+			rtg_vsynccheck ();
+			sleep_millis_main (2);
+		}
+		while (rpt_vsync () < 0)
+			rtg_vsynccheck ();
 		curr_time = read_processor_time ();
-		if (curr_time - vsyncmaxtime >= 0 && curr_time - vsyncmaxtime < vsynctimebase) {
-			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100 - (curr_time - vsyncmaxtime);
+		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2) {
+			int adjust = curr_time - vsyncmaxtime;
+			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
+			vsyncwaittime = curr_time + vsynctimebase - adjust;
 		} else {
-			vsyncmaxtime = curr_time + vsynctimebase * (100 - currprefs.m68k_speed_throttle) / 100;
+			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			vsyncwaittime = curr_time + vsynctimebase;
 		}
 		vsyncmintime = curr_time;
-		return;
-	}
+	
+	} else {
 
-	bool didrender = false;
-	if (!picasso_on)
-		didrender = render_screen ();
-	for (;;) {
-		double v = rpt_vsync () / (syncbase / 1000.0);
-		if (v >= -4)
-			break;
-		rtg_vsynccheck ();
-		sleep_millis_main (2);
+		bool didrender = false;
+		if (!picasso_on)
+			didrender = render_screen ();
+		for (;;) {
+			double v = rpt_vsync () / (syncbase / 1000.0);
+			if (v >= -4)
+				break;
+			rtg_vsynccheck ();
+			sleep_millis_main (2);
+		}
+		curr_time = start = read_processor_time ();
+		while (rpt_vsync () < 0)
+			rtg_vsynccheck ();
+		idletime += read_processor_time() - start;
+		curr_time = read_processor_time ();
+		vsyncmintime = curr_time;
+		vsyncmaxtime = vsyncwaittime = curr_time + vsynctimebase;
+		if (didrender)
+			show_screen ();
+		frame_shown = true;
+
 	}
-	curr_time = start = read_processor_time ();
-	while (rpt_vsync () < 0)
-		rtg_vsynccheck ();
-	idletime += read_processor_time() - start;
-	curr_time = read_processor_time ();
-	vsyncmintime = curr_time;
-	vsyncmaxtime = curr_time + vsynctimebase;
-	if (didrender)
-		show_screen ();
-	frame_shown = true;
 }
 
 static frame_time_t frametime2;
@@ -5802,7 +5821,20 @@ static void hsync_handler_post (bool onvsync)
 #endif
 
 	events_dmal_hsync ();
-
+#if 0
+	static int cnt = 0;
+	cnt++;
+	if (cnt == 500) {
+		int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TCHAR *custom);
+		port_insert_custom (0, 0, 0, L"Left=0xC8 Right=0xD0 Up=0xCB Down=0xCD Fire=0x39");
+		port_insert_custom (1, 0, 0, L"Left=0x48 Right=0x50 Up=0x4B Down=0x4D Fire=0x4C");
+	} else if (cnt == 1000) {
+		TCHAR out[256];
+		bool port_get_custom (int inputmap_port, TCHAR *out);
+		port_get_custom (0, out);
+		port_get_custom (1, out);
+	}
+#endif
 	if (currprefs.m68k_speed < 0) {
 		if (vpos + 1 == maxvpos + lof_store) {
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
@@ -5813,7 +5845,7 @@ static void hsync_handler_post (bool onvsync)
 				vsyncmintime = vsyncmaxtime; /* emulate if still time left */
 		} else {
 			/* end of scanline, run cpu emulation as long as we still have time */
-			vsyncmintime += (vsynctimebase * (100 - currprefs.m68k_speed_throttle)) / (maxvpos_nom * 100);
+			vsyncmintime += (vsynctimebase * (1000 + currprefs.m68k_speed_throttle)) / (maxvpos_nom * 1000);
 			if (!vblank_found_chipset && (int)vsyncmaxtime - (int)vsyncmintime > 0) {
 				is_syncline = -1;
 				frame_time_t rpt = read_processor_time ();
@@ -5823,19 +5855,14 @@ static void hsync_handler_post (bool onvsync)
 			}
 		}
 	} else {
-#if 0
-		if (vpos + 1 < maxvpos + lof_store) {
-			int mult = 90;
+		if (vpos + 1 < maxvpos + lof_store && (vpos == maxvpos_nom * 1 / 3 || vpos == maxvpos_nom * 2 / 3)) {
 			frame_time_t rpt = read_processor_time ();
-			vsyncmintime += (vsynctimebase * mult) / (maxvpos_nom * 100);
-			if ((int)vsyncmintime - (int)vsyncmaxtime > 0)
-				vsyncmintime = vsyncmaxtime;
+			vsyncmintime += vsynctimebase / 3;
 			// sleep if more than 2ms "free" time
 			if (!vblank_found_chipset && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0) {
 				sleep_millis_main (1);
 			}
 		}
-#endif
 	}
 
 

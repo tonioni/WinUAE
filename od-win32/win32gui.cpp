@@ -5806,7 +5806,7 @@ static void init_displays_combo (HWND hDlg)
 	int displaynum;
 	int idx = 0;
 
-	displaynum = workprefs.gfx_display - 1;
+	displaynum = workprefs.gfx_apmode[APMODE_NATIVE].gfx_display - 1;
 	if (displaynum < 0)
 		displaynum = 0;
 	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_RESETCONTENT, 0, 0);
@@ -5840,7 +5840,7 @@ static void get_displays_combo (HWND hDlg)
 	if (posn == CB_ERR)
 		return;
 
-	displaynum = workprefs.gfx_display - 1;
+	displaynum = workprefs.gfx_apmode[APMODE_NATIVE].gfx_display - 1;
 	if (displaynum < 0)
 		displaynum = 0;
 	while (md->monitorname) {
@@ -5856,7 +5856,8 @@ static void get_displays_combo (HWND hDlg)
 		if (foundnum >= 0) {
 			if (foundnum == displaynum)
 				return;
-			workprefs.gfx_display = foundnum + 1;
+			workprefs.gfx_apmode[APMODE_NATIVE].gfx_display = foundnum + 1;
+			workprefs.gfx_apmode[APMODE_RTG].gfx_display = foundnum + 1;
 			init_displays_combo (hDlg);
 			init_resolution_combo (hDlg);
 			init_display_mode (hDlg);
@@ -7907,8 +7908,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	BOOL enable = FALSE, jitenable = FALSE;
 	BOOL cpu_based_enable = FALSE;
 
-	/* These four items only get enabled when adjustable CPU style is enabled */
-	ew (hDlg, IDC_SPEED, workprefs.m68k_speed > 0);
+	ew (hDlg, IDC_SPEED, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE24, workprefs.cpu_model == 68020);
 	ew (hDlg, IDC_CS_HOST, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CS_68000, !workprefs.cpu_cycle_exact);
@@ -7951,6 +7951,9 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_FPU2, TRUE);
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
+
+	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG(-9, 0) : MAKELONG (-9, 50));
+	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
 }
 
 static int getcpufreq (int m)
@@ -7963,11 +7966,12 @@ static int getcpufreq (int m)
 
 static void values_to_cpudlg (HWND hDlg)
 {
-	TCHAR cache[8] = _T("");
+	TCHAR buffer[8] = _T("");
 	int cpu;
 
-	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT );
-	SetDlgItemInt( hDlg, IDC_CPUTEXT, workprefs.m68k_speed <= 0 ? 1 : workprefs.m68k_speed / CYCLE_UNIT, FALSE );
+	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed_throttle / 100);
+	_stprintf (buffer, _T("%+d%%"), workprefs.m68k_speed_throttle / 10);
+	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
@@ -7980,16 +7984,14 @@ static void values_to_cpudlg (HWND hDlg)
 
 	if (workprefs.m68k_speed < 0)
 		CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_HOST);
-	else if (workprefs.m68k_speed == 0)
+	else if (workprefs.m68k_speed >= 0)
 		CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_68000);
-	else
-		CheckRadioButton(hDlg, IDC_CS_HOST, IDC_CS_ADJUSTABLE, IDC_CS_ADJUSTABLE);
 
 	CheckRadioButton (hDlg, IDC_TRUST0, IDC_TRUST1, trust_ids[workprefs.comptrustbyte]);
 
 	SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPOS, TRUE, workprefs.cachesize / 1024);
-	_stprintf (cache, _T("%d MB"), workprefs.cachesize / 1024 );
-	SetDlgItemText (hDlg, IDC_CACHETEXT, cache);
+	_stprintf (buffer, _T("%d MB"), workprefs.cachesize / 1024 );
+	SetDlgItemText (hDlg, IDC_CACHETEXT, buffer);
 
 	CheckDlgButton (hDlg, IDC_NOFLAGS, workprefs.compnf);
 	CheckDlgButton (hDlg, IDC_JITFPU, workprefs.compfpu);
@@ -8018,9 +8020,10 @@ static void values_from_cpudlg (HWND hDlg)
 	workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
-	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1
-		: ischecked (hDlg, IDC_CS_68000) ? 0
-		: SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * CYCLE_UNIT;
+	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
+	workprefs.m68k_speed_throttle = SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * 100;
+	if (workprefs.m68k_speed_throttle > 0 && workprefs.m68k_speed < 0)
+		workprefs.m68k_speed_throttle = 0;
 	workprefs.mmu_model = ischecked (hDlg, IDC_MMUENABLE) ? 68040 : 0;
 
 	newcpu = ischecked (hDlg, IDC_CPU0) ? 68000
@@ -8147,8 +8150,6 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		recursive++;
 		pages[CPU_ID] = hDlg;
 		currentpage = CPU_ID;
-		SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, MAKELONG (MIN_M68K_PRIORITY, MAX_M68K_PRIORITY));
-		SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
 		SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETRANGE, TRUE, MAKELONG (MIN_CACHE_SIZE, MAX_CACHE_SIZE));
 		SendDlgItemMessage (hDlg, IDC_CACHE, TBM_SETPAGESIZE, 0, 1);
 		SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETRANGE, TRUE, MAKELONG (0, 10));
@@ -8187,8 +8188,8 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	case WM_USER:
 		recursive++;
-		values_to_cpudlg (hDlg);
 		enable_for_cpudlg (hDlg);
+		values_to_cpudlg (hDlg);
 		recursive--;
 		return TRUE;
 
@@ -8197,16 +8198,16 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			break;
 		recursive++;
 		values_from_cpudlg (hDlg);
-		values_to_cpudlg (hDlg);
 		enable_for_cpudlg (hDlg);
+		values_to_cpudlg (hDlg);
 		recursive--;
 		break;
 
 	case WM_HSCROLL:
 		recursive++;
 		values_from_cpudlg( hDlg );
-		values_to_cpudlg( hDlg );
 		enable_for_cpudlg( hDlg );
+		values_to_cpudlg( hDlg );
 		recursive--;
 		break;
 	}
@@ -11777,7 +11778,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				int mode, *events, *axistable, *axistable2;
 				int cntadd = 1;
-
+				
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
 				int evtnum = events[inputmap_remap_counter];
 				int type2 = intputdevice_compa_get_eventtype (evtnum, &axistable2);
@@ -11803,11 +11804,8 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					}
 				}
 
-				struct inputevent *ie = inputdevice_get_eventinfo (evtnum);
-				TCHAR name[256];
-				inputdevice_get_eventname (ie, name);
 				//write_log (_T("%d %d %d %s\n"), input_selected_device, input_selected_widget, evtnum, name);
-				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, name, inputmap_port);
+				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, inputmap_port);
 				InitializeListView (hDlg);
 				inputmap_remap_counter += cntadd;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
@@ -12062,7 +12060,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		currentpage = INPUTMAP_ID;
 		inputdevice_updateconfig (&workprefs);
 		if (inputmap_remap_counter == 0) {
-			inputdevice_compa_prepare_custom (&workprefs, inputmap_port);
+			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1);
 			inputdevice_updateconfig (&workprefs);
 		}
 		InitializeListView (hDlg);

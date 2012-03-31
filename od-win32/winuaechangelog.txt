@@ -1,3 +1,22 @@
+- cpu throttling
+- custom event autofire
+- cycle exact mode scanline sync
+- restore only single input target to default.
+- hdd from command line
+
+Beta 1:
+
+- Input custom event autofire support.
+- Automatically switch to another monitor if current monitor does not support selected RTG mode.
+  (RTG mode list always lists all monitors' modes)
+- CDFS ACTION_EXAMINE_ALL crash. (It seems this was 2.4's most stupid bug)
+- Fastest possible CPU mode (including JIT) CPU speed throttle option. 
+- Non fastest possible CPU mode CPU speed adjustment option. Currently GUI allows from -90% to 500%.
+- Removed Adjustable CPU/Chipset speed option, above option should be much better.
+- Switch from 16bit to 32bit (or vice versa) on startup if selected color depth does not exist.
+  (Beta Windows 8 + NVidia don't seem to have any 16bit modes)
+- Experimental sound sync update. Should increase stability of sound sync in non-fastest modes.
+  (Side-effects possible)
 
 2.4.0
 

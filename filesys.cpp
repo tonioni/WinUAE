@@ -3403,7 +3403,7 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
 		zfile_stat_archive (aino->nname, &statbuf);
 	else if (unit->volflags & MYVOLUMEINFO_CDFS)
-		isofs_stat (unit->cdfs_superblock, aino->uniq_external, &statbuf);
+		isofs_stat (unit->ui.cdfs_superblock, aino->uniq_external, &statbuf);
 	else
 		stat (aino->nname, &statbuf);
 

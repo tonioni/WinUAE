@@ -167,9 +167,14 @@ struct chipset_refresh
 	TCHAR commands[256];
 };
 
+#define APMODE_NATIVE 0
+#define APMODE_RTG 1
+
 struct apmode
 {
 	int gfx_fullscreen;
+	int gfx_display;
+	TCHAR gfx_display_name[256]; 
 	int gfx_vsync;
 	// 0 = immediate flip
 	// -1 = wait for flip, before frame ends
@@ -246,8 +251,6 @@ struct uae_prefs {
 
 	bool avoid_cmov;
 
-	int gfx_display;
-	TCHAR gfx_display_name[256];
 	int gfx_framerate, gfx_autoframerate;
 	struct wh gfx_size_win;
 	struct wh gfx_size_fs;

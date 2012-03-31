@@ -134,6 +134,7 @@ static signed long bouncy_cycles;
 
 static int handle_input_event (int nr, int state, int max, int autofire, bool canstoprecord, bool playbackevent);
 
+static struct inputdevice_functions idev[3];
 
 static int isdevice (struct uae_input_device *id)
 {
@@ -222,7 +223,8 @@ static int use_keyboards[MAX_INPUT_DEVICES];
 
 #define INPUT_QUEUE_SIZE 16
 struct input_queue_struct {
-	int event, storedstate, state, max, linecnt, nextlinecnt;
+	int evt, storedstate, state, max, linecnt, nextlinecnt;
+	TCHAR *custom;
 };
 static struct input_queue_struct input_queue[INPUT_QUEUE_SIZE];
 
@@ -752,6 +754,9 @@ static bool read_slot (TCHAR *parm, int num, int joystick, int button, struct ua
 		}
 		return false;
 	}
+	if (custom)
+		ie = &events[INPUTEVENT_SPC_CUSTOM_EVENT];
+
 	if (joystick < 0) {
 		if (!(ie->allow_mask & AM_K))
 			return false;
@@ -2177,6 +2182,36 @@ void inputdevice_read (void)
 	} while (handle_msgpump ());
 }
 
+static int handle_custom_event (TCHAR *custom)
+{
+	TCHAR *p, *buf, *nextp;
+
+	if (custom == NULL)
+		return 0;
+	//write_log (_T("%s\n"), custom);
+	p = buf = my_strdup (custom);
+	while (p && *p) {
+		TCHAR *p2;
+		if (*p != '\"')
+			break;
+		p++;
+		p2 = p;
+		while (*p2 != '\"' && *p2 != 0)
+			p2++;
+		if (*p2 == '\"') {
+			*p2++ = 0;
+			nextp = p2 + 1;
+			while (*nextp == ' ')
+				nextp++;
+		}
+		cfgfile_parse_line (&changed_prefs, p, 0);
+		p = nextp;
+	}
+	xfree (buf);
+	config_changed = 1;
+	return 0;
+}
+
 void inputdevice_hsync (void)
 {
 	static int cnt;
@@ -2195,7 +2230,10 @@ void inputdevice_hsync (void)
 					iq->state = 0;
 				else
 					iq->state = iq->storedstate;
-				handle_input_event (iq->event, iq->state, iq->max, 0, false, true);
+				if (iq->custom)
+					handle_custom_event (iq->custom);
+				if (iq->evt)
+					handle_input_event (iq->evt, iq->state, iq->max, 0, false, true);
 				iq->linecnt = iq->nextlinecnt;
 			}
 		}
@@ -2306,43 +2344,47 @@ uae_u16 POTGOR (void)
 	return v;
 }
 
-static int check_input_queue (int event)
+static int check_input_queue (int evt)
 {
 	struct input_queue_struct *iq;
 	int i;
 	for (i = 0; i < INPUT_QUEUE_SIZE; i++) {
 		iq = &input_queue[i];
-		if (iq->event == event)
+		if (iq->evt == evt)
 			return i;
 	}
 	return -1;
 }
 
-static void queue_input_event (int event, int state, int max, int linecnt, int autofire)
+static void queue_input_event (int evt, const TCHAR *custom, int state, int max, int linecnt, int autofire)
 {
 	struct input_queue_struct *iq;
-	int i = check_input_queue (event);
+	int idx = check_input_queue (evt);
 
-	if (event <= 0)
-		return;
-	if (state < 0 && i >= 0) {
-		iq = &input_queue[i];
+	if (state < 0 && idx >= 0) {
+		iq = &input_queue[idx];
 		iq->nextlinecnt = -1;
 		iq->linecnt = -1;
-		iq->event = 0;
-		if (iq->state == 0)
-			handle_input_event (event, 0, 1, 0, false, false);
-	} else if (state >= 0 && i < 0) {
-		for (i = 0; i < INPUT_QUEUE_SIZE; i++) {
-			iq = &input_queue[i];
+		iq->evt = 0;
+		if (iq->state == 0 && evt > 0)
+			handle_input_event (evt, 0, 1, 0, false, false);
+	} else if (state >= 0 && idx < 0) {
+		if (evt == 0 && custom == NULL)
+			return;
+		for (idx = 0; idx < INPUT_QUEUE_SIZE; idx++) {
+			iq = &input_queue[idx];
 			if (iq->linecnt < 0)
 				break;
 		}
-		if (i == INPUT_QUEUE_SIZE) {
+		if (idx == INPUT_QUEUE_SIZE) {
 			write_log (_T("input queue overflow\n"));
 			return;
 		}
-		iq->event = event;
+		xfree (iq->custom);
+		iq->custom = NULL;
+		if (custom)
+			iq->custom = my_strdup (custom);
+		iq->evt = evt;
 		iq->state = iq->storedstate = state;
 		iq->max = max;
 		iq->linecnt = linecnt;
@@ -2688,36 +2730,6 @@ end:
 	}
 }
 
-static int handle_custom_event (TCHAR *custom)
-{
-	TCHAR *p, *buf, *nextp;
-
-	if (custom == NULL)
-		return 0;
-	//write_log (_T("%s\n"), custom);
-	p = buf = my_strdup (custom);
-	while (p && *p) {
-		TCHAR *p2;
-		if (*p != '\"')
-			break;
-		p++;
-		p2 = p;
-		while (*p2 != '\"' && *p2 != 0)
-			p2++;
-		if (*p2 == '\"') {
-			*p2++ = 0;
-			nextp = p2 + 1;
-			while (*nextp == ' ')
-				nextp++;
-		}
-		cfgfile_parse_line (&changed_prefs, p, 0);
-		p = nextp;
-	}
-	xfree (buf);
-	config_changed = 1;
-	return 0;
-}
-
 static int isqual (int evt)
 {
 	if (evt > INPUTEVENT_SPC_QUALIFIER_START && evt < INPUTEVENT_SPC_QUALIFIER_END)
@@ -2759,9 +2771,9 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 		write_log (_T("STATE=%05d MAX=%05d AF=%d QUAL=%08x '%s' \n"), state, max, autofire, qualifiers, ie->name);
 	if (autofire) {
 		if (state)
-			queue_input_event (nr, state, max, currprefs.input_autofire_linecnt, 1);
+			queue_input_event (nr, NULL, state, max, currprefs.input_autofire_linecnt, 1);
 		else
-			queue_input_event (nr, -1, 0, 0, 1);
+			queue_input_event (nr, NULL, -1, 0, 0, 1);
 	}
 	switch (ie->unit)
 	{
@@ -3310,7 +3322,7 @@ static int getqualmask (struct uae_input_device *id, int num, bool *qualonly)
 	return mask;
 }
 
-static void process_custom_event (struct uae_input_device *id, int offset, int state, int qualmask)
+static void process_custom_event (struct uae_input_device *id, int offset, int state, int qualmask, int autofire)
 {
 	int idx, slotoffset, flags, custompos;
 	TCHAR *custom;
@@ -3344,6 +3356,12 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 	}
 
 	handle_custom_event (custom);
+
+	if (autofire)
+		queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
+	if (!state)
+		queue_input_event (-1, NULL, -1, 0, 0, 1);
+
 
 	id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
 	id->flags[offset][slotoffset] |= custompos ? ID_FLAG_CUSTOMEVENT_TOGGLED : 0;
@@ -3396,19 +3414,18 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			if (!checkqualifiers (evt, flags, qualmask))
 				continue;
 			handle_input_event (evt, 1, 1, 0, true, false);
-			queue_input_event (evt, 0, 1, 1, 0); /* send release event next frame */
-			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask);
+			queue_input_event (evt, NULL, 0, 1, 1, 0); /* send release event next frame */
+			process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0);
 		} else if (inverttoggle) {
 			/* pressed = firebutton, not pressed = autofire */
 			if (state) {
-				queue_input_event (evt, -1, 0, 0, 1);
+				queue_input_event (evt, NULL, -1, 0, 0, 1);
 				handle_input_event (evt, 1, 1, 0, true, false);
 			} else {
 				handle_input_event (evt, 1, 1, autofire, true, false);
 			}
 			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, 1, qualmask);
+				process_custom_event (id, ID_BUTTON_OFFSET + button, 1, qualmask, autofire);
 		} else if (toggle) {
 			if (!state)
 				continue;
@@ -3420,7 +3437,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
 			handle_input_event (evt, toggled, 1, autofire, true, false);
 			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask);
+				process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire);
 		} else {
 			if (!checkqualifiers (evt, flags, qualmask)) {
 				if (!state && !(flags & ID_FLAG_CANRELEASE))
@@ -3435,7 +3452,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			if ((omask ^ nmask) & mask) {
 				handle_input_event (evt, state, 1, autofire, true, false);
 				if (i == 0)
-					process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask);
+					process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire);
 			}
 		}
 	}
@@ -3946,6 +3963,7 @@ static void setcompakb (int *kb, int *srcmap, int index, int af)
 
 int inputdevice_get_compatibility_input (struct uae_prefs *prefs, int index, int *typelist, int **inputlist, int **at)
 {
+	//write_log (L"index=%d joymodes=%d\n", index, joymodes[index]);
 	if (index >= MAX_JPORTS || joymodes[index] < 0)
 		return 0;
 	*typelist = joymodes[index];
@@ -4096,13 +4114,16 @@ static void remove_custom_config (struct uae_prefs *prefs, bool nocustom, int in
 }
 
 // prepare port for custom mapping, remove all current Amiga side device mappings
-void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index)
+void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int newmode)
 {
 	int mode = prefs->jports[index].mode;
 	freejport (prefs, index);
 	resetjport (prefs, index);
-	if (mode == 0)
+	if (newmode >= 0) {
+		mode = newmode;
+	} else if (mode == 0) {
 		mode = index == 0 ? JSEM_MODE_MOUSE : (prefs->cs_cd32cd ? JSEM_MODE_JOYSTICK_CD32 : JSEM_MODE_JOYSTICK);
+	}
 	prefs->jports[index].mode = mode;
 	prefs->jports[index].id = -2;
 
@@ -4654,8 +4675,14 @@ static void matchdevices_all (struct uae_prefs *prefs)
 	}
 }
 
-bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, const TCHAR *name, int port)
+bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int port)
 {
+	TCHAR name[256];
+	struct inputevent *ie;
+
+	ie = inputdevice_get_eventinfo (evtnum);
+	if (!inputdevice_get_eventname (ie, name))
+		return false;
 	joysticks = prefs->joystick_settings[GAMEPORT_INPUT_SETTINGS];
 	mice = prefs->mouse_settings[GAMEPORT_INPUT_SETTINGS];
 	keyboards = prefs->keyboard_settings[GAMEPORT_INPUT_SETTINGS];
@@ -4933,11 +4960,13 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 				if (inverttoggle) {
 					na->flags[j][sublevdir[state == 0 ? 1 : 0][k]] &= ~ID_FLAG_TOGGLED;
 					if (state) {
-						queue_input_event (evt, -1, 0, 0, 1);
+						queue_input_event (evt, NULL, -1, 0, 0, 1);
 						handled |= handle_input_event (evt, 1, 1, 0, true, false);
 					} else {
 						handled |= handle_input_event (evt, 1, 1, autofire, true, false);
 					}
+					if (k == 0)
+						process_custom_event (na, j, state, qualmask, autofire);
 				} else if (toggle) {
 					if (!state)
 						continue;
@@ -4946,6 +4975,8 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					*flagsp ^= ID_FLAG_TOGGLED;
 					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
 					handled |= handle_input_event (evt, toggled, 1, autofire, true, false);
+					if (k == 0)
+						process_custom_event (na, j, state, qualmask, autofire);
 				} else {
 					if (!checkqualifiers (evt, flags, qualmask)) {
 						if (!state && !(flags & ID_FLAG_CANRELEASE))
@@ -4958,10 +4989,10 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					else
 						*flagsp &= ~ID_FLAG_CANRELEASE;
 					handled |= handle_input_event (evt, state, 1, autofire, true, false);
-
+					if (k == 0)
+						process_custom_event (na, j, state, qualmask, autofire);
 				}
 			}
-			process_custom_event (na, j, state, qualmask);
 			return handled;
 		}
 		j++;
@@ -5009,8 +5040,6 @@ void inputdevice_checkqualifierkeycode (int keyboard, int scancode, int state)
 {
 	inputdevice_translatekeycode_2 (keyboard, scancode, state, true);
 }
-
-static struct inputdevice_functions idev[3];
 
 void inputdevice_init (void)
 {
@@ -5086,7 +5115,9 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 {
 	struct uae_input_device *uid = get_uid (id, devnum);
 	int type = id->get_widget_type (devnum, num, 0, 0);
-	int i;
+	int i, ret;
+
+	ret = -1;
 	if (type == IDEV_WIDGET_BUTTON || type == IDEV_WIDGET_BUTTONAXIS) {
 		i = num - id->get_widget_first (devnum, IDEV_WIDGET_BUTTON) + ID_BUTTON_OFFSET;
 		uid->eventid[i][sub] = eventid;
@@ -5094,7 +5125,7 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 		uid->port[i][sub] = port;
 		xfree (uid->custom[i][sub]);
 		uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
-		return i;
+		ret = i;
 	} else if (type == IDEV_WIDGET_AXIS) {
 		i = num - id->get_widget_first (devnum, type) + ID_AXIS_OFFSET;
 		uid->eventid[i][sub] = eventid;
@@ -5102,7 +5133,7 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 		uid->port[i][sub] = port;
 		xfree (uid->custom[i][sub]);
 		uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
-		return i;
+		ret = i;
 	} else if (type == IDEV_WIDGET_KEY) {
 		i = num - id->get_widget_first (devnum, type);
 		uid->eventid[i][sub] = eventid;
@@ -5110,9 +5141,13 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 		uid->port[i][sub] = port;
 		xfree (uid->custom[i][sub]);
 		uid->custom[i][sub] = custom && _tcslen (custom) > 0 ? my_strdup (custom) : NULL;
-		return i;
+		ret = i;
 	}
-	return -1;
+	if (ret < 0)
+		return -1;
+	if (uid->custom[i][sub])
+		uid->eventid[i][sub] = INPUTEVENT_SPC_CUSTOM_EVENT;
+	return ret;
 }
 
 static int is_event_used (const struct inputdevice_functions *id, int devnum, int isnum, int isevent)
@@ -5236,11 +5271,12 @@ int inputdevice_get_widget_num (int devnum)
 }
 
 // return name of event, do not use ie->name directly
-void inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out)
+bool inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out)
 {
 	if (!out)
-		return;
+		return false;
 	_tcscpy (out, ie->name);
+	return true;
 }
 
 int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af)

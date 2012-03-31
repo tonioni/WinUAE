@@ -629,6 +629,7 @@
 #define IDC_FLUSHPRINTER                1510
 #define IDC_MAPDRIVES_REMOVABLE         1510
 #define IDC_PORT0_TEST                  1510
+#define IDC_CACHETEXT2                  1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
 #define IDC_PORT0_TEST2                 1511

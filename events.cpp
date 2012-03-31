@@ -21,7 +21,7 @@ long max_cycles_to_next_event;
 long cycles_to_hsync_event;
 unsigned long start_cycles;
 
-frame_time_t vsynctimebase, vsyncmintime, vsyncmaxtime;
+frame_time_t vsynctimebase, vsyncmintime, vsyncmaxtime, vsyncwaittime;
 
 void events_schedule (void)
 {

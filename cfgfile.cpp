@@ -798,8 +798,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("clipboard_sharing"), p->clipboard_sharing);
 	cfgfile_dwrite_bool (f, _T("native_code"), p->native_code);
 
-	cfgfile_write (f, _T("gfx_display"), _T("%d"), p->gfx_display);
-	cfgfile_dwrite_str (f, _T("gfx_display_name"), p->gfx_display_name);
+	cfgfile_write (f, _T("gfx_display"), _T("%d"), p->gfx_apmode[APMODE_NATIVE].gfx_display);
+	cfgfile_dwrite_str (f, _T("gfx_display_name"), p->gfx_apmode[APMODE_NATIVE].gfx_display_name);
+	if (p->gfx_apmode[APMODE_NATIVE].gfx_display != p->gfx_apmode[APMODE_RTG].gfx_display || p->gfx_apmode[APMODE_RTG].gfx_display_name[0]) {
+		cfgfile_write (f, _T("gfx_display_rtg"), _T("%d"), p->gfx_apmode[APMODE_RTG].gfx_display);
+		cfgfile_dwrite_str (f, _T("gfx_display_name_rtg"), p->gfx_apmode[APMODE_RTG].gfx_display_name);
+	}
 	cfgfile_write (f, _T("gfx_framerate"), _T("%d"), p->gfx_framerate);
 	cfgfile_write (f, _T("gfx_width"), _T("%d"), p->gfx_size_win.width); /* compatibility with old versions */
 	cfgfile_write (f, _T("gfx_height"), _T("%d"), p->gfx_size_win.height); /* compatibility with old versions */
@@ -1026,10 +1030,12 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 	cfgfile_dwrite (f, _T("megachipmem_size"), _T("%d"), p->z3chipmem_size / 0x100000);
 
-	if (p->m68k_speed > 0)
+	if (p->m68k_speed > 0) {
 		cfgfile_write (f, _T("finegrain_cpu_speed"), _T("%d"), p->m68k_speed);
-	else
+	} else {
 		cfgfile_write_str (f, _T("cpu_speed"), p->m68k_speed < 0 ? _T("max") : _T("real"));
+	}
+	cfgfile_write (f, _T("cpu_throttle"), _T("%d"), p->m68k_speed_throttle);
 
 	/* do not reorder start */
 	write_compatibility_cpu(f, p);
@@ -1471,7 +1477,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("sound_stereo_separation"), &p->sound_stereo_separation, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
 
-		|| cfgfile_intval (option, value, _T("gfx_display"), &p->gfx_display, 1)
 		|| cfgfile_intval (option, value, _T("gfx_framerate"), &p->gfx_framerate, 1)
 		|| cfgfile_intval (option, value, _T("gfx_width_windowed"), &p->gfx_size_win.width, 1)
 		|| cfgfile_intval (option, value, _T("gfx_height_windowed"), &p->gfx_size_win.height, 1)
@@ -1479,12 +1484,12 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_left_windowed"), &p->gfx_size_win.y, 1)
 		|| cfgfile_intval (option, value, _T("gfx_width_fullscreen"), &p->gfx_size_fs.width, 1)
 		|| cfgfile_intval (option, value, _T("gfx_height_fullscreen"), &p->gfx_size_fs.height, 1)
-		|| cfgfile_intval (option, value, _T("gfx_refreshrate"), &p->gfx_apmode[0].gfx_refreshrate, 1)
-		|| cfgfile_intval (option, value, _T("gfx_refreshrate_rtg"), &p->gfx_apmode[1].gfx_refreshrate, 1)
+		|| cfgfile_intval (option, value, _T("gfx_refreshrate"), &p->gfx_apmode[APMODE_NATIVE].gfx_refreshrate, 1)
+		|| cfgfile_intval (option, value, _T("gfx_refreshrate_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, _T("gfx_autoresolution"), &p->gfx_autoresolution)
-		|| cfgfile_intval (option, value, _T("gfx_backbuffers"), &p->gfx_apmode[0].gfx_backbuffers, 1)
-		|| cfgfile_intval (option, value, _T("gfx_backbuffers_rtg"), &p->gfx_apmode[1].gfx_backbuffers, 1)
-		|| cfgfile_yesno (option, value, _T("gfx_interlace"), &p->gfx_apmode[0].gfx_interlaced)
+		|| cfgfile_intval (option, value, _T("gfx_backbuffers"), &p->gfx_apmode[APMODE_NATIVE].gfx_backbuffers, 1)
+		|| cfgfile_intval (option, value, _T("gfx_backbuffers_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_backbuffers, 1)
+		|| cfgfile_yesno (option, value, _T("gfx_interlace"), &p->gfx_apmode[APMODE_NATIVE].gfx_interlaced)
 		
 		|| cfgfile_intval (option, value, _T("gfx_center_horizontal_position"), &p->gfx_xcenter_pos, 1)
 		|| cfgfile_intval (option, value, _T("gfx_center_vertical_position"), &p->gfx_ycenter_pos, 1)
@@ -1526,7 +1531,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_path (option, value, _T("floppy1soundext"), p->floppyslots[1].dfxclickexternal, sizeof p->floppyslots[1].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_path (option, value, _T("floppy2soundext"), p->floppyslots[2].dfxclickexternal, sizeof p->floppyslots[2].dfxclickexternal / sizeof (TCHAR))
 		|| cfgfile_path (option, value, _T("floppy3soundext"), p->floppyslots[3].dfxclickexternal, sizeof p->floppyslots[3].dfxclickexternal / sizeof (TCHAR))
-		|| cfgfile_string (option, value, _T("gfx_display_name"), p->gfx_display_name, sizeof p->gfx_display_name / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_window_title"), p->config_window_title, sizeof p->config_window_title / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_info"), p->info, sizeof p->info / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("config_description"), p->description, sizeof p->description / sizeof (TCHAR)))
@@ -1561,8 +1565,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("gfx_resolution"), &p->gfx_resolution, lorestype1, 0)
 		|| cfgfile_strval (option, value, _T("gfx_lores"), &p->gfx_resolution, lorestype2, 0)
 		|| cfgfile_strval (option, value, _T("gfx_lores_mode"), &p->gfx_lores_mode, loresmode, 0)
-		|| cfgfile_strval (option, value, _T("gfx_fullscreen_amiga"), &p->gfx_apmode[0].gfx_fullscreen, fullmodes, 0)
-		|| cfgfile_strval (option, value, _T("gfx_fullscreen_picasso"), &p->gfx_apmode[1].gfx_fullscreen, fullmodes, 0)
+		|| cfgfile_strval (option, value, _T("gfx_fullscreen_amiga"), &p->gfx_apmode[APMODE_NATIVE].gfx_fullscreen, fullmodes, 0)
+		|| cfgfile_strval (option, value, _T("gfx_fullscreen_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_fullscreen, fullmodes, 0)
 		|| cfgfile_strval (option, value, _T("gfx_center_horizontal"), &p->gfx_xcenter, centermode1, 1)
 		|| cfgfile_strval (option, value, _T("gfx_center_vertical"), &p->gfx_ycenter, centermode1, 1)
 		|| cfgfile_strval (option, value, _T("gfx_center_horizontal"), &p->gfx_xcenter, centermode2, 0)
@@ -1580,6 +1584,22 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_strval (option, value, _T("absolute_mouse"), &p->input_tablet, abspointers, 0))
 		return 1;
 
+
+	if (cfgfile_intval (option, value, _T("gfx_display"), &p->gfx_apmode[APMODE_NATIVE].gfx_display, 1)) {
+		p->gfx_apmode[APMODE_RTG].gfx_display = p->gfx_apmode[APMODE_NATIVE].gfx_display;
+		return 1;
+	}
+	if (cfgfile_intval (option, value, _T("gfx_display_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_display, 1)) {
+		return 1;
+	}
+	if (cfgfile_string (option, value, _T("gfx_display_name"), p->gfx_apmode[APMODE_NATIVE].gfx_display_name, sizeof p->gfx_apmode[APMODE_NATIVE].gfx_display_name / sizeof (TCHAR))) {
+		_tcscpy (p->gfx_apmode[APMODE_RTG].gfx_display_name, p->gfx_apmode[APMODE_NATIVE].gfx_display_name);
+		return 1;
+	}
+	if (cfgfile_string (option, value, _T("gfx_display_name_rtg"), p->gfx_apmode[APMODE_RTG].gfx_display_name, sizeof p->gfx_apmode[APMODE_RTG].gfx_display_name / sizeof (TCHAR))) {
+		return 1;
+	}
+
 	if (_tcscmp (option, _T("gfx_linemode")) == 0) {
 		int v;
 		p->gfx_vresolution = VRES_DOUBLE;
@@ -1591,18 +1611,18 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 	if (_tcscmp (option, _T("gfx_vsync")) == 0) {
-		if (cfgfile_strval (option, value, _T("gfx_vsync"), &p->gfx_apmode[0].gfx_vsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, _T("gfx_vsync"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsync, vsyncmodes, 0) >= 0)
 			return 1;
-		return cfgfile_yesno (option, value, _T("gfx_vsync"), &p->gfx_apmode[0].gfx_vsync);
+		return cfgfile_yesno (option, value, _T("gfx_vsync"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsync);
 	}
 	if (_tcscmp (option, _T("gfx_vsync_picasso")) == 0) {
-		if (cfgfile_strval (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[1].gfx_vsync, vsyncmodes, 0) >= 0)
+		if (cfgfile_strval (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsync, vsyncmodes, 0) >= 0)
 			return 1;
-		return cfgfile_yesno (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[1].gfx_vsync);
+		return cfgfile_yesno (option, value, _T("gfx_vsync_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsync);
 	}
-	if (cfgfile_strval (option, value, _T("gfx_vsyncmode"), &p->gfx_apmode[0].gfx_vsyncmode, vsyncmodes2, 0))
+	if (cfgfile_strval (option, value, _T("gfx_vsyncmode"), &p->gfx_apmode[APMODE_NATIVE].gfx_vsyncmode, vsyncmodes2, 0))
 		return 1;
-	if (cfgfile_strval (option, value, _T("gfx_vsyncmode_picasso"), &p->gfx_apmode[1].gfx_vsyncmode, vsyncmodes2, 0))
+	if (cfgfile_strval (option, value, _T("gfx_vsyncmode_picasso"), &p->gfx_apmode[APMODE_RTG].gfx_vsyncmode, vsyncmodes2, 0))
 		return 1;
 
 	if (cfgfile_yesno (option, value, _T("show_leds"), &vb)) {
@@ -2462,7 +2482,9 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->m68k_speed *= CYCLE_UNIT;
 		return 1;
 	}
-
+	if (cfgfile_intval (option, value, _T("cpu_throttle"), &p->m68k_speed_throttle, 1)) {
+		return 1;
+	}
 	if (cfgfile_intval (option, value, _T("finegrain_cpu_speed"), &p->m68k_speed, 1)) {
 		if (OFFICIAL_CYCLE_UNIT > CYCLE_UNIT) {
 			int factor = OFFICIAL_CYCLE_UNIT / CYCLE_UNIT;

@@ -45,7 +45,6 @@ struct inputdevice_functions {
     int (*get_widget_first)(int,int);
     int (*get_flags)(int);
 };
-extern struct inputdevice_functions idev[3];
 extern struct inputdevice_functions inputdevicefunc_joystick;
 extern struct inputdevice_functions inputdevicefunc_mouse;
 extern struct inputdevice_functions inputdevicefunc_keyboard;
@@ -135,7 +134,7 @@ struct inputevent {
 #define ID_AXIS_TOTAL 32
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
-extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, const TCHAR *name, int port);
+extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int port);
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, int flags, int port, int sub);
 extern int inputdevice_get_mapping (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
@@ -204,8 +203,8 @@ extern int inputdevice_synccapslock (int, int*);
 extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state);
 extern int inputdevice_get_compatibility_input (struct uae_prefs*, int, int*, int**, int**);
 extern struct inputevent *inputdevice_get_eventinfo (int evt);
-extern void inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
-extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index);
+extern bool inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
+extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int mode);
 extern void inputdevice_compa_clear (struct uae_prefs *prefs, int index);
 extern int intputdevice_compa_get_eventtype (int evt, int **axistable);
 

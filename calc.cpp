@@ -12,7 +12,7 @@
 
 */
 
-#define CALC_DEBUG 0
+#define CALC_DEBUG 1
 
 #if CALC_DEBUG
 #define calc_log(x) do { write_log x; } while(0)

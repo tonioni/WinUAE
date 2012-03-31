@@ -1051,22 +1051,26 @@ static void fill_prefetch_quick (void)
 	regs.irc = get_word (m68k_getpc () + 2);
 }
 
-static unsigned long cycles_mask, cycles_val, cycles_shift;
+#define CYCLES_DIV 8192
+static unsigned long cycles_mult;
 
 static void update_68k_cycles (void)
 {
-	cycles_mask = 0;
-	cycles_shift = 0;
-	cycles_val = currprefs.m68k_speed;
-	if (currprefs.m68k_speed < 1) {
-		cycles_mask = 0xFFFFFFFF;
-		cycles_val = 0;
+	cycles_mult = 0;
+	if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact) {
+		if (currprefs.m68k_speed_throttle < 0) {
+			cycles_mult = CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle);
+		} else if (currprefs.m68k_speed_throttle > 0) {
+			cycles_mult = CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle);
+		}
 	}
 	if (currprefs.m68k_speed == 0 && currprefs.cpu_model >= 68020) {
-		cycles_shift = 2;
-		cycles_val = CYCLE_UNIT / 2;
-		cycles_mask = ~((CYCLE_UNIT / 2) - 1);
+		if (!cycles_mult)
+			cycles_mult = CYCLES_DIV / 4;
+		else
+			cycles_mult /= 4;
 	}
+
 	currprefs.cpu_clock_multiplier = changed_prefs.cpu_clock_multiplier;
 	currprefs.cpu_frequency = changed_prefs.cpu_frequency;
 
@@ -1123,9 +1127,11 @@ void check_prefs_changed_cpu (void)
 	}
 	if (changed
 		|| currprefs.m68k_speed != changed_prefs.m68k_speed
+		|| currprefs.m68k_speed_throttle != changed_prefs.m68k_speed_throttle
 		|| currprefs.cpu_clock_multiplier != changed_prefs.cpu_clock_multiplier
 		|| currprefs.cpu_frequency != changed_prefs.cpu_frequency) {
 			currprefs.m68k_speed = changed_prefs.m68k_speed;
+			currprefs.m68k_speed_throttle = changed_prefs.m68k_speed_throttle;
 			update_68k_cycles ();
 			changed = true;
 	}
@@ -3512,6 +3518,15 @@ static void out_cd32io (uae_u32 pc)
 
 #endif
 
+STATIC_INLINE int adjust_cycles (int cycles)
+{
+	if (currprefs.m68k_speed < 0 || cycles_mult == 0)
+		return cycles;
+	cpu_cycles *= cycles_mult;
+	cpu_cycles /= CYCLES_DIV;
+	return cpu_cycles;
+}
+
 #ifndef CPUEMU_11
 
 static void m68k_run_1 (void)
@@ -3548,8 +3563,7 @@ static void m68k_run_1 (void)
 #endif
 		do_cycles (cpu_cycles);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
 			if (do_specialties (cpu_cycles))
 				return;
@@ -3676,10 +3690,7 @@ void exec_nostats (void)
 	{
 		uae_u16 opcode = get_iword (0);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
-
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		do_cycles (cpu_cycles);
 
 		if (end_block (opcode) || r->spcflags || uae_int_requested)
@@ -3711,9 +3722,7 @@ void execute_normal (void)
 		pc_hist[blocklen].location = (uae_u16*)r->pc_p;
 
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		do_cycles (cpu_cycles);
 		total_cycles += cpu_cycles;
 		pc_hist[blocklen].specmem = special_mem;
@@ -3831,8 +3840,7 @@ retry:
 			count_instr (opcode);
 			do_cycles (cpu_cycles);
 			cpu_cycles = (*cpufunctbl[opcode])(opcode);
-			cpu_cycles &= cycles_mask;
-			cpu_cycles |= cycles_val;
+			cpu_cycles = adjust_cycles (cpu_cycles);
 			if (regs.spcflags) {
 				if (do_specialties (cpu_cycles))
 					return;
@@ -4021,9 +4029,7 @@ static void m68k_run_2p (void)
 		count_instr (opcode);
 
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-		cpu_cycles >>= cycles_shift;
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
 			if (do_specialties (cpu_cycles))
 				return;
@@ -4054,9 +4060,7 @@ static void m68k_run_2 (void)
 #endif	
 		do_cycles (cpu_cycles);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-		cpu_cycles >>= cycles_shift;
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
 			if (do_specialties (cpu_cycles))
 				return;
@@ -4072,9 +4076,7 @@ static void m68k_run_mmu (void)
 		do_cycles (cpu_cycles);
 		mmu_backup_regs = regs;
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
-		cpu_cycles >>= cycles_shift;
-		cpu_cycles &= cycles_mask;
-		cpu_cycles |= cycles_val;
+		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (mmu_triggered)
 			mmu_do_hit ();
 		if (regs.spcflags) {
@@ -4744,9 +4746,6 @@ uae_u8 *restore_cpu (uae_u8 *src)
 		regs.caar = restore_u32 ();
 		regs.cacr = restore_u32 ();
 		regs.msp = restore_u32 ();
-		/* A500 speed in 68020 mode isn't too logical.. */
-		if (changed_prefs.m68k_speed == 0 && !(currprefs.cpu_cycle_exact))
-			currprefs.m68k_speed = changed_prefs.m68k_speed = -1;
 	}
 	if (model >= 68030) {
 		crp_030 = restore_u64 ();

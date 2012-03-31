@@ -149,14 +149,136 @@ static const int inputdevmode[] = {
 	0, 0,
 };
 
-static int port_insert (int num, int devicetype, DWORD flags, const TCHAR *name)
+#define KEYBOARDCUSTOM _T("KeyboardCustom ")
+
+struct rp_customevent
+{
+	const TCHAR *name;
+	int evt;
+};
+
+static const TCHAR *customeventorder[] = {
+	_T("Left"),
+	_T("Right"),
+	_T("Up"),
+	_T("Down"),
+	_T("Fire"),
+	NULL
+};
+
+bool port_get_custom (int inputmap_port, TCHAR *out)
+{
+	int kb;
+	bool first = true;
+	TCHAR *p = out;
+	int mode, *events, *axistable;
+	int max;
+
+	max = inputdevice_get_compatibility_input (&currprefs, inputmap_port, &mode, &events, &axistable);
+	if (!max)
+		return false;
+
+	_tcscpy (p, KEYBOARDCUSTOM);
+	p += _tcslen (p);
+	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
+	for (int i = 0; customeventorder[i]; i++) {
+		int evtnum = events[i];
+		for (int j = 0; j < inputdevicefunc_keyboard.get_widget_num (kb); j++) {
+			int flags, port;
+			if (inputdevice_get_mapping (kb, j, &flags, &port, NULL, NULL, 0) == evtnum) {
+				if (port == inputmap_port + 1) {
+					uae_u32 kc = 0;
+					inputdevicefunc_keyboard.get_widget_type (kb, j, NULL, &kc);
+					if (!first)
+						*p++ = ' ';
+					first = false;
+					_stprintf (p, _T("%s=0x%02X"), customeventorder[i], kc);
+					p += _tcslen (p);
+					break;
+				}
+			}
+		}
+	}
+	write_log (L"********* -> %s\n",  out);
+	return true;
+}
+
+int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TCHAR *custom)
+{
+	const TCHAR *p = custom;
+	int mode, *events, *axistable;
+	int max, evtnum;
+	int kb;
+
+	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
+
+	inputdevice_updateconfig (&changed_prefs);
+	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, JSEM_MODE_JOYSTICK);
+	inputdevice_updateconfig (&changed_prefs);
+	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
+	write_log (L"custom='%s' max=%d port=%d\n", custom, max, inputmap_port);
+	if (!max)
+		return FALSE;
+
+	while (p && p[0]) {
+		int idx = -1, kc = -1;
+		int wdnum = -1;
+		const TCHAR *p2 = _tcschr (p, '=');
+		if (!p2)
+			break;
+		for (int i = 0; customeventorder[i]; i++) {
+			if (!_tcsncmp (p, customeventorder[i], p2 - p)) {
+				idx = i;
+				break;
+			}
+		}
+		if (idx < 0 || idx > 4)
+			break;
+		p2++;
+		if (p2[0] == '0' && (p2[1] == 'x' || p2[1] == 'X'))
+			kc = _tcstol (p2 + 2, NULL, 16);
+		else
+			kc = _tstol (p2);
+		p = _tcschr (p2, ' ');
+		if (p)
+			p++;
+		if (kc < 0)
+			break;
+		evtnum = events[idx];
+
+		write_log (L"evt=%d kc=%d\n", evtnum, kc);
+
+		for (int j = 0; j < inputdevice_get_device_total (IDTYPE_KEYBOARD); j++) {
+			for (int i = 0; i < inputdevicefunc_keyboard.get_widget_num (kb + j); i++) {
+				uae_u32 kc2 = 0;
+				inputdevicefunc_keyboard.get_widget_type (kb + j, i, NULL, &kc2);
+				if (kc == kc2) {
+					wdnum = i;
+					break;
+				}
+			}
+			if (wdnum >= 0)
+				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, inputmap_port);
+		}
+	}
+
+	inputdevice_updateconfig (&changed_prefs);
+	return TRUE;
+}
+
+static int port_insert (int inputmap_port, int devicetype, DWORD flags, const TCHAR *name)
 {
 	int devicetype2;
 
-	if (num < 0 || num >= maxjports)
+	write_log (L"port_insert %d '%s'\n", inputmap_port, name);
+
+	if (inputmap_port < 0 || inputmap_port >= maxjports)
 		return FALSE;
+	
+	inputdevice_compa_clear (&changed_prefs, inputmap_port);
+	
 	if (_tcslen (name) == 0) {
-		inputdevice_joyport_config (&changed_prefs, _T("none"), num, 0, 0);
+		inputdevice_joyport_config (&changed_prefs, _T("none"), inputmap_port, 0, 0);
 		return TRUE;
 	}
 	devicetype2 = -1;
@@ -169,15 +291,19 @@ static int port_insert (int num, int devicetype, DWORD flags, const TCHAR *name)
 	if (devicetype2 < 0)
 		return FALSE;
 
+	if (!_tcsncmp (name, KEYBOARDCUSTOM, _tcslen (KEYBOARDCUSTOM))) {
+		return port_insert_custom (inputmap_port, devicetype, flags, name + _tcslen (KEYBOARDCUSTOM));
+	}
+
 	for (int i = 0; i < 10; i++) {
 		TCHAR tmp2[100];
 		_stprintf (tmp2, _T("KeyboardLayout%d"), i);
 		if (!_tcscmp (tmp2, name)) {
 			_stprintf (tmp2, _T("kbd%d"), i + 1);
-			return inputdevice_joyport_config (&changed_prefs, tmp2, num, devicetype2, 0);
+			return inputdevice_joyport_config (&changed_prefs, tmp2, inputmap_port, devicetype2, 0);
 		}
 	}
-	return inputdevice_joyport_config (&changed_prefs, name, num, devicetype2, 1);
+	return inputdevice_joyport_config (&changed_prefs, name, inputmap_port, devicetype2, 1);
 }
 
 static int cd_insert (int num, const TCHAR *name)
@@ -391,7 +517,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	if (full) {
 		m &= ~RP_SCREENMODE_DISPLAYMASK;
-		m |= p->gfx_display << 8;
+		m |= p->gfx_apmode[APMODE_NATIVE].gfx_display << 8;
 	}
 	if (full > 1)
 		m |= RP_SCREENMODE_FULLWINDOW;
@@ -413,7 +539,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	if (log_rp)
 		write_log (_T("GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
-			totalhdbl, hres, totalvdbl, vres, p->gfx_display, full);
+			totalhdbl, hres, totalvdbl, vres, p->gfx_apmode[APMODE_NATIVE].gfx_display, full);
 }
 
 static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
@@ -434,8 +560,10 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	storeflags = sm->dwScreenMode;
 	minimized = 0;
 	if (display) {
-		p->gfx_display = display;
-		p->gfx_display_name[0] = 0;
+		p->gfx_apmode[APMODE_NATIVE].gfx_display = display;
+		p->gfx_apmode[APMODE_NATIVE].gfx_display_name[0] = 0;
+		p->gfx_apmode[APMODE_RTG].gfx_display = display;
+		p->gfx_apmode[APMODE_RTG].gfx_display_name[0] = 0;
 		if (sm->dwScreenMode & RP_SCREENMODE_FULLWINDOW)
 			fs = 2;
 		else
@@ -866,7 +994,7 @@ static void sendenum (void)
 			_stprintf (tmp2, _T("KeyboardLayout%d"), cnt);
 			_tcscpy (desc.szHostInputID, tmp2);
 			_tcscpy (desc.szHostInputName, p1);
-			desc.dwHostInputType= RP_HOSTINPUT_KEYJOY_MAP1 + cnt;
+			desc.dwHostInputType= (RP_HOSTINPUT_KEYJOY_MAP1 + cnt);
 			desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
 			if (cnt == 0)
 				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
@@ -879,6 +1007,12 @@ static void sendenum (void)
 			break;
 		}
 	}
+	memset (&desc, 0, sizeof desc);
+	_tcscpy (desc.szHostInputID, _T("KeyboardCustom"));
+	_tcscpy (desc.szHostInputName, _T("KeyboardCustom"));
+	desc.dwHostInputType = RP_HOSTINPUT_KEYJOY_CUSTOM;
+	desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
+	RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
 		if (log_rp)
@@ -1049,7 +1183,9 @@ void rp_input_change (int num)
 		return;
 
 	name[0] = 0;
-	if (k >= 0) {
+	if (currprefs.jports[num].id == JPORT_CUSTOM) {
+		port_get_custom (num, name);
+	} else if (k >= 0) {
 		_stprintf (name, _T("KeyboardLayout%d"), k);
 	} else if (j >= 0) {
 		_tcscpy (name, inputdevice_get_device_unique_name (IDTYPE_JOYSTICK, j));
