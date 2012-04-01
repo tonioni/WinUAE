@@ -215,4 +215,5 @@ uae_u16 customhack_get (struct customhack *ch, int hpos);
 extern void alloc_cycle_ext (int, int);
 extern bool ispal (void);
 extern int current_maxvpos (void);
-struct chipset_refresh *get_chipset_refresh (void);
+extern struct chipset_refresh *get_chipset_refresh (void);
+extern void compute_framesync (void);

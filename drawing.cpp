@@ -1721,22 +1721,24 @@ static void pfield_doline (int lineno)
 void init_row_map (void)
 {
 	int i, j;
-	if (gfxvidinfo.drawbuffer.height > MAX_VIDHEIGHT) {
+	if (gfxvidinfo.drawbuffer.height_allocated > MAX_VIDHEIGHT) {
 		write_log (_T("Resolution too high, aborting\n"));
 		abort ();
 	}
 	j = 0;
-	for (i = gfxvidinfo.drawbuffer.height; i < MAX_VIDHEIGHT + 1; i++)
+	for (i = gfxvidinfo.drawbuffer.height_allocated; i < MAX_VIDHEIGHT + 1; i++)
 		row_map[i] = row_tmp;
-	for (i = 0; i < gfxvidinfo.drawbuffer.height; i++, j += gfxvidinfo.drawbuffer.rowbytes)
+	for (i = 0; i < gfxvidinfo.drawbuffer.height_allocated; i++, j += gfxvidinfo.drawbuffer.rowbytes)
 		row_map[i] = gfxvidinfo.drawbuffer.bufmem + j;
 }
 
-static void init_aspect_maps (void)
+void init_aspect_maps (void)
 {
-	int i, maxl;
+	int i, maxl, h;
 
-	if (gfxvidinfo.drawbuffer.height == 0)
+	h = gfxvidinfo.drawbuffer.height_allocated;
+
+	if (h == 0)
 		/* Do nothing if the gfx driver hasn't initialized the screen yet */
 		return;
 
@@ -1753,16 +1755,16 @@ static void init_aspect_maps (void)
 
 	/* At least for this array the +1 is necessary. */
 	amiga2aspect_line_map = xmalloc (int, (MAXVPOS + 1) * 2 + 1);
-	native2amiga_line_map = xmalloc (int, gfxvidinfo.drawbuffer.height);
+	native2amiga_line_map = xmalloc (int, h);
 
 	maxl = (MAXVPOS + 1) << linedbld;
 	min_ypos_for_screen = minfirstline << linedbl;
 	max_drawn_amiga_line = -1;
 	for (i = 0; i < maxl; i++) {
 		int v = i - min_ypos_for_screen;
-		if (v >= gfxvidinfo.drawbuffer.height && max_drawn_amiga_line < 0)
+		if (v >= h && max_drawn_amiga_line < 0)
 			max_drawn_amiga_line = i - min_ypos_for_screen;
-		if (i < min_ypos_for_screen || v >= gfxvidinfo.drawbuffer.height)
+		if (i < min_ypos_for_screen || v >= h)
 			v = -1;
 		amiga2aspect_line_map[i] = v;
 	}
@@ -1772,19 +1774,19 @@ static void init_aspect_maps (void)
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
 		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (gfxvidinfo.drawbuffer.height - (maxvpos_nom << linedbl)) >> 1;
+		extra_y_adjust = (h - (maxvpos_nom << linedbl)) >> 1;
 		if (extra_y_adjust < 0)
 			extra_y_adjust = 0;
 	}
 
-	for (i = 0; i < gfxvidinfo.drawbuffer.height; i++)
+	for (i = 0; i < h; i++)
 		native2amiga_line_map[i] = -1;
 
 	for (i = maxl - 1; i >= min_ypos_for_screen; i--) {
 		int j;
 		if (amiga2aspect_line_map[i] == -1)
 			continue;
-		for (j = amiga2aspect_line_map[i]; j < gfxvidinfo.drawbuffer.height && native2amiga_line_map[j] == -1; j++)
+		for (j = amiga2aspect_line_map[i]; j < h && native2amiga_line_map[j] == -1; j++)
 			native2amiga_line_map[j] = i >> linedbl;
 	}
 
@@ -2515,7 +2517,7 @@ static void draw_lightpen_cursor (int x, int y, int line, int onscreen)
 	p = lightpen_cursor + y * LIGHTPEN_WIDTH;
 	for (i = 0; i < LIGHTPEN_WIDTH; i++) {
 		int xx = x + i - LIGHTPEN_WIDTH / 2;
-		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.drawbuffer.width)
+		if (*p != '-' && xx >= 0 && xx < gfxvidinfo.drawbuffer.outwidth)
 			putpixel (xlinebuffer, gfxvidinfo.drawbuffer.pixbytes, xx, *p == 'x' ? xcolors[color1] : xcolors[color2], 1);
 		p++;
 	}
@@ -2644,6 +2646,7 @@ void finish_drawing_frame (void)
 		lightpen_update (vb);
 
 	if (currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated) {
+		static bool specialon;
 		if (emulate_specialmonitors (vb, &gfxvidinfo.tempbuffer)) {
 			vb = gfxvidinfo.outbuffer = &gfxvidinfo.tempbuffer;
 			if (vb->nativepositioning) {
@@ -2654,8 +2657,17 @@ void finish_drawing_frame (void)
 				vb->outwidth = gfxvidinfo.drawbuffer.outwidth;
 				vb->outheight = gfxvidinfo.drawbuffer.outheight;
 			}
+			gfxvidinfo.drawbuffer.tempbufferinuse = true;
+			if (!specialon)
+				compute_framesync ();
+			specialon = true;
 			do_flush_screen (vb, 0, vb->outheight);
 			didflush = true;
+		} else {
+			gfxvidinfo.drawbuffer.tempbufferinuse = false;
+			if (specialon)
+				compute_framesync ();
+			specialon = false;
 		}
 	}
 
@@ -2895,8 +2907,8 @@ static void clearbuffer (struct vidbuffer *dst)
 	if (!dst->bufmem_allocated)
 		return;
 	uae_u8 *p = dst->bufmem_allocated;
-	for (int y = 0; y < dst->height; y++) {
-		memset (p, 0, dst->width * dst->pixbytes);
+	for (int y = 0; y < dst->height_allocated; y++) {
+		memset (p, 0, dst->width_allocated * dst->pixbytes);
 		p += dst->rowbytes;
 	}
 }

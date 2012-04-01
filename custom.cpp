@@ -2820,7 +2820,7 @@ static bool changed_chipset_refresh (void)
 	return stored_chipset_refresh != get_chipset_refresh ();
 }
 
-static void compute_framesync (void)
+void compute_framesync (void)
 {
 	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
@@ -2911,16 +2911,28 @@ static void compute_framesync (void)
 
 	}
 
+	if (gfxvidinfo.drawbuffer.inwidth > gfxvidinfo.drawbuffer.width_allocated)
+		gfxvidinfo.drawbuffer.inwidth = gfxvidinfo.drawbuffer.width_allocated;
+	if (gfxvidinfo.drawbuffer.inwidth2 > gfxvidinfo.drawbuffer.width_allocated)
+		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.width_allocated;
 
-	if (gfxvidinfo.drawbuffer.inwidth > gfxvidinfo.drawbuffer.width)
-		gfxvidinfo.drawbuffer.inwidth = gfxvidinfo.drawbuffer.width;
-	if (gfxvidinfo.drawbuffer.inwidth2 > gfxvidinfo.drawbuffer.width)
-		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.width;
+	if (gfxvidinfo.drawbuffer.inheight > gfxvidinfo.drawbuffer.height_allocated)
+		gfxvidinfo.drawbuffer.inheight = gfxvidinfo.drawbuffer.height_allocated;
+	if (gfxvidinfo.drawbuffer.inheight2 > gfxvidinfo.drawbuffer.height_allocated)
+		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.height_allocated;
 
-	if (gfxvidinfo.drawbuffer.inheight > gfxvidinfo.drawbuffer.height)
-		gfxvidinfo.drawbuffer.inheight = gfxvidinfo.drawbuffer.height;
-	if (gfxvidinfo.drawbuffer.inheight2 > gfxvidinfo.drawbuffer.height)
-		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.height;
+	gfxvidinfo.drawbuffer.outwidth = gfxvidinfo.drawbuffer.inwidth;
+	gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.inheight;
+
+	if (gfxvidinfo.drawbuffer.outwidth > gfxvidinfo.drawbuffer.width_allocated)
+		gfxvidinfo.drawbuffer.outwidth = gfxvidinfo.drawbuffer.width_allocated;
+
+	if (gfxvidinfo.drawbuffer.outheight > gfxvidinfo.drawbuffer.height_allocated)
+		gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.height_allocated;
+
+	if (target_graphics_buffer_update ()) {
+		reset_drawing ();
+	}
 
 	compute_vsynctime ();
 

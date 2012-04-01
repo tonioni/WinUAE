@@ -2743,7 +2743,7 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	int joy;
 	bool isaks = false;
 
-	if (nr <= 0)
+	if (nr <= 0 || nr == INPUTEVENT_SPC_CUSTOM_EVENT)
 		return 0;
 	ie = &events[nr];
 	if (isqual (nr))
@@ -3327,6 +3327,10 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 	int idx, slotoffset, flags, custompos;
 	TCHAR *custom;
 
+	queue_input_event (-1, NULL, -1, 0, 0, 1);
+	if (!id)
+		return;
+
 	slotoffset = 0;
 	if (!checkqualifiers (id->eventid[offset][slotoffset], id->flags[offset][slotoffset], qualmask)) {
 		slotoffset = 4;
@@ -3355,16 +3359,13 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 			custom = id->custom[offset][idx - 2 + slotoffset];
 	}
 
-	handle_custom_event (custom);
-
 	if (autofire)
 		queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
-	if (!state)
-		queue_input_event (-1, NULL, -1, 0, 0, 1);
-
-
-	id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
-	id->flags[offset][slotoffset] |= custompos ? ID_FLAG_CUSTOMEVENT_TOGGLED : 0;
+	if (state) {
+		handle_custom_event (custom);
+		id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
+		id->flags[offset][slotoffset] |= custompos ? ID_FLAG_CUSTOMEVENT_TOGGLED : 0;
+	}
 }
 
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)
@@ -3406,6 +3407,11 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		int toggle = (flags & ID_FLAG_TOGGLE) ? 1 : 0;
 		int inverttoggle = (flags & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
 
+		if (!state) {
+			if (i == 0)
+				process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire);
+		}
+
 		setqualifiers (flags, state > 0);
 		if (qualonly)
 			continue;
@@ -3440,10 +3446,11 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire);
 		} else {
 			if (!checkqualifiers (evt, flags, qualmask)) {
-				if (!state && !(flags & ID_FLAG_CANRELEASE))
+				if (!state && !(flags & ID_FLAG_CANRELEASE)) {
 					continue;
-				else if (state)
+				} else if (state) {
 					continue;
+				}
 			}
 			if (!state)
 				*flagsp &= ~ID_FLAG_CANRELEASE;
@@ -3963,7 +3970,6 @@ static void setcompakb (int *kb, int *srcmap, int index, int af)
 
 int inputdevice_get_compatibility_input (struct uae_prefs *prefs, int index, int *typelist, int **inputlist, int **at)
 {
-	//write_log (L"index=%d joymodes=%d\n", index, joymodes[index]);
 	if (index >= MAX_JPORTS || joymodes[index] < 0)
 		return 0;
 	*typelist = joymodes[index];
@@ -4921,6 +4927,9 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 
 	if (!keyboards || scancode < 0)
 		return handled;
+
+	if (!state)
+		process_custom_event (NULL, 0, 0, 0, 0);
 
 	j = 0;
 	while (j < MAX_INPUT_DEVICE_EVENTS && na->extra[j] >= 0) {

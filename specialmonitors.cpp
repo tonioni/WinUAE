@@ -62,8 +62,8 @@ STATIC_INLINE void PRGB(struct vidbuffer *dst, uae_u8 *dataline, uae_u8 r, uae_u
 static void clearmonitor(struct vidbuffer *dst)
 {
 	uae_u8 *p = dst->bufmem;
-	for (int y = 0; y < dst->height; y++) {
-		memset(p, 0, dst->width * dst->pixbytes);
+	for (int y = 0; y < dst->height_allocated; y++) {
+		memset(p, 0, dst->width_allocated * dst->pixbytes);
 		p += dst->rowbytes;
 	}
 }

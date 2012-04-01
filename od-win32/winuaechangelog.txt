@@ -4,6 +4,14 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 2:
+
+- Filter system partial rewrite again. Do not use static display buffer. Always dynamically reallocate internal buffer if
+  display mode changes (double scan modes, A2024 etc..). Fixes slowdown introduced in 2.4, also fixes shader filters
+  that expect texture size = output size. Very tall (>1024 line) programmed modes are also now fully visible.
+  Most likely some more updates needed..
+- Always cancel custom event autofire if any release event arrives.
+
 Beta 1:
 
 - Input custom event autofire support.

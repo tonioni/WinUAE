@@ -12,7 +12,7 @@
 
 */
 
-#define CALC_DEBUG 1
+#define CALC_DEBUG 0
 
 #if CALC_DEBUG
 #define calc_log(x) do { write_log x; } while(0)
@@ -226,7 +226,7 @@ struct calcstack
 	double val;
 };
 
-static double docalcx (TCHAR op, double v1, double v2)
+static double docalcx(TCHAR op, double v1, double v2)
 {
 	switch (op)
 	{
@@ -256,7 +256,7 @@ static double stacktoval(struct calcstack *st)
 	}
 }
 
-static double docalc2 (TCHAR op, struct calcstack *sv1, struct calcstack *sv2)
+static double docalc2(TCHAR op, struct calcstack *sv1, struct calcstack *sv2)
 {
 	double v1, v2;
 
@@ -264,7 +264,7 @@ static double docalc2 (TCHAR op, struct calcstack *sv1, struct calcstack *sv2)
 	v2 = stacktoval(sv2);
 	return docalcx (op, v1, v2);
 }
-static double docalc1 (TCHAR op, struct calcstack *sv1, double v2)
+static double docalc1(TCHAR op, struct calcstack *sv1, double v2)
 {
 	double v1;
 
@@ -272,7 +272,7 @@ static double docalc1 (TCHAR op, struct calcstack *sv1, double v2)
 	return docalcx (op, v1, v2);
 }
 
-static TCHAR *stacktostr (struct calcstack *st)
+static TCHAR *stacktostr(struct calcstack *st)
 {
 	static TCHAR out[256];
 	if (st->s)
@@ -281,7 +281,7 @@ static TCHAR *stacktostr (struct calcstack *st)
 	return out;
 }
 
-static TCHAR *chartostack (TCHAR c)
+static TCHAR *chartostack(TCHAR c)
 {
 	TCHAR *s = xmalloc (TCHAR, 2);
 	s[0] = c;
@@ -394,6 +394,9 @@ static bool parse_values(const TCHAR *ins, TCHAR *out)
 	TCHAR *in = inbuf;
 	TCHAR *p = out;
 	op = 0;
+	if (in[0] == '-' || in[0] == '+') {
+		*p++ = '0';
+	}
 	while (*in) {
 		TCHAR *instart = in;
 		if (_istdigit (*in)) {

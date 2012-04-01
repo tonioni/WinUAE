@@ -1080,14 +1080,50 @@ static LPDIRECT3DTEXTURE9 createtext (int w, int h, D3DFORMAT format)
 	return t;
 }
 
-static int createtexture (int iw, int ih, int ow, int oh, int win_w, int win_h)
+static int worktex_width, worktex_height;
+
+static int createamigatexture (int w, int h)
 {
 	HRESULT hr;
 
-	texture = createtext (iw, ih, tformat);
+	if (texture)
+		texture->Release ();
+	texture = NULL;
+	if (lpWorkTexture1)
+		lpWorkTexture1->Release ();
+	lpWorkTexture1 = NULL;
+	if (lpWorkTexture2)
+		lpWorkTexture2->Release ();
+	lpWorkTexture2 = NULL;
+
+	texture = createtext (w, h, tformat);
 	if (!texture)
 		return 0;
-	write_log (_T("%s: %d*%d texture allocated, bits per pixel %d\n"), D3DHEAD, iw, ih, t_depth);
+	write_log (_T("%s: %d*%d texture allocated, bits per pixel %d\n"), D3DHEAD, w, h, t_depth);
+	if (psActive) {
+		D3DLOCKED_BOX lockedBox;
+		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
+			write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			return 0;
+		}
+		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2, NULL))) {
+			write_log (_T("%s: Failed to create working texture2: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			return 0;
+		}
+		if (FAILED (hr = lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
+			write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			return 0;
+		}
+		BuildHq2xLookupTexture (worktex_width, worktex_height, w, h,  (unsigned char*)lockedBox.pBits);
+		lpHq2xLookupTexture->UnlockBox (0);
+	}
+	return 1;
+}
+
+static int createtexture (int ow, int oh, int win_w, int win_h)
+{
+	HRESULT hr;
+
 	int w, h;
 	if (ow > win_w * multx && oh > win_h * multx) {
 		w = ow;
@@ -1096,6 +1132,8 @@ static int createtexture (int iw, int ih, int ow, int oh, int win_w, int win_h)
 		w = win_w * multx;
 		h = win_h * multx;
 	}
+	worktex_width = w;
+	worktex_height = h;
 	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpTempTexture, NULL))) {
 		write_log (_T("%s: Failed to create working texture1: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		return 0;
@@ -1104,25 +1142,10 @@ static int createtexture (int iw, int ih, int ow, int oh, int win_w, int win_h)
 	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
 
 	if (psActive) {
-		D3DLOCKED_BOX lockedBox;
-		if (FAILED (hr = d3ddev->CreateTexture (iw, ih, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
-			write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
-		if (FAILED (hr = d3ddev->CreateTexture (iw, ih, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2, NULL))) {
-			write_log (_T("%s: Failed to create working texture2: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
 		if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpHq2xLookupTexture, NULL))) {
 			write_log (_T("%s: Failed to create volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
 		}
-		if (FAILED (hr = lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
-			write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
-		BuildHq2xLookupTexture (w, h, iw, ih,  (unsigned char*)lockedBox.pBits);
-		lpHq2xLookupTexture->UnlockBox (0);
 
 	}
 	return 1;
@@ -1575,15 +1598,11 @@ static void setupscenecoords (void)
 	RECT sr, dr, zr;
 	float w, h;
 	float dw, dh;
-	int resmult, vresmult;
 	static RECT sr2, dr2, zr2;
 
 	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
-	resmult = 1 << (gfxvidinfo.gfx_resolution_reserved - currprefs.gfx_resolution);
-	vresmult = 1 << (gfxvidinfo.gfx_vresolution_reserved - currprefs.gfx_vresolution);
-
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / (mult * resmult), tin_h / (mult * vresmult), mult, tin_w / resmult, tin_h / vresmult);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
 
 	if (memcmp (&sr, &sr2, sizeof RECT) || memcmp (&dr, &dr2, sizeof RECT) || memcmp (&zr, &zr2, sizeof RECT)) {
 		write_log (_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
@@ -1878,7 +1897,7 @@ static int restoredeviceobjects (void)
 
 	createmask2texture (currprefs.gfx_filteroverlay);
 
-	if (!createtexture (tin_w, tin_h, tout_w, tout_h, window_w, window_h))
+	if (!createtexture (tout_w, tout_h, window_w, window_h))
 		return 0;
 	createledtexture ();
 
@@ -1906,7 +1925,6 @@ static int restoredeviceobjects (void)
 	hr = d3ddev->SetRenderState (D3DRS_CULLMODE, D3DCULL_NONE);
 	hr = d3ddev->SetRenderState (D3DRS_LIGHTING, FALSE);
 
-	setupscenecoords ();
 	settransform ();
 
 	return 1;
@@ -2001,7 +2019,7 @@ static int getd3dadapter (IDirect3D9 *d3d)
 	return D3DADAPTER_DEFAULT;
 }
 
-const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth, int mmult)
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
@@ -2169,7 +2187,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 			write_log (_T("%s\n"), errmsg);
 			write_log (_T("%s: Retrying fullscreen with DirectDraw\n"), D3DHEAD);
 			if (ddraw_fs_hack_init ()) {
-				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
+				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, depth, mmult);
 				if (err2)
 					ddraw_fs_hack_free ();
 				return err2;
@@ -2178,7 +2196,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 		if (d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
+			return D3D_init (ahwnd, w_w, w_h, depth, mmult);
 		}
 		D3D_free ();
 		return errmsg;
@@ -2220,23 +2238,20 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (_T("Disabling D3D9Ex\n"));
-		return D3D_init (ahwnd, w_w, w_h, t_w, t_h, depth, mult);
+		return D3D_init (ahwnd, w_w, w_h, depth, mmult);
 	}
 	if (!shaderon)
 		write_log (_T("Using non-shader version\n"));
 
-	window_w = w_w;
-	window_h = w_h;
 	multx = mmult;
 	mult = S2X_getmult ();
-	tin_w = t_w * mult;
-	tin_h = t_h * mult;
-	tout_w = tin_w * multx;
-	tout_h = tin_h * multx;
+
+	window_w = w_w;
+	window_h = w_h;
 
 	if (max_texture_w < w_w  || max_texture_h < w_h) {
 		_stprintf (errmsg, _T("%s: %d * %d or bigger texture support required\nYour card's maximum texture size is only %d * %d"),
-			D3DHEAD, t_w, t_h, max_texture_w, max_texture_h);
+			D3DHEAD, w_w, w_h, max_texture_w, max_texture_h);
 		return errmsg;
 	}
 	while (multx > 1 && (w_w * multx > max_texture_w || w_h * multx > max_texture_h))
@@ -2293,6 +2308,19 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int t_w, int t_h, int depth
 	}
 
 	return 0;
+}
+
+bool D3D_alloctexture (int w, int h)
+{
+	tin_w = w * mult;
+	tin_h = h * mult;
+
+	tout_w = tin_w * multx;
+	tout_h = tin_h * multx;
+
+	if (!createamigatexture (tin_w, tin_h))
+		return false;
+	return true;
 }
 
 static HRESULT reset (void)
@@ -2706,7 +2734,7 @@ void D3D_unlocktexture (void)
 {
 	HRESULT hr;
 
-	if (!isd3d ())
+	if (!isd3d () || !texture)
 		return;
 	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
 		updateleds ();
@@ -2719,7 +2747,7 @@ void D3D_unlocktexture (void)
 
 void D3D_flushtexture (int miny, int maxy)
 {
-	if (fulllocked)
+	if (fulllocked || !texture)
 		return;
 	if (miny >= 0 && maxy >= 0) {
 		RECT r;
@@ -2744,7 +2772,7 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 
 	if (D3D_needreset () > 0)
 		return NULL;
-	if (!isd3d ())
+	if (!isd3d () || !texture)
 		return NULL;
 
 	lock.pBits = NULL;
@@ -2788,7 +2816,7 @@ bool D3D_renderframe (void)
 {
 	static int vsync2_cnt;
 
-	if (!isd3d ())
+	if (!isd3d () || !texture)
 		return false;
 
 	if (filenotificationhandle != NULL) {

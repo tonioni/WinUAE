@@ -645,8 +645,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	dr->left = (temp_width - aws) / 2;
 	dr->top = (temp_height - ahs) / 2;
 
-	dr->left -= (dst_width - gfxvidinfo.outbuffer->inwidth2) / 2;
-	dr->top -= (dst_height - gfxvidinfo.outbuffer->inheight2) / 2;
+	dr->left -= (dst_width - aws) / 2;
+	dr->top -= (dst_height - ahs) / 2;
 
 	dr->right = dr->left + dst_width;
 	dr->bottom = dr->top + dst_height;
@@ -708,9 +708,9 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				cy = 0;
 				cv = 1;
 				if (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER) {
-					cw -= 40 << currprefs.gfx_resolution;
+					cw -= 50 << currprefs.gfx_resolution;
 					ch -= 25 << currprefs.gfx_vresolution;
-					cx = 28 << currprefs.gfx_resolution;
+					cx = 18 << currprefs.gfx_resolution;
 					cy = 10 << currprefs.gfx_vresolution;
 				}
 			}
@@ -998,8 +998,6 @@ end:
 		OffsetRect (dr, mrsx, mrsy);
 	}
 
-
-
 	fpux_restore (&fpuv);
 
 }
@@ -1014,8 +1012,8 @@ uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth)
 	*depth = amiga_depth;
 	if (usedfilter == NULL)
 		return NULL;
-	*widthp = vb->width;
-	*heightp = vb->height;
+	*widthp = vb->outwidth;
+	*heightp = vb->outheight;
 	if (pitch)
 		*pitch = vb->rowbytes;
 	*depth = vb->pixbytes * 8;
@@ -1108,8 +1106,8 @@ void S2X_init (int dw, int dh, int dd)
 	dst_width2 = dw;
 	dst_height2 = dh;
 	dst_depth2 = dd;
-	amiga_width2 = vb->width;
-	amiga_height2 = vb->height;
+	amiga_width2 = vb->outwidth;
+	amiga_height2 = vb->outheight;
 	amiga_depth2 = vb->pixbytes * 8;
 
 
@@ -1152,8 +1150,8 @@ void S2X_init (int dw, int dh, int dd)
 	dst_width = dw;
 	dst_height = dh;
 	dst_depth = dd;
-	amiga_width = vb->width;
-	amiga_height = vb->height;
+	amiga_width = vb->outwidth;
+	amiga_height = vb->outheight;
 	amiga_depth = vb->pixbytes * 8;
 
 	if (d3d) {

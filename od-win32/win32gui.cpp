@@ -11684,21 +11684,27 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 	}
 	item = SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L);
 	if(item != CB_ERR) {
-		if (item == 1) {
-			if (item != input_selected_event)
+		if (item != input_selected_event) {
+			input_selected_event = (int)item;
+			doselect = 1;
+			if (item == 1) {
 				doinputcustom (hDlg, 1);
+			}
 		}
-		input_selected_event = (int)item;
-		doselect = 1;
 	}
 
 	if (inputchange && doselect && input_selected_device >= 0 && input_selected_event >= 0) {
 		int flags;
+		bool iscustom = false;
 		TCHAR custom[MAX_DPATH];
-		custom[0] = 0;
+
+		if (!_tcscmp (inputdevice_get_eventinfo (INPUTEVENT_SPC_CUSTOM_EVENT)->name, eventnames[input_selected_event])) {
+			doinputcustom (hDlg, 1);
+			iscustom = true;
+		}
 		inputdevice_get_mapping (input_selected_device, input_selected_widget,
 			&flags, NULL, 0, custom, input_selected_sub_num);
-		if (input_selected_event != 1)
+		if (input_selected_event != 1 && !iscustom)
 			custom[0] = 0;
 		inputdevice_set_mapping (input_selected_device, input_selected_widget,
 			eventnames[input_selected_event], _tcslen (custom) == 0 ? NULL : custom,

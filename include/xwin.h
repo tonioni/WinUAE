@@ -50,6 +50,7 @@ extern bool show_screen_maybe (bool);
 
 extern int lockscr (struct vidbuffer*, bool);
 extern void unlockscr (struct vidbuffer*);
+extern bool target_graphics_buffer_update (void);
 
 extern int debuggable (void);
 extern void LED (int);
@@ -104,8 +105,8 @@ struct vidbuffer
     int rowbytes; /* Bytes per row in the memory pointed at by bufmem. */
     int pixbytes; /* Bytes per pixel. */
 	/* size of this buffer */
-	int width;
-	int height;
+	int width_allocated;
+	int height_allocated;
 	/* size of max visible image */
 	int outwidth;
 	int outheight;
@@ -117,6 +118,8 @@ struct vidbuffer
 	int inheight2;
 	/* use drawbuffer instead */
 	bool nativepositioning;
+	/* tempbuffer in use */
+	bool tempbufferinuse;
 	/* extra width, chipset hpos extra in right border */
 	int extrawidth;
 
