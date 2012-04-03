@@ -89,8 +89,8 @@ typedef struct {
 } sinc_queue_t;
 
 struct audio_channel_data {
-	unsigned long adk_mask;
-	unsigned long evtime;
+	unsigned int adk_mask;
+	unsigned int evtime;
 	bool dmaenstore;
 	bool intreq2;
 	bool dr;
@@ -226,7 +226,7 @@ void audio_sampleripper (int mode)
 				underline[0] = 0;
 			namesplit (name);
 			_tcscpy (extension, _T("wav"));
-			_stprintf (filename, _T("%s%s%s%03.3d.%s"), path, name, underline, cnt, extension);
+			_stprintf (filename, _T("%s%s%s%03d.%s"), path, name, underline, cnt, extension);
 			wavfile = zfile_fopen (filename, _T("wb"), 0);
 			if (wavfile) {
 				int freq = rs->per > 0 ? (currprefs.ntscmode ? 3579545 : 3546895 / rs->per) : 8000;
@@ -380,9 +380,6 @@ static int filter (int input, struct filter_state *fs)
 	input = (uae_s16)input;
 	switch (sound_use_filter) {
 
-	case FILTER_NONE:
-		return input;
-
 	case FILTER_MODEL_A500:
 		fs->rc1 = a500e_filter1_a0 * input + (1 - a500e_filter1_a0) * fs->rc1 + DENORMAL_OFFSET;
 		fs->rc2 = a500e_filter2_a0 * fs->rc1 + (1-a500e_filter2_a0) * fs->rc2;
@@ -404,6 +401,10 @@ static int filter (int input, struct filter_state *fs)
 
 		led_output = fs->rc4;
 		break;
+
+	case FILTER_NONE:
+	default:
+		return input;
 
 	}
 
@@ -1153,8 +1154,8 @@ static int isirq (int nr)
 
 static void setirq (int nr, int which)
 {
-	struct audio_channel_data *cdp = audio_channel + nr;
 #if DEBUG_AUDIO > 0
+	struct audio_channel_data *cdp = audio_channel + nr;
 	if (debugchannel (nr) && cdp->wlen > 1)
 		write_log (_T("SETIRQ%d (%d,%d) PC=%08X\n"), nr, which, isirq (nr) ? 1 : 0, M68K_GETPC);
 #endif
@@ -1554,7 +1555,6 @@ void check_prefs_changed_audio (void)
 
 void set_audio (void)
 {
-	int old_mixed_on = mixed_on;
 	int old_mixed_size = mixed_stereo_size;
 	int sep, delay;
 	int ch;
@@ -1766,7 +1766,7 @@ void update_audio (void)
 			if (audio_channel[i].evtime == 0) {
 				audio_state_channel (i, true);
 				if (audio_channel[i].evtime == 0) {
-					write_log (_T("evtime==0 sound bug channel %d\n"));
+					write_log (_T("evtime==0 sound bug channel %d\n"), i);
 					audio_channel[i].evtime = MAX_EV;
 				}
 			}

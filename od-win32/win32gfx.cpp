@@ -615,6 +615,8 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 				_stprintf (tmp, _T("%s (%d*%d)"), md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top);
 			else
 				_stprintf (tmp, _T("%s (%d*%d) [%d*%d]"), md->monitorname, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top, md->rect.left, md->rect.top);
+			if (md->primary)
+				_tcscat (tmp, _T(" *"));
 			xfree (md->fullname);
 			md->fullname = my_strdup (tmp);
 			return TRUE;
@@ -631,28 +633,30 @@ void enumeratedisplays (void)
 	DISPLAY_DEVICE add;
 	add.cb = sizeof add;
 	while (EnumDisplayDevices (NULL, adapterindex, &add, 0)) {
-		int monitorindex = 0;
+
 		adapterindex++;
 		if (!(add.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
 			continue;
 		if (add.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
 			continue;
 		if (md - Displays >= MAX_DISPLAYS)
-			return;
+			break;
+
+		int monitorindex = 0;
 		DISPLAY_DEVICE mdd;
 		mdd.cb = sizeof mdd;
 		while (EnumDisplayDevices (add.DeviceName, monitorindex, &mdd, 0)) {
 			monitorindex++;
 			if (md - Displays >= MAX_DISPLAYS)
-				return;
+				break;
 			if (!(mdd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
 				continue;
 			if (mdd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
 				continue;
-			md->adaptername = my_strdup (add.DeviceString);
+			md->adaptername = my_strdup_trim (add.DeviceString);
 			md->adapterid = my_strdup (add.DeviceName);
 			md->adapterkey = my_strdup (add.DeviceID);
-			md->monitorname = my_strdup (mdd.DeviceString);
+			md->monitorname = my_strdup_trim (mdd.DeviceString);
 			md->monitorid = my_strdup (mdd.DeviceKey);
 			if (add.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE)
 				md->primary = true;
@@ -661,10 +665,10 @@ void enumeratedisplays (void)
 		if (md - Displays >= MAX_DISPLAYS)
 			return;
 		if (monitorindex == 0) {
-			md->adaptername = my_strdup (add.DeviceString);
+			md->adaptername = my_strdup_trim (add.DeviceString);
 			md->adapterid = my_strdup (add.DeviceName);
 			md->adapterkey = my_strdup (add.DeviceID);
-			md->monitorname = my_strdup (add.DeviceString);
+			md->monitorname = my_strdup_trim (add.DeviceString);
 			md->monitorid = my_strdup (add.DeviceKey);
 			md->primary = true;
 		}
@@ -674,7 +678,7 @@ void enumeratedisplays (void)
 
 void sortdisplays (void)
 {
-	struct MultiDisplay *md1;
+	struct MultiDisplay *md;
 	int i, idx;
 
 	int w = GetSystemMetrics (SM_CXSCREEN);
@@ -688,23 +692,23 @@ void sortdisplays (void)
 	write_log (_T("Desktop: W=%d H=%d B=%d. CXVS=%d CYVS=%d\n"), w, h, b,
 		GetSystemMetrics (SM_CXVIRTUALSCREEN), GetSystemMetrics (SM_CYVIRTUALSCREEN));
 
-	md1 = Displays;
-	while (md1->monitorname) {
-		md1->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
-		md1->DisplayModes[0].depth = -1;
+	md = Displays;
+	while (md->monitorname) {
+		md->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
+		md->DisplayModes[0].depth = -1;
 
-		write_log (_T("%s [%s]\n"), md1->adaptername, md1->monitorname);
-		write_log (_T("-: %d*%d [%d*%d]\n"), md1->rect.right - md1->rect.left, md1->rect.bottom - md1->rect.top, md1->rect.left, md1->rect.top);
+		write_log (_T("%s [%s]\n"), md->adaptername, md->adapterid);
+		write_log (_T("-: %s\n"), md->fullname);
 		for (int mode = 0; mode < 2; mode++) {
 			DEVMODE dm;
 			dm.dmSize = sizeof dm;
 			dm.dmDriverExtra = 0;
 			idx = 0;
-			while (EnumDisplaySettingsEx (md1->adapterid, idx, &dm, mode ? EDS_RAWMODE : 0)) {
+			while (EnumDisplaySettingsEx (md->adapterid, idx, &dm, mode ? EDS_RAWMODE : 0)) {
 				int found = 0;
 				int idx2 = 0;
-				while (md1->DisplayModes[idx2].depth >= 0 && !found) {
-					struct PicassoResolution *pr = &md1->DisplayModes[idx2];
+				while (md->DisplayModes[idx2].depth >= 0 && !found) {
+					struct PicassoResolution *pr = &md->DisplayModes[idx2];
 					if (pr->res.width == dm.dmPelsWidth && pr->res.height == dm.dmPelsHeight && pr->depth == dm.dmBitsPerPel / 8) {
 						for (i = 0; pr->refresh[i]; i++) {
 							if (pr->refresh[i] == dm.dmDisplayFrequency) {
@@ -722,20 +726,20 @@ void sortdisplays (void)
 						dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel, dm.dmDisplayFrequency, dm.dmFields);
 #endif
 					if ((dm.dmFields & DM_PELSWIDTH) && (dm.dmFields & DM_PELSHEIGHT) && (dm.dmFields & DM_BITSPERPEL)) {
-						addmode (md1, &dm, mode);
+						addmode (md, &dm, mode);
 					}
 				}
 				idx++;
 			}
 		}
 		//dhack();
-		sortmodes (md1);
-		modesList (md1);
+		sortmodes (md);
+		modesList (md);
 		i = 0;
-		while (md1->DisplayModes[i].depth > 0)
+		while (md->DisplayModes[i].depth > 0)
 			i++;
 		write_log (_T("%d display modes.\n"), i);
-		md1++;
+		md++;
 	}
 }
 
@@ -872,11 +876,9 @@ bool render_screen (void)
 	EnterCriticalSection (&screen_cs);
 	if (currentmode->flags & DM_D3D) {
 		v = D3D_renderframe ();
-#ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		S2X_render ();
 		v = true;
-#endif
 	} else if (currentmode->flags & DM_DDRAW) {
 		v = true;
 	}
@@ -3154,6 +3156,8 @@ static void allocsoftbuffer (const TCHAR *name, struct vidbuffer *buf, int flags
 		buf->bufmem_allocated = NULL;
 		buf->bufmem_lockable = true;
 
+		write_log (_T("Reserved %s temp buffer (%d*%d*%d)\n"), name, width, height, depth);
+
 	} else if (flags & DM_SWSCALE) {
 
 		int w = buf->width_allocated * 2;
@@ -3176,6 +3180,8 @@ static int create_windows (void)
 
 	return set_ddraw ();
 }
+
+static int oldtex_w, oldtex_h, oldtex_rtg;
 
 static BOOL doInit (void)
 {
@@ -3317,8 +3323,13 @@ static BOOL doInit (void)
 
 	if (!screen_is_picasso) {
 
-		allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
-			1600, 1280, currentmode->current_depth);
+		if (currprefs.gfx_api == 0 && currprefs.gfx_filter == 0) {
+			allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
+				currentmode->native_width, currentmode->native_height, currentmode->current_depth);
+		} else {
+			allocsoftbuffer (_T("draw"), &gfxvidinfo.drawbuffer, currentmode->flags,
+				1600, 1280, currentmode->current_depth);
+		}
 		if (currprefs.monitoremu) {
 			allocsoftbuffer (_T("monemu"), &gfxvidinfo.tempbuffer, currentmode->flags,
 				currentmode->amiga_width > 1024 ? currentmode->amiga_width : 1024,
@@ -3344,6 +3355,8 @@ static BOOL doInit (void)
 			ret = -1;
 			goto oops;
 		}
+		oldtex_w = oldtex_h = -1;
+		target_graphics_buffer_update ();
 	}
 
 	screen_is_initialized = 1;
@@ -3372,13 +3385,19 @@ bool target_graphics_buffer_update (void)
 		w = vb->outwidth;
 		h = vb->outheight;
 	}
-		
-	write_log (_T("Buffer size (%d*%d)\n"), w, h);
+	
+	if (oldtex_w == w && oldtex_h == h && oldtex_rtg == screen_is_picasso)
+		return true;
+	oldtex_w = w;
+	oldtex_h = h;
+	oldtex_rtg = screen_is_picasso;
 
+	write_log (_T("Buffer size (%d*%d) %s\n"), w, h, screen_is_picasso ? _T("RTG") : _T("Native"));
+
+	S2X_free ();
 	if (currentmode->flags & DM_D3D) {
 		D3D_alloctexture (w, h);
 	}
-	S2X_free ();
 	if (currentmode->flags & DM_SWSCALE) {
 		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);
 	}

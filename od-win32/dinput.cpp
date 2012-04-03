@@ -1497,11 +1497,18 @@ static bool initialize_rawinput (void)
 									first = last = bcaps[i].NotRange.Usage;
 								}
 								for (j = first; j <= last && buttoncnt < MAX_MAPPINGS; j++) {
-									did->buttonsort[buttoncnt] = j * 2;
-									did->buttonmappings[buttoncnt] = j;
-									_stprintf (tmp, _T("Button %d"), j);
-									did->buttonname[buttoncnt] = my_strdup (tmp);
-									buttoncnt++;
+									int k;
+									for (k = 0; k < buttoncnt; k++) {
+										if (did->buttonmappings[k] == j)
+											break;
+									}
+									if (k == buttoncnt) {
+										did->buttonsort[buttoncnt] = j * 2;
+										did->buttonmappings[buttoncnt] = j;
+										_stprintf (tmp, _T("Button %d"), j);
+										did->buttonname[buttoncnt] = my_strdup (tmp);
+										buttoncnt++;
+									}
 								}
 							}
 							if (buttoncnt > 0) {

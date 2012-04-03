@@ -1562,7 +1562,7 @@ static uae_u32 REGPARAM2 hardfile_open (TrapContext *context)
 				return 0;
 			}
 		}
-		if (unit < 1000 || is_hardfile (unit) == FILESYS_VIRTUAL)
+		if (unit < 1000 || is_hardfile (unit) == FILESYS_VIRTUAL || is_hardfile (unit) == FILESYS_CD)
 			err = 50; /* HFERR_NoBoard */
 	} else {
 		err = IOERR_BADLENGTH;

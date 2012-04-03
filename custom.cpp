@@ -131,7 +131,7 @@ struct ev eventtab[ev_max];
 struct ev2 eventtab2[ev2_max];
 
 int vpos;
-static int vpos_count, vpos_count_prev;
+static int vpos_count, vpos_count_diff;
 int lof_store; // real bit in custom registers
 static int lof_current; // what display device thinks
 static int lol;
@@ -2878,7 +2878,7 @@ void compute_framesync (void)
 		int res = GET_RES_AGNUS (bplcon0);
 		int vres = islace ? 1 : 0;
 		int res2, vres2;
-		
+			
 		res2 = currprefs.gfx_resolution;
 		if (doublescan)
 			res2++;
@@ -2894,7 +2894,7 @@ void compute_framesync (void)
 		if (vres2 > VRES_QUAD)
 			vres2 = VRES_QUAD;
 
-		gfxvidinfo.drawbuffer.inwidth = (((hbstrt > hbstop ? 0 : (maxhpos - (hbstop - hbstrt))) * 2) << res2);
+		gfxvidinfo.drawbuffer.inwidth =  (((hbstrt > hbstop ? 0 : (maxhpos - (hbstop - hbstrt))) * 2) << res2);
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 
@@ -2906,7 +2906,7 @@ void compute_framesync (void)
 		gfxvidinfo.drawbuffer.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 		gfxvidinfo.drawbuffer.extrawidth = 1;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
-		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline) << currprefs.gfx_vresolution;
+		gfxvidinfo.drawbuffer.inheight = (maxvpos_nom - minfirstline + 1) << currprefs.gfx_vresolution;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	}
@@ -2957,8 +2957,10 @@ void init_hz (bool fullinit)
 	double ovblank = vblank_hz;
 	int hzc = 0;
 
-	if (fullinit || (vpos_count_prev && abs (vpos_count - vpos_count_prev) <= 1))
-		vpos_count = vpos_count_prev = 0;
+	if (fullinit)
+		vpos_count = 0;
+
+	vpos_count_diff = vpos_count;
 
 	doublescan = 0;
 	programmedmode = false;
@@ -2966,7 +2968,7 @@ void init_hz (bool fullinit)
 		hzc = 1;
 	if (beamcon0 != new_beamcon0) {
 		write_log (_T("BEAMCON0 %04x -> %04x PC%=%08x\n"), beamcon0, new_beamcon0, M68K_GETPC);
-		vpos_count = vpos_count_prev = 0;
+		vpos_count_diff = vpos_count = 0;
 	}
 	beamcon0 = new_beamcon0;
 	isntsc = (beamcon0 & 0x20) ? 0 : 1;
@@ -2990,7 +2992,8 @@ void init_hz (bool fullinit)
 	}
 	maxvpos_nom = maxvpos;
 	if (vpos_count > 0) {
-		// we come here if vpos_count != maxvpos (someone poked VPOSW)
+		// we come here if vpos_count != maxvpos and beamcon0 didn't change
+		// (someone poked VPOSW)
 		if (vpos_count < 10)
 			vpos_count = 10;
 		vblank_hz = (isntsc ? 15734 : 15625.0) / vpos_count;
@@ -5414,13 +5417,11 @@ static void vsync_handler_post (void)
 		vpos_count = p96refresh_active;
 		vtotal = vpos_count;
 	}
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (vpos_count_prev && (abs (vpos_count - vpos_count_prev) > 1)) || lof_changed) {
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || abs (vpos_count - vpos_count_diff) > 1 || lof_changed) {
 		init_hz ();
 	} else if (interlace_changed || changed_chipset_refresh ()) {
 		compute_framesync ();
 	}
-
-	vpos_count_prev = vpos_count;
 
 	lof_changed = 0;
 
@@ -6133,7 +6134,7 @@ void custom_reset (int hardreset)
 	unset_special (~(SPCFLAG_BRK | SPCFLAG_MODE_CHANGE));
 
 	vpos = 0;
-	vpos_count = vpos_count_prev = 0;
+	vpos_count = vpos_count_diff = 0;
 
 	inputdevice_reset ();
 	timehack_alive = 0;

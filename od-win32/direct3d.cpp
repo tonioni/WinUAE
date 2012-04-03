@@ -1683,8 +1683,8 @@ static void setupscenecoords (void)
 	//write_log (_T("%.1fx%.1f %.1fx%.1f %.1fx%.1f\n"), dw, dh, w, h, sw, sh);
 
 	// ratio between Amiga texture and overlay mask texture
-	float sw2 = dw * tin_w / window_w;
-	float sh2 = dh * tin_h / window_h;
+	float sw2 = dw * tin_w / window_w - 0.5f;
+	float sh2 = dh * tin_h / window_h + 0.5f;
 
 	maskmult.x = sw2 * maskmult_x / w;
 	maskmult.y = sh2 * maskmult_y / h;
@@ -2317,6 +2317,8 @@ bool D3D_alloctexture (int w, int h)
 
 	tout_w = tin_w * multx;
 	tout_h = tin_h * multx;
+
+	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
 	if (!createamigatexture (tin_w, tin_h))
 		return false;

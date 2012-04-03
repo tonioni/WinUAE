@@ -609,6 +609,9 @@
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
     <None Include="..\resources\resource" />
+    <None Include="..\..\..\..\..\Users\Toni\Desktop\winuaebootlog.txt">
+      <Filter>common</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">

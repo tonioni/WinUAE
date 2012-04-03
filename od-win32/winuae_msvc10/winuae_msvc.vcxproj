@@ -685,6 +685,7 @@
     <ClCompile Include="..\..\moduleripper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\..\Users\Toni\Desktop\winuaebootlog.txt" />
     <None Include="..\resources\35floppy.ico" />
     <None Include="..\resources\amigainfo.ico" />
     <None Include="..\resources\avioutput.ico" />

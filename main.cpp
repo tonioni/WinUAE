@@ -102,6 +102,32 @@ uae_u32 uaerandgetseed (void)
 	return randseed;
 }
 
+void my_trim (TCHAR *s)
+{
+	int len;
+	while (_tcscspn (s, _T("\t \r\n")) == 0)
+		memmove (s, s + 1, (_tcslen (s + 1) + 1) * sizeof TCHAR);
+	len = _tcslen (s);
+	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
+		s[--len] = '\0';
+}
+
+TCHAR *my_strdup_trim (const TCHAR *s)
+{
+	TCHAR *out;
+	int len;
+
+	while (_tcscspn (s, _T("\t \r\n")) == 0)
+		s++;
+	len = _tcslen (s);
+	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
+		len--;
+	out = xmalloc (TCHAR, len + 1);
+	memcpy (out, s, len * sizeof TCHAR);
+	out[len] = 0;
+	return out;
+}
+
 void discard_prefs (struct uae_prefs *p, int type)
 {
 	struct strlist **ps = &p->all_lines;

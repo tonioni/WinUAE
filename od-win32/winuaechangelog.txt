@@ -4,6 +4,17 @@
 - restore only single input target to default.
 - hdd from command line
 
+- On screen led status line was drawn using both D3D sprite and directly to bitmap methods in D3D no-filter mode (b2).
+- Removed PAL/NTSC vertical scaling hack which is not needed anymore.
+- PAL/NTSC vertical scaling added to Fullscreen (TV)/(Max) filter modes.
+- Fullscreen (TV)/(Max) also handles programmed modes like real monitor would, positioning and scaling using sync parameters.
+- Fake 60Hz (VPOSW poking) did nothing. (2.4)
+- DirectDraw + null filter crash fixed when display height was smaller than emulated display height. (b2)
+- D3D overlay mask scaling artifact in some resolutions (2.4)
+- CDFS CD drive statefile support.
+- Ignore duplicate HID button IDs.
+- Reduced flicker when refresh rate changes (PAL<>NTSC or other mode changes)
+
 Beta 2:
 
 - Filter system partial rewrite again. Do not use static display buffer. Always dynamically reallocate internal buffer if

@@ -2813,6 +2813,19 @@ void target_fixup_options (struct uae_prefs *p)
 		p->win32_inactive_pause = p->win32_inactive_nosound = true;
 		nosound = true;
 	}
+	
+	/* switch from 32 to 16 or vice versa if mode does not exist */
+	struct MultiDisplay *md = getdisplay (p);
+	int depth = p->color_mode == 5 ? 4 : 2;
+	for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
+		if (md->DisplayModes[i].depth == depth) {
+			depth = 0;
+			break;
+		}
+	}
+	if (depth) {
+		p->color_mode = p->color_mode == 5 ? 2 : 5;
+	}
 }
 
 void target_default_options (struct uae_prefs *p, int type)
@@ -2862,20 +2875,6 @@ void target_default_options (struct uae_prefs *p, int type)
 		WIN32GUI_LoadUIString (IDS_INPUT_CUSTOM, buf, sizeof buf / sizeof (TCHAR));
 		for (int i = 0; i < GAMEPORT_INPUT_SETTINGS; i++)
 			_stprintf (p->input_config_name[i], buf, i + 1);
-
-		/* switch from 32 to 16 or vice versa if mode does not exist */
-		struct MultiDisplay *md = getdisplay (p);
-		int depth = currprefs.color_mode == 5 ? 4 : 2;
-		for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
-			if (md->DisplayModes[i].depth == depth) {
-				depth = 0;
-				break;
-			}
-		}
-		if (depth) {
-			currprefs.color_mode = currprefs.color_mode == 5 ? 2 : 5;
-		}
-
 	}
 	if (type == 1 || type == 0) {
 		p->win32_uaescsimode = UAESCSI_CDEMU;
