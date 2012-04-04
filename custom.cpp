@@ -2894,7 +2894,10 @@ void compute_framesync (void)
 		if (vres2 > VRES_QUAD)
 			vres2 = VRES_QUAD;
 
-		gfxvidinfo.drawbuffer.inwidth =  (((hbstrt > hbstop ? 0 : (maxhpos - (hbstop - hbstrt))) * 2) << res2);
+		int start = hbstrt;
+		int stop = hbstop;
+
+		gfxvidinfo.drawbuffer.inwidth =  (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start))) * 2) << res2);
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 

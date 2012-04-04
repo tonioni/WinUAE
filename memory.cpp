@@ -2112,7 +2112,7 @@ static void allocate_memory (void)
 
 		memsize = allocated_chipmem = chipmem_full_size = currprefs.chipmem_size;
 		chipmem_full_mask = chipmem_mask = allocated_chipmem - 1;
-		if (memsize < 0x100000)
+		if (!canbang && memsize < 0x100000)
 			memsize = 0x100000;
 		if (memsize > 0x100000 && memsize < 0x200000)
 			memsize = 0x200000;
@@ -2127,7 +2127,7 @@ static void allocate_memory (void)
 		}
 		currprefs.chipset_mask = changed_prefs.chipset_mask;
 		chipmem_full_mask = allocated_chipmem - 1;
-		if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
+		if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !canbang) {
 			if (allocated_chipmem < 0x100000)
 				chipmem_full_mask = 0x100000 - 1;
 			if (allocated_chipmem > 0x100000 && allocated_chipmem < 0x200000)

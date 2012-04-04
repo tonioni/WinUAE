@@ -1932,8 +1932,10 @@ root_found:
 	 */
 	if (sbi->s_rock == 1) {
 		joliet_level = 0;
+		sbi->s_cdtv = 1; /* only convert if plain iso9660 */
 	} else if (joliet_level) {
 		sbi->s_rock = 0;
+		sbi->s_cdtv = 1; /* only convert if plain iso9660 */
 		if (sbi->s_firstdatazone != first_data_zone) {
 			sbi->s_firstdatazone = first_data_zone;
 			write_log (_T("ISOFS: changing to secondary root\n"));
@@ -2025,8 +2027,9 @@ static int isofs_name_translate(struct iso_directory_record *de, char *newn, str
 		if (!c)
 			break;
 
-		if (!inode->i_sb->ei.s_cdtv) { /* keep case if CDTV/CD32 */
-			if (c >= 'A' && c <= 'Z')
+		if (!inode->i_sb->ei.s_cdtv) { /* keep case if Amiga/CDTV/CD32 */
+			/* convert from second character (same as CacheCDFS default) */
+			if (i > 0 && c >= 'A' && c <= 'Z')
 				c |= 0x20;	/* lower case */
 		}
 

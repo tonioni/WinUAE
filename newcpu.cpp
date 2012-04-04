@@ -10,6 +10,7 @@
 #define MMUOP_DEBUG 2
 #define DEBUG_CD32CDTVIO 0
 #define EXCEPTION3_DEBUG 0
+#define CPUTRACE_DEBUG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -179,8 +180,29 @@ void (*x_do_cycles_post)(unsigned long, uae_u32);
 
 static struct cputracestruct cputrace;
 
+#if CPUTRACE_DEBUG
+static void validate_trace (void)
+{
+	for (int i = 0; i < cputrace.memoryoffset; i++) {
+		struct cputracememory *ctm = &cputrace.ctm[i];
+		if (ctm->data == 0xdeadf00d) {
+			write_log (L"unfinished write operation %d %08x\n", i, ctm->addr);
+		}
+	}
+}
+#endif
+
+static void debug_trace (void)
+{
+	if (cputrace.writecounter > 10000 || cputrace.readcounter > 10000)
+		write_log (L"cputrace.readcounter=%d cputrace.writecounter=%d\n", cputrace.readcounter, cputrace.writecounter);
+}
+
 STATIC_INLINE void clear_trace (void)
 {
+#if CPUTRACE_DEBUG
+	validate_trace ();
+#endif
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset++];
 	ctm->mode = 0;
 	cputrace.cyclecounter = 0;
@@ -188,6 +210,9 @@ STATIC_INLINE void clear_trace (void)
 }
 static void set_trace (uaecptr addr, int accessmode, int size)
 {
+#if CPUTRACE_DEBUG
+	validate_trace ();
+#endif
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset++];
 	ctm->addr = addr;
 	ctm->data = 0xdeadf00d;
@@ -197,9 +222,16 @@ static void set_trace (uaecptr addr, int accessmode, int size)
 		cputrace.writecounter++;
 	else
 		cputrace.readcounter++;
+	debug_trace ();
 }
 static void add_trace (uaecptr addr, uae_u32 val, int accessmode, int size)
 {
+	if (cputrace.memoryoffset < 1) {
+#if CPUTRACE_DEBUG
+		write_log (L"add_trace memoryoffset=%d!\n", cputrace.memoryoffset);
+#endif
+		return;
+	}
 	int mode = accessmode | (size << 4);
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset - 1];
 	ctm->addr = addr;
@@ -211,6 +243,7 @@ static void add_trace (uaecptr addr, uae_u32 val, int accessmode, int size)
 		else
 			cputrace.readcounter++;
 	}
+	debug_trace ();
 	cputrace.cyclecounter_pre = cputrace.cyclecounter_post = 0;
 }
 
@@ -588,6 +621,12 @@ static void cputracefunc2_x_do_cycles_pre (unsigned long cycles)
 
 static void cputracefunc_x_do_cycles_post (unsigned long cycles, uae_u32 v)
 {
+	if (cputrace.memoryoffset < 1) {
+#if CPUTRACE_DEBUG
+		write_log (L"cputracefunc_x_do_cycles_post memoryoffset=%d!\n", cputrace.memoryoffset);
+#endif
+		return;
+	}
 	struct cputracememory *ctm = &cputrace.ctm[cputrace.memoryoffset - 1];
 	ctm->data = v;
 	cputrace.cyclecounter_post = cycles;
@@ -1766,6 +1805,62 @@ uae_u32 REGPARAM2 x_get_disp_ea_020 (uae_u32 base, uae_u32 dp)
 		}
 		if ((dp & 0x3) == 0x3) {
 			outer = x_next_ilong ();
+			cycles++;
+		}
+
+		if ((dp & 0x4) == 0) {
+			base += regd;
+			cycles++;
+		}
+		if (dp & 0x3) {
+			base = x_get_long (base);
+			cycles++;
+		}
+		if (dp & 0x4) {
+			base += regd;
+			cycles++;
+		}
+		v = base + outer;
+	} else {
+		v = base + (uae_s32)((uae_s8)dp) + regd;
+	}
+	if (cycles && currprefs.cpu_cycle_exact)
+		x_do_cycles (cycles * cpucycleunit);
+	return v;
+}
+
+uae_u32 REGPARAM2 x_get_disp_ea_ce020 (uae_u32 base, uae_u32 dp)
+{
+	int reg = (dp >> 12) & 15;
+	int cycles = 0;
+	uae_u32 v;
+
+	uae_s32 regd = regs.regs[reg];
+	if ((dp & 0x800) == 0)
+		regd = (uae_s32)(uae_s16)regd;
+	regd <<= (dp >> 9) & 3;
+	if (dp & 0x100) {
+		uae_s32 outer = 0;
+		if (dp & 0x80)
+			base = 0;
+		if (dp & 0x40)
+			regd = 0;
+
+		if ((dp & 0x30) == 0x20) {
+			base += (uae_s32)(uae_s16) next_iword_020ce ();
+			cycles++;
+		}
+		if ((dp & 0x30) == 0x30) {
+			base += x_next_ilong ();
+			cycles++;
+		}
+
+		if ((dp & 0x3) == 0x2) {
+			outer = (uae_s32)(uae_s16) next_iword_020ce ();
+			cycles++;
+		}
+		if ((dp & 0x3) == 0x3) {
+			outer = next_ilong_020ce ();
 			cycles++;
 		}
 
@@ -3942,9 +4037,13 @@ static void m68k_run_2ce (void)
 
 	for (;;) {
 		r->instruction_pc = m68k_getpc ();
-		uae_u16 opcode = x_prefetch (0);
+		uae_u16 opcode = get_word_ce020_prefetch (0);
 
 		if (cpu_tracer) {
+
+#if CPUTRACE_DEBUG
+			validate_trace ();
+#endif
 			memcpy (&cputrace.regs, &r->regs, 16 * sizeof (uae_u32));
 			cputrace.opcode = opcode;
 			cputrace.ir = r->ir;
@@ -4840,7 +4939,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 1000);
 
-	save_u32 (2);
+	save_u32 (2 | 4);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -4870,6 +4969,20 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 		write_log (_T("CPUT%d: %08x %08x %08x\n"), i, cputrace.ctm[i].addr, cputrace.ctm[i].data, cputrace.ctm[i].mode);
 	}
 	save_u32 (cputrace.startcycles);
+
+	if (currprefs.cpu_model == 68020) {
+		for (int i = 0; i < CACHELINES020; i++) {
+			save_u32 (cputrace.caches020[i].data);
+			save_u32 (cputrace.caches020[i].tag);
+			save_u8 (cputrace.caches020[i].valid ? 1 : 0);
+		}
+		save_u32 (cputrace.prefetch020addr);
+		save_u32 (cputrace.cacheholdingaddr020);
+		save_u32 (cputrace.cacheholdingdata020);
+		for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+			save_u16 (cputrace.prefetch020[i]);
+	}
+
 	*len = dst - dstbak;
 	cputrace.needendcycles = 1;
 	return dstbak;
@@ -4880,7 +4993,7 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 	cpu_tracer = 0;
 	cputrace.state = 0;
 	uae_u32 v = restore_u32 ();
-	if (v != 0 && v != 2)
+	if (!(v & 2))
 		return src;
 	cputrace.opcode = restore_u16 ();
 	for (int i = 0; i < 16; i++)
@@ -4906,9 +5019,31 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 		cputrace.ctm[i].mode = restore_u32 ();
 	}
 	cputrace.startcycles = restore_u32 ();
+
+	if (v & 4) {
+		if (currprefs.cpu_model == 68020) {
+			for (int i = 0; i < CACHELINES020; i++) {
+				cputrace.caches020[i].data = restore_u32 ();
+				cputrace.caches020[i].tag = restore_u32 ();
+				cputrace.caches020[i].valid = restore_u8 () != 0;
+			}
+			cputrace.prefetch020addr = restore_u32 ();
+			cputrace.cacheholdingaddr020 = restore_u32 ();
+			cputrace.cacheholdingdata020 = restore_u32 ();
+			for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+				cputrace.prefetch020[i] = restore_u16 ();
+		}
+	}
+
 	cputrace.needendcycles = 1;
-	if (v && cputrace.state)
-		cpu_tracer = -1;
+	if (v && cputrace.state) {
+		if (currprefs.cpu_model > 68000) {
+			if (v & 4)
+				cpu_tracer = -1;
+		} else {
+			cpu_tracer = -1;
+		}
+	}
 
 	return src;
 }
@@ -5387,7 +5522,7 @@ static void fill_icache020 (uae_u32 addr)
 		return;
 	}
 	// cache miss
-	data = mem_access_delay_longi_read_ce020 (addr);
+	data = x_get_long (addr);
 	if (!(regs.cacr & 2)) {
 		c->tag = tag;
 		c->valid = !!(regs.cacr & 1);

@@ -4,6 +4,17 @@
 - restore only single input target to default.
 - hdd from command line
 
+- 68020 CE mode statefile CPUTRACE (CPU state can be saved even in mid instruction) support was not complete,
+  should fix "CPU trace: blah" errors when restoring statefiles. It can't fix already created broken statefiles.
+- Fix built-in CDFS lowercase conversion. Only convert to lower case if plain ISO-9660 (without RockRidge or Joliet)
+  also convert from second character to match CacheCDFS default behavior. Fixes AmigaOS 3.5/3.9 CD file names.
+- Automatic scale/center/resize didn't like screen mode that has horizontal start as early as possible (SuperPlus + ECS)
+- Automatic resize kept resizing forever in interlaced modes. (2.4)
+- Do not emulate ECS Agnus internal 1M address space if JIT enabled and 0.5M Chip RAM because JIT ignores memory
+  bank masks causing OS to misdetect full 1M Chip.
+
+Beta 3:
+
 - On screen led status line was drawn using both D3D sprite and directly to bitmap methods in D3D no-filter mode (b2).
 - Removed PAL/NTSC vertical scaling hack which is not needed anymore.
 - PAL/NTSC vertical scaling added to Fullscreen (TV)/(Max) filter modes.

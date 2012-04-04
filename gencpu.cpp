@@ -1474,7 +1474,10 @@ static void gen_opcode (unsigned long int opcode)
 			dstb = "x_put_byte";
 			do_cycles = "do_cycles_ce000";
 		} else if (using_ce020) {
-			disp020 = "x_get_disp_ea_020";
+			/* x_ not used if it redirects to
+			 * get_word_ce020_prefetch()
+			 */
+			disp020 = "x_get_disp_ea_ce020";
 			prefetch_long = "get_long_ce020_prefetch";
 			prefetch_word = "get_word_ce020_prefetch";
 			srcli = "x_get_ilong";
@@ -1487,6 +1490,8 @@ static void gen_opcode (unsigned long int opcode)
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
 			do_cycles = "do_cycles_ce020";
+			nextw = "next_iword_020ce";
+			nextl = "next_ilong_020ce";
 		}
 
 	} else if (using_ce020) {
@@ -3895,7 +3900,7 @@ static void generate_cpu (int id, int mode)
 	} else {
 		cpu_level = 5 - id; // "generic"
 	}
-	using_indirect = using_ce && !using_ce020;
+	using_indirect = using_ce || using_ce020;
 
 	if (generate_stbl) {
 		if ((id > 0 && id < 10) || (id >= 20))

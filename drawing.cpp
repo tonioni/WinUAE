@@ -381,7 +381,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (interlace_seen) {
 		// interlace = only use long frames
 		if (!lof_store)
-			return 1;
+			return ret;
 		last_planes_vpos++;
 		plflastline_total++;
 	}
@@ -442,7 +442,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	}
 
 	if (dx < 0)
-		dx = 1;
+		dx = 0;
 
 	dy = xshift (dy, dbl2);
 	h = xshift (h, dbl1);
@@ -472,7 +472,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (gclow == w && gcloh == h && gclox == dx && gcloy == dy)
 		return ret;
 
-	if (w <= 0 || h <= 0 || dx <= 0 || dy <= 0)
+	if (w <= 0 || h <= 0 || dx < 0 || dy < 0)
 		return ret;
 	if (doublescan <= 0 && !programmedmode) {
 		if (dx > gfxvidinfo.outbuffer->inwidth / 3)
