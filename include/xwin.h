@@ -125,6 +125,9 @@ struct vidbuffer
 
 	int xoffset; /* superhires pixels from left edge */
 	int yoffset; /* lines from top edge */
+
+	int inxoffset; /* positive if sync positioning */
+	int inyoffset;
 };
 
 extern bool isnativevidbuf (void);

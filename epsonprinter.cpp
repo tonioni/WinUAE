@@ -40,6 +40,7 @@
 int pngprint = 0;
 
 #ifdef C_LIBPNG
+#include <zlib.h>
 #include <png.h>
 #endif
 

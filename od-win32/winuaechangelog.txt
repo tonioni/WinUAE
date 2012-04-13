@@ -1,8 +1,42 @@
-- cpu throttling
-- custom event autofire
-- cycle exact mode scanline sync
+
 - restore only single input target to default.
 - hdd from command line
+
+Beta 6:
+
+- Most CDFS RockRidge file comments were truncated. (Very stupid bug)
+- CDFS media change still crashed in some situations.
+- Show "UAE" as HD controller, not "n/a" (same as "IDE0" and others do)
+- Improved fastest possible CPU throttle option. (Less CPU% usage)
+- If fastest possible CPU does not have enough frame time for extra CPU emulation, reduce extra time in next frame to
+  prevent possible high CPU% usage and slowdowns.
+- Fullwindow RTG, D3D and scaling in Expansion panel enabled: switching to bigger RTG resolution than max fullwindow crashed. (b2)
+- Updated statically linked zlib and libpng to latest versions (1.2.6 and 1.5.10)
+- Debugger basic math operators support (+-*/) added, for example "m 8+100*4" lists memory beginning from 0x408. Note that space
+  is not allowed because it is parameter separator.
+- Borderblank didn't work if BPLCON3 was only written outside of displayable area (b5). This is still quite ugly implemention,
+  it should be done similar to COLOR0 handling but it would require too big changes. Later..
+- A2024 2 lowest RGB bits set correctly, was always cleared previously.
+- Keyboard reset warning fixed (2.4.0)
+- Fixed 1-3 line background color bar on top of screen in autoscale modes (2.4.0)
+- USB joypad/joystick rawinput dpad diagonal movement fix. (2.4.0)
+  
+Beta 5:
+
+- Left edge display limit fix, it was correct when in lores but OCS/ECS hires max overscan
+  (or AGA in 16-bit fetchmode) can start 8 pixels earlier. (ECS SuperPlus missing left edge)
+- Tweaked programmed mode sync positioning algorithm.
+- Use config file gfx_top_windowed and gfx_left_windowed top/left window coordinates if borderless mode.
+- Sort filter presets alphabetically.
+- When calculating autoscale position, restrict left and right side of display inside hsync end and start positions,
+  fixes really wide display in promoted modes. Note that autoscale can't work correctly in (some?) promoted
+  modes because viewable area is larger than visible bitmap = borders are visible.
+- DirectDraw mode wasn't re-initialized correctly when window size changed causing blank screen.
+- Borderblank didn't blank topmost lines and last line. (Old bug which usually wasn't visible until now)
+- Clear display decision tables when switching modes to prevent old, now possibly unvailable lines to be visible in new mode.
+- Possible fix for mouse pointer jumping to (0,0) when pressing buttons and running on some virtual machines. (2.3.3)
+
+Beta 4:
 
 - 68020 CE mode statefile CPUTRACE (CPU state can be saved even in mid instruction) support was not complete,
   should fix "CPU trace: blah" errors when restoring statefiles. It can't fix already created broken statefiles.

@@ -3783,7 +3783,7 @@ void InitializeListView (HWND hDlg)
 				_stprintf (bootpri_str, _T("%d"), uci->bootpri);
 			} else if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE || uci->controller) {
 				_stprintf (blocksize_str, _T("%d"), uci->blocksize);
-				_tcscpy (devname_str, _T("n/a"));
+				_tcscpy (devname_str, _T("*UAE*"));
 				_tcscpy (volname_str, _T("n/a"));
 				_tcscpy (bootpri_str, _T("n/a"));
 				if (!_tcsncmp (rootdir, _T("HD_"), 3))
@@ -12512,13 +12512,13 @@ static int *filtervars2[] = {
 
 struct filterpreset {
 	TCHAR *name;
-	int conf[25];
+	int conf[26];
 };
 static struct filterpreset filterpresets[] =
 {
-	{ _T("PAL"),				UAE_FILTER_PAL,		0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0 },
-	{ _T("D3D Autoscale"),		UAE_FILTER_NULL,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 1 },
-	{ _T("D3D Full Scaling"),	UAE_FILTER_NULL,	2, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0 },
+	{ _T("PAL"),				UAE_FILTER_PAL,		0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 1, 1, 0, 0, 0, 10, 0, 0, 0, 300, 30, 0,  0, 0, 0 },
+	{ _T("D3D Autoscale"),		UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 4, 0 },
+	{ _T("D3D Full Scaling"),	UAE_FILTER_NULL,	0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 1, 0, 0, 0,  0, 0, 0, 0,   0,  0, 0, -1, 0, 0 },
 	{ NULL }
 };
 
@@ -12773,12 +12773,6 @@ static void values_to_hw3ddlg (HWND hDlg)
 
 	j = 0;
 	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_RESETCONTENT, 0, 0L);
-	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)_T(""));
-	for (i = 0; filterpresets[i].name; i++) {
-		TCHAR tmp[MAX_DPATH];
-		_stprintf (tmp, _T("* %s"), filterpresets[i].name);
-		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
-	}
 	fkey = regcreatetree (NULL, _T("FilterPresets"));
 	if (fkey) {
 		int idx = 0;
@@ -12793,9 +12787,16 @@ static void values_to_hw3ddlg (HWND hDlg)
 			SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_ADDSTRING, 0, (LPARAM)tmp);
 			idx++;
 		}
-		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
 		regclosetree (fkey);
 	}
+	for (i = 0; filterpresets[i].name; i++) {
+		TCHAR tmp[MAX_DPATH];
+		_stprintf (tmp, _T("* %s"), filterpresets[i].name);
+		SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_INSERTSTRING, i, (LPARAM)tmp);
+	}
+	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_INSERTSTRING, 0, (LPARAM)_T(""));
+	SendDlgItemMessage (hDlg, IDC_FILTERPRESETS, CB_SETCURSEL, filterpreset_selected, 0);
+
 	int ho, vo, hz, vz;
 	if (workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL) {
 		hz = workprefs.gfx_xcenter_size;

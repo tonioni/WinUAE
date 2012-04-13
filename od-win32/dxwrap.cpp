@@ -117,7 +117,7 @@ static void clearsurf (LPDIRECTDRAWSURFACE7 surf, DWORD color)
 	}
 }
 
-void clearsurface (LPDIRECTDRAWSURFACE7 surf)
+void DirectDraw_ClearSurface (LPDIRECTDRAWSURFACE7 surf)
 {
 	if (surf == NULL)
 		surf = getlocksurface ();
@@ -125,7 +125,7 @@ void clearsurface (LPDIRECTDRAWSURFACE7 surf)
 }
 
 
-int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
+int DirectDraw_LockSurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 {
 	static int cnt = 50;
 	HRESULT ddrval;
@@ -145,7 +145,7 @@ int locksurface (LPDIRECTDRAWSURFACE7 surf, LPDDSURFACEDESC2 desc)
 	}
 	return 1;
 }
-void unlocksurface (LPDIRECTDRAWSURFACE7 surf)
+void DirectDraw_UnlockSurface (LPDIRECTDRAWSURFACE7 surf)
 {
 	HRESULT ddrval;
 
@@ -398,9 +398,9 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		dxdata.swidth = width;
 		dxdata.sheight = height;
 		dxdata.pitch = 0;
-		if (locksurface (surf, &desc)) {
+		if (DirectDraw_LockSurface (surf, &desc)) {
 			dxdata.pitch = desc.lPitch;
-			unlocksurface (surf);
+			DirectDraw_UnlockSurface (surf);
 		} else {
 			write_log (_T("Couldn't get surface pitch!\n"));
 		}
@@ -614,7 +614,7 @@ int DirectDraw_SurfaceLock (void)
 	}
 	if (dxdata.lockcnt > 0)
 		return 1;
-	ok = locksurface (getlocksurface (), &dxdata.locksurface);
+	ok = DirectDraw_LockSurface (getlocksurface (), &dxdata.locksurface);
 	if (ok)
 		dxdata.lockcnt++;
 	return ok;
@@ -626,7 +626,7 @@ void DirectDraw_SurfaceUnlock (void)
 	if (dxdata.lockcnt == 0)
 		return;
 	dxdata.lockcnt--;
-	unlocksurface (getlocksurface ());
+	DirectDraw_UnlockSurface (getlocksurface ());
 }
 
 uae_u8 *DirectDraw_GetSurfacePointer (void)
@@ -805,8 +805,8 @@ static int DirectDraw_Blt_EmuCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRE
 		dx = dstrect->left;
 		dy = dstrect->top;
 	}
-	if (locksurface (dst, &dstd)) {
-		if (locksurface (src, &srcd)) {
+	if (DirectDraw_LockSurface (dst, &dstd)) {
+		if (DirectDraw_LockSurface (src, &srcd)) {
 			bpp = srcd.ddpfPixelFormat.dwRGBBitCount / 8;
 			h = srcd.dwHeight;
 			w = srcd.dwWidth;
@@ -831,9 +831,9 @@ static int DirectDraw_Blt_EmuCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRE
 				}
 			}
 			ok = 1;
-			unlocksurface (src);
+			DirectDraw_UnlockSurface (src);
 		}
-		unlocksurface (dst);
+		DirectDraw_UnlockSurface (dst);
 	}
 	return ok;
 }
@@ -870,12 +870,12 @@ int DirectDraw_BlitRect (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSU
 {
 	return DirectDraw_Blt (dst, dstrect, src, scrrect, FALSE);
 }
-int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect)
+static int DirectDraw_BlitRectCK (LPDIRECTDRAWSURFACE7 dst, RECT *dstrect, LPDIRECTDRAWSURFACE7 src, RECT *scrrect)
 {
 	return DirectDraw_Blt (dst, dstrect, src, scrrect, TRUE);
 }
 
-void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color)
+static void DirectDraw_FillSurface (LPDIRECTDRAWSURFACE7 dst, RECT *rect, uae_u32 color)
 {
 	HRESULT ddrval;
 	DDBLTFX ddbltfx;

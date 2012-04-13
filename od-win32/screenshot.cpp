@@ -235,11 +235,13 @@ void Screenshot_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
 
 static void _cdecl pngtest_blah (png_structp png_ptr, png_const_charp message)
 {
+#if 0
 	TCHAR *name = au ("unknown");
 	if (png_ptr != NULL && png_ptr->error_ptr != NULL)
 		name = au ((char*)png_ptr->error_ptr);
 	write_log (_T("%s: libpng warning: %s\n"), name, message);
 	xfree (name);
+#endif
 }
 
 static int savepng (FILE *fp)

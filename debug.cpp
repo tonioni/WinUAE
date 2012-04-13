@@ -35,6 +35,7 @@
 #include "cpummu.h"
 #include "rommgr.h"
 #include "inputrecord.h"
+#include "calc.h"
 
 int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -175,10 +176,42 @@ static int debug_out (const TCHAR *format, ...)
 	return 1;
 }
 
+
+static bool isoperator(TCHAR **cp)
+{
+	TCHAR c = **cp;
+	return c == '+' || c == '-' || c == '/' || c == '*' || c == '(' || c == ')';
+}
+
 static void ignore_ws (TCHAR **c)
 {
 	while (**c && _istspace(**c))
 		(*c)++;
+}
+static TCHAR peekchar (TCHAR **c)
+{
+	return **c;
+}
+static TCHAR readchar (TCHAR **c)
+{
+	TCHAR cc = **c;
+	(*c)++;
+	return cc;
+}
+static TCHAR next_char (TCHAR **c)
+{
+	ignore_ws (c);
+	return *(*c)++;
+}
+static TCHAR peek_next_char (TCHAR **c)
+{
+	TCHAR *pc = *c;
+	return pc[1];
+}
+static int more_params (TCHAR **c)
+{
+	ignore_ws (c);
+	return (**c) != 0;
 }
 
 static uae_u32 readint (TCHAR **c);
@@ -292,7 +325,7 @@ static uae_u32 readintx (TCHAR **c)
 }
 
 
-static int checkvaltype (TCHAR **c, uae_u32 *val)
+static int checkvaltype2 (TCHAR **c, uae_u32 *val, TCHAR def)
 {
 	TCHAR nc;
 
@@ -322,81 +355,121 @@ static int checkvaltype (TCHAR **c, uae_u32 *val)
 		if (readregx (c, val))
 			return 1;
 	}
+	if (def == '!') {
+		*val = readintx (c);
+		return -1;
+	} else if (def == '$') {
+		*val = readhexx (c);
+		return -1;
+	} else if (def == '%') {
+		*val = readbinx (c);
+		return -1;
+	}
 	return 0;
 }
 
 static int readsize (int val, TCHAR **c)
 {
-	if ((*c)[0] == '.') {
-		(*c)++;
-		TCHAR cc = _totupper ((*c)[0]);
-		(*c)++;
-		if (cc == 'B')
-			return 1;
-		if (cc == 'W')
-			return 2;
-		if (cc == '3')
-			return 3;
-		if (cc == 'L')
-			return 4;
-	}
-	if (val > 255 || val < -127)
+	TCHAR cc = _totupper (readchar(c));
+	if (cc == 'B')
+		return 1;
+	if (cc == 'W')
 		return 2;
-	if (val > 65535 || val < -32767)
+	if (cc == '3')
+		return 3;
+	if (cc == 'L')
 		return 4;
-	return 1;
+	return 0;
+}
+
+static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
+{
+	TCHAR form[256], *p;
+	bool gotop = false;
+	double out;
+
+	form[0] = 0;
+	*size = 0;
+	p = form;
+	for (;;) {
+		uae_u32 v;
+		if (!checkvaltype2 (cp, &v, def))
+			return 0;
+		*val = v;
+		// stupid but works!
+		_stprintf(p, L"%u", v);
+		p += _tcslen (p);
+		if (peekchar (cp) == '.') {
+			readchar (cp);
+			*size = readsize (v, cp);
+		}
+		if (!isoperator (cp))
+			break;
+		gotop = true;
+		*p++= readchar (cp);
+		*p = 0;
+	}
+	if (!gotop) {
+		if (*size == 0) {
+			uae_s32 v = (uae_s32)(*val);
+			if (v > 255 || v < -127) {
+				*size = 2;
+			} else if (v > 65535 || v < -32767) {
+				*size = 4;
+			} else {
+				*size = 1;
+			}
+		}
+		return 1;
+	}
+	if (calc (form, &out)) {
+		*val = (uae_u32)out;
+		if (*size == 0) {
+			uae_s32 v = (uae_s32)(*val);
+			if (v > 255 || v < -127) {
+				*size = 2;
+			} else if (v > 65535 || v < -32767) {
+				*size = 4;
+			} else {
+				*size = 1;
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+
+
+static uae_u32 readnum (TCHAR **c, int *size, TCHAR def)
+{
+	uae_u32 val;
+	if (checkvaltype (c, &val, size, def))
+		return val;
+	return 0;
 }
 
 static uae_u32 readint (TCHAR **c)
 {
-	uae_u32 val;
-	if (checkvaltype (c, &val))
-		return val;
-	return readintx (c);
+	int size;
+	return readnum (c, &size, '!');
 }
 static uae_u32 readhex (TCHAR **c)
 {
-	uae_u32 val;
-	if (checkvaltype (c, &val))
-		return val;
-	return readhexx (c);
-}
-static uae_u32 readint (TCHAR **c, int *size)
-{
-	uae_u32 val = readint (c);
-	*size = readsize (val, c);
-	return val;
-}
-static uae_u32 readhex (TCHAR **c, int *size)
-{
-	uae_u32 val = readhex (c);
-	*size = readsize (val, c);
-	return val;
+	int size;
+	return readnum (c, &size, '$');
 }
 static uae_u32 readbin (TCHAR **c)
 {
-	uae_u32 val;
-	if (checkvaltype (c, &val))
-		return val;
-	return readbinx (c);
+	int size;
+	return readnum (c, &size, '%');
 }
-
-static TCHAR next_char (TCHAR **c)
+static uae_u32 readint (TCHAR **c, int *size)
 {
-	ignore_ws (c);
-	return *(*c)++;
+	return readnum (c, size, '!');
 }
-
-static TCHAR peek_next_char (TCHAR **c)
+static uae_u32 readhex (TCHAR **c, int *size)
 {
-	TCHAR *pc = *c;
-	return pc[1];
-}
-
-static int more_params (TCHAR **c)
-{
-	ignore_ws (c);
-	return (**c) != 0;
+	return readnum (c, size, '$');
 }
 
 static int next_string (TCHAR **c, TCHAR *out, int max, int forceupper)

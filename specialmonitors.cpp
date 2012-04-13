@@ -385,11 +385,11 @@ static bool a2024(struct vidbuffer *src, struct vidbuffer *dst)
 			}
 			if (dbl == 1) {
 				c1 = (c1 + c2 + 1) / 2;
-				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2);
+				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2) | (c1 << 0);
 				PRGB(dst, dstp1, c1, c1, c1);
 			} else {
-				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2);
-				c2 = (c2 << 6) | (c2 << 4) | (c2 << 2);
+				c1 = (c1 << 6) | (c1 << 4) | (c1 << 2) | (c1 << 0);
+				c2 = (c2 << 6) | (c2 << 4) | (c2 << 2) | (c2 << 0);
 				PRGB(dst, dstp1, c1, c1, c1);
 				PRGB(dst, dstp2, c2, c2, c2);
 				dstp2 += dst->pixbytes;

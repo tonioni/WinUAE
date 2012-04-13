@@ -30,6 +30,7 @@
 #include "blkdev.h"
 #include "registry.h"
 #include "win32gui.h"
+#include "drawing.h"
 #include <resource>
 
 static int initialized;
@@ -257,12 +258,15 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 					break;
 				}
 			}
-			if (wdnum >= 0)
+			if (wdnum >= 0) {
 				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, inputmap_port);
+				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, inputmap_port);
+			}
 		}
 	}
 
 	inputdevice_updateconfig (&changed_prefs);
+	inputdevice_updateconfig (&currprefs);
 	return TRUE;
 }
 
@@ -1011,7 +1015,7 @@ static void sendenum (void)
 	_tcscpy (desc.szHostInputID, _T("KeyboardCustom"));
 	_tcscpy (desc.szHostInputName, _T("KeyboardCustom"));
 	desc.dwHostInputType = RP_HOSTINPUT_KEYJOY_CUSTOM;
-	desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
+	desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK | RP_FEATURE_INPUTDEVICE_JOYPAD;
 	RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {

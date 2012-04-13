@@ -1059,7 +1059,7 @@ repeat:
 				int l = p[0];
 				char t = p[l];
 				p[l] = 0;
-				au_copy (inode->i_comment + _tcslen (inode->i_comment), maxcomment + 1 - l, p + 1);
+				au_copy (inode->i_comment + _tcslen (inode->i_comment), maxcomment + 1 - _tcslen (inode->i_comment), p + 1);
 				p[l] = t;
 			}
 			break;
@@ -2436,6 +2436,8 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 			ii->totalblocks = totalblocks ? totalblocks : ii->blocks;
 			ii->creation = sb->root->i_ctime.tv_sec;
 		}
+		if (!ii->volumename[0] || !ii->blocks)
+			ii->unknown_media = true;
 	}
 	return true;
 }

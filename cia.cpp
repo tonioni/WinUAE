@@ -538,6 +538,7 @@ static void setcode (uae_u8 keycode)
 static void sendrw (void)
 {
 	setcode (AK_RESETWARNING);
+	ciaasdr = kbcode;
 	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
 	ciaaicr |= 8;
 	RethinkICRA ();
@@ -1134,11 +1135,11 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		val &= 0x7f; /* bit 7 is unused */
 		if ((val & 1) && !(ciaacra & 1))
 			ciaastarta = CIASTARTCYCLESCRA;
-		if ((val & 0x40) != (ciaacra & 0x40)) {
+		if ((val & 0x40) == 0 && (ciaacra & 0x40) != 0) {
 			/* todo: check if low to high or high to low only */
 			kblostsynccnt = 0;
 #if KB_DEBUG
-			write_log (_T("KB_ACK %02x->%02x\n"), val, ciaacra);
+			write_log (_T("KB_ACK %02x->%02x\n"), ciaacra, val);
 #endif
 		}
 		ciaacra = val;

@@ -1384,13 +1384,13 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 				uae_u64 uniq;
 				ui->cdfs_superblock = u->ui.cdfs_superblock = isofs_mount (ui->cddevno, &uniq);
 				u->rootnode.uniq_external = uniq;
-				if (!u->ui.cdfs_superblock) {
-					u->ui.unknown_media = true;
+				u->ui.unknown_media = true;
+				if (!u->ui.cdfs_superblock)
 					return 0;
-				}
 				struct isofs_info ii;
 				set_highcyl (ui, 0);
-				if (isofs_mediainfo (ui->cdfs_superblock, &ii) && ii.media) {
+				bool r = isofs_mediainfo (ui->cdfs_superblock, &ii);
+				if (r && ii.media) {
 					u->ui.unknown_media = ii.unknown_media;
 					if (!ii.unknown_media) {
 						u->ui.volname = ui->volname = my_strdup (ii.volumename);
@@ -2527,7 +2527,13 @@ static void
 {
 	struct fs_usage fsu;
 	int ret, err = ERROR_NO_FREE_STORE;
+	int blocksize, nr;
+	uae_u32 dostype;
 
+	blocksize = 1204;
+	/* not FFS because it is not understood by WB1.x C:Info */
+	dostype = DISK_TYPE_DOS;
+	nr = unit->unit;
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE) {
 		ret = zfile_fs_usage_archive (unit->ui.rootdir, 0, &fsu);
 	} else if (unit->volflags & MYVOLUMEINFO_CDFS) {
@@ -2535,6 +2541,8 @@ static void
 		ret = isofs_mediainfo (unit->ui.cdfs_superblock, &ii) ? 0 : 1;
 		fsu.fsu_blocks = ii.blocks;
 		fsu.fsu_bavail = 0;
+		blocksize = ii.blocksize;
+		nr = unit->unit - cd_unit_offset;
 	} else {
 		ret = get_fs_usage (unit->ui.rootdir, 0, &fsu);
 		if (ret)
@@ -2546,13 +2554,13 @@ static void
 		return;
 	}
 	put_long (info, 0); /* errors */
-	put_long (info + 4, (unit->volflags & MYVOLUMEINFO_CDFS) ? unit->unit - cd_unit_offset : unit->unit); /* unit number */
+	put_long (info + 4, nr); /* unit number */
 	put_long (info + 8, unit->ui.readonly || unit->ui.locked ? 80 : 82); /* state  */
-	put_long (info + 20, (unit->volflags & MYVOLUMEINFO_CDFS) ? 2048 : 1024); /* bytesperblock */
+	put_long (info + 20, blocksize); /* bytesperblock */
 	if (disk_info && unit->ui.unknown_media) {
 		put_long (info + 12, 0);
 		put_long (info + 16, 0);
-		put_long (info + 24, ('B' << 24) | ('A' << 16) | ('D' << 8) | 0); /* ID_UNREADABLE_DISK */
+		put_long (info + 24, ('B' << 24) | ('A' << 16) | ('D' << 8) | (0 << 0)); /* ID_UNREADABLE_DISK */
 		put_long (info + 28, 0);
 	} else if (disk_info && !filesys_isvolume (unit)) {
 		put_long (info + 12, 0);
@@ -2562,7 +2570,7 @@ static void
 	} else {
 		put_long (info + 12, fsu.fsu_blocks ); /* numblocks */
 		put_long (info + 16, fsu.fsu_blocks - fsu.fsu_bavail); /* inuse */
-		put_long (info + 24, (unit->volflags & MYVOLUMEINFO_CDFS) ? DISK_TYPE_DOS : DISK_TYPE_DOS_FFS); /* disk type */
+		put_long (info + 24, dostype); /* disk type */
 		put_long (info + 28, unit->volume >> 2); /* volume node */
 	}
 	put_long (info + 32, 0); /* inuse */

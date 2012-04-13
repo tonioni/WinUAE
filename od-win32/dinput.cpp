@@ -1697,7 +1697,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		}
 		if (rawinput_log & 2)
-			write_log (_T("HANDLE=%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n"),
+			write_log (_T("%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n"),
 				raw->header.hDevice,
 				rm->usFlags,
 				rm->usButtonFlags,
@@ -1742,21 +1742,23 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 						setmousebuttonstate (num, bnum + 1, -1);
 				}
 			}
-			if (istest) {
-				if (abs (rm->lLastX - lastx[num]) > 7) {
+			if (!rm->ulButtons) {
+				if (istest) {
+					if (abs (rm->lLastX - lastx[num]) > 7) {
+						setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+						lastx[num] = rm->lLastX;
+						lasty[num] = rm->lLastY;
+					} else if (abs (rm->lLastY - lasty[num]) > 7) {
+						setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+						lastx[num] = rm->lLastX;
+						lasty[num] = rm->lLastY;
+					}
+				} else {
 					setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-					lastx[num] = rm->lLastX;
-					lasty[num] = rm->lLastY;
-				} else if (abs (rm->lLastY - lasty[num]) > 7) {
 					setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
 					lastx[num] = rm->lLastX;
 					lasty[num] = rm->lLastY;
 				}
-			} else {
-				setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-				setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-				lastx[num] = rm->lLastX;
-				lasty[num] = rm->lLastY;
 			}
 		}
 		if (isfocus () && !istest) {
@@ -1847,13 +1849,13 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 								int min = vcaps->LogicalMin;
 								if (vcaps->LogicalMax - min == 7) {
-									if (val == min + 0 && type == AXISTYPE_POV_Y)
+									if ((val == min + 0 || val == min + 1 || val == min + 7) && type == AXISTYPE_POV_Y)
 										data = -127;
-									if (val == min + 2 && type == AXISTYPE_POV_X)
+									if ((val == min + 2 || val == min + 3 || val == min + 1) && type == AXISTYPE_POV_X)
 										data = 127;
-									if (val == min + 4 && type == AXISTYPE_POV_Y)
+									if ((val == min + 4 || val == min + 5 || val == min + 3) && type == AXISTYPE_POV_Y)
 										data = 127;
-									if (val == min + 6 && type == AXISTYPE_POV_X)
+									if ((val == min + 6 || val == min + 7 || val == min + 5) && type == AXISTYPE_POV_X)
 										data = -127;
 								} else {
 									if (val == min + 0 && type == AXISTYPE_POV_Y)

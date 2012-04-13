@@ -85,6 +85,7 @@ static int linedbl, linedbld;
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
+static uae_u16 bplcon0_store, bplcon3_store;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
 that playfield 1 has the priority, dbplpf_*2 are used if playfield 2 has
@@ -214,7 +215,8 @@ static int bplres;
 static int plf1pri, plf2pri, bplxor;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
-static int brdsprt, brdblank, brdblank_changed, hposblank;
+static bool brdsprt, brdblank, brdblank_changed;
+static int hposblank;
 
 bool picasso_requested_on;
 bool picasso_on;
@@ -389,6 +391,9 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (!plflastline_total)
 		plflastline_total = last_planes_vpos;
 
+	ddffirstword_total = coord_hw_to_window_x (ddffirstword_total * 2 + DIW_DDF_OFFSET);
+	ddflastword_total = coord_hw_to_window_x (ddflastword_total * 2 + DIW_DDF_OFFSET);
+
 	if (doublescan <= 0 && !programmedmode) {
 		int min = coord_diw_to_window_x (92);
 		int max = coord_diw_to_window_x (460);
@@ -396,8 +401,6 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 			diwfirstword_total = min;
 		if (diwlastword_total > max)
 			diwlastword_total = max;
-		ddffirstword_total = coord_hw_to_window_x (ddffirstword_total * 2 + DIW_DDF_OFFSET);
-		ddflastword_total = coord_hw_to_window_x (ddflastword_total * 2 + DIW_DDF_OFFSET);
 		if (ddffirstword_total < min)
 			ddffirstword_total = min;
 		if (ddflastword_total > max)
@@ -724,6 +727,8 @@ STATIC_INLINE xcolnr getbgc (void)
 		return xcolors[0x0f0];
 	else if (hposblank == 3)
 		return xcolors[0x00f];
+	else if (brdblank)
+		return xcolors[0x880];
 #endif
 	return (brdblank || hposblank) ? 0 : colors_for_drawing.acolors[0];
 }
@@ -1857,7 +1862,6 @@ STATIC_INLINE void do_flush_screen (struct vidbuffer *vb, int start, int stop)
 * form. */
 static void pfield_expand_dp_bplcon (void)
 {
-	int brdblank_2;
 	static int b2;
 
 	bplres = dp_for_drawing->bplres;
@@ -1883,13 +1887,6 @@ static void pfield_expand_dp_bplcon (void)
 	plf_sprite_mask |= (0x0000FFFF << (4 * plf1pri)) & 0xFFFF;
 	bpldualpf = (dp_for_drawing->bplcon0 & 0x400) == 0x400;
 	bpldualpfpri = (dp_for_drawing->bplcon2 & 0x40) == 0x40;
-
-#ifdef ECS_DENISE
-	brdblank_2 = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x20);
-	if (brdblank_2 != brdblank)
-		brdblank_changed = 1;
-	brdblank = brdblank_2;
-#endif
 
 #ifdef AGA
 	bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
@@ -1919,6 +1916,16 @@ static bool isham (uae_u16 bplcon0)
 	return 0;
 }
 
+static void isbrdblank (void)
+{
+#ifdef ECS_DENISE
+	bool brdblank_2 = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0_store & 1) && (bplcon3_store & 0x20);
+	if (brdblank_2 != brdblank)
+		brdblank_changed = true;
+	brdblank = brdblank_2;
+#endif
+}
+
 static void pfield_expand_dp_bplconx (int regno, int v)
 {
 	if (regno == 0xffff) {
@@ -1933,6 +1940,8 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 		dp_for_drawing->bplres = GET_RES_DENISE (v);
 		dp_for_drawing->nr_planes = GET_PLANES (v);
 		dp_for_drawing->ham_seen = isham (v);
+		bplcon0_store = v;
+		isbrdblank ();
 		break;
 	case 0x104:
 		dp_for_drawing->bplcon2 = v;
@@ -1940,6 +1949,8 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 #ifdef ECS_DENISE
 	case 0x106:
 		dp_for_drawing->bplcon3 = v;
+		bplcon3_store = v;
+		isbrdblank ();
 		break;
 #endif
 #ifdef AGA
@@ -2059,7 +2070,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		dp_for_drawing--;
 		dip_for_drawing--;
 		linestate[lineno] = LINE_DONE_AS_PREVIOUS;
-		if (dp_for_drawing->plfleft == -1)
+		if (dp_for_drawing->plfleft < 0)
 			border = 1;
 		break;
 
@@ -2069,14 +2080,14 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		return;
 
 	case LINE_DECIDED_DOUBLE:
-		if (follow_ypos != -1) {
+		if (follow_ypos >= 0) {
 			do_double = 1;
 			linestate[lineno + 1] = LINE_DONE_AS_PREVIOUS;
 		}
 
 		/* fall through */
 	default:
-		if (dp_for_drawing->plfleft == -1)
+		if (dp_for_drawing->plfleft < 0)
 			border = 1;
 		linestate[lineno] = LINE_DONE;
 		break;
@@ -2246,7 +2257,11 @@ static void center_image (void)
 		visible_left_border = max_diwlastword - w;
 		//visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
 	} else {
-		visible_left_border = 0;
+		if (gfxvidinfo.drawbuffer.inxoffset < 0) {
+			visible_left_border = 0;
+		} else {
+			visible_left_border = gfxvidinfo.drawbuffer.inxoffset - DISPLAY_LEFT_SHIFT;
+		}
 	}
 
 
@@ -2265,7 +2280,7 @@ static void center_image (void)
 		visible_right_border = max_diwlastword;
 
 	thisframe_y_adjust = minfirstline;
-	if (currprefs.gfx_ycenter && thisframe_first_drawn_line != -1 && !currprefs.gfx_filter_autoscale) {
+	if (currprefs.gfx_ycenter && thisframe_first_drawn_line >= 0 && !currprefs.gfx_filter_autoscale) {
 
 		if (thisframe_last_drawn_line - thisframe_first_drawn_line < max_drawn_amiga_line && currprefs.gfx_ycenter == 2)
 			thisframe_y_adjust = (thisframe_last_drawn_line - thisframe_first_drawn_line - max_drawn_amiga_line) / 2 + thisframe_first_drawn_line;
@@ -2384,7 +2399,7 @@ static void init_drawing_frame (void)
 
 	init_hardware_for_drawing_frame ();
 
-	if (thisframe_first_drawn_line == -1)
+	if (thisframe_first_drawn_line < 0)
 		thisframe_first_drawn_line = minfirstline;
 	if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 		thisframe_last_drawn_line = thisframe_first_drawn_line;
@@ -2681,7 +2696,7 @@ void finish_drawing_frame (void)
 		for (i = 0; i < sizeof linestate / sizeof *linestate; i++)
 			linestate[i] = LINE_UNDECIDED;
 		notice_screen_contents_lost ();
-		brdblank_changed = 0;
+		brdblank_changed = false;
 	}
 #endif
 }
@@ -2695,7 +2710,7 @@ void hardware_line_completed (int lineno)
 		i = lineno - thisframe_y_adjust_real;
 		if (i >= 0 && i < max_ypos_thisframe) {
 			where = amiga2aspect_line_map[i+min_ypos_for_screen];
-			if (where < gfxvidinfo.drawbuffer.outheight && where != -1)
+			if (where < gfxvidinfo.drawbuffer.outheight && where >= 0)
 				pfield_draw_line (lineno, where, amiga2aspect_line_map[i+min_ypos_for_screen+1]);
 		}
 	}
@@ -2759,7 +2774,7 @@ void vsync_handle_check (void)
 	check_prefs_changed_cpu ();
 }
 
-void vsync_handle_redraw (int long_frame, int lof_changed)
+void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae_u16 bplcon3p)
 {
 	last_redraw_point++;
 	if (lof_changed || interlace_seen <= 0 || last_redraw_point >= 2 || long_frame || doublescan < 0) {
@@ -2802,6 +2817,12 @@ void vsync_handle_redraw (int long_frame, int lof_changed)
 		if (isvsync_chipset ())
 			flush_screen (gfxvidinfo.inbuffer, 0, 0); /* vsync mode */
 	}
+
+	/* check borderblank here because bplcon0 or especially bplcon3 may only be written once outside of displayable area */
+	bplcon0_store = bplcon0p;
+	bplcon3_store = bplcon3p;
+	isbrdblank ();
+
 	gui_flicker_led (-1, 0, 0);
 #ifdef AVIOUTPUT
 	frame_drawn ();

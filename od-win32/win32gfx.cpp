@@ -1989,10 +1989,14 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 		DirectDraw_Fill (NULL, 0);
 		DirectDraw_BlitToPrimary (NULL);
 		if (screen_is_picasso) {
-			if (currprefs.win32_rtgscaleifsmall && (wc->native_width > picasso96_state.Width || wc->native_height > picasso96_state.Height))
+			if (currprefs.win32_rtgscaleifsmall && ((wc->native_width > picasso96_state.Width && wc->native_height >= picasso96_state.Height) || (wc->native_height > picasso96_state.Height && wc->native_width >= picasso96_state.Width)))
 				return -1;
 			if (currprefs.win32_rtgallowscaling && (picasso96_state.Width != wc->native_width || picasso96_state.Height != wc->native_height))
 				return -1;
+#if 0
+			if (wc->native_width < picasso96_state.Width || wc->native_height < picasso96_state.Height)
+				return 1;
+#endif
 		}
 		return -1;
 	}
@@ -2302,7 +2306,7 @@ static int getbestmode (int nextbest)
 				currentmode->native_height = pr->res.height;
 				currentmode->current_width = currentmode->native_width;
 				currentmode->current_height = currentmode->native_height;
-				break;
+				goto end;
 			}
 		}
 		// still not match? check all modes
@@ -2317,16 +2321,18 @@ static int getbestmode (int nextbest)
 				currentmode->native_height = pr->res.height;
 				currentmode->current_width = currentmode->native_width;
 				currentmode->current_height = currentmode->native_height;
-				break;
+				goto end;
 			}
 		}
 		index++;
 	}
+end:
 	if (index >= 0) {
 		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = 
 			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = index;
 		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] =
 			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] = 0;
+		write_log (L"Can't find mode %dx%d ->\n", currentmode->native_width, currentmode->native_height);
 		write_log (L"Monitor switched to '%s'\n", md->adaptername);
 	}
 	return 1;
@@ -2994,6 +3000,11 @@ static int create_windows_2 (void)
 		regqueryint (NULL, _T("MainPosX"), &stored_x);
 		regqueryint (NULL, _T("MainPosY"), &stored_y);
 
+		if (borderless) {
+			stored_x = currprefs.gfx_size_win.x;
+			stored_y = currprefs.gfx_size_win.y;
+		}
+
 		while (first) {
 			first--;
 			if (stored_x < GetSystemMetrics (SM_XVIRTUALSCREEN))
@@ -3083,7 +3094,7 @@ static int create_windows_2 (void)
 		hAmigaWnd = CreateWindowEx (dxfs || d3dfs ? WS_EX_ACCEPTFILES | WS_EX_TOPMOST : WS_EX_ACCEPTFILES | WS_EX_TOOLWINDOW | (currprefs.win32_alwaysontop ? WS_EX_TOPMOST : 0),
 			_T("AmigaPowah"), _T("WinUAE"),
 			WS_POPUP,
-			x, y, w, h,
+			0, 0, w, h,
 			parent, NULL, hInst, NULL);
 	} else {
 		hAmigaWnd = CreateWindowEx (
@@ -3342,6 +3353,7 @@ static BOOL doInit (void)
 	init_colors ();
 
 	S2X_free ();
+	oldtex_w = oldtex_h = -1;
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
@@ -3355,7 +3367,6 @@ static BOOL doInit (void)
 			ret = -1;
 			goto oops;
 		}
-		oldtex_w = oldtex_h = -1;
 		target_graphics_buffer_update ();
 	}
 
@@ -3377,8 +3388,8 @@ bool target_graphics_buffer_update (void)
 	int w, h;
 	
 	if (screen_is_picasso) {
-		w = picasso_vidinfo.width;
-		h = picasso_vidinfo.height;
+		w = picasso96_state.Width > picasso_vidinfo.width ? picasso96_state.Width : picasso_vidinfo.width;
+		h = picasso96_state.Height > picasso_vidinfo.height ? picasso96_state.Height : picasso_vidinfo.height;
 	} else {
 		struct vidbuffer *vb = gfxvidinfo.drawbuffer.tempbufferinuse ? &gfxvidinfo.tempbuffer : &gfxvidinfo.drawbuffer;
 		gfxvidinfo.outbuffer = vb;
@@ -3397,6 +3408,8 @@ bool target_graphics_buffer_update (void)
 	S2X_free ();
 	if (currentmode->flags & DM_D3D) {
 		D3D_alloctexture (w, h);
+	} else {
+		DirectDraw_ClearSurface (NULL);
 	}
 	if (currentmode->flags & DM_SWSCALE) {
 		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);

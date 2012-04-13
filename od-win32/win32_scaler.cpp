@@ -591,12 +591,12 @@ static void statusline (void)
 	SetRect (&sr, slx, 0, slx + lx, TD_TOTAL_HEIGHT);
 	SetRect (&dr, slx, sly, slx + lx, sly + TD_TOTAL_HEIGHT);
 	DirectDraw_BlitRect (tempsurf, &sr, NULL, &dr);
-	if (locksurface (tempsurf, &desc)) {
+	if (DirectDraw_LockSurface (tempsurf, &desc)) {
 		for (y = 0; y < TD_TOTAL_HEIGHT; y++) {
 			uae_u8 *buf = (uae_u8*)desc.lpSurface + y * desc.lPitch;
 			draw_status_line_single (buf, dst_depth / 8, y, lx, rc, gc, bc, NULL);
 		}
-		unlocksurface (tempsurf);
+		DirectDraw_UnlockSurface (tempsurf);
 		DirectDraw_BlitRect (NULL, &dr, tempsurf, &sr);
 	}
 }
@@ -758,10 +758,10 @@ void S2X_render (void)
 		if (tempsurf == NULL)
 			return;
 		if (cleartemp) {
-			clearsurface (tempsurf);
+			DirectDraw_ClearSurface (tempsurf);
 			cleartemp = 0;
 		}
-		if (!locksurface (tempsurf, &desc))
+		if (!DirectDraw_LockSurface (tempsurf, &desc))
 			return;
 		pitch = desc.lPitch;
 		surfstart = (uae_u8*)desc.lpSurface;
@@ -899,7 +899,7 @@ end:
 	if (d3d) {
 		;//D3D_unlocktexture (); unlock in win32gfx.c
 	} else {
-		unlocksurface (tempsurf);
+		DirectDraw_UnlockSurface (tempsurf);
 	
 		getfilterrect2 (&dr, &sr, &zr, dst_width, dst_height, aw, ah, scale, temp_width, temp_height);
 		//write_log (_T("(%d %d %d %d) - (%d %d %d %d) (%d %d)\n"), dr.left, dr.top, dr.right, dr.bottom, sr.left, sr.top, sr.right, sr.bottom, zr.left, zr.top);
@@ -918,7 +918,7 @@ end:
 
 void S2X_refresh (void)
 {
-	clearsurface (NULL);
+	DirectDraw_ClearSurface (NULL);
 	S2X_render ();
 }
 

@@ -140,7 +140,9 @@ static enum nln_how nextline_how;
 static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
 static int scandoubled_line;
 static bool vsync_rendered, frame_shown;
+static int vsynctimeperline;
 static int jitcount = 0;
+static int frameskiptime;
 
 #define LOF_TOGGLES_NEEDED 4
 #define NLACE_CNT_NEEDED 50
@@ -532,21 +534,21 @@ static void remember_ctable (void)
 	/* This can happen when program program crashes very badly */
 	if (next_color_entry >= COLOR_TABLE_SIZE)
 		return;
-	if (remembered_color_entry == -1) {
+	if (remembered_color_entry < 0) {
 		/* The colors changed since we last recorded a color map. Record a
 		* new one. */
 		color_reg_cpy (curr_color_tables + next_color_entry, &current_colors);
 		remembered_color_entry = next_color_entry++;
 	}
 	thisline_decision.ctable = remembered_color_entry;
-	if (color_src_match == -1 || color_dest_match != remembered_color_entry
+	if (color_src_match < 0 || color_dest_match != remembered_color_entry
 		|| line_decisions[next_lineno].ctable != color_src_match)
 	{
 		/* The remembered comparison didn't help us - need to compare again. */
 		int oldctable = line_decisions[next_lineno].ctable;
 		int changed = 0;
 
-		if (oldctable == -1) {
+		if (oldctable < 0) {
 			changed = 1;
 			color_src_match = color_dest_match = -1;
 		} else {
@@ -591,12 +593,12 @@ static void decide_diw (int hpos)
 			lhdiw = 512;
 
 		if (lhdiw >= diw_hstrt && last_hdiw < diw_hstrt && hdiwstate == DIW_waiting_start) {
-			if (thisline_decision.diwfirstword == -1)
+			if (thisline_decision.diwfirstword < 0)
 				thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
 			hdiwstate = DIW_waiting_stop;
 		}
 		if (lhdiw >= diw_hstop && last_hdiw < diw_hstop && hdiwstate == DIW_waiting_stop) {
-			if (thisline_decision.diwlastword == -1)
+			if (thisline_decision.diwlastword < 0)
 				thisline_decision.diwlastword = diwlastword < 0 ? 0 : diwlastword;
 			hdiwstate = DIW_waiting_start;
 		}
@@ -654,7 +656,7 @@ static void add_modulos (void)
 static void finish_playfield_line (void)
 {
 	/* The latter condition might be able to happen in interlaced frames. */
-	if (vpos >= minfirstline && (thisframe_first_drawn_line == -1 || vpos < thisframe_first_drawn_line))
+	if (vpos >= minfirstline && (thisframe_first_drawn_line < 0 || vpos < thisframe_first_drawn_line))
 		thisframe_first_drawn_line = vpos;
 	thisframe_last_drawn_line = vpos;
 
@@ -1049,9 +1051,9 @@ static void update_toscr_planes (void)
 
 STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 {
-	if (thisline_decision.plfleft != -1) {
+	if (thisline_decision.plfleft >= 0) {
 		// early bpl1dat crap fix (Sequential engine animation)
-		if (plfleft_real == -1) {
+		if (plfleft_real < 0) {
 			int i;
 			for (i = 0; i < thisline_decision.nr_planes; i++) {
 				todisplay[i][0] = 0;
@@ -1310,7 +1312,7 @@ static int flush_plane_data (int fm)
 
 STATIC_INLINE void flush_display (int fm)
 {
-	if (toscr_nbits > 0 && thisline_decision.plfleft != -1)
+	if (toscr_nbits > 0 && thisline_decision.plfleft >= 0)
 		toscr (toscr_nbits, fm);
 	toscr_nbits = 0;
 }
@@ -1559,7 +1561,7 @@ static void do_long_fetch (int hpos, int nwords, int dma, int fm)
 /* make sure fetch that goes beyond maxhpos is finished */
 static void finish_final_fetch (int pos, int fm)
 {
-	if (thisline_decision.plfleft == -1)
+	if (thisline_decision.plfleft < 0)
 		return;
 	if (plf_state == plf_end)
 		return;
@@ -1760,7 +1762,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 		if (count >= fetchstart) {
 			count &= ~fetchstart_mask;
 
-			if (thisline_decision.plfleft == -1) {
+			if (thisline_decision.plfleft < 0) {
 				compute_delay_offset ();
 				compute_toscr_delay_1 (bplcon1);
 			}
@@ -1860,7 +1862,7 @@ static void start_bpl_dma (int hpos, int hstart)
 	/* If someone already wrote BPL1DAT, clear the area between that point and
 	the real fetch start.  */
 	if (!nodraw ()) {
-		if (thisline_decision.plfleft != -1) {
+		if (thisline_decision.plfleft >= 0) {
 			out_nbits = (plfstrt - thisline_decision.plfleft) << (1 + toscr_res);
 			out_offs = out_nbits >> 5;
 			out_nbits &= 31;
@@ -1957,7 +1959,7 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	decide_diw (hpos);
 	decide_line (hpos);
 
-	if (thisline_decision.ctable == -1)
+	if (thisline_decision.ctable < 0)
 		remember_ctable ();
 
 	if  ((regno < 0x1000 || regno == 0x1000 + 0x10c) && hpos < HBLANK_OFFSET && !(beamcon0 & 0x80) && prev_lineno >= 0) {
@@ -2403,7 +2405,7 @@ static void decide_sprites (int hpos)
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
 
-	if (thisline_decision.plfleft == -1 && !(bplcon3 & 2))
+	if (thisline_decision.plfleft < 0 && !(bplcon3 & 2))
 		return;
 
 	if (nodraw () || hpos < 0x14 || nr_armed == 0 || point == last_sprite_point)
@@ -2538,7 +2540,7 @@ static void finish_decisions (void)
 	decide_fetch (hpos);
 
 	record_color_change2 (hsyncstartpos, 0xffff, 0);
-	if (thisline_decision.plfleft != -1 && thisline_decision.plflinelen == -1) {
+	if (thisline_decision.plfleft >= 0 && thisline_decision.plflinelen < 0) {
 		if (fetch_state != fetch_not_started) {
 			write_log (_T("fetch_state=%d plfleft=%d,len=%d,vpos=%d,hpos=%d\n"),
 				fetch_state, thisline_decision.plfleft, thisline_decision.plflinelen,
@@ -2555,7 +2557,7 @@ static void finish_decisions (void)
 	* there's a more-or-less full-screen DIW. */
 	if (hdiwstate == DIW_waiting_stop) {
 		thisline_decision.diwlastword = max_diwlastword;
-		if (thisline_decision.diwfirstword == -1)
+		if (thisline_decision.diwfirstword < 0)
 			thisline_decision.diwfirstword = 0;
 	}
 
@@ -2568,7 +2570,7 @@ static void finish_decisions (void)
 	dip_old = prev_drawinfo + next_lineno;
 	dp = line_decisions + next_lineno;
 	changed = thisline_changed;
-	if (thisline_decision.plfleft != -1 && thisline_decision.nr_planes > 0)
+	if (thisline_decision.plfleft >= 0 && thisline_decision.nr_planes > 0)
 		record_diw_line (thisline_decision.plfleft, diwfirstword, diwlastword);
 
 	decide_sprites (hpos + 1);
@@ -2576,8 +2578,8 @@ static void finish_decisions (void)
 	dip->last_sprite_entry = next_sprite_entry;
 	dip->last_color_change = next_color_change;
 
-	if (thisline_decision.ctable == -1) {
-		if (thisline_decision.plfleft == -1)
+	if (thisline_decision.ctable < 0) {
+		if (thisline_decision.plfleft < 0)
 			remember_ctable_for_border ();
 		else
 			remember_ctable ();
@@ -2591,7 +2593,7 @@ static void finish_decisions (void)
 	if (! changed && color_changes_differ (dip, dip_old))
 		changed = 1;
 	if (!changed && /* bitplane visible in this line OR border sprites enabled */
-		(thisline_decision.plfleft != -1 || ((thisline_decision.bplcon0 & 1) && (thisline_decision.bplcon3 & 0x02) && !(thisline_decision.bplcon3 & 0x20)))
+		(thisline_decision.plfleft >= 0 || ((thisline_decision.bplcon0 & 1) && (thisline_decision.bplcon3 & 0x02) && !(thisline_decision.bplcon3 & 0x20)))
 		&& sprites_differ (dip, dip_old))
 	{
 		changed = 1;
@@ -2873,6 +2875,8 @@ void compute_framesync (void)
 	}
 	stored_chipset_refresh = cr;
 	interlace_changed = 0;
+	gfxvidinfo.drawbuffer.inxoffset = -1;
+	gfxvidinfo.drawbuffer.inyoffset = -1;
 
 	if (beamcon0 & 0x80) {
 		int res = GET_RES_AGNUS (bplcon0);
@@ -2897,7 +2901,9 @@ void compute_framesync (void)
 		int start = hbstrt;
 		int stop = hbstop;
 
-		gfxvidinfo.drawbuffer.inwidth =  (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start))) * 2) << res2);
+		gfxvidinfo.drawbuffer.inwidth =  (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start) + 2)) * 2) << res2);
+		gfxvidinfo.drawbuffer.inxoffset = ((stop + 1) & ~1) * 2;
+		
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 
@@ -2936,6 +2942,8 @@ void compute_framesync (void)
 	if (target_graphics_buffer_update ()) {
 		reset_drawing ();
 	}
+
+	memset (line_decisions, 0, sizeof line_decisions);
 
 	compute_vsynctime ();
 
@@ -3043,9 +3051,9 @@ void init_hz (bool fullinit)
 		else
 			hsyncstartpos = maxhpos + hbstrt;
 		if (hbstop > maxhpos)
-			hsyncendpos = hbstop;
+			hsyncendpos = maxhpos - hbstop;
 		else
-			hsyncendpos = maxhpos + hbstop;
+			hsyncendpos = hbstop;
 	} else {
 		hsyncstartpos = maxhpos_short + 13;
 		hsyncendpos = 24;
@@ -3146,7 +3154,7 @@ static void calcdiw (void)
 /* display mode changed (lores, doubling etc..), recalculate everything */
 void init_custom (void)
 {
-	update_mirrors();
+	update_mirrors ();
 	create_cycle_diagram_table ();
 	reset_drawing ();
 	init_hz ();
@@ -3773,7 +3781,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v)
 		sprres = expand_sprres (v, bplcon3);
 	}
 #endif
-	if (thisline_decision.plfleft == -1)
+	if (thisline_decision.plfleft < 0)
 		update_denise (hpos);
 }
 
@@ -3803,7 +3811,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 
 	bpldmainitdelay (hpos);
 
-	if (thisline_decision.plfleft == -1)
+	if (thisline_decision.plfleft < 0)
 		BPLCON0_Denise (hpos, v);
 }
 
@@ -3894,7 +3902,7 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 	bplxdat[num] = v;
 	if (num == 0) {
 		bpl1dat_written = 1;
-		if (thisline_decision.plfleft == -1) {
+		if (thisline_decision.plfleft < 0) {
 			thisline_decision.plfleft = hpos;
 			compute_delay_offset ();
 		}
@@ -4293,6 +4301,27 @@ static uae_u16 COLOR_READ (int num)
 }
 #endif
 
+static void checkautoscalecol0 (void)
+{
+	if (!copper_access)
+		return;
+	if (vpos < 20)
+		return;
+	// autoscale if copper changes COLOR00 on top or bottom of screen
+	if (vpos >= minfirstline) {
+		int vpos2 = autoscale_bordercolors ? minfirstline : vpos;
+		if (first_planes_vpos == 0)
+			first_planes_vpos = vpos2 - 2;
+		if (plffirstline_total == current_maxvpos ())
+			plffirstline_total = vpos2 - 2;
+		if (vpos2 > last_planes_vpos || vpos2 > plflastline_total)
+			plflastline_total = last_planes_vpos = vpos2 + 3;
+		autoscale_bordercolors = 0;
+	} else {
+		autoscale_bordercolors++;
+	}
+}
+
 static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 {
 	bool colzero = false;
@@ -4331,7 +4360,10 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 			colzero = true;
 
 		if (cval == current_colors.color_regs_aga[colreg])
-			goto end;
+			return;
+
+		if (colreg == 0)
+			checkautoscalecol0 ();
 
 		/* Call this with the old table still intact. */
 		record_color_change (hpos, colreg, cval);
@@ -4343,7 +4375,10 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 		if (num && v == 0)
 			colzero = true;
 		if (current_colors.color_regs_ecs[num] == v)
-			goto end;
+			return;
+		if (num == 0)
+			checkautoscalecol0 ();
+
 		/* Call this with the old table still intact. */
 		record_color_change (hpos, num, v);
 		remembered_color_entry = -1;
@@ -4352,23 +4387,6 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 #ifdef AGA
 	}
 #endif
-end:
-	if (copper_access && colzero && vpos >= 20) {
-		// autoscale if copper changes COLOR00 on top or bottom of screen
-		if (vpos >= minfirstline) {
-			int vpos2 = autoscale_bordercolors ? minfirstline : vpos;
-			if (first_planes_vpos == 0)
-				first_planes_vpos = vpos2 - 2;
-			if (plffirstline_total == current_maxvpos ())
-				plffirstline_total = vpos2 - 2;
-			if (vpos2 > last_planes_vpos || vpos2 > plflastline_total)
-				plflastline_total = last_planes_vpos = vpos2 + 3;
-			autoscale_bordercolors = 0;
-		} else {
-			autoscale_bordercolors++;
-		}
-	}
-
 }
 
 /* The copper code.  The biggest nightmare in the whole emulator.
@@ -5146,19 +5164,29 @@ static void do_savestate(void);
 
 static int rpt_vsync (void)
 {
-	int v = read_processor_time () - vsyncwaittime;
+	frame_time_t curr_time = read_processor_time ();
+	int v = curr_time - vsyncwaittime;
 	if (v > (int)syncbase || v < -((int)syncbase)) {
-		vsyncmintime = vsyncmaxtime = vsyncwaittime = read_processor_time ();
+		vsyncmintime = vsyncmaxtime = vsyncwaittime = curr_time;
 		v = 0;
 	}
 	return v;
+}
+
+static void rtg_vsync (void)
+{
+	frame_time_t start, end;
+	start = read_processor_time ();
+	picasso_handle_vsync ();
+	end = read_processor_time ();
+	frameskiptime += end - start;
 }
 
 static void rtg_vsynccheck (void)
 {
 	if (vblank_found_rtg) {
 		vblank_found_rtg = false;
-		picasso_handle_vsync ();
+		rtg_vsync ();
 	}
 }
 
@@ -5172,6 +5200,7 @@ static void framewait (void)
 
 		curr_time = read_processor_time ();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
+		vsynctimeperline = vsynctimebase / maxvpos_nom;
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
@@ -5188,6 +5217,7 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 
 			// fastest possible
+			int max;
 			curr_time = read_processor_time ();
 			vsync_busywait_end ();
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
@@ -5195,7 +5225,16 @@ static void framewait (void)
 
 			vsyncmintime = curr_time;
 			vsyncwaittime = curr_time + vsynctimebase;
-			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			max -= frameskiptime + maxvpos_nom / 10;
+			frameskiptime = 0;
+			if (max < 0) {
+				max = 0;
+				vsynctimeperline = 1;
+			} else {
+				vsynctimeperline = max / maxvpos_nom;
+			}
+			vsyncmaxtime = max + curr_time;
 
 		} else {
 
@@ -5206,6 +5245,7 @@ static void framewait (void)
 			vsyncmintime = curr_time;
 			vsyncwaittime = curr_time + vsynctimebase;
 			vsyncmaxtime = curr_time + vsynctimebase;
+			vsynctimeperline = vsynctimebase / maxvpos_nom;
 			if (!show) {	
 				show_screen ();
 				if (extraframewait)
@@ -5219,25 +5259,40 @@ static void framewait (void)
 
 	if (currprefs.m68k_speed < 0) {
 
-		for (;;) {
-			double v = rpt_vsync () / (syncbase / 1000.0);
-			if (v >= -4)
-				break;
-			rtg_vsynccheck ();
-			sleep_millis_main (2);
+		if (currprefs.m68k_speed_throttle) {
+			// this delay can safely overshoot frame time by 1-2 ms, following code will compensate for it.
+			for (;;) {
+				curr_time = read_processor_time ();
+				if ((int)vsyncwaittime  - (int)curr_time <= 0)
+					break;
+				rtg_vsynccheck ();
+				sleep_millis_main (1);
+			}
+		} else {
+			curr_time = read_processor_time ();
 		}
-		while (rpt_vsync () < 0)
-			rtg_vsynccheck ();
-		curr_time = read_processor_time ();
+
+		int max;
 		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2) {
-			int adjust = curr_time - vsyncmaxtime;
-			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
+			int adjust = curr_time - vsyncwaittime;
+			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
 			vsyncwaittime = curr_time + vsynctimebase - adjust;
 		} else {
-			vsyncmaxtime = curr_time + vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
 			vsyncwaittime = curr_time + vsynctimebase;
 		}
 		vsyncmintime = curr_time;
+		vsynctimeperline /= maxvpos_nom;
+		
+		max -= frameskiptime + maxvpos_nom / 10;
+		frameskiptime = 0;
+		if (max < 0) {
+			max = 0;
+			vsynctimeperline = 1;
+		} else {
+			vsynctimeperline = max / maxvpos_nom;
+		}
+		vsyncmaxtime = max + curr_time;
 	
 	} else {
 
@@ -5258,6 +5313,7 @@ static void framewait (void)
 		curr_time = read_processor_time ();
 		vsyncmintime = curr_time;
 		vsyncmaxtime = vsyncwaittime = curr_time + vsynctimebase;
+		vsynctimeperline = vsynctimebase / maxvpos_nom;
 		if (didrender)
 			show_screen ();
 		frame_shown = true;
@@ -5322,7 +5378,7 @@ static void vsync_handler_pre (void)
 
 #ifdef PICASSO96
 	if (isvsync_rtg () >= 0)
-		picasso_handle_vsync ();
+		rtg_vsync ();
 #endif
 	audio_vsync ();
 	blkdev_vsync ();
@@ -5348,7 +5404,9 @@ static void vsync_handler_pre (void)
 #endif
 
 	if (!vsync_rendered) {
-		vsync_handle_redraw (lof_store, lof_changed);
+		frame_time_t start, end;
+		start = read_processor_time ();
+		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		vsync_rendered = true;
 		if (vblank_hz_state) {
 			render_screen ();
@@ -5357,6 +5415,8 @@ static void vsync_handler_pre (void)
 				show_screen_maybe (isvsync_chipset () >= 0);
 			}
 		}
+		end = read_processor_time ();
+		frameskiptime += end - start;
 	}
 
 	if (vblank_hz_mult > 0)
@@ -5662,7 +5722,7 @@ static void hsync_handler_pre (bool onvsync)
 	if (!nocustom ()) {
 		sync_copper_with_cpu (maxhpos, 0);
 		finish_decisions ();
-		if (thisline_decision.plfleft != -1) {
+		if (thisline_decision.plfleft >= 0) {
 			if (currprefs.collision_level > 1)
 				do_sprite_collisions ();
 			if (currprefs.collision_level > 2)
@@ -5854,20 +5914,24 @@ static void hsync_handler_post (bool onvsync)
 	if (currprefs.m68k_speed < 0) {
 		if (vpos + 1 == maxvpos + lof_store) {
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
-			is_syncline = 1;
-			if (currprefs.m68k_speed_throttle)
+			if (currprefs.m68k_speed_throttle) {
 				vsyncmintime = read_processor_time (); /* end of CPU emulation time */
-			else
+			} else {
 				vsyncmintime = vsyncmaxtime; /* emulate if still time left */
+				is_syncline = 1;
+			}
 		} else {
 			/* end of scanline, run cpu emulation as long as we still have time */
-			vsyncmintime += (vsynctimebase * (1000 + currprefs.m68k_speed_throttle)) / (maxvpos_nom * 1000);
-			if (!vblank_found_chipset && (int)vsyncmaxtime - (int)vsyncmintime > 0) {
-				is_syncline = -1;
-				frame_time_t rpt = read_processor_time ();
-				/* No extra time left? Skip it */
-				if ((int)rpt - (int)vsyncmintime >= 0)
-					is_syncline = 0;
+			vsyncmintime += vsynctimeperline;
+			is_syncline = 0;
+			if (!vblank_found_chipset) {
+				if ((int)vsyncmaxtime - (int)vsyncmintime >= 0) {
+					frame_time_t rpt = read_processor_time ();
+					/* Extra time left? Do some extra CPU emulation */
+					if ((int)vsyncmintime - (int)rpt >= vsynctimeperline) {
+						is_syncline = -1;
+					}
+				}
 			}
 		}
 	} else {
@@ -5880,7 +5944,6 @@ static void hsync_handler_post (bool onvsync)
 			}
 		}
 	}
-
 
 	if (!nocustom ()) {
 		int lineno = vpos;
@@ -5952,10 +6015,15 @@ static void hsync_handler_post (bool onvsync)
 	}
 	if (diw_change == 0) {
 		if (vpos >= first_planes_vpos && vpos <= last_planes_vpos) {
-			if (diwlastword > diwlastword_total)
+			if (diwlastword > diwlastword_total) {
 				diwlastword_total = diwlastword;
+				if (diwlastword_total > coord_diw_to_window_x (hsyncstartpos * 2))
+					diwlastword_total = coord_diw_to_window_x (hsyncstartpos * 2);
+			}
 			if (diwfirstword < diwfirstword_total) {
 				diwfirstword_total = diwfirstword;
+				if (diwfirstword_total < coord_diw_to_window_x (hsyncendpos * 2))
+					diwfirstword_total = coord_diw_to_window_x (hsyncendpos * 2);
 				firstword_bplcon1 = bplcon1;
 			}
 		}
@@ -5980,14 +6048,18 @@ static void hsync_handler_post (bool onvsync)
 		diw_change--;
 
 	if (is_syncline > 0 && isvsync_chipset () == -2 && !vsync_rendered && currprefs.gfx_apmode[0].gfx_vflip == 0) {
+		frame_time_t start, end;
+		start = read_processor_time ();
 		/* fastest possible + last line and no vflip wait: render the frame as early as possible */
 		vsync_rendered = true;
-		vsync_handle_redraw (lof_store, lof_changed);
+		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		if (vblank_hz_state) {
 			render_screen ();
 			show_screen_maybe (false);
 		}
 		frame_shown = true;
+		end = read_processor_time ();
+		frameskiptime += end - start;
 	}
 
 	rtg_vsynccheck ();
@@ -7445,7 +7517,7 @@ STATIC_INLINE int dma_cycle (void)
 	int hpos, hpos_old;
 
 	blitter_nasty = 1;
-	if (cpu_tracer == -1)
+	if (cpu_tracer  < 0)
 		return current_hpos ();
 	if (!currprefs.cpu_cycle_exact)
 		return current_hpos ();
