@@ -150,7 +150,7 @@ static void vsync_sleep (bool preferbusy)
 	} else {
 		dowait = false;
 	}
-	if (dowait && currprefs.m68k_speed >= 0)
+	if (dowait && (currprefs.m68k_speed >= 0 || currprefs.m68k_speed_throttle < 0))
 		sleep_millis_main (1);
 }
 
@@ -260,19 +260,8 @@ static struct MultiDisplay *getdisplay2 (struct uae_prefs *p, int index)
 	int display = index < 0 ? p->gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display - 1 : index;
 
 	max = 0;
-	while (Displays[max].monitorname) {
-		if (index < 0) {
-			struct MultiDisplay *md = &Displays[max];
-			if (screen_is_picasso) {
-				if (p->gfx_apmode[APMODE_RTG].gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_apmode[APMODE_RTG].gfx_display_name))
-					return md;
-			} else {
-				if (p->gfx_apmode[APMODE_NATIVE].gfx_display_name[0] && !_tcscmp (md->adaptername, p->gfx_apmode[APMODE_NATIVE].gfx_display_name))
-					return md;
-			}
-		}
+	while (Displays[max].monitorname)
 		max++;
-	}
 	if (max == 0) {
 		gui_message (_T("no display adapters! Exiting"));
 		exit (0);
@@ -300,6 +289,29 @@ void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
 	*ay = amigawin_rect.top;
 	*aw = amigawin_rect.right - *ax;
 	*ah = amigawin_rect.bottom - *ay;
+}
+
+int target_get_display (const TCHAR *name)
+{
+	for (int i = 0; Displays[i].monitorname; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		if (!_tcscmp (md->adapterid, name))
+			return i + 1;
+		if (!_tcscmp (md->adaptername, name))
+			return i + 1;
+		if (!_tcscmp (md->monitorname, name))
+			return i + 1;
+	}
+	return -1;
+}
+const TCHAR *target_get_display_name (int num)
+{
+	if (num <= 0)
+		return NULL;
+	struct MultiDisplay *md = getdisplay2 (NULL, num - 1);
+	if (!md)
+		return NULL;
+	return md->monitorname;
 }
 
 void centerdstrect (RECT *dr)
@@ -579,6 +591,25 @@ static void sortmodes (struct MultiDisplay *md)
 	}
 }
 
+#if 0
+static void sortmonitors (void)
+{
+	for (int i = 0; Displays[i].monitorid; i++) {
+		for (int j = i + 1; Displays[j].monitorid; j++) {
+			int comp = (Displays[j].primary ? 1 : 0) - (Displays[i].primary ? 1 : 0);
+			if (!comp)
+				comp = _tcsicmp (Displays[i].adapterid, Displays[j].adapterid);
+			if (comp > 0) {
+				struct MultiDisplay md;
+				memcpy (&md, &Displays[i], sizeof MultiDisplay);
+				memcpy (&Displays[i], &Displays[j], sizeof MultiDisplay);
+				memcpy (&Displays[j], &md, sizeof MultiDisplay);
+			}
+		}
+	}
+}
+#endif
+
 static void modesList (struct MultiDisplay *md)
 {
 	int i, j;
@@ -674,6 +705,7 @@ void enumeratedisplays (void)
 		}
 	}
 	EnumDisplayMonitors (NULL, NULL, monitorEnumProc, NULL);
+	//sortmonitors ();
 }
 
 void sortdisplays (void)
@@ -1461,8 +1493,6 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_scandoubler != changed_prefs.gfx_scandoubler ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_display != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_display != changed_prefs.gfx_apmode[APMODE_RTG].gfx_display ? (2|4|8) : 0;
-	c |= _tcscmp (currprefs.gfx_apmode[APMODE_NATIVE].gfx_display_name, changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display_name) ? (2|4|8) : 0;
-	c |= _tcscmp (currprefs.gfx_apmode[APMODE_RTG].gfx_display_name, changed_prefs.gfx_apmode[APMODE_RTG].gfx_display_name) ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[0].gfx_backbuffers != changed_prefs.gfx_apmode[0].gfx_backbuffers ? (2 | 8) : 0;
 	c |= currprefs.gfx_apmode[0].gfx_interlaced != changed_prefs.gfx_apmode[0].gfx_interlaced ? (2 | 8) : 0;
@@ -1536,8 +1566,6 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_scandoubler = changed_prefs.gfx_scandoubler;
 		currprefs.gfx_apmode[APMODE_NATIVE].gfx_display = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display;
 		currprefs.gfx_apmode[APMODE_RTG].gfx_display = changed_prefs.gfx_apmode[APMODE_RTG].gfx_display;
-		_tcscpy (currprefs.gfx_apmode[APMODE_NATIVE].gfx_display_name, changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display_name);
-		_tcscpy (currprefs.gfx_apmode[APMODE_RTG].gfx_display_name, changed_prefs.gfx_apmode[APMODE_RTG].gfx_display_name);
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
 		currprefs.gfx_apmode[0].gfx_backbuffers = changed_prefs.gfx_apmode[0].gfx_backbuffers;
 		currprefs.gfx_apmode[0].gfx_interlaced = changed_prefs.gfx_apmode[0].gfx_interlaced;
@@ -2330,8 +2358,6 @@ end:
 	if (index >= 0) {
 		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = 
 			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display = index;
-		currprefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] =
-			changed_prefs.gfx_apmode[screen_is_picasso ? APMODE_RTG : APMODE_NATIVE].gfx_display_name[0] = 0;
 		write_log (L"Can't find mode %dx%d ->\n", currentmode->native_width, currentmode->native_height);
 		write_log (L"Monitor switched to '%s'\n", md->adaptername);
 	}
@@ -2571,7 +2597,7 @@ bool vsync_busywait_check (void)
 {
 	return vblankthread_mode == VBLANKTH_ACTIVE || vblankthread_mode == VBLANKTH_ACTIVE_WAIT;
 }
-
+#if 0
 static void vsync_notvblank (void)
 {
 	for (;;) {
@@ -2585,13 +2611,12 @@ static void vsync_notvblank (void)
 		vsync_sleep (true);
 	}
 }
-
+#endif
 frame_time_t vsync_busywait_end (void)
 {
 	if (!dooddevenskip) {
-		vsync_notvblank ();
 		while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
-			vsync_sleep (currprefs.m68k_speed < 0);
+			vsync_sleep (currprefs.m68k_speed < 0 && currprefs.m68k_speed_throttle == 0);
 		}
 	}
 	changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
@@ -2600,6 +2625,8 @@ frame_time_t vsync_busywait_end (void)
 
 void vsync_busywait_start (void)
 {
+	int vp = 0;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 #if 0
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	if (!dooddevenskip) {
@@ -2853,7 +2880,7 @@ skip:
 
 	vblankbasefull = (syncbase / tsum2);
 	vblankbasewait1 = (syncbase / tsum2) * 75 / 100;
-	vblankbasewait2 = (syncbase / tsum2) * 70 / 100;
+	vblankbasewait2 = (syncbase / tsum2) * 55 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
 	vblankbaselace = lace;
 	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d\n"),

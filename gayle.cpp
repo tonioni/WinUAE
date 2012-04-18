@@ -920,6 +920,7 @@ static int get_gayle_ide_reg (uaecptr addr)
 static uae_u32 ide_read_reg (int ide_reg)
 {
 	uae_u8 v = 0;
+	bool isdrive = ide->hdhfd.size != 0;
 
 	switch (ide_reg)
 	{
@@ -932,29 +933,37 @@ static uae_u32 ide_read_reg (int ide_reg)
 		v = ide->regs->ide_error;
 		break;
 	case IDE_NSECTOR:
-		if (ide->regs->ide_devcon & 0x80)
-			v = ide->regs->ide_nsector2;
-		else
-			v = ide->regs->ide_nsector;
+		if (isdrive) {
+			if (ide->regs->ide_devcon & 0x80)
+				v = ide->regs->ide_nsector2;
+			else
+				v = ide->regs->ide_nsector;
+		}
 		break;
 	case IDE_SECTOR:
-		if (ide->regs->ide_devcon & 0x80)
-			v = ide->regs->ide_sector2;
-		else
-			v = ide->regs->ide_sector;
-		check_maxtransfer (2);
+		if (isdrive) {
+			if (ide->regs->ide_devcon & 0x80)
+				v = ide->regs->ide_sector2;
+			else
+				v = ide->regs->ide_sector;
+			check_maxtransfer (2);
+		}
 		break;
 	case IDE_LCYL:
-		if (ide->regs->ide_devcon & 0x80)
-			v = ide->regs->ide_lcyl2;
-		else
-			v = ide->regs->ide_lcyl;
+		if (isdrive) {
+			if (ide->regs->ide_devcon & 0x80)
+				v = ide->regs->ide_lcyl2;
+			else
+				v = ide->regs->ide_lcyl;
+		}
 		break;
 	case IDE_HCYL:
-		if (ide->regs->ide_devcon & 0x80)
-			v = ide->regs->ide_hcyl2;
-		else
-			v = ide->regs->ide_hcyl;
+		if (isdrive) {
+			if (ide->regs->ide_devcon & 0x80)
+				v = ide->regs->ide_hcyl2;
+			else
+				v = ide->regs->ide_hcyl;
+		}
 		break;
 	case IDE_SELECT:
 		v = ide->regs->ide_select;
@@ -962,7 +971,7 @@ static uae_u32 ide_read_reg (int ide_reg)
 	case IDE_STATUS:
 		ide->irq = 0; /* fall through */
 	case IDE_DEVCON: /* ALTSTATUS when reading */
-		if (ide->hdhfd.size == 0) {
+		if (!isdrive) {
 			v = 0;
 			if (ide->regs->ide_error)
 				v |= IDE_STATUS_ERR;
@@ -972,16 +981,16 @@ static uae_u32 ide_read_reg (int ide_reg)
 		}
 		break;
 	}
-	if (IDE_LOG > 2 && ide_reg > 0)
-		write_log (_T("IDE%d register %d->%02X\n"), ide->num, ide_reg, (uae_u32)v & 0xff);
+	if (IDE_LOG > 2 && ide_reg > 0 && (1 || ide->num > 0))
+		write_log (_T("IDE%d GET register %d->%02X\n"), ide->num, ide_reg, (uae_u32)v & 0xff);
 	return v;
 }
 
 static void ide_write_reg (int ide_reg, uae_u32 val)
 {
 	ide->regs->ide_devcon &= ~0x80; /* clear HOB */
-	if (IDE_LOG > 2 && ide_reg > 0)
-		write_log (_T("IDE%d register %d=%02X\n"), ide->num, ide_reg, (uae_u32)val & 0xff);
+	if (IDE_LOG > 2 && ide_reg > 0 && (1 || ide->num > 0))
+		write_log (_T("IDE%d PUT register %d=%02X\n"), ide->num, ide_reg, (uae_u32)val & 0xff);
 	switch (ide_reg)
 	{
 	case IDE_DRVADDR:

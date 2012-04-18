@@ -3287,6 +3287,7 @@ void DSKLEN (uae_u16 v, int hpos)
 					pos += 16;
 					pos %= drv->tracklen;
 				}
+				drv->mfmpos = pos;
 				INTREQ (0x8000 | 0x1000);
 				done = 1;
 
@@ -3302,6 +3303,7 @@ void DSKLEN (uae_u16 v, int hpos)
 					pos += 16;
 					pos %= drv->tracklen;
 				}
+				drv->mfmpos = pos;
 				drive_write_data (drv);
 				done = 1;
 			}

@@ -182,14 +182,15 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 	_tcscpy (p, KEYBOARDCUSTOM);
 	p += _tcslen (p);
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
+	int kbnum = 0;
 	for (int i = 0; customeventorder[i]; i++) {
 		int evtnum = events[i];
-		for (int j = 0; j < inputdevicefunc_keyboard.get_widget_num (kb); j++) {
+		for (int j = 0; j < inputdevicefunc_keyboard.get_widget_num (kbnum); j++) {
 			int flags, port;
-			if (inputdevice_get_mapping (kb, j, &flags, &port, NULL, NULL, 0) == evtnum) {
+			if (inputdevice_get_mapping (kb + kbnum, j, &flags, &port, NULL, NULL, 0) == evtnum) {
 				if (port == inputmap_port + 1) {
 					uae_u32 kc = 0;
-					inputdevicefunc_keyboard.get_widget_type (kb, j, NULL, &kc);
+					inputdevicefunc_keyboard.get_widget_type (kbnum, j, NULL, &kc);
 					if (!first)
 						*p++ = ' ';
 					first = false;
@@ -213,17 +214,16 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 
-	inputdevice_updateconfig (&changed_prefs);
+	inputdevice_updateconfig_internal (&changed_prefs);
 	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, JSEM_MODE_JOYSTICK);
-	inputdevice_updateconfig (&changed_prefs);
+	inputdevice_updateconfig_internal (&changed_prefs);
 	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
-	write_log (L"custom='%s' max=%d port=%d\n", custom, max, inputmap_port);
+	write_log (_T("custom='%s' max=%d port=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
 	if (!max)
 		return FALSE;
 
 	while (p && p[0]) {
 		int idx = -1, kc = -1;
-		int wdnum = -1;
 		const TCHAR *p2 = _tcschr (p, '=');
 		if (!p2)
 			break;
@@ -247,25 +247,29 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 			break;
 		evtnum = events[idx];
 
-		write_log (L"evt=%d kc=%d\n", evtnum, kc);
+		write_log (_T("kb=%d evt=%d kc=%d\n"), kb, evtnum, kc);
 
 		for (int j = 0; j < inputdevice_get_device_total (IDTYPE_KEYBOARD); j++) {
-			for (int i = 0; i < inputdevicefunc_keyboard.get_widget_num (kb + j); i++) {
+			int wdnum = -1;
+			for (int i = 0; i < inputdevicefunc_keyboard.get_widget_num (j); i++) {
 				uae_u32 kc2 = 0;
-				inputdevicefunc_keyboard.get_widget_type (kb + j, i, NULL, &kc2);
+				inputdevicefunc_keyboard.get_widget_type (j, i, NULL, &kc2);
 				if (kc == kc2) {
 					wdnum = i;
 					break;
 				}
 			}
 			if (wdnum >= 0) {
+				write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
 				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, inputmap_port);
 				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, inputmap_port);
+			} else {
+				write_log (_T("kb=%d (%): keycode %x not found!\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), kc);
 			}
 		}
 	}
 
-	inputdevice_updateconfig (&changed_prefs);
+	inputdevice_updateconfig_internal (&changed_prefs);
 	inputdevice_updateconfig (&currprefs);
 	return TRUE;
 }
@@ -565,9 +569,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	minimized = 0;
 	if (display) {
 		p->gfx_apmode[APMODE_NATIVE].gfx_display = display;
-		p->gfx_apmode[APMODE_NATIVE].gfx_display_name[0] = 0;
 		p->gfx_apmode[APMODE_RTG].gfx_display = display;
-		p->gfx_apmode[APMODE_RTG].gfx_display_name[0] = 0;
 		if (sm->dwScreenMode & RP_SCREENMODE_FULLWINDOW)
 			fs = 2;
 		else

@@ -192,6 +192,7 @@ extern int getjoystickstate (int mouse);
 void setmousestate (int mouse, int axis, int data, int isabs);
 extern int getmousestate (int mouse);
 extern void inputdevice_updateconfig (struct uae_prefs *prefs);
+extern void inputdevice_updateconfig_internal (struct uae_prefs *prefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);

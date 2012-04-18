@@ -1897,8 +1897,6 @@ static int restoredeviceobjects (void)
 
 	createmask2texture (currprefs.gfx_filteroverlay);
 
-	if (!createtexture (tout_w, tout_h, window_w, window_h))
-		return 0;
 	createledtexture ();
 
 	hr = D3DXCreateSprite (d3ddev, &sprite);
@@ -2321,6 +2319,8 @@ bool D3D_alloctexture (int w, int h)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
 	if (!createamigatexture (tin_w, tin_h))
+		return false;
+	if (!createtexture (tout_w, tout_h, window_w, window_h))
 		return false;
 	return true;
 }
@@ -2776,6 +2776,11 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 		return NULL;
 	if (!isd3d () || !texture)
 		return NULL;
+
+	if (locked) {
+		write_log (_T("%s: texture already locked!\n"), D3DHEAD);
+		return NULL;
+	}
 
 	lock.pBits = NULL;
 	lock.Pitch = 0;

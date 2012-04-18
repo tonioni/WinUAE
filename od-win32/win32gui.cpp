@@ -11722,7 +11722,7 @@ static void input_swap (HWND hDlg)
 
 static void input_find (HWND hDlg, int mode, int set);
 static int rawmode;
-static int inputmap_remap_counter;
+static int inputmap_remap_counter, inputmap_view_offset;
 
 static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
@@ -11759,9 +11759,10 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 		if (wtype < 0) {
 			if (!state)
 				return;
+			HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
+			// F11
 			if (inputmap == 1) {
 				int mode, *events, *axistable;
-				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				inputmap_remap_counter++;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
 				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
@@ -11769,6 +11770,16 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
 				if (inputmap_remap_counter >= max)
 					inputmap_remap_counter = -1;
+			} else if (inputmap == 2) {
+				int itemcnt = ListView_GetItemCount (h);
+				if (inputmap_view_offset >= itemcnt - 1 || inputmap_view_offset < 0) {
+					inputmap_view_offset = 0;
+				} else {
+					inputmap_view_offset += ListView_GetCountPerPage (h);
+					if (inputmap_view_offset >= itemcnt)
+						inputmap_view_offset = itemcnt - 1;
+				}
+				ListView_EnsureVisible (h, inputmap_view_offset, FALSE);
 			}
 			return;
 		}
@@ -11851,6 +11862,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 						ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 						ListView_SetItemState (h, inputmap_index, LVIS_SELECTED , LVIS_SELECTED);
 						ListView_SetItemState (h, inputmap_index, LVIS_FOCUSED, LVIS_FOCUSED);
+						inputmap_view_offset = inputmap_index;
 						found = true;
 					}
 				}
@@ -11976,6 +11988,7 @@ static void input_test (HWND hDlg, int port)
 	inputmap_port_remap = -1;
 	inputmap_port = port;
 	inputmap_remap_counter = -1;
+	inputmap_view_offset = 0;
 	updatePanel (INPUTMAP_ID);
 }
 

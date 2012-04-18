@@ -105,7 +105,7 @@ extern uae_u16 INTREQR (void);
 #define VBLANK_SPRITE_NTSC 20
 #define VBLANK_HZ_PAL 50
 #define VBLANK_HZ_NTSC 60
-#define EQU_ENDLINE_PAL 9
+#define EQU_ENDLINE_PAL 8
 #define EQU_ENDLINE_NTSC 10
 
 extern int maxhpos, maxhpos_short;

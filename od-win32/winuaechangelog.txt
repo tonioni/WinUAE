@@ -2,6 +2,24 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 7:
+
+- DirectDraw full-window mode on non-primary monitor was blank.
+- Adjusted (again) fastest possible CPU mode extra CPU time scheduling, trying to find balance between better
+  timing syncronization and not causing unnecessary slowdowns on some systems..
+- OCS Denise bug emulation update, PAL STREQU counts are 8 (short field) or 9 (long field) lines, not static 9 lines.
+  (Probably no program cares)
+- F11 in gameports/input test mode shows next page (if list is longer than visible area).
+- Manual display positioning X coordinate offset fixed (Filter panel or gfx_center_horizontal_position)
+  Origin should be hardware position 0 (same as sprites), not first possible visible position.
+- Fastest possible low latency vsync should work better again (b2), plus some other adjustments done, CPU throttling
+  supported.
+- Autoresolution worked badly in some situations.
+- Removed USB_DEVICE_ID_RETRO_ADAPTER from USB "quirks" list, apparently it is working correctly according
+  to firmware sources. (Perhaps older version was wrong, not exactly sure why it was included in Linux HID quirks list)
+- Save also selected monitor name (gfx_display_name) to config file because order of displays can change when removing
+  or adding monitors or replacing display cards.
+
 Beta 6:
 
 - Most CDFS RockRidge file comments were truncated. (Very stupid bug)

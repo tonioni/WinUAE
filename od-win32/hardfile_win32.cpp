@@ -401,7 +401,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	}
 	hfd->handle = xcalloc (struct hardfilehandle, 1);
 	hfd->handle->h = INVALID_HANDLE_VALUE;
-	hfd_log (_T("hfd open: '%s'\n"), name);
+	hfd_log (_T("hfd attempting to open: '%s'\n"), name);
 	if (name[0] == ':') {
 		hdf_init_target ();
 		i = isharddrive (name);

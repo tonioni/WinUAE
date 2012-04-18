@@ -341,7 +341,7 @@ static int gclow, gcloh, gclox, gcloy;
 void get_custom_topedge (int *x, int *y)
 {
 	if (isnativevidbuf ()) {
-		*x = visible_left_border;
+		*x = visible_left_border + (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution);
 		*y = minfirstline << currprefs.gfx_vresolution;
 	} else {
 		*x = 0;
@@ -1875,12 +1875,6 @@ static void pfield_expand_dp_bplcon (void)
 	ecsshres = bplres == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
 #endif
 
-	if (bplres > frame_res)
-		frame_res = bplres;
-	if (bplres > 0)
-		can_use_lores = 0;
-	frame_res_lace = (dp_for_drawing->bplcon0 & 4) != 0;
-
 	plf1pri = dp_for_drawing->bplcon2 & 7;
 	plf2pri = (dp_for_drawing->bplcon2 >> 3) & 7;
 	plf_sprite_mask = 0xFFFF0000 << (4 * plf2pri);
@@ -2367,6 +2361,7 @@ static void init_drawing_frame (void)
 							changed_prefs.gfx_vresolution = nl;
 							write_log (_T("RES -> %d LINE -> %d\n"), nr, nl);
 							config_changed = 1;
+							//activate_debugger ();
 						}
 						if (src->width > 0 && src->height > 0) {
 							if (memcmp (dst, src, sizeof *dst)) {
@@ -2901,6 +2896,16 @@ static void gfxbuffer_reset (void)
 	gfxvidinfo.drawbuffer.flush_clear_screen = dummy_flush_clear_screen;
 	gfxvidinfo.drawbuffer.lockscr            = dummy_lock;
 	gfxvidinfo.drawbuffer.unlockscr          = dummy_unlock;
+}
+
+void notice_resolution_seen (int res, bool lace)
+{
+	if (res > frame_res)
+		frame_res = res;
+	if (res > 0)
+		can_use_lores = 0;
+	if (!frame_res_lace && lace)
+		frame_res_lace = lace;
 }
 
 bool notice_interlace_seen (bool lace)

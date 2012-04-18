@@ -357,6 +357,8 @@ static void cfg_dowrite (struct zfile *f, const TCHAR *option, const TCHAR *valu
 	char *tmp1, *tmp2;
 	int utf8;
 
+	if (value == NULL)
+		return;
 	utf8 = 0;
 	tmp1 = ua (value);
 	tmp2 = uutf8 (value);
@@ -799,10 +801,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("native_code"), p->native_code);
 
 	cfgfile_write (f, _T("gfx_display"), _T("%d"), p->gfx_apmode[APMODE_NATIVE].gfx_display);
-	cfgfile_dwrite_str (f, _T("gfx_display_name"), p->gfx_apmode[APMODE_NATIVE].gfx_display_name);
-	if (p->gfx_apmode[APMODE_NATIVE].gfx_display != p->gfx_apmode[APMODE_RTG].gfx_display || p->gfx_apmode[APMODE_RTG].gfx_display_name[0]) {
+	cfgfile_write_str (f, _T("gfx_display_name"), target_get_display_name (p->gfx_apmode[APMODE_NATIVE].gfx_display));
+	if (p->gfx_apmode[APMODE_NATIVE].gfx_display != p->gfx_apmode[APMODE_RTG].gfx_display) {
 		cfgfile_write (f, _T("gfx_display_rtg"), _T("%d"), p->gfx_apmode[APMODE_RTG].gfx_display);
-		cfgfile_dwrite_str (f, _T("gfx_display_name_rtg"), p->gfx_apmode[APMODE_RTG].gfx_display_name);
+		cfgfile_write_str (f, _T("gfx_display_name_rtg"), target_get_display_name (p->gfx_apmode[APMODE_RTG].gfx_display));
 	}
 	cfgfile_write (f, _T("gfx_framerate"), _T("%d"), p->gfx_framerate);
 	cfgfile_write (f, _T("gfx_width"), _T("%d"), p->gfx_size_win.width); /* compatibility with old versions */
@@ -1592,11 +1594,22 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (cfgfile_intval (option, value, _T("gfx_display_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_display, 1)) {
 		return 1;
 	}
-	if (cfgfile_string (option, value, _T("gfx_display_name"), p->gfx_apmode[APMODE_NATIVE].gfx_display_name, sizeof p->gfx_apmode[APMODE_NATIVE].gfx_display_name / sizeof (TCHAR))) {
-		_tcscpy (p->gfx_apmode[APMODE_RTG].gfx_display_name, p->gfx_apmode[APMODE_NATIVE].gfx_display_name);
+	if (_tcscmp (option, _T("gfx_display_name")) == 0) {
+		TCHAR tmp[MAX_DPATH];
+		if (cfgfile_string (option, value, _T("gfx_display_name"), tmp, sizeof tmp / sizeof (TCHAR))) {
+			int num = target_get_display (tmp);
+			if (num >= 0)
+				p->gfx_apmode[APMODE_RTG].gfx_display = p->gfx_apmode[APMODE_NATIVE].gfx_display = num;
+		}
 		return 1;
 	}
-	if (cfgfile_string (option, value, _T("gfx_display_name_rtg"), p->gfx_apmode[APMODE_RTG].gfx_display_name, sizeof p->gfx_apmode[APMODE_RTG].gfx_display_name / sizeof (TCHAR))) {
+	if (_tcscmp (option, _T("gfx_display_name_rtg")) == 0) {
+		TCHAR tmp[MAX_DPATH];
+		if (cfgfile_string (option, value, _T("gfx_display_name_rtg"), tmp, sizeof tmp / sizeof (TCHAR))) {
+			int num = target_get_display (tmp);
+			if (num >= 0)
+				p->gfx_apmode[APMODE_RTG].gfx_display = num;
+		}
 		return 1;
 	}
 
@@ -2218,6 +2231,200 @@ static void parse_addmem (struct uae_prefs *p, TCHAR *buf, int num)
 	p->custom_memory_sizes[num] = size;
 }
 
+static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHAR *value)
+{
+	int secs, heads, reserved, bs, bp, hdcv;
+	bool ro;
+	TCHAR *dname = NULL, *aname = _T(""), *root = NULL, *fs = NULL, *hdc;
+	TCHAR *tmpp = _tcschr (value, ',');
+	TCHAR *str = NULL;
+
+	config_newfilesystem = 1;
+	if (tmpp == 0)
+		goto invalid_fs;
+
+	*tmpp++ = '\0';
+	if (strcasecmp (value, _T("ro")) == 0)
+		ro = true;
+	else if (strcasecmp (value, _T("rw")) == 0)
+		ro = false;
+	else
+		goto invalid_fs;
+	secs = 0; heads = 0; reserved = 0; bs = 0; bp = 0;
+	fs = 0; hdc = 0; hdcv = 0;
+
+	value = tmpp;
+	if (!hdf) {
+		tmpp = _tcschr (value, ':');
+		if (tmpp == 0)
+			goto empty_fs;
+		*tmpp++ = 0;
+		dname = value;
+		aname = tmpp;
+		tmpp = _tcschr (tmpp, ':');
+		if (tmpp == 0)
+			goto empty_fs;
+		*tmpp++ = 0;
+		root = tmpp;
+		tmpp = _tcschr (tmpp, ',');
+		if (tmpp == 0)
+			goto empty_fs;
+		*tmpp++ = 0;
+		if (! getintval (&tmpp, &bp, 0))
+			goto empty_fs;
+	} else {
+		tmpp = _tcschr (value, ':');
+		if (tmpp == 0)
+			goto invalid_fs;
+		*tmpp++ = '\0';
+		dname = value;
+		root = tmpp;
+		tmpp = _tcschr (tmpp, ',');
+		if (tmpp == 0)
+			goto invalid_fs;
+		*tmpp++ = 0;
+		aname = 0;
+		if (! getintval (&tmpp, &secs, ',')
+			|| ! getintval (&tmpp, &heads, ',')
+			|| ! getintval (&tmpp, &reserved, ',')
+			|| ! getintval (&tmpp, &bs, ','))
+			goto invalid_fs;
+		if (getintval2 (&tmpp, &bp, ',')) {
+			fs = tmpp;
+			tmpp = _tcschr (tmpp, ',');
+			if (tmpp != 0) {
+				*tmpp++ = 0;
+				hdc = tmpp;
+				if(_tcslen (hdc) >= 4 && !_tcsncmp (hdc, _T("ide"), 3)) {
+					hdcv = hdc[3] - '0' + HD_CONTROLLER_IDE0;
+					if (hdcv < HD_CONTROLLER_IDE0 || hdcv > HD_CONTROLLER_IDE3)
+						hdcv = 0;
+				}
+				if(_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scsi"), 4)) {
+					hdcv = hdc[4] - '0' + HD_CONTROLLER_SCSI0;
+					if (hdcv < HD_CONTROLLER_SCSI0 || hdcv > HD_CONTROLLER_SCSI6)
+						hdcv = 0;
+				}
+				if (_tcslen (hdc) >= 6 && !_tcsncmp (hdc, _T("scsram"), 6))
+					hdcv = HD_CONTROLLER_PCMCIA_SRAM;
+				if (_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scide"), 6))
+					hdcv = HD_CONTROLLER_PCMCIA_IDE;
+			}
+		}
+	}
+empty_fs:
+	if (root) {
+		if (_tcslen (root) > 3 && root[0] == 'H' && root[1] == 'D' && root[2] == '_') {
+			root += 2;
+			*root = ':';
+		}
+		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, false);
+	}
+#ifdef FILESYS
+	add_filesys_config (p, nr, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
+#endif
+	xfree (str);
+	return 1;
+
+invalid_fs:
+	write_log (_T("Invalid filesystem/hardfile specification.\n"));
+	return 1;
+}
+
+static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHAR *value)
+{
+	int i;
+
+	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+		TCHAR tmp[100];
+		_stprintf (tmp, _T("uaehf%d"), i);
+		if (_tcscmp (option, tmp) == 0) {
+			for (;;) {
+				bool hdf = false;
+				TCHAR *tmpp = _tcschr (value, ',');
+				if (tmpp == NULL)
+					return 1;
+				*tmpp++ = 0;
+				if (strcasecmp (value, _T("hdf")) == 0) {
+					hdf = true;
+				} else if (strcasecmp (value, _T("dir")) != 0) {
+					return 1;
+				}
+#if 0			// not yet
+				return cfgfile_parse_newfilesys (p, i, hdf, tmpp);
+#else
+				return 1;
+#endif
+			}
+			return 1;
+		}
+	}
+
+	if (_tcscmp (option, _T("filesystem")) == 0
+		|| _tcscmp (option, _T("hardfile")) == 0)
+	{
+		int secs, heads, reserved, bs;
+		bool ro;
+		TCHAR *aname, *root;
+		TCHAR *tmpp = _tcschr (value, ',');
+		TCHAR *str;
+
+		if (config_newfilesystem)
+			return 1;
+
+		if (tmpp == 0)
+			goto invalid_fs;
+
+		*tmpp++ = '\0';
+		if (_tcscmp (value, _T("1")) == 0 || strcasecmp (value, _T("ro")) == 0
+			|| strcasecmp (value, _T("readonly")) == 0
+			|| strcasecmp (value, _T("read-only")) == 0)
+			ro = true;
+		else if (_tcscmp (value, _T("0")) == 0 || strcasecmp (value, _T("rw")) == 0
+			|| strcasecmp (value, _T("readwrite")) == 0
+			|| strcasecmp (value, _T("read-write")) == 0)
+			ro = false;
+		else
+			goto invalid_fs;
+		secs = 0; heads = 0; reserved = 0; bs = 0;
+
+		value = tmpp;
+		if (_tcscmp (option, _T("filesystem")) == 0) {
+			tmpp = _tcschr (value, ':');
+			if (tmpp == 0)
+				goto invalid_fs;
+			*tmpp++ = '\0';
+			aname = value;
+			root = tmpp;
+		} else {
+			if (! getintval (&value, &secs, ',')
+				|| ! getintval (&value, &heads, ',')
+				|| ! getintval (&value, &reserved, ',')
+				|| ! getintval (&value, &bs, ','))
+				goto invalid_fs;
+			root = value;
+			aname = 0;
+		}
+		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, true);
+#ifdef FILESYS
+		add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
+#endif
+		free (str);
+		return 1;
+invalid_fs:
+		write_log (_T("Invalid filesystem/hardfile specification.\n"));
+		return 1;
+
+	}
+
+	if (_tcscmp (option, _T("filesystem2")) == 0)
+		return cfgfile_parse_newfilesys (p, -1, false, value);
+	if (_tcscmp (option, _T("hardfile2")) == 0)
+		return cfgfile_parse_newfilesys (p, -1, true, value);
+
+	return 0;
+}
+
 static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCHAR *value)
 {
 	int tmpval, dummyint, i;
@@ -2518,167 +2725,8 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
-	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-		TCHAR tmp[100];
-		_stprintf (tmp, _T("uaehf%d"), i);
-		if (_tcscmp (option, tmp) == 0)
-			return 1;
-	}
-
-	if (_tcscmp (option, _T("filesystem")) == 0
-		|| _tcscmp (option, _T("hardfile")) == 0)
-	{
-		int secs, heads, reserved, bs;
-		bool ro;
-		TCHAR *aname, *root;
-		TCHAR *tmpp = _tcschr (value, ',');
-		TCHAR *str;
-
-		if (config_newfilesystem)
-			return 1;
-
-		if (tmpp == 0)
-			goto invalid_fs;
-
-		*tmpp++ = '\0';
-		if (_tcscmp (value, _T("1")) == 0 || strcasecmp (value, _T("ro")) == 0
-			|| strcasecmp (value, _T("readonly")) == 0
-			|| strcasecmp (value, _T("read-only")) == 0)
-			ro = true;
-		else if (_tcscmp (value, _T("0")) == 0 || strcasecmp (value, _T("rw")) == 0
-			|| strcasecmp (value, _T("readwrite")) == 0
-			|| strcasecmp (value, _T("read-write")) == 0)
-			ro = false;
-		else
-			goto invalid_fs;
-		secs = 0; heads = 0; reserved = 0; bs = 0;
-
-		value = tmpp;
-		if (_tcscmp (option, _T("filesystem")) == 0) {
-			tmpp = _tcschr (value, ':');
-			if (tmpp == 0)
-				goto invalid_fs;
-			*tmpp++ = '\0';
-			aname = value;
-			root = tmpp;
-		} else {
-			if (! getintval (&value, &secs, ',')
-				|| ! getintval (&value, &heads, ',')
-				|| ! getintval (&value, &reserved, ',')
-				|| ! getintval (&value, &bs, ','))
-				goto invalid_fs;
-			root = value;
-			aname = 0;
-		}
-		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, true);
-#ifdef FILESYS
-		add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
-#endif
-		free (str);
+	if (cfgfile_parse_filesys (p, option, value))
 		return 1;
-
-	}
-
-	if (_tcscmp (option, _T("filesystem2")) == 0
-		|| _tcscmp (option, _T("hardfile2")) == 0)
-	{
-		int secs, heads, reserved, bs, bp, hdcv;
-		bool ro;
-		TCHAR *dname = NULL, *aname = _T(""), *root = NULL, *fs = NULL, *hdc;
-		TCHAR *tmpp = _tcschr (value, ',');
-		TCHAR *str = NULL;
-
-		config_newfilesystem = 1;
-		if (tmpp == 0)
-			goto invalid_fs;
-
-		*tmpp++ = '\0';
-		if (strcasecmp (value, _T("ro")) == 0)
-			ro = true;
-		else if (strcasecmp (value, _T("rw")) == 0)
-			ro = false;
-		else
-			goto invalid_fs;
-		secs = 0; heads = 0; reserved = 0; bs = 0; bp = 0;
-		fs = 0; hdc = 0; hdcv = 0;
-
-		value = tmpp;
-		if (_tcscmp (option, _T("filesystem2")) == 0) {
-			tmpp = _tcschr (value, ':');
-			if (tmpp == 0)
-				goto empty_fs;
-			*tmpp++ = 0;
-			dname = value;
-			aname = tmpp;
-			tmpp = _tcschr (tmpp, ':');
-			if (tmpp == 0)
-				goto empty_fs;
-			*tmpp++ = 0;
-			root = tmpp;
-			tmpp = _tcschr (tmpp, ',');
-			if (tmpp == 0)
-				goto empty_fs;
-			*tmpp++ = 0;
-			if (! getintval (&tmpp, &bp, 0))
-				goto empty_fs;
-		} else {
-			tmpp = _tcschr (value, ':');
-			if (tmpp == 0)
-				goto invalid_fs;
-			*tmpp++ = '\0';
-			dname = value;
-			root = tmpp;
-			tmpp = _tcschr (tmpp, ',');
-			if (tmpp == 0)
-				goto invalid_fs;
-			*tmpp++ = 0;
-			aname = 0;
-			if (! getintval (&tmpp, &secs, ',')
-				|| ! getintval (&tmpp, &heads, ',')
-				|| ! getintval (&tmpp, &reserved, ',')
-				|| ! getintval (&tmpp, &bs, ','))
-				goto invalid_fs;
-			if (getintval2 (&tmpp, &bp, ',')) {
-				fs = tmpp;
-				tmpp = _tcschr (tmpp, ',');
-				if (tmpp != 0) {
-					*tmpp++ = 0;
-					hdc = tmpp;
-					if(_tcslen (hdc) >= 4 && !_tcsncmp (hdc, _T("ide"), 3)) {
-						hdcv = hdc[3] - '0' + HD_CONTROLLER_IDE0;
-						if (hdcv < HD_CONTROLLER_IDE0 || hdcv > HD_CONTROLLER_IDE3)
-							hdcv = 0;
-					}
-					if(_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scsi"), 4)) {
-						hdcv = hdc[4] - '0' + HD_CONTROLLER_SCSI0;
-						if (hdcv < HD_CONTROLLER_SCSI0 || hdcv > HD_CONTROLLER_SCSI6)
-							hdcv = 0;
-					}
-					if (_tcslen (hdc) >= 6 && !_tcsncmp (hdc, _T("scsram"), 6))
-						hdcv = HD_CONTROLLER_PCMCIA_SRAM;
-					if (_tcslen (hdc) >= 5 && !_tcsncmp (hdc, _T("scide"), 6))
-						hdcv = HD_CONTROLLER_PCMCIA_IDE;
-				}
-			}
-		}
-empty_fs:
-		if (root) {
-			if (_tcslen (root) > 3 && root[0] == 'H' && root[1] == 'D' && root[2] == '_') {
-				root += 2;
-				*root = ':';
-			}
-			str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, false);
-		}
-#ifdef FILESYS
-		add_filesys_config (p, -1, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
-#endif
-		xfree (str);
-		return 1;
-
-invalid_fs:
-		write_log (_T("Invalid filesystem/hardfile specification.\n"));
-		return 1;
-	}
 
 	return 0;
 }
@@ -2766,7 +2814,7 @@ int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int 
 		if (cfgfile_parse_host (p, option, value))
 			return 1;
 	}
-	if (type > 0)
+	if (type > 0 && (type & (CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST)) != (CONFIG_TYPE_HARDWARE | CONFIG_TYPE_HOST))
 		return 1;
 	return 0;
 }

@@ -1239,7 +1239,7 @@ static const struct hidquirk quirks[] =  {
 	{ USB_VENDOR_ID_ALPS, USB_DEVICE_ID_IBM_GAMEPAD },
 	{ USB_VENDOR_ID_CHIC, USB_DEVICE_ID_CHIC_GAMEPAD },
 	{ USB_VENDOR_ID_DWAV, USB_DEVICE_ID_EGALAX_TOUCHCONTROLLER },
-	{ USB_VENDOR_ID_MOJO, USB_DEVICE_ID_RETRO_ADAPTER },
+//	{ USB_VENDOR_ID_MOJO, USB_DEVICE_ID_RETRO_ADAPTER },
 	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_DRIVING },
 	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_FLYING },
 	{ USB_VENDOR_ID_HAPP, USB_DEVICE_ID_UGCI_FIGHTING },
@@ -1543,7 +1543,6 @@ static bool initialize_rawinput (void)
 														did->axissort[axiscnt] = hidtable[ht].priority * 2 + l;
 														did->axismappings[axiscnt] = acnt;
 														memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
-														fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
 														did->axistype[axiscnt] = l + 1;
 														axiscnt++;
 													}

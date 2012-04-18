@@ -4749,7 +4749,8 @@ static void resetinput (void)
 	}
 }
 
-void inputdevice_updateconfig (struct uae_prefs *prefs)
+
+void inputdevice_updateconfig_internal (struct uae_prefs *prefs)
 {
 	int i;
 
@@ -4759,15 +4760,6 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 	copyjport (&changed_prefs, &currprefs, 1);
 	copyjport (&changed_prefs, &currprefs, 2);
 	copyjport (&changed_prefs, &currprefs, 3);
-
-#ifdef RETROPLATFORM
-	rp_input_change (0);
-	rp_input_change (1);
-	rp_input_change (2);
-	rp_input_change (3);
-	for (i = 0; i < MAX_JPORTS; i++)
-		rp_update_gameport (i, -1, 0);
-#endif
 
 	resetinput ();
 
@@ -4797,8 +4789,22 @@ void inputdevice_updateconfig (struct uae_prefs *prefs)
 
 	disableifempty (prefs);
 	scanevents (prefs);
+}
 
+void inputdevice_updateconfig (struct uae_prefs *prefs)
+{
+	inputdevice_updateconfig_internal (prefs);
+	
 	config_changed = 1;
+
+#ifdef RETROPLATFORM
+	rp_input_change (0);
+	rp_input_change (1);
+	rp_input_change (2);
+	rp_input_change (3);
+	for (int i = 0; i < MAX_JPORTS; i++)
+		rp_update_gameport (i, -1, 0);
+#endif
 }
 
 /* called when devices get inserted or removed

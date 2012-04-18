@@ -186,7 +186,8 @@ int maxvpos_nom = MAXVPOS_PAL; // nominal value (same as maxvpos but "faked" max
 int hsyncendpos, hsyncstartpos;
 static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
-int equ_vblank_endline = EQU_ENDLINE_PAL;
+static int equ_vblank_endline = EQU_ENDLINE_PAL;
+static bool equ_vblank_toggle = true;
 double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
@@ -571,6 +572,11 @@ static void remember_ctable_for_border (void)
 	remember_ctable ();
 }
 
+STATIC_INLINE int get_equ_vblank_endline (void)
+{
+	return equ_vblank_endline + (equ_vblank_toggle ? (lof_current ? 1 : 0) : 0);
+}
+
 /* Called to determine the state of the horizontal display window state
 * machine at the current position. It might have changed since we last
 * checked.  */
@@ -583,7 +589,7 @@ static void decide_diw (int hpos)
 	*/
 
 	int hdiw = hpos >= maxhpos ? maxhpos * 2 + 1 : hpos * 2 + 2;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= equ_vblank_endline) {
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= get_equ_vblank_endline ()) {
 		hdiw = diw_hcounter;
 		hdiw &= 511;
 	}
@@ -952,7 +958,7 @@ static void setup_fmodes (int hpos)
 	ddf_change = vpos;
 }
 
-static void BPLCON0_Denise (int hpos, uae_u16 v);
+static void BPLCON0_Denise (int hpos, uae_u16 v, bool);
 
 // writing to BPLCON0 adds 4 cycle delay before Agnus bitplane DMA sequence changes
 // (Note that Denise sees the change after 1 cycle)
@@ -966,7 +972,7 @@ static void maybe_setup_fmodes (int hpos)
 	switch (bpldmasetupphase)
 	{
 	case 0:
-		BPLCON0_Denise (hpos, bplcon0);
+		BPLCON0_Denise (hpos, bplcon0, false);
 		bpldmasetupphase++;
 		bpldmasetuphpos += BPLCON_AGNUS_DELAY - BPLCON_DENISE_DELAY;
 		break;
@@ -989,7 +995,7 @@ static void bpldmainitdelay (int hpos)
 	hposa = hpos + BPLCON_AGNUS_DELAY;
 	ddf_change = vpos;
 	if (hposa < 0x14) {
-		BPLCON0_Denise (hpos, bplcon0);
+		BPLCON0_Denise (hpos, bplcon0, false);
 		setup_fmodes (hpos);
 		return;
 	}
@@ -2610,9 +2616,9 @@ static void finish_decisions (void)
 	next_color_change += (HBLANK_OFFSET + 1) / 2;
 
 	diw_hcounter += maxhpos * 2;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos == equ_vblank_endline - 1)
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos == get_equ_vblank_endline () - 1)
 		diw_hcounter++;
-	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > equ_vblank_endline || (currprefs.cs_dipagnus && vpos == 0)) {
+	if ((currprefs.chipset_mask & CSMASK_ECS_DENISE) || vpos > get_equ_vblank_endline () || (currprefs.cs_dipagnus && vpos == 0)) {
 		diw_hcounter = maxhpos * 2;
 		last_hdiw = 2 - 1;
 	}
@@ -2665,7 +2671,7 @@ static void reset_decisions (void)
 	bplcon1_hpos = -1;
 	if (bpldmasetuphpos >= 0) {
 		// this can happen in "too fast" modes
-		BPLCON0_Denise (0, bplcon0);
+		BPLCON0_Denise (0, bplcon0, true);
 		setup_fmodes (0);
 	}
 	bpldmasetuphpos = -1;
@@ -2954,7 +2960,7 @@ void compute_framesync (void)
 		vblank_hz, vblank_hz * maxvpos_nom,
 		maxhpos, maxvpos, lof_store ? 1 : 0,
 		cr ? cr->index : -1,
-		cr != NULL && cr->label != NULL ? cr->label : _T("<unknown>")
+		cr != NULL && cr->label != NULL ? cr->label : _T("<?>")
 	);
 
 	config_changed = 1;
@@ -2993,6 +2999,7 @@ void init_hz (bool fullinit)
 		vblank_hz = VBLANK_HZ_PAL;
 		sprite_vblank_endline = VBLANK_SPRITE_PAL;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
+		equ_vblank_toggle = true;
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
@@ -3000,6 +3007,7 @@ void init_hz (bool fullinit)
 		vblank_hz = VBLANK_HZ_NTSC;
 		sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
+		equ_vblank_toggle = false;
 	}
 	maxvpos_nom = maxvpos;
 	if (vpos_count > 0) {
@@ -3482,7 +3490,10 @@ static void DMACON (int hpos, uae_u16 v)
 	dmacon &= 0x1FFF;
 
 	changed = dmacon ^ oldcon;
-
+#if 0
+	if (changed)
+		write_log (L"%04x -> %04x %08x\n", oldcon, dmacon, m68k_getpc ());
+#endif
 	oldcop = (oldcon & DMA_COPPER) && (oldcon & DMA_MASTER);
 	newcop = (dmacon & DMA_COPPER) && (dmacon & DMA_MASTER);
 
@@ -3752,7 +3763,7 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 	//write_log (_T("%d:%d:BPL%dPTL %08X COP=%08x\n"), hpos, vpos, num, bplpt[num], cop_state.ip);
 }
 
-static void BPLCON0_Denise (int hpos, uae_u16 v)
+static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 {
 	if (! (currprefs.chipset_mask & CSMASK_ECS_DENISE))
 		v &= ~0x00F1;
@@ -3771,7 +3782,11 @@ static void BPLCON0_Denise (int hpos, uae_u16 v)
 	if (isehb (bplcon0d, bplcon2))
 		v |= 0x80;
 
-	record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
+	if (immediate) {
+		record_register_change (hpos, 0x100, v);
+	} else {
+		record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
+	}
 
 	bplcon0d = v & ~0x80;
 
@@ -3812,7 +3827,7 @@ static void BPLCON0 (int hpos, uae_u16 v)
 	bpldmainitdelay (hpos);
 
 	if (thisline_decision.plfleft < 0)
-		BPLCON0_Denise (hpos, v);
+		BPLCON0_Denise (hpos, v, true);
 }
 
 STATIC_INLINE void BPLCON1 (int hpos, uae_u16 v)
@@ -5196,11 +5211,13 @@ static void framewait (void)
 	frame_time_t start;
 	int vs = isvsync_chipset ();
 
+	is_syncline = 0;
+
 	if (vs > 0) {
 
 		curr_time = read_processor_time ();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
-		vsynctimeperline = vsynctimebase / maxvpos_nom;
+		vsynctimeperline = vsynctimebase / (maxvpos_nom + 1);
 		render_screen ();
 		show_screen ();
 		frame_shown = true;
@@ -5217,24 +5234,27 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 
 			// fastest possible
-			int max;
+			int max, adjust;
+
+			adjust = 0;
 			curr_time = read_processor_time ();
-			vsync_busywait_end ();
+			start = vsync_busywait_end ();
+			if ((int)curr_time - (int)vsyncwaittime < 0)
+				curr_time = start;
+
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
 
+			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2)
+				adjust = curr_time - vsyncwaittime;
+			max -= adjust;
+
 			vsyncmintime = curr_time;
 			vsyncwaittime = curr_time + vsynctimebase;
-			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
-			max -= frameskiptime + maxvpos_nom / 10;
-			frameskiptime = 0;
-			if (max < 0) {
-				max = 0;
-				vsynctimeperline = 1;
-			} else {
-				vsynctimeperline = max / maxvpos_nom;
-			}
-			vsyncmaxtime = max + curr_time;
+
+			vsynctimeperline = max / (maxvpos_nom + 1);
+			vsyncmaxtime = curr_time + max;
 
 		} else {
 
@@ -5245,7 +5265,7 @@ static void framewait (void)
 			vsyncmintime = curr_time;
 			vsyncwaittime = curr_time + vsynctimebase;
 			vsyncmaxtime = curr_time + vsynctimebase;
-			vsynctimeperline = vsynctimebase / maxvpos_nom;
+			vsynctimeperline = vsynctimebase / (maxvpos_nom + 1);
 			if (!show) {	
 				show_screen ();
 				if (extraframewait)
@@ -5273,26 +5293,24 @@ static void framewait (void)
 		}
 
 		int max;
-		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2) {
-			int adjust = curr_time - vsyncwaittime;
-			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
-			vsyncwaittime = curr_time + vsynctimebase - adjust;
-		} else {
-			max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000;
-			vsyncwaittime = curr_time + vsynctimebase;
-		}
+		int adjust = 0;
+		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2)
+			adjust = curr_time - vsyncwaittime;
+		max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
+		vsyncwaittime = curr_time + vsynctimebase - adjust;
 		vsyncmintime = curr_time;
-		vsynctimeperline /= maxvpos_nom;
 		
-		max -= frameskiptime + maxvpos_nom / 10;
+#if 0
+		max -= frameskiptime;
+#endif
 		frameskiptime = 0;
 		if (max < 0) {
 			max = 0;
 			vsynctimeperline = 1;
 		} else {
-			vsynctimeperline = max / maxvpos_nom;
+			vsynctimeperline = max / (maxvpos_nom + 1);
 		}
-		vsyncmaxtime = max + curr_time;
+		vsyncmaxtime = curr_time + max;
 	
 	} else {
 
@@ -5313,7 +5331,7 @@ static void framewait (void)
 		curr_time = read_processor_time ();
 		vsyncmintime = curr_time;
 		vsyncmaxtime = vsyncwaittime = curr_time + vsynctimebase;
-		vsynctimeperline = vsynctimebase / maxvpos_nom;
+		vsynctimeperline = vsynctimebase / (maxvpos_nom + 1);
 		if (didrender)
 			show_screen ();
 		frame_shown = true;
@@ -5742,6 +5760,7 @@ static void hsync_handler_pre (bool onvsync)
 		hardware_line_completed (next_lineno);
 		if (doflickerfix () && interlace_seen > 0)
 			hsync_scandoubler ();
+		notice_resolution_seen (GET_RES_AGNUS (bplcon0), interlace_seen > 0);
 	}
 
 #ifdef A2065
@@ -5925,10 +5944,10 @@ static void hsync_handler_post (bool onvsync)
 			vsyncmintime += vsynctimeperline;
 			is_syncline = 0;
 			if (!vblank_found_chipset) {
-				if ((int)vsyncmaxtime - (int)vsyncmintime >= 0) {
+				if ((int)vsyncmaxtime - (int)vsyncmintime > 0 && (int)vsyncwaittime - (int)vsyncmintime > 0) {
 					frame_time_t rpt = read_processor_time ();
 					/* Extra time left? Do some extra CPU emulation */
-					if ((int)vsyncmintime - (int)rpt >= vsynctimeperline) {
+					if ((int)vsyncmintime - (int)rpt > 0) {
 						is_syncline = -1;
 					}
 				}
