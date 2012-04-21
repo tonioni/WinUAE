@@ -1834,6 +1834,7 @@ void restore_cia_finish (void)
 	CIA_update ();
 	CIA_calctimers ();
 	compute_passed_time ();
+	eventtab[ev_cia].oldcycles -= div10;
 	//dumpcia ();
 	DISK_select_set (ciabprb);
 }

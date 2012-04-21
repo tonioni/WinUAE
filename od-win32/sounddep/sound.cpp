@@ -128,8 +128,8 @@ struct sound_dp
 
 #define SND_STATUSCNT 10
 
-#define ADJUST_SIZE 30
-#define EXP 2.1
+#define ADJUST_SIZE 20
+#define EXP 1.9
 
 #define ADJUST_VSSIZE 10
 #define EXPVS 1.6
@@ -266,6 +266,34 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 		sound_setadjust (skipmode + avgskipmode);
 		tfprev = timeframes;
 	}
+}
+
+
+static double sync_sound (double m)
+{
+	double skipmode;
+	if (0 && isvsync ()) {
+
+		skipmode = pow (m < 0 ? -m : m, EXPVS) / 9;
+		if (m < 0)
+			skipmode = -skipmode;
+		if (skipmode < -ADJUST_VSSIZE)
+			skipmode = -ADJUST_VSSIZE;
+		if (skipmode > ADJUST_VSSIZE)
+			skipmode = ADJUST_VSSIZE;
+
+	} else if (1) {
+
+		skipmode = pow (m < 0 ? -m : m, EXP) / 2;
+		if (m < 0)
+			skipmode = -skipmode;
+		if (skipmode < -ADJUST_SIZE)
+			skipmode = -ADJUST_SIZE;
+		if (skipmode > ADJUST_SIZE)
+			skipmode = ADJUST_SIZE;
+	}
+
+	return skipmode;
 }
 
 static void clearbuffer_ds (struct sound_data *sd)
@@ -1859,32 +1887,6 @@ int get_offset_sound_device (struct sound_data *sd)
 	return -1;
 }
 
-static double sync_sound (double m)
-{
-	double skipmode;
-	if (isvsync () || 1) {
-
-		skipmode = pow (m < 0 ? -m : m, EXPVS) / 9;
-		if (m < 0)
-			skipmode = -skipmode;
-		if (skipmode < -ADJUST_VSSIZE)
-			skipmode = -ADJUST_VSSIZE;
-		if (skipmode > ADJUST_VSSIZE)
-			skipmode = ADJUST_VSSIZE;
-
-	} else if (1) {
-
-		skipmode = pow (m < 0 ? -m : m, EXP) / 2;
-		if (m < 0)
-			skipmode = -skipmode;
-		if (skipmode < -ADJUST_SIZE)
-			skipmode = -ADJUST_SIZE;
-		if (skipmode > ADJUST_SIZE)
-			skipmode = ADJUST_SIZE;
-	}
-
-	return skipmode;
-}
 
 static void finish_sound_buffer_xaudio2 (struct sound_data *sd, uae_u16 *sndbuffer)
 {
@@ -2510,12 +2512,12 @@ int enumerate_sound_devices (void)
 	if (!num_sound_devices) {
 		HMODULE l = NULL;
 		write_log (_T("Enumerating DirectSound devices..\n"));
-		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI))
-			wasapi_enum (sound_devices);
 		if ((1 || force_directsound || !os_vista) && (sounddrivermask & SOUNDDRIVER_DS)) {
 			DirectSoundEnumerate ((LPDSENUMCALLBACK)DSEnumProc, sound_devices);
 		}
 		DirectSoundCaptureEnumerate ((LPDSENUMCALLBACK)DSEnumProc, record_devices);
+		if (os_vista && (sounddrivermask & SOUNDDRIVER_WASAPI))
+			wasapi_enum (sound_devices);
 		if (sounddrivermask & SOUNDDRIVE_XAUDIO2)
 			xaudioenumerate (sound_devices);
 		if (sounddrivermask & SOUNDDRIVER_OPENAL) {

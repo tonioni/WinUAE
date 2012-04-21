@@ -313,6 +313,7 @@ static bool get_trace (uaecptr addr, int accessmode, int size, uae_u32 *data)
 					x_do_cycles (c);
 				} else if (cputrace.cyclecounter_pre) {
 					check_trace ();
+					*data = ctm->data;
 					return true; // argh, need to rerun the memory access..
 				}
 			}
@@ -4809,7 +4810,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 	int i, flags, model;
 	uae_u32 l;
 
-	changed_prefs.cpu_model = model = restore_u32 ();
+	currprefs.cpu_model = changed_prefs.cpu_model = model = restore_u32 ();
 	flags = restore_u32 ();
 	changed_prefs.address_space_24 = 0;
 	if (flags & CPUTYPE_EC)

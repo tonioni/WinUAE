@@ -2426,8 +2426,11 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 		uae_u32 totalblocks = 0;
 		ii->media = true;
 		di.cylinders = 0;
-		if (sys_command_info (sb->unitnum, &di, true))
+		_stprintf (ii->devname, _T("CD%d"), sb->unitnum);
+		if (sys_command_info (sb->unitnum, &di, true)) {
 			totalblocks = di.cylinders * di.sectorspertrack * di.trackspercylinder;
+			_tcscpy (ii->devname, di.label);
+		}
 		ii->unknown_media = sb->unknown_media;
 		ii->blocksize = 2048;
 		if (sb->root) {

@@ -47,9 +47,9 @@ static bool isdirectjit (void)
 
 static bool canjit (void)
 {
-	if (currprefs.cpu_model < 68020 && currprefs.address_space_24)
-		return 0;
-	return 1;
+	if (currprefs.cpu_model < 68020 || currprefs.address_space_24)
+		return false;
+	return true;
 }
 
 static void nocanbang (void)

@@ -2,6 +2,17 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 8:
+
+- 68EC020/68020 state files didn't load properly if current CPU config didn't match.
+- Adjusted JIT timing a bit, possible fix for slowdowns on some systems.
+- Made sound sync a bit more aggressive. (2.4.0 relaxed it a bit too much, I think)
+- D3D crash fixed (b7)
+- CIA related rare statefile CPU TRACE error fixed.
+- Crash fixed when CDFS CD drives enabled without any harddrives.
+- Disable USB HID RAWINPUT (Fallback to Direct Input) if "blacklisted" devices found, added
+  RM-203 USB adapter to list because it requires calibration which WinUAE can't support.
+
 Beta 7:
 
 - DirectDraw full-window mode on non-primary monitor was blank.

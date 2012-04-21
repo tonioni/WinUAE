@@ -7,6 +7,7 @@ struct isofs_info
 	bool media;
 	bool unknown_media;
 	TCHAR volumename[256];
+	TCHAR devname[256];
 	uae_u32 blocks;
 	uae_u32 totalblocks;
 	uae_u32 blocksize;

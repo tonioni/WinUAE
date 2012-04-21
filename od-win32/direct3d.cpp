@@ -1664,8 +1664,8 @@ static void setupscenecoords (void)
 		sw = dw * tin_w / window_w;
 		sh = dh * tin_h / window_h;
 
-		sw -= 0.5f;
-		sh += 0.5f;
+		//sw -= 0.5f;
+		//sh += 0.5f;
 
 		tx += xshift;
 		ty += yshift;
@@ -2318,9 +2318,9 @@ bool D3D_alloctexture (int w, int h)
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
-	if (!createamigatexture (tin_w, tin_h))
-		return false;
 	if (!createtexture (tout_w, tout_h, window_w, window_h))
+		return false;
+	if (!createamigatexture (tin_w, tin_h))
 		return false;
 	return true;
 }

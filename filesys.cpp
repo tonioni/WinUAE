@@ -54,6 +54,9 @@
 #include "consolehook.h"
 #include "blkdev.h"
 #include "isofs_api.h"
+#ifdef RETROPLATFORM
+#include "rp.h"
+#endif
 
 #define TRACING_ENABLED 0
 #if TRACING_ENABLED
@@ -603,6 +606,12 @@ static int add_filesys_unit (TCHAR *devname, TCHAR *volname, const TCHAR *rootdi
 	ret = set_filesys_unit_1 (-1, devname, volname, rootdir, readonly,
 		secspertrack, surfaces, reserved, blocksize,
 		bootpri, donotmount, autoboot, filesysdir, hdc, flags);
+#ifdef RETROPLATFORM
+	if (ret >= 0) {
+		rp_hd_device_enable (ret, true);
+		rp_harddrive_image_change (ret, readonly, rootdir);
+	}
+#endif
 	return ret;
 }
 
@@ -644,13 +653,14 @@ static void filesys_addexternals (void);
 
 static void initialize_mountinfo (void)
 {
-	int i;
+	int nr;
 	struct uaedev_config_info *uci;
 	UnitInfo *uip = &mountinfo.ui[0];
 
 	cd_unit_offset = MAX_FILESYSTEM_UNITS;
-	for (i = 0; i < currprefs.mountitems; i++) {
-		uci = &currprefs.mountconfig[i];
+
+	for (nr = 0; nr < currprefs.mountitems; nr++) {
+		uci = &currprefs.mountconfig[nr];
 		if (uci->controller == HD_CONTROLLER_UAE) {
 			int idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 				uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
@@ -700,9 +710,11 @@ static void initialize_mountinfo (void)
 				int idx = set_filesys_unit_1 (i + cd_unit_offset, cdname, NULL, _T("/"), true, 1, 1, 0, 2048, 0, false, false, NULL, 0, 0);
 				if (idx >= 0) {
 					UnitInfo *ui;
+					uci = &currprefs.mountconfig[nr];
 					uci->configoffset = idx;
 					ui = &mountinfo.ui[idx];
 					ui->configureddrive = 1;
+					nr++;
 				}
 			}
 		}
@@ -1362,6 +1374,12 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 			zfile_fclose_archive (u->zarchive);
 			u->zarchive = NULL;
 			u->ui.unknown_media = false;
+#ifdef RETROPLATFORM
+			if (ui->unit_type == UNIT_CDFS)
+				rp_cd_image_change (ui->cddevno, NULL);
+			else
+				rp_harddrive_image_change (nr, false, NULL);
+#endif
 		} else {
 			u->mount_changed = 0;
 		}
@@ -1396,9 +1414,11 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 						u->ui.volname = ui->volname = my_strdup (ii.volumename);
 						ctime = ii.creation;
 						set_highcyl (ui, ii.blocks);
+#ifdef RETROPLATFORM
+						rp_cd_image_change (ui->cddevno, ii.devname);
+#endif
 					}
 				}
-
 			} else {
 				if (set_filesys_volume (u->mount_rootdir, &u->mount_flags, &u->mount_readonly, &emptydrive, &u->zarchive) < 0)
 					return 0;
@@ -1406,6 +1426,9 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 					return 0;
 				xfree (u->ui.volname);
 				ui->volname = u->ui.volname = filesys_createvolname (u->mount_volume, u->mount_rootdir, _T("removable"));
+#ifdef RETROPLATFORM
+				rp_harddrive_image_change (nr, u->mount_readonly, u->mount_rootdir);
+#endif
 			}
 			if (u->ui.unknown_media) {
 				write_log (_T("FILESYS: inserted unreadable volume NR=%d RO=%d\n"), nr, u->mount_readonly);
@@ -2356,6 +2379,9 @@ static bool mount_cd (UnitInfo *uinfo, int nr, uae_u32 *ctime, uae_u64 *uniq)
 		write_log (_T("Failed attempt to open CD unit %d\n"), uinfo->cddevno);
 		return false;
 	}
+#ifdef RETROPLATFORM
+	rp_cd_device_enable (uinfo->cddevno, true);
+#endif
 	uinfo->cdfs_superblock = isofs_mount(uinfo->cddevno, uniq);
 	uinfo->wasisempty = true;
 	struct isofs_info ii;
@@ -2368,11 +2394,17 @@ static bool mount_cd (UnitInfo *uinfo, int nr, uae_u32 *ctime, uae_u64 *uniq)
 				if (ctime)
 					*ctime = ii.creation;
 				set_highcyl (uinfo, ii.totalblocks);
+#ifdef RETROPLATFORM
+				rp_cd_image_change (uinfo->cddevno, ii.devname);
+#endif
 			}
 		}
 		uinfo->unknown_media = ii.unknown_media;
 	}
 	uinfo->cd_open = true;
+
+
+
 	return true;
 }
 

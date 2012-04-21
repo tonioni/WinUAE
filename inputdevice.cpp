@@ -4681,7 +4681,7 @@ static void matchdevices_all (struct uae_prefs *prefs)
 	}
 }
 
-bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int port)
+bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int flags, int port)
 {
 	TCHAR name[256];
 	struct inputevent *ie;
@@ -4702,7 +4702,7 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 	}
 	if (sub >= MAX_INPUT_SUB_EVENT)
 		sub = MAX_INPUT_SUB_EVENT - 1;
-	inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1, port + 1, sub);
+	inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1 | flags, port + 1, sub);
 
 	joysticks = prefs->joystick_settings[prefs->input_selected_setting];
 	mice = prefs->mouse_settings[prefs->input_selected_setting];

@@ -8,8 +8,8 @@
          : version 2.0 as published by Mozilla Corporation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2012-03-27 16:00:00
- Comment : RP Player interprocess communication include file
+ Updated : 2012-04-20 14:49:00
+ Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
 #ifndef __CLOANTO_RETROPLATFORMIPC_H__
@@ -17,9 +17,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "3.2"
+#define RETROPLATFORM_API_VER       "3.3"
 #define RETROPLATFORM_API_VER_MAJOR  3
-#define RETROPLATFORM_API_VER_MINOR  2
+#define RETROPLATFORM_API_VER_MINOR  3
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -101,7 +101,7 @@
 #define RP_FEATURE_INPUTDEVICE_MOUSE	    0x00008000 // supports emulation of mouse
 #define RP_FEATURE_INPUTDEVICE_JOYSTICK	    0x00010000 // supports emulation of one/two-button joystick
 #define RP_FEATURE_INPUTDEVICE_GAMEPAD	    0x00020000 // supports emulation of multi-button joystick (if 3+ buttons available)
-#define RP_FEATURE_INPUTDEVICE_JOYPAD	    0x00040000 // supports emulation of amiga cd32 Joypad
+#define RP_FEATURE_INPUTDEVICE_JOYPAD	    0x00040000 // supports emulation of amiga cd32 joypad
 #define RP_FEATURE_INPUTDEVICE_PADDLE	    0x00080000 // supports emulation of analog paddle
 #define RP_FEATURE_INPUTDEVICE_ANALOGSTICK	0x00100000 // supports emulation of analog joystick
 #define RP_FEATURE_INPUTDEVICE_LIGHTPEN	    0x00200000 // supports emulation of light pen
@@ -111,7 +111,7 @@
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // in guest pixel units; -1 = ignore (0 is a valid value)
+	LONG lClipLeft;     // in guest pixel units; -1 = ignore (0 is a valid value); see http://www.retroplatform.com/kb/19-115
 	LONG lClipTop;      // in guest pixel units; -1 = ignore (0 is a valid value)
 	LONG lClipWidth;    // in guest pixel units; -1 = ignore
 	LONG lClipHeight;   // in guest pixel units; -1 = ignore
@@ -217,6 +217,8 @@ typedef struct RPScreenMode
 //
 // Notes
 //
+// For information on display clipping values, see http://www.retroplatform.com/kb/19-115
+//
 // If the user wants to adjust clipping, or for automated grabs and calculations, it is possible to set RP_CLIPFLAGS_NOCLIP, which will widen the window to the maximum (within lTargetWidth+lTargetHeight/fullscreen constraints).
 //
 // Whenever the guest sets or changes the "container" window size or scaling factor (initially, or due to a command it receives, or due to Amiga-sourced changes), it sends an RPScreenMode update to the host.
@@ -232,7 +234,7 @@ typedef struct RPScreenMode
 typedef struct RPInputDeviceDescription
 {
     DWORD dwHostInputType;              // host-side input device type (RP_HOSTINPUT_MOUSE, RP_HOSTINPUT_JOYSTICK, etc.)
-	WCHAR szHostInputID[260];           // host device "ProductGUID InstanceGUID", GUID, etc. (can be any format, as long as string is unique across all devices; keyboard layout strings must not contain spaces)
+	WCHAR szHostInputID[260];           // host device "ProductGUID InstanceGUID", GUID, etc. (can be any format, as long as the string is unique across all devices; keyboard layout strings must not contain spaces)
 	WCHAR szHostInputName[260];         // host device product description string ("5-Axis,12-Button with POV", "HID keyboard device", etc.) as listed by Windows; identical devices will result in identical strings (it is up to the host to add " (2)" etc. to the display names)
 	DWORD dwHostInputVendorID;          // host device Vendor ID (identification as issued by usb.org and found in USB and DirectInput device descriptors), or 0 if not available
 	DWORD dwHostInputProductID;         // host device Product ID (identification as assigned by manufacturer and used in USB and DirectInput device descriptors), or 0 if not available
@@ -245,31 +247,39 @@ typedef struct RPInputDeviceDescription
 
 typedef struct RPDeviceContent
 {
-	BYTE btDeviceCategory;              // RP_DEVICE_* value
+	BYTE btDeviceCategory;              // RP_DEVICECATEGORY_* value
 	BYTE btDeviceNumber;                // device number (range 0..31), e.g. Amiga floppy drive unit 0, C64 disk unit 8 or 9, etc.
     DWORD dwInputDevice;                // (guest-side) input device type (RP_INPUTDEVICE_MOUSE, RP_INPUTDEVICE_JOYSTICK, etc.); currently set to 0 if not RP_DEVICE_INPUTPORT
 	DWORD dwFlags;	                    // flags (or 0); e.g. see RP_DEVICEFLAGS_MOUSE_ (for "mouse hack"), RP_DEVICEFLAGS_RW_ (for read/write status)
-	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT, then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); see comment for format of KeyboardCustom string; szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
+	WCHAR szContent[260];               // if RP_DEVICECATEGORY_INPUTPORT, then host device ID, otherwise full path and name of the media image file to load, if file content (not used for input devices, which only use szHostInputID); see comment for format of KeyboardJoystick string; szContent is ignored if btDeviceCategory == RP_DEVICECATEGORY_INPUTPORT and dwInputDevice == RP_INPUTDEVICE_EMPTY
 } RPDEVICECONTENT;
 
 
 //
 // Keyboard layouts for joystick emulation
 //
-// These are virtual devices enumerated and named by the guest, rather than by the operating system. Any device name set by the guest will do, as long as it does not contain space characters.
+// These are virtual devices enumerated and named by the guest, rather than by the operating system. Any device name set by the guest will do, as long as it is unique and does not contain space characters. Each device is enumerated only once.
 //
 // In the initial device enumeration (guest to host), the szHostInputID strings are enumerated with names like
-// "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" and "KeyboardCustom"
+// "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" and "KeyboardJoystick"
 //
 // In dwHostInputType:
 // - "KeyboardLayout1", "KeyboardLayout2", "KeyboardLayout3" are flagged
 //   RP_HOSTINPUT_KEYJOY_MAP1, RP_HOSTINPUT_KEYJOY_MAP2, RP_HOSTINPUT_KEYJOY_MAP3
-// - "KeyboardCustom" is flagged RP_HOSTINPUT_KEYJOY_CUSTOM
+// - "KeyboardJoystick" is flagged RP_HOSTINPUT_KEYBOARD
 //
-// In RP_IPC_TO_GUEST_DEVICECONTENT (host to guest) messages, the key code strings are appended to the device string in szContent.
+// In RP_IPC_TO_GUEST_DEVICECONTENT (host to guest) messages for RP_HOSTINPUT_KEYBOARD, the key code strings are appended to the device string in szContent. Multiple joysticks can be set up in this way.
+//
 // For example:
-// "KeyboardCustom Left=0xC8 Right=0xD0 Up=0xCB Down=0xCD Fire=0x39"
+// "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51"
 //
+// The example sets a layout based mostly on the numeric keyboard:
+// - 8, 2, 4, 6 for direction, 5 to fire
+// - an additional "Fire2" button (as on the X-Arcade), set to the 0 key
+// - an additional Autofire button, set to Left Alt
+// - additional CD32 Joypad buttons: Rewind, Play, Fast Forward, Green, Yellow, Red, Blue (set to /, *, -, 7, 9, 1, 3)
+//
+// Full set of button definitions: as in the above example, plus "Fire3" (currently not used)
 
 
 // Device Categories
@@ -290,12 +300,12 @@ typedef struct RPDeviceContent
 #define RP_HOSTINPUT_MOUSE          0 // Mouse/trackball (supports relative moves)
 #define RP_HOSTINPUT_TABLET         1 // Pen tablet (no relative moves, only absolute positions)
 #define RP_HOSTINPUT_JOYSTICK       2 // PC joystick, gamepad, trackball, etc.
-#define RP_HOSTINPUT_KEYJOY_MAP1    3 // Keyboard Layout 1; Amiga/C64: Keyboard Layout A for WinUAE/VICE (8, 2, 4, 6 on keypad, 0 to fire, etc.)
-#define RP_HOSTINPUT_KEYJOY_MAP2    4 // Keyboard Layout 2; Amiga/C64: Keyboard Layout B for WinUAE/VICE (cursor keys, right Control to fire, etc.)
-#define RP_HOSTINPUT_KEYJOY_MAP3    5 // Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
-#define RP_HOSTINPUT_ARCADE_LEFT    6 // Left part of arcade dual joystick input device ("player 1")
-#define RP_HOSTINPUT_ARCADE_RIGHT   7 // Right part of arcade dual joystick input device ("player 2")
-#define RP_HOSTINPUT_KEYJOY_CUSTOM  8 // Custom Keyboard Layout (e.g. "KeyboardCustom Left=0xC8 Right=0xD0 Up=0xCB Down=0xCD Fire=0x39" set in szContent)
+#define RP_HOSTINPUT_KEYJOY_MAP1    3 // [LEGACY] Keyboard Layout 1; Amiga/C64: Keyboard Layout A for WinUAE/VICE (8, 2, 4, 6 on keypad, 0 to fire, etc.)
+#define RP_HOSTINPUT_KEYJOY_MAP2    4 // [LEGACY] Keyboard Layout 2; Amiga/C64: Keyboard Layout B for WinUAE/VICE (cursor keys, right Control to fire, etc.)
+#define RP_HOSTINPUT_KEYJOY_MAP3    5 // [LEGACY] Keyboard Layout 3; Amiga/C64: Keyboard Layout C for WinUAE/VICE (W, S, A, D keys, left Alt to fire, etc.)
+#define RP_HOSTINPUT_ARCADE_LEFT    6 // [LEGACY] Left part of arcade dual joystick input device ("player 1")
+#define RP_HOSTINPUT_ARCADE_RIGHT   7 // [LEGACY] Right part of arcade dual joystick input device ("player 2")
+#define RP_HOSTINPUT_KEYBOARD       8 // Keyboard Layout (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
 #define RP_HOSTINPUT_COUNT          9 // total number of device types
 
 // Host Input Device Flags
@@ -311,10 +321,10 @@ typedef struct RPDeviceContent
 #define RP_INPUTDEVICE_JOYSTICK	    2 // One/Two-button joystick
 #define RP_INPUTDEVICE_GAMEPAD	    3 // Multi-button joystick (if 3+ buttons available); on Amiga: pull-up resistors emulated
 #define RP_INPUTDEVICE_JOYPAD	    4 // Amiga: CD32 Joypad
-#define RP_INPUTDEVICE_PADDLE	    5 // [currently unused] Analog paddle (e.g. as in VIC 20 470 kohm paddles); one paddle is mapped to one host-side device
-#define RP_INPUTDEVICE_ANALOGSTICK	6 // [currently unused] Analog joystick; on Amiga: 2nd and 3rd button lines used as analog X/Y axes, digital directions used as buttons 1-4, plus original fire
-#define RP_INPUTDEVICE_LIGHTPEN	    7 // [currently unused] Light pen
-#define RP_INPUTDEVICE_TABLET	    8 // [currently unused] Pen tablet (no relative moves, only absolute positions); on Amiga: pressure support as per Electronic Arts Tablet.library
+#define RP_INPUTDEVICE_PADDLE	    5 // [CURRENTLY UNUSED] Analog paddle (e.g. as in VIC 20 470 kohm paddles); one paddle is mapped to one host-side device
+#define RP_INPUTDEVICE_ANALOGSTICK	6 // [CURRENTLY UNUSED] Analog joystick; on Amiga: 2nd and 3rd button lines used as analog X/Y axes, digital directions used as buttons 1-4, plus original fire
+#define RP_INPUTDEVICE_LIGHTPEN	    7 // [CURRENTLY UNUSED] Light pen
+#define RP_INPUTDEVICE_TABLET	    8 // [CURRENTLY UNUSED] Pen tablet (no relative moves, only absolute positions); on Amiga: pressure support as per Electronic Arts Tablet.library
 #define RP_INPUTDEVICE_COUNT        9 // total number of device types
 
 // Device Read/Write status (used in RP_IPC_TO_HOST_DEVICECONTENT, RP_IPC_TO_GUEST_DEVICECONTENT; used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD, RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE)
@@ -377,7 +387,7 @@ typedef struct RPDeviceContent
 #define RP_HOSTVERSION_BUILD(ver)    ((ver) & 0x3FF)
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
-
+#if 0
 // Legacy Compatibility (pre-3.0)
 #define RP_IPC_TO_HOST_DEVICECONTENT_LEGACY   (WM_APP + 16)
 #define RP_IPC_TO_GUEST_DEVICECONTENT_LEGACY   (WM_APP + 205)
@@ -466,5 +476,5 @@ typedef struct RPDeviceContent_Legacy
 #define RPIPCHM_GUESTAPIVERSION RP_IPC_TO_GUEST_GUESTAPIVERSION
 #define RPIPCHM_DEVICECONTENT RP_IPC_TO_GUEST_DEVICECONTENT
 // End of Legacy Compatibility
-
+#endif
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

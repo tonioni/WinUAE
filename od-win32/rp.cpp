@@ -86,48 +86,48 @@ static const TCHAR *getmsg (int msg)
 {
 	switch (msg)
 	{
-	case RPIPCGM_REGISTER: return _T("RPIPCGM_REGISTER");
-	case RPIPCGM_FEATURES: return _T("RPIPCGM_FEATURES");
-	case RPIPCGM_CLOSED: return _T("RPIPCGM_CLOSED");
-	case RPIPCGM_ACTIVATED: return _T("RPIPCGM_ACTIVATED");
-	case RPIPCGM_DEACTIVATED: return _T("RPIPCGM_DEACTIVATED");
-	case RPIPCGM_SCREENMODE: return _T("RPIPCGM_SCREENMODE");
-	case RPIPCGM_POWERLED: return _T("RPIPCGM_POWERLED");
-	case RPIPCGM_DEVICES: return _T("RPIPCGM_DEVICES");
-	case RPIPCGM_DEVICEACTIVITY: return _T("RPIPCGM_DEVICEACTIVITY");
-	case RPIPCGM_MOUSECAPTURE: return _T("RPIPCGM_MOUSECAPTURE");
-	case RPIPCGM_HOSTAPIVERSION: return _T("RPIPCGM_HOSTAPIVERSION");
-	case RPIPCGM_PAUSE: return _T("RPIPCGM_PAUSE");
-	case RPIPCGM_DEVICECONTENT: return _T("RPIPCGM_DEVICECONTENT");
-	case RPIPCGM_TURBO: return _T("RPIPCGM_TURBO");
-	case RPIPCGM_PING: return _T("RPIPCGM_PING");
-	case RPIPCGM_VOLUME: return _T("RPIPCGM_VOLUME");
-	case RPIPCGM_ESCAPED: return _T("RPIPCGM_ESCAPED");
-	case RPIPCGM_PARENT: return _T("RPIPCGM_PARENT");
-	case RPIPCGM_DEVICESEEK: return _T("RPIPCGM_DEVICESEEK");
-	case RPIPCGM_CLOSE: return _T("RPIPCGM_CLOSE");
-	case RPIPCGM_DEVICEREADWRITE: return _T("RPIPCGM_DEVICEREADWRITE");
-	case RPIPCGM_HOSTVERSION: return _T("RPIPCGM_HOSTVERSION");
-	case RPIPCGM_INPUTDEVICE: return _T("RPIPCGM_INPUTDEVICE");
+	case RP_IPC_TO_HOST_REGISTER: return _T("RP_IPC_TO_HOST_REGISTER");
+	case RP_IPC_TO_HOST_FEATURES: return _T("RP_IPC_TO_HOST_FEATURES");
+	case RP_IPC_TO_HOST_CLOSED: return _T("RP_IPC_TO_HOST_CLOSED");
+	case RP_IPC_TO_HOST_ACTIVATED: return _T("RP_IPC_TO_HOST_ACTIVATED");
+	case RP_IPC_TO_HOST_DEACTIVATED: return _T("RP_IPC_TO_HOST_DEACTIVATED");
+	case RP_IPC_TO_HOST_SCREENMODE: return _T("RP_IPC_TO_HOST_SCREENMODE");
+	case RP_IPC_TO_HOST_POWERLED: return _T("RP_IPC_TO_HOST_POWERLED");
+	case RP_IPC_TO_HOST_DEVICES: return _T("RP_IPC_TO_HOST_DEVICES");
+	case RP_IPC_TO_HOST_DEVICEACTIVITY: return _T("RP_IPC_TO_HOST_DEVICEACTIVITY");
+	case RP_IPC_TO_HOST_MOUSECAPTURE: return _T("RP_IPC_TO_HOST_MOUSECAPTURE");
+	case RP_IPC_TO_HOST_HOSTAPIVERSION: return _T("RP_IPC_TO_HOST_HOSTAPIVERSION");
+	case RP_IPC_TO_HOST_PAUSE: return _T("RP_IPC_TO_HOST_PAUSE");
+	case RP_IPC_TO_HOST_DEVICECONTENT: return _T("RP_IPC_TO_HOST_DEVICECONTENT");
+	case RP_IPC_TO_HOST_TURBO: return _T("RP_IPC_TO_HOST_TURBO");
+	case RP_IPC_TO_HOST_PING: return _T("RP_IPC_TO_HOST_PING");
+	case RP_IPC_TO_HOST_VOLUME: return _T("RP_IPC_TO_HOST_VOLUME");
+	case RP_IPC_TO_HOST_ESCAPED: return _T("RP_IPC_TO_HOST_ESCAPED");
+	case RP_IPC_TO_HOST_PARENT: return _T("RP_IPC_TO_HOST_PARENT");
+	case RP_IPC_TO_HOST_DEVICESEEK: return _T("RP_IPC_TO_HOST_DEVICESEEK");
+	case RP_IPC_TO_HOST_CLOSE: return _T("RP_IPC_TO_HOST_CLOSE");
+	case RP_IPC_TO_HOST_DEVICEREADWRITE: return _T("RP_IPC_TO_HOST_DEVICEREADWRITE");
+	case RP_IPC_TO_HOST_HOSTVERSION: return _T("RP_IPC_TO_HOST_HOSTVERSION");
+	case RP_IPC_TO_HOST_INPUTDEVICE: return _T("RP_IPC_TO_HOST_INPUTDEVICE");
 
-	case RPIPCHM_CLOSE: return _T("RPIPCHM_CLOSE");
-	case RPIPCHM_SCREENMODE: return _T("RPIPCHM_SCREENMODE");
-	case RPIPCHM_SCREENCAPTURE: return _T("RPIPCHM_SCREENCAPTURE");
-	case RPIPCHM_PAUSE: return _T("RPIPCHM_PAUSE");
-	case RPIPCHM_DEVICECONTENT: return _T("RPIPCHM_DEVICECONTENT");
-	case RPIPCHM_RESET: return _T("RPIPCHM_RESET");
-	case RPIPCHM_TURBO: return _T("RPIPCHM_TURBO");
-	case RPIPCHM_PING: return _T("RPIPCHM_PING");
-	case RPIPCHM_VOLUME: return _T("RPIPCHM_VOLUME");
-	case RPIPCHM_ESCAPEKEY: return _T("RPIPCHM_ESCAPEKEY");
-	case RPIPCHM_EVENT: return _T("RPIPCHM_EVENT");
-	case RPIPCHM_MOUSECAPTURE: return _T("RPIPCHM_MOUSECAPTURE");
-	case RPIPCHM_SAVESTATE: return _T("RPIPCHM_SAVESTATE");
-	case RPIPCHM_LOADSTATE: return _T("RPIPCHM_LOADSTATE");
-	case RPIPCHM_FLUSH: return _T("RPIPCHM_FLUSH");
-	case RPIPCHM_DEVICEREADWRITE: return _T("RPIPCHM_DEVICEREADWRITE");
-	case RPIPCHM_QUERYSCREENMODE: return _T("RPIPCHM_QUERYSCREENMODE");
-	case RPIPCHM_GUESTAPIVERSION : return _T("RPIPCHM_GUESTAPIVERSION");
+	case RP_IPC_TO_GUEST_CLOSE: return _T("RP_IPC_TO_GUEST_CLOSE");
+	case RP_IPC_TO_GUEST_SCREENMODE: return _T("RP_IPC_TO_GUEST_SCREENMODE");
+	case RP_IPC_TO_GUEST_SCREENCAPTURE: return _T("RP_IPC_TO_GUEST_SCREENCAPTURE");
+	case RP_IPC_TO_GUEST_PAUSE: return _T("RP_IPC_TO_GUEST_PAUSE");
+	case RP_IPC_TO_GUEST_DEVICECONTENT: return _T("RP_IPC_TO_GUEST_DEVICECONTENT");
+	case RP_IPC_TO_GUEST_RESET: return _T("RP_IPC_TO_GUEST_RESET");
+	case RP_IPC_TO_GUEST_TURBO: return _T("RP_IPC_TO_GUEST_TURBO");
+	case RP_IPC_TO_GUEST_PING: return _T("RP_IPC_TO_GUEST_PING");
+	case RP_IPC_TO_GUEST_VOLUME: return _T("RP_IPC_TO_GUEST_VOLUME");
+	case RP_IPC_TO_GUEST_ESCAPEKEY: return _T("RP_IPC_TO_GUEST_ESCAPEKEY");
+	case RP_IPC_TO_GUEST_EVENT: return _T("RP_IPC_TO_GUEST_EVENT");
+	case RP_IPC_TO_GUEST_MOUSECAPTURE: return _T("RP_IPC_TO_GUEST_MOUSECAPTURE");
+	case RP_IPC_TO_GUEST_SAVESTATE: return _T("RP_IPC_TO_GUEST_SAVESTATE");
+	case RP_IPC_TO_GUEST_LOADSTATE: return _T("RP_IPC_TO_GUEST_LOADSTATE");
+	case RP_IPC_TO_GUEST_FLUSH: return _T("RP_IPC_TO_GUEST_FLUSH");
+	case RP_IPC_TO_GUEST_DEVICEREADWRITE: return _T("RP_IPC_TO_GUEST_DEVICEREADWRITE");
+	case RP_IPC_TO_GUEST_QUERYSCREENMODE: return _T("RP_IPC_TO_GUEST_QUERYSCREENMODE");
+	case RP_IPC_TO_GUEST_GUESTAPIVERSION : return _T("RP_IPC_TO_GUEST_GUESTAPIVERSION");
 	default: return _T("UNKNOWN");
 	}
 }
@@ -158,14 +158,52 @@ struct rp_customevent
 	int evt;
 };
 
-static const TCHAR *customeventorder[] = {
+static const TCHAR *customeventorder_joy[] = {
 	_T("Left"),
 	_T("Right"),
 	_T("Up"),
 	_T("Down"),
 	_T("Fire"),
+	_T("Fire2"),
+	_T("Fire3"),
 	NULL
 };
+static const TCHAR *customeventorder_cd32[] = {
+	_T("Left"),
+	_T("Right"),
+	_T("Up"),
+	_T("Down"),
+	_T("Red"),
+	_T("Blue"),
+	_T("Green"),
+	_T("Yellow"),
+	_T("Rewind"),
+	_T("FastForward"),
+	_T("Play"),
+	NULL
+};
+
+static const TCHAR **getcustomeventorder(int *devicetype)
+{
+	int devicetype2 = -1;
+	for (int i = 0; inputdevmode[i * 2]; i++) {
+		if (inputdevmode[i * 2 + 0] == *devicetype) {
+			devicetype2 = inputdevmode[i * 2 + 1];
+			break;
+		}
+	}
+	if (devicetype2 < 0)
+		return NULL;
+
+	*devicetype = devicetype2;
+	if (devicetype2 == JSEM_MODE_JOYSTICK)
+		return customeventorder_joy;
+	if (devicetype2 == JSEM_MODE_GAMEPAD)
+		return customeventorder_joy;
+	if (devicetype2 == JSEM_MODE_JOYSTICK_CD32)
+		return customeventorder_cd32;
+	return NULL;
+}
 
 bool port_get_custom (int inputmap_port, TCHAR *out)
 {
@@ -174,16 +212,31 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 	TCHAR *p = out;
 	int mode, *events, *axistable;
 	int max;
+	const TCHAR **eventorder;
 
 	max = inputdevice_get_compatibility_input (&currprefs, inputmap_port, &mode, &events, &axistable);
 	if (!max)
 		return false;
 
+	int devicetype = -1;
+	for (int i = 0; inputdevmode[i * 2]; i++) {
+		if (inputdevmode[i * 2 + 1] == currprefs.jports[inputmap_port].mode) {
+			devicetype = inputdevmode[i * 2 + 0];
+			break;
+		}
+	}
+	if (devicetype < 0)
+		return false;
+
+	eventorder = getcustomeventorder (&devicetype);
+	if (!eventorder)
+		return FALSE;
+
 	_tcscpy (p, KEYBOARDCUSTOM);
 	p += _tcslen (p);
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 	int kbnum = 0;
-	for (int i = 0; customeventorder[i]; i++) {
+	for (int i = 0; eventorder[i]; i++) {
 		int evtnum = events[i];
 		for (int j = 0; j < inputdevicefunc_keyboard.get_widget_num (kbnum); j++) {
 			int flags, port;
@@ -194,7 +247,13 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 					if (!first)
 						*p++ = ' ';
 					first = false;
-					_stprintf (p, _T("%s=0x%02X"), customeventorder[i], kc);
+					_tcscpy (p, eventorder[i]);
+					p += _tcslen (p);
+					if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
+						_tcscpy (p, _T(".autorepeat"));
+						p += _tcslen (p);
+					}
+					_stprintf (p, _T("=%02X"), kc);
 					p += _tcslen (p);
 					break;
 				}
@@ -211,30 +270,46 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 	int mode, *events, *axistable;
 	int max, evtnum;
 	int kb;
+	const TCHAR **eventorder;
+
+	eventorder = getcustomeventorder (&devicetype);
+	if (!eventorder)
+		return FALSE;
 
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 
 	inputdevice_updateconfig_internal (&changed_prefs);
-	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, JSEM_MODE_JOYSTICK);
+	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype);
 	inputdevice_updateconfig_internal (&changed_prefs);
 	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
-	write_log (_T("custom='%s' max=%d port=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
+	write_log (_T("custom='%s' max=%d port=%d dt=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, devicetype, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
 	if (!max)
 		return FALSE;
 
 	while (p && p[0]) {
 		int idx = -1, kc = -1;
+		int flags = 0;
+		int eventlen;
+
 		const TCHAR *p2 = _tcschr (p, '=');
 		if (!p2)
 			break;
-		for (int i = 0; customeventorder[i]; i++) {
-			if (!_tcsncmp (p, customeventorder[i], p2 - p)) {
+		const TCHAR *p3 = _tcschr (p, '.');
+		if (!p3 || p3 >= p2) {
+			p3 = NULL;
+			eventlen = p2 - p;
+		} else {
+			eventlen = p3 - p;
+			if (!_tcsncmp (p3, L"autorepeat", p2 - p3))
+				flags |= IDEV_MAPPED_AUTOFIRE_SET;
+		}
+		
+		for (int i = 0; eventorder[i]; i++) {
+			if (_tcslen (eventorder[i]) == eventlen && !_tcsncmp (p, eventorder[i], eventlen)) {
 				idx = i;
 				break;
 			}
 		}
-		if (idx < 0 || idx > 4)
-			break;
 		p2++;
 		if (p2[0] == '0' && (p2[1] == 'x' || p2[1] == 'X'))
 			kc = _tcstol (p2 + 2, NULL, 16);
@@ -243,11 +318,15 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 		p = _tcschr (p2, ' ');
 		if (p)
 			p++;
+
+		if (idx < 0)
+			continue;
 		if (kc < 0)
-			break;
+			continue;
+
 		evtnum = events[idx];
 
-		write_log (_T("kb=%d evt=%d kc=%d\n"), kb, evtnum, kc);
+		write_log (_T("kb=%d evt=%d kc=%02x flags=%08x\n"), kb, evtnum, kc, flags);
 
 		for (int j = 0; j < inputdevice_get_device_total (IDTYPE_KEYBOARD); j++) {
 			int wdnum = -1;
@@ -261,10 +340,10 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 			}
 			if (wdnum >= 0) {
 				write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
-				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, inputmap_port);
-				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, inputmap_port);
+				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, flags, inputmap_port);
+				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, flags, inputmap_port);
 			} else {
-				write_log (_T("kb=%d (%): keycode %x not found!\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), kc);
+				write_log (_T("kb=%d (%): keycode %02x not found!\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), kc);
 			}
 		}
 	}
@@ -333,7 +412,7 @@ static BOOL RPPostMessagex(UINT uMessage, WPARAM wParam, LPARAM lParam, const RP
 		write_log (_T("RPPOST: pInfo == NULL!\n"));
 		return FALSE;
 	}
-	if (uMessage == RPIPCGM_DEVICESEEK || uMessage == RPIPCGM_DEVICEACTIVITY)
+	if (uMessage == RP_IPC_TO_HOST_DEVICESEEK || uMessage == RP_IPC_TO_HOST_DEVICEACTIVITY)
 		dolog = 0;
 	recursive++;
 	cnt++;
@@ -367,7 +446,7 @@ static BOOL RPSendMessagex (UINT uMessage, WPARAM wParam, LPARAM lParam,
 		write_log (_T("RPSEND: pInfo->hHostMessageWindow == NULL!\n"));
 		return FALSE;
 	}
-	if (uMessage == RPIPCGM_DEVICESEEK)
+	if (uMessage == RP_IPC_TO_HOST_DEVICESEEK)
 		dolog = 0;
 	recursive++;
 	cnt++;
@@ -468,7 +547,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	vmult = p->gfx_filter_vert_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_vert_zoom_mult : 256;
 
 	sm->hGuestWindow = guestwindow;
-	m = RP_SCREENMODE_1X;
+	m = RP_SCREENMODE_SCALE_1X;
 	cf = 0;
 
 	if (WIN32GFX_IsPicassoScreen ()) {
@@ -499,9 +578,9 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			vres = VRES_QUAD;
 
 		if (hres == RES_HIRES)
-			m = RP_SCREENMODE_2X;
+			m = RP_SCREENMODE_SCALE_2X;
 		else if (hres >= RES_SUPERHIRES)
-			m = RP_SCREENMODE_4X;
+			m = RP_SCREENMODE_SCALE_4X;
 
 		if (log_rp)
 			write_log (_T("GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d\n"),
@@ -528,17 +607,17 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		m |= p->gfx_apmode[APMODE_NATIVE].gfx_display << 8;
 	}
 	if (full > 1)
-		m |= RP_SCREENMODE_FULLWINDOW;
+		m |= RP_SCREENMODE_FULLSCREEN_SHARED;
 
-	sm->dwScreenMode = m  | (storeflags & (RP_SCREENMODE_STRETCH | RP_SCREENMODE_SUBPIXEL));
+	sm->dwScreenMode = m  | (storeflags & (RP_SCREENMODE_SCALING_STRETCH | RP_SCREENMODE_SCALING_SUBPIXEL));
 	sm->lTargetHeight = 0;
 	sm->lTargetWidth = 0;
-	if ((storeflags & RP_SCREENMODE_MODEMASK) == RP_SCREENMODE_XX) {
-		sm->dwScreenMode &= ~RP_SCREENMODE_MODEMASK;
-		sm->dwScreenMode |= RP_SCREENMODE_XX;
-	} else if ((storeflags & RP_SCREENMODE_MODEMASK) == RP_SCREENMODE_WW) {
-		sm->dwScreenMode &= ~RP_SCREENMODE_MODEMASK;
-		sm->dwScreenMode = RP_SCREENMODE_WW;
+	if ((storeflags & RP_SCREENMODE_SCALEMASK) == RP_SCREENMODE_SCALE_MAX) {
+		sm->dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
+		sm->dwScreenMode |= RP_SCREENMODE_SCALE_MAX;
+	} else if ((storeflags & RP_SCREENMODE_SCALEMASK) == RP_SCREENMODE_SCALE_TARGET) {
+		sm->dwScreenMode &= ~RP_SCREENMODE_SCALEMASK;
+		sm->dwScreenMode = RP_SCREENMODE_SCALE_TARGET;
 		sm->lTargetWidth = p->gfx_size_win.width;
 		sm->lTargetHeight = p->gfx_size_win.height;
 	}
@@ -561,7 +640,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	struct MultiDisplay *disp;
 	bool keepaspect = (sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH);
 	bool stretch = (sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) != 0;
-	bool forcesize = smm == RP_SCREENMODE_WW && sm->lTargetWidth > 0 && sm->lTargetHeight > 0;
+	bool forcesize = smm == RP_SCREENMODE_SCALE_TARGET && sm->lTargetWidth > 0 && sm->lTargetHeight > 0;
 	bool integerscale = !(sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) && smm >= RP_SCREENMODE_SCALE_TARGET;
 	int width, height;
 
@@ -570,7 +649,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	if (display) {
 		p->gfx_apmode[APMODE_NATIVE].gfx_display = display;
 		p->gfx_apmode[APMODE_RTG].gfx_display = display;
-		if (sm->dwScreenMode & RP_SCREENMODE_FULLWINDOW)
+		if (sm->dwScreenMode & RP_SCREENMODE_FULLSCREEN_SHARED)
 			fs = 2;
 		else
 			fs = 1;
@@ -590,14 +669,14 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		hdbl = RES_LORES;
 		vdbl = VRES_NONDOUBLE;
-		if (smm == RP_SCREENMODE_2X || smm == RP_SCREENMODE_3X) {
+		if (smm == RP_SCREENMODE_SCALE_2X || smm == RP_SCREENMODE_SCALE_3X) {
 			hdbl = RES_HIRES;
 			vdbl = VRES_DOUBLE;
-		} else if (smm == RP_SCREENMODE_4X) {
+		} else if (smm == RP_SCREENMODE_SCALE_4X) {
 			hdbl = RES_SUPERHIRES;
 			vdbl = VRES_DOUBLE;
 		}
-		if (smm > RP_SCREENMODE_4X || smm == RP_SCREENMODE_XX) {
+		if (smm > RP_SCREENMODE_SCALE_4X || smm == RP_SCREENMODE_SCALE_MAX) {
 			hdbl = max_horiz_dbl;
 			vdbl = max_vert_dbl;
 		}
@@ -738,7 +817,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	if (log_rp) {
 		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n"),
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
-		if (uMessage == RPIPCHM_DEVICECONTENT) {
+		if (uMessage == RP_IPC_TO_GUEST_DEVICECONTENT) {
 			struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
 			write_log (_T(" Cat=%d Num=%d Flags=%08x '%s'\n"),
 				dc->btDeviceCategory, dc->btDeviceNumber, dc->dwFlags, dc->szContent);
@@ -750,15 +829,15 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	default:
 		write_log (_T("RP: Unknown or unsupported command %x\n"), uMessage);
 		break;
-	case RPIPCHM_PING:
+	case RP_IPC_TO_GUEST_PING:
 		return TRUE;
-	case RPIPCHM_CLOSE:
+	case RP_IPC_TO_GUEST_CLOSE:
 		uae_quit ();
 		return TRUE;
-	case RPIPCHM_RESET:
+	case RP_IPC_TO_GUEST_RESET:
 		uae_reset (wParam == RP_RESET_SOFT ? 0 : -1);
 		return TRUE;
-	case RPIPCHM_TURBO:
+	case RP_IPC_TO_GUEST_TURBO:
 		{
 			if (wParam & RP_TURBO_CPU)
 				warpmode ((lParam & RP_TURBO_CPU) ? 1 : 0);
@@ -767,7 +846,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			config_changed = 1;
 		}
 		return TRUE;
-	case RPIPCHM_PAUSE:
+	case RP_IPC_TO_GUEST_PAUSE:
 		currentpausemode = pause_emulation;
 		if (wParam ? 1 : 0 != pause_emulation ? 1 : 0) {
 			pausemode (wParam ? -1 : 0);
@@ -777,15 +856,15 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 		}
 		return 1;
-	case RPIPCHM_VOLUME:
+	case RP_IPC_TO_GUEST_VOLUME:
 		currprefs.sound_volume = changed_prefs.sound_volume = 100 - wParam;
 		set_volume (currprefs.sound_volume, 0);
 		return TRUE;
-	case RPIPCHM_ESCAPEKEY:
+	case RP_IPC_TO_GUEST_ESCAPEKEY:
 		rp_rpescapekey = wParam;
 		rp_rpescapeholdtime = lParam;
 		return TRUE;
-	case RPIPCHM_MOUSECAPTURE:
+	case RP_IPC_TO_GUEST_MOUSECAPTURE:
 		{
 			if (wParam & RP_MOUSECAPTURE_CAPTURED)
 				setmouseactive (1);
@@ -793,7 +872,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				setmouseactive (0);
 		}
 		return TRUE;
-	case RPIPCHM_DEVICECONTENT:
+	case RP_IPC_TO_GUEST_DEVICECONTENT:
 		{
 			struct RPDeviceContent *dc = (struct RPDeviceContent*)pData;
 			TCHAR *n = dc->szContent;
@@ -801,31 +880,31 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			int ok = FALSE;
 			switch (dc->btDeviceCategory)
 			{
-			case RP_DEVICE_FLOPPY:
+			case RP_DEVICECATEGORY_FLOPPY:
 				if (n == NULL || n[0] == 0)
 					disk_eject (num);
 				else
 					disk_insert (num, n);
 				ok = TRUE;
 				break;
-			case RP_DEVICE_INPUTPORT:
+			case RP_DEVICECATEGORY_INPUTPORT:
 				ok = port_insert (num, dc->dwInputDevice, dc->dwFlags, n);
 				if (ok)
 					inputdevice_updateconfig (&currprefs);
 				break;
-			case RP_DEVICE_CD:
+			case RP_DEVICECATEGORY_CD:
 				ok = cd_insert (num, n);
 				break;
 			}
 			return ok;
 		}
-	case RPIPCHM_SCREENMODE:
+	case RP_IPC_TO_GUEST_SCREENMODE:
 		{
 			struct RPScreenMode *sm = (struct RPScreenMode*)pData;
 			set_screenmode (sm, &changed_prefs);
 			return (LRESULT)INVALID_HANDLE_VALUE;
 		}
-	case RPIPCHM_EVENT:
+	case RP_IPC_TO_GUEST_EVENT:
 		{
 			TCHAR out[256];
 			TCHAR *s = (WCHAR*)pData;
@@ -839,7 +918,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return TRUE;
 		}
-	case RPIPCHM_SCREENCAPTURE:
+	case RP_IPC_TO_GUEST_SCREENCAPTURE:
 		{
 			extern int screenshotf (const TCHAR *spath, int mode, int doprepare);
 			extern int screenshotmode;
@@ -851,7 +930,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			screenshotmode = ossm;
 			return ok ? TRUE : FALSE;
 		}
-	case RPIPCHM_SAVESTATE:
+	case RP_IPC_TO_GUEST_SAVESTATE:
 		{
 			TCHAR *s = (TCHAR*)pData;
 			DWORD ret = FALSE;
@@ -869,7 +948,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return ret;
 		}
-	case RPIPCHM_LOADSTATE:
+	case RP_IPC_TO_GUEST_LOADSTATE:
 		{
 			TCHAR *s = (WCHAR*)pData;
 			DWORD ret = FALSE;
@@ -881,11 +960,11 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return ret;
 		}
-	case RPIPCHM_DEVICEREADWRITE:
+	case RP_IPC_TO_GUEST_DEVICEREADWRITE:
 		{
 			DWORD ret = FALSE;
 			int device = LOBYTE(wParam);
-			if (device == RP_DEVICE_FLOPPY) {
+			if (device == RP_DEVICECATEGORY_FLOPPY) {
 				int num = HIBYTE(wParam);
 				if (lParam == RP_DEVICE_READONLY || lParam == RP_DEVICE_READWRITE) {
 					ret = disk_setwriteprotect (&currprefs, num, currprefs.floppyslots[num].df, lParam == RP_DEVICE_READONLY);
@@ -893,14 +972,14 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 			}
 			return ret ? (LPARAM)1 : 0;
 		}
-	case RPIPCHM_FLUSH:
+	case RP_IPC_TO_GUEST_FLUSH:
 		return 1;
-	case RPIPCHM_QUERYSCREENMODE:
+	case RP_IPC_TO_GUEST_QUERYSCREENMODE:
 		{
 			screenmode_request = true;
 			return 1;
 		}
-	case RPIPCHM_GUESTAPIVERSION:
+	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
 		{
 			return MAKELONG(3, 0);
 		}
@@ -921,7 +1000,7 @@ static LRESULT CALLBACK RPHostMsgFunction (UINT uMessage, WPARAM wParam, LPARAM 
 static int rp_hostversion (int *ver, int *rev, int *build)
 {
 	LRESULT lr = 0;
-	if (!RPSendMessagex (RPIPCGM_HOSTVERSION, 0, 0, NULL, 0, &guestinfo, &lr))
+	if (!RPSendMessagex (RP_IPC_TO_HOST_HOSTVERSION, 0, 0, NULL, 0, &guestinfo, &lr))
 		return 0;
 	*ver = RP_HOSTVERSION_MAJOR(lr);
 	*rev = RP_HOSTVERSION_MINOR(lr);
@@ -956,7 +1035,7 @@ void rp_free (void)
 	if (hwndset)
 		rp_set_hwnd (NULL);
 	initialized = 0;
-	RPPostMessagex (RPIPCGM_CLOSED, 0, 0, &guestinfo);
+	RPPostMessagex (RP_IPC_TO_HOST_CLOSED, 0, 0, &guestinfo);
 	RPUninitializeGuest (&guestinfo);
 }
 
@@ -965,7 +1044,7 @@ int rp_close (void)
 {
 	if (!cando ())
 		return 0;
-	RPSendMessagex (RPIPCGM_CLOSE, 0, 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_CLOSE, 0, 0, NULL, 0, &guestinfo, NULL);
 	return 1;
 }
 
@@ -974,7 +1053,7 @@ HWND rp_getparent (void)
 	LRESULT lr;
 	if (!initialized)
 		return NULL;
-	RPSendMessagex (RPIPCGM_PARENT, 0, 0, NULL, 0, &guestinfo, &lr);
+	RPSendMessagex (RP_IPC_TO_HOST_PARENT, 0, 0, NULL, 0, &guestinfo, &lr);
 	return (HWND)lr;
 }
 
@@ -985,13 +1064,13 @@ static void sendenum (void)
 	TCHAR tmp[MAX_DPATH];
 	TCHAR *p1, *p2;
 	struct RPInputDeviceDescription desc;
-	int cnt;
+	int cnt, max = 3;
 
 	WIN32GUI_LoadUIString (IDS_KEYJOY, tmp, sizeof tmp / sizeof (TCHAR));
 	_tcscat (tmp, _T("\n"));
 	p1 = tmp;
 	cnt = 0;
-	for (;;) {
+	while (max--) {
 		p2 = _tcschr (p1, '\n');
 		if (p2 && _tcslen (p2) > 0) {
 			TCHAR tmp2[100];
@@ -1006,7 +1085,7 @@ static void sendenum (void)
 				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 			if (log_rp)
 				write_log(_T("Enum%d: '%s' '%s'\n"), cnt, desc.szHostInputName, desc.szHostInputID);
-			RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
+			RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 			cnt++;
 			p1 = p2;
 		} else {
@@ -1016,15 +1095,15 @@ static void sendenum (void)
 	memset (&desc, 0, sizeof desc);
 	_tcscpy (desc.szHostInputID, _T("KeyboardCustom"));
 	_tcscpy (desc.szHostInputName, _T("KeyboardCustom"));
-	desc.dwHostInputType = RP_HOSTINPUT_KEYJOY_CUSTOM;
+	desc.dwHostInputType = RP_HOSTINPUT_KEYBOARD;
 	desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK | RP_FEATURE_INPUTDEVICE_JOYPAD;
-	RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
 		if (log_rp)
 			write_log(_T("Enum%d: '%s' '%s' (%x/%x)\n"),
 				cnt, desc.szHostInputName, desc.szHostInputID, desc.dwHostInputVendorID, desc.dwHostInputProductID);
-		RPSendMessagex (RPIPCGM_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
+		RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	}
 }
 
@@ -1035,7 +1114,7 @@ static void sendfeatures (void)
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
 	feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES | RP_FEATURE_DEVICEREADWRITE;
-	feat |= RP_FEATURE_RESIZE_SUBPIXEL | RP_FEATURE_RESIZE_STRETCH;
+	feat |= RP_FEATURE_SCALING_SUBPIXEL | RP_FEATURE_SCALING_STRETCH;
 	if (!WIN32GFX_IsPicassoScreen ())
 		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN4X;
 	feat |= RP_FEATURE_INPUTDEVICE_MOUSE;
@@ -1044,7 +1123,7 @@ static void sendfeatures (void)
 	feat |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 	feat |= RP_FEATURE_INPUTDEVICE_ANALOGSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_LIGHTPEN;
-	RPSendMessagex (RPIPCGM_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
 
 static int gethdnum (int n)
@@ -1103,9 +1182,9 @@ void rp_fixup_options (struct uae_prefs *p)
 		if (p->floppyslots[i].dfxtype >= 0)
 			floppy_mask |= 1 << i;
 	}
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_INPUTPORT, (1 << maxjports) - 1, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_INPUTPORT, (1 << maxjports) - 1, NULL, 0, &guestinfo, NULL);
 	rp_input_change (0);
 	rp_input_change (1);
 	rp_input_change (2);
@@ -1119,7 +1198,7 @@ void rp_fixup_options (struct uae_prefs *p)
 		if (num >= 0)
 			hd_mask |= 1 << num;
 	}
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 	if (hd_mask) {
 		for (i = 0; i < currprefs.mountitems; i++) {
 			struct uaedev_config_info *uci = &currprefs.mountconfig[i];
@@ -1133,7 +1212,7 @@ void rp_fixup_options (struct uae_prefs *p)
 		if (p->cdslots[i].inuse)
 			cd_mask |= 1 << i;
 	}
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICE_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 	if (cd_mask) {
 		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 			if (p->cdslots[i].inuse)
@@ -1155,7 +1234,7 @@ static void rp_device_writeprotect (int dev, int num, bool writeprotected)
 		return;
 	if (rp_version * 256 + rp_revision < 2 * 256 + 3)
 		return;
-	RPSendMessagex (RPIPCGM_DEVICEREADWRITE, MAKEWORD(dev, num), writeprotected ? RP_DEVICE_READONLY : RP_DEVICE_READWRITE, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICEREADWRITE, MAKEWORD(dev, num), writeprotected ? RP_DEVICE_READONLY : RP_DEVICE_READWRITE, NULL, 0, &guestinfo, NULL);
 }
 
 static void rp_device_change (int dev, int num, int mode, bool readonly, const TCHAR *content)
@@ -1172,9 +1251,9 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 	if (content)
 		_tcscpy (dc.szContent, content);
 	if (log_rp)
-		write_log (_T("RPIPCGM_DEVICECONTENT cat=%d num=%d type=%d '%s'\n"),
+		write_log (_T("RP_IPC_TO_HOST_DEVICECONTENT cat=%d num=%d type=%d '%s'\n"),
 		dc.btDeviceCategory, dc.btDeviceNumber, dc.dwInputDevice, dc.szContent);
-	RPSendMessagex (RPIPCGM_DEVICECONTENT, 0, 0, &dc, sizeof(struct RPDeviceContent), &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICECONTENT, 0, 0, &dc, sizeof(struct RPDeviceContent), &guestinfo, NULL);
 }
 
 void rp_input_change (int num)
@@ -1211,7 +1290,7 @@ void rp_input_change (int num)
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {
-	rp_device_change (RP_DEVICE_FLOPPY, num, 0, writeprotected == false, name);
+	rp_device_change (RP_DEVICECATEGORY_FLOPPY, num, 0, writeprotected == false, name);
 	rp_device_writeprotect (RP_DEVICECATEGORY_FLOPPY, num, writeprotected);
 }
 void rp_harddrive_image_change (int num, bool readonly, const TCHAR *name)
@@ -1231,7 +1310,7 @@ void rp_floppy_device_enable (int num, bool enabled)
 		floppy_mask |= 1 << num;
 	else
 		floppy_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_FLOPPY, floppy_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_hd_device_enable (int num, bool enabled)
@@ -1242,7 +1321,7 @@ void rp_hd_device_enable (int num, bool enabled)
 		hd_mask |= 1 << num;
 	else
 		hd_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_cd_device_enable (int num, bool enabled)
@@ -1253,7 +1332,7 @@ void rp_cd_device_enable (int num, bool enabled)
 		cd_mask |= 1 << num;
 	else
 		cd_mask &= ~(1 << num);
-	RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_floppy_track (int floppy, int track)
@@ -1264,7 +1343,7 @@ void rp_floppy_track (int floppy, int track)
 	if (oldtrack[floppy] == track)
 		return;
 	oldtrack[floppy] = track;
-	RPPostMessagex (RPIPCGM_DEVICESEEK, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, floppy), track, &guestinfo);
+	RPPostMessagex (RP_IPC_TO_HOST_DEVICESEEK, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, floppy), track, &guestinfo);
 }
 
 void rp_update_leds (int led, int onoff, int write)
@@ -1283,7 +1362,7 @@ void rp_update_leds (int led, int onoff, int write)
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPSendMessage (RPIPCGM_POWERLED, ledstate, 0, NULL, 0, &guestinfo, NULL);
+		RPSendMessage (RP_IPC_TO_HOST_POWERLED, ledstate, 0, NULL, 0, &guestinfo, NULL);
 		break;
 	case 1:
 	case 2:
@@ -1294,7 +1373,7 @@ void rp_update_leds (int led, int onoff, int write)
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - 1),
+		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - 1),
 			MAKELONG ((ledstate & 1) ? -1 : 0, (ledstate & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}
@@ -1314,7 +1393,7 @@ void rp_update_gameport (int port, int mask, int onoff)
 	else
 		gameportmask[port] &= ~mask;
 	if (old != gameportmask[port]) {
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_INPUTPORT, port),
+		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_INPUTPORT, port),
 			gameportmask[port], &guestinfo);
 	}
 }
@@ -1334,7 +1413,7 @@ void rp_hd_activity (int num, int onoff, int write)
 		return;
 	oldleds[num] = state;
 	if (state & 1) {
-		RPPostMessagex (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_HD, num),
+		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_HD, num),
 			MAKELONG (200, (state & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ), &guestinfo);
 	}
 }
@@ -1347,10 +1426,10 @@ void rp_cd_activity (int num, int onoff)
 		return;
 	if (onoff && !(cd_mask & (1 << num))) {
 		cd_mask |= 1 << num;
-		RPSendMessagex (RPIPCGM_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
+		RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_CD, cd_mask, NULL, 0, &guestinfo, NULL);
 	}
 	if (onoff) {
-		RPPostMessage (RPIPCGM_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_CD, num),
+		RPPostMessage (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_CD, num),
 			MAKELONG (200, RP_DEVICEACTIVITY_READ), &guestinfo);
 	}
 }
@@ -1359,7 +1438,7 @@ void rp_update_volume (struct uae_prefs *p)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (RPIPCGM_VOLUME, (WPARAM)(100 - p->sound_volume), 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_VOLUME, (WPARAM)(100 - p->sound_volume), 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_pause (int paused)
@@ -1369,7 +1448,7 @@ void rp_pause (int paused)
 	if (isrecursive ())
 		return;
 	if (currentpausemode != paused)
-		RPSendMessagex (RPIPCGM_PAUSE, (WPARAM)paused, 0, NULL, 0, &guestinfo, NULL);
+		RPSendMessagex (RP_IPC_TO_HOST_PAUSE, (WPARAM)paused, 0, NULL, 0, &guestinfo, NULL);
 	currentpausemode = paused;
 }
 
@@ -1383,7 +1462,7 @@ static void rp_mouse (void)
 		flags |= RP_MOUSECAPTURE_MAGICMOUSE;
 	if (mousecapture)
 		flags |= RP_MOUSECAPTURE_CAPTURED;
-	RPSendMessagex (RPIPCGM_MOUSECAPTURE, flags, 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_MOUSECAPTURE, flags, 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_mouse_capture (int captured)
@@ -1402,7 +1481,7 @@ void rp_activate (int active, LPARAM lParam)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (active ? RPIPCGM_ACTIVATED : RPIPCGM_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (active ? RP_IPC_TO_HOST_ACTIVATED : RP_IPC_TO_HOST_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_turbo_cpu (int active)
@@ -1411,7 +1490,7 @@ void rp_turbo_cpu (int active)
 		return;
 	if (recursive_device)
 		return;
-	RPSendMessagex (RPIPCGM_TURBO, RP_TURBO_CPU, active ? RP_TURBO_CPU : 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_TURBO, RP_TURBO_CPU, active ? RP_TURBO_CPU : 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_turbo_floppy (int active)
@@ -1420,7 +1499,7 @@ void rp_turbo_floppy (int active)
 		return;
 	if (recursive_device)
 		return;
-	RPSendMessagex (RPIPCGM_TURBO, RP_TURBO_FLOPPY, active ? RP_TURBO_FLOPPY : 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (RP_IPC_TO_HOST_TURBO, RP_TURBO_FLOPPY, active ? RP_TURBO_FLOPPY : 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_set_hwnd (HWND hWnd)
@@ -1433,14 +1512,14 @@ void rp_set_hwnd (HWND hWnd)
 	get_screenmode (&sm, &currprefs);
 	if (hWnd != NULL)
 		hwndset = 1;
-	RPSendMessagex (RPIPCGM_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL); 
+	RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL); 
 }
 
 void rp_set_enabledisable (int enabled)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (enabled ? RPIPCGM_ENABLED : RPIPCGM_DISABLED, 0, 0, NULL, 0, &guestinfo, NULL);
+	RPSendMessagex (enabled ? RP_IPC_TO_HOST_ENABLED : RP_IPC_TO_HOST_DISABLED, 0, 0, NULL, 0, &guestinfo, NULL);
 }
 
 void rp_rtg_switch (void)
@@ -1476,7 +1555,7 @@ void rp_vsync (void)
 	if (screenmode_request) {
 		struct RPScreenMode sm = { 0 };
 		get_screenmode (&sm, &currprefs);
-		RPSendMessagex (RPIPCGM_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
+		RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
 		screenmode_request = false;
 	}
 	if (magicmouse_alive () != mousemagic)
@@ -1485,7 +1564,7 @@ void rp_vsync (void)
 		return;
 	t = gett ();
 	if (t >= esctime) {
-		RPSendMessagex (RPIPCGM_ESCAPED, 0, 0, NULL, 0, &guestinfo, NULL);
+		RPSendMessagex (RP_IPC_TO_HOST_ESCAPED, 0, 0, NULL, 0, &guestinfo, NULL);
 		ignorerelease = 1;
 		esctime = 0;
 	}

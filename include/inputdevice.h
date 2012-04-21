@@ -134,7 +134,7 @@ struct inputevent {
 #define ID_AXIS_TOTAL 32
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
-extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int port);
+extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, int flags, int port);
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, int flags, int port, int sub);
 extern int inputdevice_get_mapping (int devnum, int num, int *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);

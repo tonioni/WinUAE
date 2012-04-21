@@ -84,7 +84,7 @@ HRESULT RPInitializeGuest(RPGUESTINFO *pInfo, HINSTANCE hInstance, LPCTSTR pszHo
 
 	// register with the host
 	//
-	if (!RPSendMessage(RPIPCGM_REGISTER, 0, 0, g_szRegistration, sizeof(g_szRegistration), pInfo, &lr))
+	if (!RPSendMessage(RP_IPC_TO_HOST_REGISTER, 0, 0, g_szRegistration, sizeof(g_szRegistration), pInfo, &lr))
 	{
 		RPUninitializeGuest(pInfo);
 		return HRESULT_FROM_WIN32(ERROR_HOST_UNREACHABLE);

@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("Beta 7")
-#define WINUAEDATE MAKEBD(2012, 4, 18)
+#define WINUAEBETA _T("Beta 8")
+#define WINUAEDATE MAKEBD(2012, 4, 21)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")

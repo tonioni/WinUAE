@@ -1251,6 +1251,14 @@ static const struct hidquirk quirks[] =  {
 	{ 0 }
 };
 
+static const struct hidquirk hidnorawinput[] =  {
+	{ 0x0583, 0x2030 }, //  Rockfire RM-203 1
+	{ 0x0583, 0x2031 }, //  Rockfire RM-203 2
+	{ 0x0583, 0x2032 }, //  Rockfire RM-203 3
+	{ 0x0583, 0x2033 }, //  Rockfire RM-203 4
+	{ 0 }
+};
+
 static void fixhidvcaps (RID_DEVICE_INFO_HID *hid, HIDP_VALUE_CAPS *caps)
 {
 	int pid = hid->dwProductId;
@@ -1276,7 +1284,105 @@ static void fixhidvcaps (RID_DEVICE_INFO_HID *hid, HIDP_VALUE_CAPS *caps)
 			break;
 		}
 	}
+}
 
+static void dumphidvaluecaps (PHIDP_VALUE_CAPS vcaps, int size)
+{
+	for (int i = 0; i < size; i++) {
+		HIDP_VALUE_CAPS caps = vcaps[i];
+		write_log (L"******** VALUE_CAPS: %d ********\n", i);
+		write_log (L"UsagePage: %u\n", caps.UsagePage);
+		write_log (L"ReportID: %u\n", caps.ReportID);
+		write_log (L"IsAlias: %u\n", caps.IsAlias);
+		write_log (L"BitField: %u\n", caps.BitField);
+		write_log (L"LinkCollection: %u\n", caps.LinkCollection);
+		write_log (L"LinkUsage: %u\n", caps.LinkUsage);
+		write_log (L"LinkUsagePage: %u\n", caps.LinkUsagePage);
+		write_log (L"IsRange: %u\n", caps.IsRange);
+		write_log (L"IsStringRange: %u\n", caps.IsStringRange);
+		write_log (L"IsDesignatorRange: %u\n", caps.IsDesignatorRange);
+		write_log (L"IsAbsolute: %u\n", caps.IsAbsolute);
+		write_log (L"HasNull: %u\n", caps.HasNull);
+		write_log (L"BitSize: %u\n", caps.BitSize);
+		write_log (L"ReportCount: %u\n", caps.ReportCount);
+		write_log (L"UnitsExp: %u\n", caps.UnitsExp);
+		write_log (L"Units: %u\n", caps.Units);
+		write_log (L"LogicalMin: %u\n", caps.LogicalMin);
+		write_log (L"LogicalMax: %u\n", caps.LogicalMax);
+		write_log (L"PhysicalMin: %u\n", caps.PhysicalMin);
+		write_log (L"PhysicalMax: %u\n", caps.PhysicalMax);
+		if (caps.IsRange) {
+			write_log (L"UsageMin: %u\n", caps.Range.UsageMin);
+			write_log (L"UsageMax: %u\n", caps.Range.UsageMax);
+			write_log (L"StringMin: %u\n", caps.Range.StringMin);
+			write_log (L"StringMax: %u\n", caps.Range.StringMax);
+			write_log (L"DesignatorMin: %u\n", caps.Range.DesignatorMin);
+			write_log (L"DesignatorMax: %u\n", caps.Range.DesignatorMax);
+			write_log (L"DataIndexMin: %u\n", caps.Range.DataIndexMin);
+			write_log (L"DataIndexMax: %u\n", caps.Range.DataIndexMax);
+		} else {
+			write_log (L"Usage: %u\n", caps.NotRange.Usage);
+			write_log (L"StringIndex: %u\n", caps.NotRange.StringIndex);
+			write_log (L"DesignatorIndex: %u\n", caps.NotRange.DesignatorIndex);
+			write_log (L"DataIndex: %u\n", caps.NotRange.DataIndex);
+		}
+	}
+}
+
+static void dumphidbuttoncaps (PHIDP_BUTTON_CAPS pcaps, int size)
+{
+	for (int i = 0; i < size; i++) {
+		HIDP_BUTTON_CAPS caps = pcaps[i];
+		write_log (L"******** BUTTON_CAPS: %d ********\n", i);
+		write_log (L"UsagePage: %u\n", caps.UsagePage);
+		write_log (L"ReportID: %u\n", caps.ReportID);
+		write_log (L"IsAlias: %u\n", caps.IsAlias);
+		write_log (L"BitField: %u\n", caps.BitField);
+		write_log (L"LinkCollection: %u\n", caps.LinkCollection);
+		write_log (L"LinkUsage: %u\n", caps.LinkUsage);
+		write_log (L"LinkUsagePage: %u\n", caps.LinkUsagePage);
+		write_log (L"IsRange: %u\n", caps.IsRange);
+		write_log (L"IsStringRange: %u\n", caps.IsStringRange);
+		write_log (L"IsDesignatorRange: %u\n", caps.IsDesignatorRange);
+		write_log (L"IsAbsolute: %u\n", caps.IsAbsolute);
+		if (caps.IsRange) {
+			write_log (L"UsageMin: %u\n", caps.Range.UsageMin);
+			write_log (L"UsageMax: %u\n", caps.Range.UsageMax);
+			write_log (L"StringMin: %u\n", caps.Range.StringMin);
+			write_log (L"StringMax: %u\n", caps.Range.StringMax);
+			write_log (L"DesignatorMin: %u\n", caps.Range.DesignatorMin);
+			write_log (L"DesignatorMax: %u\n", caps.Range.DesignatorMax);
+			write_log (L"DataIndexMin: %u\n", caps.Range.DataIndexMin);
+			write_log (L"DataIndexMax: %u\n", caps.Range.DataIndexMax);
+		} else {
+			write_log (L"Usage: %u\n", caps.NotRange.Usage);
+			write_log (L"StringIndex: %u\n", caps.NotRange.StringIndex);
+			write_log (L"DesignatorIndex: %u\n", caps.NotRange.DesignatorIndex);
+			write_log (L"DataIndex: %u\n", caps.NotRange.DataIndex);
+		}
+	}
+}
+
+static void dumphidcaps (struct didata *did)
+{
+	HIDP_CAPS caps = did->hidcaps;
+
+	write_log (_T("\n******** USB HID: '%s'\n"), did->name);
+	write_log (_T("Usage: %04x\n"), caps.Usage);
+	write_log (_T("UsagePage: %04x\n"), caps.UsagePage);
+	write_log (_T("InputReportByteLength: %u\n"), caps.InputReportByteLength);
+	write_log (_T("OutputReportByteLength: %u\n"), caps.OutputReportByteLength);
+	write_log (_T("FeatureReportByteLength: %u\n"), caps.FeatureReportByteLength);
+	write_log (_T("NumberLinkCollectionNodes: %u\n"), caps.NumberLinkCollectionNodes);
+	write_log (_T("NumberInputButtonCaps: %u\n"), caps.NumberInputButtonCaps);
+	write_log (_T("NumberInputValueCaps: %u\n"), caps.NumberInputValueCaps);
+	write_log (_T("NumberInputDataIndices: %u\n"), caps.NumberInputDataIndices);
+	write_log (_T("NumberOutputButtonCaps: %u\n"), caps.NumberOutputButtonCaps);
+	write_log (_T("NumberOutputValueCaps: %u\n"), caps.NumberOutputValueCaps);
+	write_log (_T("NumberOutputDataIndices: %u\n"), caps.NumberOutputDataIndices);
+	write_log (_T("NumberFeatureButtonCaps: %u\n"), caps.NumberFeatureButtonCaps);
+	write_log (_T("NumberFeatureValueCaps: %u\n"), caps.NumberFeatureValueCaps);
+	write_log (_T("NumberFeatureDataIndices: %u\n"), caps.NumberFeatureDataIndices);
 }
 
 static bool initialize_rawinput (void)
@@ -1307,6 +1413,34 @@ static bool initialize_rawinput (void)
 		write_log (_T("RAWINPUT didn't find any devices\n"));
 		goto error2;
 	}
+
+	if (rawinput_enabled_hid) {
+		for (int rawcnt = 0; rawcnt < gotnum; rawcnt++) {
+			int type = ridl[rawcnt].dwType;
+			HANDLE h = ridl[rawcnt].hDevice;
+			PRID_DEVICE_INFO rdi;
+
+			if (type != RIM_TYPEHID)
+				continue;
+			rdi = (PRID_DEVICE_INFO)buf2;
+			memset (rdi, 0, sizeof (RID_DEVICE_INFO));
+			rdi->cbSize = sizeof (RID_DEVICE_INFO);
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
+				continue;
+			if (vtmp >= bufsize)
+				continue;
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf2, &vtmp) == -1)
+				continue;
+			for (int i = 0; hidnorawinput[i].vid; i++) {
+				if (hidnorawinput[i].vid == rdi->hid.dwVendorId && hidnorawinput[i].pid == rdi->hid.dwProductId) {
+					write_log (_T("Found USB HID device that requires calibration (%04x/%04x), disabling HID RAWINPUT support\n"),
+						rdi->hid.dwVendorId, rdi->hid.dwProductId);
+					rawinput_enabled_hid = 0;
+				}
+			}
+		}
+	}
+
 	rnum_raw = rnum_mouse = rnum_kb = rnum_hid = 0;
 	for (int rawcnt = 0; rawcnt < gotnum; rawcnt++) {
 		int type = ridl[rawcnt].dwType;
@@ -1399,7 +1533,11 @@ static bool initialize_rawinput (void)
 				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5) {
 					continue;
 				}
-				if (num_joystick >= MAX_INPUT_DEVICES)
+				for (i = 0; hidnorawinput[i].vid; i++) {
+					if (rdi->hid.dwProductId == hidnorawinput[i].pid && rdi->hid.dwVendorId == hidnorawinput[i].vid)
+						break;
+				}
+				if (hidnorawinput[i].vid || num_joystick >= MAX_INPUT_DEVICES)
 					continue;
 				did += num_joystick;
 				num_joystick++;
@@ -1485,8 +1623,10 @@ static bool initialize_rawinput (void)
 					if (HidP_GetCaps (did->hidpreparseddata, &did->hidcaps) == HIDP_STATUS_SUCCESS) {
 						PHIDP_BUTTON_CAPS bcaps;
 						USHORT size = did->hidcaps.NumberInputButtonCaps;
+						dumphidcaps (did);
 						bcaps = xmalloc (HIDP_BUTTON_CAPS, size);
 						if (HidP_GetButtonCaps (HidP_Input, bcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
+							dumphidbuttoncaps (bcaps, size);
 							int buttoncnt = 0;
 							for (i = 0; i < size && buttoncnt < MAX_MAPPINGS; i++) {
 								int first, last;
@@ -1521,6 +1661,7 @@ static bool initialize_rawinput (void)
 						size = did->hidcaps.NumberInputValueCaps;
 						vcaps = xmalloc (HIDP_VALUE_CAPS, size);
 						if (HidP_GetValueCaps (HidP_Input, vcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
+							dumphidvaluecaps (vcaps, size);
 							int axiscnt = 0;
 							for (i = 0; i < size && axiscnt < MAX_MAPPINGS; i++) {
 								int first, last;						
@@ -1621,7 +1762,6 @@ static bool initialize_rawinput (void)
 
 	return 1;
 
-	write_log (_T("RAWINPUT not available or failed to initialize\n"));
 error2:
 	xfree (ridl);
 	xfree (bufp);
@@ -1873,6 +2013,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 
 								v = extractbits (val, vcaps->BitSize, vcaps->LogicalMin < 0);
 						
+								//write_log (L"%d %d: %d\n", num, axisnum, v);
+
 								if (v < vcaps->LogicalMin)
 									v = vcaps->LogicalMin;
 								else if (v > vcaps->LogicalMax)
@@ -2281,8 +2423,9 @@ static BOOL di_enumcallback2 (LPCDIDEVICEINSTANCE lpddi, int joy)
 	TCHAR *typetxt;
 	TCHAR tmp[100];
 
-	if (rawinput_enabled_hid && (lpddi->dwDevType & DIDEVTYPE_HID))
+	if (rawinput_enabled_hid && (lpddi->dwDevType & DIDEVTYPE_HID)) {
 		return 1;
+	}
 
 	type = lpddi->dwDevType & 0xff;
 	if (type == DI8DEVTYPE_MOUSE || type == DI8DEVTYPE_SCREENPOINTER) {

@@ -11822,7 +11822,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				}
 
 				//write_log (_T("%d %d %d %s\n"), input_selected_device, input_selected_widget, evtnum, name);
-				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, inputmap_port);
+				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port);
 				InitializeListView (hDlg);
 				inputmap_remap_counter += cntadd;
 				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
