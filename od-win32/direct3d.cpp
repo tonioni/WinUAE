@@ -1086,16 +1086,6 @@ static int createamigatexture (int w, int h)
 {
 	HRESULT hr;
 
-	if (texture)
-		texture->Release ();
-	texture = NULL;
-	if (lpWorkTexture1)
-		lpWorkTexture1->Release ();
-	lpWorkTexture1 = NULL;
-	if (lpWorkTexture2)
-		lpWorkTexture2->Release ();
-	lpWorkTexture2 = NULL;
-
 	texture = createtext (w, h, tformat);
 	if (!texture)
 		return 0;
@@ -1775,18 +1765,39 @@ static void settransform (void)
 	D3DXMatrixIdentity (&m_matWorld2);
 }
 
+static void freetextures (void)
+{
+	if (texture) {
+		texture->Release ();
+		texture = NULL;
+	}
+	if (lpTempTexture) {
+		lpTempTexture->Release ();
+		lpTempTexture = NULL;
+	}
+	if (lpWorkTexture1) {
+		lpWorkTexture1->Release ();
+		lpWorkTexture1 = NULL;
+	}
+	if (lpWorkTexture2) {
+		lpWorkTexture2->Release ();
+		lpWorkTexture2 = NULL;
+	}
+	if (lpHq2xLookupTexture) {
+		lpHq2xLookupTexture->Release ();
+		lpHq2xLookupTexture = NULL;
+	}
+}
+
 static void invalidatedeviceobjects (void)
 {
 	if (filenotificationhandle  != NULL)
 		FindCloseChangeNotification  (filenotificationhandle);
 	filenotificationhandle = NULL;
+	freetextures ();
 	if (query) {
 		query->Release();
 		query = NULL;
-	}
-	if (texture) {
-		texture->Release ();
-		texture = NULL;
 	}
 	if (sprite) {
 		sprite->Release ();
@@ -1811,22 +1822,6 @@ static void invalidatedeviceobjects (void)
 	if (blanktexture) {
 		blanktexture->Release ();
 		blanktexture = NULL;
-	}
-	if (lpTempTexture) {
-		lpTempTexture->Release ();
-		lpTempTexture = NULL;
-	}
-	if (lpWorkTexture1) {
-		lpWorkTexture1->Release ();
-		lpWorkTexture1 = NULL;
-	}
-	if (lpWorkTexture2) {
-		lpWorkTexture2->Release ();
-		lpWorkTexture2 = NULL;
-	}
-	if (lpHq2xLookupTexture) {
-		lpHq2xLookupTexture->Release ();
-		lpHq2xLookupTexture = NULL;
 	}
 	if (cursorsurfaced3d) {
 		cursorsurfaced3d->Release ();
@@ -2317,6 +2312,8 @@ bool D3D_alloctexture (int w, int h)
 	tout_h = tin_h * multx;
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
+
+	freetextures ();
 
 	if (!createtexture (tout_w, tout_h, window_w, window_h))
 		return false;

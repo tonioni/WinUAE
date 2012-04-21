@@ -2,6 +2,10 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 9:
+
+- Fixed D3D texture reallocation ordering. Caused blank screen or other strange side-effects (b7)
+
 Beta 8:
 
 - 68EC020/68020 state files didn't load properly if current CPU config didn't match.
