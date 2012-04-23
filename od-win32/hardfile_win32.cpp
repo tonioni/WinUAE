@@ -1058,9 +1058,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	PSTORAGE_ADAPTER_DESCRIPTOR         adpDesc;
 	int gli_ok;
 	BOOL                                status;
-	ULONG                               length = 0,
-		returned = 0,
-		returnedLength;
+	ULONG                               length = 0, returned = 0, returnedLength;
+	BOOL showonly = FALSE;
 
 	//
 	// Now we have the device path. Open the device interface
@@ -1087,9 +1086,21 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 
 
 	if (hDevice == INVALID_HANDLE_VALUE) {
-		write_log (_T("CreateFile failed with error: %d\n"), GetLastError());
-		ret = 1;
-		goto end;
+		hDevice = CreateFile(
+			udi->device_path,    // device interface name
+			0,       // dwDesiredAccess
+			FILE_SHARE_READ | FILE_SHARE_WRITE, // dwShareMode
+			NULL,                               // lpSecurityAttributes
+			OPEN_EXISTING,                      // dwCreationDistribution
+			0,                                  // dwFlagsAndAttributes
+			NULL                                // hTemplateFile
+			);
+		if (hDevice == INVALID_HANDLE_VALUE) {
+			write_log (_T("CreateFile failed with error: %d\n"), GetLastError());
+			ret = 1;
+			goto end;
+		}
+		showonly = TRUE;
 	}
 
 	query.PropertyId = StorageAdapterProperty;
@@ -1159,6 +1170,12 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		DWORD err = GetLastError ();
 		if (err == ERROR_WRITE_PROTECT)
 			udi->readonly = 1;
+	}
+
+	if (showonly) {
+		udi->dangerous = -10;
+		udi->readonly = -1;
+		goto amipartfound;
 	}
 
 	gli_ok = 1;
@@ -1483,11 +1500,16 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 	int nomedia = uae_drives[index].nomedia;
 	TCHAR *dang = _T("?");
 	TCHAR *rw = _T("RW");
+	bool noaccess = false;
 
 	if (dangerousdrive)
 		*dangerousdrive = 0;
 	switch (uae_drives[index].dangerous)
 	{
+	case -10:
+		dang = _T("[???]");
+		noaccess = true;
+		break;
 	case -5:
 		dang = _T("[PART]");
 		break;
@@ -1518,32 +1540,43 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 			*dangerousdrive |= 1;
 		break;
 	}
-	if (nomedia) {
-		dang = _T("[NO MEDIA]");
-		if (dangerousdrive)
-			*dangerousdrive &= ~1;
-	}
-	if (uae_drives[index].readonly) {
-		rw = _T("RO");
-		if (dangerousdrive && !nomedia)
-			*dangerousdrive |= 2;
-	}
 
-	if (sectorsize)
-		*sectorsize = uae_drives[index].bytespersector;
-	if (flags & 1) {
-		if (nomedia) {
-			_tcscpy (tmp, _T("N/A"));
-		} else {
-			if (size >= 1024 * 1024 * 1024)
-				_stprintf (tmp, _T("%.1fG"), ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
-			else if (size < 10 * 1024 * 1024)
-				_stprintf (tmp, _T("%dK"), size / 1024);
-			else
-				_stprintf (tmp, _T("%.1fM"), ((double)(uae_u32)(size / (1024))) / 1024.0);
+	if (noaccess) {
+		if (dangerousdrive)
+			*dangerousdrive = -1;
+		if (flags & 1) {
+			_stprintf (name, _T("[ACCESS DENIED] %s"), uae_drives[index].device_name + 1);
+			return name;
 		}
-		_stprintf (name, _T("%10s [%s,%s] %s"), dang, tmp, rw, uae_drives[index].device_name + 1);
-		return name;
+	} else {
+		if (nomedia) {
+			dang = _T("[NO MEDIA]");
+			if (dangerousdrive)
+				*dangerousdrive &= ~1;
+		}
+
+		if (uae_drives[index].readonly) {
+			rw = _T("RO");
+			if (dangerousdrive && !nomedia)
+				*dangerousdrive |= 2;
+		}
+
+		if (sectorsize)
+			*sectorsize = uae_drives[index].bytespersector;
+		if (flags & 1) {
+			if (nomedia) {
+				_tcscpy (tmp, _T("N/A"));
+			} else {
+				if (size >= 1024 * 1024 * 1024)
+					_stprintf (tmp, _T("%.1fG"), ((double)(uae_u32)(size / (1024 * 1024))) / 1024.0);
+				else if (size < 10 * 1024 * 1024)
+					_stprintf (tmp, _T("%dK"), size / 1024);
+				else
+					_stprintf (tmp, _T("%.1fM"), ((double)(uae_u32)(size / (1024))) / 1024.0);
+			}
+			_stprintf (name, _T("%10s [%s,%s] %s"), dang, tmp, rw, uae_drives[index].device_name + 1);
+			return name;
+		}
 	}
 	if (flags & 2)
 		return uae_drives[index].device_path;

@@ -31,7 +31,6 @@ extern bool vsync_switchmode (int);
 extern frame_time_t vsync_busywait_end (void);
 extern bool vsync_busywait_do (int*, bool, bool);
 extern void vsync_busywait_start (void);
-extern bool vsync_busywait_check (void);
 extern double vblank_calibrate (double, bool);
 extern void doflashscreen (void);
 extern int flashscreen;

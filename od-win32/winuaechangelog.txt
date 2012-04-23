@@ -2,6 +2,20 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 10:
+
+- Partial rewrite of fastest possible CPU low latency vsync detection code. Should fix jitter caused by frame not always
+  getting shown on screen at correct time.
+- Low latency vsync and double frame mode (85Hz+): guarantee every other vblank is really skipped, previously it didn't
+  work correctly in some situations.
+- Calculate final vblank busywait time from selected rate instead of using hardcoded 50Hz/100Hz-only compatible value.
+  Fixes >50Hz no-buffer jitters.
+- Emulate extra CPU time if it has been more than 7 lines since last extra CPU time, matches older behavior without
+  losing 2.4.0+ performance increase.
+- Fixed low latency vsync + fastest possible CPU getting in state where FPS dropped greatly temporarily, usually at startup.
+- Show also drives that require admin privileges in harddrives panel, unselectable and marked with "Access denied"
+  label. Only name shown because accessing any other attribute may require admin privileges.
+
 Beta 9:
 
 - Fixed D3D texture reallocation ordering. Caused blank screen or other strange side-effects (b7)

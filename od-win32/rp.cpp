@@ -255,7 +255,6 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 					}
 					_stprintf (p, _T("=%02X"), kc);
 					p += _tcslen (p);
-					break;
 				}
 			}
 		}
@@ -294,14 +293,21 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 		const TCHAR *p2 = _tcschr (p, '=');
 		if (!p2)
 			break;
-		const TCHAR *p3 = _tcschr (p, '.');
-		if (!p3 || p3 >= p2) {
-			p3 = NULL;
-			eventlen = p2 - p;
-		} else {
-			eventlen = p3 - p;
-			if (!_tcsncmp (p3, L"autorepeat", p2 - p3))
+		const TCHAR *p4 = p;
+		eventlen = -1;
+		for (;;) {
+			const TCHAR *p3 = _tcschr (p4, '.');
+			if (!p3 || p3 >= p2) {
+				p3 = NULL;
+				if (eventlen < 0)
+					eventlen = p2 - p;
+				break;
+			}
+			if (eventlen < 0)
+				eventlen = p3 - p;
+			if (!_tcsnicmp (p3 + 1, L"autorepeat", 10))
 				flags |= IDEV_MAPPED_AUTOFIRE_SET;
+			p4 = p3 + 1;
 		}
 		
 		for (int i = 0; eventorder[i]; i++) {

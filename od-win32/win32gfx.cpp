@@ -118,6 +118,8 @@ extern int reopen (int);
 #define VBLANKTH_ACTIVE_WAIT 3
 #define VBLANKTH_ACTIVE 4
 #define VBLANKTH_ACTIVE_START 5
+#define VBLANKTH_ACTIVE_SKIPFRAME 6
+#define VBLANKTH_ACTIVE_SKIPFRAME2 7
 
 static volatile bool vblank_found;
 static volatile int flipthread_mode;
@@ -2450,7 +2452,7 @@ static bool vblank_wait (void)
 	}
 }
 
-static bool vblank_getstate (bool *state)
+static bool vblank_getstate (bool *state, int *pvp)
 {
 	int vp, opos;
 
@@ -2458,6 +2460,8 @@ static bool vblank_getstate (bool *state)
 	opos = prevvblankpos;
 	if (!getvblankpos (&vp))
 		return false;
+	if (pvp)
+		*pvp = vp;
 	if (opos > maxscanline / 2 && vp < maxscanline / 3) {
 		*state = true;
 		return true;
@@ -2468,6 +2472,10 @@ static bool vblank_getstate (bool *state)
 	}
 	*state = false;
 	return true;
+}
+static bool vblank_getstate (bool *state)
+{
+	return vblank_getstate (state, NULL);
 }
 
 void vblank_reset (double freq)
@@ -2498,6 +2506,8 @@ static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
 static bool dooddevenskip;
+static volatile bool vblank_skipeveryother;
+static volatile bool vblank_first_time;
 
 static bool vblanklaceskip (void)
 {
@@ -2512,7 +2522,7 @@ static bool vblanklaceskip (void)
 
 static unsigned int __stdcall vblankthread (void *dummy)
 {
-	static bool firstvblankbasewait2; // if >85Hz mode
+	static bool firstvblankbasewait2;
 	while (vblankthread_mode > VBLANKTH_KILL) {
 		struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 		vblankthread_counter++;
@@ -2529,62 +2539,89 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			sleep_millis (ap->gfx_vflip && currprefs.m68k_speed >= 0 ? 2 : 1);
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
-			bool vb = false;
+			int vp;
 			firstvblankbasewait2 = false;
-			vblank_getstate (&vb);
-			bool ok = vblank_getstate (&vb);
-			if (vb == false)
-				vblankthread_mode = VBLANKTH_ACTIVE;
-			else
+			getvblankpos (&vp);
+			if (vp <= 0) {
+				if (!vblank_first_time) {
+					// set prevtime now if we are still at vsync to improve timing
+					vblank_prev_time = read_processor_time ();
+					vblank_first_time = true;
+				}
 				sleep_millis (1);
+				continue;
+			}
+			if (vp > maxscanline / 2) {
+				sleep_millis (1);
+				continue;
+			}
+			prevvblankpos = 0;
+			if (vblank_skipeveryother) // wait for first vblank in skip frame mode (100Hz+)
+				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME;
+			else
+				vblankthread_mode = VBLANKTH_ACTIVE;
+		} else if (vblankthread_mode == VBLANKTH_ACTIVE_SKIPFRAME) {
+			int vp;
+			sleep_millis (1);
+			getvblankpos (&vp);
+			if (vp >= maxscanline / 2)
+				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME2;
+		} else if (vblankthread_mode == VBLANKTH_ACTIVE_SKIPFRAME2) {
+			int vp;
+			sleep_millis (1);
+			getvblankpos (&vp);
+			if (vp < maxscanline / 2)
+				vblankthread_mode = VBLANKTH_ACTIVE;
 		} else if (vblankthread_mode == VBLANKTH_ACTIVE) {
 			// busy wait mode
 			frame_time_t t = read_processor_time ();
 			bool donotwait = false;
-			if (!vblank_found) {
-				int vs = isvsync_chipset ();
-				// immediate vblank if mismatched frame type 
-				if (vs < 0 && vblanklaceskip ()) {
-					vblank_found = true;
-					vblank_found_chipset = true;
-					vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
-					donotwait = true;
-				} else if (t - thread_vblank_time > vblankbasewait2) {
-					bool vb = false;
-					bool ok;
-					if (firstvblankbasewait2 == false) {
-						firstvblankbasewait2 = true;
-						vblank_getstate (&vb);
-						if (!dooddevenskip && ap->gfx_vflip > 0) {
-							doflipevent ();
-						}
+			bool end = false;
+			int vs = isvsync_chipset ();
+			// immediate vblank if mismatched frame type 
+			if (vs < 0 && vblanklaceskip ()) {
+				vblank_found = true;
+				vblank_found_chipset = true;
+				end = true;
+			} else if (t - vblank_prev_time > vblankbasewait2) {
+				int vp = 0;
+				bool vb = false;
+				bool ok;
+				if (firstvblankbasewait2 == false) {
+					firstvblankbasewait2 = true;
+					vblank_getstate (&vb, &vp);
+					if (!dooddevenskip && ap->gfx_vflip > 0) {
+						doflipevent ();
 					}
-					ok = vblank_getstate (&vb);
-					if (!ok || vb) {
-						vblank_found = true;
-						if (vs < 0) {
-							vblank_found_chipset = true;
-							if (!ap->gfx_vflip) {
-								show_screen ();
-							}
-						}
-						vblank_found_rtg = true;
-						//write_log (_T("%d\n"), t - thread_vblank_time);
-						thread_vblank_time = t;
-						vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
-					}
-					if (t - thread_vblank_time > vblankbasewait3)
-						donotwait = true;
 				}
+				ok = vblank_getstate (&vb, &vp);
+				if (!ok || vb) {
+					thread_vblank_time = t;
+					if (vs < 0) {
+						vblank_found_chipset = true;
+						if (!ap->gfx_vflip) {
+							show_screen ();
+						}
+					}
+					vblank_found_rtg = true;
+					vblank_found = true;
+					end = true;
+				}
+				if (t - vblank_prev_time > vblankbasewait3)
+					donotwait = true;
 			}
-			if (t - vblank_prev_time > vblankbasefull * 3) {
+			if (t - vblank_prev_time > vblankbasefull * 2) {
+				thread_vblank_time = t;
 				vblank_found = true;
 				vblank_found_rtg = true;
 				vblank_found_chipset = true;
-				vblankthread_mode = VBLANKTH_IDLE;
+				end = true;
 			}
-			if (!donotwait || ap->gfx_vflip || picasso_on)
+			if (end) {
+				vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
+			} else if (!donotwait || ap->gfx_vflip || picasso_on) {
 				sleep_millis (ap->gfx_vflip && currprefs.m68k_speed >= 0 ? 2 : 1);
+			}
 		} else {
 			break;
 		}
@@ -2593,10 +2630,6 @@ static unsigned int __stdcall vblankthread (void *dummy)
 	return 0;
 }
 
-bool vsync_busywait_check (void)
-{
-	return vblankthread_mode == VBLANKTH_ACTIVE || vblankthread_mode == VBLANKTH_ACTIVE_WAIT;
-}
 #if 0
 static void vsync_notvblank (void)
 {
@@ -2614,6 +2647,9 @@ static void vsync_notvblank (void)
 #endif
 frame_time_t vsync_busywait_end (void)
 {
+	while (vblankthread_mode == VBLANKTH_ACTIVE_START || vblankthread_mode == VBLANKTH_ACTIVE_SKIPFRAME || vblankthread_mode == VBLANKTH_ACTIVE_SKIPFRAME2) {
+		sleep_millis_main (1);
+	}
 	if (!dooddevenskip) {
 		while (!vblank_found && vblankthread_mode == VBLANKTH_ACTIVE) {
 			vsync_sleep (currprefs.m68k_speed < 0 && currprefs.m68k_speed_throttle == 0);
@@ -2625,8 +2661,6 @@ frame_time_t vsync_busywait_end (void)
 
 void vsync_busywait_start (void)
 {
-	int vp = 0;
-	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 #if 0
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	if (!dooddevenskip) {
@@ -2636,8 +2670,9 @@ void vsync_busywait_start (void)
 		}
 	}
 #endif
-	changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
 	vblank_prev_time = thread_vblank_time;
+	vblank_first_time = false;
+	changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
 }
 
 static bool isthreadedvsync (void)
@@ -2663,8 +2698,8 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	t = read_processor_time ();
 	ti = t - prevtime;
 	if (ti > 2 * vblankbasefull || ti < -2 * vblankbasefull) {
+		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
 		waitvblankstate (false, NULL);
-		t = read_processor_time ();
 		vblank_prev_time = t;
 		thread_vblank_time = t;
 		frame_missed++;
@@ -2869,22 +2904,27 @@ skip:
 	if (waitonly)
 		tsum = approx_vblank;
 
+	vblank_skipeveryother = false;
 	getvsyncrate (tsum, &mult);
-	if (mult < 0)
+	if (mult < 0) {
 		div = 2.0;
-	else if (mult > 0)
+		vblank_skipeveryother = true;
+	} else if (mult > 0) {
 		div = 0.5;
-	else
+	} else {
 		div = 1.0;
+	}
 	tsum2 = tsum / div;
 
 	vblankbasefull = (syncbase / tsum2);
 	vblankbasewait1 = (syncbase / tsum2) * 75 / 100;
 	vblankbasewait2 = (syncbase / tsum2) * 55 / 100;
-	vblankbasewait3 = (syncbase / tsum2) * 90 / 100;
+	vblankbasewait3 = (syncbase / tsum2) * 99 / 100 - syncbase / 500; // at least 2ms before vblank
 	vblankbaselace = lace;
-	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d\n"),
-		waitonly ? _T("remembered") : _T("calibrated"), tsum, div, tsum2, minscanline, maxvpos, lace ? _T("i") : _T(""), vblankbasefull);
+	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Units=%d %.1f%%\n"),
+		waitonly ? _T("remembered") : _T("calibrated"), tsum, div, tsum2,
+		minscanline, maxvpos, lace ? _T("i") : _T(""), vblankbasefull,
+		vblankbasewait3 * 100 / (syncbase / tsum2));
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	

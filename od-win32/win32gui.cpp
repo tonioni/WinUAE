@@ -9232,14 +9232,16 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (oposn != posn && posn != CB_ERR) {
 			oposn = posn;
 			if (posn >= 0) {
+				BOOL ena ;
 				int dang = 1;
 				hdf_getnameharddrive (posn, 1, NULL, &dang);
-				ew (hDlg, IDC_HARDDRIVE_IMAGE, TRUE);
-				ew (hDlg, IDOK, TRUE);
+				ena = dang >= 0;
+				ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
+				ew (hDlg, IDOK, ena);
 				ew (hDlg, IDC_HDF_RW, !dang);
 				if (dang)
 					current_hfdlg.rw = FALSE;
-				ew (hDlg, IDC_HDF_CONTROLLER, TRUE);
+				ew (hDlg, IDC_HDF_CONTROLLER, ena);
 				hardfile_testrdb (hDlg, &current_hfdlg);
 				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
 				CheckDlgButton(hDlg, IDC_HDF_RW, current_hfdlg.rw);

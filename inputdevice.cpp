@@ -3903,6 +3903,11 @@ static void setautofireevent (struct uae_input_device *uid, int num, int sub, in
 {
 	if (!af)
 		return;
+#ifdef RETROPLATFORM
+	// don't override custom AF autofire mappings
+	if (rp_isactive ())
+		return;
+#endif
 	int *afp = af_ports[index];
 	for (int k = 0; afp[k] >= 0; k++) {
 		if (afp[k] == uid->eventid[num][sub]) {
@@ -4247,6 +4252,11 @@ static void setautofire (struct uae_input_device *uid, int port, int af)
 
 static void setautofires (struct uae_prefs *prefs, int port, int af)
 {
+#ifdef RETROPLATFORM
+	// don't override custom AF autofire mappings
+	if (rp_isactive ())
+		return;
+#endif
 	for (int l = 0; l < MAX_INPUT_DEVICES; l++) {
 		setautofire (&joysticks[l], port, af);
 		setautofire (&mice[l], port, af);
@@ -4713,7 +4723,7 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 		inputdevice_get_mapping (devnum, num, &xflags, &xport, xname, xcustom, 0);
 		if (xport == 0)
 			inputdevice_set_mapping (devnum, num, xname, xcustom, xflags, MAX_JPORTS + 1, SPARE_SUB_EVENT);
-		inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1, port + 1, 0);
+		inputdevice_set_mapping (devnum, num, name, NULL, IDEV_MAPPED_GAMEPORTSCUSTOM1 | flags, port + 1, 0);
 	}
 	return true;
 }

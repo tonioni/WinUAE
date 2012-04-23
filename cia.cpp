@@ -490,7 +490,7 @@ static void do_tod_hack (int dotod)
 	if (tod_hack_enabled > 1) {
 		tod_hack_enabled--;
 		if (tod_hack_enabled == 1) {
-			write_log (_T("TOD HACK enabled\n"));
+			//write_log (_T("TOD HACK enabled\n"));
 			tod_hack_reset ();
 		}
 		return;
@@ -506,8 +506,7 @@ static void do_tod_hack (int dotod)
 		return;
 	if (rate != oldrate || ciaatod != tod_hack_tod_last) {
 		if (ciaatod != 0)
-			write_log (_T("TOD HACK reset %d,%d %d,%d\n"),
-			rate, oldrate, ciaatod, tod_hack_tod_last);
+			//write_log (_T("TOD HACK reset %d,%d %d,%d\n"), rate, oldrate, ciaatod, tod_hack_tod_last);
 		tod_hack_reset ();
 		oldrate = rate;
 		docount = 1;

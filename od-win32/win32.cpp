@@ -163,6 +163,7 @@ static int timermode, timeon;
 #define MAX_TIMEHANDLES 8
 static int timehandlecounter;
 static HANDLE timehandle[MAX_TIMEHANDLES];
+static bool timehandleinuse[MAX_TIMEHANDLES];
 int sleep_resolution;
 static CRITICAL_SECTION cs_time;
 
@@ -233,14 +234,22 @@ static void sleep_millis2 (int ms, bool main)
 	if (main)
 		start = read_processor_time ();
 	EnterCriticalSection (&cs_time);
-	cnt = timehandlecounter++;
-	if (timehandlecounter >= MAX_TIMEHANDLES)
-		timehandlecounter = 0;
+	for (;;) {
+		timehandlecounter++;
+		if (timehandlecounter >= MAX_TIMEHANDLES)
+			timehandlecounter = 0;
+		if (timehandleinuse[timehandlecounter] == false) {
+			cnt = timehandlecounter;
+			timehandleinuse[cnt] = true;
+			break;
+		}
+	}
 	LeaveCriticalSection (&cs_time);
 	TimerEvent = timeSetEvent (ms, 0, (LPTIMECALLBACK)timehandle[cnt], 0, TIME_ONESHOT | TIME_CALLBACK_EVENT_SET);
 	WaitForSingleObject (timehandle[cnt], ms);
 	ResetEvent (timehandle[cnt]);
 	timeKillEvent (TimerEvent);
+	timehandleinuse[cnt] = false;
 	if (main)
 		idletime += read_processor_time () - start;
 }
