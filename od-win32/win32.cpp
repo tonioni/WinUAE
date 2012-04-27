@@ -99,7 +99,7 @@ int log_scsi;
 int log_net;
 int log_vsync;
 int uaelib_debug;
-int pissoff_value = 8000 * CYCLE_UNIT;
+int pissoff_value = 20000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait = 0;
 

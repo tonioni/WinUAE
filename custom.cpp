@@ -5946,18 +5946,23 @@ static void hsync_handler_post (bool onvsync)
 			linecounter++;
 			is_syncline = 0;
 			if (!vblank_found_chipset) {
-				if ((int)vsyncmaxtime - (int)vsyncmintime > 0 && (int)vsyncwaittime - (int)vsyncmintime > 0) {
-					frame_time_t rpt = read_processor_time ();
-					/* Extra time left? Do some extra CPU emulation */
-					if ((int)vsyncmintime - (int)rpt > 0) {
+				if ((int)vsyncmaxtime - (int)vsyncmintime > 0) {
+					if ((int)vsyncwaittime - (int)vsyncmintime > 0) {
+						frame_time_t rpt = read_processor_time ();
+						/* Extra time left? Do some extra CPU emulation */
+						if ((int)vsyncmintime - (int)rpt > 0) {
+							is_syncline = 1;
+							/* limit extra time */
+							is_syncline_end = rpt + vsynctimeperline;
+							linecounter = 0;
+						}
+					}
+					// extra cpu emulation time if previous 8 lines without extra time.
+					if (!is_syncline && linecounter >= 8) {
 						is_syncline = -1;
+						is_syncline_end = read_processor_time () + vsynctimeperline;
 						linecounter = 0;
 					}
-				}
-				// extra cpu emulation time if 10 lines without extra
-				if (!is_syncline && linecounter > 9) {
-					is_syncline = -1;
-					linecounter = 0;
 				}
 			}
 		}

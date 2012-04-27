@@ -8,7 +8,7 @@
          : version 2.0 as published by Mozilla Corporation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2012-04-20 14:49:00
+ Updated : 2012-04-23 12:41:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -55,6 +55,7 @@
 #define RP_IPC_TO_HOST_INPUTDEVICE         (WM_APP + 26) // introduced in RetroPlatform API 3.0
 #define RP_IPC_TO_HOST_DEVICECONTENT       (WM_APP + 27) // extended in RetroPlatform API 3.0
 
+
 // ****************************************************************************
 //  Host-to-Guest Messages
 // ****************************************************************************
@@ -91,7 +92,7 @@
 #define RP_FEATURE_FULLSCREEN      			0x00000020 // fullscreen display is available
 #define RP_FEATURE_SCREENCAPTURE   			0x00000040 // screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
 #define RP_FEATURE_PAUSE           			0x00000080 // pause functionality is available (see RP_IPC_TO_GUEST_PAUSE message)
-#define RP_FEATURE_TURBO           			0x00000100 // turbo mode functionality is available (see RP_IPC_TO_GUEST_TURBO message)
+#define RP_FEATURE_TURBO_CPU       			0x00000100 // turbo CPU functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 #define RP_FEATURE_VOLUME          			0x00000200 // volume adjustment is possible (see RP_IPC_TO_GUEST_VOLUME message)
 #define RP_FEATURE_STATE           			0x00000400 // loading and saving of emulation state is supported (see RP_IPC_TO_GUEST_SAVESTATE/RP_IPC_TO_GUEST_LOADSTATE message)
 #define RP_FEATURE_SCANLINES       			0x00000800 // scan lines video effect is available
@@ -106,6 +107,8 @@
 #define RP_FEATURE_INPUTDEVICE_ANALOGSTICK	0x00100000 // supports emulation of analog joystick
 #define RP_FEATURE_INPUTDEVICE_LIGHTPEN	    0x00200000 // supports emulation of light pen
 #define RP_FEATURE_INPUTDEVICE_TABLET	    0x00400000 // supports emulation of pen tablet
+#define RP_FEATURE_TURBO_FLOPPY    			0x00800000 // turbo floppy functionality is available (see RP_IPC_TO_GUEST_TURBO message)
+#define RP_FEATURE_TURBO_TAPE      			0x01000000 // turbo tape functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 
 
 typedef struct RPScreenMode
@@ -475,6 +478,7 @@ typedef struct RPDeviceContent_Legacy
 #define RPIPCHM_QUERYSCREENMODE RP_IPC_TO_GUEST_QUERYSCREENMODE
 #define RPIPCHM_GUESTAPIVERSION RP_IPC_TO_GUEST_GUESTAPIVERSION
 #define RPIPCHM_DEVICECONTENT RP_IPC_TO_GUEST_DEVICECONTENT
+#define RP_FEATURE_TURBO RP_FEATURE_TURBO_CPU
 // End of Legacy Compatibility
 #endif
 #endif // __CLOANTO_RETROPLATFORMIPC_H__

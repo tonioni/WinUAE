@@ -32,7 +32,7 @@ extern void do_cycles_fast (unsigned long cycles_to_add);
 extern int is_cycle_ce (void);
 
 extern unsigned long currcycle, nextevent;
-extern int is_syncline;
+extern int is_syncline, is_syncline_end;
 typedef void (*evfunc)(void);
 typedef void (*evfunc2)(uae_u32);
 

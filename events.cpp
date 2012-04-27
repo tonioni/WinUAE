@@ -15,7 +15,7 @@
 #include "events.h"
 
 unsigned long int event_cycles, nextevent, currcycle;
-int is_syncline;
+int is_syncline, is_syncline_end;
 long cycles_to_next_event;
 long max_cycles_to_next_event;
 long cycles_to_hsync_event;
@@ -50,12 +50,21 @@ void do_cycles_slow (unsigned long cycles_to_add)
 		int i;
 
 		/* Keep only CPU emulation running while waiting for sync point. */
-		if (is_syncline) {
+		if (is_syncline > 0) {
 			int rpt = read_processor_time ();
 			int v = rpt - vsyncmintime;
+			int v2 = rpt - is_syncline_end;
 			if (v > (int)vsynctimebase || v < -((int)vsynctimebase)) {
 				v = 0;
 			}
+			if (v < 0 && v2 < 0 && !vblank_found_chipset) {
+				pissoff = pissoff_value;
+				return;
+			}
+			is_syncline = 0;
+		} else if (is_syncline < 0) {
+			int rpt = read_processor_time ();
+			int v = rpt - is_syncline_end;
 			if (v < 0 && !vblank_found_chipset) {
 				pissoff = pissoff_value;
 				return;

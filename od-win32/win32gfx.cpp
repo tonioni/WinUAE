@@ -2412,16 +2412,31 @@ static bool getvblankpos (int *vp)
 	return true;
 }
 
-static bool waitvblankstate (bool state, int *maxvpos)
+static bool getvblankpos2 (int *vp, int *flags)
+{
+	if (!getvblankpos (vp))
+		return false;
+	if (*vp > 100 && flags) {
+		if ((*vp) & 1)
+			*flags |= 2;
+		else
+			*flags |= 1;
+	}
+	return true;
+}
+
+static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 {
 	int vp;
+	if (flags)
+		*flags = 0;
 	for (;;) {
 		int omax = maxscanline;
-		if (!getvblankpos (&vp))
+		if (!getvblankpos2 (&vp, flags))
 			return false;
 		while (omax != maxscanline) {
 			omax = maxscanline;
-			if (!getvblankpos (&vp))
+			if (!getvblankpos2 (&vp, flags))
 				return false;
 		}
 		if (maxvpos)
@@ -2699,7 +2714,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	ti = t - prevtime;
 	if (ti > 2 * vblankbasefull || ti < -2 * vblankbasefull) {
 		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
-		waitvblankstate (false, NULL);
+		waitvblankstate (false, NULL, NULL);
 		vblank_prev_time = t;
 		thread_vblank_time = t;
 		frame_missed++;
@@ -2851,22 +2866,23 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		cnt = total;
 		for (cnt = 0; cnt < total; cnt++) {
 			int maxvpos1, maxvpos2;
-			if (!waitvblankstate (true, NULL))
+			int flags1, flags2;
+			if (!waitvblankstate (true, NULL, NULL))
 				goto fail;
-			if (!waitvblankstate (false, NULL))
+			if (!waitvblankstate (false, NULL, NULL))
 				goto fail;
-			if (!waitvblankstate (true, NULL))
+			if (!waitvblankstate (true, NULL, NULL))
 				goto fail;
 			t1 = read_processor_time ();
-			if (!waitvblankstate (false, NULL))
+			if (!waitvblankstate (false, NULL, NULL))
 				goto fail;
 			maxscanline = 0;
-			if (!waitvblankstate (true, &maxvpos1))
+			if (!waitvblankstate (true, &maxvpos1, &flags1))
 				goto fail;
-			if (!waitvblankstate (false, NULL))
+			if (!waitvblankstate (false, NULL, NULL))
 				goto fail;
 			maxscanline = 0;
-			if (!waitvblankstate (true, &maxvpos2))
+			if (!waitvblankstate (true, &maxvpos2, &flags2))
 				goto fail;
 			t2 = read_processor_time ();
 			maxvpos = maxvpos1 > maxvpos2 ? maxvpos1 : maxvpos2;
@@ -2885,8 +2901,9 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 				break;
 			}
 			tsum += tval;
-			if (abs (maxvpos1 - maxvpos2) == 1)
+			if ((flags1 > 0 && flags1 < 3) && (flags2 > 0 && flags2 < 3) && (flags1 != flags2)) {
 				lace = true;
+			}
 		}
 		if (cnt >= total)
 			break;

@@ -2,6 +2,14 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 11:
+
+- Adjusted Fastest Possible timing a bit more..
+- Better PC interlace screen mode detection.
+- Fixed invalid MFM encoding when converting standard adf unencoded data to MFM encoding. (Few incorrect MFM clock bits) Another
+  "no one cares" fix (since the beginning, does not affect adf data quality), noticed when testing m68k AROS trackdisk.device write support.
+- Vsync mode sound sync shouldn't be that aggressive. (b8)
+
 Beta 10:
 
 - Partial rewrite of fastest possible CPU low latency vsync detection code. Should fix jitter caused by frame not always

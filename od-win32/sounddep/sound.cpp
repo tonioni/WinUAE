@@ -131,7 +131,7 @@ struct sound_dp
 #define ADJUST_SIZE 20
 #define EXP 1.9
 
-#define ADJUST_VSSIZE 10
+#define ADJUST_VSSIZE 12
 #define EXPVS 1.6
 
 int sound_debug = 0;
@@ -272,9 +272,9 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 static double sync_sound (double m)
 {
 	double skipmode;
-	if (0 && isvsync ()) {
+	if (isvsync ()) {
 
-		skipmode = pow (m < 0 ? -m : m, EXPVS) / 9;
+		skipmode = pow (m < 0 ? -m : m, EXPVS) / 2;
 		if (m < 0)
 			skipmode = -skipmode;
 		if (skipmode < -ADJUST_VSSIZE)

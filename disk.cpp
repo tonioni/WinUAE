@@ -18,6 +18,8 @@ int disk_debug_logging = 0;
 int disk_debug_mode = 0;
 int disk_debug_track = -1;
 
+#define MFM_VALIDATOR 0
+
 #include "uae.h"
 #include "options.h"
 #include "memory.h"
@@ -1305,7 +1307,7 @@ static void mfmcode (uae_u16 * mfm, int words)
 {
 	uae_u32 lastword = 0;
 	while (words--) {
-		uae_u32 v = *mfm;
+		uae_u32 v = (*mfm) & 0x55555555;
 		uae_u32 lv = (lastword << 16) | v;
 		uae_u32 nlv = 0x55555555 & ~lv;
 		uae_u32 mfmbits = (nlv << 1) & (nlv >> 1);
@@ -1418,6 +1420,7 @@ static void decode_amigados (drive *drv)
 	int dstmfmoffset = 0;
 	uae_u16 *dstmfmbuf = drv->bigmfmbuf;
 	int len = drv->num_secs * 544 + FLOPPY_GAP_LEN;
+	int prevbit;
 
 	trackid *ti = drv->trackdata + tr;
 	memset (dstmfmbuf, 0xaa, len * 2);
@@ -1425,9 +1428,10 @@ static void decode_amigados (drive *drv)
 	drv->skipoffset = (FLOPPY_GAP_LEN * 8) / 3 * 2;
 	drv->tracklen = len * 2 * 8;
 
+	prevbit = 0;
 	for (sec = 0; sec < drv->num_secs; sec++) {
 		uae_u8 secbuf[544];
-		uae_u16 mfmbuf[544];
+		uae_u16 mfmbuf[544 + 1];
 		int i;
 		uae_u32 deven, dodd;
 		uae_u32 hck = 0, dck = 0;
@@ -1444,7 +1448,8 @@ static void decode_amigados (drive *drv)
 
 		read_floppy_data (drv->diskfile, ti, sec * 512, &secbuf[32], 512);
 
-		mfmbuf[0] = mfmbuf[1] = 0xaaaa;
+		mfmbuf[0] = prevbit ? 0x2aaa : 0xaaaa;
+		mfmbuf[1] = 0xaaaa;
 		mfmbuf[2] = mfmbuf[3] = 0x4489;
 
 		deven = ((secbuf[4] << 24) | (secbuf[5] << 16)
@@ -1491,12 +1496,18 @@ static void decode_amigados (drive *drv)
 		mfmbuf[29] = dodd;
 		mfmbuf[30] = deven >> 16;
 		mfmbuf[31] = deven;
-		mfmcode (mfmbuf + 4, 544 - 4);
+
+		mfmbuf[544] = 0;
+
+		mfmcode (mfmbuf + 4, 544 - 4 + 1);
 
 		for (i = 0; i < 544; i++) {
 			dstmfmbuf[dstmfmoffset % len] = mfmbuf[i];
 			dstmfmoffset++;
 		}
+		prevbit = mfmbuf[i - 1] & 1;
+		// so that final word has correct MFM encoding
+		dstmfmbuf[dstmfmoffset % len] = mfmbuf[i];
 	}
 
 	if (disk_debug_logging > 0)
@@ -1728,6 +1739,26 @@ static uae_u32 getmfmlong (uae_u16 *mbuf, int shift)
 	return ((getmfmword (mbuf, shift) << 16) | getmfmword (mbuf + 1, shift)) & MFMMASK;
 }
 
+#if MFM_VALIDATOR
+static void check_valid_mfm (uae_u16 *mbuf, int words, int sector)
+{
+	int prevbit = 0;
+	for (int i = 0; i < words * 8; i++) {
+		int wordoffset = i / 8;
+		uae_u16 w = mbuf[wordoffset];
+		uae_u16 wp = mbuf[wordoffset - 1];
+		int bitoffset = (7 - (i & 7)) * 2;
+		int clockbit = w & (1 << (bitoffset + 1));
+		int databit = w & (1 << (bitoffset + 0));
+
+		if ((clockbit && databit) || (clockbit && !databit && prevbit) || (!clockbit && !databit && !prevbit)) {
+			write_log (L"illegal mfm sector %d data %04x %04x, bit %d:%d\n", sector, wp, w, wordoffset, bitoffset);
+		}
+		prevbit = databit;
+	}
+}
+#endif
+
 static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int filetype, int *drvsecp, int *sectable, int checkmode)
 {
 	int i, secwritten = 0;
@@ -1773,6 +1804,9 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 				return 2;
 			continue;
 		}
+#if MFM_VALIDATOR
+		check_valid_mfm (mbuf - 4, 544 - 4 + 1, trackoffs);
+#endif
 		chksum = odd ^ even;
 		for (i = 0; i < 4; i++) {
 			odd = getmfmlong (mbuf, shift);
@@ -1791,8 +1825,14 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 		odd = getmfmlong (mbuf, shift);
 		even = getmfmlong (mbuf + 2, shift);
 		mbuf += 4;
-		if (((odd << 1) | even) != chksum || ((id & 0x00ff0000) >> 16) != cyl * 2 + side) {
+		if (((odd << 1) | even) != chksum) {
 			write_log (_T("Disk decode: checksum error on sector %d header\n"), trackoffs);
+			if (filetype == ADF_EXT2)
+				return 3;
+			continue;
+		}
+		if (((id & 0x00ff0000) >> 16) != cyl * 2 + side) {
+			write_log (_T("Disk decode: mismatched track (%d <> %d) on sector %d header\n"), (id & 0x00ff0000) >> 16, cyl * 2 + side, trackoffs);
 			if (filetype == ADF_EXT2)
 				return 3;
 			continue;
@@ -1820,6 +1860,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 			continue;
 		}
 		mbuf += 256;
+		//write_log (_T("Sector %d ok\n"), trackoffs);
 		sectable[trackoffs] = 1;
 		secwritten++;
 		memcpy (writebuffer + trackoffs * 512, secbuf + 32, 512);
@@ -2004,9 +2045,10 @@ static void drive_write_data (drive * drv)
 		if (!longwritemode)
 			ret = drive_write_adf_amigados (drv);
 		if (ret) {
+			activate_debugger ();
 			write_log (_T("not an amigados track %d (error %d), writing as raw track\n"), drv->cyl * 2 + side, ret);
-			drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
-				longwritemode ? dsklength2 * 8 : drv->tracklen);
+//			drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
+//				longwritemode ? dsklength2 * 8 : drv->tracklen);
 		}
 		return;
 	case ADF_IPF:
