@@ -11700,7 +11700,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		bool iscustom = false;
 		TCHAR custom[MAX_DPATH];
 
-		if (!_tcscmp (inputdevice_get_eventinfo (INPUTEVENT_SPC_CUSTOM_EVENT)->name, eventnames[input_selected_event])) {
+		if (eventnames[input_selected_event] && !_tcscmp (inputdevice_get_eventinfo (INPUTEVENT_SPC_CUSTOM_EVENT)->name, eventnames[input_selected_event])) {
 			doinputcustom (hDlg, 1);
 			iscustom = true;
 		}
@@ -12998,7 +12998,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 	LRESULT item;
 	TCHAR tmp[100];
 	int i;
-	static int filteroverlaypos;
+	static int filteroverlaypos = -1;
 
 	switch (msg)
 	{
@@ -13030,8 +13030,16 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		}
 
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_ADDSTRING, 0, (LPARAM)_T("Overlays"));
-		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_ADDSTRING, 0, (LPARAM)_T("Masks"));
+		WIN32GUI_LoadUIString (IDS_FILTEROVERLAYTYPE_OVERLAYS, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString (IDS_FILTEROVERLAYTYPE_MASKS, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		if (filteroverlaypos < 0) {
+			if (!workprefs.gfx_filteroverlay[0])
+				filteroverlaypos = 1;
+			else
+				filteroverlaypos = 0;
+		}
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_SETCURSEL, filteroverlaypos, 0);
 
 		enable_for_hw3ddlg (hDlg);

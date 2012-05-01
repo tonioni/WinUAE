@@ -2,6 +2,18 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 12: (RC1)
+
+- Ignore sprite 0 (normally mouse pointer) when calculating autoscale position and size.
+- Custom Input event editor usually crashed.
+- CD32 boot screen autoscale improved.
+- b10 "show drives that require admin privileges" hide drives that also have drive letter.
+  Background info: for some strange reason USB memory card adapters have two devices, one (without drive letter) that can't
+  be accessed without admin privileges and drive letter device that can be accessed.
+- Fastest possible CPU + low latency vsync and double frame mode (85Hz+) jitter fixed.
+- "Masks" in filter panel is selected by default, "Overlays" is only selected if overlay image is already configured.
+- Possible fix for D3D mask alignment errors in some scaling settings.
+
 Beta 11:
 
 - Adjusted Fastest Possible timing a bit more..

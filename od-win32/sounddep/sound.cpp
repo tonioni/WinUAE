@@ -250,7 +250,7 @@ static void docorrection (struct sound_dp *s, int sndbuf, double sync, int granu
 		double skipmode, avgskipmode;
 		double avg = s->avg_correct / s->cnt_correct;
 
-		skipmode = sync / 10.0;
+		skipmode = sync / 100.0;
 		avgskipmode = avg / (10000.0 / granulaty);
 
 		if ((0 || sound_debug) && (tfprev % 10) == 0) {

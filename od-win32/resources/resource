@@ -356,6 +356,9 @@
 #define IDS_SCREEN_VSYNC2_AUTOSWITCH    376
 #define IDS_SCREEN_VSYNC2               377
 #define IDS_SCREEN_VSYNC_NONE           378
+#define IDS_FILTEROVERLAYTYPE_MASKS     379
+#define IDS_STRING380                   380
+#define IDS_FILTEROVERLAYTYPE_OVERLAYS  380
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002

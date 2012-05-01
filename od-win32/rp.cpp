@@ -259,7 +259,7 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 			}
 		}
 	}
-	write_log (L"********* -> %s\n",  out);
+	write_log (_T("port_get_custom: %s\n"),  out);
 	return true;
 }
 
@@ -345,7 +345,7 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 				}
 			}
 			if (wdnum >= 0) {
-				write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
+				//write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
 				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, flags, inputmap_port);
 				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, flags, inputmap_port);
 			} else {

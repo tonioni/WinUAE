@@ -169,7 +169,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			if (ap->gfx_vsyncmode) {
 				// low latency vsync: no flip only if no-buffer
 				if (ap->gfx_backbuffers >= 1)
-					ap->gfx_vflip = -1;
+					ap->gfx_vflip = 1;
 				if (!i && ap->gfx_backbuffers == 2)
 					ap->gfx_vflip = 1;
 			} else {

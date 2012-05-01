@@ -99,7 +99,7 @@ int log_scsi;
 int log_net;
 int log_vsync;
 int uaelib_debug;
-int pissoff_value = 20000 * CYCLE_UNIT;
+int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
 int extraframewait = 0;
 
@@ -2276,7 +2276,7 @@ void logging_init (void)
 	int wow64 = 0;
 	static int started;
 	static int first;
-	TCHAR tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], filedate[256];
 
 	if (first > 1) {
 		write_log (_T("** RESTART **\n"));
@@ -2292,6 +2292,7 @@ void logging_init (void)
 	logging_open (first ? 0 : 1, 0);
 	logging_started = 1;
 	first++;
+
 #ifdef _WIN64
 	wow64 = 1;
 #else
@@ -2299,13 +2300,29 @@ void logging_init (void)
 	if (fnIsWow64Process)
 		fnIsWow64Process (GetCurrentProcess (), &wow64);
 #endif
+
+	_tcscpy (filedate, _T("?"));
+	if (GetModuleFileName (NULL, tmp, sizeof tmp / sizeof (TCHAR))) {
+		HANDLE h = CreateFile (tmp, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (h != INVALID_HANDLE_VALUE) {
+			FILETIME ft;
+			if (GetFileTime (h, &ft, NULL, NULL)) {
+				SYSTEMTIME st;
+				if (FileTimeToSystemTime(&ft, &st)) {
+					_stprintf (filedate, _T("%02d:%02d"), st.wHour, st.wMinute);
+				}
+			}
+			CloseHandle (h);
+		}
+	}
+
 	write_log (_T("%s (%d.%d %s%s[%d])"), VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_winnt_admin);
-	write_log (_T(" %d-bit %X.%X.%X %d"),
+	write_log (_T(" %d-bit %X.%X.%X %d %s"),
 		wow64 ? 64 : 32,
 		SystemInfo.wProcessorArchitecture, SystemInfo.wProcessorLevel, SystemInfo.wProcessorRevision,
-		SystemInfo.dwNumberOfProcessors);
+		SystemInfo.dwNumberOfProcessors, filedate);
 	write_log (_T("\n(c) 1995-2001 Bernd Schmidt   - Core UAE concept and implementation.")
 		_T("\n(c) 1998-2012 Toni Wilen      - Win32 port, core code updates.")
 		_T("\n(c) 1996-2001 Brian King      - Win32 port, Picasso96 RTG, and GUI.")

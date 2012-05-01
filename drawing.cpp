@@ -384,11 +384,14 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 		// interlace = only use long frames
 		if (!lof_store)
 			return ret;
-		last_planes_vpos++;
-		plflastline_total++;
+		/* program may have set last visible line as last possible line (CD32 boot screen) */
+		if (last_planes_vpos < maxvpos)
+			last_planes_vpos++;
+		if (plflastline_total < maxvpos)
+			plflastline_total++;
 	}
 
-	if (!plflastline_total)
+	if (plflastline_total < 4)
 		plflastline_total = last_planes_vpos;
 
 	ddffirstword_total = coord_hw_to_window_x (ddffirstword_total * 2 + DIW_DDF_OFFSET);
@@ -2937,6 +2940,12 @@ static void clearbuffer (struct vidbuffer *dst)
 		memset (p, 0, dst->width_allocated * dst->pixbytes);
 		p += dst->rowbytes;
 	}
+}
+
+void reset_decision_table (void)
+{
+	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++)
+		linestate[i] = LINE_UNDECIDED;
 }
 
 void reset_drawing (void)

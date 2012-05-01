@@ -1030,17 +1030,23 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 	udi->removablemedia = devDesc->RemovableMedia;
 	write_log (_T("device id string: '%s'\n"), udi->device_name);
 	if (ignoreduplicates) {
-		_stprintf (orgname, _T(":%s"), udi->device_name);
-		if (isharddrive (orgname) >= 0) {
-			write_log (_T("duplicate device, ignored\n"));
-			return 1;
-		}
 		if (!udi->removablemedia) {
 			write_log (_T("drive letter not removable, ignored\n"));
-			return 1;
+			return -2;
+		}
+		_stprintf (orgname, _T(":%s"), udi->device_name);
+		for (i = 0; i < hdf_getnumharddrives (); i++) {
+			if (!_tcscmp (uae_drives[i].device_name, orgname)) {
+				if (uae_drives[i].dangerous == -10) {
+					write_log (_T("replaced old '%s'\n"), uae_drives[i].device_name);
+					return i;
+				}
+				write_log (_T("duplicate device, ignored\n"));
+				return -2;
+			}
 		}
 	}
-	return 0;
+	return -1;
 }
 
 static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWORD *index2, uae_u8 *buffer, int ignoreduplicates)
@@ -1060,13 +1066,15 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	BOOL                                status;
 	ULONG                               length = 0, returned = 0, returnedLength;
 	BOOL showonly = FALSE;
+	struct uae_driveinfo tmpudi = { 0 };
+
+	udi = &tmpudi;
+	int udiindex = *index2;
 
 	//
 	// Now we have the device path. Open the device interface
 	// to send Pass Through command
 
-	udi = &uae_drives[*index2];
-	memset (udi, 0, sizeof (struct uae_driveinfo));
 	_tcscpy (udi->device_path, DevicePath);
 	write_log (_T("opening device '%s'\n"), udi->device_path);
 	hDevice = CreateFile(
@@ -1143,15 +1151,19 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		}
 		nosp = 1;
 		generatestorageproperty (udi, ignoreduplicates);
+		udiindex = -1;
 	} else {
-		int r;
 		nosp = 0;
-		r = getstorageproperty (outBuf, returnedLength, udi, ignoreduplicates);
-		if (r) {
-			ret = r;
+		udiindex = getstorageproperty (outBuf, returnedLength, udi, ignoreduplicates);
+		if (udiindex == -2) {
+			ret = 1;
 			goto end;
 		}
 	}
+	udi = &uae_drives[udiindex < 0 ? *index2 : udiindex];
+	memcpy (udi, &tmpudi, sizeof (struct uae_driveinfo));
+
+
 	_tcscpy (orgname, udi->device_name);
 	udi->bytespersector = 512;
 	geom_ok = 1;
@@ -1277,7 +1289,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 amipartfound:
 	_stprintf (udi->device_name, _T(":%s"), orgname);
-	{
+	if (udiindex < 0) {
 		int cnt = 1;
 		int off = _tcslen (udi->device_name);
 		while (isharddrive (udi->device_name) >= 0) {
@@ -1286,8 +1298,8 @@ amipartfound:
 			udi->device_name[off + 2] = 0;
 			cnt++;
 		}
-	}	
-	(*index2)++;
+		(*index2)++;
+	}
 end:
 	if (hDevice != INVALID_HANDLE_VALUE)
 		CloseHandle (hDevice);
