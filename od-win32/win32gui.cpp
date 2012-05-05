@@ -12320,6 +12320,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		switch (wParam)
 		{
 		case IDC_INPUTREMAP:
+			input_selected_event = -1;
 			input_find (hDlg, 0, true);
 			break;
 		case IDC_INPUTTEST:

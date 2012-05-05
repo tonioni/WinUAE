@@ -2849,6 +2849,9 @@ void compute_framesync (void)
 					v2 = vblank_calibrate (cr->locked ? cr->rate : vblank_hz, cr->locked);
 					if (!cr->locked)
 						v = v2;
+				} else if (isvsync_chipset () > 0) {
+					if (currprefs.gfx_apmode[0].gfx_refreshrate)
+						v = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
 				}
 			} else {
 				if (cr->locked == false) {
@@ -5210,6 +5213,10 @@ static void framewait (void)
 	frame_time_t curr_time;
 	frame_time_t start;
 	int vs = isvsync_chipset ();
+	int frameskipt;
+
+	frameskipt = frameskiptime;
+	frameskiptime = 0;
 
 	is_syncline = 0;
 
@@ -5234,38 +5241,61 @@ static void framewait (void)
 		if (vs == -2 || vs == -3) {
 
 			// fastest possible
-			int max, adjust;
+			static int skipcnt;
+			int max, adjust, flipdelay;
 			frame_time_t now;
 
-			curr_time = vsync_busywait_end (); // vsync time
+			curr_time = vsync_busywait_end (&flipdelay); // vsync time
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
+
+			if (flipdelay > skipcnt)
+				skipcnt = flipdelay;
+			else
+				skipcnt -= vsynctimebase / (4 * (maxvpos_nom + 1));
+			if (skipcnt > 0)
+				skipcnt--;
+			else
+				skipcnt = 0;
 
 			now = read_processor_time (); // current time
 			adjust = (int)now - (int)curr_time;
 			if (adjust < 0)
 				adjust = 0;
-			if (adjust > vsynctimebase / 3)
-				adjust = vsynctimebase / 3;
+			
+			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
+				adjust += skipcnt;
+				//write_log (L"%d ", skipcnt);
+			}
 
-			max = (vsynctimebase - (adjust * 3 / 2)) * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			if (adjust > vsynctimebase / 2)
+				adjust = vsynctimebase / 2;
+
+			max = (vsynctimebase - adjust) * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			if (max < 1)
+				max = 1;
+
 			vsyncmintime = now;
-			vsyncwaittime = curr_time + vsynctimebase;
+			vsyncwaittime = curr_time + (vsynctimebase - 0);
 
 			vsynctimeperline = max / (maxvpos_nom + 1);
+			if (vsynctimeperline < 1)
+				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
 
 		} else {
 
-			int max, adjust;
+			static int skipcnt;
+			int max, adjust, flipdelay;
 			frame_time_t now;
 
+			flipdelay = 0;
 			render_screen ();
 			bool show = show_screen_maybe (false);
 			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = read_processor_time ();
-			if (!show) {	
-				show_screen ();
+			if (!show) {
+				vsync_busywait_end (&flipdelay);
 				if (extraframewait)
 					sleep_millis_main (extraframewait);
 			}
@@ -5280,7 +5310,22 @@ static void framewait (void)
 			vsyncmintime = now;
 			vsyncwaittime = curr_time + vsynctimebase;
 
-			vsynctimeperline = max / 3;
+			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
+				if (flipdelay > skipcnt)
+					skipcnt = flipdelay;
+				else
+					skipcnt -= vsynctimebase / (4 * (maxvpos_nom + 1));
+				if (skipcnt > 0)
+					skipcnt--;
+				else
+					skipcnt = 0;
+			} else {
+				skipcnt = 0;
+			}
+
+			vsynctimeperline = (max - skipcnt * 2) / 3;
+			if (vsynctimeperline < 1)
+				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
 
 			frame_shown = true;
@@ -5313,9 +5358,8 @@ static void framewait (void)
 		vsyncmintime = curr_time;
 		
 #if 0
-		max -= frameskiptime;
+		max -= frameskipt;
 #endif
-		frameskiptime = 0;
 		if (max < 0) {
 			max = 0;
 			vsynctimeperline = 1;
@@ -5952,6 +5996,7 @@ static void hsync_handler_post (bool onvsync)
 			/* really last line, just run the cpu emulation until whole vsync time has been used */
 			if (currprefs.m68k_speed_throttle) {
 				vsyncmintime = read_processor_time (); /* end of CPU emulation time */
+				is_syncline = 0;
 			} else {
 				vsyncmintime = vsyncmaxtime; /* emulate if still time left */
 				is_syncline_end = read_processor_time () + vsynctimebase;
@@ -6109,7 +6154,6 @@ static void hsync_handler_post (bool onvsync)
 		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		if (vblank_hz_state) {
 			render_screen ();
-			show_screen_maybe (false);
 		}
 		frame_shown = true;
 		end = read_processor_time ();

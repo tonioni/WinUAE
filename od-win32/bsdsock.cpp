@@ -2402,6 +2402,8 @@ static int run_get_thread(TrapContext *context, SB, struct threadargs *args)
 
 static void release_get_thread(int index)
 {
+	if (index < 0)
+		return;
 	bsd->threadGetargs_inuse[index] = GET_STATE_REALLY_DONE;
 }
 
@@ -2424,6 +2426,7 @@ void host_gethostbynameaddr (TrapContext *context, SB, uae_u32 name, uae_u32 nam
 	//	InternetSetOption(0,INTERNET_OPTION_SETTINGS_CHANGED,&on,strlen(&on));
 	//  Do not use:	Causes locks with some machines
 
+	tindex = -1;
 	memset(&args, 0, sizeof (args));
 	argsp = &args;
 	argsp->wscnt = ++wscounter;

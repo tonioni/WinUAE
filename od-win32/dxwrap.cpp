@@ -348,7 +348,8 @@ HRESULT DirectDraw_CreateMainSurface (int width, int height)
 		DWORD oldflags = desc.dwFlags;
 		desc.dwFlags |= DDSD_BACKBUFFERCOUNT;
 		desc.ddsCaps.dwCaps |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-		desc.dwBackBufferCount = ap->gfx_backbuffers == 0 ? 1 : ap->gfx_backbuffers;
+		//desc.dwBackBufferCount = ap->gfx_backbuffers == 0 ? 1 : ap->gfx_backbuffers;
+		desc.dwBackBufferCount = ap->gfx_backbuffers;
 		if (desc.dwBackBufferCount > 0) {
 			ddrval = IDirectDraw7_CreateSurface (dxdata.maindd, &desc, &dxdata.primary, NULL);
 			if (SUCCEEDED (ddrval)) {

@@ -2220,7 +2220,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
-		max_texture_w, max_texture_h,
+		modeex.Width, modeex.Height,
 		dpp.FullScreen_RefreshRateInHz,
 		dpp.Windowed ? _T("") : _T(" FS"),
 		vsync, ap->gfx_backbuffers,

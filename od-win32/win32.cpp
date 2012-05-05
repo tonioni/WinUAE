@@ -4058,7 +4058,7 @@ static int betamessage (void)
 	ULARGE_INTEGER sft64;
 	struct tm *t;
 	__int64 ltime;
-	DWORD dwType, size, data;
+	DWORD dwType, size;
 
 	ft64.QuadPart = 0;
 	for (;;) {
@@ -4079,7 +4079,7 @@ static int betamessage (void)
 		ft64.HighPart = ft.dwHighDateTime;
 		dwType = REG_QWORD;
 		size = sizeof regft64;
-		if (RegQueryValueEx (hWinUAEKey, _T("BetaToken"), 0, &dwType, (LPBYTE)&regft64, &size) != ERROR_SUCCESS)
+		if (!regquerylonglong (NULL, _T("BetaToken"), &regft64))
 			break;
 		GetSystemTime(&st);
 		SystemTimeToFileTime(&st, &sft);
@@ -4095,18 +4095,17 @@ static int betamessage (void)
 	if (h != INVALID_HANDLE_VALUE)
 		CloseHandle (h);
 	if (showmsg) {
-		int r;
+		int r, data;
 		TCHAR title[MAX_DPATH];
 
 		dwType = REG_DWORD;
 		size = sizeof data;
-		if (hWinUAEKey && RegQueryValueEx (hWinUAEKey, _T("Beta_Just_Shut_Up"), 0, &dwType, (LPBYTE)&data, &size) == ERROR_SUCCESS) {
+		if (regqueryint (NULL, _T("Beta_Just_Shut_Up"), &data)) {
 			if (data == 68000 + 10) {
 				write_log (_T("I was told to shut up :(\n"));
 				return 1;
 			}
 		}
-
 		_time64 (&ltime);
 		t = _gmtime64 (&ltime);
 		/* "expire" in 1 month */
@@ -4120,7 +4119,7 @@ static int betamessage (void)
 			return 0;
 		if (ft64.QuadPart > 0) {
 			regft64 = ft64.QuadPart;
-			RegSetValueEx (hWinUAEKey, _T("BetaToken"), 0, REG_QWORD, (LPBYTE)&regft64, sizeof regft64);
+			regsetlonglong (NULL, _T("BetaToken"), regft64);
 		}
 	}
 #endif

@@ -1745,7 +1745,6 @@ static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		progressdialogactive = 0;
 		return TRUE;
 	case WM_CLOSE:
-		DestroyWindow(hDlg);
 		if (progressdialogreturn < 0)
 			progressdialogreturn = 0;
 		return TRUE;
@@ -1756,7 +1755,6 @@ static INT_PTR CALLBACK ProgressDialogProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		{
 		case IDCANCEL:
 			progressdialogreturn = 0;
-			DestroyWindow (hDlg);
 			return TRUE;
 		}
 		break;

@@ -87,6 +87,45 @@ int regqueryint (UAEREG *root, const TCHAR *name, int *val)
 	}
 }
 
+int regsetlonglong (UAEREG *root, const TCHAR *name, ULONGLONG val)
+{
+	if (inimode) {
+		DWORD ret;
+		TCHAR tmp[100];
+		_stprintf (tmp, _T("%I64d"), val);
+		ret = WritePrivateProfileString (gs (root), name, tmp, inipath);
+		return ret;
+	} else {
+		ULONGLONG v = val;
+		HKEY rk = gr (root);
+		if (!rk)
+			return 0;
+		return RegSetValueEx(rk, name, 0, REG_QWORD, (CONST BYTE*)&v, sizeof (ULONGLONG)) == ERROR_SUCCESS;
+	}
+}
+
+int regquerylonglong (UAEREG *root, const TCHAR *name, ULONGLONG *val)
+{
+	if (inimode) {
+		int ret = 0;
+		TCHAR tmp[100];
+		GetPrivateProfileString (gs (root), name, PUPPA, tmp, sizeof (tmp) / sizeof (TCHAR), inipath);
+		if (_tcscmp (tmp, PUPPA)) {
+			*val = _tstoi64 (tmp);
+			ret = 1;
+		}
+		return ret;
+	} else {
+		DWORD dwType = REG_QWORD;
+		DWORD size = sizeof (ULONGLONG);
+		HKEY rk = gr (root);
+		if (!rk)
+			return 0;
+		return RegQueryValueEx (rk, name, 0, &dwType, (LPBYTE)val, &size) == ERROR_SUCCESS;
+	}
+}
+
+
 int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 {
 	if (inimode) {

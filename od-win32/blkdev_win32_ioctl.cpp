@@ -1209,27 +1209,31 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 	_tcscpy (ciw->di.vendorid, _T("UAE"));
 	_stprintf (ciw->di.productid, _T("SCSI CD%d IMG"), unitnum);
 	_tcscpy (ciw->di.revision, _T("0.1"));
+	memset (inquiry, 0, sizeof inquiry);
 	if (spti_inquiry (ciw, unitnum, inquiry)) {
-		char tmp[20];
-		TCHAR *s;
-		memcpy (tmp, inquiry + 8, 8);
-		tmp[8] = 0;
-		s = au (tmp);
-		trim (s);
-		_tcscpy (ciw->di.vendorid, s);
-		xfree (s);
-		memcpy (tmp, inquiry + 16, 16);
-		tmp[16] = 0;
-		s = au (tmp);
-		trim (s);
-		_tcscpy (ciw->di.productid, s);
-		xfree (s);
-		memcpy (tmp, inquiry + 32, 4);
-		tmp[4] = 0;
-		s = au (tmp);
-		trim (s);
-		_tcscpy (ciw->di.revision, s);
-		xfree (s);
+		// check also that device type is non-zero and it is removable
+		if ((inquiry[0] & 31) && (inquiry[1] & 0x80) && inquiry[8]) {
+			char tmp[20];
+			TCHAR *s;
+			memcpy (tmp, inquiry + 8, 8);
+			tmp[8] = 0;
+			s = au (tmp);
+			trim (s);
+			_tcscpy (ciw->di.vendorid, s);
+			xfree (s);
+			memcpy (tmp, inquiry + 16, 16);
+			tmp[16] = 0;
+			s = au (tmp);
+			trim (s);
+			_tcscpy (ciw->di.productid, s);
+			xfree (s);
+			memcpy (tmp, inquiry + 32, 4);
+			tmp[4] = 0;
+			s = au (tmp);
+			trim (s);
+			_tcscpy (ciw->di.revision, s);
+			xfree (s);
+		}
 		close_createfile (ciw);
 	}
 

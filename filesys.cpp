@@ -3570,7 +3570,7 @@ end:
 
 static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaecptr control)
 {
-	a_inode *aino, *base;
+	a_inode *aino, *base = NULL;
 	int ok;
 	uae_u32 err;
 	struct fs_dirhandle *d;

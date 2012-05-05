@@ -125,7 +125,7 @@ static volatile bool vblank_found;
 static volatile int flipthread_mode;
 volatile bool vblank_found_chipset;
 volatile bool vblank_found_rtg;
-static HANDLE flipevent, flipevent2;
+static HANDLE flipevent, flipevent2, vblankwaitevent;
 static volatile int flipevent_mode;
 static CRITICAL_SECTION screen_cs;
 
@@ -173,8 +173,10 @@ static void changevblankthreadmode_do (int newmode, bool fast)
 			sleep_millis_main (1);
 		CloseHandle (flipevent);
 		CloseHandle (flipevent2);
+		CloseHandle (vblankwaitevent);
 		flipevent = NULL;
 		flipevent2 = NULL;
+		vblankwaitevent = NULL;
 	}
 	if (!fast) {
 		while (t == vblankthread_counter && vblankthread_mode > 0);
@@ -296,25 +298,36 @@ void desktop_coords (int *dw, int *dh, int *ax, int *ay, int *aw, int *ah)
 
 int target_get_display (const TCHAR *name)
 {
+	int oldfound = -1;
+	int found = -1;
 	for (int i = 0; Displays[i].monitorname; i++) {
 		struct MultiDisplay *md = &Displays[i];
 		if (!_tcscmp (md->adapterid, name))
-			return i + 1;
+			found = i + 1;
 		if (!_tcscmp (md->adaptername, name))
-			return i + 1;
+			found = i + 1;
 		if (!_tcscmp (md->monitorname, name))
-			return i + 1;
+			found = i + 1;
+		if (!_tcscmp (md->monitorid, name))
+			found = i + 1;
+		if (found >= 0) {
+			if (oldfound != found)
+				return -1;
+			oldfound = found;
+		}
 	}
 	return -1;
 }
-const TCHAR *target_get_display_name (int num)
+const TCHAR *target_get_display_name (int num, bool friendlyname)
 {
 	if (num <= 0)
 		return NULL;
 	struct MultiDisplay *md = getdisplay2 (NULL, num - 1);
 	if (!md)
 		return NULL;
-	return md->monitorname;
+	if (friendlyname)
+		return md->monitorname;
+	return md->monitorid;
 }
 
 void centerdstrect (RECT *dr)
@@ -897,7 +910,7 @@ void flush_screen (struct vidbuffer *vb, int a, int b)
 {
 }
 
-static bool render_ok;
+static volatile bool render_ok;
 
 bool render_screen (void)
 {
@@ -946,18 +959,22 @@ bool show_screen_maybe (bool show)
 			show_screen ();
 		return false;
 	}
+#if 0
 	if (ap->gfx_vflip < 0) {
 		doflipevent ();
 		return true;
 	}
+#endif
 	return false;
 }
 
 void show_screen (void)
 {
-	if (!render_ok)
-		return;
 	EnterCriticalSection (&screen_cs);
+	if (!render_ok) {
+		LeaveCriticalSection (&screen_cs);
+		return;
+	}
 	if (currentmode->flags & DM_D3D) {
 		D3D_showframe ();
 #ifdef GFXFILTER
@@ -2368,6 +2385,7 @@ end:
 }
 
 static volatile frame_time_t vblank_prev_time, thread_vblank_time;
+static volatile int vblank_found_flipdelay;
 
 #include <process.h>
 
@@ -2460,7 +2478,7 @@ static int vblank_wait (void)
 		int opos = prevvblankpos;
 		if (!getvblankpos (&vp))
 			return -2;
-		if (opos > maxscanline / 2 && vp < maxscanline / 3)
+		if (opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3)
 			return vp;
 		if (vp <= 0)
 			return vp;
@@ -2478,7 +2496,7 @@ static bool vblank_getstate (bool *state, int *pvp)
 		return false;
 	if (pvp)
 		*pvp = vp;
-	if (opos > maxscanline / 2 && vp < maxscanline / 3) {
+	if (opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3) {
 		*state = true;
 		return true;
 	}
@@ -2509,7 +2527,14 @@ static unsigned int __stdcall flipthread (void *dummy)
 		WaitForSingleObject (flipevent, INFINITE);
 		if (flipthread_mode == 0)
 			break;
+		frame_time_t t = read_processor_time ();
+		while (!render_ok) {
+			sleep_millis (1);
+			if (read_processor_time () - t > vblankbasefull)
+				break;
+		}
 		show_screen ();
+		render_ok = false;
 		flipevent_mode = 0;
 		SetEvent (flipevent2);
 	}
@@ -2537,7 +2562,6 @@ static bool vblanklaceskip (void)
 
 static unsigned int __stdcall vblankthread (void *dummy)
 {
-	bool vblank_first_time = false;
 	bool firstvblankbasewait2;
 	frame_time_t vblank_prev_time2;
 	bool doflipped;
@@ -2557,31 +2581,27 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			Sleep (100);
 		} else if (mode == VBLANKTH_ACTIVE_WAIT) {
 			sleep_millis (1);
+			ResetEvent (vblankwaitevent);
 		} else if (mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
 			int vp;
-			getvblankpos (&vp);
-			if (vp > maxscanline / 2) {
-				sleep_millis (1);
+			if (!getvblankpos (&vp)) {
+				// bad things happening
+				vblankthread_mode = VBLANKTH_ACTIVE;
 				continue;
-			}
-			if (!vblank_first_time) {
-				frame_time_t rpt = read_processor_time ();
-				if (vp <= 0) {
-					vblank_prev_time2 = rpt;
-				} else {
-					vblank_prev_time2 = rpt - (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1 );
-				}
-				vblank_first_time = true;
 			}
 			if (vp <= 0) {
 				sleep_millis (1);
 				continue;
 			}
+			if (vp > maxscanline / 2)
+				vp = maxscanline / 2;
+			frame_time_t rpt = read_processor_time ();
+			vblank_prev_time2 = rpt - (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1);
 			vblank_prev_time = vblank_prev_time2;
-			vblank_first_time = false;
 			firstvblankbasewait2 = false;
 			prevvblankpos = 0;
+			vblank_found_flipdelay = 0;
 			doflipped = false;
 			if (vblank_skipeveryother) // wait for first vblank in skip frame mode (100Hz+)
 				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME;
@@ -2591,15 +2611,16 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			int vp;
 			sleep_millis (1);
 			getvblankpos (&vp);
-			if (vp >= maxscanline / 2)
+			if (vp >= (maxscanline + minscanline) / 2)
 				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME2;
+			// something is wrong?
 			if (read_processor_time () - vblank_prev_time2 > vblankbasefull * 2)
 				vblankthread_mode = VBLANKTH_ACTIVE;
 		} else if (mode == VBLANKTH_ACTIVE_SKIPFRAME2) {
 			int vp;
 			sleep_millis (1);
 			getvblankpos (&vp);
-			if (vp > 0 && vp < maxscanline / 2) {
+			if (vp > 0 && vp < (maxscanline + minscanline) / 2) {
 				prevvblankpos = 0;
 				vblankthread_mode = VBLANKTH_ACTIVE;
 			}
@@ -2637,7 +2658,19 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					if (vs < 0) {
 						vblank_found_chipset = true;
 						if (!ap->gfx_vflip) {
+							while (!render_ok) {
+								sleep_millis (1);
+								if (read_processor_time () - t > vblankbasefull)
+									break;
+							}
 							show_screen ();
+							render_ok = false;
+							int delay = (read_processor_time () - t) / (vblank_skipeveryother ? 2 : 1);
+							if (delay < 0)
+								delay = 0;
+							else if (delay > vblankbasefull * 2 / 3)
+								delay = vblankbasefull * 2 / 3;
+							vblank_found_flipdelay = delay;
 						}
 					}
 					vblank_found_rtg2 = true;
@@ -2662,9 +2695,9 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				thread_vblank_time = thread_vblank_time2;
 				vblank_found_rtg = vblank_found_rtg2;
 				vblank_found = vblank_found2;
+				SetEvent (vblankwaitevent);
 				vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
 			} else if (!donotwait || ap->gfx_vflip || picasso_on) {
-//			} else if (!donotwait || picasso_on) {
 				sleep_millis (1);
 			}
 		} else {
@@ -2675,23 +2708,53 @@ static unsigned int __stdcall vblankthread (void *dummy)
 	return 0;
 }
 
-frame_time_t vsync_busywait_end (void)
+
+static bool isthreadedvsync (void)
 {
-	frame_time_t prev;
-	for (;;) {
-		int v = vblankthread_mode;
-		if (v != VBLANKTH_ACTIVE_START && v != VBLANKTH_ACTIVE_SKIPFRAME && v != VBLANKTH_ACTIVE_SKIPFRAME2)
-			break;
-		sleep_millis_main (1);
-	}
-	prev = vblank_prev_time;
-	if (!dooddevenskip) {
-		while (vblankthread_mode == VBLANKTH_ACTIVE) {
-			vsync_sleep (currprefs.m68k_speed < 0 || currprefs.m68k_speed_throttle < 0);
+	return isvsync_chipset () <= -2 || isvsync_rtg () < 0;
+}
+
+frame_time_t vsync_busywait_end (int *flipdelay)
+{
+	if (isthreadedvsync ()) {
+
+		frame_time_t prev;
+		for (;;) {
+			int v = vblankthread_mode;
+			if (v != VBLANKTH_ACTIVE_START && v != VBLANKTH_ACTIVE_SKIPFRAME && v != VBLANKTH_ACTIVE_SKIPFRAME2)
+				break;
+			sleep_millis_main (1);
 		}
+		prev = vblank_prev_time;
+		if (!dooddevenskip) {
+			if (vblankthread_mode == VBLANKTH_ACTIVE) {
+				frame_time_t t = read_processor_time ();
+				while (vblankthread_mode == VBLANKTH_ACTIVE)
+					WaitForSingleObject (vblankwaitevent, 10);
+				idletime += read_processor_time () - t;
+			}
+	#if 0
+			while (vblankthread_mode == VBLANKTH_ACTIVE) {
+				vsync_sleep (currprefs.m68k_speed < 0 || currprefs.m68k_speed_throttle < 0);
+			}
+	#endif
+		}
+		if (flipdelay)
+			*flipdelay = vblank_found_flipdelay;
+		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
+		return prev + vblankbasefull;
+	} else {
+		int delay;
+		show_screen ();
+		delay = (read_processor_time () - vblank_prev_time) / (vblank_skipeveryother ? 2 : 1);
+		if (delay < 0)
+			delay = 0;
+		else if (delay > vblankbasefull * 2 / 3)
+			delay = vblankbasefull * 2 / 3;
+		if (flipdelay)
+			*flipdelay = delay;
+		return vblank_prev_time + vblankbasefull;
 	}
-	changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
-	return prev + vblankbasefull;
 }
 
 void vsync_busywait_start (void)
@@ -2701,10 +2764,6 @@ void vsync_busywait_start (void)
 	changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
 }
 
-static bool isthreadedvsync (void)
-{
-	return isvsync_chipset () <= -2 || isvsync_rtg () < 0;
-}
 
 bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 {
@@ -2732,7 +2791,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		return true;
 	}
 
-	if (log_vsync) {
+	if (0 || log_vsync) {
 		console_out_f(_T("F:%8d M:%8d E:%8d %3d%% (%3d%%) %10d\r"), frame_counted, frame_missed, frame_errors, frame_usage, frame_usage_avg, (t - vblank_prev_time) - vblankbasefull);
 	}
 
@@ -2809,7 +2868,7 @@ struct remembered_vsync
 	int width, height, depth, rate, mode;
 	bool rtg, lace;
 	double remembered_rate, remembered_rate2;
-	int maxscanline, maxvpos;
+	int maxscanline, minscanline, maxvpos;
 };
 
 double vblank_calibrate (double approx_vblank, bool waitonly)
@@ -2844,6 +2903,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 			approx_vblank = rv->remembered_rate2;
 			tsum = rval = rv->remembered_rate;
 			maxscanline = rv->maxscanline;
+			minscanline = rv->minscanline;
 			maxvpos = rv->maxvpos;
 			lace = rv->lace;
 			waitonly = true;
@@ -2864,6 +2924,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		flipevent_mode = 0;
 		flipevent = CreateEvent (NULL, FALSE, FALSE, NULL);
 		flipevent2 = CreateEvent (NULL, FALSE, FALSE, NULL);
+		vblankwaitevent = CreateEvent (NULL, FALSE, FALSE, NULL);
 		_beginthreadex (NULL, 0, flipthread, 0, 0, &th);
 	} else {
 		changevblankthreadmode (VBLANKTH_CALIBRATE);
@@ -2972,6 +3033,7 @@ skip:
 		rv->remembered_rate = tsum;
 		rv->remembered_rate2 = tsum2;
 		rv->maxscanline = maxscanline;
+		rv->minscanline = minscanline;
 		rv->maxvpos = maxvpos;
 		rv->lace = lace;
 		if (vsyncmemory == NULL) {

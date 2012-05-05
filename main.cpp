@@ -175,7 +175,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 			} else {
 				// legacy vsync: always wait for flip
 				ap->gfx_vflip = -1;
-				if (ap->gfx_backbuffers < 1)
+				if (prefs->gfx_api && ap->gfx_backbuffers < 1)
 					ap->gfx_backbuffers = 1;
 			}
 		} else {

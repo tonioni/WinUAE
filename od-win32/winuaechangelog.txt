@@ -2,8 +2,30 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 13: (RC2)
+
+- Possible improvement for low latency no buffer mode tearing problem.
+  - Fastest possible CPU: very simple dynamic flip delay timing adjustment. Reduces tearing (and slows
+  down CPU emulation speed) but won't fix it completely. Difficult problem to solve 100% without
+  losing too much CPU speed. Currently only way to remove tearing is to reduce CPU speed.
+  - Cycle-exact/approximate CPU: Tearing problem on some systems should be fixed.
+- Fastes possible low latency vsync sometimes flipped buffers before or during internal frame rendering,
+  usual result was same frame being shown multiple times.
+- Legacy vsync refresh rate didn't override internal chipset refresh rate causing very bad slow down
+  if rates didn't match.
+- Map directory filesystem Windows error ERROR_INVALID_PARAMETER to AOS ERROR_OBJECT_NOT_AROUND, 
+  GetFreeSpace("path to empty CD drive") returns this code on some systems.
+- Validate SCSI INQUIRY data before using it when requesting IOCTL CDROM vendor and product names.
+  It seems query can return success without returning any data in some situations.
+- Store beta dialog state to winuae.ini if enabled.
+- Random bsdsocket crash when calling gethostbyname() with numeric IP address. (2.4.0)
+- Allow again zero back buffers in DirectDraw mode, 2.3.3 allowed this configuration.
+- Canceling HD HDF cloning froze the GUI. (Possibly Vista and newer only)
+- Store also monitor's system specific id string to config file, system can have multiple identical monitors.
+
 Beta 12: (RC1)
 
+- More Fastest possible + low latency vsync tweaks.
 - Ignore sprite 0 (normally mouse pointer) when calculating autoscale position and size.
 - Custom Input event editor usually crashed.
 - CD32 boot screen autoscale improved.

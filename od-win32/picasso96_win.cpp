@@ -693,7 +693,7 @@ static void picasso_handle_vsync2 (void)
 	bool rendered = false;
 
 	if (vsync < 0) {
-		vsync_busywait_end ();
+		vsync_busywait_end (NULL);
 		vsync_busywait_do (NULL, false, false);
 	}
 
