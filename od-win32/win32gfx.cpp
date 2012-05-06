@@ -2548,6 +2548,7 @@ static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
 static bool dooddevenskip;
 static volatile bool vblank_skipeveryother;
+static int vblank_flip_delay;
 
 static bool vblanklaceskip (void)
 {
@@ -2733,26 +2734,14 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 					WaitForSingleObject (vblankwaitevent, 10);
 				idletime += read_processor_time () - t;
 			}
-	#if 0
-			while (vblankthread_mode == VBLANKTH_ACTIVE) {
-				vsync_sleep (currprefs.m68k_speed < 0 || currprefs.m68k_speed_throttle < 0);
-			}
-	#endif
 		}
 		if (flipdelay)
 			*flipdelay = vblank_found_flipdelay;
 		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
 		return prev + vblankbasefull;
 	} else {
-		int delay;
-		show_screen ();
-		delay = (read_processor_time () - vblank_prev_time) / (vblank_skipeveryother ? 2 : 1);
-		if (delay < 0)
-			delay = 0;
-		else if (delay > vblankbasefull * 2 / 3)
-			delay = vblankbasefull * 2 / 3;
 		if (flipdelay)
-			*flipdelay = delay;
+			*flipdelay = vblank_flip_delay;
 		return vblank_prev_time + vblankbasefull;
 	}
 }
@@ -2772,6 +2761,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	int ti;
 	frame_time_t t;
 	frame_time_t prevtime = vblank_prev_time;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
 	dooddevenskip = false;
 
@@ -2823,6 +2813,7 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	} else {
 		bool doskip = false;
 
+		vblank_flip_delay = 0;
 		if (!framelost && t - prevtime > vblankbasefull) {
 			framelost = true;
 			frame_missed++;
@@ -2835,14 +2826,33 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		}
 
 		if (!doskip) {
+			int vp;
 			while (!framelost && read_processor_time () - prevtime < vblankbasewait1) {
 				vsync_sleep (false);
 			}
-			int vp = vblank_wait ();
+			prevvblankpos = 0;
+			vp = vblank_wait ();
 			if (vp >= -1) {
 				vblank_prev_time = read_processor_time ();
-				if (vp > 0)
-					vblank_prev_time -= (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1 );
+				if (ap->gfx_vflip == 0) {
+					show_screen ();
+					vblank_flip_delay = (read_processor_time () - vblank_prev_time) / (vblank_skipeveryother ? 2 : 1);
+					if (vblank_flip_delay < 0)
+						vblank_flip_delay = 0;
+					else if (vblank_flip_delay > vblankbasefull * 2 / 3)
+						vblank_flip_delay = vblankbasefull * 2 / 3;
+				}
+				for (;;) {
+					if (!getvblankpos (&vp))
+						break;
+					if (vp > 0)
+						break;
+					sleep_millis (1);
+				}
+				if (ap->gfx_vflip != 0) {
+					show_screen ();
+				}
+				vblank_prev_time -= (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1 );
 				v = true;
 			}
 		} else {
@@ -3011,7 +3021,7 @@ skip:
 	tsum2 = tsum / div;
 
 	vblankbasefull = (syncbase / tsum2);
-	vblankbasewait1 = (syncbase / tsum2) * 75 / 100;
+	vblankbasewait1 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait2 = (syncbase / tsum2) * 55 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 99 / 100 - syncbase / (250 * (vblank_skipeveryother ? 1 : 2)); // at least 2ms before vblank
 	vblankbaselace = lace;

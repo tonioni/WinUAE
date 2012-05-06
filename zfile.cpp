@@ -1984,7 +1984,7 @@ struct zfile *zfile_fopen_empty (struct zfile *prev, const TCHAR *name, uae_u64 
 {
 	struct zfile *l;
 	l = zfile_create (prev);
-	l->name = name ? my_strdup (name) : _T("");
+	l->name = my_strdup (name ? name : _T(""));
 	if (size) {
 		l->data = xcalloc (uae_u8, size);
 		if (!l->data)  {

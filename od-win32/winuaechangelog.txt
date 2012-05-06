@@ -2,6 +2,14 @@
 - restore only single input target to default.
 - hdd from command line
 
+Beta 14: (RC3)
+
+- Cycle-exact/approximate CPU speed non-vsync b1 sound sync update didn't work, it did nothing.
+- Some more low latency vsync timing updates, improved dynamic adjusment.
+- Legacy vsync slowdown problems fixed (2.4.0)
+- Restored (50Hz) and (60Hz) fake rates that were removed in 2.4.0. Only available in legacy vsync mode.
+- RTG + low latency vsync was not stable.
+
 Beta 13: (RC2)
 
 - Possible improvement for low latency no buffer mode tearing problem.

@@ -139,7 +139,7 @@ static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
 static int scandoubled_line;
-static bool vsync_rendered, frame_shown;
+static bool vsync_rendered, frame_rendered, frame_shown;
 static int vsynctimeperline;
 static int jitcount = 0;
 static int frameskiptime;
@@ -5222,11 +5222,26 @@ static void framewait (void)
 
 	if (vs > 0) {
 
+		int t;
 		curr_time = read_processor_time ();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
-		vsynctimeperline = vsynctimebase / (maxvpos_nom + 1);
-		render_screen ();
-		show_screen ();
+		if (!frame_rendered)
+			frame_rendered = render_screen ();
+		if (!frame_shown)
+			show_screen ();
+		t = read_processor_time () - curr_time;
+		if (t < 0)
+			t = 0;
+		t += frameskipt;
+		if (t > vsynctimebase / 2)
+			t = vsynctimebase / 2;
+		if (currprefs.m68k_speed < 0) {
+			vsynctimeperline = (vsynctimebase - t * 2) / (maxvpos_nom + 1);
+		} else {
+			vsynctimeperline = (vsynctimebase - t * 2) / 3;
+		}
+		if (vsynctimeperline < 1)
+			vsynctimeperline = 1;
 		frame_shown = true;
 		return;
 
@@ -5290,15 +5305,11 @@ static void framewait (void)
 			frame_time_t now;
 
 			flipdelay = 0;
-			render_screen ();
-			bool show = show_screen_maybe (false);
-			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
-			curr_time = read_processor_time ();
-			if (!show) {
-				vsync_busywait_end (&flipdelay);
-				if (extraframewait)
-					sleep_millis_main (extraframewait);
-			}
+			frame_rendered = render_screen ();
+			curr_time = vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
+			vsync_busywait_end (&flipdelay);
+			if (extraframewait)
+				sleep_millis_main (extraframewait);
 			now = read_processor_time ();
 			adjust = (int)now - (int)curr_time;
 			if (adjust < 0)
@@ -5324,9 +5335,11 @@ static void framewait (void)
 			}
 
 			vsynctimeperline = (max - skipcnt * 2) / 3;
-			if (vsynctimeperline < 1)
+			//if (vsynctimeperline < 1)
 				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
+
+			//write_log (L"%d ", vsynctimeperline);
 
 			frame_shown = true;
 
@@ -5370,9 +5383,13 @@ static void framewait (void)
 	
 	} else {
 
-		bool didrender = false;
-		if (!picasso_on)
-			didrender = render_screen ();
+		int t = 0;
+
+		if (!frame_rendered && !picasso_on) {
+			start = read_processor_time ();
+			frame_rendered = render_screen ();
+			t = read_processor_time () - start;
+		}
 		for (;;) {
 			double v = rpt_vsync () / (syncbase / 1000.0);
 			if (v >= -4)
@@ -5387,9 +5404,16 @@ static void framewait (void)
 		curr_time = read_processor_time ();
 		vsyncmintime = curr_time;
 		vsyncmaxtime = vsyncwaittime = curr_time + vsynctimebase;
-		vsynctimeperline = vsynctimebase / (maxvpos_nom + 1);
-		if (didrender)
+		if (frame_rendered) {
 			show_screen ();
+			t += read_processor_time () - curr_time;
+		}
+		t += frameskipt;
+		vsynctimeperline = (vsynctimebase - (t + frameskipt)) / 3;
+		if (vsynctimeperline < 0)
+			vsynctimeperline = 0;
+		else if (vsynctimeperline > vsynctimebase / 3)
+			vsynctimeperline = vsynctimebase / 3;
 		frame_shown = true;
 
 	}
@@ -5482,16 +5506,27 @@ static void vsync_handler_pre (void)
 		start = read_processor_time ();
 		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		vsync_rendered = true;
-		if (vblank_hz_state) {
-			render_screen ();
-			if (!frame_shown) {
-				frame_shown = true;
-				show_screen_maybe (isvsync_chipset () >= 0);
-			}
-		}
 		end = read_processor_time ();
 		frameskiptime += end - start;
 	}
+
+	framewait ();
+	
+	if (!picasso_on) {
+		if (!frame_rendered && vblank_hz_state) {
+			frame_rendered = render_screen ();
+			if (frame_rendered && !frame_shown) {
+				frame_shown = show_screen_maybe (isvsync_chipset () >= 0);
+			}
+		}
+	}
+
+	fpscounter ();
+
+
+	vsync_rendered = false;
+	frame_shown = false;
+	frame_rendered = false;
 
 	if (vblank_hz_mult > 0)
 		vblank_hz_state ^= 1;
@@ -5507,15 +5542,8 @@ static void vsync_handler_post (void)
 {
 	static frame_time_t prevtime;
 
-	vsync_rendered = false;
-	frame_shown = false;
-
 	//write_log (_T("%d %d %d\n"), vsynctimebase, read_processor_time () - vsyncmintime, read_processor_time () - prevtime);
 	prevtime = read_processor_time ();
-
-	fpscounter ();
-
-	framewait ();
 
 #if CUSTOM_DEBUG > 1
 	if ((intreq & 0x0020) && (intena & 0x0020))
@@ -6038,8 +6066,9 @@ static void hsync_handler_post (bool onvsync)
 			frame_time_t rpt = read_processor_time ();
 			vsyncmintime += vsynctimeperline;
 			// sleep if more than 2ms "free" time
-			if (!vblank_found_chipset && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0) {
+			while (!vblank_found_chipset && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
 				sleep_millis_main (1);
+				rpt = read_processor_time ();
 			}
 		}
 	}
@@ -6153,7 +6182,7 @@ static void hsync_handler_post (bool onvsync)
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		if (vblank_hz_state) {
-			render_screen ();
+			frame_rendered = render_screen ();
 		}
 		frame_shown = true;
 		end = read_processor_time ();

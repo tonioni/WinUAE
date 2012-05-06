@@ -681,7 +681,7 @@ static void rtg_show (void)
 }
 static void rtg_clear (void)
 {
-	rtg_clear_flag = 3;
+	rtg_clear_flag = 4;
 }
 
 static void picasso_handle_vsync2 (void)
