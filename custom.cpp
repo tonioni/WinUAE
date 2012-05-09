@@ -5225,8 +5225,8 @@ static void framewait (void)
 		int t;
 		curr_time = read_processor_time ();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
-		if (!frame_rendered)
-			frame_rendered = render_screen ();
+		if (!frame_rendered && !picasso_on)
+			frame_rendered = render_screen (false);
 		if (!frame_shown)
 			show_screen ();
 		t = read_processor_time () - curr_time;
@@ -5260,6 +5260,14 @@ static void framewait (void)
 			int max, adjust, flipdelay;
 			frame_time_t now;
 
+			if (!frame_rendered && !picasso_on) {
+				frame_time_t start, end;
+				start = read_processor_time ();
+				frame_rendered = render_screen (currprefs.gfx_apmode[0].gfx_vflip == 0);
+				end = read_processor_time ();
+				frameskipt += end - start;
+			}
+
 			curr_time = vsync_busywait_end (&flipdelay); // vsync time
 			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
@@ -5275,13 +5283,19 @@ static void framewait (void)
 
 			now = read_processor_time (); // current time
 			adjust = (int)now - (int)curr_time;
+			//write_log (_T("%d "), adjust);
 			if (adjust < 0)
 				adjust = 0;
+			if (adjust > vsynctimebase * 2 / 3)
+				adjust = 0;
+			//write_log (_T("%d "), adjust);
 			
 			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
 				adjust += skipcnt;
-				//write_log (L"%d ", skipcnt);
+				//write_log (_T("%d "), skipcnt);
 			}
+			adjust += frameskipt;
+			//write_log (_T("%d "), adjust);
 
 			if (adjust > vsynctimebase / 2)
 				adjust = vsynctimebase / 2;
@@ -5305,17 +5319,20 @@ static void framewait (void)
 			frame_time_t now;
 
 			flipdelay = 0;
-			frame_rendered = render_screen ();
-			curr_time = vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
-			vsync_busywait_end (&flipdelay);
+			if (!frame_rendered && !picasso_on)
+				frame_rendered = render_screen (false);
+			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
+			curr_time = vsync_busywait_end (&flipdelay);
 			if (extraframewait)
 				sleep_millis_main (extraframewait);
 			now = read_processor_time ();
 			adjust = (int)now - (int)curr_time;
 			if (adjust < 0)
 				adjust = 0;
-			if (adjust > vsynctimebase / 3)
-				adjust = vsynctimebase / 3;
+			if (adjust > vsynctimebase)
+				adjust = 0;
+			if (adjust > vsynctimebase / 2)
+				adjust = vsynctimebase / 2;
 			max = vsynctimebase - (adjust * 3 / 2);
 
 			vsyncmintime = now;
@@ -5335,11 +5352,11 @@ static void framewait (void)
 			}
 
 			vsynctimeperline = (max - skipcnt * 2) / 3;
-			//if (vsynctimeperline < 1)
+			if (vsynctimeperline < 1)
 				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
 
-			//write_log (L"%d ", vsynctimeperline);
+			//write_log (_T("%d:%d:%d "), adjust, skipcnt, vsynctimeperline);
 
 			frame_shown = true;
 
@@ -5348,6 +5365,9 @@ static void framewait (void)
 	}
 
 	if (currprefs.m68k_speed < 0) {
+
+		if (!frame_rendered && !picasso_on)
+			frame_rendered = render_screen (false);
 
 		if (currprefs.m68k_speed_throttle) {
 			// this delay can safely overshoot frame time by 1-2 ms, following code will compensate for it.
@@ -5387,7 +5407,7 @@ static void framewait (void)
 
 		if (!frame_rendered && !picasso_on) {
 			start = read_processor_time ();
-			frame_rendered = render_screen ();
+			frame_rendered = render_screen (false);
 			t = read_processor_time () - start;
 		}
 		for (;;) {
@@ -5514,10 +5534,10 @@ static void vsync_handler_pre (void)
 	
 	if (!picasso_on) {
 		if (!frame_rendered && vblank_hz_state) {
-			frame_rendered = render_screen ();
-			if (frame_rendered && !frame_shown) {
-				frame_shown = show_screen_maybe (isvsync_chipset () >= 0);
-			}
+			frame_rendered = render_screen (false);
+		}
+		if (frame_rendered && !frame_shown) {
+			frame_shown = show_screen_maybe (isvsync_chipset () >= 0);
 		}
 	}
 
@@ -6069,6 +6089,7 @@ static void hsync_handler_post (bool onvsync)
 			while (!vblank_found_chipset && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
 				sleep_millis_main (1);
 				rpt = read_processor_time ();
+				//write_log (L"*");
 			}
 		}
 	}
@@ -6182,7 +6203,7 @@ static void hsync_handler_post (bool onvsync)
 		vsync_rendered = true;
 		vsync_handle_redraw (lof_store, lof_changed, bplcon0, bplcon3);
 		if (vblank_hz_state) {
-			frame_rendered = render_screen ();
+			frame_rendered = render_screen (true);
 		}
 		frame_shown = true;
 		end = read_processor_time ();

@@ -912,7 +912,7 @@ void flush_screen (struct vidbuffer *vb, int a, int b)
 
 static volatile bool render_ok;
 
-bool render_screen (void)
+bool render_screen (bool immediate)
 {
 	bool v = false;
 
@@ -923,7 +923,7 @@ bool render_screen (void)
 	flushymax = currentmode->amiga_height;
 	EnterCriticalSection (&screen_cs);
 	if (currentmode->flags & DM_D3D) {
-		v = D3D_renderframe ();
+		v = D3D_renderframe (immediate);
 	} else if (currentmode->flags & DM_SWSCALE) {
 		S2X_render ();
 		v = true;
@@ -1225,7 +1225,7 @@ void gfx_unlock_picasso (bool dorender)
 		}
 		D3D_unlocktexture ();
 		if (dorender) {
-			if (D3D_renderframe ()) {
+			if (D3D_renderframe (false)) {
 				LeaveCriticalSection (&screen_cs);
 				render_ok = true;
 				show_screen_maybe (true);
@@ -2582,7 +2582,6 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			Sleep (100);
 		} else if (mode == VBLANKTH_ACTIVE_WAIT) {
 			sleep_millis (1);
-			ResetEvent (vblankwaitevent);
 		} else if (mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has been passed
 			int vp;
@@ -2595,6 +2594,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				sleep_millis (1);
 				continue;
 			}
+			ResetEvent (vblankwaitevent);
 			if (vp > maxscanline / 2)
 				vp = maxscanline / 2;
 			frame_time_t rpt = read_processor_time ();
@@ -2666,8 +2666,10 @@ static unsigned int __stdcall vblankthread (void *dummy)
 							}
 							show_screen ();
 							render_ok = false;
-							int delay = (read_processor_time () - t) / (vblank_skipeveryother ? 2 : 1);
+							int delay = read_processor_time () - t;
 							if (delay < 0)
+								delay = 0;
+							else if (delay > vblankbasefull)
 								delay = 0;
 							else if (delay > vblankbasefull * 2 / 3)
 								delay = vblankbasefull * 2 / 3;
@@ -2696,8 +2698,8 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				thread_vblank_time = thread_vblank_time2;
 				vblank_found_rtg = vblank_found_rtg2;
 				vblank_found = vblank_found2;
-				SetEvent (vblankwaitevent);
 				vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
+				SetEvent (vblankwaitevent);
 			} else if (!donotwait || ap->gfx_vflip || picasso_on) {
 				sleep_millis (1);
 			}
@@ -2728,12 +2730,13 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 		}
 		prev = vblank_prev_time;
 		if (!dooddevenskip) {
-			if (vblankthread_mode == VBLANKTH_ACTIVE) {
-				frame_time_t t = read_processor_time ();
-				while (vblankthread_mode == VBLANKTH_ACTIVE)
-					WaitForSingleObject (vblankwaitevent, 10);
-				idletime += read_processor_time () - t;
+			int delay = 10;
+			frame_time_t t = read_processor_time ();
+			while (delay-- > 0) {
+				if (WaitForSingleObject (vblankwaitevent, 10) != WAIT_TIMEOUT)
+					break;
 			}
+			idletime += read_processor_time () - t;
 		}
 		if (flipdelay)
 			*flipdelay = vblank_found_flipdelay;
@@ -2742,7 +2745,7 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 	} else {
 		if (flipdelay)
 			*flipdelay = vblank_flip_delay;
-		return vblank_prev_time + vblankbasefull;
+		return vblank_prev_time;
 	}
 }
 

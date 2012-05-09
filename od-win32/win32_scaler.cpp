@@ -244,16 +244,16 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				cw = gfxvidinfo.outbuffer->outwidth;
 				ch = gfxvidinfo.outbuffer->outheight;
 			} else {
-				cw = gfxvidinfo.drawbuffer.inwidth;
-				ch = gfxvidinfo.drawbuffer.inheight;
 				cx = 0;
 				cy = 0;
+				cw = gfxvidinfo.drawbuffer.inwidth;
+				ch = gfxvidinfo.drawbuffer.inheight;
 				cv = 1;
-				if (!(beamcon0 & 0x80) && (scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER)) {
-					cw -= 40 << currprefs.gfx_resolution;
-					ch -= 25 << currprefs.gfx_vresolution;
+				if (!(beamcon0 & 0x80) && (scalemode == AUTOSCALE_STATIC_NOMINAL)) { // || scalemode == AUTOSCALE_INTEGER)) {
 					cx = 28 << currprefs.gfx_resolution;
 					cy = 10 << currprefs.gfx_vresolution;
+					cw -= 40 << currprefs.gfx_resolution;
+					ch -= 25 << currprefs.gfx_vresolution;
 				}
 			}
 
@@ -262,8 +262,15 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				int maxh = currprefs.gfx_size.height;
 				int mult = 1;
 
-				if (currprefs.gfx_xcenter_pos > 0 || currprefs.gfx_xcenter_size > 0)
-					getmanualpos (&cx, &cy, &cw, &ch);
+				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
+					changed_prefs.gfx_filter_horiz_offset = currprefs.gfx_filter_horiz_offset = 0;
+					changed_prefs.gfx_filter_vert_offset = currprefs.gfx_filter_vert_offset = 0;
+					filter_horiz_offset = 0;
+					filter_vert_offset = 0;
+					get_custom_topedge (&cx, &cy);
+				}
+
+				getmanualpos (&cx, &cy, &cw, &ch);
 
 				if (cw > maxw || ch > maxh) {
 					while (cw / mult > maxw || ch / mult > maxh)

@@ -4,7 +4,7 @@ extern const TCHAR *D3D_init (HWND ahwnd, int w_w, int h_h, int depth, int mmult
 extern bool D3D_alloctexture (int, int);
 extern void D3D_getpixelformat (int depth,int *rb, int *bb, int *gb, int *rs, int *bs, int *gs, int *ab, int *ar, int *a);
 extern void D3D_refresh (void);
-extern bool D3D_renderframe (void);
+extern bool D3D_renderframe (bool);
 extern void D3D_showframe (void);
 extern uae_u8 *D3D_locktexture(int*, bool);
 extern void D3D_unlocktexture(void);

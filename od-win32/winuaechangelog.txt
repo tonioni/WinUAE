@@ -1,11 +1,20 @@
 
 - restore only single input target to default.
 - hdd from command line
+- no-buffer tearing updates
+- 50/60 autoswitch: support also 100/120
+- cd32 cda problems (universe, rnc loader)
+
+2.4.1
+
+- Try to flush GPU queue after rendering the frame to prevent delayed background flipping that
+  introduces tearing on fastest possible no buffer low latency mode.
+- Integer scaling + gfx_xcenter_pos or gfx_ycenter_pos set had wrong positioning.
 
 Beta 14: (RC3)
 
 - Cycle-exact/approximate CPU speed non-vsync b1 sound sync update didn't work, it did nothing.
-- Some more low latency vsync timing updates, improved dynamic adjusment.
+- Some more low latency vsync timing updates, improved dynamic adjustment.
 - Legacy vsync slowdown problems fixed (2.4.0)
 - Restored (50Hz) and (60Hz) fake rates that were removed in 2.4.0. Only available in legacy vsync mode.
 - RTG + low latency vsync was not stable.

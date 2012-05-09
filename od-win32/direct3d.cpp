@@ -2735,11 +2735,12 @@ void D3D_unlocktexture (void)
 
 	if (!isd3d () || !texture)
 		return;
-	if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
-		updateleds ();
 
-	if (locked)
+	if (locked) {
+		if (currprefs.leds_on_screen & (STATUSLINE_CHIPSET | STATUSLINE_RTG))
+			updateleds ();
 		hr = texture->UnlockRect (0);
+	}
 	locked = 0;
 	fulllocked = 0;
 }
@@ -2816,7 +2817,7 @@ static void flushgpu (bool wait)
 	}
 }
 
-bool D3D_renderframe (void)
+bool D3D_renderframe (bool immediate)
 {
 	static int vsync2_cnt;
 
@@ -2824,8 +2825,12 @@ bool D3D_renderframe (void)
 		return false;
 
 	if (filenotificationhandle != NULL) {
+		bool notify = false;
 		while (WaitForSingleObject (filenotificationhandle, 0) == WAIT_OBJECT_0) {
 			FindNextChangeNotification (filenotificationhandle);
+			notify = true;
+		}
+		if (notify) {
 			devicelost = 2;
 			write_log (_T("%s: Shader file modification notification\n"), D3DHEAD);
 		}
@@ -2838,7 +2843,7 @@ bool D3D_renderframe (void)
 	}
 
 	D3D_render2 ();
-	flushgpu (false);
+	flushgpu (immediate);
 
 	return true;
 }

@@ -739,11 +739,17 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	} else if (integerscale) {
 		hmult = vmult = 1;
 		p->gfx_filter_autoscale = AUTOSCALE_INTEGER;
-		if (sm->lClipWidth > 0)
-			p->gfx_xcenter_size = sm->lClipWidth;
-		if (sm->lClipHeight > 0)
-			p->gfx_ycenter_size = sm->lClipHeight;
-
+		if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+			p->gfx_xcenter_pos = -1;
+			p->gfx_ycenter_pos = -1;
+			p->gfx_xcenter_size = -1;
+			p->gfx_ycenter_size = -1;
+		} else {
+			if (sm->lClipWidth > 0)
+				p->gfx_xcenter_size = sm->lClipWidth;
+			if (sm->lClipHeight > 0)
+				p->gfx_ycenter_size = sm->lClipHeight;
+		}
 	}
 
 	if (keepaspect) {

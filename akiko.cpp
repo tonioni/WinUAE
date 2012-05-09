@@ -897,6 +897,9 @@ static int cdrom_command_stop (void)
 /* pause CD audio */
 static int cdrom_command_pause (void)
 {
+#if AKIKO_DEBUG_IO_CMD
+	write_log (_T("CD32: pause: %d, %d\n"), cdrom_paused, cdrom_playing);
+#endif
 	cdrom_audiotimeout = 0;
 	cdrom_toc_counter = -1;
 	cdrom_result_buffer[0] = cdrom_command;
@@ -915,6 +918,9 @@ static int cdrom_command_pause (void)
 /* unpause CD audio */
 static int cdrom_command_unpause (void)
 {
+#if AKIKO_DEBUG_IO_CMD
+	write_log (_T("CD32: unpause: %d, %d\n"), cdrom_paused, cdrom_playing);
+#endif
 	cdrom_result_buffer[0] = cdrom_command;
 	if (checkerr ())
 		return 2;
