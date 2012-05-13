@@ -274,7 +274,9 @@ STATIC_INLINE tointtype toint (fptype src, fptype minval, fptype maxval)
 #endif
 }
 
+#ifndef HAVE_ISINF
 extern int isinf (double x);
+#endif
 
 uae_u32 get_fpsr (void)
 {

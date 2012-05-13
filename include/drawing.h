@@ -42,7 +42,7 @@ before it appears on-screen. (TW: display emulation now does this automatically)
 
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
-extern int lores_factor, lores_shift, sprite_width, interlace_seen;
+extern int lores_factor, lores_shift, interlace_seen;
 extern bool aga_mode, direct_rgb;
 
 STATIC_INLINE int coord_hw_to_window_x (int x)
@@ -202,13 +202,6 @@ extern uae_u16 spixels[MAX_SPR_PIXELS * 2];
 /* Way too much... */
 #define MAX_REG_CHANGE ((MAXVPOS + 1) * 2 * MAXHPOS)
 
-#ifdef OS_WITHOUT_MEMORY_MANAGEMENT
-extern struct color_change *color_changes[2];
-#else
-extern struct color_change color_changes[2][MAX_REG_CHANGE];
-#endif
-
-extern struct color_entry color_tables[2][(MAXVPOS + 2) * 2];
 extern struct color_entry *curr_color_tables, *prev_color_tables;
 
 extern struct sprite_entry *curr_sprite_entries, *prev_sprite_entries;
@@ -242,8 +235,6 @@ struct draw_info {
 	int first_color_change, last_color_change;
 	int nr_color_changes, nr_sprites;
 };
-
-extern int next_sprite_entry;
 
 extern struct decision line_decisions[2 * (MAXVPOS + 2) + 1];
 
@@ -288,7 +279,6 @@ extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 /* Finally, stuff that shouldn't really be shared.  */
 
 extern int thisframe_first_drawn_line, thisframe_last_drawn_line;
-extern int diwfirstword, diwlastword;
 
 #define IHF_SCROLLLOCK 0
 #define IHF_QUIT_PROGRAM 1

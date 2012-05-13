@@ -371,8 +371,10 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 #define ARG4 (get_long (m68k_areg (regs, 7) + 20))
 #define ARG5 (get_long (m68k_areg (regs, 7) + 24))
 
+#ifdef PICASSO96
 	if (ARG0 >= 16 && ARG0 <= 39)
 		return picasso_demux (ARG0, context);
+#endif
 
 	switch (ARG0)
 	{

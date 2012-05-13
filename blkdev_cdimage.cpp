@@ -1021,7 +1021,7 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 	MDS_SessionBlock *sb = (MDS_SessionBlock*)(mds + head->sessions_blocks_offset);
 	cdu->tracks = sb->last_track - sb->first_track + 1;
 	for (int i = 0; i < sb->num_all_blocks; i++) {
-		MDS_TrackBlock *tb = (MDS_TrackBlock*)(mds + sb->tracks_blocks_offset + i * sizeof MDS_TrackBlock);
+		MDS_TrackBlock *tb = (MDS_TrackBlock*)(mds + sb->tracks_blocks_offset + i * sizeof (MDS_TrackBlock));
 		int point = tb->point;
 		int tracknum = -1;
 		if (point == 0xa2)
@@ -1341,7 +1341,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 						s2 = _tcsrchr (tmp, '/');
 					if (s2) {
 						s2[0] = 0;
-						_tcscat (tmp, _T("\\"));
+						_tcscat (tmp, FSDB_DIR_SEPARATOR_S);
 						_tcscat (tmp, fname);
 						ztrack = zfile_fopen (tmp, _T("rb"), ZFD_ARCHIVE | ZFD_DELAYEDOPEN);
 					}

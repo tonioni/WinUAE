@@ -54,7 +54,7 @@ TCHAR *fsdb_search_dir (const TCHAR *dirname, TCHAR *rel)
 {
 	TCHAR *p = 0;
 	int de;
-	void *dir;
+	my_opendir_s *dir;
 	TCHAR fn[MAX_DPATH];
 
 	dir = my_opendir (dirname);

@@ -330,7 +330,7 @@ static bool isdefault (const TCHAR *s)
 	return false;
 }
 
-static size_t cfg_write (void *b, struct zfile *z)
+static size_t cfg_write (const void *b, struct zfile *z)
 {
 	size_t v;
 	if (unicode_config) {
@@ -4601,17 +4601,6 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 {
 	int roms[4];
 
-	roms[0] = 6;
-	roms[1] = 32;
-	roms[2] = -1;
-	if (!configure_rom (p, roms, romcheck))
-		return 0;
-	roms[0] = 20;
-	roms[1] = 21;
-	roms[2] = 22;
-	roms[3] = -1;
-	if (!configure_rom (p, roms, romcheck))
-		return 0;
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x100000;
 	p->chipset_mask = CSMASK_ECS_AGNUS;
@@ -4629,6 +4618,17 @@ static int bip_cdtv (struct uae_prefs *p, int config, int compa, int romcheck)
 	built_in_chipset_prefs (p);
 	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
 	_tcscat (p->flashfile, _T("cdtv.nvr"));
+	roms[0] = 6;
+	roms[1] = 32;
+	roms[2] = -1;
+	if (!configure_rom (p, roms, romcheck))
+		return 0;
+	roms[0] = 20;
+	roms[1] = 21;
+	roms[2] = 22;
+	roms[3] = -1;
+	if (!configure_rom (p, roms, romcheck))
+		return 0;
 	return 1;
 }
 
@@ -4637,6 +4637,15 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 	int roms[2];
 
 	buildin_default_prefs_68020 (p);
+	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
+	p->nr_floppies = 0;
+	p->floppyslots[0].dfxtype = DRV_NONE;
+	p->floppyslots[1].dfxtype = DRV_NONE;
+	set_68020_compa (p, compa, 1);
+	p->cs_compatible = CP_CD32;
+	built_in_chipset_prefs (p);
+	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
+	_tcscat (p->flashfile, _T("cd32.nvr"));
 	roms[0] = 64;
 	roms[1] = -1;
 	if (!configure_rom (p, roms, 0)) {
@@ -4653,15 +4662,6 @@ static int bip_cd32 (struct uae_prefs *p, int config, int compa, int romcheck)
 		if (!configure_rom (p, roms, romcheck))
 			return 0;
 	}
-	p->cs_cd32c2p = p->cs_cd32cd = p->cs_cd32nvram = 1;
-	p->nr_floppies = 0;
-	p->floppyslots[0].dfxtype = DRV_NONE;
-	p->floppyslots[1].dfxtype = DRV_NONE;
-	set_68020_compa (p, compa, 1);
-	p->cs_compatible = CP_CD32;
-	built_in_chipset_prefs (p);
-	fetch_datapath (p->flashfile, sizeof (p->flashfile) / sizeof (TCHAR));
-	_tcscat (p->flashfile, _T("cd32.nvr"));
 	return 1;
 }
 

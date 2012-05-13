@@ -43,7 +43,7 @@
 
 #include <math.h>
 
-#define MAX_EV ~0ul
+#define MAX_EV ~0u
 #define DEBUG_AUDIO 0
 #define DEBUG_CHANNEL_MASK 15
 #define TEST_AUDIO 0
@@ -58,10 +58,12 @@ STATIC_INLINE bool isaudio (void)
 	return currprefs.produce_sound != 0;
 }
 
+#if DEBUG_AUDIO > 0
 static bool debugchannel (int ch)
 {
 	return ((1 << ch) & DEBUG_CHANNEL_MASK) != 0;
 }
+#endif
 
 STATIC_INLINE bool usehacks1 (void)
 {
@@ -216,7 +218,7 @@ void audio_sampleripper (int mode)
 	while (rs) {
 		if (rs->changed) {
 			rs->changed = 0;
-			fetch_ripperpath (path, sizeof (path) / sizeof TCHAR);
+			fetch_ripperpath (path, sizeof (path) / sizeof (TCHAR));
 			name[0] = 0;
 			if (currprefs.floppyslots[0].dfxtype >= 0)
 				_tcscpy (name, currprefs.floppyslots[0].df);
@@ -305,7 +307,7 @@ int sound_available = 0;
 void (*sample_handler) (void);
 static void (*sample_prehandler) (unsigned long best_evtime);
 
-static float sample_evtime;
+float sample_evtime;
 float scaled_sample_evtime;
 
 static unsigned long last_cycles;
@@ -1685,7 +1687,9 @@ void set_audio (void)
 void update_audio (void)
 {
 	unsigned long int n_cycles = 0;
+#if SOUNDSTUFF > 1
 	static int samplecounter;
+#endif
 
 	if (!isaudio ())
 		goto end;

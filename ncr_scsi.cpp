@@ -420,7 +420,7 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 	ncr_bput2 (addr, b);
 }
 
-static addrbank ncr_bank = {
+addrbank ncr_bank = {
 	ncr_lget, ncr_wget, ncr_bget,
 	ncr_lput, ncr_wput, ncr_bput,
 	default_xlate, default_check, NULL, _T("A4091"),

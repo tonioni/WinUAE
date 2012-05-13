@@ -303,8 +303,6 @@ static void REGPARAM2 fmv_lput (uaecptr addr, uae_u32 w)
 	fmv_wput (addr + 2, w >>  0);
 }
 
-extern addrbank fmv_bank;
-
 static void REGPARAM2 fmv_bput (uaecptr addr, uae_u32 w)
 {
 	addr -= fmv_start & fmv_mask;

@@ -153,7 +153,7 @@ extern void restore_cd_finish (void);
 extern uae_u8 *save_configuration (int *len);
 extern uae_u8 *restore_configuration (uae_u8 *src);
 extern uae_u8 *save_log (int, int *len);
-extern uae_u8 *restore_log (uae_u8 *src);
+//extern uae_u8 *restore_log (uae_u8 *src);
 
 extern uae_u8 *restore_input (uae_u8 *src);
 extern uae_u8 *save_input (int *len, uae_u8 *dstptr);

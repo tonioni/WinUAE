@@ -106,7 +106,7 @@ void my_trim (TCHAR *s)
 {
 	int len;
 	while (_tcscspn (s, _T("\t \r\n")) == 0)
-		memmove (s, s + 1, (_tcslen (s + 1) + 1) * sizeof TCHAR);
+		memmove (s, s + 1, (_tcslen (s + 1) + 1) * sizeof (TCHAR));
 	len = _tcslen (s);
 	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
 		s[--len] = '\0';
@@ -123,7 +123,7 @@ TCHAR *my_strdup_trim (const TCHAR *s)
 	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
 		len--;
 	out = xmalloc (TCHAR, len + 1);
-	memcpy (out, s, len * sizeof TCHAR);
+	memcpy (out, s, len * sizeof (TCHAR));
 	out[len] = 0;
 	return out;
 }
@@ -477,7 +477,9 @@ void fixup_prefs (struct uae_prefs *p)
 #endif
 #if !defined (SCSIEMU)
 	p->scsi = 0;
+#ifdef _WIN32
 	p->win32_aspi = 0;
+#endif
 #endif
 #if !defined (SANA2)
 	p->sana2 = 0;
@@ -701,7 +703,7 @@ static void parse_cmdline_and_init_file (int argc, TCHAR **argv)
 #ifdef OPTIONS_IN_HOME
 		/* sam: if not found in $HOME then look in current directory */
 		_tcscpy (optionsfile, restart_config);
-		target_cfgfile_load (&currprefs, optionsfile, 0);
+		target_cfgfile_load (&currprefs, optionsfile, 0, default_config);
 #endif
 	}
 	fixup_prefs (&currprefs);
@@ -762,11 +764,13 @@ void reset_all_systems (void)
 * Add #ifdefs around these as appropriate.
 */
 
+#ifdef _WIN32
 #ifndef JIT
 extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
 {
 	return EXCEPTION_CONTINUE_SEARCH;
 }
+#endif
 #endif
 
 void do_start_program (void)

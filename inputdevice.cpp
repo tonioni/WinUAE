@@ -85,7 +85,7 @@ int inputdevice_logging = 0;
 
 #define JOYMOUSE_CDTV 8
 
-#define DEFEVENT(A, B, C, D, E, F) {L#A, B, C, D, E, F },
+#define DEFEVENT(A, B, C, D, E, F) {_T(#A), B, C, D, E, F },
 static struct inputevent events[] = {
 	{0, 0, AM_K,0,0,0},
 #include "inputevents.def"
@@ -2416,6 +2416,7 @@ void inputdevice_add_inputcode (int code, int state)
 
 void inputdevice_do_keyboard (int code, int state)
 {
+#ifdef CDTV
 	if (code >= 0x72 && code <= 0x77) { // CDTV keys
 		if (cdtv_front_panel (-1)) {
 			// front panel active
@@ -2425,6 +2426,7 @@ void inputdevice_do_keyboard (int code, int state)
 			return;
 		}
 	}
+#endif
 	if (code < 0x80) {
 		uae_u8 key = code | (state ? 0x00 : 0x80);
 		keybuf[key & 0x7f] = (key & 0x80) ? 0 : 1;

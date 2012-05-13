@@ -152,8 +152,6 @@ struct device_functions {
 
 };
 
-extern struct device_functions *device_func[MAX_TOTAL_SCSI_DEVICES];
-
 extern int device_func_init(int flags);
 extern void device_func_reset(void);
 extern int sys_command_open (int unitnum);

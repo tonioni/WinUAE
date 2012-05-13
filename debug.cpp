@@ -397,7 +397,7 @@ static int checkvaltype (TCHAR **cp, uae_u32 *val, int *size, TCHAR def)
 			return 0;
 		*val = v;
 		// stupid but works!
-		_stprintf(p, L"%u", v);
+		_stprintf(p, _T("%u"), v);
 		p += _tcslen (p);
 		if (peekchar (cp) == '.') {
 			readchar (cp);
@@ -2510,7 +2510,7 @@ STATIC_INLINE uaecptr BPTR2APTR (uaecptr addr)
 }
 static TCHAR *BSTR2CSTR (uae_u8 *bstr)
 {
-	WCHAR *s;
+	TCHAR *s;
 	char *cstr = xmalloc (char, bstr[0] + 1);
 	if (cstr) {
 		memcpy (cstr, bstr + 1, bstr[0]);

@@ -39,7 +39,7 @@ double getvsyncrate (double hz, int *mult)
 unsigned int doMask (int p, int bits, int shift)
 {
 	/* scale to 0..255, shift to align msb with mask, and apply mask */
-	unsigned long val;
+	uae_u32 val;
 
 	if (flashscreen)
 		p ^= 0xff;
@@ -211,6 +211,7 @@ static uae_u32 lowbits (int v, int shift, int lsize)
 
 void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int rgbfmt)
 {
+#ifdef PICASSO96
 	int byte_swap = 0;
 	int i;
 	int red_bits = 0, green_bits, blue_bits;
@@ -294,6 +295,7 @@ void alloc_colors_picasso (int rw, int gw, int bw, int rs, int gs, int bs, int r
 			p96_rgbx16[i] = c;
 		}
 	}
+#endif
 }
 
 void alloc_colors_rgb (int rw, int gw, int bw, int rs, int gs, int bs, int aw, int as, int alpha, int byte_swap,
@@ -376,6 +378,7 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 		grec[2 * 256 + i] = xgreencolors[255];
 		bluc[2 * 256 + i] = xbluecolors[255];
 	}
+#ifdef GFXFILTER
 	if (usedfilter && usedfilter->yuv) {
 		/* create internal 5:6:5 color tables */
 		for (i = 0; i < 256; i++) {
@@ -427,6 +430,7 @@ void alloc_colors64k (int rw, int gw, int bw, int rs, int gs, int bs, int aw, in
 			tcrrgb[i] = ((uae_s8)get_cr (r, g, b)) * 256;
 		}
 	}
+#endif
 
 #endif
 	xredcolor_b = rw;

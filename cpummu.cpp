@@ -35,6 +35,9 @@
 #include "debug.h"
 #include "cpummu.h"
 
+static void REGPARAM3 mmu_flush_atc(uaecptr addr, bool super, bool global) REGPARAM;
+static void REGPARAM3 mmu_flush_atc_all(bool global) REGPARAM;
+
 #define DBG_MMU_VERBOSE	1
 #define DBG_MMU_SANITY	1
 

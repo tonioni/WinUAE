@@ -118,12 +118,16 @@ extern struct device_functions devicefunc_win32_spti;
 extern struct device_functions devicefunc_win32_ioctl;
 extern struct device_functions devicefunc_cdimage;
 
+#endif
+
 static struct device_functions *devicetable[] = {
 	NULL,
 	&devicefunc_cdimage,
+#ifdef _WIN32
 	&devicefunc_win32_ioctl,
 	&devicefunc_win32_spti,
 	&devicefunc_win32_aspi,
+#endif
 	NULL
 };
 static int driver_installed[6];
@@ -180,7 +184,6 @@ static void install_driver (int flags)
 	}
 
 }
-#endif
 
 void blkdev_default_prefs (struct uae_prefs *p)
 {

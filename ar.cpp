@@ -882,6 +882,15 @@ static addrbank arram_bank = {
 	arram_lget, arram_wget, ABFLAG_RAM
 };
 
+
+static void action_replay_map_banks (void)
+{
+	if(!armemory_rom)
+		return;
+	map_banks (&arrom_bank, arrom_start >> 16, arrom_size >> 16, 0);
+	map_banks (&arram_bank, arram_start >> 16, arram_size >> 16, 0);
+}
+
 static void action_replay_unmap_banks (void)
 {
 	if(!armemory_rom)
@@ -892,14 +901,6 @@ static void action_replay_unmap_banks (void)
 	}
 	map_banks (&dummy_bank, arrom_start >> 16 , arrom_size >> 16, 0);
 	map_banks (&dummy_bank, arram_start >> 16 , arram_size >> 16, 0);
-}
-
-static void action_replay_map_banks (void)
-{
-	if(!armemory_rom)
-		return;
-	map_banks (&arrom_bank, arrom_start >> 16, arrom_size >> 16, 0);
-	map_banks (&arram_bank, arram_start >> 16, arram_size >> 16, 0);
 }
 
 static void hide_cart (int hide)

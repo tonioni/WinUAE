@@ -1318,7 +1318,9 @@ static void allocate_expamem (void)
 	z3fastmem2_bank.baseaddr = z3fastmem2;
 	z3chipmem_bank.baseaddr = z3chipmem;
 	fastmem_bank.baseaddr = fastmemory;
+#ifdef PICASSO96
 	gfxmem_bank.baseaddr = gfxmemory;
+#endif
 
 #ifdef SAVESTATE
 	if (savestate_state == STATE_RESTORE) {
@@ -1409,19 +1411,27 @@ uaecptr need_uae_boot_rom (void)
 
 static void expamem_init_a2065 (void)
 {
+#ifdef A2065
 	a2065_init ();
+#endif
 }
 static void expamem_init_cdtv (void)
 {
+#ifdef CDTV
 	cdtv_init ();
+#endif
 }
 static void expamem_init_a2091 (void)
 {
+#ifdef A2091
 	a2091_init ();
+#endif
 }
 static void expamem_init_a4091 (void)
 {
+#ifdef NCR
 	ncr_init ();
+#endif
 }
 #if 0
 void p96memstart (void)

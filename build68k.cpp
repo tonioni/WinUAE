@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 	    for(i = 0; i < 5; i++) {
 		printf("{%d,%d}%s", flaguse[i], flagset[i], i == 4 ? "" : ",");
 	    }
-	    printf("},%2d,L\"%s\"}", sduse, opstrp);
+	    printf("},%2d,_T(\"%s\")}", sduse, opstrp);
 	}
     }
     printf("};\nint n_defs68k = %d;\n", no_insns);

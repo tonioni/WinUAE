@@ -14,6 +14,7 @@
 //#define X86_MSVC_ASSEMBLY_MEMACCESS
 #define OPTIMIZED_FLAGS
 #define __i386__
+#define WINDOWS
 
 #ifndef UAE_MINI
 
@@ -88,6 +89,20 @@
 
 
 #endif
+
+#define A_ZIP
+#define A_RAR
+#define A_7Z
+#define A_LHA
+#define A_LZX
+#define A_DMS
+#define A_WRP
+
+#ifndef PATH_MAX
+#define PATH_MAX 256
+#endif
+
+#define UAE_RAND_MAX RAND_MAX
 
 #ifndef GFXFILTER
 #undef OPENGL
@@ -270,7 +285,7 @@
 #define SIZEOF_DOUBLE 8
 
 #define HAVE_ISNAN
-#define HAVE_ISINF
+#undef HAVE_ISINF
 #define isnan _isnan
 
 /* Define if you have the bcopy function.  */

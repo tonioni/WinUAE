@@ -299,31 +299,18 @@ STATIC_INLINE int valid_address (uaecptr addr, uae_u32 size)
 extern int addr_valid (const TCHAR*, uaecptr,uae_u32);
 
 /* For faster access in custom chip emulation.  */
-extern uae_u32 REGPARAM3 chipmem_lget (uaecptr) REGPARAM;
-extern uae_u32 REGPARAM3 chipmem_wget (uaecptr) REGPARAM;
-extern uae_u32 REGPARAM3 chipmem_bget (uaecptr) REGPARAM;
 extern void REGPARAM3 chipmem_lput (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_wput (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_bput (uaecptr, uae_u32) REGPARAM;
 
-extern uae_u32 REGPARAM3 chipmem_agnus_lget (uaecptr) REGPARAM;
 extern uae_u32 REGPARAM3 chipmem_agnus_wget (uaecptr) REGPARAM;
-extern uae_u32 REGPARAM3 chipmem_agnus_bget (uaecptr) REGPARAM;
-extern void REGPARAM3 chipmem_agnus_lput (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_agnus_wput (uaecptr, uae_u32) REGPARAM;
-extern void REGPARAM3 chipmem_agnus_bput (uaecptr, uae_u32) REGPARAM;
 
 extern uae_u32 chipmem_mask, kickmem_mask;
 extern uae_u8 *kickmemory;
-extern int kickmem_size;
 extern addrbank dummy_bank;
 
 /* 68020+ Chip RAM DMA contention emulation */
-extern uae_u32 REGPARAM3 chipmem_lget_ce2 (uaecptr) REGPARAM;
-extern uae_u32 REGPARAM3 chipmem_wget_ce2 (uaecptr) REGPARAM;
-extern uae_u32 REGPARAM3 chipmem_bget_ce2 (uaecptr) REGPARAM;
-extern void REGPARAM3 chipmem_lput_ce2 (uaecptr, uae_u32) REGPARAM;
-extern void REGPARAM3 chipmem_wput_ce2 (uaecptr, uae_u32) REGPARAM;
 extern void REGPARAM3 chipmem_bput_c2 (uaecptr, uae_u32) REGPARAM;
 
 extern uae_u32 (REGPARAM3 *chipmem_lget_indirect)(uaecptr) REGPARAM;

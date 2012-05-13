@@ -66,6 +66,7 @@ struct socketbase {
 	uae_u32 logfacility;
 	uaecptr fdcallback;
 
+    unsigned int *mtable;	/* window messages allocated for asynchronous event notification */
     /* host-specific fields below */
 #ifdef _WIN32
     SOCKET_TYPE sockAbort;	/* for aborting WinSock2 select() (damn Microsoft) */
@@ -73,7 +74,6 @@ struct socketbase {
     int needAbort;		/* abort flag */
     void *hAsyncTask;		/* async task handle */
     void *hEvent;		/* thread event handle */
-    unsigned int *mtable;	/* window messages allocated for asynchronous event notification */
 #else
     uae_sem_t sem;		/* semaphore to notify the socket thread of work */
     uae_thread_id thread;	/* socket thread */

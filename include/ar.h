@@ -42,7 +42,6 @@ extern int action_replay_load (void);
 extern void action_replay_memory_reset (void);
 extern void action_replay_init (int);
 extern void action_replay_cleanup (void);
-extern void action_replay_map_banks (void);
 extern void REGPARAM3 chipmem_lput_actionreplay23 (uaecptr addr, uae_u32 l) REGPARAM;
 extern void REGPARAM3 chipmem_wput_actionreplay23 (uaecptr addr, uae_u32 w) REGPARAM;
 extern void REGPARAM3 chipmem_bput_actionreplay1 (uaecptr addr, uae_u32 b) REGPARAM;

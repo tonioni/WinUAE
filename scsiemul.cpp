@@ -390,7 +390,7 @@ static int release_async_request (struct devstruct *dev, uaecptr request)
 	int i = 0;
 
 	if (log_scsi)
-		write_log (_T("async request %p removed\n"), request);
+		write_log (_T("async request %08x removed\n"), request);
 	while (i < MAX_ASYNC_REQUESTS) {
 		if (dev->d_request[i] == request) {
 			int type = dev->d_request_type[i];
@@ -859,7 +859,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 			uae_u32 sdd = get_long (request + 40);
 			io_error = sys_command_scsi_direct (dev->unitnum, sdd);
 			if (log_scsi)
-				write_log (_T("scsidev: did io: sdd %p request %p error %d\n"), sdd, request, get_byte (request + 31));
+				write_log (_T("scsidev: did io: sdd %08x request %08x error %d\n"), sdd, request, get_byte (request + 31));
 		}
 		break;
 	case NSCMD_DEVICEQUERY:
@@ -1048,7 +1048,7 @@ static void dev_reset (void)
 		if (dev->opencnt > 0) {
 			for (j = 0; j < MAX_ASYNC_REQUESTS; j++) {
 				uaecptr request;
-				if (request = dev->d_request[i])
+				if ((request = dev->d_request[i]))
 					abort_async (dev, request, 0, 0);
 			}
 			dev->opencnt = 1;

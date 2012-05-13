@@ -131,7 +131,7 @@ static int hfdcheck (TCHAR drive)
 	return 0;
 }
 
-static void filesys_addexternals (void)
+void filesys_addexternals (void)
 {
 	int drive, drivetype;
 	UINT errormode;

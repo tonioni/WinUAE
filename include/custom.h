@@ -139,7 +139,6 @@ extern frame_time_t syncbase;
 #define CYCLE_CPUNASTY	0x80
 
 extern unsigned long frametime, timeframes;
-extern int plfstrt, plfstop, plffirstline, plflastline;
 extern uae_u16 htotal, vtotal, beamcon0;
 
 /* 100 words give you 1600 horizontal pixels. Should be more than enough for

@@ -457,7 +457,7 @@ static uae_u8 qcode_buf[SUBQ_SIZE];
 static int qcode_valid;
 
 static int cdrom_disk, cdrom_paused, cdrom_playing, cdrom_audiostatus;
-static int cdrom_command_active, cdrom_command_idle;
+static int cdrom_command_active;
 static int cdrom_command_length;
 static int cdrom_checksum_error, cdrom_unknown_command;
 static int cdrom_data_offset, cdrom_speed, cdrom_sector_counter;
@@ -984,7 +984,9 @@ static int cdrom_command_multi (void)
 	}
 
 	if (cdrom_command_buffer[7] == 0x80) { /* data read */
+#if AKIKO_DEBUG_IO_CMD
 		int cdrom_data_offset_end = endpos;
+#endif
 		cdrom_data_offset = seekpos;
 		cdrom_seek_delay = abs (cdrom_current_sector - cdrom_data_offset);
 		if (cdrom_seek_delay < 100) {
@@ -1001,12 +1003,12 @@ static int cdrom_command_multi (void)
 #endif
 		cdrom_result_buffer[1] |= 0x02;
 	} else if (cdrom_command_buffer[10] & 4) { /* play audio */
+#if AKIKO_DEBUG_IO_CMD
 		int scan = 0;
 		if (cdrom_command_buffer[7] & 0x04)
 			scan = 1;
 		else if (cdrom_command_buffer[7] & 0x08)
 			scan = -1;
-#if AKIKO_DEBUG_IO_CMD
 		write_log (_T("PLAY FROM %06X (%d) to %06X (%d) SCAN=%d\n"),
 			seekpos, msf2lsn (seekpos), endpos, msf2lsn (endpos), scan);
 #endif
@@ -1061,7 +1063,9 @@ static void cdrom_run_command (void)
 {
 	int i, cmd_len;
 	uae_u8 checksum;
+#if 0
 	uae_u8 *pp = get_real_address (cdtx_address);
+#endif
 
 	if (!(cdrom_flags & CDFLAG_TXD))
 		return;
@@ -1186,7 +1190,6 @@ static void cdrom_run_command_run (void)
 static void cdrom_run_read (void)
 {
 	int i, sector, inc;
-	int read = 0;
 	int sec;
 	int seccnt;
 
@@ -1305,15 +1308,6 @@ static void akiko_internal (void)
 		if (!cdrom_command_active)
 			cdrom_run_command_run ();
 	}
-#if 0
-	if (!cdrom_playing && !cdrom_command_active) {
-		cdrom_command_idle++;
-		if (cdrom_command_idle > 1000) {
-			cdrom_command_idle = 0;
-			cdrom_start_return_data (cdrom_command_idle_status ());
-		}
-	}
-#endif
 }
 
 void AKIKO_hsync_handler (void)
@@ -1411,7 +1405,6 @@ static void *akiko_thread (void *null)
 		if (frame2counter <= 0) {
 			frame2counter = 312 * 50 / 2;
 			if (unitnum >= 0 && sys_command_cd_qcode (unitnum, qcode_buf)) {
-				uae_u8 as = qcode_buf[1];
 				qcode_valid = 1;
 			}
 		}

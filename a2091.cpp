@@ -193,8 +193,6 @@ void rethink_a2091 (void)
 
 static void INT2 (void)
 {
-	int irq = 0;
-
 	if (currprefs.cs_cdtvscsi)
 		return;
 	if (!(auxstatus & 0x80))
@@ -618,7 +616,10 @@ uae_u8 wdscsi_getauxstatus (void)
 
 uae_u8 wdscsi_get (void)
 {
-	uae_u8 v, osasr = sasr;
+	uae_u8 v;
+#if WD33C93_DEBUG > 1
+	uae_u8 osasr = sasr;
+#endif
 
 	v = wdregs[sasr];
 	if (sasr == WD_DATA) {
@@ -1053,7 +1054,9 @@ static void mbdmac_write (uae_u32 addr, uae_u32 val, int mode)
 
 static uae_u32 mbdmac_read (uae_u32 addr, int mode)
 {
+#if A3000_DEBUG > 1
 	uae_u32 vaddr = addr;
+#endif
 	uae_u32 v = 0xffffffff;
 
 	if (currprefs.cs_mbdmac > 1)

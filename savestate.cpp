@@ -728,9 +728,15 @@ void savestate_restore_finish (void)
 	restore_disk_finish ();
 	restore_blitter_finish ();
 	restore_akiko_finish ();
+#ifdef CDTV
 	restore_cdtv_finish ();
+#endif
+#ifdef PICASSO96
 	restore_p96_finish ();
+#endif
+#ifdef A2065
 	restore_a2065_finish ();
+#endif
 	restore_cia_finish ();
 	restore_debug_memwatch_finish ();
 	savestate_state = 0;

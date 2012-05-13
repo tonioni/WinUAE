@@ -1,6 +1,6 @@
 
 typedef uae_s64 (*ZFILEREAD)(void*, uae_u64, uae_u64, struct zfile*);
-typedef uae_s64 (*ZFILEWRITE)(void*, uae_u64, uae_u64, struct zfile*);
+typedef uae_s64 (*ZFILEWRITE)(const void*, uae_u64, uae_u64, struct zfile*);
 typedef uae_s64 (*ZFILESEEK)(struct zfile*, uae_s64, int);
 
 struct zfile {
@@ -112,11 +112,9 @@ extern struct znode *zvolume_adddir_abs (struct zvolume *zv, struct zarchive_inf
 extern struct znode *znode_adddir (struct znode *parent, const TCHAR *name, struct zarchive_info*);
 
 extern struct zvolume *archive_directory_plain (struct zfile *zf);
-extern struct zfile *archive_access_plain (struct znode *zn);
 extern struct zvolume *archive_directory_lha(struct zfile *zf);
 extern struct zfile *archive_access_lha (struct znode *zn);
 extern struct zvolume *archive_directory_zip(struct zfile *zf);
-extern struct zfile *archive_access_zip (struct znode *zn, int flags);
 extern struct zvolume *archive_directory_7z (struct zfile *z);
 extern struct zfile *archive_access_7z (struct znode *zn);
 extern struct zvolume *archive_directory_rar (struct zfile *z);
@@ -126,12 +124,8 @@ extern struct zfile *archive_access_lzx (struct znode *zn);
 extern struct zvolume *archive_directory_arcacc (struct zfile *z, unsigned int id);
 extern struct zfile *archive_access_arcacc (struct znode *zn);
 extern struct zvolume *archive_directory_adf (struct znode *zn, struct zfile *z);
-extern struct zfile *archive_access_adf (struct znode *zn);
 extern struct zvolume *archive_directory_rdb (struct zfile *z);
-extern struct zfile *archive_access_rdb (struct znode *zn);
 extern struct zvolume *archive_directory_fat (struct zfile *z);
-extern struct zfile *archive_access_fat (struct znode *zn);
-extern struct zfile *archive_access_dir (struct znode *zn);
 extern struct zvolume *archive_directory_tar (struct zfile *zf);
 extern struct zfile *archive_access_tar (struct znode *zn);
 

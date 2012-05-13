@@ -150,7 +150,7 @@ struct utimbuf
 #define memcpy q_memcpy
 #define memset q_memset
 #define strdup my_strdup
-#define random rand
+#define random uaerand
 #define creat(x,y) open("T:creat",O_CREAT|O_RDWR|O_TRUNC,777)
 extern void* q_memset(void*,int,size_t);
 extern void* q_memcpy(void*,const void*,size_t);

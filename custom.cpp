@@ -13,6 +13,7 @@
 
 #include <ctype.h>
 #include <assert.h>
+#include <math.h>
 
 #include "options.h"
 #include "uae.h"
@@ -2221,7 +2222,7 @@ STATIC_INLINE void record_sprite_1 (int sprxp, uae_u16 *buf, uae_u32 datab, int 
 			col = (datab & 3) << (2 * num);
 #if 0
 		if (sprxp == sprite_minx || sprxp == sprite_maxx - 1)
-			col ^= (rand () << 16) | rand ();
+			col ^= (uaerand () << 16) | uaerand ();
 #endif
 		if ((j & mask) == 0) {
 			unsigned int tmp = (*buf) | col;
@@ -2727,7 +2728,7 @@ void compute_vsynctime (void)
 	fake_vblank_hz = 0;
 	vblank_hz_mult = 0;
 	vblank_hz_state = 1;
-	if (abs (currprefs.chipset_refreshrate) > 0.1) {
+	if (fabs (currprefs.chipset_refreshrate) > 0.1) {
 		vblank_hz = currprefs.chipset_refreshrate;
 		if (isvsync_chipset ()) {
 			int mult = 0;
@@ -2840,7 +2841,7 @@ void compute_framesync (void)
 		if (!picasso_on) {
 			if (isvsync_chipset ()) {
 				if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
-					if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1 || abs (vblank_hz - 100) < 1 || abs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
+					if ((fabs (vblank_hz - 50) < 1 || fabs (vblank_hz - 60) < 1 || fabs (vblank_hz - 100) < 1 || fabs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
 						vsync_switchmode (vblank_hz);
 					}
 				}
@@ -3080,11 +3081,13 @@ void init_hz (bool fullinit)
 	maxvpos_total = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 2047 : 511;
 	if (maxvpos_total > MAXVPOS)
 		maxvpos_total = MAXVPOS;
+#ifdef PICASSO96
 	if (!p96refresh_active) {
 		maxvpos_stored = maxvpos;
 		maxhpos_stored = maxhpos;
 		vblank_hz_stored = vblank_hz;
 	}
+#endif
 
 	compute_framesync ();
 
@@ -5193,18 +5196,22 @@ static int rpt_vsync (void)
 
 static void rtg_vsync (void)
 {
+#ifdef PICASSO96
 	frame_time_t start, end;
 	start = read_processor_time ();
 	picasso_handle_vsync ();
 	end = read_processor_time ();
 	frameskiptime += end - start;
+#endif
 }
 
 static void rtg_vsynccheck (void)
 {
 	if (vblank_found_rtg) {
 		vblank_found_rtg = false;
+#ifdef PICASSO96
 		rtg_vsync ();
+#endif
 	}
 }
 
@@ -5647,10 +5654,13 @@ static void vsync_handler_post (void)
 	if (debug_dma)
 		record_dma_reset ();
 
+#ifdef PICASSO96
 	if (p96refresh_active) {
 		vpos_count = p96refresh_active;
 		vtotal = vpos_count;
 	}
+#endif
+
 	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || abs (vpos_count - vpos_count_diff) > 1 || lof_changed) {
 		init_hz ();
 	} else if (interlace_changed || changed_chipset_refresh ()) {
@@ -5672,7 +5682,7 @@ static void copper_check (int n)
 		int vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 		if (vp < cop_state.vcmp) {
 			if (copper_enabled_thisline)
-				write_log (_T("COPPER BUG %d: vp=%d vpos=%d vcmp=%d act=%d thisline=%d\n"), n, vp, vpos, cop_state.vcmp, copper_enabled_thisline);
+				write_log (_T("COPPER BUG %d: vp=%d vpos=%d vcmp=%d thisline=%d\n"), n, vp, vpos, cop_state.vcmp, copper_enabled_thisline);
 		}
 	}
 }
@@ -6198,7 +6208,9 @@ static void hsync_handler_post (bool onvsync)
 #endif
 
 	gayle_hsync ();
+#ifdef A2091
 	scsi_hsync ();
+#endif
 
 	//copper_check (2);
 
@@ -6514,7 +6526,9 @@ void custom_reset (int hardreset)
 	if (hardreset)
 		rtc_hardreset();
 
+#ifdef PICASSO96
 	picasso_reset ();
+#endif
 }
 
 void dumpcustom (void)
@@ -7622,7 +7636,7 @@ uae_u8 *save_cycles (int *len, uae_u8 *dstptr)
 	save_u32 (CYCLE_UNIT);
 	save_u64 (get_cycles ());
 	save_u32 (extra_cycle);
-	write_log (_T("SAVECYCLES %08X\n"), get_cycles ());
+	write_log (_T("SAVECYCLES %08lX\n"), get_cycles ());
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -7634,7 +7648,7 @@ uae_u8 *restore_cycles (uae_u8 *src)
 	restore_u32 ();
 	start_cycles = restore_u64 ();
 	extra_cycle = restore_u32 ();
-	write_log (_T("RESTORECYCLES %08X\n"), start_cycles);
+	write_log (_T("RESTORECYCLES %08lX\n"), start_cycles);
 	return src;
 }
 

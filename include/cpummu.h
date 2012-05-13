@@ -228,8 +228,6 @@ extern mmu_atc_l1_array *current_atc;
 
 #define ATC_L2_INDEX(addr)	((((addr) >> 12) ^ ((addr) >> (32 - ATC_L2_SIZE_LOG))) % ATC_L2_SIZE)
 
-extern struct mmu_atc_line atc_l2[2][ATC_L2_SIZE];
-
 /*
  * lookup address in the level 1 atc cache,
  * the data and write arguments are constant in the common,
@@ -288,9 +286,6 @@ extern void REGPARAM3 dfc_put_long(uaecptr addr, uae_u32 val) REGPARAM;
 extern void REGPARAM3 dfc_put_word(uaecptr addr, uae_u16 val) REGPARAM;
 extern void REGPARAM3 dfc_put_byte(uaecptr addr, uae_u8 val) REGPARAM;
 
-
-extern void REGPARAM3 mmu_flush_atc(uaecptr addr, bool super, bool global) REGPARAM;
-extern void REGPARAM3 mmu_flush_atc_all(bool global) REGPARAM;
 extern void REGPARAM3 mmu_op_real(uae_u32 opcode, uae_u16 extra) REGPARAM;
 
 extern void REGPARAM3 mmu_reset(void) REGPARAM;

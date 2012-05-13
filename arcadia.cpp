@@ -92,7 +92,7 @@ static int load_rom8 (TCHAR *xpath, uae_u8 *mem,	int extra)
 	TCHAR path[MAX_DPATH];
 	int i;
 	uae_u8 *tmp = xmalloc (uae_u8, 131072);
-	TCHAR *bin = extra == 1 ? _T(".bin") : _T("");
+	const TCHAR *bin = extra == 1 ? _T(".bin") : _T("");
 
 	memset (tmp, 0, 131072);
 	_stprintf (path, _T("%s%s%s"), xpath, extra == 3 ? _T("-hi") : (extra == 2 ? _T("hi") : _T("h")), bin);
