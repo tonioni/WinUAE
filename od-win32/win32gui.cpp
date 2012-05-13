@@ -5842,49 +5842,51 @@ static void init_resolution_combo (HWND hDlg)
 	}
 }
 
-static void init_displays_combo (HWND hDlg)
+static void init_displays_combo (HWND hDlg, bool rtg)
 {
 	TCHAR *adapter = _T("");
 	struct MultiDisplay *md = Displays;
 	int cnt = 0, cnt2 = 0;
 	int displaynum;
 	int idx = 0;
+	int id = rtg ? IDC_RTG_DISPLAYSELECT : IDC_DISPLAYSELECT;
 
-	displaynum = workprefs.gfx_apmode[APMODE_NATIVE].gfx_display - 1;
+	displaynum = workprefs.gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display - 1;
+	SendDlgItemMessage (hDlg, id, CB_RESETCONTENT, 0, 0);
 	if (displaynum < 0)
 		displaynum = 0;
-	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_RESETCONTENT, 0, 0);
 	while (md->monitorname) {
 		if (_tcscmp (md->adapterkey, adapter) != 0) {
-			SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)md->adaptername);
+			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)md->adaptername);
 			adapter = md->adapterkey;
 			cnt++;
 		}
 		TCHAR buf[MAX_DPATH];
 		_stprintf (buf, _T("  %s"), md->fullname);
-		SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_ADDSTRING, 0, (LPARAM)buf);
+		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)buf);
 		if (displaynum == cnt2)
 			idx = cnt;
 		md++;
 		cnt2++;
 		cnt++;
 	}
-	SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_SETCURSEL, idx, 0);
+	SendDlgItemMessage (hDlg, id, CB_SETCURSEL, idx, 0);
 }
 
-static void get_displays_combo (HWND hDlg)
+static bool get_displays_combo (HWND hDlg, bool rtg)
 {
 	struct MultiDisplay *md = Displays;
 	LRESULT posn;
 	TCHAR *adapter = _T("");
 	int cnt = 0, cnt2 = 0;
 	int displaynum;
+	int id = rtg ? IDC_RTG_DISPLAYSELECT : IDC_DISPLAYSELECT;
 
-	posn = SendDlgItemMessage (hDlg, IDC_DISPLAYSELECT, CB_GETCURSEL, 0, 0);
+	posn = SendDlgItemMessage (hDlg, id, CB_GETCURSEL, 0, 0);
 	if (posn == CB_ERR)
-		return;
+		return false;
 
-	displaynum = workprefs.gfx_apmode[APMODE_NATIVE].gfx_display - 1;
+	displaynum = workprefs.gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display - 1;
 	if (displaynum < 0)
 		displaynum = 0;
 	while (md->monitorname) {
@@ -5899,18 +5901,16 @@ static void get_displays_combo (HWND hDlg)
 			foundnum = cnt2;
 		if (foundnum >= 0) {
 			if (foundnum == displaynum)
-				return;
-			workprefs.gfx_apmode[APMODE_NATIVE].gfx_display = foundnum + 1;
-			workprefs.gfx_apmode[APMODE_RTG].gfx_display = foundnum + 1;
-			init_displays_combo (hDlg);
-			init_resolution_combo (hDlg);
-			init_display_mode (hDlg);
-			return;
+				return false;
+			workprefs.gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display = foundnum + 1;
+			init_displays_combo (hDlg, rtg);
+			return true;
 		}
 		cnt++;
 		cnt2++;
 		md++;
 	}
+	return false;
 }
 
 static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -6046,7 +6046,9 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	if (msg == WM_COMMAND && HIWORD (wParam) == CBN_SELCHANGE)
 	{
 		if (LOWORD (wParam) == IDC_DISPLAYSELECT) {
-			get_displays_combo (hDlg);
+			get_displays_combo (hDlg, false);
+			init_resolution_combo (hDlg);
+			init_display_mode (hDlg);
 			return;
 		} else if (LOWORD (wParam) == IDC_LORES) {
 			posn = SendDlgItemMessage (hDlg, IDC_LORES, CB_GETCURSEL, 0, 0);
@@ -6110,7 +6112,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETPAGESIZE, 0, 1);
 		SendDlgItemMessage (hDlg, IDC_FRAMERATE2, TBM_SETRANGE, TRUE, MAKELONG (1, 99));
 		recursive++;
-		init_displays_combo (hDlg);
+		init_displays_combo (hDlg, false);
 		init_resolution_combo (hDlg);
 		init_da (hDlg);
 		recursive--;
@@ -6936,6 +6938,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			enumerated = 1;
 		}
 		expansion_net (hDlg);
+		init_displays_combo (hDlg, true);
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Zorro III (*)"));
@@ -7049,6 +7052,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				uae_u32 mask = workprefs.picasso96_modeflags;
 				switch (LOWORD (wParam))
 				{
+				case IDC_RTG_DISPLAYSELECT:
+					get_displays_combo (hDlg, true);
+					break;
 				case  IDC_RTG_BUFFERCNT:
 					v = SendDlgItemMessage (hDlg, IDC_RTG_BUFFERCNT, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
@@ -12673,6 +12679,8 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	WIN32GUI_LoadUIString (IDS_AUTOSCALE_INTEGER, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
+	WIN32GUI_LoadUIString (IDS_AUTOSCALE_INTEGER_AUTOSCALE, txt, sizeof (txt) / sizeof (TCHAR));
+	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
 	int range1 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -999;
@@ -14887,10 +14895,11 @@ void gui_flicker_led (int led, int unitnum, int status)
 	}
 }
 
-void gui_fps (int fps, int idle)
+void gui_fps (int fps, int idle, int color)
 {
 	gui_data.fps = fps;
 	gui_data.idle = idle;
+	gui_data.fps_color = color;
 	gui_led (LED_FPS, 0);
 	gui_led (LED_CPU, 0);
 	gui_led (LED_SND, (gui_data.sndbuf_status > 1 || gui_data.sndbuf_status < 0) ? 0 : 1);

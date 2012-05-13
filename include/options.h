@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 2
 #define UAEMINOR 4
-#define UAESUBREV 1
+#define UAESUBREV 2
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -141,6 +141,7 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define AUTOSCALE_CENTER 6
 #define AUTOSCALE_MANUAL 7 // use gfx_xcenter_pos and gfx_ycenter_pos
 #define AUTOSCALE_INTEGER 8
+#define AUTOSCALE_INTEGER_AUTOSCALE 9
 
 #define MONITOREMU_NONE 0
 #define MONITOREMU_AUTO 1

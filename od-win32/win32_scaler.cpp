@@ -229,6 +229,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		}
 	}
 
+	set_custom_limits (-1, -1, -1, -1);
+
 	if (scalemode) {
 		int cw, ch, cx, cy, cv;
 		static int oxmult, oymult;
@@ -236,7 +238,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		filterxmult = 1000 / scale;
 		filterymult = 1000 / scale;
 
-		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER) {
+		if (scalemode == AUTOSCALE_STATIC_MAX || scalemode == AUTOSCALE_STATIC_NOMINAL || scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 
 			if (specialmode) {
 				cx = 0;
@@ -255,12 +257,14 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					cw -= 40 << currprefs.gfx_resolution;
 					ch -= 25 << currprefs.gfx_vresolution;
 				}
+				set_custom_limits (cw, ch, cx, cy);
 			}
 
-			if (scalemode == AUTOSCALE_INTEGER) {
+			if (scalemode == AUTOSCALE_INTEGER || scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 				int maxw = currprefs.gfx_size.width;
 				int maxh = currprefs.gfx_size.height;
 				int mult = 1;
+				bool ok = true;
 
 				if (currprefs.gfx_xcenter_pos >= 0 || currprefs.gfx_ycenter_pos >= 0) {
 					changed_prefs.gfx_filter_horiz_offset = currprefs.gfx_filter_horiz_offset = 0;
@@ -270,16 +274,31 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					get_custom_topedge (&cx, &cy);
 				}
 
-				getmanualpos (&cx, &cy, &cw, &ch);
+				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE)
+					ok = get_custom_limits (&cw, &ch, &cx, &cy);
+				if (scalemode == AUTOSCALE_INTEGER || ok == false)
+					getmanualpos (&cx, &cy, &cw, &ch);
 
-				if (cw > maxw || ch > maxh) {
-					while (cw / mult > maxw || ch / mult > maxh)
+				int cw2 = cw + filter_horiz_zoom;
+				int ch2 = ch + filter_vert_zoom;
+
+				extraw = 0;
+				extrah = 0;
+				xmult = 1000.0;
+				ymult = 1000.0;
+				filter_horiz_zoom = 0;
+				filter_vert_zoom = 0;
+				filter_horiz_zoom_mult = 1000.0;
+				filter_vert_zoom_mult = 1000.0;
+
+				if (cw2 > maxw || ch2 > maxh) {
+					while (cw2 / mult > maxw || ch2 / mult > maxh)
 						mult *= 2;
 					maxw = maxw * mult;
 					maxh = maxh * mult;
 				} else {
-					while (cw * (mult * 2) <= maxw && ch * (mult * 2) <= maxh)
-						mult *= 2;
+					while (cw2 * (mult + 1) <= maxw && ch2 * (mult + 1) <= maxh)
+						mult++;
 					maxw = (maxw + mult - 1) / mult;
 					maxh = (maxh + mult - 1) / mult;
 				}
@@ -301,6 +320,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			//write_log (_T("%dx%d %dx%d\n"), cx, cy, currprefs.gfx_resolution, currprefs.gfx_vresolution);
 
 			getmanualpos (&cx, &cy, &cw, &ch);
+			set_custom_limits (cw, ch, cx, cy);
 
 			//write_log (_T("%dx%d %dx%d %dx%d\n"), currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
 
@@ -309,6 +329,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		} else {
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy);
+			if (cv)
+				set_custom_limits (cw, ch, cx, cy);
 
 		}
 

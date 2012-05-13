@@ -2,8 +2,36 @@
 - restore only single input target to default.
 - hdd from command line
 - no-buffer tearing updates
-- 50/60 autoswitch: support also 100/120
-- cd32 cda problems (universe, rnc loader)
+
+
+- Autovsync 50/60Hz also accepts 100/120Hz modes if available, supports also refresh rates +-1 from nominal.
+- CD32: CD command receive DMA emulation correctly emulated, TOC read hack removed.
+- CD32: Repeat each CD TOC packet 3 times (same as real CD TOC format) (Universe title screen CDA)
+- CD32: CD audio stopped if multiple play requests were sent very quickly (Universe in-game CDA)
+- GUI RTG monitor selection implemented.
+- Low latency vsync + fastest possible CPU auto adjustment updates.
+- Legacy vsync automatic adjustment implemented, hopefully improves stability. (Remember that legacy
+  vsync is only compatible with approximate/ce CPU modes)
+- FPS led background flashes yellow if frame was missed in vsync modes.
+- Detect display driver forced vsync, switch to double buffered mode if low latency no buffer mode.
+- Always call D3D SetMaximumFrameLatency(1) if vsync mode (any vsync) to reduce latency, previously
+  was only called when low latency no buffer mode used. (SetMaximumFrameLatency only available on
+  Vista and later) Usually display driver control panel can be also used to override this value.
+- Added auto scale integer scaling method, uses autoscale display size instead of max overscan.
+- Integer scale mode filter horizontal and vertical zoom sliders value is now added to native screen
+  size before calculating integer scaling value. (Negative values reduce size of screen = scale to
+  higher multiplier earlier)
+- Integer scaling supports non-power of 2 integer upscaling ratios now, downscaling still only supports
+  1/2, 1/4 and so on to prevent scaling artifacts or blurriness.
+- Warp mode now works properly in all vsync modes.
+- Most filter modes (autoscale etc..) now fill "invisible" borders with black, for example this removes
+  ugly extra border(s) in autoscale fullscreen or full-window mode when using non-4:3 displays.
+  (In other words anything outside of 4:3 sized window are now blanked in non-4:3 screen/window sizes)
+- Low latency vsync displayed blank screen if emulation was restarted using GUI Restart button.
+- JIT GUI cache size box was broken.
+- Do not return error code if uaehf.device read or write io command has null data pointer and length
+  is also zero.
+- Added more Windows error codes to directory filesystem to AmigaDOS error conversion table.
 
 2.4.1
 

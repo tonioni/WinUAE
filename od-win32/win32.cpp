@@ -1869,7 +1869,7 @@ void handle_events (void)
 			setpaused (pause_emulation);
 			was_paused = pause_emulation;
 			manual_painting_needed++;
-			gui_fps (0, 0);
+			gui_fps (0, 0, 0);
 		}
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 			TranslateMessage (&msg);
@@ -4734,8 +4734,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_uaeserial = 1;
 		return 1;
 	}
-	if (!_tcscmp (arg, _T("vsynclog"))) {
-		log_vsync = 1;
+	if (!_tcscmp (arg, _T("vsynclog")) || !_tcscmp (arg, _T("vsynclog1"))) {
+		log_vsync |= 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, _T("vsynclog2"))) {
+		log_vsync |= 2;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("clipboarddebug"))) {

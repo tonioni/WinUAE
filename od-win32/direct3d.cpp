@@ -2295,7 +2295,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			write_log (_T("%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_vflip <= 0 ? 1 : 0);
+		//hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_vflip <= 0 ? 1 : (vsync ? 2 : 0));
+		hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -2800,6 +2801,8 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 
 static void flushgpu (bool wait)
 {
+	if (currprefs.turbo_emulation)
+		return;
 	if (query) {
 		HRESULT hr = query->Issue (D3DISSUE_END);
 		if (SUCCEEDED (hr)) {

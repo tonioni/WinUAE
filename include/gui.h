@@ -12,7 +12,7 @@ extern void gui_exit (void);
 extern void gui_led (int, int);
 extern void gui_handle_events (void);
 extern void gui_filename (int, const TCHAR *);
-extern void gui_fps (int fps, int idle);
+extern void gui_fps (int fps, int idle, int color);
 extern void gui_changesettings (void);
 extern void gui_lock (void);
 extern void gui_unlock (void);
@@ -56,6 +56,7 @@ struct gui_info
     uae_u8 cd;					/* CD */
 	uae_u8 md;					/* CD32 or CDTV internal storage */
     int fps, idle;
+	int fps_color;
     int sndbuf, sndbuf_status;
     TCHAR df[4][256];			/* inserted image */
     uae_u32 crc32[4];			/* crc32 of image */

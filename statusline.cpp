@@ -146,7 +146,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			int fps = (gui_data.fps + 5) / 10;
 			pos = 2;
 			on_rgb = 0x000000;
-			off_rgb = 0x000000;
+			off_rgb = gui_data.fps_color ? 0xcccc00 : 0x000000;
 			if (fps > 999)
 				fps = 999;
 			num1 = fps / 100;

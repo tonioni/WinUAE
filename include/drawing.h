@@ -281,6 +281,7 @@ extern void notice_resolution_seen (int, bool);
 extern void frame_drawn (void);
 extern void redraw_frame (void);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy);
+extern void set_custom_limits (int w, int h, int dx, int dy);
 extern void get_custom_topedge (int *x, int *y);
 extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 

@@ -2840,8 +2840,8 @@ void compute_framesync (void)
 		if (!picasso_on) {
 			if (isvsync_chipset ()) {
 				if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
-					if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
-						vsync_switchmode (vblank_hz > 55 ? 60 : 50);
+					if ((abs (vblank_hz - 50) < 1 || abs (vblank_hz - 60) < 1 || abs (vblank_hz - 100) < 1 || abs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
+						vsync_switchmode (vblank_hz);
 					}
 				}
 				if (isvsync_chipset () < 0) {
@@ -5208,42 +5208,80 @@ static void rtg_vsynccheck (void)
 	}
 }
 
-static void framewait (void)
+extern int log_vsync;
+static bool framewait (void)
 {
 	frame_time_t curr_time;
 	frame_time_t start;
 	int vs = isvsync_chipset ();
 	int frameskipt;
+	bool ok = true;
 
 	frameskipt = frameskiptime;
 	frameskiptime = 0;
 
+	/* note to anyone reading this: below ugly uae_s64 averaging stuff will be replaced with
+	 * something more optimal after vsync timing works correctly enough
+	 */
+
 	is_syncline = 0;
+
+	static uae_s64 frameskipt64;
+	static int frameskipt64cnt;
+
+	frameskipt64cnt++;
+	if (frameskipt > frameskipt64 / frameskipt64cnt)
+		frameskipt64 = (uae_s64)frameskipt * frameskipt64cnt;
+	else
+		frameskipt64 += frameskipt;
 
 	if (vs > 0) {
 
+		static frame_time_t vsync_time;
+		static uae_s64 legacy64;
+		static int legacy64cnt;
 		int t;
+
 		curr_time = read_processor_time ();
 		vsyncwaittime = vsyncmaxtime = curr_time + vsynctimebase;
 		if (!frame_rendered && !picasso_on)
 			frame_rendered = render_screen (false);
+
+		start = read_processor_time ();
+		t = 0;
+		if ((int)start - (int)vsync_time >= 0 && (int)start - (int)vsync_time < vsynctimebase)
+			t += (int)start - (int)vsync_time;
+
 		if (!frame_shown)
 			show_screen ();
-		t = read_processor_time () - curr_time;
-		if (t < 0)
-			t = 0;
-		t += frameskipt;
-		if (t > vsynctimebase / 2)
-			t = vsynctimebase / 2;
+
+		legacy64cnt++;
+		if (t > legacy64 / legacy64cnt)
+			legacy64 = (uae_s64)t * legacy64cnt;
+		else
+			legacy64 += t;
+
+		t = legacy64 / legacy64cnt;
+
+		vsync_time = read_processor_time ();
+		if (t > vsynctimebase * 2 / 3)
+			t = vsynctimebase * 2 / 3;
+
 		if (currprefs.m68k_speed < 0) {
 			vsynctimeperline = (vsynctimebase - t * 2) / (maxvpos_nom + 1);
 		} else {
-			vsynctimeperline = (vsynctimebase - t * 2) / 3;
+			vsynctimeperline = (vsynctimebase - t) / 3;
 		}
+
 		if (vsynctimeperline < 1)
 			vsynctimeperline = 1;
+
+		if (0 || (log_vsync & 2)) {
+			write_log (L"%06d %06d/%06d\n", t, vsynctimeperline, vsynctimebase);
+		}
+
 		frame_shown = true;
-		return;
+		return ok;
 
 	} else if (vs < 0) {
 
@@ -5251,14 +5289,16 @@ static void framewait (void)
 		extern int extraframewait;
 		
 		if (!vblank_hz_state)
-			return;
+			return ok;
 
 		if (vs == -2 || vs == -3) {
 
 			// fastest possible
 			static int skipcnt;
-			int max, adjust, flipdelay;
+			int max, adjust, flipdelay, val;
 			frame_time_t now;
+			static uae_s64 skipcnt64, adjust64;
+			static int llvsynccnt;
 
 			if (!frame_rendered && !picasso_on) {
 				frame_time_t start, end;
@@ -5269,17 +5309,15 @@ static void framewait (void)
 			}
 
 			curr_time = vsync_busywait_end (&flipdelay); // vsync time
-			vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
+			ok = vsync_busywait_do (NULL, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
 
-			if (flipdelay > skipcnt)
-				skipcnt = flipdelay;
+			llvsynccnt++;
+
+			if (flipdelay > skipcnt64 / llvsynccnt)
+				skipcnt64 = (uae_s64)flipdelay * llvsynccnt;
 			else
-				skipcnt -= vsynctimebase / (4 * (maxvpos_nom + 1));
-			if (skipcnt > 0)
-				skipcnt--;
-			else
-				skipcnt = 0;
+				skipcnt64 += flipdelay;
 
 			now = read_processor_time (); // current time
 			adjust = (int)now - (int)curr_time;
@@ -5287,20 +5325,24 @@ static void framewait (void)
 			if (adjust < 0)
 				adjust = 0;
 			if (adjust > vsynctimebase * 2 / 3)
-				adjust = 0;
+				adjust = vsynctimebase * 2 / 3;
+			adjust64 += adjust;
+			
 			//write_log (_T("%d "), adjust);
 			
+			val = adjust64 / llvsynccnt;
+
 			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
-				adjust += skipcnt;
+				val += skipcnt64 / llvsynccnt;
 				//write_log (_T("%d "), skipcnt);
 			}
-			adjust += frameskipt;
+			val += frameskipt64 / frameskipt64cnt;
 			//write_log (_T("%d "), adjust);
 
-			if (adjust > vsynctimebase / 2)
-				adjust = vsynctimebase / 2;
+			if (val > vsynctimebase * 2 / 3)
+				val = vsynctimebase * 2 / 3;
 
-			max = (vsynctimebase - adjust) * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			max = (vsynctimebase - val) * (1000 + currprefs.m68k_speed_throttle) / 1000;
 			if (max < 1)
 				max = 1;
 
@@ -5312,18 +5354,24 @@ static void framewait (void)
 				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
 
+			if (0 || (log_vsync & 2)) {
+				write_log (L"%05d:%05d:%05d=%05d:%05d/%05d\n", (int)(adjust64 / llvsynccnt), (int)(frameskipt64 / frameskipt64cnt), (int)(skipcnt64 / llvsynccnt), val, vsynctimeperline, vsynctimebase);
+			}
+
 		} else {
 
 			static int skipcnt;
 			int max, adjust, flipdelay;
+			static uae_s64 skipcnt64;
+			static int llvsynccnt;
 			frame_time_t now;
 
 			flipdelay = 0;
 			if (!frame_rendered && !picasso_on)
 				frame_rendered = render_screen (false);
-			vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
+			ok = vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			curr_time = vsync_busywait_end (&flipdelay);
-			if (extraframewait)
+			if (extraframewait && !currprefs.turbo_emulation)
 				sleep_millis_main (extraframewait);
 			now = read_processor_time ();
 			adjust = (int)now - (int)curr_time;
@@ -5339,29 +5387,29 @@ static void framewait (void)
 			vsyncwaittime = curr_time + vsynctimebase;
 
 			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
-				if (flipdelay > skipcnt)
-					skipcnt = flipdelay;
+				llvsynccnt++;
+				if (flipdelay > skipcnt64 / llvsynccnt)
+					skipcnt64 = (uae_s64)flipdelay * llvsynccnt;
 				else
-					skipcnt -= vsynctimebase / (4 * (maxvpos_nom + 1));
-				if (skipcnt > 0)
-					skipcnt--;
-				else
-					skipcnt = 0;
+					skipcnt64 += flipdelay;
 			} else {
-				skipcnt = 0;
+				skipcnt64 = 0;
+				llvsynccnt = 1;
 			}
 
-			vsynctimeperline = (max - skipcnt * 2) / 3;
+			vsynctimeperline = (max - (skipcnt64 / llvsynccnt) * 2) / 3;
 			if (vsynctimeperline < 1)
 				vsynctimeperline = 1;
 			vsyncmaxtime = now + max;
 
-			//write_log (_T("%d:%d:%d "), adjust, skipcnt, vsynctimeperline);
+			if (0 || (log_vsync & 2)) {
+				write_log (L"%06d:%06d:%06d:%06d/%06d\n", (int)(frameskipt64 / frameskipt64cnt), (int)(skipcnt64 / llvsynccnt), adjust, vsynctimeperline, vsynctimebase);
+			}
 
 			frame_shown = true;
 
 		}
-		return;
+		return ok;
 	}
 
 	if (currprefs.m68k_speed < 0) {
@@ -5410,7 +5458,7 @@ static void framewait (void)
 			frame_rendered = render_screen (false);
 			t = read_processor_time () - start;
 		}
-		for (;;) {
+		while (!currprefs.turbo_emulation) {
 			double v = rpt_vsync () / (syncbase / 1000.0);
 			if (v >= -4)
 				break;
@@ -5437,7 +5485,9 @@ static void framewait (void)
 		frame_shown = true;
 
 	}
+	return ok;
 }
+
 
 static frame_time_t frametime2;
 
@@ -5450,7 +5500,7 @@ void fpscounter_reset (void)
 	idletime = 0;
 }
 
-static void fpscounter (void)
+static void fpscounter (bool frameok)
 {
 	frame_time_t now, last;
 	int mcnt = 10;
@@ -5480,7 +5530,7 @@ static void fpscounter (void)
 		}
 		if (currprefs.turbo_emulation && idle < 100 * 10)
 			idle = 100 * 10;
-		gui_fps (fps, (int)idle);
+		gui_fps (fps, (int)idle, frameok ? 0 : 1);
 		frametime2 = 0;
 		idletime = 0;
 	}
@@ -5530,7 +5580,7 @@ static void vsync_handler_pre (void)
 		frameskiptime += end - start;
 	}
 
-	framewait ();
+	bool frameok = framewait ();
 	
 	if (!picasso_on) {
 		if (!frame_rendered && vblank_hz_state) {
@@ -5541,8 +5591,7 @@ static void vsync_handler_pre (void)
 		}
 	}
 
-	fpscounter ();
-
+	fpscounter (frameok);
 
 	vsync_rendered = false;
 	frame_shown = false;
@@ -6056,7 +6105,7 @@ static void hsync_handler_post (bool onvsync)
 			vsyncmintime += vsynctimeperline;
 			linecounter++;
 			is_syncline = 0;
-			if (!vblank_found_chipset) {
+			if (!vblank_found_chipset && !currprefs.turbo_emulation) {
 				if ((int)vsyncmaxtime - (int)vsyncmintime > 0) {
 					if ((int)vsyncwaittime - (int)vsyncmintime > 0) {
 						frame_time_t rpt = read_processor_time ();
@@ -6082,7 +6131,7 @@ static void hsync_handler_post (bool onvsync)
 			}
 		}
 	} else {
-		if (vpos + 1 < maxvpos + lof_store && (vpos == maxvpos_nom * 1 / 3 || vpos == maxvpos_nom * 2 / 3)) {
+		if (!currprefs.turbo_emulation && (vpos + 1 < maxvpos + lof_store && (vpos == maxvpos_nom * 1 / 3 || vpos == maxvpos_nom * 2 / 3))) {
 			frame_time_t rpt = read_processor_time ();
 			vsyncmintime += vsynctimeperline;
 			// sleep if more than 2ms "free" time

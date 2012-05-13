@@ -357,8 +357,8 @@
 #define IDS_SCREEN_VSYNC2               377
 #define IDS_SCREEN_VSYNC_NONE           378
 #define IDS_FILTEROVERLAYTYPE_MASKS     379
-#define IDS_STRING380                   380
 #define IDS_FILTEROVERLAYTYPE_OVERLAYS  380
+#define IDS_AUTOSCALE_INTEGER_AUTOSCALE 381
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -1082,6 +1082,7 @@
 #define IDC_CD_TYPE                     1806
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
+#define IDC_RTG_DISPLAYSELECT           1809
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1132,7 +1133,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        370
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1809
+#define _APS_NEXT_CONTROL_VALUE         1810
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -654,7 +654,7 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 	MONITORINFOEX lpmi;
 	lpmi.cbSize = sizeof lpmi;
 	GetMonitorInfo(h, (LPMONITORINFO)&lpmi);
-	while (md - Displays < MAX_DISPLAYS && md->monitorid[0]) {
+	while (md - Displays < MAX_DISPLAYS && md->monitorid) {
 		if (!_tcscmp (md->adapterid, lpmi.szDevice)) {
 			TCHAR tmp[1000];
 			md->rect = lpmi.rcMonitor;
@@ -1445,7 +1445,7 @@ static int open_windows (int full)
 		setmouseactive (-1);
 	for (i = 0; i < NUM_LEDS; i++)
 		gui_led (i, 0);
-	gui_fps (0, 0);
+	gui_fps (0, 0, 0);
 	inputdevice_acquire (TRUE);
 
 	return ret;
@@ -1954,20 +1954,35 @@ bool vsync_switchmode (int hz)
 	struct MultiDisplay *md = getdisplay (&currprefs);
 	struct PicassoResolution *found;
 	int newh, i, cnt;
+	bool preferdouble = 0;
+
+	if (currprefs.gfx_apmode[0].gfx_refreshrate > 85) {
+		preferdouble = 1;
+	}
+
+	if (hz >= 55)
+		hz = 60;
+	else
+		hz = 50;
 
 	newh = h * (currprefs.ntscmode ? 60 : 50) / hz;
 
 	found = NULL;
 	for (cnt = 0; cnt <= abs (newh - h) + 1 && !found; cnt++) {
-		for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
-			struct PicassoResolution *r = &md->DisplayModes[i];
-			if (r->res.width == w && (r->res.height == newh + cnt || r->res.height == newh - cnt) && r->depth == d) {
-				int j;
-				for (j = 0; r->refresh[j] > 0; j++) {
-					if (r->refresh[j] == hz || r->refresh[j] == hz * 2) {
-						found = r;
-						hz = r->refresh[j];
-						break;
+		for (int dbl = 0; dbl < 2 && !found; dbl++) {
+			bool doublecheck = (dbl == 0 && preferdouble) || (dbl == 1 && !preferdouble);
+			for (int extra = 1; extra >= -1 && !found; extra--) {
+				for (i = 0; md->DisplayModes[i].depth >= 0 && !found; i++) {
+					struct PicassoResolution *r = &md->DisplayModes[i];
+					if (r->res.width == w && (r->res.height == newh + cnt || r->res.height == newh - cnt) && r->depth == d) {
+						int j;
+						for (j = 0; r->refresh[j] > 0; j++) {
+							if ((!doublecheck && r->refresh[j] == hz + extra) || (doublecheck && r->refresh[j] == hz * 2 + extra)) {
+								found = r;
+								hz = r->refresh[j];
+								break;
+							}
+						}
 					}
 				}
 			}
@@ -2660,7 +2675,6 @@ static unsigned int __stdcall vblankthread (void *dummy)
 						vblank_found_chipset = true;
 						if (!ap->gfx_vflip) {
 							while (!render_ok) {
-								sleep_millis (1);
 								if (read_processor_time () - t > vblankbasefull)
 									break;
 							}
@@ -2720,26 +2734,31 @@ static bool isthreadedvsync (void)
 frame_time_t vsync_busywait_end (int *flipdelay)
 {
 	if (isthreadedvsync ()) {
-
 		frame_time_t prev;
-		for (;;) {
-			int v = vblankthread_mode;
-			if (v != VBLANKTH_ACTIVE_START && v != VBLANKTH_ACTIVE_SKIPFRAME && v != VBLANKTH_ACTIVE_SKIPFRAME2)
-				break;
-			sleep_millis_main (1);
-		}
-		prev = vblank_prev_time;
-		if (!dooddevenskip) {
-			int delay = 10;
-			frame_time_t t = read_processor_time ();
-			while (delay-- > 0) {
-				if (WaitForSingleObject (vblankwaitevent, 10) != WAIT_TIMEOUT)
+
+		if (!currprefs.turbo_emulation) {
+			for (;;) {
+				int v = vblankthread_mode;
+				if (v != VBLANKTH_ACTIVE_START && v != VBLANKTH_ACTIVE_SKIPFRAME && v != VBLANKTH_ACTIVE_SKIPFRAME2)
 					break;
+				sleep_millis_main (1);
 			}
-			idletime += read_processor_time () - t;
+			prev = vblank_prev_time;
+			if (!dooddevenskip) {
+				int delay = 10;
+				frame_time_t t = read_processor_time ();
+				while (delay-- > 0) {
+					if (WaitForSingleObject (vblankwaitevent, 10) != WAIT_TIMEOUT)
+						break;
+				}
+				idletime += read_processor_time () - t;
+			}
+			if (flipdelay)
+				*flipdelay = vblank_found_flipdelay;
+		} else {
+			show_screen ();
+			prev = read_processor_time ();
 		}
-		if (flipdelay)
-			*flipdelay = vblank_found_flipdelay;
 		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
 		return prev + vblankbasefull;
 	} else {
@@ -2751,7 +2770,9 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 
 void vsync_busywait_start (void)
 {
-	if (vblankthread_mode != VBLANKTH_ACTIVE_WAIT)
+	if (vblankthread_mode < 0)
+		write_log (L"low latency threaded mode but thread is not running!?\n");
+	else if (vblankthread_mode != VBLANKTH_ACTIVE_WAIT)
 		write_log (L"low latency vsync state mismatch %d\n", vblankthread_mode);
 	changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
 }
@@ -2784,16 +2805,12 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		return true;
 	}
 
-	if (0 || log_vsync) {
+	if (log_vsync & 1) {
 		console_out_f(_T("F:%8d M:%8d E:%8d %3d%% (%3d%%) %10d\r"), frame_counted, frame_missed, frame_errors, frame_usage, frame_usage_avg, (t - vblank_prev_time) - vblankbasefull);
 	}
 
 	if (freetime)
 		*freetime = 0;
-	if (currprefs.turbo_emulation) {
-		frame_missed++;
-		return true;
-	}
 
 	frame_usage = (t - prevtime) * 100 / vblankbasefull;
 	if (frame_usage > 99)
@@ -2826,6 +2843,12 @@ bool vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		if (vblanklaceskip ()) {
 			doskip = true;
 			dooddevenskip = true;
+		}
+
+		if (currprefs.turbo_emulation) {
+			show_screen ();
+			vblank_prev_time = read_processor_time ();
+			return true;
 		}
 
 		if (!doskip) {
@@ -2910,6 +2933,18 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 
 	rate = ap->gfx_refreshrate;
 	mode = isfullscreen ();
+
+	// clear remembered modes if restarting and start thread again.
+	if (vblankthread_mode <= 0) {
+		rv = vsyncmemory;
+		while (rv) {
+			struct remembered_vsync *rvo = rv->next;
+			xfree (rv);
+			rv = rvo;
+		}
+		vsyncmemory = NULL;
+	}
+
 	rv = vsyncmemory;
 	while (rv) {
 		if (rv->width == width && rv->height == height && rv->depth == depth && rv->rate == rate && rv->mode == mode && rv->rtg == picasso_on) {
@@ -2939,6 +2974,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		flipevent2 = CreateEvent (NULL, FALSE, FALSE, NULL);
 		vblankwaitevent = CreateEvent (NULL, FALSE, FALSE, NULL);
 		_beginthreadex (NULL, 0, flipthread, 0, 0, &th);
+		write_log (_T("Low latency vsync thread started\n"));
 	} else {
 		changevblankthreadmode (VBLANKTH_CALIBRATE);
 	}
@@ -2998,14 +3034,39 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		if (cnt >= total)
 			break;
 	}
+
 	changevblankthreadmode (VBLANKTH_IDLE);
-	SetThreadPriority (th, oldpri);
+
 	if (maxcnt >= maxtotal) {
 		tsum = tsum2 / tcnt2;
 		write_log (_T("Unstable vsync reporting, using average value\n"));
 	} else {
 		tsum /= total;
 	}
+
+	if (ap->gfx_vflip == 0) {
+		int vsdetect = 0;
+		int detectcnt = 6;
+		for (cnt = 0; cnt < detectcnt; cnt++) {
+			render_screen (true);
+			show_screen ();
+			sleep_millis (1);
+			frame_time_t t = read_processor_time () + 1 * (syncbase / tsum);
+			for (int cnt2 = 0; cnt2 < 4; cnt2++) {
+				render_ok = true;
+				show_screen ();
+			}
+			int diff = (int)read_processor_time () - (int)t;
+			if (diff >= 0)
+				vsdetect++;
+		}
+		if (vsdetect >= detectcnt / 2) {
+			write_log (L"Forced vsync detected, switching to double buffered\n");
+			changed_prefs.gfx_apmode[0].gfx_backbuffers = 1;
+		}
+	}
+
+	SetThreadPriority (th, oldpri);
 
 	if (waitonly)
 		tsum = approx_vblank;
