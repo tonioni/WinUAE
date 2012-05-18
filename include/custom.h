@@ -15,6 +15,9 @@
 #define CSMASK_AGA 4
 #define CSMASK_MASK (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE | CSMASK_AGA)
 
+#define CHIPSET_CLOCK_PAL  3546895
+#define CHIPSET_CLOCK_NTSC 3579545
+
 uae_u32 get_copper_address (int copno);
 
 extern int custom_init (void);
@@ -115,7 +118,6 @@ extern int minfirstline, vblank_endline, numscrlines;
 extern double vblank_hz, fake_vblank_hz;
 extern int vblank_skip, doublescan;
 extern bool programmedmode;
-extern frame_time_t syncbase;
 
 #define DMA_AUD0      0x0001
 #define DMA_AUD1      0x0002

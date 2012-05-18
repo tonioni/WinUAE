@@ -247,7 +247,7 @@ static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, in
 	reseterrormode (ciw);
 	if (!status) {
 		DWORD err = GetLastError ();
-		write_log (_T("IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d "), unitnum, cmd[0], err);
+		write_log (_T("IOCTL_RAW_SCSI unit %d, CMD=%d, ERR=%d\n"), unitnum, cmd[0], err);
 		return 0;
 	}
 	int tlen = swb.spt.DataTransferLength > datalen ? datalen : swb.spt.DataTransferLength;
@@ -255,12 +255,11 @@ static int do_raw_scsi (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *cmd, in
 	return tlen;
 }
 
-static int spti_inquiry (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data)
+static int spti_inquiry (struct dev_info_ioctl *ciw, int unitnum, uae_u8 *data, int *datalen)
 {
 	uae_u8 cmd[6] = { 0x12,0,0,0,36,0 }; /* INQUIRY */
 	int len = sizeof cmd;
-
-	do_raw_scsi (ciw, unitnum, cmd, len, data, 256);
+	*datalen = do_raw_scsi (ciw, unitnum, cmd, len, data, 254);
 	return 1;
 }
 
@@ -324,8 +323,11 @@ extern void encode_l2 (uae_u8 *p, int address);
 
 static int read2048 (struct dev_info_ioctl *ciw, int sector)
 {
+	LARGE_INTEGER offset;
+
 	seterrormode (ciw);
-	if (SetFilePointer (ciw->h, sector * 2048, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+	offset.QuadPart = (uae_u64)sector * 2048;
+	if (SetFilePointer (ciw->h, offset.LowPart, &offset.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR) {
 		reseterrormode (ciw);
 		return 0;
 	}
@@ -960,9 +962,11 @@ static int ioctl_command_readwrite (int unitnum, int sector, int size, int write
 		return 0;
 	ciw->cd_last_pos = sector;
 	while (cnt-- > 0) {
+		LARGE_INTEGER offset;
 		gui_flicker_led (LED_CD, unitnum, LED_CD_ACTIVE);
 		seterrormode (ciw);
-		if (SetFilePointer (ciw->h, sector * ciw->di.bytespersector, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+		offset.QuadPart = (uae_u64)sector * ciw->di.bytespersector;
+		if (SetFilePointer (ciw->h, offset.LowPart, &offset.HighPart, FILE_BEGIN) == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR) {
 			reseterrormode (ciw);
 			if (win32_error (ciw, unitnum, _T("SetFilePointer")) < 0)
 				continue;
@@ -1196,6 +1200,8 @@ static void trim (TCHAR *s)
 static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 {
 	uae_u8 inquiry[256];
+	int datalen;
+
 	ciw->cdda_volume[0] = 0x7fff;
 	ciw->cdda_volume[1] = 0x7fff;
 	ciw->cdda_volume_main = currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume;
@@ -1208,11 +1214,11 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 
 	_tcscpy (ciw->di.vendorid, _T("UAE"));
 	_stprintf (ciw->di.productid, _T("SCSI CD%d IMG"), unitnum);
-	_tcscpy (ciw->di.revision, _T("0.1"));
+	_tcscpy (ciw->di.revision, _T("0.2"));
 	memset (inquiry, 0, sizeof inquiry);
-	if (spti_inquiry (ciw, unitnum, inquiry)) {
+	if (spti_inquiry (ciw, unitnum, inquiry, &datalen)) {
 		// check also that device type is non-zero and it is removable
-		if ((inquiry[0] & 31) && (inquiry[1] & 0x80) && inquiry[8]) {
+		if (datalen >= 36 && (inquiry[0] & 31) && (inquiry[1] & 0x80) && inquiry[8]) {
 			char tmp[20];
 			TCHAR *s;
 			memcpy (tmp, inquiry + 8, 8);

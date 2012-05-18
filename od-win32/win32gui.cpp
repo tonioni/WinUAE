@@ -5441,6 +5441,7 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 	WIN32GUI_LoadUIString (IDS_VSYNC_DEFAULT, txt, sizeof (txt) / sizeof (TCHAR));
 	SendDlgItemMessage(hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)txt);
 	for (i = 0; i < index; i++) {
+		bool lace = (storedrefreshrates[i].type & REFRESH_RATE_LACE) != 0;
 		freq = storedrefreshrates[i].rate;
 		if (freq < 0) {
 			freq = -freq;
@@ -5448,11 +5449,16 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 		} else {
 			_stprintf (hz, L"%dHz", freq);
 		}
-		if (freq == 50 || freq == 100)
+		if (freq == 50 || freq == 100 || (freq * 2 == 50 && lace))
 			_tcscat (hz, L" PAL");
-		if (freq == 60 || freq == 120)
+		if (freq == 60 || freq == 120 || (freq * 2 == 60 && lace))
 			_tcscat (hz, L" NTSC");
-		if (storedrefreshrates[i].type)
+		if (lace) {
+			TCHAR tmp[10];
+			_stprintf (tmp, L" (%di)", freq * 2);
+			_tcscat (hz, tmp);
+		}
+		if (storedrefreshrates[i].type & REFRESH_RATE_RAW)
 			_tcscat (hz, L" (*)");
 		if (abs (workprefs.gfx_apmode[0].gfx_refreshrate) == freq)
 			_tcscpy (hz2, hz);
@@ -6084,6 +6090,7 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			} else {
 				posn1--;
 				workprefs.gfx_apmode[0].gfx_refreshrate = storedrefreshrates[posn1].rate;
+				workprefs.gfx_apmode[0].gfx_interlaced = (storedrefreshrates[posn1].type & REFRESH_RATE_LACE) != false;
 			}
 			values_to_displaydlg (hDlg);
 		} else if (LOWORD (wParam) == IDC_DA_MODE) {

@@ -21,7 +21,8 @@ long max_cycles_to_next_event;
 long cycles_to_hsync_event;
 unsigned long start_cycles;
 
-frame_time_t vsynctimebase, vsyncmintime, vsyncmaxtime, vsyncwaittime;
+frame_time_t vsyncmintime, vsyncmaxtime, vsyncwaittime;
+int vsynctimebase;
 
 void events_schedule (void)
 {
@@ -56,7 +57,7 @@ void do_cycles_slow (unsigned long cycles_to_add)
 					int rpt = read_processor_time ();
 					int v = rpt - vsyncmintime;
 					int v2 = rpt - is_syncline_end;
-					if (v > (int)vsynctimebase || v < -((int)vsynctimebase)) {
+					if (v > vsynctimebase || v < -vsynctimebase) {
 						v = 0;
 					}
 					if (v < 0 && v2 < 0) {

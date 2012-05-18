@@ -227,10 +227,10 @@ void sound_setadjust (double v)
 		vsynctimebase = vsynctimebase_orig;
 		scaled_sample_evtime = scaled_sample_evtime_orig * mult / 1000.0;
 	} else if (currprefs.cachesize || currprefs.m68k_speed != 0) {
-		vsynctimebase = (long)(((double)vsynctimebase_orig) * mult / 1000.0);
+		vsynctimebase = (int)(((double)vsynctimebase_orig) * mult / 1000.0);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	} else {
-		vsynctimebase = (long)(((double)vsynctimebase_orig) * mult / 1000.0);
+		vsynctimebase = (int)(((double)vsynctimebase_orig) * mult / 1000.0);
 		scaled_sample_evtime = scaled_sample_evtime_orig;
 	}
 }

@@ -51,18 +51,22 @@ struct ScreenResolution
 
 #define MAX_PICASSO_MODES 300
 #define MAX_REFRESH_RATES 100
+
+#define REFRESH_RATE_RAW 1
+#define REFRESH_RATE_LACE 2
+
 struct PicassoResolution
 {
 	struct ScreenResolution res;
 	int depth;   /* depth in bytes-per-pixel */
 	int residx;
 	int refresh[MAX_REFRESH_RATES]; /* refresh-rates in Hz */
-	int refreshtype[MAX_REFRESH_RATES]; /* 0=normal,1=raw */
+	int refreshtype[MAX_REFRESH_RATES]; /* 0=normal,1=raw,2=lace */
 	TCHAR name[25];
 	/* Bit mask of RGBFF_xxx values.  */
 	uae_u32 colormodes;
 	int rawmode;
-	bool lace;
+	bool lace; // all modes lace
 };
 
 struct MultiDisplay {

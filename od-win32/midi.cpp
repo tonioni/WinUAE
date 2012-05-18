@@ -37,9 +37,9 @@
 #include "registry.h"
 #include "win32gui.h"
 
-//#define TRACING_ENABLED
+//#define MIDI_TRACING_ENABLED
 
-#ifdef TRACING_ENABLED
+#ifdef MIDI_TRACING_ENABLED
 #define TRACE(x) do { write_log x; } while(0)
 #else
 #define TRACE(x)

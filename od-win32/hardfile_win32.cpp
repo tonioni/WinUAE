@@ -980,11 +980,11 @@ static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_dri
 	p = (PUCHAR) outBuf;
 	if (offsetof(STORAGE_DEVICE_DESCRIPTOR, CommandQueueing) > size) {
 		write_log (_T("too short STORAGE_DEVICE_DESCRIPTOR only %d bytes\n"), size);
-		return 1;
+		return -2;
 	}
 	if (devDesc->DeviceType != INQ_DASD && devDesc->DeviceType != INQ_ROMD && devDesc->DeviceType != INQ_OPTD) {
 		write_log (_T("not a direct access device, ignored (type=%d)\n"), devDesc->DeviceType);
-		return 1;
+		return -2;
 	}
 	if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
 		j = 0;

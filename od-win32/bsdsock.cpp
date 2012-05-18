@@ -905,16 +905,12 @@ static BOOL HandleStuff(void)
 static LRESULT CALLBACK SocketWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if(message >= 0xB000 && message < 0xB000 + MAXPENDINGASYNC * 2) {
-#ifdef TRACING_ENABLED
-		write_log (_T("sockmsg(0x%x[%d], 0x%x, 0x%x)\n"), message, (message - 0xb000) / 2, wParam, lParam );
-#endif
+		BSDTRACE((_T("sockmsg(0x%x[%d], 0x%x, 0x%x)\n"), message, (message - 0xb000) / 2, wParam, lParam));
 		sockmsg(message, wParam, lParam);
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
-
-
 
 static unsigned int sock_thread2(void *blah)
 {
@@ -1076,12 +1072,12 @@ void host_sendto (TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len
 
 	wscnt = ++wscounter;
 
-#ifdef TRACING_ENABLED
+
 	if (to)
 		BSDTRACE((_T("sendto(%d,0x%x,%d,0x%x,0x%x,%d):%d-> "),sd,msg,len,flags,to,tolen,wscnt));
 	else
 		BSDTRACE((_T("send(%d,0x%x,%d,%d):%d -> "),sd,msg,len,flags,wscnt));
-#endif
+
 	sd++;
 	s = getsock(sb,sd);
 
@@ -1217,13 +1213,10 @@ void host_sendto (TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len
 	} else
 		sb->resultval = -1;
 
-#ifdef TRACING_ENABLED
 	if (sb->resultval == -1)
 		BSDTRACE((_T("sendto failed (%d):%d\n"),sb->sb_errno,wscnt));
 	else
 		BSDTRACE((_T("sendto %d:%d\n"),sb->resultval,wscnt));
-#endif
-
 }
 
 void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 len, uae_u32 flags, uae_u32 addr, uae_u32 addrlen)
@@ -1239,12 +1232,11 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
 
 	wscnt = ++wscounter;
 
-#ifdef TRACING_ENABLED
 	if (addr)
 		BSDTRACE((_T("recvfrom(%d,0x%x,%d,0x%x,0x%x,%d):%d -> "),sd,msg,len,flags,addr,get_long (addrlen),wscnt));
 	else
 		BSDTRACE((_T("recv(%d,0x%x,%d,0x%x):%d -> "),sd,msg,len,flags,wscnt));
-#endif
+
 	sd++;
 	s = getsock(sb,sd);
 
@@ -1343,13 +1335,10 @@ void host_recvfrom(TrapContext *context, SB, uae_u32 sd, uae_u32 msg, uae_u32 le
 	} else
 		sb->resultval = -1;
 
-#ifdef TRACING_ENABLED
 	if (sb->resultval == -1)
 		BSDTRACE((_T("recv failed (%d):%d\n"),sb->sb_errno,wscnt));
 	else
 		BSDTRACE((_T("recv %d:%d\n"),sb->resultval,wscnt));
-#endif
-
 }
 
 uae_u32 host_shutdown(SB, uae_u32 sd, uae_u32 how)
@@ -1916,7 +1905,8 @@ static unsigned int __stdcall thread_WaitSelect(void *p)
 
 static void fddebug(const TCHAR *name, uae_u32 nfds, uae_u32 fd)
 {
-#ifdef TRACING_ENABLED
+	if (!ISBSDTRACE)
+		return;
 	if (!nfds)
 		return;
 	if (!fd)
@@ -1927,8 +1917,7 @@ static void fddebug(const TCHAR *name, uae_u32 nfds, uae_u32 fd)
 		out[i] = (v & (1 << i)) ? 'x' : '-';
 		out[i + 1] = 0;
 	}
-	write_log (_T("%s: %08x %s\n"), name, v, out);
-#endif
+	BSDTRACE((_T("%s: %08x %s\n"), name, v, out));
 }
 
 void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, uae_u32 writefds, uae_u32 exceptfds, uae_u32 timeout, uae_u32 sigmp)
@@ -2111,11 +2100,11 @@ uae_u32 host_Inet_NtoA(TrapContext *context, SB, uae_u32 in)
 	if ((addr = inet_ntoa(ina)) != NULL) {
 		scratchbuf = m68k_areg (regs,6) + offsetof(struct UAEBSDBase,scratchbuf);
 		strncpyha(scratchbuf,addr,SCRATCHBUFSIZE);
-#ifdef TRACING_ENABLED
-		TCHAR *s = au (addr);
-		BSDTRACE((_T("%s\n"),s));
-		xfree (s);
-#endif
+		if (ISBSDTRACE) {
+			TCHAR *s = au (addr);
+			BSDTRACE((_T("%s\n"),s));
+			xfree (s);
+		}
 		return scratchbuf;
 	} else
 		SETERRNO;
@@ -2136,11 +2125,11 @@ uae_u32 host_inet_addr(uae_u32 cp)
 
 	addr = htonl(inet_addr(cp_rp));
 
-#ifdef TRACING_ENABLED
-	TCHAR *s = au (cp_rp);
-	BSDTRACE((_T("inet_addr(%s) -> 0x%08lx\n"),s,addr));
-	xfree (s);
-#endif
+	if (ISBSDTRACE) {
+		TCHAR *s = au (cp_rp);
+		BSDTRACE((_T("inet_addr(%s) -> 0x%08lx\n"),s,addr));
+		xfree (s);
+	}
 	return addr;
 }
 
@@ -2438,11 +2427,11 @@ void host_gethostbynameaddr (TrapContext *context, SB, uae_u32 name, uae_u32 nam
 		name_rp = (char*)get_real_address (name);
 
 	if (addrtype == -1) {
-#ifdef TRACING_ENABLED
-		TCHAR *s = au (name_rp);
-		BSDTRACE((_T("gethostbyname(%s) -> "),s));
-		xfree (s);
-#endif
+		if (ISBSDTRACE) {
+			TCHAR *s = au (name_rp);
+			BSDTRACE((_T("gethostbyname(%s) -> "),s));
+			xfree (s);
+		}
 		// workaround for numeric host "names"
 		if ((addr = inet_addr(name_rp)) != INADDR_NONE) {
 			bsdsocklib_seterrno(sb,0);
@@ -2490,10 +2479,10 @@ kludge:
 		}
 
 		if (sb->hostent) {
-			uae_FreeMem(context, sb->hostent, sb->hostentsize);
+			uae_FreeMem(context, sb->hostent, sb->hostentsize, sb->sysbase);
 		}
 
-		sb->hostent = uae_AllocMem(context, size, 0);
+		sb->hostent = uae_AllocMem(context, size, 0, sb->sysbase);
 
 		if (!sb->hostent) {
 			write_log (_T("BSDSOCK: WARNING - gethostby%s() ran out of Amiga memory ")
@@ -2523,11 +2512,12 @@ kludge:
 		put_long (sb->hostent, aptr);
 		addstr_ansi (&aptr, h->h_name);
 
-#ifdef TRACING_ENABLED
-		TCHAR *s = au (h->h_name);
-		BSDTRACE((_T("OK (%s):%d\n"), s, argsp->wscnt));
-		xfree (s);
-#endif
+		if (ISBSDTRACE) {
+			TCHAR *s = au (h->h_name);
+			BSDTRACE((_T("OK (%s):%d\n"), s, argsp->wscnt));
+			xfree (s);
+		}
+
 		bsdsocklib_seterrno(sb, 0);
 		bsdsocklib_setherrno(sb, 0);
 
@@ -2559,11 +2549,11 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 	if (addr_valid (_T("host_gethostbynameaddr"), name, 1))
 		name_rp = (char*)get_real_address (name);
 
-#ifdef TRACING_ENABLED
-	TCHAR *s = au (name_rp);
-	BSDTRACE((_T("getprotobyname(%s):%d -> "),s, argsp->wscnt));
-	xfree (s);
-#endif
+	if (ISBSDTRACE) {
+		TCHAR *s = au (name_rp);
+		BSDTRACE((_T("getprotobyname(%s):%d -> "),s, argsp->wscnt));
+		xfree (s);
+	}
 
 	argsp->args1 = 1;
 	argsp->args2 = name;
@@ -2584,19 +2574,19 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 			while (p->p_aliases[numaliases]) size += strlen(p->p_aliases[numaliases++])+5;
 
 		if (sb->protoent) {
-			uae_FreeMem(context, sb->protoent, sb->protoentsize);
+			uae_FreeMem(context, sb->protoent, sb->protoentsize, sb->sysbase);
 		}
 
-		sb->protoent = uae_AllocMem(context, size, 0);
+		sb->protoent = uae_AllocMem(context, size, 0, sb->sysbase);
 
 		if (!sb->protoent) {
-#ifdef TRACING_ENABLED
-			TCHAR *s = au (name_rp);
-			write_log (_T("BSDSOCK: WARNING - getprotobyname() ran out of Amiga memory ")
-				_T("(couldn't allocate %ld bytes) while returning result of lookup for '%s':%d\n"),
-				size, s, argsp->wscnt);
-			xfree (s);
-#endif
+			if (ISBSDTRACE) {
+				TCHAR *s = au (name_rp);
+				write_log (_T("BSDSOCK: WARNING - getprotobyname() ran out of Amiga memory ")
+					_T("(couldn't allocate %ld bytes) while returning result of lookup for '%s':%d\n"),
+					size, s, argsp->wscnt);
+				xfree (s);
+			}
 			bsdsocklib_seterrno(sb,12); // ENOMEM
 			release_get_thread (tindex);
 			return;
@@ -2615,11 +2605,11 @@ void host_getprotobyname(TrapContext *context, SB, uae_u32 name)
 		put_long (sb->protoent + 12 + numaliases * 4,0);
 		put_long (sb->protoent, aptr);
 		addstr_ansi (&aptr, p->p_name);
-#ifdef TRACING_ENABLED
-		TCHAR *s = au (p->p_name);
-		BSDTRACE((_T("OK (%s, %d):%d\n"), s, p->p_proto, argsp->wscnt));
-		xfree (s);
-#endif
+		if (ISBSDTRACE) {
+			TCHAR *s = au (p->p_name);
+			BSDTRACE((_T("OK (%s, %d):%d\n"), s, p->p_proto, argsp->wscnt));
+			xfree (s);
+		}
 		bsdsocklib_seterrno (sb,0);
 
 	} else {
@@ -2687,10 +2677,10 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 				size += strlen(s->s_aliases[numaliases++])+5;
 
 		if (sb->servent) {
-			uae_FreeMem(context, sb->servent, sb->serventsize);
+			uae_FreeMem(context, sb->servent, sb->serventsize, sb->sysbase);
 		}
 
-		sb->servent = uae_AllocMem(context, size, 0);
+		sb->servent = uae_AllocMem(context, size, 0, sb->sysbase);
 
 		if (!sb->servent) {
 			write_log (_T("BSDSOCK: WARNING - getservby%s() ran out of Amiga memory (couldn't allocate %ld bytes):%d\n"), type ? _T("port") : _T("name"), size, argsp->wscnt);
@@ -2715,11 +2705,12 @@ void host_getservbynameport(TrapContext *context, SB, uae_u32 nameport, uae_u32 
 		put_long (sb->servent + 12, aptr);
 		addstr_ansi (&aptr, s->s_proto);
 
-#ifdef TRACING_ENABLED
-		TCHAR *ss = au (s->s_name);
-		BSDTRACE((_T("OK (%s, %d):%d\n"), ss, (unsigned short)htons(s->s_port), argsp->wscnt));
-		xfree (ss);
-#endif
+		if (ISBSDTRACE) {
+			TCHAR *ss = au (s->s_name);
+			BSDTRACE((_T("OK (%s, %d):%d\n"), ss, (unsigned short)htons(s->s_port), argsp->wscnt));
+			xfree (ss);
+		}
+
 		bsdsocklib_seterrno(sb, 0);
 
 	} else {

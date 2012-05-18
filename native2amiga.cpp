@@ -113,16 +113,16 @@ void uae_NewList (uaecptr list)
 	x_put_long (list + 8, list);
 }
 
-uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags)
+uaecptr uae_AllocMem (TrapContext *context, uae_u32 size, uae_u32 flags, uaecptr sysbase)
 {
 	m68k_dreg (regs, 0) = size;
 	m68k_dreg (regs, 1) = flags;
-	return CallLib (context, x_get_long (4), -198); /* AllocMem */
+	return CallLib (context, sysbase, -198); /* AllocMem */
 }
 
-void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size)
+void uae_FreeMem (TrapContext *context, uaecptr memory, uae_u32 size, uaecptr sysbase)
 {
 	m68k_dreg (regs, 0) = size;
 	m68k_areg (regs, 1) = memory;
-	CallLib (context, x_get_long (4), -0xD2); /* FreeMem */
+	CallLib (context, sysbase, -0xD2); /* FreeMem */
 }

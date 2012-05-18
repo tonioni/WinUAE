@@ -429,7 +429,7 @@ HRESULT DirectDraw_SetDisplayMode (int width, int height, int bits, int freq)
 	dxdata.vblank_skip_cnt = 0;
 	ddrval = IDirectDraw7_SetDisplayMode (dxdata.maindd, width, height, bits, freq, 0);
 	if (FAILED (ddrval)) {
-		write_log (_T("IDirectDraw7_SetDisplayMode: %s\n"), DXError (ddrval));
+		write_log (_T("IDirectDraw7_SetDisplayMode(%d,%d,%d,%d): %s\n"), width, height, bits, freq, DXError (ddrval));
 		IDirectDraw7_RestoreDisplayMode (dxdata.maindd);
 		dxdata.fsmodeset = 0;
 	} else {

@@ -67,6 +67,7 @@ FILE *debugfile = NULL;
 int console_logging = 0;
 static int debugger_type = -1;
 extern BOOL debuggerinitializing;
+extern int lof_store;
 int always_flush_log = 1;
 
 #define WRITE_LOG_BUF_SIZE 4096
@@ -393,7 +394,7 @@ static TCHAR *writets (void)
 	_stprintf (p, _T("%03d"), tb.millitm);
 	p += _tcslen (p);
 	if (vsync_counter != 0xffffffff)
-		_stprintf (p, _T(" [%d %03dx%03d]"), vsync_counter, current_hpos (), vpos);
+		_stprintf (p, _T(" [%d %03d%s%03d]"), vsync_counter, current_hpos (), lof_store ? _T("-") : _T("="), vpos);
 	_tcscat (p, _T(": "));
 	return out;
 }

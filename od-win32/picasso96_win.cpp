@@ -60,8 +60,11 @@
 #include "direct3d.h"
 #include "clipboard.h"
 
-#define NOBLITTER 0
-#define NOBLITTER_BLIT 0
+int debug_rtg_blitter = 3;
+
+#define NOBLITTER (0 || !(debug_rtg_blitter & 1))
+#define NOBLITTER_BLIT (0 || !(debug_rtg_blitter & 2))
+
 #define USE_HARDWARESPRITE 1
 #define P96TRACING_ENABLED 0
 #define P96SPRTRACING_ENABLED 0
@@ -2191,6 +2194,8 @@ static void inituaegfx (uaecptr ABI)
 
 	flags = get_long (ABI + PSSO_BoardInfo_Flags);
 	flags &= 0xffff0000;
+	if (flags & BIF_NOBLITTER)
+		write_log (_T("P96: Blitter disabled in devs:monitors/uaegfx!\n"));
 	flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX;
 	flags &= ~BIF_HARDWARESPRITE;
 	if (currprefs.gfx_api && D3D_goodenough () && USE_HARDWARESPRITE) {
@@ -2201,8 +2206,6 @@ static void inituaegfx (uaecptr ABI)
 		hwsprite = 0;
 		write_log (_T("P96: Hardware sprite support disabled\n"));
 	}
-	if (flags & BIF_NOBLITTER)
-		write_log (_T("P96: Blitter disabled in devs:monitors/uaegfx!\n"));
 	if (currprefs.win32_rtgvblankrate >= -1 && !uaegfx_old)
 		flags |= BIF_VBLANKINTERRUPT;
 	if (!(flags & BIF_INDISPLAYCHAIN)) {
@@ -2210,6 +2213,8 @@ static void inituaegfx (uaecptr ABI)
 		flags |= BIF_INDISPLAYCHAIN;
 	}
 	put_long (ABI + PSSO_BoardInfo_Flags, flags);
+	if (debug_rtg_blitter != 3)
+		write_log (_T("P96: Blitter mode = %x!\n"), debug_rtg_blitter);
 
 	put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 0, planar.width);
 	put_word (ABI + PSSO_BoardInfo_MaxHorResolution + 2, chunky.width);

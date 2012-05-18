@@ -3,6 +3,36 @@
 - hdd from command line
 - no-buffer tearing updates
 
+Beta 2:
+
+- Missing harddrive in harddrive dialog if any device returned "too short STORAGE_DEVICE_DESCRIPTOR only x bytes". (2.4.0)
+- D3D crashed if Vista or newer and D3D9Ex couldn't be used (shaders didn't load for reason for example) (2.3.something)
+- Vsync dynamic adjustment algoritm updated.
+- Added vsync debugging command line options:
+  -vsync_min_delay <val>: val is value from 1 to 90, minimum guaranteed extra time left for
+  display rendering. Automatic dynamic adjustment system can still use higher values if needed.
+  -vsync_forced_delay <val>: val is forced extra time, dynamic adjustment is disabled.
+  <val> is percentage of total frame time, the bigger the value, the less chance for tearing and slower
+  CPU emulation performance (if fastest possible mode).
+  Above Parameters work in low latency no buffer mode and in all legacy vsync modes.
+  -vsynclog shows frame counts (total, missed, errors, time waited for frame relative to total frame,
+  average of previous value, current frame time difference) Low latency only parameter.
+  -vsynclog2 starts logging current adjustment parameters. Mostly undocumented values except last 4:
+  current adjustment value, time/scanline, total frame time, adjustment percentage value.
+  Note that time unit is internal PC time counter (Rate can be seen in winuaebootlog.txt)
+- Added -rtg_blitter <val> command line option (0 = disable native RTG blitter acceleration code)
+- Show more correct vertical and horizontal frequency in display mode change log line.
+- Added -bsdlog command line parameter, enables full bsdsocket emulation logging. (This was previously
+  compile-time option)
+- Support PC screen resolutions that have both progressive and interlaced modes.
+- PC interlaced modes work in D3D mode, fixes blank screen.
+- Added 50i/60i switching support to autovsync.
+- Added timing compensation to low latency vsync for some drivers (nvidia only?) that don't count any
+  lines inside vblank period. (MinV=1 in the log)
+- IOCTL 32-bit overflow fix, CDFS DVD read error when accessing data outside of first 2G.
+- Built-in CD image mounter 32-bit image size restrictions removed.
+
+Beta 1:
 
 - Autovsync 50/60Hz also accepts 100/120Hz modes if available, supports also refresh rates +-1 from nominal.
 - CD32: CD command receive DMA emulation correctly emulated, TOC read hack removed.

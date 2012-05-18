@@ -16,9 +16,9 @@
 
 #include "machdep/rpt.h"
 
-extern frame_time_t vsynctimebase, vsyncmintime, vsyncmaxtime, vsyncwaittime;
+extern frame_time_t vsyncmintime, vsyncmaxtime, vsyncwaittime;
+extern int vsynctimebase, syncbase;
 extern void reset_frame_rate_hack (void);
-extern frame_time_t syncbase;
 extern unsigned long int vsync_cycles;
 extern unsigned long start_cycles;
 

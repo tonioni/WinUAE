@@ -3691,6 +3691,8 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 	drv->dskchange_time = 0;
 	restore_u32 ();
 	s = restore_path (SAVESTATE_PATH_FLOPPY);
+	if (s && s[0])
+		write_log (L"-> '%s'\n", s);
 	_tcscpy (old, currprefs.floppyslots[num].df);
 	_tcsncpy (changed_prefs.floppyslots[num].df, s, 255);
 	xfree (s);

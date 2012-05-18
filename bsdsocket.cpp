@@ -26,6 +26,7 @@
 
 #ifdef BSDSOCKET
 
+int log_bsd;
 struct socketbase *socketbases;
 static uae_u32 SockLibBase;
 

@@ -18,6 +18,8 @@
 
 double getvsyncrate (double hz, int *mult)
 {
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+
 	if (hz < 0)
 		return 0;
 	if (hz > 85) {
@@ -25,7 +27,10 @@ double getvsyncrate (double hz, int *mult)
 		return hz / 2;
 	}
 	if (hz < 35 && hz > 0) {
-		*mult = 1;
+		if (ap->gfx_interlaced)
+			*mult = 0;
+		else
+			*mult = 1;
 		return hz * 2;
 	}
 	*mult = 0;

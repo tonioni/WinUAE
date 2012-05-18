@@ -2216,12 +2216,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		write_log (_T("DYNAMIC "));
 	write_log (_T("\n"));
 
-	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s VS=%d B=%d%s %d-bit %d\n"),
+	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d-bit %d\n"),
 		D3DHEAD,
 		(d3dCaps.PixelShaderVersion >> 8) & 0xff, d3dCaps.PixelShaderVersion & 0xff,
 		(d3dCaps.VertexShaderVersion >> 8) & 0xff, d3dCaps.VertexShaderVersion & 0xff,
 		modeex.Width, modeex.Height,
 		dpp.FullScreen_RefreshRateInHz,
+		ap->gfx_interlaced ? _T("i") : _T("p"),
 		dpp.Windowed ? _T("") : _T(" FS"),
 		vsync, ap->gfx_backbuffers,
 		ap->gfx_vflip < 0 ? _T("WE") : (ap->gfx_vflip > 0 ? _T("WS") :  _T("I")), 
@@ -2231,6 +2232,15 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
 		D3DEX = 0;
 		write_log (_T("Disabling D3D9Ex\n"));
+		if (d3ddev) {
+			d3ddev->Release ();
+			d3ddev = NULL;
+		}
+		if (d3d) {
+			d3d->Release ();
+			d3d = NULL;
+		}
+		d3ddevex = NULL;
 		return D3D_init (ahwnd, w_w, w_h, depth, mmult);
 	}
 	if (!shaderon)

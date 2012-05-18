@@ -97,7 +97,7 @@ extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
 int log_scsi;
 int log_net;
-int log_vsync;
+int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
 int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
@@ -313,6 +313,11 @@ frame_time_t read_processor_time (void)
 		return read_processor_time_qpf ();
 }
 
+uae_u32 read_system_time (void)
+{
+	return GetTickCount ();
+}
+
 #include <process.h>
 static volatile int dummythread_die;
 static void _cdecl dummythread (void *dummy)
@@ -381,7 +386,7 @@ static void figure_processor_speed_qpf (void)
 	}
 	write_log (_T("CLOCKFREQ: QPF %.2fMHz (%.2fMHz, DIV=%d)\n"), freq.QuadPart / 1000000.0,
 		qpfrate / 1000000.0, 1 << qpcdivisor);
-	syncbase = (unsigned long)qpfrate;
+	syncbase = (int)qpfrate;
 }
 
 static void figure_processor_speed (void)
@@ -4559,6 +4564,9 @@ extern int screenshotmode, postscript_print_debugging, sound_debug, log_uaeseria
 extern int force_direct_catweasel, sound_mode_skip, maxmem;
 extern int pngprint, log_sercon, midi_inbuflen;
 extern int vsync_busy_wait_mode;
+extern int debug_rtg_blitter;
+extern int log_bsd;
+extern int inputdevice_logging;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4742,6 +4750,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		log_vsync |= 2;
 		return 1;
 	}
+	if (!_tcscmp (arg, _T("bsdlog"))) {
+		log_bsd = 1;
+		return 1;
+	}
 	if (!_tcscmp (arg, _T("clipboarddebug"))) {
 		clipboard_debug = 1;
 		return 1;
@@ -4833,8 +4845,24 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	if (!np)
 		return 0;
 
+	if (!_tcscmp (arg, _T("rtg_blitter"))) {
+		debug_rtg_blitter = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("vsync_min_delay"))) {
+		debug_vsync_min_delay = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("vsync_forced_delay"))) {
+		debug_vsync_forced_delay = getval (np);
+		return 2;
+	}
 	if (!_tcscmp (arg, _T("inputlog"))) {
 		rawinput_log = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("inputdevicelog"))) {
+		inputdevice_logging = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("vsyncbusywait"))) {
