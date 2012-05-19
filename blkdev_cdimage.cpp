@@ -1002,6 +1002,7 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 	struct cdtoc *t;
 	uae_u8 *mds = NULL;
 	uae_u64 size;
+	MDS_SessionBlock *sb;
 
 	write_log (_T("MDS TOC: '%s'\n"), img);
 	size = zfile_size (zmds);
@@ -1019,7 +1020,7 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 		goto end;
 	}
 
-	MDS_SessionBlock *sb = (MDS_SessionBlock*)(mds + head->sessions_blocks_offset);
+	sb = (MDS_SessionBlock*)(mds + head->sessions_blocks_offset);
 	cdu->tracks = sb->last_track - sb->first_track + 1;
 	for (int i = 0; i < sb->num_all_blocks; i++) {
 		MDS_TrackBlock *tb = (MDS_TrackBlock*)(mds + sb->tracks_blocks_offset + i * sizeof (MDS_TrackBlock));
@@ -1048,7 +1049,7 @@ static int parsemds (struct cdunit *cdu, struct zfile *zmds, const TCHAR *img)
 				if (footer->widechar_filename == 0)
 					fname = au ((char*)(mds + footer->filename_offset));
 				else
-					fname = my_strdup ((wchar_t*)(mds + footer->filename_offset));
+					fname = my_strdup ((TCHAR*)(mds + footer->filename_offset));
 				if (fname[0] == '*' && fname[1] == '.') {
 					TCHAR newname[MAX_DPATH];
 					_tcscpy (newname, img);

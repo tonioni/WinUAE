@@ -2989,7 +2989,7 @@ void init_hz (bool fullinit)
 	if ((beamcon0 & 0xA0) != (new_beamcon0 & 0xA0))
 		hzc = 1;
 	if (beamcon0 != new_beamcon0) {
-		write_log (_T("BEAMCON0 %04x -> %04x PC%=%08x\n"), beamcon0, new_beamcon0, M68K_GETPC);
+		write_log (_T("BEAMCON0 %04x -> %04x PC=%08x\n"), beamcon0, new_beamcon0, M68K_GETPC);
 		vpos_count_diff = vpos_count = 0;
 	}
 	beamcon0 = new_beamcon0;
@@ -3505,7 +3505,7 @@ static void DMACON (int hpos, uae_u16 v)
 	changed = dmacon ^ oldcon;
 #if 0
 	if (changed)
-		write_log (L"%04x -> %04x %08x\n", oldcon, dmacon, m68k_getpc ());
+		write_log (_T("%04x -> %04x %08x\n"), oldcon, dmacon, m68k_getpc ());
 #endif
 	oldcop = (oldcon & DMA_COPPER) && (oldcon & DMA_MASTER);
 	newcop = (dmacon & DMA_COPPER) && (dmacon & DMA_MASTER);
@@ -5216,9 +5216,7 @@ static void rtg_vsynccheck (void)
 {
 	if (vblank_found_rtg) {
 		vblank_found_rtg = false;
-#ifdef PICASSO96
 		rtg_vsync ();
-#endif
 	}
 }
 
@@ -5307,7 +5305,7 @@ static bool framewait (void)
 			vsynctimeperline = 1;
 
 		if (0 || (log_vsync & 2)) {
-			write_log (L"%06d %06d/%06d %03d%%\n", t, vsynctimeperline, vsynctimebase, t * 100 / vsynctimebase);
+			write_log (_T("%06d %06d/%06d %03d%%\n"), t, vsynctimeperline, vsynctimebase, t * 100 / vsynctimebase);
 		}
 
 		frame_shown = true;
@@ -5388,7 +5386,7 @@ static bool framewait (void)
 			vsyncmaxtime = now + max;
 
 			if (0 || (log_vsync & 2)) {
-				write_log (L"%05d:%05d:%05d=%05d:%05d/%05d %03d%%\n", adjust_avg, frameskipt_avg, flipdelay_avg,
+				write_log (_T("%05d:%05d:%05d=%05d:%05d/%05d %03d%%\n"), adjust_avg, frameskipt_avg, flipdelay_avg,
 					val, vsynctimeperline, vsynctimebase, val * 100 / vsynctimebase);
 			}
 
@@ -5448,7 +5446,7 @@ static bool framewait (void)
 			vsyncmaxtime = now + max;
 
 			if (0 || (log_vsync & 2)) {
-				write_log (L"%06d:%06d:%06d:%06d %06d/%06d %03d%%\n", frameskipt_avg, flipdelay_avg, adjust, adjustx,
+				write_log (_T("%06d:%06d:%06d:%06d %06d/%06d %03d%%\n"), frameskipt_avg, flipdelay_avg, adjust, adjustx,
 					vsynctimeperline, vsynctimebase, (vsynctimebase - max) * 100 / vsynctimebase);
 			}
 
@@ -5471,7 +5469,7 @@ static bool framewait (void)
 		tickdiff = 0;
 		prevtick = tick;
 		frametickcnt = 0;
-		write_log (L"!\n");
+		write_log (_T("!\n"));
 	} else {
 		frametickcnt++;
 	}
@@ -5482,7 +5480,7 @@ static bool framewait (void)
 		diff = 5000;
 	clockadjust = -vsynctimebase * diff / 1000;
 	clockadjust *= 100;
-	write_log (L"%d:%d:%d\n", framems - tickdiff, diff, clockadjust);
+	write_log (_T("%d:%d:%d\n"), framems - tickdiff, diff, clockadjust);
 #endif
 	if (currprefs.m68k_speed < 0) {
 
@@ -6151,12 +6149,13 @@ static void hsync_handler_post (bool onvsync)
 
 	events_dmal_hsync ();
 #if 0
+	// AF testing stuff
 	static int cnt = 0;
 	cnt++;
 	if (cnt == 500) {
 		int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TCHAR *custom);
-		port_insert_custom (0, 2, 0, L"Fire.autorepeat=0x38 Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Fire2=0x52'");
-		port_insert_custom (1, 2, 0, L"Left=0x48 Right=0x50 Up=0x4B Down=0x4D Fire=0x4C");
+		port_insert_custom (0, 2, 0, _T("Fire.autorepeat=0x38 Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Fire2=0x52'"));
+		port_insert_custom (1, 2, 0, _T("Left=0x48 Right=0x50 Up=0x4B Down=0x4D Fire=0x4C"));
 	} else if (cnt == 1000) {
 		TCHAR out[256];
 		bool port_get_custom (int inputmap_port, TCHAR *out);
@@ -6203,7 +6202,7 @@ static void hsync_handler_post (bool onvsync)
 					}
 				}
 			} else {
-				;//write_log (L"%d ", vpos);
+				;//write_log (_T("%d "), vpos);
 			}
 		}
 	} else {
@@ -6214,7 +6213,7 @@ static void hsync_handler_post (bool onvsync)
 			while (!vsync_isdone () && (int)vsyncmintime - (int)(rpt + vsynctimebase / 10) > 0 && (int)vsyncmintime - (int)rpt < vsynctimebase) {
 				sleep_millis_main (1);
 				rpt = read_processor_time ();
-				//write_log (L"*");
+				//write_log (_T("*"));
 			}
 		}
 	}

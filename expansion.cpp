@@ -222,7 +222,7 @@ void expamem_next (void)
 	map_banks (&expamem_bank, 0xE8, 1, 0);
 	++ecard;
 	if (ecard < cardno) {
-		expamem_bank.name = card_name[ecard] ? card_name[ecard] : _T("None");
+		expamem_bank.name = card_name[ecard] ? card_name[ecard] : (TCHAR*) _T("None");
 		(*card_init[ecard]) ();
 	} else {
 		expamem_init_clear2 ();

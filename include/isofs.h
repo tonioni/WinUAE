@@ -2,8 +2,10 @@
 #ifndef _ISOFS_FS_H
 #define _ISOFS_FS_H
 
+#ifdef WINDOWS
 typedef int gid_t;
 typedef int uid_t;
+#endif
 
 #define ISO_SYSTEM_ID_CDTV "CDTV"
 

@@ -1725,7 +1725,7 @@ struct zvolume *archive_directory_rdb (struct zfile *z)
 		zai.flags = -1;
 		zn = zvolume_addfile_abs (zv, &zai);
 		zn->offset = partblock;
-		zn->offset2 = blocksize; // örp?
+		zn->offset2 = blocksize; // abuse of offset2..
 	}
 
 	zfile_fseek (z, 0, SEEK_SET);

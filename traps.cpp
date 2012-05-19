@@ -336,7 +336,7 @@ static uae_u32 trap_Call68k (TrapContext *context, uaecptr func_addr)
 /*
 * Handles the emulator's side of a 68k call (from an extended trap)
 */
-static uae_u32 REGPARAM3 m68k_call_handler (TrapContext *dummy_ctx)
+static uae_u32 REGPARAM2 m68k_call_handler (TrapContext *dummy_ctx)
 {
 	TrapContext *context = current_context;
 
@@ -374,7 +374,7 @@ static uae_u32 REGPARAM3 m68k_call_handler (TrapContext *dummy_ctx)
 /*
 * Handles the return from a 68k call at the emulator's side.
 */
-static uae_u32 REGPARAM3 m68k_return_handler (TrapContext *dummy_ctx)
+static uae_u32 REGPARAM2 m68k_return_handler (TrapContext *dummy_ctx)
 {
 	TrapContext *context;
 	uae_u32 sp;
@@ -408,7 +408,7 @@ static uae_u32 REGPARAM3 m68k_return_handler (TrapContext *dummy_ctx)
 * Handles completion of an extended trap and passes
 * return value from trap function to 68k space.
 */
-static uae_u32 REGPARAM3 exit_trap_handler (TrapContext *dummy_ctx)
+static uae_u32 REGPARAM2 exit_trap_handler (TrapContext *dummy_ctx)
 {
 	TrapContext *context = current_context;
 

@@ -195,7 +195,7 @@ static void validate_trace (void)
 static void debug_trace (void)
 {
 	if (cputrace.writecounter > 10000 || cputrace.readcounter > 10000)
-		write_log (L"cputrace.readcounter=%d cputrace.writecounter=%d\n", cputrace.readcounter, cputrace.writecounter);
+		write_log (_T("cputrace.readcounter=%d cputrace.writecounter=%d\n"), cputrace.readcounter, cputrace.writecounter);
 }
 
 STATIC_INLINE void clear_trace (void)
@@ -3685,6 +3685,7 @@ static void m68k_run_1_ce (void)
 static void m68k_run_1_ce (void)
 {
 	struct regstruct *r = &regs;
+	uae_u16 opcode;
 
 	if (cpu_tracer < 0) {
 		memcpy (&r->regs, &cputrace.regs, 16 * sizeof (uae_u32));
@@ -3716,7 +3717,7 @@ static void m68k_run_1_ce (void)
 	set_cpu_tracer (false);
 
 	for (;;) {
-		uae_u16 opcode = r->ir;
+		opcode = r->ir;
 
 #if DEBUG_CD32CDTVIO
 		out_cd32io (m68k_getpc ());
@@ -4000,6 +4001,7 @@ STATIC_INLINE void docodece020 (uae_u32 opcode)
 static void m68k_run_2ce (void)
 {
 	struct regstruct *r = &regs;
+	uae_u16 opcode;
 
 	if (cpu_tracer < 0) {
 		memcpy (&r->regs, &cputrace.regs, 16 * sizeof (uae_u32));
@@ -4038,7 +4040,7 @@ static void m68k_run_2ce (void)
 
 	for (;;) {
 		r->instruction_pc = m68k_getpc ();
-		uae_u16 opcode = get_word_ce020_prefetch (0);
+		opcode = get_word_ce020_prefetch (0);
 
 		if (cpu_tracer) {
 

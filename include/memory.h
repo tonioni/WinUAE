@@ -319,9 +319,9 @@ extern uae_u32 (REGPARAM3 *chipmem_bget_indirect)(uaecptr) REGPARAM;
 extern void (REGPARAM3 *chipmem_lput_indirect)(uaecptr, uae_u32) REGPARAM;
 extern void (REGPARAM3 *chipmem_wput_indirect)(uaecptr, uae_u32) REGPARAM;
 extern void (REGPARAM3 *chipmem_bput_indirect)(uaecptr, uae_u32) REGPARAM;
-extern int (REGPARAM2 *chipmem_check_indirect)(uaecptr, uae_u32);
-extern uae_u8 *(REGPARAM2 *chipmem_xlate_indirect)(uaecptr);
-
+extern int (REGPARAM3 *chipmem_check_indirect)(uaecptr, uae_u32) REGPARAM;
+extern uae_u8 *(REGPARAM3 *chipmem_xlate_indirect)(uaecptr) REGPARAM;
+ 
 #ifdef NATMEM_OFFSET
 
 typedef struct shmpiece_reg {

@@ -512,12 +512,12 @@ out_nomem:
 	return -ENOMEM;
 
 out_noread:
-	write_log (_T("ISOFS: unable to read i-node block %lu\n"), block);
+	write_log (_T("ISOFS: unable to read i-node block %u\n"), block);
 	xfree(tmpde);
 	return -EIO;
 
 out_toomany:
-	write_log (_T("ISOFS: More than 100 file sections ?!?, aborting... isofs_read_level3_size: inode=%lu\n"), inode->i_ino);
+	write_log (_T("ISOFS: More than 100 file sections ?!?, aborting... isofs_read_level3_size: inode=%u\n"), inode->i_ino);
 	goto out;
 }
 
@@ -625,13 +625,13 @@ static int isofs_read_inode(struct inode *inode)
 	/* I have no idea what file_unit_size is used for, so
 	   we will flag it for now */
 	if (de->file_unit_size[0] != 0) {
-		write_log (_T("ISOFS: File unit size != 0 for ISO file (%ld).\n"), inode->i_ino);
+		write_log (_T("ISOFS: File unit size != 0 for ISO file (%d).\n"), inode->i_ino);
 	}
 
 	/* I have no idea what other flag bits are used for, so
 	   we will flag it for now */
 	if((de->flags[-high_sierra] & ~2)!= 0){
-		write_log (_T("ISOFS: Unusual flag settings for ISO file (%ld %x).\n"), inode->i_ino, de->flags[-high_sierra]);
+		write_log (_T("ISOFS: Unusual flag settings for ISO file (%d %x).\n"), inode->i_ino, de->flags[-high_sierra]);
 	}
 
 	inode->i_mtime.tv_sec =
@@ -1572,7 +1572,7 @@ static int isofs_get_blocks(struct inode *inode, uae_u32 iblock, struct buffer_h
 		 * I/O errors.
 		 */
 		if (b_off > ((inode->i_size) >> ISOFS_BUFFER_BITS(inode))) {
-			write_log (_T("ISOFS: block >= EOF (%lu, %llu)\n"), b_off, (unsigned long long)inode->i_size);
+			write_log (_T("ISOFS: block >= EOF (%u, %llu)\n"), b_off, (unsigned long long)inode->i_size);
 			goto abort;
 		}
 
@@ -2000,7 +2000,7 @@ out_no_read:
 	write_log (_T("ISOFS: bread failed, dev=%d, iso_blknum=%d, block=%d\n"), s->unitnum, iso_blknum, block);
 	goto out_freebh;
 out_bad_zone_size:
-	write_log(_T("ISOFS: Bad logical zone size %ld\n"), sbi->s_log_zone_size);
+	write_log(_T("ISOFS: Bad logical zone size %d\n"), sbi->s_log_zone_size);
 	goto out_freebh;
 out_bad_size:
 	write_log (_T("ISOFS: Logical zone size(%d) < hardware blocksize(%u)\n"), orig_zonesize, opt.blocksize);
@@ -2137,7 +2137,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 		dpnt = de->name;
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < dlen + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %u\n"), block, dir->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, dir->i_ino);
 			return 0;
 		}
 
@@ -2280,7 +2280,7 @@ static int do_isofs_readdir(struct inode *inode, struct file *filp, char *tmpnam
 		}
 		/* Basic sanity check, whether name doesn't exceed dir entry */
 		if (de_len < de->name_len[0] + sizeof(struct iso_directory_record)) {
-			write_log (_T("iso9660: Corrupted directory entry in block %lu of inode %lu\n"), block, inode->i_ino);
+			write_log (_T("iso9660: Corrupted directory entry in block %u of inode %u\n"), block, inode->i_ino);
 			return 0;
 		}
 

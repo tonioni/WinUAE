@@ -295,7 +295,7 @@ void serial_flush_buffer(void)
 	}
 }
 
-uae_u8 serial_readstatus(void)
+uae_u8 serial_readstatus(uae_u8 ignored)
 {
 	int status = 0;
 
@@ -335,7 +335,7 @@ uae_u8 serial_readstatus(void)
 	return status;
 }
 
-uae_u8 serial_writestatus (int old, int nw)
+uae_u8 serial_writestatus (uae_u8 old, uae_u8 nw)
 {
 	if ((old & 0x80) == 0x80 && (nw & 0x80) == 0x00)
 		serial_dtr_on();

@@ -116,9 +116,10 @@ static int cdscsidevicetype[MAX_TOTAL_SCSI_DEVICES];
 extern struct device_functions devicefunc_win32_aspi;
 extern struct device_functions devicefunc_win32_spti;
 extern struct device_functions devicefunc_win32_ioctl;
-extern struct device_functions devicefunc_cdimage;
 
 #endif
+
+extern struct device_functions devicefunc_cdimage;
 
 static struct device_functions *devicetable[] = {
 	NULL,

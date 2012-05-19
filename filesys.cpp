@@ -678,8 +678,8 @@ static void initialize_mountinfo (void)
 				uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 				uci->bootpri, uci->filesys);
 		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-#ifdef A2091
 			if (currprefs.cs_mbdmac) {
+#ifdef A2091
 				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
 					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
 					uci->bootpri, uci->filesys);
@@ -3203,7 +3203,7 @@ static void
 	xfree (x2);
 
 	put_long (info + 116, fsdb_can ? aino->amigaos_mode : fsdb_mode_supported (aino));
-	put_long (info + 124, statbuf.st_size > MAXFILESIZE32 ? MAXFILESIZE32 : statbuf.st_size);
+	put_long (info + 124, statbuf.st_size > MAXFILESIZE32 ? MAXFILESIZE32 : (uae_u32)statbuf.st_size);
 #ifdef HAVE_ST_BLOCKS
 	put_long (info + 128, statbuf.st_blocks);
 #else
@@ -5238,11 +5238,11 @@ static void action_change_file_size64 (Unit *unit, dpacket packet)
 
 	/* Write one then truncate: that should give the right size in all cases.  */
 	fs_lseek (k->fd, offset, whence);
-	offset = fs_lseek (k->fd, offset, whence);
+	offset = fs_lseek64 (k->fd, offset, whence);
 	fs_write (k->fd, /* whatever */(uae_u8*)&k1, 1);
 	if (k->file_pos > offset)
 		k->file_pos = offset;
-	fs_lseek (k->fd, k->file_pos, SEEK_SET);
+	fs_lseek64 (k->fd, k->file_pos, SEEK_SET);
 
 	if (my_truncate (k->aino->nname, offset) == -1) {
 		PUT_PCK64_RES1 (packet, DOS_FALSE);
@@ -7006,7 +7006,7 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
 	openmode = ((k->dosmode & A_FIBF_READ) == 0 ? O_WRONLY
 		: (k->dosmode & A_FIBF_WRITE) == 0 ? O_RDONLY
 		: O_RDWR);
-	write_log (_T("FS: open file '%s' ('%s'), pos=%d\n"), p, pn, k->file_pos);
+	write_log (_T("FS: open file '%s' ('%s'), pos=%llu\n"), p, pn, k->file_pos);
 	a = get_aino (u, &u->rootnode, p, &err);
 	if (!a)
 		write_log (_T("*** FS: Open file aino creation failed '%s'\n"), p);
@@ -7046,9 +7046,9 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
 			uae_s64 s;
 			s = fs_fsize64 (k->fd);
 			if (s != savedsize)
-				write_log (_T("FS: restored file '%s' size changed! orig=%lld, now=%lld!!\n"), p, savedsize, s);
+				write_log (_T("FS: restored file '%s' size changed! orig=%llu, now=%lld!!\n"), p, savedsize, s);
 			if (k->file_pos > s) {
-				write_log (_T("FS: restored filepos larger than size of file '%s'!! %lld > %d\n"), p, k->file_pos, s);
+				write_log (_T("FS: restored filepos larger than size of file '%s'!! %llu > %lld\n"), p, k->file_pos, s);
 				k->file_pos = s;
 			}
 			fs_lseek64 (k->fd, k->file_pos, SEEK_SET);
