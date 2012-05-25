@@ -5309,7 +5309,7 @@ static bool framewait (void)
 		}
 
 		frame_shown = true;
-		return status != 0;
+		return 1;
 
 	} else if (vs < 0) {
 
@@ -5405,10 +5405,11 @@ static bool framewait (void)
 			status = vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
 
+			now = read_processor_time ();
+
 			if (extraframewait && !currprefs.turbo_emulation)
 				sleep_millis_main (extraframewait);
 
-			now = read_processor_time ();
 			adjust = (int)now - (int)curr_time;
 			int adjustx = adjust;
 			if (adjust < 0)
@@ -5456,6 +5457,8 @@ static bool framewait (void)
 		return status != 0;
 	}
 
+	status = 1;
+
 	int clockadjust = 0;
 #if 0
 	static uae_u32 prevtick;
@@ -5482,6 +5485,7 @@ static bool framewait (void)
 	clockadjust *= 100;
 	write_log (_T("%d:%d:%d\n"), framems - tickdiff, diff, clockadjust);
 #endif
+
 	if (currprefs.m68k_speed < 0) {
 
 		if (!frame_rendered && !picasso_on)
@@ -5553,6 +5557,7 @@ static bool framewait (void)
 			vsynctimeperline = 0;
 		else if (vsynctimeperline > vsynctimebase / 3)
 			vsynctimeperline = vsynctimebase / 3;
+		
 		frame_shown = true;
 
 	}
@@ -5619,6 +5624,7 @@ static void vsync_handler_pre (void)
 	if (isvsync_rtg () >= 0)
 		rtg_vsync ();
 #endif
+
 	audio_vsync ();
 	blkdev_vsync ();
 	CIA_vsync_prehandler ();

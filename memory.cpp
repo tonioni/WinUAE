@@ -3032,16 +3032,16 @@ uae_char *strcpyah_safe (uae_char *dst, uaecptr src, int maxsize)
 {
 	uae_char *res = dst;
 	uae_u8 b;
+	dst[0] = 0;
 	do {
 		if (!addr_valid (_T("_tcscpyah"), src, 1))
 			return res;
 		b = get_byte (src++);
 		*dst++ = b;
+		*dst = 0;
 		maxsize--;
-		if (maxsize <= 1) {
-			*dst++= 0;
+		if (maxsize <= 1)
 			break;
-		}
 	} while (b);
 	return res;
 }

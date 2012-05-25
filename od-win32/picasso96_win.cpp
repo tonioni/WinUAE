@@ -2198,7 +2198,7 @@ static void inituaegfx (uaecptr ABI)
 		write_log (_T("P96: Blitter disabled in devs:monitors/uaegfx!\n"));
 	flags |= BIF_BLITTER | BIF_NOMEMORYMODEMIX;
 	flags &= ~BIF_HARDWARESPRITE;
-	if (currprefs.gfx_api && D3D_goodenough () && USE_HARDWARESPRITE) {
+	if (currprefs.gfx_api && D3D_goodenough () > 0 && USE_HARDWARESPRITE) {
 		hwsprite = 1;
 		flags |= BIF_HARDWARESPRITE;
 		write_log (_T("P96: Hardware sprite support enabled\n"));

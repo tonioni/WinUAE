@@ -45,13 +45,31 @@ int my_mkdir (const TCHAR *name)
 
 static int recycle (const TCHAR *name)
 {
-	if (currprefs.win32_norecyclebin) {
-		DWORD dirattr = GetFileAttributes (name);
-		if (dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY))
+	DWORD dirattr = GetFileAttributes (name);
+	bool isdir = dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY);
+
+	if (currprefs.win32_norecyclebin || isdir) {
+		if (isdir)
 			return RemoveDirectory (name) ? 0 : -1;
-		return DeleteFile(name) ? 0 : -1;
+		else
+			return DeleteFile (name) ? 0 : -1;
 	} else {
 		SHFILEOPSTRUCT fos;
+		HANDLE h;
+		
+		h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (h != INVALID_HANDLE_VALUE) {
+			LARGE_INTEGER size;
+			if (GetFileSizeEx (h, &size)) {
+				if (size.QuadPart == 0) {
+					CloseHandle (h);
+					return DeleteFile (name) ? 0 : -1;
+				}
+			}
+			CloseHandle (h);
+		}
+
 		/* name must be terminated by \0\0 */
 		TCHAR *p = xcalloc (TCHAR, _tcslen (name) + 2);
 		int v;

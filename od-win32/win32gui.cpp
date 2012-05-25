@@ -12742,7 +12742,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		}
 	}
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
-	if (workprefs.gfx_api && D3D_goodenough ()) {
+	if (workprefs.gfx_api && D3D_goodenough () > 1) {
 		WIN32GUI_LoadUIString (IDS_NONE, tmp, MAX_DPATH);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, 0, 0);

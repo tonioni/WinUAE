@@ -206,6 +206,7 @@ int thisframe_first_drawn_line, thisframe_last_drawn_line;
 interlace mode.  */
 static int last_redraw_point;
 
+#define MAX_STOP 30000
 static int first_drawn_line, last_drawn_line;
 static int first_block_line, last_block_line;
 
@@ -367,14 +368,14 @@ void set_custom_limits (int w, int h, int dx, int dy)
 
 	if (w <= 0 || dx < 0) {
 		visible_left_start = 0;
-		visible_right_stop = 1 << 30;
+		visible_right_stop = MAX_STOP;
 	} else {
 		visible_left_start = visible_left_border + dx;
 		visible_right_stop = visible_left_start + w;
 	}
 	if (h <= 0 || dy < 0) {
 		visible_top_start = 0;
-		visible_bottom_stop = 1 << 30;
+		visible_bottom_stop = MAX_STOP;
 	} else {
 		visible_top_start = min_ypos_for_screen + dy;
 		visible_bottom_stop = visible_top_start + h;
@@ -1852,6 +1853,11 @@ void init_aspect_maps (void)
 
 	gfxvidinfo.xchange = 1 << (RES_MAX - currprefs.gfx_resolution);
 	gfxvidinfo.ychange = linedbl ? 1 : 2;
+
+	visible_left_start = 0;
+	visible_right_stop = MAX_STOP;
+	visible_top_start = 0;
+	visible_bottom_stop = MAX_STOP;
 }
 
 /*

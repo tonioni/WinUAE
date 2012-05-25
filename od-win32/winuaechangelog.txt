@@ -3,6 +3,22 @@
 - hdd from command line
 - no-buffer tearing updates
 
+Beta 3:
+
+- FPS led was always yellow in most non low latency vsync modes.
+- Custom input event toggle didn't work (3rd and 4th slots), (2.4.1)
+- Custom input event non-toggle mode with qualifiers didn't work correctly.
+- Allow D3D RTG hardware sprite if non-power of 2 textures are supported, do not require shader support.
+- Do not override currently selected CD image when loading statefile if new CD path does not exist. 
+- Do not report CD not present state if restoring CD32 statefile that was created with inserted CD.
+  It would usually cause immediate reboot to CD32 title screen and most CD32 shovelware ports won't care about
+  the CD after game has been loaded. This has been broken previously many times..
+- Any active breakpoint stopped all interrupts in some situations if 68020 cycle-exact mode.
+- "ALT-TAB or middle mouse button untraps mouse - F12 opens settings" window title was missing.
+- Uncapture mouse when entering debugger.
+- Fixed blank screen in directdraw + no filter mode. (b1)
+- Do not move directories or empty files to Windows recycle bin (if recycle bin option enabled).
+
 Beta 2:
 
 - Missing harddrive in harddrive dialog if any device returned "too short STORAGE_DEVICE_DESCRIPTOR only x bytes". (2.4.0)

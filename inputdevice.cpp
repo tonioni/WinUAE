@@ -2188,7 +2188,7 @@ static int handle_custom_event (TCHAR *custom)
 
 	if (custom == NULL)
 		return 0;
-	//write_log (_T("%s\n"), custom);
+	write_log (_T("%s\n"), custom);
 	p = buf = my_strdup (custom);
 	while (p && *p) {
 		TCHAR *p2;
@@ -3324,14 +3324,39 @@ static int getqualmask (struct uae_input_device *id, int num, bool *qualonly)
 	return mask;
 }
 
-static void process_custom_event (struct uae_input_device *id, int offset, int state, int qualmask, int autofire)
+
+static void process_custom_event (struct uae_input_device *id, int offset, int state, int qualmask, int autofire, int sub)
 {
-	int idx, slotoffset, flags, custompos;
+	int idx, slotoffset, flags, custompos, qual;
 	TCHAR *custom;
 
-	queue_input_event (-1, NULL, -1, 0, 0, 1);
 	if (!id)
 		return;
+	
+	slotoffset = sub / 4;
+	flags = id->flags[offset][slotoffset];
+	qual = flags & ID_FLAG_QUALIFIER_MASK;
+	custompos = (flags & ID_FLAG_CUSTOMEVENT_TOGGLED) ? 1 : 0;
+ 
+	// check that slots 0 and 2 have same qualifiers, only allow toggle if both are same
+	if ((id->flags[offset][slotoffset + 2] & ID_FLAG_QUALIFIER_MASK) != qual) {
+		id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
+		if (checkqualifiers (id->eventid[offset][slotoffset + sub], id->flags[offset][slotoffset + sub], qualmask)) {
+			custom = id->custom[offset][slotoffset + sub];
+			if (custom) {
+				if (autofire)
+					queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
+				if (state && custom)
+					handle_custom_event (custom);
+			}
+			return;
+		}
+	}
+
+	if (sub != 0)
+		return;
+
+	queue_input_event (-1, NULL, -1, 0, 0, 1);
 
 	slotoffset = 0;
 	if (!checkqualifiers (id->eventid[offset][slotoffset], id->flags[offset][slotoffset], qualmask)) {
@@ -3363,11 +3388,11 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 
 	if (autofire)
 		queue_input_event (-1, custom, 1, 1, currprefs.input_autofire_linecnt, 1);
-	if (state) {
+	if (state && custom)
 		handle_custom_event (custom);
-		id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
-		id->flags[offset][slotoffset] |= custompos ? ID_FLAG_CUSTOMEVENT_TOGGLED : 0;
-	}
+
+	id->flags[offset][slotoffset] &= ~ID_FLAG_CUSTOMEVENT_TOGGLED;
+	id->flags[offset][slotoffset] |= custompos ? ID_FLAG_CUSTOMEVENT_TOGGLED : 0;
 }
 
 static void setbuttonstateall (struct uae_input_device *id, struct uae_input_device2 *id2, int button, int state)
@@ -3410,8 +3435,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		int inverttoggle = (flags & ID_FLAG_INVERTTOGGLE) ? 1 : 0;
 
 		if (!state) {
-			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire);
+			process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 		}
 
 		setqualifiers (flags, state > 0);
@@ -3423,7 +3447,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				continue;
 			handle_input_event (evt, 1, 1, 0, true, false);
 			queue_input_event (evt, NULL, 0, 1, 1, 0); /* send release event next frame */
-			process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0);
+			process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, 0, i);
 		} else if (inverttoggle) {
 			/* pressed = firebutton, not pressed = autofire */
 			if (state) {
@@ -3432,8 +3456,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			} else {
 				handle_input_event (evt, 1, 1, autofire, true, false);
 			}
-			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, 1, qualmask, autofire);
+			process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 		} else if (toggle) {
 			if (!state)
 				continue;
@@ -3444,8 +3467,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 			*flagsp ^= ID_FLAG_TOGGLED;
 			int toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
 			handle_input_event (evt, toggled, 1, autofire, true, false);
-			if (i == 0)
-				process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire);
+			process_custom_event (id, ID_BUTTON_OFFSET + button, toggled, qualmask, autofire, i);
 		} else {
 			if (!checkqualifiers (evt, flags, qualmask)) {
 				if (!state && !(flags & ID_FLAG_CANRELEASE)) {
@@ -3460,8 +3482,8 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 				*flagsp |= ID_FLAG_CANRELEASE;
 			if ((omask ^ nmask) & mask) {
 				handle_input_event (evt, state, 1, autofire, true, false);
-				if (i == 0)
-					process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire);
+				if (state)
+					process_custom_event (id, ID_BUTTON_OFFSET + button, state, qualmask, autofire, i);
 			}
 		}
 	}
@@ -4947,7 +4969,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 		return handled;
 
 	if (!state)
-		process_custom_event (NULL, 0, 0, 0, 0);
+		process_custom_event (NULL, 0, 0, 0, 0, 0);
 
 	j = 0;
 	while (j < MAX_INPUT_DEVICE_EVENTS && na->extra[j] >= 0) {
@@ -4992,8 +5014,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					} else {
 						handled |= handle_input_event (evt, 1, 1, autofire, true, false);
 					}
-					if (k == 0)
-						process_custom_event (na, j, state, qualmask, autofire);
+					process_custom_event (na, j, state, qualmask, autofire, k);
 				} else if (toggle) {
 					if (!state)
 						continue;
@@ -5003,7 +5024,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					toggled = (*flagsp & ID_FLAG_TOGGLED) ? 1 : 0;
 					handled |= handle_input_event (evt, toggled, 1, autofire, true, false);
 					if (k == 0)
-						process_custom_event (na, j, state, qualmask, autofire);
+						process_custom_event (na, j, state, qualmask, autofire, k);
 				} else {
 					if (!checkqualifiers (evt, flags, qualmask)) {
 						if (!state && !(flags & ID_FLAG_CANRELEASE))
@@ -5016,8 +5037,7 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 					else
 						*flagsp &= ~ID_FLAG_CANRELEASE;
 					handled |= handle_input_event (evt, state, 1, autofire, true, false);
-					if (k == 0)
-						process_custom_event (na, j, state, qualmask, autofire);
+					process_custom_event (na, j, state, qualmask, autofire, k);
 				}
 			}
 			return handled;

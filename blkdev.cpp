@@ -18,6 +18,7 @@
 #include "crc32.h"
 #include "threaddep/thread.h"
 #include "execio.h"
+#include "zfile.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1838,8 +1839,10 @@ uae_u8 *restore_cd (int num, uae_u8 *src)
 	int type = restore_u32 ();
 	restore_u32 ();
 	if (flags & 4) {
-		_tcscpy (changed_prefs.cdslots[num].name, s);
-		_tcscpy (currprefs.cdslots[num].name, s);
+		if (currprefs.cdslots[num].name[0] == 0 || zfile_exists (s)) {
+			_tcscpy (changed_prefs.cdslots[num].name, s);
+			_tcscpy (currprefs.cdslots[num].name, s);
+		}
 		changed_prefs.cdslots[num].type = currprefs.cdslots[num].type = type;
 	}
 	if (flags & 8) {

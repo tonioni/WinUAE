@@ -650,6 +650,7 @@ static void setmouseactive2 (int active, bool allowpause)
 		} else if (currprefs.win32_active_nocapture_nosound && sound_closed < 0) {
 			resumesoundpaused ();
 		}
+		setmaintitle (hMainWnd);
 	} else {
 		inputdevice_acquire (FALSE);
 	}

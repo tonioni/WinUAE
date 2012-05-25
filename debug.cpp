@@ -3805,6 +3805,7 @@ void debug (void)
 
 	inputdevice_unacquire ();
 	pause_sound ();
+	setmouseactive (0);
 	do_skip = 0;
 	skipaddr_start = 0xffffffff;
 	skipaddr_end = 0xffffffff;

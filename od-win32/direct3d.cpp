@@ -72,6 +72,9 @@ RECT mask2rect;
 static bool wasstilldrawing_broken;
 static HANDLE filenotificationhandle;
 
+static bool fakemode;
+static uae_u8 *fakebitmap;
+
 static D3DXMATRIXA16 m_matProj, m_matProj2;
 static D3DXMATRIXA16 m_matWorld, m_matWorld2;
 static D3DXMATRIXA16 m_matView, m_matView2;
@@ -226,7 +229,7 @@ static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 
 static int isd3d (void)
 {
-	if (devicelost || !d3ddev || !d3d_enabled)
+	if (fakemode || devicelost || !d3ddev || !d3d_enabled)
 		return 0;
 	return 1;
 }
@@ -473,17 +476,18 @@ int D3D_goodenough (void)
 	D3DCAPS9 d3dCaps;
 
 	if (d3d_good > 0)
-		return 1;
+		return d3d_good;
 	if (d3d_good < 0)
 		return 0;
 	d3d_good = -1;
 	d3dx = Direct3DCreate9 (D3D_SDK_VERSION);
 	if (d3dx != NULL) {
 		if (SUCCEEDED (d3dx->GetDeviceCaps (D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &d3dCaps))) {
-			if (d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1, 0)) {
-				if (((d3dCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) == D3DPTEXTURECAPS_NONPOW2CONDITIONAL) || !(d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)) {
-					if (!(d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY) && (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)) {
-						d3d_good = 1;
+			if (((d3dCaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) == D3DPTEXTURECAPS_NONPOW2CONDITIONAL) || !(d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)) {
+				if (!(d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY) && (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)) {
+					d3d_good = 1;
+					if (d3dCaps.PixelShaderVersion >= D3DPS_VERSION(1, 0)) {
+						d3d_good = 2;
 						shaderon = 1;
 					}
 				}
@@ -491,7 +495,7 @@ int D3D_goodenough (void)
 		}
 		d3dx->Release ();
 	}
-	return d3d_good > 0 ? 1 : 0;
+	return d3d_good > 0 ? d3d_good : 0;
 }
 
 int D3D_canshaders (void)
@@ -2032,6 +2036,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		return errmsg;
 	}
 
+	xfree (fakebitmap);
+	fakebitmap = xmalloc (uae_u8, w_w * depth);
+
 	d3dx = LoadLibrary (D3DX9DLL);
 	if (d3dx == NULL) {
 		_tcscpy (errmsg, _T("Direct3D: Newer DirectX Runtime required.\n\nhttp://go.microsoft.com/fwlink/?linkid=56513"));
@@ -2203,7 +2210,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	max_texture_w = d3dCaps.MaxTextureWidth;
 	max_texture_h = d3dCaps.MaxTextureHeight;
 
-	write_log (_T("%s: %08X "), D3DHEAD, flags);
+	write_log (_T("%s: %08X "), D3DHEAD, flags, d3dCaps.Caps, d3dCaps.Caps2, d3dCaps.Caps3);
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_SQUAREONLY)
 		write_log (_T("SQUAREONLY "));
 	if (d3dCaps.TextureCaps & D3DPTEXTURECAPS_POW2)
@@ -2214,6 +2221,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		write_log (_T("ALPHA "));
 	if (d3dCaps.Caps2 & D3DCAPS2_DYNAMICTEXTURES)
 		write_log (_T("DYNAMIC "));
+	if (d3dCaps.Caps & D3DCAPS_READ_SCANLINE)
+		write_log (_T("SCANLINE "));
+	
 	write_log (_T("\n"));
 
 	write_log (_T("%s: PS=%d.%d VS=%d.%d %d*%d*%d%s%s VS=%d B=%d%s %d-bit %d\n"),
@@ -2305,7 +2315,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			write_log (_T("%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		//hr = d3ddevex->SetMaximumFrameLatency (vsync < 0 && ap->gfx_vflip <= 0 ? 1 : (vsync ? 2 : 0));
 		hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2758,7 +2767,7 @@ void D3D_unlocktexture (void)
 
 void D3D_flushtexture (int miny, int maxy)
 {
-	if (fulllocked || !texture)
+	if (fakemode || fulllocked || !texture)
 		return;
 	if (miny >= 0 && maxy >= 0) {
 		RECT r;
@@ -2780,6 +2789,11 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 {
 	D3DLOCKED_RECT lock;
 	HRESULT hr;
+
+	if (fakemode) {
+		*pitch = 0;
+		return fakebitmap;
+	}
 
 	if (D3D_needreset () > 0)
 		return NULL;
@@ -2834,6 +2848,9 @@ bool D3D_renderframe (bool immediate)
 {
 	static int vsync2_cnt;
 
+	if (fakemode)
+		return true;
+
 	if (!isd3d () || !texture)
 		return false;
 
@@ -2863,6 +2880,8 @@ bool D3D_renderframe (bool immediate)
 
 void D3D_showframe (void)
 {
+	if (!isd3d ())
+		return;
 	if (currprefs.turbo_emulation) {
 		if (!(dpp.PresentationInterval & D3DPRESENT_INTERVAL_IMMEDIATE) && wasstilldrawing_broken) {
 			static int frameskip;

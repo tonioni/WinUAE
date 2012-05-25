@@ -1031,7 +1031,18 @@ static uae_u32 REGPARAM2 bsdsocklib_getprotobynumber (TrapContext *context)
 /* Syslog(level, format, ap)(d0/a0/a1) */
 static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
 {
-	write_log (_T("bsdsocket: UNSUPPORTED: vsyslog()\n"));
+	uae_char format_dst[256];
+	TCHAR *s;
+
+	uae_u32 level = m68k_dreg (regs, 0);
+	uaecptr format = m68k_areg (regs, 0);
+	uaecptr params = m68k_areg (regs, 1);
+
+	strcpyah_safe (format_dst, format, sizeof format_dst);
+
+	s = au (format_dst);
+	write_log (_T("SYSLOG: %s\n"), s);
+	xfree (s);
 	return 0;
 }
 

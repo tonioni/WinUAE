@@ -2641,8 +2641,7 @@ static bool vblanklaceskip_check (void)
 //			write_log (_T("%d == %d\n"), vblankbaselace_chipset, vblankthread_oddeven);
 		return false;
 	}
-	getvblankpos (&vp);
-	write_log (_T("Interlaced frame type mismatch %d<>%d (%d)\n"), vblankbaselace_chipset, vblankthread_oddeven, vp);
+	write_log (_T("Interlaced frame type mismatch %d<>%d\n"), vblankbaselace_chipset, vblankthread_oddeven);
 	return true;
 }
 
@@ -2668,7 +2667,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 		} else if (mode == VBLANKTH_ACTIVE_WAIT) {
 			sleep_millis (1);
 		} else if (mode == VBLANKTH_ACTIVE_START) {
-			// do not start until vblank has been passed
+			// do not start until vblank has passed
 			int vp;
 			if (!getvblankpos (&vp)) {
 				// bad things happening
@@ -2878,7 +2877,7 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		vblank_prev_time = t;
 		thread_vblank_time = t;
 		frame_missed++;
-		return true;
+		return 0;
 	}
 
 	if (0 || (log_vsync & 1)) {
@@ -2917,7 +2916,7 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 
 			vblank_prev_time = read_processor_time () + vblankbasewait1;
 			dooddevenskip = true;
-			framelost = true;
+			framelost = false;
 			v = -1;
 
 		} else if (currprefs.turbo_emulation) {
@@ -2933,7 +2932,6 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 				vsync_sleep (false);
 			}
 
-			prevvblankpos = 0;
 			vp = vblank_wait ();
 			if (vp >= -1) {
 				vblank_prev_time = read_processor_time ();
@@ -2963,6 +2961,7 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 
 			framelost = false;
 		}
+		getvblankpos (&vp);
 	}
 
 	if (v) {
@@ -3112,9 +3111,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		if (cnt >= total)
 			break;
 	}
-	vblankbaseadjust = 0;
-	if (minscanline == 1)
-		vblankbaseadjust = timezeroonevblank (-1, 1);
+	vblankbaseadjust = timezeroonevblank (-1, 1);
 
 	changevblankthreadmode (VBLANKTH_IDLE);
 
@@ -3170,15 +3167,21 @@ skip:
 	vblankbasewait2 = (syncbase / tsum2) * 55 / 100;
 	vblankbasewait3 = (syncbase / tsum2) * 99 / 100 - syncbase / (250 * (vblank_skipeveryother ? 1 : 2)); // at least 2ms before vblank
 	vblankbaselace = lace;
-	if (vblankbaseadjust < 0)
-		vblankbaseadjust = 0;
-	else if (vblankbaseadjust > vblankbasefull / 10)
-		vblankbaseadjust = vblankbasefull / 10;
 
 	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Adj=%d Units=%d %.1f%%\n"),
 		waitonly ? _T("remembered") : _T("calibrated"), tsum, div, tsum2,
 		minscanline, maxvpos, lace ? _T("i") : _T(""), vblankbaseadjust, vblankbasefull,
 		vblankbasewait3 * 100 / (syncbase / tsum2));
+
+	if (minscanline == 1) {
+		if (vblankbaseadjust < 0)
+			vblankbaseadjust = 0;
+		else if (vblankbaseadjust > vblankbasefull / 10)
+			vblankbaseadjust = vblankbasefull / 10;
+	} else {
+		vblankbaseadjust = 0;
+	}
+
 	remembered_vblank = tsum;
 	vblank_prev_time = read_processor_time ();
 	
