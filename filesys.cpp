@@ -6024,6 +6024,26 @@ static TCHAR *device_dupfix (uaecptr expbase, TCHAR *devname)
 	return my_strdup (newname);
 }
 
+static const TCHAR *dostypes (uae_u32 dostype)
+{
+	static TCHAR dt[32];
+	int j;
+
+	j = 0;
+	for (int i = 0; i < 4; i++) {
+		uae_u8 c = dostype >> ((3 - i) * 8);
+		if (c >= ' ' && c <= 'z') {
+			dt[j++] = c;
+		} else {
+			dt[j++] = '\\';
+			_stprintf (&dt[j], _T("%d"), c);
+			j += _tcslen (&dt[j]);
+		}
+	}
+	dt[j] = 0;
+	return dt;
+}
+
 static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 {
 	TCHAR *s;
@@ -6047,7 +6067,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	lowcyl = rl (pp + 36);
 	highcyl = rl (pp + 40);
 
-	write_log (_T("RDB: '%s' dostype=%08X\n"), s, dostype);
+	write_log (_T("RDB: '%s' dostype=%08X (%s)\n"), s, dostype, dostypes (dostype));
 	write_log (_T("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n"),
 		blocksize, surfaces, spb);
 	write_log (_T("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n"),
@@ -6057,7 +6077,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 
 	block = lowcyl * surfaces * spt;
 	if (hdf_read (hfd, buf, (uae_u64)blocksize * block, sizeof buf)) {
-		write_log (_T("First block %d dostype: %08X\n"), block, rl (buf));
+		write_log (_T("First block %d dostype: %08X (%s)\n"), block, rl (buf), dostypes (rl (buf)));
 	} else {
 		write_log (_T("First block %d read failed!\n"), block);
 	}
@@ -6120,7 +6140,7 @@ static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, u
 		uae_u32 dostype = rl (buf + 32);
 		int version = (buf[36] << 8) | buf[37];
 		int revision = (buf[38] << 8) | buf[39];
-		write_log (_T("LSEG: %08x (%d.%d)\n"), dostype, version, revision);
+		write_log (_T("LSEG: %08x (%s) %d.%d\n"), dostype, dostypes (dostype), version, revision);
 	}
 }
 
@@ -6286,7 +6306,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	for (;;) {
 		if (fileblock == -1) {
 			if (!fsnode)
-				write_log (_T("RDB: FS %08X not in FileSystem.resource or in RDB\n"), dostype);
+				write_log (_T("RDB: FS %08X (%s) not in FileSystem.resource or in RDB\n"), dostype, dostypes (dostype));
 			goto error;
 		}
 		if (!legalrdbblock (uip, fileblock)) {
@@ -6307,9 +6327,9 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	newversion = (buf[36] << 8) | buf[37];
 	newrevision = (buf[38] << 8) | buf[39];
 
-	write_log (_T("RDB: RDB filesystem %08X version %d.%d\n"), dostype, newversion, newrevision);
+	write_log (_T("RDB: RDB filesystem %08X (%s) version %d.%d\n"), dostype, dostypes (dostype), newversion, newrevision);
 	if (fsnode) {
-		write_log (_T("RDB: %08X in FileSystem.resource version %d.%d\n"), dostype, oldversion, oldrevision);
+		write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dostype), oldversion, oldrevision);
 	}
 	if (newversion * 65536 + newrevision <= oldversion * 65536 + oldrevision && oldversion >= 0) {
 		write_log (_T("RDB: FS in FileSystem.resource is newer or same, ignoring RDB filesystem\n"));
@@ -6403,13 +6423,13 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 		_tcscpy (tmp + i, _T("FastFileSystem"));
 	}
 	if (tmp[0] == 0) {
-		write_log (_T("RDB: no filesystem for dostype 0x%08X\n"), dostype);
+		write_log (_T("RDB: no filesystem for dostype 0x%08X (%s)\n"), dostype, dostypes (dostype));
 		if ((dostype & 0xffffff00) == 0x444f5300)
 			return FILESYS_HARDFILE;
 		write_log (_T("RDB: mounted without filesys\n"));
 		return FILESYS_HARDFILE;
 	}
-	write_log (_T("RDB: fakefilesys, trying to load '%s', dostype 0x%08X\n"), tmp, dostype);
+	write_log (_T("RDB: fakefilesys, trying to load '%s', dostype 0x%08X (%s)\n"), tmp, dostype, dostypes (dostype));
 	zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 	if (!zf) {
 		write_log (_T("RDB: filesys not found\n"));
@@ -6430,7 +6450,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket)
 	uip->rdb_filesyssize = size;
 	put_long (parmpacket + PP_FSSIZE, uip->rdb_filesyssize);
 	addfakefilesys (parmpacket, dostype);
-	write_log (_T("HDF: faked RDB filesystem %08X loaded\n"), dostype);
+	write_log (_T("HDF: faked RDB filesystem %08X (%s) loaded\n"), dostype, dostypes (dostype));
 	return FILESYS_HARDFILE;
 }
 

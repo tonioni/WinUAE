@@ -1027,25 +1027,6 @@ static uae_u32 REGPARAM2 bsdsocklib_getprotobynumber (TrapContext *context)
 	return sb->sb_errno ? 0 : sb->protoent;
 }
 
-/* *------ syslog functions */
-/* Syslog(level, format, ap)(d0/a0/a1) */
-static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
-{
-	uae_char format_dst[256];
-	TCHAR *s;
-
-	uae_u32 level = m68k_dreg (regs, 0);
-	uaecptr format = m68k_areg (regs, 0);
-	uaecptr params = m68k_areg (regs, 1);
-
-	strcpyah_safe (format_dst, format, sizeof format_dst);
-
-	s = au (format_dst);
-	write_log (_T("SYSLOG: %s\n"), s);
-	xfree (s);
-	return 0;
-}
-
 /* *------ AmiTCP/IP 1.1 extensions */
 /* Dup2Socket(fd1, fd2)(d0/d1) */
 static uae_u32 REGPARAM2 bsdsocklib_Dup2Socket (TrapContext *context)
@@ -1107,6 +1088,86 @@ _T("Function not implemented"), _T("Inappropriate file type or format"), _T("PEr
 static uae_u32 errnotextptrs[sizeof (errortexts) / sizeof (*errortexts)];
 static const uae_u32 number_sys_error = sizeof (errortexts) / sizeof (*errortexts);
 
+
+/* *------ syslog functions */
+/* Syslog(level, format, ap)(d0/a0/a1) */
+static uae_u32 REGPARAM2 bsdsocklib_vsyslog (TrapContext *context)
+{
+#if 0
+	struct socketbase *sb = get_socketbase (context);
+	uae_char format_dst[512];
+	char out[256];
+	TCHAR *s;
+	uae_u8 paramtable[32 * 4];
+	int paramcnt, len;
+	uae_char *found = NULL;
+
+	uae_u32 level = m68k_dreg (regs, 0);
+	uaecptr format = m68k_areg (regs, 0);
+	uaecptr params = m68k_areg (regs, 1);
+
+	strcpyah_safe (format_dst, format, sizeof format_dst);
+
+	((uae_u8**)paramtable)[0] = (uae_u8*)format_dst;
+	paramcnt = 4;
+	for (int i = 0; format_dst[i]; i++) {
+		if (format_dst[i] == '%') {
+			if (found)
+				found = NULL;
+			else
+				found = &format_dst[i];
+			len = 4;
+		} else if (found) {
+			char c = toupper (format_dst[i]);
+			if (c < 'A' || c > 'Z')
+				continue;
+			if (c == 'H') {
+				len = 2;
+				continue;
+			}
+			if (c == 'M') {
+				int err = sb->sb_errno;
+				if (sb->sb_errno < 0 || sb->sb_errno >= sizeof (errortexts) / sizeof (*errortexts))
+					err = sizeof (errortexts) / sizeof (*errortexts) - 1;
+				int errlen = _tcslen (errortexts[err]) - (&format_dst[i] - found);
+				memmove (&format_dst[i] + errlen, &format_dst[i] + 1, strlen (&format_dst[i] + 1) + 1);
+				ua_copy (found, sizeof format_dst, errortexts[err]);
+				i += errlen - 1;
+				continue;
+			}
+
+			if (c == 'P' || c == 'S' || c == 'N') {
+				uaecptr pt = get_long (params);
+				if (!valid_address (pt, 2))
+					goto end;
+				((uae_u8**)(paramtable + paramcnt))[0] = get_real_address (pt);
+				params += 4;
+				paramcnt += sizeof (uae_u8*);
+			} else {
+				if (len == 2)
+					((uae_u16*)(paramtable + paramcnt))[0] = get_word (params);
+				else
+					((uae_u32*)(paramtable + paramcnt))[0] = get_long (params);
+				params += len;
+				paramcnt += len;
+			}
+			found = NULL;
+		}
+	}
+
+	va_list parms;
+	va_start (parms, paramtable);
+	_vsnprintf (out, sizeof out, format_dst, parms);
+	va_end (parms);
+
+	s = au (out);
+	write_log (_T("SYSLOG: %s\n"), s);
+	xfree (s);
+
+end:
+#endif
+	return 0;
+}
 
 static const TCHAR *herrortexts[] =
 {_T("No error"), _T("Unknown host"), _T("Host name lookup failure"), _T("Unknown server error"),

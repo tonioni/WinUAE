@@ -2880,8 +2880,9 @@ void target_default_options (struct uae_prefs *p, int type)
 		//p->win32_active_nocapture_priority = 1;
 		p->win32_inactive_priority = 2;
 		p->win32_iconified_priority = 3;
-		p->win32_notaskbarbutton = 0;
-		p->win32_alwaysontop = 0;
+		p->win32_notaskbarbutton = false;
+		p->win32_nonotificationicon = false;
+		p->win32_alwaysontop = false;
 		p->win32_guikey = -1;
 		p->win32_automount_removable = 0;
 		p->win32_automount_drives = 0;
@@ -3006,6 +3007,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 
 	cfgfile_target_dwrite (f, _T("cpu_idle"), _T("%d"), p->cpu_idle);
 	cfgfile_target_dwrite_bool (f, _T("notaskbarbutton"), p->win32_notaskbarbutton);
+	cfgfile_target_dwrite_bool (f, _T("nonotificationicon"), p->win32_nonotificationicon);
 	cfgfile_target_dwrite_bool (f, _T("always_on_top"), p->win32_alwaysontop);
 	cfgfile_target_dwrite_bool (f, _T("no_recyclebin"), p->win32_norecyclebin);
 	if (p->win32_guikey >= 0)
@@ -3078,6 +3080,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, _T("midiin_device"), &p->win32_midiindev, 1)
 		|| cfgfile_intval (option, value, _T("samplersoundcard"), &p->win32_samplersoundcard, 1)
 		|| cfgfile_yesno (option, value, _T("notaskbarbutton"), &p->win32_notaskbarbutton)
+		|| cfgfile_yesno (option, value, _T("nonotificationicon"), &p->win32_nonotificationicon)
 		|| cfgfile_yesno (option, value, _T("always_on_top"), &p->win32_alwaysontop)
 		|| cfgfile_yesno (option, value, _T("powersavedisabled"), &p->win32_powersavedisabled)
 		|| cfgfile_string (option, value, _T("exec_before"), p->win32_commandpathstart, sizeof p->win32_commandpathstart / sizeof (TCHAR))
@@ -5529,6 +5532,9 @@ void systray (HWND hwnd, int remove)
 {
 	NOTIFYICONDATA nid;
 	BOOL v;
+
+	if (!remove && currprefs.win32_nonotificationicon)
+		return;
 
 #ifdef RETROPLATFORM
 	if (rp_isactive ())

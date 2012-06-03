@@ -5460,33 +5460,34 @@ static bool framewait (void)
 	status = 1;
 
 	int clockadjust = 0;
-#if 0
-	static uae_u32 prevtick;
-	static int frametickcnt;
-
-	uae_u32 tick = read_system_time (); // milliseconds
-	uae_s32 tickdiff = tick - prevtick;
-	uae_s32 framems = (frametickcnt * 1000) / (int)(vblank_hz + 0.5);
-	if (abs (framems - tickdiff) >= 2000) {
-		framems = 0;
-		tickdiff = 0;
-		prevtick = tick;
-		frametickcnt = 0;
-		write_log (_T("!\n"));
-	} else {
-		frametickcnt++;
-	}
-	int diff = (framems - tickdiff) / 1;
-	if (diff < -5000)
-		diff = -5000;
-	else if (diff > 5000)
-		diff = 5000;
-	clockadjust = -vsynctimebase * diff / 1000;
-	clockadjust *= 100;
-	write_log (_T("%d:%d:%d\n"), framems - tickdiff, diff, clockadjust);
-#endif
+	int vstb = vsynctimebase;
 
 	if (currprefs.m68k_speed < 0) {
+
+#if 0
+		static uae_u32 prevtick;
+		static int frametickcnt;
+
+		uae_u32 tick = read_system_time (); // milliseconds
+		uae_s32 tickdiff = tick - prevtick;
+		uae_s32 framems = (frametickcnt * 1000) / (int)(vblank_hz + 0.5);
+		if (abs (framems - tickdiff) >= 2000) {
+			framems = 0;
+			tickdiff = 0;
+			prevtick = tick;
+			frametickcnt = 0;
+			write_log (_T("Clock sync reset!\n"));
+		} else {
+			frametickcnt++;
+		}
+		int diff = (framems - tickdiff) / 1;
+		if (diff < -100)
+			diff = -100;
+		else if (diff > 100)
+			diff = 100;
+		clockadjust = -vsynctimebase * diff / 10000;
+		//write_log (_T("%05d:%05d:%05d\n"), framems - tickdiff, diff, clockadjust);
+#endif
 
 		if (!frame_rendered && !picasso_on)
 			frame_rendered = render_screen (false);
@@ -5506,11 +5507,11 @@ static bool framewait (void)
 
 		int max;
 		int adjust = 0;
-		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vsynctimebase / 2)
+		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vstb / 2)
 			adjust += curr_time - vsyncwaittime;
 		adjust += clockadjust;
-		max = vsynctimebase * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
-		vsyncwaittime = curr_time + vsynctimebase - adjust;
+		max = vstb * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
+		vsyncwaittime = curr_time + vstb - adjust;
 		vsyncmintime = curr_time;
 
 		if (max < 0) {
@@ -5522,7 +5523,7 @@ static bool framewait (void)
 		vsyncmaxtime = curr_time + max;
 
 		if (0)
-			write_log (_T("%06d:%06d/%06d\n"), adjust, vsynctimeperline, vsynctimebase);
+			write_log (_T("%06d:%06d/%06d\n"), adjust, vsynctimeperline, vstb);
 	
 	} else {
 
@@ -5546,17 +5547,17 @@ static bool framewait (void)
 		idletime += read_processor_time() - start;
 		curr_time = read_processor_time ();
 		vsyncmintime = curr_time;
-		vsyncmaxtime = vsyncwaittime = curr_time + vsynctimebase;
+		vsyncmaxtime = vsyncwaittime = curr_time + vstb;
 		if (frame_rendered) {
 			show_screen ();
 			t += read_processor_time () - curr_time;
 		}
 		t += frameskipt_avg;
-		vsynctimeperline = (vsynctimebase - t) / 3;
+		vsynctimeperline = (vstb - t) / 3;
 		if (vsynctimeperline < 0)
 			vsynctimeperline = 0;
-		else if (vsynctimeperline > vsynctimebase / 3)
-			vsynctimeperline = vsynctimebase / 3;
+		else if (vsynctimeperline > vstb / 3)
+			vsynctimeperline = vstb / 3;
 		
 		frame_shown = true;
 
@@ -6064,12 +6065,26 @@ static void hsync_handler_post (bool onvsync)
 	bool ciasyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock);
 	CIA_hsync_posthandler (ciasyncs);
 	if (currprefs.cs_ciaatod > 0) {
+#if 0
+		static uae_s32 oldtick;
+		uae_s32 tick = read_system_time (); // milliseconds
+		int ms = 1000 / (currprefs.cs_ciaatod == 2 ? 60 : 50);
+		if (tick - oldtick > 2000 || tick - oldtick < -2000) {
+			oldtick = tick - ms;
+			write_log (_T("RESET\n"));
+		} 
+		if (tick - oldtick >= ms) {
+			CIA_vsync_posthandler (1);
+			oldtick += ms;
+		}
+#else
 		static int cia_hsync;
 		cia_hsync -= 256;
 		if (cia_hsync <= 0) {
 			CIA_vsync_posthandler (1);
 			cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 		}
+#endif
 	} else if (currprefs.cs_ciaatod == 0 && onvsync) {
 		CIA_vsync_posthandler (ciasyncs);
 	}

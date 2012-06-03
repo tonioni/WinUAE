@@ -51,6 +51,16 @@ static bool canjit (void)
 		return false;
 	return true;
 }
+static bool needmman (void)
+{
+	if (canjit ())
+		return true;
+#ifdef _WIN32	
+	if (currprefs.rtgmem_size)
+		return true;
+#endif
+	return false;
+}
 
 static void nocanbang (void)
 {
@@ -1941,7 +1951,7 @@ static shmpiece *find_shmpiece (uae_u8 *base)
 
 static void delete_shmmaps (uae_u32 start, uae_u32 size)
 {
-	if (!canjit ())
+	if (!needmman ())
 		return;
 
 	while (size) {
@@ -1988,7 +1998,7 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shmpiece *y;
 	uae_u8 *base = what->baseaddr;
 
-	if (!canjit ())
+	if (!needmman ())
 		return;
 	if (!base)
 		return;
@@ -2020,7 +2030,7 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 	shmpiece *x;
 	static int recurse;
 
-	if (!canjit ()) {
+	if (!needmman ()) {
 		nocanbang ();
 		return xcalloc (uae_u8, s + 4);
 	}
@@ -2077,7 +2087,7 @@ static void allocate_memory (void)
 	/* emulate 0.5M+0.5M with 1M Agnus chip ram aliasing */
 	if ((allocated_chipmem != currprefs.chipmem_size || allocated_bogomem != currprefs.bogomem_size) &&
 		currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
-		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && !canjit ()) {
+		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && !needmman ()) {
 			int memsize1, memsize2;
 			if (chipmemory)
 				mapped_free (chipmemory);

@@ -2204,7 +2204,7 @@ size_t zfile_fwrite (const void *b, size_t l1, size_t l2, struct zfile *z)
 	if (z->parent && z->useparent)
 		return 0;
 	if (z->data) {
-		int off = z->seek + l1 * l2;
+		uae_s64 off = z->seek + l1 * l2;
 		if (z->allocsize == 0) {
 			write_log (_T("zfile_fwrite(data,%s) but allocsize=0!\n"), z->name);
 			return 0;

@@ -3,6 +3,21 @@
 - hdd from command line
 - no-buffer tearing updates
 
+Beta 4:
+
+- Custom input event autofire wasn't always canceled when shortcut included qualifier(s).
+- Do not crash if 7zip unpacking fails because out of memory or process address space.
+  (Big compressed CD images and 32-bit Windows)
+- Log also RDB dostype in text format.
+- Replaced misc panel checkboxes with scrolling checkbox list view. Now there is unlimited space
+  for all kinds of on/off options that I previously refused to add because of lack of GUI space.
+- Added disable notification icon option.
+- Loading statefile using GUI now remembers statefile filename, allowing to save configuration files with
+  statefile (running configuration file will automatically load the statefile). This required manual config
+  file editing previously. Statefile path and checkbox that "forgets" stored path added to GUI.
+- Ignore vendor specific USB usage pages (Do not list for example some Logitech USB mouse/keyboard receiver dongles)
+- Z2 RTG + 68EC020 fixed, RTG requires memory mapping. (Memory mapping was originally JIT only and 68EC020 is not JIT compatible)
+
 Beta 3:
 
 - FPS led was always yellow in most non low latency vsync modes.

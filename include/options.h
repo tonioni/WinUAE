@@ -432,6 +432,7 @@ struct uae_prefs {
 	bool win32_middle_mouse;
 	bool win32_logfile;
 	bool win32_notaskbarbutton;
+	bool win32_nonotificationicon;
 	bool win32_alwaysontop;
 	bool win32_powersavedisabled;
 	bool win32_minimize_inactive;

@@ -359,6 +359,10 @@
 #define IDS_FILTEROVERLAYTYPE_MASKS     379
 #define IDS_FILTEROVERLAYTYPE_OVERLAYS  380
 #define IDS_AUTOSCALE_INTEGER_AUTOSCALE 381
+#define IDS_WSTYLE_BORDERLESS           382
+#define IDS_WSTYLE_MINIMAL              383
+#define IDS_WSTYLE_STANDARD             384
+#define IDS_WSTYLE_EXTENDED             385
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -379,7 +383,6 @@
 #define IDC_MIDILIST                    1023
 #define IDC_MIDIOUTLIST                 1023
 #define IDC_DA_MODE                     1023
-#define IDC_SHOWGUI                     1024
 #define IDC_MIDIINLIST                  1024
 #define IDC_RESOLUTION2                 1024
 #define IDC_DISPLAYSELECT               1024
@@ -392,13 +395,11 @@
 #define IDC_SCREENMODE_NATIVE           1026
 #define IDC_PRINTERTYPELIST             1026
 #define IDC_FASTMEM                     1027
-#define IDC_SHOWLEDS                    1027
 #define IDC_PORT1_JOYS                  1027
 #define IDC_SCREENMODE_RTG              1027
 #define IDC_DONGLELIST                  1027
 #define IDC_MBMEM1                      1028
 #define IDC_PORT_TABLET_CURSOR          1028
-#define IDC_SHOWLEDSRTG                 1028
 #define IDC_SAMPLERLIST                 1028
 #define IDC_DISPLAY_BUFFERCNT           1028
 #define IDC_PORT0_JOYSMODE              1029
@@ -412,7 +413,6 @@
 #define IDC_PARALLEL                    1033
 #define IDC_PORT0_AF                    1033
 #define IDC_PORT1_AF                    1034
-#define IDC_JULIAN                      1040
 #define IDC_FOCUSMINIMIZE               1041
 #define IDC_FASTTEXT                    1043
 #define IDC_FASTRAM                     1044
@@ -632,7 +632,6 @@
 #define IDC_FLUSHPRINTER                1510
 #define IDC_MAPDRIVES_REMOVABLE         1510
 #define IDC_PORT0_TEST                  1510
-#define IDC_CACHETEXT2                  1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
 #define IDC_PORT0_TEST2                 1511
@@ -683,6 +682,7 @@
 #define IDC_STATEREC_CAPTURE2           1533
 #define IDC_ACTIVE_PAUSE                1534
 #define IDC_ACTIVE_NOSOUND              1535
+#define IDC_STATECLEAR                  1536
 #define IDC_SER_SHARED                  1553
 #define IDC_SER_CTSRTS                  1554
 #define IDC_SER_DIRECT                  1555
@@ -715,8 +715,6 @@
 #define IDC_JITENABLE                   1584
 #define IDC_DISASSEMBLY                 1585
 #define IDC_MMUENABLE                   1585
-#define IDC_CTRLF11                     1586
-#define IDC_FASTCOPPER                  1588
 #define IDC_COLLISION0                  1589
 #define IDC_COLLISION1                  1590
 #define IDC_AUDIOSYNC                   1590
@@ -746,8 +744,6 @@
 #define IDC_INPUTTYPE                   1607
 #define IDC_INPUTSELECTTEXT             1608
 #define IDC_NOUAEFSDB                   1608
-#define IDC_NOTASKBARBUTTON             1608
-#define IDC_CLOCKSYNC                   1609
 #define IDC_INPUTDEVICE                 1609
 #define IDC_MAPROM                      1609
 #define IDC_NORECYCLEBIN                1609
@@ -757,14 +753,10 @@
 #define IDC_AVIOUTPUT_FILE              1611
 #define IDC_INPUTLIST                   1611
 #define IDC_CATWEASEL                   1611
-#define IDC_CLIPBOARDSHARE              1611
 #define IDC_INPUTAMIGA                  1612
-#define IDC_BORDERLESS                  1612
-#define IDC_POWERSAVE                   1612
 #define IDC_AVIOUTPUT_VIDEO             1613
 #define IDC_INPUTAUTOFIRE               1613
 #define IDC_PORT_MOUSETRICK             1613
-#define IDC_NATIVECODE                  1613
 #define IDC_AVIOUTPUT_AUDIO             1614
 #define IDC_INPUTCOPYFROM               1614
 #define IDC_SANA2                       1614
@@ -1083,6 +1075,8 @@
 #define IDC_CD_SELECT                   1807
 #define IDC_FASTMEMAUTOCONFIG           1808
 #define IDC_RTG_DISPLAYSELECT           1809
+#define IDC_MISCLIST                    1810
+#define IDC_STATENAME                   1811
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1131,9 +1125,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        370
+#define _APS_NEXT_RESOURCE_VALUE        386
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1810
+#define _APS_NEXT_CONTROL_VALUE         1812
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

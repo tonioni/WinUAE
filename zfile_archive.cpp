@@ -627,16 +627,20 @@ static struct zfile *archive_access_7z (struct znode *zn)
 	size_t outSizeProcessed;
 	struct SevenZContext *ctx;
 
+	z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
+	if (!z)
+		return NULL;
 	ctx = (struct SevenZContext*)zv->handle;
 	res = SzArEx_Extract (&ctx->db, &ctx->lookStream.s, zn->offset,
 		&ctx->blockIndex, &ctx->outBuffer, &ctx->outBufferSize,
 		&offset, &outSizeProcessed,
 		&allocImp, &allocTempImp);
 	if (res == SZ_OK) {
-		z = zfile_fopen_empty (NULL, zn->fullname, zn->size);
 		zfile_fwrite (ctx->outBuffer + offset, zn->size, 1, z);
 	} else {
 		write_log (_T("7Z: SzExtract %s returned %d\n"), zn->fullname, res);
+		zfile_fclose (z);
+		z = NULL;
 	}
 	return z;
 }
@@ -1005,6 +1009,8 @@ static struct znode *addfile (struct zvolume *zv, struct zfile *zf, const TCHAR 
 	struct zfile *z;
 
 	z = zfile_fopen_empty (zf, path, size);
+	if (!z)
+		return NULL;
 	zfile_fwrite (data, size, 1, z);
 	memset (&zai, 0, sizeof zai);
 	zai.name = my_strdup (path);

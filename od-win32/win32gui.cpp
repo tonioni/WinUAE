@@ -3539,6 +3539,7 @@ static int clicked_entry = -1;
 #define DISK_COLUMNS 3
 #define MISC2_COLUMNS 2
 #define INPUTMAP_COLUMNS 1
+#define MISC1_COLUMNS 1
 #define MAX_COLUMN_HEADING_WIDTH 20
 
 #define LV_LOADSAVE 1
@@ -3547,12 +3548,43 @@ static int clicked_entry = -1;
 #define LV_DISK 4
 #define LV_MISC2 5
 #define LV_INPUTMAP 6
-#define LV_MAX 7
+#define LV_MISC1 7
+#define LV_MAX 8
 
 static int lv_oldidx[LV_MAX];
 static int lv_old_type = -1;
 
 static int listview_num_columns;
+
+struct miscentry
+{
+	int type;
+	int canactive;
+	TCHAR *name;
+	bool *b;
+	int *i;
+	int ival, imask;
+};
+
+static struct miscentry misclist[] = { 
+	{ 0, 1, _T("Untrap = middle button"),  &workprefs.win32_middle_mouse },
+	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
+	{ 0, 0, _T("Show GUI on startup"), &workprefs.start_gui },
+	{ 0, 1, _T("Use CTRL-F11 to quit"), &workprefs.win32_ctrl_F11_is_quit },
+	{ 0, 1, _T("Don't show taskbar button"), &workprefs.win32_notaskbarbutton },
+	{ 0, 1, _T("Don't show notification icon"), &workprefs.win32_nonotificationicon },
+	{ 0, 1, _T("Always on top"), &workprefs.win32_alwaysontop },
+	{ 0, 1, _T("Disable screensaver"), &workprefs.win32_powersavedisabled },
+	{ 0, 0, _T("Synchronize clock"), &workprefs.tod_hack },
+	{ 0, 1, _T("Faster RTG"), &workprefs.picasso96_nocustom },
+	{ 0, 0, _T("Clipboard sharing"), &workprefs.clipboard_sharing },
+	{ 0, 1, _T("Allow native code"), &workprefs.native_code },
+	{ 0, 1, _T("Native on-screen display"), NULL, &workprefs.leds_on_screen, STATUSLINE_CHIPSET, STATUSLINE_CHIPSET },
+	{ 0, 1, _T("RTG on-screen display"), NULL, &workprefs.leds_on_screen, STATUSLINE_RTG, STATUSLINE_RTG },
+	{ 0, 0, _T("Create winuaelog.txt log"), &workprefs.win32_logfile },
+	{ 0, 0, _T("Log illegal memory accesses"), &workprefs.illegal_mem },
+	{ 0, NULL }
+};
 
 void InitializeListView (HWND hDlg)
 {
@@ -3572,11 +3604,13 @@ void InitializeListView (HWND hDlg)
 	int items = 0, result = 0, i, j, entry = 0, temp = 0;
 	TCHAR tmp[10], tmp2[MAX_DPATH];
 	int listview_column_width[HARDDISK_COLUMNS];
+	DWORD extraflags = 0;
 
 	if (cachedlist) {
-		if (lv_old_type >= 0)
+		if (lv_old_type >= 0) {
 			lv_oldidx[lv_old_type] = ListView_GetTopIndex (cachedlist);
 			lv_oldidx[lv_old_type] += ListView_GetCountPerPage (cachedlist) - 1;
+		}
 		cachedlist = NULL;
 	}
 
@@ -3610,7 +3644,7 @@ void InitializeListView (HWND hDlg)
 
 		listview_num_columns = INPUTMAP_COLUMNS;
 		lv_type = LV_INPUTMAP;
-		column_heading[0][0] = NULL;
+		column_heading[0][0] = 0;
 		list = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 
 	} else if (hDlg == pages[MISC2_ID]) {
@@ -3620,6 +3654,14 @@ void InitializeListView (HWND hDlg)
 		_tcscpy (column_heading[0], _T("Extension"));
 		_tcscpy (column_heading[1], _T(""));
 		list = GetDlgItem (hDlg, IDC_ASSOCIATELIST);
+
+	} else if (hDlg == pages[MISC1_ID]) {
+
+		listview_num_columns = MISC1_COLUMNS;
+		lv_type = LV_MISC1;
+		column_heading[0][0] = 0;
+		list = GetDlgItem (hDlg, IDC_MISCLIST);
+		extraflags = LVS_EX_CHECKBOXES;
 
 	} else {
 
@@ -3632,7 +3674,9 @@ void InitializeListView (HWND hDlg)
 
 	}
 
-	int flags = LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT;
+	int flags = LVS_EX_DOUBLEBUFFER | extraflags;
+	if (lv_type != LV_MISC1)
+		flags |= LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
 	ListView_SetExtendedListViewStyleEx (list, flags , flags);
 	ListView_DeleteAllItems (list);
 
@@ -3694,6 +3738,33 @@ void InitializeListView (HWND hDlg)
 
 		listview_column_width[0] = 400;
 		update_listview_inputmap (hDlg);
+
+	} else if (lv_type == LV_MISC1) {
+
+		listview_column_width[0] = 150;
+		for (i = 0; misclist[i].name; i++) {
+			struct miscentry *me = &misclist[i];
+			int type = me->type;
+			bool checked = false;
+
+			if (me->b) {
+				checked = *me->b;
+			} else if (me->i) {
+				checked = ((*me->i) & me->imask) != 0;
+			}
+
+			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
+			lvstruct.pszText  = me->name;
+			lvstruct.lParam   = 0;
+			lvstruct.iItem    = i;
+			lvstruct.iSubItem = 0;
+			result = ListView_InsertItem (list, &lvstruct);
+			ListView_SetItemState (list, i, INDEXTOSTATEIMAGEMASK(type ? 0 : (checked ? 2 : 1)), LVIS_STATEIMAGEMASK);
+			width = ListView_GetStringWidth (list, lvstruct.pszText) + 30;
+			if (width > listview_column_width[0])
+				listview_column_width[0] = width;
+			entry++;
+		}
 
 	} else if (lv_type == LV_DISK) {
 
@@ -5378,12 +5449,10 @@ static void enable_for_chipsetdlg (HWND hDlg)
 #if !defined (CPUEMU_12)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
 #endif
-	ew (hDlg, IDC_FASTCOPPER, enable);
 	ew (hDlg, IDC_GENLOCK, full_property_sheet);
 	ew (hDlg, IDC_BLITIMM, enable);
 	if (enable == FALSE) {
 		workprefs.immediate_blits = 0;
-		CheckDlgButton (hDlg, IDC_FASTCOPPER, FALSE);
 		CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
 	}
 	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
@@ -5445,21 +5514,21 @@ static void init_frequency_combo (HWND hDlg, int dmode)
 		freq = storedrefreshrates[i].rate;
 		if (freq < 0) {
 			freq = -freq;
-			_stprintf (hz, L"(%dHz)", freq);
+			_stprintf (hz, _T("(%dHz)"), freq);
 		} else {
-			_stprintf (hz, L"%dHz", freq);
+			_stprintf (hz, _T("%dHz"), freq);
 		}
 		if (freq == 50 || freq == 100 || (freq * 2 == 50 && lace))
-			_tcscat (hz, L" PAL");
+			_tcscat (hz, _T(" PAL"));
 		if (freq == 60 || freq == 120 || (freq * 2 == 60 && lace))
-			_tcscat (hz, L" NTSC");
+			_tcscat (hz, _T(" NTSC"));
 		if (lace) {
 			TCHAR tmp[10];
-			_stprintf (tmp, L" (%di)", freq * 2);
+			_stprintf (tmp, _T(" (%di)"), freq * 2);
 			_tcscat (hz, tmp);
 		}
 		if (storedrefreshrates[i].type & REFRESH_RATE_RAW)
-			_tcscat (hz, L" (*)");
+			_tcscat (hz, _T(" (*)"));
 		if (abs (workprefs.gfx_apmode[0].gfx_refreshrate) == freq)
 			_tcscpy (hz2, hz);
 		SendDlgItemMessage (hDlg, IDC_REFRESHRATE, CB_ADDSTRING, 0, (LPARAM)hz);
@@ -6589,6 +6658,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_RTG_SCALE_ASPECTRATIO, rtg2);
 	ew (hDlg, IDC_RTG_VBLANKRATE, rtg2);
 	ew (hDlg, IDC_RTG_BUFFERCNT, rtg2);
+	ew (hDlg, IDC_RTG_DISPLAYSELECT, rtg2);
 }
 
 static int manybits (int v, int mask)
@@ -6874,6 +6944,7 @@ static void expansion_net (HWND hDlg)
 {
 	int i, cnt;
 	TCHAR tmp[MAX_DPATH];
+	bool notset = true;
 
 	SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_NETDISCONNECTED, tmp, sizeof tmp / sizeof (TCHAR));
@@ -6888,11 +6959,15 @@ static void expansion_net (HWND hDlg)
 				ndd[i].mac[0], ndd[i].mac[1], ndd[i].mac[2], ndd[i].mac[3], ndd[i].mac[4], ndd[i].mac[5]);
 			_stprintf (tmp, _T("%s %s"), mac, ndd[i].desc);
 			SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_ADDSTRING, 0, (LPARAM)tmp);
-			if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i].name))
+			if (!_tcsicmp (workprefs.a2065name, mac) || !_tcsicmp (workprefs.a2065name, ndd[i].name)) {
 				SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, cnt, 0);
+				notset = false;
+			}
 			cnt++;
 		}
 	}
+	if (notset)
+		SendDlgItemMessage (hDlg, IDC_NETDEVICE, CB_SETCURSEL, 0, 0);
 }
 
 static void enable_for_expansiondlg (HWND hDlg)
@@ -7455,17 +7530,11 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 static void enable_for_miscdlg (HWND hDlg)
 {
 	if (!full_property_sheet) {
-		ew (hDlg, IDC_JULIAN, TRUE);
-		ew (hDlg, IDC_CTRLF11, TRUE);
-		ew (hDlg, IDC_SHOWGUI, FALSE);
 		ew (hDlg, IDC_NOSPEED, TRUE);
 		ew (hDlg, IDC_NOSPEEDPAUSE, TRUE);
 		ew (hDlg, IDC_NOSOUND, TRUE);
 		ew (hDlg, IDC_DOSAVESTATE, TRUE);
 		ew (hDlg, IDC_SCSIMODE, FALSE);
-		ew (hDlg, IDC_CLOCKSYNC, FALSE);
-		ew (hDlg, IDC_CLIPBOARDSHARE, FALSE);
-		ew (hDlg, IDC_NATIVECODE, FALSE);
 	} else {
 #if !defined (SCSIEMU)
 		EnableWindow (GetDlgItem(hDlg, IDC_SCSIMODE), TRUE);
@@ -7593,11 +7662,13 @@ static void misc_lang (HWND hDlg)
 {
 	int i, idx = 0, cnt = 0, lid;
 	WORD langid = -1;
+	TCHAR tmp[MAX_DPATH];
 
 	if (regqueryint (NULL, _T("Language"), &lid))
 		langid = (WORD)lid;
+	WIN32GUI_LoadUIString (IDS_AUTODETECT, tmp, sizeof tmp / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_RESETCONTENT, 0, 0);
-	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)_T("Autodetect"));
+	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_ADDSTRING, 0, (LPARAM)_T("English (built-in)"));
 	if (langid == 0)
 		idx = 1;
@@ -7645,23 +7716,9 @@ static void misc_setlang (int v)
 
 static void values_to_miscdlg (HWND hDlg)
 {
-	if (currentpage == MISC1_ID) {
+	TCHAR tmp[MAX_DPATH];
 
-		CheckDlgButton (hDlg, IDC_FOCUSMINIMIZE, workprefs.win32_minimize_inactive);
-		CheckDlgButton (hDlg, IDC_ILLEGAL, workprefs.illegal_mem);
-		CheckDlgButton (hDlg, IDC_SHOWGUI, workprefs.start_gui);
-		CheckDlgButton (hDlg, IDC_JULIAN, workprefs.win32_middle_mouse);
-		CheckDlgButton (hDlg, IDC_CREATELOGFILE, workprefs.win32_logfile);
-		CheckDlgButton (hDlg, IDC_CTRLF11, workprefs.win32_ctrl_F11_is_quit);
-		CheckDlgButton (hDlg, IDC_SHOWLEDS, (workprefs.leds_on_screen & STATUSLINE_CHIPSET) ? 1 : 0);
-		CheckDlgButton (hDlg, IDC_SHOWLEDSRTG, (workprefs.leds_on_screen & STATUSLINE_RTG) ? 1 : 0);
-		CheckDlgButton (hDlg, IDC_NOTASKBARBUTTON, workprefs.win32_notaskbarbutton);
-		CheckDlgButton (hDlg, IDC_ALWAYSONTOP, workprefs.win32_alwaysontop);
-		CheckDlgButton (hDlg, IDC_CLOCKSYNC, workprefs.tod_hack);
-		CheckDlgButton (hDlg, IDC_CLIPBOARDSHARE, workprefs.clipboard_sharing);
-		CheckDlgButton (hDlg, IDC_NATIVECODE, workprefs.native_code);
-		CheckDlgButton (hDlg, IDC_POWERSAVE, workprefs.win32_powersavedisabled);
-		CheckDlgButton (hDlg, IDC_FASTERRTG, workprefs.picasso96_nocustom);
+	if (currentpage == MISC1_ID) {
 
 		misc_kbled (hDlg, IDC_KBLED1, workprefs.keyboard_leds[0]);
 		misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
@@ -7684,10 +7741,15 @@ static void values_to_miscdlg (HWND hDlg)
 		SendDlgItemMessage (hDlg, IDC_DD_SURFACETYPE, CB_SETCURSEL, ddforceram, 0);
 
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Borderless"));
-		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Minimal"));
-		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Standard"));
-		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)_T("Extended"));
+
+		WIN32GUI_LoadUIString (IDS_WSTYLE_BORDERLESS, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString (IDS_WSTYLE_MINIMAL, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString (IDS_WSTYLE_STANDARD, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
+		WIN32GUI_LoadUIString (IDS_WSTYLE_EXTENDED, tmp, sizeof tmp / sizeof (TCHAR));
+		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_ADDSTRING, 0, (LPARAM)tmp);
 		SendDlgItemMessage (hDlg, IDC_WINDOWEDMODE, CB_SETCURSEL,
 			workprefs.win32_borderless ? 0 : (workprefs.win32_statusbar + 1),
 			0);
@@ -7707,6 +7769,23 @@ static void values_to_miscdlg (HWND hDlg)
 	}
 }
 
+static void setstatefilename (HWND hDlg)
+{
+	TCHAR *s = _tcsrchr (workprefs.statefile, '\\');
+	if (s) {
+		s++;
+	} else {
+		s = _tcsrchr (workprefs.statefile, '/');
+		if (s)
+			s++;
+	}
+	if (!s)
+		s = workprefs.statefile;
+	SetDlgItemText (hDlg, IDC_STATENAME, s);
+	ew (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
+	setchecked (hDlg, IDC_STATECLEAR, workprefs.statefile[0] != 0);
+}
+
 static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	int v, i;
@@ -7718,6 +7797,14 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	switch (msg)
 	{
+	case WM_INITDIALOG:
+		pages[currentpage] = hDlg;
+		InitializeListView (hDlg);
+		values_to_miscdlg (hDlg);
+		enable_for_miscdlg (hDlg);
+		setstatefilename (hDlg);
+		recursive--;
+		return TRUE;
 
 	case WM_USER:
 		values_to_miscdlg (hDlg);
@@ -7751,14 +7838,29 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 		if (((LPNMHDR) lParam)->idFrom == IDC_ASSOCIATELIST) {
 			int entry, col;
 			HWND list;
-			NM_LISTVIEW *nmlistview;
-			nmlistview = (NM_LISTVIEW *) lParam;
+			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
 			list = nmlistview->hdr.hwndFrom;
 			if (nmlistview->hdr.code == NM_DBLCLK) {
 				entry = listview_entry_from_click (list, &col);
 				exts[entry].enabled = exts[entry].enabled ? 0 : 1;
 				associate_file_extensions ();
 				InitializeListView (hDlg);
+			}
+		} else if (((LPNMHDR) lParam)->idFrom == IDC_MISCLIST) {
+			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
+			if (nmlistview->hdr.code == LVN_ITEMCHANGED) {
+				int item = nmlistview->iItem;
+				if (item >= 0) {
+					struct miscentry *me = &misclist[item];
+					bool checked = (nmlistview->uNewState & LVIS_STATEIMAGEMASK) == 0x2000;
+					if (me->b) {
+						*me->b = checked;
+					} else if (me->i) {
+						*me->i &= ~me->imask;
+						if (checked)
+							*me->i |= me->ival & me->imask;
+					}
+				}
 			}
 		}
 		break;
@@ -7836,42 +7938,24 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			associate_file_extensions ();
 			InitializeListView (hDlg);
 			break;
+		case IDC_STATECLEAR:
+			savestate_initsave (NULL, 0, 0, false);
+			_tcscpy (workprefs.statefile, savestate_fname);
+			setstatefilename (hDlg);
+			break;
 		case IDC_DOSAVESTATE:
-			if (DiskSelection(hDlg, wParam, 9, &workprefs, 0))
+			workprefs.statefile[0] = 0;
+			if (DiskSelection(hDlg, wParam, 9, &workprefs, 0)) {
 				save_state (savestate_fname, _T("Description!"));
+				_tcscpy (workprefs.statefile, savestate_fname);
+			}
+			setstatefilename (hDlg);
 			break;
 		case IDC_DOLOADSTATE:
 			if (DiskSelection(hDlg, wParam, 10, &workprefs, 0))
 				savestate_state = STATE_DORESTORE;
-			break;
-		case IDC_ILLEGAL:
-			workprefs.illegal_mem = ischecked (hDlg, IDC_ILLEGAL);
-			break;
-		case IDC_JULIAN:
-			workprefs.win32_middle_mouse = ischecked (hDlg, IDC_JULIAN);
-			break;
-		case IDC_FOCUSMINIMIZE:
-			workprefs.win32_minimize_inactive = ischecked (hDlg, IDC_FOCUSMINIMIZE);
-			break;
-		case IDC_SHOWLEDS:
-			workprefs.leds_on_screen &= ~STATUSLINE_CHIPSET;
-			if (ischecked (hDlg, IDC_SHOWLEDS))
-				workprefs.leds_on_screen |= STATUSLINE_CHIPSET;
-			break;
-		case IDC_SHOWLEDSRTG:
-			workprefs.leds_on_screen &= ~STATUSLINE_RTG;
-			if (ischecked (hDlg, IDC_SHOWLEDSRTG))
-				workprefs.leds_on_screen |= STATUSLINE_RTG;
-			break;
-		case IDC_SHOWGUI:
-			workprefs.start_gui = ischecked (hDlg, IDC_SHOWGUI);
-			break;
-		case IDC_CREATELOGFILE:
-			workprefs.win32_logfile = ischecked (hDlg, IDC_CREATELOGFILE);
-			enable_for_miscdlg(hDlg);
-			break;
-		case IDC_POWERSAVE:
-			workprefs.win32_powersavedisabled = ischecked (hDlg, IDC_POWERSAVE);
+			_tcscpy (workprefs.statefile, savestate_fname);
+			setstatefilename (hDlg);
 			break;
 		case IDC_INACTIVE_NOSOUND:
 			if (!ischecked (hDlg, IDC_INACTIVE_NOSOUND))
@@ -7903,29 +7987,8 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			workprefs.win32_iconified_nosound = ischecked (hDlg, IDC_MINIMIZED_NOSOUND);
 			enable_for_miscdlg (hDlg);
 			break;
-		case IDC_CTRLF11:
-			workprefs.win32_ctrl_F11_is_quit = ischecked (hDlg, IDC_CTRLF11);
-			break;
-		case IDC_CLOCKSYNC:
-			workprefs.tod_hack = ischecked (hDlg, IDC_CLOCKSYNC);
-			break;
-		case IDC_CLIPBOARDSHARE:
-			workprefs.clipboard_sharing = ischecked (hDlg, IDC_CLIPBOARDSHARE);
-			break;
-		case IDC_NATIVECODE:
-			workprefs.native_code = ischecked (hDlg, IDC_NATIVECODE);
-			break;
-		case IDC_NOTASKBARBUTTON:
-			workprefs.win32_notaskbarbutton = ischecked (hDlg, IDC_NOTASKBARBUTTON);
-			break;
-		case IDC_ALWAYSONTOP:
-			workprefs.win32_alwaysontop = ischecked (hDlg, IDC_ALWAYSONTOP);
-			break;
 		case IDC_KBLED_USB:
 			workprefs.win32_kbledmode = ischecked (hDlg, IDC_KBLED_USB) ? 1 : 0;
-			break;
-		case IDC_FASTERRTG:
-			workprefs.picasso96_nocustom = ischecked (hDlg, IDC_FASTERRTG);
 			break;
 		}
 		recursive--;
@@ -7938,25 +8001,12 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 static INT_PTR CALLBACK MiscDlgProc1 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	currentpage = MISC1_ID;
-	if (msg == WM_INITDIALOG) {
-		pages[MISC1_ID] = hDlg;
-		values_to_miscdlg (hDlg);
-		enable_for_miscdlg (hDlg);
-		return TRUE;
-	}
 	return MiscDlgProc (hDlg, msg, wParam, lParam);
 }
 
 static INT_PTR CALLBACK MiscDlgProc2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	currentpage = MISC2_ID;
-	if (msg == WM_INITDIALOG) {
-		pages[MISC2_ID] = hDlg;
-		InitializeListView (hDlg);
-		values_to_miscdlg (hDlg);
-		enable_for_miscdlg (hDlg);
-		return TRUE;
-	}
 	return MiscDlgProc (hDlg, msg, wParam, lParam);
 }
 

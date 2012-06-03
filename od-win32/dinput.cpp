@@ -1530,9 +1530,10 @@ static bool initialize_rawinput (void)
 			} else if (type == RIM_TYPEHID) {
 				if (rdpdevice (buf1))
 					continue;
-				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5) {
+				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5)
 					continue;
-				}
+				if (rdi->hid.usUsagePage >= 0xff00) // vendor specific
+					continue;
 				for (i = 0; hidnorawinput[i].vid; i++) {
 					if (rdi->hid.dwProductId == hidnorawinput[i].pid && rdi->hid.dwVendorId == hidnorawinput[i].vid)
 						break;

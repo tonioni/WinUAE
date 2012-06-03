@@ -1781,11 +1781,21 @@ static void pfield_doline (int lineno)
 
 void init_row_map (void)
 {
+	static uae_u8 *oldbufmem;
+	static int oldheight, oldpitch;
+
 	int i, j;
 	if (gfxvidinfo.drawbuffer.height_allocated > MAX_VIDHEIGHT) {
 		write_log (_T("Resolution too high, aborting\n"));
 		abort ();
 	}
+	if (oldbufmem && oldbufmem == gfxvidinfo.drawbuffer.bufmem &&
+		oldheight == gfxvidinfo.drawbuffer.height_allocated &&
+		oldpitch == gfxvidinfo.drawbuffer.rowbytes)
+		return;
+	oldbufmem = gfxvidinfo.drawbuffer.bufmem;
+	oldheight = gfxvidinfo.drawbuffer.height_allocated;
+	oldpitch = gfxvidinfo.drawbuffer.rowbytes;
 	j = 0;
 	for (i = gfxvidinfo.drawbuffer.height_allocated; i < MAX_VIDHEIGHT + 1; i++)
 		row_map[i] = row_tmp;

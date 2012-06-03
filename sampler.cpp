@@ -118,10 +118,11 @@ uae_u8 sampler_getsample (int channel)
 		inited = 1;
 		oldcycles = get_cycles ();
 		oldoffset = -1;
+		diffsample = 0;
 		safepos = -RECORDBUFFER / 10 * SAMPLESIZE;
 		hr = lpDSB2r->GetCurrentPosition (&t, &cap_pos);
 		cap_pos += safepos;
-		if (cap_pos > 10 * RECORDBUFFER * SAMPLESIZE)
+		if (cap_pos >= 10 * RECORDBUFFER * SAMPLESIZE)
 			cap_pos += RECORDBUFFER * SAMPLESIZE;
 		if (cap_pos >= RECORDBUFFER * SAMPLESIZE)
 			cap_pos -= RECORDBUFFER * SAMPLESIZE;
@@ -129,7 +130,7 @@ uae_u8 sampler_getsample (int channel)
 			sampler_free ();
 			return 0;
 		}
-		clockspersample = sampler_evtime / samplerate + 41000;
+		clockspersample = sampler_evtime / samplerate;
 	}
 	if (clockspersample < 1)
 		return 0;
@@ -225,6 +226,9 @@ void sampler_vsync (void)
 	if (!inited)
 		return;
 	vsynccnt++;
+	if (vsynccnt > 1) {
+		oldcycles = get_cycles ();
+	}
 	if (vsynccnt > 50) {
 		sampler_free ();
 		return;

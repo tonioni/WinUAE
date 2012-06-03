@@ -3330,6 +3330,8 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 	int idx, slotoffset, flags, custompos, qual;
 	TCHAR *custom;
 
+	queue_input_event (-1, NULL, -1, 0, 0, 1);
+
 	if (!id)
 		return;
 	
@@ -3355,8 +3357,6 @@ static void process_custom_event (struct uae_input_device *id, int offset, int s
 
 	if (sub != 0)
 		return;
-
-	queue_input_event (-1, NULL, -1, 0, 0, 1);
 
 	slotoffset = 0;
 	if (!checkqualifiers (id->eventid[offset][slotoffset], id->flags[offset][slotoffset], qualmask)) {
@@ -4990,6 +4990,10 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 				setqualifiers (evt, state > 0);
 				if (qualifiercheckonly)
 					continue;
+
+				if (!state) {
+					process_custom_event (na, j, state, qualmask, autofire, k);
+				}
 
 				// if evt == caps and scan == caps: sync with native caps led
 				if (evt == INPUTEVENT_KEY_CAPS_LOCK) {

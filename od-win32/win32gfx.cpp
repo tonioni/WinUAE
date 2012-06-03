@@ -1524,6 +1524,7 @@ int check_prefs_changed_gfx (void)
 
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
+	c |= currprefs.win32_nonotificationicon != changed_prefs.win32_nonotificationicon ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
 	c |= currprefs.win32_statusbar != changed_prefs.win32_statusbar ? 32 : 0;
 	c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
@@ -1596,6 +1597,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_apmode[1].gfx_backbuffers = changed_prefs.gfx_apmode[1].gfx_backbuffers;
 
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
+		currprefs.win32_nonotificationicon = changed_prefs.win32_nonotificationicon;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 		currprefs.win32_borderless = changed_prefs.win32_borderless;
 		currprefs.win32_statusbar = changed_prefs.win32_statusbar;
@@ -2198,6 +2200,8 @@ void machdep_free (void)
 
 int graphics_init (void)
 {
+	systray (hHiddenWnd, TRUE);
+	systray (hHiddenWnd, FALSE);
 	gfxmode_reset ();
 	return open_windows (1);
 }
