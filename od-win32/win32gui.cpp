@@ -4911,7 +4911,7 @@ static struct amigamodels amodels[] = {
 	{ 4, IDS_QS_MODEL_A500P }, // "Amiga 500+"
 	{ 4, IDS_QS_MODEL_A600 }, // "Amiga 600"
 	{ 4, IDS_QS_MODEL_A1000 }, // "Amiga 1000"
-	{ 3, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
+	{ 4, IDS_QS_MODEL_A1200 }, // "Amiga 1200"
 	{ 1, IDS_QS_MODEL_A3000 }, // "Amiga 3000"
 	{ 1, IDS_QS_MODEL_A4000 }, // "Amiga 4000"
 	{ 0, }, //{ 1, IDS_QS_MODEL_A4000T }, // "Amiga 4000T"
@@ -7644,17 +7644,12 @@ static void misc_addpri (HWND hDlg, int v, int pri)
 
 }
 
-extern const TCHAR *get_aspi_path (int);
-
 static void misc_scsi (HWND hDlg)
 {
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SCSI Emulation *"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SPTI"));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)_T("SPTI + SCSI SCAN"));
-	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (0)) ? _T("AdaptecASPI") : _T("(AdaptecASPI)")));
-	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (1)) ? _T("NeroASPI") : _T("(NeroASPI)")));
-	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_ADDSTRING, 0, (LPARAM)((get_aspi_path (2)) ? _T("FrogASPI") : _T("(FrogASPI)")));
 	SendDlgItemMessage (hDlg, IDC_SCSIMODE, CB_SETCURSEL, workprefs.win32_uaescsimode, 0);
 }
 
@@ -11690,9 +11685,13 @@ static void init_inputdlg (HWND hDlg)
 	for (i = 0; i < inputdevice_get_device_total (IDTYPE_KEYBOARD); i++) {
 		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_KEYBOARD, i));
 	}
+	for (i = 0; i < inputdevice_get_device_total (IDTYPE_INTERNALEVENT); i++) {
+		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_INTERNALEVENT, i));
+	}
 	input_total_devices = inputdevice_get_device_total (IDTYPE_JOYSTICK) +
 		inputdevice_get_device_total (IDTYPE_MOUSE) +
-		inputdevice_get_device_total (IDTYPE_KEYBOARD);
+		inputdevice_get_device_total (IDTYPE_KEYBOARD) + 
+		inputdevice_get_device_total (IDTYPE_INTERNALEVENT);
 	if (input_selected_device >= input_total_devices)
 		input_selected_device = 0;
 	InitializeListView (hDlg);

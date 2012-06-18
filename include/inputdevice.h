@@ -30,6 +30,8 @@
 #define IDTYPE_JOYSTICK 0
 #define IDTYPE_MOUSE 1
 #define IDTYPE_KEYBOARD 2
+#define IDTYPE_INTERNALEVENT 3
+#define IDTYPE_MAX 4
 
 struct inputdevice_functions {
     int (*init)(void);
@@ -81,9 +83,7 @@ struct inputevent {
 
 #define ID_FLAG_GAMEPORTSCUSTOM_MASK (ID_FLAG_GAMEPORTSCUSTOM1 | ID_FLAG_GAMEPORTSCUSTOM2)
 #define ID_FLAG_AUTOFIRE_MASK (ID_FLAG_TOGGLE | ID_FLAG_INVERTTOGGLE | ID_FLAG_AUTOFIRE)
-#define ID_FLAG_CANRELEASE 0x2000
-#define ID_FLAG_TOGGLED 0x4000
-#define ID_FLAG_CUSTOMEVENT_TOGGLED 0x8000
+
 #define ID_FLAG_QUALIFIER1 0x00010000
 #define ID_FLAG_QUALIFIER2 0x00020000
 #define ID_FLAG_QUALIFIER3 0x00040000
@@ -97,10 +97,6 @@ struct inputevent {
 #define ID_FLAG_QUALIFIER_CONTROL 0x04000000
 #define ID_FLAG_QUALIFIER_ALT 0x08000000
 #define ID_FLAG_QUALIFIER_MASK 0x0fff0000
-
-#define ID_FLAG_SAVE_MASK_CONFIG 0xff
-#define ID_FLAG_SAVE_MASK_QUALIFIERS ID_FLAG_QUALIFIER_MASK
-#define ID_FLAG_SAVE_MASK_FULL (ID_FLAG_SAVE_MASK_CONFIG | ID_FLAG_SAVE_MASK_QUALIFIERS)
 
 #define IDEV_WIDGET_NONE 0
 #define IDEV_WIDGET_BUTTON 1
@@ -194,6 +190,11 @@ extern int getmousestate (int mouse);
 extern void inputdevice_updateconfig (struct uae_prefs *prefs);
 extern void inputdevice_updateconfig_internal (struct uae_prefs *prefs);
 extern void inputdevice_devicechange (struct uae_prefs *prefs);
+
+#define INTERNALEVENT_CPURESET 0
+#define INTERNALEVENT_KBRESET 1
+
+extern void send_internalevent (int eventid);
 
 extern int inputdevice_translatekeycode (int keyboard, int scancode, int state);
 extern void inputdevice_checkqualifierkeycode (int keyboard, int scancode, int state);

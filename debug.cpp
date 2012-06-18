@@ -3716,7 +3716,7 @@ void debug (void)
 			int bp = 0;
 
 			pc = munge24 (m68k_getpc ());
-			opcode = (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
+			opcode = currprefs.cpu_model < 68020 && (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) ? regs.ir : get_word (pc);
 
 			for (i = 0; i < BREAKPOINT_TOTAL; i++) {
 				if (!bpnodes[i].enabled)

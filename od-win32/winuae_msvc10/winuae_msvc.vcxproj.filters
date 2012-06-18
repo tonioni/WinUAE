@@ -52,9 +52,6 @@
     <ClCompile Include="..\avioutput.cpp">
       <Filter>win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\blkdev_win32_aspi.cpp">
-      <Filter>win32</Filter>
-    </ClCompile>
     <ClCompile Include="..\blkdev_win32_ioctl.cpp">
       <Filter>win32</Filter>
     </ClCompile>
@@ -506,6 +503,9 @@
       <Filter>common</Filter>
     </ClCompile>
     <ClCompile Include="..\..\isofs.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_22.cpp">
       <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>

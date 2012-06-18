@@ -32,7 +32,7 @@ static FILE *headerfile;
 static FILE *stblfile;
 
 static int using_prefetch, using_indirect, using_mmu;
-static int using_ce020;
+static int using_prefetch_020, using_ce020;
 static int using_exception_3;
 static int using_ce;
 static int using_tracer;
@@ -1007,7 +1007,7 @@ static void genmovemel (uae_u16 opcode)
 	}
 	count_read += table68k[opcode].size == sz_long ? 2 : 1;
 	printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
-	printf ("\tunsigned int dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
+	printf ("\tuae_u32 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
 	genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, 0);
 	start_brace ();
 	printf ("\twhile (dmask) { m68k_dreg (regs, movem_index1[dmask]) = %s; srca += %d; dmask = movem_next[dmask]; }\n",
@@ -1027,7 +1027,7 @@ static void genmovemel_ce (uae_u16 opcode)
 {
 	int size = table68k[opcode].size == sz_long ? 4 : 2;
 	printf ("\tuae_u16 mask = %s;\n", gen_nextiword (0));
-	printf ("\tunsigned int dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
+	printf ("\tuae_u32 dmask = mask & 0xff, amask = (mask >> 8) & 0xff;\n");
 	printf ("\tuae_u32 v;\n");
 	genamode (table68k[opcode].dmode, "dstreg", table68k[opcode].size, "src", 2, 1, GF_AA);
 	if (table68k[opcode].dmode == Ad8r || table68k[opcode].dmode == PC8r)
@@ -1461,7 +1461,7 @@ static void gen_opcode (unsigned long int opcode)
 
 	if (using_indirect) {
 		// tracer
-		if (!using_ce020) {
+		if (!using_ce020 && !using_prefetch_020) {
 			prefetch_word = "get_word_ce000_prefetch";
 			srcli = "x_get_ilong";
 			srcwi = "x_get_iword";
@@ -1478,8 +1478,8 @@ static void gen_opcode (unsigned long int opcode)
 			 * get_word_ce020_prefetch()
 			 */
 			disp020 = "x_get_disp_ea_ce020";
-			prefetch_long = "get_long_ce020_prefetch";
 			prefetch_word = "get_word_ce020_prefetch";
+			prefetch_long = "get_long_ce020_prefetch";
 			srcli = "x_get_ilong";
 			srcwi = "x_get_iword";
 			srcbi = "x_get_ibyte";
@@ -1492,6 +1492,20 @@ static void gen_opcode (unsigned long int opcode)
 			do_cycles = "do_cycles_ce020";
 			nextw = "next_iword_020ce";
 			nextl = "next_ilong_020ce";
+		} else if (using_prefetch_020) {
+			prefetch_word = "get_word_020_prefetch";
+			prefetch_long = "get_long_020_prefetch";
+			srcli = "x_get_ilong";
+			srcwi = "x_get_iword";
+			srcbi = "x_get_ibyte";
+			srcl = "x_get_long";
+			dstl = "x_put_long";
+			srcw = "x_get_word";
+			dstw = "x_put_word";
+			srcb = "x_get_byte";
+			dstb = "x_put_byte";
+			nextw = "next_iword_020";
+			nextl = "next_ilong_020";
 		}
 
 	} else if (using_ce020) {
@@ -3702,7 +3716,7 @@ static void generate_one_opcode (int rp, char *extra)
 	printf ("/* %s */\n", outopcode (opcode));
 	if (i68000)
 		printf("#ifndef CPUEMU_68000_ONLY\n");
-	printf ("%s REGPARAM2 CPUFUNC(op_%04lx_%d%s)(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "unsigned long", opcode, postfix, extra);
+	printf ("%s REGPARAM2 CPUFUNC(op_%04lx_%d%s)(uae_u32 opcode)\n{\n", (using_ce || using_ce020) ? "void" : "uae_u32", opcode, postfix, extra);
 
 	switch (table68k[opcode].stype) {
 	case 0: smsk = 7; break;
@@ -3853,7 +3867,7 @@ static void generate_cpu (int id, int mode)
 	}
 
 	postfix = id;
-	if (id == 0 || id == 11 || id == 12 || id == 20 || id == 21 || id == 31) {
+	if (id == 0 || id == 11 || id == 12 || id == 20 || id == 21 || id == 22 || id == 31) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
 		postfix2 = postfix;
@@ -3864,6 +3878,7 @@ static void generate_cpu (int id, int mode)
 
 	using_mmu = 0;
 	using_prefetch = 0;
+	using_prefetch_020 = 0;
 	using_ce = 0;
 	using_ce020 = 0;
 	using_mmu = 0;
@@ -3876,16 +3891,22 @@ static void generate_cpu (int id, int mode)
 			using_ce = 1;
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = 0;
-	} else if (id == 20) { // 68020 cycle-exact
+	} else if (id == 20) { // 68020 prefetch
+		cpu_level = 2;
+		using_prefetch_020 = 2;
+		read_counts ();
+		for (rp = 0; rp < nr_cpuop_funcs; rp++)
+			opcode_next_clev[rp] = cpu_level;
+	} else if (id == 21) { // 68020 cycle-exact
 		cpu_level = 2;
 		using_ce020 = 1;
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
-	} else if (id == 21 || id == 22 || id == 23) { // 68030+ "cycle-exact"
-		cpu_level = 3 + (23 - id);
+	} else if (id == 22 || id == 23 || id == 24) { // 68030+ "cycle-exact"
+		cpu_level = 3 + (24 - id);
 		using_ce020 = 2;
-		if (id == 21) {
+		if (id == 22) {
 			read_counts ();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
 				opcode_next_clev[rp] = cpu_level;
@@ -3900,7 +3921,7 @@ static void generate_cpu (int id, int mode)
 	} else {
 		cpu_level = 5 - id; // "generic"
 	}
-	using_indirect = using_ce || using_ce020;
+	using_indirect = using_ce || using_ce020 || using_prefetch_020;
 
 	if (generate_stbl) {
 		if ((id > 0 && id < 10) || (id >= 20))
@@ -3945,7 +3966,7 @@ int main (int argc, char **argv)
 	using_ce = 0;
 
 	for (i = 0; i < 32; i++) {
-		if ((i >= 6 && i < 11) || (i > 12 && i < 20) || (i > 23 && i < 31))
+		if ((i >= 6 && i < 11) || (i > 12 && i < 20) || (i > 24 && i < 31))
 			continue;
 		generate_stbl = 1;
 		generate_cpu (i, 0);

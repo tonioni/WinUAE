@@ -47,7 +47,7 @@ extern int fpp_movem_index2[256];
 extern int fpp_movem_next[256];
 #endif
 
-typedef unsigned long REGPARAM3 cpuop_func (uae_u32) REGPARAM;
+typedef uae_u32 REGPARAM3 cpuop_func (uae_u32) REGPARAM;
 typedef void REGPARAM3 cpuop_func_ce (uae_u32) REGPARAM;
 
 struct cputbl {
@@ -56,7 +56,7 @@ struct cputbl {
 };
 
 #ifdef JIT
-typedef unsigned long REGPARAM3 compop_func (uae_u32) REGPARAM;
+typedef uae_u32 REGPARAM3 compop_func (uae_u32) REGPARAM;
 
 struct comptbl {
 	compop_func *handler;
@@ -65,7 +65,7 @@ struct comptbl {
 };
 #endif
 
-extern unsigned long REGPARAM3 op_illg (uae_u32) REGPARAM;
+extern uae_u32 REGPARAM3 op_illg (uae_u32) REGPARAM;
 
 typedef uae_u8 flagtype;
 
@@ -418,25 +418,24 @@ extern void fill_prefetch (void);
 
 /* 68060 */
 extern const struct cputbl op_smalltbl_0_ff[];
-extern const struct cputbl op_smalltbl_20_ff[]; // CE
+extern const struct cputbl op_smalltbl_22_ff[]; // CE
 /* 68040 */
 extern const struct cputbl op_smalltbl_1_ff[];
-extern const struct cputbl op_smalltbl_21_ff[]; // CE
+extern const struct cputbl op_smalltbl_23_ff[]; // CE
 extern const struct cputbl op_smalltbl_31_ff[]; // MMU
 /* 68030 */
 extern const struct cputbl op_smalltbl_2_ff[];
-extern const struct cputbl op_smalltbl_22_ff[]; // CE
+extern const struct cputbl op_smalltbl_24_ff[]; // CE
 /* 68020 */
 extern const struct cputbl op_smalltbl_3_ff[];
-extern const struct cputbl op_smalltbl_23_ff[]; // CE
+extern const struct cputbl op_smalltbl_20_ff[]; // prefetch
+extern const struct cputbl op_smalltbl_21_ff[]; // CE
 /* 68010 */
 extern const struct cputbl op_smalltbl_4_ff[];
 /* 68000 */
 extern const struct cputbl op_smalltbl_5_ff[];
-/* 68000 slow but compatible.  */
-extern const struct cputbl op_smalltbl_11_ff[];
-/* 68000 slow but compatible and cycle-exact.  */
-extern const struct cputbl op_smalltbl_12_ff[];
+extern const struct cputbl op_smalltbl_11_ff[]; // prefetch
+extern const struct cputbl op_smalltbl_12_ff[]; // CE
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 

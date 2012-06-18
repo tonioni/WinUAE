@@ -3,6 +3,19 @@
 - hdd from command line
 - no-buffer tearing updates
 
+Beta 5:
+
+- More custom input event fixes.
+- Replaced custom event single line string dialog with larger multiline dialog, increased allowed custom event string length.
+- Autoresolution didn't detect interlaced mode in some situations.
+- Added "Internal events" input device category. Currently it only contains two events:
+  "CPU reset" and "Keyboard reset". It can be used to customize what happens when emulated Amiga is reset.
+  For example: set CPU mode back to fastest possible, eject or insert disks, quit emulator, etc..
+- Added 68020 prefetch CPU core. Emulates instruction prefetch without cycle-exact. "More compatible" option
+  enables this mode (Previously it did nothing in 68020 mode)
+- A1200/CD32 Quickstart compatibility slider changed: cycle-exact/prefetch/fastest possible without JIT/JIT
+- ASPI support removed.
+
 Beta 4:
 
 - Custom input event autofire wasn't always canceled when shortcut included qualifier(s).

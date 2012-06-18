@@ -108,7 +108,7 @@
     </PreLinkEvent>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
-      <OutputFile>gencpu.exe</OutputFile>
+      <OutputFile>debug\gencpu.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/gencpu.pdb</ProgramDatabaseFile>
@@ -119,9 +119,8 @@
     </Link>
     <PostBuildEvent>
       <Message>generating gencpu files</Message>
-      <Command>cd ..\..
-od-win32\gencpu_msvc\gencpu.exe
-</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

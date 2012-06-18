@@ -33,8 +33,10 @@ del cpuemu_11.cpp
 del cpuemu_12.cpp
 del cpuemu_20.cpp
 del cpuemu_21.cpp
+del cpuemu_22.cpp
 del cpuemu_31.cpp
 del linetoscr.cpp
+del aros.rom.cpp
 
 cd jit
 del compemu.cpp

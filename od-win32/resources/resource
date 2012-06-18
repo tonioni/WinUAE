@@ -1077,6 +1077,7 @@
 #define IDC_RTG_DISPLAYSELECT           1809
 #define IDC_MISCLIST                    1810
 #define IDC_STATENAME                   1811
+#define IDC_EDIT1                       1812
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1127,7 +1128,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        386
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1812
+#define _APS_NEXT_CONTROL_VALUE         1813
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

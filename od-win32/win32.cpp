@@ -91,7 +91,7 @@
 #include "cloanto/RetroPlatformIPC.h"
 #endif
 
-extern int harddrive_dangerous, do_rdbdump, aspi_allow_all, no_rawinput;
+extern int harddrive_dangerous, do_rdbdump, no_rawinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
@@ -1273,7 +1273,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		{
 			extern bool win32_spti_media_change (TCHAR driveletter, int insert);
 			extern bool win32_ioctl_media_change (TCHAR driveletter, int insert);
-			extern bool win32_aspi_media_change (TCHAR driveletter, int insert);
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
 			static int waitfornext;
 
@@ -1312,7 +1311,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 									matched |= win32_spti_media_change (drive, inserted);
 									matched |= win32_ioctl_media_change (drive, inserted);
 #endif
-									matched |= win32_aspi_media_change (drive, inserted);
 								}
 								if (type == DRIVE_REMOVABLE || type == DRIVE_CDROM || !inserted) {
 									write_log (_T("WM_DEVICECHANGE '%s' type=%d inserted=%d\n"), drvname, type, inserted);
@@ -2489,28 +2487,6 @@ uae_u8 *target_load_keyfile (struct uae_prefs *p, const TCHAR *path, int *sizep,
 	return keybuf;
 }
 
-
-extern const TCHAR *get_aspi_path (int);
-
-static int get_aspi (int old)
-{
-	if (old == UAESCSI_NEROASPI && get_aspi_path (1))
-		return old;
-	if (old == UAESCSI_FROGASPI && get_aspi_path (2))
-		return old;
-	if (old == UAESCSI_ADAPTECASPI && get_aspi_path (0))
-		return old;
-	if (get_aspi_path (1))
-		return UAESCSI_NEROASPI;
-	else if (get_aspi_path (2))
-		return UAESCSI_FROGASPI;
-	else if (get_aspi_path (0))
-		return UAESCSI_ADAPTECASPI;
-	else
-		return UAESCSI_SPTI;
-}
-
-
 /***
 *static void parse_cmdline(cmdstart, argv, args, numargs, numchars)
 *
@@ -2828,7 +2804,9 @@ void target_quit (void)
 void target_fixup_options (struct uae_prefs *p)
 {
 	if (p->win32_automount_cddrives && !p->scsi)
-		p->scsi = 1;
+		p->scsi = UAESCSI_SPTI;
+	if (p->scsi > UAESCSI_LAST)
+		p->scsi = UAESCSI_SPTI;
 	bool paused = false;
 	bool nosound = false;
 	if (!paused) {
@@ -2922,7 +2900,7 @@ void target_default_options (struct uae_prefs *p, int type)
 	}
 }
 
-static const TCHAR *scsimode[] = { _T("SCSIEMU"), _T("SPTI"), _T("SPTI+SCSISCAN"), _T("AdaptecASPI"), _T("NeroASPI"), _T("FrogASPI"), NULL };
+static const TCHAR *scsimode[] = { _T("SCSIEMU"), _T("SPTI"), _T("SPTI+SCSISCAN"), NULL };
 static const TCHAR *statusbarmode[] = { _T("none"), _T("normal"), _T("extended"), NULL };
 
 static struct midiportinfo *getmidiport (struct midiportinfo **mi, int devid)
@@ -4685,7 +4663,7 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("noaspifiltering"))) {
-		aspi_allow_all = 1;
+		//aspi_allow_all = 1;
 		return 1;
 	}
 #endif

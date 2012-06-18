@@ -33,6 +33,7 @@
 #include "gayle.h"
 #include "cia.h"
 #include "inputrecord.h"
+#include "inputdevice.h"
 #ifdef JIT
 #include "jit/compemu.h"
 #include <signal.h>
@@ -949,7 +950,7 @@ STATIC_INLINE void count_instr (unsigned int opcode)
 {
 }
 
-static unsigned long REGPARAM2 op_illg_1 (uae_u32 opcode)
+static uae_u32 REGPARAM2 op_illg_1 (uae_u32 opcode)
 {
 	op_illg (opcode);
 	return 4;
@@ -970,7 +971,7 @@ static void build_cpufunctbl (void)
 		lvl = 5;
 		tbl = op_smalltbl_0_ff;
 		if (currprefs.cpu_cycle_exact)
-			tbl = op_smalltbl_21_ff;
+			tbl = op_smalltbl_22_ff;
 		if (currprefs.mmu_model)
 			tbl = op_smalltbl_31_ff;
 		break;
@@ -978,7 +979,7 @@ static void build_cpufunctbl (void)
 		lvl = 4;
 		tbl = op_smalltbl_1_ff;
 		if (currprefs.cpu_cycle_exact)
-			tbl = op_smalltbl_22_ff;
+			tbl = op_smalltbl_23_ff;
 		if (currprefs.mmu_model)
 			tbl = op_smalltbl_31_ff;
 		break;
@@ -986,13 +987,19 @@ static void build_cpufunctbl (void)
 		lvl = 3;
 		tbl = op_smalltbl_2_ff;
 		if (currprefs.cpu_cycle_exact)
-			tbl = op_smalltbl_23_ff;
+			tbl = op_smalltbl_24_ff;
 		break;
 	case 68020:
 		lvl = 2;
 		tbl = op_smalltbl_3_ff;
-		if (currprefs.cpu_cycle_exact)
+#ifdef CPUEMU_20
+		if (currprefs.cpu_compatible)
 			tbl = op_smalltbl_20_ff;
+#endif
+#ifdef CPUEMU_21
+		if (currprefs.cpu_cycle_exact)
+			tbl = op_smalltbl_21_ff;
+#endif
 		break;
 	case 68010:
 		lvl = 1;
@@ -3058,7 +3065,7 @@ void m68k_reset (int hardreset)
 	fill_prefetch_quick ();
 }
 
-unsigned long REGPARAM2 op_illg (uae_u32 opcode)
+uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
 {
 	uaecptr pc = m68k_getpc ();
 	static int warned;
@@ -3890,6 +3897,8 @@ static void opcodedebug (uae_u32 pc, uae_u16 opcode, bool full)
 	}
 }
 
+#ifdef CPUEMU_31
+
 /* Aranym MMU 68040  */
 static void m68k_run_mmu040 (void)
 {
@@ -3985,6 +3994,8 @@ retry:
 	}
 
 }
+
+#endif
 
 /* "cycle exact" 68020/030  */
 
@@ -4102,19 +4113,38 @@ cont:
 	}
 }
 
+#ifdef CPUEMU_20
+
 /* emulate simple prefetch  */
+
+uae_u32 get_word_020_prefetch (int o)
+{
+	uae_u32 pc = m68k_getpc () + o;
+
+	if (pc == regs.prefetch020addr) {
+		uae_u32 v = regs.prefetch020[0];
+		regs.prefetch020[0] = regs.prefetch020[1];
+		regs.prefetch020[1] = regs.prefetch020[2];
+		regs.prefetch020[2] = x_get_word (pc + 6);
+		regs.prefetch020addr += 2;
+		return v;
+	} else {
+		regs.prefetch020addr = pc + 2;
+		regs.prefetch020[0] = x_get_word (pc + 2);
+		regs.prefetch020[1] = x_get_word (pc + 4);
+		regs.prefetch020[2] = x_get_word (pc + 6);
+		return x_get_word (pc);
+	}
+}
+
 static void m68k_run_2p (void)
 {
-	uae_u32 prefetch, prefetch_pc;
 	struct regstruct *r = &regs;
 
-	prefetch_pc = m68k_getpc ();
-	prefetch = x_get_long (prefetch_pc);
 	for (;;) {
-		uae_u32 pc = m68k_getpc ();
 		uae_u16 opcode;
 
-		r->instruction_pc = pc;
+		r->instruction_pc = m68k_getpc ();
 
 #if DEBUG_CD32CDTVIO
 		out_cd32io (m68k_getpc ());
@@ -4122,15 +4152,7 @@ static void m68k_run_2p (void)
 
 		x_do_cycles (cpu_cycles);
 
-		if (pc == prefetch_pc) {
-			opcode = prefetch >> 16;
-		} else if (pc == prefetch_pc + 2) {
-			opcode = prefetch;
-		} else {
-			opcode = x_get_word (pc);
-			prefetch_pc = pc + 2;
-			prefetch = x_get_long (prefetch_pc);
-		}
+		opcode = get_word_020_prefetch (0);
 
 		count_instr (opcode);
 
@@ -4142,6 +4164,8 @@ static void m68k_run_2p (void)
 		}
 	}
 }
+
+#endif
 
 //static int used[65536];
 
@@ -5280,6 +5304,7 @@ void cpureset (void)
 	uaecptr ksboot = 0xf80002 - 2; /* -2 = RESET hasn't increased PC yet */
 	uae_u16 ins;
 
+	send_internalevent (INTERNALEVENT_CPURESET);
 	if (currprefs.cpu_compatible || currprefs.cpu_cycle_exact) {
 		custom_reset (0);
 		return;

@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("4")
-#define WINUAEDATE MAKEBD(2012, 6, 3)
+#define WINUAEBETA _T("5")
+#define WINUAEDATE MAKEBD(2012, 6, 18)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -73,7 +73,6 @@ void init_colors (void);
 extern int pause_emulation;
 extern int sound_available;
 extern int framecnt;
-extern TCHAR prtname[];
 extern TCHAR VersionStr[256];
 extern TCHAR BetaStr[64];
 extern int os_winnt_admin, os_64bit, os_vista, os_winxp, os_win7, cpu_number;

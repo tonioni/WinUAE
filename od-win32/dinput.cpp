@@ -1307,10 +1307,10 @@ static void dumphidvaluecaps (PHIDP_VALUE_CAPS vcaps, int size)
 		write_log (L"ReportCount: %u\n", caps.ReportCount);
 		write_log (L"UnitsExp: %u\n", caps.UnitsExp);
 		write_log (L"Units: %u\n", caps.Units);
-		write_log (L"LogicalMin: %u\n", caps.LogicalMin);
-		write_log (L"LogicalMax: %u\n", caps.LogicalMax);
-		write_log (L"PhysicalMin: %u\n", caps.PhysicalMin);
-		write_log (L"PhysicalMax: %u\n", caps.PhysicalMax);
+		write_log (L"LogicalMin: %u (%d)\n", caps.LogicalMin, extractbits (caps.LogicalMin, caps.BitSize, caps.LogicalMin < 0));
+		write_log (L"LogicalMax: %u (%d)\n", caps.LogicalMax, extractbits (caps.LogicalMax, caps.BitSize, caps.LogicalMin < 0));
+		write_log (L"PhysicalMin: %u (%d)\n", caps.PhysicalMin, extractbits (caps.PhysicalMin, caps.BitSize, caps.PhysicalMin < 0));
+		write_log (L"PhysicalMax: %u (%d)\n", caps.PhysicalMax, extractbits (caps.PhysicalMax, caps.BitSize, caps.PhysicalMax < 0));
 		if (caps.IsRange) {
 			write_log (L"UsageMin: %u\n", caps.Range.UsageMin);
 			write_log (L"UsageMax: %u\n", caps.Range.UsageMax);
@@ -1384,6 +1384,11 @@ static void dumphidcaps (struct didata *did)
 	write_log (_T("NumberFeatureValueCaps: %u\n"), caps.NumberFeatureValueCaps);
 	write_log (_T("NumberFeatureDataIndices: %u\n"), caps.NumberFeatureDataIndices);
 }
+
+static void dumphidend (void)
+{
+	write_log (_T("\n"));
+	}
 
 static bool initialize_rawinput (void)
 {
@@ -1712,6 +1717,7 @@ static bool initialize_rawinput (void)
 							}
 						}
 						xfree (vcaps);
+						dumphidend ();
 					}
 				}
 				if (ok) {

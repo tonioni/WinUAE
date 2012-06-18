@@ -114,7 +114,6 @@ static int cdscsidevicetype[MAX_TOTAL_SCSI_DEVICES];
 
 #include "od-win32/win32.h"
 
-extern struct device_functions devicefunc_win32_aspi;
 extern struct device_functions devicefunc_win32_spti;
 extern struct device_functions devicefunc_win32_ioctl;
 
@@ -128,7 +127,6 @@ static struct device_functions *devicetable[] = {
 #ifdef _WIN32
 	&devicefunc_win32_ioctl,
 	&devicefunc_win32_spti,
-	&devicefunc_win32_aspi,
 #endif
 	NULL
 };
@@ -164,9 +162,6 @@ static void install_driver (int flags)
 				} else {
 					device_func[i] = devicetable[SCSI_UNIT_SPTI];
 				}
-				break;
-				case SCSI_UNIT_ASPI:
-				device_func[i] = devicetable[SCSI_UNIT_ASPI];
 				break;
 			}
 		}
@@ -205,15 +200,6 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 			p->cdslots[i].inuse = true;
 	}
 
-	// blkdev_win32_aspi.cpp does not support multi units
-	if (currprefs.win32_uaescsimode >= UAESCSI_ASPI_FIRST) {
-		for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
-			if (cdscsidevicetype[i] != SCSI_UNIT_DISABLED)
-				cdscsidevicetype[i] = SCSI_UNIT_ASPI;
-		}
-		return;
-	}
-
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		if (cdscsidevicetype[i] != SCSI_UNIT_DEFAULT)
 			continue;
@@ -230,8 +216,6 @@ void blkdev_fix_prefs (struct uae_prefs *p)
 		} else if (currprefs.scsi) {
 			if (currprefs.win32_uaescsimode == UAESCSI_CDEMU)
 				cdscsidevicetype[i] = SCSI_UNIT_IOCTL;
-			else if (currprefs.win32_uaescsimode >= UAESCSI_ASPI_FIRST)
-				cdscsidevicetype[i] = SCSI_UNIT_ASPI;
 			else
 				cdscsidevicetype[i] = SCSI_UNIT_SPTI;
 		} else {

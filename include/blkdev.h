@@ -6,7 +6,6 @@
 #define SCSI_UNIT_IMAGE 1
 #define SCSI_UNIT_IOCTL 2
 #define SCSI_UNIT_SPTI 3
-#define SCSI_UNIT_ASPI 4
 
 //#define device_debug write_log
 #define device_debug
