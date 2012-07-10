@@ -70,6 +70,7 @@ void deactivate_debugger (void)
 	processptr = 0;
 	xfree (processname);
 	processname = NULL;
+	setsystime ();
 }
 
 void activate_debugger (void)

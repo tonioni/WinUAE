@@ -84,7 +84,6 @@ struct winuae_currentmode {
 	int native_width, native_height, native_depth, pitch;
 	int current_width, current_height, current_depth;
 	int amiga_width, amiga_height;
-	int frequency;
 	int initdone;
 	int fullfill;
 	int vsync;
@@ -107,7 +106,9 @@ static int wasfullwindow_a, wasfullwindow_p;
 static int vblankbasewait1, vblankbasewait2, vblankbasewait3, vblankbasefull, vblankbaseadjust;
 static bool vblankbaselace;
 static int vblankbaselace_chipset;
-static bool vblankthread_oddeven;
+static bool vblankthread_oddeven, vblankthread_oddeven_got;
+static int graphics_mode_changed;
+int vsync_modechangetimeout = 10;
 
 int screen_is_picasso = 0;
 
@@ -400,14 +401,39 @@ static int rgbformat_bits (RGBFTYPE t)
 		: 0);
 }
 
+int getrefreshrate (int width, int height)
+{
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	int freq = 0;
+	
+	if (ap->gfx_refreshrate <= 0)
+		return 0;
+	
+	struct MultiDisplay *md = getdisplay (&currprefs);
+	for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
+		struct PicassoResolution *pr = &md->DisplayModes[i];
+		if (pr->res.width == width && pr->res.height == height) {
+			for (int j = 0; pr->refresh[j] > 0; j++) {
+				if (pr->refresh[j] == ap->gfx_refreshrate)
+					return ap->gfx_refreshrate;
+				if (pr->refresh[j] > freq && pr->refresh[j] < ap->gfx_refreshrate)
+					freq = pr->refresh[j];
+			}
+		}
+	}
+	write_log (_T("Refresh rate %d not supported, using %d\n"), ap->gfx_refreshrate, freq);
+	return freq;
+}
+
 static int set_ddraw_2 (void)
 {
 	HRESULT ddrval;
 	int bits = (currentmode->current_depth + 7) & ~7;
 	int width = currentmode->native_width;
 	int height = currentmode->native_height;
-	int freq = currentmode->frequency;
 	int dxfullscreen, wfullscreen, dd;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	int freq = ap->gfx_refreshrate;
 
 	dxfullscreen = (currentmode->flags & DM_DX_FULLSCREEN) ? TRUE : FALSE;
 	wfullscreen = (currentmode->flags & DM_W_FULLSCREEN) ? TRUE : FALSE;
@@ -429,25 +455,8 @@ static int set_ddraw_2 (void)
 
 	if (dxfullscreen)  {
 		for (;;) {
-			int i, j, got = FALSE;
 			HRESULT olderr;
-			if (freq > 0) {
-				struct MultiDisplay *md = getdisplay (&currprefs);
-				for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-					struct PicassoResolution *pr = &md->DisplayModes[i];
-					if (pr->res.width == width && pr->res.height == height) {
-						for (j = 0; pr->refresh[j] > 0; j++) {
-							if (pr->refresh[j] == freq)
-								got = TRUE;
-						}
-						break;
-					}
-				}
-				if (got == FALSE) {
-					write_log (_T("set_ddraw: refresh rate %d not supported\n"), freq);
-					freq = 0;
-				}
-			}
+			freq = getrefreshrate (width, height);
 			write_log (_T("set_ddraw: trying %dx%d, bits=%d, refreshrate=%d\n"), width, height, bits, freq);
 			ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 			if (SUCCEEDED (ddrval))
@@ -553,7 +562,7 @@ static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 	md->DisplayModes[i].res.height = h;
 	md->DisplayModes[i].depth = d;
 	md->DisplayModes[i].refresh[0] = freq;
-	md->DisplayModes[i].refreshtype[0] = rawmode;
+	md->DisplayModes[i].refreshtype[0] = (lace ? REFRESH_RATE_LACE : 0) | (rawmode ? REFRESH_RATE_RAW : 0);
 	md->DisplayModes[i].refresh[1] = 0;
 	md->DisplayModes[i].colormodes = ct;
 	md->DisplayModes[i + 1].depth = -1;
@@ -749,8 +758,8 @@ void sortdisplays (void)
 		md->DisplayModes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
 		md->DisplayModes[0].depth = -1;
 
-		write_log (_T("%s [%s]\n"), md->adaptername, md->adapterid);
-		write_log (_T("-: %s\n"), md->fullname);
+		write_log (_T("%s '%s' [%s]\n"), md->adaptername, md->adapterid, md->adapterkey);
+		write_log (_T("-: %s [%s]\n"), md->fullname, md->monitorid);
 		for (int mode = 0; mode < 2; mode++) {
 			DEVMODE dm;
 			dm.dmSize = sizeof dm;
@@ -1253,6 +1262,41 @@ void gfx_unlock_picasso (bool dorender)
 	}
 }
 
+static HWND blankwindows[MAX_DISPLAYS];
+static void closeblankwindows (void)
+{
+	for (int i = 0; i < MAX_DISPLAYS; i++) {
+		HWND h = blankwindows[i];
+		if (h) {
+			ShowWindow (h, SW_HIDE);
+			DestroyWindow (h);
+		}
+	}
+}
+static void createblankwindows (void)
+{
+	struct MultiDisplay *mdx = getdisplay (&currprefs);
+	int i;
+
+	if (!currprefs.win32_blankmonitors)
+		return;
+
+	for (i = 0; Displays[i].monitorname; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		TCHAR name[100];
+		if (mdx == md)
+			continue;
+		_stprintf (name, _T("WinUAE_Blank_%d"), i);
+		blankwindows[i] = CreateWindowEx (
+			WS_EX_TOPMOST,
+			_T("Blank"), name,
+			WS_POPUP | WS_VISIBLE,
+			md->rect.left, md->rect.top, md->rect.right - md->rect.left, md->rect.bottom - md->rect.top,
+			NULL,
+			NULL, hInst, NULL);
+	}
+}
+
 static void close_hwnds (void)
 {
 	screen_is_initialized = 0;
@@ -1263,6 +1307,7 @@ static void close_hwnds (void)
 #ifdef RETROPLATFORM
 	rp_set_hwnd (NULL);
 #endif
+	closeblankwindows ();
 	if (hStatusWnd) {
 		ShowWindow (hStatusWnd, SW_HIDE);
 		DestroyWindow (hStatusWnd);
@@ -1335,19 +1380,23 @@ static void update_gfxparams (void)
 	if (screen_is_picasso) {
 		currentmode->current_width = picasso96_state.Width;
 		currentmode->current_height = picasso96_state.Height;
-		if (currprefs.win32_rtgvblankrate == 0)
-			currentmode->frequency = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
-		else if (currprefs.win32_rtgvblankrate < 0)
-			currentmode->frequency = 0;
-		else
-			currentmode->frequency = abs (currprefs.gfx_apmode[1].gfx_refreshrate >= 50 ? currprefs.gfx_apmode[1].gfx_refreshrate : 50);
+		currprefs.gfx_apmode[1].gfx_interlaced = false;
+		if (currprefs.win32_rtgvblankrate == 0) {
+			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.gfx_apmode[0].gfx_refreshrate;
+			if (currprefs.gfx_apmode[0].gfx_interlaced) {
+				currprefs.gfx_apmode[1].gfx_refreshrate *= 2;
+			}
+		} else if (currprefs.win32_rtgvblankrate < 0) {
+			currprefs.gfx_apmode[1].gfx_refreshrate = 0;
+		} else {
+			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.win32_rtgvblankrate;
+		}
 		if (currprefs.gfx_apmode[1].gfx_vsync)
 			currentmode->vsync = 1 + currprefs.gfx_apmode[1].gfx_vsyncmode;
 	} else {
 #endif
 		currentmode->current_width = currprefs.gfx_size.width;
 		currentmode->current_height = currprefs.gfx_size.height;
-		currentmode->frequency = abs (currprefs.gfx_apmode[0].gfx_refreshrate);
 		if (currprefs.gfx_apmode[0].gfx_vsync)
 			currentmode->vsync = 1 + currprefs.gfx_apmode[0].gfx_vsyncmode;
 #ifdef PICASSO96
@@ -1478,7 +1527,9 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[0].gfx_vsyncmode != changed_prefs.gfx_apmode[0].gfx_vsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_apmode[1].gfx_vsyncmode != changed_prefs.gfx_apmode[1].gfx_vsyncmode ? 2 | 16 : 0;
 	c |= currprefs.gfx_apmode[0].gfx_refreshrate != changed_prefs.gfx_apmode[0].gfx_refreshrate ? 2 | 16 : 0;
+#if 0
 	c |= currprefs.gfx_apmode[1].gfx_refreshrate != changed_prefs.gfx_apmode[1].gfx_refreshrate ? 2 | 16 : 0;
+#endif
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 
@@ -1518,14 +1569,15 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_display != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_display != changed_prefs.gfx_apmode[APMODE_RTG].gfx_display ? (2|4|8) : 0;
 	c |= currprefs.gfx_blackerthanblack != changed_prefs.gfx_blackerthanblack ? (2 | 8) : 0;
-	c |= currprefs.gfx_apmode[0].gfx_backbuffers != changed_prefs.gfx_apmode[0].gfx_backbuffers ? (2 | 8) : 0;
-	c |= currprefs.gfx_apmode[0].gfx_interlaced != changed_prefs.gfx_apmode[0].gfx_interlaced ? (2 | 8) : 0;
-	c |= currprefs.gfx_apmode[1].gfx_backbuffers != changed_prefs.gfx_apmode[1].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced ? (2 | 8) : 0;
+	c |= currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers != changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers ? (2 | 8) : 0;
 
 	c |= currprefs.win32_alwaysontop != changed_prefs.win32_alwaysontop ? 32 : 0;
 	c |= currprefs.win32_notaskbarbutton != changed_prefs.win32_notaskbarbutton ? 32 : 0;
 	c |= currprefs.win32_nonotificationicon != changed_prefs.win32_nonotificationicon ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
+	c |= currprefs.win32_blankmonitors != changed_prefs.win32_blankmonitors ? 32 : 0;
 	c |= currprefs.win32_statusbar != changed_prefs.win32_statusbar ? 32 : 0;
 	c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
 	c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (2 | 8 | 64) : 0;
@@ -1592,14 +1644,15 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_apmode[APMODE_NATIVE].gfx_display = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_display;
 		currprefs.gfx_apmode[APMODE_RTG].gfx_display = changed_prefs.gfx_apmode[APMODE_RTG].gfx_display;
 		currprefs.gfx_blackerthanblack = changed_prefs.gfx_blackerthanblack;
-		currprefs.gfx_apmode[0].gfx_backbuffers = changed_prefs.gfx_apmode[0].gfx_backbuffers;
-		currprefs.gfx_apmode[0].gfx_interlaced = changed_prefs.gfx_apmode[0].gfx_interlaced;
-		currprefs.gfx_apmode[1].gfx_backbuffers = changed_prefs.gfx_apmode[1].gfx_backbuffers;
+		currprefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_backbuffers;
+		currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced = changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced;
+		currprefs.gfx_apmode[APMODE_RTG].gfx_backbuffers = changed_prefs.gfx_apmode[APMODE_RTG].gfx_backbuffers;
 
 		currprefs.win32_alwaysontop = changed_prefs.win32_alwaysontop;
 		currprefs.win32_nonotificationicon = changed_prefs.win32_nonotificationicon;
 		currprefs.win32_notaskbarbutton = changed_prefs.win32_notaskbarbutton;
 		currprefs.win32_borderless = changed_prefs.win32_borderless;
+		currprefs.win32_blankmonitors = changed_prefs.win32_blankmonitors;
 		currprefs.win32_statusbar = changed_prefs.win32_statusbar;
 		currprefs.win32_rtgmatchdepth = changed_prefs.win32_rtgmatchdepth;
 		currprefs.win32_rtgscaleifsmall = changed_prefs.win32_rtgscaleifsmall;
@@ -1624,10 +1677,12 @@ int check_prefs_changed_gfx (void)
 		if ((c & 16) || ((c & 8) && keepfsmode)) {
 			if (reopen (c & 2))
 				c |= 2;
+			graphics_mode_changed = 1;
 		}
 		if ((c & 32) || ((c & 2) && !keepfsmode)) {
 			close_windows ();
 			graphics_init ();
+			graphics_mode_changed = 1;
 		}
 		init_custom ();
 		if (c & 4) {
@@ -1933,7 +1988,9 @@ static int reopen (int full)
 	currprefs.gfx_apmode[0].gfx_vsyncmode = changed_prefs.gfx_apmode[0].gfx_vsyncmode;
 	currprefs.gfx_apmode[1].gfx_vsyncmode = changed_prefs.gfx_apmode[1].gfx_vsyncmode;
 	currprefs.gfx_apmode[0].gfx_refreshrate = changed_prefs.gfx_apmode[0].gfx_refreshrate;
+#if 0
 	currprefs.gfx_apmode[1].gfx_refreshrate = changed_prefs.gfx_apmode[1].gfx_refreshrate;
+#endif
 	config_changed = 1;
 
 	if (!quick)
@@ -1963,9 +2020,9 @@ bool vsync_switchmode (int hz)
 	bool preferdouble = 0, preferlace = 0;
 	bool lace = false;
 
-	if (currprefs.gfx_apmode[0].gfx_refreshrate > 85) {
+	if (currprefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate > 85) {
 		preferdouble = 1;
-	} else if (currprefs.gfx_apmode[0].gfx_interlaced) {
+	} else if (currprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced) {
 		preferlace = 1;
 	}
 
@@ -2027,8 +2084,8 @@ bool vsync_switchmode (int hz)
 	oldmode = found;
 	oldhz = hz;
 	if (!found) {
-		changed_prefs.gfx_apmode[0].gfx_vsync = 0;
-		if (currprefs.gfx_apmode[0].gfx_vsync != changed_prefs.gfx_apmode[0].gfx_vsync) {
+		changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_vsync = 0;
+		if (currprefs.gfx_apmode[APMODE_NATIVE].gfx_vsync != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_vsync) {
 			config_changed = 1;
 		}
 		write_log (_T("refresh rate changed to %d%s but no matching screenmode found, vsync disabled\n"), hz, lace ? _T("i") : _T("p"));
@@ -2036,10 +2093,10 @@ bool vsync_switchmode (int hz)
 	} else {
 		newh = found->res.height;
 		changed_prefs.gfx_size_fs.height = newh;
-		changed_prefs.gfx_apmode[0].gfx_refreshrate = hz;
-		changed_prefs.gfx_apmode[0].gfx_interlaced = lace;
+		changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate = hz;
+		changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced = lace;
 		if (changed_prefs.gfx_size_fs.height != currprefs.gfx_size_fs.height ||
-			changed_prefs.gfx_apmode[0].gfx_refreshrate != currprefs.gfx_apmode[0].gfx_refreshrate) {
+			changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate != currprefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate) {
 			write_log (_T("refresh rate changed to %d%s, new screenmode %dx%d\n"), hz, lace ? _T("i") : _T("p"), w, newh);
 			config_changed = 1;
 		}
@@ -2203,6 +2260,7 @@ int graphics_init (void)
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
 	gfxmode_reset ();
+	graphics_mode_changed = 1;
 	return open_windows (1);
 }
 
@@ -2400,8 +2458,8 @@ static int getbestmode (int nextbest)
 			struct PicassoResolution *pr = &md->DisplayModes[i];
 			int r = pr->res.width > pr->res.height ? 1 : 0;
 			if (pr->res.width >= currentmode->native_width && pr->res.height >= currentmode->native_height && r == ratio) {
-				write_log (_T("FS: %dx%d -> %dx%d (%d)\n"), currentmode->native_width, currentmode->native_height,
-					pr->res.width, pr->res.height, ratio);
+				write_log (_T("FS: %dx%d -> %dx%d %d %d\n"), currentmode->native_width, currentmode->native_height,
+					pr->res.width, pr->res.height, ratio, index);
 				currentmode->native_width = pr->res.width;
 				currentmode->native_height = pr->res.height;
 				currentmode->current_width = currentmode->native_width;
@@ -2453,7 +2511,7 @@ double getcurrentvblankrate (void)
 
 static int maxscanline, minscanline, prevvblankpos;
 
-static bool getvblankpos (int *vp)
+static bool getvblankpos (int *vp, bool updateprev)
 {
 	int sl;
 #if 0
@@ -2470,12 +2528,12 @@ static bool getvblankpos (int *vp)
 #if 0
 	t = read_processor_time () - t;
 	write_log (_T("(%d:%d)"), t, sl);
-#endif	
-	prevvblankpos = sl;
+#endif
+	if (updateprev && sl > prevvblankpos)
+		prevvblankpos = sl;
 	if (sl > maxscanline)
 		maxscanline = sl;
 	if (sl > 0) {
-		vblankthread_oddeven = (sl & 1) != 0;
 		if (sl < minscanline || minscanline < 0)
 			minscanline = sl;
 	}
@@ -2483,9 +2541,9 @@ static bool getvblankpos (int *vp)
 	return true;
 }
 
-static bool getvblankpos2 (int *vp, int *flags)
+static bool getvblankpos2 (int *vp, int *flags, bool updateprev)
 {
-	if (!getvblankpos (vp))
+	if (!getvblankpos (vp, updateprev))
 		return false;
 	if (*vp > 100 && flags) {
 		if ((*vp) & 1)
@@ -2503,11 +2561,11 @@ static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 		*flags = 0;
 	for (;;) {
 		int omax = maxscanline;
-		if (!getvblankpos2 (&vp, flags))
+		if (!getvblankpos2 (&vp, flags, true))
 			return false;
 		while (omax != maxscanline) {
 			omax = maxscanline;
-			if (!getvblankpos2 (&vp, flags))
+			if (!getvblankpos2 (&vp, flags, true))
 				return false;
 		}
 		if (maxvpos)
@@ -2526,20 +2584,20 @@ static int timezeroonevblank (int startline, int endline)
 {
 	int vp;
 	for (;;) {
-		if (!getvblankpos (&vp))
+		if (!getvblankpos (&vp, false))
 			return -1;
 		if (vp > endline)
 			break;
 	}
 	for (;;) {
-		if (!getvblankpos (&vp))
+		if (!getvblankpos (&vp, false))
 			return -1;
 		if (vp == startline)
 			break;
 	}
 	frame_time_t start = read_processor_time ();
 	for (;;) {
-		if (!getvblankpos (&vp))
+		if (!getvblankpos (&vp, false))
 			return -1;
 		if (vp >= endline)
 			break;
@@ -2554,9 +2612,9 @@ static int vblank_wait (void)
 
 	for (;;) {
 		int opos = prevvblankpos;
-		if (!getvblankpos (&vp))
+		if (!getvblankpos (&vp, true))
 			return -2;
-		if (opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3)
+		if (opos >= 0 && opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3)
 			return vp;
 		if (vp <= 0)
 			return vp;
@@ -2570,15 +2628,15 @@ static bool vblank_getstate (bool *state, int *pvp)
 
 	*state = false;
 	opos = prevvblankpos;
-	if (!getvblankpos (&vp))
+	if (!getvblankpos (&vp, true))
 		return false;
 	if (pvp)
 		*pvp = vp;
-	if (opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3) {
+	if (opos >= 0 && opos > (maxscanline + minscanline) / 2 && vp < (maxscanline + minscanline) / 3) {
 		*state = true;
 		return true;
 	}
-	if (vp <= 0) {
+	if (opos > vp && vp <= 0) {
 		*state = true;
 		return true;
 	}
@@ -2624,12 +2682,17 @@ static unsigned int __stdcall flipthread (void *dummy)
 static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
-static bool dooddevenskip;
+static int dooddevenskip;
 static volatile bool vblank_skipeveryother;
 static int vblank_flip_delay;
 
+static int lacemismatch_post_frames = 5;
+static int lacemismatch_pre_frames = 5;
+
 static bool vblanklaceskip (void)
 {
+	if (graphics_mode_changed)
+		return false;
 	if (vblankbaselace_chipset >= 0 && vblankbaselace) {
 		if ((vblankbaselace_chipset && !vblankthread_oddeven) || (!vblankbaselace_chipset && vblankthread_oddeven))
 			return true;
@@ -2645,7 +2708,8 @@ static bool vblanklaceskip_check (void)
 //			write_log (_T("%d == %d\n"), vblankbaselace_chipset, vblankthread_oddeven);
 		return false;
 	}
-	write_log (_T("Interlaced frame type mismatch %d<>%d\n"), vblankbaselace_chipset, vblankthread_oddeven);
+	getvblankpos (&vp, false);
+	write_log (_T("Interlaced frame type mismatch %d<>%d (%d,%d)\n"), vblankbaselace_chipset, vblankthread_oddeven, vp, prevvblankpos);
 	return true;
 }
 
@@ -2673,7 +2737,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 		} else if (mode == VBLANKTH_ACTIVE_START) {
 			// do not start until vblank has passed
 			int vp;
-			if (!getvblankpos (&vp)) {
+			if (!getvblankpos (&vp, false)) {
 				// bad things happening
 				vblankthread_mode = VBLANKTH_ACTIVE;
 				continue;
@@ -2682,15 +2746,40 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				sleep_millis (1);
 				continue;
 			}
-
 			ResetEvent (vblankwaitevent);
+			if (dooddevenskip == 1) {
+				frame_time_t rpt = read_processor_time ();
+				for (;;) {
+					sleep_millis (1);
+					if (!getvblankpos (&vp, false))
+						break;
+					if (read_processor_time () - rpt > 2 * vblankbasefull)
+						break;
+					if (vp >= (maxscanline + minscanline) / 2)
+						break;
+				}
+				for (;;) {
+					sleep_millis (1);
+					if (!getvblankpos (&vp, false))
+						break;
+					if (read_processor_time () - rpt > 2 * vblankbasefull)
+						break;
+					if (vp < (maxscanline + minscanline) / 2)
+						break;
+				}
+			}
+			if (dooddevenskip > 1) {
+				dooddevenskip++;
+				if (dooddevenskip > lacemismatch_post_frames)
+					dooddevenskip = 0;
+			}
 			if (vp > maxscanline / 2)
 				vp = maxscanline / 2;
 			frame_time_t rpt = read_processor_time ();
 			vblank_prev_time2 = rpt - (vblankbaseadjust + (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1));
 			vblank_prev_time = vblank_prev_time2;
 			firstvblankbasewait2 = false;
-			prevvblankpos = 0;
+			prevvblankpos = -1;
 			vblank_found_flipdelay = 0;
 			doflipped = false;
 			if (vblank_skipeveryother) // wait for first vblank in skip frame mode (100Hz+)
@@ -2700,7 +2789,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 		} else if (mode == VBLANKTH_ACTIVE_SKIPFRAME) {
 			int vp;
 			sleep_millis (1);
-			getvblankpos (&vp);
+			getvblankpos (&vp, true);
 			if (vp >= (maxscanline + minscanline) / 2)
 				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME2;
 			// something is wrong?
@@ -2709,7 +2798,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 		} else if (mode == VBLANKTH_ACTIVE_SKIPFRAME2) {
 			int vp;
 			sleep_millis (1);
-			getvblankpos (&vp);
+			getvblankpos (&vp, true);
 			if (vp > 0 && vp < (maxscanline + minscanline) / 2) {
 				prevvblankpos = 0;
 				vblankthread_mode = VBLANKTH_ACTIVE;
@@ -2724,20 +2813,15 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			bool vblank_found_rtg2 = false;
 			bool vblank_found2 = false;
 			frame_time_t thread_vblank_time2 = 0;
-			// immediate vblank if mismatched frame type 
-			if (vblanklaceskip_check ()) {
-				vblank_found2 = true;
-				vblank_found_chipset = true;
-				end = true;
-				doflipped = true;
-				thread_vblank_time2 = vblank_prev_time;
-			} else if (t - vblank_prev_time2 > vblankbasewait2) {
+
+			if (t - vblank_prev_time2 > vblankbasewait2) {
 				int vp = 0;
 				bool vb = false;
 				bool ok;
 				if (firstvblankbasewait2 == false) {
 					firstvblankbasewait2 = true;
 					vblank_getstate (&vb, &vp);
+					vblankthread_oddeven = (vp & 1) != 0;
 				}
 				if (!doflipped && ap->gfx_vflip > 0) {
 					doflipevent ();
@@ -2765,6 +2849,8 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					}
 					vblank_found_rtg2 = true;
 					vblank_found2 = true;
+					if (!dooddevenskip && vblanklaceskip_check ())
+						dooddevenskip = 1;
 					end = true;
 				}
 				if (t - vblank_prev_time2 > vblankbasewait3)
@@ -2806,6 +2892,12 @@ static bool isthreadedvsync (void)
 
 frame_time_t vsync_busywait_end (int *flipdelay)
 {
+	if (graphics_mode_changed > 0) {
+		graphics_mode_changed++;
+		if (graphics_mode_changed >= vsync_modechangetimeout)
+			graphics_mode_changed = 0;
+	}
+
 	if (isthreadedvsync ()) {
 		frame_time_t prev;
 
@@ -2841,9 +2933,30 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 	}
 }
 
+static bool vblank_sync_started;
+
 bool vsync_isdone (void)
 {
-	return vblank_found_chipset || dooddevenskip;
+	if (isvsync () == 0)
+		return false;
+	if (!isthreadedvsync ()) {
+		int vp = -2;
+		getvblankpos (&vp, true);
+		if (!vblankthread_oddeven_got) {
+			// need to get odd/even state early
+			while (vp < 0) {
+				if (!getvblankpos (&vp, true))
+					break;
+			}
+			vblankthread_oddeven = (vp & 1) != 0;
+			vblankthread_oddeven_got = true;
+		}
+	}
+	if (dooddevenskip)
+		return true;
+	if (vblank_found_chipset)
+		return true;
+	return false;
 }
 
 void vsync_busywait_start (void)
@@ -2854,9 +2967,10 @@ void vsync_busywait_start (void)
 		else if (vblankthread_mode != VBLANKTH_ACTIVE_WAIT)
 			write_log (L"low latency vsync state mismatch %d\n", vblankthread_mode);
 		changevblankthreadmode_fast (VBLANKTH_ACTIVE_START);
+	} else {
+		vblank_found_chipset = false;
 	}
 }
-
 
 int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 {
@@ -2867,7 +2981,7 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 	frame_time_t prevtime = vblank_prev_time;
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 
-	dooddevenskip = false;
+	vblank_sync_started = true;
 	if (lace)
 		vblankbaselace_chipset = oddeven == true ? 1 : 0;
 	else
@@ -2914,29 +3028,56 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 		int vp;
 
 		vblank_flip_delay = 0;
-		dooddevenskip = false;
 
-		if (vblanklaceskip_check ()) {
+		vblankthread_oddeven_got = false;
 
-			vblank_prev_time = read_processor_time () + vblankbasewait1;
-			dooddevenskip = true;
-			framelost = false;
-			v = -1;
-
-		} else if (currprefs.turbo_emulation) {
+		if (currprefs.turbo_emulation) {
 
 			show_screen ();
+			dooddevenskip = 0;
 			vblank_prev_time = read_processor_time ();
 			framelost = true;
 			v = -1;
+			prevvblankpos = -1;
 
 		} else {
+
+			//write_log (L"%d\n", prevvblankpos);
+
+			if (dooddevenskip > 0 && dooddevenskip != lacemismatch_pre_frames) {
+				dooddevenskip++;
+				if (dooddevenskip > lacemismatch_pre_frames + lacemismatch_post_frames)
+					dooddevenskip = 0;
+			}
+
+			if (!dooddevenskip && vblanklaceskip_check ()) {
+				dooddevenskip = 1;
+			}
+
+			if (ap->gfx_vflip != 0) {
+				show_screen ();
+			}
 
 			while (!framelost && read_processor_time () - prevtime < vblankbasewait1) {
 				vsync_sleep (false);
 			}
-
 			vp = vblank_wait ();
+
+			if (dooddevenskip == lacemismatch_pre_frames) {
+				if (vblanklaceskip_check ()) {
+					for (;;) {
+						if (!getvblankpos (&vp, true))
+							break;
+						if (vp > maxscanline * 2 / 3)
+							break;
+					}
+					vp = vblank_wait ();
+					dooddevenskip++;
+				} else {
+					dooddevenskip = 0;
+				}
+			}
+
 			if (vp >= -1) {
 				vblank_prev_time = read_processor_time ();
 				if (ap->gfx_vflip == 0) {
@@ -2947,25 +3088,19 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 					else if (vblank_flip_delay > vblankbasefull * 2 / 3)
 						vblank_flip_delay = vblankbasefull * 2 / 3;
 				}
-				for (;;) {
-					if (!getvblankpos (&vp))
-						break;
-					if (vp > 0)
-						break;
-					sleep_millis (1);
-				}
-				if (ap->gfx_vflip != 0) {
-					show_screen ();
-				}
-				vblank_prev_time -= vblankbaseadjust;
-				vblank_prev_time -= (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1 );
 
-				v = framelost ? -1 : 1;
+				vblank_prev_time -= vblankbaseadjust;
+				if (vp > 0) {
+					vblank_prev_time -= (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1 );
+					vblank_sync_started = false;
+				}
+
+				v = dooddevenskip || framelost ? -1 : 1;
 			}
 
+			prevvblankpos = -1;
 			framelost = false;
 		}
-		getvblankpos (&vp);
 	}
 
 	if (v) {
@@ -3235,6 +3370,7 @@ static int create_windows_2 (void)
 	int cxborder = GetSystemMetrics (SM_CXBORDER);
 	int gap = 3;
 	int x, y, w, h;
+	struct MultiDisplay *md = getdisplay (&currprefs);
 
 	if (hAmigaWnd) {
 		RECT r;
@@ -3257,13 +3393,13 @@ static int create_windows_2 (void)
 		}
 
 		if (fsw || dxfs) {
-			RECT rc = getdisplay (&currprefs)->rect;
+			RECT rc = md->rect;
 			nx = rc.left;
 			ny = rc.top;
 			nw = rc.right - rc.left;
 			nh = rc.bottom - rc.top;
 		} else if (d3dfs) {
-			RECT rc = getdisplay (&currprefs)->rect;
+			RECT rc = md->rect;
 			nw = currentmode->native_width;
 			nh = currentmode->native_height;
 			if (rc.left >= 0)
@@ -3370,7 +3506,7 @@ static int create_windows_2 (void)
 		}
 
 		if (fsw) {
-			rc = getdisplay (&currprefs)->rect;
+			rc = md->rect;
 			flags |= WS_EX_TOPMOST;
 			style = WS_POPUP;
 			currentmode->native_width = rc.right - rc.left;
@@ -3408,7 +3544,7 @@ static int create_windows_2 (void)
 		getbestmode (0);
 		w = currentmode->native_width;
 		h = currentmode->native_height;
-		rc = getdisplay (&currprefs)->rect;
+		rc = md->rect;
 		if (rc.left >= 0)
 			x = rc.left;
 		else
@@ -3447,6 +3583,7 @@ static int create_windows_2 (void)
 	if (dxfs || d3dfs)
 		SetCursorPos (x + w / 2, y + h / 2);
 	addnotifications (hAmigaWnd, FALSE, FALSE);
+	createblankwindows ();
 	if (hMainWnd != hAmigaWnd) {
 		if (!currprefs.headless && !rp_isactive ())
 			ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);

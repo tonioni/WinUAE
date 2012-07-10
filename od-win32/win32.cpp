@@ -91,7 +91,7 @@
 #include "cloanto/RetroPlatformIPC.h"
 #endif
 
-extern int harddrive_dangerous, do_rdbdump, no_rawinput;
+extern int harddrive_dangerous, do_rdbdump, no_rawinput, no_directinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
@@ -462,6 +462,7 @@ void resumepaused (int priority)
 #ifdef RETROPLATFORM
 	rp_pause (pause_emulation);
 #endif
+	setsystime ();
 }
 void setpaused (int priority)
 {
@@ -1842,6 +1843,11 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 	return DefWindowProc (hWnd, message, wParam, lParam);
 }
 
+static LRESULT CALLBACK BlankWindowProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	return DefWindowProc (hWnd, message, wParam, lParam);
+}
+
 int handle_msgpump (void)
 {
 	int got = 0;
@@ -1977,6 +1983,20 @@ static int WIN32_RegisterClasses (void)
 	wc.lpszClassName = _T("Useless");
 	if (!RegisterClass (&wc))
 		return 0;
+
+	wc.style = 0;
+	wc.lpfnWndProc = BlankWindowProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = DLGWINDOWEXTRA;
+	wc.hInstance = hInst;
+	wc.hIcon = LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE (IDI_APPICON));
+	wc.hCursor = NULL;
+	wc.hbrBackground = CreateSolidBrush (g_dwBackgroundColor);
+	wc.lpszMenuName = 0;
+	wc.lpszClassName = _T("Blank");
+	if (!RegisterClass (&wc))
+		return 0;
+
 
 	hHiddenWnd = CreateWindowEx (0,
 		_T("Useless"), _T("You don't see me"),
@@ -2870,6 +2890,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_kbledmode = 1;
 		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_borderless = 0;
+		p->win32_blankmonitors = false;
 		p->win32_powersavedisabled = 1;
 		p->sana2 = 0;
 		p->win32_rtgmatchdepth = 1;
@@ -2972,6 +2993,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	else
 		cfgfile_target_dwrite (f, _T("rtg_vblank"), _T("%d"), p->win32_rtgvblankrate);
 	cfgfile_target_dwrite_bool (f, _T("borderless"), p->win32_borderless);
+	cfgfile_target_dwrite_bool (f, _T("blank_monitors"), p->win32_blankmonitors);
 	cfgfile_target_dwrite_str (f, _T("uaescsimode"), scsimode[p->win32_uaescsimode]);
 	cfgfile_target_dwrite_str (f, _T("statusbar"), statusbarmode[p->win32_statusbar]);
 	cfgfile_target_write (f, _T("soundcard"), _T("%d"), p->win32_soundcard);
@@ -3045,6 +3067,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_yesno (option, value, _T("logfile"), &p->win32_logfile)
 		|| cfgfile_yesno (option, value, _T("networking"), &p->socket_emu)
 		|| cfgfile_yesno (option, value, _T("borderless"), &p->win32_borderless)
+		|| cfgfile_yesno (option, value, _T("blank_monitors"), &p->win32_blankmonitors)
 		|| cfgfile_yesno (option, value, _T("active_not_captured_pause"), &p->win32_active_nocapture_pause)
 		|| cfgfile_yesno (option, value, _T("active_not_captured_nosound"), &p->win32_active_nocapture_nosound)
 		|| cfgfile_yesno (option, value, _T("inactive_pause"), &p->win32_inactive_pause)
@@ -4549,6 +4572,8 @@ extern int vsync_busy_wait_mode;
 extern int debug_rtg_blitter;
 extern int log_bsd;
 extern int inputdevice_logging;
+extern int vsync_modechangetimeout;
+
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4673,6 +4698,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("norawinput"))) {
 		no_rawinput = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, _T("nodirectinput"))) {
+		no_directinput = 1;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("rawhid"))) {
@@ -4827,6 +4856,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	if (!np)
 		return 0;
 
+	if (!_tcscmp (arg, _T("vsync_modechangetimeout"))) {
+		vsync_modechangetimeout = getval (np);
+		return 2;
+	}
 	if (!_tcscmp (arg, _T("rtg_blitter"))) {
 		debug_rtg_blitter = getval (np);
 		return 2;

@@ -2028,7 +2028,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	typedef HRESULT (WINAPI *LPDIRECT3DCREATE9EX)(UINT, IDirect3D9Ex**);
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
-	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -2117,7 +2117,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	vsync2 = 0;
 	int hzmult = 0;
 	if (isfullscreen () > 0) {
-		dpp.FullScreen_RefreshRateInHz = ap->gfx_refreshrate > 0 ? ap->gfx_refreshrate : 0;
+		dpp.FullScreen_RefreshRateInHz = getrefreshrate (modeex.Width, modeex.Height);
 		modeex.RefreshRate = dpp.FullScreen_RefreshRateInHz;
 		if (vsync > 0) {
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;

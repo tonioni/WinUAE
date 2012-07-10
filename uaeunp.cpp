@@ -701,7 +701,7 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 		ok = 1;
 	}
 	if (!ok) {
-		_tprintf (_T("UAE unpacker uaeunp 0.8e by Toni Wilen (c)2011\n"));
+		_tprintf (_T("UAE unpacker uaeunp 0.8f by Toni Wilen (c)2012\n"));
 		_tprintf (_T("\n"));
 		_tprintf (_T("List: \"uaeunp (-l) <path>\"\n"));
 		_tprintf (_T("List all recursively: \"uaeunp -l <path> **\"\n"));
@@ -724,6 +724,10 @@ int __cdecl wmain (int argc, wchar_t *argv[], wchar_t *envp[])
 }
 
 /*
+
+0.8f:
+
+- PCDOS raw MFM decoding improved (multiformat disks)
 
 0.8e:
 

@@ -3583,6 +3583,7 @@ static struct miscentry misclist[] = {
 	{ 0, 1, _T("RTG on-screen display"), NULL, &workprefs.leds_on_screen, STATUSLINE_RTG, STATUSLINE_RTG },
 	{ 0, 0, _T("Create winuaelog.txt log"), &workprefs.win32_logfile },
 	{ 0, 0, _T("Log illegal memory accesses"), &workprefs.illegal_mem },
+	{ 0, 0, _T("Blank unused displays"), &workprefs.win32_blankmonitors },
 	{ 0, NULL }
 };
 
@@ -6155,11 +6156,12 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			if (posn1 == CB_ERR)
 				return;
 			if (posn1 == 0) {
-				workprefs.gfx_apmode[0].gfx_refreshrate = 0;
+				workprefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate = 0;
+				workprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced = dmode >= 0 && md->DisplayModes[dmode].lace;
 			} else {
 				posn1--;
-				workprefs.gfx_apmode[0].gfx_refreshrate = storedrefreshrates[posn1].rate;
-				workprefs.gfx_apmode[0].gfx_interlaced = (storedrefreshrates[posn1].type & REFRESH_RATE_LACE) != false;
+				workprefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate = storedrefreshrates[posn1].rate;
+				workprefs.gfx_apmode[APMODE_NATIVE].gfx_interlaced = (storedrefreshrates[posn1].type & REFRESH_RATE_LACE) != 0;
 			}
 			values_to_displaydlg (hDlg);
 		} else if (LOWORD (wParam) == IDC_DA_MODE) {
@@ -6837,13 +6839,13 @@ static void values_to_memorydlg (HWND hDlg)
 		workprefs.win32_rtgvblankrate == 70 ||
 		workprefs.win32_rtgvblankrate == 75) {
 			SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_SETCURSEL,
-				(workprefs.win32_rtgvblankrate == 0) ? 1 :
-				(workprefs.win32_rtgvblankrate == -1) ? 2 :
+				(workprefs.win32_rtgvblankrate == 0) ? 0 :
+				(workprefs.win32_rtgvblankrate == -1) ? 1 :
 				(workprefs.win32_rtgvblankrate == -2) ? 0 :
-				(workprefs.win32_rtgvblankrate == 50) ? 3 :
-				(workprefs.win32_rtgvblankrate == 60) ? 4 :
-				(workprefs.win32_rtgvblankrate == 70) ? 5 :
-				(workprefs.win32_rtgvblankrate == 75) ? 6 : 0, 0);
+				(workprefs.win32_rtgvblankrate == 50) ? 2 :
+				(workprefs.win32_rtgvblankrate == 60) ? 3 :
+				(workprefs.win32_rtgvblankrate == 70) ? 4 :
+				(workprefs.win32_rtgvblankrate == 75) ? 5 : 0, 0);
 	} else {
 		TCHAR tmp[10];
 		_stprintf (tmp, _T("%d"), workprefs.win32_rtgvblankrate);
@@ -6854,6 +6856,7 @@ static void values_to_memorydlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_RTG_SCALE, workprefs.win32_rtgscaleifsmall);
 	CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
 	CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
+	CheckDlgButton (hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
 
 	SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 		(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
@@ -7061,9 +7064,8 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("16:9"));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("16:10"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_RESETCONTENT, 0, 0);
-		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Disabled"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Chipset"));
-		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Real"));
+		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Default"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("50"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("60"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("70"));
@@ -7104,6 +7106,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_RTG_SCALE_ALLOW:
 				workprefs.win32_rtgallowscaling = ischecked (hDlg, IDC_RTG_SCALE_ALLOW);
+				break;
+			case IDC_RTG_VBINTERRUPT:
+				workprefs.rtg_hardwareinterrupt = ischecked (hDlg, IDC_RTG_VBINTERRUPT);
 				break;
 			case IDC_SOCKETS:
 				workprefs.socket_emu = ischecked (hDlg, IDC_SOCKETS);
@@ -7230,10 +7235,8 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETCURSEL, 0, 0L);
 					if (v != CB_ERR) {
 						if (v == 0) {
-							workprefs.win32_rtgvblankrate = -2;
-						} else if (v == 1) {
 							workprefs.win32_rtgvblankrate = 0;
-						} else if (v == 2) {
+						} else if (v == 1) {
 							workprefs.win32_rtgvblankrate = -1;
 						} else {
 							v = SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_GETLBTEXT, (WPARAM)v, (LPARAM)tmp);
@@ -9820,6 +9823,7 @@ static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
 		id = floppybuttons[num][0];
 	if (id < 0)
 		return;
+	memset (&ti, 0, sizeof ti);
 	ti.cbSize = sizeof (TOOLINFO);
 	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
 	ti.hwnd = hDlg;
@@ -12281,17 +12285,6 @@ static void handlerawinput (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 }
 
-static void input_copy (HWND hDlg)
-{
-	int dst = workprefs.input_selected_setting;
-	LRESULT src = SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L);
-	if (src == CB_ERR)
-		return;
-	input_copy_from = src;
-	inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device, input_selected_widget);
-	init_inputdlg (hDlg);
-}
-
 static void input_toggleautofire (void)
 {
 	int flags, evt;
@@ -12392,6 +12385,22 @@ static void input_toggletoggle (void)
 		name, custom, flags, -1, input_selected_sub_num);
 }
 
+static void input_copy (HWND hDlg)
+{
+	int dst = workprefs.input_selected_setting;
+	LRESULT src = SendDlgItemMessage (hDlg, IDC_INPUTCOPYFROM, CB_GETCURSEL, 0, 0L);
+	if (src == CB_ERR)
+		return;
+	input_copy_from = src;
+	inputdevice_copy_single_config (&workprefs, (int)src, workprefs.input_selected_setting, input_selected_device, -1);
+	init_inputdlg (hDlg);
+}
+
+static void input_restoredefault (void)
+{
+	inputdevice_copy_single_config (&workprefs, GAMEPORT_INPUT_SETTINGS, workprefs.input_selected_setting, input_selected_device, input_selected_widget);
+}
+
 static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	TCHAR name_buf[MAX_DPATH] = _T(""), desc_buf[128] = _T("");
@@ -12477,13 +12486,13 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 	case WM_NOTIFY:
 		if (((LPNMHDR) lParam)->idFrom == IDC_INPUTLIST)
 		{
-			int row;
+			int column;
 			nmlistview = (NM_LISTVIEW *) lParam;
 			list = nmlistview->hdr.hwndFrom;
 			switch (nmlistview->hdr.code)
 			{
-			case NM_RDBLCLK:
 			case NM_RCLICK:
+			case NM_RDBLCLK:
 				input_selected_widget = -1;
 				ListView_SetItemState (list, -1, 0, LVIS_SELECTED);
 				update_listview_input (hDlg);
@@ -12493,17 +12502,19 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				dblclick = 1;
 				/* fall-through */
 			case NM_CLICK:
-				entry = listview_entry_from_click (list, &row);
+				entry = listview_entry_from_click (list, &column);
 				if (entry >= 0) {
 					int oldentry = input_selected_widget;
 					input_selected_widget = entry;
-					if (row == 2 && entry == oldentry)
+					if (column == 0 && entry == oldentry && dblclick) {
+						input_restoredefault ();
+					} else if (column == 2 && entry == oldentry) {
 						input_toggleautofire ();
-					if (row == 3 && entry == oldentry)
+					} else if (column == 3 && entry == oldentry) {
 						input_toggletoggle ();
-					if (row == 4 && entry == oldentry)
+					} else if (column == 4 && entry == oldentry) {
 						input_qualifiers (hDlg);
-					if (row == 5) {
+					} else if (column == 5) {
 						input_selected_sub_num++;
 						if (input_selected_sub_num >= MAX_INPUT_SUB_EVENT)
 							input_selected_sub_num = 0;
@@ -12512,7 +12523,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				} else {
 					input_selected_widget = -1;
 				}
-				if (dblclick && row <= 1)
+				if (dblclick && column == 1)
 					doinputcustom (hDlg, 0);
 				update_listview_input (hDlg);
 				init_inputdlg_2 (hDlg);
@@ -13928,14 +13939,20 @@ static HWND updatePanel (int id)
 	}
 	hAccelTable = NULL;
 	if (id < 0) {
-		if (isfullscreen () <= 0) {
-			RECT r;
-			if (GetWindowRect (hDlg, &r)) {
-				LONG left, top;
-				left = r.left;
-				top = r.top;
+		RECT r;
+		if (GetWindowRect (hDlg, &r)) {
+			LONG left, top;
+			left = r.left;
+			top = r.top;
+			if (isfullscreen () == 0) {
 				regsetint (NULL, _T("GUIPosX"), left);
 				regsetint (NULL, _T("GUIPosY"), top);
+			} else if (isfullscreen () < 0) {
+				regsetint (NULL, _T("GUIPosFWX"), left);
+				regsetint (NULL, _T("GUIPosFWY"), top);
+			} else if (isfullscreen () > 0) {
+				regsetint (NULL, _T("GUIPosFSX"), left);
+				regsetint (NULL, _T("GUIPosFSY"), top);
 			}
 		}
 		ew (hDlg, IDHELP, FALSE);
@@ -14122,18 +14139,15 @@ static void centerWindow (HWND hDlg)
 
 	if (owner == NULL)
 		owner = GetDesktopWindow ();
-	if (isfullscreen () <= 0) {
+	if (isfullscreen () == 0) {
 		regqueryint (NULL, _T("GUIPosX"), &x);
 		regqueryint (NULL, _T("GUIPosY"), &y);
-	} else {
-		GetWindowRect (owner, &rcOwner);
-		GetWindowRect (hDlg, &rcDlg);
-		CopyRect (&rc, &rcOwner);
-		OffsetRect (&rcDlg, -rcDlg.left, -rcDlg.top);
-		OffsetRect (&rc, -rc.left, -rc.top);
-		OffsetRect (&rc, -rcDlg.right, -rcDlg.bottom);
-		x = rcOwner.left + (rc.right / 2);
-		y = rcOwner.top + (rc.bottom / 2);
+	} else if (isfullscreen () < 0) {
+		regqueryint (NULL, _T("GUIPosFWX"), &x);
+		regqueryint (NULL, _T("GUIPosFWY"), &y);
+	} else if (isfullscreen () > 0) {
+		regqueryint (NULL, _T("GUIPosFSX"), &x);
+		regqueryint (NULL, _T("GUIPosFSY"), &y);
 	}
 	SetForegroundWindow (hDlg);
 	pt1.x = x;
@@ -14142,8 +14156,22 @@ static void centerWindow (HWND hDlg)
 	pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
 	if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
 		if (isfullscreen () > 0) {
-			x = 0;
-			y = 0;
+			GetWindowRect (owner, &rcOwner);
+			GetWindowRect (hDlg, &rcDlg);
+			CopyRect (&rc, &rcOwner);
+			OffsetRect (&rcDlg, -rcDlg.left, -rcDlg.top);
+			OffsetRect (&rc, -rc.left, -rc.top);
+			OffsetRect (&rc, -rcDlg.right, -rcDlg.bottom);
+			x = rcOwner.left + (rc.right / 2);
+			y = rcOwner.top + (rc.bottom / 2);
+			pt1.x = x;
+			pt1.y = y;
+			pt2.x = x + 16;
+			pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
+			if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
+				x = 0;
+				y = 0;
+			}
 		} else {
 			x = 16;
 			y = 16;
@@ -14788,7 +14816,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	dialog_rect.top = dialog_rect.left = 0;
 	dialog_rect.right = tres->width;
 	dialog_rect.bottom = tres->height;
-	freescaleresource(tres);
+	freescaleresource (tres);
 	psresult = 0;
 	if (dhwnd != NULL) {
 		MSG msg;

@@ -179,11 +179,18 @@ void REGPARAM2 m68k_handle_trap (unsigned int trap_num)
 * Implementation of extended traps
 */
 
+struct TrapCPUContext
+{
+	uae_u32 regs[16];
+	uae_u32 pc;
+	int intmask;
+};
+
 struct TrapContext
 {
 	/* Trap's working copy of 68k state. This is what the trap handler should
 	* access to get arguments from 68k space. */
-	struct regstruct regs;
+	//struct regstruct regs;
 
 	/* Trap handler function that gets called on the trap context */
 	TrapHandler trap_handler;
@@ -193,7 +200,8 @@ struct TrapContext
 	uae_u32 trap_retval;
 
 	/* Copy of 68k state at trap entry. */
-	struct regstruct saved_regs;
+	//struct regstruct saved_regs;
+	struct TrapCPUContext saved_regs;
 
 	/* Thread which effects the trap context. */
 	uae_thread_id thread;
@@ -208,6 +216,19 @@ struct TrapContext
 	/* And this gets set to the return value of the 68k call.  */
 	uae_u32 call68k_retval;
 };
+
+static void copytocpucontext(struct TrapCPUContext *cpu)
+{
+	memcpy (cpu->regs, regs.regs, sizeof (regs.regs));
+	cpu->intmask = regs.intmask;
+	cpu->pc = m68k_getpc ();
+}
+static void copyfromcpucontext(struct TrapCPUContext *cpu, uae_u32 pc)
+{
+	memcpy (regs.regs, cpu->regs, sizeof (regs.regs));
+	regs.intmask = cpu->intmask;
+	m68k_setpc (pc);
+}
 
 
 /* 68k addresses which invoke the corresponding traps. */
@@ -244,15 +265,16 @@ static void *trap_thread (void *arg)
 	/* Enter critical section - only one trap at a time, please! */
 	uae_sem_wait (&trap_mutex);
 
-	regs = context->saved_regs;
+	//regs = context->saved_regs;
+	/* Set PC to address of the exit handler, so that it will be called
+	* when the 68k context resumes. */
+	copyfromcpucontext (&context->saved_regs, exit_trap_trapaddr);
 	/* Don't allow an interrupt and thus potentially another
 	* trap to be invoked while we hold the above mutex.
 	* This is probably just being paranoid. */
 	regs.intmask = 7;
 
-	/* Set PC to address of the exit handler, so that it will be called
-	* when the 68k context resumes. */
-	m68k_setpc (exit_trap_trapaddr);
+	//m68k_setpc (exit_trap_trapaddr);
 	current_context = context;
 
 	/* Switch back to 68k context */
@@ -278,7 +300,8 @@ static void trap_HandleExtendedTrap (TrapHandler handler_func, int has_retval)
 		context->trap_handler = handler_func;
 		context->trap_has_retval = has_retval;
 
-		context->saved_regs = regs;
+		//context->saved_regs = regs;
+		copytocpucontext (&context->saved_regs);
 
 		/* Start thread to handle new trap context. */
 		uae_start_thread_fast (trap_thread, (void *)context, &context->thread);
@@ -416,7 +439,8 @@ static uae_u32 REGPARAM2 exit_trap_handler (TrapContext *dummy_ctx)
 	uae_wait_thread (context->thread);
 
 	/* Restore 68k state saved at trap entry. */
-	regs = context->saved_regs;
+	//regs = context->saved_regs;
+	copyfromcpucontext (&context->saved_regs, context->saved_regs.pc);
 
 	/* If trap is supposed to return a value, then store
 	* return value in D0. */

@@ -174,7 +174,7 @@ extern uae_u8 handle_joystick_buttons (uae_u8, uae_u8);
 extern int magicmouse_alive (void);
 extern int is_tablet (void);
 extern int inputdevice_is_tablet (void);
-extern void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
+extern int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset);
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void setmouseactive (int);
@@ -255,6 +255,7 @@ extern void inputdevice_tablet_strobe (void);
 
 extern int input_getqualifiers (void);
 
+extern void setsystime (void);
 
 #define JSEM_MODE_DEFAULT 0
 #define JSEM_MODE_MOUSE 1

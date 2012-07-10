@@ -1300,6 +1300,20 @@ int filesys_eject (int nr)
 	return 1;
 }
 
+// This uses filesystem process to reduce resource usage
+void setsystime (void)
+{
+	if (!currprefs.tod_hack)
+		return;
+	Unit *u;
+	for (u = units; u; u = u->next) {
+		if (is_virtual (u->unit)) {
+			put_byte (u->volume + 173 - 32, 1);
+			uae_Signal (get_long (u->volume + 176 - 32), 1 << 13);
+			break;
+		}
+	}
+}
 
 int filesys_insert (int nr, TCHAR *volume, const TCHAR *rootdir, bool readonly, int flags)
 {
@@ -3811,10 +3825,13 @@ static uae_u32 REGPARAM2 fsmisc_helper (TrapContext *context)
 	return filesys_media_change_reply (context, 0);
 	case 2:
 	return filesys_media_change_reply (context, 1);
+	case 3:
+		uae_u32 t = getlocaltime ();
+		uae_u32 secs = (uae_u32)t - (8 * 365 + 2) * 24 * 60 * 60;
+		return secs;
 	}
 	return 0;
 }
-
 
 static void action_examine_object (Unit *unit, dpacket packet)
 {
@@ -6623,7 +6640,7 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 		uaecptr diminfo = m68k_areg (regs, 2);
 		uaecptr dispinfo = m68k_areg (regs, 3);
 		uaecptr vp = m68k_areg (regs, 4);
-		input_mousehack_status (mode, diminfo, dispinfo, vp, m68k_dreg (regs, 2));
+		return input_mousehack_status (mode, diminfo, dispinfo, vp, m68k_dreg (regs, 2));
 	} else if (mode == 10) {
 		amiga_clipboard_die ();
 	} else if (mode == 11) {

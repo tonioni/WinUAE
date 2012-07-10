@@ -1247,18 +1247,23 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		write_log (_T("IOCTL: failed to open '%s', err=%d\n"), ciw->devname, GetLastError ());
 		goto error;
 	}
-	uae_sem_init (&ciw->sub_sem, 0, 1);
-	uae_sem_init (&ciw->sub_sem2, 0, 1);
-	ioctl_command_stop (unitnum);
-	update_device_info (unitnum);
-	ciw->open = true;
-	//ciw->usesptiread = true;
 	write_log (_T("IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n"),
 		ciw->devname, ciw->di.vendorid, ciw->di.productid, ciw->di.revision,
 		unitnum, ciw->di.media_inserted);
+	if (!_tcsicmp (ciw->di.vendorid, _T("iomega")) && !_tcsicmp (ciw->di.productid, _T("rrd"))) {
+		write_log (_T("Device blacklisted\n"));
+		goto error2;
+	}
+	uae_sem_init (&ciw->sub_sem, 0, 1);
+	uae_sem_init (&ciw->sub_sem2, 0, 1);
+	//ciw->usesptiread = true;
+	ioctl_command_stop (unitnum);
+	update_device_info (unitnum);
+	ciw->open = true;
 	return 0;
 error:
 	win32_error (ciw, unitnum, _T("CreateFile"));
+error2:
 	VirtualFree (ciw->tempbuffer, 0, MEM_RELEASE);
 	ciw->tempbuffer = NULL;
 	CloseHandle (ciw->h);

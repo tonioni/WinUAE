@@ -2858,6 +2858,8 @@ void compute_framesync (void)
 				if (cr->locked == false) {
 					changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = vblank_hz;
 					cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
+					if (cr->commands[0])
+						write_log (L"CMD1: '%s'\n", cr->commands);
 					break;
 				} else {
 					v = cr->rate;
@@ -2868,6 +2870,8 @@ void compute_framesync (void)
 			if (v > 0) {
 				changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
 				cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
+				if (cr->commands[0])
+					write_log (L"CMD2: '%s'\n", cr->commands);
 			}
 		} else {
 			if (cr->locked == false)
@@ -2876,6 +2880,8 @@ void compute_framesync (void)
 				v = cr->rate;
 			changed_prefs.chipset_refreshrate = currprefs.chipset_refreshrate = v;
 			cfgfile_parse_lines (&changed_prefs, cr->commands, -1);
+			if (cr->commands[0])
+				write_log (L"CMD3: '%s'\n", cr->commands);
 		}
 		found = true;
 		break;
@@ -2957,7 +2963,7 @@ void compute_framesync (void)
 
 	compute_vsynctime ();
 
-	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s)\n"),
+	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d\n"),
 		isntsc ? _T("NTSC") : _T("PAL"),
 		islace ? _T(" lace") : _T(""),
 		doublescan > 0 ? _T(" dblscan") : _T(""),
@@ -2965,7 +2971,8 @@ void compute_framesync (void)
 		(double)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle () ? 0.5 : 0)),
 		maxhpos, maxvpos, lof_store ? 1 : 0,
 		cr ? cr->index : -1,
-		cr != NULL && cr->label != NULL ? cr->label : _T("<?>")
+		cr != NULL && cr->label != NULL ? cr->label : _T("<?>"),
+		currprefs.gfx_apmode[picasso_on ? 1 : 0].gfx_display, picasso_on
 	);
 
 	config_changed = 1;
@@ -4481,12 +4488,14 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 
 static void dump_copper (TCHAR *error, int until_hpos)
 {
-	write_log (_T("%s: vpos=%d until_hpos=%d\n"),
-		error, vpos, until_hpos);
+	write_log (_T("\n"));
+	write_log (_T("%s: vpos=%d until_hpos=%d vp=%d\n"),
+		error, vpos, until_hpos, vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80));
 	write_log (_T("cvcmp=%d chcmp=%d chpos=%d cvpos=%d ci1=%04X ci2=%04X\n"),
-		cop_state.vcmp,cop_state.hcmp,cop_state.hpos,cop_state.vpos,cop_state.saved_i1,cop_state.saved_i2);
-	write_log (_T("cstate=%d ip=%x SPCFLAGS=%x\n"),
-		cop_state.state, cop_state.ip, regs.spcflags);
+		cop_state.vcmp, cop_state.hcmp, cop_state.hpos, cop_state.vpos, cop_state.saved_i1, cop_state.saved_i2);
+	write_log (_T("cstate=%d ip=%x SPCFLAGS=%x iscline=%d\n"),
+		cop_state.state, cop_state.ip, regs.spcflags, copper_enabled_thisline);
+	write_log (_T("\n"));
 }
 
 // "emulate" chip internal delays, not the right place but fast and 99.9% programs
@@ -5399,9 +5408,10 @@ static bool framewait (void)
 			frame_time_t now;
 
 			flipdelay = 0;
+			curr_time = vsync_busywait_end (&flipdelay);
 			if (!frame_rendered && !picasso_on)
 				frame_rendered = render_screen (false);
-			curr_time = vsync_busywait_end (&flipdelay);
+
 			status = vsync_busywait_do (&freetime, (bplcon0 & 4) != 0 && !lof_changed && !lof_changing, lof_store != 0);
 			vsync_busywait_start ();
 
@@ -6222,8 +6232,6 @@ static void hsync_handler_post (bool onvsync)
 						}
 					}
 				}
-			} else {
-				;//write_log (_T("%d "), vpos);
 			}
 		}
 	} else {
@@ -6889,7 +6897,7 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 	case 0x020: DSKPTH (value); break;
 	case 0x022: DSKPTL (value); break;
 	case 0x024: DSKLEN (value, hpos); break;
-	case 0x026: DSKDAT (value); break;
+	case 0x026: /* DSKDAT (value). Writing to DMA write registers won't do anything */; break;
 
 	case 0x02A: VPOSW (value); break;
 	case 0x02C: VHPOSW (value); break;

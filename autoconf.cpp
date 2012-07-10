@@ -223,7 +223,7 @@ static uae_u32 REGPARAM2 uae_puts (TrapContext *context)
 
 void rtarea_init_mem (void)
 {
-	rtarea = mapped_malloc (0x10000, _T("rtarea"));
+	rtarea = mapped_malloc (RTAREA_SIZE, _T("rtarea"));
 	if (!rtarea) {
 		write_log (_T("virtual memory exhausted (rtarea)!\n"));
 		abort ();
@@ -242,7 +242,7 @@ void rtarea_init (void)
 	init_traps ();
 
 	rtarea_init_mem ();
-	memset (rtarea, 0, 0x10000);
+	memset (rtarea, 0, RTAREA_SIZE);
 
 	_stprintf (uaever, _T("uae-%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 
@@ -256,7 +256,7 @@ void rtarea_init (void)
 	dw (0);
 	dw (0);
 
-	a = here();
+	a = here ();
 	/* Dummy trap - removing this breaks the filesys emulation. */
 	org (rtarea_base + 0xFF00);
 	calltrap (deftrap2 (nullfunc, TRAPFLAG_NO_RETVAL, _T("")));
@@ -273,11 +273,18 @@ void rtarea_init (void)
 #ifdef FILESYS
 	filesys_install_code ();
 #endif
+
+	uae_boot_rom_size = here () - rtarea_base;
+	if (uae_boot_rom_size >= RTAREA_TRAPS) {
+		write_log (_T("RTAREA_TRAPS needs to be increased!"));
+		abort ();
+	}
+
 #ifdef PICASSO96
-	uaegfx_install_code ();
+	uaegfx_install_code (rtarea_base + RTAREA_RTG);
 #endif
 
-	uae_boot_rom_size = here() - rtarea_base;
+	org (RTAREA_TRAPS);
 	init_extended_traps ();
 }
 

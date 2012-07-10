@@ -42,4 +42,5 @@ void centerdstrect (RECT *);
 struct MultiDisplay *getdisplay (struct uae_prefs *p);
 double getcurrentvblankrate (void);
 void vblank_reset (double freq);
+extern int getrefreshrate (int width, int height);
 #endif

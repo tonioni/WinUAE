@@ -1145,44 +1145,42 @@ int inputdevice_is_tablet (void)
 	return v ? 1 : 0;
 }
 
-static int getmhoffset (void)
-{
-	if (!uae_boot_rom)
-		return 0;
-	return get_long (rtarea_base + bootrom_header + 7 * 4) + bootrom_header;
-}
+static uaecptr mousehack_address;
+static bool mousehack_enabled;
 
 static void mousehack_reset (void)
 {
-	int off;
-
 	dimensioninfo_width = dimensioninfo_height = 0;
 	mouseoffset_x = mouseoffset_y = 0;
 	dimensioninfo_dbl = 0;
 	mousehack_alive_cnt = 0;
 	vp_xoffset = vp_yoffset = 0;
 	tablet_data = 0;
-	off = getmhoffset ();
-	if (off)
-		rtarea[off + MH_E] = 0;
+	if (mousehack_address)
+		put_byte (mousehack_address + MH_E, 0);
+	mousehack_address = 0;
+	mousehack_enabled = false;
 }
 
-static void mousehack_enable (void)
+static bool mousehack_enable (void)
 {
-	int off, mode;
+	int mode;
 
 	if (!uae_boot_rom || currprefs.input_tablet == TABLET_OFF)
-		return;
-	off = getmhoffset ();
-	if (rtarea[off + MH_E])
-		return;
+		return false;
+	if (mousehack_address && mousehack_enabled)
+		return true;
 	mode = 0x80;
 	if (currprefs.input_tablet == TABLET_MOUSEHACK)
 		mode |= 1;
 	if (inputdevice_is_tablet () > 0)
 		mode |= 2;
-	write_log (_T("Mouse driver enabled (%s)\n"), ((mode & 3) == 3 ? _T("tablet+mousehack") : ((mode & 3) == 2) ? _T("tablet") : _T("mousehack")));
-	rtarea[off + MH_E] = 0x80;
+	if (mousehack_address) {
+		write_log (_T("Mouse driver enabled (%s)\n"), ((mode & 3) == 3 ? _T("tablet+mousehack") : ((mode & 3) == 2) ? _T("tablet") : _T("mousehack")));
+		put_byte (mousehack_address + MH_E, mode);
+		mousehack_enabled = true;
+	}
+	return true;
 }
 
 void input_mousehack_mouseoffset (uaecptr pointerprefs)
@@ -1191,13 +1189,18 @@ void input_mousehack_mouseoffset (uaecptr pointerprefs)
 	mouseoffset_y = (uae_s16)get_word (pointerprefs + 30);
 }
 
-void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
+int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr vp, uae_u32 moffset)
 {
-	if (mode == 0) {
-		uae_u8 v = rtarea[getmhoffset ()];
+	if (mode == 4) {
+		return mousehack_enable () ? 1 : 0;
+	} else if (mode == 5) {
+		mousehack_address = m68k_dreg (regs, 0);
+		mousehack_enable ();
+	} else if (mode == 0) {
+		uae_u8 v = get_byte (mousehack_address + MH_E);
 		v |= 0x40;
-		rtarea[getmhoffset ()] = v;
-		write_log (_T("Tablet driver running (%02x)\n"), v);
+		put_byte (mousehack_address + MH_E, v);
+		write_log (_T("Tablet driver running (%08x,%02x)\n"), mousehack_address, v);
 	} else if (mode == 1) {
 		int x1 = -1, y1 = -1, x2 = -1, y2 = -1;
 		uae_u32 props = 0;
@@ -1229,37 +1232,32 @@ void input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecpt
 		else if (mousehack_alive_cnt > 0)
 			mousehack_alive_cnt = 100;
 	}
+	return 1;
 }
 
 void get_custom_mouse_limits (int *w, int *h, int *dx, int *dy, int dbl);
 
 void inputdevice_tablet_strobe (void)
 {
-	uae_u8 *p;
-	uae_u32 off;
-
 	mousehack_enable ();
 	if (!uae_boot_rom)
 		return;
 	if (!tablet_data)
 		return;
-	off = getmhoffset ();
-	p = rtarea + off;
-	p[MH_CNT]++;
+	if (mousehack_address)
+		put_byte (mousehack_address + MH_CNT, get_byte (mousehack_address + MH_CNT) + 1);
 }
 
 void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, int inproximity, int ax, int ay, int az)
 {
 	uae_u8 *p;
 	uae_u8 tmp[MH_END];
-	uae_u32 off;
 
 	mousehack_enable ();
 	if (inputdevice_is_tablet () <= 0)
 		return;
 	//write_log (_T("%d %d %d %d %08X %d %d %d %d\n"), x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
-	off = getmhoffset ();
-	p = rtarea + off;
+	p = get_real_address (mousehack_address);
 
 	memcpy (tmp, p + MH_START, MH_END - MH_START); 
 #if 0
@@ -1338,7 +1336,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 
 	if (!memcmp (tmp, p + MH_START, MH_END - MH_START))
 		return;
-	rtarea[off + MH_E] = 0xc0 | 2;
+	p[MH_E] = 0xc0 | 2;
 	p[MH_CNT]++;
 }
 
@@ -1348,7 +1346,7 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 
 	if (!uae_boot_rom)
 		return;
-	p = rtarea + getmhoffset ();
+	p = get_real_address (mousehack_address);
 
 	tablet_maxx = maxx;
 	tablet_maxy = maxy;
@@ -1379,11 +1377,11 @@ static void inputdevice_mh_abs (int x, int y)
 {
 	uae_u8 *p;
 	uae_u8 tmp[4];
-	uae_u32 off;
 
 	mousehack_enable ();
-	off = getmhoffset ();
-	p = rtarea + off;
+	if (!mousehack_address)
+		return;
+	p = get_real_address (mousehack_address);
 
 	memcpy (tmp, p + MH_ABSX, sizeof tmp);
 
@@ -1397,7 +1395,7 @@ static void inputdevice_mh_abs (int x, int y)
 
 	if (!memcmp (tmp, p + MH_ABSX, sizeof tmp))
 		return;
-	rtarea[off + MH_E] = 0xc0 | 1;
+	p[MH_E] = 0xc0 | 1;
 	p[MH_CNT]++;
 	tablet_data = 1;
 }
@@ -2546,6 +2544,7 @@ void inputdevice_handle_inputcode (void)
 	{
 	case AKS_ENTERGUI:
 		gui_display (-1);
+		setsystime ();
 		break;
 	case AKS_SCREENSHOT_FILE:
 		screenshot (1, 1);
@@ -2560,15 +2559,19 @@ void inputdevice_handle_inputcode (void)
 #endif
 	case AKS_FLOPPY0:
 		gui_display (0);
+		setsystime ();
 		break;
 	case AKS_FLOPPY1:
 		gui_display (1);
+		setsystime ();
 		break;
 	case AKS_FLOPPY2:
 		gui_display (2);
+		setsystime ();
 		break;
 	case AKS_FLOPPY3:
 		gui_display (3);
+		setsystime ();
 		break;
 	case AKS_EFLOPPY0:
 		disk_eject (0);
@@ -5763,27 +5766,48 @@ void inputdevice_swap_ports (struct uae_prefs *p, int devnum)
 }
 
 //memcpy (p->joystick_settings[dst], p->joystick_settings[src], sizeof (struct uae_input_device) * MAX_INPUT_DEVICES);
-static void copydev (struct uae_input_device *dst, struct uae_input_device *src)
+static void copydev (struct uae_input_device *dst, struct uae_input_device *src, int selectedwidget)
 {
 	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
 		for (int j = 0; j < MAX_INPUT_DEVICE_EVENTS; j++) {
-			for (int k = 0; k < MAX_INPUT_SUB_EVENT_ALL; k++) {
-				xfree (dst[i].custom[j][k]);
+			if (j == selectedwidget || selectedwidget < 0) {
+				for (int k = 0; k < MAX_INPUT_SUB_EVENT_ALL; k++) {
+					xfree (dst[i].custom[j][k]);
+				}
 			}
 		}
-		xfree (dst[i].configname);
-		xfree (dst[i].name);
+		if (selectedwidget < 0) {
+			xfree (dst[i].configname);
+			xfree (dst[i].name);
+		}
 	}
-	memcpy (dst, src, sizeof (struct uae_input_device) * MAX_INPUT_DEVICES);
+	if (selectedwidget < 0) {
+		memcpy (dst, src, sizeof (struct uae_input_device) * MAX_INPUT_DEVICES);
+	} else {
+		int j = selectedwidget;
+		for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
+			for (int k = 0; k < MAX_INPUT_SUB_EVENT_ALL; k++) {
+				dst[i].eventid[j][k] = src[i].eventid[j][k];
+				dst[i].custom[j][k] = src[i].custom[j][k];
+				dst[i].flags[j][k] = src[i].flags[j][k];
+				dst[i].port[j][k] = src[i].port[j][k];
+			}
+			dst[i].extra[j] = src[i].extra[j];
+		}
+	}
 	for (int i = 0; i < MAX_INPUT_DEVICES; i++) {
 		for (int j = 0; j < MAX_INPUT_DEVICE_EVENTS; j++) {
-			for (int k = 0; k < MAX_INPUT_SUB_EVENT_ALL; k++) {
-				if (dst[i].custom)
-					dst[i].custom[j][k] = my_strdup (dst[i].custom[j][k]);
+			if (j == selectedwidget || selectedwidget < 0) {
+				for (int k = 0; k < MAX_INPUT_SUB_EVENT_ALL; k++) {
+					if (dst[i].custom)
+						dst[i].custom[j][k] = my_strdup (dst[i].custom[j][k]);
+				}
 			}
 		}
-		dst[i].configname = my_strdup (dst[i].configname);
-		dst[i].name = my_strdup (dst[i].name);
+		if (selectedwidget < 0) {
+			dst[i].configname = my_strdup (dst[i].configname);
+			dst[i].name = my_strdup (dst[i].name);
+		}
 	}
 }
 
@@ -5792,6 +5816,12 @@ static void copydev (struct uae_input_device *dst, struct uae_input_device *src)
 // +2 = default (pc keyboard)
 void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int devnum, int selectedwidget)
 {
+	if (selectedwidget >= 0) {
+		if (devnum < 0)
+			return;
+		if (gettype (devnum) != IDTYPE_KEYBOARD)
+			return;
+	}
 	if (src >= MAX_INPUT_SETTINGS) {
 		if (gettype (devnum) == IDTYPE_KEYBOARD) {
 			p->input_keyboard_type = src > MAX_INPUT_SETTINGS ? 1 : 0;
@@ -5803,11 +5833,11 @@ void inputdevice_copy_single_config (struct uae_prefs *p, int src, int dst, int 
 		return;
 	if (src < MAX_INPUT_SETTINGS) {
 		if (devnum < 0 || gettype (devnum) == IDTYPE_JOYSTICK)
-			copydev (p->joystick_settings[dst], p->joystick_settings[src]);
+			copydev (p->joystick_settings[dst], p->joystick_settings[src], selectedwidget);
 		if (devnum < 0 || gettype (devnum) == IDTYPE_MOUSE)
-			copydev (p->mouse_settings[dst], p->mouse_settings[src]);
+			copydev (p->mouse_settings[dst], p->mouse_settings[src], selectedwidget);
 		if (devnum < 0 || gettype (devnum) == IDTYPE_KEYBOARD)
-			copydev (p->keyboard_settings[dst], p->keyboard_settings[src]);
+			copydev (p->keyboard_settings[dst], p->keyboard_settings[src], selectedwidget);
 	}
 }
 
@@ -6171,6 +6201,7 @@ void warpmode (int mode)
 #endif
 	changed_prefs.turbo_emulation = currprefs.turbo_emulation;
 	config_changed = 1;
+	setsystime ();
 }
 
 void pausemode (int mode)
@@ -6180,6 +6211,7 @@ void pausemode (int mode)
 	else
 		pause_emulation = mode;
 	config_changed = 1;
+	setsystime ();
 }
 
 int jsem_isjoy (int port, const struct uae_prefs *p)

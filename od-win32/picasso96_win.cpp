@@ -660,7 +660,7 @@ static int doskip (void)
 
 void picasso_trigger_vblank (void)
 {
-	if (!ABI_interrupt || !uaegfx_base || !interrupt_enabled || currprefs.win32_rtgvblankrate < -1)
+	if (!ABI_interrupt || !uaegfx_base || !interrupt_enabled || !currprefs.rtg_hardwareinterrupt)
 		return;
 	put_long (uaegfx_base + CARD_IRQPTR, ABI_interrupt + PSSO_BoardInfo_SoftInterrupt);
 	put_byte (uaegfx_base + CARD_IRQFLAG, 1);
@@ -2156,7 +2156,7 @@ void picasso96_alloc (TrapContext *ctx)
 	picasso96_alloc2 (ctx);
 }
 
-static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI);
+static void inituaegfxfuncs (uaecptr start, uaecptr ABI);
 static void inituaegfx (uaecptr ABI)
 {
 	uae_u32 flags;
@@ -2206,7 +2206,7 @@ static void inituaegfx (uaecptr ABI)
 		hwsprite = 0;
 		write_log (_T("P96: Hardware sprite support disabled\n"));
 	}
-	if (currprefs.win32_rtgvblankrate >= -1 && !uaegfx_old)
+	if (currprefs.rtg_hardwareinterrupt && !uaegfx_old)
 		flags |= BIF_VBLANKINTERRUPT;
 	if (!(flags & BIF_INDISPLAYCHAIN)) {
 		write_log (_T("P96: BIF_INDISPLAYCHAIN force-enabled!\n"));
@@ -4020,7 +4020,7 @@ static bool flushpixels (void)
 		break;
 	}
 
-	if (!currprefs.gfx_api && (currprefs.leds_on_screen & STATUSLINE_RTG)) {
+	if (currprefs.leds_on_screen & STATUSLINE_RTG) {
 		if (dst == NULL) {
 			dst = gfx_lock_picasso (false, false);
 			if (dst)
@@ -4246,13 +4246,10 @@ static uae_u32 REGPARAM2 picasso_SetMemoryMode(TrapContext *ctx)
 	if (ABI) \
 	put_long (ABI + func, start);
 
-static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
+static void inituaegfxfuncs (uaecptr start, uaecptr ABI)
 {
-	uaecptr old = here ();
-	uaecptr ptr;
-
 	if (uaegfx_old)
-		return 0;
+		return;
 	org (start);
 
 	dw (RTS);
@@ -4406,11 +4403,8 @@ static uaecptr inituaegfxfuncs (uaecptr start, uaecptr ABI)
 
 	write_log (_T("uaegfx.card magic code: %08X-%08X ABI=%08X\n"), start, here (), ABI);
 
-	if (ABI && currprefs.win32_rtgvblankrate >= -1)
+	if (ABI && currprefs.rtg_hardwareinterrupt)
 		initvblankABI (uaegfx_base, ABI);
-	ptr = here ();
-	org (old);
-	return ptr;
 }
 
 void picasso_reset (void)
@@ -4420,14 +4414,15 @@ void picasso_reset (void)
 	uaegfx_active = 0;
 	interrupt_enabled = 0;
 	reserved_gfxmem = 0;
-	resetpalette();
+	resetpalette ();
+	InitPicasso96 ();
 }
 
-void uaegfx_install_code (void)
+void uaegfx_install_code (uaecptr start)
 {
-	uaecptr start = here ();
 	uaegfx_rom = start;
-	org (inituaegfxfuncs (start, 0));
+	org (start);
+	inituaegfxfuncs (start, 0);
 }
 
 #define UAEGFX_VERSION 3
@@ -4513,7 +4508,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	put_long (uaegfx_base + CARD_RESLIST, uaegfx_base + CARD_SIZEOF);
 	put_long (uaegfx_base + CARD_RESLISTSIZE, extrasize);
 
-	if (currprefs.win32_rtgvblankrate >= -1)
+	if (currprefs.rtg_hardwareinterrupt)
 		initvblankirq (ctx, uaegfx_base);
 
 	write_log (_T("uaegfx.card %d.%d init @%08X\n"), UAEGFX_VERSION, UAEGFX_REVISION, uaegfx_base);

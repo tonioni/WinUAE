@@ -2419,11 +2419,13 @@ static void init_drawing_frame (void)
 			if (frame_res_cnt == 0) {
 				int m = frame_res * 2 + frame_res_lace;
 				struct wh *dst = currprefs.gfx_apmode[0].gfx_fullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
-				while (m < 6) {
+				while (m < 3 * 2) {
 					struct wh *src = currprefs.gfx_apmode[0].gfx_fullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
 					if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
 						int nr = m >> 1;
 						int nl = (m & 1) == 0 ? 0 : 1;
+						int nr_o = nr;
+						int nl_o = nl;
 
 						if (currprefs.gfx_autoresolution_minh < 0) {
 							if (nr < nl)
@@ -2446,7 +2448,9 @@ static void init_drawing_frame (void)
 						if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
 							changed_prefs.gfx_resolution = nr;
 							changed_prefs.gfx_vresolution = nl;
-							write_log (_T("RES -> %d LINE -> %d\n"), nr, nl);
+							write_log (_T("RES -> %d (%d) LINE -> %d (%d) (%d - %d, %d - %d)\n"), nr, nr_o, nl, nl_o,
+								currprefs.gfx_autoresolution_minh, currprefs.gfx_autoresolution_minv,
+								gfxvidinfo.gfx_resolution_reserved, gfxvidinfo.gfx_vresolution_reserved);
 							config_changed = 1;
 							//activate_debugger ();
 						}
@@ -3071,7 +3075,6 @@ void drawing_init (void)
 	uae_sem_init (&gui_sem, 0, 1);
 #ifdef PICASSO96
 	if (!isrestore ()) {
-		InitPicasso96 ();
 		picasso_on = 0;
 		picasso_requested_on = 0;
 		gfx_set_picasso_state (0);

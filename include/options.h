@@ -407,6 +407,7 @@ struct uae_prefs {
 	uae_u32 mbresmem_low_size;
 	uae_u32 mbresmem_high_size;
 	uae_u32 rtgmem_size;
+	bool rtg_hardwareinterrupt;
 	int rtgmem_type;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
@@ -470,6 +471,7 @@ struct uae_prefs {
 	bool win32_norecyclebin;
 	int win32_guikey;
 	int win32_kbledmode;
+	bool win32_blankmonitors;
 	TCHAR win32_commandpathstart[MAX_DPATH];
 	TCHAR win32_commandpathend[MAX_DPATH];
 	TCHAR win32_parjoyport0[MAX_DPATH];

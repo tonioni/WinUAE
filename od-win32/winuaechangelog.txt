@@ -1,7 +1,42 @@
 
 - restore only single input target to default.
-- hdd from command line
-- no-buffer tearing updates
+
+Beta 6:
+
+- PC raw MFM decoding improved (uaeunp, Amiga/ST/PC multiformat PC images didn't decode properly)
+- Interlace flag wasn't set if resolution had "i" flag but refresh rate didn't, caused blank screen in D3D modes.
+- Set system time to host time (timer.device/TR_SETSYSTIME) when exiting GUI or unpausing if syncronize clock option is enabled.
+  Only works if at least one directory filesystem is in use. (Shares directory filesystem process to minimize resource usage)
+- Interlaced host resolution field matching with emulated interlace rewritten, now simply waits extra field if fields
+  don't match. Can cause small sound glitches if small buffer but this is also much more reliable than old method. (Need tweaking)
+- Small non-fastest CPU mode low latency vsync tweaks.
+- Ignore CPU writes to DSKDAT. (Useless "DSKDAT: FIFO overflow!" log messages caused by some programs that poke DSKDAT).
+- Added -nodirectinput command line parameter that completely disables directinput device enumeration.
+- Gayle PCMCIA CF IDE emulation improvements, PCMCIA CF config #2 also supported (PC primary IDE IO addresses)
+- GUI position is also saved in fullscreen mode, separate from windowed mode GUI coordinates.
+- Some chipset mode on the fly configuration changes also reset RTG internal variables, causing blank screen when
+  returning back to RTG mode. (Very old bug, "SetSwitch() - Picasso96 0x0x0" in log)
+- Fullscreen RTG mode refresh rate uses chipset mode refresh rate or rate directly set in Expansions panel. Automatically selects
+  lower available refresh rate if selected rate is unsupported. 
+- Added option to enable/disable RTG vblank interrupt emulation. Previously it was automatically enabled if Refresh rate option wasn't set to
+  disabled. Moved to separate GUI option because of above new feature and because some games don't like RTG board generated interrupts.
+- Direct3D mode RTG OSD only updated when any part of RTG bitmap changed.
+- Blank unused displays(s) (opens full screen topmost black window(s)) option added to misc panel.
+- Only save minimal CPU context (registers and PC) during native/m68k code switching. Previously it saved lots of unneeded data,
+  including data that can be changed outside of CPU emulator. May also increase performance in some situations.
+  Finally explanation and fix for mysterious copper state corruption.
+- CD image mounter: MDS image CD audio tracks didn't play if subchannel data was not included, MDS image data tracks that also
+  included subchannel data returned wrong data.
+- Host MMU write protect ROM regions in JIT direct mode because JIT only checks destination address type when generating x86 code for
+  the first time. Badly crashing programs can corrupt loaded ROM image causing repeating red/black screen reset loop. (Another
+  mysterious previously reported problem solved)
+- Restructured UAE boot ROM variable locations, ROM part write protected.
+- Doubleclicking Input panel Input Source column resets clicked line back to default. (Currently keyboards only)
+- Added uae-configuration harddrive attribute modification support:
+  Syntax: uaehfX_Z where X = unit number, Z = attribute name. (for example: "uaehf0_bootpri 10")
+  Attribute names: devicename, volumename, root, bootpri, read-only, filesys, controller.
+  Syntax is write-only. Use plain uaehfX to check current values.
+  Reset required to activate modified settings.
 
 Beta 5:
 

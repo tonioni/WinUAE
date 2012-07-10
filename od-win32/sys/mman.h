@@ -21,6 +21,7 @@ typedef USHORT ushort;
 struct shmid_ds {
     key_t  key;
     size_t size;
+	size_t rosize;
     void   *addr;
     TCHAR  name[MAX_PATH];
     void   *attached;

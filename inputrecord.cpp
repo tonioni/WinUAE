@@ -8,7 +8,7 @@
 */
 
 #define INPUTRECORD_DEBUG 1
-#define ENABLE_DEBUGGER 1
+#define ENABLE_DEBUGGER 0
 
 #define HEADERSIZE 12
 

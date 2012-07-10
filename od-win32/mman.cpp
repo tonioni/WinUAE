@@ -188,7 +188,7 @@ static void resetmem (void)
 		if (!s->natmembase)
 			continue;
 		shmaddr = natmem_offset + ((uae_u8*)s->attached - (uae_u8*)s->natmembase);
-		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, s->mode);
+		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result != shmaddr)
 			write_log (_T("NATMEM: realloc(%p,%d,%d) failed, err=%x\n"), shmaddr, size, s->mode, GetLastError ());
 		else
@@ -411,12 +411,12 @@ int mprotect (void *addr, size_t len, int prot)
 void *shmat (int shmid, void *shmaddr, int shmflg)
 {
 	void *result = (void *)-1;
-	BOOL got = FALSE;
+	BOOL got = FALSE, readonly = FALSE;
 	int p96special = FALSE;
-	DWORD protect = PAGE_READWRITE;
 
 #ifdef NATMEM_OFFSET
 	unsigned int size = shmids[shmid].size;
+	unsigned int readonlysize = size;
 
 	if (shmids[shmid].attached)
 		return shmids[shmid].attached;
@@ -432,22 +432,28 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			shmaddr=natmem_offset + 0xf80000;
 			got = TRUE;
 			size += BARRIER;
+			readonly = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, _T("rom_a8"))) {
 			shmaddr=natmem_offset + 0xa80000;
 			got = TRUE;
+			readonly = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, _T("rom_e0"))) {
 			shmaddr=natmem_offset + 0xe00000;
 			got = TRUE;
+			readonly = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, _T("rom_f0"))) {
 			shmaddr=natmem_offset + 0xf00000;
 			got = TRUE;
+			readonly = TRUE;
 		}
 		if(!_tcscmp (shmids[shmid].name, _T("rtarea"))) {
 			shmaddr=natmem_offset + rtarea_base;
 			got = TRUE;
+			readonly = TRUE;
+			readonlysize = RTAREA_TRAPS;
 		}
 		if(!_tcscmp (shmids[shmid].name, _T("fast"))) {
 			shmaddr=natmem_offset + 0x200000;
@@ -571,14 +577,16 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 #endif
 
 	if (shmids[shmid].key == shmid && shmids[shmid].size) {
+		DWORD protect = readonly ? PAGE_READONLY : PAGE_READWRITE;
 		shmids[shmid].mode = protect;
+		shmids[shmid].rosize = readonlysize;
 		shmids[shmid].natmembase = natmem_offset;
 		if (shmaddr)
 			virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
-		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
+		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result == NULL)
 			virtualfreewithlock (shmaddr, 0, MEM_DECOMMIT);
-		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, protect);
+		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result == NULL) {
 			result = (void*)-1;
 			write_log (_T("VirtualAlloc %08X - %08X %x (%dk) failed %d\n"),
@@ -592,6 +600,25 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		}
 	}
 	return result;
+}
+
+void protect_roms (bool protect)
+{
+	struct shmid_ds *shm;
+	
+	if (!currprefs.cachesize || currprefs.comptrustbyte || currprefs.comptrustword || currprefs.comptrustlong)
+		return;
+	for (int i = 0; i < MAX_SHMID; i++) {
+		DWORD old;
+		shm = &shmids[i];
+		if (shm->mode != PAGE_READONLY)
+			continue;
+		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
+			write_log (_T("VirtualProtect %08X - %08X %x (%dk) failed %d\n"),
+				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
+				shm->size, shm->size >> 10, GetLastError ());
+		}
+	}
 }
 
 int shmdt (const void *shmaddr)

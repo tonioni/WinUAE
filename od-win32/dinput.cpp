@@ -146,7 +146,8 @@ static bool rawhid_found;
 static uae_s16 axisold[MAX_INPUT_DEVICES][256];
 
 int no_rawinput = 0;
-int dinput_enum_all;
+int no_directinput = 1;
+static int dinput_enum_all;
 
 int dinput_winmouse (void)
 {
@@ -2569,24 +2570,26 @@ static int di_do_init (void)
 	if (!rawhid_found)
 		rawinput_enabled_hid = 0;
 
-	hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
-	if (FAILED (hr)) {
-		write_log (_T("DirectInput8Create failed, %s\n"), DXError (hr));
-	} else {
-		if (dinput_enum_all) {
-			write_log (_T("DirectInput enumeration..\n"));
-			g_lpdi->EnumDevices (DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+	if (!no_directinput) {
+		hr = DirectInput8Create (hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (LPVOID *)&g_lpdi, NULL);
+		if (FAILED (hr)) {
+			write_log (_T("DirectInput8Create failed, %s\n"), DXError (hr));
 		} else {
-			if (!rawinput_enabled_keyboard) {
-				write_log (_T("DirectInput enumeration.. Keyboards..\n"));
-				g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+			if (dinput_enum_all) {
+				write_log (_T("DirectInput enumeration..\n"));
+				g_lpdi->EnumDevices (DI8DEVCLASS_ALL, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+			} else {
+				if (!rawinput_enabled_keyboard) {
+					write_log (_T("DirectInput enumeration.. Keyboards..\n"));
+					g_lpdi->EnumDevices (DI8DEVCLASS_KEYBOARD, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+				}
+				if (!rawinput_enabled_mouse) {
+					write_log (_T("DirectInput enumeration.. Pointing devices..\n"));
+					g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
+				}
+				write_log (_T("DirectInput enumeration.. Game controllers..\n"));
+				g_lpdi->EnumDevices (DI8DEVCLASS_GAMECTRL, di_enumcallbackj, 0, DIEDFL_ATTACHEDONLY);
 			}
-			if (!rawinput_enabled_mouse) {
-				write_log (_T("DirectInput enumeration.. Pointing devices..\n"));
-				g_lpdi->EnumDevices (DI8DEVCLASS_POINTER, di_enumcallback, 0, DIEDFL_ATTACHEDONLY);
-			}
-			write_log (_T("DirectInput enumeration.. Game controllers..\n"));
-			g_lpdi->EnumDevices (DI8DEVCLASS_GAMECTRL, di_enumcallbackj, 0, DIEDFL_ATTACHEDONLY);
 		}
 	}
 
