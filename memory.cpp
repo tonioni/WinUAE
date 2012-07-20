@@ -39,6 +39,7 @@ int candirect = -1;
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
 #endif
+static int mem_hardreset = 3;
 
 static bool isdirectjit (void)
 {
@@ -77,12 +78,6 @@ uae_u32 allocated_a3000hmem;
 uae_u32 allocated_cardmem;
 uae_u8 ce_banktype[65536];
 uae_u8 ce_cachable[65536];
-
-#if defined(CPU_64_BIT)
-uae_u32 max_z3fastmem = 2048UL * 1024 * 1024;
-#else
-uae_u32 max_z3fastmem = 512 * 1024 * 1024;
-#endif
 
 static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lmem_filepos, a3000hmem_filepos;
 
@@ -1954,8 +1949,10 @@ static shmpiece *find_shmpiece (uae_u8 *base)
 
 static void delete_shmmaps (uae_u32 start, uae_u32 size)
 {
+#if 0
 	if (!needmman ())
 		return;
+#endif
 
 	while (size) {
 		uae_u8 *base = mem_banks[bankindex (start)]->baseaddr;
@@ -2001,8 +1998,10 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shmpiece *y;
 	uae_u8 *base = what->baseaddr;
 
+#if 0
 	if (!needmman ())
 		return;
+#endif
 	if (!base)
 		return;
 
@@ -2033,10 +2032,12 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 	shmpiece *x;
 	static int recurse;
 
+#if 0
 	if (!needmman ()) {
 		nocanbang ();
 		return xcalloc (uae_u8, s + 4);
 	}
+#endif
 
 	id = shmget (IPC_PRIVATE, s, 0x1ff, file);
 	if (id == -1) {
@@ -2391,11 +2392,29 @@ ULONG getz2endaddr (void)
 	return start + 2 * 1024 * 1024;
 }
 
+void memory_clear (void)
+{
+	mem_hardreset = 0;
+	if (savestate_state == STATE_RESTORE)
+		return;
+	if (chipmemory)
+		memset (chipmemory, 0, allocated_chipmem);
+	if (bogomemory)
+		memset (bogomemory, 0, allocated_bogomem);
+	if (a3000lmemory)
+		memset (a3000lmemory, 0, allocated_a3000lmem);
+	if (a3000hmemory)
+		memset (a3000hmemory, 0, allocated_a3000hmem);
+	expansion_clear ();
+}
 
 void memory_reset (void)
 {
 	int bnk, bnk_end;
 	bool gayleorfatgary;
+
+	if (mem_hardreset > 2)
+		memory_init ();
 
 	be_cnt = 0;
 	currprefs.chipmem_size = changed_prefs.chipmem_size;
@@ -2425,9 +2444,11 @@ void memory_reset (void)
 	allocate_memory ();
 	chipmem_setindirect ();
 
-	if (_tcscmp (currprefs.romfile, changed_prefs.romfile) != 0
+	if (mem_hardreset > 1
+		|| _tcscmp (currprefs.romfile, changed_prefs.romfile) != 0
 		|| _tcscmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
 	{
+		protect_roms (false);
 		write_log (_T("ROM loader.. (%s)\n"), currprefs.romfile);
 		kickstart_rom = 1;
 		a1000_handle_kickstart (0);
@@ -2486,6 +2507,7 @@ void memory_reset (void)
 		}
 		patch_kick ();
 		write_log (_T("ROM loader end\n"));
+		protect_roms (true);
 	}
 
 	if (cloanto_rom && currprefs.maprom < 0x01000000)
@@ -2660,11 +2682,17 @@ void memory_reset (void)
 	}
 #endif
 #endif
+	if (mem_hardreset)
+		memory_clear ();
+
 	write_log (_T("memory init end\n"));
 }
 
+
 void memory_init (void)
 {
+	virtualdevice_init ();
+
 	allocated_chipmem = 0;
 	allocated_bogomem = 0;
 	kickmemory = 0;
@@ -2690,6 +2718,7 @@ void memory_init (void)
 	currprefs.romextfile[0] = 0;
 
 #ifdef ACTION_REPLAY
+	action_replay_unload (0);
 	action_replay_load ();
 	action_replay_init (1);
 #ifdef ACTION_REPLAY_HRTMON
@@ -2741,19 +2770,10 @@ void memory_cleanup (void)
 #endif
 }
 
-void memory_hardreset (void)
+void memory_hardreset (int mode)
 {
-	if (savestate_state == STATE_RESTORE)
-		return;
-	if (chipmemory)
-		memset (chipmemory, 0, allocated_chipmem);
-	if (bogomemory)
-		memset (bogomemory, 0, allocated_bogomem);
-	if (a3000lmemory)
-		memset (a3000lmemory, 0, allocated_a3000lmem);
-	if (a3000hmemory)
-		memset (a3000hmemory, 0, allocated_a3000hmem);
-	expansion_clear ();
+	if (mode + 1 > mem_hardreset)
+		mem_hardreset = mode + 1;
 }
 
 void map_banks (addrbank *bank, int start, int size, int realsize)

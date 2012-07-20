@@ -425,6 +425,8 @@
 #define IDC_MBRAM2                      1051
 #define IDC_Z3CHIPMEM                   1052
 #define IDC_Z3CHIPRAM                   1053
+#define IDC_Z3CHIPRAM2                  1054
+#define IDC_MAX32RAM                    1054
 #define IDC_UAEHOME                     1070
 #define IDC_PICASSOHOME                 1071
 #define IDC_AMIGAHOME                   1072
@@ -1060,7 +1062,6 @@
 #define IDC_DF1WPTEXTQ                  1794
 #define IDC_RTG_Z2Z3                    1794
 #define IDC_RTG_BUFFERCNT               1795
-#define IDC_RTG_SCALE_ALLOW2            1796
 #define IDC_RTG_VBINTERRUPT             1796
 #define IDC_INPUTMAPLIST                1797
 #define IDC_PORT1_REMAP                 1798

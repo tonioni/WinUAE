@@ -734,6 +734,7 @@ void reset_all_systems (void)
 	filesys_prepare_reset ();
 	filesys_reset ();
 #endif
+	init_shm ();
 	memory_reset ();
 #if defined (BSDSOCKET)
 	bsdlib_reset ();
@@ -858,6 +859,35 @@ void leave_program (void)
 	do_leave_program ();
 }
 
+
+void virtualdevice_init (void)
+{
+#ifdef AUTOCONFIG
+	rtarea_setup ();
+#endif
+#ifdef FILESYS
+	rtarea_init ();
+	uaeres_install ();
+	hardfile_install ();
+#endif
+#ifdef SCSIEMU
+	scsi_reset ();
+	scsidev_install ();
+#endif
+#ifdef SANA2
+	netdev_install ();
+#endif
+#ifdef UAESERIAL
+	uaeserialdev_install ();
+#endif
+#ifdef AUTOCONFIG
+	expansion_init ();
+#endif
+#ifdef FILESYS
+	filesys_install ();
+#endif
+}
+
 static int real_main2 (int argc, TCHAR **argv)
 {
 
@@ -875,7 +905,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	}
 
 #ifdef NATMEM_OFFSET
-	preinit_shm ();
+	//preinit_shm ();
 #endif
 
 	if (restart_config[0])
@@ -939,34 +969,9 @@ static int real_main2 (int argc, TCHAR **argv)
 	/* force sound settings change */
 	currprefs.produce_sound = 0;
 
-#ifdef AUTOCONFIG
-	rtarea_setup ();
-#endif
-#ifdef FILESYS
-	rtarea_init ();
-	uaeres_install ();
-	hardfile_install ();
-#endif
 	savestate_init ();
-#ifdef SCSIEMU
-	scsi_reset ();
-	scsidev_install ();
-#endif
-#ifdef SANA2
-	netdev_install ();
-#endif
-#ifdef UAESERIAL
-	uaeserialdev_install ();
-#endif
 	keybuf_init (); /* Must come after init_joystick */
 
-#ifdef AUTOCONFIG
-	expansion_init ();
-#endif
-#ifdef FILESYS
-	filesys_install ();
-#endif
-	memory_init ();
 	memory_reset ();
 
 #ifdef AUTOCONFIG

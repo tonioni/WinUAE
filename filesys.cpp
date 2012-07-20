@@ -1307,7 +1307,7 @@ void setsystime (void)
 		return;
 	Unit *u;
 	for (u = units; u; u = u->next) {
-		if (is_virtual (u->unit)) {
+		if (is_virtual (u->unit) && filesys_isvolume (u)) {
 			put_byte (u->volume + 173 - 32, 1);
 			uae_Signal (get_long (u->volume + 176 - 32), 1 << 13);
 			break;
@@ -5172,7 +5172,7 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
 	TRACE((_T("ACTION_CHANGE_FILE_POSITION64(%s,%lld,%d)\n"), k->aino->nname, pos, mode));
 	gui_flicker_led (LED_HD, unit->unit, 1);
 
-	cur = fs_lseek64 (k->fd, 0, SEEK_CUR);
+	cur = k->file_pos;
 	{
 		uae_s64 temppos;
 		uae_s64 filesize = fs_fsize64 (k->fd);
@@ -5198,8 +5198,9 @@ static void action_change_file_position64 (Unit *unit, dpacket packet)
 	} else {
 		PUT_PCK64_RES1 (packet, TRUE);
 		PUT_PCK64_RES2 (packet, 0);
-		k->file_pos = cur;
+		k->file_pos = fs_lseek64 (k->fd, 0, SEEK_CUR);
 	}
+	TRACE((_T("= oldpos %lld newpos %lld\n"), cur, k->file_pos));
 
 }
 
@@ -5214,7 +5215,7 @@ static void action_get_file_position64 (Unit *unit, dpacket packet)
 		PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 		return;
 	}
-	TRACE((_T("ACTION_GET_FILE_POSITION64(%s)\n"), k->aino->nname));
+	TRACE((_T("ACTION_GET_FILE_POSITION64(%s)=%lld\n"), k->aino->nname, k->file_pos));
 	PUT_PCK64_RES1 (packet, k->file_pos);
 	PUT_PCK64_RES2 (packet, 0);
 }
@@ -5284,8 +5285,8 @@ static void action_get_file_size64 (Unit *unit, dpacket packet)
 		PUT_PCK64_RES2 (packet, ERROR_INVALID_LOCK);
 		return;
 	}
-	TRACE((_T("ACTION_GET_FILE_SIZE64(%s)\n"), k->aino->nname));
 	filesize = fs_fsize64 (k->fd);
+	TRACE((_T("ACTION_GET_FILE_SIZE64(%s)=%lld\n"), k->aino->nname, filesize));
 	if (filesize >= 0) {
 		PUT_PCK64_RES1 (packet, filesize);
 		PUT_PCK64_RES2 (packet, 0);

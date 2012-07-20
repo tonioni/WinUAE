@@ -6649,7 +6649,7 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_MBRAM2, z3);
 	ew (hDlg, IDC_MBMEM2, z3);
 
-	ew (hDlg, IDC_RTG_Z2Z3, full_property_sheet);
+	ew (hDlg, IDC_RTG_Z2Z3, z3);
 	ew (hDlg, IDC_RTG_8BIT, rtg);
 	ew (hDlg, IDC_RTG_16BIT, rtg);
 	ew (hDlg, IDC_RTG_24BIT, rtg);
@@ -6662,6 +6662,25 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_RTG_BUFFERCNT, rtg2);
 	ew (hDlg, IDC_RTG_DISPLAYSELECT, rtg2);
 }
+
+extern uae_u32 natmem_size;
+static void setmax32bitram (HWND hDlg)
+{
+	TCHAR tmp[100];
+	uae_u32 size;
+
+	size = workprefs.z3fastmem_size + workprefs.z3fastmem2_size +
+		workprefs.z3chipmem_size + workprefs.rtgmem_size;
+	if (workprefs.z3chipmem_size && workprefs.z3fastmem_size)
+		size += 16 * 1024 * 1024;
+	if ((workprefs.z3fastmem_size || workprefs.z3chipmem_size) && workprefs.rtgmem_size)
+		size += 16 * 1024 * 1024;
+
+	_stprintf (tmp, L"Total configured 32-bit RAM: %dM, reserved: %dM",
+		size / (1024 * 1024), (natmem_size - 256 * 1024 * 1024) / (1024 * 1024));
+	SetDlgItemText (hDlg, IDC_MAX32RAM, tmp);
+}
+
 
 static int manybits (int v, int mask)
 {
@@ -6893,6 +6912,9 @@ static void values_to_memorydlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
+
+	setmax32bitram (hDlg);
+
 }
 
 static void fix_values_memorydlg (void)
@@ -9022,6 +9044,8 @@ static void inithardfile (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString (IDS_HF_FS_CUSTOM, tmp, sizeof (tmp) / sizeof (TCHAR));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("OFS/FFS/RDB"));
+	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PFS3"));
+	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("PDS3"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)_T("SFS"));
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_ADDSTRING, 0, (LPARAM)tmp);
 	SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_SETCURSEL, 0, 0);
@@ -9029,10 +9053,21 @@ static void inithardfile (HWND hDlg)
 
 static void sethfdostype (HWND hDlg, int idx)
 {
-	if (idx == 1)
+	switch (idx)
+	{
+	case 1:
+		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T("0x50465300"));
+	break;
+	case 2:
+		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T("0x50445300"));
+	break;
+	case 3:
 		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T("0x53465300"));
-	else
+	break;
+	default:
 		SetDlgItemText (hDlg, IDC_HF_DOSTYPE, _T(""));
+	break;
+	}
 }
 
 static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
@@ -14664,6 +14699,17 @@ static int init_page (int tmpl, int icon, int title,
 }
 
 static RECT dialog_rect;
+static bool dodialogmousemove (void)
+{
+	if (full_property_sheet || isfullscreen () <= 0)
+		return false;
+	for (int i = 0; Displays[i].monitorid; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		if (md->rect.right - md->rect.left >= 640 && md->rect.bottom - md->rect.top >= 480)
+			return false;
+	}
+	return true;
+}
 
 static void dialogmousemove (HWND hDlg)
 {
@@ -14676,7 +14722,7 @@ static void dialogmousemove (HWND hDlg)
 	int xstart, ystart;
 	MONITORINFOEX pmi;
 
-	if (full_property_sheet || isfullscreen () <= 0)
+	if (!dodialogmousemove ())
 		return;
 	pmi.cbSize = sizeof (pmi);
 	GetMonitorInfo (MonitorFromWindow (hAmigaWnd, MONITOR_DEFAULTTOPRIMARY), (LPMONITORINFO)&pmi);

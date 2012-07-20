@@ -4284,7 +4284,7 @@ void m68k_go (int may_quit)
 			custom_reset (hardreset);
 			m68k_reset (hardreset);
 			if (hardreset) {
-				memory_hardreset ();
+				memory_clear ();
 				write_log (_T("hardreset, memory cleared\n"));
 			}
 #ifdef SAVESTATE

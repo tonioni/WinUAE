@@ -42,6 +42,7 @@ struct sound_data
 	int samplesize;
 	int sndbufsize;
 	int sndbufframes;
+	int softvolume;
 	struct sound_dp *data;
 };
 

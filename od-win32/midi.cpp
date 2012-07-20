@@ -48,7 +48,7 @@
 //on my system it work ok with 10 but who
 //know when windows rest for a while
 //with sysex size of 40 win can 8 sec sleep
-#define	INBUFFLEN 18000	      //if this is not enough a warning come
+#define	INBUFFLEN 120000 //if this is not enough a warning come
 int midi_inbuflen = INBUFFLEN;
 
 static int overflow,only_one_time;
@@ -159,7 +159,7 @@ static void MidiOut_Free(void)
 
 	for(i = 0; i < out_allocated; i++) {
 		if(outbuffer[i])  {
-			free(outbuffer[i]);
+			xfree(outbuffer[i]);
 			outbufferlength[i] = 0;
 			outbuffer[i] = NULL;
 		}

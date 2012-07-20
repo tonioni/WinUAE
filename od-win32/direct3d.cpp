@@ -30,7 +30,9 @@
 #include "hq2x_d3d.h"
 #include "zfile.h"
 #include "uae.h"
+
 extern int D3DEX, d3ddebug;
+int forcedframelatency = -1;
 
 #include <d3d9.h>
 #include <d3dx9.h>
@@ -2315,9 +2317,23 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			write_log (_T("%s: CreateQuery(D3DQUERYTYPE_EVENT) failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
 	if (d3ddevex) {
-		hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
+		UINT v = 12345;
+		hr = d3ddevex->GetMaximumFrameLatency (&v);
+		//write_log (L"GetMaximumFrameLatency=%d\n", v);
+		if (FAILED (hr)) {
+			write_log (_T("%s: GetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			v = 1;
+		}
+		hr = S_OK;
+		if (forcedframelatency >= 0)
+			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
+		else if (v > 1 || !vsync)
+			hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		//v = 12345;
+		//hr = d3ddevex->GetMaximumFrameLatency (&v);
+		//write_log (L"GetMaximumFrameLatency=%d\n", v);
 	}
 
 	return 0;

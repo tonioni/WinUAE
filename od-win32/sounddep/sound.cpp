@@ -510,7 +510,7 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 		hr = IDirectSoundBuffer_SetVolume (s->lpDSBsecondary, vol);
 		if (FAILED (hr))
 			write_log (_T("DS: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
-	} else if (sd->devicetype == SOUND_DEVICE_WASAPI || sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
 		if (s->pAudioVolume) {
 			float vol = 0.0;
 			if (volume < 100 && !mute)
@@ -526,7 +526,20 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 		s->pavolume = volume;
 	} else if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		s->xmaster->SetVolume (mute ? 0.0 : (float)(100 - volume) / 100.0);
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+		sd->softvolume = -1;
+		hr = s->pAudioVolume->SetMasterVolume (1.0, NULL);
+		if (FAILED (hr))
+			write_log (_T("AudioVolume->SetMasterVolume(1.0) failed: %08Xs\n"), hr);
+		if (volume < 100 && !mute) {
+			sd->softvolume = (100 - volume) * 32768 / 100.0;
+			if (sd->softvolume >= 32768)
+				sd->softvolume = -1;
+		}
+		if (mute || volume >= 100)
+			sd->softvolume = 0;
 	}
+
 }
 
 void set_volume (int volume, int mute)
@@ -1087,9 +1100,9 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	LPWSTR name = NULL;
 	int rn[4], rncnt;
 	AUDCLNT_SHAREMODE sharemode;
-	int size, v;
+	int v;
 
-	sd->devicetype = SOUND_DEVICE_WASAPI;
+	sd->devicetype = exclusive ? SOUND_DEVICE_WASAPI_EXCLUSIVE : SOUND_DEVICE_WASAPI;
 	s->wasapiexclusive = exclusive;
 
 	if (s->wasapiexclusive)
@@ -1213,10 +1226,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 	}
 
 	sd->samplesize = sd->channels * 16 / 8;
-	size = sd->sndbufsize * sd->samplesize;
-	s->snd_configsize = size;
-	sd->sndbufsize = size / 32;
-	size /= sd->samplesize;
+	s->snd_configsize = sd->sndbufsize * sd->samplesize;
 
 	s->bufferFrameCount = (UINT32)( // frames =
 		1.0 * s->hnsRequestedDuration * // hns *
@@ -1225,8 +1235,8 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		10000 // (hns / s) /
 		+ 0.5); // rounding
 
-	if (s->bufferFrameCount < size) {
-		s->bufferFrameCount = size;
+	if (s->bufferFrameCount < sd->sndbufsize) {
+		s->bufferFrameCount = sd->sndbufsize;
 		s->hnsRequestedDuration = // hns =
 			(REFERENCE_TIME)(
 			10000.0 * // (hns / ms) *
@@ -1304,6 +1314,7 @@ static int open_audio_wasapi (struct sound_data *sd, int index, int exclusive)
 		}
 	}
 #endif
+	sd->sndbufsize = (s->bufferFrameCount / 8) * sd->samplesize;
 	v = s->bufferFrameCount * sd->samplesize;
 	v /= 2;
 	if (sd->sndbufsize > v)
@@ -1565,6 +1576,7 @@ static int open_sound (void)
 	if (size < 64)
 		size = 64;
 
+	sdp->softvolume = -1;
 	num = enumerate_sound_devices ();
 	if (currprefs.win32_soundcard >= num)
 		currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
@@ -2201,6 +2213,12 @@ void send_sound (struct sound_data *sd, uae_u16 *sndbuffer)
 		return;
 	if (sd->paused)
 		return;
+	if (sd->softvolume >= 0) {
+		uae_s16 *p = (uae_s16*)sndbuffer;
+		for (int i = 0; i < sd->sndbufsize / 2; i++) {
+			p[i] = p[i] * sd->softvolume / 32768;
+		}
+	}
 	if (type == SOUND_DEVICE_AL)
 		finish_sound_buffer_al (sd, sndbuffer);
 	else if (type == SOUND_DEVICE_DS)

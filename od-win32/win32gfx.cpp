@@ -1270,6 +1270,7 @@ static void closeblankwindows (void)
 		if (h) {
 			ShowWindow (h, SW_HIDE);
 			DestroyWindow (h);
+			blankwindows[i] = NULL;
 		}
 	}
 }

@@ -65,6 +65,7 @@ struct instr_def {
     uae_u8 bitpos[16];
     unsigned int mask;
     int cpulevel;
+	int unimpcpulevel;
     int plevel;
     struct {
 	unsigned int flaguse:3;

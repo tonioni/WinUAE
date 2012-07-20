@@ -18,8 +18,8 @@ extern uae_u8 *cache_alloc (int);
 extern void cache_free (uae_u8*);
 #endif
 
-int init_shm (void);
-void preinit_shm (void);
+bool init_shm (void);
+bool preinit_shm (void);
 extern bool canbang;
 extern int candirect;
 
@@ -173,7 +173,8 @@ extern void memory_init (void);
 extern void memory_cleanup (void);
 extern void map_banks (addrbank *bank, int first, int count, int realsize);
 extern void map_overlay (int chip);
-extern void memory_hardreset (void);
+extern void memory_hardreset (int);
+extern void memory_clear (void);
 extern void free_fastmemory (void);
 
 #define longget(addr) (call_mem_get_func(get_mem_bank(addr).lget, addr))

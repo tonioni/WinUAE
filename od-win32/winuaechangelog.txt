@@ -1,6 +1,23 @@
 
 - restore only single input target to default.
 
+Beta 7:
+
+- Directory filesystem 64-bit seek (ACTION_CHANGE_FILE_POSITION64) broke in 240b27
+- -nodirectinput mode was always enabled. (b6)
+- -nodirectinput does not anymore disable mouse/keyboard directinput enumeration if rawinput fails to initialize.
+- Syncronize clock enabled and loading new config crashed in some situations (b6)
+- Blitter emulation didn't leave correct data in blitter's B data register after linedraw finished, fixes
+  No Way demo by Academy that seems to use wrong minterm that requires correct static value in B data register.
+- WASAPI exclusive software volume control support. It seems normal WASAPI volume control does nothing in exclusive mode.
+- Added support for unimplemented integer instructions to 68k emulation code generators. Not yet in use.
+  (This is easy part, unimplemented floating point support is very difficult because it requires special FPU stack frame)
+
+- Experimental memory space rewrite. Now WinUAE reserves address space as much as possible (~1.6G if 64-bit OS, 512M if 32-bit, note
+  that this is only reserved space, actual memory is not yet allocated). Allows more stable on the fly memory size changes.
+  It is not guaranteed that this is safe to use and won't cause side-effects or other bad behavior or loss of performance,
+  please test and report.
+
 Beta 6:
 
 - PC raw MFM decoding improved (uaeunp, Amiga/ST/PC multiformat PC images didn't decode properly)

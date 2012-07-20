@@ -38,6 +38,7 @@ extern void action_replay_ciaread (void);
 extern void action_replay_hide (void);
 extern void action_replay_reset (void);
 extern int action_replay_load (void);
+extern int action_replay_unload (int in_memory_reset);
 
 extern void action_replay_memory_reset (void);
 extern void action_replay_init (int);

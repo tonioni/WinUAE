@@ -284,7 +284,7 @@ void rtarea_init (void)
 	uaegfx_install_code (rtarea_base + RTAREA_RTG);
 #endif
 
-	org (RTAREA_TRAPS);
+	org (RTAREA_TRAPS | rtarea_base);
 	init_extended_traps ();
 }
 

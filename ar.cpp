@@ -250,7 +250,6 @@ static int triggered_once;
 static void hrtmon_unmap_banks (void);
 
 void check_prefs_changed_carts (int in_memory_reset);
-int action_replay_unload (int in_memory_reset);
 
 static int stored_picasso_on = -1;
 
@@ -1476,6 +1475,9 @@ int action_replay_unload (int in_memory_reset)
 		_T("ACTION_REPLAY_DORESET"),
 		_T("ACTION_REPLAY_HIDE"),
 	};
+
+	if (!armemory_rom && !hrtmemory)
+		return 0;
 
 	write_log_debug (_T("Action Replay State:(%s)\nHrtmon State:(%s)\n"),
 		state[action_replay_flag + 3], state[hrtmon_flag + 3]);

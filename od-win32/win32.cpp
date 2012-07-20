@@ -4573,7 +4573,7 @@ extern int debug_rtg_blitter;
 extern int log_bsd;
 extern int inputdevice_logging;
 extern int vsync_modechangetimeout;
-
+extern int forcedframelatency;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4949,6 +4949,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		extraframewait = getval (np);
 		return 2;
 	}
+	if (!_tcscmp (arg, _T("framelatency"))) {
+		forcedframelatency = getval (np);
+		return 2;
+	}
 #ifdef RETROPLATFORM
 	if (!_tcscmp (arg, _T("rphost"))) {
 		rp_param = my_strdup (np);
@@ -5151,7 +5155,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		for (i = 0; argv2[i]; i++)
 			write_log (_T("%d: '%s'\n"), i + 1, argv2[i]);
 	}
-	if (WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
+	if (preinit_shm () && WIN32_RegisterClasses () && WIN32_InitLibraries ()) {
 		DWORD i;
 
 #ifdef RETROPLATFORM

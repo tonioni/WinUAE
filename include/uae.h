@@ -11,6 +11,7 @@ extern void do_leave_program (void);
 extern void start_program (void);
 extern void leave_program (void);
 extern void real_main (int, TCHAR **);
+extern void virtualdevice_init (void);
 extern void usage (void);
 extern void sleep_millis (int ms);
 extern void sleep_millis_main (int ms);
