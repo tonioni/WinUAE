@@ -39,7 +39,7 @@ int candirect = -1;
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
 #endif
-static int mem_hardreset = 3;
+static int mem_hardreset;
 
 static bool isdirectjit (void)
 {
@@ -54,12 +54,11 @@ static bool canjit (void)
 }
 static bool needmman (void)
 {
+#ifdef _WIN32	
+	return true;
+#endif
 	if (canjit ())
 		return true;
-#ifdef _WIN32	
-	if (currprefs.rtgmem_size)
-		return true;
-#endif
 	return false;
 }
 
@@ -85,6 +84,7 @@ static size_t bootrom_filepos, chip_filepos, bogo_filepos, rom_filepos, a3000lme
 and we must clear all memory to prevent bogus contents from confusing
 the Kickstart.  */
 static bool need_hardreset;
+static bool bogomem_aliasing;
 
 /* The address space setting used during the last reset.  */
 static bool last_address_space_24;
@@ -1671,10 +1671,12 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 		case EXTENDED_ROM_CDTV:
 			extendedkickmemory = mapped_malloc (extendedkickmem_size, _T("rom_f0"));
 			extendedkickmem_bank.baseaddr = extendedkickmemory;
+			extendedkickmem_start = 0xf00000;
 			break;
 		case EXTENDED_ROM_CD32:
 			extendedkickmemory = mapped_malloc (extendedkickmem_size, _T("rom_e0"));
 			extendedkickmem_bank.baseaddr = extendedkickmemory;
+			extendedkickmem_start = 0xe00000;
 			break;
 		}
 		if (extendedkickmemory) {
@@ -1864,9 +1866,11 @@ static int load_kickstart (void)
 				extendedkickmem_type = EXTENDED_ROM_CDTV;
 				extendedkickmem_size *= 2;
 				extendedkickmemory = mapped_malloc (extendedkickmem_size, _T("rom_f0"));
+				extendedkickmem_start = 0xf00000;
 			} else {
 				extendedkickmem_type = EXTENDED_ROM_KS;
 				extendedkickmemory = mapped_malloc (extendedkickmem_size, _T("rom_e0"));
+				extendedkickmem_start = 0xe00000;
 			}
 			extendedkickmem_bank.baseaddr = extendedkickmemory;
 			zfile_fseek (f, extpos, SEEK_SET);
@@ -1882,6 +1886,7 @@ static int load_kickstart (void)
 			zfile_fseek (f, extpos + 524288 * 2, SEEK_SET);
 			read_kickstart (f, extendedkickmemory2 + 524288, 524288, 0, 1);
 			extendedkickmem2_mask = extendedkickmem2_size - 1;
+			extendedkickmem2_start = 0xa80000;
 		}
 	}
 
@@ -1933,13 +1938,15 @@ static void dumplist (void)
 	write_log (_T("End Dump:\n"));
 }
 
-static shmpiece *find_shmpiece (uae_u8 *base)
+static shmpiece *find_shmpiece (uae_u8 *base, bool safe)
 {
 	shmpiece *x = shm_start;
 
 	while (x && x->native_address != base)
 		x = x->next;
 	if (!x) {
+		if (safe || bogomem_aliasing)
+			return 0;
 		write_log (_T("NATMEM: Failure to find mapping at %08X, %p\n"), base - NATMEM_OFFSET, base);
 		nocanbang ();
 		return 0;
@@ -1949,10 +1956,8 @@ static shmpiece *find_shmpiece (uae_u8 *base)
 
 static void delete_shmmaps (uae_u32 start, uae_u32 size)
 {
-#if 0
 	if (!needmman ())
 		return;
-#endif
 
 	while (size) {
 		uae_u8 *base = mem_banks[bankindex (start)]->baseaddr;
@@ -1960,7 +1965,7 @@ static void delete_shmmaps (uae_u32 start, uae_u32 size)
 			shmpiece *x;
 			//base = ((uae_u8*)NATMEM_OFFSET)+start;
 
-			x = find_shmpiece (base);
+			x = find_shmpiece (base, true);
 			if (!x)
 				return;
 
@@ -1998,16 +2003,16 @@ static void add_shmmaps (uae_u32 start, addrbank *what)
 	shmpiece *y;
 	uae_u8 *base = what->baseaddr;
 
-#if 0
 	if (!needmman ())
 		return;
-#endif
+
 	if (!base)
 		return;
 
-	x = find_shmpiece (base);
+	x = find_shmpiece (base, false);
 	if (!x)
 		return;
+
 	y = xmalloc (shmpiece, 1);
 	*y = *x;
 	base = ((uae_u8 *) NATMEM_OFFSET) + start;
@@ -2032,12 +2037,10 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 	shmpiece *x;
 	static int recurse;
 
-#if 0
 	if (!needmman ()) {
 		nocanbang ();
 		return xcalloc (uae_u8, s + 4);
 	}
-#endif
 
 	id = shmget (IPC_PRIVATE, s, 0x1ff, file);
 	if (id == -1) {
@@ -2057,6 +2060,7 @@ uae_u8 *mapped_malloc (size_t s, const TCHAR *file)
 		x->native_address = (uae_u8*)answer;
 		x->id = id;
 		x->size = s;
+		x->name = file;
 		x->next = shm_start;
 		x->prev = NULL;
 		if (x->next)
@@ -2088,32 +2092,35 @@ static void init_mem_banks (void)
 
 static void allocate_memory (void)
 {
+	bogomem_aliasing = false;
 	/* emulate 0.5M+0.5M with 1M Agnus chip ram aliasing */
-	if ((allocated_chipmem != currprefs.chipmem_size || allocated_bogomem != currprefs.bogomem_size) &&
-		currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
-		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && !needmman ()) {
-			int memsize1, memsize2;
-			if (chipmemory)
-				mapped_free (chipmemory);
-			chipmemory = 0;
-			if (bogomemory_allocated)
-				mapped_free (bogomemory);
-			bogomemory = 0;
-			bogomemory_allocated = 0;
-			memsize1 = allocated_chipmem = currprefs.chipmem_size;
-			memsize2 = allocated_bogomem = currprefs.bogomem_size;
-			chipmem_mask = allocated_chipmem - 1;
-			chipmem_full_mask = allocated_chipmem * 2 - 1;
-			chipmem_full_size = 0x80000 * 2;
-			chipmemory = mapped_malloc (memsize1 + memsize2, _T("chip"));
-			bogomemory = chipmemory + memsize1;
-			bogomem_mask = allocated_bogomem - 1;
-			if (chipmemory == 0) {
-				write_log (_T("Fatal error: out of memory for chipmem.\n"));
-				allocated_chipmem = 0;
-			} else {
-				need_hardreset = 1;
+	if (currprefs.chipmem_size == 0x80000 && currprefs.bogomem_size >= 0x80000 &&
+		(currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA) && currprefs.cpu_model < 68020) {
+			if ((allocated_chipmem != currprefs.chipmem_size || allocated_bogomem != currprefs.bogomem_size)) {
+				int memsize1, memsize2;
+				if (chipmemory)
+					mapped_free (chipmemory);
+				chipmemory = 0;
+				if (bogomemory_allocated)
+					mapped_free (bogomemory);
+				bogomemory = 0;
+				bogomemory_allocated = 0;
+				memsize1 = allocated_chipmem = currprefs.chipmem_size;
+				memsize2 = allocated_bogomem = currprefs.bogomem_size;
+				chipmem_mask = allocated_chipmem - 1;
+				chipmem_full_mask = allocated_chipmem * 2 - 1;
+				chipmem_full_size = 0x80000 * 2;
+				chipmemory = mapped_malloc (memsize1 + memsize2, _T("chip"));
+				bogomemory = chipmemory + memsize1;
+				bogomem_mask = allocated_bogomem - 1;
+				if (chipmemory == 0) {
+					write_log (_T("Fatal error: out of memory for chipmem.\n"));
+					allocated_chipmem = 0;
+				} else {
+					need_hardreset = true;
+				}
 			}
+			bogomem_aliasing = true;
 	}
 
 	if (allocated_chipmem != currprefs.chipmem_size) {
@@ -2135,7 +2142,7 @@ static void allocate_memory (void)
 			write_log (_T("Fatal error: out of memory for chipmem.\n"));
 			allocated_chipmem = 0;
 		} else {
-			need_hardreset = 1;
+			need_hardreset = true;
 			if (memsize > allocated_chipmem)
 				memset (chipmemory + allocated_chipmem, 0xff, memsize - allocated_chipmem);
 		}
@@ -2167,7 +2174,7 @@ static void allocate_memory (void)
 				allocated_bogomem = 0;
 			}
 		}
-		need_hardreset = 1;
+		need_hardreset = true;
 	}
 	if (allocated_a3000lmem != currprefs.mbresmem_low_size) {
 		if (a3000lmemory)
@@ -2184,7 +2191,7 @@ static void allocate_memory (void)
 				allocated_a3000lmem = 0;
 			}
 		}
-		need_hardreset = 1;
+		need_hardreset = true;
 	}
 	if (allocated_a3000hmem != currprefs.mbresmem_high_size) {
 		if (a3000hmemory)
@@ -2201,7 +2208,7 @@ static void allocate_memory (void)
 				allocated_a3000hmem = 0;
 			}
 		}
-		need_hardreset = 1;
+		need_hardreset = true;
 	}
 #ifdef CDTV
 	if (allocated_cardmem != currprefs.cs_cdtvcard * 1024) {
@@ -2413,6 +2420,12 @@ void memory_reset (void)
 	int bnk, bnk_end;
 	bool gayleorfatgary;
 
+	need_hardreset = false;
+	/* Use changed_prefs, as m68k_reset is called later.  */
+	if (last_address_space_24 != changed_prefs.address_space_24)
+		need_hardreset = true;
+	last_address_space_24 = changed_prefs.address_space_24;
+
 	if (mem_hardreset > 2)
 		memory_init ();
 
@@ -2433,13 +2446,6 @@ void memory_reset (void)
 
 	gayleorfatgary = (currprefs.chipset_mask & CSMASK_AGA) || currprefs.cs_pcmcia || currprefs.cs_ide > 0 || currprefs.cs_mbdmac;
 
-	need_hardreset = 0;
-	/* Use changed_prefs, as m68k_reset is called later.  */
-	if (last_address_space_24 != changed_prefs.address_space_24)
-		need_hardreset = 1;
-
-	last_address_space_24 = changed_prefs.address_space_24;
-
 	init_mem_banks ();
 	allocate_memory ();
 	chipmem_setindirect ();
@@ -2458,7 +2464,7 @@ void memory_reset (void)
 
 		memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 		memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
-		need_hardreset = 1;
+		need_hardreset = true;
 		mapped_free (extendedkickmemory);
 		extendedkickmemory = 0;
 		extendedkickmem_size = 0;
@@ -2691,6 +2697,7 @@ void memory_reset (void)
 
 void memory_init (void)
 {
+	init_mem_banks ();
 	virtualdevice_init ();
 
 	allocated_chipmem = 0;
@@ -2708,8 +2715,6 @@ void memory_init (void)
 	cardmemory = 0;
 	custmem1 = 0;
 	custmem2 = 0;
-
-	init_mem_banks ();
 
 	kickmemory = mapped_malloc (0x80000, _T("kick"));
 	memset (kickmemory, 0, 0x80000);
@@ -2957,7 +2962,8 @@ uae_u8 *restore_rom (uae_u8 *src)
 	}
 	xfree (s);
 	if (!crcdet)
-		write_log (_T("WARNING: ROM '%s' not found!\n"), romn);
+		write_log (_T("WARNING: ROM '%s' %d.%d (CRC32=%08x %08x-%08x) not found!\n"),
+			romn, version >> 16, version & 0xffff, crc32, mem_start, mem_start + mem_size - 1);
 	xfree (romn);
 	return src;
 }
@@ -3005,6 +3011,9 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 			mem_real_start = extendedkickmemory;
 			mem_size = extendedkickmem_size;
 			path = currprefs.romextfile;
+			version = longget (mem_start + 12); /* version+revision */
+			if (version == 0xffffffff)
+				version = longget (mem_start + 16);
 			_stprintf (tmpname, _T("Extended"));
 			break;
 		default:

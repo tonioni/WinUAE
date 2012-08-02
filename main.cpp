@@ -845,6 +845,7 @@ void do_leave_program (void)
 	device_func_reset ();
 	savestate_free ();
 	memory_cleanup ();
+	free_shm ();
 	cfgfile_addcfgparam (0);
 	machdep_free ();
 }
@@ -955,9 +956,15 @@ static int real_main2 (int argc, TCHAR **argv)
 	init_shm ();
 #endif
 
+#ifdef PICASSO96
+	picasso_reset ();
+#endif
+
+#if 0
 #ifdef JIT
 	if (!(currprefs.cpu_model >= 68020 && currprefs.address_space_24 == 0 && currprefs.cachesize))
 		canbang = 0;
+#endif
 #endif
 
 	fixup_prefs (&currprefs);
@@ -972,6 +979,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	savestate_init ();
 	keybuf_init (); /* Must come after init_joystick */
 
+	memory_hardreset (2);
 	memory_reset ();
 
 #ifdef AUTOCONFIG

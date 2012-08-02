@@ -121,7 +121,8 @@ static TCHAR help[] = {
 	_T("  Cl                    List currently found trainer addresses.\n")
 	_T("  D[idxzs <[max diff]>] Deep trainer. i=new value must be larger, d=smaller,\n")
 	_T("                        x = must be same, z = must be different, s = restart.\n")
-	_T("  W <address> <value[.x]> Write into Amiga memory.\n")
+	_T("  W <address> <values[.x] separated by space> Write into Amiga memory.\n")
+	_T("  W <address> 'string' Write into Amiga memory.\n")
 	_T("  w <num> <address> <length> <R/W/I/F/C> [<value>[.x]] (read/write/opcode/freeze/mustchange).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
@@ -141,7 +142,7 @@ static TCHAR help[] = {
 	_T("  dm                    Dump current address space map.\n")
 	_T("  v <vpos> [<hpos>]     Show DMA data (accurate only in cycle-exact mode).\n")
 	_T("                        v [-1 to -4] = enable visual DMA debugger.\n")
-	_T("  ?<value>              Hex/Bin/Dec converter.\n")
+	_T("  ?<value>              Hex ($ and 0x)/Bin (%)/Dec (!) converter.\n")
 #ifdef _WIN32
 	_T("  x                     Close debugger.\n")
 	_T("  xx                    Switch between console and GUI debugger.\n")
@@ -176,6 +177,19 @@ static int debug_out (const TCHAR *format, ...)
 	return 1;
 }
 
+static bool iscancel (int counter)
+{
+	static int cnt;
+
+	cnt++;
+	if (cnt < counter)
+		return false;
+	cnt = 0;
+	if (!console_isch ())
+		return false;
+	console_getch ();
+	return true;
+}
 
 static bool isoperator(TCHAR **cp)
 {
@@ -271,29 +285,37 @@ static int readregx (TCHAR **c, uae_u32 *valp)
 	return 1;
 }
 
-static uae_u32 readbinx (TCHAR **c)
+static bool readbinx (TCHAR **c, uae_u32 *valp)
 {
 	uae_u32 val = 0;
+	bool first = true;
 
 	ignore_ws (c);
 	for (;;) {
 		TCHAR nc = **c;
-		if (nc != '1' && nc != '0')
+		if (nc != '1' && nc != '0') {
+			if (first)
+				return false;
 			break;
+		}
+		first = false;
 		(*c)++;
 		val <<= 1;
 		if (nc == '1')
 			val |= 1;
 	}
-	return val;
+	*valp = val;
+	return true;
 }
 
-static uae_u32 readhexx (TCHAR **c)
+static bool readhexx (TCHAR **c, uae_u32 *valp)
 {
 	uae_u32 val = 0;
 	TCHAR nc;
 
 	ignore_ws (c);
+	if (!isxdigit (peekchar (c)))
+		return false;
 	while (isxdigit (nc = **c)) {
 		(*c)++;
 		val *= 16;
@@ -304,10 +326,11 @@ static uae_u32 readhexx (TCHAR **c)
 			val += nc - 'A' + 10;
 		}
 	}
-	return val;
+	*valp = val;
+	return true;
 }
 
-static uae_u32 readintx (TCHAR **c)
+static bool readintx (TCHAR **c, uae_u32 *valp)
 {
 	uae_u32 val = 0;
 	TCHAR nc;
@@ -316,12 +339,15 @@ static uae_u32 readintx (TCHAR **c)
 	ignore_ws (c);
 	if (**c == '-')
 		negative = 1, (*c)++;
+	if (!isdigit (peekchar (c)))
+		return false;
 	while (isdigit (nc = **c)) {
 		(*c)++;
 		val *= 10;
 		val += nc - '0';
 	}
-	return val * (negative ? -1 : 1);
+	*valp = val * (negative ? -1 : 1);
+	return true;
 }
 
 
@@ -333,37 +359,31 @@ static int checkvaltype2 (TCHAR **c, uae_u32 *val, TCHAR def)
 	nc = _totupper (**c);
 	if (nc == '!') {
 		(*c)++;
-		*val = readintx (c);
-		return 1;
+		return readintx (c, val) ? 1 : 0;
 	}
 	if (nc == '$') {
 		(*c)++;
-		*val = readhexx (c);
-		return 1;
+		return  readhexx (c, val) ? 1 : 0;
 	}
 	if (nc == '0' && _totupper ((*c)[1]) == 'X') {
 		(*c)+= 2;
-		*val = readhexx (c);
-		return 1;
+		return  readhexx (c, val) ? 1 : 0;
 	}
 	if (nc == '%') {
 		(*c)++;
-		*val = readbinx (c);
-		return 1;
+		return readbinx (c, val) ? 1: 0;
 	}
 	if (nc >= 'A' && nc <= 'Z' && nc != 'A' && nc != 'D') {
 		if (readregx (c, val))
 			return 1;
 	}
 	if (def == '!') {
-		*val = readintx (c);
+		return readintx (c, val) ? -1 : 0;
 		return -1;
 	} else if (def == '$') {
-		*val = readhexx (c);
-		return -1;
+		return readhexx (c, val) ? -1 : 0;
 	} else if (def == '%') {
-		*val = readbinx (c);
-		return -1;
+		return readbinx (c, val) ? -1 : 0;
 	}
 	return 0;
 }
@@ -523,8 +543,12 @@ int notinrom (void)
 
 static uae_u32 lastaddr (void)
 {
+	if (currprefs.z3fastmem2_size)
+		return z3fastmem2_start + currprefs.z3fastmem2_size;
 	if (currprefs.z3fastmem_size)
 		return z3fastmem_start + currprefs.z3fastmem_size;
+	if (currprefs.z3chipmem_size)
+		return z3chipmem_start + currprefs.z3chipmem_size;
 	if (currprefs.mbresmem_high_size)
 		return a3000hmem_start + currprefs.mbresmem_high_size;
 	if (currprefs.mbresmem_low_size)
@@ -545,9 +569,29 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		*next = -1;
 		return 0xffffffff;
 	}
-	prev = currprefs.z3fastmem_start;
-	size = currprefs.z3fastmem_size;
+	prev = currprefs.z3fastmem_start + currprefs.z3fastmem_size;
+	size = currprefs.z3fastmem2_size;
 
+	if (currprefs.z3fastmem_size) {
+		prevx = prev;
+		sizex = size;
+		size = currprefs.z3fastmem_size;
+		prev = z3fastmem_start;
+		if (addr == prev + size) {
+			*next = prevx + sizex;
+			return prevx;
+		}
+	}
+	if (currprefs.z3chipmem_size) {
+		prevx = prev;
+		sizex = size;
+		size = currprefs.z3chipmem_size;
+		prev = z3chipmem_start;
+		if (addr == prev + size) {
+			*next = prevx + sizex;
+			return prevx;
+		}
+	}
 	if (currprefs.mbresmem_high_size) {
 		sizex = size;
 		prevx = prev;
@@ -602,6 +646,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 
 static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 {
+	static uaecptr old;
 	uaecptr paddr = addr;
 	int next;
 	if (last && 0) {
@@ -619,6 +664,11 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 	addr = nextaddr2 (addr + 1, &next);
 	if (end)
 		*end = next;
+	if (old != next) {
+		if (addr != 0xffffffff)
+			console_out_f (_T("Scanning.. %08x - %08x (%s)\n"), addr & 0xffffff00, next, get_mem_bank (addr).name);
+		old = next;
+	}
 #if 0
 	if (next && addr != 0xffffffff) {
 		uaecptr xa = addr;
@@ -630,7 +680,7 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 	return addr;
 }
 
-int safe_addr(uaecptr addr, int size)
+int safe_addr (uaecptr addr, int size)
 {
 	addrbank *ab = &get_mem_bank (addr);
 	if (!ab)
@@ -1054,6 +1104,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 				l3[cl2++] = 'p';
 			if (dr->evt & DMA_EVENT_COPPERWAKE)
 				l3[cl2++] = 'W';
+			if (dr->evt & DMA_EVENT_COPPERWANTED)
+				l3[cl2++] = 'c';
 			if (dr->evt & DMA_EVENT_CPUIRQ)
 				l3[cl2++] = 'I';
 			if (dr->evt & DMA_EVENT_INTREQ)
@@ -1412,6 +1464,10 @@ static void deepcheatsearch (TCHAR **c)
 				break;
 			addrcnt += 2;
 		}
+		if  (iscancel (65536)) {
+			console_out_f (_T("Aborted at %08X\n"), addr);
+			break;
+		}
 	}
 
 	console_out_f (_T("%d addresses found\n"), cnt);
@@ -1512,6 +1568,10 @@ static void cheatsearch (TCHAR **c)
 			}
 		}
 		memcnt++;
+		if  (iscancel (65536)) {
+			console_out_f (_T("Aborted at %08X\n"), addr);
+			break;
+		}
 	}
 	if (!first) {
 		while (prevmemcnt < memcnt) {
@@ -1781,6 +1841,8 @@ uae_u8 *save_debug_memwatch (int *len, uae_u8 *dstptr)
 		save_u32 (m->modval);
 		save_u32 (m->val_mask);
 		save_u32 (m->val_size);
+		save_u32 (m->val);
+		save_u32 (m->pc);
 		save_store_size ();
 	}
 	*len = dst - dstbak;
@@ -1806,6 +1868,8 @@ uae_u8 *restore_debug_memwatch (uae_u8 *src)
 		m->modval = restore_u32 ();
 		m->val_mask = restore_u32 ();
 		m->val_size = restore_u32 ();
+		m->val = restore_u32 ();
+		m->pc = restore_u32 ();
 		restore_store_size ();
 	}
 	return src;
@@ -2402,20 +2466,49 @@ static void writeintomem (TCHAR **c)
 
 	ignore_ws(c);
 	addr = readhex (c);
-	ignore_ws(c);
-	val = readhex (c, &len);
 
-	if (len == 4) {
-		put_long (addr, val);
-		cc = 'L';
-	} else if (len == 2) {
-		put_word (addr, val);
-		cc = 'W';
+	ignore_ws (c);
+	if (!more_params (c))
+		return;
+	cc = peekchar (c);
+	if (cc == '\'' || cc == '\"') {
+		next_char (c);
+		while (more_params (c)) {
+			TCHAR str[2];
+			char *astr;
+			cc = next_char (c);
+			if (cc == '\'' || cc == '\"')
+				break;
+			str[0] = cc;
+			str[1] = 0;
+			astr = ua (str);
+			put_byte (addr, astr[0]);
+			xfree (astr);
+			addr++;
+		}
 	} else {
-		put_byte (addr, val);
-		cc = 'B';
+		for (;;) {
+			ignore_ws (c);
+			if (!more_params (c))
+				break;
+			val = readhex (c, &len);
+		
+			if (len == 4) {
+				put_long (addr, val);
+				cc = 'L';
+			} else if (len == 2) {
+				put_word (addr, val);
+				cc = 'W';
+			} else if (len == 1) {
+				put_byte (addr, val);
+				cc = 'B';
+			} else {
+				break;
+			}
+			console_out_f (_T("Wrote %X (%u) at %08X.%c\n"), val, val, addr, cc);
+			addr += len;
+		}
 	}
-	console_out_f (_T("Wrote %X (%u) at %08X.%c\n"), val, val, addr, cc);
 }
 
 static uae_u8 *dump_xlate (uae_u32 addr)
@@ -2808,7 +2901,7 @@ int instruction_breakpoint (TCHAR **c)
 	return 1;
 }
 
-static int process_breakpoint(TCHAR **c)
+static int process_breakpoint (TCHAR **c)
 {
 	processptr = 0;
 	xfree (processname);
@@ -2954,6 +3047,10 @@ static void searchmem (TCHAR **cc)
 				console_out (_T("\nMore than 100 results, aborting.."));
 				break;
 			}
+		}
+		if  (iscancel (65536)) {
+			console_out_f (_T("Aborted at %08X\n"), addr);
+			break;
 		}
 	}
 	if (!got)
@@ -3233,7 +3330,7 @@ static void find_ea (TCHAR **inptr)
 			end = readhex (inptr);
 	}
 	console_out_f (_T("Searching from %08X to %08X\n"), addr, end);
-	while((addr = nextaddr(addr, end, &end)) != 0xffffffff) {
+	while((addr = nextaddr (addr, end, &end)) != 0xffffffff) {
 		if ((addr & 1) == 0 && addr + 6 <= end) {
 			sea = 0xffffffff;
 			dea = 0xffffffff;
@@ -3245,6 +3342,10 @@ static void find_ea (TCHAR **inptr)
 					console_out_f (_T("Too many hits. End addr = %08X\n"), addr);
 					break;
 				}
+			}
+			if  (iscancel (65536)) {
+				console_out_f (_T("Aborted at %08X\n"), addr);
+				break;
 			}
 		}
 	}

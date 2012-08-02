@@ -66,6 +66,7 @@ struct comptbl {
 #endif
 
 extern uae_u32 REGPARAM3 op_illg (uae_u32) REGPARAM;
+extern void REGPARAM3 op_unimpl (void) REGPARAM;
 
 typedef uae_u8 flagtype;
 

@@ -1,6 +1,40 @@
 
 - restore only single input target to default.
 
+Beta 9:
+
+- Replaced readpu.c 68020+ special case TST An/PC-rel and CMP #imm,PC-rel variants with proper table68k entries.
+- Debugger disassembler decodes illegal instructions if opcode is supported by higher CPU model,
+  shown in parenthesis, note that PC is only incremented by 2 in this situation.
+- Debugger W (write to memory) command supports multiple values and strings.
+- Slow debugger commands can be aborted by pressing return (console only)
+- 64-bit DIVL.L checked div by zero exception before checking if instruction is 68060 compatible.
+- Use IOCTL_STORAGE_QUERY_PROPERTY to query optical drive vendor/product/version information instead of SCSI inquiry.
+- "Take screenshots before filtering" supported in RTG modes, takes screenshot from emulated VRAM buffer.
+  8-bit png if 8-bit RTG mode, 24-bit png if >8 bit RTG mode. Does not capture mouse if mouse is emulated hardware sprite.
+- "Capture before filtering" recording option supported in RTG modes.
+- D3D D3DERR_DEVICELOST handling improved.
+- Inhibit Windows error dialogs completely. On some systems missing harddrive still opened annoying Windows no disk error dialog(s).
+- Improved extended ROM statefile support.
+- Save ROM overlay state to statefile separately from CIA OVL pin state, fixes loading of statefiles if current configuration has
+  CIA overlay support but state configuration does not. (Gayle based chipset or CD32)
+- Misc statefile load compatibility improvements when current config is very different compared to statefile's configuration.
+- DMA debugger 'c' = copper wanted this cycle but it wasn't available
+- BPLxDAT non-DMA modifications emulated while bitplane DMA is disabled, not perfect but at least screen isn't completely blank anymore.
+- Ancient Superfrog copper hack removed, it isn't needed anymore. (EyeQlazer/Scoopex is nearly correct now)
+
+Beta 8:
+
+- 68060 and CPU compatible checkbox ticked: generate unimplemented instruction exceptions instead of emulating instructions
+  that real 68060 don't have. Integer instructions only, 040/060 FPU emulation still supports all 6888x instructions.
+- Set FPU FPIAR register (No one shouldn't care, except unimplemented FPU exception handler which isn't supported)
+- RTG state restore broke in previous update.
+- Save RTG mode palette to statefile (Quite important missing information if dislay mode is 8-bit..)
+- More memory space reservation updates.
+- "Restart" GUI option improved, shouldn't cause strange errors if new config has 32-bit RAM enabled and old one didn't.
+- Savestates with 32-bit RAM configured should now load without need to first load configuration that has same amount
+  (or more) RAM configured.
+
 Beta 7:
 
 - Directory filesystem 64-bit seek (ACTION_CHANGE_FILE_POSITION64) broke in 240b27

@@ -8070,7 +8070,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
 	ew (hDlg, IDC_JITENABLE, jitenable);
-	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact && !workprefs.cachesize);
+	ew (hDlg, IDC_COMPATIBLE, (!workprefs.cpu_cycle_exact && !workprefs.cachesize) || workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
@@ -8238,8 +8238,6 @@ static void values_from_cpudlg (HWND hDlg)
 	if (workprefs.cpu_idle > 0)
 		workprefs.cpu_idle = (12 - workprefs.cpu_idle) * 15;
 
-	if (workprefs.cachesize > 0)
-		workprefs.cpu_compatible = 0;
 	if (pages[KICKSTART_ID])
 		SendMessage (pages[KICKSTART_ID], WM_USER, 0, 0);
 	if (pages[DISPLAY_ID])

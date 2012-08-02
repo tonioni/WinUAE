@@ -36,6 +36,7 @@ int shmdt (const void *shmaddr);
 int shmget (key_t key, size_t size, int shmflg, const TCHAR*);
 int shmctl (int shmid, int cmd, struct shmid_ds *buf);
 bool init_shm (void);
+void free_shm (void);
 
 #define PROT_READ  0x01
 #define PROT_WRITE 0x02

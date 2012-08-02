@@ -1199,8 +1199,6 @@ static void trim (TCHAR *s)
 /* open device level access to cd rom drive */
 static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 {
-	uae_u8 inquiry[256];
-	int datalen;
 
 	ciw->cdda_volume[0] = 0x7fff;
 	ciw->cdda_volume[1] = 0x7fff;
@@ -1212,9 +1210,16 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		return 1;
 	}
 
+	memset (ciw->di.vendorid, 0, sizeof ciw->di.vendorid);
+	memset (ciw->di.productid, 0, sizeof ciw->di.productid);
+	memset (ciw->di.revision, 0, sizeof ciw->di.revision);
 	_tcscpy (ciw->di.vendorid, _T("UAE"));
 	_stprintf (ciw->di.productid, _T("SCSI CD%d IMG"), unitnum);
 	_tcscpy (ciw->di.revision, _T("0.2"));
+
+#if 0
+	uae_u8 inquiry[256];
+	int datalen;
 	memset (inquiry, 0, sizeof inquiry);
 	if (spti_inquiry (ciw, unitnum, inquiry, &datalen)) {
 		// check also that device type is non-zero and it is removable
@@ -1242,11 +1247,61 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 		}
 		close_createfile (ciw);
 	}
+#endif
 
 	if (!open_createfile (ciw, 0)) {
 		write_log (_T("IOCTL: failed to open '%s', err=%d\n"), ciw->devname, GetLastError ());
 		goto error;
 	}
+
+	STORAGE_PROPERTY_QUERY query;
+	UCHAR outBuf[20000];
+	ULONG returnedLength;
+	memset (&query, 0, sizeof query);
+	query.PropertyId = StorageDeviceProperty;
+	query.QueryType = PropertyStandardQuery;
+	if (DeviceIoControl(
+		ciw->h,
+		IOCTL_STORAGE_QUERY_PROPERTY,
+		&query,
+		sizeof (STORAGE_PROPERTY_QUERY),
+		&outBuf,
+		sizeof (outBuf),
+		&returnedLength,
+		NULL
+	)) {
+		PSTORAGE_DEVICE_DESCRIPTOR devDesc;
+		devDesc = (PSTORAGE_DEVICE_DESCRIPTOR) outBuf;
+		int size = devDesc->Version;
+		PUCHAR p = (PUCHAR) outBuf;
+		for (;;) {
+			if (offsetof(STORAGE_DEVICE_DESCRIPTOR, CommandQueueing) > size)
+				break;
+			if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, VendorIdOffset) && devDesc->VendorIdOffset && p[devDesc->VendorIdOffset]) {
+				ciw->di.vendorid[0] = 0;
+				ciw->di.productid[0] = 0;
+				ciw->di.revision[0] = 0;
+				int j = 0;
+				for (int i = devDesc->VendorIdOffset; p[i] != (UCHAR) NULL && i < returnedLength && j < sizeof (ciw->di.vendorid) / sizeof (TCHAR) - 1; i++)
+					ciw->di.vendorid[j++] = p[i];
+			}
+			if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductIdOffset) && devDesc->ProductIdOffset && p[devDesc->ProductIdOffset]) {
+				int j = 0;
+				for (int i = devDesc->ProductIdOffset; p[i] != (UCHAR) NULL && i < returnedLength && j < sizeof (ciw->di.productid) / sizeof (TCHAR) - 1; i++)
+					ciw->di.productid[j++] = p[i];
+			}
+			if (size > offsetof(STORAGE_DEVICE_DESCRIPTOR, ProductRevisionOffset) && devDesc->ProductRevisionOffset && p[devDesc->ProductRevisionOffset]) {
+				int j = 0;
+				for (int i = devDesc->ProductRevisionOffset; p[i] != (UCHAR) NULL && i < returnedLength && j < sizeof (ciw->di.revision) / sizeof (TCHAR) - 1; i++)
+					 ciw->di.revision[j++] = p[i];
+			}
+			trim (ciw->di.vendorid);
+			trim (ciw->di.productid);
+			trim (ciw->di.revision);
+			break;
+		}
+	}
+
 	write_log (_T("IOCTL: device '%s' (%s/%s/%s) opened succesfully (unit=%d,media=%d)\n"),
 		ciw->devname, ciw->di.vendorid, ciw->di.productid, ciw->di.revision,
 		unitnum, ciw->di.media_inserted);

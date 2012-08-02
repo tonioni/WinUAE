@@ -828,14 +828,12 @@ static void recursor (void)
 	setspriteimage (boardinfo);
 }
 
-static void setconvert (void)
+static int getconvert (int rgbformat, int pixbytes)
 {
-	static int ohost_mode, orgbformat;
-	int d = picasso_vidinfo.pixbytes;
-	int v;
+	int v = 0;
+	int d = pixbytes;
 
-	v = 0;
-	switch (picasso96_state.RGBFormat)
+	switch (rgbformat)
 	{
 	case RGBFB_CLUT:
 		if (d == 1)
@@ -921,20 +919,28 @@ static void setconvert (void)
 			v = RGBFB_R8G8B8A8_32;
 		break;
 	}
-	picasso_convert = v;
+	return v;
+}
+
+static void setconvert (void)
+{
+	static int ohost_mode, orgbformat;
+
+	picasso_convert = getconvert (picasso96_state.RGBFormat, picasso_vidinfo.pixbytes);
 	if (currprefs.gfx_api) {
-		host_mode = d == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
+		host_mode = picasso_vidinfo.pixbytes == 4 ? RGBFB_B8G8R8A8 : RGBFB_B5G6R5PC;
 	} else {
 		host_mode = DirectDraw_GetSurfacePixelFormat (NULL);
 	}
-	if (d == 4)
+	if (picasso_vidinfo.pixbytes == 4)
 		alloc_colors_rgb (8, 8, 8, 16, 8, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	else
 		alloc_colors_rgb (5, 6, 5, 11, 5, 0, 0, 0, 0, 0, p96rc, p96gc, p96bc);
 	gfx_set_picasso_colors (picasso96_state.RGBFormat);
 	picasso_palette ();
 	if (host_mode != ohost_mode || picasso96_state.RGBFormat != orgbformat) {
-		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n"), d, host_mode, picasso96_state.RGBFormat, v);
+		write_log (_T("RTG conversion: Depth=%d HostRGBF=%d P96RGBF=%d Mode=%d\n"),
+			picasso_vidinfo.pixbytes, host_mode, picasso96_state.RGBFormat, picasso_convert);
 		ohost_mode = host_mode;
 		orgbformat = picasso96_state.RGBFormat;
 	}
@@ -2427,6 +2433,8 @@ static uae_u32 REGPARAM2 picasso_SetColorArray (TrapContext *ctx)
 	uae_u16 count = m68k_dreg (regs, 1);
 	uaecptr boardinfo = m68k_areg (regs, 0);
 	uaecptr clut = boardinfo + PSSO_BoardInfo_CLUT;
+	if (start > 256 || start + count > 256)
+		return 0;
 	if (updateclut (clut, start, count))
 		full_refresh = 1;
 	P96TRACE((_T("SetColorArray(%d,%d)\n"), start, count));
@@ -3631,21 +3639,21 @@ static void statusline (uae_u8 *dst)
 	}
 }
 
-static void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
+static void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, bool direct, int convert_mode)
 {
-	uae_u8 *src2 = src + y * picasso96_state.BytesPerRow;
-	uae_u8 *dst2 = dst + y * picasso_vidinfo.rowbytes;
+	uae_u8 *src2 = src + y * srcbytesperrow;
+	uae_u8 *dst2 = dst + y * dstbytesperrow;
 	int endx = x + width, endx4;
-	int dstpix = picasso_vidinfo.pixbytes;
-	int srcpix = picasso96_state.BytesPerPixel;
+	int dstpix = dstpixbytes;
+	int srcpix = srcpixbytes;
 
-	if (picasso96_state.RGBFormat == host_mode) {
+	if (direct) {
 		memcpy (dst2 + x * dstpix, src2 + x * srcpix, width * dstpix);
 		return;
 	}
 	// native match?
 	if (currprefs.gfx_api) {
-		switch (picasso_convert)
+		switch (convert_mode)
 		{
 			case RGBFB_B8G8R8A8_32:
 			case RGBFB_R5G6B5PC_16:
@@ -3653,7 +3661,7 @@ static void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 			return;
 		}
 	} else {
-		switch (picasso_convert)
+		switch (convert_mode)
 		{
 			case RGBFB_B8G8R8A8_32:
 			case RGBFB_R5G6B5PC_16:
@@ -3664,7 +3672,7 @@ static void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 
 	endx4 = endx & ~3;
 
-	switch (picasso_convert)
+	switch (convert_mode)
 	{
 		/* 24bit->32bit */
 	case RGBFB_R8G8B8_32:
@@ -3862,46 +3870,99 @@ static void copyrow (uae_u8 *src, uae_u8 *dst, int x, int y, int width)
 	}
 }
 
-static void copyallinvert (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight)
+static void copyallinvert (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, bool direct, int mode_convert)
 {
 	int x, y, w;
 
-	w = pwidth * picasso_vidinfo.pixbytes;
-	if (picasso96_state.RGBFormat == host_mode) {
+	w = pwidth * dstpixbytes;
+	if (direct) {
 		for (y = 0; y < pheight; y++) {
 			for (x = 0; x < w; x++)
 				dst[x] = src[x] ^ 0xff;
-			dst += picasso_vidinfo.rowbytes;
-			src += picasso96_state.BytesPerRow;
+			dst += dstbytesperrow;
+			src += srcbytesperrow;
 		}
 	} else {
 		uae_u8 *src2 = src;
 		for (y = 0; y < pheight; y++) {
 			for (x = 0; x < w; x++)
 				src2[x] ^= 0xff;
-			copyrow (src, dst, 0, y, pwidth);
+			copyrow (src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, dstbytesperrow, dstpixbytes, direct, mode_convert);
 			for (x = 0; x < w; x++)
 				src2[x] ^= 0xff;
-			src2 += picasso96_state.BytesPerRow;
+			src2 += srcbytesperrow;
 		}
 	}
 }
 
-static void copyall (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight)
+static void copyall (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcbytesperrow, int srcpixbytes, int dstbytesperrow, int dstpixbytes, bool direct, int mode_convert)
 {
 	int y;
 
-	if (picasso96_state.RGBFormat == host_mode) {
+	if (direct) {
 		int w = pwidth * picasso_vidinfo.pixbytes;
 		for (y = 0; y < pheight; y++) {
 			memcpy (dst, src, w);
-			dst += picasso_vidinfo.rowbytes;
-			src += picasso96_state.BytesPerRow;
+			dst += dstbytesperrow;
+			src += srcbytesperrow;
 		}
 	} else {
 		for (y = 0; y < pheight; y++)
-			copyrow (src, dst, 0, y, pwidth);
+			copyrow (src, dst, 0, y, pwidth, srcbytesperrow, srcpixbytes, dstbytesperrow, dstpixbytes, direct, mode_convert);
 	}
+}
+
+uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette)
+{
+	uae_u8 *src = p96ram_start + natmem_offset;
+	int off = picasso96_state.XYOffset - gfxmem_start;
+	int width, height, pixbytes;
+	uae_u8 *dst;
+	int convert;
+	int hmode;
+
+	if (!picasso_vidinfo.extra_mem)
+		return NULL;
+
+	width = picasso96_state.VirtualWidth;
+	height = picasso96_state.VirtualHeight;
+	pixbytes = picasso96_state.BytesPerPixel == 1 && palette ? 1 : 4;
+
+	dst = xmalloc (uae_u8, width * height * pixbytes);
+	if (!dst)
+		return NULL;
+	hmode = pixbytes == 1 ? RGBFB_CLUT : RGBFB_B8G8R8A8;
+	convert = getconvert (picasso96_state.RGBFormat, pixbytes);
+
+	if (pixbytes > 1 && hmode != convert) {
+		copyall (src + off, dst, width, height, picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel, width * pixbytes, pixbytes, false, convert);
+	} else {
+		uae_u8 *dstp = dst;
+		uae_u8 *srcp = src;
+		for (int y = 0; y < height; y++) {
+			memcpy (dstp, srcp, width * pixbytes);
+			dstp += width * pixbytes;
+			srcp += picasso96_state.BytesPerRow;
+		}
+	}
+	if (pixbytes == 1) {
+		for (int i = 0; i < 256; i++) {
+			palette[i * 3 + 0] = picasso96_state.CLUT[i].Red;
+			palette[i * 3 + 1] = picasso96_state.CLUT[i].Green;
+			palette[i * 3 + 2] = picasso96_state.CLUT[i].Blue;
+		}
+	}
+
+	*widthp = width;
+	*heightp = height;
+	*pitch = width * pixbytes;
+	*depth = pixbytes * 8;
+
+	return dst;
+}
+void freertgbuffer (uae_u8 *dst)
+{
+	xfree (dst);
 }
 
 static bool flushpixels (void)
@@ -3974,9 +4035,16 @@ static bool flushpixels (void)
 
 		if (dofull) {
 			if (flashscreen != 0)
-				copyallinvert (src + off, dst, pwidth, pheight);
+				copyallinvert (src + off, dst, pwidth, pheight,
+					picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
+					picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
+					picasso96_state.RGBFormat == host_mode, picasso_convert);
 			else
-				copyall (src + off, dst, pwidth, pheight);
+				copyall (src + off, dst, pwidth, pheight,
+					picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
+					picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
+					picasso96_state.RGBFormat == host_mode, picasso_convert);
+
 			miny = 0;
 			maxy = pheight;
 			break;
@@ -3999,14 +4067,20 @@ static bool flushpixels (void)
 					int w = gwwpagesize / picasso96_state.BytesPerPixel;
 					x = (realoffset % picasso96_state.BytesPerRow) / picasso96_state.BytesPerPixel;
 					if (x < pwidth)
-						copyrow (src + off, dst, x, y, pwidth - x);
+						copyrow (src + off, dst, x, y, pwidth - x,
+							picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
+							picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
+							picasso96_state.RGBFormat == host_mode, picasso_convert);
 					w = (gwwpagesize - (picasso96_state.BytesPerRow - x * picasso96_state.BytesPerPixel)) / picasso96_state.BytesPerPixel;
 					if (y < miny)
 						miny = y;
 					y++;
 					while (y < pheight && w > 0) {
 						int maxw = w > pwidth ? pwidth : w;
-						copyrow (src + off, dst, 0, y, maxw);
+						copyrow (src + off, dst, 0, y, maxw,
+							picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
+							picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
+							picasso96_state.RGBFormat == host_mode, picasso_convert);
 						w -= maxw;
 						y++;
 					}
@@ -4409,13 +4483,15 @@ static void inituaegfxfuncs (uaecptr start, uaecptr ABI)
 
 void picasso_reset (void)
 {
-	uaegfx_base = 0;
-	uaegfx_old = 0;
-	uaegfx_active = 0;
-	interrupt_enabled = 0;
-	reserved_gfxmem = 0;
-	resetpalette ();
-	InitPicasso96 ();
+	if (savestate_state != STATE_RESTORE) {
+		uaegfx_base = 0;
+		uaegfx_old = 0;
+		uaegfx_active = 0;
+		interrupt_enabled = 0;
+		reserved_gfxmem = 0;
+		resetpalette ();
+		InitPicasso96 ();
+	}
 }
 
 void uaegfx_install_code (uaecptr start)
@@ -4566,10 +4642,15 @@ void restore_p96_finish (void)
 	init_alloc (NULL, 0);
 	if (uaegfx_rom && boardinfo)
 		inituaegfxfuncs (uaegfx_rom, boardinfo);
-	if (set_gc_called) {
+#if 0
+	if (picasso_requested_on) {
+		picasso_on = true;
+		set_gc_called = 1;
 		init_picasso_screen ();
 		init_hz_p96 ();
+		picasso_refresh ();
 	}
+#endif
 }
 
 uae_u8 *restore_p96 (uae_u8 *src)
@@ -4608,6 +4689,13 @@ uae_u8 *restore_p96 (uae_u8 *src)
 	boardinfo = restore_u32 ();
 	for (i = 0; i < 4; i++)
 		cursorrgb[i] = restore_u32 ();
+	if (flags & 64) {
+		for (i = 0; i < 256; i++) {
+			picasso96_state.CLUT[i].Red = restore_u8 ();
+			picasso96_state.CLUT[i].Green = restore_u8 ();
+			picasso96_state.CLUT[i].Blue = restore_u8 ();
+		}
+	}
 	picasso96_state.HostAddress = NULL;
 	picasso_SetPanningInit();
 	picasso96_state.Extent = picasso96_state.Address + picasso96_state.BytesPerRow * picasso96_state.VirtualHeight;
@@ -4627,7 +4715,7 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 		dstbak = dst = xmalloc (uae_u8, 1000);
 	save_u32 (2);
 	save_u32 ((picasso_on ? 1 : 0) | (set_gc_called ? 2 : 0) | (set_panning_called ? 4 : 0) |
-		(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0));
+		(hwsprite ? 8 : 0) | (cursorvisible ? 16 : 0) | (interrupt_enabled ? 32 : 0) | 64);
 	save_u32 (currprefs.rtgmem_size);
 	save_u32 (picasso96_state.Address);
 	save_u32 (picasso96_state.RGBFormat);
@@ -4646,6 +4734,11 @@ uae_u8 *save_p96 (int *len, uae_u8 *dstptr)
 	save_u32 (boardinfo);
 	for (i = 0; i < 4; i++)
 		save_u32 (cursorrgb[i]);
+	for (i = 0; i < 256; i++) {
+		save_u8 (picasso96_state.CLUT[i].Red);
+		save_u8 (picasso96_state.CLUT[i].Green);
+		save_u8 (picasso96_state.CLUT[i].Blue);
+	}
 	*len = dst - dstbak;
 	return dstbak;
 }

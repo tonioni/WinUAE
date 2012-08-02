@@ -246,7 +246,7 @@ uae_u8 cycle_line[256];
 #endif
 
 static uae_u16 bplxdat[8];
-static int bpl1dat_written, bpl1dat_early;
+static bool bpl1dat_written, bpl1dat_early, bpl1dat_written_at_least_once;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
@@ -1062,7 +1062,7 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 		// early bpl1dat crap fix (Sequential engine animation)
 		if (plfleft_real < 0) {
 			int i;
-			for (i = 0; i < thisline_decision.nr_planes; i++) {
+			for (i = 0; i < MAX_PLANES; i++) {
 				todisplay[i][0] = 0;
 #ifdef AGA
 				todisplay[i][1] = 0;
@@ -1071,7 +1071,7 @@ STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 #endif
 			}
 			plfleft_real = hpos;
-			bpl1dat_early = 1;
+			bpl1dat_early = true;
 		}
 	} else {
 		plfleft_real = thisline_decision.plfleft = hpos;
@@ -1086,7 +1086,7 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 		bplpt[nr] += 2 << fm;
 		bplptx[nr] += 2 << fm;
 		if (nr == 0)
-			bpl1dat_written = 1;
+			bpl1dat_written = true;
 #ifdef DEBUGGER
 		if (debug_dma)
 			record_dma (0x110 + nr * 2, chipmem_wget_indirect (p), p, hpos, vpos, DMARECORD_BITPLANE);
@@ -1641,7 +1641,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 		// and we must not draw anything at all in next dma block if this happens
 		// (Disposable Hero titlescreen)
 		fetch_state = fetch_was_plane0;
-		bpl1dat_written = 0;
+		bpl1dat_written = false;
 	}
 
 	fetch_cycle++;
@@ -1673,7 +1673,19 @@ STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm
 	}
 }
 
-static void update_fetch_x (int hpos, int fm)
+static void update_bpldats (int hpos)
+{
+	for (int i = 0; i < MAX_PLANES; i++) {
+#ifdef AGA
+		fetched_aga0[i] = bplxdat[i];
+		fetched_aga1[i] = 0;
+#endif
+		fetched[i] = bplxdat[i];
+	}
+	beginning_of_plane_block (hpos, fetchmode);
+}
+
+static void update_fetch_x (int until, int fm)
 {
 	int pos;
 
@@ -1682,23 +1694,27 @@ static void update_fetch_x (int hpos, int fm)
 
 	pos = last_fetch_hpos;
 	update_toscr_planes ();
-	for (int i = 0; i < 8; i++)
-		fetched[i] = bplxdat[i];
-	beginning_of_plane_block (hpos, fm);
-	for (; pos < hpos; pos++) {
+
+	// not optimized, update_fetch_x() is extremely rarely used.
+	for (; pos < until; pos++) {
 
 		toscr_nbits += 2 << toscr_res;
 
 		if (toscr_nbits > 16) {
-			uae_abort (_T("toscr_nbits > 16 (%d)"), toscr_nbits);
+			uae_abort (_T("xtoscr_nbits > 16 (%d)"), toscr_nbits);
 			toscr_nbits = 0;
 		}
 		if (toscr_nbits == 16)
 			flush_display (fm);
 
 	}
+
+	if (until >= maxhpos) {
+		finish_final_fetch (pos, fm);
+		return;
+	}
+
 	flush_display (fm);
-	bpl1dat_written = 0;
 }
 
 STATIC_INLINE void update_fetch (int until, int fm)
@@ -1828,13 +1844,22 @@ STATIC_INLINE void decide_fetch (int hpos)
 #endif
 			default: uae_abort (_T("fetchmode corrupt"));
 			}
-		} else if (0 && bpl1dat_written) {
-			// "pio" mode display
+		} else if (bpl1dat_written_at_least_once) {
+			// "PIO" mode display
 			update_fetch_x (hpos, fetchmode);
+			bpl1dat_written = false;
 		}
 		maybe_check (hpos);
 		last_fetch_hpos = hpos;
 	}
+}
+
+static void reset_bpl_vars (void)
+{
+	out_nbits = 0;
+	out_offs = 0;
+	toscr_nbits = 0;
+	thisline_decision.bplres = bplcon0_res;
 }
 
 static void start_bpl_dma (int hpos, int hstart)
@@ -1858,10 +1883,7 @@ static void start_bpl_dma (int hpos, int hstart)
 	fetch_cycle = 0;
 	last_fetch_hpos = hstart;
 	cycle_diagram_shift = last_fetch_hpos;
-	out_nbits = 0;
-	out_offs = 0;
-	toscr_nbits = 0;
-	thisline_decision.bplres = bplcon0_res;
+	reset_bpl_vars ();
 
 	ddfstate = DIW_waiting_stop;
 	compute_toscr_delay (last_fetch_hpos, bplcon1);
@@ -2642,8 +2664,9 @@ static void reset_decisions (void)
 	toscr_nr_planes = toscr_nr_planes2 = 0;
 	thisline_decision.bplres = bplcon0_res;
 	thisline_decision.nr_planes = 0;
-	bpl1dat_written = 0;
-	bpl1dat_early = 0;
+	bpl1dat_written = false;
+	bpl1dat_written_at_least_once = false;
+	bpl1dat_early = false;
 
 	plfleft_real = -1;
 	thisline_decision.plfleft = -1;
@@ -3928,19 +3951,23 @@ static void BPL2MOD (int hpos, uae_u16 v)
 	bpl2mod = v;
 }
 
-/* needed in special OCS/ECS "7-plane" mode. */
-/* (in reality only BPL0DAT, BPL5DAT and BPL6DAT needed) */
+/* Needed in special OCS/ECS "7-plane" mode,
+ * also handles CPU generated bitplane data
+ */
 static void BPLxDAT (int hpos, int num, uae_u16 v)
 {
 	decide_line (hpos);
 	decide_fetch (hpos);
 	bplxdat[num] = v;
 	if (num == 0) {
-		bpl1dat_written = 1;
+		bpl1dat_written = true;
+		bpl1dat_written_at_least_once = true;
 		if (thisline_decision.plfleft < 0) {
 			thisline_decision.plfleft = hpos;
+			reset_bpl_vars ();
 			compute_delay_offset ();
 		}
+		update_bpldats (hpos);
 	}
 }
 
@@ -4463,7 +4490,7 @@ think, the documentation is pretty clear on this).
 /* Determine which cycles are available for the copper in a display
 * with a agiven number of planes.  */
 
-STATIC_INLINE int copper_cant_read (int hpos, int alloc)
+STATIC_INLINE int copper_cant_read2 (int hpos, int alloc)
 {
 	if (hpos + 1 >= maxhpos) // first refresh slot
 		return 1;
@@ -4473,6 +4500,14 @@ STATIC_INLINE int copper_cant_read (int hpos, int alloc)
 		return -1;
 	}
 	return is_bitplane_dma_inline (hpos);
+}
+
+static int copper_cant_read (int hpos, int alloc)
+{
+	int cant = copper_cant_read2 (hpos, alloc);
+	if (cant && debug_dma)
+		record_dma_event (DMA_EVENT_COPPERWANTED, hpos, vpos);
+	return cant;
 }
 
 static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
@@ -4714,6 +4749,7 @@ static void update_copper (int until_hpos)
 			break;
 
 		case COP_wait1:
+#if 0
 			/* There's a nasty case here.  As stated in the "Theory" comment above, we
 			test against the incremented copper position.  I believe this means that
 			we have to increment the _vertical_ position at the last cycle in the line,
@@ -4730,7 +4766,7 @@ static void update_copper (int until_hpos)
 			this hack: defer the entire decision until the next line if necessary.  */
 			if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1))
 				break;
-
+#endif
 			cop_state.state = COP_wait;
 
 			cop_state.vcmp = (cop_state.saved_i1 & (cop_state.saved_i2 | 0x8000)) >> 8;
@@ -7576,6 +7612,7 @@ uae_u8 *restore_custom_extra (uae_u8 *src)
 	if (!(v & 1))
 		v = 0;
 	currprefs.cs_compatible = changed_prefs.cs_compatible = v >> 24;
+	cia_set_overlay ((v & 2) != 0);
 
 	currprefs.genlock = changed_prefs.genlock = RBB;
 	currprefs.cs_rtc = changed_prefs.cs_rtc = RB;
@@ -7627,7 +7664,7 @@ uae_u8 *save_custom_extra (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 1000);
 
-	SL ((currprefs.cs_compatible << 24) | 1);
+	SL ((currprefs.cs_compatible << 24) | (&get_mem_bank (0) != &chipmem_bank ? 2 : 0) | 1);
 	SB (currprefs.genlock ? 1 : 0);
 	SB (currprefs.cs_rtc);
 	SL (currprefs.cs_rtc_adjust);

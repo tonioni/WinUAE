@@ -19,6 +19,7 @@ extern void cache_free (uae_u8*);
 #endif
 
 bool init_shm (void);
+void free_shm (void);
 bool preinit_shm (void);
 extern bool canbang;
 extern int candirect;
@@ -329,6 +330,7 @@ typedef struct shmpiece_reg {
 	uae_u8 *native_address;
 	int id;
 	uae_u32 size;
+	const TCHAR *name;
 	struct shmpiece_reg *next;
 	struct shmpiece_reg *prev;
 } shmpiece;

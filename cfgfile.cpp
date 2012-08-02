@@ -584,7 +584,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("config_version"), _T("%d.%d.%d"), UAEMAJOR, UAEMINOR, UAESUBREV);
 	cfgfile_write_str (f, _T("config_hardware_path"), p->config_hardware_path);
 	cfgfile_write_str (f, _T("config_host_path"), p->config_host_path);
-	cfgfile_write_str (f, _T("config_window_title"), p->config_window_title);
+	if (p->config_window_title[0])
+		cfgfile_write_str (f, _T("config_window_title"), p->config_window_title);
 
 	for (sl = p->all_lines; sl; sl = sl->next) {
 		if (sl->unknown) {

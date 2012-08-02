@@ -2379,8 +2379,8 @@ int D3D_needreset (void)
 		hr = d3ddev->TestCooperativeLevel ();
 	if (hr == S_PRESENT_OCCLUDED)
 		return 0;
-	if (hr == D3DERR_DEVICENOTRESET) {
-		write_log (_T("%s: DEVICENOTRESET\n"), D3DHEAD);
+	if (hr == D3DERR_DEVICENOTRESET || hr == D3DERR_DEVICELOST) {
+		write_log (_T("%s: %s\n"), D3DHEAD, hr == D3DERR_DEVICENOTRESET ? _T("DEVICENOTRESET"): _T("DEVICELOST"));
 		devicelost = 2;
 		invalidatedeviceobjects ();
 		hr = reset ();
@@ -2397,10 +2397,6 @@ int D3D_needreset (void)
 		write_log (_T("%s: Reset succeeded\n"), D3DHEAD);
 		restoredeviceobjects ();
 		return -1;
-	} else if (hr == D3DERR_DEVICELOST) {
-		write_log (_T("%s: D3DERR_DEVICELOST\n"), D3DHEAD);
-		invalidatedeviceobjects ();
-		return 0;
 	} else if (hr == S_PRESENT_MODE_CHANGED) {
 		write_log (_T("%s: S_PRESENT_MODE_CHANGED (%d,%d)\n"), D3DHEAD, ddraw_fs, ddraw_fs_attempt);
 #if 0

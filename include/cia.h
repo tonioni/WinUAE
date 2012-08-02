@@ -20,6 +20,7 @@ extern void cia_diskindex (void);
 extern void dumpcia (void);
 extern void rethink_cias (void);
 extern int resetwarning_do (int);
+extern void cia_set_overlay (bool);
 
 extern int parallel_direct_write_data (uae_u8, uae_u8);
 extern int parallel_direct_read_data (uae_u8*);

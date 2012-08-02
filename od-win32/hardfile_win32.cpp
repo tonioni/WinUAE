@@ -1061,7 +1061,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	UCHAR outBuf[20000];
 	DISK_GEOMETRY			dg;
 	GET_LENGTH_INFORMATION		gli;
-	PSTORAGE_ADAPTER_DESCRIPTOR         adpDesc;
 	int gli_ok;
 	BOOL                                status;
 	ULONG                               length = 0, returned = 0, returnedLength;
@@ -1111,25 +1110,6 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		showonly = TRUE;
 	}
 
-	query.PropertyId = StorageAdapterProperty;
-	query.QueryType = PropertyStandardQuery;
-
-	status = DeviceIoControl(
-		hDevice,
-		IOCTL_STORAGE_QUERY_PROPERTY,
-		&query,
-		sizeof(STORAGE_PROPERTY_QUERY),
-		&outBuf,
-		sizeof (outBuf),
-		&returnedLength,
-		NULL
-		);
-	if (!status) {
-		write_log (_T("IOCTL_STORAGE_QUERY_PROPERTY failed with error code %d.\n"), GetLastError());
-	} else {
-		adpDesc = (PSTORAGE_ADAPTER_DESCRIPTOR) outBuf;
-	}
-
 	memset (outBuf, 0, sizeof outBuf);
 	query.PropertyId = StorageDeviceProperty;
 	query.QueryType = PropertyStandardQuery;
@@ -1137,7 +1117,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		hDevice,
 		IOCTL_STORAGE_QUERY_PROPERTY,
 		&query,
-		sizeof(STORAGE_PROPERTY_QUERY),
+		sizeof (STORAGE_PROPERTY_QUERY),
 		&outBuf,
 		sizeof outBuf,
 		&returnedLength,
@@ -1434,7 +1414,6 @@ static int hdf_init2 (int force)
 #endif
 	DWORD index = 0, index2 = 0, drive;
 	uae_u8 *buffer;
-	UINT errormode;
 	DWORD dwDriveMask;
 	static int done;
 
@@ -1445,7 +1424,6 @@ static int hdf_init2 (int force)
 #ifdef WINDDK
 	buffer = (uae_u8*)VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
 	if (buffer) {
-		errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 		memset (uae_drives, 0, sizeof (uae_drives));
 		num_drives = 0;
 		hIntDevInfo = SetupDiGetClassDevs (&GUID_DEVINTERFACE_DISK, NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
@@ -1474,7 +1452,6 @@ static int hdf_init2 (int force)
 			}
 			dwDriveMask >>= 1;
 		}
-		SetErrorMode (errormode);
 #if 0
 		hIntDevInfo = SetupDiGetClassDevs (&GUID_DEVCLASS_MTD, NULL, NULL, DIGCF_PRESENT);
 		if (hIntDevInfo != INVALID_HANDLE_VALUE) {
@@ -1602,14 +1579,11 @@ static int hmc (struct hardfiledata *hfd)
 	int first = 1;
 
 	while (hfd->handle_valid) {
-		DWORD errormode;
 		write_log (_T("testing if %s has media inserted\n"), hfd->emptyname);
 		status = 0;
-		errormode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 		SetFilePointer (hfd->handle->h, 0, NULL, FILE_BEGIN);
 		ret = ReadFile (hfd->handle->h, buf, hfd->blocksize, &got, NULL);
 		err = GetLastError ();
-		SetErrorMode(errormode);
 		if (ret) {
 			if (got == hfd->blocksize) {
 				write_log (_T("read ok (%d)\n"), got);

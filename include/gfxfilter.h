@@ -81,6 +81,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 void getfilteroffset (int *dx, int *dy, int *mx, int *my);
 uae_u8 *getfilterbuffer (int *widthp, int *heightp, int *pitch, int *depth);
 uae_u8 *getfilterbuffer3d (int *widthp, int *heightp, int *pitch, int *depth);
+uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette);
+void freertgbuffer (uae_u8 *dst);
 
 extern void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height);
 #endif

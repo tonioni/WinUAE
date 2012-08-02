@@ -482,8 +482,14 @@ static int AVIOutput_AllocateVideo (void)
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
 		avioutput_fps = ispal () ? 50 : 60;
-	if (avioutput_originalsize)
-		getfilterbuffer (&avioutput_width, &avioutput_height, NULL, &avioutput_bits);
+	if (avioutput_originalsize) {
+		int pitch;
+		if (!WIN32GFX_IsPicassoScreen ()) {
+			getfilterbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits);
+		} else {
+			freertgbuffer (getrtgbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits, NULL));
+		}
+	}
 
 	if (avioutput_width == 0 || avioutput_height == 0 || avioutput_bits == 0) {
 		avioutput_width = WIN32GFX_GetWidth ();
@@ -851,13 +857,17 @@ extern uae_u8 *bufmem_ptr;
 static int getFromBuffer (struct avientry *ae, int original)
 {
 	int x, y, w, h, d;
-	uae_u8 *src;
+	uae_u8 *src, *mem;
 	uae_u8 *dst = ae->lpVideo;
 	int spitch, dpitch;
 
+	mem = NULL;
 	dpitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
 	if (original) {
-		src = getfilterbuffer (&w, &h, &spitch, &d);
+		if (!WIN32GFX_IsPicassoScreen ())
+			src = getfilterbuffer (&w, &h, &spitch, &d);
+		else
+			src = mem = getrtgbuffer (&w, &h, &spitch, &d, NULL);
 	} else {
 		spitch = gfxvidinfo.outbuffer->rowbytes;
 		src = bufmem_ptr;
@@ -899,6 +909,8 @@ static int getFromBuffer (struct avientry *ae, int original)
 		}
 		src += spitch;
 	}
+	if (mem)
+		freertgbuffer (mem);
 	return 1;
 }
 #endif
@@ -918,11 +930,11 @@ void AVIOutput_WriteVideo (void)
 		dorestart ();
 	waitqueuefull ();
 	ae = allocavientry_video ();
-	if (avioutput_originalsize && !WIN32GFX_IsPicassoScreen ()) {
+	if (avioutput_originalsize) {
 		v = getFromBuffer (ae, 1);
 	} else {
 #if defined (GFXFILTER)
-		if (!usedfilter || WIN32GFX_IsPicassoScreen ())
+		if (!usedfilter)
 			v = getFromDC (ae);
 		else
 			v = getFromBuffer (ae, 0);

@@ -5865,6 +5865,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	}
 #endif
 #endif
+	SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 	SetDllDirectory (_T(""));
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
 	InitCommonControls ();

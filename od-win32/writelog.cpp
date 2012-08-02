@@ -300,6 +300,18 @@ void console_out (const TCHAR *txt)
 	console_put (txt);
 }
 
+bool console_isch (void)
+{
+	if (realconsole) {
+		return false;
+	} else if (consoleopen < 0) {
+		DWORD events = 0;
+		GetNumberOfConsoleInputEvents (stdinput, &events);
+		return events > 0;
+	}
+	return false;
+}
+
 TCHAR console_getch (void)
 {
 	if (realconsole) {

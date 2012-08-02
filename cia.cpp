@@ -1317,6 +1317,11 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 	}
 }
 
+void cia_set_overlay (bool overlay)
+{
+	oldovl = overlay;
+}
+
 void CIA_reset (void)
 {
 #ifdef TOD_HACK
@@ -1329,12 +1334,12 @@ void CIA_reset (void)
 
 	kblostsynccnt = 0;
 	serbits = 0;
-	oldovl = 1;
 	oldcd32mute = 1;
 	oldled = true;
 	resetwarning_phase = resetwarning_timer = 0;
 
 	if (!savestate_state) {
+		oldovl = true;
 		kbstate = 0;
 		ciaatlatch = ciabtlatch = 0;
 		ciaapra = 0; ciaadra = 0;
@@ -1357,10 +1362,12 @@ void CIA_reset (void)
 		serial_dtr_off (); /* Drop DTR at reset */
 #endif
 	if (savestate_state) {
+		if (currprefs.cs_ciaoverlay) {
+			oldovl = true;
+		}
 		bfe001_change ();
 		if (!currprefs.cs_ciaoverlay) {
-			map_overlay (1);
-			oldovl = false;
+			map_overlay (oldovl ? 0 : 1);
 		}
 	}
 #ifdef CD32

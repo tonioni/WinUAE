@@ -3141,6 +3141,13 @@ static void gen_opcode (unsigned long int opcode)
 			int old_brace_level;
 			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 			genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
+			if (cpu_level == 5 && curi->size > 0) {
+				printf ("\tif ((dsta & %d) && currprefs.cpu_compatible && get_cpu_model () == 68060) {\n", curi->size == 1 ? 1 : 3);
+				printf ("\t\top_unimpl ();\n");
+				printf ("\t\tgoto %s;\n", endlabelstr);
+				printf ("\t}\n");
+				need_endlabel = 1;
+			}
 			fill_prefetch_0 ();
 			start_brace ();
 			printf ("\tint ru = (src >> 6) & 7;\n");

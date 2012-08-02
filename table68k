@@ -84,13 +84,14 @@
 0000 1010 0011 1100:000:XNZVC:XNZVC:10: EORSR.B #1
 0000 1010 0111 1100:002:?????:?????:10: EORSR.W #1
 0000 1010 zzdd dDDD:000:-NZ00:-----:13: EOR.z   #z,d[!Areg]
-0000 1100 zzss sSSS:000:-NZVC:-----:11: CMP.z   #z,s[!Areg,Immd]
+0000 1100 zzss sSSS:000:-NZVC:-----:11: CMP.z   #z,s[!Areg,Immd,PC8r,PC16]
+0000 1100 zzss sSSS:200:-NZVC:-----:11: CMP.z   #z,s[PC8r,PC16]
 
 0000 1010 11ss sSSS:200:?????:?????:13: CAS.B   #1,s[!Dreg,Areg,Immd,PC8r,PC16]
 0000 1100 11ss sSSS:200:?????:?????:13: CAS.W   #1,s[!Dreg,Areg,Immd,PC8r,PC16]
 0000 1100 1111 1100:250:?????:?????:10: CAS2.W  #2
 0000 1110 zzss sSSS:202:?????:?????:13: MOVES.z #1,s[!Dreg,Areg,Immd,PC8r,PC16]
-0000 1110 11ss sSSS:250:?????:?????:13: CAS.L   #1,s[!Dreg,Areg,Immd,PC8r,PC16]
+0000 1110 11ss sSSS:200:?????:?????:13: CAS.L   #1,s[!Dreg,Areg,Immd,PC8r,PC16]
 0000 1110 1111 1100:250:?????:?????:10: CAS2.L  #2
 
 0000 rrr1 00dd dDDD:000:-----:-----:12: MVPMR.W d[Areg-Ad16],Dr
@@ -126,11 +127,12 @@
 0100 1000 11dd dDDD:000:-NZ00:-----:30: EXT.L   d[Dreg]         
 0100 1000 11dd dDDD:000:-----:-----:02: MVMLE.L #1,d[!Dreg,Areg,Aipi]
 0100 1001 11dd dDDD:200:-NZ00:-----:30: EXT.B   d[Dreg]         
-0100 1010 zzss sSSS:000:-NZ00:-----:10: TST.z   s
+0100 1010 zzss sSSS:000:-NZ00:-----:10: TST.z   s[!Areg,PC16,PC8r]
+0100 1010 zzss sSSS:200:-NZ00:-----:10: TST.z   s[Areg,PC16,PC8r]
 0100 1010 11dd dDDD:000:?????:?????:30: TAS.B   d[!Areg]
 0100 1010 1111 1100:000:?????:?????:00: ILLEGAL
-0100 1100 00ss sSSS:250:-NZVC:-----:13: MULL.L  #1,s[!Areg]
-0100 1100 01ss sSSS:250:?????:?????:13: DIVL.L  #1,s[!Areg]
+0100 1100 00ss sSSS:200:-NZVC:-----:13: MULL.L  #1,s[!Areg]
+0100 1100 01ss sSSS:200:?????:?????:13: DIVL.L  #1,s[!Areg]
 0100 1100 10ss sSSS:000:-----:-----:01: MVMEL.W #1,s[!Dreg,Areg,Apdi,Immd]
 0100 1100 11ss sSSS:000:-----:-----:01: MVMEL.L #1,s[!Dreg,Areg,Apdi,Immd]
 0100 1110 0100 JJJJ:000:-----:XNZVC:10: TRAP    #J
@@ -267,6 +269,7 @@
 1111 0101 0000 1rrr:402:-----:-----:00: PFLUSH   Ara
 1111 0101 0001 0rrr:402:-----:-----:00: PFLUSHAN Ara
 1111 0101 0001 1rrr:402:-----:-----:00: PFLUSHA  Ara
+% 68040 only
 1111 0101 0100 1rrr:452:-----:-----:00: PTESTR   Ara
 1111 0101 0110 1rrr:452:-----:-----:00: PTESTW   Ara
 

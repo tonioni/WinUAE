@@ -96,9 +96,9 @@ extern struct instr {
     unsigned int suse:1;
     unsigned int duse:1;
     unsigned int unused1:1;
-    unsigned int clev:3;
+    unsigned int clev:3, unimpclev:3;
     unsigned int isjmp:1;
-    unsigned int unused2:4;
+    unsigned int unused2:1;
 } *table68k;
 
 extern void read_table68k (void);
