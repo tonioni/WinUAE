@@ -605,9 +605,9 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,100,58,50,10
     GROUPBOX        "Options",IDC_STATIC,168,11,114,111
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,33,96,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,27,96,10
     CONTROL         "Cycle-exact [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,46,100,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,53,100,10
     GROUPBOX        "Collision Level",IDC_STATIC,14,128,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,144,59,10
@@ -618,11 +618,13 @@ BEGIN
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,160,119,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,59,100,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,66,100,10
     COMBOBOX        IDC_CS_EXT,100,80,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Chipset Extra",IDC_STATIC,25,79,52,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,178,99,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "External display hardware:",IDC_STATIC,174,78,100,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,178,102,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "External display hardware:",IDC_STATIC,174,82,100,15,SS_CENTERIMAGE
+    CONTROL         "Wait for Blitter [] Pauses the CPU if blitter is active and CPU attempted to modify blitter registers.",IDC_BLITWAIT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,40,96,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 65490, 300, 247

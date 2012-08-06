@@ -3327,32 +3327,43 @@ static int input_selected_device, input_selected_widget, input_total_devices;
 static int input_selected_event, input_selected_sub_num;
 static int input_copy_from;
 
-static void getqualifiername (TCHAR *p, int mask)
+static void getqualifiername (TCHAR *p, uae_u64 mask)
 {
-	int i, j;
 	*p = 0;
 	if (mask == IDEV_MAPPED_QUALIFIER_SPECIAL) {
 		_tcscpy (p, _T("*"));
+	} else if (mask == (IDEV_MAPPED_QUALIFIER_SPECIAL << 1)) {
+		_tcscpy (p, _T("* [R]"));
 	} else if (mask == IDEV_MAPPED_QUALIFIER_SHIFT) {
 		_tcscpy (p, _T("Shift"));
+	} else if (mask == (IDEV_MAPPED_QUALIFIER_SHIFT << 1)) {
+		_tcscpy (p, _T("Shift [R]"));
 	} else if (mask == IDEV_MAPPED_QUALIFIER_CONTROL) {
 		_tcscpy (p, _T("Ctrl"));
+	} else if (mask == (IDEV_MAPPED_QUALIFIER_CONTROL << 1)) {
+		_tcscpy (p, _T("Ctrl [R]"));
 	} else if (mask == IDEV_MAPPED_QUALIFIER_ALT) {
 		_tcscpy (p, _T("Alt"));
+	} else if (mask == (IDEV_MAPPED_QUALIFIER_ALT << 1)) {
+		_tcscpy (p, _T("Alt [R]"));
 	} else {
-		for (i = IDEV_MAPPED_QUALIFIER1, j = 0; i <= IDEV_MAPPED_QUALIFIER8; i <<= 1, j++) {
-			if (i == mask)
-				_stprintf (p, _T("%d"), j + 1);
+		int j;
+		uae_u64 i;
+		for (i = IDEV_MAPPED_QUALIFIER1, j = 0; i <= (IDEV_MAPPED_QUALIFIER8 << 1); i <<= 1, j++) {
+			if (i == mask) {
+				_stprintf (p, _T("%d%s"), j / 2 + 1, (j & 1) ? _T(" [R]") : _T(""));
+			}
 		}
 	}
 }
 
 static void set_lventry_input (HWND list, int index)
 {
-	int flags, i, sub, port;
+	int i, sub, port;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
 	TCHAR af[32], toggle[32];
+	uae_u64 flags;
 
 	inputdevice_get_mapping (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
 	if (flags & IDEV_MAPPED_AUTOFIRE_SET) {
@@ -3383,8 +3394,8 @@ static void set_lventry_input (HWND list, int index)
 	if (flags & IDEV_MAPPED_QUALIFIER_MASK) {
 		TCHAR *p;
 		p = name;
-		for (i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
-			int mask = IDEV_MAPPED_QUALIFIER1 << i;
+		for (i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
+			uae_u64 mask = IDEV_MAPPED_QUALIFIER1 << i;
 			if (flags & mask) {
 				if (p != name)
 					*p++ = ',';
@@ -3430,12 +3441,13 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 				struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
 				LV_ITEM lvstruct;
 				int devnum;
-				int flags, status;
+				int status;
 				TCHAR name[256];
 				int *atp = axistable;
 				int atpidx;
 				int item;
 				bool found = false;
+				uae_u64 flags;
 
 				if (list) {
 					LVGROUP group;
@@ -6264,6 +6276,7 @@ static void values_to_chipsetdlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_NTSC, workprefs.ntscmode);
 	CheckDlgButton (hDlg, IDC_GENLOCK, workprefs.genlock);
 	CheckDlgButton (hDlg, IDC_BLITIMM, workprefs.immediate_blits);
+	CheckDlgButton (hDlg, IDC_BLITWAIT, workprefs.waiting_blits);
 	CheckRadioButton (hDlg, IDC_COLLISION0, IDC_COLLISION3, IDC_COLLISION0 + workprefs.collision_level);
 	CheckDlgButton (hDlg, IDC_CYCLEEXACT, workprefs.cpu_cycle_exact);
 	SendDlgItemMessage (hDlg, IDC_CS_EXT, CB_SETCURSEL, workprefs.cs_compatible, 0);
@@ -6279,6 +6292,7 @@ static void values_from_chipsetdlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.genlock = ischecked (hDlg, IDC_GENLOCK);
 	workprefs.immediate_blits = ischecked (hDlg, IDC_BLITIMM);
+	workprefs.waiting_blits = ischecked (hDlg, IDC_BLITWAIT) ? 1 : 0;
 	n = ischecked (hDlg, IDC_CYCLEEXACT);
 	if (workprefs.cpu_cycle_exact != n) {
 		workprefs.cpu_cycle_exact = workprefs.blitter_cycle_exact = n;
@@ -11761,7 +11775,8 @@ static void clearinputlistview (HWND hDlg)
 static void doinputcustom (HWND hDlg, int newcustom)
 {
 	TCHAR custom1[MAX_DPATH];
-	int flags;
+	uae_u64 flags;
+
 	custom1[0] = 0;
 	inputdevice_get_mapping (input_selected_device, input_selected_widget,
 		&flags, NULL, NULL, custom1, input_selected_sub_num);
@@ -11843,7 +11858,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 	}
 
 	if (inputchange && doselect && input_selected_device >= 0 && input_selected_event >= 0) {
-		int flags;
+		uae_u64 flags;
 		bool iscustom = false;
 		TCHAR custom[MAX_DPATH];
 
@@ -12320,9 +12335,11 @@ static void handlerawinput (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 static void input_toggleautofire (void)
 {
-	int flags, evt;
+	int evt;
+	uae_u64 flags;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
+
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
 	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
@@ -12370,11 +12387,12 @@ static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
 
 static void input_qualifiers (HWND hDlg)
 {
-	int flags, evt, item;
+	uae_u64 flags;
+	int evt, item;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
-	TCHAR *names[MAX_INPUT_QUALIFIERS];
-	int mflags[MAX_INPUT_QUALIFIERS];
+	TCHAR *names[MAX_INPUT_QUALIFIERS * 2];
+	int mflags[MAX_INPUT_QUALIFIERS * 2];
 	TCHAR tmp[MAX_DPATH];
 	
 	if (input_selected_device < 0 || input_selected_widget < 0)
@@ -12384,29 +12402,31 @@ static void input_qualifiers (HWND hDlg)
 	if (evt <= 0)
 		name[0] = 0;
 	
-	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+	for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
 		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << i);
 		mflags[i] = 0;
 		if (flags & (IDEV_MAPPED_QUALIFIER1 << i))
 			mflags[i] = 1;
 		names[i] = my_strdup (tmp);
 	}
-	item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS);
+	item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
 	if (item >= 0)
 		flags ^= IDEV_MAPPED_QUALIFIER1 << item;
 
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
 		name, custom, flags, -1, input_selected_sub_num);
 
-	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+	for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
 		xfree (names[i]);
 	}
 }
 static void input_toggletoggle (void)
 {
-	int flags, evt;
+	int evt;
+	uae_u64 flags;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
+
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
 	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,

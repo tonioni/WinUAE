@@ -239,7 +239,8 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 	for (int i = 0; eventorder[i]; i++) {
 		int evtnum = events[i];
 		for (int j = 0; j < inputdevicefunc_keyboard.get_widget_num (kbnum); j++) {
-			int flags, port;
+			int port;
+			uae_u64 flags;
 			if (inputdevice_get_mapping (kb + kbnum, j, &flags, &port, NULL, NULL, 0) == evtnum) {
 				if (port == inputmap_port + 1) {
 					uae_u32 kc = 0;

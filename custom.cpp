@@ -306,6 +306,8 @@ enum copper_states {
 	COP_skip1,
 	COP_strobe_delay1,
 	COP_strobe_delay2,
+	COP_strobe_delay1x,
+	COP_strobe_delay2x,
 	COP_strobe_extra, // just to skip current cycle when CPU wrote to COPJMP
 	COP_start_delay
 };
@@ -590,10 +592,10 @@ static void decide_diw (int hpos)
 	*/
 
 	int hdiw = hpos >= maxhpos ? maxhpos * 2 + 1 : hpos * 2 + 2;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= get_equ_vblank_endline ()) {
+	if (!(currprefs.chipset_mask & CSMASK_ECS_DENISE) && vpos <= get_equ_vblank_endline ())
 		hdiw = diw_hcounter;
-		hdiw &= 511;
-	}
+	/* always mask, bad programs may have set maxhpos = 256 */
+	hdiw &= 511;
 	for (;;) {
 		int lhdiw = hdiw;
 		if (last_hdiw > lhdiw)
@@ -1354,17 +1356,17 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 		}
 #endif
 
-		update_denise (hpos);
-		maybe_first_bpl1dat (hpos);
+	update_denise (hpos);
+	maybe_first_bpl1dat (hpos);
 
+	bplcon1t2 = bplcon1t;
+	bplcon1t = bplcon1;
+	// writing to BPLCON1 1 cycle after BPL1DAT access will
+	// not (except first BPL1DAT write) affect the display
+	// until next display block
+	if (bplcon1_hpos != hpos || oleft < 0)
 		bplcon1t2 = bplcon1t;
-		bplcon1t = bplcon1;
-		// writing to BPLCON1 1 cycle after BPL1DAT access will
-		// not (except first BPL1DAT write) affect the display
-		// until next display block
-		if (bplcon1_hpos != hpos || oleft < 0)
-			bplcon1t2 = bplcon1t;
-		compute_toscr_delay (hpos, bplcon1t2);
+	compute_toscr_delay (hpos, bplcon1t2);
 }
 
 #ifdef SPEEDUP
@@ -3494,7 +3496,11 @@ static void COPJMP (int num, int vblank)
 	cop_state.ignore_next = 0;
 	if (!oldstrobe)
 		cop_state.state_prev = cop_state.state;
-	cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
+	if ((cop_state.state == COP_wait || cop_state.state == COP_stop) && !vblank) {
+		cop_state.state = COP_strobe_delay1x;
+	} else {
+		cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
+	}
 	cop_state.vpos = vpos;
 	cop_state.hpos = current_hpos () & ~1;
 	copper_enabled_thisline = 0;
@@ -3956,14 +3962,17 @@ static void BPL2MOD (int hpos, uae_u16 v)
  */
 static void BPLxDAT (int hpos, int num, uae_u16 v)
 {
-	decide_line (hpos);
-	decide_fetch (hpos);
+	// only BPL0DAT access can do anything visible
+	if (num == 0 && hpos >= 7) {
+		decide_line (hpos);
+		decide_fetch (hpos);
+	}
 	bplxdat[num] = v;
-	if (num == 0) {
+	if (num == 0 && hpos >= 7) {
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
 		if (thisline_decision.plfleft < 0) {
-			thisline_decision.plfleft = hpos;
+			thisline_decision.plfleft = hpos & ~3;
 			reset_bpl_vars ();
 			compute_delay_offset ();
 		}
@@ -4494,7 +4503,7 @@ STATIC_INLINE int copper_cant_read2 (int hpos, int alloc)
 {
 	if (hpos + 1 >= maxhpos) // first refresh slot
 		return 1;
-	if ((hpos == maxhpos - 3) && (maxhpos & 1)) {
+	if ((hpos == maxhpos - 3) && (maxhpos & 1) && alloc >= 0) {
 		if (alloc)
 			alloc_cycle (hpos, CYCLE_COPPER);
 		return -1;
@@ -4619,12 +4628,14 @@ static void update_copper (int until_hpos)
 				continue;
 			cop_state.state = COP_skip1;
 			break;
+
 		case COP_strobe_extra:
-			// wait 1 copper cycle doing nothing
+			// Wait 1 copper cycle doing nothing
 			cop_state.state = COP_strobe_delay1;
 			break;
 		case COP_strobe_delay1:
-			// first cycle after COPJMP is just like normal first read cycle
+			// First cycle after COPJMP is just like normal first read cycle
+			// Cycle is used and needs to be free.
 			if (copper_cant_read (old_hpos, 1))
 				continue;
 			cop_state.state = COP_strobe_delay2;
@@ -4636,22 +4647,46 @@ static void update_copper (int until_hpos)
 			cop_state.ip += 2;
 			break;
 		case COP_strobe_delay2:
-			// second cycle after COPJMP is like second read cycle except
-			// there is 0x1FE as a target register
-			// (following word is still read normally and tossed away)
-			if (copper_cant_read (old_hpos, 1))
-				continue;
+			// Second cycle after COPJMP. This is the strange one.
+			// This cycle does not need to be free
+			// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
+			if (copper_cant_read (old_hpos, 1)) {
+				alloc_cycle (old_hpos, CYCLE_COPPER);
+				if (debug_dma)
+					record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			}
 			cop_state.state = COP_read1;
-			alloc_cycle (old_hpos, CYCLE_COPPER);
-			if (debug_dma)
-				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
-			// next cycle finally reads from new pointer
+			// Next cycle finally reads from new pointer
 			if (cop_state.strobe == 1)
 				cop_state.ip = cop1lc;
 			else
 				cop_state.ip = cop2lc;
 			cop_state.strobe = 0;
 			break;
+
+		case COP_strobe_delay1x:
+			// First cycle after COPJMP and Copper was waiting. This is the buggy one.
+			// Cycle can be free and copper won't allocate it.
+			// If Blitter uses this cycle = Copper's address gets copied blitter DMA pointer..
+			cop_state.state = COP_strobe_delay2x;
+			break;
+		case COP_strobe_delay2x:
+			// Second cycle fetches following word and tosses it away. Must be free cycle.
+			if (copper_cant_read (old_hpos, 1))
+				continue;
+			alloc_cycle (old_hpos, CYCLE_COPPER);
+			if (debug_dma)
+				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
+			cop_state.state = COP_read1;
+			// Next cycle finally reads from new pointer
+			if (cop_state.strobe == 1)
+				cop_state.ip = cop1lc;
+			else
+				cop_state.ip = cop2lc;
+			cop_state.strobe = 0;
+		break;
+
+
 		case COP_start_delay:
 			if (copper_cant_read (old_hpos, 1))
 				continue;
@@ -4709,10 +4744,9 @@ static void update_copper (int until_hpos)
 				test_copper_dangerous (reg);
 				if (! copper_enabled_thisline)
 					goto out; // was "dangerous" register -> copper stopped
-				if (cop_state.ignore_next) {
+
+				if (cop_state.ignore_next)
 					reg = 0x1fe;
-					cop_state.ignore_next = 0;
-				}
 
 				cop_state.last_write = reg;
 				cop_state.last_write_hpos = old_hpos;
@@ -4742,9 +4776,10 @@ static void update_copper (int until_hpos)
 #endif
 				}
 #ifdef DEBUGGER
-				if (debug_copper)
+				if (debug_copper && !cop_state.ignore_next)
 					record_copper (debugip - 4, old_hpos, vpos);
 #endif
+				cop_state.ignore_next = 0;
 			}
 			break;
 
@@ -4764,8 +4799,12 @@ static void update_copper (int until_hpos)
 			incrementing vpos and setting c_hpos to 0.  Especially the various speedup
 			hacks really assume that vpos remains constant during one line.  Hence,
 			this hack: defer the entire decision until the next line if necessary.  */
-			if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1))
+#endif
+#if 0
+			if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1)) {
+				write_log(L"*\n");
 				break;
+			}
 #endif
 			cop_state.state = COP_wait;
 
@@ -4788,35 +4827,42 @@ static void update_copper (int until_hpos)
 
 			/* fall through */
 		case COP_wait:
-			if (copper_cant_read (old_hpos, 0))
-				continue;
+			{
+				int ch_comp = c_hpos;
+				if (ch_comp & 1)
+					ch_comp = 0;
+		
+				if (copper_cant_read (old_hpos, 0))
+					continue;
 
-			hp = c_hpos & (cop_state.saved_i2 & 0xFE);
-			if (vp == cop_state.vcmp && hp < cop_state.hcmp)
-				break;
 
-			/* Now we know that the comparisons were successful.  We might still
-			have to wait for the blitter though.  */
-			if ((cop_state.saved_i2 & 0x8000) == 0) {
-				decide_blitter (old_hpos);
-				if (bltstate != BLT_done) {
-					/* We need to wait for the blitter.  */
-					cop_state.state = COP_bltwait;
-					copper_enabled_thisline = 0;
-					unset_special (SPCFLAG_COPPER);
-					goto out;
-				} else {
-					if (debug_dma)
-						record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
+				hp = ch_comp & (cop_state.saved_i2 & 0xFE);
+				if (vp == cop_state.vcmp && hp < cop_state.hcmp)
+					break;
+
+				/* Now we know that the comparisons were successful.  We might still
+				have to wait for the blitter though.  */
+				if ((cop_state.saved_i2 & 0x8000) == 0) {
+					decide_blitter (old_hpos);
+					if (bltstate != BLT_done) {
+						/* We need to wait for the blitter.  */
+						cop_state.state = COP_bltwait;
+						copper_enabled_thisline = 0;
+						unset_special (SPCFLAG_COPPER);
+						goto out;
+					} else {
+						if (debug_dma)
+							record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
+					}
 				}
+
+	#ifdef DEBUGGER
+				if (debug_copper)
+					record_copper (cop_state.ip - 4, old_hpos, vpos);
+	#endif
+
+				cop_state.state = COP_read1;
 			}
-
-#ifdef DEBUGGER
-			if (debug_copper)
-				record_copper (cop_state.ip - 4, old_hpos, vpos);
-#endif
-
-			cop_state.state = COP_read1;
 			break;
 
 		case COP_skip1:
@@ -4825,6 +4871,7 @@ static void update_copper (int until_hpos)
 
 				if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1))
 					break;
+
 				if (copper_cant_read (old_hpos, 0))
 					continue;
 
@@ -7796,6 +7843,7 @@ void check_prefs_changed_custom (void)
 	if (inputdevice_config_change_test ()) 
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 	currprefs.immediate_blits = changed_prefs.immediate_blits;
+	currprefs.waiting_blits = changed_prefs.waiting_blits;
 	currprefs.collision_level = changed_prefs.collision_level;
 
 	currprefs.cs_ciaatod = changed_prefs.cs_ciaatod;

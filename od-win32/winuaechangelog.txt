@@ -1,6 +1,27 @@
 
 - restore only single input target to default.
 
+Beta 10:
+
+- BPLxDAT CPU/Copper writes are now accurately emulated. (Blerkenwiegel/Scoopex)
+- COPJMPx triggered second cycle is special, does not need to be free but if it is free, it is allocated for copper.
+  (EyeQlazer/Scoopex is now 100% correct)
+- Emulate copper waiting + CPU write to COPJMPx slightly different copper cycle usage.
+- Fixed chipset emulation infinite loop if program crashed and wrote totally bogus values to programmable display
+  refresh rate registers.
+- Both mouse and joystick enabled in same port: moving joystick does not cause mouse big cursor jumps anymore.
+- Automatic center option incorrectly set display limits to autoscale limits (black borders).
+- "Release" key qualifier support. When [R] qualifier is selected, qualifier key is released before sending mapped
+  keycode and then immediately pressed again. Qualifier selection GUI is currently ugly.
+- Modified Input Qualifier support, now non-matched qualifier combinations (one or more qualifiers pressed but no
+  match in any 8 slots) always trigger non-qualifier input target(s), previously nothing was triggered.
+- Added "Wait for Blitter" GUI option, when enabled, CPU is paused if blitter is active and CPU attempted to modify
+  blitter registers. Previously was always enabled if fastest possible CPU (and still is), now it can be manually
+  enabled in other modes, can be useful when running 68020/AGA programs that run badly in non-ce modes but also have
+  some display problems in ce modes. (because of not accurate enough CPU speed)
+- Fixed flickering graphics corruption in some programs (for example Disposable Hero), also could have caused
+  reduced performance. (b1 display limit feature)
+
 Beta 9:
 
 - Replaced readpu.c 68020+ special case TST An/PC-rel and CMP #imm,PC-rel variants with proper table68k entries.

@@ -2396,10 +2396,13 @@ static void center_image (void)
 		frame_redraw_necessary |= (interlace_seen > 0 && linedbl) ? 2 : 1;
 
 	max_diwstop = 0;
-	min_diwstart = MAX_STOP;
+	min_diwstart = 10000;
 
 	gfxvidinfo.drawbuffer.xoffset = (DISPLAY_LEFT_SHIFT << RES_MAX) + (visible_left_border << (RES_MAX - currprefs.gfx_resolution));
 	gfxvidinfo.drawbuffer.yoffset = thisframe_y_adjust << VRES_MAX;
+
+	visible_left_start = visible_left_border;
+	visible_right_stop = visible_left_start + gfxvidinfo.drawbuffer.inwidth;;
 }
 
 #define FRAMES_UNTIL_RES_SWITCH 1

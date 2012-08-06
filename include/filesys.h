@@ -8,6 +8,18 @@
 
 struct hardfilehandle;
 
+#define MAX_HDF_CACHE_BLOCKS 128
+struct hdf_cache
+{
+	bool valid;
+	uae_u8 *data;
+	uae_u64 block;
+	bool dirty;
+	int readcount;
+	int writecount;
+	time_t lastaccess;
+};
+
 struct hardfiledata {
     uae_u64 virtsize; // virtual size
     uae_u64 physsize; // physical size (dynamic disk)
@@ -51,6 +63,8 @@ struct hardfiledata {
 
     int drive_empty;
     TCHAR *emptyname;
+
+	struct hdf_cache bcache[MAX_HDF_CACHE_BLOCKS];
 };
 
 #define HFD_FLAGS_REALDRIVE 1

@@ -326,21 +326,21 @@ static int *kbmaps[] = {
 	kb_xa1, kb_xa2, kb_arcadia, kb_arcadiaxa, kb_cdtv
 };
 
-static int specialpressed (void)
+static bool specialpressed (void)
 {
-	return input_getqualifiers () & ID_FLAG_QUALIFIER_SPECIAL;
+	return (input_getqualifiers () & ID_FLAG_QUALIFIER_SPECIAL) != 0;
 }
-static int shiftpressed (void)
+static bool shiftpressed (void)
 {
-	return input_getqualifiers () & ID_FLAG_QUALIFIER_SHIFT;
+	return (input_getqualifiers () & ID_FLAG_QUALIFIER_SHIFT) != 0;
 }
-static int altpressed (void)
+static bool altpressed (void)
 {
-	return input_getqualifiers () & ID_FLAG_QUALIFIER_ALT;
+	return (input_getqualifiers () & ID_FLAG_QUALIFIER_ALT) != 0;
 }
-static int ctrlpressed (void)
+static bool ctrlpressed (void)
 {
-	return input_getqualifiers () & ID_FLAG_QUALIFIER_CONTROL;
+	return (input_getqualifiers () & ID_FLAG_QUALIFIER_CONTROL) != 0;
 }
 
 static int capslockstate;

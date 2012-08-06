@@ -1444,12 +1444,14 @@ void maybe_blit (int hpos, int hack)
 	if (savestate_state)
 		return;
 
-	if (dmaen (DMA_BLITTER) && (currprefs.waiting_blits || currprefs.m68k_speed < 0)) {
-		while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
-			x_do_cycles (8 * CYCLE_UNIT);
+	if (dmaen (DMA_BLITTER)) {
+		if (currprefs.waiting_blits == 1 || (currprefs.waiting_blits == 2 &&  blit_last_cycle >= blit_diag[0] && blit_dmacount == blit_diag[0]) || currprefs.m68k_speed < 0) {
+			while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
+				x_do_cycles (8 * CYCLE_UNIT);
+			}
+			if (bltstate == BLT_done)
+				return;
 		}
-		if (bltstate == BLT_done)
-			return;
 	}
 
 	if (warned && dmaen (DMA_BLITTER) && blt_info.got_cycle) {

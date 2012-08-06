@@ -425,7 +425,6 @@
 #define IDC_MBRAM2                      1051
 #define IDC_Z3CHIPMEM                   1052
 #define IDC_Z3CHIPRAM                   1053
-#define IDC_Z3CHIPRAM2                  1054
 #define IDC_MAX32RAM                    1054
 #define IDC_UAEHOME                     1070
 #define IDC_PICASSOHOME                 1071
@@ -443,6 +442,8 @@
 #define IDC_CONTRIBUTORS                1124
 #define IDC_BLACKER_THAN_BLACK          1170
 #define IDC_BLITIMM                     1174
+#define IDC_BLITIMM2                    1175
+#define IDC_BLITWAIT                    1175
 #define IDC_LORES                       1176
 #define IDC_RATE2BOX                    1177
 #define IDC_LORES_SMOOTHED              1179

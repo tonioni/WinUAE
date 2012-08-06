@@ -188,6 +188,7 @@ static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), 0 };
 static const TCHAR *rtgtype[] = { _T("ZorroII"), _T("ZorroIII"), 0 };
+static const TCHAR *waitblits[] = { _T("false"), _T("true"), _T("noidleonly"), 0 };
 
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
@@ -914,7 +915,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 #endif
 
 	cfgfile_write_bool (f, _T("immediate_blits"), p->immediate_blits);
-	cfgfile_write_bool (f, _T("waiting_blits"), p->waiting_blits);
+	cfgfile_dwrite_str (f, _T("waiting_blits"), waitblits[p->waiting_blits]);
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
 	cfgfile_write_bool (f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_str (f, _T("monitoremu"), specialmonitors[p->monitoremu]);
@@ -1182,9 +1183,14 @@ int cfgfile_strval (const TCHAR *option, const TCHAR *value, const TCHAR *name, 
 	if (val == -1) {
 		if (more)
 			return 0;
-
-		write_log (_T("Unknown value ('%s') for option '%s'.\n"), value, option);
-		return -1;
+		if (!strcasecmp (value, _T("yes")) || !strcasecmp (value, _T("true"))) {
+			val = 1;
+		} else if  (!strcasecmp (value, _T("no")) || !strcasecmp (value, _T("false"))) {
+			val = 0;
+		} else {
+			write_log (_T("Unknown value ('%s') for option '%s'.\n"), value, option);
+			return -1;
+		}
 	}
 	*location = val;
 	return 1;
@@ -2507,7 +2513,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_yesno (option, value, _T("immediate_blits"), &p->immediate_blits)
-		|| cfgfile_yesno (option, value, _T("waiting_blits"), &p->waiting_blits)
 		|| cfgfile_yesno (option, value, _T("cd32cd"), &p->cs_cd32cd)
 		|| cfgfile_yesno (option, value, _T("cd32c2p"), &p->cs_cd32c2p)
 		|| cfgfile_yesno (option, value, _T("cd32nvram"), &p->cs_cd32nvram)
@@ -2603,6 +2608,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_strval (option, value, _T("collision_level"), &p->collision_level, collmode, 0)
 		|| cfgfile_strval (option, value, _T("parallel_matrix_emulation"), &p->parallel_matrix_emulation, epsonprinter, 0)
 		|| cfgfile_strval (option, value, _T("monitoremu"), &p->monitoremu, specialmonitors, 0)
+		|| cfgfile_strval (option, value, _T("waiting_blits"), &p->waiting_blits, waitblits, 0)
 		|| cfgfile_strboolval (option, value, _T("comp_flushmode"), &p->comp_hardflush, flushmode, 0))
 		return 1;
 

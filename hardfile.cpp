@@ -413,6 +413,26 @@ static uae_u32 vhd_checksum (uae_u8 *p, int offset)
 	return ~sum;
 }
 
+static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
+static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len);
+
+static void hdf_init_cache (struct hardfiledata *hfd)
+{
+}
+static void hdf_flush_cache (struct hardfiledata *hdf)
+{
+}
+
+static int hdf_cache_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+	return hdf_read2 (hfd, buffer, offset, len);
+}
+
+static int hdf_cache_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+	return hdf_write2 (hfd, buffer, offset, len);
+}
+
 int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 {
 	uae_u8 tmp[512], tmp2[512];
@@ -472,6 +492,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	write_log (_T("HDF is VHD %s image, virtual size=%dK\n"),
 		hfd->vhd_type == 2 ? _T("fixed") : _T("dynamic"),
 		hfd->virtsize / 1024);
+	hdf_init_cache (hfd);
 	return 1;
 nonvhd:
 	hfd->vhd_type = 0;
@@ -483,6 +504,7 @@ end:
 
 void hdf_close (struct hardfiledata *hfd)
 {
+	hdf_flush_cache (hfd);
 	hdf_close_target (hfd);
 	hfd->vhd_type = 0;
 	xfree (hfd->vhd_header);
@@ -792,6 +814,16 @@ static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 		return hdf_read_target (hfd, buffer, offset, len);
 }
 
+static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
+{
+	if (hfd->vhd_type == VHD_DYNAMIC)
+		return vhd_write (hfd, buffer, offset, len);
+	else if (hfd->vhd_type == VHD_FIXED)
+		return hdf_write_target (hfd, buffer, offset + 512, len);
+	else
+		return hdf_write_target (hfd, buffer, offset, len);
+}
+
 static void adide_decode (void *v, int len)
 {
 	int i;
@@ -938,25 +970,15 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	int v;
 
 	if (!hfd->adide) {
-		v = hdf_read2 (hfd, buffer, offset, len);
+		v = hdf_cache_read (hfd, buffer, offset, len);
 	} else {
 		offset += 512;
-		v = hdf_read2 (hfd, buffer, offset, len);
+		v = hdf_cache_read (hfd, buffer, offset, len);
 		adide_decode (buffer, len);
 	}
 	if (hfd->byteswap)
 		hdf_byteswap (buffer, len);
 	return v;
-}
-
-static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
-{
-	if (hfd->vhd_type == VHD_DYNAMIC)
-		return vhd_write (hfd, buffer, offset, len);
-	else if (hfd->vhd_type == VHD_FIXED)
-		return hdf_write_target (hfd, buffer, offset + 512, len);
-	else
-		return hdf_write_target (hfd, buffer, offset, len);
 }
 
 int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
@@ -966,11 +988,11 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 	if (hfd->byteswap)
 		hdf_byteswap (buffer, len);
 	if (!hfd->adide) {
-		v = hdf_write2 (hfd, buffer, offset, len);
+		v = hdf_cache_write (hfd, buffer, offset, len);
 	} else {
 		offset += 512;
 		adide_encode (buffer, len);
-		v = hdf_write2 (hfd, buffer, offset, len);
+		v = hdf_cache_write (hfd, buffer, offset, len);
 		adide_decode (buffer, len);
 	}
 	if (hfd->byteswap)
