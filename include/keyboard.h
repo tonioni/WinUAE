@@ -171,4 +171,6 @@ enum aks { AKS_ENTERGUI = 0x200, AKS_SCREENSHOT_FILE, AKS_SCREENSHOT_CLIPBOARD, 
 	AKS_QUALIFIER_ALT
 };
 
+#define AKS_FIRST AKS_ENTERGUI
+
 extern int target_checkcapslock (int, int *);

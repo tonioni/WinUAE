@@ -73,6 +73,8 @@
 #define TRACE2(x)
 #endif
 
+#define RTAREA_HEARTBEAT 0xFFFC
+
 static void get_time (time_t t, long* days, long* mins, long* ticks);
 
 static uae_sem_t test_sem;
@@ -1300,11 +1302,22 @@ int filesys_eject (int nr)
 	return 1;
 }
 
+static uae_u32 heartbeat;
+static int heartbeat_count;
+static int heartbeat_task;
+
 // This uses filesystem process to reduce resource usage
 void setsystime (void)
 {
 	if (!currprefs.tod_hack)
 		return;
+	heartbeat = get_long (rtarea_base + RTAREA_HEARTBEAT);
+	heartbeat_task = 1;
+	heartbeat_count = 10;
+}
+
+static void setsystime_vblank (void)
+{
 	Unit *u;
 	for (u = units; u; u = u->next) {
 		if (is_virtual (u->unit) && filesys_isvolume (u)) {
@@ -6664,6 +6677,8 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 		if (consolehook_activate ())
 			v |= 2;
 		return v;
+	} else if (mode == 18) {
+		return rtarea_base + RTAREA_HEARTBEAT;
 	} else if (mode == 101) {
 		consolehook_ret (m68k_areg (regs, 1), m68k_areg (regs, 2));
 	} else if (mode == 102) {
@@ -6679,6 +6694,13 @@ void filesys_vsync (void)
 {
 	Unit *u;
 
+	if (heartbeat == get_long (rtarea_base + RTAREA_HEARTBEAT)) {
+		if (heartbeat_count > 0)
+			heartbeat_count--;
+		return;
+	}
+	heartbeat = get_long (rtarea_base + RTAREA_HEARTBEAT);
+
 	for (u = units; u; u = u->next) {
 		if (u->reinsertdelay > 0) {
 			u->reinsertdelay--;
@@ -6691,6 +6713,14 @@ void filesys_vsync (void)
 			}
 		}
 		record_timeout (u);
+	}
+
+	if (heartbeat_count <= 0)
+		return;
+
+	if (heartbeat_task & 1) {
+		setsystime_vblank ();
+		heartbeat_task &= ~1;
 	}
 }
 
@@ -6720,6 +6750,11 @@ void filesys_install (void)
 	dw(0x4ED0); /* JMP (a0) - jump to code that inits Residents */
 
 	loop = here ();
+
+	org (rtarea_base + RTAREA_HEARTBEAT);
+	dl (0);
+	heartbeat = 0;
+	heartbeat_task = 0;
 
 	org (rtarea_base + 0xFF18);
 	calltrap (deftrap2 (filesys_dev_bootfilesys, 0, _T("filesys_dev_bootfilesys")));

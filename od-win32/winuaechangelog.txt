@@ -1,6 +1,35 @@
 
 - restore only single input target to default.
 
+Beta 11:
+
+- END special qualifier didn't work when combined with other qualifiers, some END + shortcuts leaked key presses to emulated
+  Amiga side (b10)
+- GUI wasn't centered and/or scrolling if single monitor, full screen mode and resolution smaller than 640x480. (b6)
+  Automatically center to screen if GUI title bar isn't visible on any monitor. Two or more monitors and >800x600 resolution
+  desktop in any monitor = always allow manual GUI positioning.
+- Wait for Blitter changes:
+  - Does nothing in 68000 cycle-exact mode.
+  - Approximate CPU speed or 68020 CE: Pause CPU if blitter would steal all CPU cycles
+  - Fastest possible: Any kind of active blit pauses CPU if writing to any blitter register.
+  - Logged if triggered (only first 10 times)
+- Quickstart modes (except 68000 CE) enables Wait for Blitter option.
+- Wait for Blitter GUI only sets above "automatic" mode, manual config file editing supports forced "always" and "only if not idle" modes.
+  (for debugging purposes)
+- RTG video capturing uses now RTG vsync timing, not (possibly very different) custom chipset vsync timing.
+- Added UAE Boot ROM AOS "heart beat" vblank interrupt, do not sync clock or check filesystem insertions if heart beat counter
+  does not change = OS has been taken over, prevents possible memory corruption if program also overwrote system structures.
+- RTC year tens digit was not in correct BCD format, probably no program cared about the difference. (Bug since the beginning)
+- Extended adf writing was disabled, forgotten debugging and it was also disabled in 2.4.1. Oops. (241b11)
+- POTGO register state was not fully reset when loading state, disabled mouse right/middle button in some situations.
+  (for example Sound of Silents)
+- AUDxDAT manual audio mode and new period was written to AUDxPER: new period value was loaded too late, after first
+  8-bit sample was finished.
+- AUDxVOL is 7-bit register (64-127 = max volume, 128 = 0, 129 = 1 and so on..). Actual volume range is 0-64.
+- Sinc interpolator updated from UADE (from few years ago, better late than never..)
+- Debugger 'm' command didn't show last byte of memory region.
+- Log COPJMPx while copper is waiting blitter cycle conflict. Does not yet emulate blitter pointer = COPxLC copy.
+
 Beta 10:
 
 - BPLxDAT CPU/Copper writes are now accurately emulated. (Blerkenwiegel/Scoopex)

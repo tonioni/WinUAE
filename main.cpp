@@ -235,6 +235,8 @@ void fixup_cpu (struct uae_prefs *p)
 
 	if (p->immediate_blits && p->blitter_cycle_exact)
 		p->immediate_blits = false;
+	if (p->immediate_blits && p->waiting_blits)
+		p->waiting_blits = 0;
 }
 
 

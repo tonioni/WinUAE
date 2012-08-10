@@ -2036,11 +2036,36 @@ static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid
 	return 1;
 }
 
+static bool convert_adf_to_ext2 (drive *drv)
+{
+	TCHAR name[MAX_DPATH];
+	bool hd = drv->ddhd == 2;
+	struct zfile *f;
+
+	if (drv->filetype != ADF_NORMAL)
+		return false;
+	_tcscpy (name, currprefs.floppyslots[drv - floppy].df);
+	if (!name[0])
+		return false;
+	_tcscat (name, _T(".extended.adf"));
+	if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, currprefs.floppyslots[drv - floppy].df))
+		return false;
+	f = zfile_fopen (name, _T("rb"), 0);
+	if (!f)
+		return false;
+	zfile_fclose (drv->diskfile);
+	drv->diskfile = f;
+	read_header_ext2 (drv->diskfile, drv->trackdata, &drv->num_tracks, &drv->ddhd);
+	drv->filetype = ADF_EXT2;
+	drive_fill_bigbuf (drv, 1);
+
+	return true;
+}
+
 static void drive_write_data (drive * drv)
 {
 	int ret = -1;
 	int tr = drv->cyl * 2 + side;
-	static int warned;
 
 	if (drive_writeprotected (drv) || drv->trackdata[tr].type == TRACK_NONE) {
 		/* read original track back because we didn't really write anything */
@@ -2054,9 +2079,17 @@ static void drive_write_data (drive * drv)
 	switch (drv->filetype) {
 	case ADF_NORMAL:
 		if (drive_write_adf_amigados (drv)) {
-			if (!warned)
-				notify_user (NUMSG_NEEDEXT2);
-			warned = 1;
+			if (currprefs.floppy_auto_ext2) {
+				if (convert_adf_to_ext2 (drv)) {
+					drive_write_data (drv);
+					return;
+				}
+			} else {
+				static int warned;
+				if (!warned)
+					notify_user (NUMSG_NEEDEXT2);
+				warned = 1;
+			}
 		}
 		return;
 	case ADF_EXT1:
@@ -2065,10 +2098,9 @@ static void drive_write_data (drive * drv)
 		if (!longwritemode)
 			ret = drive_write_adf_amigados (drv);
 		if (ret) {
-			activate_debugger ();
 			write_log (_T("not an amigados track %d (error %d), writing as raw track\n"), drv->cyl * 2 + side, ret);
-//			drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
-//				longwritemode ? dsklength2 * 8 : drv->tracklen);
+			drive_write_ext2 (drv->bigmfmbuf, drv->diskfile, &drv->trackdata[drv->cyl * 2 + side],
+				longwritemode ? dsklength2 * 8 : drv->tracklen);
 		}
 		return;
 	case ADF_IPF:
@@ -2144,13 +2176,14 @@ static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name
 
 /* type: 0=regular, 1=ext2adf */
 /* adftype: 0=DD,1=HD,2=DD PC,3=HD PC,4=525SD */
-void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable)
+bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable, const TCHAR *copyfrom)
 {
 	int size = 32768;
-	struct zfile *f;
+	struct zfile *f, *sf;
 	int i, l, file_size, tracks, track_len, sectors;
 	uae_u8 *chunk = NULL;
 	int ddhd = 1;
+	bool ok = false;
 
 	if (type == 1)
 		tracks = 2 * 83;
@@ -2172,6 +2205,12 @@ void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 		tracks /= 2;
 	}
 
+	if (copyfrom) {
+		sf = zfile_fopen (copyfrom, _T("rb"), 0);
+		if (!sf)
+			return false;
+	}
+
 	f = zfile_fopen (name, _T("wb"), 0);
 	chunk = xmalloc (uae_u8, size);
 	if (f && chunk) {
@@ -2191,6 +2230,7 @@ void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 				}
 				zfile_fwrite (chunk, cylsize, 1, f);
 			}
+			ok = true;
 		} else {
 			uae_u8 root[4];
 			uae_u8 rawtrack[3 * 4], dostrack[3 * 4];
@@ -2210,27 +2250,33 @@ void disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 			for (i = 0; i < tracks; i++) {
 				uae_u8 tmp[3 * 4];
 				memcpy (tmp, rawtrack, sizeof rawtrack);
-				if (dodos)
+				if (dodos || sf)
 					memcpy (tmp, dostrack, sizeof dostrack);
 				zfile_fwrite (tmp, sizeof tmp, 1, f);
 			}
 			for (i = 0; i < tracks; i++) {
 				memset (chunk, 0, size);
-				if (dodos) {
-					if (i == 0)
-						floppy_get_bootblock (chunk, ffs, bootable);
-					else if (i == 80)
-						floppy_get_rootblock (chunk, 80 * 11 * ddhd, disk_name, adftype);
+				if (sf) {
+					zfile_fread (chunk, 11 * ddhd, 512, sf);
+				} else {
+					if (dodos) {
+						if (i == 0)
+							floppy_get_bootblock (chunk, ffs, bootable);
+						else if (i == 80)
+							floppy_get_rootblock (chunk, 80 * 11 * ddhd, disk_name, adftype);
+					}
 				}
 				zfile_fwrite (chunk, l, 1, f);
 			}
+			ok = true;
 		}
 	}
 	xfree (chunk);
 	zfile_fclose (f);
+	zfile_fclose (sf);
 	if (f)
 		DISK_history_add (name, -1, HISTORY_FLOPPY, TRUE);
-
+	return ok;
 }
 
 int disk_getwriteprotect (struct uae_prefs *p, const TCHAR *name)
@@ -2299,7 +2345,7 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool 
 	name2 = DISK_get_saveimagepath (name);
 
 	if (needwritefile && zf2 == 0)
-		disk_creatediskfile (name2, 1, drvtype, NULL, false, false);
+		disk_creatediskfile (name2, 1, drvtype, NULL, false, false, NULL);
 	zfile_fclose (zf2);
 	if (writeprotected && iswritefileempty (p, name)) {
 		for (i = 0; i < MAX_FLOPPY_DRIVES; i++) {

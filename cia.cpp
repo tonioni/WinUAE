@@ -1667,6 +1667,11 @@ void rtc_hardreset (void)
 	}
 }
 
+static uae_u8 tobcd (int val)
+{
+	return (val / 10) * 16 + (val % 10);
+}
+
 static uae_u32 REGPARAM2 clock_lget (uaecptr addr)
 {
 	return (clock_wget (addr) << 16) | clock_wget (addr + 2);
@@ -1714,7 +1719,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 		case 0x8: return (ct->tm_mon + 1) % 10;
 		case 0x9: return (ct->tm_mon + 1) / 10;
 		case 0xA: return ct->tm_year % 10;
-		case 0xB: return ct->tm_year / 10;
+		case 0xB: return tobcd (ct->tm_year / 10);
 		case 0xC: return ct->tm_wday;
 		case 0xD: return clock_control_d;
 		case 0xE: return clock_control_e;
@@ -1738,10 +1743,10 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 		case 0x6: return ct->tm_wday;
 		case 0x7: return ct->tm_mday % 10;
 		case 0x8: return ct->tm_mday / 10;
-		case 0x9: return (ct->tm_mon+1) % 10;
-		case 0xA: return (ct->tm_mon+1) / 10;
+		case 0x9: return (ct->tm_mon + 1) % 10;
+		case 0xA: return (ct->tm_mon + 1) / 10;
 		case 0xB: return ct->tm_year % 10;
-		case 0xC: return ct->tm_year / 10;
+		case 0xC: return tobcd (ct->tm_year / 10);
 		case 0xD: return clock_control_d;
 			/* E and F = write-only */
 		}

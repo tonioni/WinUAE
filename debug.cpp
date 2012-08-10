@@ -705,7 +705,7 @@ uaecptr dumpmem2 (uaecptr addr, TCHAR *out, int osize)
 	for (i = 0; i < cols; i++) {
 		uae_u8 b1, b2;
 		b1 = b2 = 0;
-		if (safe_addr(addr, 2)) {
+		if (safe_addr (addr, 1)) {
 			b1 = get_byte (addr + 0);
 			b2 = get_byte (addr + 1);
 			_stprintf (out + 9 + i * 5, _T("%02X%02X "), b1, b2);

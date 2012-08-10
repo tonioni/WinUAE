@@ -188,7 +188,7 @@ static const TCHAR *cdmodes[] = { _T("disabled"), _T(""), _T("image"), _T("ioctl
 static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _T("cdtv"), _T("cd32"), 0 };
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), 0 };
 static const TCHAR *rtgtype[] = { _T("ZorroII"), _T("ZorroIII"), 0 };
-static const TCHAR *waitblits[] = { _T("false"), _T("true"), _T("noidleonly"), 0 };
+static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
@@ -2722,16 +2722,16 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 	}
 
-	if (p->config_version < (21 << 16)) {
-		if (cfgfile_strval (option, value, _T("cpu_speed"), &p->m68k_speed, speedmode, 1)
-			/* Broken earlier versions used to write this out as a string.  */
-			|| cfgfile_strval (option, value, _T("finegraincpu_speed"), &p->m68k_speed, speedmode, 1))
-		{
-			p->m68k_speed--;
-			return 1;
-		}
+	/* Broken earlier versions used to write this out as a string.  */
+	if (cfgfile_strval (option, value, _T("finegraincpu_speed"), &p->m68k_speed, speedmode, 1)) {
+		p->m68k_speed--;
+		return 1;
 	}
 
+	if (cfgfile_strval (option, value, _T("cpu_speed"), &p->m68k_speed, speedmode, 1)) {
+		p->m68k_speed--;
+		return 1;
+	}
 	if (cfgfile_intval (option, value, _T("cpu_speed"), &p->m68k_speed, 1)) {
 		p->m68k_speed *= CYCLE_UNIT;
 		return 1;
@@ -4959,6 +4959,8 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
+	if (p->cpu_model >= 68020 || !p->cpu_cycle_exact)
+		p->waiting_blits = 1;
 	return v;
 }
 

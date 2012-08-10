@@ -714,6 +714,7 @@ static void picasso_handle_vsync2 (void)
 
 	if (thisisvsync) {
 		rendered = rtg_render ();
+		frame_drawn ();
 	}
 	if (setupcursor_needed)
 		setupcursor ();

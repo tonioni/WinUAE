@@ -80,14 +80,14 @@ STATIC_INLINE bool usehacks2 (void)
 #endif
 
 #define SINC_QUEUE_MAX_AGE 2048
-/* Queue length 128 implies minimum emulated period of 16. I add a few extra
-* entries so that CPU updates during minimum period can be played back. */
-#define SINC_QUEUE_LENGTH (SINC_QUEUE_MAX_AGE / 16 + 2)
+/* Queue length 256 implies minimum emulated period of 8. This should be
+ * sufficient for all imaginable purposes. This must be power of two. */
+#define SINC_QUEUE_LENGTH 256
 
 #include "sinctable.cpp"
 
 typedef struct {
-	int age, output;
+	int time, output;
 } sinc_queue_t;
 
 struct audio_channel_data {
@@ -110,7 +110,8 @@ struct audio_channel_data {
 	int sample_accum, sample_accum_time;
 	int sinc_output_state;
 	sinc_queue_t sinc_queue[SINC_QUEUE_LENGTH];
-	int sinc_queue_length;
+    int sinc_queue_time;
+    int sinc_queue_head;
 #if TEST_AUDIO > 0
 	bool hisample, losample;
 	bool have_dat;
@@ -523,40 +524,25 @@ STATIC_INLINE void samplexx_anti_handler (int *datasp)
 
 static void sinc_prehandler (unsigned long best_evtime)
 {
-	int i, j, output;
+	int i, output;
 	struct audio_channel_data *acd;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 4; i++)  {
 		acd = &audio_channel[i];
 		output = (acd->current_sample * acd->vol) & acd->adk_mask;
 
-		/* age the sinc queue and truncate it when necessary */
-		for (j = 0; j < acd->sinc_queue_length; j += 1) {
-			acd->sinc_queue[j].age += best_evtime;
-			if (acd->sinc_queue[j].age >= SINC_QUEUE_MAX_AGE) {
-				acd->sinc_queue_length = j;
-				break;
-			}
-		}
-
 		/* if output state changes, record the state change and also
-		* write data into sinc queue for mixing in the BLEP */
+		 * write data into sinc queue for mixing in the BLEP */
 		if (acd->sinc_output_state != output) {
-			if (acd->sinc_queue_length > SINC_QUEUE_LENGTH - 1) {
-				//write_log (_T("warning: sinc queue truncated. Last age: %d.\n"), acd->sinc_queue[SINC_QUEUE_LENGTH-1].age);
-				acd->sinc_queue_length = SINC_QUEUE_LENGTH - 1;
-			}
-			/* make room for new and add the new value */
-			memmove (&acd->sinc_queue[1], &acd->sinc_queue[0],
-				sizeof (acd->sinc_queue[0]) * acd->sinc_queue_length);
-			acd->sinc_queue_length += 1;
-			acd->sinc_queue[0].age = best_evtime;
-			acd->sinc_queue[0].output = output - acd->sinc_output_state;
+			acd->sinc_queue_head = (acd->sinc_queue_head - 1) & (SINC_QUEUE_LENGTH - 1);
+			acd->sinc_queue[acd->sinc_queue_head].time = acd->sinc_queue_time;
+			acd->sinc_queue[acd->sinc_queue_head].output = output - acd->sinc_output_state;
 			acd->sinc_output_state = output;
 		}
+
+		acd->sinc_queue_time += best_evtime;
 	}
 }
-
 
 /* this interpolator performs BLEP mixing (bleps are shaped like integrated sinc
 * functions) with a type of BLEP that matches the filtering configuration. */
@@ -574,21 +560,28 @@ STATIC_INLINE void samplexx_sinc_handler (int *datasp)
 	}
 	winsinc = winsinc_integral[n];
 
-	for (i = 0; i < 4; i += 1) {
+
+    for (i = 0; i < 4; i += 1) {
 		int j, v;
 		struct audio_channel_data *acd = &audio_channel[i];
 		/* The sum rings with harmonic components up to infinity... */
 		int sum = acd->sinc_output_state << 17;
 		/* ...but we cancel them through mixing in BLEPs instead */
-		for (j = 0; j < acd->sinc_queue_length; j += 1)
-			sum -= winsinc[acd->sinc_queue[j].age] * acd->sinc_queue[j].output;
+		int offsetpos = acd->sinc_queue_head & (SINC_QUEUE_LENGTH - 1);
+		for (j = 0; j < SINC_QUEUE_LENGTH; j += 1) {
+			int age = acd->sinc_queue_time - acd->sinc_queue[offsetpos].time;
+			if (age >= SINC_QUEUE_MAX_AGE)
+				break;
+			sum -= winsinc[age] * acd->sinc_queue[offsetpos].output;
+			offsetpos = (offsetpos + 1) & (SINC_QUEUE_LENGTH - 1);
+		}
 		v = sum >> 17;
 		if (v > 32767)
 			v = 32767;
 		else if (v < -32768)
 			v = -32768;
 		datasp[i] = v;
-	}
+    }
 }
 
 static void sample16i_sinc_handler (void)
@@ -1320,7 +1313,6 @@ static void audio_state_channel2 (int nr, bool perfin)
 				newsample (nr, (cdp->dat2 >> 0) & 0xff);
 				zerostate (nr);
 			} else {
-				loadper (nr);
 				cdp->pbufldl = true;
 				audio_state_channel2 (nr, false);
 			}
@@ -1383,6 +1375,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->hisample = false;
 #endif
 			newsample (nr, (cdp->dat2 >> 8) & 0xff);
+			loadper (nr);
 			cdp->pbufldl = false;
 		}
 		if (!perfin)
@@ -1398,7 +1391,6 @@ static void audio_state_channel2 (int nr, bool perfin)
 			if (audap)
 				setirq (nr, 22);
 		}
-		loadper (nr);
 		cdp->pbufldl = true;
 		cdp->state = 3;
 		audio_state_channel2 (nr, false);
@@ -1411,6 +1403,7 @@ static void audio_state_channel2 (int nr, bool perfin)
 			cdp->losample = false;
 #endif
 			newsample (nr, (cdp->dat2 >> 0) & 0xff);
+			loadper (nr);
 			cdp->pbufldl = false;
 		}
 		if (!perfin)
@@ -1435,7 +1428,6 @@ static void audio_state_channel2 (int nr, bool perfin)
 				setirq (nr, 32);
 		}
 		cdp->intreq2 = 0;
-		loadper (nr);
 		cdp->pbufldl = true;
 		cdp->state = 2;
 		audio_state_channel2 (nr, false);
@@ -1946,13 +1938,17 @@ void AUDxLEN (int nr, uae_u16 v)
 void AUDxVOL (int nr, uae_u16 v)
 {
 	struct audio_channel_data *cdp = audio_channel + nr;
-	int v2 = v & 64 ? 63 : v & 63;
+
+	 // 7 bit register in Paula.
+	v &= 127;
+	if (v > 64)
+		v = 64;
 	audio_activate ();
 	update_audio ();
-	cdp->vol = v2;
+	cdp->vol = v;
 #if DEBUG_AUDIO > 0
 	if (debugchannel (nr))
-		write_log (_T("AUD%dVOL: %d %08X\n"), nr, v2, M68K_GETPC);
+		write_log (_T("AUD%dVOL: %d %08X\n"), nr, v, M68K_GETPC);
 #endif
 }
 

@@ -2355,14 +2355,14 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				TCHAR disk_name[32];
 				disk_name[0] = 0; disk_name[31] = 0;
 				GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-				disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE));
+				disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL);
 			}
 			break;
 		case IDC_CREATE_RAW:
 			TCHAR disk_name[32];
 			disk_name[0] = 0; disk_name[31] = 0;
 			GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-			disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE));
+			disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL);
 			break;
 		case IDC_LOAD:
 			if (target_cfgfile_load (&workprefs, full_path, 0, 0) == 0) {
@@ -5468,6 +5468,11 @@ static void enable_for_chipsetdlg (HWND hDlg)
 		workprefs.immediate_blits = 0;
 		CheckDlgButton (hDlg, IDC_BLITIMM, FALSE);
 	}
+	if (workprefs.immediate_blits && workprefs.waiting_blits) {
+		workprefs.waiting_blits = 0;
+		CheckDlgButton (hDlg, IDC_BLITWAIT, FALSE);
+	}
+	ew (hDlg, IDC_BLITWAIT, workprefs.immediate_blits ? FALSE : TRUE);
 	ew (hDlg, IDC_CS_EXT, workprefs.cs_compatible ? TRUE : FALSE);
 }
 
@@ -14183,6 +14188,21 @@ static void createTreeView (HWND hDlg)
 
 static int dialog_x_offset, dialog_y_offset;
 
+static bool dodialogmousemove (void)
+{
+	if (full_property_sheet || isfullscreen () <= 0)
+		return false;
+	if (currprefs.gfx_size_fs.width >= 640 && currprefs.gfx_size.height >= 480)
+		return false;
+	struct MultiDisplay *mdc = getdisplay (&currprefs);
+	for (int i = 0; Displays[i].monitorid; i++) {
+		struct MultiDisplay *md = &Displays[i];
+		if (md->rect.right - md->rect.left >= 800 && md->rect.bottom - md->rect.top >= 600 && md != mdc)
+			return false;
+	}
+	return true;
+}
+
 static void centerWindow (HWND hDlg)
 {
 	RECT rc, rcDlg, rcOwner;
@@ -14201,13 +14221,17 @@ static void centerWindow (HWND hDlg)
 	} else if (isfullscreen () > 0) {
 		regqueryint (NULL, _T("GUIPosFSX"), &x);
 		regqueryint (NULL, _T("GUIPosFSY"), &y);
+		if (dodialogmousemove ()) {
+			x = 0;
+			y = 0;
+		}
 	}
 	SetForegroundWindow (hDlg);
-	pt1.x = x;
-	pt1.y = y;
-	pt2.x = x + 16;
-	pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
-	if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
+	pt1.x = x + 100;
+	pt1.y = y + (GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER)) / 2;
+	pt2.x = x + 640 - 100;
+	pt2.y = pt1.y;
+	if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL && MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
 		if (isfullscreen () > 0) {
 			GetWindowRect (owner, &rcOwner);
 			GetWindowRect (hDlg, &rcDlg);
@@ -14221,7 +14245,7 @@ static void centerWindow (HWND hDlg)
 			pt1.y = y;
 			pt2.x = x + 16;
 			pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
-			if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL || MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
+			if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL && MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
 				x = 0;
 				y = 0;
 			}
@@ -14717,17 +14741,6 @@ static int init_page (int tmpl, int icon, int title,
 }
 
 static RECT dialog_rect;
-static bool dodialogmousemove (void)
-{
-	if (full_property_sheet || isfullscreen () <= 0)
-		return false;
-	for (int i = 0; Displays[i].monitorid; i++) {
-		struct MultiDisplay *md = &Displays[i];
-		if (md->rect.right - md->rect.left >= 640 && md->rect.bottom - md->rect.top >= 480)
-			return false;
-	}
-	return true;
-}
 
 static void dialogmousemove (HWND hDlg)
 {

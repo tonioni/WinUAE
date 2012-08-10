@@ -143,7 +143,7 @@ residentcodeend:
 filesys_init:
 	movem.l d0-d7/a0-a6,-(sp)
 	move.l 4.w,a6
-	move.w #$FFFC,d0 ; filesys base
+	move.w #$FFEC,d0 ; filesys base
 	bsr getrtbase
 	move.l (a0),a5
 	lea.l explibname(pc),a1 ; expansion lib name
@@ -424,6 +424,38 @@ exter_server_exit:
 	movem.l (sp)+,a2
 	rts
 
+heartbeatvblank:
+	movem.l d0-d1/a0-a2,-(sp)
+
+	move.w #$FF38,d0
+	moveq #18,d1
+	bsr.w getrtbase
+	jsr (a0)
+	move.l d0,a2
+
+	moveq #22,d0
+	move.l #65536+1,d1
+	jsr AllocMem(a6)
+	move.l d0,a1
+
+	move.b #2,8(a1) ;NT_INTERRUPT
+	move.b #-10,9(a1) ;priority
+	lea kaname(pc),a0
+	move.l a0,10(a1)
+	lea kaint(pc),a0
+	move.l a0,18(a1)
+	move.l a2,14(a1)
+	moveq #5,d0 ;INTB_VERTB
+	jsr -$00a8(a6)
+
+	movem.l (sp)+,d0-d1/a0-a2
+	rts
+
+kaint:
+	addq.l #1,(a1)
+	moveq #0,d0
+	rts
+
 setup_exter:
 	movem.l d0-d1/a0-a1,-(sp)
 	bsr.w residenthack
@@ -441,12 +473,14 @@ setup_exter:
 	moveq.l #3,d0
 	jsr -168(a6) ; AddIntServer
 
+  bsr.w heartbeatvblank
+
 	move.w #$FF38,d0
 	moveq #4,d1
 	bsr.w getrtbase
 	jsr (a0)
-    tst.l d0
-    beq.s .nomh
+	tst.l d0
+	beq.s .nomh
 	bsr.w mousehack_init
 .nomh
 	movem.l (sp)+,d0-d1/a0-a1
@@ -941,7 +975,7 @@ make_cd_dev: ; IN: A0 param_packet, D6: unit_no | 0x80000000 (=CD)
 	bsr.w	fsres
 	move.l d0,PP_FSRES(a0) ; pointer to FileSystem.resource
 	move.l a0,-(sp)
-	move.w #$FFFC,d0 ; filesys base
+	move.w #$FFEC,d0 ; filesys base
 	bsr.w getrtbase
 	move.l (a0),a5
 	move.w #$FF28,d0 ; fill in unit-dependent info (filesys_dev_storeinfo)
@@ -1036,7 +1070,7 @@ make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36
 	bsr.w fsres
 	move.l d0,PP_FSRES(a0) ; pointer to FileSystem.resource
 	move.l a0,-(sp)
-	move.w #$FFFC,d0 ; filesys base
+	move.w #$FFEC,d0 ; filesys base
 	bsr.w getrtbase
 	move.l (a0),a5
 	move.w #$FF28,d0 ; fill in unit-dependent info (filesys_dev_storeinfo)
@@ -1568,12 +1602,6 @@ LKCK_TooManyLoop:
 LKCK_ret:
 	move.l d7,(a3)
 	move.l (a7)+,d5
-	rts
-
-getrtbase:
-	lea start-8-4(pc),a0
-	and.l #$FFFF,d0
-	add.l d0,a0
 	rts
 
 ; mouse hack
@@ -2646,7 +2674,11 @@ chook:
 	movem.l (sp)+,d0-d1/a0
 	rts
 
-
+getrtbase:
+	lea start-8-4(pc),a0
+	and.l #$FFFF,d0
+	add.l d0,a0
+	rts
 
 inp_dev: dc.b 'input.device',0
 tim_dev: dc.b 'timer.device',0
@@ -2660,6 +2692,7 @@ clip_dev: dc.b 'clipboard.device',0
 pointer_prefs: dc.b 'RAM:Env/Sys/Pointer.prefs',0
 clname: dc.b 'UAE clipboard sharing',0
 mhname: dc.b 'UAE mouse driver',0
+kaname: dc.b 'UAE heart beat',0
 exter_name: dc.b 'UAE filesystem',0
 fstaskname: dc.b 'UAE fs automounter',0
 fsprocname: dc.b 'UAE fs automount process',0

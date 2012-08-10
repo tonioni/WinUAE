@@ -1000,7 +1000,7 @@ static void expamem_map_filesys (void)
 	write_log (_T("Filesystem: mapped memory @$%lx.\n"), filesys_start);
 	/* 68k code needs to know this. */
 	a = here ();
-	org (rtarea_base + 0xFFFC);
+	org (rtarea_base + RTAREA_FSBOARD);
 	dl (filesys_start + 0x2000);
 	org (a);
 }

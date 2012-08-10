@@ -455,13 +455,27 @@ STATIC_INLINE void alloc_cycle (int hpos, int type)
 }
 STATIC_INLINE void alloc_cycle_maybe (int hpos, int type)
 {
-	if (cycle_line[hpos] == 0)
+	if ((cycle_line[hpos] & CYCLE_MASK) == 0)
 		alloc_cycle (hpos, type);
 }
 
 void alloc_cycle_ext (int hpos, int type)
 {
 	alloc_cycle (hpos, type);
+}
+
+void alloc_cycle_blitter (int hpos, uaecptr *ptr)
+{
+	if (cycle_line[hpos] & CYCLE_COPPER_SPECIAL) {
+		static int warned = 100;
+		uaecptr srcptr = cop_state.strobe == 1 ? cop1lc : cop2lc;
+		if (warned > 0) {
+			write_log (_T("buggy copper cycle conflict with blitter %08x <- %08x\n"), *ptr, srcptr);
+			warned--;
+		}
+		// not yet. *ptr = srcptr;
+	}
+	alloc_cycle (hpos, CYCLE_BLITTER);
 }
 
 static void hsyncdelay (void)
@@ -3687,8 +3701,8 @@ void INTREQ_f (uae_u16 v)
 void INTREQ_0 (uae_u16 v)
 {
 #if 0
-	if (!(v & 0x8000) && (v & (0x80 | 0x100 | 0x200 | 0x400)))
-		write_log (_T("audirq clear %d\n"), v);
+	if (!(v & 0x8000) && (v & (0x80 | 0x100 | 0x200 | 0x400) != 0x0780))
+		write_log (_T("audirq clear %04x %04x\n"), v, intreq);
 #endif
 
 	uae_u16 old = intreq;
@@ -4550,7 +4564,7 @@ static int customdelay[]= {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x40 - 0x5e */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 0x60 - 0x7e */
 	0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0, /* 0x80 - 0x9e */
-	1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0, /* 32 0xa0 - 0xde */
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, /* 32 0xa0 - 0xde */
 	/* BPLxPTH/BPLxPTL */
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* 16 */
 	/* BPLCON0-3,BPLMOD1-2 */
@@ -4669,6 +4683,7 @@ static void update_copper (int until_hpos)
 			// Cycle can be free and copper won't allocate it.
 			// If Blitter uses this cycle = Copper's address gets copied blitter DMA pointer..
 			cop_state.state = COP_strobe_delay2x;
+			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
 			break;
 		case COP_strobe_delay2x:
 			// Second cycle fetches following word and tosses it away. Must be free cycle.
@@ -4801,8 +4816,8 @@ static void update_copper (int until_hpos)
 			this hack: defer the entire decision until the next line if necessary.  */
 #endif
 #if 0
+			/* Above is not true anymore */
 			if (c_hpos >= (maxhpos & ~1) || (c_hpos & 1)) {
-				write_log(L"*\n");
 				break;
 			}
 #endif
@@ -7291,7 +7306,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	COPCON (RW);			/* 02E COPCON */
 	RW;						/* 030 SERDAT* */
 	RW;						/* 032 SERPER* */
-	POTGO (RW);				/* 034 POTGO */
+	potgo_value = 0; POTGO (RW); /* 034 POTGO */
 	RW;						/* 036 JOYTEST* */
 	RW;						/* 038 STREQU */
 	RW;						/* 03A STRVHBL */
@@ -7922,7 +7937,7 @@ STATIC_INLINE int dma_cycle (void)
 		decide_fetch_ce (hpos);
 		bpldma = is_bitplane_dma (hpos_old);
 		if (bltstate != BLT_done) {
-			if (!blitpri && blitter_nasty >= BLIT_NASTY && cycle_line[hpos_old] == 0 && !bpldma) {
+			if (!blitpri && blitter_nasty >= BLIT_NASTY && (cycle_line[hpos_old] & CYCLE_MASK) == 0 && !bpldma) {
 				alloc_cycle (hpos_old, CYCLE_CPUNASTY);
 				break;
 			}
@@ -7930,7 +7945,7 @@ STATIC_INLINE int dma_cycle (void)
 			// copper may have been waiting for the blitter
 			sync_copper (hpos);
 		}
-		if (cycle_line[hpos_old] == 0 && !bpldma) {
+		if ((cycle_line[hpos_old] & CYCLE_MASK) == 0 && !bpldma) {
 			alloc_cycle (hpos_old, CYCLE_CPU);
 			break;
 		}
@@ -8106,7 +8121,7 @@ void do_cycles_ce (unsigned long cycles)
 int is_cycle_ce (void)
 {
 	int hpos = current_hpos ();
-	return cycle_line[hpos];
+	return cycle_line[hpos] & CYCLE_MASK;
 }
 
 #endif

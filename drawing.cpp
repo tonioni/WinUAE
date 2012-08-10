@@ -2908,7 +2908,8 @@ void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae
 
 	gui_flicker_led (-1, 0, 0);
 #ifdef AVIOUTPUT
-	frame_drawn ();
+	if (!picasso_on)
+		frame_drawn ();
 #endif
 }
 

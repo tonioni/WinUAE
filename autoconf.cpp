@@ -66,7 +66,6 @@ static uae_u32 REGPARAM2 rtarea_lget (uaecptr addr)
 	addr &= 0xFFFF;
 	return (uae_u32)(rtarea_wget (addr) << 16) + rtarea_wget (addr + 2);
 }
-
 static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 {
 #ifdef JIT
@@ -75,7 +74,6 @@ static uae_u32 REGPARAM2 rtarea_wget (uaecptr addr)
 	addr &= 0xFFFF;
 	return (rtarea[addr] << 8) + rtarea[addr + 1];
 }
-
 static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 {
 #ifdef JIT
@@ -85,25 +83,39 @@ static uae_u32 REGPARAM2 rtarea_bget (uaecptr addr)
 	return rtarea[addr];
 }
 
-static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
-{
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-}
-
-static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
-{
-#ifdef JIT
-	special_mem |= S_WRITE;
-#endif
-}
+#define RTAREA_WRITEOFFSET 0xfff0
 
 static void REGPARAM2 rtarea_bput (uaecptr addr, uae_u32 value)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	addr &= 0xffff;
+	if (addr < RTAREA_WRITEOFFSET)
+		return;
+	rtarea[addr] = value;
+}
+static void REGPARAM2 rtarea_wput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	addr &= 0xffff;
+	if (addr < RTAREA_WRITEOFFSET)
+		return;
+	rtarea_bput (addr, value >> 8);
+	rtarea_bput (addr + 1, value & 0xff);
+}
+static void REGPARAM2 rtarea_lput (uaecptr addr, uae_u32 value)
+{
+#ifdef JIT
+	special_mem |= S_WRITE;
+#endif
+	addr &= 0xffff;
+	if (addr < RTAREA_WRITEOFFSET)
+		return;
+	rtarea_wput (addr, value >> 16);
+	rtarea_wput (addr + 2, value & 0xffff);
 }
 
 /* some quick & dirty code to fill in the rt area and save me a lot of
@@ -292,7 +304,7 @@ volatile int uae_int_requested = 0;
 
 void set_uae_int_flag (void)
 {
-	rtarea[0xFFFB] = uae_int_requested & 1;
+	rtarea[RTAREA_INT] = uae_int_requested & 1;
 }
 
 void rtarea_setup (void)

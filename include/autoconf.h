@@ -11,6 +11,8 @@
 #define RTAREA_SIZE 0x10000
 #define RTAREA_TRAPS 0x2000
 #define RTAREA_RTG 0x3000
+#define RTAREA_FSBOARD 0xFFEC
+#define RTAREA_INT 0xFFEB
 
 extern uae_u32 addr (int);
 extern void db (uae_u8);

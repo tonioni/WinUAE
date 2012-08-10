@@ -3,7 +3,7 @@
 *
 * joystick/mouse emulation
 *
-* Copyright 2001-2010 Toni Wilen
+* Copyright 2001-2012 Toni Wilen
 *
 * new fetures:
 * - very configurable (and very complex to configure :)
@@ -2802,7 +2802,7 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	ie = &events[nr];
 	if (isqual (nr))
 		return 0; // qualifiers do nothing
-	if (ie->unit == 0 && ie->data >= 0x200) {
+	if (ie->unit == 0 && ie->data >= AKS_FIRST) {
 		isaks = true;
 		if (!state) // release AKS_ does nothing
 			return 0;
@@ -3191,6 +3191,7 @@ void inputdevice_reset (void)
 	if (inputdevice_is_tablet ())
 		mousehack_enable ();
 	bouncy = 0;
+	potgo_value = 0;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -3342,6 +3343,7 @@ static bool checkqualifiers (int evt, uae_u64 flags, uae_u64 *qualmask, uae_s16 
 	int i, j;
 	int qualid = getqualid (evt);
 	int nomatch = 0;
+	bool isspecial = (qualifiers & (ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SPECIAL_R)) != 0;
 
 	flags &= ID_FLAG_QUALIFIER_MASK;
 	if (qualid >= 0 && events)
@@ -3354,15 +3356,16 @@ static bool checkqualifiers (int evt, uae_u64 flags, uae_u64 *qualmask, uae_s16 
 		if (qualmask[i])
 			break;
 	}
-	if (i == MAX_INPUT_SUB_EVENT)
-		return true; // no qualifiers in any slot = always match
-
+	if (i == MAX_INPUT_SUB_EVENT) {
+		 // no qualifiers in any slot and no special = always match
+		return isspecial == false;
+	}
 
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 		for (j = 0; j < MAX_INPUT_QUALIFIERS; j++) {
 			uae_u64 mask = (ID_FLAG_QUALIFIER1 | ID_FLAG_QUALIFIER1_R) << (j * 2);
 			bool isqualmask = (qualmask[i] & mask) != 0;
-			bool isqual = ((qualifiers &  ~(ID_FLAG_QUALIFIER_SPECIAL | ID_FLAG_QUALIFIER_SPECIAL_R)) & mask) != 0;
+			bool isqual = (qualifiers & mask) != 0;
 			if (isqualmask != isqual) {
 				nomatch++;
 				break;
@@ -3372,6 +3375,9 @@ static bool checkqualifiers (int evt, uae_u64 flags, uae_u64 *qualmask, uae_s16 
 	if (nomatch == MAX_INPUT_SUB_EVENT) {
 		// no matched qualifiers in any slot
 		// allow all slots without qualifiers
+		// special = never accept
+		if (isspecial)
+			return false;
 		return flags ? false : true;
 	}
 
@@ -3394,6 +3400,7 @@ static void setqualifiers (int evt, int state)
 		qualifiers |= mask;
 	else
 		qualifiers &= ~mask;
+	//write_log (_T("%llx\n"), qualifiers);
 }
 
 static uae_u64 getqualmask (uae_u64 *qualmask, struct uae_input_device *id, int num, bool *qualonly)
@@ -3538,6 +3545,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		}
 
 		setqualifiers (evt, state > 0);
+
 		if (qualonly)
 			continue;
 
@@ -5135,8 +5143,17 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 				int toggled;
 
 				setqualifiers (evt, state > 0);
-				if (qualifiercheckonly)
+
+				if (qualifiercheckonly) {
+					if (!state && (flags & ID_FLAG_CANRELEASE)) {
+						*flagsp &= ~ID_FLAG_CANRELEASE;
+						handle_input_event (evt, state, 1, autofire, true, false);
+						if (k == 0) {
+							process_custom_event (na, j, state, qualmask, autofire, k);
+						}
+					}
 					continue;
+				}
 
 				if (!state) {
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
@@ -5185,10 +5202,13 @@ static int inputdevice_translatekeycode_2 (int keyboard, int scancode, int state
 							continue;
 					}
 
-					if (state)
+					if (state) {
 						*flagsp |= ID_FLAG_CANRELEASE;
-					else
+					} else {
+						if (!(flags & ID_FLAG_CANRELEASE))
+							continue;
 						*flagsp &= ~ID_FLAG_CANRELEASE;
+					}
 					handled |= handle_input_event (evt, state, 1, autofire, true, false);
 					didcustom |= process_custom_event (na, j, state, qualmask, autofire, k);
 				}
