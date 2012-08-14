@@ -3580,7 +3580,6 @@ struct miscentry
 
 static struct miscentry misclist[] = { 
 	{ 0, 1, _T("Untrap = middle button"),  &workprefs.win32_middle_mouse },
-	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
 	{ 0, 0, _T("Show GUI on startup"), &workprefs.start_gui },
 	{ 0, 1, _T("Use CTRL-F11 to quit"), &workprefs.win32_ctrl_F11_is_quit },
 	{ 0, 1, _T("Don't show taskbar button"), &workprefs.win32_notaskbarbutton },
@@ -3596,6 +3595,10 @@ static struct miscentry misclist[] = {
 	{ 0, 0, _T("Create winuaelog.txt log"), &workprefs.win32_logfile },
 	{ 0, 0, _T("Log illegal memory accesses"), &workprefs.illegal_mem },
 	{ 0, 0, _T("Blank unused displays"), &workprefs.win32_blankmonitors },
+	{ 0, 0, _T("Start mouse uncaptured"), &workprefs.win32_start_uncaptured  },
+	{ 0, 0, _T("Start minimized"), &workprefs.win32_start_minimized  },
+	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
+
 	{ 0, NULL }
 };
 
@@ -6680,19 +6683,26 @@ static void enable_for_memorydlg (HWND hDlg)
 	ew (hDlg, IDC_RTG_VBLANKRATE, rtg2);
 	ew (hDlg, IDC_RTG_BUFFERCNT, rtg2);
 	ew (hDlg, IDC_RTG_DISPLAYSELECT, rtg2);
+	ew (hDlg, IDC_RTG_VBINTERRUPT, rtg2);
+	if (!workprefs.gfx_api) {
+		workprefs.rtg_hardwaresprite = false;
+		CheckDlgButton (hDlg, IDC_RTG_HWSPRITE, FALSE);
+	}
+	ew (hDlg, IDC_RTG_HWSPRITE, rtg2 && workprefs.gfx_api);
 }
 
 extern uae_u32 natmem_size;
 static void setmax32bitram (HWND hDlg)
 {
 	TCHAR tmp[100];
-	uae_u32 size;
+	uae_u32 size, rtgz3size;
 
+	rtgz3size = workprefs.rtgmem_type ? workprefs.rtgmem_size : 0;
 	size = workprefs.z3fastmem_size + workprefs.z3fastmem2_size +
-		workprefs.z3chipmem_size + workprefs.rtgmem_size;
+		workprefs.z3chipmem_size + rtgz3size;
 	if (workprefs.z3chipmem_size && workprefs.z3fastmem_size)
 		size += 16 * 1024 * 1024;
-	if ((workprefs.z3fastmem_size || workprefs.z3chipmem_size) && workprefs.rtgmem_size)
+	if ((workprefs.z3fastmem_size || workprefs.z3chipmem_size) && rtgz3size)
 		size += 16 * 1024 * 1024;
 
 	_stprintf (tmp, L"Total configured 32-bit RAM: %dM, reserved: %dM",
@@ -6895,6 +6905,7 @@ static void values_to_memorydlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_RTG_SCALE_ALLOW, workprefs.win32_rtgallowscaling);
 	CheckDlgButton (hDlg, IDC_RTG_MATCH_DEPTH, workprefs.win32_rtgmatchdepth);
 	CheckDlgButton (hDlg, IDC_RTG_VBINTERRUPT, workprefs.rtg_hardwareinterrupt);
+	CheckDlgButton (hDlg, IDC_RTG_HWSPRITE, workprefs.rtg_hardwaresprite);
 
 	SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 		(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
@@ -7150,6 +7161,9 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				break;
 			case IDC_RTG_VBINTERRUPT:
 				workprefs.rtg_hardwareinterrupt = ischecked (hDlg, IDC_RTG_VBINTERRUPT);
+				break;
+			case IDC_RTG_HWSPRITE:
+				workprefs.rtg_hardwaresprite = ischecked (hDlg, IDC_RTG_HWSPRITE);
 				break;
 			case IDC_SOCKETS:
 				workprefs.socket_emu = ischecked (hDlg, IDC_SOCKETS);
@@ -8119,8 +8133,8 @@ static void values_to_cpudlg (HWND hDlg)
 	TCHAR buffer[8] = _T("");
 	int cpu;
 
-	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, workprefs.m68k_speed_throttle / 100);
-	_stprintf (buffer, _T("%+d%%"), workprefs.m68k_speed_throttle / 10);
+	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPOS, TRUE, (int)(workprefs.m68k_speed_throttle / 100));
+	_stprintf (buffer, _T("%+d%%"), (int)(workprefs.m68k_speed_throttle / 10));
 	SetDlgItemText (hDlg, IDC_CPUTEXT, buffer);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
@@ -9665,6 +9679,10 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		workprefs.win32_automount_cddrives = ischecked (hDlg, IDC_MAPDRIVES_CD);
 		break;
 
+	case IDC_MAPDRIVES_LIMIT:
+		workprefs.filesys_limit = ischecked (hDlg, IDC_MAPDRIVES_LIMIT) ? 950 * 1024 : 0;
+		break;
+
 	case IDC_MAPDRIVES_NET:
 		workprefs.win32_automount_netdrives = ischecked (hDlg, IDC_MAPDRIVES_NET);
 		break;
@@ -9738,6 +9756,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_REMOVABLE, workprefs.win32_automount_removabledrives);
 		CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 		CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
+		CheckDlgButton (hDlg, IDC_MAPDRIVES_LIMIT, workprefs.filesys_limit != 0);
 		addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
 		addcdtype (hDlg, IDC_CD_TYPE);
 		InitializeListView (hDlg);
@@ -10852,6 +10871,7 @@ static void enable_for_portsdlg (HWND hDlg)
 	}
 	ew (hDlg, IDC_PRINTERLIST, isprinter);
 	ew (hDlg, IDC_SAMPLERLIST, issampler);
+	ew (hDlg, IDC_SAMPLER_STEREO, issampler && workprefs.win32_samplersoundcard >= 0);
 	ew (hDlg, IDC_PRINTERAUTOFLUSH, isprinter);
 	ew (hDlg, IDC_PRINTERTYPELIST, isprinter);
 	ew (hDlg, IDC_FLUSHPRINTER, isprinteropen () && isprinter ? TRUE : FALSE);
@@ -11067,6 +11087,9 @@ static void values_from_portsdlg (HWND hDlg)
 		if (item > 0)
 			workprefs.prtname[0] = 0;
 	}
+	workprefs.sampler_stereo = false;
+	if (ischecked (hDlg, IDC_SAMPLER_STEREO))
+		workprefs.sampler_stereo = true;
 
 	item = SendDlgItemMessage (hDlg, IDC_PRINTERLIST, CB_GETCURSEL, 0, 0L);
 	if(item != CB_ERR) {
@@ -11146,6 +11169,7 @@ static void values_to_portsdlg (HWND hDlg)
 	int idx;
 
 	SendDlgItemMessage (hDlg, IDC_SAMPLERLIST, CB_SETCURSEL, workprefs.win32_samplersoundcard + 1, 0);
+	CheckDlgButton (hDlg, IDC_SAMPLER_STEREO, workprefs.sampler_stereo);
 
 	result = 0;
 	if(workprefs.prtname[0]) {
@@ -11530,7 +11554,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			if (isprinter ()) {
 				closeprinter ();
 			}
-		} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH) {
+		} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH || wParam == IDC_SAMPLER_STEREO) {
 			values_from_portsdlg (hDlg);
 		} else {
 			if (HIWORD (wParam) == CBN_SELCHANGE) {
@@ -12671,7 +12695,7 @@ static struct filterxtra filter_pal_extra[] =
 static struct filterxtra filter_3d_extra[] =
 {
 	_T("Point/Bilinear"), &workprefs.gfx_filter_bilinear, &currprefs.gfx_filter_bilinear, 0, 1, 1,
-	_T("Scanline transparency"), &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
+	_T("Scanline opacity"), &workprefs.gfx_filter_scanlines, &currprefs.gfx_filter_scanlines, 0, 100, 10,
 	_T("Scanline level"), &workprefs.gfx_filter_scanlinelevel, &currprefs.gfx_filter_scanlinelevel, 0, 100, 10,
 	NULL
 };

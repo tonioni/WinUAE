@@ -1617,25 +1617,6 @@ void close_sound (void)
 	have_sound = 0;
 }
 
-int init_sound (void)
-{
-	gui_data.sndbuf_status = 3;
-	gui_data.sndbuf = 0;
-	if (!sound_available)
-		return 0;
-	if (currprefs.produce_sound <= 1)
-		return 0;
-	if (have_sound)
-		return 1;
-	if (!open_sound ())
-		return 0;
-	sdp->paused = 1;
-	driveclick_reset ();
-	reset_sound ();
-	resume_sound ();
-	return 1;
-}
-
 void pause_sound (void)
 {
 	if (sdp->paused)
@@ -1659,6 +1640,31 @@ void reset_sound (void)
 	if (!have_sound)
 		return;
 	clearbuffer (sdp);
+}
+
+int init_sound (void)
+{
+	bool started = false;
+	gui_data.sndbuf_status = 3;
+	gui_data.sndbuf = 0;
+	if (!sound_available)
+		return 0;
+	if (currprefs.produce_sound <= 1)
+		return 0;
+	if (have_sound)
+		return 1;
+	if (!open_sound ())
+		return 0;
+	sdp->paused = 1;
+	driveclick_reset ();
+	reset_sound ();
+	resume_sound ();
+	if (!started &&
+		(currprefs.win32_start_minimized && currprefs.win32_iconified_nosound ||
+		currprefs.win32_start_uncaptured && currprefs.win32_inactive_nosound))
+		pause_sound ();
+	started = true;
+	return 1;
 }
 
 static void disable_sound (void)

@@ -250,6 +250,7 @@ static bool bpl1dat_written, bpl1dat_early, bpl1dat_written_at_least_once;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
+static bool brdblank_prevframe[MAXVPOS];
 
 /*static int blitcount[256];  blitter debug */
 
@@ -889,6 +890,15 @@ static bool isehb (uae_u16 bplcon0, uae_u16 bplcon2)
 	else
 		bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !currprefs.cs_denisenoehb;
 	return bplehb;
+}
+
+static bool isbrdblank (uae_u16 bplcon0, uae_u16 bplcon3)
+{
+#ifdef ECS_DENISE
+	return (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x20);
+#else
+	return false;
+#endif
 }
 
 // OCS/ECS, lores, 7 planes = 4 "real" planes + BPL5DAT and BPL6DAT as static 5th and 6th plane
@@ -2041,8 +2051,11 @@ static void record_register_change (int hpos, int regno, uae_u16 value)
 		if (value & 0x800)
 			thisline_decision.ham_seen = 1;
 		thisline_decision.ehb_seen = isehb (value, bplcon2);
+		thisline_decision.brdblank_seen = isbrdblank (value, bplcon3);
 	} else if (regno == 0x104) { // BPLCON2
-		thisline_decision.ehb_seen = isehb (value, bplcon2);
+		thisline_decision.ehb_seen = isehb (bplcon0, value);
+	} else if (regno == 0x106) { // BPLCON3
+		thisline_decision.brdblank_seen = isbrdblank (bplcon0, value);
 	}
 	record_color_change (hpos, regno + 0x1000, value);
 }
@@ -2644,6 +2657,12 @@ static void finish_decisions (void)
 		changed = 1;
 	}
 
+	/* if last frame's brdblank was different = mark line changed */
+	if (brdblank_prevframe[vpos] != thisline_decision.brdblank_seen) {
+		changed = 1;
+		brdblank_prevframe[vpos] = thisline_decision.brdblank_seen;
+	}
+
 	if (changed) {
 		thisline_changed = 1;
 		*dp = thisline_decision;
@@ -2689,6 +2708,7 @@ static void reset_decisions (void)
 	thisline_decision.plflinelen = -1;
 	thisline_decision.ham_seen = !! (bplcon0 & 0x800);
 	thisline_decision.ehb_seen = !! isehb (bplcon0, bplcon2);
+	thisline_decision.brdblank_seen = !! isbrdblank (bplcon0, bplcon3);
 	thisline_decision.ham_at_start = !! (bplcon0 & 0x800);
 
 	/* decided_res shouldn't be touched before it's initialized by decide_line(). */
@@ -2783,7 +2803,7 @@ void compute_vsynctime (void)
 	if (currprefs.turbo_emulation)
 		vsynctimebase = vsynctimebase_orig = 1;
 	else
-		vsynctimebase = vsynctimebase_orig = syncbase / fake_vblank_hz;
+		vsynctimebase = vsynctimebase_orig = (int)(syncbase / fake_vblank_hz);
 #if 0
 	if (!picasso_on) {
 		updatedisplayarea ();
@@ -2881,7 +2901,7 @@ void compute_framesync (void)
 			if (isvsync_chipset ()) {
 				if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
 					if ((fabs (vblank_hz - 50) < 1 || fabs (vblank_hz - 60) < 1 || fabs (vblank_hz - 100) < 1 || fabs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
-						vsync_switchmode (vblank_hz);
+						vsync_switchmode ((int)vblank_hz);
 					}
 				}
 				if (isvsync_chipset () < 0) {
@@ -3791,7 +3811,7 @@ void set_picasso_hack_rate (int hz)
 	if (!picasso_on)
 		return;
 	vpos_count = 0;
-	p96refresh_active = maxvpos_stored * vblank_hz_stored / hz;
+	p96refresh_active = (int)(maxvpos_stored * vblank_hz_stored / hz);
 	if (!currprefs.cs_ciaatod)
 		changed_prefs.cs_ciaatod = currprefs.cs_ciaatod = currprefs.ntscmode ? 2 : 1;
 	if (p96refresh_active > 0) {
@@ -4391,6 +4411,8 @@ static void checkautoscalecol0 (void)
 	if (!copper_access)
 		return;
 	if (vpos < 20)
+		return;
+	if (isbrdblank (bplcon0, bplcon3))
 		return;
 	// autoscale if copper changes COLOR00 on top or bottom of screen
 	if (vpos >= minfirstline) {
@@ -5480,7 +5502,7 @@ static bool framewait (void)
 			if (val > vsynctimebase * 2 / 3)
 				val = vsynctimebase * 2 / 3;
 
-			max = (vsynctimebase - val) * (1000 + currprefs.m68k_speed_throttle) / 1000;
+			max = (int)((vsynctimebase - val) * (1000.0 + currprefs.m68k_speed_throttle) / 1000.0);
 			if (max < 1)
 				max = 1;
 
@@ -5618,7 +5640,7 @@ static bool framewait (void)
 		if ((int)curr_time - (int)vsyncwaittime > 0 && (int)curr_time - (int)vsyncwaittime < vstb / 2)
 			adjust += curr_time - vsyncwaittime;
 		adjust += clockadjust;
-		max = vstb * (1000 + currprefs.m68k_speed_throttle) / 1000 - adjust;
+		max = (int)(vstb * (1000.0 + currprefs.m68k_speed_throttle) / 1000.0 - adjust);
 		vsyncwaittime = curr_time + vstb - adjust;
 		vsyncmintime = curr_time;
 

@@ -930,7 +930,7 @@ bool render_screen (bool immediate)
 	bool v = false;
 
 	render_ok = false;
-	if (picasso_on || dx_islost ())
+	if (minimized || picasso_on || dx_islost ())
 		return render_ok;
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
@@ -1454,6 +1454,7 @@ static void update_gfxparams (void)
 
 static int open_windows (int full)
 {
+	static bool started = false;
 	int ret, i;
 
 	changevblankthreadmode (VBLANKTH_IDLE);
@@ -1494,14 +1495,29 @@ static int open_windows (int full)
 		return ret;
 	}
 
-	setpriority (&priorities[currprefs.win32_active_capture_priority]);
-	if (!rp_isactive () && full)
-		setmouseactive (-1);
-	for (i = 0; i < NUM_LEDS; i++)
-		gui_led (i, 0);
-	gui_fps (0, 0, 0);
-	inputdevice_acquire (TRUE);
+	bool startactive = started || (!started && !currprefs.win32_start_uncaptured && !currprefs.win32_start_minimized);
+	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause));
+	bool startminimized = !started && currprefs.win32_start_minimized;
 
+	if (!rp_isactive () && full && startactive)
+		setmouseactive (-1);
+
+	if (startactive) {
+		setpriority (&priorities[currprefs.win32_active_capture_priority]);
+		for (i = 0; i < NUM_LEDS; i++)
+			gui_led (i, 0);
+		gui_fps (0, 0, 0);
+		inputdevice_acquire (TRUE);
+	} else if (startminimized) {
+		setpriority (&priorities[currprefs.win32_iconified_priority]);
+		setminimized ();
+	} else {
+		setpriority (&priorities[currprefs.win32_inactive_priority]);
+	}
+	if (startpaused)
+		setpaused (1);
+
+	started = true;
 	return ret;
 }
 
@@ -1734,9 +1750,8 @@ int check_prefs_changed_gfx (void)
 		return 1;
 	}
 
-	if (currprefs.win32_norecyclebin != changed_prefs.win32_norecyclebin) {
-		currprefs.win32_norecyclebin = changed_prefs.win32_norecyclebin;
-	}
+	currprefs.win32_norecyclebin = changed_prefs.win32_norecyclebin;
+	currprefs.filesys_limit = changed_prefs.filesys_limit;
 
 	if (currprefs.win32_logfile != changed_prefs.win32_logfile) {
 		currprefs.win32_logfile = changed_prefs.win32_logfile;
@@ -1790,8 +1805,10 @@ int check_prefs_changed_gfx (void)
 		return 1;
 	}
 
-	if (currprefs.win32_samplersoundcard != changed_prefs.win32_samplersoundcard) {
+	if (currprefs.win32_samplersoundcard != changed_prefs.win32_samplersoundcard ||
+		currprefs.sampler_stereo != changed_prefs.sampler_stereo) {
 		currprefs.win32_samplersoundcard = changed_prefs.win32_samplersoundcard;
+		currprefs.sampler_stereo = changed_prefs.sampler_stereo;
 		sampler_free ();
 	}
 
@@ -3358,7 +3375,7 @@ fail:
 
 static int create_windows_2 (void)
 {
-	static int firstwindow = 1;
+	static bool firstwindow = true;
 	int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
 	int d3dfs = currentmode->flags & (DM_D3D_FULLSCREEN);
 	int fsw = currentmode->flags & (DM_W_FULLSCREEN);
@@ -3587,13 +3604,13 @@ static int create_windows_2 (void)
 	createblankwindows ();
 	if (hMainWnd != hAmigaWnd) {
 		if (!currprefs.headless && !rp_isactive ())
-			ShowWindow (hMainWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
+			ShowWindow (hMainWnd, firstwindow ? (currprefs.win32_start_minimized ? SW_SHOWMINIMIZED : SW_SHOWDEFAULT) : SW_SHOWNORMAL);
 		UpdateWindow (hMainWnd);
 	}
 	if (!currprefs.headless && !rp_isactive ())
-		ShowWindow (hAmigaWnd, firstwindow ? SW_SHOWDEFAULT : SW_SHOWNORMAL);
+		ShowWindow (hAmigaWnd, SW_SHOWNORMAL);
 	UpdateWindow (hAmigaWnd);
-	firstwindow = 0;
+	firstwindow = false;
 
 	return 1;
 }

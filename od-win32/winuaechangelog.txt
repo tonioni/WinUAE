@@ -1,6 +1,25 @@
 
 - restore only single input target to default.
 
+- Moved cycle-exact option to Chipset group in GUI. Other options are minor options/hacks, CE is not.
+- Do not enable wait for blit if immediate blitter is enabled in quickstart mode.
+- Added RTG hardware sprite (mouse cursor) enable/disable option. Enabled by default if D3D mode. Was always enabled
+  previously if D3D mode.
+- GUI Memory panel 32-bit RAM size information text incorrectly included Z2 mode RTG memory.
+- Added directory harddrive limit option to Harddrives panel. When enabled, all directory harddrives size is faked
+  to ~950M with free space relative to original size (for example 500G HD with 100G free = 950M HD with 950*100/500=190M free)
+  This hack is workaround for installers that think drive is full or have negative free space if drive is larger than 2G (32-bit overflow).
+  Can be changed on the fly. Edit configuration file manually if you want custom limit size. Also virtual fake block size changed
+  from 1024 to 512. More compatible with KS1.x dos commands that seem to use hardcoded 512 block sizes when calculating disk size.
+- cpu_throttle configuration entry also accepts decimal values.
+- Added Start minimized and Start mouse uncaptured Misc panel options.
+- In minimized mode D3D/DirectDraw display updates are also now completely stopped.
+- ECS Denise/AGA border blanking handling rewritten again. (Brian the Lion borders are black again)
+- Ignore color 0 (background) writes if borderblank is currently enabled when deciding autoscale start vertical
+  coordinate. (Brian the Lion)
+- Parallel port audio sampler emulation partially rewritten, it actually sounds correct now, mono/stereo option added.
+  AudioMaster IV confirmed working. Very pointless feature.
+  
 Beta 11:
 
 - END special qualifier didn't work when combined with other qualifiers, some END + shortcuts leaked key presses to emulated

@@ -724,6 +724,9 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("sound_auto"), p->sound_auto);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_paula"), p->sound_stereo_swap_paula);
 	cfgfile_write_bool (f, _T("sound_stereo_swap_ahi"), p->sound_stereo_swap_ahi);
+	cfgfile_dwrite (f, _T("sampler_frequency"), _T("%d"), p->sampler_freq);
+	cfgfile_dwrite (f, _T("sampler_buffer"), _T("%d"), p->sampler_buffer);
+	cfgfile_dwrite_bool (f, _T("sampler_stereo"), p->sampler_stereo);
 
 	cfgfile_write_str (f, _T("comp_trustbyte"), compmode[p->comptrustbyte]);
 	cfgfile_write_str (f, _T("comp_trustword"), compmode[p->comptrustword]);
@@ -1033,6 +1036,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("gfxcard_size"), _T("%d"), p->rtgmem_size / 0x100000);
 	cfgfile_write_str (f, _T("gfxcard_type"), rtgtype[p->rtgmem_type]);
 	cfgfile_write_bool (f, _T("gfxcard_hardware_vblank"), p->rtg_hardwareinterrupt);
+	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 	cfgfile_dwrite (f, _T("megachipmem_size"), _T("%d"), p->z3chipmem_size / 0x100000);
 
@@ -1041,7 +1045,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	} else {
 		cfgfile_write_str (f, _T("cpu_speed"), p->m68k_speed < 0 ? _T("max") : _T("real"));
 	}
-	cfgfile_write (f, _T("cpu_throttle"), _T("%d"), p->m68k_speed_throttle);
+	cfgfile_write (f, _T("cpu_throttle"), _T("%.1f"), p->m68k_speed_throttle);
 
 	/* do not reorder start */
 	write_compatibility_cpu(f, p);
@@ -1093,6 +1097,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_filesys_config (p, f);
 	if (p->filesys_no_uaefsdb)
 		cfgfile_write_bool (f, _T("filesys_no_fsdb"), p->filesys_no_uaefsdb);
+	cfgfile_dwrite (f, _T("filesys_max_size"), _T("%d"), p->filesys_limit);
 #endif
 	write_inputdevice_config (p, f);
 }
@@ -1487,6 +1492,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("sound_volume_cd"), &p->sound_volume_cd, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_separation"), &p->sound_stereo_separation, 1)
 		|| cfgfile_intval (option, value, _T("sound_stereo_mixing_delay"), &p->sound_mixed_stereo_delay, 1)
+		|| cfgfile_intval (option, value, _T("sampler_frequency"), &p->sampler_freq, 1)
+		|| cfgfile_intval (option, value, _T("sampler_buffer"), &p->sampler_buffer, 1)
 
 		|| cfgfile_intval (option, value, _T("gfx_framerate"), &p->gfx_framerate, 1)
 		|| cfgfile_intval (option, value, _T("gfx_width_windowed"), &p->gfx_size_win.width, 1)
@@ -1529,6 +1536,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
 		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
+		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 
 #endif
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
@@ -1549,6 +1557,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 
 	if (cfgfile_yesno (option, value, _T("use_debugger"), &p->start_debugger)
+		|| cfgfile_yesno (option, value, _T("sampler_stereo"), &p->sampler_stereo)
 		|| cfgfile_yesno (option, value, _T("sound_auto"), &p->sound_auto)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_paula"), &p->sound_stereo_swap_paula)
 		|| cfgfile_yesno (option, value, _T("sound_stereo_swap_ahi"), &p->sound_stereo_swap_ahi)
@@ -1680,14 +1689,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		while (s) {
 			if (!_tcschr (s, ':'))
 				break;
-			p->osd_pos.x = _tstof (s) * 10.0;
+			p->osd_pos.x =  (int)(_tstof (s) * 10.0);
 			s = _tcschr (s, ':');
 			if (!s)
 				break;
 			if (s[-1] == '%')
 				p->osd_pos.x += 30000;
 			s++;
-			p->osd_pos.y = _tstof (s) * 10.0;
+			p->osd_pos.y = (int)(_tstof (s) * 10.0);
 			s += _tcslen (s);
 			if (s[-1] == '%')
 				p->osd_pos.y += 30000;
@@ -2533,6 +2542,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
 		|| cfgfile_yesno (option, value, _T("fastmem_autoconfig"), &p->fastmem_autoconfig)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
+		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
 
 		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)
 		|| cfgfile_yesno (option, value, _T("ntsc"), &p->ntscmode)
@@ -2556,6 +2566,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("comp_lowopt"), &p->comp_lowopt)
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protected"), &p->floppy_read_only)
+		|| cfgfile_yesno (option, value, _T("floppy_auto_extended_adf"), &p->floppy_auto_ext2)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
 
@@ -2736,7 +2747,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		p->m68k_speed *= CYCLE_UNIT;
 		return 1;
 	}
-	if (cfgfile_intval (option, value, _T("cpu_throttle"), &p->m68k_speed_throttle, 1)) {
+	if (cfgfile_doubleval (option, value, _T("cpu_throttle"), &p->m68k_speed_throttle)) {
 		return 1;
 	}
 	if (cfgfile_intval (option, value, _T("finegrain_cpu_speed"), &p->m68k_speed, 1)) {
@@ -4131,6 +4142,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->sound_filter = FILTER_SOUND_EMUL;
 	p->sound_filter_type = 0;
 	p->sound_auto = 1;
+	p->sampler_stereo = false;
+	p->sampler_buffer = 0;
+	p->sampler_freq = 0;
 
 	p->comptrustbyte = 0;
 	p->comptrustword = 0;
@@ -4278,6 +4292,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->chipset_mask = CSMASK_ECS_AGNUS;
 	p->genlock = 0;
 	p->ntscmode = 0;
+	p->filesys_limit = 0;
 
 	p->fastmem_size = 0x00000000;
 	p->fastmem2_size = 0x00000000;
@@ -4508,7 +4523,7 @@ static void set_68020_compa (struct uae_prefs *p, int compa, int cd32)
 /* 0: cycle-exact
 * 1: more compatible
 * 2: no more compatible, no 100% sound
-* 3: no more compatible, immediate blits, no 100% sound
+* 3: no more compatible, waiting blits, no 100% sound
 */
 
 static void set_68000_compa (struct uae_prefs *p, int compa)
@@ -4525,7 +4540,6 @@ static void set_68000_compa (struct uae_prefs *p, int compa)
 		p->cpu_compatible = 0;
 		break;
 	case 3:
-		p->immediate_blits = 1;
 		p->produce_sound = 2;
 		p->cpu_compatible = 0;
 		break;
@@ -4543,7 +4557,6 @@ static int bip_a3000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	else
 		roms[0] = 59;
 	roms[1] = -1;
-	p->immediate_blits = 1;
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x200000;
 	p->cpu_model = 68030;
@@ -4572,7 +4585,7 @@ static int bip_a4000 (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[2] = 13;
 	roms[3] = 12;
 	roms[4] = -1;
-	p->immediate_blits = 1;
+
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x200000;
 	p->mbresmem_low_size = 8 * 1024 * 1024;
@@ -4604,7 +4617,7 @@ static int bip_a4000t (struct uae_prefs *p, int config, int compa, int romcheck)
 	roms[1] = 31;
 	roms[2] = 13;
 	roms[3] = -1;
-	p->immediate_blits = 1;
+
 	p->bogomem_size = 0;
 	p->chipmem_size = 0x200000;
 	p->mbresmem_low_size = 8 * 1024 * 1024;
@@ -4959,7 +4972,7 @@ int built_in_prefs (struct uae_prefs *p, int model, int config, int compa, int r
 		v = bip_super (p, config, compa, romcheck);
 		break;
 	}
-	if (p->cpu_model >= 68020 || !p->cpu_cycle_exact)
+	if ((p->cpu_model >= 68020 || !p->cpu_cycle_exact) && !p->immediate_blits)
 		p->waiting_blits = 1;
 	return v;
 }

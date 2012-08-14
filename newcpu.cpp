@@ -1129,9 +1129,9 @@ static void update_68k_cycles (void)
 	cycles_mult = 0;
 	if (currprefs.m68k_speed >= 0 && !currprefs.cpu_cycle_exact) {
 		if (currprefs.m68k_speed_throttle < 0) {
-			cycles_mult = CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle);
+			cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
 		} else if (currprefs.m68k_speed_throttle > 0) {
-			cycles_mult = CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle);
+			cycles_mult = (unsigned long)(CYCLES_DIV * 1000 / (1000 + currprefs.m68k_speed_throttle));
 		}
 	}
 	if (currprefs.m68k_speed == 0 && currprefs.cpu_model >= 68020) {

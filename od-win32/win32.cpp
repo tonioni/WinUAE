@@ -157,6 +157,7 @@ static int sound_closed;
 static int recapture;
 static int focus;
 int mouseactive;
+int minimized;
 
 static int mm_timerres;
 static int timermode, timeon;
@@ -482,6 +483,17 @@ void setpaused (int priority)
 #endif
 }
 
+void setminimized (void)
+{
+	minimized = 1;
+	set_inhibit_frame (IHF_WINDOWHIDDEN);
+}
+void unsetminimized (void)
+{
+	minimized = 0;
+	clear_inhibit_frame (IHF_WINDOWHIDDEN);
+}
+
 static int showcursor;
 
 extern TCHAR config_filename[256];
@@ -693,9 +705,6 @@ static void winuae_active (HWND hWnd, int minimized)
 		pri = &priorities[currprefs.win32_active_capture_priority];
 	setpriority (pri);
 
-	if (!avioutput_video) {
-		clear_inhibit_frame (IHF_WINDOWHIDDEN);
-	}
 	if (sound_closed) {
 		if (sound_closed < 0) {
 			resumesoundpaused ();
@@ -769,9 +778,6 @@ static void winuae_inactive (HWND hWnd, int minimized)
 			} else if (currprefs.win32_iconified_nosound) {
 				setsoundpaused ();
 				sound_closed = -1;
-			}
-			if (!avioutput_video) {
-				set_inhibit_frame (IHF_WINDOWHIDDEN);
 			}
 		} else if (mouseactive) {
 			if (currprefs.win32_active_nocapture_pause) {
@@ -951,7 +957,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	HDC hDC;
 	int mx, my;
 	int istablet = (GetMessageExtraInfo () & 0xFFFFFF00) == 0xFF515700;
-	static int mm, minimized, recursive, ignoremousemove;
+	static int mm, recursive, ignoremousemove;
 	static bool ignorelbutton;
 
 #if MSGDEBUG > 1
@@ -974,13 +980,16 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 	case WM_SETFOCUS:
 		winuae_active (hWnd, minimized);
-		minimized = 0;
+		unsetminimized ();
 		dx_check ();
 		break;
 	case WM_ACTIVATE:
 		//write_log (_T("active %d\n"), LOWORD(wParam));
 		if (LOWORD (wParam) == WA_INACTIVE) {
-			minimized = HIWORD (wParam) ? 1 : 0;
+			if (HIWORD (wParam))
+				setminimized ();
+			else
+				unsetminimized ();
 			winuae_inactive (hWnd, minimized);
 		}
 		dx_check ();
@@ -2856,6 +2865,8 @@ void target_fixup_options (struct uae_prefs *p)
 	if (depth) {
 		p->color_mode = p->color_mode == 5 ? 2 : 5;
 	}
+	if (p->rtg_hardwaresprite && !p->gfx_api)
+		p->rtg_hardwaresprite = false;
 }
 
 void target_default_options (struct uae_prefs *p, int type)
@@ -2874,6 +2885,8 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_soundcard = 0;
 		p->win32_samplersoundcard = -1;
 		p->win32_minimize_inactive = 0;
+		p->win32_start_minimized = false;
+		p->win32_start_uncaptured = false;
 		p->win32_active_capture_priority = 1;
 		//p->win32_active_nocapture_priority = 1;
 		p->win32_inactive_priority = 2;
@@ -2898,6 +2911,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
 		p->win32_rtgvblankrate = 0;
+		p->rtg_hardwaresprite = true;
 		p->win32_commandpathstart[0] = 0;
 		p->win32_commandpathend[0] = 0;
 		p->win32_statusbar = 1;
@@ -2962,6 +2976,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("iconified_nosound"), p->win32_iconified_nosound);
 	cfgfile_target_dwrite_bool (f, _T("iconified_pause"), p->win32_iconified_pause);
 	cfgfile_target_dwrite_bool (f, _T("inactive_iconify"), p->win32_minimize_inactive);
+	cfgfile_target_dwrite_bool (f, _T("start_iconified"), p->win32_start_minimized);
+	cfgfile_target_dwrite_bool (f, _T("start_not_captured"), p->win32_start_uncaptured);
 
 	cfgfile_target_dwrite_bool (f, _T("ctrl_f11_is_quit"), p->win32_ctrl_F11_is_quit);
 
@@ -3223,6 +3239,12 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 	}
 	
 	if (cfgfile_yesno (option, value, _T("inactive_iconify"), &p->win32_minimize_inactive))
+		return 1;
+
+	if (cfgfile_yesno (option, value, _T("start_iconified"), &p->win32_start_minimized))
+		return 1;
+
+	if (cfgfile_yesno (option, value, _T("start_not_captured"), &p->win32_start_uncaptured))
 		return 1;
 
 	if (cfgfile_string (option, value, _T("serial_port"), &p->sername[0], 256)) {

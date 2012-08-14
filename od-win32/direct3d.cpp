@@ -2443,14 +2443,14 @@ static void D3D_showframe2 (bool dowait)
 			sleep_millis (1);
 			continue;
 		} else if (hr == S_PRESENT_OCCLUDED) {
-			;
+			; //write_log (_T("S_PRESENT_OCCLUDED\n"));
 		} else if (hr == S_PRESENT_MODE_CHANGED) {
 			// In most cases mode actually didn't change but
 			// D3D is just being stupid and not accepting
 			// all modes that DirectDraw does accept,
 			// for example interlaced or EDS_RAWMODE modes!
 			//devicelost = 1;
-			;
+			; //write_log (_T("S_PRESENT_MODE_CHANGED\n"));
 		} else if (FAILED (hr)) {
 			write_log (_T("%s: Present() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {

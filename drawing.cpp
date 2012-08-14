@@ -85,7 +85,6 @@ static int linedbl, linedbld;
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
-static uae_u16 bplcon0_store, bplcon3_store;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
 that playfield 1 has the priority, dbplpf_*2 are used if playfield 2 has
@@ -220,7 +219,7 @@ static int bplres;
 static int plf1pri, plf2pri, bplxor;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
-static bool brdsprt, brdblank, brdblank_changed;
+static bool brdsprt, brdblank;
 static int hposblank;
 
 bool picasso_requested_on;
@@ -765,6 +764,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 		return xcolors[0x00f];
 	else if (brdblank)
 		return xcolors[0x880];
+	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
 #endif
 	return (blank || brdblank || hposblank) ? 0 : colors_for_drawing.acolors[0];
@@ -1928,6 +1928,15 @@ STATIC_INLINE void do_flush_screen (struct vidbuffer *vb, int start, int stop)
 		flush_screen (vb, 0, 0); /* vsync mode */
 }
 
+STATIC_INLINE void getbrdblank (void)
+{
+#ifdef ECS_DENISE
+	brdblank = dp_for_drawing->brdblank_seen;
+#else
+	brdblank = false;
+#endif
+}
+
 /* We only save hardware registers during the hardware frame. Now, when
 * drawing the frame, we expand the data into a slightly more useful
 * form. */
@@ -1944,6 +1953,7 @@ static void pfield_expand_dp_bplcon (void)
 	issprites = dip_for_drawing->nr_sprites;
 #ifdef ECS_DENISE
 	ecsshres = bplres == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
+	getbrdblank ();
 #endif
 
 	plf1pri = dp_for_drawing->bplcon2 & 7;
@@ -1981,16 +1991,6 @@ static bool isham (uae_u16 bplcon0)
 	return 0;
 }
 
-static void isbrdblank (void)
-{
-#ifdef ECS_DENISE
-	bool brdblank_2 = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0_store & 1) && (bplcon3_store & 0x20);
-	if (brdblank_2 != brdblank)
-		brdblank_changed = true;
-	brdblank = brdblank_2;
-#endif
-}
-
 static void pfield_expand_dp_bplconx (int regno, int v)
 {
 	if (regno == 0xffff) {
@@ -2005,8 +2005,6 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 		dp_for_drawing->bplres = GET_RES_DENISE (v);
 		dp_for_drawing->nr_planes = GET_PLANES (v);
 		dp_for_drawing->ham_seen = isham (v);
-		bplcon0_store = v;
-		isbrdblank ();
 		break;
 	case 0x104:
 		dp_for_drawing->bplcon2 = v;
@@ -2014,8 +2012,6 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 #ifdef ECS_DENISE
 	case 0x106:
 		dp_for_drawing->bplcon3 = v;
-		bplcon3_store = v;
-		isbrdblank ();
 		break;
 #endif
 #ifdef AGA
@@ -2179,6 +2175,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[gfx_ypos], dh = dh_buf;
 	xlinebuffer -= linetoscr_x_adjust_bytes;
+	getbrdblank ();
 
 	if (border == 0) {
 
@@ -2771,17 +2768,6 @@ void finish_drawing_frame (void)
 
 	if (!didflush)
 		do_flush_screen (vb, first_drawn_line, last_drawn_line);
-
-
-#ifdef ECS_DENISE
-	if (brdblank_changed) {
-		last_max_ypos = max_ypos_thisframe;
-		for (i = 0; i < sizeof linestate / sizeof *linestate; i++)
-			linestate[i] = LINE_UNDECIDED;
-		notice_screen_contents_lost ();
-		brdblank_changed = false;
-	}
-#endif
 }
 
 void hardware_line_completed (int lineno)
@@ -2900,11 +2886,6 @@ void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae
 		if (isvsync_chipset ())
 			flush_screen (gfxvidinfo.inbuffer, 0, 0); /* vsync mode */
 	}
-
-	/* check borderblank here because bplcon0 or especially bplcon3 may only be written once outside of displayable area */
-	bplcon0_store = bplcon0p;
-	bplcon3_store = bplcon3p;
-	isbrdblank ();
 
 	gui_flicker_led (-1, 0, 0);
 #ifdef AVIOUTPUT

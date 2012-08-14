@@ -293,25 +293,28 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 EXSTYLE WS_EX_CONTEXTHELP
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,130
-    PUSHBUTTON      "Add &Directory or Archive...",IDC_NEW_FS,10,135,103,15
-    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,130,135,74,15
-    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,220,135,75,15
-    PUSHBUTTON      "Remove",IDC_REMOVE,235,155,60,15
-    PUSHBUTTON      "&Properties",IDC_EDIT,235,172,60,15
-    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,154,100,10
-    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,154,119,10
-    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,166,121,10
-    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,178,101,10
-    CONTROL         "CDFS automount CD/DVD drives",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,190,160,10
-    CONTROL         "Automount removable drives",IDC_MAPDRIVES_AUTO,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,178,115,10
+    CONTROL         "List1",IDC_VOLUMELIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,5,0,290,116
+    PUSHBUTTON      "Add &Directory or Archive...",IDC_NEW_FS,10,121,103,15
+    PUSHBUTTON      "Add &Hardfile...",IDC_NEW_HF,130,121,74,15
+    PUSHBUTTON      "Add Ha&rd Drive...",IDC_NEW_HD,220,121,75,15
+    PUSHBUTTON      "Remove",IDC_REMOVE,235,141,60,15
+    PUSHBUTTON      "&Properties",IDC_EDIT,235,158,60,15
+    CONTROL         "Add PC drives at startup",IDC_MAPDRIVES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,140,100,10
+    CONTROL         "Disable UAEFSDB-support",IDC_NOUAEFSDB,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,140,119,10
+    CONTROL         "Don't use Windows Recycle Bin",IDC_NORECYCLEBIN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,152,121,10
+    CONTROL         "Include network drives..",IDC_MAPDRIVES_NET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,164,101,10
+    CONTROL         "CDFS automount CD/DVD drives",IDC_MAPDRIVES_CD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,176,136,10
+    CONTROL         "Automount removable drives [] Windows side insert or removal will immediately mount/remove it on Amiga side.",IDC_MAPDRIVES_AUTO,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,110,164,115,10
     CONTROL         "Include removable drives..",IDC_MAPDRIVES_REMOVABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,166,100,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,152,100,10
     COMBOBOX        IDC_CD_TEXT,5,224,289,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Eject",IDC_CD_EJECT,265,204,30,15
     PUSHBUTTON      "Select image file",IDC_CD_SELECT,90,204,98,15
     COMBOBOX        IDC_CD_TYPE,194,205,63,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "CD drive/image",IDC_STATIC,5,206,70,10,SS_CENTERIMAGE
+    CONTROL         "Limit size of directory drives to 1G [] Workaround for example old installers that calculate free space incorrectly if drive is large.",IDC_MAPDRIVES_LIMIT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,188,136,10
 END
 
 IDD_SOUND DIALOGEX 0, 0, 300, 237
@@ -381,11 +384,11 @@ BEGIN
     PUSHBUTTON      "Save As...",IDC_SAVE,175,225,44,15
 END
 
-IDD_IOPORTS DIALOGEX 0, 0, 300, 228
+IDD_IOPORTS DIALOGEX 0, 0, 305, 245
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
-    GROUPBOX        "Parallel Port",IDC_STATIC,5,2,291,105
+    GROUPBOX        "Parallel Port",IDC_STATIC,5,2,291,120
     RTEXT           "Printer:",IDC_STATIC,12,15,25,15,SS_CENTERIMAGE
     COMBOBOX        IDC_PRINTERLIST,49,15,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Flush print job",IDC_FLUSHPRINTER,114,51,58,12
@@ -393,24 +396,25 @@ BEGIN
     EDITTEXT        IDC_PRINTERAUTOFLUSH,255,50,25,12,ES_NUMBER
     RTEXT           "Type:",IDC_STATIC,15,33,21,15,SS_CENTERIMAGE
     EDITTEXT        IDC_PS_PARAMS,114,67,167,12,ES_AUTOHSCROLL
-    GROUPBOX        "Serial Port",IDC_STATIC,4,110,292,48
-    COMBOBOX        IDC_SERIAL,49,122,232,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Shared",IDC_SER_SHARED,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,15,141,48,12
-    CONTROL         "RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,75,141,55,12
-    RTEXT           "Out:",IDC_MIDI,10,172,19,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MIDIOUTLIST,36,173,108,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "In:",IDC_MIDI2,150,171,22,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MIDIINLIST,181,173,108,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Serial Port",IDC_STATIC,4,124,292,48
+    COMBOBOX        IDC_SERIAL,49,136,232,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Shared",IDC_SER_SHARED,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,15,155,48,12
+    CONTROL         "RTS/CTS",IDC_SER_CTSRTS,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,75,155,55,12
+    RTEXT           "Out:",IDC_MIDI,10,186,19,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIOUTLIST,36,187,108,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "In:",IDC_MIDI2,150,185,22,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MIDIINLIST,181,187,108,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Direct []Use when emulating serial-link games on two PCs running WinUAE",IDC_SER_DIRECT,
-                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,135,141,65,12
-    CONTROL         "uaeserial.device",IDC_UAESERIAL,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,200,141,78,12
+                    "Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,135,155,65,12
+    CONTROL         "uaeserial.device",IDC_UAESERIAL,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,200,155,78,12
     COMBOBOX        IDC_PRINTERTYPELIST,49,33,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Ghostscript extra parameters:",IDC_STATIC,10,66,102,15,SS_CENTERIMAGE
-    GROUPBOX        "MIDI",IDC_STATIC,5,161,291,34,BS_LEFT
-    GROUPBOX        "Protection Dongle",IDC_STATIC,5,197,292,30,BS_LEFT
-    COMBOBOX        IDC_DONGLELIST,50,208,232,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Sampler:",IDC_STATIC,12,84,31,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_SAMPLERLIST,49,85,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "MIDI",IDC_STATIC,5,175,291,34,BS_LEFT
+    GROUPBOX        "Protection Dongle",IDC_STATIC,5,212,292,31,BS_LEFT
+    COMBOBOX        IDC_DONGLELIST,50,223,232,130,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Sampler:",IDC_STATIC,12,85,31,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_SAMPLERLIST,49,86,232,134,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Stereo sampler",IDC_SAMPLER_STEREO,"Button",BS_AUTOCHECKBOX | BS_VCENTER | WS_TABSTOP,205,104,75,12
 END
 
 IDD_GAMEPORTS DIALOGEX 0, 0, 300, 246
@@ -606,25 +610,25 @@ BEGIN
     GROUPBOX        "Options",IDC_STATIC,168,11,114,111
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,27,96,10
-    CONTROL         "Cycle-exact [] The most compatible A500 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,53,100,10
     GROUPBOX        "Collision Level",IDC_STATIC,14,128,267,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
                     "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,37,144,59,10
     CONTROL         "Sprites only [] Emulate only sprite vs. sprite collisions.",IDC_COLLISION1,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,160,62,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,37,159,62,10
     CONTROL         "Sprites and Sprites vs. Playfield [] Recommended collision emulation level.",IDC_COLLISION2,
                     "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,144,161,10
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,160,119,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,100,159,119,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,66,100,10
-    COMBOBOX        IDC_CS_EXT,100,80,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Chipset Extra",IDC_STATIC,25,79,52,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,178,102,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "External display hardware:",IDC_STATIC,174,82,100,15,SS_CENTERIMAGE
-    CONTROL         "Wait for Blitter [] Pauses the CPU if blitter is active and CPU attempted to modify blitter registers.",IDC_BLITWAIT,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,179,53,100,10
+    COMBOBOX        IDC_CS_EXT,100,101,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Chipset Extra",IDC_STATIC,25,100,52,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,178,87,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "External display hardware:",IDC_STATIC,174,67,100,15,SS_CENTERIMAGE
+    CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,179,40,96,10
+    CONTROL         "Cycle-exact [] The most compatible A500/A1200 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,35,80,100,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 65490, 300, 247
@@ -1033,7 +1037,8 @@ BEGIN
     CTEXT           "Color modes:",IDC_STATIC,215,9,62,10,SS_CENTERIMAGE
     COMBOBOX        IDC_RTG_DISPLAYSELECT,11,106,279,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Hardware vertical blank interrupt",IDC_RTG_VBINTERRUPT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,89,162,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,89,142,10
+    CONTROL         "Hardware sprite emulation",IDC_RTG_HWSPRITE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,185,89,102,10
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 300, 240
@@ -1239,6 +1244,8 @@ BEGIN
 
     IDD_IOPORTS, DIALOG
     BEGIN
+        RIGHTMARGIN, 300
+        BOTTOMMARGIN, 240
     END
 
     IDD_GAMEPORTS, DIALOG
@@ -1263,7 +1270,6 @@ BEGIN
 
     IDD_CHIPSET, DIALOG
     BEGIN
-        BOTTOMMARGIN, 165
     END
 
     IDD_CHIPSET2, DIALOG

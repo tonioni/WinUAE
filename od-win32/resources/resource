@@ -442,7 +442,6 @@
 #define IDC_CONTRIBUTORS                1124
 #define IDC_BLACKER_THAN_BLACK          1170
 #define IDC_BLITIMM                     1174
-#define IDC_BLITIMM2                    1175
 #define IDC_BLITWAIT                    1175
 #define IDC_LORES                       1176
 #define IDC_RATE2BOX                    1177
@@ -642,6 +641,7 @@
 #define IDC_WIDTHTEXT                   1512
 #define IDC_WINDOWEDTEXT                1512
 #define IDC_PORT2_TEST                  1512
+#define IDC_MAPDRIVES_LIMIT             1512
 #define IDC_HEIGHTTEXT                  1513
 #define IDC_PORT3_TEST                  1513
 #define IDC_SETTINGSTEXT                1514
@@ -1065,6 +1065,7 @@
 #define IDC_RTG_BUFFERCNT               1795
 #define IDC_RTG_VBINTERRUPT             1796
 #define IDC_INPUTMAPLIST                1797
+#define IDC_RTG_HWSPRITE                1797
 #define IDC_PORT1_REMAP                 1798
 #define IDC_PORT0_REMAP                 1799
 #define IDC_PORT2_REMAP                 1800
@@ -1081,6 +1082,7 @@
 #define IDC_RTG_DISPLAYSELECT           1809
 #define IDC_MISCLIST                    1810
 #define IDC_STATENAME                   1811
+#define IDC_SAMPLER_STEREO              1812
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

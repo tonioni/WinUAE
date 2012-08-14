@@ -234,6 +234,10 @@ struct uae_prefs {
 	bool sound_stereo_swap_ahi;
 	bool sound_auto;
 
+	int sampler_freq;
+	int sampler_buffer;
+	bool sampler_stereo;
+
 	int comptrustbyte;
 	int comptrustword;
 	int comptrustlong;
@@ -327,6 +331,7 @@ struct uae_prefs {
 	uae_u32 maprom;
 	int turbo_emulation;
 	bool headless;
+	int filesys_limit;
 
 	int cs_compatible;
 	int cs_ciaatod;
@@ -386,7 +391,7 @@ struct uae_prefs {
 	struct multipath path_cd;
 
 	int m68k_speed;
-	int m68k_speed_throttle;
+	double m68k_speed_throttle;
 	int cpu_model;
 	int mmu_model;
 	int cpu060_revision;
@@ -409,6 +414,7 @@ struct uae_prefs {
 	uae_u32 mbresmem_high_size;
 	uae_u32 rtgmem_size;
 	bool rtg_hardwareinterrupt;
+	bool rtg_hardwaresprite;
 	int rtgmem_type;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
@@ -441,6 +447,8 @@ struct uae_prefs {
 	bool win32_powersavedisabled;
 	bool win32_minimize_inactive;
 	int win32_statusbar;
+	bool win32_start_minimized;
+	bool win32_start_uncaptured;
 
 	int win32_active_capture_priority;
 	bool win32_active_nocapture_pause;

@@ -2036,6 +2036,8 @@ static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid
 	return 1;
 }
 
+static void drive_write_data (drive * drv);
+
 static bool convert_adf_to_ext2 (drive *drv)
 {
 	TCHAR name[MAX_DPATH];
@@ -2047,16 +2049,26 @@ static bool convert_adf_to_ext2 (drive *drv)
 	_tcscpy (name, currprefs.floppyslots[drv - floppy].df);
 	if (!name[0])
 		return false;
-	_tcscat (name, _T(".extended.adf"));
-	if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, currprefs.floppyslots[drv - floppy].df))
+	TCHAR *p = _tcsrchr (name, '.');
+	if (!p)
+		p = name + _tcslen (name);
+	_tcscpy (p, _T(".extended.adf"));
+	if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, drv->diskfile))
 		return false;
 	f = zfile_fopen (name, _T("rb"), 0);
 	if (!f)
 		return false;
+	_tcscpy (currprefs.floppyslots[drv - floppy].df, name);
+	_tcscpy (changed_prefs.floppyslots[drv - floppy].df, name);
 	zfile_fclose (drv->diskfile);
 	drv->diskfile = f;
-	read_header_ext2 (drv->diskfile, drv->trackdata, &drv->num_tracks, &drv->ddhd);
 	drv->filetype = ADF_EXT2;
+	read_header_ext2 (drv->diskfile, drv->trackdata, &drv->num_tracks, &drv->ddhd);
+
+	drive_write_data (drv);
+#ifdef RETROPLATFORM
+	rp_disk_image_change (drv - &floppy[0], name, false);
+#endif
 	drive_fill_bigbuf (drv, 1);
 
 	return true;
@@ -2080,10 +2092,7 @@ static void drive_write_data (drive * drv)
 	case ADF_NORMAL:
 		if (drive_write_adf_amigados (drv)) {
 			if (currprefs.floppy_auto_ext2) {
-				if (convert_adf_to_ext2 (drv)) {
-					drive_write_data (drv);
-					return;
-				}
+				convert_adf_to_ext2 (drv);
 			} else {
 				static int warned;
 				if (!warned)
@@ -2176,14 +2185,15 @@ static void floppy_get_rootblock (uae_u8 *dst, int block, const TCHAR *disk_name
 
 /* type: 0=regular, 1=ext2adf */
 /* adftype: 0=DD,1=HD,2=DD PC,3=HD PC,4=525SD */
-bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable, const TCHAR *copyfrom)
+bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const TCHAR *disk_name, bool ffs, bool bootable, struct zfile *copyfrom)
 {
 	int size = 32768;
-	struct zfile *f, *sf;
+	struct zfile *f;
 	int i, l, file_size, tracks, track_len, sectors;
 	uae_u8 *chunk = NULL;
 	int ddhd = 1;
 	bool ok = false;
+	uae_u64 pos;
 
 	if (type == 1)
 		tracks = 2 * 83;
@@ -2206,9 +2216,8 @@ bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 	}
 
 	if (copyfrom) {
-		sf = zfile_fopen (copyfrom, _T("rb"), 0);
-		if (!sf)
-			return false;
+		pos = zfile_ftell (copyfrom);
+		zfile_fseek (copyfrom, 0, SEEK_SET);
 	}
 
 	f = zfile_fopen (name, _T("wb"), 0);
@@ -2250,14 +2259,14 @@ bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 			for (i = 0; i < tracks; i++) {
 				uae_u8 tmp[3 * 4];
 				memcpy (tmp, rawtrack, sizeof rawtrack);
-				if (dodos || sf)
+				if (dodos || copyfrom)
 					memcpy (tmp, dostrack, sizeof dostrack);
 				zfile_fwrite (tmp, sizeof tmp, 1, f);
 			}
 			for (i = 0; i < tracks; i++) {
 				memset (chunk, 0, size);
-				if (sf) {
-					zfile_fread (chunk, 11 * ddhd, 512, sf);
+				if (copyfrom) {
+					zfile_fread (chunk, 11 * ddhd, 512, copyfrom);
 				} else {
 					if (dodos) {
 						if (i == 0)
@@ -2273,7 +2282,8 @@ bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 	}
 	xfree (chunk);
 	zfile_fclose (f);
-	zfile_fclose (sf);
+	if (copyfrom)
+		zfile_fseek (copyfrom, pos, SEEK_SET);
 	if (f)
 		DISK_history_add (name, -1, HISTORY_FLOPPY, TRUE);
 	return ok;

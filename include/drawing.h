@@ -224,6 +224,7 @@ struct decision {
 	uae_u8 nr_planes;
 	uae_u8 bplres;
 	bool ehb_seen;
+	bool brdblank_seen;
 	bool ham_seen;
 	bool ham_at_start;
 };

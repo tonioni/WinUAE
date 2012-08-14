@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("11")
-#define WINUAEDATE MAKEBD(2012, 8, 10)
+#define WINUAEBETA _T("12")
+#define WINUAEDATE MAKEBD(2012, 8, 14)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -36,6 +36,7 @@ extern int in_sizemove;
 extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive;
+extern int minimized;
 extern int ignore_messages_all;
 extern void *globalipc, *serialipc;
 
@@ -66,6 +67,8 @@ extern uae_u32 OSDEP_minimize_uae (void);
 
 extern void resumepaused (int priority);
 extern void setpaused (int priority);
+extern void unsetminimized (void);
+extern void setminimized (void);
 
 void finishjob (void);
 void init_colors (void);
