@@ -118,9 +118,19 @@ int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 	FILETIME ft, lft;
 	HANDLE h;
 	BY_HANDLE_FILE_INFORMATION fi;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
 
 	// FILE_FLAG_BACKUP_SEMANTICS = can also "open" directories
-	h = CreateFile (name, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	h = CreateFile (namep, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		write_log (_T("Stat CreateFile(%s) failed: %d\n"), name, GetLastError ());
 		return -1;
@@ -135,7 +145,7 @@ int posixemu_stat (const TCHAR *name, struct _stat64 *statbuf)
 		ft = fi.ftLastWriteTime;
 		statbuf->st_size = ((uae_u64)fi.nFileSizeHigh << 32) | fi.nFileSizeLow;
 	} else {
-		write_log (_T("GetFileInformationByHandle(%s) failed: %d\n"), name, GetLastError ());
+		write_log (_T("GetFileInformationByHandle(%s) failed: %d\n"), namep, GetLastError ());
 		return -1;
 	}
 
@@ -157,7 +167,7 @@ int posixemu_chmod (const TCHAR *name, int mode)
 		attr |= FILE_ATTRIBUTE_READONLY;
 	if (mode & FILEFLAG_ARCHIVE)
 		attr |= FILE_ATTRIBUTE_ARCHIVE;
-	if (SetFileAttributes (name,attr))
+	if (SetFileAttributesSafe (name,attr))
 		return 1;
 	return -1;
 }
@@ -182,8 +192,18 @@ static int setfiletime (const TCHAR *name, unsigned int days, int minute, int ti
 {
 	FILETIME LocalFileTime, FileTime;
 	HANDLE hFile;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
 
-	if ((hFile = CreateFile (name, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
+	if ((hFile = CreateFile (namep, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
 		return 0;
 
 	for (;;) {

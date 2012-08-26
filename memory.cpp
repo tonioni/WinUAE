@@ -2516,8 +2516,8 @@ void memory_reset (void)
 		protect_roms (true);
 	}
 
-	if (cloanto_rom && currprefs.maprom < 0x01000000)
-		currprefs.maprom = changed_prefs.maprom = 0;
+	if ((cloanto_rom || extendedkickmem_size) && currprefs.maprom && currprefs.maprom < 0x01000000)
+		currprefs.maprom = changed_prefs.maprom = 0x00a80000;
 
 	map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
 	map_banks (&cia_bank, 0xA0, 32, 0);
@@ -2592,7 +2592,7 @@ void memory_reset (void)
 
 	map_banks (&kickmem_bank, 0xF8, 8, 0);
 	if (currprefs.maprom)
-		map_banks (&kickram_bank, currprefs.maprom >> 16, 8, 0);
+		map_banks (&kickram_bank, currprefs.maprom >> 16, extendedkickmem2_size ? 32 : (extendedkickmem_size ? 16 : 8), 0);
 	/* map beta Kickstarts at 0x200000/0xC00000/0xF00000 */
 	if (kickmemory[0] == 0x11 && kickmemory[2] == 0x4e && kickmemory[3] == 0xf9 && kickmemory[4] == 0x00) {
 		uae_u32 addr = kickmemory[5];

@@ -158,6 +158,7 @@ static int recapture;
 static int focus;
 int mouseactive;
 int minimized;
+int monitor_off;
 
 static int mm_timerres;
 static int timermode, timeon;
@@ -683,6 +684,7 @@ static void setmouseactive2 (int active, bool allowpause)
 }
 void setmouseactive (int active)
 {
+	monitor_off = 0;
 	setmouseactive2 (active, true);
 }
 
@@ -693,6 +695,7 @@ static void winuae_active (HWND hWnd, int minimized)
 	struct threadpriorities *pri;
 
 	write_log (_T("winuae_active(%d)\n"), minimized);
+	monitor_off = 0;
 	/* without this returning from hibernate-mode causes wrong timing
 	*/
 	timeend ();
@@ -733,7 +736,6 @@ static void winuae_active (HWND hWnd, int minimized)
 		lcd_priority (1);
 #endif
 	clipboard_active (hAmigaWnd, 1);
-	SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
 #if USETHREADCHARACTERICS
 	if (os_vista && AVTask == NULL) {
 		DWORD taskIndex = 0;
@@ -967,6 +969,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	switch (message)
 	{
 	case WM_INPUT:
+		monitor_off = 0;
 		handle_rawinput (lParam);
 		DefWindowProc (hWnd, message, wParam, lParam);
 		return 0;
@@ -1189,6 +1192,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_MOUSEMOVE:
 		{
 			int wm = dinput_winmouse ();
+			
+			monitor_off = 0;
 
 			mx = (signed short) LOWORD (lParam);
 			my = (signed short) HIWORD (lParam);
@@ -1345,10 +1350,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_SYSCOMMAND:
 		switch (wParam & 0xfff0) // Check System Calls
 		{
+		// SetThreadExecutionState handles this now
 		case SC_SCREENSAVE: // Screensaver Trying To Start?
+			break;
 		case SC_MONITORPOWER: // Monitor Trying To Enter Powersave?
-
-			// SetThreadExecutionState handles this now
+			write_log (_T("SC_MONITORPOWER=%d"), lParam);
+			if ((int)lParam < 0)
+				monitor_off = 0;
+			else if ((int)lParam > 0)
+				monitor_off = 1;
 			break;
 
 		default:
@@ -1875,7 +1885,7 @@ void handle_events (void)
 {
 	MSG msg;
 	int was_paused = 0;
-	static int cnt;
+	static int cnt1, cnt2;
 
 	if (hStatusWnd && guijoychange && window_led_joy_start > 0) {
 		guijoychange = false;
@@ -1903,10 +1913,18 @@ void handle_events (void)
 #ifdef RETROPLATFORM
 		rp_vsync ();
 #endif
-		cnt = 0;
+		cnt1 = 0;
 		while (checkIPC (globalipc, &currprefs));
 		if (quit_program)
 			break;
+		cnt2--;
+		if (cnt2 <= 0) {
+			if (currprefs.win32_powersavedisabled)
+				SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
+			else
+				SetThreadExecutionState (ES_CONTINUOUS);
+			cnt2 = 10;
+		}
 	}
 #if 0
 	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
@@ -1920,11 +1938,19 @@ void handle_events (void)
 		sound_closed = 0;
 		manual_painting_needed--;
 	}
-	cnt--;
-	if (cnt <= 0) {
+	cnt1--;
+	if (cnt1 <= 0) {
 		figure_processor_speed ();
 		flush_log ();
-		cnt = 50 * 5;
+		cnt1 = 50 * 5;
+		cnt2--;
+		if (cnt2 <= 0) {
+			if (currprefs.win32_powersavedisabled)
+				SetThreadExecutionState (ES_CONTINUOUS | ES_DISPLAY_REQUIRED);
+			else
+				SetThreadExecutionState (ES_CONTINUOUS);
+			cnt2 = 5;
+		}
 	}
 }
 
@@ -2904,7 +2930,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_borderless = 0;
 		p->win32_blankmonitors = false;
-		p->win32_powersavedisabled = 1;
+		p->win32_powersavedisabled = true;
 		p->sana2 = 0;
 		p->win32_rtgmatchdepth = 1;
 		p->win32_rtgscaleifsmall = 1;
@@ -2932,6 +2958,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_automount_cddrives = 0;
 		p->win32_automount_netdrives = 0;
 		p->picasso96_modeflags = RGBFF_CLUT | RGBFF_R5G6B5PC | RGBFF_B8G8R8A8;
+		p->win32_filesystem_mangle_reserved_names = true;
 	}
 }
 
@@ -3035,6 +3062,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, _T("parjoyport0"), p->win32_parjoyport0);
 	cfgfile_target_dwrite_str (f, _T("parjoyport1"), p->win32_parjoyport1);
 	cfgfile_target_dwrite_str (f, _T("gui_page"), p->win32_guipage);
+	cfgfile_target_dwrite_bool (f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
 }
 
 static int fetchpri (int pri, int defpri)
@@ -3107,6 +3135,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_string (option, value, _T("gui_page"), p->win32_guipage, sizeof p->win32_guipage / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("guikey"), &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
+		|| cfgfile_yesno (option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
 		|| cfgfile_intval (option, value, _T("cpu_idle"), &p->cpu_idle, 1));
 
 	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
@@ -5862,13 +5891,11 @@ void fpux_restore (int *v)
 #endif
 }
 
-typedef BOOL (CALLBACK* SETPROCESSDPIAWARE)(void);
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 
 
 int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-	SETPROCESSDPIAWARE pSetProcessDPIAware;
 	DWORD_PTR sys_aff;
 	HANDLE thread;
 
@@ -5908,12 +5935,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
 
-	pSetProcessDPIAware = (SETPROCESSDPIAWARE)GetProcAddress (
-		GetModuleHandle (_T("user32.dll")), "SetProcessDPIAware");
-	if (pSetProcessDPIAware)
-		pSetProcessDPIAware ();
 	log_open (NULL, 0, 0);
-
 	
 	__try {
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);

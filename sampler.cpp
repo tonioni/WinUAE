@@ -31,7 +31,7 @@ static int sampleframes;
 static int recordbufferframes;
 static float clockspersample;
 static int vsynccnt;
-static int safepos;
+static int safediff;
 float sampler_evtime;
 
 static int capture_init (void)
@@ -115,7 +115,6 @@ uae_u8 sampler_getsample (int channel)
 #endif
 	static double doffset_offset;
 	HRESULT hr;
-	DWORD pos;
 	DWORD t;
 	void *p1, *p2;
 	DWORD len1, len2;
@@ -128,6 +127,7 @@ uae_u8 sampler_getsample (int channel)
 		channel = 0;
 
 	if (!inited) {
+		DWORD pos;
 		if (!capture_init ()) {
 			capture_free ();
 			return 0;
@@ -136,6 +136,18 @@ uae_u8 sampler_getsample (int channel)
 		oldcycles = get_cycles ();
 		oldoffset = -1;
 		doffset_offset = 0;
+		hr = lpDSB2r->GetCurrentPosition (&t, &pos);
+		if (FAILED (hr)) {
+			sampler_free ();
+			return 0;
+		}		
+		if (t >= pos)
+			safediff = t - pos;
+		else
+			safediff = recordbufferframes * SAMPLESIZE - pos + t;
+		write_log (_T("SAMPLER: safediff %d %d\n"), safediff, safediff + sampleframes * SAMPLESIZE);
+		safediff += 4 * sampleframes * SAMPLESIZE;
+
 #if 0
 		diffsample = 0;
 		safepos = -recordbufferframes / 10 * SAMPLESIZE;
@@ -174,8 +186,12 @@ uae_u8 sampler_getsample (int channel)
 				samplecnt++;
 			}
 		}
-		hr = lpDSB2r->GetCurrentPosition (&t, &pos);
-		hr = lpDSB2r->Lock (t, sampleframes * SAMPLESIZE, &p1, &len1, &p2, &len2, 0);
+		hr = lpDSB2r->GetCurrentPosition (&t, NULL);
+		int pos = t;
+		pos -= safediff;
+		if (pos < 0)
+			pos += recordbufferframes * SAMPLESIZE;
+		hr = lpDSB2r->Lock (pos, sampleframes * SAMPLESIZE, &p1, &len1, &p2, &len2, 0);
 		if (FAILED (hr)) {
 			write_log (_T("SAMPLER: Lock() failed %x\n"), hr);
 			return 0;

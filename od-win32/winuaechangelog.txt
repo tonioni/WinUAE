@@ -1,6 +1,52 @@
 
 - restore only single input target to default.
 
+Beta 13:
+
+- Parallel port audio sampler had very bad quality on some systems. NOTE: Sampler requires exact DirectSound
+  recording position reporting = not that good results when using some onboard Realteks etc..
+  (It can be made better but because this is really pointless feature: pay or buy a better PC)
+- Very old statefiles triggered keyboard powerup initialization sequence when restored, caused phantom keypresses.
+- Sinc audio interpolation filter clipping fixed. (Was always wrong in UAE, was much more noticeable after b11 audio update)
+- Input configuration parser didn't parse custom input event strings correctly if it contained '.' or ',' characters.
+- Added experimental (and mostly useless) option that removes DOS reserved name restriction (CON is the most popular because
+  it is also included with WB disks). Note that this causes some interesting side effects: most Windows programs, including
+  Explorer, won't be able to open any file if it has DOS reserved name... You don't need this option, UAE has always
+  mangled illegal names transparently (for example CON becomes something like "__uae__con" on host side)
+  Configuration file only: win32.filesystem_mangle_reserved_names=false (defaults to true if not set)
+- Disable screensaver option didn't work, SetThreadExecutionState() needs to be called periodically, not just once,
+  function documentation is a bit confusing..
+- When deciding first visible line and programmed mode: select which is largest, VBSTOP or VSSTOP. (SuperPlus)
+- Added Keep autoscale aspect ratio checkbox, only sort of working now...
+- Map rom region size mirrors ROM size, address automatically moved to 0xe00000 (512k) or 0xa80000 (1M) if 24-bit CPU.
+- Remove interlace artifacts option halved size of display horizontally in some programmed screen modes.
+- Portaudio sound and sound was deactivated automatically: sound led kept showing buffer underrun state.
+- Disable screen updates if monitor enters power saving mode.
+- When restoring state file with floppy image(s) missing (files moved etc..), there still was rare possibility that floppy
+  drive was reported as empty.
+- Some more manual BPLxDAT emulation updates, Sequential Magnet part garbage introduced in previous update is gone.
+- Color registers were emulated as non-existing instead of write-only in OCS/ECS modes. (I guess only visible difference
+- DENISEID is now non-existing if 68000 prefetch or cycle-exact and OCS Denise. (Programs may misdetect if no prefetch emulated,
+  and now programs, if they even exist, that misdetect it on real OCS A500 will misdetect it on emulation too! :)
+  will be more colorful display if program crashes or does weird things and starts reading from color registers..)
+- Renamed Paths panel "WinUAE defaults"-paths, meaning of selection should make more sense now.
+- Better input qualifier GUI, Windows key default qualifier added.
+- Slot #5-#8 custom events didn't work correctly.
+
+- GUI resize and font selection support added (misc panel). It was possible after all, needed only some hacking..
+  * Default size is now larger then previously.
+  * This is a hack, rebuilds classic Windows dialog resources on the fly while adjusting GUI element coordinates and size.
+  * GUI size after resizing may not be exactly what you expected.
+  * Windows always closes and reopens after resize. It is also normal, can be improved, later if ever..
+  * Window/Fullwindow/Fullscreen have separate position, size and font settings.
+  * Less than 80% size not officially supported, overlapping and clipping is normal. Select smaller font.
+  * Possible future improvements: more preset sizes, some kind of autofit in smaller fullscreen modes.
+  * I hope GUI now appears to be more modern than it actually is :)
+
+- Version bumped to 2.5.0.
+
+Beta 12:
+
 - Moved cycle-exact option to Chipset group in GUI. Other options are minor options/hacks, CE is not.
 - Do not enable wait for blit if immediate blitter is enabled in quickstart mode.
 - Added RTG hardware sprite (mouse cursor) enable/disable option. Enabled by default if D3D mode. Was always enabled

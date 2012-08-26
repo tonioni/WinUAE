@@ -930,7 +930,7 @@ bool render_screen (bool immediate)
 	bool v = false;
 
 	render_ok = false;
-	if (minimized || picasso_on || dx_islost ())
+	if (minimized || picasso_on || monitor_off || dx_islost ())
 		return render_ok;
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
@@ -1744,7 +1744,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_ycenter = changed_prefs.gfx_ycenter;
 		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 
-		get_custom_limits (NULL, NULL, NULL, NULL);
+		get_custom_limits (NULL, NULL, NULL, NULL, NULL);
 		fixup_prefs_dimensions (&changed_prefs);
 
 		return 1;

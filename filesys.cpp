@@ -1963,7 +1963,7 @@ static TCHAR *get_nname (Unit *unit, a_inode *base, TCHAR *rel, TCHAR **modified
 		return 0;
 	/* A file called "." (or whatever else is invalid on this filesystem)
 	* does not exist, as far as the Amiga side is concerned.  */
-	if (fsdb_name_invalid (rel))
+	if (fsdb_name_invalid_dir (rel))
 		return 0;
 
 	/* See if we have a file that has the same name as the aname we are
@@ -3642,7 +3642,7 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 					ok = isofs_readdir (d->isod, fn, &uniq);
 				else
 					ok = 0;
-			} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid (fn));
+			} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid_dir (fn));
 			if (!ok)
 				return 0;
 		} else {
@@ -3915,7 +3915,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 				ok = isofs_readdir (d->isod, fn, &uniq);
 			else
 				ok = 0;
-		} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid (fn));
+		} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid_dir (fn));
 		if (!ok)
 			break;
 		/* This calls init_child_aino, which will notice that the parent is

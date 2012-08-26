@@ -635,12 +635,23 @@ static TCHAR *getstring (const TCHAR **pp)
 	int i;
 	static TCHAR str[CONFIG_BLEN];
 	const TCHAR *p = *pp;
+	bool quoteds = false;
+	bool quotedd = false;
 
 	if (*p == 0)
 		return 0;
 	i = 0;
-	while (*p != 0 && *p !='.' && *p != ',' && i < 1000 - 1)
+	while (*p != 0 && i < 1000 - 1) {
+		if (*p == '\"')
+			quotedd = quotedd ? false : true;
+		if (*p == '\'')
+			quoteds = quoteds ? false : true;
+		if (!quotedd && !quoteds) {
+			if (*p == '.' || *p == ',')
+				break;
+		}
 		str[i++] = *p++;
+	}
 	if (*p == '.' || *p == ',')
 		p++;
 	str[i] = 0;
@@ -3431,17 +3442,33 @@ static bool process_custom_event (struct uae_input_device *id, int offset, int s
 	if (!id)
 		return false;
 	
-	slotoffset = sub / 4;
+	slotoffset = sub & ~3;
+	sub &= 3;
 	flags = id->flags[offset][slotoffset];
 	qual = flags & ID_FLAG_QUALIFIER_MASK;
+	custom = id->custom[offset][slotoffset];
 	int af = flags & ID_FLAG_AUTOFIRE_MASK;
  
-	// check that slots 0 and 2 have same qualifiers, only allow toggle if both are same and neither has autofire
-	if ((id->flags[offset][slotoffset + 2] & ID_FLAG_QUALIFIER_MASK) != qual ||
-		(id->custom[offset][slotoffset] == NULL && id->custom[offset][slotoffset + 2] == NULL) || 
-		(id->flags[offset][slotoffset + 2] & ID_FLAG_AUTOFIRE_MASK) || (af & ID_FLAG_AUTOFIRE_MASK)) {
+	for (idx = 1; idx < 4; idx++) {
+		uae_u64 flags2 = id->flags[offset][slotoffset + idx];
+		TCHAR *custom2 = id->custom[offset][slotoffset + idx];
+
+		// all slots must have same qualifier
+		if ((flags2 & ID_FLAG_QUALIFIER_MASK) != qual)
+			break;
+		// no slot must have autofire
+		if ((flags2 & ID_FLAG_AUTOFIRE_MASK) || (flags & ID_FLAG_AUTOFIRE_MASK))
+			break;
+	}
+	// at least slot 0 and 2 must have custom
+	if (custom == NULL || id->custom[offset][slotoffset + 2] == NULL)
+		idx = -1;
+
+	if (idx < 4) {
 		id->flags[offset][slotoffset] &= ~(ID_FLAG_CUSTOMEVENT_TOGGLED1 | ID_FLAG_CUSTOMEVENT_TOGGLED2);
-		if (checkqualifiers (id->eventid[offset][slotoffset + sub], id->flags[offset][slotoffset + sub], qualmask, NULL)) {
+		int evt2 = id->eventid[offset][slotoffset + sub];
+		uae_u64 flags2 = id->flags[offset][slotoffset + sub];
+		if (checkqualifiers (evt2, flags2, qualmask, NULL)) {
 			custom = id->custom[offset][slotoffset + sub];
 			if (state && custom) {
 				if (autofire)
@@ -5431,6 +5458,13 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 		uae_u64 mask2 = mask1 << 1;
 		if ((flags & (mask1 | mask2)) == (mask1 | mask2))
 			flags &= ~mask2;
+	}
+	if (custom && custom[0] == 0) {
+		custom = NULL;
+		eventid = 0;
+	}
+	if (eventid <= 0 && !custom) {
+		flags = 0;
 	}
 
 	ret = -1;

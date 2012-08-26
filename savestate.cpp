@@ -516,6 +516,7 @@ void restore_state (const TCHAR *filename)
 	savestate_file = f;
 	restore_header (chunk);
 	xfree (chunk);
+	restore_cia_start ();
 	changed_prefs.bogomem_size = 0;
 	changed_prefs.chipmem_size = 0;
 	changed_prefs.fastmem_size = 0;

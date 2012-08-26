@@ -728,7 +728,7 @@ static int _cdecl portAudioCallback (const void *inputBuffer, void *outputBuffer
 	int bytestocopy;
 	int diff;
 
-	if (!framesPerBuffer || !s->pafinishsb)
+	if (!framesPerBuffer || !s->pafinishsb || sdp->deactive)
 		return paContinue;
 
 	if (!s->pacallbacksize)
@@ -1702,8 +1702,15 @@ static void restart_sound_buffer2 (struct sound_data *sd)
 	cf (s->writepos);
 }
 
+void pause_sound_buffer (void)
+{
+	sdp->deactive = true;
+	reset_sound ();
+}
+
 void restart_sound_buffer (void)
 {
+	sdp->deactive = false;
 	restart_sound_buffer2 (sdp);
 }
 

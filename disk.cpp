@@ -1169,7 +1169,7 @@ static int drive_empty (drive * drv)
 	if (drv->catweasel)
 		return catweasel_disk_changed (drv->catweasel) == 0;
 #endif
-	return drv->diskfile == 0;
+	return drv->diskfile == 0 && drv->dskchange_time >= 0;
 }
 
 static void drive_step (drive * drv, int step_direction)
@@ -2513,7 +2513,7 @@ void DISK_vsync (void)
 				drv->dskready = true;
 		}
 		/* delay until new disk image is inserted */
-		if (drv->dskchange_time) {
+		if (drv->dskchange_time > 0) {
 			drv->dskchange_time--;
 			if (drv->dskchange_time == 0) {
 				drive_insert (drv, &currprefs, i, drv->newname, false);
@@ -3787,7 +3787,9 @@ uae_u8 *restore_disk (int num,uae_u8 *src)
 					drive_insert (floppy + num, &currprefs, num, changed_prefs.floppyslots[num].df, false);
 					if (drive_empty (floppy + num))
 						drv->dskchange = true;
-				}
+				} else {
+					drv->dskchange_time = -1;
+					}
 			}
 		}
 	}

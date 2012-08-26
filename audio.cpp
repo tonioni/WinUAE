@@ -318,12 +318,14 @@ typedef uae_s8 sample8_t;
 #define DO_CHANNEL_1(v, c) do { (v) *= audio_channel[c].vol; } while (0)
 #define SBASEVAL16(logn) ((logn) == 1 ? SOUND16_BASE_VAL >> 1 : SOUND16_BASE_VAL)
 
-STATIC_INLINE int FINISH_DATA (int data, int bits, int logn)
+STATIC_INLINE int FINISH_DATA (int data, int bits)
 {
-	if (14 - bits + logn > 0) {
-		data >>= 14 - bits + logn;
+	if (bits == 16) {
+		return data;
+	} else if (bits - 16 > 0) {
+		data >>=  bits - 16;
 	} else {
-		int shift = bits - 14 - logn;
+		int shift = 16 - bits;
 		int right = data & ((1 << shift) - 1);
 		data <<= shift;
 		data |= right;
@@ -529,7 +531,8 @@ static void sinc_prehandler (unsigned long best_evtime)
 
 	for (i = 0; i < 4; i++)  {
 		acd = &audio_channel[i];
-		output = (acd->current_sample * acd->vol) & acd->adk_mask;
+		int vol = acd->vol;
+		output = (acd->current_sample * vol) & acd->adk_mask;
 
 		/* if output state changes, record the state change and also
 		 * write data into sinc queue for mixing in the BLEP */
@@ -570,12 +573,12 @@ STATIC_INLINE void samplexx_sinc_handler (int *datasp)
 		int offsetpos = acd->sinc_queue_head & (SINC_QUEUE_LENGTH - 1);
 		for (j = 0; j < SINC_QUEUE_LENGTH; j += 1) {
 			int age = acd->sinc_queue_time - acd->sinc_queue[offsetpos].time;
-			if (age >= SINC_QUEUE_MAX_AGE)
+			if (age >= SINC_QUEUE_MAX_AGE || age < 0)
 				break;
 			sum -= winsinc[age] * acd->sinc_queue[offsetpos].output;
 			offsetpos = (offsetpos + 1) & (SINC_QUEUE_LENGTH - 1);
 		}
-		v = sum >> 17;
+		v = sum >> 15;
 		if (v > 32767)
 			v = 32767;
 		else if (v < -32768)
@@ -590,7 +593,7 @@ static void sample16i_sinc_handler (void)
 
 	samplexx_sinc_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 16, 2);
+	data1 = FINISH_DATA (data1, 18);
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data1);
 	check_sound_buffers ();
@@ -616,7 +619,7 @@ void sample16_handler (void)
 	data0 += data2;
 	data0 += data3;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16, 2);
+	data = FINISH_DATA (data, 16);
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data);
 	check_sound_buffers ();
@@ -630,7 +633,7 @@ static void sample16i_anti_handler (void)
 
 	samplexx_anti_handler (datas);
 	data1 = datas[0] + datas[3] + datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 16, 2);
+	data1 = FINISH_DATA (data1, 16);
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data1);
 	check_sound_buffers ();
@@ -682,7 +685,7 @@ static void sample16i_rh_handler (void)
 	ratio = ((audio_channel[3].evtime % delta) << 8) / delta;
 	data0 += (data3 * (256 - ratio) + data3p * ratio) >> 8;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16, 2);
+	data = FINISH_DATA (data, 16);
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data);
 	check_sound_buffers ();
@@ -754,7 +757,7 @@ static void sample16i_crux_handler (void)
 	data0 += data3;
 	data0 += data1;
 	data = SBASEVAL16(2) + data0;
-	data = FINISH_DATA (data, 16, 2);
+	data = FINISH_DATA (data, 16);
 	set_sound_buffers ();
 	PUT_SOUND_WORD_MONO (data);
 	check_sound_buffers ();
@@ -786,10 +789,10 @@ void sample16ss_handler (void)
 	data2 &= audio_channel[2].adk_mask;
 	data3 &= audio_channel[3].adk_mask;
 
-	data0 = FINISH_DATA (data0, 16, 0);
-	data1 = FINISH_DATA (data1, 16, 0);
-	data2 = FINISH_DATA (data2, 16, 0);
-	data3 = FINISH_DATA (data3, 16, 0);
+	data0 = FINISH_DATA (data0, 14);
+	data1 = FINISH_DATA (data1, 14);
+	data2 = FINISH_DATA (data2, 14);
+	data3 = FINISH_DATA (data3, 14);
 	set_sound_buffers ();
 	put_sound_word_left (data0);
 	put_sound_word_right (data1);
@@ -809,10 +812,10 @@ void sample16ss_anti_handler (void)
 	int datas[4];
 
 	samplexx_anti_handler (datas);
-	data0 = FINISH_DATA (datas[0], 16, 0);
-	data1 = FINISH_DATA (datas[1], 16, 0);
-	data2 = FINISH_DATA (datas[2], 16, 0);
-	data3 = FINISH_DATA (datas[3], 16, 0);
+	data0 = FINISH_DATA (datas[0], 14);
+	data1 = FINISH_DATA (datas[1], 14);
+	data2 = FINISH_DATA (datas[2], 14);
+	data3 = FINISH_DATA (datas[3], 14);
 	set_sound_buffers ();
 	put_sound_word_left (data0);
 	put_sound_word_right (data1);
@@ -830,8 +833,8 @@ static void sample16si_anti_handler (void)
 	samplexx_anti_handler (datas);
 	data1 = datas[0] + datas[3];
 	data2 = datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 16, 1);
-	data2 = FINISH_DATA (data2, 16, 1);
+	data1 = FINISH_DATA (data1, 15);
+	data2 = FINISH_DATA (data2, 15);
 	set_sound_buffers ();
 	put_sound_word_left (data1);
 	put_sound_word_right (data2);
@@ -844,10 +847,10 @@ void sample16ss_sinc_handler (void)
 	int datas[4];
 
 	samplexx_sinc_handler (datas);
-	data0 = FINISH_DATA (datas[0], 16, 0);
-	data1 = FINISH_DATA (datas[1], 16, 0);
-	data2 = FINISH_DATA (datas[2], 16, 0);
-	data3 = FINISH_DATA (datas[3], 16, 0);
+	data0 = FINISH_DATA (datas[0], 16);
+	data1 = FINISH_DATA (datas[1], 16);
+	data2 = FINISH_DATA (datas[2], 16);
+	data3 = FINISH_DATA (datas[3], 16);
 	set_sound_buffers ();
 	put_sound_word_left (data0);
 	put_sound_word_right (data1);
@@ -865,8 +868,8 @@ static void sample16si_sinc_handler (void)
 	samplexx_sinc_handler (datas);
 	data1 = datas[0] + datas[3];
 	data2 = datas[1] + datas[2];
-	data1 = FINISH_DATA (data1, 16, 1);
-	data2 = FINISH_DATA (data2, 16, 1);
+	data1 = FINISH_DATA (data1, 17);
+	data2 = FINISH_DATA (data2, 17);
 	set_sound_buffers ();
 	put_sound_word_left (data1);
 	put_sound_word_right (data2);
@@ -892,9 +895,9 @@ void sample16s_handler (void)
 	data0 += data3;
 	data1 += data2;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 16, 1);
+	data2 = FINISH_DATA (data2, 15);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 16, 1);
+	data3 = FINISH_DATA (data3, 15);
 	set_sound_buffers ();
 	put_sound_word_left (data2);
 	put_sound_word_right (data3);
@@ -965,9 +968,9 @@ static void sample16si_crux_handler (void)
 	data1 += data2;
 	data0 += data3;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 16, 1);
+	data2 = FINISH_DATA (data2, 15);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 16, 1);
+	data3 = FINISH_DATA (data3, 15);
 	set_sound_buffers ();
 	put_sound_word_left (data2);
 	put_sound_word_right (data3);
@@ -1019,9 +1022,9 @@ static void sample16si_rh_handler (void)
 	ratio = ((audio_channel[3].evtime % delta) << 8) / delta;
 	data0 += (data3 * (256 - ratio) + data3p * ratio) >> 8;
 	data2 = SBASEVAL16(1) + data0;
-	data2 = FINISH_DATA (data2, 16, 1);
+	data2 = FINISH_DATA (data2, 15);
 	data3 = SBASEVAL16(1) + data1;
-	data3 = FINISH_DATA (data3, 16, 1);
+	data3 = FINISH_DATA (data3, 15);
 	set_sound_buffers ();
 	put_sound_word_left (data2);
 	put_sound_word_right (data3);
@@ -1105,7 +1108,7 @@ static void audio_deactivate (void)
 		return;
 	gui_data.sndbuf_status = 3;
 	gui_data.sndbuf = 0;
-	reset_sound ();
+	pause_sound_buffer ();
 	clear_sound_buffers ();
 	audio_event_reset ();
 }

@@ -8,8 +8,8 @@
 */
 
 #define UAEMAJOR 2
-#define UAEMINOR 4
-#define UAESUBREV 2
+#define UAEMINOR 5
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -298,6 +298,7 @@ struct uae_prefs {
 	int gfx_filter_saturation, gfx_filter_luminance, gfx_filter_contrast, gfx_filter_gamma;
 	int gfx_filter_keep_aspect, gfx_filter_aspect;
 	int gfx_filter_autoscale;
+	int gfx_filter_keep_autoscale_aspect;
 
 	bool immediate_blits;
 	int waiting_blits;
@@ -486,6 +487,7 @@ struct uae_prefs {
 	TCHAR win32_parjoyport0[MAX_DPATH];
 	TCHAR win32_parjoyport1[MAX_DPATH];
 	TCHAR win32_guipage[32];
+	bool win32_filesystem_mangle_reserved_names;
 
 	int statecapturerate, statecapturebuffersize;
 

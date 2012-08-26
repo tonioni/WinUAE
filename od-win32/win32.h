@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("12")
-#define WINUAEDATE MAKEBD(2012, 8, 14)
+#define WINUAEBETA _T("13")
+#define WINUAEDATE MAKEBD(2012, 8, 26)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -37,6 +37,7 @@ extern int manual_painting_needed;
 extern int manual_palette_refresh_needed;
 extern int mouseactive;
 extern int minimized;
+extern int monitor_off;
 extern int ignore_messages_all;
 extern void *globalipc, *serialipc;
 
@@ -194,5 +195,9 @@ struct assext {
 };
 struct assext exts[];
 void associate_file_extensions (void);
+
+#define PATHPREFIX _T("\\\\?\\")
+DWORD GetFileAttributesSafe (const TCHAR *name);
+BOOL SetFileAttributesSafe (const TCHAR *name, DWORD attr);
 
 #endif

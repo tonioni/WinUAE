@@ -340,7 +340,7 @@ extern int lof_store;
 #define MAX_DISPLAY_W 362
 #define MAX_DISPLAY_H 283
 
-static int gclow, gcloh, gclox, gcloy;
+static int gclow, gcloh, gclox, gcloy, gclorealh;
 
 void get_custom_topedge (int *x, int *y)
 {
@@ -356,6 +356,7 @@ void get_custom_topedge (int *x, int *y)
 static void reset_custom_limits (void)
 {
 	gclow = gcloh = gclox = gcloy = 0;
+	gclorealh = -1;
 }
 
 void set_custom_limits (int w, int h, int dx, int dy)
@@ -384,7 +385,7 @@ void set_custom_limits (int w, int h, int dx, int dy)
 		notice_screen_contents_lost ();
 }
 
-int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
+int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 {
 	int w, h, dx, dy, y1, y2, dbl1, dbl2;
 	int ret = 0;
@@ -399,6 +400,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 		*ph = gfxvidinfo.outbuffer->outheight;
 		*pdx = 0;
 		*pdy = 0;
+		*prealh = -1;
 		return 1;
 	}
 
@@ -406,6 +408,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	*ph = gcloh;
 	*pdx = gclox;
 	*pdy = gcloy;
+	*prealh = gclorealh;
 
 	if (gclow > 0 && gcloh > 0)
 		ret = -1;
@@ -480,6 +483,15 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	if (dx < 0)
 		dx = 0;
 
+	*prealh = -1;
+	if (!programmedmode && first_planes_vpos) {
+		int th = (maxvpos - minfirstline) * 95 / 100;
+		if (th > h) {
+			th = xshift (th, dbl1);
+			*prealh = th;
+		}
+	}
+
 	dy = xshift (dy, dbl2);
 	h = xshift (h, dbl1);
 
@@ -521,6 +533,7 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy)
 	gcloh = h;
 	gclox = dx;
 	gcloy = dy;
+	gclorealh = *prealh;
 	*pw = w;
 	*ph = h;
 	*pdx = dx;
@@ -2696,7 +2709,7 @@ void finish_drawing_frame (void)
 		hposblank = 0;
 		pfield_draw_line (vb, line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
-
+#if 0
 	/* clear possible old garbage at the bottom if emulated area become smaller */
 	for (i = last_max_ypos; i < vb->outheight; i++) {
 		int i1 = i + min_ypos_for_screen;
@@ -2708,7 +2721,7 @@ void finish_drawing_frame (void)
 		if (where2 < 0)
 			continue;
 
-		hposblank = i > last_max_ypos ;// + AMIGA_HEIGHT_EXTRA;
+		hposblank = i > last_max_ypos || i >= max_ypos_thisframe;
 
 		xlinebuffer = vb->linemem;
 		if (xlinebuffer == 0)
@@ -2719,7 +2732,7 @@ void finish_drawing_frame (void)
 			linestate[line] = LINE_UNDECIDED;
 		do_flush_line (vb, where2);
 	}
-
+#endif
 	if (currprefs.leds_on_screen) {
 		int slx, sly;
 		statusline_getpos (&slx, &sly, vb->outwidth, vb->outheight);

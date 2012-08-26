@@ -33,48 +33,79 @@ int my_setcurrentdir (const TCHAR *curdir, TCHAR *oldcur)
 	int ret = 0;
 	if (oldcur)
 		ret = GetCurrentDirectory (MAX_DPATH, oldcur);
-	if (curdir)
-		ret = SetCurrentDirectory (curdir);
+	if (curdir) {
+		const TCHAR *namep;
+		TCHAR path[MAX_DPATH];
+	
+		if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+			_tcscpy (path, PATHPREFIX);
+			_tcscat (path, curdir);
+			namep = path;
+		} else {
+			namep = curdir;
+		}
+		ret = SetCurrentDirectory (namep);
+	}
 	return ret;
 }
 
 int my_mkdir (const TCHAR *name)
 {
-	return CreateDirectory (name, NULL) == 0 ? -1 : 0;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+	return CreateDirectory (namep, NULL) == 0 ? -1 : 0;
 }
 
 static int recycle (const TCHAR *name)
 {
-	DWORD dirattr = GetFileAttributes (name);
+	DWORD dirattr = GetFileAttributesSafe (name);
 	bool isdir = dirattr != INVALID_FILE_ATTRIBUTES && (dirattr & FILE_ATTRIBUTE_DIRECTORY);
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
 
-	if (currprefs.win32_norecyclebin || isdir) {
+	if (currprefs.win32_norecyclebin || isdir || currprefs.win32_filesystem_mangle_reserved_names == false) {
 		if (isdir)
-			return RemoveDirectory (name) ? 0 : -1;
+			return RemoveDirectory (namep) ? 0 : -1;
 		else
-			return DeleteFile (name) ? 0 : -1;
+			return DeleteFile (namep) ? 0 : -1;
 	} else {
 		SHFILEOPSTRUCT fos;
 		HANDLE h;
 		
-		h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+		h = CreateFile (namep, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (h != INVALID_HANDLE_VALUE) {
 			LARGE_INTEGER size;
 			if (GetFileSizeEx (h, &size)) {
 				if (size.QuadPart == 0) {
 					CloseHandle (h);
-					return DeleteFile (name) ? 0 : -1;
+					return DeleteFile (namep) ? 0 : -1;
 				}
 			}
 			CloseHandle (h);
 		}
 
 		/* name must be terminated by \0\0 */
-		TCHAR *p = xcalloc (TCHAR, _tcslen (name) + 2);
+		TCHAR *p = xcalloc (TCHAR, _tcslen (namep) + 2);
 		int v;
 
-		_tcscpy (p, name);
+		_tcscpy (p, namep);
 		memset (&fos, 0, sizeof (fos));
 		fos.wFunc = FO_DELETE;
 		fos.pFrom = p;
@@ -136,7 +167,21 @@ int my_unlink (const TCHAR *name)
 
 int my_rename (const TCHAR *oldname, const TCHAR *newname)
 {
-	return MoveFile (oldname, newname) == 0 ? -1 : 0;
+	const TCHAR *onamep, *nnamep;
+	TCHAR opath[MAX_DPATH], npath[MAX_DPATH];
+
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (opath, PATHPREFIX);
+		_tcscat (opath, oldname);
+		onamep = opath;
+		_tcscpy (npath, PATHPREFIX);
+		_tcscat (npath, newname);
+		nnamep = npath;
+	} else {
+		onamep = oldname;
+		nnamep = newname;
+	}
+	return MoveFile (onamep, nnamep) == 0 ? -1 : 0;
 }
 
 struct my_opendir_s {
@@ -154,7 +199,10 @@ struct my_opendir_s *my_opendir (const TCHAR *name, const TCHAR *mask)
 	struct my_opendir_s *mod;
 	TCHAR tmp[MAX_DPATH];
 
-	_tcscpy (tmp, name);
+	tmp[0] = 0;
+	if (currprefs.win32_filesystem_mangle_reserved_names == false)
+		_tcscpy (tmp, PATHPREFIX);
+	_tcscat (tmp, name);
 	_tcscat (tmp, _T("\\"));
 	_tcscat (tmp, mask);
 	mod = xmalloc (struct my_opendir_s, 1);
@@ -239,19 +287,50 @@ unsigned int my_write (struct my_openfile_s *mos, void *b, unsigned int size)
 	return written;
 }
 
-static DWORD GetFileAttributesSafe (const TCHAR *name)
+BOOL SetFileAttributesSafe (const TCHAR *name, DWORD attr)
 {
-	DWORD attr, last;
+	DWORD last;
+	BOOL ret;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
 
 	last = SetErrorMode (SEM_FAILCRITICALERRORS);
-	attr = GetFileAttributes (name);
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+	ret = SetFileAttributes (namep, attr);
+	SetErrorMode (last);
+	return ret;
+}
+
+DWORD GetFileAttributesSafe (const TCHAR *name)
+{
+	DWORD attr, last;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+
+	last = SetErrorMode (SEM_FAILCRITICALERRORS);
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+	attr = GetFileAttributes (namep);
 	SetErrorMode (last);
 	return attr;
 }
 
 int my_existsfile (const TCHAR *name)
 {
-	DWORD attr = GetFileAttributesSafe (name);
+	DWORD attr;
+	
+	attr = GetFileAttributesSafe (name);
 	if (attr == INVALID_FILE_ATTRIBUTES)
 		return 0;
 	if (!(attr & FILE_ATTRIBUTE_DIRECTORY))
@@ -261,7 +340,9 @@ int my_existsfile (const TCHAR *name)
 
 int my_existsdir (const TCHAR *name)
 {
-	DWORD attr = GetFileAttributesSafe (name);
+	DWORD attr;
+
+	attr = GetFileAttributesSafe (name);
 	if (attr == INVALID_FILE_ATTRIBUTES)
 		return 0;
 	if (attr & FILE_ATTRIBUTE_DIRECTORY)
@@ -278,7 +359,16 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	DWORD CreationDisposition = OPEN_EXISTING;
 	DWORD FlagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
 	DWORD attr;
-
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
 	mos = xmalloc (struct my_openfile_s, 1);
 	if (!mos)
 		return NULL;
@@ -295,20 +385,19 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	}
 	if (flags & O_RDWR)
 		DesiredAccess = GENERIC_READ | GENERIC_WRITE;
-	if (CreationDisposition == CREATE_ALWAYS && attr != INVALID_FILE_ATTRIBUTES &&
-		(attr & (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)))
-		SetFileAttributes (name, FILE_ATTRIBUTE_NORMAL);
-	h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+	if (CreationDisposition == CREATE_ALWAYS && attr != INVALID_FILE_ATTRIBUTES && (attr & (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN)))
+		SetFileAttributesSafe (name, FILE_ATTRIBUTE_NORMAL);
+	h = CreateFile (namep, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		DWORD err = GetLastError();
 		if (err == ERROR_ACCESS_DENIED && (DesiredAccess & GENERIC_WRITE)) {
 			DesiredAccess &= ~GENERIC_WRITE;
-			h = CreateFile (name, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
+			h = CreateFile (namep, DesiredAccess, ShareMode, NULL, CreationDisposition, FlagsAndAttributes, NULL);
 			if (h == INVALID_HANDLE_VALUE)
 				err = GetLastError();
 		}
 		if (h == INVALID_HANDLE_VALUE) {
-			write_log (_T("failed to open '%s' %x %x err=%d\n"), name, DesiredAccess, CreationDisposition, err);
+			write_log (_T("failed to open '%s' %x %x err=%d\n"), namep, DesiredAccess, CreationDisposition, err);
 			xfree (mos);
 			mos = NULL;
 			goto err;
@@ -316,7 +405,7 @@ struct my_openfile_s *my_open (const TCHAR *name, int flags)
 	}
 	mos->h = h;
 err:
-	//write_log (_T("open '%s' = %x\n"), name, mos ? mos->h : 0);
+	//write_log (_T("open '%s' = %x\n"), namep, mos ? mos->h : 0);
 	return mos;
 }
 
@@ -325,22 +414,31 @@ int my_truncate (const TCHAR *name, uae_u64 len)
 	HANDLE hFile;
 	BOOL bResult = FALSE;
 	int result = -1;
-
-	if ((hFile = CreateFile (name, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+	if ((hFile = CreateFile (namep, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
 		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL ) ) != INVALID_HANDLE_VALUE )
 	{
 		LARGE_INTEGER li;
 		li.QuadPart = len;
 		li.LowPart = SetFilePointer (hFile, li.LowPart, &li.HighPart, FILE_BEGIN);
 		if (li.LowPart == INVALID_SET_FILE_POINTER && GetLastError () != NO_ERROR) {
-			write_log (_T("truncate: SetFilePointer() failure for %s to posn %d\n"), name, len);
+			write_log (_T("truncate: SetFilePointer() failure for %s to posn %d\n"), namep, len);
 		} else {
 			if (SetEndOfFile (hFile) == TRUE)
 				result = 0;
 		}
 		CloseHandle (hFile);
 	} else {
-		write_log (_T("truncate: CreateFile() failed to open %s\n"), name);
+		write_log (_T("truncate: CreateFile() failed to open %s\n"), namep);
 	}
 	return result;
 }

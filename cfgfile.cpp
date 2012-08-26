@@ -881,6 +881,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_filter_blur"), _T("%d"), p->gfx_filter_blur);
 	cfgfile_dwrite (f, _T("gfx_filter_noise"), _T("%d"), p->gfx_filter_noise);
 	cfgfile_dwrite_bool (f, _T("gfx_filter_bilinear"), p->gfx_filter_bilinear != 0);
+	cfgfile_dwrite (f, _T("gfx_filter_keep_autoscale_aspect"), _T("%d"), p->gfx_filter_keep_autoscale_aspect);
 	cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), aspects[p->gfx_filter_keep_aspect]);
 	cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), autoscale[p->gfx_filter_autoscale]);
 	cfgfile_dwrite (f, _T("gfx_filter_aspect_ratio"), _T("%d:%d"),
@@ -1535,6 +1536,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_luminance"), &p->gfx_luminance, 1)
 		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
+		|| cfgfile_intval (option, value, _T("gfx_filter_keep_autoscale_aspect"), &p->gfx_filter_keep_autoscale_aspect, 1)
 		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 
@@ -4255,6 +4257,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
 	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
+	p->gfx_filter_keep_autoscale_aspect = 0;
 	p->gfx_filteroverlay_overscan = 0;
 
 	_tcscpy (p->floppyslots[0].df, _T("df0.adf"));

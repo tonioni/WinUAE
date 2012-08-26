@@ -250,7 +250,7 @@ static bool bpl1dat_written, bpl1dat_early, bpl1dat_written_at_least_once;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
-static bool brdblank_prevframe[MAXVPOS];
+static bool brdblank_prevframe[MAXVPOS * 2 + 2];
 
 /*static int blitcount[256];  blitter debug */
 
@@ -1907,15 +1907,19 @@ static void start_bpl_dma (int hpos, int hstart)
 	plfstrt_sprite = plfstrt;
 	fetch_start (hpos);
 	fetch_cycle = 0;
-	last_fetch_hpos = hstart;
-	cycle_diagram_shift = last_fetch_hpos;
-	reset_bpl_vars ();
 
 	ddfstate = DIW_waiting_stop;
 	compute_toscr_delay (last_fetch_hpos, bplcon1);
 
 	/* If someone already wrote BPL1DAT, clear the area between that point and
 	the real fetch start.  */
+	if (bpl1dat_written_at_least_once && hstart > last_fetch_hpos) {
+		update_fetch_x (hstart, fetchmode);
+		bpl1dat_written_at_least_once = false;
+	} else {
+		reset_bpl_vars ();
+	}
+#if 0
 	if (!nodraw ()) {
 		if (thisline_decision.plfleft >= 0) {
 			out_nbits = (plfstrt - thisline_decision.plfleft) << (1 + toscr_res);
@@ -1924,6 +1928,9 @@ static void start_bpl_dma (int hpos, int hstart)
 		}
 		update_toscr_planes ();
 	}
+#endif
+	last_fetch_hpos = hstart;
+	cycle_diagram_shift = hstart;
 }
 
 /* this may turn on datafetch if program turns dma on during the ddf */
@@ -2661,6 +2668,7 @@ static void finish_decisions (void)
 	if (brdblank_prevframe[vpos] != thisline_decision.brdblank_seen) {
 		changed = 1;
 		brdblank_prevframe[vpos] = thisline_decision.brdblank_seen;
+		//write_log (_T("%d.%d "), vpos, thisline_decision.brdblank_seen);
 	}
 
 	if (changed) {
@@ -2959,13 +2967,13 @@ void compute_framesync (void)
 		int res2, vres2;
 			
 		res2 = currprefs.gfx_resolution;
-		if (doublescan)
+		if (doublescan > 0)
 			res2++;
 		if (res2 > RES_MAX)
 			res2 = RES_MAX;
 		
 		vres2 = currprefs.gfx_vresolution;
-		if (doublescan && !islace)
+		if (doublescan > 0 && !islace)
 			vres2--;
 
 		if (vres2 < 0)
@@ -3102,7 +3110,9 @@ void init_hz (bool fullinit)
 			htotal = MAXHPOS - 1;
 		maxhpos = htotal + 1;
 		vblank_hz = 227.0 * 312.0 * 50.0 / (maxvpos * maxhpos);
-		minfirstline = vsstop;
+		minfirstline = vsstop > vbstop ? vsstop : vbstop;
+		if (minfirstline > maxvpos / 2) 
+			minfirstline = vsstop > vsstop ? vbstop : vsstop;
 		if (minfirstline < 2)
 			minfirstline = 2;
 		if (minfirstline >= maxvpos)
@@ -3271,8 +3281,9 @@ static uae_u32 REGPARAM2 timehack_helper (TrapContext *context)
 /*
 * register functions
 */
-STATIC_INLINE uae_u16 DENISEID (void)
+STATIC_INLINE uae_u16 DENISEID (int *missing)
 {
+	*missing = 0;
 	if (currprefs.cs_deniserev >= 0)
 		return currprefs.cs_deniserev;
 #ifdef AGA
@@ -3284,6 +3295,8 @@ STATIC_INLINE uae_u16 DENISEID (void)
 #endif
 	if (currprefs.chipset_mask & CSMASK_ECS_DENISE)
 		return 0xFFFC;
+	if (currprefs.cpu_model == 68000 && (currprefs.cpu_compatible || currprefs.cpu_cycle_exact))
+		*missing = 1;
 	return 0xFFFF;
 }
 STATIC_INLINE uae_u16 DMACONR (int hpos)
@@ -6865,6 +6878,7 @@ static uae_u32 REGPARAM2 custom_lgeti (uaecptr addr)
 STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput)
 {
 	uae_u16 v;
+	int missing;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
@@ -6889,7 +6903,11 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	case 0x01A: v = DSKBYTR (hpos); break;
 	case 0x01C: v = INTENAR (); break;
 	case 0x01E: v = INTREQR (); break;
-	case 0x07C: v = DENISEID (); break;
+	case 0x07C:
+		v = DENISEID (&missing);
+		if (missing)
+			goto writeonly;
+		break;
 
 #ifdef AGA
 	case 0x180: case 0x182: case 0x184: case 0x186: case 0x188: case 0x18A:
@@ -6898,11 +6916,14 @@ STATIC_INLINE uae_u32 REGPARAM2 custom_wget_1 (int hpos, uaecptr addr, int noput
 	case 0x1A4: case 0x1A6: case 0x1A8: case 0x1AA: case 0x1AC: case 0x1AE:
 	case 0x1B0: case 0x1B2: case 0x1B4: case 0x1B6: case 0x1B8: case 0x1BA:
 	case 0x1BC: case 0x1BE:
+		if (!(currprefs.chipset_mask & CSMASK_AGA))
+			goto writeonly;
 		v = COLOR_READ ((addr & 0x3E) / 2);
 		break;
 #endif
 
 	default:
+writeonly:
 		/* OCS/ECS:
 		* reading write-only register causes write with last value in chip
 		* bus (custom registers, chipram, slowram)
@@ -7447,7 +7468,7 @@ extern uae_u16 serper;
 uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 {
 	uae_u8 *dstbak, *dst;
-	int i;
+	int i, dummy;
 	uae_u32 dskpt;
 	uae_u16 dsklen, dsksync, dskbytr;
 
@@ -7516,7 +7537,7 @@ uae_u8 *save_custom (int *len, uae_u8 *dstptr, int full)
 	SW (0);					/* 076 ? */
 	SW (0);					/* 078 ? */
 	SW (0);					/* 07A ? */
-	SW (DENISEID ());		/* 07C DENISEID/LISAID */
+	SW (DENISEID (&dummy));	/* 07C DENISEID/LISAID */
 	SW (dsksync);			/* 07E DSKSYNC */
 	SL (cop1lc);			/* 080-083 COP1LC */
 	SL (cop2lc);			/* 084-087 COP2LC */
@@ -7810,7 +7831,7 @@ uae_u8 *save_custom_event_delay (int *len, uae_u8 *dstptr)
 	uae_u8 *dstbak, *dst;
 	int cnt = 0;
 
-	for (int i = ev2_misc;  i < ev2_max; i++) {
+	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
 		if (e->active && e->handler == send_interrupt_do) {
 			cnt++;
@@ -7826,7 +7847,7 @@ uae_u8 *save_custom_event_delay (int *len, uae_u8 *dstptr)
 
 	save_u32 (1);
 	save_u8 (cnt);
-	for (int i = ev2_misc;  i < ev2_max; i++) {
+	for (int i = ev2_misc; i < ev2_max; i++) {
 		struct ev2 *e = &eventtab2[i];
 		if (e->active && e->handler == send_interrupt_do) {
 			save_u8 (1);

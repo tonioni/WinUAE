@@ -1841,6 +1841,14 @@ static void save_cia_prepare (void)
 	compute_passed_time ();
 }
 
+void restore_cia_start (void)
+{
+	/* Fixes very old statefiles without keyboard state */
+	kbstate = 3;
+	setcapslockstate (0);
+	kblostsynccnt = 0;
+}
+
 void restore_cia_finish (void)
 {
 	eventtab[ev_cia].oldcycles = get_cycles ();
@@ -2022,10 +2030,12 @@ uae_u8 *restore_keyboard (uae_u8 *src)
 	restore_u8 ();
 	restore_u8 ();
 	 restore_u8 ();
-	if (!(v & 1))
-		kbstate = 3;
 	kbcode = restore_u8 ();
 	kblostsynccnt = restore_u16 ();
+	if (!(v & 1)) {
+		kbstate = 3;
+		kblostsynccnt = 0;
+	}
 	return src;
 }
 

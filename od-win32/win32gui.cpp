@@ -91,6 +91,10 @@
 #include "rp.h"
 #endif
 
+#define GUI_SCALE_DEFAULT 90
+#define MIN_GUI_INTERNAL_WIDTH 512
+#define MIN_GUI_INTERNAL_HEIGHT 400
+
 #define ARCHIVE_STRING _T("*.zip;*.7z;*.rar;*.lha;*.lzh;*.lzx")
 
 #define DISK_FORMAT_STRING _T("(*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe)\0*.adf;*.adz;*.gz;*.dms;*.fdi;*.ipf;*.exe;*.ima;*.wrp;*.dsq;*.st;") ARCHIVE_STRING _T("\0")
@@ -132,6 +136,7 @@ extern int mouseactive;
 
 TCHAR config_filename[256] = _T("");
 static TCHAR stored_path[MAX_DPATH];
+static int gui_size_changed;
 
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
 
@@ -1763,7 +1768,9 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 	return v;
 }
 
-static int gui_width = 640, gui_height = 480;
+static int gui_width, gui_height;
+static bool gui_resize;
+// Internal panel max size: 396, 318
 
 static int mm = 0;
 static void m (void)
@@ -1812,9 +1819,6 @@ void gui_display (int shortcut)
 		w = currprefs.gfx_size.width;
 		h = currprefs.gfx_size.height;
 	}
-	scaleresource_setmaxsize (-1, -1);
-	if (w > 0 && h > 0)
-		scaleresource_setmaxsize (w, h);
 	manual_painting_needed++; /* So that WM_PAINT will refresh the display */
 
 	flush_log ();
@@ -3346,6 +3350,10 @@ static void getqualifiername (TCHAR *p, uae_u64 mask)
 		_tcscpy (p, _T("Alt"));
 	} else if (mask == (IDEV_MAPPED_QUALIFIER_ALT << 1)) {
 		_tcscpy (p, _T("Alt [R]"));
+	} else if (mask == IDEV_MAPPED_QUALIFIER_WIN) {
+		_tcscpy (p, _T("Win"));
+	} else if (mask == (IDEV_MAPPED_QUALIFIER_WIN << 1)) {
+		_tcscpy (p, _T("Win [R]"));
 	} else {
 		int j;
 		uae_u64 i;
@@ -3757,8 +3765,12 @@ void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_MISC1) {
 
+		int itemids[] = { IDS_MISCLISTITEMS1, IDS_MISCLISTITEMS2, IDS_MISCLISTITEMS3, -1 };
+		int itemoffset = 0;
+		int itemcnt = 0;
 		listview_column_width[0] = 150;
 		for (i = 0; misclist[i].name; i++) {
+			TCHAR tmpentry[MAX_DPATH], itemname[MAX_DPATH];
 			struct miscentry *me = &misclist[i];
 			int type = me->type;
 			bool checked = false;
@@ -3768,9 +3780,36 @@ void InitializeListView (HWND hDlg)
 			} else if (me->i) {
 				checked = ((*me->i) & me->imask) != 0;
 			}
+			_tcscpy (itemname, me->name);
+
+			for (;;) {
+				if (itemids[itemcnt] < 0)
+					break;
+				WIN32GUI_LoadUIString (itemids[itemcnt], tmpentry, sizeof tmpentry / sizeof (TCHAR));
+				TCHAR *p = tmpentry;
+				for (int j = 0; j < itemoffset; j++) {
+					p = _tcschr (p, '\n');
+					if (!p || p[1] == 0) {
+						p = NULL;
+						itemoffset = 0;
+						itemcnt++;
+						break;
+					}
+					p++;
+				}
+				if (!p)
+					continue;
+				TCHAR *p2 = _tcschr (p, '\n');
+				if (p2) {
+					*p2 = 0;
+					_tcscpy (itemname, p);
+				}
+				itemoffset++;
+				break;
+			}
 
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-			lvstruct.pszText  = me->name;
+			lvstruct.pszText  = itemname;
 			lvstruct.lParam   = 0;
 			lvstruct.iItem    = i;
 			lvstruct.iSubItem = 0;
@@ -4578,6 +4617,9 @@ static void SetupRichText(HWND hDlg, urlinfo *url)
 {
 	CHARFORMAT CharFormat;
 	CharFormat.cbSize = sizeof (CharFormat);
+	int my;
+
+	scaleresource_getmult (NULL, &my);
 
 	SetDlgItemText (hDlg, url->id, url->display);
 	SendDlgItemMessage (hDlg, url->id, EM_GETCHARFORMAT, 0, (LPARAM)&CharFormat);
@@ -7737,7 +7779,16 @@ static void misc_lang (HWND hDlg)
 		}
 	}
 	SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_SETCURSEL, idx, 0);
+
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("Select"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("110%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("100%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 90%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 80%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_SETCURSEL, 0, 0);
 }
+
 static void misc_setlang (int v)
 {
 	int i;
@@ -7767,6 +7818,12 @@ static void misc_setlang (int v)
 	exit_gui(0);
 }
 
+static void misc_gui_font (HWND hDlg, int fonttype)
+{
+	if (scaleresource_choosefont (hDlg, fonttype))
+		gui_size_changed = 1;
+}
+
 static void values_to_miscdlg (HWND hDlg)
 {
 	TCHAR tmp[MAX_DPATH];
@@ -7777,6 +7834,7 @@ static void values_to_miscdlg (HWND hDlg)
 		misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
 		misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
 		CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
+		CheckDlgButton (hDlg, IDC_GUI_RESIZE, gui_resize);
 
 		misc_scsi (hDlg);
 		misc_lang (hDlg);
@@ -7936,7 +7994,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					if (HIWORD (wParam) == CBN_SELENDOK) {
 						v = SendDlgItemMessage (hDlg, IDC_LANGUAGE, CB_GETCURSEL, 0, 0L);
 						if (v != CB_ERR)
-							misc_setlang(v);
+							misc_setlang (v);
 					}
 					break;
 				case IDC_DXMODE:
@@ -7979,6 +8037,32 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		switch(wParam)
 		{
+		case IDC_GUI_DEFAULT:
+			scaleresource_setdefaults ();
+			v = SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_GETCURSEL, 0, 0L);
+			if (v != CB_ERR) {
+				if (v == 0) {
+					v = GUI_SCALE_DEFAULT;
+				} else {
+					v--;
+					v = 110 - v * 10;
+				}
+				gui_width = GUI_INTERNAL_WIDTH * v / 100;
+				gui_height = GUI_INTERNAL_HEIGHT * v / 100;
+				scaleresource_setmult (guiDlg, gui_width, gui_height);
+				gui_size_changed = 1;
+			}
+			break;
+		case IDC_GUI_FONT:
+			misc_gui_font (hDlg, 0);
+			break;
+		case IDC_GUI_LISTFONT:
+			misc_gui_font (hDlg, 1);
+			break;
+		case IDC_GUI_RESIZE:
+			gui_resize = ischecked (hDlg, IDC_GUI_RESIZE);
+			gui_size_changed = 2;
+		break;
 		case IDC_ASSOCIATE_ON:
 			for (i = 0; exts[i].ext; i++)
 				exts[i].enabled = 1;
@@ -9727,16 +9811,21 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 	}
 }
 
-static void hilitehd (void)
+static void hilitehd (HWND hDlg)
 {
 	int total = ListView_GetItemCount (cachedlist);
-	if (total <= 0)
+	if (total <= 0) {
+		ew (hDlg, IDC_EDIT, FALSE);
+		ew (hDlg, IDC_REMOVE, FALSE);
 		return;
+	}
 	if (clicked_entry < 0)
 		clicked_entry = 0;
 	if (clicked_entry >= total)
 		clicked_entry = total;
 	ListView_SetItemState (cachedlist, clicked_entry, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+	ew (hDlg, IDC_EDIT, TRUE);
+	ew (hDlg, IDC_REMOVE, TRUE);
 }
 
 static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -9760,7 +9849,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
 		addcdtype (hDlg, IDC_CD_TYPE);
 		InitializeListView (hDlg);
-		hilitehd ();
+		hilitehd (hDlg);
 		break;
 
 	case WM_MOUSEMOVE:
@@ -9774,7 +9863,7 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 				move_filesys_unitconfig (&workprefs, draggeditems[0], item);
 				InitializeListView (hDlg);
 				clicked_entry = item;
-				hilitehd ();
+				hilitehd (hDlg);
 			}
 			xfree (draggeditems);
 			break;
@@ -9824,16 +9913,16 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			{
 			case 10001:
 				clicked_entry--;
-				hilitehd ();
+				hilitehd (hDlg);
 				break;
 			case 10002:
 				clicked_entry++;
-				hilitehd ();
+				hilitehd (hDlg);
 				break;
 			default:
 				if (harddiskdlg_button (hDlg, wParam)) {
 					InitializeListView (hDlg);
-					hilitehd ();
+					hilitehd (hDlg);
 				}
 				break;
 			}
@@ -11696,6 +11785,7 @@ static void init_inputdlg_2 (HWND hDlg)
 	WIN32GUI_LoadUIString (IDS_INPUT_CUSTOMEVENT, tmp1, MAX_DPATH);
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_ADDSTRING, 0, (LPARAM)tmp1);
 	index = 0; af = 0; port = 0;
+	input_selected_event = -1;
 	if (input_selected_widget >= 0) {
 		inputdevice_get_mapping (input_selected_device, input_selected_widget, NULL, &port, name1, custom1, input_selected_sub_num);
 		cnt = 2;
@@ -11714,6 +11804,7 @@ static void init_inputdlg_2 (HWND hDlg)
 		if (index >= 0) {
 			SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SETCURSEL, index, 0);
 			SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
+			input_selected_event = index;
 		}
 	}
 	if (input_selected_widget < 0 || workprefs.input_selected_setting == GAMEPORT_INPUT_SETTINGS || port > 0) {
@@ -11811,6 +11902,7 @@ static void doinputcustom (HWND hDlg, int newcustom)
 		&flags, NULL, NULL, custom1, input_selected_sub_num);
 	if (_tcslen (custom1) > 0 || newcustom) {
 		if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
+			if (custom1[0])
 			inputdevice_set_mapping (input_selected_device, input_selected_widget,
 				NULL, custom1, flags, -1, input_selected_sub_num);
 		}
@@ -11842,6 +11934,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 {
 	int doselect = 0;
 	LRESULT item;
+	bool iscustom = false;
 
 	item = SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR && input_selected_sub_num != item) {
@@ -11853,7 +11946,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 	}
 
 	item = SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_GETCURSEL, 0, 0L);
-	if(item != CB_ERR) {
+	if (item != CB_ERR) {
 		if (item != workprefs.input_selected_setting) {
 			workprefs.input_selected_setting = (int)item;
 			input_selected_widget = -1;
@@ -11864,7 +11957,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		}
 	}
 	item = SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_GETCURSEL, 0, 0L);
-	if(item != CB_ERR) {
+	if (item != CB_ERR) {
 		if (item != input_selected_device) {
 			input_selected_device = (int)item;
 			input_selected_widget = -1;
@@ -11876,22 +11969,26 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		}
 	}
 	item = SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L);
-	if(item != CB_ERR) {
+	if (item != CB_ERR) {
 		if (item != input_selected_event) {
+			uae_u64 flags;
+			TCHAR custom[MAX_DPATH];
 			input_selected_event = (int)item;
 			doselect = 1;
-			if (item == 1) {
+			inputdevice_get_mapping (input_selected_device, input_selected_widget,
+				&flags, NULL, 0, custom, input_selected_sub_num);
+			if (item == 1 && custom[0] == 0) {
 				doinputcustom (hDlg, 1);
+				iscustom = true;
 			}
 		}
 	}
 
 	if (inputchange && doselect && input_selected_device >= 0 && input_selected_event >= 0) {
 		uae_u64 flags;
-		bool iscustom = false;
 		TCHAR custom[MAX_DPATH];
 
-		if (eventnames[input_selected_event] && !_tcscmp (inputdevice_get_eventinfo (INPUTEVENT_SPC_CUSTOM_EVENT)->name, eventnames[input_selected_event])) {
+		if (!iscustom && eventnames[input_selected_event] && !_tcscmp (inputdevice_get_eventinfo (INPUTEVENT_SPC_CUSTOM_EVENT)->name, eventnames[input_selected_event])) {
 			doinputcustom (hDlg, 1);
 			iscustom = true;
 		}
@@ -12414,15 +12511,155 @@ static int genericpopupmenu (HWND hwnd, TCHAR **items, int *flags, int num)
 	return item - 1;
 }
 
+static void qualifierlistview (HWND list)
+{
+	uae_u64 flags;
+	int evt;
+	TCHAR name[256];
+	TCHAR custom[MAX_DPATH];
+
+	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+		&flags, NULL, name, custom, input_selected_sub_num);
+
+	ListView_DeleteAllItems (list);
+
+	for (int i = 0; i < MAX_INPUT_QUALIFIERS; i++) {
+		TCHAR tmp[MAX_DPATH];
+		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << (i * 2));
+
+		LV_ITEM lvi = { 0 };
+		lvi.mask     = LVIF_TEXT | LVIF_PARAM;
+		lvi.pszText  = tmp;
+		lvi.lParam   = 0;
+		lvi.iItem    = i;
+		lvi.iSubItem = 0;
+		ListView_InsertItem (list, &lvi);
+
+		_tcscpy (tmp, _T("-"));
+		if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2)))
+			_tcscpy (tmp, _T("*"));
+		else if (flags & (IDEV_MAPPED_QUALIFIER1 << (i * 2 + 1)))
+			_tcscpy (tmp, _T("R"));
+
+		ListView_SetItemText (list, i, 1, tmp);
+
+	}
+}
+
+static INT_PTR CALLBACK QualifierProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	static int recursive = 0;
+	HWND list = GetDlgItem (hDlg, IDC_LISTDIALOG_LIST);
+
+
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+		{
+			recursive++;
+
+			int lvflags = LVS_EX_DOUBLEBUFFER | LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
+			ListView_SetExtendedListViewStyleEx (list, lvflags , lvflags);
+
+			LV_COLUMN lvc = { 0 };
+
+			lvc.mask     = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+			lvc.iSubItem = 0;
+			lvc.fmt      = LVCFMT_LEFT;
+			lvc.pszText  = _T("Qualifier");
+			lvc.cx       = 150;
+			ListView_InsertColumn (list, 0, &lvc);
+			lvc.mask     = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+			lvc.iSubItem = 1;
+			lvc.fmt      = LVCFMT_LEFT;
+			lvc.pszText  = _T("Selection");
+			lvc.cx       = 150;
+			ListView_InsertColumn (list, 1, &lvc);
+
+
+			qualifierlistview (list);
+
+			recursive--;
+		}
+		return TRUE;
+
+	case WM_NOTIFY:
+		if (((LPNMHDR) lParam)->idFrom == IDC_LISTDIALOG_LIST)
+		{
+			uae_u64 flags;
+			int evt;
+			TCHAR name[256];
+			TCHAR custom[MAX_DPATH];
+			int column, entry;
+			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *) lParam;
+			list = nmlistview->hdr.hwndFrom;
+			switch (nmlistview->hdr.code)
+			{
+			case NM_RCLICK:
+			case NM_CLICK:
+				entry = listview_entry_from_click (list, &column);
+				if (entry >= 0) {
+					uae_u64 mask = IDEV_MAPPED_QUALIFIER1 << (entry * 2);
+					evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+						&flags, NULL, name, custom, input_selected_sub_num);
+					if (evt <= 0)
+						name[0] = 0;
+					if (flags & mask) {
+						flags &= ~(mask | (mask << 1));
+						flags |= mask << 1;
+					} else if (flags & (mask << 1)) {
+						flags &= ~(mask | (mask << 1));
+					} else {
+						flags &= ~(mask | (mask << 1));
+						flags |= mask;
+					}
+					inputdevice_set_mapping (input_selected_device, input_selected_widget,
+						name, custom, flags, -1, input_selected_sub_num);
+					qualifierlistview (list);
+				}
+			}
+		}
+		break;
+		case WM_COMMAND:
+		if (recursive)
+			break;
+		recursive++;
+
+		switch(wParam)
+		{
+		case IDC_LISTDIALOG_CLEAR:
+			{
+				uae_u64 flags;
+				int evt;
+				TCHAR name[256];
+				TCHAR custom[MAX_DPATH];
+				evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+					&flags, NULL, name, custom, input_selected_sub_num);
+				flags &= ~IDEV_MAPPED_QUALIFIER_MASK;
+				inputdevice_set_mapping (input_selected_device, input_selected_widget,
+					name, custom, flags, -1, input_selected_sub_num);
+				qualifierlistview (list);
+				break;
+			}
+		case IDOK:
+			EndDialog (hDlg, 1);
+			break;
+		case IDCANCEL:
+			EndDialog (hDlg, 0);
+			break;
+		}
+		recursive--;
+		break;
+	}
+	return FALSE;
+}
+
 static void input_qualifiers (HWND hDlg)
 {
 	uae_u64 flags;
-	int evt, item;
+	int evt;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
-	TCHAR *names[MAX_INPUT_QUALIFIERS * 2];
-	int mflags[MAX_INPUT_QUALIFIERS * 2];
-	TCHAR tmp[MAX_DPATH];
 	
 	if (input_selected_device < 0 || input_selected_widget < 0)
 		return;
@@ -12431,23 +12668,15 @@ static void input_qualifiers (HWND hDlg)
 	if (evt <= 0)
 		name[0] = 0;
 	
-	for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
-		getqualifiername (tmp, IDEV_MAPPED_QUALIFIER1 << i);
-		mflags[i] = 0;
-		if (flags & (IDEV_MAPPED_QUALIFIER1 << i))
-			mflags[i] = 1;
-		names[i] = my_strdup (tmp);
-	}
-	item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
+	CustomDialogBox (IDD_LIST, hDlg, QualifierProc);
+#if 0
+	int item = genericpopupmenu (hDlg, names, mflags, MAX_INPUT_QUALIFIERS * 2);
 	if (item >= 0)
 		flags ^= IDEV_MAPPED_QUALIFIER1 << item;
 
 	inputdevice_set_mapping (input_selected_device, input_selected_widget,
 		name, custom, flags, -1, input_selected_sub_num);
-
-	for (int i = 0; i < MAX_INPUT_QUALIFIERS * 2; i++) {
-		xfree (names[i]);
-	}
+#endif
 }
 static void input_toggletoggle (void)
 {
@@ -12663,6 +12892,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
+	ew (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, (workprefs.gfx_filter_autoscale == AUTOSCALE_NORMAL || workprefs.gfx_filter_autoscale == AUTOSCALE_INTEGER_AUTOSCALE));
 	ew (hDlg, IDC_FILTEROVERLAY, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTEROVERLAYTYPE, workprefs.gfx_api);
 
@@ -12805,6 +13035,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
 
 	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
+	CheckDlgButton (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gfx_filter_keep_autoscale_aspect != 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_SETCURSEL,
 		workprefs.gfx_filter_keep_aspect, 0);
@@ -13288,6 +13519,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 					currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 1;
 				else
 					currprefs.gfx_filter_keep_aspect = workprefs.gfx_filter_keep_aspect = 0;
+				enable_for_hw3ddlg (hDlg);
+				values_to_hw3ddlg (hDlg);
+				updatedisplayarea ();
+				WIN32GFX_WindowMove ();
+			}
+		case IDC_FILTERKEEPAUTOSCALEASPECT:
+			{
+				workprefs.gfx_filter_keep_autoscale_aspect = currprefs.gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 10 : 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
 				updatedisplayarea ();
@@ -13981,19 +14220,29 @@ static BOOL CALLBACK childenumproc (HWND hwnd, LPARAM lParam)
 	return 1;
 }
 
-#define PANEL_X 174
-#define PANEL_Y 12
-#define PANEL_WIDTH 456
-#define PANEL_HEIGHT 396
+static void getguisize (HWND hDlg, int *width, int *height)
+{
+	RECT r;
+
+	GetClientRect (hDlg, &r);
+	*width = r.right;
+	*height = r.bottom;
+}
 
 static HWND updatePanel (int id)
 {
 	HWND hDlg = guiDlg;
 	static HWND hwndTT;
+	static bool first = true;
 	RECT r1c, r1w, r2c, r2w, r3c, r3w;
-	int w, h, pw, ph, x , y, i;
+	int w, h, x , y, i, pw, ph;
 	int fullpanel;
 	struct newresource *tres;
+
+	if (first) {
+		first = false;
+		getguisize (hDlg, &gui_width, &gui_height);
+	}
 
 	if (cachedlist) {
 		if (lv_old_type >= 0)
@@ -14041,16 +14290,19 @@ static HWND updatePanel (int id)
 		return NULL;
 	}
 
-	fullpanel = ppage[id].fullpanel;
 	GetWindowRect (GetDlgItem (hDlg, IDC_PANEL_FRAME), &r1w);
 	GetClientRect (GetDlgItem (hDlg, IDC_PANEL_FRAME), &r1c);
 	GetWindowRect (hDlg, &r2w);
 	GetClientRect (hDlg, &r2c);
 	gui_width = r2c.right;
 	gui_height = r2c.bottom;
-	tres = scaleresource (ppage[id].nres, hDlg);
+
+	fullpanel = ppage[id].fullpanel;
+	tres = scaleresource (ppage[id].nres, hDlg, -1);
 	panelDlg = CreateDialogIndirectParam (tres->inst, tres->resource, hDlg, ppage[id].dlgproc, id);
 	freescaleresource(tres);
+	scaleresource_setfont (panelDlg);
+	
 	GetWindowRect (hDlg, &r3w);
 	GetClientRect (panelDlg, &r3c);
 	x = r1w.left - r2w.left;
@@ -14069,6 +14321,7 @@ static HWND updatePanel (int id)
 		SetWindowPos (panelDlg, HWND_TOP, x + (pw - w) / 2, y + (ph - h) / 2, 0, 0,
 			SWP_NOSIZE | SWP_NOOWNERZORDER);
 	}
+
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME), SW_HIDE);
 	ShowWindow (GetDlgItem (hDlg, IDC_PANEL_FRAME_OUTER), !fullpanel ? SW_SHOW : SW_HIDE);
 	ShowWindow (GetDlgItem (hDlg, IDC_PANELTREE), !fullpanel ? SW_SHOW : SW_HIDE);
@@ -14216,7 +14469,7 @@ static bool dodialogmousemove (void)
 {
 	if (full_property_sheet || isfullscreen () <= 0)
 		return false;
-	if (currprefs.gfx_size_fs.width >= 640 && currprefs.gfx_size.height >= 480)
+	if (currprefs.gfx_size_fs.width >= gui_width && currprefs.gfx_size.height >= gui_height)
 		return false;
 	struct MultiDisplay *mdc = getdisplay (&currprefs);
 	for (int i = 0; Displays[i].monitorid; i++) {
@@ -14253,7 +14506,7 @@ static void centerWindow (HWND hDlg)
 	SetForegroundWindow (hDlg);
 	pt1.x = x + 100;
 	pt1.y = y + (GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER)) / 2;
-	pt2.x = x + 640 - 100;
+	pt2.x = x + gui_width - 100;
 	pt2.y = pt1.y;
 	if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL && MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
 		if (isfullscreen () > 0) {
@@ -14521,9 +14774,40 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 {
 	static int recursive = 0;
 	static int waitfornext;
+	static int oldwidth, oldheight;
 
 	switch (msg)
 	{
+	case WM_SIZING:
+	{
+		if (!recursive) {
+			RECT *r = (RECT*)lParam;
+			if (r->right - r->left < MIN_GUI_INTERNAL_WIDTH)
+				r->right = r->left + MIN_GUI_INTERNAL_WIDTH;
+			if (r->bottom - r->top < MIN_GUI_INTERNAL_HEIGHT)
+				r->bottom = r->top + MIN_GUI_INTERNAL_HEIGHT;
+			return FALSE;
+		}
+		break;
+	}
+	case WM_ENTERSIZEMOVE:
+		if (!recursive) {
+			getguisize (hDlg, &oldwidth, &oldheight);
+			return FALSE;
+		}
+		break;
+	case WM_EXITSIZEMOVE:
+		if (!recursive) {
+			int w, h;
+			getguisize (hDlg, &w, &h);
+			if (w != oldwidth || h != oldheight) {
+				gui_width = w;
+				gui_height = h;
+				gui_size_changed = 1;
+			}
+			return FALSE;
+		}
+		break;
 	case WM_DEVICECHANGE:
 		{
 			DEV_BROADCAST_HDR *pBHdr = (DEV_BROADCAST_HDR *)lParam;
@@ -14564,6 +14848,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	case WM_INITDIALOG:
 		waitfornext = 0;
 		guiDlg = hDlg;
+		scaleresource_setfont (hDlg);
 		SendMessage (hDlg, WM_SETICON, ICON_SMALL, (LPARAM)LoadIcon (GetModuleHandle (NULL), MAKEINTRESOURCE(IDI_APPICON)));
 		if (full_property_sheet) {
 			TCHAR tmp[100];
@@ -14701,7 +14986,7 @@ INT_PTR CustomDialogBox (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg);
+	r = scaleresource (res, hDlg, -1);
 	if (r) {
 		h = DialogBoxIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -14720,7 +15005,7 @@ HWND CustomCreateDialog (int templ, HWND hDlg, DLGPROC proc)
 	res = getresource (templ);
 	if (!res)
 		return h;
-	r = scaleresource (res, hDlg);
+	r = scaleresource (res, hDlg, -1);
 	if (r) {
 		h = CreateDialogIndirect (r->inst, r->resource, hDlg, proc);
 		freescaleresource (r);
@@ -14902,74 +15187,127 @@ static int GetSettings (int all_options, HWND hwnd)
 			currentpage = LOADSAVE_ID;
 	}
 
-	if (all_options || !configstore)
-		CreateConfigStore (NULL, FALSE);
+	int fmultx = 0, fmulty = 0;
+	for (;;) {
+		int v = 0;
+		gui_width = GUI_INTERNAL_WIDTH * 90 / 100;
+		gui_height = GUI_INTERNAL_HEIGHT * 90 / 100;
+		regqueryint (NULL, _T("GUIResize"), &v);
+		gui_resize = v != 0;
+		if (full_property_sheet || isfullscreen () == 0) {
+			regqueryint (NULL, _T("GUISizeX"), &gui_width);
+			regqueryint (NULL, _T("GUISizeY"), &gui_height);
+			scaleresource_init (_T(""));
+		} else if (isfullscreen () < 0) {
+			regqueryint (NULL, _T("GUISizeFWX"), &gui_width);
+			regqueryint (NULL, _T("GUISizeFWY"), &gui_height);
+			scaleresource_init (_T("FW"));
+		} else if (isfullscreen () > 0) {
+			regqueryint (NULL, _T("GUISizeFSX"), &gui_width);
+			regqueryint (NULL, _T("GUISizeFSY"), &gui_height);
+			scaleresource_init (_T("FS"));
+		}
+		if (gui_width < MIN_GUI_INTERNAL_WIDTH)
+			gui_width = MIN_GUI_INTERNAL_WIDTH;
+		if (gui_height < MIN_GUI_INTERNAL_HEIGHT)
+			gui_height = MIN_GUI_INTERNAL_HEIGHT;
 
-	dialogreturn = -1;
-	hAccelTable = NULL;
-	DragAcceptFiles (hwnd, TRUE);
-	if (first)
-		write_log (_T("Entering GUI idle loop\n"));
+		if (all_options || !configstore)
+			CreateConfigStore (NULL, FALSE);
 
-	scaleresource_setmaxsize (800, 600);
-	tres = scaleresource (panelresource, hwnd);
-	dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
-	dialog_rect.top = dialog_rect.left = 0;
-	dialog_rect.right = tres->width;
-	dialog_rect.bottom = tres->height;
-	freescaleresource (tres);
-	psresult = 0;
-	if (dhwnd != NULL) {
-		MSG msg;
-		DWORD v;
+		dialogreturn = -1;
+		hAccelTable = NULL;
+		DragAcceptFiles (hwnd, TRUE);
+		if (first)
+			write_log (_T("Entering GUI idle loop\n"));
 
-		setguititle (dhwnd);
-		ShowWindow (dhwnd, SW_SHOW);
-		MapDialogRect (dhwnd, &dialog_rect);
+		if (fmultx > 0)
+			scaleresource_setmult (hwnd, -fmultx, -fmulty);
+		else
+			scaleresource_setmult (hwnd, gui_width, gui_height);
+		tres = scaleresource (panelresource, hwnd, gui_resize);
+		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
+		dialog_rect.top = dialog_rect.left = 0;
+		dialog_rect.right = tres->width;
+		dialog_rect.bottom = tres->height;
+		freescaleresource (tres);
+		psresult = 0;
+		if (dhwnd != NULL) {
+			MSG msg;
+			DWORD v;
 
-		hGUIWnd = dhwnd;
+			setguititle (dhwnd);
+			ShowWindow (dhwnd, SW_SHOW);
+			MapDialogRect (dhwnd, &dialog_rect);
 
-		for (;;) {
-			HANDLE IPChandle;
-			IPChandle = geteventhandleIPC (globalipc);
-			if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
-				MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
-				while (checkIPC (globalipc, &workprefs));
-			} else {
-				WaitMessage();
-			}
-			dialogmousemove (dhwnd);
-			while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
+			hGUIWnd = dhwnd;
+
+			for (;;) {
+				HANDLE IPChandle;
+				IPChandle = geteventhandleIPC (globalipc);
+				if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
+					MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
+					while (checkIPC (globalipc, &workprefs));
+				} else {
+					WaitMessage();
+				}
+				dialogmousemove (dhwnd);
+				while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
+					if (dialogreturn >= 0)
+						break;
+					if (v == -1)
+						continue;
+					if (!IsWindow (dhwnd))
+						continue;
+					if (hAccelTable && panelDlg && !rawmode) {
+						if (TranslateAccelerator (panelDlg, hAccelTable, &msg))
+							continue;
+					}
+					if (rawmode) {
+						if (msg.message == WM_INPUT) {
+							handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
+							continue;
+						}
+						// eat all accelerators
+						if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
+							|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
+							continue;
+					}
+					// IsDialogMessage() eats WM_INPUT messages?!?!
+					if (!rawmode && IsDialogMessage (dhwnd, &msg))
+						continue;
+					TranslateMessage (&msg);
+					DispatchMessage (&msg);
+				}
 				if (dialogreturn >= 0)
 					break;
-				if (v == -1)
-					continue;
-				if (!IsWindow (dhwnd))
-					continue;
-				if (hAccelTable && panelDlg && !rawmode) {
-					if (TranslateAccelerator (panelDlg, hAccelTable, &msg))
-						continue;
-				}
-				if (rawmode) {
-					if (msg.message == WM_INPUT) {
-						handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
-						continue;
+				if (gui_size_changed > 0 && gui_size_changed < 10) {
+					if (gui_size_changed == 2) {
+						scaleresource_getmult (&fmultx, &fmulty);
+					} else {
+						fmultx = fmulty = 0;
 					}
-					// eat all accelerators
-					if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
-						|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
-						continue;
+					gui_size_changed = 10;
+					SendMessage (dhwnd, WM_COMMAND, IDCANCEL, 0);
 				}
-				// IsDialogMessage() eats WM_INPUT messages?!?!
-				if (!rawmode && IsDialogMessage (dhwnd, &msg))
-					continue;
-				TranslateMessage (&msg);
-				DispatchMessage (&msg);
 			}
-			if (dialogreturn >= 0)
-				break;
+			psresult = dialogreturn;
 		}
-		psresult = dialogreturn;
+		if (!gui_size_changed)
+			break;
+		if (full_property_sheet || isfullscreen () == 0) {
+			regsetint (NULL, _T("GUISizeX"), gui_width);
+			regsetint (NULL, _T("GUISizeY"), gui_height);
+		} else if (isfullscreen () < 0) {
+			regsetint (NULL, _T("GUISizeFWX"), gui_width);
+			regsetint (NULL, _T("GUISizeFWY"), gui_height);
+		} else if (isfullscreen () > 0) {
+			regsetint (NULL, _T("GUISizeFSX"), gui_width);
+			regsetint (NULL, _T("GUISizeFSY"), gui_height);
+		}
+		regsetint (NULL, _T("GUIResize"), gui_resize ? 1 : 0);
+		gui_size_changed = 0;
+		quit_program = 0;
 	}
 
 	hGUIWnd = NULL;
