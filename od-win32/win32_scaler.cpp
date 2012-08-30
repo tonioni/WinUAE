@@ -347,8 +347,16 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 			set_custom_limits (-1, -1, -1, -1);
 	
 		autoaspectratio = 0;
-		if (currprefs.gfx_filter_keep_autoscale_aspect && crealh > 0 && (scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE)) {
-			autoaspectratio = ((float)crealh / ch);
+		if (currprefs.gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
+			float cw2 = cw;
+			float ch2 = ch;
+			int res = currprefs.gfx_resolution - currprefs.gfx_vresolution;
+
+			if (res < 0)
+				cw2 *= 1 << (-res);
+			else if (res > 0)
+				cw2 /= 1 << res;
+			autoaspectratio = (cw2 / ch2) / (4.0 / 3.0);
 			doautoaspect = true;
 		}
 

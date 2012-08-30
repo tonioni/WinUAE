@@ -17,6 +17,7 @@
 #define EFFECT_VERSION 3
 #define D3DX9DLL _T("d3dx9_43.dll")
 #define TWOPASS 1
+#define SHADER 1
 
 #include "options.h"
 #include "xwin.h"
@@ -497,6 +498,9 @@ int D3D_goodenough (void)
 		}
 		d3dx->Release ();
 	}
+#if SHADER == 0
+	shaderon = 0;
+#endif
 	return d3d_good > 0 ? d3d_good : 0;
 }
 

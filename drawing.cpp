@@ -780,7 +780,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
 #endif
-	return (blank || brdblank || hposblank) ? 0 : colors_for_drawing.acolors[0];
+	return (blank || hposblank || colors_for_drawing.borderblank) ? 0 : colors_for_drawing.acolors[0];
 }
 
 STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, bool blank)
@@ -1941,15 +1941,6 @@ STATIC_INLINE void do_flush_screen (struct vidbuffer *vb, int start, int stop)
 		flush_screen (vb, 0, 0); /* vsync mode */
 }
 
-STATIC_INLINE void getbrdblank (void)
-{
-#ifdef ECS_DENISE
-	brdblank = dp_for_drawing->brdblank_seen;
-#else
-	brdblank = false;
-#endif
-}
-
 /* We only save hardware registers during the hardware frame. Now, when
 * drawing the frame, we expand the data into a slightly more useful
 * form. */
@@ -1966,7 +1957,6 @@ static void pfield_expand_dp_bplcon (void)
 	issprites = dip_for_drawing->nr_sprites;
 #ifdef ECS_DENISE
 	ecsshres = bplres == RES_SUPERHIRES && (currprefs.chipset_mask & CSMASK_ECS_DENISE) && !(currprefs.chipset_mask & CSMASK_AGA);
-	getbrdblank ();
 #endif
 
 	plf1pri = dp_for_drawing->bplcon2 & 7;
@@ -2051,6 +2041,7 @@ static void adjust_drawing_colors (int ctable, int need_full)
 		} else {
 			memcpy (colors_for_drawing.acolors, curr_color_tables[ctable].acolors,
 				sizeof colors_for_drawing.acolors);
+			colors_for_drawing.borderblank = curr_color_tables[ctable].borderblank;
 			color_match_type = color_match_acolors;
 		}
 		drawing_color_matches = ctable;
@@ -2108,8 +2099,12 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		if (regno >= 0x1000) {
 			pfield_expand_dp_bplconx (regno, value);
 		} else if (regno >= 0) {
-			color_reg_set (&colors_for_drawing, regno, value);
-			colors_for_drawing.acolors[regno] = getxcolor (value);
+			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
+				colors_for_drawing.borderblank = (value & 1) != 0;
+			} else {
+				color_reg_set (&colors_for_drawing, regno, value);
+				colors_for_drawing.acolors[regno] = getxcolor (value);
+			}
 		}
 		if (lastpos >= endpos)
 			break;
@@ -2188,7 +2183,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	if (xlinebuffer == 0)
 		xlinebuffer = row_map[gfx_ypos], dh = dh_buf;
 	xlinebuffer -= linetoscr_x_adjust_bytes;
-	getbrdblank ();
 
 	if (border == 0) {
 
@@ -2256,7 +2250,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			dosprites = 1;
 			pfield_expand_dp_bplcon ();
 			pfield_init_linetoscr ();
-			memset (pixdata.apixels + MAX_PIXELS_PER_LINE, brdblank ? 0 : colors_for_drawing.acolors[0], MAX_PIXELS_PER_LINE);
+			memset (pixdata.apixels + MAX_PIXELS_PER_LINE, colors_for_drawing.borderblank ? 0 : colors_for_drawing.acolors[0], MAX_PIXELS_PER_LINE);
 		}
 #endif
 
@@ -2311,7 +2305,8 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	} else {
 
 		int tmp = hposblank;
-		hposblank = brdblank;
+		//hposblank = brdblank;
+		hposblank = colors_for_drawing.borderblank;
 		fill_line ();
 		do_flush_line (vb, gfx_ypos);
 		hposblank = tmp;

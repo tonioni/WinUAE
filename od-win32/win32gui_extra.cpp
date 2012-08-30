@@ -88,11 +88,11 @@ typedef struct {
 #include <poppack.h>
 
 static int font_vista_ok;
-static wchar_t wfont_vista[] = _T("Segoe UI");
-static wchar_t wfont_xp[] = _T("Tahoma");
-static wchar_t wfont_old[] = _T("MS Sans Serif");
-static TCHAR font_vista[] = _T("Segoe UI");
-static TCHAR font_xp[] = _T("Tahoma");
+static const wchar_t wfont_vista[] = _T("Segoe UI");
+static const wchar_t wfont_xp[] = _T("Tahoma");
+static const wchar_t wfont_old[] = _T("MS Sans Serif");
+static const TCHAR font_vista[] = _T("Segoe UI");
+static const TCHAR font_xp[] = _T("Tahoma");
 
 static int align (double f)
 {
@@ -421,15 +421,20 @@ static void sizefont (HWND hDlg, const TCHAR *name, int size, int style, int wei
 	size = -MulDiv (size, lpy, 72);
 	HFONT font = CreateFont (size, 0, 0, 0, weight,
 		(style & ITALIC_FONTTYPE) != 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, name);
-	HFONT hFontOld = (HFONT)SelectObject (hdc, font);
-	TEXTMETRIC tm;
-	SIZE fsize;
-	GetTextMetrics (hdc, &tm);
-	GetTextExtentPoint32 (hdc, _T("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 52, &fsize);
-	*width = (fsize.cx / 26 + 1) / 2;
-	*height = MulDiv (tm.tmHeight, 72, lpy);
-	SelectObject (hdc, hFontOld);
-	DeleteObject (font);
+	if (!font) {
+		*width = 8;
+		*height = 8;
+	} else {
+		HFONT hFontOld = (HFONT)SelectObject (hdc, font);
+		TEXTMETRIC tm;
+		SIZE fsize;
+		GetTextMetrics (hdc, &tm);
+		GetTextExtentPoint32 (hdc, _T("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 52, &fsize);
+		*width = (fsize.cx / 26 + 1) / 2;
+		*height = tm.tmHeight;
+		SelectObject (hdc, hFontOld);
+		DeleteObject (font);
+	}
 	ReleaseDC (hDlg, hdc);
 }
 
@@ -443,17 +448,30 @@ void scaleresource_setmult (HWND hDlg, int w, int h)
 		return;
 	}
 
+	int cy = GetSystemMetrics (SM_CYSIZEFRAME);
+	int cx = GetSystemMetrics (SM_CXSIZEFRAME);
+	int caption = GetSystemMetrics (SM_CYCAPTION);
+
 	sizefont (hDlg, fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui, &width, &height);
 	sizefont (hDlg, wfont_old, 8, REGULAR_FONTTYPE, FW_REGULAR, &width2, &height2);
 
-	h += GetSystemMetrics (SM_CYBORDER) * 2 + GetSystemMetrics (SM_CYCAPTION);
-	w += GetSystemMetrics (SM_CXSIZEFRAME) * 2;
+	int yy = cy * 2 + caption;
+	int xx = cx * 2;
+
+	w += xx;
+	h += yy;
 
 	multx = (w * width2) * 100.0 / (GUI_INTERNAL_WIDTH * width);
 	multy = (h * height2) * 100.0 / (GUI_INTERNAL_HEIGHT * height);
 
 	multx = MulDiv (multx, 96, lpx);
 	multy = MulDiv (multy, 96, lpy);
+
+	if (multx < 50)
+		multx = 50;
+	if (multy < 50)
+		multy = 50;
+
 }
 
 void scaleresource_getmult (int *mx, int *my)

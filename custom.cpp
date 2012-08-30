@@ -250,7 +250,6 @@ static bool bpl1dat_written, bpl1dat_early, bpl1dat_written_at_least_once;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
-static bool brdblank_prevframe[MAXVPOS * 2 + 2];
 
 /*static int blitcount[256];  blitter debug */
 
@@ -474,7 +473,8 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr)
 			write_log (_T("buggy copper cycle conflict with blitter %08x <- %08x\n"), *ptr, srcptr);
 			warned--;
 		}
-		// not yet. *ptr = srcptr;
+		if (currprefs.cpu_model == 68000)
+			*ptr = srcptr;
 	}
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
@@ -491,7 +491,7 @@ static void hsyncdelay (void)
 
 static void update_mirrors (void)
 {
-	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) ? 1 : 0;
+	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
 	direct_rgb = aga_mode;
 }
 
@@ -876,7 +876,8 @@ static void record_color_change2 (int hpos, int regno, unsigned long value)
 		pos++; // BPLCON4 change needs 1 lores pixel delay
 	curr_color_changes[next_color_change].linepos = pos;
 	curr_color_changes[next_color_change].regno = regno;
-	curr_color_changes[next_color_change++].value = value;
+	curr_color_changes[next_color_change].value = value;
+	next_color_change++;
 	curr_color_changes[next_color_change].regno = -1;
 }
 
@@ -890,15 +891,6 @@ static bool isehb (uae_u16 bplcon0, uae_u16 bplcon2)
 	else
 		bplehb = ((bplcon0 & 0xFC00) == 0x6000 || (bplcon0 & 0xFC00) == 0x7000) && !currprefs.cs_denisenoehb;
 	return bplehb;
-}
-
-static bool isbrdblank (uae_u16 bplcon0, uae_u16 bplcon3)
-{
-#ifdef ECS_DENISE
-	return (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x20);
-#else
-	return false;
-#endif
 }
 
 // OCS/ECS, lores, 7 planes = 4 "real" planes + BPL5DAT and BPL6DAT as static 5th and 6th plane
@@ -2052,17 +2044,33 @@ static void record_color_change (int hpos, int regno, unsigned long value)
 	record_color_change2 (hpos, regno, value);
 }
 
+static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
+{
+	bool brdblank;
+#ifdef ECS_DENISE
+	brdblank = (currprefs.chipset_mask & CSMASK_ECS_DENISE) && (bplcon0 & 1) && (bplcon3 & 0x20);
+#else
+	brdblank = false;
+#endif
+	if (hpos >= 0 && current_colors.borderblank != brdblank) {
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0));
+		current_colors.borderblank = brdblank;
+		remembered_color_entry = -1;
+	}
+	return brdblank;
+}
+
 static void record_register_change (int hpos, int regno, uae_u16 value)
 {
 	if (regno == 0x100) { // BPLCON0
 		if (value & 0x800)
 			thisline_decision.ham_seen = 1;
 		thisline_decision.ehb_seen = isehb (value, bplcon2);
-		thisline_decision.brdblank_seen = isbrdblank (value, bplcon3);
+		isbrdblank (hpos, value, bplcon3);
 	} else if (regno == 0x104) { // BPLCON2
 		thisline_decision.ehb_seen = isehb (bplcon0, value);
 	} else if (regno == 0x106) { // BPLCON3
-		thisline_decision.brdblank_seen = isbrdblank (bplcon0, value);
+		isbrdblank (hpos, bplcon0, value);
 	}
 	record_color_change (hpos, regno + 0x1000, value);
 }
@@ -2664,13 +2672,6 @@ static void finish_decisions (void)
 		changed = 1;
 	}
 
-	/* if last frame's brdblank was different = mark line changed */
-	if (brdblank_prevframe[vpos] != thisline_decision.brdblank_seen) {
-		changed = 1;
-		brdblank_prevframe[vpos] = thisline_decision.brdblank_seen;
-		//write_log (_T("%d.%d "), vpos, thisline_decision.brdblank_seen);
-	}
-
 	if (changed) {
 		thisline_changed = 1;
 		*dp = thisline_decision;
@@ -2716,7 +2717,6 @@ static void reset_decisions (void)
 	thisline_decision.plflinelen = -1;
 	thisline_decision.ham_seen = !! (bplcon0 & 0x800);
 	thisline_decision.ehb_seen = !! isehb (bplcon0, bplcon2);
-	thisline_decision.brdblank_seen = !! isbrdblank (bplcon0, bplcon3);
 	thisline_decision.ham_at_start = !! (bplcon0 & 0x800);
 
 	/* decided_res shouldn't be touched before it's initialized by decide_line(). */
@@ -4425,7 +4425,7 @@ static void checkautoscalecol0 (void)
 		return;
 	if (vpos < 20)
 		return;
-	if (isbrdblank (bplcon0, bplcon3))
+	if (isbrdblank (-1, bplcon0, bplcon3))
 		return;
 	// autoscale if copper changes COLOR00 on top or bottom of screen
 	if (vpos >= minfirstline) {
@@ -4490,6 +4490,7 @@ static void COLOR_WRITE (int hpos, uae_u16 v, int num)
 		remembered_color_entry = -1;
 		current_colors.color_regs_aga[colreg] = cval;
 		current_colors.acolors[colreg] = getxcolor (cval);
+
 	} else {
 #endif
 		if (num && v == 0)
@@ -7450,6 +7451,7 @@ uae_u8 *restore_custom (uae_u8 *src)
 	fmode = RW;				/* 1FC FMODE */
 	last_custom_value1 = RW;/* 1FE ? */
 
+	current_colors.borderblank = isbrdblank (-1, bplcon0, bplcon3);
 	DISK_restore_custom (dskpt, dsklen, dskbytr);
 
 	return src;

@@ -2497,7 +2497,7 @@ void memory_reset (void)
 				if (rd->cloanto)
 					cloanto_rom = 1;
 				kickstart_rom = 0;
-				if ((rd->type & ROMTYPE_SPECIALKICK | ROMTYPE_KICK) == ROMTYPE_KICK)
+				if ((rd->type & (ROMTYPE_SPECIALKICK | ROMTYPE_KICK)) == ROMTYPE_KICK)
 					kickstart_rom = 1;
 				if ((rd->cpu & 4) && currprefs.cs_compatible) {
 					/* A4000 ROM = need ramsey, gary and ide */
@@ -2516,8 +2516,11 @@ void memory_reset (void)
 		protect_roms (true);
 	}
 
-	if ((cloanto_rom || extendedkickmem_size) && currprefs.maprom && currprefs.maprom < 0x01000000)
+	if ((cloanto_rom || extendedkickmem_size) && currprefs.maprom && currprefs.maprom < 0x01000000) {
 		currprefs.maprom = changed_prefs.maprom = 0x00a80000;
+		if (extendedkickmem2_size) // can't do if 2M ROM
+			currprefs.maprom = changed_prefs.maprom = 0;
+	}
 
 	map_banks (&custom_bank, 0xC0, 0xE0 - 0xC0, 0);
 	map_banks (&cia_bank, 0xA0, 32, 0);

@@ -1,6 +1,17 @@
 
 - restore only single input target to default.
 
+Beta 14:
+
+- Borderblank emulation rewritten yet again, now borderblank state is included with color 0 change events (this time
+  exactly where it should be), fully cycle-exact, works even if some strange program toggles it multiple time / scanline.
+- Some GUI sanity checks, for example check if GUI size is really small or huge before opening GUI window and also after
+  GUI is open. Reset size and fonts to default if size is out of range.
+- GUI Windows DPI setting compensation fixed.
+- Activate COPJMP bug emulation, only if 68000 CE. (logged since b11)
+- Autoscale aspect ratio fixed. Setting is enabled by default now.
+- Disable map rom if 24-bit address space and 2M ROM (No space for ROM mirror).
+
 Beta 13:
 
 - Parallel port audio sampler had very bad quality on some systems. NOTE: Sampler requires exact DirectSound
@@ -26,9 +37,9 @@ Beta 13:
   drive was reported as empty.
 - Some more manual BPLxDAT emulation updates, Sequential Magnet part garbage introduced in previous update is gone.
 - Color registers were emulated as non-existing instead of write-only in OCS/ECS modes. (I guess only visible difference
+  will be more colorful display if program crashes or does weird things and starts reading from color registers..)
 - DENISEID is now non-existing if 68000 prefetch or cycle-exact and OCS Denise. (Programs may misdetect if no prefetch emulated,
   and now programs, if they even exist, that misdetect it on real OCS A500 will misdetect it on emulation too! :)
-  will be more colorful display if program crashes or does weird things and starts reading from color registers..)
 - Renamed Paths panel "WinUAE defaults"-paths, meaning of selection should make more sense now.
 - Better input qualifier GUI, Windows key default qualifier added.
 - Slot #5-#8 custom events didn't work correctly.
@@ -144,7 +155,7 @@ Beta 8:
   that real 68060 don't have. Integer instructions only, 040/060 FPU emulation still supports all 6888x instructions.
 - Set FPU FPIAR register (No one shouldn't care, except unimplemented FPU exception handler which isn't supported)
 - RTG state restore broke in previous update.
-- Save RTG mode palette to statefile (Quite important missing information if dislay mode is 8-bit..)
+- Save RTG mode palette to statefile (Quite important missing information if display mode is 8-bit..)
 - More memory space reservation updates.
 - "Restart" GUI option improved, shouldn't cause strange errors if new config has 32-bit RAM enabled and old one didn't.
 - Savestates with 32-bit RAM configured should now load without need to first load configuration that has same amount

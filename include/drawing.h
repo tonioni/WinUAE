@@ -84,6 +84,7 @@ struct color_entry {
 	xcolnr acolors[256];
 	uae_u32 color_regs_aga[256];
 #endif
+	bool borderblank;
 };
 
 #ifdef AGA
@@ -131,16 +132,21 @@ STATIC_INLINE void color_reg_set (struct color_entry *ce, int c, int v)
 }
 STATIC_INLINE int color_reg_cmp (struct color_entry *ce1, struct color_entry *ce2)
 {
+	int v;
 #ifdef AGA
 	if (aga_mode)
-		return memcmp (ce1->color_regs_aga, ce2->color_regs_aga, sizeof (uae_u32) * 256);
+		v = memcmp (ce1->color_regs_aga, ce2->color_regs_aga, sizeof (uae_u32) * 256);
 	else
 #endif
-		return memcmp (ce1->color_regs_ecs, ce2->color_regs_ecs, sizeof (uae_u16) * 32);
+		v = memcmp (ce1->color_regs_ecs, ce2->color_regs_ecs, sizeof (uae_u16) * 32);
+	if (!v && ce1->borderblank == ce2->borderblank)
+		return 0;
+	return 1;
 }
 /* ugly copy hack, is there better solution? */
 STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *src)
 {
+	dst->borderblank = src->borderblank;
 #ifdef AGA
 	if (aga_mode)
 		/* copy acolors and color_regs_aga */
@@ -148,8 +154,7 @@ STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *s
 	else
 #endif
 		/* copy first 32 acolors and color_regs_ecs */
-		memcpy (dst->color_regs_ecs, src->color_regs_ecs,
-		sizeof(struct color_entry));
+		memcpy (dst->color_regs_ecs, src->color_regs_ecs, sizeof(struct color_entry));
 }
 
 /*
@@ -161,6 +166,7 @@ STATIC_INLINE void color_reg_cpy (struct color_entry *dst, struct color_entry *s
 * but a list of structures containing information on how to draw the line.
 */
 
+#define COLOR_CHANGE_BRDBLANK 0x80000000
 struct color_change {
 	int linepos;
 	int regno;
@@ -224,7 +230,6 @@ struct decision {
 	uae_u8 nr_planes;
 	uae_u8 bplres;
 	bool ehb_seen;
-	bool brdblank_seen;
 	bool ham_seen;
 	bool ham_at_start;
 };

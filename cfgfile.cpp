@@ -4257,7 +4257,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
 	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
-	p->gfx_filter_keep_autoscale_aspect = 0;
+	p->gfx_filter_keep_autoscale_aspect = true;
 	p->gfx_filteroverlay_overscan = 0;
 
 	_tcscpy (p->floppyslots[0].df, _T("df0.adf"));

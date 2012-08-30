@@ -15126,6 +15126,12 @@ static void blah(void)
 }
 #endif
 
+static void setdefaultguisize (void)
+{
+	gui_width = GUI_INTERNAL_WIDTH * 90 / 100;
+	gui_height = GUI_INTERNAL_HEIGHT * 90 / 100;
+}
+
 static int GetSettings (int all_options, HWND hwnd)
 {
 	static int init_called = 0;
@@ -15190,8 +15196,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	int fmultx = 0, fmulty = 0;
 	for (;;) {
 		int v = 0;
-		gui_width = GUI_INTERNAL_WIDTH * 90 / 100;
-		gui_height = GUI_INTERNAL_HEIGHT * 90 / 100;
+		setdefaultguisize ();
 		regqueryint (NULL, _T("GUIResize"), &v);
 		gui_resize = v != 0;
 		if (full_property_sheet || isfullscreen () == 0) {
@@ -15207,10 +15212,11 @@ static int GetSettings (int all_options, HWND hwnd)
 			regqueryint (NULL, _T("GUISizeFSY"), &gui_height);
 			scaleresource_init (_T("FS"));
 		}
-		if (gui_width < MIN_GUI_INTERNAL_WIDTH)
-			gui_width = MIN_GUI_INTERNAL_WIDTH;
-		if (gui_height < MIN_GUI_INTERNAL_HEIGHT)
-			gui_height = MIN_GUI_INTERNAL_HEIGHT;
+		if (gui_width < 100 || gui_width > 4096 || gui_height < 100 || gui_height > 4096) {
+			scaleresource_setdefaults ();
+			setdefaultguisize ();
+			fmultx = 0;
+		}
 
 		if (all_options || !configstore)
 			CreateConfigStore (NULL, FALSE);
@@ -15221,10 +15227,12 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (first)
 			write_log (_T("Entering GUI idle loop\n"));
 
-		if (fmultx > 0)
+		if (fmultx > 0) {
 			scaleresource_setmult (hwnd, -fmultx, -fmulty);
-		else
+		} else {
 			scaleresource_setmult (hwnd, gui_width, gui_height);
+			//write_log (_T("Requested GUI %dx%d\n"), gui_width, gui_height);
+		}
 		tres = scaleresource (panelresource, hwnd, gui_resize);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
@@ -15235,6 +15243,20 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (dhwnd != NULL) {
 			MSG msg;
 			DWORD v;
+			int w, h;
+
+			getguisize (dhwnd, &w, &h);
+			//write_log (_T("GUI %dx%d\n"), w, h);
+			if (w < 100 || h < 100 || w > 4096 || h > 4096) {
+				write_log (_T("GUI size (%dx%d) out of range!\n"), w, h);
+				scaleresource_setdefaults ();
+				setdefaultguisize ();
+				SendMessage (dhwnd, WM_COMMAND, IDCANCEL, 0);
+				fmultx = fmulty = 0;
+				gui_size_changed = 10;
+				break;
+			}
+
 
 			setguititle (dhwnd);
 			ShowWindow (dhwnd, SW_SHOW);
@@ -15292,6 +15314,16 @@ static int GetSettings (int all_options, HWND hwnd)
 				}
 			}
 			psresult = dialogreturn;
+		} else {
+			static int count;
+			count++;
+			if (count > 4) {
+				pre_gui_message (_T("GUI failed to open"));
+				abort ();
+			}
+			setdefaultguisize ();
+			scaleresource_setdefaults ();
+			gui_size_changed = 10;
 		}
 		if (!gui_size_changed)
 			break;
