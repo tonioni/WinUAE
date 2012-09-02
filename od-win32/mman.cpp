@@ -136,8 +136,13 @@ bool preinit_shm (void)
 
 	GetSystemInfo (&si);
 	max_allowed_mman = 512;
-	if (os_64bit)
+	if (os_64bit) {
+#ifdef WIN64
+		max_allowed_mman = 3072;
+#else
 		max_allowed_mman = 2048;
+#endif
+	}
 
 	memstats.dwLength = sizeof(memstats);
 	GlobalMemoryStatus(&memstats);
@@ -168,19 +173,33 @@ bool preinit_shm (void)
 	if (max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = size64 / (1024 * 1024);
 
-	natmem_size = max_allowed_mman * 1024 * 1024;
+	natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
 	if (natmem_size < 256 * 1024 * 1024)
 		natmem_size = 256 * 1024 * 1024;
 
 	write_log (_T("Total physical RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, natmem_size >> 20);
-	for (;;) {
-		natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
-		if (natmem_offset)
-			break;
-		natmem_size -= 128 * 1024 * 1024;
-		if (!natmem_size) {
-			write_log (_T("Can't allocate 256M of virtual address space!?\n"));
-			return false;
+	natmem_offset = 0;
+	if (natmem_size <= 640 * 1024 * 1024) {
+		uae_u32 p = 0x78000000 - natmem_size;
+		for (;;) {
+			natmem_offset = (uae_u8*)VirtualAlloc ((void*)p, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+			if (natmem_offset)
+				break;
+			p -= 256 * 1024 * 1024;
+			if (p <= 256 * 1024 * 1024)
+				break;
+		}
+	}
+	if (!natmem_offset) {
+		for (;;) {
+			natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+			if (natmem_offset)
+				break;
+			natmem_size -= 128 * 1024 * 1024;
+			if (!natmem_size) {
+				write_log (_T("Can't allocate 256M of virtual address space!?\n"));
+				return false;
+			}
 		}
 	}
 	max_z3fastmem = natmem_size;
@@ -829,6 +848,8 @@ void protect_roms (bool protect)
 		DWORD old;
 		shm = &shmids[i];
 		if (shm->mode != PAGE_READONLY)
+			continue;
+		if (!shm->attached || !shm->rosize)
 			continue;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
 			write_log (_T("VP %08X - %08X %x (%dk) failed %d\n"),

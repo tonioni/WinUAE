@@ -29,7 +29,7 @@
 
 #include "sysdeps.h"
 
-#include "resource"
+#include "resource.h"
 
 #include "options.h"
 #include "parser.h"

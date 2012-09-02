@@ -2661,12 +2661,16 @@ static void lightpen_update (struct vidbuffer *vb)
 	for (i = 0; i < LIGHTPEN_HEIGHT; i++) {
 		int line = lightpen_y + i - LIGHTPEN_HEIGHT / 2;
 		if (line >= 0 || line < max_ypos_thisframe) {
-			draw_lightpen_cursor(lightpen_x, i, line, lightpen_cx > 0);
+			if (lightpen_active > 0)
+				draw_lightpen_cursor (lightpen_x, i, line, lightpen_cx > 0);
 			flush_line (vb, line);
 		}
 	}
 	lightpen_y1 = lightpen_y - LIGHTPEN_HEIGHT / 2 - 1 + min_ypos_for_screen;
 	lightpen_y2 = lightpen_y1 + LIGHTPEN_HEIGHT + 2;
+
+	if (lightpen_active < 0)
+		lightpen_active = 0;
 }
 
 void finish_drawing_frame (void)
@@ -2745,7 +2749,7 @@ void finish_drawing_frame (void)
 		}
 	}
 
-	if (lightpen_x > 0 || lightpen_y > 0)
+	if (lightpen_active)
 		lightpen_update (vb);
 
 	if (currprefs.monitoremu && gfxvidinfo.tempbuffer.bufmem_allocated) {

@@ -31,7 +31,7 @@
 #include <shobjidl.h>
 #include <dbt.h>
 
-#include "resource"
+#include "resource.h"
 #include "sysconfig.h"
 #include "sysdeps.h"
 #include "gui.h"
@@ -1151,7 +1151,8 @@ static HWND cachedlist = NULL;
 #define MIN_SLOW_MEM 0
 #define MAX_SLOW_MEM 4
 #define MIN_Z3_MEM 0
-#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : ((max_z3fastmem >> 20) < 2560) ? 15 : ((max_z3fastmem >> 20) < 3072) ? 16 : 17))
+//#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : ((max_z3fastmem >> 20) < 2560) ? 15 : ((max_z3fastmem >> 20) < 3072) ? 16 : 17))
+#define MAX_Z3_MEM ((max_z3fastmem >> 20) < 512 ? 12 : ((max_z3fastmem >> 20) < 1024 ? 13 : ((max_z3fastmem >> 20) < 2048) ? 14 : 15))
 #define MAX_Z3_CHIPMEM 7
 #define MIN_P96_MEM 0
 #define MAX_P96_MEM_Z3 ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
@@ -15231,7 +15232,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			scaleresource_setmult (hwnd, -fmultx, -fmulty);
 		} else {
 			scaleresource_setmult (hwnd, gui_width, gui_height);
-			//write_log (_T("Requested GUI %dx%d\n"), gui_width, gui_height);
+			write_log (_T("Requested GUI size = %dx%d\n"), gui_width, gui_height);
 		}
 		tres = scaleresource (panelresource, hwnd, gui_resize);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
@@ -15246,7 +15247,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			int w, h;
 
 			getguisize (dhwnd, &w, &h);
-			//write_log (_T("GUI %dx%d\n"), w, h);
+			write_log (_T("Got GUI size = %dx%d\n"), w, h);
 			if (w < 100 || h < 100 || w > 4096 || h > 4096) {
 				write_log (_T("GUI size (%dx%d) out of range!\n"), w, h);
 				scaleresource_setdefaults ();

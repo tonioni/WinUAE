@@ -132,8 +132,11 @@ static __inline__ void native_set_fpucw (uae_u32 m68k_cw)
 	if (m68k_cw & (0x1000))
 		ex |= _EM_OVERFLOW;
 #endif
-
-	_control87(ex | fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
+#ifdef WIN64
+	_controlfp (ex | fp87_round[(m68k_cw >> 4) & 3], _MCW_RC);
+#else
+	_control87 (ex | fp87_round[(m68k_cw >> 4) & 3] | fp87_prec[(m68k_cw >> 6) & 3], _MCW_RC | _MCW_PC);
+#endif
 #else
 static uae_u16 x87_cw_tab[] = {
 	0x137f, 0x1f7f, 0x177f, 0x1b7f,	/* Extended */

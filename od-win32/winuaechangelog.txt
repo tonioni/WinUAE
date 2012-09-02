@@ -1,6 +1,19 @@
 
 - restore only single input target to default.
 
+Beta 15:
+
+- Fixed too large GUI size if non-100% Windows DPI setting and full optimized build. (b13)
+- Fonts with long names caused corrupted dialog structure.
+- Marked WinUAE as Windows Vista/7/8 compatible. This should have been done long time ago, without this Windows enables
+  some backwards compatibility features, for example Aero gets disabled in fullscreen directdraw.
+- Disabled COPJMP bug emulation, it triggers incorrectly in Seven Sins/Scoopex.
+  (Already did some logic analyzer testing but I can't yet confirm exact trigger conditions for this bug, it wasn't as simple
+  as I originally thought)
+- Editing non-custom event's qualifier reset input target to none.
+- Lightpen cursor wasn't removed when lightpen mode was disabled.
+- Wintab tablet messages corrupted memory if Windows driver installed but tablet mode was not enabled. (b6)
+
 Beta 14:
 
 - Borderblank emulation rewritten yet again, now borderblank state is included with color 0 change events (this time

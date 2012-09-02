@@ -35,7 +35,7 @@
 #include <WtsApi32.h>
 #include <Avrt.h>
 
-#include "resource"
+#include "resource.h"
 
 #include <wintab.h>
 #include "wintablet.h"
@@ -5915,6 +5915,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 #endif
 #endif
 	SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+	currprefs.win32_filesystem_mangle_reserved_names = true;
 	SetDllDirectory (_T(""));
 	/* Make sure we do an InitCommonControls() to get some advanced controls */
 	InitCommonControls ();

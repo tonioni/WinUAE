@@ -1,6 +1,6 @@
 
 #include <windows.h>
-#include <resource>
+#include "resource.h"
 
 #include "sysconfig.h"
 #include "sysdeps.h"

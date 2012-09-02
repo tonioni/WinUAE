@@ -20,7 +20,7 @@
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "resource"
+#include "resource.h"
 #include "registry.h"
 #include "win32.h"
 #include "win32gui.h"
@@ -155,7 +155,7 @@ static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 		d2->pointsize = fontsize_gui;
 		d2->italic = (fontstyle_gui & ITALIC_FONTTYPE) != 0;
 		d2->weight = fontweight_gui;
-	}
+}
 }
 
 static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id)
@@ -205,10 +205,10 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 
 struct newresource *scaleresource (struct newresource *res, HWND parent, int resize)
 {
-	DLGTEMPLATEEX *d;
-	DLGTEMPLATEEX_END *d2;
+	DLGTEMPLATEEX *d, *s;
+	DLGTEMPLATEEX_END *d2, *s2;
 	DLGITEMTEMPLATEEX *dt;
-	BYTE *p, *p2;
+	BYTE *p, *p2, *ps, *ps2;
 	int i;
 	struct newresource *ns;
 
@@ -230,6 +230,7 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 	memcpy ((void*)ns->resource, res->resource, ns->size);
 
 	d = (DLGTEMPLATEEX*)ns->resource;
+	s = (DLGTEMPLATEEX*)res->resource;
 
 	if (resize > 0) {
 		d->style &= ~DS_MODALFRAME;
@@ -244,11 +245,24 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 	p = skiptext (p);
 	p = skiptext (p);
 	p = skiptext (p);
+
+	s2 = (DLGTEMPLATEEX_END*)res->resource;
+	ps = (BYTE*)s2 + sizeof (DLGTEMPLATEEX);
+	ps = skiptext (ps);
+	ps = skiptext (ps);
+	ps = skiptext (ps);
+
 	d2 = (DLGTEMPLATEEX_END*)p;
 	p2 = p;
 	p2 += sizeof (DLGTEMPLATEEX_END);
 	p2 = skiptextone (p2);
 	p2 = todword (p2);
+
+	s2 = (DLGTEMPLATEEX_END*)ps;
+	ps2 = ps;
+	ps2 += sizeof (DLGTEMPLATEEX_END);
+	ps2 = skiptextone (ps2);
+	ps2 = todword (ps2);
 
 	modifytemplatefont (d, d2);
 
@@ -256,8 +270,7 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 	p = skiptextone (p);
 	p = todword (p);
 
-	if (p != p2)
-		memmove (p, p2, ns->size - (p2 - (BYTE*)ns->resource));
+	memcpy (p, ps2, ns->size - (ps2 - (BYTE*)res->resource));
 
 	modifytemplate(d, d2, ns->tmpl);
 

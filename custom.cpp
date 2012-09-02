@@ -156,7 +156,7 @@ static int lof_togglecnt_lace, lof_togglecnt_nlace, lof_previous, nlace_cnt;
 */
 static int vpos_previous, hpos_previous;
 static int vpos_lpen, hpos_lpen, lightpen_triggered;
-int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy;
+int lightpen_x = -1, lightpen_y = -1, lightpen_cx, lightpen_cy, lightpen_active;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -296,6 +296,7 @@ static unsigned int clxdat, clxcon, clxcon2, clxcon_bpl_enable, clxcon_bpl_match
 
 enum copper_states {
 	COP_stop,
+	COP_waitforever,
 	COP_read1,
 	COP_read2,
 	COP_bltwait,
@@ -464,17 +465,17 @@ void alloc_cycle_ext (int hpos, int type)
 	alloc_cycle (hpos, type);
 }
 
-void alloc_cycle_blitter (int hpos, uaecptr *ptr)
+void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 {
 	if (cycle_line[hpos] & CYCLE_COPPER_SPECIAL) {
 		static int warned = 100;
 		uaecptr srcptr = cop_state.strobe == 1 ? cop1lc : cop2lc;
 		if (warned > 0) {
-			write_log (_T("buggy copper cycle conflict with blitter %08x <- %08x\n"), *ptr, srcptr);
+			write_log (_T("buggy copper cycle conflict with blitter ch %c %08x <- %08x PC=%08x\n"), 'A' + (chnum - 1), *ptr, srcptr, m68k_getpc ());
 			warned--;
 		}
-		if (currprefs.cpu_model == 68000)
-			*ptr = srcptr;
+//		if (currprefs.cpu_model == 68000)
+//			*ptr = srcptr;
 	}
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
@@ -3543,7 +3544,7 @@ static void COPJMP (int num, int vblank)
 	cop_state.ignore_next = 0;
 	if (!oldstrobe)
 		cop_state.state_prev = cop_state.state;
-	if ((cop_state.state == COP_wait || cop_state.state == COP_stop) && !vblank) {
+	if ((cop_state.state == COP_wait || cop_state.state == COP_waitforever) && !vblank) {
 		cop_state.state = COP_strobe_delay1x;
 	} else {
 		cop_state.state = vblank ? COP_start_delay : (copper_access ? COP_strobe_delay1 : COP_strobe_extra);
@@ -4719,13 +4720,13 @@ static void update_copper (int until_hpos)
 			// Cycle can be free and copper won't allocate it.
 			// If Blitter uses this cycle = Copper's address gets copied blitter DMA pointer..
 			cop_state.state = COP_strobe_delay2x;
-			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
 			break;
 		case COP_strobe_delay2x:
-			// Second cycle fetches following word and tosses it away. Must be free cycle.
+			// Second cycle fetches following word and tosses it away. Must be free cycle
+			// but is not allocated, blitter or cpu can still use it.
 			if (copper_cant_read (old_hpos, 1))
 				continue;
-			alloc_cycle (old_hpos, CYCLE_COPPER);
+			cycle_line[old_hpos] |= CYCLE_COPPER_SPECIAL;
 			if (debug_dma)
 				record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);
 			cop_state.state = COP_read1;
@@ -4865,7 +4866,7 @@ static void update_copper (int until_hpos)
 			vp = vpos & (((cop_state.saved_i2 >> 8) & 0x7F) | 0x80);
 
 			if (cop_state.saved_i1 == 0xFFFF && cop_state.saved_i2 == 0xFFFE) {
-				cop_state.state = COP_stop;
+				cop_state.state = COP_waitforever;
 				copper_enabled_thisline = 0;
 				unset_special (SPCFLAG_COPPER);
 				goto out;
@@ -4959,7 +4960,7 @@ static void compute_spcflag_copper (int hpos)
 
 	copper_enabled_thisline = 0;
 	unset_special (SPCFLAG_COPPER);
-	if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_bltwait || nocustom ())
+	if (!dmaen (DMA_COPPER) || cop_state.state == COP_stop || cop_state.state == COP_waitforever || cop_state.state == COP_bltwait || nocustom ())
 		return;
 
 	if (cop_state.state == COP_wait) {
@@ -6572,7 +6573,7 @@ void custom_reset (int hardreset)
 	write_log (_T("Reset at %08X\n"), M68K_GETPC);
 	memory_map_dump ();
 
-	lightpen_x = lightpen_y = -1;
+	lightpen_active = -1;
 	lightpen_triggered = 0;
 	lightpen_cx = lightpen_cy = -1;
 	if (!savestate_state) {

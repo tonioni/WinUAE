@@ -167,7 +167,7 @@ typedef enum {
 } BLIT_OPCODE;
 
 #include "win32gui.h"
-#include "resource"
+#include "resource.h"
 
 #define UAE_RTG_LIBRARY_VERSION 40
 #define UAE_RTG_LIBRARY_REVISION 3994

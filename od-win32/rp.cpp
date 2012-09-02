@@ -31,7 +31,7 @@
 #include "registry.h"
 #include "win32gui.h"
 #include "drawing.h"
-#include <resource>
+#include "resource.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;

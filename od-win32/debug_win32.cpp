@@ -15,7 +15,7 @@
 #include <windowsx.h>
 #include <commctrl.h>
 
-#include "resource"
+#include "resource.h"
 
 #include "options.h"
 #include "memory.h"

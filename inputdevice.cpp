@@ -226,6 +226,7 @@ static uae_u8 pot_dat[NORMAL_JPORTS][2];
 static int pot_dat_act[NORMAL_JPORTS][2];
 static int analog_port[NORMAL_JPORTS][2];
 static int digital_port[NORMAL_JPORTS][2];
+static int lightpen;
 #define POTDAT_DELAY_PAL 8
 #define POTDAT_DELAY_NTSC 7
 
@@ -1223,10 +1224,12 @@ int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, uaecptr
 		mousehack_address = m68k_dreg (regs, 0);
 		mousehack_enable ();
 	} else if (mode == 0) {
-		uae_u8 v = get_byte (mousehack_address + MH_E);
-		v |= 0x40;
-		put_byte (mousehack_address + MH_E, v);
-		write_log (_T("Tablet driver running (%08x,%02x)\n"), mousehack_address, v);
+		if (mousehack_address) {
+			uae_u8 v = get_byte (mousehack_address + MH_E);
+			v |= 0x40;
+			put_byte (mousehack_address + MH_E, v);
+			write_log (_T("Tablet driver running (%08x,%02x)\n"), mousehack_address, v);
+		}
 	} else if (mode == 1) {
 		int x1 = -1, y1 = -1, x2 = -1, y2 = -1;
 		uae_u32 props = 0;
@@ -1280,7 +1283,7 @@ void inputdevice_tablet (int x, int y, int z, int pressure, uae_u32 buttonbits, 
 	uae_u8 tmp[MH_END];
 
 	mousehack_enable ();
-	if (inputdevice_is_tablet () <= 0)
+	if (inputdevice_is_tablet () <= 0 || !mousehack_address)
 		return;
 	//write_log (_T("%d %d %d %d %08X %d %d %d %d\n"), x, y, z, pressure, buttonbits, inproximity, ax, ay, az);
 	p = get_real_address (mousehack_address);
@@ -1370,7 +1373,7 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 {
 	uae_u8 *p;
 
-	if (!uae_boot_rom)
+	if (!uae_boot_rom || !mousehack_address)
 		return;
 	p = get_real_address (mousehack_address);
 
@@ -2236,6 +2239,7 @@ static int handle_custom_event (const TCHAR *custom)
 
 	if (custom == NULL)
 		return 0;
+	config_changed = 1;
 	write_log (_T("%s\n"), custom);
 	p = buf = my_strdup (custom);
 	while (p && *p) {
@@ -2253,11 +2257,16 @@ static int handle_custom_event (const TCHAR *custom)
 				nextp++;
 		}
 		//write_log (L"-> '%s'\n", p);
-		cfgfile_parse_line (&changed_prefs, p, 0);
+		if (!_tcsicmp (p, _T("no_config_check"))) {
+			config_changed = 0;
+		} else if (!_tcsicmp (p, _T("do_config_check"))) {
+			config_changed = 1;
+		} else {
+			cfgfile_parse_line (&changed_prefs, p, 0);
+		}
 		p = nextp;
 	}
 	xfree (buf);
-	config_changed = 1;
 	return 0;
 }
 
@@ -2844,10 +2853,11 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 	{
 	case 5: /* lightpen/gun */
 		{
-			if (lightpen_x < 0 && lightpen_y < 0) {
+			if (!lightpen_active) {
 				lightpen_x = gfxvidinfo.outbuffer->outwidth / 2;
 				lightpen_y = gfxvidinfo.outbuffer->outheight / 2;
 			}
+			lightpen_active = true;
 			if (ie->type == 0) {
 				int delta = 0;
 				if (max == 0)
@@ -3716,6 +3726,15 @@ static int isdigitalbutton (int ei)
 	return 0;
 }
 
+static int islightpen (int ei)
+{
+	if (ei >= INPUTEVENT_LIGHTPEN_FIRST && ei < INPUTEVENT_LIGHTPEN_LAST) {
+		lightpen = 1;
+		return 1;
+	}
+	return 0;
+}
+
 static void isqualifier (int ei)
 {
 }
@@ -3739,6 +3758,9 @@ static void scanevents (struct uae_prefs *p)
 			joydirpot[i][j] = 128 / (312 * 100 / currprefs.input_analog_joystick_mult) + (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
 		}
 	}
+	lightpen = 0;
+	if (lightpen_active > 0)
+		lightpen_active = -1;
 
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		use_joysticks[i] = 0;
@@ -3754,6 +3776,7 @@ static void scanevents (struct uae_prefs *p)
 					ismouse (ei);
 					isdigitalbutton (ei);
 					isqualifier (ei);
+					islightpen (ei);
 					if (joysticks[i].eventid[ID_BUTTON_OFFSET + j][k] > 0)
 						use_joysticks[i] = 1;
 				}
@@ -3765,6 +3788,7 @@ static void scanevents (struct uae_prefs *p)
 					ismouse (ei);
 					isdigitalbutton (ei);
 					isqualifier (ei);
+					islightpen (ei);
 					if (mice[i].eventid[ID_BUTTON_OFFSET + j][k] > 0)
 						use_mice[i] = 1;
 				}
@@ -3781,6 +3805,7 @@ static void scanevents (struct uae_prefs *p)
 					isanalog (ei);
 					isdigitalbutton (ei);
 					isqualifier (ei);
+					islightpen (ei);
 					if (ei > 0)
 						use_joysticks[i] = 1;
 				}
@@ -3792,6 +3817,7 @@ static void scanevents (struct uae_prefs *p)
 					isanalog (ei);
 					isdigitalbutton (ei);
 					isqualifier (ei);
+					islightpen (ei);
 					if (ei > 0)
 						use_mice[i] = 1;
 				}
@@ -3812,6 +3838,7 @@ static void scanevents (struct uae_prefs *p)
 					ismouse (ei);
 					isdigitalbutton (ei);
 					isqualifier (ei);
+					islightpen (ei);
 					if (ei > 0)
 						scancodeused[i][keyboards[i].extra[j]] = ei;
 				}
@@ -5459,13 +5486,12 @@ static int put_event_data (const struct inputdevice_functions *id, int devnum, i
 		if ((flags & (mask1 | mask2)) == (mask1 | mask2))
 			flags &= ~mask2;
 	}
-	if (custom && custom[0] == 0) {
+	if (custom && custom[0] == 0)
 		custom = NULL;
+	if (custom)
 		eventid = 0;
-	}
-	if (eventid <= 0 && !custom) {
+	if (eventid <= 0 && !custom)
 		flags = 0;
-	}
 
 	ret = -1;
 	if (type == IDEV_WIDGET_BUTTON || type == IDEV_WIDGET_BUTTONAXIS) {

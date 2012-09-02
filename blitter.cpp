@@ -719,7 +719,7 @@ static void decide_blitter_line (int hsync, int hpos)
 			if (c == 3) {
 
 				blitter_read ();
-				alloc_cycle_blitter (last_blitter_hpos, &bltcpt);
+				alloc_cycle_blitter (last_blitter_hpos, &bltcpt, 3);
 				record_dma_blit (0x70, blt_info.bltcdat, bltcpt, last_blitter_hpos);
 
 			} else if (c == 5) {
@@ -737,7 +737,7 @@ static void decide_blitter_line (int hsync, int hpos)
 				/* onedot mode and no pixel = bus write access is skipped */
 				if (blitlinepixel) {
 					blitter_write ();
-					alloc_cycle_blitter (last_blitter_hpos, &bltdpt);
+					alloc_cycle_blitter (last_blitter_hpos, &bltdpt, 4);
 					record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
 					blitlinepixel = 0;
 				}
@@ -892,7 +892,7 @@ STATIC_INLINE void blitter_doddma (int hpos)
 	record_dma_blit (0x00, d, bltdpt, hpos);
 	last_custom_value1 = d;
 	chipmem_agnus_wput2 (bltdpt, d);
-	alloc_cycle_blitter (hpos, &bltdpt);
+	alloc_cycle_blitter (hpos, &bltdpt, 4);
 	bltdpt += blit_add;
 	blitter_hcounter2++;
 	if (blitter_hcounter2 == blt_info.hblitsize) {
@@ -919,7 +919,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 		addr = bltapt;
 		bltapt += blit_add;
 		reg = 0x74;
-		alloc_cycle_blitter (hpos, &bltapt);
+		alloc_cycle_blitter (hpos, &bltapt, 1);
 		break;
 	case 2:
 		blt_info.bltbdat = dat = chipmem_wget_indirect (bltbpt);
@@ -932,7 +932,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 			blt_info.bltbhold = (((uae_u32)prevb << 16) | blt_info.bltbdat) >> blt_info.blitbshift;
 		prevb = blt_info.bltbdat;
 		reg = 0x72;
-		alloc_cycle_blitter (hpos, &bltbpt);
+		alloc_cycle_blitter (hpos, &bltbpt, 2);
 		break;
 	case 3:
 		blt_info.bltcdat = dat = chipmem_wget_indirect (bltcpt);
@@ -940,7 +940,7 @@ STATIC_INLINE void blitter_dodma (int ch, int hpos)
 		addr = bltcpt;
 		bltcpt += blit_add;
 		reg = 0x70;
-		alloc_cycle_blitter (hpos, &bltcpt);
+		alloc_cycle_blitter (hpos, &bltcpt, 3);
 		break;
 	default:
 		abort ();

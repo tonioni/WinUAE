@@ -4,7 +4,7 @@
 
 #if defined(LOGITECHLCD)
 
-#include "resource"
+#include "resource.h"
 #include "gui.h"
 #include "lcd.h"
 

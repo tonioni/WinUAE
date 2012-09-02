@@ -21,7 +21,7 @@ Copyright(c) 2001 - 2002; §ane
 #include "sysconfig.h"
 #include "sysdeps.h"
 
-#include "resource"
+#include "resource.h"
 
 #include "options.h"
 #include "audio.h"

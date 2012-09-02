@@ -207,7 +207,7 @@ STATIC_INLINE int GET_PLANES(uae_u16 bplcon0)
 
 extern void fpscounter_reset (void);
 extern unsigned long idletime;
-extern int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy;
+extern int lightpen_x, lightpen_y, lightpen_cx, lightpen_cy, lightpen_active;
 
 struct customhack {
 	uae_u16 v;
@@ -216,7 +216,7 @@ struct customhack {
 void customhack_put (struct customhack *ch, uae_u16 v, int hpos);
 uae_u16 customhack_get (struct customhack *ch, int hpos);
 extern void alloc_cycle_ext (int, int);
-extern void alloc_cycle_blitter (int hpos, uaecptr *ptr);
+extern void alloc_cycle_blitter (int hpos, uaecptr *ptr, int);
 extern bool ispal (void);
 extern int current_maxvpos (void);
 extern struct chipset_refresh *get_chipset_refresh (void);

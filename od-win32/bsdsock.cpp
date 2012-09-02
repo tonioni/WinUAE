@@ -17,7 +17,7 @@
 
 #if defined(BSDSOCKET)
 
-#include "resource"
+#include "resource.h"
 
 #include <stddef.h>
 #include <process.h>

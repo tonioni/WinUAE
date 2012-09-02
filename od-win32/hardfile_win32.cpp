@@ -6,7 +6,7 @@
 
 #include <shellapi.h>
 
-#include "resource"
+#include "resource.h"
 
 #include "threaddep/thread.h"
 #include "options.h"
