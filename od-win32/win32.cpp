@@ -116,7 +116,8 @@ void *globalipc, *serialipc;
 int qpcdivisor = 0;
 int cpu_mmx = 1;
 static int userdtsc = 0;
-int D3DEX = 1, d3ddebug = 0;
+int D3DEX = 1;
+int d3ddebug = 0;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
@@ -149,7 +150,6 @@ HKEY hWinUAEKey = NULL;
 COLORREF g_dwBackgroundColor;
 
 static int activatemouse = 1;
-int ignore_messages_all;
 int pause_emulation;
 
 static int didmousepos;
@@ -175,6 +175,9 @@ TCHAR start_path_plugins[MAX_DPATH];
 TCHAR start_path_new1[MAX_DPATH]; /* AF2005 */
 TCHAR start_path_new2[MAX_DPATH]; /* AMIGAFOREVERDATA */
 TCHAR help_file[MAX_DPATH];
+TCHAR bootlogpath[MAX_DPATH];
+TCHAR logpath[MAX_DPATH];
+bool winuaelog_temporary_enable;
 int af_path_2005;
 int quickstart = 1, configurationcache = 1, relativepaths = 0;
 
@@ -975,9 +978,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 	}
 
-	if (ignore_messages_all)
-		return DefWindowProc (hWnd, message, wParam, lParam);
-
 	switch (message)
 	{
 
@@ -1002,6 +1002,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			ignorelbutton = true;
 		break;
 	case WM_ACTIVATEAPP:
+		D3D_restore ();
 		if (!wParam && isfullscreen () <= 0 && currprefs.win32_minimize_inactive)
 			minimizewindow ();
 
@@ -2300,6 +2301,7 @@ void toggle_mousegrab (void)
 {
 }
 
+
 #define LOG_BOOT _T("winuaebootlog.txt")
 #define LOG_NORMAL _T("winuaelog.txt")
 
@@ -2307,20 +2309,24 @@ static bool createbootlog = true;
 
 void logging_open (int bootlog, int append)
 {
+	TCHAR *outpath;
 	TCHAR debugfilename[MAX_DPATH];
 
+	outpath = logpath;
 	debugfilename[0] = 0;
 #ifndef	SINGLEFILE
-	if (currprefs.win32_logfile)
+	if (currprefs.win32_logfile || winuaelog_temporary_enable) {
 		_stprintf (debugfilename, _T("%s%s"), start_path_data, LOG_NORMAL);
+	}
 	if (bootlog) {
 		_stprintf (debugfilename, _T("%s%s"), start_path_data, LOG_BOOT);
+		outpath = bootlogpath;
 		if (!createbootlog)
 			bootlog = -1;
 	}
 	if (debugfilename[0]) {
 		if (!debugfile)
-			debugfile = log_open (debugfilename, append, bootlog);
+			debugfile = log_open (debugfilename, append, bootlog, outpath);
 	}
 #endif
 }
@@ -2342,7 +2348,7 @@ void logging_init (void)
 		return;
 	}
 	if (first == 1) {
-		write_log (_T("Log (%s): '%s%s'\n"), currprefs.win32_logfile ? _T("enabled") : _T("disabled"),
+		write_log (_T("Log (%s): '%s%s'\n"), currprefs.win32_logfile || winuaelog_temporary_enable ? _T("enabled") : _T("disabled"),
 			start_path_data, LOG_NORMAL);
 		if (debugfile)
 			log_close (debugfile);
@@ -5936,7 +5942,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
 
-	log_open (NULL, 0, 0);
+	log_open (NULL, 0, 0, NULL);
 	
 	__try {
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);

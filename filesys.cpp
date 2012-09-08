@@ -265,6 +265,12 @@ static void close_filesys_unit (UnitInfo *uip)
 	uip->cd_open = 0;
 }
 
+static uaedev_config_info *getuci (struct uaedev_config_info *uci, int nr)
+{
+	return &uci[nr];
+}
+
+
 static UnitInfo *getuip (struct uae_prefs *p, int index)
 {
 	if (index < 0)
@@ -277,7 +283,7 @@ static UnitInfo *getuip (struct uae_prefs *p, int index)
 
 int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *mi)
 {
-	UnitInfo *ui = getuip(p, index);
+	UnitInfo *ui = getuip (p, index);
 	struct uaedev_config_info *uci = &p->mountconfig[index];
 	UnitInfo uitmp;
 
@@ -287,7 +293,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		ui = &uitmp;
 		if (!uci->ishdf) {
 			mi->ismounted = 1;
-			if (uci->rootdir && _tcslen(uci->rootdir) == 0)
+			if (uci->rootdir && _tcslen (uci->rootdir) == 0)
 				return FILESYS_VIRTUAL;
 			if (my_existsfile (uci->rootdir)) {
 				mi->ismedia = 1;
@@ -625,7 +631,7 @@ int kill_filesys_unitconfig (struct uae_prefs *p, int nr)
 
 	if (nr < 0)
 		return 0;
-	uci = &p->mountconfig[nr];
+	uci = getuci (p->mountconfig, nr);
 	hardfile_do_disk_change (uci, 0);
 	if (uci->configoffset >= 0 && uci->controller == 0)
 		filesys_media_change (uci->rootdir, 0, uci);
@@ -642,8 +648,8 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
 {
 	struct uaedev_config_info *uci1, *uci2, tmpuci;
 
-	uci1 = &p->mountconfig[nr];
-	uci2 = &p->mountconfig[to];
+	uci1 = getuci (p->mountconfig, nr);
+	uci2 = getuci (p->mountconfig, to);
 	if (nr == to)
 		return 0;
 	memcpy (&tmpuci, uci1, sizeof (struct uaedev_config_info));
@@ -654,6 +660,19 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
 
 
 void filesys_addexternals (void);
+
+static void allocuci (struct uae_prefs *p, int nr, int idx)
+{
+	struct uaedev_config_info *uci = &p->mountconfig[nr];
+	if (idx >= 0) {
+		UnitInfo *ui;
+		uci->configoffset = idx;
+		ui = &mountinfo.ui[idx];
+		ui->configureddrive = 1;
+	} else {
+		uci->configoffset = -1;
+	}
+}
 
 static void initialize_mountinfo (void)
 {
@@ -669,46 +688,13 @@ static void initialize_mountinfo (void)
 			int idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 				uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
 				uci->blocksize, uci->bootpri, uci->donotmount, uci->autoboot, uci->filesys, 0, MYVOLUMEINFO_REUSABLE);
-			if (idx >= 0) {
-				UnitInfo *ui;
-				uci->configoffset = idx;
-				ui = &mountinfo.ui[idx];
-				ui->configureddrive = 1;
-			}
-		} else if (uci->controller <= HD_CONTROLLER_IDE3) {
-			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
-				uci->devname, uci->sectors, uci->surfaces, uci->reserved,
-				uci->bootpri, uci->filesys);
-		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-			if (currprefs.cs_mbdmac) {
-#ifdef A2091
-				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
-					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
-					uci->bootpri, uci->filesys);
-#endif
-			} else if (currprefs.cs_a2091) {
-#ifdef A2091
-				a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
-					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
-					uci->bootpri, uci->filesys);
-#endif
-			} else if (currprefs.cs_cdtvscsi) {
-#ifdef CDTV
-				cdtv_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
-					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
-					uci->bootpri, uci->filesys);
-#endif
-			}
-		} else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
-			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
-		} else if (uci->controller == HD_CONTROLLER_PCMCIA_IDE) {
-			gayle_add_pcmcia_ide_unit (uci->rootdir, uci->readonly);
+			allocuci (&currprefs, nr, idx);
 		}
 	}
 	filesys_addexternals ();
-	cd_unit_offset = nr_units ();
+	nr = nr_units ();
+	cd_unit_offset = nr;
 	cd_unit_number = 0;
-	
 #if USE_CDFS == 2
 	if (currprefs.scsi && currprefs.win32_automount_cddrives && USE_CDFS) {
 		uae_u32 mask = scsi_get_cd_drive_mask ();
@@ -718,18 +704,54 @@ static void initialize_mountinfo (void)
 				_stprintf (cdname, _T("CD%d"), i);
 				cd_unit_number++;
 				int idx = set_filesys_unit_1 (i + cd_unit_offset, cdname, NULL, _T("/"), true, 1, 1, 0, 2048, 0, false, false, NULL, 0, 0);
-				if (idx >= 0) {
-					UnitInfo *ui;
-					uci = &currprefs.mountconfig[nr];
-					uci->configoffset = idx;
-					ui = &mountinfo.ui[idx];
-					ui->configureddrive = 1;
-					nr++;
-				}
+				allocuci (&currprefs, nr, idx);
+				nr++;
 			}
 		}
 	}
 #endif
+
+	for (nr = 0; nr < currprefs.mountitems; nr++) {
+		if (uci->controller == HD_CONTROLLER_UAE)
+			continue;
+		if (uci->controller <= HD_CONTROLLER_IDE3) {
+			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
+				uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+				uci->bootpri, uci->filesys);
+			allocuci (&currprefs, nr, -1);
+		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
+			if (currprefs.cs_mbdmac) {
+#ifdef A2091
+				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+					uci->bootpri, uci->filesys);
+				allocuci (&currprefs, nr, -1);
+#endif
+			} else if (currprefs.cs_a2091) {
+#ifdef A2091
+				a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+					uci->bootpri, uci->filesys);
+				allocuci (&currprefs, nr, -1);
+#endif
+			} else if (currprefs.cs_cdtvscsi) {
+#ifdef CDTV
+				cdtv_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
+					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
+					uci->bootpri, uci->filesys);
+				allocuci (&currprefs, nr, -1);
+#endif
+			}
+		} else if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+			gayle_add_pcmcia_sram_unit (uci->rootdir, uci->readonly);
+			allocuci (&currprefs, nr, -1);
+		} else if (uci->controller == HD_CONTROLLER_PCMCIA_IDE) {
+			gayle_add_pcmcia_ide_unit (uci->rootdir, uci->readonly);
+			allocuci (&currprefs, nr, -1);
+		}
+	}
+	
+
 }
 
 
@@ -1424,10 +1446,9 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 			// insert
 			uae_u32 ctime = 0;
 			bool emptydrive = false;
-			struct uaedev_config_info *uci;
+			struct uaedev_config_info *uci = NULL;
 
 			clear_exkeys (u);
-			uci = &currprefs.mountconfig[nr];
 			xfree (u->ui.rootdir);
 			ui->rootdir = u->ui.rootdir = my_strdup (u->mount_rootdir);
 			flush_cache (u, -1);
@@ -1464,6 +1485,7 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 #ifdef RETROPLATFORM
 				rp_harddrive_image_change (nr, u->mount_readonly, u->mount_rootdir);
 #endif
+				uci = getuci (currprefs.mountconfig, nr);
 			}
 			if (u->ui.unknown_media) {
 				write_log (_T("FILESYS: inserted unreadable volume NR=%d RO=%d\n"), nr, u->mount_readonly);
@@ -1472,10 +1494,15 @@ static uae_u32 filesys_media_change_reply (TrapContext *ctx, int mode)
 				set_volume_name (u, ctime);
 				if (u->mount_flags >= 0)
 					ui->volflags = u->volflags = u->ui.volflags = u->mount_flags;
-				_tcscpy (uci->volname, ui->volname);
-				_tcscpy (uci->rootdir, u->mount_rootdir);
-				if (u->mount_flags >= 0)
-					uci->readonly = ui->readonly = u->ui.readonly = u->mount_readonly;
+				if (uci != NULL) {
+					_tcscpy (uci->volname, ui->volname);
+					_tcscpy (uci->rootdir, u->mount_rootdir);
+				}
+				if (u->mount_flags >= 0) {
+					ui->readonly = u->ui.readonly = u->mount_readonly;
+					if (uci != NULL)
+						uci->readonly = u->mount_readonly;
+				}
 				put_byte (u->volume + 44, 0);
 				put_byte (u->volume + 172 - 32, 1);
 			}

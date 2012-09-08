@@ -2537,6 +2537,8 @@ void isofs_dispose_inode(void *sbp, uae_u64 uniq)
 	struct inode *inode;
 	struct inode *old = NULL, *prev = NULL;
 
+	if (!sb)
+		return;
 	inode = sb->inodes;
 	while (inode) {
 		if (inode->i_ino == uniq) {

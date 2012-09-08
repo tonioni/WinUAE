@@ -53,7 +53,7 @@ extern size_t zfile_fread  (void *b, size_t l1, size_t l2, struct zfile *z);
 extern size_t zfile_fwrite  (const void *b, size_t l1, size_t l2, struct zfile *z);
 extern TCHAR *zfile_fgets (TCHAR *s, int size, struct zfile *z);
 extern char *zfile_fgetsa (char *s, int size, struct zfile *z);
-extern size_t zfile_fputs (struct zfile *z, TCHAR *s);
+extern size_t zfile_fputs (struct zfile *z, const TCHAR *s);
 extern int zfile_getc (struct zfile *z);
 extern int zfile_putc (int c, struct zfile *z);
 extern int zfile_ferror (struct zfile *z);

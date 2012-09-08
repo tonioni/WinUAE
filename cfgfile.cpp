@@ -3080,7 +3080,7 @@ static int getconfigstoreline (const TCHAR *option, TCHAR *value)
 
 static bool createconfigstore (struct uae_prefs *p)
 {
-	uae_u8 zero = 0;
+	uae_u8 zeros[4] = { 0 };
 	zfile_fclose (configstore);
 	configstore = zfile_fopen_empty (NULL, _T("configstore"), 50000);
 	if (!configstore)
@@ -3089,7 +3089,7 @@ static bool createconfigstore (struct uae_prefs *p)
 	uaeconfig++;
 	cfgfile_save_options (configstore, p, 0);
 	uaeconfig--;
-	cfg_write (&zero, configstore);
+	zfile_fwrite (zeros, 1, sizeof zeros, configstore);
 	zfile_fseek (configstore, 0, SEEK_SET);
 	return true;
 }
@@ -4042,25 +4042,26 @@ uae_u8 *restore_configuration (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_configuration (int *len)
+uae_u8 *save_configuration (int *len, bool fullconfig)
 {
-	int tmpsize = 30000;
+	int tmpsize = 100000;
 	uae_u8 *dstbak, *dst, *p;
 	int index = -1;
 
-	dstbak = dst = xmalloc (uae_u8, tmpsize);
+	dstbak = dst = xcalloc (uae_u8, tmpsize);
 	p = dst;
 	for (;;) {
-		TCHAR tmpout[256];
+		TCHAR tmpout[1000];
 		int ret;
 		tmpout[0] = 0;
 		ret = cfgfile_modify (index, _T("*"), 1, tmpout, sizeof (tmpout) / sizeof (TCHAR));
 		index++;
 		if (_tcslen (tmpout) > 0) {
 			char *out;
-			if (!_tcsncmp (tmpout, _T("input."), 6))
+			if (!fullconfig && !_tcsncmp (tmpout, _T("input."), 6))
 				continue;
-			out = ua (tmpout);
+			write_log (_T("'%s'\n"), tmpout);
+			out = uutf8 (tmpout);
 			strcpy ((char*)p, out);
 			xfree (out);
 			strcat ((char*)p, "\n");
@@ -4123,6 +4124,11 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->parallel_autoflush_time = 5;
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
+
+	p->mountitems = 0;
+	for (i = 0; i < MOUNT_CONFIG_SIZE; i++) {
+		p->mountconfig[i].configoffset = -1;
+	}
 
 	memset (&p->jports[0], 0, sizeof (struct jport));
 	memset (&p->jports[1], 0, sizeof (struct jport));
@@ -4257,7 +4263,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	p->gfx_filter_keep_aspect = 0;
 	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
-	p->gfx_filter_keep_autoscale_aspect = true;
+	p->gfx_filter_keep_autoscale_aspect = false;
 	p->gfx_filteroverlay_overscan = 0;
 
 	_tcscpy (p->floppyslots[0].df, _T("df0.adf"));

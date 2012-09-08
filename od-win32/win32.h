@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("15")
-#define WINUAEDATE MAKEBD(2012, 9, 2)
+#define WINUAEBETA _T("16")
+#define WINUAEDATE MAKEBD(2012, 9, 8)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -38,7 +38,6 @@ extern int manual_palette_refresh_needed;
 extern int mouseactive;
 extern int minimized;
 extern int monitor_off;
-extern int ignore_messages_all;
 extern void *globalipc, *serialipc;
 
 extern TCHAR start_path_exe[MAX_DPATH];
@@ -92,6 +91,9 @@ extern int win_x_diff, win_y_diff;
 extern int window_extra_width, window_extra_height;
 extern int af_path_2005;
 extern TCHAR start_path_new1[MAX_DPATH], start_path_new2[MAX_DPATH];
+extern TCHAR bootlogpath[MAX_DPATH];
+extern TCHAR logpath[MAX_DPATH];
+extern bool winuaelog_temporary_enable;
 enum pathtype { PATH_TYPE_DEFAULT, PATH_TYPE_WINUAE, PATH_TYPE_NEWWINUAE, PATH_TYPE_NEWAF, PATH_TYPE_AMIGAFOREVERDATA, PATH_TYPE_END };
 void setpathmode (pathtype pt);
 

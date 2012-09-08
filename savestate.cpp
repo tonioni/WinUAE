@@ -1012,7 +1012,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	/* move this if you want to use CONF or LOG hunks when restoring state */
 	zfile_fwrite (endhunk, 1, 8, f);
 
-	dst = save_configuration (&len);
+	dst = save_configuration (&len, false);
 	if (dst) {
 		save_chunk (f, dst, len, _T("CONF"), comp);
 		xfree(dst);

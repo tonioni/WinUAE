@@ -916,11 +916,14 @@
 #define IDC_DF1QQ                       1680
 #define IDC_PATHS_RIPS                  1680
 #define IDC_QUICKSTART_SETCONFIG        1681
+#define IDC_LOGOPEN                     1681
 #define IDC_CONFIGAUTO                  1682
 #define IDC_CD0Q_TYPE                   1682
 #define IDC_DF0TEXTQ                    1683
 #define IDC_CONFIGNOLINK                1683
 #define IDC_DF0WPQ                      1684
+#define IDC_LOGOPEN2                    1684
+#define IDC_LOGSAVE                     1684
 #define IDC_EJECT0Q                     1685
 #define IDC_DF1WPQ                      1686
 #define IDC_EJECT1Q                     1687
@@ -943,6 +946,7 @@
 #define IDC_PATHS_DEFAULTTYPE           1704
 #define IDC_SCSIMODE                    1705
 #define IDC_PROGRESSBAR                 1705
+#define IDC_LOGSELECT                   1705
 #define IDC_PROGRESSBAR_TEXT            1706
 #define IDC_LANGUAGE                    1706
 #define IDC_CREATE_NAME                 1707
@@ -1063,6 +1067,7 @@
 #define IDC_PORT_TABLET_FULL            1790
 #define IDC_CPU_MULTIPLIER              1790
 #define IDC_CPU_FREQUENCY2              1790
+#define IDC_LOGENABLE                   1790
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
@@ -1097,6 +1102,7 @@
 #define IDC_STATENAME                   1811
 #define IDC_SAMPLER_STEREO              1812
 #define IDC_LISTDIALOG_LIST             1813
+#define IDC_LOGPATH                     1814
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1147,7 +1153,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        387
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1814
+#define _APS_NEXT_CONTROL_VALUE         1815
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

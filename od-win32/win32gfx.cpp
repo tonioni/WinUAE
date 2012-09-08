@@ -1496,8 +1496,8 @@ static int open_windows (int full)
 	}
 
 	bool startactive = started || (!started && !currprefs.win32_start_uncaptured && !currprefs.win32_start_minimized);
-	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause));
-	bool startminimized = !started && currprefs.win32_start_minimized;
+	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause && isfullscreen () <= 0));
+	bool startminimized = !started && currprefs.win32_start_minimized && isfullscreen () <= 0;
 
 	if (!rp_isactive () && full && startactive)
 		setmouseactive (-1);

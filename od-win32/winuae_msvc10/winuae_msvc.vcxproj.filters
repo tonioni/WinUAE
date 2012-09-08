@@ -622,4 +622,7 @@
     <Library Include="..\hq4x16.obj" />
     <Library Include="..\hq4x32.obj" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\resources\resource.h" />
+  </ItemGroup>
 </Project>

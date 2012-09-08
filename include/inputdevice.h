@@ -154,10 +154,10 @@ extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
 extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
-extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af);
-extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port, int af);
-extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int af, int mode);
-extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port, int af);
+extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af, bool gp);
+extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port, int af, bool gp);
+extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int af, int mode, bool gp);
+extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port, int af, bool gp);
 extern int input_get_default_keyboard (int num);
 
 #define DEFEVENT(A, B, C, D, E, F) INPUTEVENT_ ## A,
@@ -214,7 +214,7 @@ extern bool inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
 extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int mode);
 extern void inputdevice_compa_clear (struct uae_prefs *prefs, int index);
 extern int intputdevice_compa_get_eventtype (int evt, int **axistable);
-
+extern void inputdevice_sparecopy (struct uae_input_device *uid, int num, int sub);
 
 extern uae_u16 potgo_value;
 extern uae_u16 POTGOR (void);

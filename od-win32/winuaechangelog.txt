@@ -1,5 +1,28 @@
+- Use dos.library to detect between 1.x and 2.x (CDTV KS 1.3 + 2.x extended = exec is v37!)
+- Removable disk support was disabled.
 
 - restore only single input target to default.
+
+Beta 16:
+
+- Added easy to use log options to Paths panel. Open = open selected log or current config to text editor. 
+  Save All = create file that includes both logs and current configuration. Makes requesting logs easier for debugging purposes.
+  Log checkbox overrides misc panel logging option. Checkbox state not saved, resets back to non ticked after restarting.
+  (Included config is exact current configuration, not necessary same as last loaded config file)
+- Fixed uae-configuration config listing garbage ????? line at the end.
+- USB HID game controller [-] and [+] input axis movement used wrong event (one-shot instead of normal press/release).
+- Possible fix for D3D display alignment errors in some modes (AMD only apparently)
+- Fixed D3D blank screen after alt-tabbing back to fullscreen mode. Non-D3DEx (Windows XP mainly) only.
+- Non UAE HD controller harddrives and CDFS config data conflict, inserting CD corrupted HDF path.
+- Some CD (both images and physical drives) on the fly media switching problems fixed.
+- Ignore start uncaptured and start minimized if starting in fullscreen mode.
+- Input panel slots #2-#8 not saved to config file if slot #1 had GamePorts [PORTx] event.
+- Configuration #1-#3 selected and GamePorts not set to <none> and then changed back to <none>, original slot #1 event was not restored.
+- CD32 gameport type also enabled normal joystick firebutton/2nd button event. Only CD32 red and blue are needed.
+- Break to debugger if program jumps to non-existing memory ("Did something stupid") and any break point is already active.
+- Remember last selected Input panel device.
+- 64-bit build now support up to 2.5G memory space and max 2G of Z3 fast RAM, emulated as 2x1G Z3 boards (1G is max Z3 board size)
+  Note that AmigaOS may have signed integer problems if 2G border is crossed.
 
 Beta 15:
 

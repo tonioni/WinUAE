@@ -3328,7 +3328,8 @@ static int disk_swap (int entry, int mode)
 	return 1;
 }
 
-static int input_selected_device, input_selected_widget, input_total_devices;
+static int input_selected_device = -1;
+static int input_selected_widget, input_total_devices;
 static int input_selected_event, input_selected_sub_num;
 static int input_copy_from;
 
@@ -4756,6 +4757,68 @@ static void resetregistry (void)
 	regdelete (NULL, _T("ShownsupportedModes"));
 }
 
+static void copylog (const TCHAR *name, const TCHAR *path, FILE *f)
+{
+	FILE *s;
+
+	s = my_opentext (path);
+	if (s) {
+		fputws (_T("\n"), f);
+		fputws (name, f);
+		fputws (_T(":\n"), f);
+		fputws (_T("\n"), f);
+		for (;;) {
+			TCHAR buf[MAX_DPATH];
+			if (!fgetws (buf, sizeof buf / sizeof (TCHAR), s))
+				break;
+			fputws (buf, f);
+		}
+		fclose (s);
+	}
+}
+static void saveconfig (FILE *f)
+{
+	int len;
+	uae_u8 *s;
+	
+	s = save_configuration (&len, true);
+	if (!s)
+		return;
+	TCHAR *c = utf8u ((char*)s);
+	fputws (c, f);
+	xfree (c);
+	xfree (s);
+}
+
+static void savelog (int all)
+{
+	FILE *f;
+
+	TCHAR tmp[MAX_DPATH];
+	tmp[0] = 0;
+	if (GetTempPath (MAX_DPATH, tmp) <= 0)
+		return;
+	if (all) {
+		flush_log ();
+		_tcscat (tmp, _T("winuae_debug.txt"));
+		f = _tfopen (tmp, _T("wt, ccs=UTF-8"));
+		copylog (_T("winuaebootlog"), bootlogpath, f);
+		copylog (_T("winuaelog"), logpath, f);
+		fputws (_T("\n"), f);
+		fputws (_T("configuration:"), f);
+		fputws (_T(":\n"), f);
+		fputws (_T("\n"), f);
+		saveconfig (f);
+		fclose (f);
+	} else {
+		_tcscat (tmp, _T("winuae_config.txt"));
+		f = _tfopen (tmp, _T("wt, ccs=UTF-8"));
+		saveconfig (f);
+		fclose (f);
+	}
+	ShellExecute (NULL, _T("open"), tmp, NULL, NULL, SW_SHOWNORMAL);
+}
+
 pathtype path_type;
 static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -4812,6 +4875,14 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		ptypes[numtypes++] = PATH_TYPE_WINUAE;
 		SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_SETCURSEL, selpath, 0);
 		EnableWindow (GetDlgItem (hDlg, IDC_PATHS_DEFAULTTYPE), numtypes > 0 ? TRUE : FALSE);
+		SetWindowText (GetDlgItem (hDlg, IDC_LOGPATH), bootlogpath);
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_RESETCONTENT, 0, 0);
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("winuaebootlog.txt"));
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("winuaelog.txt"));
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Current configuration"));
+		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_SETCURSEL, 0, 0);
+		CheckDlgButton (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable || (full_property_sheet == 0 && currprefs.win32_logfile));
+		ew (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable == false && full_property_sheet);
 		values_to_pathsdialog (hDlg);
 		recursive--;
 		return TRUE;
@@ -4820,141 +4891,180 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		if (recursive > 0)
 			break;
 		recursive++;
-		switch (LOWORD (wParam))
-		{
-		case IDC_PATHS_ROMS:
-			fetch_path (_T("KickstartPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				load_keyring (&workprefs, NULL);
-				set_path (_T("KickstartPath"), tmp);
-				if (!scan_roms (hDlg, 1))
-					gui_message_id (IDS_ROMSCANNOROMS);
-				values_to_pathsdialog (hDlg);
+		if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
+			switch (LOWORD (wParam))
+			{
+				case IDC_LOGSELECT:
+					val = SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_GETCURSEL, 0, 0L);
+					if (val == 0) {
+						SetWindowText (GetDlgItem (hDlg, IDC_LOGPATH), bootlogpath);
+						ew (hDlg, IDC_LOGOPEN, bootlogpath[0]);
+					} else if (val == 1) {
+						SetWindowText (GetDlgItem (hDlg, IDC_LOGPATH), logpath);
+						ew (hDlg, IDC_LOGOPEN, logpath[0]);
+					} else if (val == 2) {
+						SetWindowText (GetDlgItem (hDlg, IDC_LOGPATH), _T("Configuration"));
+						ew (hDlg, IDC_LOGOPEN, TRUE);
+					}
+				break;
 			}
-			break;
-		case IDC_PATHS_ROM:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_ROM), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("KickstartPath"), tmp);
-			break;
-		case IDC_PATHS_CONFIGS:
-			fetch_path (_T("ConfigurationPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("ConfigurationPath"), tmp);
-				values_to_pathsdialog (hDlg);
-				FreeConfigStore ();
-			}
-			break;
-		case IDC_PATHS_CONFIG:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_CONFIG), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("ConfigurationPath"), tmp);
-			FreeConfigStore ();
-			break;
-		case IDC_PATHS_SCREENSHOTS:
-			fetch_path (_T("ScreenshotPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("ScreenshotPath"), tmp);
-				values_to_pathsdialog (hDlg);
-			}
-			break;
-		case IDC_PATHS_SCREENSHOT:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SCREENSHOT), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("ScreenshotPath"), tmp);
-			break;
-		case IDC_PATHS_SAVESTATES:
-			fetch_path (_T("StatefilePath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("StatefilePath"), tmp);
-				values_to_pathsdialog (hDlg);
-			}
-			break;
-		case IDC_PATHS_SAVESTATE:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVESTATE), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("StatefilePath"), tmp);
-			break;
-		case IDC_PATHS_SAVEIMAGES:
-			fetch_path (_T("SaveimagePath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("SaveimagePath"), tmp);
-				values_to_pathsdialog (hDlg);
-			}
-			break;
-		case IDC_PATHS_SAVEIMAGE:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVEIMAGE), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("SaveimagePath"), tmp);
-			break;
-		case IDC_PATHS_AVIOUTPUTS:
-			fetch_path (_T("VideoPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("VideoPath"), tmp);
-				values_to_pathsdialog (hDlg);
-			}
-			break;
-		case IDC_PATHS_RIPS:
-			fetch_path (_T("RipperPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
-			if (DirectorySelection (hDlg, &pathsguid, tmp)) {
-				set_path (_T("RipperPath"), tmp);
-				values_to_pathsdialog (hDlg);
-			}
-			break;
-		case IDC_PATHS_AVIOUTPUT:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_AVIOUTPUT), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("VideoPath"), tmp);
-			break;
-		case IDC_PATHS_RIP:
-			GetWindowText (GetDlgItem (hDlg, IDC_PATHS_RIP), tmp, sizeof (tmp) / sizeof (TCHAR));
-			set_path (_T("RipperPath"), tmp);
-			break;
-		case IDC_PATHS_DEFAULT:
-			val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
-			if (val != CB_ERR && val >= 0 && val < numtypes) {
-				val = ptypes[val];
-				if (val == PATH_TYPE_WINUAE) {
-					_tcscpy (start_path_data, start_path_exe);
-					path_type = PATH_TYPE_WINUAE;
-				} else if (val == PATH_TYPE_NEWWINUAE && start_path_new1[0]) {
-					_tcscpy (start_path_data, start_path_new1);
-					path_type = PATH_TYPE_NEWWINUAE;
-					create_afnewdir(0);
-				} else if (val == PATH_TYPE_NEWAF && start_path_new1[0]) {
-					path_type = PATH_TYPE_NEWAF;
-					create_afnewdir(0);
-					_tcscpy (start_path_data, start_path_new1);
-				} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
-					path_type = PATH_TYPE_AMIGAFOREVERDATA;
-					_tcscpy (start_path_data, start_path_new1);
-				}
-				SetCurrentDirectory (start_path_data);
-				setpathmode (path_type);
-				set_path (_T("KickstartPath"), NULL, path_type);
-				set_path (_T("ConfigurationPath"), NULL, path_type);
-				set_path (_T("ScreenshotPath"), NULL, path_type);
-				set_path (_T("StatefilePath"), NULL, path_type);
-				set_path (_T("SaveimagePath"), NULL, path_type);
-				set_path (_T("VideoPath"), NULL, path_type);
-				set_path (_T("RipperPath"), NULL, path_type);
-				set_path (_T("InputPath"), NULL, path_type);
-				values_to_pathsdialog (hDlg);
-				FreeConfigStore ();
-			}
-			break;
-		case IDC_ROM_RESCAN:
-			scan_roms (hDlg, 1);
-			break;
-		case IDC_RESETREGISTRY:
-			resetregistry ();
-			break;
-		case IDC_RESETDISKHISTORY:
-			reset_disk_history ();
-			break;
-		case IDC_PATHS_CONFIGCACHE:
-			configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
-			regsetint (NULL, _T("ConfigurationCache"), configurationcache);
-			break;
-		case IDC_PATHS_RELATIVE:
-			relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
-			regsetint (NULL, _T("RelativePaths"), relativepaths);
-			break;
+		} else {
 
+			switch (LOWORD (wParam))
+			{
+			case IDC_LOGSAVE:
+				savelog (1);
+				break;
+			case IDC_LOGENABLE:
+				winuaelog_temporary_enable = ischecked (hDlg, IDC_LOGENABLE);
+				break;
+			case IDC_LOGOPEN:
+				flush_log ();
+				val = SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_GETCURSEL, 0, 0L);
+				if (val == 0) {
+					if (bootlogpath[0])
+						ShellExecute (NULL, _T("open"), bootlogpath, NULL, NULL, SW_SHOWNORMAL);
+				} else if (val == 1) {
+					if (logpath[0])
+						ShellExecute (NULL, _T("open"), logpath, NULL, NULL, SW_SHOWNORMAL);
+				} else if (val == 2) {
+					savelog (0);
+				}
+				break;
+			case IDC_PATHS_ROMS:
+				fetch_path (_T("KickstartPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					load_keyring (&workprefs, NULL);
+					set_path (_T("KickstartPath"), tmp);
+					if (!scan_roms (hDlg, 1))
+						gui_message_id (IDS_ROMSCANNOROMS);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_ROM:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_ROM), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("KickstartPath"), tmp);
+				break;
+			case IDC_PATHS_CONFIGS:
+				fetch_path (_T("ConfigurationPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("ConfigurationPath"), tmp);
+					values_to_pathsdialog (hDlg);
+					FreeConfigStore ();
+				}
+				break;
+			case IDC_PATHS_CONFIG:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_CONFIG), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("ConfigurationPath"), tmp);
+				FreeConfigStore ();
+				break;
+			case IDC_PATHS_SCREENSHOTS:
+				fetch_path (_T("ScreenshotPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("ScreenshotPath"), tmp);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_SCREENSHOT:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SCREENSHOT), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("ScreenshotPath"), tmp);
+				break;
+			case IDC_PATHS_SAVESTATES:
+				fetch_path (_T("StatefilePath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("StatefilePath"), tmp);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_SAVESTATE:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVESTATE), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("StatefilePath"), tmp);
+				break;
+			case IDC_PATHS_SAVEIMAGES:
+				fetch_path (_T("SaveimagePath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("SaveimagePath"), tmp);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_SAVEIMAGE:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_SAVEIMAGE), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("SaveimagePath"), tmp);
+				break;
+			case IDC_PATHS_AVIOUTPUTS:
+				fetch_path (_T("VideoPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("VideoPath"), tmp);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_RIPS:
+				fetch_path (_T("RipperPath"), tmp, sizeof (tmp) / sizeof (TCHAR));
+				if (DirectorySelection (hDlg, &pathsguid, tmp)) {
+					set_path (_T("RipperPath"), tmp);
+					values_to_pathsdialog (hDlg);
+				}
+				break;
+			case IDC_PATHS_AVIOUTPUT:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_AVIOUTPUT), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("VideoPath"), tmp);
+				break;
+			case IDC_PATHS_RIP:
+				GetWindowText (GetDlgItem (hDlg, IDC_PATHS_RIP), tmp, sizeof (tmp) / sizeof (TCHAR));
+				set_path (_T("RipperPath"), tmp);
+				break;
+			case IDC_PATHS_DEFAULT:
+				val = SendDlgItemMessage (hDlg, IDC_PATHS_DEFAULTTYPE, CB_GETCURSEL, 0, 0L);
+				if (val != CB_ERR && val >= 0 && val < numtypes) {
+					val = ptypes[val];
+					if (val == PATH_TYPE_WINUAE) {
+						_tcscpy (start_path_data, start_path_exe);
+						path_type = PATH_TYPE_WINUAE;
+					} else if (val == PATH_TYPE_NEWWINUAE && start_path_new1[0]) {
+						_tcscpy (start_path_data, start_path_new1);
+						path_type = PATH_TYPE_NEWWINUAE;
+						create_afnewdir(0);
+					} else if (val == PATH_TYPE_NEWAF && start_path_new1[0]) {
+						path_type = PATH_TYPE_NEWAF;
+						create_afnewdir(0);
+						_tcscpy (start_path_data, start_path_new1);
+					} else if (val == PATH_TYPE_AMIGAFOREVERDATA && start_path_new2[0]) {
+						path_type = PATH_TYPE_AMIGAFOREVERDATA;
+						_tcscpy (start_path_data, start_path_new1);
+					}
+					SetCurrentDirectory (start_path_data);
+					setpathmode (path_type);
+					set_path (_T("KickstartPath"), NULL, path_type);
+					set_path (_T("ConfigurationPath"), NULL, path_type);
+					set_path (_T("ScreenshotPath"), NULL, path_type);
+					set_path (_T("StatefilePath"), NULL, path_type);
+					set_path (_T("SaveimagePath"), NULL, path_type);
+					set_path (_T("VideoPath"), NULL, path_type);
+					set_path (_T("RipperPath"), NULL, path_type);
+					set_path (_T("InputPath"), NULL, path_type);
+					values_to_pathsdialog (hDlg);
+					FreeConfigStore ();
+				}
+				break;
+			case IDC_ROM_RESCAN:
+				scan_roms (hDlg, 1);
+				break;
+			case IDC_RESETREGISTRY:
+				resetregistry ();
+				break;
+			case IDC_RESETDISKHISTORY:
+				reset_disk_history ();
+				break;
+			case IDC_PATHS_CONFIGCACHE:
+				configurationcache = ischecked (hDlg, IDC_PATHS_CONFIGCACHE) ? 1 : 0;
+				regsetint (NULL, _T("ConfigurationCache"), configurationcache);
+				break;
+			case IDC_PATHS_RELATIVE:
+				relativepaths = ischecked (hDlg, IDC_PATHS_RELATIVE) ? 1 : 0;
+				regsetint (NULL, _T("RelativePaths"), relativepaths);
+				break;
+
+			}
 		}
 		recursive--;
 	}
@@ -11817,8 +11927,15 @@ static void init_inputdlg_2 (HWND hDlg)
 
 static void init_inputdlg (HWND hDlg)
 {
-	int i;
+	int i, num;
 	TCHAR buf[100], txt[100];
+	TCHAR input_selected_device_name[100];
+
+	input_selected_device_name[0] = 0;
+	if (input_selected_device < 0) {
+		int size = sizeof input_selected_device_name / sizeof (TCHAR);
+		regquerystr (NULL, _T("InputDeviceSelected"), input_selected_device_name, &size);
+	}
 
 	SendDlgItemMessage (hDlg, IDC_INPUTTYPE, CB_RESETCONTENT, 0, 0L);
 	for (i = 0; i < GAMEPORT_INPUT_SETTINGS; i++) {
@@ -11847,24 +11964,37 @@ static void init_inputdlg (HWND hDlg)
 	}
 	SendDlgItemMessage (hDlg, IDC_INPUTAMIGACNT, CB_SETCURSEL, input_selected_sub_num, 0);
 
+	num = 0;
 	SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_RESETCONTENT, 0, 0L);
-	for (i = 0; i < inputdevice_get_device_total (IDTYPE_JOYSTICK); i++) {
-		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_JOYSTICK, i));
+	for (i = 0; i < inputdevice_get_device_total (IDTYPE_JOYSTICK); i++, num++) {
+		TCHAR *name = inputdevice_get_device_name (IDTYPE_JOYSTICK, i);
+		if (!_tcsicmp (name, input_selected_device_name))
+			input_selected_device = num;
+		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)name);
 	}
-	for (i = 0; i < inputdevice_get_device_total (IDTYPE_MOUSE); i++) {
-		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_MOUSE, i));
+	for (i = 0; i < inputdevice_get_device_total (IDTYPE_MOUSE); i++, num++) {
+		TCHAR *name = inputdevice_get_device_name (IDTYPE_MOUSE, i);
+		if (!_tcsicmp (name, input_selected_device_name))
+			input_selected_device = num;
+		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)name);
 	}
-	for (i = 0; i < inputdevice_get_device_total (IDTYPE_KEYBOARD); i++) {
-		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_KEYBOARD, i));
+	for (i = 0; i < inputdevice_get_device_total (IDTYPE_KEYBOARD); i++, num++) {
+		TCHAR *name = inputdevice_get_device_name (IDTYPE_KEYBOARD, i);
+		if (!_tcsicmp (name, input_selected_device_name))
+			input_selected_device = num;
+		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)name);
 	}
-	for (i = 0; i < inputdevice_get_device_total (IDTYPE_INTERNALEVENT); i++) {
-		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)inputdevice_get_device_name (IDTYPE_INTERNALEVENT, i));
+	for (i = 0; i < inputdevice_get_device_total (IDTYPE_INTERNALEVENT); i++, num++) {
+		TCHAR *name = inputdevice_get_device_name (IDTYPE_INTERNALEVENT, i);
+		if (!_tcsicmp (name, input_selected_device_name))
+			input_selected_device = num;
+		SendDlgItemMessage (hDlg, IDC_INPUTDEVICE, CB_ADDSTRING, 0, (LPARAM)name);
 	}
 	input_total_devices = inputdevice_get_device_total (IDTYPE_JOYSTICK) +
 		inputdevice_get_device_total (IDTYPE_MOUSE) +
 		inputdevice_get_device_total (IDTYPE_KEYBOARD) + 
 		inputdevice_get_device_total (IDTYPE_INTERNALEVENT);
-	if (input_selected_device >= input_total_devices)
+	if (input_selected_device >= input_total_devices || input_selected_device < 0)
 		input_selected_device = 0;
 	InitializeListView (hDlg);
 	init_inputdlg_2 (hDlg);
@@ -11967,6 +12097,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 			init_inputdlg_2 (hDlg);
 			values_to_inputdlg (hDlg);
 			doselect = 1;
+			regsetstr (NULL, _T("InputDeviceSelected"), inputdevice_get_device_name2 (input_selected_device));
 		}
 	}
 	item = SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_GETCURSEL, 0, 0L);

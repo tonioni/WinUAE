@@ -12,7 +12,6 @@ extern void D3D_flushtexture (int miny, int maxy);
 extern void D3D_guimode (bool);
 extern HDC D3D_getDC(HDC hdc);
 extern int D3D_isenabled (void);
-extern int D3D_needreset (void);
 extern void D3D_clear (void);
 extern int D3D_canshaders (void);
 extern int D3D_goodenough (void);
@@ -20,6 +19,7 @@ extern void D3D_setcursor (int x, int y, int width, int height, bool visible);
 extern bool D3D_getvblankpos (int *vpos);
 extern double D3D_getrefreshrate (void);
 extern void D3D_vblank_reset (double freq);
+extern void D3D_restore (void);
 extern LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 
 #define CURSORMAXWIDTH 64

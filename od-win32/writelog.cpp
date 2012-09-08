@@ -550,7 +550,7 @@ TCHAR* buf_out (TCHAR *buffer, int *bufsize, const TCHAR *format, ...)
 	return buffer + _tcslen (buffer);
 }
 
-FILE *log_open (const TCHAR *name, int append, int bootlog)
+FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR *outpath)
 {
 	FILE *f = NULL;
 
@@ -560,12 +560,14 @@ FILE *log_open (const TCHAR *name, int append, int bootlog)
 
 	if (name != NULL) {
 		if (bootlog >= 0) {
+			_tcscpy (outpath, name);
 			f = _tfopen (name, append ? _T("a, ccs=UTF-8") : _T("wt, ccs=UTF-8"));
 			if (!f && bootlog) {
 				TCHAR tmp[MAX_DPATH];
 				tmp[0] = 0;
 				if (GetTempPath (MAX_DPATH, tmp) > 0) {
-					_tcscat (tmp, _T("glog.txt"));
+					_tcscat (tmp, _T("winuaetemplog.txt"));
+					_tcscpy (outpath, tmp);
 					f = _tfopen (tmp, append ? _T("a, ccs=UTF-8") : _T("wt, ccs=UTF-8"));
 				}
 			}

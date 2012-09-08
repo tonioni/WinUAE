@@ -2229,7 +2229,7 @@ size_t zfile_fwrite (const void *b, size_t l1, size_t l2, struct zfile *z)
 	return fwrite (b, l1, l2, z->f);
 }
 
-size_t zfile_fputs (struct zfile *z, TCHAR *s)
+size_t zfile_fputs (struct zfile *z, const TCHAR *s)
 {
 	char *s2 = ua (s);
 	size_t t;

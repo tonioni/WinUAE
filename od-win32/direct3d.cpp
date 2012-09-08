@@ -73,6 +73,7 @@ static int cursor_offset_x, cursor_offset_y, cursor_offset2_x, cursor_offset2_y;
 static float maskmult_x, maskmult_y;
 RECT mask2rect;
 static bool wasstilldrawing_broken;
+static bool renderdisabled;
 static HANDLE filenotificationhandle;
 
 static bool fakemode;
@@ -232,7 +233,7 @@ static TCHAR *D3DX_ErrorString (HRESULT hr, LPD3DXBUFFER Errors)
 
 static int isd3d (void)
 {
-	if (fakemode || devicelost || !d3ddev || !d3d_enabled)
+	if (fakemode || devicelost || !d3ddev || !d3d_enabled || renderdisabled)
 		return 0;
 	return 1;
 }
@@ -764,7 +765,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 	_tcscpy (tmp3, tmp);
 	_tcscat (tmp, shaderfile);
 	if (!full) {
-		struct zfile *z = zfile_fopen (tmp, _T("r"), 0);
+		struct zfile *z = zfile_fopen (tmp, _T("r"));
 		if (z) {
 			existsfile = 1;
 			zfile_fgets (tmp2, sizeof tmp2 / sizeof (TCHAR), z);
@@ -787,7 +788,7 @@ static LPD3DXEFFECT psEffect_LoadEffect (const TCHAR *shaderfile, int full)
 			const char *str = psEnabled ? fx20 : fx10;
 			int len = strlen (str);
 			if (!existsfile && plugin_path) {
-				struct zfile *z = zfile_fopen (tmp, _T("w"), 0);
+				struct zfile *z = zfile_fopen (tmp, _T("w"));
 				if (z) {
 					zfile_fwrite ((void*)str, len, 1, z);
 					zfile_fclose (z);
@@ -1664,14 +1665,13 @@ static void setupscenecoords (void)
 		sw = dw * tin_w / window_w;
 		sh = dh * tin_h / window_h;
 
-		//sw -= 0.5f;
-		//sh += 0.5f;
+		sw -= 0.5f;
+		sh += 0.5f;
 
 		tx += xshift;
 		ty += yshift;
 
 	}
-
 
 	MatrixTranslation (&m_matView, tx, ty, 1.0f);
 
@@ -1685,6 +1685,9 @@ static void setupscenecoords (void)
 	// ratio between Amiga texture and overlay mask texture
 	float sw2 = dw * tin_w / window_w;
 	float sh2 = dh * tin_h / window_h;
+
+	sw2 -= 0.5f;
+	sh2 += 0.5f;
 
 	maskmult.x = sw2 * maskmult_x / w;
 	maskmult.y = sh2 * maskmult_y / h;
@@ -1799,6 +1802,16 @@ static void freetextures (void)
 	}
 }
 
+static void getswapchain (void)
+{
+	if (!d3dswapchain) {
+		HRESULT hr = d3ddev->GetSwapChain (0, &d3dswapchain);
+		if (FAILED (hr)) {
+			write_log (_T("%s: GetSwapChain() failed, %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		}
+	}
+}
+
 static void invalidatedeviceobjects (void)
 {
 	if (filenotificationhandle  != NULL)
@@ -1851,6 +1864,10 @@ static void invalidatedeviceobjects (void)
 		vertexBuffer->Release ();
 		vertexBuffer = NULL;
 	}
+	if (d3dswapchain)  {
+		d3dswapchain->Release ();
+		d3dswapchain = NULL;
+	}
 	m_MatWorldEffectHandle = NULL;
 	m_MatViewEffectHandle = NULL;
 	m_MatProjEffectHandle = NULL;
@@ -1878,6 +1895,8 @@ static int restoredeviceobjects (void)
 	HRESULT hr;
 
 	invalidatedeviceobjects ();
+	getswapchain ();
+
 	while (shaderon > 0) {
 		postEffect = psEffect_LoadEffect (psEnabled ? _T("_winuae.fx") : _T("_winuae_old.fx"), false);
 		if (!postEffect) {
@@ -1936,10 +1955,6 @@ static int restoredeviceobjects (void)
 static void D3D_free2 (void)
 {
 	invalidatedeviceobjects ();
-	if (d3dswapchain)  {
-		d3dswapchain->Release ();
-		d3dswapchain = NULL;
-	}
 	if (d3ddev) {
 		d3ddev->Release ();
 		d3ddev = NULL;
@@ -1953,6 +1968,7 @@ static void D3D_free2 (void)
 	psActive = 0;
 	resetcount = 0;
 	devicelost = 0;
+	renderdisabled = false;
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 }
 
@@ -2245,7 +2261,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		t_depth, adapter
 	);
 
-	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || !shaderon) && d3d_ex) {
+	if ((d3dCaps.PixelShaderVersion < D3DPS_VERSION(2,0) || !psEnabled || max_texture_w < 2048 || max_texture_h < 2048 || (!shaderon && SHADER > 0)) && d3d_ex) {
 		D3DEX = 0;
 		write_log (_T("Disabling D3D9Ex\n"));
 		if (d3ddev) {
@@ -2285,11 +2301,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		changed_prefs.gfx_filter_scanlines = currprefs.gfx_filter_scanlines = 0;
 	}
 
-	hr = d3ddev->GetSwapChain (0, &d3dswapchain);
-	if (FAILED (hr)) {
-		write_log (_T("%s: GetSwapChain() failed, %s\n"), D3DHEAD, D3D_ErrorString (hr));
-	}
-
 	switch (depth)
 	{
 		case 32:
@@ -2323,7 +2334,6 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	if (d3ddevex) {
 		UINT v = 12345;
 		hr = d3ddevex->GetMaximumFrameLatency (&v);
-		//write_log (L"GetMaximumFrameLatency=%d\n", v);
 		if (FAILED (hr)) {
 			write_log (_T("%s: GetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			v = 1;
@@ -2335,12 +2345,18 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-		//v = 12345;
-		//hr = d3ddevex->GetMaximumFrameLatency (&v);
-		//write_log (L"GetMaximumFrameLatency=%d\n", v);
 	}
 
 	return 0;
+}
+
+static bool alloctextures (void)
+{
+	if (!createtexture (tout_w, tout_h, window_w, window_h))
+		return false;
+	if (!createamigatexture (tin_w, tin_h))
+		return false;
+	return true;
 }
 
 bool D3D_alloctexture (int w, int h)
@@ -2354,23 +2370,24 @@ bool D3D_alloctexture (int w, int h)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
 	freetextures ();
-
-	if (!createtexture (tout_w, tout_h, window_w, window_h))
-		return false;
-	if (!createamigatexture (tin_w, tin_h))
-		return false;
-	return true;
+	return alloctextures ();
 }
+
 
 static HRESULT reset (void)
 {
+	HRESULT hr;
+	bool oldrender = renderdisabled;
+	renderdisabled = true;
 	if (d3dex)
-		return d3ddevex->ResetEx (&dpp, dpp.Windowed ? NULL : &modeex);
+		hr = d3ddevex->ResetEx (&dpp, dpp.Windowed ? NULL : &modeex);
 	else
-		return d3ddev->Reset (&dpp);
+		hr = d3ddev->Reset (&dpp);
+	renderdisabled = oldrender;
+	return hr;
 }
 
-int D3D_needreset (void)
+static int D3D_needreset (void)
 {
 	HRESULT hr;
 	bool do_dd = false;
@@ -2381,12 +2398,21 @@ int D3D_needreset (void)
 		hr = d3ddevex->CheckDeviceState (d3dhwnd);
 	else
 		hr = d3ddev->TestCooperativeLevel ();
-	if (hr == S_PRESENT_OCCLUDED)
-		return 0;
-	if (hr == D3DERR_DEVICENOTRESET || hr == D3DERR_DEVICELOST) {
-		write_log (_T("%s: %s\n"), D3DHEAD, hr == D3DERR_DEVICENOTRESET ? _T("DEVICENOTRESET"): _T("DEVICELOST"));
+	if (hr == S_PRESENT_OCCLUDED) {
+		// no need to draw anything
+		return 1;
+	}
+	if (hr == D3DERR_DEVICELOST) {
+		renderdisabled = true;
+		// lost but can't be reset yet
+		return 1;
+	}
+	if (hr == D3DERR_DEVICENOTRESET) {
+		// lost and can be reset
+		write_log (_T("%s: DEVICENOTRESET\n"), D3DHEAD);
 		devicelost = 2;
 		invalidatedeviceobjects ();
+		freetextures ();
 		hr = reset ();
 		if (FAILED (hr)) {
 			write_log (_T("%s: Reset failed %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2399,7 +2425,9 @@ int D3D_needreset (void)
 		}
 		devicelost = 0;
 		write_log (_T("%s: Reset succeeded\n"), D3DHEAD);
+		renderdisabled = false;
 		restoredeviceobjects ();
+		alloctextures ();
 		return -1;
 	} else if (hr == S_PRESENT_MODE_CHANGED) {
 		write_log (_T("%s: S_PRESENT_MODE_CHANGED (%d,%d)\n"), D3DHEAD, ddraw_fs, ddraw_fs_attempt);
@@ -2447,7 +2475,7 @@ static void D3D_showframe2 (bool dowait)
 			sleep_millis (1);
 			continue;
 		} else if (hr == S_PRESENT_OCCLUDED) {
-			; //write_log (_T("S_PRESENT_OCCLUDED\n"));
+			renderdisabled = true;
 		} else if (hr == S_PRESENT_MODE_CHANGED) {
 			// In most cases mode actually didn't change but
 			// D3D is just being stupid and not accepting
@@ -2459,12 +2487,19 @@ static void D3D_showframe2 (bool dowait)
 			write_log (_T("%s: Present() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			if (hr == D3DERR_DEVICELOST || hr == S_PRESENT_MODE_CHANGED) {
 				devicelost = 1;
+				renderdisabled = true;
+				write_log (_T("%s: mode changed or fullscreen focus lost\n"), D3DHEAD);
 			}
 		} else {
 			ddraw_fs_attempt = 0;
 		}
 		return;
 	}
+}
+
+void D3D_restore (void)
+{
+	renderdisabled = false;
 }
 
 void D3D_clear (void)
@@ -2783,7 +2818,7 @@ void D3D_unlocktexture (void)
 
 void D3D_flushtexture (int miny, int maxy)
 {
-	if (fakemode || fulllocked || !texture)
+	if (fakemode || fulllocked || !texture || renderdisabled)
 		return;
 	if (miny >= 0 && maxy >= 0) {
 		RECT r;
@@ -2811,8 +2846,9 @@ uae_u8 *D3D_locktexture (int *pitch, bool fullupdate)
 		return fakebitmap;
 	}
 
-	if (D3D_needreset () > 0)
+	if (D3D_needreset () > 0) {
 		return NULL;
+	}
 	if (!isd3d () || !texture)
 		return NULL;
 
@@ -2970,6 +3006,7 @@ double D3D_getrefreshrate (void)
 {
 	HRESULT hr;
 	D3DDISPLAYMODE dmode;
+
 	if (!isd3d ())
 		return -1;
 	hr = d3ddev->GetDisplayMode (0, &dmode);
@@ -2981,6 +3018,7 @@ double D3D_getrefreshrate (void)
 void D3D_guimode (bool guion)
 {
 	HRESULT hr;
+
 	if (!isd3d ())
 		return;
 	hr = d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);

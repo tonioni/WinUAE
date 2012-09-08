@@ -139,12 +139,12 @@ int regquerystr (UAEREG *root, const TCHAR *name, TCHAR *str, int *size)
 		xfree (tmp);
 		return ret;
 	} else {
-		DWORD size2 = *size;
+		DWORD size2 = *size * sizeof (TCHAR);
 		HKEY rk = gr (root);
 		if (!rk)
 			return 0;
 		int v = RegQueryValueEx (rk, name, 0, NULL, (LPBYTE)str, &size2) == ERROR_SUCCESS;
-		*size = size2;
+		*size = size2 / sizeof (TCHAR);
 		return v;
 	}
 }
