@@ -677,13 +677,12 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 static void initialize_mountinfo (void)
 {
 	int nr;
-	struct uaedev_config_info *uci;
 	UnitInfo *uip = &mountinfo.ui[0];
 
 	cd_unit_offset = MAX_FILESYSTEM_UNITS;
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
-		uci = &currprefs.mountconfig[nr];
+		struct uaedev_config_info *uci = &currprefs.mountconfig[nr];
 		if (uci->controller == HD_CONTROLLER_UAE) {
 			int idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
 				uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
@@ -712,6 +711,7 @@ static void initialize_mountinfo (void)
 #endif
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
+		struct uaedev_config_info *uci = &currprefs.mountconfig[nr];
 		if (uci->controller == HD_CONTROLLER_UAE)
 			continue;
 		if (uci->controller <= HD_CONTROLLER_IDE3) {

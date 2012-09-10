@@ -5120,7 +5120,7 @@ void config_check_vsync (void)
 //		if (config_changed == 1)
 //			write_log (_T("* configuration check trigger\n"));
 		config_changed++;
-		if (config_changed > 10)
+		if (config_changed >= 3)
 			config_changed = 0;
 	}
 }

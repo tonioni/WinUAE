@@ -599,45 +599,45 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,201,57,48,15
 END
 
-IDD_CHIPSET DIALOGEX 0, 0, 302, 172
+IDD_CHIPSET DIALOGEX 0, 0, 396, 169
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "Chipset",IDC_STATIC,1,0,160,111
+    GROUPBOX        "Chipset",IDC_STATIC,1,0,212,111
     CONTROL         "OCS [] Original chipset. A1000 and most A500s.",IDC_OCS,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,9,15,73,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,14,15,88,10
     CONTROL         "ECS Agnus [] Enhanced chipset (ECS Agnus chip only). CDTV and later A500 and A2000 hardware revisions.",IDC_ECS_AGNUS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,9,31,73,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,31,88,10
     CONTROL         "Full ECS [] Full ECS chipset (ECS Agnus and ECS Denise chips). A500+, A600 and A3000.",IDC_ECS,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,9,47,73,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,14,47,88,10
     CONTROL         "AGA [] Advanced Graphics Architecture chipset. A1200, A4000 and CD32.",IDC_AGA,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,86,15,72,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,15,86,10
     CONTROL         "ECS Denise [] Enhanced chipset (ECS Denise chip only). Normally paired with ECS Agnus.",IDC_ECS_DENISE,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,86,31,72,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,114,31,86,10
     CONTROL         "NTSC [] North American and Japanese display standard, 60Hz refresh rate. Other countries use PAL (50Hz. display refresh rate)",IDC_NTSC,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,86,47,72,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,114,47,86,10
     CONTROL         "Cycle-exact [] The most compatible A500/A1200 emulation mode. Very fast PC recommended.",IDC_CYCLEEXACT,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,9,69,139,10
-    RTEXT           "Chipset Extra",IDC_STATIC,11,89,71,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_CS_EXT,86,90,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Options",IDC_STATIC,167,0,133,111
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,25,69,170,10
+    RTEXT           "Chipset Extra",IDC_STATIC,30,89,71,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_CS_EXT,105,90,49,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Options",IDC_STATIC,221,0,173,111
     CONTROL         "Immediate Blitter [] Faster but less compatible blitter emulation.",IDC_BLITIMM,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,180,16,116,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,16,150,10
     CONTROL         "Wait for Blitter [] Compatibility hack for programs that don't wait for the blitter correctly, causing graphics corruption if CPU is too fast.",IDC_BLITWAIT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,180,29,116,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,234,29,150,10
     CONTROL         "Genlock connected [] Allow boot sequence to detect genlock. Genlock is not emulated.",IDC_GENLOCK,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,180,42,116,10
-    CTEXT           "External display hardware:",IDC_STATIC,174,59,117,15,SS_CENTERIMAGE
-    COMBOBOX        IDC_MONITOREMU,184,78,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX        "Collision Level",IDC_STATIC,1,116,299,48
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,234,42,150,10
+    CTEXT           "External display hardware:",IDC_STATIC,228,59,117,15,SS_CENTERIMAGE
+    COMBOBOX        IDC_MONITOREMU,238,78,98,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Collision Level",IDC_STATIC,1,116,393,48
     CONTROL         "None [] Collision hardware emulation disabled.",IDC_COLLISION0,
-                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,9,132,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,47,132,101,10
     CONTROL         "Sprites only [] Emulate only sprite vs. sprite collisions.",IDC_COLLISION1,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,9,147,101,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,47,147,101,10
     CONTROL         "Sprites and Sprites vs. Playfield [] Recommended collision emulation level.",IDC_COLLISION2,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,115,132,181,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,132,181,10
     CONTROL         "Full [] 100% collision hardware emulation. Only very few games need this option. Slowest.",IDC_COLLISION3,
-                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,115,147,181,10
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,147,181,10
 END
 
 IDD_CHIPSET2 DIALOGEX 0, 0, 396, 288
@@ -1312,7 +1312,6 @@ BEGIN
 
     IDD_CHIPSET, DIALOG
     BEGIN
-        BOTTOMMARGIN, 162
     END
 
     IDD_CHIPSET2, DIALOG

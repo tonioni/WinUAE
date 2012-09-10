@@ -1,7 +1,17 @@
-- Use dos.library to detect between 1.x and 2.x (CDTV KS 1.3 + 2.x extended = exec is v37!)
-- Removable disk support was disabled.
+
+- Use dos.library version to detect between 1.x and 2.x+ . CDTV KS 1.3 + 2.x extended ROM = v37 exec.
+- Enabled removable media support.
+- Merged new offical SVN updates.
 
 - restore only single input target to default.
+
+Beta 17:
+
+- Enabled windowed mode window maximize button.
+- Removed windowed mode window inner edge.
+- -diskswapper command line looks inside all supported archive files.
+- Any non-UAE controller harddrive didn't work. (b16)
+- Beta 16 D3D alignment fix updated, previous broke 1:1 pixel mapping in some situations.
 
 Beta 16:
 

@@ -3379,14 +3379,13 @@ static int create_windows_2 (void)
 	int dxfs = currentmode->flags & (DM_DX_FULLSCREEN);
 	int d3dfs = currentmode->flags & (DM_D3D_FULLSCREEN);
 	int fsw = currentmode->flags & (DM_W_FULLSCREEN);
-	DWORD exstyle = currprefs.win32_notaskbarbutton ? WS_EX_TOOLWINDOW : WS_EX_APPWINDOW;
+	DWORD exstyle = (currprefs.win32_notaskbarbutton ? WS_EX_TOOLWINDOW : WS_EX_APPWINDOW) | 0;
 	DWORD flags = 0;
 	int borderless = currprefs.win32_borderless;
-	DWORD style = NORMAL_WINDOW_STYLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	int cymenu = currprefs.win32_statusbar == 0 ? 0 : GetSystemMetrics (SM_CYMENU);
-	int cyborder = GetSystemMetrics (SM_CYBORDER);
-	int cxborder = GetSystemMetrics (SM_CXBORDER);
-	int gap = 3;
+	DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+	int sbheight = currprefs.win32_statusbar == 0 ? 0 : GetSystemMetrics (SM_CYMENU) + 3;
+	int cyborder = GetSystemMetrics (SM_CYFRAME);
+	int gap = 0;
 	int x, y, w, h;
 	struct MultiDisplay *md = getdisplay (&currprefs);
 
@@ -3441,8 +3440,8 @@ static int create_windows_2 (void)
 				y = r.top;
 				SetWindowPos (hMainWnd, HWND_TOP, x, y, w + window_extra_width, h + window_extra_height,
 					SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
-				x = gap - 1;
-				y = gap - 2;
+				x = gap;
+				y = gap;
 			}
 			SetWindowPos (hAmigaWnd, HWND_TOP, x, y, w, h,
 				SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
@@ -3471,13 +3470,13 @@ static int create_windows_2 (void)
 	window_led_drives = 0;
 	window_led_drives_end = 0;
 	hMainWnd = NULL;
-	x = 2; y = 2;
+	x = 0; y = 0;
 	if (borderless)
-		cymenu = cyborder = cxborder = 0;
+		sbheight = cyborder = 0;
 
 	if (!dxfs && !d3dfs)  {
 		RECT rc;
-		int stored_x = 1, stored_y = cymenu + cyborder;
+		int stored_x = 1, stored_y = sbheight + cyborder;
 		int oldx, oldy;
 		int first = 2;
 
@@ -3493,8 +3492,8 @@ static int create_windows_2 (void)
 			first--;
 			if (stored_x < GetSystemMetrics (SM_XVIRTUALSCREEN))
 				stored_x = GetSystemMetrics (SM_XVIRTUALSCREEN);
-			if (stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + cymenu + cyborder)
-				stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + cymenu + cyborder;
+			if (stored_y < GetSystemMetrics (SM_YVIRTUALSCREEN) + sbheight + cyborder)
+				stored_y = GetSystemMetrics (SM_YVIRTUALSCREEN) + sbheight + cyborder;
 
 			if (stored_x > GetSystemMetrics (SM_CXVIRTUALSCREEN))
 				rc.left = 1;
@@ -3506,8 +3505,8 @@ static int create_windows_2 (void)
 			else
 				rc.top = stored_y;
 
-			rc.right = rc.left + gap + currentmode->current_width + gap - 2;
-			rc.bottom = rc.top + gap + currentmode->current_height + gap + cymenu - 1 - 2;
+			rc.right = rc.left + gap + currentmode->current_width + gap;
+			rc.bottom = rc.top + gap + currentmode->current_height + gap + sbheight;
 
 			oldx = rc.left;
 			oldy = rc.top;
@@ -3538,7 +3537,7 @@ static int create_windows_2 (void)
 				_T("PCsuxRox"), _T("WinUAE"),
 				style,
 				rc.left, rc.top,
-				rc.right - rc.left + 1, rc.bottom - rc.top + 1,
+				rc.right - rc.left, rc.bottom - rc.top,
 				NULL, NULL, hInst, NULL);
 			if (!hMainWnd) {
 				write_log (_T("main window creation failed\n"));
@@ -3594,14 +3593,17 @@ static int create_windows_2 (void)
 		close_hwnds ();
 		return 0;
 	}
-	if (hMainWnd == NULL)
+	if (hMainWnd == NULL) {
 		hMainWnd = hAmigaWnd;
+	}
+
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
 	GetWindowRect (hMainWnd, &mainwin_rect);
 	if (dxfs || d3dfs)
 		SetCursorPos (x + w / 2, y + h / 2);
 	addnotifications (hAmigaWnd, FALSE, FALSE);
 	createblankwindows ();
+
 	if (hMainWnd != hAmigaWnd) {
 		if (!currprefs.headless && !rp_isactive ())
 			ShowWindow (hMainWnd, firstwindow ? (currprefs.win32_start_minimized ? SW_SHOWMINIMIZED : SW_SHOWDEFAULT) : SW_SHOWNORMAL);

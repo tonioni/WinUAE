@@ -303,6 +303,7 @@ frame_time_t read_processor_time_rdtsc (void)
 }
 frame_time_t read_processor_time (void)
 {
+	frame_time_t t;
 #if 0
 	static int cnt;
 
@@ -313,9 +314,10 @@ frame_time_t read_processor_time (void)
 	}
 #endif
 	if (userdtsc)
-		return read_processor_time_rdtsc ();
+		t = read_processor_time_rdtsc ();
 	else
-		return read_processor_time_qpf ();
+		t = read_processor_time_qpf ();
+	return t;
 }
 
 uae_u32 read_system_time (void)

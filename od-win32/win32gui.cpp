@@ -4805,8 +4805,7 @@ static void savelog (int all)
 		copylog (_T("winuaebootlog"), bootlogpath, f);
 		copylog (_T("winuaelog"), logpath, f);
 		fputws (_T("\n"), f);
-		fputws (_T("configuration:"), f);
-		fputws (_T(":\n"), f);
+		fputws (_T("configuration:\n"), f);
 		fputws (_T("\n"), f);
 		saveconfig (f);
 		fclose (f);
@@ -6383,7 +6382,7 @@ static INT_PTR CALLBACK DisplayDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		if (LOWORD (wParam) == IDC_DA_RESET) {
 			int *p;
 			da_mode_selected = SendDlgItemMessage (hDlg, IDC_DA_MODE, CB_GETCURSEL, 0, 0);
-			p = getp_da();
+			p = getp_da ();
 			if (p)
 				*p = 0;
 			init_da (hDlg);

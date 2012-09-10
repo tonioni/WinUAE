@@ -570,7 +570,19 @@ static void parse_cmdline_2 (int argc, TCHAR **argv)
 	}
 }
 
-static void parse_diskswapper (TCHAR *s)
+static int diskswapper_cb (struct zfile *f, void *vrsd)
+{
+	int *num = (int*)vrsd;
+	if (*num >= MAX_SPARE_DRIVES)
+		return 1;
+	if (zfile_gettype (f) ==  ZFILE_DISKIMAGE) {
+		_tcsncpy (currprefs.dfxlist[*num], zfile_getname (f), 255);
+		(*num)++;
+	}
+	return 0;
+}
+
+static void parse_diskswapper (const TCHAR *s)
 {
 	TCHAR *tmp = my_strdup (s);
 	TCHAR *delim = _T(",");
@@ -585,8 +597,10 @@ static void parse_diskswapper (TCHAR *s)
 		p1 = NULL;
 		if (num >= MAX_SPARE_DRIVES)
 			break;
-		_tcsncpy (currprefs.dfxlist[num], p2, 255);
-		num++;
+		if (!zfile_zopen (p2, diskswapper_cb, &num)) {
+			_tcsncpy (currprefs.dfxlist[num], p2, 255);
+			num++;
+		}
 	}
 	free (tmp);
 }

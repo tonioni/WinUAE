@@ -1625,7 +1625,7 @@ static void setupscenecoords (void)
 	fakesize.w = 1;
 	fakesize.z = 1;
 
-	MatrixOrthoOffCenterLH (&m_matProj, 0, w, 0, h, 0.0f, 1.0f);
+	MatrixOrthoOffCenterLH (&m_matProj, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
 
 	float tx, ty;
 	float sw, sh;
@@ -1665,8 +1665,8 @@ static void setupscenecoords (void)
 		sw = dw * tin_w / window_w;
 		sh = dh * tin_h / window_h;
 
-		sw -= 0.5f;
-		sh += 0.5f;
+		//sw -= 0.5f;
+		//sh += 0.5f;
 
 		tx += xshift;
 		ty += yshift;
@@ -1675,7 +1675,7 @@ static void setupscenecoords (void)
 
 	MatrixTranslation (&m_matView, tx, ty, 1.0f);
 
-	MatrixScaling (&m_matWorld, sw, sh, 1.0f);
+	MatrixScaling (&m_matWorld, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
 
 	cursor_offset_x = -zr.left;
 	cursor_offset_y = -zr.top;
@@ -1686,8 +1686,8 @@ static void setupscenecoords (void)
 	float sw2 = dw * tin_w / window_w;
 	float sh2 = dh * tin_h / window_h;
 
-	sw2 -= 0.5f;
-	sh2 += 0.5f;
+	//sw2 -= 0.5f;
+	//sh2 += 0.5f;
 
 	maskmult.x = sw2 * maskmult_x / w;
 	maskmult.y = sh2 * maskmult_y / h;

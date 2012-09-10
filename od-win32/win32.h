@@ -19,15 +19,13 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("16")
-#define WINUAEDATE MAKEBD(2012, 9, 8)
+#define WINUAEBETA _T("17")
+#define WINUAEDATE MAKEBD(2012, 9, 10)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
 
 #define IHF_WINDOWHIDDEN 6
-#define NORMAL_WINDOW_STYLE (WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_SIZEBOX)
-
 #define WINUAEAPPNAME _T("Arabuusimiehet.WinUAE")
 extern HMODULE hUIDLL;
 extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
