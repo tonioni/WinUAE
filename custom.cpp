@@ -5366,18 +5366,25 @@ static void rtg_vsynccheck (void)
 
 
 // moving average algorithm
-#define MAVG_SIZE 128
+#define MAVG_MAX_SIZE 128
 struct mavg_data
 {
-	int values[MAVG_SIZE];
+	int values[MAVG_MAX_SIZE];
 	int size;
 	int offset;
 	int mavg;
 };
 
-static int mavg (struct mavg_data *md, int newval)
+static void mavg_clear (struct mavg_data *md)
 {
-	if (md->size < MAVG_SIZE) {
+	md->size = 0;
+	md->offset = 0;
+	md->mavg = 0;
+}
+
+static int mavg (struct mavg_data *md, int newval, int size)
+{
+	if (md->size < size) {
 		md->values[md->size++] = newval;
 		md->mavg += newval;
 	} else {
@@ -5385,11 +5392,13 @@ static int mavg (struct mavg_data *md, int newval)
 		md->values[md->offset] = newval;
 		md->mavg += newval;
 		md->offset++;
-		if (md->offset >= MAVG_SIZE)
-			md->offset -= MAVG_SIZE;
+		if (md->offset >= size)
+			md->offset -= size;
 	}
 	return md->mavg / md->size;
 }
+
+#define MAVG_VSYNC_SIZE 128
 
 extern int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
 static bool framewait (void)
@@ -5402,7 +5411,7 @@ static bool framewait (void)
 	is_syncline = 0;
 
 	static struct mavg_data ma_frameskipt;
-	int frameskipt_avg = mavg (&ma_frameskipt, frameskiptime);
+	int frameskipt_avg = mavg (&ma_frameskipt, frameskiptime, MAVG_VSYNC_SIZE);
 
 	frameskiptime = 0;
 
@@ -5425,7 +5434,7 @@ static bool framewait (void)
 		if (!frame_shown)
 			show_screen ();
 
-		int legacy_avg = mavg (&ma_legacy, t);
+		int legacy_avg = mavg (&ma_legacy, t, MAVG_VSYNC_SIZE);
 		if (t > legacy_avg)
 			legacy_avg = t;
 		t = legacy_avg;
@@ -5492,11 +5501,11 @@ static bool framewait (void)
 			if (adjust > vsynctimebase * 2 / 3)
 				adjust = vsynctimebase * 2 / 3;
 			
-			int adjust_avg = mavg (&ma_adjust, adjust);
+			int adjust_avg = mavg (&ma_adjust, adjust, MAVG_VSYNC_SIZE);
 			
 			val += adjust_avg;
 
-			int flipdelay_avg = mavg (&ma_skip, flipdelay);
+			int flipdelay_avg = mavg (&ma_skip, flipdelay, MAVG_VSYNC_SIZE);
 			if (flipdelay > flipdelay_avg)
 				flipdelay_avg = flipdelay;
 			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
@@ -5568,7 +5577,7 @@ static bool framewait (void)
 			vsyncwaittime = curr_time + vsynctimebase;
 
 			if (currprefs.gfx_apmode[0].gfx_vflip == 0) {
-				flipdelay_avg = mavg (&ma_skip, flipdelay);
+				flipdelay_avg = mavg (&ma_skip, flipdelay, MAVG_VSYNC_SIZE);
 				if (flipdelay > flipdelay_avg)
 					flipdelay_avg = flipdelay;
 			} else {
@@ -5710,36 +5719,41 @@ static bool framewait (void)
 	return status != 0;
 }
 
-
-static frame_time_t frametime2;
+#define FPSCOUNTER_MAVG_SIZE 10
+static struct mavg_data fps_mavg, idle_mavg;
 
 void fpscounter_reset (void)
 {
 	timeframes = 0;
-	frametime2 = 0;
+	mavg_clear (&fps_mavg);
+	mavg_clear (&idle_mavg);
 	bogusframe = 2;
 	lastframetime = read_processor_time ();
 	idletime = 0;
 }
 
+
 static void fpscounter (bool frameok)
 {
 	frame_time_t now, last;
-	int mcnt = 10;
 
 	now = read_processor_time ();
 	last = now - lastframetime;
 	lastframetime = now;
 
-	if (bogusframe)
+	if (bogusframe || (int)last < 0)
 		return;
 
+	mavg (&fps_mavg, last / 10, FPSCOUNTER_MAVG_SIZE);
+	mavg (&idle_mavg, idletime / 10, FPSCOUNTER_MAVG_SIZE);
+	idletime = 0;
+
 	frametime += last;
-	frametime2 += last;
 	timeframes++;
-	if ((timeframes % mcnt) == 0) {
-		double idle = 1000 - (idletime == 0 ? 0.0 : (double)idletime * 1000.0 / (vsynctimebase * mcnt));
-		int fps = frametime2 == 0 ? 0 : (syncbase * mcnt) / (frametime2 / 10);
+
+	if ((timeframes & 7) == 0) {
+		double idle = 1000 - (idle_mavg.mavg == 0 ? 0.0 : (double)idle_mavg.mavg * 1000.0 / vsynctimebase);
+		int fps = fps_mavg.mavg == 0 ? 0 : syncbase * 10 / fps_mavg.mavg;
 		if (fps > 9999)
 			fps = 9999;
 		if (idle < 0)
@@ -5752,9 +5766,12 @@ static void fpscounter (bool frameok)
 		}
 		if (currprefs.turbo_emulation && idle < 100 * 10)
 			idle = 100 * 10;
-		gui_fps (fps, (int)idle, frameok ? 0 : 1);
-		frametime2 = 0;
-		idletime = 0;
+		gui_data.fps = fps;
+		gui_data.idle = (int)idle;
+		gui_data.fps_color = frameok ? 0 : 1;
+		if ((timeframes & 15) == 0) {
+			gui_fps (fps, (int)idle, frameok ? 0 : 1);
+		}
 	}
 }
 

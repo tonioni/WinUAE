@@ -2960,6 +2960,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_uaescsimode = UAESCSI_CDEMU;
 		p->win32_midioutdev = -2;
 		p->win32_midiindev = 0;
+		p->win32_midirouter = false;
 		p->win32_automount_removable = 0;
 		p->win32_automount_drives = 0;
 		p->win32_automount_removabledrives = 0;
@@ -3032,6 +3033,7 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 		cfgfile_target_dwrite_str (f, _T("midiin_device_name"), _T("none"));
 	else
 		cfgfile_target_dwrite_str (f, _T("midiin_device_name"), midp->name);
+	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
 			
 	cfgfile_target_dwrite_bool (f, _T("rtg_match_depth"), p->win32_rtgmatchdepth);
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_small"), p->win32_rtgscaleifsmall);
@@ -3131,6 +3133,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, _T("midi_device"), &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, _T("midiout_device"), &p->win32_midioutdev, 1)
 		|| cfgfile_intval (option, value, _T("midiin_device"), &p->win32_midiindev, 1)
+		|| cfgfile_yesno (option, value, _T("midirouter"), &p->win32_midirouter)
 		|| cfgfile_intval (option, value, _T("samplersoundcard"), &p->win32_samplersoundcard, 1)
 		|| cfgfile_yesno (option, value, _T("notaskbarbutton"), &p->win32_notaskbarbutton)
 		|| cfgfile_yesno (option, value, _T("nonotificationicon"), &p->win32_nonotificationicon)
@@ -4633,6 +4636,7 @@ extern int log_bsd;
 extern int inputdevice_logging;
 extern int vsync_modechangetimeout;
 extern int forcedframelatency;
+extern int tablet_log;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4929,6 +4933,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("vsync_forced_delay"))) {
 		debug_vsync_forced_delay = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("tabletlog"))) {
+		tablet_log = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("inputlog"))) {

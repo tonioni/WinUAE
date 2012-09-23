@@ -1771,6 +1771,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 
 static int gui_width, gui_height;
 static bool gui_resize;
+static bool gui_resize_allowed;
 // Internal panel max size: 396, 318
 
 static int mm = 0;
@@ -5548,22 +5549,22 @@ static void init_aboutdlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_BOLD | CFM_SIZE | CFM_FACE;
 	CharFormat.dwEffects = CFE_BOLD;
-	CharFormat.yHeight = 18 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+	CharFormat.yHeight = 24 * 20; /* height in twips, where a twip is 1/20th of a point */
 
-	_tcscpy (CharFormat.szFaceName, _T("Times New Roman"));
+	_tcscpy (CharFormat.szFaceName,  os_vista ? _T("Segoe UI") : _T("Tahoma"));
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT1, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
 	SetDlgItemText (hDlg, IDC_RICHEDIT2, VersionStr );
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
 	CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
-	CharFormat.yHeight = 10 * 20;
-	_tcscpy (CharFormat.szFaceName, _T("Times New Roman"));
+	CharFormat.yHeight = 12 * 20;
+	_tcscpy (CharFormat.szFaceName,  os_vista ? _T("Segoe UI") : _T("Tahoma"));
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
 	SendDlgItemMessage (hDlg, IDC_RICHEDIT2, EM_SETBKGNDCOLOR, 0, GetSysColor (COLOR_3DFACE));
 
 	for(i = 0; urls[i].id >= 0; i++)
-		SetupRichText(hDlg, &urls[i]);
+		SetupRichText (hDlg, &urls[i]);
 }
 
 static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -5760,6 +5761,8 @@ static int *getp_da (void)
 static void set_da (HWND hDlg)
 {
 	int *p = getp_da ();
+	if (!p)
+		return;
 	TCHAR buf[10];
 	SendDlgItemMessage (hDlg, IDC_DA_SLIDER, TBM_SETPOS, TRUE, (*p) / 10);
 	_stprintf(buf, _T("%.1f"), (double)((*p) / 10.0));
@@ -7945,6 +7948,7 @@ static void values_to_miscdlg (HWND hDlg)
 		misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
 		CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
 		CheckDlgButton (hDlg, IDC_GUI_RESIZE, gui_resize);
+		ew (hDlg, IDC_GUI_RESIZE, gui_resize_allowed);
 
 		misc_scsi (hDlg);
 		misc_lang (hDlg);
@@ -8297,7 +8301,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CS_CACHE_TEXT, enable);
 	ew (hDlg, IDC_CACHE, enable);
 	ew (hDlg, IDC_JITENABLE, jitenable);
-	ew (hDlg, IDC_COMPATIBLE, (!workprefs.cpu_cycle_exact && !workprefs.cachesize) || workprefs.cpu_model >= 68040);
+	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
@@ -11329,6 +11333,8 @@ static void values_from_portsdlg (HWND hDlg)
 	}
 	ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
 
+	workprefs.win32_midirouter = ischecked (hDlg, IDC_MIDIROUTER);
+
 	item = SendDlgItemMessage (hDlg, IDC_SERIAL, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR && item > 0) {
 		workprefs.use_serial = 1;
@@ -11413,6 +11419,8 @@ static void values_to_portsdlg (HWND hDlg)
 	else
 		SendDlgItemMessage (hDlg, IDC_MIDIINLIST, CB_SETCURSEL, 0, 0);
 	ew (hDlg, IDC_MIDIINLIST, workprefs.win32_midioutdev < -1 ? FALSE : TRUE);
+	ew (hDlg, IDC_MIDIROUTER, workprefs.win32_midioutdev >= -1 && workprefs.win32_midiindev >= -1);
+	CheckDlgButton (hDlg, IDC_MIDIROUTER, workprefs.win32_midirouter);
 
 	CheckDlgButton (hDlg, IDC_UAESERIAL, workprefs.uaeserial);
 	CheckDlgButton (hDlg, IDC_SER_SHARED, workprefs.serial_demand);
@@ -11753,7 +11761,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 			if (isprinter ()) {
 				closeprinter ();
 			}
-		} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH || wParam == IDC_SAMPLER_STEREO) {
+		} else if (wParam == IDC_UAESERIAL || wParam == IDC_SER_SHARED || wParam == IDC_SER_DIRECT || wParam == IDC_SER_CTSRTS || wParam == IDC_PRINTERAUTOFLUSH || wParam == IDC_SAMPLER_STEREO || wParam == IDC_MIDIROUTER) {
 			values_from_portsdlg (hDlg);
 		} else {
 			if (HIWORD (wParam) == CBN_SELCHANGE) {
@@ -14600,7 +14608,7 @@ static bool dodialogmousemove (void)
 {
 	if (full_property_sheet || isfullscreen () <= 0)
 		return false;
-	if (currprefs.gfx_size_fs.width >= gui_width && currprefs.gfx_size.height >= gui_height)
+	if (isfullscreen () > 0 && currprefs.gfx_size_fs.width > gui_width && currprefs.gfx_size.height > gui_height)
 		return false;
 	struct MultiDisplay *mdc = getdisplay (&currprefs);
 	for (int i = 0; Displays[i].monitorid; i++) {
@@ -14614,10 +14622,11 @@ static bool dodialogmousemove (void)
 static void centerWindow (HWND hDlg)
 {
 	RECT rc, rcDlg, rcOwner;
-	HWND owner = GetParent(hDlg);
 	int x = 0, y = 0;
 	POINT pt1, pt2;
+	struct MultiDisplay *mdc = getdisplay (&currprefs);
 
+	HWND owner = GetParent (hDlg);
 	if (owner == NULL)
 		owner = GetDesktopWindow ();
 	if (isfullscreen () == 0) {
@@ -14630,8 +14639,8 @@ static void centerWindow (HWND hDlg)
 		regqueryint (NULL, _T("GUIPosFSX"), &x);
 		regqueryint (NULL, _T("GUIPosFSY"), &y);
 		if (dodialogmousemove ()) {
-			x = 0;
-			y = 0;
+			x = mdc->rect.left;
+			y = mdc->rect.top;
 		}
 	}
 	SetForegroundWindow (hDlg);
@@ -14654,14 +14663,15 @@ static void centerWindow (HWND hDlg)
 			pt2.x = x + 16;
 			pt2.y = y + GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER);
 			if (MonitorFromPoint (pt1, MONITOR_DEFAULTTONULL) == NULL && MonitorFromPoint (pt2, MONITOR_DEFAULTTONULL) == NULL) {
-				x = 0;
-				y = 0;
+				x = mdc->rect.left;
+				y = mdc->rect.top;
 			}
 		} else {
-			x = 16;
-			y = 16;
+			x = mdc->rect.left + 16;
+			y = mdc->rect.top + 16;
 		}
 	}
+	//write_log (_T("centerwindow %dx%d\n"), x, y);
 	dialog_x_offset = x;
 	dialog_y_offset = y;
 	SetWindowPos (hDlg,  HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
@@ -14911,7 +14921,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	{
 	case WM_SIZING:
 	{
-		if (!recursive) {
+		if (!recursive && gui_resize_allowed) {
 			RECT *r = (RECT*)lParam;
 			if (r->right - r->left < MIN_GUI_INTERNAL_WIDTH)
 				r->right = r->left + MIN_GUI_INTERNAL_WIDTH;
@@ -14922,13 +14932,13 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		break;
 	}
 	case WM_ENTERSIZEMOVE:
-		if (!recursive) {
+		if (!recursive && gui_resize_allowed) {
 			getguisize (hDlg, &oldwidth, &oldheight);
 			return FALSE;
 		}
 		break;
 	case WM_EXITSIZEMOVE:
-		if (!recursive) {
+		if (!recursive && gui_resize_allowed) {
 			int w, h;
 			getguisize (hDlg, &w, &h);
 			if (w != oldwidth || h != oldheight) {
@@ -15213,6 +15223,9 @@ static void dialogmousemove (HWND hDlg)
 	rc.bottom -= rc.top;
 	rc.left = 0;
 	rc.top = 0;
+
+	//write_log (_T("SW=%d SH=%d %dx%d\n"), sw, sh, rc.right, rc.bottom);
+
 	if (rc.right <= sw && rc.bottom <= sh)
 		return;
 	pt2.x = pt.x;
@@ -15329,7 +15342,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		int v = 0;
 		setdefaultguisize ();
 		regqueryint (NULL, _T("GUIResize"), &v);
-		gui_resize = v != 0;
+		gui_resize_allowed = gui_resize = v != 0;
 		if (full_property_sheet || isfullscreen () == 0) {
 			regqueryint (NULL, _T("GUISizeX"), &gui_width);
 			regqueryint (NULL, _T("GUISizeY"), &gui_height);
@@ -15347,6 +15360,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			scaleresource_setdefaults ();
 			setdefaultguisize ();
 			fmultx = 0;
+			write_log (_T("GUI size reset\n"));
 		}
 
 		if (all_options || !configstore)
@@ -15362,9 +15376,16 @@ static int GetSettings (int all_options, HWND hwnd)
 			scaleresource_setmult (hwnd, -fmultx, -fmulty);
 		} else {
 			scaleresource_setmult (hwnd, gui_width, gui_height);
-			write_log (_T("Requested GUI size = %dx%d\n"), gui_width, gui_height);
+			write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_size.width, workprefs.gfx_size.height);
+			if (dodialogmousemove () && isfullscreen() > 0) {
+				if (gui_width >= workprefs.gfx_size.width || gui_height >= workprefs.gfx_size.height) {
+					write_log (_T("GUI larger than screen, resize disabled\n"));
+					gui_resize_allowed = false;
+				}
+			}
 		}
-		tres = scaleresource (panelresource, hwnd, gui_resize);
+
+		tres = scaleresource (panelresource, hwnd, gui_resize_allowed);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;

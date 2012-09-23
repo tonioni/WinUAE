@@ -4060,7 +4060,7 @@ uae_u8 *save_configuration (int *len, bool fullconfig)
 			char *out;
 			if (!fullconfig && !_tcsncmp (tmpout, _T("input."), 6))
 				continue;
-			write_log (_T("'%s'\n"), tmpout);
+			//write_log (_T("'%s'\n"), tmpout);
 			out = uutf8 (tmpout);
 			strcpy ((char*)p, out);
 			xfree (out);

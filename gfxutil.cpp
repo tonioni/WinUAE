@@ -140,8 +140,7 @@ static void video_calc_gammatable (void)
 	float bri, con, gam, v;
 	uae_u32 vi;
 
-	bri = ((float)(currprefs.gfx_luminance))
-		* (128.0f / 1000.0f);
+	bri = ((float)(currprefs.gfx_luminance)) * (128.0f / 1000.0f);
 	con = ((float)(currprefs.gfx_contrast + 1000)) / 1000.0f;
 	gam = ((float)(1000 - currprefs.gfx_gamma)) / 1000.0f;
 

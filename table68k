@@ -256,7 +256,7 @@
 1111 0011 01ss sSSS:202:?????:?????:10: FRESTORE s[!Dreg,Areg,Apdi,Immd]
 
 % 68030 MMU (allowed addressing modes not checked!)
-1111 0000 00ss sSSS:342:?????:?????:11: MMUOP030 s[Aind,Ad16,Ad8r,absl,absw],#1
+1111 0000 00ss sSSS:342:?????:?????:11: MMUOP030 s[Dreg,Areg,Apdi,Aipi,Aind,Ad16,Ad8r,absl,absw],#1
 
 % 68040/68060 instructions
 1111 0100 pp00 1rrr:402:-----:-----:02: CINVL    #p,Ar

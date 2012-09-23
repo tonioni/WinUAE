@@ -423,6 +423,9 @@ void scaleresource_init (const TCHAR *prefix)
 	regqueryfont (NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
 	regqueryfont (NULL, fontprefix, fontreg[1], fontname_list, &fontsize_list, &fontstyle_list, &fontweight_list);
 
+	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
+	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);
+
 	openfont (true);
 }
 
@@ -485,6 +488,7 @@ void scaleresource_setmult (HWND hDlg, int w, int h)
 	if (multy < 50)
 		multy = 50;
 
+	//write_log (_T("MX=%f MY=%f\n"), multx, multy);
 }
 
 void scaleresource_getmult (int *mx, int *my)

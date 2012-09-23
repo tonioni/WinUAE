@@ -417,6 +417,16 @@ int Midi_Parse(midi_direction_e direction, BYTE *dataptr)
 	return result;
 }
 
+static void putmidibytes(uae_u8 *data, int len)
+{
+	if (!currprefs.win32_midirouter || !midi_ready)
+		return;
+	for (int i = 0; i < len; i++) {
+		BYTE b = data[i];
+		Midi_Parse(midi_output, &b);
+	}
+}
+
 /*
 * FUNCTION:   MidiIn support and Callback function
 *
@@ -435,7 +445,9 @@ static void add1byte(DWORD_PTR w) //put 1 Byte to Midibuffer
 		TRACE((_T("add1byte buffer full %d %d (%02X)\n"), midi_inlast, midi_inptr, w));
 		return;
 	}
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast] = (uae_u8)w;
+	putmidibytes (&midibuf[midi_inlast], 1);
+	midi_inlast++;
 }
 static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 {
@@ -443,9 +455,11 @@ static void add2byte(DWORD_PTR w) //put 2 Byte to Midibuffer
 		TRACE((_T("add2byte buffer full %d %d (%04X)\n"), midi_inlast, midi_inptr, w));
 		return;
 	}
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast+0] = (uae_u8)w;
 	w = w >> 8;
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast+1] = (uae_u8)w;
+	putmidibytes (&midibuf[midi_inlast], 2);
+	midi_inlast+=2;
 }
 static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 {
@@ -453,11 +467,13 @@ static void add3byte(DWORD_PTR w) //put 3 Byte to Midibuffer
 		TRACE((_T("add3byte buffer full %d %d (%08X)\n"), midi_inlast, midi_inptr, w));
 		return;
 	}
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast+0] = (uae_u8)w;
 	w = w >> 8;
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast+1] = (uae_u8)w;
 	w = w >> 8;
-	midibuf[midi_inlast++] = (uae_u8)w;
+	midibuf[midi_inlast+2] = (uae_u8)w;
+	putmidibytes (&midibuf[midi_inlast], 3);
+	midi_inlast+=3;
 }
 
 int ismidibyte(void)
@@ -523,6 +539,7 @@ static void CALLBACK MidiInProc(HMIDIIN hMidiIn,UINT wMsg,DWORD_PTR dwInstance,D
 			goto end;
 		}
 		memcpy(&midibuf[midi_inlast], midiin->lpData, midiin->dwBytesRecorded);
+		putmidibytes(&midibuf[midi_inlast], midiin->dwBytesRecorded);
 		midi_inlast = midi_inlast + midiin->dwBytesRecorded;
 	}
 

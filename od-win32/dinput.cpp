@@ -11,6 +11,7 @@ int rawinput_enabled_hid = -1;
 // 2 = mouse
 // 4 = joystick
 int rawinput_log = 0;
+int tablet_log = 0;
 
 #define _WIN32_WINNT 0x501 /* enable RAWINPUT support */
 
@@ -606,6 +607,7 @@ static int maxpres;
 static TCHAR *tabletname;
 static int tablet_x, tablet_y, tablet_z, tablet_pressure, tablet_buttons, tablet_proximity;
 static int tablet_ax, tablet_ay, tablet_az, tablet_flags;
+static int tablet_div;
 
 static void tablet_send (void)
 {
@@ -632,12 +634,15 @@ void send_tablet_proximity (int inproxi)
 	if (!tablet_proximity) {
 		tablet_flags &= ~TPS_INVERT;
 	}
+	if (tablet_log & 4)
+		write_log (_T("TABLET: Proximity=%d\n"), inproxi);
 	tablet_send ();
 }
 
 void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int flags, int ax, int ay, int az, int rx, int ry, int rz, RECT *r)
 {
-	//write_log (_T("%d %d %d (%d,%d,%d), %08X %d\n"), x, y, pres, ax, ay, az, buttons, proxi);
+	if (tablet_log & 4)
+		write_log (_T("TABLET: B=%08X F=%08X X=%d Y=%d P=%d (%d,%d,%d)\n"), buttons, flags, x, y, pres, ax, ay, az);
 	if (axmax > 0)
 		ax = ax * 255 / axmax;
 	else
@@ -652,8 +657,8 @@ void send_tablet (int x, int y, int z, int pres, uae_u32 buttons, int flags, int
 		az = 0;
 	pres = pres * 255 / maxpres;
 
-	tablet_x = x;
-	tablet_y = ymax - y;
+	tablet_x = (x + tablet_div / 2) / tablet_div;
+	tablet_y = ymax - (y + tablet_div / 2) / tablet_div;
 	tablet_z = z;
 	tablet_pressure = pres;
 	tablet_buttons = buttons;
@@ -724,6 +729,17 @@ void *open_tablet (HWND hwnd)
 	maxpres = pres.axMax;
 	xres = gettabletres (&tx);
 	yres = gettabletres (&ty);
+	tablet_div = 1;
+	while (xmax / tablet_div > 4095 || ymax / tablet_div > 4095) {
+		tablet_div *= 2;
+	}
+	xmax /= tablet_div;
+	ymax /= tablet_div;
+	xres /= tablet_div;
+	yres /= tablet_div;
+
+	if (tablet_div > 1)
+		write_log (_T("Divisor: %d (%d,%d)\n"), tablet_div, xmax, ymax);
 	tablet_proximity = -1;
 	tablet_x = -1;
 	inputdevice_tablet_info (xmax, ymax, zmax, axmax, aymax, azmax, xres, yres);

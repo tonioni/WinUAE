@@ -1200,8 +1200,8 @@ static int createsltexture (void)
 	if (!sltexture)
 		return 0;
 	write_log (_T("%s: SL %d*%d texture allocated\n"), D3DHEAD, required_sl_texture_w, required_sl_texture_h);
-	maskmult_x = 1.0;
-	maskmult_y = 1.0;
+	maskmult_x = 1.0f;
+	maskmult_y = 1.0f;
 	return 1;
 }
 
@@ -1478,6 +1478,7 @@ static int createmasktexture (const TCHAR *filename)
 	D3DLOCKED_RECT lock, slock;
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
+	int maskwidth, maskheight;
 
 	if (filename[0] == 0)
 		return 0;
@@ -1511,12 +1512,21 @@ static int createmasktexture (const TCHAR *filename)
 	}
 	masktexture_w = dinfo.Width;
 	masktexture_h = dinfo.Height;
-	if (txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
+	if (0 && txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
 		// texture size == image size, no need to tile it (Wrap sampler does the rest)
-		masktexture = tx;
-		tx = NULL;
+		if (masktexture_w < window_w || masktexture_h < window_h) {
+			maskwidth = window_w;
+			maskheight = window_h;
+		} else {
+			masktexture = tx;
+			tx = NULL;
+		}
 	} else {
-		masktexture = createtext (window_w, window_h, D3DFMT_X8R8G8B8);
+		maskwidth = window_w;
+		maskheight = window_h;
+	}
+	if (tx) {
+		masktexture = createtext (maskwidth, maskheight, D3DFMT_X8R8G8B8);
 		if (FAILED (hr)) {
 			write_log (_T("%s: mask texture creation failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			goto end;

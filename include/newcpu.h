@@ -411,6 +411,7 @@ extern void fpux_restore (int*);
 
 extern void exception3 (uae_u32 opcode, uaecptr addr);
 extern void exception3i (uae_u32 opcode, uaecptr addr);
+extern void exception3 (uae_u32 opcode, uaecptr addr, int w, int i, uaecptr pc);
 extern void exception2 (uaecptr addr);
 extern void cpureset (void);
 

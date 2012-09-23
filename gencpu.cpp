@@ -2370,11 +2370,19 @@ static void gen_opcode (unsigned long int opcode)
 	case i_BSR:
 		// .b and .w confirmed
 		printf ("\tuae_s32 s;\n");
-		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA|GF_NOREFILL);
+		if (curi->size == sz_long) {
+			if (next_cpu_level < 1)
+				next_cpu_level = 1;
+		}
+		if (curi->size == sz_long && cpu_level < 2) {
+			printf ("\tuae_u32 src = 0xffffffff;\n");
+		} else {
+			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA|GF_NOREFILL);
+		}
 		printf ("\ts = (uae_s32)src + 2;\n");
 		if (using_exception_3) {
 			printf ("\tif (src & 1) {\n");
-			printf ("\t\texception3i (opcode, m68k_getpc () + s);\n");
+			printf ("\t\texception3 (opcode, m68k_getpc () + s, 0, 1, m68k_getpc () + s);\n");
 			printf ("\t\tgoto %s;\n", endlabelstr);
 			printf ("\t}\n");
 			need_endlabel = 1;
@@ -3229,9 +3237,9 @@ static void gen_opcode (unsigned long int opcode)
 				printf ("\t} else {\n");
 				genastore ("src", Dreg, "(extra >> 12) & 7", curi->size, "");
 				printf ("\t}\n");
-				sync_m68k_pc ();
 				pop_braces (old_brace_level);
 			}
+			sync_m68k_pc ();
 		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */

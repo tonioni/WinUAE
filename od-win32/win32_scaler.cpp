@@ -374,11 +374,15 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 				int ww = cw * scale;
 				int hh = ch * scale;
+
 				SetRect (sr, 0, 0, dst_width, dst_height);
 				SetRect (zr, 0, 0, 0, 0);
-				dr->left = dr->top = 0;
-				dr->right = dr->left + dst_width;
-				dr->bottom = dr->top + dst_height;
+
+				dr->left = (temp_width - aws) /2;
+				dr->top =  (temp_height - ahs) / 2;
+				dr->right = dr->left + dst_width * scale;
+				dr->bottom = dr->top + dst_height * scale;
+
 				OffsetRect (zr, cx * scale - (dst_width - ww) / 2, cy * scale - (dst_height - hh) / 2);
 				goto cont;
 

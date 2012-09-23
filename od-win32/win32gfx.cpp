@@ -112,7 +112,7 @@ int vsync_modechangetimeout = 10;
 
 int screen_is_picasso = 0;
 
-extern int reopen (int);
+extern int reopen (int, bool);
 
 #define VBLANKTH_KILL 0
 #define VBLANKTH_CALIBRATE 1
@@ -1570,9 +1570,9 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
 	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
-	c |= currprefs.gfx_luminance != changed_prefs.gfx_luminance ? (1|8) : 0;
-	c |= currprefs.gfx_contrast != changed_prefs.gfx_contrast ? (1|8) : 0;
-	c |= currprefs.gfx_gamma != changed_prefs.gfx_gamma ? (1|8) : 0;
+	c |= currprefs.gfx_luminance != changed_prefs.gfx_luminance ? (1 | 256) : 0;
+	c |= currprefs.gfx_contrast != changed_prefs.gfx_contrast ? (1 | 256) : 0;
+	c |= currprefs.gfx_gamma != changed_prefs.gfx_gamma ? (1 | 256) : 0;
 
 	c |= currprefs.gfx_resolution != changed_prefs.gfx_resolution ? (128) : 0;
 	c |= currprefs.gfx_vresolution != changed_prefs.gfx_vresolution ? (128) : 0;
@@ -1677,10 +1677,18 @@ int check_prefs_changed_gfx (void)
 		currprefs.win32_rtgscaleaspectratio = changed_prefs.win32_rtgscaleaspectratio;
 		currprefs.win32_rtgvblankrate = changed_prefs.win32_rtgvblankrate;
 
-		inputdevice_unacquire ();
+		bool unacquired = false;
 		if (c & 64) {
+			if (!unacquired) {
+				inputdevice_unacquire ();
+				unacquired = true;
+			}
 			DirectDraw_Fill (NULL, 0);
 			DirectDraw_BlitToPrimary (NULL);
+		}
+		if (c & 256) {
+			init_colors ();
+			drawing_init ();
 		}
 		if (c & 128) {
 			if (currprefs.gfx_autoresolution) {
@@ -1692,11 +1700,18 @@ int check_prefs_changed_gfx (void)
 			}
 		}
 		if ((c & 16) || ((c & 8) && keepfsmode)) {
-			if (reopen (c & 2))
+			if (reopen (c & 2, unacquired == false)) {
 				c |= 2;
+			} else {
+				unacquired = true;
+			}
 			graphics_mode_changed = 1;
 		}
 		if ((c & 32) || ((c & 2) && !keepfsmode)) {
+			if (!unacquired) {
+				inputdevice_unacquire ();
+				unacquired = true;
+			}
 			close_windows ();
 			graphics_init ();
 			graphics_mode_changed = 1;
@@ -1707,7 +1722,8 @@ int check_prefs_changed_gfx (void)
 			reset_sound ();
 			resume_sound ();
 		}
-		inputdevice_acquire (TRUE);
+		if (unacquired)
+			inputdevice_acquire (TRUE);
 		return 1;
 	}
 
@@ -1842,10 +1858,12 @@ int check_prefs_changed_gfx (void)
 #endif
 	}
 	if (currprefs.win32_midiindev != changed_prefs.win32_midiindev ||
-		currprefs.win32_midioutdev != changed_prefs.win32_midioutdev)
+		currprefs.win32_midioutdev != changed_prefs.win32_midioutdev ||
+		currprefs.win32_midirouter != changed_prefs.win32_midirouter)
 	{
 		currprefs.win32_midiindev = changed_prefs.win32_midiindev;
 		currprefs.win32_midioutdev = changed_prefs.win32_midioutdev;
+		currprefs.win32_midirouter = changed_prefs.win32_midirouter;
 #ifdef SERIAL_PORT
 		if (midi_ready) {
 			Midi_Close ();
@@ -1969,7 +1987,7 @@ static int ifs (struct uae_prefs *p)
 	return p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLSCREEN ? 1 : (p->gfx_apmode[idx].gfx_fullscreen == GFX_FULLWINDOW ? -1 : 0);
 }
 
-static int reopen (int full)
+static int reopen (int full, bool unacquire)
 {
 	int quick = 0;
 	int idx = screen_is_picasso ? 1 : 0;
@@ -2013,6 +2031,10 @@ static int reopen (int full)
 
 	if (!quick)
 		return 1;
+
+	if (unacquire) {
+		inputdevice_unacquire ();
+	}
 
 	open_windows (0);
 

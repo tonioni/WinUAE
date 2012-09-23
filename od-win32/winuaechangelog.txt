@@ -5,6 +5,23 @@
 
 - restore only single input target to default.
 
+Beta 18:
+
+- FPS and CPU% react quicker now. Can Show previously hidden CPU usage spikes. NOTE: CPU% now showing "myserious" usage spikes does not mean emulation has become slower!
+- Automatically limit tablet mode X and Y coordinate range to prevent 16-bit signed overflows if tablet has large resolution. (not confirmed)
+- Always generate full size mask texture, workaround for mask pixel mapping errors in some scaling modes.
+- Only release pressed keys if window or screen gets reopened (prevents stuck keys), not when any graphics related config option changes.
+- Do not allow GUI resize if GUI is larger than fullscreen resolution because Windows may automatically resize it to fit on screen, making GUI completely unusable.
+- Always recalculate Display panel horiz/vert centering option internal values when configuration changes.
+- 68030+ CPU and more compatible checkbox checked: enable very basic prefetch emulation, only 68000-68020 have more complex prefetch emulation.
+- JIT + more compatible also enables basic prefetch. Only works if code is not yet translated. (Not much point but it was easy to do)
+- Added route all MIDI In data to MIDI Out configuration option.
+- Improved 68030 MMU instruction decoding. WHDLoad + MMU option enabled + 68030 CPU does not crash anymore. (No, there still is no 68030 MMU emulation, it is
+  only emulating 68EC030 without MMU circuitry which probably does not exist in real world + hack for A3000 1.4 ROM)
+- Few (rare) variants of MOVES didn't increase PC correctly.
+- BSR.L was emulated as 68020+ instruction on 68000/010. (BCC.L was correct)
+- For some reason 68000 BSR.B and BSR.W address exception stack frame PC field points to new odd PC, instead of address of BSR opcode.
+
 Beta 17:
 
 - Enabled windowed mode window maximize button.

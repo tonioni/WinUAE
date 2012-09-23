@@ -475,6 +475,7 @@ struct uae_prefs {
 	bool win32_automount_removabledrives;
 	int win32_midioutdev;
 	int win32_midiindev;
+	bool win32_midirouter;
 	int win32_uaescsimode;
 	int win32_soundcard;
 	int win32_samplersoundcard;
