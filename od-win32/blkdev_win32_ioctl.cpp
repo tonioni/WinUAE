@@ -56,7 +56,6 @@ struct dev_info_ioctl {
 	int cdda_paused;
 	int cdda_volume[2];
 	int cdda_scan;
-	int cdda_volume_main;
 	int cd_last_pos;
 	HWAVEOUT cdda_wavehandle;
 	int cdda_start, cdda_end;
@@ -1202,7 +1201,6 @@ static int sys_cddev_open (struct dev_info_ioctl *ciw, int unitnum)
 
 	ciw->cdda_volume[0] = 0x7fff;
 	ciw->cdda_volume[1] = 0x7fff;
-	ciw->cdda_volume_main = currprefs.sound_volume_cd >= 0 ? currprefs.sound_volume_cd : currprefs.sound_volume;
 	/* buffer must be page aligned for device access */
 	ciw->tempbuffer = (uae_u8*)VirtualAlloc (NULL, IOCTL_DATA_BUFFER, MEM_COMMIT, PAGE_READWRITE);
 	if (!ciw->tempbuffer) {

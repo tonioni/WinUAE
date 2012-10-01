@@ -939,6 +939,8 @@ static uae_u32 REGPARAM2 dev_beginio (TrapContext *context)
 	canquick = dev_canquick (dev, request);
 	if (((flags & 1) && canquick) || (canquick < 0)) {
 		dev_do_io (dev, request);
+		if (!(flags & 1))
+			uae_ReplyMsg (request);
 		return get_byte (request + 31);
 	} else {
 		add_async_request (dev, request, ASYNC_REQUEST_TEMP, 0);

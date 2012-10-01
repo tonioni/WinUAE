@@ -477,6 +477,13 @@ void blkdev_exitgui (void)
 	}
 }
 
+void check_prefs_changed_cd (void)
+{
+	if (!config_changed)
+		return;
+	currprefs.sound_volume_cd = changed_prefs.sound_volume_cd;
+}
+
 static void check_changes (int unitnum)
 {
 	bool changed = false;

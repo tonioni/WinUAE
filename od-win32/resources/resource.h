@@ -716,6 +716,7 @@
 #define IDC_SOUNDBUFFERMEM              1577
 #define IDC_HARDFLUSH                   1578
 #define IDC_SOUNDADJUSTNUM              1578
+#define IDC_SOUNDVOLUMECD               1578
 #define IDC_CONSTJUMP                   1579
 #define IDC_SOUNDDRIVEVOLUME            1579
 #define IDC_JITFPU                      1580
@@ -723,6 +724,8 @@
 #define IDC_NOFLAGS                     1581
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
+#define IDC_SOUNDVOLUME3                1582
+#define IDC_SOUNDVOLUMECD2              1582
 #define IDC_CS_CACHE_TEXT2              1583
 #define IDC_COLLISIONS                  1584
 #define IDC_JITENABLE                   1584
@@ -1090,6 +1093,7 @@
 #define IDC_PORT3_REMAP                 1801
 #define IDC_INPUTMAPOUT                 1801
 #define IDC_INFOBOX_TEXT2               1802
+#define IDC_INPUTMAPOUTM                1802
 #define IDC_INFOBOX_TEXT1               1803
 #define IDC_INFOBOX_TEXT3               1804
 #define IDC_CD_EJECT                    1804

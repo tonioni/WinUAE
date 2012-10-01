@@ -8590,6 +8590,8 @@ static void enable_for_sounddlg (HWND hDlg)
 	ew (hDlg, IDC_SOUNDINTERPOLATION, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDVOLUME, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDVOLUME2, workprefs.produce_sound);
+	ew (hDlg, IDC_SOUNDVOLUMECD, workprefs.produce_sound);
+	ew (hDlg, IDC_SOUNDVOLUMECD2, workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDSTEREOSEP, workprefs.sound_stereo > 0 && workprefs.produce_sound);
 	ew (hDlg, IDC_SOUNDSTEREOMIX, workprefs.sound_stereo > 0 && workprefs.produce_sound);
 
@@ -8686,6 +8688,10 @@ static void update_soundgui (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume);
 	_stprintf (txt, _T("%d%%"), 100 - workprefs.sound_volume);
 	SetDlgItemText (hDlg, IDC_SOUNDVOLUME2, txt);
+
+	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPOS, TRUE, 100 - workprefs.sound_volume_cd);
+	_stprintf (txt, _T("%d%%"), 100 - workprefs.sound_volume_cd);
+	SetDlgItemText (hDlg, IDC_SOUNDVOLUMECD2, txt);
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 100 - workprefs.dfxclickvolume);
 	_stprintf (txt, _T("%d%%"), 100 - workprefs.dfxclickvolume);
@@ -8808,6 +8814,7 @@ static void values_to_sounddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_SOUNDBUFFERRAM, TBM_SETPOS, TRUE, getsoundbufsizeindex (workprefs.sound_maxbsiz));
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPOS, TRUE, 0);
+	SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPOS, TRUE, 0);
 	SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPOS, TRUE, 0);
 
 	SendDlgItemMessage (hDlg, IDC_SOUNDCARDLIST, CB_SETCURSEL, workprefs.win32_soundcard, 0);
@@ -8980,6 +8987,9 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
 			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUME, TBM_SETPAGESIZE, 0, 1);
 
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
+			SendDlgItemMessage (hDlg, IDC_SOUNDVOLUMECD, TBM_SETPAGESIZE, 0, 1);
+
 			SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETRANGE, TRUE, MAKELONG (0, 100));
 			SendDlgItemMessage (hDlg, IDC_SOUNDDRIVEVOLUME, TBM_SETPAGESIZE, 0, 1);
 
@@ -9034,6 +9044,7 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				workprefs.sound_maxbsiz = sndbufsizes[v];
 		}
 		workprefs.sound_volume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUME), TBM_GETPOS, 0, 0);
+		workprefs.sound_volume_cd = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDVOLUMECD), TBM_GETPOS, 0, 0);
 		workprefs.dfxclickvolume = 100 - SendMessage (GetDlgItem (hDlg, IDC_SOUNDDRIVEVOLUME), TBM_GETPOS, 0, 0);
 		update_soundgui (hDlg);
 		break;
@@ -12149,6 +12160,55 @@ static void input_swap (HWND hDlg)
 	init_inputdlg (hDlg);
 }
 
+static void showextramap (HWND hDlg)
+{
+	int evt;
+	uae_u64 flags;
+	TCHAR name[256];
+	TCHAR custom[MAX_DPATH];
+	TCHAR out[MAX_DPATH], out2[100];
+
+	out[0] = 0;
+	for (int i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
+		evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+			&flags, NULL, name, custom, i);
+		if (evt <= 0 && !custom[0])
+			continue;
+		if (out[0])
+			_tcscat (out, _T(" ; "));
+		if (evt > 0) {
+			_tcscat (out, name);
+			if (flags & IDEV_MAPPED_AUTOFIRE_SET)
+				_tcscat (out, _T(" (AF)"));
+			if (flags & IDEV_MAPPED_TOGGLE)
+				_tcscat (out, _T(" (T)"));
+			if (flags & IDEV_MAPPED_INVERTTOGGLE)
+				_tcscat (out, _T(" (IT)"));
+			if (flags & IDEV_MAPPED_QUALIFIER_MASK) {
+				bool gotone = false;
+				_tcscat (out, _T(" Q("));
+				for (int j = 0; j < MAX_INPUT_QUALIFIERS * 2; j++) {
+					uae_u64 mask = IDEV_MAPPED_QUALIFIER1 << j;
+					if (mask & flags) {
+						if (gotone)
+							_tcscat (out, _T(","));
+						gotone = true;
+						getqualifiername (out2, mask);
+						_tcscat (out, out2);
+					}
+				}
+				_tcscat (out, _T(")"));
+			}
+		}
+		if (custom[0]) {
+			_tcscat (out, _T("["));
+			_tcscat (out, custom);
+			_tcscat (out, _T("]"));
+		}
+	}
+	SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUTM), out);
+}
+
 static void input_find (HWND hDlg, int mode, int set);
 static int rawmode;
 static int inputmap_remap_counter, inputmap_view_offset;
@@ -12304,6 +12364,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				_tcscat (tmp, _T(", "));
 				_tcscat (tmp, inputdevice_get_device_name2 (input_selected_device));
 				SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUT), tmp);
+				showextramap (hDlg);
 
 			} else {
 				// input panel

@@ -871,6 +871,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		return 1;
 	case RP_IPC_TO_GUEST_VOLUME:
 		currprefs.sound_volume = changed_prefs.sound_volume = 100 - wParam;
+		currprefs.sound_volume_cd = changed_prefs.sound_volume_cd = 100 - wParam;
 		set_volume (currprefs.sound_volume, 0);
 		return TRUE;
 	case RP_IPC_TO_GUEST_ESCAPEKEY:

@@ -3779,8 +3779,10 @@ int input_get_default_joystick (struct uae_input_device *uid, int i, int port, i
 		setid (uid, i, ID_BUTTON_OFFSET + 0, 0, port, port ? INPUTEVENT_JOY2_FIRE_BUTTON : INPUTEVENT_JOY1_FIRE_BUTTON, af, gp);
 		if (isrealbutton (did, 1))
 			setid (uid, i, ID_BUTTON_OFFSET + 1, 0, port, port ? INPUTEVENT_JOY2_2ND_BUTTON : INPUTEVENT_JOY1_2ND_BUTTON, gp);
-		if (isrealbutton (did, 2))
-			setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
+		if (mode != JSEM_MODE_JOYSTICK) {
+			if (isrealbutton (did, 2))
+				setid (uid, i, ID_BUTTON_OFFSET + 2, 0, port, port ? INPUTEVENT_JOY2_3RD_BUTTON : INPUTEVENT_JOY1_3RD_BUTTON, gp);
+		}
 	}
 
 	for (j = 2; j < MAX_MAPPINGS - 1; j++) {

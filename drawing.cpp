@@ -2340,7 +2340,7 @@ static void center_image (void)
 		}
 	} else if (gfxvidinfo.drawbuffer.extrawidth) {
 		visible_left_border = max_diwlastword - w;
-		//visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
+		visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
 	} else {
 		if (gfxvidinfo.drawbuffer.inxoffset < 0) {
 			visible_left_border = 0;
@@ -2854,6 +2854,7 @@ void vsync_handle_check (void)
 		notice_new_xcolors ();
 	}
 	check_prefs_changed_audio ();
+	check_prefs_changed_cd ();
 	check_prefs_changed_custom ();
 	check_prefs_changed_cpu ();
 }

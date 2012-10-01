@@ -4453,7 +4453,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cachesize = 0;
 	p->socket_emu = 0;
 	p->sound_volume = 0;
-	p->sound_volume_cd = -1;
+	p->sound_volume_cd = 0;
 	p->clipboard_sharing = false;
 
 	p->chipmem_size = 0x00080000;

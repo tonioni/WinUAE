@@ -2656,6 +2656,7 @@ static void
 	put_long (info + 4, nr); /* unit number */
 	put_long (info + 8, unit->ui.readonly || unit->ui.locked ? 80 : 82); /* state  */
 	put_long (info + 20, blocksize); /* bytesperblock */
+	put_long (info + 32, 0); /* inuse */
 	if (disk_info && unit->ui.unknown_media) {
 		put_long (info + 12, 0);
 		put_long (info + 16, 0);
@@ -2678,8 +2679,8 @@ static void
 		put_long (info + 16, fsu.fsu_blocks - fsu.fsu_bavail); /* inuse */
 		put_long (info + 24, dostype); /* disk type */
 		put_long (info + 28, unit->volume >> 2); /* volume node */
+		put_long (info + 32, (get_long (unit->volume + 28) || unit->keys) ? -1 : 0); /* inuse */
 	}
-	put_long (info + 32, 0); /* inuse */
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 }
 

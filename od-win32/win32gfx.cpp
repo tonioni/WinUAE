@@ -686,6 +686,47 @@ static BOOL CALLBACK monitorEnumProc (HMONITOR h, HDC hdc, LPRECT rect, LPARAM d
 	return TRUE;
 }
 
+static void getd3dmonitornames (void)
+{
+	struct MultiDisplay *md = Displays;
+	IDirect3D9 *d3d;
+	int max;
+
+	// XP does not support hybrid displays, don't load Direct3D
+	if (!os_vista)
+		return;
+	d3d = Direct3DCreate9 (D3D_SDK_VERSION);
+	if (!d3d)
+		return;
+	max = d3d->GetAdapterCount ();
+	while (md - Displays < MAX_DISPLAYS && md->monitorid) {
+		POINT pt;
+		HMONITOR winmon;
+		pt.x = (md->rect.right - md->rect.left) / 2 + md->rect.left;
+		pt.y = (md->rect.bottom - md->rect.top) / 2 + md->rect.top;
+		winmon = MonitorFromPoint (pt, MONITOR_DEFAULTTONEAREST);
+		for (int i = 0; i < max; i++) {
+			D3DADAPTER_IDENTIFIER9 did;
+			HMONITOR d3dmon = d3d->GetAdapterMonitor (i);
+			if (d3dmon != winmon)
+				continue;
+			if (SUCCEEDED (d3d->GetAdapterIdentifier (i, 0, &did))) {
+				TCHAR *name = au (did.Description);
+				if (_tcsicmp (name, md->adaptername)) {
+					write_log (_T("%d: '%s' -> '%s'\n"), i, md->adaptername, name);
+					xfree (md->adaptername);
+					md->adaptername = name;
+					name = NULL;
+				}
+				xfree (name);
+			}
+			break;
+		}
+		md++;
+	}
+	d3d->Release ();
+}
+
 void enumeratedisplays (void)
 {
 	struct MultiDisplay *md = Displays;
@@ -734,6 +775,7 @@ void enumeratedisplays (void)
 		}
 	}
 	EnumDisplayMonitors (NULL, NULL, monitorEnumProc, NULL);
+	getd3dmonitornames ();
 	//sortmonitors ();
 }
 

@@ -588,6 +588,7 @@ extern void fixup_cpu (struct uae_prefs *prefs);
 extern void check_prefs_changed_custom (void);
 extern void check_prefs_changed_cpu (void);
 extern void check_prefs_changed_audio (void);
+extern void check_prefs_changed_cd (void);
 extern int check_prefs_changed_gfx (void);
 
 extern struct uae_prefs currprefs, changed_prefs;

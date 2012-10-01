@@ -1867,6 +1867,8 @@ static int hardfile_can_quick (uae_u32 command)
 {
 	switch (command)
 	{
+	case CMD_REMCHANGEINT:
+		return -1;
 	case CMD_RESET:
 	case CMD_STOP:
 	case CMD_START:
@@ -1874,8 +1876,8 @@ static int hardfile_can_quick (uae_u32 command)
 	case CMD_PROTSTATUS:
 	case CMD_MOTOR:
 	case CMD_GETDRIVETYPE:
-	case CMD_GETNUMTRACKS:
 	case CMD_GETGEOMETRY:
+	case CMD_GETNUMTRACKS:
 	case NSCMD_DEVICEQUERY:
 		return 1;
 	}
@@ -1896,6 +1898,7 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 	int unit = mangleunit (get_long (request + 24));
 	struct hardfiledata *hfd = get_hardfile_data (unit);
 	struct hardfileprivdata *hfpd = &hardfpd[unit];
+	int canquick;
 
 	put_byte (request + 8, NT_MESSAGE);
 	start_thread (context, unit);
@@ -1904,10 +1907,13 @@ static uae_u32 REGPARAM2 hardfile_beginio (TrapContext *context)
 		return get_byte (request + 31);
 	}
 	put_byte (request + 31, 0);
-	if ((flags & 1) && hardfile_canquick (hfd, request)) {
+	canquick = hardfile_canquick (hfd, request);
+	if (((flags & 1) && canquick) || (canquick < 0)) {
 		hf_log (_T("hf quickio unit=%d request=%p cmd=%d\n"), unit, request, cmd);
 		if (hardfile_do_io (hfd, hfpd, request))
 			hf_log2 (_T("uaehf.device cmd %d bug with IO_QUICK\n"), cmd);
+		if (!(flags & 1))
+			uae_ReplyMsg (request);
 		return get_byte (request + 31);
 	} else {
 		hf_log2 (_T("hf asyncio unit=%d request=%p cmd=%d\n"), unit, request, cmd);

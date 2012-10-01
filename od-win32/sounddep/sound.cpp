@@ -2782,11 +2782,17 @@ void sound_mute (int newmute)
 void sound_volume (int dir)
 {
 	currprefs.sound_volume -= dir * 10;
+	currprefs.sound_volume_cd -= dir * 10;
 	if (currprefs.sound_volume < 0)
 		currprefs.sound_volume = 0;
 	if (currprefs.sound_volume > 100)
 		currprefs.sound_volume = 100;
 	changed_prefs.sound_volume = currprefs.sound_volume;
+	if (currprefs.sound_volume_cd < 0)
+		currprefs.sound_volume_cd = 0;
+	if (currprefs.sound_volume_cd > 100)
+		currprefs.sound_volume_cd = 100;
+	changed_prefs.sound_volume_cd = currprefs.sound_volume_cd;
 	set_volume (currprefs.sound_volume, sdp->mute);
 	config_changed = 1;
 }

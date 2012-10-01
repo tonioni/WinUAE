@@ -2061,6 +2061,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	LPDIRECT3DCREATE9EX d3dexp = NULL;
 	int vsync = isvsync ();
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[APMODE_RTG] : &currprefs.gfx_apmode[APMODE_NATIVE];
+	D3DADAPTER_IDENTIFIER9 did;
 
 	D3D_free2 ();
 	if (!currprefs.gfx_api) {
@@ -2129,6 +2130,11 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		write_log (_T("%s: GetAdapterDisplayMode failed %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	if (FAILED (hr = d3d->GetDeviceCaps (adapter, D3DDEVTYPE_HAL, &d3dCaps)))
 		write_log (_T("%s: GetDeviceCaps failed %s\n"), D3DHEAD, D3D_ErrorString (hr));
+	if (SUCCEEDED (hr = d3d->GetAdapterIdentifier (adapter, 0, &did))) {
+		TCHAR *s = au (did.Description);
+		write_log (_T("Device name: '%s' %llx.%x\n"), s, did.DriverVersion, did.Revision);
+		xfree (s);
+	}
 
 	memset (&dpp, 0, sizeof (dpp));
 	dpp.Windowed = isfullscreen () <= 0;

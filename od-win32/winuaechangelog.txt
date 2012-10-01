@@ -1,9 +1,22 @@
 
-- Use dos.library version to detect between 1.x and 2.x+ . CDTV KS 1.3 + 2.x extended ROM = v37 exec.
+- Merged SVN updates.
+- Check dos.library's version, not exec's, to detect KS version. Exec version is v37 on CDTV with KS 1.3 + 2.x extended ROM.
 - Enabled removable media support.
-- Merged new offical SVN updates.
+- Fixed ACTION_DIE (unmount) crash.
+- 1.x C:Info does not anymore report no disk state.
 
 - restore only single input target to default.
+
+Beta 19:
+
+- GamePorts panel Test function now shows all currently mapped input target(s). Can be used to test any kind of input event mapping.
+- Do not map 3rd button to joystick/pad with more than 2 buttons if GamePorts panel gameport mode is joystick.
+  Joystick is meant to be max 2-button, non-pullup resistor game controller.
+- Directory filesystem ACTION_DISK_INFO InfoData->id_Inuse is now non-zero if any files or locks are open. (Was previously always zero)
+- Use D3D (if available) to fetch GPU names listed in monitor selection GUI. Should now show correct GPU name when running on hybrid GPU systems.
+- GUI CD audio volume control added.
+- Standard PAL/NTSC mode horizontal position (without filters or centering enabled) is not slightly shifted anymore, not sure when this
+  changed, probably in some update that improved programmed mode display positioning.
 
 Beta 18:
 
@@ -19,7 +32,7 @@ Beta 18:
 - Improved 68030 MMU instruction decoding. WHDLoad + MMU option enabled + 68030 CPU does not crash anymore. (No, there still is no 68030 MMU emulation, it is
   only emulating 68EC030 without MMU circuitry which probably does not exist in real world + hack for A3000 1.4 ROM)
 - Few (rare) variants of MOVES didn't increase PC correctly.
-- BSR.L was emulated as 68020+ instruction on 68000/010. (BCC.L was correct)
+- BSR.L was emulated as 68020+ instruction on 68000/010. (Bcc.L was correct)
 - For some reason 68000 BSR.B and BSR.W address exception stack frame PC field points to new odd PC, instead of address of BSR opcode.
 
 Beta 17:
