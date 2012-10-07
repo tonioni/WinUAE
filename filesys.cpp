@@ -6580,6 +6580,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 		} else {
 			get_new_device (type, parmpacket, &cdname, &cdname_amiga, cd_unit_no);
 		}
+		gui_flicker_led (LED_CD, cd_unit_no, -1);
 
 		write_log (_T("Mounting uaescsi.device %d: (%d)\n"), cd_unit_no, unit_no);
 		put_long (parmpacket + 0, cdname_amiga);
@@ -6632,6 +6633,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 
 	} else {
 
+		gui_flicker_led (LED_HD, unit_no, -1);
 		type = is_hardfile (unit_no);
 		if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
 			/* RDB hardfile */
@@ -6728,16 +6730,20 @@ static uae_u32 REGPARAM2 mousehack_done (TrapContext *context)
 	return 1;
 }
 
+extern void cia_heartbeat (void);
 void filesys_vsync (void)
 {
 	Unit *u;
 
+	if (!uae_boot_rom)
+		return;
 	if (heartbeat == get_long (rtarea_base + RTAREA_HEARTBEAT)) {
 		if (heartbeat_count > 0)
 			heartbeat_count--;
 		return;
 	}
 	heartbeat = get_long (rtarea_base + RTAREA_HEARTBEAT);
+	cia_heartbeat ();
 
 	for (u = units; u; u = u->next) {
 		if (u->reinsertdelay > 0) {

@@ -1369,6 +1369,8 @@ void rp_update_leds (int led, int onoff, int write)
 		return;
 	if (led < 0 || led > 4)
 		return;
+	if (onoff < 0)
+		return;
 	switch (led)
 	{
 	case 0:

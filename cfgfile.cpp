@@ -640,6 +640,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		cfgfile_write_str (f, _T("kickstart_ext_rom="), p->romextident);
 	cfgfile_write_path (f, &p->path_rom, _T("flash_file"), p->flashfile);
 	cfgfile_write_path (f, &p->path_rom, _T("cart_file"), p->cartfile);
+	cfgfile_write_path (f, &p->path_rom, _T("rtc_file"), p->rtcfile);
 	if (p->cartident[0])
 		cfgfile_write_str (f, _T("cart"), p->cartident);
 	if (p->amaxromfile[0])
@@ -847,6 +848,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("gfx_colour_mode"), colormode1[p->color_mode]);
 	cfgfile_write_bool (f, _T("gfx_blacker_than_black"), p->gfx_blackerthanblack);
 	cfgfile_write_str (f, _T("gfx_api"), filterapi[p->gfx_api]);
+	cfgfile_dwrite (f, _T("gfx_horizontal_tweak"), _T("%d"), p->gfx_extrawidth);
 
 #ifdef GFXFILTER
 	if (p->gfx_filtershader[0] && p->gfx_api) {
@@ -1537,6 +1539,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_contrast"), &p->gfx_contrast, 1)
 		|| cfgfile_intval (option, value, _T("gfx_gamma"), &p->gfx_gamma, 1)
 		|| cfgfile_intval (option, value, _T("gfx_filter_keep_autoscale_aspect"), &p->gfx_filter_keep_autoscale_aspect, 1)
+		|| cfgfile_intval (option, value, _T("gfx_horizontal_tweak"), &p->gfx_extrawidth, 1)
 		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 
@@ -1568,7 +1571,6 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_yesno (option, value, _T("filesys_no_fsdb"), &p->filesys_no_uaefsdb)
 		|| cfgfile_yesno (option, value, _T("gfx_blacker_than_black"), &p->gfx_blackerthanblack)
 		|| cfgfile_yesno (option, value, _T("gfx_flickerfixer"), &p->gfx_scandoubler)
-		|| cfgfile_yesno (option, value, _T("synchronize_clock"), &p->tod_hack)
 		|| cfgfile_yesno (option, value, _T("magic_mouse"), &p->input_magic_mouse)
 		|| cfgfile_yesno (option, value, _T("warp"), &p->turbo_emulation)
 		|| cfgfile_yesno (option, value, _T("headless"), &p->headless)
@@ -2545,6 +2547,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("fastmem_autoconfig"), &p->fastmem_autoconfig)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_vblank"), &p->rtg_hardwareinterrupt)
 		|| cfgfile_yesno (option, value, _T("gfxcard_hardware_sprite"), &p->rtg_hardwaresprite)
+		|| cfgfile_yesno (option, value, _T("synchronize_clock"), &p->tod_hack)
 
 		|| cfgfile_yesno (option, value, _T("kickshifter"), &p->kickshifter)
 		|| cfgfile_yesno (option, value, _T("ntsc"), &p->ntscmode)
@@ -2610,7 +2613,6 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_strval (option, value, _T("comp_trustbyte"), &p->comptrustbyte, compmode, 0)
-		|| cfgfile_strval (option, value, _T("chipset_compatible"), &p->cs_compatible, cscompa, 0)
 		|| cfgfile_strval (option, value, _T("rtc"), &p->cs_rtc, rtctype, 0)
 		|| cfgfile_strval (option, value, _T("ciaatod"), &p->cs_ciaatod, ciaatodmode, 0)
 		|| cfgfile_strval (option, value, _T("ide"), &p->cs_ide, idemode, 0)
@@ -2633,9 +2635,16 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_path (option, value, _T("amax_rom_file"), p->amaxromfile, sizeof p->amaxromfile / sizeof (TCHAR))
 		|| cfgfile_path (option, value, _T("flash_file"), p->flashfile, sizeof p->flashfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_path (option, value, _T("cart_file"), p->cartfile, sizeof p->cartfile / sizeof (TCHAR), &p->path_rom)
+		|| cfgfile_path (option, value, _T("rtc_file"), p->rtcfile, sizeof p->rtcfile / sizeof (TCHAR), &p->path_rom)
 		|| cfgfile_string (option, value, _T("pci_devices"), p->pci_devices, sizeof p->pci_devices / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("ghostscript_parameters"), p->ghostscript_parameters, sizeof p->ghostscript_parameters / sizeof (TCHAR)))
 		return 1;
+
+	if (cfgfile_strval (option, value, _T("chipset_compatible"), &p->cs_compatible, cscompa, 0)) {
+		built_in_chipset_prefs (p);
+		return 1;
+	}
+
 
 	if (cfgfile_strval (option, value, _T("cart_internal"), &p->cart_internal, cartsmode, 0)) {
 		if (p->cart_internal) {
@@ -4277,6 +4286,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->romextfile2addr = 0;
 	_tcscpy (p->flashfile, _T(""));
 	_tcscpy (p->cartfile, _T(""));
+	_tcscpy (p->rtcfile, _T(""));
 
 	_tcscpy (p->path_rom.path[0], _T("./"));
 	_tcscpy (p->path_floppy.path[0], _T("./"));
@@ -4491,6 +4501,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	_tcscpy (p->romextfile, _T(""));
 	_tcscpy (p->flashfile, _T(""));
 	_tcscpy (p->cartfile, _T(""));
+	_tcscpy (p->rtcfile, _T(""));
 	_tcscpy (p->amaxromfile, _T(""));
 	p->prtname[0] = 0;
 	p->sername[0] = 0;

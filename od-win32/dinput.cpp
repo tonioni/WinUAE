@@ -300,12 +300,14 @@ void indicator_leds (int num, int state)
 		return;
 	disabledleds = 0;
 	for (i = 0; i < 3; i++) {
-		if (currprefs.keyboard_leds[i] == num + 1) {
-			newleds &= ~(1 << i);
-			if (state)
-				newleds |= 1 << i;
-		} else if (currprefs.keyboard_leds[i] <= 0) {
-			disabledleds |= 1 << i;
+		if (state >= 0) {
+			if (currprefs.keyboard_leds[i] == num + 1) {
+				newleds &= ~(1 << i);
+				if (state)
+					newleds |= 1 << i;
+			} else if (currprefs.keyboard_leds[i] <= 0) {
+				disabledleds |= 1 << i;
+			}
 		}
 	}
 }

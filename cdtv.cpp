@@ -1761,6 +1761,7 @@ void cdtv_init (void)
 
 	cdtv_battram_reset ();
 	open_unit ();
+	gui_flicker_led (LED_CD, 0, -1);
 }
 
 void cdtv_check_banks (void)

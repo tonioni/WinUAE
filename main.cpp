@@ -503,8 +503,8 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->tod_hack && p->cs_ciaatod == 0)
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
 
+	built_in_chipset_prefs (p);
 	blkdev_fix_prefs (p);
-
 	target_fixup_options (p);
 }
 
@@ -546,6 +546,7 @@ void uae_restart (int opengui, TCHAR *cfgfile)
 	default_config = 0;
 	if (cfgfile)
 		_tcscpy (restart_config, cfgfile);
+	target_restart ();
 }
 
 #ifndef DONT_PARSE_CMDLINE
@@ -967,6 +968,9 @@ static int real_main2 (int argc, TCHAR **argv)
 		}
 	}
 
+	memset (&gui_data, 0, sizeof gui_data);
+	gui_data.cd = -1;
+	gui_data.hd = -1;
 	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 

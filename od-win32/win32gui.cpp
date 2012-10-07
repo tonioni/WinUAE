@@ -2397,6 +2397,10 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 			_tcscpy (workprefs.flashfile, full_path);
 			fullpath (workprefs.flashfile, MAX_DPATH);
 			break;
+		case IDC_RTCFILE:
+			_tcscpy (workprefs.rtcfile, full_path);
+			fullpath (workprefs.rtcfile, MAX_DPATH);
+			break;
 		case IDC_CARTFILE:
 			_tcscpy (workprefs.cartfile, full_path);
 			fullpath (workprefs.cartfile, MAX_DPATH);
@@ -7620,6 +7624,7 @@ static void values_to_kickstartdlg (HWND hDlg)
 	regclosetree (fkey);
 
 	SetDlgItemText(hDlg, IDC_FLASHFILE, workprefs.flashfile);
+	SetDlgItemText(hDlg, IDC_RTCFILE, workprefs.rtcfile);
 	CheckDlgButton(hDlg, IDC_KICKSHIFTER, workprefs.kickshifter);
 	CheckDlgButton(hDlg, IDC_MAPROM, workprefs.maprom);
 }
@@ -7662,6 +7667,10 @@ static void kickstartfilebuttons (HWND hDlg, WPARAM wParam, TCHAR *path)
 		DiskSelection(hDlg, IDC_FLASHFILE, 11, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
 		break;
+	case IDC_RTCCHOOSER:
+		DiskSelection(hDlg, IDC_RTCFILE, 6, &workprefs, path);
+		values_to_kickstartdlg (hDlg);
+		break;
 	case IDC_CARTCHOOSER:
 		DiskSelection(hDlg, IDC_CARTFILE, 6, &workprefs, path);
 		values_to_kickstartdlg (hDlg);
@@ -7685,6 +7694,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			values_to_kickstartdlg (hDlg);
 			setmultiautocomplete (hDlg, ids);
 			setac (hDlg, IDC_FLASHFILE);
+			setac (hDlg, IDC_RTCFILE);
 			return TRUE;
 		}
 
@@ -7692,7 +7702,7 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		{
 			int id = GetDlgCtrlID((HWND)wParam);
 			if (id == IDC_KICKCHOOSER || id == IDC_ROMCHOOSER2
-				|| id == IDC_FLASHCHOOSER || id == IDC_CARTCHOOSER) {
+				|| id == IDC_FLASHCHOOSER || id == IDC_CARTCHOOSER || id == IDC_RTCCHOOSER) {
 					TCHAR *s = favoritepopup (hDlg);
 					if (s) {
 						TCHAR newfile[MAX_DPATH];
@@ -7724,6 +7734,10 @@ static INT_PTR CALLBACK KickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		case IDC_FLASHFILE:
 			GetWindowText (GetDlgItem (hDlg, IDC_FLASHFILE), tmp, sizeof (tmp) / sizeof (TCHAR));
 			_tcscpy (workprefs.flashfile, tmp);
+			break;
+		case IDC_RTCFILE:
+			GetWindowText (GetDlgItem (hDlg, IDC_RTCFILE), tmp, sizeof (tmp) / sizeof (TCHAR));
+			_tcscpy (workprefs.rtcfile, tmp);
 			break;
 
 		case IDC_KICKSHIFTER:
@@ -14302,7 +14316,7 @@ static int ignorewindows[] = {
 	-1,
 	IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
 	-1,
-	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE,
+	IDD_KICKSTART, IDC_ROMFILE, IDC_ROMFILE2, IDC_CARTFILE, IDC_FLASHFILE, IDC_RTCFILE,
 	-1,
 	IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
 	-1,
@@ -14555,13 +14569,32 @@ static HWND updatePanel (int id)
 	return panelDlg;
 }
 
+static bool panel_done, panel_active_done;
+
 static void checkpagelabel (int id, int sub, const TCHAR *label)
 {
-	if (!label || _tcsicmp (label, currprefs.win32_guipage))
-		return;
+	if (full_property_sheet) {
+		if (panel_done)
+			return;
+		if (!label || _tcsicmp (label, currprefs.win32_guipage) != 0)
+			return;
+		panel_done = true;
+	} else {
+		if (panel_active_done)
+			return;
+		if (!label || _tcsicmp (label, currprefs.win32_guiactivepage) != 0)
+			return;
+		panel_active_done = true;
+	}
 	currentpage = id;
 	configtypepanel = configtype = sub;
 }
+
+void gui_restart (void)
+{
+	panel_done = panel_active_done = false;
+}
+
 
 static HTREEITEM CreateFolderNode (HWND TVhDlg, int nameid, HTREEITEM parent, int nodeid, int sub, const TCHAR *label)
 {
@@ -15623,8 +15656,8 @@ void gui_disk_image_change (int unitnum, const TCHAR *name, bool writeprotected)
 static void gui_flicker_led2 (int led, int unitnum, int status)
 {
 	static int resetcounter[LED_MAX];
-	uae_u8 old;
-	uae_u8 *p;
+	uae_s8 old;
+	uae_s8 *p;
 
 	if (led == LED_HD)
 		p = &gui_data.hd;
@@ -15635,6 +15668,17 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 	else
 		return;
 	old = *p;
+	if (status < 0) {
+		if (old < 0) {
+			*p = 0;
+			gui_led (led, 0);
+		}
+		return;
+	}
+	if (status == 0 && old < 0) {
+		resetcounter[led] = 0;
+		return;
+	}
 	if (status == 0) {
 		resetcounter[led]--;
 		if (resetcounter[led] > 0)
@@ -15734,11 +15778,13 @@ void gui_led (int led, int on)
 		pos = 5;
 		ptr = _tcscpy (drive_text + pos * 16, _T("CD"));
 		center = 1;
-		if (on & LED_CD_AUDIO)
-			playing = 1;
-		else if (on & LED_CD_ACTIVE2)
-			active2 = 1;
-		on &= 1;
+		if (on >= 0) {
+			if (on & LED_CD_AUDIO)
+				playing = 1;
+			else if (on & LED_CD_ACTIVE2)
+				active2 = 1;
+			on &= 1;
+		}
 	} else if (led == LED_FPS) {
 		double fps = (double)gui_data.fps / 10.0;
 		extern double p96vblank;
@@ -15777,6 +15823,9 @@ void gui_led (int led, int on)
 		pos = 6 + 3;
 		ptr = _tcscpy (drive_text + pos * 16, _T("NV"));
 	}
+
+	if (on < 0)
+		return;
 
 	type = SBT_OWNERDRAW;
 	if (pos >= 0) {

@@ -1547,7 +1547,7 @@ static int open_windows (int full)
 	if (startactive) {
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		for (i = 0; i < NUM_LEDS; i++)
-			gui_led (i, 0);
+			gui_led (i, -1);
 		gui_fps (0, 0, 0);
 		inputdevice_acquire (TRUE);
 	} else if (startminimized) {

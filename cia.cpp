@@ -39,6 +39,7 @@
 #include "sampler.h"
 #include "dongle.h"
 #include "inputrecord.h"
+#include "autoconf.h"
 
 #define CIAA_DEBUG_R 0
 #define CIAA_DEBUG_W 0
@@ -46,6 +47,7 @@
 #define CIAB_DEBUG_W 0
 #define DONGLE_DEBUG 0
 #define KB_DEBUG 0
+#define CLOCK_DEBUG 0
 
 #define TOD_HACK
 
@@ -88,6 +90,8 @@ static uae_u8 kbcode;
 
 static uae_u8 serbits;
 static int warned = 10;
+static int rtc_delayed_write;
+
 
 static void setclr (unsigned int *p, unsigned int val)
 {
@@ -467,6 +471,7 @@ STATIC_INLINE void ciaa_checkalarm (int inc)
 #ifdef TOD_HACK
 static uae_u64 tod_hack_tv, tod_hack_tod, tod_hack_tod_last;
 static int tod_hack_enabled;
+#define TOD_HACK_TIME 312 * 50 * 10
 static void tod_hack_reset (void)
 {
 	struct timeval tv;
@@ -476,6 +481,12 @@ static void tod_hack_reset (void)
 	tod_hack_tod_last = tod_hack_tod;
 }
 #endif
+
+static int heartbeat_cnt;
+void cia_heartbeat (void)
+{
+	heartbeat_cnt = 10;
+}
 
 static void do_tod_hack (int dotod)
 {
@@ -487,6 +498,15 @@ static void do_tod_hack (int dotod)
 
 	if (tod_hack_enabled == 0)
 		return;
+	if (!heartbeat_cnt) {
+		if (tod_hack_enabled > 0)
+			tod_hack_enabled = -1;
+		return;
+	}
+	if (tod_hack_enabled < 0) {
+		tod_hack_enabled = TOD_HACK_TIME;
+		return;
+	}
 	if (tod_hack_enabled > 1) {
 		tod_hack_enabled--;
 		if (tod_hack_enabled == 1) {
@@ -692,8 +712,16 @@ static void led_vsync (void)
 	led_cycle = get_cycles ();
 }
 
+static void write_battclock (void);
 void CIA_vsync_prehandler (void)
 {
+	if (rtc_delayed_write < 0) {
+		rtc_delayed_write = 50;
+	} else if (rtc_delayed_write > 0) {
+		rtc_delayed_write--;
+		if (rtc_delayed_write == 0)
+			write_battclock ();
+	}
 	led_vsync ();
 	CIA_handler ();
 	if (kblostsynccnt > 0) {
@@ -710,6 +738,8 @@ void CIA_vsync_prehandler (void)
 
 void CIA_vsync_posthandler (bool dotod)
 {
+	if (heartbeat_cnt > 0)
+		heartbeat_cnt--;
 #ifdef TOD_HACK
 	if (currprefs.tod_hack && tod_hack_enabled == 1)
 		return;
@@ -1329,7 +1359,7 @@ void CIA_reset (void)
 	tod_hack_tod = 0;
 	tod_hack_enabled = 0;
 	if (currprefs.tod_hack)
-		tod_hack_enabled = 312 * 50 * 10;
+		tod_hack_enabled = TOD_HACK_TIME;
 #endif
 
 	kblostsynccnt = 0;
@@ -1337,6 +1367,7 @@ void CIA_reset (void)
 	oldcd32mute = 1;
 	oldled = true;
 	resetwarning_phase = resetwarning_timer = 0;
+	heartbeat_cnt = 0;
 
 	if (!savestate_state) {
 		oldovl = true;
@@ -1412,9 +1443,13 @@ addrbank cia_bank = {
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
 // Old Gary based Amigas enable both CIAs in this situation
 
-STATIC_INLINE int issinglecia (void)
+STATIC_INLINE bool issinglecia (void)
 {
 	return currprefs.cs_ide || currprefs.cs_pcmcia || currprefs.cs_mbdmac;
+}
+STATIC_INLINE bool isgayle (void)
+{
+	return currprefs.cs_ide || currprefs.cs_pcmcia;
 }
 
 static void cia_wait_pre (void)
@@ -1457,17 +1492,29 @@ static void cia_wait_post (uae_u32 value)
 	}
 }
 
+static bool isgaylenocia (uaecptr addr)
+{
+	// gayle CIA region is only 4096 bytes at 0xbfd000 and 0xbfe000
+	if (!isgayle ())
+		return true;
+	uaecptr mask = addr & 0xf000;
+	bool cia = mask == 0xe000 || mask == 0xd000;
+	return cia;
+}
+
 static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 {
 	int r = (addr & 0xf00) >> 8;
-	uae_u8 v;
-
+	uae_u8 v = 0xff;
 
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+
+	if (!isgaylenocia (addr))
+		return v;
+
 	cia_wait_pre ();
-	v = 0xff;
 	switch ((addr >> 12) & 3) {
 	case 0:
 		if (!issinglecia ())
@@ -1496,13 +1543,16 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 {
 	int r = (addr & 0xf00) >> 8;
-	uae_u16 v;
+	uae_u16 v = 0xffff;
 
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+
+	if (!isgaylenocia (addr))
+		return 0xffffffff;
+
 	cia_wait_pre ();
-	v = 0xffff;
 	switch ((addr >> 12) & 3)
 	{
 	case 0:
@@ -1556,6 +1606,10 @@ static void REGPARAM2 cia_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+
+	if (!isgaylenocia (addr))
+		return;
+
 	cia_wait_pre ();
 	if (!issinglecia () || (addr & 0x3000) != 0) {
 		if ((addr & 0x2000) == 0)
@@ -1577,6 +1631,10 @@ static void REGPARAM2 cia_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+
+	if (!isgaylenocia (addr))
+		return;
+
 	cia_wait_pre ();
 	if (!issinglecia () || (addr & 0x3000) != 0) {
 		if ((addr & 0x2000) == 0)
@@ -1620,29 +1678,113 @@ static unsigned int clock_control_f;
 #define RF5C01A_RAM_SIZE 16
 static uae_u8 rtc_memory[RF5C01A_RAM_SIZE], rtc_alarm[RF5C01A_RAM_SIZE];
 
+static uae_u8 getclockreg (int addr, struct tm *ct)
+{
+	uae_u8 v = 0;
+
+	if (currprefs.cs_rtc == 1) { /* MSM6242B */
+		switch (addr) {
+		case 0x0: v = ct->tm_sec % 10; break;
+		case 0x1: v = ct->tm_sec / 10; break;
+		case 0x2: v = ct->tm_min % 10; break;
+		case 0x3: v = ct->tm_min / 10; break;
+		case 0x4: v = ct->tm_hour % 10; break;
+		case 0x5:
+			if (clock_control_f & 4) {
+				v = ct->tm_hour / 10; // 24h
+			} else {
+				v = (ct->tm_hour % 12) / 10; // 12h
+				v |= ct->tm_hour >= 12 ? 4 : 0; // AM/PM bit
+			}
+			break;
+		case 0x6: v = ct->tm_mday % 10; break;
+		case 0x7: v = ct->tm_mday / 10; break;
+		case 0x8: v = (ct->tm_mon + 1) % 10; break;
+		case 0x9: v = (ct->tm_mon + 1) / 10; break;
+		case 0xA: v = ct->tm_year % 10; break;
+		case 0xB: v = (ct->tm_year / 10) & 0x0f;  break;
+		case 0xC: v = ct->tm_wday; break;
+		case 0xD: v = clock_control_d; break;
+		case 0xE: v = clock_control_e; break;
+		case 0xF: v = clock_control_f; break;
+		}
+	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
+		int bank = clock_control_d & 3;
+		/* memory access */
+		if (bank >= 2 && addr < 0x0d)
+			return (rtc_memory[addr] >> ((bank == 2) ? 0 : 4)) & 0x0f;
+		/* alarm */
+		if (bank == 1 && addr < 0x0d) {
+			v = rtc_alarm[addr];
+#if CLOCK_DEBUG
+			write_log (_T("CLOCK ALARM R %X: %X\n"), addr, v);
+#endif
+			return v;
+		}
+		switch (addr) {
+		case 0x0: v = ct->tm_sec % 10; break;
+		case 0x1: v = ct->tm_sec / 10; break;
+		case 0x2: v = ct->tm_min % 10; break;
+		case 0x3: v = ct->tm_min / 10; break;
+		case 0x4: v = ct->tm_hour % 10; break;
+		case 0x5:
+			if (rtc_alarm[10] & 1)
+				v = ct->tm_hour / 10; // 24h
+			else
+				v = ((ct->tm_hour % 12) / 10) | (ct->tm_hour >= 12 ? 2 : 0); // 12h
+		break;
+		case 0x6: v = ct->tm_wday; break;
+		case 0x7: v = ct->tm_mday % 10; break;
+		case 0x8: v = ct->tm_mday / 10; break;
+		case 0x9: v = (ct->tm_mon + 1) % 10; break;
+		case 0xA: v = (ct->tm_mon + 1) / 10; break;
+		case 0xB: v = (ct->tm_year % 100) % 10; break;
+		case 0xC: v = (ct->tm_year % 100) / 10; break;
+		case 0xD: v = clock_control_d; break;
+		/* E and F = write-only, reads as zero */
+		case 0xE: v = 0; break;
+		case 0xF: v = 0; break;
+		}
+	}
+#if CLOCK_DEBUG
+	write_log(_T("CLOCK R: %X = %X, PC=%08x\n"), addr, v, M68K_GETPC);
+#endif
+	return v;
+}
+
 static void write_battclock (void)
 {
-	struct zfile *f = zfile_fopen (currprefs.flashfile, _T("rb+"), ZFD_NORMAL);
-	if (!f) {
-		f = zfile_fopen (currprefs.flashfile, _T("wb"), 0);
-		if (f) {
-			zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
-			zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
-			zfile_fclose (f);
-		}
+	if (!currprefs.rtcfile[0] || currprefs.cs_rtc == 0)
 		return;
+	struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("wb"));
+	if (f) {
+		uae_u8 zero[13] = { 0 };
+		struct tm *ct;
+		time_t t = time (0);
+		t += currprefs.cs_rtc_adjust;
+		ct = localtime (&t);
+		uae_u8 od = clock_control_d;
+		if (currprefs.cs_rtc == 2)
+			clock_control_d &= ~3;
+		for (int i = 0; i < 13; i++) {
+			uae_u8 v = getclockreg (i, ct);
+			zfile_fwrite (&v, 1, 1, f);
+		}
+		clock_control_d = od;
+		zfile_fwrite (&clock_control_d, 1, 1, f);
+		zfile_fwrite (&clock_control_e, 1, 1, f);
+		zfile_fwrite (&clock_control_f, 1, 1, f);
+		if (currprefs.cs_rtc == 2) {
+			zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+			zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+		}
+		zfile_fclose (f);
 	}
-	zfile_fseek (f, 0, SEEK_END);
-	if (zfile_ftell (f) <= 2 * RF5C01A_RAM_SIZE) {
-		zfile_fseek (f, 0, SEEK_SET);
-		zfile_fwrite (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
-		zfile_fwrite (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
-	}
-	zfile_fclose (f);
 }
 
 void rtc_hardreset (void)
 {
+	rtc_delayed_write = 0;
 	if (currprefs.cs_rtc == 1) { /* MSM6242B */
 		clock_bank.name = _T("Battery backed up clock (MSM6242B)");
 		clock_control_d = 0x1;
@@ -1650,26 +1792,26 @@ void rtc_hardreset (void)
 		clock_control_f = 0x4; /* 24/12 */
 	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
 		clock_bank.name = _T("Battery backed up clock (RF5C01A)");
-		clock_control_d = 0x4; /* Timer EN */
+		clock_control_d = 0x8; /* Timer EN */
 		clock_control_e = 0;
 		clock_control_f = 0;
 		memset (rtc_memory, 0, RF5C01A_RAM_SIZE);
 		memset (rtc_alarm, 0, RF5C01A_RAM_SIZE);
-#if 0
-		struct zfile *f;
-		f = zfile_fopen (currprefs.flashfile, "rb", ZFD_NORMAL);
+		rtc_alarm[10] = 1; /* 24H mode */
+	}
+	if (currprefs.rtcfile[0]) {
+		struct zfile *f = zfile_fopen (currprefs.rtcfile, _T("rb"));
 		if (f) {
-			zfile_fread (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
+			uae_u8 empty[13];
+			zfile_fread (empty, 13, 1, f);
+			zfile_fread (&clock_control_d, 1, 1, f);
+			zfile_fread (&clock_control_e, 1, 1, f);
+			zfile_fread (&clock_control_f, 1, 1, f);
 			zfile_fread (rtc_alarm, RF5C01A_RAM_SIZE, 1, f);
+			zfile_fread (rtc_memory, RF5C01A_RAM_SIZE, 1, f);
 			zfile_fclose (f);
 		}
-#endif
 	}
-}
-
-static uae_u8 tobcd (int val)
-{
-	return (val / 10) * 16 + (val % 10);
 }
 
 static uae_u32 REGPARAM2 clock_lget (uaecptr addr)
@@ -1686,18 +1828,17 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 {
 	time_t t;
 	struct tm *ct;
+	uae_u8 v = 0;
 
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-//	write_log(_T("R: %x (%x), PC=%08x\n"), addr, (addr & 0xff) >> 2, M68K_GETPC);
 #ifdef CDTV
 	if (currprefs.cs_cdtvram && addr >= 0xdc8000)
 		return cdtv_battram_read (addr);
 #endif
 	addr &= 0x3f;
 	if ((addr & 3) == 2 || (addr & 3) == 0 || currprefs.cs_rtc == 0) {
-		int v = 0;
 		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
 			v = regs.irc >> 8;
 		return v;
@@ -1706,52 +1847,7 @@ static uae_u32 REGPARAM2 clock_bget (uaecptr addr)
 	t += currprefs.cs_rtc_adjust;
 	ct = localtime (&t);
 	addr >>= 2;
-	if (currprefs.cs_rtc == 1) { /* MSM6242B */
-		switch (addr) {
-		case 0x0: return ct->tm_sec % 10;
-		case 0x1: return ct->tm_sec / 10;
-		case 0x2: return ct->tm_min % 10;
-		case 0x3: return ct->tm_min / 10;
-		case 0x4: return ct->tm_hour % 10;
-		case 0x5: return ct->tm_hour / 10;
-		case 0x6: return ct->tm_mday % 10;
-		case 0x7: return ct->tm_mday / 10;
-		case 0x8: return (ct->tm_mon + 1) % 10;
-		case 0x9: return (ct->tm_mon + 1) / 10;
-		case 0xA: return ct->tm_year % 10;
-		case 0xB: return tobcd (ct->tm_year / 10);
-		case 0xC: return ct->tm_wday;
-		case 0xD: return clock_control_d;
-		case 0xE: return clock_control_e;
-		case 0xF: return clock_control_f;
-		}
-	} else if (currprefs.cs_rtc == 2) { /* RF5C01A */
-		int bank = clock_control_d & 3;
-		/* memory access */
-		if (bank >= 2 && addr < 0x0d)
-			return (rtc_memory[addr] >> ((bank == 2) ? 0 : 4)) & 0x0f;
-		/* alarm */
-		if (bank == 1 && addr < 0x0d)
-			return rtc_alarm[addr];
-		switch (addr) {
-		case 0x0: return ct->tm_sec % 10;
-		case 0x1: return ct->tm_sec / 10;
-		case 0x2: return ct->tm_min % 10;
-		case 0x3: return ct->tm_min / 10;
-		case 0x4: return ct->tm_hour % 10;
-		case 0x5: return ct->tm_hour / 10;
-		case 0x6: return ct->tm_wday;
-		case 0x7: return ct->tm_mday % 10;
-		case 0x8: return ct->tm_mday / 10;
-		case 0x9: return (ct->tm_mon + 1) % 10;
-		case 0xA: return (ct->tm_mon + 1) / 10;
-		case 0xB: return ct->tm_year % 10;
-		case 0xC: return tobcd (ct->tm_year / 10);
-		case 0xD: return clock_control_d;
-			/* E and F = write-only */
-		}
-	}
-	return 0;
+	return getclockreg (addr, ct);
 }
 
 static void REGPARAM2 clock_lput (uaecptr addr, uae_u32 value)
@@ -1784,6 +1880,9 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 	addr >>= 2;
 	value &= 0x0f;
 	if (currprefs.cs_rtc == 1) { /* MSM6242B */
+#if CLOCK_DEBUG
+		write_log (_T("CLOCK W %X: %X\n"), addr, value);
+#endif
 		switch (addr)
 		{
 		case 0xD: clock_control_d = value & (1|8); break;
@@ -1794,17 +1893,19 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 		int bank = clock_control_d & 3;
 		/* memory access */
 		if (bank >= 2 && addr < 0x0d) {
+			uae_u8 ov = rtc_memory[addr];
 			rtc_memory[addr] &= ((bank == 2) ? 0xf0 : 0x0f);
 			rtc_memory[addr] |= value << ((bank == 2) ? 0 : 4);
-#if 0
-			uae_u8 ov = rtc_memory[addr];
 			if (rtc_memory[addr] != ov)
-				write_battclock ();
-#endif
+				rtc_delayed_write = -1;
 			return;
 		}
 		/* alarm */
 		if (bank == 1 && addr < 0x0d) {
+#if CLOCK_DEBUG
+			write_log (_T("CLOCK ALARM W %X: %X\n"), addr, value);
+#endif
+			uae_u8 ov = rtc_alarm[addr];
 			rtc_alarm[addr] = value;
 			rtc_alarm[0] = rtc_alarm[1] = rtc_alarm[9] = rtc_alarm[12] = 0;
 			rtc_alarm[3] &= ~0x8;
@@ -1813,13 +1914,13 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 			rtc_alarm[8] &= ~0xc;
 			rtc_alarm[10] &= ~0xe;
 			rtc_alarm[11] &= ~0xc;
-#if 0
-			uae_u8 ov = rtc_alarm[addr];
-			if (rtc_alarm[addr] != value)
-				write_battclock ();
-#endif
+			if (rtc_alarm[addr] != ov)
+				rtc_delayed_write = -1;
 			return;
 		}
+#if CLOCK_DEBUG
+		write_log (_T("CLOCK W %X: %X\n"), addr, value);
+#endif
 		switch (addr)
 		{
 		case 0xD: clock_control_d = value; break;
@@ -1827,7 +1928,7 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 		case 0xF: clock_control_f = value; break;
 		}
 	}
-
+	rtc_delayed_write = -1;
 }
 
 #ifdef SAVESTATE

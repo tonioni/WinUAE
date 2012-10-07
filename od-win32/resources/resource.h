@@ -612,6 +612,8 @@
 #define IDC_CARTCHOOSER                 1399
 #define IDC_SAVE                        1400
 #define IDC_LOAD                        1401
+#define IDC_FLASHCHOOSER2               1401
+#define IDC_RTCCHOOSER                  1401
 #define IDC_DELETE                      1403
 #define IDC_CONFIGLIST                  1404
 #define IDC_EDITNAME                    1405
@@ -620,6 +622,7 @@
 #define IDC_QUICKLOAD                   1409
 #define IDC_EXIT                        1410
 #define IDC_EDITPATH                    1410
+#define IDC_RTCFILE                     1411
 #define IDC_HDF_RDB                     1500
 #define IDC_HFSIZE                      1501
 #define IDC_HF_SIZE                     1501
@@ -724,7 +727,6 @@
 #define IDC_NOFLAGS                     1581
 #define IDC_SOUNDDRIVEVOLUME2           1581
 #define IDC_CS_CACHE_TEXT               1582
-#define IDC_SOUNDVOLUME3                1582
 #define IDC_SOUNDVOLUMECD2              1582
 #define IDC_CS_CACHE_TEXT2              1583
 #define IDC_COLLISIONS                  1584

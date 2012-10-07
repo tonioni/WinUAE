@@ -1555,6 +1555,7 @@ static struct ide_hdf *add_ide_unit (int ch, const TCHAR *path, int blocksize, i
 	ide->status = 0;
 	ide->data_offset = 0;
 	ide->data_size = 0;
+	gui_flicker_led (LED_HD, ch, -1);
 	return ide;
 }
 

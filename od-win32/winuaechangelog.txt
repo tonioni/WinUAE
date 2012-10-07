@@ -1,11 +1,25 @@
 
-- Merged SVN updates.
-- Check dos.library's version, not exec's, to detect KS version. Exec version is v37 on CDTV with KS 1.3 + 2.x extended ROM.
-- Enabled removable media support.
-- Fixed ACTION_DIE (unmount) crash.
-- 1.x C:Info does not anymore report no disk state.
-
 - restore only single input target to default.
+
+Beta 20:
+
+- Reduced Gayle based configuration CIA memory bank size to 4096 bytes, only accesses to bfdxxx and bfexxx goes to CIA chips if Gayle.
+- Reverted b19 horizontal change, I forgot that it was made to fit max overscan modes better..
+  (Manually adding "gfx_horizontal_tweak=8" to config file can be used as a workaround, if needed for some reason) 
+- RTC update in b11 was not compatible with KS 1.x.
+- improved RF5C01A RTC emulation, previously KS2.0+ detected stopped clock and attempted to reset it (which is no-op because
+  emulated clock's time is currently read-only) and after reset it finally read the time.
+- RTC year value is saved differently depending on OS version, Pre-2.0: RTC year value = current year - 1900,
+  2.0+: year value = last 2 digits. Both methods supported when reading. WinUAE now uses pre-2.0 method if
+  MSM clock chip (because this is the only type that KS1.x supports), 2.0+ if RF clock chip, previously always used -1900 method.
+- RTC 12/24h bit emulated, this is not used by AOS.
+- RTC time/date, alarm and memory data save/load to file supported (alarm time/date, note that alarm interrupt pin is not connected in Amigas,
+  and 104 bits of memory, used mainly for A3000 SCSI settings, included with RF clock chip type). Date/time ignored when loading.
+- added win32.gui_active_page=name, sets default GUI panel after emulation has been started (Old win32.gui_page = before emulation starts)
+- In some situations adv. chipset may have used incompatible data stored in config file even if compatible settings was ticked.
+- Syncronize clock on the fly CIA TOD adjustment is now only active if heartbeat signal (b11) is detected.
+- b11 heartbeat system was not fully disabled when UAE boot rom was unavailable.
+- On screen led HD/CD/NVRAM indicator is blank if device is not available (like floppies already did).
 
 Beta 19:
 

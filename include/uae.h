@@ -26,6 +26,7 @@ extern void target_reset (void);
 extern void target_addtorecent (const TCHAR*, int);
 extern void target_run (void);
 extern void target_quit (void);
+extern void target_restart (void);
 extern bool get_plugin_path (TCHAR *out, int size, const TCHAR *path);
 extern void stripslashes (TCHAR *p);
 extern void fixtrailing (TCHAR *p);

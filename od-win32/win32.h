@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("19")
-#define WINUAEDATE MAKEBD(2012, 10, 1)
+#define WINUAEBETA _T("20")
+#define WINUAEDATE MAKEBD(2012, 10, 7)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -58,6 +58,7 @@ extern void remove_brkhandler (void);
 extern void disablecapture (void);
 extern void fullscreentoggle (void);
 extern int isfocus (void);
+extern void gui_restart (void);
 
 extern void setmouseactive (int active);
 extern void minimizewindow (void);

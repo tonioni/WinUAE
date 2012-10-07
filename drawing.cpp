@@ -2340,7 +2340,8 @@ static void center_image (void)
 		}
 	} else if (gfxvidinfo.drawbuffer.extrawidth) {
 		visible_left_border = max_diwlastword - w;
-		visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
+		if (gfxvidinfo.drawbuffer.extrawidth > 0)
+			visible_left_border += gfxvidinfo.drawbuffer.extrawidth << currprefs.gfx_resolution;
 	} else {
 		if (gfxvidinfo.drawbuffer.inxoffset < 0) {
 			visible_left_border = 0;
@@ -2348,7 +2349,6 @@ static void center_image (void)
 			visible_left_border = gfxvidinfo.drawbuffer.inxoffset - DISPLAY_LEFT_SHIFT;
 		}
 	}
-
 
 	if (visible_left_border > max_diwlastword - 32)
 		visible_left_border = max_diwlastword - 32;

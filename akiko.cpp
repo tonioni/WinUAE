@@ -1863,6 +1863,7 @@ int akiko_init (void)
 		init_comm_pipe (&requests, 100, 1);
 		uae_start_thread (_T("akiko"), akiko_thread, 0, NULL);
 	}
+	gui_flicker_led (LED_HD, 0, -1);
 	akiko_inited = true;
 	return 1;
 }

@@ -124,24 +124,28 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 			off_rgb = 0x330000;
 		} else if (led == LED_CD) {
 			pos = 5;
-			on = gui_data.cd & (LED_CD_AUDIO | LED_CD_ACTIVE);
-			on_rgb = (on & LED_CD_AUDIO) ? 0x00cc00 : 0x0000cc;
-			if ((gui_data.cd & LED_CD_ACTIVE2) && !(gui_data.cd & LED_CD_AUDIO)) {
-				on_rgb &= 0xfefefe;
-				on_rgb >>= 1;
+			if (gui_data.cd >= 0) {
+				on = gui_data.cd & (LED_CD_AUDIO | LED_CD_ACTIVE);
+				on_rgb = (on & LED_CD_AUDIO) ? 0x00cc00 : 0x0000cc;
+				if ((gui_data.cd & LED_CD_ACTIVE2) && !(gui_data.cd & LED_CD_AUDIO)) {
+					on_rgb &= 0xfefefe;
+					on_rgb >>= 1;
+				}
+				off_rgb = 0x000033;
+				num1 = -1;
+				num2 = 10;
+				num3 = 12;
 			}
-			off_rgb = 0x000033;
-			num1 = -1;
-			num2 = 10;
-			num3 = 12;
 		} else if (led == LED_HD) {
 			pos = 4;
-			on = gui_data.hd;
-			on_rgb = on == 2 ? 0xcc0000 : 0x0000cc;
-			off_rgb = 0x000033;
-			num1 = -1;
-			num2 = 11;
-			num3 = 12;
+			if (gui_data.hd >= 0) {
+				on = gui_data.hd;
+				on_rgb = on == 2 ? 0xcc0000 : 0x0000cc;
+				off_rgb = 0x000033;
+				num1 = -1;
+				num2 = 11;
+				num3 = 12;
+			}
 		} else if (led == LED_FPS) {
 			int fps = (gui_data.fps + 5) / 10;
 			pos = 2;

@@ -3072,7 +3072,13 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, _T("parjoyport0"), p->win32_parjoyport0);
 	cfgfile_target_dwrite_str (f, _T("parjoyport1"), p->win32_parjoyport1);
 	cfgfile_target_dwrite_str (f, _T("gui_page"), p->win32_guipage);
+	cfgfile_target_dwrite_str (f, _T("gui_active_page"), p->win32_guiactivepage);
 	cfgfile_target_dwrite_bool (f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
+}
+
+void target_restart (void)
+{
+	gui_restart ();
 }
 
 static int fetchpri (int pri, int defpri)
@@ -3144,6 +3150,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_string (option, value, _T("parjoyport0"), p->win32_parjoyport0, sizeof p->win32_parjoyport0 / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("parjoyport1"), p->win32_parjoyport1, sizeof p->win32_parjoyport1 / sizeof (TCHAR))
 		|| cfgfile_string (option, value, _T("gui_page"), p->win32_guipage, sizeof p->win32_guipage / sizeof (TCHAR))
+		|| cfgfile_string (option, value, _T("gui_active_page"), p->win32_guiactivepage, sizeof p->win32_guiactivepage / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("guikey"), &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
 		|| cfgfile_yesno (option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
