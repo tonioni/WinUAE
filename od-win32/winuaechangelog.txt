@@ -1,6 +1,25 @@
 
 - restore only single input target to default.
 
+Beta 21:
+
+- Use software volume also in WASAPI non-exclusive because WASAPI main volume control also affects waveOut used by CD audio.
+  (XP + DS also seems to affect waveout.. CDA really should use some more modern sound API, later...)
+- Floppy sound sample mixing volume fix, volume level got lower if more than one drive had enabled sounds.
+- Virtual mouse driver option IECLASS_POINTERPOS inputevent ie_Qualifier apparently needs to include mouse button state bits or
+  Magellan II's (AmiKit) menus won't stay open, possibly affects other programs too. (This is not documented in HRMs, hmm...).
+  "Start menu" still won't work but it is application bug because it also won't work if mouse is moved using Amiga + cursor keys.
+- CDFS crash fix when unsupported media (not unreadable but for example UDF-only DVD) was accessed.
+- Check and ignore possible duplicated CDFS CD insert or eject Windows message.
+- Compile time directory filesystem logging is now runtime option (-filesyslog and -filesyslog2)
+- Borderblank still didn't work correctly in all situations. (Aladdin AGA)
+- Fullscreen DirectDraw mode IDirectDrawSurface7_Flip "Was still drawing" fix. (I still have no idea what was I thinking of..)
+- Added "waiting blits" special case, when blitter is started and blit would use all available cycles: start waiting for the blit immediately.
+- Changing hardfile path does not anymore clear device name and filesystem text boxes.
+- Fixed crash when loading statefile with JIT enabled (b6 "ROM protection" should be disabled temporarily when loading UAE boot rom data..)
+- zlib updated to 1.2.7
+- Built-in AROS ROM updated.
+
 Beta 20:
 
 - Reduced Gayle based configuration CIA memory bank size to 4096 bytes, only accesses to bfdxxx and bfexxx goes to CIA chips if Gayle.

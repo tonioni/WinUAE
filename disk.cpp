@@ -2038,7 +2038,7 @@ static int drive_write_ext2 (uae_u16 *bigmfmbuf, struct zfile *diskfile, trackid
 
 static void drive_write_data (drive * drv);
 
-static bool convert_adf_to_ext2 (drive *drv)
+static bool convert_adf_to_ext2 (drive *drv, int mode)
 {
 	TCHAR name[MAX_DPATH];
 	bool hd = drv->ddhd == 2;
@@ -2049,18 +2049,33 @@ static bool convert_adf_to_ext2 (drive *drv)
 	_tcscpy (name, currprefs.floppyslots[drv - floppy].df);
 	if (!name[0])
 		return false;
-	TCHAR *p = _tcsrchr (name, '.');
-	if (!p)
-		p = name + _tcslen (name);
-	_tcscpy (p, _T(".extended.adf"));
-	if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, drv->diskfile))
+	if (mode == 1) {
+		TCHAR *p = _tcsrchr (name, '.');
+		if (!p)
+			p = name + _tcslen (name);
+		_tcscpy (p, _T(".extended.adf"));
+		if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, drv->diskfile))
+			return false;
+	} else if (mode == 2) {
+		struct zfile *tmp = zfile_fopen_load_zfile (drv->diskfile);
+		if (!tmp)
+			return false;
+		zfile_fclose (drv->diskfile);
+		drv->diskfile = NULL;
+		if (!disk_creatediskfile (name, 1, hd ? DRV_35_HD : DRV_35_DD, NULL, false, false, tmp)) {
+			zfile_fclose (tmp);
+			return false;
+		}
+	} else {
 		return false;
-	f = zfile_fopen (name, _T("rb"), 0);
+	}
+	f = zfile_fopen (name, _T("r+b"));
 	if (!f)
 		return false;
 	_tcscpy (currprefs.floppyslots[drv - floppy].df, name);
 	_tcscpy (changed_prefs.floppyslots[drv - floppy].df, name);
 	zfile_fclose (drv->diskfile);
+
 	drv->diskfile = f;
 	drv->filetype = ADF_EXT2;
 	read_header_ext2 (drv->diskfile, drv->trackdata, &drv->num_tracks, &drv->ddhd);
@@ -2092,7 +2107,7 @@ static void drive_write_data (drive * drv)
 	case ADF_NORMAL:
 		if (drive_write_adf_amigados (drv)) {
 			if (currprefs.floppy_auto_ext2) {
-				convert_adf_to_ext2 (drv);
+				convert_adf_to_ext2 (drv, currprefs.floppy_auto_ext2);
 			} else {
 				static int warned;
 				if (!warned)

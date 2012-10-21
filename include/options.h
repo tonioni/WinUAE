@@ -328,7 +328,7 @@ struct uae_prefs {
 	int floppy_write_length;
 	int floppy_random_bits_min;
 	int floppy_random_bits_max;
-	bool floppy_auto_ext2;
+	int floppy_auto_ext2;
 	bool tod_hack;
 	uae_u32 maprom;
 	int turbo_emulation;

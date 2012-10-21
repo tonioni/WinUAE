@@ -162,7 +162,7 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		} else if (led == LED_CPU) {
 			int idle = (gui_data.idle + 5) / 10;
 			pos = 1;
-			on = framecnt && !picasso_on;
+			//on = framecnt && !picasso_on;
 			on_rgb = 0xcc0000;
 			off_rgb = 0x000000;
 			num1 = idle / 100;

@@ -58,19 +58,19 @@
 #include "rp.h"
 #endif
 
-#define TRACING_ENABLED 0
+#define TRACING_ENABLED 1
+int log_filesys;
+
 #if TRACING_ENABLED
-#define TRACE(x) do { write_log x; } while(0)
+#define TRACE(x) if (log_filesys > 0) { write_log x; }
+#define TRACE2(x) if (log_filesys >= 2) { write_log x; }
+#define TRACE3(x) if (log_filesys >= 3) { write_log x; }
 #define DUMPLOCK(u,x) dumplock(u,x)
-#if TRACING_ENABLED > 1
-#define TRACE2(x) do { write_log x; } while(0)
-#else
-#define TRACE2(x)
-#endif
 #else
 #define TRACE(x)
 #define DUMPLOCK(u,x)
 #define TRACE2(x)
+#define TRACE3(x)
 #endif
 
 #define RTAREA_HEARTBEAT 0xFFFC
@@ -1253,6 +1253,8 @@ static void set_volume_name (Unit *unit, uae_u32 ctime)
 
 static int filesys_isvolume (Unit *unit)
 {
+	if (!unit->volume)
+		return 0;
 	return get_byte (unit->volume + 44) || unit->ui.unknown_media;
 }
 
@@ -1632,12 +1634,19 @@ int hardfile_remount (int nr)
 bool filesys_do_disk_change (int cdunitnum, bool insert)
 {
 	int nr = cdunitnum + cd_unit_offset;
-	if (!mountinfo.ui[nr].cd_open)
+	UnitInfo *ui = &mountinfo.ui[nr];
+	Unit *u = ui->self;
+
+	if (!ui->cd_open)
 		return false;
 	if (insert) {
+		if (filesys_isvolume (u))
+			return false;
 		filesys_insert (nr, NULL, _T("/"), true, MYVOLUMEINFO_CDFS | MYVOLUMEINFO_READONLY);
 		return true;
 	} else {
+		if (!filesys_isvolume (u))
+			return false;
 		filesys_eject (nr);
 		return true;
 	}
@@ -3230,15 +3239,22 @@ static void
 	int fsdb_can = fsdb_cando (unit);
 	TCHAR *xs;
 	char *x, *x2;
+	bool ok = true;
 
 	memset (&statbuf, 0, sizeof statbuf);
 	/* No error checks - this had better work. */
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE)
-		zfile_stat_archive (aino->nname, &statbuf);
+		ok = zfile_stat_archive (aino->nname, &statbuf) != 0;
 	else if (unit->volflags & MYVOLUMEINFO_CDFS)
-		isofs_stat (unit->ui.cdfs_superblock, aino->uniq_external, &statbuf);
+		ok = isofs_stat (unit->ui.cdfs_superblock, aino->uniq_external, &statbuf);
 	else
 		stat (aino->nname, &statbuf);
+
+	if (!ok) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_NOT_A_DOS_DISK);
+		return;
+	}
 
 	if (aino->parent == 0) {
 		/* Guru book says ST_ROOT = 1 (root directory, not currently used)
@@ -5400,7 +5416,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 					lockend = get_long (lockend);
 					cnt++;
 				}
-				TRACE2((_T("message_lock: %d %x %x %x\n"), cnt, locks, lockend, m68k_areg (regs, 3)));
+				TRACE3((_T("message_lock: %d %x %x %x\n"), cnt, locks, lockend, m68k_areg (regs, 3)));
 				put_long (lockend, get_long (m68k_areg (regs, 3)));
 				put_long (m68k_areg (regs, 3), locks);
 			}
@@ -5498,13 +5514,7 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	uae_s32 type = GET_PCK_TYPE (pck);
 	PUT_PCK_RES2 (pck, 0);
 
-#if 0
-	if (unit->cdfs_superblock)
-		write_log(_T("unit=%x packet=%d\n"), unit, type);
-#endif
-#if TRACING_ENABLED > 1
-	write_log(_T("unit=%x packet=%d\n"), unit, type);
-#endif
+	TRACE((_T("unit=%x packet=%d\n"), unit, type));
 	if (unit->inhibited && filesys_isvolume (unit)
 		&& type != ACTION_INHIBIT && type != ACTION_MORE_CACHE
 		&& type != ACTION_DISK_INFO) {
@@ -6286,6 +6296,17 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	hfd->cylinders = rl (bufrdb + 64);
 	hfd->sectors = rl (bufrdb + 68);
 	hfd->heads = rl (bufrdb + 72);
+#if 0
+	{
+		int cyls, secs, heads;
+		getchsgeometry_hdf (hfd, hfd->virtsize, &cyls, &secs, &heads);
+		if (cyls * secs * heads > hfd->cylinders * hfd->sectors * hfd->heads) {
+			hfd->cylinders = cyls;
+			hfd->sectors = secs;
+			hfd->heads = heads;
+		}
+	}
+#endif
 	fileblock = rl (bufrdb + 32);
 
 	buf = xmalloc (uae_u8, readblocksize);
@@ -7173,7 +7194,7 @@ static uae_u8 *restore_key (UnitInfo *ui, Unit *u, uae_u8 *src)
 	}
 	xfree (p);
 	if (missing) {
-		xfree(k);
+		xfree (k);
 	} else {
 		k->next = u->keys;
 		u->keys = k;

@@ -3271,8 +3271,8 @@ static uae_u32 REGPARAM2 timehack_helper (TrapContext *context)
 	timehack_alive = 10;
 
 	gettimeofday (&tv, NULL);
-	x_put_long (m68k_areg (regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
-	x_put_long (m68k_areg (regs, 0) + 4, tv.tv_usec);
+	put_long (m68k_areg (regs, 0), tv.tv_sec - (((365 * 8 + 2) * 24) * 60 * 60));
+	put_long (m68k_areg (regs, 0) + 4, tv.tv_usec);
 	return 0;
 #else
 	return 2;
@@ -3882,7 +3882,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 	if (immediate) {
 		record_register_change (hpos, 0x100, v);
 	} else {
-		record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80)));
+		record_register_change (hpos, 0x100, (bplcon0d & ~(0x800 | 0x400 | 0x80)) | (v & (0x0800 | 0x400 | 0x80 | 0x01)));
 	}
 
 	bplcon0d = v & ~0x80;
@@ -6541,7 +6541,7 @@ static void hsync_handler (void)
 	if (vs) {
 		vsync_handler_pre ();
 		if (savestate_check ()) {
-			uae_reset (0);
+			uae_reset (0, 0);
 			return;
 		}
 	}
@@ -6764,7 +6764,7 @@ void custom_reset (int hardreset)
 
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
-	action_replay_reset ();
+	action_replay_reset (hardreset != 0);
 #endif
 #if defined(ENFORCER)
 	enforcer_disable ();

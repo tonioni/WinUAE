@@ -323,7 +323,7 @@ static void gayle_cs_change (uae_u8 mask, int onoff)
 		rethink_gayle ();
 		if ((mask & GAYLE_CS_CCDET) && (gayle_irq & (GAYLE_IRQ_RESET | GAYLE_IRQ_BERR)) != (GAYLE_IRQ_RESET | GAYLE_IRQ_BERR)) {
 			if (gayle_irq & GAYLE_IRQ_RESET)
-				uae_reset (0);
+				uae_reset (0, 0);
 			if (gayle_irq & GAYLE_IRQ_BERR)
 				Exception (2);
 		}

@@ -18,7 +18,7 @@ extern void sleep_millis_main (int ms);
 extern void sleep_millis_busy (int ms);
 extern int sleep_resolution;
 
-extern void uae_reset (int);
+extern void uae_reset (int, int);
 extern void uae_quit (void);
 extern void uae_restart (int, TCHAR*);
 extern void reset_all_systems (void);

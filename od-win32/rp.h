@@ -11,7 +11,7 @@ extern void rp_turbo_cpu (int);
 extern void rp_turbo_floppy (int);
 extern void rp_set_hwnd (HWND);
 extern void rp_set_enabledisable (int);
-extern int rp_checkesc (int, uae_u8*, int, int);
+extern int rp_checkesc (int, int, int);
 extern int rp_isactive (void);
 extern void rp_vsync (void);
 extern HWND rp_getparent (void);

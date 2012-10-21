@@ -217,6 +217,8 @@
 #define write_log_debug
 #endif
 
+extern void activate_debugger (void);
+
 static TCHAR *cart_memnames[] = { NULL, _T("hrtmon"), _T("arhrtmon"), _T("superiv") };
 
 #define ARMODE_FREEZE 0 /* AR2/3 The action replay 'freeze' button has been pressed.  */
@@ -246,6 +248,7 @@ uae_u32 hrtmem_start, hrtmem2_start, hrtmem3_start, hrtmem_size, hrtmem2_size, h
 uae_u32 hrtmem_end, hrtmem2_end;
 static int hrtmem_rom;
 static int triggered_once;
+static bool action_replay_hardreset;
 
 static void hrtmon_unmap_banks (void);
 
@@ -330,7 +333,7 @@ static uae_u32 REGPARAM2 hrtmem2_bget (uaecptr addr)
 		static int cnt = 60;
 		cnt--;
 		if (cnt == 0)
-			uae_reset(0);
+			uae_reset(0, 0);
 	}
 	addr -= hrtmem2_start & hrtmem2_mask;
 	addr &= hrtmem2_mask;
@@ -566,7 +569,7 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 	if (addr >= 8)
 		return armemory_rom[addr];
 
-	if (action_replay_flag != ACTION_REPLAY_ACTIVE)
+	if (action_replay_flag == 0)
 		return 0;
 #endif
 
@@ -585,12 +588,14 @@ STATIC_INLINE int ar3a (uaecptr addr, uae_u8 b, int writing)
 		if (armode >= 2) {
 			if (armode == ARMODE_BREAKPOINT_AR2) {
 				write_log (_T("AR2: exit with breakpoint(s) active\n")); /* Correct for AR2 */
-			} else if (armode == ARMODE_BREAKPOINT_AR3_RESET_AR2 )
+			} else if (armode == ARMODE_BREAKPOINT_AR3_RESET_AR2 ) {
 				write_log (_T("AR3: exit waiting for breakpoint.\n")); /* Correct for AR3 (waiting for breakpoint)*/
-			else
+			} else {
 				write_log (_T("AR2/3: mode(%d) > 3 this shouldn't happen.\n"), armode);
-		} else
+			}
+		} else {
 			write_log (_T("AR: exit with armode(%d)\n"), armode);
+		}
 
 		set_special (SPCFLAG_ACTION_REPLAY);
 		action_replay_flag = ACTION_REPLAY_HIDE;
@@ -639,7 +644,7 @@ void REGPARAM2 chipmem_lput_actionreplay23 (uaecptr addr, uae_u32 l)
 	addr &= chipmem_mask;
 	m = (uae_u32 *)(chipmemory + addr);
 	do_put_mem_long (m, l);
-	if (addr >= 0x40 && addr < 0x200 && action_replay_flag == ACTION_REPLAY_WAITRESET)
+	if (addr == 8 && action_replay_flag == ACTION_REPLAY_WAITRESET)
 		action_replay_chipwrite();
 }
 void REGPARAM2 chipmem_wput_actionreplay23 (uaecptr addr, uae_u32 w)
@@ -650,7 +655,7 @@ void REGPARAM2 chipmem_wput_actionreplay23 (uaecptr addr, uae_u32 w)
 	addr &= chipmem_mask;
 	m = (uae_u16 *)(chipmemory + addr);
 	do_put_mem_word (m, w);
-	if (addr >= 0x40 && addr < 0x200 && action_replay_flag == ACTION_REPLAY_WAITRESET)
+	if (addr == 8 && action_replay_flag == ACTION_REPLAY_WAITRESET)
 		action_replay_chipwrite();
 }
 
@@ -906,7 +911,7 @@ static void hide_cart (int hide)
 {
 #ifdef ACTION_REPLAY_HIDE_CARTRIDGE
 	if(hide) {
-		action_replay_unmap_banks ();
+		;//action_replay_unmap_banks ();
 	} else {
 		action_replay_map_banks ();
 	}
@@ -922,6 +927,7 @@ static void hide_cart (int hide)
 
 static void action_replay_go (void)
 {
+	write_log (_T("AR GO %d\n"), armode);
 	cartridge_enter();
 	hide_cart (0);
 	memcpy (armemory_ram + 0xf000, ar_custom, 2 * 256);
@@ -1037,7 +1043,8 @@ void action_replay_enter (void)
 	}
 	if (action_replay_flag == ACTION_REPLAY_DORESET) {
 		write_log (_T("AR2/3: reset\n"));
-		armode = ARMODE_BREAKPOINT_AR3_RESET_AR2;
+		armode = action_replay_hardreset ? ARMODE_BREAKPOINT_AR3_RESET_AR2 : 2;
+		action_replay_hardreset = false;
 	} else if (armode == ARMODE_FREEZE) {
 		write_log (_T("AR2/3: activated (freeze)\n"));
 	} else if (armode >= 2) {
@@ -1073,7 +1080,7 @@ void check_prefs_changed_carts (int in_memory_reset)
 	}
 }
 
-void action_replay_reset (void)
+void action_replay_reset (bool hardreset)
 {
 	if (hrtmemory) {
 		if (isrestore ()) {
@@ -1101,9 +1108,11 @@ void action_replay_reset (void)
 			action_replay_flag = ACTION_REPLAY_ACTIVE;
 			hide_cart (0);
 		} else {
-			write_log_debug (_T("Setting flag to ACTION_REPLAY_WAITRESET\n"));
+			write_log_debug (_T("Setting flag to ACTION_REPLAY_WAITRESET (%d)\n"), hardreset);
 			write_log_debug (_T("armode == %d\n"), armode);
 			action_replay_flag = ACTION_REPLAY_WAITRESET;
+			if (hardreset)
+				action_replay_hardreset = true;
 			hide_cart (0);
 		}
 	}
@@ -1147,6 +1156,7 @@ int action_replay_freeze (void)
 
 static void action_replay_chipwrite (void)
 {
+	write_log (_T("AR CW\n"));
 	if (armodel == 2 || armodel == 3) {
 		action_replay_flag = ACTION_REPLAY_DORESET;
 		set_special (SPCFLAG_ACTION_REPLAY);
@@ -1192,9 +1202,10 @@ void hrtmon_breakenter(void)
 */
 
 
-/* Original AR3 only works with KS 1.3
-* this patch fixes that problem.
-*/
+/* Original AR3 v3.09 only works with KS 1.3
+ * v3.17 supports also KS 2.04 (v37.175)
+ * this patch handles other rom versions.
+ */
 
 static uae_u8 ar3patch1[] = {0x20,0xc9,0x51,0xc9,0xff,0xfc};
 static uae_u8 ar3patch2[] = {0x00,0xfc,0x01,0x44};
@@ -1222,7 +1233,7 @@ static void action_replay_patch (void)
 	armemory_rom[off2 + 1] = (uae_u8)((off1 + kickmem_start + 2) >> 16);
 	armemory_rom[off2 + 2] = (uae_u8)((off1 + kickmem_start + 2) >> 8);
 	armemory_rom[off2 + 3] = (uae_u8)((off1 + kickmem_start + 2) >> 0);
-	write_log (_T("AR ROM patched for KS2.0+\n"));
+	write_log (_T("AR ROM patched for KS2.0+ (%x)\n"), off2);
 }
 
 /* Returns 0 if the checksum is OK.

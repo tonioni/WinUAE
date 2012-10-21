@@ -513,7 +513,7 @@ static int restart_program;
 static TCHAR restart_config[MAX_DPATH];
 static int default_config;
 
-void uae_reset (int hardreset)
+void uae_reset (int hardreset, int keyboardreset)
 {
 	if (debug_dma) {
 		record_dma_reset ();

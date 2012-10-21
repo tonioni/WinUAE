@@ -411,7 +411,9 @@ static uae_u8 *restore_chunk (struct zfile *f, TCHAR *name, size_t *len, size_t 
 		&& _tcscmp (name, _T("ZCRM")) != 0
 		&& _tcscmp (name, _T("PRAM")) != 0
 		&& _tcscmp (name, _T("A3K1")) != 0
-		&& _tcscmp (name, _T("A3K2")) != 0)
+		&& _tcscmp (name, _T("A3K2")) != 0
+		&& _tcscmp (name, _T("BORO")) != 0
+	)
 	{
 		/* extra bytes at the end needed to handle old statefiles that now have new fields */
 		mem = xcalloc (uae_u8, *totallen + 100);
@@ -1285,7 +1287,7 @@ void savestate_rewind (void)
 	p += 4;
 	if (p != p2) {
 		gui_message (_T("reload failure, address mismatch %p != %p"), p, p2);
-		uae_reset (0);
+		uae_reset (0, 0);
 		return;
 	}
 	inprec_setposition (st->inprecoffset, pos);

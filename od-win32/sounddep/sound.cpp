@@ -510,6 +510,7 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 		hr = IDirectSoundBuffer_SetVolume (s->lpDSBsecondary, vol);
 		if (FAILED (hr))
 			write_log (_T("DS: SetVolume(%d) failed: %s\n"), vol, DXError (hr));
+#if 0
 	} else if (sd->devicetype == SOUND_DEVICE_WASAPI) {
 		if (s->pAudioVolume) {
 			float vol = 0.0;
@@ -522,11 +523,12 @@ void set_volume_sound_device (struct sound_data *sd, int volume, int mute)
 			if (FAILED (hr))
 				write_log (_T("pAudioVolume->SetMute(%d) failed: %08Xs\n"), mute, hr);
 		}
+#endif
 	} else if (sd->devicetype == SOUND_DEVICE_PA) {
 		s->pavolume = volume;
 	} else if (sd->devicetype == SOUND_DEVICE_XAUDIO2) {
 		s->xmaster->SetVolume (mute ? 0.0 : (float)(100 - volume) / 100.0);
-	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE) {
+	} else if (sd->devicetype == SOUND_DEVICE_WASAPI_EXCLUSIVE || sd->devicetype == SOUND_DEVICE_WASAPI) {
 		sd->softvolume = -1;
 		hr = s->pAudioVolume->SetMasterVolume (1.0, NULL);
 		if (FAILED (hr))

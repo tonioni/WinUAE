@@ -9455,7 +9455,8 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 {
 	static int recursive = 0;
 	LRESULT res, posn;
-	TCHAR tmp[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], fs[MAX_DPATH], dev[MAX_DPATH];
+	int hdctrlr;
 
 	switch (msg) {
 	case WM_DROPFILES:
@@ -9514,14 +9515,22 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		case IDC_HF_TYPE:
 			res = SendDlgItemMessage (hDlg, IDC_HF_TYPE, CB_GETCURSEL, 0, 0);
 			sethfdostype (hDlg, (int)res);
-			ew (hDlg, IDC_HF_DOSTYPE, res >= 2);
+			ew (hDlg, IDC_HF_DOSTYPE, res >= 4);
 			break;
 		case IDC_HF_CREATE:
+			_tcscpy (fs, current_hfdlg.fsfilename);
 			current_hfdlg = empty_hfdlg;
+			_tcscpy (current_hfdlg.fsfilename, fs);
 			hardfilecreatehdf (hDlg, NULL);
 			break;
 		case IDC_SELECTOR:
+			_tcscpy (fs, current_hfdlg.fsfilename);
+			_tcscpy (dev, current_hfdlg.devicename);
+			hdctrlr = current_hfdlg.controller;
 			current_hfdlg = empty_hfdlg;
+			_tcscpy (current_hfdlg.fsfilename, fs);
+			_tcscpy (current_hfdlg.devicename, dev);
+			current_hfdlg.controller = hdctrlr;
 			hardfileselecthdf (hDlg, NULL);
 			break;
 		case IDC_FILESYS_SELECTOR:
@@ -15128,7 +15137,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			switch (LOWORD(wParam))
 			{
 			case IDC_RESETAMIGA:
-				uae_reset (1);
+				uae_reset (1, 1);
 				SendMessage (hDlg, WM_COMMAND, IDOK, 0);
 				return TRUE;
 			case IDC_QUITEMU:
@@ -15592,7 +15601,7 @@ static int GetSettings (int all_options, HWND hwnd)
 	if (quit_program)
 		psresult = -2;
 	else if (qs_request_reset && quickstart)
-		uae_reset (qs_request_reset == 2 ? 1 : 0);
+		uae_reset (qs_request_reset == 2 ? 1 : 0, 1);
 
 	qs_request_reset = 0;
 	full_property_sheet = 0;

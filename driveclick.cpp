@@ -248,7 +248,7 @@ static int driveclick_active (void)
 	return 0;
 }
 
-STATIC_INLINE uae_s16 getsample (void)
+static uae_s16 getsample (void)
 {
 	uae_s32 smp = 0;
 	int div = 0, i;
@@ -259,8 +259,8 @@ STATIC_INLINE uae_s16 getsample (void)
 			struct drvsample *ds_spin = drv_has_disk[i] ? &drvs[i][DS_SPIN] : &drvs[i][DS_SPINND];
 			struct drvsample *ds_click = &drvs[i][DS_CLICK];
 			struct drvsample *ds_snatch = &drvs[i][DS_SNATCH];
-			div += 2;
 			if (drv_spinning[i] || drv_starting[i]) {
+				div++;
 				if (drv_starting[i] && drv_has_spun[i]) {
 					if (ds_start->p && ds_start->pos < ds_start->len) {
 						smp = ds_start->p[ds_start->pos >> DS_SHIFT];
@@ -287,6 +287,7 @@ STATIC_INLINE uae_s16 getsample (void)
 			}
 			if (ds_click->p && ds_click->pos < ds_click->len) {
 				smp += ds_click->p[ds_click->pos >> DS_SHIFT];
+				div++;
 				ds_click->pos += sample_step;
 			}
 		}

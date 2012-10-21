@@ -1416,27 +1416,35 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 
 void getgfxoffset (int *dx, int *dy, int*,int*);
 
-static void inputdevice_mh_abs (int x, int y)
+static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 {
 	uae_u8 *p;
-	uae_u8 tmp[4];
+	uae_u8 tmp1[4], tmp2[4];
 
 	mousehack_enable ();
 	if (!mousehack_address)
 		return;
 	p = get_real_address (mousehack_address);
 
-	memcpy (tmp, p + MH_ABSX, sizeof tmp);
+	memcpy (tmp1, p + MH_ABSX, sizeof tmp1);
+	memcpy (tmp2, p + MH_BUTTONBITS, sizeof tmp2);
 
 	x -= mouseoffset_x + 1;
 	y -= mouseoffset_y + 2;
+
+	//write_log (_T("%dx%d %08x\n"), x, y, buttonbits);
 
 	p[MH_ABSX] = x >> 8;
 	p[MH_ABSX + 1] = x;
 	p[MH_ABSY] = y >> 8;
 	p[MH_ABSY + 1] = y;
 
-	if (!memcmp (tmp, p + MH_ABSX, sizeof tmp))
+	p[MH_BUTTONBITS + 0] = buttonbits >> 24;
+	p[MH_BUTTONBITS + 1] = buttonbits >> 16;
+	p[MH_BUTTONBITS + 2] = buttonbits >>  8;
+	p[MH_BUTTONBITS + 3] = buttonbits >>  0;
+
+	if (!memcmp (tmp1, p + MH_ABSX, sizeof tmp1) && !memcmp (tmp2, p + MH_BUTTONBITS, sizeof tmp2))
 		return;
 	p[MH_E] = 0xc0 | 1;
 	p[MH_CNT]++;
@@ -1563,7 +1571,7 @@ static void inputdevice_mh_abs_v36 (int x, int y)
 }
 #endif
 
-static void mousehack_helper (void)
+static void mousehack_helper (uae_u32 buttonmask)
 {
 	int x, y;
 	int fdy, fdx, fmx, fmy;
@@ -1579,7 +1587,6 @@ static void mousehack_helper (void)
 	x = lastmx;
 	y = lastmy;
 	getgfxoffset (&fdx, &fdy, &fmx, &fmy);
-
 
 #ifdef PICASSO96
 	if (picasso_on) {
@@ -1607,7 +1614,7 @@ static void mousehack_helper (void)
 		x = coord_native_to_amiga_x (x);
 		y = coord_native_to_amiga_y (y) << 1;
 	}
-	inputdevice_mh_abs (x, y);
+	inputdevice_mh_abs (x, y, buttonmask);
 }
 
 static int mouseedge_x, mouseedge_y, mouseedge_time;
@@ -2514,7 +2521,7 @@ void inputdevice_do_keyboard (int code, int state)
 				return;
 			memset (keybuf, 0, sizeof (keybuf));
 			send_internalevent (INTERNALEVENT_KBRESET);
-			uae_reset (r);
+			uae_reset (r, 1);
 		}
 		if (record_key ((uae_u8)((key << 1) | (key >> 7)))) {
 			if (inputdevice_logging & 1)
@@ -2685,10 +2692,10 @@ void inputdevice_handle_inputcode (void)
 		uae_quit ();
 		break;
 	case AKS_SOFTRESET:
-		uae_reset (0);
+		uae_reset (0, 0);
 		break;
 	case AKS_HARDRESET:
-		uae_reset (1);
+		uae_reset (1, 1);
 		break;
 	case AKS_STATESAVEQUICK:
 	case AKS_STATESAVEQUICK1:
@@ -6272,6 +6279,7 @@ void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask)
 void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask)
 {
 	int i;
+	uae_u32 obuttonmask = mice2[mouse].buttonmask;
 
 	for (i = 0; i < ID_BUTTON_TOTAL; i++) {
 		if (buttonmask & (1 << i))
@@ -6279,15 +6287,20 @@ void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask)
 		else if (buttonbits & (1 << i))
 			setbuttonstateall (&mice[mouse], &mice2[mouse], i, -1);
 	}
+	if (obuttonmask != mice2[mouse].buttonmask)
+		mousehack_helper (mice2[mouse].buttonmask);
 }
 
 void setmousebuttonstate (int mouse, int button, int state)
 {
+	uae_u32 obuttonmask = mice2[mouse].buttonmask;
 	if (testmode) {
 		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state);
 		return;
 	}
 	setbuttonstateall (&mice[mouse], &mice2[mouse], button, state);
+	if (obuttonmask != mice2[mouse].buttonmask)
+		mousehack_helper (mice2[mouse].buttonmask);
 }
 
 /* same for joystick axis (analog or digital)
@@ -6355,7 +6368,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 			else
 				lastmy = data;
 			if (axis)
-				mousehack_helper ();
+				mousehack_helper (mice2[mouse].buttonmask);
 		}
 		return;
 	}
@@ -6378,7 +6391,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 		else
 			lastmy = data;
 		if (axis)
-			mousehack_helper ();
+			mousehack_helper (mice2[mouse].buttonmask);
 		if (currprefs.input_tablet == TABLET_MOUSEHACK && mousehack_alive ())
 			return;
 	}

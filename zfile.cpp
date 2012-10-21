@@ -2054,6 +2054,16 @@ struct zfile *zfile_fopen_parent (struct zfile *z, const TCHAR *name, uae_u64 of
 	return l;
 }
 
+struct zfile *zfile_fopen_load_zfile (struct zfile *f)
+{
+	struct zfile *l = zfile_fopen_empty (f, f->name, f->size);
+	if (!l)
+		return NULL;
+	zfile_fseek (f, 0, SEEK_SET);
+	zfile_fread (l->data, f->size, 1, f);
+	return l;
+}
+
 struct zfile *zfile_fopen_data (const TCHAR *name, uae_u64 size, const uae_u8 *data)
 {
 	struct zfile *l;

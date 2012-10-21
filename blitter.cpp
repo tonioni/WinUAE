@@ -1291,6 +1291,24 @@ void reset_blit (int bltcon)
 	blit_modset ();
 }
 
+static bool waitingblits (void)
+{
+	static int warned = 10;
+
+	bool waited = false;
+	while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
+		waited = true;
+		x_do_cycles (8 * CYCLE_UNIT);
+	}
+	if (warned && waited) {
+		warned--;
+		write_log (_T("waiting_blits detected\n"));
+	}
+	if (bltstate == BLT_done)
+		return true;
+	return false;
+}
+
 static void do_blitter2 (int hpos, int copper)
 {
 	int cycles;
@@ -1419,9 +1437,19 @@ static void do_blitter2 (int hpos, int copper)
 
 	if (currprefs.immediate_blits) {
 		blitter_doit ();
-	} else {
-		blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
-		event2_newevent (ev2_blitter, blit_cyclecounter, 0);
+		return;
+	}
+	
+	blit_cyclecounter = cycles * (blit_dmacount2 + (blit_nod ? 0 : 1)); 
+	event2_newevent (ev2_blitter, blit_cyclecounter, 0);
+
+	if (dmaen (DMA_BLITTER) && (currprefs.cpu_model >= 68020 || !currprefs.cpu_cycle_exact)) {
+		if (currprefs.waiting_blits) {
+			// wait immediately if all cycles in use and blitter nastry
+			if (blit_dmacount == blit_diag[0] && (regs.spcflags & SPCFLAG_BLTNASTY)) {
+				waitingblits ();
+			}
+		}
 	}
 }
 
@@ -1460,16 +1488,7 @@ void maybe_blit (int hpos, int hack)
 				doit = true;
 		}
 		if (doit) {
-			bool waited = false;
-			while (bltstate != BLT_done && dmaen (DMA_BLITTER)) {
-				waited = true;
-				x_do_cycles (8 * CYCLE_UNIT);
-			}
-			if (warned && waited) {
-				warned--;
-				write_log (_T("waiting_blits detected\n"));
-			}
-			if (bltstate == BLT_done)
+			if (waitingblits ())
 				return;
 		}
 	}

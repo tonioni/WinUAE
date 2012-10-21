@@ -2195,7 +2195,7 @@ kludge_me_do:
 	newpc |= x_get_word (4 * nr + 2); // read low address
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			uae_reset (1); /* there is nothing else we can do.. */
+			uae_reset (1, 0); /* there is nothing else we can do.. */
 		else
 			exception3 (regs.ir, newpc);
 		return;
@@ -2331,7 +2331,7 @@ kludge_me_do:
 	newpc = get_long_mmu (regs.vbr + 4 * nr);
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			uae_reset (1); /* there is nothing else we can do.. */
+			uae_reset (1, 0); /* there is nothing else we can do.. */
 		else
 			exception3 (regs.ir, newpc);
 		return;
@@ -2404,7 +2404,7 @@ static void Exception_normal (int nr)
 						newpc = x_get_long (regs.vbr + 4 * nr);
 						if (newpc & 1) {
 							if (nr == 2 || nr == 3)
-								uae_reset (1); /* there is nothing else we can do.. */
+								uae_reset (1, 0); /* there is nothing else we can do.. */
 							else
 								exception3 (regs.ir, newpc);
 							return;
@@ -2520,7 +2520,7 @@ kludge_me_do:
 	newpc = x_get_long (regs.vbr + 4 * nr);
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
-			uae_reset (1); /* there is nothing else we can do.. */
+			uae_reset (1, 0); /* there is nothing else we can do.. */
 		else
 			exception3 (regs.ir, newpc);
 		return;
@@ -4110,7 +4110,7 @@ retry:
 			m68k_reset (0);
 			m68k_setpc (0xf80002);
 			mmu_reset ();
-			uae_reset (1);
+			uae_reset (1, 0);
 			return;
 		}
 		goto retry;
@@ -4489,7 +4489,7 @@ void m68k_go (int may_quit)
 				/* system is very badly confused */
 				write_log (_T("double bus error or corrupted stack, forcing reboot..\n"));
 				regs.panic = 0;
-				uae_reset (1);
+				uae_reset (1, 0);
 			}
 		}
 

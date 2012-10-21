@@ -509,7 +509,7 @@ static int keyhack (int scancode, int pressed, int num)
 	static byte backslashstate, apostrophstate;
 
 #ifdef RETROPLATFORM
-	if (rp_checkesc (scancode, di_keycodes[num], pressed, num))
+	if (rp_checkesc (scancode, pressed, num))
 		return -1;
 #endif
 

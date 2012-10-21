@@ -42,7 +42,7 @@ int rp_rpescapekey = 0x01;
 int rp_rpescapeholdtime = 600;
 int rp_screenmode = 0;
 int rp_inputmode = 0;
-int log_rp = 1;
+int log_rp = 2;
 static int rp_revision, rp_version, rp_build;
 static int max_horiz_dbl = RES_HIRES;
 static int max_vert_dbl = VRES_DOUBLE;
@@ -458,11 +458,11 @@ static BOOL RPSendMessagex (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	recursive++;
 	cnt++;
 	ncnt = cnt;
-	if (dolog)
+	if (dolog & 1)
 		write_log (_T("RPSEND_%d->\n"), ncnt);
 	v = RPSendMessage (uMessage, wParam, lParam, pData, dwDataSize, pInfo, plResult);
 	recursive--;
-	if (dolog) {
+	if (dolog & 1) {
 		write_log (_T("RPSEND_%d(%s [%d], %08x, %08x, %08x, %d)\n"), ncnt,
 			getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize);
 		if (v == FALSE)
@@ -516,10 +516,15 @@ static void fixup_size (struct uae_prefs *prefs)
 	write_log(_T("-> %dx%d\n"), prefs->gfx_size_win.width, prefs->gfx_size_win.height);
 }
 
-static int getmult (int mult)
+static int getmult (int mult, bool *half)
 {
+	*half = false;
 	if (mult >= 4 * 256)
 		return 2;
+	if (mult == 256 + 128) {
+		*half = true;
+		return 1;
+	}
 	if (mult == 2 * 256)
 		return 1;
 	if (mult >= 1 * 256)
@@ -547,6 +552,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int hres, vres;
 	int totalhdbl = -1, totalvdbl = -1;
 	int hmult, vmult;
+	bool half;
 
 	hres = p->gfx_resolution;
 	vres = p->gfx_vresolution;
@@ -572,29 +578,30 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		totalhdbl = hres;
 		if (hres > max_horiz_dbl)
 			hres = max_horiz_dbl;
-		hres += getmult (hmult);
+		hres += getmult (hmult, &half);
 
 		totalvdbl = vres;
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
-		vres += getmult (vmult);
+		vres += getmult (vmult, &half);
 
 		if (hres > RES_SUPERHIRES)
 			hres = RES_SUPERHIRES;
 		if (vres > VRES_QUAD)
 			vres = VRES_QUAD;
 
-		if (hres == RES_HIRES)
-			m = RP_SCREENMODE_SCALE_2X;
-		else if (hres >= RES_SUPERHIRES)
-			m = RP_SCREENMODE_SCALE_4X;
+		if (hres == RES_HIRES) {
+			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_2X;
+		} else if (hres >= RES_SUPERHIRES) {
+			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_4X;
+		}
 
-		if (log_rp)
-			write_log (_T("GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d\n"),
+		if (log_rp & 2)
+			write_log (_T("GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d half=%d\n"),
 				totalhdbl, hres, totalvdbl, vres, full,
 				p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
 				p->gfx_size_win.width, p->gfx_size_win.height,
-				hmult, vmult);
+				hmult, vmult, half);
 
 		sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
 		sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
@@ -630,7 +637,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	sm->dwClipFlags = cf;
 
-	if (log_rp)
+	if (log_rp & 2)
 		write_log (_T("GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
 			totalhdbl, hres, totalvdbl, vres, p->gfx_apmode[APMODE_NATIVE].gfx_display, full);
@@ -643,13 +650,14 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int fs = 0;
 	int hdbl = RES_HIRES, vdbl = VRES_DOUBLE;
 	int hres, vres;
-	int hmult = 1, vmult = 1;
+	float hmult = 1, vmult = 1;
 	struct MultiDisplay *disp;
 	bool keepaspect = (sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH);
 	bool stretch = (sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) != 0;
 	bool forcesize = smm == RP_SCREENMODE_SCALE_TARGET && sm->lTargetWidth > 0 && sm->lTargetHeight > 0;
 	bool integerscale = !(sm->dwScreenMode & RP_SCREENMODE_SCALING_SUBPIXEL) && !(sm->dwScreenMode & RP_SCREENMODE_SCALING_STRETCH) && smm >= RP_SCREENMODE_SCALE_TARGET;
 	int width, height;
+	bool half;
 
 	storeflags = sm->dwScreenMode;
 	minimized = 0;
@@ -664,7 +672,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	p->gfx_filter_autoscale = AUTOSCALE_CENTER;
 	disp = getdisplay (p);
 
-	if (log_rp) {
+	if (log_rp & 2) {
 		write_log (_T("SET_RPSM: %08X %dx%d %dx%d hres=%d vres=%d disp=%d fs=%d smm=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
 			hdbl, vdbl, display, fs, smm);
@@ -674,32 +682,57 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	if (!WIN32GFX_IsPicassoScreen ()) {
 
-		hdbl = RES_LORES;
-		vdbl = VRES_NONDOUBLE;
-		if (smm == RP_SCREENMODE_SCALE_2X || smm == RP_SCREENMODE_SCALE_3X) {
+		if (smm == RP_SCREENMODE_SCALE_3X) {
+
 			hdbl = RES_HIRES;
 			vdbl = VRES_DOUBLE;
-		} else if (smm == RP_SCREENMODE_SCALE_4X) {
-			hdbl = RES_SUPERHIRES;
-			vdbl = VRES_DOUBLE;
-		}
-		if (smm > RP_SCREENMODE_SCALE_4X || smm == RP_SCREENMODE_SCALE_MAX) {
-			hdbl = max_horiz_dbl;
-			vdbl = max_vert_dbl;
-		}
+			hmult = 1.5;
+			vmult = 1.5;
+			half = true;
 
-		hres = hdbl;
-		if (hres > max_horiz_dbl) {
-			hmult = 1 << (hres - max_horiz_dbl);
-			hres = max_horiz_dbl;
+			hres = hdbl;
+			if (hres > max_horiz_dbl) {
+				hmult *= 1 << (hres - max_horiz_dbl);
+				hres = max_horiz_dbl;
+			}
+
+			vres = vdbl;
+			if (vres > max_vert_dbl) {
+				vmult *= 1 << (vres - max_vert_dbl);
+				vres = max_vert_dbl;
+			}
+		} else {
+
+			half = false;
+			if (smm == RP_SCREENMODE_SCALE_2X) {
+				hdbl = RES_HIRES;
+				vdbl = VRES_DOUBLE;
+			} else if (smm == RP_SCREENMODE_SCALE_4X) {
+				hdbl = RES_SUPERHIRES;
+				vdbl = VRES_QUAD;
+			} else {
+				hdbl = RES_LORES;
+				vdbl = VRES_NONDOUBLE;
+			}
+
+			if (smm > RP_SCREENMODE_SCALE_4X || smm == RP_SCREENMODE_SCALE_MAX) {
+				hdbl = max_horiz_dbl;
+				vdbl = max_vert_dbl;
+			}
+
+			hres = hdbl;
+			if (hres > max_horiz_dbl) {
+				hmult = 1 << (hres - max_horiz_dbl);
+				hres = max_horiz_dbl;
+			}
+
+			vres = vdbl;
+			if (vres > max_vert_dbl) {
+				vmult = 1 << (vres - max_vert_dbl);
+				vres = max_vert_dbl;
+			}
 		}
 		p->gfx_resolution = hres;
-
-		vres = vdbl;
-		if (vres > max_vert_dbl) {
-			vmult = 1 << (vres - max_vert_dbl);
-			vres = max_vert_dbl;
-		}
 		p->gfx_vresolution = vres;
 
 		if (sm->lClipWidth <= 0)
@@ -710,7 +743,14 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (sm->lClipHeight <= 0) {
 			p->gfx_size_win.height = shift (AMIGA_HEIGHT_MAX, -vdbl);
 		} else {
-			p->gfx_size_win.height = sm->lClipHeight >> (VRES_MAX - vdbl);
+			if (vdbl > VRES_MAX)
+				p->gfx_size_win.height = sm->lClipHeight << (vdbl - VRES_MAX);
+			else
+				p->gfx_size_win.height = sm->lClipHeight >> (VRES_MAX - vdbl);
+		}
+		if (half) {
+			p->gfx_size_win.width = p->gfx_size_win.width * 3 / 2;
+			p->gfx_size_win.height = p->gfx_size_win.height * 3 / 2;
 		}
 
 		if (forcesize) {
@@ -761,8 +801,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_filter_keep_aspect = 0;
 	}
 
-	if (log_rp)
-		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%d VM=%d\n"),
+	if (log_rp & 2)
+		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%.1f VM=%.1f\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
 
 	if (!integerscale) {
@@ -797,8 +837,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 	}
 
-	p->gfx_filter_horiz_zoom_mult = hmult > 0 ? 1000 / hmult : hmult;
-	p->gfx_filter_vert_zoom_mult = vmult > 0 ? 1000 / vmult : vmult;
+	p->gfx_filter_horiz_zoom_mult = hmult > 0 ? (int)(1000.0 / hmult) : (int)hmult;
+	p->gfx_filter_vert_zoom_mult = vmult > 0 ? (int)(1000.0 / vmult) : (int)vmult;
 
 	p->gfx_filter_scanlines = 0;
 	p->gfx_scanlines = 0;
@@ -809,7 +849,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		p->gfx_filter_scanlineratio = (1 << 4) | 1;
 	}
 
-	if (log_rp)
+	if (log_rp & 2)
 		write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
 			p->gfx_size_win.width, p->gfx_size_win.height,
 			p->gfx_size_fs.width, p->gfx_size_fs.height,
@@ -827,7 +867,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
 	LPCVOID pData, DWORD dwDataSize, LPARAM lMsgFunctionParam)
 {
-	if (log_rp) {
+	if (log_rp & 1) {
 		write_log (_T("RPFUNC(%s [%d], %08x, %08x, %08x, %d, %08x)\n"),
 		getmsg (uMessage), uMessage - WM_APP, wParam, lParam, pData, dwDataSize, lMsgFunctionParam);
 		if (uMessage == RP_IPC_TO_GUEST_DEVICECONTENT) {
@@ -848,7 +888,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		uae_quit ();
 		return TRUE;
 	case RP_IPC_TO_GUEST_RESET:
-		uae_reset (wParam == RP_RESET_SOFT ? 0 : -1);
+		uae_reset (wParam == RP_RESET_SOFT ? 0 : -1, 1);
 		return TRUE;
 	case RP_IPC_TO_GUEST_TURBO:
 		{
@@ -1097,7 +1137,7 @@ static void sendenum (void)
 			desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
 			if (cnt == 0)
 				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
-			if (log_rp)
+			if (log_rp & 1)
 				write_log(_T("Enum%d: '%s' '%s'\n"), cnt, desc.szHostInputName, desc.szHostInputID);
 			RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 			cnt++;
@@ -1114,7 +1154,7 @@ static void sendenum (void)
 	RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
-		if (log_rp)
+		if (log_rp & 1)
 			write_log(_T("Enum%d: '%s' '%s' (%x/%x)\n"),
 				cnt, desc.szHostInputName, desc.szHostInputID, desc.dwHostInputVendorID, desc.dwHostInputProductID);
 		RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
@@ -1130,7 +1170,7 @@ static void sendfeatures (void)
 	feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES | RP_FEATURE_DEVICEREADWRITE;
 	feat |= RP_FEATURE_SCALING_SUBPIXEL | RP_FEATURE_SCALING_STRETCH;
 	if (!WIN32GFX_IsPicassoScreen ())
-		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN4X;
+		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
 	feat |= RP_FEATURE_INPUTDEVICE_MOUSE;
 	feat |= RP_FEATURE_INPUTDEVICE_JOYSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_GAMEPAD;
@@ -1264,7 +1304,7 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 	dc.dwInputDevice = mode;
 	if (content)
 		_tcscpy (dc.szContent, content);
-	if (log_rp)
+	if (log_rp & 1)
 		write_log (_T("RP_IPC_TO_HOST_DEVICECONTENT cat=%d num=%d type=%d '%s'\n"),
 		dc.btDeviceCategory, dc.btDeviceNumber, dc.dwInputDevice, dc.szContent);
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICECONTENT, 0, 0, &dc, sizeof(struct RPDeviceContent), &guestinfo, NULL);
@@ -1298,7 +1338,7 @@ void rp_input_change (int num)
 			break;
 		}
 	}
-	if (log_rp)
+	if (log_rp & 1)
 		write_log(_T("PORT%d: '%s':%d\n"), num, name, mode);
 	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, false, name);
 }
@@ -1546,7 +1586,7 @@ void rp_rtg_switch (void)
 }
 
 static uae_u64 esctime;
-static int ignorerelease;
+static int releasetime, releasenum;
 
 static uae_u64 gett (void)
 {
@@ -1576,17 +1616,22 @@ void rp_vsync (void)
 	}
 	if (magicmouse_alive () != mousemagic)
 		rp_mouse_magic (magicmouse_alive ());
-	if (!esctime)
+	if (!esctime && !releasetime)
 		return;
 	t = gett ();
-	if (t >= esctime) {
+	if (releasetime > 0) {
+		releasetime--;
+		if (!releasetime)
+			my_kbd_handler (releasenum, rp_rpescapekey, 0);
+	}
+	if (esctime && t >= esctime) {
 		RPSendMessagex (RP_IPC_TO_HOST_ESCAPED, 0, 0, NULL, 0, &guestinfo, NULL);
-		ignorerelease = 1;
+		releasetime = -1;
 		esctime = 0;
 	}
 }
 
-int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
+int rp_checkesc (int scancode, int pressed, int num)
 {
 	uae_u64 t;
 
@@ -1594,11 +1639,11 @@ int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
 		goto end;
 	if (scancode != rp_rpescapekey)
 		goto end;
-	if (ignorerelease && !pressed) {
-		ignorerelease = 0;
+	if (releasetime < 0 && !pressed) {
+		releasetime = 0;
 		goto end;
 	}
-	t = gett();
+	t = gett ();
 	if (!t)
 		goto end;
 	if (pressed) {
@@ -1606,8 +1651,8 @@ int rp_checkesc (int scancode, uae_u8 *codes, int pressed, int num)
 		return 1;
 	}
 	my_kbd_handler (num, scancode, 1);
-	my_kbd_handler (num, scancode, 0);
-	ignorerelease = 0;
+	releasetime = 10;
+	releasenum = num;
 	esctime = 0;
 	return 1;
 end:

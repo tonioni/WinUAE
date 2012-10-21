@@ -2070,18 +2070,11 @@ mhloop
 	move.b #3,5(a2) ;ie_SubClass = IESUBCLASS_NEWTABLET
 	clr.l (a0) ;ient_CallBack
 	clr.l 4(a0)
-	clr.w 6(a2) ;ie_Code
 	clr.l 8(a0)
 	clr.w 12(a0)
 
-	;IEQUALIFIER_MIDBUTTON=0x1000/IEQUALIFIER_RBUTTON=0x2000/IEQUALIFIER_LEFTBUTTON=0x4000
-	move.l MH_BUTTONBITS+MH_DATA(a5),d1
-	and.w #7,d1
-	moveq #7,d0
-	sub.w d1,d0
-	lsl.w #8,d0
-	lsl.w #4,d0
-	move.w d0,8(a2) ;ie_Qualifier
+	clr.w 6(a2) ;ie_Code
+	bsr.w buttonstoqual
 
 	move.w MH_X+MH_DATA(a5),12+2(a0) ;ient_TabletX
 	clr.w 16(a0)
@@ -2133,7 +2126,7 @@ mhloop
 	move.w MH_MAXAY++MH_DATA(a5),d0
 	bmi.s .noay
 	move.l #TABLETA_AngleY,(a1)+
-	move.w MH_AY++MH_DATA(pc),d0
+	move.w MH_AY+MH_DATA(a5),d0
 	ext.l d0
 	asl.l #8,d0
 	move.l d0,(a1)+
@@ -2198,7 +2191,7 @@ mhloop
 	clr.l (a2)
 	move.w #$0400,4(a2) ;IECLASS_POINTERPOS
 	clr.w 6(a2) ;ie_Code
-	clr.w 8(a2) ;ie_Qualifier
+	bsr.w buttonstoqual
 
 	move.l MH_FOO_INTBASE(a3),a0
 
@@ -2225,6 +2218,25 @@ mhloop
 	bra.w mhloop
 
 mhend
+	rts
+
+buttonstoqual:
+	;IEQUALIFIER_MIDBUTTON=0x1000/IEQUALIFIER_RBUTTON=0x2000/IEQUALIFIER_LEFTBUTTON=0x4000
+	move.l MH_BUTTONBITS+MH_DATA(a5),d1
+	moveq #0,d0
+	btst #0,d1
+	beq.s .btq1
+	bset #14,d0
+.btq1:
+	btst #1,d1
+	beq.s .btq2
+	bset #13,d0
+.btq2:
+	btst #2,d1
+	beq.s .btq3
+	bset #12,d0
+.btq3:
+	move.w d0,8(a2) ;ie_Qualifier
 	rts
 
 mousehackint:

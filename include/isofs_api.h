@@ -20,7 +20,7 @@ bool isofs_mediainfo(void *sb, struct isofs_info*);
 struct cd_opendir_s *isofs_opendir(void *sb, uae_u64 uniq);
 void isofs_closedir(struct cd_opendir_s*);
 bool isofs_readdir(struct cd_opendir_s*, TCHAR*, uae_u64 *uniq);
-void isofs_stat(void *sb, uae_u64, struct _stat64*);
+bool isofs_stat(void *sb, uae_u64, struct _stat64*);
 void isofss_fill_file_attrs(void *sb, uae_u64, int*, int*, TCHAR**, uae_u64);
 bool isofs_exists(void *sb, uae_u64, const TCHAR*, uae_u64*);
 void isofs_dispose_inode(void *sb, uae_u64);

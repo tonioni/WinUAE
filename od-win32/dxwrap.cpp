@@ -913,7 +913,7 @@ static void flip (void)
 {
 	int result = 0;
 	HRESULT ddrval = DD_OK;
-	DWORD flags = DDFLIP_DONOTWAIT;
+	DWORD flags = 0; // Why did I put DDFLIP_DONOTWAIT here?
 	int vsync = isvsync ();
 	bool novsync = false;
 	struct apmode *ap = WIN32GFX_IsPicassoScreen () ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];

@@ -95,6 +95,7 @@ extern int harddrive_dangerous, do_rdbdump, no_rawinput, no_directinput;
 extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
+extern int log_filesys;
 int log_scsi;
 int log_net;
 int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
@@ -1420,7 +1421,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 							if (nm->code == NM_CLICK) // POWER
 								inputdevice_add_inputcode (AKS_ENTERGUI, 1);
 							else
-								uae_reset (0);
+								uae_reset (0, 1);
 						} else if (num == 3) {
 							if (pause_emulation) {
 								resumepaused (9);
@@ -1821,7 +1822,7 @@ static LRESULT CALLBACK HiddenWindowProc (HWND hWnd, UINT message, WPARAM wParam
 			uae_quit ();
 			break;
 		case ID_ST_RESET:
-			uae_reset (0);
+			uae_reset (0, 1);
 			break;
 
 		case ID_ST_CDEJECTALL:
@@ -4797,6 +4798,14 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	if (!_tcscmp (arg, _T("scsiemulog"))) {
 		extern int log_scsiemu;
 		log_scsiemu = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, _T("filesyslog"))) {
+		log_filesys = 1;
+		return 1;
+	}
+	if (!_tcscmp (arg, _T("filesyslog2"))) {
+		log_filesys = 2;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("netlog"))) {
