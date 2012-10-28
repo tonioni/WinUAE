@@ -539,6 +539,10 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				uci->devname ? uci->devname : _T(""), str,
 				uci->sectors, uci->surfaces, uci->reserved, uci->blocksize,
 				bp, uci->filesys ? uci->filesys : _T(""), hdcontrollers[uci->controller]);
+			if (uci->cyls || (uci->pcyls && uci->pheads && uci->psecs)) {
+				TCHAR *s = tmp + _tcslen (tmp);
+				_stprintf (s, _T(",%d,%d/%d/%d"), uci->cyls, uci->pcyls, uci->pheads, uci->psecs);
+			}
 			cfgfile_write_str (f, _T("hardfile2"), tmp);
 #if 0
 			_stprintf (tmp2, _T("hardfile=%s,%d,%d,%d,%d,%s"),
@@ -2178,10 +2182,11 @@ static struct uaedev_config_info *getuci (struct uae_prefs *p)
 }
 
 struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
-	TCHAR *devname, TCHAR *volname, TCHAR *rootdir, bool readonly,
-	int secspertrack, int surfaces, int reserved,
+	const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
+	int cyls, int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri,
-	TCHAR *filesysdir, int hdc, int flags)
+	const TCHAR *filesysdir, int hdc, int flag,
+	int pcyls, int psecs, int pheads)
 {
 	struct uaedev_config_info *uci;
 	int i;
@@ -2210,6 +2215,7 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	validatedevicename (uci->devname);
 	validatevolumename (uci->volname);
 	uci->readonly = readonly;
+	uci->cyls = cyls;
 	uci->sectors = secspertrack;
 	uci->surfaces = surfaces;
 	uci->reserved = reserved;
@@ -2217,6 +2223,9 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	uci->bootpri = bootpri;
 	uci->donotmount = 0;
 	uci->autoboot = 0;
+	uci->pcyls = pcyls;
+	uci->pheads = pheads;
+	uci->psecs = psecs;
 	if (bootpri < -128)
 		uci->donotmount = 1;
 	else if (bootpri >= -127)
@@ -2287,7 +2296,8 @@ static int get_filesys_controller (const TCHAR *hdc)
 
 static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHAR *value)
 {
-	int secs, heads, reserved, bs, bp, hdcv;
+	int cyls, secs, heads, reserved, bs, bp, hdcv;
+	int pcyls, pheads, psecs;
 	bool ro;
 	TCHAR *dname = NULL, *aname = _T(""), *root = NULL, *fs = NULL, *hdc;
 	TCHAR *tmpp = _tcschr (value, ',');
@@ -2304,8 +2314,9 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHA
 		ro = false;
 	else
 		goto invalid_fs;
-	secs = 0; heads = 0; reserved = 0; bs = 0; bp = 0;
+	cyls = 0,secs = 0; heads = 0; reserved = 0; bs = 0; bp = 0;
 	fs = 0; hdc = 0; hdcv = 0;
+	pcyls = pheads = psecs = 0;
 
 	value = tmpp;
 	if (!hdf) {
@@ -2348,7 +2359,17 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHA
 			tmpp = _tcschr (tmpp, ',');
 			if (tmpp != 0) {
 				*tmpp++ = 0;
-				hdcv = get_filesys_controller (tmpp);	
+				TCHAR *tmpp2 = _tcschr (tmpp, ',');
+				if (tmpp2)
+					*tmpp2++ = 0;
+				hdcv = get_filesys_controller (tmpp);
+				if (tmpp2) {
+					if (getintval2 (&tmpp2, &cyls, ',')) {
+						getintval (&tmpp2, &pcyls, '/');
+						getintval (&tmpp2, &pheads, '/');
+						getintval2 (&tmpp2, &psecs, '/');
+					}
+				}
 			}
 		}
 	}
@@ -2361,7 +2382,7 @@ empty_fs:
 		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, false);
 	}
 #ifdef FILESYS
-	add_filesys_config (p, nr, dname, aname, str, ro, secs, heads, reserved, bs, bp, fs, hdcv, 0);
+	add_filesys_config (p, nr, dname, aname, str, ro, cyls, secs, heads, reserved, bs, bp, fs, hdcv, 0, pcyls, pheads, psecs);
 #endif
 	xfree (str);
 	return 1;
@@ -2467,7 +2488,7 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		}
 		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, root, true);
 #ifdef FILESYS
-		add_filesys_config (p, -1, NULL, aname, str, ro, secs, heads, reserved, bs, 0, NULL, 0, 0);
+		add_filesys_config (p, -1, NULL, aname, str, ro, 0, secs, heads, reserved, bs, 0, NULL, 0, 0, 0, 0, 0);
 #endif
 		xfree (str);
 		return 1;
@@ -3464,7 +3485,7 @@ static void parse_filesys_spec (struct uae_prefs *p, bool readonly, const TCHAR 
 		}
 #endif
 #ifdef FILESYS
-		add_filesys_config (p, -1, NULL, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0, 0);
+		add_filesys_config (p, -1, NULL, buf, s2, readonly, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 #endif
 	} else {
 		write_log (_T("Usage: [-m | -M] VOLNAME:mount_point\n"));
@@ -3493,7 +3514,7 @@ static void parse_hardfile_spec (struct uae_prefs *p, const TCHAR *spec)
 		goto argh;
 	*x4++ = '\0';
 #ifdef FILESYS
-	add_filesys_config (p, -1, NULL, NULL, x4, 0, _tstoi (x0), _tstoi (x1), _tstoi (x2), _tstoi (x3), 0, 0, 0, 0);
+	add_filesys_config (p, -1, NULL, NULL, x4, 0, 0, _tstoi (x0), _tstoi (x1), _tstoi (x2), _tstoi (x3), 0, 0, 0, 0, 0, 0, 0);
 #endif
 	free (x0);
 	return;
@@ -5033,7 +5054,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_rtc = 2;
 		p->cs_fatgaryrev = 0;
 		p->cs_ide = -1;
-		p->cs_mbdmac = 1;
+		p->cs_mbdmac = -1;
 		p->cs_ramseyrev = 0x0f;
 		break;
 	case CP_CDTV: // CDTV

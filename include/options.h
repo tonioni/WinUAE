@@ -116,12 +116,15 @@ struct uaedev_config_info {
 	bool autoboot;
 	bool donotmount;
 	TCHAR filesys[MAX_DPATH];
+	int cyls; // zero if detected from size
 	int surfaces;
 	int sectors;
 	int reserved;
 	int blocksize;
 	int configoffset;
 	int controller;
+	// zero if default
+	int pcyls, pheads, psecs;
 };
 
 enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
@@ -544,9 +547,10 @@ extern void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, con
 
 extern void cfgfile_backup (const TCHAR *path);
 extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
-	TCHAR *devname, TCHAR *volname, TCHAR *rootdir, bool readonly,
-	int secspertrack, int surfaces, int reserved,
-	int blocksize, int bootpri, TCHAR *filesysdir, int hdc, int flags);
+	const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
+	int cyls, int secspertrack, int surfaces, int reserved,
+	int blocksize, int bootpri, const TCHAR *filesysdir, int hdc, int flags,
+	int pcyls, int pheads, int psecs);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);

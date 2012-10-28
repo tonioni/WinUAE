@@ -365,8 +365,9 @@ void hdf_hd_close (struct hd_hardfiledata *hfd)
 }
 
 int hdf_hd_open (struct hd_hardfiledata *hfd, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, const TCHAR *filesys)
+	const TCHAR *devname, int cyls, int sectors, int surfaces, int reserved,
+	int bootpri, const TCHAR *filesys,
+	int pcyls, int pheads, int psecs)
 {
 	memset (hfd, 0, sizeof (struct hd_hardfiledata));
 	hfd->bootpri = bootpri;
@@ -375,12 +376,23 @@ int hdf_hd_open (struct hd_hardfiledata *hfd, const TCHAR *path, int blocksize, 
 	if (!hdf_open (&hfd->hfd, path))
 		return 0;
 	hfd->path = my_strdup(path);
+	hfd->hfd.cylinders = cyls;
 	hfd->hfd.heads = surfaces;
 	hfd->hfd.reservedblocks = reserved;
 	hfd->hfd.secspertrack = sectors;
 	if (devname)
 		_tcscpy (hfd->hfd.device_name, devname);
-	getchshd (&hfd->hfd, &hfd->cyls, &hfd->heads, &hfd->secspertrack);
+	if (pcyls && pheads && psecs) {
+		hfd->cyls = pcyls;
+		hfd->heads = pheads;
+		hfd->secspertrack = psecs;
+	} else if (cyls && surfaces && sectors) {
+		hfd->cyls = cyls;
+		hfd->heads = surfaces;
+		hfd->secspertrack = sectors;
+	} else {
+		getchshd (&hfd->hfd, &hfd->cyls, &hfd->heads, &hfd->secspertrack);
+	}
 	hfd->cyls_def = hfd->cyls;
 	hfd->secspertrack_def = hfd->secspertrack;
 	hfd->heads_def = hfd->heads;

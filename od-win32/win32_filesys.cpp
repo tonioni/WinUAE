@@ -203,7 +203,7 @@ void filesys_addexternals (void)
 			}
 #endif
 			//write_log (_T("Drive type %d: '%s' '%s'\n"), drivetype, volumepath, volumename);
-			add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
+			add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
 			drvnum++;
 		} /* if drivemask */
 		dwDriveMask >>= 1;

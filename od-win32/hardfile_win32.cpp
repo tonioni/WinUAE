@@ -28,6 +28,7 @@
 #include <devguid.h>    // Device guids
 #include <setupapi.h>   // for SetupDiXxx functions.
 #include <cfgmgr32.h>   // for SetupDiXxx functions.
+#include <Ntddscsi.h>
 #endif
 #include <stddef.h>
 
@@ -380,6 +381,30 @@ static void getserial (HANDLE h)
 }
 #endif
 
+#if 0
+static void queryidentifydevice (struct hardfiledata *hfd)
+{
+	DWORD r, size;
+	uae_u8 *b;
+	ATA_PASS_THROUGH_EX *ata;
+
+	size = sizeof (ATA_PASS_THROUGH_EX) + 512;
+	b = xcalloc (uae_u8, size);
+	ata = (ATA_PASS_THROUGH_EX*)b;
+
+	ata->Length = sizeof ata;
+	ata->DataTransferLength = 512;
+	ata->TimeOutValue = 10;
+	ata->AtaFlags = ATA_FLAGS_DRDY_REQUIRED | ATA_FLAGS_DATA_IN;
+	ata->CurrentTaskFile[6] = 0xec;
+	ata->DataBufferOffset = ata->Length;
+	
+	if (!DeviceIoControl (hfd->handle->h, IOCTL_ATA_PASS_THROUGH, b, size, b, size, &r, NULL)) {
+		write_log (_T("IOCTL_ATA_PASS_THROUGH_DIRECT Identify Device failed %d\n"), GetLastError ());
+	}
+}
+#endif
+
 int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 {
 	HANDLE h = INVALID_HANDLE_VALUE;
@@ -421,8 +446,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE)
 				goto end;
-			if (!DeviceIoControl(h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
+			if (!DeviceIoControl (h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
 				write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), name, GetLastError ());
+			//queryidentifydevice (hfd);
 			_tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
 			_tcsncpy (hfd->product_id, udi->product_id, 16);
 			_tcsncpy (hfd->product_rev, udi->product_rev, 4);

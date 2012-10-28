@@ -1553,7 +1553,7 @@ static uae_u32 REGPARAM2 cia_wget (uaecptr addr)
 #endif
 
 	if (!isgaylenocia (addr))
-		return 0xffffffff;
+		return v;
 
 	cia_wait_pre ();
 	switch ((addr >> 12) & 3)

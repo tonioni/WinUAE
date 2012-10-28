@@ -4502,8 +4502,10 @@ void m68k_go (int may_quit)
 		}
 #endif
 		set_x_funcs ();
-		if (startup)
+		if (startup) {
 			custom_prepare ();
+			protect_roms (true);
+		}
 		startup = 0;
 		if (mmu_enabled && !currprefs.cachesize) {
 			run_func = m68k_run_mmu;
@@ -4517,10 +4519,9 @@ void m68k_go (int may_quit)
 				currprefs.cpu_model >= 68020 && currprefs.cpu_cycle_exact ? m68k_run_2ce :
 				currprefs.cpu_compatible ? (currprefs.cpu_model <= 68020 ? m68k_run_2p : m68k_run_2pf) : m68k_run_2;
 		}
-		protect_roms (true);
 		run_func ();
-		protect_roms (false);
 	}
+	protect_roms (false);
 	in_m68k_go--;
 }
 

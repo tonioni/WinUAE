@@ -127,8 +127,9 @@ extern void hardfile_do_disk_change (struct uaedev_config_info *uci, int insert)
 
 void hdf_hd_close(struct hd_hardfiledata *hfd);
 int hdf_hd_open(struct hd_hardfiledata *hfd, const TCHAR *path, int blocksize, int readonly,
-		       const TCHAR *devname, int sectors, int surfaces, int reserved,
-		       int bootpri, const TCHAR *filesys);
+		       const TCHAR *devname, int cyls, int sectors, int surfaces, int reserved,
+		       int bootpri, const TCHAR *filesys,
+			   int pcyls, int pheads, int psectors);
 
 
 extern int vhd_create (const TCHAR *name, uae_u64 size, uae_u32);

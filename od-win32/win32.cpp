@@ -1267,10 +1267,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			} SHNOTIFYSTRUCT;
 			TCHAR path[MAX_PATH];
 
-			if (lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_MEDIAREMOVED) {
+			if (lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_DRIVEADD || lParam == SHCNE_MEDIAREMOVED || lParam == SHCNE_DRIVEREMOVED) {
 				SHNOTIFYSTRUCT *shns = (SHNOTIFYSTRUCT*)wParam;
 				if (SHGetPathFromIDList ((struct _ITEMIDLIST *)(shns->dwItem1), path)) {
-					int inserted = lParam == SHCNE_MEDIAINSERTED ? 1 : 0;
+					int inserted = lParam == SHCNE_MEDIAINSERTED || lParam == SHCNE_DRIVEADD ? 1 : 0;
 					UINT errormode = SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 					write_log (_T("Shell Notification %d '%s'\n"), inserted, path);
 					if (!win32_hardfile_media_change (path, inserted)) {	
@@ -2309,11 +2309,15 @@ void toggle_mousegrab (void)
 #define LOG_NORMAL _T("winuaelog.txt")
 
 static bool createbootlog = true;
+static bool logging_disabled = false;
 
 void logging_open (int bootlog, int append)
 {
 	TCHAR *outpath;
 	TCHAR debugfilename[MAX_DPATH];
+
+	if (logging_disabled && !winuaelog_temporary_enable)
+		return;
 
 	outpath = logpath;
 	debugfilename[0] = 0;
@@ -5222,6 +5226,12 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		return 0;
 
 	argv2 = WIN32_InitRegistry (argv);
+
+	if (regqueryint (NULL, _T("log_disabled"), &i)) {
+		if (i)
+			logging_disabled = true;
+	}
+
 	getstartpaths ();
 	makeverstr (VersionStr);
 
@@ -5589,17 +5599,11 @@ void addnotifications (HWND hwnd, int remove, int isgui)
 	static HDEVNOTIFY hdn;
 	static int wtson;
 	LPITEMIDLIST ppidl;
-	SHCHANGENOTIFYREGISTER pSHChangeNotifyRegister;
-	SHCHANGENOTIFYDEREGISTER pSHChangeNotifyDeregister;
 
-	pSHChangeNotifyRegister = (SHCHANGENOTIFYREGISTER)GetProcAddress (
-		GetModuleHandle (_T("shell32.dll")), "SHChangeNotifyRegister");
-	pSHChangeNotifyDeregister = (SHCHANGENOTIFYDEREGISTER)GetProcAddress (
-		GetModuleHandle (_T("shell32.dll")), "SHChangeNotifyDeregister");
 
 	if (remove) {
-		if (ret > 0 && pSHChangeNotifyDeregister)
-			pSHChangeNotifyDeregister (ret);
+		if (ret > 0)
+			SHChangeNotifyDeregister (ret);
 		ret = 0;
 		if (hdn)
 			UnregisterDeviceNotification (hdn);
@@ -5609,11 +5613,11 @@ void addnotifications (HWND hwnd, int remove, int isgui)
 		wtson = 0;
 	} else {
 		DEV_BROADCAST_DEVICEINTERFACE NotificationFilter = { 0 };
-		if(pSHChangeNotifyRegister && SHGetSpecialFolderLocation (hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
+		if(SHGetSpecialFolderLocation (hwnd, CSIDL_DESKTOP, &ppidl) == NOERROR) {
 			SHChangeNotifyEntry shCNE;
 			shCNE.pidl = ppidl;
 			shCNE.fRecursive = TRUE;
-			ret = pSHChangeNotifyRegister (hwnd, SHCNE_DISKEVENTS, SHCNE_MEDIAINSERTED | SHCNE_MEDIAREMOVED,
+			ret = SHChangeNotifyRegister (hwnd, SHCNE_DISKEVENTS, SHCNE_MEDIAINSERTED | SHCNE_MEDIAREMOVED | SHCNE_DRIVEREMOVED | SHCNE_DRIVEADD,
 				WM_USER + 2, 1, &shCNE);
 		}
 		NotificationFilter.dbcc_size = 
@@ -5968,7 +5972,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		pChangeWindowMessageFilter(WM_DROPFILES, MSGFLT_ADD);
 #endif
 
-	log_open (NULL, 0, 0, NULL);
+	log_open (NULL, 0, -1, NULL);
 	
 	__try {
 		WinMain2 (hInstance, hPrevInstance, lpCmdLine, nCmdShow);

@@ -1,6 +1,21 @@
 
 - restore only single input target to default.
 
+Beta 22:
+
+- "Generic" Amiga model incorrectly enabled A3000 DMAC emulation which caused most programs that require UAE Boot ROM in
+  normal 0xF00000 area to crash. (Old bug, b20 adv.chipset caused it to appear much more commonly)
+- Disable ROM protection when switching JIT off on the fly.
+- Dragging standard HDF to Hardfiles panel sets correct default geometry.
+- Added logical cylinder value to HDF config data, default is zero = calculate from size of the HDF (same as previously)
+- Added "physical" CHS values to HDF config data, can be used to override autogenerared IDE emulation CHS values.
+  (append ",logical cyls,C/H/S" to hardfile2 config entry. No GUI support.)
+- GUI resize button was permanently disabled after it was unticked once.
+- log_disabled=1 in registry (DWORD) or ini disables winuaebootlog.txt.
+- Check DPI value when selecting default GUI size.
+- CD32 audio emulation update, Guardian CD32 (and possible some others) had muted audio since b1. Immediate reply
+  to CD play command should not have "play active" bit set. It should be only set in later status packets.
+
 Beta 21:
 
 - Use software volume also in WASAPI non-exclusive because WASAPI main volume control also affects waveOut used by CD audio.

@@ -6978,7 +6978,10 @@ writeonly:
 					}
 				}
 			} else {
-				v = 0xffff;
+				if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
+					v = 0xffff;
+				else
+					v = l;
 			}
 #if CUSTOM_DEBUG > 0
 			write_log (_T("%08X read = %04X. Value written=%04X PC=%08x\n"), 0xdff000 | addr, v, l, M68K_GETPC);

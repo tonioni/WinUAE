@@ -1770,7 +1770,7 @@ int target_cfgfile_load (struct uae_prefs *p, const TCHAR *filename, int type, i
 }
 
 static int gui_width, gui_height;
-static bool gui_resize;
+static bool gui_resize_enabled;
 static bool gui_resize_allowed;
 // Internal panel max size: 396, 318
 
@@ -7961,7 +7961,7 @@ static void values_to_miscdlg (HWND hDlg)
 		misc_kbled (hDlg, IDC_KBLED2, workprefs.keyboard_leds[1]);
 		misc_kbled (hDlg, IDC_KBLED3, workprefs.keyboard_leds[2]);
 		CheckDlgButton (hDlg, IDC_KBLED_USB, workprefs.win32_kbledmode);
-		CheckDlgButton (hDlg, IDC_GUI_RESIZE, gui_resize);
+		CheckDlgButton (hDlg, IDC_GUI_RESIZE, gui_resize_enabled);
 		ew (hDlg, IDC_GUI_RESIZE, gui_resize_allowed);
 
 		misc_scsi (hDlg);
@@ -8175,8 +8175,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v--;
 					v = 110 - v * 10;
 				}
-				gui_width = GUI_INTERNAL_WIDTH * v / 100;
-				gui_height = GUI_INTERNAL_HEIGHT * v / 100;
+				double m = scaleresource_getdpimult ();
+				gui_width = (int)(GUI_INTERNAL_WIDTH * v * m / 100);
+				gui_height = (int)(GUI_INTERNAL_HEIGHT * v * m / 100);
 				scaleresource_setmult (guiDlg, gui_width, gui_height);
 				gui_size_changed = 1;
 			}
@@ -8188,7 +8189,7 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 			misc_gui_font (hDlg, 1);
 			break;
 		case IDC_GUI_RESIZE:
-			gui_resize = ischecked (hDlg, IDC_GUI_RESIZE);
+			gui_resize_enabled = ischecked (hDlg, IDC_GUI_RESIZE);
 			gui_size_changed = 2;
 		break;
 		case IDC_ASSOCIATE_ON:
@@ -9091,7 +9092,7 @@ struct hfdlg_vals
 	int sectors;
 	int reserved;
 	int surfaces;
-	int cylinders;
+	int cylinders, forcedcylinders;
 	int blocksize;
 	bool rw;
 	bool rdb;
@@ -9342,6 +9343,7 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 		}
 		if (!memcmp (tmp, "RDSK\0\0\0", 7) || !memcmp (tmp, "DRKS\0\0", 6) || (tmp[0] == 0x53 && tmp[1] == 0x10 && tmp[2] == 0x9b && tmp[3] == 0x13 && tmp[4] == 0 && tmp[5] == 0)) {
 			// RDSK or ADIDE "encoded" RDSK
+			hdf->cylinders = hdf->forcedcylinders = 0;
 			hdf->sectors = 0;
 			hdf->surfaces = 0;
 			hdf->reserved = 0;
@@ -9357,7 +9359,8 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 	sethardfile (hDlg);
 }
 
-static void updatehdfinfo (HWND hDlg, bool force)
+
+static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 {
 	static uae_u64 bsize;
 	static uae_u8 id[512];
@@ -9365,6 +9368,7 @@ static void updatehdfinfo (HWND hDlg, bool force)
 	TCHAR tmp[200], tmp2[200];
 	TCHAR idtmp[9];
 
+	bsize = 0;
 	if (force) {
 		bool open = false;
 		struct hardfiledata hfd;
@@ -9383,15 +9387,15 @@ static void updatehdfinfo (HWND hDlg, bool force)
 			if (i == 16)
 				hdf_read (&hfd, id, 0, 512);
 		}
-		if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
+		if (defaults && current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
 			getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors);
 			current_hfdlg.original = 0;
 		}
 		hdf_close (&hfd);
 	}
 
-	cyls = 0;
-	if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
+	cyls = current_hfdlg.forcedcylinders;
+	if (!cyls && current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
 		cyls = bsize / (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces);
 	}
 	blocks = cyls * (current_hfdlg.sectors * current_hfdlg.surfaces);
@@ -9419,8 +9423,9 @@ static void updatehdfinfo (HWND hDlg, bool force)
 			}
 		}
 		_tcscat (tmp, tmp2);
+		if (hDlg != NULL)
+			SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
 	}
-	SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
 }
 
 static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
@@ -9430,7 +9435,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
 	fullpath (current_hfdlg.filename, sizeof current_hfdlg.filename / sizeof (TCHAR));
 	inithardfile (hDlg);
 	hardfile_testrdb (hDlg, &current_hfdlg);
-	updatehdfinfo (hDlg, true);
+	updatehdfinfo (hDlg, true, true);
 	sethardfile (hDlg);
 }
 
@@ -9457,6 +9462,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 	LRESULT res, posn;
 	TCHAR tmp[MAX_DPATH], fs[MAX_DPATH], dev[MAX_DPATH];
 	int hdctrlr;
+	int v;
 
 	switch (msg) {
 	case WM_DROPFILES:
@@ -9468,7 +9474,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		inithardfile (hDlg);
 		sethardfile (hDlg);
 		sethfdostype (hDlg, 0);
-		updatehdfinfo (hDlg, true);
+		updatehdfinfo (hDlg, true, false);
 		setac (hDlg, IDC_PATH_NAME);
 		recursive--;
 		customDlgType = IDD_HARDFILE;
@@ -9571,24 +9577,49 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			current_hfdlg.donotmount = 0;
 			sethardfile (hDlg);
 			break;
+		case IDC_SECTORS:
+			v = current_hfdlg.sectors;
+			current_hfdlg.sectors   = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
+			if (v != current_hfdlg.sectors)
+				updatehdfinfo (hDlg, true, false);
+			break;
+		case IDC_RESERVED:
+			current_hfdlg.reserved  = GetDlgItemInt (hDlg, IDC_RESERVED, NULL, FALSE);
+			break;
+		case IDC_HEADS:
+			v = current_hfdlg.surfaces;
+			current_hfdlg.surfaces  = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
+			if (v != current_hfdlg.surfaces)
+				updatehdfinfo (hDlg, true, false);
+			break;
+		case IDC_BLOCKSIZE:
+			v = current_hfdlg.blocksize;
+			current_hfdlg.blocksize = GetDlgItemInt (hDlg, IDC_BLOCKSIZE, NULL, FALSE);
+			if (v != current_hfdlg.blocksize)
+				updatehdfinfo (hDlg, true, false);
+			break;
+		case IDC_HARDFILE_BOOTPRI:
+			current_hfdlg.bootpri = GetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
+			break;
+		case IDC_PATH_FILESYS:
+			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename / sizeof (TCHAR));
+			break;
+		case IDC_HARDFILE_DEVICE:
+			GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename / sizeof (TCHAR));
+			break;
+		case IDC_HDF_CONTROLLER:
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR)
+				current_hfdlg.controller = posn;
+			break;
+		case IDC_PATH_NAME:
+			GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
+			if (_tcscmp (tmp, current_hfdlg.filename)) {
+				_tcscpy (current_hfdlg.filename, tmp);
+				updatehdfinfo (hDlg, true, false);
+			}
+			break;
 		}
-
-		current_hfdlg.sectors   = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
-		current_hfdlg.reserved  = GetDlgItemInt (hDlg, IDC_RESERVED, NULL, FALSE);
-		current_hfdlg.surfaces  = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
-		current_hfdlg.blocksize = GetDlgItemInt (hDlg, IDC_BLOCKSIZE, NULL, FALSE);
-		current_hfdlg.bootpri = GetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, NULL, TRUE);
-		GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
-		if (_tcscmp (tmp, current_hfdlg.filename)) {
-			_tcscpy (current_hfdlg.filename, tmp);
-			updatehdfinfo (hDlg, true);
-		}
-		GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename / sizeof (TCHAR));
-		GetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.devicename, sizeof current_hfdlg.devicename / sizeof (TCHAR));
-		posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
-		if (posn != CB_ERR)
-			current_hfdlg.controller = posn;
-		updatehdfinfo (hDlg, false);
 		recursive--;
 
 		break;
@@ -9697,7 +9728,7 @@ static void new_filesys (HWND hDlg, int entry)
 	int bp = tweakbootpri (current_fsvdlg.bootpri, current_fsvdlg.autoboot, current_fsvdlg.donotmount);
 
 	uci = add_filesys_config (&workprefs, entry, current_fsvdlg.device, current_fsvdlg.volume,
-		current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, bp, 0, 0, 0);
+		current_fsvdlg.rootdir, ! current_fsvdlg.rw, 0, 0, 0, 0, 0, bp, 0, 0, 0, 0, 0, 0);
 	if (uci) {
 		if (uci->rootdir[0])
 			filesys_media_change (uci->rootdir, 1, uci);
@@ -9713,10 +9744,11 @@ static void new_hardfile (HWND hDlg, int entry)
 
 	uci = add_filesys_config (&workprefs, entry, current_hfdlg.devicename, 0,
 		current_hfdlg.filename, ! current_hfdlg.rw,
-		current_hfdlg.sectors, current_hfdlg.surfaces,
+		0, current_hfdlg.sectors, current_hfdlg.surfaces,
 		current_hfdlg.reserved, current_hfdlg.blocksize,
 		bp, current_hfdlg.fsfilename,
-		current_hfdlg.controller, 0);
+		current_hfdlg.controller, 0,
+		0, 0, 0);
 	if (uci)
 		hardfile_do_disk_change (uci, 1);
 }
@@ -9726,8 +9758,9 @@ static void new_harddrive (HWND hDlg, int entry)
 	struct uaedev_config_info *uci;
 
 	uci = add_filesys_config (&workprefs, entry, 0, 0,
-		current_hfdlg.filename, ! current_hfdlg.rw, 0, 0,
-		0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0);
+		current_hfdlg.filename, ! current_hfdlg.rw, 0, 0, 0,
+		0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0,
+		0, 0, 0);
 	if (uci)
 		hardfile_do_disk_change (uci, 1);
 }
@@ -9765,6 +9798,7 @@ static void harddisk_edit (HWND hDlg)
 
 	if(type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
 	{
+		current_hfdlg.forcedcylinders = uci->cyls;
 		current_hfdlg.sectors = uci->sectors;
 		current_hfdlg.surfaces = uci->surfaces;
 		current_hfdlg.reserved = uci->reserved;
@@ -14912,7 +14946,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		if (customDlgType == IDD_HARDFILE) {
 			_tcscpy (current_hfdlg.filename, file);
 			SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.filename);
-			updatehdfinfo (customDlg, true);
+			updatehdfinfo (customDlg, true, true);
+			sethardfile (customDlg);
 			continue;
 		}
 
@@ -14930,7 +14965,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				diskswapper_addfile (prefs, file);
 			} else if (currentpage == HARDDISK_ID) {
 				add_filesys_config (&workprefs, -1, NULL, _T(""), file, 0,
-					0, 0, 0, 0, 0, NULL, 0, 0);
+					0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0);
 			} else {
 				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
 				if (drv < 0)
@@ -14955,15 +14990,22 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					do_filesys_insert (file);
 				else
 					add_filesys_config (&workprefs, -1, NULL, _T(""), file, 0,
-					0, 0, 0, 0, 0, NULL, 0, 0);
+						0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0);
 			} else {
+				current_hfdlg.forcedcylinders = 0;
+				current_hfdlg.sectors = 32;
+				current_hfdlg.surfaces = 1;
+				current_hfdlg.blocksize = 512;
+				_tcscpy (current_hfdlg.filename, file);
+				updatehdfinfo (NULL, true, true);
 				add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
-					32, 1, 2, 512, 0, NULL, 0, 0);
+					0, current_hfdlg.sectors, current_hfdlg.surfaces, 2, current_hfdlg.blocksize, 0, NULL, 0, 0,
+					0, 0, 0);
 			}
 			break;
 		case ZFILE_HDFRDB:
 			add_filesys_config (&workprefs, -1, NULL, NULL, file, 0,
-				0, 0, 0, 512, 0, NULL, 0, 0);
+				0, 0, 0, 0, 512, 0, NULL, 0, 0, 0, 0, 0);
 			break;
 		case ZFILE_NVR:
 			_tcscpy (prefs->flashfile, file);
@@ -14993,7 +15035,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				do_filesys_insert (file);
 			} else if (currentpage == HARDDISK_ID) {
 				add_filesys_config (&workprefs, -1, NULL, _T(""), file, 0,
-					0, 0, 0, 0, 0, NULL, 0, 0);
+					0, 0, 0, 0, 0, 0, NULL, 0, 0, 0, 0, 0);
 				if (!full_property_sheet)
 					do_filesys_insert (file);
 			} else {
@@ -15024,7 +15066,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	{
 	case WM_SIZING:
 	{
-		if (!recursive && gui_resize_allowed) {
+		if (!recursive && gui_resize_enabled) {
 			RECT *r = (RECT*)lParam;
 			if (r->right - r->left < MIN_GUI_INTERNAL_WIDTH)
 				r->right = r->left + MIN_GUI_INTERNAL_WIDTH;
@@ -15035,13 +15077,13 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		break;
 	}
 	case WM_ENTERSIZEMOVE:
-		if (!recursive && gui_resize_allowed) {
+		if (!recursive && gui_resize_enabled) {
 			getguisize (hDlg, &oldwidth, &oldheight);
 			return FALSE;
 		}
 		break;
 	case WM_EXITSIZEMOVE:
-		if (!recursive && gui_resize_allowed) {
+		if (!recursive && gui_resize_enabled) {
 			int w, h;
 			getguisize (hDlg, &w, &h);
 			if (w != oldwidth || h != oldheight) {
@@ -15443,9 +15485,11 @@ static int GetSettings (int all_options, HWND hwnd)
 	int fmultx = 0, fmulty = 0;
 	for (;;) {
 		int v = 0;
+		int regexists;
 		setdefaultguisize ();
-		regqueryint (NULL, _T("GUIResize"), &v);
-		gui_resize_allowed = gui_resize = v != 0;
+		regexists = regqueryint (NULL, _T("GUIResize"), &v);
+		gui_resize_allowed = true;
+		gui_resize_enabled = v != 0;
 		if (full_property_sheet || isfullscreen () == 0) {
 			regqueryint (NULL, _T("GUISizeX"), &gui_width);
 			regqueryint (NULL, _T("GUISizeY"), &gui_height);
@@ -15459,11 +15503,22 @@ static int GetSettings (int all_options, HWND hwnd)
 			regqueryint (NULL, _T("GUISizeFSY"), &gui_height);
 			scaleresource_init (_T("FS"));
 		}
-		if (gui_width < 100 || gui_width > 4096 || gui_height < 100 || gui_height > 4096) {
+		if (!regexists) {
 			scaleresource_setdefaults ();
 			setdefaultguisize ();
+			double m = scaleresource_getdpimult ();
+			gui_width = (int)(gui_width * m);
+			gui_height = (int)(gui_height * m);
 			fmultx = 0;
-			write_log (_T("GUI size reset\n"));
+			write_log (_T("GUI default size\n"));
+			regsetint (NULL, _T("GUIResize"), 0);
+		} else {
+			if (gui_width < 100 || gui_width > 4096 || gui_height < 100 || gui_height > 4096) {
+				scaleresource_setdefaults ();
+				setdefaultguisize ();
+				fmultx = 0;
+				write_log (_T("GUI size reset\n"));
+			}
 		}
 
 		if (all_options || !configstore)
@@ -15488,7 +15543,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			}
 		}
 
-		tres = scaleresource (panelresource, hwnd, gui_resize_allowed);
+		tres = scaleresource (panelresource, hwnd, gui_resize_enabled);
 		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;
@@ -15592,7 +15647,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			regsetint (NULL, _T("GUISizeFSX"), gui_width);
 			regsetint (NULL, _T("GUISizeFSY"), gui_height);
 		}
-		regsetint (NULL, _T("GUIResize"), gui_resize ? 1 : 0);
+		regsetint (NULL, _T("GUIResize"), gui_resize_enabled ? 1 : 0);
 		gui_size_changed = 0;
 		quit_program = 0;
 	}

@@ -572,7 +572,6 @@ FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR *outpath)
 				}
 			}
 		}
-		bootlogmode = bootlog;
 	} else if (1) {
 		TCHAR *c = GetCommandLine ();
 		if (_tcsstr (c, _T(" -console"))) {
@@ -585,7 +584,7 @@ FILE *log_open (const TCHAR *name, int append, int bootlog, TCHAR *outpath)
 			}
 		}
 	}
-
+	bootlogmode = bootlog;
 	return f;
 }
 

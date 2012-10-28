@@ -842,8 +842,11 @@ void protect_roms (bool protect)
 {
 	struct shmid_ds *shm;
 	
-	if (!currprefs.cachesize || currprefs.comptrustbyte || currprefs.comptrustword || currprefs.comptrustlong)
-		return;
+	if (protect) {
+		// protect only if JIT enabled, always allow unprotect
+		if (!currprefs.cachesize || currprefs.comptrustbyte || currprefs.comptrustword || currprefs.comptrustlong)
+			return;
+	}
 	for (int i = 0; i < MAX_SHMID; i++) {
 		DWORD old;
 		shm = &shmids[i];

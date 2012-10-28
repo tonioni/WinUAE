@@ -1221,7 +1221,7 @@ int addscsi (int ch, const TCHAR *path, int blocksize, int readonly,
 	freescsi (scsis[ch]);
 	scsis[ch] = NULL;
 	hfd = xcalloc (struct hd_hardfiledata, 1);
-	if (!hdf_hd_open (hfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
+	if (!hdf_hd_open (hfd, path, blocksize, readonly, devname, 0, sectors, surfaces, reserved, bootpri, filesys, 0, 0, 0))
 		return 0;
 	hfd->ansi_version = scsi_level;
 	scsis[ch] = scsi_alloc (ch, hfd);

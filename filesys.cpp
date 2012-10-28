@@ -59,7 +59,7 @@
 #endif
 
 #define TRACING_ENABLED 1
-int log_filesys;
+int log_filesys = 0;
 
 #if TRACING_ENABLED
 #define TRACE(x) if (log_filesys > 0) { write_log x; }
@@ -331,7 +331,11 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 		}
 	}
 	mi->size = ui->hf.virtsize;
-	mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.virtsize / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
+	if (uci->cyls) {
+		mi->nrcyls = uci->cyls;
+	} else {
+		mi->nrcyls = (int)(uci->sectors * uci->surfaces ? (ui->hf.virtsize / uci->blocksize) / (uci->sectors * uci->surfaces) : 0);
+	}
 	if (!uci->ishdf)
 		return FILESYS_VIRTUAL;
 	if (uci->reserved == 0 && uci->sectors == 0 && uci->surfaces == 0) {
@@ -473,10 +477,10 @@ static int set_filesys_volume (const TCHAR *rootdir, int *flags, bool *readonly,
 }
 
 static int set_filesys_unit_1 (int nr,
-	TCHAR *devname, TCHAR *volname, const TCHAR *rootdir, bool readonly,
-	int secspertrack, int surfaces, int reserved,
+	const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
+	int cyls, int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri, bool donotmount, bool autoboot,
-	TCHAR *filesysdir, int hdc, int flags)
+	const TCHAR *filesysdir, int hdc, int flags)
 {
 	UnitInfo *ui;
 	int i;
@@ -558,7 +562,11 @@ static int set_filesys_unit_1 (int nr,
 				write_log (_T("Hardfile %s too small\n"), ui->hf.device_name);
 				goto err;
 			}
-			ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.virtsize / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
+			if (cyls) {
+				ui->hf.nrcyls = cyls;
+			} else {
+				ui->hf.nrcyls = (int)(ui->hf.secspertrack * ui->hf.surfaces ? (ui->hf.virtsize / ui->hf.blocksize) / (ui->hf.secspertrack * ui->hf.surfaces) : 0);
+			}
 		}
 	}
 	ui->self = 0;
@@ -590,23 +598,23 @@ err:
 }
 
 static int set_filesys_unit (int nr,
-	TCHAR *devname, TCHAR *volname, const TCHAR *rootdir, bool readonly,
-	int secspertrack, int surfaces, int reserved,
+	const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
+	int cyls, int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri, bool donotmount, bool autoboot,
-	TCHAR *filesysdir, int hdc, int flags)
+	const TCHAR *filesysdir, int hdc, int flags)
 {
 	int ret;
 
 	ret = set_filesys_unit_1 (nr, devname, volname, rootdir, readonly,
-		secspertrack, surfaces, reserved, blocksize, bootpri, donotmount, autoboot,
+		cyls, secspertrack, surfaces, reserved, blocksize, bootpri, donotmount, autoboot,
 		filesysdir, hdc, flags);
 	return ret;
 }
 
-static int add_filesys_unit (TCHAR *devname, TCHAR *volname, const TCHAR *rootdir, bool readonly,
-	int secspertrack, int surfaces, int reserved,
+static int add_filesys_unit (const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
+	int cyls, int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri, bool donotmount, bool autoboot,
-	TCHAR *filesysdir, int hdc, int flags)
+	const TCHAR *filesysdir, int hdc, int flags)
 {
 	int ret;
 
@@ -614,7 +622,7 @@ static int add_filesys_unit (TCHAR *devname, TCHAR *volname, const TCHAR *rootdi
 		return -1;
 
 	ret = set_filesys_unit_1 (-1, devname, volname, rootdir, readonly,
-		secspertrack, surfaces, reserved, blocksize,
+		cyls, secspertrack, surfaces, reserved, blocksize,
 		bootpri, donotmount, autoboot, filesysdir, hdc, flags);
 #ifdef RETROPLATFORM
 	if (ret >= 0) {
@@ -685,7 +693,7 @@ static void initialize_mountinfo (void)
 		struct uaedev_config_info *uci = &currprefs.mountconfig[nr];
 		if (uci->controller == HD_CONTROLLER_UAE) {
 			int idx = set_filesys_unit_1 (-1, uci->devname, uci->ishdf ? NULL : uci->volname, uci->rootdir,
-				uci->readonly, uci->sectors, uci->surfaces, uci->reserved,
+				uci->readonly, uci->cyls, uci->sectors, uci->surfaces, uci->reserved,
 				uci->blocksize, uci->bootpri, uci->donotmount, uci->autoboot, uci->filesys, 0, MYVOLUMEINFO_REUSABLE);
 			allocuci (&currprefs, nr, idx);
 		}
@@ -702,7 +710,7 @@ static void initialize_mountinfo (void)
 				TCHAR cdname[30];
 				_stprintf (cdname, _T("CD%d"), i);
 				cd_unit_number++;
-				int idx = set_filesys_unit_1 (i + cd_unit_offset, cdname, NULL, _T("/"), true, 1, 1, 0, 2048, 0, false, false, NULL, 0, 0);
+				int idx = set_filesys_unit_1 (i + cd_unit_offset, cdname, NULL, _T("/"), true, 0, 1, 1, 0, 2048, 0, false, false, NULL, 0, 0);
 				allocuci (&currprefs, nr, idx);
 				nr++;
 			}
@@ -716,11 +724,11 @@ static void initialize_mountinfo (void)
 			continue;
 		if (uci->controller <= HD_CONTROLLER_IDE3) {
 			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci->rootdir, uci->blocksize, uci->readonly,
-				uci->devname, uci->sectors, uci->surfaces, uci->reserved,
-				uci->bootpri, uci->filesys);
+				uci->devname, uci->cyls, uci->sectors, uci->surfaces, uci->reserved,
+				uci->bootpri, uci->filesys, uci->pcyls, uci->pheads, uci->psecs);
 			allocuci (&currprefs, nr, -1);
 		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-			if (currprefs.cs_mbdmac) {
+			if (currprefs.cs_mbdmac > 0) {
 #ifdef A2091
 				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci->rootdir, uci->blocksize, uci->readonly,
 					uci->devname, uci->sectors, uci->surfaces, uci->reserved,
@@ -1359,6 +1367,9 @@ int filesys_insert (int nr, TCHAR *volume, const TCHAR *rootdir, bool readonly, 
 
 	if (!mountertask)
 		return 0;
+
+	write_log (_T("filesys_insert(%d,'%s','%s','%d','%d)\n"), nr, volume ? volume : _T("<?>"), rootdir, readonly, flags);
+
 	if (nr < 0) {
 		for (u = units; u; u = u->next) {
 			if (is_virtual (u->unit)) {
@@ -1399,6 +1410,8 @@ int filesys_insert (int nr, TCHAR *volume, const TCHAR *rootdir, bool readonly, 
 	u->mount_rootdir = my_strdup (rootdir);
 	u->mount_readonly = readonly;
 	u->mount_flags = flags;
+
+	write_log (_T("filesys_insert %d done!\n"), nr);
 
 	put_byte (u->volume + 172 - 32, -3); // wait for insert
 	uae_Signal (get_long (u->volume + 176 - 32), 1 << 13);
@@ -1535,6 +1548,9 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 		return 0;
 	if (automountunit >= 0)
 		return -1;
+	
+	write_log (_T("filesys_media_change('%s',%d,%p)\n"), rootdir, inserted, uci);
+	
 	nr = -1;
 	for (u = units; u; u = u->next) {
 		if (is_virtual (u->unit)) {
@@ -1603,7 +1619,7 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 			_tcscpy (devname, uci->devname);
 		else
 			_stprintf (devname, _T("RDH%d"), nr_units ());
-		nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, 0, 1, NULL, 0, MYVOLUMEINFO_REUSABLE);
+		nr = add_filesys_unit (devname, volptr, rootdir, 0, 0, 0, 0, 0, 0, 0, 0, 1, NULL, 0, MYVOLUMEINFO_REUSABLE);
 		if (nr < 0)
 			return 0;
 		if (inserted > 1)
@@ -2772,8 +2788,8 @@ static void
 		return;
 	}
 	TRACE((_T("{ next=0x%lx, mode=%ld, handler=0x%lx, volume=0x%lx, aino %lx "),
-		get_long (lock) << 2, get_long (lock+8),
-		get_long (lock+12), get_long (lock+16),
+		get_long (lock) << 2, get_long (lock + 8),
+		get_long (lock + 12), get_long (lock + 16),
 		get_long (lock + 4)));
 	a = lookup_aino (unit, get_long (lock + 4));
 	if (a == 0) {
@@ -7547,7 +7563,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
 		volname = NULL;
 	}
 	if (set_filesys_unit (devno, devname, volname, rootdir, readonly,
-		ui->hf.secspertrack, ui->hf.surfaces, ui->hf.reservedblocks, ui->hf.blocksize,
+		ui->hf.cylinders, ui->hf.secspertrack, ui->hf.surfaces, ui->hf.reservedblocks, ui->hf.blocksize,
 		bootpri, false, true, filesysdir[0] ? filesysdir : NULL, 0, 0) < 0) {
 			write_log (_T("filesys '%s' failed to restore\n"), rootdir);
 			goto end;

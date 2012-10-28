@@ -1541,14 +1541,15 @@ static void alloc_ide_mem (struct ide_hdf **ide, int max)
 }
 
 static struct ide_hdf *add_ide_unit (int ch, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys)
+	const TCHAR *devname, int cyls, int sectors, int surfaces, int reserved,
+	int bootpri, const TCHAR *filesys,
+	int pcyls, int pheads, int psecs)
 {
 	struct ide_hdf *ide;
 
 	alloc_ide_mem (idedrive, TOTAL_IDE * 2);
 	ide = idedrive[ch];
-	if (!hdf_hd_open (&ide->hdhfd, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys))
+	if (!hdf_hd_open (&ide->hdhfd, path, blocksize, readonly, devname, cyls, sectors, surfaces, reserved, bootpri, filesys, pcyls, pheads, psecs))
 		return NULL;
 	ide->blocksize = blocksize;
 	ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
@@ -1941,7 +1942,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
 	if (type == PCMCIA_SRAM) {
 		if (reset) {
 			if (path)
-				hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, NULL);
+				hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
 		} else {
 			pcmcia_sram->hfd.drive_empty = 0;
 		}
@@ -1974,7 +1975,7 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
 
 		if (reset) {
 			if (path)
-				add_ide_unit (PCMCIA_IDE_ID * 2, path, 512, readonly, NULL, 0, 0, 0, 0, NULL);
+				add_ide_unit (PCMCIA_IDE_ID * 2, path, 512, readonly, NULL, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
 		}
 
 		pcmcia_common_size = 0;
@@ -2252,19 +2253,22 @@ static void dumphdf (struct hardfiledata *hfd)
 }
 #endif
 
-int gayle_add_ide_unit (int ch, TCHAR *path, int blocksize, int readonly,
-	TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys)
+int gayle_add_ide_unit (int ch, const TCHAR *path, int blocksize, int readonly, const TCHAR *devname,
+	int cyls, int sectors, int surfaces, int reserved, int bootpri, const TCHAR *filesys,
+	int pcyls, int pheads, int psecs)
 {
 	struct ide_hdf *ide;
 
 	if (ch >= 2 * 2)
 		return -1;
-	ide = add_ide_unit (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys);
+	ide = add_ide_unit (ch, path, blocksize, readonly, devname, cyls, sectors, surfaces, reserved, bootpri, filesys, pcyls, pheads, psecs);
 	if (ide == NULL)
 		return 0;
-	write_log (_T("GAYLE_IDE%d '%s', CHS=%d,%d,%d. %uM. LBA48=%d\n"),
-		ch, path, ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack, (int)(ide->hdhfd.size / (1024 * 1024)), ide->lba48);
+	write_log (_T("GAYLE_IDE%d '%s', LCHS=%d/%d/%d. PCHS=%d/%d/%d %uM. LBA48=%d\n"),
+		ch, path,
+		ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack,
+		pcyls, pheads, psecs,
+		(int)(ide->hdhfd.size / (1024 * 1024)), ide->lba48);
 	ide->type = IDE_GAYLE;
 	//dumphdf (&ide->hdhfd.hfd);
 	return 1;
@@ -2460,9 +2464,9 @@ uae_u8 *restore_ide (uae_u8 *src)
 	ide->hdhfd.bootpri = restore_u32 ();
 	if (ide->hdhfd.hfd.virtual_size)
 		gayle_add_ide_unit (num, path, blocksize, readonly, ide->hdhfd.hfd.device_name,
-		ide->hdhfd.hfd.secspertrack, ide->hdhfd.hfd.heads, ide->hdhfd.hfd.reservedblocks, ide->hdhfd.bootpri, NULL);
+		0, ide->hdhfd.hfd.secspertrack, ide->hdhfd.hfd.heads, ide->hdhfd.hfd.reservedblocks, ide->hdhfd.bootpri, NULL, 0, 0, 0);
 	else
-		gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0);
+		gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	xfree (path);
 	return src;
 }

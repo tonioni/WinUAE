@@ -406,6 +406,18 @@ void scaleresource_setdefaults (void)
 
 static int lpx, lpy;
 
+double scaleresource_getdpimult (void)
+{
+	HDC hdc = GetDC (NULL);
+	int m = GetDeviceCaps (hdc, LOGPIXELSY);
+	ReleaseDC (NULL, hdc);
+	if (m > 96) {
+		m -= 96;
+		return 1.0 + m / 250.0;
+	}
+	return 1.0;
+}
+
 void scaleresource_init (const TCHAR *prefix)
 {
 	if (os_vista)
