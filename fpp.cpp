@@ -232,7 +232,7 @@ static int get_fpu_version (void)
 
 #define fp_round_to_minus_infinity(x) fp_floor(x)
 #define fp_round_to_plus_infinity(x) fp_ceil(x)
-#define fp_round_to_zero(x) ((int)(x))
+#define fp_round_to_zero(x)	((x) >= 0.0 ? floor(x) : ceil(x))
 #define fp_round_to_nearest(x) ((int)((x) + 0.5))
 
 STATIC_INLINE tointtype toint (fptype src, fptype minval, fptype maxval)
@@ -1456,8 +1456,8 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 				__asm {
 					fld  LDPTR src
-						frndint
-						fstp LDPTR tmp_fp
+					frndint
+					fstp LDPTR tmp_fp
 				}
 				regs.fp[reg] = tmp_fp;
 			}
@@ -1487,7 +1487,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 			regs.fp[reg] = sinh (src);
 			break;
 		case 0x03: /* FINTRZ */
-			regs.fp[reg] = fp_round_to_zero(src);
+			regs.fp[reg] = fp_round_to_zero (src);
 			break;
 		case 0x04: /* FSQRT */
 		case 0x41:

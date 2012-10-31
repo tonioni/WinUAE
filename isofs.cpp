@@ -2159,7 +2159,7 @@ static struct inode *isofs_find_entry(struct inode *dir, char *tmpname, TCHAR *t
 		match = 0;
 		if (dlen > 0 && (!sbi->s_hide || (!(de->flags[-sbi->s_high_sierra] & 1))) && (sbi->s_showassoc || (!(de->flags[-sbi->s_high_sierra] & 4)))) {
 			if (jname)
-				match = _tcsicmp(jname, nameu);
+				match = _tcsicmp(jname, nameu) == 0;
 			else
 				match = isofs_cmp(name, dpnt, dlen) == 0;
 		}

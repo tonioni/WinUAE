@@ -1512,7 +1512,8 @@ static int createmasktexture (const TCHAR *filename)
 	}
 	masktexture_w = dinfo.Width;
 	masktexture_h = dinfo.Height;
-	if (0 && txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
+#if 0
+	if (txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
 		// texture size == image size, no need to tile it (Wrap sampler does the rest)
 		if (masktexture_w < window_w || masktexture_h < window_h) {
 			maskwidth = window_w;
@@ -1522,9 +1523,13 @@ static int createmasktexture (const TCHAR *filename)
 			tx = NULL;
 		}
 	} else {
-		maskwidth = window_w;
-		maskheight = window_h;
+#endif
+		// both must be divisible by mask size
+		maskwidth = ((window_w + masktexture_w - 1) / masktexture_w) * masktexture_w;
+		maskheight = ((window_h + masktexture_h - 1) / masktexture_h) * masktexture_h;
+#if 0
 	}
+#endif
 	if (tx) {
 		masktexture = createtext (maskwidth, maskheight, D3DFMT_X8R8G8B8);
 		if (FAILED (hr)) {
@@ -1567,7 +1572,7 @@ static int createmasktexture (const TCHAR *filename)
 		masktexture_w = maskdesc.Width;
 		masktexture_h = maskdesc.Height;
 	}
-	write_log (_T("%s: mask %d*%d (%d*%d) ('%s') texture allocated\n"), D3DHEAD, masktexture_w, masktexture_h, txdesc.Width, txdesc.Height, filename);
+	write_log (_T("%s: mask %d*%d (%d*%d) %d*%d ('%s') texture allocated\n"), D3DHEAD, masktexture_w, masktexture_h, txdesc.Width, txdesc.Height, maskdesc.Width, maskdesc.Height, filename);
 	maskmult_x = (float)window_w / masktexture_w;
 	maskmult_y = (float)window_h / masktexture_h;
 

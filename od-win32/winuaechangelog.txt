@@ -1,6 +1,13 @@
 
 - restore only single input target to default.
 
+Beta 23:
+
+- CDFS: Joliet CDs didn't work and caused crashes. Directory listing worked but it was only possible to open non-existing files :)
+- CDFS: ACTION_DISK_INFO never returned no disk status.
+- Filesystem path selection and default RDB settings broke in b22.
+- FPU FINTRZ didn't work correctly if input value was outside of signed 32-bit range. (Bug since the beginning?)
+
 Beta 22:
 
 - "Generic" Amiga model incorrectly enabled A3000 DMAC emulation which caused most programs that require UAE Boot ROM in

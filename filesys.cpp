@@ -62,7 +62,12 @@
 int log_filesys = 0;
 
 #if TRACING_ENABLED
+#if 0
+#define TRACE(x) if (log_filesys > 0 && (unit->volflags & MYVOLUMEINFO_CDFS)) { write_log x; }
+#else
 #define TRACE(x) if (log_filesys > 0) { write_log x; }
+#endif
+#define TRACEI(x) if (log_filesys > 0) { write_log x; }
 #define TRACE2(x) if (log_filesys >= 2) { write_log x; }
 #define TRACE3(x) if (log_filesys >= 3) { write_log x; }
 #define DUMPLOCK(u,x) dumplock(u,x)
@@ -1806,7 +1811,7 @@ static void recycle_aino (Unit *unit, a_inode *new_aino)
 		/* Still in use */
 		return;
 
-	TRACE2((_T("Recycling; cache size %d, total_locked %d\n"),
+	TRACE3((_T("Recycling; cache size %d, total_locked %d\n"),
 		unit->aino_cache_size, unit->total_locked_ainos));
 	if (unit->aino_cache_size > 5000 + unit->total_locked_ainos) {
 		/* Reap a few. */
@@ -2630,9 +2635,11 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
 	put_byte (unit->volume + 44, 0);
 	if (!uinfo->wasisempty && !uinfo->unknown_media) {
+		int isvirtual = unit->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS);
 		/* Set volume if non-empty */
 		set_volume_name (unit, ctime);
-		fsdb_clean_dir (&unit->rootnode);
+		if (!isvirtual)
+			fsdb_clean_dir (&unit->rootnode);
 	}
 
 	put_long (unit->volume + 8, unit->port);
@@ -2662,10 +2669,16 @@ static void
 	} else if (unit->volflags & MYVOLUMEINFO_CDFS) {
 		struct isofs_info ii;
 		ret = isofs_mediainfo (unit->ui.cdfs_superblock, &ii) ? 0 : 1;
-		fsu.fsu_blocks = ii.blocks;
-		fsu.fsu_bavail = 0;
-		blocksize = ii.blocksize;
-		nr = unit->unit - cd_unit_offset;
+		if (!ret) {
+			if (ii.media) {
+				fsu.fsu_blocks = ii.blocks;
+				fsu.fsu_bavail = 0;
+				blocksize = ii.blocksize;
+				nr = unit->unit - cd_unit_offset;
+			} else {
+				ret = ERROR_NO_DISK;
+			}
+		}
 	} else {
 		ret = get_fs_usage (unit->ui.rootdir, 0, &fsu);
 		if (ret)
@@ -3956,7 +3969,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 		base->locked_children++;
 		unit->total_locked_ainos++;
 	}
-	TRACE2((_T("Populating directory, child %p, locked_children %d\n"),
+	TRACE3((_T("Populating directory, child %p, locked_children %d\n"),
 		base->child, base->locked_children));
 	for (;;) {
 		uae_u64 uniq = 0;
@@ -5849,7 +5862,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	uaecptr start = resaddr;
 	uaecptr residents, tmp;
 
-	TRACE ((_T("filesystem: diagentry called\n")));
+	TRACEI ((_T("filesystem: diagentry called\n")));
 
 	filesys_configdev = m68k_areg (regs, 3);
 	init_filesys_diagentry ();
@@ -6809,7 +6822,7 @@ void filesys_install (void)
 {
 	uaecptr loop;
 
-	TRACE ((_T("Installing filesystem\n")));
+	TRACEI ((_T("Installing filesystem\n")));
 
 	uae_sem_init (&singlethread_int_sem, 0, 1);
 	uae_sem_init (&test_sem, 0, 1);

@@ -9103,7 +9103,7 @@ struct hfdlg_vals
 	bool original;
 };
 
-static struct hfdlg_vals empty_hfdlg = { _T(""), _T(""), _T(""), 32, 2, 1, 0, 512, 1, 0, 0, 0, 1, 0, 1 };
+static struct hfdlg_vals empty_hfdlg = { _T(""), _T(""), _T(""), 32, 2, 1, 0, 0, 512, 1, 0, 0, 0, 1, 0, 1 };
 static struct hfdlg_vals current_hfdlg;
 static int archivehd;
 
@@ -9541,6 +9541,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_FILESYS_SELECTOR:
 			DiskSelection (hDlg, IDC_PATH_FILESYS, 12, &workprefs, 0);
+			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.fsfilename, sizeof current_hfdlg.fsfilename / sizeof (TCHAR));
 			break;
 		case IDOK:
 			if (_tcslen (current_hfdlg.filename) == 0) {
