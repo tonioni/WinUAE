@@ -207,7 +207,7 @@ extern void inputdevice_setkeytranslation (struct uae_input_device_kbr_default *
 extern void inputdevice_do_keyboard (int code, int state);
 extern int inputdevice_iskeymapped (int keyboard, int scancode);
 extern int inputdevice_synccapslock (int, int*);
-extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state);
+extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state, int max);
 extern int inputdevice_get_compatibility_input (struct uae_prefs*, int, int*, int**, int**);
 extern struct inputevent *inputdevice_get_eventinfo (int evt);
 extern bool inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
@@ -292,7 +292,7 @@ extern int jsem_iskbdjoy (int port, const struct uae_prefs *p);
 
 extern int inputdevice_uaelib (const TCHAR *, const TCHAR *);
 
-extern int inputdevice_testread (int*, int*, int*);
+extern int inputdevice_testread (int*, int*, int*, bool);
 extern int inputdevice_istest (void);
 extern void inputdevice_settest (int);
 extern int inputdevice_testread_count (void);

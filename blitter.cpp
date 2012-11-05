@@ -1459,6 +1459,8 @@ void do_blitter (int hpos, int copper)
 		do_blitter2 (hpos, copper);
 		return;
 	}
+	if (!dmaen (DMA_BLITTER) || !blt_info.got_cycle)
+		return;
 	// previous blit may have last write cycle left
 	// and we must let it finish
 	blit_startcycles = BLITTER_STARTUP_CYCLES;

@@ -134,6 +134,7 @@ struct teststore
 	int testmode_wtype;
 	int testmode_wnum;
 	int testmode_state;
+	int testmode_max;
 };
 #define TESTMODE_MAX 2
 static int testmode_count;
@@ -4927,7 +4928,21 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 {
 	TCHAR name[256];
 	struct inputevent *ie;
+	int sub;
 
+	if (evtnum < 0) {
+		joysticks = prefs->joystick_settings[GAMEPORT_INPUT_SETTINGS];
+		mice = prefs->mouse_settings[GAMEPORT_INPUT_SETTINGS];
+		keyboards = prefs->keyboard_settings[GAMEPORT_INPUT_SETTINGS];
+		for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
+			int port2 = 0;
+			inputdevice_get_mapping (devnum, num, NULL, &port2, NULL, NULL, sub);
+			if (port2 == port + 1) {
+				inputdevice_set_mapping (devnum, num, NULL, NULL, 0, 0, sub);
+			}
+		}
+		return true;
+	}
 	ie = inputdevice_get_eventinfo (evtnum);
 	if (!inputdevice_get_eventname (ie, name))
 		return false;
@@ -4935,9 +4950,13 @@ bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int
 	mice = prefs->mouse_settings[GAMEPORT_INPUT_SETTINGS];
 	keyboards = prefs->keyboard_settings[GAMEPORT_INPUT_SETTINGS];
 
-	int sub = 0;
+	sub = 0;
 	if (inputdevice_get_widget_type (devnum, num, NULL) != IDEV_WIDGET_KEY) {
 		for (sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
+			int port2 = 0;
+			int evt = inputdevice_get_mapping (devnum, num, NULL, &port2, NULL, NULL, sub);
+			if (port2 == port + 1 && evt == evtnum)
+				break;
 			if (!inputdevice_get_mapping (devnum, num, NULL, NULL, NULL, NULL, sub))
 				break;
 		}
@@ -6138,8 +6157,10 @@ void inputdevice_unacquire (void)
 	idev[IDTYPE_KEYBOARD].unacquire (-1);
 }
 
-void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state)
+void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state, int max)
 {
+	//write_log (_T("%d %d %d %d %d/%d\n"), type, num, wtype, wnum, state, max);
+
 	if (wnum < 0) {
 		testmode = -1;
 		return;
@@ -6170,20 +6191,31 @@ void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state)
 			continue;
 		if (ts2->testmode_num != num || ts2->testmode_type != type || ts2->testmode_wtype != wtype || ts2->testmode_wnum != wnum)
 			continue;
-		if (state)
-			continue;
+		if (max <= 0) {
+			if (state)
+				continue;
+		} else {
+			if (state < -(max / 2) || state > (max / 2))
+				continue;
+		}
 		ts2->testmode_num = -1;
 	}
-	if (!state)
-		return;
+	if (max <= 0) {
+		if (!state)
+			return;
+	} else {
+		if (state >= -(max / 2) && state <= (max / 2))
+			return;
+	}
 
-	//write_log (_T("%d %d %d %d %d\n"), type, num, wtype, wnum, state);
+	//write_log (_T("%d %d %d %d %d/%d\n"), type, num, wtype, wnum, state, max);
 	struct teststore *ts = &testmode_data[testmode_count];
 	ts->testmode_type = type;
 	ts->testmode_num = num;
 	ts->testmode_wtype = wtype;
 	ts->testmode_wnum = wnum;
 	ts->testmode_state = state;
+	ts->testmode_max = max;
 	testmode_count++;
 }
 
@@ -6209,12 +6241,14 @@ int inputdevice_testread_count (void)
 	return testmode_count;
 }
 
-int inputdevice_testread (int *devnum, int *wtype, int *state)
+int inputdevice_testread (int *devnum, int *wtype, int *state, bool doread)
 {
-	inputdevice_read ();
-	if (testmode != 1) {
-		testmode = 0;
-		return -1;
+	if (doread) {
+		inputdevice_read ();
+		if (testmode != 1) {
+			testmode = 0;
+			return -1;
+		}
 	}
 	if (testmode_count > 0) {
 		testmode_count--;
@@ -6242,9 +6276,9 @@ int inputdevice_testread (int *devnum, int *wtype, int *state)
 void setjoybuttonstate (int joy, int button, int state)
 {
 	if (testmode) {
-		inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_BUTTON, button, state);
+		inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_BUTTON, button, state, -1);
 		if (state < 0)
-			inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_BUTTON, button, 0);
+			inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_BUTTON, button, 0, -1);
 		return;
 	}
 #if 0
@@ -6295,7 +6329,7 @@ void setmousebuttonstate (int mouse, int button, int state)
 {
 	uae_u32 obuttonmask = mice2[mouse].buttonmask;
 	if (testmode) {
-		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state);
+		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_BUTTON, button, state, -1);
 		return;
 	}
 	setbuttonstateall (&mice[mouse], &mice2[mouse], button, state);
@@ -6314,7 +6348,7 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	int i, v1, v2;
 
 	if (testmode) {
-		inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_AXIS, axis, state);
+		inputdevice_testrecord (IDTYPE_JOYSTICK, joy, IDEV_WIDGET_AXIS, axis, state, max);
 		return;
 	}
 	v1 = state;
@@ -6354,9 +6388,9 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 	static double fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
 	if (testmode) {
-		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data);
+		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data, -1);
 		// fake "release" event
-		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, 0);
+		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, 0, -1);
 		return;
 	}
 	if (input_play)

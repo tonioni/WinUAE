@@ -3439,7 +3439,8 @@ static void update_listview_input (HWND hDlg)
 }
 
 static int inputmap_port = -1, inputmap_port_remap = -1;
-static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state)
+static int inputmap_groupindex[32];
+static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state, int *inputmap_itemindexp)
 {
 	int cntitem, cntgroup, portnum;
 	int mode, *events, *axistable;
@@ -3476,6 +3477,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					lvstruct.lParam   = 0;
 					lvstruct.iSubItem = 0;
 					lvstruct.iGroupId = cntgroup;
+					if (inputmap_itemindexp)
+						inputmap_itemindexp[cntgroup] = -1;
 				}
 
 				atpidx = 0;
@@ -3510,6 +3513,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 											lvstruct.pszText = target;
 											lvstruct.iItem = cntgroup * 256 + cntitem;
 											item = ListView_InsertItem (list, &lvstruct);
+											if (inputmap_itemindexp && inputmap_itemindexp[cntgroup - 1] < 0)
+												inputmap_itemindexp[cntgroup - 1] = item;
 										} else if (currentdevnum == devnum) {
 											if (currentwidgetnum == j) {
 												*inputmap_portp = portnum;
@@ -3536,6 +3541,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 						lvstruct.pszText = _T("");
 						lvstruct.iItem = cntgroup * 256 + cntitem;
 						item = ListView_InsertItem (list, &lvstruct);
+						if (inputmap_itemindexp && inputmap_itemindexp[cntgroup - 1] < 0)
+							inputmap_itemindexp[cntgroup - 1] = item;
 					}
 					cntitem++;
 				}
@@ -3555,7 +3562,7 @@ static void update_listview_inputmap (HWND hDlg)
 
 	ListView_EnableGroupView (list, TRUE);
 
-	inputmap_handle (list, -1, -1, NULL, NULL, 0);
+	inputmap_handle (list, -1, -1, NULL, NULL, 0, inputmap_groupindex);
 }
 
 static int clicked_entry = -1;
@@ -12301,7 +12308,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 	}
 	if (!cnt)
 		return;
-	int ret = inputdevice_testread (&devnum, &wtype, &state);
+	int ret = inputdevice_testread (&devnum, &wtype, &state, true);
 	if (ret > 0) {
 		if (wtype < 0) {
 			if (!state)
@@ -12310,13 +12317,14 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 			// F11
 			if (inputmap == 1) {
 				int mode, *events, *axistable;
-				inputmap_remap_counter++;
-				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
-				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-				ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
+				inputmap_remap_counter++;
 				if (inputmap_remap_counter >= max)
-					inputmap_remap_counter = -1;
+					inputmap_remap_counter = 0;
+				inputmap_index = inputmap_groupindex[inputmap_remap_counter];
+				ListView_EnsureVisible (h, inputmap_index, FALSE);
+				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+				ListView_SetItemState (h, inputmap_index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 			} else if (inputmap == 2) {
 				int itemcnt = ListView_GetItemCount (h);
 				if (inputmap_view_offset >= itemcnt - 1 || inputmap_view_offset < 0) {
@@ -12338,51 +12346,124 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 
 			if (inputmap == 1) { // ports panel / remap
 				static int skipbuttonaxis;
+				static int prevtype2, prevtype, prevwidget, prevevtnum, prevaxisevent, prevaxisstate;
+				int widgets[10], widgetstate[10];
+				int wcnt, found, axisevent, axisstate;
 
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				int mode, *events, *axistable, *axistable2;
-				int cntadd = 1;
 				
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
 				int evtnum = events[inputmap_remap_counter];
 				int type2 = intputdevice_compa_get_eventtype (evtnum, &axistable2);
 
-				if (type == IDEV_WIDGET_BUTTONAXIS) {
-					if (skipbuttonaxis) {
-						skipbuttonaxis = false;
-						return;
+				if (inputmap_remap_counter == 0) {
+					prevtype = prevtype2 = prevwidget = prevevtnum = prevaxisevent = -1;
+				}
+
+				axisevent = -1;
+				axisstate = 0;
+				wcnt = 0;
+				widgets[wcnt] = input_selected_widget;
+				widgetstate[wcnt] = state;
+				wcnt++;
+				for (;;) {
+					ret = inputdevice_testread (&devnum, &wtype, &state, false);
+					if (ret <= 0)
+						break;
+					if (devnum != input_selected_device)
+						continue;
+					if (wcnt < 10) {
+						widgets[wcnt] = wtype;
+						widgetstate[wcnt] = state;
+						wcnt++;
 					}
-					if (type2 != IDEV_WIDGET_BUTTON && type2 != IDEV_WIDGET_KEY)
-						return;
-				} else if (type == IDEV_WIDGET_AXIS) {
-					skipbuttonaxis = false;
-					if (type2 == IDEV_WIDGET_BUTTON || type2 == IDEV_WIDGET_KEY)
-						return;
-					if (type2 == IDEV_WIDGET_BUTTONAXIS) {
-						if (inputmap_remap_counter & 1)
-							return;
-						// use VERT or HORIZ events, not UP/DOWN/LEFT/RIGHT
-						evtnum = axistable2[0];
-						cntadd = 2;
-						skipbuttonaxis = true;
+				}
+				
+				found = 0;
+				for (int i = 0; i < wcnt; i++) {
+					input_selected_widget = widgets[i];
+					type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+					if (type == IDEV_WIDGET_BUTTONAXIS) {
+						found = 1;
+						break;
+					}
+				}
+				for (int i = 0; i < wcnt; i++) {
+					int typex = inputdevice_get_widget_type (input_selected_device, widgets[i], NULL);
+					if (typex == IDEV_WIDGET_AXIS) {
+						if (!found) {
+							found = 1;
+							input_selected_widget = widgets[i];
+						} else if (found && type == IDEV_WIDGET_BUTTONAXIS) {
+							axisevent = widgets[i];
+							axisstate = widgetstate[i];
+						}
+						break;
+					}
+				}
+				if (!found) {
+					for (int i = 0; i < wcnt; i++) {
+						input_selected_widget = widgets[i];
+						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+						if (type == IDEV_WIDGET_BUTTON || type == IDEV_WIDGET_KEY) {
+							found = 1;
+							break;
+						}
+					}
+				}
+				if (!found)
+					return;
+				
+				//	if (inputmap_remap_counter > 4)
+				//		write_log (_T("*"));
+
+				//write_log (_T("%d %d %d %d %d\n"), input_selected_device, input_selected_widget, type, evtnum, type2);
+
+				// if this and previous are same axis and they match (up/down or left/right)
+				if ((inputmap_remap_counter & 1) == 1) {
+					if (type2 == IDEV_WIDGET_BUTTONAXIS && prevtype2 == IDEV_WIDGET_BUTTONAXIS) {
+						if (type == IDEV_WIDGET_BUTTONAXIS && prevtype == IDEV_WIDGET_BUTTONAXIS) {
+							if (axisevent == prevaxisevent && (axisstate > 0 && prevaxisstate < 0)) {
+								for (int i = 0; i < wcnt; i++) {
+									wtype = widgets[i];
+									if (inputdevice_get_widget_type (input_selected_device, wtype, NULL) == IDEV_WIDGET_AXIS) {
+										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, prevwidget, -1, 0, inputmap_port);
+										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, wtype, axistable2[0], 0, inputmap_port);
+										evtnum = -1;
+										break;
+									}
+								}
+							}
+						}
 					}
 				}
 
-				//write_log (_T("%d %d %d %s\n"), input_selected_device, input_selected_widget, evtnum, name);
-				inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port);
+//				write_log (_T("%d %d %d\n"), input_selected_device, input_selected_widget, evtnum);
+				if (evtnum >= 0)
+					inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port);
 				InitializeListView (hDlg);
-				inputmap_remap_counter += cntadd;
-				ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
-				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-				ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+				inputmap_remap_counter++;
 				if (inputmap_remap_counter >= max)
-					inputmap_remap_counter = -1;
+					inputmap_remap_counter = 0;
+				
+				inputmap_index = inputmap_groupindex[inputmap_remap_counter];
+				ListView_EnsureVisible (h, inputmap_index, FALSE);
+				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+				ListView_SetItemState (h, inputmap_index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				TCHAR tmp[256];
 				tmp[0] = 0;
 				inputdevice_get_widget_type (input_selected_device, input_selected_widget, tmp);
 				_tcscat (tmp, _T(", "));
 				_tcscat (tmp, inputdevice_get_device_name2 (input_selected_device));
 				SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUT), tmp);
+				
+				prevtype = type;
+				prevtype2 = type2;
+				prevwidget = input_selected_widget;
+				prevevtnum = evtnum;
+				prevaxisevent = axisevent;
+				prevaxisstate = axisstate;
 
 			} else if (inputmap == 2) { // ports panel / test
 
@@ -12402,7 +12483,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				bool found = false;
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				int op = inputmap_port;
-				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state)) {
+				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state, NULL)) {
 					if (op == inputmap_port) {
 						ListView_EnsureVisible (h, 1, FALSE);
 						ListView_EnsureVisible (h, inputmap_index, FALSE);

@@ -1018,8 +1018,8 @@ void REGPARAM2 mmu_reset(void)
 	mmu_flush_atc_all(true);
 #if 0
 	regs.urp = regs.srp = 0;
-	regs.itt0 = regs.itt0 = 0;
-	regs.dtt0 = regs.dtt0 = 0;
+	regs.itt0 = regs.itt1 = 0;
+	regs.dtt0 = regs.dtt1 = 0;
 	regs.mmusr = 0;
 #endif
 }

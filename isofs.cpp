@@ -2421,6 +2421,7 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 	if (!sb)
 		return true;
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
+	ii->blocksize = 2048;
 	if (sys_command_ismedia (sb->unitnum, true)) {
 		struct device_info di;
 		uae_u32 totalblocks = 0;
@@ -2432,7 +2433,6 @@ bool isofs_mediainfo(void *sbp, struct isofs_info *ii)
 			_tcscpy (ii->devname, di.label);
 		}
 		ii->unknown_media = sb->unknown_media;
-		ii->blocksize = 2048;
 		if (sb->root) {
 			_tcscpy (ii->volumename, sb->root->name);
 			ii->blocks = sbi->s_max_size;

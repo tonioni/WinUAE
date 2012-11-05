@@ -119,6 +119,7 @@ struct didata {
 	uae_s16 buttonsort[MAX_MAPPINGS];
 	uae_s16 buttonaxisparent[MAX_MAPPINGS];
 	uae_s16 buttonaxisparentdir[MAX_MAPPINGS];
+	uae_s16 buttonaxistype[MAX_MAPPINGS];
 
 };
 
@@ -346,6 +347,7 @@ static void addplusminus (struct didata *did, int i)
 		did->buttonsort[did->buttons] = 1000 + (did->axismappings[i] + did->axistype[i]) * 2 + j;
 		did->buttonaxisparent[did->buttons] = i;
 		did->buttonaxisparentdir[did->buttons] = j;
+		did->buttonaxistype[did->buttons] = did->axistype[i];
 		did->buttons++;
 	}
 }
@@ -951,6 +953,7 @@ static void sortobjects (struct didata *did)
 				tmpc = did->buttonname[i]; did->buttonname[i] = did->buttonname[j]; did->buttonname[j] = tmpc;
 				tmpi = did->buttonaxisparent[i]; did->buttonaxisparent[i] = did->buttonaxisparent[j]; did->buttonaxisparent[j] = tmpi;
 				tmpi = did->buttonaxisparentdir[i]; did->buttonaxisparentdir[i] = did->buttonaxisparentdir[j]; did->buttonaxisparentdir[j] = tmpi;
+				tmpi = did->buttonaxistype[i]; did->buttonaxistype[i] = did->buttonaxistype[j]; did->buttonaxistype[j] = tmpi;
 			}
 		}
 	}
@@ -1700,30 +1703,37 @@ static bool initialize_rawinput (void)
 									int ht;
 									for (ht = 0; hidtable[ht].name; ht++) {
 										if (hidtable[ht].usage == acnt && hidtable[ht].page == vcaps[i].UsagePage) {
-											if (hidtable[ht].page == 0x01 && acnt == 0x39) { // POV
-												if (axiscnt + 1 < MAX_MAPPINGS) {
-													for (int l = 0; l < 2; l++) {
-														TCHAR tmp[256];
-														_stprintf (tmp, _T("%s (%c)"), hidtable[ht].name,  l == 0 ? 'X' : 'Y');
-														did->axisname[axiscnt] = my_strdup (tmp);
-														did->axissort[axiscnt] = hidtable[ht].priority * 2 + l;
-														did->axismappings[axiscnt] = acnt;
-														memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
-														did->axistype[axiscnt] = l + 1;
-														axiscnt++;
-													}
-												}
-											} else {
-												did->axissort[axiscnt] = hidtable[ht].priority * 2;
-												did->axisname[axiscnt] = my_strdup (hidtable[ht].name);
-												did->axismappings[axiscnt] = acnt;
-												memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
-												fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
-												did->axistype[axiscnt] = hidtable[ht].type;
-												axiscnt++;
-												did->analogstick = true;
+											int k;
+											for (k = 0; k < axiscnt; k++) {
+												if (did->axismappings[k] == acnt)
+													break;
 											}
-											break;
+											if (k == axiscnt) {	
+												if (hidtable[ht].page == 0x01 && acnt == 0x39) { // POV
+													if (axiscnt + 1 < MAX_MAPPINGS) {
+														for (int l = 0; l < 2; l++) {
+															TCHAR tmp[256];
+															_stprintf (tmp, _T("%s (%c)"), hidtable[ht].name,  l == 0 ? 'X' : 'Y');
+															did->axisname[axiscnt] = my_strdup (tmp);
+															did->axissort[axiscnt] = hidtable[ht].priority * 2 + l;
+															did->axismappings[axiscnt] = acnt;
+															memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+															did->axistype[axiscnt] = l + 1;
+															axiscnt++;
+														}
+													}
+												} else {
+													did->axissort[axiscnt] = hidtable[ht].priority * 2;
+													did->axisname[axiscnt] = my_strdup (hidtable[ht].name);
+													did->axismappings[axiscnt] = acnt;
+													memcpy (&did->hidvcaps[axiscnt], &vcaps[i], sizeof HIDP_VALUE_CAPS);
+													fixhidvcaps (&rdi->hid, &did->hidvcaps[axiscnt]);
+													did->axistype[axiscnt] = hidtable[ht].type;
+													axiscnt++;
+													did->analogstick = true;
+												}
+												break;
+											}
 										}
 									}
 									if (hidtable[ht].name == NULL)
@@ -2009,6 +2019,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 							int type = did->axistype[axisnum];
 							int logicalrange = (vcaps->LogicalMax - vcaps->LogicalMin) / 2;
 							uae_u32 mask = hidmask (vcaps->BitSize);
+							int buttonaxistype;
 
 							if (type == AXISTYPE_POV_X || type == AXISTYPE_POV_Y) {
 
@@ -2032,6 +2043,9 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 									if (val == min + 3 && type == AXISTYPE_POV_X)
 										data = -127;
 								}
+								logicalrange = 127;
+								digitalrange = logicalrange / 2;
+								buttonaxistype = type == AXISTYPE_POV_X ? 1 : 2;
 
 							} else {
 
@@ -2060,27 +2074,30 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 										data = 0;
 									//write_log (_T("%d %d: (%d-%d) %d\n"), num, axisnum, did->axismin[axisnum], did->axismax[axisnum], data);
 								}
+								buttonaxistype = -1;
 							}
 
 							if (data != axisold[num][axisnum] && logicalrange) {
-								//write_log (_T("%d %d: %d->%d\n"), num, axisnum, axisold[num][axisnum], data);
+								//write_log (_T("%d %d: %d->%d %d\n"), num, axisnum, axisold[num][axisnum], data, logicalrange);
 								axisold[num][axisnum] = data;
 								int bstate = -1;
 								int bstate2 = 0;
 								for (j = 0; j < did->buttons; j++) {
-									if (did->buttonaxisparent[j] >= 0 && did->buttonmappings[j] == usage) {
+									if (did->buttonaxisparent[j] >= 0 && did->buttonmappings[j] == usage && (did->buttonaxistype[j] == buttonaxistype || buttonaxistype < 0)) {
+										int axistype = did->axistype[j];
 										if (did->buttonaxisparentdir[j] == 0 && data < -digitalrange) {
 											bstate = j;
 											bstate2 = 1;
-										} else if (did->buttonaxisparentdir[j] && data > digitalrange) {
+										} else if (did->buttonaxisparentdir[j] != 0 && data > digitalrange) {
 											bstate = j;
 											bstate2 = 1;
-										} else if (data > - digitalrange && data < digitalrange) {
+										} else if (data >= -digitalrange && data <= digitalrange) {
 											bstate = j;
 											bstate2 = 0;
 										}
-										//write_log (_T("%d %d %d\n"), num, bstate, bstate2);
+
 										if (bstate >= 0 && buttonold[num][bstate] != bstate2) {
+											//write_log (_T("%d %d %d (%s)\n"), num, bstate, bstate2, did->buttonname[bstate]);
 											buttonold[num][bstate] = bstate2;
 											setjoybuttonstate (num, bstate, bstate2);
 										}
@@ -2194,10 +2211,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			if (scancode == DIK_F12)
 				scancode = -1;
 			if (scancode == DIK_F11) {
-				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 1);
-				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 0);
+				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 1, -1);
+				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 0, -1);
 			} else {
-				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, scancode, pressed);
+				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, scancode, pressed, -1);
 			}
 		} else {
 			scancode = keyhack (scancode, pressed, num);
@@ -3219,10 +3236,10 @@ static void read_kb (void)
 					if (scancode == DIK_F12)
 						scancode = -1;
 					if (scancode == DIK_F11) {
-						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 1);
-						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 0);
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 1, -1);
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 0, -1);
 					} else {
-						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, scancode, pressed);
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, scancode, pressed, -1);
 					}
 				} else {
 					if (stopoutput == 0)

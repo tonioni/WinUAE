@@ -1548,6 +1548,7 @@ static int open_windows (int full)
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		for (i = 0; i < NUM_LEDS; i++)
 			gui_led (i, -1);
+		gui_led (LED_POWER, gui_data.powerled);
 		gui_fps (0, 0, 0);
 		inputdevice_acquire (TRUE);
 	} else if (startminimized) {
@@ -3522,7 +3523,9 @@ static int create_windows_2 (void)
 		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
 			SetCursorPos (x + w / 2, y + h / 2);
-		write_log (_T("window already open\n"));
+		write_log (_T("window already open (%dx%d %dx%d)\n"),
+			amigawin_rect.left, amigawin_rect.top, amigawin_rect.right - amigawin_rect.left, amigawin_rect.bottom - amigawin_rect.top);
+		updatemouseclip ();
 #ifdef RETROPLATFORM
 		rp_set_hwnd (hAmigaWnd);
 #endif

@@ -588,6 +588,14 @@ static void releasecapture (void)
 	showcursor = 0;
 }
 
+void updatemouseclip (void)
+{
+	if (showcursor) {
+		ClipCursor (&amigawin_rect);
+		//write_log (_T("CLIP %dx%d %dx%d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
+	}
+}
+
 static void setmouseactive2 (int active, bool allowpause)
 {
 	//write_log (_T("setmouseactive %d->%d\n"), mouseactive, active);
@@ -658,7 +666,7 @@ static void setmouseactive2 (int active, bool allowpause)
 			if (!showcursor) {
 				ShowCursor (FALSE);
 				SetCapture (hAmigaWnd);
-				ClipCursor (&amigawin_rect);
+				updatemouseclip ();
 			}
 			showcursor = 1;
 			setcursor (-30000, -30000);
@@ -1176,6 +1184,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 						changed_prefs.gfx_size_win.y = amigawin_rect.top;
 						config_changed = 1;
 					}
+					updatemouseclip ();
 				}
 				notice_screen_contents_lost ();
 			}

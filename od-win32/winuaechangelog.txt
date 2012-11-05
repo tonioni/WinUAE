@@ -1,6 +1,17 @@
 
 - restore only single input target to default.
 
+Beta 24:
+
+- CDFS: ACTION_DISK_INFO no disk status really works now.
+- Fixed "Windows mouse" sometimes hitting invisible barriers in windowed mode if window size changed and mouse was captured. (Quite old bug)
+- blitter_cycle_exact=true and cpu_cycle_exact=false confused blitter emulation if BLTSIZE was written twice while DMA was disabled.
+- CAS and CAS2 instruction fixes from Aranym (I guess these are practically never used on Amiga..)
+- Ignore duplicate USB HID axis IDs. (I was lazy and only added duplicate button check previously..)
+- USB HID D-Pad/POV axis may have caused ghost events.
+- GamePorts panel Remap separated axis configuration support (for example up can be mapped to button and down can be normal down axis),
+  and multiple input sources can be mapped to single input target. Selection cursor now wraps around to allow multiconfiguration.
+
 Beta 23:
 
 - CDFS: Joliet CDs didn't work and caused crashes. Directory listing worked but it was only possible to open non-existing files :)

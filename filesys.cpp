@@ -2657,7 +2657,7 @@ static void
 	int ret, err = ERROR_NO_FREE_STORE;
 	int blocksize, nr;
 	uae_u32 dostype;
-	bool fs = false;
+	bool fs = false, media = false;
 
 	blocksize = 512;
 	/* not FFS because it is not understood by WB1.x C:Info */
@@ -2666,17 +2666,17 @@ static void
 	if (unit->volflags & MYVOLUMEINFO_ARCHIVE) {
 		ret = zfile_fs_usage_archive (unit->ui.rootdir, 0, &fsu);
 		fs = true;
+		media = filesys_isvolume (unit);
 	} else if (unit->volflags & MYVOLUMEINFO_CDFS) {
 		struct isofs_info ii;
 		ret = isofs_mediainfo (unit->ui.cdfs_superblock, &ii) ? 0 : 1;
 		if (!ret) {
+			media = ii.media;
+			nr = unit->unit - cd_unit_offset;
+			blocksize = ii.blocksize;
 			if (ii.media) {
 				fsu.fsu_blocks = ii.blocks;
 				fsu.fsu_bavail = 0;
-				blocksize = ii.blocksize;
-				nr = unit->unit - cd_unit_offset;
-			} else {
-				ret = ERROR_NO_DISK;
 			}
 		}
 	} else {
@@ -2684,6 +2684,7 @@ static void
 		if (ret)
 			err = dos_errno ();
 		fs = true;
+		media = filesys_isvolume (unit);
 	}
 	if (ret != 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
@@ -2695,12 +2696,22 @@ static void
 	put_long (info + 8, unit->ui.readonly || unit->ui.locked ? 80 : 82); /* state  */
 	put_long (info + 20, blocksize); /* bytesperblock */
 	put_long (info + 32, 0); /* inuse */
-	if (disk_info && unit->ui.unknown_media) {
+	if (unit->ui.unknown_media) {
+		if (!disk_info) {
+			PUT_PCK_RES1 (packet, DOS_FALSE);
+			PUT_PCK_RES2 (packet, ERROR_NOT_A_DOS_DISK);
+			return;
+		}
 		put_long (info + 12, 0);
 		put_long (info + 16, 0);
 		put_long (info + 24, ('B' << 24) | ('A' << 16) | ('D' << 8) | (0 << 0)); /* ID_UNREADABLE_DISK */
 		put_long (info + 28, 0);
-	} else if (disk_info && !filesys_isvolume (unit)) {
+	} else if (!media) {
+		if (!disk_info) {
+			PUT_PCK_RES1 (packet, DOS_FALSE);
+			PUT_PCK_RES2 (packet, ERROR_NO_DISK);
+			return;
+		}
 		put_long (info + 12, 0);
 		put_long (info + 16, 0);
 		put_long (info + 24, -1); /* ID_NO_DISK_PRESENT */

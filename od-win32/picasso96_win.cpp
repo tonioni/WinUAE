@@ -4259,11 +4259,11 @@ static void initvblankirq (TrapContext *ctx, uaecptr base)
 	put_long (p2 + 14, base + CARD_IRQFLAG);
 	put_long (p2 + 18, c);
 
-	put_word (c, 0x4a11); c += 2;		// tst.b (a1)
+	put_word (c, 0x4a11); c += 2;		// tst.b (a1) CARD_IRQFLAG
 	put_word (c, 0x670e); c += 2;		// beq.s label
 	put_word (c, 0x4211); c += 2;		// clr.b (a1)
-	put_long (c, 0x22690004); c += 4;	// move.l 4(a1),a1
-	put_long (c, 0x2c780004); c += 4;	// move.l 4.w,a6
+	put_long (c, 0x2c690008); c += 4;	// move.l 8(a1),a6 CARD_IRQEXECBASE
+	put_long (c, 0x22690004); c += 4;	// move.l 4(a1),a1 CARD_IRQPTR
 	put_long (c, 0x4eaeff4c); c += 4;	// jsr Cause(a6)
 	put_word (c, 0x7000); c += 2;		// label: moveq #0,d0
 	put_word (c, RTS);					// rts
@@ -4474,7 +4474,8 @@ static void inituaegfxfuncs (uaecptr start, uaecptr ABI)
 	RTGCALLDEFAULT(PSSO_BoardInfo_UpdatePlanar, PSSO_BoardInfo_UpdatePlanarDefault);
 	RTGCALLDEFAULT(PSSO_BoardInfo_DrawLine, PSSO_BoardInfo_DrawLineDefault);
 
-	RTGCALL2(PSSO_BoardInfo_SetInterrupt, picasso_SetInterrupt);
+	if (currprefs.rtg_hardwareinterrupt)
+		RTGCALL2(PSSO_BoardInfo_SetInterrupt, picasso_SetInterrupt);
 
 	write_log (_T("uaegfx.card magic code: %08X-%08X ABI=%08X\n"), start, here (), ABI);
 
@@ -4581,6 +4582,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	m68k_dreg (regs, 0) = 0;
 	put_long (uaegfx_base + CARD_EXPANSIONBASE, CallLib (ctx, exec, -0x228)); /* OpenLibrary */
 	put_long (uaegfx_base + CARD_EXECBASE, exec);
+	put_long (uaegfx_base + CARD_IRQEXECBASE, exec);
 	put_long (uaegfx_base + CARD_NAME, uaegfx_resname);
 	put_long (uaegfx_base + CARD_RESLIST, uaegfx_base + CARD_SIZEOF);
 	put_long (uaegfx_base + CARD_RESLISTSIZE, extrasize);
