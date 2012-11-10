@@ -91,7 +91,7 @@
 #include "rp.h"
 #endif
 
-#define GUI_SCALE_DEFAULT 90
+#define GUI_SCALE_DEFAULT 100
 #define MIN_GUI_INTERNAL_WIDTH 512
 #define MIN_GUI_INTERNAL_HEIGHT 400
 
@@ -8182,9 +8182,9 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v--;
 					v = 110 - v * 10;
 				}
-				double m = scaleresource_getdpimult ();
-				gui_width = (int)(GUI_INTERNAL_WIDTH * v * m / 100);
-				gui_height = (int)(GUI_INTERNAL_HEIGHT * v * m / 100);
+				//double m = scaleresource_getdpimult ();
+				gui_width = (int)(GUI_INTERNAL_WIDTH * v / 100);
+				gui_height = (int)(GUI_INTERNAL_HEIGHT * v / 100);
 				scaleresource_setmult (guiDlg, gui_width, gui_height);
 				gui_size_changed = 1;
 			}
@@ -9373,7 +9373,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	static uae_u8 id[512];
 	int blocks, cyls, i;
 	TCHAR tmp[200], tmp2[200];
-	TCHAR idtmp[9];
+	TCHAR idtmp[17];
 
 	bsize = 0;
 	if (force) {
@@ -9394,9 +9394,19 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 			if (i == 16)
 				hdf_read (&hfd, id, 0, 512);
 		}
-		if (defaults && current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
-			getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors);
-			current_hfdlg.original = 0;
+		if (defaults) {
+			if (hfd.flags & HFD_FLAGS_REALDRIVE) {
+				if (current_hfdlg.controller >= HD_CONTROLLER_IDE0 && current_hfdlg.controller <= HD_CONTROLLER_IDE3) {
+					getchspgeometry (bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors, true);
+					if (current_hfdlg.forcedcylinders == 0)
+						current_hfdlg.forcedcylinders = current_hfdlg.cylinders;
+				} else {
+					getchspgeometry (bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors, false);
+				}
+			} else if (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces) {
+				getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.cylinders, &current_hfdlg.surfaces, &current_hfdlg.sectors);
+				current_hfdlg.original = 0;
+			}
 		}
 		hdf_close (&hfd);
 	}
@@ -9406,6 +9416,8 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 		cyls = bsize / (current_hfdlg.blocksize * current_hfdlg.sectors * current_hfdlg.surfaces);
 	}
 	blocks = cyls * (current_hfdlg.sectors * current_hfdlg.surfaces);
+	if (!blocks && current_hfdlg.blocksize)
+		blocks = bsize / current_hfdlg.blocksize;
 	for (i = 0; i < sizeof (idtmp) / sizeof (TCHAR) - 1; i++) {
 		TCHAR c = id[i];
 		if (c < 32 || c > 126)
@@ -9416,22 +9428,29 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 
 	tmp[0] = 0;
 	if (bsize) {
-		_stprintf (tmp2, _T(" %s [%02X%02X%02X%02X%02X%02X%02X%02X]"), idtmp, id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7]);
-		if (!cyls || !blocks) {
+		_stprintf (tmp2, _T(" %s [%02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X]"), idtmp,
+			id[0], id[1], id[2], id[3], id[4], id[5], id[6], id[7],
+			id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
+		if (!blocks) {
 			_stprintf (tmp, _T("%dMB"), bsize / (1024 * 1024));
+		} else if (blocks && !cyls) {
+			_stprintf (tmp, _T("%u blocks, %.1fMB"),
+				blocks,
+				(double)bsize / (1024.0 * 1024.0));		
 		} else {
-			_stprintf (tmp, _T("%u cyls, %u blocks, %.1fMB/%.1fMB"),
-				cyls, blocks,
+			_stprintf (tmp, _T("%u/%u/%u, %u/%u blocks, %.1fMB/%.1fMB"),
+				cyls, current_hfdlg.surfaces, current_hfdlg.sectors,
+				blocks, (int)(bsize / 512),
 				(double)blocks * 1.0 * current_hfdlg.blocksize / (1024.0 * 1024.0),
 				(double)bsize / (1024.0 * 1024.0));
 			if (cyls > 65535) {
-				_stprintf (tmp2, _T(" %4.4s [%02X%02X%02X%02X]"), idtmp, id[0], id[1], id[2], id[3]);
-				_tcscat (tmp, _T(" [Too many cyls]"));
+				_tcscat (tmp2, _T(" [Too many cyls]"));
 			}
 		}
-		_tcscat (tmp, tmp2);
-		if (hDlg != NULL)
+		if (hDlg != NULL) {
 			SetDlgItemText (hDlg, IDC_HDFINFO, tmp);
+			SetDlgItemText (hDlg, IDC_HDFINFO2, tmp2);
+		}
 	}
 }
 
@@ -9674,25 +9693,6 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 		if (recursive)
 			break;
 		recursive++;
-		posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
-		if (oposn != posn && posn != CB_ERR) {
-			oposn = posn;
-			if (posn >= 0) {
-				BOOL ena ;
-				int dang = 1;
-				hdf_getnameharddrive (posn, 1, NULL, &dang);
-				ena = dang >= 0;
-				ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
-				ew (hDlg, IDOK, ena);
-				ew (hDlg, IDC_HDF_RW, !dang);
-				if (dang)
-					current_hfdlg.rw = FALSE;
-				ew (hDlg, IDC_HDF_CONTROLLER, ena);
-				hardfile_testrdb (hDlg, &current_hfdlg);
-				SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
-				CheckDlgButton(hDlg, IDC_HDF_RW, current_hfdlg.rw);
-			}
-		}
 		if (HIWORD (wParam) == BN_CLICKED) {
 			switch (LOWORD (wParam)) {
 			case IDOK:
@@ -9702,17 +9702,58 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 				EndDialog (hDlg, 0);
 				break;
 			case IDC_HARDDRIVE_IMAGE:
+				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
 				if (posn != CB_ERR)
 					harddrive_to_hdf (hDlg, &workprefs, posn);
 				break;
+			case IDC_HDF_RW:
+				posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+				if (posn != CB_ERR) {
+					int dang = 1;
+					hdf_getnameharddrive (posn, 1, NULL, &dang);
+					current_hfdlg.rw = ischecked (hDlg, IDC_HDF_RW) && !dang;
+				}
+				break;
 			}
 		}
-		if (posn != CB_ERR)
-			_tcscpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize, NULL));
-		current_hfdlg.rw = ischecked (hDlg, IDC_HDF_RW);
-		posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
-		if (posn != CB_ERR)
-			current_hfdlg.controller = posn;
+		if (LOWORD (wParam) == IDC_HARDDRIVE) {
+			posn = SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_GETCURSEL, 0, 0);
+			if (oposn != posn && posn != CB_ERR) {
+				oposn = posn;
+				if (posn >= 0) {
+					BOOL ena;
+					int dang = 1;
+					hdf_getnameharddrive (posn, 1, NULL, &dang);
+					_tcscpy (current_hfdlg.filename, hdf_getnameharddrive (posn, 0, NULL, &dang));
+					ena = dang >= 0;
+					ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
+					ew (hDlg, IDOK, ena);
+					ew (hDlg, IDC_HDF_RW, !dang);
+					if (dang)
+						current_hfdlg.rw = FALSE;
+					current_hfdlg.blocksize = 512;
+					current_hfdlg.forcedcylinders = 0;
+					current_hfdlg.cylinders = current_hfdlg.sectors = current_hfdlg.surfaces = 0;
+					ew (hDlg, IDC_HDF_CONTROLLER, ena);
+					SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
+					SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
+					updatehdfinfo (hDlg, true, true);
+					SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.controller, 0);
+					CheckDlgButton(hDlg, IDC_HDF_RW, current_hfdlg.rw);
+					_tcscpy (current_hfdlg.filename, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.blocksize, NULL));
+				}
+			}
+		} else if (LOWORD (wParam) == IDC_HDF_CONTROLLER) {
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR) {
+				current_hfdlg.controller = posn;
+				current_hfdlg.forcedcylinders = 0;
+				current_hfdlg.cylinders = current_hfdlg.sectors = current_hfdlg.surfaces = 0;
+				SetDlgItemText (hDlg, IDC_HDFINFO, _T(""));
+				SetDlgItemText (hDlg, IDC_HDFINFO2, _T(""));
+				updatehdfinfo (hDlg, true, true);
+			}
+		}
 		recursive--;
 		break;
 	}
@@ -9768,7 +9809,7 @@ static void new_harddrive (HWND hDlg, int entry)
 	uci = add_filesys_config (&workprefs, entry, 0, 0,
 		current_hfdlg.filename, ! current_hfdlg.rw, 0, 0, 0,
 		0, current_hfdlg.blocksize, 0, 0, current_hfdlg.controller, 0,
-		0, 0, 0);
+		current_hfdlg.forcedcylinders, current_hfdlg.surfaces, current_hfdlg.sectors);
 	if (uci)
 		hardfile_do_disk_change (uci, 1);
 }
@@ -14563,9 +14604,9 @@ static void getguisize (HWND hDlg, int *width, int *height)
 {
 	RECT r;
 
-	GetClientRect (hDlg, &r);
-	*width = r.right;
-	*height = r.bottom;
+	GetWindowRect (hDlg, &r);
+	*width = r.right - r.left;
+	*height = r.bottom - r.top;
 }
 
 static HWND updatePanel (int id)
@@ -15208,7 +15249,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (dialogreturn < 0) {
 			dialogreturn = 0;
 			if (allow_quit) {
-				quit_program = 1;
+				quit_program = UAE_QUIT;
 				regs.spcflags |= SPCFLAG_BRK;
 			}
 		}
@@ -15288,7 +15329,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				dialogreturn = 0;
 				DestroyWindow (hDlg);
 				if (allow_quit) {
-					quit_program = 1;
+					quit_program = UAE_QUIT;
 					regs.spcflags |= SPCFLAG_BRK;
 				}
 				guiDlg = NULL;
@@ -15499,8 +15540,8 @@ static void blah(void)
 
 static void setdefaultguisize (void)
 {
-	gui_width = GUI_INTERNAL_WIDTH * 90 / 100;
-	gui_height = GUI_INTERNAL_HEIGHT * 90 / 100;
+	gui_width = GUI_INTERNAL_WIDTH * 100 / 100;
+	gui_height = GUI_INTERNAL_HEIGHT * 100 / 100;
 }
 
 static int GetSettings (int all_options, HWND hwnd)
@@ -15587,10 +15628,6 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 		if (!regexists) {
 			scaleresource_setdefaults ();
-			setdefaultguisize ();
-			double m = scaleresource_getdpimult ();
-			gui_width = (int)(gui_width * m);
-			gui_height = (int)(gui_height * m);
 			fmultx = 0;
 			write_log (_T("GUI default size\n"));
 			regsetint (NULL, _T("GUIResize"), 0);
@@ -15612,16 +15649,16 @@ static int GetSettings (int all_options, HWND hwnd)
 		if (first)
 			write_log (_T("Entering GUI idle loop\n"));
 
-		if (fmultx > 0) {
+		if (fmultx > 0)
 			scaleresource_setmult (hwnd, -fmultx, -fmulty);
-		} else {
+		else
 			scaleresource_setmult (hwnd, gui_width, gui_height);
-			write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_size.width, workprefs.gfx_size.height);
-			if (dodialogmousemove () && isfullscreen() > 0) {
-				if (gui_width >= workprefs.gfx_size.width || gui_height >= workprefs.gfx_size.height) {
-					write_log (_T("GUI larger than screen, resize disabled\n"));
-					gui_resize_allowed = false;
-				}
+		fmultx = 0;
+		write_log (_T("Requested GUI size = %dx%d (%dx%d)\n"), gui_width, gui_height, workprefs.gfx_size.width, workprefs.gfx_size.height);
+		if (dodialogmousemove () && isfullscreen() > 0) {
+			if (gui_width >= workprefs.gfx_size.width || gui_height >= workprefs.gfx_size.height) {
+				write_log (_T("GUI larger than screen, resize disabled\n"));
+				gui_resize_allowed = false;
 			}
 		}
 
@@ -15649,7 +15686,6 @@ static int GetSettings (int all_options, HWND hwnd)
 				break;
 			}
 
-
 			setguititle (dhwnd);
 			ShowWindow (dhwnd, SW_SHOW);
 			MapDialogRect (dhwnd, &dialog_rect);
@@ -15666,6 +15702,7 @@ static int GetSettings (int all_options, HWND hwnd)
 					WaitMessage();
 				}
 				dialogmousemove (dhwnd);
+
 				while ((v = PeekMessage (&msg, NULL, 0, 0, PM_REMOVE))) {
 					if (dialogreturn >= 0)
 						break;

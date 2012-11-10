@@ -911,7 +911,7 @@ static void hide_cart (int hide)
 {
 #ifdef ACTION_REPLAY_HIDE_CARTRIDGE
 	if(hide) {
-		;//action_replay_unmap_banks ();
+		action_replay_unmap_banks ();
 	} else {
 		action_replay_map_banks ();
 	}
@@ -927,7 +927,7 @@ static void hide_cart (int hide)
 
 static void action_replay_go (void)
 {
-	write_log (_T("AR GO %d\n"), armode);
+	//write_log (_T("AR GO %d\n"), armode);
 	cartridge_enter();
 	hide_cart (0);
 	memcpy (armemory_ram + 0xf000, ar_custom, 2 * 256);
@@ -1080,7 +1080,7 @@ void check_prefs_changed_carts (int in_memory_reset)
 	}
 }
 
-void action_replay_reset (bool hardreset)
+void action_replay_reset (bool hardreset, bool keyboardreset)
 {
 	if (hrtmemory) {
 		if (isrestore ()) {
@@ -1111,7 +1111,7 @@ void action_replay_reset (bool hardreset)
 			write_log_debug (_T("Setting flag to ACTION_REPLAY_WAITRESET (%d)\n"), hardreset);
 			write_log_debug (_T("armode == %d\n"), armode);
 			action_replay_flag = ACTION_REPLAY_WAITRESET;
-			if (hardreset)
+			if (hardreset || keyboardreset || armodel == 2)
 				action_replay_hardreset = true;
 			hide_cart (0);
 		}
@@ -1156,7 +1156,7 @@ int action_replay_freeze (void)
 
 static void action_replay_chipwrite (void)
 {
-	write_log (_T("AR CW\n"));
+	//write_log (_T("AR CW\n"));
 	if (armodel == 2 || armodel == 3) {
 		action_replay_flag = ACTION_REPLAY_DORESET;
 		set_special (SPCFLAG_ACTION_REPLAY);

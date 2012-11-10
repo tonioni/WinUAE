@@ -16,6 +16,7 @@ extern int rp_isactive (void);
 extern void rp_vsync (void);
 extern HWND rp_getparent (void);
 extern void rp_rtg_switch (void);
+extern void rp_screenmode_changed (void);
 
 extern TCHAR *rp_param;
 extern int rp_rpescapekey;

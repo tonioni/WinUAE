@@ -1,5 +1,5 @@
-/* testAC1D()    */
-/* Rip_AC1D()    */
+/* testAC1D() */
+/* Rip_AC1D() */
 /* Depack_AC1D() */
 
 #include "globals.h"
@@ -9,13 +9,17 @@
 short testAC1D ( void )
 {
   /* test #1 */
-  /*  if ( PW_i<2 )*/
+  /* if ( PW_i<2 )*/
   if ( test_1_start(2) == BAD )
     return BAD;
 
-  /* test #2 */
+  /* test #2 
+  * 20121104 - testing also if the pattern list isn't empty
+  */
   PW_Start_Address = PW_i-2;
-  if ( (in_data[PW_Start_Address] > 0x7f) || ((PW_Start_Address+896)>PW_in_size) )
+  if ( (in_data[PW_Start_Address] > 0x7f) ||
+  (in_data[PW_Start_Address] == 0x00) ||
+  ((PW_Start_Address+896)>PW_in_size) )
   {
     return BAD;
   }
@@ -58,22 +62,22 @@ void Rip_AC1D ( void )
   Save_Rip ( "AC1D Packed module", AC1D_packer );
   
   if ( Save_Status == GOOD )
-    PW_i += (OutputSize - 4);  /* 3 should do but call it "just to be sure" :) */
+    PW_i += (OutputSize - 4); /* 3 should do but call it "just to be sure" :) */
 }
 
 
 
 /*
- *   ac1d.c   1996-1997 (c) Asle / ReDoX
- *
- * Converts AC1D packed MODs back to PTK MODs
- * thanks to Gryzor and his ProWizard tool ! ... without it, this prog
- * would not exist !!!
- *
- * Last update: 30/11/99
- *   - removed open() (and other fread()s and the like)
- *   - general Speed & Size Optmizings
- * 20051002 : testing fopen() ...
+* ac1d.c 1996-1997 (c) Asle / ReDoX
+*
+* Converts AC1D packed MODs back to PTK MODs
+* thanks to Gryzor and his ProWizard tool ! ... without it, this prog
+* would not exist !!!
+*
+* Last update: 30/11/99
+* - removed open() (and other fread()s and the like)
+* - general Speed & Size Optmizings
+* 20051002 : testing fopen() ...
 */
 void Depack_AC1D ( void )
 {
@@ -240,7 +244,7 @@ void Depack_AC1D ( void )
   fwrite ( &in_data[Where] , WholeSampleSize , 1 , out );
 
   /* crap ... */
-  Crap ( "   AC1D Packer    " , BAD , BAD , out );
+  Crap ( " AC1D Packer " , BAD , BAD , out );
 
   fflush ( out );
   fclose ( out );

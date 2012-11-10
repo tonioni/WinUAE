@@ -415,9 +415,17 @@ int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
 		ret = -1;
 
 	if (interlace_seen) {
+		static int interlace_count;
 		// interlace = only use long frames
+		if (lof_store && (interlace_count & 1) == 0)
+			interlace_count++;
+		if (!lof_store && (interlace_count & 1) != 0)
+			interlace_count++;
+		if (interlace_count < 3)
+			return ret;
 		if (!lof_store)
 			return ret;
+		interlace_count = 0;
 		/* program may have set last visible line as last possible line (CD32 boot screen) */
 		if (last_planes_vpos < maxvpos)
 			last_planes_vpos++;

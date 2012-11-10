@@ -56,6 +56,7 @@ struct uae_driveinfo {
 	int nomedia;
 	int dangerous;
 	int readonly;
+	int cylinders, sectors, heads;
 };
 
 #define HDF_HANDLE_WIN32 1
@@ -988,7 +989,7 @@ static void generatestorageproperty (struct uae_driveinfo *udi, int ignoreduplic
 {
 	_tcscpy (udi->vendor_id, _T("UAE"));
 	_tcscpy (udi->product_id, _T("DISK"));
-	_tcscpy (udi->product_rev, _T("1.1"));
+	_tcscpy (udi->product_rev, _T("1.2"));
 	_stprintf (udi->device_name, _T("%s"), udi->device_path);
 	udi->removablemedia = 1;
 }
@@ -1226,6 +1227,9 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			dg.BytesPerSector, dg.Cylinders.QuadPart, dg.TracksPerCylinder, dg.SectorsPerTrack, dg.MediaType);
 		udi->size = (uae_u64)dg.BytesPerSector * (uae_u64)dg.Cylinders.QuadPart *
 			(uae_u64)dg.TracksPerCylinder * (uae_u64)dg.SectorsPerTrack;
+		udi->cylinders = dg.Cylinders.QuadPart > 65535 ? 0 : dg.Cylinders.LowPart;
+		udi->sectors = dg.SectorsPerTrack;
+		udi->heads = dg.TracksPerCylinder;
 	}
 	if (gli_ok)
 		udi->size = gli.Length.QuadPart;

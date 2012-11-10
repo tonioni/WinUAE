@@ -2186,7 +2186,7 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	int cyls, int secspertrack, int surfaces, int reserved,
 	int blocksize, int bootpri,
 	const TCHAR *filesysdir, int hdc, int flag,
-	int pcyls, int psecs, int pheads)
+	int pcyls, int pheads, int psecs)
 {
 	struct uaedev_config_info *uci;
 	int i;
@@ -2223,6 +2223,8 @@ struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
 	uci->bootpri = bootpri;
 	uci->donotmount = 0;
 	uci->autoboot = 0;
+	if (!pcyls || !pheads || !psecs)
+		pcyls = pheads = psecs = 0;
 	uci->pcyls = pcyls;
 	uci->pheads = pheads;
 	uci->psecs = psecs;

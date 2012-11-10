@@ -1,6 +1,16 @@
 
 - restore only single input target to default.
 
+Beta 25 RC1:
+
+- Switching to interlaced mode and autoscale enabled: don't calculate new size until 2 frames have been drawn to prevent multiple display size changes.
+- More accurate GUI resizing algorithm.
+- Show also first few bytes of disk in harddrive selection GUI.
+- Add real harddrive as IDE: calculate physical CHS values using H=16,S=63,C=total blocks/(H*S) formula to better match with real hardware.
+  (ROM built-in IDE drivers use IDE identify device CHS values to calculate last accessible block of drive, LBA support was added in ROM updates)
+- Action Replay 2 copper list detection code hang tweak.
+- Prowizard AC1D update (Asle)
+
 Beta 24:
 
 - CDFS: ACTION_DISK_INFO no disk status really works now.

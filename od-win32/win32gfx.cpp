@@ -3526,9 +3526,7 @@ static int create_windows_2 (void)
 		write_log (_T("window already open (%dx%d %dx%d)\n"),
 			amigawin_rect.left, amigawin_rect.top, amigawin_rect.right - amigawin_rect.left, amigawin_rect.bottom - amigawin_rect.top);
 		updatemouseclip ();
-#ifdef RETROPLATFORM
-		rp_set_hwnd (hAmigaWnd);
-#endif
+		rp_screenmode_changed ();
 		return 1;
 	}
 

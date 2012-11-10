@@ -522,9 +522,11 @@ void uae_reset (int hardreset, int keyboardreset)
 	currprefs.quitstatefile[0] = changed_prefs.quitstatefile[0] = 0;
 
 	if (quit_program == 0) {
-		quit_program = -2;
+		quit_program = -UAE_RESET;
+		if (keyboardreset)
+			quit_program = -UAE_RESET_KEYBOARD;
 		if (hardreset)
-			quit_program = -3;
+			quit_program = -UAE_RESET_HARD;
 	}
 
 }
@@ -532,13 +534,13 @@ void uae_reset (int hardreset, int keyboardreset)
 void uae_quit (void)
 {
 	deactivate_debugger ();
-	if (quit_program != -1)
-		quit_program = -1;
+	if (quit_program != -UAE_QUIT)
+		quit_program = -UAE_QUIT;
 	target_quit ();
 }
 
 /* 0 = normal, 1 = nogui, -1 = disable nogui */
-void uae_restart (int opengui, TCHAR *cfgfile)
+void uae_restart (int opengui, const TCHAR *cfgfile)
 {
 	uae_quit ();
 	restart_program = opengui > 0 ? 1 : (opengui == 0 ? 2 : 3);
@@ -795,7 +797,7 @@ extern int DummyException (LPEXCEPTION_POINTERS blah, int n_except)
 
 void do_start_program (void)
 {
-	if (quit_program == -1)
+	if (quit_program == -UAE_QUIT)
 		return;
 	if (!canbang && candirect < 0)
 		candirect = 0;
@@ -804,7 +806,7 @@ void do_start_program (void)
 	/* Do a reset on startup. Whether this is elegant is debatable. */
 	inputdevice_updateconfig (&currprefs);
 	if (quit_program >= 0)
-		quit_program = 2;
+		quit_program = UAE_RESET;
 #if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
 	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
 	__try

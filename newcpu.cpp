@@ -4405,14 +4405,15 @@ void m68k_go (int may_quit)
 		if (currprefs.inprecfile[0] && input_play) {
 			inprec_open (currprefs.inprecfile, NULL);
 			changed_prefs.inprecfile[0] = currprefs.inprecfile[0] = 0;
-			quit_program = 2;
+			quit_program = UAE_RESET;
 		}
 		if (input_play || input_record)
 			inprec_startup ();
 
 		if (quit_program > 0) {
-			int hardreset = (quit_program == 3 ? 1 : 0) | hardboot;
-			if (quit_program == 1)
+			int hardreset = (quit_program == UAE_RESET_HARD ? 1 : 0) | hardboot;
+			bool kbreset = quit_program == UAE_RESET_KEYBOARD;
+			if (quit_program == UAE_QUIT)
 				break;
 			int restored = 0;
 
@@ -4430,7 +4431,7 @@ void m68k_go (int may_quit)
 				savestate_rewind ();
 #endif
 			set_cycles (start_cycles);
-			custom_reset (hardreset);
+			custom_reset (hardreset != 0, kbreset);
 			m68k_reset (hardreset);
 			if (hardreset) {
 				memory_clear ();
@@ -5481,7 +5482,7 @@ void cpureset (void)
 
 	send_internalevent (INTERNALEVENT_CPURESET);
 	if ((currprefs.cpu_compatible || currprefs.cpu_cycle_exact) && currprefs.cpu_model <= 68020) {
-		custom_reset (0);
+		custom_reset (false, false);
 		return;
 	}
 	pc = m68k_getpc ();
@@ -5489,11 +5490,11 @@ void cpureset (void)
 		addrbank *b = &get_mem_bank (pc);
 		if (b->check (pc, 2 + 2)) {
 			/* We have memory, hope for the best.. */
-			custom_reset (0);
+			custom_reset (false, false);
 			return;
 		}
 		write_log (_T("M68K RESET PC=%x, rebooting..\n"), pc);
-		custom_reset (0);
+		custom_reset (false, false);
 		m68k_setpc (ksboot);
 		return;
 	}
@@ -5503,14 +5504,14 @@ void cpureset (void)
 		int reg = ins & 7;
 		uae_u32 addr = m68k_areg (regs, reg);
 		write_log (_T("reset/jmp (ax) combination emulated -> %x\n"), addr);
-		custom_reset (0);
+		custom_reset (false, false);
 		if (addr < 0x80000)
 			addr += 0xf80000;
 		m68k_setpc (addr - 2);
 		return;
 	}
 	write_log (_T("M68K RESET PC=%x, rebooting..\n"), pc);
-	custom_reset (0);
+	custom_reset (false, false);
 	m68k_setpc (ksboot);
 }
 

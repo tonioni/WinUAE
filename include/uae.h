@@ -18,9 +18,14 @@ extern void sleep_millis_main (int ms);
 extern void sleep_millis_busy (int ms);
 extern int sleep_resolution;
 
+#define UAE_QUIT 1
+#define UAE_RESET 2
+#define UAE_RESET_KEYBOARD 3
+#define UAE_RESET_HARD 4
+
 extern void uae_reset (int, int);
 extern void uae_quit (void);
-extern void uae_restart (int, TCHAR*);
+extern void uae_restart (int, const TCHAR*);
 extern void reset_all_systems (void);
 extern void target_reset (void);
 extern void target_addtorecent (const TCHAR*, int);

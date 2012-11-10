@@ -618,7 +618,7 @@ int host_socket(TrapContext *context, SB, int af, int type, int protocol)
 
 	sb->ftable[sd-1] = SF_BLOCKING;
 	ioctlsocket(s,FIONBIO,&nonblocking);
-	BSDTRACE((_T(" -> Socket=%d\n"),sd));
+	BSDTRACE((_T(" -> Socket=%d %x\n"),sd,s));
 
 	if (type == SOCK_RAW) {
 		if (protocol==IPPROTO_UDP) {
@@ -1694,7 +1694,7 @@ int host_CloseSocket(TrapContext *context, SB, int sd)
 
 // For the sake of efficiency, we do not malloc() the fd_sets here.
 // 64 sockets should be enough for everyone.
-static void makesocktable(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win, int nfds, SOCKET addthis)
+static void makesocktable(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win, int nfds, SOCKET addthis, const TCHAR *name)
 {
 	int i, j;
 	uae_u32 currlong, mask;
@@ -1731,6 +1731,7 @@ static void makesocktable(SB, uae_u32 fd_set_amiga, struct fd_set *fd_set_win, i
 				s = getsock(sb,j+i+1);
 
 				if (s != INVALID_SOCKET) {
+					BSDTRACE((_T("%s:%d=%x\n"), name, fd_set_win->fd_count, s));
 					fd_set_win->fd_array[fd_set_win->fd_count++] = s;
 
 					if (fd_set_win->fd_count >= FD_SETSIZE) {
@@ -1808,11 +1809,11 @@ static unsigned int thread_WaitSelect2(void *indexp)
 			wscnt = args->wscnt;
 
 			// construct descriptor tables
-			makesocktable(sb, readfds, &readsocks, nfds, sb->sockAbort);
+			makesocktable(sb, readfds, &readsocks, nfds, sb->sockAbort, _T("R"));
 			if (writefds)
-				makesocktable(sb, writefds, &writesocks, nfds, INVALID_SOCKET);
+				makesocktable(sb, writefds, &writesocks, nfds, INVALID_SOCKET, _T("W"));
 			if (exceptfds)
-				makesocktable(sb, exceptfds, &exceptsocks, nfds, INVALID_SOCKET);
+				makesocktable(sb, exceptfds, &exceptsocks, nfds, INVALID_SOCKET, _T("E"));
 
 			if (timeout) {
 				tv.tv_sec = get_long (timeout);
@@ -1822,8 +1823,11 @@ static unsigned int thread_WaitSelect2(void *indexp)
 
 			BSDTRACE((_T("tWS2(%d) -> "), wscnt));
 
-			resultval = select(nfds+1, &readsocks, writefds ? &writesocks : NULL,
-				exceptfds ? &exceptsocks : NULL, timeout ? &tv : 0);
+			resultval = select(nfds+1,
+				readsocks.fd_count > 0 ? &readsocks : NULL,
+				writefds && writesocks.fd_count > 0 ? &writesocks : NULL,
+				exceptfds && exceptsocks.fd_count > 0 ? &exceptsocks : NULL,
+				timeout ? &tv : NULL);
 			if (bsd->hEvents[index] == NULL)
 				break;
 
@@ -1836,7 +1840,7 @@ static unsigned int thread_WaitSelect2(void *indexp)
 			if (sb->resultval == SOCKET_ERROR) {
 				// select was stopped by sb->sockAbort
 				if (readsocks.fd_count > 1) {
-					makesocktable(sb, readfds, &readsocks, nfds, INVALID_SOCKET);
+					makesocktable(sb, readfds, &readsocks, nfds, INVALID_SOCKET, _T("R2"));
 					tv.tv_sec = 0;
 					tv.tv_usec = 10000;
 					// Check for 10ms if data is available
@@ -1932,11 +1936,11 @@ void host_WaitSelect(TrapContext *context, SB, uae_u32 nfds, uae_u32 readfds, ua
 
 	wssigs = sigmp ? get_long (sigmp) : 0;
 
-	BSDTRACE((_T("WaitSelect(%d,0x%x,0x%x,0x%x,0x%x,0x%x):%d "),
+	BSDTRACE((_T("WaitSelect(%d,0x%x,0x%x,0x%x,0x%x,0x%x):%d\n"),
 		nfds, readfds, writefds, exceptfds, timeout, wssigs, wscnt));
-	fddebug(_T("read"), nfds, readfds);
-	fddebug(_T("write"), nfds, writefds);
-	fddebug(_T("except"), nfds, exceptfds);
+	fddebug(_T("read  :"), nfds, readfds);
+	fddebug(_T("write :"), nfds, writefds);
+	fddebug(_T("except:"), nfds, exceptfds);
 
 	if (!readfds && !writefds && !exceptfds && !timeout && !wssigs) {
 		sb->resultval = 0;

@@ -45,6 +45,8 @@ static int psEnabled, psActive, psPreProcess, shaderon;
 
 static bool showoverlay = true;
 
+#define MAX_PASSES 2
+
 static D3DFORMAT tformat;
 static int d3d_enabled, d3d_ex;
 static IDirect3D9 *d3d;
@@ -61,7 +63,7 @@ static int masktexture_w, masktexture_h;
 static float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 static float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 static float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
-static LPDIRECT3DTEXTURE9 lpWorkTexture1, lpWorkTexture2, lpTempTexture;
+static LPDIRECT3DTEXTURE9 lpWorkTexture1[2], lpWorkTexture2[2], lpTempTexture;
 LPDIRECT3DTEXTURE9 cursorsurfaced3d;
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static IDirect3DVertexBuffer9 *vertexBuffer;
@@ -75,6 +77,7 @@ RECT mask2rect;
 static bool wasstilldrawing_broken;
 static bool renderdisabled;
 static HANDLE filenotificationhandle;
+static int extrapasses;
 
 static bool fakemode;
 static uae_u8 *fakebitmap;
@@ -1093,6 +1096,20 @@ static LPDIRECT3DTEXTURE9 createtext (int w, int h, D3DFORMAT format)
 
 static int worktex_width, worktex_height;
 
+static int allocextratextures (int index, int w, int h)
+{
+	HRESULT hr;
+	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1[index], NULL))) {
+		write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		return 0;
+	}
+	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2[index], NULL))) {
+		write_log (_T("%s: Failed to create working texture2: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		return 0;
+	}
+	return 1;
+}
+
 static int createamigatexture (int w, int h)
 {
 	HRESULT hr;
@@ -1103,14 +1120,8 @@ static int createamigatexture (int w, int h)
 	write_log (_T("%s: %d*%d texture allocated, bits per pixel %d\n"), D3DHEAD, w, h, t_depth);
 	if (psActive) {
 		D3DLOCKED_BOX lockedBox;
-		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture1, NULL))) {
-			write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		if (!allocextratextures (0, w, h))
 			return 0;
-		}
-		if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpWorkTexture2, NULL))) {
-			write_log (_T("%s: Failed to create working texture2: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
 		if (FAILED (hr = lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
 			write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
@@ -1143,6 +1154,10 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
 
 	if (psActive) {
+		if (extrapasses) {
+			if (!allocextratextures (1, w, h))
+				return 0;
+		}
 		if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpHq2xLookupTexture, NULL))) {
 			write_log (_T("%s: Failed to create volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
@@ -1803,13 +1818,15 @@ static void freetextures (void)
 		lpTempTexture->Release ();
 		lpTempTexture = NULL;
 	}
-	if (lpWorkTexture1) {
-		lpWorkTexture1->Release ();
-		lpWorkTexture1 = NULL;
-	}
-	if (lpWorkTexture2) {
-		lpWorkTexture2->Release ();
-		lpWorkTexture2 = NULL;
+	for (int i = 0; i < MAX_PASSES; i++) {
+		if (lpWorkTexture1[i]) {
+			lpWorkTexture1[i]->Release ();
+			lpWorkTexture1[i] = NULL;
+		}
+		if (lpWorkTexture2[i]) {
+			lpWorkTexture2[i]->Release ();
+			lpWorkTexture2[i] = NULL;
+		}
 	}
 	if (lpHq2xLookupTexture) {
 		lpHq2xLookupTexture->Release ();
@@ -2558,7 +2575,7 @@ static void D3D_render2 (void)
 			LPDIRECT3DTEXTURE9 lpWorkTexture;
 
 			settransform ();
-			if (!psEffect_SetTextures (texture, lpWorkTexture1, lpWorkTexture2, lpHq2xLookupTexture))
+			if (!psEffect_SetTextures (texture, lpWorkTexture1[0], lpWorkTexture2[0], lpHq2xLookupTexture))
 				return;
 			if (psPreProcess) {
 				if (!psEffect_SetMatrices (&m_matPreProj, &m_matPreView, &m_matPreWorld))
@@ -2566,7 +2583,7 @@ static void D3D_render2 (void)
 
 				if (FAILED (hr = d3ddev->GetRenderTarget (0, &lpRenderTarget)))
 					write_log (_T("%s: GetRenderTarget: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-				lpWorkTexture = lpWorkTexture1;
+				lpWorkTexture = lpWorkTexture1[0];
 				lpNewRenderTarget = NULL;
 	pass2:
 				if (FAILED (hr = lpWorkTexture->GetSurfaceLevel (0, &lpNewRenderTarget)))
@@ -2575,7 +2592,7 @@ static void D3D_render2 (void)
 					write_log (_T("%s: SetRenderTarget: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 
 				uPasses = 0;
-				if (psEffect_Begin (pEffect, (lpWorkTexture == lpWorkTexture1) ? psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses)) {
+				if (psEffect_Begin (pEffect, (lpWorkTexture == lpWorkTexture1[0]) ? psEffect_PreProcess1 : psEffect_PreProcess2, &uPasses)) {
 					for (uPass = 0; uPass < uPasses; uPass++) {
 						if (psEffect_BeginPass (pEffect, uPass)) {
 							if (FAILED (hr = d3ddev->DrawPrimitive (D3DPT_TRIANGLESTRIP, 4, 2))) {
@@ -2590,8 +2607,8 @@ static void D3D_render2 (void)
 					write_log (_T("%s: Effect RenderTarget reset failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 				lpNewRenderTarget->Release ();
 				lpNewRenderTarget = NULL;
-				if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1) {
-					lpWorkTexture = lpWorkTexture2;
+				if (psEffect_hasPreProcess2 () && lpWorkTexture == lpWorkTexture1[0]) {
+					lpWorkTexture = lpWorkTexture2[0];
 					goto pass2;
 				}
 				lpRenderTarget->Release ();
@@ -2631,6 +2648,7 @@ static void D3D_render2 (void)
 		}
 
 	}
+
 #if TWOPASS
 	if (shaderon > 0 && postEffect) {
 

@@ -4977,6 +4977,13 @@ static void compute_spcflag_copper (int hpos)
 			hpos = maxhpos_short & ~1;
 		cop_state.hpos = hpos;
 	}
+
+	// if COPJMPx was written while DMA was disabled, advance to next state,
+	// COP_strobe_extra is single cycle only and does not need free bus.
+	// (copper state emulation does not run if DMA is disabled)
+	if (!wasenabled && cop_state.state == COP_strobe_extra)
+		cop_state.state = COP_strobe_delay1;
+
 	copper_enabled_thisline = 1;
 	set_special (SPCFLAG_COPPER);
 }
@@ -6580,7 +6587,7 @@ void custom_prepare (void)
 	hsync_handler_post (true);
 }
 
-void custom_reset (int hardreset)
+void custom_reset (bool hardreset, bool keyboardreset)
 {
 	int i;
 	int zero = 0;
@@ -6764,7 +6771,7 @@ void custom_reset (int hardreset)
 
 #ifdef ACTION_REPLAY
 	/* Doing this here ensures we can use the 'reset' command from within AR */
-	action_replay_reset (hardreset != 0);
+	action_replay_reset (hardreset, keyboardreset);
 #endif
 #if defined(ENFORCER)
 	enforcer_disable ();

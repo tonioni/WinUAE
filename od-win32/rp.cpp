@@ -57,7 +57,7 @@ static int recursive_device, recursive;
 static int currentpausemode;
 static int gameportmask[MAX_JPORTS];
 static DWORD storeflags;
-static bool screenmode_request;
+static int screenmode_request;
 static HWND guestwindow;
 
 static int cando (void)
@@ -1030,7 +1030,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		return 1;
 	case RP_IPC_TO_GUEST_QUERYSCREENMODE:
 		{
-			screenmode_request = true;
+			screenmode_request = 1;
 			return 1;
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
@@ -1571,6 +1571,12 @@ void rp_set_hwnd (HWND hWnd)
 	RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL); 
 }
 
+void rp_screenmode_changed (void)
+{
+	if (!screenmode_request)
+		screenmode_request = 2;
+}
+
 void rp_set_enabledisable (int enabled)
 {
 	if (!cando ())
@@ -1609,10 +1615,12 @@ void rp_vsync (void)
 	if (!initialized)
 		return;
 	if (screenmode_request) {
-		struct RPScreenMode sm = { 0 };
-		get_screenmode (&sm, &currprefs);
-		RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
-		screenmode_request = false;
+		screenmode_request--;
+		if (screenmode_request == 0) {
+			struct RPScreenMode sm = { 0 };
+			get_screenmode (&sm, &currprefs);
+			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
+		}
 	}
 	if (magicmouse_alive () != mousemagic)
 		rp_mouse_magic (magicmouse_alive ());

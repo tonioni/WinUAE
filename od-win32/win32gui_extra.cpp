@@ -404,18 +404,63 @@ void scaleresource_setdefaults (void)
 	openfont (true);
 }
 
-static int lpx, lpy;
+#define BASEMULT 1000
+static int baseunitx, baseunity;
+static RECT baserect, baseclientrect;
+static int baseborderwidth, baseborderheight;
+static int basewidth, baseheight;
+static int baseclientwidth, baseclientheight;
 
-double scaleresource_getdpimult (void)
+static INT_PTR CALLBACK TestProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	HDC hdc = GetDC (NULL);
-	int m = GetDeviceCaps (hdc, LOGPIXELSY);
-	ReleaseDC (NULL, hdc);
-	if (m > 96) {
-		m -= 96;
-		return 1.0 + m / 250.0;
+	if (msg == WM_INITDIALOG) {
+		RECT r;
+		// there really is no better way?
+		r.left = 0;
+		r.top = 0;
+		r.bottom = BASEMULT;
+		r.right = BASEMULT;
+		MapDialogRect (hDlg, &r);
+		baseunitx = r.right * 4 / BASEMULT;
+		baseunity = r.bottom * 8 / BASEMULT;
+		GetWindowRect (hDlg, &baserect);
+		GetClientRect (hDlg, &baseclientrect);
 	}
-	return 1.0;
+	return 0;
+}
+
+// horrible or what?
+static void getbaseunits (void)
+{
+	struct newresource *nr, *nr2;
+	HWND hwnd;
+	
+	nr = getresource (IDD_PANEL);
+	if (!nr) {
+		write_log (_T("getbaseunits fail\n"));
+		abort();
+	}
+	multx = multy = 100;
+	nr2 = scaleresource (nr, NULL, -1);
+	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
+	if (hwnd) {
+		DestroyWindow(hwnd);
+	} else {
+		baserect.left = baserect.top = 0;
+		baserect.right = 800;
+		baserect.bottom = 600;
+		baseclientrect.left = baseclientrect.top = 0;
+		baseclientrect.right = 800;
+		baseclientrect.bottom = 600;
+	}
+	freescaleresource (nr2);
+	freescaleresource (nr);
+	basewidth = baserect.right - baserect.left;
+	baseheight = baserect.bottom - baserect.top;
+	baseclientwidth = baseclientrect.right - baseclientrect.left;
+	baseclientheight = baseclientrect.bottom - baseclientrect.top;
+	baseborderwidth = basewidth - baseclientwidth;
+	baseborderheight = baseheight - baseclientheight;
 }
 
 void scaleresource_init (const TCHAR *prefix)
@@ -425,11 +470,6 @@ void scaleresource_init (const TCHAR *prefix)
 
 	fontprefix = prefix;
 
-	HDC hdc = GetDC (NULL);
-	lpx = GetDeviceCaps (hdc, LOGPIXELSX);
-	lpy = GetDeviceCaps (hdc, LOGPIXELSY);
-	ReleaseDC (NULL, hdc);
-
 	setdeffont ();
 
 	regqueryfont (NULL, fontprefix, fontreg[0], fontname_gui, &fontsize_gui, &fontstyle_gui, &fontweight_gui);
@@ -438,9 +478,12 @@ void scaleresource_init (const TCHAR *prefix)
 	//write_log (_T("GUI font %s:%d:%d:%d\n"), fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui);
 	//write_log (_T("List font %s:%d:%d:%d\n"), fontname_list, fontsize_list, fontstyle_list, fontweight_list);
 
+	getbaseunits ();
+
 	openfont (true);
 }
 
+#if 0
 static void sizefont (HWND hDlg, const TCHAR *name, int size, int style, int weight, int *width, int *height)
 {
 	/* ARGH!!! */
@@ -465,35 +508,18 @@ static void sizefont (HWND hDlg, const TCHAR *name, int size, int style, int wei
 	}
 	ReleaseDC (hDlg, hdc);
 }
+#endif
 
 void scaleresource_setmult (HWND hDlg, int w, int h)
 {
-	int width, height, width2, height2;
-	
 	if (w < 0) {
 		multx = -w;
 		multy = -h;
 		return;
 	}
 
-	int cy = GetSystemMetrics (SM_CYSIZEFRAME);
-	int cx = GetSystemMetrics (SM_CXSIZEFRAME);
-	int caption = GetSystemMetrics (SM_CYCAPTION);
-
-	sizefont (hDlg, fontname_gui, fontsize_gui, fontstyle_gui, fontweight_gui, &width, &height);
-	sizefont (hDlg, wfont_old, 8, REGULAR_FONTTYPE, FW_REGULAR, &width2, &height2);
-
-	int yy = cy * 2 + caption;
-	int xx = cx * 2;
-
-	w += xx;
-	h += yy;
-
-	multx = (w * width2) * 100.0 / (GUI_INTERNAL_WIDTH * width);
-	multy = (h * height2) * 100.0 / (GUI_INTERNAL_HEIGHT * height);
-
-	multx = MulDiv (multx, 96, lpx);
-	multy = MulDiv (multy, 96, lpy);
+	multx = w * 100.0 / basewidth;
+	multy = h * 100.0 / baseheight;
 
 	if (multx < 50)
 		multx = 50;

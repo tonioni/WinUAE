@@ -143,3 +143,5 @@ extern int hdf_write_target (struct hardfiledata *hfd, void *buffer, uae_u64 off
 extern int hdf_resize_target (struct hardfiledata *hfd, uae_u64 newsize);
 extern void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
 extern void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
+extern void getchspgeometry (uae_u64 total, int *pcyl, int *phead, int *psectorspertrack, bool idegeometry);
+
