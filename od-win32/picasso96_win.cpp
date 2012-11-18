@@ -4102,7 +4102,8 @@ static bool flushpixels (void)
 				lock = 1;
 		}
 		if (dst) {
-			statusline (dst);
+			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
+				statusline (dst);
 			maxy = picasso_vidinfo.height;
 			if (miny > picasso_vidinfo.height - TD_TOTAL_HEIGHT)
 				miny = picasso_vidinfo.height - TD_TOTAL_HEIGHT;

@@ -3259,11 +3259,11 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		if (s) {
 			v2 = _tstol (s + 1);
 			if (v1 < 0 || v2 < 0)
-				p->gfx_filter_aspect = -1;
+				p->win32_rtgscaleaspectratio = -1;
 			else if (v1 == 0 || v2 == 0)
-				p->gfx_filter_aspect = 0;
+				p->win32_rtgscaleaspectratio = 0;
 			else
-				p->gfx_filter_aspect = (v1 << 8) | v2;
+				p->win32_rtgscaleaspectratio = (v1 << 8) | v2;
 		}
 		return 1;
 	}

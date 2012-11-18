@@ -95,6 +95,9 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		xcolnr on_rgb, on_rgb2, off_rgb, pen_rgb;
 		int half = 0;
 
+		if (!(currprefs.leds_on_screen_mask[picasso_on ? 1 : 0] & (1 << led)))
+			continue;
+
 		pen_rgb = c1;
 		if (led >= LED_DF0 && led <= LED_DF3) {
 			int pled = led - LED_DF0;

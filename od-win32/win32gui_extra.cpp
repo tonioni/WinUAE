@@ -437,14 +437,14 @@ static void getbaseunits (void)
 	
 	nr = getresource (IDD_PANEL);
 	if (!nr) {
-		write_log (_T("getbaseunits fail\n"));
+		write_log (_T("getbaseunits fail!\n"));
 		abort();
 	}
 	multx = multy = 100;
 	nr2 = scaleresource (nr, NULL, -1);
 	hwnd = CreateDialogIndirect (nr2->inst, nr2->resource, NULL, TestProc);
 	if (hwnd) {
-		DestroyWindow(hwnd);
+		DestroyWindow (hwnd);
 	} else {
 		baserect.left = baserect.top = 0;
 		baserect.right = 800;
@@ -461,6 +461,8 @@ static void getbaseunits (void)
 	baseclientheight = baseclientrect.bottom - baseclientrect.top;
 	baseborderwidth = basewidth - baseclientwidth;
 	baseborderheight = baseheight - baseclientheight;
+
+	write_log (_T("GUIBase %dx%d (%dx%d)\n"), basewidth, baseheight, baseunitx, baseunity);
 }
 
 void scaleresource_init (const TCHAR *prefix)
@@ -509,6 +511,11 @@ static void sizefont (HWND hDlg, const TCHAR *name, int size, int style, int wei
 	ReleaseDC (hDlg, hdc);
 }
 #endif
+
+double scaleresource_getdpimult (void)
+{
+	return (double)baseheight / GUI_INTERNAL_HEIGHT;
+}
 
 void scaleresource_setmult (HWND hDlg, int w, int h)
 {

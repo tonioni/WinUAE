@@ -1203,6 +1203,8 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
 		if (!nosp)
 			write_log (_T("IOCTL_DISK_GET_LENGTH_INFO not supported, detected disk size may not be correct.\n"));
+	} else {
+		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
 	}
 	if (geom_ok == 0 && gli_ok == 0) {
 		write_log (_T("Can't detect size of device\n"));
@@ -1231,8 +1233,13 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 		udi->sectors = dg.SectorsPerTrack;
 		udi->heads = dg.TracksPerCylinder;
 	}
-	if (gli_ok)
+	if (gli_ok && gli.Length.QuadPart)
 		udi->size = gli.Length.QuadPart;
+	if (udi->size == 0) {
+		write_log (_T("device size is zero!\n"));
+		ret = 1;
+		goto end;
+	}
 	write_log (_T("device size %I64d (0x%I64x) bytes\n"), udi->size, udi->size);
 	trim (orgname);
 

@@ -2191,6 +2191,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 		if (num == num_keyboard) {
 			for (num = 0; num < num_keyboard; num++) {
+				did = &di_keyboard[num];
 				if (did->connection == DIDC_RAW && did->acquired && did->rawinput == NULL)
 					break;
 			}

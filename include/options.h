@@ -304,6 +304,9 @@ struct uae_prefs {
 	int gfx_filter_autoscale;
 	int gfx_filter_keep_autoscale_aspect;
 
+	int rtg_horiz_zoom_mult;
+	int rtg_vert_zoom_mult;
+
 	bool immediate_blits;
 	int waiting_blits;
 	unsigned int chipset_mask;
@@ -315,6 +318,7 @@ struct uae_prefs {
 	int cr_selected;
 	int collision_level;
 	int leds_on_screen;
+	int leds_on_screen_mask[2];
 	struct wh osd_pos;
 	int keyboard_leds[3];
 	bool keyboard_leds_in_use;

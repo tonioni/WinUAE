@@ -1421,8 +1421,8 @@ static void update_gfxparams (void)
 #ifdef PICASSO96
 	currentmode->vsync = 0;
 	if (screen_is_picasso) {
-		currentmode->current_width = picasso96_state.Width;
-		currentmode->current_height = picasso96_state.Height;
+		currentmode->current_width = picasso96_state.Width * (1000 / currprefs.rtg_horiz_zoom_mult);
+		currentmode->current_height = picasso96_state.Height * (1000 / currprefs.rtg_vert_zoom_mult);
 		currprefs.gfx_apmode[1].gfx_interlaced = false;
 		if (currprefs.win32_rtgvblankrate == 0) {
 			currprefs.gfx_apmode[1].gfx_refreshrate = currprefs.gfx_apmode[0].gfx_refreshrate;
@@ -3963,7 +3963,7 @@ bool target_graphics_buffer_update (void)
 	} else {
 		DirectDraw_ClearSurface (NULL);
 	}
-	if (currentmode->flags & DM_SWSCALE) {
+	if ((currentmode->flags & DM_SWSCALE) && !screen_is_picasso) {
 		S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth);
 	}
 	return true;

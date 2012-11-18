@@ -190,6 +190,8 @@ static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a202
 static const TCHAR *rtgtype[] = { _T("ZorroII"), _T("ZorroIII"), 0 };
 static const TCHAR *waitblits[] = { _T("disabled"), _T("automatic"), _T("noidleonly"), _T("always"), 0 };
 static const TCHAR *autoext2[] = { _T("disabled"), _T("copy"), _T("replace"), 0 };
+static const TCHAR *leds[] = { _T("power"), _T("df0"), _T("df1"), _T("df2"), _T("df3"), _T("hd"), _T("cd"), _T("fps"), _T("cpu"), _T("snd"), _T("md"), 0 };
+static int leds_order[] = { 3, 6, 7, 8, 9, 4, 5, 2, 1, 0, 9 };
 
 static const TCHAR *obsolete[] = {
 	_T("accuracy"), _T("gfx_opengl"), _T("gfx_32bit_blits"), _T("32bit_blits"),
@@ -576,6 +578,30 @@ static void write_compatibility_cpu (struct zfile *f, struct uae_prefs *p)
 	cfgfile_write (f, _T("cpu_type"), tmp);
 }
 
+static void write_leds (struct zfile *f, const TCHAR *name, int mask)
+{
+	TCHAR tmp[MAX_DPATH];
+	tmp[0] = 0;
+	for (int i = 0; leds[i]; i++) {
+		bool got = false;
+		for (int j = 0; leds[j]; j++) {
+			if (leds_order[j] == i) {
+				if (mask & (1 << j)) {
+					if (got)
+						_tcscat (tmp, _T(":"));
+					_tcscat (tmp, leds[j]);
+					got = true;
+				}
+			}
+		}
+		if (leds[i + 1] && got)
+			_tcscat (tmp, _T(","));
+	}
+	while (tmp[0] && tmp[_tcslen (tmp) - 1] == ',')
+		tmp[_tcslen (tmp) - 1] = 0;
+	cfgfile_dwrite_str (f, name, tmp);
+}
+
 void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 {
 	struct strlist *sl;
@@ -930,13 +956,17 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("ntsc"), p->ntscmode);
 	cfgfile_write_bool (f, _T("genlock"), p->genlock);
 	cfgfile_dwrite_str (f, _T("monitoremu"), specialmonitors[p->monitoremu]);
+
 	cfgfile_dwrite_bool (f, _T("show_leds"), !!(p->leds_on_screen & STATUSLINE_CHIPSET));
+	cfgfile_dwrite_bool (f, _T("show_leds_rtg"), !!(p->leds_on_screen & STATUSLINE_RTG));
+	write_leds(f, _T("show_leds_enabled"), p->leds_on_screen_mask[0]);
+	write_leds(f, _T("show_leds_enabled_rtg"), p->leds_on_screen_mask[1]);
+
 	if (p->osd_pos.y || p->osd_pos.x) {
 		cfgfile_dwrite (f, _T("osd_position"), _T("%.1f%s:%.1f%s"),
 			p->osd_pos.x >= 20000 ? (p->osd_pos.x - 30000) / 10.0 : (float)p->osd_pos.x, p->osd_pos.x >= 20000 ? _T("%") : _T(""),
 			p->osd_pos.y >= 20000 ? (p->osd_pos.y - 30000) / 10.0 : (float)p->osd_pos.y, p->osd_pos.y >= 20000 ? _T("%") : _T(""));
 	}
-	cfgfile_dwrite_bool (f, _T("show_leds_rtg"), !!(p->leds_on_screen & STATUSLINE_RTG));
 	cfgfile_dwrite (f, _T("keyboard_leds"), _T("numlock:%s,capslock:%s,scrolllock:%s"),
 		kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
 	if (p->chipset_mask & CSMASK_AGA)
@@ -1047,6 +1077,10 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_bool (f, _T("gfxcard_hardware_sprite"), p->rtg_hardwaresprite);
 	cfgfile_write (f, _T("chipmem_size"), _T("%d"), p->chipmem_size == 0x20000 ? -1 : (p->chipmem_size == 0x40000 ? 0 : p->chipmem_size / 0x80000));
 	cfgfile_dwrite (f, _T("megachipmem_size"), _T("%d"), p->z3chipmem_size / 0x100000);
+	if (p->custom_memory_sizes[0])
+		cfgfile_write (f, _T("addmem1"), _T("0x%x,0x%x"), p->custom_memory_addrs[0], p->custom_memory_sizes[0]);
+	if (p->custom_memory_sizes[1])
+		cfgfile_write (f, _T("addmem2"), _T("0x%x,0x%x"), p->custom_memory_addrs[1], p->custom_memory_sizes[1]);
 
 	if (p->m68k_speed > 0) {
 		cfgfile_write (f, _T("finegrain_cpu_speed"), _T("%d"), p->m68k_speed);
@@ -1548,6 +1582,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask, sizeof p->gfx_filtermask / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
 
+		|| cfgfile_intval (option, value, _T("rtg_vert_zoom_mult"), &p->rtg_vert_zoom_mult, 1)
+		|| cfgfile_intval (option, value, _T("rtg_horiz_zoom_mult"), &p->rtg_horiz_zoom_mult, 1)
 #endif
 		|| cfgfile_intval (option, value, _T("floppy0sound"), &p->floppyslots[0].dfxclick, 1)
 		|| cfgfile_intval (option, value, _T("floppy1sound"), &p->floppyslots[1].dfxclick, 1)
@@ -1688,6 +1724,31 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			p->leds_on_screen |= STATUSLINE_RTG;
 		else
 			p->leds_on_screen &= ~STATUSLINE_RTG;
+		return 1;
+	}
+	if (_tcscmp (option, _T("show_leds_enabled")) == 0 || _tcscmp (option, _T("show_leds_enabled_rtg")) == 0) {
+		TCHAR tmp[MAX_DPATH];
+		int idx = _tcscmp (option, _T("show_leds_enabled")) == 0 ? 0 : 1;
+		p->leds_on_screen_mask[idx] = 0;
+		_tcscpy (tmp, value);
+		_tcscat (tmp, _T(","));
+		TCHAR *s = tmp;
+		for (;;) {
+			TCHAR *s2 = s;
+			TCHAR *s3 = _tcschr (s, ':');
+			s = _tcschr (s, ',');
+			if (!s)
+				break;
+			if (s3 && s3 < s)
+				s = s3;
+			*s = 0;
+			for (int i = 0; leds[i]; i++) {
+				if (!_tcsicmp (s2, leds[i])) {
+					p->leds_on_screen_mask[idx] |= 1 << i;
+				}
+			}
+			s++;
+		}
 		return 1;
 	}
 
@@ -4245,6 +4306,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->waiting_blits = 0;
 	p->collision_level = 2;
 	p->leds_on_screen = 0;
+	p->leds_on_screen_mask[0] = p->leds_on_screen_mask[1] = (1 << LED_MAX) - 1;
 	p->keyboard_leds_in_use = 0;
 	p->keyboard_leds[0] = p->keyboard_leds[1] = p->keyboard_leds[2] = 0;
 	p->scsi = 0;
@@ -4298,6 +4360,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->gfx_filter_autoscale = AUTOSCALE_STATIC_AUTO;
 	p->gfx_filter_keep_autoscale_aspect = false;
 	p->gfx_filteroverlay_overscan = 0;
+
+	p->rtg_horiz_zoom_mult = 1000;
+	p->rtg_vert_zoom_mult = 1000;
 
 	_tcscpy (p->floppyslots[0].df, _T("df0.adf"));
 	_tcscpy (p->floppyslots[1].df, _T("df1.adf"));

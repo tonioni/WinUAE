@@ -7916,10 +7916,15 @@ static void misc_lang (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("Select"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("140%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("130%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("120%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("110%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T("100%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 90%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 80%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 70%"));
+	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_ADDSTRING, 0, (LPARAM)_T(" 60%"));
 	SendDlgItemMessage (hDlg, IDC_GUI_SIZE, CB_SETCURSEL, 0, 0);
 }
 
@@ -8180,11 +8185,15 @@ static INT_PTR MiscDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 					v = GUI_SCALE_DEFAULT;
 				} else {
 					v--;
-					v = 110 - v * 10;
+					v = 140 - v * 10;
 				}
-				//double m = scaleresource_getdpimult ();
-				gui_width = (int)(GUI_INTERNAL_WIDTH * v / 100);
-				gui_height = (int)(GUI_INTERNAL_HEIGHT * v / 100);
+				double m = scaleresource_getdpimult ();
+				gui_width = (int)(GUI_INTERNAL_WIDTH * m * v / 100);
+				gui_height = (int)(GUI_INTERNAL_HEIGHT * m * v / 100);
+				if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_height < MIN_GUI_INTERNAL_HEIGHT) {
+					gui_width = MIN_GUI_INTERNAL_WIDTH;
+					gui_height = MIN_GUI_INTERNAL_HEIGHT;
+				}
 				scaleresource_setmult (guiDlg, gui_width, gui_height);
 				gui_size_changed = 1;
 			}
@@ -15632,7 +15641,7 @@ static int GetSettings (int all_options, HWND hwnd)
 			write_log (_T("GUI default size\n"));
 			regsetint (NULL, _T("GUIResize"), 0);
 		} else {
-			if (gui_width < 100 || gui_width > 4096 || gui_height < 100 || gui_height > 4096) {
+			if (gui_width < MIN_GUI_INTERNAL_WIDTH || gui_width > 4096 || gui_height < MIN_GUI_INTERNAL_HEIGHT || gui_height > 4096) {
 				scaleresource_setdefaults ();
 				setdefaultguisize ();
 				fmultx = 0;

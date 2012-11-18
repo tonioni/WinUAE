@@ -6181,7 +6181,7 @@ void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state, 
 				j++;
 			}
 			if (j >= MAX_INPUT_DEVICE_EVENTS || na->extra[j] < 0)
-				type = -1;
+				return;
 		}
 	}
 	// wait until previous event is released before accepting new ones
@@ -6254,7 +6254,10 @@ int inputdevice_testread (int *devnum, int *wtype, int *state, bool doread)
 		testmode_count--;
 		struct teststore *ts = &testmode_data[testmode_count];
 		*devnum = getdevnum (ts->testmode_type, ts->testmode_num);
-		*wtype = idev[ts->testmode_type].get_widget_first (ts->testmode_num, ts->testmode_wtype) + ts->testmode_wnum;
+		if (ts->testmode_wnum >= 0 && ts->testmode_wnum < MAX_INPUT_DEVICE_EVENTS)
+			*wtype = idev[ts->testmode_type].get_widget_first (ts->testmode_num, ts->testmode_wtype) + ts->testmode_wnum;
+		else
+			*wtype = ts->testmode_wnum;
 		*state = ts->testmode_state;
 		if (ts->testmode_state)
 			memcpy (&testmode_wait[testmode_count], ts, sizeof (struct teststore));

@@ -567,7 +567,7 @@ static int statusfunc (int status)
 	if (status == -1)
 		return 0;
 	if (status == -2)
-		return 150;
+		return 10;
 #if 1
 	if (cdrom_audiostatus != status) {
 		if (status == AUDIO_STATUS_IN_PROGRESS) {

@@ -553,6 +553,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	int totalhdbl = -1, totalvdbl = -1;
 	int hmult, vmult;
 	bool half;
+	bool rtg;
 
 	hres = p->gfx_resolution;
 	vres = p->gfx_vresolution;
@@ -565,14 +566,23 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	if (WIN32GFX_IsPicassoScreen ()) {
 
+		rtg = true;
 		full = p->gfx_apmode[1].gfx_fullscreen;
 		sm->lClipTop = -1;
 		sm->lClipLeft = -1;
 		sm->lClipWidth = -1;//picasso96_state.Width;
 		sm->lClipHeight = -1;//picasso96_state.Height;
 
+		if (p->rtg_horiz_zoom_mult < 333 || p->rtg_vert_zoom_mult < 333)
+			m |= RP_SCREENMODE_SCALE_4X;
+		else if (p->rtg_horiz_zoom_mult < 500 || p->rtg_vert_zoom_mult < 500)
+			m |= RP_SCREENMODE_SCALE_3X;
+		else if (p->rtg_horiz_zoom_mult < 1000 || p->rtg_vert_zoom_mult < 1000)
+			m |= RP_SCREENMODE_SCALE_2X;
+
 	} else {
 
+		rtg = false;
 		full = p->gfx_apmode[0].gfx_fullscreen;
 
 		totalhdbl = hres;
@@ -618,7 +628,7 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	if (full) {
 		m &= ~RP_SCREENMODE_DISPLAYMASK;
-		m |= p->gfx_apmode[APMODE_NATIVE].gfx_display << 8;
+		m |= p->gfx_apmode[rtg ? APMODE_RTG : APMODE_NATIVE].gfx_display << 8;
 	}
 	if (full > 1)
 		m |= RP_SCREENMODE_FULLSCREEN_SHARED;
@@ -769,85 +779,102 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	p->gfx_apmode[1].gfx_fullscreen = fs;
 	p->gfx_apmode[0].gfx_fullscreen = fs;
-	p->win32_rtgscaleifsmall = fs == 2;
 	p->gfx_xcenter_pos = sm->lClipLeft;
 	p->gfx_ycenter_pos = sm->lClipTop;
 	p->gfx_xcenter_size = -1;
 	p->gfx_ycenter_size = -1;
 
-	if (stretch) {
-		hmult = vmult = 0;
-	} else if (integerscale) {
-		hmult = vmult = 1;
-		p->gfx_filter_autoscale = AUTOSCALE_INTEGER;
-		if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
-			p->gfx_xcenter_pos = -1;
-			p->gfx_ycenter_pos = -1;
-			p->gfx_xcenter_size = -1;
-			p->gfx_ycenter_size = -1;
+	if (WIN32GFX_IsPicassoScreen ()) {
+
+		int m = 1;
+		p->win32_rtgscaleifsmall = fs == 2 || (smm >= RP_SCREENMODE_SCALE_2X  && smm <= RP_SCREENMODE_SCALE_4X);
+		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = 1000;
+		if (smm == RP_SCREENMODE_SCALE_2X) {
+			m = 2;
+		} else if (smm == RP_SCREENMODE_SCALE_3X) {
+			m = 3;
+		} else if (smm == RP_SCREENMODE_SCALE_4X) {
+			m = 4;
+		}
+		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = 1000 / m;
+		p->gfx_size_win.width = picasso_vidinfo.width * m;
+		p->gfx_size_win.height = picasso_vidinfo.height * m;
+
+	} else {
+		if (stretch) {
+			hmult = vmult = 0;
+		} else if (integerscale) {
+			hmult = vmult = 1;
+			p->gfx_filter_autoscale = AUTOSCALE_INTEGER;
+			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+				p->gfx_xcenter_pos = -1;
+				p->gfx_ycenter_pos = -1;
+				p->gfx_xcenter_size = -1;
+				p->gfx_ycenter_size = -1;
+			} else {
+				if (sm->lClipWidth > 0)
+					p->gfx_xcenter_size = sm->lClipWidth;
+				if (sm->lClipHeight > 0)
+					p->gfx_ycenter_size = sm->lClipHeight;
+			}
+		}
+
+		if (keepaspect) {
+			p->gfx_filter_aspect = -1;
+			p->gfx_filter_keep_aspect = 1;
 		} else {
+			p->gfx_filter_aspect = 0;
+			p->gfx_filter_keep_aspect = 0;
+		}
+
+		if (!integerscale) {
+			if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
+				if (!forcesize)
+					p->gfx_filter_autoscale = AUTOSCALE_RESIZE;
+				else
+					p->gfx_filter_autoscale = AUTOSCALE_NORMAL;
+				p->gfx_xcenter_pos = -1;
+				p->gfx_ycenter_pos = -1;
+				p->gfx_xcenter_size = -1;
+				p->gfx_ycenter_size = -1;
+			} else if (sm->dwClipFlags & RP_CLIPFLAGS_NOCLIP) {
+				p->gfx_filter_autoscale = AUTOSCALE_STATIC_MAX;
+				p->gfx_xcenter_pos = -1;
+				p->gfx_ycenter_pos = -1;
+				p->gfx_xcenter_size = -1;
+				p->gfx_ycenter_size = -1;
+				if (!forcesize) {
+					p->gfx_size_win.width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
+					p->gfx_size_win.height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;;
+				}
+			}
+
 			if (sm->lClipWidth > 0)
 				p->gfx_xcenter_size = sm->lClipWidth;
 			if (sm->lClipHeight > 0)
 				p->gfx_ycenter_size = sm->lClipHeight;
-		}
-	}
 
-	if (keepaspect) {
-		p->gfx_filter_aspect = -1;
-		p->gfx_filter_keep_aspect = 1;
-	} else {
-		p->gfx_filter_aspect = 0;
-		p->gfx_filter_keep_aspect = 0;
+			if ((p->gfx_xcenter_pos >= 0 && p->gfx_ycenter_pos >= 0) || (p->gfx_xcenter_size > 0 && p->gfx_ycenter_size > 0)) {
+				p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
+			}
+		}
+
+		p->gfx_filter_horiz_zoom_mult = hmult > 0 ? (int)(1000.0 / hmult) : (int)hmult;
+		p->gfx_filter_vert_zoom_mult = vmult > 0 ? (int)(1000.0 / vmult) : (int)vmult;
+
+		p->gfx_filter_scanlines = 0;
+		p->gfx_scanlines = 0;
+		if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
+			p->gfx_scanlines = 1;
+			p->gfx_filter_scanlines = 8;
+			p->gfx_filter_scanlinelevel = 8;
+			p->gfx_filter_scanlineratio = (1 << 4) | 1;
+		}
 	}
 
 	if (log_rp & 2)
 		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%.1f VM=%.1f\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
-
-	if (!integerscale) {
-		if (sm->dwClipFlags & RP_CLIPFLAGS_AUTOCLIP) {
-			if (!forcesize)
-				p->gfx_filter_autoscale = AUTOSCALE_RESIZE;
-			else
-				p->gfx_filter_autoscale = AUTOSCALE_NORMAL;
-			p->gfx_xcenter_pos = -1;
-			p->gfx_ycenter_pos = -1;
-			p->gfx_xcenter_size = -1;
-			p->gfx_ycenter_size = -1;
-		} else if (sm->dwClipFlags & RP_CLIPFLAGS_NOCLIP) {
-			p->gfx_filter_autoscale = AUTOSCALE_STATIC_MAX;
-			p->gfx_xcenter_pos = -1;
-			p->gfx_ycenter_pos = -1;
-			p->gfx_xcenter_size = -1;
-			p->gfx_ycenter_size = -1;
-			if (!forcesize) {
-				p->gfx_size_win.width = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
-				p->gfx_size_win.height = AMIGA_HEIGHT_MAX << currprefs.gfx_vresolution;;
-			}
-		}
-
-		if (sm->lClipWidth > 0)
-			p->gfx_xcenter_size = sm->lClipWidth;
-		if (sm->lClipHeight > 0)
-			p->gfx_ycenter_size = sm->lClipHeight;
-
-		if ((p->gfx_xcenter_pos >= 0 && p->gfx_ycenter_pos >= 0) || (p->gfx_xcenter_size > 0 && p->gfx_ycenter_size > 0)) {
-			p->gfx_filter_autoscale = AUTOSCALE_MANUAL;
-		}
-	}
-
-	p->gfx_filter_horiz_zoom_mult = hmult > 0 ? (int)(1000.0 / hmult) : (int)hmult;
-	p->gfx_filter_vert_zoom_mult = vmult > 0 ? (int)(1000.0 / vmult) : (int)vmult;
-
-	p->gfx_filter_scanlines = 0;
-	p->gfx_scanlines = 0;
-	if (sm->dwScreenMode & RP_SCREENMODE_SCANLINES) {
-		p->gfx_scanlines = 1;
-		p->gfx_filter_scanlines = 8;
-		p->gfx_filter_scanlinelevel = 8;
-		p->gfx_filter_scanlineratio = (1 << 4) | 1;
-	}
 
 	if (log_rp & 2)
 		write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
@@ -1167,10 +1194,14 @@ static void sendfeatures (void)
 
 	feat = RP_FEATURE_POWERLED | RP_FEATURE_SCREEN1X | RP_FEATURE_FULLSCREEN;
 	feat |= RP_FEATURE_PAUSE | RP_FEATURE_TURBO_CPU | RP_FEATURE_TURBO_FLOPPY | RP_FEATURE_VOLUME | RP_FEATURE_SCREENCAPTURE;
-	feat |= RP_FEATURE_STATE | RP_FEATURE_SCANLINES | RP_FEATURE_DEVICEREADWRITE;
-	feat |= RP_FEATURE_SCALING_SUBPIXEL | RP_FEATURE_SCALING_STRETCH;
-	if (!WIN32GFX_IsPicassoScreen ())
+	feat |= RP_FEATURE_STATE | RP_FEATURE_DEVICEREADWRITE;
+	if (WIN32GFX_IsPicassoScreen ()) {
+		if (currprefs.gfx_api)
+			feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
+	} else {
 		feat |= RP_FEATURE_SCREEN2X | RP_FEATURE_SCREEN3X | RP_FEATURE_SCREEN4X;
+		feat |= RP_FEATURE_SCALING_SUBPIXEL | RP_FEATURE_SCALING_STRETCH | RP_FEATURE_SCANLINES;
+	}
 	feat |= RP_FEATURE_INPUTDEVICE_MOUSE;
 	feat |= RP_FEATURE_INPUTDEVICE_JOYSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_GAMEPAD;

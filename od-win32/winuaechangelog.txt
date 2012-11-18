@@ -1,6 +1,18 @@
 
 - restore only single input target to default.
 
+Beta 26 RC2:
+
+- RTG aspect ratio setting was loaded to wrong variable from config file (filter panel aspect ratio, not RTG)
+- CD32 CD audio play delay timing fixed. (Was originally timed using bad Liberation CD image)
+- RTG on screen leds was rendered twice in D3D mode (D3D sprite and software method).
+- Audio 14bit to 16bit scaling introduced extra low level noise.
+- Only enable AUDxPER limit hack (to reduce CPU usage with weird programs) if audio DMA is active. Manual AUDxDAT audio software may use higher periods.
+- Fixed rare crash in input/gameports panel test/remap support.
+- Added on screen leds per-led enable/disable config file support, for example show_leds_enabled/show_leds_enabled_rtg=power,df0,df1.
+  In future versions order of led names are also supported and gaps in place of disabled leds will be gone.
+- DPI GUI size compensation disappeared (b25).
+
 Beta 25 RC1:
 
 - Switching to interlaced mode and autoscale enabled: don't calculate new size until 2 frames have been drawn to prevent multiple display size changes.
