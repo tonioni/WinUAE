@@ -1211,6 +1211,9 @@ static void loaddat (int nr, bool modper)
 				cdp[1].per = PERIOD_MIN * CYCLE_UNIT;
 		} else	if (audav) {
 			cdp[1].vol = cdp->dat;
+			cdp[1].vol &= 127;
+			if (cdp[1].vol > 64)
+				cdp[1].vol = 64;
 		}
 	} else {
 #if TEST_AUDIO > 0
