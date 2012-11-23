@@ -1513,7 +1513,7 @@ static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode
 
 	if ((len > 2) && (out[len-2] == ';') && (out[len-1] == '1')) {
 		len -= 2;
-		out[len + 1] = 0;
+		out[len] = 0;
 	}
 
 	/*
@@ -1521,8 +1521,8 @@ static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode
 	 * so neither do we
 	 */
 	while (len >= 2 && (out[len-1] == '.')) {
-		out[len] = 0;
 		len--;
+		out[len] = 0;
 	}
 
 	return out;
