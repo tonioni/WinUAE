@@ -1,6 +1,13 @@
 
 - restore only single input target to default.
 
+Beta 27 RC3:
+
+- Modulated volume value wasn't range checked, caused noise if volume word was not between 0 to 63. (Platou title music)
+- Fixed SPTI mode CDFS crash.
+- CDFS didn't correctly remove hidden trailing ;1's in some Joliet CD filenames.
+- SPTI standard CD access: Use READ (10), not READ CD when requesting standard 2048 byte user sectors, not all BD/DVD drives support READ CD when reading DVDs.
+
 Beta 26 RC2:
 
 - RTG aspect ratio setting was loaded to wrong variable from config file (filter panel aspect ratio, not RTG)

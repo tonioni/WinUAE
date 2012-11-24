@@ -592,7 +592,7 @@ void updatemouseclip (void)
 {
 	if (showcursor) {
 		ClipCursor (&amigawin_rect);
-		//write_log (_T("CLIP %dx%d %dx%d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
+		write_log (_T("CLIP %dx%d %dx%d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
 	}
 }
 
@@ -666,6 +666,7 @@ static void setmouseactive2 (int active, bool allowpause)
 			if (!showcursor) {
 				ShowCursor (FALSE);
 				SetCapture (hAmigaWnd);
+				GetWindowRect (hAmigaWnd, &amigawin_rect);
 				updatemouseclip ();
 			}
 			showcursor = 1;

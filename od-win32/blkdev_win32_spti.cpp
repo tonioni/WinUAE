@@ -137,7 +137,7 @@ static int doscsi (struct dev_info_spti *di, int unitnum, SCSI_PASS_THROUGH_DIRE
 	if (log_scsi)
 		scsi_log_after (swb->spt.DataIn == SCSI_IOCTL_DATA_IN ? (uae_u8*)swb->spt.DataBuffer : NULL, swb->spt.DataTransferLength,
 		swb->SenseBuf, swb->spt.SenseInfoLength);
-	if (swb->spt.SenseInfoLength > 0 && (swb->SenseBuf[0] == 0 || swb->SenseBuf[0] == 1))
+	if (swb->spt.SenseInfoLength > 0 && (swb->SenseBuf[2] == 0 || swb->SenseBuf[2] == 1))
 		swb->spt.SenseInfoLength = 0; /* 0 and 1 = success, not error.. */
 	if (swb->spt.SenseInfoLength > 0)
 		return 0;
@@ -640,7 +640,7 @@ static int adddrive (const TCHAR *drvpath, int bus, int pathid, int targetid, in
 	return 1;
 }
 
-static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
+static struct device_info *info_device (int unitnum, struct device_info *di, int quick, int session)
 {
 	struct dev_info_spti *dispti = unitcheck (unitnum);
 	if (!dispti)

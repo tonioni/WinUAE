@@ -515,7 +515,7 @@ static void check_changes (int unitnum)
 		int pollmode = 0;
 		imagechangetime[unitnum] = 3 * 50;
 		struct device_info di;
-		device_func[unitnum]->info (unitnum, &di, 0);
+		device_func[unitnum]->info (unitnum, &di, 0, -1);
 		if (wasopen[unitnum] >= 0)
 			wasopen[unitnum] = di.open ? 1 : 0;
 		if (wasopen[unitnum]) {
@@ -564,7 +564,7 @@ static void check_changes (int unitnum)
 	}
 	if (currprefs.scsi && wasopen[unitnum]) {
 		struct device_info di;
-		device_func[unitnum]->info (unitnum, &di, 0);
+		device_func[unitnum]->info (unitnum, &di, 0, -1);
 		int pollmode;
 		if (gotsem) {
 			freesem (unitnum);
@@ -773,8 +773,14 @@ int sys_command_cd_read (int unitnum, uae_u8 *data, int block, int size)
 	if (!getsem (unitnum))
 		return 0;
 	if (device_func[unitnum]->read == NULL) {
-		uae_u8 cmd[12] = { 0xbe, 0, block >> 24, block >> 16, block >> 8, block >> 0, size >> 16, size >> 8, size >> 0, 0x10, 0, 0 };
-		v = do_scsi (unitnum, cmd, sizeof cmd, data, size * 2048);
+		uae_u8 cmd1[12] = { 0x28, 0, block >> 24, block >> 16, block >> 8, block >> 0, 0, size >> 8, size >> 0, 0, 0, 0 };
+		v = do_scsi (unitnum, cmd1, sizeof cmd1, data, size * 2048);
+#if 0
+		if (!v) {
+			uae_u8 cmd2[12] = { 0xbe, 0, block >> 24, block >> 16, block >> 8, block >> 0, size >> 16, size >> 8, size >> 0, 0x10, 0, 0 };
+			v = do_scsi (unitnum, cmd2, sizeof cmd2, data, size * 2048);
+		}
+#endif
 	} else {
 		v = device_func[unitnum]->read (unitnum, data, block, size);
 	}
@@ -862,7 +868,7 @@ int sys_command_ismedia (int unitnum, int quick)
 		return 0;
 	if (!getsem (unitnum))
 		return 0;
-	if (device_func[unitnum] == NULL) {
+	if (device_func[unitnum]->ismedia == NULL) {
 		uae_u8 cmd[6] = { 0, 0, 0, 0, 0, 0 };
 		v = do_scsi (unitnum, cmd, sizeof cmd);
 	} else {
@@ -872,17 +878,23 @@ int sys_command_ismedia (int unitnum, int quick)
 	return v;
 }
 
-struct device_info *sys_command_info (int unitnum, struct device_info *di, int quick)
+struct device_info *sys_command_info_session (int unitnum, struct device_info *di, int quick, int session)
 {
 	if (failunit (unitnum))
 		return NULL;
 	if (!getsem (unitnum))
 		return 0;
-	struct device_info *di2 = device_func[unitnum]->info (unitnum, di, quick);
+	if (device_func[unitnum]->info == NULL)
+		return 0;
+	struct device_info *di2 = device_func[unitnum]->info (unitnum, di, quick, -1);
 	if (di2 && delayed[unitnum])
 		di2->media_inserted = 0;
 	freesem (unitnum);
 	return di2;
+}
+struct device_info *sys_command_info (int unitnum, struct device_info *di, int quick)
+{
+	return sys_command_info_session (unitnum, di, quick, -1);
 }
 
 #define MODE_SELECT_6 0x15

@@ -5131,6 +5131,9 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
 	if (acc)
 		inputdevice_acquire (TRUE);
+#ifdef RETROPLATFORM
+	rp_enumdevices ();
+#endif
 	config_changed = 1;
 }
 

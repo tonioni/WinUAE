@@ -2,7 +2,7 @@
 /*
 * UAE - The Un*x Amiga Emulator
 *
-* Linux isofs/UAE filesystem wrapperr
+* Linux isofs/UAE filesystem wrapper
 *
 * Copyright 2012 Toni Wilen
 *
@@ -418,7 +418,6 @@ static int iso_ltime(char *p)
 
 	return make_date(year - 1970, month, day, hour, minute, second, 0);
 }
-
 
 static int isofs_read_level3_size(struct inode *inode)
 {
@@ -1501,10 +1500,17 @@ static TCHAR *get_joliet_filename(struct iso_directory_record * de, struct inode
 	utf8 = ISOFS_SB(inode->i_sb)->s_utf8;
 	//nls = ISOFS_SB(inode->i_sb)->s_nls_iocharset;
 
-	len = de->name_len[0] / 2;
 	if (utf8) {
-		;
+		/* probably never used */
+		len = de->name_len[0];
+		uae_char *o = xmalloc (uae_char, len + 1);
+		for (int i = 0; i < len; i++)
+			o[i] = de->name[i];
+		o[len] = 0;
+		out = utf8u (o);
+		xfree (o);
 	} else {
+		len = de->name_len[0] / 2;
 		out = xmalloc (TCHAR, len + 1);
 		for (int i = 0; i < len; i++)
 			out[i] = isonum_722 (de->name + i * 2);
@@ -1696,6 +1702,12 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent, uae_u
 	sbi->s_high_sierra = 0; /* default is iso9660 */
 
 	vol_desc_start = 0;
+#if 0
+	struct device_info di;
+	if (sys_command_info (s->unitnum, &di, true)) {
+		vol_desc_start = di.toc.firstaddress;
+	}
+#endif
 
 	for (iso_blknum = vol_desc_start+16; iso_blknum < vol_desc_start+100; iso_blknum++) {
 		struct hs_volume_descriptor *hdp;

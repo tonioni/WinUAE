@@ -1613,6 +1613,9 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_filter_gamma != changed_prefs.gfx_filter_gamma ? (1|8) : 0;
 	//c |= currprefs.gfx_filter_ != changed_prefs.gfx_filter_ ? (1|8) : 0;
 
+	c |= currprefs.rtg_horiz_zoom_mult != changed_prefs.rtg_horiz_zoom_mult ? (1|8) : 0;
+	c |= currprefs.rtg_vert_zoom_mult != changed_prefs.rtg_vert_zoom_mult ? (1|8) : 0;
+
 	c |= currprefs.gfx_luminance != changed_prefs.gfx_luminance ? (1 | 256) : 0;
 	c |= currprefs.gfx_contrast != changed_prefs.gfx_contrast ? (1 | 256) : 0;
 	c |= currprefs.gfx_gamma != changed_prefs.gfx_gamma ? (1 | 256) : 0;
@@ -1687,6 +1690,9 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_filter_gamma = changed_prefs.gfx_filter_gamma;
 		currprefs.gfx_filter_autoscale = changed_prefs.gfx_filter_autoscale;
 		//currprefs.gfx_filter_ = changed_prefs.gfx_filter_;
+
+		currprefs.rtg_horiz_zoom_mult = changed_prefs.rtg_horiz_zoom_mult;
+		currprefs.rtg_vert_zoom_mult = changed_prefs.rtg_vert_zoom_mult;
 
 		currprefs.gfx_luminance = changed_prefs.gfx_luminance;
 		currprefs.gfx_contrast = changed_prefs.gfx_contrast;
@@ -3779,11 +3785,12 @@ static BOOL doInit (void)
 			updatemodes ();
 		}
 
-		if (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
-			currentmode->current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN)) {
+		if (!rp_isactive () && (currentmode->current_width > GetSystemMetrics(SM_CXVIRTUALSCREEN) ||
+			currentmode->current_height > GetSystemMetrics(SM_CYVIRTUALSCREEN))) {
 				if (!console_logging)
 					fs_warning = IDS_UNSUPPORTEDSCREENMODE_3;
 		}
+
 		if (fs_warning >= 0 && isfullscreen () <= 0) {
 			TCHAR szMessage[MAX_DPATH], szMessage2[MAX_DPATH];
 			WIN32GUI_LoadUIString(IDS_UNSUPPORTEDSCREENMODE, szMessage, MAX_DPATH);

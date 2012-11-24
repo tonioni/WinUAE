@@ -841,6 +841,7 @@ static int command_toc (int unitnum, struct cd_toc_head *th)
 	th->last_track = cdu->tracks;
 	th->points = cdu->tracks + 3;
 	th->tracks = cdu->tracks;
+	th->firstaddress = 0;
 	th->lastaddress = cdu->toc[cdu->tracks].address;
 
 	toc->adr = 1;
@@ -1561,7 +1562,7 @@ static int ismedia (int unitnum, int quick)
 	return cdu->tracks > 0 ? 1 : 0;
 }
 
-static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
+static struct device_info *info_device (int unitnum, struct device_info *di, int quick, int session)
 {
 	struct cdunit *cdu = &cdunits[unitnum];
 	memset (di, 0, sizeof (struct device_info));

@@ -44,6 +44,7 @@ struct cd_toc_head
 {
 	int first_track, first_track_offset;
 	int last_track, last_track_offset;
+	int firstaddress; // LSN
 	int lastaddress; // LSN
 	int tracks;
 	int points;
@@ -102,7 +103,7 @@ typedef int (*open_bus_func)(int flags);
 typedef void (*close_bus_func)(void);
 typedef int (*open_device_func)(int, const TCHAR*, int);
 typedef void (*close_device_func)(int);
-typedef struct device_info* (*info_device_func)(int, struct device_info*, int);
+typedef struct device_info* (*info_device_func)(int, struct device_info*, int, int);
 typedef uae_u8* (*execscsicmd_out_func)(int, uae_u8*, int);
 typedef uae_u8* (*execscsicmd_in_func)(int, uae_u8*, int, int*);
 typedef int (*execscsicmd_direct_func)(int, struct amigascsi*);
@@ -172,6 +173,7 @@ extern int sys_command_write (int unitnum, uae_u8 *data, int block, int size);
 extern int sys_command_scsi_direct_native (int unitnum, struct amigascsi *as);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
 extern int sys_command_ismedia (int unitnum, int quick);
+extern struct device_info *sys_command_info_session (int unitnum, struct device_info *di, int, int);
 
 extern void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);
 extern void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *data, int *datalen, int parm);

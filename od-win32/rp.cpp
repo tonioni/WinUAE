@@ -557,32 +557,36 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	hres = p->gfx_resolution;
 	vres = p->gfx_vresolution;
-	hmult = p->gfx_filter_horiz_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_horiz_zoom_mult : 256;
-	vmult = p->gfx_filter_vert_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_vert_zoom_mult : 256;
 
 	sm->hGuestWindow = guestwindow;
 	m = RP_SCREENMODE_SCALE_1X;
 	cf = 0;
+	half = false;
+	rtg = WIN32GFX_IsPicassoScreen () != 0;
 
-	if (WIN32GFX_IsPicassoScreen ()) {
+	if (rtg) {
 
-		rtg = true;
+		hmult = p->rtg_horiz_zoom_mult;
+		vmult = p->rtg_vert_zoom_mult;
+
 		full = p->gfx_apmode[1].gfx_fullscreen;
 		sm->lClipTop = -1;
 		sm->lClipLeft = -1;
 		sm->lClipWidth = -1;//picasso96_state.Width;
 		sm->lClipHeight = -1;//picasso96_state.Height;
 
-		if (p->rtg_horiz_zoom_mult < 333 || p->rtg_vert_zoom_mult < 333)
+		if (hmult < 333 || vmult < 333)
 			m |= RP_SCREENMODE_SCALE_4X;
-		else if (p->rtg_horiz_zoom_mult < 500 || p->rtg_vert_zoom_mult < 500)
+		else if (hmult < 500 || vmult < 500)
 			m |= RP_SCREENMODE_SCALE_3X;
-		else if (p->rtg_horiz_zoom_mult < 1000 || p->rtg_vert_zoom_mult < 1000)
+		else if (hmult < 1000 || vmult < 1000)
 			m |= RP_SCREENMODE_SCALE_2X;
 
 	} else {
 
-		rtg = false;
+		hmult = p->gfx_filter_horiz_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_horiz_zoom_mult : 256;
+		vmult = p->gfx_filter_vert_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_vert_zoom_mult : 256;
+
 		full = p->gfx_apmode[0].gfx_fullscreen;
 
 		totalhdbl = hres;
@@ -605,13 +609,6 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		} else if (hres >= RES_SUPERHIRES) {
 			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_4X;
 		}
-
-		if (log_rp & 2)
-			write_log (_T("GET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d half=%d\n"),
-				totalhdbl, hres, totalvdbl, vres, full,
-				p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
-				p->gfx_size_win.width, p->gfx_size_win.height,
-				hmult, vmult, half);
 
 		sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
 		sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
@@ -647,10 +644,17 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	}
 	sm->dwClipFlags = cf;
 
-	if (log_rp & 2)
+	if (log_rp & 2) {
+		write_log (_T("%sGET_RPSM: hres=%d (%d) vres=%d (%d) full=%d xcpos=%d ycpos=%d w=%d h=%d vm=%d hm=%d half=%d\n"),
+			rtg ? _T("RTG ") : _T(""),
+			totalhdbl, hres, totalvdbl, vres, full,
+			p->gfx_xcenter_pos,  p->gfx_ycenter_pos,
+			p->gfx_size_win.width, p->gfx_size_win.height,
+			hmult, vmult, half);
 		write_log (_T("GET_RPSM: %08X %dx%d %dx%d hres=%d (%d) vres=%d (%d) disp=%d fs=%d\n"),
 			sm->dwScreenMode, sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight,
 			totalhdbl, hres, totalvdbl, vres, p->gfx_apmode[APMODE_NATIVE].gfx_display, full);
+	}
 }
 
 static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
@@ -787,18 +791,24 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	if (WIN32GFX_IsPicassoScreen ()) {
 
 		int m = 1;
-		p->win32_rtgscaleifsmall = fs == 2 || (smm >= RP_SCREENMODE_SCALE_2X  && smm <= RP_SCREENMODE_SCALE_4X);
-		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = 1000;
-		if (smm == RP_SCREENMODE_SCALE_2X) {
-			m = 2;
-		} else if (smm == RP_SCREENMODE_SCALE_3X) {
-			m = 3;
-		} else if (smm == RP_SCREENMODE_SCALE_4X) {
-			m = 4;
+		if (fs == 2) {
+			p->win32_rtgscaleifsmall = true;
+		} else {
+			p->win32_rtgscaleifsmall = false;
+			if (smm == RP_SCREENMODE_SCALE_2X) {
+				m = 2;
+			} else if (smm == RP_SCREENMODE_SCALE_3X) {
+				m = 3;
+			} else if (smm == RP_SCREENMODE_SCALE_4X) {
+				m = 4;
+			}
 		}
 		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = 1000 / m;
 		p->gfx_size_win.width = picasso_vidinfo.width * m;
 		p->gfx_size_win.height = picasso_vidinfo.height * m;
+
+		hmult = m;
+		vmult = m;
 
 	} else {
 		if (stretch) {
@@ -872,19 +882,24 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		}
 	}
 
-	if (log_rp & 2)
+	if (log_rp & 2) {
 		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%.1f VM=%.1f\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
-
-	if (log_rp & 2)
-		write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
-			p->gfx_size_win.width, p->gfx_size_win.height,
-			p->gfx_size_fs.width, p->gfx_size_fs.height,
-			p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
-			p->gfx_xcenter_pos, p->gfx_ycenter_pos,
-			p->gfx_xcenter_size, p->gfx_ycenter_size,
-			p->gfx_filter_autoscale, p->gfx_filter_aspect, p->gfx_filter_keep_aspect);
-
+		if (WIN32GFX_IsPicassoScreen ()) {
+			write_log (_T("RTG WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d\n"),
+				p->gfx_size_win.width, p->gfx_size_win.height,
+				p->gfx_size_fs.width, p->gfx_size_fs.height,
+				p->rtg_horiz_zoom_mult, p->rtg_vert_zoom_mult);
+		} else {
+			write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
+				p->gfx_size_win.width, p->gfx_size_win.height,
+				p->gfx_size_fs.width, p->gfx_size_fs.height,
+				p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
+				p->gfx_xcenter_pos, p->gfx_ycenter_pos,
+				p->gfx_xcenter_size, p->gfx_ycenter_size,
+				p->gfx_filter_autoscale, p->gfx_filter_aspect, p->gfx_filter_keep_aspect);
+		}
+	}
 
 	updatewinfsmode (p);
 	hwndset = 0;
@@ -1164,7 +1179,7 @@ static void sendenum (void)
 			desc.dwInputDeviceFeatures = RP_FEATURE_INPUTDEVICE_JOYSTICK;
 			if (cnt == 0)
 				desc.dwInputDeviceFeatures |= RP_FEATURE_INPUTDEVICE_JOYPAD;
-			if (log_rp & 1)
+			if (log_rp & 2)
 				write_log(_T("Enum%d: '%s' '%s'\n"), cnt, desc.szHostInputName, desc.szHostInputID);
 			RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 			cnt++;
@@ -1181,11 +1196,25 @@ static void sendenum (void)
 	RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	cnt = 0;
 	while ((cnt = rp_input_enum (&desc, cnt)) >= 0) {
-		if (log_rp & 1)
+		if (log_rp & 2)
 			write_log(_T("Enum%d: '%s' '%s' (%x/%x)\n"),
 				cnt, desc.szHostInputName, desc.szHostInputID, desc.dwHostInputVendorID, desc.dwHostInputProductID);
 		RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
 	}
+	memset (&desc, 0, sizeof desc);
+	desc.dwHostInputType = RP_HOSTINPUT_END;
+	RPSendMessagex (RP_IPC_TO_HOST_INPUTDEVICE, 0, 0, &desc, sizeof desc, &guestinfo, NULL);
+}
+
+void rp_enumdevices (void)
+{
+	if (!cando ())
+		return;
+	sendenum ();
+	rp_input_change (0);
+	rp_input_change (1);
+	rp_input_change (2);
+	rp_input_change (3);
 }
 
 static void sendfeatures (void)
@@ -1208,6 +1237,7 @@ static void sendfeatures (void)
 	feat |= RP_FEATURE_INPUTDEVICE_JOYPAD;
 	feat |= RP_FEATURE_INPUTDEVICE_ANALOGSTICK;
 	feat |= RP_FEATURE_INPUTDEVICE_LIGHTPEN;
+	write_log (_T("RP_IPC_TO_HOST_FEATURES=%x %d\n"), feat, WIN32GFX_IsPicassoScreen());
 	RPSendMessagex (RP_IPC_TO_HOST_FEATURES, feat, 0, NULL, 0, &guestinfo, NULL);
 }
 

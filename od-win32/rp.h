@@ -40,3 +40,5 @@ extern void rp_cd_activity (int, int);
 void rp_floppy_device_enable (int num, bool enabled);
 void rp_hd_device_enable (int num, bool enabled);
 void rp_cd_device_enable (int num, bool enabled);
+void rp_enumdevices (void);
+

@@ -1128,6 +1128,7 @@ static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hid
 	th->last_track = toc->LastTrack;
 	th->tracks = th->last_track - th->first_track + 1;
 	th->points = th->tracks + 3;
+	th->firstaddress = 0;
 	th->lastaddress = msf2lsn ((toc->TrackData[toc->LastTrack].Address[1] << 16) | (toc->TrackData[toc->LastTrack].Address[2] << 8) |
 		(toc->TrackData[toc->LastTrack].Address[3] << 0));
 
@@ -1454,7 +1455,7 @@ static int ioctl_ismedia (int unitnum, int quick)
 	return ismedia (ciw, unitnum);
 }
 
-static struct device_info *info_device (int unitnum, struct device_info *di, int quick)
+static struct device_info *info_device (int unitnum, struct device_info *di, int quick, int session)
 {
 	struct dev_info_ioctl *ciw = unitcheck (unitnum);
 	if (!ciw)

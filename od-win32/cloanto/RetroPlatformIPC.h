@@ -24,6 +24,9 @@
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
 
+// Legacy Compatibility (pre-3.0)
+#define RP_NO_LEGACY	// We don't need legacy #defines
+
 
 // ****************************************************************************
 //  Guest-to-Host Messages
@@ -109,7 +112,8 @@
 #define RP_FEATURE_INPUTDEVICE_TABLET	    0x00400000 // supports emulation of pen tablet
 #define RP_FEATURE_TURBO_FLOPPY    			0x00800000 // turbo floppy functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 #define RP_FEATURE_TURBO_TAPE      			0x01000000 // turbo tape functionality is available (see RP_IPC_TO_GUEST_TURBO message)
-
+#define RP_FEATURE_MEMORY_BASIC   		    0x02000000 // Memory I/O basic features: Read, Write
+#define RP_FEATURE_MEMORY_ADVANCED		    0x04000000 // Memory I/O advanced features: Watch, Find, Alert, Freeze, Lock, Unlock, Off (must set both flags if full set is supported!)
 
 typedef struct RPScreenMode
 {
@@ -190,7 +194,7 @@ typedef struct RPScreenMode
 //
 // Full-window Examples
 //
-// Example 1: No RP_SCREENMODE_SCALING_SUBPIXEL, no RP_SCREENMODE_SCALING_STRETCH: maximum integer scaling (can have black bars on up to four sides)
+// Example 1: No RP_SCREENMODE_SCALING_SUBPIXEL, no RP_SCREENMODE_SCALING_STRETCH: maximum integer scaling (can have black bars on up to four sides), e.g. 1X, 2X, 3X, etc.
 //
 // Example 2: RP_SCREENMODE_SCALING_SUBPIXEL, no RP_SCREENMODE_SCALING_STRETCH: maximum "soft" scaling keeping ratio (can have black bars on two sides)
 //
@@ -309,7 +313,8 @@ typedef struct RPDeviceContent
 #define RP_HOSTINPUT_ARCADE_LEFT    6 // [LEGACY] Left part of arcade dual joystick input device ("player 1")
 #define RP_HOSTINPUT_ARCADE_RIGHT   7 // [LEGACY] Right part of arcade dual joystick input device ("player 2")
 #define RP_HOSTINPUT_KEYBOARD       8 // Keyboard Layout (e.g. "KeyboardJoystick Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x4C Autofire=0x38 Fire2=0x52 Rewind=0xB5 Play=0x37 FastForward=0x4A Green=0x47 Yellow=0x49 Red=0x4F Blue=0x51" set in szContent); introduced in RP API 3.3 to replace other keyboard layout modes
-#define RP_HOSTINPUT_COUNT          9 // total number of device types
+#define RP_HOSTINPUT_END            9 // "End of device enumeration" (dummy device used to terminate an input device set that began with the first input device)
+#define RP_HOSTINPUT_COUNT         10 // total number of device types
 
 // Host Input Device Flags
 #define RP_HOSTINPUTFLAGS_MOUSE_RAW     0x00000000  // Individual raw mouse device with no acceleration (multi-mouse warning: RAW and SMART devices cannot be used simultaneously)
@@ -390,8 +395,9 @@ typedef struct RPDeviceContent
 #define RP_HOSTVERSION_BUILD(ver)    ((ver) & 0x3FF)
 #define RP_MAKE_HOSTVERSION(major,minor,build) ((LPARAM) (((LPARAM)((major) & 0xFFF)<<20) | ((LPARAM)((minor) & 0x3FF)<<10) | ((LPARAM)((build) & 0x3FF))))
 
-#if 0
+
 // Legacy Compatibility (pre-3.0)
+#ifndef RP_NO_LEGACY
 #define RP_IPC_TO_HOST_DEVICECONTENT_LEGACY   (WM_APP + 16)
 #define RP_IPC_TO_GUEST_DEVICECONTENT_LEGACY   (WM_APP + 205)
 #define RPLATFORM_API_VER RETROPLATFORM_API_VER
@@ -479,6 +485,7 @@ typedef struct RPDeviceContent_Legacy
 #define RPIPCHM_GUESTAPIVERSION RP_IPC_TO_GUEST_GUESTAPIVERSION
 #define RPIPCHM_DEVICECONTENT RP_IPC_TO_GUEST_DEVICECONTENT
 #define RP_FEATURE_TURBO RP_FEATURE_TURBO_CPU
-// End of Legacy Compatibility
 #endif
+// End of Legacy Compatibility
+
 #endif // __CLOANTO_RETROPLATFORMIPC_H__
