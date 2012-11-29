@@ -1,9 +1,15 @@
 
 - restore only single input target to default.
 
+Beta 28 RC4:
+
+- uaescsi.device SCSI sense data is now returned correctly (For example MakeCD shows error messages that make sense now)
+- AHI channel swap also swaps AHI recording channels.
+- BMP screenshots were corrupted.
+
 Beta 27 RC3:
 
-- Modulated volume value wasn't range checked, caused noise if volume word was not between 0 to 63. (Platou title music)
+- Modulated volume value wasn't range checked, caused noise if volume word was not between 0 to 64. (Platou title music)
 - Fixed SPTI mode CDFS crash.
 - CDFS didn't correctly remove hidden trailing ;1's in some Joliet CD filenames.
 - SPTI standard CD access: Use READ (10), not READ CD when requesting standard 2048 byte user sectors, not all BD/DVD drives support READ CD when reading DVDs.

@@ -48,7 +48,6 @@ static uae_u8 soundneutral;
 
 static LPSTR lpData,sndptrout;
 extern uae_u32 chipmem_mask;
-unsigned int *sndbufrecpt;
 static uae_u8 *ahisndbuffer, *sndrecbuffer;
 static int ahisndbufsize, *ahisndbufpt, ahitweak;;
 int ahi_pollrate = 40;
@@ -527,10 +526,19 @@ uae_u32 REGPARAM2 ahi_demux (TrapContext *context)
 			else
 				cap_pos = 0;
 			addr = m68k_areg (regs, 0);
-			sndbufrecpt = (unsigned int*)pos1;
+			uae_u16 *sndbufrecpt = (uae_u16*)pos1;
 			t /= 4;
 			for (i = 0; i < t; i++) {
-				put_long (addr, *sndbufrecpt++);
+				uae_u32 s1, s2;
+				if (currprefs.sound_stereo_swap_ahi) {
+					s1 = sndbufrecpt[1];
+					s2 = sndbufrecpt[0];
+				} else {
+					s1 = sndbufrecpt[0];
+					s2 = sndbufrecpt[1];
+				}
+				sndbufrecpt += 2;
+				put_long (addr, (s1 << 16) | s2);
 				addr += 4;
 			}
 			t *= 4;

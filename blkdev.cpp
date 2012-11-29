@@ -1199,8 +1199,9 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	case 0x15: // MODE SELECT(6)
 	{
 		uae_u8 *p;
+		bool mode10 = cmdbuf[0] == 0x55;
 		p = scsi_data + 4;
-		if (cmdbuf[0] == 0x55)
+		if (mode10)
 			p += 4;
 		int pcode = p[0] & 0x3f;
 		if (pcode == 14) { // CD audio control
@@ -1209,6 +1210,8 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			sys_command_cd_volume (unitnum, vol_left, vol_right);
 			scsi_len = 0;
 		} else {
+			if (log_scsiemu)
+				write_log (_T("MODE SELECT PC=%d not supported\n"), pcode);
 			goto errreq;
 		}
 	}
@@ -1217,6 +1220,9 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	case 0x1a: /* MODE SENSE(6) */
 	{
 		uae_u8 *p;
+		bool pcodeloop = false;
+		bool sense10 = cmdbuf[0] == 0x5a;
+		int psize, totalsize, bdsize;
 		int pc = cmdbuf[2] >> 6;
 		int pcode = cmdbuf[2] & 0x3f;
 		int dbd = cmdbuf[1] & 8;
@@ -1225,9 +1231,8 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		if (log_scsiemu)
 			write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
 		p = r;
-		if (cmdbuf[0] == 0x5a) {
-			p[0] = 8 - 1;
-			p[1] = 0;
+		if (sense10) {
+			totalsize = 8 - 2;
 			p[2] = 0;
 			p[3] = 0;
 			p[4] = 0;
@@ -1236,70 +1241,101 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			p[7] = 0;
 			p += 8;
 		} else {
-			p[0] = 4 - 1;
+			totalsize = 4 - 1;
 			p[1] = 0;
 			p[2] = 0;
 			p[3] = 0;
 			p += 4;
 		}
+		bdsize = 0;
 		if (!dbd) {
 			if (nodisk (&di))
 				goto nodisk;
 			uae_u32 blocks = di.sectorspertrack * di.cylinders * di.trackspercylinder;
-			p[-1] = 8;
+			bdsize = 8;
 			wl(p + 0, blocks);
 			wl(p + 4, di.bytespersector);
 			p += 8;
 		}
-		if (pcode == 0) {
-			p[0] = 0;
-			p[1] = 0;
-			p[2] = 0x20;
-			p[3] = 0;
-			r[0] += 4;
-		} else if (pcode == 3) {
-			if (nodisk (&di))
-				goto nodisk;
-			p[0] = 3;
-			p[1] = 24;
-			p[3] = 1;
-			p[10] = di.trackspercylinder >> 8;
-			p[11] = di.trackspercylinder;
-			p[12] = di.bytespersector >> 8;
-			p[13] = di.bytespersector;
-			p[15] = 1; // interleave
-			p[20] = 0x80;
-			r[0] += p[1];
-		} else if (pcode == 4) {
-			if (nodisk (&di))
-				goto nodisk;
-			p[0] = 4;
-			wl(p + 1, di.cylinders);
-			p[1] = 24;
-			p[5] = 1;
-			wl(p + 13, di.cylinders);
-			ww(p + 20, 0);
-			r[0] += p[1];
-		} else if (pcode == 14) { // CD audio control
-			uae_u32 vol = sys_command_cd_volume (unitnum, 0xffff, 0xffff);
-			p[0] = 0x0e;
-			p[1] = 0x0e;
-			p[2] = 1;
-			p[3] = 4;
-			p[6] = 0;
-			p[7] = 75;
-			p[8] = 1;
-			p[9] = pc == 0 ? (vol >> 7) & 0xff : 0xff;
-			p[10] = 2;
-			p[11] = pc == 0 ? (vol >> (16 + 7)) & 0xff : 0xff;
-			r[0] += p[1];
-		} else {
-			goto err;
+		if (pcode == 0x3f) {
+			pcode = 1; // page = 0 must be last
+			pcodeloop = true;
 		}
-		r[0] += r[3];
-		scsi_len = lr = r[0] + 1;
+		for (;;) {
+			psize = 0;
+			if (pcode == 0) {
+				p[0] = 0;
+				p[1] = 0;
+				p[2] = 0x20;
+				p[3] = 0;
+				psize = 4;
+			} else if (pcode == 3) {
+				if (nodisk (&di))
+					goto nodisk;
+				p[0] = 3;
+				p[1] = 24;
+				p[3] = 1;
+				p[10] = di.trackspercylinder >> 8;
+				p[11] = di.trackspercylinder;
+				p[12] = di.bytespersector >> 8;
+				p[13] = di.bytespersector;
+				p[15] = 1; // interleave
+				p[20] = 0x80;
+				psize = p[1];
+			} else if (pcode == 4) {
+				if (nodisk (&di))
+					goto nodisk;
+				p[0] = 4;
+				wl(p + 1, di.cylinders);
+				p[1] = 24;
+				p[5] = 1;
+				wl(p + 13, di.cylinders);
+				ww(p + 20, 0);
+				psize = p[1];
+			} else if (pcode == 14) { // CD audio control
+				uae_u32 vol = sys_command_cd_volume (unitnum, 0xffff, 0xffff);
+				p[0] = 0x0e;
+				p[1] = 0x0e;
+				p[2] = 1;
+				p[3] = 4;
+				p[6] = 0;
+				p[7] = 75;
+				p[8] = 1;
+				p[9] = pc == 0 ? (vol >> 7) & 0xff : 0xff;
+				p[10] = 2;
+				p[11] = pc == 0 ? (vol >> (16 + 7)) & 0xff : 0xff;
+				psize = p[1];
+			} else {
+				if (!pcodeloop)
+					goto err;
+			}
+			totalsize += psize;
+			p += psize;
+			if (!pcodeloop)
+				break;
+			if (pcode == 0)
+				break;
+			pcode++;
+			if (pcode == 0x3f)
+				pcode = 0;
+		}
+		if (sense10) {
+			totalsize += bdsize;
+			r[6] = bdsize >> 8;
+			r[7] = bdsize & 0xff;
+			r[0] = totalsize >> 8;
+			r[1] = totalsize & 0xff;
+		} else {
+			totalsize += bdsize;
+			r[3] = bdsize & 0xff;
+			r[0] = totalsize & 0xff;
+		}
+		scsi_len = lr = totalsize + 1;
 	}
 	break;
+	case 0x01: /* REZERO UNIT */
+		scsi_len = 0;
+		break;
 	case 0x1d: /* SEND DIAGNOSTICS */
 		scsi_len = 0;
 		break;
@@ -1665,28 +1701,28 @@ readprot:
 		s[0] = 0x70;
 		s[2] = 7; /* DATA PROTECT */
 		s[12] = 0x27; /* WRITE PROTECTED */
-		ls = 12;
+		ls = 0x12;
 		break;
 nodisk:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 2; /* NOT READY */
 		s[12] = 0x3A; /* MEDIUM NOT PRESENT */
-		ls = 12;
+		ls = 0x12;
 		break;
 readerr:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 2; /* NOT READY */
 		s[12] = 0x11; /* UNRECOVERED READ ERROR */
-		ls = 12;
+		ls = 0x12;
 		break;
 notdatatrack:
 		status = 2;
 		s[0] = 0x70;
 		s[2] = 5;
 		s[12] = 0x64; /* ILLEGAL MODE FOR THIS TRACK */
-		ls = 12;
+		ls = 0x12;
 		break;
 
 	default:
@@ -1698,13 +1734,17 @@ errreq:
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
-		ls = 12;
+		ls = 0x12;
 		break;
 	}
 end:
 	*data_len = scsi_len;
 	*reply_len = lr;
 	*sense_len = ls;
+	if (ls) {
+		//s[0] |= 0x80;
+		s[7] = ls - 7; // additional sense length
+	}
 	if (cmdbuf[0] && log_scsiemu)
 		write_log (_T("-> DATAOUT=%d ST=%d SENSELEN=%d\n"), scsi_len, status, ls);
 	return status;
@@ -1712,7 +1752,6 @@ end:
 
 static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 {
-	int sactual = 0;
 	int io_error = 0;
 	uae_u8 *scsi_datap, *scsi_datap_org;
 	uae_u32 scsi_cmd_len_orig = as->cmd_len;
@@ -1732,7 +1771,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	as->cmdactual = as->status != 0 ? 0 : as->cmd_len; /* fake scsi_CmdActual */
 	if (as->status) {
 		io_error = IOERR_BadStatus;
-		as->sense_len = senselen;
+		as->sactual = senselen;
 		as->actual = 0; /* scsi_Actual */
 	} else {
 		int i;
@@ -1743,7 +1782,6 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 		}
 		for (i = 0; i < as->sense_len; i++)
 			as->sensedata[i] = 0;
-		sactual = 0;
 		if (datalen < 0) {
 			io_error = IOERR_NotSpecified;
 			as->actual = 0; /* scsi_Actual */
@@ -1753,7 +1791,6 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 			as->actual = as->len; /* scsi_Actual */
 		}
 	}
-	as->sactual = sactual;
 
 	return io_error;
 }
@@ -1775,7 +1812,7 @@ int sys_command_scsi_direct_native (int unitnum, struct amigascsi *as)
 int sys_command_scsi_direct (int unitnum, uaecptr acmd)
 {
 	int ret, i;
-	struct amigascsi as;
+	struct amigascsi as = { 0 };
 	uaecptr ap;
 	addrbank *bank;
 
@@ -1805,10 +1842,11 @@ int sys_command_scsi_direct (int unitnum, uaecptr acmd)
 	put_byte (acmd + 21, as.status);
 	put_word (acmd + 28, as.sactual);
 
-	ap = get_long (acmd + 22);
-	for (i = 0; i < as.sactual; i++)
-		put_byte (ap, as.sensedata[i]);
-
+	if (as.flags & (2 | 4)) { // autosense
+		ap = get_long (acmd + 22);
+		for (i = 0; i < as.sactual && i < as.sense_len; i++)
+			put_byte (ap + i, as.sensedata[i]);
+	}
 	return ret;
 }
 
