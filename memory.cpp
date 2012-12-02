@@ -2156,24 +2156,26 @@ static void allocate_memory (void)
 	}
 
 	if (allocated_bogomem != currprefs.bogomem_size) {
-		if (bogomemory_allocated)
-			mapped_free (bogomemory);
-		bogomemory = 0;
-		bogomemory_allocated = 0;
+		if (!(allocated_bogomem == 0x200000 && currprefs.bogomem_size == 0x180000)) {
+			if (bogomemory_allocated)
+				mapped_free (bogomemory);
+			bogomemory = 0;
+			bogomemory_allocated = 0;
 
-		allocated_bogomem = currprefs.bogomem_size;
-		if (allocated_bogomem >= 0x180000)
-			allocated_bogomem = 0x200000;
-		bogomem_mask = allocated_bogomem - 1;
+			allocated_bogomem = currprefs.bogomem_size;
+			if (allocated_bogomem >= 0x180000)
+				allocated_bogomem = 0x200000;
+			bogomem_mask = allocated_bogomem - 1;
 
-		if (allocated_bogomem) {
-			bogomemory = mapped_malloc (allocated_bogomem, _T("bogo"));
-			if (bogomemory == 0) {
-				write_log (_T("Out of memory for bogomem.\n"));
-				allocated_bogomem = 0;
+			if (allocated_bogomem) {
+				bogomemory = mapped_malloc (allocated_bogomem, _T("bogo"));
+				if (bogomemory == 0) {
+					write_log (_T("Out of memory for bogomem.\n"));
+					allocated_bogomem = 0;
+				}
 			}
+			need_hardreset = true;
 		}
-		need_hardreset = true;
 	}
 	if (allocated_a3000lmem != currprefs.mbresmem_low_size) {
 		if (a3000lmemory)

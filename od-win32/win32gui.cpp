@@ -8340,12 +8340,12 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier);
 
-	ew (hDlg, IDC_FPU1, TRUE);
-	ew (hDlg, IDC_FPU2, TRUE);
+	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040);
+	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040);
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
 
-	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG(-9, 0) : MAKELONG (-9, 50));
+	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETRANGE, TRUE, workprefs.m68k_speed < 0 ? MAKELONG (-9, 0) : MAKELONG (-9, 50));
 	SendDlgItemMessage (hDlg, IDC_SPEED, TBM_SETPAGESIZE, 0, 1);
 }
 

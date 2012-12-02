@@ -1,5 +1,5 @@
 !define PRODUCT_NAME "WinUAE"
-!define PRODUCT_VERSION "2.4.1"
+!define PRODUCT_VERSION "2.5.0"
 !define PRODUCT_PUBLISHER "Arabuusimiehet"
 !define PRODUCT_WEB_SITE "http://www.winuae.net/"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\winuae.exe"
@@ -97,8 +97,8 @@ Section "Host-Configurations" secExConfig
   SetOutPath "$INSTDIR\Configurations\Host"
   SetOverwrite ifnewer
  ;-- Copy Example Host Configurations
-  File "${DISTPATH}\Configurations\Host\Fullscreen (640x480).uae"
   File "${DISTPATH}\Configurations\Host\Fullscreen (800x600).uae"
+  File "${DISTPATH}\Configurations\Host\Fullscreen PAL VSync.uae"
   File "${DISTPATH}\Configurations\Host\FullwindowD3D.uae"
   File "${DISTPATH}\Configurations\Host\Windowed.uae"
 SectionEnd
@@ -268,8 +268,8 @@ Section Uninstall
   Delete "$INSTDIR\Amiga Programs\sources\uae-configuration.c"
   Delete "$INSTDIR\Amiga Programs\sources\picasso96fix.lha"
   Delete "$INSTDIR\Amiga Programs\sources.zip"
-  Delete "$INSTDIR\Configurations\Host\Fullscreen (640x480).uae"
   Delete "$INSTDIR\Configurations\Host\Fullscreen (800x600).uae"
+  Delete "$INSTDIR\Configurations\Host\Fullscreen PAL VSync.uae"
   Delete "$INSTDIR\Configurations\Host\FullwindowD3D.uae"
   Delete "$INSTDIR\Configurations\Host\Windowed.uae"
   Delete "$INSTDIR\winuaebootlog.txt"
