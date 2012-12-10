@@ -970,15 +970,15 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("keyboard_leds"), _T("numlock:%s,capslock:%s,scrolllock:%s"),
 		kbleds[p->keyboard_leds[0]], kbleds[p->keyboard_leds[1]], kbleds[p->keyboard_leds[2]]);
 	if (p->chipset_mask & CSMASK_AGA)
-		cfgfile_dwrite (f, _T("chipset"),_T("aga"));
+		cfgfile_write (f, _T("chipset"),_T("aga"));
 	else if ((p->chipset_mask & CSMASK_ECS_AGNUS) && (p->chipset_mask & CSMASK_ECS_DENISE))
-		cfgfile_dwrite (f, _T("chipset"),_T("ecs"));
+		cfgfile_write (f, _T("chipset"),_T("ecs"));
 	else if (p->chipset_mask & CSMASK_ECS_AGNUS)
-		cfgfile_dwrite (f, _T("chipset"),_T("ecs_agnus"));
+		cfgfile_write (f, _T("chipset"),_T("ecs_agnus"));
 	else if (p->chipset_mask & CSMASK_ECS_DENISE)
-		cfgfile_dwrite (f, _T("chipset"),_T("ecs_denise"));
+		cfgfile_write (f, _T("chipset"),_T("ecs_denise"));
 	else
-		cfgfile_dwrite (f, _T("chipset"), _T("ocs"));
+		cfgfile_write (f, _T("chipset"), _T("ocs"));
 	if (p->chipset_refreshrate > 0)
 		cfgfile_write (f, _T("chipset_refreshrate"), _T("%f"), p->chipset_refreshrate);
 

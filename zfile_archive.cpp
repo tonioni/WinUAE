@@ -308,10 +308,10 @@ struct zvolume *archive_directory_tar (struct zfile *z)
 			memset (&zai, 0, sizeof zai);
 			zai.name = au (name);
 			zai.size = size;
-			zai.t = _strtoui64 ((char*)block + 136, NULL, 8);
-			zai.t += _timezone;
+			zai.tv.tv_sec = _strtoui64 ((char*)block + 136, NULL, 8);
+			zai.tv.tv_sec += _timezone;
 			if (_daylight)
-				zai.t -= 1 * 60 * 60;
+				zai.tv.tv_sec -= 1 * 60 * 60;
 			if (zai.name[_tcslen (zai.name) - 1] == '/') {
 				zn = zvolume_adddir_abs (zv, &zai);
 			} else {
@@ -379,7 +379,7 @@ struct zvolume *archive_directory_zip (struct zfile *z)
 		t = fromdostime (dd);
 		memset (&zai, 0, sizeof zai);
 		zai.name = filename_inzip;
-		zai.t = t;
+		zai.tv.tv_sec = t;
 		zai.flags = -1;
 		c = filename_inzip[_tcslen (filename_inzip) - 1];
 		if (c != '/' && c != '\\') {
@@ -599,14 +599,13 @@ struct zvolume *archive_directory_7z (struct zfile *z)
 		zai.name = name;
 		zai.flags = f->AttribDefined ? f->Attrib : -1;
 		zai.size = f->Size;
-		zai.t = 0;
 		if (f->MTimeDefined) {
 			uae_u64 t = (((uae_u64)f->MTime.High) << 32) | f->MTime.Low;
 			if (t >= EPOCH_DIFF) {
-				zai.t = (t - EPOCH_DIFF) / RATE_DIFF;
-				zai.t -= _timezone;
+				zai.tv.tv_sec = (t - EPOCH_DIFF) / RATE_DIFF;
+				zai.tv.tv_sec -= _timezone;
 				if (_daylight)
-					zai.t += 1 * 60 * 60;
+					zai.tv.tv_sec += 1 * 60 * 60;
 			}
 		}
 		if (!f->IsDir) {
@@ -757,7 +756,7 @@ struct zvolume *archive_directory_rar (struct zfile *z)
 		zai.name = rc->HeaderData.FileNameW;
 		zai.size = rc->HeaderData.UnpSize;
 		zai.flags = -1;
-		zai.t = fromdostime (rc->HeaderData.FileTime);
+		zai.tv.tv_sec = fromdostime (rc->HeaderData.FileTime);
 		zn = zvolume_addfile_abs (zv, &zai);
 		zn->offset = cnt++;
 		pRARProcessFile (rc->hArcData, RAR_SKIP, NULL, NULL);
@@ -1042,7 +1041,6 @@ struct zvolume *archive_directory_plain (struct zfile *z)
 	zai.flags = -1;
 	zfile_fseek(z, 0, SEEK_END);
 	zai.size = zfile_ftell (z);
-	zai.t = 
 	zfile_fseek(z, 0, SEEK_SET);
 	zfile_fread(id, sizeof id, 1, z);
 	zfile_fseek(z, 0, SEEK_SET);
@@ -1236,7 +1234,7 @@ static void recurseadf (struct znode *zn, int root, TCHAR *name)
 				size = 0;
 			zai.size = size;
 			zai.flags = gl (adf, bs - 48 * 4);
-			zai.t = put_time (gl (adf, bs - 23 * 4), gl (adf, bs - 22 * 4),gl (adf, bs - 21 * 4));
+			amiga_to_timeval (&zai.tv, gl (adf, bs - 23 * 4), gl (adf, bs - 22 * 4),gl (adf, bs - 21 * 4));
 			if (secondary == -3) {
 				struct znode *znnew = zvolume_addfile_abs (zv, &zai);
 				znnew->offset = block;
@@ -1304,9 +1302,9 @@ static void recursesfs (struct znode *zn, int root, TCHAR *name, int sfs2)
 			_tcscat (name2, fname);
 			zai.name = name2;
 			if (sfs2)
-				zai.t = glx (p + 22) - diff2;
+				zai.tv.tv_sec = glx (p + 22) - diff2;
 			else
-				zai.t = glx (p + 20) - diff;
+				zai.tv.tv_sec = glx (p + 20) - diff;
 			if (p[sfs2 ? 26 : 24] & 0x80) { // dir
 				struct znode *znnew = zvolume_adddir_abs (zv, &zai);
 				int newblock = glx (p + 16);
@@ -1961,7 +1959,7 @@ static void fatdirectory (struct zfile *z, struct zvolume *zv, TCHAR *name, int 
 		_tcscat (name2, fname);
 
 		zai.name = name2;
-		zai.t = fat_time_fat2unix (buf[0x16] | (buf[0x17] << 8), buf[0x18] | (buf[0x19] << 8), 1);
+		zai.tv.tv_sec = fat_time_fat2unix (buf[0x16] | (buf[0x17] << 8), buf[0x18] | (buf[0x19] << 8), 1);
 		if (attr & (16 | 8)) {
 			int nextblock, cluster;
 			nextblock = dataregion + (startcluster - 2) * sectorspercluster;

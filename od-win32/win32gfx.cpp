@@ -89,7 +89,7 @@ struct winuae_currentmode {
 	int vsync;
 };
 
-struct MultiDisplay Displays[MAX_DISPLAYS];
+struct MultiDisplay Displays[MAX_DISPLAYS + 1];
 
 static struct winuae_currentmode currentmodestruct;
 static int screen_is_initialized;
@@ -727,7 +727,7 @@ static void getd3dmonitornames (void)
 	d3d->Release ();
 }
 
-void enumeratedisplays (void)
+static bool enumeratedisplays2 (bool selectall)
 {
 	struct MultiDisplay *md = Displays;
 	int adapterindex = 0;
@@ -736,10 +736,12 @@ void enumeratedisplays (void)
 	while (EnumDisplayDevices (NULL, adapterindex, &add, 0)) {
 
 		adapterindex++;
-		if (!(add.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
-			continue;
-		if (add.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
-			continue;
+		if (!selectall) {
+			if (!(add.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
+				continue;
+			if (add.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
+				continue;
+		}
 		if (md - Displays >= MAX_DISPLAYS)
 			break;
 
@@ -750,10 +752,12 @@ void enumeratedisplays (void)
 			monitorindex++;
 			if (md - Displays >= MAX_DISPLAYS)
 				break;
-			if (!(mdd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
-				continue;
-			if (mdd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
-				continue;
+			if (!selectall) {
+				if (!(mdd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP))
+					continue;
+				if (mdd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER)
+					continue;
+			}
 			md->adaptername = my_strdup_trim (add.DeviceString);
 			md->adapterid = my_strdup (add.DeviceName);
 			md->adapterkey = my_strdup (add.DeviceID);
@@ -764,7 +768,7 @@ void enumeratedisplays (void)
 			md++;
 		}
 		if (md - Displays >= MAX_DISPLAYS)
-			return;
+			return true;
 		if (monitorindex == 0) {
 			md->adaptername = my_strdup_trim (add.DeviceString);
 			md->adapterid = my_strdup (add.DeviceName);
@@ -772,11 +776,26 @@ void enumeratedisplays (void)
 			md->monitorname = my_strdup_trim (add.DeviceString);
 			md->monitorid = my_strdup (add.DeviceKey);
 			md->primary = true;
+			md++;
 		}
 	}
+	if (md == Displays)
+		return false;
 	EnumDisplayMonitors (NULL, NULL, monitorEnumProc, NULL);
+	md = Displays;
+	while (md->monitorname) {
+		if (!md->fullname)
+			md->fullname = my_strdup (md->adapterid);
+		md++;
+	}
 	getd3dmonitornames ();
 	//sortmonitors ();
+	return true;
+}
+void enumeratedisplays (void)
+{
+	if (!enumeratedisplays2 (false))
+		enumeratedisplays2(true);
 }
 
 void sortdisplays (void)
@@ -1564,12 +1583,54 @@ static int open_windows (int full)
 	return ret;
 }
 
+static void reopen_gfx (void)
+{
+	open_windows (0);
+
+	if (isvsync () < 0)
+		vblank_calibrate (0, false);
+
+	if (isfullscreen () <= 0)
+		DirectDraw_FillPrimary ();
+}
+
+static int getstatuswindowheight (void)
+{
+	int def = GetSystemMetrics (SM_CYMENU) + 3;
+	WINDOWINFO wi;
+	HWND h = CreateWindowEx (
+		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
+		0, 0, 0, 0, hHiddenWnd, (HMENU) 1, hInst, NULL);
+	if (!h)
+		return def;
+	wi.cbSize = sizeof wi;
+	if (!GetWindowInfo (h, &wi))
+		return def;
+	DestroyWindow (h);
+	return wi.rcWindow.bottom - wi.rcWindow.top;
+}
+
+void WIN32GFX_DisplayChangeRequested (void)
+{
+	display_change_requested = 1;
+}
+
 int check_prefs_changed_gfx (void)
 {
 	int c = 0;
 
-	if (!config_changed)
+	if (!config_changed && !display_change_requested)
 		return 0;
+
+	if (currprefs.win32_statusbar != changed_prefs.win32_statusbar) {
+		if ((currprefs.win32_statusbar == 0 && changed_prefs.win32_statusbar > 0)) {
+			c |= 32;
+		} else if ((currprefs.win32_statusbar > 0 && changed_prefs.win32_statusbar == 0)) {
+			c |= 32;
+		} else {
+			c |= 512;
+		}
+	}
 
 	c |= currprefs.gfx_size_fs.width != changed_prefs.gfx_size_fs.width ? 16 : 0;
 	c |= currprefs.gfx_size_fs.height != changed_prefs.gfx_size_fs.height ? 16 : 0;
@@ -1641,12 +1702,12 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.win32_nonotificationicon != changed_prefs.win32_nonotificationicon ? 32 : 0;
 	c |= currprefs.win32_borderless != changed_prefs.win32_borderless ? 32 : 0;
 	c |= currprefs.win32_blankmonitors != changed_prefs.win32_blankmonitors ? 32 : 0;
-	c |= currprefs.win32_statusbar != changed_prefs.win32_statusbar ? 32 : 0;
 	c |= currprefs.win32_rtgmatchdepth != changed_prefs.win32_rtgmatchdepth ? 2 : 0;
 	c |= currprefs.win32_rtgscaleifsmall != changed_prefs.win32_rtgscaleifsmall ? (2 | 8 | 64) : 0;
 	c |= currprefs.win32_rtgallowscaling != changed_prefs.win32_rtgallowscaling ? (2 | 8 | 64) : 0;
 	c |= currprefs.win32_rtgscaleaspectratio != changed_prefs.win32_rtgscaleaspectratio ? (8 | 64) : 0;
 	c |= currprefs.win32_rtgvblankrate != changed_prefs.win32_rtgvblankrate ? 8 : 0;
+
 
 	if (display_change_requested || c)
 	{
@@ -1747,6 +1808,10 @@ int check_prefs_changed_gfx (void)
 				drawing_init ();
 				S2X_reset ();
 			}
+		}
+		if (c & 512) {
+			reopen_gfx ();
+			graphics_mode_changed = 1;
 		}
 		if ((c & 16) || ((c & 8) && keepfsmode)) {
 			if (reopen (c & 2, unacquired == false)) {
@@ -2085,13 +2150,7 @@ static int reopen (int full, bool unacquire)
 		inputdevice_unacquire ();
 	}
 
-	open_windows (0);
-
-	if (isvsync () < 0)
-		vblank_calibrate (0, false);
-
-	if (isfullscreen () <= 0)
-		DirectDraw_FillPrimary ();
+	reopen_gfx ();
 
 	return 0;
 }
@@ -3454,11 +3513,13 @@ static int create_windows_2 (void)
 	DWORD flags = 0;
 	int borderless = currprefs.win32_borderless;
 	DWORD style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	int sbheight = currprefs.win32_statusbar == 0 ? 0 : GetSystemMetrics (SM_CYMENU) + 3;
 	int cyborder = GetSystemMetrics (SM_CYFRAME);
 	int gap = 0;
 	int x, y, w, h;
 	struct MultiDisplay *md = getdisplay (&currprefs);
+	int sbheight;
+
+	sbheight = currprefs.win32_statusbar ? getstatuswindowheight () : 0;
 
 	if (hAmigaWnd) {
 		RECT r;
@@ -3516,8 +3577,6 @@ static int create_windows_2 (void)
 			}
 			SetWindowPos (hAmigaWnd, HWND_TOP, x, y, w, h,
 				SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSENDCHANGING | SWP_NOZORDER);
-			if (hStatusWnd)
-				createstatuswindow ();
 			in_sizemove--;
 		} else {
 			w = nw;
@@ -3525,7 +3584,8 @@ static int create_windows_2 (void)
 			x = nx;
 			y = ny;
 		}
-		GetWindowRect (hAmigaWnd, &amigawin_rect);
+		createstatuswindow ();
+		updatewinrect ();
 		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
 			SetCursorPos (x + w / 2, y + h / 2);
@@ -3668,7 +3728,7 @@ static int create_windows_2 (void)
 		hMainWnd = hAmigaWnd;
 	}
 
-	GetWindowRect (hAmigaWnd, &amigawin_rect);
+	updatewinrect ();
 	GetWindowRect (hMainWnd, &mainwin_rect);
 	if (dxfs || d3dfs)
 		SetCursorPos (x + w / 2, y + h / 2);

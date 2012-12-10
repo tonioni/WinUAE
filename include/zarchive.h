@@ -49,7 +49,7 @@ struct znode {
     struct zfile *f;
     TCHAR *comment;
     int flags;
-    time_t mtime;
+    struct mytimeval mtime;
     /* decompressor specific */
     unsigned int offset;
     unsigned int offset2;
@@ -81,7 +81,7 @@ struct zarchive_info
     uae_s64 size;
     int flags;
     TCHAR *comment;
-    time_t t;
+	struct mytimeval tv;
 };
 
 #define ArchiveFormat7Zip '7z  '

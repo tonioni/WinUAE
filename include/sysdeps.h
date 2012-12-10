@@ -352,27 +352,6 @@ struct direct
 #define S_IRUSR FILEFLAG_READ
 #define S_IXUSR FILEFLAG_EXECUTE
 
-/* These are prototypes for functions from the Win32 posixemu file */
-extern void get_time (time_t t, long* days, long* mins, long* ticks);
-extern time_t put_time (long days, long mins, long ticks);
-
-/* #define DONT_HAVE_POSIX - don't need all of Mathias' posixemu_functions, just a subset (below) */
-#define chmod(a,b) posixemu_chmod ((a), (b))
-extern int posixemu_chmod (const TCHAR *, int);
-#define stat(a,b) posixemu_stat ((a), (b))
-extern int posixemu_stat (const TCHAR *, struct _stat64 *);
-#define mkdir(x,y) mkdir(x)
-#define truncate posixemu_truncate
-extern int posixemu_truncate (const TCHAR *, long int);
-#define utime posixemu_utime
-extern int posixemu_utime (const TCHAR *, struct utimbuf *);
-#define opendir posixemu_opendir
-extern DIR * posixemu_opendir (const TCHAR *);
-#define readdir posixemu_readdir
-extern struct dirent* posixemu_readdir (DIR *);
-#define closedir posixemu_closedir
-extern void posixemu_closedir (DIR *);
-
 #endif
 
 #endif /* _WIN32 */

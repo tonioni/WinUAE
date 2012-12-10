@@ -78,7 +78,7 @@ struct MultiDisplay {
 	struct PicassoResolution *DisplayModes;
 	RECT rect;
 };
-extern struct MultiDisplay Displays[MAX_DISPLAYS];
+extern struct MultiDisplay Displays[MAX_DISPLAYS + 1];
 
 typedef enum
 {

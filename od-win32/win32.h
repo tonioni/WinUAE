@@ -15,12 +15,12 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
-#define WINUAEBETA _T("")
-//#define WINUAEBETA _T("28")
-#define WINUAEDATE MAKEBD(2012, 12, 2)
+//#define WINUAEBETA _T("")
+#define WINUAEBETA _T("1")
+#define WINUAEDATE MAKEBD(2012, 12, 10)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -64,6 +64,7 @@ extern void setmouseactive (int active);
 extern void minimizewindow (void);
 extern uae_u32 OSDEP_minimize_uae (void);
 extern void updatemouseclip (void);
+extern void updatewinrect (void);
 
 extern void resumepaused (int priority);
 extern void setpaused (int priority);

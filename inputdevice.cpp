@@ -1744,7 +1744,7 @@ static int getvelocity (int num, int subnum, int pct)
 	return v;
 }
 
-#define MOUSEXY_MAX 1024
+#define MOUSEXY_MAX 16384
 
 static void mouseupdate (int pct, bool vsync)
 {
@@ -2866,6 +2866,13 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 
 	if (nr <= 0 || nr == INPUTEVENT_SPC_CUSTOM_EVENT)
 		return 0;
+
+#ifdef _WIN32
+	// ignore norrmal GUI event if forced gui key is in use
+	if (currprefs.win32_guikey >= 0 && nr == INPUTEVENT_SPC_ENTERGUI)
+		return 0;
+#endif
+
 	ie = &events[nr];
 	if (isqual (nr))
 		return 0; // qualifiers do nothing

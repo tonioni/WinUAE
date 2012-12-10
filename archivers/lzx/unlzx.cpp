@@ -787,7 +787,7 @@ struct zvolume *archive_directory_lzx (struct zfile *in_file)
 	  tm.tm_year = year - 1900;
 	  tm.tm_mon  = month;
 	  tm.tm_mday = day;
-	  zai.t = mktime(&tm);
+	  zai.tv.tv_sec = mktime(&tm);
 	  zai.size = unpack_size;
 	  zn = zvolume_addfile_abs(zv, &zai);
 	  zn->offset2 = merge_size;

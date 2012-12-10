@@ -95,14 +95,16 @@ static void kill_fsdb (a_inode *dir)
 	xfree (n);
 }
 
-static void fsdb_fixup (FILE *f, TCHAR *buf, int size, a_inode *base)
+static void fsdb_fixup (FILE *f, uae_u8 *buf, int size, a_inode *base)
 {
 	TCHAR *nname;
 	int ret;
 
 	if (buf[0] == 0)
 		return;
-	nname = build_nname (base->nname, buf + 5 + 257);
+	TCHAR *fnname = au ((char*)buf + 5 + 257);
+	nname = build_nname (base->nname, fnname);
+	xfree (fnname);
 	ret = fsdb_exists (nname);
 	if (ret) {
 		xfree (nname);
@@ -117,7 +119,7 @@ static void fsdb_fixup (FILE *f, TCHAR *buf, int size, a_inode *base)
 /* Prune the db file the first time this directory is opened in a session.  */
 void fsdb_clean_dir (a_inode *dir)
 {
-	TCHAR buf[1 + 4 + 257 + 257 + 81];
+	uae_u8 buf[1 + 4 + 257 + 257 + 81];
 	TCHAR *n;
 	FILE *f;
 	off_t pos1 = 0, pos2;
@@ -145,7 +147,11 @@ void fsdb_clean_dir (a_inode *dir)
 		pos1 += sizeof buf;
 	}
 	fclose (f);
-	my_truncate (n, pos1);
+	if (pos1 == 0) {
+		kill_fsdb (dir);
+	} else {
+		my_truncate (n, pos1);
+	}
 	xfree (n);
 }
 
@@ -275,7 +281,7 @@ static void write_aino (FILE *f, a_inode *aino)
 {
 	uae_u8 buf[1 + 4 + 257 + 257 + 81] = { 0 };
 
-	buf[0] = aino->needs_dbentry;
+	buf[0] = aino->needs_dbentry ? 1 : 0;
 	do_put_mem_long ((uae_u32 *)(buf + 1), aino->amigaos_mode);
 	ua_copy ((char*)buf + 5, 256, aino->aname);
 	buf[5 + 256] = '\0';

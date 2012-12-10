@@ -461,6 +461,8 @@ void resumepaused (int priority)
 	//write_log (_T("resume %d (%d)\n"), priority, pause_emulation);
 	if (pause_emulation > priority)
 		return;
+	if (!pause_emulation)
+		return;
 	resumesoundpaused ();
 	blkdev_exitgui ();
 	if (pausemouseactive)
@@ -596,6 +598,17 @@ void updatemouseclip (void)
 	}
 }
 
+void  updatewinrect (void)
+{
+	GetWindowRect (hAmigaWnd, &amigawin_rect);
+	if (isfullscreen () == 0) {
+		changed_prefs.gfx_size_win.x = amigawin_rect.left;
+		changed_prefs.gfx_size_win.y = amigawin_rect.top;
+		currprefs.gfx_size_win.x = changed_prefs.gfx_size_win.x;
+		currprefs.gfx_size_win.y = changed_prefs.gfx_size_win.y;
+	}
+}
+
 static void setmouseactive2 (int active, bool allowpause)
 {
 	//write_log (_T("setmouseactive %d->%d\n"), mouseactive, active);
@@ -666,7 +679,8 @@ static void setmouseactive2 (int active, bool allowpause)
 			if (!showcursor) {
 				ShowCursor (FALSE);
 				SetCapture (hAmigaWnd);
-				GetWindowRect (hAmigaWnd, &amigawin_rect);
+				updatewinrect ();
+				showcursor = 1;
 				updatemouseclip ();
 			}
 			showcursor = 1;
@@ -675,7 +689,7 @@ static void setmouseactive2 (int active, bool allowpause)
 		inputdevice_acquire (TRUE);
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		if (currprefs.win32_active_nocapture_pause) {
-			resumepaused (1);
+			resumepaused (2);
 		} else if (currprefs.win32_active_nocapture_nosound && sound_closed < 0) {
 			resumesoundpaused ();
 		}
@@ -685,7 +699,7 @@ static void setmouseactive2 (int active, bool allowpause)
 	}
 	if (!active && allowpause) {
 		if (currprefs.win32_active_nocapture_pause) {
-			setpaused (1);
+			setpaused (2);
 		} else if (currprefs.win32_active_nocapture_nosound) {
 			setsoundpaused ();
 			sound_closed = -1;
@@ -727,7 +741,10 @@ static void winuae_active (HWND hWnd, int minimized)
 		if (sound_closed < 0) {
 			resumesoundpaused ();
 		} else {
-			if (currprefs.win32_iconified_pause && !currprefs.win32_inactive_pause)
+			if (currprefs.win32_active_nocapture_pause) {
+				if (mouseactive)
+					resumepaused (2);
+			} else if (currprefs.win32_iconified_pause && !currprefs.win32_inactive_pause)
 				resumepaused (1);
 			else if (currprefs.win32_inactive_pause)
 				resumepaused (2);
@@ -948,7 +965,7 @@ void setmouseactivexy (int x, int y, int dir)
 	}
 }
 
-int isfocus (void)
+static int isfocus2 (void)
 {
 	if (isfullscreen () > 0)
 		return 1;
@@ -957,6 +974,11 @@ int isfocus (void)
 	if (focus)
 		return -1;
 	return 0;
+}
+int isfocus (void)
+{
+	int v = isfocus2 ();
+	return v;
 }
 
 static void handleXbutton (WPARAM wParam, int updown)
@@ -1179,12 +1201,8 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			WINDOWPOS *wp = (WINDOWPOS*)lParam;
 			if (isfullscreen () <= 0) {
 				if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
-					GetWindowRect (hWnd, &amigawin_rect);
-					if (isfullscreen () == 0) {
-						changed_prefs.gfx_size_win.x = amigawin_rect.left;
-						changed_prefs.gfx_size_win.y = amigawin_rect.top;
-						config_changed = 1;
-					}
+					updatewinrect ();
+					config_changed = 1;
 					updatemouseclip ();
 				}
 				notice_screen_contents_lost ();
@@ -1614,6 +1632,11 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 			WIN32GFX_DisplayChangeRequested ();
 		break;
 #endif
+		case WM_DWMCOMPOSITIONCHANGED:
+		case WM_THEMECHANGED:
+		WIN32GFX_DisplayChangeRequested ();
+		return 0;
+
 	case WM_GETMINMAXINFO:
 		{
 			LPMINMAXINFO lpmmi;
@@ -2180,6 +2203,7 @@ HMODULE language_load (WORD language)
 #if LANG_DLL > 0
 	TCHAR dllbuf[MAX_DPATH];
 	TCHAR *dllname;
+	bool nosubrev = true;
 
 	if (language <= 0) {
 		/* new user-specific Windows ME/2K/XP method to get UI language */
@@ -2214,7 +2238,7 @@ HMODULE language_load (WORD language)
 							if (vsFileInfo &&
 								HIWORD(vsFileInfo->dwProductVersionMS) == UAEMAJOR
 								&& LOWORD(vsFileInfo->dwProductVersionMS) == UAEMINOR
-								&& (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV)) {
+								&& (nosubrev || (HIWORD(vsFileInfo->dwProductVersionLS) == UAESUBREV))) {
 									success = TRUE;
 									write_log (_T("Translation DLL '%s' loaded and enabled\n"), dllbuf);
 							} else {
@@ -3254,7 +3278,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		int v1, v2;
 		TCHAR *s;
 
-		p->gfx_filter_aspect = -1;
+		p->win32_rtgscaleaspectratio = -1;
 		v1 = _tstol (tmpbuf);
 		s = _tcschr (tmpbuf, ':');
 		if (s) {

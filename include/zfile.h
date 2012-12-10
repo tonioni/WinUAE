@@ -116,7 +116,7 @@ extern struct zvolume *zfile_fopen_archive (const TCHAR *filename, int flags);
 extern struct zvolume *zfile_fopen_archive_root (const TCHAR *filename, int flags);
 extern void zfile_fclose_archive (struct zvolume *zv);
 extern int zfile_fs_usage_archive (const TCHAR *path, const TCHAR *disk, struct fs_usage *fsp);
-extern int zfile_stat_archive (const TCHAR *path, struct _stat64 *statbuf);
+extern int zfile_stat_archive (const TCHAR *path, struct mystat *statbuf);
 extern struct zdirectory *zfile_opendir_archive (const TCHAR *path);
 extern struct zdirectory *zfile_opendir_archive (const TCHAR *path, int flags);
 extern void zfile_closedir_archive (struct zdirectory *);
@@ -131,3 +131,18 @@ extern void zfile_close_archive (struct zfile *d);
 extern struct zfile *zfile_open_archive (const TCHAR *path, int flags);
 extern int zfile_exists_archive (const TCHAR *path, const TCHAR *rel);
 extern bool zfile_needwrite (struct zfile*);
+
+struct mytimeval
+{
+	uae_s64 tv_sec;
+	uae_s32 tv_usec;
+};
+
+struct mystat
+{
+	uae_s64 size;
+	uae_u32 mode;
+	struct mytimeval mtime;
+};
+extern void timeval_to_amiga (struct mytimeval *tv, int* days, int* mins, int* ticks);
+extern void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks);

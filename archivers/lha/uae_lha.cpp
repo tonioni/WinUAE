@@ -39,7 +39,7 @@ struct zvolume *archive_directory_lha (struct zfile *zf)
 	zai.name = au (hdr.name);
 	zai.size = hdr.original_size;
 	zai.flags = hdr.attribute;
-	zai.t = hdr.unix_last_modified_stamp -= _timezone;
+	zai.tv.tv_sec = hdr.unix_last_modified_stamp -= _timezone;
 	if (hdr.name[strlen(hdr.name) + 1] != 0)
 	    zai.comment = au (&hdr.name[strlen(hdr.name) + 1]);
 	if (method == LZHDIRS_METHOD_NUM) {

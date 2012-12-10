@@ -1,6 +1,30 @@
 
 - restore only single input target to default.
 
+This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
+I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
+
+- Internal mouse counter under/overflow fixed, while moving mouse far enough, mouse jumped in opposite direction. (old bug)
+- Directory filesystem file modification date resolution support is now 1 microsecond (was 1 second). AmigaDOS file
+  time 1/50s "tick" resolution is now fully supported (if NTFS, FAT only has 2 second resolution)
+- 1G RTG RAM was detected as "too large". (early 250 beta)
+- ClipCursor() was not always called, it was possible for hidden Windows mouse to move outside of WinUAE window in some situations. (250b24)
+- RTG aspect ratio still affected filter panel aspect ratio setting. (b26 update was not complete)
+- _UAEFSDB.___ meta data files (stores illegal names, protection flags and comments if non-stream capable filesystem like FAT)
+  haven't worked correctly for a long time.
+- _UAEFSDB.___ wasn't always deleted when it become empty.
+- Unminimizing unpaused emulation when "pause when mouse is uncaptured" was enabled.
+- If win32.guikey config entry is set, normal GUI key (F12) events won't open the GUI anymore.
+- Always reset special monitor active flag (A2024/Graffiti) when display mode changes, fixes A2024 mode position when window
+  needs to reopen but resolution didn't change.
+- Improved windowed mode bottom statusbar height calculation, fixes two pixel gap in Windows Vista classic mode.
+- Fixed Amiga-side illegal memory access when booting directory harddrive(s) under KS 1.3.
+- Reset GUI/emulation display when Windows desktop state changes (Theme change etc..)
+- Removed remains of unused AROS CDFS support code.
+- Compiled using MSVC 2012 with update 1 installed.
+
+2.5.0
+
 Beta 28 RC4:
 
 - uaescsi.device SCSI sense data is now returned correctly (For example MakeCD shows error messages that make sense now)

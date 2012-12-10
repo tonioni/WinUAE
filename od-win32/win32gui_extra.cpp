@@ -161,22 +161,25 @@ static void modifytemplatefont (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2)
 static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATEEX *dt, int id)
 {
 	bool noyscale = false;
+	int wc = 0;
 
 	if (dt->windowClass[0] != 0xffff && (!_tcsicmp (dt->windowClass, WC_LISTVIEWW) || !_tcsicmp (dt->windowClass, WC_TREEVIEWW)))
 		listviews[listviewcnt++] = dt->id;
 
+	if (dt->windowClass[0] == 0xffff)
+		wc = dt->windowClass[1];
+
 	if (multy >= 89 && multy <= 111) {
-		int wc = 0;
 
-		if (dt->windowClass[0] == 0xffff)
-			wc = dt->windowClass[1];
-
-		if (wc == 0x0080 && dt->cy <= 20) // button
+		if (wc == 0x0080 && dt->cy <= 20) { // button
 			noyscale = true;
-		if (wc == 0x0085) // checkbox
+		}
+		if (wc == 0x0085) {// combo box
 			noyscale = true;
-		if (wc == 0x0081 && dt->cy <= 20) // edit box
+		}
+		if (wc == 0x0081 && dt->cy <= 20) { // edit box
 			noyscale = true;
+		}
 	}
 
 	if (!noyscale)
@@ -185,6 +188,7 @@ static void modifyitem (DLGTEMPLATEEX *d, DLGTEMPLATEEX_END *d2, DLGITEMTEMPLATE
 	dt->cx = mmx (dt->cx);
 	dt->y = mmy (dt->y);
 	dt->x = mmx (dt->x);
+
 }
 
 static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)

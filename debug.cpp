@@ -3322,7 +3322,7 @@ static void find_ea (TCHAR **inptr)
 	int hits = 0;
 
 	addr = 0;
-	end = lastaddr();
+	end = lastaddr ();
 	ea = readhex (inptr);
 	if (more_params(inptr)) {
 		addr = readhex (inptr);

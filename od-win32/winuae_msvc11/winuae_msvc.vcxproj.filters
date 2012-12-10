@@ -608,7 +608,6 @@
     <None Include="..\resources\drive_spin.wav" />
     <None Include="..\resources\drive_spinnd.wav" />
     <None Include="..\resources\drive_startup.wav" />
-    <None Include="..\resources\resource" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\resources\winuae.rc">
@@ -622,5 +621,8 @@
     <Library Include="..\hq3x32.obj" />
     <Library Include="..\hq4x16.obj" />
     <Library Include="..\hq4x32.obj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\resources\resource.h" />
   </ItemGroup>
 </Project>

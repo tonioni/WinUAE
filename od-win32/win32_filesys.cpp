@@ -164,13 +164,6 @@ void filesys_addexternals (void)
 			}
 			devname[0] = 0;
 			for (;;) {
-#if USE_CDFS == 0
-				if (drivetype == DRIVE_CDROM && currprefs.win32_automount_cddrives) {
-					_stprintf (devname, _T("WinCD_%c"), drive);
-					rw = 0;
-					break;
-				}
-#endif
 				if (!inserted) {
 					nok = TRUE;
 					break;

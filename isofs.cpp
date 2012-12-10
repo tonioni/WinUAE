@@ -14,7 +14,7 @@
 #include "options.h"
 #include "blkdev.h"
 #include "isofs_api.h"
-#include "fsdb.h"
+#include "zfile.h"
 
 #include "isofs.h"
 
@@ -2506,20 +2506,18 @@ void isofss_fill_file_attrs(void *sbp, uae_u64 parent, int *dir, int *flags, TCH
 		*comment = my_strdup(inode->i_comment);
 }
 
-bool isofs_stat(void *sbp, uae_u64 uniq, struct _stat64 *statbuf)
+bool isofs_stat(void *sbp, uae_u64 uniq, struct mystat *statbuf)
 {
 	struct super_block *sb = (struct super_block*)sbp;
 	struct inode *inode = find_inode(sb, uniq);
 
 	if (!inode)
 		return false;
-
-	statbuf->st_mode = FILEFLAG_READ;
-	statbuf->st_mtime = inode->i_mtime.tv_sec;
-	if (XS_ISDIR(inode->i_mode)) {
-		statbuf->st_mode |= FILEFLAG_DIR;
-	} else {
-		statbuf->st_size = inode->i_size;
+	
+	statbuf->mtime.tv_sec = inode->i_mtime.tv_sec;
+	statbuf->mtime.tv_usec = 0;
+	if (!XS_ISDIR(inode->i_mode)) {
+		statbuf->size = inode->i_size;
 	}
 	return true;
 }

@@ -263,11 +263,11 @@ void fixup_prefs (struct uae_prefs *p)
 		err = 1;
 	}
 	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0
-		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || p->rtgmem_size > max_z3fastmem / 2)))
+		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || p->rtgmem_size > max_z3fastmem)))
 	{
-		write_log (_T("Unsupported graphics card memory size %x (%x)!\n"), p->rtgmem_size, max_z3fastmem / 2);
-		if (p->rtgmem_size > max_z3fastmem / 2)
-			p->rtgmem_size = max_z3fastmem / 2;
+		write_log (_T("Unsupported graphics card memory size %x (%x)!\n"), p->rtgmem_size, max_z3fastmem);
+		if (p->rtgmem_size > max_z3fastmem)
+			p->rtgmem_size = max_z3fastmem;
 		else
 			p->rtgmem_size = 0;
 		err = 1;

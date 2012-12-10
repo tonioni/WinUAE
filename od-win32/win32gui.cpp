@@ -15346,6 +15346,10 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			}
 			break;
 		}
+	case WM_DWMCOMPOSITIONCHANGED:
+	case WM_THEMECHANGED:
+		gui_size_changed = 1;
+		return 0;
 	}
 	handlerawinput (hDlg, msg, wParam, lParam);
 	return FALSE;

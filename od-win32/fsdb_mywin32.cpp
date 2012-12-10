@@ -4,8 +4,11 @@
 #include "memory.h"
 
 #include "fsdb.h"
+#include "zfile.h"
 #include "win32.h"
+
 #include <windows.h>
+#include <sys/timeb.h>
 
 bool my_isfilehidden (const TCHAR *path)
 {
@@ -560,3 +563,157 @@ FILE *my_opentext (const TCHAR *name)
 	}
 	return _tfopen (name, _T("r"));
 }
+
+bool my_stat (const TCHAR *name, struct mystat *statbuf)
+{
+	DWORD attr, ok;
+	FILETIME ft, lft;
+	HANDLE h;
+	BY_HANDLE_FILE_INFORMATION fi;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+
+	// FILE_FLAG_BACKUP_SEMANTICS = can also "open" directories
+	h = CreateFile (namep, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		write_log (_T("Stat CreateFile(%s) failed: %d\n"), name, GetLastError ());
+		return false;
+	}
+	ok = GetFileInformationByHandle (h, &fi);
+	CloseHandle (h);
+
+	attr = 0;
+	ft.dwHighDateTime = ft.dwLowDateTime = 0;
+	if (ok) {
+		attr = fi.dwFileAttributes;
+		ft = fi.ftLastWriteTime;
+		statbuf->size = ((uae_u64)fi.nFileSizeHigh << 32) | fi.nFileSizeLow;
+	} else {
+		write_log (_T("GetFileInformationByHandle(%s) failed: %d\n"), namep, GetLastError ());
+		return false;
+	}
+
+	statbuf->mode = (attr & FILE_ATTRIBUTE_READONLY) ? FILEFLAG_READ : FILEFLAG_READ | FILEFLAG_WRITE;
+	if (attr & FILE_ATTRIBUTE_ARCHIVE)
+		statbuf->mode |= FILEFLAG_ARCHIVE;
+	if (attr & FILE_ATTRIBUTE_DIRECTORY)
+		statbuf->mode |= FILEFLAG_DIR;
+
+	FileTimeToLocalFileTime (&ft,&lft);
+	uae_u64 t = (*(__int64 *)&lft-((__int64)(369*365+89)*(__int64)(24*60*60)*(__int64)10000000));
+	statbuf->mtime.tv_sec = t / 10000000;
+	statbuf->mtime.tv_usec = (t / 10) % 1000000;
+
+	return true;
+}
+
+
+bool my_chmod (const TCHAR *name, uae_u32 mode)
+{
+	DWORD attr = FILE_ATTRIBUTE_NORMAL;
+	if (!(mode & FILEFLAG_WRITE))
+		attr |= FILE_ATTRIBUTE_READONLY;
+	if (mode & FILEFLAG_ARCHIVE)
+		attr |= FILE_ATTRIBUTE_ARCHIVE;
+	if (SetFileAttributesSafe (name, attr))
+		return true;
+	return false;
+}
+
+static void tmToSystemTime (struct tm *tmtime, LPSYSTEMTIME systime)
+{
+	if (tmtime == NULL) {
+		GetSystemTime (systime);
+	} else {
+		systime->wDay       = tmtime->tm_mday;
+		systime->wDayOfWeek = tmtime->tm_wday;
+		systime->wMonth     = tmtime->tm_mon + 1;
+		systime->wYear      = tmtime->tm_year + 1900;
+		systime->wHour      = tmtime->tm_hour;
+		systime->wMinute    = tmtime->tm_min;
+		systime->wSecond    = tmtime->tm_sec;
+		systime->wMilliseconds = 0;
+	}
+}
+
+static int setfiletime (const TCHAR *name, int days, int minute, int tick, int tolocal)
+{
+	FILETIME LocalFileTime, FileTime;
+	HANDLE hFile;
+	const TCHAR *namep;
+	TCHAR path[MAX_DPATH];
+	
+	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
+		_tcscpy (path, PATHPREFIX);
+		_tcscat (path, name);
+		namep = path;
+	} else {
+		namep = name;
+	}
+
+	if ((hFile = CreateFile (namep, GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL)) == INVALID_HANDLE_VALUE)
+		return 0;
+
+	for (;;) {
+		ULARGE_INTEGER lft;
+
+		lft.QuadPart = (((uae_u64)(377*365+91+days)*(uae_u64)1440+(uae_u64)minute)*(uae_u64)(60*50)+(uae_u64)tick)*(uae_u64)200000;
+		LocalFileTime.dwHighDateTime = lft.HighPart;
+		LocalFileTime.dwLowDateTime = lft.LowPart;
+		if (tolocal) {
+			if (!LocalFileTimeToFileTime (&LocalFileTime, &FileTime))
+				FileTime = LocalFileTime;
+		} else {
+			FileTime = LocalFileTime;
+		}
+		if (!SetFileTime (hFile, &FileTime, &FileTime, &FileTime)) {
+			if (days > 47846) { // > 2108-12-31 (fat limit)
+				days = 47846;
+				continue;
+			}
+			if (days < 730) { // < 1980-01-01 (fat limit)
+				days = 730;
+				continue;
+			}
+		}
+		break;
+	}
+
+	CloseHandle (hFile);
+
+	return 1;
+}
+
+bool my_utime (const TCHAR *name, struct mytimeval *tv)
+{
+	int result = -1, tolocal;
+	int days, mins, ticks;
+	struct mytimeval tv2;
+
+	if (!tv) {
+		struct timeb time;
+		ftime (&time);
+		tv2.tv_sec = time.time;
+		tv2.tv_usec = time.millitm * 1000;
+		tolocal = 0;
+	} else {
+		tv2.tv_sec = tv->tv_sec;
+		tv2.tv_usec = tv->tv_usec;
+		tolocal = 1;
+	}
+	timeval_to_amiga (&tv2, &days, &mins, &ticks);
+	if (setfiletime (name, days, mins, ticks, tolocal))
+		return true;
+
+	return false;
+}
+
+

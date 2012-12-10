@@ -194,24 +194,6 @@ FSIN_nomoresub:
 	bra.b FSIN_init_units
 FSIN_units_ok:
 
-	tst.w d5
-	beq.s CDIN_done
-	moveq #0,d6
-CDIN_init_units:
-	move.w $10c(a5),d0
-	btst d6,d0
-	beq.s CDIN_next
-	movem.l	d6/a3,-(sp)
-	move.l a3,a0
-	bset #31,d6
-	bsr.w make_cd_dev
-	movem.l (sp)+,d6/a3
-CDIN_next:
-	addq.w #1,d6
-	cmp.w #8,d6
-	bne.s CDIN_init_units
-CDIN_done:
-
 	move.l 4.w,a6
 	move.l a3,a1
 	move.l #PP_TOTAL,d0
@@ -473,7 +455,7 @@ setup_exter:
 	moveq.l #3,d0
 	jsr -168(a6) ; AddIntServer
 
-  bsr.w heartbeatvblank
+	bsr.w heartbeatvblank
 
 	move.w #$FF38,d0
 	moveq #4,d1
@@ -541,11 +523,11 @@ r15	move.l (a2),d2 ; hunk size (header)
 	bset #1,d1
 r2	bset #16,d1
 	lsl.l #2,d2
-	move.l d2,d0
 	bne.s r17
 	clr.l (a2)+ ; empty hunk
 	bra.s r18
-r17	addq.l #8,d0 ; size + pointer to next hunk + hunk size
+r17	addq.l #8,d2 ; size + pointer to next hunk + hunk size
+	move.l d2,d0
 	jsr AllocMem(a6)
 	tst.l d0
 	beq.w ree
@@ -969,99 +951,6 @@ action_exall
 	tst.l (a0) ; eac_Entries == 0 -> get more
 	rts
 
-	; mount CD drives using built-in AROS CDFS + uaescsi.device
-
-make_cd_dev: ; IN: A0 param_packet, D6: unit_no | 0x80000000 (=CD)
-	bsr.w	fsres
-	move.l d0,PP_FSRES(a0) ; pointer to FileSystem.resource
-	move.l a0,-(sp)
-	move.w #$FFEC,d0 ; filesys base
-	bsr.w getrtbase
-	move.l (a0),a5
-	move.w #$FF28,d0 ; fill in unit-dependent info (filesys_dev_storeinfo)
-	bsr.w getrtbase
-	move.l a0,a1
-	move.l (sp)+,a0
-	clr.l PP_FSSIZE(a0) ; filesystem size
-	clr.l PP_FSPTR(a0) ; filesystem memory
-	jsr (a1)
-	tst.l d0
-	beq.w .fail
-
-	; allocate memory for loaded filesystem
-	move.l PP_FSSIZE(a0),d0
-	beq.s .nofs
-	bmi.s .nofs
-	move.l a0,-(sp)
-	moveq #1,d1
-	move.l 4.w,a6
-	jsr  AllocMem(a6)
-	move.l (sp)+,a0
-	move.l d0,PP_FSPTR(a0)
-	beq.w .fail
-.nofs
-
-	move.l a4,a6
-	move.l a0,-(sp)
-	jsr -144(a6) ; MakeDosNode()
-	move.l (sp)+,a0 ; parmpacket
-	move.l a0,a1
-	move.l d0,a3 ; devicenode
-	move.w #$FF20,d0 ; record in ui.startup (filesys_dev_remember)
-	bsr.w getrtbase
-	jsr (a0)
-	moveq #0,d0
-	move.l d0,8(a3)          ; dn_Task
-	move.l d0,16(a3)         ; dn_Handler
-	move.l d0,32(a3)         ; dn_SegList
-
-	move.l PP_FSPTR(a1),d0
-	beq.s	.nofs2
-	move.l d0,a0
-	bsr.w relocate
-	movem.l d0/a0-a1,-(sp)
-	move.l PP_FSSIZE(a1),d0
-	move.l PP_FSPTR(a1),a1
-	move.l 4.w,a6
-	jsr FreeMem(a6)
-	movem.l (sp)+,d0/a0-a1
-	bsr.w addfs
-.nofs2
-	move.w #$FF18,d0 ; update dn_SegList if needed (filesys_dev_bootfilesys)
-	bsr.w getrtbase
-	jsr (a0)
-
-	move.b 79(a1),d3 ; bootpri
-	cmp.b #-128,d3
-	beq.s .cdnoboot
-	move.l 4.w,a6
-	moveq #20,d0
-	move.l #65536+1,d1
-	jsr  AllocMem(a6)
-	move.l d0,a1 ; bootnode
-	move.w #$1000,d0
-	or.b d3,d0
-	move.w d0,8(a1)
-	move.l $104(a5),10(a1) ; filesys_configdev
-	move.l a3,16(a1) ; devicenode
-	lea.l 74(a4),a0 ; MountList
-	jsr -$0084(a6) ;Forbid
-	jsr -270(a6) ; Enqueue()
-	jsr -$008a(a6) ;Permit
-	bra.s .fail
-.cdnoboot:
-	move.l a1,a2 ; bootnode
-	move.l a3,a0 ; parmpacket
-	moveq #0,d1
-	move.l d1,a1
-	moveq #1,d1 ; ADNF_STARTPROC (v36+)
-	moveq #-20,d0
-	move.l a4,a6 ; expansion base
-	jsr  -150(a6) ; AddDosNode
-
-.fail:
-	rts
-
 	; mount harddrives, virtual or hdf
 
 make_dev: ; IN: A0 param_packet, D6: unit_no, D7: b0=autoboot,b1=onthefly,b2=v36+
@@ -1157,7 +1046,7 @@ nordbfs2:
 	move.l d3,d0
 	move.b 79(a1),d3 ; bootpri
 	tst.l d0
-	bne.b MKDV_doboot
+	bne.b MKDV_doboot ; not directory harddrive?
 
 MKDV_is_filesys:
 	move.l #6000,20(a3)     ; dn_StackSize

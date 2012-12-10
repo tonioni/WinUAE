@@ -153,6 +153,10 @@ extern int my_existsfile (const TCHAR *name);
 extern int my_existsdir (const TCHAR *name);
 extern FILE *my_opentext (const TCHAR*);
 
+extern bool my_stat (const TCHAR *name, struct mystat *ms);
+extern bool my_utime (const TCHAR *name, struct mytimeval *tv);
+extern bool my_chmod (const TCHAR *name, uae_u32 mode);
+
 extern char *custom_fsdb_search_dir (const char *dirname, TCHAR *rel);
 extern a_inode *custom_fsdb_lookup_aino_aname (a_inode *base, const TCHAR *aname);
 extern a_inode *custom_fsdb_lookup_aino_nname (a_inode *base, const TCHAR *nname);
