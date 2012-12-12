@@ -8340,8 +8340,8 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_CPU_FREQUENCY, workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_CPU_FREQUENCY2, workprefs.cpu_cycle_exact && !workprefs.cpu_clock_multiplier);
 
-	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040);
-	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040);
+	ew (hDlg, IDC_FPU1, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
+	ew (hDlg, IDC_FPU2, workprefs.cpu_model < 68040 && (workprefs.cpu_model >= 68020 || !workprefs.cpu_compatible));
 	ew (hDlg, IDC_FPU3, workprefs.cpu_model >= 68040);
 	ew (hDlg, IDC_MMUENABLE, workprefs.cpu_model == 68040 && workprefs.cachesize == 0);
 
@@ -8479,6 +8479,8 @@ static void values_from_cpudlg (HWND hDlg)
 	oldcache = workprefs.cachesize;
 	jitena = ischecked (hDlg, IDC_JITENABLE) ? 1 : 0;
 	workprefs.cachesize = SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
+	if (!workprefs.cachesize)
+		setchecked (hDlg, IDC_JITENABLE, false);
 	if (!jitena) {
 		cachesize_prev = workprefs.cachesize;
 		trust_prev = workprefs.comptrustbyte;

@@ -1751,8 +1751,8 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent, uae_u
 					}
 					goto root_found;
 				} else {
-				/* Unknown supplementary volume descriptor */
-				sec = NULL;
+					/* Unknown supplementary volume descriptor */
+					sec = NULL;
 				}
 			}
 		} else {

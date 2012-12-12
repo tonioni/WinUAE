@@ -1513,7 +1513,7 @@ static void update_gfxparams (void)
 
 }
 
-static int open_windows (int full)
+static int open_windows (bool full)
 {
 	static bool started = false;
 	int ret, i;
@@ -1610,9 +1610,9 @@ static int getstatuswindowheight (void)
 	return wi.rcWindow.bottom - wi.rcWindow.top;
 }
 
-void WIN32GFX_DisplayChangeRequested (void)
+void WIN32GFX_DisplayChangeRequested (int mode)
 {
-	display_change_requested = 1;
+	display_change_requested = mode;
 }
 
 int check_prefs_changed_gfx (void)
@@ -1711,6 +1711,8 @@ int check_prefs_changed_gfx (void)
 
 	if (display_change_requested || c)
 	{
+		bool setpause = false;
+		bool dontcapture = false;
 		int keepfsmode = 
 			currprefs.gfx_apmode[0].gfx_fullscreen == changed_prefs.gfx_apmode[0].gfx_fullscreen && 
 			currprefs.gfx_apmode[1].gfx_fullscreen == changed_prefs.gfx_apmode[1].gfx_fullscreen;
@@ -1728,6 +1730,13 @@ int check_prefs_changed_gfx (void)
 		if (display_change_requested) {
 			c = 2;
 			keepfsmode = 0;
+			if (display_change_requested <= -1) {
+				dontcapture = true;
+				if (display_change_requested == -2)
+					setpause = true;
+				if (pause_emulation)
+					setpause = true;
+			}
 			display_change_requested = 0;
 		}
 
@@ -1827,7 +1836,7 @@ int check_prefs_changed_gfx (void)
 				unacquired = true;
 			}
 			close_windows ();
-			graphics_init ();
+			graphics_init (false);
 			graphics_mode_changed = 1;
 		}
 		init_custom ();
@@ -1836,8 +1845,19 @@ int check_prefs_changed_gfx (void)
 			reset_sound ();
 			resume_sound ();
 		}
+		
+		if (setpause || dontcapture) {
+			if (!unacquired)
+				inputdevice_unacquire ();
+			unacquired = false;
+		}
+
 		if (unacquired)
 			inputdevice_acquire (TRUE);
+
+		if (setpause)
+			setpaused (1);
+
 		return 1;
 	}
 
@@ -2403,13 +2423,13 @@ void machdep_free (void)
 #endif
 }
 
-int graphics_init (void)
+int graphics_init (bool first)
 {
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
 	gfxmode_reset ();
 	graphics_mode_changed = 1;
-	return open_windows (1);
+	return open_windows (first);
 }
 
 int graphics_setup (void)
@@ -2467,6 +2487,15 @@ static void createstatuswindow (void)
 	}
 	if (currprefs.win32_statusbar == 0)
 		return;
+	if (currentmode->flags & DM_W_FULLSCREEN)
+		return;
+#ifdef RETROPLATFORMR
+	if (rp_isactive ())
+		return;
+#endif
+	if (currprefs.win32_borderless)
+		return;
+
 	hStatusWnd = CreateWindowEx (
 		0, STATUSCLASSNAME, (LPCTSTR) NULL, SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0, hMainWnd, (HMENU) 1, hInst, NULL);
@@ -3677,8 +3706,7 @@ static int create_windows_2 (void)
 			GetWindowRect (hMainWnd, &rc2);
 			window_extra_width = rc2.right - rc2.left - currentmode->current_width;
 			window_extra_height = rc2.bottom - rc2.top - currentmode->current_height;
-			if (!(currentmode->flags & DM_W_FULLSCREEN))
-				createstatuswindow ();
+			createstatuswindow ();
 		} else {
 			x = rc.left;
 			y = rc.top;

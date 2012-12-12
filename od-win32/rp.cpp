@@ -599,15 +599,19 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			vres = max_vert_dbl;
 		vres += getmult (vmult, &half);
 
+#if 0
 		if (hres > RES_SUPERHIRES)
 			hres = RES_SUPERHIRES;
 		if (vres > VRES_QUAD)
 			vres = VRES_QUAD;
+#endif
 
-		if (hres == RES_HIRES) {
+		if (hres == RES_SUPERHIRES) {
 			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_2X;
-		} else if (hres >= RES_SUPERHIRES) {
+		} else if (hres >= RES_SUPERHIRES + 1) {
 			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_4X;
+		} else {
+			m = RP_SCREENMODE_SCALE_1X;
 		}
 
 		sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
@@ -698,8 +702,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		if (smm == RP_SCREENMODE_SCALE_3X) {
 
-			hdbl = RES_HIRES;
-			vdbl = VRES_DOUBLE;
+			hdbl = RES_SUPERHIRES;
+			vdbl = VRES_QUAD;
 			hmult = 1.5;
 			vmult = 1.5;
 			half = true;
@@ -719,14 +723,17 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 			half = false;
 			if (smm == RP_SCREENMODE_SCALE_2X) {
-				hdbl = RES_HIRES;
-				vdbl = VRES_DOUBLE;
-			} else if (smm == RP_SCREENMODE_SCALE_4X) {
+				// 2X
 				hdbl = RES_SUPERHIRES;
 				vdbl = VRES_QUAD;
+			} else if (smm == RP_SCREENMODE_SCALE_4X) {
+				// 4X
+				hdbl = RES_SUPERHIRES + 1;
+				vdbl = VRES_QUAD + 1;
 			} else {
-				hdbl = RES_LORES;
-				vdbl = VRES_NONDOUBLE;
+				// 1X
+				hdbl = RES_HIRES;
+				vdbl = VRES_DOUBLE;
 			}
 
 			if (smm > RP_SCREENMODE_SCALE_4X || smm == RP_SCREENMODE_SCALE_MAX) {

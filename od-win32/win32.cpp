@@ -1080,7 +1080,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 	case WM_RBUTTONDOWN:
 	case WM_RBUTTONDBLCLK:
-		if (dinput_winmouse () >= 0 && isfocus ())
+		if (dinput_winmouse () >= 0 && isfocus () > 0)
 			setmousebuttonstate (dinput_winmouse (), 1, 1);
 		return 0;
 	case WM_MBUTTONUP:
@@ -1101,7 +1101,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			if (mouseactive)
 				setmouseactive (0);
 		} else {
-			if (dinput_winmouse () >= 0 && isfocus ())
+			if (dinput_winmouse () >= 0 && isfocus () > 0)
 				setmousebuttonstate (dinput_winmouse (), 2, 1);
 		}
 		return 0;
@@ -1113,13 +1113,13 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		return 0;
 	case WM_XBUTTONDOWN:
 	case WM_XBUTTONDBLCLK:
-		if (dinput_winmouse () >= 0 && isfocus ()) {
+		if (dinput_winmouse () >= 0 && isfocus () > 0) {
 			handleXbutton (wParam, 1);
 			return TRUE;
 		}
 		return 0;
 	case WM_MOUSEWHEEL:
-		if (dinput_winmouse () >= 0 && isfocus ()) {
+		if (dinput_winmouse () >= 0 && isfocus () > 0) {
 			int val = ((short)HIWORD (wParam));
 			setmousestate (dinput_winmouse (), 2, val, 0);
 			if (val < 0)
@@ -1130,7 +1130,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		}
 		return 0;
 	case WM_MOUSEHWHEEL:
-		if (dinput_winmouse () >= 0 && isfocus ()) {
+		if (dinput_winmouse () >= 0 && isfocus () > 0) {
 			int val = ((short)HIWORD (wParam));
 			setmousestate (dinput_winmouse (), 3, val, 0);
 			if (val < 0)
@@ -1634,7 +1634,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 #endif
 		case WM_DWMCOMPOSITIONCHANGED:
 		case WM_THEMECHANGED:
-		WIN32GFX_DisplayChangeRequested ();
+		WIN32GFX_DisplayChangeRequested (-1);
 		return 0;
 
 	case WM_GETMINMAXINFO:
@@ -1971,6 +1971,7 @@ void handle_events (void)
 	while (checkIPC (globalipc, &currprefs));
 #endif
 	if (was_paused) {
+		pause_emulation = was_paused;
 		resumepaused (was_paused);
 		sound_closed = 0;
 		manual_painting_needed--;

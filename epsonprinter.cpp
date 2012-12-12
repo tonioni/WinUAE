@@ -766,7 +766,7 @@ static void *prt_thread (void *p)
 				Bit8u r, g, b;
 				getcolor (Tpage, Tcpage, x, y, Tpage_pitch, &r, &g, &b);
 				if (r != 255 || g != 255 || b != 255)
-					SetPixel (TmemHDC, x, y, (r << 16) | (g << 8) | b);
+					SetPixel (TmemHDC, x, y, RGB(r, g, b));
 			}
 		}
 

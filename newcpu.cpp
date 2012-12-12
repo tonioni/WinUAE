@@ -3750,11 +3750,13 @@ static void m68k_run_1 (void)
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
-			if (do_specialties (cpu_cycles))
+			if (do_specialties (cpu_cycles)) {
+				regs.ipl = regs.ipl_pin;
 				return;
+			}
 		}
 		regs.ipl = regs.ipl_pin;
-		if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000))
+		if (!currprefs.cpu_compatible || (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68000))
 			return;
 	}
 }
@@ -4287,7 +4289,7 @@ uae_u32 get_word_020_prefetch (int o)
 	}
 }
 
-// full prefetch
+// full prefetch 020+
 static void m68k_run_2p (void)
 {
 	struct regstruct *r = &regs;
@@ -4310,9 +4312,12 @@ static void m68k_run_2p (void)
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
-			if (do_specialties (cpu_cycles))
+			if (do_specialties (cpu_cycles)) {
+				ipl_fetch ();
 				return;
+			}
 		}
+		ipl_fetch ();
 	}
 }
 

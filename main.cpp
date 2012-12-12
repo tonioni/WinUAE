@@ -1026,7 +1026,7 @@ static int real_main2 (int argc, TCHAR **argv)
 
 	gui_update ();
 
-	if (graphics_init ()) {
+	if (graphics_init (true)) {
 		setup_brkhandler ();
 		if (currprefs.start_debugger && debuggable ())
 			activate_debugger ();

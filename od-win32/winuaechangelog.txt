@@ -4,6 +4,19 @@
 This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
 I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
 
+Beta 2:
+
+- Resuming pause with input event didn't restore sound. (b1)
+- Do not capture mouse when theme changes, keep pause state (Window may not get refreshed until unpaused, this won't be fixed until later) (b1)
+- Windows mouse mode and mouse not captured: right, middle and other possible extra mouse buttons leaked to Amiga side.
+- Fixed GUI JIT slider weird behavior when cache size slider was moved to zero.
+- Windowed mode status bar appeared in full window modes after mode change (b1)
+- Epson matrix color printing swapped red and blue fixed. (Printing only, png output worked)
+- Fixed 68010 + cycle-exact broken interrupt handling. (This is not recommended option, it is far from cycle-exact)
+- Optimized build (official b1) had wrong settings, didn't load on Windows XP.
+
+Beta 1:
+
 - Internal mouse counter under/overflow fixed, while moving mouse far enough, mouse jumped in opposite direction. (old bug)
 - Directory filesystem file modification date resolution support is now 1 microsecond (was 1 second). AmigaDOS file
   time 1/50s "tick" resolution is now fully supported (if NTFS, FAT only has 2 second resolution)
