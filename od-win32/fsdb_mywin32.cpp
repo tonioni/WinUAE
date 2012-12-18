@@ -583,10 +583,8 @@ bool my_stat (const TCHAR *name, struct mystat *statbuf)
 
 	// FILE_FLAG_BACKUP_SEMANTICS = can also "open" directories
 	h = CreateFile (namep, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
-	if (h == INVALID_HANDLE_VALUE) {
-		write_log (_T("Stat CreateFile(%s) failed: %d\n"), name, GetLastError ());
+	if (h == INVALID_HANDLE_VALUE)
 		return false;
-	}
 	ok = GetFileInformationByHandle (h, &fi);
 	CloseHandle (h);
 

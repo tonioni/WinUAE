@@ -81,5 +81,5 @@ int record_key_direct (int kc)
 void keybuf_init (void)
 {
 	kpb_first = kpb_last = 0;
-	inputdevice_updateconfig (&currprefs);
+	inputdevice_updateconfig (&changed_prefs, &currprefs);
 }

@@ -1810,7 +1810,7 @@ void bsdlib_install (void)
 	dl (datatable);
 	dl (*sockfuncvecs);
 
-	write_log (_T("bsdsocked.library installed\n"));
+	write_log (_T("bsdsocket.library installed\n"));
 }
 
 #endif /* ! BSDSOCKET */

@@ -2317,7 +2317,7 @@ static void diskfile_readonly (const TCHAR *name, bool readonly)
 	struct mystat st;
 	int mode, oldmode;
 
-	if (my_stat (name, &st))
+	if (!my_stat (name, &st))
 		return;
 	oldmode = mode = st.mode;
 	mode &= ~FILEFLAG_WRITE;

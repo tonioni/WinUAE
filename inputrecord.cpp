@@ -519,7 +519,7 @@ static void setwriteprotect (const TCHAR *fname, bool readonly)
 {
 	struct mystat st;
 	int mode, oldmode;
-	if (my_stat (fname, &st))
+	if (!my_stat (fname, &st))
 		return;
 	oldmode = mode = st.mode;
 	mode &= ~FILEFLAG_WRITE;

@@ -28,6 +28,8 @@ void uaeexe_install (void)
 {
 	uaecptr loop;
 
+	if (!uae_boot_rom)
+		return;
 	loop = here ();
 	org (UAEEXE_ORG);
 	calltrap (deftrapres (uaeexe_server, 0, _T("uaeexe_server")));

@@ -19,8 +19,8 @@
 #define LANG_DLL 1
 
 //#define WINUAEBETA _T("")
-#define WINUAEBETA _T("2")
-#define WINUAEDATE MAKEBD(2012, 12, 12)
+#define WINUAEBETA _T("4")
+#define WINUAEDATE MAKEBD(2012, 12, 18)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -64,7 +64,7 @@ extern void setmouseactive (int active);
 extern void minimizewindow (void);
 extern uae_u32 OSDEP_minimize_uae (void);
 extern void updatemouseclip (void);
-extern void updatewinrect (void);
+extern void updatewinrect (bool);
 
 extern void resumepaused (int priority);
 extern void setpaused (int priority);

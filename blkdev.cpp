@@ -84,14 +84,10 @@ void tolongbcd (uae_u8 *p, int v)
 
 static struct cd_toc *gettoc (struct cd_toc_head *th, int block)
 {
-	for (int i = th->first_track_offset; i < th->last_track_offset; i++) {
+	for (int i = th->first_track_offset + 1; i <= th->last_track_offset; i++) {
 		struct cd_toc *t = &th->toc[i];
-		if (block < t->paddress) {
-			if (i == th->first_track_offset)
-				return t;
-			else
-				return t - 1;
-		}
+		if (block < t->paddress)
+			return t - 1;
 	}
 	return &th->toc[th->last_track_offset];
 }
@@ -1437,7 +1433,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto errreq;
 			if (format == 1) {
 				p[0] = 0;
-				p[1] = 8;
+				p[1] = 2 + 8;
 				p[2] = 1;
 				p[3] = 1;
 				p[4] = 0;
@@ -1475,10 +1471,10 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				}
 				if (!addtocentry (&p2, &maxlen, 0xa2, 0xaa, msf, p, toc))
 					goto errreq;
-				int tlen = p2 - (p + 4);
+				int tlen = p2 - (p + 2);
 				p[0] = tlen >> 8;
 				p[1] = tlen >> 0;
-				scsi_len = tlen + 4;
+				scsi_len = tlen + 2 + 4;
 			}
 		}
 		break;

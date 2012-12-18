@@ -473,7 +473,7 @@ static int set_ddraw_2 (void)
 				goto oops;
 			return -1;
 		}
-		GetWindowRect (hAmigaWnd, &amigawin_rect);
+		updatewinrect (true);
 	}
 
 	if (dd) {
@@ -1127,6 +1127,10 @@ void unlockscr (struct vidbuffer *vb)
 
 void flush_clear_screen (struct vidbuffer *vb)
 {
+	struct vidbuffer vb2 = { 0 };
+
+	if (!vb)
+		vb = &vb2;
 	if (lockscr (vb, true)) {
 		int y;
 		for (y = 0; y < vb->height_allocated; y++) {
@@ -1513,7 +1517,7 @@ static void update_gfxparams (void)
 
 }
 
-static int open_windows (bool full)
+static int open_windows (bool mousecapture)
 {
 	static bool started = false;
 	int ret, i;
@@ -1560,7 +1564,7 @@ static int open_windows (bool full)
 	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause && isfullscreen () <= 0));
 	bool startminimized = !started && currprefs.win32_start_minimized && isfullscreen () <= 0;
 
-	if (!rp_isactive () && full && startactive)
+	if (!rp_isactive () && mousecapture && startactive)
 		setmouseactive (-1);
 
 	if (startactive) {
@@ -1585,7 +1589,7 @@ static int open_windows (bool full)
 
 static void reopen_gfx (void)
 {
-	open_windows (0);
+	open_windows (false);
 
 	if (isvsync () < 0)
 		vblank_calibrate (0, false);
@@ -1836,7 +1840,7 @@ int check_prefs_changed_gfx (void)
 				unacquired = true;
 			}
 			close_windows ();
-			graphics_init (false);
+			graphics_init (dontcapture ? false : true);
 			graphics_mode_changed = 1;
 		}
 		init_custom ();
@@ -2112,7 +2116,7 @@ void DX_Invalidate (int x, int y, int width, int height)
 static void open_screen (void)
 {
 	close_windows ();
-	open_windows (1);
+	open_windows (true);
 }
 
 static int ifs (struct uae_prefs *p)
@@ -2348,7 +2352,7 @@ void gfx_set_picasso_state (int on)
 			goto end;
 	}
 	if (mode < 0) {
-		open_windows (0);
+		open_windows (true);
 	} else {
 		open_screen (); // reopen everything
 	}
@@ -2373,7 +2377,7 @@ void gfx_set_picasso_modeinfo (uae_u32 w, uae_u32 h, uae_u32 depth, RGBFTYPE rgb
 	if (need > 0) {
 		open_screen ();
 	} else if (need < 0) {
-		open_windows (0);
+		open_windows (true);
 	}
 #ifdef RETROPLATFORM
 	rp_set_hwnd (hAmigaWnd);
@@ -2423,13 +2427,13 @@ void machdep_free (void)
 #endif
 }
 
-int graphics_init (bool first)
+int graphics_init (bool mousecapture)
 {
 	systray (hHiddenWnd, TRUE);
 	systray (hHiddenWnd, FALSE);
 	gfxmode_reset ();
 	graphics_mode_changed = 1;
-	return open_windows (first);
+	return open_windows (mousecapture);
 }
 
 int graphics_setup (void)
@@ -3532,6 +3536,12 @@ fail:
 	return -1;
 }
 
+static void movecursor (int x, int y)
+{
+	write_log (_T("SetCursorPos %dx%d\n"), x, y);
+	SetCursorPos (x, y);
+}
+
 static int create_windows_2 (void)
 {
 	static bool firstwindow = true;
@@ -3614,10 +3624,10 @@ static int create_windows_2 (void)
 			y = ny;
 		}
 		createstatuswindow ();
-		updatewinrect ();
+		updatewinrect (false);
 		GetWindowRect (hMainWnd, &mainwin_rect);
 		if (d3dfs || dxfs)
-			SetCursorPos (x + w / 2, y + h / 2);
+			movecursor (x + w / 2, y + h / 2);
 		write_log (_T("window already open (%dx%d %dx%d)\n"),
 			amigawin_rect.left, amigawin_rect.top, amigawin_rect.right - amigawin_rect.left, amigawin_rect.bottom - amigawin_rect.top);
 		updatemouseclip ();
@@ -3756,10 +3766,10 @@ static int create_windows_2 (void)
 		hMainWnd = hAmigaWnd;
 	}
 
-	updatewinrect ();
+	updatewinrect (true);
 	GetWindowRect (hMainWnd, &mainwin_rect);
 	if (dxfs || d3dfs)
-		SetCursorPos (x + w / 2, y + h / 2);
+		movecursor (x + w / 2, y + h / 2);
 	addnotifications (hAmigaWnd, FALSE, FALSE);
 	createblankwindows ();
 
@@ -4015,6 +4025,7 @@ static BOOL doInit (void)
 			goto oops;
 		}
 		target_graphics_buffer_update ();
+		updatewinrect (true);
 	}
 
 	screen_is_initialized = 1;
@@ -4074,8 +4085,6 @@ void updatedisplayarea (void)
 		return;
 	if (dx_islost ())
 		return;
-	if (picasso_on)
-		return;
 #if defined (GFXFILTER)
 	if (currentmode->flags & DM_D3D) {
 #if defined (D3D)
@@ -4085,8 +4094,10 @@ void updatedisplayarea (void)
 #endif
 		if (currentmode->flags & DM_DDRAW) {
 #if defined (GFXFILTER)
-			if (currentmode->flags & DM_SWSCALE)
-				S2X_refresh ();
+			if (!picasso_on) {
+				if (currentmode->flags & DM_SWSCALE)
+					S2X_refresh ();
+			}
 #endif
 			DirectDraw_Flip (0);
 		}

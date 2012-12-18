@@ -1582,6 +1582,8 @@ static int open_sound (void)
 	num = enumerate_sound_devices ();
 	if (currprefs.win32_soundcard >= num)
 		currprefs.win32_soundcard = changed_prefs.win32_soundcard = 0;
+	if (num == 0)
+		return 0;
 	ch = get_audio_nativechannels (currprefs.sound_stereo);
 	ret = open_sound_device (sdp, currprefs.win32_soundcard, size, currprefs.sound_freq, ch);
 	if (!ret)

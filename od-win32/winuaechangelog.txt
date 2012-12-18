@@ -4,6 +4,27 @@
 This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
 I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
 
+Beta 4:
+
+- Floppy read/write checkboxes didn't work (b1 filesystem update)
+- Writing to Maprom region crashed in JIT mode, ROM protection introduced in 25b6 is now disabled when maprom address is queried for the first time.
+- Inserting or ejecting USB game controller removed all Game Ports panel custom mappings. (older bug)
+- Only attempt to mount dragged zip as a harddrive if harddrive emulation is enabled, if no harddrives, attempt to insert as a disk image in DF0:.
+- Some mouse tweaks when fullscreen mode on secondary monitor positioned on left side of primary monitor (negative coordinates).
+- Harddrives panel CD file selection box file name was truncated if path contained "][" string.
+- uaeexe_server UAE boot ROM hook was set even if uae boot rom was disabled (Does something use this hook? seems ancient..)
+  This corrupted part of CDTV extended ROM in b2 and 2.5.0 versions. (b3 initialization order change partially fixed it)
+
+Beta 3:
+
+- bsdsocket was initialized too early, didn't configure if memory config changed due to not enough physical memory etc.. (old bug)
+- 32-bit Windows memory reservation limit was too small, some old configs had more memory available under 2.4.x and older versions (2.5)
+- Crash dump file is written to data path or TEMP if winuae.exe directory is write protected.
+- Do not crash if sound is enabled and number of sound output devices is zero.
+- Archive directory filesystem crash fixed (b1)
+- SCSI emulation READ commands returned data from wrong track (following track if CD had more than 1 tracks). Argh.
+- Back to MSVC 2010, 2012 seems to have some optimization and XP compatibility issues to solve, later..
+
 Beta 2:
 
 - Resuming pause with input event didn't restore sound. (b1)

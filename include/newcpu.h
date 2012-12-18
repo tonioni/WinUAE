@@ -393,6 +393,7 @@ extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void m68k_do_rte (void);
 extern void protect_roms (bool);
+extern void unprotect_maprom (void);
 
 extern void mmu_op (uae_u32, uae_u32);
 extern void mmu_op30 (uaecptr, uae_u32, uae_u16, uaecptr);

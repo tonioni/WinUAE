@@ -28,6 +28,7 @@ struct shmid_ds {
     int mode;
     void *natmembase;
 	bool fake;
+	int maprom;
 };
 
 int mprotect (void *addr, size_t len, int prot);

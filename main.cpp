@@ -804,7 +804,7 @@ void do_start_program (void)
 	if (canbang && candirect < 0)
 		candirect = 1;
 	/* Do a reset on startup. Whether this is elegant is debatable. */
-	inputdevice_updateconfig (&currprefs);
+	inputdevice_updateconfig (&changed_prefs, &currprefs);
 	if (quit_program >= 0)
 		quit_program = UAE_RESET;
 #if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
@@ -904,9 +904,14 @@ void virtualdevice_init (void)
 #endif
 #ifdef AUTOCONFIG
 	expansion_init ();
+	emulib_install ();
+	uaeexe_install ();
 #endif
 #ifdef FILESYS
 	filesys_install ();
+#endif
+#if defined (BSDSOCKET)
+	bsdlib_install ();
 #endif
 }
 
@@ -1007,11 +1012,6 @@ static int real_main2 (int argc, TCHAR **argv)
 	memory_reset ();
 
 #ifdef AUTOCONFIG
-#if defined (BSDSOCKET)
-	bsdlib_install ();
-#endif
-	emulib_install ();
-	uaeexe_install ();
 	native2amiga_install ();
 #endif
 

@@ -189,6 +189,8 @@ int init_socket_layer (void)
 {
 	int result = 0;
 
+	if (bsd)
+		return -1;
 	deinit_socket_layer ();
 	if (currprefs.socket_emu) {
 		if((result = mySockStartup())) {
@@ -287,6 +289,8 @@ void deinit_socket_layer(void)
 	}
 	close_selectget_threads ();
 	WSACleanup();
+	xfree (bsd);
+	bsd = NULL;
 }
 
 #ifdef BSDSOCKET

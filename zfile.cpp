@@ -3325,7 +3325,7 @@ int zfile_stat_archive (const TCHAR *path, struct mystat *s)
 	struct zvolume *zv = get_zvolume (path);
 	struct znode *zn = get_znode (zv, path, TRUE);
 
-	memset (s, 0, sizeof (struct _stat64));
+	memset (s, 0, sizeof (struct mystat));
 	if (!zn)
 		return 0;
 	s->size = zn->size;

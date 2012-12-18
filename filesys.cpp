@@ -5848,7 +5848,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	uaecptr start = resaddr;
 	uaecptr residents, tmp;
 
-	TRACEI ((_T("filesystem: diagentry called\n")));
+	write_log (_T("filesystem: diagentry called: %x\n"), resaddr);
 
 	filesys_configdev = m68k_areg (regs, 3);
 	init_filesys_diagentry ();

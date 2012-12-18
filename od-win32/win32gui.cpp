@@ -4383,7 +4383,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			ConfigToRegistry (config, configtypepanel);
 			InitializeConfig (hDlg, config);
 			if (full_property_sheet) {
-				inputdevice_updateconfig (&workprefs);
+				inputdevice_updateconfig (NULL, &workprefs);
 			} else {
 				uae_restart (-1, *pcfgfile);
 				exit_gui(1);
@@ -4396,7 +4396,7 @@ static void loadsavecommands (HWND hDlg, WPARAM wParam, struct ConfigStruct **co
 			ConfigToRegistry (config, configtypepanel);
 			InitializeConfig (hDlg, config);
 			if (full_property_sheet) {
-				inputdevice_updateconfig (&workprefs);
+				inputdevice_updateconfig (NULL, &workprefs);
 			} else {
 				uae_restart (-1, *pcfgfile);
 				exit_gui(1);
@@ -10088,9 +10088,10 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		CheckDlgButton (hDlg, IDC_NOUAEFSDB, workprefs.filesys_no_uaefsdb);
 		CheckDlgButton (hDlg, IDC_NORECYCLEBIN, workprefs.win32_norecyclebin);
 		CheckDlgButton (hDlg, IDC_MAPDRIVES_LIMIT, workprefs.filesys_limit != 0);
+		InitializeListView (hDlg);
+		setautocomplete (hDlg, IDC_CD_TEXT);
 		addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
 		addcdtype (hDlg, IDC_CD_TYPE);
-		InitializeListView (hDlg);
 		hilitehd (hDlg);
 		break;
 
@@ -11710,7 +11711,7 @@ static void processport (HWND hDlg, bool reset, int port)
 	values_from_gameportsdlg (hDlg, 0);
 	enable_for_gameportsdlg (hDlg);
 	updatejoyport (hDlg);
-	inputdevice_updateconfig (&workprefs);
+	inputdevice_updateconfig (NULL, &workprefs);
 	inputdevice_config_change ();
 }
 
@@ -11779,7 +11780,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
 		}
 
-		inputdevice_updateconfig (&workprefs);
+		inputdevice_updateconfig (NULL, &workprefs);
 		enable_for_gameportsdlg (hDlg);
 		updatejoyport (hDlg);
 		recursive--;
@@ -11870,7 +11871,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		pages[IOPORTS_ID] = hDlg;
 		currentpage = IOPORTS_ID;
 		init_portsdlg (hDlg);
-		inputdevice_updateconfig (&workprefs);
+		inputdevice_updateconfig (NULL, &workprefs);
 		enable_for_portsdlg (hDlg);
 		values_to_portsdlg (hDlg);
 		recursive--;
@@ -11902,7 +11903,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 				case IDC_MIDIINLIST:
 				case IDC_DONGLELIST:
 					values_from_portsdlg (hDlg);
-					inputdevice_updateconfig (&workprefs);
+					inputdevice_updateconfig (NULL, &workprefs);
 					inputdevice_config_change ();
 					enable_for_portsdlg (hDlg);
 					break;
@@ -12216,7 +12217,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 		if (item != workprefs.input_selected_setting) {
 			workprefs.input_selected_setting = (int)item;
 			input_selected_widget = -1;
-			inputdevice_updateconfig (&workprefs);
+			inputdevice_updateconfig (NULL, &workprefs);
 			enable_for_inputdlg (hDlg);
 			InitializeListView (hDlg);
 			doselect = 1;
@@ -12267,7 +12268,7 @@ static void values_from_inputdlg (HWND hDlg, int inputchange)
 			eventnames[input_selected_event], _tcslen (custom) == 0 ? NULL : custom,
 			flags, -1, input_selected_sub_num);
 		update_listview_input (hDlg);
-		inputdevice_updateconfig (&workprefs);
+		inputdevice_updateconfig (NULL, &workprefs);
 	}
 }
 
@@ -12758,10 +12759,10 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	{
 		pages[INPUTMAP_ID] = hDlg;
 		currentpage = INPUTMAP_ID;
-		inputdevice_updateconfig (&workprefs);
+		inputdevice_updateconfig (NULL, &workprefs);
 		if (inputmap_remap_counter == 0) {
 			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1);
-			inputdevice_updateconfig (&workprefs);
+			inputdevice_updateconfig (NULL, &workprefs);
 		}
 		InitializeListView (hDlg);
 		HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
@@ -13119,7 +13120,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		recursive++;
 		pages[INPUT_ID] = hDlg;
 		currentpage = INPUT_ID;
-		inputdevice_updateconfig (&workprefs);
+		inputdevice_updateconfig (NULL, &workprefs);
 		inputdevice_config_change ();
 		input_selected_widget = -1;
 		init_inputdlg (hDlg);
@@ -14487,9 +14488,9 @@ static int ignorewindows[] = {
 	-1,
 	IDD_DISPLAY, IDC_DISPLAYSELECT,
 	-1,
-	IDD_FILTER, IDC_FILTERPRESETS,
+	IDD_FILTER, IDC_FILTERMODE, IDC_FILTEROVERLAY, IDC_FILTERPRESETS,
 	-1,
-	IDD_HARDDISK, IDC_VOLUMELIST,
+	IDD_HARDDISK, IDC_VOLUMELIST, IDC_CD_TEXT,
 	-1,
 	IDD_INPUT, IDC_INPUTDEVICE, IDC_INPUTLIST, IDC_INPUTAMIGA,
 	-1,
@@ -14497,13 +14498,17 @@ static int ignorewindows[] = {
 	-1,
 	IDD_LOADSAVE, IDC_CONFIGTREE, IDC_EDITNAME, IDC_EDITDESCRIPTION, IDC_CONFIGLINK, IDC_EDITPATH,
 	-1,
-	IDD_MISC1, IDC_LANGUAGE,
+	IDD_MISC1, IDC_LANGUAGE, IDC_STATENAME,
 	-1,
-	IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP,
+	IDD_PATHS, IDC_PATHS_ROM, IDC_PATHS_CONFIG, IDC_PATHS_SCREENSHOT, IDC_PATHS_SAVESTATE, IDC_PATHS_AVIOUTPUT, IDC_PATHS_SAVEIMAGE, IDC_PATHS_RIP, IDC_LOGPATH,
 	-1,
-	IDD_IOPORTS, IDC_PRINTERLIST, IDC_SAMPLERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST,
+	IDD_IOPORTS, IDC_PRINTERLIST, IDC_SAMPLERLIST, IDC_PS_PARAMS, IDC_SERIAL, IDC_MIDIOUTLIST, IDC_MIDIINLIST, IDC_DONGLELIST,
 	-1,
 	IDD_SOUND, IDC_SOUNDCARDLIST, IDC_SOUNDDRIVESELECT,
+	-1,
+	IDD_EXPANSION, IDC_RTG_DISPLAYSELECT,
+	-1,
+	IDD_GAMEPORTS, IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_JOYS,
 	-1,
 	0
 };
@@ -14988,7 +14993,7 @@ static int do_filesys_insert (const TCHAR *root)
 {
 	if (filesys_insert (-1, NULL, root, 0, 0) == 0)
 		return filesys_media_change (root, 2, NULL);
-	return 1;
+	return 0;
 }
 
 int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
@@ -15087,9 +15092,16 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 
 		if (drvdrag) {
 			type = ZFILE_DISKIMAGE;
-		} else if (zip || harddrive) {
-			do_filesys_insert (file);
-			continue;
+		} else if ((zip || harddrive) && type != ZFILE_DISKIMAGE) {
+			if (do_filesys_insert (file))
+				continue;
+			if (zip) {
+				struct zfile *z2 = zfile_fopen (file, _T("rb"), mask);
+				if (z2) {
+					type = zfile_gettype (z2);
+					zfile_fclose (z2);
+				}
+			}
 		}
 
 		switch (type)
@@ -15147,7 +15159,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		case ZFILE_CONFIGURATION:
 			if (target_cfgfile_load (&workprefs, file, 0, 0)) {
 				if (full_property_sheet) {
-					inputdevice_updateconfig (&workprefs);
+					inputdevice_updateconfig (NULL, &workprefs);
 					if (!workprefs.start_gui)
 						ret = 1;
 				} else {
@@ -15803,7 +15815,7 @@ int gui_init (void)
 	int ret;
 
 	read_rom_list ();
-	inputdevice_updateconfig (&workprefs);
+	inputdevice_updateconfig (NULL, &workprefs);
 	for (;;) {
 		ret = GetSettings (1, currprefs.win32_notaskbarbutton ? hHiddenWnd : NULL);
 		if (!restart_requested)

@@ -125,6 +125,7 @@ HMODULE hUIDLL = NULL;
 HWND (WINAPI *pHtmlHelp)(HWND, LPCWSTR, UINT, LPDWORD) = NULL;
 HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 RECT amigawin_rect, mainwin_rect;
+int setcursoroffset_x, setcursoroffset_y;
 static int mouseposx, mouseposy;
 static UINT TaskbarRestart;
 static HWND TaskbarRestartHWND;
@@ -409,8 +410,8 @@ static void figure_processor_speed (void)
 
 static void setcursor (int oldx, int oldy)
 {
-	int x = (amigawin_rect.right - amigawin_rect.left) / 2;
-	int y = (amigawin_rect.bottom - amigawin_rect.top) / 2;
+	int x = abs (amigawin_rect.right - amigawin_rect.left) / 2;
+	int y = abs (amigawin_rect.bottom - amigawin_rect.top) / 2;
 	mouseposx = oldx - x;
 	mouseposy = oldy - y;
 
@@ -419,9 +420,11 @@ static void setcursor (int oldx, int oldy)
 		return;
 	}
 #if 0
-	write_log (_T("%d %d %d %d %d - %d %d %d %d %d\n"),
-		x, amigawin_rect.left, amigawin_rect.right, mouseposx, oldx,
-		y, amigawin_rect.top, amigawin_rect.bottom, mouseposy, oldy);
+	write_log (_T("%dx%d %dx%d %dx%d (%dx%d %dx%d)\n"),
+		x, y,
+		mouseposx, mouseposy, oldx, oldy,
+		amigawin_rect.left, amigawin_rect.top,
+		amigawin_rect.right, amigawin_rect.bottom);
 #endif
 	if (oldx >= 30000 || oldy >= 30000 || oldx <= -30000 || oldy <= -30000) {
 		mouseposx = mouseposy = 0;
@@ -436,7 +439,10 @@ static void setcursor (int oldx, int oldy)
 			amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
 		return;
 	}
-	SetCursorPos (amigawin_rect.left + x, amigawin_rect.top + y);
+	int cx = amigawin_rect.left + x;
+	int cy = amigawin_rect.top + y;
+	//write_log (_T("SetCursorPos(%d,%d)\n"), cx, cy);
+	SetCursorPos (cx, cy);
 }
 
 static int pausemouseactive;
@@ -594,14 +600,18 @@ void updatemouseclip (void)
 {
 	if (showcursor) {
 		ClipCursor (&amigawin_rect);
-		write_log (_T("CLIP %dx%d %dx%d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom);
+		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
 	}
 }
 
-void  updatewinrect (void)
+void updatewinrect (bool allowfullscreen)
 {
+	int f = isfullscreen ();
+	if (!allowfullscreen && f > 0)
+		return;
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
-	if (isfullscreen () == 0) {
+	write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
+	if (f == 0) {
 		changed_prefs.gfx_size_win.x = amigawin_rect.left;
 		changed_prefs.gfx_size_win.y = amigawin_rect.top;
 		currprefs.gfx_size_win.x = changed_prefs.gfx_size_win.x;
@@ -679,7 +689,7 @@ static void setmouseactive2 (int active, bool allowpause)
 			if (!showcursor) {
 				ShowCursor (FALSE);
 				SetCapture (hAmigaWnd);
-				updatewinrect ();
+				updatewinrect (false);
 				showcursor = 1;
 				updatemouseclip ();
 			}
@@ -1201,7 +1211,7 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			WINDOWPOS *wp = (WINDOWPOS*)lParam;
 			if (isfullscreen () <= 0) {
 				if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
-					updatewinrect ();
+					updatewinrect (false);
 					config_changed = 1;
 					updatemouseclip ();
 				}
@@ -1229,10 +1239,10 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 
 			mx = (signed short) LOWORD (lParam);
 			my = (signed short) HIWORD (lParam);
+			//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 			mx -= mouseposx;
 			my -= mouseposy;
 
-			//write_log (_T("%d %d %d %d %d %d %dx%d %dx%d\n"), wm, mouseactive, focus, showcursor, recapture, isfullscreen (), mx, my, mouseposx, mouseposy);
 			if (recapture && isfullscreen () <= 0) {
 				enablecapture ();
 				return 0;
@@ -1941,7 +1951,7 @@ void handle_events (void)
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
-		sleep_millis (20);
+		sleep_millis (100);
 		inputdevicefunc_keyboard.read ();
 		inputdevicefunc_mouse.read ();
 		inputdevicefunc_joystick.read ();
@@ -1971,10 +1981,12 @@ void handle_events (void)
 	while (checkIPC (globalipc, &currprefs));
 #endif
 	if (was_paused) {
+		updatedisplayarea ();
+		manual_painting_needed--;
 		pause_emulation = was_paused;
+		setmouseactive (0);
 		resumepaused (was_paused);
 		sound_closed = 0;
-		manual_painting_needed--;
 	}
 	cnt1--;
 	if (cnt1 <= 0) {
@@ -5549,7 +5561,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 			}
 	}
 #endif
-#ifndef	_DEBUG
+//#ifndef	_DEBUG
 	if (lRet == EXCEPTION_CONTINUE_SEARCH) {
 		TCHAR path[MAX_DPATH];
 		TCHAR path2[MAX_DPATH];
@@ -5560,7 +5572,9 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 		__time64_t now;
 
 		if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
+			TCHAR dumpfilename[100];
 			TCHAR beta[100];
+			TCHAR path3[MAX_DPATH];
 			TCHAR *slash = _tcsrchr (path, '\\');
 			_time64 (&now);
 			when = *_localtime64 (&now);
@@ -5574,10 +5588,11 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 				p = slash + 1;
 			else
 				p = path2;
+			p[0] = 0;
 			beta[0] = 0;
 			if (WINUAEPUBLICBETA > 0)
 				_stprintf (beta, _T("b%s"), WINUAEBETA);
-			_stprintf (p, _T("winuae_%d%d%d%s_%d%02d%02d_%02d%02d%02d.dmp"),
+			_stprintf (dumpfilename, _T("winuae_%d%d%d%s_%d%02d%02d_%02d%02d%02d.dmp"),
 				UAEMAJOR, UAEMINOR, UAESUBREV, beta,
 				when.tm_year + 1900, when.tm_mon + 1, when.tm_mday, when.tm_hour, when.tm_min, when.tm_sec);
 			if (dll == NULL)
@@ -5585,13 +5600,26 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 			if (dll) {
 				MINIDUMPWRITEDUMP dump = (MINIDUMPWRITEDUMP)GetProcAddress (dll, "MiniDumpWriteDump");
 				if (dump) {
-					HANDLE f = CreateFile (path2, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					_tcscpy (path3, path2);
+					_tcscat (path3, dumpfilename);
+					HANDLE f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (f == INVALID_HANDLE_VALUE) {
+						_tcscpy (path3, start_path_data);
+						_tcscat (path3, dumpfilename);
+						f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					}
+					if (f == INVALID_HANDLE_VALUE) {
+						if (GetTempPath (MAX_DPATH, path3) > 0) {
+							_tcscat (path3, dumpfilename);
+							f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+						}
+					}
 					if (f != INVALID_HANDLE_VALUE) {
 						flush_log ();
 						savedump (dump, f, pExceptionPointers);
 						CloseHandle (f);
 						if (isfullscreen () <= 0) {
-							_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path2);
+							_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
 							MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
 						}
 					}
@@ -5599,7 +5627,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 			}
 		}
 	}
-#endif
+//#endif
 #if 0
 	HMODULE hFaultRepDll = LoadLibrary (_T("FaultRep.dll")) ;
 	if (hFaultRepDll) {

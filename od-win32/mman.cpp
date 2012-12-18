@@ -135,7 +135,8 @@ bool preinit_shm (void)
 	p96mem_offset = NULL;
 
 	GetSystemInfo (&si);
-	max_allowed_mman = 512;
+	max_allowed_mman = 512 + 256;
+#if 1
 	if (os_64bit) {
 #ifdef WIN64
 		max_allowed_mman = 3072;
@@ -143,6 +144,7 @@ bool preinit_shm (void)
 		max_allowed_mman = 2048;
 #endif
 	}
+#endif
 
 	memstats.dwLength = sizeof(memstats);
 	GlobalMemoryStatus(&memstats);
@@ -172,6 +174,10 @@ bool preinit_shm (void)
 		size64 = 8 * 1024 * 1024;
 	if (max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = size64 / (1024 * 1024);
+	if (!os_64bit) {
+		if (max_allowed_mman * 1024 * 1024 > (size64 / 2))
+			max_allowed_mman = (size64 / 2) / (1024 * 1024);
+	}
 
 	natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
 	if (natmem_size < 256 * 1024 * 1024)
@@ -179,14 +185,14 @@ bool preinit_shm (void)
 
 	write_log (_T("Total physical RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, natmem_size >> 20);
 	natmem_offset = 0;
-	if (natmem_size <= 640 * 1024 * 1024) {
+	if (natmem_size <= 768 * 1024 * 1024) {
 		uae_u32 p = 0x78000000 - natmem_size;
 		for (;;) {
 			natmem_offset = (uae_u8*)VirtualAlloc ((void*)p, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
 			if (natmem_offset)
 				break;
-			p -= 256 * 1024 * 1024;
-			if (p <= 256 * 1024 * 1024)
+			p -= 128 * 1024 * 1024;
+			if (p <= 128 * 1024 * 1024)
 				break;
 		}
 	}
@@ -418,7 +424,7 @@ static int doinit_shm (void)
 	uae_u32 size, totalsize, z3size, natmemsize;
 	uae_u32 rtgbarrier, z3chipbarrier, rtgextra;
 	int rounds = 0;
-	ULONG z3rtgmem_size = changed_prefs.rtgmem_type ? changed_prefs.rtgmem_size : 0;
+	ULONG z3rtgmem_size;
 
 	for (;;) {
 		int lowround = 0;
@@ -432,6 +438,7 @@ static int doinit_shm (void)
 		rtgextra = 0;
 		z3chipbarrier = 0;
 		rtgbarrier = si.dwPageSize;
+		z3rtgmem_size = changed_prefs.rtgmem_type ? changed_prefs.rtgmem_size : 0;
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		if (changed_prefs.z3fastmem_size || changed_prefs.z3fastmem2_size || changed_prefs.z3chipmem_size) {
@@ -674,7 +681,7 @@ int mprotect (void *addr, size_t len, int prot)
 void *shmat (int shmid, void *shmaddr, int shmflg)
 {
 	void *result = (void *)-1;
-	BOOL got = FALSE, readonly = FALSE;
+	BOOL got = FALSE, readonly = FALSE, maprom = FALSE;
 	int p96special = FALSE;
 
 #ifdef NATMEM_OFFSET
@@ -695,14 +702,17 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			got = TRUE;
 			size += BARRIER;
 			readonly = TRUE;
+			maprom = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_a8"))) {
 			shmaddr=natmem_offset + 0xa80000;
 			got = TRUE;
 			readonly = TRUE;
+			maprom = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_e0"))) {
 			shmaddr=natmem_offset + 0xe00000;
 			got = TRUE;
 			readonly = TRUE;
+			maprom = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("rom_f0"))) {
 			shmaddr=natmem_offset + 0xf00000;
 			got = TRUE;
@@ -817,6 +827,7 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		shmids[shmid].mode = protect;
 		shmids[shmid].rosize = readonlysize;
 		shmids[shmid].natmembase = natmem_offset;
+		shmids[shmid].maprom = maprom ? 1 : 0;
 		if (shmaddr)
 			virtualfreewithlock (shmaddr, size, MEM_DECOMMIT);
 		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
@@ -838,10 +849,29 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 	return result;
 }
 
+void unprotect_maprom (void)
+{
+	bool protect = false;
+	for (int i = 0; i < MAX_SHMID; i++) {
+		DWORD old;
+		struct shmid_ds *shm = &shmids[i];
+		if (shm->mode != PAGE_READONLY)
+			continue;
+		if (!shm->attached || !shm->rosize)
+			continue;
+		if (shm->maprom <= 0)
+			continue;
+		shm->maprom = -1;
+		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
+			write_log (_T("VP %08X - %08X %x (%dk) failed %d\n"),
+				(uae_u8*)shm->attached - natmem_offset, (uae_u8*)shm->attached - natmem_offset + shm->size,
+				shm->size, shm->size >> 10, GetLastError ());
+		}
+	}
+}
+
 void protect_roms (bool protect)
 {
-	struct shmid_ds *shm;
-	
 	if (protect) {
 		// protect only if JIT enabled, always allow unprotect
 		if (!currprefs.cachesize || currprefs.comptrustbyte || currprefs.comptrustword || currprefs.comptrustlong)
@@ -849,10 +879,12 @@ void protect_roms (bool protect)
 	}
 	for (int i = 0; i < MAX_SHMID; i++) {
 		DWORD old;
-		shm = &shmids[i];
+		struct shmid_ds *shm = &shmids[i];
 		if (shm->mode != PAGE_READONLY)
 			continue;
 		if (!shm->attached || !shm->rosize)
+			continue;
+		if (shm->maprom < 0 && protect)
 			continue;
 		if (!VirtualProtect (shm->attached, shm->rosize, protect ? PAGE_READONLY : PAGE_READWRITE, &old)) {
 			write_log (_T("VP %08X - %08X %x (%dk) failed %d\n"),

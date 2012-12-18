@@ -401,7 +401,12 @@ static uae_u32 REGPARAM2 uaelib_demux2 (TrapContext *context)
 
 	case 70: return 0; /* RESERVED. Something uses this.. */
 
-	case 80: return currprefs.maprom ? currprefs.maprom : 0xffffffff;
+	case 80:
+		if (!currprefs.maprom)
+			return 0xffffffff;
+		/* Disable possible ROM protection */
+		unprotect_maprom ();
+		return currprefs.maprom;
 	case 81: return cfgfile_uaelib (ARG1, ARG2, ARG3, ARG4);
 	case 82: return cfgfile_uaelib_modify (ARG1, ARG2, ARG3, ARG4, ARG5);
 	case 83: currprefs.mmkeyboard = ARG1 ? 1 : 0; return currprefs.mmkeyboard;
