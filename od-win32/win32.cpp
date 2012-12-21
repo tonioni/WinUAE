@@ -590,6 +590,7 @@ static void releasecapture (void)
 {
 	if (!showcursor)
 		return;
+	write_log (_T("releasecapture\n"));
 	ClipCursor (NULL);
 	ReleaseCapture ();
 	ShowCursor (TRUE);
@@ -621,7 +622,7 @@ void updatewinrect (bool allowfullscreen)
 
 static void setmouseactive2 (int active, bool allowpause)
 {
-	//write_log (_T("setmouseactive %d->%d\n"), mouseactive, active);
+	write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
 	if (active == 0)
 		releasecapture ();
 	if (mouseactive == active && active >= 0)
@@ -1984,7 +1985,6 @@ void handle_events (void)
 		updatedisplayarea ();
 		manual_painting_needed--;
 		pause_emulation = was_paused;
-		setmouseactive (0);
 		resumepaused (was_paused);
 		sound_closed = 0;
 	}

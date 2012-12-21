@@ -1210,6 +1210,8 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	picasso_offset_mx = 1000;
 	picasso_offset_my = 1000;
 
+	if (!picasso_on)
+		return;
 	if (!scalepicasso)
 		return;
 
@@ -1217,6 +1219,8 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	int srcwidth, srcheight;
 	srcwidth = picasso96_state.Width;
 	srcheight = picasso96_state.Height;
+	if (!srcwidth || !srcheight)
+		return;
 
 	if (currprefs.win32_rtgscaleaspectratio < 0) {
 		// automatic

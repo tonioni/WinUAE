@@ -50,7 +50,7 @@ struct gui_info
     bool drive_writing[4];		/* drive is writing */
     bool drive_disabled[4];		/* drive is disabled */
     bool powerled;				/* state of power led */
-    uae_s8 powerled_brightness;	/* 0 to 255 */
+    uae_u8 powerled_brightness;	/* 0 to 255 */
     uae_s8 drive_side;			/* floppy side */
     uae_s8 hd;					/* harddrive */
     uae_s8 cd;					/* CD */

@@ -4,6 +4,12 @@
 This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
 I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
 
+Beta 5: (Possibly 2.5.1 final)
+
+- Fixed crash when reset caused switching from RTG to native mode. (b3)
+- Power led (and audio filter if enabled) state was not updated correctly (2.5.0)
+- Exiting pause mode kept mouse uncaptured in some situations (b4)
+
 Beta 4:
 
 - Floppy read/write checkboxes didn't work (b1 filesystem update)

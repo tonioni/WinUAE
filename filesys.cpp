@@ -6133,9 +6133,10 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	uae_u64 size;
 	int blocksize, surfaces, spb, spt, reserved;
 	int lowcyl, highcyl;
-	uae_u32 block;
+	uae_u32 block, flags;
 	uae_u8 buf[512];
 
+	flags = rl (pp + 20);
 	pp[37 + pp[36]] = 0;
 	s = au ((char*)pp + 37);
 	pp += 128;
@@ -6149,7 +6150,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	lowcyl = rl (pp + 36);
 	highcyl = rl (pp + 40);
 
-	write_log (_T("RDB: '%s' dostype=%08X (%s)\n"), s, dostype, dostypes (dostype));
+	write_log (_T("RDB: '%s' dostype=%08X (%s) Flags: %08X\n"), s, dostype, dostypes (dostype), flags);
 	write_log (_T("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n"),
 		blocksize, surfaces, spb);
 	write_log (_T("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n"),
@@ -6208,7 +6209,7 @@ static void dump_rdb (UnitInfo *uip, struct hardfiledata *hfd, uae_u8 *bufrdb, u
 			fileblock = rl (buf + 4 * 4);
 		if (fileblock == 0xffffffff)
 			break;
-		write_log (_T("RDB: FSEG block %d:\n"), fileblock);
+		write_log (_T("RDB: LSEG block %d:\n"), fileblock);
 		if (!legalrdbblock (uip, fileblock)) {
 			write_log (_T("RDB: corrupt FSHD pointer %d\n"), fileblock);
 			break;
