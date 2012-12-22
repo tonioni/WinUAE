@@ -5561,7 +5561,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 			}
 	}
 #endif
-//#ifndef	_DEBUG
+#ifndef	_DEBUG
 	if (lRet == EXCEPTION_CONTINUE_SEARCH) {
 		TCHAR path[MAX_DPATH];
 		TCHAR path2[MAX_DPATH];
@@ -5627,7 +5627,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 			}
 		}
 	}
-//#endif
+#endif
 #if 0
 	HMODULE hFaultRepDll = LoadLibrary (_T("FaultRep.dll")) ;
 	if (hFaultRepDll) {

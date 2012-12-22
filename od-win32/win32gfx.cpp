@@ -1127,10 +1127,8 @@ void unlockscr (struct vidbuffer *vb)
 
 void flush_clear_screen (struct vidbuffer *vb)
 {
-	struct vidbuffer vb2 = { 0 };
-
 	if (!vb)
-		vb = &vb2;
+		return;
 	if (lockscr (vb, true)) {
 		int y;
 		for (y = 0; y < vb->height_allocated; y++) {

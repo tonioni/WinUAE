@@ -4,6 +4,11 @@
 This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
 I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
 
+2.5.1
+
+- Only reserve max total physical memory / 2 of ram under 32 bit Windows versions.
+- lzh/lha MSDOS-style timestamps supported
+
 Beta 5: (Possibly 2.5.1 final)
 
 - Fixed crash when reset caused switching from RTG to native mode. (b3)

@@ -1903,14 +1903,16 @@ static const GUID diskselectionguids[] = {
 	{ 0x05aa5db2, 0x470b, 0x4725, { 0x96, 0x03, 0xee, 0x61, 0x30, 0xfc, 0x54, 0x99 } }
 };
 
-static void getfilter (int num, TCHAR *name, int *filter, TCHAR *fname)
+static void getfilter (int num, const TCHAR *name, int *filter, TCHAR *fname)
 {
 	_tcscpy (fname, name);
 	_tcscat (fname, _T("_Filter"));
 	regqueryint (NULL, fname, &filter[num]);
 }
-static void setfilter (int num, int *filter, TCHAR *fname)
+static void setfilter (int num, int *filter, const TCHAR *fname)
 {
+	if (fname == NULL || fname[0] == 0)
+		return;
 	regsetint (NULL, fname, filter[num]);
 }
 
@@ -2106,7 +2108,7 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 					}
 				}
 				if (!ok) {
-					getfilter(flag, _T("StatefilePath"), previousfilter, filtername);
+					getfilter (flag, _T("StatefilePath"), previousfilter, filtername);
 					fetch_path (_T("StatefilePath"), init_path, sizeof (init_path) / sizeof (TCHAR));
 				}
 				guid = &diskselectionguids[4];

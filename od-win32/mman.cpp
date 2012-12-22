@@ -175,15 +175,15 @@ bool preinit_shm (void)
 	if (max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = size64 / (1024 * 1024);
 	if (!os_64bit) {
-		if (max_allowed_mman * 1024 * 1024 > (size64 / 2))
-			max_allowed_mman = (size64 / 2) / (1024 * 1024);
+		if (max_allowed_mman * 1024 * 1024 > (totalphys64 / 2))
+			max_allowed_mman = (totalphys64 / 2) / (1024 * 1024);
 	}
 
 	natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
 	if (natmem_size < 256 * 1024 * 1024)
 		natmem_size = 256 * 1024 * 1024;
 
-	write_log (_T("Total physical RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, natmem_size >> 20);
+	write_log (_T("Total physical RAM %lluM, all RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, total64 >> 20, natmem_size >> 20);
 	natmem_offset = 0;
 	if (natmem_size <= 768 * 1024 * 1024) {
 		uae_u32 p = 0x78000000 - natmem_size;
