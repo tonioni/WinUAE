@@ -154,7 +154,7 @@ extern int inputdevice_get_device_total (int type);
 extern int inputdevice_get_widget_num (int devnum);
 extern int inputdevice_get_widget_type (int devnum, int num, TCHAR *name);
 
-extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af, bool gp);
+extern int input_get_default_mouse (struct uae_input_device *uid, int num, int port, int af, bool gp, bool wheel);
 extern int input_get_default_lightpen (struct uae_input_device *uid, int num, int port, int af, bool gp);
 extern int input_get_default_joystick (struct uae_input_device *uid, int num, int port, int af, int mode, bool gp);
 extern int input_get_default_joystick_analog (struct uae_input_device *uid, int num, int port, int af, bool gp);
@@ -263,13 +263,14 @@ extern uae_u64 input_getqualifiers (void);
 extern void setsystime (void);
 
 #define JSEM_MODE_DEFAULT 0
-#define JSEM_MODE_MOUSE 1
-#define JSEM_MODE_JOYSTICK 2
-#define JSEM_MODE_GAMEPAD 3
-#define JSEM_MODE_JOYSTICK_ANALOG 4
-#define JSEM_MODE_MOUSE_CDTV 5
-#define JSEM_MODE_JOYSTICK_CD32 6
-#define JSEM_MODE_LIGHTPEN 7
+#define JSEM_MODE_WHEELMOUSE 1
+#define JSEM_MODE_MOUSE 2
+#define JSEM_MODE_JOYSTICK 3
+#define JSEM_MODE_GAMEPAD 4
+#define JSEM_MODE_JOYSTICK_ANALOG 5
+#define JSEM_MODE_MOUSE_CDTV 6
+#define JSEM_MODE_JOYSTICK_CD32 7
+#define JSEM_MODE_LIGHTPEN 8
 
 #define JSEM_KBDLAYOUT 0
 #define JSEM_JOYS 100

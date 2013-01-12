@@ -32,9 +32,10 @@ FreeMem = -210
 PP_MAXSIZE = 4 * 96
 PP_FSSIZE = 400
 PP_FSPTR = 404
-PP_FSRES = 408
-PP_EXPLIB = 412
-PP_FSHDSTART = 416
+PP_ADDTOFSRES = 408
+PP_FSRES = 412
+PP_EXPLIB = 416
+PP_FSHDSTART = 420
 PP_TOTAL = (PP_FSHDSTART+140)
 
 NOTIFY_CLASS = $40000000
@@ -49,7 +50,9 @@ NRF_MAGIC = $80000000
 our_seglist:
 	dc.l 0 									; 8 /* NextSeg */
 start:
-	dc.l 9						;0 12
+	bra.s startjmp
+	dc.w 9						;0 12
+startjmp:
 	bra.w filesys_mainloop		;1 16
 	dc.l make_dev-start			;2 20
 	dc.l filesys_init-start		;3 24
@@ -605,7 +608,8 @@ r13
 r0	move.l d7,d0
 	movem.l (sp)+,d1-d7/a1-a6
 	rts
-ree	moveq #0,d7
+ree	sub.l a0,a0
+	moveq #0,d7
 	bra.s r0
 
 fsres:
@@ -1021,9 +1025,12 @@ do_mount:
 	move.l d0,32(a3)         ; dn_SegList
 
 dont_mount:
-	tst.l PP_FSPTR(a1)	; filesystem?
-	beq.s nordbfs2
 	move.l PP_FSPTR(a1),a0
+	tst.l PP_FSSIZE(a1)
+	beq.s nordbfs3
+	; filesystem needs relocation?
+	move.l a0,d0
+	beq.s nordbfs2
 	bsr.w relocate
 	movem.l d0/a0-a1,-(sp)
 	move.l PP_FSSIZE(a1),d0
@@ -1031,7 +1038,12 @@ dont_mount:
 	move.l 4.w,a6
 	jsr FreeMem(a6)
 	movem.l (sp)+,d0/a0-a1
+	clr.l PP_FSSIZE(a1)
+	move.l a0,PP_FSPTR(a1)
 	tst.l d0
+	beq.s nordbfs2
+nordbfs3:
+	tst.l PP_ADDTOFSRES(a1)
 	beq.s nordbfs2
 	bsr.w addfs
 nordbfs2:

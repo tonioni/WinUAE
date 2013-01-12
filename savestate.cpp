@@ -677,8 +677,12 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcscmp (name, _T("CDTV")))
 			end = restore_cdtv (chunk);
 		else if (!_tcscmp (name, _T("DMAC")))
-			end = restore_dmac (chunk);
+			end = restore_cdtv_dmac (chunk);
 #endif
+		else if (!_tcscmp (name, _T("DMC2")))
+			end = restore_scsi_dmac (chunk);
+		else if (!_tcscmp (name, _T("SCSI")))
+			end = restore_scsi_hd (chunk);
 		else if (!_tcscmp (name, _T("GAYL")))
 			end = restore_gayle (chunk);
 		else if (!_tcscmp (name, _T("IDE ")))
@@ -959,10 +963,18 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	dst = save_cdtv (&len, NULL);
 	save_chunk (f, dst, len, _T("CDTV"), 0);
 	xfree (dst);
-	dst = save_dmac (&len, NULL);
+	dst = save_cdtv_dmac (&len, NULL);
 	save_chunk (f, dst, len, _T("DMAC"), 0);
 	xfree (dst);
 #endif
+	dst = save_scsi_dmac (&len, NULL);
+	save_chunk (f, dst, len, _T("DMC2"), 0);
+	xfree (dst);
+	for (i = 0; i < 8; i++) {
+		dst = save_scsi_hd (i, &len, NULL);
+		save_chunk (f, dst, len, _T("SCSI"), 0);
+		xfree (dst);
+	}
 
 #ifdef ACTION_REPLAY
 	dst = save_action_replay (&len, NULL);
@@ -1276,8 +1288,10 @@ void savestate_rewind (void)
 	if (restore_u32_func (&p))
 		p = restore_cdtv (p);
 	if (restore_u32_func (&p))
-		p = restore_dmac (p);
+		p = restore_cdtv_dmac (p);
 #endif
+	if (restore_u32_func (&p))
+		p = restore_scsi_dmac (p);
 	if (restore_u32_func (&p))
 		p = restore_gayle (p);
 	for (i = 0; i < 4; i++) {
@@ -1614,12 +1628,22 @@ retry2:
 	p3 = p;
 	save_u32_func (&p, 0);
 	tlen += 4;
-	if (save_dmac (&len, p)) {
+	if (save_cdtv_dmac (&len, p)) {
 		save_u32_func (&p3, 1);
 		tlen += len;
 		p += len;
 	}
 #endif
+	if (bufcheck (st, p, 0))
+		goto retry;
+	p3 = p;
+	save_u32_func (&p, 0);
+	tlen += 4;
+	if (save_scsi_dmac (&len, p)) {
+		save_u32_func (&p3, 1);
+		tlen += len;
+		p += len;
+	}
 	if (bufcheck (st, p, 0))
 		goto retry;
 	p3 = p;

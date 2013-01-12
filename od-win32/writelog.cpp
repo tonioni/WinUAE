@@ -302,7 +302,9 @@ void console_out (const TCHAR *txt)
 
 bool console_isch (void)
 {
-	if (realconsole) {
+	if (console_buffer) {
+		return 0;
+	} else if (realconsole) {
 		return false;
 	} else if (consoleopen < 0) {
 		DWORD events = 0;
@@ -314,7 +316,9 @@ bool console_isch (void)
 
 TCHAR console_getch (void)
 {
-	if (realconsole) {
+	if (console_buffer) {
+		return 0;
+	} else if (realconsole) {
 		return getwc (stdin);
 	} else if (consoleopen < 0) {
 		DWORD len;

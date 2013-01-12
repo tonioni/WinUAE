@@ -18,6 +18,10 @@
 #define CHIPSET_CLOCK_PAL  3546895
 #define CHIPSET_CLOCK_NTSC 3579545
 
+#define MAXHPOS_ROWS 256
+#define MAXVPOS_LINES_ECS 2048
+#define MAXVPOS_LINES_OCS 512
+
 uae_u32 get_copper_address (int copno);
 
 extern int custom_init (void);

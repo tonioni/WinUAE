@@ -23,8 +23,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+
 #ifndef CPUMMU_H
 #define CPUMMU_H
+
+#include "mmu_common.h"
 
 #ifndef FULLMMU
 #define FULLMMU
@@ -38,25 +41,14 @@
 #define bug
 #endif
 
-struct m68k_exception {
-	int prb;
-	m68k_exception (int exc) : prb (exc) {}
-	operator int() { return prb; }
-};
-#define SAVE_EXCEPTION
-#define RESTORE_EXCEPTION
-#define TRY(var) try
-#define CATCH(var) catch(m68k_exception var)
-#define THROW(n) throw m68k_exception(n)
-#define THROW_AGAIN(var) throw
-#define VOLATILE
-#define ALWAYS_INLINE __inline
-
-#define likely(x) x
-#define unlikely(x) x
 static __inline void flush_internals (void) { }
 
-typedef uae_u8 flagtype;
+extern int mmu060_state;
+extern bool mmu_pagesize_8k;
+
+//typedef uae_u8 flagtype;
+
+//static m68k_exception except;
 
 struct xttrx {
     uae_u32 log_addr_base : 8;
@@ -156,22 +148,6 @@ extern void mmu_dump_tables(void);
 #define MMU_MMUSR_T						(1 << 1)
 #define MMU_MMUSR_R						(1 << 0)
 
-/* special status word (access error stack frame) */
-#define MMU_SSW_TM		0x0007
-#define MMU_SSW_TT		0x0018
-#define MMU_SSW_SIZE	0x0060
-#define MMU_SSW_SIZE_B	0x0020
-#define MMU_SSW_SIZE_W	0x0040
-#define MMU_SSW_SIZE_L	0x0000
-#define MMU_SSW_RW		0x0100
-#define MMU_SSW_LK		0x0200
-#define MMU_SSW_ATC		0x0400
-#define MMU_SSW_MA		0x0800
-#define MMU_SSW_CM	0x1000
-#define MMU_SSW_CT	0x2000
-#define MMU_SSW_CU	0x4000
-#define MMU_SSW_CP	0x8000
-
 #define TTR_I0	4
 #define TTR_I1	5
 #define TTR_D0	6
@@ -182,74 +158,140 @@ extern void mmu_dump_tables(void);
 #define TTR_OK_MATCH	2
 
 struct mmu_atc_line {
-	uae_u16 tag;
-	unsigned tt : 1;
-	unsigned valid_data : 1;
-	unsigned valid_inst : 1;
+	uaecptr tag; // tag is 16 or 17 bits S+logical
+	unsigned valid : 1;
 	unsigned global : 1;
 	unsigned modified : 1;
 	unsigned write_protect : 1;
-	unsigned hw : 1;
-	unsigned bus_fault : 1;
-	uaecptr phys;
+	uaecptr phys; // phys base address
 };
 
 /*
- * We don't need to store the whole logical address in the atc cache, as part of
- * it is encoded as index into the cache. 14 bits of the address are stored in
- * the tag, this means at least 6 bits must go into the index. The upper two
- * bits of the tag define the type of data in the atc line:
- * - 00: a normal memory address
- * - 11: invalid memory address or hardware access
- *       (generated via ~ATC_TAG(addr) in the slow path)
- * - 10: empty atc line
+ * 68040 ATC is a 4 way 16 slot associative address translation cache
+ * the 68040 has a DATA and an INSTRUCTION ATC.
+ * an ATC lookup may result in : a hit, a miss and a modified state.
+ * the 68060 can disable ATC allocation
+ * we must take care of 8k and 4k page size, index position is relative to page size
  */
 
-#define ATC_TAG_SHIFT		18
-#define ATC_TAG(addr)		((uae_u32)(addr) >> ATC_TAG_SHIFT)
+#define ATC_WAYS 4
+#define ATC_SLOTS 16
+#define ATC_TYPE 2
 
-
-#define ATC_L1_SIZE_LOG		8
-#define ATC_L1_SIZE			(1 << ATC_L1_SIZE_LOG)
-
-#define ATC_L1_INDEX(addr)	(((addr) >> 12) % ATC_L1_SIZE)
-
-/*
- * first level atc cache
- * indexed by [super][data][rw][idx]
- */
-
-typedef struct mmu_atc_line mmu_atc_l1_array[2][2][ATC_L1_SIZE];
-extern mmu_atc_l1_array atc_l1[2];
-extern mmu_atc_l1_array *current_atc;
-
-#define ATC_L2_SIZE_LOG		12
-#define ATC_L2_SIZE			(1 << ATC_L2_SIZE_LOG)
-
-#define ATC_L2_INDEX(addr)	((((addr) >> 12) ^ ((addr) >> (32 - ATC_L2_SIZE_LOG))) % ATC_L2_SIZE)
+extern uae_u32 mmu_is_super;
+extern uae_u32 mmu_tagmask, mmu_pagemask;
+extern struct mmu_atc_line mmu_atc_array[ATC_TYPE][ATC_WAYS][ATC_SLOTS];
 
 /*
- * lookup address in the level 1 atc cache,
- * the data and write arguments are constant in the common,
- * thus allows gcc to generate a constant offset.
+ * mmu access is a 4 step process:
+ * if mmu is not enabled just read physical
+ * check transparent region, if transparent, read physical
+ * check ATC (address translation cache), read immediatly if HIT
+ * read from mmu with the long path (and allocate ATC entry if needed)
  */
 static ALWAYS_INLINE bool mmu_lookup(uaecptr addr, bool data, bool write,
 									  struct mmu_atc_line **cl)
 {
-	addr >>= 12;
-	*cl = &(*current_atc)[data ? 1 : 0][write ? 1 : 0][addr % ATC_L1_SIZE];
-	return (*cl)->tag == addr >> (ATC_TAG_SHIFT - 12);
+	int way,index;
+	static int way_miss=0;
+
+	uae_u32 tag = (mmu_is_super | (addr >> 1)) & mmu_tagmask;
+	if (mmu_pagesize_8k)
+		index=(addr & 0x0001E000)>>13;
+	else
+		index=(addr & 0x0000F000)>>12;
+	for (way=0;way<ATC_WAYS;way++) {
+		// if we have this 
+		if ((tag == mmu_atc_array[data][way][index].tag) && (mmu_atc_array[data][way][index].valid)) {
+			*cl=&mmu_atc_array[data][way][index];
+			// if first write to this take slow path (but modify this slot)
+			if ((!mmu_atc_array[data][way][index].modified & write) || (mmu_atc_array[data][way][index].write_protect & write))
+				return false; 
+			return true;
+		}
+	}
+	// we select a random way to void
+	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];
+	(*cl)->tag = tag;
+	way_miss++;
+	return false;
 }
 
 /*
- * similiar to mmu_user_lookup, but for the use of the moves instruction
  */
 static ALWAYS_INLINE bool mmu_user_lookup(uaecptr addr, bool super, bool data,
 										   bool write, struct mmu_atc_line **cl)
 {
-	addr >>= 12;
-	*cl = &atc_l1[super ? 1 : 0][data ? 1 : 0][write ? 1 : 0][addr % ATC_L1_SIZE];
-	return (*cl)->tag == addr >> (ATC_TAG_SHIFT - 12);
+	int way,index;
+	static int way_miss=0;
+
+	uae_u32 tag = ((super ? 0x80000000 : 0x00000000) | (addr >> 1)) & mmu_tagmask;
+	if (mmu_pagesize_8k)
+		index=(addr & 0x0001E000)>>13;
+	else
+		index=(addr & 0x0000F000)>>12;
+	for (way=0;way<ATC_WAYS;way++) {
+		// if we have this 
+		if ((tag == mmu_atc_array[data][way][index].tag) && (mmu_atc_array[data][way][index].valid)) {
+			*cl=&mmu_atc_array[data][way][index];
+			// if first write to this take slow path (but modify this slot)
+			if ((!mmu_atc_array[data][way][index].modified & write) || (mmu_atc_array[data][way][index].write_protect & write))
+				return false; 
+			return true;
+		}
+	}
+	// we select a random way to void
+	*cl=&mmu_atc_array[data][way_miss%ATC_WAYS][index];
+	(*cl)->tag = tag;
+	way_miss++;
+	return false;
+}
+
+/* check if an address matches a ttr */
+STATIC_INLINE int mmu_do_match_ttr(uae_u32 ttr, uaecptr addr, bool super)
+{
+	if (ttr & MMU_TTR_BIT_ENABLED)	{	/* TTR enabled */
+		uae_u8 msb, mask;
+
+		msb = ((addr ^ ttr) & MMU_TTR_LOGICAL_BASE) >> 24;
+		mask = (ttr & MMU_TTR_LOGICAL_MASK) >> 16;
+
+		if (!(msb & ~mask)) {
+
+			if ((ttr & MMU_TTR_BIT_SFIELD_ENABLED) == 0) {
+				if (((ttr & MMU_TTR_BIT_SFIELD_SUPER) == 0) != (super == 0)) {
+					return TTR_NO_MATCH;
+				}
+			}
+
+			return (ttr & MMU_TTR_BIT_WRITE_PROTECT) ? TTR_NO_WRITE : TTR_OK_MATCH;
+		}
+	}
+	return TTR_NO_MATCH;
+}
+
+STATIC_INLINE int mmu_match_ttr(uaecptr addr, bool super, bool data)
+{
+	int res;
+
+	if (data) {
+		res = mmu_do_match_ttr(regs.dtt0, addr, super);
+		if (res == TTR_NO_MATCH)
+			res = mmu_do_match_ttr(regs.dtt1, addr, super);
+	} else {
+		res = mmu_do_match_ttr(regs.itt0, addr, super);
+		if (res == TTR_NO_MATCH)
+			res = mmu_do_match_ttr(regs.itt1, addr, super);
+	}
+	return res;
+}
+extern void mmu_bus_error_ttr_write_fault(uaecptr addr, bool super, bool data, uae_u32 val, int size);
+STATIC_INLINE int mmu_match_ttr_write(uaecptr addr, bool super, bool data, uae_u32 val,int size)
+{
+	int res = mmu_match_ttr(addr, super, data);
+	if (res == TTR_NO_WRITE)
+		mmu_bus_error_ttr_write_fault(addr, super, data, val, size);
+	return res;
 }
 
 extern uae_u16 REGPARAM3 mmu_get_word_unaligned(uaecptr addr, bool data) REGPARAM;
@@ -286,51 +328,55 @@ extern void REGPARAM3 dfc_put_long(uaecptr addr, uae_u32 val) REGPARAM;
 extern void REGPARAM3 dfc_put_word(uaecptr addr, uae_u16 val) REGPARAM;
 extern void REGPARAM3 dfc_put_byte(uaecptr addr, uae_u8 val) REGPARAM;
 
+#define sfc040_get_long sfc_get_long
+#define sfc040_get_word sfc_get_word
+#define sfc040_get_byte sfc_get_byte
+#define dfc040_put_long dfc_put_long
+#define dfc040_put_word dfc_put_word
+#define dfc040_put_byte dfc_put_byte
+
+#define sfc060_get_long sfc_get_long
+#define sfc060_get_word sfc_get_word
+#define sfc060_get_byte sfc_get_byte
+#define dfc060_put_long dfc_put_long
+#define dfc060_put_word dfc_put_word
+#define dfc060_put_byte dfc_put_byte
+
+extern void REGPARAM3 mmu_flush_atc(uaecptr addr, bool super, bool global) REGPARAM;
+extern void REGPARAM3 mmu_flush_atc_all(bool global) REGPARAM;
 extern void REGPARAM3 mmu_op_real(uae_u32 opcode, uae_u16 extra) REGPARAM;
 
 extern void REGPARAM3 mmu_reset(void) REGPARAM;
 extern void REGPARAM3 mmu_set_tc(uae_u16 tc) REGPARAM;
 extern void REGPARAM3 mmu_set_super(bool super) REGPARAM;
 
-static ALWAYS_INLINE bool is_unaligned(uaecptr addr, int size)
-{
-    return unlikely((addr & (size - 1)) && (addr ^ (addr + size - 1)) & 0x1000);
-}
-
 static ALWAYS_INLINE uaecptr mmu_get_real_address(uaecptr addr, struct mmu_atc_line *cl)
 {
-    return cl->phys + addr;
+    return cl->phys | (addr & mmu_pagemask);
 }
 
-static ALWAYS_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
+static ALWAYS_INLINE void mmu060_get_move16(uaecptr addr, uae_u32 *v, bool data, int size)
 {
-    longput(addr, l);
-}
-static ALWAYS_INLINE void phys_put_word(uaecptr addr, uae_u32 w)
-{
-    wordput(addr, w);
-}
-static ALWAYS_INLINE void phys_put_byte(uaecptr addr, uae_u32 b)
-{
-    byteput(addr, b);
-}
-static ALWAYS_INLINE uae_u32 phys_get_long(uaecptr addr)
-{
-    return longget (addr);
-}
-static ALWAYS_INLINE uae_u32 phys_get_word(uaecptr addr)
-{
-    return wordget (addr);
-}
-static ALWAYS_INLINE uae_u32 phys_get_byte(uaecptr addr)
-{
-    return byteget (addr);
+	struct mmu_atc_line *cl;
+	for (int i = 0; i < 4; i++) {
+		uaecptr addr2 = addr + i * 4;
+		//                                       addr,super,data
+		if ((!regs.mmu_enabled) || (mmu_match_ttr(addr2,regs.s != 0,data)!=TTR_NO_MATCH))
+			v[i] = phys_get_long(addr2);
+		else if (likely(mmu_lookup(addr2, data, false, &cl)))
+			v[i] = phys_get_long(mmu_get_real_address(addr2, cl));
+		else
+			v[i] = mmu_get_long_slow(addr2, regs.s != 0, data, size, cl);
+	}
 }
 
 static ALWAYS_INLINE uae_u32 mmu_get_long(uaecptr addr, bool data, int size)
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data)!=TTR_NO_MATCH))
+		return phys_get_long(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
 		return phys_get_long(mmu_get_real_address(addr, cl));
 	return mmu_get_long_slow(addr, regs.s != 0, data, size, cl);
@@ -340,6 +386,9 @@ static ALWAYS_INLINE uae_u16 mmu_get_word(uaecptr addr, bool data, int size)
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data)!=TTR_NO_MATCH))
+		return phys_get_word(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
 		return phys_get_word(mmu_get_real_address(addr, cl));
 	return mmu_get_word_slow(addr, regs.s != 0, data, size, cl);
@@ -349,26 +398,53 @@ static ALWAYS_INLINE uae_u8 mmu_get_byte(uaecptr addr, bool data, int size)
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,regs.s != 0,data)!=TTR_NO_MATCH))
+		return phys_get_byte(addr);
 	if (likely(mmu_lookup(addr, data, false, &cl)))
 		return phys_get_byte(mmu_get_real_address(addr, cl));
 	return mmu_get_byte_slow(addr, regs.s != 0, data, size, cl);
 }
 
-
 static ALWAYS_INLINE void mmu_put_long(uaecptr addr, uae_u32 val, bool data, int size)
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || mmu_match_ttr_write(addr,regs.s != 0,data,val,size)==TTR_OK_MATCH) {
+		phys_put_long(addr,val);
+		return;
+	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
 		phys_put_long(mmu_get_real_address(addr, cl), val);
 	else
 		mmu_put_long_slow(addr, val, regs.s != 0, data, size, cl);
 }
 
+static ALWAYS_INLINE void mmu060_put_move16(uaecptr addr, uae_u32 *val, bool data, int size)
+{
+	struct mmu_atc_line *cl;
+	for (int i = 0; i < 4; i++) {
+		uaecptr addr2 = addr + i * 4;
+		//                                        addr,super,data
+		if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr2,regs.s != 0,data,val[i],size)==TTR_OK_MATCH))
+			phys_put_long(addr2,val[i]);
+		else if (likely(mmu_lookup(addr2, data, true, &cl)))
+			phys_put_long(mmu_get_real_address(addr2, cl), val[i]);
+		else
+			mmu_put_long_slow(addr2, val[i], regs.s != 0, data, size, cl);
+	}
+}
+
 static ALWAYS_INLINE void mmu_put_word(uaecptr addr, uae_u16 val, bool data, int size)
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr,regs.s != 0,data,val,size)==TTR_OK_MATCH)) {
+		phys_put_word(addr,val);
+		return;
+	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
 		phys_put_word(mmu_get_real_address(addr, cl), val);
 	else
@@ -379,6 +455,11 @@ static ALWAYS_INLINE void mmu_put_byte(uaecptr addr, uae_u8 val, bool data, int 
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr_write(addr,regs.s != 0,data,val,size)==TTR_OK_MATCH)) {
+		phys_put_byte(addr,val);
+		return;
+	}
 	if (likely(mmu_lookup(addr, data, true, &cl)))
 		phys_put_byte(mmu_get_real_address(addr, cl), val);
 	else
@@ -389,6 +470,9 @@ static ALWAYS_INLINE uae_u32 mmu_get_user_long(uaecptr addr, bool super, bool da
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)!=TTR_NO_MATCH))
+		return phys_get_long(addr);
 	if (likely(mmu_user_lookup(addr, super, data, false, &cl)))
 		return phys_get_long(mmu_get_real_address(addr, cl));
 	return mmu_get_long_slow(addr, super, data, size, cl);
@@ -398,6 +482,9 @@ static ALWAYS_INLINE uae_u16 mmu_get_user_word(uaecptr addr, bool super, bool da
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)!=TTR_NO_MATCH))
+		return phys_get_word(addr);
 	if (likely(mmu_user_lookup(addr, super, data, false, &cl)))
 		return phys_get_word(mmu_get_real_address(addr, cl));
 	return mmu_get_word_slow(addr, super, data, size, cl);
@@ -407,6 +494,9 @@ static ALWAYS_INLINE uae_u8 mmu_get_user_byte(uaecptr addr, bool super, bool dat
 {
 	struct mmu_atc_line *cl;
 
+	//                                       addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)!=TTR_NO_MATCH))
+		return phys_get_byte(addr);
 	if (likely(mmu_user_lookup(addr, super, data, false, &cl)))
 		return phys_get_byte(mmu_get_real_address(addr, cl));
 	return mmu_get_byte_slow(addr, super, data, size, cl);
@@ -416,6 +506,11 @@ static ALWAYS_INLINE void mmu_put_user_long(uaecptr addr, uae_u32 val, bool supe
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)==TTR_OK_MATCH)) {
+		phys_put_long(addr,val);
+		return;
+	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
 		phys_put_long(mmu_get_real_address(addr, cl), val);
 	else
@@ -426,6 +521,11 @@ static ALWAYS_INLINE void mmu_put_user_word(uaecptr addr, uae_u16 val, bool supe
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)==TTR_OK_MATCH)) {
+		phys_put_word(addr,val);
+		return;
+	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
 		phys_put_word(mmu_get_real_address(addr, cl), val);
 	else
@@ -436,6 +536,11 @@ static ALWAYS_INLINE void mmu_put_user_byte(uaecptr addr, uae_u8 val, bool super
 {
 	struct mmu_atc_line *cl;
 
+	//                                        addr,super,data
+	if ((!regs.mmu_enabled) || (mmu_match_ttr(addr,super,data)==TTR_OK_MATCH)) {
+		phys_put_byte(addr,val);
+		return;
+	}
 	if (likely(mmu_user_lookup(addr, super, data, true, &cl)))
 		phys_put_byte(mmu_get_real_address(addr, cl), val);
 	else
@@ -468,118 +573,245 @@ static ALWAYS_INLINE uae_u32 HWget_b(uaecptr addr)
     return get_byte (addr);
 }
 
-static ALWAYS_INLINE uae_u32 uae_mmu_get_ilong(uaecptr addr)
+static ALWAYS_INLINE uae_u32 uae_mmu040_get_ilong(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
 		return mmu_get_long_unaligned(addr, false);
 	return mmu_get_long(addr, false, sz_long);
 }
-static ALWAYS_INLINE uae_u16 uae_mmu_get_iword(uaecptr addr)
+static ALWAYS_INLINE uae_u16 uae_mmu040_get_iword(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 2)))
 		return mmu_get_word_unaligned(addr, false);
 	return mmu_get_word(addr, false, sz_word);
 }
-static ALWAYS_INLINE uae_u16 uae_mmu_get_ibyte(uaecptr addr)
+static ALWAYS_INLINE uae_u16 uae_mmu040_get_ibyte(uaecptr addr)
 {
 	return mmu_get_byte(addr, false, sz_byte);
 }
-static ALWAYS_INLINE uae_u32 uae_mmu_get_long(uaecptr addr)
+static ALWAYS_INLINE uae_u32 uae_mmu040_get_long(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 4)))
 		return mmu_get_long_unaligned(addr, true);
 	return mmu_get_long(addr, true, sz_long);
 }
-static ALWAYS_INLINE uae_u16 uae_mmu_get_word(uaecptr addr)
+static ALWAYS_INLINE uae_u16 uae_mmu040_get_word(uaecptr addr)
 {
 	if (unlikely(is_unaligned(addr, 2)))
 		return mmu_get_word_unaligned(addr, true);
 	return mmu_get_word(addr, true, sz_word);
 }
-static ALWAYS_INLINE uae_u8 uae_mmu_get_byte(uaecptr addr)
+static ALWAYS_INLINE uae_u8 uae_mmu040_get_byte(uaecptr addr)
 {
 	return mmu_get_byte(addr, true, sz_byte);
 }
-static ALWAYS_INLINE void uae_mmu_put_long(uaecptr addr, uae_u32 val)
-{
-	if (unlikely(is_unaligned(addr, 4)))
-		mmu_put_long_unaligned(addr, val, true);
-	else
-		mmu_put_long(addr, val, true, sz_long);
-}
-static ALWAYS_INLINE void uae_mmu_put_word(uaecptr addr, uae_u16 val)
+
+static ALWAYS_INLINE void uae_mmu040_put_word(uaecptr addr, uae_u16 val)
 {
 	if (unlikely(is_unaligned(addr, 2)))
 		mmu_put_word_unaligned(addr, val, true);
 	else
 		mmu_put_word(addr, val, true, sz_word);
 }
-static ALWAYS_INLINE void uae_mmu_put_byte(uaecptr addr, uae_u8 val)
+static ALWAYS_INLINE void uae_mmu040_put_byte(uaecptr addr, uae_u8 val)
 {
 	mmu_put_byte(addr, val, true, sz_byte);
 }
+static ALWAYS_INLINE void uae_mmu040_put_long(uaecptr addr, uae_u32 val)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		mmu_put_long_unaligned(addr, val, true);
+	else
+		mmu_put_long(addr, val, true, sz_long);
+}
 
-STATIC_INLINE void put_byte_mmu (uaecptr addr, uae_u32 v)
+
+static ALWAYS_INLINE uae_u32 uae_mmu060_get_ilong(uaecptr addr)
 {
-    uae_mmu_put_byte (addr, v);
+	if (unlikely(is_unaligned(addr, 4)))
+		return mmu_get_long_unaligned(addr, false);
+	return mmu_get_long(addr, false, sz_long);
 }
-STATIC_INLINE void put_word_mmu (uaecptr addr, uae_u32 v)
+static ALWAYS_INLINE uae_u16 uae_mmu060_get_iword(uaecptr addr)
 {
-    uae_mmu_put_word (addr, v);
+	if (unlikely(is_unaligned(addr, 2)))
+		return mmu_get_word_unaligned(addr, false);
+	return mmu_get_word(addr, false, sz_word);
 }
-STATIC_INLINE void put_long_mmu (uaecptr addr, uae_u32 v)
+static ALWAYS_INLINE uae_u16 uae_mmu060_get_ibyte(uaecptr addr)
 {
-    uae_mmu_put_long (addr, v);
+	return mmu_get_byte(addr, false, sz_byte);
 }
-STATIC_INLINE uae_u32 get_byte_mmu (uaecptr addr)
+static ALWAYS_INLINE uae_u32 uae_mmu060_get_long(uaecptr addr)
 {
-    return uae_mmu_get_byte (addr);
+	if (unlikely(is_unaligned(addr, 4)))
+		return mmu_get_long_unaligned(addr, true);
+	return mmu_get_long(addr, true, sz_long);
 }
-STATIC_INLINE uae_u32 get_word_mmu (uaecptr addr)
+static ALWAYS_INLINE uae_u16 uae_mmu060_get_word(uaecptr addr)
 {
-    return uae_mmu_get_word (addr);
+	if (unlikely(is_unaligned(addr, 2)))
+		return mmu_get_word_unaligned(addr, true);
+	return mmu_get_word(addr, true, sz_word);
 }
-STATIC_INLINE uae_u32 get_long_mmu (uaecptr addr)
+static ALWAYS_INLINE uae_u8 uae_mmu060_get_byte(uaecptr addr)
 {
-    return uae_mmu_get_long (addr);
+	return mmu_get_byte(addr, true, sz_byte);
 }
-STATIC_INLINE uae_u32 get_ibyte_mmu (int o)
+static ALWAYS_INLINE void uae_mmu060_get_move16(uaecptr addr, uae_u32 *val)
+{
+	// move16 is always aligned
+	mmu060_get_move16(addr, val, true, 16);
+}
+
+static ALWAYS_INLINE void uae_mmu060_put_long(uaecptr addr, uae_u32 val)
+{
+	if (unlikely(is_unaligned(addr, 4)))
+		mmu_put_long_unaligned(addr, val, true);
+	else
+		mmu_put_long(addr, val, true, sz_long);
+}
+static ALWAYS_INLINE void uae_mmu060_put_word(uaecptr addr, uae_u16 val)
+{
+	if (unlikely(is_unaligned(addr, 2)))
+		mmu_put_word_unaligned(addr, val, true);
+	else
+		mmu_put_word(addr, val, true, sz_word);
+}
+static ALWAYS_INLINE void uae_mmu060_put_byte(uaecptr addr, uae_u8 val)
+{
+	mmu_put_byte(addr, val, true, sz_byte);
+}
+static ALWAYS_INLINE void uae_mmu060_put_move16(uaecptr addr, uae_u32 *val)
+{
+	// move16 is always aligned
+	mmu060_put_move16(addr, val, true, 16);
+}
+
+
+STATIC_INLINE void put_byte_mmu040 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu040_put_byte (addr, v);
+}
+STATIC_INLINE void put_word_mmu040 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu040_put_word (addr, v);
+}
+STATIC_INLINE void put_long_mmu040 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu040_put_long (addr, v);
+}
+STATIC_INLINE uae_u32 get_byte_mmu040 (uaecptr addr)
+{
+    return uae_mmu040_get_byte (addr);
+}
+STATIC_INLINE uae_u32 get_word_mmu040 (uaecptr addr)
+{
+    return uae_mmu040_get_word (addr);
+}
+STATIC_INLINE uae_u32 get_long_mmu040 (uaecptr addr)
+{
+    return uae_mmu040_get_long (addr);
+}
+
+STATIC_INLINE void put_byte_mmu060 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu060_put_byte (addr, v);
+}
+STATIC_INLINE void put_word_mmu060 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu060_put_word (addr, v);
+}
+STATIC_INLINE void put_long_mmu060 (uaecptr addr, uae_u32 v)
+{
+    uae_mmu060_put_long (addr, v);
+}
+STATIC_INLINE uae_u32 get_byte_mmu060 (uaecptr addr)
+{
+    return uae_mmu060_get_byte (addr);
+}
+STATIC_INLINE uae_u32 get_word_mmu060 (uaecptr addr)
+{
+    return uae_mmu060_get_word (addr);
+}
+STATIC_INLINE uae_u32 get_long_mmu060 (uaecptr addr)
+{
+    return uae_mmu060_get_long (addr);
+}
+
+STATIC_INLINE void get_move16_mmu060 (uaecptr addr, uae_u32 *v)
+{
+    return uae_mmu060_get_move16 (addr, v);
+}
+STATIC_INLINE void put_move16_mmu060 (uaecptr addr, uae_u32 *v)
+{
+    return uae_mmu060_put_move16 (addr, v);
+}
+
+STATIC_INLINE uae_u32 get_ibyte_mmu040 (int o)
 {
     uae_u32 pc = m68k_getpc () + o;
-    return uae_mmu_get_iword (pc);
+    return uae_mmu040_get_iword (pc);
 }
-STATIC_INLINE uae_u32 get_iword_mmu (int o)
+STATIC_INLINE uae_u32 get_iword_mmu040 (int o)
 {
     uae_u32 pc = m68k_getpc () + o;
-    return uae_mmu_get_iword (pc);
+    return uae_mmu040_get_iword (pc);
 }
-STATIC_INLINE uae_u32 get_ilong_mmu (int o)
+STATIC_INLINE uae_u32 get_ilong_mmu040 (int o)
 {
     uae_u32 pc = m68k_getpc () + o;
-    return uae_mmu_get_ilong (pc);
+    return uae_mmu040_get_ilong (pc);
 }
-STATIC_INLINE uae_u32 next_iword_mmu (void)
+STATIC_INLINE uae_u32 next_iword_mmu040 (void)
 {
     uae_u32 pc = m68k_getpc ();
     m68k_incpci (2);
-    return uae_mmu_get_iword (pc);
+    return uae_mmu040_get_iword (pc);
 }
-STATIC_INLINE uae_u32 next_ilong_mmu (void)
+STATIC_INLINE uae_u32 next_ilong_mmu040 (void)
 {
     uae_u32 pc = m68k_getpc ();
     m68k_incpci (4);
-    return uae_mmu_get_ilong (pc);
+    return uae_mmu040_get_ilong (pc);
 }
 
-extern void m68k_do_rts_mmu (void);
-extern void m68k_do_rte_mmu (uaecptr a7);
-extern void m68k_do_bsr_mmu (uaecptr oldpc, uae_s32 offset);
-
-struct mmufixup
+STATIC_INLINE uae_u32 get_ibyte_mmu060 (int o)
 {
-    int reg;
-    uae_u32 value;
-};
-extern struct mmufixup mmufixup[2];
+    uae_u32 pc = m68k_getpc () + o;
+    return uae_mmu060_get_iword (pc);
+}
+STATIC_INLINE uae_u32 get_iword_mmu060 (int o)
+{
+    uae_u32 pc = m68k_getpc () + o;
+    return uae_mmu060_get_iword (pc);
+}
+STATIC_INLINE uae_u32 get_ilong_mmu060 (int o)
+{
+    uae_u32 pc = m68k_getpc () + o;
+    return uae_mmu060_get_ilong (pc);
+}
+STATIC_INLINE uae_u32 next_iword_mmu060 (void)
+{
+    uae_u32 pc = m68k_getpc ();
+    m68k_incpci (2);
+    return uae_mmu060_get_iword (pc);
+}
+STATIC_INLINE uae_u32 next_ilong_mmu060 (void)
+{
+    uae_u32 pc = m68k_getpc ();
+    m68k_incpci (4);
+    return uae_mmu060_get_ilong (pc);
+}
+
+extern void flush_mmu040 (uaecptr, int);
+extern void m68k_do_rts_mmu040 (void);
+extern void m68k_do_rte_mmu040 (uaecptr a7);
+extern void m68k_do_bsr_mmu040 (uaecptr oldpc, uae_s32 offset);
+
+extern void flush_mmu060 (uaecptr, int);
+extern void m68k_do_rts_mmu060 (void);
+extern void m68k_do_rte_mmu060 (uaecptr a7);
+extern void m68k_do_bsr_mmu060 (uaecptr oldpc, uae_s32 offset);
 
 #endif /* CPUMMU_H */

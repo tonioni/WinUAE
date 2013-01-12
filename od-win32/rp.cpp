@@ -32,6 +32,7 @@
 #include "win32gui.h"
 #include "drawing.h"
 #include "resource.h"
+#include "gui.h"
 
 static int initialized;
 static RPGUESTINFO guestinfo;
@@ -141,7 +142,7 @@ static void trimws (TCHAR *s)
 }
 
 static const int inputdevmode[] = {
-	RP_INPUTDEVICE_MOUSE, JSEM_MODE_MOUSE,
+	RP_INPUTDEVICE_MOUSE, JSEM_MODE_WHEELMOUSE,
 	RP_INPUTDEVICE_JOYSTICK, JSEM_MODE_JOYSTICK,
 	RP_INPUTDEVICE_GAMEPAD, JSEM_MODE_GAMEPAD,
 	RP_INPUTDEVICE_ANALOGSTICK, JSEM_MODE_JOYSTICK_ANALOG,
@@ -493,7 +494,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		int hres = prefs->gfx_resolution;
 		if (prefs->gfx_filter) {
 			if (prefs->gfx_filter_horiz_zoom_mult)
-				hres += (1000 / prefs->gfx_filter_horiz_zoom_mult) - 1;
+				hres += prefs->gfx_filter_horiz_zoom_mult - 1;
 			hres += uaefilters[prefs->gfx_filter].intmul - 1;
 		}
 		if (hres > max_horiz_dbl)
@@ -505,7 +506,7 @@ static void fixup_size (struct uae_prefs *prefs)
 		int vres = prefs->gfx_vresolution;
 		if (prefs->gfx_filter) {
 			if (prefs->gfx_filter_vert_zoom_mult)
-				vres += (1000 / prefs->gfx_filter_vert_zoom_mult) - 1;
+				vres += prefs->gfx_filter_vert_zoom_mult - 1;
 			vres += uaefilters[prefs->gfx_filter].intmul - 1;
 		}
 		if (vres > max_vert_dbl)
@@ -516,23 +517,23 @@ static void fixup_size (struct uae_prefs *prefs)
 	write_log(_T("-> %dx%d\n"), prefs->gfx_size_win.width, prefs->gfx_size_win.height);
 }
 
-static int getmult (int mult, bool *half)
+static int getmult (float mult, bool *half)
 {
 	*half = false;
-	if (mult >= 4 * 256)
-		return 2;
-	if (mult == 256 + 128) {
+	if (mult >= 3.5)
+		return 2; // 4x
+	if (mult >= 2.5f) {
 		*half = true;
-		return 1;
+		return 1; // 3x
 	}
-	if (mult == 2 * 256)
-		return 1;
-	if (mult >= 1 * 256)
-		return 0;
-	if (mult >= 256 / 2)
-		return -1;
-	if (mult >= 256 / 4)
-		return -2;
+	if (mult >= 1.5f)
+		return 1; // 2x
+	if (mult >= 0.8f)
+		return 0; // 1x
+	if (mult >= 0.4f)
+		return -1; // 1/2x
+	if (mult >= 0.1f)
+		return -2; // 1/4x
 	return 0;
 }
 
@@ -575,17 +576,17 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		sm->lClipWidth = -1;//picasso96_state.Width;
 		sm->lClipHeight = -1;//picasso96_state.Height;
 
-		if (hmult < 333 || vmult < 333)
+		if (hmult >= 3.5f || vmult >= 3.5f)
 			m |= RP_SCREENMODE_SCALE_4X;
-		else if (hmult < 500 || vmult < 500)
+		else if (hmult >= 2.5f || vmult >= 2.5f)
 			m |= RP_SCREENMODE_SCALE_3X;
-		else if (hmult < 1000 || vmult < 1000)
+		else if (hmult >= 1.5f || vmult >= 1.5f)
 			m |= RP_SCREENMODE_SCALE_2X;
 
 	} else {
 
-		hmult = p->gfx_filter_horiz_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_horiz_zoom_mult : 256;
-		vmult = p->gfx_filter_vert_zoom_mult > 0 ? 1000 * 256 / p->gfx_filter_vert_zoom_mult : 256;
+		hmult = p->gfx_filter_horiz_zoom_mult;
+		vmult = p->gfx_filter_vert_zoom_mult;
 
 		full = p->gfx_apmode[0].gfx_fullscreen;
 
@@ -598,13 +599,6 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		if (vres > max_vert_dbl)
 			vres = max_vert_dbl;
 		vres += getmult (vmult, &half);
-
-#if 0
-		if (hres > RES_SUPERHIRES)
-			hres = RES_SUPERHIRES;
-		if (vres > VRES_QUAD)
-			vres = VRES_QUAD;
-#endif
 
 		if (hres == RES_SUPERHIRES) {
 			m = half ? RP_SCREENMODE_SCALE_3X : RP_SCREENMODE_SCALE_2X;
@@ -799,9 +793,9 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 		int m = 1;
 		if (fs == 2) {
-			p->win32_rtgscaleifsmall = true;
+			p->win32_rtgscalemode = 1;
 		} else {
-			p->win32_rtgscaleifsmall = false;
+			p->win32_rtgscalemode = 0;
 			if (smm == RP_SCREENMODE_SCALE_2X) {
 				m = 2;
 			} else if (smm == RP_SCREENMODE_SCALE_3X) {
@@ -810,7 +804,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 				m = 4;
 			}
 		}
-		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = 1000 / m;
+		p->rtg_horiz_zoom_mult = p->rtg_vert_zoom_mult = m;
 		p->gfx_size_win.width = picasso_vidinfo.width * m;
 		p->gfx_size_win.height = picasso_vidinfo.height * m;
 
@@ -876,8 +870,8 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			}
 		}
 
-		p->gfx_filter_horiz_zoom_mult = hmult > 0 ? (int)(1000.0 / hmult) : (int)hmult;
-		p->gfx_filter_vert_zoom_mult = vmult > 0 ? (int)(1000.0 / vmult) : (int)vmult;
+		p->gfx_filter_horiz_zoom_mult = hmult;
+		p->gfx_filter_vert_zoom_mult = vmult;
 
 		p->gfx_filter_scanlines = 0;
 		p->gfx_scanlines = 0;
@@ -1250,14 +1244,14 @@ static void sendfeatures (void)
 
 static int gethdnum (int n)
 {
-	struct uaedev_config_info *uci = &currprefs.mountconfig[n];
+	struct uaedev_config_data *uci = &currprefs.mountconfig[n];
 	int num = -1;
-	if (uci->controller == HD_CONTROLLER_UAE) {
+	if (uci->ci.controller == HD_CONTROLLER_UAE) {
 		num = n;
-	} else if (uci->controller <= HD_CONTROLLER_IDE3 ) {
-		num = uci->controller - HD_CONTROLLER_IDE0;
-	} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-		num = uci->controller - HD_CONTROLLER_SCSI0;
+	} else if (uci->ci.controller <= HD_CONTROLLER_IDE3 ) {
+		num = uci->ci.controller - HD_CONTROLLER_IDE0;
+	} else if (uci->ci.controller <= HD_CONTROLLER_SCSI6) {
+		num = uci->ci.controller - HD_CONTROLLER_SCSI0;
 	}
 	return num;
 }
@@ -1289,8 +1283,11 @@ void rp_fixup_options (struct uae_prefs *p)
 
 	changed_prefs.win32_borderless = currprefs.win32_borderless = 1;
 	rp_filter_default = rp_filter = currprefs.gfx_filter;
-	if (rp_filter == 0)
+	if (rp_filter == 0) {
 		rp_filter = UAE_FILTER_NULL;
+		if (currprefs.gfx_api)
+			changed_prefs.gfx_filter = currprefs.gfx_filter = rp_filter;
+	}
 
 	fixup_size (p);
 	get_screenmode (&sm, p);
@@ -1323,10 +1320,10 @@ void rp_fixup_options (struct uae_prefs *p)
 	RPSendMessagex (RP_IPC_TO_HOST_DEVICES, RP_DEVICECATEGORY_HD, hd_mask, NULL, 0, &guestinfo, NULL);
 	if (hd_mask) {
 		for (i = 0; i < currprefs.mountitems; i++) {
-			struct uaedev_config_info *uci = &currprefs.mountconfig[i];
+			struct uaedev_config_data *uci = &currprefs.mountconfig[i];
 			int num = gethdnum (i);
 			if (num >= 0 && ((1 << num) & hd_mask))
-				rp_harddrive_image_change (num, uci->readonly, uci->rootdir);
+				rp_harddrive_image_change (num, uci->ci.readonly, uci->ci.rootdir);
 		}
 	}
 
@@ -1481,23 +1478,23 @@ void rp_update_leds (int led, int onoff, int write)
 		return;
 	switch (led)
 	{
-	case 0:
+	case LED_POWER:
 		ledstate = onoff >= 250 ? 100 : onoff * 10 / 26;
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
 		RPSendMessage (RP_IPC_TO_HOST_POWERLED, ledstate, 0, NULL, 0, &guestinfo, NULL);
 		break;
-	case 1:
-	case 2:
-	case 3:
-	case 4:
+	case LED_DF0:
+	case LED_DF1:
+	case LED_DF2:
+	case LED_DF3:
 		ledstate = onoff ? 1 : 0;
 		ledstate |= write ? 2 : 0;
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;
-		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - 1),
+		RPPostMessagex (RP_IPC_TO_HOST_DEVICEACTIVITY, MAKEWORD (RP_DEVICECATEGORY_FLOPPY, led - LED_DF0),
 			MAKELONG ((ledstate & 1) ? -1 : 0, (ledstate & 2) ? RP_DEVICEACTIVITY_WRITE : RP_DEVICEACTIVITY_READ) , &guestinfo);
 		break;
 	}

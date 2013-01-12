@@ -1,8 +1,77 @@
 
 - restore only single input target to default.
 
-This is usual quick 2.5.0 bug fix version. Estimated release date: before Christmas.
-I try not to do any GUI changes this time, 2.5.0 translation DLLs should still work with 2.5.1.
+Big MMU emulation update:
+
+- Previous (Next emulator) 68030 MMU added (+missing bus error exception stuff implemented by me),
+  some 68040 MMU updates merged. A3000 1.4 boot ROM, 1.3 SuperKickstart (which uses special MMU mapping for "bonus" code),
+  Enforcer and Amix confirmed working (Amix can't be installed because tape drive is not emulated but pre-installed
+  HD image work)
+- 68060 MMU emulation added, mostly same as 68040, different stack frames and 68060 restarts
+  all bus faults, 68040 restarts only read faults (excluding MOVEM).
+- Executable is larger, MMU compatible 68030 and 68060 CPU emulation cores added.
+- MMU double fault stops the CPU (just like real CPU does), no more instant resets, makes debugging easier.
+  Windowed mode status bar shows "HALTx" (Hx in OSD) in this situation (x = reason code). Only reset gets out of halted state.
+  Also non-MMU mode fake double bus faults or other impossible states (for example odd supervisor stack) now enters halted state.
+
+Note that 68030 MMU is very complex compared to 68040+ = slower than 68040 or 68060 MMU emulation.
+
+- Added second A3000 Quickstart compatibility level, 68030 MMU emulation or fake MMU + JIT.
+- Always refresh windowed status bar floppy leds when emulation starts or statefile is loaded.
+- Executable as a disk image mounting does not generate identical disk creation dates anymore, wrong date calculation fixed.
+- Use name of original file when mounting executable as a disk image, will be truncated if too long.
+- Disable floppy sounds when exe mounted as a disk is inserted.
+- Added wheel mouse Game Ports device type. Old "Mouse" is renamed "Wheel Mouse" and new "Mouse" is
+  mouse without wheel mapped. Added because some older programs can get confused with mouse wheel keyboard events.
+- Win+D (show/hide desktop) has now same behavior as minimize/unminimize.
+- Named pipe accepts also UTF16LE (Windows native) and UTF8 strings if BOM is included. No BOM = assumes
+  current "ANSI" character set. Old ipctester.exe works finally again.
+- Named pipe also supports debugger commands, either using dbg_<name of debugger command> or first setting it
+  to debugger mode using "ipc_debug" command. ("ipc_config" = config mode, "ipc_event" = event mode, "ipc_restore" =
+  back to normal mode). Other direct commands are cfg_<config entry and evt_<event name>.
+  (Works exactly same as uae-configuration commands)
+- Call DwmEnableMMCSS(TRUE) if running under Vista or later.
+- VSync/HSync counting CIA TOD counters run at half rate if genlock mode is active.
+- Added hack that fixes unreliable KS ROM genlock detection in fastest possible CPU modes.
+- Enabling or disabling windowed mode status bar does not reopen the window anymore.
+- Horizontal programmed screen mode registers' upper byte must be masked. Fixes Debian Sarge blank screen.
+- All debugger commands support MMU logical to physical address translations, enable with "mmu <CPU function code>", 0 = disabled.
+- Added support for A2000 old style RTC address range (Adv. chipset panel), this also maps new style clock
+  address range (0x00DC0000) as custom chipset.
+- FPU NULL state implemented. Fixes Amix FPU detection, it tests FPU by restoring NULL frame then immediately saving
+  FPU frame and only accepting the FPU if stored FPU frame is NULL frame.
+- Filesystem added using FileSys hardfile option will have at least 4000 byte stack, filesystem will be only added to
+  FileSystem.resource if it does not already include filesystem with same dostype. (Previously it was always added, replacing
+  previous one)
+- addmemx config option(s) caused crash if emulation was restarted.
+- Filter position and zoom values uses now floats, weird integers are gone. Old settings are ignored, config entries renamed!
+- Custom input events can send commands to debugger, "dbg <debugger command>", output goes to console window if open.
+- Changing filter position/zoom values using custom events or uae-configuration incorrectly forced display subsystem reset.
+- WD33C93/DMAC SCSI emulation improved. (Amix, NetBSD and so on..)
+- Added A590/A2091/A3000 SCSI DMAC state file support. Only basic state, any SCSI operation must not be active while saving.
+- Windowed mode title bar doubleclick now maximizes normally, shift+doubleclick = fullscreen and ctrl+doubleclick = fullwindow.
+- Immediate blitter didn't check if blitter DMA was enabled.
+- Added CHD (Mame) CD image support support. Full data, CD audio and subchannel support.
+- CHD image as a hardfile support added. Read-only.
+- LZMA (7zip) support code updated to latest beta (required by CHD LZMA code)
+- Host FPU rounding/accuracy mode was not reset back to correct original values when using filters.
+- Pause mode updates, configuration changes while in pause mode work better but currently display becomes blank if
+  display mode changes while in pause mode (Old screen was lost and new data can't be generated in pause mode)
+- Filesystem config (cylinders, sectors etc..) parameter passing rewritten, now uses same structure everywhere instead
+  of passing huge and random amount of ugly variables around. Big change, can break things.
+- Partition hardfile parameter/geometry support update, if file named <original hardfile name>.geo is found in same directory as
+  hardfile, it is parsed for mountlist-like parameters (key=value). It also supports parameters that are not available in GUI or
+  in config file (for example lowcyl, buffers, maxtransfer etc..).
+- Log partition hardfile full geometry data when mounting.
+- Added native resolution selection to Display panel fullscreen resolution options. Uses always monitor's native mode. (Actually it is
+  monitor's desktop resolution because biggest listed resolution may be unsupported)
+- Replacing or removing HDF files using the GUI now changes the drive on Amiga side too. Inserting new HDFs won't work.
+- Fixed IDE emulation bug introduced in 2.4b17, IDE status register returned bogus data after execute diagnostics command.
+  (KS driver didn't care, other drivers probably did)
+- 1.5M chip RAM size didn't work (Note that this can't work if JIT is enabled)
+- Very very long (hours..) startup delay if emulation was started in fastest possible + CPU throttle enabled.
+- Windowed RTG to native switch (or vice versa) while window had no focus set internal focus state causing keyboard input to appear
+  on Amiga side.
 
 2.5.1
 

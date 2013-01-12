@@ -3,13 +3,14 @@
 *
 * A590/A2091/A3000/CDTV SCSI expansion (DMAC/SuperDMAC + WD33C93) emulation
 *
-* Copyright 2007 Toni Wilen
+* Copyright 2007-2013 Toni Wilen
 *
 */
 
 #define A2091_DEBUG 0
 #define A3000_DEBUG 0
-#define WD33C93_DEBUG 0
+#define WD33C93_DEBUG 1
+#define WD33C93_DEBUG_PIO 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -29,6 +30,7 @@
 #include "filesys.h"
 #include "autoconf.h"
 #include "cdtv.h"
+#include "savestate.h"
 
 #define ROM_VECTOR 0x2000
 #define ROM_OFFSET 0x2000
@@ -106,37 +108,70 @@
 #define WD_CMD_SBT_MODE		0x80
 
 /* paused or aborted interrupts */
-#define CSR_MSGIN	    0x20
-#define CSR_SDP		    0x21
-#define CSR_SEL_ABORT	    0x22
-#define CSR_RESEL_ABORT	    0x25
-#define CSR_RESEL_ABORT_AM  0x27
-#define CSR_ABORT	    0x28
+#define CSR_MSGIN			0x20
+#define CSR_SDP				0x21
+#define CSR_SEL_ABORT		0x22
+#define CSR_RESEL_ABORT		0x25
+#define CSR_RESEL_ABORT_AM	0x27
+#define CSR_ABORT			0x28
 /* successful completion interrupts */
-#define CSR_RESELECT	    0x10
-#define CSR_SELECT	    0x11
-#define CSR_SEL_XFER_DONE   0x16
-#define CSR_XFER_DONE	    0x18
+#define CSR_RESELECT		0x10
+#define CSR_SELECT			0x11
+#define CSR_SEL_XFER_DONE	0x16
+#define CSR_XFER_DONE		0x18
 /* terminated interrupts */
-#define CSR_INVALID	    0x40
-#define CSR_UNEXP_DISC	    0x41
-#define CSR_TIMEOUT	    0x42
-#define CSR_PARITY	    0x43
-#define CSR_PARITY_ATN	    0x44
-#define CSR_BAD_STATUS	    0x45
-#define CSR_UNEXP	    0x48
+#define CSR_INVALID			0x40
+#define CSR_UNEXP_DISC		0x41
+#define CSR_TIMEOUT			0x42
+#define CSR_PARITY			0x43
+#define CSR_PARITY_ATN		0x44
+#define CSR_BAD_STATUS		0x45
+#define CSR_UNEXP			0x48
 /* service required interrupts */
-#define CSR_RESEL	    0x80
-#define CSR_RESEL_AM	    0x81
-#define CSR_DISC	    0x85
-#define CSR_SRV_REQ	    0x88
+#define CSR_RESEL			0x80
+#define CSR_RESEL_AM		0x81
+#define CSR_DISC			0x85
+#define CSR_SRV_REQ			0x88
 /* SCSI Bus Phases */
-#define PHS_DATA_OUT	    0x00
-#define PHS_DATA_IN	    0x01
-#define PHS_COMMAND	    0x02
-#define PHS_STATUS	    0x03
-#define PHS_MESS_OUT	    0x06
-#define PHS_MESS_IN	    0x07
+#define PHS_DATA_OUT	0x00
+#define PHS_DATA_IN		0x01
+#define PHS_COMMAND		0x02
+#define PHS_STATUS		0x03
+#define PHS_MESS_OUT	0x06
+#define PHS_MESS_IN		0x07
+
+/* Auxialiry status */
+#define ASR_INT			0x80	/* Interrupt pending */
+#define ASR_LCI			0x40	/* Last command ignored */
+#define ASR_BSY			0x20	/* Busy, only cmd/data/asr readable */
+#define ASR_CIP			0x10	/* Busy, cmd unavail also */
+#define ASR_xxx			0x0c
+#define ASR_PE			0x02	/* Parity error (even) */
+#define ASR_DBR			0x01	/* Data Buffer Ready */
+/* Status */
+#define CSR_CAUSE		0xf0
+#define CSR_RESET		0x00	/* chip was reset */
+#define CSR_CMD_DONE	0x10	/* cmd completed */
+#define CSR_CMD_STOPPED	0x20	/* interrupted or abrted*/
+#define CSR_CMD_ERR		0x40	/* end with error */
+#define CSR_BUS_SERVICE	0x80	/* REQ pending on the bus */
+/* Control */
+#define CTL_DMA			0x80	/* Single byte dma */
+#define CTL_DBA_DMA		0x40	/* direct buffer access (bus master) */
+#define CTL_BURST_DMA	0x20	/* continuous mode (8237) */
+#define CTL_NO_DMA		0x00	/* Programmed I/O */
+#define CTL_HHP			0x10	/* Halt on host parity error */
+#define CTL_EDI			0x08	/* Ending disconnect interrupt */
+#define CTL_IDI			0x04	/* Intermediate disconnect interrupt*/
+#define CTL_HA			0x02	/* Halt on ATN */
+#define CTL_HSP			0x01	/* Halt on SCSI parity error */
+
+/* SCSI Messages */
+#define MSG_COMMAND_COMPLETE 0x00
+#define MSG_SAVE_DATA_POINTER 0x02
+#define MSG_RESTORE_DATA_POINTERS 0x03
+#define MSG_NOP 0x08
+#define MSG_IDENTIFY 0x80
 
 static int configured;
 static uae_u8 dmacmemory[100];
@@ -152,16 +187,22 @@ static uae_u32 dmac_wtc;
 static int dmac_dma;
 static uae_u8 sasr, scmd, auxstatus;
 static int wd_used;
-static int wd_phase, wd_next_phase, wd_busy;
-static int wd_dataoffset, wd_tc;
+static int wd_phase, wd_next_phase, wd_busy, wd_data_avail;
+static bool wd_selected;
+static int wd_dataoffset;
 static uae_u8 wd_data[32];
 
 static int superdmac;
-static int scsidelay_irq;
-static uae_u8 scsidelay_status;
+
+#define WD_STATUS_QUEUE 2
+static int scsidelay_irq[WD_STATUS_QUEUE];
+static uae_u8 scsidelay_status[WD_STATUS_QUEUE];
+static int queue_index;
+
 static int wd33c93a = 1;
 
 struct scsi_data *scsis[8];
+static struct scsi_data *scsi;
 
 uae_u8 wdregs[32];
 
@@ -181,7 +222,7 @@ void rethink_a2091 (void)
 {
 	if (currprefs.cs_cdtvscsi)
 		return;
-	if (isirq()) {
+	if (isirq ()) {
 		uae_int_requested |= 2;
 #if A2091_DEBUG > 2 || A3000_DEBUG > 2
 		write_log (_T("Interrupt_RETHINK\n"));
@@ -195,7 +236,7 @@ static void INT2 (void)
 {
 	if (currprefs.cs_cdtvscsi)
 		return;
-	if (!(auxstatus & 0x80))
+	if (!(auxstatus & ASR_INT))
 		return;
 	dmac_istr |= ISTR_INTS;
 	if (isirq ())
@@ -238,15 +279,15 @@ static void incsasr (int w)
 static void dmac_cint (void)
 {
 	dmac_istr = 0;
-	rethink_a2091();
+	rethink_a2091 ();
 }
 
-static void doscsistatus (void)
+static void doscsistatus (uae_u8 status)
 {
-	wdregs[WD_SCSI_STATUS] = scsidelay_status;
-	auxstatus |= 0x80;
+	wdregs[WD_SCSI_STATUS] = status;
+	auxstatus |= ASR_INT;
 #if WD33C93_DEBUG > 0
-	write_log (_T("%s STATUS=%02X\n"), WD33C93, scsidelay_status);
+	write_log (_T("%s STATUS=%02X\n"), WD33C93, status);
 #endif
 	if (currprefs.cs_cdtvscsi) {
 		cdtv_scsi_int ();
@@ -260,21 +301,35 @@ static void doscsistatus (void)
 #endif
 }
 
-void scsi_hsync (void)
+static void set_status (uae_u8 status, int delay)
 {
-	if (scsidelay_irq == 1) {
-		scsidelay_irq = 0;
-		doscsistatus();
-		return;
-	}
-	if (scsidelay_irq > 1)
-		scsidelay_irq--;
+	queue_index++;
+	if (queue_index >= WD_STATUS_QUEUE)
+		queue_index = 0;
+	scsidelay_irq[queue_index] = delay <= 2 ? 2 : delay;
+	if (scsidelay_irq[1] == scsidelay_irq[0])
+		scsidelay_irq[1]++;
+	scsidelay_status[queue_index] = status;
 }
 
-static void set_status (uae_u8 status, int quick)
+static uae_u32 gettc (void)
 {
-	scsidelay_irq = quick <= 2 ? 2 : quick;
-	scsidelay_status = status;
+	return wdregs[WD_TRANSFER_COUNT_LSB] | (wdregs[WD_TRANSFER_COUNT] << 8) | (wdregs[WD_TRANSFER_COUNT_MSB] << 16);
+}
+static void settc (uae_u32 tc)
+{
+	wdregs[WD_TRANSFER_COUNT_LSB] = tc & 0xff;
+	wdregs[WD_TRANSFER_COUNT] = (tc >> 8) & 0xff;
+	wdregs[WD_TRANSFER_COUNT_MSB] = (tc >> 16) & 0xff;
+}
+static bool decreasetc (void)
+{
+	uae_u32 tc = gettc ();
+	if (!tc)
+		return true;
+	tc--;
+	settc (tc);
+	return tc == 0;
 }
 
 static TCHAR *scsitostring (void)
@@ -285,7 +340,7 @@ static TCHAR *scsitostring (void)
 
 	p = buf;
 	p[0] = 0;
-	for (i = 0; i < wd_tc && i < sizeof wd_data; i++) {
+	for (i = 0; i < gettc () && i < sizeof wd_data; i++) {
 		if (i > 0) {
 			_tcscat (p, _T("."));
 			p++;
@@ -294,27 +349,6 @@ static TCHAR *scsitostring (void)
 		p += _tcslen (p);
 	}
 	return buf;
-}
-
-static void wd_cmd_sel_xfer (void)
-{
-	int phase = wdregs[WD_COMMAND_PHASE];
-#if WD33C93_DEBUG > 0
-	write_log (_T("* %s select and transfer, ID=%d phase=%02X\n"), WD33C93, wdregs[WD_DESTINATION_ID] & 0x7, phase);
-#endif
-	if (!SCSIID) {
-		set_status (CSR_TIMEOUT, 0);
-		return;
-	}
-	SCSIID->buffer[0] = 0;
-	if (phase >= 0x46) {
-		phase = 0x50;
-		wdregs[WD_TARGET_LUN] = SCSIID->status;
-		SCSIID->buffer[0] = SCSIID->status;
-	}
-	wdregs[WD_COMMAND_PHASE] = phase;
-	wd_phase = CSR_XFER_DONE | PHS_MESS_IN;
-	set_status (wd_phase, 1);
 }
 
 static void dmacheck (void)
@@ -328,137 +362,246 @@ static void dmacheck (void)
 	}
 }
 
-static void do_dma (void)
+static void setphase (uae_u8 phase)
 {
+	wdregs[WD_COMMAND_PHASE] = phase;
+}
+
+static bool do_dma (void)
+{
+	wd_data_avail = 0;
 	if (currprefs.cs_cdtvscsi)
 		cdtv_getdmadata (&dmac_acr);
-	if (SCSIID->direction == 0) {
+	if (scsi->direction == 0) {
 		write_log (_T("%s DMA but no data!?\n"), WD33C93);
-	} else if (SCSIID->direction < 0) {
+	} else if (scsi->direction < 0) {
+		uaecptr odmac_acr = dmac_acr;
 		for (;;) {
 			uae_u8 v;
-			int status = scsi_receive_data (SCSIID, &v);
+			int status = scsi_receive_data (scsi, &v);
 			put_byte (dmac_acr, v);
 			if (wd_dataoffset < sizeof wd_data)
 				wd_data[wd_dataoffset++] = v;
 			dmacheck ();
+			if (decreasetc ())
+				break;
 			if (status)
 				break;
 		}
-	} else if (SCSIID->direction > 0) {
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s DMA from WD, %d/%d %08X\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
+#endif
+		return true;
+	} else if (scsi->direction > 0) {
+		uaecptr odmac_acr = dmac_acr;
 		for (;;) {
 			int status;
 			uae_u8 v = get_byte (dmac_acr);
 			if (wd_dataoffset < sizeof wd_data)
 				wd_data[wd_dataoffset++] = v;
-			status = scsi_send_data (SCSIID, v);
+			status = scsi_send_data (scsi, v);
 			dmacheck ();
+			if (decreasetc ())
+				break;
 			if (status)
 				break;
 		}
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s DMA to WD, %d/%d %08x\n"), WD33C93, scsi->offset, scsi->data_len, odmac_acr);
+#endif
+		return true;
 	}
+	return false;
 }
 
-static void wd_do_transfer_out (void)
+
+static bool wd_do_transfer_out (void)
 {
 #if WD33C93_DEBUG > 0
-	write_log (_T("%s SCSI O [%02X] %d/%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring ());
+	write_log (_T("%s SCSI O [%02X] %d/%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, gettc (), scsitostring ());
 #endif
-	if (wdregs[WD_COMMAND_PHASE] == 0x11) {
-		wdregs[WD_COMMAND_PHASE] = 0x20;
+	if (wdregs[WD_COMMAND_PHASE] < 0x20) {
+		/* message was sent */
+		setphase (0x20);
 		wd_phase = CSR_XFER_DONE | PHS_COMMAND;
+		scsi->status = 0;
+		scsi_start_transfer (scsi);
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s SCSI got MESSAGE %02X\n"), WD33C93, wd_data[0]);
+#endif
 	} else if (wdregs[WD_COMMAND_PHASE] == 0x30) {
-		/* command was sent */
-		SCSIID->direction = scsi_data_dir (SCSIID);
-		if (SCSIID->direction > 0) {
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s SCSI got COMMAND %02X\n"), WD33C93, wd_data[0]);
+#endif
+		if (scsi->offset < scsi->data_len) {
+			// data missing, ask for more
+			wd_phase = CSR_XFER_DONE | PHS_COMMAND;
+			setphase (0x30 + scsi->offset);
+			set_status (wd_phase, 1);
+			return false;
+		}
+		settc (0);
+		scsi_start_transfer (scsi);
+		scsi_emulate_analyze (scsi);
+		if (scsi->direction > 0) {
 			/* if write command, need to wait for data */
-			wd_phase = CSR_XFER_DONE | PHS_DATA_OUT;
-			wdregs[WD_COMMAND_PHASE] = 0x46;
-		} else {
-			scsi_emulate_cmd (SCSIID);
-			if (SCSIID->data_len <= 0 || SCSIID->status != 0 || SCSIID->direction == 0) {
+			if (scsi->data_len <= 0 || scsi->direction == 0) {
+				// Status phase if command didn't return anything and don't want anything
 				wd_phase = CSR_XFER_DONE | PHS_STATUS;
-				wdregs[WD_COMMAND_PHASE] = 0x47;
+				setphase (0x46);
+			} else {
+				wd_phase = CSR_XFER_DONE | PHS_DATA_OUT;
+				setphase (0x45);
+			}
+		} else {
+			scsi_emulate_cmd (scsi);
+			if (scsi->data_len <= 0 || scsi->direction == 0) {
+				// Status phase if command didn't return anything and don't want anything
+				wd_phase = CSR_XFER_DONE | PHS_STATUS;
+				setphase (0x46);
 			} else {
 				wd_phase = CSR_XFER_DONE | PHS_DATA_IN;
-				wdregs[WD_COMMAND_PHASE] = 0x3f;
+				setphase (0x45); // just skip all reselection and message stuff for now..
 			}
 		}
-	} else if (wdregs[WD_COMMAND_PHASE] == 0x46) {
-		if (SCSIID->direction > 0) {
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x46 || wdregs[WD_COMMAND_PHASE] == 0x45) {
+		if (scsi->offset < scsi->data_len) {
+			// data missing, ask for more
+			wd_phase = CSR_XFER_DONE | (scsi->direction < 0 ? PHS_DATA_IN : PHS_DATA_OUT);
+			set_status (wd_phase, 10);
+			return false;
+		}
+		settc (0);
+		if (scsi->direction > 0) {
 			/* data was sent */
-			scsi_emulate_cmd (SCSIID);
+			scsi_emulate_cmd (scsi);
+			scsi->data_len = 0;
 			wd_phase = CSR_XFER_DONE | PHS_STATUS;
 		}
-		wdregs[WD_COMMAND_PHASE] = 0x47;
+		scsi_start_transfer (scsi);
+		setphase (0x47);
 	}
 	wd_dataoffset = 0;
-	set_status (wd_phase, SCSIID->direction ? 0 : 1);
+	set_status (wd_phase, scsi->direction <= 0 ? 0 : 1);
 	wd_busy = 0;
+	return true;
 }
 
-static void wd_do_transfer_in (void)
+static bool wd_do_transfer_in (void)
 {
 #if WD33C93_DEBUG > 0
-	write_log (_T("%s SCSI I [%02X] %d/%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, wd_tc, scsitostring ());
+	write_log (_T("%s SCSI I [%02X] %d/%d TC=%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], scsi->offset, scsi->data_len, gettc (), scsitostring ());
 #endif
 	wd_dataoffset = 0;
-	if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] < 0x47) {
-		wdregs[WD_COMMAND_PHASE] = 0x47;
-		wd_phase = CSR_XFER_DONE | PHS_STATUS;
-	} else if (wdregs[WD_COMMAND_PHASE] == 0x47) {
-		wdregs[WD_COMMAND_PHASE] = 0x50;
+	if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] < 0x46) {
+		if (scsi->offset < scsi->data_len) {
+			// data missing, ask for more
+			wd_phase = CSR_XFER_DONE | (scsi->direction < 0 ? PHS_DATA_IN : PHS_DATA_OUT);
+			set_status (wd_phase, 1);
+			return false;
+		}
+		if (gettc () != 0) {
+			wd_phase = CSR_UNEXP | PHS_STATUS;
+			setphase (0x46);
+		} else {
+			wd_phase = CSR_XFER_DONE | PHS_STATUS;
+			setphase (0x46);
+		}
+		scsi_start_transfer (scsi);
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x46) {
+		setphase (0x50);
 		wd_phase = CSR_XFER_DONE | PHS_MESS_IN;
+		scsi_start_transfer (scsi);
 	} else if (wdregs[WD_COMMAND_PHASE] == 0x50) {
-		wdregs[WD_COMMAND_PHASE] = 0x60;
+		setphase (0x60);
 		wd_phase = CSR_DISC;
+		wd_selected = false;
+		scsi_start_transfer (scsi);
 	}
 	set_status (wd_phase, 1);
-	wd_busy = 0;
-	SCSIID->direction = 0;
+	scsi->direction = 0;
+	return true;
 }
 
-static void wd_cmd_sel_xfer_atn (void)
+static void wd_cmd_sel_xfer (bool atn)
 {
 	int i, tmp_tc;
+	int delay = 0;
 
-	tmp_tc = wdregs[WD_TRANSFER_COUNT_LSB] | (wdregs[WD_TRANSFER_COUNT] << 8) | (wdregs[WD_TRANSFER_COUNT_MSB] << 16);
-#if WD33C93_DEBUG > 0
-	write_log (_T("* %s select and transfer with atn, ID=%d PHASE=%02X TC=%d\n"),
-		WD33C93, wdregs[WD_DESTINATION_ID] & 0x7, wdregs[WD_COMMAND_PHASE], tmp_tc);
-#endif
-	if (wdregs[WD_COMMAND] & 0x80)
-		wd_tc = 1;
-	if (!SCSIID) {
+	tmp_tc = gettc ();
+	scsi = scsis[wdregs[WD_DESTINATION_ID] & 7];
+	if (!scsi) {
 		set_status (CSR_TIMEOUT, 0);
+		wdregs[WD_COMMAND_PHASE] = 0x00;
 		return;
 	}
-	SCSIID->buffer[0] = 0;
-	SCSIID->direction = 0;
+	if (!wd_selected) {
+		wd_selected = true;
+		wdregs[WD_COMMAND_PHASE] = 0x10;
+	}
+#if WD33C93_DEBUG > 0
+	write_log (_T("* %s select and transfer%s, ID=%d PHASE=%02X TC=%d\n"),
+		WD33C93, atn ? _T(" with atn") : _T(""), wdregs[WD_DESTINATION_ID] & 0x7, wdregs[WD_COMMAND_PHASE], tmp_tc);
+#endif
 	if (wdregs[WD_COMMAND_PHASE] <= 0x30) {
-		wd_tc = 6;
+		scsi->buffer[0] = 0;
+		scsi->status = 0;
+		memcpy (scsi->cmd, &wdregs[3], 16);
+		scsi_emulate_analyze (scsi);
+		settc (scsi->cmd_len);
 		wd_dataoffset = 0;
-		scsi_start_transfer (SCSIID, 6);
-		for (i = 0; i < wd_tc; i++) {
-			uae_u8 b = wdregs[3 + i];
+		scsi_start_transfer (scsi);
+		scsi->direction = 2;
+		scsi->data_len = scsi->cmd_len;
+		for (i = 0; i < gettc (); i++) {
+			uae_u8 b = scsi->cmd[i];
 			wd_data[i] = b;
-			scsi_send_data (SCSIID, b);
+			scsi_send_data (scsi, b);
 			wd_dataoffset++;
 		}
-		// command
-		SCSIID->direction = (wdregs[WD_SOURCE_ID] & 0x20) ? 1 : -1;
-		wdregs[WD_COMMAND_PHASE] = 0x30;
-		wd_do_transfer_out ();
-		wdregs[WD_COMMAND_PHASE] = 0x36;
+		// 0x30 = command phase has started
+		scsi_emulate_analyze (scsi);
+		wdregs[WD_COMMAND_PHASE] = 0x30 + gettc ();
+		settc (0);
+#if WD33C93_DEBUG > 0
+		write_log (_T("%s: Got Command %s, datalen=%d\n"), WD33C93, scsitostring (), scsi->data_len);
+#endif
 	}
+
 	if (wdregs[WD_COMMAND_PHASE] <= 0x41) {
-		wd_tc = tmp_tc;
+		wdregs[WD_COMMAND_PHASE] = 0x44;
+#if 0
+		if (wdregs[WD_CONTROL] & CTL_IDI) {
+			wd_phase = CSR_DISC;
+			set_status (wd_phase, delay);
+			wd_phase = CSR_RESEL;
+			set_status (wd_phase, delay + 10);
+			return;
+		}
+#endif
+		wdregs[WD_COMMAND_PHASE] = 0x44;
+	}
+
+	if (wdregs[WD_COMMAND_PHASE] == 0x44) {
+		settc (tmp_tc);
 		wd_dataoffset = 0;
-		wdregs[WD_COMMAND_PHASE] = 0x45;
-		if (wd_tc == 0) {
-			if (SCSIID->direction != 0 && SCSIID->status == 0) {
+		// target replied
+		setphase (0x45);
+		scsi_start_transfer (scsi);
+
+		if (gettc () == 0) {
+			if (scsi->direction != 0) {
+				// TC = 0 but we may have data
+				if (scsi->direction < 0) {
+					scsi_emulate_cmd (scsi);
+					if (scsi->data_len == 0) {
+						// no data, continue normally to status phase
+						setphase (0x46);
+						goto end;
+					}
+				}
 				wd_phase = CSR_UNEXP;
-				if (SCSIID->direction < 0)
+				if (scsi->direction < 0)
 					wd_phase |= PHS_DATA_IN;
 				else
 					wd_phase |= PHS_DATA_OUT;
@@ -466,79 +609,174 @@ static void wd_cmd_sel_xfer_atn (void)
 				return;
 			}
 		}
-		if ((wdregs[WD_CONTROL] >> 5) == 4) {
-			if (wd_phase == (CSR_XFER_DONE | PHS_DATA_IN))
-				do_dma ();
-			else if(wd_phase == (CSR_XFER_DONE | PHS_DATA_OUT))
-				do_dma ();
-		}
 
+		if (scsi->direction) {
+			scsi_start_transfer (scsi);
+			if ((wdregs[WD_CONTROL] >> 5) == 4) {
+				if (scsi->direction <=  0) {
+					scsi_emulate_cmd (scsi);
+					do_dma ();
+					setphase (0x46);
+				} else {
+					if (do_dma ()) {
+						setphase (0x46);
+						scsi_emulate_cmd (scsi);
+					}
+				}
+			} else {
+				if (scsi->direction <  0)
+					scsi_emulate_cmd (scsi);
+				wd_phase = CSR_SRV_REQ;
+				if (scsi->direction < 0)
+					wd_phase |= PHS_DATA_IN;
+				else
+					wd_phase |= PHS_DATA_OUT;
+				set_status (wd_phase, 1);
+				return;
+			}
+		} else {
+			if (gettc ()) {
+				wd_phase = CSR_UNEXP | PHS_STATUS;
+				set_status (wd_phase, 1);
+				return;
+			}
+
+			// there was nothing to transfer
+			wdregs[WD_COMMAND_PHASE] = 0x46;
+		}
 	}
+
+	end:
+	if (wdregs[WD_COMMAND_PHASE] == 0x46) {
+		scsi->buffer[0] = 0;
+		wdregs[WD_COMMAND_PHASE] = 0x50;
+		wdregs[WD_TARGET_LUN] = scsi->status;
+		scsi->buffer[0] = scsi->status;
+	}
+
+	// 0x60 = command complete
 	wdregs[WD_COMMAND_PHASE] = 0x60;
-	wdregs[WD_TARGET_LUN] = SCSIID->status;
-	SCSIID->buffer[0] = SCSIID->status;
-	wd_phase = CSR_SEL_XFER_DONE;
-	set_status (wd_phase, 0);
+	if (!(wdregs[WD_CONTROL] & CTL_EDI)) {
+		wd_phase = CSR_SEL_XFER_DONE;
+		delay += 2;
+		set_status (wd_phase, delay);
+		delay += 2;
+		wd_phase = CSR_DISC;
+		set_status (wd_phase, delay);
+	} else {
+		delay += 2;
+		wd_phase = CSR_SEL_XFER_DONE;
+		set_status (wd_phase, delay);
+	}
+	wd_selected = 0;
 }
 
 
 static void wd_cmd_trans_info (void)
 {
-	if (wdregs[WD_COMMAND_PHASE] == 0x47)
-		SCSIID->buffer[0] = SCSIID->status;
-	if (wdregs[WD_COMMAND_PHASE] == 0x20)
+	if (wdregs[WD_COMMAND_PHASE] == 0x20) {
 		wdregs[WD_COMMAND_PHASE] = 0x30;
-	wd_busy = 1;
-	wd_tc = wdregs[WD_TRANSFER_COUNT_LSB] | (wdregs[WD_TRANSFER_COUNT] << 8) | (wdregs[WD_TRANSFER_COUNT_MSB] << 16);
-	if (wdregs[WD_COMMAND] & 0x80)
-		wd_tc = 1;
-	wd_dataoffset = 0;
-#if WD33C93_DEBUG > 0
-	write_log (_T("* %s transfer info phase=%02x len=%d dma=%d\n"), WD33C93, wdregs[WD_COMMAND_PHASE], wd_tc, wdregs[WD_CONTROL] >> 5);
-#endif
-	scsi_start_transfer (SCSIID, wd_tc);
-	if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] <= 0x3f)
-		wdregs[WD_COMMAND_PHASE] = 0x45;
-	if ((wdregs[WD_CONTROL] >> 5) == 4) {
-		do_dma ();
-		if (SCSIID->direction < 0)
-			wd_do_transfer_in ();
-		else if (SCSIID->direction > 0)
-			wd_do_transfer_out ();
-		SCSIID->direction = 0;
-		dmac_dma = 0;
+		scsi->status = 0;
 	}
+	wd_busy = 1;
+	if (wdregs[WD_COMMAND] & 0x80)
+		settc (1);
+	if (gettc () == 0)
+		settc (1);
+	wd_dataoffset = 0;
+
+
+//	if (wdregs[WD_COMMAND_PHASE] >= 0x36 && wdregs[WD_COMMAND_PHASE] <= 0x3f) {
+//		wdregs[WD_COMMAND_PHASE] = 0x45;
+//	} else if (wdregs[WD_COMMAND_PHASE] == 0x41) {
+//		wdregs[WD_COMMAND_PHASE] = 0x46;
+//	}
+
+#if 0
+	if (wdregs[WD_COMMAND_PHASE] >= 0x40 && scsi->direction < 0) {
+		if (wd_tc > scsi->data_len) {
+			wd_tc = scsi->data_len;
+			if (wd_tc < 0)
+				wd_tc = 0;
+		}
+	}
+#endif
+	if (wdregs[WD_COMMAND_PHASE] == 0x30) {
+		scsi->direction = 2; // command
+		scsi->cmd_len = scsi->data_len = gettc ();
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x10) {
+		scsi->direction = 1; // message
+		scsi->data_len = gettc ();
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x45) {
+		scsi_emulate_analyze (scsi);
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x47) {
+		scsi->direction = -1; // status
+		scsi->data_len = 1;
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x46) {
+		scsi->buffer[0] = scsi->status;
+		wdregs[WD_TARGET_LUN] = scsi->status;
+		scsi->direction = -1; // status
+		scsi->data_len = 1;
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x50) {
+		scsi->direction = -1;
+		scsi->data_len = gettc ();
+	}
+
+	if ((wdregs[WD_CONTROL] >> 5) == 4) {
+		wd_data_avail = -1;
+	} else {
+		wd_data_avail = 1;
+	}
+
+#if WD33C93_DEBUG > 0
+	write_log (_T("* %s transfer info phase=%02x TC=%d dir=%d data=%d/%d wddma=%d dmac=%d\n"),
+		WD33C93, wdregs[WD_COMMAND_PHASE], gettc (), scsi->direction, scsi->offset, scsi->data_len, wdregs[WD_CONTROL] >> 5, dmac_dma);
+#endif
+
 }
 
-static void wd_cmd_sel_atn (void)
+static void wd_cmd_sel (bool atn)
 {
 #if WD33C93_DEBUG > 0
-	write_log (_T("* %s select with atn, ID=%d\n"), WD33C93, wdregs[WD_DESTINATION_ID] & 0x7);
+	write_log (_T("* %s select%s, ID=%d\n"), WD33C93, atn ? _T(" with atn") : _T(""), wdregs[WD_DESTINATION_ID] & 0x7);
 #endif
 	wd_phase = 0;
 	wdregs[WD_COMMAND_PHASE] = 0;
-	if (SCSIID) {
-		wd_phase = CSR_SELECT;
-		set_status (wd_phase, 1);
-		wdregs[WD_COMMAND_PHASE] = 0x10;
+
+	scsi = scsis[wdregs[WD_DESTINATION_ID] & 7];
+	if (!scsi) {
+		set_status (CSR_TIMEOUT, 1000);
 		return;
 	}
-	set_status (CSR_TIMEOUT, 1000);
+	scsi_start_transfer (scsi);
+	wd_selected = true;
+	set_status (CSR_SELECT, 2);
+	if (atn) {
+		set_status (CSR_SRV_REQ | PHS_MESS_OUT, 4);
+		wdregs[WD_COMMAND_PHASE] = 0x10;
+	} else {
+		set_status (CSR_SRV_REQ | PHS_COMMAND, 4);
+		wdregs[WD_COMMAND_PHASE] = 0x10; // connected as an initiator
+	} 
 }
 
-static void wd_cmd_reset (void)
+static void wd_cmd_reset (bool irq)
 {
 	int i;
 
 #if WD33C93_DEBUG > 0
-	write_log (_T("%s reset\n"), WD33C93);
+	if (irq)
+		write_log (_T("%s reset\n"), WD33C93);
 #endif
 	for (i = 1; i < 0x16; i++)
 		wdregs[i] = 0;
 	wdregs[0x18] = 0;
 	if (!wd33c93a)
 		wdregs[0] &= ~(0x08 | 0x10);
-	set_status ((wdregs[0] & 0x10) ? 1 : 0, 1);
+	sasr = 0;
+	wd_selected = false;
+	if (irq)
+		set_status ((wdregs[0] & 0x08) ? 1 : 0, 200);
 }
 
 static void wd_cmd_abort (void)
@@ -546,7 +784,35 @@ static void wd_cmd_abort (void)
 #if WD33C93_DEBUG > 0
 	write_log (_T("%s abort\n"), WD33C93);
 #endif
-	set_status (CSR_SEL_ABORT, 0);
+}
+
+void scsi_hsync (void)
+{
+	if (wd_data_avail < 0 && dmac_dma > 0) {
+		bool v;
+		do_dma ();
+		if (scsi->direction < 0)
+			v = wd_do_transfer_in ();
+		else if (scsi->direction > 0)
+			v = wd_do_transfer_out ();
+		if (v) {
+			scsi->direction = 0;
+			wd_data_avail = 0;
+		} else {
+			dmac_dma = -1;
+		}
+	}
+	if (auxstatus & ASR_INT)
+		return;
+	for (int i = 0; i < WD_STATUS_QUEUE; i++) {
+		if (scsidelay_irq[i] == 1) {
+			scsidelay_irq[i] = 0;
+			doscsistatus(scsidelay_status[i]);
+			wd_busy = 0;
+		} else if (scsidelay_irq[i] > 1) {
+			scsidelay_irq[i]--;
+		}
+	}
 }
 
 static int writeonlyreg (int reg)
@@ -560,7 +826,7 @@ void wdscsi_put (uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
 	if (WD33C93_DEBUG > 3 || sasr != WD_DATA)
-		write_log (_T("W %s REG %02X (%d) = %02X (%d) PC=%08X\n"), WD33C93, sasr, sasr, d, d, M68K_GETPC);
+		write_log (_T("W %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, sasr, d, d, M68K_GETPC);
 #endif
 	if (!writeonlyreg (sasr))
 		wdregs[sasr] = d;
@@ -573,31 +839,49 @@ void wdscsi_put (uae_u8 d)
 		write_log (_T("%s PHASE=%02X\n"), WD33C93, d);
 #endif
 	} else if (sasr == WD_DATA) {
+#if WD33C93_DEBUG_PIO
+		write_log (_T("%s WD_DATA WRITE %02x %d/%d,%d\n"), WD33C93, d, wd_dataoffset, scsi->len, scsi->data_len);
+#endif
+		if (!wd_data_avail) {
+			write_log (_T("%s WD_DATA WRITE without data request!?\n"), WD33C93);
+			return;
+		}
 		if (wd_dataoffset < sizeof wd_data)
 			wd_data[wd_dataoffset] = wdregs[sasr];
 		wd_dataoffset++;
-		if (scsi_send_data (SCSIID, wdregs[sasr]))
+		decreasetc ();
+		wd_data_avail = 1;
+		if (scsi_send_data (scsi, wdregs[sasr]) || gettc () == 0) {
+			wd_data_avail = 0;
 			wd_do_transfer_out ();
+		}
 	} else if (sasr == WD_COMMAND) {
+		wd_busy = true;
 		switch (d & 0x7f)
 		{
 		case WD_CMD_RESET:
-			wd_cmd_reset ();
+			wd_cmd_reset (true);
 			break;
+		case WD_CMD_ABORT:
+			wd_cmd_abort ();
+			break;
+		case WD_CMD_SEL:
+			wd_cmd_sel (false);
 			break;
 		case WD_CMD_SEL_ATN:
-			wd_cmd_sel_atn ();
+			wd_cmd_sel (true);
 			break;
 		case WD_CMD_SEL_ATN_XFER:
-			wd_cmd_sel_xfer_atn ();
+			wd_cmd_sel_xfer (true);
 			break;
 		case WD_CMD_SEL_XFER:
-			wd_cmd_sel_xfer ();
+			wd_cmd_sel_xfer (false);
 			break;
 		case WD_CMD_TRANS_INFO:
 			wd_cmd_trans_info ();
 			break;
 		default:
+			wd_busy = false;
 			write_log (_T("%s unimplemented/unknown command %02X\n"), WD33C93, d);
 			break;
 		}
@@ -611,7 +895,7 @@ void wdscsi_sasr (uae_u8 b)
 }
 uae_u8 wdscsi_getauxstatus (void)
 {
-	return (auxstatus & 0x80) | (wd_busy ? 0x20 : 0) | (wd_busy ? 0x01 : 0);
+	return (auxstatus & ASR_INT) | (wd_busy || wd_data_avail < 0 ? ASR_BSY : 0) | (wd_data_avail != 0 ? ASR_DBR : 0);
 }
 
 uae_u8 wdscsi_get (void)
@@ -623,33 +907,120 @@ uae_u8 wdscsi_get (void)
 
 	v = wdregs[sasr];
 	if (sasr == WD_DATA) {
-		int status = scsi_receive_data (SCSIID, &v);
+		if (!wd_data_avail) {
+			write_log (_T("%s WD_DATA READ without data request!?\n"), WD33C93);
+			return 0;
+		}
+		int status = scsi_receive_data (scsi, &v);
+#if WD33C93_DEBUG_PIO
+		write_log (_T("%s WD_DATA READ %02x %d/%d,%d\n"), WD33C93, v, wd_dataoffset, scsi->len, scsi->data_len);
+#endif
 		if (wd_dataoffset < sizeof wd_data)
 			wd_data[wd_dataoffset] = v;
 		wd_dataoffset++;
+		decreasetc ();
 		wdregs[sasr] = v;
-		if (status)
+		wd_data_avail = 1;
+		if (status || gettc () == 0) {
+			wd_data_avail = 0;
 			wd_do_transfer_in ();
+		}
 	} else if (sasr == WD_SCSI_STATUS) {
 		uae_int_requested &= ~2;
 		auxstatus &= ~0x80;
 		cdtv_scsi_clear_int ();
 		dmac_istr &= ~ISTR_INTS;
+#if 0
 		if (wdregs[WD_COMMAND_PHASE] == 0x10) {
 			wdregs[WD_COMMAND_PHASE] = 0x11;
 			wd_phase = CSR_SRV_REQ | PHS_MESS_OUT;
 			set_status (wd_phase, 1);
 		}
+#endif
+	} else if (sasr == WD_AUXILIARY_STATUS) {
+		v = wdscsi_getauxstatus ();
 	}
 	incsasr (0);
 #if WD33C93_DEBUG > 1
 	if (WD33C93_DEBUG > 3 || osasr != WD_DATA)
-		write_log (_T("R %s REG %02X (%d) = %02X (%d) PC=%08X\n"), WD33C93, osasr, osasr, v, v, M68K_GETPC);
+		write_log (_T("R %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, osasr, v, v, M68K_GETPC);
 #endif
 	return v;
 }
 
-static uae_u32 dmac_bget2 (uaecptr addr)
+static uae_u32 dmac_read_word (uaecptr addr)
+{
+	uae_u32 v = 0;
+
+	if (addr < 0x40)
+		return (dmacmemory[addr] << 8) | dmacmemory[addr + 1];
+	if (addr >= ROM_OFFSET) {
+		if (rom) {
+			int off = addr & rom_mask;
+			if (rombankswitcher && (addr & 0xffe0) == ROM_OFFSET)
+				rombank = (addr & 0x02) >> 1;
+			off += rombank * rom_size;
+			return (rom[off] << 8) | rom[off + 1];
+		}
+		return 0;
+	}
+
+	addr &= ~1;
+	switch (addr)
+	{
+	case 0x40:
+		v = dmac_istr;
+		if (v)
+			v |= ISTR_INT_P;
+		dmac_istr &= ~0xf;
+		break;
+	case 0x42:
+		v = dmac_cntr;
+		break;
+	case 0x80:
+		if (old_dmac)
+			v = (dmac_wtc >> 16) & 0xffff;
+		break;
+	case 0x82:
+		if (old_dmac)
+			v = dmac_wtc & 0xffff;
+		break;
+	case 0xc0:
+		v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
+		break;
+		/* XT IO */
+	case 0xa0:
+	case 0xa2:
+	case 0xa4:
+	case 0xa6:
+	case 0xc2:
+	case 0xc4:
+	case 0xc6:
+		v = 0xffff;
+		break;
+	case 0xe0:
+		if (dmac_dma <= 0)
+			dmac_start_dma ();
+		break;
+	case 0xe2:
+		dmac_stop_dma ();
+		break;
+	case 0xe4:
+		dmac_cint ();
+		break;
+	case 0xe8:
+		/* FLUSH (new only) */
+		if (!old_dmac && dmac_dma > 0)
+			dmac_istr |= ISTR_FE_FLG;
+		break;
+	}
+#if A2091_DEBUG > 0
+	write_log (_T("dmac_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
+#endif
+	return v;
+}
+
+static uae_u32 dmac_read_byte (uaecptr addr)
 {
 	uae_u32 v = 0;
 
@@ -668,68 +1039,16 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 
 	switch (addr)
 	{
-	case 0x41:
-		v = dmac_istr;
-		if (v)
-			v |= ISTR_INT_P;
-		dmac_istr &= ~0xf;
-		break;
-	case 0x43:
-		v = dmac_cntr;
-		break;
-	case 0x80:
-		if (old_dmac)
-			v = (dmac_wtc >> 24) & 0xff;
-		break;
-	case 0x81:
-		if (old_dmac)
-			v = (dmac_wtc >> 16) & 0xff;
-		break;
-	case 0x82:
-		if (old_dmac)
-			v = (dmac_wtc >>  8) & 0xff;
-		break;
-	case 0x83:
-		if (old_dmac)
-			v = (dmac_wtc >>  0) & 0xff;
-		break;
 	case 0x91:
 		v = wdscsi_getauxstatus ();
 		break;
 	case 0x93:
 		v = wdscsi_get ();
 		break;
-	case 0xc1:
-		v = 0xf8 | (1 << 0) | (1 << 1) | (1 << 2); // bits 0-2 = dip-switches
-		break;
-		/* XT IO */
-	case 0xa1:
-	case 0xa3:
-	case 0xa5:
-	case 0xa7:
-	case 0xc3:
-	case 0xc5:
-	case 0xc7:
-		v = 0xff;
-		break;
-	case 0xe0:
-	case 0xe1:
-		if (!dmac_dma)
-			dmac_start_dma ();
-		break;
-	case 0xe2:
-	case 0xe3:
-		dmac_stop_dma ();
-		break;
-	case 0xe4:
-	case 0xe5:
-		dmac_cint ();
-		break;
-	case 0xe8:
-	case 0xe9:
-		/* FLUSH (new only) */
-		if (!old_dmac && dmac_dma)
-			dmac_istr |= ISTR_FE_FLG;
+	default:
+		v = dmac_read_word (addr);
+		if (!(addr & 1))
+			v >>= 8;
 		break;
 	}
 #if A2091_DEBUG > 0
@@ -738,93 +1057,90 @@ static uae_u32 dmac_bget2 (uaecptr addr)
 	return v;
 }
 
-static void dmac_bput2 (uaecptr addr, uae_u32 b)
+static void dmac_write_word (uaecptr addr, uae_u32 b)
 {
 	if (addr < 0x40)
 		return;
 	if (addr >= ROM_OFFSET)
 		return;
 
+#if A2091_DEBUG > 0
+	write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
+#endif
+
+	addr &= ~1;
 	switch (addr)
 	{
-	case 0x43:
+	case 0x42:
 		dmac_cntr = b;
 		if (dmac_cntr & CNTR_PREST)
 			dmac_reset ();
 		break;
 	case 0x80:
-		dmac_wtc &= 0x00ffffff;
-		dmac_wtc |= b << 24;
-		break;
-	case 0x81:
-		dmac_wtc &= 0xff00ffff;
+		dmac_wtc &= 0x0000ffff;
 		dmac_wtc |= b << 16;
 		break;
 	case 0x82:
-		dmac_wtc &= 0xffff00ff;
-		dmac_wtc |= b << 8;
-		break;
-	case 0x83:
-		dmac_wtc &= 0xffffff00;
-		dmac_wtc |= b << 0;
+		dmac_wtc &= 0xffff0000;
+		dmac_wtc |= b & 0xffff;
 		break;
 	case 0x84:
-		dmac_acr &= 0x00ffffff;
-		dmac_acr |= b << 24;
-		break;
-	case 0x85:
-		dmac_acr &= 0xff00ffff;
+		dmac_acr &= 0x0000ffff;
 		dmac_acr |= b << 16;
 		break;
 	case 0x86:
-		dmac_acr &= 0xffff00ff;
-		dmac_acr |= b << 8;
-		break;
-	case 0x87:
-		dmac_acr &= 0xffffff00;
-		dmac_acr |= b << 0;
-		dmac_acr &= ~1;
+		dmac_acr &= 0xffff0000;
+		dmac_acr |= b & 0xfffe;
 		if (old_dmac)
 			dmac_acr &= ~3;
 		break;
 	case 0x8e:
-		dmac_dawr &= 0x00ff;
-		dmac_dawr |= b << 8;
+		dmac_dawr = b;
 		break;
-	case 0x8f:
-		dmac_dawr &= 0xff00;
-		dmac_dawr |= b << 0;
 		break;
+	case 0xe0:
+		if (dmac_dma <= 0)
+			dmac_start_dma ();
+		break;
+	case 0xe2:
+		dmac_stop_dma ();
+		break;
+	case 0xe4:
+		dmac_cint ();
+		break;
+	case 0xe8:
+		/* FLUSH */
+		dmac_istr |= ISTR_FE_FLG;
+		break;
+	}
+}
+
+static void dmac_write_byte (uaecptr addr, uae_u32 b)
+{
+	if (addr < 0x40)
+		return;
+	if (addr >= ROM_OFFSET)
+		return;
+
+#if A2091_DEBUG > 0
+	write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
+#endif
+
+	switch (addr)
+	{
 	case 0x91:
 		wdscsi_sasr (b);
 		break;
 	case 0x93:
 		wdscsi_put (b);
 		break;
-	case 0xe0:
-	case 0xe1:
-		if (!dmac_dma)
-			dmac_start_dma ();
-		break;
-	case 0xe2:
-	case 0xe3:
-		dmac_stop_dma ();
-		break;
-	case 0xe4:
-	case 0xe5:
-		dmac_cint ();
-		break;
-	case 0xe8:
-	case 0xe9:
-		/* FLUSH */
-		dmac_istr |= ISTR_FE_FLG;
-		break;
+	default:
+		if (addr & 1)
+			dmac_write_word (addr, b);
+		else
+			dmac_write_word (addr, b << 8);
 	}
-#if A2091_DEBUG > 0
-	write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
-#endif
 }
-
 
 
 static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
@@ -834,14 +1150,8 @@ static uae_u32 REGPARAM2 dmac_lget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 65535;
-	v = dmac_bget2 (addr) << 24;
-	v |= dmac_bget2 (addr + 1) << 16;
-	v |= dmac_bget2 (addr + 2) << 8;
-	v |= dmac_bget2 (addr + 3);
-#if A2091_DEBUG > 0
-	if (addr >= 0x40 && addr < ROM_OFFSET)
-		write_log (_T("dmac_lget %08X=%08X PC=%08X\n"), addr, v, M68K_GETPC);
-#endif
+	v = dmac_read_word (addr) << 16;
+	v |= dmac_read_word (addr + 2) & 0xffff;
 	return v;
 }
 
@@ -852,12 +1162,7 @@ static uae_u32 REGPARAM2 dmac_wget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 65535;
-	v = dmac_bget2 (addr) << 8;
-	v |= dmac_bget2 (addr + 1);
-#if A2091_DEBUG > 0
-	if (addr >= 0x40 && addr < ROM_OFFSET)
-		write_log (_T("dmac_wget %08X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
-#endif
+	v = dmac_read_word (addr);
 	return v;
 }
 
@@ -868,7 +1173,7 @@ static uae_u32 REGPARAM2 dmac_bget (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= 65535;
-	v = dmac_bget2 (addr);
+	v = dmac_read_byte (addr);
 	if (!configured)
 		return v;
 	return v;
@@ -880,14 +1185,8 @@ static void REGPARAM2 dmac_lput (uaecptr addr, uae_u32 l)
 	special_mem |= S_WRITE;
 #endif
 	addr &= 65535;
-#if A2091_DEBUG > 0
-	if (addr >= 0x40 && addr < ROM_OFFSET)
-		write_log (_T("dmac_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
-#endif
-	dmac_bput2 (addr, l >> 24);
-	dmac_bput2 (addr + 1, l >> 16);
-	dmac_bput2 (addr + 2, l >> 8);
-	dmac_bput2 (addr + 3, l);
+	dmac_write_word (addr + 0, l >> 16);
+	dmac_write_word (addr + 2, l);
 }
 
 static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
@@ -896,12 +1195,7 @@ static void REGPARAM2 dmac_wput (uaecptr addr, uae_u32 w)
 	special_mem |= S_WRITE;
 #endif
 	addr &= 65535;
-#if A2091_DEBUG > 0
-	if (addr >= 0x40 && addr < ROM_OFFSET)
-		write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
-#endif
-	dmac_bput2 (addr, w >> 8);
-	dmac_bput2 (addr + 1, w);
+	dmac_write_word (addr, w);
 }
 
 static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
@@ -926,7 +1220,7 @@ static void REGPARAM2 dmac_bput (uaecptr addr, uae_u32 b)
 	}
 	if (!configured)
 		return;
-	dmac_bput2 (addr, b);
+	dmac_write_byte (addr, b);
 }
 
 static uae_u32 REGPARAM2 dmac_wgeti (uaecptr addr)
@@ -967,92 +1261,156 @@ addrbank dmaca2091_bank = {
 	dmac_lget, dmac_wget, dmac_bget,
 	dmac_lput, dmac_wput, dmac_bput,
 	dmac_xlate, dmac_check, NULL, _T("A2091/A590"),
-	dmac_lgeti, dmac_wgeti, ABFLAG_IO
+	dmac_lgeti, dmac_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
-static void dmacreg_write (uae_u32 *reg, int addr, uae_u32 val, int size)
-{
-	addr = (size - 1) - addr;
-	(*reg) &= ~(0xff << (addr * 8));
-	(*reg) |= (val & 0xff) << (addr * 8);
-}
-static uae_u32 dmacreg_read (uae_u32 val, int addr, int size)
-{
-	addr = (size - 1) - addr;
-	return (val >> (addr * 8)) & 0xff;
-}
-
-static void mbdmac_write (uae_u32 addr, uae_u32 val, int mode)
+static void mbdmac_write_word (uae_u32 addr, uae_u32 val)
 {
 	if (currprefs.cs_mbdmac > 1)
 		return;
 #if A3000_DEBUG > 1
-	write_log (_T("DMAC_WRITE %08X=%02X PC=%08X\n"), addr, val & 0xff, M68K_GETPC);
+	write_log (_T("DMAC_WWRITE %08X=%04X PC=%08X\n"), addr, val & 0xffff, M68K_GETPC);
 #endif
-	addr &= 0xffff;
+	addr &= 0xfffe;
 	switch (addr)
 	{
 	case 0x02:
-	case 0x03:
-		dmacreg_write (&dmac_dawr, addr - 0x02, val, 2);
+		dmac_dawr = val;
 		break;
 	case 0x04:
-	case 0x05:
+		dmac_wtc &= 0x0000ffff;
+		dmac_wtc |= val << 16;
+		break;
 	case 0x06:
-	case 0x07:
-		dmacreg_write (&dmac_wtc, addr - 0x04, val, 4);
+		dmac_wtc &= 0xffff0000;
+		dmac_wtc |= val & 0xffff;
 		break;
 	case 0x0a:
-	case 0x0b:
-		dmacreg_write (&dmac_cntr, addr - 0x0a, val, 2);
+		dmac_cntr = val;
 		if (dmac_cntr & SCNTR_PREST)
 			dmac_reset ();
 		break;
 	case 0x0c:
-	case 0x0d:
+		dmac_acr &= 0x0000ffff;
+		dmac_acr |= val << 16;
+		break;
 	case 0x0e:
-	case 0x0f:
-		dmacreg_write (&dmac_acr, addr - 0x0c, val, 4);
+		dmac_acr &= 0xffff0000;
+		dmac_acr |= val & 0xfffe;
 		break;
 	case 0x12:
-	case 0x13:
-		if (!dmac_dma)
+		if (dmac_dma <= 0)
 			dmac_start_dma ();
 		break;
 	case 0x16:
-	case 0x17:
-		/* FLUSH */
-		dmac_istr |= ISTR_FE_FLG;
+		if (dmac_dma) {
+			/* FLUSH */
+			dmac_istr |= ISTR_FE_FLG;
+			dmac_dma = 0;
+		}
 		break;
 	case 0x1a:
-	case 0x1b:
 		dmac_cint();
 		break;
 	case 0x1e:
-	case 0x1f:
 		/* ISTR */
 		break;
 	case 0x3e:
-	case 0x3f:
 		dmac_stop_dma ();
 		break;
+	}
+}
+
+static void mbdmac_write_byte (uae_u32 addr, uae_u32 val)
+{
+	if (currprefs.cs_mbdmac > 1)
+		return;
+#if A3000_DEBUG > 1
+	write_log (_T("DMAC_BWRITE %08X=%02X PC=%08X\n"), addr, val & 0xff, M68K_GETPC);
+#endif
+	addr &= 0xffff;
+	switch (addr)
+	{
+
 	case 0x41:
-		if (mode & 0x10)
-			sasr = val;
+		sasr = val;
 		break;
 	case 0x49:
 		sasr = val;
 		break;
 	case 0x43:
-		if (mode & 0x10)
-			wdscsi_put (val);
-		else
-			sasr = val;
+	case 0x47:
+		wdscsi_put (val);
 		break;
+	default:
+		if (addr & 1)
+			mbdmac_write_word (addr, val);
+		else
+			mbdmac_write_word (addr, val << 8);
 	}
 }
 
-static uae_u32 mbdmac_read (uae_u32 addr, int mode)
+static uae_u32 mbdmac_read_word (uae_u32 addr)
+{
+#if A3000_DEBUG > 1
+	uae_u32 vaddr = addr;
+#endif
+	uae_u32 v = 0xffffffff;
+
+	if (currprefs.cs_mbdmac > 1)
+		return 0;
+
+	addr &= 0xfffe;
+	switch (addr)
+	{
+	case 0x02:
+		v = dmac_dawr;
+		break;
+	case 0x04:
+	case 0x06:
+		v = 0xffff;
+		break;
+	case 0x0a:
+		v = dmac_cntr;
+		break;
+	case 0x0c:
+		v = dmac_acr >> 16;
+		break;
+	case 0x0e:
+		v = dmac_acr;
+		break;
+	case 0x12:
+		if (dmac_dma <= 0)
+			dmac_start_dma ();
+		v = 0;
+		break;
+	case 0x1a:
+		dmac_cint ();
+		v = 0;
+		break;;
+	case 0x1e:
+		v = dmac_istr;
+		if (v & ISTR_INTS)
+			v |= ISTR_INT_P;
+		dmac_istr &= ~15;
+		if (!dmac_dma)
+			v |= ISTR_FE_FLG;
+		break;
+	case 0x3e:
+		if (dmac_dma) {
+			dmac_stop_dma ();
+			dmac_istr |= ISTR_FE_FLG;
+		}
+		v = 0;
+		break;
+	}
+#if A3000_DEBUG > 1
+	write_log (_T("DMAC_WREAD %08X=%04X PC=%X\n"), vaddr, v & 0xffff, M68K_GETPC);
+#endif
+	return v;
+}
+
+static uae_u32 mbdmac_read_byte (uae_u32 addr)
 {
 #if A3000_DEBUG > 1
 	uae_u32 vaddr = addr;
@@ -1065,59 +1423,22 @@ static uae_u32 mbdmac_read (uae_u32 addr, int mode)
 	addr &= 0xffff;
 	switch (addr)
 	{
-	case 0x02:
-	case 0x03:
-		v = dmacreg_read (dmac_dawr, addr - 0x02, 2);
-		break;
-	case 0x04:
-	case 0x05:
-	case 0x06:
-	case 0x07:
-		v = 0xff;
-		break;
-	case 0x0a:
-	case 0x0b:
-		v = dmacreg_read (dmac_cntr, addr - 0x0a, 2);
-		break;
-	case 0x0c:
-	case 0x0d:
-	case 0x0e:
-	case 0x0f:
-		v = dmacreg_read (dmac_acr, addr - 0x0c, 4);
-		break;
-	case 0x12:
-	case 0x13:
-		if (!dmac_dma)
-			dmac_start_dma ();
-		v = 0;
-		break;
-	case 0x1a:
-	case 0x1b:
-		dmac_cint ();
-		v = 0;
-		break;;
-	case 0x1e:
-	case 0x1f:
-		v = dmacreg_read (dmac_istr, addr - 0x1e, 2);
-		if (v & ISTR_INTS)
-			v |= ISTR_INT_P;
-		dmac_istr &= ~15;
-		break;
-	case 0x3e:
-	case 0x3f:
-		dmac_stop_dma ();
-		v = 0;
-		break;
 	case 0x41:
 	case 0x49:
 		v = wdscsi_getauxstatus ();
 		break;
 	case 0x43:
+	case 0x47:
 		v = wdscsi_get ();
+		break;
+	default:
+		v = mbdmac_read_word (addr);
+		if (!(addr & 1))
+			v >>= 8;
 		break;
 	}
 #if A3000_DEBUG > 1
-	write_log (_T("DMAC_READ %08X=%02X PC=%X\n"), vaddr, v & 0xff, M68K_GETPC);
+	write_log (_T("DMAC_BREAD %08X=%02X PC=%X\n"), vaddr, v & 0xff, M68K_GETPC);
 #endif
 	return v;
 }
@@ -1136,10 +1457,8 @@ static uae_u32 REGPARAM2 mbdmac_lget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	v =  mbdmac_read (addr, 0x40 | 0) << 24;
-	v |= mbdmac_read (addr + 1, 0x40 | 1) << 16;
-	v |= mbdmac_read (addr + 2, 0x40 | 2) << 8;
-	v |= mbdmac_read (addr + 3, 0x40 | 3);
+	v =  mbdmac_read_word (addr + 0) << 16;
+	v |= mbdmac_read_word (addr + 2) << 0;
 	return v;
 }
 static uae_u32 REGPARAM2 mbdmac_wget (uaecptr addr)
@@ -1148,8 +1467,7 @@ static uae_u32 REGPARAM2 mbdmac_wget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	v =  mbdmac_read (addr, 0x40 | 0) << 8;
-	v |= mbdmac_read (addr + 1, 0x40 | 1) << 0;
+	v =  mbdmac_read_word (addr);
 	return v;
 }
 static uae_u32 REGPARAM2 mbdmac_bget (uaecptr addr)
@@ -1157,39 +1475,41 @@ static uae_u32 REGPARAM2 mbdmac_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	return mbdmac_read (addr, 0x10);
+	return mbdmac_read_byte (addr);
 }
 static void REGPARAM2 mbdmac_lput (uaecptr addr, uae_u32 l)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	mbdmac_write (addr + 0, l >> 24, 0x40 | 0);
-	mbdmac_write (addr + 1, l >> 16, 0x40 | 1);
-	mbdmac_write (addr + 2, l >> 8, 0x40 | 2);
-	mbdmac_write (addr + 3, l, 0x40 | 3);
+	if ((addr & 0xffff) == 0x40) {
+		// long write to 0x40 = write byte to SASR
+		mbdmac_write_byte (0x41, l);
+	} else {
+		mbdmac_write_word (addr + 0, l >> 16);
+		mbdmac_write_word (addr + 2, l >> 0);
+	}
 }
 static void REGPARAM2 mbdmac_wput (uaecptr addr, uae_u32 w)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	mbdmac_write (addr + 0, w >> 8, 0x20 | 0);
-	mbdmac_write (addr + 1, w >> 0, 0x20 | 1);
+	mbdmac_write_word (addr + 0, w);
 }
 static void REGPARAM2 mbdmac_bput (uaecptr addr, uae_u32 b)
 {
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	mbdmac_write (addr, b, 0x10 | 0);
+	mbdmac_write_byte (addr, b);
 }
 
 addrbank mbdmac_a3000_bank = {
 	mbdmac_lget, mbdmac_wget, mbdmac_bget,
 	mbdmac_lput, mbdmac_wput, mbdmac_bput,
 	default_xlate, default_check, NULL, _T("A3000 DMAC"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 
 static void ew (int addr, uae_u32 value)
@@ -1212,16 +1532,15 @@ static void freescsi (struct scsi_data *sd)
 	scsi_free (sd);
 }
 
-int addscsi (int ch, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, const TCHAR *filesys, int scsi_level)
+int addscsi (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
 {
-	struct hd_hardfiledata *hfd;
-
 	freescsi (scsis[ch]);
 	scsis[ch] = NULL;
-	hfd = xcalloc (struct hd_hardfiledata, 1);
-	if (!hdf_hd_open (hfd, path, blocksize, readonly, devname, 0, sectors, surfaces, reserved, bootpri, filesys, 0, 0, 0))
+	if (!hfd) {
+		hfd = xcalloc (struct hd_hardfiledata, 1);
+		memcpy (&hfd->hfd.ci, ci, sizeof (struct uaedev_config_info));
+	}
+	if (!hdf_hd_open (hfd))
 		return 0;
 	hfd->ansi_version = scsi_level;
 	scsis[ch] = scsi_alloc (ch, hfd);
@@ -1284,16 +1603,15 @@ static void addnativescsi (void)
 	}
 }
 
-int a3000_add_scsi_unit (int ch, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, const TCHAR *filesys)
+int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 2);
+	return addscsi (ch, NULL, ci, 2);
 }
 
 void a3000scsi_reset (void)
 {
 	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
+	wd_cmd_reset (false);
 }
 
 void a3000scsi_free (void)
@@ -1301,11 +1619,9 @@ void a3000scsi_free (void)
 	freenativescsi ();
 }
 
-int a2091_add_scsi_unit (int ch, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, const TCHAR *filesys)
+int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 1);
+	return addscsi (ch, NULL, ci, 1);
 }
 
 
@@ -1324,6 +1640,7 @@ void a2091_reset (void)
 	superdmac = currprefs.cs_mbdmac ? 1 : 0;
 	if (currprefs.scsi == 2)
 		addnativescsi ();
+	wd_cmd_reset (false);
 }
 
 void a2091_init (void)
@@ -1333,7 +1650,7 @@ void a2091_init (void)
 	struct romdata *rd;
 
 	configured = 0;
-	memset (dmacmemory, 0xff, 100);
+	memset (dmacmemory, 0xff, sizeof dmacmemory);
 	ew (0x00, 0xc0 | 0x01 | 0x10);
 	/* A590/A2091 hardware id */
 	ew (0x04, old_dmac ? 0x02 : 0x03);
@@ -1349,11 +1666,19 @@ void a2091_init (void)
 	ew (0x20, 0x00); /* ser.no. Byte 2 */
 	ew (0x24, 0x00); /* ser.no. Byte 3 */
 
-	roms[0] = 55;
-	roms[1] = 54;
-	roms[2] = 53;
-	roms[3] = 56;
+#if 1
+	roms[0] = 55; // 7.0
+	roms[1] = 54; // 6.6
+	roms[2] = 53; // 6.0
+	roms[3] = -1; //roms[3] = 56; // guru
 	roms[4] = -1;
+#else
+	roms[0] = 56; // guru
+	roms[1] = 55; // 7.0
+	roms[2] = 54; // 6.6
+	roms[3] = 53; // 6.0
+	roms[4] = -1;
+#endif
 
 	rombankswitcher = 0;
 	rombank = 0;
@@ -1367,16 +1692,129 @@ void a2091_init (void)
 			write_log (_T("A590/A2091 BOOT ROM %d.%d\n"), rd->ver, rd->rev);
 			rom_size = rd->size;
 			rom = xmalloc (uae_u8, slotsize);
-			if (rl->rd->id == 56)
-				rombankswitcher = 1;
 			zfile_fread (rom, rom_size, 1, z);
 			zfile_fclose (z);
-			for (int i = 1; i < slotsize / rom_size; i++)
-				memcpy (rom + i * rom_size, rom, rom_size);
+			if (rl->rd->id == 56) {
+				rombankswitcher = 1;
+				for (int i = rom_size - 1; i >= 0; i--) {
+					rom[i * 2 + 0] = rom[i];
+					rom[i * 2 + 1] = 0xff;
+				}
+			} else {
+				for (int i = 1; i < slotsize / rom_size; i++)
+					memcpy (rom + i * rom_size, rom, rom_size);
+			}
 			rom_mask = rom_size - 1;
 		}
 	} else {
 		romwarning (roms);
 	}
 	map_banks (&dmaca2091_bank, 0xe80000 >> 16, 0x10000 >> 16, 0x10000);
+}
+
+uae_u8 *save_scsi_dmac (int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+	
+	if (!currprefs.cs_a2091 && !currprefs.cs_mbdmac)
+		return NULL;
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+
+	// model (0=original,1=rev2,2=superdmac)
+	save_u32 (currprefs.cs_mbdmac ? 2 : 1);
+	save_u32 (0); // reserved flags
+	save_u8 (dmac_istr);
+	save_u8 (dmac_cntr);
+	save_u32 (dmac_wtc);
+	save_u32 (dmac_acr);
+	save_u16 (dmac_dawr);
+	save_u32 (dmac_dma ? 1 : 0);
+	save_u8 (configured);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_scsi_dmac (uae_u8 *src)
+{
+	restore_u32 ();
+	restore_u32 ();
+	dmac_istr = restore_u8 ();
+	dmac_cntr = restore_u8 ();
+	dmac_wtc = restore_u32 ();
+	dmac_acr = restore_u32 ();
+	dmac_dawr = restore_u16 ();
+	restore_u32 ();
+	configured = restore_u8 ();
+	return src;
+}
+
+uae_u8 *save_scsi_hd (int num, int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+	struct scsi_data *s;
+
+	if (!scsis[num])
+		return NULL;
+	s = scsis[num];
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+	save_u32 (num);
+	save_u32 (0); // flags
+	save_u64 (s->hfd->size);
+	save_string (s->hfd->hfd.ci.rootdir);
+	save_u32 (s->hfd->hfd.ci.blocksize);
+	save_u32 (s->hfd->hfd.ci.readonly);
+	save_u32 (s->hfd->cyls);
+	save_u32 (s->hfd->heads);
+	save_u32 (s->hfd->secspertrack);
+	save_u64 (s->hfd->hfd.virtual_size);
+	save_u32 (s->hfd->hfd.ci.sectors);
+	save_u32 (s->hfd->hfd.ci.surfaces);
+	save_u32 (s->hfd->hfd.ci.reserved);
+	save_u32 (s->hfd->hfd.ci.bootpri);
+	save_u32 (s->hfd->ansi_version);
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_scsi_hd (uae_u8 *src)
+{
+	int num;
+	struct hd_hardfiledata *hfd;
+	struct scsi_data *s;
+	uae_u64 size;
+	int blocksize, readonly;
+	TCHAR *path;
+
+	num = restore_u32 ();
+
+	hfd = xcalloc (struct hd_hardfiledata, 1);
+	s = scsis[num] = scsi_alloc (num, hfd);
+	restore_u32 ();
+	size = restore_u64 ();
+	path = restore_string ();
+	_tcscpy (s->hfd->hfd.ci.rootdir, path);
+	blocksize = restore_u32 ();
+	readonly = restore_u32 ();
+	s->hfd->cyls = restore_u32 ();
+	s->hfd->heads = restore_u32 ();
+	s->hfd->secspertrack = restore_u32 ();
+	s->hfd->hfd.virtual_size = restore_u64 ();
+	s->hfd->hfd.ci.sectors = restore_u32 ();
+	s->hfd->hfd.ci.surfaces = restore_u32 ();
+	s->hfd->hfd.ci.reserved = restore_u32 ();
+	s->hfd->hfd.ci.bootpri = restore_u32 ();
+	s->hfd->ansi_version = restore_u32 ();
+
+	if (size) {
+		addscsi (num, hfd, NULL, s->hfd->ansi_version);
+	}
+	xfree (path);
+	return src;
+
 }

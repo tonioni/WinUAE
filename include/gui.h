@@ -55,7 +55,8 @@ struct gui_info
     uae_s8 hd;					/* harddrive */
     uae_s8 cd;					/* CD */
 	uae_s8 md;					/* CD32 or CDTV internal storage */
-    int fps, idle;
+    bool cpu_halted;
+	int fps, idle;
 	int fps_color;
     int sndbuf, sndbuf_status;
     TCHAR df[4][256];			/* inserted image */

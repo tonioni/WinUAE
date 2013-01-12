@@ -15,6 +15,7 @@
 #define OPTIMIZED_FLAGS
 #define __i386__
 #define WINDOWS
+#define ZLIB_WINAPI
 
 #ifndef UAE_MINI
 
@@ -52,7 +53,9 @@
 #define CPUEMU_20 /* 68020 prefetch */
 #define CPUEMU_21 /* 68020 "cycle-exact" + blitter */
 #define CPUEMU_22 /* 68030 (040/060) "cycle-exact" + blitter */
-#define CPUEMU_31 /* 68040 Aranym MMU */
+#define CPUEMU_31 /* Aranym 68040 MMU */
+#define CPUEMU_32 /* Previous 68030 MMU */
+#define CPUEMU_33 /* 68060 MMU */
 #define ACTION_REPLAY /* Action Replay 1/2/3 support */
 #define PICASSO96 /* Picasso96 display card emulation */
 #define UAEGFX_INTERNAL /* built-in libs:picasso96/uaegfx.card */

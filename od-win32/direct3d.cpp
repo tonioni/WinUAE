@@ -100,7 +100,7 @@ static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode, maxscanline;
 static int resetcount;
 static double cursor_x, cursor_y;
-static bool cursor_v;
+static bool cursor_v, cursor_scale;
 
 #define NUMVERTICES 8
 #define D3DFVF_TLVERTEX D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1
@@ -1963,6 +1963,7 @@ static int restoredeviceobjects (void)
 	int curw = CURSORMAXWIDTH, curh = CURSORMAXHEIGHT;
 	cursorsurfaced3d = createtext (curw, curh, D3DFMT_A8R8G8B8);
 	cursor_v = false;
+	cursor_scale = false;
 
 	vbsize = sizeof (struct TLVERTEX) * NUMVERTICES;
 	if (FAILED (hr = d3ddev->CreateVertexBuffer (vbsize, D3DUSAGE_WRITEONLY,
@@ -2716,7 +2717,10 @@ static void D3D_render2 (void)
 		if (cursorsurfaced3d && cursor_v) {
 			D3DXMATRIXA16 t;
 
-			MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset2_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset2_y)), 0);
+			if (cursor_scale)
+				MatrixScaling (&t, ((float)(window_w) / (tout_w + 2 * cursor_offset2_x)), ((float)(window_h) / (tout_h + 2 * cursor_offset2_y)), 0);
+			else
+				MatrixScaling (&t, 1.0f, 1.0f, 0);
 			v.x = cursor_x + cursor_offset2_x;
 			v.y = cursor_y + cursor_offset2_y;
 			v.z = 0;
@@ -2825,7 +2829,7 @@ static void D3D_render2 (void)
 		write_log (_T("%s: EndScene() %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
-void D3D_setcursor (int x, int y, int width, int height, bool visible)
+void D3D_setcursor (int x, int y, int width, int height, bool visible, bool noscale)
 {
 	if (width && height) {
 		cursor_offset2_x = cursor_offset_x * window_w / width;
@@ -2836,6 +2840,7 @@ void D3D_setcursor (int x, int y, int width, int height, bool visible)
 		cursor_x = cursor_y = 0;
 		cursor_offset2_x = cursor_offset2_y = 0;
 	}
+	cursor_scale = !noscale;
 	cursor_v = visible;
 }
 

@@ -3,7 +3,7 @@
 struct scsi_data
 {
     int id;
-    int len;
+    int cmd_len;
     uae_u8 *data;
     int data_len;
     int status;
@@ -25,14 +25,11 @@ extern struct scsi_data *scsi_alloc_native(int,int);
 extern void scsi_free(struct scsi_data*);
 extern void scsi_reset(void);
 
-extern void scsi_start_transfer(struct scsi_data*,int);
+extern void scsi_start_transfer(struct scsi_data*);
 extern int scsi_send_data(struct scsi_data*, uae_u8);
 extern int scsi_receive_data(struct scsi_data*, uae_u8*);
 extern void scsi_emulate_cmd(struct scsi_data *sd);
-extern int scsi_data_dir(struct scsi_data *sd);
-
 
 extern int scsi_emulate(struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
 		uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len);
-
-
+extern void scsi_emulate_analyze (struct scsi_data*);

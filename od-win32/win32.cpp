@@ -462,13 +462,13 @@ void setsoundpaused (void)
 	ahi2_pause_sound (1);
 #endif
 }
-void resumepaused (int priority)
+bool resumepaused (int priority)
 {
 	//write_log (_T("resume %d (%d)\n"), priority, pause_emulation);
 	if (pause_emulation > priority)
-		return;
+		return false;
 	if (!pause_emulation)
-		return;
+		return false;
 	resumesoundpaused ();
 	blkdev_exitgui ();
 	if (pausemouseactive)
@@ -479,12 +479,13 @@ void resumepaused (int priority)
 	rp_pause (pause_emulation);
 #endif
 	setsystime ();
+	return true;
 }
-void setpaused (int priority)
+bool setpaused (int priority)
 {
 	//write_log (_T("pause %d (%d)\n"), priority, pause_emulation);
 	if (pause_emulation > priority)
-		return;
+		return false;
 	pause_emulation = priority;
 	setsoundpaused ();
 	blkdev_entergui ();
@@ -496,6 +497,7 @@ void setpaused (int priority)
 #ifdef RETROPLATFORM
 	rp_pause (pause_emulation);
 #endif
+	return true;
 }
 
 void setminimized (void)
@@ -620,6 +622,32 @@ void updatewinrect (bool allowfullscreen)
 	}
 }
 
+static bool iswindowfocus (void)
+{
+	bool donotfocus = false;
+	HWND f = GetFocus ();
+	HWND fw = GetForegroundWindow ();
+	HWND w1 = hAmigaWnd;
+	HWND w2 = hMainWnd;
+	HWND w3 = NULL;
+#ifdef RETROPLATFORM
+	if (rp_isactive ())
+		w3 = rp_getparent ();
+#endif
+	if (f != w1 && f != w2)
+		donotfocus = true;
+	if (w3 != NULL && f == w3)
+		donotfocus = false;
+
+#ifdef RETROPLATFORM
+	if (rp_isactive () && isfullscreen () == 0)
+		donotfocus = false;
+#endif
+	if (isfullscreen () > 0)
+		donotfocus = false;
+	return donotfocus == false;
+}
+
 static void setmouseactive2 (int active, bool allowpause)
 {
 	write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
@@ -657,32 +685,9 @@ static void setmouseactive2 (int active, bool allowpause)
 	if (mouseactive > 0)
 		focus = 1;
 
-	if (focus) {
-		int donotfocus = 0;
-		HWND f = GetFocus ();
-		HWND fw = GetForegroundWindow ();
-		HWND w1 = hAmigaWnd;
-		HWND w2 = hMainWnd;
-		HWND w3 = NULL;
-#ifdef RETROPLATFORM
-		if (rp_isactive ())
-			w3 = rp_getparent ();
-#endif
-		if (f != w1 && f != w2)
-			donotfocus = 1;
-		if (w3 != NULL && f == w3)
-			donotfocus = 0;
-
-#ifdef RETROPLATFORM
-		if (rp_isactive () && isfullscreen () == 0)
-			donotfocus = 0;
-#endif
-		if (isfullscreen () > 0)
-			donotfocus = 0;
-		if (donotfocus) {
-			//focus = 0;
-			mouseactive = 0;
-		}
+	if (!iswindowfocus ()) {
+		focus = 0;
+		mouseactive = 0;
 	}
 
 	if (mouseactive) {
@@ -980,7 +985,7 @@ static int isfocus2 (void)
 {
 	if (isfullscreen () > 0)
 		return 1;
-	if (focus && mouseactive)
+	if (focus && mouseactive > 0)
 		return 1;
 	if (focus)
 		return -1;
@@ -1030,6 +1035,15 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		winuae_active (hWnd, minimized);
 		unsetminimized ();
 		dx_check ();
+		break;
+	case WM_SIZE:
+		//write_log (_T("WM_SIZE %d\n"), wParam);
+		if (hStatusWnd)
+			SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
+		if (wParam == SIZE_MINIMIZED && !minimized) {
+			setminimized ();
+			winuae_inactive (hWnd, minimized);
+		}
 		break;
 	case WM_ACTIVATE:
 		//write_log (_T("active %d\n"), LOWORD(wParam));
@@ -1202,25 +1216,6 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		uae_quit ();
 		return 0;
 
-	case WM_SIZE:
-		if (hStatusWnd)
-			SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
-		break;
-
-	case WM_WINDOWPOSCHANGED:
-		{
-			WINDOWPOS *wp = (WINDOWPOS*)lParam;
-			if (isfullscreen () <= 0) {
-				if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
-					updatewinrect (false);
-					config_changed = 1;
-					updatemouseclip ();
-				}
-				notice_screen_contents_lost ();
-			}
-		}
-		break;
-
 	case WM_SETCURSOR:
 		{
 			if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse && isfullscreen () <= 0) {
@@ -1286,11 +1281,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 	case WM_MOVING:
 		{
 			LRESULT lr = DefWindowProc (hWnd, message, wParam, lParam);
-			WIN32GFX_WindowMove ();
 			return lr;
 		}
 	case WM_MOVE:
-		WIN32GFX_WindowMove ();
 		return FALSE;
 
 	case WM_ENABLE:
@@ -1549,12 +1542,14 @@ static int canstretch (void)
 {
 	if (isfullscreen () != 0)
 		return 0;
-	if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE)
-		return 0;
-	if (!WIN32GFX_IsPicassoScreen ())
+	if (!WIN32GFX_IsPicassoScreen ()) {
+		if (currprefs.gfx_filter_autoscale == AUTOSCALE_RESIZE)
+			return 0;
 		return 1;
-	if (currprefs.win32_rtgallowscaling || currprefs.win32_rtgscaleaspectratio)
-		return 1;
+	} else {
+		if (currprefs.win32_rtgallowscaling || currprefs.win32_rtgscalemode)
+			return 1;
+	}
 	return 0;
 }
 
@@ -1668,44 +1663,51 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		/* fall through */
 
 	case WM_WINDOWPOSCHANGED:
-		WIN32GFX_WindowMove ();
-		if (hAmigaWnd && isfullscreen () <= 0) {
-			DWORD aw, ah;
-			int iconic = IsIconic (hWnd);
-			if (!iconic)
-				GetWindowRect (hAmigaWnd, &amigawin_rect);
-			aw = amigawin_rect.right - amigawin_rect.left;
-			ah = amigawin_rect.bottom - amigawin_rect.top;
+		{
+			if (isfullscreen () > 0)
+				break;
 			if (in_sizemove > 0)
 				break;
-
-			if (isfullscreen() == 0 && hAmigaWnd && !iconic) {
-				static int store_xy;
-				RECT rc2;
-				if (GetWindowRect (hMainWnd, &rc2)) {
-					DWORD left = rc2.left - win_x_diff;
-					DWORD top = rc2.top - win_y_diff;
-					DWORD width = rc2.right - rc2.left;
-					DWORD height = rc2.bottom - rc2.top;
-					if (store_xy++) {
-						regsetint (NULL, _T("MainPosX"), left);
-						regsetint (NULL, _T("MainPosY"), top);
-					}
-					changed_prefs.gfx_size_win.x = left;
-					changed_prefs.gfx_size_win.y = top;
-					if (canstretch () && (mainwin_rect.right - mainwin_rect.left != width || mainwin_rect.bottom - mainwin_rect.top != height)) {
-						changed_prefs.gfx_size_win.width = width - window_extra_width;
-						changed_prefs.gfx_size_win.height = height - window_extra_height;
-					}
-					config_changed = 1;
+			int iconic = IsIconic (hWnd);
+			if (hAmigaWnd && hWnd == hMainWnd && !iconic) {
+				//write_log (_T("WM_WINDOWPOSCHANGED MAIN\n"));
+				GetWindowRect (hMainWnd, &mainwin_rect);
+				updatewinrect (false);
+				updatemouseclip ();
+				if (minimized) {
+					unsetminimized ();
+					winuae_active (hAmigaWnd, minimized);
 				}
-				if (hStatusWnd)
-					SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
-				GetWindowRect (hMainWnd, &mainwin_rect);
-				return 0;
+				if (isfullscreen() == 0) {
+					static int store_xy;
+					RECT rc2;
+					if (GetWindowRect (hMainWnd, &rc2)) {
+						DWORD left = rc2.left - win_x_diff;
+						DWORD top = rc2.top - win_y_diff;
+						DWORD width = rc2.right - rc2.left;
+						DWORD height = rc2.bottom - rc2.top;
+						if (store_xy++) {
+							regsetint (NULL, _T("MainPosX"), left);
+							regsetint (NULL, _T("MainPosY"), top);
+						}
+						changed_prefs.gfx_size_win.x = left;
+						changed_prefs.gfx_size_win.y = top;
+						if (canstretch ()) {
+							int w = mainwin_rect.right - mainwin_rect.left;
+							int h = mainwin_rect.bottom - mainwin_rect.top;
+							if (w != changed_prefs.gfx_size_win.width + window_extra_width ||
+								h != changed_prefs.gfx_size_win.height + window_extra_height) {
+									changed_prefs.gfx_size_win.width = w - window_extra_width;
+									changed_prefs.gfx_size_win.height = h - window_extra_height;
+									config_changed = 1;
+							}
+						}
+					}
+					if (hStatusWnd)
+						SendMessage (hStatusWnd, WM_SIZE, wParam, lParam);
+					return 0;
+				}
 			}
-			if (!iconic)
-				GetWindowRect (hMainWnd, &mainwin_rect);
 		}
 		break;
 
@@ -1726,8 +1728,13 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 
 	case WM_NCLBUTTONDBLCLK:
 		if (wParam == HTCAPTION) {
-			toggle_fullscreen (-1);
-			return 0;
+			if (GetKeyState (VK_SHIFT)) {
+				toggle_fullscreen (0);
+				return 0;
+			} else if (GetKeyState (VK_CONTROL)) {
+				toggle_fullscreen (2);
+				return 0;
+			}
 		}
 		break;
 
@@ -1929,11 +1936,11 @@ int handle_msgpump (void)
 	return got;
 }
 
-void handle_events (void)
+bool handle_events (void)
 {
-	MSG msg;
-	int was_paused = 0;
+	static int was_paused = 0;
 	static int cnt1, cnt2;
+	static int pausedelay;
 
 	if (hStatusWnd && guijoychange && window_led_joy_start > 0) {
 		guijoychange = false;
@@ -1941,30 +1948,32 @@ void handle_events (void)
 			PostMessage (hStatusWnd, SB_SETTEXT, (WPARAM)((i + 1) | SBT_OWNERDRAW), (LPARAM)_T(""));
 	}
 
-	while (pause_emulation) {
-		if (pause_emulation && was_paused == 0) {
+	pausedelay = 0;
+	if (pause_emulation) {
+		MSG msg;
+		if (was_paused == 0) {
 			setpaused (pause_emulation);
 			was_paused = pause_emulation;
 			manual_painting_needed++;
 			gui_fps (0, 0, 0);
+			gui_led (LED_SND, 0);
 		}
+		MsgWaitForMultipleObjects (0, NULL, FALSE, 100, QS_ALLINPUT);
 		while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
 			TranslateMessage (&msg);
 			DispatchMessage (&msg);
 		}
-		sleep_millis (100);
 		inputdevicefunc_keyboard.read ();
 		inputdevicefunc_mouse.read ();
 		inputdevicefunc_joystick.read ();
 		inputdevice_handle_inputcode ();
-		check_prefs_changed_gfx ();
 #ifdef RETROPLATFORM
 		rp_vsync ();
 #endif
 		cnt1 = 0;
 		while (checkIPC (globalipc, &currprefs));
-		if (quit_program)
-			break;
+//		if (quit_program)
+//			break;
 		cnt2--;
 		if (cnt2 <= 0) {
 			if (currprefs.win32_powersavedisabled)
@@ -1974,19 +1983,13 @@ void handle_events (void)
 			cnt2 = 10;
 		}
 	}
-#if 0
-	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
-		TranslateMessage (&msg);
-		DispatchMessage (&msg);
-	}
-	while (checkIPC (globalipc, &currprefs));
-#endif
-	if (was_paused) {
+	if (was_paused && (!pause_emulation || quit_program)) {
 		updatedisplayarea ();
 		manual_painting_needed--;
 		pause_emulation = was_paused;
 		resumepaused (was_paused);
 		sound_closed = 0;
+		was_paused = 0;
 	}
 	cnt1--;
 	if (cnt1 <= 0) {
@@ -2002,6 +2005,7 @@ void handle_events (void)
 			cnt2 = 5;
 		}
 	}
+	return pause_emulation != 0;
 }
 
 /* We're not a console-app anymore! */
@@ -2216,7 +2220,7 @@ HMODULE language_load (WORD language)
 #if LANG_DLL > 0
 	TCHAR dllbuf[MAX_DPATH];
 	TCHAR *dllname;
-	bool nosubrev = true;
+	bool nosubrev = false;
 
 	if (language <= 0) {
 		/* new user-specific Windows ME/2K/XP method to get UI language */
@@ -2939,8 +2943,21 @@ void target_fixup_options (struct uae_prefs *p)
 		nosound = true;
 	}
 	
-	/* switch from 32 to 16 or vice versa if mode does not exist */
 	struct MultiDisplay *md = getdisplay (p);
+	if (p->gfx_size_fs.special == WH_NATIVE) {
+		int i;
+		for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+			if (md->DisplayModes[i].res.width == md->rect.right - md->rect.left &&
+				md->DisplayModes[i].res.height == md->rect.bottom - md->rect.top) {
+					p->gfx_size_fs.width = md->DisplayModes[i].res.width;
+					p->gfx_size_fs.height = md->DisplayModes[i].res.height;
+					break;
+			}
+		}
+		if (md->DisplayModes[i].depth < 0)
+			p->gfx_size_fs.special = 0;
+	}
+	/* switch from 32 to 16 or vice versa if mode does not exist */
 	int depth = p->color_mode == 5 ? 4 : 2;
 	for (int i = 0; md->DisplayModes[i].depth >= 0; i++) {
 		if (md->DisplayModes[i].depth == depth) {
@@ -2993,7 +3010,7 @@ void target_default_options (struct uae_prefs *p, int type)
 		p->win32_powersavedisabled = true;
 		p->sana2 = 0;
 		p->win32_rtgmatchdepth = 1;
-		p->win32_rtgscaleifsmall = 1;
+		p->win32_rtgscalemode = 1;
 		p->win32_rtgallowscaling = 0;
 		p->win32_rtgscaleaspectratio = -1;
 		p->win32_rtgvblankrate = 0;
@@ -3088,7 +3105,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("midirouter"), p->win32_midirouter);
 			
 	cfgfile_target_dwrite_bool (f, _T("rtg_match_depth"), p->win32_rtgmatchdepth);
-	cfgfile_target_dwrite_bool (f, _T("rtg_scale_small"), p->win32_rtgscaleifsmall);
+	cfgfile_target_dwrite_bool (f, _T("rtg_scale_small"), p->win32_rtgscalemode == 1);
+	cfgfile_target_dwrite_bool (f, _T("rtg_scale_center"), p->win32_rtgscalemode == 2);
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
 	cfgfile_target_dwrite (f, _T("rtg_scale_aspect_ratio"), _T("%d:%d"),
 		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
@@ -3169,6 +3187,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 {
 	TCHAR tmpbuf[CONFIG_BLEN];
 	int i, v;
+	bool tbool;
 
 	int result = (cfgfile_yesno (option, value, _T("middle_mouse"), &p->win32_middle_mouse)
 		|| cfgfile_yesno (option, value, _T("map_drives"), &p->win32_automount_drives)
@@ -3210,8 +3229,15 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 
 	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
 		return 1;
-	if (cfgfile_yesno (option, value, _T("rtg_scale_small"), &p->win32_rtgscaleifsmall))
+	if (cfgfile_yesno (option, value, _T("rtg_scale_small"), &tbool)) {
+		p->win32_rtgscalemode = tbool ? RTG_MODE_SCALE : 0;
 		return 1;
+	}
+	if (cfgfile_yesno (option, value, _T("rtg_scale_center"), &tbool)) {
+		if (tbool)
+			p->win32_rtgscalemode = RTG_MODE_CENTER;
+		return 1;
+	}
 	if (cfgfile_yesno (option, value, _T("rtg_scale_allow"), &p->win32_rtgallowscaling))
 		return 1;
 
@@ -5538,7 +5564,7 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 					int got = 0;
 					uaecptr opc = m68k_getpc ();
 					void *ps = get_real_address (0);
-					m68k_dumpstate (0, 0);
+					m68k_dumpstate (0);
 					efix (&ctx->Eax, p, ps, &got);
 					efix (&ctx->Ebx, p, ps, &got);
 					efix (&ctx->Ecx, p, ps, &got);
@@ -5979,7 +6005,8 @@ uae_u32 emulib_target_getcpurate (uae_u32 v, uae_u32 *low)
 void fpux_save (int *v)
 {
 #ifndef _WIN64
-	*v = _controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
+	*v = _controlfp (0, 0);
+	_controlfp (fpucontrol, _MCW_IC | _MCW_RC | _MCW_PC);
 #endif
 }
 void fpux_restore (int *v)
@@ -6025,6 +6052,7 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	thread = GetCurrentThread ();
 	//original_affinity = SetThreadAffinityMask(thread, 1);
 	fpucontrol = _controlfp (0, 0) & (_MCW_IC | _MCW_RC | _MCW_PC);
+	_tzset ();
 
 #if 0
 #define MSGFLT_ADD 1

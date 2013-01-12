@@ -186,6 +186,7 @@ struct ide_hdf
 	int type;
 	int blocksize;
 	int maxtransferstate;
+	bool atapi;
 };
 
 #define TOTAL_IDE 3
@@ -454,6 +455,7 @@ static void ide_identify_drive (void)
 	int v;
 	uae_u8 *buf = ide->secbuf;
 	TCHAR tmp[100];
+	bool atapi = ide->atapi;
 
 	if (ide->hdhfd.size == 0) {
 		ide_fail ();
@@ -464,7 +466,7 @@ static void ide_identify_drive (void)
 		write_log (_T("IDE%d identify drive\n"), ide->num);
 	ide_data_ready ();
 	ide->data_size *= -1;
-	pw (0, 1 << 6);
+	pw (0, atapi ? 0x85c0 : 1 << 6);
 	pw (1, ide->hdhfd.cyls_def);
 	pw (2, 0xc837);
 	pw (3, ide->hdhfd.heads_def);
@@ -506,7 +508,7 @@ static void ide_identify_drive (void)
 	pw (68, 120);
 	pw (80, (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6)); /* ATA-1 to ATA-6 */
 	pw (81, 0x1c); /* ATA revision */
-	pw (82, (1 << 14)); /* NOP command supported */
+	pw (82, (1 << 14) | (atapi ? 0x10 | 4 : 0)); /* NOP, ATAPI: PACKET and Removable media features supported */
 	pw (83, (1 << 14) | (1 << 13) | (1 << 12) | (ide->lba48 ? (1 << 10) : 0)); /* cache flushes, LBA 48 supported */
 	pw (84, 1 << 14);
 	pw (85, 1 << 14);
@@ -526,13 +528,19 @@ static void ide_identify_drive (void)
 static void ide_execute_drive_diagnostics (bool irq)
 {
 	ide->regs->ide_error = 1;
-	ide->regs->ide_sector = ide->regs->ide_nsector = 1;
-	ide->regs->ide_select = 0;
-	ide->regs->ide_lcyl = ide->regs->ide_hcyl = 0;
+	if (ide->atapi) {
+		ide->regs->ide_sector = ide->regs->ide_nsector = 1;
+		ide->regs->ide_lcyl = 0x14;
+		ide->regs->ide_hcyl = 0xeb;
+	} else {
+		ide->regs->ide_sector = ide->regs->ide_nsector = 1;
+		ide->regs->ide_select = 0;
+		ide->regs->ide_lcyl = ide->regs->ide_hcyl = 0;
+	}
 	if (irq)
 		ide_interrupt ();
 	else
-		ide->status = ~IDE_STATUS_BSY;
+		ide->status &= ~IDE_STATUS_BSY;
 }
 
 static void ide_initialize_drive_parameters (void)
@@ -734,6 +742,16 @@ static void ide_write_sectors (int flags)
 	ide->data_size = nsec * ide->blocksize;
 }
 
+static void atapi_packet (void)
+{
+	ide->regs->ide_error = 1; /* C/D = 1 */
+	ide->status = IDE_STATUS_DRQ;
+	ide->data_size = (ide->regs->ide_hcyl << 8) | ide->regs->ide_lcyl;
+	if (ide->data_size == 65535)
+		ide->data_size = 65534;
+
+}
+
 static void ide_do_command (uae_u8 cmd)
 {
 	int lba48 = ide->lba48;
@@ -742,6 +760,16 @@ static void ide_do_command (uae_u8 cmd)
 		write_log (_T("**** IDE%d command %02X\n"), ide->num, cmd);
 	ide->status &= ~ (IDE_STATUS_DRDY | IDE_STATUS_DRQ | IDE_STATUS_ERR);
 	ide->regs->ide_error = 0;
+
+	if (ide->atapi) {
+		if (cmd == 0x08) { /* device reset */
+			ide_execute_drive_diagnostics (false);
+		} else if (cmd == 0xa1) { /* identify packet device */
+			ide_identify_drive ();
+		} else if (cmd == 0xa0) { /* packet */
+			atapi_packet ();
+		}
+	}
 
 	if (cmd == 0x10) { /* recalibrate */
 		ide_recalibrate ();
@@ -752,7 +780,10 @@ static void ide_do_command (uae_u8 cmd)
 	} else if (cmd == 0x91) { /* initialize drive parameters */
 		ide_initialize_drive_parameters ();
 	} else if (cmd == 0xc6) { /* set multiple mode */
-		ide_set_multiple_mode ();
+		if (ide->atapi)
+			ide_fail ();
+		else
+			ide_set_multiple_mode ();
 	} else if (cmd == 0x20 || cmd == 0x21) { /* read sectors */
 		ide_read_sectors (0);
 	} else if (cmd == 0x24 && lba48) { /* read sectors ext */
@@ -771,8 +802,6 @@ static void ide_do_command (uae_u8 cmd)
 		ide_write_sectors (1|2);
 	} else if (cmd == 0x50) { /* format track (nop) */
 		ide_interrupt ();
-	} else if (cmd == 0xa1) { /* ATAPI identify (IDE HD is not ATAPI) */
-		ide_fail ();
 	} else if (cmd == 0xef) { /* set features  */
 		ide_set_features ();
 	} else if (cmd == 0x00) { /* nop */
@@ -911,9 +940,7 @@ static int get_gayle_ide_reg (uaecptr addr)
 			addr &= ~0x400;
 		}
 	}
-	ide = idedrive[ide2];
-	if (ide->regs->ide_drv)
-		ide = idedrive[ide2 + 1];
+	ide = idedrive[ide2 + (ide->regs->ide_drv ? 1 : 0)];
 	return addr;
 }
 
@@ -1540,18 +1567,17 @@ static void alloc_ide_mem (struct ide_hdf **ide, int max)
 	}
 }
 
-static struct ide_hdf *add_ide_unit (int ch, const TCHAR *path, int blocksize, int readonly,
-	const TCHAR *devname, int cyls, int sectors, int surfaces, int reserved,
-	int bootpri, const TCHAR *filesys,
-	int pcyls, int pheads, int psecs)
+static struct ide_hdf *add_ide_unit (int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
 	alloc_ide_mem (idedrive, TOTAL_IDE * 2);
 	ide = idedrive[ch];
-	if (!hdf_hd_open (&ide->hdhfd, path, blocksize, readonly, devname, cyls, sectors, surfaces, reserved, bootpri, filesys, pcyls, pheads, psecs))
+	if (ci)
+		memcpy (&ide->hdhfd.hfd.ci, ci, sizeof (struct uaedev_config_info));
+	if (!hdf_hd_open (&ide->hdhfd))
 		return NULL;
-	ide->blocksize = blocksize;
+	ide->blocksize = ide->hdhfd.hfd.ci.blocksize;
 	ide->lba48 = ide->hdhfd.size >= 128 * (uae_u64)0x40000000 ? 1 : 0;
 	ide->status = 0;
 	ide->data_offset = 0;
@@ -1881,7 +1907,7 @@ static void checkflush (int addr)
 	}
 	if (pcmcia_write_min >= 0) {
 		if (abs (pcmcia_write_min - addr) >= 512 || abs (pcmcia_write_max - addr) >= 512) {
-			int blocksize = pcmcia_sram->hfd.blocksize;
+			int blocksize = pcmcia_sram->hfd.ci.blocksize;
 			int mask = ~(blocksize - 1);
 			int start = pcmcia_write_min & mask;
 			int end = (pcmcia_write_max + blocksize - 1) & mask;
@@ -1938,16 +1964,19 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
 		pcmcia_sram = xcalloc (struct hd_hardfiledata, 1);
 	if (!pcmcia_sram->hfd.handle_valid)
 		reset = 1;
+	_tcscpy (pcmcia_sram->hfd.ci.rootdir, path);
+	pcmcia_sram->hfd.ci.readonly = readonly != 0;
+	pcmcia_sram->hfd.ci.blocksize = 512;
 
 	if (type == PCMCIA_SRAM) {
 		if (reset) {
 			if (path)
-				hdf_hd_open (pcmcia_sram, path, 512, readonly, NULL, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
+				hdf_hd_open (pcmcia_sram);
 		} else {
 			pcmcia_sram->hfd.drive_empty = 0;
 		}
 
-		if (pcmcia_sram->hfd.readonly)
+		if (pcmcia_sram->hfd.ci.readonly)
 			readonly = 1;
 		pcmcia_common_size = 0;
 		pcmcia_readonly = readonly;
@@ -1974,8 +2003,13 @@ static int initpcmcia (const TCHAR *path, int readonly, int type, int reset)
 	} else if (type == PCMCIA_IDE) {
 
 		if (reset) {
-			if (path)
-				add_ide_unit (PCMCIA_IDE_ID * 2, path, 512, readonly, NULL, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
+			if (path) {
+				struct uaedev_config_info ci = { 0 };
+				_tcscpy (ci.rootdir , path);
+				ci.blocksize = 512;
+				ci.readonly = readonly != 0;
+				add_ide_unit (PCMCIA_IDE_ID * 2, &ci);
+			}
 		}
 
 		pcmcia_common_size = 0;
@@ -2253,21 +2287,19 @@ static void dumphdf (struct hardfiledata *hfd)
 }
 #endif
 
-int gayle_add_ide_unit (int ch, const TCHAR *path, int blocksize, int readonly, const TCHAR *devname,
-	int cyls, int sectors, int surfaces, int reserved, int bootpri, const TCHAR *filesys,
-	int pcyls, int pheads, int psecs)
+int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci)
 {
 	struct ide_hdf *ide;
 
 	if (ch >= 2 * 2)
 		return -1;
-	ide = add_ide_unit (ch, path, blocksize, readonly, devname, cyls, sectors, surfaces, reserved, bootpri, filesys, pcyls, pheads, psecs);
+	ide = add_ide_unit (ch, ci);
 	if (ide == NULL)
 		return 0;
 	write_log (_T("GAYLE_IDE%d '%s', LCHS=%d/%d/%d. PCHS=%d/%d/%d %uM. LBA48=%d\n"),
-		ch, path,
+		ch, ide->hdhfd.hfd.ci.rootdir,
 		ide->hdhfd.cyls, ide->hdhfd.heads, ide->hdhfd.secspertrack,
-		pcyls, pheads, psecs,
+		ide->hdhfd.hfd.ci.pcyls, ide->hdhfd.hfd.ci.pheads, ide->hdhfd.hfd.ci.psecs,
 		(int)(ide->hdhfd.size / (1024 * 1024)), ide->lba48);
 	ide->type = IDE_GAYLE;
 	//dumphdf (&ide->hdhfd.hfd);
@@ -2314,6 +2346,10 @@ static void initide (void)
 		ideregs[i].ide_lcyl = ideregs[i].ide_hcyl = ideregs[i].ide_devcon = ideregs[i].ide_feat = 0;
 		idedrive[i * 2 + 0]->regs = &ideregs[i];
 		idedrive[i * 2 + 1]->regs = &ideregs[i];
+		ide = idedrive[i * 2 + 0];
+		ide_execute_drive_diagnostics (false);
+		ide = idedrive[i * 2 + 1];
+		ide_execute_drive_diagnostics (false);
 	}
 	ide_splitter = 0;
 	if (idedrive[2]->hdhfd.size) {
@@ -2397,9 +2433,9 @@ uae_u8 *save_ide (int num, int *len, uae_u8 *dstptr)
 		dstbak = dst = xmalloc (uae_u8, 1000);
 	save_u32 (num);
 	save_u64 (ide->hdhfd.size);
-	save_string (ide->hdhfd.path);
-	save_u32 (ide->hdhfd.hfd.blocksize);
-	save_u32 (ide->hdhfd.hfd.readonly);
+	save_string (ide->hdhfd.hfd.ci.rootdir);
+	save_u32 (ide->hdhfd.hfd.ci.blocksize);
+	save_u32 (ide->hdhfd.hfd.ci.readonly);
 	save_u8 (ide->multiple_mode);
 	save_u32 (ide->hdhfd.cyls);
 	save_u32 (ide->hdhfd.heads);
@@ -2418,10 +2454,10 @@ uae_u8 *save_ide (int num, int *len, uae_u8 *dstptr)
 	save_u8 (ide->regs->ide_error);
 	save_u8 (ide->regs->ide_devcon);
 	save_u64 (ide->hdhfd.hfd.virtual_size);
-	save_u32 (ide->hdhfd.hfd.secspertrack);
-	save_u32 (ide->hdhfd.hfd.heads);
-	save_u32 (ide->hdhfd.hfd.reservedblocks);
-	save_u32 (ide->hdhfd.bootpri);
+	save_u32 (ide->hdhfd.hfd.ci.sectors);
+	save_u32 (ide->hdhfd.hfd.ci.surfaces);
+	save_u32 (ide->hdhfd.hfd.ci.reserved);
+	save_u32 (ide->hdhfd.hfd.ci.bootpri);
 	*len = dst - dstbak;
 	return dstbak;
 }
@@ -2438,6 +2474,7 @@ uae_u8 *restore_ide (uae_u8 *src)
 	ide = idedrive[num];
 	size = restore_u64 ();
 	path = restore_string ();
+	_tcscpy (ide->hdhfd.hfd.ci.rootdir, path);
 	blocksize = restore_u32 ();
 	readonly = restore_u32 ();
 	ide->multiple_mode = restore_u8 ();
@@ -2458,15 +2495,14 @@ uae_u8 *restore_ide (uae_u8 *src)
 	ide->regs->ide_error = restore_u8 ();
 	ide->regs->ide_devcon = restore_u8 ();
 	ide->hdhfd.hfd.virtual_size = restore_u64 ();
-	ide->hdhfd.hfd.secspertrack = restore_u32 ();
-	ide->hdhfd.hfd.heads = restore_u32 ();
-	ide->hdhfd.hfd.reservedblocks = restore_u32 ();
-	ide->hdhfd.bootpri = restore_u32 ();
+	ide->hdhfd.hfd.ci.sectors = restore_u32 ();
+	ide->hdhfd.hfd.ci.surfaces = restore_u32 ();
+	ide->hdhfd.hfd.ci.reserved = restore_u32 ();
+	ide->hdhfd.hfd.ci.bootpri = restore_u32 ();
 	if (ide->hdhfd.hfd.virtual_size)
-		gayle_add_ide_unit (num, path, blocksize, readonly, ide->hdhfd.hfd.device_name,
-		0, ide->hdhfd.hfd.secspertrack, ide->hdhfd.hfd.heads, ide->hdhfd.hfd.reservedblocks, ide->hdhfd.bootpri, NULL, 0, 0, 0);
+		gayle_add_ide_unit (num, NULL);
 	else
-		gayle_add_ide_unit (num, path, blocksize, readonly, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		gayle_add_ide_unit (num, NULL);
 	xfree (path);
 	return src;
 }

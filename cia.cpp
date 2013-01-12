@@ -1685,7 +1685,7 @@ static uae_u8 getclockreg (int addr, struct tm *ct)
 {
 	uae_u8 v = 0;
 
-	if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	if (currprefs.cs_rtc == 1 || currprefs.cs_rtc == 3) { /* MSM6242B */
 		switch (addr) {
 		case 0x0: v = ct->tm_sec % 10; break;
 		case 0x1: v = ct->tm_sec / 10; break;
@@ -1788,8 +1788,8 @@ static void write_battclock (void)
 void rtc_hardreset (void)
 {
 	rtc_delayed_write = 0;
-	if (currprefs.cs_rtc == 1) { /* MSM6242B */
-		clock_bank.name = _T("Battery backed up clock (MSM6242B)");
+	if (currprefs.cs_rtc == 1 || currprefs.cs_rtc == 3) { /* MSM6242B */
+		clock_bank.name = currprefs.cs_rtc == 1 ? _T("Battery backed up clock (MSM6242B)") : _T("Battery backed up clock A2000 (MSM6242B)");
 		clock_control_d = 0x1;
 		clock_control_e = 0;
 		clock_control_f = 0x4; /* 24/12 */
@@ -1882,7 +1882,7 @@ static void REGPARAM2 clock_bput (uaecptr addr, uae_u32 value)
 		return;
 	addr >>= 2;
 	value &= 0x0f;
-	if (currprefs.cs_rtc == 1) { /* MSM6242B */
+	if (currprefs.cs_rtc == 1 || currprefs.cs_rtc == 3) { /* MSM6242B */
 #if CLOCK_DEBUG
 		write_log (_T("CLOCK W %X: %X\n"), addr, value);
 #endif

@@ -35,6 +35,8 @@ del cpuemu_20.cpp
 del cpuemu_21.cpp
 del cpuemu_22.cpp
 del cpuemu_31.cpp
+del cpuemu_32.cpp
+del cpuemu_33.cpp
 del linetoscr.cpp
 del aros.rom.cpp
 

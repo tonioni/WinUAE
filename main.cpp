@@ -105,7 +105,7 @@ uae_u32 uaerandgetseed (void)
 void my_trim (TCHAR *s)
 {
 	int len;
-	while (_tcscspn (s, _T("\t \r\n")) == 0)
+	while (_tcslen (s) > 0 && _tcscspn (s, _T("\t \r\n")) == 0)
 		memmove (s, s + 1, (_tcslen (s + 1) + 1) * sizeof (TCHAR));
 	len = _tcslen (s);
 	while (len > 0 && _tcscspn (s + len - 1, _T("\t \r\n")) == 0)
@@ -224,7 +224,7 @@ void fixup_cpu (struct uae_prefs *p)
 		break;
 	}
 
-	if (p->cpu_model != 68040)
+	if (p->cpu_model < 68030 || p->cachesize)
 		p->mmu_model = 0;
 
 	if (p->cachesize && p->cpu_cycle_exact)

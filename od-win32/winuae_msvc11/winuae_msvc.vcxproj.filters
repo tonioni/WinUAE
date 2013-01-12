@@ -41,6 +41,9 @@
     <Filter Include="unpackers\zip">
       <UniqueIdentifier>{93fcf20a-8921-43e8-b4b9-e5fceb81332d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="unpackers\chd">
+      <UniqueIdentifier>{dd8bf794-572a-4d08-9cae-b280eb493e54}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -507,6 +510,42 @@
     </ClCompile>
     <ClCompile Include="..\..\cpuemu_22.cpp">
       <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpummu30.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_32.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\cpuemu_33.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\astring.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\hashing.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\md5.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\sha1.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\chd.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\huffman.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\chdcodec.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\flac.cpp">
+      <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp">
+      <Filter>unpackers\chd</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

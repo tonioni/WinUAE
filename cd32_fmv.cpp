@@ -64,7 +64,7 @@
 
 static int fmv_mask;
 static uae_u8 *rom;
-static int rom_size = 262144;
+static int fmv_rom_size = 262144;
 static uaecptr fmv_start = 0x00200000;
 static int fmv_size = 1048576;
 
@@ -328,7 +328,7 @@ static uae_u32 REGPARAM2 fmv_wgeti (uaecptr addr)
 	addr -= fmv_start & fmv_mask;
 	addr &= fmv_mask;
 	m = rom + addr;
-	if (addr < rom_size)
+	if (addr < fmv_rom_size)
 		return do_get_mem_word ((uae_u16 *)m);
 #ifdef FMV_DEBUG
 	write_log (_T("fmv_wgeti %08X %08X PC=%08X\n"), addr, v, M68K_GETPC);
@@ -346,7 +346,7 @@ static uae_u32 REGPARAM2 fmv_lgeti (uaecptr addr)
 	addr -= fmv_start & fmv_mask;
 	addr &= fmv_mask;
 	m = rom + addr;
-	if (addr < rom_size)
+	if (addr < fmv_rom_size)
 		return do_get_mem_long ((uae_u32 *)m);
 #ifdef FMV_DEBUG
 	write_log (_T("fmv_lgeti %08X %08X PC=%08X\n"), addr, v, M68K_GETPC);

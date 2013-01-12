@@ -135,8 +135,6 @@ void filesys_addexternals (void)
 {
 	int drive, drivetype;
 	UINT errormode;
-	TCHAR volumename[MAX_DPATH] = _T("");
-	TCHAR volumepath[16];
 	DWORD dwDriveMask;
 	int drvnum = 0;
 
@@ -148,21 +146,21 @@ void filesys_addexternals (void)
 	dwDriveMask >>= 2; // Skip A and B drives...
 
 	for(drive = 'C'; drive <= 'Z'; ++drive) {
-		_stprintf (volumepath, _T("%c:\\"), drive);
+		struct uaedev_config_info ci = { 0 };
+		_stprintf (ci.rootdir, _T("%c:\\"), drive);
 		/* Is this drive-letter valid (it used to check for media in drive) */
 		if(dwDriveMask & 1) {
-			TCHAR devname[MAX_DPATH];
-			bool inserted = CheckRM (volumepath) != 0; /* Is there a disk inserted? */
+			bool inserted = CheckRM (ci.rootdir) != 0; /* Is there a disk inserted? */
 			int nok = FALSE;
 			int rw = 1;
-			drivetype = GetDriveType (volumepath);
+
+			drivetype = GetDriveType (ci.rootdir);
 			if (inserted && drivetype != DRIVE_NO_ROOT_DIR && drivetype != DRIVE_UNKNOWN) {
 				if (hfdcheck (drive)) {
 					write_log (_T("Drive %c:\\ ignored, was configured as a harddrive\n"), drive);
 					continue;
 				}
 			}
-			devname[0] = 0;
 			for (;;) {
 				if (!inserted) {
 					nok = TRUE;
@@ -179,24 +177,26 @@ void filesys_addexternals (void)
 			}
 			if (nok)
 				continue;
-			volumename[0] = 0;
 			if (inserted) {
-				target_get_volume_name (&mountinfo, volumepath, volumename, MAX_DPATH, inserted, true);
-				if (!volumename[0])
-					_stprintf (volumename, _T("WinUNK_%c"), drive);
+				target_get_volume_name (&mountinfo, ci.rootdir, ci.volname, MAX_DPATH, inserted, true);
+				if (!ci.volname[0])
+					_stprintf (ci.volname, _T("WinUNK_%c"), drive);
 			}
 			if (drivetype == DRIVE_REMOTE)
-				_tcscat (volumepath, _T("."));
+				_tcscat (ci.rootdir, _T("."));
 			else
-				_tcscat (volumepath, _T(".."));
+				_tcscat (ci.rootdir, _T(".."));
 #if 0
 			if (currprefs.win32_automount_drives > 1) {
 				devname[0] = drive;
 				devname[1] = 0;
 			}
 #endif
+			ci.readonly = !rw;
+			ci.bootpri = -20 - drvnum;
+			ci.autoboot = true;
 			//write_log (_T("Drive type %d: '%s' '%s'\n"), drivetype, volumepath, volumename);
-			add_filesys_unit (devname[0] ? devname : NULL, volumename, volumepath, !rw, 0, 0, 0, 0, 0, -20 - drvnum, 0, 1, 0, 0, 0);
+			add_filesys_unit (&ci);
 			drvnum++;
 		} /* if drivemask */
 		dwDriveMask >>= 1;

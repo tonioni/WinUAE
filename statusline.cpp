@@ -165,14 +165,23 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		} else if (led == LED_CPU) {
 			int idle = (gui_data.idle + 5) / 10;
 			pos = 1;
-			//on = framecnt && !picasso_on;
 			on_rgb = 0xcc0000;
 			off_rgb = 0x000000;
-			num1 = idle / 100;
-			num2 = (idle - num1 * 100) / 10;
-			num3 = idle % 10;
-			num4 = num1 == 0 ? 13 : -1;
-			am = 3;
+			if (gui_data.cpu_halted) {
+				on_rgb = 0xcccc00;
+				idle = 0;
+				on = 1;
+				num1 = -1;
+				num2 = 11;
+				num3 = gui_data.cpu_halted;
+				am = 2;
+			} else {
+				num1 = idle / 100;
+				num2 = (idle - num1 * 100) / 10;
+				num3 = idle % 10;
+				num4 = num1 == 0 ? 13 : -1;
+				am = 3;
+			}
 		} else if (led == LED_SND) {
 			int snd = abs(gui_data.sndbuf + 5) / 10;
 			if (snd > 99)
@@ -234,8 +243,10 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 					write_tdnumber (buf, bpp, x, y - TD_PADY, num1, pen_rgb, c2);
 					x += TD_NUM_WIDTH;
 				}
-				write_tdnumber (buf, bpp, x, y - TD_PADY, num2, pen_rgb, c2);
-				x += TD_NUM_WIDTH;
+				if (num2 >= 0) {
+					write_tdnumber (buf, bpp, x, y - TD_PADY, num2, pen_rgb, c2);
+					x += TD_NUM_WIDTH;
+				}
 				write_tdnumber (buf, bpp, x, y - TD_PADY, num3, pen_rgb, c2);
 				x += TD_NUM_WIDTH;
 				if (num4 > 0)

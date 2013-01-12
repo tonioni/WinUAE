@@ -1656,11 +1656,9 @@ uae_u8 cdtv_battram_read (int addr)
 	return v;
 }
 
-int cdtv_add_scsi_unit(int ch, TCHAR *path, int blocksize, int readonly,
-	TCHAR *devname, int sectors, int surfaces, int reserved,
-	int bootpri, TCHAR *filesys)
+int cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, path, blocksize, readonly, devname, sectors, surfaces, reserved, bootpri, filesys, 1);
+	return addscsi (ch, NULL, ci, 1);
 }
 
 void cdtv_free (void)
@@ -1772,7 +1770,7 @@ void cdtv_check_banks (void)
 
 #ifdef SAVESTATE
 
-uae_u8 *save_dmac (int *len, uae_u8 *dstptr)
+uae_u8 *save_cdtv_dmac (int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	
@@ -1798,7 +1796,7 @@ uae_u8 *save_dmac (int *len, uae_u8 *dstptr)
 
 }
 
-uae_u8 *restore_dmac (uae_u8 *src)
+uae_u8 *restore_cdtv_dmac (uae_u8 *src)
 {
 	restore_u32 ();
 	restore_u32 ();

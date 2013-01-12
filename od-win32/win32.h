@@ -15,15 +15,15 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 0
+#define WINUAEPUBLICBETA 1
 #define LANG_DLL 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("5")
+#define WINUAEBETA _T("1")
 #else
 #define WINUAEBETA _T("")
 #endif
-#define WINUAEDATE MAKEBD(2012, 12, 22)
+#define WINUAEDATE MAKEBD(2013, 1, 12)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 #define WINUAEREV _T("")
@@ -69,8 +69,8 @@ extern uae_u32 OSDEP_minimize_uae (void);
 extern void updatemouseclip (void);
 extern void updatewinrect (bool);
 
-extern void resumepaused (int priority);
-extern void setpaused (int priority);
+extern bool resumepaused (int priority);
+extern bool setpaused (int priority);
 extern void unsetminimized (void);
 extern void setminimized (void);
 
@@ -89,7 +89,7 @@ extern int gui_active;
 extern int quickstart, configurationcache, relativepaths;
 
 extern HKEY hWinUAEKey;
-extern int screen_is_picasso, scalepicasso;
+extern int screen_is_picasso;
 extern HINSTANCE hInst;
 extern int win_x_diff, win_y_diff;
 extern int window_extra_width, window_extra_height;

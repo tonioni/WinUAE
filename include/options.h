@@ -8,8 +8,8 @@
 */
 
 #define UAEMAJOR 2
-#define UAEMINOR 5
-#define UAESUBREV 1
+#define UAEMINOR 6
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -100,9 +100,11 @@ struct floppyslot
 	TCHAR dfxclickexternal[256];
 };
 
+#define WH_NATIVE 1
 struct wh {
 	int x, y;
 	int width, height;
+	int special;
 };
 
 #define MOUNT_CONFIG_SIZE 30
@@ -110,21 +112,40 @@ struct uaedev_config_info {
 	TCHAR devname[MAX_DPATH];
 	TCHAR volname[MAX_DPATH];
 	TCHAR rootdir[MAX_DPATH];
-	bool ishdf;
 	bool readonly;
 	int bootpri;
 	bool autoboot;
 	bool donotmount;
 	TCHAR filesys[MAX_DPATH];
-	int cyls; // zero if detected from size
+	int lowcyl;
+	int highcyl; // zero if detected from size
+	int cyls; // calculated/corrected highcyl
 	int surfaces;
 	int sectors;
 	int reserved;
 	int blocksize;
-	int configoffset;
 	int controller;
 	// zero if default
 	int pcyls, pheads, psecs;
+	int flags;
+	int buffers;
+	int bufmemtype;
+	int stacksize;
+	int priority;
+	uae_u32 mask;
+	int maxtransfer;
+	uae_u32 dostype;
+	int unit;
+	int interleave;
+	int sectorsperblock;
+
+};
+
+struct uaedev_config_data
+{
+	struct uaedev_config_info ci;
+	int configoffset;
+	bool ishdf;
 };
 
 enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
@@ -293,9 +314,9 @@ struct uae_prefs {
 	int gfx_filter_scanlines;
 	int gfx_filter_scanlineratio;
 	int gfx_filter_scanlinelevel;
-	int gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
-	int gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
-	int gfx_filter_horiz_offset, gfx_filter_vert_offset;
+	float gfx_filter_horiz_zoom, gfx_filter_vert_zoom;
+	float gfx_filter_horiz_zoom_mult, gfx_filter_vert_zoom_mult;
+	float gfx_filter_horiz_offset, gfx_filter_vert_offset;
 	int gfx_filter_filtermode;
 	int gfx_filter_bilinear;
 	int gfx_filter_noise, gfx_filter_blur;
@@ -304,8 +325,8 @@ struct uae_prefs {
 	int gfx_filter_autoscale;
 	int gfx_filter_keep_autoscale_aspect;
 
-	int rtg_horiz_zoom_mult;
-	int rtg_vert_zoom_mult;
+	float rtg_horiz_zoom_mult;
+	float rtg_vert_zoom_mult;
 
 	bool immediate_blits;
 	int waiting_blits;
@@ -438,7 +459,7 @@ struct uae_prefs {
 	bool native_code;
 
 	int mountitems;
-	struct uaedev_config_info mountconfig[MOUNT_CONFIG_SIZE];
+	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];
 
 	int nr_floppies;
 	struct floppyslot floppyslots[4];
@@ -471,7 +492,7 @@ struct uae_prefs {
 	bool win32_iconified_nosound;
 
 	bool win32_rtgmatchdepth;
-	bool win32_rtgscaleifsmall;
+	int win32_rtgscalemode;
 	bool win32_rtgallowscaling;
 	int win32_rtgscaleaspectratio;
 	int win32_rtgvblankrate;
@@ -550,11 +571,9 @@ extern void cfgfile_target_write_str (struct zfile *f, const TCHAR *option, cons
 extern void cfgfile_target_dwrite_str (struct zfile *f, const TCHAR *option, const TCHAR *value);
 
 extern void cfgfile_backup (const TCHAR *path);
-extern struct uaedev_config_info *add_filesys_config (struct uae_prefs *p, int index,
-	const TCHAR *devname, const TCHAR *volname, const TCHAR *rootdir, bool readonly,
-	int cyls, int secspertrack, int surfaces, int reserved,
-	int blocksize, int bootpri, const TCHAR *filesysdir, int hdc, int flags,
-	int pcyls, int pheads, int psecs);
+extern struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, struct uaedev_config_info*, bool hdf);
+extern bool get_hd_geometry (struct uaedev_config_info *);
+extern void uci_set_defaults (struct uaedev_config_info *uci, bool rdb);
 
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);

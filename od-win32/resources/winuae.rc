@@ -7,7 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "winres.h"
+#include "winres.h"
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
@@ -208,7 +208,7 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,115,87,11
     CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or higher CPU.",IDC_JITENABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,128,87,11
-    CONTROL         "68040 MMU [] 68040 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
+    CONTROL         "MMU [] 68030 or 68040 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,142,87,11
     GROUPBOX        "CPU Emulation Speed",IDC_STATIC,110,3,284,96
     CONTROL         "Fastest possible",IDC_CS_HOST,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,115,18,195,10
@@ -572,6 +572,7 @@ BEGIN
     PUSHBUTTON      "OK",IDOK,147,242,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,203,242,50,14
     EDITTEXT        IDC_HDFINFO2,5,147,385,12,ES_CENTER | ES_READONLY
+    CONTROL         "Global filesystem",IDC_HDF_ADDFSRES,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,298,74,82,10
 END
 
 IDD_FILESYS DIALOGEX 15, 25, 396, 111
@@ -655,10 +656,11 @@ FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     CONTROL         "Compatible Settings",IDC_CS_COMPATIBLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,6,234,10
     GROUPBOX        "Battery Backed Up Real Time Clock",IDC_STATIC,1,22,393,31
-    CONTROL         "None",IDC_CS_RTC1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,40,36,81,10
-    CONTROL         "MSM6242B",IDC_CS_RTC2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,129,36,77,10
-    CONTROL         "RF5C01A",IDC_CS_RTC3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,210,36,67,10
-    EDITTEXT        IDC_CS_RTCADJUST,279,34,64,13,ES_AUTOHSCROLL
+    CONTROL         "None",IDC_CS_RTC1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,15,36,57,10
+    CONTROL         "MSM6242B",IDC_CS_RTC2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,90,36,77,10
+    CONTROL         "RF5C01A",IDC_CS_RTC3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,171,36,67,10
+    CONTROL         "A2000 MSM6242B",IDC_CS_RTC4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,242,36,78,10
+    EDITTEXT        IDC_CS_RTCADJUST,325,34,64,13,ES_AUTOHSCROLL
     GROUPBOX        "CIA-A TOD Clock Source",IDC_STATIC,1,56,393,29
     CONTROL         "Vertical Sync",IDC_CS_CIAA_TOD1,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,41,68,86,10
     CONTROL         "Power Supply 50Hz",IDC_CS_CIAA_TOD2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,133,68,109,10
@@ -1044,8 +1046,8 @@ BEGIN
     CONTROL         "Always scale in windowed mode",IDC_RTG_SCALE_ALLOW,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,80,212,10
     CONTROL         "Hardware vertical blank interrupt",IDC_RTG_VBINTERRUPT,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,93,212,10
-    CONTROL         "Hardware sprite emulation",IDC_RTG_HWSPRITE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,107,212,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,106,157,10
+    CONTROL         "Hardware sprite emulation",IDC_RTG_HWSPRITE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,207,106,148,10
     CTEXT           "Color modes:",IDC_STATIC,295,9,83,10,SS_CENTERIMAGE
     COMBOBOX        IDC_RTG_8BIT,296,23,82,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     COMBOBOX        IDC_RTG_16BIT,296,40,82,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
@@ -1070,6 +1072,7 @@ BEGIN
     CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation. WinPcap required.",IDC_A2065,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,242,187,11
     COMBOBOX        IDC_NETDEVICE,202,257,156,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Always center",IDC_RTG_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,93,212,10
 END
 
 IDD_INPUTMAP DIALOGEX 0, 0, 396, 318
@@ -1111,8 +1114,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,5,1,0
- PRODUCTVERSION 2,5,1,0
+ FILEVERSION 2,5,2,0
+ PRODUCTVERSION 2,5,2,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1128,12 +1131,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "2.5.1.0"
+            VALUE "FileVersion", "2.6.0.0"
             VALUE "InternalName", "WinUAE"
-            VALUE "LegalCopyright", "© 1996-2012 under the GNU Public License (GPL)"
+            VALUE "LegalCopyright", "© 1996-2013 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "2.5.1.0"
+            VALUE "ProductVersion", "2.6.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1799,6 +1802,7 @@ BEGIN
     IDS_MISCLISTITEMS1      "Untrap = middle button\nShow GUI on startup\nUse CTRL-F11 to quit\nDon't show taskbar button\nDon't show notification icon\n"
     IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nFaster RTG\nClipboard sharing\nAllow native code\n"
     IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n"
+    IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
 END
 
 #endif    // English resources
@@ -1845,7 +1849,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

@@ -67,7 +67,7 @@ extern TCHAR *validatevolumename (TCHAR *s);
 
 int filesys_insert (int nr, TCHAR *volume, const TCHAR *rootdir, bool readonly, int flags);
 int filesys_eject (int nr);
-int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_config_info *uci);
+int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_config_data *uci);
 
 extern TCHAR *filesys_createvolname (const TCHAR *volname, const TCHAR *rootdir, const TCHAR *def);
 extern int target_get_volume_name (struct uaedev_mount_info *mtinf, const TCHAR *volumepath, TCHAR *volumename, int size, bool inserted, bool fullcheck);

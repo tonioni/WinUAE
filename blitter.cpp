@@ -1436,7 +1436,10 @@ static void do_blitter2 (int hpos, int copper)
 	blit_waitcyclecounter = 0;
 
 	if (currprefs.immediate_blits) {
-		blitter_doit ();
+		if (dmaen (DMA_BLITTER)) {
+			blitter_doit ();
+			return;
+		}
 		return;
 	}
 	
@@ -1450,6 +1453,16 @@ static void do_blitter2 (int hpos, int copper)
 				waitingblits ();
 			}
 		}
+	}
+}
+
+void blitter_check_start (void)
+{
+	if (bltstate != BLT_init)
+		return;
+	bltstate = BLT_work;
+	if (currprefs.immediate_blits) {
+		blitter_doit ();
 	}
 }
 

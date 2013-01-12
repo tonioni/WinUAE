@@ -41,6 +41,7 @@ extern int blitter_need (int hpos);
 extern void blitter_done_notify (int hpos);
 extern void blitter_slowdown (int, int, int, int);
 extern int blitter_channel_state (void);
+extern void blitter_check_start (void);
 
 typedef void blitter_func(uaecptr, uaecptr, uaecptr, uaecptr, struct bltinfo *);
 

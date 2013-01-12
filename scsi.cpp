@@ -19,7 +19,7 @@ static int outcmd[] = { 0x0a, 0x2a, 0x2f, 0xaa, -1 };
 static int incmd[] = { 0x03, 0x08, 0x12, 0x1a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, -1 };
 static int nonecmd[] = { 0x00, 0x35, -1 };
 
-int scsi_data_dir(struct scsi_data *sd)
+static int scsi_data_dir(struct scsi_data *sd)
 {
 	int i;
 	uae_u8 cmd;
@@ -44,17 +44,56 @@ int scsi_data_dir(struct scsi_data *sd)
 	return -2;
 }
 
+void scsi_emulate_analyze (struct scsi_data *sd)
+{
+	int cmd_len, data_len;
+
+	data_len = sd->data_len;
+	switch (sd->cmd[0])
+	{
+	case 0x0a:
+		cmd_len = 6;
+		data_len = sd->cmd[4] * sd->hfd->hfd.ci.blocksize;
+	break;
+	case 0x2a:
+		cmd_len = 10;
+		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
+	break;
+	case 0xaa:
+		cmd_len = 12;
+		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
+	break;
+
+	case 0x25:
+	case 0x28:
+	case 0x35:
+		cmd_len = 10;
+		break;
+	case 0xa8:
+		cmd_len = 12;
+		break;
+	default:
+		cmd_len = 6;
+		break;
+	}
+	sd->cmd_len = cmd_len;
+	sd->data_len = data_len;
+	sd->direction = scsi_data_dir (sd);
+}
+
 void scsi_emulate_cmd(struct scsi_data *sd)
 {
 	sd->status = 0;
+	//write_log (_T("CMD=%02x\n"), sd->cmd[0]);
 	if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-		int len = sd->buffer[4];
+		int len = sd->cmd[4];
 		memset (sd->buffer, 0, len);
 		memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 		sd->data_len = len;
+		sd->status = 0;
 	} else if (sd->nativescsiunit < 0) {
 		sd->status = scsi_emulate(&sd->hfd->hfd, sd->hfd,
-			sd->cmd, sd->len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+			sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
 		if (sd->status == 0) {
 			if (sd->reply_len > 0) {
 				memset(sd->buffer, 0, 256);
@@ -66,12 +105,12 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 
 		memset(sd->sense, 0, 256);
 		memset(&as, 0, sizeof as);
-		memcpy (&as.cmd, sd->cmd, sd->len);
+		memcpy (&as.cmd, sd->cmd, sd->cmd_len);
 		as.flags = 2 | 1;
 		if (sd->direction > 0)
 			as.flags &= ~1;
 		as.sense_len = 32;
-		as.cmd_len = sd->len;
+		as.cmd_len = sd->cmd_len;
 		as.data = sd->buffer;
 		as.len = sd->direction < 0 ? DEVICE_SCSI_BUFSIZE : sd->data_len;
 		sys_command_scsi_direct_native(sd->nativescsiunit, &as);
@@ -123,36 +162,42 @@ void scsi_free(struct scsi_data *sd)
 	xfree(sd);
 }
 
-void scsi_start_transfer(struct scsi_data *sd, int len)
+void scsi_start_transfer(struct scsi_data *sd)
 {
-	sd->len = len;
 	sd->offset = 0;
 }
 
 int scsi_send_data(struct scsi_data *sd, uae_u8 b)
 {
-	if (sd->direction) {
+	if (sd->direction == 1) {
 		if (sd->offset >= SCSI_DATA_BUFFER_SIZE) {
 			write_log (_T("SCSI data buffer overflow!\n"));
 			return 0;
 		}
 		sd->buffer[sd->offset++] = b;
-	} else {
+	} else if (sd->direction == 2) {
 		if (sd->offset >= 16) {
 			write_log (_T("SCSI command buffer overflow!\n"));
 			return 0;
 		}
 		sd->cmd[sd->offset++] = b;
+		if (sd->offset == sd->cmd_len)
+			return 1;
+	} else {
+		write_log (_T("scsi_send_data() without direction!\n"));
+		return 0;
 	}
-	if (sd->offset == sd->len)
+	if (sd->offset == sd->data_len)
 		return 1;
 	return 0;
 }
 
 int scsi_receive_data(struct scsi_data *sd, uae_u8 *b)
 {
+	if (!sd->data_len)
+		return -1;
 	*b = sd->buffer[sd->offset++];
-	if (sd->offset == sd->len)
-		return 1;
+	if (sd->offset == sd->data_len)
+		return 1; // requested length got
 	return 0;
 }

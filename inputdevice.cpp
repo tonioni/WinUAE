@@ -52,8 +52,6 @@
 #include "dongle.h"
 #include "cdtv.h"
 
-extern int bootrom_header, bootrom_items;
-
 // 01 = host events
 // 02 = joystick
 // 04 = cia buttons
@@ -1417,7 +1415,7 @@ void inputdevice_tablet_info (int maxx, int maxy, int maxz, int maxax, int maxay
 }
 
 
-void getgfxoffset (int *dx, int *dy, int*,int*);
+void getgfxoffset (float *dx, float *dy, float*, float*);
 
 static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 {
@@ -1577,7 +1575,7 @@ static void inputdevice_mh_abs_v36 (int x, int y)
 static void mousehack_helper (uae_u32 buttonmask)
 {
 	int x, y;
-	int fdy, fdx, fmx, fmy;
+	float fdy, fdx, fmx, fmy;
 
 	if (currprefs.input_magic_mouse == 0 && currprefs.input_tablet < TABLET_MOUSEHACK)
 		return;
@@ -1595,17 +1593,17 @@ static void mousehack_helper (uae_u32 buttonmask)
 	if (picasso_on) {
 		x -= picasso96_state.XOffset;
 		y -= picasso96_state.YOffset;
-		x = x * fmx / 1000;
-		y = y * fmy / 1000;
-		x -= fdx * fmx / 1000;
-		y -= fdy * fmy / 1000;
+		x = (int)(x * fmx);
+		y = (int)(y * fmy);
+		x -= (int)(fdx * fmx);
+		y -= (int)(fdy * fmy);
 	} else
 #endif
 	{
-		x = x * fmx / 1000;
-		y = y * fmy / 1000;
-		x -= fdx * fmx / 1000 - 1;
-		y -= fdy * fmy / 1000 - 2;
+		x = (int)(x * fmx);
+		y = (int)(y * fmy);
+		x -= (int)(fdx * fmx) - 1;
+		y -= (int)(fdy * fmy) - 2;
 		if (x < 0)
 			x = 0;
 		if (x >= gfxvidinfo.outbuffer->outwidth)
@@ -2307,6 +2305,8 @@ static int handle_custom_event (const TCHAR *custom)
 			config_changed = 0;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
 			config_changed = 1;
+		} else if (!_tcsnicmp (p, _T("dbg "), 4)) {
+			debug_parser (p + 4, NULL, -1);
 		} else {
 			cfgfile_parse_line (&changed_prefs, p, 0);
 		}
@@ -4395,7 +4395,7 @@ void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int n
 	if (newmode >= 0) {
 		mode = newmode;
 	} else if (mode == 0) {
-		mode = index == 0 ? JSEM_MODE_MOUSE : (prefs->cs_cd32cd ? JSEM_MODE_JOYSTICK_CD32 : JSEM_MODE_JOYSTICK);
+		mode = index == 0 ? JSEM_MODE_WHEELMOUSE : (prefs->cs_cd32cd ? JSEM_MODE_JOYSTICK_CD32 : JSEM_MODE_JOYSTICK);
 	}
 	prefs->jports[index].mode = mode;
 	prefs->jports[index].id = -2;
@@ -4481,6 +4481,7 @@ static void setjoyinputs (struct uae_prefs *prefs, int port)
 		case JSEM_MODE_JOYSTICK_ANALOG:
 			joyinputs[port] = port ? ip_analog2 : ip_analog1;
 		break;
+		case JSEM_MODE_WHEELMOUSE:
 		case JSEM_MODE_MOUSE:
 			joyinputs[port] = port ? ip_mouse2 : ip_mouse1;
 		break;
@@ -4554,8 +4555,9 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				{
 					case JSEM_MODE_DEFAULT:
 					case JSEM_MODE_MOUSE:
+					case JSEM_MODE_WHEELMOUSE:
 					default:
-					joymodes[i] = JSEM_MODE_MOUSE;
+					joymodes[i] = JSEM_MODE_WHEELMOUSE;
 					joyinputs[i] = i ? ip_mouse2 : ip_mouse1;
 					break;
 					case JSEM_MODE_LIGHTPEN:
@@ -4594,7 +4596,8 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 						joyinputs[i] = i ? ip_analog2 : ip_analog1;
 						break;
 					case JSEM_MODE_MOUSE:
-						joymodes[i] = JSEM_MODE_MOUSE;
+					case JSEM_MODE_WHEELMOUSE:
+						joymodes[i] = JSEM_MODE_WHEELMOUSE;
 						joyinputs[i] = i ? ip_mouse2 : ip_mouse1;
 						break;
 					case JSEM_MODE_LIGHTPEN:
@@ -4607,7 +4610,7 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 						break;
 				}
 			} else if (prefs->jports[i].id >= 0) {
-				joymodes[i] = i ? JSEM_MODE_JOYSTICK : JSEM_MODE_MOUSE;
+				joymodes[i] = i ? JSEM_MODE_JOYSTICK : JSEM_MODE_WHEELMOUSE;
 				joyinputs[i] = i ? ip_joy2 : ip_mouse1;
 			}
 		}
@@ -4637,9 +4640,10 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 				{
 				case JSEM_MODE_DEFAULT:
 				case JSEM_MODE_MOUSE:
+				case JSEM_MODE_WHEELMOUSE:
 				default:
-					input_get_default_mouse (mice, joy, i, af, !gameports);
-					joymodes[i] = JSEM_MODE_MOUSE;
+					input_get_default_mouse (mice, joy, i, af, !gameports, mode != JSEM_MODE_MOUSE);
+					joymodes[i] = JSEM_MODE_WHEELMOUSE;
 					break;
 				case JSEM_MODE_LIGHTPEN:
 					input_get_default_lightpen (mice, joy, i, af, !gameports);
@@ -4683,8 +4687,9 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 					joymodes[i] = JSEM_MODE_JOYSTICK_ANALOG;
 					break;
 				case JSEM_MODE_MOUSE:
-					input_get_default_mouse (joysticks, joy, i, af, !gameports);
-					joymodes[i] = JSEM_MODE_MOUSE;
+				case JSEM_MODE_WHEELMOUSE:
+					input_get_default_mouse (joysticks, joy, i, af, !gameports, mode == JSEM_MODE_WHEELMOUSE);
+					joymodes[i] = JSEM_MODE_WHEELMOUSE;
 					break;
 				case JSEM_MODE_LIGHTPEN:
 					input_get_default_lightpen (joysticks, joy, i, af, !gameports);
@@ -4774,8 +4779,9 @@ static void compatibility_copy (struct uae_prefs *prefs, bool gameports)
 						}
 						break;
 					case JSEM_MODE_MOUSE:
+					case JSEM_MODE_WHEELMOUSE:
 						setcompakb (kb, i ? ip_mouse2 : ip_mouse1, i, af);
-						joymodes[i] = JSEM_MODE_MOUSE;
+						joymodes[i] = JSEM_MODE_WHEELMOUSE;
 						break;
 					}
 					used[joy] = 1;
@@ -6426,9 +6432,9 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 {
 	int i, v, diff;
 	int *mouse_p, *oldm_p;
-	double d;
+	float d;
 	struct uae_input_device *id = &mice[mouse];
-	static double fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
+	static float fract[MAX_INPUT_DEVICES][MAX_INPUT_DEVICE_EVENTS];
 
 	if (testmode) {
 		inputdevice_testrecord (IDTYPE_MOUSE, mouse, IDEV_WIDGET_AXIS, axis, data, -1);
@@ -6458,7 +6464,7 @@ void setmousestate (int mouse, int axis, int data, int isabs)
 			return;
 		*oldm_p = *mouse_p;
 		*mouse_p += data;
-		d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0;
+		d = (*mouse_p - *oldm_p) * currprefs.input_mouse_speed / 100.0f;
 	} else {
 		d = data - *oldm_p;
 		*oldm_p = data;

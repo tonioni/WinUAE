@@ -394,7 +394,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;Dwmapi.lib;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -560,6 +560,15 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\archivers\chd\astring.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chd.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chdcodec.cpp" />
+    <ClCompile Include="..\..\archivers\chd\flac.cpp" />
+    <ClCompile Include="..\..\archivers\chd\hashing.cpp" />
+    <ClCompile Include="..\..\archivers\chd\huffman.cpp" />
+    <ClCompile Include="..\..\archivers\chd\md5.cpp" />
+    <ClCompile Include="..\..\archivers\chd\sha1.cpp" />
     <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
     <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
     <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
@@ -589,6 +598,9 @@
     <ClCompile Include="..\..\calc.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
     <ClCompile Include="..\..\cpuemu_22.cpp" />
+    <ClCompile Include="..\..\cpuemu_32.cpp" />
+    <ClCompile Include="..\..\cpuemu_33.cpp" />
+    <ClCompile Include="..\..\cpummu30.cpp" />
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />

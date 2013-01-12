@@ -368,6 +368,8 @@
 #define IDS_MISCLISTITEMS1              386
 #define IDS_MISCLISTITEMS2              387
 #define IDS_MISCLISTITEMS3              388
+#define IDS_WHEELMOUSE                  389
+#define IDS_JOYMODE_WHEELMOUSE          389
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -600,6 +602,8 @@
 #define IDC_FILESYS_SELECTOR            1381
 #define IDC_HDF_AUTOBOOT                1382
 #define IDC_HDF_DONOTMOUNT              1383
+#define IDC_HDF_DONOTMOUNT2             1384
+#define IDC_HDF_ADDFSRES                1384
 #define IDC_ROMFILE                     1390
 #define IDC_KEYFILE                     1391
 #define IDC_KICKCHOOSER                 1392
@@ -992,8 +996,7 @@
 #define IDC_CS_RTC1                     1731
 #define IDC_CS_RTC2                     1732
 #define IDC_CS_RTC3                     1733
-#define IDC_CS_IDE4                     1734
-#define IDC_CS_DF0IDHW                  1734
+#define IDC_CS_RTC4                     1734
 #define IDC_CS_AGNUS                    1735
 #define IDC_CS_AGNUSREV                 1736
 #define IDC_CS_DENISE                   1737
@@ -1091,6 +1094,8 @@
 #define IDC_INPUTMAPLIST                1797
 #define IDC_RTG_HWSPRITE                1797
 #define IDC_PORT1_REMAP                 1798
+#define IDC_RTG_SCALE_ALLOW2            1798
+#define IDC_RTG_CENTER                  1798
 #define IDC_PORT0_REMAP                 1799
 #define IDC_PORT2_REMAP                 1800
 #define IDC_PORT3_REMAP                 1801
@@ -1111,6 +1116,8 @@
 #define IDC_LISTDIALOG_LIST             1813
 #define IDC_LOGPATH                     1814
 #define IDC_MIDIROUTER                  1815
+#define IDC_CS_IDE4                     1816
+#define IDC_CS_DF0IDHW                  1817
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010

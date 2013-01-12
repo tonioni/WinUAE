@@ -133,8 +133,13 @@ extern uae_u8 *restore_cdtv (uae_u8 *src);
 extern uae_u8 *save_cdtv (int *len, uae_u8*);
 extern void restore_cdtv_finish (void);
 
-extern uae_u8 *restore_dmac (uae_u8 *src);
-extern uae_u8 *save_dmac (int *len, uae_u8*);
+extern uae_u8 *restore_cdtv_dmac (uae_u8 *src);
+extern uae_u8 *save_cdtv_dmac (int *len, uae_u8*);
+extern uae_u8 *restore_scsi_dmac (uae_u8 *src);
+extern uae_u8 *save_scsi_dmac (int *len, uae_u8*);
+
+extern uae_u8 *save_scsi_hd (int num, int *len, uae_u8 *dstptr);
+extern uae_u8 *restore_scsi_hd (uae_u8 *src);
 
 extern uae_u8 *restore_filesys (uae_u8 *src);
 extern uae_u8 *save_filesys (int num, int *len);

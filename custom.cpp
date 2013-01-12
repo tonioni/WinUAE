@@ -144,6 +144,8 @@ static bool vsync_rendered, frame_rendered, frame_shown;
 static int vsynctimeperline;
 static int jitcount = 0;
 static int frameskiptime;
+static bool genlockhtoggle;
+static bool genlockvtoggle;
 
 #define LOF_TOGGLES_NEEDED 4
 #define NLACE_CNT_NEEDED 50
@@ -480,16 +482,6 @@ void alloc_cycle_blitter (int hpos, uaecptr *ptr, int chnum)
 	alloc_cycle (hpos, CYCLE_BLITTER);
 }
 
-static void hsyncdelay (void)
-{
-#if 0
-	static int prevhpos;
-	while (current_hpos () == prevhpos)
-		do_cycles(CYCLE_UNIT);
-	prevhpos = current_hpos();
-#endif
-}
-
 static void update_mirrors (void)
 {
 	aga_mode = (currprefs.chipset_mask & CSMASK_AGA) != 0;
@@ -619,7 +611,7 @@ static void decide_diw (int hpos)
 
 		if (lhdiw >= diw_hstrt && last_hdiw < diw_hstrt && hdiwstate == DIW_waiting_start) {
 			if (thisline_decision.diwfirstword < 0)
-				thisline_decision.diwfirstword = diwfirstword < 0 ? 0 : diwfirstword;
+				thisline_decision.diwfirstword = diwfirstword < 0 ? PIXEL_XPOS(0) : diwfirstword;
 			hdiwstate = DIW_waiting_stop;
 		}
 		if (lhdiw >= diw_hstop && last_hdiw < diw_hstop && hdiwstate == DIW_waiting_stop) {
@@ -2632,7 +2624,7 @@ static void finish_decisions (void)
 	if (hdiwstate == DIW_waiting_stop) {
 		thisline_decision.diwlastword = max_diwlastword;
 		if (thisline_decision.diwfirstword < 0)
-			thisline_decision.diwfirstword = 0;
+			thisline_decision.diwfirstword = min_diwlastword;
 	}
 
 	if (thisline_decision.diwfirstword != line_decisions[next_lineno].diwfirstword)
@@ -2724,7 +2716,7 @@ static void reset_decisions (void)
 	thisline_decision.diwfirstword = -1;
 	thisline_decision.diwlastword = -1;
 	if (hdiwstate == DIW_waiting_stop) {
-		thisline_decision.diwfirstword = 0;
+		thisline_decision.diwfirstword = min_diwlastword;
 		if (thisline_decision.diwfirstword != line_decisions[next_lineno].diwfirstword)
 			MARK_LINE_CHANGED;
 	}
@@ -3159,7 +3151,7 @@ void init_hz (bool fullinit)
 		reset_drawing ();
 	}
 
-	maxvpos_total = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 2047 : 511;
+	maxvpos_total = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? (MAXVPOS_LINES_ECS - 1) : (MAXVPOS_LINES_OCS - 1);
 	if (maxvpos_total > MAXVPOS)
 		maxvpos_total = MAXVPOS;
 #ifdef PICASSO96
@@ -3221,11 +3213,11 @@ static void calcdiw (void)
 	diwfirstword = coord_diw_to_window_x (hstrt);
 	diwlastword = coord_diw_to_window_x (hstop);
 	if (diwfirstword >= diwlastword) {
-		diwfirstword = 0;
+		diwfirstword = min_diwlastword;
 		diwlastword = max_diwlastword;
 	}
-	if (diwfirstword < 0)
-		diwfirstword = 0;
+	if (diwfirstword < min_diwlastword)
+		diwfirstword = min_diwlastword;
 
 	plffirstline = vstrt;
 	plflastline = vstop;
@@ -3343,12 +3335,24 @@ STATIC_INLINE int GETHPOS (void)
 	return islightpentriggered () ? hpos_lpen : (issyncstopped () ? hpos_previous : current_hpos ());
 }
 
+// fake changing hpos when rom genlock test runs and genlock is connected
+static bool hsyncdelay (void)
+{
+	if (!currprefs.genlock)
+		return false;
+	if (currprefs.cpu_cycle_exact || currprefs.m68k_speed >= 0)
+		return false;
+	if (bplcon0 == (0x0100 | 0x0002)) {
+		return true;
+	}
+	return false;
+}
 
 // DFF006 = 0.W must be valid result but better do this only in 68000 modes (whdload black screen!)
 
 #define HPOS_OFFSET (currprefs.cpu_model < 68020 ? 3 : 0)
 
-STATIC_INLINE uae_u16 VPOSR (void)
+static uae_u16 VPOSR (void)
 {
 	unsigned int csbit = 0;
 	uae_u16 vp = GETVPOS ();
@@ -3379,12 +3383,11 @@ STATIC_INLINE uae_u16 VPOSR (void)
 	vp = vp | (lof_store ? 0x8000 : 0) | csbit;
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 		vp |= lol ? 0x80 : 0;
+	hsyncdelay ();
 #if 0
 	if (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000)
 		write_log (_T("VPOSR %04x at %08x\n"), vp, M68K_GETPC);
 #endif
-	if (currprefs.cpu_model >= 68020)
-		hsyncdelay ();
 	return vp;
 }
 
@@ -3423,8 +3426,9 @@ static void VHPOSW (uae_u16 v)
 	vpos |= v;
 }
 
-STATIC_INLINE uae_u16 VHPOSR (void)
+static uae_u16 VHPOSR (void)
 {
+	static uae_u16 oldhp;
 	uae_u16 vp = GETVPOS ();
 	uae_u16 hp = GETHPOS ();
 
@@ -3442,9 +3446,15 @@ STATIC_INLINE uae_u16 VHPOSR (void)
 	}
 
 	vp <<= 8;
+
+	if (hsyncdelay ()) {
+		// fake continuously changing hpos in fastest possible modes
+		hp = oldhp % maxhpos;
+		oldhp++;
+	}
+
 	vp |= hp;
-	if (currprefs.cpu_model >= 68020)
-		hsyncdelay ();
+
 #if 0
 	if (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000)
 		write_log (_T("VPOS %04x %04x at %08x\n"), VPOSR (), vp, M68K_GETPC);
@@ -3605,8 +3615,9 @@ static void DMACON (int hpos, uae_u16 v)
 	if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done)
 		set_special (SPCFLAG_BLTNASTY);
 
-	if (dmaen (DMA_BLITTER) && bltstate == BLT_init)
-		bltstate = BLT_work;
+	if (dmaen (DMA_BLITTER) && bltstate == BLT_init) {
+		blitter_check_start ();
+	}
 
 	if ((dmacon & (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER)) != (DMA_BLITPRI | DMA_BLITTER | DMA_MASTER))
 		unset_special (SPCFLAG_BLTNASTY);
@@ -5657,7 +5668,7 @@ static bool framewait (void)
 			// this delay can safely overshoot frame time by 1-2 ms, following code will compensate for it.
 			for (;;) {
 				curr_time = read_processor_time ();
-				if ((int)vsyncwaittime  - (int)curr_time <= 0)
+				if ((int)vsyncwaittime  - (int)curr_time <= 0 || (int)vsyncwaittime  - (int)curr_time > 2 * vsynctimebase)
 					break;
 				rtg_vsynccheck ();
 				sleep_millis_main (1);
@@ -5731,7 +5742,6 @@ static struct mavg_data fps_mavg, idle_mavg;
 
 void fpscounter_reset (void)
 {
-	timeframes = 0;
 	mavg_clear (&fps_mavg);
 	mavg_clear (&idle_mavg);
 	bogusframe = 2;
@@ -5788,7 +5798,15 @@ static void vsync_handler_pre (void)
 	if (bogusframe > 0)
 		bogusframe--;
 
-	handle_events ();
+	while (handle_events ()) {
+		// we are paused, do all config checks but don't do any emulation
+		if (vsync_handle_check ()) {
+			redraw_frame ();
+			render_screen (true);
+			show_screen ();
+		}
+		config_check_vsync ();
+	}
 
 #ifdef PICASSO96
 	if (isvsync_rtg () >= 0)
@@ -5867,8 +5885,13 @@ static void vsync_handler_post (void)
 #endif
 	DISK_vsync ();
 
-	if (bplcon0 & 4)
+	if ((bplcon0 & 2) && currprefs.genlock) {
+		genlockvtoggle = !genlockvtoggle;
+		//lof_store = genlockvtoggle ? 1 : 0;
+	}
+	if (bplcon0 & 4) {
 		lof_store = lof_store ? 0 : 1;
+	}
 	lof_current = lof_store;
 	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
 		interlace_changed = notice_interlace_seen (true);
@@ -6231,8 +6254,12 @@ static void hsync_handler_post (bool onvsync)
 	}
 #endif
 
-	bool ciasyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock);
-	CIA_hsync_posthandler (ciasyncs);
+	// genlock active = TOD pulses only every other line/field
+	genlockhtoggle = !genlockhtoggle;
+	bool ciahsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockhtoggle);
+	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
+
+	CIA_hsync_posthandler (ciahsyncs);
 	if (currprefs.cs_ciaatod > 0) {
 #if 0
 		static uae_s32 oldtick;
@@ -6250,12 +6277,12 @@ static void hsync_handler_post (bool onvsync)
 		static int cia_hsync;
 		cia_hsync -= 256;
 		if (cia_hsync <= 0) {
-			CIA_vsync_posthandler (1);
+			CIA_vsync_posthandler (true);
 			cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 		}
 #endif
 	} else if (currprefs.cs_ciaatod == 0 && onvsync) {
-		CIA_vsync_posthandler (ciasyncs);
+		CIA_vsync_posthandler (ciavsyncs);
 	}
 
 	if (vpos == equ_vblank_endline + 1) {
@@ -6594,7 +6621,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 	target_reset ();
 	reset_all_systems ();
-	write_log (_T("Reset at %08X\n"), M68K_GETPC);
+	write_log (_T("Reset at %08X. Chipset mask = %08X\n"), M68K_GETPC, currprefs.chipset_mask);
 	memory_map_dump ();
 
 	lightpen_active = -1;
@@ -7235,17 +7262,17 @@ static int REGPARAM2 custom_wput_1 (int hpos, uaecptr addr, uae_u32 value, int n
 #ifndef CUSTOM_SIMPLE
 	case 0x1DC: BEAMCON0 (value); break;
 #ifdef ECS_DENISE
-	case 0x1C0: if (htotal != value) { htotal = value; varsync (); } break;
-	case 0x1C2: if (hsstop != value) { hsstop = value; varsync (); } break;
-	case 0x1C4: if (hbstrt != value) { hbstrt = value; varsync (); } break;
-	case 0x1C6: if (hbstop != value) { hbstop = value; varsync (); } break;
-	case 0x1C8: if (vtotal != value) { vtotal = value; varsync (); } break;
-	case 0x1CA: if (vsstop != value) { vsstop = value; varsync (); } break;
-	case 0x1CC: if (vbstrt < value || vbstrt > value + 1) { vbstrt = value; varsync (); } break;
-	case 0x1CE: if (vbstop < value || vbstop > value + 1) { vbstop = value; varsync (); } break;
-	case 0x1DE: if (hsstrt != value) { hsstrt = value; varsync (); } break;
-	case 0x1E0: if (vsstrt != value) { vsstrt = value; varsync (); } break;
-	case 0x1E2: if (hcenter != value) { hcenter = value; varsync (); } break;
+	case 0x1C0: if (htotal != value) { htotal = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1C2: if (hsstop != value) { hsstop = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1C4: if (hbstrt != value) { hbstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1C6: if (hbstop != value) { hbstop = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1C8: if (vtotal != value) { vtotal = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
+	case 0x1CA: if (vsstop != value) { vsstop = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
+	case 0x1CC: if (vbstrt < value || vbstrt > (value & (MAXVPOS_LINES_ECS - 1)) + 1) { vbstrt = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
+	case 0x1CE: if (vbstop < value || vbstop > (value & (MAXVPOS_LINES_ECS - 1)) + 1) { vbstop = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
+	case 0x1DE: if (hsstrt != value) { hsstrt = value & (MAXHPOS_ROWS - 1); varsync (); } break;
+	case 0x1E0: if (vsstrt != value) { vsstrt = value & (MAXVPOS_LINES_ECS - 1); varsync (); } break;
+	case 0x1E2: if (hcenter != value) { hcenter = value & (MAXHPOS_ROWS - 1); varsync (); } break;
 #endif
 #endif
 

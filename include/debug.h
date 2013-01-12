@@ -75,6 +75,11 @@ void debug_bputpeek (uaecptr addr, uae_u32 v);
 void debug_wputpeek (uaecptr addr, uae_u32 v);
 void debug_lputpeek (uaecptr addr, uae_u32 v);
 
+uae_u32 get_byte_debug (uaecptr addr);
+uae_u32 get_word_debug (uaecptr addr);
+uae_u32 get_long_debug (uaecptr addr);
+
+
 enum debugtest_item { DEBUGTEST_BLITTER, DEBUGTEST_KEYBOARD, DEBUGTEST_FLOPPY, DEBUGTEST_MAX };
 void debugtest (enum debugtest_item, const TCHAR *, ...);
 

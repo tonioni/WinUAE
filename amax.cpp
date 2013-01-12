@@ -14,7 +14,7 @@ static int addr_scramble[16] = { 14, 12, 2, 10, 15, 13, 1, 0, 7, 6, 5, 4, 8, 9, 
 
 static int romptr;
 static uae_u8 *rom;
-static int rom_size, rom_oddeven;
+static int amax_rom_size, rom_oddeven;
 static uae_u8 data;
 static uae_u8 bfd100, bfe001;
 static uae_u8 dselect;
@@ -73,7 +73,7 @@ void amax_diskwrite (uae_u16 w)
 		dwlastbit = (w & 0x8000) ? 1 : 0;
 		w <<= 1;
 	}
-	romptr &= rom_size - 1;
+	romptr &= amax_rom_size - 1;
 	amax_check ();
 }
 
@@ -145,12 +145,12 @@ void amax_init (void)
 		return;
 	}
 	zfile_fseek (z, 0, SEEK_END);
-	rom_size = zfile_ftell (z);
+	amax_rom_size = zfile_ftell (z);
 	zfile_fseek (z, 0, SEEK_SET);
-	rom = xmalloc (uae_u8, rom_size);
-	zfile_fread (rom, rom_size, 1, z);
+	rom = xmalloc (uae_u8, amax_rom_size);
+	zfile_fread (rom, amax_rom_size, 1, z);
 	zfile_fclose (z);
-	write_log (_T("AMAX: '%s' loaded, %d bytes\n"), currprefs.amaxromfile, rom_size);
+	write_log (_T("AMAX: '%s' loaded, %d bytes\n"), currprefs.amaxromfile, amax_rom_size);
 	dselect = 0x20;
 }
 

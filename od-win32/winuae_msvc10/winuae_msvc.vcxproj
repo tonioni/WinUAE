@@ -554,6 +554,15 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\archivers\chd\astring.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chd.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp" />
+    <ClCompile Include="..\..\archivers\chd\chdcodec.cpp" />
+    <ClCompile Include="..\..\archivers\chd\flac.cpp" />
+    <ClCompile Include="..\..\archivers\chd\hashing.cpp" />
+    <ClCompile Include="..\..\archivers\chd\huffman.cpp" />
+    <ClCompile Include="..\..\archivers\chd\md5.cpp" />
+    <ClCompile Include="..\..\archivers\chd\sha1.cpp" />
     <ClCompile Include="..\..\archivers\dms\crc_csum.cpp" />
     <ClCompile Include="..\..\archivers\dms\getbits.cpp" />
     <ClCompile Include="..\..\archivers\dms\maketbl.cpp" />
@@ -583,6 +592,9 @@
     <ClCompile Include="..\..\calc.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
     <ClCompile Include="..\..\cpuemu_22.cpp" />
+    <ClCompile Include="..\..\cpuemu_32.cpp" />
+    <ClCompile Include="..\..\cpuemu_33.cpp" />
+    <ClCompile Include="..\..\cpummu30.cpp" />
     <ClCompile Include="..\..\events.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />

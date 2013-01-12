@@ -40,6 +40,7 @@ before it appears on-screen. (TW: display emulation now does this automatically)
 
 #define PIXEL_XPOS(HPOS) (((HPOS)*2 - DISPLAY_LEFT_SHIFT + DIW_DDF_OFFSET - 1) << lores_shift)
 
+#define min_diwlastword (0)
 #define max_diwlastword (PIXEL_XPOS(0x1d4 >> 1))
 
 extern int lores_factor, lores_shift, interlace_seen;
@@ -269,7 +270,7 @@ enum nln_how {
 
 extern void hsync_record_line_state (int lineno, enum nln_how, int changed);
 extern void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16, uae_u16);
-extern void vsync_handle_check (void);
+extern bool vsync_handle_check (void);
 extern void init_hardware_for_drawing_frame (void);
 extern void reset_drawing (void);
 extern void drawing_init (void);
@@ -279,7 +280,7 @@ extern void frame_drawn (void);
 extern void redraw_frame (void);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh);
 extern void set_custom_limits (int w, int h, int dx, int dy);
-extern void get_custom_topedge (int *x, int *y);
+extern void get_custom_topedge (int *x, int *y, bool max);
 extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
 
 /* Finally, stuff that shouldn't really be shared.  */
@@ -289,7 +290,6 @@ extern int thisframe_first_drawn_line, thisframe_last_drawn_line;
 #define IHF_SCROLLLOCK 0
 #define IHF_QUIT_PROGRAM 1
 #define IHF_PICASSO 2
-#define IHF_SOUNDADJUST 3
 
 extern int inhibit_frame;
 

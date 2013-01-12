@@ -61,6 +61,7 @@ struct uae_driveinfo {
 
 #define HDF_HANDLE_WIN32 1
 #define HDF_HANDLE_ZFILE 2
+#define HDF_HANDLE_UNKNOWN 3
 
 #define CACHE_SIZE 16384
 #define CACHE_FLUSH_TIME 5
@@ -438,11 +439,11 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			if (udi->nomedia)
 				hfd->drive_empty = -1;
 			if (udi->readonly)
-				hfd->readonly = 1;
+				hfd->ci.readonly = 1;
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
-				GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE),
-				FILE_SHARE_READ | (hfd->readonly ? 0 : FILE_SHARE_WRITE),
+				GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE),
+				FILE_SHARE_READ | (hfd->ci.readonly ? 0 : FILE_SHARE_WRITE),
 				NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
 			if (h == INVALID_HANDLE_VALUE)
@@ -455,12 +456,12 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			_tcsncpy (hfd->product_rev, udi->product_rev, 4);
 			hfd->offset = udi->offset;
 			hfd->physsize = hfd->virtsize = udi->size;
-			hfd->blocksize = udi->bytespersector;
+			hfd->ci.blocksize = udi->bytespersector;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
-				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->blocksize);
+				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize);
 				if (sf > 0)
 					goto end;
-				if (sf == 0 && !hfd->readonly && harddrive_dangerous != 0x1234dead) {
+				if (sf == 0 && !hfd->ci.readonly && harddrive_dangerous != 0x1234dead) {
 					write_log (_T("'%s' forced read-only, safetycheck enabled\n"), udi->device_path);
 					hfd->dangerous = 1;
 					// clear GENERIC_WRITE
@@ -510,7 +511,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					zmode = 1;
 			}
 		}
-		h = CreateFile (name, GENERIC_READ | (hfd->readonly ? 0 : GENERIC_WRITE), hfd->readonly ? FILE_SHARE_READ : 0, NULL,
+		h = CreateFile (name, GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE), hfd->ci.readonly ? FILE_SHARE_READ : 0, NULL,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 		hfd->handle->h = h;
 		i = _tcslen (name) - 1;
@@ -533,9 +534,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			low = GetFileSize (h, &high2);
 			if (low == INVALID_FILE_SIZE && GetLastError () != NO_ERROR)
 				goto end;
-			low &= ~(hfd->blocksize - 1);
+			low &= ~(hfd->ci.blocksize - 1);
 			hfd->physsize = hfd->virtsize = ((uae_u64)high2 << 32) | low;
-			if (hfd->physsize < hfd->blocksize || hfd->physsize == 0) {
+			if (hfd->physsize < hfd->ci.blocksize || hfd->physsize == 0) {
 				write_log (_T("HDF '%s' is too small\n"), name);
 				goto end;
 			}
@@ -642,9 +643,9 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 		abort ();
 	}
 	offset += hfd->offset;
-	if (offset & (hfd->blocksize - 1)) {
+	if (offset & (hfd->ci.blocksize - 1)) {
 		gui_message (_T("hd: poscheck failed, offset=%I64X not aligned to blocksize=%d! (%I64X & %04X = %04X)\n"),
-			offset, hfd->blocksize, offset, hfd->blocksize, offset & (hfd->blocksize - 1));
+			offset, hfd->ci.blocksize, offset, hfd->ci.blocksize, offset & (hfd->ci.blocksize - 1));
 		abort ();
 	}
 	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
@@ -687,8 +688,8 @@ static void poscheck (struct hardfiledata *hfd, int len)
 		gui_message (_T("hd: poscheck failed, offset out of bounds! (%I64d >= %I64d, LEN=%d)"), pos, hfd->offset + hfd->physsize, len);
 		abort ();
 	}
-	if (pos & (hfd->blocksize - 1)) {
-		gui_message (_T("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n"), pos, hfd->blocksize, pos & hfd->blocksize);
+	if (pos & (hfd->ci.blocksize - 1)) {
+		gui_message (_T("hd: poscheck failed, offset not aligned to blocksize! (%I64X & %04X = %04X\n"), pos, hfd->ci.blocksize, pos & hfd->ci.blocksize);
 		abort ();
 	}
 }
@@ -726,8 +727,8 @@ static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int 
 	uae_u8 *buffer = bufferp;
 	int soff, size, mask, bs;
 
-	bs = hfd->blocksize;
-	mask = hfd->blocksize - 1;
+	bs = hfd->ci.blocksize;
+	mask = hfd->ci.blocksize - 1;
 	hfd->cache_valid = 0;
 	if (hfd->handle_valid == HDF_HANDLE_ZFILE) {
 		if (dowrite)
@@ -746,7 +747,7 @@ static int hdf_rw (struct hardfiledata *hfd, void *bufferp, uae_u64 offset, int 
 				WriteFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
 			else
 				ReadFile (hfd->handle, hfd->cache, bs, &outlen2, NULL);
-			if (outlen2 != hfd->blocksize)
+			if (outlen2 != hfd->ci.blocksize)
 				goto end;
 			outlen += size;
 			memcpy (buffer, hfd->cache + soff,  size);
@@ -890,7 +891,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 {
 	DWORD outlen = 0;
 
-	if (hfd->readonly)
+	if (hfd->ci.readonly)
 		return 0;
 	if (hfd->dangerous)
 		return 0;
@@ -905,7 +906,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 				hfd->handle->firstwrite = true;
 				if (ismounted (hfd->device_name, hfd->handle->h)) {
 					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions. Erase the drive or unmount all PC partitions first."), name);
-					hfd->readonly = 1;
+					hfd->ci.readonly = true;
 					return 0;
 				}
 			}
@@ -1611,7 +1612,7 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 
 static int hmc (struct hardfiledata *hfd)
 {
-	uae_u8 *buf = xmalloc (uae_u8, hfd->blocksize);
+	uae_u8 *buf = xmalloc (uae_u8, hfd->ci.blocksize);
 	DWORD ret, got, err, status;
 	int first = 1;
 
@@ -1619,13 +1620,13 @@ static int hmc (struct hardfiledata *hfd)
 		write_log (_T("testing if %s has media inserted\n"), hfd->emptyname);
 		status = 0;
 		SetFilePointer (hfd->handle->h, 0, NULL, FILE_BEGIN);
-		ret = ReadFile (hfd->handle->h, buf, hfd->blocksize, &got, NULL);
+		ret = ReadFile (hfd->handle->h, buf, hfd->ci.blocksize, &got, NULL);
 		err = GetLastError ();
 		if (ret) {
-			if (got == hfd->blocksize) {
+			if (got == hfd->ci.blocksize) {
 				write_log (_T("read ok (%d)\n"), got);
 			} else {
-				write_log (_T("read ok but no data (%d)\n"), hfd->blocksize);
+				write_log (_T("read ok but no data (%d)\n"), hfd->ci.blocksize);
 				ret = 0;
 				err = 0;
 			}
@@ -1659,7 +1660,7 @@ end:
 int hardfile_remount (int nr);
 
 
-static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_info *uci, int *rescanned, int *reopen,
+static void hmc_check (struct hardfiledata *hfd, struct uaedev_config_data *uci, int *rescanned, int *reopen,
 	int *gotinsert, const TCHAR *drvname, int inserted)
 {
 	int ret;
@@ -1734,8 +1735,8 @@ int win32_hardfile_media_change (const TCHAR *drvname, int inserted)
 	for (i = 0; i < currprefs.mountitems; i++) {
 		extern struct hd_hardfiledata *pcmcia_sram;
 		int reopen = 0;
-		struct uaedev_config_info *uci = &currprefs.mountconfig[i];
-		if (uci->controller == HD_CONTROLLER_PCMCIA_SRAM) {
+		struct uaedev_config_data *uci = &currprefs.mountconfig[i];
+		if (uci->ci.controller == HD_CONTROLLER_PCMCIA_SRAM) {
 			hmc_check (&pcmcia_sram->hfd, uci, &rescanned, &reopen, &gotinsert, drvname, inserted);
 		}
 	}

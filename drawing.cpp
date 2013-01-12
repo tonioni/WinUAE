@@ -344,14 +344,29 @@ extern int lof_store;
 
 static int gclow, gcloh, gclox, gcloy, gclorealh;
 
-void get_custom_topedge (int *x, int *y)
+void get_custom_topedge (int *xp, int *yp, bool max)
 {
-	if (isnativevidbuf ()) {
-		*x = visible_left_border + (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution);
-		*y = minfirstline << currprefs.gfx_vresolution;
+	
+	if (isnativevidbuf () && !max) {
+		int x, y;
+		x = visible_left_border + (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution);
+		y = minfirstline << currprefs.gfx_vresolution;
+#if 0
+		int dbl1, dbl2;
+		dbl2 = dbl1 = currprefs.gfx_vresolution;
+		if (doublescan > 0 && interlace_seen <= 0) {
+			dbl1--;
+			dbl2--;
+		}
+		x = -(visible_left_border + (DISPLAY_LEFT_SHIFT << currprefs.gfx_resolution));
+		y = -minfirstline << currprefs.gfx_vresolution;
+		y = xshift (y, dbl2);
+#endif
+		*xp = x;
+		*yp = y;
 	} else {
-		*x = 0;
-		*y = 0;
+		*xp = 0;
+		*yp = 0;
 	}
 }
 
@@ -653,6 +668,25 @@ static int src_pixel, ham_src_pixel;
 static int unpainted;
 static int seen_sprites;
 
+STATIC_INLINE xcolnr getbgc (bool blank)
+{
+#if 0
+	if (blank)
+		return xcolors[0x088];
+	else if (hposblank == 1)
+		return xcolors[0xf00];
+	else if (hposblank == 2)
+		return xcolors[0x0f0];
+	else if (hposblank == 3)
+		return xcolors[0x00f];
+	else if (brdblank)
+		return xcolors[0x880];
+	//return colors_for_drawing.acolors[0];
+	return xcolors[0xf0f];
+#endif
+	return (blank || hposblank || colors_for_drawing.borderblank) ? 0 : colors_for_drawing.acolors[0];
+}
+
 /* Initialize the variables necessary for drawing a line.
 * This involves setting up start/stop positions and display window
 * borders.  */
@@ -773,25 +807,6 @@ STATIC_INLINE uae_u32 merge_2pixel32 (uae_u32 p1, uae_u32 p2)
 	v |= ((((p1 >> 8) & 0xff) + ((p2 >> 8) & 0xff)) / 2) << 8;
 	v |= ((((p1 >> 0) & 0xff) + ((p2 >> 0) & 0xff)) / 2) << 0;
 	return v;
-}
-
-STATIC_INLINE xcolnr getbgc (bool blank)
-{
-#if 0
-	if (blank)
-		return xcolors[0x088];
-	else if (hposblank == 1)
-		return xcolors[0xf00];
-	else if (hposblank == 2)
-		return xcolors[0x0f0];
-	else if (hposblank == 3)
-		return xcolors[0x00f];
-	else if (brdblank)
-		return xcolors[0x880];
-	//return colors_for_drawing.acolors[0];
-	return xcolors[0xf0f];
-#endif
-	return (blank || hposblank || colors_for_drawing.borderblank) ? 0 : colors_for_drawing.acolors[0];
 }
 
 STATIC_INLINE void fill_line_16 (uae_u8 *buf, int start, int stop, bool blank)
@@ -2843,7 +2858,7 @@ void redraw_frame (void)
 	flush_screen (gfxvidinfo.inbuffer, 0, 0);
 }
 
-void vsync_handle_check (void)
+bool vsync_handle_check (void)
 {
 	check_picasso ();
 
@@ -2865,6 +2880,7 @@ void vsync_handle_check (void)
 	check_prefs_changed_cd ();
 	check_prefs_changed_custom ();
 	check_prefs_changed_cpu ();
+	return changed != 0;
 }
 
 void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae_u16 bplcon3p)
@@ -3024,6 +3040,7 @@ bool notice_interlace_seen (bool lace)
 
 static void clearbuffer (struct vidbuffer *dst)
 {
+	return;
 	if (!dst->bufmem_allocated)
 		return;
 	uae_u8 *p = dst->bufmem_allocated;
