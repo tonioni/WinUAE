@@ -533,7 +533,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		if (ci->donotmount)
 			bp = -129;
 		str = cfgfile_put_multipath (&p->path_hardfile, ci->rootdir);
-		if (!uci->ishdf) {
+		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), ci->volname, str, bp);
 			cfgfile_write_str (f, _T("filesystem2"), tmp);
@@ -542,7 +542,7 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 				uci->volname, str);
 			zfile_fputs (f, tmp2);
 #endif
-		} else {
+		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD) {
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
 				ci->devname ? ci->devname : _T(""), str,
@@ -556,7 +556,8 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 					_stprintf (s, _T(",%d/%d/%d"), ci->pcyls, ci->pheads, ci->psecs);
 				}
 			}
-			cfgfile_write_str (f, _T("hardfile2"), tmp);
+			if (ci->type == UAEDEV_HDF)
+				cfgfile_write_str (f, _T("hardfile2"), tmp);
 #if 0
 			_stprintf (tmp2, _T("hardfile=%s,%d,%d,%d,%d,%s"),
 				uci->readonly ? "ro" : "rw", uci->sectors,
@@ -565,7 +566,11 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 #endif
 		}
 		_stprintf (tmp2, _T("uaehf%d"), i);
-		cfgfile_write (f, tmp2, _T("%s,%s"), uci->ishdf ? _T("hdf") : _T("dir"), tmp);
+		if (ci->type == UAEDEV_CD) {
+			cfgfile_write (f, tmp2, _T("cd%d,%s"), ci->cd_emu_unit, tmp);
+		} else {
+			cfgfile_write (f, tmp2, _T("%s,%s"), ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp);
+		}
 		xfree (str);
 	}
 }
@@ -2309,7 +2314,7 @@ static struct uaedev_config_data *getuci (struct uae_prefs *p)
 	return NULL;
 }
 
-struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, struct uaedev_config_info *ci, bool hdf)
+struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, struct uaedev_config_info *ci)
 {
 	struct uaedev_config_data *uci;
 	int i;
@@ -2320,8 +2325,18 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 				return 0;
 		}
 	}
+	if (ci->type == UAEDEV_CD) {
+		if (ci->controller > HD_CONTROLLER_SCSI6 || ci->controller < HD_CONTROLLER_IDE0)
+			return NULL;
+	}
 
 	if (index < 0) {
+		if (ci->type == UAEDEV_CD) {
+			for (i = 0; i < p->mountitems; i++) {
+				if (p->mountconfig[i].ci.type == UAEDEV_CD)
+					return 0;
+			}
+		}
 		uci = getuci (p);
 		uci->configoffset = -1;
 	} else {
@@ -2331,18 +2346,17 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		return 0;
 
 	memcpy (&uci->ci, ci, sizeof (struct uaedev_config_info));
-	uci->ishdf = hdf;
 	validatedevicename (uci->ci.devname);
 	validatevolumename (uci->ci.volname);
 	if (uci->ci.bootpri < -128)
 		uci->ci.donotmount = true;
 	else if (uci->ci.bootpri >= -127)
 		uci->ci.autoboot = true;
-	if (!uci->ci.devname[0]) {
+	if (!uci->ci.devname[0] && ci->type != UAEDEV_CD) {
 		TCHAR base[32];
 		TCHAR base2[32];
 		int num = 0;
-		if (uci->ci.rootdir[0] == 0 && !uci->ishdf)
+		if (uci->ci.rootdir[0] == 0 && ci->type == UAEDEV_DIR)
 			_tcscpy (base, _T("RDH"));
 		else
 			_tcscpy (base, _T("DH"));
@@ -2358,7 +2372,7 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		_tcscpy (uci->ci.devname, base2);
 		validatedevicename (uci->ci.devname);
 	}
-	if (!uci->ishdf) {
+	if (ci->type == UAEDEV_DIR) {
 		TCHAR *s = filesys_createvolname (uci->ci.volname, uci->ci.rootdir, _T("Harddrive"));
 		_tcscpy (uci->ci.volname, s);
 		xfree (s);
@@ -2496,6 +2510,8 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 			uci->flags = v;
 		if (!_tcsicmp (key, _T("priority")))
 			uci->priority = v;
+		if (!_tcsicmp (key, _T("forceload")))
+			uci->forceload = v;
 		if (!_tcsicmp (key, _T("bootpri"))) {
 			uci->bootpri = v;
 			uci->donotmount = false;
@@ -2540,7 +2556,7 @@ bool get_hd_geometry (struct uaedev_config_info *uci)
 	return false;
 }
 
-static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHAR *value)
+static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHAR *value, int unit, bool uaehfentry)
 {
 	struct uaedev_config_info uci;
 	TCHAR *tmpp = _tcschr (value, ','), *tmpp2;
@@ -2563,7 +2579,8 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHA
 		goto invalid_fs;
 
 	value = tmpp;
-	if (!hdf) {
+	if (type == 0) {
+		uci.type = UAEDEV_DIR;
 		tmpp = _tcschr (value, ':');
 		if (tmpp == 0)
 			goto empty_fs;
@@ -2585,7 +2602,7 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHA
 		_tcscpy (uci.devname, devname);
 		if (! getintval (&tmpp, &uci.bootpri, 0))
 			goto empty_fs;
-	} else {
+	} else if (type == 1 || (type == 2 && uaehfentry)) {
 		tmpp = _tcschr (value, ':');
 		if (tmpp == 0)
 			goto invalid_fs;
@@ -2624,6 +2641,16 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, bool hdf, TCHA
 				}
 			}
 		}
+		if (type == 2) {
+			uci.cd_emu_unit = unit;
+			uci.blocksize = 2048;
+			uci.readonly = true;
+			uci.type = UAEDEV_CD;
+		} else {
+			uci.type = UAEDEV_HDF;
+		}
+	} else {
+		goto invalid_fs;
 	}
 empty_fs:
 	uci.autoboot = uci.bootpri >= -127; 
@@ -2637,13 +2664,13 @@ empty_fs:
 		_tcscpy (uci.rootdir, str);
 	}
 #ifdef FILESYS
-	add_filesys_config (p, nr, &uci, hdf);
+	add_filesys_config (p, nr, &uci);
 #endif
 	xfree (str);
 	return 1;
 
 invalid_fs:
-	write_log (_T("Invalid filesystem/hardfile specification.\n"));
+	write_log (_T("Invalid filesystem/hardfile/cd specification.\n"));
 	return 1;
 }
 
@@ -2656,21 +2683,29 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		_stprintf (tmp, _T("uaehf%d"), i);
 		if (_tcscmp (option, tmp) == 0) {
 			for (;;) {
-				bool hdf = false;
+				int  type = -1;
+				int unit = -1;
 				TCHAR *tmpp = _tcschr (value, ',');
 				if (tmpp == NULL)
 					return 1;
 				*tmpp++ = 0;
-				if (strcasecmp (value, _T("hdf")) == 0) {
-					hdf = true;
-				} else if (strcasecmp (value, _T("dir")) != 0) {
-					return 1;
+				if (_tcsicmp (value, _T("hdf")) == 0) {
+					type = 1;
+					return 1; /* ignore for now */
+				} else if (_tcsnicmp (value, _T("cd"), 2) == 0 && (value[2] == 0 || value[3] == 0)) {
+					unit = 0;
+					if (value[2] > 0)
+						unit = value[2] - '0';
+					if (unit >= 0 && unit <= MAX_TOTAL_SCSI_DEVICES) {
+						type = 2;
+					}
+				} else if (_tcsicmp (value, _T("dir")) != 0) {
+					type = 0;
+					return 1;  /* ignore for now */
 				}
-#if 0			// not yet
-				return cfgfile_parse_newfilesys (p, i, hdf, tmpp);
-#else
+				if (type >= 0)
+					return cfgfile_parse_newfilesys (p, -1, type, tmpp, unit, true);
 				return 1;
-#endif
 			}
 			return 1;
 		} else if (!_tcsncmp (option, tmp, _tcslen (tmp)) && option[_tcslen (tmp)] == '_') {
@@ -2744,7 +2779,8 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 		}
 		str = cfgfile_subst_path_load (UNEXPANDED, &p->path_hardfile, uci.rootdir, true);
 #ifdef FILESYS
-		add_filesys_config (p, -1, &uci, hdf);
+		uci.type = hdf ? UAEDEV_HDF : UAEDEV_DIR;
+		add_filesys_config (p, -1, &uci);
 #endif
 		xfree (str);
 		return 1;
@@ -2755,9 +2791,9 @@ invalid_fs:
 	}
 
 	if (_tcscmp (option, _T("filesystem2")) == 0)
-		return cfgfile_parse_newfilesys (p, -1, false, value);
+		return cfgfile_parse_newfilesys (p, -1, 0, value, -1, false);
 	if (_tcscmp (option, _T("hardfile2")) == 0)
-		return cfgfile_parse_newfilesys (p, -1, true, value);
+		return cfgfile_parse_newfilesys (p, -1, 1, value, -1, false);
 
 	return 0;
 }
@@ -3749,7 +3785,8 @@ static void parse_filesys_spec (struct uae_prefs *p, bool readonly, const TCHAR 
 		_tcscpy (uci.volname, buf);
 		_tcscpy (uci.rootdir, s2);
 		uci.readonly = readonly;
-		add_filesys_config (p, -1, &uci, false);
+		uci.type = UAEDEV_DIR;
+		add_filesys_config (p, -1, &uci);
 #endif
 	} else {
 		write_log (_T("Usage: [-m | -M] VOLNAME:mount_point\n"));

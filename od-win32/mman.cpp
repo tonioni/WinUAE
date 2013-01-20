@@ -180,8 +180,8 @@ bool preinit_shm (void)
 	}
 
 	natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
-	if (natmem_size < 256 * 1024 * 1024)
-		natmem_size = 256 * 1024 * 1024;
+	if (natmem_size < 17 * 1024 * 1024)
+		natmem_size = 17 * 1024 * 1024;
 
 	write_log (_T("Total physical RAM %lluM, all RAM %lluM. Attempting to reserve: %uM.\n"), totalphys64 >> 20, total64 >> 20, natmem_size >> 20);
 	natmem_offset = 0;
@@ -203,12 +203,21 @@ bool preinit_shm (void)
 				break;
 			natmem_size -= 128 * 1024 * 1024;
 			if (!natmem_size) {
-				write_log (_T("Can't allocate 256M of virtual address space!?\n"));
-				return false;
+				write_log (_T("Can't allocate 257M of virtual address space!?\n"));
+				natmem_size = 17 * 1024 * 1024;
+				natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+				if (!natmem_size) {
+					write_log (_T("Can't allocate 17M of virtual address space!? Something is seriously wrong\n"));
+					return false;
+				}
+				break;
 			}
 		}
 	}
-	max_z3fastmem = natmem_size;
+	if (natmem_size <= 257 * 1024 * 1024)
+		max_z3fastmem = 0;
+	else
+		max_z3fastmem = natmem_size;
 	write_log (_T("Reserved: 0x%p-0x%p (%08x %dM)\n"),
 		natmem_offset, (uae_u8*)natmem_offset + natmem_size,
 		natmem_size, natmem_size >> 20);
@@ -737,6 +746,8 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
 			shmaddr=natmem_offset + a3000lmem_start;
+			if (!a3000hmem_start)
+				size += BARRIER;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_high"))) {
 			shmaddr=natmem_offset + a3000hmem_start;

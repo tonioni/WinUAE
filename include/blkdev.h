@@ -174,12 +174,16 @@ extern int sys_command_scsi_direct_native (int unitnum, struct amigascsi *as);
 extern int sys_command_scsi_direct (int unitnum, uaecptr request);
 extern int sys_command_ismedia (int unitnum, int quick);
 extern struct device_info *sys_command_info_session (int unitnum, struct device_info *di, int, int);
+extern bool blkdev_get_info (struct uae_prefs *p, int unitnum, struct device_info *di);
 
 extern void scsi_atapi_fixup_pre (uae_u8 *scsi_cmd, int *len, uae_u8 **data, int *datalen, int *parm);
 extern void scsi_atapi_fixup_post (uae_u8 *scsi_cmd, int len, uae_u8 *olddata, uae_u8 *data, int *datalen, int parm);
 
 extern void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen);
 extern void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen);
+
+extern int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
+	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len);
 
 extern void blkdev_vsync (void);
 

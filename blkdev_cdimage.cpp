@@ -86,8 +86,7 @@ struct cdunit {
 	play_status_callback cdda_statusfunc;
 	int cdda_delay, cdda_delay_frames;
 
-	int imagechange;
-	TCHAR newfile[MAX_DPATH];
+	TCHAR imgname[MAX_DPATH];
 	uae_sem_t sub_sem;
 	struct device_info di;
 	chd_file *chd_f;
@@ -1705,7 +1704,7 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	di->sectorspertrack = (int)(cdu->cdsize / di->bytespersector);
 	if (ismedia (unitnum, 1)) {
 		di->media_inserted = 1;
-		_tcscpy (di->mediapath, currprefs.cdslots[unitnum].name);
+		_tcscpy (di->mediapath, cdu->imgname);
 	}
 	memset (&di->toc, 0, sizeof (struct cd_toc_head));
 	command_toc (unitnum, &di->toc);
@@ -1718,6 +1717,9 @@ static struct device_info *info_device (int unitnum, struct device_info *di, int
 	} else {
 		_tcscpy (di->label, _T("IMG:<EMPTY>"));
 	}
+	_tcscpy (di->vendorid, _T("UAE"));
+	_stprintf (di->productid, _T("SCSICD%d"), unitnum);
+	_tcscpy (di->revision, _T("1.0"));
 	di->backend = _T("IMAGE");
 	return di;
 }
@@ -1737,8 +1739,10 @@ static void unload_image (struct cdunit *cdu)
 		xfree (t->extrainfo);
 	}
 	cdrom_close (cdu->chd_cdf);
+	cdu->chd_cdf = NULL;
 	if (cdu->chd_f)
 		cdu->chd_f->close();
+	cdu->chd_f = NULL;
 	memset (cdu->toc, 0, sizeof cdu->toc);
 	cdu->tracks = 0;
 	cdu->cdsize = 0;
@@ -1752,6 +1756,7 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 
 	if (!cdu->open) {
 		uae_sem_init (&cdu->sub_sem, 0, 1);
+		_tcscpy (cdu->imgname, ident);
 		parse_image (cdu, ident);
 		cdu->open = true;
 		cdu->enabled = true;

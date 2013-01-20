@@ -295,9 +295,10 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 
 	memset (mi, 0, sizeof (struct mountedinfo));
 	memset (&uitmp, 0, sizeof uitmp);
+	_tcscpy (mi->rootdir, uci->ci.rootdir);
 	if (!ui) {
 		ui = &uitmp;
-		if (!uci->ishdf) {
+		if (uci->ci.type == UAEDEV_DIR) {
 			mi->ismounted = 1;
 			if (uci->ci.rootdir && _tcslen (uci->ci.rootdir) == 0)
 				return FILESYS_VIRTUAL;
@@ -309,7 +310,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 				return -1;
 			mi->ismedia = true;
 			return FILESYS_VIRTUAL;
-		} else {
+		} else if (uci->ci.type == UAEDEV_HDF) {
 			ui->hf.ci.readonly = true;
 			ui->hf.ci.blocksize = uci->ci.blocksize;
 			if (!hdf_open (&ui->hf, uci->ci.rootdir)) {
@@ -326,23 +327,41 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 			if (ui->hf.drive_empty)
 				mi->ismedia = 0;
 			hdf_close (&ui->hf);
+		} else if (uci->ci.type == UAEDEV_CD) {
+			struct device_info di;
+			ui->hf.ci.readonly = true;
+			ui->hf.ci.blocksize = uci->ci.blocksize;
+			mi->size = -1;
+			mi->ismounted = true;
+			if (blkdev_get_info (p, ui->hf.ci.cd_emu_unit, &di)) {
+				mi->ismedia = di.media_inserted;
+				_tcscpy (mi->rootdir, di.label);
+			}
+#if 0
+			if (ui->hf.ci.cd_emu_unit == 0)
+				_tcscpy (mi->rootdir, _T("CD"));
+			else
+				_stprintf (mi->rootdir, _T("CD %d"), ui->hf.ci.cd_emu_unit);
+#endif
 		}
 	} else {
 		if (!ui->controller || (ui->controller && p->cs_ide)) {
 			mi->ismounted = 1;
-			if (uci->ishdf)
+			if (uci->ci.type == UAEDEV_HDF)
 				mi->ismedia = ui->hf.drive_empty ? false : true;
 			else
 				mi->ismedia = true;
 		}
 	}
+	if (mi->size < 0)
+		return -1;
 	mi->size = ui->hf.virtsize;
 	if (uci->ci.highcyl) {
 		uci->ci.cyls = mi->nrcyls = uci->ci.highcyl;
 	} else {
 		uci->ci.cyls = mi->nrcyls = (int)(uci->ci.sectors * uci->ci.surfaces ? (ui->hf.virtsize / uci->ci.blocksize) / (uci->ci.sectors * uci->ci.surfaces) : 0);
 	}
-	if (!uci->ishdf)
+	if (uci->ci.type == UAEDEV_DIR)
 		return FILESYS_VIRTUAL;
 	if (uci->ci.reserved == 0 && uci->ci.sectors == 0 && uci->ci.surfaces == 0) {
 		if (ui->hf.flags & 1)
@@ -499,6 +518,7 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->stacksize = 4000;
 	uci->priority = -129;
 	uci->sectorsperblock = 1;
+	uci->cd_emu_unit = -1;
 }
 
 static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
@@ -757,7 +777,7 @@ static void initialize_mountinfo (void)
 #endif
 			} else if (currprefs.cs_cdtvscsi) {
 #ifdef CDTV
-				cdtv_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
+				cdtv_add_scsi_hd_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
 				allocuci (&currprefs, nr, -1);
 #endif
 			}
@@ -6051,6 +6071,14 @@ static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
 		}
 		fsnode = get_long (fsnode);
 	}
+	if (type == FILESYS_HARDFILE) {
+		uae_u32 pf = get_long (parmpacket + PP_FSHDSTART + 8); // fse_PatchFlags
+		for (int i = 0; i < 32; i++) {
+			if (pf & (1 << i))
+				put_long (devicenode + 4 + i * 4, get_long (parmpacket + PP_FSHDSTART + 8 + 4 + i * 4));
+		}
+		put_long (devicenode + 4 + 7 * 4, 0); // seglist
+	}
 	return 0;
 }
 
@@ -6563,8 +6591,10 @@ static void addfakefilesys (uaecptr parmpacket, uae_u32 dostype, int ver, int re
 	flags = 0x180;
 	for (i = 0; i < 140; i++)
 		put_byte (parmpacket + PP_FSHDSTART + i, 0);
-	put_long (parmpacket + 80, dostype);
-	put_long (parmpacket + PP_FSHDSTART, dostype);
+	if (dostype) {
+		put_long (parmpacket + 80, dostype);
+		put_long (parmpacket + PP_FSHDSTART, dostype);
+	}
 	if (ver >= 0 && rev >= 0)
 		put_long (parmpacket + PP_FSHDSTART + 4, (ver << 16) | rev);
 
@@ -6603,17 +6633,18 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	struct zfile *zf;
 	int ver = -1, rev = -1;
 	uae_u32 dostype;
-	uaecptr seg;
 
 	// we already have custom filesystem loaded for earlier hardfile?
-	seg = getfakefilesysseg (uip);
-	if (seg) {
-		// yes, re-use it.
-		put_long (parmpacket + PP_FSSIZE, 0);
-		put_long (parmpacket + PP_FSPTR, seg);
-		put_long (parmpacket + PP_ADDTOFSRES, 0);
-		write_log (_T("HDF: faked RDB filesystem '%s' reused\n"), uip->filesysdir);
-		return FILESYS_HARDFILE;
+	if (!ci->forceload) {
+		uaecptr seg = getfakefilesysseg (uip);
+		if (seg) {
+			// yes, re-use it.
+			put_long (parmpacket + PP_FSSIZE, 0);
+			put_long (parmpacket + PP_FSPTR, seg);
+			put_long (parmpacket + PP_ADDTOFSRES, 0);
+			write_log (_T("HDF: faked RDB filesystem '%s' reused\n"), uip->filesysdir);
+			return FILESYS_HARDFILE;
+		}
 	}
 
 	if (!ci->dostype) {
@@ -6623,8 +6654,10 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	} else {
 		dostype = ci->dostype;
 	}
-	if (dostype == 0)
+	if (dostype == 0) {
+		addfakefilesys (parmpacket, dostype, ver, rev, ci);
 		return FILESYS_HARDFILE;
+	}
 	tmp[0] = 0;
 	if (uip->filesysdir && _tcslen (uip->filesysdir) > 0) {
 		_tcscpy (tmp, uip->filesysdir);
@@ -6637,6 +6670,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	}
 	if (tmp[0] == 0) {
 		write_log (_T("RDB: no filesystem for dostype 0x%08X (%s)\n"), dostype, dostypes (dostype));
+		addfakefilesys (parmpacket, dostype, ver, rev, ci);
 		if ((dostype & 0xffffff00) == 0x444f5300)
 			return FILESYS_HARDFILE;
 		write_log (_T("RDB: mounted without filesys\n"));
@@ -6645,6 +6679,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	write_log (_T("RDB: fakefilesys, trying to load '%s', dostype 0x%08X (%s)\n"), tmp, dostype, dostypes (dostype));
 	zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 	if (!zf) {
+		addfakefilesys (parmpacket, dostype, ver, rev, ci);
 		write_log (_T("RDB: filesys not found\n"));
 		if ((dostype & 0xffffff00) == 0x444f5300)
 			return FILESYS_HARDFILE;
@@ -6764,6 +6799,8 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 	uaecptr parmpacket = m68k_areg (regs, 0);
 	struct uaedev_config_info *ci = &uip[unit_no].hf.ci;
 
+	put_long (parmpacket + PP_ADDTOFSRES, 0);
+	put_long (parmpacket + PP_FSSIZE, 0);
 	if (iscd) {
 		TCHAR *cdname = NULL;
 		uaecptr cdname_amiga;

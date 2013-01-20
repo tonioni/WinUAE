@@ -1,6 +1,31 @@
 
 - restore only single input target to default.
 
+Beta 2:
+
+- 030/040/060 MMU TAS and CAS/CAS2 Read-Modify-Write cycle special handling emulated, RMW read access
+  part is internally considered a write access and it will cause access fault if address is write protected.
+- 040 MMU MOVEM special handling (SSR CM-bit) emulated.
+- Some 040/060 MMU emulation bug fixes. (It still isn't fully compatible)
+- A3000 2.04 ROM requires 68030 or higher, it is not 68030-only. (Only 1.4b is 68030-only)
+- Bogus filesystem.resource entry was added if RDB HDF had more than one partition with custom filesystem (b1)
+- Fixed stuck IDE emulation interrupt that hangs the emulated system, happened randomly during A4000 IDE detection. (Old bug)
+- Geometry file FORCELOAD parameter added, forceload=1: do not re-use already loaded filesystem(s).
+- A590/A2091/A3000 SCSI CDROM emulation added, uses SCSI emulation originally made for uaescsi.device.
+- Gayle/A4000 ATAPI CDROM emulation added (uses uaescsi.device SCSI emulation, ATAPI = IDE CROM SCSI command support)
+- CD image mounter SCSI emulation inquiry command's vendor/product/revision data was blank.
+- Ultra-minimal "Add CD Drive" GUI added. Only IDE or SCSI and only one CD entry can be added. Use hardddrives panel bottom
+  CD drive/image selection select menu to select mounted CD. uaescsi.device still works as previously but note that
+  same CD drive/image slot (internally there is more but they are not available in GUI yet) is shared = it may not be good
+  idea to enable both uaescsi.device and hardware IDE/SCSI CD emulation at the same time.
+- Added more emulated SCSI CD commands, READ TRACK INFORMATION, READ DISC INFORMATION and PREVENT/ALLOW MEDIUM REMOVAL
+  (which does nothing). READ TOC allocation length check fixed.
+
+Note: Curently SCSI and IDE CD is single threaded = whole emulation pauses while waiting for CD command to finish = better
+not to use real CD drives. Only uaescsi.device runs in background.
+
+Beta 1:
+
 Big MMU emulation update:
 
 - Previous (Next emulator) 68030 MMU added (+missing bus error exception stuff implemented by me),

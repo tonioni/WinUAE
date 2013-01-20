@@ -27,6 +27,7 @@
 #define IDS_CHIPSET2                    20
 #define IDS_GAMEPORTS                   21
 #define IDS_EXPANSION                   22
+#define IDS_STRING23                    23
 #define IDS_EXTTEXT                     100
 #define IDS_EXTACTUAL                   101
 #define IDS_SOUND                       102
@@ -367,9 +368,11 @@
 #define IDD_LIST                        386
 #define IDS_MISCLISTITEMS1              386
 #define IDS_MISCLISTITEMS2              387
+#define IDD_CDDRIVE                     387
 #define IDS_MISCLISTITEMS3              388
 #define IDS_WHEELMOUSE                  389
 #define IDS_JOYMODE_WHEELMOUSE          389
+#define IDS_NUMSG_KS68030PLUS           390
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -575,6 +578,7 @@
 #define IDC_PORT0                       1342
 #define IDC_NEW_FSARCH                  1342
 #define IDC_PORT1                       1343
+#define IDC_NEW_CD                      1344
 #define IDC_PATH_NAME                   1362
 #define IDC_SELECTOR                    1363
 #define IDC_VOLUME_NAME                 1364
@@ -1166,7 +1170,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        387
+#define _APS_NEXT_RESOURCE_VALUE        388
 #define _APS_NEXT_COMMAND_VALUE         40050
 #define _APS_NEXT_CONTROL_VALUE         1815
 #define _APS_NEXT_SYMED_VALUE           101

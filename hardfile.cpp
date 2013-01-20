@@ -1031,6 +1031,9 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
 	int v;
 
+	hf_log3 (_T("cmd_read: %p %04x-%08x (%d) %08x (%d)\n"),
+		buffer, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->ci.blocksize), (uae_u32)len, (uae_u32)(len / hfd->ci.blocksize));
+
 	if (!hfd->adide) {
 		v = hdf_cache_read (hfd, buffer, offset, len);
 	} else {
@@ -1046,6 +1049,9 @@ int hdf_read (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 {
 	int v;
+
+	hf_log3 (_T("cmd_write: %p %04x-%08x (%d) %08x (%d)\n"),
+		buffer, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->ci.blocksize), (uae_u32)len, (uae_u32)(len / hfd->ci.blocksize));
 
 	if (hfd->byteswap)
 		hdf_byteswap (buffer, len);
@@ -1065,8 +1071,6 @@ int hdf_write (struct hardfiledata *hfd, void *buffer, uae_u64 offset, int len)
 static uae_u64 cmd_readx (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
 	gui_flicker_led (LED_HD, hfd->unitnum, 1);
-	hf_log3 (_T("cmd_read: %p %04x-%08x (%d) %08x (%d)\n"),
-		dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->ci.blocksize), (uae_u32)len, (uae_u32)(len / hfd->ci.blocksize));
 	return hdf_read (hfd, dataptr, offset, len);
 }
 static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offset, uae_u64 len)
@@ -1079,8 +1083,6 @@ static uae_u64 cmd_read (struct hardfiledata *hfd, uaecptr dataptr, uae_u64 offs
 static uae_u64 cmd_writex (struct hardfiledata *hfd, uae_u8 *dataptr, uae_u64 offset, uae_u64 len)
 {
 	gui_flicker_led (LED_HD, hfd->unitnum, 2);
-	hf_log3 (_T("cmd_write: %p %04x-%08x (%d) %08x (%d)\n"),
-		dataptr, (uae_u32)(offset >> 32), (uae_u32)offset, (uae_u32)(offset / hfd->ci.blocksize), (uae_u32)len, (uae_u32)(len / hfd->ci.blocksize));
 	return hdf_write (hfd, dataptr, offset, len);
 }
 
@@ -1108,7 +1110,7 @@ static int nodisk (struct hardfiledata *hfd)
 	return 0;
 }
 
-int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
+int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u8 *cmdbuf, int scsi_cmd_len,
 	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
 {
 	uae_u64 len, offset;
@@ -1122,7 +1124,7 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 	memset (r, 0, 256);
 	memset (s, 0, 256);
 	lun = cmdbuf[1] >> 5;
-	if (lun) {
+	if (cmdbuf[0] != 0x03 && cmdbuf[0] != 0x12 && lun) {
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
@@ -1173,9 +1175,14 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 			if ((cmdbuf[1] & 1) || cmdbuf[2] != 0)
 				goto err;
 			int alen = (cmdbuf[3] << 8) | cmdbuf[4];
-			if (hfd->drive_empty) {
-				r[1] |= 0x80; // removable..
-				r[0] |= 0x20; // not present
+			if (lun != 0) {
+				r[0] = 0x7f;
+			} else {
+				r[0] = 0;
+				if (hfd->drive_empty) {
+					r[1] |= 0x80; // removable..
+					r[0] |= 0x20; // not present
+				}
 			}
 			r[2] = 2; /* supports SCSI-2 */
 			r[3] = 2; /* response data format */
@@ -1416,6 +1423,9 @@ int scsi_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, uae_u
 		s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
 		ls = 12;
 		break;
+	case 0x1b: /* START/STOP UNIT */
+		scsi_len = 0;
+		break;
 readprot:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
@@ -1433,7 +1443,7 @@ nodisk:
 
 	default:
 err:
-		write_log (_T("UAEHF: unsupported scsi command 0x%02X\n"), cmdbuf[0]);
+		write_log (_T("UAEHF: unsupported scsi command 0x%02X LUN=%d\n"), cmdbuf[0], lun);
 errreq:
 		lr = -1;
 		status = 2; /* CHECK CONDITION */
@@ -1495,7 +1505,7 @@ static int handle_scsi (uaecptr request, struct hardfiledata *hfd)
 	}
 	scsi_log (_T("\n"));
 
-	status = scsi_emulate (hfd, NULL, cmdbuf, scsi_cmd_len, scsi_data_ptr, &scsi_len, reply, &reply_len, sense, &sense_len);
+	status = scsi_hd_emulate (hfd, NULL, cmdbuf, scsi_cmd_len, scsi_data_ptr, &scsi_len, reply, &reply_len, sense, &sense_len);
 
 	put_word (acmd + 18, status != 0 ? 0 : scsi_cmd_len); /* fake scsi_CmdActual */
 	put_byte (acmd + 21, status); /* scsi_Status */

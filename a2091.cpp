@@ -9,7 +9,7 @@
 
 #define A2091_DEBUG 0
 #define A3000_DEBUG 0
-#define WD33C93_DEBUG 1
+#define WD33C93_DEBUG 0
 #define WD33C93_DEBUG_PIO 0
 
 #include "sysconfig.h"
@@ -340,7 +340,7 @@ static TCHAR *scsitostring (void)
 
 	p = buf;
 	p[0] = 0;
-	for (i = 0; i < gettc () && i < sizeof wd_data; i++) {
+	for (i = 0; i < scsi->offset && i < sizeof wd_data; i++) {
 		if (i > 0) {
 			_tcscat (p, _T("."));
 			p++;
@@ -418,7 +418,7 @@ static bool do_dma (void)
 static bool wd_do_transfer_out (void)
 {
 #if WD33C93_DEBUG > 0
-	write_log (_T("%s SCSI O [%02X] %d/%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], wd_dataoffset, gettc (), scsitostring ());
+	write_log (_T("%s SCSI O [%02X] %d/%d TC=%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], scsi->offset, scsi->data_len, gettc (), scsitostring ());
 #endif
 	if (wdregs[WD_COMMAND_PHASE] < 0x20) {
 		/* message was sent */
@@ -775,6 +775,9 @@ static void wd_cmd_reset (bool irq)
 		wdregs[0] &= ~(0x08 | 0x10);
 	sasr = 0;
 	wd_selected = false;
+	scsi = NULL;
+	scsidelay_irq[0] = 0;
+	scsidelay_irq[1] = 0;
 	if (irq)
 		set_status ((wdregs[0] & 0x08) ? 1 : 0, 200);
 }
@@ -840,7 +843,7 @@ void wdscsi_put (uae_u8 d)
 #endif
 	} else if (sasr == WD_DATA) {
 #if WD33C93_DEBUG_PIO
-		write_log (_T("%s WD_DATA WRITE %02x %d/%d,%d\n"), WD33C93, d, wd_dataoffset, scsi->len, scsi->data_len);
+		write_log (_T("%s WD_DATA WRITE %02x %d/%d\n"), WD33C93, d, scsi->offset, scsi->data_len);
 #endif
 		if (!wd_data_avail) {
 			write_log (_T("%s WD_DATA WRITE without data request!?\n"), WD33C93);
@@ -913,7 +916,7 @@ uae_u8 wdscsi_get (void)
 		}
 		int status = scsi_receive_data (scsi, &v);
 #if WD33C93_DEBUG_PIO
-		write_log (_T("%s WD_DATA READ %02x %d/%d,%d\n"), WD33C93, v, wd_dataoffset, scsi->len, scsi->data_len);
+		write_log (_T("%s WD_DATA READ %02x %d/%d\n"), WD33C93, v, scsi->offset, scsi->data_len);
 #endif
 		if (wd_dataoffset < sizeof wd_data)
 			wd_data[wd_dataoffset] = v;
@@ -1532,7 +1535,7 @@ static void freescsi (struct scsi_data *sd)
 	scsi_free (sd);
 }
 
-int addscsi (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
 {
 	freescsi (scsis[ch]);
 	scsis[ch] = NULL;
@@ -1543,7 +1546,15 @@ int addscsi (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci,
 	if (!hdf_hd_open (hfd))
 		return 0;
 	hfd->ansi_version = scsi_level;
-	scsis[ch] = scsi_alloc (ch, hfd);
+	scsis[ch] = scsi_alloc_hd (ch, hfd);
+	return scsis[ch] ? 1 : 0;
+}
+
+int add_scsi_cd (int ch, int unitnum)
+{
+	device_func_init (0);
+	freescsi (scsis[ch]);
+	scsis[ch] = scsi_alloc_cd (ch, unitnum);
 	return scsis[ch] ? 1 : 0;
 }
 
@@ -1605,7 +1616,10 @@ static void addnativescsi (void)
 
 int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, NULL, ci, 2);
+	if (ci->cd_emu_unit >= 0)
+		return add_scsi_cd (ch, ci->cd_emu_unit);
+	else
+		return add_scsi_hd (ch, NULL, ci, 2);
 }
 
 void a3000scsi_reset (void)
@@ -1621,7 +1635,10 @@ void a3000scsi_free (void)
 
 int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, NULL, ci, 1);
+	if (ci->cd_emu_unit >= 0)
+		return add_scsi_cd (ch, ci->cd_emu_unit);
+	else
+		return add_scsi_hd (ch, NULL, ci, 1);
 }
 
 
@@ -1759,6 +1776,8 @@ uae_u8 *save_scsi_hd (int num, int *len, uae_u8 *dstptr)
 	if (!scsis[num])
 		return NULL;
 	s = scsis[num];
+	if (s->hfd == NULL)
+		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
@@ -1794,7 +1813,7 @@ uae_u8 *restore_scsi_hd (uae_u8 *src)
 	num = restore_u32 ();
 
 	hfd = xcalloc (struct hd_hardfiledata, 1);
-	s = scsis[num] = scsi_alloc (num, hfd);
+	s = scsis[num] = scsi_alloc_hd (num, hfd);
 	restore_u32 ();
 	size = restore_u64 ();
 	path = restore_string ();
@@ -1812,7 +1831,7 @@ uae_u8 *restore_scsi_hd (uae_u8 *src)
 	s->hfd->ansi_version = restore_u32 ();
 
 	if (size) {
-		addscsi (num, hfd, NULL, s->hfd->ansi_version);
+		add_scsi_hd (num, hfd, NULL, s->hfd->ansi_version);
 	}
 	xfree (path);
 	return src;

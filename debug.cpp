@@ -188,9 +188,9 @@ uae_u32 get_byte_debug (uaecptr addr)
 		regs.s = (debug_mmu_mode & 4) != 0;
 		TRY(p) {
 			if (currprefs.mmu_model == 68030) {
-				v = mmu030_get_byte (addr, debug_mmu_mode, sz_byte);
+				v = mmu030_get_byte (addr, debug_mmu_mode);
 			} else {
-				v = mmu_get_byte (addr, (debug_mmu_mode & 1) ? true : false, sz_byte);
+				v = mmu_get_user_byte (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_byte);
 			}
 		} CATCH(p) {
 		}
@@ -208,9 +208,9 @@ uae_u32 get_word_debug (uaecptr addr)
 		regs.s = (debug_mmu_mode & 4) != 0;
 		TRY(p) {
 			if (currprefs.mmu_model == 68030) {
-				v = mmu030_get_word (addr, debug_mmu_mode, sz_word);
+				v = mmu030_get_word (addr, debug_mmu_mode);
 			} else {
-				v = mmu_get_word (addr, (debug_mmu_mode & 1) ? true : false, sz_word);
+				v = mmu_get_user_word (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_word);
 			}
 		} CATCH(p) {
 		}
@@ -228,9 +228,9 @@ uae_u32 get_long_debug (uaecptr addr)
 		regs.s = (debug_mmu_mode & 4) != 0;
 		TRY(p) {
 			if (currprefs.mmu_model == 68030) {
-				v = mmu030_get_long (addr, debug_mmu_mode, sz_long);
+				v = mmu030_get_long (addr, debug_mmu_mode);
 			} else {
-				v = mmu_get_long (addr, (debug_mmu_mode & 1) ? true : false, sz_long);
+				v = mmu_get_user_long (addr, regs.s != 0, (debug_mmu_mode & 1) ? true : false, false, sz_long);
 			}
 		} CATCH(p) {
 		}

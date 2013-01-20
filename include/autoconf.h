@@ -52,10 +52,11 @@ extern uaecptr need_uae_boot_rom (void);
 
 struct mountedinfo
 {
-    uae_u64 size;
+    uae_s64 size;
     bool ismounted;
     bool ismedia;
     int nrcyls;
+	TCHAR rootdir[MAX_DPATH];
 };
 
 extern int add_filesys_unitconfig (struct uae_prefs *p, int index, TCHAR *error);

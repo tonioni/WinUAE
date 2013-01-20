@@ -1656,9 +1656,9 @@ uae_u8 cdtv_battram_read (int addr)
 	return v;
 }
 
-int cdtv_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+int cdtv_add_scsi_hd_unit (int ch, struct uaedev_config_info *ci)
 {
-	return addscsi (ch, NULL, ci, 1);
+	return add_scsi_hd (ch, NULL, ci, 1);
 }
 
 void cdtv_free (void)

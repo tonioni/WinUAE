@@ -953,7 +953,7 @@ static void expamem_map_fastcard (void)
 static void expamem_init_fastcard (void)
 {
 	uae_u16 mid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore : uae_id;
-	uae_u8 pid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore_a2091_ram : 1;
+	uae_u8 pid = (currprefs.cs_a2091 || currprefs.uae_hide) ? commodore_a2091_ram : (currprefs.maprom ? 1 : 81);
 
 	expamem_init_clear ();
 	if (allocated_fastmem == 0x100000)

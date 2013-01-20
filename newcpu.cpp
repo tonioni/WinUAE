@@ -4267,7 +4267,7 @@ retry:
 		for (;;) {
 			pc = regs.instruction_pc = m68k_getpc ();
 			mmu060_state = 0;
-			opcode = x_prefetch (0);
+			mmu060_opcode = opcode = x_prefetch (0);
 			mmu060_state = 1;
 			count_instr (opcode);
 			do_cycles (cpu_cycles);
@@ -4317,6 +4317,14 @@ retry:
 	TRY (prb) {
 		for (;;) {
 			pc = regs.instruction_pc = m68k_getpc ();
+
+#if 0
+			if (pc == 0x000fa01c) {
+				write_log (_T("*"));
+				//activate_debugger ();
+			}
+#endif
+
 			opcode = x_prefetch (0);
 			count_instr (opcode);
 			do_cycles (cpu_cycles);
@@ -4375,8 +4383,8 @@ insretry:
 			pc = regs.instruction_pc = m68k_getpc ();
 
 			mmu030_state[0] = mmu030_state[1] = mmu030_state[2] = 0;
-#if 1
-			if (pc == 0x1000) {
+#if 0
+			if (pc == 0x00109FFC) {
 				write_log (_T("*"));
 				//activate_debugger ();
 			}
@@ -5052,13 +5060,16 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			}
 			pc += 2;
 		} else if (lookup->mnemo == i_MVMEL) {
+			uae_u16 mask = get_word_debug (pc);
+			pc += 2;
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 			_tcscat (instrname, _T(","));
-			movemout (instrname, get_word_debug (pc), dp->dmode);
+			movemout (instrname, mask, dp->dmode);
 			pc += 2;
 		} else if (lookup->mnemo == i_MVMLE) {
-			movemout (instrname, get_word_debug (pc), dp->dmode);
+			uae_u16 mask = get_word_debug (pc);
 			pc += 2;
+			movemout (instrname, mask, dp->dmode);
 			_tcscat (instrname, _T(","));
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 		} else {
@@ -5085,12 +5096,13 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			buf = buf_out (buf, &bufsize, _T(" ]"));
 
 		if (ccpt != 0) {
+			uaecptr addr2 = deaddr2 ? deaddr2 : seaddr2;
 			if (deaddr)
 				*deaddr = pc;
 			if (cctrue (dp->cc))
-				buf = buf_out (buf, &bufsize, _T(" == $%08x (T)"), seaddr2);
+				buf = buf_out (buf, &bufsize, _T(" == $%08x (T)"), addr2);
 			else
-				buf = buf_out (buf, &bufsize, _T(" == $%08x (F)"), seaddr2);
+				buf = buf_out (buf, &bufsize, _T(" == $%08x (F)"), addr2);
 		} else if ((opcode & 0xff00) == 0x6100) { /* BSR */
 			if (deaddr)
 				*deaddr = pc;

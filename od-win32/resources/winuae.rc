@@ -321,6 +321,7 @@ BEGIN
     COMBOBOX        IDC_CD_TYPE,282,279,71,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Eject",IDC_CD_EJECT,360,278,30,15
     COMBOBOX        IDC_CD_TEXT,5,297,386,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Add SCSI/IDE CD Drive",IDC_NEW_CD,135,176,126,15
 END
 
 IDD_SOUND DIALOGEX 0, 0, 396, 288
@@ -1107,6 +1108,17 @@ BEGIN
     CONTROL         "",IDC_LISTDIALOG_LIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,7,302,171
 END
 
+IDD_CDDRIVE DIALOGEX 0, 0, 396, 109
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "CD Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    RTEXT           "HD Controller:",IDC_STATIC,12,90,65,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_HDF_CONTROLLER,91,89,61,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "Add CD Drive",IDOK,236,87,73,14
+    PUSHBUTTON      "Cancel",IDCANCEL,316,87,73,14
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1262,12 +1274,10 @@ GUIDELINES DESIGNINFO
 BEGIN
     IDD_KICKSTART, DIALOG
     BEGIN
-        BOTTOMMARGIN, 214
     END
 
     IDD_DISPLAY, DIALOG
     BEGIN
-        BOTTOMMARGIN, 270
     END
 
     IDD_MEMORY, DIALOG
@@ -1296,7 +1306,6 @@ BEGIN
 
     IDD_IOPORTS, DIALOG
     BEGIN
-        BOTTOMMARGIN, 293
     END
 
     IDD_GAMEPORTS, DIALOG
@@ -1345,12 +1354,10 @@ BEGIN
 
     IDD_FILTER, DIALOG
     BEGIN
-        BOTTOMMARGIN, 286
     END
 
     IDD_HARDDRIVE, DIALOG
     BEGIN
-        BOTTOMMARGIN, 108
     END
 
     IDD_MISC2, DIALOG
@@ -1399,7 +1406,6 @@ BEGIN
 
     IDD_INPUTMAP, DIALOG
     BEGIN
-        TOPMARGIN, 1
     END
 
     IDD_INFOBOX, DIALOG
@@ -1408,10 +1414,10 @@ BEGIN
 
     IDD_LIST, DIALOG
     BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 309
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 199
+    END
+
+    IDD_CDDRIVE, DIALOG
+    BEGIN
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -1803,6 +1809,7 @@ BEGIN
     IDS_MISCLISTITEMS2      "Always on top\nDisable screensaver\nSynchronize clock\nFaster RTG\nClipboard sharing\nAllow native code\n"
     IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
+    IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
 END
 
 #endif    // English resources

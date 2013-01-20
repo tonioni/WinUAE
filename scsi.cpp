@@ -16,8 +16,8 @@
 #include "blkdev.h"
 
 static int outcmd[] = { 0x0a, 0x2a, 0x2f, 0xaa, -1 };
-static int incmd[] = { 0x03, 0x08, 0x12, 0x1a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, -1 };
-static int nonecmd[] = { 0x00, 0x35, -1 };
+static int incmd[] = { 0x03, 0x08, 0x12, 0x1a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, -1 };
+static int nonecmd[] = { 0x00, 0x1b, 0x1e, 0x35, -1 };
 
 static int scsi_data_dir(struct scsi_data *sd)
 {
@@ -40,8 +40,8 @@ static int scsi_data_dir(struct scsi_data *sd)
 			return 0;
 		}
 	}
-	write_log (_T("SCSI command %02X, no direction specified (IN?)!\n"), sd->cmd[0]);
-	return -2;
+	write_log (_T("SCSI command %02X, no direction specified!\n"), sd->cmd[0]);
+	return 0;
 }
 
 void scsi_emulate_analyze (struct scsi_data *sd)
@@ -67,6 +67,9 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 	case 0x25:
 	case 0x28:
 	case 0x35:
+	case 0x51:
+	case 0x52:
+	case 0x43:
 		cmd_len = 10;
 		break;
 	case 0xa8:
@@ -85,19 +88,35 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 {
 	sd->status = 0;
 	//write_log (_T("CMD=%02x\n"), sd->cmd[0]);
-	if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
-		int len = sd->cmd[4];
-		memset (sd->buffer, 0, len);
-		memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
-		sd->data_len = len;
-		sd->status = 0;
+	if (sd->cd_emu_unit >= 0) {
+		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+			int len = sd->cmd[4];
+			memset (sd->buffer, 0, len);
+			memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+			sd->data_len = len;
+		} else {
+			sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+			if (sd->status == 0) {
+				if (sd->reply_len > 0) {
+					memset(sd->buffer, 0, 256);
+					memcpy(sd->buffer, sd->reply, sd->reply_len);
+				}
+			}
+		}
 	} else if (sd->nativescsiunit < 0) {
-		sd->status = scsi_emulate(&sd->hfd->hfd, sd->hfd,
-			sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
-		if (sd->status == 0) {
-			if (sd->reply_len > 0) {
-				memset(sd->buffer, 0, 256);
-				memcpy(sd->buffer, sd->reply, sd->reply_len);
+		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
+			int len = sd->cmd[4];
+			memset (sd->buffer, 0, len);
+			memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+			sd->data_len = len;
+		} else {
+			sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,
+				sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+			if (sd->status == 0) {
+				if (sd->reply_len > 0) {
+					memset(sd->buffer, 0, 256);
+					memcpy(sd->buffer, sd->reply, sd->reply_len);
+				}
 			}
 		}
 	} else {
@@ -125,11 +144,26 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 	sd->offset = 0;
 }
 
-struct scsi_data *scsi_alloc(int id, struct hd_hardfiledata *hfd)
+struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd)
 {
 	struct scsi_data *sd = xcalloc (struct scsi_data, 1);
 	sd->hfd = hfd;
 	sd->id = id;
+	sd->nativescsiunit = -1;
+	sd->cd_emu_unit = -1;
+	return sd;
+}
+
+struct scsi_data *scsi_alloc_cd(int id, int unitnum)
+{
+	struct scsi_data *sd;
+	if (!sys_command_open (unitnum)) {
+		write_log (_T("SCSI: CD EMU scsi unit %d failed to open\n"), unitnum);
+		return NULL;
+	}
+	sd = xcalloc (struct scsi_data, 1);
+	sd->id = id;
+	sd->cd_emu_unit = unitnum;
 	sd->nativescsiunit = -1;
 	return sd;
 }
@@ -144,6 +178,7 @@ struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 	sd = xcalloc (struct scsi_data, 1);
 	sd->id = id;
 	sd->nativescsiunit = nativeunit;
+	sd->cd_emu_unit = -1;
 	return sd;
 }
 
@@ -158,6 +193,11 @@ void scsi_free(struct scsi_data *sd)
 		return;
 	if (sd->nativescsiunit >= 0) {
 		sys_command_close (sd->nativescsiunit);
+		sd->nativescsiunit = -1;
+	}
+	if (sd->cd_emu_unit >= 0) {
+		sys_command_close (sd->cd_emu_unit);
+		sd->cd_emu_unit = -1;
 	}
 	xfree(sd);
 }

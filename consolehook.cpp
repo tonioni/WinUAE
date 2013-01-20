@@ -54,7 +54,8 @@ void consolehook_config (struct uae_prefs *p)
 	_tcscpy (ci.volname, _T("CLIBOOT"));
 	_tcscpy (ci.devname, _T("DH0"));
 	ci.bootpri = 15;
-	add_filesys_config (p, -1, &ci, false);
+	ci.type = UAEDEV_DIR;
+	add_filesys_config (p, -1, &ci);
 }
 
 static void *console_thread (void *v)

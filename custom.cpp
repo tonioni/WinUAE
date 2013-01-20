@@ -2977,7 +2977,7 @@ void compute_framesync (void)
 		int start = hbstrt;
 		int stop = hbstop;
 
-		gfxvidinfo.drawbuffer.inwidth =  (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start) + 2)) * 2) << res2);
+		gfxvidinfo.drawbuffer.inwidth = (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start) + 2)) * 2) << res2);
 		gfxvidinfo.drawbuffer.inxoffset = ((stop + 1) & ~1) * 2;
 		
 		gfxvidinfo.drawbuffer.extrawidth = 0;

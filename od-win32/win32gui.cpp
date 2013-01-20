@@ -1968,6 +1968,8 @@ static UINT_PTR CALLBACK ofnhook (HWND hDlg, UINT message, WPARAM wParam, LPARAM
 static void eject_cd (void)
 {
 	workprefs.cdslots[0].name[0] = 0;
+	if (full_property_sheet)
+		workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 	quickstart_cddrive[0] = 0;
 	workprefs.cdslots[0].inuse = false;
 	if (full_property_sheet) {
@@ -3878,19 +3880,23 @@ void InitializeListView (HWND hDlg)
 
 	} else if (lv_type == LV_HARDDISK) {
 #ifdef FILESYS
+		listview_column_width[1] = 60;
 		for(i = 0; i < workprefs.mountitems; i++)
 		{
 			struct uaedev_config_data *uci = &workprefs.mountconfig[i];
 			struct uaedev_config_info *ci = &uci->ci;
 			int nosize = 0, type;
 			struct mountedinfo mi;
-			TCHAR *rootdir = ci->rootdir;
+			TCHAR *rootdir;
 
 			type = get_filesys_unitconfig (&workprefs, i, &mi);
 			if (type < 0) {
-				type = uci->ishdf ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
+				type = ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
 				nosize = 1;
 			}
+			if (mi.size < 0)
+				nosize = 1;
+			rootdir = mi.rootdir;
 
 			if (nosize)
 				_tcscpy (size_str, _T("n/a"));
@@ -3949,7 +3955,7 @@ void InitializeListView (HWND hDlg)
 			WIN32GUI_LoadUIString (ci->readonly ? IDS_NO : IDS_YES, readwrite_str, sizeof (readwrite_str) / sizeof (TCHAR));
 
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
-			lvstruct.pszText  = mi.ismedia == false ? _T("E") : (nosize ? _T("X") : (mi.ismounted ? _T("*") : _T(" ")));
+			lvstruct.pszText  = mi.ismedia == false ? _T("E") : (nosize && mi.size >= 0 ? _T("X") : (mi.ismounted ? _T("*") : _T(" ")));
 			if (ci->controller && mi.ismedia)
 				lvstruct.pszText = _T(" ");
 			lvstruct.lParam   = 0;
@@ -3958,7 +3964,7 @@ void InitializeListView (HWND hDlg)
 			result = ListView_InsertItem (list, &lvstruct);
 			if (result != -1) {
 
-				listview_column_width[0] = 15;
+				listview_column_width[0] = 20;
 
 				ListView_SetItemText(list, result, 1, devname_str);
 				width = ListView_GetStringWidth(list, devname_str) + 10;
@@ -4009,8 +4015,10 @@ void InitializeListView (HWND hDlg)
 			}
 		}
 		// Adjust our column widths so that we can see the contents...
-		for(i = 0; i < listview_num_columns; i++)
-			ListView_SetColumnWidth (list, i, listview_column_width[i]);
+		for(i = 0; i < listview_num_columns; i++) {
+			if (ListView_GetColumnWidth (list, i) < listview_column_width[i])
+				ListView_SetColumnWidth (list, i, listview_column_width[i]);
+		}
 		// Redraw the items in the list...
 		items = ListView_GetItemCount (list);
 		ListView_RedrawItems (list, 0, items);
@@ -5422,6 +5430,8 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 				val = SendDlgItemMessage (hDlg, IDC_CD0Q_TYPE, CB_GETCURSEL, 0, 0);
 				if (val != CB_ERR) {
 					quickstart_cdtype = val;
+					if (full_property_sheet)
+						workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 					if (quickstart_cdtype >= 2) {
 						int len = sizeof quickstart_cddrive / sizeof (TCHAR);
 						quickstart_cdtype = 2;
@@ -9141,6 +9151,10 @@ static INT_PTR CALLBACK SoundDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 #ifdef FILESYS
 
+struct cddlg_vals
+{
+	struct uaedev_config_info ci;
+};
 struct fsvdlg_vals
 {
 	struct uaedev_config_info ci;
@@ -9156,6 +9170,7 @@ struct hfdlg_vals
 	bool rdb;
 };
 
+static struct cddlg_vals current_cddlg;
 static struct fsvdlg_vals current_fsvdlg;
 static struct hfdlg_vals current_hfdlg;
 static int archivehd;
@@ -9164,14 +9179,15 @@ static void default_fsvdlg (struct fsvdlg_vals *f)
 {
 	memset (f, 0, sizeof (struct fsvdlg_vals));
 	f->ci.autoboot = true;
+	f->ci.type = UAEDEV_DIR;
 }
 static void default_hfdlg (struct hfdlg_vals *f, bool rdb)
 {
 	memset (f, 0, sizeof (struct hfdlg_vals));
 	uci_set_defaults (&f->ci, rdb);
 	f->original = true;
+	f->ci.type = UAEDEV_HDF;
 }
-
 
 static void volumeselectfile (HWND hDlg)
 {
@@ -9549,6 +9565,45 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 	sethardfile (hDlg);
 }
 
+static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	static int recursive = 0;
+	int posn;
+
+	switch (msg) {
+
+	case WM_INITDIALOG:
+		recursive++;
+		inithdcontroller (hDlg);
+		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_cddlg.ci.controller, 0);
+		recursive--;
+		customDlgType = IDD_CDDRIVE;
+		customDlg = hDlg;
+		return TRUE;
+	case WM_COMMAND:
+		if (recursive)
+			break;
+		recursive++;
+		switch (LOWORD (wParam))
+		{
+		case IDOK:
+			EndDialog (hDlg, 1);
+			break;
+		case IDCANCEL:
+			EndDialog (hDlg, 0);
+			break;
+		case IDC_HDF_CONTROLLER:
+			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
+			if (posn != CB_ERR)
+				current_cddlg.ci.controller = posn;
+			break;
+		}
+		recursive--;
+		break;
+	}
+	return FALSE;
+}
+
 static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive = 0;
@@ -9887,13 +9942,24 @@ static void new_filesys (HWND hDlg, int entry)
 	int bp = tweakbootpri (current_fsvdlg.ci.bootpri, current_fsvdlg.ci.autoboot, current_fsvdlg.ci.donotmount);
 	memcpy (&ci, &current_fsvdlg.ci, sizeof (struct uaedev_config_info));
 	ci.bootpri = bp;
-	uci = add_filesys_config (&workprefs, entry, &ci, false);
+	uci = add_filesys_config (&workprefs, entry, &ci);
 	if (uci) {
 		if (uci->ci.rootdir[0])
 			filesys_media_change (uci->ci.rootdir, 1, uci);
 		else
 			filesys_eject (uci->configoffset);
 	}
+}
+
+static void new_cddrive (HWND hDlg, int entry)
+{
+	struct uaedev_config_info ci = { 0 };
+	ci.cd_emu_unit = 0;
+	ci.controller = current_cddlg.ci.controller;
+	ci.type = UAEDEV_CD;
+	ci.readonly = true;
+	ci.blocksize = 2048;
+	add_filesys_config (&workprefs, entry, &ci);
 }
 
 static void new_hardfile (HWND hDlg, int entry)
@@ -9903,7 +9969,7 @@ static void new_hardfile (HWND hDlg, int entry)
 	int bp = tweakbootpri (current_hfdlg.ci.bootpri, current_hfdlg.ci.autoboot, current_hfdlg.ci.donotmount);
 	memcpy (&ci, &current_hfdlg.ci, sizeof (struct uaedev_config_info));
 	ci.bootpri = bp;
-	uci = add_filesys_config (&workprefs, entry, &ci, true);
+	uci = add_filesys_config (&workprefs, entry, &ci);
 	if (uci) {
 		struct hardfiledata *hfd = get_hardfile_data (uci->configoffset);
 		hardfile_media_change (hfd, &ci, true, false);
@@ -9914,7 +9980,7 @@ static void new_harddrive (HWND hDlg, int entry)
 {
 	struct uaedev_config_data *uci;
 
-	uci = add_filesys_config (&workprefs, entry, &current_hfdlg.ci, true);
+	uci = add_filesys_config (&workprefs, entry, &current_hfdlg.ci);
 	if (uci) {
 		struct hardfiledata *hfd = get_hardfile_data (uci->configoffset);
 		hardfile_media_change (hfd, &current_hfdlg.ci, true, false);
@@ -9950,9 +10016,15 @@ static void harddisk_edit (HWND hDlg)
 
 	type = get_filesys_unitconfig (&workprefs, entry, &mi);
 	if (type < 0)
-		type = uci->ishdf ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
+		type = uci->ci.type == UAEDEV_HDF ? FILESYS_HARDFILE : FILESYS_VIRTUAL;
 
-	if(type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
+	if (uci->ci.type == UAEDEV_CD) {
+		memcpy (&current_cddlg.ci, uci, sizeof (struct uaedev_config_info));
+		if (CustomDialogBox (IDD_CDDRIVE, hDlg, CDDriveSettingsProc)) {
+			new_cddrive (hDlg, entry);
+		}
+	}
+	else if(type == FILESYS_HARDFILE || type == FILESYS_HARDFILE_RDB)
 	{
 		current_hfdlg.forcedcylinders = uci->ci.highcyl;
 		memcpy (&current_hfdlg.ci, uci, sizeof (struct uaedev_config_info));
@@ -10016,6 +10088,11 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		default_hfdlg (&current_hfdlg, false);
 		if (CustomDialogBox (IDD_HARDFILE, hDlg, HardfileSettingsProc))
 			new_hardfile (hDlg, -1);
+		return 1;
+
+	case IDC_NEW_CD:
+		if (CustomDialogBox (IDD_CDDRIVE, hDlg, CDDriveSettingsProc))
+			new_cddrive (hDlg, -1);
 		return 1;
 
 	case IDC_NEW_HD:
@@ -10180,13 +10257,19 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			getfloppyname (hDlg, 0, 1, IDC_CD_TEXT);
 			quickstart_cdtype = 1;
 			workprefs.cdslots[0].inuse = true;
+			if (full_property_sheet)
+				workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 			addcdtype (hDlg, IDC_CD_TYPE);
 			addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+			InitializeListView (hDlg);
+			hilitehd (hDlg);
 			break;
 			case IDC_CD_TYPE:
 			int val = SendDlgItemMessage (hDlg, IDC_CD_TYPE, CB_GETCURSEL, 0, 0);
 			if (val != CB_ERR) {
 				quickstart_cdtype = val;
+				if (full_property_sheet)
+					workprefs.cdslots[0].type = SCSI_UNIT_DEFAULT;
 				if (quickstart_cdtype >= 2) {
 					int len = sizeof quickstart_cddrive / sizeof (TCHAR);
 					quickstart_cdtype = 2;
@@ -10208,6 +10291,8 @@ static INT_PTR CALLBACK HarddiskDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 				}
 				addcdtype (hDlg, IDC_CD_TYPE);
 				addfloppyhistory_2 (hDlg, 0, IDC_CD_TEXT, HISTORY_CD);
+				InitializeListView (hDlg);
+				hilitehd (hDlg);
 			}
 			break;
 			}
@@ -14999,7 +15084,6 @@ static void centerWindow (HWND hDlg)
 			y = mdc->rect.top;
 		}
 	}
-	SetForegroundWindow (hDlg);
 	pt1.x = x + 100;
 	pt1.y = y + (GetSystemMetrics (SM_CYMENU) + GetSystemMetrics (SM_CYBORDER)) / 2;
 	pt2.x = x + gui_width - 100;
@@ -15200,7 +15284,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			} else if (currentpage == HARDDISK_ID) {
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
-				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci, false);
+				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 			} else {
 				drv = floppyslot_addfile (prefs, file, drv, firstdrv, i);
 				if (drv < 0)
@@ -15226,18 +15310,18 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				} else {
 					default_fsvdlg (&current_fsvdlg);
 					_tcscpy (current_fsvdlg.ci.rootdir, file);
-					add_filesys_config (&workprefs, -1, &current_fsvdlg.ci, false);
+					add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 				}
 			} else {
 				uci_set_defaults (&current_hfdlg.ci, false);
 				current_hfdlg.forcedcylinders = 0;
 				updatehdfinfo (NULL, true, true);
-				add_filesys_config (&workprefs, -1, &current_hfdlg.ci, true);
+				add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			}
 			break;
 		case ZFILE_HDFRDB:
 			default_hfdlg (&current_hfdlg, true);
-			add_filesys_config (&workprefs, -1, &current_hfdlg.ci, true);
+			add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			break;
 		case ZFILE_NVR:
 			_tcscpy (prefs->flashfile, file);
@@ -15269,7 +15353,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 				default_fsvdlg (&current_fsvdlg);
 				_tcscpy (current_fsvdlg.ci.rootdir, file);
 				_tcscpy (current_fsvdlg.ci.volname, filepart);
-				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci, false);
+				add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 				if (!full_property_sheet)
 					do_filesys_insert (file);
 			} else {
@@ -16331,6 +16415,7 @@ static int transla[] = {
 	NUMSG_NOCAPS, IDS_NUMSG_NOCAPS,
 	NUMSG_KICKREP, IDS_NUMSG_KICKREP,
 	NUMSG_KICKREPNO, IDS_NUMSG_KICKREPNO,
+	NUMSG_KS68030PLUS, IDS_NUMSG_KS68030PLUS,
 	-1
 };
 

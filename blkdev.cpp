@@ -43,6 +43,7 @@ static TCHAR newimagefiles[MAX_TOTAL_SCSI_DEVICES][256];
 static int imagechangetime[MAX_TOTAL_SCSI_DEVICES];
 static bool cdimagefileinuse[MAX_TOTAL_SCSI_DEVICES];
 static int wasopen[MAX_TOTAL_SCSI_DEVICES];
+static bool dev_init;
 
 /* convert minutes, seconds and frames -> logical sector number */
 int msf2lsn (int msf)
@@ -324,16 +325,16 @@ static int getunitinfo (int unitnum, int drive, cd_standard_unit csu, int *isaud
 	return 0;
 }
 
-static int get_standard_cd_unit2 (cd_standard_unit csu)
+static int get_standard_cd_unit2 (struct uae_prefs *p, cd_standard_unit csu)
 {
 	int unitnum = 0;
 	int isaudio = 0;
-	if (currprefs.cdslots[unitnum].name[0] || currprefs.cdslots[unitnum].inuse) {
-		if (currprefs.cdslots[unitnum].name[0]) {
+	if (p->cdslots[unitnum].name[0] || p->cdslots[unitnum].inuse) {
+		if (p->cdslots[unitnum].name[0]) {
 			device_func_init (SCSI_UNIT_IOCTL);
-			if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu)) {
+			if (!sys_command_open_internal (unitnum, p->cdslots[unitnum].name, csu)) {
 				device_func_init (SCSI_UNIT_IMAGE);
-				if (!sys_command_open_internal (unitnum, currprefs.cdslots[unitnum].name, csu))
+				if (!sys_command_open_internal (unitnum, p->cdslots[unitnum].name, csu))
 					goto fallback;
 			}
 		} else {
@@ -371,7 +372,7 @@ fallback:
 
 int get_standard_cd_unit (cd_standard_unit csu)
 {
-	int unitnum = get_standard_cd_unit2 (csu);
+	int unitnum = get_standard_cd_unit2 (&currprefs, csu);
 	if (unitnum < 0)
 		return -1;
 #ifdef RETROPLATFORM
@@ -396,6 +397,12 @@ int sys_command_isopen (int unitnum)
 
 int sys_command_open (int unitnum)
 {
+	blkdev_fix_prefs (&currprefs);
+	if (!dev_init) {
+		device_func_init (0);
+		dev_init = true;
+	}
+
 	if (openlist[unitnum]) {
 		openlist[unitnum]++;
 		return -1;
@@ -447,6 +454,23 @@ int device_func_init (int flags)
 	blkdev_fix_prefs (&currprefs);
 	install_driver (flags);
 	return 1;
+}
+
+bool blkdev_get_info (struct uae_prefs *p, int unitnum, struct device_info *di)
+{
+	bool open = true, opened = true, ok = false;
+	if (!openlist[unitnum]) {
+		blkdev_fix_prefs (p);
+		install_driver (0);
+		opened = true;
+		open = sys_command_open_internal (unitnum, p->cdslots[unitnum].name[0] ? p->cdslots[unitnum].name : NULL, CD_STANDARD_UNIT_DEFAULT) != 0;
+	}
+	if (open) {
+		ok = sys_command_info (unitnum, di, true) != 0;
+	}
+	if (open && opened)
+		sys_command_close_internal (unitnum);
+	return ok;
 }
 
 void blkdev_entergui (void)
@@ -1121,7 +1145,7 @@ static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_i
 	return sys_command_cd_rawread (unitnum, data, start, len, 0, (cmd[1] >> 2) & 7, cmd[9], subs);
 }
 
-static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
+int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
 {
 	uae_u64 len, offset;
@@ -1150,14 +1174,21 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			scsi_cmd_len, scsi_data, *data_len);
 	switch (cmdbuf[0])
 	{
+	case 0x03: /* REQUEST SENSE */
+		break;
+	case 0x1e: /* PREVENT/ALLOW MEDIUM REMOVAL */
+		scsi_len = 0;
+		break;
 	case 0x12: /* INQUIRY */
 	{
 		if ((cmdbuf[1] & 1) || cmdbuf[2] != 0)
 			goto err;
 		len = cmdbuf[4];
-		if (cmdbuf[1] >> 5)
-			goto err;
-		r[0] = 5; // CDROM
+		if (cmdbuf[1] >> 5) {
+			r[0] = 0x7f;
+		} else {
+			r[0] = 5; // CDROM
+		}
 		r[1] |= 0x80; // removable
 		r[2] = 2; /* supports SCSI-2 */
 		r[3] = 2; /* response data format */
@@ -1414,6 +1445,61 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	break;
 	case 0xaa: /* WRITE (12) */
 		goto readprot;
+	case 0x51: /* READ DISC INFORMATION */
+		{
+			struct cd_toc_head ttoc;
+			int maxlen = (cmdbuf[7] << 8) | cmdbuf[8];
+			if (nodisk (&di))
+				goto nodisk;
+			if (!sys_command_cd_toc (unitnum, &ttoc))
+				goto readerr;
+			struct cd_toc_head *toc = &ttoc;
+			uae_u8 *p = scsi_data;
+			p[0] = 0;
+			p[1] = 34 - 2;
+			p[2] = 2 | (3 << 2); // complete cd rom, last session is complete
+			p[3] = toc->first_track;
+			p[4] = 1;
+			p[5] = toc->first_track;
+			p[6] = toc->last_track;
+			wl (p + 16, lsn2msf (toc->lastaddress));
+			wl (p + 20, 0x00ffffff);
+			scsi_len = p[1] + 2;
+			if (scsi_len > maxlen)
+				scsi_len = maxlen;
+		}
+		break;
+	case 0x52: /* READ TRACK INFORMATION */
+		{
+			struct cd_toc_head ttoc;
+			int maxlen = (cmdbuf[7] << 8) | cmdbuf[8];
+			if (nodisk (&di))
+				goto nodisk;
+			if (!sys_command_cd_toc (unitnum, &ttoc))
+				goto readerr;
+			struct cd_toc_head *toc = &ttoc;
+			uae_u8 *p = scsi_data;
+			int lsn;
+			if (cmdbuf[1] & 1) {
+				int track = cmdbuf[5];
+				lsn = toc->toc[track].address;
+			} else {
+				lsn = rl (p + 2);
+			}
+			struct cd_toc *t = gettoc (toc, lsn);
+			p[0] = 0;
+			p[1] = 28 - 2;
+			p[2] = t->track;
+			p[3] = 1;
+			p[5] = t->control;
+			p[6] = 0; // data mode, fixme
+			wl (p + 8, t->address);
+			wl (p + 24, t[1].address - t->address);
+			scsi_len = p[1] + 2;
+			if (scsi_len > maxlen)
+				scsi_len = maxlen;
+		}
+		break;
 	case 0x43: // READ TOC
 		{
 			if (nodisk (&di))
@@ -1425,6 +1511,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			if (format >= 3)
 				goto errreq;
 			int maxlen = (cmdbuf[7] << 8) | cmdbuf[8];
+			int maxlen2 = maxlen;
 			struct cd_toc_head ttoc;
 			if (!sys_command_cd_toc (unitnum, &ttoc))
 				goto readerr;
@@ -1458,23 +1545,24 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				maxlen -= 4;
 				if (format == 2) {
 					if (!addtocentry (&p2, &maxlen, 0xa0, -1, msf, p, toc))
-						goto errreq;
+						break;
 					if (!addtocentry (&p2, &maxlen, 0xa1, -1, msf, p, toc))
-						goto errreq;
+						break;
 					if (!addtocentry (&p2, &maxlen, 0xa2, -1, msf, p, toc))
-						goto errreq;
+						break;
 				}
 				while (strack < 100) {
 					if (!addtocentry (&p2, &maxlen, strack, -1, msf, p, toc))
-						goto errreq;
+						break;
 					strack++;
 				}
-				if (!addtocentry (&p2, &maxlen, 0xa2, 0xaa, msf, p, toc))
-					goto errreq;
+				addtocentry (&p2, &maxlen, 0xa2, 0xaa, msf, p, toc);				
 				int tlen = p2 - (p + 2);
 				p[0] = tlen >> 8;
 				p[1] = tlen >> 0;
-				scsi_len = tlen + 2 + 4;
+				scsi_len = tlen + 2;
+				if (scsi_len > maxlen2)
+					scsi_len = maxlen2;
 			}
 		}
 		break;
@@ -1522,10 +1610,6 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		case 0x1b: // START/STOP
 			sys_command_cd_stop (unitnum);
 			scsiemudrv (unitnum, cmdbuf);
-			scsi_len = 0;
-		break;
-		case 0x1e: // PREVENT/ALLOW MEDIA REMOVAL
-			// do nothing
 			scsi_len = 0;
 		break;
 		case 0x4e: // STOP PLAY/SCAN
@@ -1635,7 +1719,7 @@ static int scsi_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				goto nodisk;
 			int start = rl (cmdbuf + 2);
 			int len;
-			if (cmd = 0xa5)
+			if (cmd == 0xa5)
 				len = rl (cmdbuf + 6);
 			else
 				len = rw (cmdbuf + 7);
@@ -1762,7 +1846,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	if (as->sense_len > 32)
 		as->sense_len = 32;
 
-	as->status = scsi_emulate (unitnum, cmd, as->cmd_len, scsi_datap, &datalen, replydata, &replylen, as->sensedata, &senselen);
+	as->status = scsi_cd_emulate (unitnum, cmd, as->cmd_len, scsi_datap, &datalen, replydata, &replylen, as->sensedata, &senselen);
 
 	as->cmdactual = as->status != 0 ? 0 : as->cmd_len; /* fake scsi_CmdActual */
 	if (as->status) {
