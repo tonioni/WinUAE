@@ -1756,7 +1756,9 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 
 	if (!cdu->open) {
 		uae_sem_init (&cdu->sub_sem, 0, 1);
-		_tcscpy (cdu->imgname, ident);
+		cdu->imgname[0] = 0;
+		if (ident)
+			_tcscpy (cdu->imgname, ident);
 		parse_image (cdu, ident);
 		cdu->open = true;
 		cdu->enabled = true;
@@ -1770,7 +1772,7 @@ static int open_device (int unitnum, const TCHAR *ident, int flags)
 		}
 		ret = 1;
 	}
-	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
+	blkdev_cd_change (unitnum, cdu->imgname);
 	return ret;
 }
 
@@ -1792,7 +1794,7 @@ static void close_device (int unitnum)
 		unload_image (cdu);
 		uae_sem_destroy (&cdu->sub_sem);
 	}
-	blkdev_cd_change (unitnum, currprefs.cdslots[unitnum].name);
+	blkdev_cd_change (unitnum, cdu->imgname);
 }
 
 static void close_bus (void)

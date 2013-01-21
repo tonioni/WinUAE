@@ -199,6 +199,7 @@ struct ide_hdf
 	int ide_drv;
 
 	bool atapi;
+	bool atapi_drdy;
 	int cd_unit_num;
 	int packet_cnt;
 	int packet_data_size;
@@ -280,10 +281,8 @@ static uae_u8 checkgayleideirq (void)
 	if (!idedrive)
 		return 0;
 	for (i = 0; i < 2; i++) {
-		if (idedrive[i]->ide_drv == i) {
-			if (!(idedrive[i]->regs.ide_devcon & 2) && (idedrive[i]->irq || idedrive[i + 2]->irq))
-				irq = true;
-		}
+		if (!(idedrive[i]->regs.ide_devcon & 2) && (idedrive[i]->irq || idedrive[i + 2]->irq))
+			irq = true;
 		/* IDE killer feature. Do not eat interrupt to make booting faster. */
 		if (idedrive[i]->irq && !isdrive (idedrive[i]))
 			idedrive[i]->irq = 0;
@@ -551,22 +550,35 @@ static void ide_identify_drive (void)
 	}
 }
 
-static void ide_execute_drive_diagnostics (bool irq)
+static void set_signature (struct ide_hdf *ide)
 {
-	ide->regs.ide_error = 0x01; // device ok
 	if (ide->atapi) {
-		ide->regs.ide_nsector = 1;
 		ide->regs.ide_sector = 1;
+		ide->regs.ide_nsector = 1;
 		ide->regs.ide_lcyl = 0x14;
 		ide->regs.ide_hcyl = 0xeb;
-		ide->regs.ide_status = IDE_STATUS_BSY;
+		ide->regs.ide_status = 0;
+		ide->atapi_drdy = false;
 	} else {
 		ide->regs.ide_nsector = 1;
 		ide->regs.ide_sector = 1;
 		ide->regs.ide_lcyl = 0;
 		ide->regs.ide_hcyl = 0;
-		ide->regs.ide_status = IDE_STATUS_BSY | IDE_STATUS_DRDY;
+		ide->regs.ide_status = 0;
 	}
+	ide->regs.ide_error = 0x01; // device ok
+}
+
+static void reset_device (bool both)
+{
+	set_signature (ide);
+	if (both)
+		set_signature (ide->pair);
+}
+
+static void ide_execute_drive_diagnostics (bool irq)
+{
+	reset_device (irq);
 	if (irq)
 		ide_interrupt ();
 	else
@@ -779,7 +791,8 @@ static void atapi_packet (void)
 		ide->data_size = 65534;
 	ide->packet_data_size = (ide->data_size + 1) & ~1;
 	ide->data_size = 12;
-	write_log (_T("ATAPI packet command\n"));
+	if (IDE_LOG > 1)
+		write_log (_T("ATAPI packet command\n"));
 	ide->packet_cnt = 1;
 	ide->data_multi = 1;
 	ide->data_offset = 0;
@@ -799,14 +812,18 @@ static void ide_do_command (uae_u8 cmd)
 
 	if (ide->atapi) {
 
+		ide->atapi_drdy = true;
 		if (cmd == 0x08) { /* device reset */
 			ide_execute_drive_diagnostics (true);
 		} else if (cmd == 0xa1) { /* identify packet device */
 			ide_identify_drive ();
 		} else if (cmd == 0xa0) { /* packet */
 			atapi_packet ();
+		} else if (cmd == 0x90) { /* execute drive diagnostics */
+			ide_execute_drive_diagnostics (true);
 		} else {
 			ide_execute_drive_diagnostics (false);
+			ide->atapi_drdy = false;
 			ide_fail ();
 			write_log (_T("IDE%d: unknown ATAPI command 0x%02x\n"), ide->num, cmd);
 		}
@@ -1065,7 +1082,7 @@ static int get_gayle_ide_reg (uaecptr addr)
 			addr &= ~0x400;
 		}
 	}
-	ide = idedrive[ide2 + (ide->ide_drv ? 1 : 0)];
+	ide = idedrive[ide2 + idedrive[ide2]->ide_drv];
 	return addr;
 }
 
@@ -1077,7 +1094,7 @@ static uae_u32 ide_read_reg (int ide_reg)
 	if (ide->regs.ide_status & IDE_STATUS_BSY)
 		ide_reg = IDE_STATUS;
 	if (!isdrive (ide)) {
-		v = 0;
+		v = 0xff;
 		goto end;
 	}
 
@@ -1137,52 +1154,68 @@ static uae_u32 ide_read_reg (int ide_reg)
 				v |= IDE_STATUS_ERR;
 		} else {
 			v = ide->regs.ide_status;
-			if (!ide->atapi)
+			if (!ide->atapi || (ide->atapi && ide->atapi_drdy))
 				v |= IDE_STATUS_DRDY | IDE_STATUS_DSC;
 		}
 		break;
 	}
 end:
 	if (IDE_LOG > 2 && ide_reg > 0 && (1 || ide->num > 0))
-		write_log (_T("IDE%d GET register %d->%02X\n"), ide->num, ide_reg, (uae_u32)v & 0xff);
+		write_log (_T("IDE%d GET register %d->%02X (%08X)\n"), ide->num, ide_reg, (uae_u32)v & 0xff, m68k_getpc ());
 	return v;
 }
 
 static void ide_write_reg (int ide_reg, uae_u32 val)
 {
-	ide->regs.ide_devcon &= ~0x80; /* clear HOB */
+	ide->regs1->ide_devcon &= ~0x80; /* clear HOB */
+	ide->regs0->ide_devcon &= ~0x80; /* clear HOB */
 	if (IDE_LOG > 2 && ide_reg > 0 && (1 || ide->num > 0))
-		write_log (_T("IDE%d PUT register %d=%02X\n"), ide->num, ide_reg, (uae_u32)val & 0xff);
+		write_log (_T("IDE%d PUT register %d=%02X (%08X)\n"), ide->num, ide_reg, (uae_u32)val & 0xff, m68k_getpc ());
+
 	switch (ide_reg)
 	{
 	case IDE_DRVADDR:
 		break;
 	case IDE_DEVCON:
-		if ((ide->regs.ide_devcon & 4) == 0 && (val & 4) != 0)
-			ide_execute_drive_diagnostics (false);
-		ide->regs.ide_devcon = val;
+		if ((ide->regs.ide_devcon & 4) == 0 && (val & 4) != 0) {
+			reset_device (true);
+			if (IDE_LOG > 1)
+				write_log (_T("IDE%d: SRST\n"), ide->num);
+		}
+		ide->regs0->ide_devcon = val;
+		ide->regs1->ide_devcon = val;
 		break;
 	case IDE_DATA:
 		break;
 	case IDE_ERROR:
-		ide->regs.ide_feat2 = ide->regs.ide_feat;
-		ide->regs.ide_feat = val;
+		ide->regs0->ide_feat2 = ide->regs0->ide_feat;
+		ide->regs0->ide_feat = val;
+		ide->regs1->ide_feat2 = ide->regs1->ide_feat;
+		ide->regs1->ide_feat = val;
 		break;
 	case IDE_NSECTOR:
-		ide->regs.ide_nsector2 = ide->regs.ide_nsector;
-		ide->regs.ide_nsector = val;
+		ide->regs0->ide_nsector2 = ide->regs0->ide_nsector;
+		ide->regs0->ide_nsector = val;
+		ide->regs1->ide_nsector2 = ide->regs1->ide_nsector;
+		ide->regs1->ide_nsector = val;
 		break;
 	case IDE_SECTOR:
-		ide->regs.ide_sector2 = ide->regs.ide_sector;
-		ide->regs.ide_sector = val;
+		ide->regs0->ide_sector2 = ide->regs0->ide_sector;
+		ide->regs0->ide_sector = val;
+		ide->regs1->ide_sector2 = ide->regs1->ide_sector;
+		ide->regs1->ide_sector = val;
 		break;
 	case IDE_LCYL:
-		ide->regs.ide_lcyl2 = ide->regs.ide_lcyl;
-		ide->regs.ide_lcyl = val;
+		ide->regs0->ide_lcyl2 = ide->regs0->ide_lcyl;
+		ide->regs0->ide_lcyl = val;
+		ide->regs1->ide_lcyl2 = ide->regs1->ide_lcyl;
+		ide->regs1->ide_lcyl = val;
 		break;
 	case IDE_HCYL:
-		ide->regs.ide_hcyl2 = ide->regs.ide_hcyl;
-		ide->regs.ide_hcyl = val;
+		ide->regs0->ide_hcyl2 = ide->regs0->ide_hcyl;
+		ide->regs0->ide_hcyl = val;
+		ide->regs1->ide_hcyl2 = ide->regs1->ide_hcyl;
+		ide->regs1->ide_hcyl = val;
 		break;
 	case IDE_SELECT:
 		ide->regs0->ide_select = val;
@@ -2511,13 +2544,13 @@ static void initide (void)
 		ide->regs0 = &ide->regs;
 		ide->regs1 = &idedrive[i * 2 + 1]->regs;
 		ide->pair = idedrive[i * 2 + 1];
-		ide_execute_drive_diagnostics (false);
 
 		ide = idedrive[i * 2 + 1];
 		ide->regs1 = &ide->regs;
 		ide->regs0 = &idedrive[i * 2 + 0]->regs;
 		ide->pair = idedrive[i * 2 + 0];
-		ide_execute_drive_diagnostics (false);
+
+		reset_device (true);
 	}
 	ide_splitter = 0;
 	if (isdrive (idedrive[2]) || isdrive(idedrive[3])) {

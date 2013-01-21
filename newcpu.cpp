@@ -4989,8 +4989,8 @@ static void disasm_size (TCHAR *instrname, struct instr *dp)
 
 void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cnt, uae_u32 *seaddr, uae_u32 *deaddr, int safemode)
 {
-	uae_u32 seaddr2 = 0;
-	uae_u32 deaddr2 = 0;
+	uae_u32 seaddr2;
+	uae_u32 deaddr2;
 
 	if (buf)
 		memset (buf, 0, bufsize * sizeof (TCHAR));
@@ -5006,6 +5006,7 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 		uaecptr m68kpc_illg = 0;
 		bool illegal = false;
 
+		seaddr2 = deaddr2 = 0;
 		oldpc = pc;
 		opcode = get_word_debug (pc);
 		if (cpufunctbl[opcode] == op_illg_1 || cpufunctbl[opcode] == op_unimpl_1) {

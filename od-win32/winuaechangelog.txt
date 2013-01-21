@@ -1,6 +1,13 @@
 
 - restore only single input target to default.
 
+Beta 3:
+
+- Programmed display modes disable normal DMA start/end display limits. (NetBSD AGA console screen)
+- ATAPI CD emulation compatibility improved, should fix detection problems.
+- IDE HD emulation returned corrupt data if 2 drives enabled at the same time (b2).
+- CD image mounter crashed if CD image selection was empty. (b2)
+
 Beta 2:
 
 - 030/040/060 MMU TAS and CAS/CAS2 Read-Modify-Write cycle special handling emulated, RMW read access

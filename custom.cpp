@@ -639,8 +639,9 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 }
 
 /* The HRM says 0xD8, but that can't work... */
-#define HARD_DDF_STOP 0xd4
-#define HARD_DDF_START 0x18
+#define HARD_DDF_STOP ((beamcon0 & 0x80) ? 0xff : 0xd4)
+#define HARD_DDF_START_REAL 0x18
+#define HARD_DDF_START ((beamcon0 & 0x80) ? 0x10 : 0x18)
 
 static void add_modulos (void)
 {
@@ -839,7 +840,7 @@ static int delayoffset;
 
 STATIC_INLINE void compute_delay_offset (void)
 {
-	delayoffset = (16 << fetchmode) - (((plfstrt - HARD_DDF_START) & fetchstart_mask) << 1);
+	delayoffset = (16 << fetchmode) - (((plfstrt - HARD_DDF_START_REAL) & fetchstart_mask) << 1);
 #if 0
 	/* maybe we can finally get rid of this stupid table.. */
 	if (tmp == 4)

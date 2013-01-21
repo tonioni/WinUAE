@@ -86,6 +86,8 @@ uae_u8  mmu030_get_byte(uaecptr addr, uae_u32 fc);
 uae_u32 uae_mmu030_get_rmw(uaecptr addr, int size);
 void uae_mmu030_put_rmw(uaecptr addr, uae_u32 val, int size);
 
+uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int accesssize, int flags);
+
 extern uae_u16 REGPARAM3 mmu030_get_word_unaligned(uaecptr addr, uae_u32 fc, int flags) REGPARAM;
 extern uae_u32 REGPARAM3 mmu030_get_long_unaligned(uaecptr addr, uae_u32 fc, int flags) REGPARAM;
 extern uae_u16 REGPARAM3 mmu030_get_rmw_word_unaligned(uaecptr addr, uae_u32 fc, int flags) REGPARAM;
