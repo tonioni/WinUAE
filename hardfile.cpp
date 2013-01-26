@@ -1129,7 +1129,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x25; /* INVALID LUN */
-		ls = 12;
+		ls = 0x12;
 		goto err;
 	}
 	switch (cmdbuf[0])

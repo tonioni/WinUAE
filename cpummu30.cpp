@@ -341,7 +341,7 @@ void mmu_op30_pload (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
     
     bool write = rw ? false : true;
 
-#if MMU030_OP_DBG_MSG
+#if 0
     write_log (_T("PLOAD%c: Create ATC entry for %08X, FC = %i\n"), write?'W':'R', extra, fc);
 #endif
 
@@ -355,7 +355,7 @@ void mmu_op30_pflush (uaecptr pc, uae_u32 opcode, uae_u16 next, uaecptr extra)
     uae_u32 fc_mask = (uae_u32)(next&0x00E0)>>5;
     uae_u32 fc_base = mmu_op30_helper_get_fc(next);
     
-#if MMU030_OP_DBG_MSG
+#if 0
     switch (mode) {
         case 0x1:
             write_log(_T("PFLUSH: Flush all entries\n"));
@@ -400,9 +400,9 @@ uae_u32 mmu_op30_helper_get_fc(uae_u16 next) {
             return (m68k_dreg(regs, next&0x7)&0x7);
         case 0x0000:
             if (next&1) {
-                return (regs.dfc&0x7);
+                return (regs.dfc);
             } else {
-                return (regs.sfc&0x7);
+                return (regs.sfc);
             }
         default:
             write_log(_T("MMU_OP30 ERROR: bad fc source! (%04X)\n"),next&0x0018);
@@ -431,6 +431,7 @@ void mmu030_flush_atc_fc(uae_u32 fc_base, uae_u32 fc_mask) {
  * and their function code */
 void mmu030_flush_atc_page_fc(uaecptr logical_addr, uae_u32 fc_base, uae_u32 fc_mask) {
     int i;
+	logical_addr &= mmu030.translation.page.imask;
     for (i=0; i<ATC030_NUM_ENTRIES; i++) {
         if (((fc_base&fc_mask)==(mmu030.atc[i].logical.fc&fc_mask)) &&
             (mmu030.atc[i].logical.addr == logical_addr) &&
@@ -446,6 +447,7 @@ void mmu030_flush_atc_page_fc(uaecptr logical_addr, uae_u32 fc_base, uae_u32 fc_
 /* This function flushes ATC entries depending on their logical address */
 void mmu030_flush_atc_page(uaecptr logical_addr) {
     int i;
+	logical_addr &= mmu030.translation.page.imask;
     for (i=0; i<ATC030_NUM_ENTRIES; i++) {
         if ((mmu030.atc[i].logical.addr == logical_addr) &&
             mmu030.atc[i].logical.valid) {
@@ -584,15 +586,15 @@ int mmu030_match_ttr_access(uaecptr addr, uae_u32 fc, bool write)
     return (tt0|tt1) & TT_OK_MATCH;
 }
 
-/* Read-Modify-Write */
-int mmu030_match_rmw_ttr_access(uaecptr addr, uae_u32 fc)
+/* Locked Read-Modify-Write */
+int mmu030_match_lrmw_ttr_access(uaecptr addr, uae_u32 fc)
 {
     int tt0, tt1;
 
  	if (!tt_enabled)
 		return 0;
-    tt0 = mmu030_do_match_rmw_ttr(tt0_030, mmu030.transparent.tt0, addr, fc);
-    tt1 = mmu030_do_match_rmw_ttr(tt1_030, mmu030.transparent.tt1, addr, fc);
+    tt0 = mmu030_do_match_lrmw_ttr(tt0_030, mmu030.transparent.tt0, addr, fc);
+    tt1 = mmu030_do_match_lrmw_ttr(tt1_030, mmu030.transparent.tt1, addr, fc);
     return (tt0|tt1) & TT_OK_MATCH;
 }
 
@@ -628,7 +630,7 @@ int mmu030_do_match_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc, bool
 	return TT_NO_MATCH;
 }
 
-int mmu030_do_match_rmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
+int mmu030_do_match_lrmw_ttr(uae_u32 tt, TT_info comp, uaecptr addr, uae_u32 fc)
 {
 	if ((tt & TT_ENABLE) && (tt & TT_RWM))	{	/* transparent translation enabled */
         
@@ -1425,6 +1427,11 @@ uae_u32 mmu030_table_search(uaecptr addr, uae_u32 fc, bool write, int level) {
         write_log(_T("ATC is full. Replacing entry %i\n"), i);
 #endif
 	}
+	if (i >= ATC030_NUM_ENTRIES) {
+		i = 0;
+		write_log (_T("ATC entry not found!!!\n"));
+	}
+
     mmu030_atc_handle_history_bit(i);
     
     /* Create ATC entry */
@@ -1560,8 +1567,9 @@ static void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc) {
     bBusErrorReadWrite = read; 
 	mm030_stageb_address = addr;
 #if 1
-	write_log(_T("MMU: page fault (logical addr=%08X SSW=%04x read=%d size=%d fc=%d pc=%08x)\n"),
-		addr, regs.mmu_ssw, read, (flags & MMU030_SSW_SIZE_B) ? 1 : (flags & MMU030_SSW_SIZE_W) ? 2 : 4, fc, regs.instruction_pc);
+	write_log(_T("MMU: page fault (logical addr=%08X SSW=%04x read=%d size=%d fc=%d pc=%08x ob=%08x ins=%04X)\n"),
+		addr, regs.mmu_ssw, read, (flags & MMU030_SSW_SIZE_B) ? 1 : (flags & MMU030_SSW_SIZE_W) ? 2 : 4, fc,
+		regs.instruction_pc, (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) ? mmu030_data_buffer : mmu030_ad[mmu030_idx].val, mmu030_opcode & 0xffff);
 #endif
 	
 //	extern void activate_debugger(void);
@@ -1929,10 +1937,10 @@ void mmu030_put_generic(uaecptr addr, uae_u32 val, uae_u32 fc, int size, int acc
         mmu030_put_atc_generic(addr, val, atc_line_num, fc, size, flags);
     }
 }
-static uae_u32 mmu030_get_generic_rmw(uaecptr addr, uae_u32 fc, int size, int accesssize, int flags) {
+static uae_u32 mmu030_get_generic_lrmw(uaecptr addr, uae_u32 fc, int size, int accesssize, int flags) {
     
 	//                                        addr,super,write
-	if ((!mmu030.enabled) || (mmu030_match_rmw_ttr_access(addr,fc)) || (fc==7)) {
+	if ((!mmu030.enabled) || (mmu030_match_lrmw_ttr_access(addr,fc)) || (fc==7)) {
 		if (size == sz_byte)
 			return phys_get_byte(addr);
 		else if (size == sz_word)
@@ -1955,7 +1963,7 @@ static uae_u32 mmu030_get_generic_rmw(uaecptr addr, uae_u32 fc, int size, int ac
 }
 uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int accesssize, int flags) {
 	if (flags & MMU030_SSW_RM) {
-		return mmu030_get_generic_rmw(addr, fc, size, accesssize, flags);
+		return mmu030_get_generic_lrmw(addr, fc, size, accesssize, flags);
 	}
 	//                                        addr,super,write
 	if ((!mmu030.enabled) || (mmu030_match_ttr_access(addr,fc,false)) || (fc==7)) {
@@ -1981,8 +1989,8 @@ uae_u32 mmu030_get_generic(uaecptr addr, uae_u32 fc, int size, int accesssize, i
 }
 
 
-/* RMW is rarely used */
-uae_u32 uae_mmu030_get_rmw(uaecptr addr, int size)
+/* Locked RMW is rarely used */
+uae_u32 uae_mmu030_get_lrmw(uaecptr addr, int size)
 {
     uae_u32 fc = (regs.s ? 4 : 0) | 1;
 	if (size == sz_byte) {
@@ -1999,7 +2007,7 @@ uae_u32 uae_mmu030_get_rmw(uaecptr addr, int size)
 			return mmu030_get_generic(addr, fc, size, size, MMU030_SSW_RM);
 	}
 }
-void uae_mmu030_put_rmw(uaecptr addr, uae_u32 val, int size)
+void uae_mmu030_put_lrmw(uaecptr addr, uae_u32 val, int size)
 {
     uae_u32 fc = (regs.s ? 4 : 0) | 1;
 	if (size == sz_byte) {
@@ -2189,6 +2197,7 @@ void m68k_do_rte_mmu030 (uaecptr a7)
 				mmu030_retry = false;
 			} else if (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) {
 				// if movem, skip next move
+				mmu030_data_buffer = get_long_mmu030 (a7 + 0x2c);
 				mmu030_state[1] |= MMU030_STATEFLAG1_MOVEM2;
 			} else {
 				mmu030_ad[idxsize].done = true;

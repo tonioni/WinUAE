@@ -4722,6 +4722,7 @@ extern int inputdevice_logging;
 extern int vsync_modechangetimeout;
 extern int forcedframelatency;
 extern int tablet_log;
+extern int log_blitter;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5030,6 +5031,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("tabletlog"))) {
 		tablet_log = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("blitterdebug"))) {
+		log_blitter = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("inputlog"))) {

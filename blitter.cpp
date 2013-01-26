@@ -7,11 +7,6 @@
 * (c) 2002 - 2005 Toni Wilen
 */
 
-//#define BLITTER_DEBUG_NOWAIT
-//#define BLITTER_DEBUG
-//#define BLITTER_DEBUG_NO_D
-//#define BLITTER_INSTANT
-
 #define SPEEDUP
 
 #include "sysconfig.h"
@@ -27,6 +22,17 @@
 #include "blit.h"
 #include "savestate.h"
 #include "debug.h"
+
+// 1 = logging
+// 2 = no wait detection
+// 4 = no D
+// 8 = instant
+
+#ifdef BLITTER_DEBUG
+int log_blitter = 1;
+#else
+int log_blitter = 0;
+#endif
 
 /* we must not change ce-mode while blitter is running.. */
 static int blitter_cycle_exact;
@@ -46,10 +52,8 @@ static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
 static int blit_ch;
 
-#ifdef BLITTER_DEBUG
 static int blitter_dontdo;
 static int blitter_delayed_debug;
-#endif
 #ifdef BLITTER_SLOWDOWNDEBUG
 static int blitter_slowdowndebug;
 #endif
@@ -347,19 +351,18 @@ static void blitter_done (int hpos)
 		record_dma_event (DMA_EVENT_BLITFINISHED, hpos, vpos);
 	event2_remevent (ev2_blitter);
 	unset_special (SPCFLAG_BLTNASTY);
-#ifdef BLITTER_DEBUG
-	write_log (_T("cycles %d, missed %d, total %d\n"),
-		blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
-#endif
+	if (log_blitter)
+		write_log (_T("cycles %d, missed %d, total %d\n"),
+			blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
 }
 
 STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 {
 	last_custom_value1 = w;
-#ifndef BLITTER_DEBUG_NO_D
-	chipmem_wput_indirect (addr, w);
-	debug_wputpeekdma (addr, w);
-#endif
+	if (!(log_blitter & 4)) {
+		chipmem_wput_indirect (addr, w);
+		debug_wputpeekdma (addr, w);
+	}
 }
 
 static void blitter_dofast (void)
@@ -791,14 +794,14 @@ static void actually_do_blit (void)
 
 static void blitter_doit (void)
 {
-	#ifdef BLITTER_DEBUG
-	if (!blitter_dontdo)
+	if (log_blitter) {
+		if (!blitter_dontdo)
+			actually_do_blit ();
+		else
+			bltstate = BLT_done;
+	} else {
 		actually_do_blit ();
-	else
-		bltstate = BLT_done;
-#else
-	actually_do_blit ();
-#endif
+	}
 	blitter_done (current_hpos ());
 }
 
@@ -1022,12 +1025,12 @@ void decide_blitter (int hpos)
 
 	if (bltstate == BLT_done)
 		return;
-#ifdef BLITTER_DEBUG
-	if (blitter_delayed_debug) {
+
+	if (log_blitter && blitter_delayed_debug) {
 		blitter_delayed_debug = 0;
 		blitter_dump ();
 	}
-#endif
+
 	if (!blitter_cycle_exact)
 		return;
 
@@ -1224,9 +1227,8 @@ static void blit_bltset (int con)
 			blit_frozen = 1;
 			write_log (_T("BLITTER: frozen! %d (%d) -> %d (%d) %08X\n"), original_ch, iseo, blit_ch, isen, M68K_GETPC);
 		} else if (!iseo && isen) {
-#ifdef BLITTER_DEBUG_NOWAIT
-			write_log (_T("BLITTER: on the fly %d (%d) -> %d (%d) switch\n"), original_ch, iseo, blit_ch, isen);
-#endif
+			if (log_blitter & 2) 
+				write_log (_T("BLITTER: on the fly %d (%d) -> %d (%d) switch\n"), original_ch, iseo, blit_ch, isen);
 		}
 	}
 
@@ -1314,14 +1316,15 @@ static void do_blitter2 (int hpos, int copper)
 	int cycles;
 	int cleanstart;
 
-#ifdef BLITTER_DEBUG_NOWAIT
-	if (bltstate != BLT_done) {
-		if (blit_final) {
-			write_log (_T("blitter was already active! PC=%08x\n"), M68K_GETPC);
-			//activate_debugger();
+	if ((log_blitter & 2)) {
+		if (bltstate != BLT_done) {
+			if (blit_final) {
+				write_log (_T("blitter was already active! PC=%08x\n"), M68K_GETPC);
+				//activate_debugger();
+			}
 		}
 	}
-#endif
+
 	cleanstart = 0;
 	if (bltstate == BLT_done) {
 		if (blit_faulty > 0)
@@ -1369,25 +1372,25 @@ static void do_blitter2 (int hpos, int copper)
 		original_line = blitline;
 	}
 
-#ifdef BLITTER_DEBUG
-	blitter_dontdo = 0;
-	if (1) {
-		int ch = 0;
-		if (blit_ch & 1)
-			ch++;
-		if (blit_ch & 2)
-			ch++;
-		if (blit_ch & 4)
-			ch++;
-		if (blit_ch & 8)
-			ch++;
-		write_log (_T("blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X %s\n"),
-			blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
-			blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline,
-			dmacon, ((dmacon & (DMA_MASTER | DMA_BLITTER)) == (DMA_MASTER | DMA_BLITTER)) ? _T("") : _T(" off!"));
-		blitter_dump ();
+	if (log_blitter) {
+		blitter_dontdo = 0;
+		if (1) {
+			int ch = 0;
+			if (blit_ch & 1)
+				ch++;
+			if (blit_ch & 2)
+				ch++;
+			if (blit_ch & 4)
+				ch++;
+			if (blit_ch & 8)
+				ch++;
+			write_log (_T("blitstart: %dx%d ch=%d %d*%d=%d d=%d f=%02X n=%d pc=%p l=%d dma=%04X %s\n"),
+				blt_info.hblitsize, blt_info.vblitsize, ch, blit_diag[0], cycles, blit_diag[0] * cycles,
+				blitdesc ? 1 : 0, blitfill, dmaen (DMA_BLITPRI) ? 1 : 0, M68K_GETPC, blitline,
+				dmacon, ((dmacon & (DMA_MASTER | DMA_BLITTER)) == (DMA_MASTER | DMA_BLITTER)) ? _T("") : _T(" off!"));
+			blitter_dump ();
+		}
 	}
-#endif
 
 	bltstate = BLT_init;
 	blit_slowdown = 0;
@@ -1412,18 +1415,18 @@ static void do_blitter2 (int hpos, int copper)
 
 	blit_maxcyclecounter = 0x7fffffff;
 	if (blitter_cycle_exact) {
-#ifdef BLITTER_INSTANT
-		blitter_handler (0);
-#else
-		blitter_hcounter1 = blitter_hcounter2 = 0;
-		blitter_vcounter1 = blitter_vcounter2 = 0;
-		if (blit_nod)
-			blitter_vcounter2 = blt_info.vblitsize;
-		blit_cyclecounter = -BLITTER_STARTUP_CYCLES;
-		blit_waitcyclecounter = copper;
-		blit_startcycles = 0;
-		blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize + 2;
-#endif
+		if (log_blitter & 8) {
+			blitter_handler (0);
+		} else {
+			blitter_hcounter1 = blitter_hcounter2 = 0;
+			blitter_vcounter1 = blitter_vcounter2 = 0;
+			if (blit_nod)
+				blitter_vcounter2 = blt_info.vblitsize;
+			blit_cyclecounter = -BLITTER_STARTUP_CYCLES;
+			blit_waitcyclecounter = copper;
+			blit_startcycles = 0;
+			blit_maxcyclecounter = blt_info.hblitsize * blt_info.vblitsize + 2;
+		}
 		return;
 	}
 
@@ -1512,15 +1515,14 @@ void maybe_blit (int hpos, int hack)
 		warned--;
 		debugtest (DEBUGTEST_BLITTER, _T("program does not wait for blitter tc=%d\n"),
 			blit_cyclecounter);
-#ifdef BLITTER_DEBUG
-		warned = 0;
-#endif
-#ifdef BLITTER_DEBUG_NOWAIT
-		warned = 10;
-		write_log (_T("program does not wait for blitter PC=%08x\n"), M68K_GETPC);
-		//activate_debugger ();
-		//blitter_done (hpos);
-#endif
+		if (log_blitter)
+			warned = 0;
+		if (log_blitter & 2) {
+			warned = 10;
+			write_log (_T("program does not wait for blitter PC=%08x\n"), M68K_GETPC);
+			//activate_debugger ();
+			//blitter_done (hpos);
+		}
 	}
 
 	if (blitter_cycle_exact) {
@@ -1533,9 +1535,8 @@ void maybe_blit (int hpos, int hack)
 
 	blitter_handler (0);
 end:;
-#ifdef BLITTER_DEBUG
-	blitter_delayed_debug = 1;
-#endif
+	if (log_blitter)
+		blitter_delayed_debug = 1;
 }
 
 int blitnasty (void)

@@ -2228,7 +2228,9 @@ uae_u16 debug_wputpeekdma (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
 		return v;
-	memwatch_func (addr, 2, 2, &v);
+	if (!currprefs.z3chipmem_size)
+		addr &= chipmem_mask;
+	memwatch_func (addr & chipmem_mask, 2, 2, &v);
 	return v;
 }
 uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
@@ -2236,6 +2238,8 @@ uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
 		return v;
+	if (!currprefs.z3chipmem_size)
+		addr &= chipmem_mask;
 	memwatch_func (addr, 1, 2, &vv);
 	return vv;
 }
@@ -3681,10 +3685,12 @@ static BOOL debug_line (TCHAR *input)
 					regs = history[temp];
 					if (history[temp].pc == addr || addr == 0) {
 						m68k_setpc (history[temp].pc);
-						if (badly)
+						if (badly) {
 							m68k_dumpstate (NULL);
-						else
+						} else {
+							console_out_f(_T("%d "), history[temp].s);
 							m68k_disasm (history[temp].pc, NULL, 1);
+						}
 						if (addr && history[temp].pc == addr)
 							break;
 					}

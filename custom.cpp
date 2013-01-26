@@ -249,6 +249,7 @@ uae_u8 cycle_line[256];
 
 static uae_u16 bplxdat[8];
 static bool bpl1dat_written, bpl1dat_early, bpl1dat_written_at_least_once;
+static bool bpldmawasactive;
 static uae_s16 bpl1mod, bpl2mod;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
@@ -384,7 +385,8 @@ enum plfstate
 	plf_active,
 	plf_passed_stop,
 	plf_passed_stop2,
-	plf_end
+	plf_end,
+	plf_finished
 } plf_state;
 
 enum fetchstate {
@@ -1578,18 +1580,27 @@ static void do_long_fetch (int hpos, int nwords, int dma, int fm)
 #endif
 
 /* make sure fetch that goes beyond maxhpos is finished */
-static void finish_final_fetch (int pos, int fm)
+static void finish_final_fetch (int fm)
+{
+	int pos = maxhpos;
+	if (plf_state != plf_end)
+		return;
+	pos += flush_plane_data (fm);
+	thisline_decision.plfright = pos;
+	thisline_decision.plflinelen = out_offs;
+	finish_playfield_line ();
+}
+
+static void finish_last_fetch (int pos, int fm)
 {
 	if (thisline_decision.plfleft < 0)
 		return;
 	if (plf_state == plf_end)
 		return;
+	pos += flush_plane_data (fm);
 	plf_state = plf_end;
 	ddfstate = DIW_waiting_start;
-	pos += flush_plane_data (fm);
-	thisline_decision.plfright = pos;
-	thisline_decision.plflinelen = out_offs;
-	finish_playfield_line ();
+	fetch_state = fetch_not_started;
 }
 
 STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
@@ -1599,7 +1610,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 
 	if ((fetch_cycle & fetchunit_mask) == 0) {
 		if (plf_state == plf_passed_stop2) {
-			finish_final_fetch (pos, fm);
+			finish_last_fetch (pos, fm);
 			return 1;
 		}
 		if (plf_state == plf_passed_stop) {
@@ -1722,7 +1733,7 @@ static void update_fetch_x (int until, int fm)
 	}
 
 	if (until >= maxhpos) {
-		finish_final_fetch (pos, fm);
+		finish_last_fetch (pos, fm);
 		return;
 	}
 
@@ -1757,7 +1768,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	for (; ; pos++) {
 		if (pos == until) {
 			if (until >= maxhpos) {
-				finish_final_fetch (pos, fm);
+				finish_last_fetch (pos, fm);
 				return;
 			}
 			flush_display (fm);
@@ -1834,7 +1845,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 			return;
 	}
 	if (until >= maxhpos) {
-		finish_final_fetch (pos, fm);
+		finish_last_fetch (pos, fm);
 		return;
 	}
 	flush_display (fm);
@@ -1890,21 +1901,30 @@ static void start_bpl_dma (int hpos, int hstart)
 		}
 	}
 
-	plfstrt_sprite = plfstrt;
 	fetch_start (hpos);
-	fetch_cycle = 0;
-
 	ddfstate = DIW_waiting_stop;
-	compute_toscr_delay (last_fetch_hpos, bplcon1);
 
-	/* If someone already wrote BPL1DAT, clear the area between that point and
-	the real fetch start.  */
-	if (bpl1dat_written_at_least_once && hstart > last_fetch_hpos) {
-		update_fetch_x (hstart, fetchmode);
-		bpl1dat_written_at_least_once = false;
-	} else {
-		reset_bpl_vars ();
+	if (!bpldmawasactive) {
+
+		plfstrt_sprite = plfstrt;
+		fetch_cycle = 0;
+		compute_toscr_delay (last_fetch_hpos, bplcon1);
+		/* If someone already wrote BPL1DAT, clear the area between that point and
+		the real fetch start.  */
+		if (bpl1dat_written_at_least_once && hstart > last_fetch_hpos) {
+			update_fetch_x (hstart, fetchmode);
+			bpl1dat_written_at_least_once = false;
+		} else {
+			reset_bpl_vars ();
+		}
+		cycle_diagram_shift = hstart;
+
+		bpldmawasactive = true;
 	}
+
+	last_fetch_hpos = hstart;
+
+
 #if 0
 	if (!nodraw ()) {
 		if (thisline_decision.plfleft >= 0) {
@@ -1915,8 +1935,6 @@ static void start_bpl_dma (int hpos, int hstart)
 		update_toscr_planes ();
 	}
 #endif
-	last_fetch_hpos = hstart;
-	cycle_diagram_shift = hstart;
 }
 
 /* this may turn on datafetch if program turns dma on during the ddf */
@@ -1960,7 +1978,7 @@ STATIC_INLINE void decide_line (int hpos)
 	if (fetch_state == fetch_not_started && (diwstate == DIW_waiting_stop || (currprefs.chipset_mask & CSMASK_ECS_AGNUS))) {
 		int ok = 0;
 		if (last_decide_line_hpos < plfstrt_start && hpos >= plfstrt_start) {
-			if (plf_state == plf_idle)
+			if (plf_state == plf_idle || plf_state == plf_end)
 				plf_state = plf_start;
 		}
 		if (last_decide_line_hpos < plfstrt && hpos >= plfstrt) {
@@ -2605,6 +2623,7 @@ static void finish_decisions (void)
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch (hpos);
+	finish_final_fetch (fetchmode);
 
 	record_color_change2 (hsyncstartpos, 0xffff, 0);
 	if (thisline_decision.plfleft >= 0 && thisline_decision.plflinelen < 0) {
@@ -2739,6 +2758,7 @@ static void reset_decisions (void)
 	bpldmasetuphpos = -1;
 	bpldmasetupphase = 0;
 	ddfstrt_old_hpos = -1;
+	bpldmawasactive = false;
 
 	if (plf_state > plf_active)
 		plf_state = plf_idle;
@@ -3227,17 +3247,25 @@ static void calcdiw (void)
 	plfstop = ddfstop;
 	/* probably not the correct place.. should use plf_state instead */
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-		/* ECS/AGA and ddfstop > maxhpos == always-on display */
-		if (plfstop > maxhpos)
-			plfstrt = 0;
-		if (plfstrt < HARD_DDF_START)
-			plfstrt = HARD_DDF_START;
-		plfstrt_start = plfstrt - 4;
+		if (!bpldmawasactive) {
+			/* ECS/AGA and ddfstop > maxhpos == always-on display */
+			if (plfstop > maxhpos)
+				plfstrt = 0;
+			if (plfstrt < HARD_DDF_START)
+				plfstrt = HARD_DDF_START;
+			plfstrt_start = plfstrt - 4;
+		} else {
+			plfstrt_start = plfstrt - 4;
+		}
 	} else {
-		/* OCS and ddfstrt >= ddfstop == ddfstop = max */
-		if (plfstrt >= plfstop && plfstrt >= HARD_DDF_START)
-			plfstop = 0xff;
-		plfstrt_start = HARD_DDF_START - 2;
+		if (!bpldmawasactive) {
+			/* OCS and ddfstrt >= ddfstop == ddfstop = max */
+			if (plfstrt >= plfstop && plfstrt >= HARD_DDF_START)
+				plfstop = 0xff;
+			plfstrt_start = HARD_DDF_START_REAL - 2;
+		} else {
+			plfstrt_start = plfstrt - 4;
+		}
 	}
 	diw_change = 2;
 }
@@ -3490,7 +3518,7 @@ static void immediate_copper (int num)
 			pos = oldpos;
 		if (!dmaen(DMA_COPPER))
 			break;
-		if (cop_state.ip >= currprefs.chipmem_size)
+		if (cop_state.ip >= currprefs.chipmem_size && cop_state.ip < currprefs.z3chipmem_start && cop_state.ip >= currprefs.z3chipmem_start + currprefs.z3chipmem_size)
 			break;
 		pos++;
 		oldpos = pos;

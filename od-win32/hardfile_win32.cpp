@@ -517,13 +517,13 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 		i = _tcslen (name) - 1;
 		while (i >= 0) {
 			if ((i > 0 && (name[i - 1] == '/' || name[i - 1] == '\\')) || i == 0) {
-				_tcscpy (hfd->vendor_id, _T("UAE"));
 				_tcsncpy (hfd->product_id, name + i, 15);
-				_tcscpy (hfd->product_rev, _T("0.3"));
 				break;
 			}
 			i--;
 		}
+		_tcscpy (hfd->vendor_id, _T("UAE"));
+		_tcscpy (hfd->product_rev, _T("0.4"));
 		if (h != INVALID_HANDLE_VALUE) {
 			DWORD ret, low;
 			LONG high = 0;

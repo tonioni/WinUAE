@@ -1,6 +1,21 @@
 
 - restore only single input target to default.
 
+Beta 4:
+
+- Fixed 68030 MMU MOVEM to memory wrong bus error data output buffer value.
+- 68030 MMU FMOVEM didn't work if it caused bus fault.
+- 68060 MMU non-locked Read-Modify-Write bus error bits emulated.
+- SCSI emulation: reject >0 LUNs also when LUN is included with SCSI Identify Message.
+- IDE single drive setup should return zero when accessing non-existing slave drive's status register.
+- A2065 emulation initialization tweak, fixes NetBSD 1.0 hang.
+- CDFS didn't use CD led (FS)
+- Blitter logging/debugging command line option added (was compile time previously) -blitterdebug x
+  (1 = logging, 2 = writes to blitter register while already active logging, 4 = disable D channel, 8 = immediate blitter even in cycle-exact mode)
+- Support display setups that have two (or more) horizontal DDFSTRT/DDFSTOP regions.  Fixes Subtle Shades / Nuance "face" part.
+  (There is still some small glitches on left side of text part, later..)
+- Some remaining instant reset conditions replaced with halted state.
+
 Beta 3:
 
 - Programmed display modes disable normal DMA start/end display limits. (NetBSD AGA console screen)

@@ -163,7 +163,8 @@ struct regstruct
 	uae_u32 cacr, caar;
 	uae_u32 itt0, itt1, dtt0, dtt1;
 	uae_u32 tcr, mmusr, urp, srp, buscr;
-	uae_u32 mmu_fslw, mmu_fault_addr;
+	uae_u32 mmu_fslw;
+	uae_u32 mmu_fault_addr, mmu_effective_addr;
 	uae_u16 mmu_ssw;
 	uae_u32 wb3_data;
 	uae_u16 wb3_status;

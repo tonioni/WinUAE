@@ -427,7 +427,7 @@ static void do_transmit (void)
 	int i;
 	int size, outsize;
 	int err, add_fcs;
-	uae_u32 addr;
+	uae_u32 addr, bufaddr;
 	uae_u8 *p;
 	uae_u16 tmd0, tmd1, tmd2, tmd3;
 
@@ -436,7 +436,8 @@ static void do_transmit (void)
 	outsize = 0;
 
 	tdr_offset %= am_tdr_tlen;
-	p = boardram + ((am_tdr_tdra + tdr_offset * 8) & RAM_MASK);
+	bufaddr = am_tdr_tdra + tdr_offset * 8;
+	p = boardram + (bufaddr & RAM_MASK);
 	tmd1 = (p[3] << 8) | (p[2] << 0);
 	if (!(tmd1 & TX_OWN) || !(tmd1 & TX_STP)) {
 		tdr_offset++;
@@ -496,10 +497,10 @@ static void do_transmit (void)
 		if ((am_mode & MODE_DTCR) && !add_fcs)
 			outsize -= 4; // do not include checksum bytes
 		if (log_a2065 && log_transmit) {
-			write_log (_T("A2065->DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d\n"),
+			write_log (_T("A2065->DST:%02X.%02X.%02X.%02X.%02X.%02X SRC:%02X.%02X.%02X.%02X.%02X.%02X E=%04X S=%d ADDR=%04X\n"),
 				d[0], d[1], d[2], d[3], d[4], d[5],
 				d[6], d[7], d[8], d[9], d[10], d[11],
-				(d[12] << 8) | d[13], outsize);
+				(d[12] << 8) | d[13], outsize, bufaddr);
 		}
 		transmitlen = outsize;
 		if (mungepacket (d, transmitlen)) {
@@ -642,12 +643,16 @@ static void chip_wput (uaecptr addr, uae_u16 v)
 			csr[0] &= ~t;
 			csr[0] &= ~CSR0_ERR;
 
-			if ((csr[0] & (CSR0_STOP | CSR0_STRT | CSR0_INIT)) == (CSR0_STOP | CSR0_STRT | CSR0_INIT))
-				csr[0] &= ~(CSR0_STRT | CSR0_INIT);
-			if (csr[0] & CSR0_INIT)
-				csr[0] &= ~CSR0_STOP;
+			if ((csr[0] & CSR0_STOP) && !(oreg & CSR0_STOP)) {
 
-			if ((csr[0] & CSR0_STRT) && !(oreg & CSR0_STRT)) {
+				csr[0] = CSR0_STOP;
+				if (log_a2065)
+					write_log (_T("A2065: STOP.\n"));
+				csr[3] = 0;
+				am_initialized = 0;
+
+			} else if ((csr[0] & CSR0_STRT) && !(oreg & CSR0_STRT) && (oreg & CSR0_STOP)) {
+
 				csr[0] &= ~CSR0_STOP;
 				if (!(am_mode & MODE_DTX))
 					csr[0] |= CSR0_TXON;
@@ -655,22 +660,16 @@ static void chip_wput (uaecptr addr, uae_u16 v)
 					csr[0] |= CSR0_RXON;
 				if (log_a2065)
 					write_log (_T("A2065: START.\n"));
-			}
+			
+			} else if ((csr[0] & CSR0_INIT) && (oreg & CSR0_STOP) && !(oreg & CSR0_INIT)) {
 
-			if ((csr[0] & CSR0_STOP) && !(oreg & CSR0_STOP)) {
-				csr[0] = CSR0_STOP;
-				if (log_a2065)
-					write_log (_T("A2065: STOP.\n"));
-				csr[3] = 0;
-				am_initialized = 0;
-			}
-
-			if ((csr[0] & CSR0_INIT) && am_initialized == 0) {
 				if (log_a2065)
 					write_log (_T("A2065: INIT.\n"));
 				chip_init ();
 				csr[0] |= CSR0_IDON;
+				csr[0] &= ~(CSR0_RXON | CSR0_TXON | CSR0_STOP);
 				am_initialized = 1;
+
 			}
 
 			if ((csr[0] & CSR0_STRT) && am_initialized) {

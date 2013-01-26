@@ -421,14 +421,16 @@ static bool wd_do_transfer_out (void)
 	write_log (_T("%s SCSI O [%02X] %d/%d TC=%d %s\n"), WD33C93, wdregs[WD_COMMAND_PHASE], scsi->offset, scsi->data_len, gettc (), scsitostring ());
 #endif
 	if (wdregs[WD_COMMAND_PHASE] < 0x20) {
+		int msg = wd_data[0];
 		/* message was sent */
 		setphase (0x20);
 		wd_phase = CSR_XFER_DONE | PHS_COMMAND;
 		scsi->status = 0;
 		scsi_start_transfer (scsi);
 #if WD33C93_DEBUG > 0
-		write_log (_T("%s SCSI got MESSAGE %02X\n"), WD33C93, wd_data[0]);
+		write_log (_T("%s SCSI got MESSAGE %02X\n"), WD33C93, msg);
 #endif
+		scsi->message[0] = msg;
 	} else if (wdregs[WD_COMMAND_PHASE] == 0x30) {
 #if WD33C93_DEBUG > 0
 		write_log (_T("%s SCSI got COMMAND %02X\n"), WD33C93, wd_data[0]);
@@ -536,6 +538,7 @@ static void wd_cmd_sel_xfer (bool atn)
 		return;
 	}
 	if (!wd_selected) {
+		scsi->message[0] = 0x80;
 		wd_selected = true;
 		wdregs[WD_COMMAND_PHASE] = 0x10;
 	}
@@ -750,6 +753,7 @@ static void wd_cmd_sel (bool atn)
 	}
 	scsi_start_transfer (scsi);
 	wd_selected = true;
+	scsi->message[0] = 0x80;
 	set_status (CSR_SELECT, 2);
 	if (atn) {
 		set_status (CSR_SRV_REQ | PHS_MESS_OUT, 4);

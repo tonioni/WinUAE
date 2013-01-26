@@ -1119,7 +1119,7 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 {
 	int reg;
 	// 68030 MMU state saving is annoying!
-	if (currprefs.mmu_model) {
+	if (currprefs.mmu_model == 68030) {
 		int idx = 0;
 		if (incr < 0) {
 			for (reg = 7; reg >= 0; reg--) {
@@ -1207,11 +1207,11 @@ static uaecptr fmovem2mem (uaecptr ad, uae_u32 list, int incr)
 static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 {
 	int reg;
-	if (currprefs.mmu_model) {
+	if (currprefs.mmu_model == 68030) {
+		static uae_u32 wrd1, wrd2, wrd3;
 		int idx = 0;
 		if (incr < 0) {
 			for (reg = 7; reg >= 0; reg--) {
-				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
 					ad -= 4;
 					if (mmu030_state[0] == idx * 3 + 0) {
@@ -1227,15 +1227,14 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 					if (mmu030_state[0] == idx * 3 + 2) {
 						wrd1 = x_get_long (ad);
 						mmu030_state[0]++;
+						regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
 					}
-					regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
 					idx++;
 				}
 				list <<= 1;
 			}
 		} else {
 			for (reg = 0; reg <= 7; reg++) {
-				uae_u32 wrd1, wrd2, wrd3;
 				if (list & 0x80) {
 					if (mmu030_state[0] == idx * 3 + 0) {
 						wrd1 = x_get_long (ad);
@@ -1250,9 +1249,9 @@ static uaecptr fmovem2fpp (uaecptr ad, uae_u32 list, int incr)
 					if (mmu030_state[0] == idx * 3 + 2) {
 						wrd3 = x_get_long (ad);
 						mmu030_state[0]++;
+						regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
 					}
 					ad += 4;
-					regs.fp[reg] = to_exten(wrd1, wrd2, wrd3);
 					idx++;
 				}
 				list <<= 1;

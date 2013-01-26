@@ -1094,7 +1094,12 @@ static uae_u32 ide_read_reg (int ide_reg)
 	if (ide->regs.ide_status & IDE_STATUS_BSY)
 		ide_reg = IDE_STATUS;
 	if (!isdrive (ide)) {
-		v = 0xff;
+		if (ide_reg == IDE_STATUS && ide->pair->irq)
+			ide->pair->irq = 0;
+		if (isdrive (ide->pair))
+			v = 0x00;
+		else
+			v = 0xff;
 		goto end;
 	}
 

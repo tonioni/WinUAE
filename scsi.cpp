@@ -18,6 +18,7 @@
 static int outcmd[] = { 0x0a, 0x2a, 0x2f, 0xaa, -1 };
 static int incmd[] = { 0x03, 0x08, 0x12, 0x1a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, -1 };
 static int nonecmd[] = { 0x00, 0x1b, 0x1e, 0x35, -1 };
+static int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
 
 static int scsi_data_dir(struct scsi_data *sd)
 {
@@ -49,44 +50,46 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 	int cmd_len, data_len;
 
 	data_len = sd->data_len;
+	cmd_len = scsicmdsizes[sd->cmd[0] >> 5];
 	switch (sd->cmd[0])
 	{
 	case 0x0a:
-		cmd_len = 6;
 		data_len = sd->cmd[4] * sd->hfd->hfd.ci.blocksize;
 	break;
 	case 0x2a:
-		cmd_len = 10;
 		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
 	break;
 	case 0xaa:
-		cmd_len = 12;
 		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
 	break;
-
-	case 0x25:
-	case 0x28:
-	case 0x35:
-	case 0x51:
-	case 0x52:
-	case 0x43:
-		cmd_len = 10;
-		break;
-	case 0xa8:
-		cmd_len = 12;
-		break;
-	default:
-		cmd_len = 6;
-		break;
 	}
 	sd->cmd_len = cmd_len;
 	sd->data_len = data_len;
 	sd->direction = scsi_data_dir (sd);
 }
 
+void scsi_illegal_lun(struct scsi_data *sd)
+{
+	uae_u8 *s = sd->sense;
+
+	memset (s, 0, sizeof (sd->sense));
+	sd->status = 2; /* CHECK CONDITION */
+	s[0] = 0x70;
+	s[2] = 5; /* ILLEGAL REQUEST */
+	s[12] = 0x25; /* INVALID LUN */
+	sd->sense_len = 0x12;
+}
+
 void scsi_emulate_cmd(struct scsi_data *sd)
 {
 	sd->status = 0;
+	if ((sd->message[0] & 0xc0) == 0x80 && (sd->message[0] & 0x1f)) {
+		uae_u8 lun = sd->message[0] & 0x1f;
+		if (lun > 7)
+			lun = 7;
+		sd->cmd[1] &= ~(7 << 5);
+		sd->cmd[1] |= lun << 5;
+	}
 	//write_log (_T("CMD=%02x\n"), sd->cmd[0]);
 	if (sd->cd_emu_unit >= 0) {
 		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
