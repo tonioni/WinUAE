@@ -4,6 +4,7 @@
 
 #define MMUDEBUG 1
 #define MMUINSDEBUG 0
+#define MMUDEBUGMISC 0
 
 #ifdef _MSC_VER
 #define unlikely(x) x
@@ -108,10 +109,17 @@ typedef  int m68k_exception;
 #define ALWAYS_INLINE __inline
 
 // take care of 2 kinds of alignement, bus size and page
+#if 1
 static inline bool is_unaligned(uaecptr addr, int size)
 {
     return unlikely((addr & (size - 1)) && (addr ^ (addr + size - 1)) & regs.mmu_page_size);
 }
+#else
+static inline bool is_unaligned(uaecptr addr, int size)
+{
+    return (addr & (size - 1));
+}
+#endif
 
 static ALWAYS_INLINE void phys_put_long(uaecptr addr, uae_u32 l)
 {

@@ -6816,7 +6816,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 		cdname_amiga = uip[unit_no].devname_amiga;
 		uip[unit_no].devno = unit_no;
 		type = FILESYS_VIRTUAL;
-		gui_flicker_led (LED_CD, cd_unit_no, -1);
+		gui_flicker_led (LED_CD, cd_unit_no, 0);
 
 		write_log (_T("Mounting uaescsi.device %d: (%d)\n"), cd_unit_no, unit_no);
 		put_long (parmpacket + 0, cdname_amiga);
@@ -6847,7 +6847,7 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 
 	} else {
 
-		gui_flicker_led (LED_HD, unit_no, -1);
+		gui_flicker_led (LED_HD, unit_no, 0);
 		type = is_hardfile (unit_no);
 		if (type == FILESYS_HARDFILE_RDB || type == FILESYS_HARDDRIVE) {
 			/* RDB hardfile */

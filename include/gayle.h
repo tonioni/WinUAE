@@ -1,6 +1,7 @@
 
 extern void gayle_reset (int);
 extern void gayle_hsync (void);
+extern void gayle_free (void);
 extern int gayle_add_ide_unit (int ch, struct uaedev_config_info *ci);
 extern int gayle_modify_pcmcia_sram_unit (const TCHAR *path, int readonly, int insert);
 extern int gayle_modify_pcmcia_ide_unit (const TCHAR *path, int readonly, int insert);

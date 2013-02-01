@@ -28,6 +28,7 @@
 #include "ncr_scsi.h"
 #include "blkdev.h"
 #include "scsi.h"
+#include "threaddep/thread.h"
 
 #define PCMCIA_SRAM 1
 #define PCMCIA_IDE 2
@@ -225,6 +226,9 @@ static uae_u8 gayle_irq, gayle_int, gayle_cs, gayle_cs_mask, gayle_cfg;
 static int ide2, ide_splitter;
 
 static struct ide_hdf *ide;
+
+static smp_comm_pipe requests;
+static volatile int gayle_thread_running;
 
 STATIC_INLINE void pw (int offset, uae_u16 w)
 {
@@ -424,7 +428,6 @@ static uae_u8 read_gayle_cs (void)
 	v |= checkpcmciaideirq ();
 	return v;
 }
-
 
 static void ide_interrupt (void)
 {
@@ -782,6 +785,7 @@ static void ide_write_sectors (int flags)
 	ide->data_offset = 0;
 	ide->regs.ide_status |= IDE_STATUS_DRQ;
 	ide->data_size = nsec * ide->blocksize;
+	ide_interrupt ();
 }
 
 static void atapi_packet (void)
@@ -1233,8 +1237,13 @@ static void ide_write_reg (int ide_reg, uae_u32 val)
 		break;
 	case IDE_STATUS:
 		ide->irq = 0;
-		if (isdrive (ide))
+		if (isdrive (ide)) {
+			ide->regs.ide_status |= IDE_STATUS_BSY;
 			ide_do_command (val);
+		}
+#if 0
+		write_comm_pipe_u32 (&requests, (ide->num << 8) | val, 1);
+#endif
 		break;
 	}
 }
@@ -2537,9 +2546,27 @@ int gayle_modify_pcmcia_ide_unit (const TCHAR *path, int readonly, int insert)
 		return freepcmcia (0);
 }
 
+static void *ide_thread (void *null)
+{
+	for (;;) {
+		uae_u32 command = read_comm_pipe_u32_blocking (&requests);
+		if (gayle_thread_running == 0 || command == 0xfffffff)
+			break;
+		ide_do_command ((uae_u8)command);
+	}
+	gayle_thread_running = -1;
+	return 0;
+}
+
 static void initide (void)
 {
 	int i;
+
+	if (!gayle_thread_running) {
+		gayle_thread_running = 1;
+		init_comm_pipe (&requests, 100, 1);
+		uae_start_thread (_T("ide"), ide_thread, 0, NULL);
+	}
 
 	alloc_ide_mem (idedrive, TOTAL_IDE * 2);
 	if (isrestore ())
@@ -2565,6 +2592,17 @@ static void initide (void)
 	for (i = 0; i < TOTAL_IDE * 2; i++)
 		idedrive[i]->num = i;
 	gayle_irq = gayle_int = 0;
+}
+
+void gayle_free (void)
+{
+	if (gayle_thread_running > 0) {
+		gayle_thread_running = 0;
+		write_comm_pipe_u32 (&requests, 0xffffffff, 1);
+		while(gayle_thread_running == 0)
+			sleep_millis (10);
+		gayle_thread_running = 0;
+	}
 }
 
 void gayle_reset (int hardreset)

@@ -53,6 +53,7 @@
 #include "dongle.h"
 #include "sampler.h"
 #include "consolehook.h"
+#include "gayle.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -863,6 +864,7 @@ void do_leave_program (void)
 #ifdef BSDSOCKET
 	bsdlib_reset ();
 #endif
+	gayle_free ();
 	device_func_reset ();
 	savestate_free ();
 	memory_cleanup ();
@@ -978,6 +980,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	memset (&gui_data, 0, sizeof gui_data);
 	gui_data.cd = -1;
 	gui_data.hd = -1;
+	gui_data.md = -1;
 	logging_init (); /* Yes, we call this twice - the first case handles when the user has loaded
 						 a config using the cmd-line.  This case handles loads through the GUI. */
 

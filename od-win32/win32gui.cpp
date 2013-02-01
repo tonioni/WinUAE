@@ -3457,7 +3457,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 			portnum = inputmap_port;
 		cntitem = 1;
 		cntgroup = 1;
-		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, &events, &axistable)) {
+		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, &events, &axistable) > 0) {
 			int evtnum;
 			for (int i = 0; (evtnum = events[i]) >= 0; i++) {
 				struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
@@ -9471,9 +9471,10 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				if (!memcmp (id, "RDSK", 4))
 					break;
 			}
-			if (i == 16)
+			if (i == 16) {
 				hdf_read (&hfd, id, 0, 512);
-			current_hfdlg.dostype = (id[0] << 24) | (id[1] << 16) | (id[2] << 8) | (id[3] << 0);
+				current_hfdlg.dostype = (id[0] << 24) | (id[1] << 16) | (id[2] << 8) | (id[3] << 0);
+			}
 		}
 		if (defaults) {
 			if (hfd.flags & HFD_FLAGS_REALDRIVE) {
@@ -10056,6 +10057,23 @@ static ACCEL HarddiskAccel[] = {
 	{ 0, 0, 0 }
 };
 
+static void hilitehd (HWND hDlg)
+{
+	int total = ListView_GetItemCount (cachedlist);
+	if (total <= 0) {
+		ew (hDlg, IDC_EDIT, FALSE);
+		ew (hDlg, IDC_REMOVE, FALSE);
+		return;
+	}
+	if (clicked_entry < 0)
+		clicked_entry = 0;
+	if (clicked_entry >= total)
+		clicked_entry = total;
+	ListView_SetItemState (cachedlist, clicked_entry, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+	ew (hDlg, IDC_EDIT, TRUE);
+	ew (hDlg, IDC_REMOVE, TRUE);
+}
+
 static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 {
 	int button = LOWORD (wParam);
@@ -10065,11 +10083,15 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		quickstart_cdtype = 1;
 		workprefs.cdslots[0].inuse = true;
 		addcdtype (hDlg, IDC_CD_TYPE);
+		InitializeListView (hDlg);
+		hilitehd (hDlg);
 		break;
 	case IDC_CD_EJECT:
 		eject_cd ();
 		SetDlgItemText (hDlg, IDC_CD_TEXT, _T(""));
 		addcdtype (hDlg, IDC_CD_TYPE);
+		InitializeListView (hDlg);
+		hilitehd (hDlg);
 		break;
 	case IDC_NEW_FS:
 		default_fsvdlg (&current_fsvdlg);
@@ -10187,23 +10209,6 @@ static void harddiskdlg_volume_notify (HWND hDlg, NM_LISTVIEW *nmlistview)
 		}
 		break;
 	}
-}
-
-static void hilitehd (HWND hDlg)
-{
-	int total = ListView_GetItemCount (cachedlist);
-	if (total <= 0) {
-		ew (hDlg, IDC_EDIT, FALSE);
-		ew (hDlg, IDC_REMOVE, FALSE);
-		return;
-	}
-	if (clicked_entry < 0)
-		clicked_entry = 0;
-	if (clicked_entry >= total)
-		clicked_entry = total;
-	ListView_SetItemState (cachedlist, clicked_entry, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-	ew (hDlg, IDC_EDIT, TRUE);
-	ew (hDlg, IDC_REMOVE, TRUE);
 }
 
 /* harddisk parent view */
@@ -12830,7 +12835,7 @@ static void input_test (HWND hDlg, int port)
 	for (int idx = 0; idx < MAX_JPORTS; idx++) {
 		int mode, **events, *axistable;
 		write_log (_T("Port: %d\n"), idx);
-		if (inputdevice_get_compatibility_input (&workprefs, idx, &mode, &events, &axistable)) {
+		if (inputdevice_get_compatibility_input (&workprefs, idx, &mode, &events, &axistable) > 0) {
 			for (int k = 0; k < 2 && events[k]; k++) {
 				int *p = events[k];
 				int evtnum;
@@ -15321,6 +15326,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			break;
 		case ZFILE_HDFRDB:
 			default_hfdlg (&current_hfdlg, true);
+			_tcscpy (current_hfdlg.ci.rootdir, file);
 			add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			break;
 		case ZFILE_NVR:
@@ -16052,13 +16058,16 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 	old = *p;
 	if (status < 0) {
 		if (old < 0) {
-			*p = 0;
+			gui_led (led, -1);
+		} else {
 			gui_led (led, 0);
 		}
 		return;
 	}
 	if (status == 0 && old < 0) {
+		*p = 0;
 		resetcounter[led] = 0;
+		gui_led (led, 0);
 		return;
 	}
 	if (status == 0) {
@@ -16067,10 +16076,12 @@ static void gui_flicker_led2 (int led, int unitnum, int status)
 			return;
 	}
 #ifdef RETROPLATFORM
-	if (led == LED_HD)
-		rp_hd_activity (unitnum, status ? 1 : 0, status == 2 ? 1 : 0);
-	else if (led == LED_CD)
-		rp_cd_activity (unitnum, status);
+	if (unitnum >= 0) {
+		if (led == LED_HD)
+			rp_hd_activity (unitnum, status ? 1 : 0, status == 2 ? 1 : 0);
+		else if (led == LED_CD)
+			rp_cd_activity (unitnum, status);
+	}
 #endif
 	*p = status;
 	resetcounter[led] = 6;

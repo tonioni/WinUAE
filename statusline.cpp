@@ -205,9 +205,11 @@ void draw_status_line_single (uae_u8 *buf, int bpp, int y, int totalwidth, uae_u
 		} else if (led == LED_MD && gui_data.drive_disabled[3]) {
 			// DF3 reused as internal non-volatile ram led (cd32/cdtv)
 			pos = 6 + 3;
-			on = gui_data.md;
-			on_rgb = on == 2 ? 0xcc0000 : 0x00cc00;
-			off_rgb = 0x003300;
+			if (gui_data.md >= 0) {
+				on = gui_data.md;
+				on_rgb = on == 2 ? 0xcc0000 : 0x00cc00;
+				off_rgb = 0x003300;
+			}
 			num1 = -1;
 			num2 = -1;
 			num3 = -1;

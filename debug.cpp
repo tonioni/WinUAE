@@ -4053,6 +4053,13 @@ const TCHAR *debuginfo (int mode)
 	return txt;
 }
 
+void mmu_disasm (uaecptr pc, int lines)
+{
+	debug_mmu_mode = regs.s ? 6 : 2;
+	m68k_dumpstate (0xffffffff, NULL);
+	m68k_disasm (pc, NULL, lines);
+}
+
 static int mmu_logging;
 
 #define MMU_PAGE_SHIFT 16

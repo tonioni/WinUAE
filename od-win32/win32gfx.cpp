@@ -351,7 +351,8 @@ void centerdstrect (RECT *dr)
 	}
 }
 
-static int picasso_offset_x, picasso_offset_y, picasso_offset_mx, picasso_offset_my;
+static int picasso_offset_x, picasso_offset_y;
+static float picasso_offset_mx, picasso_offset_my;
 
 void getgfxoffset (float *dxp, float *dyp, float *mxp, float *myp)
 {
@@ -1153,8 +1154,8 @@ static void DX_Blit96 (int x, int y, int w, int h)
 
 	picasso_offset_x = 0;
 	picasso_offset_y = 0;
-	picasso_offset_mx = 1000;
-	picasso_offset_my = 1000;
+	picasso_offset_mx = 1.0;
+	picasso_offset_my = 1.0;
 	if (scalepicasso) {
 		int srcratio, dstratio;
 		int srcwidth, srcheight;
@@ -1191,8 +1192,8 @@ static void DX_Blit96 (int x, int y, int w, int h)
 			SetRect (&dr, xx / 2, 0,srcwidth - xx / 2, srcheight);
 			picasso_offset_x = xx / 2;
 		}
-		picasso_offset_mx = picasso96_state.Width * 1000 / (dr.right - dr.left);
-		picasso_offset_my = picasso96_state.Height * 1000 / (dr.bottom - dr.top);
+		picasso_offset_mx = (float)picasso96_state.Width / (dr.right - dr.left);
+		picasso_offset_my = (float)picasso96_state.Height / (dr.bottom - dr.top);
 		DirectDraw_BlitToPrimaryScale (&dr, &sr);
 	} else {
 		SetRect (&sr, x, y, x + w, y + h);
@@ -1265,8 +1266,8 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	}
 
 	OffsetRect (zr, picasso_offset_x, picasso_offset_y);
-	picasso_offset_mx = srcwidth * 1000 / (dr->right - dr->left);
-	picasso_offset_my = srcheight * 1000 / (dr->bottom - dr->top);
+	picasso_offset_mx = (float)srcwidth / (dr->right - dr->left);
+	picasso_offset_my = (float)srcheight / (dr->bottom - dr->top);
 }
 
 static bool rtg_locked;
@@ -1627,7 +1628,7 @@ static int open_windows (bool mousecapture)
 	if (startactive) {
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
 		for (i = 0; i < NUM_LEDS; i++)
-			gui_led (i, -1);
+			gui_flicker_led (i, -1, -1);
 		gui_led (LED_POWER, gui_data.powerled);
 		gui_fps (0, 0, 0);
 		for (i = 0; i < 4; i++) {

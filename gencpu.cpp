@@ -2533,7 +2533,11 @@ static void gen_opcode (unsigned long int opcode)
 		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
 		    printf ("\t\telse if (frame == 0x1) { m68k_areg (regs, 7) += offset; }\n");
 		    printf ("\t\telse if (frame == 0x2) { m68k_areg (regs, 7) += offset + 4; break; }\n");
-		    printf ("\t\telse if (frame == 0x4) { m68k_areg (regs, 7) += offset + 8; break; }\n");
+		    if (using_mmu == 68060) {
+				printf ("\t\telse if (frame == 0x4) { m68k_do_rte_mmu060 (a); m68k_areg (regs, 7) += offset + 8; break; }\n");
+			} else {
+				printf ("\t\telse if (frame == 0x4) { m68k_areg (regs, 7) += offset + 8; break; }\n");
+			}
 		    printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
 			if (using_mmu == 68040) {
 		    	printf ("\t\telse if (frame == 0x7) { m68k_do_rte_mmu040 (a); m68k_areg (regs, 7) += offset + 52; break; }\n");
@@ -3520,7 +3524,6 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("\tint ru = (src >> 6) & 7;\n");
 			printf ("\tint rc = src & 7;\n");
 			genflags (flag_cmp, curi->size, "newv", "m68k_dreg (regs, rc)", "dst");
-			sync_m68k_pc ();
 			gen_set_fault_pc ();
 			printf ("\tif (GET_ZFLG ()) ");
 			old_brace_level = n_braces;
@@ -3532,6 +3535,11 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("else");
 			start_brace ();
 			printf ("\n");
+			if (cpu_level >= 4) {
+				// apparently 68040/060 needs to always write at the end of RMW cycle
+				printf ("\t");
+				genastore_cas ("dst", curi->dmode, "dstreg", curi->size, "dst");
+			}
 			switch (curi->size) {
 				case sz_byte:
 				printf ("\t\tm68k_dreg(regs, rc) = (m68k_dreg(regs, rc) & ~0xff) | (dst & 0xff);\n");
@@ -3542,11 +3550,6 @@ static void gen_opcode (unsigned long int opcode)
 				default:
 				printf ("\t\tm68k_dreg(regs, rc) = dst;\n");
 				break;
-			}
-			if (cpu_level >= 4) {
-				// apparently 68040/060 needs to always write at the end of RMW cycle
-				printf ("\t");
-				genastore_cas ("dst", curi->dmode, "dstreg", curi->size, "dst");
 			}
 			pop_braces (old_brace_level);
 		}
@@ -3620,8 +3623,6 @@ static void gen_opcode (unsigned long int opcode)
 					sync_m68k_pc ();
 				pop_braces (old_brace_level);
 			}
-			if (using_mmu != 68040)
-				sync_m68k_pc ();
 		}
 		break;
 	case i_BKPT:		/* only needed for hardware emulators */
@@ -3673,15 +3674,16 @@ static void gen_opcode (unsigned long int opcode)
 			char *getb, *putb;
 			int flags = 0;
 
-			if (using_mmu || using_ce020) {
+			if (using_mmu == 68060 && (curi->mnemo == i_BFCHG || curi->mnemo == i_BFCLR ||  curi->mnemo == i_BFSET ||  curi->mnemo == i_BFINS)) {
+				getb = "mmu060_get_rmw_bitfield";
+				putb = "mmu060_put_rmw_bitfield";
+			} else if (using_mmu || using_ce020) {
 				getb = "x_get_bitfield";
 				putb = "x_put_bitfield";
 			} else {
 				getb = "get_bitfield";
 				putb = "put_bitfield";
 			}
-			if (curi->mnemo == i_BFCHG || curi->mnemo == i_BFCLR ||  curi->mnemo == i_BFSET ||  curi->mnemo == i_BFINS)
-				flags = GF_RMW;
 
 			genamode (curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 			genamode (curi->dmode, "dstreg", sz_long, "dst", 2, 0, 0);

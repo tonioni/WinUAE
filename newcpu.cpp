@@ -898,7 +898,7 @@ static void set_x_funcs (void)
 	x_cp_get_byte = x_get_byte;
 	x_cp_next_iword = x_next_iword;
 	x_cp_next_ilong = x_next_ilong;
-	x_cp_get_disp_ea_020 = get_disp_ea_020;
+	x_cp_get_disp_ea_020 = x_get_disp_ea_020;
 
 	if (currprefs.mmu_model == 68030) {
 		x_cp_put_long = put_long_mmu030_state;
@@ -911,6 +911,7 @@ static void set_x_funcs (void)
 		x_cp_next_ilong = next_ilong_mmu030_state;
 		x_cp_get_disp_ea_020 = get_disp_ea_020_mmu030;
 	}
+
 }
 
 bool can_cpu_tracer (void)
@@ -1768,41 +1769,41 @@ void REGPARAM2 put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32
 
 uae_u32 REGPARAM2 x_get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width)
 {
-	uae_u32 tmp, res, mask;
+	uae_u32 tmp1, tmp2, res, mask;
 
 	offset &= 7;
 	mask = 0xffffffffu << (32 - width);
 	switch ((offset + width + 7) >> 3) {
 	case 1:
-		tmp = x_cp_get_byte (src);
-		res = tmp << (24 + offset);
-		bdata[0] = tmp & ~(mask >> (24 + offset));
+		tmp1 = x_cp_get_byte (src);
+		res = tmp1 << (24 + offset);
+		bdata[0] = tmp1 & ~(mask >> (24 + offset));
 		break;
 	case 2:
-		tmp = x_cp_get_word (src);
-		res = tmp << (16 + offset);
-		bdata[0] = tmp & ~(mask >> (16 + offset));
+		tmp1 = x_cp_get_word (src);
+		res = tmp1 << (16 + offset);
+		bdata[0] = tmp1 & ~(mask >> (16 + offset));
 		break;
 	case 3:
-		tmp = x_cp_get_word (src);
-		res = tmp << (16 + offset);
-		bdata[0] = tmp & ~(mask >> (16 + offset));
-		tmp = x_cp_get_byte (src + 2);
-		res |= tmp << (8 + offset);
-		bdata[1] = tmp & ~(mask >> (8 + offset));
+		tmp1 = x_cp_get_word (src);
+		tmp2 = x_cp_get_byte (src + 2);
+		res = tmp1 << (16 + offset);
+		bdata[0] = tmp1 & ~(mask >> (16 + offset));
+		res |= tmp2 << (8 + offset);
+		bdata[1] = tmp2 & ~(mask >> (8 + offset));
 		break;
 	case 4:
-		tmp = x_cp_get_long (src);
-		res = tmp << offset;
-		bdata[0] = tmp & ~(mask >> offset);
+		tmp1 = x_cp_get_long (src);
+		res = tmp1 << offset;
+		bdata[0] = tmp1 & ~(mask >> offset);
 		break;
 	case 5:
-		tmp = x_cp_get_long (src);
-		res = tmp << offset;
-		bdata[0] = tmp & ~(mask >> offset);
-		tmp = x_cp_get_byte (src + 4);
-		res |= tmp >> (8 - offset);
-		bdata[1] = tmp & ~(mask << (8 - offset));
+		tmp1 = x_cp_get_long (src);
+		tmp2 = x_cp_get_byte (src + 4);
+		res = tmp1 << offset;
+		bdata[0] = tmp1 & ~(mask >> offset);
+		res |= tmp2 >> (8 - offset);
+		bdata[1] = tmp2 & ~(mask << (8 - offset));
 		break;
 	default:
 		/* Panic? */
@@ -2366,7 +2367,10 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 			x_put_long (m68k_areg (regs, 7), regs.mmu_fault_addr);
 			break;
 		case 0xB: // long bus cycle fault stack frame (68020, 68030)
-			// store state information to internal register space
+			// We always use B frame because it is easier to emulate,
+			// our PC always points at start of instruction but A frame assumes
+			// it is + 2 and handling this properly is not easy.
+			// Store state information to internal register space
 			for (i = 0; i < mmu030_idx + 1; i++) {
 				m68k_areg (regs, 7) -= 4;
 				x_put_long (m68k_areg (regs, 7), mmu030_ad[i].val);
@@ -2436,11 +2440,11 @@ static void Exception_build_stack_frame (uae_u32 oldpc, uae_u32 currpc, uae_u32 
 // 68030 MMU
 static void Exception_mmu030 (int nr, uaecptr oldpc)
 {
-    uae_u32 currpc = m68k_getpc(), newpc;
+    uae_u32 currpc = m68k_getpc (), newpc;
     int sv = regs.s;
     
-    exception_debug(nr);
-    MakeSR();
+    exception_debug (nr);
+    MakeSR ();
     
     if (!regs.s) {
         regs.usp = m68k_areg (regs, 7);
@@ -2907,6 +2911,8 @@ int m68k_move2c (int regno, uae_u32 *regp)
 				uae_u32 opcr = regs.pcr;
 				regs.pcr &= ~(0x40 | 2 | 1);
 				regs.pcr |= (*regp) & (0x40 | 2 | 1);
+				if (currprefs.fpu_model <= 0)
+					regs.pcr |= 2;
 				if (((opcr ^ regs.pcr) & 2) == 2) {
 					write_log (_T("68060 FPU state: %s\n"), regs.pcr & 2 ? _T("disabled") : _T("enabled"));
 					/* flush possible already translated FPU instructions */
@@ -4325,7 +4331,6 @@ retry:
 			mmufixup[1].reg = -1;
 		}
 
-		//activate_debugger ();
 		TRY (prb2) {
 			Exception (prb);
 		} CATCH (prb2) {
@@ -4356,14 +4361,6 @@ retry:
 			mmu_restart = true;
 			pc = regs.instruction_pc = m68k_getpc ();
 
-
-#if 0
-			if (pc == 0x0004B0A6) {
-				//write_log (_T("*"));
-				activate_debugger ();
-			}
-#endif
-
 			mmu_opcode = -1;
 			mmu_opcode = opcode = x_prefetch (0);
 			count_instr (opcode);
@@ -4390,7 +4387,6 @@ retry:
 			mmufixup[0].reg = -1;
 		}
 
-		//activate_debugger ();
 		TRY (prb2) {
 			Exception (prb);
 		} CATCH (prb2) {
@@ -4424,12 +4420,6 @@ insretry:
 			f.x = regflags.x;
 
 			mmu030_state[0] = mmu030_state[1] = mmu030_state[2] = 0;
-#if 0
-			if (pc == 0xC0075432) {
-				write_log (_T("*"));
-				//activate_debugger ();
-			}
-#endif
 			mmu030_opcode = -1;
 			if (mmu030_opcode_stageb < 0) {
 				opcode = get_iword_mmu030 (0);
@@ -4452,8 +4442,10 @@ insretry:
 				cnt--; // so that we don't get in infinite loop if things go horribly wrong
 				if (!mmu030_retry)
 					break;
-				if (cnt < 0)
+				if (cnt < 0) {
+					cpu_halt (9);
 					break;
+				}
 				if (mmu030_retry && mmu030_opcode == -1)
 					goto insretry; // urgh
 			}
@@ -5322,7 +5314,7 @@ uae_u32 val_move2c (int regno)
 	}
 }
 
-void m68k_dumpstate (uaecptr *nextpc)
+void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 {
 	int i, j;
 
@@ -5386,9 +5378,15 @@ void m68k_dumpstate (uaecptr *nextpc)
 		console_out_f (_T("Prefetch %04x (%s) %04x (%s)\n"), regs.irc, lookup1->name, regs.ir, lookup2->name);
 	}
 
-	m68k_disasm (m68k_getpc (), nextpc, 1);
-	if (nextpc)
-		console_out_f (_T("Next PC: %08lx\n"), *nextpc);
+	if (pc != 0xffffffff) {
+		m68k_disasm (pc, nextpc, 1);
+		if (nextpc)
+			console_out_f (_T("Next PC: %08lx\n"), *nextpc);
+	}
+}
+void m68k_dumpstate (uaecptr *nextpc)
+{
+	m68k_dumpstate (m68k_getpc (), nextpc);
 }
 
 #ifdef SAVESTATE

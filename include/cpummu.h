@@ -307,6 +307,9 @@ STATIC_INLINE int mmu_match_ttr_write(uaecptr addr, bool super, bool data,  uae_
 
 extern void mmu_tt_modified (void);
 
+extern uae_u32 REGPARAM3 mmu060_get_rmw_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
+extern void REGPARAM3 mmu060_put_rmw_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
+
 extern uae_u16 REGPARAM3 mmu_get_word_unaligned(uaecptr addr, bool data, bool rmw) REGPARAM;
 extern uae_u32 REGPARAM3 mmu_get_long_unaligned(uaecptr addr, bool data, bool rmw) REGPARAM;
 

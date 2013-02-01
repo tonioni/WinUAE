@@ -89,8 +89,8 @@ static void getconsole (void)
 	SetConsoleCP (65001);
 	SetConsoleOutputCP (65001);
 	if (GetConsoleScreenBufferInfo (stdoutput, &csbi)) {
-		if (csbi.dwMaximumWindowSize.Y < 900) {
-			csbi.dwMaximumWindowSize.Y = 900;
+		if (csbi.dwMaximumWindowSize.Y < 5000) {
+			csbi.dwMaximumWindowSize.Y = 5000;
 			SetConsoleScreenBufferSize (stdoutput, csbi.dwMaximumWindowSize);
 		}
 	}

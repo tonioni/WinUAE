@@ -216,7 +216,7 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 	const TCHAR **eventorder;
 
 	max = inputdevice_get_compatibility_input (&currprefs, inputmap_port, &mode, &events, &axistable);
-	if (!max)
+	if (max <= 0)
 		return false;
 
 	int devicetype = -1;
@@ -261,7 +261,7 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 			}
 		}
 	}
-	write_log (_T("port_get_custom: %s\n"),  out);
+	write_log (_T("port%d_get_custom: %s\n"), inputmap_port, out);
 	return true;
 }
 
@@ -273,18 +273,20 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 	int kb;
 	const TCHAR **eventorder;
 
+	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
+
 	eventorder = getcustomeventorder (&devicetype);
 	if (!eventorder)
 		return FALSE;
 
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 
-	inputdevice_updateconfig_internal (NULL, &changed_prefs);
+	inputdevice_copyconfig (&currprefs, &changed_prefs);
 	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype);
-	inputdevice_updateconfig_internal (NULL, &changed_prefs);
+	inputdevice_updateconfig (NULL, &changed_prefs);
 	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
 	write_log (_T("custom='%s' max=%d port=%d dt=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, devicetype, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
-	if (!max)
+	if (max <= 0)
 		return FALSE;
 
 	while (p && p[0]) {
@@ -347,17 +349,14 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 				}
 			}
 			if (wdnum >= 0) {
-				//write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
+				write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
 				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, flags, inputmap_port);
-				inputdevice_set_gameports_mapping (&currprefs, kb + j, wdnum, evtnum, flags, inputmap_port);
 			} else {
 				write_log (_T("kb=%d (%): keycode %02x not found!\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), kc);
 			}
 		}
 	}
-
-	inputdevice_updateconfig_internal (NULL, &changed_prefs);
-	inputdevice_updateconfig (NULL, &currprefs);
+	inputdevice_copyconfig (&changed_prefs, &currprefs);
 	return TRUE;
 }
 
@@ -1479,7 +1478,7 @@ void rp_update_leds (int led, int onoff, int write)
 	switch (led)
 	{
 	case LED_POWER:
-		ledstate = onoff >= 250 ? 100 : onoff * 10 / 26;
+		ledstate = onoff >= 250 ? 100 : onoff * 5 / 26 + 49;
 		if (ledstate == oldled[led])
 			return;
 		oldled[led] = ledstate;

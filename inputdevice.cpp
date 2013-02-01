@@ -775,7 +775,7 @@ static void inputdevice_default_kb_all (struct uae_prefs *p)
 		inputdevice_default_kb (p, i);
 }
 
-static bool read_slot (TCHAR *parm, int num, int joystick, int button, struct uae_input_device *id, int keynum, int subnum, struct inputevent *ie, uae_u64 flags, int port, TCHAR *custom)
+static bool read_slot (const TCHAR *parm, int num, int joystick, int button, struct uae_input_device *id, int keynum, int subnum, struct inputevent *ie, uae_u64 flags, int port, TCHAR *custom)
 {
 	int mask;
 
@@ -2277,28 +2277,124 @@ void inputdevice_read (void)
 	} while (handle_msgpump ());
 }
 
+static void inject_events (const TCHAR *str)
+{
+	bool quot = false;
+	bool first = true;
+	uae_u8 keys[300];
+	int keycnt = 0;
+
+	for (;;) {
+		TCHAR ch = *str++;
+		if (!ch)
+			break;
+
+		if (ch == '\'') {
+			first = false;
+			quot = !quot;
+			continue;
+		}
+
+		if (!quot && (ch == ' ' || first)) {
+			const TCHAR *s = str;
+			if (first)
+				s--;
+			while (*s == ' ')
+				s++;
+			const TCHAR *s2 = s;
+			while (*s && *s != ' ')
+				s++;
+			int s2len = s - s2;
+			if (!s2len)
+				break;
+			for (int i = 1; events[i].name; i++) {
+				const TCHAR *cf = events[i].confname;
+				if (!_tcsnicmp (cf, _T("KEY_"), 4))
+					cf += 4;
+				if (events[i].allow_mask == AM_K && !_tcsnicmp (cf, s2, _tcslen (cf)) && s2len == _tcslen (cf)) {
+					int j;
+					uae_u8 kc = events[i].data << 1;
+					TCHAR tch = _totupper (s2[0]);
+					if (tch != s2[0]) {
+						// release
+						for (j = 0; j < keycnt; j++) {
+							if (keys[j] == kc)
+								keys[j] = 0xff;
+						}
+						kc |= 0x01;
+					} else {
+						for (j = 0; j < keycnt; j++) {
+							if (keys[j] == kc) {
+								kc = 0xff;
+							}
+						}
+						if (kc != 0xff) {
+							for (j = 0; j < keycnt; j++) {
+								if (keys[j] == 0xff) {
+									keys[j] = kc;
+									break;
+								}
+							}
+							if (j == keycnt) {
+								if (keycnt < sizeof keys)
+									keys[keycnt++] = kc;
+							}
+						}
+					}
+					if (kc != 0xff) {
+						//write_log (_T("%s\n"), cf);
+						record_key (kc);
+					}
+				}
+			}
+		} else if (quot) {
+			ch = _totupper (ch);
+			if ((ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')) {
+				for (int i = 1; events[i].name; i++) {
+					if (events[i].allow_mask == AM_K && events[i].name[1] == 0 && events[i].name[0] == ch) {
+						record_key (events[i].data << 1);
+						record_key ((events[i].data << 1) | 0x01);
+						//write_log (_T("%c\n"), ch);
+					}
+				}
+			}
+		}
+		first = false;
+	}
+	while (--keycnt >= 0) {
+		uae_u8 kc = keys[keycnt];
+		if (kc != 0xff)
+			record_key (kc | 0x01);
+	}
+}
+
 static int handle_custom_event (const TCHAR *custom)
 {
 	TCHAR *p, *buf, *nextp;
+	bool noquot = false;
 
 	if (custom == NULL)
 		return 0;
 	config_changed = 1;
 	write_log (_T("%s\n"), custom);
-	p = buf = my_strdup (custom);
+	p = buf = my_strdup_trim (custom);
+	if (p[0] != '\"')
+		noquot = true;
 	while (p && *p) {
 		TCHAR *p2;
-		if (*p != '\"')
-			break;
-		p++;
-		p2 = p;
-		while (*p2 != '\"' && *p2 != 0)
-			p2++;
-		if (*p2 == '\"') {
-			*p2++ = 0;
-			nextp = p2 + 1;
-			while (*nextp == ' ')
-				nextp++;
+		if (!noquot) {
+			if (*p != '\"')
+				break;
+			p++;
+			p2 = p;
+			while (*p2 != '\"' && *p2 != 0)
+				p2++;
+			if (*p2 == '\"') {
+				*p2++ = 0;
+				nextp = p2 + 1;
+				while (*nextp == ' ')
+					nextp++;
+			}
 		}
 		//write_log (L"-> '%s'\n", p);
 		if (!_tcsicmp (p, _T("no_config_check"))) {
@@ -2307,9 +2403,13 @@ static int handle_custom_event (const TCHAR *custom)
 			config_changed = 1;
 		} else if (!_tcsnicmp (p, _T("dbg "), 4)) {
 			debug_parser (p + 4, NULL, -1);
+		} else if (!_tcsnicmp (p, _T("kbr "), 4)) {
+			inject_events (p + 4);
 		} else {
 			cfgfile_parse_line (&changed_prefs, p, 0);
 		}
+		if (noquot)
+			break;
 		p = nextp;
 	}
 	xfree (buf);
@@ -4127,9 +4227,11 @@ static void checkcompakb (int *kb, int *srcmap)
 			while (keyboard_default[k].scancode >= 0) {
 				if (keyboard_default[k].scancode == kb[j]) {
 					for (int l = 0; l < MAX_INPUT_DEVICE_EVENTS; l++) {
-						if (uid->extra[l] == id) {
+						if (uid->extra[l] == id && uid->port[l][0] == 0) {
 							for (int m = 0; m < MAX_INPUT_SUB_EVENT && keyboard_default[k].node[m].evt; m++) {
 								uid->eventid[l][m] = keyboard_default[k].node[m].evt;
+								uid->port[l][m] = 0;
+								uid->flags[l][m] = 0;
 							}
 							break;
 						}
@@ -4238,12 +4340,14 @@ static void setcompakb (int *kb, int *srcmap, int index, int af)
 int inputdevice_get_compatibility_input (struct uae_prefs *prefs, int index, int *typelist, int **inputlist, int **at)
 {
 	if (index >= MAX_JPORTS || joymodes[index] < 0)
-		return 0;
+		return -1;
 	*typelist = joymodes[index];
 	*inputlist = joyinputs[index];
 	*at = axistable;
+	//write_log (_T("%d %p %p\n"), *typelist, *inputlist, *at);
 	int cnt = 0;
 	for (int i = 0; joyinputs[index] && joyinputs[index][i] >= 0; i++, cnt++);
+	//write_log (_T("%d\n"), cnt);
 	return cnt;
 }
 
@@ -4306,7 +4410,7 @@ static void remove_compa_config (struct uae_prefs *prefs, int index)
 {
 	int typelist, *inputlist, *atp;
 
-	if (!inputdevice_get_compatibility_input (prefs, index, &typelist, &inputlist, &atp))
+	if (inputdevice_get_compatibility_input (prefs, index, &typelist, &inputlist, &atp) <= 0)
 		return;
 	for (int i = 0; inputlist[i] >= 0; i++) {
 		int evtnum = inputlist[i];
@@ -4492,6 +4596,7 @@ static void setjoyinputs (struct uae_prefs *prefs, int port)
 			joyinputs[port] = ip_mousecdtv;
 		break;
 	}
+	//write_log (_T("joyinput %d = %p\n"), port, joyinputs[port]);
 }
 
 static void setautofire (struct uae_input_device *uid, int port, int af)
@@ -5983,6 +6088,21 @@ void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst)
 	inputdevice_updateconfig (src, dst);
 }
 
+static void swapevent (struct uae_input_device *uid, int i, int j, int evt)
+{
+	uid->eventid[i][j] = evt;
+	int port = uid->port[i][j];
+	if (port == 1)
+		port = 2;
+	else if (port == 2)
+		port = 1;
+	else if (port == 3)
+		port = 4;
+	else if (port == 4)
+		port = 3;
+	uid->port[i][j] = port;
+}
+
 static void swapjoydevice (struct uae_input_device *uid, int **swaps)
 {
 	for (int i = 0; i < MAX_INPUT_DEVICE_EVENTS; i++) {
@@ -5992,7 +6112,7 @@ static void swapjoydevice (struct uae_input_device *uid, int **swaps)
 				int evtnum;
 				for (int kk = 0; (evtnum = swaps[k][kk]) >= 0 && !found; kk++) {
 					if (uid->eventid[i][j] == evtnum) {
-						uid->eventid[i][j] = swaps[1 - k][kk];
+						swapevent (uid, i, j, swaps[1 - k][kk]);
 						found = true;
 					} else {
 						for (int jj = 0; axistable[jj] >= 0; jj += 3) {
@@ -6002,7 +6122,7 @@ static void swapjoydevice (struct uae_input_device *uid, int **swaps)
 										int evtnum2 = swaps[1 - k][kk];
 										for (int m = 0; axistable[m] >= 0; m += 3) {
 											if (evtnum2 == axistable[m] || evtnum2 == axistable[m + 1] || evtnum2 == axistable[m + 2]) {
-												uid->eventid[i][j] = axistable[m + ii];
+												swapevent (uid, i, j, axistable[m + ii]);												
 												found = true;
 											}
 										}

@@ -1,6 +1,27 @@
 
 - restore only single input target to default.
 
+Beta 5:
+
+- RDB hardfile dragndrop to hardfiles panel added empty hardfile.
+- Windowed mode bottom border "led" state didn't always match OSD led state.
+- SCSI emulation improved, select and transfer starting from 0x45 can be used to receive data.
+- SCSI emulation WD33C93 is now correctly detected as revision A, not B. (only B has Queue Tag register)
+- 68060 MMU: BFCHG, BFCLR, BFSET and BFINS are read-modify-write instructions.
+- GUI IDE/SCSI CD path was not updated in harddrive list when CD was changed using "Select image file" button.
+- 68040/060 MMU emulation fix, PFLUSH/PFLUSHN only flushed supervisor space ATC. Hopefully this was the last major
+  040/060 MMU bug. Weird NetBSD and Linux crashes are gone.
+- Subtle Shades / Nuance remaining graphics glitches fixed. (NOTE: ECS only, OCS has corrupted graphics and it is correct behavior)
+- GUI "Swap Ports" cleared custom mappings.
+- 68040/060 no FPU/disabled FPU exceptions now include correctly calculated EA field. This should allow "compatible" 040/060 FPU
+  emulation with correctly handled missing instructions in the future (currently 040/060 FPU always supports all 68881/2 instructions)
+- Added new keyboard custom event type, "kbr <string>". For example 'kbr "abc " SHIFT_LEFT "abc" shift_left RETURN'
+  generates "abc ABC<return>". Input name in upper case = press, lower case = release. Quoted string automatically sends both press
+  and release key codes. Any unreleased keys are automatically released at the end. Non-quoted names are same as input event config
+  names without KEY-prefix. (inputevents.def in source archive)
+- Adjusted drive step limit value slightly, Extemporized / Digital works again.
+- Fixed virtual mouse driver mouse movement problem (b1)
+
 Beta 4:
 
 - Fixed 68030 MMU MOVEM to memory wrong bus error data output buffer value.

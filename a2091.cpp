@@ -199,7 +199,7 @@ static int scsidelay_irq[WD_STATUS_QUEUE];
 static uae_u8 scsidelay_status[WD_STATUS_QUEUE];
 static int queue_index;
 
-static int wd33c93a = 1;
+static int wd33c93_ver = 1; // A
 
 struct scsi_data *scsis[8];
 static struct scsi_data *scsi;
@@ -330,6 +330,15 @@ static bool decreasetc (void)
 	tc--;
 	settc (tc);
 	return tc == 0;
+}
+
+static bool canwddma (void)
+{
+	uae_u8 mode = wdregs[WD_CONTROL] >> 5;
+	if (mode != 0 && mode != 4 && mode != 1) {
+		write_log (_T("%s weird DMA mode %d!!\n"), WD33C93, mode);
+	}
+	return mode == 4 || mode == 1;
 }
 
 static TCHAR *scsitostring (void)
@@ -543,8 +552,8 @@ static void wd_cmd_sel_xfer (bool atn)
 		wdregs[WD_COMMAND_PHASE] = 0x10;
 	}
 #if WD33C93_DEBUG > 0
-	write_log (_T("* %s select and transfer%s, ID=%d PHASE=%02X TC=%d\n"),
-		WD33C93, atn ? _T(" with atn") : _T(""), wdregs[WD_DESTINATION_ID] & 0x7, wdregs[WD_COMMAND_PHASE], tmp_tc);
+	write_log (_T("* %s select and transfer%s, ID=%d PHASE=%02X TC=%d wddma=%d dmac=%d\n"),
+		WD33C93, atn ? _T(" with atn") : _T(""), wdregs[WD_DESTINATION_ID] & 0x7, wdregs[WD_COMMAND_PHASE], tmp_tc, wdregs[WD_CONTROL] >> 5, dmac_dma);
 #endif
 	if (wdregs[WD_COMMAND_PHASE] <= 0x30) {
 		scsi->buffer[0] = 0;
@@ -585,10 +594,10 @@ static void wd_cmd_sel_xfer (bool atn)
 		wdregs[WD_COMMAND_PHASE] = 0x44;
 	}
 
-	if (wdregs[WD_COMMAND_PHASE] == 0x44) {
+	// target replied or start/continue data phase (if data available)
+	if (wdregs[WD_COMMAND_PHASE] == 0x44 || wdregs[WD_COMMAND_PHASE] == 0x45) {
 		settc (tmp_tc);
 		wd_dataoffset = 0;
-		// target replied
 		setphase (0x45);
 		scsi_start_transfer (scsi);
 
@@ -615,7 +624,7 @@ static void wd_cmd_sel_xfer (bool atn)
 
 		if (scsi->direction) {
 			scsi_start_transfer (scsi);
-			if ((wdregs[WD_CONTROL] >> 5) == 4) {
+			if (canwddma ()) {
 				if (scsi->direction <=  0) {
 					scsi_emulate_cmd (scsi);
 					do_dma ();
@@ -725,7 +734,7 @@ static void wd_cmd_trans_info (void)
 		scsi->data_len = gettc ();
 	}
 
-	if ((wdregs[WD_CONTROL] >> 5) == 4) {
+	if (canwddma ()) {
 		wd_data_avail = -1;
 	} else {
 		wd_data_avail = 1;
@@ -775,8 +784,6 @@ static void wd_cmd_reset (bool irq)
 	for (i = 1; i < 0x16; i++)
 		wdregs[i] = 0;
 	wdregs[0x18] = 0;
-	if (!wd33c93a)
-		wdregs[0] &= ~(0x08 | 0x10);
 	sasr = 0;
 	wd_selected = false;
 	scsi = NULL;
@@ -829,14 +836,34 @@ static int writeonlyreg (int reg)
 	return 0;
 }
 
+static void writewdreg (int sasr, uae_u8 val)
+{
+	switch (sasr)
+	{
+	case WD_OWN_ID:
+		if (wd33c93_ver == 0)
+			val &= ~(0x20 | 0x08);
+		else if (wd33c93_ver == 1)
+			val &= ~0x20;
+		break;
+	}
+	if (sasr > WD_QUEUE_TAG && sasr < WD_AUXILIARY_STATUS)
+		return;
+	// queue tag is B revision only
+	if (sasr == WD_QUEUE_TAG && wd33c93_ver < 2)
+		return;
+	wdregs[sasr] = val;
+}
+
 void wdscsi_put (uae_u8 d)
 {
 #if WD33C93_DEBUG > 1
 	if (WD33C93_DEBUG > 3 || sasr != WD_DATA)
 		write_log (_T("W %s REG %02X = %02X (%d) PC=%08X\n"), WD33C93, sasr, d, d, M68K_GETPC);
 #endif
-	if (!writeonlyreg (sasr))
-		wdregs[sasr] = d;
+	if (!writeonlyreg (sasr)) {
+		writewdreg (sasr, d);
+	}
 	if (!wd_used) {
 		wd_used = 1;
 		write_log (_T("%s in use\n"), WD33C93);

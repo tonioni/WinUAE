@@ -201,7 +201,7 @@ typedef struct {
 #endif
 } drive;
 
-#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 250)
+#define MIN_STEPLIMIT_CYCLE (CYCLE_UNIT * 210)
 
 static uae_u16 bigmfmbufw[0x4000 * DDHDMULT];
 static drive floppy[MAX_FLOPPY_DRIVES];
@@ -1195,7 +1195,7 @@ static void set_steplimit (drive *drv)
 	// emulate step limit only if cycle-exact or approximate CPU speed
 	if (currprefs.m68k_speed != 0)
 		return;
-	drv->steplimit = 10;
+	drv->steplimit = 4;
 	drv->steplimitcycle = get_cycles ();
 }
 
