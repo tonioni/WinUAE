@@ -1555,6 +1555,7 @@ static void fpuop_arithmetic2 (uae_u32 opcode, uae_u16 extra)
 
 		case 0:
 		case 2: /* Extremely common */
+			regs.fpiar =  pc;
 			reg = (extra >> 7) & 7;
 			if ((extra & 0xfc00) == 0x5c00) {
 				if (fault_if_no_fpu (opcode, 0, pc))

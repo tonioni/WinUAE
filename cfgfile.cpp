@@ -906,8 +906,16 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_horizontal_tweak"), _T("%d"), p->gfx_extrawidth);
 
 #ifdef GFXFILTER
-	if (p->gfx_filtershader[0] && p->gfx_api) {
-		cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader);
+	for (int i = 0; i <MAX_FILTERSHADERS; i++) {
+		if (p->gfx_filtershader[i][0])
+			cfgfile_write (f, _T("gfx_filter_pre"), _T("D3D:%s"), p->gfx_filtershader[i]);
+	}
+	for (int i = 0; i <MAX_FILTERSHADERS; i++) {
+		if (p->gfx_filtershader[i + MAX_FILTERSHADERS][0])
+			cfgfile_write (f, _T("gfx_filter_post"), _T("D3D:%s"), p->gfx_filtershader[i + MAX_FILTERSHADERS]);
+	}
+	if (p->gfx_filtershader[0][0] && p->gfx_api) {
+		cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader[0]);
 	} else if (p->gfx_filter > 0) {
 		int i = 0;
 		struct uae_filter *uf;
@@ -1904,16 +1912,42 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		return 1;
 	}
 
+	if (_tcscmp (option, _T("gfx_filter_pre")) == 0 || _tcscmp (option, _T("gfx_filter_post")) == 0) {
+		TCHAR *s = _tcschr (value, ':');
+		if (s) {
+			*s++ = 0;
+			if (!_tcscmp (value, _T("D3D"))) {
+				p->gfx_api = 1;
+				if (_tcscmp (option, _T("gfx_filter_pre")) == 0) {
+					for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+						if (p->gfx_filtershader[i][0] == 0) {
+							_tcscpy (p->gfx_filtershader[i], s);
+							break;
+						}
+					}
+				} else {
+					for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+						if (p->gfx_filtershader[i + MAX_FILTERSHADERS][0] == 0) {
+							_tcscpy (p->gfx_filtershader[i + MAX_FILTERSHADERS], s);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return 1;
+	}
+
 	if (_tcscmp (option, _T("gfx_filter")) == 0) {
 		int i = 0;
 		TCHAR *s = _tcschr (value, ':');
-		p->gfx_filtershader[0] = 0;
+		p->gfx_filtershader[0][0] = 0;
 		p->gfx_filter = 0;
 		if (s) {
 			*s++ = 0;
 			if (!_tcscmp (value, _T("D3D"))) {
 				p->gfx_api = 1;
-				_tcscpy (p->gfx_filtershader, s);
+				_tcscpy (p->gfx_filtershader[0], s);
 			}
 		}
 		if (!_tcscmp (value, _T("direct3d"))) {
@@ -2329,8 +2363,23 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		if (ci->controller > HD_CONTROLLER_SCSI6 || ci->controller < HD_CONTROLLER_IDE0)
 			return NULL;
 	}
-
 	if (index < 0) {
+		if (ci->controller != HD_CONTROLLER_UAE) {
+			int ctrl = ci->controller;
+			for (;;) {
+				for (i = 0; i < p->mountitems; i++) {
+					if (p->mountconfig[i].ci.controller == ctrl) {
+						ctrl++;
+						if (ctrl == HD_CONTROLLER_IDE3 + 1 || ctrl == HD_CONTROLLER_SCSI6 + 1)
+							return 0;
+					}
+				}
+				if (i == p->mountitems) {
+					ci->controller = ctrl;
+					break;
+				}
+			}
+		}
 		if (ci->type == UAEDEV_CD) {
 			for (i = 0; i < p->mountitems; i++) {
 				if (p->mountconfig[i].ci.type == UAEDEV_CD)
@@ -4590,7 +4639,9 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_resetwarning = 1;
 
 	p->gfx_filter = 0;
-	p->gfx_filtershader[0] = 0;
+	for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+		p->gfx_filtershader[i][0] = 0;
+	}
 	p->gfx_filtermask[0] = 0;
 	p->gfx_filter_horiz_zoom_mult = 1.0;
 	p->gfx_filter_vert_zoom_mult = 1.0;

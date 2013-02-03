@@ -1120,8 +1120,10 @@
 #define IDC_LISTDIALOG_LIST             1813
 #define IDC_LOGPATH                     1814
 #define IDC_MIDIROUTER                  1815
+#define IDC_CDLIST                      1815
 #define IDC_CS_IDE4                     1816
 #define IDC_CS_DF0IDHW                  1817
+#define IDC_FILTERSTACK                 1818
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1172,7 +1174,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        388
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1815
+#define _APS_NEXT_CONTROL_VALUE         1819
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -1566,7 +1566,7 @@ static void mmu030_page_fault(uaecptr addr, bool read, int flags, uae_u32 fc) {
 	regs.mmu_ssw |= fc;
     bBusErrorReadWrite = read; 
 	mm030_stageb_address = addr;
-#if 1
+#if MMUDEBUG
 	write_log(_T("MMU: page fault (logical addr=%08X SSW=%04x read=%d size=%d fc=%d pc=%08x ob=%08x ins=%04X)\n"),
 		addr, regs.mmu_ssw, read, (flags & MMU030_SSW_SIZE_B) ? 1 : (flags & MMU030_SSW_SIZE_W) ? 2 : 4, fc,
 		regs.instruction_pc, (mmu030_state[1] & MMU030_STATEFLAG1_MOVEM1) ? mmu030_data_buffer : mmu030_ad[mmu030_idx].val, mmu030_opcode & 0xffff);

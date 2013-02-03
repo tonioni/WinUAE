@@ -300,7 +300,9 @@ static void mmu_bus_error(uaecptr addr, int fc, bool write, int size, bool rmw, 
 			ssw |= MMU_SSW_CM;
 			regs.mmu_effective_addr = mmu040_movem_ea;
 			mmu040_movem = 0;
+#if MMUDEBUGMISC > 0
 			write_log (_T("040 MMU_SSW_CM EA=%08X\n"), mmu040_movem_ea);
+#endif
 		}
 		if (locked_rmw_cycle) {
 			ssw |= MMU_SSW_LK | MMU_SSW_RW;
@@ -593,9 +595,6 @@ static void misalignednotfirst(uaecptr addr)
 
 static void misalignednotfirstcheck(uaecptr addr)
 {
-#if MMUDEBUGMISC > 0
-	write_log (_T("misalignednotfirstcheck %08x -> %08x %08X\n"), regs.mmu_fault_addr, addr, regs.instruction_pc);
-#endif
 	if (regs.mmu_fault_addr == addr)
 		return;
 	misalignednotfirst (addr);
@@ -1131,7 +1130,9 @@ void m68k_do_rte_mmu040 (uaecptr a7)
 	if (ssr & MMU_SSW_CM) {
 		mmu040_movem = 1;
 		mmu040_movem_ea = get_long_mmu040 (a7 + 8);
+#if MMUDEBUGMISC > 0
 		write_log (_T("MMU restarted MOVEM EA=%08X\n"), mmu040_movem_ea);
+#endif
 	}
 }
 

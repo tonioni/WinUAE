@@ -2,7 +2,7 @@
 #ifndef MMU_COMMON_H
 #define MMU_COMMON_H
 
-#define MMUDEBUG 1
+#define MMUDEBUG 0
 #define MMUINSDEBUG 0
 #define MMUDEBUGMISC 0
 

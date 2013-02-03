@@ -3,7 +3,7 @@
 *
 * lowlevel cd device glue, scsi emulator
 *
-* Copyright 2009-2010 Toni Wilen
+* Copyright 2009-2013 Toni Wilen
 *
 */
 
@@ -19,6 +19,7 @@
 #include "threaddep/thread.h"
 #include "execio.h"
 #include "zfile.h"
+#include "scsi.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1154,6 +1155,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	int status = 0;
 	struct device_info di;
 	uae_u8 cmd = cmdbuf[0];
+	int dlen = *data_len;
 
 	*reply_len = *sense_len = 0;
 	memset (r, 0, 256);
@@ -1171,7 +1173,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		write_log (_T("SCSIEMU %d: %02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X.%02X CMDLEN=%d DATA=%08X LEN=%d\n"), unitnum,
 			cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5], cmdbuf[6], 
 			cmdbuf[7], cmdbuf[8], cmdbuf[9], cmdbuf[10], cmdbuf[11],
-			scsi_cmd_len, scsi_data, *data_len);
+			scsi_cmd_len, scsi_data, dlen);
 	switch (cmdbuf[0])
 	{
 	case 0x03: /* REQUEST SENSE */
@@ -1403,6 +1405,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			len = cmdbuf[4];
 			if (!len)
 				len = 256;
+			if (len * di.bytespersector > SCSI_DATA_BUFFER_SIZE)
+				goto toolarge;
 			scsi_len = (uae_u32)cmd_readx (unitnum, scsi_data, offset, len) * di.bytespersector;;
 		} else {
 			goto notdatatrack;
@@ -1420,6 +1424,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		struct cd_toc *t = gettoc (&di.toc, offset);
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 7 - 2) & 0xffff;
+			if (len * di.bytespersector > SCSI_DATA_BUFFER_SIZE)
+				goto toolarge;
 			scsi_len = cmd_readx (unitnum, scsi_data, offset, len) * di.bytespersector;
 		} else {
 			goto notdatatrack;
@@ -1437,6 +1443,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		struct cd_toc *t = gettoc (&di.toc, offset);
 		if ((t->control & 0x0c) == 0x04) {
 			len = rl (cmdbuf + 6);
+			if (len * di.bytespersector > SCSI_DATA_BUFFER_SIZE)
+				goto toolarge;
 			scsi_len = (uae_u32)cmd_readx (unitnum, scsi_data, offset, len) * di.bytespersector;;
 		} else {
 			goto notdatatrack;
@@ -1804,8 +1812,16 @@ notdatatrack:
 		s[12] = 0x64; /* ILLEGAL MODE FOR THIS TRACK */
 		ls = 0x12;
 		break;
+toolarge:
+		write_log (_T("CDEMU: too large scsi data tranfer %d > %d\n"), len, dlen);
+		status = 2; /* CHECK CONDITION */
+		s[0] = 0x70;
+		s[2] = 2; /* NOT READY */
+		s[12] = 0x11; /* UNRECOVERED READ ERROR */
+		ls = 0x12;
+		break;
 
-	default:
+		default:
 err:
 		write_log (_T("CDEMU: unsupported scsi command 0x%02X\n"), cmdbuf[0]);
 errreq:

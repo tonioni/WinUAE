@@ -179,6 +179,8 @@ enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
 #define MONITOREMU_A2024 2
 #define MONITOREMU_GRAFFITI 3
 
+#define MAX_FILTERSHADERS 4
+
 #define MAX_CHIPSET_REFRESH 10
 #define MAX_CHIPSET_REFRESH_TOTAL (MAX_CHIPSET_REFRESH + 2)
 #define CHIPSET_REFRESH_PAL (MAX_CHIPSET_REFRESH + 0)
@@ -311,7 +313,7 @@ struct uae_prefs {
 	int gfx_extrawidth;
 
 	int gfx_filter;
-	TCHAR gfx_filtershader[MAX_DPATH];
+	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS][MAX_DPATH];
 	TCHAR gfx_filtermask[MAX_DPATH];
 	TCHAR gfx_filteroverlay[MAX_DPATH];
 	struct wh gfx_filteroverlay_pos;

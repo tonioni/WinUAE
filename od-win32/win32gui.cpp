@@ -137,6 +137,7 @@ extern int mouseactive;
 TCHAR config_filename[256] = _T("");
 static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
+static int filterstackpos = 0;
 
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
 
@@ -3581,6 +3582,7 @@ static int clicked_entry = -1;
 #define INPUTMAP_COLUMNS 1
 #define MISC1_COLUMNS 1
 #define MAX_COLUMN_HEADING_WIDTH 20
+#define CD_COLUMNS 3
 
 #define LV_LOADSAVE 1
 #define LV_HARDDISK 2
@@ -3589,7 +3591,8 @@ static int clicked_entry = -1;
 #define LV_MISC2 5
 #define LV_INPUTMAP 6
 #define LV_MISC1 7
-#define LV_MAX 8
+#define LV_CD 8
+#define LV_MAX 9
 
 static int lv_oldidx[LV_MAX];
 static int lv_old_type = -1;
@@ -3707,7 +3710,7 @@ void InitializeListView (HWND hDlg)
 		list = GetDlgItem (hDlg, IDC_MISCLIST);
 		extraflags = LVS_EX_CHECKBOXES;
 
-	} else {
+	} else if (hDlg == pages[DISK_ID]) {
 
 		listview_num_columns = DISK_COLUMNS;
 		lv_type = LV_DISK;
@@ -3716,6 +3719,14 @@ void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_DISK_DRIVENAME, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 		list = GetDlgItem (hDlg, IDC_DISK);
 
+	} else {
+		// CD dialog
+		listview_num_columns = CD_COLUMNS;
+		lv_type = LV_CD;
+		_tcscpy (column_heading[0], _T("*"));
+		WIN32GUI_LoadUIString (IDS_DEVICE, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
+		WIN32GUI_LoadUIString (IDS_PATH, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
+		list = GetDlgItem (hDlg, IDC_CDLIST);
 	}
 
 	int flags = LVS_EX_DOUBLEBUFFER | extraflags;
@@ -3878,10 +3889,35 @@ void InitializeListView (HWND hDlg)
 		listview_column_width[1] = 336;
 		listview_column_width[2] = 50;
 
+	} else if (lv_type == LV_CD) {
+
+		listview_column_width[2] = 450;
+		for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+			TCHAR tmp[10];
+			struct device_info di = { 0 };
+			struct cdslot *cds = &workprefs.cdslots[i];			
+			
+			if (cds->inuse)
+				blkdev_get_info (&workprefs, i, &di);
+			_stprintf (tmp, _T("%d"), i);
+			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
+			lvstruct.pszText  = cds->inuse ? (di.media_inserted ? _T("*") : _T("E")) : _T("-");
+			lvstruct.lParam   = 0;
+			lvstruct.iItem    = i;
+			lvstruct.iSubItem = 0;
+			result = ListView_InsertItem (list, &lvstruct);
+			ListView_SetItemText(list, result, 1, tmp);
+			ListView_SetItemText(list, result, 2, cds->name);
+			width = ListView_GetStringWidth(list, cds->name) + 10;
+			if (width > listview_column_width[2])
+				listview_column_width[2] = width;
+			break;
+		}
+
 	} else if (lv_type == LV_HARDDISK) {
 #ifdef FILESYS
 		listview_column_width[1] = 60;
-		for(i = 0; i < workprefs.mountitems; i++)
+		for (i = 0; i < workprefs.mountitems; i++)
 		{
 			struct uaedev_config_data *uci = &workprefs.mountconfig[i];
 			struct uaedev_config_info *ci = &uci->ci;
@@ -9183,10 +9219,12 @@ static void default_fsvdlg (struct fsvdlg_vals *f)
 }
 static void default_hfdlg (struct hfdlg_vals *f, bool rdb)
 {
+	int ctrl = f->ci.controller;
 	memset (f, 0, sizeof (struct hfdlg_vals));
 	uci_set_defaults (&f->ci, rdb);
 	f->original = true;
 	f->ci.type = UAEDEV_HDF;
+	f->ci.controller = ctrl;
 }
 
 static void volumeselectfile (HWND hDlg)
@@ -9576,11 +9614,21 @@ static INT_PTR CALLBACK CDDriveSettingsProc (HWND hDlg, UINT msg, WPARAM wParam,
 	case WM_INITDIALOG:
 		recursive++;
 		inithdcontroller (hDlg);
+		if (current_cddlg.ci.controller < HD_CONTROLLER_IDE0)
+			current_cddlg.ci.controller = (workprefs.cs_a2091 || workprefs.cs_cdtvscsi || workprefs.cs_mbdmac == 1) ? HD_CONTROLLER_SCSI0 : HD_CONTROLLER_IDE0;
 		SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_cddlg.ci.controller, 0);
+		InitializeListView (hDlg);
 		recursive--;
 		customDlgType = IDD_CDDRIVE;
 		customDlg = hDlg;
 		return TRUE;
+	case WM_NOTIFY:
+		if (((LPNMHDR) lParam)->idFrom == IDC_CDLIST) {
+			NM_LISTVIEW *nmlistview = (NM_LISTVIEW *)lParam;
+			if (nmlistview->hdr.code == NM_DBLCLK)
+				EndDialog (hDlg, 1);
+		}
+		break;		
 	case WM_COMMAND:
 		if (recursive)
 			break;
@@ -13433,6 +13481,7 @@ static void enable_for_hw3ddlg (HWND hDlg)
 	ew (hDlg, IDC_FILTERXTRA, vv2);
 	ew (hDlg, IDC_FILTERDEFAULT, v);
 	ew (hDlg, IDC_FILTERFILTER, workprefs.gfx_api);
+	ew (hDlg, IDC_FILTERSTACK, workprefs.gfx_api);
 	ew (hDlg, IDC_FILTERKEEPASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT, v);
 	ew (hDlg, IDC_FILTERASPECT2, v && workprefs.gfx_filter_keep_aspect);
@@ -13623,6 +13672,14 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_ADDSTRING, 0, (LPARAM)txt);
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
+	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_RESETCONTENT, 0, 0);
+	for (int i = -4; i <= 3; i++) {
+		int j = i < 0 ? i : i + 1;
+		_stprintf (tmp, _T("%d%s"), j, workprefs.gfx_filtershader[i + 4][0] ? _T(" *") : _T(""));
+		SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
+	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, filterstackpos, 0);
+
 	int range1 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -9999;
 	int range2 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? 1800 : 9999;
 
@@ -13652,6 +13709,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 		i++;
 	}
 	if (workprefs.gfx_api && D3D_canshaders ()) {
+		bool gotit = false;
 		HANDLE h;
 		WIN32_FIND_DATA wfd;
 		TCHAR tmp[MAX_DPATH];
@@ -13664,14 +13722,20 @@ static void values_to_hw3ddlg (HWND hDlg)
 				_stprintf (tmp2, _T("D3D: %s"), wfd.cFileName);
 				tmp2[_tcslen (tmp2) - 3] = 0;
 				SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_ADDSTRING, 0, (LPARAM)tmp2);
-				if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader, wfd.cFileName))
+				if (workprefs.gfx_api && !_tcscmp (workprefs.gfx_filtershader[filterstackpos], wfd.cFileName)) {
 					fltnum = j;
+					gotit = true;
+				}
 				j++;
 			}
 			if (!FindNextFile (h, &wfd)) {
 				FindClose (h);
 				h = INVALID_HANDLE_VALUE;
 			}
+		}
+		for (int i = 1; i < 2 * MAX_FILTERSHADERS; i++) {
+			if (workprefs.gfx_filtershader[i][0] && !gotit)
+				fltnum = UAE_FILTER_NULL;
 		}
 	}
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
@@ -13954,9 +14018,9 @@ static void filter_handle (HWND hDlg)
 		int of = workprefs.gfx_filter;
 		int off = workprefs.gfx_filter_filtermode;
 		tmp[0] = 0;
-		_tcscpy (oldsh, workprefs.gfx_filtershader);
+		_tcscpy (oldsh, workprefs.gfx_filtershader[filterstackpos]);
 		SendDlgItemMessage (hDlg, IDC_FILTERMODE, CB_GETLBTEXT, (WPARAM)item, (LPARAM)tmp);
-		workprefs.gfx_filtershader[0] = 0;
+		workprefs.gfx_filtershader[filterstackpos][0] = 0;
 		workprefs.gfx_filter = 0;
 		workprefs.gfx_filter_filtermode = 0;
 		if (workprefs.gfx_api) {
@@ -13966,7 +14030,7 @@ static void filter_handle (HWND hDlg)
 		}
 		if (item > 0) {
 			if (item > UAE_FILTER_LAST) {
-				_stprintf (workprefs.gfx_filtershader, _T("%s.fx"), tmp + 5);
+				_stprintf (workprefs.gfx_filtershader[filterstackpos], _T("%s.fx"), tmp + 5);
 			} else {
 				item--;
 				workprefs.gfx_filter = uaefilters[item].type;
@@ -13975,6 +14039,10 @@ static void filter_handle (HWND hDlg)
 				values_to_hw3ddlg (hDlg);
 				hw3d_changed = 1;
 			}
+		}
+		for (int i = 1; i < MAX_FILTERSHADERS; i++) {
+			if (workprefs.gfx_filtershader[i][0])
+				workprefs.gfx_filter = UAE_FILTER_NULL;
 		}
 		if (workprefs.gfx_filter == 0 && !workprefs.gfx_api)
 			workprefs.gfx_filter_autoscale = 0;
@@ -14104,6 +14172,14 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			if (HIWORD (wParam) == CBN_SELCHANGE || HIWORD (wParam) == CBN_KILLFOCUS)  {
 				switch (LOWORD (wParam))
 				{
+				case IDC_FILTERSTACK:
+					item = SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_GETCURSEL, 0, 0L);
+					if (item != CB_ERR) {
+						filterstackpos = item;
+						values_to_hw3ddlg (hDlg);
+						enable_for_hw3ddlg (hDlg);
+					}
+					break;
 				case IDC_FILTERAUTOSCALE:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {

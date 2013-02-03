@@ -1903,9 +1903,14 @@ int harddrive_to_hdf (HWND hDlg, struct uae_prefs *p, int idx)
 	goto ok;
 
 err:
+	DWORD err = GetLastError ();
+	LPWSTR pBuffer = NULL;
 	WIN32GUI_LoadUIString (IDS_HDCLONE_FAIL, tmp, MAX_DPATH);
-	_stprintf (tmp2, tmp, progressdialogreturn, GetLastError());
+	if (!FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&pBuffer, 0, NULL))
+		pBuffer = NULL;
+	_stprintf (tmp2, tmp, progressdialogreturn, err, pBuffer ? _T("<unknown>") : pBuffer);
 	gui_message (tmp2);
+	LocalFree (pBuffer);
 
 ok:
 	if (h != INVALID_HANDLE_VALUE)

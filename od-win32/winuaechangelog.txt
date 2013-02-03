@@ -1,6 +1,29 @@
 
 - restore only single input target to default.
 
+MMU emulation is now considered mostly done. Some minor bugs probably still exist but Amix, NetBSD, Debian
+Linux, Enforcer and WHDLoad MMU option seem to work fine.
+
+Beta 6:
+
+- SCSI and IDE emulation HD and CD read and write commands are now executed in background thread, slow devices
+  (for example real optical drive) won't temporarily pause the emulation anymore.
+- ATAPI CD emulation didn't support split data transfers. Fixes NetBSD installer unpack error.
+- Show also error code converted to string if HD to HDF image creation fails.
+- Added mostly useless CD list to CD drive GUI. (Someday there will be more than 1 option)
+- Do not allow multiple identical HD/CD controllers (if not UAE).
+- Increased size of ATAPI data buffer and added size checks. 65536 was too low. (Debian installer)
+- SCSI emulation didn't handle WD33C93 Select-and-Transfer command scatter/gather DMA. (Debian installer)
+- CD led didn't flicker during SCSI and ATAPI CD access.
+- Fixed D3D shader error/warning string buffer overflow crash. Some shaders can output really long warning messages.
+- D3D internal texture size was incorrect in some situations, causing some shaders to have incorrect geometry.
+- Added support for "post" shader filters. Post = apply shader to final output (after scaling, D3D scanlines
+  and RGB masks), Pre = apply shader to internal Amiga display (same as in previous versions).
+- D3D shaders can be "stacked", max 4 pre and post shaders supported. (-4 to -1 = pre, 1 to 4 = post),
+  Output of previous shader is input to next shader. Can be useful if you want to have "normal" filter and CRT
+  geometry filter active at the same time. Also stacking same filter multiple times makes interesting results :)
+  D3D only, software filters not supported.
+
 Beta 5:
 
 - RDB hardfile dragndrop to hardfiles panel added empty hardfile.

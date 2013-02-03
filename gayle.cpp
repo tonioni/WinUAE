@@ -3,7 +3,7 @@
 *
 * Gayle (and motherboard resources) memory bank
 *
-* (c) 2006 - 2011 Toni Wilen
+* (c) 2006 - 2013 Toni Wilen
 */
 
 #define GAYLE_LOG 0
@@ -167,8 +167,10 @@ read 1 byte to stop reset */
 #define IDE_GAYLE 0
 #define IDE_ADIDE 1
 
+
+#define ATAPI_MAX_TRANSFER 32768
 #define MAX_IDE_MULTIPLE_SECTORS 64
-#define SECBUF_SIZE (512 * (MAX_IDE_MULTIPLE_SECTORS * 2))
+#define SECBUF_SIZE (131072 * 2)
 
 struct ide_registers
 {
@@ -189,6 +191,7 @@ struct ide_hdf
 	int data_offset;
 	int data_size;
 	int data_multi;
+	int direction; // 0 = read, 1 = write
 	int lba48;
 	uae_u8 multiple_mode;
 	int irq_delay;
@@ -202,8 +205,10 @@ struct ide_hdf
 	bool atapi;
 	bool atapi_drdy;
 	int cd_unit_num;
-	int packet_cnt;
+	int packet_state;
 	int packet_data_size;
+	int packet_data_offset;
+	int packet_transfer_size;
 	struct scsi_data scsi;
 };
 
@@ -433,6 +438,10 @@ static void ide_interrupt (void)
 {
 	ide->irq_delay = 2;
 }
+static void ide_fast_interrupt (void)
+{
+	ide->irq_delay = 1;
+}
 
 static void ide_interrupt_do (struct ide_hdf *ide)
 {
@@ -490,7 +499,7 @@ static void ide_identify_drive (void)
 	if (IDE_LOG > 0)
 		write_log (_T("IDE%d identify drive\n"), ide->num);
 	ide_data_ready ();
-	ide->data_size *= -1;
+	ide->direction = 0;
 	pw (0, atapi ? 0x85c0 : 1 << 6);
 	pw (1, ide->hdhfd.cyls_def);
 	pw (2, 0xc837);
@@ -570,6 +579,7 @@ static void set_signature (struct ide_hdf *ide)
 		ide->regs.ide_status = 0;
 	}
 	ide->regs.ide_error = 0x01; // device ok
+	ide->packet_state = 0;
 }
 
 static void reset_device (bool both)
@@ -723,6 +733,177 @@ static void check_maxtransfer (int state)
 	}
 }
 
+static void process_rw_command (void)
+{
+	ide->regs.ide_status |= IDE_STATUS_BSY;
+	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+	write_comm_pipe_u32 (&requests, ide->num, 1);
+}
+static void process_packet_command (void)
+{
+	ide->regs.ide_status |= IDE_STATUS_BSY;
+	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+	write_comm_pipe_u32 (&requests, ide->num | 0x80, 1);
+}
+
+static void atapi_data_done (void)
+{
+	ide->regs.ide_nsector = ATAPI_IO | ATAPI_CD;
+	ide->regs.ide_status = IDE_STATUS_DRDY;
+	ide->data_size = 0;
+	ide->packet_data_offset = 0;
+	ide->data_offset = 0;
+}
+
+static bool atapi_set_size (struct ide_hdf *ide)
+{
+	int size;
+	size = ide->data_size;
+	ide->data_offset = 0;
+	if (!size) {
+		ide->packet_state = 0;
+		ide->packet_transfer_size = 0;
+		return true;
+	}
+	if (ide->packet_state == 2) {
+		if (size > ide->packet_data_size)
+			size = ide->packet_data_size;
+		if (size > ATAPI_MAX_TRANSFER)
+			size = ATAPI_MAX_TRANSFER;
+		ide->packet_transfer_size = size & ~1;
+		ide->regs.ide_lcyl = size & 0xff;
+		ide->regs.ide_hcyl = size >> 8;
+	} else {
+		ide->packet_transfer_size = 12;
+	}
+	ide->regs.ide_status = IDE_STATUS_DRQ;
+	write_log (_T("ATAPI data transfer %d/%d bytes\n"), ide->packet_transfer_size, ide->data_size);
+	return false;
+}
+
+static void atapi_packet (void)
+{
+	ide->packet_data_offset = 0;
+	ide->packet_data_size = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
+	if (ide->packet_data_size == 65535)
+		ide->packet_data_size = 65534;
+	ide->data_size = 12;
+	if (IDE_LOG > 0)
+		write_log (_T("ATAPI packet command. Data size = %d\n"), ide->packet_data_size);
+	ide->packet_state = 1;
+	ide->data_multi = 1;
+	ide->data_offset = 0;
+	ide->regs.ide_nsector = ATAPI_CD;
+	ide->regs.ide_error = 0;
+	atapi_set_size (ide);
+}
+
+static void do_packet_command (struct ide_hdf *ide)
+{
+	memcpy (ide->scsi.cmd, ide->secbuf, 12);
+	ide->scsi.cmd_len = 12;
+	if (IDE_LOG > 0) {
+		uae_u8 *c = ide->scsi.cmd;
+		write_log (_T("ATASCSI %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
+			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]);
+	}
+	ide->direction = 0;
+	scsi_emulate_analyze (&ide->scsi);
+	if (ide->scsi.direction <= 0) {
+		// data in
+		ide->scsi.data_len = SECBUF_SIZE;
+		scsi_emulate_cmd (&ide->scsi);
+		ide->data_size = ide->scsi.data_len;
+		ide->regs.ide_status = 0;
+		if (ide->scsi.status) {
+			// error
+			ide->regs.ide_status = ATAPI_STATUS_CHK;
+			ide->regs.ide_error = ide->scsi.status << 4;
+			atapi_data_done ();
+		} else if (ide->scsi.data_len) {
+			// data in
+			memcpy (ide->secbuf, ide->scsi.buffer, ide->scsi.data_len);
+			ide->regs.ide_nsector = ATAPI_IO;
+		} else {
+			// no data
+			atapi_data_done ();
+		}
+	} else {
+		// data out
+		ide->direction = 1;
+		ide->regs.ide_nsector = 0;
+		ide->data_size = ide->scsi.data_len;
+	}
+	ide->packet_state = 2; // data phase
+	atapi_set_size (ide);
+}
+
+static void do_process_packet_command (struct ide_hdf *ide)
+{
+	if (ide->packet_state == 1) {
+		do_packet_command (ide);
+	} else {
+		ide->packet_data_offset += ide->packet_transfer_size;
+		if (!ide->direction) {
+			// data still remaining, next transfer
+			atapi_set_size (ide);
+		} else {
+			if (atapi_set_size (ide)) {
+				memcpy (&ide->scsi.buffer, ide->secbuf, ide->data_size);
+				ide->scsi.data_len = ide->data_size;
+				scsi_emulate_cmd (&ide->scsi);
+				if (IDE_LOG > 1)
+					write_log (_T("IDE%d ATAPI write finished, %d bytes\n"), ide->num, ide->data_size);
+			}
+		}
+	}
+	ide->irq_delay = 1;
+}
+
+static void do_process_rw_command (struct ide_hdf *ide)
+{
+	unsigned int cyl, head, sec, nsec;
+	uae_u64 lba;
+	bool last;
+
+	ide->data_offset = 0;
+	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
+	nsec = get_nsec (ide->lba48);
+	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
+		nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
+	if (nsec <= 0) {
+		ide_data_ready ();
+		ide_fail_err (IDE_ERR_IDNF);
+		return;
+	}
+	if (nsec > ide->data_multi)
+		nsec = ide->data_multi;
+
+	if (ide->direction) {
+		hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
+		if (IDE_LOG > 1)
+			write_log (_T("IDE%d write, %d bytes written\n"), ide->num, nsec * ide->blocksize);
+	} else {
+		hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
+		if (IDE_LOG > 1)
+			write_log (_T("IDE%d read, read %d bytes\n"), ide->num, nsec * ide->blocksize);
+	}
+	ide->regs.ide_status |= IDE_STATUS_DRQ;
+	last = dec_nsec (ide->lba48, nsec) == 0;
+	put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec, ide->lba48);
+	if (last) {
+		if (ide->direction) {
+			if (IDE_LOG > 1)
+				write_log (_T("IDE%d write finished\n"), ide->num);
+			ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+		} else {
+			if (IDE_LOG > 1)
+				write_log (_T("IDE%d read finished\n"), ide->num);
+		}
+	}
+	ide->irq_delay = 1;
+}
+
 static void ide_read_sectors (int flags)
 {
 	unsigned int cyl, head, sec, nsec;
@@ -749,7 +930,9 @@ static void ide_read_sectors (int flags)
 	ide->data_offset = 0;
 	ide->regs.ide_status |= IDE_STATUS_DRQ;
 	ide->data_size = nsec * ide->blocksize;
-	ide_interrupt ();
+	ide->direction = 0;
+
+	process_rw_command ();
 }
 
 static void ide_write_sectors (int flags)
@@ -785,24 +968,9 @@ static void ide_write_sectors (int flags)
 	ide->data_offset = 0;
 	ide->regs.ide_status |= IDE_STATUS_DRQ;
 	ide->data_size = nsec * ide->blocksize;
-	ide_interrupt ();
-}
+	ide->direction = 1;
 
-static void atapi_packet (void)
-{
-	ide->data_size = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
-	if (ide->data_size == 65535)
-		ide->data_size = 65534;
-	ide->packet_data_size = (ide->data_size + 1) & ~1;
-	ide->data_size = 12;
-	if (IDE_LOG > 1)
-		write_log (_T("ATAPI packet command\n"));
-	ide->packet_cnt = 1;
-	ide->data_multi = 1;
-	ide->data_offset = 0;
-	ide->regs.ide_status = IDE_STATUS_DRQ;
-	ide->regs.ide_nsector = ATAPI_CD;
-	ide->regs.ide_error = 0;
+	ide_fast_interrupt ();
 }
 
 static void ide_do_command (uae_u8 cmd)
@@ -816,8 +984,11 @@ static void ide_do_command (uae_u8 cmd)
 
 	if (ide->atapi) {
 
+		gui_flicker_led (LED_CD, ide->num, 1);
 		ide->atapi_drdy = true;
-		if (cmd == 0x08) { /* device reset */
+		if (cmd == 0x00) { /* nop */
+			ide_interrupt ();
+		} else if (cmd == 0x08) { /* device reset */
 			ide_execute_drive_diagnostics (true);
 		} else if (cmd == 0xa1) { /* identify packet device */
 			ide_identify_drive ();
@@ -878,63 +1049,8 @@ static void ide_do_command (uae_u8 cmd)
 	}
 }
 
-static void atapi_data_done (void)
-{
-	ide->regs.ide_nsector = ATAPI_IO | ATAPI_CD;
-	ide->regs.ide_status = IDE_STATUS_DRDY;
-}
-
-static void do_packet_command (void)
-{
-	memcpy (ide->scsi.cmd, ide->secbuf, 12);
-	ide->scsi.cmd_len = 12;
-	if (IDE_LOG > 0) {
-		uae_u8 *c = ide->scsi.cmd;
-		write_log (_T("SCSI %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
-			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]);
-	}
-	ide->packet_cnt = 0;
-	scsi_emulate_analyze (&ide->scsi);
-	if (ide->scsi.direction <= 0) {
-		// data in
-		scsi_emulate_cmd (&ide->scsi);
-		ide->data_size = ide->scsi.data_len;
-		if (ide->data_size > ide->packet_data_size)
-			ide->data_size = ide->packet_data_size;
-		ide->data_offset = 0;
-		ide->regs.ide_status = 0;
-		if (ide->scsi.status) {
-			// error
-			ide->regs.ide_status = ATAPI_STATUS_CHK;
-			ide->regs.ide_error = ide->scsi.status << 4;
-			atapi_data_done ();
-		} else if (ide->scsi.data_len) {
-			// data
-			ide->regs.ide_status = IDE_STATUS_DRQ;
-			memcpy (ide->secbuf, ide->scsi.buffer, ide->scsi.data_len);
-			ide->packet_cnt = -1;
-			ide->regs.ide_nsector = ATAPI_IO;
-		} else {
-			// no data
-			atapi_data_done ();
-		}
-	} else {
-		// data out
-		ide->regs.ide_status = IDE_STATUS_DRQ;
-		ide->packet_cnt = -1;
-		ide->regs.ide_nsector = 0;
-		ide->data_size = ide->scsi.data_len;
-		if (ide->data_size > ide->packet_data_size)
-			ide->data_size = ide->packet_data_size;
-	}
-	ide->regs.ide_lcyl = ide->data_size & 0xff;
-	ide->regs.ide_hcyl = ide->data_size >> 8;
-}
-
 static uae_u16 ide_get_data (void)
 {
-	unsigned int cyl, head, sec, nsec;
-	uae_u64 lba;
 	bool irq = false;
 	bool last = false;
 	uae_u16 v;
@@ -948,41 +1064,27 @@ static uae_u16 ide_get_data (void)
 			return 0xffff;
 		return 0;
 	}
-	if (ide->packet_cnt) {
-		v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
+	if (ide->packet_state) {
+		v = ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] | (ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] << 8);
 		ide->data_offset += 2;
 		if (ide->data_size < 0)
 			ide->data_size += 2;
 		else
 			ide->data_size -= 2;
-		if (ide->data_size == 0) {
-			ide->packet_cnt = 0;
-			atapi_data_done ();
+		if (ide->data_offset == ide->packet_transfer_size) {
 			if (IDE_LOG > 1)
-				write_log (_T("IDE%d ATAPI read finished\n"), ide->num);
-			irq = true;
+				write_log (_T("IDE%d ATAPI partial read finished, %d bytes remaining\n"), ide->num, ide->data_size);
+			if (ide->data_size == 0) {
+				ide->packet_state = 0;
+				atapi_data_done ();
+				if (IDE_LOG > 1)
+					write_log (_T("IDE%d ATAPI read finished, %d bytes\n"), ide->num, ide->packet_data_offset + ide->data_offset);
+				irq = true;
+			} else {
+				process_packet_command ();
+			}
 		}
 	} else {
-		nsec = 0;
-		if (ide->data_offset == 0 && ide->data_size >= 0) {
-			get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
-			nsec = get_nsec (ide->lba48);
-			if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
-				nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
-			if (nsec <= 0) {
-				ide_data_ready ();
-				ide_fail_err (IDE_ERR_IDNF);
-				return 0;
-			}
-			if (nsec > ide->data_multi)
-				nsec = ide->data_multi;
-			hdf_read (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, nsec * ide->blocksize);
-			if (!dec_nsec (ide->lba48, nsec))
-				last = true;
-			if (IDE_LOG > 1)
-				write_log (_T("IDE%d read, read %d bytes to buffer\n"), ide->num, nsec * ide->blocksize);
-		}
-
 		v = ide->secbuf[ide->data_offset + 1] | (ide->secbuf[ide->data_offset + 0] << 8);
 		ide->data_offset += 2;
 		if (ide->data_size < 0) {
@@ -990,8 +1092,8 @@ static uae_u16 ide_get_data (void)
 		} else {
 			ide->data_size -= 2;
 			if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-				irq = true;
-				ide->data_offset = 0;
+				if (ide->data_size)
+					process_rw_command ();
 			}
 		}
 		if (ide->data_size == 0) {
@@ -999,37 +1101,14 @@ static uae_u16 ide_get_data (void)
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d read finished\n"), ide->num);
 		}
-		if (nsec) {
-			put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec, ide->lba48);
-		}
 	}
-	if (irq) {
-		ide_interrupt ();
-	}
+	if (irq)
+		ide_fast_interrupt ();
 	return v;
-}
-
-static void ide_write_drive (bool last)
-{
-	unsigned int cyl, head, sec, nsec;
-	uae_u64 lba;
-
-	nsec = ide->data_offset / ide->blocksize;
-	if (!nsec)
-		return;
-	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
-	hdf_write (&ide->hdhfd.hfd, ide->secbuf, lba * ide->blocksize, ide->data_offset);
-	put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec, ide->lba48);
-	dec_nsec (ide->lba48, nsec);
-	if (IDE_LOG > 1)
-		write_log (_T("IDE%d write interrupt, %d bytes written\n"), ide->num, ide->data_offset);
-	ide->data_offset = 0;
 }
 
 static void ide_put_data (uae_u16 v)
 {
-	bool irq = false;
-
 	if (IDE_LOG > 4)
 		write_log (_T("IDE%d DATA write %04x %d/%d\n"), ide->num, v, ide->data_offset, ide->data_size);
 	if (ide->data_size == 0) {
@@ -1037,38 +1116,25 @@ static void ide_put_data (uae_u16 v)
 			write_log (_T("IDE%d DATA write without DRQ!? PC=%08X\n"), ide->num, m68k_getpc ());
 		return;
 	}
-	ide->secbuf[ide->data_offset + 1] = v & 0xff;
-	ide->secbuf[ide->data_offset + 0] = v >> 8;
+	ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;
+	ide->secbuf[ide->packet_data_offset + ide->data_offset + 0] = v >> 8;
 	ide->data_offset += 2;
 	ide->data_size -= 2;
-	if (ide->packet_cnt) {
-		if (ide->data_size == 0) {
-			if (ide->packet_cnt > 0) {
-				do_packet_command ();
-			} else if (ide->packet_cnt < 0) {
-				ide->packet_cnt = 0;
-				memcpy (&ide->scsi.buffer, ide->secbuf, ide->data_size);
-				ide->scsi.data_len = ide->data_size;
-				scsi_emulate_cmd (&ide->scsi);
-				if (IDE_LOG > 1)
-					write_log (_T("IDE%d ATAPI write finished\n"), ide->num);
+	if (ide->packet_state) {
+		if (ide->data_offset == ide->packet_transfer_size) {
+			if (IDE_LOG > 0) {
+				uae_u16 v = (ide->regs.ide_hcyl << 8) | ide->regs.ide_lcyl;
+				write_log (_T("Data size after command received = %d (%d)\n"), v, ide->packet_data_size);
 			}
-			irq = true;
+			process_packet_command ();
 		}
 	} else {
 		if (ide->data_size == 0) {
-			irq = true;
-			ide_write_drive (true);
-			ide->regs.ide_status &= ~IDE_STATUS_DRQ;
-			if (IDE_LOG > 1)
-				write_log (_T("IDE%d write finished\n"), ide->num);
+			process_rw_command ();
 		} else if (((ide->data_offset % ide->blocksize) == 0) && ((ide->data_offset / ide->blocksize) % ide->data_multi) == 0) {
-			irq = 1;
-			ide_write_drive (false);
+			process_rw_command ();
 		}
 	}
-	if (irq)
-		ide_interrupt ();
 }
 
 static int get_gayle_ide_reg (uaecptr addr)
@@ -1241,9 +1307,6 @@ static void ide_write_reg (int ide_reg, uae_u32 val)
 			ide->regs.ide_status |= IDE_STATUS_BSY;
 			ide_do_command (val);
 		}
-#if 0
-		write_comm_pipe_u32 (&requests, (ide->num << 8) | val, 1);
-#endif
 		break;
 	}
 }
@@ -2549,10 +2612,15 @@ int gayle_modify_pcmcia_ide_unit (const TCHAR *path, int readonly, int insert)
 static void *ide_thread (void *null)
 {
 	for (;;) {
-		uae_u32 command = read_comm_pipe_u32_blocking (&requests);
-		if (gayle_thread_running == 0 || command == 0xfffffff)
+		uae_u32 unit = read_comm_pipe_u32_blocking (&requests);
+		struct ide_hdf *ide;
+		if (gayle_thread_running == 0 || unit == 0xfffffff)
 			break;
-		ide_do_command ((uae_u8)command);
+		ide = idedrive[unit & 0x7f];
+		if (unit & 0x80)
+			do_process_packet_command (ide);
+		else
+			do_process_rw_command (ide);
 	}
 	gayle_thread_running = -1;
 	return 0;
