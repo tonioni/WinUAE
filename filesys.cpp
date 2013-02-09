@@ -336,7 +336,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 			mi->size = -1;
 			mi->ismounted = true;
 			if (blkdev_get_info (p, ui->hf.ci.cd_emu_unit, &di)) {
-				mi->ismedia = di.media_inserted;
+				mi->ismedia = di.media_inserted != 0;
 				_tcscpy (mi->rootdir, di.label);
 			}
 #if 0
@@ -512,7 +512,6 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 		uci->surfaces = 1;
 	}
 	uci->blocksize = 512;
-	uci->autoboot = true;
 	uci->maxtransfer = 0x7fffffff;
 	uci->mask = 0xffffffff;
 	uci->bufmemtype = 1;
@@ -627,10 +626,6 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 	if (c.filesys[0])
 		ui->filesysdir = my_strdup (c.filesys);
 	ui->readonly = c.readonly;
-	if (!c.autoboot)
-		c.bootpri = -128;
-	if (c.donotmount)
-		c.bootpri = -129;
 	if (c.bootpri < -129)
 		c.bootpri = -129;
 	if (c.bootpri > 127)
@@ -1700,7 +1695,6 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 		_tcscpy (ci.devname, devname);
 		_tcscpy (ci.volname, volptr);
 		_tcscpy (ci.rootdir, rootdir);
-		ci.autoboot = true;
 		ci.flags = MYVOLUMEINFO_REUSABLE;
 		nr = add_filesys_unit (&ci);
 		if (nr < 0)

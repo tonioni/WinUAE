@@ -9214,7 +9214,6 @@ static int archivehd;
 static void default_fsvdlg (struct fsvdlg_vals *f)
 {
 	memset (f, 0, sizeof (struct fsvdlg_vals));
-	f->ci.autoboot = true;
 	f->ci.type = UAEDEV_DIR;
 }
 static void default_hfdlg (struct hfdlg_vals *f, bool rdb)
@@ -9294,12 +9293,11 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 			SetDlgItemText (hDlg, IDC_VOLUME_NAME, current_fsvdlg.ci.volname);
 			SetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname);
 			SetDlgItemText (hDlg, IDC_PATH_NAME, current_fsvdlg.ci.rootdir);
-			SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.ci.bootpri >= -127 ? current_fsvdlg.ci.bootpri : -127, TRUE);
+			SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.ci.bootpri, TRUE);
 			if (archivehd > 0)
 				current_fsvdlg.ci.readonly = true;
 			CheckDlgButton (hDlg, IDC_FS_RW, !current_fsvdlg.ci.readonly);
-			CheckDlgButton (hDlg, IDC_FS_AUTOBOOT, current_fsvdlg.ci.autoboot);
-			current_fsvdlg.ci.donotmount = 0;
+			CheckDlgButton (hDlg, IDC_FS_AUTOBOOT, ISAUTOBOOT(&current_fsvdlg.ci));
 			ew (hDlg, IDC_FS_RW, archivehd <= 0);
 			recursive--;
 		}
@@ -9356,7 +9354,14 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 		GetDlgItemText (hDlg, IDC_VOLUME_DEVICE, current_fsvdlg.ci.devname, sizeof current_fsvdlg.ci.devname / sizeof (TCHAR));
 		current_fsvdlg.ci.readonly = !ischecked (hDlg, IDC_FS_RW);
 		current_fsvdlg.ci.bootpri = GetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, NULL, TRUE);
-		current_fsvdlg.ci.autoboot = ischecked (hDlg, IDC_FS_AUTOBOOT);
+		if(LOWORD (wParam) == IDC_FS_AUTOBOOT) {
+			if (!ischecked (hDlg, IDC_FS_AUTOBOOT)) {
+				current_fsvdlg.ci.bootpri = BOOTPRI_NOAUTOBOOT;
+			} else {
+				current_fsvdlg.ci.bootpri = 0;
+			}
+			SetDlgItemInt (hDlg, IDC_VOLUME_BOOTPRI, current_fsvdlg.ci.bootpri, TRUE);
+		}
 		recursive--;
 		break;
 	}
@@ -9379,10 +9384,10 @@ static void sethardfile (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_HEADS, current_hfdlg.ci.surfaces, FALSE);
 	SetDlgItemInt (hDlg, IDC_RESERVED, current_hfdlg.ci.reserved, FALSE);
 	SetDlgItemInt (hDlg, IDC_BLOCKSIZE, current_hfdlg.ci.blocksize, FALSE);
-	SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.ci.bootpri >= -127 ? current_hfdlg.ci.bootpri : -127, TRUE);
+	SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.ci.bootpri, TRUE);
 	CheckDlgButton (hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
-	CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, current_hfdlg.ci.autoboot);
-	CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, current_hfdlg.ci.donotmount);
+	CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, ISAUTOBOOT(&current_hfdlg.ci));
+	CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, !ISAUTOMOUNT(&current_hfdlg.ci));
 	ew (hDlg, IDC_HDF_RDB, !rdb);
 	ew (hDlg, IDC_HDF_AUTOBOOT, TRUE);
 	ew (hDlg, IDC_HDF_DONOTMOUNT, TRUE);
@@ -9470,8 +9475,6 @@ static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
 				hdf->ci.reserved = 0;
 				hdf->ci.filesys[0] = 0;
 				hdf->ci.bootpri = 0;
-				hdf->ci.autoboot = 1;
-				hdf->ci.donotmount = 0;
 				hdf->ci.devname[0] = 0;
 				break;
 			}
@@ -9738,9 +9741,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 #endif
 				_tcscpy (fs, current_hfdlg.ci.filesys);
 				_tcscpy (dev, current_hfdlg.ci.devname);
-				bool autoboot = current_hfdlg.ci.autoboot;
 				bool rw = current_hfdlg.ci.readonly;
-				bool donot = current_hfdlg.ci.donotmount;
 				int bootpri = current_hfdlg.ci.bootpri;
 				hdctrlr = current_hfdlg.ci.controller;
 				default_hfdlg (&current_hfdlg, false);
@@ -9748,9 +9749,7 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				_tcscpy (current_hfdlg.ci.devname, dev);
 				current_hfdlg.ci.controller = hdctrlr;
 				current_hfdlg.ci.bootpri = bootpri;
-				current_hfdlg.ci.autoboot = autoboot;
 				current_hfdlg.ci.readonly = rw;
-				current_hfdlg.ci.donotmount = donot;
 				hardfileselecthdf (hDlg, NULL);
 #if 0
 				if (oldsize > 0 && oldsize == current_hfdlg.size) {
@@ -9788,18 +9787,23 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			current_hfdlg.ci.readonly = !ischecked (hDlg, IDC_HDF_RW);
 			break;
 		case IDC_HDF_AUTOBOOT:
-			current_hfdlg.ci.autoboot = ischecked (hDlg, IDC_HDF_AUTOBOOT);
-			if (current_hfdlg.ci.autoboot && current_hfdlg.ci.donotmount) {
-				current_hfdlg.ci.donotmount = false;
+			if (ischecked (hDlg, IDC_HDF_AUTOBOOT)) {
+				current_hfdlg.ci.bootpri = 0;
 				setchecked (hDlg, IDC_HDF_DONOTMOUNT, false);
+			} else {
+				current_hfdlg.ci.bootpri = BOOTPRI_NOAUTOBOOT;
 			}
+			SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.ci.bootpri, TRUE);
 			break;
 		case IDC_HDF_DONOTMOUNT:
-			current_hfdlg.ci.donotmount = ischecked (hDlg, IDC_HDF_DONOTMOUNT);
-			if (current_hfdlg.ci.donotmount && current_hfdlg.ci.autoboot) {
-				current_hfdlg.ci.autoboot = false;
+			if (ischecked (hDlg, IDC_HDF_DONOTMOUNT)) {
+				current_hfdlg.ci.bootpri = BOOTPRI_NOAUTOMOUNT;
 				setchecked (hDlg, IDC_HDF_AUTOBOOT, false);
+			} else {
+				current_hfdlg.ci.bootpri = BOOTPRI_NOAUTOBOOT;
+				setchecked (hDlg, IDC_HDF_AUTOBOOT, true);
 			}
+			SetDlgItemInt (hDlg, IDC_HARDFILE_BOOTPRI, current_hfdlg.ci.bootpri, TRUE);
 			break;
 		case IDC_HDF_RDB:
 			SetDlgItemInt (hDlg, IDC_SECTORS, 0, FALSE);
@@ -9809,8 +9813,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, _T(""));
 			current_hfdlg.ci.sectors = current_hfdlg.ci.reserved = current_hfdlg.ci.surfaces = 0;
 			current_hfdlg.ci.bootpri = 0;
-			current_hfdlg.ci.autoboot = true;
-			current_hfdlg.ci.donotmount = false;
 			sethardfile (hDlg);
 			break;
 		case IDC_SECTORS:
@@ -9973,24 +9975,11 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 	return FALSE;
 }
 
-static int tweakbootpri (int bp, int ab, int dnm)
-{
-	if (dnm)
-		return -129;
-	if (!ab)
-		return -128;
-	if (bp < -127)
-		bp = -127;
-	return bp;
-}
-
 static void new_filesys (HWND hDlg, int entry)
 {
 	struct uaedev_config_data *uci;
 	struct uaedev_config_info ci;
-	int bp = tweakbootpri (current_fsvdlg.ci.bootpri, current_fsvdlg.ci.autoboot, current_fsvdlg.ci.donotmount);
 	memcpy (&ci, &current_fsvdlg.ci, sizeof (struct uaedev_config_info));
-	ci.bootpri = bp;
 	uci = add_filesys_config (&workprefs, entry, &ci);
 	if (uci) {
 		if (uci->ci.rootdir[0])
@@ -10015,9 +10004,7 @@ static void new_hardfile (HWND hDlg, int entry)
 {
 	struct uaedev_config_data *uci;
 	struct uaedev_config_info ci;
-	int bp = tweakbootpri (current_hfdlg.ci.bootpri, current_hfdlg.ci.autoboot, current_hfdlg.ci.donotmount);
 	memcpy (&ci, &current_hfdlg.ci, sizeof (struct uaedev_config_info));
-	ci.bootpri = bp;
 	uci = add_filesys_config (&workprefs, entry, &ci);
 	if (uci) {
 		struct hardfiledata *hfd = get_hardfile_data (uci->configoffset);

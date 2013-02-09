@@ -509,14 +509,10 @@ int dos_errno (void)
 	}
 }
 
-typedef BOOL (CALLBACK* GETVOLUMEPATHNAME)
-	(LPCTSTR lpszFileName, LPTSTR lpszVolumePathName, DWORD cchBufferLength);
-
 int my_getvolumeinfo (const TCHAR *root)
 {
 	DWORD v, err;
 	int ret = 0;
-	GETVOLUMEPATHNAME pGetVolumePathName;
 	TCHAR volume[MAX_DPATH];
 
 	v = GetFileAttributesSafe (root);
@@ -529,13 +525,11 @@ int my_getvolumeinfo (const TCHAR *root)
 	if (v & FILE_ATTRIBUTE_READONLY)
 	ret |= MYVOLUMEINFO_READONLY;
 	*/
-	pGetVolumePathName = (GETVOLUMEPATHNAME)GetProcAddress(
-		GetModuleHandle (_T("kernel32.dll")), "GetVolumePathNameW");
-	if (pGetVolumePathName && pGetVolumePathName (root, volume, sizeof (volume))) {
+	if (GetVolumePathName (root, volume, sizeof (volume))) {
 		TCHAR fsname[MAX_DPATH];
 		DWORD comlen;
 		DWORD flags;
-		if (GetVolumeInformation (volume, NULL, 0, NULL, &comlen, &flags, fsname, sizeof (fsname))) {
+		if (GetVolumeInformation (volume, NULL, 0, NULL, &comlen, &flags, fsname, sizeof fsname / sizeof (TCHAR))) {
 			//write_log (_T("Volume %s FS=%s maxlen=%d flags=%08X\n"), volume, fsname, comlen, flags);
 			if (flags & FILE_NAMED_STREAMS)
 				ret |= MYVOLUMEINFO_STREAMS;
@@ -564,6 +558,36 @@ FILE *my_opentext (const TCHAR *name)
 	return _tfopen (name, _T("r"));
 }
 
+typedef BOOL (CALLBACK* GETVOLUMEINFORMATIONBYHANDLEW)
+    (_In_ HANDLE hFile,
+    LPWSTR lpVolumeNameBuffer,
+    DWORD nVolumeNameSize,
+    LPDWORD lpVolumeSerialNumber,
+    LPDWORD lpMaximumComponentLength,
+    LPDWORD lpFileSystemFlags,
+    LPWSTR lpFileSystemNameBuffer,
+    DWORD nFileSystemNameSize);
+
+
+static bool isfat (HANDLE h)
+{
+	TCHAR fsname[MAX_DPATH];
+	DWORD comlen;
+	DWORD flags;
+	GETVOLUMEINFORMATIONBYHANDLEW pGetVolumeInformationByHandleW;
+	
+	pGetVolumeInformationByHandleW = (GETVOLUMEINFORMATIONBYHANDLEW)GetProcAddress(
+		GetModuleHandle (_T("kernel32.dll")), "GetVolumeInformationByHandleW");
+	if (!pGetVolumeInformationByHandleW)
+		return false;
+	if (pGetVolumeInformationByHandleW (h, NULL, NULL, NULL, &comlen, &flags, fsname, sizeof fsname / sizeof (TCHAR))) {
+		if (!_tcsncmp (fsname, _T("FAT"), 3)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool my_stat (const TCHAR *name, struct mystat *statbuf)
 {
 	DWORD attr, ok;
@@ -571,8 +595,9 @@ bool my_stat (const TCHAR *name, struct mystat *statbuf)
 	HANDLE h;
 	BY_HANDLE_FILE_INFORMATION fi;
 	const TCHAR *namep;
+	bool fat;
 	TCHAR path[MAX_DPATH];
-	
+
 	if (currprefs.win32_filesystem_mangle_reserved_names == false) {
 		_tcscpy (path, PATHPREFIX);
 		_tcscat (path, name);
@@ -585,6 +610,8 @@ bool my_stat (const TCHAR *name, struct mystat *statbuf)
 	h = CreateFile (namep, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return false;
+	fat = isfat (h);
+
 	ok = GetFileInformationByHandle (h, &fi);
 	CloseHandle (h);
 
@@ -592,7 +619,25 @@ bool my_stat (const TCHAR *name, struct mystat *statbuf)
 	ft.dwHighDateTime = ft.dwLowDateTime = 0;
 	if (ok) {
 		attr = fi.dwFileAttributes;
-		ft = fi.ftLastWriteTime;
+		if (fat) {
+			// fat lastwritetime only has 2 second resolution
+			// fat creationtime has 10ms resolution
+			// use creationtime if creationtime is inside lastwritetime 2s resolution
+			ULARGE_INTEGER ct, wt;
+			ct.HighPart = fi.ftCreationTime.dwHighDateTime;
+			ct.LowPart = fi.ftCreationTime.dwLowDateTime;
+			wt.HighPart = fi.ftLastWriteTime.dwHighDateTime;
+			wt.LowPart = fi.ftLastWriteTime.dwLowDateTime;
+			uae_u64 ctsec = ct.QuadPart / 10000000;
+			uae_u64 wtsec = wt.QuadPart / 10000000;
+			if (wtsec == ctsec || wtsec + 1 == ctsec) {
+				ft = fi.ftCreationTime;
+			} else {
+				ft = fi.ftLastAccessTime;
+			}
+		} else {
+			ft = fi.ftLastWriteTime;
+		}
 		statbuf->size = ((uae_u64)fi.nFileSizeHigh << 32) | fi.nFileSizeLow;
 	} else {
 		write_log (_T("GetFileInformationByHandle(%s) failed: %d\n"), namep, GetLastError ());

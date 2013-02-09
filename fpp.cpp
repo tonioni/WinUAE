@@ -209,18 +209,17 @@ static void fpu_op_illg2 (uae_u16 opcode, uae_u32 ea, uaecptr oldpc)
 				m68k_areg (regs, 7) -= 4;
 				x_put_long (m68k_areg (regs, 7), ea);
 				m68k_areg (regs, 7) -= 2;
-				x_put_long (m68k_areg (regs, 7), 0x4000 + 11 * 4);
-				m68k_areg (regs, 7) -= 4;
+				x_put_word (m68k_areg (regs, 7), 0x4000 + 11 * 4);
 			} else {
 				m68k_areg (regs, 7) -= 4;
 				x_put_long (m68k_areg (regs, 7), ea);
 				m68k_areg (regs, 7) -= 2;
-				x_put_long (m68k_areg (regs, 7), 0x2000 + 11 * 4);
-				m68k_areg (regs, 7) -= 4;
+				x_put_word (m68k_areg (regs, 7), 0x2000 + 11 * 4);
 			}
+			m68k_areg (regs, 7) -= 4;
 			x_put_long (m68k_areg (regs, 7), newpc);
 			m68k_areg (regs, 7) -= 2;
-			x_put_long (m68k_areg (regs, 7), regs.sr);
+			x_put_word (m68k_areg (regs, 7), regs.sr);
 			write_log (_T("68040/060 FPU disabled exception OP=%04X EA=%08X PC=%08X\n"), opcode, ea, oldpc);
 			newpc = x_get_long (regs.vbr + 11 * 4);
 			m68k_setpc (newpc);

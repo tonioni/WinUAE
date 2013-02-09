@@ -1025,7 +1025,7 @@ static uae_u32 REGPARAM2 op_unimpl_1 (uae_u32 opcode)
 	if ((opcode & 0xf000) == 0xf000 || currprefs.cpu_model < 68060)
 		op_illg (opcode);
 	else
-		op_unimpl ();
+		op_unimpl (opcode);
 	return 4;
 }
 
@@ -2537,6 +2537,8 @@ static void Exception_mmu (int nr, uaecptr oldpc)
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x2);
 	} else if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);
+	} else if (nr == 61) {
+        Exception_build_stack_frame(oldpc, regs.instruction_pc, regs.mmu_ssw, nr, 0x0);
 	} else {
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x0);
 	}
@@ -2751,15 +2753,18 @@ kludge_me_do:
 	exception_trace (nr);
 }
 
-void REGPARAM2 Exception (int nr)
+// address = format $2 stack frame address field
+static void ExceptionX (int nr, uaecptr address)
 {
 	regs.exception = nr;
 	if (cpu_tracer) {
 		cputrace.state = nr;
 	}
 
+#ifdef JIT
 	if (currprefs.cachesize)
-		regs.instruction_pc = m68k_getpc ();
+		regs.instruction_pc = address == -1 ? m68k_getpc () : address;
+#endif
 #ifdef CPUEMU_12
 	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
 		Exception_ce000 (nr);
@@ -2785,6 +2790,15 @@ void REGPARAM2 Exception (int nr)
 	if (cpu_tracer) {
 		cputrace.state = 0;
 	}
+}
+
+void REGPARAM2 Exception (int nr)
+{
+	ExceptionX (nr, -1);
+}
+void REGPARAM2 Exception (int nr, uaecptr address)
+{
+	ExceptionX (nr, address);
 }
 
 STATIC_INLINE void do_interrupt (int nr)
@@ -3010,7 +3024,7 @@ STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae
 void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.cpu_compatible && currprefs.cpu_model == 68060) {
-		op_unimpl ();
+		op_unimpl (opcode);
 		return;
 	}
 	if (src == 0) {
@@ -3149,7 +3163,7 @@ STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, ua
 void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.cpu_compatible && currprefs.cpu_model == 68060) {
-		op_unimpl ();
+		op_unimpl (opcode);
 		return;
 	}
 #if defined (uae_s64)
@@ -3331,9 +3345,14 @@ void m68k_reset (int hardreset)
 	fill_prefetch_quick ();
 }
 
-void REGPARAM2 op_unimpl (void)
+void REGPARAM2 op_unimpl (uae_u16 opcode)
 {
-	Exception (61);
+	static int warned;
+	if (warned < 20) {
+		write_log (_T("68060 unimplemented opcode %04X, PC=%08x\n"), opcode, regs.instruction_pc);
+		warned++;
+	}
+	Exception (61, regs.instruction_pc);
 }
 
 uae_u32 REGPARAM2 op_illg (uae_u32 opcode)
@@ -4186,8 +4205,9 @@ void execute_normal (void)
 		/* Take note: This is the do-it-normal loop */
 		uae_u16 opcode;
 
+		regs.instruction_pc = m68k_getpc ();
 		if (currprefs.cpu_compatible) {
-			opcode = get_word_020_prefetchf (m68k_getpc ());
+			opcode = get_word_020_prefetchf (regs.instruction_pc);
 		} else {
 			opcode = get_iword (0);
 		}
@@ -5831,7 +5851,10 @@ static void exception3f (uae_u32 opcode, uaecptr addr, int writeaccess, int inst
 	if (currprefs.cpu_model >= 68040)
 		addr &= ~1;
 	if (currprefs.cpu_model >= 68020) {
-		last_addr_for_exception_3 = regs.instruction_pc;
+		if (pc == 0xffffffff)
+			last_addr_for_exception_3 = regs.instruction_pc;
+		else
+			last_addr_for_exception_3 = pc;
 	} else if (pc == 0xffffffff) {
 		last_addr_for_exception_3 = m68k_getpc () + 2;
 	} else {
@@ -5855,7 +5878,7 @@ void exception3i (uae_u32 opcode, uaecptr addr)
 {
 	exception3f (opcode, addr, 0, 1, 0xffffffff);
 }
-void exception3 (uae_u32 opcode, uaecptr addr, int w, int i, uaecptr pc)
+void exception3 (uae_u32 opcode, uaecptr addr, bool w, bool i, uaecptr pc)
 {
 	exception3f (opcode, addr, w, i, pc);
 }

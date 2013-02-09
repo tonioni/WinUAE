@@ -1,10 +1,25 @@
 
 - restore only single input target to default.
 
-MMU emulation is now considered mostly done. Some minor bugs probably still exist but Amix, NetBSD, Debian
-Linux, Enforcer and WHDLoad MMU option seem to work fine.
+Beta 7:
+
+- In JIT mode format 2 stack frames had wrong address field contents, this also broke 68060 unimplemented integer
+  instruction exceptions (64-bit variants of DIVL and MULL).
+- GUI boot priority/autoboot/automount handling fixed and simplified.
+- 68030 "cycle-exact" mode used 020 instruction cache emulation code. No guarantees that this fixes all 68030 "CE" problems.
+- D3D texture memory leak fixed (b6)
+- A2024/Graffiti extra display buffer memory leak fixed.
+- 1/50s file modification date also supported on FAT volumes. Returns FAT file creation date (which has 10ms resolution,
+  file modification date only has 2s resolution) if it is inside file modifcation date's 2s resolution.
+- 68040+ "no FPU" exception stack frame still had incorrect data.
+- Disable 68040/060 CPU "More compatible" option if JIT is enabled. JIT active and not emulating unimplemented
+  instructions isn't safe because JIT and normal emulation does not always agree which instructions are supported.
+- A2065 emulation tweak, Ethernet chip documentation STOP/STRT/INIT bit documentation is not very clear.
 
 Beta 6:
+
+MMU emulation is now considered mostly done. Some minor bugs probably still exist but Amix, NetBSD, Debian
+Linux, Enforcer and WHDLoad MMU option seem to work fine.
 
 - SCSI and IDE emulation HD and CD read and write commands are now executed in background thread, slow devices
   (for example real optical drive) won't temporarily pause the emulation anymore.

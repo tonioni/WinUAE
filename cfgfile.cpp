@@ -528,10 +528,6 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		TCHAR *str;
 		int bp = ci->bootpri;
 
-		if (!ci->autoboot)
-			bp = -128;
-		if (ci->donotmount)
-			bp = -129;
 		str = cfgfile_put_multipath (&p->path_hardfile, ci->rootdir);
 		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
@@ -2397,10 +2393,6 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 	memcpy (&uci->ci, ci, sizeof (struct uaedev_config_info));
 	validatedevicename (uci->ci.devname);
 	validatevolumename (uci->ci.volname);
-	if (uci->ci.bootpri < -128)
-		uci->ci.donotmount = true;
-	else if (uci->ci.bootpri >= -127)
-		uci->ci.autoboot = true;
 	if (!uci->ci.devname[0] && ci->type != UAEDEV_CD) {
 		TCHAR base[32];
 		TCHAR base2[32];
@@ -2562,12 +2554,11 @@ static bool parse_geo (const TCHAR *tname, struct uaedev_config_info *uci, struc
 		if (!_tcsicmp (key, _T("forceload")))
 			uci->forceload = v;
 		if (!_tcsicmp (key, _T("bootpri"))) {
+			if (v < -129)
+				v = -129;
+			if (v > 127)
+				v = 127;
 			uci->bootpri = v;
-			uci->donotmount = false;
-			if (uci->bootpri <= -128) {
-				uci->bootpri = -128;
-				uci->donotmount = true;
-			}
 		}
 		if (!_tcsicmp (key, _T("filesystem")))
 			_tcscpy (uci->filesys, val);
@@ -2702,8 +2693,6 @@ static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHA
 		goto invalid_fs;
 	}
 empty_fs:
-	uci.autoboot = uci.bootpri >= -127; 
-	uci.donotmount = uci.bootpri == -129; 
 	if (uci.rootdir[0]) {
 		if (_tcslen (uci.rootdir) > 3 && uci.rootdir[0] == 'H' && uci.rootdir[1] == 'D' && uci.rootdir[2] == '_') {
 			memmove (uci.rootdir, uci.rootdir + 2, (_tcslen (uci.rootdir + 2) + 1) * sizeof (TCHAR));

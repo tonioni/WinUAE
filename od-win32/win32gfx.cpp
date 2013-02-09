@@ -2526,6 +2526,12 @@ static void setDwmEnableMMCSS (bool state)
 		pDwmEnableMMCSS (state);
 }
 
+static void freesoftbuffer (struct vidbuffer *buf)
+{
+	xfree (buf->realbufmem);
+	memset (buf, 0, sizeof (struct vidbuffer));
+}
+
 void close_windows (void)
 {
 	changevblankthreadmode (VBLANKTH_IDLE);
@@ -2535,10 +2541,8 @@ void close_windows (void)
 #if defined (GFXFILTER)
 	S2X_free ();
 #endif
-	xfree (gfxvidinfo.drawbuffer.realbufmem);
-	xfree (gfxvidinfo.tempbuffer.realbufmem);
-	memset (&gfxvidinfo.drawbuffer, 0, sizeof (struct vidbuffer));
-	memset (&gfxvidinfo.tempbuffer, 0, sizeof (struct vidbuffer));
+	freesoftbuffer (&gfxvidinfo.drawbuffer);
+	freesoftbuffer (&gfxvidinfo.tempbuffer);
 	DirectDraw_Release ();
 	close_hwnds ();
 }
@@ -3907,7 +3911,7 @@ static void allocsoftbuffer (const TCHAR *name, struct vidbuffer *buf, int flags
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
 		buf->bufmem_lockable = true;
 
-		write_log (_T("Allocated %s temp buffer (%d*%d*%d)\n"), name, width, height, depth);
+		write_log (_T("Allocated %s temp buffer (%d*%d*%d) = %p\n"), name, width, height, depth, buf->realbufmem);
 	}
 }
 
@@ -4051,7 +4055,8 @@ static BOOL doInit (void)
 #endif
 	gfxvidinfo.drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
-	xfree (gfxvidinfo.drawbuffer.realbufmem);
+	freesoftbuffer (&gfxvidinfo.drawbuffer);
+	freesoftbuffer (&gfxvidinfo.tempbuffer);
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem_allocated = NULL;

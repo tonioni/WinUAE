@@ -1844,16 +1844,6 @@ static uae_u32 hardfile_do_io (struct hardfiledata *hfd, struct hardfileprivdata
 		}
 		break;
 
-bad_command:
-		error = IOERR_BADADDRESS;
-		break;
-bad_len:
-		error = IOERR_BADLENGTH;
-		break;
-no_disk:
-		error = 29; /* no disk */
-		break;
-
 	case NSCMD_DEVICEQUERY:
 		put_long (dataptr + 0, 0);
 		put_long (dataptr + 4, 16); /* size */
@@ -1958,6 +1948,16 @@ no_disk:
 		} else {
 			error = IOERR_NOCMD;
 		}
+		break;
+
+bad_command:
+		error = IOERR_BADADDRESS;
+		break;
+bad_len:
+		error = IOERR_BADLENGTH;
+		break;
+no_disk:
+		error = 29; /* no disk */
 		break;
 
 	default:

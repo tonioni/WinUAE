@@ -2398,10 +2398,8 @@ static void center_image (void)
 
 		/* Would the old value be good enough? If so, leave it as it is if we want to
 		* be clever. */
-		if (currprefs.gfx_ycenter == 2) {
-			if (center_reset || (thisframe_y_adjust != prev_y_adjust
-				&& prev_y_adjust <= thisframe_first_drawn_line
-				&& prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line))
+		if (currprefs.gfx_ycenter == 2 && thisframe_y_adjust != prev_y_adjust) {
+			if (center_reset || (prev_y_adjust <= thisframe_first_drawn_line && prev_y_adjust + max_drawn_amiga_line > thisframe_last_drawn_line))
 				thisframe_y_adjust = prev_y_adjust;
 		}
 	}

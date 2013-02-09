@@ -194,7 +194,6 @@ void filesys_addexternals (void)
 #endif
 			ci.readonly = !rw;
 			ci.bootpri = -20 - drvnum;
-			ci.autoboot = true;
 			//write_log (_T("Drive type %d: '%s' '%s'\n"), drivetype, volumepath, volumename);
 			add_filesys_unit (&ci);
 			drvnum++;

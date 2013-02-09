@@ -133,7 +133,7 @@ static int endlabelno = 0;
 static int need_endlabel;
 
 static int n_braces, limit_braces;
-static int m68k_pc_offset;
+static int m68k_pc_offset, m68k_pc_offset_old;
 static int insn_n_cycles, insn_n_cycles020;
 static int ir2irc;
 
@@ -488,10 +488,17 @@ static void incpc (const char *format, ...)
 
 static void sync_m68k_pc (void)
 {
+	m68k_pc_offset_old = m68k_pc_offset;
 	if (m68k_pc_offset == 0)
 		return;
 	incpc ("%d", m68k_pc_offset);
 	m68k_pc_offset = 0;
+}
+
+static void sync_m68k_pc_noreset (void)
+{
+	sync_m68k_pc ();
+	m68k_pc_offset = m68k_pc_offset_old;
 }
 
 static void addmmufixup (char *reg)
@@ -1741,7 +1748,7 @@ static void resetvars (void)
 			srcb = "x_get_byte";
 			dstb = "x_put_byte";
 			do_cycles = "do_cycles_ce000";
-		} else if (using_ce020) {
+		} else if (using_ce020 == 1) {
 			/* x_ not used if it redirects to
 			 * get_word_ce020_prefetch()
 			 */
@@ -1760,6 +1767,21 @@ static void resetvars (void)
 			do_cycles = "do_cycles_ce020";
 			nextw = "next_iword_020ce";
 			nextl = "next_ilong_020ce";
+		} else if (using_ce020 == 2) {
+			// 68030/40/60 CE
+			prefetch_long = "get_long_ce030_prefetch";
+			prefetch_word = "get_word_ce030_prefetch";
+			srcli = "x_get_ilong";
+			srcwi = "x_get_iword";
+			srcbi = "x_get_ibyte";
+			srcl = "x_get_long";
+			dstl = "x_put_long";
+			srcw = "x_get_word";
+			dstw = "x_put_word";
+			srcb = "x_get_byte";
+			dstb = "x_put_byte";
+			nextw = "next_iword_030ce";
+			nextl = "next_ilong_030ce";
 		} else if (using_prefetch_020) {
 			prefetch_word = "get_word_020_prefetch";
 			prefetch_long = "get_long_020_prefetch";
@@ -1775,12 +1797,12 @@ static void resetvars (void)
 			nextw = "next_iword_020";
 			nextl = "next_ilong_020";
 		}
-
+#if 0
 	} else if (using_ce020) {
 		disp020 = "x_get_disp_ea_020";
 		do_cycles = "do_cycles_ce020";
 		if (using_ce020 == 2) {
-			// 68030 CE
+			// 68030/40/60 CE
 			prefetch_long = "get_long_ce030_prefetch";
 			prefetch_word = "get_word_ce030_prefetch";
 			nextw = "next_iword_030ce";
@@ -1808,6 +1830,7 @@ static void resetvars (void)
 			srcb = "get_byte_ce020";
 			dstb = "put_byte_ce020";
 		}
+#endif
 	} else if (using_mmu == 68030) {
 		// 68030 MMU
 		disp020 = "get_disp_ea_020_mmu030";
@@ -3514,7 +3537,8 @@ static void gen_opcode (unsigned long int opcode)
 				}
 				if (curi->dmode == Aipi || curi->dmode == Apdi)
 					printf ("\t\tm68k_areg (regs, dstreg) %c= %d;\n", curi->dmode == Aipi ? '-' : '+', 1 << curi->size);
-				printf ("\t\top_unimpl ();\n");
+				sync_m68k_pc_noreset ();
+				printf ("\t\top_unimpl (opcode);\n");
 				printf ("\t\tgoto %s;\n", endlabelstr);
 				printf ("\t}\n");
 				need_endlabel = 1;
@@ -4323,7 +4347,7 @@ static void generate_cpu (int id, int mode)
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
-	} else if (id == 22 || id == 23 || id == 24) { // 68030+ "cycle-exact"
+	} else if (id == 22 || id == 23 || id == 24) { // 68030/040/60 "cycle-exact"
 		cpu_level = 3 + (24 - id);
 		using_ce020 = 2;
 		if (id == 22) {

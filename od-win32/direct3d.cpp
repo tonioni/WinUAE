@@ -53,13 +53,12 @@ static bool showoverlay = true;
 
 struct shaderdata
 {
-	int type; // 0 = before , 1 = after, 2 = post
+	int type;
 	int psPreProcess;
 	LPDIRECT3DTEXTURE9 lpWorkTexture1;
 	LPDIRECT3DTEXTURE9 lpWorkTexture2;
 	LPDIRECT3DTEXTURE9 lpTempTexture;
 	LPD3DXEFFECT pEffect;
-	D3DXEFFECT_DESC EffectDesc;
 	// Technique stuff
 	D3DXHANDLE m_PreprocessTechnique1EffectHandle;
 	D3DXHANDLE m_PreprocessTechnique2EffectHandle;
@@ -317,7 +316,7 @@ static int postEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3
 	return true;
 }
 
-static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DXEFFECT effect, struct shaderdata *s)
+static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DXEFFECT effect, D3DXEFFECT_DESC EffectDesc, struct shaderdata *s)
 {
 	HRESULT hr = S_OK;
 	// Look at parameters for semantics and annotations that we know how to interpret
@@ -328,10 +327,11 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 	LPDIRECT3DBASETEXTURE9 pTex = NULL;
 	UINT iParam, iAnnot;
 
+
 	if(effect == NULL)
 		return 0;
 
-	for(iParam = 0; iParam < s->EffectDesc.Parameters; iParam++) {
+	for(iParam = 0; iParam < EffectDesc.Parameters; iParam++) {
 		LPCSTR pstrName = NULL;
 		LPCSTR pstrFunction = NULL;
 		D3DXHANDLE pstrFunctionHandle = NULL;
@@ -786,6 +786,7 @@ static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shade
 	DWORD compileflags = psEnabled ? 0 : D3DXSHADER_USE_LEGACY_D3DX9_31_DLL;
 	int canusefile = 0, existsfile = 0;
 	bool plugin_path;
+	D3DXEFFECT_DESC EffectDesc;
 
 	compileflags |= EFFECTCOMPILERFLAGS;
 	plugin_path = get_plugin_path (tmp, sizeof tmp / sizeof (TCHAR), _T("filtershaders\\direct3d"));
@@ -858,13 +859,13 @@ static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shade
 		write_log (_T("%s: D3DXCreateEffect failed: %s\n"), D3DHEAD, D3DX_ErrorString (hr, Errors));
 		goto end;
 	}
-	hr = effect->GetDesc (&s->EffectDesc);
+	hr = effect->GetDesc (&EffectDesc);
 	if (FAILED (hr)) {
 		write_log (_T("%s: effect->GetDesc() failed: %s\n"), D3DHEAD, D3DX_ErrorString (hr, Errors));
 		goto end;
 	}
 	if (full) {
-		if (!psEffect_ParseParameters (EffectCompiler, effect, s))
+		if (!psEffect_ParseParameters (EffectCompiler, effect, EffectDesc, s))
 			goto end;
 	} else {
 		if (!postEffect_ParseParameters (EffectCompiler, effect, s))
@@ -872,7 +873,7 @@ static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shade
 	}
 	ret = 1;
 	if (plugin_path && filenotificationhandle == NULL)
-		filenotificationhandle  = FindFirstChangeNotification (tmp3, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+		filenotificationhandle = FindFirstChangeNotification (tmp3, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
 end:
 	if (Errors)
 		Errors->Release ();
@@ -1163,6 +1164,7 @@ static int createamigatexture (int w, int h)
 static int createtexture (int ow, int oh, int win_w, int win_h)
 {
 	HRESULT hr;
+	bool haveafter = false;
 
 	int w, h;
 #if 0
@@ -1186,14 +1188,19 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 				return 0;
 			}
 			if (shaders[i].type == SHADERTYPE_AFTER) {
+				haveafter = true;
 				if (!allocextratextures (&shaders[i], window_w, window_h))
 					return 0;
 			}
 		}
 	}
-	if (FAILED (hr = d3ddev->CreateTexture (window_w, window_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpPostTempTexture, NULL))) {
-		write_log (_T("%s: Failed to create working texture1: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-		return 0;
+
+
+	if (haveafter) {
+		if (FAILED (hr = d3ddev->CreateTexture (window_w, window_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpPostTempTexture, NULL))) {
+			write_log (_T("%s: Failed to create working texture1: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			return 0;
+		}
 	}
 	write_log (_T("%s: working texture allocated pre %d*%d, post %d*%d, bits per pixel %d\n"), D3DHEAD, w, h, window_w, window_h, t_depth);
 	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
@@ -1873,6 +1880,25 @@ static void freetextures (void)
 		lpHq2xLookupTexture->Release ();
 		lpHq2xLookupTexture = NULL;
 	}
+	for (int i = 0; i < MAX_SHADERS; i++) {
+		struct shaderdata *s = &shaders[i];
+		if (s->lpTempTexture) {
+			s->lpTempTexture->Release ();
+			s->lpTempTexture = NULL;
+		}
+		if (s->lpWorkTexture1) {
+			s->lpWorkTexture1->Release ();
+			s->lpWorkTexture1 = NULL;
+		}
+		if (s->lpWorkTexture2) {
+			s->lpWorkTexture2->Release ();
+			s->lpWorkTexture2 = NULL;
+		}
+	}
+	if (lpPostTempTexture) {
+		lpPostTempTexture->Release();
+		lpPostTempTexture = NULL;
+	}
 }
 
 static void getswapchain (void)
@@ -1887,7 +1913,7 @@ static void getswapchain (void)
 
 static void invalidatedeviceobjects (void)
 {
-	if (filenotificationhandle  != NULL)
+	if (filenotificationhandle != NULL)
 		FindCloseChangeNotification  (filenotificationhandle);
 	filenotificationhandle = NULL;
 	freetextures ();
@@ -1928,23 +1954,7 @@ static void invalidatedeviceobjects (void)
 			shaders[i].pEffect->Release ();
 			shaders[i].pEffect = NULL;
 		}
-		if (shaders[i].lpTempTexture) {
-			shaders[i].lpTempTexture->Release ();
-			shaders[i].lpTempTexture = NULL;
-		}
-		if (shaders[i].lpWorkTexture1) {
-			shaders[i].lpWorkTexture1->Release ();
-			shaders[i].lpWorkTexture1 = NULL;
-		}
-		if (shaders[i].lpWorkTexture2) {
-			shaders[i].lpWorkTexture2->Release ();
-			shaders[i].lpWorkTexture2 = NULL;
-		}
 		memset (&shaders[i], 0, sizeof (struct shaderdata));
-	}
-	if (lpPostTempTexture) {
-		lpPostTempTexture->Release();
-		lpPostTempTexture = NULL;
 	}
 	if (d3ddev)
 		d3ddev->SetStreamSource (0, NULL, 0, 0);
@@ -2062,7 +2072,7 @@ static void D3D_free2 (void)
 		d3d = NULL;
 	}
 	d3d_enabled = 0;
-	psActive = 0;
+	psActive = FALSE;
 	resetcount = 0;
 	devicelost = 0;
 	renderdisabled = false;

@@ -869,8 +869,13 @@ static void do_process_rw_command (struct ide_hdf *ide)
 	ide->data_offset = 0;
 	get_lbachs (ide, &lba, &cyl, &head, &sec, ide->lba48);
 	nsec = get_nsec (ide->lba48);
-	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize)
+	if (IDE_LOG > 1)
+		write_log (_T("IDE%d off=%d, nsec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 ? 48 : 28);
+	if (nsec * ide->blocksize > ide->hdhfd.size - lba * ide->blocksize) {
 		nsec = (ide->hdhfd.size - lba * ide->blocksize) / ide->blocksize;
+		if (IDE_LOG > 1)
+			write_log (_T("IDE%d nsec changed to %d\n"), ide->num, nsec);
+	}
 	if (nsec <= 0) {
 		ide_data_ready ();
 		ide_fail_err (IDE_ERR_IDNF);
@@ -896,9 +901,6 @@ static void do_process_rw_command (struct ide_hdf *ide)
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d write finished\n"), ide->num);
 			ide->regs.ide_status &= ~IDE_STATUS_DRQ;
-		} else {
-			if (IDE_LOG > 1)
-				write_log (_T("IDE%d read finished\n"), ide->num);
 		}
 	}
 	ide->irq_delay = 1;
@@ -919,8 +921,6 @@ static void ide_read_sectors (int flags)
 	gui_flicker_led (LED_HD, ide->num, 1);
 	nsec = get_nsec (lba48);
 	get_lbachs (ide, &lba, &cyl, &head, &sec, lba48);
-	if (IDE_LOG > 0)
-		write_log (_T("IDE%d read off=%d, sec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, lba48 ? 48 : 28);
 	if (lba * ide->blocksize >= ide->hdhfd.size) {
 		ide_data_ready ();
 		ide_fail_err (IDE_ERR_IDNF);

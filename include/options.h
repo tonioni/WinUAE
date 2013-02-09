@@ -111,6 +111,11 @@ struct wh {
 #define UAEDEV_DIR 0
 #define UAEDEV_HDF 1
 #define UAEDEV_CD 2
+
+#define BOOTPRI_NOAUTOBOOT -128
+#define BOOTPRI_NOAUTOMOUNT -129
+#define ISAUTOBOOT(ci) ((ci)->bootpri > BOOTPRI_NOAUTOBOOT)
+#define ISAUTOMOUNT(ci) ((ci)->bootpri > BOOTPRI_NOAUTOMOUNT)
 struct uaedev_config_info {
 	int type;
 	TCHAR devname[MAX_DPATH];
@@ -118,8 +123,6 @@ struct uaedev_config_info {
 	TCHAR rootdir[MAX_DPATH];
 	bool readonly;
 	int bootpri;
-	bool autoboot;
-	bool donotmount;
 	TCHAR filesys[MAX_DPATH];
 	int lowcyl;
 	int highcyl; // zero if detected from size
