@@ -1250,7 +1250,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 			p = r;
 			p[0] = 4 - 1;
 			p[1] = 0;
-			p[2] = 0;
+			p[2] = (hfd->ci.readonly || hfd->dangerous) ? 0x80 : 0x00;
 			p[3] = 0;
 			p += 4;
 			if (!dbd) {
@@ -1421,7 +1421,7 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 		s[0] = 0x70;
 		s[2] = 0; /* NO SENSE */
 		s[12] = 0x1c; /* DEFECT LIST NOT FOUND */
-		ls = 12;
+		ls = 0x12;
 		break;
 	case 0x1b: /* START/STOP UNIT */
 		scsi_len = 0;
@@ -1431,14 +1431,14 @@ readprot:
 		s[0] = 0x70;
 		s[2] = 7; /* DATA PROTECT */
 		s[12] = 0x27; /* WRITE PROTECTED */
-		ls = 12;
+		ls = 0x12;
 		break;
 nodisk:
 		status = 2; /* CHECK CONDITION */
 		s[0] = 0x70;
 		s[2] = 2; /* NOT READY */
 		s[12] = 0x3A; /* MEDIUM NOT PRESENT */
-		ls = 12;
+		ls = 0x12;
 		break;
 
 	default:
@@ -1450,7 +1450,7 @@ errreq:
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x24; /* ILLEGAL FIELD IN CDB */
-		ls = 12;
+		ls = 0x12;
 		break;
 miscompare:
 		lr = -1;
@@ -1458,7 +1458,7 @@ miscompare:
 		s[0] = 0x70;
 		s[2] = 5; /* ILLEGAL REQUEST */
 		s[12] = 0x1d; /* MISCOMPARE DURING VERIFY OPERATION */
-		ls = 12;
+		ls = 0x12;
 		break;
 	}
 	*data_len = scsi_len;

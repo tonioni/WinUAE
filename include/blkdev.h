@@ -183,7 +183,7 @@ extern void scsi_log_before (uae_u8 *cdb, int cdblen, uae_u8 *data, int datalen)
 extern void scsi_log_after (uae_u8 *data, int datalen, uae_u8 *sense, int senselen);
 
 extern int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
-	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len);
+	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len, bool atapi);
 
 extern void blkdev_vsync (void);
 

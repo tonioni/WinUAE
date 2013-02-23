@@ -60,6 +60,7 @@ static int gameportmask[MAX_JPORTS];
 static DWORD storeflags;
 static int screenmode_request;
 static HWND guestwindow;
+static int hwndset_delay;
 
 static int cando (void)
 {
@@ -886,12 +887,12 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 		write_log(_T("%dx%d %dx%d %dx%d %08x HM=%.1f VM=%.1f\n"),
 			sm->lClipLeft, sm->lClipTop, sm->lClipWidth, sm->lClipHeight, sm->lTargetWidth, sm->lTargetHeight, sm->dwClipFlags, hmult, vmult);
 		if (WIN32GFX_IsPicassoScreen ()) {
-			write_log (_T("RTG WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d\n"),
+			write_log (_T("RTG WW=%d WH=%d FW=%d FH=%d HM=%.1f VM=%.1f\n"),
 				p->gfx_size_win.width, p->gfx_size_win.height,
 				p->gfx_size_fs.width, p->gfx_size_fs.height,
 				p->rtg_horiz_zoom_mult, p->rtg_vert_zoom_mult);
 		} else {
-			write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%d VM=%d XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
+			write_log (_T("WW=%d WH=%d FW=%d FH=%d HM=%.1f VM=%.1f XP=%d YP=%d XS=%d YS=%d AS=%d AR=%d,%d\n"),
 				p->gfx_size_win.width, p->gfx_size_win.height,
 				p->gfx_size_fs.width, p->gfx_size_fs.height,
 				p->gfx_filter_horiz_zoom_mult, p->gfx_filter_vert_zoom_mult,
@@ -980,7 +981,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				if (n == NULL || n[0] == 0)
 					disk_eject (num);
 				else
-					disk_insert (num, n);
+					disk_insert (num, n, (dc->dwFlags & RP_DEVICEFLAGS_RW_READWRITE) == 0);
 				ok = TRUE;
 				break;
 			case RP_DEVICECATEGORY_INPUTPORT:
@@ -1366,6 +1367,7 @@ static void rp_device_change (int dev, int num, int mode, bool readonly, const T
 	dc.btDeviceCategory = dev;
 	dc.btDeviceNumber = num;
 	dc.dwInputDevice = mode;
+	dc.dwFlags = readonly ? RP_DEVICEFLAGS_RW_READONLY : RP_DEVICEFLAGS_RW_READWRITE;
 	if (content)
 		_tcscpy (dc.szContent, content);
 	if (log_rp & 1)
@@ -1622,12 +1624,18 @@ void rp_turbo_floppy (int active)
 	RPSendMessagex (RP_IPC_TO_HOST_TURBO, RP_TURBO_FLOPPY, active ? RP_TURBO_FLOPPY : 0, NULL, 0, &guestinfo, NULL);
 }
 
+void rp_set_hwnd_delayed (void)
+{
+	hwndset_delay = 4;
+}
+
 void rp_set_hwnd (HWND hWnd)
 {
 	struct RPScreenMode sm = { 0 };
 
 	if (!initialized)
 		return;
+	hwndset_delay = 0;
 	guestwindow = hWnd;
 	get_screenmode (&sm, &currprefs);
 	if (hWnd != NULL)
@@ -1678,6 +1686,12 @@ void rp_vsync (void)
 
 	if (!initialized)
 		return;
+	if (hwndset_delay > 0) {
+		hwndset_delay--;
+		if (hwndset_delay == 0)
+			rp_set_hwnd (hAmigaWnd);
+	}
+
 	if (screenmode_request) {
 		screenmode_request--;
 		if (screenmode_request == 0) {

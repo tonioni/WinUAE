@@ -9,6 +9,8 @@
 
 #include <windows.h>
 #include <sys/timeb.h>
+#include <Shobjidl.h>
+#include <ShlGuid.h>
 
 bool my_isfilehidden (const TCHAR *path)
 {
@@ -759,4 +761,69 @@ bool my_utime (const TCHAR *name, struct mytimeval *tv)
 	return false;
 }
 
+// http://msdn.microsoft.com/en-us/library/aa969393.aspx
+bool my_resolveshortcut(TCHAR *linkfile, int size) 
+{ 
+	bool ok = false;
+    HRESULT hres; 
+    IShellLink* psl; 
+    WCHAR szGotPath[MAX_PATH]; 
+    WCHAR szDescription[MAX_PATH]; 
+    WIN32_FIND_DATA wfd; 
+ 
+	const TCHAR *ext = _tcsrchr (linkfile, '.');
+	if (!ext || _tcsicmp (ext, _T("lnk")) == 0)
+		return false;
 
+    // Get a pointer to the IShellLink interface. It is assumed that CoInitialize
+    // has already been called. 
+    hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl); 
+    if (SUCCEEDED(hres)) 
+    { 
+        IPersistFile* ppf;
+ 
+        // Get a pointer to the IPersistFile interface. 
+        hres = psl->QueryInterface(IID_IPersistFile, (void**)&ppf); 
+        
+        if (SUCCEEDED(hres)) 
+        { 
+            // Add code here to check return value from MultiByteWideChar 
+            // for success.
+ 
+            // Load the shortcut. 
+            hres = ppf->Load(linkfile, STGM_READ); 
+            
+            if (SUCCEEDED(hres)) 
+            { 
+                // Resolve the link. 
+                hres = psl->Resolve(NULL, SLR_NO_UI); 
+
+                if (SUCCEEDED(hres)) 
+                { 
+                    // Get the path to the link target. 
+                    hres = psl->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH); 
+
+                    if (SUCCEEDED(hres)) 
+                    { 
+                        // Get the description of the target. 
+                        hres = psl->GetDescription(szDescription, MAX_PATH); 
+
+                        if (SUCCEEDED(hres)) 
+                        {
+							_tcsncpy (linkfile, szGotPath, size);
+							linkfile[size - 1] = 0;
+                            ok = SUCCEEDED(hres);
+                        }
+                    }
+                } 
+            } 
+
+            // Release the pointer to the IPersistFile interface. 
+            ppf->Release(); 
+        } 
+
+        // Release the pointer to the IShellLink interface. 
+        psl->Release(); 
+    } 
+    return ok; 
+}

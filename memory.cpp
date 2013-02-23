@@ -35,6 +35,7 @@
 
 bool canbang;
 int candirect = -1;
+static bool rom_write_enabled;
 #ifdef JIT
 /* Set by each memory handler that does not simply access real memory. */
 int special_mem;
@@ -968,7 +969,15 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (a1000_kickstart_mode) {
+	if (currprefs.rom_readwrite && rom_write_enabled) {
+		addr &= kickmem_mask;
+		m = (uae_u32 *)(kickmemory + addr);
+		do_put_mem_long (m, b);
+		if (addr == 524288-4) {
+			rom_write_enabled = false;
+			write_log (_T("ROM write disabled\n"));
+		}
+	} else if (a1000_kickstart_mode) {
 		if (addr >= 0xfc0000) {
 			addr &= kickmem_mask;
 			m = (uae_u32 *)(kickmemory + addr);
@@ -987,7 +996,11 @@ static void REGPARAM2 kickmem_wput (uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (a1000_kickstart_mode) {
+	if (currprefs.rom_readwrite && rom_write_enabled) {
+		addr &= kickmem_mask;
+		m = (uae_u16 *)(kickmemory + addr);
+		do_put_mem_word (m, b);
+	} else if (a1000_kickstart_mode) {
 		if (addr >= 0xfc0000) {
 			addr &= kickmem_mask;
 			m = (uae_u16 *)(kickmemory + addr);
@@ -1005,7 +1018,10 @@ static void REGPARAM2 kickmem_bput (uaecptr addr, uae_u32 b)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
-	if (a1000_kickstart_mode) {
+	if (currprefs.rom_readwrite && rom_write_enabled) {
+		addr &= kickmem_mask;
+		kickmemory[addr] = b;
+	} else if (a1000_kickstart_mode) {
 		if (addr >= 0xfc0000) {
 			addr &= kickmem_mask;
 			kickmemory[addr] = b;
@@ -2471,6 +2487,7 @@ void memory_reset (void)
 		memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 		memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
 		need_hardreset = true;
+		rom_write_enabled = true;
 		mapped_free (extendedkickmemory);
 		extendedkickmemory = 0;
 		extendedkickmem_size = 0;
@@ -2669,17 +2686,6 @@ void memory_reset (void)
 		}
 	}
 
-	if (currprefs.custom_memory_sizes[0]) {
-		map_banks (&custmem1_bank,
-			currprefs.custom_memory_addrs[0] >> 16,
-			currprefs.custom_memory_sizes[0] >> 16, 0);
-	}
-	if (currprefs.custom_memory_sizes[1]) {
-		map_banks (&custmem2_bank,
-			currprefs.custom_memory_addrs[1] >> 16,
-			currprefs.custom_memory_sizes[1] >> 16, 0);
-	}
-
 #ifdef ARCADIA
 	if (is_arcadia_rom (currprefs.romextfile) == ARCADIA_BIOS) {
 		if (_tcscmp (currprefs.romextfile, changed_prefs.romextfile) != 0)
@@ -2702,6 +2708,19 @@ void memory_reset (void)
 	}
 #endif
 #endif
+
+	if (currprefs.custom_memory_sizes[0]) {
+		map_banks (&custmem1_bank,
+			currprefs.custom_memory_addrs[0] >> 16,
+			currprefs.custom_memory_sizes[0] >> 16, 0);
+	}
+	if (currprefs.custom_memory_sizes[1]) {
+		map_banks (&custmem2_bank,
+			currprefs.custom_memory_addrs[1] >> 16,
+			currprefs.custom_memory_sizes[1] >> 16, 0);
+	}
+
+
 	if (mem_hardreset) {
 		memory_clear ();
 	}
@@ -2796,14 +2815,30 @@ void memory_hardreset (int mode)
 		mem_hardreset = mode + 1;
 }
 
+// do not map if it conflicts with custom banks
+void map_banks_cond (addrbank *bank, int start, int size, int realsize)
+{
+	for (int i = 0; i < MAX_CUSTOM_MEMORY_ADDRS; i++) {
+		int cstart = currprefs.custom_memory_addrs[i] >> 16;
+		if (!cstart)
+			continue;
+		int csize = currprefs.custom_memory_sizes[i] >> 16;
+		if (!csize)
+			continue;
+		if (start <= cstart && start + size >= cstart)
+			return;
+		if (cstart <= start && (cstart + size >= start || start + size > cstart))
+			return;
+	}
+	map_banks (bank, start, size, realsize);
+}
+
 void map_banks (addrbank *bank, int start, int size, int realsize)
 {
 	int bnr, old;
 	unsigned long int hioffs = 0, endhioffs = 0x100;
 	addrbank *orgbank = bank;
 	uae_u32 realstart = start;
-
-	//write_log (_T("MAP_BANK %04X0000 %d %s\n"), start, size, bank->name);
 
 	old = debug_bankchange (-1);
 	flush_icache (0, 3); /* Sure don't want to keep any old mappings around! */

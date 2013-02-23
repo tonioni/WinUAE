@@ -446,6 +446,18 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				FILE_SHARE_READ | (hfd->ci.readonly ? 0 : FILE_SHARE_WRITE),
 				NULL, OPEN_EXISTING, flags, NULL);
 			hfd->handle->h = h;
+			if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
+				DWORD err = GetLastError ();
+				if (err == ERROR_WRITE_PROTECT || err == ERROR_SHARING_VIOLATION) {
+					h = CreateFile (udi->device_path,
+						GENERIC_READ,
+						FILE_SHARE_READ,
+						NULL, OPEN_EXISTING, flags, NULL);
+					if (h != INVALID_HANDLE_VALUE)
+						hfd->ci.readonly = true;
+				}
+			}
+
 			if (h == INVALID_HANDLE_VALUE)
 				goto end;
 			if (!DeviceIoControl (h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
@@ -513,6 +525,16 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 		}
 		h = CreateFile (name, GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE), hfd->ci.readonly ? FILE_SHARE_READ : 0, NULL,
 			OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+		if (h == INVALID_HANDLE_VALUE && !hfd->ci.readonly) {
+			DWORD err = GetLastError ();
+			if (err == ERROR_WRITE_PROTECT || err == ERROR_SHARING_VIOLATION) {
+				h = CreateFile (name, GENERIC_READ, FILE_SHARE_READ, NULL,
+					OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+				if (h != INVALID_HANDLE_VALUE)
+					hfd->ci.readonly = true;
+			}
+		}
+		
 		hfd->handle->h = h;
 		i = _tcslen (name) - 1;
 		while (i >= 0) {

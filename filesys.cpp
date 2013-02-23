@@ -529,6 +529,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 	bool emptydrive = false;
 	bool iscd;
 	struct uaedev_config_info c;
+	TCHAR newrootdir[MAX_DPATH];
 
 	memcpy (&c, ci, sizeof (struct uaedev_config_info));
 
@@ -545,6 +546,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		}
 	}
 
+	my_resolveshortcut (c.rootdir, MAX_DPATH);
 	iscd = nr >= cd_unit_offset && nr < cd_unit_offset + cd_unit_number;
 
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
@@ -1431,7 +1433,7 @@ static void setsystime_vblank (void)
 	}
 }
 
-int filesys_insert (int nr, TCHAR *volume, const TCHAR *rootdir, bool readonly, int flags)
+int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool readonly, int flags)
 {
 	UnitInfo *ui;
 	Unit *u;

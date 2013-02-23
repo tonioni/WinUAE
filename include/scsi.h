@@ -14,16 +14,18 @@ struct scsi_data
     int reply_len;
     int direction;
 	uae_u8 message[1];
+	int blocksize;
 
     int offset;
     uae_u8 buffer[SCSI_DATA_BUFFER_SIZE];
     struct hd_hardfiledata *hfd;
     int nativescsiunit;
 	int cd_emu_unit;
+	bool atapi;
 };
 
 extern struct scsi_data *scsi_alloc_hd(int, struct hd_hardfiledata*);
-extern struct scsi_data *scsi_alloc_cd(int, int);
+extern struct scsi_data *scsi_alloc_cd(int, int, bool);
 extern struct scsi_data *scsi_alloc_native(int, int);
 extern void scsi_free(struct scsi_data*);
 extern void scsi_reset(void);

@@ -1713,10 +1713,10 @@ int check_prefs_changed_gfx (void)
 
 	for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
 		c |= _tcscmp (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]) ? (2|8) : 0;
+		c |= _tcscmp (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]) ? (2|8) : 0;
 	}
 
 	c |= currprefs.gfx_filter != changed_prefs.gfx_filter ? (2|8) : 0;
-	c |= _tcscmp (currprefs.gfx_filtermask, changed_prefs.gfx_filtermask) ? (2|8) : 0;
 	c |= _tcscmp (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay) ? (2|8) : 0;
 	c |= currprefs.gfx_filter_filtermode != changed_prefs.gfx_filter_filtermode ? (2|8) : 0;
 	c |= currprefs.gfx_filter_bilinear != changed_prefs.gfx_filter_bilinear ? (2|8) : 0;
@@ -1802,9 +1802,9 @@ int check_prefs_changed_gfx (void)
 
 		for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
 			_tcscpy (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]);
+			_tcscpy (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]);
 		}
 		currprefs.gfx_filter = changed_prefs.gfx_filter;
-		_tcscpy (currprefs.gfx_filtermask, changed_prefs.gfx_filtermask);
 		_tcscpy (currprefs.gfx_filteroverlay, changed_prefs.gfx_filteroverlay);
 		currprefs.gfx_filter_filtermode = changed_prefs.gfx_filter_filtermode;
 		currprefs.gfx_filter_bilinear = changed_prefs.gfx_filter_bilinear;
@@ -4106,6 +4106,9 @@ static BOOL doInit (void)
 
 	screen_is_initialized = 1;
 	picasso_refresh ();
+#ifdef RETROPLATFORM
+	rp_set_hwnd_delayed ();
+#endif
 
 	if (isfullscreen () > 0)
 		setmouseactive (-1);
@@ -4136,6 +4139,9 @@ bool target_graphics_buffer_update (void)
 	oldtex_w = w;
 	oldtex_h = h;
 	oldtex_rtg = screen_is_picasso;
+
+	if (!w || !h)
+		return false;
 
 	write_log (_T("Buffer size (%d*%d) %s\n"), w, h, screen_is_picasso ? _T("RTG") : _T("Native"));
 

@@ -1,6 +1,24 @@
 
 - restore only single input target to default.
 
+Beta 8:
+
+- CD SCSI emulation: implemented mode sense CD/DVD page code 0x2A. Used to detect drive capabilities, for example
+  if it can read or write CD-R, DVD-ROM or DVD-R and so on.
+- SCSI emulation MODE SENSE didn't limit returned amount of bytes to allocation length field.
+- BPLCON0 SuperHires bit disables normal DDFSTRT/DDFSTOP limits. (Why?)
+- Resolve shortcut path if mounting shortcut (.lnk) as a harddrive.
+- If inserting RDB hardfile using GUI: get device's blocksize from RDB block size field.
+- Attempted write to SCSI or IDE CD (using normal SCSI Write command) crashed. 
+- Return WP bit set in SCSI Mode Sense result if SCSI HD is write protected.
+- Add harddrive option set wrong parameters, drive was added as non-RDB partition hardfile (some earlier beta).
+- Hardfiles and harddrives: attempt to mount as read-only before failing if read-write access is not allowed.
+- Hide bootpri/bootable/donotmount boxes in GUI when selected RDB mode/controller combination does not support them.
+- Added support for write protected disk images even if physical file is write-enabled. Config file
+  only, floppyXwp=true
+- 68020/030 no-FPU F-line exceptions didn't work correctly, broke in previous 68040+ FPU disabled exception
+  updates.
+
 Beta 7:
 
 - In JIT mode format 2 stack frames had wrong address field contents, this also broke 68060 unimplemented integer

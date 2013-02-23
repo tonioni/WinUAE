@@ -209,7 +209,7 @@ struct ide_hdf
 	int packet_data_size;
 	int packet_data_offset;
 	int packet_transfer_size;
-	struct scsi_data scsi;
+	struct scsi_data *scsi;
 };
 
 #define TOTAL_IDE 3
@@ -777,7 +777,8 @@ static bool atapi_set_size (struct ide_hdf *ide)
 		ide->packet_transfer_size = 12;
 	}
 	ide->regs.ide_status = IDE_STATUS_DRQ;
-	write_log (_T("ATAPI data transfer %d/%d bytes\n"), ide->packet_transfer_size, ide->data_size);
+	if (IDE_LOG > 1)
+		write_log (_T("ATAPI data transfer %d/%d bytes\n"), ide->packet_transfer_size, ide->data_size);
 	return false;
 }
 
@@ -800,29 +801,29 @@ static void atapi_packet (void)
 
 static void do_packet_command (struct ide_hdf *ide)
 {
-	memcpy (ide->scsi.cmd, ide->secbuf, 12);
-	ide->scsi.cmd_len = 12;
+	memcpy (ide->scsi->cmd, ide->secbuf, 12);
+	ide->scsi->cmd_len = 12;
 	if (IDE_LOG > 0) {
-		uae_u8 *c = ide->scsi.cmd;
+		uae_u8 *c = ide->scsi->cmd;
 		write_log (_T("ATASCSI %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
 			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]);
 	}
 	ide->direction = 0;
-	scsi_emulate_analyze (&ide->scsi);
-	if (ide->scsi.direction <= 0) {
+	scsi_emulate_analyze (ide->scsi);
+	if (ide->scsi->direction <= 0) {
 		// data in
-		ide->scsi.data_len = SECBUF_SIZE;
-		scsi_emulate_cmd (&ide->scsi);
-		ide->data_size = ide->scsi.data_len;
+		ide->scsi->data_len = SECBUF_SIZE;
+		scsi_emulate_cmd (ide->scsi);
+		ide->data_size = ide->scsi->data_len;
 		ide->regs.ide_status = 0;
-		if (ide->scsi.status) {
+		if (ide->scsi->status) {
 			// error
 			ide->regs.ide_status = ATAPI_STATUS_CHK;
-			ide->regs.ide_error = ide->scsi.status << 4;
+			ide->regs.ide_error = ide->scsi->status << 4;
 			atapi_data_done ();
-		} else if (ide->scsi.data_len) {
+		} else if (ide->scsi->data_len) {
 			// data in
-			memcpy (ide->secbuf, ide->scsi.buffer, ide->scsi.data_len);
+			memcpy (ide->secbuf, ide->scsi->buffer, ide->scsi->data_len);
 			ide->regs.ide_nsector = ATAPI_IO;
 		} else {
 			// no data
@@ -832,7 +833,7 @@ static void do_packet_command (struct ide_hdf *ide)
 		// data out
 		ide->direction = 1;
 		ide->regs.ide_nsector = 0;
-		ide->data_size = ide->scsi.data_len;
+		ide->data_size = ide->scsi->data_len;
 	}
 	ide->packet_state = 2; // data phase
 	atapi_set_size (ide);
@@ -849,9 +850,9 @@ static void do_process_packet_command (struct ide_hdf *ide)
 			atapi_set_size (ide);
 		} else {
 			if (atapi_set_size (ide)) {
-				memcpy (&ide->scsi.buffer, ide->secbuf, ide->data_size);
-				ide->scsi.data_len = ide->data_size;
-				scsi_emulate_cmd (&ide->scsi);
+				memcpy (&ide->scsi->buffer, ide->secbuf, ide->data_size);
+				ide->scsi->data_len = ide->data_size;
+				scsi_emulate_cmd (ide->scsi);
 				if (IDE_LOG > 1)
 					write_log (_T("IDE%d ATAPI write finished, %d bytes\n"), ide->num, ide->data_size);
 			}
@@ -1830,15 +1831,15 @@ static struct ide_hdf *add_ide_unit (int ch, struct uaedev_config_info *ci)
 		memcpy (&ide->hdhfd.hfd.ci, ci, sizeof (struct uaedev_config_info));
 	if (ci->cd_emu_unit >= 0) {
 		device_func_init (0);
-		ide->cd_unit_num = ci->cd_emu_unit;
-		if (!sys_command_open (ide->cd_unit_num)) {
+		ide->scsi = scsi_alloc_cd (ch, ci->cd_emu_unit, true);
+		if (!ide->scsi) {
 			write_log (_T("IDE: CD EMU unit %d failed to open\n"), ide->cd_unit_num);
 			return NULL;
 		}
+		ide->cd_unit_num = ci->cd_emu_unit;
 		ide->atapi = true;
 		ide->blocksize = 512;
 		gui_flicker_led (LED_CD, ch, -1);
-		ide->scsi.cd_emu_unit = ide->cd_unit_num;
 
 		write_log (_T("IDE%d CD %d\n"), ch, ide->cd_unit_num);
 
@@ -2515,13 +2516,13 @@ void gayle_map_pcmcia (void)
 	if (currprefs.cs_pcmcia == 0)
 		return;
 	if (pcmcia_card == 0 || (gayle_cs & GAYLE_CS_DIS)) {
-		map_banks (&dummy_bank, 0xa0, 8, 0);
+		map_banks_cond (&dummy_bank, 0xa0, 8, 0);
 		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
-			map_banks (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
+			map_banks_cond (&dummy_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	} else {
-		map_banks (&gayle_attr_bank, 0xa0, 8, 0);
+		map_banks_cond (&gayle_attr_bank, 0xa0, 8, 0);
 		if (currprefs.chipmem_size <= 4 * 1024 * 1024 && getz2endaddr () <= 4 * 1024 * 1024)
-			map_banks (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
+			map_banks_cond (&gayle_common_bank, PCMCIA_COMMON_START >> 16, PCMCIA_COMMON_SIZE >> 16, 0);
 	}
 }
 
@@ -2537,8 +2538,8 @@ void gayle_free_units (void)
 	for (i = 0; i < TOTAL_IDE * 2; i++) {
 		struct ide_hdf *ide = idedrive[i];
 		if (ide) {
-			if (ide->cd_unit_num >= 0) {
-				sys_command_close (ide->cd_unit_num);
+			if (ide->scsi) {
+				scsi_free (ide->scsi);
 			} else {
 				hdf_hd_close (&ide->hdhfd);
 			}

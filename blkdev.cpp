@@ -1147,7 +1147,7 @@ static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_i
 }
 
 int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
-	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len)
+	uae_u8 *scsi_data, int *data_len, uae_u8 *r, int *reply_len, uae_u8 *s, int *sense_len, bool atapi)
 {
 	uae_u64 len, offset;
 	int lr = 0, ls = 0;
@@ -1194,8 +1194,10 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		r[1] |= 0x80; // removable
 		r[2] = 2; /* supports SCSI-2 */
 		r[3] = 2; /* response data format */
+		if (atapi)
+			r[3] |= 3 << 5; // atapi transport version
 		r[4] = 32; /* additional length */
-		r[7] = 0x20; /* 16 bit bus */
+		r[7] = 0;
 		scsi_len = lr = len < 36 ? (uae_u32)len : 36;
 		r[2] = 2;
 		r[3] = 2;
@@ -1249,6 +1251,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	case 0x1a: /* MODE SENSE(6) */
 	{
 		uae_u8 *p;
+		int maxlen;
 		bool pcodeloop = false;
 		bool sense10 = cmdbuf[0] == 0x5a;
 		int psize, totalsize, bdsize;
@@ -1262,6 +1265,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		p = r;
 		if (sense10) {
 			totalsize = 8 - 2;
+			maxlen = (cmdbuf[7] << 8) | cmdbuf[8];
 			p[2] = 0;
 			p[3] = 0;
 			p[4] = 0;
@@ -1271,6 +1275,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			p += 8;
 		} else {
 			totalsize = 4 - 1;
+			maxlen = cmdbuf[4];
 			p[1] = 0;
 			p[2] = 0;
 			p[3] = 0;
@@ -1298,6 +1303,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				p[2] = 0x20;
 				p[3] = 0;
 				psize = 4;
+#if 0
 			} else if (pcode == 3) {
 				if (nodisk (&di))
 					goto nodisk;
@@ -1321,6 +1327,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				wl(p + 13, di.cylinders);
 				ww(p + 20, 0);
 				psize = p[1];
+#endif
 			} else if (pcode == 14) { // CD audio control
 				uae_u32 vol = sys_command_cd_volume (unitnum, 0xffff, 0xffff);
 				p[0] = 0x0e;
@@ -1333,6 +1340,25 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 				p[9] = pc == 0 ? (vol >> 7) & 0xff : 0xff;
 				p[10] = 2;
 				p[11] = pc == 0 ? (vol >> (16 + 7)) & 0xff : 0xff;
+				psize = p[1];
+			} else if (pcode == 0x2a) {  // cd/dvd capabilities
+				p[0] = 0x2a;
+				p[1] = 0x18;
+				p[2] = 1; // | 0x10 | 0x20; // read: CD-R/DVD-ROM/DVD-R
+				p[3] = 0; // write: nothing
+				p[4] = 0x40 | 0x20 | 0x10 | 0x01;
+				p[5] = 0x08 | 0x04 | 0x02 | 0x01;
+				p[6] = (1 << 5) | 0x10; // type = tray, eject supported
+				p[7] = 3; // separate channel mute and volume
+				p[8] = 2; p[9] = 0;
+				p[10] = 0xff; p[11] = 0xff; // number of volume levels
+				p[12] = 4; p[13] = 0; // "1M buffer"
+				p[14] = 2; p[15] = 0;
+				p[16] = 0;
+				p[17] = 0;
+				p[18] = p[19] = 0;
+				p[20] = p[21] = 0;
+				p[22] = p[23] = 0;
 				psize = p[1];
 			} else {
 				if (!pcodeloop)
@@ -1360,6 +1386,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			r[0] = totalsize & 0xff;
 		}
 		scsi_len = lr = totalsize + 1;
+		if (scsi_len > maxlen)
+			scsi_len = maxlen;
 	}
 	break;
 	case 0x01: /* REZERO UNIT */
@@ -1375,7 +1403,7 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			int cyl, cylsec, head, tracksec;
 			if (nodisk (&di))
 				goto nodisk;
-			uae_u32 blocks = di.sectorspertrack * di.cylinders * di.trackspercylinder;
+			uae_u32 blocks = di.sectorspertrack * di.cylinders * di.trackspercylinder - 1;
 			cyl = di.cylinders;
 			head = 1;
 			cylsec = tracksec = di.trackspercylinder;
@@ -1862,7 +1890,7 @@ static int execscsicmd_direct (int unitnum, struct amigascsi *as)
 	if (as->sense_len > 32)
 		as->sense_len = 32;
 
-	as->status = scsi_cd_emulate (unitnum, cmd, as->cmd_len, scsi_datap, &datalen, replydata, &replylen, as->sensedata, &senselen);
+	as->status = scsi_cd_emulate (unitnum, cmd, as->cmd_len, scsi_datap, &datalen, replydata, &replylen, as->sensedata, &senselen, false);
 
 	as->cmdactual = as->status != 0 ? 0 : as->cmd_len; /* fake scsi_CmdActual */
 	if (as->status) {

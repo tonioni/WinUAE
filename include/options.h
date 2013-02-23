@@ -98,6 +98,7 @@ struct floppyslot
 	int dfxtype;
 	int dfxclick;
 	TCHAR dfxclickexternal[256];
+	bool forcedwriteprotect;
 };
 
 #define WH_NATIVE 1
@@ -317,7 +318,7 @@ struct uae_prefs {
 
 	int gfx_filter;
 	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS][MAX_DPATH];
-	TCHAR gfx_filtermask[MAX_DPATH];
+	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS][MAX_DPATH];
 	TCHAR gfx_filteroverlay[MAX_DPATH];
 	struct wh gfx_filteroverlay_pos;
 	int gfx_filteroverlay_overscan;
@@ -369,6 +370,7 @@ struct uae_prefs {
 	int floppy_auto_ext2;
 	bool tod_hack;
 	uae_u32 maprom;
+	bool rom_readwrite;
 	int turbo_emulation;
 	bool headless;
 	int filesys_limit;

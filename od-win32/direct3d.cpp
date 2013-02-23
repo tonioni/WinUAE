@@ -49,7 +49,9 @@ static bool showoverlay = true;
 
 #define SHADERTYPE_BEFORE 1
 #define SHADERTYPE_AFTER 2
-#define SHADERTYPE_POST 3
+#define SHADERTYPE_MASK_BEFORE 3
+#define SHADERTYPE_MASK_AFTER 4
+#define SHADERTYPE_POST 10
 
 struct shaderdata
 {
@@ -76,6 +78,9 @@ struct shaderdata
 	D3DXHANDLE m_SourceTextureEffectHandle;
 	D3DXHANDLE m_WorkingTexture1EffectHandle;
 	D3DXHANDLE m_WorkingTexture2EffectHandle;
+	// Masks
+	LPDIRECT3DTEXTURE9 masktexture;
+	int masktexture_w, masktexture_h;
 };
 static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static LPDIRECT3DTEXTURE9 lpPostTempTexture;
@@ -94,9 +99,8 @@ static D3DDISPLAYMODEEX modeex;
 static IDirect3DDevice9 *d3ddev;
 static IDirect3DDevice9Ex *d3ddevex;
 static D3DSURFACE_DESC dsdbb;
-static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, masktexture, mask2texture, blanktexture;
+static LPDIRECT3DTEXTURE9 texture, sltexture, ledtexture, mask2texture, blanktexture;
 static IDirect3DQuery9 *query;
-static int masktexture_w, masktexture_h;
 static float mask2texture_w, mask2texture_h, mask2texture_ww, mask2texture_wh;
 static float mask2texture_wwx, mask2texture_hhx, mask2texture_minusx, mask2texture_minusy;
 static float mask2texture_multx, mask2texture_multy, mask2texture_offsetw;
@@ -1257,8 +1261,6 @@ static int createledtexture (void)
 
 static int createsltexture (void)
 {
-	if (masktexture)
-		return 0;
 	sltexture = createtext (required_sl_texture_w, required_sl_texture_h, t_depth < 32 ? D3DFMT_A4R4G4B4 : D3DFMT_A8R8G8B8);
 	if (!sltexture)
 		return 0;
@@ -1530,7 +1532,7 @@ end:
 	return 0;
 }
 
-static int createmasktexture (const TCHAR *filename)
+static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 {
 	struct zfile *zf;
 	int size;
@@ -1573,8 +1575,8 @@ static int createmasktexture (const TCHAR *filename)
 		write_log (_T("%s: mask image texture GetLevelDesc() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 		goto end;
 	}
-	masktexture_w = dinfo.Width;
-	masktexture_h = dinfo.Height;
+	sd->masktexture_w = dinfo.Width;
+	sd->masktexture_h = dinfo.Height;
 #if 0
 	if (txdesc.Width == masktexture_w && txdesc.Height == masktexture_h && psEnabled) {
 		// texture size == image size, no need to tile it (Wrap sampler does the rest)
@@ -1588,23 +1590,23 @@ static int createmasktexture (const TCHAR *filename)
 	} else {
 #endif
 		// both must be divisible by mask size
-		maskwidth = ((window_w + masktexture_w - 1) / masktexture_w) * masktexture_w;
-		maskheight = ((window_h + masktexture_h - 1) / masktexture_h) * masktexture_h;
+		maskwidth = ((window_w + sd->masktexture_w - 1) / sd->masktexture_w) * sd->masktexture_w;
+		maskheight = ((window_h + sd->masktexture_h - 1) / sd->masktexture_h) * sd->masktexture_h;
 #if 0
 	}
 #endif
 	if (tx) {
-		masktexture = createtext (maskwidth, maskheight, D3DFMT_X8R8G8B8);
+		sd->masktexture = createtext (maskwidth, maskheight, D3DFMT_X8R8G8B8);
 		if (FAILED (hr)) {
 			write_log (_T("%s: mask texture creation failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			goto end;
 		}
-		hr = masktexture->GetLevelDesc (0, &maskdesc);
+		hr = sd->masktexture->GetLevelDesc (0, &maskdesc);
 		if (FAILED (hr)) {
 			write_log (_T("%s: mask texture GetLevelDesc() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			goto end;
 		}
-		if (SUCCEEDED (hr = masktexture->LockRect (0, &lock, NULL, 0))) {
+		if (SUCCEEDED (hr = sd->masktexture->LockRect (0, &lock, NULL, 0))) {
 			if (SUCCEEDED (hr = tx->LockRect (0, &slock, NULL, 0))) {
 				int x, y, sx, sy;
 				uae_u32 *sptr, *ptr;
@@ -1629,21 +1631,21 @@ static int createmasktexture (const TCHAR *filename)
 				}
 				tx->UnlockRect (0);
 			}
-			masktexture->UnlockRect (0);
+			sd->masktexture->UnlockRect (0);
 		}
 		tx->Release ();
-		masktexture_w = maskdesc.Width;
-		masktexture_h = maskdesc.Height;
+		sd->masktexture_w = maskdesc.Width;
+		sd->masktexture_h = maskdesc.Height;
 	}
-	write_log (_T("%s: mask %d*%d (%d*%d) %d*%d ('%s') texture allocated\n"), D3DHEAD, masktexture_w, masktexture_h, txdesc.Width, txdesc.Height, maskdesc.Width, maskdesc.Height, filename);
-	maskmult_x = (float)window_w / masktexture_w;
-	maskmult_y = (float)window_h / masktexture_h;
+	write_log (_T("%s: mask %d*%d (%d*%d) %d*%d ('%s') texture allocated\n"), D3DHEAD, sd->masktexture_w, sd->masktexture_h, txdesc.Width, txdesc.Height, maskdesc.Width, maskdesc.Height, filename);
+	maskmult_x = (float)window_w / sd->masktexture_w;
+	maskmult_y = (float)window_h / sd->masktexture_h;
 
 	return 1;
 end:
-	if (masktexture)
-		masktexture->Release ();
-	masktexture = NULL;
+	if (sd->masktexture)
+		sd->masktexture->Release ();
+	sd->masktexture = NULL;
 	if (tx)
 		tx->Release ();
 	return 0;
@@ -1933,10 +1935,6 @@ static void invalidatedeviceobjects (void)
 		sltexture->Release ();
 		sltexture = NULL;
 	}
-	if (masktexture) {
-		masktexture->Release ();
-		masktexture = NULL;
-	}
 	if (mask2texture) {
 		mask2texture->Release ();
 		mask2texture = NULL;
@@ -1953,6 +1951,10 @@ static void invalidatedeviceobjects (void)
 		if (shaders[i].pEffect) {
 			shaders[i].pEffect->Release ();
 			shaders[i].pEffect = NULL;
+		}
+		if (shaders[i].masktexture) {
+			shaders[i].masktexture->Release ();
+			shaders[i].masktexture = NULL;
 		}
 		memset (&shaders[i], 0, sizeof (struct shaderdata));
 	}
@@ -2006,6 +2008,10 @@ static int restoredeviceobjects (void)
 					break;
 				}
 			}
+			if (currprefs.gfx_filtermask[i][0]) {
+				struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_BEFORE);
+				createmasktexture (currprefs.gfx_filtermask[i], s);
+			}
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 			if (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
@@ -2015,12 +2021,15 @@ static int restoredeviceobjects (void)
 					break;
 				}
 			}
+			if (currprefs.gfx_filtermask[i + MAX_FILTERSHADERS][0]) {
+				struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_AFTER);
+				createmasktexture (currprefs.gfx_filtermask[i + MAX_FILTERSHADERS], s);
+			}
 		}
 		if (currprefs.gfx_filter_scanlines > 0) {
 			createsltexture ();
 			createscanlines (1);
 		}
-		createmasktexture (currprefs.gfx_filtermask);
 		break;
 	}
 	if (wasshader && !shaderon)
@@ -2744,11 +2753,14 @@ static void D3D_render2 (void)
 		struct shaderdata *s = &shaders[SHADER_POST];
 		LPD3DXEFFECT postEffect = s->pEffect;
 		int after = -1;
+		LPDIRECT3DTEXTURE9 masktexture = NULL;
 
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			struct shaderdata *s = &shaders[i];
 			if (s->type == SHADERTYPE_AFTER)
 				after = i;
+			if (s->masktexture)
+				masktexture = s->masktexture;
 		}
 
 		setupscenecoords ();

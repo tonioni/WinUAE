@@ -54,13 +54,13 @@ void scsi_emulate_analyze (struct scsi_data *sd)
 	switch (sd->cmd[0])
 	{
 	case 0x0a:
-		data_len = sd->cmd[4] * sd->hfd->hfd.ci.blocksize;
+		data_len = sd->cmd[4] * sd->blocksize;
 	break;
 	case 0x2a:
-		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
+		data_len = ((sd->cmd[7] << 8) | (sd->cmd[8] << 0)) * (uae_s64)sd->blocksize;
 	break;
 	case 0xaa:
-		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->hfd->hfd.ci.blocksize;
+		data_len = ((sd->cmd[6] << 24) | (sd->cmd[7] << 16) | (sd->cmd[8] << 8) | (sd->cmd[9] << 0)) * (uae_s64)sd->blocksize;
 	break;
 	}
 	sd->cmd_len = cmd_len;
@@ -98,7 +98,7 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 			memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 			sd->data_len = len;
 		} else {
-			sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len);
+			sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len, sd->atapi);
 			if (sd->status == 0) {
 				if (sd->reply_len > 0) {
 					memset(sd->buffer, 0, 256);
@@ -154,10 +154,11 @@ struct scsi_data *scsi_alloc_hd(int id, struct hd_hardfiledata *hfd)
 	sd->id = id;
 	sd->nativescsiunit = -1;
 	sd->cd_emu_unit = -1;
+	sd->blocksize = hfd->hfd.ci.blocksize;
 	return sd;
 }
 
-struct scsi_data *scsi_alloc_cd(int id, int unitnum)
+struct scsi_data *scsi_alloc_cd(int id, int unitnum, bool atapi)
 {
 	struct scsi_data *sd;
 	if (!sys_command_open (unitnum)) {
@@ -168,6 +169,8 @@ struct scsi_data *scsi_alloc_cd(int id, int unitnum)
 	sd->id = id;
 	sd->cd_emu_unit = unitnum;
 	sd->nativescsiunit = -1;
+	sd->atapi = atapi;
+	sd->blocksize = 2048;
 	return sd;
 }
 
@@ -182,6 +185,7 @@ struct scsi_data *scsi_alloc_native(int id, int nativeunit)
 	sd->id = id;
 	sd->nativescsiunit = nativeunit;
 	sd->cd_emu_unit = -1;
+	sd->blocksize = 2048;
 	return sd;
 }
 

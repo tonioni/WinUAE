@@ -4927,7 +4927,7 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("rplog"))) {
-		log_rp = 1;
+		log_rp = 3;
 		return 1;
 	}
 	if (!_tcscmp (arg, _T("nomultidisplay"))) {
@@ -6021,6 +6021,7 @@ void fpux_restore (int *v)
 		_controlfp (*v, _MCW_IC | _MCW_RC | _MCW_PC);
 #endif
 }
+
 
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 

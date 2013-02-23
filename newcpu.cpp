@@ -5191,7 +5191,6 @@ void m68k_disasm_ea (uaecptr addr, uaecptr *nextpc, int cnt, uae_u32 *seaddr, ua
 	if (!buf)
 		return;
 	m68k_disasm_2 (buf, (MAX_LINEWIDTH + 1) * cnt, addr, nextpc, cnt, seaddr, deaddr, 1);
-	console_out_f (_T("%s"), buf);
 	xfree (buf);
 }
 void m68k_disasm (uaecptr addr, uaecptr *nextpc, int cnt)

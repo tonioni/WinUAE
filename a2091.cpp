@@ -290,7 +290,7 @@ static void doscsistatus (uae_u8 status)
 {
 	wdregs[WD_SCSI_STATUS] = status;
 	auxstatus |= ASR_INT;
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG > 1
 	write_log (_T("%s STATUS=%02X\n"), WD33C93, status);
 #endif
 	if (currprefs.cs_cdtvscsi) {
@@ -911,9 +911,10 @@ void wdscsi_put (uae_u8 d)
 		write_log (_T("%s in use\n"), WD33C93);
 	}
 	if (sasr == WD_COMMAND_PHASE) {
-#if WD33C93_DEBUG > 0
+#if WD33C93_DEBUG > 1
 		write_log (_T("%s PHASE=%02X\n"), WD33C93, d);
 #endif
+		;
 	} else if (sasr == WD_DATA) {
 #if WD33C93_DEBUG_PIO
 		write_log (_T("%s WD_DATA WRITE %02x %d/%d\n"), WD33C93, d, scsi->offset, scsi->data_len);
@@ -1663,7 +1664,7 @@ int add_scsi_cd (int ch, int unitnum)
 {
 	device_func_init (0);
 	freescsi (scsis[ch]);
-	scsis[ch] = scsi_alloc_cd (ch, unitnum);
+	scsis[ch] = scsi_alloc_cd (ch, unitnum, false);
 	return scsis[ch] ? 1 : 0;
 }
 

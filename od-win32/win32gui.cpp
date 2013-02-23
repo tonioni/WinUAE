@@ -9211,6 +9211,42 @@ static struct fsvdlg_vals current_fsvdlg;
 static struct hfdlg_vals current_hfdlg;
 static int archivehd;
 
+static void hardfile_testrdb (struct hfdlg_vals *hdf)
+{
+	uae_u8 id[512];
+	int i;
+	struct hardfiledata hfd;
+
+	memset (id, 0, sizeof id);
+	memset (&hfd, 0, sizeof hfd);
+	hfd.ci.readonly = true;
+	hfd.ci.blocksize = 512;
+	if (hdf_open (&hfd, current_hfdlg.ci.rootdir)) {
+		for (i = 0; i < 16; i++) {
+			hdf_read_rdb (&hfd, id, i * 512, 512);
+			if (i == 0 && !memcmp (id + 2, "CIS", 3)) {
+				hdf->ci.controller = HD_CONTROLLER_PCMCIA_SRAM;
+				break;
+			}
+			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
+				// RDSK or ADIDE "encoded" RDSK
+				int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
+				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
+				hdf->ci.sectors = 0;
+				hdf->ci.surfaces = 0;
+				hdf->ci.reserved = 0;
+				hdf->ci.filesys[0] = 0;
+				hdf->ci.bootpri = 0;
+				hdf->ci.devname[0] = 0;
+				if (blocksize >= 512)
+					hdf->ci.blocksize = blocksize;
+				break;
+			}
+		}
+		hdf_close (&hfd);
+	}
+}
+
 static void default_fsvdlg (struct fsvdlg_vals *f)
 {
 	memset (f, 0, sizeof (struct fsvdlg_vals));
@@ -9224,6 +9260,12 @@ static void default_hfdlg (struct hfdlg_vals *f, bool rdb)
 	f->original = true;
 	f->ci.type = UAEDEV_HDF;
 	f->ci.controller = ctrl;
+}
+static void default_rdb_hfdlg (struct hfdlg_vals *f, const TCHAR *filename)
+{
+	default_hfdlg (f, true);
+	_tcscpy (current_hfdlg.ci.rootdir, filename);
+	hardfile_testrdb (f);
 }
 
 static void volumeselectfile (HWND hDlg)
@@ -9368,15 +9410,18 @@ static INT_PTR CALLBACK VolumeSettingsProc (HWND hDlg, UINT msg, WPARAM wParam, 
 	return FALSE;
 }
 
-STATIC_INLINE int is_hdf_rdb (void)
+STATIC_INLINE bool is_hdf_rdb (void)
 {
 	return current_hfdlg.ci.sectors == 0 && current_hfdlg.ci.surfaces == 0 && current_hfdlg.ci.reserved == 0;
 }
 
 static void sethardfile (HWND hDlg)
 {
-	int rdb = is_hdf_rdb ();
+	bool rdb = is_hdf_rdb ();
+	bool disables = !rdb || (rdb && current_hfdlg.ci.controller == HD_CONTROLLER_UAE);
 
+	if (!disables)
+		current_hfdlg.ci.bootpri = 0;
 	SetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir);
 	SetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys);
 	SetDlgItemText (hDlg, IDC_HARDFILE_DEVICE, current_hfdlg.ci.devname);
@@ -9389,8 +9434,11 @@ static void sethardfile (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_HDF_AUTOBOOT, ISAUTOBOOT(&current_hfdlg.ci));
 	CheckDlgButton (hDlg, IDC_HDF_DONOTMOUNT, !ISAUTOMOUNT(&current_hfdlg.ci));
 	ew (hDlg, IDC_HDF_RDB, !rdb);
-	ew (hDlg, IDC_HDF_AUTOBOOT, TRUE);
-	ew (hDlg, IDC_HDF_DONOTMOUNT, TRUE);
+	ew (hDlg, IDC_HDF_AUTOBOOT, disables);
+	ew (hDlg, IDC_HDF_DONOTMOUNT, disables);
+	hide (hDlg, IDC_HDF_AUTOBOOT, !disables);
+	hide (hDlg, IDC_HDF_DONOTMOUNT, !disables);
+	hide (hDlg, IDC_HARDFILE_BOOTPRI, !disables);
 	SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller, 0);
 }
 
@@ -9450,41 +9498,6 @@ static void sethfdostype (HWND hDlg, int idx)
 	}
 }
 
-static void hardfile_testrdb (HWND hDlg, struct hfdlg_vals *hdf)
-{
-	uae_u8 id[512];
-	int i;
-	struct hardfiledata hfd;
-
-	memset (id, 0, sizeof id);
-	memset (&hfd, 0, sizeof hfd);
-	hfd.ci.readonly = true;
-	hfd.ci.blocksize = 512;
-	if (hdf_open (&hfd, current_hfdlg.ci.rootdir)) {
-		for (i = 0; i < 16; i++) {
-			hdf_read_rdb (&hfd, id, i * 512, 512);
-			if (i == 0 && !memcmp (id + 2, "CIS", 3)) {
-				hdf->ci.controller = HD_CONTROLLER_PCMCIA_SRAM;
-				break;
-			}
-			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
-				// RDSK or ADIDE "encoded" RDSK
-				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
-				hdf->ci.sectors = 0;
-				hdf->ci.surfaces = 0;
-				hdf->ci.reserved = 0;
-				hdf->ci.filesys[0] = 0;
-				hdf->ci.bootpri = 0;
-				hdf->ci.devname[0] = 0;
-				break;
-			}
-		}
-		hdf_close (&hfd);
-	}
-	sethardfile (hDlg);
-}
-
-
 static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 {
 	static uae_u64 bsize;
@@ -9496,11 +9509,12 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 	bsize = 0;
 	if (force) {
 		bool open = false;
+		int blocksize = 512;
 		struct hardfiledata hfd;
 		memset (id, 0, sizeof id);
 		memset (&hfd, 0, sizeof hfd);
 		hfd.ci.readonly = true;
-		hfd.ci.blocksize = 512;
+		hfd.ci.blocksize = blocksize;
 		current_hfdlg.size = 0;
 		current_hfdlg.dostype = 0;
 		if (hdf_open (&hfd, current_hfdlg.ci.rootdir)) {
@@ -9509,8 +9523,10 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				hdf_read (&hfd, id, i * 512, 512);
 				bsize = hfd.virtsize;
 				current_hfdlg.size = hfd.virtsize;
-				if (!memcmp (id, "RDSK", 4))
+				if (!memcmp (id, "RDSK", 4)) {
+					int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
 					break;
+				}
 			}
 			if (i == 16) {
 				hdf_read (&hfd, id, 0, 512);
@@ -9520,15 +9536,18 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 		if (defaults) {
 			if (hfd.flags & HFD_FLAGS_REALDRIVE) {
 				if (current_hfdlg.ci.controller >= HD_CONTROLLER_IDE0 && current_hfdlg.ci.controller <= HD_CONTROLLER_IDE3) {
-					getchspgeometry (bsize, &current_hfdlg.ci.highcyl, &current_hfdlg.ci.surfaces, &current_hfdlg.ci.sectors, true);
+					getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, true);
 					if (current_hfdlg.forcedcylinders == 0)
-						current_hfdlg.forcedcylinders = current_hfdlg.ci.highcyl;
+						current_hfdlg.forcedcylinders = current_hfdlg.ci.pcyls;
 				} else {
-					getchspgeometry (bsize, &current_hfdlg.ci.highcyl, &current_hfdlg.ci.surfaces, &current_hfdlg.ci.sectors, false);
+					getchspgeometry (bsize, &current_hfdlg.ci.pcyls, &current_hfdlg.ci.pheads, &current_hfdlg.ci.psecs, false);
 				}
 			} else if (current_hfdlg.ci.blocksize * current_hfdlg.ci.sectors * current_hfdlg.ci.surfaces) {
 				getchsgeometry_hdf (open ? &hfd : NULL, bsize, &current_hfdlg.ci.cyls, &current_hfdlg.ci.surfaces, &current_hfdlg.ci.sectors);
 				current_hfdlg.original = 0;
+			}
+			if (blocksize > 512) {
+				hfd.ci.blocksize = blocksize;
 			}
 		}
 		hdf_close (&hfd);
@@ -9583,7 +9602,7 @@ static void hardfileselecthdf (HWND hDlg, TCHAR *newpath)
 	GetDlgItemText (hDlg, IDC_PATH_NAME, current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
 	fullpath (current_hfdlg.ci.rootdir, sizeof current_hfdlg.ci.rootdir / sizeof (TCHAR));
 	inithardfile (hDlg);
-	hardfile_testrdb (hDlg, &current_hfdlg);
+	hardfile_testrdb (&current_hfdlg);
 	updatehdfinfo (hDlg, true, true);
 	get_hd_geometry (&current_hfdlg.ci);
 	updatehdfinfo (hDlg, false, false);
@@ -9731,14 +9750,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_SELECTOR:
 			{
-#if 0
-				uae_u64 oldsize = current_hfdlg.size;
-				int sectors = current_hfdlg.sectors;
-				int reserved = current_hfdlg.reserved;
-				int surfaces = current_hfdlg.surfaces;
-				int cylinders = current_hfdlg.cylinders;
-				int forcedcylinders = current_hfdlg.forcedcylinders;
-#endif
 				_tcscpy (fs, current_hfdlg.ci.filesys);
 				_tcscpy (dev, current_hfdlg.ci.devname);
 				bool rw = current_hfdlg.ci.readonly;
@@ -9751,16 +9762,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 				current_hfdlg.ci.bootpri = bootpri;
 				current_hfdlg.ci.readonly = rw;
 				hardfileselecthdf (hDlg, NULL);
-#if 0
-				if (oldsize > 0 && oldsize == current_hfdlg.size) {
-					current_hfdlg.sectors = sectors;
-					current_hfdlg.reserved = reserved;
-					current_hfdlg.surfaces = surfaces;
-					current_hfdlg.cylinders = cylinders;
-					current_hfdlg.forcedcylinders = forcedcylinders;
-					updatehdfinfo (hDlg, true, false);
-				}
-#endif
 			}
 			break;
 		case IDC_FILESYS_SELECTOR:
@@ -9768,16 +9769,6 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			GetDlgItemText (hDlg, IDC_PATH_FILESYS, current_hfdlg.ci.filesys, sizeof current_hfdlg.ci.filesys / sizeof (TCHAR));
 			break;
 		case IDOK:
-#if 0
-			if (_tcslen (current_hfdlg.ci.rootdir) == 0) {
-				TCHAR szMessage[MAX_DPATH];
-				TCHAR szTitle[MAX_DPATH];
-				WIN32GUI_LoadUIString (IDS_MUSTSELECTFILE, szMessage, MAX_DPATH);
-				WIN32GUI_LoadUIString (IDS_SETTINGSERROR, szTitle, MAX_DPATH);
-				MessageBox (hDlg, szMessage, szTitle, MB_OK | MB_ICONERROR | MB_APPLMODAL | MB_SETFOREGROUND);
-				break;
-			}
-#endif
 			EndDialog (hDlg, 1);
 			break;
 		case IDCANCEL:
@@ -9818,17 +9809,26 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 		case IDC_SECTORS:
 			v = current_hfdlg.ci.sectors;
 			current_hfdlg.ci.sectors = GetDlgItemInt (hDlg, IDC_SECTORS, NULL, FALSE);
-			if (v != current_hfdlg.ci.sectors)
+			if (v != current_hfdlg.ci.sectors) {
 				updatehdfinfo (hDlg, true, false);
+				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+			}
 			break;
 		case IDC_RESERVED:
+			v = current_hfdlg.ci.reserved;
 			current_hfdlg.ci.reserved = GetDlgItemInt (hDlg, IDC_RESERVED, NULL, FALSE);
+			if (v != current_hfdlg.ci.reserved) {
+				updatehdfinfo (hDlg, true, false);
+				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+			}
 			break;
 		case IDC_HEADS:
 			v = current_hfdlg.ci.surfaces;
 			current_hfdlg.ci.surfaces  = GetDlgItemInt (hDlg, IDC_HEADS, NULL, FALSE);
-			if (v != current_hfdlg.ci.surfaces)
+			if (v != current_hfdlg.ci.surfaces) {
 				updatehdfinfo (hDlg, true, false);
+				ew (hDlg, IDC_HDF_RDB, !is_hdf_rdb ());
+			}
 			break;
 		case IDC_BLOCKSIZE:
 			v = current_hfdlg.ci.blocksize;
@@ -9851,8 +9851,10 @@ static INT_PTR CALLBACK HardfileSettingsProc (HWND hDlg, UINT msg, WPARAM wParam
 			break;
 		case IDC_HDF_CONTROLLER:
 			posn = SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_GETCURSEL, 0, 0);
-			if (posn != CB_ERR)
+			if (posn != CB_ERR) {
 				current_hfdlg.ci.controller = posn;
+				sethardfile (hDlg);
+			}
 			break;
 		case IDC_PATH_NAME:
 			GetDlgItemText (hDlg, IDC_PATH_NAME, tmp, sizeof tmp / sizeof (TCHAR));
@@ -10154,6 +10156,7 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 
 	case IDC_NEW_HD:
 		memset (&current_hfdlg, 0, sizeof (current_hfdlg));
+		current_hfdlg.ci.type = UAEDEV_HDF;
 		if (hdf_init_target () == 0) {
 			TCHAR tmp[MAX_DPATH];
 			WIN32GUI_LoadUIString (IDS_NOHARDDRIVES, tmp, sizeof (tmp) / sizeof (TCHAR));
@@ -13744,7 +13747,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 				!_tcsicmp (ext, _T(".bmp"))))
 			{
 				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
-				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask))
+				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[0]))
 					SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
 				j++;
 
@@ -14036,7 +14039,7 @@ static void filter_handle (HWND hDlg)
 	}
 
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
-	TCHAR *filterptr = overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask;
+	TCHAR *filterptr = overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[0];
 	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR) {
 		TCHAR tmp[MAX_DPATH];
@@ -15284,6 +15287,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 		int mask;
 
 		DragQueryFile (hd, i, file, sizeof (file) / sizeof (TCHAR));
+		my_resolveshortcut (file, sizeof file / sizeof (TCHAR));
 		filepart = _tcsrchr (file, '/');
 		if (!filepart)
 			filepart = _tcsrchr (file, '\\');
@@ -15388,8 +15392,7 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 			}
 			break;
 		case ZFILE_HDFRDB:
-			default_hfdlg (&current_hfdlg, true);
-			_tcscpy (current_hfdlg.ci.rootdir, file);
+			default_rdb_hfdlg (&current_hfdlg, file);
 			add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			break;
 		case ZFILE_NVR:
