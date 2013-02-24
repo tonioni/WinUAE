@@ -11,6 +11,7 @@
 #include <sys/timeb.h>
 #include <Shobjidl.h>
 #include <ShlGuid.h>
+#include <Shlwapi.h>
 
 bool my_isfilehidden (const TCHAR *path)
 {
@@ -761,6 +762,116 @@ bool my_utime (const TCHAR *name, struct mytimeval *tv)
 	return false;
 }
 
+bool my_createsoftlink(const TCHAR *path, const TCHAR *target)
+{
+	return CreateSymbolicLink(path, target, my_existsdir(target) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) != 0;
+}
+
+bool my_issamevolume(const TCHAR *path1, const TCHAR *path2, TCHAR *path)
+{
+	TCHAR p1[MAX_DPATH];
+	TCHAR p2[MAX_DPATH];
+	TCHAR p1b[MAX_DPATH];
+	TCHAR p2b[MAX_DPATH];
+	int len;
+
+	if (!GetFullPathName(path1, sizeof p1 / sizeof (TCHAR), p1, NULL))
+		return false;
+	if (!GetFullPathName(path2, sizeof p2 / sizeof (TCHAR), p2, NULL))
+		return false;
+	PathCanonicalize(p1b, p1);
+	PathCanonicalize(p2b, p2);
+	len = _tcslen (p1b);
+	if (len > _tcslen (p2b))
+		len = _tcslen (p2b);
+	if (_tcsnicmp (p1b, p2b, len))
+		return false;
+	_tcscpy (path, p2b + len);
+	for (int i = 0; i < _tcslen (path); i++) {
+		if (path[i] == '\\')
+			path[i] = '/';
+	}
+	return true;
+}
+
+bool my_resolvesoftlink(TCHAR *linkfile, int size)
+{
+	if (my_resolvessymboliclink(linkfile, size))
+		return true;
+	if (my_resolveshortcut(linkfile,size))
+		return true;
+	return false;
+}
+
+typedef struct _REPARSE_DATA_BUFFER {
+  ULONG  ReparseTag;
+  USHORT ReparseDataLength;
+  USHORT Reserved;
+  union {
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      ULONG  Flags;
+      WCHAR  PathBuffer[1];
+    } SymbolicLinkReparseBuffer;
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      WCHAR  PathBuffer[1];
+    } MountPointReparseBuffer;
+    struct {
+      UCHAR DataBuffer[1];
+    } GenericReparseBuffer;
+  };
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
+bool my_resolvessymboliclink(TCHAR *linkfile, int size)
+{
+	WIN32_FIND_DATA fd;
+	HANDLE h;
+	bool ret = false;
+	DWORD returnedDataSize;
+	uae_u8 tmp[MAX_DPATH * 2];
+
+	h = FindFirstFile (linkfile, &fd);
+	if (h == INVALID_HANDLE_VALUE)
+		return false;
+	FindClose(h);
+	if (fd.dwReserved0 != IO_REPARSE_TAG_SYMLINK || !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+		return false;
+	h = CreateFile (linkfile, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_REPARSE_POINT | FILE_FLAG_OPEN_REPARSE_POINT , NULL);
+	if (h == INVALID_HANDLE_VALUE)
+		return false;
+	if (DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, tmp, sizeof tmp, &returnedDataSize, NULL)) {
+		REPARSE_DATA_BUFFER *rdb = (REPARSE_DATA_BUFFER*)tmp;
+		if (rdb->SymbolicLinkReparseBuffer.Flags & 1) { // SYMLINK_FLAG_RELATIVE
+			PathRemoveFileSpec (linkfile);
+			_tcscat (linkfile, _T("\\"));
+			TCHAR *p = linkfile + _tcslen (linkfile);
+			memcpy (p,
+				(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
+				rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
+			p[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
+		} else {
+			memcpy (linkfile,
+				(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
+				rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
+			linkfile[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
+		}
+		ret = true;
+		if (!_tcsnicmp (linkfile, _T("\\??\\"), 4)) {
+			memmove (linkfile, linkfile + 4, (_tcslen (linkfile + 4) + 1) * sizeof (TCHAR));
+		}
+	}
+	CloseHandle(h);
+	return ret;
+}
+
 // http://msdn.microsoft.com/en-us/library/aa969393.aspx
 bool my_resolveshortcut(TCHAR *linkfile, int size) 
 { 
@@ -772,7 +883,7 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
     WIN32_FIND_DATA wfd; 
  
 	const TCHAR *ext = _tcsrchr (linkfile, '.');
-	if (!ext || _tcsicmp (ext, _T("lnk")) == 0)
+	if (!ext || _tcsicmp (ext, _T(".lnk")) != 0)
 		return false;
 
     // Get a pointer to the IShellLink interface. It is assumed that CoInitialize

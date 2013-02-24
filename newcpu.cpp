@@ -9,7 +9,7 @@
 #define MOVEC_DEBUG 0
 #define MMUOP_DEBUG 2
 #define DEBUG_CD32CDTVIO 0
-#define EXCEPTION3_DEBUG 0
+#define EXCEPTION3_DEBUG 1
 #define CPUTRACE_DEBUG 0
 
 #include "sysconfig.h"
@@ -3886,10 +3886,8 @@ STATIC_INLINE int do_specialties (int cycles)
 		set_special (SPCFLAG_INT);
 	}
 
-	if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE))) {
-		unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
+	if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)))
 		return 1;
-	}
 	return 0;
 }
 
@@ -4296,7 +4294,7 @@ void cpu_halt (int id)
 		gui_led (LED_CPU, 0);
 	}
 	while (regs.halted) {
-		do_cycles (8 * CYCLE_UNIT);
+		x_do_cycles (8 * CYCLE_UNIT);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (regs.spcflags) {
 			if (do_specialties (cpu_cycles))
@@ -4927,6 +4925,7 @@ void m68k_go (int may_quit)
 		}
 #endif
 		run_func ();
+		unset_special (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE);
 	}
 	protect_roms (false);
 	in_m68k_go--;
@@ -5127,7 +5126,6 @@ void m68k_disasm_2 (TCHAR *buf, int bufsize, uaecptr pc, uaecptr *nextpc, int cn
 			pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, deaddr, safemode);
 			_tcscat (instrname, _T(","));
 			movemout (instrname, mask, dp->dmode);
-			pc += 2;
 		} else if (lookup->mnemo == i_MVMLE) {
 			uae_u16 mask = get_word_debug (pc);
 			pc += 2;

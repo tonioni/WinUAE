@@ -529,7 +529,6 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 	bool emptydrive = false;
 	bool iscd;
 	struct uaedev_config_info c;
-	TCHAR newrootdir[MAX_DPATH];
 
 	memcpy (&c, ci, sizeof (struct uaedev_config_info));
 
@@ -546,7 +545,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		}
 	}
 
-	my_resolveshortcut (c.rootdir, MAX_DPATH);
+	my_resolvesoftlink (c.rootdir, MAX_DPATH);
 	iscd = nr >= cd_unit_offset && nr < cd_unit_offset + cd_unit_number;
 
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
@@ -850,6 +849,15 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define DOS_TRUE ((uae_u32)-1L)
 #define DOS_FALSE (0L)
 
+/* DirEntryTypes */
+#define ST_PIPEFILE -5
+#define ST_LINKFILE -4
+#define ST_FILE -3
+#define ST_ROOT 1
+#define ST_USERDIR 2
+#define ST_SOFTLINK 3
+#define ST_LINKDIR 4
+
 #define MAXFILESIZE32 (0x7fffffff)
 
 /* Passed as type to Lock() */
@@ -1107,6 +1115,19 @@ static TCHAR *bstr (Unit *unit, uaecptr addr)
 	for (i = 0; i < n; i++, addr++)
 		buf[i] = get_byte (addr);
 	buf[i] = 0;
+	au_fs_copy (unit->tmpbuf3, sizeof (unit->tmpbuf3) / sizeof (TCHAR), buf);
+	return unit->tmpbuf3;
+}
+static TCHAR *cstr (Unit *unit, uaecptr addr)
+{
+	int i;
+	uae_char buf[257];
+
+	for (i = 0;;i++,addr++) {
+		buf[i] = get_byte (addr);
+		if (!buf[i])
+			break;
+	}
 	au_fs_copy (unit->tmpbuf3, sizeof (unit->tmpbuf3) / sizeof (TCHAR), buf);
 	return unit->tmpbuf3;
 }
@@ -2417,7 +2438,7 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 {
 	TCHAR *tmp;
 	TCHAR *p;
-	a_inode *curr;
+	a_inode *curr, *prev;
 	int i;
 
 	aino_test (base);
@@ -2434,6 +2455,7 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 	tmp = my_strdup (rel);
 	p = tmp;
 	curr = base;
+	prev = NULL;
 
 	while (*p) {
 		/* start with a slash? go up a level. */
@@ -2444,6 +2466,13 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 		} else {
 			a_inode *next;
 
+
+			if (prev && prev->softlink) {
+				*err = ERROR_IS_SOFT_LINK;
+				curr = NULL;
+				break;
+			}
+
 			TCHAR *component_end;
 			component_end = _tcschr (p, '/');
 			if (component_end != 0)
@@ -2452,16 +2481,16 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 			if (next == 0) {
 				/* if only last component not found, return parent dir. */
 				if (*err != ERROR_OBJECT_NOT_AROUND || component_end != 0)
-					curr = 0;
+					curr = NULL;
 				/* ? what error is appropriate? */
 				break;
 			}
+			prev = next;
 			curr = next;
 			if (component_end)
 				p = component_end+1;
 			else
 				break;
-
 		}
 	}
 	xfree (tmp);
@@ -3164,6 +3193,8 @@ static void
 	DUMPLOCK(unit, lock);
 
 	a = find_aino (unit, lock, bstr (unit, name), &err);
+	if (err == 0 && a->softlink)
+		err = ERROR_IS_SOFT_LINK;
 	if (err == 0 && (a->elock || (mode != SHARED_LOCK && a->shlock > 0))) {
 		err = ERROR_OBJECT_IN_USE;
 	}
@@ -3179,6 +3210,135 @@ static void
 		a->elock = 1;
 	de_recycle_aino (unit, a);
 	PUT_PCK_RES1 (packet, make_lock (unit, a->uniq, mode) >> 2);
+}
+static void action_read_link_add_parent (Unit *u, a_inode *a, TCHAR *path)
+{
+	if (a == NULL)
+		return;
+	action_read_link_add_parent(u, a->parent, path);
+	if (a == &u->rootnode) {
+		_tcscat (path, a->aname);
+		_tcscat (path, _T(":"));
+	} else {
+		if (path[0] && path[_tcslen (path) - 1] != ':')
+			_tcscat (path, _T("/"));
+		_tcscat (path, a->aname);
+	}
+}
+
+#if 0
+#define LINK_HARD 0
+#define LINK_SOFT 1
+
+static void action_make_link (Unit *unit, dpacket packet)
+{
+	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+	uaecptr name = GET_PCK_ARG2 (packet) << 2;
+	uaecptr linkname = GET_PCK_ARG3 (packet);
+	int type = GET_PCK_ARG4 (packet);
+	a_inode *a1, *a2;
+	int err;
+
+	if (type == LINK_HARD) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_NOT_IMPLEMENTED);
+		return;
+	}
+	a1 = find_aino (unit, lock, bstr (unit, name), &err);
+	if (err != 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, err);
+		return;
+	}
+	a2 = find_aino (unit, lock, cstr (unit, linkname), &err);
+	if (err != 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, err);
+		return;
+	}
+	if (!my_createsoftlink (a1->nname, a2->nname)) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
+		return;
+	}
+}
+#endif
+
+static void action_read_link (Unit *unit, dpacket packet)
+{
+	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
+	uaecptr name = GET_PCK_ARG2 (packet);
+	uaecptr newname = GET_PCK_ARG3 (packet);
+	int size = GET_PCK_ARG4 (packet);
+	a_inode *a;
+	Unit *u = NULL;
+	int err, i;
+	TCHAR tmp[MAX_DPATH];
+	TCHAR *namep, *extrapath;
+
+	extrapath = NULL;
+	namep = cstr (unit, name);
+	for (;;) {
+		a = find_aino (unit, lock, namep, &err);
+		if (err != ERROR_IS_SOFT_LINK)
+			break;
+		for (i = _tcslen (namep) - 1; i > 0; i--) {
+			if (namep[i] == '/') {
+				namep[i] = 0;
+				xfree (extrapath);
+				extrapath = my_strdup (namep + i + 1);
+				break;
+			}
+		}
+	}
+	if (err != 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, err);
+		return;
+	}
+	_tcscpy (tmp, a->nname);
+	if (!my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		//  not sure what to return
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
+		return;
+	}
+	// TODO:
+	// now we have full absolute path, need to check if it can
+	// mapped to any Amiga side filesystem
+	// not that trivial..
+	a = NULL;
+	err = 0;
+	for (u = units; u; u = u->next) {
+		if (!(u->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS))) {
+			TCHAR path[MAX_DPATH];
+			if (my_issamevolume (u->rootnode.nname, tmp, path)) {
+				a = find_aino (u, 0, path, &err);
+				if (a && !err)
+					break;
+			}
+		}
+	}
+	if (!a || err) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
+		return;
+	}
+	tmp[0] = 0;
+	action_read_link_add_parent (u, a, tmp);
+	if (extrapath) {
+		_tcscat (tmp, _T("/"));
+		_tcscat (tmp, extrapath);
+	}
+	xfree (extrapath);
+	char *s = ua_fs (tmp, -1);
+	for (i = 0; s[i]; i++) {
+		if (i >= size - 1)
+			break;
+		put_byte (newname + i, s[i]);
+	}
+	xfree (s);
+	put_byte (newname + i, 0);
 }
 
 static void action_free_lock (Unit *unit, dpacket packet)
@@ -3375,10 +3535,10 @@ static void
 		/* Guru book says ST_ROOT = 1 (root directory, not currently used)
 		* but some programs really expect 2 from root dir..
 		*/
-		entrytype = 2;
+		entrytype = ST_USERDIR;
 		xs = unit->ui.volname;
 	} else {
-		entrytype = aino->dir ? 2 : -3;
+		entrytype = aino->softlink ? ST_SOFTLINK : (aino->dir ? ST_USERDIR : ST_FILE);
 		xs = aino->aname;
 	}
 	put_long (info + 4, entrytype);
@@ -3680,10 +3840,10 @@ static int exalldo (uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaec
 		my_stat (aino->nname, &statbuf);
 
 	if (aino->parent == 0) {
-		entrytype = 2;
+		entrytype = ST_USERDIR;
 		xs = unit->ui.volname;
 	} else {
-		entrytype = aino->dir ? 2 : -3;
+		entrytype = aino->softlink ? ST_SOFTLINK : (aino->dir ? ST_USERDIR : ST_FILE);
 		xs = aino->aname;
 	}
 	x = ua_fs (xs, -1);
@@ -3972,7 +4132,7 @@ fail:
 	return 1;
 }
 
-static uae_u32 exall_helpder(TrapContext *context)
+static uae_u32 exall_helpder (TrapContext *context)
 {
 	int i;
 	Unit *u;
@@ -4188,6 +4348,11 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 		PUT_PCK_RES2 (packet, err);
 		return;
 	}
+	if (aino->softlink) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		return;
+	}
 	if (err == 0) {
 		/* Object exists. */
 		if (aino->dir) {
@@ -4314,6 +4479,12 @@ static void
 	aino = lookup_aino (unit, get_long (lock + 4));
 	if (aino == 0)
 		aino = &unit->rootnode;
+	if (aino->softlink) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		return;
+	}
+
 	mode = aino->amigaos_mode; /* Use same mode for opened filehandle as existing Lock() */
 
 	prepare_for_open (aino->nname);
@@ -5686,7 +5857,10 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	case ACTION_EXAMINE_ALL_END: return action_examine_all_end (unit, pck);
 	case ACTION_LOCK_RECORD: return action_lock_record (unit, pck, msg); break;
 	case ACTION_FREE_RECORD: action_free_record (unit, pck); break;
-
+	case ACTION_READ_LINK: action_read_link (unit, pck); break;
+#if 0
+	case ACTION_MAKE_LINK: action_make_link (unit, pck); break;
+#endif
 		/* OS4+ packet types */
 	case ACTION_CHANGE_FILE_POSITION64: action_change_file_position64 (unit, pck); break;
 	case ACTION_GET_FILE_POSITION64: action_get_file_position64 (unit, pck); break;
@@ -5694,9 +5868,9 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	case ACTION_GET_FILE_SIZE64: action_get_file_size64 (unit, pck); break;
 
 		/* unsupported packets */
-	case ACTION_MAKE_LINK:
-	case ACTION_READ_LINK:
 	case ACTION_FORMAT:
+	case ACTION_MAKE_LINK:
+		write_log (_T("FILESYS: UNSUPPORTED PACKET %x\n"), type);
 		return 0;
 	default:
 		write_log (_T("FILESYS: UNKNOWN PACKET %x\n"), type);
@@ -6879,9 +7053,11 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			put_long (parmpacket + 56, 1); /* hiCyl */
 		} else {
 			uae_u8 buf[512] = { 0 };
-			buf[36] = _tcslen (uip[unit_no].devname);
+			char *s = ua_fs (uip[unit_no].devname, -1);
+			buf[36] = strlen (s);			
 			for (int i = 0; i < buf[36]; i++)
-				buf[37 + i] = uip[unit_no].devname[i];
+				buf[37 + i] = s[i];
+			xfree (s);
 			put_long (parmpacket + 4, ROM_hardfile_resname);
 			put_long (parmpacket + 20, ci->blocksize >> 2); /* longwords per block */
 			put_long (parmpacket + 28, ci->surfaces); /* heads */

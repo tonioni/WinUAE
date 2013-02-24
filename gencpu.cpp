@@ -2241,9 +2241,9 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\tuae_u16 newv_lo = - (src & 0xF) - (GET_XFLG () ? 1 : 0);\n");
 		printf ("\tuae_u16 newv_hi = - (src & 0xF0);\n");
 		printf ("\tuae_u16 newv;\n");
-		printf ("\tint cflg;\n");
+		printf ("\tint cflg, tmp_newv;\n");
 		printf ("\tif (newv_lo > 9) { newv_lo -= 6; }\n");
-		printf ("\tnewv = newv_hi + newv_lo;");
+		printf ("\ttmp_newv = newv = newv_hi + newv_lo;\n");
 		printf ("\tcflg = (newv & 0x1F0) > 0x90;\n");
 		printf ("\tif (cflg) newv -= 0x60;\n");
 		printf ("\tSET_CFLG (cflg);\n");
@@ -2256,6 +2256,7 @@ static void gen_opcode (unsigned long int opcode)
 		}
 		else {
 			genflags (flag_zn, curi->size, "newv", "", "");
+			printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
 		genastore ("newv", curi->smode, "srcreg", curi->size, "src");
 		break;

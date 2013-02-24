@@ -387,6 +387,18 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		return 0;
 	}
 	aino->dir = (mode & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+
+	if (mode & FILE_ATTRIBUTE_REPARSE_POINT) {
+		WIN32_FIND_DATA fd;
+		HANDLE h = FindFirstFile (aino->nname, &fd);
+		if (h != INVALID_HANDLE_VALUE) {
+			FindClose(h);
+			if (fd.dwReserved0 == IO_REPARSE_TAG_SYMLINK && (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+				aino->softlink = true;
+			}
+		}
+	}
+	
 	mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
 
 	if ((base->volflags & MYVOLUMEINFO_STREAMS) && read_uaefsdb (aino->nname, NULL, fsdb)) {
@@ -419,6 +431,18 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		create_uaefsdb (aino, fsdb, mode);
 		write_uaefsdb (aino->nname, fsdb);
 	}
+
+	if (!aino->softlink && !aino->dir) {
+		const TCHAR *ext = _tcsrchr (aino->nname, '.');
+		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
+			TCHAR tmp[MAX_DPATH];
+			_tcscpy (tmp, aino->nname);
+			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+				aino->softlink = true;
+			}
+		}
+	}
+
 	return 1;
 }
 

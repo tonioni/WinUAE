@@ -1,6 +1,16 @@
 
 - restore only single input target to default.
 
+Beta 9:
+
+- 68000 NBCD didn't emulate undocumented V-flag behavior. (Probably forgotten long time ago because SBCD had correct
+  implementation)
+- It was impossible to get out of halted CPU state in some situations.
+- FDBcc and FScc 6888x FPU instructions without installed FPU returned wrong f-line exception PC field.
+- Directory filesystem: emulate Windows shortcut (.lnk) files and symbolic links as Amiga side soft links.
+  Implements ACTION_READ_LINK. Works also across drives if shortcut/link target exists in any mounted directory harddrive.
+  Not guaranteed to be 100% correct implementation, Amiga softlinks are a bit strange.
+
 Beta 8:
 
 - CD SCSI emulation: implemented mode sense CD/DVD page code 0x2A. Used to detect drive capabilities, for example
