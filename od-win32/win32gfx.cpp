@@ -988,15 +988,23 @@ void flush_screen (struct vidbuffer *vb, int a, int b)
 {
 }
 
-static volatile bool render_ok;
+static volatile bool render_ok, wait_render;
 
 bool render_screen (bool immediate)
 {
 	bool v = false;
+	int cnt;
 
 	render_ok = false;
 	if (minimized || picasso_on || monitor_off || dx_islost ())
 		return render_ok;
+	cnt = 0;
+	while (wait_render) {
+		sleep_millis(1);
+		cnt++;
+		if (cnt > 500)
+			return render_ok;
+	}
 	flushymin = 0;
 	flushymax = currentmode->amiga_height;
 	EnterCriticalSection (&screen_cs);
@@ -1020,12 +1028,12 @@ static void waitflipevent (void)
 			break;
 	}
 }
-static void doflipevent (void)
+static void doflipevent (int mode)
 {
 	if (flipevent == NULL)
 		return;
 	waitflipevent ();
-	flipevent_mode = 1;
+	flipevent_mode = mode;
 	SetEvent (flipevent);
 }
 
@@ -1034,7 +1042,7 @@ bool show_screen_maybe (bool show)
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
 	if (!ap->gfx_vflip || ap->gfx_vsyncmode == 0 || !ap->gfx_vsync) {
 		if (show)
-			show_screen ();
+			show_screen (0);
 		return false;
 	}
 #if 0
@@ -1046,7 +1054,16 @@ bool show_screen_maybe (bool show)
 	return false;
 }
 
-void show_screen (void)
+void show_screen_special (void)
+{
+	EnterCriticalSection (&screen_cs);
+	if (currentmode->flags & DM_D3D) {
+		D3D_showframe_special (1);
+	}
+	LeaveCriticalSection (&screen_cs);
+}
+
+void show_screen (int mode)
 {
 	EnterCriticalSection (&screen_cs);
 	if (!render_ok) {
@@ -2746,7 +2763,7 @@ end:
 	return 1;
 }
 
-static volatile frame_time_t vblank_prev_time, thread_vblank_time;
+static volatile frame_time_t vblank_prev_time, vblank_real_prev_time, thread_vblank_time;
 static volatile int vblank_found_flipdelay;
 
 #include <process.h>
@@ -2916,13 +2933,19 @@ static unsigned int __stdcall flipthread (void *dummy)
 		if (flipthread_mode == 0)
 			break;
 		frame_time_t t = read_processor_time ();
-		while (!render_ok) {
+		while ((flipevent_mode & 1) && !render_ok) {
 			sleep_millis (1);
 			if (read_processor_time () - t > vblankbasefull)
 				break;
 		}
-		show_screen ();
-		render_ok = false;
+		if (flipevent_mode & 1) {
+			show_screen (0);
+			render_ok = false;
+		}
+		if (flipevent_mode & 2) {
+			show_screen_special ();
+			wait_render = false;
+		}
 		flipevent_mode = 0;
 		SetEvent (flipevent2);
 	}
@@ -3076,7 +3099,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					vblankthread_oddeven = (vp & 1) != 0;
 				}
 				if (!doflipped && ap->gfx_vflip > 0) {
-					doflipevent ();
+					doflipevent (1 | 2);
 					doflipped = true;
 				}
 				ok = vblank_getstate (&vb, &vp);
@@ -3088,7 +3111,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 							if (read_processor_time () - t > vblankbasefull)
 								break;
 						}
-						show_screen ();
+						show_screen (0);
 						render_ok = false;
 						int delay = read_processor_time () - t;
 						if (delay < 0)
@@ -3117,7 +3140,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			}
 			if (end) {
 				if (ap->gfx_vflip > 0 && !doflipped) {
-					doflipevent ();
+					doflipevent (1);
 					doflipped = true;
 				}
 				thread_vblank_time = thread_vblank_time2;
@@ -3173,7 +3196,7 @@ frame_time_t vsync_busywait_end (int *flipdelay)
 			if (flipdelay)
 				*flipdelay = vblank_found_flipdelay;
 		} else {
-			show_screen ();
+			show_screen (0);
 			prev = read_processor_time ();
 		}
 		changevblankthreadmode_fast (VBLANKTH_ACTIVE_WAIT);
@@ -3285,7 +3308,7 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 
 		if (currprefs.turbo_emulation) {
 
-			show_screen ();
+			show_screen (0);
 			dooddevenskip = 0;
 			vblank_prev_time = read_processor_time ();
 			framelost = true;
@@ -3306,10 +3329,20 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 				dooddevenskip = 1;
 			}
 
-			if (ap->gfx_vflip != 0) {
-				show_screen ();
+			if (ap->gfx_vflip == 0 && vblank_skipeveryother) {
+				// make sure that we really did skip one field
+				while (!framelost && read_processor_time () - vblank_real_prev_time < vblankbasewait1) {
+					vsync_sleep (false);
+				}
 			}
 
+			if (ap->gfx_vflip != 0) {
+				show_screen (0);
+				if (ap->gfx_strobo && vblank_skipeveryother) {
+					wait_render = true;
+					doflipevent (2);
+				}
+			}
 			while (!framelost && read_processor_time () - prevtime < vblankbasewait1) {
 				vsync_sleep (false);
 			}
@@ -3331,9 +3364,9 @@ int vsync_busywait_do (int *freetime, bool lace, bool oddeven)
 			}
 
 			if (vp >= -1) {
-				vblank_prev_time = read_processor_time ();
+				vblank_real_prev_time = vblank_prev_time = read_processor_time ();
 				if (ap->gfx_vflip == 0) {
-					show_screen ();
+					show_screen (0);
 					vblank_flip_delay = (read_processor_time () - vblank_prev_time) / (vblank_skipeveryother ? 2 : 1);
 					if (vblank_flip_delay < 0)
 						vblank_flip_delay = 0;
@@ -3518,12 +3551,12 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		int detectcnt = 6;
 		for (cnt = 0; cnt < detectcnt; cnt++) {
 			render_screen (true);
-			show_screen ();
+			show_screen (0);
 			sleep_millis (1);
 			frame_time_t t = read_processor_time () + 1 * (syncbase / tsum);
 			for (int cnt2 = 0; cnt2 < 4; cnt2++) {
 				render_ok = true;
-				show_screen ();
+				show_screen (0);
 			}
 			int diff = (int)read_processor_time () - (int)t;
 			if (diff >= 0)

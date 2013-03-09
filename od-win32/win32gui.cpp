@@ -171,8 +171,9 @@ static int C_PAGES;
 #define MAX_C_PAGES 30
 static int LOADSAVE_ID = -1, MEMORY_ID = -1, KICKSTART_ID = -1, CPU_ID = -1,
 	DISPLAY_ID = -1, HW3D_ID = -1, CHIPSET_ID = -1, CHIPSET2_ID = -1, SOUND_ID = -1, FLOPPY_ID = -1, DISK_ID = -1,
-	HARDDISK_ID = -1, IOPORTS_ID = -1, GAMEPORTS_ID = -1, INPUT_ID = -1, INPUTMAP_ID = -1, MISC1_ID = -1, MISC2_ID = -1,
+	HARDDISK_ID = -1, IOPORTS_ID = -1, GAMEPORTS_ID = -1, INPUT_ID = -1, MISC1_ID = -1, MISC2_ID = -1,
 	AVIOUTPUT_ID = -1, PATHS_ID = -1, QUICKSTART_ID = -1, ABOUT_ID = -1, EXPANSION_ID = -1, FRONTEND_ID = -1;
+static const int INPUTMAP_ID = MAX_C_PAGES - 1;
 static HWND pages[MAX_C_PAGES];
 #define MAX_IMAGETOOLTIPS 10
 static HWND guiDlg, panelDlg, ToolTipHWND;
@@ -3447,7 +3448,7 @@ static void update_listview_input (HWND hDlg)
 
 static int inputmap_port = -1, inputmap_port_remap = -1;
 static int inputmap_groupindex[32];
-static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state, int *inputmap_itemindexp)
+static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state, int *inputmap_itemindexp, int deleteindex)
 {
 	int cntitem, cntgroup, portnum;
 	int mode, *events, *axistable;
@@ -3485,7 +3486,8 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					lvstruct.iSubItem = 0;
 					lvstruct.iGroupId = cntgroup;
 					if (inputmap_itemindexp)
-						inputmap_itemindexp[cntgroup] = -1;
+						inputmap_itemindexp[cntgroup - 1] = -1;
+						inputmap_itemindexp[cntgroup + 1 - 1] = -1;
 				}
 
 				atpidx = 0;
@@ -3511,6 +3513,11 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 									if (inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub) == evtnum) {
 										if (!port)
 											continue;
+										if (cntitem - 1 == deleteindex) {
+											inputdevice_set_mapping (devnum, j, NULL, NULL, 0, 0, sub);
+											deleteindex = -1;
+											continue;
+										}
 										inputdevice_get_widget_type (devnum, j, name);
 										if (list) {
 											TCHAR target[MAX_DPATH];
@@ -3547,6 +3554,7 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					if (list) {
 						lvstruct.pszText = _T("");
 						lvstruct.iItem = cntgroup * 256 + cntitem;
+						lvstruct.lParam = cntgroup;
 						item = ListView_InsertItem (list, &lvstruct);
 						if (inputmap_itemindexp && inputmap_itemindexp[cntgroup - 1] < 0)
 							inputmap_itemindexp[cntgroup - 1] = item;
@@ -3563,13 +3571,13 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 		return 1;
 	return 0;
 }
-static void update_listview_inputmap (HWND hDlg)
+static void update_listview_inputmap (HWND hDlg, int deleteindex)
 {
 	HWND list = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 
 	ListView_EnableGroupView (list, TRUE);
 
-	inputmap_handle (list, -1, -1, NULL, NULL, 0, inputmap_groupindex);
+	inputmap_handle (list, -1, -1, NULL, NULL, 0, inputmap_groupindex, deleteindex);
 }
 
 static int clicked_entry = -1;
@@ -3792,7 +3800,7 @@ void InitializeListView (HWND hDlg)
 	} else if (lv_type == LV_INPUTMAP) {
 
 		listview_column_width[0] = 400;
-		update_listview_inputmap (hDlg);
+		update_listview_inputmap (hDlg, -1);
 
 	} else if (lv_type == LV_MISC1) {
 
@@ -4052,7 +4060,8 @@ void InitializeListView (HWND hDlg)
 		}
 		// Adjust our column widths so that we can see the contents...
 		for(i = 0; i < listview_num_columns; i++) {
-			if (ListView_GetColumnWidth (list, i) < listview_column_width[i])
+			int w = ListView_GetColumnWidth (list, i);
+			if (w < listview_column_width[i])
 				ListView_SetColumnWidth (list, i, listview_column_width[i]);
 		}
 		// Redraw the items in the list...
@@ -4558,7 +4567,7 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 				{
 				case NM_DBLCLK:
 					{
-						HTREEITEM ht = TreeView_GetSelection (GetDlgItem(hDlg, IDC_CONFIGTREE));
+						HTREEITEM ht = TreeView_GetSelection (GetDlgItem (hDlg, IDC_CONFIGTREE));
 						if (ht != NULL) {
 							TVITEMEX pitem;
 							memset (&pitem, 0, sizeof (pitem));
@@ -11995,20 +12004,20 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			updatejoyport (hDlg);
 		} else if (LOWORD (wParam) == IDC_PORT0_REMAP) {
 			ports_remap (hDlg, 0);
+			enable_for_gameportsdlg (hDlg);
+			updatejoyport (hDlg);
 		} else if (LOWORD (wParam) == IDC_PORT1_REMAP) {
 			ports_remap (hDlg, 1);
+			enable_for_gameportsdlg (hDlg);
+			updatejoyport (hDlg);
 		} else if (LOWORD (wParam) == IDC_PORT2_REMAP) {
 			ports_remap (hDlg, 2);
+			enable_for_gameportsdlg (hDlg);
+			updatejoyport (hDlg);
 		} else if (LOWORD (wParam) == IDC_PORT3_REMAP) {
 			ports_remap (hDlg, 3);
-		} else if (LOWORD (wParam) == IDC_PORT0_TEST) {
-			input_test (hDlg, 0);
-		} else if (LOWORD (wParam) == IDC_PORT1_TEST) {
-			input_test (hDlg, 1);
-		} else if (LOWORD (wParam) == IDC_PORT2_TEST) {
-			input_test (hDlg, 2);
-		} else if (LOWORD (wParam) == IDC_PORT3_TEST) {
-			input_test (hDlg, 3);
+			enable_for_gameportsdlg (hDlg);
+			updatejoyport (hDlg);
 		} else if (HIWORD (wParam) == CBN_SELCHANGE) {
 			switch (LOWORD (wParam))
 			{
@@ -12517,68 +12526,84 @@ static void showextramap (HWND hDlg)
 	SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUTM), out);
 }
 
-static void input_find (HWND hDlg, int mode, int set);
+static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot);
 static int rawmode;
 static int inputmap_remap_counter, inputmap_view_offset;
+static int inputmap_mode_cnt;
+static bool inputmap_oneshot;
+
+#define INPUTMAP_F12 -1
+
+#if 0
+static void inputmap_next (HWND hDlg)
+{
+	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
+	int inputmap = 1;
+	if (inputmap == 1) {
+		int mode, *events, *axistable;
+		int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
+		inputmap_remap_counter++;
+		if (inputmap_remap_counter >= max)
+			inputmap_remap_counter = 0;
+		int inputmap_index = inputmap_groupindex[inputmap_remap_counter];
+		ListView_EnsureVisible (h, inputmap_index, FALSE);
+		ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+		ListView_SetItemState (h, inputmap_index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+	} else if (inputmap == 2) {
+		int itemcnt = ListView_GetItemCount (h);
+		if (inputmap_view_offset >= itemcnt - 1 || inputmap_view_offset < 0) {
+			inputmap_view_offset = 0;
+		} else {
+			inputmap_view_offset += ListView_GetCountPerPage (h);
+			if (inputmap_view_offset >= itemcnt)
+				inputmap_view_offset = itemcnt - 1;
+		}
+		ListView_EnsureVisible (h, inputmap_view_offset, FALSE);
+	}
+}
+#endif
 
 static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
-	if (idEvent != 1)
-		return;
 	int inputmap;
 	WINDOWINFO pwi;
-	pwi.cbSize = sizeof pwi;
-	if (GetWindowInfo (guiDlg, &pwi)) {
-		// GUI inactive = disable capturing
-		if (pwi.dwWindowStatus != WS_ACTIVECAPTION) {
-			input_find (hDlg, 0, false);
-			return;
-		}
-	}
-	if (currentpage == INPUTMAP_ID) {
+	HWND myDlg;
+
+	if (idEvent != 1)
+		return;
+
+	if (pages[INPUTMAP_ID]) {
 		inputmap = inputmap_remap_counter >= 0 ? 1 : 2;
 		setfocus (hDlg, IDC_INPUTMAPLIST);
+		myDlg = hDlg;
 	} else {
 		inputmap = 0;
 		setfocus (hDlg, IDC_INPUTLIST);
+		myDlg = guiDlg;
 	}
+
+	pwi.cbSize = sizeof pwi;
+	if (GetWindowInfo (myDlg, &pwi)) {
+		// GUI inactive = disable capturing
+		if (pwi.dwWindowStatus != WS_ACTIVECAPTION) {
+			input_find (hDlg, myDlg, 0, false, false);
+			return;
+		}
+	}
+
 	int inputmap_index;
 	int devnum, wtype, state;
 	int cnt = inputdevice_testread_count ();
 	if (cnt < 0) {
-		input_find (hDlg, 0, FALSE);
+		input_find (hDlg, myDlg, 0, FALSE, false);
 		return;
 	}
 	if (!cnt)
 		return;
 	int ret = inputdevice_testread (&devnum, &wtype, &state, true);
 	if (ret > 0) {
-		if (wtype < 0) {
-			if (!state)
-				return;
-			HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
-			// F11
-			if (inputmap == 1) {
-				int mode, *events, *axistable;
-				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
-				inputmap_remap_counter++;
-				if (inputmap_remap_counter >= max)
-					inputmap_remap_counter = 0;
-				inputmap_index = inputmap_groupindex[inputmap_remap_counter];
-				ListView_EnsureVisible (h, inputmap_index, FALSE);
-				ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-				ListView_SetItemState (h, inputmap_index, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-			} else if (inputmap == 2) {
-				int itemcnt = ListView_GetItemCount (h);
-				if (inputmap_view_offset >= itemcnt - 1 || inputmap_view_offset < 0) {
-					inputmap_view_offset = 0;
-				} else {
-					inputmap_view_offset += ListView_GetCountPerPage (h);
-					if (inputmap_view_offset >= itemcnt)
-						inputmap_view_offset = itemcnt - 1;
-				}
-				ListView_EnsureVisible (h, inputmap_view_offset, FALSE);
-			}
+		if (wtype == INPUTMAP_F12) {
+			input_find (hDlg, myDlg, 0, FALSE, false);
 			return;
 		}
 		if (input_selected_widget != devnum || input_selected_widget != wtype) {
@@ -12612,7 +12637,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				wcnt++;
 				for (;;) {
 					ret = inputdevice_testread (&devnum, &wtype, &state, false);
-					if (ret <= 0)
+					if (ret <= 0 || wtype == -2)
 						break;
 					if (devnum != input_selected_device)
 						continue;
@@ -12687,8 +12712,10 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 					inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port);
 				InitializeListView (hDlg);
 				inputmap_remap_counter++;
-				if (inputmap_remap_counter >= max)
-					inputmap_remap_counter = 0;
+				if (inputmap_remap_counter >= max || inputmap_oneshot) {
+					input_find (hDlg, myDlg, 0, FALSE, false);
+					return;
+				}
 				
 				inputmap_index = inputmap_groupindex[inputmap_remap_counter];
 				ListView_EnsureVisible (h, inputmap_index, FALSE);
@@ -12726,7 +12753,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				bool found = false;
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
 				int op = inputmap_port;
-				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state, NULL)) {
+				if (inputmap_handle (NULL, input_selected_device, input_selected_widget, &op, &inputmap_index, state, NULL, -1)) {
 					if (op == inputmap_port) {
 						ListView_EnsureVisible (h, 1, FALSE);
 						ListView_EnsureVisible (h, inputmap_index, FALSE);
@@ -12776,7 +12803,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
 				ListView_SetItemState (GetDlgItem (hDlg, IDC_INPUTLIST), input_selected_widget, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
 				if (rawmode == 1) {
-					input_find (hDlg, 0, FALSE);
+					input_find (hDlg, myDlg, 0, FALSE, false);
 					if (IsWindowEnabled (GetDlgItem (hDlg, IDC_INPUTAMIGA))) {
 						setfocus (hDlg, IDC_INPUTAMIGA);
 						SendDlgItemMessage (hDlg, IDC_INPUTAMIGA, CB_SHOWDROPDOWN , TRUE, 0L);
@@ -12795,35 +12822,44 @@ static int rawdisable[] = {
 	IDC_INPUTCOPY, 0, 0, IDC_INPUTCOPYFROM, 0, 0, IDC_INPUTSWAP, 0, 0,
 	IDC_INPUTDEADZONE, 0, 0, IDC_INPUTSPEEDD, 0, 0, IDC_INPUTAUTOFIRERATE, 0, 0, IDC_INPUTSPEEDA, 0, 0,
 	IDC_PANELTREE, 1, 0, IDC_RESETAMIGA, 1, 0, IDC_QUITEMU, 1, 0, IDC_RESTARTEMU, 1, 0, IDOK, 1, 0, IDCANCEL, 1, 0, IDHELP, 1, 0,
+	IDC_INPUTMAP_DELETE, 0, 0, IDC_INPUTMAP_CAPTURE, 0, 0, IDC_INPUTMAP_CUSTOM, 0, 0,
+	IDC_INPUTMAP_TEST, 0, 0, IDC_INPUTMAP_DELETEALL, 0, 0, IDC_INPUTMAP_EXIT, 0, 0,
 	-1
 };
 
+static void inputmap_disable (HWND hDlg, bool disable)
+{
+	for (int i = 0; rawdisable[i] >= 0; i += 3) {
+		HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
+		if (w) {
+			if (disable) {
+				rawdisable[i + 2] = IsWindowEnabled (w);
+				EnableWindow (w, FALSE);
+			} else {
+				EnableWindow (w, rawdisable[i + 2]);
+			}
+		}
+	}
+}
 
-static void input_find (HWND hDlg, int mode, int set)
+static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot)
 {
 	static TCHAR tmp[200];
 	if (set && !rawmode) {
 		rawmode = mode ? 2 : 1;
+		inputmap_oneshot = oneshot;
+		inputmap_disable (hDlg, true);
 		inputdevice_settest (TRUE);
 		inputdevice_acquire (-1);
-		if (rawmode == 2) {
-			TCHAR tmp2[MAX_DPATH];
-			GetWindowText (guiDlg, tmp, sizeof tmp / sizeof (TCHAR));
-			WIN32GUI_LoadUIString (IDS_REMAPTITLE, tmp2, sizeof tmp2 / sizeof (TCHAR));
-			SetWindowText (guiDlg, tmp2);
-		}
+		TCHAR tmp2[MAX_DPATH];
+		GetWindowText (guiDlg, tmp, sizeof tmp / sizeof (TCHAR));
+		WIN32GUI_LoadUIString (IDS_REMAPTITLE, tmp2, sizeof tmp2 / sizeof (TCHAR));
+		SetWindowText (mainDlg, tmp2);
 		SetTimer (hDlg, 1, 30, timerfunc);
-		for (int i = 0; rawdisable[i] >= 0; i += 3) {
-			HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
-			if (w) {
-				rawdisable[i + 2] = IsWindowEnabled (w);
-				EnableWindow (w, FALSE);
-			}
-		}
 		ShowCursor (FALSE);
-		SetCapture (guiDlg);
+		SetCapture (mainDlg);
 		RECT r;
-		GetWindowRect (guiDlg, &r);
+		GetWindowRect (mainDlg, &r);
 		ClipCursor (&r);
 	} else if (rawmode) {
 		KillTimer (hDlg, 1);
@@ -12832,36 +12868,14 @@ static void input_find (HWND hDlg, int mode, int set)
 		ShowCursor (TRUE);
 		wait_keyrelease ();
 		inputdevice_unacquire ();
-		for (int i = 0; rawdisable[i] >= 0; i += 3) {
-			HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
-			if (w)
-				EnableWindow (w, rawdisable[i + 2]);
-		}
+		inputmap_disable (hDlg, false);
 		inputdevice_settest (FALSE);
-		if (rawmode == 2) {
-			SetWindowText (guiDlg, tmp);
-			SetFocus (hDlg);
-		}
+		SetWindowText (mainDlg, tmp);
+		SetFocus (hDlg);
 		rawmode = FALSE;
-		if (currentpage == INPUTMAP_ID)
-			updatePanel (GAMEPORTS_ID);
+		SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUT), _T(""));
+		SetWindowText (GetDlgItem (hDlg, IDC_INPUTMAPOUTM), _T(""));
 	}
-}
-
-static void ports_remap (HWND hDlg, int port)
-{
-	inputmap_port_remap = port;
-	inputmap_port = port;
-	inputmap_remap_counter = 0;
-	updatePanel (INPUTMAP_ID);
-}
-static void input_test (HWND hDlg, int port)
-{
-	inputmap_port_remap = -1;
-	inputmap_port = port;
-	inputmap_remap_counter = -1;
-	inputmap_view_offset = 0;
-	updatePanel (INPUTMAP_ID);
 }
 
 #if 0
@@ -12939,105 +12953,173 @@ static void handleXbutton (WPARAM wParam, int updown)
 		setmousebuttonstate (dinput_winmouse (), num, updown);
 }
 
-static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	static int recursive;
-
-	switch (msg)
-	{
-	case WM_INITDIALOG:
-	{
-		pages[INPUTMAP_ID] = hDlg;
-		currentpage = INPUTMAP_ID;
-		inputdevice_updateconfig (NULL, &workprefs);
-		if (inputmap_remap_counter == 0) {
-			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1);
-			inputdevice_updateconfig (NULL, &workprefs);
-		}
-		InitializeListView (hDlg);
-		HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
-		if (inputmap_remap_counter == 0) {
-			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
-			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
-			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
-		}
-		input_find (hDlg, 1, true);
-	}
-	case WM_USER:
-		recursive++;
-		recursive--;
-		return TRUE;
-	case WM_DESTROY:
-		input_find (hDlg, 0, false);
-	break;
-#if 0
-	case WM_MOUSEMOVE:
-	{
-		int wm = dinput_winmouse ();
-		int mx = (signed short) LOWORD (lParam);
-		int my = (signed short) HIWORD (lParam);
-		setmousestate (dinput_winmouse (), 0, mx, 0);
-		setmousestate (dinput_winmouse (), 1, my, 0);
-		break;
-	}
-	case WM_LBUTTONUP:
-		setmousebuttonstate (dinput_winmouse (), 0, 0);
-		return 0;
-	case WM_LBUTTONDOWN:
-	case WM_LBUTTONDBLCLK:
-		setmousebuttonstate (dinput_winmouse (), 0, 1);
-		return 0;
-	case WM_RBUTTONUP:
-		setmousebuttonstate (dinput_winmouse (), 1, 0);
-		return 0;
-	case WM_RBUTTONDOWN:
-	case WM_RBUTTONDBLCLK:
-		setmousebuttonstate (dinput_winmouse (), 1, 1);
-		return 0;
-	case WM_MBUTTONUP:
-		setmousebuttonstate (dinput_winmouse (), 2, 0);
-		return 0;
-	case WM_MBUTTONDOWN:
-	case WM_MBUTTONDBLCLK:
-		setmousebuttonstate (dinput_winmouse (), 2, 1);
-		return 0;
-	case WM_XBUTTONUP:
-		handleXbutton (wParam, 0);
-		return TRUE;
-	case WM_XBUTTONDOWN:
-	case WM_XBUTTONDBLCLK:
-		handleXbutton (wParam, 1);
-		return TRUE;
-	case WM_MOUSEWHEEL:
-		{
-			int val = ((short)HIWORD (wParam));
-			setmousestate (dinput_winmouse (), 2, val, 0);
-			if (val < 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 0, -1);
-			else if (val > 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 1, -1);
-			return TRUE;
-		}
-	case WM_MOUSEHWHEEL:
-		{
-			int val = ((short)HIWORD (wParam));
-			setmousestate (dinput_winmouse (), 3, val, 0);
-			if (val < 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 2, -1);
-			else if (val > 0)
-				setmousebuttonstate (dinput_winmouse (), dinput_wheelbuttonstart () + 3, -1);
-			return TRUE;
-		}
-#endif
-	}
-	return 0;
-}
-
 static void handlerawinput (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (msg == WM_INPUT) {
 		handle_rawinput (lParam);
 		DefWindowProc (hDlg, msg, wParam, lParam);
+	}
+}
+
+static int getremapcounter(int item)
+{
+	for (int i = 0; inputmap_groupindex[i] >= 0; i++) {
+		if (item < inputmap_groupindex[i + 1] || inputmap_groupindex[i + 1] < 0)
+			return i;
+	}
+	return 0;
+}
+
+static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	static int recursive;
+	static int inputmap_selected;
+	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
+
+	switch (msg)
+	{
+	case WM_CLOSE:
+		DestroyWindow (hDlg);
+		return TRUE;
+	case WM_INITDIALOG:
+	{
+		inputmap_port_remap = -1;
+		inputmap_remap_counter = -1;
+		inputmap_view_offset = 0;
+		pages[INPUTMAP_ID] = hDlg;
+		inputdevice_updateconfig (NULL, &workprefs);
+		InitializeListView (hDlg);
+		if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
+			ew (hDlg, IDC_INPUTMAP_CAPTURE, FALSE);
+			ew (hDlg, IDC_INPUTMAP_DELETE, FALSE);
+			ew (hDlg, IDC_INPUTMAP_CUSTOM, FALSE);
+		}
+		break;
+	}
+	case WM_DESTROY:
+		input_find (hDlg, hDlg, 0, false, false);
+		pages[INPUTMAP_ID] =  NULL;
+		inputmap_port_remap = -1;
+		inputmap_remap_counter = -1;
+		inputmap_view_offset = 0;
+		PostQuitMessage (0);
+		return TRUE;
+	break;
+	case WM_NOTIFY:
+		if (((LPNMHDR) lParam)->idFrom == IDC_INPUTMAPLIST) {
+			NM_LISTVIEW *lv = (NM_LISTVIEW*)lParam;
+			switch (lv->hdr.code)
+			{
+				case NM_DBLCLK:
+					if (lv->iItem >= 0) {
+						inputmap_selected = lv->iItem;
+						inputmap_remap_counter = getremapcounter (lv->iItem);
+						if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
+							input_find (hDlg, hDlg, 1, true, true);
+						}
+					}
+				return TRUE;
+
+				case NM_CLICK:
+					if (lv->iItem >= 0) {
+						inputmap_selected = lv->iItem;
+						inputmap_remap_counter = getremapcounter (lv->iItem);
+					}
+				return TRUE;
+			}
+		}
+	break;
+	case WM_COMMAND:
+	{
+		if (recursive)
+			break;
+		recursive++;
+		switch(wParam)
+		{
+			case IDCANCEL:
+			case IDOK:
+			case IDC_INPUTMAP_EXIT:
+			pages[INPUTMAP_ID] =  NULL;
+			DestroyWindow (hDlg);
+			//EndDialog (hDlg, 0);
+			break;
+			case IDC_INPUTMAP_TEST:
+			inputmap_port_remap = -1;
+			inputmap_remap_counter = -1;
+			inputmap_view_offset = 0;
+			input_find (hDlg, hDlg, 0, true, false);
+			break;
+			case IDC_INPUTMAP_CAPTURE:
+			if (inputmap_remap_counter < 0)
+				inputmap_remap_counter = 0;
+			inputmap_port_remap = inputmap_port;
+			if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
+				inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, false);
+				inputdevice_updateconfig (NULL, &workprefs);
+				InitializeListView (hDlg);
+			}
+			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
+			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+			input_find (hDlg, hDlg, 1, true, false);
+			break;
+			case IDC_INPUTMAP_CUSTOM:
+			break;
+			case IDC_INPUTMAP_DELETE:
+			if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
+				update_listview_inputmap (hDlg, inputmap_selected);
+				InitializeListView (hDlg);
+			}
+			break;
+			case IDC_INPUTMAP_DELETEALL:
+			inputmap_remap_counter = 0;
+			inputmap_port_remap = inputmap_port;
+			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, true);
+			inputdevice_updateconfig (NULL, &workprefs);
+			InitializeListView (hDlg);
+			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
+			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);
+			ListView_SetItemState (h, inputmap_remap_counter, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+			ew (hDlg, IDC_INPUTMAP_CAPTURE, TRUE);
+			ew (hDlg, IDC_INPUTMAP_DELETE, TRUE);
+			ew (hDlg, IDC_INPUTMAP_CUSTOM, TRUE);
+			break;
+		}
+		recursive--;
+		break;
+	}
+	break;
+	}
+	handlerawinput (hDlg, msg, wParam, lParam);
+	return FALSE;
+}
+
+static void ports_remap (HWND hDlg, int port)
+{
+	inputmap_port = port;
+	HWND dlg = CustomCreateDialog (IDD_INPUTMAP, hDlg, InputMapDlgProc);
+	if (dlg == NULL)
+		return;
+	MSG msg;
+	for (;;) {
+		DWORD ret = GetMessage (&msg, dlg, 0, 0);
+		if (ret == -1 || ret == 0)
+			break;
+		if (rawmode) {
+			if (msg.message == WM_INPUT) {
+				handlerawinput (msg.hwnd, msg.message, msg.wParam, msg.lParam);
+				continue;
+			}
+			// eat all accelerators
+			if (msg.message == WM_KEYDOWN || msg.message == WM_MOUSEMOVE || msg.message == WM_MOUSEWHEEL
+				|| msg.message == WM_MOUSEHWHEEL || msg.message == WM_LBUTTONDOWN)
+				continue;
+		}
+		// IsDialogMessage() eats WM_INPUT messages?!?!
+		if (!rawmode && IsDialogMessage (dlg, &msg))
+			continue;
+		TranslateMessage (&msg);
+		DispatchMessage (&msg);
 	}
 }
 
@@ -13323,7 +13405,7 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		recursive--;
 		return TRUE;
 	case WM_DESTROY:
-		input_find (hDlg, 0, false);
+		input_find (hDlg, guiDlg, 0, false, false);
 		break;
 	case WM_COMMAND:
 		if (recursive)
@@ -13333,10 +13415,10 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		{
 		case IDC_INPUTREMAP:
 			input_selected_event = -1;
-			input_find (hDlg, 0, true);
+			input_find (hDlg, guiDlg, 0, true, false);
 			break;
 		case IDC_INPUTTEST:
-			input_find (hDlg, 1, true);
+			input_find (hDlg, guiDlg, 1, true, false);
 			break;
 		case IDC_INPUTCOPY:
 			input_copy (hDlg);
@@ -15856,7 +15938,6 @@ static int GetSettings (int all_options, HWND hwnd)
 		HARDDISK_ID = init_page (IDD_HARDDISK, IDI_HARDDISK, IDS_HARDDISK, HarddiskDlgProc, HarddiskAccel, _T("gui/hard-drives.htm"), 0);
 #endif
 		GAMEPORTS_ID = init_page (IDD_GAMEPORTS, IDI_GAMEPORTS, IDS_GAMEPORTS, GamePortsDlgProc, NULL, _T("gui/gameports.htm"), 0);
-		INPUTMAP_ID = init_page (IDD_INPUTMAP, IDI_GAMEPORTS, IDS_GAMEPORTS, InputMapDlgProc, NULL, NULL, IDC_INPUTMAPLIST);
 		IOPORTS_ID = init_page (IDD_IOPORTS, IDI_PORTS, IDS_IOPORTS, IOPortsDlgProc, NULL, _T("gui/ioports.htm"), 0);
 		INPUT_ID = init_page (IDD_INPUT, IDI_INPUT, IDS_INPUT, InputDlgProc, NULL, _T("gui/input.htm"), IDC_INPUTLIST);
 		MISC1_ID = init_page (IDD_MISC1, IDI_MISC1, IDS_MISC1, MiscDlgProc1, NULL, _T("gui/misc.htm"), 0);
@@ -15969,8 +16050,10 @@ static int GetSettings (int all_options, HWND hwnd)
 				if (globalipc && IPChandle != INVALID_HANDLE_VALUE) {
 					MsgWaitForMultipleObjects (1, &IPChandle, FALSE, INFINITE, QS_ALLINPUT);
 					while (checkIPC (globalipc, &workprefs));
+					if (quit_program == -UAE_QUIT)
+						break;
 				} else {
-					WaitMessage();
+					WaitMessage ();
 				}
 				dialogmousemove (dhwnd);
 

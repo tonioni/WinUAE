@@ -3368,7 +3368,6 @@ void inputdevice_reset (void)
 	if (inputdevice_is_tablet ())
 		mousehack_enable ();
 	bouncy = 0;
-	potgo_value = 0;
 }
 
 static int getoldport (struct uae_input_device *id)
@@ -4491,7 +4490,7 @@ static void remove_custom_config (struct uae_prefs *prefs, bool nocustom, int in
 }
 
 // prepare port for custom mapping, remove all current Amiga side device mappings
-void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int newmode)
+void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int newmode, bool removeold)
 {
 	int mode = prefs->jports[index].mode;
 	freejport (prefs, index);
@@ -4502,10 +4501,12 @@ void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int n
 		mode = index == 0 ? JSEM_MODE_WHEELMOUSE : (prefs->cs_cd32cd ? JSEM_MODE_JOYSTICK_CD32 : JSEM_MODE_JOYSTICK);
 	}
 	prefs->jports[index].mode = mode;
-	prefs->jports[index].id = -2;
+	prefs->jports[index].id = JPORT_CUSTOM;
 
-	remove_compa_config (prefs, index);
-	remove_custom_config (prefs, false, index);
+	if (removeold) {
+		remove_compa_config (prefs, index);
+		remove_custom_config (prefs, false, index);
+	}
 }
 // clear device before switching to new one
 void inputdevice_compa_clear (struct uae_prefs *prefs, int index)
@@ -6334,8 +6335,8 @@ void inputdevice_testrecord (int type, int num, int wtype, int wnum, int state, 
 	if (testmode_count >= TESTMODE_MAX)
 		return;
 	if (type == IDTYPE_KEYBOARD) {
-		if (wnum == 0x100) {
-			wnum = -1;
+		if (wnum >= 0x100) {
+			wnum = 0x100 - wnum;
 		} else {
 			struct uae_input_device *na = &keyboards[num];
 			int j = 0;

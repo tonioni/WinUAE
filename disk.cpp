@@ -303,7 +303,8 @@ static void createrootblock (uae_u8 *sector, const TCHAR *disk_name)
 {
 	char *dn = ua (disk_name);
 	char *dn2 = dn;
-	dn2[30] = 0;
+	if (strlen (dn2) >= 30)
+		dn2[30] = 0;
 	if (dn2[0] == 0)
 		dn2 = "empty";
 	memset (sector, 0, FS_FLOPPY_BLOCKSIZE);

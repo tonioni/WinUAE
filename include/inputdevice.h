@@ -211,7 +211,7 @@ extern void inputdevice_testrecord (int type, int num, int wtype, int wnum, int 
 extern int inputdevice_get_compatibility_input (struct uae_prefs*, int, int*, int**, int**);
 extern struct inputevent *inputdevice_get_eventinfo (int evt);
 extern bool inputdevice_get_eventname (const struct inputevent *ie, TCHAR *out);
-extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int mode);
+extern void inputdevice_compa_prepare_custom (struct uae_prefs *prefs, int index, int mode, bool removeold);
 extern void inputdevice_compa_clear (struct uae_prefs *prefs, int index);
 extern int intputdevice_compa_get_eventtype (int evt, int **axistable);
 extern void inputdevice_sparecopy (struct uae_input_device *uid, int num, int sub);

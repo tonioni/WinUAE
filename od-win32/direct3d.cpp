@@ -2267,10 +2267,12 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 			getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
 			if (hzmult < 0) {
-				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
-					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
-				else
+				if (!ap->gfx_strobo) {
+					if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+						dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
+				}  else {
 					vsync2 = -1;
+				}
 			} else if (hzmult > 0) {
 				vsync2 = 1;
 			}
@@ -2281,11 +2283,13 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		getvsyncrate (dpp.FullScreen_RefreshRateInHz, &hzmult);
 		if (hzmult > 0) {
 			vsync2 = 1;
-		} else if (hzmult < 0 && ap->gfx_vflip) {
-			if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
-				dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
-			else
-				vsync2 = -1;
+		} else if (hzmult < 0) {
+			if (ap->gfx_vflip && !ap->gfx_strobo) {
+				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
+					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
+				else
+					vsync2 = -1;
+			}
 		}
 	}
 
@@ -2464,7 +2468,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		if (forcedframelatency >= 0)
 			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
 		else if (v > 1 || !vsync)
-			hr = d3ddevex->SetMaximumFrameLatency (vsync ? 1 : 0);
+			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 	}
@@ -3135,6 +3139,17 @@ void D3D_showframe (void)
 		}
 	}
 	flushgpu (true);
+}
+
+void D3D_showframe_special (int mode)
+{
+	HRESULT hr;
+	if (!isd3d ())
+		return;
+	if (currprefs.turbo_emulation)
+		return;
+	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
+	D3D_showframe2 (true);
 }
 
 void D3D_refresh (void)

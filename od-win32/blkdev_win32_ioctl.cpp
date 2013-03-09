@@ -697,7 +697,8 @@ static int ioctl_command_pause (int unitnum, int paused)
 	if (!ciw)
 		return -1;
 	int old = ciw->cdda_paused;
-	ciw->cdda_paused = paused;
+	if ((paused && ciw->cdda_play) || !paused)
+		ciw->cdda_paused = paused;
 	return old;
 }
 

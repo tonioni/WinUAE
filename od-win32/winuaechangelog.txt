@@ -1,6 +1,35 @@
 
 - restore only single input target to default.
 
+Beta 10:
+
+- SCSI CD MODE SENSE emulation fixes.
+- SCSI CD Write commands should return unknown command error, it is not a CD writer.
+- SCSI CD and HD: return correct sense code if Read or Write command tries to access out of bounds LBAs.
+- SCSI/ATAPI CD: return medium changed unit attention sense data after media change.
+- OCS and ECS Denise/AGA have slightly different behavior when program writes to BPL1DAT to enable sprites
+  before DDFSTRT (sort of AGA bordersprite option), OCS: only works if hpos is large enough (~40+), ECS:
+  smaller limit (or no limit, didn't test).
+- Soft link emulation improved.
+- Directory filesystem ACTION_MAKE_LINK implemented, supports soft links only, creates shortcut (*.lnk) files.
+- Entering GUI Harddrives panel removed image from internel CD image mounter if mounted as ATAPI or SCSI. (introduced few betas ago)
+- Restructured blkdev.cpp unit handling.
+- Sound autoswitching is disabled when AVI recording is active.
+- Low latency vsync no buffer mode and doubled frames (100Hz+) was unstable.
+- POTGO right button bit was temporarily and incorrectly active in some situations when loading state.
+- D3D Low latency vsync in double and triple buffer double rate modes (100Hz+) now blank every other field to minimize "ghosting" effect.
+  Will be optional later. (http://www.blurbusters.com/ for more information)
+- Added hack that prevents incorrectly triggering CIA alarm interrupts in non-cycle exact modes due to not that good KS timer.device
+  code. (It did not cause any problems, just wasted some emulated CPU time)
+- Fixed memory corruption in exe to adf conversion code. (b1)
+- GamePorts panel test/remap option rewritten.
+  - Test and Remap buttons combined.
+  - One or more events can be added.
+  - Events can be removed one by one.
+  - Non-key/joystick/mouse events (insert floppy, reset emulator etc..) can be added and removed. Not yet implemented.
+  - Doubleclick on input list will record single input event.
+  NOTE: Built-in (non-custom mode) events can not be edited, you need to start from scratch. (Click "Delete all")
+
 Beta 9:
 
 - 68000 NBCD didn't emulate undocumented V-flag behavior. (Probably forgotten long time ago because SBCD had correct
@@ -121,7 +150,7 @@ Beta 2:
 - Fixed stuck IDE emulation interrupt that hangs the emulated system, happened randomly during A4000 IDE detection. (Old bug)
 - Geometry file FORCELOAD parameter added, forceload=1: do not re-use already loaded filesystem(s).
 - A590/A2091/A3000 SCSI CDROM emulation added, uses SCSI emulation originally made for uaescsi.device.
-- Gayle/A4000 ATAPI CDROM emulation added (uses uaescsi.device SCSI emulation, ATAPI = IDE CROM SCSI command support)
+- Gayle/A4000 ATAPI CDROM emulation added (uses uaescsi.device SCSI emulation, ATAPI = IDE CDROM SCSI command support)
 - CD image mounter SCSI emulation inquiry command's vendor/product/revision data was blank.
 - Ultra-minimal "Add CD Drive" GUI added. Only IDE or SCSI and only one CD entry can be added. Use hardddrives panel bottom
   CD drive/image selection select menu to select mounted CD. uaescsi.device still works as previously but note that

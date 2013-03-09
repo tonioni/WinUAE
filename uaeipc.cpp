@@ -10,6 +10,7 @@
 #include "zfile.h"
 #include "inputdevice.h"
 #include "debug.h"
+#include "uae.h"
 
 #include <windows.h>
 
@@ -39,6 +40,10 @@ static void parsemessage(TCHAR *in, struct uae_prefs *p, TCHAR *out, int outsize
 	out[0] = 0;
 
 	my_trim (in);
+	if (!_tcsicmp (in, _T("IPC_QUIT"))) {
+		uae_quit ();
+		return;
+	}
 	if (!_tcsicmp (in, _T("ipc_config"))) {
 		ipcmode = 1;
 		_tcscat (out, _T("200\n"));

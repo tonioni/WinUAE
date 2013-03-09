@@ -283,7 +283,7 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 	kb = inputdevice_get_device_total (IDTYPE_JOYSTICK) + inputdevice_get_device_total (IDTYPE_MOUSE);
 
 	inputdevice_copyconfig (&currprefs, &changed_prefs);
-	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype);
+	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype, true);
 	inputdevice_updateconfig (NULL, &changed_prefs);
 	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
 	write_log (_T("custom='%s' max=%d port=%d dt=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, devicetype, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));

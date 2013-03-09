@@ -2207,13 +2207,11 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		}
 		rawkeystate[scancode] = pressed;
 		if (istest) {
-			if (pressed && (scancode == DIK_F12 || scancode == DIK_F11))
+			if (pressed && (scancode == DIK_F12))
 				return;
-			if (scancode == DIK_F12)
-				scancode = -1;
-			if (scancode == DIK_F11) {
-				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 1, -1);
-				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x100, 0, -1);
+			if (scancode == DIK_F12) {
+				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x101, 1, -1);
+				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, 0x101, 0, -1);
 			} else {
 				inputdevice_testrecord (IDTYPE_KEYBOARD, num, IDEV_WIDGET_BUTTON, scancode, pressed, -1);
 			}
@@ -3232,13 +3230,11 @@ static void read_kb (void)
 					continue;
 				di_keycodes[i][scancode] = pressed;
 				if (istest) {
-					if (pressed && (scancode == DIK_F12 || scancode == DIK_F11))
+					if (pressed && (scancode == DIK_F12))
 						return;
-					if (scancode == DIK_F12)
-						scancode = -1;
-					if (scancode == DIK_F11) {
-						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 1, -1);
-						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x100, 0, -1);
+					if (scancode == DIK_F12) {
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x101, 1, -1);
+						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, 0x101, 0, -1);
 					} else {
 						inputdevice_testrecord (IDTYPE_KEYBOARD, i, IDEV_WIDGET_BUTTON, scancode, pressed, -1);
 					}

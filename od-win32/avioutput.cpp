@@ -372,13 +372,14 @@ static int AVIOutput_GetAudioFromRegistry (WAVEFORMATEX *wft)
 		return 0;
 	getsettings (avikey);
 	if (wft) {
+		ok = -1;
 		ss = wfxMaxFmtSize;
 		if (regquerydata (avikey, _T("AudioConfigurationVars"), wft, &ss)) {
 			if (AVIOutput_ValidateAudio (wft, NULL, 0))
 				ok = 1;
 		}
 	}
-	if (!ok)
+	if (ok < 0)
 		regdelete (avikey, _T("AudioConfigurationVars"));
 	regclosetree (avikey);
 	return ok;
@@ -546,6 +547,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 		return 0;
 	getsettings (avikey);
 	if (pcv) {
+		ok = -1;
 		ss = pcv->cbSize;
 		pcv->hic = 0;
 		if (regquerydata (avikey, _T("VideoConfigurationVars"), pcv, &ss)) {
@@ -569,7 +571,7 @@ static int AVIOutput_GetCOMPVARSFromRegistry (COMPVARS *pcv)
 			}
 		}
 	}
-	if (!ok) {
+	if (ok < 0) {
 		regdelete (avikey, _T("VideoConfigurationVars"));
 		regdelete (avikey, _T("VideoConfigurationState"));
 	}

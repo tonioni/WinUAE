@@ -5281,6 +5281,40 @@ static TCHAR **WIN32_InitRegistry (TCHAR **argv)
 	return NULL;
 }
 
+static const TCHAR *pipename = _T("\\\\.\\pipe\\WinUAE");
+
+static bool singleprocess (void)
+{
+    DWORD mode, ret, avail;
+	bool ok = false;
+    TCHAR buf[1000];
+
+	HANDLE p = CreateFile(
+		pipename,
+		GENERIC_READ | GENERIC_WRITE,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		0,
+		NULL);
+	if (p == INVALID_HANDLE_VALUE)
+		return false;
+	mode = PIPE_READMODE_MESSAGE;
+    if (!SetNamedPipeHandleState(p, &mode, NULL, NULL))
+		goto end;
+	buf[0] = 0xfeff;
+	_tcscpy (buf + 1, _T("IPC_QUIT"));
+	if (!WriteFile(p, (void*)buf, (_tcslen (buf) + 1) * sizeof (TCHAR), &ret, NULL))
+		goto end;
+	if (!PeekNamedPipe(p, NULL, 0, NULL, &avail, NULL))
+		goto end;
+    if (!ReadFile(p, buf, sizeof buf, &ret, NULL))
+		goto end;
+	ok = true;
+end:
+	CloseHandle(p);
+	return ok;
+}
 
 static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
@@ -5296,6 +5330,7 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 	hInst = hInstance;
 	hMutex = CreateMutex (NULL, FALSE, _T("WinUAE Instantiated")); // To tell the installer we're running
 
+	//singleprocess ();
 
 	argv = xcalloc (TCHAR*, MAX_ARGUMENTS);
 	argv3 = NULL;

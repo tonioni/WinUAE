@@ -124,6 +124,7 @@ cd winuae_msvc11
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd singlefilehelper

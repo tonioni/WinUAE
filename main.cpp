@@ -173,11 +173,15 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 					ap->gfx_vflip = 1;
 				if (!i && ap->gfx_backbuffers == 2)
 					ap->gfx_vflip = 1;
+				if (ap->gfx_vflip)
+					ap->gfx_strobo = true;
 			} else {
 				// legacy vsync: always wait for flip
 				ap->gfx_vflip = -1;
 				if (prefs->gfx_api && ap->gfx_backbuffers < 1)
 					ap->gfx_backbuffers = 1;
+				if (ap->gfx_vflip)
+					ap->gfx_strobo = true;
 			}
 		} else {
 			// no vsync: wait if triple bufferirng

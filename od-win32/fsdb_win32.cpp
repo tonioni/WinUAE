@@ -363,7 +363,7 @@ int fsdb_name_invalid_dir (const TCHAR *n)
 	return v;
 }
 
-uae_u32 filesys_parse_mask(uae_u32 mask)
+uae_u32 filesys_parse_mask (uae_u32 mask)
 {
 	return mask ^ 0xf;
 }
@@ -394,11 +394,22 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		if (h != INVALID_HANDLE_VALUE) {
 			FindClose(h);
 			if (fd.dwReserved0 == IO_REPARSE_TAG_SYMLINK && (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
-				aino->softlink = true;
+				aino->softlink = 1;
 			}
 		}
 	}
 	
+	if (!aino->softlink && !aino->dir) {
+		const TCHAR *ext = _tcsrchr (aino->nname, '.');
+		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
+			TCHAR tmp[MAX_DPATH];
+			_tcscpy (tmp, aino->nname);
+			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+				aino->softlink = 2;
+			}
+		}
+	}
+
 	mode &= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_ARCHIVE | FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN;
 
 	if ((base->volflags & MYVOLUMEINFO_STREAMS) && read_uaefsdb (aino->nname, NULL, fsdb)) {
@@ -430,17 +441,6 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 	if (reset && (base->volflags & MYVOLUMEINFO_STREAMS)) {
 		create_uaefsdb (aino, fsdb, mode);
 		write_uaefsdb (aino->nname, fsdb);
-	}
-
-	if (!aino->softlink && !aino->dir) {
-		const TCHAR *ext = _tcsrchr (aino->nname, '.');
-		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
-			TCHAR tmp[MAX_DPATH];
-			_tcscpy (tmp, aino->nname);
-			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
-				aino->softlink = true;
-			}
-		}
 	}
 
 	return 1;

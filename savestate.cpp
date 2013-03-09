@@ -513,7 +513,7 @@ void restore_state (const TCHAR *filename)
 		write_log (_T("%s is not an AmigaStateFile\n"), filename);
 		goto error;
 	}
-	write_log (_T("STATERESTORE:\n"));
+	write_log (_T("STATERESTORE: '%s'\n"), filename);
 	config_changed = 1;
 	savestate_file = f;
 	restore_header (chunk);

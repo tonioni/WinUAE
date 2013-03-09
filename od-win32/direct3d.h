@@ -6,6 +6,7 @@ extern void D3D_getpixelformat (int depth,int *rb, int *bb, int *gb, int *rs, in
 extern void D3D_refresh (void);
 extern bool D3D_renderframe (bool);
 extern void D3D_showframe (void);
+extern void D3D_showframe_special (int);
 extern uae_u8 *D3D_locktexture(int*, bool);
 extern void D3D_unlocktexture(void);
 extern void D3D_flushtexture (int miny, int maxy);

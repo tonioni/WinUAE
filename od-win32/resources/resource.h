@@ -655,14 +655,10 @@
 #define IDC_PORT0_TEST                  1510
 #define IDC_SCREENRESTEXT               1511
 #define IDC_MAPDRIVES_AUTO              1511
-#define IDC_PORT0_TEST2                 1511
-#define IDC_PORT1_TEST                  1511
 #define IDC_WIDTHTEXT                   1512
 #define IDC_WINDOWEDTEXT                1512
-#define IDC_PORT2_TEST                  1512
 #define IDC_MAPDRIVES_LIMIT             1512
 #define IDC_HEIGHTTEXT                  1513
-#define IDC_PORT3_TEST                  1513
 #define IDC_SETTINGSTEXT                1514
 #define IDC_REFRESHTEXT                 1515
 #define IDC_SETTINGSTEXT2               1515
@@ -1124,6 +1120,12 @@
 #define IDC_CS_IDE4                     1816
 #define IDC_CS_DF0IDHW                  1817
 #define IDC_FILTERSTACK                 1818
+#define IDC_INPUTMAP_CAPTURE            1819
+#define IDC_INPUTMAP_CUSTOM             1820
+#define IDC_INPUTMAP_DELETE             1821
+#define IDC_INPUTMAP_TEST               1822
+#define IDC_INPUTMAP_DELETEALL          1823
+#define IDC_INPUTMAP_EXIT               1824
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1174,7 +1176,7 @@
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        388
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1819
+#define _APS_NEXT_CONTROL_VALUE         1820
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -217,6 +217,8 @@ struct apmode
 	// -1 = wait for flip, before frame ends
 	// 1 = wait for flip, after new frame has started
 	int gfx_vflip;
+	// doubleframemode strobo
+	bool gfx_strobo;
 	int gfx_vsyncmode;
 	int gfx_backbuffers;
 	bool gfx_interlaced;

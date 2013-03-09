@@ -94,8 +94,9 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 	if (sd->cd_emu_unit >= 0) {
 		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
 			int len = sd->cmd[4];
-			memset (sd->buffer, 0, len);
-			memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+			scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, 0, 0, 0, 0, 0, 0, 0, sd->atapi); /* ack request sense */
+			memset(sd->buffer, 0, len);
+			memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 			sd->data_len = len;
 		} else {
 			sd->status = scsi_cd_emulate(sd->cd_emu_unit, sd->cmd, sd->cmd_len, sd->buffer, &sd->data_len, sd->reply, &sd->reply_len, sd->sense, &sd->sense_len, sd->atapi);
@@ -109,8 +110,8 @@ void scsi_emulate_cmd(struct scsi_data *sd)
 	} else if (sd->nativescsiunit < 0) {
 		if (sd->cmd[0] == 0x03) { /* REQUEST SENSE */
 			int len = sd->cmd[4];
-			memset (sd->buffer, 0, len);
-			memcpy (sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
+			memset(sd->buffer, 0, len);
+			memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 			sd->data_len = len;
 		} else {
 			sd->status = scsi_hd_emulate(&sd->hfd->hfd, sd->hfd,

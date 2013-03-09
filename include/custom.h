@@ -103,10 +103,13 @@ extern uae_u16 INTREQR (void);
 
 #define MAXHPOS_PAL 227
 #define MAXHPOS_NTSC 227
+// short field maxvpos
 #define MAXVPOS_PAL 312
 #define MAXVPOS_NTSC 262
+// following endlines = first visible line
 #define VBLANK_ENDLINE_PAL 26
 #define VBLANK_ENDLINE_NTSC 21
+// line when sprite DMA fetches first control words
 #define VBLANK_SPRITE_PAL 25
 #define VBLANK_SPRITE_NTSC 20
 #define VBLANK_HZ_PAL 50

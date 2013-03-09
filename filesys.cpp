@@ -914,6 +914,8 @@ struct hardfiledata *get_hardfile_data (int nr)
 #define ACTION_ADD_NOTIFY		4097
 #define ACTION_REMOVE_NOTIFY	4098
 
+#define ACTION_READ_LINK		1024
+
 #define ACTION_CHANGE_FILE_POSITION64  8001
 #define ACTION_GET_FILE_POSITION64     8002
 #define ACTION_CHANGE_FILE_SIZE64      8003
@@ -921,7 +923,6 @@ struct hardfiledata *get_hardfile_data (int nr)
 
 /* not supported */
 #define ACTION_MAKE_LINK		1021
-#define ACTION_READ_LINK		1024
 
 #define DISK_TYPE_DOS 0x444f5300 /* DOS\0 */
 #define DISK_TYPE_DOS_FFS 0x444f5301 /* DOS\1 */
@@ -2106,6 +2107,10 @@ static a_inode *lookup_aino (Unit *unit, uae_u32 uniq)
 	aino_test (a);
 	return a;
 }
+static a_inode *aino_from_lock (Unit *unit, uaecptr lock)
+{
+	return lookup_aino (unit, get_long (lock + 4));
+}
 
 TCHAR *build_nname (const TCHAR *d, const TCHAR *n)
 {
@@ -2963,7 +2968,7 @@ static void
 		get_long (lock) << 2, get_long (lock + 8),
 		get_long (lock + 12), get_long (lock + 16),
 		get_long (lock + 4)));
-	a = lookup_aino (unit, get_long (lock + 4));
+	a = aino_from_lock (unit, lock);
 	if (a == 0) {
 		TRACE((_T("not found!")));
 	} else {
@@ -2978,7 +2983,7 @@ static a_inode *find_aino (Unit *unit, uaecptr lock, const TCHAR *name, int *err
 	a_inode *a;
 
 	if (lock) {
-		a_inode *olda = lookup_aino (unit, get_long (lock + 4));
+		a_inode *olda = aino_from_lock (unit, lock);
 		if (olda == 0) {
 			/* That's the best we can hope to do. */
 			a = get_aino (unit, &unit->rootnode, name, err);
@@ -3226,7 +3231,6 @@ static void action_read_link_add_parent (Unit *u, a_inode *a, TCHAR *path)
 	}
 }
 
-#if 0
 #define LINK_HARD 0
 #define LINK_SOFT 1
 
@@ -3234,35 +3238,62 @@ static void action_make_link (Unit *unit, dpacket packet)
 {
 	uaecptr lock = GET_PCK_ARG1 (packet) << 2;
 	uaecptr name = GET_PCK_ARG2 (packet) << 2;
-	uaecptr linkname = GET_PCK_ARG3 (packet);
+	uaecptr target = GET_PCK_ARG3 (packet);
 	int type = GET_PCK_ARG4 (packet);
 	a_inode *a1, *a2;
 	int err;
+	TCHAR tmp[256], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
+
+	_tcscpy (tmp, bstr (unit, name));
+	a1 = aino_from_lock (unit, lock);
 
 	if (type == LINK_HARD) {
+
+		// we don't support hard links
+		uaecptr tlock = target << 2;
+		a2 = aino_from_lock (unit, tlock);
+		write_log (_T("ACTION_MAKE_LINK(HARD,'%s','%s','%s')\n"),
+			a1 ? a1->aname : _T("?"), tmp,
+			a2 ? a2->aname : _T("?"));
+
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_NOT_IMPLEMENTED);
-		return;
-	}
-	a1 = find_aino (unit, lock, bstr (unit, name), &err);
-	if (err != 0) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, err);
-		return;
-	}
-	a2 = find_aino (unit, lock, cstr (unit, linkname), &err);
-	if (err != 0) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, err);
-		return;
-	}
-	if (!my_createsoftlink (a1->nname, a2->nname)) {
+
+	} else {
+
+		a_inode *a3;
+		TCHAR *link = cstr (unit, target);
+		write_log (_T("ACTION_MAKE_LINK(SOFT,'%s','%s','%s')\n"),
+			a1 ? a1->aname : _T("?"), tmp, link);
+		if (!a1) {
+			PUT_PCK_RES1 (packet, DOS_FALSE);
+			PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
+			return;
+		}
+		// try to find softlink target
+		for (Unit *u = units; u; u = u->next) {
+			if (u->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS))
+				continue;
+			a3 = find_aino (u, NULL, link, &err);
+			if (err || !a3)
+				continue;
+			_tcscpy (tmp2, a1->nname);
+			_tcscat (tmp2, FSDB_DIR_SEPARATOR_S);
+			_tcscat (tmp2, tmp);
+			tmp3[0] = 0;
+			action_read_link_add_parent (u, a3, tmp3);
+			if (!my_createshortcut (tmp2, a3->nname, tmp3)) {
+				PUT_PCK_RES1 (packet, DOS_FALSE);
+				PUT_PCK_RES2 (packet, dos_errno ());
+			}
+			return;
+		}
+		// real Amiga softlinks would accept invalid paths too,
+		// we won't.
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
-		return;
 	}
 }
-#endif
 
 static void action_read_link (Unit *unit, dpacket packet)
 {
@@ -3270,9 +3301,9 @@ static void action_read_link (Unit *unit, dpacket packet)
 	uaecptr name = GET_PCK_ARG2 (packet);
 	uaecptr newname = GET_PCK_ARG3 (packet);
 	int size = GET_PCK_ARG4 (packet);
-	a_inode *a;
-	Unit *u = NULL;
-	int err, i;
+	a_inode *a, *matched_aino;
+	Unit *u = NULL, *u2 = NULL, *matched_unit;
+	int err, i, matched_len;
 	TCHAR tmp[MAX_DPATH];
 	TCHAR *namep, *extrapath;
 
@@ -3291,46 +3322,55 @@ static void action_read_link (Unit *unit, dpacket packet)
 			}
 		}
 	}
+	if (!a->softlink)
+		err = ERROR_OBJECT_WRONG_TYPE;
 	if (err != 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, err);
 		return;
 	}
 	_tcscpy (tmp, a->nname);
+	write_log (_T("Resolving softlink '%s'\n"), tmp);
 	if (!my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		//  not sure what to return
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
 		return;
 	}
-	// TODO:
-	// now we have full absolute path, need to check if it can
-	// mapped to any Amiga side filesystem
-	// not that trivial..
-	a = NULL;
+	write_log (_T("-> '%s'\n"), tmp);
+	matched_aino = NULL;
+	matched_unit = NULL;
 	err = 0;
+	matched_len = 0;
 	for (u = units; u; u = u->next) {
 		if (!(u->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS))) {
 			TCHAR path[MAX_DPATH];
-			if (my_issamevolume (u->rootnode.nname, tmp, path)) {
+			i = my_issamevolume (u->rootnode.nname, tmp, path);
+			if (i > matched_len) {
 				a = find_aino (u, 0, path, &err);
-				if (a && !err)
-					break;
+				if (a && !err) {
+					write_log (_T("Match found from '%s' (%d)\n"), u->rootnode.aname, i);
+					matched_aino = a;
+					matched_unit = u;
+					matched_len = i;
+				}
 			}
 		}
 	}
-	if (!a || err) {
+	if (!matched_aino) {
+		write_log (_T("Path not found in any mounted drive\n"));
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
 		return;
 	}
 	tmp[0] = 0;
-	action_read_link_add_parent (u, a, tmp);
+	action_read_link_add_parent (matched_unit, matched_aino, tmp);
 	if (extrapath) {
 		_tcscat (tmp, _T("/"));
 		_tcscat (tmp, extrapath);
 	}
 	xfree (extrapath);
+	write_log (_T("got target '%s'\n"), tmp); 
 	char *s = ua_fs (tmp, -1);
 	for (i = 0; s[i]; i++) {
 		if (i >= size - 1)
@@ -3348,7 +3388,7 @@ static void action_free_lock (Unit *unit, dpacket packet)
 	TRACE((_T("ACTION_FREE_LOCK(0x%lx)\n"), lock));
 	DUMPLOCK(unit, lock);
 
-	a = lookup_aino (unit, get_long (lock + 4));
+	a = aino_from_lock (unit, lock);
 	if (a == 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, ERROR_OBJECT_NOT_AROUND);
@@ -3597,7 +3637,7 @@ int get_native_path (uae_u32 lock, TCHAR *out)
 	int i = 0;
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		if (mountinfo.ui[i].self) {
-			a_inode *a = lookup_aino (mountinfo.ui[i].self, get_long ((lock << 2) + 4));
+			a_inode *a = aino_from_lock (mountinfo.ui[i].self, lock << 2);
 			if (a) {
 				_tcscpy (out, a->nname);
 				return 0;
@@ -3945,7 +3985,7 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 	TCHAR fn[MAX_DPATH];
 
 	if (lock != 0)
-		base = lookup_aino (unit, get_long (lock + 4));
+		base = aino_from_lock (unit, lock);
 	if (base == 0)
 		base = &unit->rootnode;
 	for (;;) {
@@ -4077,7 +4117,7 @@ static int action_examine_all (Unit *unit, dpacket packet)
 		if (!eak)
 			goto fail;
 		if (lock != 0)
-			base = lookup_aino (unit, get_long (lock + 4));
+			base = aino_from_lock (unit, lock);
 		if (base == 0)
 			base = &unit->rootnode;
 #if EXALL_DEBUG > 0
@@ -4185,7 +4225,7 @@ static void action_examine_object (Unit *unit, dpacket packet)
 	DUMPLOCK(unit, lock);
 
 	if (lock != 0)
-		aino = lookup_aino (unit, get_long (lock + 4));
+		aino = aino_from_lock (unit, lock);
 	if (aino == 0)
 		aino = &unit->rootnode;
 
@@ -4280,7 +4320,7 @@ static void action_examine_next (Unit *unit, dpacket packet)
 	DUMPLOCK(unit, lock);
 
 	if (lock != 0)
-		aino = lookup_aino (unit, get_long (lock + 4));
+		aino = aino_from_lock (unit, lock);
 	if (aino == 0)
 		aino = &unit->rootnode;
 	for(;;) {
@@ -4476,7 +4516,7 @@ static void
 		return;
 	}
 
-	aino = lookup_aino (unit, get_long (lock + 4));
+	aino = aino_from_lock (unit, lock);
 	if (aino == 0)
 		aino = &unit->rootnode;
 	if (aino->softlink) {
@@ -4828,6 +4868,11 @@ static void
 		PUT_PCK_RES2 (packet, err);
 		return;
 	}
+	if (a->softlink) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		return;
+	}
 
 	a->amigaos_mode = mask;
 	if (!fsdb_cando (unit))
@@ -4886,6 +4931,12 @@ maybe_free_and_out:
 			xfree (commented);
 		return;
 	}
+	if (a->softlink) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		goto maybe_free_and_out;
+	}
+
 	PUT_PCK_RES1 (packet, DOS_TRUE);
 	PUT_PCK_RES2 (packet, 0);
 	if (a->comment == 0 && commented == 0)
@@ -5291,14 +5342,25 @@ static void
 		return;
 	}
 
-	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8));
 	a = find_aino (unit, lock, bstr (unit, name), &err);
+	if (err != 0) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, err);
+		return;
+	}
+	if (a->softlink) {
+		PUT_PCK_RES1 (packet, DOS_FALSE);
+		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		return;
+	}
+	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8));
 	write_log (_T("%llu.%u (%d,%d,%d) %s\n"), tv.tv_sec, tv.tv_usec, get_long (date), get_long (date + 4), get_long (date + 8), a->nname);
-	if (err == 0 && !my_utime (a->nname, &tv))
+	if (!my_utime (a->nname, &tv))
 		err = dos_errno ();
 	if (err != 0) {
 		PUT_PCK_RES1 (packet, DOS_FALSE);
 		PUT_PCK_RES2 (packet, err);
+		return;
 	} else {
 		notify_check (unit, a);
 		PUT_PCK_RES1 (packet, DOS_TRUE);
@@ -5858,9 +5920,8 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 	case ACTION_LOCK_RECORD: return action_lock_record (unit, pck, msg); break;
 	case ACTION_FREE_RECORD: action_free_record (unit, pck); break;
 	case ACTION_READ_LINK: action_read_link (unit, pck); break;
-#if 0
 	case ACTION_MAKE_LINK: action_make_link (unit, pck); break;
-#endif
+
 		/* OS4+ packet types */
 	case ACTION_CHANGE_FILE_POSITION64: action_change_file_position64 (unit, pck); break;
 	case ACTION_GET_FILE_POSITION64: action_get_file_position64 (unit, pck); break;
@@ -5869,7 +5930,6 @@ static int handle_packet (Unit *unit, dpacket pck, uae_u32 msg)
 
 		/* unsupported packets */
 	case ACTION_FORMAT:
-	case ACTION_MAKE_LINK:
 		write_log (_T("FILESYS: UNSUPPORTED PACKET %x\n"), type);
 		return 0;
 	default:

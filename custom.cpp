@@ -2479,11 +2479,19 @@ static void calcsprite (void)
 		int min, max;
 		min = tospritexddf (thisline_decision.plfleft);
 		max = tospritexddf (thisline_decision.plfright);
-		if (min > sprite_minx && min < max) /* min < max = full line ddf */
-			sprite_minx = min;
+		if (min > sprite_minx && min < max) { /* min < max = full line ddf */
+			if (currprefs.chipset_mask & CSMASK_ECS_DENISE) {
+				sprite_minx = min;
+			} else {
+				if (thisline_decision.plfleft >= 0x28 || bpldmawasactive)
+					sprite_minx = min;
+			}
+		}
 		/* sprites are visible from first BPL1DAT write to end of line
-		* (undocumented feature)
-		*/
+		 * ECS Denise/AGA: not limits
+		 * OCS Denise: BPL1DAT write only enables sprite if hpos >= 0x28 or so.
+		 * (undocumented feature)
+		 */
 	}
 }
 
@@ -3012,7 +3020,7 @@ void compute_framesync (void)
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
 
-		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline) << vres2;
+		gfxvidinfo.drawbuffer.inheight = (maxvpos - minfirstline + 1) << vres2;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	} else {
@@ -3020,7 +3028,7 @@ void compute_framesync (void)
 		gfxvidinfo.drawbuffer.inwidth = AMIGA_WIDTH_MAX << currprefs.gfx_resolution;
 		gfxvidinfo.drawbuffer.extrawidth = currprefs.gfx_extrawidth ? currprefs.gfx_extrawidth : -1;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
-		gfxvidinfo.drawbuffer.inheight = (maxvpos_nom - minfirstline + 1) << currprefs.gfx_vresolution;
+		gfxvidinfo.drawbuffer.inheight = ((maxvpos_nom + 1) - minfirstline + 1) << currprefs.gfx_vresolution;
 		gfxvidinfo.drawbuffer.inheight2 = gfxvidinfo.drawbuffer.inheight;
 
 	}
@@ -3422,7 +3430,7 @@ static uae_u16 VPOSR (void)
 		vp |= lol ? 0x80 : 0;
 	hsyncdelay ();
 #if 0
-	if (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000)
+	if (1 || (M68K_GETPC < 0x00f00000 || M68K_GETPC >= 0x10000000))
 		write_log (_T("VPOSR %04x at %08x\n"), vp, M68K_GETPC);
 #endif
 	return vp;
@@ -5487,7 +5495,7 @@ static bool framewait (void)
 			t += (int)start - (int)vsync_time;
 
 		if (!frame_shown)
-			show_screen ();
+			show_screen (1);
 
 		int legacy_avg = mavg (&ma_legacy, t, MAVG_VSYNC_SIZE);
 		if (t > legacy_avg)
@@ -5758,7 +5766,7 @@ static bool framewait (void)
 		vsyncmintime = curr_time;
 		vsyncmaxtime = vsyncwaittime = curr_time + vstb;
 		if (frame_rendered) {
-			show_screen ();
+			show_screen (0);
 			t += read_processor_time () - curr_time;
 		}
 		t += frameskipt_avg;
@@ -5840,7 +5848,7 @@ static void vsync_handler_pre (void)
 		if (vsync_handle_check ()) {
 			redraw_frame ();
 			render_screen (true);
-			show_screen ();
+			show_screen (0);
 		}
 		config_check_vsync ();
 	}
