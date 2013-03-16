@@ -3447,11 +3447,12 @@ static void update_listview_input (HWND hDlg)
 }
 
 static int inputmap_port = -1, inputmap_port_remap = -1;
-static int inputmap_groupindex[32];
+static int inputmap_groupindex[MAX_COMPA_INPUTLIST + 1];
 static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, int *inputmap_portp, int *inputmap_indexp, int state, int *inputmap_itemindexp, int deleteindex)
 {
 	int cntitem, cntgroup, portnum;
-	int mode, *events, *axistable;
+	int mode;
+	const int *axistable;
 	bool found2 = false;
 
 	for (portnum = 0; portnum < 4; portnum++) {
@@ -3459,22 +3460,23 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 			portnum = inputmap_port;
 		cntitem = 1;
 		cntgroup = 1;
-		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, &events, &axistable) > 0) {
+		int events[MAX_COMPA_INPUTLIST];
+		if (inputdevice_get_compatibility_input (&workprefs, portnum, &mode, events, &axistable) > 0) {
 			int evtnum;
 			for (int i = 0; (evtnum = events[i]) >= 0; i++) {
 				struct inputevent *evt = inputdevice_get_eventinfo (evtnum);
-				LV_ITEM lvstruct;
+				LV_ITEM lvstruct = { 0 };
 				int devnum;
 				int status;
 				TCHAR name[256];
-				int *atp = axistable;
+				const int *atp = axistable;
 				int atpidx;
 				int item;
 				bool found = false;
 				uae_u64 flags;
 
 				if (list) {
-					LVGROUP group;
+					LVGROUP group = { 0 };
 					group.cbSize = sizeof (LVGROUP);
 					group.mask = LVGF_HEADER | LVGF_GROUPID;
 					group.pszHeader = (TCHAR*)evt->name;
@@ -3485,9 +3487,10 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 					lvstruct.lParam   = 0;
 					lvstruct.iSubItem = 0;
 					lvstruct.iGroupId = cntgroup;
-					if (inputmap_itemindexp)
+					if (inputmap_itemindexp) {
 						inputmap_itemindexp[cntgroup - 1] = -1;
-						inputmap_itemindexp[cntgroup + 1 - 1] = -1;
+						inputmap_itemindexp[cntgroup - 1 + 1] = -1;
+					}
 				}
 
 				atpidx = 0;
@@ -3510,16 +3513,17 @@ static int inputmap_handle (HWND list, int currentdevnum, int currentwidgetnum, 
 							for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 								for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
 									int port;
-									if (inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub) == evtnum) {
-										if (!port)
+									int evtnum2 = inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub);
+									if (evtnum2 == evtnum) {
+										if (port - 1 != portnum)
 											continue;
 										if (cntitem - 1 == deleteindex) {
 											inputdevice_set_mapping (devnum, j, NULL, NULL, 0, 0, sub);
 											deleteindex = -1;
 											continue;
 										}
-										inputdevice_get_widget_type (devnum, j, name);
 										if (list) {
+											inputdevice_get_widget_type (devnum, j, name);
 											TCHAR target[MAX_DPATH];
 											_tcscpy (target, name);
 											_tcscat (target, _T(", "));
@@ -3637,7 +3641,7 @@ static struct miscentry misclist[] = {
 	{ 0, 0, _T("Start mouse uncaptured"), &workprefs.win32_start_uncaptured  },
 	{ 0, 0, _T("Start minimized"), &workprefs.win32_start_minimized  },
 	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
-
+	{ 0, 1, _T("100/120Hz VSync black frame insertion"), &workprefs.lightboost_strobo },
 	{ 0, NULL }
 };
 
@@ -3741,6 +3745,7 @@ void InitializeListView (HWND hDlg)
 	if (lv_type != LV_MISC1)
 		flags |= LVS_EX_ONECLICKACTIVATE | LVS_EX_UNDERLINEHOT | LVS_EX_FULLROWSELECT;
 	ListView_SetExtendedListViewStyleEx (list, flags , flags);
+	ListView_RemoveAllGroups (list);
 	ListView_DeleteAllItems (list);
 
 	cachedlist = list;
@@ -12362,15 +12367,16 @@ static void doinputcustom (HWND hDlg, int newcustom)
 {
 	TCHAR custom1[MAX_DPATH];
 	uae_u64 flags;
+	int port;
 
 	custom1[0] = 0;
 	inputdevice_get_mapping (input_selected_device, input_selected_widget,
-		&flags, NULL, NULL, custom1, input_selected_sub_num);
+		&flags, &port, NULL, custom1, input_selected_sub_num);
 	if (_tcslen (custom1) > 0 || newcustom) {
 		if (askinputcustom (hDlg, custom1, sizeof custom1 / sizeof (TCHAR), IDS_SB_CUSTOMEVENT)) {
 			if (custom1[0])
 			inputdevice_set_mapping (input_selected_device, input_selected_widget,
-				NULL, custom1, flags, -1, input_selected_sub_num);
+				NULL, custom1, flags, port, input_selected_sub_num);
 		}
 	}
 }
@@ -12529,6 +12535,7 @@ static void showextramap (HWND hDlg)
 static void input_find (HWND hDlg, HWND mainDlg, int mode, int set, bool oneshot);
 static int rawmode;
 static int inputmap_remap_counter, inputmap_view_offset;
+static int inputmap_remap_event;
 static int inputmap_mode_cnt;
 static bool inputmap_oneshot;
 
@@ -12573,7 +12580,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 		return;
 
 	if (pages[INPUTMAP_ID]) {
-		inputmap = inputmap_remap_counter >= 0 ? 1 : 2;
+		inputmap = inputmap_remap_counter >= 0 ? 1 : (inputmap_remap_counter == -1 ? 2 : 3);
 		setfocus (hDlg, IDC_INPUTMAPLIST);
 		myDlg = hDlg;
 	} else {
@@ -12612,16 +12619,33 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 			input_selected_widget = wtype;
 			int type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
 
-			if (inputmap == 1) { // ports panel / remap
+			if (inputmap == 3) { // ports panel / add custom
+				int mode;
+				const int *axistable;
+				int events[MAX_COMPA_INPUTLIST];
+
+				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, events, &axistable);
+				if (max < MAX_COMPA_INPUTLIST - 1) {
+					if (inputmap_remap_event > 0)
+						inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, inputmap_remap_event, 0, inputmap_port);
+				}
+				inputmap_remap_event = 0;
+				InitializeListView (myDlg);
+				input_find (hDlg, myDlg, 0, FALSE, false);
+				return;
+
+			} else if (inputmap == 1) { // ports panel / remap
 				static int skipbuttonaxis;
 				static int prevtype2, prevtype, prevwidget, prevevtnum, prevaxisevent, prevaxisstate;
 				int widgets[10], widgetstate[10];
 				int wcnt, found, axisevent, axisstate;
 
 				HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
-				int mode, *events, *axistable, *axistable2;
+				int mode;
+				const int *axistable, *axistable2;
+				int events[MAX_COMPA_INPUTLIST];
 				
-				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, &events, &axistable);
+				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, events, &axistable);
 				int evtnum = events[inputmap_remap_counter];
 				int type2 = intputdevice_compa_get_eventtype (evtnum, &axistable2);
 
@@ -12822,6 +12846,9 @@ static int rawdisable[] = {
 	IDC_INPUTCOPY, 0, 0, IDC_INPUTCOPYFROM, 0, 0, IDC_INPUTSWAP, 0, 0,
 	IDC_INPUTDEADZONE, 0, 0, IDC_INPUTSPEEDD, 0, 0, IDC_INPUTAUTOFIRERATE, 0, 0, IDC_INPUTSPEEDA, 0, 0,
 	IDC_PANELTREE, 1, 0, IDC_RESETAMIGA, 1, 0, IDC_QUITEMU, 1, 0, IDC_RESTARTEMU, 1, 0, IDOK, 1, 0, IDCANCEL, 1, 0, IDHELP, 1, 0,
+	-1
+};
+static int rawdisable2[] = {
 	IDC_INPUTMAP_DELETE, 0, 0, IDC_INPUTMAP_CAPTURE, 0, 0, IDC_INPUTMAP_CUSTOM, 0, 0,
 	IDC_INPUTMAP_TEST, 0, 0, IDC_INPUTMAP_DELETEALL, 0, 0, IDC_INPUTMAP_EXIT, 0, 0,
 	-1
@@ -12829,14 +12856,15 @@ static int rawdisable[] = {
 
 static void inputmap_disable (HWND hDlg, bool disable)
 {
-	for (int i = 0; rawdisable[i] >= 0; i += 3) {
-		HWND w = GetDlgItem (rawdisable[i + 1] ? guiDlg : hDlg, rawdisable[i]);
+	int *p = pages[INPUTMAP_ID] ? rawdisable2 : rawdisable;
+	for (int i = 0; p[i] >= 0; i += 3) {
+		HWND w = GetDlgItem (p[i + 1] ? guiDlg : hDlg, p[i]);
 		if (w) {
 			if (disable) {
-				rawdisable[i + 2] = IsWindowEnabled (w);
+				p[i + 2] = IsWindowEnabled (w);
 				EnableWindow (w, FALSE);
 			} else {
-				EnableWindow (w, rawdisable[i + 2]);
+				EnableWindow (w, p[i + 2]);
 			}
 		}
 	}
@@ -12975,6 +13003,8 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 	static int recursive;
 	static int inputmap_selected;
 	HWND h = GetDlgItem (hDlg, IDC_INPUTMAPLIST);
+	TCHAR tmp[256];
+	int i;
 
 	switch (msg)
 	{
@@ -12983,10 +13013,30 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		return TRUE;
 	case WM_INITDIALOG:
 	{
+		const int *axislist;
 		inputmap_port_remap = -1;
 		inputmap_remap_counter = -1;
 		inputmap_view_offset = 0;
 		pages[INPUTMAP_ID] = hDlg;
+
+		inputdevice_get_compatibility_input (&workprefs, inputmap_port, NULL, NULL, &axislist);
+		SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_RESETCONTENT, 0, 0L);
+		SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
+		i = 1;
+		for (;;) {
+			int j;
+			struct inputevent *ie = inputdevice_get_eventinfo (i);
+			if (!ie)
+				break;
+			for (j = 0; axislist[j] >= 0; j++) {
+				if (axislist[j] == i)
+					break;
+			}
+			if (axislist[j] < 0 && _tcslen (ie->name) > 0)
+				SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_ADDSTRING, 0, (LPARAM)ie->name);
+			i++;
+		}
+
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
 		if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
@@ -13041,7 +13091,6 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			case IDC_INPUTMAP_EXIT:
 			pages[INPUTMAP_ID] =  NULL;
 			DestroyWindow (hDlg);
-			//EndDialog (hDlg, 0);
 			break;
 			case IDC_INPUTMAP_TEST:
 			inputmap_port_remap = -1;
@@ -13064,6 +13113,24 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			input_find (hDlg, hDlg, 1, true, false);
 			break;
 			case IDC_INPUTMAP_CUSTOM:
+			if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
+				tmp[0] = 0;
+				SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, WM_GETTEXT, (WPARAM)sizeof tmp / sizeof (TCHAR), (LPARAM)tmp);
+				i = 1;
+				for (;;) {
+					struct inputevent *ie = inputdevice_get_eventinfo (i);
+					if (!ie)
+						break;
+					if (_tcslen (ie->name) > 0 && !_tcsicmp (tmp, ie->name)) {
+						inputmap_remap_counter = -2;
+						inputmap_remap_event = i;
+						inputmap_port_remap = inputmap_port;
+						input_find (hDlg, hDlg, 1, true, false);
+						break;
+					}
+					i++;
+				}
+			}
 			break;
 			case IDC_INPUTMAP_DELETE:
 			if (workprefs.jports[inputmap_port].id == JPORT_CUSTOM) {
@@ -13102,7 +13169,7 @@ static void ports_remap (HWND hDlg, int port)
 		return;
 	MSG msg;
 	for (;;) {
-		DWORD ret = GetMessage (&msg, dlg, 0, 0);
+		DWORD ret = GetMessage (&msg, NULL, 0, 0);
 		if (ret == -1 || ret == 0)
 			break;
 		if (rawmode) {

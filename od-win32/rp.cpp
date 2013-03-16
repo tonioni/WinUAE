@@ -212,11 +212,13 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 	int kb;
 	bool first = true;
 	TCHAR *p = out;
-	int mode, *events, *axistable;
+	int mode;
+	const int *axistable;
+	int events[MAX_COMPA_INPUTLIST];
 	int max;
 	const TCHAR **eventorder;
 
-	max = inputdevice_get_compatibility_input (&currprefs, inputmap_port, &mode, &events, &axistable);
+	max = inputdevice_get_compatibility_input (&currprefs, inputmap_port, &mode, events, &axistable);
 	if (max <= 0)
 		return false;
 
@@ -269,12 +271,14 @@ bool port_get_custom (int inputmap_port, TCHAR *out)
 int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TCHAR *custom)
 {
 	const TCHAR *p = custom;
-	int mode, *events, *axistable;
+	int mode;
+	const int *axistable;
+	int events[MAX_COMPA_INPUTLIST];
 	int max, evtnum;
 	int kb;
 	const TCHAR **eventorder;
 
-	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
+	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, events, &axistable);
 
 	eventorder = getcustomeventorder (&devicetype);
 	if (!eventorder)
@@ -285,7 +289,7 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 	inputdevice_copyconfig (&currprefs, &changed_prefs);
 	inputdevice_compa_prepare_custom (&changed_prefs, inputmap_port, devicetype, true);
 	inputdevice_updateconfig (NULL, &changed_prefs);
-	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, &events, &axistable);
+	max = inputdevice_get_compatibility_input (&changed_prefs, inputmap_port, &mode, events, &axistable);
 	write_log (_T("custom='%s' max=%d port=%d dt=%d kb=%d kbnum=%d\n"), custom, max, inputmap_port, devicetype, kb, inputdevice_get_device_total (IDTYPE_KEYBOARD));
 	if (max <= 0)
 		return FALSE;

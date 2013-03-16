@@ -1727,6 +1727,7 @@ int check_prefs_changed_gfx (void)
 #endif
 	c |= currprefs.gfx_autoresolution != changed_prefs.gfx_autoresolution ? (2|8|16) : 0;
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
+	c |= currprefs.lightboost_strobo != changed_prefs.lightboost_strobo ? (2|16) : 0;
 
 	for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
 		c |= _tcscmp (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]) ? (2|8) : 0;
@@ -1798,6 +1799,7 @@ int check_prefs_changed_gfx (void)
 		currprefs.gfx_autoresolution = changed_prefs.gfx_autoresolution;
 		currprefs.color_mode = changed_prefs.color_mode;
 		currprefs.gfx_api = changed_prefs.gfx_api;
+		currprefs.lightboost_strobo = changed_prefs.lightboost_strobo;
 
 		if (changed_prefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN) { 
 			if (currprefs.gfx_api != changed_prefs.gfx_api)

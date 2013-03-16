@@ -7985,7 +7985,7 @@ uae_u8 *restore_filesys (uae_u8 *src)
 	}
 	_tcscpy (ci->rootdir, rootdir);
 	_tcscpy (ci->devname, devname);
-	_tcscpy (ci->volname, volname);
+	_tcscpy (ci->volname, volname ? volname : _T(""));
 	_tcscpy (ci->filesys, filesysdir);
 
 	if (set_filesys_unit (devno, ci) < 0) {

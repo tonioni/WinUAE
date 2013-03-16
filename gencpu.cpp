@@ -2967,9 +2967,10 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\tCLEAR_CZNV ();\n");
 		printf ("\tif (src == 0) {\n");
 		if (cpu_level > 0) {
-			/* 68020 sets V when dividing by zero. Z is also set.
-			* 68000 clears both
-			*/
+			/* 68000 Set Z. Clear N, V, C.
+			 * 68020 Set V, Z. Clear C and N. Keep X.
+			 * 68060 Clear C, everything else is kept.
+			 */
 			printf("\t\tSET_VFLG (1);\n");
 			printf("\t\tSET_ZFLG (1);\n");
 		}

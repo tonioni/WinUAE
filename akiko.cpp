@@ -1292,7 +1292,7 @@ static void akiko_handler (bool framesync)
 	}
 
 	/* one toc entry / frame */
-	if (cdrom_toc_counter >= 0 && !cdrom_command_active) {
+	if (cdrom_toc_counter >= 0 && !cdrom_command_active && framesync) {
 		if (cdrom_start_return_data (-1)) {
 			cdrom_start_return_data (cdrom_return_toc_entry ());
 		}

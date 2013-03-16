@@ -317,6 +317,7 @@ struct uae_prefs {
 	int gfx_api;
 	int color_mode;
 	int gfx_extrawidth;
+	bool lightboost_strobo;
 
 	int gfx_filter;
 	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS][MAX_DPATH];

@@ -2443,6 +2443,7 @@ void memory_reset (void)
 	bool gayleorfatgary;
 
 	need_hardreset = false;
+	rom_write_enabled = true;
 	/* Use changed_prefs, as m68k_reset is called later.  */
 	if (last_address_space_24 != changed_prefs.address_space_24)
 		need_hardreset = true;
@@ -2487,7 +2488,6 @@ void memory_reset (void)
 		memcpy (currprefs.romfile, changed_prefs.romfile, sizeof currprefs.romfile);
 		memcpy (currprefs.romextfile, changed_prefs.romextfile, sizeof currprefs.romextfile);
 		need_hardreset = true;
-		rom_write_enabled = true;
 		mapped_free (extendedkickmemory);
 		extendedkickmemory = 0;
 		extendedkickmem_size = 0;

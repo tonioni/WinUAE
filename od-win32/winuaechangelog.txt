@@ -1,6 +1,23 @@
 
 - restore only single input target to default.
 
+Beta 11:
+
+- Blank left and right border if programmed mode and part of original borders would be outside of programmed hsync start and end period.
+- Address error exception always started debugger, forgotten debug option disabled.
+- Added Ts debugger command, list all exec residents.
+- Restoring state file with harddrives crashed in some situations. (broke with previous filesystem updates)
+- CD32 TOC entries were transmitted too quickly due to missing check, correct speed would have been one entry per CD frame (75/sec),
+  not one entry per scanline. CD command buffer overflowed and driver detected CD as broken if CD had enough tracks.
+  Old bug, was mostly invisible until 2.5.0 Universe TOC fix. (Super Street Fighter II Turbo and others CDs with lots of tracks)
+- IDE emulation ignored optional forced physical cylinder number setting in config file.
+- Both hires and superhires bits in BPLCON0 set: superhires mode active.
+- 100Hz+ black frame insertion is now optional, setting in Misc panel. (Still D3D/low latency vsync only)
+- GamePorts panel test/remap improved
+  - Implemented custom event add option. Select event from select box and click "Add", then press any button/key/etc to map it.
+  - Added event will be automatically removed if it does not have any mapped events (Works differently than normal events)
+  - Loading config file that has GamePorts panel custom added events using older version is not supported.
+
 Beta 10:
 
 - SCSI CD MODE SENSE emulation fixes.

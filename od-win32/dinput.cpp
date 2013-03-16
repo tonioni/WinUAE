@@ -1954,8 +1954,10 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 		PCHAR rawdata;
 		if (rawinput_log & 4) {
 			uae_u8 *r = hid->bRawData;
-			write_log (_T("%d %d %02x%02x%02x%02x%02x%02x%02x\n"), hid->dwCount, hid->dwSizeHid,
-				r[0], r[1], r[2], r[3], r[4], r[5], r[6]);
+			write_log (_T("%d %d "), hid->dwCount, hid->dwSizeHid);
+			for (int i = 0; i < hid->dwSizeHid; i++)
+				write_log (_T("%02X"), r[i]);
+			write_log (_T("\n"));
 		}
 		for (num = 0; num < num_joystick; num++) {
 			did = &di_joystick[num];

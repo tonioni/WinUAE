@@ -9,7 +9,7 @@
 #define MOVEC_DEBUG 0
 #define MMUOP_DEBUG 2
 #define DEBUG_CD32CDTVIO 0
-#define EXCEPTION3_DEBUG 1
+#define EXCEPTION3_DEBUGGER 0
 #define CPUTRACE_DEBUG 0
 
 #include "sysconfig.h"
@@ -5862,7 +5862,7 @@ static void exception3f (uae_u32 opcode, uaecptr addr, int writeaccess, int inst
 	last_writeaccess_for_exception_3 = writeaccess;
 	last_instructionaccess_for_exception_3 = instructionaccess;
 	Exception (3);
-#if EXCEPTION3_DEBUG
+#if EXCEPTION3_DEBUGGER
 	activate_debugger();
 #endif
 }
