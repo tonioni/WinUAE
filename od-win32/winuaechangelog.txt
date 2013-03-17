@@ -1,6 +1,19 @@
 
 - restore only single input target to default.
 
+Beta 12:
+
+- AGA border sprite feature emulation is now also cycle-exact. Similar update to borderblank was done in 2.5.0. For example
+  it was possible that sprites were hidden when border sprite bit was set and zero bit planes enabled.
+  (Noticed when doing some unrelated real hardware limit tests)
+- Black frame insertion was incorrectly used (if enabled) in <100Hz fastest possible CPU modes.
+- Horizontal blanking rewritten, should be more accurate now, programmed display modes only.
+- Display emulation tweak, Super72 sprite display corruption is gone.
+- Fixed bug introduced in b5, blitter emulation ignored DMA off state in cycle exact mode.
+- Emulate DIV divide by zero undocumented flags when CPU >=68020. So far 68020 and 68060 tested and confirmed.
+  Odyssey / Alcatraz and 68020+ CPU does not anymore get stuck in part where spaceship flies above ground.
+- CPU halted state didn't disable CPU interrupts.
+
 Beta 11:
 
 - Blank left and right border if programmed mode and part of original borders would be outside of programmed hsync start and end period.

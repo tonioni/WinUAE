@@ -354,7 +354,7 @@ static void blitter_done (int hpos)
 		record_dma_event (DMA_EVENT_BLITFINISHED, hpos, vpos);
 	event2_remevent (ev2_blitter);
 	unset_special (SPCFLAG_BLTNASTY);
-	if (log_blitter)
+	if (log_blitter & 1)
 		write_log (_T("cycles %d, missed %d, total %d\n"),
 			blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
 }
@@ -1083,6 +1083,12 @@ void decide_blitter (int hpos)
 			}
 
 			blitter_nasty++;
+
+			if (v <= 0) {
+				blit_misscyclecounter++;
+				break;
+			}
+
 			blt_info.got_cycle = 1;
 			if (c == 4) {
 				blitter_doddma (last_blitter_hpos);
@@ -1365,7 +1371,7 @@ static void do_blitter2 (int hpos, int copper)
 		original_line = blitline;
 	}
 
-	if (log_blitter) {
+	if (log_blitter & 1) {
 		blitter_dontdo = 0;
 		if (1) {
 			int ch = 0;

@@ -4292,12 +4292,14 @@ void cpu_halt (int id)
 		regs.halted = id;
 		gui_data.cpu_halted = true;
 		gui_led (LED_CPU, 0);
+		regs.intmask = 7;
+		MakeSR ();
 	}
 	while (regs.halted) {
 		x_do_cycles (8 * CYCLE_UNIT);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (regs.spcflags) {
-			if (do_specialties (cpu_cycles))
+			if ((regs.spcflags & (SPCFLAG_BRK | SPCFLAG_MODE_CHANGE)))
 				return;
 		}
 	}
@@ -6093,6 +6095,30 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 	}
 
 	return mcycles * 2;
+}
+
+/* 68000 Z=1. NVC=0
+ * 68020 Signed: Z=1 NVC=0. Unsigned: V=1 N<dst, Z=!N.
+ * 68060 C=0.
+ */
+void divbyzero_special (bool issigned, uae_s32 dst)
+{
+	if (currprefs.cpu_model == 68020 || currprefs.cpu_model == 68030) {
+		CLEAR_CZNV ();
+		if (issigned == false) {
+			if (dst < 0) 
+				SET_NFLG (1);
+			SET_ZFLG (!GET_NFLG ());
+			SET_VFLG (1);
+		} else {
+			SET_ZFLG (1);
+		}
+	} else if (currprefs.cpu_model >= 68040) {
+		SET_CFLG (0);
+	} else {
+		// 68000/010
+		CLEAR_CZNV ();
+	}
 }
 
 STATIC_INLINE void fill_cache040 (uae_u32 addr)

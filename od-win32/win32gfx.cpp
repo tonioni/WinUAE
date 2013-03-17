@@ -3101,7 +3101,10 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					vblankthread_oddeven = (vp & 1) != 0;
 				}
 				if (!doflipped && ap->gfx_vflip > 0) {
-					doflipevent (1 | 2);
+					int flag = 1;
+					if (ap->gfx_strobo && vblank_skipeveryother)
+						flag |= 2;
+					doflipevent (flag);
 					doflipped = true;
 				}
 				ok = vblank_getstate (&vb, &vp);

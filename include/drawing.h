@@ -85,7 +85,7 @@ struct color_entry {
 	xcolnr acolors[256];
 	uae_u32 color_regs_aga[256];
 #endif
-	bool borderblank;
+	bool borderblank, bordersprite;
 };
 
 #ifdef AGA
@@ -233,6 +233,7 @@ struct decision {
 	bool ehb_seen;
 	bool ham_seen;
 	bool ham_at_start;
+	bool bordersprite_seen;
 };
 
 /* Anything related to changes in hw registers during the DDF for one

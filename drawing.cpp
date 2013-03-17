@@ -195,6 +195,8 @@ int visible_left_border, visible_right_border;
 /* Pixels outside of visible_start and visible_stop are always black */
 static int visible_left_start, visible_right_stop;
 static int visible_top_start, visible_bottom_stop;
+/* same for hblank */
+static int hblank_left_start, hblank_right_stop;
 
 static int linetoscr_x_adjust_bytes;
 static int thisframe_y_adjust;
@@ -220,7 +222,6 @@ static int bplres;
 static int plf1pri, plf2pri, bplxor;
 static uae_u32 plf_sprite_mask;
 static int sbasecol[2] = { 16, 16 };
-static bool brdsprt, brdblank;
 static int hposblank;
 static bool specialmonitoron;
 
@@ -376,6 +377,19 @@ static void reset_custom_limits (void)
 	gclorealh = -1;
 }
 
+static void set_blanking_limits (void)
+{
+	hblank_left_start = visible_left_start;
+	hblank_right_stop = visible_right_stop;
+
+	if (programmedmode) {
+		if (hblank_left_start < coord_hw_to_window_x (hsyncendpos * 2))
+			hblank_left_start = coord_hw_to_window_x (hsyncendpos * 2);
+		if (hblank_right_stop > coord_hw_to_window_x (hsyncstartpos * 2))
+			hblank_right_stop = coord_hw_to_window_x (hsyncstartpos * 2);
+	}
+}
+
 void set_custom_limits (int w, int h, int dx, int dy)
 {
 	int vls = visible_left_start;
@@ -400,6 +414,7 @@ void set_custom_limits (int w, int h, int dx, int dy)
 	if (vls != visible_left_start || vrs != visible_right_stop ||
 		vts != visible_top_start || vbs != visible_bottom_stop)
 		notice_screen_contents_lost ();
+	set_blanking_limits ();
 }
 
 int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)
@@ -679,7 +694,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 		return xcolors[0x0f0];
 	else if (hposblank == 3)
 		return xcolors[0x00f];
-	else if (brdblank)
+	else if ( colors_for_drawing.borderblank)
 		return xcolors[0x880];
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
@@ -705,26 +720,16 @@ static void pfield_init_linetoscr (void)
 
 	res_shift = lores_shift - bplres;
 
-	if (dip_for_drawing->nr_sprites == 0) {
-		if (linetoscr_diw_start < native_ddf_left)
-			linetoscr_diw_start = native_ddf_left;
-		if (linetoscr_diw_end > native_ddf_right)
-			linetoscr_diw_end = native_ddf_right;
-	}
-
 	/* Perverse cases happen. */
 	if (linetoscr_diw_end < linetoscr_diw_start)
 		linetoscr_diw_end = linetoscr_diw_start;
 
 	playfield_start = linetoscr_diw_start;
 	playfield_end = linetoscr_diw_end;
-
-	if (beamcon0 & 0x80) {
-		if (playfield_start < coord_hw_to_window_x (hsyncendpos * 2 + DIW_DDF_OFFSET))
-			playfield_start = coord_hw_to_window_x (hsyncendpos * 2 + DIW_DDF_OFFSET);
-		if (playfield_end > coord_hw_to_window_x (hsyncstartpos * 2 + DIW_DDF_OFFSET))
-			playfield_end = coord_hw_to_window_x (hsyncstartpos * 2 + DIW_DDF_OFFSET);
-	}
+	if (playfield_start < native_ddf_left)
+		playfield_start = native_ddf_left;
+	if (playfield_end > native_ddf_right)
+		playfield_end = native_ddf_right;
 
 	unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
 	ham_src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
@@ -741,8 +746,9 @@ static void pfield_init_linetoscr (void)
 
 	real_playfield_end = playfield_end;
 	real_playfield_start = playfield_start;
+
 #ifdef AGA
-	if (brdsprt && dip_for_drawing->nr_sprites) {
+	if (dp_for_drawing->bordersprite_seen && dip_for_drawing->nr_sprites) {
 		int min = visible_right_border, max = visible_left_border, i;
 		for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 			int x;
@@ -755,12 +761,7 @@ static void pfield_init_linetoscr (void)
 		}
 		min = coord_hw_to_window_x (min >> sprite_buffer_res) + (DIW_DDF_OFFSET << lores_shift);
 		max = coord_hw_to_window_x (max >> sprite_buffer_res) + (DIW_DDF_OFFSET << lores_shift);
-		if (beamcon0 & 0x80) {
-			if (min < coord_hw_to_window_x (hsyncendpos * 2 + DIW_DDF_OFFSET))
-				min = coord_hw_to_window_x (hsyncendpos * 2 + DIW_DDF_OFFSET);
-			if (min > coord_hw_to_window_x (hsyncstartpos * 2 + DIW_DDF_OFFSET))
-				min = coord_hw_to_window_x (hsyncstartpos * 2 + DIW_DDF_OFFSET);
-		}
+
 		if (min < playfield_start)
 			playfield_start = min;
 		if (playfield_start < visible_left_border)
@@ -852,30 +853,13 @@ STATIC_INLINE void fill_line_32 (uae_u8 *buf, int start, int stop, bool blank)
 	for (i = start; i < stop; i++)
 		b[i] = col;
 }
-static void pfield_do_fill_line2 (int start, int stop, bool blank)
+static void pfield_do_fill_line (int start, int stop, bool blank)
 {
 	switch (gfxvidinfo.drawbuffer.pixbytes) {
 	case 2: fill_line_16 (xlinebuffer, start, stop, blank); break;
 	case 4: fill_line_32 (xlinebuffer, start, stop, blank); break;
 	}
 }
-static void pfield_do_fill_line (int start, int stop, bool blank)
-{
-	xlinecheck(start, stop);
-	if (!blank) {
-		if (start < visible_left_start) {
-			pfield_do_fill_line2 (start, visible_left_start, true);
-			start = visible_left_start;
-		}
-		if (stop > visible_right_stop) {
-			pfield_do_fill_line2 (start, visible_right_stop, false);
-			blank = true;
-			start = visible_right_stop;
-		}
-	}
-	pfield_do_fill_line2 (start, stop, blank);
-}
-
 
 STATIC_INLINE void fill_line2 (int startpos, int len)
 {
@@ -1920,6 +1904,7 @@ void init_aspect_maps (void)
 	visible_right_stop = MAX_STOP;
 	visible_top_start = 0;
 	visible_bottom_stop = MAX_STOP;
+	set_blanking_limits ();
 }
 
 /*
@@ -2009,7 +1994,6 @@ static void pfield_expand_dp_bplcon (void)
 	bpldualpf2of = (dp_for_drawing->bplcon3 >> 10) & 7;
 	sbasecol[0] = ((dp_for_drawing->bplcon4 >> 4) & 15) << 4;
 	sbasecol[1] = ((dp_for_drawing->bplcon4 >> 0) & 15) << 4;
-	brdsprt = !brdblank && (currprefs.chipset_mask & CSMASK_AGA) && (dp_for_drawing->bplcon0 & 1) && (dp_for_drawing->bplcon3 & 0x02);
 	bplxor = dp_for_drawing->bplcon4 >> 8;
 #endif
 }
@@ -2110,28 +2094,37 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		if (nextpos > endpos)
 			nextpos_in_range = endpos;
 
-		if (nextpos_in_range > lastpos) {
-			if (lastpos < playfield_start) {
-				int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
-				(*worker_border) (lastpos, t, false);
-				lastpos = t;
-			}
+		// left hblank (left edge to hblank end)
+		if (nextpos_in_range > lastpos && lastpos < hblank_left_start) {
+			int t = nextpos_in_range <= hblank_left_start ? nextpos_in_range : hblank_left_start;
+			(*worker_border) (lastpos, t, true);
+			lastpos = t;
 		}
-		if (nextpos_in_range > lastpos) {
-			if (lastpos >= playfield_start && lastpos < playfield_end) {
-				int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
-				(*worker_pfield) (lastpos, t, false);
-				/* blank start and end that shouldn't be visible */
-				if (lastpos < visible_left_start)
-					(*worker_border) (lastpos, visible_left_start, true);
-				if (t > visible_right_stop)
-					(*worker_border) (visible_right_stop, endpos, true);
-				lastpos = t;
-			}
+
+		// left border (hblank end to playfield start)
+		if (nextpos_in_range > lastpos && lastpos < playfield_start) {
+			int t = nextpos_in_range <= playfield_start ? nextpos_in_range : playfield_start;
+			(*worker_border) (lastpos, t, false);
+			lastpos = t;
 		}
-		if (nextpos_in_range > lastpos) {
-			if (lastpos >= playfield_end)
-				(*worker_border) (lastpos, nextpos_in_range, false);
+
+		// playfield
+		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
+			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
+			(*worker_pfield) (lastpos, t, false);
+			lastpos = t;
+		}
+
+		// right border (playfield end to hblank start)
+		if (nextpos_in_range > lastpos && lastpos >= playfield_end) {
+			int t = nextpos_in_range <= hblank_right_stop ? nextpos_in_range : hblank_right_stop;
+			(*worker_border) (lastpos, t, false);
+			lastpos = t;
+		}
+
+		// right hblank (hblank start to right edge, hblank start may be earlier than playfield end)
+		if (nextpos_in_range > hblank_right_stop) {
+			(*worker_border) (hblank_right_stop, nextpos_in_range, true);
 			lastpos = nextpos_in_range;
 		}
 
@@ -2140,6 +2133,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		} else if (regno >= 0) {
 			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
 				colors_for_drawing.borderblank = (value & 1) != 0;
+				colors_for_drawing.bordersprite = (value & 2) != 0;
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);
@@ -2252,7 +2246,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dip_for_drawing->nr_sprites) {
 			int i;
 #ifdef AGA
-			if (brdsprt)
+			if (dp_for_drawing->bordersprite_seen)
 				clear_bitplane_border_aga ();
 #endif
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
@@ -2280,13 +2274,13 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		}
 
 	} else if (border == 1) {
-		int dosprites = 0;
+		bool dosprites = false;
 
 		adjust_drawing_colors (dp_for_drawing->ctable, 0);
 
 #ifdef AGA /* this makes things complex.. */
-		if (brdsprt && dip_for_drawing->nr_sprites > 0) {
-			dosprites = 1;
+		if (dp_for_drawing->bordersprite_seen && dip_for_drawing->nr_sprites > 0) {
+			dosprites = true;
 			pfield_expand_dp_bplcon ();
 			pfield_init_linetoscr ();
 			memset (pixdata.apixels + MAX_PIXELS_PER_LINE, colors_for_drawing.borderblank ? 0 : colors_for_drawing.acolors[0], MAX_PIXELS_PER_LINE);
@@ -2308,7 +2302,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			}
 			return;
 		}
-
 
 		if (dosprites) {
 
@@ -2344,7 +2337,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	} else {
 
 		int tmp = hposblank;
-		//hposblank = brdblank;
 		hposblank = colors_for_drawing.borderblank;
 		fill_line ();
 		do_flush_line (vb, gfx_ypos);

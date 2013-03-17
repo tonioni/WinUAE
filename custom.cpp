@@ -2073,11 +2073,30 @@ static bool isbrdblank (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 	brdblank = false;
 #endif
 	if (hpos >= 0 && current_colors.borderblank != brdblank) {
-		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0));
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (brdblank ? 1 : 0) | (current_colors.bordersprite ? 2 : 0));
 		current_colors.borderblank = brdblank;
 		remembered_color_entry = -1;
 	}
 	return brdblank;
+}
+
+
+static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
+{
+	bool brdsprt;
+#ifdef AGA
+	brdsprt = (currprefs.chipset_mask & CSMASK_AGA) && (bplcon0 & 1) && (bplcon3 & 0x02);
+#else
+	brdsprt = false;
+#endif
+	if (hpos >= 0 && current_colors.bordersprite != brdsprt) {
+		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (current_colors.borderblank ? 1 : 0) | (brdsprt ? 2 : 0));
+		current_colors.bordersprite = brdsprt;
+		remembered_color_entry = -1;
+		if (brdsprt)
+			thisline_decision.bordersprite_seen = true;
+	}
+	return brdsprt;
 }
 
 static void record_register_change (int hpos, int regno, uae_u16 value)
@@ -2087,10 +2106,12 @@ static void record_register_change (int hpos, int regno, uae_u16 value)
 			thisline_decision.ham_seen = 1;
 		thisline_decision.ehb_seen = isehb (value, bplcon2);
 		isbrdblank (hpos, value, bplcon3);
+		issprbrd (hpos, value, bplcon3);
 	} else if (regno == 0x104) { // BPLCON2
 		thisline_decision.ehb_seen = isehb (bplcon0, value);
 	} else if (regno == 0x106) { // BPLCON3
 		isbrdblank (hpos, bplcon0, value);
+		issprbrd (hpos, bplcon0, value);
 	}
 	record_color_change (hpos, regno + 0x1000, value);
 }
@@ -2747,6 +2768,7 @@ static void reset_decisions (void)
 	thisline_decision.ham_seen = !! (bplcon0 & 0x800);
 	thisline_decision.ehb_seen = !! isehb (bplcon0, bplcon2);
 	thisline_decision.ham_at_start = !! (bplcon0 & 0x800);
+	thisline_decision.bordersprite_seen = issprbrd (-1, bplcon0, bplcon3);
 
 	/* decided_res shouldn't be touched before it's initialized by decide_line(). */
 	thisline_decision.diwfirstword = -1;

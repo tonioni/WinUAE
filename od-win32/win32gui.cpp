@@ -3615,7 +3615,7 @@ struct miscentry
 {
 	int type;
 	int canactive;
-	TCHAR *name;
+	const TCHAR *name;
 	bool *b;
 	int *i;
 	int ival, imask;

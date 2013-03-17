@@ -2919,13 +2919,8 @@ static void gen_opcode (unsigned long int opcode)
 		genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
 		printf ("\tCLEAR_CZNV ();\n");
 		printf ("\tif (src == 0) {\n");
-		if (cpu_level > 0) {
-			/* 68020 sets V when dividing by zero and N if dst is negative
-			* 68000 clears both
-			*/
-			printf("\t\tSET_VFLG (1);\n");
-			printf("\t\tif (dst < 0) SET_NFLG (1);\n");
-		}
+		if (cpu_level > 0)
+			printf ("\t\tdivbyzero_special (0, dst);\n");
 		incpc ("%d", m68k_pc_offset);
 		printf ("\t\tException (5);\n");
 		printf ("\t\tgoto %s;\n", endlabelstr);
@@ -2964,22 +2959,16 @@ static void gen_opcode (unsigned long int opcode)
 	case i_DIVS:
 		genamode (curi->smode, "srcreg", sz_word, "src", 1, 0, 0);
 		genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
-		printf ("\tCLEAR_CZNV ();\n");
 		printf ("\tif (src == 0) {\n");
-		if (cpu_level > 0) {
-			/* 68000 Set Z. Clear N, V, C.
-			 * 68020 Set V, Z. Clear C and N. Keep X.
-			 * 68060 Clear C, everything else is kept.
-			 */
-			printf("\t\tSET_VFLG (1);\n");
-			printf("\t\tSET_ZFLG (1);\n");
-		}
+		if (cpu_level > 0)
+			printf ("\t\tdivbyzero_special (1, dst);\n");
 		incpc ("%d", m68k_pc_offset);
 		printf ("\t\tException (5);\n");
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t} else {\n");
 		printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
 		printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
+		printf ("\t\tCLEAR_CZNV ();\n");
 		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();

@@ -166,6 +166,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 	for (int i = 0; i < 2; i++) {
 		struct apmode *ap = &prefs->gfx_apmode[i];
 		ap->gfx_vflip = 0;
+		ap->gfx_strobo = false;
 		if (ap->gfx_vsync) {
 			if (ap->gfx_vsyncmode) {
 				// low latency vsync: no flip only if no-buffer
