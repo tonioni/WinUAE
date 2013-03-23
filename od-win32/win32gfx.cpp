@@ -1066,12 +1066,20 @@ void show_screen_special (void)
 void show_screen (int mode)
 {
 	EnterCriticalSection (&screen_cs);
+	if (mode == 2) {
+		if (currentmode->flags & DM_D3D) {
+			D3D_showframe_special (1);
+		}
+		LeaveCriticalSection (&screen_cs);
+		return;
+	}
 	if (!render_ok) {
 		LeaveCriticalSection (&screen_cs);
 		return;
 	}
 	if (currentmode->flags & DM_D3D) {
 		D3D_showframe ();
+
 #ifdef GFXFILTER
 	} else if (currentmode->flags & DM_SWSCALE) {
 		if (!dx_islost () && !picasso_on)

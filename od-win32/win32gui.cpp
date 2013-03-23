@@ -15534,8 +15534,8 @@ int dragdrop (HWND hDlg, HDROP hd, struct uae_prefs *prefs, int	currentpage)
 					add_filesys_config (&workprefs, -1, &current_fsvdlg.ci);
 				}
 			} else {
-				uci_set_defaults (&current_hfdlg.ci, false);
-				current_hfdlg.forcedcylinders = 0;
+				default_hfdlg (&current_hfdlg, false);
+				_tcscpy (current_hfdlg.ci.rootdir, file);
 				updatehdfinfo (NULL, true, true);
 				add_filesys_config (&workprefs, -1, &current_hfdlg.ci);
 			}

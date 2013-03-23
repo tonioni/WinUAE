@@ -807,25 +807,25 @@ static void cdrom_return_data (void)
 	if (cdcomrxinx == cdcomrxcmp)
 		return;
 
-	#if AKIKO_DEBUG_IO_CMD
-		write_log (_T("OUT IDX=0x%02X-0x%02X LEN=%d,%08x:"), cdcomrxinx, cdcomrxcmp, cdrom_receive_length, cmd_buf);
-	#endif
+#if AKIKO_DEBUG_IO
+	write_log (_T("OUT IDX=0x%02X-0x%02X LEN=%d,%08x:"), cdcomrxinx, cdcomrxcmp, cdrom_receive_length, cmd_buf);
+#endif
 
 	if (cdrom_receive_offset < 0) {
 		checksum = 0xff;
 		for (i = 0; i < cdrom_receive_length; i++) {
 			checksum -= cdrom_result_buffer[i];
-	#if AKIKO_DEBUG_IO_CMD
+#if AKIKO_DEBUG_IO
 			write_log (_T("%02X "), cdrom_result_buffer[i]);
-	#endif
+#endif
 		}
-#if AKIKO_DEBUG_IO_CMD
+#if AKIKO_DEBUG_IO
 		write_log (_T("(%02X)\n"), checksum);
 #endif
 		cdrom_result_buffer[cdrom_receive_length++] = checksum;
 		cdrom_receive_offset = 0;
 	} else {
-#if AKIKO_DEBUG_IO_CMD
+#if AKIKO_DEBUG_IO
 		write_log (_T("\n"));
 #endif
 	}
@@ -836,7 +836,7 @@ static void cdrom_return_data (void)
 	}
 	if (cdcomrxinx == cdcomrxcmp) {
 		set_status (CDINTERRUPT_RXDMADONE);
-#if AKIKO_DEBUG_IO_CMD
+#if AKIKO_DEBUG_IO
 		write_log (_T("RXDMADONE %d/%d\n"), cdrom_receive_offset, cdrom_receive_length);
 #endif
 	}

@@ -6865,6 +6865,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	struct zfile *zf;
 	int ver = -1, rev = -1;
 	uae_u32 dostype;
+	bool autofs = false;
 
 	// we already have custom filesystem loaded for earlier hardfile?
 	if (!ci->forceload) {
@@ -6874,7 +6875,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 			put_long (parmpacket + PP_FSSIZE, 0);
 			put_long (parmpacket + PP_FSPTR, seg);
 			put_long (parmpacket + PP_ADDTOFSRES, 0);
-			write_log (_T("HDF: faked RDB filesystem '%s' reused\n"), uip->filesysdir);
+			write_log (_T("RDB: faked RDB filesystem '%s' reused\n"), uip->filesysdir);
 			return FILESYS_HARDFILE;
 		}
 	}
@@ -6899,6 +6900,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 		while (i > 0 && tmp[i - 1] != '/' && tmp[i - 1] != '\\')
 			i--;
 		_tcscpy (tmp + i, _T("FastFileSystem"));
+		autofs = true;
 	}
 	if (tmp[0] == 0) {
 		write_log (_T("RDB: no filesystem for dostype 0x%08X (%s)\n"), dostype, dostypes (dostype));
@@ -6916,6 +6918,29 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 		if ((dostype & 0xffffff00) == 0x444f5300)
 			return FILESYS_HARDFILE;
 		write_log (_T("RDB: mounted without filesys\n"));
+		return FILESYS_HARDFILE;
+	}
+
+	uae_u32 fsres, fsnode;
+	int oldversion = -1;
+	int oldrevision = -1;
+	fsres = get_long (parmpacket + PP_FSRES);
+	fsnode = get_long (fsres + 18);
+	while (get_long (fsnode)) {
+		uae_u32 fsdostype = get_long (fsnode + 14);
+		if (fsdostype == dostype) {
+			oldversion = get_word (fsnode + 18);
+			oldrevision = get_word (fsnode + 20);
+			write_log (_T("RDB: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dostype), oldversion, oldrevision);
+			break;
+		}
+		fsnode = get_long (fsnode);
+	}
+	// if automatically found FastFileSystem, do not replace matching FileSystem.resource FS
+	if (autofs && oldversion >= 0) {
+		zfile_fclose (zf);
+		addfakefilesys (parmpacket, dostype, ver, rev, ci);
+		write_log (_T("RDB: not replacing FileSystem.resource\n"));
 		return FILESYS_HARDFILE;
 	}
 
@@ -6965,28 +6990,13 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	zfile_fclose (zf);
 	uip->rdb_filesyssize = size;
 
-	uae_u32 fsres, fsnode;
-	int oldversion = -1;
-	int oldrevision = -1;
-	fsres = get_long (parmpacket + PP_FSRES);
-	fsnode = get_long (fsres + 18);
-	while (get_long (fsnode)) {
-		uae_u32 fsdostype = get_long (fsnode + 14);
-		if (fsdostype == dostype) {
-			oldversion = get_word (fsnode + 18);
-			oldrevision = get_word (fsnode + 20);
-			write_log (_T("HDF: %08X (%s) in FileSystem.resource version %d.%d\n"), dostype, dostypes (dostype), oldversion, oldrevision);
-			break;
-		}
-		fsnode = get_long (fsnode);
-	}
 	// DOS\0 is not in fs.resource
 	if (dostype == 0x444f5300 && oldversion < 0)
 		oldversion = 0;
 	put_long (parmpacket + PP_FSSIZE, uip->rdb_filesyssize);
 	put_long (parmpacket + PP_ADDTOFSRES, oldversion < 0 ? -1 : 0);
 	addfakefilesys (parmpacket, dostype, ver, rev, ci);
-	write_log (_T("HDF: faked RDB filesystem %08X (%s %d.%d) loaded. ADD2FS=%d\n"), dostype, dostypes (dostype), ver, rev, oldversion < 0 ? 1 : 0);
+	write_log (_T("RDB: faked RDB filesystem %08X (%s %d.%d) loaded. ADD2FS=%d\n"), dostype, dostypes (dostype), ver, rev, oldversion < 0 ? 1 : 0);
 	return FILESYS_HARDFILE;
 }
 

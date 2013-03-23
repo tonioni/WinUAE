@@ -1021,15 +1021,32 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_SCREENCAPTURE:
 		{
-			extern int screenshotf (const TCHAR *spath, int mode, int doprepare);
+			extern int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode);
 			extern int screenshotmode;
-			int ok;
-			int ossm = screenshotmode;
-			TCHAR *s = (TCHAR*)pData;
-			screenshotmode = 0;
-			ok = screenshotf (s, 1, 1);
-			screenshotmode = ossm;
-			return ok ? TRUE : FALSE;
+			struct RPScreenCapture *rpsc = (struct RPScreenCapture*)pData;
+			if (rpsc->szScreenFiltered[0] || rpsc->szScreenRaw[0]) {
+				int ossm = screenshotmode;
+				DWORD ret = 0;
+				int ok = 0;
+				screenshotmode = 0;
+				write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
+				if (rpsc->szScreenFiltered[0])
+					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0);
+				if (rpsc->szScreenRaw[0])
+					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1);
+				screenshotmode = ossm;
+				if (!ok)
+					return RP_SCREENCAPTURE_ERROR;
+				if (WIN32GFX_IsPicassoScreen ()) {
+					ret |= RP_GUESTSCREENFLAGS_MODE_DIGITAL;
+				} else {
+					ret |= currprefs.gfx_resolution == RES_LORES ? RP_GUESTSCREENFLAGS_HORIZONTAL_LORES : ((currprefs.gfx_resolution == RES_SUPERHIRES) ? RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES : 0);
+					ret |= currprefs.ntscmode ? RP_GUESTSCREENFLAGS_MODE_NTSC : RP_GUESTSCREENFLAGS_MODE_PAL;
+					ret |= interlace_seen ? RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED : 0;
+				}
+				return ret;
+			}
+			return RP_SCREENCAPTURE_ERROR;
 		}
 	case RP_IPC_TO_GUEST_SAVESTATE:
 		{
@@ -1082,7 +1099,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
 		{
-			return MAKELONG(3, 0);
+			return MAKELONG(3, 4);
 		}
 	}
 	return FALSE;

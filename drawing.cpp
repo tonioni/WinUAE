@@ -2133,7 +2133,7 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		} else if (regno >= 0) {
 			if (regno == 0 && (value & COLOR_CHANGE_BRDBLANK)) {
 				colors_for_drawing.borderblank = (value & 1) != 0;
-				colors_for_drawing.bordersprite = (value & 2) != 0;
+				colors_for_drawing.bordersprite = (value & 3) == 2;
 			} else {
 				color_reg_set (&colors_for_drawing, regno, value);
 				colors_for_drawing.acolors[regno] = getxcolor (value);

@@ -92,7 +92,7 @@ void screenshot_free (void)
 
 static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs;
 
-int screenshot_prepare (void)
+int screenshot_prepare (int imagemode)
 {
 	int width, height;
 	HGDIOBJ hgdiobj;
@@ -101,8 +101,10 @@ int screenshot_prepare (void)
 	screenshot_free ();
 
 	regqueryint (NULL, _T("Screenshot_Original"), &screenshot_originalsize);
+	if (imagemode < 0)
+		imagemode = screenshot_originalsize;
 
-	if (screenshot_originalsize) {
+	if (imagemode) {
 		int spitch, dpitch, x, y;
 		uae_u8 *src, *dst, *mem;
 		uae_u8 *palette = NULL;
@@ -258,6 +260,11 @@ oops:
 	return 0;
 }
 
+int screenshot_prepare (void)
+{
+	return screenshot_prepare (-1);
+}
+
 void Screenshot_RGBinfo (int rb, int gb, int bb, int rs, int gs, int bs)
 {
 	if (!bi)
@@ -358,7 +365,7 @@ static int savebmp (FILE *fp)
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
-int screenshotf (const TCHAR *spath, int mode, int doprepare)
+int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode)
 {
 	static int recursive;
 	FILE *fp = NULL;
@@ -372,8 +379,8 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare)
 
 	recursive++;
 
-	if (!screenshot_prepared || doprepare) {
-		if (!screenshot_prepare ())
+	if (!screenshot_prepared || doprepare) {	
+		if (!screenshot_prepare (imagemode))
 			goto oops;
 	}
 
@@ -452,5 +459,5 @@ oops:
 
 void screenshot (int mode, int doprepare)
 {
-	screenshotf (NULL, mode, doprepare);
+	screenshotf (NULL, mode, doprepare, -1);
 }

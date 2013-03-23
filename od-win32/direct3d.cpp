@@ -2271,7 +2271,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 					if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 						dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				}  else {
-					vsync2 = -1;
+					vsync2 = -2;
 				}
 			} else if (hzmult > 0) {
 				vsync2 = 1;
@@ -3134,7 +3134,7 @@ void D3D_showframe (void)
 		D3D_showframe2 (false);
 	} else {
 		D3D_showframe2 (true);
-		if (vsync2 < 0 && !currprefs.turbo_emulation) {
+		if (vsync2 == -1 && !currprefs.turbo_emulation) {
 			D3D_showframe2 (true);
 		}
 	}

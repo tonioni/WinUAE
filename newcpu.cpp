@@ -1216,6 +1216,14 @@ static void update_68k_cycles (void)
 		}
 	} else if (currprefs.cpu_frequency) {
 		cpucycleunit = CYCLE_UNIT * baseclock / currprefs.cpu_frequency;
+	} else if (currprefs.cpu_cycle_exact && currprefs.cpu_clock_multiplier == 0) {
+		if (currprefs.cpu_model >= 68030) {
+			cpucycleunit = CYCLE_UNIT / 8;
+		} else if (currprefs.cpu_model == 68020) {
+			cpucycleunit = CYCLE_UNIT / 4;
+		} else {
+			cpucycleunit = CYCLE_UNIT / 2;
+		}
 	}
 	if (cpucycleunit < 1)
 		cpucycleunit = 1;
@@ -6098,8 +6106,8 @@ int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor)
 }
 
 /* 68000 Z=1. NVC=0
- * 68020 Signed: Z=1 NVC=0. Unsigned: V=1 N<dst, Z=!N.
- * 68060 C=0.
+ * 68020 and 68030: Signed: Z=1 NVC=0. Unsigned: V=1, N<dst, Z=!N, C=0.
+ * 68040/68060 C=0.
  */
 void divbyzero_special (bool issigned, uae_s32 dst)
 {

@@ -1,6 +1,17 @@
 
 - restore only single input target to default.
 
+Beta 13:
+
+- Ignore vendor specific USB usage pages also in received USB HID packets, fixes for example Logitech Precision gamepad ghost button events.
+- Fixed border sprite bug introduced in b12, border sprites should stay hidden if border blanking is also enabled.
+- Black frame insertion is now supported in legacy vsync D3D 100Hz+ modes. DirectDraw modes may also work.
+- 68020+ cycle-exact CPU speed changed after entering and exiting GUI in some situations.
+- Partition hardfile dragndrop didn't work.
+- Automatically loaded ROM path FastFileSystem file always replaced FileSystem.resource FFS when mounting FFS partition hardfiles (b1).
+- Blitter DMA disabled, writing to BLTSIZE, writing to other blitter register(s) and finally enabling blitter DMA appears
+  to start the blitter normally. (Pink Panther graphics corruption, probably worked accidentally in some old versions)
+
 Beta 12:
 
 - AGA border sprite feature emulation is now also cycle-exact. Similar update to borderblank was done in 2.5.0. For example

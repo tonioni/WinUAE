@@ -4,12 +4,12 @@
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
  Legal   : CONFIDENTIAL TRADE SECRET PROPERTY OF CLOANTO ITALIA SRL
-         : Copyright © Cloanto Italia srl 2007-2011.
+         : Copyright © Cloanto Italia srl 2007-2013.
          : All rights reserved, except where licensed,
          : assigned or transferred by contract.
  Authors : os, mcb
  Created : 2007-08-23 10:08:25
- Updated : 2011-07-28 11:26:00
+ Updated : 2013-03-16 07:20:00
  Comment : Reference for RetroPlatformIPC.h (RP Player interprocess communication include file)
  *****************************************************************************/
 
@@ -21,40 +21,54 @@
 ****************************************************************************
 
 Message:
-   RPIPCGM_REGISTER
+   RP_IPC_TO_HOST_REGISTER
 Description:
    this is a private message and is automatically sent
    by the RPInitializeGuest() function
    to register the caller as a RetroPlatform guest
 
 
-Message:
-   RPIPCGM_FEATURES
-Description:
-   the guest uses this sequence of messages to tell the host
-   about the features it supports;
-   at startup time, the guest sends initialization messages
+Notes about startup:
+>>>
+   At startup time, the guest sends initialization messages
+   (terminated by RP_IPC_TO_HOST_SCREENMODE)
    so that the host can adapt the GUI based on the reported features;
    these messages include:
-      RPIPCGM_FEATURES (describes guest features),
-      RPIPCGM_INPUTDEVICE (enumerates available input devices)
-      RPIPCGM_POWERLED (turns on the power LED in the GUI),
-      RPIPCGM_DEVICES (one for each device category: tells the number of emulated devices),
-      RPIPCGM_DEVICECONTENT (one for each device with an image file or peripheral attached),
-      RPIPCGM_DEVICEREADWRITE (one for each device with an image file or peripheral attached - optional for non-floppy/non-hard disk which are always read-only),
-      RPIPCGM_TURBO (tells if some of the turbo modes are activated from the start),
-      RPIPCGM_VOLUME (reports about starting volume level),
-      RPIPCGM_SCREENMODE (communicates the screen mode, the clipping coordinates and the guest window handle);
+      RP_IPC_TO_HOST_FEATURES (describes guest features),
+      RP_IPC_TO_HOST_INPUTDEVICE (enumerates available input devices)
+      RP_IPC_TO_HOST_POWERLED (turns on the power LED in the GUI),
+      RP_IPC_TO_HOST_DEVICES (one for each device category: tells the number of emulated devices),
+      RP_IPC_TO_HOST_DEVICECONTENT (one for each device with an image file or peripheral attached),
+      RP_IPC_TO_HOST_DEVICEREADWRITE (one for each device with an image file or peripheral attached - optional for non-floppy/non-hard disk which are always read-only),
+      RP_IPC_TO_HOST_TURBO (tells if some of the turbo modes are activated from the start),
+      RP_IPC_TO_HOST_VOLUME (reports about starting volume level),
+      RP_IPC_TO_HOST_SCREENMODE (communicates the screen mode, the clipping coordinates and the guest window handle);
    note that at startup time the guest should create a borderless and hidden window
-   and send its handle using a RPIPCGM_SCREENMODE message, which must be the last
+   and send its handle using a RP_IPC_TO_HOST_SCREENMODE message, which must be the last
    of the initialization messages, since it displays the guest window
    and the host "frame window" (the part of the player user interface
    with command and status icons which can be used to drag the guest window, etc.);
    in some circumstances the host may decide not to display the guest window
-   when receiving the RPIPCGM_SCREENMODE message (e.g. in Express mode
+   when receiving the RP_IPC_TO_HOST_SCREENMODE message (e.g. in Express mode
    the guest may be immediately paused and an intro banner may be displayed;
    when the intro banner is dismissed the guest is resumed from pause mode
-   and its window is displayed)
+   and its window is displayed);
+<<<
+   
+Message:
+   RP_IPC_TO_HOST_FEATURES
+Description:
+   the guest uses this sequence of messages to tell the host
+   about the features it supports;
+   
+   at startup time, the guest sends RP_IPC_TO_HOST_FEATURES to describe
+   the guest features, so that the host can adapt the UI based on the
+   reported features; in this context, RP_IPC_TO_HOST_FEATURES is sent
+   together with the other initialization messages;
+
+   at runtime RP_IPC_TO_HOST_FEATURES may be sent with a fresh set of
+   attributes (e.g. because a new screen mode can be scaled in different ways, etc.)
+   
 Data sent:
    WPARAM = RP_FEATURE_* flags
 Response:
@@ -62,12 +76,15 @@ Response:
 
 
 Message:
-   RPIPCGM_INPUTDEVICE
+   RP_IPC_TO_HOST_INPUTDEVICE
 Description:
-   the guest sends one or more RPIPCGM_INPUTDEVICE messages
-   after sending the RPIPCGM_FEATURES messages, but before
-   sending the final RPIPCGM_SCREENMODE message, which also
-   indicates that no more RPIPCGM_INPUTDEVICE messages will follow.
+   the guest sends one or more consecutive RP_IPC_TO_HOST_INPUTDEVICE messages,
+   terminated by an RP_HOSTINPUT_END type device. This input device enumeration
+   must be done at startup (immediately after sending the RP_IPC_TO_HOST_FEATURES
+   messages and before the RP_IPC_TO_HOST_SCREENMODE message) and
+   should be done whenever a device is added or removed. The first message
+   of a series resets the list of input devices, which starts fresh from that first
+   input device, followed by more devices until the RP_HOSTINPUT_END dummy device.
    The messages enumerate the input-type devices (RP_DEVICECATEGORY_INPUTPORT
    category) found on the host.
 Data sent:
@@ -77,12 +94,12 @@ Response:
 
 
 Message:
-   RPIPCGM_CLOSED
+   RP_IPC_TO_HOST_CLOSED
 Description:
    this message is sent to the host when the guest is terminating;
    the RPPostMessage() function (instead of RPSendMessage()) should be used
    to send this message, since the host may wait for the guest process to terminate
-   when RPIPCGM_CLOSED is received
+   when RP_IPC_TO_HOST_CLOSED is received
 Data sent:
    none
 Response:
@@ -90,7 +107,7 @@ Response:
 
 
 Message:
-   RPIPCGM_ACTIVATED
+   RP_IPC_TO_HOST_ACTIVATED
 Description:
    the guest sends this message to the host
    when its window is being activated
@@ -101,7 +118,7 @@ Response:
 
 
 Message:
-   RPIPCGM_DEACTIVATED
+   RP_IPC_TO_HOST_DEACTIVATED
 Description:
    the guest sends this message to the host
    when its window is being deactivated
@@ -112,7 +129,7 @@ Response:
 
 
 Message:
-   RPIPCGM_ENABLED
+   RP_IPC_TO_HOST_ENABLED
 Description:
    the guest sends this message to the host when its window is being enabled
    (e.g. a WM_ENABLE message has been received with wParam set to TRUE);
@@ -124,7 +141,7 @@ Response:
 
 
 Message:
-   RPIPCGM_DISABLED
+   RP_IPC_TO_HOST_DISABLED
 Description:
    the guest sends this message to the host when its window is being disabled
    (e.g. a WM_ENABLE message has been received with wParam set to FALSE);
@@ -136,23 +153,27 @@ Response:
 
 
 Message:
-   RPIPCGM_SCREENMODE
+   RP_IPC_TO_HOST_SCREENMODE
 Description:
-   the guest sends a RPIPCGM_SCREENMODE message to notify the host
+   the guest sends a RP_IPC_TO_HOST_SCREENMODE message to notify the host
    about a change in its "screen mode"
    (1x/2x/3x/4x, full screen, clipping coordinates, etc.),
    or to keep the host updated about the guest window handle
    (just before destroying its window, the guest sends this message
    with the hGuestWindow field of the RPSCREENMODE structure set to NULL);
    screen mode changes requested by the host
-   (see the RPIPCHM_SCREENMODE message) must not be notified,
+   (see the RP_IPC_TO_GUEST_SCREENMODE message) must not be notified,
    unless this is an asynchronous screen mode change
    (i.e. the guest returned the INVALID_HANDLE_VALUE
-   response to a RPIPCHM_SCREENMODE host request);
-   at startup time, the guest must create
+   response to a RP_IPC_TO_GUEST_SCREENMODE host request).
+
+   At startup time, the guest must create
    a borderless and hidden window and send its handle
    using this message; the host will then take care
-   of preparing, positioning and showing the guest window
+   of preparing, positioning and showing the guest window.
+   RP_IPC_TO_HOST_SCREENMODE marks the end of the guest
+   initialization steps.
+
 Data sent:
    pData = a RPSCREENMODE structure
 Response:
@@ -160,17 +181,19 @@ Response:
 
 
 Message:
-   RPIPCGM_POWERLED
+   RP_IPC_TO_HOST_POWERLED
 Description:
    sent to the host to change the power LED state
 Data sent:
-   WPARAM = power LED intensity (min/off 0, max 100)
+   WPARAM = power LED intensity (off 0, min 1, max decimal 100)
+            in a dual-brightness LED system values 1-49 (decimal) indicate the
+            "dimmed" status (Amiga "low-pass filter off")
 Response:
    none
 
 
 Message:
-   RPIPCGM_DEVICES
+   RP_IPC_TO_HOST_DEVICES
 Description:
    this message is used to notify the host about a change
    in the number of emulated devices (floppy drives, hard disks, etc.)
@@ -185,7 +208,7 @@ Response:
 
 
 Message:
-   RPIPCGM_DEVICEACTIVITY
+   RP_IPC_TO_HOST_DEVICEACTIVITY
 Description:
    this message can be used to turn on or off the activity indicator
    of a specified device (a single LED on the original hardware)
@@ -217,14 +240,14 @@ Response:
 
 
 Message:
-   RPIPCGM_MOUSECAPTURE
+   RP_IPC_TO_HOST_MOUSECAPTURE
 Description:
    the guest sends this message when the mouse is captured/released
    (the mouse is "captured" when its movements are restricted to the guest window area
    and the system cursor is not visible);
    mouse capture changes requested by the host
-   (see the RPIPCHM_MOUSECAPTURE message) must not be notified;
-   for consistency across different guests, a guest which sends RPIPCGM_MOUSECAPTURE
+   (see the RP_IPC_TO_GUEST_MOUSECAPTURE message) must not be notified;
+   for consistency across different guests, a guest which sends RP_IPC_TO_HOST_MOUSECAPTURE
    messages should also implement a keyboard-actuated escape functionality
    (the preferred key for this purpose is included in the parameters sent from the
    host at startup time - see RPLaunchGuest() in RetroPlatformPlugin.h);
@@ -241,9 +264,9 @@ Response:
 
 
 Message:
-   RPIPCGM_HOSTAPIVERSION
+   RP_IPC_TO_HOST_HOSTAPIVERSION
 Description:
-    the guest can send a RPIPCGM_HOSTAPIVERSION to query the host
+    the guest can send a RP_IPC_TO_HOST_HOSTAPIVERSION to query the host
     about the RetroPlatform API version it implements;
     since the guest plugin already asks for a minimum version of the API
     on the host side, this message can be used to check the host API version
@@ -256,9 +279,9 @@ Response:
 
 
 Message:
-   RPIPCGM_HOSTVERSION
+   RP_IPC_TO_HOST_HOSTVERSION
 Description:
-    the guest can send a RPIPCGM_HOSTVERSION
+    the guest can send a RP_IPC_TO_HOST_HOSTVERSION
     to query the host about its version
 Data sent:
    none
@@ -268,13 +291,13 @@ Response:
 
 
 Message:
-   RPIPCGM_PAUSE
+   RP_IPC_TO_HOST_PAUSE
 Description:
    the guest sends this message to the host
    when it enters or exits pause mode;
    pause mode changes requested by the host
-   (see the RPIPCHM_PAUSE message) must not be notified,
-   unless the guest returned the value 2 as RPIPCHM_PAUSE response;
+   (see the RP_IPC_TO_GUEST_PAUSE message) must not be notified,
+   unless the guest returned the value 2 as RP_IPC_TO_GUEST_PAUSE response;
    note: when paused, the guest should release the mouse (if captured);
    during pause mode, the mouse should never be captured
 Data sent:
@@ -285,18 +308,22 @@ Response:
 
 
 Message:
-   RPIPCGM_DEVICECONTENT
+   RP_IPC_TO_HOST_DEVICECONTENT
 Description:
-   the guest sends a RPIPCGM_DEVICECONTENT message
+   the guest sends a RP_IPC_TO_HOST_DEVICECONTENT message
    to notify the host that an image file (e.g. a floppy disk image)
    or a peripheral (e.g. a joystick)
-   has been loaded into (or ejected from) an emulated device;
+   has been loaded/inserted into (or ejected from) an emulated device;
    this notification does not need to (must not) be sent when the event
-   has been requested by the host (see the RPIPCHM_DEVICECONTENT message).
+   has been requested by the host (see the RP_IPC_TO_GUEST_DEVICECONTENT message).
    If the host requested an unavailable device (e.g. tablet), the guest
-   should send an LRESULT 0 (error) in reply to the RPIPCHM_DEVICECONTENT
-   message, followed by an RPIPCGM_DEVICECONTENT message
+   should send an LRESULT 0 (error) in reply to the RP_IPC_TO_GUEST_DEVICECONTENT
+   message, followed by an RP_IPC_TO_HOST_DEVICECONTENT message
    indicating the actual content (empty, previous device, similar device, etc.)
+   Configuration details (e.g. keyboard-joystick layout) should be preserved, so
+   that the appropriate data can be sent to the host (e.g. Content set to
+   "KeyboardCustom Left=0x4B Right=0x4D Up=0x48 Down=0x50 Fire=0x52"), which in
+   turn may need to display it in the user interface.
 Data sent:
    pData = a RPDEVICECONTENT structure (see RetroPlatformIPC.h);
            the szContent field of the structure
@@ -312,13 +339,13 @@ Response:
 
 
 Message:
-   RPIPCGM_DEVICEREADWRITE
+   RP_IPC_TO_HOST_DEVICEREADWRITE
 Description:
-   the guest sends a RPIPCGM_DEVICEREADWRITE message
+   the guest sends a RP_IPC_TO_HOST_DEVICEREADWRITE message
    to notify the host about an initial status or a change in
    the read/write protection status;
    this notification is optional if the event
-   was requested by the host (see the RPIPCHM_DEVICEREADWRITE message);
+   was requested by the host (see the RP_IPC_TO_GUEST_DEVICEREADWRITE message);
    used for device categories RP_DEVICECATEGORY_FLOPPY, RP_DEVICECATEGORY_HD,
    RP_DEVICECATEGORY_TAPE, RP_DEVICECATEGORY_CARTRIDGE
 Data sent:
@@ -331,13 +358,13 @@ Response:
 
 
 Message:
-   RPIPCGM_TURBO
+   RP_IPC_TO_HOST_TURBO
 Description:
-   the guest sends a RPIPCGM_TURBO message
-   to notify the host about activation of "turbo" (maximum speed) mode
+   the guest sends a RP_IPC_TO_HOST_TURBO message
+   to notify the host about activation (e.g. from startup) of "turbo" (maximum speed) mode
    of some of its functionalities (e.g. floppy, CPU);
    turbo mode activations/deactivations requested by the host
-   (see the RPIPCHM_TURBO message) must not be notified;
+   (see the RP_IPC_TO_GUEST_TURBO message) must not be notified;
 Data sent:
    WPARAM = mask of functionalities affected (RP_TURBO_* flags)
    LPARAM = bits corresponding to those set in WPARAM
@@ -348,7 +375,7 @@ Response:
 
 
 Message:
-   RPIPCGM_PING
+   RP_IPC_TO_HOST_PING
 Description:
    this is a no-operation message and can be sent
    to check if the host is responsive and functional
@@ -359,12 +386,12 @@ Response:
 
 
 Message:
-   RPIPCGM_VOLUME
+   RP_IPC_TO_HOST_VOLUME
 Description:
-   the guest uses the RPIPCGM_VOLUME message
+   the guest uses the RP_IPC_TO_HOST_VOLUME message
    to notify the host about a change of its audio level;
    audio level changes requested by the host
-   (see the RPIPCHM_VOLUME message) must not be notified
+   (see the RP_IPC_TO_GUEST_VOLUME message) must not be notified
 Data sent:
    WPARAM = volume level (min/off 0, max 100)
 Response:
@@ -372,7 +399,7 @@ Response:
 
 
 Message:
-   RPIPCGM_ESCAPED
+   RP_IPC_TO_HOST_ESCAPED
 Description:
    this message is sent to notify the host
    that the escape key has been held down
@@ -383,7 +410,7 @@ Response:
 
 
 Message:
-   RPIPCGM_PARENT
+   RP_IPC_TO_HOST_PARENT
 Description:
    the guest sends this message to the host to get the handle
    of the parent for its window; the guest window must be created
@@ -396,7 +423,7 @@ Response:
 
 
 Message:
-   RPIPCGM_DEVICESEEK
+   RP_IPC_TO_HOST_DEVICESEEK
 Description:
    this message can be used to notify the host about a seek operation
    of a specified device (e.g. the head of a disk drive changes position;
@@ -411,7 +438,7 @@ Response:
 
 
 Message:
-   RPIPCGM_CLOSE
+   RP_IPC_TO_HOST_CLOSE
 Description:
    when the user presses ALT+F4 in the guest window
    the guest should intercept such an event
@@ -419,7 +446,7 @@ Description:
    send this notification message to the host
    and not close its window (i.e. not call the DefWindowProc() of its window);
    the host will then open its Close Options dialog
-   and will send a RPIPCHM_CLOSE command to the guest
+   and will send a RP_IPC_TO_GUEST_CLOSE command to the guest
    if the user confirms the close request
 Data sent:
    none
@@ -434,7 +461,7 @@ Response:
 ****************************************************************************
 
 Message:
-   RPIPCHM_CLOSE
+   RP_IPC_TO_GUEST_CLOSE
 Description:
    sent from the host when the emulation must be terminated
    (e.g. the user has hit the close button in the host window);
@@ -446,7 +473,7 @@ Response:
 
 
 Message:
-   RPIPCHM_SCREENMODE
+   RP_IPC_TO_GUEST_SCREENMODE
 Description:
    this message is sent to ask the guest to activate a specified screen mode
    and clipping coordinates;
@@ -469,25 +496,27 @@ Response:
    LRESULT = handle of the (new) guest window
              or NULL (the screen mode couldn't be changed)
              or INVALID_HANDLE_VALUE (the screen mode will be changed asynchronously
-             and the host will soon get a RPIPCGM_SCREENMODE notification)
+             and the host will soon get a RP_IPC_TO_HOST_SCREENMODE notification)
 
 
 Message:
-   RPIPCHM_SCREENCAPTURE
+   RP_IPC_TO_GUEST_SCREENCAPTURE
 Description:
-   with this message the host asks the guest to save its screen
-   to the specified file in BMP format
+   with this message the host asks the guest to save its screen bitmap(s)
+   (raw and/or filtered version) to the specified file(s), in BMP format.
 Data sent:
-   pData = (Unicode) full path and name of the file to save
-           (note: the file may exist and can be overwritten)
+   pData = a RPSCREENCAPTURE structure with one or two full path(s) and name(s)
+            (Unicode) of the file(s) to save. Note: existing files can be
+            overwritten.
 Response:
-   LRESULT = 1 if the guest successfully saved its screen to the file or 0 otherwise
+   LRESULT = RP_GUESTSCREENFLAGS_ if the guest successfully saved the
+             bitmap(s) to the file(s) or RP_SCREENCAPTURE_ERROR otherwise
 
 
 Message:
-   RPIPCHM_PAUSE
+   RP_IPC_TO_GUEST_PAUSE
 Description:
-   the RPIPCHM_PAUSE message sets the guest into pause mode
+   the RP_IPC_TO_GUEST_PAUSE message sets the guest into pause mode
    or resumes the guest from pause mode;
    note: when paused, the guest should release the mouse (if captured);
    during pause mode, the mouse should never be captured
@@ -497,14 +526,14 @@ Data sent:
 Response:
    LRESULT = 0 (error), 1 (command successfully executed)
              or 2 (the command will be asynchronously executed
-             and a RPIPCGM_PAUSE will be later sent from the guest
+             and a RP_IPC_TO_HOST_PAUSE will be later sent from the guest
              to confirm execution)
 
 
 Message:
-   RPIPCHM_DEVICECONTENT
+   RP_IPC_TO_GUEST_DEVICECONTENT
 Description:
-   the host sends a RPIPCHM_DEVICECONTENT message
+   the host sends a RP_IPC_TO_GUEST_DEVICECONTENT message
    to load an image file or a peripheral into an emulated device
    (e.g. an ADF floppy file into a floppy drive,
    or a physical or keyboard-emulated joystick into an input port)
@@ -521,9 +550,9 @@ Response:
 
 
 Message:
-   RPIPCHM_DEVICEREADWRITE
+   RP_IPC_TO_GUEST_DEVICEREADWRITE
 Description:
-   the host sends a RPIPCHM_DEVICEREADWRITE message
+   the host sends a RP_IPC_TO_GUEST_DEVICEREADWRITE message
    to set the read/write protection status
 Data sent:
    WPARAM = device category (RP_DEVICE_* value) and device number
@@ -535,7 +564,7 @@ Response:
 
 
 Message:
-   RPIPCHM_RESET
+   RP_IPC_TO_GUEST_RESET
 Description:
    the host sends this message to reset the guest
 Data sent:
@@ -545,7 +574,7 @@ Response:
 
 
 Message:
-   RPIPCHM_TURBO
+   RP_IPC_TO_GUEST_TURBO
 Description:
    the host sends this message to activate or deactivate
    the turbo mode of selected guest functionalities
@@ -559,7 +588,7 @@ Response:
 
 
 Message:
-   RPIPCHM_PING
+   RP_IPC_TO_GUEST_PING
 Description:
    this is a no-operation message and can be sent
    to check if the guest is responsive and functional
@@ -570,9 +599,9 @@ Response:
 
 
 Message:
-   RPIPCHM_VOLUME
+   RP_IPC_TO_GUEST_VOLUME
 Description:
-   the host uses the RPIPCHM_VOLUME message to set
+   the host uses the RP_IPC_TO_GUEST_VOLUME message to set
    the audio level of the guest
 Data sent:
    WPARAM = volume level (min 0, max 100)
@@ -581,9 +610,9 @@ Response:
 
 
 Message:
-   RPIPCHM_ESCAPEKEY
+   RP_IPC_TO_GUEST_ESCAPEKEY
 Description:
-   the host uses the RPIPCHM_ESCAPEKEY message
+   the host uses the RP_IPC_TO_GUEST_ESCAPEKEY message
    to change the escape key information
 Data sent:
    WPARAM = DirectInput DIK_* identifier of the escape key
@@ -595,21 +624,22 @@ Response:
 
 
 Message:
-   RPIPCHM_EVENT
+   RP_IPC_TO_GUEST_EVENT
 Description:
-   the host uses the RPIPCHM_EVENT message
-   to simulate keyboard, mouse, joystick (press/release)
+   the host uses the RP_IPC_TO_GUEST_EVENT message
+   to simulate keyboard, mouse, joystick, tape button press/release
    and other guest-specific events
 Data sent:
-   pData = (Unicode) event string (guest-specific)
+   pData = (Unicode) event string (guest-specific); for keyboard events ("KEY_"... string)
+   the event string is followed by a space and a "1"/"0" character (pressed/released).
 Response:
    LRESULT = 1 if the guest successfully simulated the specified event or 0 otherwise
 
 
 Message:
-   RPIPCHM_GUESTAPIVERSION
+   RP_IPC_TO_GUEST_GUESTAPIVERSION
 Description:
-    the host can send a RPIPCHM_GUESTAPIVERSION to query the guest
+    the host can send a RP_IPC_TO_GUEST_GUESTAPIVERSION to query the guest
     about the RetroPlatform API version it implements;
     this message can be used to check the guest API version
     and enable optional functionality
@@ -621,7 +651,7 @@ Response:
 
 
 Message:
-   RPIPCHM_MOUSECAPTURE
+   RP_IPC_TO_GUEST_MOUSECAPTURE
 Description:
    the host uses this message to ask the guest
    to capture or release the mouse (and activate/deactivate the magic mouse functionality)
@@ -632,7 +662,7 @@ Response:
 
 
 Message:
-   RPIPCHM_SAVESTATE
+   RP_IPC_TO_GUEST_SAVESTATE
 Description:
    with this message the host asks the guest to save
    the emulation status to the specified file
@@ -643,7 +673,7 @@ Response:
 
 
 Message:
-   RPIPCHM_LOADSTATE
+   RP_IPC_TO_GUEST_LOADSTATE
 Description:
    with this message the host asks the guest to load
    the emulation status from the specified file
@@ -654,9 +684,9 @@ Response:
 
 
 Message:
-   RPIPCHM_FLUSH
+   RP_IPC_TO_GUEST_FLUSH
 Description:
-   the host sends the RPIPCHM_FLUSH command to ask the guest
+   the host sends the RP_IPC_TO_GUEST_FLUSH command to ask the guest
    to flush any change applied to the emulated media
    and update the corresponding image files
 Data sent:
@@ -666,10 +696,10 @@ Response:
 
 
 Message:
-   RPIPCHM_QUERYSCREENMODE
+   RP_IPC_TO_GUEST_QUERYSCREENMODE
 Description:
    this message is used to ask the guest to send
-   a RPIPCGM_SCREENMODE notification as soon as possible
+   a RP_IPC_TO_HOST_SCREENMODE notification as soon as possible
    with updated screen mode and clipping information
 Data sent:
    none

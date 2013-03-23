@@ -3681,6 +3681,14 @@ static void DMACON (int hpos, uae_u16 v)
 			unset_special (SPCFLAG_COPPER);
 		}
 	}
+
+#if 0
+	int oldb = (oldcon & DMA_BLITTER) && (oldcon & DMA_MASTER);
+	int newb = (dmacon & DMA_BLITTER) && (dmacon & DMA_MASTER);
+	int oldbn = (oldcon & DMA_BLITPRI);
+	int newbn = (dmacon & DMA_BLITPRI);
+#endif
+
 	if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done)
 		set_special (SPCFLAG_BLTNASTY);
 
@@ -5518,8 +5526,11 @@ static bool framewait (void)
 		if ((int)start - (int)vsync_time >= 0 && (int)start - (int)vsync_time < vsynctimebase)
 			t += (int)start - (int)vsync_time;
 
-		if (!frame_shown)
+		if (!frame_shown) {
 			show_screen (1);
+			if (currprefs.gfx_apmode[0].gfx_strobo)
+				show_screen (2);
+		}
 
 		int legacy_avg = mavg (&ma_legacy, t, MAVG_VSYNC_SIZE);
 		if (t > legacy_avg)

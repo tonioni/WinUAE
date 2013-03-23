@@ -1658,6 +1658,8 @@ static bool initialize_rawinput (void)
 							int buttoncnt = 0;
 							for (i = 0; i < size && buttoncnt < MAX_MAPPINGS; i++) {
 								int first, last;
+								if (bcaps[i].UsagePage >= 0xff00)
+									continue;
 								if (bcaps[i].IsRange) {
 									first = bcaps[i].Range.UsageMin;
 									last = bcaps[i].Range.UsageMax;
@@ -1692,7 +1694,7 @@ static bool initialize_rawinput (void)
 							dumphidvaluecaps (vcaps, size);
 							int axiscnt = 0;
 							for (i = 0; i < size && axiscnt < MAX_MAPPINGS; i++) {
-								int first, last;						
+								int first, last;
 								if (vcaps[i].IsRange) {
 									first = vcaps[i].Range.UsageMin;
 									last = vcaps[i].Range.UsageMax;
@@ -1977,6 +1979,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				if (HidP_GetUsagesEx (HidP_Input, 0, did->usagelist, &usagelength, did->hidpreparseddata, rawdata, hid->dwSizeHid) == HIDP_STATUS_SUCCESS) {
 					int k;
 					for (k = 0; k < usagelength; k++) {
+						if (did->usagelist[k].UsagePage >= 0xff00)
+							continue; // ignore vendor specific
 						for (j = 0; j < did->maxusagelistlength; j++) {
 							if (did->usagelist[k].UsagePage == did->prevusagelist[j].UsagePage &&
 								did->usagelist[k].Usage == did->prevusagelist[j].Usage)
@@ -1995,6 +1999,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 						}
 					}
 					for (j = 0; j < did->maxusagelistlength; j++) {
+						if (did->prevusagelist[j].UsagePage >= 0xff00)
+							continue; // ignore vendor specific
 						if (did->prevusagelist[j].Usage) {
 							if (rawinput_log & 4)
 								write_log (_T("%d/%d OFF\n"), did->prevusagelist[j].UsagePage, did->prevusagelist[j].Usage);

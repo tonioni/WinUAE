@@ -925,39 +925,59 @@ static void flip (void)
 	if (dxdata.backbuffers == 2) {
 		DirectDraw_Blit (dxdata.flipping[1], dxdata.flipping[0]);
 		if (vsync) {
-			if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-			} else if (dxdata.vblank_skip > 0) {
-				dxdata.vblank_skip_cnt ^= 1;
-				if (dxdata.vblank_skip_cnt == 0)
-					return;
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-			} else if (flipinterval_supported && !novsync) {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
+			if (ap->gfx_strobo) {
+				if (currprefs.turbo_emulation) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+					DirectDraw_FillSurface (dxdata.flipping[0], NULL, 0);
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				}
 			} else {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-				DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else if (dxdata.vblank_skip > 0) {
+					dxdata.vblank_skip_cnt ^= 1;
+					if (dxdata.vblank_skip_cnt == 0)
+						return;
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else if (flipinterval_supported && !novsync) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
+				} else {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+					DirectDraw_Blit (dxdata.flipping[1], dxdata.primary);
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				}
 			}
 		} else {
 			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
 		}
 	} else if(dxdata.backbuffers == 1) {
 		if (vsync) {
-			if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-			} else if (dxdata.vblank_skip > 0) {
-				dxdata.vblank_skip_cnt ^= 1;
-				if (dxdata.vblank_skip_cnt == 0)
-					return;
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-			} else if (flipinterval_supported && !novsync) {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
+			if (ap->gfx_strobo) {
+				if (currprefs.turbo_emulation) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+					DirectDraw_FillSurface (dxdata.flipping[0], NULL, 0);
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				}
 			} else {
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-				DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
-				ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
-				DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+				if (currprefs.turbo_emulation || dxdata.vblank_skip == 0) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else if (dxdata.vblank_skip > 0) {
+					dxdata.vblank_skip_cnt ^= 1;
+					if (dxdata.vblank_skip_cnt == 0)
+						return;
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+				} else if (flipinterval_supported && !novsync) {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags | DDFLIP_INTERVAL2);
+				} else {
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+					DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+					ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);
+					DirectDraw_Blit (dxdata.flipping[0], dxdata.primary);
+				}
 			}
 		} else {
 			ddrval = IDirectDrawSurface7_Flip (dxdata.primary, NULL, flags);

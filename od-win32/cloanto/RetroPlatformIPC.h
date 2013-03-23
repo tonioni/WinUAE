@@ -3,12 +3,12 @@
  Project : RetroPlatform Player
  Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
- Legal   : Copyright 2007-2012 Cloanto Italia srl - All rights reserved. This
+ Legal   : Copyright 2007-2013 Cloanto Italia srl - All rights reserved. This
          : file is made available under the terms of the Mozilla Public License
          : version 2.0 as published by Mozilla Corporation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2012-04-23 12:41:00
+ Updated : 2013-03-20 17:15:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -17,9 +17,9 @@
 
 #include <windows.h>
 
-#define RETROPLATFORM_API_VER       "3.3"
+#define RETROPLATFORM_API_VER       "3.4"
 #define RETROPLATFORM_API_VER_MAJOR  3
-#define RETROPLATFORM_API_VER_MINOR  3
+#define RETROPLATFORM_API_VER_MINOR  4
 
 #define RPIPC_HostWndClass   "RetroPlatformHost%s"
 #define RPIPC_GuestWndClass  "RetroPlatformGuest%d"
@@ -65,7 +65,6 @@
 
 #define RP_IPC_TO_GUEST_CLOSE               (WM_APP + 200)
 #define RP_IPC_TO_GUEST_SCREENMODE          (WM_APP + 202)
-#define RP_IPC_TO_GUEST_SCREENCAPTURE       (WM_APP + 203)
 #define RP_IPC_TO_GUEST_PAUSE               (WM_APP + 204)
 #define RP_IPC_TO_GUEST_RESET               (WM_APP + 206)
 #define RP_IPC_TO_GUEST_TURBO               (WM_APP + 207)
@@ -81,6 +80,7 @@
 #define RP_IPC_TO_GUEST_QUERYSCREENMODE     (WM_APP + 217)
 #define RP_IPC_TO_GUEST_GUESTAPIVERSION     (WM_APP + 218) // introduced in RetroPlatform API 3.0
 #define RP_IPC_TO_GUEST_DEVICECONTENT       (WM_APP + 219) // extended in RetroPlatform API 3.0
+#define RP_IPC_TO_GUEST_SCREENCAPTURE       (WM_APP + 220) // extended in RetroPlatform API 3.4
 
 // ****************************************************************************
 //  Message Data Structures and Defines
@@ -88,12 +88,12 @@
 
 // Guest Features
 #define RP_FEATURE_POWERLED        			0x00000001 // a power LED is emulated
-#define RP_FEATURE_SCREEN1X       			0x00000002 // 1x mode is available
+#define RP_FEATURE_SCREEN1X       			0x00000002 // 1x mode is available (1 Amiga hires interlaced/RTG pixel = 1 host pixel)
 #define RP_FEATURE_SCREEN2X        			0x00000004 // 2x mode is available
 #define RP_FEATURE_SCREEN3X        			0x00000008 // 3x mode is available
 #define RP_FEATURE_SCREEN4X        			0x00000010 // 4x mode is available
 #define RP_FEATURE_FULLSCREEN      			0x00000020 // fullscreen display is available
-#define RP_FEATURE_SCREENCAPTURE   			0x00000040 // screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
+#define RP_FEATURE_RESERVED   			    0x00000040 // unused - reserved for future use (to not cause side effects during screen capture changes in 201303 beta)
 #define RP_FEATURE_PAUSE           			0x00000080 // pause functionality is available (see RP_IPC_TO_GUEST_PAUSE message)
 #define RP_FEATURE_TURBO_CPU       			0x00000100 // turbo CPU functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 #define RP_FEATURE_VOLUME          			0x00000200 // volume adjustment is possible (see RP_IPC_TO_GUEST_VOLUME message)
@@ -114,6 +114,7 @@
 #define RP_FEATURE_TURBO_TAPE      			0x01000000 // turbo tape functionality is available (see RP_IPC_TO_GUEST_TURBO message)
 #define RP_FEATURE_MEMORY_BASIC   		    0x02000000 // Memory I/O basic features: Read, Write
 #define RP_FEATURE_MEMORY_ADVANCED		    0x04000000 // Memory I/O advanced features: Watch, Find, Alert, Freeze, Lock, Unlock, Off (must set both flags if full set is supported!)
+#define RP_FEATURE_SCREENCAPTURE   			0x08000000 // new screen capture functionality is available (see RP_IPC_TO_GUEST_SCREENCAPTURE message)
 
 typedef struct RPScreenMode
 {
@@ -383,6 +384,37 @@ typedef struct RPDeviceContent
 #define RP_DEVICEACTIVITY_RED      0x0001 // red led
 #define RP_DEVICEACTIVITY_READ     RP_DEVICEACTIVITY_GREEN // device activity is a read operation
 #define RP_DEVICEACTIVITY_WRITE    RP_DEVICEACTIVITY_RED   // device activity is a write operation
+
+
+// RPScreenCapture (used by RP_IPC_TO_GUEST_SCREENCAPTURE to request one bitmap or two simultaneous bitmaps)
+
+typedef struct RPScreenCapture
+{
+	DWORD dwFlags;	                    // currently set to 0
+	WCHAR szScreenRaw[260];             // "\0" or full path and name (Unicode) of the BMP file to save - unfiltered, unscaled, unclipped bitmap (i.e. close to guest representation)
+	WCHAR szScreenFiltered[260];        // "\0" or full path and name (Unicode) of the BMP file to save - filtered (e.g. scanline effects), scaled (e.g. line-doubled and 2X-multiplied), clipped (overscan cropped) bitmap (i.e. as displayed in host environment)
+} RPSCREENCAPTURE;
+
+// Return codes for RP_IPC_TO_GUEST_SCREENCAPTURE
+#define RP_SCREENCAPTURE_ERROR                      0x00000000  // non-error is always >= 1 (because of "MODE" flags)
+
+#define RP_GUESTSCREENFLAGS_MODE_DIGITAL            0x00000001  // "RTG" on Amiga, might be referred to as VGA or other digital (non-TV) mode on other systems
+#define RP_GUESTSCREENFLAGS_MODE_NTSC               0x00000002
+#define RP_GUESTSCREENFLAGS_MODE_PAL                0x00000003
+#define RP_GUESTSCREENFLAGS_MODEMASK                0x00000003
+#define RP_GUESTSCREENFLAGS_MODE(m)                 ((m) & RP_GUESTSCREENFLAGS_MODEMASK) // returns RP_GUESTSCREENFLAGS_MODE_DIGITAL, RP_GUESTSCREENFLAGS_MODE_NTSC or RP_GUESTSCREENFLAGS_MODE_PAL
+
+#define RP_GUESTSCREENFLAGS_VERTICAL_NONINTERLACED  0x00000000  // default also for RP_GUESTSCREENFLAGS_MODE_DIGITAL modes
+#define RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED     0x00000004
+#define RP_GUESTSCREENFLAGS_VERTICALMASK            0x00000004
+#define RP_GUESTSCREENFLAGS_VERTICAL(m)             ((m) & RP_GUESTSCREENFLAGS_VERTICALMASK) // returns RP_GUESTSCREENFLAGS_VERTICAL_NONINTERLACED o RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED
+
+#define RP_GUESTSCREENFLAGS_HORIZONTAL_LORES        0x00000008
+#define RP_GUESTSCREENFLAGS_HORIZONTAL_HIRES        0x00000000  // default also for RP_GUESTSCREENFLAGS_MODE_DIGITAL modes
+#define RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES   0x00000018
+#define RP_GUESTSCREENFLAGS_HORIZONTALMASK          0x00000018
+#define RP_GUESTSCREENFLAGS_HORIZONTAL(m)           ((m) & RP_GUESTSCREENFLAGS_HORIZONTALMASK) // returns RP_GUESTSCREENFLAGS_HORIZONTAL_LORES, RP_GUESTSCREENFLAGS_HORIZONTAL_HIRES or RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES
+
 
 // RP_IPC_TO_HOST_HOSTVERSION
 //   3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
