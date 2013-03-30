@@ -183,7 +183,9 @@ typedef void (*line_draw_func)(int, int, bool);
 #define LINE_DONE_AS_PREVIOUS 8
 #define LINE_REMEMBERED_AS_PREVIOUS 9
 
-static uae_u8 linestate[(MAXVPOS + 2) * 2 + 1];
+#define LINESTATE_SIZE ((MAXVPOS + 2) * 2 + 1)
+
+static uae_u8 linestate[LINESTATE_SIZE], linestate2[LINESTATE_SIZE];
 
 uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
@@ -274,6 +276,22 @@ static void xlinecheck (unsigned int start, unsigned int end)
 #define xlinecheck
 #endif
 
+static void clearbuffer (struct vidbuffer *dst)
+{
+	if (!dst->bufmem_allocated)
+		return;
+	uae_u8 *p = dst->bufmem_allocated;
+	for (int y = 0; y < dst->height_allocated; y++) {
+		memset (p, 0, dst->width_allocated * dst->pixbytes);
+		p += dst->rowbytes;
+	}
+}
+
+void reset_decision_table (void)
+{
+	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++)
+		linestate[i] = LINE_UNDECIDED;
+}
 
 STATIC_INLINE void count_frame (void)
 {
@@ -681,7 +699,6 @@ static int pixels_offset;
 static int src_pixel, ham_src_pixel;
 /* How many pixels in window coordinates which are to the left of the left border.  */
 static int unpainted;
-static int seen_sprites;
 
 STATIC_INLINE xcolnr getbgc (bool blank)
 {
@@ -790,10 +807,8 @@ static void pfield_init_linetoscr (void)
 	ddf_left <<= bplres;
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
 
-	seen_sprites = 0;
 	if (dip_for_drawing->nr_sprites == 0)
 		return;
-	seen_sprites = 1;
 	/* Must clear parts of apixels.  */
 	if (linetoscr_diw_start < native_ddf_left) {
 		int size = res_shift_from_window (native_ddf_left - linetoscr_diw_start);
@@ -1936,7 +1951,8 @@ static void do_flush_line_1 (struct vidbuffer *vb, int lineno)
 
 STATIC_INLINE void do_flush_line (struct vidbuffer *vb, int lineno)
 {
-	do_flush_line_1 (vb, lineno);
+	if (vb)
+		do_flush_line_1 (vb, lineno);
 }
 
 /*
@@ -2552,7 +2568,6 @@ static void init_drawing_frame (void)
 	thisframe_last_drawn_line = -1;
 
 	drawing_color_matches = -1;
-	seen_sprites = -1;
 }
 
 void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq)
@@ -2703,40 +2718,20 @@ static void lightpen_update (struct vidbuffer *vb)
 		lightpen_active = 0;
 }
 
-void finish_drawing_frame (void)
+static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 {
-	int i;
-	bool didflush = false;
-	struct vidbuffer *vb = &gfxvidinfo.drawbuffer;
-
-	gfxvidinfo.outbuffer = vb;
-
-	if (! lockscr (vb, false)) {
-		notice_screen_contents_lost ();
-		return;
-	}
-
-#ifndef SMART_UPDATE
-	/* @@@ This isn't exactly right yet. FIXME */
-	if (!interlace_seen)
-		do_flush_screen (first_drawn_line, last_drawn_line);
-	else
-		unlockscr ();
-	return;
-#endif
-
-	for (i = 0; i < max_ypos_thisframe; i++) {
+	for (int i = 0; i < max_ypos_thisframe; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
 		int where2;
 
 		where2 = amiga2aspect_line_map[i1];
-		if (where2 >= vb->inheight)
+		if (where2 >= vbin->inheight)
 			break;
 		if (where2 < 0)
 			continue;
 		hposblank = 0;
-		pfield_draw_line (vb, line, where2, amiga2aspect_line_map[i1 + 1]);
+		pfield_draw_line (vbout, line, where2, amiga2aspect_line_map[i1 + 1]);
 	}
 #if 0
 	/* clear possible old garbage at the bottom if emulated area become smaller */
@@ -2762,6 +2757,68 @@ void finish_drawing_frame (void)
 		do_flush_line (vb, where2);
 	}
 #endif
+}
+
+bool draw_frame (struct vidbuffer *vb)
+{
+	uae_u8 oldstate[LINESTATE_SIZE];
+	struct vidbuffer oldvb;
+
+	memcpy (&oldvb, &gfxvidinfo.drawbuffer, sizeof (struct vidbuffer));
+	memcpy (&gfxvidinfo.drawbuffer, vb, sizeof (struct vidbuffer));
+	clearbuffer (vb);
+	init_row_map ();
+	memcpy (oldstate, linestate, LINESTATE_SIZE);
+	memcpy (linestate, linestate2, LINESTATE_SIZE);
+	for (int i = 0; i < LINESTATE_SIZE; i++) {
+		uae_u8 v = linestate[i];
+		if (v == LINE_REMEMBERED_AS_PREVIOUS)
+			v = LINE_AS_PREVIOUS;
+		else if (v == LINE_DONE_AS_PREVIOUS)
+			v = LINE_AS_PREVIOUS;
+		else if (v == LINE_REMEMBERED_AS_BLACK)
+			v = LINE_BLACK;
+		else if (v == LINE_DONE)
+			v = LINE_DECIDED;
+		linestate[i] = v;
+	}
+	last_drawn_line = 0;
+	first_drawn_line = 32767;
+	drawing_color_matches = -1;
+	draw_frame2 (vb, NULL);
+	last_drawn_line = 0;
+	first_drawn_line = 32767;
+	drawing_color_matches = -1;
+	memcpy (linestate, oldstate, LINESTATE_SIZE);
+	memcpy (&gfxvidinfo.drawbuffer, &oldvb, sizeof (struct vidbuffer));
+	init_row_map ();
+	return true;
+}
+
+static void finish_drawing_frame (void)
+{
+	int i;
+	bool didflush = false;
+	struct vidbuffer *vb = &gfxvidinfo.drawbuffer;
+
+	gfxvidinfo.outbuffer = vb;
+
+	if (! lockscr (vb, false)) {
+		notice_screen_contents_lost ();
+		return;
+	}
+
+#ifndef SMART_UPDATE
+	/* @@@ This isn't exactly right yet. FIXME */
+	if (!interlace_seen)
+		do_flush_screen (first_drawn_line, last_drawn_line);
+	else
+		unlockscr ();
+	return;
+#endif
+
+	draw_frame2 (vb, vb);
+
 	if (currprefs.leds_on_screen) {
 		int slx, sly;
 		statusline_getpos (&slx, &sly, vb->outwidth, vb->outheight);
@@ -2939,12 +2996,13 @@ void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae
 
 void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 {
-	uae_u8 *state;
+	uae_u8 *state, *state2;
 
 	if (framecnt != 0)
 		return;
 
 	state = linestate + lineno;
+	state2 = linestate2 + lineno;
 	changed += frame_redraw_necessary + ((lineno >= lightpen_y1 && lineno <= lightpen_y2) ? 1 : 0);
 
 	switch (how) {
@@ -2974,6 +3032,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 			state[1] = LINE_DECIDED; //LINE_BLACK;
 		break;
 	}
+	*state2 = *state;
 }
 
 static void dummy_flush_line (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int line_no)
@@ -3041,22 +3100,30 @@ bool notice_interlace_seen (bool lace)
 	return changed;
 }
 
-static void clearbuffer (struct vidbuffer *dst)
+void allocvidbuffer (struct vidbuffer *buf, int width, int height, int depth)
 {
-	return;
-	if (!dst->bufmem_allocated)
-		return;
-	uae_u8 *p = dst->bufmem_allocated;
-	for (int y = 0; y < dst->height_allocated; y++) {
-		memset (p, 0, dst->width_allocated * dst->pixbytes);
-		p += dst->rowbytes;
-	}
+	memset (buf, 0, sizeof (struct vidbuffer));
+	buf->pixbytes = (depth + 7) / 8;
+	buf->width_allocated = (width + 7) & ~7;
+	buf->height_allocated = height;
+
+	buf->outwidth = buf->width_allocated;
+	buf->outheight = buf->height_allocated;
+	buf->inwidth = buf->width_allocated;
+	buf->inheight = buf->height_allocated;
+
+	int size = width * height * buf->pixbytes;
+	buf->realbufmem = xcalloc (uae_u8, size);
+	buf->bufmem_allocated = buf->bufmem = buf->realbufmem;
+	buf->rowbytes = width * buf->pixbytes;
+	buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
+	buf->bufmem_lockable = true;
 }
 
-void reset_decision_table (void)
+void freevidbuffer (struct vidbuffer *buf)
 {
-	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++)
-		linestate[i] = LINE_UNDECIDED;
+	xfree (buf->realbufmem);
+	memset (buf, 0, sizeof (struct vidbuffer));
 }
 
 void reset_drawing (void)

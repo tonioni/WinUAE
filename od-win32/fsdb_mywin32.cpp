@@ -805,18 +805,6 @@ int my_issamevolume(const TCHAR *path1, const TCHAR *path2, TCHAR *path)
 	return cnt;
 }
 
-bool my_resolvesoftlink(TCHAR *linkfile, int size)
-{
-	TCHAR tmp[MAX_DPATH];
-	if (my_resolvessymboliclink(linkfile, size))
-		return true;
-	if (my_resolveshortcut(linkfile,size))
-		return true;
-	_tcscpy (tmp, linkfile);
-	my_canonicalize_path (tmp, linkfile, size);
-	return false;
-}
-
 typedef struct _REPARSE_DATA_BUFFER {
   ULONG  ReparseTag;
   USHORT ReparseDataLength;
@@ -843,50 +831,56 @@ typedef struct _REPARSE_DATA_BUFFER {
   };
 } REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
 
-bool my_resolvessymboliclink(TCHAR *linkfile, int size)
+static int my_resolvessymboliclink2(TCHAR *linkfile, int size)
 {
 	WIN32_FIND_DATA fd;
 	HANDLE h;
-	bool ret = false;
+	int ret = -1;
 	DWORD returnedDataSize;
 	uae_u8 tmp[MAX_DPATH * 2];
 	TCHAR tmp2[MAX_DPATH];
 
 	h = FindFirstFile (linkfile, &fd);
 	if (h == INVALID_HANDLE_VALUE)
-		return false;
+		return -1;
 	FindClose(h);
 	if (fd.dwReserved0 != IO_REPARSE_TAG_SYMLINK || !(fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
-		return false;
+		return -1;
 	h = CreateFile (linkfile, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
 		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_ATTRIBUTE_REPARSE_POINT | FILE_FLAG_OPEN_REPARSE_POINT , NULL);
 	if (h == INVALID_HANDLE_VALUE)
-		return false;
+		return 0;
 	if (DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, NULL, 0, tmp, sizeof tmp, &returnedDataSize, NULL)) {
 		REPARSE_DATA_BUFFER *rdb = (REPARSE_DATA_BUFFER*)tmp;
-		if (rdb->SymbolicLinkReparseBuffer.Flags & 1) { // SYMLINK_FLAG_RELATIVE
-			_tcscpy (tmp2, linkfile);
-			PathRemoveFileSpec (tmp2);
-			_tcscat (tmp2, _T("\\"));
-			TCHAR *p = tmp2 + _tcslen (tmp2);
-			memcpy (p,
-				(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
-				rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
-			p[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
-		} else {
-			memcpy (tmp2,
-				(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
-				rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
-			tmp2[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
+		if (size > 0) {
+			if (rdb->SymbolicLinkReparseBuffer.Flags & 1) { // SYMLINK_FLAG_RELATIVE
+				_tcscpy (tmp2, linkfile);
+				PathRemoveFileSpec (tmp2);
+				_tcscat (tmp2, _T("\\"));
+				TCHAR *p = tmp2 + _tcslen (tmp2);
+				memcpy (p,
+					(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
+					rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
+				p[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
+			} else {
+				memcpy (tmp2,
+					(uae_u8*)rdb->SymbolicLinkReparseBuffer.PathBuffer + rdb->SymbolicLinkReparseBuffer.SubstituteNameOffset,
+					rdb->SymbolicLinkReparseBuffer.SubstituteNameLength);
+				tmp2[rdb->SymbolicLinkReparseBuffer.SubstituteNameLength / 2] = 0;
+			}
+			if (!_tcsnicmp (tmp2, _T("\\??\\"), 4)) {
+				memmove (tmp2, tmp2 + 4, (_tcslen (tmp2 + 4) + 1) * sizeof (TCHAR));
+			}
+			my_canonicalize_path (tmp2, linkfile, size);
 		}
-		ret = true;
-		if (!_tcsnicmp (tmp2, _T("\\??\\"), 4)) {
-			memmove (tmp2, tmp2 + 4, (_tcslen (tmp2 + 4) + 1) * sizeof (TCHAR));
-		}
-		my_canonicalize_path (tmp2, linkfile, size);
+		ret = 1;
 	}
 	CloseHandle(h);
 	return ret;
+}
+bool my_resolvessymboliclink(TCHAR *linkfile, int size)
+{
+	return my_resolvessymboliclink2(linkfile, size) > 0;
 }
 
 // http://msdn.microsoft.com/en-us/library/aa969393.aspx
@@ -938,7 +932,8 @@ bool my_resolveshortcut(TCHAR *linkfile, int size)
 
                         if (SUCCEEDED(hres)) 
                         {
-							my_canonicalize_path (szGotPath, linkfile, size);
+							if (size > 0)
+								my_canonicalize_path (szGotPath, linkfile, size);
                             ok = SUCCEEDED(hres);
                         }
                     }
@@ -990,4 +985,22 @@ bool my_createshortcut(const TCHAR *source, const TCHAR *target, const TCHAR *de
         psl->Release(); 
     }
 	return SUCCEEDED(hres);
+}
+
+
+bool my_resolvesoftlink(TCHAR *linkfile, int size)
+{
+	TCHAR tmp[MAX_DPATH];
+	int v = my_resolvessymboliclink2(linkfile, size);
+	if (v > 0)
+		return true;
+	if (v == 0)
+		return false;
+	if (my_resolveshortcut(linkfile,size))
+		return true;
+	if (size > 0) {
+		_tcscpy (tmp, linkfile);
+		my_canonicalize_path (tmp, linkfile, size);
+	}
+	return false;
 }

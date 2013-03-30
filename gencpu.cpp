@@ -2965,10 +2965,8 @@ static void gen_opcode (unsigned long int opcode)
 		incpc ("%d", m68k_pc_offset);
 		printf ("\t\tException (5);\n");
 		printf ("\t\tgoto %s;\n", endlabelstr);
-		printf ("\t} else {\n");
-		printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
-		printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
-		printf ("\t\tCLEAR_CZNV ();\n");
+		printf ("\t}\n");
+		printf ("\tCLEAR_CZNV ();\n");
 		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();
@@ -2977,6 +2975,12 @@ static void gen_opcode (unsigned long int opcode)
 		} else if (using_ce020) {
 			addcycles_ce020 (46);
 		}
+		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
+		printf ("\t\tSET_VFLG (1);\n");
+		printf ("\t\tSET_NFLG (1);\n");
+		printf ("\t} else {\n");
+		printf ("\t\tuae_s32 newv = (uae_s32)dst / (uae_s32)(uae_s16)src;\n");
+		printf ("\t\tuae_u16 rem = (uae_s32)dst %% (uae_s32)(uae_s16)src;\n");
 		printf ("\t\tif ((newv & 0xffff8000) != 0 && (newv & 0xffff8000) != 0xffff8000) {\n");
 		printf ("\t\t\tSET_VFLG (1);\n");
 #ifdef UNDEF68020
@@ -2991,8 +2995,8 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\t\t\tnewv = (newv & 0xffff) | ((uae_u32)rem << 16);\n");
 		printf ("\t\t"); genastore ("newv", curi->dmode, "dstreg", sz_long, "dst");
 		printf ("\t\t}\n");
-		sync_m68k_pc ();
 		printf ("\t}\n");
+		sync_m68k_pc ();
 		count_ncycles++;
 		insn_n_cycles += 156 - (156 - 120) / 2; /* average */
 		need_endlabel = 1;

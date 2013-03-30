@@ -17,6 +17,7 @@
 #include "opengl.h"
 #include "registry.h"
 #include "gfxfilter.h"
+#include "xwin.h"
 
 #include "png.h"
 
@@ -92,7 +93,7 @@ void screenshot_free (void)
 
 static int rgb_rb, rgb_gb, rgb_bb, rgb_rs, rgb_gs, rgb_bs;
 
-int screenshot_prepare (int imagemode)
+static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 {
 	int width, height;
 	HGDIOBJ hgdiobj;
@@ -120,6 +121,18 @@ int screenshot_prepare (int imagemode)
 			rgb_bs2 = 0;
 			rgb_gs2 = 8;
 			rgb_rs2 = 16;
+		} else if (vb) {
+			width = vb->outwidth;
+			height = vb->outheight;
+			spitch = vb->rowbytes;
+			bits = vb->pixbytes * 8;
+			src = mem = vb->bufmem;
+			rgb_bb2 = rgb_bb;
+			rgb_gb2 = rgb_gb;
+			rgb_rb2 = rgb_rb;
+			rgb_bs2 = rgb_bs;
+			rgb_gs2 = rgb_gs;
+			rgb_rs2 = rgb_rs;
 		} else {
 			src = mem = getfilterbuffer (&width, &height, &spitch, &bits);
 			rgb_bb2 = rgb_bb;
@@ -198,7 +211,7 @@ int screenshot_prepare (int imagemode)
 				dst -= dpitch;
 			}
 		}
-		if (WIN32GFX_IsPicassoScreen ())
+		if (WIN32GFX_IsPicassoScreen () && !vb)
 			freertgbuffer (mem);
 
 	} else {
@@ -260,6 +273,14 @@ oops:
 	return 0;
 }
 
+int screenshot_prepare (struct vidbuffer *vb)
+{
+	return screenshot_prepare (1, vb);
+}
+int screenshot_prepare (int imagemode)
+{
+	return screenshot_prepare (imagemode, NULL);
+}
 int screenshot_prepare (void)
 {
 	return screenshot_prepare (-1);
@@ -365,7 +386,7 @@ static int savebmp (FILE *fp)
 /*
 Captures the Amiga display (DirectDraw, D3D or OpenGL) surface and saves it to file as a 24bit bitmap.
 */
-int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode)
+int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb)
 {
 	static int recursive;
 	FILE *fp = NULL;
@@ -379,7 +400,10 @@ int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode)
 
 	recursive++;
 
-	if (!screenshot_prepared || doprepare) {	
+	if (vb) {
+		if (!screenshot_prepare (vb))
+			goto oops;
+	} else if (!screenshot_prepared || doprepare) {	
 		if (!screenshot_prepare (imagemode))
 			goto oops;
 	}
@@ -457,7 +481,26 @@ oops:
 	return allok;
 }
 
+#include "drawing.h"
+
 void screenshot (int mode, int doprepare)
 {
-	screenshotf (NULL, mode, doprepare, -1);
+#if 1
+	screenshotf (NULL, mode, doprepare, -1, NULL);
+#else
+	struct vidbuffer vb;
+	int w = gfxvidinfo.drawbuffer.inwidth;
+	int h = gfxvidinfo.drawbuffer.inheight;
+	if (!programmedmode) {
+		h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
+	}
+	if (interlace_seen && currprefs.gfx_vresolution > 0)
+		h -= 1 << (currprefs.gfx_vresolution - 1);
+	allocvidbuffer (&vb, w, h, gfxvidinfo.drawbuffer.pixbytes * 8);
+	set_custom_limits (-1, -1, -1, -1);
+	draw_frame (&vb);
+	screenshotmode = 0;
+	screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
+	freevidbuffer (&vb);
+#endif
 }

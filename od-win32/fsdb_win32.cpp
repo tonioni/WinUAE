@@ -393,18 +393,22 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 		HANDLE h = FindFirstFile (aino->nname, &fd);
 		if (h != INVALID_HANDLE_VALUE) {
 			FindClose(h);
-			if (fd.dwReserved0 == IO_REPARSE_TAG_SYMLINK && (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
-				aino->softlink = 1;
+			if (fd.dwReserved0 == IO_REPARSE_TAG_SYMLINK && (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) && !(fd.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM)) {
+				if (my_resolvessymboliclink(aino->nname, -1)) {
+					//write_log (_T("1 '%s'\n"), aino->nname);
+					aino->softlink = 1;
+				}
 			}
 		}
 	}
 	
-	if (!aino->softlink && !aino->dir) {
+	if (!aino->softlink && !aino->dir && !(mode & FILE_ATTRIBUTE_SYSTEM)) {
 		const TCHAR *ext = _tcsrchr (aino->nname, '.');
 		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
 			TCHAR tmp[MAX_DPATH];
 			_tcscpy (tmp, aino->nname);
 			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
+				//write_log (_T("2 '%s'\n"), aino->nname);
 				aino->softlink = 2;
 			}
 		}

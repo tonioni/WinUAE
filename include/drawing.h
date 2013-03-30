@@ -279,10 +279,13 @@ extern bool notice_interlace_seen (bool);
 extern void notice_resolution_seen (int, bool);
 extern void frame_drawn (void);
 extern void redraw_frame (void);
+extern bool draw_frame (struct vidbuffer*);
 extern int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh);
 extern void set_custom_limits (int w, int h, int dx, int dy);
 extern void get_custom_topedge (int *x, int *y, bool max);
 extern void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8, int opaq);
+extern void allocvidbuffer (struct vidbuffer *buf, int width, int height, int depth);
+extern void freevidbuffer (struct vidbuffer *buf);
 
 /* Finally, stuff that shouldn't really be shared.  */
 

@@ -2080,7 +2080,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 										data = logicalrange;
 									else
 										data = 0;
-									//write_log (_T("%d %d: (%d-%d) %d\n"), num, axisnum, did->axismin[axisnum], did->axismax[axisnum], data);
+									//write_log (_T("%d %d: (%d-%d) %d %d\n"), num, axisnum, vcaps->LogicalMin, vcaps->LogicalMax, v, data);
 								}
 								buttonaxistype = -1;
 							}

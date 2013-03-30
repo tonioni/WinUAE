@@ -51,7 +51,7 @@ extern unsigned long int hsync_counter, vsync_counter;
 extern uae_u16 dmacon;
 extern uae_u16 intena, intreq, intreqr;
 
-extern int vpos;
+extern int vpos, lof_store;
 
 extern int find_copper_record (uaecptr, int *, int *);
 

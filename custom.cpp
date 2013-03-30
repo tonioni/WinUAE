@@ -7074,7 +7074,7 @@ writeonly:
 		if (!noput) {
 			int r;
 			uae_u16 old = last_custom_value1;
-			uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : 0xffff;
+			uae_u16 l = currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? regs.irc : ((currprefs.chipset_mask & CSMASK_AGA) ? old : 0xffff);
 			decide_line (hpos);
 			decide_fetch (hpos);
 			decide_blitter (hpos);
@@ -7092,7 +7092,7 @@ writeonly:
 					}
 				}
 			} else {
-				if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
+				if ((currprefs.chipset_mask & CSMASK_ECS_AGNUS) && !(currprefs.chipset_mask & CSMASK_AGA))
 					v = 0xffff;
 				else
 					v = l;

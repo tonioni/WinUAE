@@ -2239,6 +2239,21 @@ static int fill_file_attrs (Unit *u, a_inode *base, a_inode *c)
 	return 0;
 }
 
+static int test_softlink (a_inode *aino)
+{
+	int err;
+	if (aino->softlink && my_resolvesoftlink (aino->nname, -1))
+		err = ERROR_IS_SOFT_LINK;
+	else
+		err = ERROR_OBJECT_NOT_AROUND;
+	return err;
+}
+static void handle_softlink (Unit *unit, dpacket packet, a_inode *aino)
+{
+	PUT_PCK_RES1 (packet, DOS_FALSE);
+	PUT_PCK_RES2 (packet, test_softlink (aino));
+}
+
 /*
 * This gets called if an ACTION_EXAMINE_NEXT happens and we hit an object
 * for which we know the name on the native filesystem, but no corresponding
@@ -2473,7 +2488,7 @@ static a_inode *get_aino (Unit *unit, a_inode *base, const TCHAR *rel, int *err)
 
 
 			if (prev && prev->softlink) {
-				*err = ERROR_IS_SOFT_LINK;
+				*err = test_softlink (prev);
 				curr = NULL;
 				break;
 			}
@@ -3198,8 +3213,9 @@ static void
 	DUMPLOCK(unit, lock);
 
 	a = find_aino (unit, lock, bstr (unit, name), &err);
-	if (err == 0 && a->softlink)
-		err = ERROR_IS_SOFT_LINK;
+	if (err == 0 && a->softlink) {
+		err = test_softlink (a);
+	}
 	if (err == 0 && (a->elock || (mode != SHARED_LOCK && a->shlock > 0))) {
 		err = ERROR_OBJECT_IN_USE;
 	}
@@ -4389,8 +4405,7 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 		return;
 	}
 	if (aino->softlink) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		handle_softlink (unit, packet, aino);
 		return;
 	}
 	if (err == 0) {
@@ -4520,8 +4535,7 @@ static void
 	if (aino == 0)
 		aino = &unit->rootnode;
 	if (aino->softlink) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		handle_softlink (unit, packet, aino);
 		return;
 	}
 
@@ -4869,8 +4883,7 @@ static void
 		return;
 	}
 	if (a->softlink) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		handle_softlink (unit, packet, a);
 		return;
 	}
 
@@ -4932,8 +4945,7 @@ maybe_free_and_out:
 		return;
 	}
 	if (a->softlink) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		handle_softlink (unit, packet, a);
 		goto maybe_free_and_out;
 	}
 
@@ -5349,8 +5361,7 @@ static void
 		return;
 	}
 	if (a->softlink) {
-		PUT_PCK_RES1 (packet, DOS_FALSE);
-		PUT_PCK_RES2 (packet, ERROR_IS_SOFT_LINK);
+		handle_softlink (unit, packet, a);
 		return;
 	}
 	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8));

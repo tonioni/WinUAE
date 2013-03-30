@@ -1,6 +1,19 @@
 
 - restore only single input target to default.
 
+Beta 14:
+
+- A3000 SCSI emulation crashed if no SCSI drives configured.
+- Added previously config-file only master floppy write protection option to GUI misc panel.
+- If Windows softlink or .lnk can't be opened (access denied) or has system attribute flag, handle it as a normal
+  file/directory, just like in older versions.
+- DIVS/DIVL integer overflow crash fix (INT_MIN/-1 = an integer that does not exist, causes cpu overflow exception)
+- GUI Add Hardfile added IDE or SCSI was mounted as a CDROM. (Worked if config was saved and then loaded again)
+- Adjusted read-write-only-custom-register-side-effect in AGA mode. (Artificial Paradise / NGC missing loading screen, does
+  stupid bset #9,$dff104 which, depending on previous accesses, either writes $0200 or "random bits" OR $0200)
+- Manually added custom addmem2 memory region config entry used addmem1's memory region..
+- "Load From"/"Save From" buttons didn't change config name in window title.
+
 Beta 13:
 
 - Ignore vendor specific USB usage pages also in received USB HID packets, fixes for example Logitech Precision gamepad ghost button events.

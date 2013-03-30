@@ -2553,12 +2553,6 @@ static void setDwmEnableMMCSS (bool state)
 		pDwmEnableMMCSS (state);
 }
 
-static void freesoftbuffer (struct vidbuffer *buf)
-{
-	xfree (buf->realbufmem);
-	memset (buf, 0, sizeof (struct vidbuffer));
-}
-
 void close_windows (void)
 {
 	changevblankthreadmode (VBLANKTH_IDLE);
@@ -2568,8 +2562,8 @@ void close_windows (void)
 #if defined (GFXFILTER)
 	S2X_free ();
 #endif
-	freesoftbuffer (&gfxvidinfo.drawbuffer);
-	freesoftbuffer (&gfxvidinfo.tempbuffer);
+	freevidbuffer (&gfxvidinfo.drawbuffer);
+	freevidbuffer (&gfxvidinfo.tempbuffer);
 	DirectDraw_Release ();
 	close_hwnds ();
 }
@@ -4101,8 +4095,8 @@ static BOOL doInit (void)
 #endif
 	gfxvidinfo.drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
-	freesoftbuffer (&gfxvidinfo.drawbuffer);
-	freesoftbuffer (&gfxvidinfo.tempbuffer);
+	freevidbuffer (&gfxvidinfo.drawbuffer);
+	freevidbuffer (&gfxvidinfo.tempbuffer);
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem_allocated = NULL;

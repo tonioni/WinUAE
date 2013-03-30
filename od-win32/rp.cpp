@@ -1003,6 +1003,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		{
 			struct RPScreenMode *sm = (struct RPScreenMode*)pData;
 			set_screenmode (sm, &changed_prefs);
+			rp_set_hwnd_delayed ();
 			return (LRESULT)INVALID_HANDLE_VALUE;
 		}
 	case RP_IPC_TO_GUEST_EVENT:
@@ -1021,7 +1022,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 		}
 	case RP_IPC_TO_GUEST_SCREENCAPTURE:
 		{
-			extern int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode);
+			extern int screenshotf (const TCHAR *spath, int mode, int doprepare, int imagemode, struct vidbuffer *vb);
 			extern int screenshotmode;
 			struct RPScreenCapture *rpsc = (struct RPScreenCapture*)pData;
 			if (rpsc->szScreenFiltered[0] || rpsc->szScreenRaw[0]) {
@@ -1031,10 +1032,26 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				screenshotmode = 0;
 				write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
 				if (rpsc->szScreenFiltered[0])
-					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0);
-				if (rpsc->szScreenRaw[0])
-					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1);
+					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0, NULL);
+				if (rpsc->szScreenRaw[0]) {
+					struct vidbuffer vb;
+					int w = gfxvidinfo.drawbuffer.inwidth;
+					int h = gfxvidinfo.drawbuffer.inheight;
+					if (!programmedmode) {
+						h = (maxvpos + lof_store - minfirstline) << currprefs.gfx_vresolution;
+					}
+					if (interlace_seen && currprefs.gfx_vresolution > 0) {
+						h -= 1 << (currprefs.gfx_vresolution - 1);
+					}
+					allocvidbuffer (&vb, w, h, gfxvidinfo.drawbuffer.pixbytes * 8);
+					set_custom_limits (-1, -1, -1, -1);
+					draw_frame (&vb);
+					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1, &vb);
+					//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
+					freevidbuffer (&vb);
+				}
 				screenshotmode = ossm;
+				write_log (_T("->%d\n"), ok);
 				if (!ok)
 					return RP_SCREENCAPTURE_ERROR;
 				if (WIN32GFX_IsPicassoScreen ()) {
@@ -1042,7 +1059,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				} else {
 					ret |= currprefs.gfx_resolution == RES_LORES ? RP_GUESTSCREENFLAGS_HORIZONTAL_LORES : ((currprefs.gfx_resolution == RES_SUPERHIRES) ? RP_GUESTSCREENFLAGS_HORIZONTAL_SUPERHIRES : 0);
 					ret |= currprefs.ntscmode ? RP_GUESTSCREENFLAGS_MODE_NTSC : RP_GUESTSCREENFLAGS_MODE_PAL;
-					ret |= interlace_seen ? RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED : 0;
+					ret |= currprefs.gfx_vresolution ? RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED : 0;
 				}
 				return ret;
 			}
@@ -1095,6 +1112,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_QUERYSCREENMODE:
 		{
 			screenmode_request = 1;
+			write_log (_T("RP_IPC_TO_GUEST_QUERYSCREENMODE -> RP_IPC_TO_HOST_SCREENMODE screenmode_request started\n"));
 			return 1;
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
@@ -1624,7 +1642,8 @@ void rp_activate (int active, LPARAM lParam)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (active ? RP_IPC_TO_HOST_ACTIVATED : RP_IPC_TO_HOST_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
+	//RPSendMessagex (active ? RP_IPC_TO_HOST_ACTIVATED : RP_IPC_TO_HOST_DEACTIVATED, 0, lParam, NULL, 0, &guestinfo, NULL);
+	RPPostMessagex (active ? RP_IPC_TO_HOST_ACTIVATED : RP_IPC_TO_HOST_DEACTIVATED, 0, lParam, &guestinfo);
 }
 
 void rp_turbo_cpu (int active)
@@ -1648,6 +1667,7 @@ void rp_turbo_floppy (int active)
 void rp_set_hwnd_delayed (void)
 {
 	hwndset_delay = 4;
+	write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started\n"));
 }
 
 void rp_set_hwnd (HWND hWnd)
@@ -1656,7 +1676,11 @@ void rp_set_hwnd (HWND hWnd)
 
 	if (!initialized)
 		return;
-	hwndset_delay = 0;
+	if (hwndset_delay) {
+		write_log (_T("RP_IPC_TO_HOST_SCREENMODE, delay=%d\n"), hwndset_delay);
+		return;
+	}
+	write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
 	guestwindow = hWnd;
 	get_screenmode (&sm, &currprefs);
 	if (hWnd != NULL)
@@ -1666,15 +1690,19 @@ void rp_set_hwnd (HWND hWnd)
 
 void rp_screenmode_changed (void)
 {
-	if (!screenmode_request)
+	write_log (_T("rp_screenmode_changed\n"));
+	if (!screenmode_request) {
 		screenmode_request = 2;
+		write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
+	}
 }
 
 void rp_set_enabledisable (int enabled)
 {
 	if (!cando ())
 		return;
-	RPSendMessagex (enabled ? RP_IPC_TO_HOST_ENABLED : RP_IPC_TO_HOST_DISABLED, 0, 0, NULL, 0, &guestinfo, NULL);
+	//RPSendMessagex (enabled ? RP_IPC_TO_HOST_ENABLED : RP_IPC_TO_HOST_DISABLED, 0, 0, NULL, 0, &guestinfo, NULL);
+	RPPostMessagex (enabled ? RP_IPC_TO_HOST_ENABLED : RP_IPC_TO_HOST_DISABLED, 0, 0, &guestinfo);
 }
 
 void rp_rtg_switch (void)
@@ -1718,6 +1746,7 @@ void rp_vsync (void)
 		if (screenmode_request == 0) {
 			struct RPScreenMode sm = { 0 };
 			get_screenmode (&sm, &currprefs);
+			write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
 			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
 		}
 	}

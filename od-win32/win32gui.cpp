@@ -3223,11 +3223,16 @@ static TCHAR *HandleConfiguration (HWND hDlg, int flag, struct ConfigStruct *con
 	{
 	case CONFIG_SAVE_FULL:
 		ok = DiskSelection(hDlg, IDC_SAVE, 5, &workprefs, newpath);
+		GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
+		_tcscpy (config_filename, name);
 		break;
 
 	case CONFIG_LOAD_FULL:
-		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, newpath)))
+		if ((ok = DiskSelection(hDlg, IDC_LOAD, 4, &workprefs, newpath))) {
 			EnableWindow(GetDlgItem (hDlg, IDC_VIEWINFO), workprefs.info[0]);
+			GetDlgItemText (hDlg, IDC_EDITNAME, name, MAX_DPATH);
+			_tcscpy (config_filename, name);
+		}
 		break;
 
 	case CONFIG_SAVE:
@@ -3642,6 +3647,7 @@ static struct miscentry misclist[] = {
 	{ 0, 0, _T("Start minimized"), &workprefs.win32_start_minimized  },
 	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
 	{ 0, 1, _T("100/120Hz VSync black frame insertion"), &workprefs.lightboost_strobo },
+	{ 0, 0, _T("Master floppy write protection"), &workprefs.floppy_read_only },
 	{ 0, NULL }
 };
 
@@ -10169,7 +10175,7 @@ static int harddiskdlg_button (HWND hDlg, WPARAM wParam)
 		return 1;
 
 	case IDC_NEW_HD:
-		memset (&current_hfdlg, 0, sizeof (current_hfdlg));
+		default_hfdlg (&current_hfdlg, true);
 		current_hfdlg.ci.type = UAEDEV_HDF;
 		if (hdf_init_target () == 0) {
 			TCHAR tmp[MAX_DPATH];
@@ -10640,7 +10646,7 @@ static void addfloppytype (HWND hDlg, int n)
 		CheckDlgButton (hDlg, f_wp, chk);
 	chk = !showcd && state && DISK_validate_filename (&workprefs, text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
-		ew (hDlg, f_wp, chk);
+		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
 		if (f_wptext >= 0)
 			ew (hDlg, f_wptext, chk);
 	}

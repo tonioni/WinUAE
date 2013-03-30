@@ -1735,6 +1735,7 @@ int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 
 void a3000scsi_reset (void)
 {
+	init_scsi ();
 	map_banks (&mbdmac_a3000_bank, 0xDD, 1, 0);
 	wd_cmd_reset (false);
 }

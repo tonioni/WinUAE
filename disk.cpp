@@ -739,7 +739,7 @@ int DISK_validate_filename (struct uae_prefs *p, const TCHAR *fname, int leave_o
 		return f ? 1 : 0;
 	} else {
 		if (zfile_exists (fname)) {
-			if (wrprot)
+			if (wrprot && !p->floppy_read_only)
 				*wrprot = 0;
 			if (crc32) {
 				struct zfile *f = zfile_fopen (fname, _T("rb"), ZFD_NORMAL | ZFD_DISKHISTORY);
