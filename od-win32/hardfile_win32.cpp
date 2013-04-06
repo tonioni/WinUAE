@@ -661,7 +661,7 @@ static int hdf_seek (struct hardfiledata *hfd, uae_u64 offset)
 		abort();
 	}
 	if (offset >= hfd->physsize - hfd->virtual_size) {
-		gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X)\n"), offset, hfd->physsize);
+		gui_message (_T("hd: tried to seek out of bounds! (%I64X >= %I64X - %I64X)\n"), offset, hfd->physsize, hfd->virtual_size);
 		abort ();
 	}
 	offset += hfd->offset;

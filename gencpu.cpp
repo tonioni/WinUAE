@@ -2293,6 +2293,10 @@ static void gen_opcode (unsigned long int opcode)
 	case i_BCHG:
 	case i_BCLR:
 	case i_BSET:
+		// on 68000 these have weird side-effect, if EA points to write-only custom register
+		//during instruction's read access CPU data lines appear as zero to outside world,
+		// (normally previously fetched data appears in data lines if reading write-only register)
+		// this allows stupid things like bset #2,$dff002 to work "correctly"
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, 0);
 		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_IR2IRC | GF_RMW);
 		fill_prefetch_next ();

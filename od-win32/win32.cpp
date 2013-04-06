@@ -592,7 +592,7 @@ static void releasecapture (void)
 {
 	if (!showcursor)
 		return;
-	write_log (_T("releasecapture\n"));
+	//write_log (_T("releasecapture\n"));
 	ClipCursor (NULL);
 	ReleaseCapture ();
 	ShowCursor (TRUE);
@@ -603,7 +603,7 @@ void updatemouseclip (void)
 {
 	if (showcursor) {
 		ClipCursor (&amigawin_rect);
-		write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
+		//write_log (_T("CLIP %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, isfullscreen ());
 	}
 }
 
@@ -613,7 +613,7 @@ void updatewinrect (bool allowfullscreen)
 	if (!allowfullscreen && f > 0)
 		return;
 	GetWindowRect (hAmigaWnd, &amigawin_rect);
-	write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
+	//write_log (_T("GetWindowRect %dx%d %dx%d %d\n"), amigawin_rect.left, amigawin_rect.top, amigawin_rect.right, amigawin_rect.bottom, f);
 	if (f == 0) {
 		changed_prefs.gfx_size_win.x = amigawin_rect.left;
 		changed_prefs.gfx_size_win.y = amigawin_rect.top;
@@ -650,7 +650,7 @@ static bool iswindowfocus (void)
 
 static void setmouseactive2 (int active, bool allowpause)
 {
-	write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
+	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
 	if (active == 0)
 		releasecapture ();
 	if (mouseactive == active && active >= 0)

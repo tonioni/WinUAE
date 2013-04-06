@@ -1,6 +1,17 @@
 
 - restore only single input target to default.
 
+Beta 15:
+
+- IDE emulation drive status bit fix (DRQ and BSY active at the same time), fixes data corruption if IDEFix was active. (b5).
+- Added support for previously unemulated and undocumented feature, sprites can appear 1 lores pixel earlier than first bitplane pixel.
+  (First BPL1DAT access enables sprites immediately, only bitplanes need HRM documented delay).
+  This is not normally visible because horizontal DIWSTRT usually equals bitplane left edge.
+  Fixes "original" Rink-a-Dink/Lemon missing left white border in rotozoomer part.
+- Do not use "8372 (Fat-hr) (agnushr),rev 5" VPOSR chipset id when config is ECS 2M chip RAM. This ID does not appear to exist in real world.
+- Both bordersprite and borderblank active: sprites were incorrectly visible in upper and lower borders (241b13)
+- Rewritten b4 "Subtle Shades" update, it was wrong and caused bad side-effects.
+
 Beta 14:
 
 - A3000 SCSI emulation crashed if no SCSI drives configured.

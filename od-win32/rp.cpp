@@ -1692,7 +1692,7 @@ void rp_screenmode_changed (void)
 {
 	write_log (_T("rp_screenmode_changed\n"));
 	if (!screenmode_request) {
-		screenmode_request = 2;
+		screenmode_request = 6;
 		write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
 	}
 }
@@ -1744,9 +1744,9 @@ void rp_vsync (void)
 	if (screenmode_request) {
 		screenmode_request--;
 		if (screenmode_request == 0) {
+			write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
 			struct RPScreenMode sm = { 0 };
 			get_screenmode (&sm, &currprefs);
-			write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
 			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
 		}
 	}

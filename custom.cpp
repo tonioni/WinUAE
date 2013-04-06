@@ -901,7 +901,7 @@ int is_bitplane_dma (int hpos)
 {
 	if (fetch_state == fetch_not_started || hpos < plfstrt)
 		return 0;
-	if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
+	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
 		return 0;
 	return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
@@ -911,7 +911,7 @@ STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 {
 	if (fetch_state == fetch_not_started || hpos < plfstrt)
 		return 0;
-	if ((plf_state == plf_end && hpos >= thisline_decision.plfright)
+	if ((plf_state >= plf_end && hpos >= thisline_decision.plfright)
 		|| hpos >= estimated_last_fetch_cycle)
 		return 0;
 	return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
@@ -1582,14 +1582,11 @@ static void do_long_fetch (int hpos, int nwords, int dma, int fm)
 #endif
 
 /* make sure fetch that goes beyond maxhpos is finished */
-static void finish_final_fetch (int fm)
+static void finish_final_fetch (void)
 {
-	int pos = maxhpos;
 	if (plf_state != plf_end)
 		return;
-	pos += flush_plane_data (fm);
-	thisline_decision.plfright = pos;
-	thisline_decision.plflinelen = out_offs;
+	plf_state = plf_finished;
 	finish_playfield_line ();
 }
 
@@ -1597,14 +1594,16 @@ static void finish_last_fetch (int pos, int fm)
 {
 	if (thisline_decision.plfleft < 0)
 		return;
-	if (plf_state == plf_end)
+	if (plf_state >= plf_end)
 		return;
 	plf_state = plf_end;
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
-		finish_final_fetch (fm);
-	} else {
+
+	pos += flush_plane_data (fm);
+	thisline_decision.plfright = pos;
+	thisline_decision.plflinelen = out_offs;
+
+	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 		bpl1dat_early = true;
-		pos += flush_plane_data (fm);
 		ddfstate = DIW_waiting_start;
 		fetch_state = fetch_not_started;
 	}
@@ -1625,7 +1624,6 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 		} else if (plf_state == plf_passed_stop2) {
 			plf_state = plf_end;
 		}
-
 	}
 
 	maybe_check (pos);
@@ -1754,7 +1752,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
 	int ddfstop_to_test;
 
-	if (nodraw () || plf_state == plf_end)
+	if (nodraw () || plf_state >= plf_end)
 		return;
 
 	/* We need an explicit test against HARD_DDF_STOP here to guard against
@@ -1928,6 +1926,12 @@ static void start_bpl_dma (int hpos, int hstart)
 
 		bpldmawasactive = true;
 
+	} else {
+		
+		// this is a hack, something weird happens without this
+		// (Subtle Shades)
+		thisline_decision.plfright++;
+		thisline_decision.plflinelen = ++out_offs;
 	}
 
 	last_fetch_hpos = hstart;
@@ -2093,10 +2097,10 @@ static bool issprbrd (int hpos, uae_u16 bplcon0, uae_u16 bplcon3)
 		record_color_change (hpos, 0, COLOR_CHANGE_BRDBLANK | (current_colors.borderblank ? 1 : 0) | (brdsprt ? 2 : 0));
 		current_colors.bordersprite = brdsprt;
 		remembered_color_entry = -1;
-		if (brdsprt)
+		if (brdsprt && !current_colors.borderblank)
 			thisline_decision.bordersprite_seen = true;
 	}
-	return brdsprt;
+	return brdsprt && !current_colors.borderblank;
 }
 
 static void record_register_change (int hpos, int regno, uae_u16 value)
@@ -2422,7 +2426,7 @@ static void record_sprite (int line, int num, int sprxp, uae_u16 *data, uae_u16 
 		unsigned int da = *data;
 		unsigned int db = *datb;
 		uae_u32 datab = ((sprtaba[da & 0xFF] << 16) | sprtaba[da >> 8]
-		| (sprtabb[db & 0xFF] << 16) | sprtabb[db >> 8]);
+			| (sprtabb[db & 0xFF] << 16) | sprtabb[db >> 8]);
 		int off = (i << dbl) >> half;
 		uae_u16 *buf = spixels + word_offs + off;
 		if (currprefs.collision_level > 0 && collision_mask)
@@ -2481,7 +2485,7 @@ static int tospritexdiw (int diw)
 }
 static int tospritexddf (int ddf)
 {
-	return (ddf * 2) << sprite_buffer_res;
+	return (ddf * 2 - DIW_DDF_OFFSET) << sprite_buffer_res;
 }
 static int fromspritexdiw (int ddf)
 {
@@ -2509,7 +2513,7 @@ static void calcsprite (void)
 			}
 		}
 		/* sprites are visible from first BPL1DAT write to end of line
-		 * ECS Denise/AGA: not limits
+		 * ECS Denise/AGA: no limits
 		 * OCS Denise: BPL1DAT write only enables sprite if hpos >= 0x28 or so.
 		 * (undocumented feature)
 		 */
@@ -2660,7 +2664,7 @@ static void finish_decisions (void)
 	decide_diw (hpos);
 	decide_line (hpos);
 	decide_fetch (hpos);
-	finish_final_fetch (fetchmode);
+	finish_final_fetch ();
 
 	record_color_change2 (hsyncstartpos, 0xffff, 0);
 	if (thisline_decision.plfleft >= 0 && thisline_decision.plflinelen < 0) {
@@ -3295,7 +3299,7 @@ static void calcdiw (void)
 				plfstrt = HARD_DDF_START;
 			plfstrt_start = plfstrt - 4;
 		} else {
-			plfstrt_start = plfstrt - 4;
+			plfstrt_start = plfstrt;
 		}
 	} else {
 		if (!bpldmawasactive) {
@@ -3441,8 +3445,10 @@ static uae_u16 VPOSR (void)
 		csbit |= (currprefs.chipset_mask & CSMASK_AGA) ? 0x2300 : 0;
 #endif
 		csbit |= (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? 0x2000 : 0;
+#if 0 /* apparently "8372 (Fat-hr) (agnushr),rev 5" does not exist */
 		if (currprefs.chipmem_size > 1024 * 1024 && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 			csbit |= 0x2100;
+#endif
 		if (currprefs.ntscmode)
 			csbit |= 0x1000;
 	}
@@ -4108,7 +4114,7 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
 		if (thisline_decision.plfleft < 0) {
-			thisline_decision.plfleft = hpos & ~3;
+			thisline_decision.plfleft = (hpos + 3) & ~3;
 			reset_bpl_vars ();
 			compute_delay_offset ();
 		}
