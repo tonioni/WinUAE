@@ -879,6 +879,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write (f, _T("gfx_refreshrate"), _T("%d"), p->gfx_apmode[0].gfx_refreshrate);
 	cfgfile_dwrite (f, _T("gfx_refreshrate_rtg"), _T("%d"), p->gfx_apmode[1].gfx_refreshrate);
 	cfgfile_write_bool (f, _T("gfx_autoresolution"), p->gfx_autoresolution);
+	cfgfile_dwrite (f, _T("gfx_autoresolution_delay"), _T("%d"), p->gfx_autoresolution_delay);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_min_vertical"), vertmode[p->gfx_autoresolution_minv + 1]);
 	cfgfile_dwrite (f, _T("gfx_autoresolution_min_horizontal"), horizmode[p->gfx_autoresolution_minh + 1]);
 
@@ -918,6 +919,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 		if (p->gfx_filtermask[i + MAX_FILTERSHADERS][0])
 			cfgfile_write_str (f, _T("gfx_filtermask_post"), p->gfx_filtermask[i + MAX_FILTERSHADERS]);
 	}
+	cfgfile_dwrite_str (f, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS - 1]);
 	if (p->gfx_filtershader[0][0] && p->gfx_api) {
 		cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader[0]);
 	} else if (p->gfx_filter > 0) {
@@ -959,7 +961,6 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite (f, _T("gfx_luminance"), _T("%d"), p->gfx_luminance);
 	cfgfile_dwrite (f, _T("gfx_contrast"), _T("%d"), p->gfx_contrast);
 	cfgfile_dwrite (f, _T("gfx_gamma"), _T("%d"), p->gfx_gamma);
-	cfgfile_dwrite_str (f, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS - 1]);
 	if (p->gfx_filteroverlay[0]) {
 		cfgfile_dwrite (f, _T("gfx_filter_overlay"), _T("%s%s"),
 			p->gfx_filteroverlay, _tcschr (p->gfx_filteroverlay, ',') ? _T(",") : _T(""));
@@ -1591,6 +1592,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_refreshrate"), &p->gfx_apmode[APMODE_NATIVE].gfx_refreshrate, 1)
 		|| cfgfile_intval (option, value, _T("gfx_refreshrate_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_refreshrate, 1)
 		|| cfgfile_yesno (option, value, _T("gfx_autoresolution"), &p->gfx_autoresolution)
+		|| cfgfile_intval (option, value, _T("gfx_autoresolution_delay"), &p->gfx_autoresolution_delay, 1)
 		|| cfgfile_intval (option, value, _T("gfx_backbuffers"), &p->gfx_apmode[APMODE_NATIVE].gfx_backbuffers, 1)
 		|| cfgfile_intval (option, value, _T("gfx_backbuffers_rtg"), &p->gfx_apmode[APMODE_RTG].gfx_backbuffers, 1)
 		|| cfgfile_yesno (option, value, _T("gfx_interlace"), &p->gfx_apmode[APMODE_NATIVE].gfx_interlaced)
@@ -1918,6 +1920,25 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		}
 		_tcsncpy (p->gfx_filteroverlay, value, sizeof p->gfx_filteroverlay / sizeof (TCHAR) - 1);
 		p->gfx_filteroverlay[sizeof p->gfx_filteroverlay / sizeof (TCHAR) - 1] = 0;
+		return 1;
+	}
+
+	if (_tcscmp (option, _T("gfx_filtermask_pre")) == 0 || _tcscmp (option, _T("gfx_filtermask_post")) == 0) {
+		if (_tcscmp (option, _T("gfx_filtermask_pre")) == 0) {
+			for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+				if (p->gfx_filtermask[i][0] == 0) {
+					_tcscpy (p->gfx_filtermask[i], value);
+					break;
+				}
+			}
+		} else {
+			for (int i = 0; i < MAX_FILTERSHADERS; i++) {
+				if (p->gfx_filtermask[i + MAX_FILTERSHADERS][0] == 0) {
+					_tcscpy (p->gfx_filtermask[i + MAX_FILTERSHADERS], value);
+					break;
+				}
+			}
+		}
 		return 1;
 	}
 

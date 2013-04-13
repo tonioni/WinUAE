@@ -1030,7 +1030,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				DWORD ret = 0;
 				int ok = 0;
 				screenshotmode = 0;
-				write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
+				//write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
 				if (rpsc->szScreenFiltered[0])
 					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0, NULL);
 				if (rpsc->szScreenRaw[0]) {
@@ -1051,7 +1051,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 					freevidbuffer (&vb);
 				}
 				screenshotmode = ossm;
-				write_log (_T("->%d\n"), ok);
+				//write_log (_T("->%d\n"), ok);
 				if (!ok)
 					return RP_SCREENCAPTURE_ERROR;
 				if (WIN32GFX_IsPicassoScreen ()) {
@@ -1112,7 +1112,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 	case RP_IPC_TO_GUEST_QUERYSCREENMODE:
 		{
 			screenmode_request = 1;
-			write_log (_T("RP_IPC_TO_GUEST_QUERYSCREENMODE -> RP_IPC_TO_HOST_SCREENMODE screenmode_request started\n"));
+			//write_log (_T("RP_IPC_TO_GUEST_QUERYSCREENMODE -> RP_IPC_TO_HOST_SCREENMODE screenmode_request started\n"));
 			return 1;
 		}
 	case RP_IPC_TO_GUEST_GUESTAPIVERSION:
@@ -1667,7 +1667,7 @@ void rp_turbo_floppy (int active)
 void rp_set_hwnd_delayed (void)
 {
 	hwndset_delay = 4;
-	write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started\n"));
+	//write_log (_T("RP_IPC_TO_HOST_SCREENMODE delay started\n"));
 }
 
 void rp_set_hwnd (HWND hWnd)
@@ -1677,10 +1677,10 @@ void rp_set_hwnd (HWND hWnd)
 	if (!initialized)
 		return;
 	if (hwndset_delay) {
-		write_log (_T("RP_IPC_TO_HOST_SCREENMODE, delay=%d\n"), hwndset_delay);
+		//write_log (_T("RP_IPC_TO_HOST_SCREENMODE, delay=%d\n"), hwndset_delay);
 		return;
 	}
-	write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
+	//write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
 	guestwindow = hWnd;
 	get_screenmode (&sm, &currprefs);
 	if (hWnd != NULL)
@@ -1690,10 +1690,10 @@ void rp_set_hwnd (HWND hWnd)
 
 void rp_screenmode_changed (void)
 {
-	write_log (_T("rp_screenmode_changed\n"));
+	//write_log (_T("rp_screenmode_changed\n"));
 	if (!screenmode_request) {
 		screenmode_request = 6;
-		write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
+		//write_log (_T("rp_screenmode_changed -> screenmode_request started\n"));
 	}
 }
 
@@ -1744,7 +1744,7 @@ void rp_vsync (void)
 	if (screenmode_request) {
 		screenmode_request--;
 		if (screenmode_request == 0) {
-			write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
+			//write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
 			struct RPScreenMode sm = { 0 };
 			get_screenmode (&sm, &currprefs);
 			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);

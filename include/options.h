@@ -301,6 +301,7 @@ struct uae_prefs {
 	struct wh gfx_size_win_xtra[6];
 	struct wh gfx_size_fs_xtra[6];
 	bool gfx_autoresolution;
+	int gfx_autoresolution_delay;
 	int gfx_autoresolution_minv, gfx_autoresolution_minh;
 	bool gfx_scandoubler;
 	struct apmode gfx_apmode[2];

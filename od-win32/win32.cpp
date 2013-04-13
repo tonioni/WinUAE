@@ -1216,6 +1216,18 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 		uae_quit ();
 		return 0;
 
+	case WM_WINDOWPOSCHANGED:
+		{
+			WINDOWPOS *wp = (WINDOWPOS*)lParam;
+			if (isfullscreen () <= 0) {
+				if (!IsIconic (hWnd) && hWnd == hAmigaWnd) {
+					updatewinrect (false);
+					updatemouseclip ();
+				}
+			}
+		}
+		break;
+
 	case WM_SETCURSOR:
 		{
 			if ((HWND)wParam == hAmigaWnd && currprefs.input_tablet > 0 && currprefs.input_magic_mouse && isfullscreen () <= 0) {

@@ -326,7 +326,7 @@ extern int is_bitplane_dma (int hpos);
 STATIC_INLINE int canblit (int hpos)
 {
 	if (!dmaen (DMA_BLITTER))
-		return 0;
+		return -1;
 	if (is_bitplane_dma (hpos))
 		return 0;
 	if (cycle_line[hpos] & CYCLE_MASK)
@@ -703,7 +703,7 @@ static void decide_blitter_line (int hsync, int hpos)
 				break;
 			}
 
-			if (!v) {
+			if (v <= 0) {
 				blit_misscyclecounter++;
 				blitter_nasty++;
 				break;
@@ -993,7 +993,7 @@ static void do_startcycles (int hpos)
 	while (vhpos < hpos) {
 		int v = canblit (vhpos);
 		vhpos++;
-		if (v) {
+		if (v >= 0) {
 			blit_startcycles--;
 			if (blit_startcycles == 0) {
 				if (blit_faulty)
@@ -1062,7 +1062,7 @@ void decide_blitter (int hpos)
 			}
 			// idle cycles require free bus..
 			// (CPU can still use this cycle)
-			if (c == 0 && v == 0) {
+			if ((c == 0 && v == 0) || v < 0) {
 				blitter_nasty++;
 				blit_misscyclecounter++;
 				break;

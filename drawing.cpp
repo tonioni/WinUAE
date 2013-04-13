@@ -713,7 +713,7 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 		return xcolors[0x0f0];
 	else if (hposblank == 3)
 		return xcolors[0x00f];
-	else if ( colors_for_drawing.borderblank)
+	else if (colors_for_drawing.borderblank)
 		return xcolors[0x880];
 	//return colors_for_drawing.acolors[0];
 	return xcolors[0xf0f];
@@ -729,6 +729,7 @@ static void pfield_init_linetoscr (void)
 	/* First, get data fetch start/stop in DIW coordinates.  */
 	int ddf_left = dp_for_drawing->plfleft * 2 + DIW_DDF_OFFSET;
 	int ddf_right = dp_for_drawing->plfright * 2 + DIW_DDF_OFFSET;
+	int leftborderhidden;
 
 	/* Compute datafetch start/stop in pixels; native display coordinates.  */
 	native_ddf_left = coord_hw_to_window_x (ddf_left);
@@ -745,11 +746,12 @@ static void pfield_init_linetoscr (void)
 
 	playfield_start = linetoscr_diw_start;
 	playfield_end = linetoscr_diw_end;
+#if 0
 	if (playfield_start < native_ddf_left)
 		playfield_start = native_ddf_left;
 	if (playfield_end > native_ddf_right)
 		playfield_end = native_ddf_right;
-
+#endif
 	unpainted = visible_left_border < playfield_start ? 0 : visible_left_border - playfield_start;
 	ham_src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
 	unpainted = res_shift_from_window (unpainted);
@@ -777,7 +779,9 @@ static void pfield_init_linetoscr (void)
 		if (end < playfield_start && end > linetoscr_diw_start) {
 			playfield_start = end;
 			can_have_bordersprite = true;
-		}
+		} else {
+			can_have_bordersprite = false;
+			}
 	} else {
 		can_have_bordersprite = dp_for_drawing->bordersprite_seen;
 	}
@@ -823,7 +827,11 @@ static void pfield_init_linetoscr (void)
 	ddf_left -= DISPLAY_LEFT_SHIFT;
 	pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
 	ddf_left <<= bplres;
-	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (playfield_start - native_ddf_left);
+
+	leftborderhidden = playfield_start - native_ddf_left;
+	if (hblank_left_start > playfield_start)
+		leftborderhidden += hblank_left_start - playfield_start;
+	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (leftborderhidden);
 
 	if (dip_for_drawing->nr_sprites == 0)
 		return;
@@ -1174,8 +1182,6 @@ static int NOINLINE linetoscr_16_shrink1f_sh (int spix, int dpix, int stoppos, i
 	}
 	return spix;
 }
-
-
 
 static int NOINLINE linetoscr_32_shrink2_sh (int spix, int dpix, int stoppos, int spr)
 {
@@ -2276,7 +2282,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 				* full line. */
 				decode_ham (visible_left_border, visible_right_border, false);
 			} else /* Argh. */ {
+				int ohposblank = hposblank;
 				do_color_changes (dummy_worker, decode_ham, lineno);
+				hposblank = ohposblank;
 				adjust_drawing_colors (dp_for_drawing->ctable, dp_for_drawing->ham_seen || bplehb);
 			}
 			bplham = dp_for_drawing->ham_at_start;
@@ -2479,7 +2487,6 @@ static void center_image (void)
 	center_reset = false;
 }
 
-#define FRAMES_UNTIL_RES_SWITCH 1
 static int frame_res_cnt;
 static void init_drawing_frame (void)
 {
@@ -2488,7 +2495,7 @@ static void init_drawing_frame (void)
 	static int frame_res_old;
 
 	if (currprefs.gfx_autoresolution && frame_res >= 0 && frame_res_lace >= 0) {
-		if (FRAMES_UNTIL_RES_SWITCH > 0 && frame_res_old == frame_res * 2 + frame_res_lace) {
+		if (frame_res_cnt > 0 && frame_res_old == frame_res * 2 + frame_res_lace) {
 			frame_res_cnt--;
 			if (frame_res_cnt == 0) {
 				int m = frame_res * 2 + frame_res_lace;
@@ -2538,11 +2545,13 @@ static void init_drawing_frame (void)
 					}
 					m++;
 				}
-				frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
+				frame_res_cnt = currprefs.gfx_autoresolution_delay;
 			}
 		} else {
 			frame_res_old = frame_res * 2 + frame_res_lace;
-			frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
+			frame_res_cnt = currprefs.gfx_autoresolution_delay;
+			if (frame_res_cnt <= 0)
+				frame_res_cnt = 1;
 		}
 	}
 	frame_res = -1;
@@ -3175,7 +3184,7 @@ void reset_drawing (void)
 	init_drawing_frame ();
 
 	notice_screen_contents_lost ();
-	frame_res_cnt = FRAMES_UNTIL_RES_SWITCH;
+	frame_res_cnt = currprefs.gfx_autoresolution_delay;
 	lightpen_y1 = lightpen_y2 = -1;
 
 	reset_custom_limits ();

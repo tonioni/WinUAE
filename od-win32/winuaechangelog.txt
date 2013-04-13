@@ -1,6 +1,25 @@
 
 - restore only single input target to default.
 
+Beta 16:
+
+This beta should fix all strange display glitches introduced in previous 2.6 betas.
+
+- New style filter mask config entry didn't load. (b6 or later)
+- Improved mouse movement mapping in GamePorts panel remap window (It creates mouse movement mappings that makes sense..),
+  also implements 1s delay before next mouse movement is accepted in test/remap modes to reduce accidental events.
+- Don't attempt to combine left/right->horizontal and up/down->vertical if remapping single event.
+- Add select menu didn't include any "standard" device-specific events. (Incorrect filtering)
+- DirectDraw + none filter was slow. (b7)
+- Blitter changes in b12 still had some problems.
+- "Subtle Shades" update was still broken, caused strange glitches in some situations.
+- Left and right border was always fully blanked if scanline was in HAM mode.
+- Low latency vsync + black frame insertion now always uses threaded vsync mode, normally was only used if fastest possible
+  CPU mode is in use (If you have 100Hz+ monitor, especially lightboost, your PC shouldn't be low end..), improves
+  stability. No buffer also supported but it can be unstable.
+- Added "gfx_autoresolution_delay" config entry. Number of frames to wait before autoresolution mode changes, timeout will
+  always reset if mode change is detected during timeout countdown.
+
 Beta 15:
 
 - IDE emulation drive status bit fix (DRQ and BSY active at the same time), fixes data corruption if IDEFix was active. (b5).

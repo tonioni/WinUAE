@@ -2284,7 +2284,9 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		if (hzmult > 0) {
 			vsync2 = 1;
 		} else if (hzmult < 0) {
-			if (ap->gfx_vflip && !ap->gfx_strobo) {
+			if (ap->gfx_strobo) {
+				vsync2 = -2;
+			} else if (ap->gfx_vflip) {
 				if (d3dCaps.PresentationIntervals & D3DPRESENT_INTERVAL_TWO)
 					dpp.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
 				else
@@ -3150,6 +3152,7 @@ void D3D_showframe_special (int mode)
 		return;
 	hr = d3ddev->Clear (0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, d3ddebug ? 0x80 : 0, 0), 0, 0);
 	D3D_showframe2 (true);
+	flushgpu (true);
 }
 
 void D3D_refresh (void)

@@ -1000,7 +1000,7 @@ bool render_screen (bool immediate)
 		return render_ok;
 	cnt = 0;
 	while (wait_render) {
-		sleep_millis(1);
+		sleep_millis (1);
 		cnt++;
 		if (cnt > 500)
 			return render_ok;
@@ -2962,7 +2962,7 @@ static int frame_missed, frame_counted, frame_errors;
 static int frame_usage, frame_usage_avg, frame_usage_total;
 extern int log_vsync;
 static int dooddevenskip;
-static volatile bool vblank_skipeveryother;
+static volatile int vblank_skipeveryother;
 static int vblank_flip_delay;
 
 static int lacemismatch_post_frames = 5;
@@ -3055,13 +3055,13 @@ static unsigned int __stdcall vblankthread (void *dummy)
 			if (vp > maxscanline / 2)
 				vp = maxscanline / 2;
 			frame_time_t rpt = read_processor_time ();
-			vblank_prev_time2 = rpt - (vblankbaseadjust + (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother ? 2 : 1));
+			vblank_prev_time2 = rpt - (vblankbaseadjust + (vblankbasefull * vp / maxscanline) / (vblank_skipeveryother > 0 ? 2 : 1));
 			vblank_prev_time = vblank_prev_time2;
 			firstvblankbasewait2 = false;
 			prevvblankpos = -1;
 			vblank_found_flipdelay = 0;
 			doflipped = false;
-			if (vblank_skipeveryother) // wait for first vblank in skip frame mode (100Hz+)
+			if (vblank_skipeveryother > 0) // wait for first vblank in skip frame mode (100Hz+)
 				vblankthread_mode = VBLANKTH_ACTIVE_SKIPFRAME;
 			else
 				vblankthread_mode = VBLANKTH_ACTIVE;
@@ -3104,7 +3104,7 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				}
 				if (!doflipped && ap->gfx_vflip > 0) {
 					int flag = 1;
-					if (ap->gfx_strobo && vblank_skipeveryother)
+					if (ap->gfx_strobo && vblank_skipeveryother > 0)
 						flag |= 2;
 					doflipevent (flag);
 					doflipped = true;
@@ -3114,12 +3114,27 @@ static unsigned int __stdcall vblankthread (void *dummy)
 					thread_vblank_time2 = t;
 					vblank_found_chipset = true;
 					if (!ap->gfx_vflip) {
-						while (!render_ok) {
-							if (read_processor_time () - t > vblankbasefull)
-								break;
+						if (vblank_skipeveryother >= 0) {
+							while (!render_ok) {
+								if (read_processor_time () - t > vblankbasefull)
+									break;
+							}
+							show_screen (0);
+							render_ok = false;
+						} else if (vblank_skipeveryother == -1) {
+							while (!render_ok) {
+								if (read_processor_time () - t > vblankbasefull)
+									break;
+							}
+							show_screen (0);
+							render_ok = false;
+							wait_render = true;
+							vblank_skipeveryother = -2;
+						} else { // == -2
+							show_screen (2);
+							wait_render = false;
+							vblank_skipeveryother = -1;
 						}
-						show_screen (0);
-						render_ok = false;
 						int delay = read_processor_time () - t;
 						if (delay < 0)
 							delay = 0;
@@ -3153,7 +3168,10 @@ static unsigned int __stdcall vblankthread (void *dummy)
 				thread_vblank_time = thread_vblank_time2;
 				vblank_found_rtg = vblank_found_rtg2;
 				vblank_found = vblank_found2;
-				vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
+				if (vblank_skipeveryother == -2)
+					vblankthread_mode = VBLANKTH_ACTIVE_START;
+				else
+					vblankthread_mode = VBLANKTH_ACTIVE_WAIT;
 				SetEvent (vblankwaitevent);
 			} else if (!donotwait || ap->gfx_vflip || picasso_on) {
 				sleep_millis (1);
@@ -3169,7 +3187,8 @@ static unsigned int __stdcall vblankthread (void *dummy)
 
 static bool isthreadedvsync (void)
 {
-	return isvsync_chipset () <= -2 || isvsync_rtg () < 0;
+	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	return isvsync_chipset () <= -2 || isvsync_rtg () < 0 || ap->gfx_strobo;
 }
 
 frame_time_t vsync_busywait_end (int *flipdelay)
@@ -3581,11 +3600,15 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 		tsum = approx_vblank;
 skip:
 
-	vblank_skipeveryother = false;
+	vblank_skipeveryother = 0;
 	getvsyncrate (tsum, &mult);
 	if (mult < 0) {
 		div = 2.0;
-		vblank_skipeveryother = true;
+		vblank_skipeveryother = 1;
+		if (ap->gfx_strobo && ap->gfx_vflip == 0)  {
+			vblank_skipeveryother = -1;
+			div = 1.0;
+		}
 	} else if (mult > 0) {
 		div = 0.5;
 	} else {
@@ -3596,7 +3619,7 @@ skip:
 	vblankbasefull = (syncbase / tsum2);
 	vblankbasewait1 = (syncbase / tsum2) * 70 / 100;
 	vblankbasewait2 = (syncbase / tsum2) * 55 / 100;
-	vblankbasewait3 = (syncbase / tsum2) * 99 / 100 - syncbase / (250 * (vblank_skipeveryother ? 1 : 2)); // at least 2ms before vblank
+	vblankbasewait3 = (syncbase / tsum2) * 99 / 100 - syncbase / (250 * (vblank_skipeveryother > 0 ? 1 : 2)); // at least 2ms before vblank
 	vblankbaselace = lace;
 
 	write_log (_T("VSync %s: %.6fHz/%.1f=%.6fHz. MinV=%d MaxV=%d%s Adj=%d Units=%d %.1f%%\n"),
@@ -3978,6 +4001,8 @@ static BOOL doInit (void)
 	if (wasfullwindow_p == 0)
 		wasfullwindow_p = currprefs.gfx_apmode[1].gfx_fullscreen == GFX_FULLWINDOW ? 1 : -1;
 	gfxmode_reset ();
+	freevidbuffer (&gfxvidinfo.drawbuffer);
+	freevidbuffer (&gfxvidinfo.tempbuffer);
 
 	for (;;) {
 		updatemodes ();
@@ -4095,8 +4120,6 @@ static BOOL doInit (void)
 #endif
 	gfxvidinfo.drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
-	freevidbuffer (&gfxvidinfo.drawbuffer);
-	freevidbuffer (&gfxvidinfo.tempbuffer);
 	gfxvidinfo.drawbuffer.realbufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem = NULL;
 	gfxvidinfo.drawbuffer.bufmem_allocated = NULL;

@@ -174,9 +174,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 					ap->gfx_vflip = 1;
 				if (!i && ap->gfx_backbuffers == 2)
 					ap->gfx_vflip = 1;
-				if (ap->gfx_vflip) {
-					ap->gfx_strobo = prefs->lightboost_strobo;
-				}
+				ap->gfx_strobo = prefs->lightboost_strobo;
 			} else {
 				// legacy vsync: always wait for flip
 				ap->gfx_vflip = -1;

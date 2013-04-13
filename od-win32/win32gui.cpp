@@ -12687,13 +12687,27 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 						break;
 					}
 				}
+				if (!found) {
+					for (int i = 0; i < wcnt; i++) {
+						input_selected_widget = widgets[i];
+						type = inputdevice_get_widget_type (input_selected_device, input_selected_widget, NULL);
+						if (type == IDEV_WIDGET_AXIS) {
+							found = 2;
+							break;
+						}
+					}
+				}
+
 				for (int i = 0; i < wcnt; i++) {
 					int typex = inputdevice_get_widget_type (input_selected_device, widgets[i], NULL);
 					if (typex == IDEV_WIDGET_AXIS) {
 						if (!found) {
 							found = 1;
 							input_selected_widget = widgets[i];
-						} else if (found && type == IDEV_WIDGET_BUTTONAXIS) {
+						} else if (found == 1 && type == IDEV_WIDGET_BUTTONAXIS) {
+							axisevent = widgets[i];
+							axisstate = widgetstate[i];
+						} else if (found == 2 && type == IDEV_WIDGET_AXIS) {
 							axisevent = widgets[i];
 							axisstate = widgetstate[i];
 						}
@@ -12719,10 +12733,12 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 				//write_log (_T("%d %d %d %d %d\n"), input_selected_device, input_selected_widget, type, evtnum, type2);
 
 				// if this and previous are same axis and they match (up/down or left/right)
-				if ((inputmap_remap_counter & 1) == 1) {
+				// and not oneshot mode
+				if (!inputmap_oneshot && (inputmap_remap_counter & 1) == 1) {
 					if (type2 == IDEV_WIDGET_BUTTONAXIS && prevtype2 == IDEV_WIDGET_BUTTONAXIS) {
-						if (type == IDEV_WIDGET_BUTTONAXIS && prevtype == IDEV_WIDGET_BUTTONAXIS) {
-							if (axisevent == prevaxisevent && (axisstate > 0 && prevaxisstate < 0)) {
+						if (axisevent == prevaxisevent && (axisstate > 0 && prevaxisstate < 0)) {
+							if ((type == IDEV_WIDGET_BUTTONAXIS && prevtype == IDEV_WIDGET_BUTTONAXIS) ||
+								(type == IDEV_WIDGET_AXIS && prevtype == IDEV_WIDGET_AXIS)) {
 								for (int i = 0; i < wcnt; i++) {
 									wtype = widgets[i];
 									if (inputdevice_get_widget_type (input_selected_device, wtype, NULL) == IDEV_WIDGET_AXIS) {
@@ -13004,6 +13020,37 @@ static int getremapcounter(int item)
 	return 0;
 }
 
+static void fillinputmapadd (HWND hDlg)
+{
+	const int *axistable;
+	int inputlist[MAX_COMPA_INPUTLIST];
+	inputdevice_get_compatibility_input (&workprefs, inputmap_port, NULL, inputlist, &axistable);
+	SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_RESETCONTENT, 0, 0L);
+	int evt = 1;
+	for (;;) {
+		bool ignore = false;
+		struct inputevent *ie = inputdevice_get_eventinfo (evt);
+		if (!ie)
+			break;
+		if (_tcslen (ie->name) == 0) {
+			evt++;
+			continue;
+		}
+		for (int k = 0; axistable[k] >= 0; k += 3) {
+			if (evt == axistable[k] || evt == axistable[k + 1] || evt == axistable[k + 2]) {
+				for (int l = 0; inputlist[l] >= 0; l++) {
+					if (inputlist[l] == axistable[k] || inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 1]) {
+						ignore = true;
+					}
+				}
+			}
+		}
+		if (!ignore)
+			SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_ADDSTRING, 0, (LPARAM)ie->name);
+		evt++;
+	}
+}
+
 static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static int recursive;
@@ -13019,30 +13066,11 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 		return TRUE;
 	case WM_INITDIALOG:
 	{
-		const int *axislist;
 		inputmap_port_remap = -1;
 		inputmap_remap_counter = -1;
 		inputmap_view_offset = 0;
 		pages[INPUTMAP_ID] = hDlg;
-
-		inputdevice_get_compatibility_input (&workprefs, inputmap_port, NULL, NULL, &axislist);
-		SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_RESETCONTENT, 0, 0L);
-		SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_ADDSTRING, 0, (LPARAM)szNone.c_str());
-		i = 1;
-		for (;;) {
-			int j;
-			struct inputevent *ie = inputdevice_get_eventinfo (i);
-			if (!ie)
-				break;
-			for (j = 0; axislist[j] >= 0; j++) {
-				if (axislist[j] == i)
-					break;
-			}
-			if (axislist[j] < 0 && _tcslen (ie->name) > 0)
-				SendDlgItemMessage (hDlg, IDC_INPUTMAPADD, CB_ADDSTRING, 0, (LPARAM)ie->name);
-			i++;
-		}
-
+		fillinputmapadd (hDlg);
 		inputdevice_updateconfig (NULL, &workprefs);
 		InitializeListView (hDlg);
 		if (workprefs.jports[inputmap_port].id != JPORT_CUSTOM) {
@@ -13149,6 +13177,7 @@ static INT_PTR CALLBACK InputMapDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 			inputmap_port_remap = inputmap_port;
 			inputdevice_compa_prepare_custom (&workprefs, inputmap_port, -1, true);
 			inputdevice_updateconfig (NULL, &workprefs);
+			fillinputmapadd (hDlg);
 			InitializeListView (hDlg);
 			ListView_EnsureVisible (h, inputmap_remap_counter, FALSE);
 			ListView_SetItemState (h, -1, 0, LVIS_SELECTED | LVIS_FOCUSED);

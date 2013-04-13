@@ -4359,16 +4359,22 @@ int inputdevice_get_compatibility_input (struct uae_prefs *prefs, int index, int
 	while (inputdevice_get_device_status (devnum) >= 0) {
 		for (int j = 0; j < inputdevice_get_widget_num (devnum); j++) {
 			for (int sub = 0; sub < MAX_INPUT_SUB_EVENT; sub++) {
-				int port, k;
+				int port, k, l;
 				uae_u64 flags;
+				bool ignore = false;
 				int evtnum2 = inputdevice_get_mapping (devnum, j, &flags, &port, NULL, NULL, sub);
 				if (port - 1 != index)
 					continue;
-				for (k = 0; axistable[k] >= 0; k++) {
-					if (evtnum2 == axistable[k])
-						break;
+				for (k = 0; axistable[k] >= 0; k += 3) {
+					if (evtnum2 == axistable[k] || evtnum2 == axistable[k + 1] || evtnum2 == axistable[k + 2]) {
+						for (l = 0; inputlist[l] >= 0; l++) {
+							if (inputlist[l] == axistable[k] || inputlist[l] == axistable[k + 1] || inputlist[l] == axistable[k + 1]) {
+								ignore = true;
+							}
+						}
+					}
 				}
-				if (axistable[k] < 0) {
+				if (!ignore) {
 					for (k = 0; inputlist[k] >= 0; k++) {
 						if (evtnum2 == inputlist[k])
 							break;

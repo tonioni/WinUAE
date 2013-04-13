@@ -1499,10 +1499,18 @@ static int isa4000t (uaecptr addr)
 
 static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 {
+	struct ide_hdf *ide = NULL;
+	int ide_reg;
 	uae_u32 v;
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	ide_reg = get_gayle_ide_reg (addr, &ide);
+	if (ide_reg == IDE_DATA) {
+		v = ide_get_data (ide) << 16;
+		v |= ide_get_data (ide);
+		return v;
+	}
 	v = gayle_wget (addr) << 16;
 	v |= gayle_wget (addr + 2);
 	return v;
@@ -1540,9 +1548,17 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 
 static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 {
+	struct ide_hdf *ide = NULL;
+	int ide_reg;
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	ide_reg = get_gayle_ide_reg (addr, &ide);
+	if (ide_reg == IDE_DATA) {
+		ide_put_data (ide, value >> 16);
+		ide_put_data (ide, value & 0xffff);
+		return;
+	}
 	gayle_wput (addr, value >> 16);
 	gayle_wput (addr + 2, value & 0xffff);
 }

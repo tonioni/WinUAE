@@ -1921,14 +1921,21 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 			if (!rm->ulButtons) {
 				if (istest) {
-					if (abs (rm->lLastX - lastx[num]) > 7) {
-						setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-						lastx[num] = rm->lLastX;
-						lasty[num] = rm->lLastY;
-					} else if (abs (rm->lLastY - lasty[num]) > 7) {
-						setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
-						lastx[num] = rm->lLastX;
-						lasty[num] = rm->lLastY;
+					static time_t ot;
+					time_t t = time (NULL);
+					if (t != ot && t != ot + 1) {
+						if (abs (rm->lLastX - lastx[num]) > 7) {
+							setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+							lastx[num] = rm->lLastX;
+							lasty[num] = rm->lLastY;
+							ot = t;
+						}
+						if (abs (rm->lLastY - lasty[num]) > 7) {
+							setmousestate (num, 1, rm->lLastY, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
+							lastx[num] = rm->lLastX;
+							lasty[num] = rm->lLastY;
+							ot = t;
+						}
 					}
 				} else {
 					setmousestate (num, 0, rm->lLastX, (rm->usFlags & (MOUSE_MOVE_ABSOLUTE | MOUSE_VIRTUAL_DESKTOP)) ? 1 : 0);
@@ -2901,8 +2908,18 @@ static void read_mouse (void)
 
 				if (istest || isfocus () > 0) {
 					for (k = 0; k < did->axles; k++) {
-						if (did->axismappings[k] == dimofs)
-							setmousestate (i, k, data, 0);
+						if (did->axismappings[k] == dimofs) {
+							if (istest) {
+								static time_t ot;
+								time_t t = time (NULL);
+								if (t != ot && t != ot + 1) {
+									if (data > 7 || data < -7)
+										setmousestate (i, k, data, 0);
+								}
+							} else {
+								setmousestate (i, k, data, 0);
+							}
+						}
 					}
 					for (k = 0; k < did->buttons; k++) {
 						if (did->buttonmappings[k] == dimofs) {

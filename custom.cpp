@@ -1988,8 +1988,9 @@ STATIC_INLINE void decide_line (int hpos)
 		return;
 
 	if (fetch_state == fetch_not_started && (diwstate == DIW_waiting_stop || (currprefs.chipset_mask & CSMASK_ECS_AGNUS))) {
+		int start = (currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? plfstrt - 4 : HARD_DDF_START_REAL - 2;
 		int ok = 0;
-		if (last_decide_line_hpos < plfstrt_start && hpos >= plfstrt_start) {
+		if (last_decide_line_hpos < start && hpos >= start) {
 			if (plf_state == plf_idle || plf_state == plf_end)
 				plf_state = plf_start;
 		}
@@ -3289,27 +3290,18 @@ static void calcdiw (void)
 
 	plfstrt = ddfstrt;
 	plfstop = ddfstop;
+
 	/* probably not the correct place.. should use plf_state instead */
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
-		if (!bpldmawasactive) {
-			/* ECS/AGA and ddfstop > maxhpos == always-on display */
-			if (plfstop > maxhpos)
-				plfstrt = 0;
-			if (plfstrt < HARD_DDF_START)
-				plfstrt = HARD_DDF_START;
-			plfstrt_start = plfstrt - 4;
-		} else {
-			plfstrt_start = plfstrt;
-		}
+		/* ECS/AGA and ddfstop > maxhpos == always-on display */
+		if (plfstop > maxhpos)
+			plfstrt = 0;
+		if (plfstrt < HARD_DDF_START)
+			plfstrt = HARD_DDF_START;
 	} else {
-		if (!bpldmawasactive) {
-			/* OCS and ddfstrt >= ddfstop == ddfstop = max */
-			if (plfstrt >= plfstop && plfstrt >= HARD_DDF_START)
-				plfstop = 0xff;
-			plfstrt_start = HARD_DDF_START_REAL - 2;
-		} else {
-			plfstrt_start = plfstrt;
-		}
+		/* OCS and ddfstrt >= ddfstop == ddfstop = max */
+		if (plfstrt >= plfstop && plfstrt >= HARD_DDF_START)
+			plfstop = 0xff;
 	}
 	diw_change = 2;
 }
