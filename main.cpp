@@ -150,10 +150,10 @@ static void fixup_prefs_dim2 (struct wh *wh)
 		wh->width = 160;
 	if (wh->height < 128)
 		wh->height = 128;
-	if (wh->width > 3072)
-		wh->width = 3072;
-	if (wh->height > 2048)
-		wh->height = 2048;
+	if (wh->width > MAX_UAE_WIDTH)
+		wh->width = MAX_UAE_WIDTH;
+	if (wh->height > MAX_UAE_HEIGHT)
+		wh->height = MAX_UAE_HEIGHT;
 }
 
 void fixup_prefs_dimensions (struct uae_prefs *prefs)

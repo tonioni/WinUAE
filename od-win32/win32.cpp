@@ -3121,8 +3121,8 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_center"), p->win32_rtgscalemode == 2);
 	cfgfile_target_dwrite_bool (f, _T("rtg_scale_allow"), p->win32_rtgallowscaling);
 	cfgfile_target_dwrite (f, _T("rtg_scale_aspect_ratio"), _T("%d:%d"),
-		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio >> 8) : -1,
-		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & 0xff) : -1);
+		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio / ASPECTMULT) : -1,
+		p->win32_rtgscaleaspectratio >= 0 ? (p->win32_rtgscaleaspectratio & (ASPECTMULT - 1)) : -1);
 	if (p->win32_rtgvblankrate <= 0)
 		cfgfile_target_dwrite_str (f, _T("rtg_vblank"), p->win32_rtgvblankrate == -1 ? _T("real") : (p->win32_rtgvblankrate == -2 ? _T("disabled") : _T("chipset")));
 	else
@@ -3339,7 +3339,7 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 			else if (v1 == 0 || v2 == 0)
 				p->win32_rtgscaleaspectratio = 0;
 			else
-				p->win32_rtgscaleaspectratio = (v1 << 8) | v2;
+				p->win32_rtgscaleaspectratio = v1 * ASPECTMULT + v2;
 		}
 		return 1;
 	}

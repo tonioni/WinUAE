@@ -956,8 +956,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_str (f, _T("gfx_filter_keep_aspect"), aspects[p->gfx_filter_keep_aspect]);
 	cfgfile_dwrite_str (f, _T("gfx_filter_autoscale"), autoscale[p->gfx_filter_autoscale]);
 	cfgfile_dwrite (f, _T("gfx_filter_aspect_ratio"), _T("%d:%d"),
-		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect >> 8) : -1,
-		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect & 0xff) : -1);
+		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect / ASPECTMULT) : -1,
+		p->gfx_filter_aspect >= 0 ? (p->gfx_filter_aspect & (ASPECTMULT - 1)) : -1);
 	cfgfile_dwrite (f, _T("gfx_luminance"), _T("%d"), p->gfx_luminance);
 	cfgfile_dwrite (f, _T("gfx_contrast"), _T("%d"), p->gfx_contrast);
 	cfgfile_dwrite (f, _T("gfx_gamma"), _T("%d"), p->gfx_gamma);
@@ -1101,6 +1101,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("denise_noehb"), p->cs_denisenoehb);
 	cfgfile_dwrite_bool (f, _T("agnus_bltbusybug"), p->cs_agnusbltbusybug);
 	cfgfile_dwrite_bool (f, _T("ics_agnus"), p->cs_dipagnus);
+	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
 	cfgfile_dwrite_bool (f, _T("fastmem_autoconfig"), p->fastmem_autoconfig);
 	cfgfile_write (f, _T("fastmem_size"), _T("%d"), p->fastmem_size / 0x100000);
@@ -2012,7 +2013,7 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 			else if (v1 == 0 || v2 == 0)
 				p->gfx_filter_aspect = 0;
 			else
-				p->gfx_filter_aspect = (v1 << 8) | v2;
+				p->gfx_filter_aspect = v1 * ASPECTMULT + v2;
 		}
 		return 1;
 	}
@@ -2962,6 +2963,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		return 1;
 
 	if (cfgfile_intval (option, value, _T("cachesize"), &p->cachesize, 1)
+		|| cfgfile_intval (option, value, _T("chipset_hacks"), &p->cs_hacks, 1)
 		|| cfgfile_intval (option, value, _T("serial_stopbits"), &p->serial_stopbits, 1)
 		|| cfgfile_intval (option, value, _T("cpu060_revision"), &p->cpu060_revision, 1)
 		|| cfgfile_intval (option, value, _T("fpu_revision"), &p->fpu_revision, 1)

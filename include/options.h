@@ -101,6 +101,7 @@ struct floppyslot
 	bool forcedwriteprotect;
 };
 
+#define ASPECTMULT 1024
 #define WH_NATIVE 1
 struct wh {
 	int x, y;
@@ -409,6 +410,7 @@ struct uae_prefs {
 	bool cs_denisenoehb;
 	bool cs_dipagnus;
 	bool cs_agnusbltbusybug;
+	int cs_hacks;
 
 	TCHAR romfile[MAX_DPATH];
 	TCHAR romident[256];

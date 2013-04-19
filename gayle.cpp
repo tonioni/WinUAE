@@ -192,6 +192,7 @@ struct ide_hdf
 	int data_size;
 	int data_multi;
 	int direction; // 0 = read, 1 = write
+	bool intdrq;
 	int lba48;
 	uae_u8 multiple_mode;
 	int irq_delay;
@@ -434,18 +435,27 @@ static uae_u8 read_gayle_cs (void)
 
 static void ide_interrupt (struct ide_hdf *ide)
 {
+	ide->regs.ide_status |= IDE_STATUS_BSY;
+	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
 	ide->irq_delay = 2;
 }
 static void ide_fast_interrupt (struct ide_hdf *ide)
 {
+	ide->regs.ide_status |= IDE_STATUS_BSY;
+	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
 	ide->irq_delay = 1;
 }
 
 static void ide_interrupt_do (struct ide_hdf *ide)
 {
-	ide->regs.ide_status &= ~IDE_STATUS_BSY;
-	if (ide->direction)
+	uae_u8 os = ide->regs.ide_status;
+	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+	if (ide->intdrq)
 		ide->regs.ide_status |= IDE_STATUS_DRQ;
+	ide->regs.ide_status &= ~IDE_STATUS_BSY;
+	if (IDE_LOG > 1)
+		write_log (_T("IDE INT %02X -> %02X\n"), os, ide->regs.ide_status);
+	ide->intdrq = false;
 	ide->irq_delay = 0;
 	if (ide->regs.ide_devcon & 2)
 		return;
@@ -470,9 +480,9 @@ static void ide_data_ready (struct ide_hdf *ide)
 {
 	memset (ide->secbuf, 0, ide->blocksize);
 	ide->data_offset = 0;
-	ide->regs.ide_status |= IDE_STATUS_DRQ;
 	ide->data_size = ide->blocksize;
 	ide->data_multi = 1;
+	ide->intdrq = true;
 	ide_interrupt (ide);
 }
 
@@ -739,16 +749,25 @@ static void check_maxtransfer (struct ide_hdf *ide, int state)
 	}
 }
 
-static void process_rw_command (struct ide_hdf *ide)
+static void setdrq (struct ide_hdf *ide)
+{
+	ide->regs.ide_status |= IDE_STATUS_DRQ;
+	ide->regs.ide_status &= ~IDE_STATUS_BSY;
+}
+static void setbsy (struct ide_hdf *ide)
 {
 	ide->regs.ide_status |= IDE_STATUS_BSY;
 	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+}
+
+static void process_rw_command (struct ide_hdf *ide)
+{
+	setbsy (ide);
 	write_comm_pipe_u32 (&requests, ide->num, 1);
 }
 static void process_packet_command (struct ide_hdf *ide)
 {
-	ide->regs.ide_status |= IDE_STATUS_BSY;
-	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
+	setbsy (ide);
 	write_comm_pipe_u32 (&requests, ide->num | 0x80, 1);
 }
 
@@ -769,7 +788,7 @@ static bool atapi_set_size (struct ide_hdf *ide)
 	if (!size) {
 		ide->packet_state = 0;
 		ide->packet_transfer_size = 0;
-		return true;
+		return false;
 	}
 	if (ide->packet_state == 2) {
 		if (size > ide->packet_data_size)
@@ -782,10 +801,9 @@ static bool atapi_set_size (struct ide_hdf *ide)
 	} else {
 		ide->packet_transfer_size = 12;
 	}
-	ide->regs.ide_status = IDE_STATUS_DRQ;
 	if (IDE_LOG > 1)
 		write_log (_T("ATAPI data transfer %d/%d bytes\n"), ide->packet_transfer_size, ide->data_size);
-	return false;
+	return true;
 }
 
 static void atapi_packet (struct ide_hdf *ide)
@@ -802,7 +820,8 @@ static void atapi_packet (struct ide_hdf *ide)
 	ide->data_offset = 0;
 	ide->regs.ide_nsector = ATAPI_CD;
 	ide->regs.ide_error = 0;
-	atapi_set_size (ide);
+	if (atapi_set_size (ide))
+		setdrq (ide);
 }
 
 static void do_packet_command (struct ide_hdf *ide)
@@ -842,7 +861,8 @@ static void do_packet_command (struct ide_hdf *ide)
 		ide->data_size = ide->scsi->data_len;
 	}
 	ide->packet_state = 2; // data phase
-	atapi_set_size (ide);
+	if (atapi_set_size (ide))
+		ide->intdrq = true;
 }
 
 static void do_process_packet_command (struct ide_hdf *ide)
@@ -853,9 +873,12 @@ static void do_process_packet_command (struct ide_hdf *ide)
 		ide->packet_data_offset += ide->packet_transfer_size;
 		if (!ide->direction) {
 			// data still remaining, next transfer
-			atapi_set_size (ide);
+			if (atapi_set_size (ide))
+				ide->intdrq = true;
 		} else {
 			if (atapi_set_size (ide)) {
+				ide->intdrq = true;
+			} else {
 				memcpy (&ide->scsi->buffer, ide->secbuf, ide->data_size);
 				ide->scsi->data_len = ide->data_size;
 				scsi_emulate_cmd (ide->scsi);
@@ -864,7 +887,7 @@ static void do_process_packet_command (struct ide_hdf *ide)
 			}
 		}
 	}
-	ide->irq_delay = 1;
+	ide_fast_interrupt (ide);
 }
 
 static void do_process_rw_command (struct ide_hdf *ide)
@@ -900,17 +923,15 @@ static void do_process_rw_command (struct ide_hdf *ide)
 		if (IDE_LOG > 1)
 			write_log (_T("IDE%d read, read %d bytes\n"), ide->num, nsec * ide->blocksize);
 	}
-	ide->regs.ide_status |= IDE_STATUS_DRQ;
+	ide->intdrq = true;
 	last = dec_nsec (ide, nsec) == 0;
 	put_lbachs (ide, lba, cyl, head, sec, last ? nsec - 1 : nsec);
-	if (last) {
-		if (ide->direction) {
-			if (IDE_LOG > 1)
-				write_log (_T("IDE%d write finished\n"), ide->num);
-			ide->regs.ide_status &= ~IDE_STATUS_DRQ;
-		}
+	if (last && ide->direction) {
+		ide->intdrq = false;
+		if (IDE_LOG > 1)
+			write_log (_T("IDE%d write finished\n"), ide->num);
 	}
-	ide->irq_delay = 1;
+	ide_fast_interrupt (ide);
 }
 
 static void ide_read_sectors (struct ide_hdf *ide, int flags)
@@ -936,7 +957,7 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
 	ide->direction = 0;
-
+	// read start: preload sector(s), then trigger interrupt.
 	process_rw_command (ide);
 }
 
@@ -972,11 +993,9 @@ static void ide_write_sectors (struct ide_hdf *ide, int flags)
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;
 	ide->direction = 1;
-
-	ide->regs.ide_status |= IDE_STATUS_BSY;
-	ide->regs.ide_status &= ~IDE_STATUS_DRQ;
-
-	ide_fast_interrupt (ide);
+	// write start: set DRQ and clear BSY. No interrupt.
+	ide->regs.ide_status |= IDE_STATUS_DRQ;
+	ide->regs.ide_status &= ~IDE_STATUS_BSY;
 }
 
 static void ide_do_command (struct ide_hdf *ide, uae_u8 cmd)
@@ -1065,7 +1084,7 @@ static uae_u16 ide_get_data (struct ide_hdf *ide)
 		write_log (_T("IDE%d DATA read\n"), ide->num);
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
-			write_log (_T("IDE%d DATA read without DRQ!? PC=%08X\n"), ide->num, m68k_getpc ());
+			write_log (_T("IDE%d DATA but no data left!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, m68k_getpc ());
 		if (!isdrive (ide))
 			return 0xffff;
 		return 0;
@@ -1103,6 +1122,9 @@ static uae_u16 ide_get_data (struct ide_hdf *ide)
 			}
 		}
 		if (ide->data_size == 0) {
+			if (!(ide->regs.ide_status & IDE_STATUS_DRQ)) {
+				write_log (_T("IDE%d read finished but DRQ was not active?\n"), ide->num);
+			}
 			ide->regs.ide_status &= ~IDE_STATUS_DRQ;
 			if (IDE_LOG > 1)
 				write_log (_T("IDE%d read finished\n"), ide->num);
@@ -1119,7 +1141,7 @@ static void ide_put_data (struct ide_hdf *ide, uae_u16 v)
 		write_log (_T("IDE%d DATA write %04x %d/%d\n"), ide->num, v, ide->data_offset, ide->data_size);
 	if (ide->data_size == 0) {
 		if (IDE_LOG > 0)
-			write_log (_T("IDE%d DATA write without DRQ!? PC=%08X\n"), ide->num, m68k_getpc ());
+			write_log (_T("IDE%d DATA write without request!? %02X PC=%08X\n"), ide->num, ide->regs.ide_status, m68k_getpc ());
 		return;
 	}
 	ide->secbuf[ide->packet_data_offset + ide->data_offset + 1] = v & 0xff;

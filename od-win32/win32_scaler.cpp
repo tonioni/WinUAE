@@ -200,7 +200,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 	srcratio = 4.0f / 3.0f;
 	if (currprefs.gfx_filter_aspect > 0) {
-		dstratio = (currprefs.gfx_filter_aspect >> 8) * 1.0f / (currprefs.gfx_filter_aspect & 0xff);
+		dstratio = (currprefs.gfx_filter_aspect / ASPECTMULT) * 1.0f / (currprefs.gfx_filter_aspect & (ASPECTMULT - 1));
 	} else if (currprefs.gfx_filter_aspect < 0) {
 		if (isfullscreen () && deskw > 0 && deskh > 0)
 			dstratio = 1.0f * deskw / deskh;

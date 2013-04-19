@@ -139,6 +139,36 @@ static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
 static int filterstackpos = 0;
 
+static const int defaultaspectratios[] = {
+		4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
+		-1
+};
+static int getaspectratioindex (int ar)
+{
+	for (int i = 0; defaultaspectratios[i] >= 0; i += 2) {
+		if (ar == defaultaspectratios[i + 0] * 1024 + defaultaspectratios[i + 1])
+			return i / 2;
+	}
+	return 0;
+}
+static int getaspectratio (int index)
+{
+	for (int i = 0; defaultaspectratios[i] >= 0; i += 2) {
+		if (i == index * 2) {
+			return defaultaspectratios[i + 0] * 1024 + defaultaspectratios[i + 1];
+		}
+	}
+	return 0;
+}
+static void addaspectratios (HWND hDlg, int id)
+{
+	for (int i = 0; defaultaspectratios[i] >= 0; i += 2) {
+		TCHAR tmp[100];
+		_stprintf (tmp, _T("%d:%d (%.2f)"), defaultaspectratios[i + 0], defaultaspectratios[i + 1], (double)defaultaspectratios[i + 0] / defaultaspectratios[i + 1]);
+		SendDlgItemMessage (hDlg, id, CB_ADDSTRING, 0, (LPARAM)tmp);
+	}
+}
+
 #define Error(x) MessageBox (NULL, (x), _T("WinUAE Error"), MB_OK)
 
 wstring WIN32GUI_LoadUIString (DWORD id)
@@ -5958,15 +5988,17 @@ static void init_display_mode (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_RESETCONTENT, 0, 0);
 	cnt = 0;
 	gui_display_depths[0] = gui_display_depths[1] = gui_display_depths[2] = -1;
-	for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
-		if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx == md->DisplayModes[index].residx) {
-			TCHAR tmp[64];
-			_stprintf (tmp, _T("%d"), md->DisplayModes[i].depth * 8);
-			SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
-			if (md->DisplayModes[i].depth == d)
-				SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
-			gui_display_depths[cnt] = md->DisplayModes[i].depth;
-			cnt++;
+	if (index >= 0) {
+		for (i = 0; md->DisplayModes[i].depth >= 0; i++) {
+			if (md->DisplayModes[i].depth > 1 && md->DisplayModes[i].residx == md->DisplayModes[index].residx) {
+				TCHAR tmp[64];
+				_stprintf (tmp, _T("%d"), md->DisplayModes[i].depth * 8);
+				SendDlgItemMessage(hDlg, IDC_RESOLUTIONDEPTH, CB_ADDSTRING, 0, (LPARAM)tmp);
+				if (md->DisplayModes[i].depth == d)
+					SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_SETCURSEL, cnt, 0);
+				gui_display_depths[cnt] = md->DisplayModes[i].depth;
+				cnt++;
+			}
 		}
 	}
 	init_frequency_combo (hDlg, index);
@@ -6374,7 +6406,9 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	struct MultiDisplay *md = getdisplay (&workprefs);
 	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
 	LRESULT posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
-	if (posn1 != CB_ERR && posn2 != CB_ERR) {
+	if (posn1 != CB_ERR) {
+		if (posn2 == CB_ERR)
+			posn2 = 0;
 		workprefs.gfx_size_fs.special = 0;
 		for (dmode = 0; md->DisplayModes[dmode].depth >= 0; dmode++) {
 			if (md->DisplayModes[dmode].residx == posn1)
@@ -7183,11 +7217,8 @@ static void values_to_memorydlg (HWND hDlg)
 
 	SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_SETCURSEL,
 		(workprefs.win32_rtgscaleaspectratio == 0) ? 0 :
-		(workprefs.win32_rtgscaleaspectratio == 4 * 256 + 3) ? 2 :
-		(workprefs.win32_rtgscaleaspectratio == 5 * 256 + 4) ? 3 :
-		(workprefs.win32_rtgscaleaspectratio == 15 * 256 + 9) ? 4 :
-		(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 9) ? 5 :
-		(workprefs.win32_rtgscaleaspectratio == 16 * 256 + 10) ? 6 : 1, 0);
+		(workprefs.win32_rtgscaleaspectratio == 1) ? 1 :
+		getaspectratioindex (workprefs.win32_rtgscaleaspectratio) + 2, 0);
 
 	mem_size = 0;
 	switch (workprefs.mbresmem_low_size) {
@@ -7384,11 +7415,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
 		WIN32GUI_LoadUIString (IDS_AUTOMATIC, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)tmp);
-		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("4:3"));
-		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("5:4"));
-		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("15:9"));
-		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("16:9"));
-		SendDlgItemMessage (hDlg, IDC_RTG_SCALE_ASPECTRATIO, CB_ADDSTRING, 0, (LPARAM)_T("16:10"));
+		addaspectratios (hDlg, IDC_RTG_SCALE_ASPECTRATIO);
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_RESETCONTENT, 0, 0);
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Chipset"));
 		SendDlgItemMessage (hDlg, IDC_RTG_VBLANKRATE, CB_ADDSTRING, 0, (LPARAM)_T("Default"));
@@ -7488,18 +7515,10 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 					if (v != CB_ERR) {
 						if (v == 0)
 							workprefs.win32_rtgscaleaspectratio = 0;
-						if (v == 1)
+						else if (v == 1)
 							workprefs.win32_rtgscaleaspectratio = -1;
-						if (v == 2)
-							workprefs.win32_rtgscaleaspectratio = 4 * 256 + 3;
-						if (v == 3)
-							workprefs.win32_rtgscaleaspectratio = 5 * 256 + 4;
-						if (v == 4)
-							workprefs.win32_rtgscaleaspectratio = 15 * 256 + 9;
-						if (v == 5)
-							workprefs.win32_rtgscaleaspectratio = 16 * 256 + 9;
-						if (v == 6)
-							workprefs.win32_rtgscaleaspectratio = 16 * 256 + 10;
+						else if (v >= 2)
+							workprefs.win32_rtgscaleaspectratio = getaspectratio (v - 2);
 					}
 					break;
 				case IDC_RTG_Z2Z3:
@@ -13811,11 +13830,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_SETCURSEL,
 		(workprefs.gfx_filter_aspect == 0) ? 0 :
 		(workprefs.gfx_filter_aspect < 0) ? 1 :
-		(workprefs.gfx_filter_aspect == 4 * 256 + 3) ? 2 :
-		(workprefs.gfx_filter_aspect == 5 * 256 + 4) ? 3 :
-		(workprefs.gfx_filter_aspect == 15 * 256 + 9) ? 4 :
-		(workprefs.gfx_filter_aspect == 16 * 256 + 9) ? 5 :
-		(workprefs.gfx_filter_aspect == 16 * 256 + 10) ? 6 : 0, 0);
+		getaspectratioindex (workprefs.gfx_filter_aspect) + 2, 0);
 
 	CheckDlgButton (hDlg, IDC_FILTERKEEPASPECT, workprefs.gfx_filter_keep_aspect);
 	CheckDlgButton (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT, workprefs.gfx_filter_keep_autoscale_aspect != 0);
@@ -14259,11 +14274,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
 		WIN32GUI_LoadUIString (IDS_AUTOMATIC, tmp, sizeof tmp / sizeof (TCHAR));
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)tmp);
-		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)_T("4:3"));
-		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)_T("5:4"));
-		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)_T("15:9"));
-		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)_T("16:9"));
-		SendDlgItemMessage (hDlg, IDC_FILTERASPECT, CB_ADDSTRING, 0, (LPARAM)_T("16:10"));
+		addaspectratios (hDlg, IDC_FILTERASPECT);
 
 		SendDlgItemMessage (hDlg, IDC_FILTERASPECT2, CB_RESETCONTENT, 0, 0);
 		WIN32GUI_LoadUIString (IDS_DISABLED, tmp, sizeof tmp / sizeof (TCHAR));
@@ -14405,18 +14416,10 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 						if (v != CB_ERR) {
 							if (v == 0)
 								v2 = 0;
-							if (v == 1)
+							else if (v == 1)
 								v2 = -1;
-							if (v == 2)
-								v2 = 4 * 256 + 3;
-							if (v == 3)
-								v2 = 5 * 256 + 4;
-							if (v == 4)
-								v2 = 15 * 256 + 9;
-							if (v == 5)
-								v2 = 16 * 256 + 9;
-							if (v == 6)
-								v2 = 16 * 256 + 10;
+							else if (v >= 2)
+								v2 = getaspectratio (v - 2);
 						}
 						currprefs.gfx_filter_aspect = workprefs.gfx_filter_aspect = v2;
 						updatedisplayarea ();

@@ -177,10 +177,8 @@ struct color_change {
 /* 440 rather than 880, since sprites are always lores.  */
 #ifdef UAE_MINI
 #define MAX_PIXELS_PER_LINE 880
-#define MAX_VIDHEIGHT 800
 #else
 #define MAX_PIXELS_PER_LINE 1760
-#define MAX_VIDHEIGHT 2048
 #endif
 
 /* No divisors for MAX_PIXELS_PER_LINE; we support AGA and SHRES sprites */

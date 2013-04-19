@@ -260,7 +260,7 @@ int default_freq = 60;
 
 HWND hStatusWnd = NULL;
 
-static uae_u8 scrlinebuf[4096 * 4]; /* this is too large, but let's rather play on the safe side here */
+static uae_u8 scrlinebuf[MAX_UAE_WIDTH * 4]; /* this is too large, but let's rather play on the safe side here */
 
 static struct MultiDisplay *getdisplay2 (struct uae_prefs *p, int index)
 {
@@ -1196,15 +1196,15 @@ static void DX_Blit96 (int x, int y, int w, int h)
 		SetRect (&sr, 0, 0, picasso96_state.Width, picasso96_state.Height);
 		if (currprefs.win32_rtgscaleaspectratio < 0) {
 			// automatic
-			srcratio = picasso96_state.Width * 256 / picasso96_state.Height;
-			dstratio = srcwidth * 256 / srcheight;
+			srcratio = picasso96_state.Width * ASPECTMULT / picasso96_state.Height;
+			dstratio = srcwidth * ASPECTMULT / srcheight;
 		} else if (currprefs.win32_rtgscaleaspectratio == 0) {
 			// none
 			srcratio = dstratio = 0;
 		} else {
 			// manual
-			srcratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
-			dstratio = srcwidth * 256 / srcheight;
+			srcratio = currprefs.win32_rtgscaleaspectratio;
+			dstratio = srcwidth * ASPECTMULT / srcheight;
 		}
 		if (srcratio == dstratio) {
 			SetRect (&dr, 0, 0, srcwidth, srcheight);
@@ -1266,15 +1266,15 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	} else {
 		if (currprefs.win32_rtgscaleaspectratio < 0) {
 			// automatic
-			srcratio = srcwidth * 256 / srcheight;
-			dstratio = currentmode->native_width * 256 / currentmode->native_height;
+			srcratio = srcwidth * ASPECTMULT / srcheight;
+			dstratio = currentmode->native_width * ASPECTMULT / currentmode->native_height;
 		} else if (currprefs.win32_rtgscaleaspectratio == 0) {
 			// none
 			srcratio = dstratio = 0;
 		} else {
 			// manual
-			dstratio = (currprefs.win32_rtgscaleaspectratio >> 8) * 256 / (currprefs.win32_rtgscaleaspectratio & 0xff);
-			srcratio = srcwidth * 256 / srcheight;
+			dstratio = currprefs.win32_rtgscaleaspectratio;
+			srcratio = srcwidth * ASPECTMULT / srcheight;
 		}
 
 		if (srcratio == dstratio) {

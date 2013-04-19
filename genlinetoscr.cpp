@@ -137,13 +137,13 @@ static void out_linetoscr_do_srcpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
 {
 	if (aga && cmode == CMODE_HAM) {
-		outln (	    "    dpix_val = CONVERT_RGB (ham_linebuf[spix]);");
-		if (spr)
-			outln ( "    sprpix_val = dpix_val;");
+		outln (	    "    spix_val = ham_linebuf[spix];");
+		outln (	    "    dpix_val = CONVERT_RGB (spix_val);");
 	} else if (cmode == CMODE_HAM) {
-		outln (		"    dpix_val = xcolors[ham_linebuf[spix]];");
+		outln (		"    spix_val = ham_linebuf[spix];");
+		outln ( "    dpix_val = xcolors[spix_val];");
 		if (spr)
-			outln ( "    sprpix_val = dpix_val;");
+			outln ( "    sprpix_val = pixdata.apixels[spix];");
 	} else if (aga && cmode == CMODE_DUALPF) {
 		outln (     "    {");
 		outln (		"        uae_u8 val = lookup[spix_val];");

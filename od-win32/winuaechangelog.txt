@@ -1,6 +1,21 @@
 
 - restore only single input target to default.
 
+Beta 17:
+
+- One more IDE emulation fix, bogus extra write interrupt removed (I think this was accidentally introduced in some recent
+  update). For some reason all tested drivers seemed to ignore it but it also could have caused data corruption in worst case.
+- Added support for very large resolutions (NV Surround/AMD Eyefinity), max is now 8192x8192 (from 3072x2048)
+  (I now have 3xVG248QE in portrait surround, 2d lightboost mode, GTX680 SLI. Debezeling still to do..)
+- Display panel GUI didn't accept new selected resolution if previously loaded config had non-existing resolution.
+- B16 didn't fix all glitches, yet another fix attempt. (Mindriot/Andromeda and more)
+- Fixed sprite priorities in HAM mode (Thanks to Paradroid for this and right edge overscan test case)
+- Added some uncommon aspect ratios to GUI aspect ratio select menus.
+- Added new config entry "chipset_hacks" that is used to enable emulation of not fully known chipset features or bugs.
+  Bit 0 = emulate COPJMP/Blitter cycle conflict (Blitter DMA channel gets loaded with Copper address)
+  Bit 1 = emulate strange right edge overscan display shift if lores bitplane and scroll value is greater than 7.
+  DO NOT enable in your default configuration, these are not fully emulated and can and will break other programs!
+
 Beta 16:
 
 This beta should fix all strange display glitches introduced in previous 2.6 betas.

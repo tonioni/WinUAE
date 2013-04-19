@@ -17,6 +17,9 @@
 #define WINDOWS
 #define ZLIB_WINAPI
 
+#define MAX_UAE_WIDTH 8192
+#define MAX_UAE_HEIGHT 8192
+
 #ifndef UAE_MINI
 
 #define DEBUGGER
