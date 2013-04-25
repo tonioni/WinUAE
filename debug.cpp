@@ -240,6 +240,26 @@ uae_u32 get_long_debug (uaecptr addr)
 	}
 	return v;
 }
+uae_u32 get_iword_debug (uaecptr addr)
+{
+	if (debug_mmu_mode) {
+		return get_word_debug (addr);
+	} else {
+		if (valid_address (addr, 2))
+			return get_word (addr);
+		return 0xffff;
+	}
+}
+uae_u32 get_ilong_debug (uaecptr addr)
+{
+	if (debug_mmu_mode) {
+		return get_long_debug (addr);
+	} else {
+		if (valid_address (addr, 4))
+			return get_long (addr);
+		return 0xffffffff;
+	}
+}
 
 int safe_addr (uaecptr addr, int size)
 {

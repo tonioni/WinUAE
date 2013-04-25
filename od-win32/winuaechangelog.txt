@@ -1,6 +1,20 @@
 
 - restore only single input target to default.
 
+Beta 18:
+
+- If config (for example default.uae) has keyboard layout A/B/C selected, it will be remembered as default
+  keyboard layout for selected port, then if new config is loaded and it has non-existing device
+  (for example unplugged gamepad), port is configured for remembered default keyboard layout instead of always
+  defaulting to layout A.
+- Patch stupid CD32 ROM CD drive detection CPU delay loop if configured for non-approximate CPU speed modes.
+- Validate RTG blit parameters more carefully to prevent invalid memory accesses if program(s) do bad things.
+- winuaeenforcer disassembly crashed due to recent debugger changes.
+- B15 sprite emulation update caused graphics corruption if display window was "too wide". (Himalaya / Avalanche)
+- Mention also Administrator privileges in real harddrive/memory card "block zero write failed" messages.
+- Modified emulation of ddfstrt/ddfstop value pairs that cause display corruption on real hardware due
+  to bitplane dma being active too long and conflicting with refresh/strobe slots, prints log message.
+
 Beta 17:
 
 - One more IDE emulation fix, bogus extra write interrupt removed (I think this was accidentally introduced in some recent

@@ -739,11 +739,11 @@ static void pfield_init_linetoscr (void)
 	linetoscr_diw_start = dp_for_drawing->diwfirstword;
 	linetoscr_diw_end = dp_for_drawing->diwlastword;
 
-	res_shift = lores_shift - bplres;
-
 	/* Perverse cases happen. */
 	if (linetoscr_diw_end < linetoscr_diw_start)
 		linetoscr_diw_end = linetoscr_diw_start;
+
+	res_shift = lores_shift - bplres;
 
 	playfield_start = linetoscr_diw_start;
 	playfield_end = linetoscr_diw_end;
@@ -762,11 +762,6 @@ static void pfield_init_linetoscr (void)
 	if (playfield_end > visible_right_border)
 		playfield_end = visible_right_border;
 
-#if 0
-	real_playfield_end = playfield_end;
-	real_playfield_start = playfield_start;
-#endif
-
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
 	// This means "bordersprite" condition is possible under OCS/ECS too. Argh!
@@ -776,14 +771,11 @@ static void pfield_init_linetoscr (void)
 			playfield_end = linetoscr_diw_end;
 		}
 		int end = coord_hw_to_window_x (dp_for_drawing->plfleft * 2);
+		if (end < visible_left_border)
+			end = visible_left_border;
 		if (end < playfield_start && end > linetoscr_diw_start) {
 			playfield_start = end;
-			;//can_have_bordersprite = true;
-		} else {
-			;//can_have_bordersprite = false;
 		}
-	} else {
-		;//can_have_bordersprite = dp_for_drawing->bordersprite_seen;
 	}
 
 #ifdef AGA

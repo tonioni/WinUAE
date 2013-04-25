@@ -927,7 +927,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE)) {
 				hfd->handle->firstwrite = true;
 				if (ismounted (hfd->device_name, hfd->handle->h)) {
-					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions. Erase the drive or unmount all PC partitions first."), name);
+					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions or WinUAE does not have Administrator privileges. Erase the drive or unmount all PC partitions first."), name);
 					hfd->ci.readonly = true;
 					return 0;
 				}
@@ -944,7 +944,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 				hdf_seek (hfd, offset);
 				ReadFile (hfd->handle->h, tmp, tmplen, &outlen2, NULL);
 				if (memcmp (hfd->cache, tmp, tmplen) != 0 || outlen != len)
-					gui_message (_T("\"%s\"\n\nblock zero write failed!"), name);
+					gui_message (_T("\"%s\"\n\nblock zero write failed! Make sure WinUAE has Windows Administrator privileges."), name);
 				VirtualFree (tmp, 0, MEM_RELEASE);
 			}
 		}

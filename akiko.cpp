@@ -1787,6 +1787,28 @@ addrbank akiko_bank = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
+static const uae_u8 patchdata[]={0x0c,0x82,0x00,0x00,0x03,0xe8,0x64,0x00,0x00,0x46};
+static void patchrom (void)
+{
+    int i;
+	if (currprefs.cpu_model > 68020 || currprefs.cachesize || currprefs.m68k_speed != 0) {
+		uae_u8 *p = (uae_u8*)extendedkickmemory;
+		for (i = 0; i < 524288 - sizeof (patchdata); i++) {
+			if (!memcmp (p + i, patchdata, sizeof(patchdata))) {
+				protect_roms (false);
+				p[i + 6] = 0x4e;
+				p[i + 7] = 0x71;
+				p[i + 8] = 0x4e;
+				p[i + 9] = 0x71;
+				protect_roms (true);
+				write_log (_T("extended rom delay loop patched at 0x%p\n"), i + 6 + 0xe00000);
+				return;
+			}
+		}
+		write_log (_T("couldn't patch extended rom\n"));
+	}
+}
+
 static void akiko_cdrom_free (void)
 {
 	sys_cddev_close ();
@@ -1833,7 +1855,6 @@ void akiko_reset (void)
 	akiko_inited = false;
 }
 
-
 void akiko_free (void)
 {
 	akiko_reset ();
@@ -1860,6 +1881,7 @@ int akiko_init (void)
 		cdrom_playing = cdrom_paused = 0;
 		cdrom_data_offset = -1;
 	}
+	patchrom ();
 	if (!akiko_thread_running) {
 		akiko_thread_running = 1;
 		init_comm_pipe (&requests, 100, 1);

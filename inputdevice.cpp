@@ -176,6 +176,7 @@ static struct uae_input_device *mice;
 static struct uae_input_device *keyboards;
 static struct uae_input_device *internalevents;
 static struct uae_input_device_kbr_default *keyboard_default, **keyboard_default_table;
+static int default_keyboard_layout[MAX_JPORTS];
 
 #define KBR_DEFAULT_MAP_FIRST 0
 #define KBR_DEFAULT_MAP_LAST 5
@@ -6826,6 +6827,14 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 					p->jports[portnum].id = start;
 					if (mode >= 0)
 						p->jports[portnum].mode = mode;
+					if (start < JSEM_JOYS)
+						default_keyboard_layout[portnum] = start;
+					config_changed = 1;
+					return 1;
+				}
+				// joystick not found, select default
+				if (start == JSEM_JOYS && p->jports[portnum].id < JSEM_JOYS) {
+					p->jports[portnum].id = default_keyboard_layout[portnum];
 					config_changed = 1;
 					return 1;
 				}

@@ -1313,7 +1313,7 @@ static bool waitingblits (void)
 	}
 	if (warned && waited) {
 		warned--;
-		write_log (_T("waiting_blits detected\n"));
+		write_log (_T("waiting_blits detected PC=%08x\n"), M68K_GETPC);
 	}
 	if (bltstate == BLT_done)
 		return true;

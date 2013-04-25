@@ -642,10 +642,26 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 
 #define HARD_DDF_LIMITS_DISABLED ((beamcon0 & 0x80) || (bplcon0 & 0x40))
 /* The HRM says 0xD8, but that can't work... */
-#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd4)
+#define HARD_DDF_STOP (HARD_DDF_LIMITS_DISABLED ? 0xff : 0xd6)
 #define HARD_DDF_START_REAL 0x18
 /* Programmed rates or superhires (!) disable normal DMA limits */
 #define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
+
+static void add_modulo (int nr)
+{
+	int mod;
+	if (fmode & 0x4000) {
+		if (((diwstrt >> 8) ^ vpos) & 1)
+			mod = bpl2mod;
+		else
+			mod = bpl1mod;
+	} else if (nr & 1)
+		mod = bpl2mod;
+	else
+		mod = bpl1mod;
+	bplpt[nr] += mod;
+	bplptx[nr] += mod;
+}
 
 static void add_modulos (void)
 {
@@ -1109,7 +1125,7 @@ static void do_right_ddf_hack (int nr, int hpos)
 	shift = (nr & 1) ? toscr_delay2 : toscr_delay1;
 	if (shift < 8)
 		return;
-	fetched[nr] >>= 7;
+	fetched[nr] >>= 6;
 }
 
 
@@ -1143,18 +1159,7 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 #endif
 		}
 		if (plf_state == plf_passed_stop2 && fetch_cycle >= (fetch_cycle & ~fetchunit_mask) + fetch_modulo_cycle) {
-			int mod;
-			if (fmode & 0x4000) {
-				if (((diwstrt >> 8) ^ vpos) & 1)
-					mod = bpl2mod;
-				else
-					mod = bpl1mod;
-			} else if (nr & 1)
-				mod = bpl2mod;
-			else
-				mod = bpl1mod;
-			bplpt[nr] += mod;
-			bplptx[nr] += mod;
+			add_modulo (nr);
 
 			if ((currprefs.cs_hacks & 2) || 0)
 				do_right_ddf_hack (nr, hpos);
@@ -1610,15 +1615,6 @@ static void do_long_fetch (int hpos, int nwords, int dma, int fm)
 
 #endif
 
-/* make sure fetch that goes beyond maxhpos is finished */
-static void finish_final_fetch (void)
-{
-	if (plf_state != plf_end)
-		return;
-	plf_state = plf_finished;
-	finish_playfield_line ();
-}
-
 static void finish_last_fetch (int pos, int fm)
 {
 	if (thisline_decision.plfleft < 0)
@@ -1636,6 +1632,86 @@ static void finish_last_fetch (int pos, int fm)
 		ddfstate = DIW_waiting_start;
 		fetch_state = fetch_not_started;
 	}
+}
+/* check special case where last fetch wraps to next line
+ * this makes totally corrupted and flickering display on
+ * real hardware due to refresh cycle conflicts
+ */
+static void maybe_finish_last_fetch (int pos, int fm)
+{
+	static int warned = 20;
+	bool done = false;
+
+	if (plf_state != plf_passed_stop2 || fetch_state != fetch_started || !dmaen (DMA_BITPLANE)) {
+		finish_last_fetch (pos, fm);
+		return;
+	}
+	do {
+		int cycle_start = fetch_cycle & fetchstart_mask;
+		switch (fm_maxplane) {
+		case 8:
+			switch (cycle_start) {
+			case 0: fetch (7, fm, pos); break;
+			case 1: fetch (3, fm, pos); break;
+			case 2: fetch (5, fm, pos); break;
+			case 3: fetch (1, fm, pos); break;
+			case 4: fetch (6, fm, pos); break;
+			case 5: fetch (2, fm, pos); break;
+			case 6: fetch (4, fm, pos); break;
+			case 7: fetch (0, fm, pos); break;
+			default:
+			goto end;
+			}
+			break;
+		case 4:
+			switch (cycle_start) {
+			case 0: fetch (3, fm, pos); break;
+			case 1: fetch (1, fm, pos); break;
+			case 2: fetch (2, fm, pos); break;
+			case 3: fetch (0, fm, pos); break;
+			default:
+			goto end;
+			}
+			break;
+		case 2:
+			switch (cycle_start) {
+			case 0: fetch (1, fm, pos); break;
+			case 1: fetch (0, fm, pos); break;
+			default:
+			goto end;
+			}
+			break;
+		}
+		fetch_cycle++;
+		toscr_nbits += 2 << toscr_res;
+
+		if (toscr_nbits > 16)
+			toscr_nbits = 0;
+		if (toscr_nbits == 16)
+			flush_display (fm);
+		done = true;
+	} while ((fetch_cycle & fetchunit_mask) != 0);
+
+	if (done && warned > 0) {
+		warned--;
+		write_log (_T("WARNING: bitplane DMA crossing scanlines!\n"));
+	}
+
+end:
+	finish_last_fetch (pos, fm);
+}
+
+
+/* make sure fetch that goes beyond maxhpos is finished */
+static void finish_final_fetch (void)
+{
+	if (plf_state < plf_end) {
+		finish_last_fetch (maxhpos, fetchmode);
+		if (plf_state != plf_end)
+			return;
+	}
+	plf_state = plf_finished;
+	finish_playfield_line ();
 }
 
 STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int fm)
@@ -1767,7 +1843,7 @@ static void update_fetch_x (int until, int fm)
 	}
 
 	if (until >= maxhpos) {
-		finish_last_fetch (pos, fm);
+		maybe_finish_last_fetch (pos, fm);
 		return;
 	}
 
@@ -1802,7 +1878,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 	for (; ; pos++) {
 		if (pos == until) {
 			if (until >= maxhpos) {
-				finish_last_fetch (pos, fm);
+				maybe_finish_last_fetch (pos, fm);
 				return;
 			}
 			flush_display (fm);
@@ -1879,7 +1955,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 			return;
 	}
 	if (until >= maxhpos) {
-		finish_last_fetch (pos, fm);
+		maybe_finish_last_fetch (pos, fm);
 		return;
 	}
 	flush_display (fm);

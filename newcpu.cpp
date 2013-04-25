@@ -1404,7 +1404,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 	case Ad16:
 		{
 			TCHAR offtxt[80];
-			disp16 = get_word_debug (pc); pc += 2;
+			disp16 = get_iword_debug (pc); pc += 2;
 			if (disp16 < 0)
 				_stprintf (offtxt, _T("-$%04x"), -disp16);
 			else
@@ -1414,7 +1414,7 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		}
 		break;
 	case Ad8r:
-		dp = get_word_debug (pc); pc += 2;
+		dp = get_iword_debug (pc); pc += 2;
 		disp8 = dp & 0xFF;
 		r = (dp & 0x7000) >> 12;
 		dispreg = dp & 0x8000 ? m68k_areg (regs, r) : m68k_dreg (regs, r);
@@ -1428,15 +1428,15 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			_stprintf (name, _T("A%d, "), reg);
 			if (dp & 0x80) { base = 0; name[0] = 0; }
 			if (dp & 0x40) dispreg = 0;
-			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_word_debug (pc); pc += 2; }
-			if ((dp & 0x30) == 0x30) { disp = get_long_debug (pc); pc += 4; }
+			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
+			if ((dp & 0x30) == 0x30) { disp = get_ilong_debug (pc); pc += 4; }
 			base += disp;
 
-			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_word_debug (pc); pc += 2; }
-			if ((dp & 0x3) == 0x3) { outer = get_long_debug (pc); pc += 4; }
+			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
+			if ((dp & 0x3) == 0x3) { outer = get_ilong_debug (pc); pc += 4; }
 
 			if (!(dp & 4)) base += dispreg;
-			if ((dp & 3) && !safemode) base = get_long_debug (base);
+			if ((dp & 3) && !safemode) base = get_ilong_debug (base);
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
@@ -1454,12 +1454,12 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		}
 		break;
 	case PC16:
-		disp16 = get_word_debug (pc); pc += 2;
+		disp16 = get_iword_debug (pc); pc += 2;
 		addr += (uae_s16)disp16;
 		_stprintf (buffer, _T("(PC,$%04x) == $%08lx"), disp16 & 0xffff, (unsigned long)addr);
 		break;
 	case PC8r:
-		dp = get_word_debug (pc); pc += 2;
+		dp = get_iword_debug (pc); pc += 2;
 		disp8 = dp & 0xFF;
 		r = (dp & 0x7000) >> 12;
 		dispreg = dp & 0x8000 ? m68k_areg (regs, r) : m68k_dreg (regs, r);
@@ -1473,15 +1473,15 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 			_stprintf (name, _T("PC, "));
 			if (dp & 0x80) { base = 0; name[0] = 0; }
 			if (dp & 0x40) dispreg = 0;
-			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_word_debug (pc); pc += 2; }
-			if ((dp & 0x30) == 0x30) { disp = get_long_debug (pc); pc += 4; }
+			if ((dp & 0x30) == 0x20) { disp = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
+			if ((dp & 0x30) == 0x30) { disp = get_ilong_debug (pc); pc += 4; }
 			base += disp;
 
-			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_word_debug (pc); pc += 2; }
-			if ((dp & 0x3) == 0x3) { outer = get_long_debug (pc); pc += 4; }
+			if ((dp & 0x3) == 0x2) { outer = (uae_s32)(uae_s16)get_iword_debug (pc); pc += 2; }
+			if ((dp & 0x3) == 0x3) { outer = get_ilong_debug (pc); pc += 4; }
 
 			if (!(dp & 4)) base += dispreg;
-			if ((dp & 3) && !safemode) base = get_long_debug (base);
+			if ((dp & 3) && !safemode) base = get_ilong_debug (base);
 			if (dp & 4) base += dispreg;
 
 			addr = base + outer;
@@ -1498,27 +1498,27 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		}
 		break;
 	case absw:
-		addr = (uae_s32)(uae_s16)get_word_debug (pc);
+		addr = (uae_s32)(uae_s16)get_iword_debug (pc);
 		_stprintf (buffer, _T("$%08lx"), (unsigned long)addr);
 		pc += 2;
 		break;
 	case absl:
-		addr = get_long_debug (pc);
+		addr = get_ilong_debug (pc);
 		_stprintf (buffer, _T("$%08lx"), (unsigned long)addr);
 		pc += 4;
 		break;
 	case imm:
 		switch (size){
 		case sz_byte:
-			_stprintf (buffer, _T("#$%02x"), (unsigned int)(get_word_debug (pc) & 0xff));
+			_stprintf (buffer, _T("#$%02x"), (unsigned int)(get_iword_debug (pc) & 0xff));
 			pc += 2;
 			break;
 		case sz_word:
-			_stprintf (buffer, _T("#$%04x"), (unsigned int)(get_word_debug (pc) & 0xffff));
+			_stprintf (buffer, _T("#$%04x"), (unsigned int)(get_iword_debug (pc) & 0xffff));
 			pc += 2;
 			break;
 		case sz_long:
-			_stprintf (buffer, _T("#$%08lx"), (unsigned long)(get_long_debug (pc)));
+			_stprintf (buffer, _T("#$%08lx"), (unsigned long)(get_ilong_debug (pc)));
 			pc += 4;
 			break;
 		default:
@@ -1526,20 +1526,20 @@ static uaecptr ShowEA (void *f, uaecptr pc, uae_u16 opcode, int reg, amodes mode
 		}
 		break;
 	case imm0:
-		offset = (uae_s32)(uae_s8)get_word_debug (pc);
+		offset = (uae_s32)(uae_s8)get_iword_debug (pc);
 		_stprintf (buffer, _T("#$%02x"), (unsigned int)(offset & 0xff));
 		addr = pc + 2 + offset;
 		pc += 2;
 		break;
 	case imm1:
-		offset = (uae_s32)(uae_s16)get_word_debug (pc);
+		offset = (uae_s32)(uae_s16)get_iword_debug (pc);
 		buffer[0] = 0;
 		_stprintf (buffer, _T("#$%04x"), (unsigned int)(offset & 0xffff));
 		addr = pc + offset;
 		pc += 2;
 		break;
 	case imm2:
-		offset = (uae_s32)get_long_debug (pc);
+		offset = (uae_s32)get_ilong_debug (pc);
 		_stprintf (buffer, _T("#$%08lx"), (unsigned long)offset);
 		addr = pc + offset;
 		pc += 4;
@@ -5247,7 +5247,7 @@ void sm68k_disasm (TCHAR *instrname, TCHAR *instrcode, uaecptr addr, uaecptr *ne
 	struct instr *dp;
 	uaecptr pc, oldpc;
 
-	oldpc = pc = m68k_getpc ();
+	pc = oldpc = addr;
 	opcode = get_word_debug (pc);
 	if (cpufunctbl[opcode] == op_illg_1) {
 		opcode = 0x4AFC;
@@ -5270,24 +5270,22 @@ void sm68k_disasm (TCHAR *instrname, TCHAR *instrcode, uaecptr addr, uaecptr *ne
 	}
 
 	if (dp->suse) {
-		pc += ShowEA (0, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, NULL, 0);
+		pc = ShowEA (0, pc, opcode, dp->sreg, dp->smode, dp->size, instrname, NULL, 0);
 	}
 	if (dp->suse && dp->duse)
 		_tcscat (instrname, _T(","));
 	if (dp->duse) {
-		pc += ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, NULL, 0);
+		pc = ShowEA (0, pc, opcode, dp->dreg, dp->dmode, dp->size, instrname, NULL, 0);
 	}
-
 	if (instrcode)
 	{
 		int i;
 		for (i = 0; i < (pc - oldpc) / 2; i++)
 		{
-			_stprintf (instrcode, _T("%04x "), get_iword_1 (oldpc + i * 2));
+			_stprintf (instrcode, _T("%04x "), get_iword_debug (oldpc + i * 2));
 			instrcode += _tcslen (instrcode);
 		}
 	}
-
 	if (nextpc)
 		*nextpc = pc;
 }

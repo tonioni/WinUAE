@@ -388,19 +388,50 @@ static uae_u8 GetBytesPerPixel (uae_u32 RGBfmt)
 	return 0;
 }
 
+STATIC_INLINE bool validatecoords2 (struct RenderInfo *ri, uae_u32 X, uae_u32 Y, uae_u32 Width, uae_u32 Height)
+{
+	if (Width >= 32768)
+		return false;
+	if (Height >= 32768)
+		return false;
+	if (X >= 32768)
+		return false;
+	if (Y >= 32768)
+		return false;
+	if (!Width || !Height)
+		return true;
+	if (ri) {
+		int bpp = GetBytesPerPixel (ri->RGBFormat);
+		if (Width * bpp > ri->BytesPerRow)
+			return false;
+		if (!valid_address (ri->AMemory, (Height - 1) * ri->BytesPerRow + (Width - 1) * bpp))
+			return false;
+	}
+	return true;
+}
+static bool validatecoords (struct RenderInfo *ri, uae_u32 X, uae_u32 Y, uae_u32 Width, uae_u32 Height)
+{
+	if (validatecoords2 (ri, X, Y, Width, Height))
+		return true;
+	write_log (_T("RTG invalid region: %08X:%d:%d (%dx%d)-(%dx%d)\n"), ri->AMemory, ri->BytesPerRow, ri->RGBFormat, X, Y, Width, Height);
+	return false;
+}
+
 /*
 * Amiga <-> native structure conversion functions
 */
 
 static int CopyRenderInfoStructureA2U (uaecptr amigamemptr, struct RenderInfo *ri)
 {
-	uaecptr memp = get_long (amigamemptr + PSSO_RenderInfo_Memory);
-
-	if (valid_address (memp, PSSO_RenderInfo_sizeof)) {
+	if (valid_address (amigamemptr, PSSO_RenderInfo_sizeof)) {
+		uaecptr memp = get_long (amigamemptr + PSSO_RenderInfo_Memory);
+		ri->AMemory = memp;
 		ri->Memory = get_real_address (memp);
 		ri->BytesPerRow = get_word (amigamemptr + PSSO_RenderInfo_BytesPerRow);
 		ri->RGBFormat = (RGBFTYPE)get_long (amigamemptr + PSSO_RenderInfo_RGBFormat);
-		return 1;
+		// Can't really validate this better at this point, no height.
+		if (valid_address (memp, ri->BytesPerRow))
+			return 1;
 	}
 	write_log (_T("ERROR - Invalid RenderInfo memory area...\n"));
 	return 0;
@@ -408,8 +439,8 @@ static int CopyRenderInfoStructureA2U (uaecptr amigamemptr, struct RenderInfo *r
 
 static int CopyPatternStructureA2U (uaecptr amigamemptr, struct Pattern *pattern)
 {
-	uaecptr memp = get_long (amigamemptr + PSSO_Pattern_Memory);
-	if (valid_address (memp, PSSO_Pattern_sizeof)) {
+	if (valid_address (amigamemptr, PSSO_Pattern_sizeof)) {
+		uaecptr memp = get_long (amigamemptr + PSSO_Pattern_Memory);
 		pattern->Memory = get_real_address (memp);
 		pattern->XOffset = get_word (amigamemptr + PSSO_Pattern_XOffset);
 		pattern->YOffset = get_word (amigamemptr + PSSO_Pattern_YOffset);
@@ -417,7 +448,8 @@ static int CopyPatternStructureA2U (uaecptr amigamemptr, struct Pattern *pattern
 		pattern->BgPen = get_long (amigamemptr + PSSO_Pattern_BgPen);
 		pattern->Size = get_byte (amigamemptr + PSSO_Pattern_Size);
 		pattern->DrawMode = get_byte (amigamemptr + PSSO_Pattern_DrawMode);
-		return 1;
+		if (valid_address (memp, 2))
+			return 1;
 	}
 	write_log (_T("ERROR - Invalid Pattern memory area...\n"));
 	return 0;
@@ -2685,8 +2717,12 @@ static uae_u32 REGPARAM2 picasso_InvertRect (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
+
 	if (CopyRenderInfoStructureA2U (renderinfo, &ri)) {
 		P96TRACE((_T("InvertRect %dbpp 0x%lx\n"), Bpp, (long)mask));
+
+		if (!validatecoords (&ri, X, Y, Width, Height))
+			return 1;
 
 		if (mask != 0xFF && Bpp > 1)
 			mask = 0xFF;
@@ -2733,7 +2769,10 @@ static uae_u32 REGPARAM2 picasso_FillRect (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
-	if (CopyRenderInfoStructureA2U (renderinfo, &ri) && Y != 0xFFFF) {
+	if (CopyRenderInfoStructureA2U (renderinfo, &ri)) {
+		if (!validatecoords (&ri, X, Y, Width, Height))
+			return 1;
+
 		Bpp = GetBytesPerPixel (RGBFormat);
 
 		P96TRACE((_T("FillRect(%d, %d, %d, %d) Pen 0x%x BPP %d BPR %d Mask 0x%x\n"),
@@ -2826,6 +2865,11 @@ STATIC_INLINE int BlitRectHelper (void)
 	unsigned long height = blitrectdata.height;
 	uae_u8 mask = blitrectdata.mask;
 	BLIT_OPCODE opcode = blitrectdata.opcode;
+
+	if (!validatecoords (ri, srcx, srcy, width, height))
+		return 1;
+	if (!validatecoords (dstri, dstx, dsty, width, height))
+		return 1;
 
 	uae_u8 Bpp = GetBytesPerPixel (ri->RGBFormat);
 
@@ -2943,7 +2987,6 @@ static uae_u32 REGPARAM2 picasso_BlitRectNoMaskComplete (TrapContext *ctx)
 
 	if (NOBLITTER_BLIT)
 		return 0;
-
 	P96TRACE((_T("BlitRectNoMaskComplete() op 0x%02x, %08x:(%4d,%4d) --> %08x:(%4d,%4d), wh(%4d,%4d)\n"),
 		OpCode, get_long (srcri + PSSO_RenderInfo_Memory), srcx, srcy, get_long (dstri + PSSO_RenderInfo_Memory), dstx, dsty, width, height));
 	result = BlitRect (srcri, dstri, srcx, srcy, dstx, dsty, width, height, 0xFF, OpCode);
@@ -3018,8 +3061,10 @@ static uae_u32 REGPARAM2 picasso_BlitPattern (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
-
 	if(CopyRenderInfoStructureA2U (rinf, &ri) && CopyPatternStructureA2U (pinf, &pattern)) {
+		if (!validatecoords (&ri, X, Y, W, H))
+			return 1;
+
 		Bpp = GetBytesPerPixel(ri.RGBFormat);
 		uae_mem = ri.Memory + Y * ri.BytesPerRow + X * Bpp; /* offset with address */
 
@@ -3178,8 +3223,10 @@ static uae_u32 REGPARAM2 picasso_BlitTemplate (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
-
 	if (CopyRenderInfoStructureA2U (rinf, &ri) && CopyTemplateStructureA2U (tmpl, &tmp)) {
+		if (!validatecoords (&ri, X, Y, W, H))
+			return 1;
+
 		Bpp = GetBytesPerPixel (ri.RGBFormat);
 		uae_mem = ri.Memory + Y * ri.BytesPerRow + X * Bpp; /* offset into address */
 
@@ -3607,6 +3654,7 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 
 	if (NOBLITTER)
 		return 0;
+
 	if (minterm != 0x0C) {
 		write_log (_T("WARNING - BlitPlanar2Direct() has unhandled op-code 0x%x. Using fall-back routine.\n"), minterm);
 		return 0;
