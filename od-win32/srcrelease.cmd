@@ -125,6 +125,7 @@ rm -rf debug
 rm -rf release
 rm -rf fullrelease
 rm -rf test
+rm -rf x64
 cd ..
 
 cd singlefilehelper

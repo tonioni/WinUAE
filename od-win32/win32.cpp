@@ -119,6 +119,8 @@ int cpu_mmx = 1;
 static int userdtsc = 0;
 int D3DEX = 1;
 int d3ddebug = 0;
+int max_uae_width;
+int max_uae_height;
 
 HINSTANCE hInst = NULL;
 HMODULE hUIDLL = NULL;
@@ -5338,6 +5340,14 @@ static int PASCAL WinMain2 (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR
 		return 0;
 	if (!dxdetect ())
 		return 0;
+
+	if (os_vista) {
+		max_uae_width = 8192;
+		max_uae_height = 8192;
+	} else {
+		max_uae_width = 3072;
+		max_uae_height = 2048;
+	}
 
 	hInst = hInstance;
 	hMutex = CreateMutex (NULL, FALSE, _T("WinUAE Instantiated")); // To tell the installer we're running

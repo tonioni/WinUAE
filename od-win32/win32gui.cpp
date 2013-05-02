@@ -2769,7 +2769,7 @@ static TCHAR *fgetsx (TCHAR *dst, FILE *f)
 	return dst;
 }
 
-static TCHAR configcachever[] = _T("WinUAE Configuration.Cache");
+static const TCHAR configcachever[] = _T("WinUAE Configuration.Cache");
 
 static void setconfighosthard (struct ConfigStruct *config)
 {
@@ -8626,6 +8626,7 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.cachesize = 0;
 	} else if (jitena && !oldcache) {
 		workprefs.cachesize = 8192;
+		workprefs.cpu_cycle_exact = false;
 		if (cachesize_prev) {
 			workprefs.cachesize = cachesize_prev;
 			workprefs.comptrustbyte = trust_prev;

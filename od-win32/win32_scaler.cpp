@@ -772,10 +772,10 @@ bool S2X_init (int dw, int dh, int dd)
 		temp_width = dst_width * m;
 		temp_height = dst_height * m;
 	} else {
-		temp_width = dst_width * 3;
+		temp_width = dst_width * 2;
 		if (temp_width > dxcaps.maxwidth)
 			temp_width = dxcaps.maxwidth;
-		temp_height = dst_height * 3;
+		temp_height = dst_height * 2;
 		if (temp_height > dxcaps.maxheight)
 			temp_height = dxcaps.maxheight;
 		if (temp_width < dst_width)

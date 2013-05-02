@@ -198,14 +198,14 @@ bool preinit_shm (void)
 	}
 	if (!natmem_offset) {
 		for (;;) {
-			natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+			natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0) | MEM_TOP_DOWN, PAGE_READWRITE);
 			if (natmem_offset)
 				break;
 			natmem_size -= 128 * 1024 * 1024;
 			if (!natmem_size) {
 				write_log (_T("Can't allocate 257M of virtual address space!?\n"));
 				natmem_size = 17 * 1024 * 1024;
-				natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0), PAGE_READWRITE);
+				natmem_offset = (uae_u8*)VirtualAlloc (NULL, natmem_size, MEM_RESERVE | (VAMODE == 1 ? MEM_WRITE_WATCH : 0) | MEM_TOP_DOWN, PAGE_READWRITE);
 				if (!natmem_size) {
 					write_log (_T("Can't allocate 17M of virtual address space!? Something is seriously wrong\n"));
 					return false;

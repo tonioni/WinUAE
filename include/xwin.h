@@ -131,6 +131,7 @@ struct vidbuffer
 };
 
 extern bool isnativevidbuf (void);
+extern int max_uae_width, max_uae_height;
 
 struct vidbuf_description
 {

@@ -8,7 +8,7 @@
          : version 2.0 as published by Mozilla Corporation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2013-03-20 17:15:00
+ Updated : 2013-03-20 17:30:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -394,6 +394,40 @@ typedef struct RPScreenCapture
 	WCHAR szScreenRaw[260];             // "\0" or full path and name (Unicode) of the BMP file to save - unfiltered, unscaled, unclipped bitmap (i.e. close to guest representation)
 	WCHAR szScreenFiltered[260];        // "\0" or full path and name (Unicode) of the BMP file to save - filtered (e.g. scanline effects), scaled (e.g. line-doubled and 2X-multiplied), clipped (overscan cropped) bitmap (i.e. as displayed in host environment)
 } RPSCREENCAPTURE;
+
+//
+// The return value of RP_IPC_TO_GUEST_SCREENCAPTURE serves to both indicate an error (if 0)
+// and for the guest to process the raw image (i.e. to scale and present appropriate PAL/NTSC
+// options to the user).
+//
+// If the raw image is not the same as the Amiga bitmap, then out of necessity the flags
+// describe the properties of the image that is sent to the host, not the Amiga mode. Otherwise
+// the host cannot process the image and align it properly for clipping and non-raw overlay.
+//
+// I.e. if a PAL/NTSC image is set to RP_GUESTSCREENFLAGS_VERTICAL_NONINTERLACED, the host will
+// typically double it vertically. If the image is already "deinterlaced" (doubled), the guest
+// should set RP_GUESTSCREENFLAGS_VERTICAL_INTERLACED (even if the Amiga image is not
+// interlaced), to avoid an additional doubling.
+//
+// Similarly, the RP_GUESTSCREENFLAGS_HORIZONTAL_xxx flag would normally describe the "real"
+// Amiga mode, but if the guest can't send a bitmap that matches the original type then
+// the flags should be adjusted accordingly. E.g. if the Amiga mode is Lores but the guest
+// is sending a "raw" image where the pixels are doubled, then RP_GUESTSCREENFLAGS_HORIZONTAL_HIRES
+// is expected. This is also the case if Super Hires pixels are halved.
+//
+// The top-left origin of the Raw bitmap should always be as if clipping values were set to the
+// currently-agreed minimum. [this is a "bad" explanation, but functionally effective]
+//
+// Sample raw bitmap sizes for Amiga modes:
+// - 752x484 if the flags indicate NTSC Hires/Interlaced
+// - 752x576 if the flags indicate PAL Hires/Interlaced
+// - Original RTG size if the flags indicate a digital mode
+//
+// Different sizes may be possible (e.g. for "72" modes), but the left offset does not change.
+//
+// The top-left origin of the Filtered bitmap should match the origin as displayed in the playback
+// window (i.e. net of clipping).
+//
 
 // Return codes for RP_IPC_TO_GUEST_SCREENCAPTURE
 #define RP_SCREENCAPTURE_ERROR                      0x00000000  // non-error is always >= 1 (because of "MODE" flags)

@@ -1,6 +1,12 @@
 
 - restore only single input target to default.
 
+Beta 19:
+
+- Reduced internal display buffer memory usage, use MEM_TOP_DOWN VirtualAlloc() flag, this seems to
+  reduce Windows XP only memory reservation problems that cause mysterious crashes.
+- GUI allowed cycle exact and JIT active at the same time.
+
 Beta 18:
 
 - If config (for example default.uae) has keyboard layout A/B/C selected, it will be remembered as default

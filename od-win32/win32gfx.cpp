@@ -260,7 +260,7 @@ int default_freq = 60;
 
 HWND hStatusWnd = NULL;
 
-static uae_u8 scrlinebuf[MAX_UAE_WIDTH * 4]; /* this is too large, but let's rather play on the safe side here */
+static uae_u8 *scrlinebuf;
 
 static struct MultiDisplay *getdisplay2 (struct uae_prefs *p, int index)
 {
@@ -512,8 +512,13 @@ static void addmode (struct MultiDisplay *md, DEVMODE *dm, int rawmode)
 	int h = dm->dmPelsHeight;
 	int d = dm->dmBitsPerPel;
 	bool lace = false;
-
 	int freq = 0;
+
+	if (w > max_uae_width || h > max_uae_height) {
+		write_log (_T("Ignored mode %d*%d\n"), w, h);
+		return;
+	}
+
 	if (dm->dmFields & DM_DISPLAYFREQUENCY) {
 		freq = dm->dmDisplayFrequency;
 		if (freq < 10)
@@ -3965,12 +3970,12 @@ static void allocsoftbuffer (const TCHAR *name, struct vidbuffer *buf, int flags
 
 	} else if (flags & DM_SWSCALE) {
 
-		int w = buf->width_allocated * 2;
-		int h = buf->height_allocated * 2;
-		int size = (w * 2) * (h * 3) * buf->pixbytes;
-		buf->realbufmem = xcalloc (uae_u8, size);
-		buf->bufmem_allocated = buf->bufmem = buf->realbufmem + (w + (w * 2) * h) * buf->pixbytes;
+		int w = buf->width_allocated;
+		int h = buf->height_allocated;
+		int size = (w * 2) * (h * 2) * buf->pixbytes;
 		buf->rowbytes = w * 2 * buf->pixbytes;
+		buf->realbufmem = xcalloc (uae_u8, size);
+		buf->bufmem_allocated = buf->bufmem = buf->realbufmem + (h / 2) * buf->rowbytes + (w / 2) * buf->pixbytes;
 		buf->bufmemend = buf->realbufmem + size - buf->rowbytes;
 		buf->bufmem_lockable = true;
 
@@ -4118,6 +4123,9 @@ static BOOL doInit (void)
 	picasso_vidinfo.depth = currentmode->current_depth;
 	picasso_vidinfo.offset = 0;
 #endif
+	if (!scrlinebuf)
+		scrlinebuf = xmalloc (uae_u8, max_uae_width * 4);
+
 	gfxvidinfo.drawbuffer.emergmem = scrlinebuf; // memcpy from system-memory to video-memory
 
 	gfxvidinfo.drawbuffer.realbufmem = NULL;

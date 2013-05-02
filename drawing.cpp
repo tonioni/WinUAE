@@ -166,7 +166,7 @@ static uae_u8 all_zeros[MAX_PIXELS_PER_LINE];
 uae_u8 *xlinebuffer;
 
 static int *amiga2aspect_line_map, *native2amiga_line_map;
-static uae_u8 *row_map[MAX_UAE_HEIGHT + 1];
+static uae_u8 **row_map;
 static uae_u8 row_tmp[MAX_PIXELS_PER_LINE * 32 / 8];
 static int max_drawn_amiga_line;
 
@@ -185,7 +185,7 @@ typedef void (*line_draw_func)(int, int, bool);
 
 #define LINESTATE_SIZE ((MAXVPOS + 2) * 2 + 1)
 
-static uae_u8 linestate[LINESTATE_SIZE], linestate2[LINESTATE_SIZE];
+static uae_u8 linestate[LINESTATE_SIZE];
 
 uae_u8 line_data[(MAXVPOS + 2) * 2][MAX_PLANES * MAX_WORDS_PER_LINE * 2];
 
@@ -290,8 +290,9 @@ static void clearbuffer (struct vidbuffer *dst)
 
 void reset_decision_table (void)
 {
-	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++)
+	for (int i = 0; i < sizeof linestate / sizeof *linestate; i++) {
 		linestate[i] = LINE_UNDECIDED;
+	}
 }
 
 STATIC_INLINE void count_frame (void)
@@ -1888,16 +1889,19 @@ void init_row_map (void)
 	static int oldheight, oldpitch;
 	int i, j;
 
-	if (gfxvidinfo.drawbuffer.height_allocated > MAX_UAE_HEIGHT) {
+	if (gfxvidinfo.drawbuffer.height_allocated > max_uae_height) {
 		write_log (_T("Resolution too high, aborting\n"));
 		abort ();
 	}
+	if (!row_map)
+		row_map = xmalloc (uae_u8*, max_uae_height + 1);
+
 	if (oldbufmem && oldbufmem == gfxvidinfo.drawbuffer.bufmem &&
 		oldheight == gfxvidinfo.drawbuffer.height_allocated &&
 		oldpitch == gfxvidinfo.drawbuffer.rowbytes)
 		return;
-	j = oldheight == 0 ? MAX_UAE_HEIGHT : oldheight;
-	for (i = gfxvidinfo.drawbuffer.height_allocated; i < MAX_UAE_HEIGHT + 1 && i < j + 1; i++)
+	j = oldheight == 0 ? max_uae_height : oldheight;
+	for (i = gfxvidinfo.drawbuffer.height_allocated; i < max_uae_height + 1 && i < j + 1; i++)
 		row_map[i] = row_tmp;
 	for (i = 0, j = 0; i < gfxvidinfo.drawbuffer.height_allocated; i++, j += gfxvidinfo.drawbuffer.rowbytes)
 		row_map[i] = gfxvidinfo.drawbuffer.bufmem + j;
@@ -2827,17 +2831,21 @@ bool draw_frame (struct vidbuffer *vb)
 	clearbuffer (vb);
 	init_row_map ();
 	memcpy (oldstate, linestate, LINESTATE_SIZE);
-	memcpy (linestate, linestate2, LINESTATE_SIZE);
 	for (int i = 0; i < LINESTATE_SIZE; i++) {
 		uae_u8 v = linestate[i];
-		if (v == LINE_REMEMBERED_AS_PREVIOUS)
+		if (v == LINE_REMEMBERED_AS_PREVIOUS) {
+			linestate[i - 1] = LINE_DECIDED_DOUBLE;
 			v = LINE_AS_PREVIOUS;
-		else if (v == LINE_DONE_AS_PREVIOUS)
+		} else if (v == LINE_DONE_AS_PREVIOUS) {
+			linestate[i - 1] = LINE_DECIDED_DOUBLE;
 			v = LINE_AS_PREVIOUS;
-		else if (v == LINE_REMEMBERED_AS_BLACK)
+		} else if (v == LINE_REMEMBERED_AS_BLACK) {
 			v = LINE_BLACK;
-		else if (v == LINE_DONE)
+		} else if (v == LINE_DONE) {
 			v = LINE_DECIDED;
+		}
+//		if (i < maxvpos)
+//			write_log (_T("%d: %d -> %d\n"), i, linestate[i], v);
 		linestate[i] = v;
 	}
 	last_drawn_line = 0;
@@ -3054,13 +3062,12 @@ void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae
 
 void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 {
-	uae_u8 *state, *state2;
+	uae_u8 *state;
 
 	if (framecnt != 0)
 		return;
 
 	state = linestate + lineno;
-	state2 = linestate2 + lineno;
 	changed += frame_redraw_necessary + ((lineno >= lightpen_y1 && lineno <= lightpen_y2) ? 1 : 0);
 
 	switch (how) {
@@ -3090,7 +3097,6 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 			state[1] = LINE_DECIDED; //LINE_BLACK;
 		break;
 	}
-	*state2 = *state;
 }
 
 static void dummy_flush_line (struct vidbuf_description *gfxinfo, struct vidbuffer *vb, int line_no)
@@ -3192,8 +3198,9 @@ void reset_drawing (void)
 
 	lores_reset ();
 
-	for (i = 0; i < sizeof linestate / sizeof *linestate; i++)
+	for (i = 0; i < sizeof linestate / sizeof *linestate; i++) {
 		linestate[i] = LINE_UNDECIDED;
+	}
 
 	init_aspect_maps ();
 

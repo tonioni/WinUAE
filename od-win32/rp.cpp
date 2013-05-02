@@ -1030,7 +1030,8 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				DWORD ret = 0;
 				int ok = 0;
 				screenshotmode = 0;
-				//write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
+				if (log_rp & 2)
+					write_log (_T("'%s' '%s'\n"), rpsc->szScreenFiltered, rpsc->szScreenRaw);
 				if (rpsc->szScreenFiltered[0])
 					ok = screenshotf (rpsc->szScreenFiltered, 1, 1, 0, NULL);
 				if (rpsc->szScreenRaw[0]) {
@@ -1047,11 +1048,14 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 					set_custom_limits (-1, -1, -1, -1);
 					draw_frame (&vb);
 					ok |= screenshotf (rpsc->szScreenRaw, 1, 1, 1, &vb);
+					if (log_rp & 2)
+						write_log (_T("Rawscreenshot %dx%d\n"), w, h);
 					//ok |= screenshotf (_T("c:\\temp\\1.bmp"), 1, 1, 1, &vb);
 					freevidbuffer (&vb);
 				}
 				screenshotmode = ossm;
-				//write_log (_T("->%d\n"), ok);
+				if (log_rp & 2)
+					write_log (_T("->%d\n"), ok);
 				if (!ok)
 					return RP_SCREENCAPTURE_ERROR;
 				if (WIN32GFX_IsPicassoScreen ()) {
