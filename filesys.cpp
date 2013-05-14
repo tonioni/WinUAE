@@ -6729,6 +6729,9 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		err = -1;
 		goto error;
 	}
+	if (dostype == 0xffffffff) {
+		write_log (_T("RDB: WARNING: dostype = 0xFFFFFFFF. FFS bug can report partition in \"no disk inserted\" state!!\n"));
+	}
 
 	err = 2;
 

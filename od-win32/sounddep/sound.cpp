@@ -2055,7 +2055,7 @@ static void finish_sound_buffer_ds (struct sound_data *sd, uae_u16 *sndbuffer)
 			if (counter < 0) {
 				write_log (_T("DS: stuck?!?!\n"));
 				disable_sound ();
-				break;
+				return;
 			}
 		}
 		write_log (_T("DS: %d = (%d - %d)\n"), (s->safedist - playpos) / sd->samplesize, s->safedist / sd->samplesize, playpos / sd->samplesize);

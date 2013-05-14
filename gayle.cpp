@@ -953,6 +953,8 @@ static void ide_read_sectors (struct ide_hdf *ide, int flags)
 		ide_fail_err (ide, IDE_ERR_IDNF);
 		return;
 	}
+	if (IDE_LOG > 0)
+		write_log (_T("IDE%d read off=%d, sec=%d (%d) lba%d\n"), ide->num, (uae_u32)lba, nsec, ide->multiple_mode, ide->lba48 ? 48 : 28);
 	ide->data_multi = multi ? ide->multiple_mode : 1;
 	ide->data_offset = 0;
 	ide->data_size = nsec * ide->blocksize;

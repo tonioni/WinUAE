@@ -2189,7 +2189,7 @@ uae_u8 handle_joystick_buttons (uae_u8 pra, uae_u8 dra)
 	if (inputdevice_logging & 4) {
 		static uae_u8 old;
 		if (but != old)
-			write_log (_T("BFE001: %02X:%02X %x\n"), dra, but, M68K_GETPC);
+			write_log (_T("BFE001 R: %02X:%02X %x\n"), dra, but, M68K_GETPC);
 		old = but;
 	}
 	return but;
@@ -2201,6 +2201,9 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 	static int oldstate[2];
 	int i;
 
+	if (inputdevice_logging & 4) {
+		write_log (_T("BFE001 W: %02X:%02X %x\n"), dra, pra, M68K_GETPC);
+	}
 	cap_check ();
 	for (i = 0; i < 2; i++) {
 		uae_u8 but = 0x40 << i;
@@ -2212,10 +2215,12 @@ void handle_cd32_joystick_cia (uae_u8 pra, uae_u8 dra)
 					cd32_shifter[i]--;
 					if (cd32_shifter[i] < 0)
 						cd32_shifter[i] = 0;
+					if (inputdevice_logging & 4)
+						write_log (_T("CD32 %d shift: %d %08x\n"), i, cd32_shifter[i], M68K_GETPC);
 				}
 			}
 		}
-		oldstate[i] = pra & but;
+		oldstate[i] = dra & pra & but;
 	}
 }
 
@@ -2545,7 +2550,7 @@ uae_u16 POTGOR (void)
 		write_log (_T("POTGOR %04X %s\n"), v, debuginfo(0));
 #endif
 	if (inputdevice_logging & 16)
-		write_log (_T("POTGO_R: %04X %08X %d\n"), v, M68K_GETPC, cd32_shifter[1]);
+		write_log (_T("POTGO_R: %04X %08X %d %d\n"), v, M68K_GETPC, cd32_shifter[0], cd32_shifter[1]);
 	return v;
 }
 

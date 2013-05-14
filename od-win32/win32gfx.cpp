@@ -721,6 +721,7 @@ static void getd3dmonitornames (void)
 				continue;
 			if (SUCCEEDED (d3d->GetAdapterIdentifier (i, 0, &did))) {
 				TCHAR *name = au (did.Description);
+				my_trim (name);
 				if (_tcsicmp (name, md->adaptername)) {
 					write_log (_T("%d: '%s' -> '%s'\n"), i, md->adaptername, name);
 					xfree (md->adaptername);

@@ -1,6 +1,11 @@
 
 - restore only single input target to default.
 
+Beta 20 (RC1) Final in few days:
+
+- AROS ROM updated.
+- DirectSound mode crashed if DS sound play cursor got stuck (which normally shouldn't happen)
+
 Beta 19:
 
 - Reduced internal display buffer memory usage, use MEM_TOP_DOWN VirtualAlloc() flag, this seems to
