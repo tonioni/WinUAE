@@ -1,6 +1,11 @@
 
 - restore only single input target to default.
 
+Beta 21 (RC2)
+
+- Ultimate Body Blows CD32 pad button problem fix. Hopefully this last minute update does not
+  break anything else...
+
 Beta 20 (RC1) Final in few days:
 
 - AROS ROM updated.
