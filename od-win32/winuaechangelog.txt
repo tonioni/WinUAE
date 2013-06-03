@@ -1,6 +1,37 @@
 
 - restore only single input target to default.
 
+- KS 1.3 OFS hardfile fix. Apparently 1.3 L:FastFileSystem does not support OFS.
+  Use ROM built-in FS if OFS partition and hardfile FileSys path is empty. (2.6.0)
+- Added emulation of unimplemented FPU instruction exceptions.
+  New FPU "Unimplemented emu" option added to GUI: ticked = emulate all instructions
+  (old behavior), Unticked = instructions not emulated, unimplemented instructions
+  generate exceptions: 
+  6888x: S or D variants are not supported (FSADD, FDADD etc..), 68040/060 only.
+  68040: usual removed instructions and FINT/FINTZ
+  68060: usual removed instructions, FTRAP, FDBcc and FScc. FINT and FINTZ are back.
+  68040/060 unimplemented datatype (packed decimal) is still emulated normally because
+  unimplemented datatype exception requires special pre and post FPU-only exceptions.
+  (This is not guaranteed to be perfect, not that easy to test fully)
+- Hardware/software reset didn't reset SCSI emulation fully.
+- A3000 KS 1.4 scsi driver wasn't fully compatible with SCSI emulation, write command
+  got stuck in never ending loop. Only reads worked. (WD SCSI chip is quite flexible,
+  it allows multiple and very different ways to send and process SCSI commands)
+- Non-prefetch CPU mode RESET/JMP (An) combination detection did only check if it was
+  located in chip ram, it didn't check Z2 Fast.
+- Input panel Invert option added. Button and key presses become releases and vice versa.
+  Joystick and mouse (if relative) movement is inverted.
+- winuaeenforcer aros m68k debug.library segtracker-like support added.
+- Added Tf debugger command that lists FileSystem.resource contents.
+- Added system memory list dump option to debugger ('Tm')
+- Merge >2M chip RAM with original chip ram pool instead of creating new one.
+- Bitplane data (usually horizontally repeating) was visible if sprites were visible
+  in border regions. (2.6.0)
+- Do not emulate CIA TOD bug if MMU emulation is enabled, workaround for Amix boot hang.
+  (Until real problem is found)
+
+2.6.0
+
 Beta 21 (RC2)
 
 - Ultimate Body Blows CD32 pad button problem fix. Hopefully this last minute update does not

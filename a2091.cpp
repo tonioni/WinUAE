@@ -8,7 +8,9 @@
 */
 
 #define A2091_DEBUG 0
+#define A2091_DEBUG_IO 0
 #define A3000_DEBUG 0
+#define A3000_DEBUG_IO 0
 #define WD33C93_DEBUG 0
 #define WD33C93_DEBUG_PIO 0
 
@@ -526,7 +528,7 @@ static bool wd_do_transfer_in (void)
 			setphase (0x46);
 		}
 		scsi_start_transfer (scsi);
-	} else if (wdregs[WD_COMMAND_PHASE] == 0x46) {
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x46 || wdregs[WD_COMMAND_PHASE] == 0x47) {
 		setphase (0x50);
 		wd_phase = CSR_XFER_DONE | PHS_MESS_IN;
 		scsi_start_transfer (scsi);
@@ -750,10 +752,7 @@ static void wd_cmd_trans_info (void)
 		scsi->data_len = gettc ();
 	} else if (wdregs[WD_COMMAND_PHASE] == 0x45) {
 		scsi_emulate_analyze (scsi);
-	} else if (wdregs[WD_COMMAND_PHASE] == 0x47) {
-		scsi->direction = -1; // status
-		scsi->data_len = 1;
-	} else if (wdregs[WD_COMMAND_PHASE] == 0x46) {
+	} else if (wdregs[WD_COMMAND_PHASE] == 0x46 || wdregs[WD_COMMAND_PHASE] == 0x47) {
 		scsi->buffer[0] = scsi->status;
 		wdregs[WD_TARGET_LUN] = scsi->status;
 		scsi->direction = -1; // status
@@ -821,8 +820,15 @@ static void wd_cmd_reset (bool irq)
 	scsi = NULL;
 	scsidelay_irq[0] = 0;
 	scsidelay_irq[1] = 0;
-	if (irq)
-		set_status ((wdregs[0] & 0x08) ? 1 : 0, 200);
+	auxstatus = 0;
+	wd_data_avail = 0;
+	if (irq) {
+		set_status ((wdregs[0] & 0x08) ? 1 : 0, 50);
+	} else {
+		dmac_dma = 0;
+		dmac_istr = 0;
+		dmac_cntr = 0;
+	}
 }
 
 static void wd_cmd_abort (void)
@@ -1066,7 +1072,7 @@ static uae_u32 dmac_read_word (uaecptr addr)
 			dmac_istr |= ISTR_FE_FLG;
 		break;
 	}
-#if A2091_DEBUG > 0
+#if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_wget %04X=%04X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
@@ -1103,7 +1109,7 @@ static uae_u32 dmac_read_byte (uaecptr addr)
 			v >>= 8;
 		break;
 	}
-#if A2091_DEBUG > 0
+#if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_bget %04X=%02X PC=%08X\n"), addr, v, M68K_GETPC);
 #endif
 	return v;
@@ -1116,7 +1122,7 @@ static void dmac_write_word (uaecptr addr, uae_u32 b)
 	if (addr >= ROM_OFFSET)
 		return;
 
-#if A2091_DEBUG > 0
+#if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_wput %04X=%04X PC=%08X\n"), addr, b & 65535, M68K_GETPC);
 #endif
 
@@ -1174,7 +1180,7 @@ static void dmac_write_byte (uaecptr addr, uae_u32 b)
 	if (addr >= ROM_OFFSET)
 		return;
 
-#if A2091_DEBUG > 0
+#if A2091_DEBUG_IO > 0
 	write_log (_T("dmac_bput %04X=%02X PC=%08X\n"), addr, b & 255, M68K_GETPC);
 #endif
 
@@ -1320,7 +1326,7 @@ static void mbdmac_write_word (uae_u32 addr, uae_u32 val)
 {
 	if (currprefs.cs_mbdmac > 1)
 		return;
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	write_log (_T("DMAC_WWRITE %08X=%04X PC=%08X\n"), addr, val & 0xffff, M68K_GETPC);
 #endif
 	addr &= 0xfffe;
@@ -1377,7 +1383,7 @@ static void mbdmac_write_byte (uae_u32 addr, uae_u32 val)
 {
 	if (currprefs.cs_mbdmac > 1)
 		return;
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	write_log (_T("DMAC_BWRITE %08X=%02X PC=%08X\n"), addr, val & 0xff, M68K_GETPC);
 #endif
 	addr &= 0xffff;
@@ -1404,7 +1410,7 @@ static void mbdmac_write_byte (uae_u32 addr, uae_u32 val)
 
 static uae_u32 mbdmac_read_word (uae_u32 addr)
 {
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	uae_u32 vaddr = addr;
 #endif
 	uae_u32 v = 0xffffffff;
@@ -1456,7 +1462,7 @@ static uae_u32 mbdmac_read_word (uae_u32 addr)
 		v = 0;
 		break;
 	}
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	write_log (_T("DMAC_WREAD %08X=%04X PC=%X\n"), vaddr, v & 0xffff, M68K_GETPC);
 #endif
 	return v;
@@ -1464,7 +1470,7 @@ static uae_u32 mbdmac_read_word (uae_u32 addr)
 
 static uae_u32 mbdmac_read_byte (uae_u32 addr)
 {
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	uae_u32 vaddr = addr;
 #endif
 	uae_u32 v = 0xffffffff;
@@ -1489,7 +1495,7 @@ static uae_u32 mbdmac_read_byte (uae_u32 addr)
 			v >>= 8;
 		break;
 	}
-#if A3000_DEBUG > 1
+#if A3000_DEBUG_IO > 1
 	write_log (_T("DMAC_BREAD %08X=%02X PC=%X\n"), vaddr, v & 0xff, M68K_GETPC);
 #endif
 	return v;

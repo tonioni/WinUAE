@@ -118,6 +118,7 @@ static int enforcer_decode_hunk_and_offset (TCHAR *buf, uae_u32 pc)
 {
 	uae_u32 sysbase = get_long (4);
 	uae_u32 semaphore_list = sysbase + 532;
+	uae_u32 library_list = sysbase + 378;
 
 	/* First step is searching for the SegTracker semaphore */
 	uae_u32 node = amiga_list_first (semaphore_list);
@@ -178,6 +179,41 @@ static int enforcer_decode_hunk_and_offset (TCHAR *buf, uae_u32 pc)
 			}
 			node = amiga_node_next (node);
 		}
+	}
+
+	node = amiga_list_first (library_list);
+	while (node) {
+		uae_u32 string = get_long (node + 10); /* ln_Name */
+		uae_u8 *native_string = amiga2native (string, 100);
+
+		if (native_string) {
+			if (!strcmp ((char*)native_string, "debug.library"))
+				break;
+		}
+		node = amiga_node_next (node);
+	}
+
+	/* AROS debug.library */
+	if (node) {
+		uae_u32 seg_list = node + 34; /* sizeof(struct Library) */
+
+		node = amiga_list_first (seg_list);
+		while (node) {
+			uae_u32 start = get_long (node + 12);
+			uae_u32 end = get_long (node + 16);
+			if (pc > start && pc < end) {
+				TCHAR *native_name;
+				uae_u32 hunk = get_long (node + 28);
+				uae_u32 offset = pc - (get_long (node + 8) << 2);
+				uaecptr mod = get_long (node + 20);
+				native_name = au ((char*)amiga2native (mod + 24, 100));
+				_stprintf (buf, _T("----> %08lx - \"%s\" Hunk %04lx Offset %08lx\n"), pc, native_name, hunk, offset);
+				xfree (native_name);
+				return 1;
+			}
+			node = amiga_node_next (node);
+		}
+
 	}
 	return 0;
 }
@@ -255,22 +291,30 @@ static void enforcer_display_hit (const TCHAR *addressmode, uae_u32 pc, uaecptr 
 	}
 
 	/* Segtracker output */
-	a7 = m68k_areg (regs, 7);
-	if (get_long (a7 - 4) != pc) {
-		if (enforcer_decode_hunk_and_offset (buf, pc)) {
-			_tcscpy (enforcer_buf_ptr, buf);
-			enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);
-		}
+	if (enforcer_decode_hunk_and_offset (buf, pc)) {
+		_tcscpy (enforcer_buf_ptr, buf);
+		enforcer_buf_ptr += _tcslen (enforcer_buf_ptr);
 	}
 
+	uae_u32 oldaddrs[BACKTRACELONGS];
+	a7 = m68k_areg (regs, 7);
 	for (i = 0; i < BACKTRACELONGS; i++) {
+		uae_u32 addr;
 		a7 += 4;
-		if (enforcer_decode_hunk_and_offset (buf, get_long (a7))) {
-			int l = _tcslen (buf);
+		addr = get_long (a7);
+		for (j = 0; j < i; j++) {
+			if (oldaddrs[j] == addr)
+				break;
+		}
+		oldaddrs[i] = addr;
+		if (j == i && addr != pc) {
+			if (enforcer_decode_hunk_and_offset (buf, addr)) {
+				int l = _tcslen (buf);
 
-			if (ENFORCER_BUF_SIZE - (enforcer_buf_ptr - enforcer_buf) > l + 256) {
-				_tcscpy (enforcer_buf_ptr, buf);
-				enforcer_buf_ptr += l;
+				if (ENFORCER_BUF_SIZE - (enforcer_buf_ptr - enforcer_buf) > l + 256) {
+					_tcscpy (enforcer_buf_ptr, buf);
+					enforcer_buf_ptr += l;
+				}
 			}
 		}
 	}

@@ -133,7 +133,8 @@ static TCHAR help[] = {
 	_T("  s \"<string>\"/<values> [<addr>] [<length>]\n")
 	_T("                        Search for string/bytes.\n")
 	_T("  T or Tt               Show exec tasks and their PCs.\n")
-	_T("  Td,Tl,Tr,Ts,Ti,TO     Show devices, libraries, resources, residents, interrupts, doslist.\n")
+	_T("  Td,Tl,Tr,Tp,Ts,TS,Ti,TO,TM Show devs, libs, resources, ports, semaphores,\n")
+	_T("                        residents, interrupts, doslist and memorylist.\n")
 	_T("  b                     Step to previous state capture position.\n")
 	_T("  M<a/b/s> <val>        Enable or disable audio channels, bitplanes or sprites.\n")
 	_T("  sp <addr> [<addr2][<size>] Dump sprite information.\n")
@@ -2764,25 +2765,25 @@ static void show_exec_tasks (void)
 	}
 }
 
-static uaecptr get_base (const uae_char *name)
+static uaecptr get_base (const uae_char *name, int offset)
 {
 	uaecptr v = get_long_debug (4);
 	addrbank *b = &get_mem_bank(v);
 
 	if (!b || !b->check (v, 400) || b->flags != ABFLAG_RAM)
 		return 0;
-	v += 378; // liblist
+	v += offset;
 	while (v = get_long_debug (v)) {
 		uae_u32 v2;
 		uae_u8 *p;
 		b = &get_mem_bank (v);
-		if (!b || !b->check (v, 32) || b->flags != ABFLAG_RAM)
+		if (!b || !b->check (v, 32) || (b->flags != ABFLAG_RAM && b->flags != ABFLAG_ROMIN))
 			goto fail;
 		v2 = get_long_debug (v + 10); // name
 		b = &get_mem_bank (v2);
 		if (!b || !b->check (v2, 20))
 			goto fail;
-		if (b->flags == ABFLAG_ROM || b->flags == ABFLAG_RAM) {
+		if (b->flags == ABFLAG_ROM || b->flags == ABFLAG_RAM || b->flags == ABFLAG_ROMIN) {
 			p = b->xlateaddr (v2);
 			if (!memcmp (p, name, strlen (name) + 1))
 				return v;
@@ -2800,14 +2801,15 @@ static TCHAR *getfrombstr(uaecptr pp)
 	return au_copy (s, p[0] + 1, (char*)p + 1);
 }
 
-static void show_exec_lists (TCHAR t)
+static void show_exec_lists (TCHAR *t)
 {
 	uaecptr execbase = get_long_debug (4);
 	uaecptr list = 0, node;
-	TCHAR c = _totupper (t);
+	TCHAR c = t[0];
+	TCHAR c2 = t[1];
 
-	if (c == 'O') { // doslist
-		uaecptr dosbase = get_base ("dos.library");
+	if (c == 'o' || c == 'O') { // doslist
+		uaecptr dosbase = get_base ("dos.library", 378);
 		if (dosbase) {
 			uaecptr rootnode = get_long_debug (dosbase + 34);
 			uaecptr dosinfo = get_long_debug (rootnode + 24) << 2;
@@ -2831,7 +2833,7 @@ static void show_exec_lists (TCHAR t)
 			console_out_f (_T("can't find dos.library\n"));
 		}
 		return;
-	} else if (c == 'I') { // interrupts
+	} else if (c == 'i' || c == 'I') { // interrupts
 		static const int it[] = {  1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 };
 		static const int it2[] = { 1, 1, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 6, 6, 7 };
 		list = execbase + 84;
@@ -2882,7 +2884,7 @@ static void show_exec_lists (TCHAR t)
 			list += 12;
 		}
 		return;
-	} else if (c == 'S') { // residents
+	} else if (c == 'R') { // residents
 		list = get_long (execbase + 300);
 		while (list) {
 			uaecptr resident = get_long_debug (list);
@@ -2910,18 +2912,87 @@ static void show_exec_lists (TCHAR t)
 			list += 4;
 		}
 		return;
+	} else if (c == 'f' || c== 'F') { // filesystem.resource
+		uaecptr fs = get_base ("FileSystem.resource", 336);
+		if (fs) {
+			static const TCHAR *fsnames[] = {
+				_T("DosType"),
+				_T("Version"),
+				_T("PatchFlags"),
+				_T("Type"),
+				_T("Task"),
+				_T("Lock"),
+				_T("Handler"),
+				_T("StackSize"),
+				_T("Priority"),
+				_T("Startup"),
+				_T("SegList"),
+				_T("GlobalVec"),
+				NULL
+			};
+			uae_u8 *addr = get_real_address (get_long_debug (fs + 14));
+			TCHAR *name = addr ? au ((char*)addr) : au ("<null>");
+			my_trim (name);
+			console_out_f (_T("%08x: '%s'\n"), fs, name);
+			xfree (name);
+			node = get_long_debug (fs + 18);
+			while (get_long_debug (node)) {
+				TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
+				my_trim (name);
+				console_out_f (_T("%08x: '%s'\n"), node, name);
+				xfree (name);
+				for (int i = 0; fsnames[i]; i++) {
+					uae_u32 v = get_long_debug (node + 14 + i * 4);
+					console_out_f (_T("%16s = %08x %d\n"), fsnames[i], v, v);
+				}
+				console_out_f (_T("\n"));
+				node = get_long_debug (node);
+			}
+
+		} else {
+			console_out_f (_T("FileSystem.resource not found.\n"));
+		}
+		return;
+	} else if (c == 'm' || c == 'M') { // memory
+		list = execbase + 322;
+		node = get_long_debug (list);
+		while (get_long_debug (node)) {
+			TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
+			uae_u16 v = get_word_debug (node + 8);
+			console_out_f (_T("%08x %d %d %s\n"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff), name);
+			xfree (name);
+			console_out_f (_T("Attributes %04x First %08x Lower %08x Upper %08x Free %d\n"),
+				get_word_debug (node + 14), get_long_debug (node + 16), get_long_debug (node + 20), 
+				get_long_debug (node + 24), get_long_debug (node + 28));
+			uaecptr mc = get_long_debug (node + 16);
+			while (mc) {
+				uae_u32 mc1 = get_long_debug (mc);
+				uae_u32 mc2 = get_long_debug (mc + 4);
+				console_out_f (_T(" %08x: %08x-%08x,%08x,%08x (%d)\n"), mc, mc, mc + mc2, mc1, mc2, mc2);
+				mc = mc1;
+			}
+			console_out_f (_T("\n"));
+			node = get_long_debug (node);
+		}
+		return;
 	}
 
 	switch (c)
 	{
-	case 'R':
+	case 'r': // resources
 		list = execbase + 336;
 		break;
-	case 'D':
+	case 'd': // devices
 		list = execbase + 350;
 		break;
-	case 'L':
+	case 'l': // libraries
 		list = execbase + 378;
+		break;
+	case 'p': // ports
+		list = execbase + 392;
+		break;
+	case 's': // semaphores
+		list = execbase + 532;
 		break;
 	}
 	if (list == 0)
@@ -2929,7 +3000,8 @@ static void show_exec_lists (TCHAR t)
 	node = get_long_debug (list);
 	while (get_long_debug (node)) {
 		TCHAR *name = au ((char*)get_real_address (get_long_debug (node + 10)));
-		console_out_f (_T("%08x %s\n"), node, name);
+		uae_u16 v = get_word_debug (node + 8);
+		console_out_f (_T("%08x %d %d %s\n"), node, (int)((v >> 8) & 0xff), (uae_s8)(v & 0xff), name);
 		xfree (name);
 		node = get_long_debug (node);
 	}
@@ -3637,7 +3709,7 @@ static BOOL debug_line (TCHAR *input)
 			if (inptr[0] == 't' || inptr[0] == 0)
 				show_exec_tasks ();
 			else
-				show_exec_lists (inptr[0]);
+				show_exec_lists (&inptr[0]);
 			break;
 		case 't':
 			no_trace_exceptions = 0;

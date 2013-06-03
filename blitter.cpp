@@ -7,7 +7,8 @@
 * (c) 2002 - 2005 Toni Wilen
 */
 
-#define SPEEDUP
+#define SPEEDUP 1
+#define BLITTER_DEBUG 0
 
 #include "sysconfig.h"
 #include "sysdeps.h"
@@ -28,7 +29,7 @@
 // 4 = no D
 // 8 = instant
 
-#ifdef BLITTER_DEBUG
+#if BLITTER_DEBUG
 int log_blitter = 1;
 #else
 int log_blitter = 0;
@@ -399,7 +400,7 @@ static void blitter_dofast (void)
 		bltdpt += (blt_info.hblitsize * 2 + blt_info.bltdmod) * blt_info.vblitsize;
 	}
 
-#ifdef SPEEDUP
+#if SPEEDUP
 	if (blitfunc_dofast[mt] && !blitfill) {
 		(*blitfunc_dofast[mt])(bltadatptr, bltbdatptr, bltcdatptr, bltddatptr, &blt_info);
 	} else
@@ -498,7 +499,7 @@ static void blitter_dofast_desc (void)
 		bltddatptr = bltdpt;
 		bltdpt -= (blt_info.hblitsize * 2 + blt_info.bltdmod) * blt_info.vblitsize;
 	}
-#ifdef SPEEDUP
+#if SPEEDUP
 	if (blitfunc_dofast_desc[mt] && !blitfill) {
 		(*blitfunc_dofast_desc[mt])(bltadatptr, bltbdatptr, bltcdatptr, bltddatptr, &blt_info);
 	} else

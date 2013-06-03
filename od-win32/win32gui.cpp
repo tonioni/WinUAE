@@ -3420,7 +3420,7 @@ static void set_lventry_input (HWND list, int index)
 	int i, sub, port;
 	TCHAR name[256];
 	TCHAR custom[MAX_DPATH];
-	TCHAR af[32], toggle[32];
+	TCHAR af[32], toggle[32], invert[32];
 	uae_u64 flags;
 
 	inputdevice_get_mapping (input_selected_device, index, &flags, &port, name, custom, input_selected_sub_num);
@@ -3439,15 +3439,19 @@ static void set_lventry_input (HWND list, int index)
 	else if (flags & IDEV_MAPPED_AUTOFIRE_POSSIBLE)
 		WIN32GUI_LoadUIString (IDS_NO, toggle, sizeof toggle / sizeof (TCHAR));
 	else
-		_tcscpy (toggle, _T("-"));	
+		_tcscpy (toggle, _T("-"));
 	if (port > 0) {
 		TCHAR tmp[256];
 		_tcscpy (tmp, name);
 		_stprintf (name, _T("[PORT%d] %s"), port, tmp);
 	}
+	_tcscpy (invert, _T("-"));
+	if (flags & IDEV_MAPPED_INVERT)
+		WIN32GUI_LoadUIString (IDS_YES, invert, sizeof invert / sizeof (TCHAR));
 	ListView_SetItemText (list, index, 1, custom[0] ? custom : name);
 	ListView_SetItemText (list, index, 2, af);
 	ListView_SetItemText (list, index, 3, toggle);
+	ListView_SetItemText (list, index, 4, invert);
 	_tcscpy (name, _T("-"));	
 	if (flags & IDEV_MAPPED_QUALIFIER_MASK) {
 		TCHAR *p;
@@ -3462,14 +3466,14 @@ static void set_lventry_input (HWND list, int index)
 			}
 		}
 	}
-	ListView_SetItemText (list, index, 4, name);
+	ListView_SetItemText (list, index, 5, name);
 	sub = 0;
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 		if (inputdevice_get_mapping (input_selected_device, index, &flags, NULL, name, custom, i) || custom[0])
 			sub++;
 	}
 	_stprintf (name, _T("%d"), sub);
-	ListView_SetItemText (list, index, 5, name);
+	ListView_SetItemText (list, index, 6, name);
 }
 
 static void update_listview_input (HWND hDlg)
@@ -3622,7 +3626,7 @@ static void update_listview_inputmap (HWND hDlg, int deleteindex)
 static int clicked_entry = -1;
 
 #define LOADSAVE_COLUMNS 2
-#define INPUT_COLUMNS 6
+#define INPUT_COLUMNS 7
 #define HARDDISK_COLUMNS 8
 #define DISK_COLUMNS 3
 #define MISC2_COLUMNS 2
@@ -3731,8 +3735,9 @@ void InitializeListView (HWND hDlg)
 		WIN32GUI_LoadUIString (IDS_INPUTAMIGAEVENT, column_heading[1], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTAUTOFIRE, column_heading[2], MAX_COLUMN_HEADING_WIDTH);
 		WIN32GUI_LoadUIString (IDS_INPUTTOGGLE, column_heading[3], MAX_COLUMN_HEADING_WIDTH);
-		WIN32GUI_LoadUIString (IDS_INPUTQUALIFIER, column_heading[4], MAX_COLUMN_HEADING_WIDTH);
-		_tcscpy (column_heading[5], _T("#"));
+		_tcscpy (column_heading[4], _T("Invert"));
+		WIN32GUI_LoadUIString (IDS_INPUTQUALIFIER, column_heading[5], MAX_COLUMN_HEADING_WIDTH);
+		_tcscpy (column_heading[6], _T("#"));
 		list = GetDlgItem (hDlg, IDC_INPUTLIST);
 
 	} else if (hDlg == pages[INPUTMAP_ID]) {
@@ -3835,7 +3840,8 @@ void InitializeListView (HWND hDlg)
 		listview_column_width[2] = 65;
 		listview_column_width[3] = 65;
 		listview_column_width[4] = 65;
-		listview_column_width[5] = 30;
+		listview_column_width[5] = 65;
+		listview_column_width[6] = 30;
 		update_listview_input (hDlg);
 
 	} else if (lv_type == LV_INPUTMAP) {
@@ -8466,6 +8472,7 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_JITENABLE, jitenable);
 	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
+	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
@@ -8500,6 +8507,7 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
+	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
 	cpu = (workprefs.cpu_model - 68000) / 10;
 	if (cpu >= 5)
@@ -8548,6 +8556,7 @@ static void values_from_cpudlg (HWND hDlg)
 
 	workprefs.cpu_compatible = workprefs.cpu_cycle_exact | (ischecked (hDlg, IDC_COMPATIBLE) ? 1 : 0);
 	workprefs.fpu_strict = ischecked (hDlg, IDC_COMPATIBLE_FPU) ? 1 : 0;
+	workprefs.fpu_no_unimplemented = ischecked (hDlg, IDC_FPU_UNIMPLEMENTED) ? 0 : 1;
 	workprefs.address_space_24 = ischecked (hDlg, IDC_COMPATIBLE24) ? 1 : 0;
 	workprefs.m68k_speed = ischecked (hDlg, IDC_CS_HOST) ? -1 : 0;
 	workprefs.m68k_speed_throttle = SendMessage (GetDlgItem (hDlg, IDC_SPEED), TBM_GETPOS, 0, 0) * 100;
@@ -13464,6 +13473,25 @@ static void input_qualifiers (HWND hDlg)
 		name, custom, flags, -1, input_selected_sub_num);
 #endif
 }
+
+static void input_invert (void)
+{
+	int evt;
+	uae_u64 flags;
+	TCHAR name[256];
+	TCHAR custom[MAX_DPATH];
+
+	if (input_selected_device < 0 || input_selected_widget < 0)
+		return;
+	evt = inputdevice_get_mapping (input_selected_device, input_selected_widget,
+		&flags, NULL, name, custom, input_selected_sub_num);
+	if (evt <= 0)
+		return;
+	flags ^= IDEV_MAPPED_INVERT;
+	inputdevice_set_mapping (input_selected_device, input_selected_widget,
+		name, custom, flags, -1, input_selected_sub_num);
+}
+
 static void input_toggletoggle (void)
 {
 	int evt;
@@ -13610,8 +13638,10 @@ static INT_PTR CALLBACK InputDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 					} else if (column == 3 && entry == oldentry) {
 						input_toggletoggle ();
 					} else if (column == 4 && entry == oldentry) {
+						input_invert ();
+					} else if (column == 5 && entry == oldentry) {
 						input_qualifiers (hDlg);
-					} else if (column == 5) {
+					} else if (column == 6) {
 						input_selected_sub_num++;
 						if (input_selected_sub_num >= MAX_INPUT_SUB_EVENT)
 							input_selected_sub_num = 0;

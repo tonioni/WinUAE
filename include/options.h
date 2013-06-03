@@ -9,7 +9,7 @@
 
 #define UAEMAJOR 2
 #define UAEMINOR 6
-#define UAESUBREV 0
+#define UAESUBREV 1
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -447,6 +447,7 @@ struct uae_prefs {
 	int fpu_model;
 	int fpu_revision;
 	bool cpu_compatible;
+	bool fpu_no_unimplemented;
 	bool address_space_24;
 	bool picasso96_nocustom;
 	int picasso96_modeflags;

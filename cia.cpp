@@ -43,8 +43,12 @@
 
 #define CIAA_DEBUG_R 0
 #define CIAA_DEBUG_W 0
+#define CIAA_DEBUG_IRQ 0
+
 #define CIAB_DEBUG_R 0
 #define CIAB_DEBUG_W 0
+#define CIAB_DEBUG_IRQ 0
+
 #define DONGLE_DEBUG 0
 #define KB_DEBUG 0
 #define CLOCK_DEBUG 0
@@ -122,6 +126,9 @@ static void ICRB(uae_u32 data)
 static void RethinkICRA (void)
 {
 	if (ciaaicr) {
+#if CIAA_DEBUG_IRQ
+		write_log (_T("CIAA IRQ %02X\n"), ciaaicr);
+#endif
 		if (currprefs.cpu_cycle_exact)
 			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x0008, ICRA);
 		else
@@ -132,6 +139,9 @@ static void RethinkICRA (void)
 static void RethinkICRB (void)
 {
 	if (ciabicr) {
+#if CIAB_DEBUG_IRQ
+		write_log (_T("CIAB IRQ %02X\n"), ciabicr);
+#endif
 		if (currprefs.cpu_cycle_exact)
 			event2_newevent_xx (-1, 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x2000, ICRB);
 		else
@@ -441,6 +451,9 @@ static int checkalarm (unsigned long tod, unsigned long alarm, int inc)
 		return 1;
 	if (!inc)
 		return 0;
+	/* Amix workaround */
+	if (currprefs.mmu_model)
+		return 0;
 	/* emulate buggy TODMED counter.
 	* it counts: .. 29 2A 2B 2C 2D 2E 2F 20 30 31 32 ..
 	* (2F->20->30 only takes couple of cycles but it will trigger alarm..
@@ -464,6 +477,9 @@ STATIC_INLINE void ciab_checkalarm (int inc)
 			return;
 	}
 	if (checkalarm (ciabtod, ciabalarm, inc)) {
+#if CIAB_DEBUG_IRQ
+		write_log (_T("CIAB tod %08x %08x\n"), ciabtod, ciabalarm);
+#endif
 		ciabicr |= 4;
 		RethinkICRB ();
 	}
@@ -472,6 +488,9 @@ STATIC_INLINE void ciab_checkalarm (int inc)
 STATIC_INLINE void ciaa_checkalarm (int inc)
 {
 	if (checkalarm (ciaatod, ciaaalarm, inc)) {
+#if CIAA_DEBUG_IRQ
+		write_log (_T("CIAA tod %08x %08x\n"), ciaatod, ciaaalarm);
+#endif
 		ciaaicr |= 4;
 		RethinkICRA ();
 	}
@@ -908,6 +927,9 @@ static uae_u8 ReadCIAA (unsigned int addr)
 		}
 		return (uae_u8)(ciaatol >> 16);
 	case 12:
+#if KB_DEBUG
+		write_log (_T("CIAA serial port: %02x %08x\n"), ciaasdr, M68K_GETPC);
+#endif
 		return ciaasdr;
 	case 13:
 		tmp = ciaaicr_reg;
@@ -1168,6 +1190,9 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		ciaasdr = val;
 		if ((ciaacra & 0x41) == 0x41 && ciaasdr_cnt == 0)
 			ciaasdr_cnt = 8 * 2;
+#if KB_DEBUG
+		write_log (_T("CIAA serial port write: %02x cnt=%d PC=%08x\n"), ciaasdr, ciaasdr_cnt, M68K_GETPC);
+#endif
 		CIA_calctimers ();
 		break;
 	case 13:

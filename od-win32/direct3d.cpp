@@ -60,6 +60,7 @@ struct shaderdata
 	LPDIRECT3DTEXTURE9 lpWorkTexture1;
 	LPDIRECT3DTEXTURE9 lpWorkTexture2;
 	LPDIRECT3DTEXTURE9 lpTempTexture;
+	LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 	LPD3DXEFFECT pEffect;
 	// Technique stuff
 	D3DXHANDLE m_PreprocessTechnique1EffectHandle;
@@ -82,7 +83,6 @@ struct shaderdata
 	LPDIRECT3DTEXTURE9 masktexture;
 	int masktexture_w, masktexture_h;
 };
-static LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture;
 static LPDIRECT3DTEXTURE9 lpPostTempTexture;
 
 #define MAX_SHADERS 10
@@ -777,7 +777,7 @@ static const char *fx20 = {
 "}\n"
 };	
 
-static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shaderdata *s)
+static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shaderdata *s, int num)
 {
 	int ret = 0;
 	LPD3DXEFFECTCOMPILER EffectCompiler = NULL;
@@ -896,9 +896,9 @@ end:
 	}
 
 	if (ret)
-		write_log (_T("%s: pixelshader filter '%s' enabled\n"), D3DHEAD, tmp);
+		write_log (_T("%s: pixelshader filter '%s':%d enabled\n"), D3DHEAD, tmp, num);
 	else
-		write_log (_T("%s: pixelshader filter '%s' failed to initialize\n"), D3DHEAD, tmp);
+		write_log (_T("%s: pixelshader filter '%s':%d failed to initialize\n"), D3DHEAD, tmp, num);
 	s->pEffect = effect;
 	return effect != NULL;
 }
@@ -959,7 +959,7 @@ static int psEffect_SetMatrices (D3DXMATRIXA16 *matProj, D3DXMATRIXA16 *matView,
 	return 1;
 }
 
-static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DVOLUMETEXTURE9 lpHq2xLookupTexture, struct shaderdata *s)
+static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata *s)
 {
 	HRESULT hr;
 	D3DXVECTOR4 fDims, fTexelSize;
@@ -988,7 +988,7 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, LPDIRECT3DVOLUMETE
 		}
 	}
 	if (m_Hq2xLookupTextureHandle) {
-		hr = s->pEffect->SetTexture (m_Hq2xLookupTextureHandle, lpHq2xLookupTexture);
+		hr = s->pEffect->SetTexture (m_Hq2xLookupTextureHandle, s->lpHq2xLookupTexture);
 		if (FAILED (hr)) {
 			write_log (_T("%s: SetTextures:lpHq2xLookupTexture %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
@@ -1148,19 +1148,27 @@ static int createamigatexture (int w, int h)
 		return 0;
 	write_log (_T("%s: %d*%d texture allocated, bits per pixel %d\n"), D3DHEAD, w, h, t_depth);
 	if (psActive) {
-		D3DLOCKED_BOX lockedBox;
 		for (int i = 0; i < MAX_SHADERS; i++) {
+			int w2, h2;
 			if (shaders[i].type == SHADERTYPE_BEFORE) {
+				w2 = worktex_width;
+				h2 = worktex_height;
 				if (!allocextratextures (&shaders[i], w, h))
 					return 0;
+			} else {
+				w2 = window_w;
+				h2 = window_h;
+			}
+			if (shaders[i].type == SHADERTYPE_BEFORE || shaders[i].type == SHADERTYPE_AFTER) {
+				D3DLOCKED_BOX lockedBox;
+				if (FAILED (hr = shaders[i].lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
+					write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+					return 0;
+				}
+				BuildHq2xLookupTexture (w2, h2, w, h,  (unsigned char*)lockedBox.pBits);
+				shaders[i].lpHq2xLookupTexture->UnlockBox (0);
 			}
 		}
-		if (FAILED (hr = lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
-			write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
-		BuildHq2xLookupTexture (worktex_width, worktex_height, w, h,  (unsigned char*)lockedBox.pBits);
-		lpHq2xLookupTexture->UnlockBox (0);
 	}
 	return 1;
 }
@@ -1196,6 +1204,12 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 				if (!allocextratextures (&shaders[i], window_w, window_h))
 					return 0;
 			}
+			if (psActive) {
+				if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpHq2xLookupTexture, NULL))) {
+					write_log (_T("%s: Failed to create volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+					return 0;
+				}
+			}
 		}
 	}
 
@@ -1208,14 +1222,6 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 	}
 	write_log (_T("%s: working texture allocated pre %d*%d, post %d*%d, bits per pixel %d\n"), D3DHEAD, w, h, window_w, window_h, t_depth);
 	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
-
-	if (psActive) {
-		if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpHq2xLookupTexture, NULL))) {
-			write_log (_T("%s: Failed to create volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-			return 0;
-		}
-
-	}
 	return 1;
 }
 
@@ -1878,10 +1884,6 @@ static void freetextures (void)
 		texture->Release ();
 		texture = NULL;
 	}
-	if (lpHq2xLookupTexture) {
-		lpHq2xLookupTexture->Release ();
-		lpHq2xLookupTexture = NULL;
-	}
 	for (int i = 0; i < MAX_SHADERS; i++) {
 		struct shaderdata *s = &shaders[i];
 		if (s->lpTempTexture) {
@@ -1895,6 +1897,10 @@ static void freetextures (void)
 		if (s->lpWorkTexture2) {
 			s->lpWorkTexture2->Release ();
 			s->lpWorkTexture2 = NULL;
+		}
+		if (s->lpHq2xLookupTexture) {
+			s->lpHq2xLookupTexture->Release ();
+			s->lpHq2xLookupTexture = NULL;
 		}
 	}
 	if (lpPostTempTexture) {
@@ -1996,14 +2002,14 @@ static int restoredeviceobjects (void)
 
 	while (shaderon > 0) {
 		shaders[SHADER_POST].type = SHADERTYPE_POST;
-		if (!psEffect_LoadEffect (psEnabled ? _T("_winuae.fx") : _T("_winuae_old.fx"), false, &shaders[SHADER_POST])) {
+		if (!psEffect_LoadEffect (psEnabled ? _T("_winuae.fx") : _T("_winuae_old.fx"), false, &shaders[SHADER_POST], -1)) {
 			shaderon = 0;
 			break;
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 			if (currprefs.gfx_filtershader[i][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_BEFORE);
-				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i], true, s)) {
+				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i], true, s, i)) {
 					currprefs.gfx_filtershader[i][0] = changed_prefs.gfx_filtershader[i][0] = 0;
 					break;
 				}
@@ -2016,7 +2022,7 @@ static int restoredeviceobjects (void)
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 			if (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_AFTER);
-				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS], true, s)) {
+				if (!psEffect_LoadEffect (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS], true, s, i + MAX_FILTERSHADERS)) {
 					currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0] = changed_prefs.gfx_filtershader[i + MAX_FILTERSHADERS][0] = 0;
 					break;
 				}
@@ -2651,7 +2657,7 @@ static LPDIRECT3DTEXTURE9 processshader(LPDIRECT3DTEXTURE9 srctex, struct shader
 	LPDIRECT3DSURFACE9 lpNewRenderTarget;
 	LPDIRECT3DTEXTURE9 lpWorkTexture;
 
-	if (!psEffect_SetTextures (srctex, lpHq2xLookupTexture, s))
+	if (!psEffect_SetTextures (srctex, s))
 		return NULL;
 	if (s->psPreProcess) {
 		if (!psEffect_SetMatrices (&m_matPreProj, &m_matPreView, &m_matPreWorld, s))

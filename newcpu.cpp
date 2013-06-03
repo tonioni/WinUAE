@@ -3268,7 +3268,7 @@ void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 
 #endif
 
-void m68k_reset (int hardreset)
+static void m68k_reset (bool hardreset)
 {
 	regs.spcflags = 0;
 	regs.ipl = regs.ipl_pin = 0;
@@ -4346,13 +4346,14 @@ retry:
 			f.x = regflags.x;
 			pc = regs.instruction_pc = m68k_getpc ();
 
+			do_cycles (cpu_cycles);
+
 			mmu_opcode = -1;
 			mmu060_state = 0;
 			mmu_opcode = opcode = x_prefetch (0);
 			mmu060_state = 1;
 
 			count_instr (opcode);
-			do_cycles (cpu_cycles);
 			cpu_cycles = (*cpufunctbl[opcode])(opcode);
 
 			cpu_cycles = adjust_cycles (cpu_cycles);
@@ -4406,10 +4407,11 @@ retry:
 			mmu_restart = true;
 			pc = regs.instruction_pc = m68k_getpc ();
 
+			do_cycles (cpu_cycles);
+
 			mmu_opcode = -1;
 			mmu_opcode = opcode = x_prefetch (0);
 			count_instr (opcode);
-			do_cycles (cpu_cycles);
 			cpu_cycles = (*cpufunctbl[opcode])(opcode);
 			cpu_cycles = adjust_cycles (cpu_cycles);
 
@@ -4853,7 +4855,7 @@ void m68k_go (int may_quit)
 #endif
 			set_cycles (start_cycles);
 			custom_reset (hardreset != 0, kbreset);
-			m68k_reset (hardreset);
+			m68k_reset (hardreset != 0);
 			if (hardreset) {
 				memory_clear ();
 				write_log (_T("hardreset, memory cleared\n"));
@@ -5936,7 +5938,7 @@ void cpureset (void)
 		return;
 	}
 	pc = m68k_getpc ();
-	if (pc >= currprefs.chipmem_size) {
+	if (pc >= 0xa00000) {
 		addrbank *b = &get_mem_bank (pc);
 		if (b->check (pc, 2 + 2)) {
 			/* We have memory, hope for the best.. */

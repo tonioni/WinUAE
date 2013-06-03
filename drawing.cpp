@@ -693,6 +693,7 @@ where do we start drawing the playfield, where do we start drawing the right bor
 All of these are forced into the visible window (VISIBLE_LEFT_BORDER .. VISIBLE_RIGHT_BORDER).
 PLAYFIELD_START and PLAYFIELD_END are in window coordinates.  */
 static int playfield_start, playfield_end;
+static int real_playfield_start, real_playfield_end;
 static int linetoscr_diw_start, linetoscr_diw_end;
 static int native_ddf_left, native_ddf_right;
 #if 0
@@ -737,6 +738,11 @@ static void pfield_init_linetoscr (void)
 	native_ddf_left = coord_hw_to_window_x (ddf_left);
 	native_ddf_right = coord_hw_to_window_x (ddf_right);
 
+	if (native_ddf_left < 0)
+		native_ddf_left = 0;
+	if (native_ddf_right < native_ddf_left)
+		native_ddf_right = native_ddf_left;
+
 	linetoscr_diw_start = dp_for_drawing->diwfirstword;
 	linetoscr_diw_end = dp_for_drawing->diwlastword;
 
@@ -762,6 +768,9 @@ static void pfield_init_linetoscr (void)
 		playfield_end = visible_left_border;
 	if (playfield_end > visible_right_border)
 		playfield_end = visible_right_border;
+
+	real_playfield_end = playfield_end;
+	real_playfield_start = playfield_start;
 
 	// Sprite hpos don't include DIW_DDF_OFFSET and can appear 1 lores pixel
 	// before first bitplane pixel appears.
@@ -832,6 +841,7 @@ static void pfield_init_linetoscr (void)
 
 	if (dip_for_drawing->nr_sprites == 0)
 		return;
+
 	/* We need to clear parts of apixels.  */
 	if (linetoscr_diw_start < native_ddf_left) {
 		int size = res_shift_from_window (native_ddf_left - linetoscr_diw_start);
@@ -1734,9 +1744,9 @@ STATIC_INLINE void draw_sprites_ecs (struct sprite_entry *e)
 	}
 }
 
-#if 0
+#ifdef AGA
 /* clear possible bitplane data outside DIW area */
-static void clear_bitplane_border (void)
+static void clear_bitplane_border_aga (void)
 {
 	int len, shift = res_shift;
 	uae_u8 v = 0;
@@ -2320,6 +2330,10 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 		if (dip_for_drawing->nr_sprites) {
 			int i;
+#ifdef AGA
+			if (colors_for_drawing.bordersprite)
+				clear_bitplane_border_aga ();
+#endif
 
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++) {
 #ifdef AGA

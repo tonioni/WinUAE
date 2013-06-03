@@ -6258,8 +6258,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 #define PP_FSPTR 404
 #define PP_ADDTOFSRES 408
 #define PP_FSRES 412
-#define PP_EXPLIB 416
-#define PP_FSHDSTART 420
+#define PP_FSRES_CREATED 416
+#define PP_EXPLIB 420
+#define PP_FSHDSTART 424
 
 static uae_u32 REGPARAM2 filesys_dev_bootfilesys (TrapContext *context)
 {
@@ -6851,7 +6852,10 @@ static void addfakefilesys (uaecptr parmpacket, uae_u32 dostype, int ver, int re
 		put_long (parmpacket + PP_FSHDSTART + 12 + 5 * 4, ci->priority);
 		flags |= 0x20;
 	}
-	put_long (parmpacket + PP_FSHDSTART + 12 + 8 * 4, kickstart_version < 36 && dostype == 0x444f5300 ? 0 : -1); // globvec
+	put_long (parmpacket + PP_FSHDSTART + 12 + 8 * 4, dostype == 0x444f5300 ? 0 : -1); // globvec
+	// if OFS = seglist -> NULL
+	if ((dostype & 0xffffff00) == 0x444f5300)
+		flags &= ~0x080;
 	put_long (parmpacket + PP_FSHDSTART + 8, flags); // patchflags
 }
 
@@ -6905,6 +6909,11 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 		addfakefilesys (parmpacket, dostype, ver, rev, ci);
 		return FILESYS_HARDFILE;
 	}
+	if ((dostype & 0xffffff00) == 0x444f5300 && (!uip->filesysdir || !uip->filesysdir[0])) {
+		write_log (_T("RDB: OFS, using ROM default FS.\n"));
+		return FILESYS_HARDFILE;
+	}
+
 	tmp[0] = 0;
 	if (uip->filesysdir && _tcslen (uip->filesysdir) > 0) {
 		_tcscpy (tmp, uip->filesysdir);
@@ -6928,10 +6937,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 	if (!zf) {
 		addfakefilesys (parmpacket, dostype, ver, rev, ci);
-		write_log (_T("RDB: filesys not found\n"));
-		if ((dostype & 0xffffff00) == 0x444f5300)
-			return FILESYS_HARDFILE;
-		write_log (_T("RDB: mounted without filesys\n"));
+		write_log (_T("RDB: filesys not found, mounted without filesys\n"));
 		return FILESYS_HARDFILE;
 	}
 
@@ -7004,7 +7010,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	zfile_fclose (zf);
 	uip->rdb_filesyssize = size;
 
-	// DOS\0 is not in fs.resource
+	// DOS\0 is not in fs.resource and fs.resource already existed?
 	if (dostype == 0x444f5300 && oldversion < 0)
 		oldversion = 0;
 	put_long (parmpacket + PP_FSSIZE, uip->rdb_filesyssize);

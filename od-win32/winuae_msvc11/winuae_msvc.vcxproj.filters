@@ -44,6 +44,9 @@
     <Filter Include="unpackers\chd">
       <UniqueIdentifier>{dd8bf794-572a-4d08-9cae-b280eb493e54}</UniqueIdentifier>
     </Filter>
+    <Filter Include="slirp">
+      <UniqueIdentifier>{7abef0b5-1d8e-4f43-baa6-ff61760bc330}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
