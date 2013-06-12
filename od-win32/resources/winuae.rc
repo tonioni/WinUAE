@@ -192,56 +192,58 @@ BEGIN
     EDITTEXT        IDC_MBRAM2,240,171,40,12,ES_CENTER | ES_READONLY
 END
 
-IDD_CPU DIALOGEX 0, 0, 396, 270
+IDD_CPU DIALOGEX 0, 0, 396, 283
 STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    GROUPBOX        "CPU",IDC_STATIC,1,1,109,160,BS_LEFT
+    GROUPBOX        "CPU",IDC_STATIC,1,1,129,175,BS_LEFT
     CONTROL         "68000",IDC_CPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,15,63,10
     CONTROL         "68010",IDC_CPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,29,63,10
     CONTROL         "68020",IDC_CPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,42,63,10
     CONTROL         "68030",IDC_CPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,56,63,10
     CONTROL         "68040",IDC_CPU4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,70,63,10
     CONTROL         "68060",IDC_CPU5,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,84,63,10
-    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,101,97,12
-    CONTROL         "More compatible [] Emulate 68000's prefetch registers. More compatible but slower.",IDC_COMPATIBLE,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,115,97,11
+    CONTROL         "24-bit addressing",IDC_COMPATIBLE24,"Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,101,119,12
+    CONTROL         "More compatible [] 68000: emulate prefetch. 68020+: emulate prefetch partially. More compatible but slower.",IDC_COMPATIBLE,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,115,118,11
     CONTROL         "JIT [] Enable just-in-time CPU emulator. Significantly increases the speed of the CPU emulation. Requires 68020 or higher CPU.",IDC_JITENABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,128,97,11
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,128,120,11
     CONTROL         "MMU [] 68030, 68040 and 68060 MMU emulation. Not compatible with JIT.",IDC_MMUENABLE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,142,96,11
-    GROUPBOX        "CPU Emulation Speed",IDC_STATIC,120,3,274,96
-    CONTROL         "Fastest possible",IDC_CS_HOST,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,125,18,195,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,142,120,11
+    GROUPBOX        "CPU Emulation Speed",IDC_STATIC,136,3,258,111
+    CONTROL         "Fastest possible",IDC_CS_HOST,"Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_GROUP | WS_TABSTOP,143,24,195,10
     CONTROL         "Approximate A500/A1200 or cycle-exact",IDC_CS_68000,
-                    "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,125,32,195,10
-    CONTROL         "Slider1",IDC_SPEED,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,126,50,192,20
-    RTEXT           "CPU Speed",IDC_STATIC,125,78,55,9,SS_CENTERIMAGE
-    EDITTEXT        IDC_CPUTEXT,188,77,30,12,ES_CENTER | ES_READONLY
-    RTEXT           "CPU Idle",IDC_STATIC,223,78,62,9
-    CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,292,73,69,21
-    GROUPBOX        "Cycle-exact CPU Emulation Speed",IDC_STATIC,120,105,274,55
-    RTEXT           "CPU Frequency",IDC_STATIC,123,129,67,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_CPU_FREQUENCY,199,128,46,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_CPU_FREQUENCY2,252,127,70,15
-    GROUPBOX        "FPU",IDC_STATIC,1,167,109,99,BS_LEFT
-    CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,182,87,10
-    CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,196,87,10
-    CONTROL         "68882",IDC_FPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,209,87,10
-    CONTROL         "CPU internal",IDC_FPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,223,93,10
+                    "Button",BS_AUTORADIOBUTTON | BS_LEFT | WS_TABSTOP,143,38,195,10
+    CONTROL         "Slider1",IDC_SPEED,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,142,62,192,20
+    RTEXT           "CPU Speed",IDC_STATIC,141,90,55,9,SS_CENTERIMAGE
+    EDITTEXT        IDC_CPUTEXT,204,89,30,12,ES_CENTER | ES_READONLY
+    RTEXT           "CPU Idle",IDC_STATIC,239,90,62,9
+    CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,308,85,69,21
+    GROUPBOX        "Cycle-exact CPU Emulation Speed",IDC_STATIC,136,121,258,55
+    RTEXT           "CPU Frequency",IDC_STATIC,139,145,67,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_CPU_FREQUENCY,215,144,46,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_CPU_FREQUENCY2,268,143,70,15
+    GROUPBOX        "FPU",IDC_STATIC,1,181,129,99,BS_LEFT
+    CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,195,87,10
+    CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,209,87,10
+    CONTROL         "68882",IDC_FPU2,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,222,87,10
+    CONTROL         "CPU internal",IDC_FPU3,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,236,93,10
     CONTROL         "More compatible [] More compatible but slower FPU emulation.",IDC_COMPATIBLE_FPU,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,239,94,10
-    GROUPBOX        "Advanced JIT Settings",IDC_STATIC,120,167,274,99
-    RTEXT           "Cache size:",IDC_STATIC,127,187,66,10,SS_CENTERIMAGE
-    CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,196,181,115,20
-    EDITTEXT        IDC_CACHETEXT,315,186,30,12,ES_CENTER | ES_READONLY
-    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,130,214,84,11
-    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,130,228,84,11
-    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,130,242,84,11
-    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,227,214,68,11
-    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,299,214,72,10
-    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,299,228,72,10
-    CONTROL         "Unimplemented emu [] Emulate 68040/060 FPU unimplemented instructions",IDC_FPU_UNIMPLEMENTED,
-                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,252,96,10
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,252,117,10
+    GROUPBOX        "Advanced JIT Settings",IDC_STATIC,136,181,258,99
+    RTEXT           "Cache size:",IDC_STATIC,143,200,66,10,SS_CENTERIMAGE
+    CONTROL         "Slider1",IDC_CACHE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,212,194,115,20
+    EDITTEXT        IDC_CACHETEXT,331,199,30,12,ES_CENTER | ES_READONLY
+    CONTROL         "Hard flush",IDC_HARDFLUSH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,146,227,84,11
+    CONTROL         "Constant jump",IDC_CONSTJUMP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,146,241,84,11
+    CONTROL         "FPU support",IDC_JITFPU,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,146,255,84,11
+    CONTROL         "No flags",IDC_NOFLAGS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,243,227,68,11
+    CONTROL         "Direct",IDC_TRUST0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,315,227,72,10
+    CONTROL         "Indirect",IDC_TRUST1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,315,241,72,10
+    CONTROL         "Unimplemented FPU emu [] Emulate FPU unimplemented instructions",IDC_FPU_UNIMPLEMENTED,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,265,116,10
+    CONTROL         "Unimplemented CPU emu [] Emulate 68060 unimplemented integer instructions",IDC_CPU_UNIMPLEMENTED,
+                    "Button",BS_AUTOCHECKBOX | BS_LEFT | WS_GROUP | WS_TABSTOP,8,156,118,10
 END
 
 IDD_FLOPPY DIALOGEX 0, 0, 396, 261
@@ -1295,6 +1297,7 @@ BEGIN
 
     IDD_CPU, DIALOG
     BEGIN
+        BOTTOMMARGIN, 282
     END
 
     IDD_FLOPPY, DIALOG
@@ -1443,7 +1446,7 @@ BEGIN
     IDS_KICKSTART           "ROM"
     IDS_DISK                "Disk swapper"
     IDS_DISPLAY             "Display"
-    IDS_HARDDISK            "Hard drives"
+    IDS_HARDDISK            "CD & Hard drives"
     IDS_FLOPPY              "Floppy drives"
     IDS_ABOUT               "About"
     IDS_LOADSAVE            "Configurations"

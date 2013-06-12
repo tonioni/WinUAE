@@ -1856,6 +1856,7 @@ static void initialize_windowsmouse (void)
 }
 
 static uae_u8 rawkeystate[256];
+static int rawprevkey;
 static void handle_rawinput_2 (RAWINPUT *raw)
 {
 	int i, num;
@@ -2217,10 +2218,42 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		}
 
-		if (rawkeystate[scancode] == pressed) {
+		// More complex press/release check because we want to support
+		// keys that never return releases, only pressed but also need
+		// handle normal keys that can repeat.
+
+#if 0
+		if (!pressed)
 			return;
+#endif
+
+		if (pressed) {
+			// previously pressed key and next press is same key? Repeat. Ignore it.
+			if (scancode == rawprevkey)
+				return;
+			rawprevkey = scancode;
+			if (rawkeystate[scancode] == 2) {
+				// Got press for key that is already pressed.
+				// Must be ignored. It is repeat.
+				rawkeystate[scancode] = 1;
+				return;
+			}
+			rawkeystate[scancode] = 1;
+		} else {
+			rawprevkey = -1;
+			// release without press: ignore
+			if (rawkeystate [scancode] == 0)
+				return;
+			rawkeystate[scancode] = 0;
+			// Got release, if following press is key that
+			// is currently pressed: ignore it, it is repeat.
+			// Mark all currently pressed keys.
+			for (int i = 0; i < sizeof (rawkeystate); i++) {
+				if (rawkeystate[i] == 1)
+					rawkeystate[i] = 2;
+			}
 		}
-		rawkeystate[scancode] = pressed;
+
 		if (istest) {
 			if (pressed && (scancode == DIK_F12))
 				return;
@@ -3093,6 +3126,7 @@ static void release_keys (void)
 		}
 	}
 	memset (rawkeystate, 0, sizeof rawkeystate);
+	rawprevkey = -1;
 }
 
 

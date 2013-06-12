@@ -1129,7 +1129,7 @@ static void build_cpufunctbl (void)
 
 		/* unimplemented opcode? */
 		if (table->unimpclev > 0 && lvl >= table->unimpclev) {
-			if (currprefs.cpu_compatible && currprefs.cpu_model == 68060) {
+			if (currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 				cpufunctbl[opcode] = op_unimpl_1;
 			} else {
 				cpufunctbl[opcode] = op_illg_1;
@@ -1240,6 +1240,8 @@ static void prefs_changed_cpu (void)
 	currprefs.mmu_model = changed_prefs.mmu_model;
 	currprefs.cpu_compatible = changed_prefs.cpu_compatible;
 	currprefs.cpu_cycle_exact = changed_prefs.cpu_cycle_exact;
+	currprefs.int_no_unimplemented = changed_prefs.int_no_unimplemented;
+	currprefs.fpu_no_unimplemented = changed_prefs.fpu_no_unimplemented;
 	currprefs.blitter_cycle_exact = changed_prefs.blitter_cycle_exact;
 }
 
@@ -1256,6 +1258,8 @@ void check_prefs_changed_cpu (void)
 		|| currprefs.cpu_model != changed_prefs.cpu_model
 		|| currprefs.fpu_model != changed_prefs.fpu_model
 		|| currprefs.mmu_model != changed_prefs.mmu_model
+		|| currprefs.int_no_unimplemented != changed_prefs.int_no_unimplemented
+		|| currprefs.fpu_no_unimplemented != changed_prefs.fpu_no_unimplemented
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
 
@@ -1338,9 +1342,12 @@ void init_m68k (void)
 		} else {
 			write_log (_T(" fake prefetch"));
 		}
-		if (currprefs.cpu_model == 68060) {
-			write_log (_T(" no unimplemented integer instructions"));
-		}
+	}
+	if (currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
+		write_log (_T(" no unimplemented integer instructions"));
+	}
+	if (currprefs.fpu_no_unimplemented && currprefs.fpu_model) {
+		write_log (_T(" no unimplemented floating point instructions"));
 	}
 	if (currprefs.address_space_24) {
 		regs.address_space_mask = 0x00ffffff;
@@ -3031,7 +3038,7 @@ STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae
 
 void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
-	if ((extra & 0x400) && currprefs.cpu_compatible && currprefs.cpu_model == 68060) {
+	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
 		return;
 	}
@@ -3177,7 +3184,7 @@ STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, ua
 
 void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
-	if ((extra & 0x400) && currprefs.cpu_compatible && currprefs.cpu_model == 68060) {
+	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
 		return;
 	}
@@ -3723,7 +3730,7 @@ void doint (void)
 		unset_special (SPCFLAG_INT);
 		return;
 	}
-	if (currprefs.cpu_compatible)
+	if (currprefs.cpu_compatible && currprefs.cpu_model < 68020)
 		set_special (SPCFLAG_INT);
 	else
 		set_special (SPCFLAG_DOINT);
@@ -5926,43 +5933,43 @@ void exception2 (uaecptr addr)
 	fill_prefetch ();
 }
 
+
 void cpureset (void)
 {
+    /* RESET hasn't increased PC yet, 1 word offset */
 	uaecptr pc;
-	uaecptr ksboot = 0xf80002 - 2; /* -2 = RESET hasn't increased PC yet */
+	uaecptr ksboot = 0xf80002 - 2;
 	uae_u16 ins;
+	addrbank *ab;
 
 	send_internalevent (INTERNALEVENT_CPURESET);
 	if ((currprefs.cpu_compatible || currprefs.cpu_cycle_exact) && currprefs.cpu_model <= 68020) {
 		custom_reset (false, false);
 		return;
 	}
-	pc = m68k_getpc ();
-	if (pc >= 0xa00000) {
-		addrbank *b = &get_mem_bank (pc);
-		if (b->check (pc, 2 + 2)) {
-			/* We have memory, hope for the best.. */
-			custom_reset (false, false);
+	pc = m68k_getpc () + 2;
+	ab = &get_mem_bank (pc);
+	if (ab->check (pc, 2)) {
+		write_log (_T("CPU reset PC=%x (%s)..\n"), pc - 2, ab->name);
+		ins = get_word (pc);
+		custom_reset (false, false);
+		// did memory disappear under us?
+		if (ab == &get_mem_bank (pc))
+			return;
+		// it did
+		if ((ins & ~7) == 0x4ed0) {
+			int reg = ins & 7;
+			uae_u32 addr = m68k_areg (regs, reg);
+			if (addr < 0x80000)
+				addr += 0xf80000;
+			write_log (_T("reset/jmp (ax) combination emulated -> %x\n"), addr);
+			m68k_setpc (addr - 2);
 			return;
 		}
-		write_log (_T("M68K RESET PC=%x, rebooting..\n"), pc);
-		custom_reset (false, false);
-		m68k_setpc (ksboot);
-		return;
 	}
-	/* panic, RAM is going to disappear under PC */
-	ins = get_word (pc + 2);
-	if ((ins & ~7) == 0x4ed0) {
-		int reg = ins & 7;
-		uae_u32 addr = m68k_areg (regs, reg);
-		write_log (_T("reset/jmp (ax) combination emulated -> %x\n"), addr);
-		custom_reset (false, false);
-		if (addr < 0x80000)
-			addr += 0xf80000;
-		m68k_setpc (addr - 2);
-		return;
-	}
-	write_log (_T("M68K RESET PC=%x, rebooting..\n"), pc);
+	// the best we can do, jump directly to ROM entrypoint
+	// (which is probably what program wanted anyway)
+	write_log (_T("CPU Reset PC=%x (%s), invalid memory -> %x.\n"), pc, ab->name, ksboot + 2);
 	custom_reset (false, false);
 	m68k_setpc (ksboot);
 }

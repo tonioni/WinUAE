@@ -135,6 +135,7 @@ uaecptr ROM_hardfile_resname, ROM_hardfile_resid;
 uaecptr ROM_hardfile_init;
 bool uae_boot_rom;
 int uae_boot_rom_size; /* size = code size only */
+static bool chipdone;
 
 /* ********************************************************** */
 
@@ -172,6 +173,61 @@ static uae_u8 expamem[65536];
 
 static uae_u8 expamem_lo;
 static uae_u16 expamem_hi;
+
+/* Ugly hack for >2M chip RAM in single pool
+ * We can't add it any later or early boot menu
+ * stops working because it sets kicktag at the end
+ * of chip ram...
+ */
+static void addextrachip (uae_u32 sysbase)
+{
+	if (currprefs.chipmem_size <= 0x00200000)
+		return;
+	if (sysbase & 0x80000001)
+		return;
+	if (!valid_address (sysbase, 1000))
+		return;
+	uae_u32 ml = get_long (sysbase + 322);
+	if (!valid_address (ml, 32))
+		return;
+	uae_u32 next;
+	while ((next = get_long (ml))) {
+		if (!valid_address (ml, 32))
+			return;
+		uae_u32 upper = get_long (ml + 24);
+		uae_u32 lower = get_long (ml + 20);
+		if (lower & ~0xffff) {
+			ml = next;
+			continue;
+		}
+		uae_u16 attr = get_word (ml + 14);
+		if ((attr & 0x8002) != 2) {
+			ml = next;
+			continue;
+		}
+		if (upper >= currprefs.chipmem_size)
+			return;
+		uae_u32 added = currprefs.chipmem_size - upper;
+		uae_u32 first = get_long (ml + 16);
+		put_long (ml + 24, currprefs.chipmem_size); // mh_Upper
+		put_long (ml + 28, get_long (ml + 28) + added); // mh_Free
+		uae_u32 next;
+		while (first) {
+			next = first;
+			first = get_long (next);
+		}
+		uae_u32 bytes = get_long (next + 4);
+		if (next + bytes == 0x00200000) {
+			put_long (next + 4, currprefs.chipmem_size - next);
+		} else {
+			put_long (0x00200000 + 0, 0);
+			put_long (0x00200000 + 4, added);
+			put_long (next, 0x00200000);
+		}
+		return;
+	}
+}
+
 
 static uae_u32 REGPARAM3 expamem_lget (uaecptr) REGPARAM;
 static uae_u32 REGPARAM3 expamem_wget (uaecptr) REGPARAM;
@@ -248,6 +304,10 @@ static uae_u32 REGPARAM2 expamem_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	if (!chipdone) {
+		chipdone = true;
+		addextrachip (get_long (4));
+	}
 	addr &= 0xFFFF;
 	b = expamem[addr];
 #ifdef EXP_DEBUG
@@ -1446,6 +1506,7 @@ void expamem_reset (void)
 
 	ecard = 0;
 	cardno = 0;
+	chipdone = false;
 
 	if (currprefs.uae_hide)
 		uae_id = commodore;

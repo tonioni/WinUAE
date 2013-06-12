@@ -502,6 +502,7 @@
 #define IDC_FPU3                        1227
 #define IDC_FPU_UNIMPLEMENTED           1228
 #define IDC_SOUNDSETTINGS               1229
+#define IDC_CPU_UNIMPLEMENTED           1229
 #define IDC_8BIT                        1230
 #define IDC_16BIT                       1231
 #define IDC_11KHZ                       1232

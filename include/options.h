@@ -447,6 +447,7 @@ struct uae_prefs {
 	int fpu_model;
 	int fpu_revision;
 	bool cpu_compatible;
+	bool int_no_unimplemented;
 	bool fpu_no_unimplemented;
 	bool address_space_24;
 	bool picasso96_nocustom;

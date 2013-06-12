@@ -3209,7 +3209,7 @@ static void
 		mode = SHARED_LOCK;
 	}
 
-	TRACE((_T("ACTION_LOCK(0x%lx, \"%s\", %d)\n"), lock, bstr (unit, name), mode));
+	TRACE((_T("ACTION_LOCK(0x%08x, \"%s\", %d)\n"), lock, bstr (unit, name), mode));
 	DUMPLOCK(unit, lock);
 
 	a = find_aino (unit, lock, bstr (unit, name), &err);
@@ -4392,7 +4392,7 @@ static void do_find (Unit *unit, dpacket packet, int mode, int create, int fallb
 	int aino_created = 0;
 	int isvirtual = unit->volflags & (MYVOLUMEINFO_ARCHIVE | MYVOLUMEINFO_CDFS);
 
-	TRACE((_T("ACTION_FIND_*(0x%lx,0x%lx,\"%s\",%d,%d)\n"), fh, lock, bstr (unit, name), mode, create));
+	TRACE((_T("ACTION_FIND_*(0x%08x,0x%08x,\"%s\",%d,%d)\n"), fh, lock, bstr (unit, name), mode, create));
 	TRACE((_T("fh=%x lock=%x name=%x\n"), fh, lock, name));
 	DUMPLOCK(unit, lock);
 
@@ -6249,6 +6249,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	put_word (resaddr + 16, RTS);
 
 	m68k_areg (regs, 0) = residents;
+	
 	return 1;
 }
 

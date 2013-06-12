@@ -3529,11 +3529,7 @@ static void gen_opcode (unsigned long int opcode)
 			genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_LRMW);
 			genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_LRMW);
 			if (cpu_level == 5 && curi->size > 0) {
-				if (!using_mmu) {
-					printf ("\tif ((dsta & %d) && currprefs.cpu_compatible && get_cpu_model () == 68060) {\n", curi->size == 1 ? 1 : 3);
-				} else {
-					printf ("\tif ((dsta & %d) && currprefs.cpu_compatible) {\n", curi->size == 1 ? 1 : 3);
-				}
+				printf ("\tif ((dsta & %d) && currprefs.int_no_unimplemented && get_cpu_model () == 68060) {\n", curi->size == 1 ? 1 : 3);
 				if (curi->dmode == Aipi || curi->dmode == Apdi)
 					printf ("\t\tm68k_areg (regs, dstreg) %c= %d;\n", curi->dmode == Aipi ? '-' : '+', 1 << curi->size);
 				sync_m68k_pc_noreset ();

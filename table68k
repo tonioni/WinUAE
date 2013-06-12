@@ -94,10 +94,10 @@
 0000 1110 11ss sSSS:200:?????:?????:13: CAS.L   #1,s[!Dreg,Areg,Immd,PC8r,PC16]
 0000 1110 1111 1100:250:?????:?????:10: CAS2.L  #2
 
-0000 rrr1 00dd dDDD:000:-----:-----:12: MVPMR.W d[Areg-Ad16],Dr
-0000 rrr1 01dd dDDD:000:-----:-----:12: MVPMR.L d[Areg-Ad16],Dr
-0000 rrr1 10dd dDDD:000:-----:-----:12: MVPRM.W Dr,d[Areg-Ad16]
-0000 rrr1 11dd dDDD:000:-----:-----:12: MVPRM.L Dr,d[Areg-Ad16]
+0000 rrr1 00dd dDDD:050:-----:-----:12: MVPMR.W d[Areg-Ad16],Dr
+0000 rrr1 01dd dDDD:050:-----:-----:12: MVPMR.L d[Areg-Ad16],Dr
+0000 rrr1 10dd dDDD:050:-----:-----:12: MVPRM.W Dr,d[Areg-Ad16]
+0000 rrr1 11dd dDDD:050:-----:-----:12: MVPRM.L Dr,d[Areg-Ad16]
 0000 rrr1 00ss sSSS:000:--Z--:-----:11: BTST    Dr,s[!Areg]
 0000 rrr1 01ss sSSS:000:--Z--:-----:13: BCHG    Dr,s[!Areg,Immd]
 0000 rrr1 10ss sSSS:000:--Z--:-----:13: BCLR    Dr,s[!Areg,Immd]
@@ -270,8 +270,8 @@
 1111 0101 0001 0rrr:402:-----:-----:00: PFLUSHAN Ara
 1111 0101 0001 1rrr:402:-----:-----:00: PFLUSHA  Ara
 % 68040 only
-1111 0101 0100 1rrr:452:-----:-----:00: PTESTR   Ara
-1111 0101 0110 1rrr:452:-----:-----:00: PTESTW   Ara
+1111 0101 0100 1rrr:452:-----:-----:00: PTESTW   Ara
+1111 0101 0110 1rrr:452:-----:-----:00: PTESTR   Ara
 
 % destination register number is encoded in the following word
 1111 0110 0010 0rrr:400:-----:-----:12: MOVE16   ArP,AxP
@@ -282,6 +282,6 @@
 
 % 68060
 1111 1000 0000 0000:502:?????:?????:10: LPSTOP   #1
-1111 0101 1000 1rrr:502:-----:-----:00: PLPAR    Ara
-1111 0101 1100 1rrr:502:-----:-----:00: PLPAW    Ara
+1111 0101 1000 1rrr:502:-----:-----:00: PLPAW    Ara
+1111 0101 1100 1rrr:502:-----:-----:00: PLPAR    Ara
 

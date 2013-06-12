@@ -1,6 +1,36 @@
 
 - restore only single input target to default.
 
+Beta 2:
+
+- Moved >2M Chip RAM merge earlier in boot process. Previous was too late and it broke
+  early boot menu. (It sets reset proof resident positioned at the end of chip ram and
+  if chip ram is not available early enough, exec assumes resident is invalid and
+  ignores it). Now nearly complete unfragmented Chip RAM is available, even if booting
+  with Chip RAM only configuration.
+- Do not filter all keyboard presses without matching releases, only filter repeats.
+  (Which isn't that simple because press and repeating press are identical events)
+- Inverted keyboard releases (=press) required matching release before next press
+  event was accepted. (This update wasn't really needed but maybe in future it will
+  be more useful)
+- Added separate 68060 unimplemented integer emulation checkbox. More compatible
+  should only enable/disable prefetch emulation. (approximate/partial or 68000 exact)
+- 68060 MOVEP was not marked as unimplemented.
+- Non-prefetch CPU mode now fully checks if memory disappears after reset by
+  checking memory "bank" pointers instead of using hardcoded addresses. Program
+  doing software reset by executing RESET + JMP (An) now always works. (If opcode
+  is something else or PC points to non-existing memory for some reason, it assumes
+  program attempted normal software reset and jumps to start of ROM code). Makes
+  aros arosbootstrap softkick more reliable under emulation.
+- Tree view "Hard drives" -> "CD & Hard drives"
+- Delay 68020+ interrupt detection by one instruction unless cycle exact is enabled.
+  (For example Skeleton Krew CD32 first enables interrupt and then updates interrupt
+  vector. Game code even guarantees request is active while enabling interrupts..)
+- 68040 MMU PTEST and 68060 MMU PLPA instructions were shown incorrectly by debugger.
+  (Read was shown as write and vice versa. Emulation was working fine)
+
+Beta 1:
+
 - KS 1.3 OFS hardfile fix. Apparently 1.3 L:FastFileSystem does not support OFS.
   Use ROM built-in FS if OFS partition and hardfile FileSys path is empty. (2.6.0)
 - Added emulation of unimplemented FPU instruction exceptions.
