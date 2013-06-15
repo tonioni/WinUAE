@@ -1165,6 +1165,7 @@ static int createamigatexture (int w, int h)
 					write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 					return 0;
 				}
+				write_log (_T("HQ2X texture (%dx%d) (%dx%d)\n"), w2, h2, w, h);
 				BuildHq2xLookupTexture (w2, h2, w, h,  (unsigned char*)lockedBox.pBits);
 				shaders[i].lpHq2xLookupTexture->UnlockBox (0);
 			}
@@ -1974,7 +1975,6 @@ static void invalidatedeviceobjects (void)
 		d3dswapchain->Release ();
 		d3dswapchain = NULL;
 	}
-	m_Hq2xLookupTextureHandle = NULL;
 	locked = 0;
 	maskshift.x = maskshift.y = maskshift.z = maskshift.w = 0;
 	maskmult.x = maskmult.y = maskmult.z = maskmult.w = 0;
@@ -2750,7 +2750,7 @@ static void D3D_render2 (void)
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			struct shaderdata *s = &shaders[i];
 			if (s->type == SHADERTYPE_BEFORE) {
-				settransform (s);
+				settransform2 (s);
 				srctex = processshader (srctex, s, true);
 				if (!srctex)
 					return;

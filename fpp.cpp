@@ -1072,6 +1072,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	if (fault_if_no_fpu_u (opcode, extra, pc + disp, pc - 4))
 		return;
 	regs.fpiar = pc - 4;
+	regs.fpu_state = 1;
 	cc = fpp_cond (extra & 0x3f);
 	if (cc == -1) {
 		fpu_op_illg (opcode, regs.fpiar);
@@ -1099,6 +1100,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 		return;
 
 	regs.fpiar = pc;
+	regs.fpu_state = 1;
 	cc = fpp_cond (extra & 0x3f);
 	if (cc == -1) {
 		fpu_op_illg (opcode, regs.fpiar);
@@ -1127,6 +1129,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 		return;
 
 	regs.fpiar = oldpc;
+	regs.fpu_state = 1;
 	cc = fpp_cond (extra & 0x3f);
 	if (cc == -1) {
 		fpu_op_illg (opcode, oldpc);
@@ -1147,6 +1150,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 		return;
 
 	regs.fpiar = oldpc - 2;
+	regs.fpu_state = 1;
 	cc = fpp_cond (opcode & 0x3f);
 	if (cc == -1) {
 		fpu_op_illg (opcode, oldpc - 2);

@@ -920,20 +920,30 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 			cfgfile_write_str (f, _T("gfx_filtermask_post"), p->gfx_filtermask[i + MAX_FILTERSHADERS]);
 	}
 	cfgfile_dwrite_str (f, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS - 1]);
-	if (p->gfx_filtershader[0][0] && p->gfx_api) {
-		cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader[0]);
-	} else if (p->gfx_filter > 0) {
-		int i = 0;
-		struct uae_filter *uf;
-		while (uaefilters[i].name) {
-			uf = &uaefilters[i];
-			if (uf->type == p->gfx_filter) {
-				cfgfile_dwrite_str (f, _T("gfx_filter"), uf->cfgname);
+	{
+		bool d3dfound = false;
+		for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+			if (p->gfx_filtershader[i][0] && p->gfx_api) {
+				cfgfile_dwrite (f, _T("gfx_filter"), _T("D3D:%s"), p->gfx_filtershader[i]);
+				d3dfound = true;
+				break;
 			}
-			i++;
 		}
-	} else {
-		cfgfile_dwrite (f, _T("gfx_filter"), _T("no"));
+		if (!d3dfound) {
+			if (p->gfx_filter > 0) {
+				int i = 0;
+				struct uae_filter *uf;
+				while (uaefilters[i].name) {
+					uf = &uaefilters[i];
+					if (uf->type == p->gfx_filter) {
+						cfgfile_dwrite_str (f, _T("gfx_filter"), uf->cfgname);
+					}
+					i++;
+				}
+			} else {
+				cfgfile_dwrite (f, _T("gfx_filter"), _T("no"));
+			}
+		}
 	}
 	cfgfile_dwrite_str (f, _T("gfx_filter_mode"), filtermode2[p->gfx_filter_filtermode]);
 	cfgfile_dwrite (f, _T("gfx_filter_vert_zoomf"), _T("%f"), p->gfx_filter_vert_zoom);
@@ -1973,20 +1983,25 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	}
 
 	if (_tcscmp (option, _T("gfx_filter")) == 0) {
-		int i = 0;
 		TCHAR *s = _tcschr (value, ':');
-		p->gfx_filtershader[0][0] = 0;
 		p->gfx_filter = 0;
 		if (s) {
 			*s++ = 0;
 			if (!_tcscmp (value, _T("D3D"))) {
+				int i;
 				p->gfx_api = 1;
-				_tcscpy (p->gfx_filtershader[0], s);
+				for (i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+					if (p->gfx_filtershader[i][0])
+						break;
+				}
+				if (i >= 2 * MAX_FILTERSHADERS)
+					_tcscpy (p->gfx_filtershader[0], s);
 			}
 		}
 		if (!_tcscmp (value, _T("direct3d"))) {
 			p->gfx_api = 1; // forwards compatibiity
 		} else {
+			int i = 0;
 			while(uaefilters[i].name) {
 				if (!_tcscmp (uaefilters[i].cfgname, value)) {
 					p->gfx_filter = uaefilters[i].type;

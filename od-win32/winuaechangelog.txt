@@ -1,6 +1,16 @@
 
 - restore only single input target to default.
 
+Beta 3:
+
+- Direct3D hq2x shader filter should work correctly again. (2.6.0)
+- 68040/060 MMU mode address error stack frame fixed. (Possibly only debuggers need this)
+- 68030 MMU mode address error stack frame has correct format but it is not yet
+  recoverable. (I don't think address error recovery is used by any OS)
+- FScc, FTRAP and FBcc didn't get FPU out of NULL state. (No one cares fix)
+- extraframewait and framelatency command line parameters are also available via
+  config file too (uses win32. prefix)
+
 Beta 2:
 
 - Moved >2M Chip RAM merge earlier in boot process. Previous was too late and it broke

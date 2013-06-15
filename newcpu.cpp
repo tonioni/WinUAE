@@ -2486,8 +2486,13 @@ static void Exception_mmu030 (int nr, uaecptr oldpc)
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x1);
     } else if (nr ==5 || nr == 6 || nr == 7 || nr == 9 || nr == 56) {
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x2);
-    } else if (nr == 2 || nr == 3) {
+    } else if (nr == 2) {
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr,  0xB);
+    } else if (nr == 3) {
+		regs.mmu_fault_addr = last_fault_for_exception_3;
+		mmu030_state[0] = mmu030_state[1] = 0;
+		mmu030_data_buffer = 0;
+        Exception_build_stack_frame (last_fault_for_exception_3, currpc, MMU030_SSW_RW | MMU030_SSW_SIZE_W | (regs.s ? 6 : 2), nr,  0xA);
     } else {
         Exception_build_stack_frame (oldpc, currpc, regs.mmu_ssw, nr, 0x0);
     }
@@ -2543,12 +2548,9 @@ static void Exception_mmu (int nr, uaecptr oldpc)
 		else
 			Exception_build_stack_frame(oldpc, currpc, regs.mmu_fslw, nr, 0x4);
 	} else if (nr == 3) { // address error
-		uae_u16 ssw = (sv ? 4 : 0) | (last_instructionaccess_for_exception_3 ? 2 : 1);
-		ssw |= last_writeaccess_for_exception_3 ? 0 : 0x40;
-		ssw |= 0x20;
-        Exception_build_stack_frame(oldpc, currpc, ssw, nr, 0xB);
-		write_log (_T("Exception %d (%x) at %x -> %x! %s at %d\n"), nr, oldpc, currpc, get_long (regs.vbr + 4*nr),__FILE__,__LINE__);
-	} else if (nr ==5 || nr == 6 || nr == 7 || nr == 9) {
+        Exception_build_stack_frame(last_fault_for_exception_3, currpc, 0, nr, 0x2);
+		write_log (_T("Exception %d (%x) at %x -> %x! %s at %d\n"), nr, last_fault_for_exception_3, currpc, get_long (regs.vbr + 4 * nr), __FILE__, __LINE__);
+	} else if (nr == 5 || nr == 6 || nr == 7 || nr == 9) {
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x2);
 	} else if (regs.m && nr >= 24 && nr < 32) { /* M + Interrupt */
         Exception_build_stack_frame(oldpc, currpc, regs.mmu_ssw, nr, 0x1);

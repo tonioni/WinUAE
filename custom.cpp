@@ -3068,7 +3068,7 @@ void compute_framesync (void)
 	struct chipset_refresh *cr = get_chipset_refresh ();
 	while (cr) {
 		double v = -1;
-		if (!picasso_on) {
+		if (!picasso_on && !picasso_requested_on) {
 			if (isvsync_chipset ()) {
 				if (cr->index == CHIPSET_REFRESH_PAL || cr->index == CHIPSET_REFRESH_NTSC) {
 					if ((fabs (vblank_hz - 50) < 1 || fabs (vblank_hz - 60) < 1 || fabs (vblank_hz - 100) < 1 || fabs (vblank_hz - 120) < 1) && currprefs.gfx_apmode[0].gfx_vsync == 2 && currprefs.gfx_apmode[0].gfx_fullscreen > 0) {
@@ -3121,6 +3121,10 @@ void compute_framesync (void)
 	}
 	stored_chipset_refresh = cr;
 	interlace_changed = 0;
+	lof_togglecnt_lace = 0;
+	lof_togglecnt_nlace = 0;
+	nlace_cnt = NLACE_CNT_NEEDED;
+	lof_changing = 0;
 	gfxvidinfo.drawbuffer.inxoffset = -1;
 	gfxvidinfo.drawbuffer.inyoffset = -1;
 
@@ -3193,7 +3197,7 @@ void compute_framesync (void)
 
 	compute_vsynctime ();
 
-	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d\n"),
+	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d\n"),
 		isntsc ? _T("NTSC") : _T("PAL"),
 		islace ? _T(" lace") : _T(""),
 		doublescan > 0 ? _T(" dblscan") : _T(""),
@@ -3202,7 +3206,7 @@ void compute_framesync (void)
 		maxhpos, maxvpos, lof_store ? 1 : 0,
 		cr ? cr->index : -1,
 		cr != NULL && cr->label != NULL ? cr->label : _T("<?>"),
-		currprefs.gfx_apmode[picasso_on ? 1 : 0].gfx_display, picasso_on
+		currprefs.gfx_apmode[picasso_on ? 1 : 0].gfx_display, picasso_on, picasso_requested_on
 	);
 
 	config_changed = 1;

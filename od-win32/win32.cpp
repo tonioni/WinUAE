@@ -96,13 +96,14 @@ extern int force_directsound;
 extern int log_a2065, a2065_promiscuous;
 extern int rawinput_enabled_hid, rawinput_log;
 extern int log_filesys;
+extern int forcedframelatency;
 int log_scsi;
 int log_net;
 int log_vsync, debug_vsync_min_delay, debug_vsync_forced_delay;
 int uaelib_debug;
 int pissoff_value = 15000 * CYCLE_UNIT;
 unsigned int fpucontrol;
-int extraframewait = 0;
+int extraframewait;
 
 extern FILE *debugfile;
 extern int console_logging;
@@ -3158,6 +3159,9 @@ void target_save_options (struct zfile *f, struct uae_prefs *p)
 	cfgfile_target_dwrite_str (f, _T("gui_page"), p->win32_guipage);
 	cfgfile_target_dwrite_str (f, _T("gui_active_page"), p->win32_guiactivepage);
 	cfgfile_target_dwrite_bool (f, _T("filesystem_mangle_reserved_names"), p->win32_filesystem_mangle_reserved_names);
+
+	cfgfile_target_dwrite (f, _T("extraframewait"), _T("%d"), extraframewait);
+	cfgfile_target_dwrite (f, _T("framelatency"), _T("%d"), forcedframelatency);
 }
 
 void target_restart (void)
@@ -3427,6 +3431,14 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		return 1;
 	}
 
+	if (cfgfile_intval (option, value, _T("extraframewait"), &v, 1)) {
+		extraframewait = fetchpri (v, 1);
+		return 1;
+	}
+	if (cfgfile_intval (option, value, _T("framelatency"), &v, 1)) {
+		forcedframelatency = fetchpri (v, 1);
+		return 1;
+	}
 
 	i = 0;
 	while (obsolete[i]) {
@@ -4736,7 +4748,6 @@ extern int debug_rtg_blitter;
 extern int log_bsd;
 extern int inputdevice_logging;
 extern int vsync_modechangetimeout;
-extern int forcedframelatency;
 extern int tablet_log;
 extern int log_blitter;
 
