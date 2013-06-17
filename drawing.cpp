@@ -2964,7 +2964,7 @@ void hardware_line_completed (int lineno)
 #endif
 }
 
-void check_picasso (void)
+static void check_picasso (void)
 {
 #ifdef PICASSO96
 	if (picasso_on && picasso_redraw_necessary)
@@ -3000,8 +3000,6 @@ void redraw_frame (void)
 
 bool vsync_handle_check (void)
 {
-	check_picasso ();
-
 	int changed = check_prefs_changed_gfx ();
 	if (changed > 0) {
 		reset_drawing ();
@@ -3020,6 +3018,7 @@ bool vsync_handle_check (void)
 	check_prefs_changed_cd ();
 	check_prefs_changed_custom ();
 	check_prefs_changed_cpu ();
+	check_picasso ();
 	return changed != 0;
 }
 

@@ -3243,6 +3243,8 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 		|| cfgfile_intval (option, value, _T("guikey"), &p->win32_guikey, 1)
 		|| cfgfile_intval (option, value, _T("kbledmode"), &p->win32_kbledmode, 1)
 		|| cfgfile_yesno (option, value, _T("filesystem_mangle_reserved_names"), &p->win32_filesystem_mangle_reserved_names)
+		|| cfgfile_intval (option, value, _T("extraframewait"), &extraframewait, 1)
+		|| cfgfile_intval (option, value, _T("framelatency"), &forcedframelatency, 1)
 		|| cfgfile_intval (option, value, _T("cpu_idle"), &p->cpu_idle, 1));
 
 	if (cfgfile_yesno (option, value, _T("rtg_match_depth"), &p->win32_rtgmatchdepth))
@@ -3428,15 +3430,6 @@ int target_parse_option (struct uae_prefs *p, const TCHAR *option, const TCHAR *
 				p->win32_midiindev = midiinportinfo[i]->devid;
 			}
 		}
-		return 1;
-	}
-
-	if (cfgfile_intval (option, value, _T("extraframewait"), &v, 1)) {
-		extraframewait = fetchpri (v, 1);
-		return 1;
-	}
-	if (cfgfile_intval (option, value, _T("framelatency"), &v, 1)) {
-		forcedframelatency = fetchpri (v, 1);
 		return 1;
 	}
 

@@ -137,7 +137,7 @@ extern int mouseactive;
 TCHAR config_filename[256] = _T("");
 static TCHAR stored_path[MAX_DPATH];
 static int gui_size_changed;
-static int filterstackpos = 0;
+static int filterstackpos = 2 * MAX_FILTERSHADERS;
 
 static const int defaultaspectratios[] = {
 		4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
@@ -5706,7 +5706,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		break;
 	case WM_LBUTTONDOWN:
 	case WM_MOUSEMOVE:
-		url_handler( hDlg, msg, wParam, lParam );
+		url_handler (hDlg, msg, wParam, lParam);
 		break;
 	}
 
@@ -5715,7 +5715,7 @@ static INT_PTR CALLBACK AboutDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 
 static void enable_for_displaydlg (HWND hDlg)
 {
-	int rtg = ! workprefs.address_space_24;
+	int rtg = (!workprefs.address_space_24 || !workprefs.rtgmem_type) && workprefs.rtgmem_size;
 #ifndef PICASSO96
 	rtg = FALSE;
 #endif
@@ -13896,12 +13896,22 @@ static void values_to_hw3ddlg (HWND hDlg)
 	SendDlgItemMessage (hDlg, IDC_FILTERAUTOSCALE, CB_SETCURSEL, workprefs.gfx_filter_autoscale, 0);
 
 	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_RESETCONTENT, 0, 0);
-	for (int i = -4; i <= 3; i++) {
-		int j = i < 0 ? i : i + 1;
+	for (i = -MAX_FILTERSHADERS; i < MAX_FILTERSHADERS; i++) {
+		j = i < 0 ? i : i + 1;
+		if (i == 0) {
+			_stprintf (tmp, _T("%d%s"), 0, workprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] ? _T(" *") : _T(""));
+			SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_ADDSTRING, 0, (LPARAM)tmp);
+		}
 		_stprintf (tmp, _T("%d%s"), j, workprefs.gfx_filtershader[i + 4][0] ? _T(" *") : _T(""));
 		SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_ADDSTRING, 0, (LPARAM)tmp);
 	}
-	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, filterstackpos, 0);
+
+	i = filterstackpos;
+	if (i == 2 * MAX_FILTERSHADERS)
+		i = MAX_FILTERSHADERS;
+	else if (i >= MAX_FILTERSHADERS)
+		i++;
+	SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_SETCURSEL, i, 0);
 
 	int range1 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? -1 : -9999;
 	int range2 = workprefs.gfx_filter_autoscale == AUTOSCALE_MANUAL ? 1800 : 9999;
@@ -13980,7 +13990,7 @@ static void values_to_hw3ddlg (HWND hDlg)
 				!_tcsicmp (ext, _T(".bmp"))))
 			{
 				SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_ADDSTRING, 0, (LPARAM)wfd.cFileName);
-				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[0]))
+				if (!_tcsicmp (wfd.cFileName, overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[filterstackpos]))
 					SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_SETCURSEL, j, 0);
 				j++;
 
@@ -14272,7 +14282,7 @@ static void filter_handle (HWND hDlg)
 	}
 
 	int overlaytype = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAYTYPE, CB_GETCURSEL, 0, 0L);
-	TCHAR *filterptr = overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[0];
+	TCHAR *filterptr = overlaytype == 0 ? workprefs.gfx_filteroverlay : workprefs.gfx_filtermask[filterstackpos];
 	item = SendDlgItemMessage (hDlg, IDC_FILTEROVERLAY, CB_GETCURSEL, 0, 0L);
 	if (item != CB_ERR) {
 		TCHAR tmp[MAX_DPATH];
@@ -14394,7 +14404,12 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 				case IDC_FILTERSTACK:
 					item = SendDlgItemMessage (hDlg, IDC_FILTERSTACK, CB_GETCURSEL, 0, 0L);
 					if (item != CB_ERR) {
-						filterstackpos = item;
+						if (item < MAX_FILTERSHADERS)
+							filterstackpos = item;
+						else if (item == MAX_FILTERSHADERS)
+							filterstackpos = 2 * MAX_FILTERSHADERS;
+						else
+							filterstackpos = item - 1;
 						values_to_hw3ddlg (hDlg);
 						enable_for_hw3ddlg (hDlg);
 					}

@@ -322,8 +322,8 @@ struct uae_prefs {
 	bool lightboost_strobo;
 
 	int gfx_filter;
-	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS][MAX_DPATH];
-	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS][MAX_DPATH];
+	TCHAR gfx_filtershader[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
+	TCHAR gfx_filtermask[2 * MAX_FILTERSHADERS + 1][MAX_DPATH];
 	TCHAR gfx_filteroverlay[MAX_DPATH];
 	struct wh gfx_filteroverlay_pos;
 	int gfx_filteroverlay_overscan;

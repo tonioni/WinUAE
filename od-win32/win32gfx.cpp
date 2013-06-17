@@ -1743,7 +1743,7 @@ int check_prefs_changed_gfx (void)
 	c |= currprefs.gfx_api != changed_prefs.gfx_api ? (1|8|32) : 0;
 	c |= currprefs.lightboost_strobo != changed_prefs.lightboost_strobo ? (2|16) : 0;
 
-	for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+	for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
 		c |= _tcscmp (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]) ? (2|8) : 0;
 		c |= _tcscmp (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]) ? (2|8) : 0;
 	}
@@ -1833,7 +1833,7 @@ int check_prefs_changed_gfx (void)
 			display_change_requested = 0;
 		}
 
-		for (int i = 0; i < 2 * MAX_FILTERSHADERS; i++) {
+		for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
 			_tcscpy (currprefs.gfx_filtershader[i], changed_prefs.gfx_filtershader[i]);
 			_tcscpy (currprefs.gfx_filtermask[i], changed_prefs.gfx_filtermask[i]);
 		}
@@ -1902,14 +1902,14 @@ int check_prefs_changed_gfx (void)
 		}
 		if (c & 256) {
 			init_colors ();
-			drawing_init ();
+			reset_drawing ();
 		}
 		if (c & 128) {
 			if (currprefs.gfx_autoresolution) {
 				c |= 2 | 8;
 			} else {
 				c |= 16;
-				drawing_init ();
+				reset_drawing ();
 				S2X_reset ();
 			}
 		}

@@ -49,6 +49,7 @@ static bool showoverlay = true;
 
 #define SHADERTYPE_BEFORE 1
 #define SHADERTYPE_AFTER 2
+#define SHADERTYPE_MIDDLE 3
 #define SHADERTYPE_MASK_BEFORE 3
 #define SHADERTYPE_MASK_AFTER 4
 #define SHADERTYPE_POST 10
@@ -57,6 +58,8 @@ struct shaderdata
 {
 	int type;
 	int psPreProcess;
+	int worktex_width;
+	int worktex_height;
 	LPDIRECT3DTEXTURE9 lpWorkTexture1;
 	LPDIRECT3DTEXTURE9 lpWorkTexture2;
 	LPDIRECT3DTEXTURE9 lpTempTexture;
@@ -79,13 +82,14 @@ struct shaderdata
 	D3DXHANDLE m_SourceTextureEffectHandle;
 	D3DXHANDLE m_WorkingTexture1EffectHandle;
 	D3DXHANDLE m_WorkingTexture2EffectHandle;
+	D3DXHANDLE m_Hq2xLookupTextureHandle;
 	// Masks
 	LPDIRECT3DTEXTURE9 masktexture;
 	int masktexture_w, masktexture_h;
 };
 static LPDIRECT3DTEXTURE9 lpPostTempTexture;
 
-#define MAX_SHADERS 10
+#define MAX_SHADERS (2 * MAX_FILTERSHADERS + 2)
 #define SHADER_POST 0
 static struct shaderdata shaders[MAX_SHADERS];
 
@@ -127,13 +131,13 @@ static D3DXMATRIXA16 m_matPreProj;
 static D3DXMATRIXA16 m_matPreView;
 static D3DXMATRIXA16 m_matPreWorld;
 static D3DXMATRIXA16 postproj;
-static D3DXVECTOR4 maskmult, maskshift, texelsize;
+static D3DXVECTOR4 maskmult, maskshift;
 static D3DXVECTOR4 fakesize;
 
 static int ledwidth, ledheight;
 static int max_texture_w, max_texture_h;
 static int tin_w, tin_h, tout_w, tout_h, window_h, window_w;
-static int t_depth, mult, multx;
+static int t_depth, dmult, dmultx;
 static int required_sl_texture_w, required_sl_texture_h;
 static int vsync2, guimode, maxscanline;
 static int resetcount;
@@ -297,7 +301,6 @@ static D3DXHANDLE postTexelSize;
 
 static float m_scale;
 static LPCSTR m_strName;
-static D3DXHANDLE m_Hq2xLookupTextureHandle;
 
 enum psEffect_Pass { psEffect_None, psEffect_PreProcess1, psEffect_PreProcess2, psEffect_Combine };
 
@@ -382,7 +385,7 @@ static int psEffect_ParseParameters (LPD3DXEFFECTCOMPILER EffectCompiler, LPD3DX
 				if(strcmpi(ParamDesc.Semantic, "WORKINGTEXTURE1") == 0)
 					s->m_WorkingTexture2EffectHandle = hParam;
 				if(strcmpi(ParamDesc.Semantic, "HQ2XLOOKUPTEXTURE") == 0)
-					m_Hq2xLookupTextureHandle = hParam;
+					s->m_Hq2xLookupTextureHandle = hParam;
 			} else if(ParamDesc.Class == D3DXPC_OBJECT && ParamDesc.Type == D3DXPT_STRING) {
 				LPCSTR pstrTechnique = NULL;
 				if(strcmpi(ParamDesc.Semantic, "COMBINETECHNIQUE") == 0) {
@@ -987,8 +990,8 @@ static int psEffect_SetTextures (LPDIRECT3DTEXTURE9 lpSource, struct shaderdata 
 			return 0;
 		}
 	}
-	if (m_Hq2xLookupTextureHandle) {
-		hr = s->pEffect->SetTexture (m_Hq2xLookupTextureHandle, s->lpHq2xLookupTexture);
+	if (s->m_Hq2xLookupTextureHandle) {
+		hr = s->pEffect->SetTexture (s->m_Hq2xLookupTextureHandle, s->lpHq2xLookupTexture);
 		if (FAILED (hr)) {
 			write_log (_T("%s: SetTextures:lpHq2xLookupTexture %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
@@ -1123,19 +1126,18 @@ static LPDIRECT3DTEXTURE9 createtext (int w, int h, D3DFORMAT format)
 	return t;
 }
 
-static int worktex_width, worktex_height;
-
 static int allocextratextures (struct shaderdata *s, int w, int h)
 {
 	HRESULT hr;
 	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &s->lpWorkTexture1, NULL))) {
-		write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		write_log (_T("%s: Failed to create working texture1: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), s - &shaders[0]);
 		return 0;
 	}
 	if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &s->lpWorkTexture2, NULL))) {
-		write_log (_T("%s: Failed to create working texture2: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		write_log (_T("%s: Failed to create working texture2: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), s - &shaders[0]);
 		return 0;
 	}
+	write_log (_T("%s: %d*%d working texture:%d\n"), D3DHEAD, w, h, s - &shaders[0]);
 	return 1;
 }
 
@@ -1146,26 +1148,34 @@ static int createamigatexture (int w, int h)
 	texture = createtext (w, h, tformat);
 	if (!texture)
 		return 0;
-	write_log (_T("%s: %d*%d texture allocated, bits per pixel %d\n"), D3DHEAD, w, h, t_depth);
+	write_log (_T("%s: %d*%d main texture, depth %d\n"), D3DHEAD, w, h, t_depth);
 	if (psActive) {
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			int w2, h2;
-			if (shaders[i].type == SHADERTYPE_BEFORE) {
-				w2 = worktex_width;
-				h2 = worktex_height;
+			int type = shaders[i].type;
+			if (type == SHADERTYPE_BEFORE) {
+				w2 = shaders[i].worktex_width;
+				h2 = shaders[i].worktex_height;
 				if (!allocextratextures (&shaders[i], w, h))
 					return 0;
+			} else if (type == SHADERTYPE_MIDDLE) {
+				w2 = shaders[i].worktex_width;
+				h2 = shaders[i].worktex_height;
 			} else {
 				w2 = window_w;
 				h2 = window_h;
 			}
-			if (shaders[i].type == SHADERTYPE_BEFORE || shaders[i].type == SHADERTYPE_AFTER) {
+			if (type == SHADERTYPE_BEFORE || type == SHADERTYPE_AFTER || type == SHADERTYPE_MIDDLE) {
 				D3DLOCKED_BOX lockedBox;
-				if (FAILED (hr = shaders[i].lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
-					write_log (_T("%s: Failed to lock box of volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+				if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpHq2xLookupTexture, NULL))) {
+					write_log (_T("%s: Failed to create volume texture: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), i);
 					return 0;
 				}
-				write_log (_T("HQ2X texture (%dx%d) (%dx%d)\n"), w2, h2, w, h);
+				if (FAILED (hr = shaders[i].lpHq2xLookupTexture->LockBox (0, &lockedBox, NULL, 0))) {
+					write_log (_T("%s: Failed to lock box of volume texture: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), i);
+					return 0;
+				}
+				write_log (_T("HQ2X texture (%dx%d) (%dx%d):%d\n"), w2, h2, w, h, i);
 				BuildHq2xLookupTexture (w2, h2, w, h,  (unsigned char*)lockedBox.pBits);
 				shaders[i].lpHq2xLookupTexture->UnlockBox (0);
 			}
@@ -1179,50 +1189,53 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 	HRESULT hr;
 	bool haveafter = false;
 
-	int w, h;
-#if 0
-	if (ow > win_w * multx && oh > win_h * multx) {
-		w = ow;
-		h = oh;
+	int zw, zh;
+
+	if (ow > win_w * dmultx && oh > win_h * dmultx) {
+		zw = ow;
+		zh = oh;
 	} else {
-		w = win_w * multx;
-		h = win_h * multx;
+		zw = win_w * dmultx;
+		zh = win_h * dmultx;
 	}
-#else
-	w = ow;
-	h = oh;
-#endif
-	worktex_width = w;
-	worktex_height = h;
 	for (int i = 0; i < MAX_SHADERS; i++) {
-		if (shaders[i].type == SHADERTYPE_BEFORE || shaders[i].type == SHADERTYPE_AFTER) {
-			if (FAILED (hr = d3ddev->CreateTexture (w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpTempTexture, NULL))) {
-				write_log (_T("%s: Failed to create working texture1: %s\n"), D3DHEAD, D3D_ErrorString (hr));
-				return 0;
-			}
+		if (shaders[i].type == SHADERTYPE_BEFORE || shaders[i].type == SHADERTYPE_AFTER || shaders[i].type == SHADERTYPE_MIDDLE) {
+			int w2, h2, w, h;
 			if (shaders[i].type == SHADERTYPE_AFTER) {
+				w2 = zw; h2 = zh;
+				w = zw; h = zh;
 				haveafter = true;
 				if (!allocextratextures (&shaders[i], window_w, window_h))
 					return 0;
-			}
-			if (psActive) {
-				if (FAILED (hr = d3ddev->CreateVolumeTexture (256, 16, 256, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpHq2xLookupTexture, NULL))) {
-					write_log (_T("%s: Failed to create volume texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			} else if (shaders[i].type == SHADERTYPE_MIDDLE) {
+				// worktex_width = 800
+				// extratex = amiga res
+				w2 = zw; h2 = zh;
+				w = zw; h = zh;
+				if (!allocextratextures (&shaders[i], ow, oh))
 					return 0;
-				}
+			} else {
+				w2 = zw;
+				h2 = zh;
+				w = ow;
+				h = oh;
 			}
+			if (FAILED (hr = d3ddev->CreateTexture (w2, h2, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpTempTexture, NULL))) {
+				write_log (_T("%s: Failed to create working texture1: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), i);
+				return 0;
+			}
+			write_log (_T("%s: %d*%d temp texture:%d\n"), D3DHEAD, w2, h2, i);
+			shaders[i].worktex_width = w;
+			shaders[i].worktex_height = h;
 		}
 	}
-
-
 	if (haveafter) {
 		if (FAILED (hr = d3ddev->CreateTexture (window_w, window_h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &lpPostTempTexture, NULL))) {
-			write_log (_T("%s: Failed to create working texture1: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			write_log (_T("%s: Failed to create temp texture: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 			return 0;
 		}
+		write_log (_T("%s: %d*%d after texture\n"), D3DHEAD, window_w, window_h);
 	}
-	write_log (_T("%s: working texture allocated pre %d*%d, post %d*%d, bits per pixel %d\n"), D3DHEAD, w, h, window_w, window_h, t_depth);
-	texelsize.x = 1.0f / w; texelsize.y = 1.0f / h; texelsize.z = 1; texelsize.w = 1; 
 	return 1;
 }
 
@@ -1551,6 +1564,7 @@ static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 	D3DXIMAGE_INFO dinfo;
 	TCHAR tmp[MAX_DPATH];
 	int maskwidth, maskheight;
+	int idx = sd - &shaders[0];
 
 	if (filename[0] == 0)
 		return 0;
@@ -1561,7 +1575,7 @@ static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 	if (!zf) {
 		zf = zfile_fopen (filename, _T("rb"), ZFD_NORMAL);
 		if (!zf) {
-			write_log (_T("%s: couldn't open mask '%s'\n"), D3DHEAD, filename);
+			write_log (_T("%s: couldn't open mask '%s':%d\n"), D3DHEAD, filename, idx);
 			return 0;
 		}
 	}
@@ -1574,12 +1588,12 @@ static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 		 D3DPOOL_DEFAULT, D3DX_FILTER_NONE, D3DX_FILTER_NONE, 0, &dinfo, NULL, &tx);
 	xfree (buf);
 	if (FAILED (hr)) {
-		write_log (_T("%s: temp mask texture load failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		write_log (_T("%s: temp mask texture load failed: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), idx);
 		goto end;
 	}
 	hr = tx->GetLevelDesc (0, &txdesc);
 	if (FAILED (hr)) {
-		write_log (_T("%s: mask image texture GetLevelDesc() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+		write_log (_T("%s: mask image texture GetLevelDesc() failed: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), idx);
 		goto end;
 	}
 	sd->masktexture_w = dinfo.Width;
@@ -1605,12 +1619,12 @@ static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 	if (tx) {
 		sd->masktexture = createtext (maskwidth, maskheight, D3DFMT_X8R8G8B8);
 		if (FAILED (hr)) {
-			write_log (_T("%s: mask texture creation failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			write_log (_T("%s: mask texture creation failed: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), idx);
 			goto end;
 		}
 		hr = sd->masktexture->GetLevelDesc (0, &maskdesc);
 		if (FAILED (hr)) {
-			write_log (_T("%s: mask texture GetLevelDesc() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
+			write_log (_T("%s: mask texture GetLevelDesc() failed: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), idx);
 			goto end;
 		}
 		if (SUCCEEDED (hr = sd->masktexture->LockRect (0, &lock, NULL, 0))) {
@@ -1644,7 +1658,7 @@ static int createmasktexture (const TCHAR *filename, struct shaderdata *sd)
 		sd->masktexture_w = maskdesc.Width;
 		sd->masktexture_h = maskdesc.Height;
 	}
-	write_log (_T("%s: mask %d*%d (%d*%d) %d*%d ('%s') texture allocated\n"), D3DHEAD, sd->masktexture_w, sd->masktexture_h, txdesc.Width, txdesc.Height, maskdesc.Width, maskdesc.Height, filename);
+	write_log (_T("%s: mask %d*%d (%d*%d) %d*%d ('%s':%d) texture allocated\n"), D3DHEAD, sd->masktexture_w, sd->masktexture_h, txdesc.Width, txdesc.Height, maskdesc.Width, maskdesc.Height, filename, idx);
 	maskmult_x = (float)window_w / sd->masktexture_w;
 	maskmult_y = (float)window_h / sd->masktexture_h;
 
@@ -1690,7 +1704,7 @@ static void setupscenecoords (void)
 
 	//write_log (_T("%dx%d %dx%d %dx%d\n"), tin_w, tin_h, tin_w, tin_h, window_w, window_h);
 
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / dmult, tin_h / dmult, dmult, tin_w, tin_h);
 
 	if (memcmp (&sr, &sr2, sizeof RECT) || memcmp (&dr, &dr2, sizeof RECT) || memcmp (&zr, &zr2, sizeof RECT)) {
 		write_log (_T("POS (%d %d %d %d) - (%d %d %d %d)[%d,%d] (%d %d)\n"),
@@ -1794,7 +1808,7 @@ uae_u8 *getfilterbuffer3d (struct vidbuffer *vb, int *widthp, int *heightp, int 
 	int w, h;
 
 	*depth = t_depth;
-	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / mult, tin_h / mult, mult, tin_w, tin_h);
+	getfilterrect2 (&dr, &sr, &zr, window_w, window_h, tin_w / dmult, tin_h / dmult, dmult, tin_w, tin_h);
 	w = sr.right - sr.left;
 	h = sr.bottom - sr.top;
 	p = vb->bufmem;
@@ -1857,6 +1871,9 @@ static void settransform (struct shaderdata *s)
 	MatrixTranslation (&m_matPreView, -0.5f / tout_w, 0.5f / tout_h, 0.0f);
 	// Identity for world
 	D3DXMatrixIdentity (&m_matPreWorld);
+
+	if (s)
+		psEffect_SetMatrices (&m_matProj, &m_matView, &m_matWorld, s);
 
 	MatrixOrthoOffCenterLH (&m_matProj2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
 
@@ -2018,6 +2035,16 @@ static int restoredeviceobjects (void)
 				struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_BEFORE);
 				createmasktexture (currprefs.gfx_filtermask[i], s);
 			}
+		}
+		if (currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0]) {
+			struct shaderdata *s = allocshaderslot (SHADERTYPE_MIDDLE);
+			if (!psEffect_LoadEffect (currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS], true, s, 2 * MAX_FILTERSHADERS)) {
+				currprefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] = changed_prefs.gfx_filtershader[2 * MAX_FILTERSHADERS][0] = 0;
+			}
+		}
+		if (currprefs.gfx_filtermask[2 * MAX_FILTERSHADERS][0]) {
+			struct shaderdata *s = allocshaderslot (SHADERTYPE_MASK_AFTER);
+			createmasktexture (currprefs.gfx_filtermask[2 * MAX_FILTERSHADERS], s);
 		}
 		for (int i = 0; i < MAX_FILTERSHADERS; i++) {
 			if (currprefs.gfx_filtershader[i + MAX_FILTERSHADERS][0]) {
@@ -2412,8 +2439,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	if (!shaderon)
 		write_log (_T("Using non-shader version\n"));
 
-	multx = mmult;
-	mult = S2X_getmult ();
+	dmultx = mmult;
+	dmult = S2X_getmult ();
 
 	window_w = w_w;
 	window_h = w_h;
@@ -2423,8 +2450,8 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			D3DHEAD, w_w, w_h, max_texture_w, max_texture_h);
 		return errmsg;
 	}
-	while (multx > 1 && (w_w * multx > max_texture_w || w_h * multx > max_texture_h))
-		multx--;
+	while (dmultx > 1 && (w_w * dmultx > max_texture_w || w_h * dmultx > max_texture_h))
+		dmultx--;
 
 	required_sl_texture_w = w_w;
 	required_sl_texture_h = w_h;
@@ -2495,11 +2522,11 @@ static bool alloctextures (void)
 
 bool D3D_alloctexture (int w, int h)
 {
-	tin_w = w * mult;
-	tin_h = h * mult;
+	tin_w = w * dmult;
+	tin_h = h * dmult;
 
-	tout_w = tin_w * multx;
-	tout_h = tin_h * multx;
+	tout_w = tin_w * dmultx;
+	tout_h = tin_h * dmultx;
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
@@ -2749,8 +2776,8 @@ static void D3D_render2 (void)
 	if (shaderon > 0 && shaders[SHADER_POST].pEffect) {
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			struct shaderdata *s = &shaders[i];
-			if (s->type == SHADERTYPE_BEFORE) {
-				settransform2 (s);
+			if (s->type == SHADERTYPE_BEFORE || s->type == SHADERTYPE_MIDDLE) {
+				settransform (s);
 				srctex = processshader (srctex, s, true);
 				if (!srctex)
 					return;
@@ -2766,6 +2793,8 @@ static void D3D_render2 (void)
 		LPD3DXEFFECT postEffect = s->pEffect;
 		int after = -1;
 		LPDIRECT3DTEXTURE9 masktexture = NULL;
+		D3DSURFACE_DESC Desc;
+		D3DXVECTOR4 texelsize;
 
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			struct shaderdata *s = &shaders[i];
@@ -2783,6 +2812,12 @@ static void D3D_render2 (void)
 		hr = postEffect->SetMatrix (postMatrixSource, &postproj);
 		hr = postEffect->SetVector (postMaskMult, &maskmult);
 		hr = postEffect->SetVector (postMaskShift, &maskshift);
+
+		srctex->GetLevelDesc (0, &Desc);
+		texelsize.x = 1.0f / Desc.Width;
+		texelsize.y = 1.0f / Desc.Height;
+		texelsize.z = 1; texelsize.w = 1;
+
 		hr = postEffect->SetVector (postTexelSize, &texelsize);
 
 		if (masktexture) {
