@@ -34,8 +34,9 @@ PP_FSSIZE = 400
 PP_FSPTR = 404
 PP_ADDTOFSRES = 408
 PP_FSRES = 412
-PP_EXPLIB = 416
-PP_FSHDSTART = 420
+PP_FSRES_CREATED = 416
+PP_EXPLIB = 420
+PP_FSHDSTART = 424
 PP_TOTAL = (PP_FSHDSTART+140)
 
 NOTIFY_CLASS = $40000000
@@ -207,64 +208,12 @@ FSIN_none:
 	move.l a4,a1
 	jsr -414(a6) ; CloseLibrary
 
-;	move.w #$FF80,d0
-;	bsr.w getrtbase
-;	jsr (a0)
-;	jsr -$0078(a6) ; Disable
-;	lea 322(a6),a0 ; MemHeader
-;FSIN_scanchip:
-;	move.l (a0),a0	; first MemList
-;	tst.l (a0)
-;	beq.s FSIN_scandone
-;	move.w 14(a0),d1 ; attributes
-;	and #2,d1 ; MEMF_CHIP?
-;	beq.s FSIN_scanchip
-;	sub.l 24(a0),d0 ; did KS detect all chip?
-;	bmi.s FSIN_scandone
-;	beq.s FSIN_scandone
-;	; add the missing piece
-;	add.l d0,24(a0) ; mh_Upper
-;	add.l d0,28(a0) ; mh_Free
-;	add.l d0,62(a6) ; MaxLocMem
-;	; we still need to update last node's free space
-;	move.l 16(a0),a0 ; mh_First
-;FSIN_chiploop2
-;	tst.l (a0)
-;	beq.s FSIN_chiploop
-;	move.l (a0),a0
-;	bra.s FSIN_chiploop2
-;FSIN_chiploop:
-;	add.l d0,4(a0)
-;FSIN_scandone:
-;	jsr -$007e(a6) ; Enable
-
-filesys_dev_storeinfo
+	; add MegaChipRAM
 	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
 	cmp.w #36,20(a6)
 	bcs.s FSIN_ksold
 	or.w #256,d4 ; MEMF_LOCAL
 FSIN_ksold
-
-	; add >2MB-6MB chip RAM to memory list
-	lea $210000,a1
-	; do not add if RAM detected already
-	jsr -$216(a6) ; TypeOfMem
-	tst.l d0
-	bne.s FSIN_chip_done
-	move.w #$FF80,d0
-	bsr.w getrtbase
-	jsr (a0)
-	move.l d4,d1
-	moveq #-10,d2
-	move.l #$200000,a0
-	sub.l a0,d0
-	bcs.b FSIN_chip_done
-	beq.b FSIN_chip_done
-	sub.l a1,a1
-	jsr -618(a6) ; AddMemList
-FSIN_chip_done
-
-	; add MegaChipRAM
 	move.w #$FF80,d0
 	bsr.w getrtbase
 	jsr (a0) ; d1 = size, a1 = start address
@@ -290,6 +239,85 @@ FSIN_fchip_done
 	movem.l (sp)+,d0-d7/a0-a6
 general_ret:
 	rts
+
+	REM
+addextrachip:
+	move.w #$FF80,d0
+	bsr.w getrtbase
+	jsr (a0)
+	jsr -$0078(a6) ; Disable
+	lea 322(a6),a0 ; MemHeader
+FSIN_scanchip:
+	move.l (a0),a0	; first MemList
+	tst.l (a0)
+	beq.w FSIN_scannotfound
+	move.l 20(a0),d1 ; mh_Lower
+	clr.w d1
+	tst.l d1
+	bne.s FSIN_scanchip	
+	move.w 14(a0),d1 ; attributes
+	bmi.s FSIN_scanchip
+	and #2,d1 ; MEMF_CHIP?
+	beq.s FSIN_scanchip
+	sub.l 24(a0),d0 ; did KS detect all chip?
+	bmi.s FSIN_scandone
+	beq.s FSIN_scandone
+	; add the missing piece
+	move.l 24(a0),d1
+	add.l d0,24(a0) ; mh_Upper
+	add.l d0,28(a0) ; mh_Free
+	add.l d0,62(a6) ; MaxLocMem
+	; we still need to update last node's free space
+	move.l 16(a0),a0 ; mh_First
+FSIN_chiploop2
+	tst.l (a0)
+	beq.s FSIN_chiploop
+	move.l (a0),a0
+	bra.s FSIN_chiploop2
+FSIN_chiploop:
+	move.l a0,d2
+	add.l 4(a0),d2
+	;Last block goes to end of chip?
+	cmp.l d2,d1
+	beq.s FSIN_chipadd1
+	;It didn't, add new MemChunk
+	move.l d1,(a0)
+	move.l d1,a1
+	clr.l (a1)+
+	move.l d0,(a1)
+	bra.s FSIN_scandone
+FSIN_chipadd1:
+	add.l d0,4(a0)
+FSIN_scandone:
+	jsr -$007e(a6) ; Enable
+	rts
+
+FSIN_scannotfound:
+	moveq #3,d4 ; MEMF_CHIP | MEMF_PUBLIC
+	cmp.w #36,20(a6)
+	bcs.s FSIN_ksold
+	or.w #256,d4 ; MEMF_LOCAL
+FSIN_ksold
+	; add >2MB-6MB chip RAM to memory list
+	lea $210000,a1
+	; do not add if RAM detected already
+	jsr -$216(a6) ; TypeOfMem
+	tst.l d0
+	bne.s FSIN_chip_done
+	move.w #$FF80,d0
+	bsr.w getrtbase
+	jsr (a0)
+	move.l d4,d1
+	moveq #-10,d2
+	move.l #$200000,a0
+	sub.l a0,d0
+	bcs.b FSIN_chip_done
+	beq.b FSIN_chip_done
+	sub.l a1,a1
+	jsr -618(a6) ; AddMemList
+FSIN_chip_done
+	rts
+	EREM
 
 createproc
 	movem.l d2-d4/a2/a6,-(sp)
@@ -613,7 +641,8 @@ ree	sub.l a0,a0
 	bra.s r0
 
 fsres:
-	movem.l d1/a0-a2/a6,-(sp)
+	movem.l d1/a0-a3/a6,-(sp)
+	move.l a0,a3
 	move.l 4.w,a6
 	lea $150(a6),a0 ;ResourceList
 	move.l (a0),a0 ;lh_Head
@@ -652,9 +681,10 @@ fsres1
 	move.l a2,a1
 	jsr -$f6(a6) ; AddTail
 	move.l a2,a0
+	move.l a0,PP_FSRES_CREATED(a3)
 fsres4
 	move.l a0,d0
-	movem.l (sp)+,d1/a0-a2/a6
+	movem.l (sp)+,d1/a0-a3/a6
 	rts
 
 addvolumenode

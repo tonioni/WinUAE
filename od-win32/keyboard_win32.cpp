@@ -416,7 +416,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (newstate) {
 		int defaultguikey = amode ? DIK_F12 : DIK_NUMLOCK;
 		if (currprefs.win32_guikey >= 0x100) {
-			if (scancode == DIK_F12)
+			if (scancode_new == DIK_F12)
 				return;
 		} else if (currprefs.win32_guikey >= 0) {
 			if (scancode_new == defaultguikey && currprefs.win32_guikey != scancode_new) {
