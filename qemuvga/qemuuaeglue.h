@@ -1,0 +1,288 @@
+
+
+#include <stdint.h>
+#include <stdio.h>
+
+//#define DEBUG_VGA_REG
+//#define DEBUG_VGA
+
+extern void write_log (const char *, ...);
+
+#ifndef glue
+#define xglue(x, y) x ## y
+#define glue(x, y) xglue(x, y)
+#define stringify(s)	tostring(s)
+#define tostring(s)	#s
+#endif
+
+#ifndef likely
+#if __GNUC__ < 3
+#define __builtin_expect(x, n) (x)
+#endif
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x)   __builtin_expect(!!(x), 0)
+#endif
+
+#ifdef _MSC_VER
+#include <windows.h>
+#define container_of(address, type, field) ((type *)( \
+        (PCHAR)(address) - \
+        (ULONG_PTR)(&((type *)0)->field)))
+#define STATIC_INLINE static __forceinline
+
+#define snprintf c99_snprintf
+inline int c99_vsnprintf(char* str, size_t size, const char* format, va_list ap)
+{
+    int count = -1;
+
+    if (size != 0)
+        count = _vsnprintf_s(str, size, _TRUNCATE, format, ap);
+    if (count == -1)
+        count = _vscprintf(format, ap);
+
+    return count;
+}
+inline int c99_snprintf(char* str, size_t size, const char* format, ...)
+{
+    int count;
+    va_list ap;
+
+    va_start(ap, format);
+    count = c99_vsnprintf(str, size, format, ap);
+    va_end(ap);
+
+    return count;
+}
+
+
+#else
+#ifndef container_of
+#define container_of(ptr, type, member) ({                      \
+        const typeof(((type *) 0)->member) *__mptr = (ptr);     \
+        (type *) ((char *) __mptr - offsetof(type, member));})
+#endif
+#endif
+
+#ifndef ABS
+#define ABS(x) abs(x)
+#endif
+
+#define g_free free
+#define g_malloc malloc
+#define g_new(type, num) ((type*)calloc(sizeof(type),num))
+
+enum device_endian {
+    DEVICE_NATIVE_ENDIAN,
+    DEVICE_BIG_ENDIAN,
+    DEVICE_LITTLE_ENDIAN,
+};
+enum vga_retrace_method {
+    VGA_RETRACE_DUMB,
+    VGA_RETRACE_PRECISE
+};
+extern vga_retrace_method vga_retrace_method_value;
+
+typedef uint32_t QEMUClock;
+extern QEMUClock *vm_clock;
+static inline int64_t qemu_get_clock_ms(QEMUClock *clock)
+{
+	return 0;
+}
+static inline int64_t get_ticks_per_sec(void)
+{
+    return 1000000000LL;
+}
+int64_t qemu_get_clock_ns(QEMUClock *clock);
+
+
+#define isa_mem_base 0
+
+#define QemuConsole uint32_t
+#define console_ch_t uint8_t
+typedef struct GraphicHwOps {
+    void (*invalidate)(void *opaque);
+    void (*gfx_update)(void *opaque);
+    void (*text_update)(void *opaque, console_ch_t *text);
+    void (*update_interval)(void *opaque, uint64_t interval);
+} GraphicHwOps;
+
+#define VMStateDescription uint32_t
+#define hwaddr uint32_t
+#define ram_addr_t uint32_t
+
+typedef struct DisplaySurface {
+	void *bah;
+} DisplaySurface;
+
+uint16_t le16_to_cpu(uint16_t v);
+uint32_t le32_to_cpu(uint32_t v);
+
+static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
+{
+}
+
+void graphic_hw_update(QemuConsole *con);
+void qemu_console_copy(QemuConsole *con, int src_x, int src_y,
+                       int dst_x, int dst_y, int w, int h);
+void qemu_console_resize(QemuConsole *con, int width, int height);
+DisplaySurface *qemu_console_surface(QemuConsole *con);
+DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
+                                                int linesize, uint8_t *data,
+                                                bool byteswap);
+int surface_stride(DisplaySurface *s);
+uint8_t *surface_data(DisplaySurface *s);
+int is_surface_bgr(DisplaySurface *surface);
+
+static inline int is_buffer_shared(DisplaySurface *surface)
+{
+    return 0;
+}
+
+void dpy_gfx_update(QemuConsole *con, int x, int y, int w, int h);
+void dpy_text_cursor(QemuConsole *con, int x, int y);
+void dpy_text_update(QemuConsole *con, int x, int y, int w, int h);
+void dpy_text_resize(QemuConsole *con, int w, int h);
+void dpy_gfx_replace_surface(QemuConsole *con,
+                             DisplaySurface *surface);
+
+static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
+{
+    if (!(ch & 0xff))
+        ch |= ' ';
+    *dest = ch;
+}
+
+void qemu_flush_coalesced_mmio_buffer(void);
+
+int surface_bits_per_pixel(DisplaySurface *s);
+int surface_bytes_per_pixel(DisplaySurface *s);
+
+typedef struct PortioList {
+    const struct MemoryRegionPortio *ports;
+    struct MemoryRegion *address_space;
+    unsigned nr;
+    struct MemoryRegion **regions;
+    struct MemoryRegion **aliases;
+    void *opaque;
+    const char *name;
+} PortioList;
+
+void portio_list_init(PortioList *piolist,
+                      const struct MemoryRegionPortio *callbacks,
+                      void *opaque, const char *name);
+void portio_list_destroy(PortioList *piolist);
+void portio_list_add(PortioList *piolist,
+                     struct MemoryRegion *address_space,
+                     uint32_t addr);
+void portio_list_del(PortioList *piolist);
+
+
+typedef struct IORange IORange;
+typedef struct IORangeOps IORangeOps;
+
+struct IORangeOps {
+    void (*read)(IORange *iorange, uint64_t offset, unsigned width,
+                 uint64_t *data);
+    void (*write)(IORange *iorange, uint64_t offset, unsigned width,
+                  uint64_t data);
+    void (*destructor)(IORange *iorange);
+};
+
+typedef struct IORange {
+    const IORangeOps *ops;
+    uint64_t base;
+    uint64_t len;
+} IORange;
+
+typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
+typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
+
+typedef void CPUWriteMemoryFunc(void *opaque, hwaddr addr, uint32_t value);
+typedef uint32_t CPUReadMemoryFunc(void *opaque, hwaddr addr);
+
+#include "qemumemory.h"
+#include "pixel_ops.h"
+
+
+static inline uint32_t lduw_raw(void *p)
+{
+	return ((uint32_t*)p)[0];
+}
+
+typedef void QEMUResetHandler(void *opaque);
+void qemu_register_reset(QEMUResetHandler *func, void *opaque);
+
+#include "vga_int.h"
+
+// ID
+#define CIRRUS_ID_CLGD5422  (0x23<<2)
+#define CIRRUS_ID_CLGD5426  (0x24<<2)
+#define CIRRUS_ID_CLGD5424  (0x25<<2)
+#define CIRRUS_ID_CLGD5428  (0x26<<2)
+#define CIRRUS_ID_CLGD5430  (0x28<<2)
+#define CIRRUS_ID_CLGD5434  (0x2A<<2)
+#define CIRRUS_ID_CLGD5436  (0x2B<<2)
+#define CIRRUS_ID_CLGD5446  (0x2E<<2)
+
+typedef void (*cirrus_bitblt_rop_t) (struct CirrusVGAState *s,
+                                     uint8_t * dst, const uint8_t * src,
+				     int dstpitch, int srcpitch,
+				     int bltwidth, int bltheight);
+typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
+                              uint8_t *dst, int dst_pitch, int width, int height);
+
+typedef struct CirrusVGAState {
+    VGACommonState vga;
+
+    MemoryRegion cirrus_vga_io;
+    MemoryRegion cirrus_linear_io;
+    MemoryRegion cirrus_linear_bitblt_io;
+    MemoryRegion cirrus_mmio_io;
+    MemoryRegion pci_bar;
+    bool linear_vram;  /* vga.vram mapped over cirrus_linear_io */
+    MemoryRegion low_mem_container; /* container for 0xa0000-0xc0000 */
+    MemoryRegion low_mem;           /* always mapped, overridden by: */
+    MemoryRegion cirrus_bank[2];    /*   aliases at 0xa0000-0xb0000  */
+    uint32_t cirrus_addr_mask;
+    uint32_t linear_mmio_mask;
+    uint8_t cirrus_shadow_gr0;
+    uint8_t cirrus_shadow_gr1;
+    uint8_t cirrus_hidden_dac_lockindex;
+    uint8_t cirrus_hidden_dac_data;
+    uint32_t cirrus_bank_base[2];
+    uint32_t cirrus_bank_limit[2];
+    uint8_t cirrus_hidden_palette[48];
+    uint32_t hw_cursor_x;
+    uint32_t hw_cursor_y;
+    int cirrus_blt_pixelwidth;
+    int cirrus_blt_width;
+    int cirrus_blt_height;
+    int cirrus_blt_dstpitch;
+    int cirrus_blt_srcpitch;
+    uint32_t cirrus_blt_fgcol;
+    uint32_t cirrus_blt_bgcol;
+    uint32_t cirrus_blt_dstaddr;
+    uint32_t cirrus_blt_srcaddr;
+    uint8_t cirrus_blt_mode;
+    uint8_t cirrus_blt_modeext;
+    cirrus_bitblt_rop_t cirrus_rop;
+#define CIRRUS_BLTBUFSIZE (2048 * 4) /* one line width */
+    uint8_t cirrus_bltbuf[CIRRUS_BLTBUFSIZE];
+    uint8_t *cirrus_srcptr;
+    uint8_t *cirrus_srcptr_end;
+    uint32_t cirrus_srccounter;
+    /* hwcursor display state */
+    int last_hw_cursor_size;
+    int last_hw_cursor_x;
+    int last_hw_cursor_y;
+    int last_hw_cursor_y_start;
+    int last_hw_cursor_y_end;
+    int real_vram_size; /* XXX: suppress that */
+    int device_id;
+    int bustype;
+} CirrusVGAState;
+
+void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
+                               MemoryRegion *system_memory,
+                               MemoryRegion *system_io);
+
