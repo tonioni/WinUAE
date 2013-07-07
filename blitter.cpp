@@ -994,7 +994,7 @@ static void do_startcycles (int hpos)
 	while (vhpos < hpos) {
 		int v = canblit (vhpos);
 		vhpos++;
-		if (v >= 0) {
+		if (v > 0) {
 			blit_startcycles--;
 			if (blit_startcycles == 0) {
 				if (blit_faulty)

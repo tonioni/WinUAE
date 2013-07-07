@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by winuae.rc
 //
+#define VS_VERSION_INFO                 1
 #define IDS_KICKSTART                   1
 #define IDS_DISK                        2
 #define IDS_DISPLAY                     3
@@ -370,9 +371,13 @@
 #define IDS_MISCLISTITEMS2              387
 #define IDD_CDDRIVE                     387
 #define IDS_MISCLISTITEMS3              388
+#define IDD_DIALOG1                     388
+#define IDD_TAPEDRIVE                   388
 #define IDS_WHEELMOUSE                  389
 #define IDS_JOYMODE_WHEELMOUSE          389
 #define IDS_NUMSG_KS68030PLUS           390
+#define IDS_SELECTTAPE                  391
+#define IDS_TAPE                        392
 #define IDS_QS_MODELS                   1000
 #define IDS_QS_MODEL_A500               1001
 #define IDS_QS_MODEL_A500P              1002
@@ -581,6 +586,8 @@
 #define IDC_NEW_FSARCH                  1342
 #define IDC_PORT1                       1343
 #define IDC_NEW_CD                      1344
+#define IDC_NEW_CD2                     1345
+#define IDC_NEW_TAPE                    1345
 #define IDC_PATH_NAME                   1362
 #define IDC_SELECTOR                    1363
 #define IDC_VOLUME_NAME                 1364
@@ -1129,6 +1136,15 @@
 #define IDC_INPUTMAP_DELETEALL          1823
 #define IDC_INPUTMAP_EXIT               1824
 #define IDC_INPUTMAPADD                 1825
+#define IDC_TAPELIST                    1826
+#define IDC_NEW_TAPEPATH                1827
+#define IDC_TAPEINFO                    1828
+#define IDC_TAPE_PATH_NAME              1829
+#define IDC_TAPE_SELECTOR               1830
+#define IDC_NEW_TAPE_DIR                1831
+#define IDC_TAPE_SELECT_DIR             1832
+#define IDC_TAPE_SELECT_FILE            1833
+#define IDC_TAPE_RW                     1834
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1177,9 +1193,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        388
+#define _APS_NEXT_RESOURCE_VALUE        389
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1826
+#define _APS_NEXT_CONTROL_VALUE         1835
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

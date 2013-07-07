@@ -86,6 +86,7 @@
 #include "clipboard_win32.h"
 #include "blkdev.h"
 #include "inputrecord.h"
+#include "gfxboard.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #include "cloanto/RetroPlatformIPC.h"
@@ -1658,6 +1659,13 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 		WIN32GFX_DisplayChangeRequested (-1);
 		return 0;
 
+		case WM_POWERBROADCAST:
+		if (wParam == PBT_APMRESUMEAUTOMATIC) {
+			setsystime ();
+			return TRUE;
+		}
+		return 0;
+
 	case WM_GETMINMAXINFO:
 		{
 			LPMINMAXINFO lpmmi;
@@ -1714,7 +1722,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 								h != changed_prefs.gfx_size_win.height + window_extra_height) {
 									changed_prefs.gfx_size_win.width = w - window_extra_width;
 									changed_prefs.gfx_size_win.height = h - window_extra_height;
-									config_changed = 1;
+									set_config_changed ();
 							}
 						}
 					}
@@ -2985,6 +2993,11 @@ void target_fixup_options (struct uae_prefs *p)
 	}
 	if (p->rtg_hardwaresprite && !p->gfx_api)
 		p->rtg_hardwaresprite = false;
+	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
+		p->rtg_hardwareinterrupt = false;
+		p->rtg_hardwaresprite = false;
+		p->win32_rtgmatchdepth = false;
+	}
 }
 
 void target_default_options (struct uae_prefs *p, int type)
@@ -3463,6 +3476,10 @@ void fetch_configurationpath (TCHAR *out, int size)
 {
 	fetch_path (_T("ConfigurationPath"), out, size);
 }
+void fetch_luapath (TCHAR *out, int size)
+{
+	fetch_path (_T("LuaPath"), out, size);
+}
 void fetch_screenshotpath (TCHAR *out, int size)
 {
 	fetch_path (_T("ScreenshotPath"), out, size);
@@ -3523,12 +3540,16 @@ void fetch_path (const TCHAR *name, TCHAR *out, int size)
 		_tcscat (out, _T("..\\shared\\adf\\"));
 	if (!_tcscmp (name, _T("CDPath")))
 		_tcscat (out, _T("..\\shared\\cd\\"));
+	if (!_tcscmp (name, _T("TapePath")))
+		_tcscat (out, _T("..\\shared\\tape\\"));
 	if (!_tcscmp (name, _T("hdfPath")))
 		_tcscat (out, _T("..\\shared\\hdf\\"));
 	if (!_tcscmp (name, _T("KickstartPath")))
 		_tcscat (out, _T("..\\shared\\rom\\"));
 	if (!_tcscmp (name, _T("ConfigurationPath")))
 		_tcscat (out, _T("Configurations\\"));
+	if (!_tcscmp (name, _T("LuaPath")))
+		_tcscat (out, _T("lua\\"));
 	if (!_tcscmp (name, _T("StatefilePath")))
 		_tcscat (out, _T("Savestates\\"));
 	if (!_tcscmp (name, _T("InputPath")))
@@ -3651,6 +3672,8 @@ void set_path (const TCHAR *name, TCHAR *path, pathtype mode)
 			_tcscat (tmp, _T("Roms"));
 		if (!_tcscmp (name, _T("ConfigurationPath")))
 			_tcscat (tmp, _T("Configurations"));
+		if (!_tcscmp (name, _T("LuaPath")))
+			_tcscat (tmp, _T("lua"));
 		if (!_tcscmp (name, _T("ScreenshotPath")))
 			_tcscat (tmp, _T("Screenshots"));
 		if (!_tcscmp (name, _T("StatefilePath")))
@@ -4140,6 +4163,7 @@ static void WIN32_HandleRegistryStuff (void)
 	initpath (_T("KickstartPath"), start_path_data);
 	initpath (_T("hdfPath"), start_path_data);
 	initpath (_T("ConfigurationPath"), start_path_data);
+	initpath (_T("LuaPath"), start_path_data);
 	initpath (_T("ScreenshotPath"), start_path_data);
 	initpath (_T("StatefilePath"), start_path_data);
 	initpath (_T("SaveimagePath"), start_path_data);
@@ -4743,6 +4767,8 @@ extern int inputdevice_logging;
 extern int vsync_modechangetimeout;
 extern int tablet_log;
 extern int log_blitter;
+extern int slirp_debug;
+extern int fakemodewaitms;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -5049,6 +5075,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 		debug_vsync_forced_delay = getval (np);
 		return 2;
 	}
+	if (!_tcscmp (arg, _T("threadedd3d"))) {
+		fakemodewaitms = getval (np);
+		return 2;
+	}
 	if (!_tcscmp (arg, _T("tabletlog"))) {
 		tablet_log = getval (np);
 		return 2;
@@ -5063,6 +5093,10 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	}
 	if (!_tcscmp (arg, _T("inputdevicelog"))) {
 		inputdevice_logging = getval (np);
+		return 2;
+	}
+	if (!_tcscmp (arg, _T("slirplog"))) {
+		slirp_debug = getval (np);
 		return 2;
 	}
 	if (!_tcscmp (arg, _T("vsyncbusywait"))) {

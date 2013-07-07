@@ -1,6 +1,8 @@
 
 - restore only single input target to default.
 
+2.6.1
+
 Beta 4:
 
 - Added new level between pre and post shaders (0 in GUI, selected by default) which

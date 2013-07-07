@@ -65,6 +65,8 @@ struct devstruct {
 	smp_comm_pipe requests;
 	int thread_running;
 	uae_sem_t sync_sem;
+	TCHAR *tape_directory;
+	bool readonly;
 };
 
 struct priv_devstruct {
@@ -196,7 +198,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 	uae_u32 flags = m68k_dreg (regs, 1);
 	struct devstruct *dev = getdevstruct (unit);
 	struct priv_devstruct *pdev = 0;
-	int i;
+	int i, v;
 
 	if (log_scsi)
 		write_log (_T("opening %s:%d ioreq=%08X\n"), getdevname (type), unit, ioreq);
@@ -210,7 +212,12 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context, int type)
 			if (pdev->inuse == 0)
 				break;
 		}
-		if (!sys_command_open (dev->unitnum))
+		if (dev->drivetype == INQ_SEQD) {
+			v = sys_command_open_tape (dev->unitnum, dev->tape_directory, dev->readonly);
+		} else {
+			v = sys_command_open (dev->unitnum);
+		}
+		if (!v)
 			return openfail (ioreq, IOERR_OPENFAIL);
 		pdev->type = type;
 		pdev->unit = unit;
@@ -504,7 +511,45 @@ static int command_cd_read (struct devstruct *dev, uaecptr data, uae_u64 offset,
 	return 0;
 }
 
-static int dev_do_io (struct devstruct *dev, uaecptr request)
+static int dev_do_io_tape (struct devstruct *dev, uaecptr request)
+{
+	uae_u32 command;
+	uae_u32 io_data = get_long (request + 40); // 0x28
+	uae_u32 io_length = get_long (request + 36); // 0x24
+	uae_u32 io_actual = get_long (request + 32); // 0x20
+	uae_u32 io_offset = get_long (request + 44); // 0x2c
+	uae_u32 io_error = 0;
+	struct priv_devstruct *pdev = getpdevstruct (request);
+
+	if (!pdev)
+		return 0;
+	command = get_word (request + 28);
+
+	if (log_scsi)
+		write_log (_T("TAPE %d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n"),
+			command, io_data, io_length, io_offset, io_actual);
+	switch (command)
+	{
+	case HD_SCSICMD:
+		{
+			uae_u32 sdd = get_long (request + 40);
+			io_error = sys_command_scsi_direct (dev->unitnum, INQ_SEQD, sdd);
+			if (log_scsi)
+				write_log (_T("scsidev tape: did io: sdd %08x request %08x error %d\n"), sdd, request, get_byte (request + 31));
+		}
+		break;
+	default:
+		io_error = IOERR_NOCMD;
+		break;
+	}
+
+	put_long (request + 32, io_actual);
+	put_byte (request + 31, io_error);
+	io_log (_T("dev_io_tape"),request);
+	return 0;
+}
+
+static int dev_do_io_cd (struct devstruct *dev, uaecptr request)
 {
 	uae_u32 command;
 	uae_u32 io_data = get_long (request + 40); // 0x28
@@ -522,7 +567,7 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	command = get_word (request + 28);
 
 	if (log_scsi)
-		write_log (_T("%d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n"),
+		write_log (_T("CD %d: DATA=%08X LEN=%08X OFFSET=%08X ACTUAL=%08X\n"),
 			command, io_data, io_length, io_offset, io_actual);
 
 	switch (command)
@@ -857,9 +902,9 @@ static int dev_do_io (struct devstruct *dev, uaecptr request)
 	case HD_SCSICMD:
 		{
 			uae_u32 sdd = get_long (request + 40);
-			io_error = sys_command_scsi_direct (dev->unitnum, sdd);
+			io_error = sys_command_scsi_direct (dev->unitnum, INQ_ROMD, sdd);
 			if (log_scsi)
-				write_log (_T("scsidev: did io: sdd %08x request %08x error %d\n"), sdd, request, get_byte (request + 31));
+				write_log (_T("scsidev cd: did io: sdd %08x request %08x error %d\n"), sdd, request, get_byte (request + 31));
 		}
 		break;
 	case NSCMD_DEVICEQUERY:
@@ -885,8 +930,17 @@ no_media:
 	}
 	put_long (request + 32, io_actual);
 	put_byte (request + 31, io_error);
-	io_log (_T("dev_io"),request);
+	io_log (_T("dev_io_tape"),request);
 	return async;
+}
+
+static int dev_do_io (struct devstruct *dev, uaecptr request)
+{
+	if (dev->drivetype == INQ_SEQD) {
+		return dev_do_io_tape (dev, request);
+	} else {
+		return dev_do_io_cd (dev, request);
+	}
 }
 
 static int dev_can_quick (uae_u32 command)
@@ -1039,6 +1093,23 @@ uae_u32 scsi_get_cd_drive_media_mask (void)
 	}
 	return mask;
 }
+int scsi_add_tape (struct uaedev_config_info *uci)
+{
+	for (int i = 4; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		struct devstruct *dev = &devst[i];
+		if (dev->unitnum >= 0 || dev->drivetype > 0)
+			continue;
+		if (sys_command_open_tape (i, uci->rootdir, uci->readonly)) {
+			dev->drivetype = INQ_SEQD;
+			dev->aunit = i;
+			dev->unitnum = i;
+			dev->tape_directory = my_strdup (uci->rootdir);
+			write_log (_T("%s:%d = '%s''\n"), UAEDEV_SCSI, dev->aunit, uci->rootdir);
+			return i;
+		}
+	}
+	return -1;
+}
 static void dev_reset (void)
 {
 	int i, j;
@@ -1054,9 +1125,11 @@ static void dev_reset (void)
 					abort_async (dev, request, 0, 0);
 			}
 			dev->opencnt = 1;
-			sys_command_close (dev->unitnum);
+			if (dev->unitnum >= 0)
+				sys_command_close (dev->unitnum);
 		}
 		memset (dev, 0, sizeof (struct devstruct));
+		xfree (dev->tape_directory);
 		dev->unitnum = dev->aunit = -1;
 	}
 	for (i = 0; i < MAX_OPEN_DEVICES; i++)

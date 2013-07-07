@@ -1321,12 +1321,12 @@ static uae_u8 *gfx_lock_picasso2 (bool fullupdate)
 }
 uae_u8 *gfx_lock_picasso (bool fullupdate, bool doclear)
 {
+	static uae_u8 *p;
 	if (rtg_locked) {
-		write_log (_T("rtg already locked!\n"));
-		abort ();
+		return p;
 	}
 	EnterCriticalSection (&screen_cs);
-	uae_u8 *p = gfx_lock_picasso2 (fullupdate);
+	p = gfx_lock_picasso2 (fullupdate);
 	if (!p) {
 		LeaveCriticalSection (&screen_cs);
 	} else {
@@ -1435,7 +1435,7 @@ static void close_hwnds (void)
 	if (hAmigaWnd) {
 		addnotifications (hAmigaWnd, TRUE, FALSE);
 #ifdef D3D
-		D3D_free ();
+		D3D_free (true);
 #endif
 		ShowWindow (hAmigaWnd, SW_HIDE);
 		DestroyWindow (hAmigaWnd);
@@ -1620,7 +1620,7 @@ static int open_windows (bool mousecapture)
 
 	updatewinfsmode (&currprefs);
 #ifdef D3D
-	D3D_free ();
+	D3D_free (false);
 #endif
 #ifdef OPENGL
 	OGL_free ();
@@ -1649,7 +1649,7 @@ static int open_windows (bool mousecapture)
 		return ret;
 	}
 
-	bool startactive = started || (!started && !currprefs.win32_start_uncaptured && !currprefs.win32_start_minimized);
+	bool startactive = (started && mouseactive) || (!started && !currprefs.win32_start_uncaptured && !currprefs.win32_start_minimized);
 	bool startpaused = !started && ((currprefs.win32_start_minimized && currprefs.win32_iconified_pause) || (currprefs.win32_start_uncaptured && currprefs.win32_inactive_pause && isfullscreen () <= 0));
 	bool startminimized = !started && currprefs.win32_start_minimized && isfullscreen () <= 0;
 
@@ -2256,7 +2256,7 @@ static int reopen (int full, bool unacquire)
 #if 0
 	currprefs.gfx_apmode[1].gfx_refreshrate = changed_prefs.gfx_apmode[1].gfx_refreshrate;
 #endif
-	config_changed = 1;
+	set_config_changed ();
 
 	if (!quick)
 		return 1;
@@ -2349,7 +2349,7 @@ bool vsync_switchmode (int hz)
 	if (!found) {
 		changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_vsync = 0;
 		if (currprefs.gfx_apmode[APMODE_NATIVE].gfx_vsync != changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_vsync) {
-			config_changed = 1;
+			set_config_changed ();
 		}
 		write_log (_T("refresh rate changed to %d%s but no matching screenmode found, vsync disabled\n"), hz, lace ? _T("i") : _T("p"));
 		return false;
@@ -2361,7 +2361,7 @@ bool vsync_switchmode (int hz)
 		if (changed_prefs.gfx_size_fs.height != currprefs.gfx_size_fs.height ||
 			changed_prefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate != currprefs.gfx_apmode[APMODE_NATIVE].gfx_refreshrate) {
 			write_log (_T("refresh rate changed to %d%s, new screenmode %dx%d\n"), hz, lace ? _T("i") : _T("p"), w, newh);
-			config_changed = 1;
+			set_config_changed ();
 		}
 		return true;
 	}
@@ -4162,7 +4162,7 @@ static BOOL doInit (void)
 	if (currentmode->flags & DM_D3D) {
 		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
-			D3D_free ();
+			D3D_free (true);
 			gui_message (err);
 			changed_prefs.gfx_api = currprefs.gfx_api = 0;
 			changed_prefs.gfx_filter = currprefs.gfx_filter = 0;
@@ -4194,8 +4194,10 @@ oops:
 
 bool target_graphics_buffer_update (void)
 {
+	static bool	graphicsbuffer_retry;
 	int w, h;
 	
+	graphicsbuffer_retry = false;
 	if (screen_is_picasso) {
 		w = picasso96_state.Width > picasso_vidinfo.width ? picasso96_state.Width : picasso_vidinfo.width;
 		h = picasso96_state.Height > picasso_vidinfo.height ? picasso96_state.Height : picasso_vidinfo.height;
@@ -4207,22 +4209,31 @@ bool target_graphics_buffer_update (void)
 	}
 	
 	if (oldtex_w == w && oldtex_h == h && oldtex_rtg == screen_is_picasso)
-		return true;
+		return false;
+
+	if (!w || !h) {
+		oldtex_w = w;
+		oldtex_h = h;
+		oldtex_rtg = screen_is_picasso;
+		return false;
+	}
+
+	S2X_free ();
+	if (currentmode->flags & DM_D3D) {
+		if (!D3D_alloctexture (w, h)) {
+			graphicsbuffer_retry = true;
+			return false;
+		}
+	} else {
+		DirectDraw_ClearSurface (NULL);
+	}
+
 	oldtex_w = w;
 	oldtex_h = h;
 	oldtex_rtg = screen_is_picasso;
 
-	if (!w || !h)
-		return false;
-
 	write_log (_T("Buffer size (%d*%d) %s\n"), w, h, screen_is_picasso ? _T("RTG") : _T("Native"));
 
-	S2X_free ();
-	if (currentmode->flags & DM_D3D) {
-		D3D_alloctexture (w, h);
-	} else {
-		DirectDraw_ClearSurface (NULL);
-	}
 	if ((currentmode->flags & DM_SWSCALE) && !screen_is_picasso) {
 		if (!S2X_init (currentmode->native_width, currentmode->native_height, currentmode->native_depth))
 			return false;
@@ -4265,7 +4276,7 @@ void updatewinfsmode (struct uae_prefs *p)
 		p->gfx_size = p->gfx_size_win;
 	}
 	md = getdisplay (p);
-	config_changed = 1;
+	set_config_changed ();
 }
 
 void toggle_fullscreen (int mode)

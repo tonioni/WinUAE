@@ -1678,7 +1678,7 @@ void set_audio (void)
 		schedule_audio ();
 		events_schedule ();
 	}
-	config_changed = 1;
+	set_config_changed ();
 }
 
 void update_audio (void)

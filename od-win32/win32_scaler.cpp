@@ -446,7 +446,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				changed_prefs.gfx_size_win.height = hh;
 				fixup_prefs_dimensions (&changed_prefs);
 				if (oldwinw != changed_prefs.gfx_size_win.width || oldwinh != changed_prefs.gfx_size_win.height)
-					config_changed = 1;
+					set_config_changed ();
 				OffsetRect (zr, -(changed_prefs.gfx_size_win.width - ww + 1) / 2, -(changed_prefs.gfx_size_win.height - hh + 1) / 2);
 				filteroffsetx = -zr->left / scale;
 				filteroffsety = -zr->top / scale;

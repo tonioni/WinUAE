@@ -514,7 +514,7 @@ void restore_state (const TCHAR *filename)
 		goto error;
 	}
 	write_log (_T("STATERESTORE: '%s'\n"), filename);
-	config_changed = 1;
+	set_config_changed ();
 	savestate_file = f;
 	restore_header (chunk);
 	xfree (chunk);
@@ -682,7 +682,7 @@ void restore_state (const TCHAR *filename)
 		else if (!_tcscmp (name, _T("DMC2")))
 			end = restore_scsi_dmac (chunk);
 		else if (!_tcscmp (name, _T("SCSI")))
-			end = restore_scsi_hd (chunk);
+			end = restore_scsi_device (chunk);
 		else if (!_tcscmp (name, _T("GAYL")))
 			end = restore_gayle (chunk);
 		else if (!_tcscmp (name, _T("IDE ")))
@@ -971,7 +971,7 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 	save_chunk (f, dst, len, _T("DMC2"), 0);
 	xfree (dst);
 	for (i = 0; i < 8; i++) {
-		dst = save_scsi_hd (i, &len, NULL);
+		dst = save_scsi_device (i, &len, NULL);
 		save_chunk (f, dst, len, _T("SCSI"), 0);
 		xfree (dst);
 	}

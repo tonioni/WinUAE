@@ -70,10 +70,12 @@
 #define SAVESTATE /* State file support */
 #define A2091 /* A590/A2091 SCSI */
 #define A2065 /* A2065 Ethernet card */
+#define GFXBOARD /* Hardware graphics board */
 #define NCR /* A4000T/A4091 SCSI */
 #define SANA2 /* SANA2 network driver */
 #define AMAX /* A-Max ROM adapater emulation */
 #define RETROPLATFORM /* Cloanto RetroPlayer support */
+#define WITH_LUA /* lua scripting */
 
 #else
 
@@ -118,6 +120,8 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 #endif
+
+#include <stdint.h>
 
 #ifdef WIN64
 #undef X86_MSVC_ASSEMBLY

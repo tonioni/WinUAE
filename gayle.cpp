@@ -1886,21 +1886,21 @@ static struct ide_hdf *add_ide_unit (int ch, struct uaedev_config_info *ci)
 	ide = idedrive[ch];
 	if (ci)
 		memcpy (&ide->hdhfd.hfd.ci, ci, sizeof (struct uaedev_config_info));
-	if (ci->cd_emu_unit >= 0) {
+	if (ci->type == UAEDEV_CD && ci->device_emu_unit >= 0) {
 		device_func_init (0);
-		ide->scsi = scsi_alloc_cd (ch, ci->cd_emu_unit, true);
+		ide->scsi = scsi_alloc_cd (ch, ci->device_emu_unit, true);
 		if (!ide->scsi) {
 			write_log (_T("IDE: CD EMU unit %d failed to open\n"), ide->cd_unit_num);
 			return NULL;
 		}
-		ide->cd_unit_num = ci->cd_emu_unit;
+		ide->cd_unit_num = ci->device_emu_unit;
 		ide->atapi = true;
 		ide->blocksize = 512;
 		gui_flicker_led (LED_CD, ch, -1);
 
 		write_log (_T("IDE%d CD %d\n"), ch, ide->cd_unit_num);
 
-	} else {
+	} else if (ci->type == UAEDEV_HDF) {
 		if (!hdf_hd_open (&ide->hdhfd))
 			return NULL;
 		ide->blocksize = ide->hdhfd.hfd.ci.blocksize;

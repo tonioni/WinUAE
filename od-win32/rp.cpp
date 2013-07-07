@@ -409,7 +409,7 @@ static int cd_insert (int num, const TCHAR *name)
 {
 	_tcscpy (changed_prefs.cdslots[num].name, name);
 	changed_prefs.cdslots[num].inuse = true;
-	config_changed = 1;
+	set_config_changed ();
 	return 1;
 }
 
@@ -908,7 +908,7 @@ static void set_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	updatewinfsmode (p);
 	hwndset = 0;
-	config_changed = 1;
+	set_config_changed ();
 }
 
 static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM lParam,
@@ -943,7 +943,7 @@ static LRESULT CALLBACK RPHostMsgFunction2 (UINT uMessage, WPARAM wParam, LPARAM
 				warpmode ((lParam & RP_TURBO_CPU) ? 1 : 0);
 			if (wParam & RP_TURBO_FLOPPY)
 				changed_prefs.floppy_speed = (lParam & RP_TURBO_FLOPPY) ? 0 : 100;
-			config_changed = 1;
+			set_config_changed ();
 		}
 		return TRUE;
 	case RP_IPC_TO_GUEST_PAUSE:
@@ -1387,7 +1387,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	rp_turbo_floppy (currprefs.floppy_speed == 0);
 	for (i = 0; i <= 4; i++)
 		rp_update_leds (i, 0, 0);
-	config_changed = 1;
+	set_config_changed ();
 }
 
 static void rp_device_writeprotect (int dev, int num, bool writeprotected)

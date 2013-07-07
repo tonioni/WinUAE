@@ -38,6 +38,7 @@
 #include "calc.h"
 #include "cpummu.h"
 #include "cpummu030.h"
+#include "ar.h"
 
 int debugger_active;
 static uaecptr skipaddr_start, skipaddr_end;
@@ -3476,6 +3477,60 @@ static void debug_sprite (TCHAR **inptr)
 			break;
 	}
 
+}
+
+int debug_write_memory_16 (uaecptr addr, uae_u16 v)
+{
+	addrbank *ad;
+	
+	ad = &get_mem_bank (addr);
+	if (ad) {
+		ad->wput (addr, v);
+		return 1;
+	}
+	return -1;
+}
+int debug_write_memory_8 (uaecptr addr, uae_u8 v)
+{
+	addrbank *ad;
+	
+	ad = &get_mem_bank (addr);
+	if (ad) {
+		ad->bput (addr, v);
+		return 1;
+	}
+	return -1;
+}
+int debug_peek_memory_16 (uaecptr addr)
+{
+	addrbank *ad;
+	
+	ad = &get_mem_bank (addr);
+	if (ad->flags & (ABFLAG_RAM | ABFLAG_ROM | ABFLAG_ROMIN | ABFLAG_SAFE))
+		return ad->wget (addr);
+	if (ad == &custom_bank) {
+		addr &= 0x1fe;
+		return (ar_custom[addr + 0] << 8) | ar_custom[addr + 1];
+	}
+	return -1;
+}
+int debug_read_memory_16 (uaecptr addr)
+{
+	addrbank *ad;
+	
+	ad = &get_mem_bank (addr);
+	if (ad)
+		return ad->wget (addr);
+	return -1;
+}
+int debug_read_memory_8 (uaecptr addr)
+{
+	addrbank *ad;
+	
+	ad = &get_mem_bank (addr);
+	if (ad)
+		return ad->bget (addr);
+	return -1;
 }
 
 static void disk_debug (TCHAR **inptr)

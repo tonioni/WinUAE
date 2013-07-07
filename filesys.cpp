@@ -54,6 +54,7 @@
 #include "consolehook.h"
 #include "blkdev.h"
 #include "isofs_api.h"
+#include "scsi.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -139,7 +140,7 @@ static int cd_unit_offset, cd_unit_number;
 
 typedef struct {
 	int unit_type;
-	bool open;
+	int open; // >0 start as filesystem, <0 = allocated but do not start
 	TCHAR *devname; /* device name, e.g. UAE0: */
 	uaecptr devname_amiga;
 	uaecptr startup;
@@ -197,7 +198,7 @@ int nr_units (void)
 {
 	int i, cnt = 0;
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-		if (mountinfo.ui[i].open)
+		if (mountinfo.ui[i].open > 0)
 			cnt++;
 	}
 	return cnt;
@@ -213,7 +214,7 @@ int nr_directory_units (struct uae_prefs *p)
 		}
 	} else {
 		for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-			if (mountinfo.ui[i].open && mountinfo.ui[i].controller == 0)
+			if (mountinfo.ui[i].open > 0 && mountinfo.ui[i].controller == 0)
 				cnt++;
 		}
 	}
@@ -288,6 +289,12 @@ static UnitInfo *getuip (struct uae_prefs *p, int index)
 		return NULL;
 	return &mountinfo.ui[index];
 }
+static int getuindex (struct uae_prefs *p, int index)
+{
+	if (index < 0)
+		return -1;
+	return p->mountconfig[index].unitnum;
+}
 
 int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *mi)
 {
@@ -335,7 +342,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 			ui->hf.ci.blocksize = uci->ci.blocksize;
 			mi->size = -1;
 			mi->ismounted = true;
-			if (blkdev_get_info (p, ui->hf.ci.cd_emu_unit, &di)) {
+			if (blkdev_get_info (p, ui->hf.ci.device_emu_unit, &di)) {
 				mi->ismedia = di.media_inserted != 0;
 				_tcscpy (mi->rootdir, di.label);
 			}
@@ -346,7 +353,7 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 				_stprintf (mi->rootdir, _T("CD %d"), ui->hf.ci.cd_emu_unit);
 #endif
 		}
-	} else {
+	} else if (uci->ci.type != UAEDEV_TAPE) {
 		if (!ui->controller || (ui->controller && p->cs_ide)) {
 			mi->ismounted = 1;
 			if (uci->ci.type == UAEDEV_HDF)
@@ -355,6 +362,32 @@ int get_filesys_unitconfig (struct uae_prefs *p, int index, struct mountedinfo *
 				mi->ismedia = true;
 		}
 	}
+	if (uci->ci.type == UAEDEV_TAPE) {
+		struct device_info di;
+		int unitnum = getuindex (p, index);
+		mi->size = -1;
+		mi->ismounted = false;
+		if (unitnum >= 0) {
+			mi->ismounted = true;
+			if (tape_get_info (unitnum, &di)) {
+				mi->ismedia = di.media_inserted != 0;
+				_tcscpy (mi->rootdir, di.label);
+			}
+		} else {
+			struct scsi_data_tape *tape;
+			unitnum = 0;
+			tape = tape_alloc (unitnum, uci->ci.rootdir, uci->ci.readonly);
+			if (tape) {
+				if (tape_get_info (unitnum, &di)) {
+					mi->ismedia = di.media_inserted != 0;
+					_tcscpy (mi->rootdir, di.label);
+				}
+				tape_free (tape);
+			}
+		}
+		return FILESYS_TAPE;
+	}
+
 	if (mi->size < 0)
 		return -1;
 	mi->size = ui->hf.virtsize;
@@ -519,7 +552,7 @@ void uci_set_defaults (struct uaedev_config_info *uci, bool rdb)
 	uci->stacksize = 4000;
 	uci->priority = -129;
 	uci->sectorsperblock = 1;
-	uci->cd_emu_unit = -1;
+	uci->device_emu_unit = -1;
 }
 
 static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
@@ -532,8 +565,6 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 
 	memcpy (&c, ci, sizeof (struct uaedev_config_info));
 
-	if (ci->controller)
-		return -1;
 	if (nr < 0) {
 		for (nr = 0; nr < MAX_FILESYSTEM_UNITS; nr++) {
 			if (!mountinfo.ui[nr].open)
@@ -543,6 +574,16 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 			write_log (_T("No slot allocated for this unit\n"));
 			return -1;
 		}
+	}
+
+	if (ci->controller || ci->type == UAEDEV_TAPE) {
+		ui = &mountinfo.ui[nr];
+		memset (ui, 0, sizeof (UnitInfo));
+		memcpy (&ui->hf.ci, &c, sizeof (struct uaedev_config_info));
+		ui->readonly = c.readonly;
+		ui->unit_type = -1;
+		ui->open = -1;
+		return nr;
 	}
 
 	my_resolvesoftlink (c.rootdir, MAX_DPATH);
@@ -702,7 +743,7 @@ int move_filesys_unitconfig (struct uae_prefs *p, int nr, int to)
 
 void filesys_addexternals (void);
 
-static void allocuci (struct uae_prefs *p, int nr, int idx)
+static void allocuci (struct uae_prefs *p, int nr, int idx, int unitnum)
 {
 	struct uaedev_config_data *uci = &p->mountconfig[nr];
 	if (idx >= 0) {
@@ -710,9 +751,15 @@ static void allocuci (struct uae_prefs *p, int nr, int idx)
 		uci->configoffset = idx;
 		ui = &mountinfo.ui[idx];
 		ui->configureddrive = 1;
+		uci->unitnum = unitnum;
 	} else {
 		uci->configoffset = -1;
+		uci->unitnum = -1;
 	}
+}
+static void allocuci (struct uae_prefs *p, int nr, int idx)
+{
+	allocuci (p, nr, idx, -1);
 }
 
 static void initialize_mountinfo (void)
@@ -724,7 +771,7 @@ static void initialize_mountinfo (void)
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
 		struct uaedev_config_data *uci = &currprefs.mountconfig[nr];
-		if (uci->ci.controller == HD_CONTROLLER_UAE) {
+		if (uci->ci.controller == HD_CONTROLLER_UAE && (uci->ci.type == UAEDEV_DIR || uci->ci.type == UAEDEV_HDF)) {
 			struct uaedev_config_info ci;
 			memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
 			ci.flags = MYVOLUMEINFO_REUSABLE;
@@ -756,10 +803,25 @@ static void initialize_mountinfo (void)
 	}
 
 	for (nr = 0; nr < currprefs.mountitems; nr++) {
+		struct uaedev_config_data *uci = &currprefs.mountconfig[nr];
+		if (uci->ci.controller == HD_CONTROLLER_UAE) {
+			if (uci->ci.type == UAEDEV_TAPE) {
+				struct uaedev_config_info ci;
+				memcpy (&ci, &uci->ci, sizeof (struct uaedev_config_info));
+				int unitnum = scsi_add_tape (&uci->ci);
+				if (unitnum >= 0) {
+					int idx = set_filesys_unit_1 (-1, &ci);
+					allocuci (&currprefs, nr, idx, unitnum);
+				}
+			}
+		}
+	}
+
+	for (nr = 0; nr < currprefs.mountitems; nr++) {
 		struct uaedev_config_info *uci = &currprefs.mountconfig[nr].ci;
-		if (uci->controller == HD_CONTROLLER_UAE)
+		if (uci->controller == HD_CONTROLLER_UAE) {
 			continue;
-		if (uci->controller <= HD_CONTROLLER_IDE3) {
+		} else if (uci->controller <= HD_CONTROLLER_IDE3) {
 			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci);
 			allocuci (&currprefs, nr, -1);
 		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
@@ -1414,7 +1476,7 @@ int filesys_eject (int nr)
 
 	if (!mountertask || u->mount_changed)
 		return 0;
-	if (!ui->open || u == NULL)
+	if (ui->open <= 0 || u == NULL)
 		return 0;
 	if (!is_virtual (nr))
 		return 0;
@@ -1436,7 +1498,7 @@ static int heartbeat_task;
 // This uses filesystem process to reduce resource usage
 void setsystime (void)
 {
-	if (!currprefs.tod_hack)
+	if (!currprefs.tod_hack || !rtarea_base)
 		return;
 	heartbeat = get_long (rtarea_base + RTAREA_HEARTBEAT);
 	heartbeat_task = 1;
@@ -1489,7 +1551,7 @@ int filesys_insert (int nr, const TCHAR *volume, const TCHAR *rootdir, bool read
 		u = ui->self;
 	}
 
-	if (!ui->open || u == NULL)
+	if (ui->open <= 0 || u == NULL)
 		return 0;
 	if (u->reinsertdelay)
 		return -1;
@@ -1651,7 +1713,8 @@ int filesys_media_change (const TCHAR *rootdir, int inserted, struct uaedev_conf
 	for (u = units; u; u = u->next) {
 		if (is_virtual (u->unit)) {
 			ui = &mountinfo.ui[u->unit];
-			if (ui->rootdir && !memcmp (ui->rootdir, rootdir, _tcslen (rootdir)) && _tcslen (rootdir) + 3 >= _tcslen (ui->rootdir)) {
+			// inserted == 2: drag&drop insert, do not replace existing normal drives
+			if (inserted < 2 && ui->rootdir && !memcmp (ui->rootdir, rootdir, _tcslen (rootdir)) && _tcslen (rootdir) + 3 >= _tcslen (ui->rootdir)) {
 				if (filesys_isvolume (u) && inserted) {
 					if (uci)
 						filesys_delayed_change (u, 50, rootdir, uci->ci.volname, uci->ci.readonly, 0);
@@ -2726,7 +2789,7 @@ static uae_u32 REGPARAM2 startup_handler (TrapContext *context)
 
 	for (nr = 0; nr < MAX_FILESYSTEM_UNITS; nr++) {
 		/* Hardfile volume name? */
-		if (!mountinfo.ui[nr].open)
+		if (mountinfo.ui[nr].open <= 0)
 			continue;
 		if (!is_virtual (nr))
 			continue;
@@ -5365,7 +5428,7 @@ static void
 		return;
 	}
 	amiga_to_timeval (&tv, get_long (date), get_long (date + 4), get_long (date + 8));
-	write_log (_T("%llu.%u (%d,%d,%d) %s\n"), tv.tv_sec, tv.tv_usec, get_long (date), get_long (date + 4), get_long (date + 8), a->nname);
+	//write_log (_T("%llu.%u (%d,%d,%d) %s\n"), tv.tv_sec, tv.tv_usec, get_long (date), get_long (date + 4), get_long (date + 8), a->nname);
 	if (!my_utime (a->nname, &tv))
 		err = dos_errno ();
 	if (err != 0) {
@@ -5833,7 +5896,7 @@ static uae_u32 REGPARAM2 exter_int_helper (TrapContext *context)
 			if (unit_no >= MAX_FILESYSTEM_UNITS)
 				return 0;
 
-			if (uip[unit_no].open && uip[unit_no].self != 0
+			if (uip[unit_no].open > 0 && uip[unit_no].self != 0
 				&& uip[unit_no].self->cmds_acked == uip[unit_no].self->cmds_complete
 				&& uip[unit_no].self->cmds_acked != uip[unit_no].self->cmds_sent)
 				break;
@@ -6073,7 +6136,7 @@ void filesys_start_threads (void)
 	filesys_in_interrupt = 0;
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
 		UnitInfo *ui = &mountinfo.ui[i];
-		if (!ui->open)
+		if (ui->open <= 0)
 			continue;
 		filesys_start_thread (ui, i);
 	}
@@ -6147,7 +6210,7 @@ static void filesys_prepare_reset2 (void)
 	uip = mountinfo.ui;
 #ifdef UAE_FILESYS_THREADS
 	for (i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
-		if (uip[i].open && uip[i].unit_pipe != 0) {
+		if (uip[i].open > 0 && uip[i].unit_pipe != 0) {
 			uae_sem_init (&uip[i].reset_sync_sem, 0, 0);
 			uip[i].reset_state = FS_GO_DOWN;
 			/* send death message */
@@ -7940,7 +8003,7 @@ uae_u8 *save_filesys (int num, int *len)
 	int type = is_hardfile (num);
 
 	ui = &mountinfo.ui[num];
-	if (!ui->open)
+	if (ui->open <= 0)
 		return NULL;
 	/* not initialized yet, do not save */
 	if ((type == FILESYS_VIRTUAL || type == FILESYS_CD) && ui->self == NULL)

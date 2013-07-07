@@ -1,5 +1,5 @@
 extern void D3D_resize (int width, int height);
-extern void D3D_free (void);
+extern void D3D_free (bool immediate);
 extern const TCHAR *D3D_init (HWND ahwnd, int w_w, int h_h, int depth, int mmult);
 extern bool D3D_alloctexture (int, int);
 extern void D3D_getpixelformat (int depth,int *rb, int *bb, int *gb, int *rs, int *bs, int *gs, int *ab, int *ar, int *a);

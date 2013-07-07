@@ -42,6 +42,12 @@ extern int debug_bankchange (int);
 extern void log_dma_record (void);
 extern void debug_parser (const TCHAR *cmd, TCHAR *out, uae_u32 outsize);
 extern void mmu_disasm (uaecptr pc, int lines);
+extern int debug_read_memory_16 (uaecptr addr);
+extern int debug_peek_memory_16 (uaecptr addr);
+extern int debug_read_memory_8 (uaecptr addr);
+extern int debug_peek_memory_8 (uaecptr addr);
+extern int debug_write_memory_16 (uaecptr addr, uae_u16 v);
+extern int debug_write_memory_8 (uaecptr addr, uae_u8 v);
 
 #define BREAKPOINT_TOTAL 20
 struct breakpoint_node {

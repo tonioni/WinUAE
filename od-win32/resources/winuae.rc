@@ -1,16 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
-
-#define APSTUDIO_READONLY_SYMBOLS
-/////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 2 resource.
-//
 #include "winres.h"
-/////////////////////////////////////////////////////////////////////////////
-#undef APSTUDIO_READONLY_SYMBOLS
-
+#include "resource.h"
 /////////////////////////////////////////////////////////////////////////////
 // English resources
 
@@ -221,8 +212,8 @@ BEGIN
     CONTROL         "",IDC_CPUIDLE,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,308,85,69,21
     GROUPBOX        "Cycle-exact CPU Emulation Speed",IDC_STATIC,136,121,258,55
     RTEXT           "CPU Frequency",IDC_STATIC,139,145,67,10,SS_CENTERIMAGE
-    COMBOBOX        IDC_CPU_FREQUENCY,215,144,46,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_CPU_FREQUENCY2,268,143,70,15
+    COMBOBOX        IDC_CPU_FREQUENCY,215,144,89,75,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_CPU_FREQUENCY2,312,143,70,15
     GROUPBOX        "FPU",IDC_STATIC,1,181,129,99,BS_LEFT
     CONTROL         "None",IDC_FPU0,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,8,195,87,10
     CONTROL         "68881",IDC_FPU1,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,8,209,87,10
@@ -325,7 +316,8 @@ BEGIN
     COMBOBOX        IDC_CD_TYPE,282,279,71,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "Eject",IDC_CD_EJECT,360,278,30,15
     COMBOBOX        IDC_CD_TEXT,5,297,386,75,CBS_DROPDOWN | CBS_AUTOHSCROLL | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Add SCSI/IDE CD Drive",IDC_NEW_CD,135,176,126,15
+    PUSHBUTTON      "Add SCSI/IDE CD Drive",IDC_NEW_CD,1,176,128,15
+    PUSHBUTTON      "Add SCSI Tape Drive",IDC_NEW_TAPE,135,176,126,15
 END
 
 IDD_SOUND DIALOGEX 0, 0, 396, 288
@@ -536,7 +528,7 @@ CAPTION "Hardfile Settings"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     GROUPBOX        "Settings",IDC_STATIC,2,2,392,164
-    RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,25,18,22,10
+    RTEXT           "Path:",IDC_HARDFILE_DIR_TEXT,10,18,37,10
     EDITTEXT        IDC_PATH_NAME,52,15,325,15,ES_AUTOHSCROLL
     PUSHBUTTON      "...",IDC_SELECTOR,380,14,11,15
     RTEXT           "FileSys:",IDC_HARDFILE_FILESYS_TEXT,13,38,34,10
@@ -1037,7 +1029,7 @@ STYLE DS_LOCALEDIT | DS_SETFONT | DS_3DLOOK | DS_CONTROL | WS_CHILD
 FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "RTG Graphics Card",IDC_STATIC,1,0,393,189
-    COMBOBOX        IDC_RTG_Z2Z3,26,14,68,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_RTG_Z2Z3,26,14,118,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
     RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,2,35,76,10,SS_NOTIFY | SS_CENTERIMAGE
     CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,31,60,20
     EDITTEXT        IDC_P96RAM,152,34,40,12,ES_CENTER | ES_READONLY
@@ -1069,11 +1061,11 @@ BEGIN
     GROUPBOX        "Network",IDC_STATIC,181,197,213,80
     CONTROL         "bsdsocket.library [] bsdsocket network library emulation.",IDC_SOCKETS,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,216,187,11
-    CONTROL         "uaenet.device [] Sana 2 compatible network device emulation. WinPcap required.",IDC_SANA2,
+    CONTROL         "uaenet.device [] Sana 2 compatible network device emulation.",IDC_SANA2,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,229,187,11
-    CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation. WinPcap required.",IDC_A2065,
+    CONTROL         "A2065 Z2 [] A2065 Ethernet Zorro II card emulation.",IDC_A2065,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,242,187,11
-    COMBOBOX        IDC_NETDEVICE,202,257,156,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_NETDEVICE,202,257,178,65,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     CONTROL         "Always center",IDC_RTG_CENTER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,25,93,212,10
 END
 
@@ -1130,6 +1122,22 @@ BEGIN
     CONTROL         "",IDC_CDLIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,4,4,387,77
 END
 
+IDD_TAPEDRIVE DIALOGEX 0, 0, 395, 80
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_SETFOREGROUND | DS_3DLOOK | DS_CENTER | DS_CENTERMOUSE | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Tape Drive Settings"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "Add Tape Drive",IDOK,201,58,88,14
+    PUSHBUTTON      "Cancel",IDCANCEL,300,58,87,14
+    RTEXT           "HD Controller:",IDC_STATIC,35,61,65,10,SS_CENTERIMAGE
+    COMBOBOX        IDC_HDF_CONTROLLER,115,59,61,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_PATH_NAME,52,15,334,15,ES_AUTOHSCROLL
+    RTEXT           "Path:",IDC_STATIC,4,18,43,10,SS_CENTERIMAGE
+    PUSHBUTTON      "Select Directory",IDC_TAPE_SELECT_DIR,19,36,123,15
+    PUSHBUTTON      "Select Archive or Plain File",IDC_TAPE_SELECT_FILE,160,36,123,15
+    CONTROL         "Read/write",IDC_TAPE_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,313,39,67,10
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1137,8 +1145,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,6,1,0
- PRODUCTVERSION 2,6,1,0
+ FILEVERSION 2,7,0,0
+ PRODUCTVERSION 2,7,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -1154,12 +1162,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileDescription", "WinUAE"
-            VALUE "FileVersion", "2.6.1.0"
+            VALUE "FileVersion", "2.7.0.0"
             VALUE "InternalName", "WinUAE"
             VALUE "LegalCopyright", "© 1996-2013 under the GNU Public License (GPL)"
             VALUE "OriginalFilename", "WinUAE.exe"
             VALUE "ProductName", "WinUAE"
-            VALUE "ProductVersion", "2.6.1.0"
+            VALUE "ProductVersion", "2.7.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -1430,6 +1438,10 @@ BEGIN
     END
 
     IDD_CDDRIVE, DIALOG
+    BEGIN
+    END
+
+    IDD_TAPEDRIVE, DIALOG
     BEGIN
     END
 END
@@ -1823,6 +1835,7 @@ BEGIN
     IDS_MISCLISTITEMS3      "Native on-screen display\nRTG on-screen display\nCreate winuaelog.txt log\nLog illegal memory accesses\nBlank unused displays\nStart mouse uncaptured\nStart minimized\nMinimize when focus is lost\n"
     IDS_JOYMODE_WHEELMOUSE  "Wheel Mouse"
     IDS_NUMSG_KS68030PLUS   "The selected system ROM requires a 68030 or higher CPU."
+    IDS_SELECTTAPE          "Select a Tape directory or archive file..."
 END
 
 #endif    // English resources
@@ -1847,14 +1860,15 @@ BEGIN
     "resource.h\0"
 END
 
-3 TEXTINCLUDE 
-BEGIN
-    "\r\0"
-END
-
 2 TEXTINCLUDE 
 BEGIN
-    "#include ""afxres.h""\r\0"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
 END
 
 #endif    // APSTUDIO_INVOKED
@@ -1869,6 +1883,7 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
+
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

@@ -403,12 +403,15 @@ int fsdb_fill_file_attrs (a_inode *base, a_inode *aino)
 	}
 	
 	if (!aino->softlink && !aino->dir && !(mode & FILE_ATTRIBUTE_SYSTEM)) {
-		const TCHAR *ext = _tcsrchr (aino->nname, '.');
+		TCHAR *ext = _tcsrchr (aino->nname, '.');
 		if (ext && !_tcsicmp (ext, _T(".lnk"))) {
 			TCHAR tmp[MAX_DPATH];
 			_tcscpy (tmp, aino->nname);
 			if (my_resolvesoftlink (tmp, sizeof tmp / sizeof (TCHAR))) {
 				//write_log (_T("2 '%s'\n"), aino->nname);
+				ext = _tcsrchr (aino->aname, '.');
+				if (ext && !_tcsicmp (ext, _T(".lnk")))
+					*ext = 0;
 				aino->softlink = 2;
 			}
 		}

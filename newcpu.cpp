@@ -1229,7 +1229,7 @@ static void update_68k_cycles (void)
 		cpucycleunit = 1;
 	if (currprefs.cpu_cycle_exact)
 		write_log (_T("CPU cycleunit: %d (%.3f)\n"), cpucycleunit, (float)cpucycleunit / CYCLE_UNIT);
-	config_changed = 1;
+	set_config_changed ();
 }
 
 static void prefs_changed_cpu (void)

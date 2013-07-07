@@ -6,7 +6,7 @@
 * Copyright 2007 Toni Wilen
 */
 
-#include "sysconfig.h"
+#include "slirp/slirp.h"
 
 #include <stdio.h>
 
@@ -275,18 +275,16 @@ void uaenet_close (void *vsd)
 	write_log (_T("uaenet_win32 closed\n"));
 }
 
-void uaenet_enumerate_free (struct netdriverdata *tcp)
+void uaenet_enumerate_free (void)
 {
 	int i;
 
-	if (!tcp)
-		return;
 	for (i = 0; i < MAX_TOTAL_NET_DEVICES; i++) {
-		xfree (tcp[i].name);
-		xfree (tcp[i].desc);
-		tcp[i].name = NULL;
-		tcp[i].desc = NULL;
-		tcp[i].active = 0;
+		xfree (tds[i].name);
+		xfree (tds[i].desc);
+		tds[i].name = NULL;
+		tds[i].desc = NULL;
+		tds[i].active = 0;
 	}
 }
 
@@ -304,7 +302,7 @@ static struct netdriverdata *enumit (const TCHAR *name)
 	return NULL;
 }
 
-struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR *name)
+struct netdriverdata *uaenet_enumerate (const TCHAR *name)
 {
 	static int done;
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -319,8 +317,6 @@ struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR 
 	TCHAR *ss;
 
 	if (enumerated) {
-		if (out)
-			*out = tds;
 		return enumit (name);
 	}
 	tcp = tds;
@@ -404,6 +400,7 @@ struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR 
 					write_log (_T("- MAC %02X:%02X:%02X:%02X:%02X:%02X (%d)\n"),
 					tc->mac[0], tc->mac[1], tc->mac[2],
 					tc->mac[3], tc->mac[4], tc->mac[5], cnt++);
+				tc->type = UAENET_PCAP;
 				tc->active = 1;
 				tc->mtu = 1522;
 				tc->name = au (d->name);
@@ -420,8 +417,6 @@ struct netdriverdata *uaenet_enumerate (struct netdriverdata **out, const TCHAR 
 	done = 1;
 	pcap_freealldevs (alldevs);
 	enumerated = 1;
-	if (out)
-		*out = tds;
 	return enumit (name);
 }
 
@@ -437,3 +432,63 @@ void uaenet_close_driver (struct netdriverdata *tc)
 }
 
 
+static volatile int slirp_thread_active;
+static HANDLE slirp_thread;
+static uae_thread_id slirp_tid;
+extern uae_sem_t slirp_sem2;
+
+static void *slirp_receive_func(void *arg)
+{
+	slirp_thread_active = 1;
+	while (slirp_thread_active) {
+		// Wait for packets to arrive
+		fd_set rfds, wfds, xfds;
+		int nfds, ret, timeout;
+
+		// ... in the output queue
+		nfds = -1;
+		FD_ZERO(&rfds);
+		FD_ZERO(&wfds);
+		FD_ZERO(&xfds);
+		uae_sem_wait (&slirp_sem2);
+		timeout = slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+		uae_sem_post (&slirp_sem2);
+		if (nfds < 0) {
+			/* Windows does not honour the timeout if there is not
+			   descriptor to wait for */
+			sleep_millis (timeout / 1000);
+			ret = 0;
+		}
+		else {
+			struct timeval tv;
+			tv.tv_sec = 0;
+			tv.tv_usec = timeout;
+			ret = select(0, &rfds, &wfds, &xfds, &tv);
+		}
+		if (ret >= 0) {
+			uae_sem_wait (&slirp_sem2);
+			slirp_select_poll(&rfds, &wfds, &xfds);
+			uae_sem_post (&slirp_sem2);
+		}
+	}
+	slirp_thread_active = -1;
+	return 0;
+}
+
+bool slirp_start (void)
+{
+	slirp_end ();
+	uae_start_thread_fast (slirp_receive_func, NULL, &slirp_tid);
+	return true;
+}
+void slirp_end (void)
+{
+	if (slirp_thread_active > 0) {
+		slirp_thread_active = 0;
+		while (slirp_thread_active == 0) {
+			sleep_millis (10);
+		}
+		uae_end_thread (&slirp_tid);
+	}
+	slirp_thread_active = 0;
+}

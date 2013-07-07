@@ -104,6 +104,7 @@ struct hd_hardfiledata {
 #define FILESYS_HARDFILE_RDB 2
 #define FILESYS_HARDDRIVE 3
 #define FILESYS_CD 4
+#define FILESYS_TAPE 5
 
 #define MAX_FILESYSTEM_UNITS 30
 

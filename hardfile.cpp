@@ -35,7 +35,7 @@
 #include "archivers/chd/chd.h"
 #endif
 
-#undef DEBUGME
+//#undef DEBUGME
 #define hf_log
 #define hf_log2
 #define scsi_log
@@ -1121,8 +1121,6 @@ int scsi_hd_emulate (struct hardfiledata *hfd, struct hd_hardfiledata *hdhfd, ua
 	char *ss;
 
 	*reply_len = *sense_len = 0;
-	memset (r, 0, 256);
-	memset (s, 0, 256);
 	lun = cmdbuf[1] >> 5;
 	if (cmdbuf[0] != 0x03 && cmdbuf[0] != 0x12 && lun) {
 		status = 2; /* CHECK CONDITION */

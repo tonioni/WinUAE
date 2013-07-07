@@ -3282,6 +3282,16 @@ int zfile_readdir_archive (struct zdirectory *zd, TCHAR *out)
 {
 	return zfile_readdir_archive (zd, out, false);
 }
+
+struct zfile *zfile_readdir_archive_open (struct zdirectory *zd, const TCHAR *mode)
+{
+	TCHAR path[MAX_DPATH];
+	if (!zfile_readdir_archive (zd, path, true))
+		return NULL;
+	return zfile_fopen (path, mode, ZFD_ARCHIVE | ZFD_NORECURSE);
+}
+
+
 void zfile_resetdir_archive (struct zdirectory *zd)
 {
 	zd->offset = 0;

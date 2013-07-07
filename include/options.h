@@ -8,8 +8,8 @@
 */
 
 #define UAEMAJOR 2
-#define UAEMINOR 6
-#define UAESUBREV 1
+#define UAEMINOR 7
+#define UAESUBREV 0
 
 typedef enum { KBD_LANG_US, KBD_LANG_DK, KBD_LANG_DE, KBD_LANG_SE, KBD_LANG_FR, KBD_LANG_IT, KBD_LANG_ES } KbdLang;
 
@@ -113,6 +113,7 @@ struct wh {
 #define UAEDEV_DIR 0
 #define UAEDEV_HDF 1
 #define UAEDEV_CD 2
+#define UAEDEV_TAPE 3
 
 #define BOOTPRI_NOAUTOBOOT -128
 #define BOOTPRI_NOAUTOMOUNT -129
@@ -148,14 +149,15 @@ struct uaedev_config_info {
 	int interleave;
 	int sectorsperblock;
 	int forceload;
-	int cd_emu_unit;
+	int device_emu_unit;
 
 };
 
 struct uaedev_config_data
 {
 	struct uaedev_config_info ci;
-	int configoffset;
+	int configoffset; // HD config entry index
+	int unitnum; // scsi unit number (if tape currently)
 };
 
 enum { CP_GENERIC = 1, CP_CDTV, CP_CD32, CP_A500, CP_A500P, CP_A600, CP_A1000,
@@ -225,6 +227,8 @@ struct apmode
 	bool gfx_interlaced;
 	int gfx_refreshrate;
 };
+
+#define MAX_LUA_STATES 16
 
 struct uae_prefs {
 
@@ -467,6 +471,7 @@ struct uae_prefs {
 	bool rtg_hardwareinterrupt;
 	bool rtg_hardwaresprite;
 	int rtgmem_type;
+	bool rtg_more_compatible;
 	uae_u32 custom_memory_addrs[MAX_CUSTOM_MEMORY_ADDRS];
 	uae_u32 custom_memory_sizes[MAX_CUSTOM_MEMORY_ADDRS];
 
@@ -487,6 +492,8 @@ struct uae_prefs {
 	TCHAR dfxlist[MAX_SPARE_DRIVES][MAX_DPATH];
 	int dfxclickvolume;
 	int dfxclickchannelmask;
+
+	TCHAR luafiles[MAX_LUA_STATES][MAX_DPATH];
 
 	/* Target specific options */
 
@@ -570,6 +577,7 @@ struct uae_prefs {
 
 extern int config_changed;
 extern void config_check_vsync (void);
+extern void set_config_changed (void);
 
 /* Contains the filename of .uaerc */
 extern TCHAR optionsfile[];
@@ -623,6 +631,7 @@ extern void cfgfile_parse_lines (struct uae_prefs *p, const TCHAR *, int);
 extern int cfgfile_parse_option (struct uae_prefs *p, TCHAR *option, TCHAR *value, int);
 extern int cfgfile_get_description (const TCHAR *filename, TCHAR *description, TCHAR *hostlink, TCHAR *hardwarelink, int *type);
 extern void cfgfile_show_usage (void);
+extern int cfgfile_searchconfig(const TCHAR *in, int index, TCHAR *out, int outsize);
 extern uae_u32 cfgfile_uaelib (int mode, uae_u32 name, uae_u32 dst, uae_u32 maxlen);
 extern uae_u32 cfgfile_uaelib_modify (uae_u32 mode, uae_u32 parms, uae_u32 size, uae_u32 out, uae_u32 outsize);
 extern uae_u32 cfgfile_modify (uae_u32 index, TCHAR *parms, uae_u32 size, TCHAR *out, uae_u32 outsize);

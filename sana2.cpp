@@ -223,7 +223,7 @@ struct priv_s2devstruct {
 	int tmp;
 };
 
-static struct netdriverdata *td;
+static struct netdriverdata *td[MAX_TOTAL_NET_DEVICES + 1];
 static struct s2devstruct devst[MAX_TOTAL_NET_DEVICES];
 static struct priv_s2devstruct pdevst[MAX_OPEN_DEVICES];
 static uae_u32 nscmd_cmd;
@@ -286,7 +286,7 @@ static uae_u32 REGPARAM2 dev_close_2 (TrapContext *context)
 			CallLib (context, get_long (4), -0xD2); /* FreeMem */
 			pdev->tempbuf = 0;
 		}
-		uaenet_close (dev->sysdata);
+		ethernet_close (pdev->td, dev->sysdata);
 		xfree (dev->sysdata);
 		dev->sysdata = NULL;
 		write_comm_pipe_u32 (&dev->requests, 0, 1);
@@ -377,7 +377,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 	pdev->unit = unit;
 	pdev->flags = flags;
 	pdev->inuse = 1;
-	pdev->td = td ? &td[unit] : NULL;
+	pdev->td = td ? td[unit] : NULL;
 	pdev->promiscuous = (flags & SANA2OPF_PROM) ? 1 : 0;
 
 	if (pdev->td == NULL || pdev->td->active == 0)
@@ -385,8 +385,8 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 
 	if (dev->opencnt == 0) {
 		dev->unit = unit;
-		dev->sysdata = xcalloc (uae_u8, uaenet_getdatalenght ());
-		if (!uaenet_open (dev->sysdata, pdev->td, dev, uaenet_gotdata, uaenet_getdata, pdev->promiscuous)) {
+		dev->sysdata = xcalloc (uae_u8, ethernet_getdatalenght (pdev->td));
+		if (!ethernet_open (pdev->td, dev->sysdata, dev, uaenet_gotdata, uaenet_getdata, pdev->promiscuous)) {
 			xfree (dev->sysdata);
 			dev->sysdata = NULL;
 			return openfail (ioreq, IOERR_OPENFAIL);
@@ -450,7 +450,7 @@ static uae_u32 REGPARAM2 dev_open_2 (TrapContext *context)
 		pdev->tempbuf = CallLib (context, get_long (4), -0xC6); /* AllocMem */
 		if (!pdev->tempbuf) {
 			if (dev->opencnt == 0) {
-				uaenet_close (dev->sysdata);
+				ethernet_close (pdev->td, dev->sysdata);
 				xfree (dev->sysdata);
 				dev->sysdata = NULL;
 			}
@@ -1357,7 +1357,7 @@ static void *dev_thread (void *devs)
 			rem_async_packet (dev, request);
 		} else {
 			add_async_request (dev, request);
-			uaenet_trigger (dev->sysdata);
+			ethernet_trigger (dev->sysdata);
 		}
 		uae_sem_post (&change_sem);
 	}
@@ -1615,8 +1615,8 @@ void netdev_install (void)
 	if (log_net)
 		write_log (_T("netdev_install(): 0x%x\n"), here ());
 
-	uaenet_enumerate_free (td);
-	uaenet_enumerate (&td, NULL);
+	ethernet_enumerate_free ();
+	ethernet_enumerate (td, NULL);
 
 	ROM_netdev_resname = ds (getdevname());
 	ROM_netdev_resid = ds (_T("UAE net.device 0.2"));

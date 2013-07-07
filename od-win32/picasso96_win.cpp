@@ -59,6 +59,7 @@
 #include "win32gfx.h"
 #include "direct3d.h"
 #include "clipboard.h"
+#include "gfxboard.h"
 
 int debug_rtg_blitter = 3;
 
@@ -89,7 +90,6 @@ int p96hsync_counter, full_refresh;
 #define P96TRACING_ENABLED 1
 #define P96TRACING_LEVEL 1
 #endif
-static bool flushpixels (void);
 #if P96TRACING_ENABLED
 #define P96TRACE(x) do { write_log x; } while(0)
 #else
@@ -618,6 +618,8 @@ static void setupcursor (void)
 	D3DLOCKED_RECT locked;
 	HRESULT hr;
 
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE)
+		return;
 	gfx_lock ();
 	setupcursor_needed = 1;
 	if (cursorsurfaced3d) {
@@ -707,10 +709,16 @@ void picasso_trigger_vblank (void)
 static bool rtg_render (void)
 {
 	bool flushed = false;
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
 	if (doskip () && p96skipmode == 0) {
 		;
 	} else {
-		flushed = flushpixels ();
+		if (uaegfx) {
+			flushed = picasso_flushpixels (p96ram_start + natmem_offset, picasso96_state.XYOffset - gfxmem_start);
+		} else {
+			gfxboard_vsync_handler ();
+		}
 	}
 	return flushed;
 }
@@ -730,6 +738,7 @@ static void picasso_handle_vsync2 (void)
 	int vsync = isvsync_rtg ();
 	int mult;
 	bool rendered = false;
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
 
 	if (vsync < 0) {
 		vsync_busywait_end (NULL);
@@ -746,16 +755,20 @@ static void picasso_handle_vsync2 (void)
 	}
 
 	framecnt++;
-	mouseupdate ();
+	if (uaegfx)
+		mouseupdate ();
 
 	if (thisisvsync) {
 		rendered = rtg_render ();
 		frame_drawn ();
 	}
-	if (setupcursor_needed)
-		setupcursor ();
-	if (thisisvsync)
-		picasso_trigger_vblank ();
+
+	if (uaegfx) {
+		if (setupcursor_needed)
+			setupcursor ();
+		if (thisisvsync)
+			picasso_trigger_vblank ();
+	}
 
 	if (vsync < 0) {
 		vsync_busywait_start ();
@@ -769,10 +782,12 @@ static int p96hsync;
 
 void picasso_handle_vsync (void)
 {
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
 	if (currprefs.rtgmem_size == 0)
 		return;
 
-	if (!picasso_on) {
+	if (!picasso_on && uaegfx) {
 		createwindowscursor (0, 0, 0, 0, 0, 1);
 		picasso_trigger_vblank ();
 		return;
@@ -789,6 +804,8 @@ void picasso_handle_vsync (void)
 
 void picasso_handle_hsync (void)
 {
+	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
+
 	if (currprefs.rtgmem_size == 0)
 		return;
 
@@ -809,8 +826,10 @@ void picasso_handle_hsync (void)
 	p96hsync++;
 	if (p96hsync >= p96syncrate) {
 		if (!picasso_on) {
-			createwindowscursor (0, 0, 0, 0, 0, 1);
-			picasso_trigger_vblank ();
+			if (uaegfx) {
+				createwindowscursor (0, 0, 0, 0, 0, 1);
+				picasso_trigger_vblank ();
+			}
 		} else {
 			picasso_handle_vsync2 ();
 		}
@@ -1001,6 +1020,11 @@ void picasso_refresh (void)
 	setconvert ();
 	setupcursor ();
 	rtg_clear ();
+
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
+		gfxboard_refresh ();
+		return;
+	}
 
 	/* Make sure that the first time we show a Picasso video mode, we don't blit any crap.
 	* We can do this by checking if we have an Address yet. 
@@ -1998,10 +2022,50 @@ static void CopyLibResolutionStructureU2A (struct LibResolution *libres, uaecptr
 	put_long (amigamemptr + PSSO_LibResolution_BoardInfo, libres->BoardInfo);
 }
 
-static void init_alloc (TrapContext *ctx, int size)
+void picasso_allocatewritewatch (int gfxmemsize)
 {
 	SYSTEM_INFO si;
 
+	xfree (gwwbuf);
+	GetSystemInfo (&si);
+	gwwpagesize = si.dwPageSize;
+	gwwbufsize = gfxmemsize / gwwpagesize + 1;
+	gwwpagemask = gwwpagesize - 1;
+	gwwbuf = xmalloc (void*, gwwbufsize);
+}
+
+static ULONG_PTR writewatchcount;
+void picasso_getwritewatch (void)
+{
+	ULONG ps;
+	writewatchcount = gwwbufsize;
+	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, p96ram_start + natmem_offset, (gwwbufsize - 1) * gwwpagesize, gwwbuf, &writewatchcount, &ps)) {
+		write_log (_T("picasso_getwritewatch %d\n"), GetLastError ());
+		writewatchcount = 0;
+		return;
+	}
+}
+bool picasso_is_vram_dirty (uaecptr addr, int size)
+{
+	uae_u8 *a = addr + natmem_offset;
+	int s = size;
+	int ms = gwwpagesize;
+	for (ULONG_PTR i = 0; i < writewatchcount; i++) {
+		uae_u8 *ma = (uae_u8*)gwwbuf[i];
+		if (
+			(a < ma && a + s >= ma) ||
+			(a < ma + ms && a + s >= ma + ms) ||
+			(a >= ma && a < ma + ms)) {
+			return true;
+		}
+	}
+	return false;
+}
+	
+
+
+static void init_alloc (TrapContext *ctx, int size)
+{
 	picasso96_amem = picasso96_amemend = 0;
 	if (uaegfx_base) {
 		int size = get_long (uaegfx_base + CARD_RESLISTSIZE);
@@ -2012,12 +2076,7 @@ static void init_alloc (TrapContext *ctx, int size)
 	}
 	picasso96_amemend = picasso96_amem + size;
 	write_log (_T("P96 RESINFO: %08X-%08X (%d,%d)\n"), picasso96_amem, picasso96_amemend, size / PSSO_ModeInfo_sizeof, size);
-	xfree (gwwbuf);
-	GetSystemInfo (&si);
-	gwwpagesize = si.dwPageSize;
-	gwwbufsize = allocated_gfxmem / gwwpagesize + 1;
-	gwwpagemask = gwwpagesize - 1;
-	gwwbuf = xmalloc (void*, gwwbufsize);
+	picasso_allocatewritewatch (allocated_gfxmem);
 }
 
 static int p96depth (int depth)
@@ -2647,7 +2706,7 @@ static void do_xor8 (uae_u8 *p, int w, uae_u32 v)
 		p++;
 		w--;
 	}
-	uae_u64 vv = v | (v << 32);
+	uae_u64 vv = v | ((uae_u64)v << 32);
 	while (w >= 2 * 8) {
 		*((uae_u64*)p) ^= vv;
 		p += 8;
@@ -3408,7 +3467,7 @@ void init_hz_p96 (void)
 	if (p96vblank >= 300)
 		p96vblank = 300;
 	p96syncrate = maxvpos_nom * vblank_hz / p96vblank;
-	write_log (_T("P96FREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
+	write_log (_T("RTGFREQ: %d*%.4f = %.4f / %.1f = %d\n"), maxvpos_nom, vblank_hz, maxvpos_nom * vblank_hz, p96vblank, p96syncrate);
 }
 
 /* NOTE: Watch for those planeptrs of 0x00000000 and 0xFFFFFFFF for all zero / all one bitmaps !!!! */
@@ -3671,7 +3730,7 @@ static uae_u32 REGPARAM2 picasso_BlitPlanar2Direct (TrapContext *ctx)
 }
 
 #include "statusline.h"
-static void statusline (uae_u8 *dst)
+void picasso_statusline (uae_u8 *dst)
 {
 	int y, yy, slx, sly;
 	int dst_height, dst_width, pitch;
@@ -4018,11 +4077,14 @@ void freertgbuffer (uae_u8 *dst)
 	xfree (dst);
 }
 
-static bool flushpixels (void)
+void picasso_invalidate (int x, int y, int w, int h)
+{
+	DX_Invalidate (x, y, w, h);
+}
+
+bool picasso_flushpixels (uae_u8 *src, int off)
 {
 	int i;
-	uae_u8 *src = p96ram_start + natmem_offset;
-	int off = picasso96_state.XYOffset - gfxmem_start;
 	uae_u8 *src_start;
 	uae_u8 *src_end;
 	int lock = 0;
@@ -4155,7 +4217,7 @@ static bool flushpixels (void)
 		}
 		if (dst) {
 			if (!(currprefs.leds_on_screen & STATUSLINE_TARGET))
-				statusline (dst);
+				picasso_statusline (dst);
 			maxy = picasso_vidinfo.height;
 			if (miny > picasso_vidinfo.height - TD_TOTAL_HEIGHT)
 				miny = picasso_vidinfo.height - TD_TOTAL_HEIGHT;
@@ -4165,7 +4227,7 @@ static bool flushpixels (void)
 		if (doskip () && p96skipmode == 4) {
 			;
 		} else {
-			DX_Invalidate (0, miny, pwidth, maxy - miny);
+			picasso_invalidate (0, miny, pwidth, maxy - miny);
 		}
 	}
 

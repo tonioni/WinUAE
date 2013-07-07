@@ -54,6 +54,8 @@
 #include "sampler.h"
 #include "consolehook.h"
 #include "gayle.h"
+#include "gfxboard.h"
+#include "luascript.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -271,7 +273,7 @@ void fixup_prefs (struct uae_prefs *p)
 		err = 1;
 	}
 	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0
-		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || p->rtgmem_size > max_z3fastmem)))
+		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3))))
 	{
 		write_log (_T("Unsupported graphics card memory size %x (%x)!\n"), p->rtgmem_size, max_z3fastmem);
 		if (p->rtgmem_size > max_z3fastmem)
@@ -342,13 +344,16 @@ void fixup_prefs (struct uae_prefs *p)
 		write_log (_T("Unsupported Motherboard RAM size\n"));
 	}
 
-	if (p->address_space_24 && p->rtgmem_size)
-		p->rtgmem_type = 0;
-	if (!p->rtgmem_type && (p->chipmem_size > 2 * 1024 * 1024 || getz2size (p) > 8 * 1024 * 1024 || getz2size (p) < 0)) {
+	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
+		if (p->rtgmem_size < gfxboard_get_vram_min (p->rtgmem_type))
+			p->rtgmem_size = gfxboard_get_vram_min (p->rtgmem_type);
+	}
+	if (p->address_space_24 && p->rtgmem_size && p->rtgmem_type == GFXBOARD_UAE_Z3)
+		p->rtgmem_type = GFXBOARD_UAE_Z2;
+	if (p->rtgmem_type == GFXBOARD_UAE_Z2 && (p->chipmem_size > 2 * 1024 * 1024 || getz2size (p) > 8 * 1024 * 1024 || getz2size (p) < 0)) {
 		p->rtgmem_size = 0;
 		write_log (_T("Too large Z2 RTG memory size\n"));
 	}
-
 
 #if 0
 	if (p->m68k_speed < -1 || p->m68k_speed > 20) {
@@ -394,12 +399,13 @@ void fixup_prefs (struct uae_prefs *p)
 		p->z3fastmem_size = 0;
 		err = 1;
 	}
-	if (p->rtgmem_size > 0 && p->rtgmem_type && (p->cpu_model < 68020 || p->address_space_24)) {
+	if (p->rtgmem_size > 0 && p->rtgmem_type == GFXBOARD_UAE_Z3 && (p->cpu_model < 68020 || p->address_space_24)) {
 		write_log (_T("RTG can't be used with a 68000/68010 or 68EC020 emulation. It\n")
 			_T("requires a 68020 emulation. Turning off RTG.\n"));
 		p->rtgmem_size = 0;
 		err = 1;
 	}
+
 #if !defined (BSDSOCKET)
 	if (p->socket_emu) {
 		write_log (_T("Compile-time option of BSDSOCKET_SUPPORTED was not enabled.  You can't use bsd-socket emulation.\n"));
@@ -815,6 +821,9 @@ void do_start_program (void)
 	inputdevice_updateconfig (&changed_prefs, &currprefs);
 	if (quit_program >= 0)
 		quit_program = UAE_RESET;
+#ifdef WITH_LUA
+	uae_lua_loadall ();
+#endif
 #if (defined (_WIN32) || defined (_WIN64)) && !defined (NO_WIN32_EXCEPTION_HANDLER)
 	extern int EvalException (LPEXCEPTION_POINTERS blah, int n_except);
 	__try
@@ -873,6 +882,9 @@ void do_leave_program (void)
 #endif
 	gayle_free ();
 	device_func_reset ();
+#ifdef WITH_LUA
+	uae_lua_free ();
+#endif
 	savestate_free ();
 	memory_cleanup ();
 	free_shm ();
@@ -930,7 +942,7 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef USE_SDL
 	SDL_Init (SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_NOPARACHUTE);
 #endif
-	config_changed = 1;
+	set_config_changed ();
 	if (restart_config[0]) {
 		default_prefs (&currprefs, 0);
 		fixup_prefs (&currprefs);
@@ -975,7 +987,7 @@ static int real_main2 (int argc, TCHAR **argv)
 	if (! no_gui) {
 		int err = gui_init ();
 		currprefs = changed_prefs;
-		config_changed = 1;
+		set_config_changed ();
 		if (err == -1) {
 			write_log (_T("Failed to initialize the GUI\n"));
 			return -1;
@@ -994,7 +1006,9 @@ static int real_main2 (int argc, TCHAR **argv)
 #ifdef NATMEM_OFFSET
 	init_shm ();
 #endif
-
+#ifdef WITH_LUA
+	uae_lua_init ();
+#endif
 #ifdef PICASSO96
 	picasso_reset ();
 #endif

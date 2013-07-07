@@ -554,6 +554,10 @@ static void wd_cmd_sel_xfer (bool atn)
 	if (!scsi) {
 		set_status (CSR_TIMEOUT, 0);
 		wdregs[WD_COMMAND_PHASE] = 0x00;
+#if WD33C93_DEBUG > 0
+		write_log (_T("* %s select and transfer%s, ID=%d: No device\n"),
+		WD33C93, atn ? _T(" with atn") : _T(""), wdregs[WD_DESTINATION_ID] & 0x7);
+#endif
 		return;
 	}
 	if (!wd_selected) {
@@ -569,6 +573,7 @@ static void wd_cmd_sel_xfer (bool atn)
 		scsi->buffer[0] = 0;
 		scsi->status = 0;
 		memcpy (scsi->cmd, &wdregs[3], 16);
+		scsi->data_len = tmp_tc;
 		scsi_emulate_analyze (scsi);
 		settc (scsi->cmd_len);
 		wd_dataoffset = 0;
@@ -582,6 +587,7 @@ static void wd_cmd_sel_xfer (bool atn)
 			wd_dataoffset++;
 		}
 		// 0x30 = command phase has started
+		scsi->data_len = tmp_tc;
 		scsi_emulate_analyze (scsi);
 		wdregs[WD_COMMAND_PHASE] = 0x30 + gettc ();
 		settc (0);
@@ -606,7 +612,7 @@ static void wd_cmd_sel_xfer (bool atn)
 
 	// target replied or start/continue data phase (if data available)
 	if (wdregs[WD_COMMAND_PHASE] == 0x44) {
-		if (scsi->direction < 0) {
+		if (scsi->direction <= 0) {
 			scsi_emulate_cmd (scsi);
 		}
 		scsi_start_transfer (scsi);
@@ -1674,6 +1680,13 @@ int add_scsi_cd (int ch, int unitnum)
 	return scsis[ch] ? 1 : 0;
 }
 
+int add_scsi_tape (int ch, const TCHAR *tape_directory, bool readonly)
+{
+	freescsi (scsis[ch]);
+	scsis[ch] = scsi_alloc_tape (ch, tape_directory, readonly);
+	return scsis[ch] ? 1 : 0;
+}
+
 static void freenativescsi (void)
 {
 	int i;
@@ -1733,8 +1746,10 @@ static void addnativescsi (void)
 int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
 	init_scsi ();
-	if (ci->cd_emu_unit >= 0)
-		return add_scsi_cd (ch, ci->cd_emu_unit);
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd (ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
 	else
 		return add_scsi_hd (ch, NULL, ci, 2);
 }
@@ -1761,8 +1776,10 @@ void a3000scsi_free (void)
 int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
 	init_scsi ();
-	if (ci->cd_emu_unit >= 0)
-		return add_scsi_cd (ch, ci->cd_emu_unit);
+	if (ci->type == UAEDEV_CD)
+		return add_scsi_cd (ch, ci->device_emu_unit);
+	else if (ci->type == UAEDEV_TAPE)
+		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
 	else
 		return add_scsi_hd (ch, NULL, ci, 1);
 }
@@ -1895,72 +1912,102 @@ uae_u8 *restore_scsi_dmac (uae_u8 *src)
 	return src;
 }
 
-uae_u8 *save_scsi_hd (int num, int *len, uae_u8 *dstptr)
+uae_u8 *save_scsi_device (int num, int *len, uae_u8 *dstptr)
 {
 	uae_u8 *dstbak, *dst;
 	struct scsi_data *s;
 
-	if (!scsis[num])
-		return NULL;
 	s = scsis[num];
-	if (s->hfd == NULL)
+	if (!s)
 		return NULL;
 	if (dstptr)
 		dstbak = dst = dstptr;
 	else
 		dstbak = dst = xmalloc (uae_u8, 1000);
 	save_u32 (num);
-	save_u32 (0); // flags
-	save_u64 (s->hfd->size);
-	save_string (s->hfd->hfd.ci.rootdir);
-	save_u32 (s->hfd->hfd.ci.blocksize);
-	save_u32 (s->hfd->hfd.ci.readonly);
-	save_u32 (s->hfd->cyls);
-	save_u32 (s->hfd->heads);
-	save_u32 (s->hfd->secspertrack);
-	save_u64 (s->hfd->hfd.virtual_size);
-	save_u32 (s->hfd->hfd.ci.sectors);
-	save_u32 (s->hfd->hfd.ci.surfaces);
-	save_u32 (s->hfd->hfd.ci.reserved);
-	save_u32 (s->hfd->hfd.ci.bootpri);
-	save_u32 (s->hfd->ansi_version);
+	save_u32 (s->device_type); // flags
+	switch (s->device_type)
+	{
+	case UAEDEV_HDF:
+	case 0:
+		save_u64 (s->hfd->size);
+		save_string (s->hfd->hfd.ci.rootdir);
+		save_u32 (s->hfd->hfd.ci.blocksize);
+		save_u32 (s->hfd->hfd.ci.readonly);
+		save_u32 (s->hfd->cyls);
+		save_u32 (s->hfd->heads);
+		save_u32 (s->hfd->secspertrack);
+		save_u64 (s->hfd->hfd.virtual_size);
+		save_u32 (s->hfd->hfd.ci.sectors);
+		save_u32 (s->hfd->hfd.ci.surfaces);
+		save_u32 (s->hfd->hfd.ci.reserved);
+		save_u32 (s->hfd->hfd.ci.bootpri);
+		save_u32 (s->hfd->ansi_version);
+	break;
+	case UAEDEV_CD:
+		save_u32 (s->cd_emu_unit);
+	break;
+	case UAEDEV_TAPE:
+		save_u32 (s->cd_emu_unit);
+		save_u32 (s->tape->blocksize);
+		save_u32 (s->tape->wp);
+		save_string (s->tape->tape_dir);
+	break;
+	}
 	*len = dst - dstbak;
 	return dstbak;
 }
 
-uae_u8 *restore_scsi_hd (uae_u8 *src)
+uae_u8 *restore_scsi_device (uae_u8 *src)
 {
-	int num;
+	int num, num2;
 	struct hd_hardfiledata *hfd;
 	struct scsi_data *s;
 	uae_u64 size;
+	uae_u32 flags;
 	int blocksize, readonly;
 	TCHAR *path;
 
 	num = restore_u32 ();
 
-	hfd = xcalloc (struct hd_hardfiledata, 1);
-	s = scsis[num] = scsi_alloc_hd (num, hfd);
-	restore_u32 ();
-	size = restore_u64 ();
-	path = restore_string ();
-	_tcscpy (s->hfd->hfd.ci.rootdir, path);
-	blocksize = restore_u32 ();
-	readonly = restore_u32 ();
-	s->hfd->cyls = restore_u32 ();
-	s->hfd->heads = restore_u32 ();
-	s->hfd->secspertrack = restore_u32 ();
-	s->hfd->hfd.virtual_size = restore_u64 ();
-	s->hfd->hfd.ci.sectors = restore_u32 ();
-	s->hfd->hfd.ci.surfaces = restore_u32 ();
-	s->hfd->hfd.ci.reserved = restore_u32 ();
-	s->hfd->hfd.ci.bootpri = restore_u32 ();
-	s->hfd->ansi_version = restore_u32 ();
-
-	if (size) {
-		add_scsi_hd (num, hfd, NULL, s->hfd->ansi_version);
+	flags = restore_u32 ();
+	switch (flags & 15)
+	{
+	case UAEDEV_HDF:
+	case 0:
+		hfd = xcalloc (struct hd_hardfiledata, 1);
+		s = scsis[num] = scsi_alloc_hd (num, hfd);
+		size = restore_u64 ();
+		path = restore_string ();
+		_tcscpy (s->hfd->hfd.ci.rootdir, path);
+		blocksize = restore_u32 ();
+		readonly = restore_u32 ();
+		s->hfd->cyls = restore_u32 ();
+		s->hfd->heads = restore_u32 ();
+		s->hfd->secspertrack = restore_u32 ();
+		s->hfd->hfd.virtual_size = restore_u64 ();
+		s->hfd->hfd.ci.sectors = restore_u32 ();
+		s->hfd->hfd.ci.surfaces = restore_u32 ();
+		s->hfd->hfd.ci.reserved = restore_u32 ();
+		s->hfd->hfd.ci.bootpri = restore_u32 ();
+		s->hfd->ansi_version = restore_u32 ();
+		s->hfd->hfd.ci.blocksize = blocksize;
+		if (size)
+			add_scsi_hd (num, hfd, NULL, s->hfd->ansi_version);
+		xfree (path);
+	break;
+	case UAEDEV_CD:
+		num2 = restore_u32 ();
+		add_scsi_cd (num, num2);
+	break;
+	case UAEDEV_TAPE:
+		num2 = restore_u32 ();
+		blocksize = restore_u32 ();
+		readonly = restore_u32 ();
+		path = restore_string ();
+		add_scsi_tape (num, path, readonly != 0);
+		xfree (path);
+	break;
 	}
-	xfree (path);
 	return src;
-
 }

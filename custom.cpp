@@ -52,6 +52,7 @@
 #include "gfxfilter.h"
 #include "a2091.h"
 #include "a2065.h"
+#include "gfxboard.h"
 #include "ncr_scsi.h"
 #include "blkdev.h"
 #include "sampler.h"
@@ -59,6 +60,7 @@
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
+#include "luascript.h"
 
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
@@ -135,10 +137,14 @@ int vpos;
 static int vpos_count, vpos_count_diff;
 int lof_store; // real bit in custom registers
 static int lof_current; // what display device thinks
+static bool lof_lastline, lof_prev_lastline;
 static int lol;
 static int next_lineno, prev_lineno;
 static enum nln_how nextline_how;
 static int lof_changed = 0, lof_changing = 0, interlace_changed = 0;
+static int lof_changed_previous_field;
+static bool lof_lace;
+static bool bplcon0_interlace_seen;
 static int scandoubled_line;
 static bool vsync_rendered, frame_rendered, frame_shown;
 static int vsynctimeperline;
@@ -146,10 +152,12 @@ static int jitcount = 0;
 static int frameskiptime;
 static bool genlockhtoggle;
 static bool genlockvtoggle;
+static bool graphicsbuffer_retry;
 
-#define LOF_TOGGLES_NEEDED 4
-#define NLACE_CNT_NEEDED 50
-static int lof_togglecnt_lace, lof_togglecnt_nlace, lof_previous, nlace_cnt;
+
+#define LOF_TOGGLES_NEEDED 3
+//#define NLACE_CNT_NEEDED 50
+static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
 
 /* Stupid genlock-detection prevention hack.
 * We should stop calling vsync_handler() and
@@ -192,6 +200,7 @@ int minfirstline = VBLANK_ENDLINE_PAL;
 static int equ_vblank_endline = EQU_ENDLINE_PAL;
 static bool equ_vblank_toggle = true;
 double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored;
+static float vblank_hz_lof, vblank_hz_shf, vblank_hz_lace;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
 int doublescan;
@@ -2980,7 +2989,7 @@ void compute_vsynctime (void)
 	}
 #endif
 	if (currprefs.produce_sound > 1)
-		update_sound (fake_vblank_hz, (bplcon0 & 4) ? -1 : lof_store, islinetoggle ());
+		update_sound (fake_vblank_hz, interlace_seen ? -1 : lof_store, islinetoggle ());
 }
 
 
@@ -3002,6 +3011,7 @@ int current_maxvpos (void)
 	return maxvpos + (lof_store ? 1 : 0);
 }
 
+#if 0
 static void checklacecount (bool lace)
 {
 	if (!interlace_changed) {
@@ -3031,6 +3041,7 @@ static void checklacecount (bool lace)
 			nlace_cnt = NLACE_CNT_NEEDED * 2;
 	}
 }
+#endif
 
 struct chipset_refresh *get_chipset_refresh (void)
 {
@@ -3064,6 +3075,14 @@ void compute_framesync (void)
 	int islace = interlace_seen ? 1 : 0;
 	int isntsc = (beamcon0 & 0x20) ? 0 : 1;
 	bool found = false;
+
+	if (islace) {
+		vblank_hz = vblank_hz_lace;
+	} else if (lof_current) {
+		vblank_hz = vblank_hz_lof;
+	} else {
+		vblank_hz = vblank_hz_shf;
+	}
 
 	struct chipset_refresh *cr = get_chipset_refresh ();
 	while (cr) {
@@ -3123,7 +3142,7 @@ void compute_framesync (void)
 	interlace_changed = 0;
 	lof_togglecnt_lace = 0;
 	lof_togglecnt_nlace = 0;
-	nlace_cnt = NLACE_CNT_NEEDED;
+	//nlace_cnt = NLACE_CNT_NEEDED;
 	lof_changing = 0;
 	gfxvidinfo.drawbuffer.inxoffset = -1;
 	gfxvidinfo.drawbuffer.inyoffset = -1;
@@ -3189,17 +3208,13 @@ void compute_framesync (void)
 	if (gfxvidinfo.drawbuffer.outheight > gfxvidinfo.drawbuffer.height_allocated)
 		gfxvidinfo.drawbuffer.outheight = gfxvidinfo.drawbuffer.height_allocated;
 
-	if (target_graphics_buffer_update ()) {
-		reset_drawing ();
-	}
-
 	memset (line_decisions, 0, sizeof line_decisions);
 
 	compute_vsynctime ();
 
 	write_log (_T("%s mode%s%s V=%.4fHz H=%0.4fHz (%dx%d+%d) IDX=%d (%s) D=%d RTG=%d/%d\n"),
 		isntsc ? _T("NTSC") : _T("PAL"),
-		islace ? _T(" lace") : _T(""),
+		islace ? _T(" lace") : (lof_lace ? _T(" loflace") : _T("")),
 		doublescan > 0 ? _T(" dblscan") : _T(""),
 		vblank_hz,
 		(double)(currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL) / (maxhpos + (islinetoggle () ? 0.5 : 0)),
@@ -3209,7 +3224,7 @@ void compute_framesync (void)
 		currprefs.gfx_apmode[picasso_on ? 1 : 0].gfx_display, picasso_on, picasso_requested_on
 	);
 
-	config_changed = 1;
+	set_config_changed ();
 }
 
 /* set PAL/NTSC or custom timing variables */
@@ -3242,10 +3257,12 @@ void init_hz (bool fullinit)
 		maxvpos = MAXVPOS_PAL;
 		maxhpos = MAXHPOS_PAL;
 		minfirstline = VBLANK_ENDLINE_PAL;
-		vblank_hz = VBLANK_HZ_PAL;
 		sprite_vblank_endline = VBLANK_SPRITE_PAL;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
 		equ_vblank_toggle = true;
+		vblank_hz_shf = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 0) * maxhpos);
+		vblank_hz_lof = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 1) * maxhpos);
+		vblank_hz_lace = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 0.5) * maxhpos);
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
@@ -3254,9 +3271,11 @@ void init_hz (bool fullinit)
 		sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
 		equ_vblank_toggle = false;
+		vblank_hz_shf = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 0) * maxhpos);
+		vblank_hz_lof = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 1) * maxhpos);
+		vblank_hz_lace = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 0.5) * maxhpos);
 	}
-	// long/short field refresh rate adjustment
-	vblank_hz = vblank_hz * (maxvpos * 2 + 1) / ((maxvpos + lof_current) * 2);
+	vblank_hz = vblank_hz_lof;
 
 	maxvpos_nom = maxvpos;
 	if (vpos_count > 0) {
@@ -3265,6 +3284,7 @@ void init_hz (bool fullinit)
 		if (vpos_count < 10)
 			vpos_count = 10;
 		vblank_hz = (isntsc ? 15734 : 15625.0) / vpos_count;
+		vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = vblank_hz;
 		maxvpos_nom = vpos_count - (lof_current ? 1 : 0);
 		reset_drawing ();
 	}
@@ -3277,6 +3297,9 @@ void init_hz (bool fullinit)
 			htotal = MAXHPOS - 1;
 		maxhpos = htotal + 1;
 		vblank_hz = 227.0 * 312.0 * 50.0 / (maxvpos * maxhpos);
+		vblank_hz_shf = vblank_hz;
+		vblank_hz_lof = 227.0 * 313.0 * 50.0 / (maxvpos * maxhpos);;
+		vblank_hz_lace = 227.0 * 312.5 * 50.0 / (maxvpos * maxhpos);;
 		minfirstline = vsstop > vbstop ? vsstop : vbstop;
 		if (minfirstline > maxvpos / 2) 
 			minfirstline = vsstop > vsstop ? vbstop : vsstop;
@@ -4111,8 +4134,8 @@ static void BPLCON0 (int hpos, uae_u16 v)
 		hpos_previous = hpos;
 	}
 
-	if ((bplcon0 & 4) != (v & 4))
-		checklacecount ((v & 4) != 0);
+	if (bplcon0 & 4)
+		bplcon0_interlace_seen = true;
 
 	bplcon0 = v;
 
@@ -6055,7 +6078,7 @@ static void vsync_handler_pre (void)
 		vblank_hz_state = 1;
 
 	vsync_handle_check ();
-	checklacecount ((bplcon0 & 4) != 0);
+	//checklacecount (bplcon0_interlace_seen || lof_lace);
 }
 
 // emulated hardware vsync
@@ -6072,6 +6095,10 @@ static void vsync_handler_post (void)
 #endif
 	DISK_vsync ();
 
+#ifdef WITH_LUA
+	uae_lua_run_handler ("on_uae_vsync");
+#endif
+
 	if ((bplcon0 & 2) && currprefs.genlock) {
 		genlockvtoggle = !genlockvtoggle;
 		//lof_store = genlockvtoggle ? 1 : 0;
@@ -6079,6 +6106,22 @@ static void vsync_handler_post (void)
 	if (bplcon0 & 4) {
 		lof_store = lof_store ? 0 : 1;
 	}
+	if (lof_prev_lastline != lof_lastline) {
+		if (lof_togglecnt_lace < LOF_TOGGLES_NEEDED)
+			lof_togglecnt_lace++;
+		if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED)
+			lof_togglecnt_nlace = 0;
+	} else {
+		lof_togglecnt_nlace = LOF_TOGGLES_NEEDED;
+		lof_togglecnt_lace = 0;
+#if 0
+		if (lof_togglecnt_nlace < LOF_TOGGLES_NEEDED)
+			lof_togglecnt_nlace++;
+		if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED)
+			lof_togglecnt_lace = 0;
+#endif
+	}
+	lof_prev_lastline = lof_lastline;
 	lof_current = lof_store;
 	if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED) {
 		interlace_changed = notice_interlace_seen (true);
@@ -6094,9 +6137,23 @@ static void vsync_handler_post (void)
 	if (lof_changing) {
 		// still same? Trigger change now.
 		if ((!lof_store && lof_changing < 0) || (lof_store && lof_changing > 0)) {
+			lof_changed_previous_field++;
 			lof_changed = 1;
+			// lof toggling? decide as interlace.
+			if (lof_changed_previous_field >= LOF_TOGGLES_NEEDED) {
+				lof_changed_previous_field = LOF_TOGGLES_NEEDED;
+				if (lof_lace == false)
+					lof_lace = true;
+				else
+					lof_changed = 0;
+			}
+			if (bplcon0 & 4)
+				lof_changed = 0;
 		}
 		lof_changing = 0;
+	} else {
+		lof_changed_previous_field = 0;
+		lof_lace = false;
 	}
 
 	if (debug_copper)
@@ -6110,14 +6167,22 @@ static void vsync_handler_post (void)
 		vtotal = vpos_count;
 	}
 #endif
+#ifdef GFXBOARD
+	if (!picasso_on)
+		gfxboard_vsync_handler ();
+#endif
 
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1) || lof_changed) {
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1)) {
 		init_hz ();
-	} else if (interlace_changed || changed_chipset_refresh ()) {
+	} else if (interlace_changed || changed_chipset_refresh () || lof_changed) {
 		compute_framesync ();
+	}
+	if (target_graphics_buffer_update ()) {
+		reset_drawing ();
 	}
 
 	lof_changed = 0;
+	bplcon0_interlace_seen = false;
 
 	COPJMP (1, 1);
 
@@ -6472,27 +6537,6 @@ static void hsync_handler_post (bool onvsync)
 		CIA_vsync_posthandler (ciavsyncs);
 	}
 
-	if (vpos == equ_vblank_endline + 1) {
-		if (lof_current != lof_store) {
-			// argh, line=0 field decision was wrong, someone did
-			// something stupid and changed LOF
-			// lof_current = lof_store;
-			// don't really know what to do here exactly without corrupt display
-		}
-		if (lof_store != lof_previous) {
-			if (lof_togglecnt_lace < LOF_TOGGLES_NEEDED)
-				lof_togglecnt_lace++;
-			if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED)
-				lof_togglecnt_nlace = 0;
-		} else {
-			if (lof_togglecnt_nlace < LOF_TOGGLES_NEEDED)
-				lof_togglecnt_nlace++;
-			if (lof_togglecnt_nlace >= LOF_TOGGLES_NEEDED)
-				lof_togglecnt_lace = 0;
-		}
-		lof_previous = lof_store;
-	}
-
 	inputdevice_hsync ();
 
 	last_custom_value1 = 0xffff; // refresh slots should set this to 0xffff
@@ -6523,6 +6567,10 @@ static void hsync_handler_post (bool onvsync)
 	} else {
 		if (vpos == 0)
 			send_interrupt (5, 1 * CYCLE_UNIT);
+	}
+	// lastline - 1?
+	if (vpos + 1 == maxvpos + lof_store || vpos + 1 == maxvpos + lof_store + 1) {
+		lof_lastline = lof_store != 0;
 	}
 
 #ifdef CPUEMU_12
@@ -6665,7 +6713,8 @@ static void hsync_handler_post (bool onvsync)
 			bsdsock_fake_int_handler ();
 	}
 
-	plfstrt_sprite = plfstrt;
+	/* Default to no bitplane DMA overriding sprite DMA */
+	plfstrt_sprite = 0xff;
 	/* See if there's a chance of a copper wait ending this line.  */
 	cop_state.hpos = 0;
 	cop_state.last_write = 0;
@@ -6863,7 +6912,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		beamcon0 = new_beamcon0 = currprefs.ntscmode ? 0x00 : 0x20;
 		bltstate = BLT_done;
 		blit_interrupt = 1;
-		lof_store = lof_current = 1;
+		lof_store = lof_current = 0;
+		lof_lace = false;
 	}
 
 	gayle_reset (hardreset);
@@ -6876,6 +6926,9 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	gayle_reset (0);
 #ifdef A2091
 	a2091_reset ();
+#endif
+#ifdef GFXBOARD
+	gfxboard_reset ();
 #endif
 #ifdef NCR
 	ncr_reset ();
@@ -6908,8 +6961,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	vpos_lpen = -1;
 	lof_changing = 0;
 	lof_togglecnt_nlace = lof_togglecnt_lace = 0;
-	lof_previous = lof_store;
-	nlace_cnt = NLACE_CNT_NEEDED;
+	//nlace_cnt = NLACE_CNT_NEEDED;
 
 	audio_reset ();
 	if (!isrestore ()) {

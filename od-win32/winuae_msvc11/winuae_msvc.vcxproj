@@ -219,12 +219,12 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/MACHINE:I386 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9d.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;lzmalib.lib;libFLAC_static.lib;Avrt.lib;hid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9d.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;prowizard.lib;lzmalib.lib;libFLAC_static.lib;Avrt.lib;hid.lib;Iphlpapi.lib;luastatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;ddraw.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -319,7 +319,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -350,13 +350,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;Avrt.lib;hid.lib;zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;Avrt.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Release/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -397,7 +397,7 @@
       <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
       <OmitFramePointers>false</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\prowizard\include;..\..\slirp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -428,13 +428,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;Avrt.lib;hid.lib;zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;winio.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;libpng15.lib;lglcd.lib;wpcap.lib;packet.lib;openal32.lib;wintab32.lib;portaudio_x86.lib;vfw32.lib;wtsapi32.lib;enet.lib;lzmalib.lib;prowizard.lib;libFLAC_static.lib;Avrt.lib;hid.lib;zlibstat.lib;Iphlpapi.lib;luastatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <AdditionalManifestDependencies>%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Test/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -475,7 +475,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\include;..\..;..\;..\resources;..\osdep;..\sounddep;..\..\slirp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WINVER=0x0500;NDEBUG;_WIN32_IE=0x0700;WIN32;WIN64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -505,13 +505,13 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng15.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;avrt.lib;hid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;ddraw.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;vfw32.lib;msacm32.lib;dsound.lib;dinput8.lib;d3d9.lib;d3dx9.lib;setupapi.lib;wininet.lib;dxerr.lib;shlwapi.lib;zlibstat.lib;portaudio_x64.lib;packet.lib;wpcap.lib;openal32.lib;libpng15.lib;lglcd.lib;wtsapi32.lib;wntab32x.lib;enet_x64.lib;prowizard_x64.lib;lzmalib.lib;libFLAC_static.lib;avrt.lib;hid.lib;Iphlpapi.lib;luastatic.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(SolutionDir)\..\lib\</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;Dwmapi.lib;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x64.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;avrt.dll;Dwmapi.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(Platform)\$(Configuration)\winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -789,10 +789,35 @@
     <ClCompile Include="..\..\cpuemu_32.cpp" />
     <ClCompile Include="..\..\cpuemu_33.cpp" />
     <ClCompile Include="..\..\cpummu30.cpp" />
+    <ClCompile Include="..\..\ethernet.cpp" />
     <ClCompile Include="..\..\events.cpp" />
+    <ClCompile Include="..\..\gfxboard.cpp" />
     <ClCompile Include="..\..\hrtmon.rom.cpp" />
     <ClCompile Include="..\..\inputrecord.cpp" />
     <ClCompile Include="..\..\isofs.cpp" />
+    <ClCompile Include="..\..\luascript.cpp" />
+    <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp" />
+    <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />
+    <ClCompile Include="..\..\qemuvga\vga.cpp" />
+    <ClCompile Include="..\..\scsitape.cpp" />
+    <ClCompile Include="..\..\slirp\bootp.cpp" />
+    <ClCompile Include="..\..\slirp\cksum.cpp" />
+    <ClCompile Include="..\..\slirp\if.cpp" />
+    <ClCompile Include="..\..\slirp\ip_icmp.cpp" />
+    <ClCompile Include="..\..\slirp\ip_input.cpp" />
+    <ClCompile Include="..\..\slirp\ip_output.cpp" />
+    <ClCompile Include="..\..\slirp\mbuf.cpp" />
+    <ClCompile Include="..\..\slirp\misc.cpp" />
+    <ClCompile Include="..\..\slirp\sbuf.cpp" />
+    <ClCompile Include="..\..\slirp\slirp.cpp" />
+    <ClCompile Include="..\..\slirp\slirpdebug.cpp" />
+    <ClCompile Include="..\..\slirp\socket.cpp" />
+    <ClCompile Include="..\..\slirp\tcp_input.cpp" />
+    <ClCompile Include="..\..\slirp\tcp_output.cpp" />
+    <ClCompile Include="..\..\slirp\tcp_subr.cpp" />
+    <ClCompile Include="..\..\slirp\tcp_timer.cpp" />
+    <ClCompile Include="..\..\slirp\tftp.cpp" />
+    <ClCompile Include="..\..\slirp\udp.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />

@@ -27,6 +27,7 @@
 #include "cdtv.h"
 #include "a2091.h"
 #include "a2065.h"
+#include "gfxboard.h"
 #include "cd32_fmv.h"
 #include "ncr_scsi.h"
 #include "debug.h"
@@ -974,13 +975,13 @@ static uae_u8 *REGPARAM2 z3chipmem_xlate (uaecptr addr)
 addrbank z3fastmem_bank = {
 	z3fastmem_lget, z3fastmem_wget, z3fastmem_bget,
 	z3fastmem_lput, z3fastmem_wput, z3fastmem_bput,
-	z3fastmem_xlate, z3fastmem_check, NULL, _T("ZorroIII Fast RAM"),
+	z3fastmem_xlate, z3fastmem_check, NULL, _T("Zorro III Fast RAM"),
 	z3fastmem_lget, z3fastmem_wget, ABFLAG_RAM
 };
 addrbank z3fastmem2_bank = {
 	z3fastmem2_lget, z3fastmem2_wget, z3fastmem2_bget,
 	z3fastmem2_lput, z3fastmem2_wput, z3fastmem2_bput,
-	z3fastmem2_xlate, z3fastmem2_check, NULL, _T("ZorroIII Fast RAM #2"),
+	z3fastmem2_xlate, z3fastmem2_check, NULL, _T("Zorro III Fast RAM #2"),
 	z3fastmem2_lget, z3fastmem2_wget, ABFLAG_RAM
 };
 addrbank z3chipmem_bank = {
@@ -1490,6 +1491,18 @@ static void expamem_init_a4091 (void)
 	ncr_init ();
 #endif
 }
+static void expamem_init_gfxboard_memory (void)
+{
+#ifdef GFXBOARD
+	gfxboard_init_memory ();
+#endif
+}
+static void expamem_init_gfxboard_registers (void)
+{
+#ifdef GFXBOARD
+	gfxboard_init_registers ();
+#endif
+}
 #if 0
 void p96memstart (void)
 {
@@ -1588,13 +1601,24 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef PICASSO96
-	if (!currprefs.rtgmem_type && gfxmemory != NULL) {
+	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z2 && gfxmemory != NULL) {
 		card_name[cardno] = _T("Z2RTG");
 		card_init[cardno] = expamem_init_gfxcard_z2;
 		card_map[cardno++] = expamem_map_gfxcard;
 	}
 #endif
-
+#ifdef GFXBOARD
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
+		card_name[cardno] = _T ("Gfxboard VRAM Zorro II");
+		card_init[cardno] = expamem_init_gfxboard_memory;
+		card_map[cardno++] = NULL;
+		if (gfxboard_is_registers (currprefs.rtgmem_type)) {
+			card_name[cardno] = _T ("Gfxboard Registers");
+			card_init[cardno] = expamem_init_gfxboard_registers;
+			card_map[cardno++] = NULL;
+		}
+	}
+#endif
 	/* Z3 boards last */
 
 	if (z3fastmem != NULL) {
@@ -1620,14 +1644,22 @@ void expamem_reset (void)
 	}
 #endif
 #ifdef PICASSO96
-	if (currprefs.rtgmem_type && gfxmemory != NULL) {
+	if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && gfxmemory != NULL) {
 		card_name[cardno] = _T("Z3RTG");
 		card_init[cardno] = expamem_init_gfxcard_z3;
 		card_map[cardno++] = expamem_map_gfxcard;
 	}
 #endif
-
-
+#ifdef GFXBOARD
+	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && gfxboard_is_z3 (currprefs.rtgmem_type)) {
+		card_name[cardno] = _T ("Gfxboard VRAM Zorro III");
+		card_init[cardno] = expamem_init_gfxboard_memory;
+		card_map[cardno++] = NULL;
+		card_name[cardno] = _T ("Gfxboard Registers");
+		card_init[cardno] = expamem_init_gfxboard_registers;
+		card_map[cardno++] = NULL;
+	}
+#endif
 	if (cardno > 0 && cardno < MAX_EXPANSION_BOARDS) {
 		card_name[cardno] = _T("Empty");
 		card_init[cardno] = expamem_init_last;

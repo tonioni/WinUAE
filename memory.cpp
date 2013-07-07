@@ -32,6 +32,7 @@
 #include "a2091.h"
 #include "gayle.h"
 #include "debug.h"
+#include "gfxboard.h"
 
 bool canbang;
 int candirect = -1;
@@ -2401,7 +2402,7 @@ uae_s32 getz2size (struct uae_prefs *p)
 {
 	ULONG start;
 	start = p->fastmem_size;
-	if (p->rtgmem_size && !p->rtgmem_type) {
+	if (p->rtgmem_size && !gfxboard_is_z3 (p->rtgmem_type)) {
 		while (start & (p->rtgmem_size - 1) && start < 8 * 1024 * 1024)
 			start += 1024 * 1024;
 		if (start + p->rtgmem_size > 8 * 1024 * 1024)
@@ -2415,7 +2416,7 @@ ULONG getz2endaddr (void)
 {
 	ULONG start;
 	start = currprefs.fastmem_size;
-	if (currprefs.rtgmem_size && !currprefs.rtgmem_type) {
+	if (currprefs.rtgmem_size && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
 		if (!start)
 			start = 0x00200000;
 		while (start & (currprefs.rtgmem_size - 1) && start < 4 * 1024 * 1024)

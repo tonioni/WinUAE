@@ -28,5 +28,6 @@ extern int a3000_add_scsi_unit (int ch, struct uaedev_config_info *ci);
 
 extern int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level);
 extern int add_scsi_cd (int ch, int unitnum);
+extern int add_scsi_tape (int ch, const TCHAR *tape_directory, bool readonly);
 
 #endif

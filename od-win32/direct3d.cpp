@@ -31,6 +31,7 @@
 #include "hq2x_d3d.h"
 #include "zfile.h"
 #include "uae.h"
+#include "threaddep\thread.h"
 
 extern int D3DEX, d3ddebug;
 int forcedframelatency = -1;
@@ -120,9 +121,12 @@ RECT mask2rect;
 static bool wasstilldrawing_broken;
 static bool renderdisabled;
 static HANDLE filenotificationhandle;
+static int frames_since_init;
 
-static bool fakemode;
+static volatile bool fakemode;
 static uae_u8 *fakebitmap;
+static uae_thread_id fakemodetid;
+int fakemodewaitms = 0;
 
 static D3DXMATRIXA16 m_matProj, m_matProj2;
 static D3DXMATRIXA16 m_matWorld, m_matWorld2;
@@ -289,6 +293,12 @@ static int isd3d (void)
 	if (fakemode || devicelost || !d3ddev || !d3d_enabled || renderdisabled)
 		return 0;
 	return 1;
+}
+static void waitfakemode (void)
+{
+	while (fakemode) {
+		sleep_millis (10);
+	}
 }
 
 static D3DXHANDLE postSourceTextureHandle;
@@ -879,8 +889,10 @@ static bool psEffect_LoadEffect (const TCHAR *shaderfile, int full, struct shade
 			goto end;
 	}
 	ret = 1;
+	frames_since_init = 0;
 	if (plugin_path && filenotificationhandle == NULL)
 		filenotificationhandle = FindFirstChangeNotification (tmp3, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+
 end:
 	if (Errors)
 		Errors->Release ();
@@ -2121,10 +2133,14 @@ static void D3D_free2 (void)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen & ~STATUSLINE_TARGET;
 }
 
-void D3D_free (void)
+void D3D_free (bool immediate)
 {
-	D3D_free2 ();
-	ddraw_fs_hack_free ();
+	if (!fakemodewaitms || immediate) {
+		waitfakemode ();
+		D3D_free2 ();
+		ddraw_fs_hack_free ();
+		return;
+	}
 }
 
 #define VBLANKDEBUG 0
@@ -2187,7 +2203,7 @@ static int getd3dadapter (IDirect3D9 *d3d)
 	return D3DADAPTER_DEFAULT;
 }
 
-const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
+static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
@@ -2246,7 +2262,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 		d3dex = NULL;
 		d3d = Direct3DCreate9 (D3D_SDK_VERSION);
 		if (d3d == NULL) {
-			D3D_free ();
+			D3D_free (true);
 			_tcscpy (errmsg, _T("Direct3D: failed to create D3D object"));
 			return errmsg;
 		}
@@ -2381,7 +2397,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 			D3DEX = 0;
 			return D3D_init (ahwnd, w_w, w_h, depth, mmult);
 		}
-		D3D_free ();
+		D3D_free (true);
 		return errmsg;
 	}
 
@@ -2479,7 +2495,7 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
 	if (!restoredeviceobjects ()) {
-		D3D_free ();
+		D3D_free (true);
 		_stprintf (errmsg, _T("%s: initialization failed."), D3DHEAD);
 		return errmsg;
 	}
@@ -2511,6 +2527,61 @@ const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
 	return 0;
 }
 
+struct d3d_initargs
+{
+	HWND hwnd;
+	int w;
+	int h;
+	int depth;
+	int mmult;
+};
+static struct d3d_initargs d3dargs;
+
+static void *D3D_init_start (void *p)
+{
+	struct timeval tv1, tv2;
+
+	gettimeofday (&tv1, NULL);
+	sleep_millis (1000);
+	write_log (_T("Threaded D3D_init() start (free)\n"));
+	D3D_free2 ();
+	sleep_millis (1000);
+	write_log (_T("Threaded D3D_init() start (init)\n"));
+	const TCHAR *t = D3D_init2 (d3dargs.hwnd, d3dargs.w, d3dargs.h, d3dargs.depth, d3dargs.mmult);
+	if (t) {
+		gui_message (_T("Threaded D3D_init() returned error '%s'\n"), t);
+	}
+	write_log (_T("Threaded D3D_init() returned\n"));
+	for (;;) {
+		uae_u64 us1, us2, diff;
+		gettimeofday (&tv2, NULL);
+		us1 = (uae_u64)tv1.tv_sec * 1000000 + tv1.tv_usec;
+		us2 = (uae_u64)tv2.tv_sec * 1000000 + tv2.tv_usec;
+		diff = us2 - us1;
+		if (diff >= fakemodewaitms * 1000)
+			break;
+		sleep_millis (10);
+	}
+	write_log (_T("Threaded D3D_init() finished\n"));
+	frames_since_init = 0;
+	fakemode = false;
+	return NULL;
+}
+
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
+{
+	if (!fakemodewaitms)
+		return D3D_init2 (ahwnd, w_w, w_h, depth, mmult);
+	fakemode = true;
+	d3dargs.hwnd = ahwnd;
+	d3dargs.w = w_w;
+	d3dargs.h = w_h;
+	d3dargs.depth = depth;
+	d3dargs.mmult = mmult;
+	uae_start_thread_fast (D3D_init_start, NULL, &fakemodetid);
+	return NULL;
+}
+
 static bool alloctextures (void)
 {
 	if (!createtexture (tout_w, tout_h, window_w, window_h))
@@ -2527,6 +2598,9 @@ bool D3D_alloctexture (int w, int h)
 
 	tout_w = tin_w * dmultx;
 	tout_h = tin_h * dmultx;
+
+	if (fakemode)
+		return false;
 
 	changed_prefs.leds_on_screen = currprefs.leds_on_screen = currprefs.leds_on_screen | STATUSLINE_TARGET;
 
@@ -2600,7 +2674,7 @@ static int D3D_needreset (void)
 			}
 		}
 #endif
-	} 
+	}
 	if (SUCCEEDED (hr)) {
 		devicelost = 0;
 		invalidatedeviceobjects ();
@@ -3133,6 +3207,8 @@ bool D3D_renderframe (bool immediate)
 {
 	static int vsync2_cnt;
 
+	frames_since_init++;
+
 	if (fakemode)
 		return true;
 
@@ -3142,8 +3218,10 @@ bool D3D_renderframe (bool immediate)
 	if (filenotificationhandle != NULL) {
 		bool notify = false;
 		while (WaitForSingleObject (filenotificationhandle, 0) == WAIT_OBJECT_0) {
-			FindNextChangeNotification (filenotificationhandle);
-			notify = true;
+			if (FindNextChangeNotification (filenotificationhandle)) {
+				if (frames_since_init > 50)
+					notify = true;
+			}
 		}
 		if (notify) {
 			devicelost = 2;
@@ -3252,6 +3330,7 @@ double D3D_getrefreshrate (void)
 	HRESULT hr;
 	D3DDISPLAYMODE dmode;
 
+	waitfakemode ();
 	if (!isd3d ())
 		return -1;
 	hr = d3ddev->GetDisplayMode (0, &dmode);
@@ -3264,6 +3343,7 @@ void D3D_guimode (bool guion)
 {
 	HRESULT hr;
 
+	waitfakemode ();
 	if (!isd3d ())
 		return;
 	hr = d3ddev->SetDialogBoxMode (guion ? TRUE : FALSE);
@@ -3277,6 +3357,7 @@ HDC D3D_getDC (HDC hdc)
 	static LPDIRECT3DSURFACE9 bb;
 	HRESULT hr;
 
+	waitfakemode ();
 	if (!isd3d ())
 		return 0;
 	if (!hdc) {

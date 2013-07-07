@@ -2396,13 +2396,21 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dosprites) {
 
 			int i;
+
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++)
 				draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
 			uae_u16 oxor = bplxor;
 			memset (pixdata.apixels, 0, sizeof pixdata);
-			bplxor = 0;
-			do_color_changes (pfield_do_fill_line, pfield_do_linetoscr_border, lineno);
-			bplxor = oxor;
+			if (dp_for_drawing->ham_seen) {
+				int todraw_amiga = res_shift_from_window (visible_right_border - visible_left_border);
+				init_ham_decoding ();
+				memset (ham_linebuf + ham_decode_pixel, 0, todraw_amiga * sizeof (uae_u32));
+			}
+			if (dip_for_drawing->nr_color_changes) {
+				bplxor = 0;
+				do_color_changes (pfield_do_fill_line, pfield_do_linetoscr_border, lineno);
+				bplxor = oxor;
+			}
 
 		} else {
 
@@ -2572,13 +2580,13 @@ static void init_drawing_frame (void)
 							write_log (_T("RES -> %d (%d) LINE -> %d (%d) (%d - %d, %d - %d)\n"), nr, nr_o, nl, nl_o,
 								currprefs.gfx_autoresolution_minh, currprefs.gfx_autoresolution_minv,
 								gfxvidinfo.gfx_resolution_reserved, gfxvidinfo.gfx_vresolution_reserved);
-							config_changed = 1;
+							set_config_changed ();
 							//activate_debugger ();
 						}
 						if (src->width > 0 && src->height > 0) {
 							if (memcmp (dst, src, sizeof *dst)) {
 								*dst = *src;
-								config_changed = 1;
+								set_config_changed ();
 							}
 						}
 						break;

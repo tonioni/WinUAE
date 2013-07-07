@@ -464,6 +464,20 @@ void write_dlog (const TCHAR *format, ...)
 	LeaveCriticalSection (&cs);
 }
 
+void write_log (const char *format, ...)
+{
+	char buffer[WRITE_LOG_BUF_SIZE];
+	va_list parms;
+	TCHAR *b;
+
+	va_start (parms, format);
+	vsprintf (buffer, format, parms);
+	b = au (buffer);
+	write_log (b);
+	xfree (b);
+	va_end (parms);
+}
+
 void write_log (const TCHAR *format, ...)
 {
 	int count;

@@ -2383,7 +2383,7 @@ static int handle_custom_event (const TCHAR *custom)
 
 	if (custom == NULL)
 		return 0;
-	config_changed = 1;
+	set_config_changed ();
 	write_log (_T("%s\n"), custom);
 	p = buf = my_strdup_trim (custom);
 	if (p[0] != '\"')
@@ -2408,7 +2408,7 @@ static int handle_custom_event (const TCHAR *custom)
 		if (!_tcsicmp (p, _T("no_config_check"))) {
 			config_changed = 0;
 		} else if (!_tcsicmp (p, _T("do_config_check"))) {
-			config_changed = 1;
+			set_config_changed ();
 		} else if (!_tcsnicmp (p, _T("dbg "), 4)) {
 			debug_parser (p + 4, NULL, -1);
 		} else if (!_tcsnicmp (p, _T("kbr "), 4)) {
@@ -2889,7 +2889,7 @@ void inputdevice_handle_inputcode (void)
 				changed_prefs.chipset_refreshrate = 10.0;
 			if (changed_prefs.chipset_refreshrate > 900.0)
 				changed_prefs.chipset_refreshrate = 900.0;
-			config_changed = 1;
+			set_config_changed ();
 		}
 		break;
 	case AKS_DISKSWAPPER_NEXT:
@@ -2912,7 +2912,7 @@ void inputdevice_handle_inputcode (void)
 	case AKS_DISKSWAPPER_INSERT2:
 	case AKS_DISKSWAPPER_INSERT3:
 		_tcscpy (changed_prefs.floppyslots[code - AKS_DISKSWAPPER_INSERT0].df, currprefs.dfxlist[swapperslot]);
-		config_changed = 1;
+		set_config_changed ();
 		break;
 
 		break;
@@ -5277,7 +5277,7 @@ void inputdevice_updateconfig (const struct uae_prefs *srcprefs, struct uae_pref
 {
 	inputdevice_updateconfig_internal (srcprefs, dstprefs);
 	
-	config_changed = 1;
+	set_config_changed ();
 
 #ifdef RETROPLATFORM
 	rp_input_change (0);
@@ -5353,7 +5353,7 @@ void inputdevice_devicechange (struct uae_prefs *prefs)
 #ifdef RETROPLATFORM
 	rp_enumdevices ();
 #endif
-	config_changed = 1;
+	set_config_changed ();
 }
 
 
@@ -6609,12 +6609,13 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	v1 = state;
 	v2 = id2->states[axis][MAX_INPUT_SUB_EVENT];
 
-	write_log (_T("new=%d old=%d state=%d max=%d\n"), v1, v2, state, max);
-
 	if (v1 < deadzone && v1 > -deadzone)
 		v1 = 0;
 	if (v2 < deadzone && v2 > -deadzone)
 		v2 = 0;
+
+	//write_log (_T("%d:%d new=%d old=%d state=%d max=%d\n"), joy, axis, v1, v2, state, max);
+
 	if (input_play && state) {
 		if (v1 != v2)
 			inprec_realtime ();
@@ -6628,12 +6629,13 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
 		uae_u64 flags = id->flags[ID_AXIS_OFFSET + axis][i];
+		int state2 = v1;
 		if (flags & ID_FLAG_INVERT)
-			state = -state;
-		if (state != id2->states[axis][i]) {
-			write_log(_T("-> %d %d\n"), i, state);
-			handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state, max, flags & ID_FLAG_AUTOFIRE, true, false);
-			id2->states[axis][i] = state;
+			state2 = -state2;
+		if (state2 != id2->states[axis][i]) {
+			//write_log(_T("-> %d %d\n"), i, state2);
+			handle_input_event (id->eventid[ID_AXIS_OFFSET + axis][i], state2, max, flags & ID_FLAG_AUTOFIRE, true, false);
+			id2->states[axis][i] = state2;
 		}
 	}
 	id2->states[axis][MAX_INPUT_SUB_EVENT] = v1;
@@ -6752,7 +6754,7 @@ void warpmode (int mode)
 	rp_turbo_cpu (currprefs.turbo_emulation);
 #endif
 	changed_prefs.turbo_emulation = currprefs.turbo_emulation;
-	config_changed = 1;
+	set_config_changed ();
 	setsystime ();
 }
 
@@ -6762,7 +6764,7 @@ void pausemode (int mode)
 		pause_emulation = pause_emulation ? 0 : 9;
 	else
 		pause_emulation = mode;
-	config_changed = 1;
+	set_config_changed ();
 	setsystime ();
 }
 
@@ -6823,7 +6825,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 						p->jports[portnum].id = idnum + i;
 						if (mode >= 0)
 							p->jports[portnum].mode = mode;
-						config_changed = 1;
+						set_config_changed ();
 						return 1;
 					}
 				}
@@ -6875,13 +6877,13 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 						p->jports[portnum].mode = mode;
 					if (start < JSEM_JOYS)
 						default_keyboard_layout[portnum] = start;
-					config_changed = 1;
+					set_config_changed ();
 					return 1;
 				}
 				// joystick not found, select default
 				if (start == JSEM_JOYS && p->jports[portnum].id < JSEM_JOYS) {
 					p->jports[portnum].id = default_keyboard_layout[portnum];
-					config_changed = 1;
+					set_config_changed ();
 					return 1;
 				}
 			}

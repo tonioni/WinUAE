@@ -2439,7 +2439,7 @@ int disk_setwriteprotect (struct uae_prefs *p, int num, const TCHAR *name, bool 
 
 void disk_eject (int num)
 {
-	config_changed = 1;
+	set_config_changed ();
 	gui_filename (num, _T(""));
 	drive_eject (floppy + num);
 	*currprefs.floppyslots[num].df = *changed_prefs.floppyslots[num].df = 0;
@@ -2539,14 +2539,14 @@ static void disk_insert_2 (int num, const TCHAR *name, bool forced, bool forcedw
 
 void disk_insert (int num, const TCHAR *name, bool forcedwriteprotect)
 {
-	config_changed = 1;
+	set_config_changed ();
 	target_addtorecent (name, 0);
 	disk_insert_2 (num, name, 0, forcedwriteprotect);
 }
 
 void disk_insert (int num, const TCHAR *name)
 {
-	config_changed = 1;
+	set_config_changed ();
 	target_addtorecent (name, 0);
 	disk_insert_2 (num, name, 0, false);
 }

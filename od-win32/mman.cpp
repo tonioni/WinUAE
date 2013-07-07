@@ -10,6 +10,7 @@
 #include "memory.h"
 #include "options.h"
 #include "autoconf.h"
+#include "gfxboard.h"
 #include "win32.h"
 
 #if defined(NATMEM_OFFSET)
@@ -86,7 +87,7 @@ static uae_u32 lowmem (void)
 			currprefs.z3fastmem_size /= 2;
 			changed_prefs.z3fastmem_size = currprefs.z3fastmem_size;
 		}
-	} else if (currprefs.rtgmem_type && currprefs.rtgmem_size >= 1 * 1024 * 1024) {
+	} else if (currprefs.rtgmem_type == GFXBOARD_UAE_Z3 && currprefs.rtgmem_size >= 1 * 1024 * 1024) {
 		change = currprefs.rtgmem_size - currprefs.rtgmem_size / 2;
 		currprefs.rtgmem_size /= 2;
 		changed_prefs.rtgmem_size = currprefs.rtgmem_size;
@@ -447,7 +448,7 @@ static int doinit_shm (void)
 		rtgextra = 0;
 		z3chipbarrier = 0;
 		rtgbarrier = si.dwPageSize;
-		z3rtgmem_size = changed_prefs.rtgmem_type ? changed_prefs.rtgmem_size : 0;
+		z3rtgmem_size = gfxboard_is_z3 (changed_prefs.rtgmem_type) ? changed_prefs.rtgmem_size : 0;
 		if (changed_prefs.cpu_model >= 68020)
 			size = 0x10000000;
 		if (changed_prefs.z3fastmem_size || changed_prefs.z3fastmem2_size || changed_prefs.z3chipmem_size) {
@@ -494,9 +495,9 @@ static int doinit_shm (void)
 
 	p96mem_offset = NULL;
 	p96mem_size = z3rtgmem_size;
-	if (changed_prefs.rtgmem_size && changed_prefs.rtgmem_type) {
+	if (changed_prefs.rtgmem_size && gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
 		p96mem_offset = natmem_offset + natmemsize + rtgbarrier + z3chipbarrier;
-	} else if (changed_prefs.rtgmem_size && !changed_prefs.rtgmem_type) {
+	} else if (changed_prefs.rtgmem_size && !gfxboard_is_z3 (changed_prefs.rtgmem_type)) {
 		p96mem_offset = natmem_offset + getz2rtgaddr ();
 	}
 
@@ -734,7 +735,7 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		} else if(!_tcscmp (shmids[shmid].name, _T("fast"))) {
 			shmaddr=natmem_offset + 0x200000;
 			got = TRUE;
-			if (!(currprefs.rtgmem_size && !currprefs.rtgmem_type))
+			if (!(currprefs.rtgmem_size && gfxboard_is_z3 (currprefs.rtgmem_type)))
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z2_gfx"))) {
 			ULONG start = getz2rtgaddr ();

@@ -47,6 +47,9 @@
     <Filter Include="slirp">
       <UniqueIdentifier>{7abef0b5-1d8e-4f43-baa6-ff61760bc330}</UniqueIdentifier>
     </Filter>
+    <Filter Include="qemu">
+      <UniqueIdentifier>{fc42f311-daf2-48de-a851-8ad3a4aad22e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ahidsound_dsonly.cpp">
@@ -549,6 +552,81 @@
     </ClCompile>
     <ClCompile Include="..\..\archivers\chd\chdcdrom.cpp">
       <Filter>unpackers\chd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scsitape.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ethernet.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\bootp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\cksum.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\if.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_icmp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_input.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\ip_output.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\mbuf.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\misc.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\sbuf.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\slirp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\slirpdebug.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\socket.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_input.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_output.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_subr.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tcp_timer.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\tftp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\slirp\udp.cpp">
+      <Filter>slirp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\qemuvga\vga.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gfxboard.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\luascript.cpp">
+      <Filter>common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

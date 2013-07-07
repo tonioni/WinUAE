@@ -499,7 +499,7 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 							changed_prefs.floppyslots[i].df[0] = 0;
 					}
 					_tcscpy (changed_prefs.floppyslots[swapperdrive].df, currprefs.dfxlist[num]);
-					config_changed = 1;
+					set_config_changed ();
 				}
 				special = true;
 			}
