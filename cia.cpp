@@ -1474,7 +1474,7 @@ addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
 	default_xlate, default_check, NULL, _T("CIA"),
-	cia_lgeti, cia_wgeti, ABFLAG_IO
+	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f00
 };
 
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected

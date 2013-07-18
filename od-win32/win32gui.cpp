@@ -142,7 +142,7 @@ static int gui_size_changed;
 static int filterstackpos = 2 * MAX_FILTERSHADERS;
 
 static const int defaultaspectratios[] = {
-		4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
+		5, 4, 4, 3, 16, 10, 15, 9, 27, 16, 128, 75, 16, 9, 256, 135, 21, 9, 16, 3,
 		-1
 };
 static int getaspectratioindex (int ar)
@@ -7456,6 +7456,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso II  Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso II+  Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo Zorro II"));
+		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo Zorro III"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo SD64 Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo SD64 Zorro III"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Spectrum28/24 Zorro II"));

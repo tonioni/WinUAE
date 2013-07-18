@@ -192,7 +192,7 @@ static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a202
 static const TCHAR *rtgtype[] = {
 	_T("ZorroII"), _T("ZorroIII"),
 	_T("PicassoII"), _T("PicassoII+"),
-	_T("Piccolo"), _T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
+	_T("Piccolo_Z2"), _T("Piccolo_Z3"), _T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
 	_T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),

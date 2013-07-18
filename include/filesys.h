@@ -71,6 +71,7 @@ struct hardfiledata {
 };
 
 #define HFD_FLAGS_REALDRIVE 1
+#define HFD_FLAGS_REALDRIVEPARTITION 2
 
 struct hd_hardfiledata {
     struct hardfiledata hfd;

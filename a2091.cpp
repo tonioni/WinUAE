@@ -249,14 +249,14 @@ static void INT2 (void)
 		uae_int_requested |= 2;
 }
 
-static void dmac_start_dma (void)
+void scsi_dmac_start_dma (void)
 {
 #if A3000_DEBUG > 0 || A2091_DEBUG > 0
 	write_log (_T("DMAC DMA started, ADDR=%08X, LEN=%08X words\n"), dmac_acr, dmac_wtc);
 #endif
 	dmac_dma = 1;
 }
-static void dmac_stop_dma (void)
+void scsi_dmac_stop_dma (void)
 {
 	dmac_dma = 0;
 	dmac_istr &= ~ISTR_E_INT;
@@ -1064,10 +1064,10 @@ static uae_u32 dmac_read_word (uaecptr addr)
 		break;
 	case 0xe0:
 		if (dmac_dma <= 0)
-			dmac_start_dma ();
+			scsi_dmac_start_dma ();
 		break;
 	case 0xe2:
-		dmac_stop_dma ();
+		scsi_dmac_stop_dma ();
 		break;
 	case 0xe4:
 		dmac_cint ();
@@ -1164,10 +1164,10 @@ static void dmac_write_word (uaecptr addr, uae_u32 b)
 		break;
 	case 0xe0:
 		if (dmac_dma <= 0)
-			dmac_start_dma ();
+			scsi_dmac_start_dma ();
 		break;
 	case 0xe2:
-		dmac_stop_dma ();
+		scsi_dmac_stop_dma ();
 		break;
 	case 0xe4:
 		dmac_cint ();
@@ -1364,7 +1364,7 @@ static void mbdmac_write_word (uae_u32 addr, uae_u32 val)
 		break;
 	case 0x12:
 		if (dmac_dma <= 0)
-			dmac_start_dma ();
+			scsi_dmac_start_dma ();
 		break;
 	case 0x16:
 		if (dmac_dma) {
@@ -1380,7 +1380,7 @@ static void mbdmac_write_word (uae_u32 addr, uae_u32 val)
 		/* ISTR */
 		break;
 	case 0x3e:
-		dmac_stop_dma ();
+		scsi_dmac_stop_dma ();
 		break;
 	}
 }
@@ -1445,7 +1445,7 @@ static uae_u32 mbdmac_read_word (uae_u32 addr)
 		break;
 	case 0x12:
 		if (dmac_dma <= 0)
-			dmac_start_dma ();
+			scsi_dmac_start_dma ();
 		v = 0;
 		break;
 	case 0x1a:
@@ -1462,7 +1462,7 @@ static uae_u32 mbdmac_read_word (uae_u32 addr)
 		break;
 	case 0x3e:
 		if (dmac_dma) {
-			dmac_stop_dma ();
+			scsi_dmac_stop_dma ();
 			dmac_istr |= ISTR_FE_FLG;
 		}
 		v = 0;
@@ -1640,7 +1640,7 @@ static void *scsi_thread (void *null)
 	return 0;
 }
 
-static void init_scsi (void)
+void init_scsi (void)
 {
 	if (!scsi_thread_running) {
 		scsi_thread_running = 1;
@@ -1659,6 +1659,7 @@ static void freescsi (struct scsi_data *sd)
 
 int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
 {
+	init_scsi ();
 	freescsi (scsis[ch]);
 	scsis[ch] = NULL;
 	if (!hfd) {
@@ -1674,6 +1675,7 @@ int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info 
 
 int add_scsi_cd (int ch, int unitnum)
 {
+	init_scsi ();
 	device_func_init (0);
 	freescsi (scsis[ch]);
 	scsis[ch] = scsi_alloc_cd (ch, unitnum, false);
@@ -1682,6 +1684,7 @@ int add_scsi_cd (int ch, int unitnum)
 
 int add_scsi_tape (int ch, const TCHAR *tape_directory, bool readonly)
 {
+	init_scsi ();
 	freescsi (scsis[ch]);
 	scsis[ch] = scsi_alloc_tape (ch, tape_directory, readonly);
 	return scsis[ch] ? 1 : 0;
@@ -1775,7 +1778,6 @@ void a3000scsi_free (void)
 
 int a2091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
 {
-	init_scsi ();
 	if (ci->type == UAEDEV_CD)
 		return add_scsi_cd (ch, ci->device_emu_unit);
 	else if (ci->type == UAEDEV_TAPE)

@@ -657,19 +657,19 @@ int notinrom (void)
 static uae_u32 lastaddr (void)
 {
 	if (currprefs.z3fastmem2_size)
-		return z3fastmem2_start + currprefs.z3fastmem2_size;
+		return z3fastmem2_bank.start + currprefs.z3fastmem2_size;
 	if (currprefs.z3fastmem_size)
-		return z3fastmem_start + currprefs.z3fastmem_size;
+		return z3fastmem_bank.start + currprefs.z3fastmem_size;
 	if (currprefs.z3chipmem_size)
-		return z3chipmem_start + currprefs.z3chipmem_size;
+		return z3chipmem_bank.start + currprefs.z3chipmem_size;
 	if (currprefs.mbresmem_high_size)
-		return a3000hmem_start + currprefs.mbresmem_high_size;
+		return a3000hmem_bank.start + currprefs.mbresmem_high_size;
 	if (currprefs.mbresmem_low_size)
-		return a3000lmem_start + currprefs.mbresmem_low_size;
+		return a3000lmem_bank.start + currprefs.mbresmem_low_size;
 	if (currprefs.bogomem_size)
-		return bogomem_start + currprefs.bogomem_size;
+		return bogomem_bank.start + currprefs.bogomem_size;
 	if (currprefs.fastmem_size)
-		return fastmem_start + currprefs.fastmem_size;
+		return fastmem_bank.start + currprefs.fastmem_size;
 	return currprefs.chipmem_size;
 }
 
@@ -689,7 +689,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		prevx = prev;
 		sizex = size;
 		size = currprefs.z3fastmem_size;
-		prev = z3fastmem_start;
+		prev = z3fastmem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -699,7 +699,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		prevx = prev;
 		sizex = size;
 		size = currprefs.z3chipmem_size;
-		prev = z3chipmem_start;
+		prev = z3chipmem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -709,7 +709,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		sizex = size;
 		prevx = prev;
 		size = currprefs.mbresmem_high_size;
-		prev = a3000hmem_start;
+		prev = a3000hmem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -719,7 +719,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		prevx = prev;
 		sizex = size;
 		size = currprefs.mbresmem_low_size;
-		prev = a3000lmem_start;
+		prev = a3000lmem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -729,7 +729,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		sizex = size;
 		prevx = prev;
 		size = currprefs.bogomem_size;
-		prev = bogomem_start;
+		prev = bogomem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -739,7 +739,7 @@ static uaecptr nextaddr2 (uaecptr addr, int *next)
 		sizex = size;
 		prevx = prev;
 		size = currprefs.fastmem_size;
-		prev = fastmem_start;
+		prev = fastmem_bank.start;
 		if (addr == prev + size) {
 			*next = prevx + sizex;
 			return prevx;
@@ -1160,6 +1160,8 @@ static void decode_dma_record (int hpos, int vpos, int toggle, bool logfile)
 				sr = _T("COP ");
 			else if (dr->type == DMARECORD_BLITTER)
 				sr = _T("BLT ");
+			else if (dr->type == DMARECORD_BLITTER_LINE)
+				sr = _T("BLL ");
 			else if (dr->type == DMARECORD_REFRESH)
 				sr = _T("RFS ");
 			else if (dr->type == DMARECORD_AUDIO)
@@ -1726,7 +1728,7 @@ static void illg_init (void)
 		addr = end - 1;
 	}
 	if (currprefs.rtgmem_size)
-		memset (illghdebug + (p96ram_start >> 16), 3, currprefs.rtgmem_size >> 16);
+		memset (illghdebug + (gfxmem_bank.start >> 16), 3, currprefs.rtgmem_size >> 16);
 
 	i = 0;
 	while (custd[i].name) {
@@ -1809,9 +1811,13 @@ static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
 	}
 }
 
-static int debug_mem_off (uaecptr addr)
+static int debug_mem_off (uaecptr *addrp)
 {
-	return munge24 (addr) >> 16;
+	uaecptr addr = *addrp;
+	int offset = munge24 (addr) >> 16;
+	addr &= debug_mem_banks[offset]->mask;
+	*addrp = addr;
+	return offset;
 }
 
 struct smc_item {
@@ -2121,7 +2127,7 @@ static int mmu_hit (uaecptr addr, int size, int rwi, uae_u32 *v);
 
 static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v = 0;
 	if (!mmu_hit (addr, 4, 0, &v))
 		v = debug_mem_banks[off]->lget (addr);
@@ -2129,7 +2135,7 @@ static uae_u32 REGPARAM2 mmu_lget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v = 0;
 	if (!mmu_hit (addr, 2, 0, &v))
 		v = debug_mem_banks[off]->wget (addr);
@@ -2137,7 +2143,7 @@ static uae_u32 REGPARAM2 mmu_wget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v = 0;
 	if (!mmu_hit(addr, 1, 0, &v))
 		v = debug_mem_banks[off]->bget (addr);
@@ -2145,26 +2151,26 @@ static uae_u32 REGPARAM2 mmu_bget (uaecptr addr)
 }
 static void REGPARAM2 mmu_lput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (!mmu_hit (addr, 4, 1, &v))
 		debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 mmu_wput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (!mmu_hit (addr, 2, 1, &v))
 		debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 mmu_bput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (!mmu_hit (addr, 1, 1, &v))
 		debug_mem_banks[off]->bput (addr, v);
 }
 
 static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	uae_u32 off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lget (addr);
 	memwatch_func (addr, 1, 4, &v);
@@ -2172,7 +2178,7 @@ static uae_u32 REGPARAM2 debug_lget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v = 0;
 	if (!mmu_hit (addr, 4, 4, &v))
 		v = debug_mem_banks[off]->lgeti (addr);
@@ -2180,7 +2186,7 @@ static uae_u32 REGPARAM2 mmu_lgeti (uaecptr addr)
 }
 static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v = 0;
 	if (!mmu_hit (addr, 2, 4, &v))
 		v = debug_mem_banks[off]->wgeti (addr);
@@ -2189,7 +2195,7 @@ static uae_u32 REGPARAM2 mmu_wgeti (uaecptr addr)
 
 static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wget (addr);
 	memwatch_func (addr, 1, 2, &v);
@@ -2197,7 +2203,7 @@ static uae_u32 REGPARAM2 debug_wget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->bget (addr);
 	memwatch_func (addr, 1, 1, &v);
@@ -2205,7 +2211,7 @@ static uae_u32 REGPARAM2 debug_bget (uaecptr addr)
 }
 static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->lgeti (addr);
 	memwatch_func (addr, 4, 4, &v);
@@ -2213,7 +2219,7 @@ static uae_u32 REGPARAM2 debug_lgeti (uaecptr addr)
 }
 static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	uae_u32 v;
 	v = debug_mem_banks[off]->wgeti (addr);
 	memwatch_func (addr, 4, 2, &v);
@@ -2221,19 +2227,19 @@ static uae_u32 REGPARAM2 debug_wgeti (uaecptr addr)
 }
 static void REGPARAM2 debug_lput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (memwatch_func (addr, 2, 4, &v))
 		debug_mem_banks[off]->lput (addr, v);
 }
 static void REGPARAM2 debug_wput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (memwatch_func (addr, 2, 2, &v))
 		debug_mem_banks[off]->wput (addr, v);
 }
 static void REGPARAM2 debug_bput (uaecptr addr, uae_u32 v)
 {
-	int off = debug_mem_off (addr);
+	int off = debug_mem_off (&addr);
 	if (memwatch_func (addr, 2, 1, &v))
 		debug_mem_banks[off]->bput (addr, v);
 }
@@ -2251,8 +2257,8 @@ uae_u16 debug_wputpeekdma (uaecptr addr, uae_u32 v)
 	if (!memwatch_enabled)
 		return v;
 	if (!currprefs.z3chipmem_size)
-		addr &= chipmem_mask;
-	memwatch_func (addr & chipmem_mask, 2, 2, &v);
+		addr &= chipmem_bank.mask;
+	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v);
 	return v;
 }
 uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
@@ -2261,7 +2267,7 @@ uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
 	if (!memwatch_enabled)
 		return v;
 	if (!currprefs.z3chipmem_size)
-		addr &= chipmem_mask;
+		addr &= chipmem_bank.mask;
 	memwatch_func (addr, 1, 2, &vv);
 	return vv;
 }
@@ -2309,20 +2315,113 @@ void debug_lgetpeek (uaecptr addr, uae_u32 v)
 struct membank_store
 {
 	addrbank *addr;
-	addrbank store;
+	addrbank newbank;
+	int banknr;
 };
 
 static struct membank_store *membank_stores;
+static int membank_total;
+#define MEMWATCH_STORE_SLOTS 32
+
+static void memwatch_reset (void)
+{
+	for (int i = 0; i < membank_total; i++) {
+		addrbank *ab = debug_mem_banks[i];
+		if (!ab)
+			continue;
+		map_banks_quick (ab, i, 1, 1);
+	}
+	for (int i = 0; membank_stores[i].addr; i++) {
+		struct membank_store *ms = &membank_stores[i];
+		xfree (ms->newbank.name);
+		memset (ms, 0, sizeof (struct membank_store));
+		ms->addr = NULL;
+	}
+	memset (debug_mem_banks, 0, membank_total * sizeof (addrbank*));
+}
+
+static void memwatch_remap (uaecptr addr)
+{
+	int mode = 0;
+	int i;
+	int banknr;
+	struct membank_store *ms;
+	addrbank *bank;
+	addrbank *newbank = NULL;
+
+	addr &= ~65535;
+	banknr = addr >> 16;
+	if (debug_mem_banks[banknr])
+		return;
+	bank = mem_banks[banknr];
+	for (i = 0 ; i < MEMWATCH_STORE_SLOTS; i++) {
+		ms = &membank_stores[i];
+		if (ms->addr == NULL)
+			break;
+		if (ms->addr == bank) {
+			newbank = &ms->newbank;
+			break;
+		}
+	}
+	if (i >= MEMWATCH_STORE_SLOTS)
+		return;
+	if (!newbank) {
+		TCHAR tmp[200];
+		_stprintf (tmp, _T("%s [D]"), bank->name);
+		ms->addr = bank;
+		newbank = &ms->newbank;
+		memcpy (newbank, bank, sizeof addrbank);
+		newbank->bget = mode ? mmu_bget : debug_bget;
+		newbank->wget = mode ? mmu_wget : debug_wget;
+		newbank->lget = mode ? mmu_lget : debug_lget;
+		newbank->bput = mode ? mmu_bput : debug_bput;
+		newbank->wput = mode ? mmu_wput : debug_wput;
+		newbank->lput = mode ? mmu_lput : debug_lput;
+		newbank->check = debug_check;
+		newbank->xlateaddr = debug_xlate;
+		newbank->wgeti = mode ? mmu_wgeti : debug_wgeti;
+		newbank->lgeti = mode ? mmu_lgeti : debug_lgeti;
+		newbank->name = my_strdup (tmp);
+		if (!newbank->mask)
+			newbank->mask = -1;
+	}
+	debug_mem_banks[banknr] = bank;
+	map_banks_quick (newbank, banknr, 1, 1);
+	// map aliases
+	for (i = 0; i < membank_total; i++) {
+		uaecptr addr2 = i << 16;
+		addrbank *ab = &get_mem_bank(addr2);
+		if (ab != ms->addr)
+			continue;
+		if ((addr2 & ab->mask) == (addr & bank->mask)) {
+			debug_mem_banks[i] = ms->addr;
+			map_banks_quick (newbank, i, 1, 1);
+		}
+	}
+}
+
+static void memwatch_setup (void)
+{
+	memwatch_reset ();
+	for (int i = 0; i < MEMWATCH_TOTAL; i++) {
+		struct memwatch_node *m = &mwnodes[i];
+		uae_u32 size = 0;
+		if (!m->size)
+			continue;
+		while (size < m->size) {
+			memwatch_remap (m->addr + size);
+			size += 65536;
+		}
+	}
+}
 
 static int deinitialize_memwatch (void)
 {
-	int i, oldmode;
+	int oldmode;
 
 	if (!memwatch_enabled && !mmu_enabled)
 		return -1;
-	for (i = 0; membank_stores[i].addr; i++) {
-		memcpy (membank_stores[i].addr, &membank_stores[i].store, sizeof (addrbank));
-	}
+	memwatch_reset ();
 	oldmode = mmu_enabled ? 1 : 0;
 	xfree (debug_mem_banks);
 	debug_mem_banks = NULL;
@@ -2339,14 +2438,14 @@ static int deinitialize_memwatch (void)
 
 static void initialize_memwatch (int mode)
 {
+	membank_total = currprefs.address_space_24 ? 256 : 65536;
+	deinitialize_memwatch ();
+	debug_mem_banks = xcalloc (addrbank*, membank_total);
+	debug_mem_area = xcalloc (addrbank, membank_total);
+	membank_stores = xcalloc (struct membank_store, MEMWATCH_STORE_SLOTS);
+#if 0
 	int i, j, as;
 	addrbank *a1, *a2, *oa;
-
-	deinitialize_memwatch ();
-	as = currprefs.address_space_24 ? 256 : 65536;
-	debug_mem_banks = xmalloc (addrbank*, as);
-	debug_mem_area = xmalloc (addrbank, as);
-	membank_stores = xcalloc (struct membank_store, 32);
 	oa = NULL;
 	for (i = 0; i < as; i++) {
 		a1 = debug_mem_banks[i] = debug_mem_area + i;
@@ -2376,6 +2475,7 @@ static void initialize_memwatch (int mode)
 		a2->wgeti = mode ? mmu_wgeti : debug_wgeti;
 		a2->lgeti = mode ? mmu_lgeti : debug_lgeti;
 	}
+#endif
 	if (mode)
 		mmu_enabled = 1;
 	else
@@ -2510,6 +2610,7 @@ static void memwatch (TCHAR **c)
 	ignore_ws (c);
 	if (!more_params (c)) {
 		console_out_f (_T("Memwatch %d removed\n"), num);
+		memwatch_setup ();
 		return;
 	}
 	mwn->addr = readhex (c);
@@ -2557,6 +2658,7 @@ static void memwatch (TCHAR **c)
 	}
 	if (mwn->frozen && mwn->rwi == 0)
 		mwn->rwi = 3;
+	memwatch_setup ();
 	memwatch_dump (num);
 }
 

@@ -1,6 +1,5 @@
 
 extern addrbank gfxboard_bank_memory;
-extern addrbank gfxboard_bank_memory_blit;
 extern addrbank gfxboard_bank_registers;
 
 extern void gfxboard_init_memory (void);
@@ -12,6 +11,7 @@ extern bool gfxboard_is_z3 (int);
 extern bool gfxboard_is_registers (int);
 extern int gfxboard_get_vram_min (int);
 extern int gfxboard_get_vram_max (int);
+extern bool gfxboard_need_byteswap (int type);
 extern double gfxboard_get_vsync (void);
 extern void gfxboard_refresh (void);
 

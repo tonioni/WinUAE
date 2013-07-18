@@ -1261,7 +1261,7 @@ void savestate_rewind (void)
 		p = restore_p96 (p);
 #endif
 	len = restore_u32_func (&p);
-	memcpy (chipmemory, p, currprefs.chipmem_size > len ? len : currprefs.chipmem_size);
+	memcpy (chipmem_bank.baseaddr, p, currprefs.chipmem_size > len ? len : currprefs.chipmem_size);
 	p += len;
 	len = restore_u32_func (&p);
 	memcpy (save_bram (&dummy), p, currprefs.bogomem_size > len ? len : currprefs.bogomem_size);

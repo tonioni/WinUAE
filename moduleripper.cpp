@@ -49,19 +49,19 @@ void moduleripper (void)
 	buf = p = xmalloc (uae_u8, size);
 	if (!buf)
 		return;
-	memcpy (p, chipmemory, currprefs.chipmem_size);
+	memcpy (p, chipmem_bank.baseaddr, currprefs.chipmem_size);
 	p += currprefs.chipmem_size;
-	mc (p, fastmem_start, currprefs.fastmem_size);
+	mc (p, fastmem_bank.start, currprefs.fastmem_size);
 	p += currprefs.fastmem_size;
-	mc (p, bogomem_start, currprefs.bogomem_size);
+	mc (p, bogomem_bank.start, currprefs.bogomem_size);
 	p += currprefs.bogomem_size;
-	mc (p, a3000lmem_start, currprefs.mbresmem_low_size);
+	mc (p, a3000lmem_bank.start, currprefs.mbresmem_low_size);
 	p += currprefs.mbresmem_low_size;
-	mc (p, a3000hmem_start, currprefs.mbresmem_high_size);
+	mc (p, a3000hmem_bank.start, currprefs.mbresmem_high_size);
 	p += currprefs.mbresmem_high_size;
-	mc (p, z3fastmem_start, currprefs.z3fastmem_size);
+	mc (p, z3fastmem_bank.start, currprefs.z3fastmem_size);
 	p += currprefs.z3fastmem_size;
-	mc (p, z3fastmem_start + currprefs.z3fastmem_size, currprefs.z3fastmem2_size);
+	mc (p, z3fastmem_bank.start + currprefs.z3fastmem_size, currprefs.z3fastmem2_size);
 	p += currprefs.z3fastmem2_size;
 
 	got = 0;

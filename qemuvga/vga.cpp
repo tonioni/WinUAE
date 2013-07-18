@@ -1679,6 +1679,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     disp_width = width;
 
     shift_control = (s->gr[VGA_GFX_MODE] >> 5) & 3;
+
+	// cirrus hack TW
+	if (s->sr[7] & 1)
+		shift_control = 2;
+
     double_scan = (s->cr[VGA_CRTC_MAX_SCAN] >> 7);
     if (shift_control != 1) {
         multi_scan = (((s->cr[VGA_CRTC_MAX_SCAN] & 0x1f) + 1) << double_scan)

@@ -81,7 +81,7 @@ static struct decode_option decode_set;
 
 #if 0
 static node     pos, matchpos, avail, *position, *parent, *prev;
-static int      remainder, matchlen;
+static int      remainderlh, matchlen;
 static unsigned char *level, *childcount;
 static unsigned long dicsiz;  /* t.okamoto */
 static unsigned short max_hash_val;
@@ -108,7 +108,7 @@ static unsigned int hval;
 static int matchlen;
 static unsigned int matchpos;
 static unsigned int pos;
-static unsigned int remainder;
+static unsigned int remainderlh;
 
 #if 0
 /* ------------------------------------------------------------------------ */
@@ -189,7 +189,7 @@ static void update()
 	n = fread_crc(&text[(unsigned)(txtsiz - dicsiz)],
 				   (unsigned)dicsiz, infile);
 
-	remainder += n;
+	remainderlh += n;
 	encoded_origsize += n;
 
 	pos -= dicsiz;
@@ -280,7 +280,7 @@ static void match_insert()
 
 static void get_next()
 {
-	remainder--;
+	remainderlh--;
 	if (++pos >= txtsiz - maxmatch) {
 		update();
 #ifdef DEBUG
@@ -316,22 +316,22 @@ struct interfacing *lhinterface;
 	encode_set.encode_start();
 	memset(&text[0], ' ', (long)TXTSIZ);
 
-	remainder = fread_crc(&text[dicsiz], txtsiz-dicsiz, infile);
-	encoded_origsize = remainder;
+	remainderlh = fread_crc(&text[dicsiz], txtsiz-dicsiz, infile);
+	encoded_origsize = remainderlh;
 	matchlen = THRESHOLD - 1;
 
 	pos = dicsiz;
 
-	if (matchlen > remainder) matchlen = remainder;
+	if (matchlen > remainderlh) matchlen = remainderlh;
 	hval = ((((text[dicsiz] << 5) ^ text[dicsiz + 1]) << 5)
 		^ text[dicsiz + 2]) & (unsigned)(HSHSIZ - 1);
 
 	insert();
-	while (remainder > 0 && ! unpackable) {
+	while (remainderlh > 0 && ! unpackable) {
 		lastmatchlen = matchlen;  lastmatchoffset = pos - matchpos - 1;
 		--matchlen;
 		get_next();  match_insert();
-		if (matchlen > remainder) matchlen = remainder;
+		if (matchlen > remainderlh) matchlen = remainderlh;
 		if (matchlen > lastmatchlen || lastmatchlen < THRESHOLD) {
 			encode_set.output(text[pos - 1], 0);
 #ifdef DEBUG
@@ -365,7 +365,7 @@ struct interfacing *lhinterface;
 			get_next();
 			matchlen = THRESHOLD - 1;
 			match_insert();
-			if (matchlen > remainder) matchlen = remainder;
+			if (matchlen > remainderlh) matchlen = remainderlh;
 		}
 	}
 	encode_set.encode_end();

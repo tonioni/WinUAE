@@ -28,7 +28,7 @@
  */
 #if 0
 #include "hw/hw.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci.h"6
 #include "ui/console.h"
 #include "vga_int.h"
 #include "hw/loader.h"
@@ -44,7 +44,9 @@
  */
 
 //#define DEBUG_CIRRUS
+//#define DEBUG_VGA_REG
 //#define DEBUG_BITBLT
+#define TARGET_FMT_plx "%x"
 
 /***************************************
  *
@@ -976,8 +978,10 @@ static void cirrus_write_bitblt(CirrusVGAState * s, unsigned reg_value)
     if (((old_value & CIRRUS_BLT_RESET) != 0) &&
 	((reg_value & CIRRUS_BLT_RESET) == 0)) {
 	cirrus_bitblt_reset(s);
-    } else if (((old_value & CIRRUS_BLT_START) == 0) &&
-	       ((reg_value & CIRRUS_BLT_START) != 0)) {
+    }
+	// Blitter will start if old = CIRRUS_BLT_RESET and new = CIRRUS_BLT_START. TW.
+	if (((old_value & CIRRUS_BLT_START) == 0) &&
+	    ((reg_value & (CIRRUS_BLT_START | CIRRUS_BLT_RESET)) == CIRRUS_BLT_START)) {
 	cirrus_bitblt_start(s);
     }
 }
@@ -1087,7 +1091,7 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
     int width, height;
 
     width = (s->cr[0x01] + 1) * 8;
-	/* TW: if 16 bit mdoe but SR7 bit 7 == 0: 2x width and palette mode */
+	/* TW: if 16 bit mode but SR7 bit 7 == 0: 2x width and palette mode */
 	if ((cs->cirrus_hidden_dac_data & 0x80) == 0) {
 		switch (s->sr[0x07] & CIRRUS_SR7_BPP_MASK) {
 		case CIRRUS_SR7_BPP_16_DOUBLEVCLK:
@@ -1333,7 +1337,7 @@ static void cirrus_write_hidden_dac(CirrusVGAState * s, int reg_value)
     if (s->cirrus_hidden_dac_lockindex == 4) {
 	s->cirrus_hidden_dac_data = reg_value;
 
-	s->vga.gr[5] |= 0x40;
+	//s->vga.gr[5] |= 0x40; /* TW */
 
 
 #if defined(DEBUG_CIRRUS)
@@ -1368,9 +1372,11 @@ static int cirrus_vga_read_palette(CirrusVGAState * s)
 
 static void cirrus_vga_write_palette(CirrusVGAState * s, int reg_value)
 {
-//	if (s->vga.dac_write_index < 8)
-//		write_log ("PAL: %d %d: %02X\n", s->vga.dac_write_index, s->vga.dac_sub_index, reg_value);
-    s->vga.dac_cache[s->vga.dac_sub_index] = reg_value;
+#ifdef DEBUG_CIRRUS
+	if (s->vga.dac_write_index < 16)
+		write_log ("PAL: %d %d: %02X\n", s->vga.dac_write_index, s->vga.dac_sub_index, reg_value);
+#endif
+	s->vga.dac_cache[s->vga.dac_sub_index] = reg_value;
     if (++s->vga.dac_sub_index == 3) {
         if ((s->vga.sr[0x12] & CIRRUS_CURSOR_HIDDENPEL)) {
             memcpy(&s->cirrus_hidden_palette[(s->vga.dac_write_index & 0x0f) * 3],
@@ -1422,8 +1428,9 @@ static int cirrus_vga_read_gr(CirrusVGAState * s, unsigned reg_index)
 static void
 cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 {
-#if defined(DEBUG_BITBLT) && 0
-    write_log("gr%02x: %02x\n", reg_index, reg_value);
+#if defined(DEBUG_CIRRUS)
+	if (reg_index > 1 && reg_index < 0x10)
+	    write_log("gr%02x: %02x\n", reg_index, reg_value);
 #endif
     switch (reg_index) {
     case 0x00:			// Standard VGA, BGCOLOR 0x000000ff

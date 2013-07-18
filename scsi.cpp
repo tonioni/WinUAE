@@ -89,7 +89,7 @@ void scsi_clear_sense(struct scsi_data *sd)
 }
 static void showsense(struct scsi_data *sd)
 {
-#if 1
+#if 0
 	write_log (_T("REQUEST SENSE %d, "), sd->data_len);
 	for (int i = 0; i < sd->data_len; i++) {
 		if (i > 0)

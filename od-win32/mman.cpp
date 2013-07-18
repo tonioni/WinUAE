@@ -627,6 +627,8 @@ void mapped_free (uae_u8 *mem)
 {
 	shmpiece *x = shm_start;
 
+	if (mem == NULL)
+		return;
 	if (mem == filesysory) {
 		while(x) {
 			if (mem == x->native_address) {
@@ -742,35 +744,35 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 			got = TRUE;
 			p96special = TRUE;
 			shmaddr = natmem_offset + start;
-			p96ram_start = start;
+			gfxmem_bank.start = start;
 			if (start + currprefs.rtgmem_size < 10 * 1024 * 1024)
 				size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_low"))) {
-			shmaddr=natmem_offset + a3000lmem_start;
-			if (!a3000hmem_start)
+			shmaddr=natmem_offset + a3000lmem_bank.start;
+			if (!a3000hmem_bank.start)
 				size += BARRIER;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("ramsey_high"))) {
-			shmaddr=natmem_offset + a3000hmem_start;
+			shmaddr=natmem_offset + a3000hmem_bank.start;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3"))) {
-			shmaddr=natmem_offset + z3fastmem_start;
+			shmaddr=natmem_offset + z3fastmem_bank.start;
 			if (!currprefs.z3fastmem2_size)
 				size += BARRIER;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_2"))) {
-			shmaddr=natmem_offset + z3fastmem_start + currprefs.z3fastmem_size;
+			shmaddr=natmem_offset + z3fastmem_bank.start + currprefs.z3fastmem_size;
 			size += BARRIER;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_chip"))) {
-			shmaddr=natmem_offset + z3chipmem_start;
+			shmaddr=natmem_offset + z3chipmem_bank.start;
 			size += BARRIER;
 			got = TRUE;
 		} else if(!_tcscmp (shmids[shmid].name, _T("z3_gfx"))) {
 			got = TRUE;
 			p96special = TRUE;
-			p96ram_start = p96mem_offset - natmem_offset;
-			shmaddr = natmem_offset + p96ram_start;
+			gfxmem_bank.start = p96mem_offset - natmem_offset;
+			shmaddr = natmem_offset + gfxmem_bank.start;
 			size += BARRIER;
 		} else if(!_tcscmp (shmids[shmid].name, _T("bogo"))) {
 			shmaddr=natmem_offset+0x00C00000;

@@ -55,6 +55,7 @@ struct uae_driveinfo {
 	int removablemedia;
 	int nomedia;
 	int dangerous;
+	bool partitiondrive;
 	int readonly;
 	int cylinders, sectors, heads;
 };
@@ -469,6 +470,8 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			hfd->offset = udi->offset;
 			hfd->physsize = hfd->virtsize = udi->size;
 			hfd->ci.blocksize = udi->bytespersector;
+			if (udi->partitiondrive)
+				hfd->flags |= HFD_FLAGS_REALDRIVEPARTITION;
 			if (hfd->offset == 0 && !hfd->drive_empty) {
 				int sf = safetycheck (hfd->handle->h, udi->device_path, 0, hfd->cache, hfd->ci.blocksize);
 				if (sf > 0)
@@ -924,7 +927,7 @@ static int hdf_write_2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, 
 	if (hfd->handle_valid == HDF_HANDLE_WIN32) {
 		TCHAR *name = hfd->emptyname == NULL ? _T("<unknown>") : hfd->emptyname;
 		if (offset == 0) {
-			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE)) {
+			if (!hfd->handle->firstwrite && (hfd->flags & HFD_FLAGS_REALDRIVE) && !(hfd->flags & HFD_FLAGS_REALDRIVEPARTITION)) {
 				hfd->handle->firstwrite = true;
 				if (ismounted (hfd->device_name, hfd->handle->h)) {
 					gui_message (_T("\"%s\"\n\nBlock zero write attempt but drive has one or more mounted PC partitions or WinUAE does not have Administrator privileges. Erase the drive or unmount all PC partitions first."), name);
@@ -1307,6 +1310,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 			write_log (_T("used\n"));
 			_stprintf (udi->device_name, _T(":P#%d_%s"), pi->PartitionNumber, orgname);
 			udi->dangerous = -5;
+			udi->partitiondrive = true;
 			udi++;
 			(*index2)++;
 			safepart = 1;

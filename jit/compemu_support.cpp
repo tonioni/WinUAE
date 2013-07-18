@@ -4891,11 +4891,10 @@ static void align_target(uae_u32 a)
 		*target++=0x90;
 }
 
-extern uae_u8* kickmemory;
 STATIC_INLINE int isinrom(uae_u32 addr)
 {
-	return (addr>=(uae_u32)kickmemory &&
-		addr<(uae_u32)kickmemory+8*65536);
+	return (addr>=(uae_u32)kickmem_bank.baseaddr &&
+		addr<(uae_u32)kickmem_bank.baseaddr+8*65536);
 }
 
 static void flush_all(void)

@@ -3809,16 +3809,9 @@ STATIC_INLINE int do_specialties (int cycles)
 
 	while (regs.spcflags & SPCFLAG_STOP) {
 
-		if (uae_int_requested) {
+		if (uae_int_requested || uaenet_int_requested) {
 			INTREQ_f (0x8008);
 			set_special (SPCFLAG_INT);
-		}
-		{
-			extern int volatile uaenet_int_requested;
-			if (uaenet_int_requested) {
-				INTREQ_f (0x8000 | 0x2000);
-				set_special (SPCFLAG_INT);
-			}
 		}
 		{
 			extern void bsdsock_fake_int_handler (void);
@@ -3862,7 +3855,7 @@ STATIC_INLINE int do_specialties (int cycles)
 			return 1;
 		}
 
-		if (!uae_int_requested && currprefs.cpu_idle && currprefs.m68k_speed != 0 && (regs.spcflags & SPCFLAG_STOP)) {
+		if (!uae_int_requested && !uaenet_int_requested && currprefs.cpu_idle && currprefs.m68k_speed != 0 && (regs.spcflags & SPCFLAG_STOP)) {
 			/* sleep 1ms if STOP-instruction is executed
 			 * but only if we have free frametime left to prevent slowdown
 			 */
@@ -4212,7 +4205,7 @@ void exec_nostats (void)
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		do_cycles (cpu_cycles);
 
-		if (end_block (opcode) || r->spcflags || uae_int_requested)
+		if (end_block (opcode) || r->spcflags || uae_int_requested || uaenet_int_requested)
 			return; /* We will deal with the spcflags in the caller */
 	}
 }
@@ -4253,7 +4246,7 @@ void execute_normal (void)
 		total_cycles += cpu_cycles;
 		pc_hist[blocklen].specmem = special_mem;
 		blocklen++;
-		if (end_block (opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested) {
+		if (end_block (opcode) || blocklen >= MAXRUN || r->spcflags || uae_int_requested || uaenet_int_requested) {
 			compile_block (pc_hist, blocklen, total_cycles);
 			return; /* We will deal with the spcflags in the caller */
 		}
@@ -4269,7 +4262,7 @@ static void m68k_run_jit (void)
 	for (;;) {
 		((compiled_handler*)(pushall_call_handler))();
 		/* Whenever we return from that, we should check spcflags */
-		if (uae_int_requested) {
+		if (uae_int_requested || uaenet_int_requested) {
 			INTREQ_f (0x8008);
 			set_special (SPCFLAG_INT);
 		}

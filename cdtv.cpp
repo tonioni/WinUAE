@@ -1049,6 +1049,16 @@ static void dmac_start_dma (void)
 {
 	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
 		write_comm_pipe_u32 (&requests, 0x0100, 1);
+	} else {
+		scsi_dmac_start_dma ();
+	}
+}
+static void dmac_stop_dma (void)
+{
+	if (!(dmac_cntr & CNTR_PDMD)) { // non-scsi dma
+		;
+	} else {
+		scsi_dmac_stop_dma ();
 	}
 }
 
@@ -1401,7 +1411,10 @@ static void dmac_bput2 (uaecptr addr, uae_u32 b)
 		break;
 	case 0xe2:
 	case 0xe3:
-		dmac_dma = 0;
+		if (dmac_dma) {
+			dmac_dma = 0;
+			dmac_stop_dma ();
+		}
 		dma_finished = 0;
 		break;
 	case 0xe4:
@@ -1679,7 +1692,6 @@ void cdtv_free (void)
 
 
 #ifdef ROMHACK2
-extern uae_u8 *extendedkickmemory, *cardmemory;
 static void romhack (void)
 {
 	struct zfile *z;
@@ -1760,6 +1772,8 @@ void cdtv_init (void)
 	cdtv_battram_reset ();
 	open_unit ();
 	gui_flicker_led (LED_CD, 0, -1);
+	if (currprefs.cs_cdtvscsi)
+		init_scsi ();
 }
 
 void cdtv_check_banks (void)

@@ -6563,14 +6563,14 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	s = au ((char*)pp + 37);
 	pp += 128;
 	dostype = rl (pp + 64);
-	size = ((uae_u64)rl (pp + 4)) * 4 * rl (pp + 12) * rl (pp + 20) * (rl (pp + 40) - rl (pp + 36) + 1);
+	spb = rl (pp + 16);
 	blocksize = rl (pp + 4) * 4;
 	surfaces = rl (pp + 12);
-	spb = rl (pp + 16);
 	spt = rl (pp + 20);
 	reserved = rl (pp + 24);
 	lowcyl = rl (pp + 36);
 	highcyl = rl (pp + 40);
+	size = ((uae_u64)blocksize) * surfaces * spt * (highcyl - lowcyl + 1);
 
 	write_log (_T("Partition '%s' Dostype=%08X (%s) Flags: %08X\n"), s, dostype, dostypes (dostype), flags);
 	write_log (_T("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n"),

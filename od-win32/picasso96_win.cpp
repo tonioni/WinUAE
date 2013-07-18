@@ -102,10 +102,6 @@ int p96hsync_counter, full_refresh;
 #endif
 #define P96TRACE2(x) do { write_log x; } while(0)
 
-static void REGPARAM2 gfxmem_lputx (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM2 gfxmem_wputx (uaecptr, uae_u32) REGPARAM;
-static void REGPARAM2 gfxmem_bputx (uaecptr, uae_u32) REGPARAM;
-
 static uae_u8 all_ones_bitmap, all_zeros_bitmap; /* yuk */
 
 struct picasso96_state_struct picasso96_state;
@@ -555,7 +551,7 @@ static int renderinfo_is_current_screen (struct RenderInfo *ri)
 {
 	if (! picasso_on)
 		return 0;
-	if (ri->Memory != gfxmemory + (picasso96_state.Address - gfxmem_start))
+	if (ri->Memory != gfxmem_bank.baseaddr + (picasso96_state.Address - gfxmem_bank.start))
 		return 0;
 	return 1;
 }
@@ -715,7 +711,7 @@ static bool rtg_render (void)
 		;
 	} else {
 		if (uaegfx) {
-			flushed = picasso_flushpixels (p96ram_start + natmem_offset, picasso96_state.XYOffset - gfxmem_start);
+			flushed = picasso_flushpixels (gfxmem_bank.start + natmem_offset, picasso96_state.XYOffset - gfxmem_bank.start);
 		} else {
 			gfxboard_vsync_handler ();
 		}
@@ -1033,7 +1029,7 @@ void picasso_refresh (void)
 		unsigned int width, height;
 
 		/* blit the stuff from our static frame-buffer to the gfx-card */
-		ri.Memory = gfxmemory + (picasso96_state.Address - gfxmem_start);
+		ri.Memory = gfxmem_bank.baseaddr + (picasso96_state.Address - gfxmem_bank.start);
 		ri.BytesPerRow = picasso96_state.BytesPerRow;
 		ri.RGBFormat = picasso96_state.RGBFormat;
 
@@ -1849,7 +1845,7 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 {
 	uaecptr AmigaBoardInfo = m68k_areg (regs, 0);
 	/* NOTES: See BoardInfo struct definition in Picasso96 dev info */
-	if (!uaegfx_active || !gfxmem_start)
+	if (!uaegfx_active || !gfxmem_bank.start)
 		return 0;
 	if (uaegfx_base) {
 		put_long (uaegfx_base + CARD_BOARDINFO, AmigaBoardInfo);
@@ -1857,10 +1853,10 @@ static uae_u32 REGPARAM2 picasso_FindCard (TrapContext *ctx)
 		picasso96_alloc2 (ctx);
 	}
 	boardinfo = AmigaBoardInfo;
-	if (allocated_gfxmem && !picasso96_state.CardFound) {
+	if (gfxmem_bank.allocated && !picasso96_state.CardFound) {
 		/* Fill in MemoryBase, MemorySize */
-		put_long (AmigaBoardInfo + PSSO_BoardInfo_MemoryBase, gfxmem_start);
-		put_long (AmigaBoardInfo + PSSO_BoardInfo_MemorySize, allocated_gfxmem - reserved_gfxmem);
+		put_long (AmigaBoardInfo + PSSO_BoardInfo_MemoryBase, gfxmem_bank.start);
+		put_long (AmigaBoardInfo + PSSO_BoardInfo_MemorySize, gfxmem_bank.allocated - reserved_gfxmem);
 		picasso96_state.CardFound = 1; /* mark our "card" as being found */
 		return -1;
 	} else
@@ -2039,7 +2035,7 @@ void picasso_getwritewatch (void)
 {
 	ULONG ps;
 	writewatchcount = gwwbufsize;
-	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, p96ram_start + natmem_offset, (gwwbufsize - 1) * gwwpagesize, gwwbuf, &writewatchcount, &ps)) {
+	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, gfxmem_bank.start + natmem_offset, (gwwbufsize - 1) * gwwpagesize, gwwbuf, &writewatchcount, &ps)) {
 		write_log (_T("picasso_getwritewatch %d\n"), GetLastError ());
 		writewatchcount = 0;
 		return;
@@ -2072,11 +2068,11 @@ static void init_alloc (TrapContext *ctx, int size)
 		picasso96_amem = get_long (uaegfx_base + CARD_RESLIST);
 	} else if (uaegfx_active) {
 		reserved_gfxmem = size;
-		picasso96_amem = gfxmem_start + allocated_gfxmem - size;
+		picasso96_amem = gfxmem_bank.start + gfxmem_bank.allocated - size;
 	}
 	picasso96_amemend = picasso96_amem + size;
 	write_log (_T("P96 RESINFO: %08X-%08X (%d,%d)\n"), picasso96_amem, picasso96_amemend, size / PSSO_ModeInfo_sizeof, size);
-	picasso_allocatewritewatch (allocated_gfxmem);
+	picasso_allocatewritewatch (gfxmem_bank.allocated);
 }
 
 static int p96depth (int depth)
@@ -2124,7 +2120,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 	xfree (newmodes);
 	newmodes = NULL;
 	picasso96_amem = picasso96_amemend = 0;
-	if (allocated_gfxmem == 0)
+	if (gfxmem_bank.allocated == 0)
 		return;
 	misscnt = 0;
 	newmodes = xmalloc (struct PicassoResolution, MAX_PICASSO_MODES);
@@ -2356,7 +2352,7 @@ static void addmode (uaecptr AmigaBoardInfo, uaecptr *amem, struct LibResolution
 	for (depth = 8; depth <= 32; depth++) {
 		if (!p96depth (depth))
 			continue;
-		if(allocated_gfxmem >= w * h * (depth + 7) / 8) {
+		if(gfxmem_bank.allocated >= w * h * (depth + 7) / 8) {
 			FillBoardInfo (*amem, res, w, h, depth);
 			*amem += PSSO_ModeInfo_sizeof;
 		}
@@ -2573,7 +2569,7 @@ static void init_picasso_screen (void)
 		picasso_refresh ();
 	}
 	init_picasso_screen_called = 1;
-	mman_ResetWatch (p96ram_start + natmem_offset, allocated_gfxmem);
+	mman_ResetWatch (gfxmem_bank.start + natmem_offset, gfxmem_bank.allocated);
 
 }
 
@@ -4026,8 +4022,8 @@ static void copyall (uae_u8 *src, uae_u8 *dst, int pwidth, int pheight, int srcb
 
 uae_u8 *getrtgbuffer (int *widthp, int *heightp, int *pitch, int *depth, uae_u8 *palette)
 {
-	uae_u8 *src = p96ram_start + natmem_offset;
-	int off = picasso96_state.XYOffset - gfxmem_start;
+	uae_u8 *src = gfxmem_bank.start + natmem_offset;
+	int off = picasso96_state.XYOffset - gfxmem_bank.start;
 	int width, height, pixbytes;
 	uae_u8 *dst;
 	int convert;
@@ -4244,74 +4240,11 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 	return lock != 0; 
 }
 
-static uae_u32 REGPARAM2 gfxmem_lgetx (uaecptr addr)
-{
-	uae_u32 *m;
-
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	m = (uae_u32 *)(gfxmemory + addr);
-	return do_get_mem_long (m);
-}
-
-static uae_u32 REGPARAM2 gfxmem_wgetx (uaecptr addr)
-{
-	uae_u16 *m;
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	m = (uae_u16 *)(gfxmemory + addr);
-	return do_get_mem_word (m);
-}
-
-static uae_u32 REGPARAM2 gfxmem_bgetx (uaecptr addr)
-{
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	return gfxmemory[addr];
-}
-
-static void REGPARAM2 gfxmem_lputx (uaecptr addr, uae_u32 l)
-{
-	uae_u32 *m;
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	m = (uae_u32 *)(gfxmemory + addr);
-	do_put_mem_long (m, l);
-}
-
-static void REGPARAM2 gfxmem_wputx (uaecptr addr, uae_u32 w)
-{
-	uae_u16 *m;
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	m = (uae_u16 *)(gfxmemory + addr);
-	do_put_mem_word (m, (uae_u16)w);
-}
-
-static void REGPARAM2 gfxmem_bputx (uaecptr addr, uae_u32 b)
-{
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	gfxmemory[addr] = b;
-}
-
-static int REGPARAM2 gfxmem_check (uaecptr addr, uae_u32 size)
-{
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	return (addr + size) < allocated_gfxmem;
-}
-
-static uae_u8 *REGPARAM2 gfxmem_xlate (uaecptr addr)
-{
-	addr -= gfxmem_start & gfxmem_mask;
-	addr &= gfxmem_mask;
-	return gfxmemory + addr;
-}
+MEMORY_FUNCTIONS(gfxmem);
 
 addrbank gfxmem_bank = {
-	gfxmem_lgetx, gfxmem_wgetx, gfxmem_bgetx,
-	gfxmem_lputx, gfxmem_wputx, gfxmem_bputx,
+	gfxmem_lget, gfxmem_wget, gfxmem_bget,
+	gfxmem_lput, gfxmem_wput, gfxmem_bput,
 	gfxmem_xlate, gfxmem_check, NULL, _T("RTG RAM"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_RAM
 };
@@ -4643,7 +4576,7 @@ static uaecptr uaegfx_card_install (TrapContext *ctx, uae_u32 extrasize)
 	uaecptr findcardfunc, initcardfunc;
 	uaecptr exec = get_long (4);
 
-	if (uaegfx_old || !gfxmem_start)
+	if (uaegfx_old || !gfxmem_bank.start)
 		return NULL;
 
 	uaegfx_resid = ds (_T("UAE Graphics Card 3.3"));
@@ -4745,7 +4678,7 @@ uae_u32 picasso_demux (uae_u32 arg, TrapContext *ctx)
      case 31: return picasso_InvertRect (ctx);
      case 32: return picasso_BlitPlanar2Direct (ctx);
      //case 34: return picasso_WaitVerticalSync (ctx);
-     case 35: return allocated_gfxmem ? 1 : 0;
+     case 35: return gfxmem_bank.allocated ? 1 : 0;
 	 case 36: return picasso_SetSprite (ctx);
 	 case 37: return picasso_SetSpritePosition (ctx);
 	 case 38: return picasso_SetSpriteImage (ctx);

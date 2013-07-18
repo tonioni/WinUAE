@@ -1,6 +1,99 @@
 
 - restore only single input target to default.
 
+Beta 1:
+
+- Hardware Cirrus Logic based SVGA Zorro II/III RTG board emulation.
+- SLIRP user mode NAT emulation.
+- Added SCSI tape emulation. Amix tape based install works, also tested with
+  Quarterback and Diavolo.
+- lua scripting support added from fs-uae. Very minimal at the moment.
+- SCSI HD/CD/TAPE statefile compatibility improved.
+- SCSI emulation compatibility improved, Amix use of WD Select and Transfer
+  used wrong data size when direction was from WD to device and command was not
+  write command, for example MODE SELECT.
+- Show custom chip mode as interlace/not interlaced decision now more closely matches
+  real hardware behavior. (No, it isn't as simple as BPLCON0 LACE bit set/not set)
+- Show also device type (HDF, CD, TAPE) in Harddrives panel.
+- Joystick axis dead-zone fix, wired xbox 360 d-pad missed events, it didn't affect
+  wireless version. (261b2)
+- Top and/or bottom border showed graphics garbage if AGA sprites outside of bitplane
+  area feature was enabled and in use and screen mode was HAM. (Tint / Black Lotus)
+- Dragging and dropping archive/file to WB tried (unsuccesfully) replace already
+  existing normal directory harddrive if dropped file and directory harddrive had same
+  base path.
+- Renamed CPU cycle exact speed multipliers and added 1x speed (1:1 CPU/DMA clock sync)
+- It was impossible to select RTG aspect ratio select box Automatic value.
+- Display panel depth select box was not updated if new resolution had more or less
+  depth choices than previously selected resolution.
+- Mouse was captured even if "Start mouse uncaptured" was ticked and booting to RTG mode.
+- Amiga side does not anymore see .lnk extension if it is valid Windows shortcut softlink.
+- Enabling JIT for the first time in GUI now always forces JIT Direct mode.
+- If blitter was started one cycle before final D write (Cycle which is always unused by
+  blitter), new blit's 2 cycle startup incorrectly accepted DMA cycles that were not free.
+  (Day of Reckoning / Digital)
+- Bitplane DMA incorrectly stole sprite DMA in some situations (Plastic Passion / Upfront)
+- Sync clock when resuming from sleep/hibernate (if clock sync option is ticked)
+
+SLIRP notes:
+
+- Available for A2065 and uaenet.device (uaenet unit 0 = slirp, 1 = first WinPCap device)
+- Does not need any drivers, uses normal WinSock API.
+- NAT, outbound connections only.
+- TCP and UDP only (no ICMP or other ethernet frame types)
+- DHCP supported.
+- Manual settings: IP 10.0.2.15, Gateway 10.0.2.2, DNS 10.0.2.3, Mask 255.255.255.0.
+
+Hardware graphics board emulation notes:
+
+- Currently emulates following Cirrus Logic GD542X/543X based boards:
+  - Picasso II
+  - Picasso II+
+  - Piccolo
+  - Piccolo SD 64 (Zorro II and III)
+  - Spectrum 28/24 (Zorro II and III)
+  - Picasso IV may be implemented in future.
+- Uses QEMU Cirrus Logic SVGA graphics chip emulation.
+- Picasso 96 and CyberGraphX v4 tested.
+- Works with non-AmigaOS operating systems that don't support UAEGFX RTG board.
+- Vertical blank timing uses GUI configured refresh rate value, display sync settings programmed
+  to VGA chip are completely ignored.
+- Only single VRAM size supported which is hardware supported max VRAM. Smaller VRAM requires
+  emulating of VRAM aliasing and banking stuff that drivers use for VRAM size detection. It would
+  become too Direct mode JIT unfriendly. Future "more compatible but slower" option is possible.
+
+SCSI Tape notes:
+
+- Tape path can point to directory, archive or plain file.
+- Directory: all files in directory are included in virtual tape, ordered in whatever
+  order OS returns the directory (unless index.tape is found), emulated file mark
+  is between each file. Subdirectories are ignored.
+- Archive: All files in archive are included, including subdirectories.
+- Plain single file: tape only contains selected single file.
+- If directory or archive and index.tape is found, it is assumed to contain order of
+  files in virtual tape, plain file name strings separated by line feeds.
+- Writing is also supported if path points to a directory. Creates files named
+  xxxxx.tape where xxxxx is file number.
+- Tape ERASE command only deletes files that have extension .tape to prevent
+  accidental data loss. Subdirectories are also ignored.
+- Can be connected to SCSI hardware emulation (SCSI0-6) or uaescsi.device (UAE),
+  uaescsi.device unit number is always 4 or larger (if 4 was already used by
+  some CD device).
+- Tape change on the fly is supported.
+
+lua scripting:
+
+- very minimal and basic at the moment.
+- lua=<path to script> in config file, multiple files supported.
+- lua/default.lua is loaded by default.
+- supported UAE-specific functions:
+  uae_log, uae_read_u8, uae_read_u16, uae_peek_u16, uae_write_u8, uae_write_u16
+  uae_read_config, uae_write_config.
+- lua functions:
+  on_uae_vsync (every vsync)
+  on_uae_config_changed (any config value has changed)
+
+
 2.6.1
 
 Beta 4:

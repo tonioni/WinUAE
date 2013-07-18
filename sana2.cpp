@@ -335,7 +335,7 @@ static int initint (TrapContext *ctx)
 	put_long (p + 10, ROM_netdev_resid);
 	put_long (p + 18, tmp1);
 	m68k_areg (regs, 1) = p;
-	m68k_dreg (regs, 0) = 13; /* EXTER */
+	m68k_dreg (regs, 0) = 3; /* PORTS */
 	dw (0x4a80); /* TST.L D0 */
 	dw (0x4e75); /* RTS */
 	CallLib (ctx, get_long (4), -168); /* AddIntServer */
@@ -1435,6 +1435,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 								if (handleread (ctx, pdev, request, p->data, p->len, command)) {
 									if (log_net)
 										write_log (_T("-> %p Accepted, CMD_READ, REQ=%08X LEN=%d\n"), p, request, p->len);
+									ar->ready = 1;
 									write_comm_pipe_u32 (&dev->requests, request, 1);
 									dev->packetsreceived++;
 									gotit = 1;
@@ -1460,6 +1461,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 								if (log_net)
 									write_log (_T("-> %p Accepted, S2_READORPHAN, REQ=%08X LEN=%d\n"), p, request, p->len);
 								handleread (ctx, pdev, request, p->data, p->len, command);
+								ar->ready = 1;
 								write_comm_pipe_u32 (&dev->requests, request, 1);
 								dev->packetsreceived++;
 								dev->unknowntypesreceived++;
@@ -1515,6 +1517,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 					dev->online_micro = get_long (pdev->tempbuf + 4);
 					checkevents (dev, S2EVENT_ONLINE, 0);
 					dev->online = 1;
+					ar->ready = 1;
 					write_comm_pipe_u32 (&dev->requests, request, 1);
 					uaenet_vsync_requested--;
 				} else if (command == CMD_FLUSH) {
@@ -1522,6 +1525,7 @@ static uae_u32 REGPARAM2 uaenet_int_handler (TrapContext *ctx)
 					if (dev->ar->next == NULL) {
 						if (log_net)
 							write_log (_T("CMD_FLUSH replied %08x\n"), request);
+						ar->ready = 1;
 						write_comm_pipe_u32 (&dev->requests, request, 1);
 						uaenet_vsync_requested--;
 					} else {

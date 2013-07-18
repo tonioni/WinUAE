@@ -6533,7 +6533,7 @@ static void hsync_handler_post (bool onvsync)
 			cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
 		}
 #endif
-	} else if (currprefs.cs_ciaatod == 0 && onvsync) {
+	} else if (currprefs.cs_ciaatod == 0 && vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
 		CIA_vsync_posthandler (ciavsyncs);
 	}
 
@@ -6702,7 +6702,7 @@ static void hsync_handler_post (bool onvsync)
 		extern int volatile uaenet_int_requested;
 		extern int volatile uaenet_vsync_requested;
 		if (uaenet_int_requested || (uaenet_vsync_requested && vpos == 10)) {
-			INTREQ (0x8000 | 0x2000);
+			INTREQ (0x8000 | 0x0008);
 		}
 	}
 
@@ -7151,7 +7151,7 @@ addrbank custom_bank = {
 	custom_lget, custom_wget, custom_bget,
 	custom_lput, custom_wput, custom_bput,
 	default_xlate, default_check, NULL, _T("Custom chipset"),
-	custom_lgeti, custom_wgeti, ABFLAG_IO
+	custom_lgeti, custom_wgeti, ABFLAG_IO, 0x1ff
 };
 
 static uae_u32 REGPARAM2 custom_wgeti (uaecptr addr)

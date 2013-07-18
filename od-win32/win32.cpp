@@ -2997,6 +2997,8 @@ void target_fixup_options (struct uae_prefs *p)
 		p->rtg_hardwareinterrupt = false;
 		p->rtg_hardwaresprite = false;
 		p->win32_rtgmatchdepth = false;
+		if (gfxboard_need_byteswap (p->rtgmem_type))
+			p->color_mode = 5;
 	}
 }
 

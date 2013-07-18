@@ -221,9 +221,9 @@ static uae_u32 emulib_GetUaeConfig (uaecptr place)
 	int i, j;
 
 	put_long (place, version);
-	put_long (place + 4, allocated_chipmem);
-	put_long (place + 8, allocated_bogomem);
-	put_long (place + 12, allocated_fastmem);
+	put_long (place + 4, chipmem_bank.allocated);
+	put_long (place + 8, bogomem_bank.allocated);
+	put_long (place + 12, fastmem_bank.allocated);
 	put_long (place + 16, currprefs.gfx_framerate);
 	put_long (place + 20, currprefs.produce_sound);
 	put_long (place + 24, currprefs.jports[0].id | (currprefs.jports[1].id << 8));

@@ -2,6 +2,10 @@
 
 extern addrbank dmaca2091_bank;
 
+extern void init_scsi (void);
+extern void scsi_dmac_start_dma (void);
+extern void scsi_dmac_stop_dma (void);
+
 extern void a2091_init (void);
 extern void a2091_free (void);
 extern void a2091_reset (void);

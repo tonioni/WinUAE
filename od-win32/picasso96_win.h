@@ -540,9 +540,6 @@ struct picasso96_state_struct
 
 extern void InitPicasso96 (void);
 
-extern uae_u32 gfxmem_mask;
-extern uae_u8 *gfxmemory;
-
 extern int uaegfx_card_found;
 
 extern struct picasso96_state_struct picasso96_state;

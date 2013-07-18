@@ -389,7 +389,7 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 		write_log (_T("ncr_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
 #endif
 	if (addr == 0x44 && !configured) {
-		uae_u32 value = (p96ram_start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff)) >> 16;
+		uae_u32 value = (gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff)) >> 16;
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);

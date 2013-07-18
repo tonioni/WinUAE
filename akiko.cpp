@@ -1792,7 +1792,7 @@ static void patchrom (void)
 {
     int i;
 	if (currprefs.cpu_model > 68020 || currprefs.cachesize || currprefs.m68k_speed != 0) {
-		uae_u8 *p = (uae_u8*)extendedkickmemory;
+		uae_u8 *p = extendedkickmem_bank.baseaddr;
 		for (i = 0; i < 524288 - sizeof (patchdata); i++) {
 			if (!memcmp (p + i, patchdata, sizeof(patchdata))) {
 				protect_roms (false);

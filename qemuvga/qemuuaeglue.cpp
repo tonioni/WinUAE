@@ -12,13 +12,6 @@ void memory_region_transaction_commit(void)
 void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr, hwaddr size)
 {
 }
-void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
-{
-}
-void memory_region_set_alias_offset(MemoryRegion *mr,
-                                    hwaddr offset)
-{
-}
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
                                  MemoryRegion *subregion)
@@ -35,13 +28,6 @@ void memory_region_del_subregion(MemoryRegion *mr,
 {
 }
 void memory_region_destroy(MemoryRegion *mr)
-{
-}
-void memory_region_init_alias(MemoryRegion *mr,
-                              const char *name,
-                              MemoryRegion *orig,
-                              hwaddr offset,
-                              uint64_t size)
 {
 }
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
