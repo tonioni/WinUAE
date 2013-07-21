@@ -84,16 +84,9 @@ extern vga_retrace_method vga_retrace_method_value;
 
 typedef uint32_t QEMUClock;
 extern QEMUClock *vm_clock;
-static inline int64_t qemu_get_clock_ms(QEMUClock *clock)
-{
-	return 0;
-}
-static inline int64_t get_ticks_per_sec(void)
-{
-    return 1000000000LL;
-}
 int64_t qemu_get_clock_ns(QEMUClock *clock);
-
+int64_t qemu_get_clock_ms(QEMUClock *clock);
+int64_t get_ticks_per_sec(void);
 
 #define isa_mem_base 0
 

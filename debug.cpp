@@ -1814,8 +1814,10 @@ static void illg_debug_do (uaecptr addr, int rwi, int size, uae_u32 val)
 static int debug_mem_off (uaecptr *addrp)
 {
 	uaecptr addr = *addrp;
+	addrbank *ba;
 	int offset = munge24 (addr) >> 16;
-	addr &= debug_mem_banks[offset]->mask;
+	ba = debug_mem_banks[offset];
+	addr = (addr & ba->mask) | ba->startmask;
 	*addrp = addr;
 	return offset;
 }
@@ -2252,19 +2254,32 @@ static uae_u8 *REGPARAM2 debug_xlate (uaecptr addr)
 	return debug_mem_banks[munge24 (addr) >> 16]->xlateaddr (addr);
 }
 
-uae_u16 debug_wputpeekdma (uaecptr addr, uae_u32 v)
+uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v)
 {
 	if (!memwatch_enabled)
+		return v;
+	addr &= 0x1fe;
+	addr += 0xdff000;
+	memwatch_func (addr, 2, 2, &v);
+	return v;
+}
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v)
+{
+	if (!memwatch_enabled)
+		return v;
+	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
 	if (!currprefs.z3chipmem_size)
 		addr &= chipmem_bank.mask;
 	memwatch_func (addr & chipmem_bank.mask, 2, 2, &v);
 	return v;
 }
-uae_u16 debug_wgetpeekdma (uaecptr addr, uae_u32 v)
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v)
 {
 	uae_u32 vv = v;
 	if (!memwatch_enabled)
+		return v;
+	if (debug_mem_banks[addr >> 16] == NULL)
 		return v;
 	if (!currprefs.z3chipmem_size)
 		addr &= chipmem_bank.mask;

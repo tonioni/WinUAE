@@ -6244,6 +6244,7 @@ void filesys_prepare_reset (void)
 static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 {
 	uaecptr resaddr = m68k_areg (regs, 2) + 0x10;
+	uaecptr expansion = m68k_areg (regs, 5);
 	uaecptr start = resaddr;
 	uaecptr residents, tmp;
 
@@ -6313,6 +6314,32 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 
 	m68k_areg (regs, 0) = residents;
 	
+	if (currprefs.uae_hide_autoconfig) {
+		bool found = true;
+		while (found) {
+			uaecptr node = get_long (expansion + 0x3c);
+			found = false;
+			while (get_long (node)) {
+				if (get_word (node + 0x10 + 4) == 2011) {
+					uae_u8 prod = get_byte (node + 0x10 + 1);
+					if (prod != 2) {
+						// remove all 2011 boards except filesystem
+						found = true;
+						uaecptr succ = get_long (node);
+						uaecptr pred = get_long (node + 4);
+						put_long (pred,  succ);
+						put_long (succ + 4, pred);
+						break;
+					}
+					// replace filesystem with A590/A2091 IDs..
+					put_byte (node + 0x10 + 1, 3);
+					put_word (node + 0x10 + 4, 514);
+				}
+				node = get_long (node);
+			}
+		}
+	}
+
 	return 1;
 }
 

@@ -347,6 +347,10 @@ void fixup_prefs (struct uae_prefs *p)
 	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
 		if (p->rtgmem_size < gfxboard_get_vram_min (p->rtgmem_type))
 			p->rtgmem_size = gfxboard_get_vram_min (p->rtgmem_type);
+		if (p->address_space_24 && gfxboard_is_z3 (p->rtgmem_type)) {
+			p->rtgmem_type = GFXBOARD_UAE_Z2;
+			p->rtgmem_size = 0;
+		}
 	}
 	if (p->address_space_24 && p->rtgmem_size && p->rtgmem_type == GFXBOARD_UAE_Z3)
 		p->rtgmem_type = GFXBOARD_UAE_Z2;

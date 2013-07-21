@@ -209,6 +209,7 @@
 #include "savestate.h"
 #include "crc32.h"
 #include "akiko.h"
+#include "picasso96.h"
 
 #define DEBUG
 #ifdef DEBUG
@@ -259,15 +260,15 @@ static int stored_picasso_on = -1;
 static void cartridge_enter (void)
 {
 #ifdef PICASSO96
-	stored_picasso_on = picasso_on;
+	stored_picasso_on = picasso_requested_on;
 	picasso_requested_on = 0;
 #endif
 }
 static void cartridge_exit (void)
 {
 #ifdef PICASSO96
-	if (stored_picasso_on >= 0)
-		picasso_requested_on = stored_picasso_on != 0;
+	if (stored_picasso_on > 0)
+		picasso_requested_on = 1;
 	stored_picasso_on = -1;
 #endif
 }

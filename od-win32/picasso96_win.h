@@ -552,6 +552,7 @@ extern void picasso_handle_hsync (void);
 extern void picasso_handle_vsync (void);
 extern void picasso_trigger_vblank (void);
 extern void picasso_reset (void);
+extern bool picasso_is_active (void);
 extern int picasso_setwincursor (void);
 extern int picasso_palette (void);
 extern bool picasso_flushpixels (uae_u8 *src, int offset);

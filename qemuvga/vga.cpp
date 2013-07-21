@@ -599,6 +599,8 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+#if 0
+
 static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
 {
     VGACommonState *s = (VGACommonState*)opaque;
@@ -801,6 +803,8 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+#endif
+
 /* called for accesses between 0xa0000 and 0xc0000 */
 uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
 {
@@ -809,25 +813,26 @@ uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
 
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[VGA_GFX_MISC] >> 2) & 3;
-    addr &= 0x1ffff;
+	addr &= ((s->vram_size / 4) - 1); // TW
     switch(memory_map_mode) {
     case 0:
         break;
     case 1:
-        if (addr >= 0x10000)
-            return 0xff;
+// FIXME: Correct checks. TW.
+//        if (addr >= 0x10000)
+//            return 0xff;
         addr += s->bank_offset;
         break;
     case 2:
         addr -= 0x10000;
-        if (addr >= 0x8000)
-            return 0xff;
+//        if (addr >= 0x8000)
+//            return 0xff;
         break;
     default:
     case 3:
         addr -= 0x18000;
-        if (addr >= 0x8000)
-            return 0xff;
+//        if (addr >= 0x8000)
+//            return 0xff;
         break;
     }
 
@@ -869,25 +874,25 @@ void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 #endif
     /* convert to VGA memory offset */
     memory_map_mode = (s->gr[VGA_GFX_MISC] >> 2) & 3;
-    addr &= 0x1ffff;
+	addr &= ((s->vram_size / 4) - 1); // TW
     switch(memory_map_mode) {
     case 0:
         break;
     case 1:
-        if (addr >= 0x10000)
-            return;
+//        if (addr >= 0x10000)
+//            return;
         addr += s->bank_offset;
         break;
     case 2:
         addr -= 0x10000;
-        if (addr >= 0x8000)
-            return;
+//        if (addr >= 0x8000)
+//            return;
         break;
     default:
     case 3:
         addr -= 0x18000;
-        if (addr >= 0x8000)
-            return;
+//        if (addr >= 0x8000)
+//            return;
         break;
     }
 
@@ -1680,7 +1685,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 
     shift_control = (s->gr[VGA_GFX_MODE] >> 5) & 3;
 
-	// cirrus hack TW
+	// Cirrus hack. If extended modes enabled, make sure we don't emulate
+	// standard VGA modes. SR7[0] isn't set by all software I tested. TW
 	if (s->sr[7] & 1)
 		shift_control = 2;
 
@@ -2348,6 +2354,7 @@ static const MemoryRegionPortio vga_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
+#if 0
 static const MemoryRegionPortio vbe_portio_list[] = {
     { 0, 1, 2, vbe_ioport_read_index, vbe_ioport_write_index },
 # ifdef TARGET_I386
@@ -2356,6 +2363,7 @@ static const MemoryRegionPortio vbe_portio_list[] = {
     { 2, 1, 2, vbe_ioport_read_data, vbe_ioport_write_data },
     PORTIO_END_OF_LIST(),
 };
+#endif
 
 /* Used by both ISA and PCI */
 MemoryRegion *vga_init_io(VGACommonState *s,
@@ -2364,8 +2372,10 @@ MemoryRegion *vga_init_io(VGACommonState *s,
 {
     MemoryRegion *vga_mem;
 
-    *vga_ports = vga_portio_list;
+#if 0
+	*vga_ports = vga_portio_list;
     *vbe_ports = vbe_portio_list;
+#endif
 
     vga_mem = (MemoryRegion*)g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, &vga_mem_ops, s,

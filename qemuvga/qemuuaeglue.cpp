@@ -1,4 +1,7 @@
 
+#include "sysconfig.h"
+#include "sysdeps.h"
+
 #include "qemuuaeglue.h"
 #include "vga_int.h"
 
@@ -80,6 +83,17 @@ int64_t qemu_get_clock_ns(QEMUClock *clock)
 {
 	return 0;
 }
+int64_t qemu_get_clock_ms(QEMUClock *clock)
+{
+	struct timeval tv;
+	gettimeofday (&tv, NULL);
+	return (uae_u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+int64_t get_ticks_per_sec(void)
+{
+    return 1000000;
+}
+
 
 void portio_list_init(PortioList *piolist,
                       const struct MemoryRegionPortio *callbacks,

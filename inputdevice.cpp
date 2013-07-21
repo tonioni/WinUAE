@@ -2869,6 +2869,9 @@ void inputdevice_handle_inputcode (void)
 	case AKS_TOGGLEMOUSEGRAB:
 		toggle_mousegrab ();
 		break;
+	case AKS_TOGGLERTG:
+		toggle_rtg (-1);
+		break;
 	case AKS_ENTERDEBUGGER:
 		activate_debugger ();
 		break;

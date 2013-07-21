@@ -482,6 +482,7 @@ struct uae_prefs {
 	int uae_hide;
 	bool clipboard_sharing;
 	bool native_code;
+	bool uae_hide_autoconfig;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];

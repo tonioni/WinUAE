@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="18550701-62DA-4256-B2EA-5F7E8FA564CE" Name="WinUAE" Language="1033" Version="2.7.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes"/>
+
+    <Icon Id="ICON" SourceFile="$(var.winuae.ProjectDir)/../resources/winuae.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="ICON" />
+
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONROOTDIRECTORY" />
+
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_header.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_welcome.bmp" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="WinUAE">
+          <Directory Id="CONFIGURATIONS" Name="Configurations"/>
+          <Directory Id="DOCS" Name="Docs"/>
+          <Directory Id="AMIGAPROGRAMS" Name="Amiga Programs"/>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="APPLICATIONROOTDIRECTORY">
+      <Component Id="winuae.exe" Guid="AE2CD6FB-A066-43B4-8C96-C75E3948367F">
+        <File Source="$(var.winuae.TargetPath)" KeyPath="yes" Checksum="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="AMIGAPROGRAMS">
+      <Component Id="AdditionalFiles" Guid="D6062FDF-E323-43B6-A506-344FEDD06081">
+        <File Source="$(var.winuae.ProjectDir)/../winuaechangelog.txt" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="CONFIGURATIONS">
+      <Component Id="ConfigFiles" Guid="F529ED5F-DA94-4871-8616-0207DCAA9859">
+        <File Source="$(var.winuae.ProjectDir)/../asm.cmd" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="RegistryEntries" Guid="9C6F7B8F-7A9E-45DC-BF16-85A034CCE1FB">
+        <RegistryKey Root="HKCU" Key="Software\Arabuusimiehet\WinUAE">
+          <RegistryValue Type="string" Name="InstallPath" Value="[TARGETDIR]" KeyPath="yes"/>
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+    
+    <Feature Id="MainApplication" Title="WinUAE" Description="WinUAE executable" Level="1" ConfigurableDirectory="APPLICATIONROOTDIRECTORY" Absent="disallow" AllowAdvertise="no">
+      <ComponentRef Id="winuae.exe" />
+      <ComponentRef Id="RegistryEntries" />
+    </Feature>
+
+    <Feature Id="ConfigFiles" Title="Configuration files" Description="Example host configuration files" Level="1000" AllowAdvertise="no">
+      <ComponentRef Id="ConfigFiles" />
+    </Feature>
+
+    <Feature Id="AdditionalFiles" Title="Amiga files" Description="Miscellaneous utilities" Level="1001" AllowAdvertise="no">
+      <ComponentRef Id="AdditionalFiles" />
+    </Feature>
+
+  </Product>
+</Wix>

@@ -191,8 +191,9 @@ static const TCHAR *cdconmodes[] = { _T(""), _T("uae"), _T("ide"), _T("scsi"), _
 static const TCHAR *specialmonitors[] = { _T("none"), _T("autodetect"), _T("a2024"), _T("graffiti"), 0 };
 static const TCHAR *rtgtype[] = {
 	_T("ZorroII"), _T("ZorroIII"),
-	_T("PicassoII"), _T("PicassoII+"),
-	_T("Piccolo_Z2"), _T("Piccolo_Z3"), _T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
+	_T("PicassoII"),
+	_T("PicassoII+"),
+	_T("Piccolo_Z2"), _T("Piccolo_Z3"),
 	_T("PiccoloSD64_Z2"), _T("PiccoloSD64_Z3"),
 	_T("Spectrum28/24_Z2"), _T("Spectrum28/24_Z3"),
 	_T("PicassoIV_Z2"), _T("PicassoIV_Z3"),
@@ -874,6 +875,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("ghostscript_parameters"), p->ghostscript_parameters);
 	cfgfile_write (f, _T("parallel_autoflush"), _T("%d"), p->parallel_autoflush_time);
 	cfgfile_dwrite (f, _T("uae_hide"), _T("%d"), p->uae_hide);
+	cfgfile_dwrite_bool (f, _T("uae_hide_autoconfig"), p->uae_hide_autoconfig);
 	cfgfile_dwrite_bool (f, _T("magic_mouse"), p->input_magic_mouse);
 	cfgfile_dwrite_str (f, _T("magic_mousecursor"), magiccursors[p->input_magic_mouse_cursor]);
 	cfgfile_dwrite_str (f, _T("absolute_mouse"), abspointers[p->input_tablet]);
@@ -3020,6 +3022,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("comp_lowopt"), &p->comp_lowopt)
 		|| cfgfile_yesno (option, value, _T("rtg_nocustom"), &p->picasso96_nocustom)
 		|| cfgfile_yesno (option, value, _T("floppy_write_protected"), &p->floppy_read_only)
+		|| cfgfile_yesno (option, value, _T("uae_hide_autoconfig"), &p->uae_hide_autoconfig)
 		|| cfgfile_yesno (option, value, _T("uaeserial"), &p->uaeserial))
 		return 1;
 
@@ -4611,6 +4614,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->parallel_autoflush_time = 5;
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
+	p->uae_hide_autoconfig = false;
 
 	p->mountitems = 0;
 	for (i = 0; i < MOUNT_CONFIG_SIZE; i++) {

@@ -445,7 +445,7 @@ void cia_parallelack (void)
 	RethinkICRA ();
 }
 
-static int checkalarm (unsigned long tod, unsigned long alarm, int inc)
+static int checkalarm (unsigned long tod, unsigned long alarm, bool inc)
 {
 	if (tod == alarm)
 		return 1;
@@ -465,7 +465,7 @@ static int checkalarm (unsigned long tod, unsigned long alarm, int inc)
 	return 0;
 }
 
-STATIC_INLINE void ciab_checkalarm (int inc)
+STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 {
 	// hack: do not trigger alarm interrupt if KS code and both
 	// tod and alarm == 0. This incorrectly triggers on non-cycle exact
@@ -474,18 +474,22 @@ STATIC_INLINE void ciab_checkalarm (int inc)
 	// old value.
 	if ((munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000) {
 		if (ciabtod == 0 && ciabalarm == 0)
-			return;
+			return false;
 	}
 	if (checkalarm (ciabtod, ciabalarm, inc)) {
 #if CIAB_DEBUG_IRQ
 		write_log (_T("CIAB tod %08x %08x\n"), ciabtod, ciabalarm);
 #endif
-		ciabicr |= 4;
-		RethinkICRB ();
+		if (irq) {
+			ciabicr |= 4;
+			RethinkICRB ();
+		}
+		return true;
 	}
+	return false;
 }
 
-STATIC_INLINE void ciaa_checkalarm (int inc)
+STATIC_INLINE void ciaa_checkalarm (bool inc)
 {
 	if (checkalarm (ciaatod, ciaaalarm, inc)) {
 #if CIAA_DEBUG_IRQ
@@ -571,7 +575,7 @@ static void do_tod_hack (int dotod)
 		ciaatod++;
 		ciaatod &= 0x00ffffff;
 		tod_hack_tod_last = ciaatod;
-		ciaa_checkalarm (0);
+		ciaa_checkalarm (false);
 	}
 }
 
@@ -661,14 +665,66 @@ static void keyreq (void)
 	RethinkICRA ();
 }
 
+/* All this complexity to lazy evaluate TOD increase.
+ * Only increase it cycle-exactly if it is visible to running program:
+ * causes interrupt or program is reading or writing TOD registers
+ */
+
+static int ciab_tod_hoffset;
+static int ciab_tod_event_state;
+
+static void CIAB_tod_inc (uae_u32 v)
+{
+	ciab_tod_event_state = 3; // done
+	ciabtod++;
+	ciabtod &= 0xFFFFFF;
+	ciab_checkalarm (true, true);
+}
+
+// Someone reads or writes TOD registers, sync TOD increase
+static void CIAB_tod_check (void)
+{
+	if (ciab_tod_event_state != 1 || !ciabtodon)
+		return;
+	int hpos = current_hpos ();
+	hpos -= ciab_tod_hoffset;
+	if (hpos >= 0 || currprefs.m68k_speed < 0) {
+		// Program should see the changed TOD
+		CIAB_tod_inc (0);
+		return;
+	}
+	// Not yet, add event to guarantee exact TOD inc position
+	ciab_tod_event_state = 2; // event active
+	event2_newevent_xx (-1, -hpos, 0, CIAB_tod_inc);
+}
+
+void CIAB_tod_handler (int hoffset)
+{
+	uae_u32 v;
+
+	ciab_tod_hoffset = hoffset;
+	if (!ciabtodon)
+		return;
+	ciab_tod_event_state = 1; // TOD inc needed
+	v = ciabtod;
+	ciabtod++;
+	ciabtod &= 0xFFFFFF;
+	bool irq = ciab_checkalarm (false, false);
+	ciabtod = v;
+	if (irq) {
+		// causes interrupt on this line, add event
+		ciab_tod_event_state = 2; // event active
+		event2_newevent_xx (-1, hoffset, 0, CIAB_tod_inc);
+	}
+}
+
 void CIA_hsync_posthandler (bool dotod)
 {
-
-	if (ciabtodon && dotod) {
-		ciabtod++;
-		ciabtod &= 0xFFFFFF;
-		ciab_checkalarm (1);
-	}
+	// Previous line was supposed to increase TOD but
+	// no one cared. Do it now at the start of next line.
+	if (ciab_tod_event_state == 1)
+		CIAB_tod_inc (0);
+	ciab_tod_event_state = 0;
 
 	if (currprefs.tod_hack && ciaatodon)
 		do_tod_hack (dotod);
@@ -743,6 +799,8 @@ static void led_vsync (void)
 static void write_battclock (void);
 void CIA_vsync_prehandler (void)
 {
+	if (heartbeat_cnt > 0)
+		heartbeat_cnt--;
 	if (rtc_delayed_write < 0) {
 		rtc_delayed_write = 50;
 	} else if (rtc_delayed_write > 0) {
@@ -764,25 +822,17 @@ void CIA_vsync_prehandler (void)
 	}
 }
 
-void CIA_vsync_posthandler (bool dotod)
+void CIAA_tod_handler (void)
 {
-	if (heartbeat_cnt > 0)
-		heartbeat_cnt--;
 #ifdef TOD_HACK
 	if (currprefs.tod_hack && tod_hack_enabled == 1)
 		return;
 #endif
-	if (ciaatodon && dotod) {
+	if (ciaatodon) {
 		ciaatod++;
 		ciaatod &= 0xFFFFFF;
-		ciaa_checkalarm (1);
+		ciaa_checkalarm (true);
 	}
-#if 0
-	if (vpos == 0) {
-		write_log (_T("%d\n"), vsync_counter);
-		dumpcia ();
-	}
-#endif
 }
 
 static void bfe001_change (void)
@@ -1021,17 +1071,20 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	case 7:
 		return (uae_u8)((ciabtb - ciabtb_passed) >> 8);
 	case 8:
+		CIAB_tod_check ();
 		if (ciabtlatch) {
 			ciabtlatch = 0;
 			return (uae_u8)ciabtol;
 		} else
 			return (uae_u8)ciabtod;
 	case 9:
+		CIAB_tod_check ();
 		if (ciabtlatch)
 			return (uae_u8)(ciabtol >> 8);
 		else
 			return (uae_u8)(ciabtod >> 8);
 	case 10:
+		CIAB_tod_check ();
 		if (!ciabtlatch) {
 			/* no latching if ALARM is set */
 			if (!(ciabcrb & 0x80))
@@ -1167,7 +1220,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		} else {
 			ciaatod = (ciaatod & ~0xff) | val;
 			ciaatodon = 1;
-			ciaa_checkalarm (0);
+			ciaa_checkalarm (false);
 		}
 		break;
 	case 9:
@@ -1323,15 +1376,17 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 		CIA_calctimers ();
 		break;
 	case 8:
+		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
 			ciabalarm = (ciabalarm & ~0xff) | val;
 		} else {
 			ciabtod = (ciabtod & ~0xff) | val;
 			ciabtodon = 1;
-			ciab_checkalarm (0);
+			ciab_checkalarm (false, true);
 		}
 		break;
 	case 9:
+		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
 			ciabalarm = (ciabalarm & ~0xff00) | (val << 8);
 		} else {
@@ -1339,6 +1394,7 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 		}
 		break;
 	case 10:
+		CIAB_tod_check ();
 		if (ciabcrb & 0x80) {
 			ciabalarm = (ciabalarm & ~0xff0000) | (val << 16);
 		} else {
@@ -1405,6 +1461,7 @@ void CIA_reset (void)
 	oldled = true;
 	resetwarning_phase = resetwarning_timer = 0;
 	heartbeat_cnt = 0;
+	ciab_tod_event_state = 0;
 
 	if (!savestate_state) {
 		oldovl = true;
@@ -1474,7 +1531,7 @@ addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
 	default_xlate, default_check, NULL, _T("CIA"),
-	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f00
+	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f00, 0xbfc000
 };
 
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected
@@ -1705,7 +1762,7 @@ addrbank clock_bank = {
 	clock_lget, clock_wget, clock_bget,
 	clock_lput, clock_wput, clock_bput,
 	default_xlate, default_check, NULL, _T("Battery backed up clock (none)"),
-	dummy_lgeti, dummy_wgeti, ABFLAG_IO
+	dummy_lgeti, dummy_wgeti, ABFLAG_IO, 0x3f, 0xd80000
 };
 
 static unsigned int clock_control_d;

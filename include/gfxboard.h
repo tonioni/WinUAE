@@ -14,6 +14,7 @@ extern int gfxboard_get_vram_max (int);
 extern bool gfxboard_need_byteswap (int type);
 extern double gfxboard_get_vsync (void);
 extern void gfxboard_refresh (void);
+extern bool gfxboard_toggle (int mode);
 
 #define GFXBOARD_UAE_Z2 0
 #define GFXBOARD_UAE_Z3 1

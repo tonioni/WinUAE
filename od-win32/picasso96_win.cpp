@@ -133,6 +133,7 @@ static uaecptr boardinfo, ABI_interrupt;
 static int interrupt_enabled;
 double p96vblank;
 static int rtg_clear_flag;
+static bool picasso_active;
 
 static int uaegfx_old, uaegfx_active;
 static uae_u32 reserved_gfxmem;
@@ -998,6 +999,11 @@ static void setconvert (void)
 	}
 	recursor ();
 	full_refresh = 1;
+}
+
+bool picasso_is_active (void)
+{
+	return picasso_active;
 }
 
 /* Clear our screen, since we've got a new Picasso screen-mode, and refresh with the proper contents
@@ -2453,6 +2459,7 @@ static uae_u32 REGPARAM2 picasso_SetSwitch (TrapContext *ctx)
 	* desired state, and wait for custom.c to call picasso_enablescreen
 	* whenever it is ready to change the screen state.  */
 	picasso_requested_on = flag != 0;
+	picasso_active = picasso_requested_on;
 	p96text[0] = 0;
 	if (flag)
 		_stprintf (p96text, _T("Picasso96 %dx%dx%d (%dx%dx%d)"),

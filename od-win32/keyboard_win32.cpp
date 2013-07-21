@@ -409,6 +409,12 @@ void my_kbd_handler (int keyboard, int scancode, int newstate)
 	if (amode && scancode == DIK_F11 && currprefs.win32_ctrl_F11_is_quit && ctrlpressed ())
 		code = AKS_QUIT;
 
+	if (scancode == DIK_F9 && specialpressed ()) {
+		if (newstate)
+			toggle_rtg (-1);
+		return;
+	}
+
 	scancode_new = scancode;
 	if (!specialpressed () && inputdevice_iskeymapped (keyboard, scancode))
 		scancode = 0;

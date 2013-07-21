@@ -776,8 +776,6 @@ static void winuae_active (HWND hWnd, int minimized)
 	for (int i = 0; hotkeys[i] >= 0; i++)
 		RegisterHotKey (hAmigaWnd, hotkeys[i], 0, hotkeys[i]);
 #endif
-	if (WIN32GFX_IsPicassoScreen ())
-		WIN32GFX_EnablePicasso ();
 	getcapslock ();
 	wait_keyrelease ();
 	inputdevice_acquire (TRUE);

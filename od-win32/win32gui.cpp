@@ -3700,6 +3700,7 @@ static struct miscentry misclist[] = {
 	{ 0, 1, _T("Minimize when focus is lost"), &workprefs.win32_minimize_inactive },
 	{ 0, 1, _T("100/120Hz VSync black frame insertion"), &workprefs.lightboost_strobo },
 	{ 0, 0, _T("Master floppy write protection"), &workprefs.floppy_read_only },
+	{ 0, 0, _T("Hide all UAE autoconfig boards"), &workprefs.uae_hide_autoconfig },
 	{ 0, NULL }
 };
 

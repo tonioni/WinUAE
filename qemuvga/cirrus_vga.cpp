@@ -634,9 +634,11 @@ static void cirrus_do_copy(CirrusVGAState *s, int dst, int src, int w, int h)
         int width, height;
 
         depth = s->vga.get_bpp(&s->vga) / 8;
+		if (depth == 0) // VGA mode depth == 0. TW.
+			depth = 1;
         s->vga.get_resolution(&s->vga, &width, &height);
 
-		/* TW FIXME! */
+		/* cirrus_blt_srcpitch and cirrus_blt_dstpitch can be zero. TW. */
         /* extra x, y */
         sx = s->cirrus_blt_srcpitch ? (src % ABS(s->cirrus_blt_srcpitch)) / depth : 0;
         sy = s->cirrus_blt_srcpitch ? (src / ABS(s->cirrus_blt_srcpitch)) : 0;
@@ -975,8 +977,8 @@ static void cirrus_write_bitblt(CirrusVGAState * s, unsigned reg_value)
     old_value = s->vga.gr[0x31];
     s->vga.gr[0x31] = reg_value;
 
-    if (((old_value & CIRRUS_BLT_RESET) != 0) &&
-	((reg_value & CIRRUS_BLT_RESET) == 0)) {
+    if (((old_value & CIRRUS_BLT_RESET) == 0) &&
+	((reg_value & CIRRUS_BLT_RESET) != 0)) {
 	cirrus_bitblt_reset(s);
     }
 	// Blitter will start if old = CIRRUS_BLT_RESET and new = CIRRUS_BLT_START. TW.
@@ -1019,6 +1021,9 @@ static void cirrus_get_offsets(VGACommonState *s1,
     line_compare = s->vga.cr[0x18] |
         ((s->vga.cr[0x07] & 0x10) << 4) |
         ((s->vga.cr[0x09] & 0x40) << 3);
+	/* multiply vertical registers by two. TW. */
+	if (s->vga.cr[0x17] & 0x04)
+		line_compare <<= 1;
     *pline_compare = line_compare;
 }
 
@@ -1091,7 +1096,7 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
     int width, height;
 
     width = (s->cr[0x01] + 1) * 8;
-	/* TW: if 16 bit mode but SR7 bit 7 == 0: 2x width and palette mode */
+	/* if 16 bit mode but SR7 bit 7 == 0: 2x width and palette mode. TW. */
 	if ((cs->cirrus_hidden_dac_data & 0x80) == 0) {
 		switch (s->sr[0x07] & CIRRUS_SR7_BPP_MASK) {
 		case CIRRUS_SR7_BPP_16_DOUBLEVCLK:
@@ -1108,7 +1113,7 @@ static void cirrus_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
     /* interlace support */
     if (s->cr[0x1a] & 0x01)
         height *= 2;
-	/* TW multiply vertical registers by two */
+	/* multiply vertical registers by two. TW. */
 	if (s->cr[0x17] & 0x04)
 		height *= 2;
 
@@ -1273,6 +1278,16 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
     case 0xf1:			// Graphics Cursor Y
 	s->vga.sr[0x11] = val;
 	s->hw_cursor_y = (val << 3) | (s->vga.sr_index >> 5);
+	/* This is probably a hack. TW.
+	 * CL-GD542x documentation says CR17[2] won't work with
+	 * hardware cursor except in GD5429 and later revisions
+	 * but Amiga CyberGraphX v4 does use it with GD5426
+	 * based board when height is >1024 pixels.
+	 * Probably it is a bug in CGX when using impossible
+	 * resolutions that real chip or monitor would not support.
+	 */
+	if (s->vga.cr[0x17] & 0x04)
+		s->hw_cursor_y <<= 1;
 	break;
     case 0x07:			// Extended Sequencer Mode
     cirrus_update_memory_access(s);
@@ -1367,14 +1382,16 @@ static int cirrus_vga_read_palette(CirrusVGAState * s)
 	s->vga.dac_sub_index = 0;
 	s->vga.dac_read_index++;
     }
-    return val;
+#if 0
+	write_log ("READ PAL: %d %d: %02X\n", s->vga.dac_read_index, s->vga.dac_sub_index, val);
+#endif
+	return val;
 }
 
 static void cirrus_vga_write_palette(CirrusVGAState * s, int reg_value)
 {
-#ifdef DEBUG_CIRRUS
-	if (s->vga.dac_write_index < 16)
-		write_log ("PAL: %d %d: %02X\n", s->vga.dac_write_index, s->vga.dac_sub_index, reg_value);
+#if 0
+	write_log ("WRITE PAL: %d %d: %02X\n", s->vga.dac_write_index, s->vga.dac_sub_index, reg_value);
 #endif
 	s->vga.dac_cache[s->vga.dac_sub_index] = reg_value;
     if (++s->vga.dac_sub_index == 3) {
@@ -1481,7 +1498,6 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
     case 0x2c:			// BLT SRC ADDR 0x0000ff
     case 0x2d:			// BLT SRC ADDR 0x00ff00
     case 0x2f:                  // BLT WRITEMASK
-    case 0x30:			// BLT MODE
     case 0x32:			// RASTER OP
     case 0x33:			// BLT MODEEXT
     case 0x34:			// BLT TRANSPARENT COLOR 0x00ff
@@ -1491,22 +1507,51 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 	s->vga.gr[reg_index] = reg_value;
 	break;
     case 0x21:			// BLT WIDTH 0x001f00
-    case 0x23:			// BLT HEIGHT 0x001f00
+   	reg_value &= 0x1f;
+	if (s->device_id < CIRRUS_ID_CLGD5434)
+		reg_value &= 0x07;
+	s->vga.gr[reg_index] = reg_value;
+	break;
+	case 0x23:			// BLT HEIGHT 0x001f00
+   	reg_value &= 0x1f;
+	if (s->device_id < CIRRUS_ID_CLGD5434)
+		reg_value &= 0x03;
+	s->vga.gr[reg_index] = reg_value;
+	break;
     case 0x25:			// BLT DEST PITCH 0x001f00
+   	reg_value &= 0x1f;
+	if (s->device_id <= CIRRUS_ID_CLGD5428)
+		reg_value &= 0x0f;
+	s->vga.gr[reg_index] = reg_value;
+	break;
     case 0x27:			// BLT SRC PITCH 0x001f00
-	s->vga.gr[reg_index] = reg_value & 0x1f;
+   	reg_value &= 0x1f;
+	if (s->device_id <= CIRRUS_ID_CLGD5428)
+		reg_value &= 0x0f;
+	s->vga.gr[reg_index] = reg_value;
 	break;
     case 0x2a:			// BLT DEST ADDR 0x3f0000
-	s->vga.gr[reg_index] = reg_value & 0x3f;
+	reg_value &= 0x3f;
+	if (s->device_id < CIRRUS_ID_CLGD5434)
+		reg_value &= 0x1f;
+	s->vga.gr[reg_index] = reg_value;
         /* if auto start mode, starts bit blt now */
         if (s->vga.gr[0x31] & CIRRUS_BLT_AUTOSTART) {
             cirrus_bitblt_start(s);
         }
 	break;
     case 0x2e:			// BLT SRC ADDR 0x3f0000
-	s->vga.gr[reg_index] = reg_value & 0x3f;
+	reg_value &= 0x3f;
+	if (s->device_id < CIRRUS_ID_CLGD5434)
+		reg_value &= 0x1f;
+	s->vga.gr[reg_index] = reg_value;
 	break;
-    case 0x31:			// BLT STATUS/START
+    case 0x30:			// BLT MODE
+	if (s->device_id < CIRRUS_ID_CLGD5434)
+		reg_value &= ~0x20;
+	s->vga.gr[reg_index] = reg_value;
+	break;
+	case 0x31:			// BLT STATUS/START
 	cirrus_write_bitblt(s, reg_value);
 	break;
     default:
@@ -2245,7 +2290,12 @@ static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
 
     addr &= s->cirrus_addr_mask;
 
-    if (((s->vga.sr[0x17] & 0x44) == 0x44) &&
+	// linear vram also need planar handling. TW.
+    if ((s->vga.sr[0x07] & 0x01) == 0) {
+        return vga_mem_readb(&s->vga, addr);
+    }
+
+	if (((s->vga.sr[0x17] & 0x44) == 0x44) &&
         ((addr & s->linear_mmio_mask) == s->linear_mmio_mask)) {
 	/* memory-mapped I/O */
 	ret = cirrus_mmio_blt_read(s, addr & 0xff);
@@ -2273,6 +2323,12 @@ static void cirrus_linear_write(void *opaque, hwaddr addr,
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
+
+	// linear vram also need planar handling. TW.
+    if ((s->vga.sr[0x07] & 0x01) == 0) {
+        vga_mem_writeb(&s->vga, addr, val);
+        return;
+    }
 
     if (((s->vga.sr[0x17] & 0x44) == 0x44) &&
         ((addr & s->linear_mmio_mask) ==  s->linear_mmio_mask)) {

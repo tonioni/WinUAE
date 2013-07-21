@@ -1,6 +1,55 @@
 
 - restore only single input target to default.
 
+- Disable Z3 Cirrus Logic RTG board if 24-bit address space.
+- Hard reset and CL board enabled crashed.
+- Added Chipset/RTG screen toggle input event ("Toggle chipset/RTG screen"). Only works when RTG mode is active,
+  supports both Cirrus Logic emulation and uaegfx. NOTE: temporarily also hardwired to END + F9.
+- VGA planar modes (<=16 colors) work now.
+- VGA text modes confirmed working (NetBSD and OpenBSD enable VGA console automatically if supported board detected)
+- Piccolo appears to have 4M address space (VRAM alias). Fixes EGS 7.4 graphics bugs and missing mouse cursor.
+- >1024 pixel tall modes work now correctly, including cursor vertical positioning (see below).
+- GD542x documentation says hardware cursor can't be used if "Multiply Vertical Registers by Two" bit is set
+  (allows >1024 pixel tall modes, wasn't emulated in original qemu code) unless chip is GD5429 or later. But
+  CGX4 does use it with boards that only had GD5426 or GD5428. I guess it only happens when cgxmode is used
+  to create impossible modes that no real monitor or chip can support...
+
+- Added misc panel "Hide all UAE autoconfig boards" option. It deletes all UAE-only autoconfig
+  board ConfigDev nodes in ExpansionBase.
+- Rewritten .cue decoding, some CD images with audio tracks had incorrect audio positioning,
+  for example Tie Break Tennis CDTV and Falcon CDTV.
+- Log also physical/virtual CD drive track information.
+- CIA-A vsync TOD counting is now cycle-exact. (if cycle values in Commodore's Agnus sync pulse timing sheet
+  are correct, they appear to be because it is standard PAL/NTSC)
+- CIA-B hsync TOD counting is also positioned cycle-exactly now (end of hsync pulse), was at the start of
+  scanline previously.
+
+Beta 2:
+
+- Fixed Piccolo SD64 Z2 wrong address space size.
+- Piccolo is Z2/Z3 board.
+- Fixed Z3 board subsize.
+- Improved QEMU CL emulation glue code, VRAM banking/offsets supported.
+- Some modes had invisible hardware sprite (mouse cursor).
+- Implemented Piccolo/SD64/Spectrum vblank interrupts. Picasso96 won't hang anymore.
+- Reset didn't reset all necessary graphics board variables.
+- Force 32-bit host display mode if byteswapped board is selected (Any board except PicassoII/II+)
+  Cirrus Logic emulation code supports byteswapping only in 32-bit mode.
+- Note: Most VGA planar modes (16 colors or less) are not working. Includes also mouse cursor.
+
+- Rewritten memory bank handling, moved all memory variables (start address, mask, size, etc)
+  to addrbank stucture. Standard RAM bank code duplication replaced with macros.
+- Debugger memwatch points now also detect hits in aliased addresses and only bank(s) that have
+  watched addresses are redirected to debugger.
+- CDTV SCSI option works again.
+- Some uaenet.device improvements.
+- It was not possible to write to Amithlon-style partitions.
+- 5:4 aspect ratio had disappeared.
+- CIA-A TOD counts (if vsync timed) on line 5 (PAL) or line 6 (NTSC), not line 0.
+  (This is not 100% accurate yet, horizontal position is still wrong, will be
+  improved in later betas)
+- Installer update also coming, will be built with WiX (msi installer).
+
 Beta 1:
 
 - Hardware Cirrus Logic based SVGA Zorro II/III RTG board emulation.

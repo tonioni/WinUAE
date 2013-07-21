@@ -4792,7 +4792,7 @@ static int custom_wput_copper (int hpos, uaecptr addr, uae_u32 value, int noget)
 {
 	int v;
 
-	value = debug_wputpeekdma (0xdff000 + addr, value);
+	value = debug_wputpeekdma_chipset (0xdff000 + addr, value);
 	copper_access = 1;
 	v = custom_wput_1 (hpos, addr, value, noget);
 	copper_access = 0;
@@ -6491,6 +6491,11 @@ static void hsync_handler_pre (bool onvsync)
 #endif
 }
 
+static void CIAA_tod_inc (uae_u32 v)
+{
+	CIAA_tod_handler ();
+}
+
 STATIC_INLINE bool is_last_line (void)
 {
 	return vpos + 1 == maxvpos + lof_store;
@@ -6512,6 +6517,8 @@ static void hsync_handler_post (bool onvsync)
 	bool ciavsyncs = !(bplcon0 & 2) || ((bplcon0 & 2) && currprefs.genlock && genlockvtoggle);
 
 	CIA_hsync_posthandler (ciahsyncs);
+	if (ciahsyncs)
+		CIAB_tod_handler ((beamcon0 & 0x80) ? hsstop : 18);
 	if (currprefs.cs_ciaatod > 0) {
 #if 0
 		static uae_s32 oldtick;
@@ -6527,14 +6534,24 @@ static void hsync_handler_post (bool onvsync)
 		}
 #else
 		static int cia_hsync;
-		cia_hsync -= 256;
-		if (cia_hsync <= 0) {
-			CIA_vsync_posthandler (true);
-			cia_hsync += ((MAXVPOS_PAL * MAXHPOS_PAL * 50 * 256) / (maxhpos * (currprefs.cs_ciaatod == 2 ? 60 : 50)));
+		if (cia_hsync < maxhpos) {
+			event2_newevent_xx (-1, cia_hsync, 1, CIAA_tod_inc);
+			int newcount = (vblank_hz * MAXVPOS_PAL * MAXHPOS_PAL) / (currprefs.cs_ciaatod == 2 ? 60 : 50);
+			cia_hsync += newcount;
+		} else {
+			cia_hsync -= maxhpos;
 		}
 #endif
-	} else if (currprefs.cs_ciaatod == 0 && vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
-		CIA_vsync_posthandler (ciavsyncs);
+	} else if (currprefs.cs_ciaatod == 0 && ciavsyncs) {
+		// CIA-A TOD counter increases when vsync pulse ends
+		if (beamcon0 & 0x80) {
+			if (vpos == vsstop)
+				event2_newevent_xx (-1, lof_store ? hsstop : hsstop + hcenter, 0, CIAA_tod_inc);
+		} else {
+			if (vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
+				event2_newevent_xx (-1, lof_store ? 132 : 18, 0, CIAA_tod_inc);
+			}
+		}
 	}
 
 	inputdevice_hsync ();
@@ -7151,7 +7168,7 @@ addrbank custom_bank = {
 	custom_lget, custom_wget, custom_bget,
 	custom_lput, custom_wput, custom_bput,
 	default_xlate, default_check, NULL, _T("Custom chipset"),
-	custom_lgeti, custom_wgeti, ABFLAG_IO, 0x1ff
+	custom_lgeti, custom_wgeti, ABFLAG_IO, 0x1ff, 0xdff000
 };
 
 static uae_u32 REGPARAM2 custom_wgeti (uaecptr addr)

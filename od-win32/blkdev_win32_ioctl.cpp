@@ -70,6 +70,7 @@ struct dev_info_ioctl {
 	uae_sem_t sub_sem, sub_sem2;
 	bool open;
 	bool usesptiread;
+	bool changed;
 };
 
 static struct dev_info_ioctl ciw32[MAX_TOTAL_SCSI_DEVICES];
@@ -1043,6 +1044,7 @@ static int fetch_geometry (struct dev_info_ioctl *ciw, int unitnum, struct devic
 	while (cnt-- > 0) {
 		if (!DeviceIoControl (ciw->h, IOCTL_CDROM_GET_DRIVE_GEOMETRY, NULL, 0, &geom, sizeof (geom), &len, NULL)) {
 			DWORD err = GetLastError ();
+			ciw->changed = true;
 			if (err == ERROR_WRONG_DISK) {
 				if (win32_error (ciw, unitnum, _T("IOCTL_CDROM_GET_DRIVE_GEOMETRY")) < 0)
 					continue;
@@ -1159,6 +1161,28 @@ static int ioctl_command_toc2 (int unitnum, struct cd_toc_head *tocout, bool hid
 	t->paddress = th->lastaddress;
 	t++;
 
+	for (i = th->first_track_offset; i <= th->last_track_offset + 1; i++) {
+		uae_u32 addr;
+		uae_u32 msf;
+		t = &th->toc[i];
+		if (i <= th->last_track_offset) {
+			write_log (_T("%2d: "), t->track);
+			addr = t->paddress;
+			msf = lsn2msf (addr);
+		} else {
+			write_log (_T("    "));
+			addr = th->toc[th->last_track_offset + 2].paddress;
+			msf = lsn2msf (addr);
+		}
+		write_log (_T("%7d %02d:%02d:%02d"),
+			addr, (msf >> 16) & 0x7fff, (msf >> 8) & 0xff, (msf >> 0) & 0xff);
+		if (i <= th->last_track_offset) {
+			write_log (_T(" %s %x"),
+				(t->control & 4) ? _T("DATA    ") : _T("CDA     "), t->control);
+		}
+		write_log (_T("\n"));
+	}
+
 	memcpy (tocout, th, sizeof (struct cd_toc_head));
 	return 1;
 }
@@ -1182,7 +1206,10 @@ static void update_device_info (int unitnum)
 	if (fetch_geometry (ciw, unitnum, di)) { // || ioctl_command_toc (unitnum))
 		di->media_inserted = 1;
 	}
-	ioctl_command_toc2 (unitnum, &di->toc, true);
+	if (ciw->changed) {
+		ioctl_command_toc2 (unitnum, &di->toc, true);
+		ciw->changed = false;
+	}
 	di->removable = ciw->type == DRIVE_CDROM ? 1 : 0;
 	di->write_protected = ciw->type == DRIVE_CDROM ? 1 : 0;
 	di->type = ciw->type == DRIVE_CDROM ? INQ_ROMD : INQ_DASD;
@@ -1475,6 +1502,7 @@ bool win32_ioctl_media_change (TCHAR driveletter, int insert)
 		if (ciw->drvletter == driveletter && ciw->di.media_inserted != insert) {
 			write_log (_T("IOCTL: media change %s %d\n"), ciw->drvlettername, insert);
 			ciw->di.media_inserted = insert;
+			ciw->changed = true;
 			int unitnum = getunitnum (ciw);
 			if (unitnum >= 0) {
 				update_device_info (unitnum);

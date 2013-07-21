@@ -9,9 +9,10 @@
 extern void CIA_reset (void);
 extern void CIA_vsync_prehandler (void);
 extern void CIA_hsync_prehandler (void);
-extern void CIA_vsync_posthandler (bool);
 extern void CIA_hsync_posthandler (bool);
 extern void CIA_handler (void);
+extern void CIAA_tod_handler (void);
+extern void CIAB_tod_handler (int);
 
 extern void diskindex_handler (void);
 extern void cia_parallelack (void);
