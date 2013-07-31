@@ -241,6 +241,158 @@ static int match_string (const TCHAR *table[], const TCHAR *str)
 	return -1;
 }
 
+// escape config file separators and control characters
+static TCHAR *cfgfile_escape (const TCHAR *s, const TCHAR *escstr, bool quote)
+{
+	bool doquote = false;
+	int cnt = 0;
+	for (int i = 0; s[i]; i++) {
+		TCHAR c = s[i];
+		if (c == 0)
+			break;
+		if (c < 32 || c == '\\' || c == '\"' || c == '\'') {
+			cnt++;
+		}
+		for (int j = 0; escstr && escstr[j]; j++) {
+			if (c == escstr[j]) {
+				cnt++;
+				if (quote) {
+					doquote = true;
+					cnt++;
+				}
+			}
+		}
+	}
+	TCHAR *s2 = xmalloc (TCHAR, _tcslen (s) + cnt * 4 + 1);
+	TCHAR *p = s2;
+	if (doquote)
+		*p++ = '\"';
+	for (int i = 0; s[i]; i++) {
+		TCHAR c = s[i];
+		if (c == 0)
+			break;
+		if (c == '\\' || c == '\"' || c == '\'') {
+			*p++ = '\\';
+			*p++ = c;
+		} else if (c >= 32 && !quote) {
+			bool escaped = false;
+			for (int j = 0; escstr && escstr[j]; j++) {
+				if (c == escstr[j]) {
+					*p++ = '\\';
+					*p++ = c;
+					escaped = true;
+					break;
+				}
+			}
+			if (!escaped)
+				*p++ = c;
+		} else if (c < 32) {
+			*p++ = '\\';
+			switch (c)
+			{
+				case '\t':
+				*p++ = 't';
+				break;
+				case '\n':
+				*p++ = 'n';
+				break;
+				case '\r':
+				*p++ = 'r';
+				break;
+				default:
+				*p++ = 'x';
+				*p++ = (c >> 4) >= 10 ? (c >> 4) + 'a' : (c >> 4) + '0';
+				*p++ = (c & 15) >= 10 ? (c & 15) + 'a' : (c & 15) + '0';
+				break;
+			}
+		} else {
+			*p++ = c;
+		}
+	}
+	if (doquote)
+		*p++ = '\"';
+	*p = 0;
+	return s2;
+}
+static TCHAR *cfgfile_unescape (const TCHAR *s, const TCHAR **endpos, TCHAR separator)
+{
+	bool quoted = false;
+	TCHAR *s2 = xmalloc (TCHAR, _tcslen (s) + 1);
+	TCHAR *p = s2;
+	if (s[0] == '\"') {
+		s++;
+		quoted = true;
+	}
+	int i;
+	for (i = 0; s[i]; i++) {
+		TCHAR c = s[i];
+		if (quoted && c == '\"') {
+			i++;
+			break;
+		}
+		if (c == separator) {
+			i++;
+			break;
+		}
+		if (c == '\\') {
+			char v = 0;
+			TCHAR c2;
+			c = s[i + 1];
+			switch (c)
+			{
+				case 'X':
+				case 'x':
+				c2 = _totupper (s[i + 2]);
+				v = ((c2 >= 'A') ? c2 - 'A' : c2 - '0') << 4;
+				c2 = _totupper (s[i + 3]);
+				v |= (c2 >= 'A') ? c2 - 'A' : c2 - '0';
+				*p++ = c2;
+				i += 2;
+				break;
+				case 'r':
+				*p++ = '\r';
+				break;
+				case '\n':
+				*p++ = '\n';
+				break;
+				default:
+				*p++ = c;
+				break;
+			}
+			i++;
+		} else {
+			*p++ = c;
+		}
+	}
+	*p = 0;
+	if (endpos)
+		*endpos = &s[i];
+	return s2;
+}
+static TCHAR *cfgfile_unescape (const TCHAR *s, const TCHAR **endpos)
+{
+	return cfgfile_unescape (s, endpos, 0);
+}
+
+static TCHAR *getnextentry (const TCHAR **valuep, const TCHAR separator)
+{
+	TCHAR *s;
+	const TCHAR *value = *valuep;
+	if (value[0] == '\"') {
+		s = cfgfile_unescape (value, valuep);
+		value = *valuep;
+		if (*value != 0 && *value != separator) {
+			xfree (s);
+			return NULL;
+		}
+		value++;
+		*valuep = value;
+	} else {
+		s = cfgfile_unescape (value, valuep, separator);
+	}
+	return s;
+}
+
 static TCHAR *cfgfile_subst_path2 (const TCHAR *path, const TCHAR *subst, const TCHAR *file)
 {
 	/* @@@ use strcasecmp for some targets.  */
@@ -526,7 +678,7 @@ static void cfgfile_dwrite_path (struct zfile *f, struct multipath *mp, const TC
 static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 {
 	int i;
-	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH], tmp3[MAX_DPATH];
 	TCHAR *hdcontrollers[] = { _T("uae"),
 		_T("ide0"), _T("ide1"), _T("ide2"), _T("ide3"),
 		_T("scsi0"), _T("scsi1"), _T("scsi2"), _T("scsi3"), _T("scsi4"), _T("scsi5"), _T("scsi6"),
@@ -535,14 +687,32 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 	for (i = 0; i < p->mountitems; i++) {
 		struct uaedev_config_data *uci = &p->mountconfig[i];
 		struct uaedev_config_info *ci = &uci->ci;
-		TCHAR *str;
+		TCHAR *str1, *str2, *str1b, *str2b;
 		int bp = ci->bootpri;
 
-		str = cfgfile_put_multipath (&p->path_hardfile, ci->rootdir);
+		str2 = _T("");
+		if (ci->rootdir[0] == ':') {
+			TCHAR *ptr;
+			// separate harddrive names
+			str1 = my_strdup (ci->rootdir);
+			ptr = _tcschr (str1 + 1, ':');
+			if (ptr) {
+				*ptr++ = 0;
+				str2 = ptr;
+				ptr = _tcschr (str2, ',');
+				if (ptr)
+					*ptr = 0;
+			}
+		} else {
+			str1 = cfgfile_put_multipath (&p->path_hardfile, ci->rootdir);
+		}
+		str1b = cfgfile_escape (str1, _T(":,"), true);
+		str2b = cfgfile_escape (str2, _T(":,"), true);
 		if (ci->type == UAEDEV_DIR) {
 			_stprintf (tmp, _T("%s,%s:%s:%s,%d"), ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), ci->volname, str, bp);
+				ci->devname ? ci->devname : _T(""), ci->volname, str1, bp);
 			cfgfile_write_str (f, _T("filesystem2"), tmp);
+			_tcscpy (tmp3, tmp);
 #if 0
 			_stprintf (tmp2, _T("filesystem=%s,%s:%s"), uci->readonly ? _T("ro") : _T("rw"),
 				uci->volname, str);
@@ -551,16 +721,23 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		} else if (ci->type == UAEDEV_HDF || ci->type == UAEDEV_CD || ci->type == UAEDEV_TAPE) {
 			_stprintf (tmp, _T("%s,%s:%s,%d,%d,%d,%d,%d,%s,%s"),
 				ci->readonly ? _T("ro") : _T("rw"),
-				ci->devname ? ci->devname : _T(""), str,
+				ci->devname ? ci->devname : _T(""), str1,
+				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
+				bp, ci->filesys ? ci->filesys : _T(""), hdcontrollers[ci->controller]);
+			_stprintf (tmp3, _T("%s,%s:%s%s%s,%d,%d,%d,%d,%d,%s,%s"),
+				ci->readonly ? _T("ro") : _T("rw"),
+				ci->devname ? ci->devname : _T(""), str1b, str2b[0] ? _T(":") : _T(""), str2b,
 				ci->sectors, ci->surfaces, ci->reserved, ci->blocksize,
 				bp, ci->filesys ? ci->filesys : _T(""), hdcontrollers[ci->controller]);
 			if (ci->highcyl) {
 				TCHAR *s = tmp + _tcslen (tmp);
-				_stprintf (s, _T(",%d"), ci->highcyl);
+				TCHAR *s2 = s;
+				_stprintf (s2, _T(",%d"), ci->highcyl);
 				if (ci->pcyls && ci->pheads && ci->psecs) {
 					TCHAR *s = tmp + _tcslen (tmp);
 					_stprintf (s, _T(",%d/%d/%d"), ci->pcyls, ci->pheads, ci->psecs);
 				}
+				_tcscat (tmp3, s2);
 			}
 			if (ci->type == UAEDEV_HDF)
 				cfgfile_write_str (f, _T("hardfile2"), tmp);
@@ -577,9 +754,12 @@ static void write_filesys_config (struct uae_prefs *p, struct zfile *f)
 		} else if (ci->type == UAEDEV_TAPE) {
 			cfgfile_write (f, tmp2, _T("tape%d,%s"), ci->device_emu_unit, tmp);
 		} else {
-			cfgfile_write (f, tmp2, _T("%s,%s"), ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp);
+			cfgfile_write (f, tmp2, _T("%s,%s"), ci->type == UAEDEV_HDF ? _T("hdf") : _T("dir"), tmp3);
 		}
-		xfree (str);
+		xfree (str1b);
+		xfree (str2b);
+		xfree (str1);
+		
 	}
 }
 
@@ -2681,6 +2861,42 @@ bool get_hd_geometry (struct uaedev_config_info *uci)
 	return false;
 }
 
+static int cfgfile_parse_partial_newfilesys (struct uae_prefs *p, int nr, int type, const TCHAR *value, int unit, bool uaehfentry)
+{
+	TCHAR *tmpp;
+	TCHAR *name = NULL, *path = NULL;
+
+	// read only harddrive name
+	if (!uaehfentry)
+		return 0;
+	if (type != 1)
+		return 0;
+	tmpp = getnextentry (&value, ',');
+	if (!tmpp)
+		return 0;
+	xfree (tmpp);
+	tmpp = getnextentry (&value, ':');
+	if (!tmpp)
+		return 0;
+	xfree (tmpp);
+	name = getnextentry (&value, ':');
+	if (name && _tcslen (name) > 0) {
+		path = getnextentry (&value, ',');
+		if (path && _tcslen (path) > 0) {
+			for (int i = 0; i < MAX_FILESYSTEM_UNITS; i++) {
+				struct uaedev_config_info *uci = &p->mountconfig[i].ci;
+				if (_tcsicmp (uci->rootdir, name) == 0) {
+					_tcscat (uci->rootdir, _T(":"));
+					_tcscat (uci->rootdir, path);
+				}
+			}
+		}
+	}
+	xfree (path);
+	xfree (name);
+	return 1;
+}
+
 static int cfgfile_parse_newfilesys (struct uae_prefs *p, int nr, int type, TCHAR *value, int unit, bool uaehfentry)
 {
 	struct uaedev_config_info uci;
@@ -2818,7 +3034,8 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 				*tmpp++ = 0;
 				if (_tcsicmp (value, _T("hdf")) == 0) {
 					type = 1;
-					return 1; /* ignore for now */
+					cfgfile_parse_partial_newfilesys (p, -1, type, tmpp, unit, true);
+					return 1;
 				} else if (_tcsnicmp (value, _T("cd"), 2) == 0 && (value[2] == 0 || value[3] == 0)) {
 					unit = 0;
 					if (value[2] > 0)
@@ -2838,7 +3055,7 @@ static int cfgfile_parse_filesys (struct uae_prefs *p, const TCHAR *option, TCHA
 					return 1;  /* ignore for now */
 				}
 				if (type >= 0)
-					return cfgfile_parse_newfilesys (p, -1, type, tmpp, unit, true);
+					cfgfile_parse_newfilesys (p, -1, type, tmpp, unit, true);
 				return 1;
 			}
 			return 1;

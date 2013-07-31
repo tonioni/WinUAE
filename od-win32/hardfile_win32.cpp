@@ -33,6 +33,8 @@
 #include <stddef.h>
 
 static int usefloppydrives = 0;
+static int num_drives;
+static bool drives_enumerated;
 
 struct hardfilehandle
 {
@@ -47,8 +49,9 @@ struct uae_driveinfo {
 	TCHAR product_id[128];
 	TCHAR product_rev[128];
 	TCHAR product_serial[128];
-	TCHAR device_name[2048];
-	TCHAR device_path[2048];
+	TCHAR device_name[1024];
+	TCHAR device_path[1024];
+	TCHAR device_full_path[2048];
 	uae_u64 size;
 	uae_u64 offset;
 	int bytespersector;
@@ -408,12 +411,132 @@ static void queryidentifydevice (struct hardfiledata *hfd)
 }
 #endif
 
+static int getstorageproperty (PUCHAR outBuf, int returnedLength, struct uae_driveinfo *udi, int ignoreduplicates);
+
+static bool getdeviceinfo (HANDLE hDevice, struct uae_driveinfo *udi)
+{
+	DISK_GEOMETRY dg;
+	GET_LENGTH_INFORMATION gli;
+	DWORD returnedLength;
+	bool geom_ok = true, gli_ok;
+	UCHAR outBuf[20000];
+	DRIVE_LAYOUT_INFORMATION *dli;
+	STORAGE_PROPERTY_QUERY query;
+	DWORD status;
+	TCHAR devname[MAX_DPATH];
+	int amipart = -1;
+
+	udi->bytespersector = 512;
+
+	_tcscpy (devname, udi->device_name + 1);
+
+	if (devname[0] == ':' && devname[1] == 'P' && devname[2] == '#' &&
+		(devname[4] == '_' || devname[5] == '_')) {
+		TCHAR c1 = devname[3];
+		TCHAR c2 = devname[4];
+		if (c1 >= '0' && c1 <= '9') {
+			amipart = c1 - '0';
+			if (c2 != '_') {
+				if (c2 >= '0' && c2 <= '9') {
+					amipart *= 10;
+					amipart += c2 - '0';
+					_tcscpy (devname, udi->device_name + 6);
+				} else {
+					amipart = -1;
+				}
+			} else {
+				_tcscpy (devname, udi->device_name + 5);
+			}
+		}
+	}
+
+	udi->device_name[0] = 0;
+	memset (outBuf, 0, sizeof outBuf);
+	query.PropertyId = StorageDeviceProperty;
+	query.QueryType = PropertyStandardQuery;
+	status = DeviceIoControl(
+		hDevice,
+		IOCTL_STORAGE_QUERY_PROPERTY,
+		&query,
+		sizeof (STORAGE_PROPERTY_QUERY),
+		&outBuf,
+		sizeof outBuf,
+		&returnedLength,
+		NULL);
+	if (status) {
+		if (getstorageproperty (outBuf, returnedLength, udi, false) != -1)
+			return false;
+	} else {
+		return false;
+	}
+
+	if (_tcsicmp (devname, udi->device_name) != 0) {
+		write_log (_T("Non-enumeration mount: mismatched device names\n"));
+		return false;
+	}
+
+	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, NULL, 0, (void*)&dg, sizeof (dg), &returnedLength, NULL)) {
+		DWORD err = GetLastError();
+		if (isnomediaerr (err)) {
+			udi->nomedia = 1;
+			return true;
+		}
+		write_log (_T("IOCTL_DISK_GET_DRIVE_GEOMETRY failed with error code %d.\n"), err);
+		geom_ok = false;
+	}
+	if (!DeviceIoControl (hDevice, IOCTL_DISK_IS_WRITABLE, NULL, 0, NULL, 0, &returnedLength, NULL)) {
+		DWORD err = GetLastError ();
+		if (err == ERROR_WRITE_PROTECT)
+			udi->readonly = 1;
+	}
+	gli_ok = true;
+	if (!DeviceIoControl (hDevice, IOCTL_DISK_GET_LENGTH_INFO, NULL, 0, (void*)&gli, sizeof (gli), &returnedLength, NULL)) {
+		gli_ok = false;
+		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO failed with error code %d.\n"), GetLastError());
+	} else {
+		write_log (_T("IOCTL_DISK_GET_LENGTH_INFO returned size: %I64d (0x%I64x)\n"), gli.Length.QuadPart, gli.Length.QuadPart);
+	}
+	if (geom_ok == 0 && gli_ok == 0) {
+		write_log (_T("Can't detect size of device\n"));
+		return false;
+	}
+	if (geom_ok && dg.BytesPerSector != udi->bytespersector)
+		return false;
+	udi->size = gli.Length.QuadPart;
+
+	// check for amithlon partitions, if any found = quick mount not possible
+	status = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL, 0,
+		&outBuf, sizeof (outBuf), &returnedLength, NULL);
+	if (!status)
+		return true;
+	dli = (DRIVE_LAYOUT_INFORMATION*)outBuf;
+	if (!dli->PartitionCount)
+		return true;
+	bool partfound = false;
+	for (int i = 0; i < dli->PartitionCount; i++) {
+		PARTITION_INFORMATION *pi = &dli->PartitionEntry[i];
+		if (pi->PartitionType == PARTITION_ENTRY_UNUSED)
+			continue;
+		if (pi->RecognizedPartition == 0)
+			continue;
+		if (pi->PartitionType != 0x76 && pi->PartitionType != 0x30)
+			continue;
+		if (i == amipart) {
+			udi->offset = pi->StartingOffset.QuadPart;
+			udi->size = pi->PartitionLength.QuadPart;
+		}
+	}
+	if (amipart >= 0)
+		return false;
+	return true;
+}
+
 int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 {
 	HANDLE h = INVALID_HANDLE_VALUE;
 	DWORD flags;
 	int i;
-	struct uae_driveinfo *udi;
+	struct uae_driveinfo *udi = NULL, tmpudi;
 	TCHAR *name = my_strdup (pname);
 
 	hfd->flags = 0;
@@ -431,16 +554,47 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->handle->h = INVALID_HANDLE_VALUE;
 	hfd_log (_T("hfd attempting to open: '%s'\n"), name);
 	if (name[0] == ':') {
-		hdf_init_target ();
-		i = isharddrive (name);
-		if (i >= 0) {
+		int drvnum = -1;
+		TCHAR *p = _tcschr (name + 1, ':');
+		if (p) {
+			*p++ = 0;
+			if (!drives_enumerated) {
+				// do not scan for drives if open succeeds and it is a harddrive
+				// to prevent spinup of sleeping drives
+				h = CreateFile (p,
+					GENERIC_READ,
+					FILE_SHARE_READ,
+					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+			}
+		}
+		if (h != INVALID_HANDLE_VALUE) {
+			udi = &tmpudi;
+			memset (udi, 0, sizeof (struct uae_driveinfo));
+			_tcscpy (udi->device_full_path, name);
+			_tcscat (udi->device_full_path, _T(":"));
+			_tcscat (udi->device_full_path, p);
+			_tcscpy (udi->device_name, name);
+			_tcscpy (udi->device_path, p);
+			if (!getdeviceinfo (h, udi))
+				udi = NULL;
+			CloseHandle (h);
+			h = INVALID_HANDLE_VALUE;
+		}
+		if (udi == NULL) {
+			hdf_init_target ();
+			drvnum = isharddrive (name);
+			if (drvnum >= 0)
+				udi = &uae_drives[drvnum];
+		}
+		if (udi != NULL) {
 			DWORD r;
-			udi = &uae_drives[i];
 			hfd->flags = HFD_FLAGS_REALDRIVE;
-			if (udi->nomedia)
-				hfd->drive_empty = -1;
-			if (udi->readonly)
-				hfd->ci.readonly = 1;
+			if (udi) {
+				if (udi->nomedia)
+					hfd->drive_empty = -1;
+				if (udi->readonly)
+					hfd->ci.readonly = 1;
+			}
 			flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
 			h = CreateFile (udi->device_path,
 				GENERIC_READ | (hfd->ci.readonly ? 0 : GENERIC_WRITE),
@@ -1333,6 +1487,7 @@ static BOOL GetDevicePropertyFromName(const TCHAR *DevicePath, DWORD Index, DWOR
 	}
 amipartfound:
 	_stprintf (udi->device_name, _T(":%s"), orgname);
+	_stprintf (udi->device_full_path, _T("%s:%s"), udi->device_name, udi->device_path);
 	if (udiindex < 0) {
 		int cnt = 1;
 		int off = _tcslen (udi->device_name);
@@ -1467,10 +1622,6 @@ end:
 #endif
 
 
-
-
-static int num_drives;
-
 static int hdf_init2 (int force)
 {
 #ifdef WINDDK
@@ -1479,11 +1630,10 @@ static int hdf_init2 (int force)
 	DWORD index = 0, index2 = 0, drive;
 	uae_u8 *buffer;
 	DWORD dwDriveMask;
-	static int done;
 
-	if (done && !force)
+	if (drives_enumerated && !force)
 		return num_drives;
-	done = 1;
+	drives_enumerated = true;
 	num_drives = 0;
 #ifdef WINDDK
 	buffer = (uae_u8*)VirtualAlloc (NULL, 65536, MEM_COMMIT, PAGE_READWRITE);
@@ -1631,6 +1781,8 @@ TCHAR *hdf_getnameharddrive (int index, int flags, int *sectorsize, int *dangero
 			return name;
 		}
 	}
+	if (flags & 4)
+		return uae_drives[index].device_full_path;
 	if (flags & 2)
 		return uae_drives[index].device_path;
 	return uae_drives[index].device_name;

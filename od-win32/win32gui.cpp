@@ -4018,7 +4018,7 @@ void InitializeListView (HWND hDlg)
 			struct uaedev_config_info *ci = &uci->ci;
 			int nosize = 0, type;
 			struct mountedinfo mi;
-			TCHAR *rootdir;
+			TCHAR *rootdir, *rootdirp;
 
 			type = get_filesys_unitconfig (&workprefs, i, &mi);
 			if (type < 0) {
@@ -4027,7 +4027,16 @@ void InitializeListView (HWND hDlg)
 			}
 			if (mi.size < 0)
 				nosize = 1;
-			rootdir = mi.rootdir;
+			rootdir = my_strdup (mi.rootdir);
+			rootdirp = rootdir;
+			if (!_tcsncmp (rootdirp, _T("HD_"), 3))
+				rootdirp += 3;
+			if (rootdirp[0] == ':') {
+				rootdirp++;
+				TCHAR *p = _tcschr (rootdirp, ':');
+				if (p)
+					*p = 0;
+			}
 
 			if (nosize)
 				_tcscpy (size_str, _T("n/a"));
@@ -4068,8 +4077,6 @@ void InitializeListView (HWND hDlg)
 				_tcscpy (devname_str, _T("*UAE*"));
 				_tcscpy (volname_str, _T("n/a"));
 				_tcscpy (bootpri_str, _T("n/a"));
-				if (!_tcsncmp (rootdir, _T("HD_"), 3))
-					rootdir += 3;
 			} else if (type == FILESYS_TAPE) {
 				_stprintf (blocksize_str, _T("%d"), ci->blocksize);
 				_tcscpy (devname_str, _T("*UAE*"));
@@ -4086,8 +4093,11 @@ void InitializeListView (HWND hDlg)
 				_tcscpy (blocksize_str, _T("n/a"));
 				_tcscpy (size_str, _T("n/a"));
 			}
-			if (rootdir == NULL || rootdir[0] == 0)
-				rootdir = _T("-");
+			if (rootdirp[0] == 0) {
+				xfree (rootdir);
+				rootdir = my_strdup (_T("-"));
+				rootdirp = rootdir;
+			}
 			WIN32GUI_LoadUIString (ci->readonly ? IDS_NO : IDS_YES, readwrite_str, sizeof (readwrite_str) / sizeof (TCHAR));
 
 			lvstruct.mask     = LVIF_TEXT | LVIF_PARAM;
@@ -4113,8 +4123,8 @@ void InitializeListView (HWND hDlg)
 					listview_column_width[2] = width;
 
 				listview_column_width[3] = 150;
-				ListView_SetItemText(list, result, 3, rootdir);
-				width = ListView_GetStringWidth(list, rootdir) + 10;
+				ListView_SetItemText(list, result, 3, rootdirp);
+				width = ListView_GetStringWidth(list, rootdirp) + 10;
 				if(width > listview_column_width[3])
 					listview_column_width[3] = width;
 
@@ -4138,6 +4148,7 @@ void InitializeListView (HWND hDlg)
 				if(width > listview_column_width[7] )
 					listview_column_width[7] = width;
 			}
+			xfree (rootdir);
 		}
 #endif
 	}
@@ -7462,7 +7473,7 @@ static INT_PTR CALLBACK ExpansionDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Piccolo SD64 Zorro III"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Spectrum28/24 Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Spectrum28/24 Zorro III"));
-#if 0
+#if 1
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro II"));
 		SendDlgItemMessage (hDlg, IDC_RTG_Z2Z3, CB_ADDSTRING, 0, (LPARAM)_T("Picasso IV Zorro III"));
 #endif
@@ -10112,7 +10123,10 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 			index = -1;
 			for (i = 0; i < hdf_getnumharddrives (); i++) {
 				SendDlgItemMessage (hDlg, IDC_HARDDRIVE, CB_ADDSTRING, 0, (LPARAM)hdf_getnameharddrive (i, 1, NULL, NULL));
-				if (!_tcscmp (current_hfdlg.ci.rootdir, hdf_getnameharddrive (i, 0, NULL, NULL)))
+				TCHAR *name1 = hdf_getnameharddrive (i, 4, NULL, NULL);
+				TCHAR *name2 = hdf_getnameharddrive (i, 2, NULL, NULL);
+				TCHAR *name3 = hdf_getnameharddrive (i, 0, NULL, NULL);
+				if (!_tcscmp (current_hfdlg.ci.rootdir, name1) || !_tcscmp (current_hfdlg.ci.rootdir, name2) || !_tcscmp (current_hfdlg.ci.rootdir, name3))
 					index = i;
 			}
 			if (index >= 0) {
@@ -10157,7 +10171,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					BOOL ena;
 					int dang = 1;
 					hdf_getnameharddrive (posn, 1, NULL, &dang);
-					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 0, NULL, &dang));
+					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive (posn, 4, NULL, &dang));
 					ena = dang >= 0;
 					ew (hDlg, IDC_HARDDRIVE_IMAGE, ena);
 					ew (hDlg, IDOK, ena);
@@ -10173,7 +10187,7 @@ static INT_PTR CALLBACK HarddriveSettingsProc (HWND hDlg, UINT msg, WPARAM wPara
 					updatehdfinfo (hDlg, true, true);
 					SendDlgItemMessage (hDlg, IDC_HDF_CONTROLLER, CB_SETCURSEL, current_hfdlg.ci.controller, 0);
 					CheckDlgButton(hDlg, IDC_HDF_RW, !current_hfdlg.ci.readonly);
-					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 0, &current_hfdlg.ci.blocksize, NULL));
+					_tcscpy (current_hfdlg.ci.rootdir, hdf_getnameharddrive ((int)posn, 4, &current_hfdlg.ci.blocksize, NULL));
 				}
 			}
 		} else if (LOWORD (wParam) == IDC_HDF_CONTROLLER) {

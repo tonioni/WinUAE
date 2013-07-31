@@ -25,6 +25,7 @@ extern unsigned long start_cycles;
 extern void compute_vsynctime (void);
 extern void init_eventtab (void);
 extern void do_cycles_ce (unsigned long cycles);
+extern void do_cycles_ce020 (unsigned long cycles);
 extern void events_schedule (void);
 extern void do_cycles_slow (unsigned long cycles_to_add);
 extern void do_cycles_fast (unsigned long cycles_to_add);

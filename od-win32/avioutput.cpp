@@ -274,6 +274,8 @@ static int AVIOutput_AllocateAudio (void)
 		gui_message (_T("acmMetrics() FAILED (%X)\n"), err);
 		return 0;
 	}
+	if (wfxMaxFmtSize < sizeof (WAVEFORMATEX)) // some systems return bogus zero value..
+		return 0;
 
 	// set the source format
 	memset (&wfxSrc, 0, sizeof (wfxSrc));

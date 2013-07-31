@@ -1788,7 +1788,7 @@ static void fill_ce_banks (void)
 {
 	int i;
 
-	memset (ce_banktype, CE_MEMBANK_FAST, sizeof ce_banktype);
+	memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
 	// data cachable regions
 	memset (ce_cachable, 0, sizeof ce_cachable);
 	memset (ce_cachable + (0x00200000 >> 16), 1, currprefs.fastmem_size >> 16);
@@ -1797,30 +1797,31 @@ static void fill_ce_banks (void)
 	memset (ce_cachable + (z3fastmem2_bank.start >> 16), 1, currprefs.z3fastmem2_size >> 16);
 
 	if (&get_mem_bank (0) == &chipmem_bank) {
-		for (i = 0; i < (0x200000 >> 16); i++)
-			ce_banktype[i] = CE_MEMBANK_CHIP;
+		for (i = 0; i < (0x200000 >> 16); i++) {
+			ce_banktype[i] = (currprefs.cs_mbdmac || (currprefs.chipset_mask & CSMASK_AGA)) ? CE_MEMBANK_CHIP32 : CE_MEMBANK_CHIP16;
+		}
 	}
 	if (!currprefs.cs_slowmemisfast) {
 		for (i = (0xc00000 >> 16); i < (0xe00000 >> 16); i++)
-			ce_banktype[i] = CE_MEMBANK_CHIP;
+			ce_banktype[i] = ce_banktype[0];
 	}
 	for (i = (0xd00000 >> 16); i < (0xe00000 >> 16); i++)
-		ce_banktype[i] = CE_MEMBANK_CHIP;
+		ce_banktype[i] = CE_MEMBANK_CHIP16;
 	for (i = (0xa00000 >> 16); i < (0xc00000 >> 16); i++) {
 		addrbank *b;
 		ce_banktype[i] = CE_MEMBANK_CIA;
 		b = &get_mem_bank (i << 16);
 		if (b != &cia_bank) {
-			ce_banktype[i] = CE_MEMBANK_FAST;
+			ce_banktype[i] = CE_MEMBANK_FAST32;
 			ce_cachable[i] = 1;
 		}
 	}
 	// CD32 ROM is 16-bit
 	if (currprefs.cs_cd32cd) {
 		for (i = (0xe00000 >> 16); i < (0xe80000 >> 16); i++)
-			ce_banktype[i] = CE_MEMBANK_FAST16BIT;
+			ce_banktype[i] = CE_MEMBANK_FAST16;
 		for (i = (0xf80000 >> 16); i <= (0xff0000 >> 16); i++)
-			ce_banktype[i] = CE_MEMBANK_FAST16BIT;
+			ce_banktype[i] = CE_MEMBANK_FAST16;
 	}
 	if (currprefs.address_space_24) {
 		for (i = 1; i < 256; i++)

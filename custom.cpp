@@ -3547,7 +3547,7 @@ static bool hsyncdelay (void)
 
 // DFF006 = 0.W must be valid result but better do this only in 68000 modes (whdload black screen!)
 
-#define HPOS_OFFSET (currprefs.cpu_model < 68020 ? 3 : 0)
+#define HPOS_OFFSET ((currprefs.cpu_model < 68020 || (currprefs.cpu_model == 68020 && currprefs.cpu_cycle_exact)) ? 3 : 0)
 
 static uae_u16 VPOSR (void)
 {
@@ -6491,11 +6491,6 @@ static void hsync_handler_pre (bool onvsync)
 #endif
 }
 
-static void CIAA_tod_inc (uae_u32 v)
-{
-	CIAA_tod_handler ();
-}
-
 STATIC_INLINE bool is_last_line (void)
 {
 	return vpos + 1 == maxvpos + lof_store;
@@ -6535,7 +6530,7 @@ static void hsync_handler_post (bool onvsync)
 #else
 		static int cia_hsync;
 		if (cia_hsync < maxhpos) {
-			event2_newevent_xx (-1, cia_hsync, 1, CIAA_tod_inc);
+			CIAA_tod_inc (cia_hsync);
 			int newcount = (vblank_hz * MAXVPOS_PAL * MAXHPOS_PAL) / (currprefs.cs_ciaatod == 2 ? 60 : 50);
 			cia_hsync += newcount;
 		} else {
@@ -6546,10 +6541,10 @@ static void hsync_handler_post (bool onvsync)
 		// CIA-A TOD counter increases when vsync pulse ends
 		if (beamcon0 & 0x80) {
 			if (vpos == vsstop)
-				event2_newevent_xx (-1, lof_store ? hsstop : hsstop + hcenter, 0, CIAA_tod_inc);
+				CIAA_tod_inc (lof_store ? hsstop : hsstop + hcenter);
 		} else {
 			if (vpos == (currprefs.ntscmode ? VSYNC_ENDLINE_NTSC : VSYNC_ENDLINE_PAL)) {
-				event2_newevent_xx (-1, lof_store ? 132 : 18, 0, CIAA_tod_inc);
+				CIAA_tod_inc (lof_store ? 132 : 18);
 			}
 		}
 	}
@@ -8318,6 +8313,19 @@ STATIC_INLINE void checknasty (int hpos, int vpos)
 		record_dma_event (DMA_EVENT_BLITNASTY, hpos, vpos);
 }
 
+static void sync_ce020 (void)
+{
+	unsigned long c;
+	int extra;
+
+	c = get_cycles ();
+	extra = c & (CYCLE_UNIT - 1);
+	if (extra) {
+		extra = CYCLE_UNIT - extra;
+		do_cycles (extra);
+	}
+}
+
 uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 {
 	uae_u32 v = 0;
@@ -8362,6 +8370,7 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	int hpos;
 	struct dma_rec *dr;
 
+	sync_ce020 ();
 	hpos = dma_cycle ();
 	x_do_cycles_pre (CYCLE_UNIT);
 
@@ -8389,8 +8398,8 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	if (debug_dma)
 		dr->dat = v;
 #endif
+	x_do_cycles_post (CYCLE_UNIT, v);
 
-	regs.ce020memcycles -= CYCLE_UNIT;
 	return v;
 }
 
@@ -8429,6 +8438,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 {
 	int hpos;
 
+	sync_ce020 ();
 	hpos = dma_cycle ();
 	x_do_cycles_pre (CYCLE_UNIT);
 
@@ -8453,14 +8463,41 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 	else if (mode == 0)
 		put_byte (addr, v);
 
-	regs.ce020memcycles -= CYCLE_UNIT;
+	x_do_cycles_post (CYCLE_UNIT, v);
 }
 
 void do_cycles_ce (unsigned long cycles)
 {
-	unsigned long c;
+	while (cycles >= CYCLE_UNIT) {
+		int hpos = current_hpos () + 1;
+		sync_copper (hpos);
+		decide_line (hpos);
+		decide_fetch_ce (hpos);
+		if (bltstate != BLT_done)
+			decide_blitter (hpos);
+		do_cycles (1 * CYCLE_UNIT);
+		cycles -= CYCLE_UNIT;
+	}
+}
 
-	c = cycles + extra_cycle;
+void do_cycles_ce020 (unsigned long cycles)
+{
+	unsigned long c;
+	int extra;
+
+	sync_ce020 ();
+	c = get_cycles ();
+	extra = c & (CYCLE_UNIT - 1);
+	if (extra) {
+		extra = CYCLE_UNIT - extra;
+		if (extra >= cycles) {
+			do_cycles (cycles);
+			return;
+		}
+		do_cycles (extra);
+		cycles -= extra;
+	}
+	c = cycles;
 	while (c >= CYCLE_UNIT) {
 		int hpos = current_hpos () + 1;
 		sync_copper (hpos);
@@ -8471,8 +8508,10 @@ void do_cycles_ce (unsigned long cycles)
 		do_cycles (1 * CYCLE_UNIT);
 		c -= CYCLE_UNIT;
 	}
-	extra_cycle = c;
+	if (c > 0)
+		do_cycles (c);
 }
+
 
 int is_cycle_ce (void)
 {

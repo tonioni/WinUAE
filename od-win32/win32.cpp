@@ -3500,7 +3500,10 @@ void fetch_datapath (TCHAR *out, int size)
 {
 	fetch_path (NULL, out, size);
 }
-
+void fetch_rompath (TCHAR *out, int size)
+{
+	fetch_path (_T("KickstartPath"), out, size);
+}
 static int isfilesindir (const TCHAR *p)
 {
 	WIN32_FIND_DATA fd;

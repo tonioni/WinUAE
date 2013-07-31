@@ -271,6 +271,7 @@ typedef struct CirrusVGAState {
     int last_hw_cursor_y_start;
     int last_hw_cursor_y_end;
     int real_vram_size; /* XXX: suppress that */
+	int total_vram_size;
     int device_id;
     int bustype;
 } CirrusVGAState;

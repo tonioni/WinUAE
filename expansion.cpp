@@ -839,21 +839,21 @@ static void expamem_init_filesys (void)
 	expamem_write (0x24, 0x01); /* ser.no. Byte 3 */
 
 	/* er_InitDiagVec */
-	expamem_write (0x28, 0x10); /* Rom-Offset hi */
+	expamem_write (0x28, 0x20); /* Rom-Offset hi */
 	expamem_write (0x2c, 0x00); /* ROM-Offset lo */
 
 	expamem_write (0x40, 0x00); /* Ctrl/Statusreg.*/
 
 	/* Build a DiagArea */
-	memcpy (expamem + 0x1000, diagarea, sizeof diagarea);
+	memcpy (expamem + 0x2000, diagarea, sizeof diagarea);
 
 	/* Call DiagEntry */
-	do_put_mem_word ((uae_u16 *)(expamem + 0x1100), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + 0x1102), ROM_filesys_diagentry);
+	do_put_mem_word ((uae_u16 *)(expamem + 0x2100), 0x4EF9); /* JMP */
+	do_put_mem_long ((uae_u32 *)(expamem + 0x2102), ROM_filesys_diagentry);
 
 	/* What comes next is a plain bootblock */
-	do_put_mem_word ((uae_u16 *)(expamem + 0x1106), 0x4EF9); /* JMP */
-	do_put_mem_long ((uae_u32 *)(expamem + 0x1108), EXPANSION_bootcode);
+	do_put_mem_word ((uae_u16 *)(expamem + 0x2106), 0x4EF9); /* JMP */
+	do_put_mem_long ((uae_u32 *)(expamem + 0x2108), EXPANSION_bootcode);
 
 	memcpy (filesysory, expamem, 0x3000);
 }
@@ -1348,9 +1348,14 @@ void expamem_reset (void)
 #endif
 #ifdef GFXBOARD
 	if (currprefs.rtgmem_type >= GFXBOARD_HARDWARE && !gfxboard_is_z3 (currprefs.rtgmem_type)) {
-		card_name[cardno] = _T ("Gfxboard VRAM Zorro II");
+		card_name[cardno] = _T("Gfxboard VRAM Zorro II");
 		card_init[cardno] = expamem_init_gfxboard_memory;
 		card_map[cardno++] = NULL;
+		if (gfxboard_num_boards (currprefs.rtgmem_type) == 3) {
+			card_name[cardno] = _T("Gfxboard VRAM Zorro II Extra");
+			card_init[cardno] = gfxboard_init_memory_p4_z2;
+			card_map[cardno++] = NULL;
+		}
 		if (gfxboard_is_registers (currprefs.rtgmem_type)) {
 			card_name[cardno] = _T ("Gfxboard Registers");
 			card_init[cardno] = expamem_init_gfxboard_registers;

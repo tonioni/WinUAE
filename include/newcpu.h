@@ -87,7 +87,7 @@ typedef double fptype;
 
 #define MAX68020CYCLES 4
 
-#define CPU_PIPELINE_MAX 3
+#define CPU_PIPELINE_MAX 4
 #define CPU000_MEM_CYCLE 4
 #define CPU000_CLOCK_MULT 2
 #define CPU020_MEM_CYCLE 3
@@ -178,12 +178,11 @@ struct regstruct
 	uae_u8 panic;
 	uae_u32 panic_pc, panic_addr;
 
-	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u32 prefetch020[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	int ce020memcycles;
-	int ce020tmpcycles;
 };
 
 extern struct regstruct regs;
@@ -205,7 +204,7 @@ struct cputracestruct
 
 	uae_u32 msp, vbr;
 	uae_u32 cacr, caar;
-	uae_u16 prefetch020[CPU_PIPELINE_MAX];
+	uae_u32 prefetch020[CPU_PIPELINE_MAX];
 	uae_u32 prefetch020addr;
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
@@ -439,6 +438,10 @@ extern void cpureset (void);
 extern void cpu_halt (int id);
 
 extern void fill_prefetch (void);
+extern void fill_prefetch_020 (void);
+extern void fill_prefetch_030 (void);
+extern void fill_prefetch_040 (void);
+extern void fill_prefetch_0x0 (void);
 
 #define CPU_OP_NAME(a) op ## a
 

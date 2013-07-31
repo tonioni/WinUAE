@@ -30,7 +30,8 @@ int log_scsiemu = 0;
 
 struct blkdevstate
 {
-	int scsiemu;
+	bool scsiemu;
+	int type;
 	struct device_functions *device_func;
 	int isopen;
 	int waspaused;
@@ -159,6 +160,7 @@ static void install_driver (int flags)
 	for (int i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
 		struct blkdevstate *st = &state[i];
 		st->scsiemu = false;
+		st->type = -1;
 		st->device_func = NULL;
 	}
 	if (flags > 0) {
@@ -968,6 +970,8 @@ struct device_info *sys_command_info_session (int unitnum, struct device_info *d
 	if (st->device_func->info == NULL)
 		return 0;
 	struct device_info *di2 = st->device_func->info (unitnum, di, quick, -1);
+	if (di2)
+		st->type = di2->type;
 	if (di2 && st->delayed)
 		di2->media_inserted = 0;
 	freesem (unitnum);
@@ -2031,7 +2035,7 @@ static int execscsicmd_direct (int unitnum, int type, struct amigascsi *as)
 int sys_command_scsi_direct_native (int unitnum, int type, struct amigascsi *as)
 {
 	struct blkdevstate *st = &state[unitnum];
-	if (st->scsiemu || type >= 0) {
+	if (st->scsiemu || (type >= 0 && st->type != type)) {
 		return execscsicmd_direct (unitnum, type, as);
 	} else {
 		if (!st->device_func->exec_direct)

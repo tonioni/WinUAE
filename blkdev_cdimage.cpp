@@ -416,8 +416,11 @@ static void *cdda_play_func (void *v)
 			sector = cdu->cd_last_pos = cdda_pos;
 			t = findtoc (cdu, &sector);
 			if (!t) {
-				write_log (_T("IMAGE CDDA: illegal sector number %d\n"), cdu->cdda_start);
-				setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+				t = findtoc (cdu, &sector + 2 * 75);
+				if (!t) {
+					write_log (_T("IMAGE CDDA: illegal sector number %d\n"), cdu->cdda_start);
+					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+				}
 			} else {
 				write_log (_T("IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %lld, secoffset %d (%d))\n"),
 					cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector, t->index1);
@@ -1553,7 +1556,7 @@ static int parsecue (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 					if (index0 >= 0) {
 						t->index1 = tn - index0;
 					}
-					if (lastpregap) {
+					if (lastpregap && !secoffset) {
 						t->index1 = lastpregap;
 					}
 					int blockoffset = t->address - t->index1;

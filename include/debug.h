@@ -100,6 +100,7 @@ struct dma_rec
     uae_u32 addr;
     uae_u16 evt;
     int type;
+	uae_s8 intlev;
 };
 
 #define DMA_EVENT_BLITIRQ 1

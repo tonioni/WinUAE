@@ -761,7 +761,7 @@ static uaecptr nextaddr (uaecptr addr, uaecptr last, uaecptr *end)
 {
 	static uaecptr old;
 	uaecptr paddr = addr;
-	int next;
+	int next = last;
 	if (last && 0) {
 		if (addr >= last)
 			return 0xffffffff;
@@ -1028,7 +1028,10 @@ STATIC_INLINE void putpixel (uae_u8 *buf, int bpp, int x, xcolnr c8)
 	}
 }
 
-#define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL);
+#define lc(x) ledcolor (x, xredcolors, xgreencolors, xbluecolors, NULL)
+
+static uae_u32 intlevc[] = { 0x000000, 0x444444, 0x008800, 0xffff00, 0x000088, 0x880000, 0xff0000, 0xffffff };
+
 void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, uae_u32 *xredcolors, uae_u32 *xgreencolors, uae_u32 *xbluescolors)
 {
 	int y, x, xx, dx, xplus, yplus;
@@ -1068,6 +1071,7 @@ void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, u
 	cc[DMARECORD_SPRITE] = lc(0xff00ff);
 	cc[DMARECORD_DISK] = lc(0xffffff);
 
+	uae_s8 intlev = 0;
 	for (x = 0; x < maxhpos; x++) {
 		uae_u32 c = cc[0];
 		xx = x * xplus + dx;
@@ -1075,10 +1079,16 @@ void debug_draw_cycles (uae_u8 *buf, int bpp, int line, int width, int height, u
 		if (dr->reg != 0xffff) {
 			c = cc[dr->type];	    
 		}
-		putpixel (buf, bpp, xx, c);
+		if (dr->intlev > intlev)
+			intlev = dr->intlev;
+		putpixel (buf, bpp, xx + 4, c);
 		if (xplus)
-			putpixel (buf, bpp, xx + 1, c);
+			putpixel (buf, bpp, xx + 4 + 1, c);
 	}
+	putpixel (buf, bpp, dx + 0, 0);
+	putpixel (buf, bpp, dx + 1, lc(intlevc[intlev]));
+	putpixel (buf, bpp, dx + 2, lc(intlevc[intlev]));
+	putpixel (buf, bpp, dx + 3, 0);
 }
 
 
@@ -1117,6 +1127,7 @@ struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, in
 	dr->dat = dat;
 	dr->addr = addr;
 	dr->type = type;
+	dr->intlev = regs.intmask;
 	return dr;
 }
 

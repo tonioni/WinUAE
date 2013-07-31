@@ -128,9 +128,9 @@ static uae_u8 *fakebitmap;
 static uae_thread_id fakemodetid;
 int fakemodewaitms = 0;
 
-static D3DXMATRIXA16 m_matProj, m_matProj2;
-static D3DXMATRIXA16 m_matWorld, m_matWorld2;
-static D3DXMATRIXA16 m_matView, m_matView2;
+static D3DXMATRIXA16 m_matProj, m_matProj2, m_matProj_out;
+static D3DXMATRIXA16 m_matWorld, m_matWorld2, m_matWorld_out;
+static D3DXMATRIXA16 m_matView, m_matView2, m_matView_out;
 static D3DXMATRIXA16 m_matPreProj;
 static D3DXMATRIXA16 m_matPreView;
 static D3DXMATRIXA16 m_matPreWorld;
@@ -1227,16 +1227,16 @@ static int createtexture (int ow, int oh, int win_w, int win_h)
 				if (!allocextratextures (&shaders[i], ow, oh))
 					return 0;
 			} else {
-				w2 = zw;
-				h2 = zh;
+				w2 = ow;
+				h2 = oh;
 				w = ow;
 				h = oh;
 			}
 			if (FAILED (hr = d3ddev->CreateTexture (w2, h2, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &shaders[i].lpTempTexture, NULL))) {
-				write_log (_T("%s: Failed to create working texture1: %s:%d\n"), D3DHEAD, D3D_ErrorString (hr), i);
+				write_log (_T("%s: Failed to create working texture1: %s:%d:%d\n"), D3DHEAD, D3D_ErrorString (hr), i, shaders[i].type);
 				return 0;
 			}
-			write_log (_T("%s: %d*%d temp texture:%d\n"), D3DHEAD, w2, h2, i);
+			write_log (_T("%s: %d*%d temp texture:%d:%d\n"), D3DHEAD, w2, h2, i, shaders[i].type);
 			shaders[i].worktex_width = w;
 			shaders[i].worktex_height = h;
 		}
@@ -1738,7 +1738,7 @@ static void setupscenecoords (void)
 	fakesize.w = 1;
 	fakesize.z = 1;
 
-	MatrixOrthoOffCenterLH (&m_matProj, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
+	MatrixOrthoOffCenterLH (&m_matProj_out, 0, w + 0.05f, 0, h + 0.05f, 0.0f, 1.0f);
 
 	float tx, ty;
 	float sw, sh;
@@ -1786,9 +1786,9 @@ static void setupscenecoords (void)
 
 	}
 
-	MatrixTranslation (&m_matView, tx, ty, 1.0f);
+	MatrixTranslation (&m_matView_out, tx, ty, 1.0f);
 
-	MatrixScaling (&m_matWorld, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
+	MatrixScaling (&m_matWorld_out, sw + 0.5f / sw, sh + 0.5f / sh, 1.0f);
 
 	cursor_offset_x = -zr.left;
 	cursor_offset_y = -zr.top;
@@ -1809,8 +1809,8 @@ static void setupscenecoords (void)
 	maskshift.y = 1.0f / maskmult_y;
 
 	D3DXMATRIXA16 tmpmatrix;
-	D3DXMatrixMultiply (&tmpmatrix, &m_matWorld, &m_matView);
-	D3DXMatrixMultiply (&postproj, &tmpmatrix, &m_matProj);
+	D3DXMatrixMultiply (&tmpmatrix, &m_matWorld_out, &m_matView_out);
+	D3DXMatrixMultiply (&postproj, &tmpmatrix, &m_matProj_out);
 }
 
 uae_u8 *getfilterbuffer3d (struct vidbuffer *vb, int *widthp, int *heightp, int *pitch, int *depth)
@@ -1875,6 +1875,16 @@ static void createvertex (void)
 		write_log (_T("%s: Vertexbuffer unlock failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
 }
 
+static void settransform_pre (struct shaderdata *s)
+{
+	// Projection is (0,0,0) -> (1,1,1)
+	MatrixOrthoOffCenterLH (&m_matProj, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+	// Align texels with pixels
+	MatrixTranslation (&m_matView, -0.5f / tout_w, 0.5f / tout_h, 0.0f);
+	// Identity for world
+	D3DXMatrixIdentity (&m_matWorld);
+}
+
 static void settransform (struct shaderdata *s)
 {
 	// Projection is (0,0,0) -> (1,1,1)
@@ -1890,6 +1900,7 @@ static void settransform (struct shaderdata *s)
 	MatrixOrthoOffCenterLH (&m_matProj2, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
 
 	MatrixTranslation (&m_matView2, 0.5f - 0.5f / tout_w, 0.5f + 0.5f / tout_h, 0.0f);
+
 	D3DXMatrixIdentity (&m_matWorld2);
 }
 
@@ -2850,6 +2861,13 @@ static void D3D_render2 (void)
 	if (shaderon > 0 && shaders[SHADER_POST].pEffect) {
 		for (int i = 0; i < MAX_SHADERS; i++) {
 			struct shaderdata *s = &shaders[i];
+			if (s->type == SHADERTYPE_BEFORE)
+				settransform_pre (s);
+			if (s->type == SHADERTYPE_MIDDLE) {
+				m_matProj = m_matProj_out;
+				m_matView = m_matView_out;
+				m_matWorld = m_matWorld_out;
+			}
 			if (s->type == SHADERTYPE_BEFORE || s->type == SHADERTYPE_MIDDLE) {
 				settransform (s);
 				srctex = processshader (srctex, s, true);
@@ -2858,6 +2876,10 @@ static void D3D_render2 (void)
 			}
 		}
 	}
+
+	m_matProj = m_matProj_out;
+	m_matView = m_matView_out;
+	m_matWorld = m_matWorld_out;
 
 #if TWOPASS
 	if (shaderon > 0 && shaders[SHADER_POST].pEffect) {

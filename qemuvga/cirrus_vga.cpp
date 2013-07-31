@@ -43,6 +43,7 @@
  *    - optimize bitblt functions
  */
 
+//#define DEBUG_VGA
 //#define DEBUG_CIRRUS
 //#define DEBUG_VGA_REG
 //#define DEBUG_BITBLT
@@ -1021,6 +1022,9 @@ static void cirrus_get_offsets(VGACommonState *s1,
     line_compare = s->vga.cr[0x18] |
         ((s->vga.cr[0x07] & 0x10) << 4) |
         ((s->vga.cr[0x09] & 0x40) << 3);
+    /* interlace support */
+    if (s->vga.cr[0x1a] & 0x01)
+        line_compare <<= 1;
 	/* multiply vertical registers by two. TW. */
 	if (s->vga.cr[0x17] & 0x04)
 		line_compare <<= 1;
@@ -1286,7 +1290,7 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
 	 * Probably it is a bug in CGX when using impossible
 	 * resolutions that real chip or monitor would not support.
 	 */
-	if (s->vga.cr[0x17] & 0x04)
+	if (s->device_id < CIRRUS_ID_CLGD5446 && (s->vga.cr[0x17] & 0x04))
 		s->hw_cursor_y <<= 1;
 	break;
     case 0x07:			// Extended Sequencer Mode
@@ -1571,7 +1575,13 @@ cirrus_vga_write_gr(CirrusVGAState * s, unsigned reg_index, int reg_value)
 
 static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
 {
-    switch (reg_index) {
+#if 0
+	if (reg_index >= 0x31) {
+		write_log ("READ  CR%02X = %02X\n", reg_index, s->vga.cr[s->vga.cr_index]);
+		return s->vga.cr[s->vga.cr_index];
+	}
+#endif
+	switch (reg_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA
     case 0x02:			// Standard VGA
@@ -1623,10 +1633,9 @@ static int cirrus_vga_read_cr(CirrusVGAState * s, unsigned reg_index)
 static void cirrus_vga_write_cr(CirrusVGAState * s, int reg_value)
 {
 #if 0
-	if (s->vga.cr_index == 11)
-		write_log ("CR11 = %02X\n", reg_value & 0xff);
+	write_log ("WRITE CR%02X = %02X\n", s->vga.cr_index, reg_value);
 #endif
-    switch (s->vga.cr_index) {
+	switch (s->vga.cr_index) {
     case 0x00:			// Standard VGA
     case 0x01:			// Standard VGA
     case 0x02:			// Standard VGA
@@ -1690,6 +1699,9 @@ static void cirrus_vga_write_cr(CirrusVGAState * s, int reg_value)
 	break;
     case 0x25:			// Part Status
     default:
+	s->vga.cr[s->vga.cr_index] = reg_value;
+
+
 #ifdef DEBUG_CIRRUS
 	write_log("cirrus: outport cr_index %02x, cr_value %02x\n",
                s->vga.cr_index, reg_value);
@@ -2117,7 +2129,7 @@ STATIC_INLINE void cirrus_cursor_compute_yrange(CirrusVGAState *s)
     uint32_t content;
     int y, y_min, y_max;
 
-    src = s->vga.vram_ptr + s->real_vram_size - 16 * 1024;
+    src = s->vga.vram_ptr + s->total_vram_size - 16 * 1024;
     if (s->vga.sr[0x12] & CIRRUS_CURSOR_LARGE) {
         src += (s->vga.sr[0x13] & 0x3c) * 256;
         y_min = 64;
@@ -2221,7 +2233,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
         scr_y >= (s->hw_cursor_y + h))
         return;
 
-    src = s->vga.vram_ptr + s->real_vram_size - 16 * 1024;
+    src = s->vga.vram_ptr + s->total_vram_size - 16 * 1024;
     if (s->vga.sr[0x12] & CIRRUS_CURSOR_LARGE) {
         src += (s->vga.sr[0x13] & 0x3c) * 256;
         src += (scr_y - s->hw_cursor_y) * 16;
@@ -2927,8 +2939,8 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     memory_region_set_flush_coalesced(&s->cirrus_mmio_io);
 
 	// TW: CIRRUS_ID_CLGD5434 and newer has 4M support
-    s->real_vram_size =
-        (s->device_id == CIRRUS_ID_CLGD5434) ? 4096 * 1024 : 2048 * 1024;
+    s->total_vram_size = s->vga.vram_size_mb * 1024 * 1024;
+	s->real_vram_size = (s->device_id >= CIRRUS_ID_CLGD5434) ? 4096 * 1024 : 2048 * 1024;
 
     /* XXX: s->vga.vram_size must be a power of two */
     s->cirrus_addr_mask = s->real_vram_size - 1;

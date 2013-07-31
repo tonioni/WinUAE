@@ -2254,7 +2254,7 @@ static void picasso96_alloc2 (TrapContext *ctx)
 
 void picasso96_alloc (TrapContext *ctx)
 {
-	if (uaegfx_old)
+	if (uaegfx_old || currprefs.rtgmem_type >= GFXBOARD_HARDWARE)
 		return;
 	uaegfx_resname = ds (_T("uaegfx.card"));
 	picasso96_alloc2 (ctx);
