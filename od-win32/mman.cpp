@@ -627,6 +627,10 @@ void mapped_free (uae_u8 *mem)
 {
 	shmpiece *x = shm_start;
 
+	if (!currprefs.jit_direct_compatible_memory) {
+		xfree (mem);
+		return;
+	}
 	if (mem == NULL)
 		return;
 	if (mem == filesysory) {

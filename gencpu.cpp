@@ -769,17 +769,17 @@ static void genamode2 (amodes mode, char *reg, wordsizes size, char *name, int g
 		insn_n_cycles020++;
 		switch (size) {
 		case sz_byte:
-			addcycles_ce020 (2);
+			addcycles_ce020 (2 + 2);
 			printf ("\tuae_s8 %s = %s;\n", name, gen_nextibyte (flags));
 			count_read_ea++;
 			break;
 		case sz_word:
-			addcycles_ce020 (2);
+			addcycles_ce020 (2 + 2);
 			printf ("\tuae_s16 %s = %s;\n", name, gen_nextiword (flags));
 			count_read_ea++;
 			break;
 		case sz_long:
-			addcycles_ce020 (4);
+			addcycles_ce020 (4 + 2);
 			gen_nextilong ("uae_s32", name, flags);
 			count_read_ea += 2;
 			break;
@@ -2158,6 +2158,7 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_next ();
 		if (curi->size == sz_long && isreg (curi->smode))
 			addcycles000 (4);
+		addcycles_ce020 (isreg (curi->smode) ? 2 : 12);
 		start_brace ();
 		printf ("\tuae_u32 newv = dst - src - (GET_XFLG () ? 1 : 0);\n");
 		genflags (flag_subx, curi->size, "newv", "src", "dst");
@@ -2189,8 +2190,12 @@ static void gen_opcode (unsigned long int opcode)
 			genflags (flag_zn, curi->size, "newv", "", "");
 			printf ("\tSET_VFLG ((tmp_newv & 0x80) != 0 && (newv & 0x80) == 0);\n");
 		}
-		if (isreg (curi->smode))
+		if (isreg (curi->smode)) {
 			addcycles000 (2);
+			addcycles_ce020 (4);
+		} else {
+			addcycles_ce020 (16);
+		}
 		genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_ADD:
@@ -2244,6 +2249,7 @@ static void gen_opcode (unsigned long int opcode)
 		fill_prefetch_next ();
 		if (curi->size == sz_long && isreg (curi->smode))
 			addcycles000 (4);
+		addcycles_ce020 (isreg (curi->smode) ? 2 : 12);
 		start_brace ();
 		printf ("\tuae_u32 newv = dst + src + (GET_XFLG () ? 1 : 0);\n");
 		genflags (flag_addx, curi->size, "newv", "src", "dst");
@@ -2277,8 +2283,12 @@ static void gen_opcode (unsigned long int opcode)
 			genflags (flag_zn, curi->size, "newv", "", "");
 			printf ("\tSET_VFLG ((tmp_newv & 0x80) == 0 && (newv & 0x80) != 0);\n");
 		}
-		if (isreg (curi->smode))
+		if (isreg (curi->smode)) {
 			addcycles000 (2);
+			addcycles_ce020 (4);
+		} else {
+			addcycles_ce020 (16);
+		}
 		genastore ("newv", curi->dmode, "dstreg", curi->size, "dst");
 		break;
 	case i_NEG:
@@ -2398,6 +2408,7 @@ static void gen_opcode (unsigned long int opcode)
 		genamode (curi->smode, "srcreg", curi->size, "src", 1, 0, GF_AA);
 		genamode (curi->dmode, "dstreg", curi->size, "dst", 1, 0, GF_AA);
 		fill_prefetch_next ();
+		addcycles_ce020 (9);
 		start_brace ();
 		genflags (flag_cmp, curi->size, "newv", "src", "dst");
 		break;
@@ -2415,6 +2426,7 @@ static void gen_opcode (unsigned long int opcode)
 		genamode (curi->dmode, "dstreg", sz_long, "dst", 1, 0, 0);
 		fill_prefetch_next ();
 		addcycles000 (4);
+		addcycles_ce020 (4);
 		start_brace ();
 		genflags (flag_cmp, sz_long, "newv", "src", "dst");
 		break;
@@ -2532,6 +2544,7 @@ static void gen_opcode (unsigned long int opcode)
 		// confirmed
 		genamode (curi->smode, "srcreg", sz_long, "src", 1, 0, 0);
 		fill_prefetch_next ();
+		addcycles_ce020 (4);
 		start_brace ();
 		switch (curi->size) {
 		case sz_byte: printf ("\tuae_u32 dst = (uae_s32)(uae_s8)src;\n"); break;

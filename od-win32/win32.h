@@ -19,11 +19,11 @@
 #define LANG_DLL 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("4")
+#define WINUAEBETA _T("5")
 #else
 #define WINUAEBETA _T("")
 #endif
-#define WINUAEDATE MAKEBD(2013, 7, 31)
+#define WINUAEDATE MAKEBD(2013, 8, 1)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")

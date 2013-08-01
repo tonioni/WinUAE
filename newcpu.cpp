@@ -4570,7 +4570,6 @@ static void m68k_run_3ce (void)
 
 		(*cpufunctbl[opcode])(opcode);
 
-cont:
 		if (r->spcflags || time_for_interrupt ()) {
 			if (do_specialties (0))
 				exit = true;
@@ -4609,7 +4608,7 @@ static void m68k_run_2ce (void)
 		r->cacheholdingdata020 = cputrace.cacheholdingdata020;
 		r->cacheholdingaddr020 = cputrace.cacheholdingaddr020;
 		r->prefetch020addr = cputrace.prefetch020addr;
-		memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
+		memcpy (&r->prefetch020, &cputrace.prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
 		memcpy (&caches020, &cputrace.caches020, sizeof caches020);
 
 		m68k_setpc (cputrace.pc);
@@ -4662,7 +4661,7 @@ static void m68k_run_2ce (void)
 			cputrace.cacheholdingdata020 = r->cacheholdingdata020;
 			cputrace.cacheholdingaddr020 = r->cacheholdingaddr020;
 			cputrace.prefetch020addr = r->prefetch020addr;
-			memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u16));
+			memcpy (&cputrace.prefetch020, &r->prefetch020, CPU_PIPELINE_MAX * sizeof (uae_u32));
 			memcpy (&cputrace.caches020, &caches020, sizeof caches020);
 
 			cputrace.memoryoffset = 0;
@@ -5602,7 +5601,7 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 	else
 		dstbak = dst = xmalloc (uae_u8, 1000);
 
-	save_u32 (2 | 4);
+	save_u32 (2 | 4 | 8);
 	save_u16 (cputrace.opcode);
 	for (int i = 0; i < 16; i++)
 		save_u32 (cputrace.regs[i]);
@@ -5644,6 +5643,8 @@ uae_u8 *save_cpu_trace (int *len, uae_u8 *dstptr)
 		save_u32 (cputrace.cacheholdingdata020);
 		for (int i = 0; i < CPU_PIPELINE_MAX; i++)
 			save_u16 (cputrace.prefetch020[i]);
+		for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+			save_u32 (cputrace.prefetch020[i]);
 	}
 
 	*len = dst - dstbak;
@@ -5695,6 +5696,10 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 			cputrace.cacheholdingdata020 = restore_u32 ();
 			for (int i = 0; i < CPU_PIPELINE_MAX; i++)
 				cputrace.prefetch020[i] = restore_u16 ();
+			if (v & 8) {
+				for (int i = 0; i < CPU_PIPELINE_MAX; i++)
+					cputrace.prefetch020[i] = restore_u32 ();
+			}
 		}
 	}
 
@@ -5703,6 +5708,9 @@ uae_u8 *restore_cpu_trace (uae_u8 *src)
 		if (currprefs.cpu_model > 68000) {
 			if (v & 4)
 				cpu_tracer = -1;
+			// old format?
+			if ((v & (4 | 8)) != (4 | 8))
+				cpu_tracer = 0;
 		} else {
 			cpu_tracer = -1;
 		}

@@ -483,6 +483,7 @@ struct uae_prefs {
 	bool clipboard_sharing;
 	bool native_code;
 	bool uae_hide_autoconfig;
+	bool jit_direct_compatible_memory;
 
 	int mountitems;
 	struct uaedev_config_data mountconfig[MOUNT_CONFIG_SIZE];

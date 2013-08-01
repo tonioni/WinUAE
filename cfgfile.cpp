@@ -4832,6 +4832,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->ghostscript_parameters[0] = 0;
 	p->uae_hide = 0;
 	p->uae_hide_autoconfig = false;
+	p->jit_direct_compatible_memory = true;
 
 	p->mountitems = 0;
 	for (i = 0; i < MOUNT_CONFIG_SIZE; i++) {

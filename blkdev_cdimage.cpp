@@ -387,7 +387,8 @@ static void *cdda_play_func (void *v)
 	int bufnum;
 	int bufon[2];
 	int oldplay;
-	int idleframes;
+	int idleframes = 0;
+	int silentframes = 0;
 	bool foundsub;
 	struct cdunit *cdu = (struct cdunit*)v;
 	int oldtrack = -1;
@@ -409,6 +410,7 @@ static void *cdda_play_func (void *v)
 			struct _timeb tb1, tb2;
 
 			idleframes = 0;
+			silentframes = 0;
 			foundsub = false;
 			_ftime (&tb1);
 			cdda_pos = cdu->cdda_start;
@@ -416,7 +418,8 @@ static void *cdda_play_func (void *v)
 			sector = cdu->cd_last_pos = cdda_pos;
 			t = findtoc (cdu, &sector);
 			if (!t) {
-				t = findtoc (cdu, &sector + 2 * 75);
+				sector = cdu->cd_last_pos = cdda_pos + 2 * 75;
+				t = findtoc (cdu, &sector);
 				if (!t) {
 					write_log (_T("IMAGE CDDA: illegal sector number %d\n"), cdu->cdda_start);
 					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
@@ -475,6 +478,19 @@ static void *cdda_play_func (void *v)
 			if (idleframes >= 0 && diff < 0 && cdu->cdda_play > 0)
 				Sleep (-diff);
 			setstate (cdu, AUDIO_STATUS_IN_PROGRESS);
+
+			sector = cdda_pos;
+			struct cdtoc *t1 = findtoc (cdu, &sector);
+			struct cdtoc *t2 = findtoc (cdu, &sector + 2 * 75);
+			if (t1 != t2) {
+				for (sector = cdda_pos; sector < cdda_pos + 2 * 75; sector++) {
+					int sec = sector;
+					t = findtoc (cdu, &sec);
+					if (t == t2)
+						break;
+					silentframes++;
+				}
+			}
 		}
 
 		cda->wait(bufnum);
@@ -539,10 +555,14 @@ static void *cdda_play_func (void *v)
 					getsub_deinterleaved (subbuf, cdu, t, cdda_pos);
 				}
 
-				if (idleframes > 0) {
-					idleframes--;
+				if (idleframes > 0 || silentframes > 0) {
+					if (idleframes > 0) {
+						idleframes--;
+						memset (subbuf, 0, SUB_CHANNEL_SIZE);
+					}
+					if (silentframes > 0)
+						silentframes--;
 					memset (dst, 0, 2352);
-					memset (subbuf, 0, SUB_CHANNEL_SIZE);
 				}
 
 				if (cdda_pos < cdu->cdda_start && cdu->cdda_scan == 0)

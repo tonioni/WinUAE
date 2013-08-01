@@ -2063,8 +2063,6 @@ bool picasso_is_vram_dirty (uaecptr addr, int size)
 	}
 	return false;
 }
-	
-
 
 static void init_alloc (TrapContext *ctx, int size)
 {

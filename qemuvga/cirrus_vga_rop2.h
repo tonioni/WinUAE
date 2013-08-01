@@ -114,7 +114,8 @@ glue(glue(glue(cirrus_colorexpand_transp_, ROP_NAME), _),DEPTH)
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;
-        col = s->cirrus_blt_bgcol;
+		// Color expansion + transparency: fgcol, not bgcol. TW.
+        col = s->cirrus_blt_fgcol;
     } else {
         bits_xor = 0x00;
         col = s->cirrus_blt_fgcol;
@@ -197,7 +198,8 @@ glue(glue(glue(cirrus_colorexpand_pattern_transp_, ROP_NAME), _),DEPTH)
 
     if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV) {
         bits_xor = 0xff;
-        col = s->cirrus_blt_bgcol;
+		// Color expansion + transparency: fgcol, not bgcol. TW.
+        col = s->cirrus_blt_fgcol;
     } else {
         bits_xor = 0x00;
         col = s->cirrus_blt_fgcol;

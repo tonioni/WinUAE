@@ -1,6 +1,55 @@
 
 - restore only single input target to default.
 
+Beta 4:
+
+- Picasso IV RTG board emulation implemented. Very important information:
+  - Requires full 128k raw flash rom image, available from
+    http://www.sophisticated-development.de/ (PIV_FlashImageXX), renamed as picasso_iv_flash.rom
+  - Does not use rom scanner system, image file must be located in Paths panel configured rom path.
+  - Very big thanks to Tobias Seiler for answering questions about board's hardware implementation.
+  - Do not bother Tobias (or anyone else) who does not develop UAE with Picasso IV emulation problems.
+  - Only implements basic functionality, flifi or other extra stuff is not emulated.
+  - Real Picasso IV uses flifi when displaying Amiga modes, emulation ignores it and simply displays
+    Amiga modes normally.
+  - Picasso96 and CGX4 confirmed working.
+
+- Piccolo autoconfig size change reverted, problem appears to be caused by EGS 7.4 driver bug.
+- >1024 pixel tall interlace mode fix.
+- CL vertical blank handling fixed, it caused spurious interrupts in some situations.
+- uaegfx driver was enabled if on-disk version was loaded and hardware board emulation was configured.
+
+- CIA TOD counting delay emulated. Time between TICK input going active and TOD increasing has
+  14-16 E-clock cycle delay. Logic analyzer confirmed using ALARM interrupt.
+- Disabled CIA TOD bug emulation. It makes no sense, I have AGA program that refuses to work on
+  my real A1200 (Gets unexpected interrupt and crashes) but there is no way it didn't work 20
+  or so years ago..
+
+- Workaround for hard drive enumeration waking up sleeping drives if one or more harddrives are
+  mounted in configuration and emulation is started. To enable it, all configured real harddrives
+  (or memory cards) need to be re-configured using GUI and config saved to create new config field
+  required to find the drive without enumeration. Falls back to full enumeration if drive's "friendly"
+  name does not match config saved value or new config entry is missing.
+- Simplified CIA interrupt handling, removed some old hack which appears to be obsolete. I hope.
+- Added CPU interrupt level information to visual DMA debugger. Each scanline has extra pixel on left side
+  of DMA usage image that shows scanline's highest CPU interrupt level.
+
+- Rewritten 68020/030 cycle-exact emulation core. Emulates 68020 simultaneous bus controller and
+  instruction execution more accurately. It still runs too fast, but at least it is less fast than
+  previously, still lots of tweaking to do but at least now it should be possible to match real 68020
+  more closely than what was possible with old code.
+- 68020/030 CPU emulation updates, prefetch emulation (also used in cycle-exact mode) should be much
+  more compatible, "more compatible" checked without cycle-exact now also includes instruction cache emulation.
+- 68030+ more compatible (prefetch) and 68040+ "cycle-exact" modes are broken temporarily. Do not use.
+- Restoring old 68020 cycle-exact saved state files may show dialog complaining about mismatched state
+  information and restore may also fail. It is normal, will be fixed later.
+- Cycle-exact CPU accesses to AGA custom registers used 32-bit accesses, not 16-bit.
+- b3 .cue decoding update broke some variants, fixed.
+- Added workaround for Windows returning returning invalid (too small) value when asking for
+  ACM_METRIC_MAX_SIZE_FORMAT. (Output panel crashing)
+
+Beta 3:
+
 - Disable Z3 Cirrus Logic RTG board if 24-bit address space.
 - Hard reset and CL board enabled crashed.
 - Added Chipset/RTG screen toggle input event ("Toggle chipset/RTG screen"). Only works when RTG mode is active,
@@ -23,6 +72,7 @@
   are correct, they appear to be because it is standard PAL/NTSC)
 - CIA-B hsync TOD counting is also positioned cycle-exactly now (end of hsync pulse), was at the start of
   scanline previously.
+- SPTI didn't work, SCSI routing got broken when Tape drive support was added.
 
 Beta 2:
 

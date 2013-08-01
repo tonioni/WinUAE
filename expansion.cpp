@@ -362,33 +362,38 @@ static void REGPARAM2 expamem_wput (uaecptr addr, uae_u32 value)
 		switch (addr & 0xff) {
 		case 0x44:
 			if (expamem_type () == zorroIII) {
-				uae_u32 p1, p2 = 0;
-				// +Bernd Roesch & Toni Wilen
-				p1 = get_word (regs.regs[11] + 0x20);
-				if (expamem[0] & add_memory) {
-					// Z3 RAM expansion
-					p2 = 0;
-					while (!p2 && z3num < 2) {
-						if (z3num == 0 && currprefs.z3fastmem_size)
-							p2 = z3fastmem_bank.start >> 16;
-						else if (z3num == 1 && currprefs.z3fastmem2_size)
-							p2 = z3fastmem2_bank.start >> 16;
-						if (!p2)
-							z3num++;
+				if (currprefs.jit_direct_compatible_memory) {
+					uae_u32 p1, p2 = 0;
+					// +Bernd Roesch & Toni Wilen
+					p1 = get_word (regs.regs[11] + 0x20);
+					if (expamem[0] & add_memory) {
+						// Z3 RAM expansion
+						p2 = 0;
+						while (!p2 && z3num < 2) {
+							if (z3num == 0 && currprefs.z3fastmem_size)
+								p2 = z3fastmem_bank.start >> 16;
+							else if (z3num == 1 && currprefs.z3fastmem2_size)
+								p2 = z3fastmem2_bank.start >> 16;
+							if (!p2)
+								z3num++;
+						}
+						z3num++;
+					} else {
+						// Z3 P96 RAM
+						if (gfxmem_bank.start & 0xff000000)
+							p2 = gfxmem_bank.start >> 16;
 					}
-					z3num++;
+					put_word (regs.regs[11] + 0x20, p2);
+					put_word (regs.regs[11] + 0x28, p2);
+					// -Bernd Roesch
+					expamem_hi = p2;
+					(*card_map[ecard]) ();
+					if (p1 != p2)
+						write_log (_T("   Card %d remapped %04x0000 -> %04x0000\n"), ecard + 1, p1, p2);
 				} else {
-					// Z3 P96 RAM
-					if (gfxmem_bank.start & 0xff000000)
-						p2 = gfxmem_bank.start >> 16;
+					expamem_hi = value & 0xff00;
+					(*card_map[ecard]) ();
 				}
-				put_word (regs.regs[11] + 0x20, p2);
-				put_word (regs.regs[11] + 0x28, p2);
-				// -Bernd Roesch
-				expamem_hi = p2;
-				(*card_map[ecard]) ();
-				if (p1 != p2)
-					write_log (_T("   Card %d remapped %04x0000 -> %04x0000\n"), ecard + 1, p1, p2);
 				write_log (_T("   Card %d (Zorro%s) done.\n"), ecard + 1, expamem_type () == 0xc0 ? _T("II") : _T("III"));
 				expamem_next ();
 			}
@@ -869,16 +874,20 @@ static void expamem_map_z3fastmem_2 (addrbank *bank, uaecptr *startp, uae_u32 si
 	int z3fs = ((expamem_hi | (expamem_lo >> 4)) << 16);
 	int start = *startp;
 
-	if (z3fs) {
-		if (start != z3fs) {
+	if (currprefs.jit_direct_compatible_memory) {
+		if (z3fs && start != z3fs) {
 			write_log (_T("WARNING: Z3MEM mapping changed from $%08x to $%08x\n"), start, z3fs);
 			map_banks (&dummy_bank, start >> 16, size >> 16, allocated);
 			*startp = z3fs;
 			map_banks (bank, start >> 16, size >> 16, allocated);
 		}
-		write_log (_T("Z3MEM (32bit): mapped @$%08x: %d MB Zorro III %s memory \n"),
-			start, allocated / 0x100000, chip ? _T("chip") : _T("fast"));
+	} else {
+		map_banks (bank, z3fs >> 16, size >> 16, allocated);
+		start = z3fs;
+		*startp = z3fs;
 	}
+	write_log (_T("Z3MEM (32bit): mapped @$%08x: %d MB Zorro III %s memory \n"),
+			start, allocated / 0x100000, chip ? _T("chip") : _T("fast"));
 }
 
 static void expamem_map_z3fastmem (void)
@@ -1370,12 +1379,14 @@ void expamem_reset (void)
 		card_name[cardno] = _T("Z3Fast");
 		card_init[cardno] = expamem_init_z3fastmem;
 		card_map[cardno++] = expamem_map_z3fastmem;
-		map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
+		if (currprefs.jit_direct_compatible_memory)
+			map_banks (&z3fastmem_bank, z3fastmem_bank.start >> 16, currprefs.z3fastmem_size >> 16, z3fastmem_bank.allocated);
 		if (z3fastmem2_bank.baseaddr != NULL) {
 			card_name[cardno] = _T("Z3Fast2");
 			card_init[cardno] = expamem_init_z3fastmem2;
 			card_map[cardno++] = expamem_map_z3fastmem2;
-			map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
+			if (currprefs.jit_direct_compatible_memory)
+				map_banks (&z3fastmem2_bank, z3fastmem2_bank.start >> 16, currprefs.z3fastmem2_size >> 16, z3fastmem2_bank.allocated);
 		}
 	}
 	if (z3chipmem_bank.baseaddr != NULL)

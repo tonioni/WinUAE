@@ -15,6 +15,9 @@
 #define MEMDEBUGTEST 0x280000
 #define PICASSOIV_DEBUG_IO 0
 
+#define BYTESWAP_WORD -1
+#define BYTESWAP_LONG 1
+
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -69,6 +72,9 @@
 #define BOARD_MODEL_REGISTERS_SPECTRUM 2
 
 extern addrbank gfxboard_bank_special;
+extern addrbank gfxboard_bank_wbsmemory;
+extern addrbank gfxboard_bank_lbsmemory;
+extern addrbank gfxboard_bank_nbsmemory;
 
 struct gfxboard
 {
@@ -146,11 +152,15 @@ static struct gfxboard boards[] =
 	}
 };
 
+static TCHAR memorybankname[40];
+static TCHAR wbsmemorybankname[40];
+static TCHAR lbsmemorybankname[40];
+static TCHAR regbankname[40];
 
 static int configured_mem, configured_regs;
 static struct gfxboard *board;
 static uae_u32 memory_mask;
-
+static uae_u8 expamem_lo;
 static uae_u8 *automemory;
 
 static uae_u8 picassoiv_bank, picassoiv_flifi;
@@ -159,6 +169,7 @@ static struct zfile *p4rom;
 static bool p4z2;
 static uae_u32 p4_mmiobase;
 static uae_u32 p4_special_mask;
+static uae_u32 p4_vram_bank[2];
 
 static CirrusVGAState vga;
 static uae_u8 *vram;
@@ -171,7 +182,10 @@ static uae_u8 *gfxboard_surface, *vram_address, *fakesurface_surface;
 static bool gfxboard_vblank;
 static bool gfxboard_intena;
 static bool vram_enabled, vram_offset_enabled;
+static bool vram_byteswap;
 static hwaddr vram_offset[2];
+static uae_u8 cirrus_pci[0x44];
+static uae_u8 p4_pci[0x44];
 
 static uae_u32 vgaioregionptr, vgavramregionptr, vgabank0regionptr, vgabank1regionptr;
 
@@ -479,6 +493,36 @@ void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 	reset_func (reset_parm);
 }
 
+static void p4_pci_check (void)
+{
+	p4_vram_bank[0] = p4_pci[0x10 + 2] << 16;
+	p4_vram_bank[1] = p4_pci[0x14 + 2] << 16;
+#if PICASSOIV_DEBUG_IO
+	write_log (_T("%08X %08X\n"), p4_vram_bank[0], p4_vram_bank[1]);
+#endif
+}
+
+static void reset_pci (void)
+{
+	cirrus_pci[0] = 0x00;
+	cirrus_pci[1] = 0xb8;
+	cirrus_pci[2] = 0x10;
+	cirrus_pci[3] = 0x13;
+
+	cirrus_pci[4] = 2;
+	cirrus_pci[5] = 0;
+	cirrus_pci[6] = 0;
+	cirrus_pci[7] &= ~(1 | 2 | 32);
+
+	cirrus_pci[8] = 3;
+	cirrus_pci[9] = 0;
+	cirrus_pci[10] = 0;
+	cirrus_pci[11] = 68;
+
+	cirrus_pci[0x10] &= ~1; // B revision
+	cirrus_pci[0x13] &= ~1; // memory
+}
+
 static void picassoiv_checkswitch (void)
 {
 	if (ISP4()) {
@@ -564,6 +608,45 @@ int is_surface_bgr(DisplaySurface *surface)
 	return board->swap;
 }
 
+static uaecptr fixaddr_bs (uaecptr addr, int mask, int *bs)
+{
+	bool swapped = false;
+	if (p4z2) {
+		if (addr < 0x200000) {
+			addr |= p4_vram_bank[0];
+			if (addr >= 0x400000 && addr < 0x600000) {
+				*bs = BYTESWAP_WORD;
+				swapped = true;
+			} else if (addr >= 0x800000 && addr < 0xa00000) {
+				*bs = BYTESWAP_LONG;
+				swapped = true;
+			}
+		} else {
+			addr |= p4_vram_bank[1];
+			if (addr >= 0x600000 && addr < 0x800000) {
+				*bs = BYTESWAP_WORD;
+				swapped = true;
+			} else if (addr >= 0xa00000 && addr < 0xc00000) {
+				*bs = BYTESWAP_LONG;
+				swapped = true;
+			}
+		}
+	}
+#ifdef JIT
+	if (vram_offset || !vram_enabled || swapped)
+		special_mem |= mask;
+#endif
+	if (vram_offset_enabled) {
+		if (addr & 0x8000) {
+			addr += vram_offset[1] & ~0x8000;
+		} else {
+			addr += vram_offset[0];
+		}
+	}
+	addr &= memory_mask;
+	return addr;
+}
+
 static uaecptr fixaddr (uaecptr addr, int mask)
 {
 #ifdef JIT
@@ -586,57 +669,74 @@ STATIC_INLINE const MemoryRegionOps *getvgabank (uaecptr *paddr)
 	uaecptr addr = *paddr;
 	addr &= memory_mask;
 	*paddr = addr;
-//	if (addr <  0x100000)
-//		return vgalowram;
 	return vgaram;
 }
 
-static uae_u32 REGPARAM2 gfxboard_lget_mem (uaecptr addr)
+static uae_u32 gfxboard_lget_vram (uaecptr addr, int bs)
 {
 	uae_u32 v;
-	uae_u8 *m;
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_READ);
 	if (!vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (&addr);
 		addr &= memory_mask;
-		v  = bank->read (&vga, addr + 0, 1) << 24;
-		v |= bank->read (&vga, addr + 1, 1) << 16;
-		v |= bank->read (&vga, addr + 2, 1) <<  8;
-		v |= bank->read (&vga, addr + 3, 1) <<  0;
+		if (bs < 0) { // WORD
+			v  = bank->read (&vga, addr + 1, 1) << 24;
+			v |= bank->read (&vga, addr + 0, 1) << 16;
+			v |= bank->read (&vga, addr + 3, 1) <<  8;
+			v |= bank->read (&vga, addr + 2, 1) <<  0;
+		} else if (bs > 0) { // LONG
+			v  = bank->read (&vga, addr + 3, 1) << 24;
+			v |= bank->read (&vga, addr + 2, 1) << 16;
+			v |= bank->read (&vga, addr + 1, 1) <<  8;
+			v |= bank->read (&vga, addr + 0, 1) <<  0;
+		} else {
+			v  = bank->read (&vga, addr + 0, 1) << 24;
+			v |= bank->read (&vga, addr + 1, 1) << 16;
+			v |= bank->read (&vga, addr + 2, 1) <<  8;
+			v |= bank->read (&vga, addr + 3, 1) <<  0;
+		}
 	} else {
-		m = vram + addr;
-		v = do_get_mem_long ((uae_u32 *)m);
+		uae_u8 *m = vram + addr;
+		if (bs < 0) {
+			v  = (*((uae_u16*)m)) << 16;
+			v |= (*((uae_u16*)(m + 2))) << 0;
+		} else if (bs > 0) {
+			v = *((uae_u32*)m);
+		} else {
+			v = do_get_mem_long ((uae_u32*)m);
+		}
 	}
 #if MEMLOGR
 	write_log (_T("R %08X L %08X\n"), addr, v);
 #endif
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_wget_mem (uaecptr addr)
+static uae_u32 gfxboard_wget_vram (uaecptr addr, int bs)
 {
 	uae_u32 v;
-	uae_u8 *m;
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_READ);
 	if (!vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (&addr);
-		v  = bank->read (&vga, addr + 0, 1) <<  8;
-		v |= bank->read (&vga, addr + 1, 1) <<  0;
+		if (bs) {
+			v  = bank->read (&vga, addr + 0, 1) <<  0;
+			v |= bank->read (&vga, addr + 1, 1) <<  8;
+		} else {
+			v  = bank->read (&vga, addr + 0, 1) <<  8;
+			v |= bank->read (&vga, addr + 1, 1) <<  0;
+		}
 	} else {
-		m = vram + addr;
-		v = do_get_mem_word ((uae_u16 *)m);
+		uae_u8 *m = vram + addr;
+		if (bs)
+			v = *((uae_u16*)m);
+		else
+			v = do_get_mem_word ((uae_u16*)m);
 	}
 #if MEMLOGR
 	write_log (_T("R %08X W %08X\n"), addr, v & 0xffff);
 #endif
 	return v;
 }
-static uae_u32 REGPARAM2 gfxboard_bget_mem (uaecptr addr)
+static uae_u32 gfxboard_bget_vram (uaecptr addr)
 {
 	uae_u32 v;
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_READ);
 	if (!vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (&addr);
 		v = bank->read (&vga, addr + 0, 1);
@@ -649,11 +749,8 @@ static uae_u32 REGPARAM2 gfxboard_bget_mem (uaecptr addr)
 	return v;
 }
 
-static void REGPARAM2 gfxboard_lput_mem (uaecptr addr, uae_u32 l)
+static void gfxboard_lput_vram (uaecptr addr, uae_u32 l, int bs)
 {
-	uae_u8 *m;
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_WRITE);
 #if MEMDEBUG
 	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && l)
 		write_log (_T("%08X L %08X\n"), addr, l);
@@ -663,20 +760,36 @@ static void REGPARAM2 gfxboard_lput_mem (uaecptr addr, uae_u32 l)
 #endif
 	if (!vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (&addr);
-		bank->write (&vga, addr + 0, l >> 24, 1);
-		bank->write (&vga, addr + 1, l >> 16, 1);
-		bank->write (&vga, addr + 2, l >> 8, 1);
-		bank->write (&vga, addr + 3, l >> 0, 1);
+		if (bs < 0) { // WORD
+			bank->write (&vga, addr + 1, l >> 24, 1);
+			bank->write (&vga, addr + 0, l >> 16, 1);
+			bank->write (&vga, addr + 3, l >> 8, 1);
+			bank->write (&vga, addr + 2, l >> 0, 1);
+		} else if (bs > 0) {
+			bank->write (&vga, addr + 3, l >> 24, 1);
+			bank->write (&vga, addr + 2, l >> 16, 1);
+			bank->write (&vga, addr + 1, l >> 8, 1);
+			bank->write (&vga, addr + 0, l >> 0, 1);
+		} else {
+			bank->write (&vga, addr + 0, l >> 24, 1);
+			bank->write (&vga, addr + 1, l >> 16, 1);
+			bank->write (&vga, addr + 2, l >> 8, 1);
+			bank->write (&vga, addr + 3, l >> 0, 1);
+		}
 	} else {
-		m = vram + addr;
-		do_put_mem_long ((uae_u32 *) m, l);
+		uae_u8 *m = vram + addr;
+		if (bs < 0) {
+			*((uae_u16*)m) = l >> 16;
+			*((uae_u16*)(m + 2)) = l >> 0;
+		} else if (bs > 0) {
+			*((uae_u32*)m) = l;
+		} else {
+			do_put_mem_long ((uae_u32*) m, l);
+		}
 	}
 }
-static void REGPARAM2 gfxboard_wput_mem (uaecptr addr, uae_u32 w)
+static void gfxboard_wput_vram (uaecptr addr, uae_u32 w, int bs)
 {
-	uae_u8 *m;
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_WRITE);
 #if MEMDEBUG
 	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && w)
 		write_log (_T("%08X W %04X\n"), addr, w & 0xffff);
@@ -686,17 +799,23 @@ static void REGPARAM2 gfxboard_wput_mem (uaecptr addr, uae_u32 w)
 #endif
 	if (!vram_enabled) {
 		const MemoryRegionOps *bank = getvgabank (&addr);
-		bank->write (&vga, addr + 0, w >> 8, 1);
-		bank->write (&vga, addr + 1, w >> 0, 1);
+		if (bs) {
+			bank->write (&vga, addr + 0, w >> 0, 1);
+			bank->write (&vga, addr + 1, w >> 8, 1);
+		} else {
+			bank->write (&vga, addr + 0, w >> 8, 1);
+			bank->write (&vga, addr + 1, w >> 0, 1);
+		}
 	} else {
-		m = vram + addr;
-		do_put_mem_word ((uae_u16 *)m, w);
+		uae_u8 *m = vram + addr;
+		if (bs)
+			*((uae_u16*)m) = w;
+		else
+			do_put_mem_word ((uae_u16*)m, w);
 	}
 }
-static void REGPARAM2 gfxboard_bput_mem (uaecptr addr, uae_u32 b)
+static void gfxboard_bput_vram (uaecptr addr, uae_u32 b)
 {
-	addr -= gfxboardmem_start & memory_mask;
-	addr = fixaddr (addr, S_WRITE);
 #if MEMDEBUG
 	if ((addr & MEMDEBUGMASK) >= MEMDEBUGTEST && b)
 		write_log (_T("%08X B %02X\n"), addr, b & 0xff);
@@ -713,6 +832,123 @@ static void REGPARAM2 gfxboard_bput_mem (uaecptr addr, uae_u32 b)
 	} else {
 		vram[addr] = b;
 	}
+}
+
+// LONG byteswapped VRAM
+static uae_u32 REGPARAM2 gfxboard_lget_lbsmem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_lget_vram (addr, BYTESWAP_LONG);
+}
+static uae_u32 REGPARAM2 gfxboard_wget_lbsmem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_wget_vram (addr, BYTESWAP_LONG);
+}
+static void REGPARAM2 gfxboard_lput_lbsmem (uaecptr addr, uae_u32 l)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_lput_vram (addr, l, BYTESWAP_LONG);
+}
+static void REGPARAM2 gfxboard_wput_lbsmem (uaecptr addr, uae_u32 w)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_wput_vram (addr, w, BYTESWAP_LONG);
+}
+// WORD byteswapped VRAM
+static uae_u32 REGPARAM2 gfxboard_lget_wbsmem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_lget_vram (addr, BYTESWAP_WORD);
+}
+static uae_u32 REGPARAM2 gfxboard_wget_wbsmem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_wget_vram (addr, BYTESWAP_WORD);
+}
+static void REGPARAM2 gfxboard_lput_wbsmem (uaecptr addr, uae_u32 l)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_lput_vram (addr, l, BYTESWAP_WORD);
+}
+static void REGPARAM2 gfxboard_wput_wbsmem (uaecptr addr, uae_u32 w)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_wput_vram (addr, w, BYTESWAP_WORD);
+}
+// normal or byteswapped (banked) vram
+static uae_u32 REGPARAM2 gfxboard_lget_nbsmem (uaecptr addr)
+{
+	int bs = 0;
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr_bs (addr, S_READ, &bs);
+	return gfxboard_lget_vram (addr, bs);
+}
+static uae_u32 REGPARAM2 gfxboard_wget_nbsmem (uaecptr addr)
+{
+	int bs = 0;
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr_bs (addr, S_READ, &bs);
+	return gfxboard_wget_vram (addr, bs);
+}
+static void REGPARAM2 gfxboard_lput_nbsmem (uaecptr addr, uae_u32 l)
+{
+	int bs = 0;
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr_bs (addr, S_WRITE, &bs);
+	gfxboard_lput_vram (addr, l, bs);
+}
+static void REGPARAM2 gfxboard_wput_nbsmem (uaecptr addr, uae_u32 w)
+{
+	int bs = 0;
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr_bs (addr, S_WRITE, &bs);
+	gfxboard_wput_vram (addr, w, bs);
+}
+// normal vram
+static uae_u32 REGPARAM2 gfxboard_lget_mem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_lget_vram (addr, 0);
+}
+static uae_u32 REGPARAM2 gfxboard_wget_mem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_wget_vram (addr, 0);
+}
+static uae_u32 REGPARAM2 gfxboard_bget_mem (uaecptr addr)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_READ);
+	return gfxboard_bget_vram (addr);
+}
+static void REGPARAM2 gfxboard_lput_mem (uaecptr addr, uae_u32 l)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_lput_vram (addr, l, 0);
+}
+static void REGPARAM2 gfxboard_wput_mem (uaecptr addr, uae_u32 w)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_wput_vram (addr, w, 0);
+}
+static void REGPARAM2 gfxboard_bput_mem (uaecptr addr, uae_u32 b)
+{
+	addr -= gfxboardmem_start & memory_mask;
+	addr = fixaddr (addr, S_WRITE);
+	gfxboard_bput_vram (addr, b);
 }
 
 static int REGPARAM2 gfxboard_check (uaecptr addr, uae_u32 size)
@@ -750,14 +986,23 @@ static void REGPARAM2 gfxboard_wput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	b &= 0xffff;
 	addr &= 65535;
 	if (addr == 0x44) {
-		put_word (regs.regs[11] + 0x20, gfxmem_bank.start >> 16);
-		put_word (regs.regs[11] + 0x28, gfxmem_bank.start >> 16);
+		uae_u32 start;
+		if (currprefs.jit_direct_compatible_memory) {
+			start = gfxmem_bank.start;
+			put_word (regs.regs[11] + 0x20, start >> 16);
+			put_word (regs.regs[11] + 0x28, start >> 16);
+		} else {
+			start = (b & 0xff00) | expamem_lo;
+			gfxmem_bank.start = start << 16;
+		}
 		gfxboard_bank_memory.bget = gfxboard_bget_mem;
 		gfxboard_bank_memory.bput = gfxboard_bput_mem;
 		gfxboard_bank_memory.wput = gfxboard_wput_mem;
 		if (ISP4()) {
-			map_banks (&gfxboard_bank_memory, (gfxmem_bank.start + PICASSOIV_VRAM1) >> 16, currprefs.rtgmem_size >> 16, currprefs.rtgmem_size);
-			map_banks (&gfxboard_bank_memory, (gfxmem_bank.start + PICASSOIV_VRAM2) >> 16, currprefs.rtgmem_size >> 16, currprefs.rtgmem_size);
+			map_banks (&gfxboard_bank_memory, (gfxmem_bank.start + PICASSOIV_VRAM1) >> 16, 0x400000 >> 16, currprefs.rtgmem_size);
+			map_banks (&gfxboard_bank_wbsmemory, (gfxmem_bank.start + PICASSOIV_VRAM1 + 0x400000) >> 16, 0x400000 >> 16, currprefs.rtgmem_size);
+			map_banks (&gfxboard_bank_memory, (gfxmem_bank.start + PICASSOIV_VRAM2) >> 16, 0x400000 >> 16, currprefs.rtgmem_size);
+			map_banks (&gfxboard_bank_wbsmemory, (gfxmem_bank.start + PICASSOIV_VRAM2 + 0x400000) >> 16, 0x400000 >> 16, currprefs.rtgmem_size);
 			map_banks (&gfxboard_bank_registers, (gfxmem_bank.start + PICASSOIV_REG) >> 16, 0x200000 >> 16, BOARD_REGISTERS_SIZE);
 			map_banks (&gfxboard_bank_special, gfxmem_bank.start >> 16, PICASSOIV_REG >> 16, PICASSOIV_REG);
 			picassoiv_bank = 0;
@@ -791,7 +1036,7 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 	if (addr == 0x48) {
 		if (!board->z3) {
 			if (ISP4()) {
-				map_banks (&gfxboard_bank_memory, b, 0x00200000 >> 16, 0x00200000);
+				map_banks (&gfxboard_bank_nbsmemory, b, 0x00200000 >> 16, 0x00200000);
 				if (configured_mem == 0) {
 					configured_mem = b;
 					gfxboardmem_start = b << 16;
@@ -808,6 +1053,8 @@ static void REGPARAM2 gfxboard_bput_mem_autoconfig (uaecptr addr, uae_u32 b)
 			}
 			expamem_next ();
 			write_log (_T("%s autoconfigured at 0x00%02X0000\n"), gfxboard_bank_memory.name, b);
+		} else {
+			expamem_lo = b & 0xff;
 		}
 		return;
 	}
@@ -1050,6 +1297,24 @@ addrbank gfxboard_bank_memory = {
 	gfxboard_xlate, gfxboard_check, NULL, NULL,
 	gfxboard_lget_mem, gfxboard_wget_mem, ABFLAG_RAM
 };
+addrbank gfxboard_bank_wbsmemory = {
+	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, gfxboard_bget_mem,
+	gfxboard_lput_wbsmem, gfxboard_wput_wbsmem, gfxboard_bput_mem,
+	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_lget_wbsmem, gfxboard_wget_wbsmem, ABFLAG_RAM
+};
+addrbank gfxboard_bank_lbsmemory = {
+	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, gfxboard_bget_mem,
+	gfxboard_lput_lbsmem, gfxboard_wput_lbsmem, gfxboard_bput_mem,
+	gfxboard_xlate, gfxboard_check, NULL, NULL,
+	gfxboard_lget_lbsmem, gfxboard_wget_lbsmem, ABFLAG_RAM
+};
+addrbank gfxboard_bank_nbsmemory = {
+	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, gfxboard_bget_mem,
+	gfxboard_lput_nbsmem, gfxboard_wput_nbsmem, gfxboard_bput_mem,
+	gfxboard_xlate, gfxboard_check, NULL, _T("Picasso IV banked VRAM"),
+	gfxboard_lget_nbsmem, gfxboard_wget_nbsmem, ABFLAG_RAM
+};
 addrbank gfxboard_bank_registers = {
 	gfxboard_lget_regs, gfxboard_wget_regs, gfxboard_bget_regs,
 	gfxboard_lput_regs, gfxboard_wput_regs, gfxboard_bput_regs,
@@ -1066,6 +1331,30 @@ static uae_u32 REGPARAM2 gfxboards_lget_regs (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= p4_special_mask;
+	// pci config
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+			v =  p4_pci[addr2 + 0] << 24;
+			v |= p4_pci[addr2 + 1] << 16;
+			v |= p4_pci[addr2 + 2] <<  8;
+			v |= p4_pci[addr2 + 3] <<  0;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV PCI LGET %08x %08x\n"), addr, v);
+#endif
+		} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
+			addr2 -= 0x1000;
+			v =  cirrus_pci[addr2 + 0] << 24;
+			v |= cirrus_pci[addr2 + 1] << 16;
+			v |= cirrus_pci[addr2 + 2] <<  8;
+			v |= cirrus_pci[addr2 + 3] <<  0;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI LGET %08x %08x\n"), addr, v);
+#endif
+		}
+		return v;
+	}
 	if (picassoiv_bank & PICASSOIV_BANK_MAPRAM) {
 		// memory mapped io
 		if (addr >= p4_mmiobase && addr < p4_mmiobase + 0x8000) {
@@ -1092,6 +1381,26 @@ static uae_u32 REGPARAM2 gfxboards_wget_regs (uaecptr addr)
 	special_mem |= S_READ;
 #endif
 	addr &= p4_special_mask;
+	// pci config
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+			v =  p4_pci[addr2 + 0] << 8;
+			v |= p4_pci[addr2 + 1] << 0;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV PCI WGET %08x %04x\n"), addr, v);
+#endif
+		} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
+			addr2 -= 0x1000;
+			v =  cirrus_pci[addr2 + 0] << 8;
+			v |= cirrus_pci[addr2 + 1] << 0;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI WGET %08x %04x\n"), addr, v);
+#endif
+		}
+		return v;
+	}
 	if (picassoiv_bank & PICASSOIV_BANK_MAPRAM) {
 		// memory mapped io
 		if (addr >= p4_mmiobase && addr < p4_mmiobase + 0x8000) {
@@ -1118,16 +1427,30 @@ static uae_u32 REGPARAM2 gfxboards_bget_regs (uaecptr addr)
 	addr &= p4_special_mask;
 
 	// pci config
-	if (addr >= 0x400000 || (p4z2 && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
 		v = 0;
-		addr &= 0xffff;
-		if (addr == 0x802)
-			v = 2; // ???
-		if (addr == 0x808)
-			v = 4; // bridge revision
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+			v =  p4_pci[addr2];
 #if PICASSOIV_DEBUG_IO
-		write_log (_T("PicassoIV PCI BGET %08x %02x\n"), addr, v);
+			write_log (_T("PicassoIV PCI BGET %08x %02x\n"), addr, v);
 #endif
+		} else if (addr2 >= 0x800 && addr2 <= 0x1000) {
+			if (addr2 == 0x802)
+				v = 2; // ???
+			if (addr2 == 0x808)
+				v = 4; // bridge revision
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV PCI BGET %08x %02x\n"), addr, v);
+#endif
+		} else if (addr2 >= 0x1000 && addr2 <= 0x1040) {
+			addr2 -= 0x1000;
+			v = cirrus_pci[addr2];
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI BGET %08x %02x\n"), addr, v);
+#endif
+		}
 		return v;
 	}
 
@@ -1183,6 +1506,31 @@ static void REGPARAM2 gfxboards_lput_regs (uaecptr addr, uae_u32 l)
 	special_mem |= S_WRITE;
 #endif
 	addr &= p4_special_mask;
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV PCI LPUT %08x %08x\n"), addr, l);
+#endif
+			p4_pci[addr2 + 0] = l >> 24;
+			p4_pci[addr2 + 1] = l >> 16;
+			p4_pci[addr2 + 2] = l >>  8;
+			p4_pci[addr2 + 3] = l >>  0;
+			p4_pci_check ();
+		} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
+			addr2 -= 0x1000;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI LPUT %08x %08x\n"), addr, l);
+#endif
+			cirrus_pci[addr2 + 0] = l >> 24;
+			cirrus_pci[addr2 + 1] = l >> 16;
+			cirrus_pci[addr2 + 2] = l >>  8;
+			cirrus_pci[addr2 + 3] = l >>  0;
+			reset_pci ();
+		}
+		return;
+	}
 	if (picassoiv_bank & PICASSOIV_BANK_MAPRAM) {
 		// memory mapped io
 		if (addr >= p4_mmiobase && addr < p4_mmiobase + 0x8000) {
@@ -1207,6 +1555,27 @@ static void REGPARAM2 gfxboards_wput_regs (uaecptr addr, uae_u32 w)
 	special_mem |= S_WRITE;
 #endif
 	addr &= p4_special_mask;
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV PCI WPUT %08x %04x\n"), addr, w & 0xffff);
+#endif
+			p4_pci[addr2 + 0] = w >> 8;
+			p4_pci[addr2 + 1] = w >> 0;
+			p4_pci_check ();
+		} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
+			addr2 -= 0x1000;
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI WPUT %08x %04x\n"), addr, w & 0xffff);
+#endif
+			cirrus_pci[addr2 + 0] = w >> 8;
+			cirrus_pci[addr2 + 1] = w >> 0;
+			reset_pci ();
+		}
+		return;
+	}
 	if (picassoiv_bank & PICASSOIV_BANK_MAPRAM) {
 		// memory mapped io
 		if (addr >= p4_mmiobase && addr < p4_mmiobase + 0x8000) {
@@ -1241,10 +1610,23 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 b)
 	special_mem |= S_WRITE;
 #endif
 	addr &= p4_special_mask;
-	if (addr >= 0x400000 || (p4z2 && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+	if (addr >= 0x400000 || (p4z2 && !(picassoiv_bank & PICASSOIV_BANK_MAPRAM) && (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) && ((addr >= 0x800 && addr < 0xc00) || (addr >= 0x1000 && addr < 0x2000)))) {
+		uae_u32 addr2 = addr & 0xffff;
+		if (addr2 >= 0x0800 && addr2 < 0x840) {
+			addr2 -= 0x800;
+			p4_pci[addr2] = b;
+			p4_pci_check ();
 #if PICASSOIV_DEBUG_IO
-		write_log (_T("PicassoIV PCI BPUT %08x %02X\n"), addr, b & 0xff);
+			write_log (_T("PicassoIV PCI BPUT %08x %02x\n"), addr, b & 0xff);
 #endif
+		} else if (addr2 >= 0x1000 && addr2 < 0x1040) {
+			addr2 -= 0x1000;
+			cirrus_pci[addr2] = b;
+			reset_pci ();
+#if PICASSOIV_DEBUG_IO
+			write_log (_T("PicassoIV CL PCI BPUT %08x %02x\n"), addr, b & 0xff);
+#endif
+		}
 		return;
 	}
 	if (picassoiv_bank & PICASSOIV_BANK_UNMAPFLASH) {
@@ -1283,7 +1665,7 @@ static void REGPARAM2 gfxboards_bput_regs (uaecptr addr, uae_u32 b)
 addrbank gfxboard_bank_special = {
 	gfxboards_lget_regs, gfxboards_wget_regs, gfxboards_bget_regs,
 	gfxboards_lput_regs, gfxboards_wput_regs, gfxboards_bput_regs,
-	default_xlate, default_check, NULL, _T("Picasso IV"),
+	default_xlate, default_check, NULL, _T("Picasso IV MISC"),
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO | ABFLAG_SAFE
 };
 bool gfxboard_is_z3 (int type)
@@ -1350,6 +1732,8 @@ static void gfxboard_init (void)
 	p4z2 = false;
 	zfile_fclose (p4rom);
 	p4rom = NULL;
+	memset (cirrus_pci, 0, sizeof cirrus_pci);
+	reset_pci ();
 }
 
 static void copyp4autoconfig (int startoffset)
@@ -1462,8 +1846,15 @@ void gfxboard_init_memory (void)
 		}
 	}
 
-	gfxboard_bank_memory.name = board->name;
-	gfxboard_bank_registers.name = board->name;
+	_stprintf (memorybankname, _T("%s VRAM"), board->name);
+	_stprintf (wbsmemorybankname, _T("%s VRAM WORDSWAP"), board->name);
+	_stprintf (lbsmemorybankname, _T("%s VRAM LONGSWAP"), board->name);
+	_stprintf (regbankname, _T("%s REG"), board->name);
+
+	gfxboard_bank_memory.name = memorybankname;
+	gfxboard_bank_wbsmemory.name = wbsmemorybankname;
+	gfxboard_bank_lbsmemory.name = lbsmemorybankname;
+	gfxboard_bank_registers.name = regbankname;
 
 	gfxboard_bank_memory.bget = gfxboard_bget_mem_autoconfig;
 	gfxboard_bank_memory.bput = gfxboard_bput_mem_autoconfig;

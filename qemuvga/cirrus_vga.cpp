@@ -905,9 +905,10 @@ static void cirrus_bitblt_start(CirrusVGAState * s)
             CIRRUS_BLTMODE_COLOREXPAND) {
 
             if (s->cirrus_blt_mode & CIRRUS_BLTMODE_TRANSPARENTCOMP) {
-                if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV)
-                    cirrus_bitblt_bgcol(s);
-                else
+// "If color expansion is used with transparency, background pixels are not written" TW.
+//                if (s->cirrus_blt_modeext & CIRRUS_BLTMODEEXT_COLOREXPINV)
+//                    cirrus_bitblt_bgcol(s);
+//                else
                     cirrus_bitblt_fgcol(s);
                 s->cirrus_rop = cirrus_colorexpand_transp[rop_to_index[blt_rop]][s->cirrus_blt_pixelwidth - 1];
             } else {
