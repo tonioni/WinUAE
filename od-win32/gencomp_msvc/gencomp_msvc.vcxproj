@@ -49,7 +49,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <UseOfAtl>false</UseOfAtl>
-    <CharacterSet>MultiByte</CharacterSet>
+    <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'" Label="Configuration">
@@ -313,6 +313,7 @@ od-win32\gencomp_msvc\gencomp.exe
     <ClCompile Include="..\..\jit\gencomp.cpp" />
     <ClCompile Include="..\..\missing.cpp" />
     <ClCompile Include="..\..\readcpu.cpp" />
+    <ClCompile Include="..\unicode.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

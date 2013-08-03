@@ -3225,6 +3225,10 @@ void compute_framesync (void)
 	);
 
 	set_config_changed ();
+
+	if (target_graphics_buffer_update ()) {
+		reset_drawing ();
+	}
 }
 
 /* set PAL/NTSC or custom timing variables */
@@ -6176,9 +6180,6 @@ static void vsync_handler_post (void)
 		init_hz ();
 	} else if (interlace_changed || changed_chipset_refresh () || lof_changed) {
 		compute_framesync ();
-	}
-	if (target_graphics_buffer_update ()) {
-		reset_drawing ();
 	}
 
 	lof_changed = 0;

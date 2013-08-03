@@ -2801,8 +2801,14 @@ static void lightpen_update (struct vidbuffer *vb)
 		lightpen_active = 0;
 }
 
+static int lasti, lastwhere2, lastline;
+struct vidbuffer *xvbin, *xvbout;
+
 static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 {
+	xvbin = vbin;
+	xvbout = vbout;
+
 	for (int i = 0; i < max_ypos_thisframe; i++) {
 		int i1 = i + min_ypos_for_screen;
 		int line = i + thisframe_y_adjust_real;
@@ -2813,6 +2819,11 @@ static void draw_frame2 (struct vidbuffer *vbin, struct vidbuffer *vbout)
 			break;
 		if (where2 < 0)
 			continue;
+
+		lasti = i;
+		lastline = line;
+		lastwhere2 = where2;
+
 		hposblank = 0;
 		pfield_draw_line (vbout, line, where2, amiga2aspect_line_map[i1 + 1]);
 	}

@@ -4760,6 +4760,7 @@ static void m68k_run_2p (void)
 /* Same thing, but don't use prefetch to get opcode.  */
 static void m68k_run_2 (void)
 {
+	static int done;
 	struct regstruct *r = &regs;
 
 	for (;;) {
@@ -4776,12 +4777,16 @@ static void m68k_run_2 (void)
 			used[opcode] = 1;
 		}
 #endif	
+		if (done)
+			write_log (_T("%08x %04X %d "), r->instruction_pc, opcode, cpu_cycles);
+
 		do_cycles (cpu_cycles);
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
-			if (do_specialties (cpu_cycles))
-				return;
+			if (do_specialties (cpu_cycles)) {
+				break;
+			}
 		}
 	}
 }

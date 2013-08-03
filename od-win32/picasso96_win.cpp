@@ -2037,11 +2037,13 @@ void picasso_allocatewritewatch (int gfxmemsize)
 }
 
 static ULONG_PTR writewatchcount;
-void picasso_getwritewatch (void)
+static int watch_offset;
+void picasso_getwritewatch (int offset)
 {
 	ULONG ps;
 	writewatchcount = gwwbufsize;
-	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, gfxmem_bank.start + natmem_offset, (gwwbufsize - 1) * gwwpagesize, gwwbuf, &writewatchcount, &ps)) {
+	watch_offset = offset;
+	if (GetWriteWatch (WRITE_WATCH_FLAG_RESET, gfxmem_bank.start + natmem_offset + offset, (gwwbufsize - 1) * gwwpagesize, gwwbuf, &writewatchcount, &ps)) {
 		write_log (_T("picasso_getwritewatch %d\n"), GetLastError ());
 		writewatchcount = 0;
 		return;
@@ -2049,7 +2051,7 @@ void picasso_getwritewatch (void)
 }
 bool picasso_is_vram_dirty (uaecptr addr, int size)
 {
-	uae_u8 *a = addr + natmem_offset;
+	uae_u8 *a = addr + natmem_offset + watch_offset;
 	int s = size;
 	int ms = gwwpagesize;
 	for (ULONG_PTR i = 0; i < writewatchcount; i++) {

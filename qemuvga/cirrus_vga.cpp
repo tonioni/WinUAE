@@ -46,7 +46,10 @@
 //#define DEBUG_VGA
 //#define DEBUG_CIRRUS
 //#define DEBUG_VGA_REG
+//#define DEBUG_VGA_REG_READ
+//#define DEBUG_VGA_REG_WRITE
 //#define DEBUG_BITBLT
+//#define DEBUG_CIRRUS_MEMORY_CONFIG
 #define TARGET_FMT_plx "%x"
 
 /***************************************
@@ -1170,6 +1173,26 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
     }
 }
 
+static void cirrus_valid_memory_config(CirrusVGAState *s)
+{
+	s->valid_memory_config = 1;
+	if (s->device_id >= CIRRUS_ID_CLGD5426 && s->device_id <= CIRRUS_ID_CLGD5430) {
+		// '26/28/29 can't have 2M and 256kx16 memory config
+		// Amiga CyberGraphX uses this to detect memory size
+		// by writing long and then reading it back, if SRF[7]
+		// set and test value reads correct: memory size = 2M.
+		if (s->vga.vram_size_mb == 1 && (s->vga.sr[0xf] & 0x80))
+			s->valid_memory_config = 0;
+	} else if (s->device_id >= CIRRUS_ID_CLGD5434) {
+		// SRF[7] must be set for 4M VRAM chips
+		if (s->vga.vram_size_mb == 4 && !(s->vga.sr[0xf] & 0x80))
+			s->valid_memory_config = 0;
+	}
+#ifdef DEBUG_CIRRUS_MEMORY_CONFIG
+	write_log("valid_memory_config %d %02X\n", s->valid_memory_config, s->vga.sr[0xf]);
+#endif
+}
+
 /***************************************
  *
  *  I/O access between 0x3c4-0x3c5
@@ -1294,7 +1317,11 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
 	if (s->device_id < CIRRUS_ID_CLGD5446 && (s->vga.cr[0x17] & 0x04))
 		s->hw_cursor_y <<= 1;
 	break;
-    case 0x07:			// Extended Sequencer Mode
+    case 0x0f:			// DRAM Control
+	s->vga.sr[s->vga.sr_index] = val;
+	cirrus_valid_memory_config(s);
+	break;		
+	case 0x07:			// Extended Sequencer Mode
     cirrus_update_memory_access(s);
     case 0x08:			// EEPROM Control
     case 0x09:			// Scratch Register 0
@@ -1303,7 +1330,6 @@ static void cirrus_vga_write_sr(CirrusVGAState * s, uint32_t val)
     case 0x0c:			// VCLK 1
     case 0x0d:			// VCLK 2
     case 0x0e:			// VCLK 3
-    case 0x0f:			// DRAM Control
     case 0x12:			// Graphics Cursor Attribute
     case 0x13:			// Graphics Cursor Pattern Address
     case 0x14:			// Scratch Register 2
@@ -2001,7 +2027,10 @@ static uint64_t cirrus_vga_mem_read(void *opaque,
     unsigned bank_offset;
     uint32_t val;
 
-    if ((s->vga.sr[0x07] & 0x01) == 0) {
+	if (!s->valid_memory_config)
+		return 0xff;
+
+	if ((s->vga.sr[0x07] & 0x01) == 0) {
         return vga_mem_readb(&s->vga, addr);
     }
 
@@ -2045,6 +2074,9 @@ static void cirrus_vga_mem_write(void *opaque,
     unsigned bank_index;
     unsigned bank_offset;
     unsigned mode;
+
+	if (!s->valid_memory_config)
+		return;
 
     if ((s->vga.sr[0x07] & 0x01) == 0) {
         vga_mem_writeb(&s->vga, addr, mem_value);
@@ -2303,6 +2335,9 @@ static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
 
     addr &= s->cirrus_addr_mask;
 
+	if (!s->valid_memory_config)
+		return 0xff;
+
 	// linear vram also need planar handling. TW.
     if ((s->vga.sr[0x07] & 0x01) == 0) {
         return vga_mem_readb(&s->vga, addr);
@@ -2336,6 +2371,9 @@ static void cirrus_linear_write(void *opaque, hwaddr addr,
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
+
+	if (!s->valid_memory_config)
+		return;
 
 	// linear vram also need planar handling. TW.
     if ((s->vga.sr[0x07] & 0x01) == 0) {
@@ -2427,7 +2465,8 @@ static void map_linear_vram_bank(CirrusVGAState *s, unsigned bank)
         && !((s->vga.sr[0x07] & 0x01) == 0)
         && !((s->vga.gr[0x0B] & 0x14) == 0x14)
         && !(s->vga.gr[0x0B] & 0x02);
-
+	if (!s->valid_memory_config)
+		enabled = false;
     memory_region_set_enabled(mr, enabled);
     memory_region_set_alias_offset(mr, s->cirrus_bank_base[bank]);
 }
@@ -2520,7 +2559,7 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	case 0x3c5:
 	    val = cirrus_vga_read_sr(c);
             break;
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_READ
 	    write_log("vga: read SR%x = 0x%02x\n", s->sr_index, val);
 #endif
 	    break;
@@ -2548,7 +2587,7 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	    break;
 	case 0x3cf:
 	    val = cirrus_vga_read_gr(c, s->gr_index);
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_READ
 	    write_log("vga: read GR%x = 0x%02x\n", s->gr_index, val);
 #endif
 	    break;
@@ -2559,7 +2598,7 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 	case 0x3b5:
 	case 0x3d5:
             val = cirrus_vga_read_cr(c, s->cr_index);
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_READ
 	    write_log("vga: read CR%x = 0x%02x\n", s->cr_index, val);
 #endif
 	    break;
@@ -2594,7 +2633,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     if (vga_ioport_invalid(s, addr)) {
 	return;
     }
-#ifdef DEBUG_VGA
+#ifdef DEBUG_VGA_WRITE
     write_log("VGA: write addr=0x%04x data=0x%02x\n", addr, val);
 #endif
 
@@ -2653,7 +2692,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	s->sr_index = val;
 	break;
     case 0x3c5:
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_WRITE
 	write_log("vga: write SR%x = 0x%02x\n", s->sr_index, val);
 #endif
 	cirrus_vga_write_sr(c, val);
@@ -2679,7 +2718,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	s->gr_index = val;
 	break;
     case 0x3cf:
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_WRITE
 	write_log("vga: write GR%x = 0x%02x\n", s->gr_index, val);
 #endif
 	cirrus_vga_write_gr(c, s->gr_index, val);
@@ -2690,7 +2729,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 	break;
     case 0x3b5:
     case 0x3d5:
-#ifdef DEBUG_VGA_REG
+#ifdef DEBUG_VGA_REG_WRITE
 	write_log("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
 	cirrus_vga_write_cr(c, val);
@@ -2953,6 +2992,7 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
     s->vga.cursor_invalidate = cirrus_cursor_invalidate;
     s->vga.cursor_draw_line = cirrus_cursor_draw_line;
     qemu_register_reset(cirrus_reset, s);
+	cirrus_valid_memory_config(s);
 }
 
 #if 0

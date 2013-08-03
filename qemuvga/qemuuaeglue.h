@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+extern void activate_debugger(void);
+
 //#define DEBUG_VGA_REG
 //#define DEBUG_VGA
 
@@ -274,6 +276,7 @@ typedef struct CirrusVGAState {
 	int total_vram_size;
     int device_id;
     int bustype;
+	int valid_memory_config;
 } CirrusVGAState;
 
 void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,

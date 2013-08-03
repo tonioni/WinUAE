@@ -1030,7 +1030,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     GROUPBOX        "RTG Graphics Card",IDC_STATIC,1,0,393,189
     COMBOBOX        IDC_RTG_Z2Z3,26,14,118,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    RTEXT           "Memory: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,2,35,76,10,SS_NOTIFY | SS_CENTERIMAGE
+    RTEXT           "VRAM size: [] Graphics card memory. Required for RTG (Picasso96) emulation.",IDC_GFXCARDTEXT,2,35,76,10,SS_NOTIFY | SS_CENTERIMAGE
     CONTROL         "",IDC_P96MEM,"msctls_trackbar32",TBS_AUTOTICKS | TBS_TOP | WS_TABSTOP,88,31,60,20
     EDITTEXT        IDC_P96RAM,152,34,40,12,ES_CENTER | ES_READONLY
     CONTROL         "Match host and RTG color depth if possible",IDC_RTG_MATCH_DEPTH,

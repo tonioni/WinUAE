@@ -61,7 +61,12 @@ glue(cirrus_bitblt_rop_fwd_, ROP_NAME)(CirrusVGAState *s,
 #endif
 
     for (y = 0; y < bltheight; y++) {
-        for (x = 0; x < bltwidth; x++) {
+  		for (x = 0; x < (bltwidth & ~3); x += 4) {
+			ROP_OP_32((uint32_t*)dst, *((uint32_t*)src));
+			dst += 4;
+			src += 4;
+		}
+		for (; x < bltwidth; x++) {
             ROP_OP(dst, *src);
             dst++;
             src++;
@@ -81,7 +86,14 @@ glue(cirrus_bitblt_rop_bkwd_, ROP_NAME)(CirrusVGAState *s,
     dstpitch += bltwidth;
     srcpitch += bltwidth;
     for (y = 0; y < bltheight; y++) {
-        for (x = 0; x < bltwidth; x++) {
+  		for (x = 0; x < (bltwidth & ~3); x += 4) {
+			dst -= 3;
+			src -= 3;
+			ROP_OP_32((uint32_t*)dst, *((uint32_t*)src));
+			dst -= 1;
+			src -= 1;
+		}
+        for (; x < bltwidth; x++) {
             ROP_OP(dst, *src);
             dst--;
             src--;

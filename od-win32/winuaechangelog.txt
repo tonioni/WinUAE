@@ -1,6 +1,41 @@
 
 - restore only single input target to default.
 
+Beta 6:
+
+- Enabled Cirrus Logic RTG VRAM size configuration. CL VRAM memory bank setups used by VRAM size
+  detection code is now (partially) emulated, should be enough to support CGX and Picasso96.
+- Fixed crash that usually happened when system was reset and if it caused immediate PAL/NTSC
+  mode change. (2.5 or 2.6 bug)
+- Removed some dead JIT code, "afterPic" and "indirectKS" comptrustxxx parameters that haven't been
+  used for ages.
+- JIT MOVEM used direct mode if memory was direct capable but direct mode was disabled.
+- Picasso IV VRAM is now always (*) in JIT indirect access mode. It can't be made JIT Direct compatible
+  due to multiple banks. Also P4 Z2 CGX 15/16 bit mode has graphics corruption if JIT Direct is enabled
+  because of JIT issue that can't be fixed. If same code is used to copy data from RAM and it is later
+  used to copy data from VRAM, there is no way for JIT to detect that it should recompile it and
+  use indirect mode instead of (incorrect for this bank) JIT direct mode. Other boards are very
+  simple and can support JIT direct VRAM access.
+- *) P4 Z3 mode includes now a hack that makes it JIT direct compatible. At least it seems to work..
+- Cirrus emulation large basic copy blits are now 4x faster. (P96Speed horiz/vert scroll tests are not
+  extremely slow anymore)
+
+Beta 5:
+
+- Spectrum 28/24 official name is EGS-28/24 Spectrum.
+- Stupid bug in b4 CD image update. Some CD32 games refused to play first audio track.
+- Some CUE images with both INDEX0 and INDEX1 and audio tracks in separate files may have played 1-2
+  seconds of previous track when starting CD audio.
+- Added partial support for non-direct JIT only memory mapping support that allows Z3 boards in their
+  original non-hacked OS chosen base address (0x40000000-> vs 0x10000000->). Not available yet.
+- More old 68020 CE state files load now but note that it is impossible to support all of them with new
+  emulation code.
+- Some 68020 CE mode timing tweaks.
+- Emulate Picasso IV byteswapped VRAM bank (5446 CL chip feature) Fixes CGX 15/16 bit modes.
+- Cirrus Logic blitter emulation bug fixed (Inversion + Color expansion + Transparency combination uses
+  foreground color, there is no background vs foreground swapping like in all other inverted modes)
+  Fixes graphics glitches in Picasso IV 24-bit Picasso96 modes.
+
 Beta 4:
 
 - Picasso IV RTG board emulation implemented. Very important information:

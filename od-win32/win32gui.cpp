@@ -7170,6 +7170,7 @@ static void values_to_memorydlg (HWND hDlg)
 		mem_size = 6;
 	else
 		mem_size = 7;
+	int min_mem = MIN_P96_MEM;
 	int max_mem = MAX_P96_MEM_Z3;
 	if (!gfxboard_is_z3 (workprefs.rtgmem_type)) {
 		int v = workprefs.rtgmem_size;
@@ -7196,7 +7197,19 @@ static void values_to_memorydlg (HWND hDlg)
 			v = gfxboard_get_vram_min (workprefs.rtgmem_type);
 		workprefs.rtgmem_size = v;
 	}
-	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_P96_MEM, max_mem));
+	if (workprefs.rtgmem_type >= GFXBOARD_HARDWARE) {
+		switch (gfxboard_get_vram_min (workprefs.rtgmem_type)) {
+			case 0x00100000: min_mem = 1; break;
+			case 0x00200000: min_mem = 2; break;
+			case 0x00400000: min_mem = 3; break;
+		}
+		switch (gfxboard_get_vram_max (workprefs.rtgmem_type)) {
+			case 0x00100000: max_mem = 1; break;
+			case 0x00200000: max_mem = 2; break;
+			case 0x00400000: max_mem = 3; break;
+		}
+	}
+	SendDlgItemMessage (hDlg, IDC_P96MEM, TBM_SETRANGE, TRUE, MAKELONG (min_mem, max_mem));
 	SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_Z3CHIPRAM, memsize_names[msi_z3chip[mem_size]]);
 
