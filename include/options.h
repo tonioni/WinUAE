@@ -605,6 +605,10 @@ extern struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int i
 extern bool get_hd_geometry (struct uaedev_config_info *);
 extern void uci_set_defaults (struct uaedev_config_info *uci, bool rdb);
 
+extern void error_log (const TCHAR*, ...);
+extern TCHAR *get_error_log (void);
+extern bool is_error_log (void);
+
 extern void default_prefs (struct uae_prefs *, int);
 extern void discard_prefs (struct uae_prefs *, int);
 

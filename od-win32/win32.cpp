@@ -2989,8 +2989,10 @@ void target_fixup_options (struct uae_prefs *p)
 	if (depth) {
 		p->color_mode = p->color_mode == 5 ? 2 : 5;
 	}
-	if (p->rtg_hardwaresprite && !p->gfx_api)
+	if (p->rtg_hardwaresprite && !p->gfx_api) {
+		error_log (_T("DirectDraw is not RTG hardware sprite compatible."));
 		p->rtg_hardwaresprite = false;
+	}
 	if (p->rtgmem_type >= GFXBOARD_HARDWARE) {
 		p->rtg_hardwareinterrupt = false;
 		p->rtg_hardwaresprite = false;

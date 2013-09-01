@@ -565,6 +565,9 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 					GENERIC_READ,
 					FILE_SHARE_READ,
 					NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+				DWORD err = GetLastError ();
+				if (h == INVALID_HANDLE_VALUE && err == ERROR_FILE_NOT_FOUND)
+					goto end;
 			}
 		}
 		if (h != INVALID_HANDLE_VALUE) {

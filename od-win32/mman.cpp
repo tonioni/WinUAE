@@ -854,7 +854,8 @@ void *shmat (int shmid, void *shmaddr, int shmflg)
 		result = virtualallocwithlock (shmaddr, size, MEM_COMMIT, PAGE_READWRITE);
 		if (result == NULL) {
 			result = (void*)-1;
-			write_log (_T("VA %08X - %08X %x (%dk) failed %d\n"),
+			error_log (_T("Memory %s failed to allocate: VA %08X - %08X %x (%dk). Error %d."),
+				shmids[shmid].name,
 				(uae_u8*)shmaddr - natmem_offset, (uae_u8*)shmaddr - natmem_offset + size,
 				size, size >> 10, GetLastError ());
 		} else {

@@ -1884,7 +1884,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 			continue;
 		}
 		if (((id & 0x00ff0000) >> 16) != cyl * 2 + side) {
-			write_log (_T("Disk decode: mismatched track (%d <> %d) on sector %d header\n"), (id & 0x00ff0000) >> 16, cyl * 2 + side, trackoffs);
+			write_log (_T("Disk decode: mismatched track (%d <> %d) on sector %d header (%08X)\n"), (id & 0x00ff0000) >> 16, cyl * 2 + side, trackoffs, id);
 			if (filetype == ADF_EXT2)
 				return 3;
 			continue;
@@ -2349,8 +2349,6 @@ bool disk_creatediskfile (const TCHAR *name, int type, drive_type adftype, const
 	zfile_fclose (f);
 	if (copyfrom)
 		zfile_fseek (copyfrom, pos, SEEK_SET);
-	if (f)
-		DISK_history_add (name, -1, HISTORY_FLOPPY, TRUE);
 	return ok;
 }
 

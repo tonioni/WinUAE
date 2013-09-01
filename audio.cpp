@@ -1101,12 +1101,11 @@ static void audio_event_reset (void)
 	doublesample = 0;
 }
 
-static void audio_deactivate (void)
+void audio_deactivate (void)
 {
-	if (!currprefs.sound_auto)
-		return;
 	gui_data.sndbuf_status = 3;
 	gui_data.sndbuf = 0;
+	audio_work_to_do = 0;
 	pause_sound_buffer ();
 	clear_sound_buffers ();
 	audio_event_reset ();

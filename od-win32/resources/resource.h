@@ -375,6 +375,7 @@
 #define IDD_TAPEDRIVE                   388
 #define IDS_WHEELMOUSE                  389
 #define IDS_JOYMODE_WHEELMOUSE          389
+#define IDD_ERRORLOG                    389
 #define IDS_NUMSG_KS68030PLUS           390
 #define IDS_SELECTTAPE                  391
 #define IDS_TAPE                        392
@@ -658,6 +659,8 @@
 #define IDC_CACHETEXT                   1509
 #define IDC_SWAP                        1509
 #define IDC_MAPDRIVES_CD                1509
+#define IDC_RESTARTEMU2                 1509
+#define IDC_ERRORLOG                    1509
 #define IDC_SELECTRESTEXT               1510
 #define IDC_FLUSHPRINTER                1510
 #define IDC_MAPDRIVES_REMOVABLE         1510
@@ -1145,6 +1148,8 @@
 #define IDC_TAPE_SELECT_DIR             1832
 #define IDC_TAPE_SELECT_FILE            1833
 #define IDC_TAPE_RW                     1834
+#define IDC_ERRORLOGMESSAGE             1835
+#define IDC_ERRORLOGCLEAR               1836
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1193,9 +1198,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        389
+#define _APS_NEXT_RESOURCE_VALUE        390
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1835
+#define _APS_NEXT_CONTROL_VALUE         1837
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

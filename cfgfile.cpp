@@ -38,6 +38,7 @@
 
 static int config_newfilesystem;
 static struct strlist *temp_lines;
+static struct strlist *error_lines;
 static struct zfile *default_file, *configstore;
 static int uaeconfig;
 static int unicode_config = 0;
@@ -2612,7 +2613,7 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 	if (index < 0 && (ci->type == UAEDEV_DIR || ci->type == UAEDEV_HDF) && ci->devname && _tcslen (ci->devname) > 0) {
 		for (i = 0; i < p->mountitems; i++) {
 			if (p->mountconfig[i].ci.devname && !_tcscmp (p->mountconfig[i].ci.devname, ci->devname))
-				return 0;
+				return NULL;
 		}
 	}
 	if (ci->type == UAEDEV_CD) {
@@ -2631,7 +2632,7 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 					if (p->mountconfig[i].ci.controller == ctrl) {
 						ctrl++;
 						if (ctrl == HD_CONTROLLER_IDE3 + 1 || ctrl == HD_CONTROLLER_SCSI6 + 1)
-							return 0;
+							return NULL;
 					}
 				}
 				if (i == p->mountitems) {
@@ -2643,7 +2644,7 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		if (ci->type == UAEDEV_CD) {
 			for (i = 0; i < p->mountitems; i++) {
 				if (p->mountconfig[i].ci.type == ci->type)
-					return 0;
+					return NULL;
 			}
 		}
 		uci = getuci (p);
@@ -2653,7 +2654,7 @@ struct uaedev_config_data *add_filesys_config (struct uae_prefs *p, int index, s
 		uci = &p->mountconfig[index];
 	}
 	if (!uci)
-		return 0;
+		return NULL;
 
 	memcpy (&uci->ci, ci, sizeof (struct uaedev_config_info));
 	validatedevicename (uci->ci.devname);
@@ -5862,3 +5863,66 @@ void config_check_vsync (void)
 	}
 }
 
+bool is_error_log (void)
+{
+	return error_lines != NULL;
+}
+TCHAR *get_error_log (void)
+{
+	strlist *sl;
+	int len = 0;
+	for (sl = error_lines; sl; sl = sl->next) {
+		len += _tcslen (sl->option) + 1;
+	}
+	if (!len)
+		return NULL;
+	TCHAR *s = xcalloc (TCHAR, len + 1);
+	for (sl = error_lines; sl; sl = sl->next) {
+		_tcscat (s, sl->option);
+		_tcscat (s, _T("\n"));
+	}
+	return s;
+}
+void error_log (const TCHAR *format, ...)
+{
+	TCHAR buffer[256], *bufp;
+	int bufsize = 256;
+	va_list parms;
+
+	if (format == NULL) {
+		struct strlist **ps = &error_lines;
+		while (*ps) {
+			struct strlist *s = *ps;
+			*ps = s->next;
+			xfree (s->value);
+			xfree (s->option);
+			xfree (s);
+		}
+		return;
+	}
+
+	va_start (parms, format);
+	bufp = buffer;
+	for (;;) {
+		int count = _vsntprintf (bufp, bufsize - 1, format, parms);
+		if (count < 0) {
+			bufsize *= 10;
+			if (bufp != buffer)
+				xfree (bufp);
+			bufp = xmalloc (TCHAR, bufsize);
+			continue;
+		}
+		break;
+	}
+	bufp[bufsize - 1] = 0;
+	write_log (_T("%s\n"), bufp);
+	va_end (parms);
+
+	strlist *u = xcalloc (struct strlist, 1);
+	u->option = my_strdup (bufp);
+	u->next = error_lines;
+	error_lines = u;
+
+	if (bufp != buffer)
+		xfree (bufp);
+}

@@ -515,7 +515,7 @@ static int set_filesys_volume (const TCHAR *rootdir, int *flags, bool *readonly,
 		struct zvolume *zv;
 		zv = zfile_fopen_archive (rootdir);
 		if (!zv) {
-			write_log (_T("'%s' is not a supported archive file\n"), rootdir);
+			error_log (_T("'%s' is not a supported archive file."), rootdir);
 			return -1;
 		}
 		*zvp = zv;
@@ -525,11 +525,11 @@ static int set_filesys_volume (const TCHAR *rootdir, int *flags, bool *readonly,
 		*flags = my_getvolumeinfo (rootdir);
 		if (*flags < 0) {
 			if (rootdir && rootdir[0])
-				write_log (_T("directory '%s' not found, mounting as empty drive\n"), rootdir);
+				error_log (_T("directory '%s' not found, mounting as empty drive."), rootdir);
 			*emptydrive = 1;
 			*flags = 0;
 		} else if ((*flags) & MYVOLUMEINFO_READONLY) {
-			write_log (_T("'%s' set to read-only\n"), rootdir);
+			error_log (_T("'%s' set to read-only."), rootdir);
 			*readonly = 1;
 		}
 	}
@@ -571,7 +571,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 				break;
 		}
 		if (nr == MAX_FILESYSTEM_UNITS) {
-			write_log (_T("No slot allocated for this unit\n"));
+			error_log (_T("No slot allocated for this unit"));
 			return -1;
 		}
 	}
@@ -593,7 +593,7 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		if (nr == i || !mountinfo.ui[i].open || mountinfo.ui[i].rootdir == NULL || is_hardfile (i) == FILESYS_CD)
 			continue;
 		if (_tcslen (c.rootdir) > 0 && !_tcsicmp (mountinfo.ui[i].rootdir, c.rootdir)) {
-			write_log (_T("directory/hardfile '%s' already added\n"), c.rootdir);
+			error_log (_T("directory/hardfile '%s' already added."), c.rootdir);
 			return -1;
 		}
 	}
@@ -622,9 +622,11 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		ui->volname = 0;
 		if (ui->hf.ci.rootdir[0]) {
 			if (!hdf_open (&ui->hf) && !c.readonly) {
-				write_log (_T("Attempting to open in read-only mode\n"));
+				write_log (_T("Attempting to open '%s' in read-only mode.\n"), ui->hf.ci.rootdir);
 				ui->hf.ci.readonly = c.readonly = true;
-				hdf_open (&ui->hf);
+				if (hdf_open (&ui->hf)) {
+					error_log (_T("'%s' opened in read-only mode.\n"), ui->hf.ci.rootdir);
+				}
 			}
 		} else {
 			// empty drive?
@@ -632,22 +634,22 @@ static int set_filesys_unit_1 (int nr, struct uaedev_config_info *ci)
 		}
 		if (!ui->hf.drive_empty) {
 			if (ui->hf.handle_valid == 0) {
-				write_log (_T("Hardfile %s not found\n"), ui->hf.device_name);
+				error_log (_T("Hardfile '%s' not found."), ui->hf.ci.rootdir);
 				goto err;
 			}
 			if (ui->hf.ci.blocksize > ui->hf.virtsize || ui->hf.virtsize == 0) {
-				write_log (_T("Hardfile %s too small\n"), ui->hf.device_name);
+				error_log (_T("Hardfile '%s' too small."), ui->hf.ci.rootdir);
 				goto err;
 			}
 		}
 		if ((ui->hf.ci.blocksize & (ui->hf.ci.blocksize - 1)) != 0 || ui->hf.ci.blocksize == 0) {
-			write_log (_T("Hardfile %s bad blocksize\n"), ui->hf.device_name);
+			error_log (_T("Hardfile '%s' bad blocksize %d."), ui->hf.ci.rootdir, ui->hf.ci.blocksize);
 			goto err;
 		}
 		if ((ui->hf.ci.sectors || ui->hf.ci.surfaces || ui->hf.ci.reserved) &&
 			(ui->hf.ci.sectors < 1 || ui->hf.ci.surfaces < 1 || ui->hf.ci.surfaces > 1023 ||
 			ui->hf.ci.reserved < 0 || ui->hf.ci.reserved > 1023) != 0) {
-				write_log (_T("Hardfile %s bad hardfile geometry\n"), ui->hf.device_name);
+				error_log (_T("Hardfile '%s' bad hardfile geometry."), ui->hf.ci.rootdir);
 				goto err;
 		}
 		if (!ui->hf.ci.highcyl) {

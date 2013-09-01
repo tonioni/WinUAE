@@ -1376,7 +1376,6 @@ static void *akiko_thread (void *null)
 	uae_u8 *tmp1;
 	uae_u8 *tmp2;
 	int tmp3;
-	int offset;
 	int sector;
 
 	while (akiko_thread_running || comm_pipe_has_data (&requests)) {
@@ -1442,19 +1441,30 @@ static void *akiko_thread (void *null)
 		}
 		if (cdrom_data_end > 0 && sector >= 0 &&
 			(sector_buffer_sector_1 < 0 || sector < sector_buffer_sector_1 || sector >= sector_buffer_sector_1 + SECTOR_BUFFER_SIZE * 2 / 3 || i != SECTOR_BUFFER_SIZE)) {
+				int blocks;
 				memset (sector_buffer_info_2, 0, SECTOR_BUFFER_SIZE);
 #if AKIKO_DEBUG_IO_CMD
 				write_log (_T("filling buffer sector=%d (max=%d)\n"), sector, cdrom_data_end);
 #endif
 				sector_buffer_sector_2 = sector;
-				offset = 0;
-				while (offset < SECTOR_BUFFER_SIZE) {
-					int ok = 0;
-					if (sector < cdrom_data_end)
-						ok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
-					sector_buffer_info_2[offset] = ok ? 3 : 0;
-					offset++;
-					sector++;
+				if (sector + SECTOR_BUFFER_SIZE >= cdrom_data_end)
+					blocks = cdrom_data_end - sector;
+				else
+					blocks = SECTOR_BUFFER_SIZE;
+				int ok = sys_command_cd_rawread (unitnum, sector_buffer_2, sector, blocks, 2352);
+				if (!ok) {
+					int offset = 0;
+					while (offset < SECTOR_BUFFER_SIZE) {
+						int ok = 0;
+						if (sector < cdrom_data_end)
+							ok = sys_command_cd_rawread (unitnum, sector_buffer_2 + offset * 2352, sector, 1, 2352);
+						sector_buffer_info_2[offset] = ok ? 3 : 0;
+						offset++;
+						sector++;
+					}
+				} else {
+					for (int i = 0; i < SECTOR_BUFFER_SIZE; i++)
+						sector_buffer_info_2[i] = i < blocks ? 3 : 0;
 				}
 				tmp1 = sector_buffer_info_1;
 				sector_buffer_info_1 = sector_buffer_info_2;

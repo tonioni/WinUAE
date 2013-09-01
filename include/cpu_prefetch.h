@@ -40,6 +40,14 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 
 #ifdef CPUEMU_21
 
+#define CE020_INITCYCLES() \
+	int head = 0, tail = 0, cycles = 0; \
+	unsigned int cu = get_cycles ();
+#define CE020_SAVECYCLES(h,t,c) \
+	head = h; tail = t; cycles = c;
+#define CE020_COUNTCYCLES()
+
+
 STATIC_INLINE void do_cycles_ce020 (int clocks)
 {
 	x_do_cycles (clocks * cpucycleunit);

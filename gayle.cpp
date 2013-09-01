@@ -446,6 +446,16 @@ static void ide_fast_interrupt (struct ide_hdf *ide)
 	ide->irq_delay = 1;
 }
 
+#if 0
+uae_u16 isideint(void)
+{
+	if (!(gayle_irq & 0x80))
+		return 0;
+	gayle_irq &= ~0x80;
+	return 0x8000;
+}
+#endif
+
 static void ide_interrupt_do (struct ide_hdf *ide)
 {
 	uae_u8 os = ide->regs.ide_status;
@@ -843,9 +853,11 @@ static void do_packet_command (struct ide_hdf *ide)
 		ide->regs.ide_status = 0;
 		if (ide->scsi->status) {
 			// error
-			ide->regs.ide_status = ATAPI_STATUS_CHK;
-			ide->regs.ide_error = ide->scsi->status << 4;
+			ide->regs.ide_error = (ide->scsi->sense[2] << 4) | 4;
 			atapi_data_done (ide);
+			ide->regs.ide_status |= ATAPI_STATUS_CHK;
+			atapi_set_size (ide);
+			return;
 		} else if (ide->scsi->data_len) {
 			// data in
 			memcpy (ide->secbuf, ide->scsi->buffer, ide->scsi->data_len);

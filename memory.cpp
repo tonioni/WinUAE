@@ -222,6 +222,12 @@ static uae_u32 REGPARAM2 dummy_wget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+#if 0
+	if (addr == 0xb0b000) {
+		extern uae_u16 isideint(void);
+		return isideint();
+	}
+#endif
 	if (currprefs.illegal_mem)
 		dummylog (0, addr, 2, 0, 0);
 	return dummy_get (addr, 2);
@@ -421,6 +427,11 @@ void REGPARAM2 chipmem_lput (uaecptr addr, uae_u32 l)
 	do_put_mem_long (m, l);
 }
 
+#if 0
+static int tables[256];
+static int told, toldv;
+#endif
+
 void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 {
 	uae_u16 *m;
@@ -428,6 +439,14 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 	addr &= chipmem_bank.mask;
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
+#if 0
+    if (addr == 0x120) {
+		if (told)
+			tables[toldv] += hsync_counter - told;
+		told = hsync_counter;
+		toldv = w;
+	}
+#endif
 }
 
 void REGPARAM2 chipmem_bput (uaecptr addr, uae_u32 b)
@@ -1791,12 +1810,14 @@ static void fill_ce_banks (void)
 	int i;
 
 	memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
-	// data cachable regions
+	// data cachable regions (2 = burst supported)
 	memset (ce_cachable, 0, sizeof ce_cachable);
-	memset (ce_cachable + (0x00200000 >> 16), 1, currprefs.fastmem_size >> 16);
+	memset (ce_cachable + (0x00200000 >> 16), 1 | 2, currprefs.fastmem_size >> 16);
 	memset (ce_cachable + (0x00c00000 >> 16), 1, currprefs.bogomem_size >> 16);
-	memset (ce_cachable + (z3fastmem_bank.start >> 16), 1, currprefs.z3fastmem_size >> 16);
-	memset (ce_cachable + (z3fastmem2_bank.start >> 16), 1, currprefs.z3fastmem2_size >> 16);
+	memset (ce_cachable + (z3fastmem_bank.start >> 16), 1 | 2, currprefs.z3fastmem_size >> 16);
+	memset (ce_cachable + (z3fastmem2_bank.start >> 16), 1 | 2, currprefs.z3fastmem2_size >> 16);
+	memset (ce_cachable + (a3000hmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_high_size >> 16);
+	memset (ce_cachable + (a3000lmem_bank.start >> 16), 1 | 2, currprefs.mbresmem_low_size >> 16);
 
 	if (&get_mem_bank (0) == &chipmem_bank) {
 		for (i = 0; i < (0x200000 >> 16); i++) {

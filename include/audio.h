@@ -36,6 +36,7 @@ extern void update_sound (double freq, int longframe, int linetoggle);
 extern void led_filter_audio (void);
 extern void set_audio (void);
 extern int audio_activate (void);
+extern void audio_deactivate (void);
 extern void audio_vsync (void);
 
 extern void audio_sampleripper(int);

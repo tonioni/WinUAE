@@ -109,6 +109,7 @@ struct cache030
 	uae_u32 tag;
 };
 
+#if 0
 #define CACHESETS040 64
 #define CACHELINES040 4
 struct cache040
@@ -117,6 +118,7 @@ struct cache040
 	bool valid[CACHELINES040];
 	uae_u32 tag[CACHELINES040];
 };
+#endif
 
 struct mmufixup
 {
@@ -183,6 +185,7 @@ struct regstruct
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	int ce020memcycles;
+	int ce020_tail;
 };
 
 extern struct regstruct regs;
@@ -374,6 +377,7 @@ extern void (*x_do_cycles_post)(unsigned long, uae_u32);
 
 extern uae_u32 REGPARAM3 x_get_disp_ea_020 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_disp_ea_ce020 (uae_u32 base, int idx) REGPARAM;
+extern uae_u32 REGPARAM3 x_get_disp_ea_ce030 (uae_u32 base, int idx) REGPARAM;
 extern uae_u32 REGPARAM3 x_get_bitfield (uae_u32 src, uae_u32 bdata[2], uae_s32 offset, int width) REGPARAM;
 extern void REGPARAM3 x_put_bitfield (uae_u32 dst, uae_u32 bdata[2], uae_u32 val, uae_s32 offset, int width) REGPARAM;
 
@@ -408,6 +412,7 @@ extern void init_m68k_full (void);
 extern void m68k_go (int);
 extern void m68k_dumpstate (uaecptr *);
 extern void m68k_dumpstate (uaecptr, uaecptr *);
+extern void m68k_dumpcache (void);
 extern int getDivu68kCycles (uae_u32 dividend, uae_u16 divisor);
 extern int getDivs68kCycles (uae_s32 dividend, uae_s16 divisor);
 extern void divbyzero_special (bool issigned, uae_s32 dst);
@@ -440,8 +445,6 @@ extern void cpu_halt (int id);
 extern void fill_prefetch (void);
 extern void fill_prefetch_020 (void);
 extern void fill_prefetch_030 (void);
-extern void fill_prefetch_040 (void);
-extern void fill_prefetch_0x0 (void);
 
 #define CPU_OP_NAME(a) op ## a
 

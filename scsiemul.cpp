@@ -27,6 +27,7 @@
 #include "scsidev.h"
 #include "uae.h"
 #include "execio.h"
+#include "savestate.h"
 
 #define CDDEV_COMMANDS
 
@@ -1150,6 +1151,8 @@ static void dev_reset (void)
 				dev->configblocksize = discsi->bytespersector;
 				if (discsi->type == INQ_ROMD)
 					dev->iscd = 1;
+			} else {
+				sys_command_close (i);
 			}
 		}
 		i++;
@@ -1429,4 +1432,91 @@ void scsidev_reset (void)
 	if (currprefs.scsi != 1)
 		return;
 	dev_reset ();
+}
+
+uae_u8 *save_scsidev (int num, int *len, uae_u8 *dstptr)
+{
+	uae_u8 *dstbak, *dst;
+	struct priv_devstruct *pdev;
+	struct devstruct *dev;
+
+	pdev = &pdevst[num];
+	if (!pdev->inuse)
+		return NULL;
+	if (dstptr)
+		dstbak = dst = dstptr;
+	else
+		dstbak = dst = xmalloc (uae_u8, 1000);
+	save_u32 (num);
+	save_u32 (0);
+	save_u32 (pdev->unit);
+	save_u32 (pdev->type);
+	save_u32 (pdev->mode);
+	save_u32 (pdev->flags);
+	dev = getdevstruct (pdev->unit);
+	if (dev) {
+		save_u32 (0);
+		save_u32 (dev->aunit);
+		save_u32 (dev->opencnt);
+		save_u32 (dev->changenum);
+		save_u32 (dev->changeint);
+		save_u32 (dev->changeint_mediastate);
+		save_u32 (dev->configblocksize);
+		save_u32 (dev->fadecounter);
+		save_u32 (dev->fadeframes);
+		save_u32 (dev->fadetarget);
+		for (int i = 0; i < MAX_ASYNC_REQUESTS; i++) {
+			if (dev->d_request[i]) {
+				save_u32 (dev->d_request[i]);
+				save_u32 (dev->d_request_type[i]);
+				save_u32 (dev->d_request_data[i]);
+			}
+		}
+		save_u32 (0xffffffff);
+	} else {
+		save_u32 (0xffffffff);
+	}
+	*len = dst - dstbak;
+	return dstbak;
+}
+
+uae_u8 *restore_scsidev (uae_u8 *src)
+{
+	struct priv_devstruct *pdev;
+	struct devstruct *dev;
+	int i;
+
+	int num = restore_u32 ();
+	if (num == 0)
+		dev_reset ();
+	pdev = &pdevst[num];
+	restore_u32 ();
+	restore_u32 ();
+	pdev->type = restore_u32 ();
+	pdev->mode = restore_u32 ();
+	pdev->flags = restore_u32 ();
+	if (restore_u32 () != 0xffffffff) {
+		dev = getdevstruct (pdev->unit);
+		if (dev) {
+			dev->aunit = restore_u32 ();
+			dev->opencnt = restore_u32 ();
+			dev->changenum = restore_u32 ();
+			dev->changeint = restore_u32 ();
+			dev->changeint_mediastate = restore_u32 ();
+			dev->configblocksize = restore_u32 ();
+			dev->fadecounter = restore_u32 ();
+			dev->fadeframes = restore_u32 ();
+			dev->fadetarget = restore_u32 ();
+			i = 0;
+			for (;;) {
+				uae_u32 v = restore_u32 ();
+				if (v == 0xffffffff)
+					break;
+				dev->d_request[i] = v;
+				dev->d_request_type[i] = restore_u32 ();
+				dev->d_request_data[i] = restore_u32 ();
+			}
+		}
+	}
+	return src;
 }

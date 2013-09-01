@@ -141,6 +141,9 @@ extern uae_u8 *save_scsi_dmac (int *len, uae_u8*);
 extern uae_u8 *save_scsi_device (int num, int *len, uae_u8 *dstptr);
 extern uae_u8 *restore_scsi_device (uae_u8 *src);
 
+extern uae_u8 *save_scsidev (int num, int *len, uae_u8 *dstptr);
+extern uae_u8 *restore_scsidev (uae_u8 *src);
+
 extern uae_u8 *restore_filesys (uae_u8 *src);
 extern uae_u8 *save_filesys (int num, int *len);
 extern uae_u8 *restore_filesys_common (uae_u8 *src);

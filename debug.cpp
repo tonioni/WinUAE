@@ -366,19 +366,19 @@ static int readregx (TCHAR **c, uae_u32 *valp)
 		memmove (tmp, tmp + 1, sizeof (tmp) - sizeof (TCHAR));
 		extra = 1;
 	}
-	if (!_tcscmp (tmp, _T("USP"))) {
+	if (!_tcsncmp (tmp, _T("USP"), 3)) {
 		addr = regs.usp;
 		(*c) += 3;
-	} else if (!_tcscmp (tmp, _T("VBR"))) {
+	} else if (!_tcsncmp (tmp, _T("VBR"), 3)) {
 		addr = regs.vbr;
 		(*c) += 3;
-	} else if (!_tcscmp (tmp, _T("MSP"))) {
+	} else if (!_tcsncmp (tmp, _T("MSP"), 3)) {
 		addr = regs.msp;
 		(*c) += 3;
-	} else if (!_tcscmp (tmp, _T("ISP"))) {
+	} else if (!_tcsncmp (tmp, _T("ISP"), 3)) {
 		addr = regs.isp;
 		(*c) += 3;
-	} else if (!_tcscmp (tmp, _T("PC"))) {
+	} else if (!_tcsncmp (tmp, _T("PC"), 2)) {
 		addr = regs.pc;
 		(*c) += 2;
 	} else if (tmp[0] == 'A' || tmp[0] == 'D') {
@@ -2516,8 +2516,10 @@ int debug_bankchange (int mode)
 			return -2;
 		return v;
 	}
-	if (mode >= 0)
+	if (mode >= 0) {
 		initialize_memwatch (mode);
+		memwatch_setup ();
+	}
 	return -1;
 }
 
@@ -3820,7 +3822,9 @@ static BOOL debug_line (TCHAR *input)
 		case 'e': dump_custom_regs (tolower(*inptr) == 'a'); break;
 		case 'r':
 			{
-				if (more_params(&inptr))
+				if (*inptr == 'c')
+					m68k_dumpcache ();
+				else if (more_params(&inptr))
 					m68k_modify (&inptr);
 				else
 					m68k_dumpstate (&nextpc);

@@ -2214,7 +2214,7 @@ static int getd3dadapter (IDirect3D9 *d3d)
 	return D3DADAPTER_DEFAULT;
 }
 
-static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
+static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
 {
 	HRESULT ret, hr;
 	static TCHAR errmsg[100] = { 0 };
@@ -2337,6 +2337,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmul
 				vsync2 = 1;
 			}
 		}
+		*freq = modeex.RefreshRate;
 	}
 	if (vsync < 0) {
 		vsync2 = 0;
@@ -2397,7 +2398,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmul
 			write_log (_T("%s\n"), errmsg);
 			write_log (_T("%s: Retrying fullscreen with DirectDraw\n"), D3DHEAD);
 			if (ddraw_fs_hack_init ()) {
-				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, depth, mmult);
+				const TCHAR *err2 = D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
 				if (err2)
 					ddraw_fs_hack_free ();
 				return err2;
@@ -2406,7 +2407,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmul
 		if (d3d_ex && D3DEX) {
 			write_log (_T("%s\n"), errmsg);
 			D3DEX = 0;
-			return D3D_init (ahwnd, w_w, w_h, depth, mmult);
+			return D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
 		}
 		D3D_free (true);
 		return errmsg;
@@ -2461,7 +2462,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmul
 			d3d = NULL;
 		}
 		d3ddevex = NULL;
-		return D3D_init (ahwnd, w_w, w_h, depth, mmult);
+		return D3D_init (ahwnd, w_w, w_h, depth, freq, mmult);
 	}
 	if (!shaderon)
 		write_log (_T("Using non-shader version\n"));
@@ -2529,7 +2530,7 @@ static const TCHAR *D3D_init2 (HWND ahwnd, int w_w, int w_h, int depth, int mmul
 		hr = S_OK;
 		if (forcedframelatency >= 0)
 			hr = d3ddevex->SetMaximumFrameLatency (forcedframelatency);
-		else if (v > 1 || !vsync)
+		else if (dpp.PresentationInterval == D3DPRESENT_INTERVAL_IMMEDIATE && (v > 1 || !vsync))
 			hr = d3ddevex->SetMaximumFrameLatency (vsync ? (hzmult < 0 ? 2 : 1) : 0);
 		if (FAILED (hr))
 			write_log (_T("%s: SetMaximumFrameLatency() failed: %s\n"), D3DHEAD, D3D_ErrorString (hr));
@@ -2545,6 +2546,7 @@ struct d3d_initargs
 	int h;
 	int depth;
 	int mmult;
+	int *freq;
 };
 static struct d3d_initargs d3dargs;
 
@@ -2558,7 +2560,7 @@ static void *D3D_init_start (void *p)
 	D3D_free2 ();
 	sleep_millis (1000);
 	write_log (_T("Threaded D3D_init() start (init)\n"));
-	const TCHAR *t = D3D_init2 (d3dargs.hwnd, d3dargs.w, d3dargs.h, d3dargs.depth, d3dargs.mmult);
+	const TCHAR *t = D3D_init2 (d3dargs.hwnd, d3dargs.w, d3dargs.h, d3dargs.depth, d3dargs.freq, d3dargs.mmult);
 	if (t) {
 		gui_message (_T("Threaded D3D_init() returned error '%s'\n"), t);
 	}
@@ -2579,16 +2581,17 @@ static void *D3D_init_start (void *p)
 	return NULL;
 }
 
-const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int mmult)
+const TCHAR *D3D_init (HWND ahwnd, int w_w, int w_h, int depth, int *freq, int mmult)
 {
 	if (!fakemodewaitms)
-		return D3D_init2 (ahwnd, w_w, w_h, depth, mmult);
+		return D3D_init2 (ahwnd, w_w, w_h, depth, freq, mmult);
 	fakemode = true;
 	d3dargs.hwnd = ahwnd;
 	d3dargs.w = w_w;
 	d3dargs.h = w_h;
 	d3dargs.depth = depth;
 	d3dargs.mmult = mmult;
+	d3dargs.freq = freq;
 	uae_start_thread_fast (D3D_init_start, NULL, &fakemodetid);
 	return NULL;
 }

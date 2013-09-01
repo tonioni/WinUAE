@@ -38,6 +38,7 @@ struct blkdevstate
 	int delayed;
 	uae_sem_t sema;
 	int sema_cnt;
+	int current_pos;
 	int play_end_pos;
 	uae_u8 play_qcode[SUBQ_SIZE];
 	TCHAR newimagefile[256];
@@ -499,6 +500,7 @@ void device_func_reset (void)
 		struct blkdevstate *st = &state[i];
 		st->wasopen = 0;
 		st->waspaused = false;
+		st->mediawaschanged = false;
 		st->imagechangetime = 0;
 		st->cdimagefileinuse = false;
 		st->newimagefile[0] = 0;
@@ -1195,6 +1197,7 @@ static int scsiemudrv (int unitnum, uae_u8 *cmd)
 
 static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_info *di)
 {
+	struct blkdevstate *st = &state[unitnum];
 	int msf = cmd[0] == 0xb9;
 	int start = msf ? msf2lsn (rl (cmd + 2) & 0x00ffffff) : rl (cmd + 2);
 	int len = rl (cmd + 5) & 0x00ffffff;
@@ -1207,21 +1210,26 @@ static int scsi_read_cd (int unitnum, uae_u8 *cmd, uae_u8 *data, struct device_i
 	int subs = cmd[10] & 7;
 	if (len == 0)
 		return 0;
-	return sys_command_cd_rawread (unitnum, data, start, len, 0, (cmd[1] >> 2) & 7, cmd[9], subs);
+	int v = sys_command_cd_rawread (unitnum, data, start, len, 0, (cmd[1] >> 2) & 7, cmd[9], subs);
+	if (v > 0)
+		st->current_pos = start + len;
+	return v;
 }
 
 static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, uae_u32 len, struct device_info *di, int *scsi_len)
 {
+	struct blkdevstate *st = &state[unitnum];
 	if (len == 0) {
 		*scsi_len = 0;
 		return 0;
 	} else {
 		if (len * di->bytespersector > SCSI_DATA_BUFFER_SIZE)
 			return -3;
-		if (offset >= di->sectorspertrack)
+		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
 			return -1;
 		int v = cmd_readx (unitnum, scsi_data, offset, len) * di->bytespersector;
 		if (v > 0) {
+			st->current_pos = offset + len;
 			*scsi_len = v;
 			return 0;
 		}
@@ -1270,6 +1278,8 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		s[2] = 6; /* UNIT ATTENTION */
 		s[12] = 0x28; /* MEDIUM MAY HAVE CHANGED */
 		ls = 0x12;
+		if (cmd == 0x00)
+			st->mediawaschanged = false;
 		goto end;
 	}
 
@@ -1282,6 +1292,15 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		break;
 	case 0x1e: /* PREVENT/ALLOW MEDIUM REMOVAL */
 		scsi_len = 0;
+		break;
+	case 0xbd: /* MECHANISM STATUS */
+		len = (cmdbuf[8] << 8) | cmdbuf[9];
+		if (len > 8)
+			len = 8;
+		scsi_len = len;
+		r[2] = st->current_pos >> 16;
+		r[3] = st->current_pos >>  8;
+		r[4] = st->current_pos >>  0;
 		break;
 	case 0x12: /* INQUIRY */
 	{

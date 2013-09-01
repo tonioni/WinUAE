@@ -719,6 +719,7 @@ endofline:
 			sz = destmode == Dreg ? sz_long : sz_byte;
 		}
 		table68k[opc].size = sz;
+		table68k[opc].sduse = id.sduse;
 		table68k[opc].sreg = srcreg;
 		table68k[opc].dreg = destreg;
 		table68k[opc].smode = srcmode;
@@ -731,6 +732,10 @@ endofline:
 		table68k[opc].plev = id.plevel;
 		table68k[opc].clev = id.cpulevel;
 		table68k[opc].unimpclev = id.unimpcpulevel;
+		table68k[opc].head = id.head;
+		table68k[opc].tail = id.tail;
+		table68k[opc].clocks = id.clocks;
+		table68k[opc].fetchmode = id.fetchmode;
 
 #if 0
 		for (i = 0; i < 5; i++) {

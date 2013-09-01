@@ -683,6 +683,8 @@ void restore_state (const TCHAR *filename)
 			end = restore_scsi_dmac (chunk);
 		else if (!_tcscmp (name, _T("SCSI")))
 			end = restore_scsi_device (chunk);
+		else if (!_tcscmp (name, _T("SCSD")))
+			end = restore_scsidev (chunk);
 		else if (!_tcscmp (name, _T("GAYL")))
 			end = restore_gayle (chunk);
 		else if (!_tcscmp (name, _T("IDE ")))
@@ -975,7 +977,11 @@ static int save_state_internal (struct zfile *f, const TCHAR *description, int c
 		save_chunk (f, dst, len, _T("SCSI"), 0);
 		xfree (dst);
 	}
-
+	for (i = 0; i < MAX_TOTAL_SCSI_DEVICES; i++) {
+		dst = save_scsidev (i, &len, NULL);
+		save_chunk (f, dst, len, _T("SCSD"), 0);
+		xfree (dst);
+	}
 #ifdef ACTION_REPLAY
 	dst = save_action_replay (&len, NULL);
 	save_chunk (f, dst, len, _T("ACTR"), comp);

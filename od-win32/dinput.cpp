@@ -1273,11 +1273,13 @@ static const struct hidquirk quirks[] =  {
 	{ 0 }
 };
 
+// PC analog joystick to USB adapters
 static const struct hidquirk hidnorawinput[] =  {
-	{ 0x0583, 0x2030 }, //  Rockfire RM-203 1
-	{ 0x0583, 0x2031 }, //  Rockfire RM-203 2
-	{ 0x0583, 0x2032 }, //  Rockfire RM-203 3
-	{ 0x0583, 0x2033 }, //  Rockfire RM-203 4
+	{ 0x0583, 0x2030 }, // Rockfire RM-203 1
+	{ 0x0583, 0x2031 }, // Rockfire RM-203 2
+	{ 0x0583, 0x2032 }, // Rockfire RM-203 3
+	{ 0x0583, 0x2033 }, // Rockfire RM-203 4
+	{ 0x079d, 0x0201 }, // "USB  ADAPTOR"
 	{ 0 }
 };
 

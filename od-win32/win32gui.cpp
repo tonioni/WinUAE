@@ -1192,7 +1192,8 @@ static HWND cachedlist = NULL;
 #define MAX_P96_MEM_Z3 ((max_z3fastmem >> 20) < 512 ? 8 : ((max_z3fastmem >> 20) < 1024 ? 9 : ((max_z3fastmem >> 20) < 2048) ? 10 : 11))
 #define MAX_P96_MEM_Z2 4
 #define MIN_MB_MEM 0
-#define MAX_MB_MEM 7
+#define MAX_MBL_MEM 7
+#define MAX_MBH_MEM 8
 
 #define MIN_M68K_PRIORITY 1
 #define MAX_M68K_PRIORITY 16
@@ -2411,14 +2412,20 @@ int DiskSelection_2 (HWND hDlg, WPARAM wParam, int flag, struct uae_prefs *prefs
 				TCHAR disk_name[32];
 				disk_name[0] = 0; disk_name[31] = 0;
 				GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-				disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL);
+				if (disk_creatediskfile (full_path, 0, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+					fullpath (full_path, sizeof full_path / sizeof (TCHAR));
+					DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+				}
 			}
 			break;
 		case IDC_CREATE_RAW:
 			TCHAR disk_name[32];
 			disk_name[0] = 0; disk_name[31] = 0;
 			GetDlgItemText (hDlg, IDC_CREATE_NAME, disk_name, 30);
-			disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL);
+			if (disk_creatediskfile (full_path, 1, (drive_type)SendDlgItemMessage (hDlg, IDC_FLOPPYTYPE, CB_GETCURSEL, 0, 0L), disk_name, ischecked (hDlg, IDC_FLOPPY_FFS), ischecked (hDlg, IDC_FLOPPY_BOOTABLE), NULL)) {
+				fullpath (full_path, sizeof full_path / sizeof (TCHAR));
+				DISK_history_add (full_path, -1, HISTORY_FLOPPY, 0);
+			}
 			break;
 		case IDC_LOAD:
 			if (target_cfgfile_load (&workprefs, full_path, 0, 0) == 0) {
@@ -4727,6 +4734,38 @@ static INT_PTR CALLBACK LoadSaveDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPA
 }
 
 #define MAX_CONTRIBUTORS_LENGTH 2048
+
+static INT_PTR CALLBACK ErrorLogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	CHARFORMAT CharFormat;
+	TCHAR *err;
+
+	switch (msg) {
+	case WM_COMMAND:
+		if (wParam == IDOK) {
+			EndDialog (hDlg, 1);
+			return TRUE;
+		} else if (wParam == IDC_ERRORLOGCLEAR) {
+			error_log (NULL);
+			EndDialog (hDlg, 1);
+			return TRUE;
+		}
+		break;
+	case WM_INITDIALOG:
+		err = get_error_log ();
+		if (err == NULL)
+			return FALSE;
+		CharFormat.cbSize = sizeof (CharFormat);
+		SetDlgItemText (hDlg, IDC_ERRORLOGMESSAGE, err);
+		SendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_GETCHARFORMAT, 0, (LPARAM) & CharFormat);
+		CharFormat.dwMask |= CFM_SIZE | CFM_FACE;
+		CharFormat.yHeight = 8 * 20; /* height in twips, where a twip is 1/20th of a point - for a pt.size of 18 */
+		_tcscpy (CharFormat.szFaceName, os_vista ? _T("Segoe UI") : _T("Tahoma"));
+		SendDlgItemMessage (hDlg, IDC_ERRORLOGMESSAGE, EM_SETCHARFORMAT, SCF_ALL, (LPARAM) & CharFormat);
+		return TRUE;
+	}
+	return FALSE;
+}
 
 static INT_PTR CALLBACK ContributorsProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -7307,6 +7346,7 @@ static void values_to_memorydlg (HWND hDlg)
 	case 0x01000000: mem_size = 5; break;
 	case 0x02000000: mem_size = 6; break;
 	case 0x04000000: mem_size = 7; break;
+	case 0x08000000: mem_size = 8; break;
 	}
 	SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETPOS, TRUE, mem_size);
 	SetDlgItemText (hDlg, IDC_MBRAM2, memsize_names[msi_gfx[mem_size]]);
@@ -7752,8 +7792,8 @@ static INT_PTR CALLBACK MemoryDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 		SendDlgItemMessage (hDlg, IDC_SLOWMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_SLOW_MEM, MAX_SLOW_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3FASTMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_MEM));
 		SendDlgItemMessage (hDlg, IDC_Z3CHIPMEM, TBM_SETRANGE, TRUE, MAKELONG (MIN_Z3_MEM, MAX_Z3_CHIPMEM));
-		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
-		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MB_MEM));
+		SendDlgItemMessage (hDlg, IDC_MBMEM1, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBL_MEM));
+		SendDlgItemMessage (hDlg, IDC_MBMEM2, TBM_SETRANGE, TRUE, MAKELONG (MIN_MB_MEM, MAX_MBH_MEM));
 		CheckDlgButton(hDlg, IDC_FASTMEMAUTOCONFIG, workprefs.fastmem_autoconfig);
 
 
@@ -8580,8 +8620,8 @@ static void enable_for_cpudlg (HWND hDlg)
 	ew (hDlg, IDC_JITENABLE, jitenable);
 	ew (hDlg, IDC_COMPATIBLE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_model > 0);
-	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model);
-	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060);
+	ew (hDlg, IDC_FPU_UNIMPLEMENTED, workprefs.fpu_model && !workprefs.cachesize);
+	ew (hDlg, IDC_CPU_UNIMPLEMENTED, workprefs.cpu_model == 68060 && !workprefs.cachesize);
 #if 0
 	ew (hDlg, IDC_CPU_MULTIPLIER, workprefs.cpu_cycle_exact);
 #endif
@@ -8616,8 +8656,8 @@ static void values_to_cpudlg (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_COMPATIBLE, workprefs.cpu_compatible);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE24, workprefs.address_space_24);
 	CheckDlgButton (hDlg, IDC_COMPATIBLE_FPU, workprefs.fpu_strict);
-	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented);
-	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented);
+	CheckDlgButton (hDlg, IDC_FPU_UNIMPLEMENTED, !workprefs.fpu_no_unimplemented || workprefs.cachesize);
+	CheckDlgButton (hDlg, IDC_CPU_UNIMPLEMENTED, !workprefs.int_no_unimplemented || workprefs.cachesize);
 	SendDlgItemMessage (hDlg, IDC_CPUIDLE, TBM_SETPOS, TRUE, workprefs.cpu_idle == 0 ? 0 : 12 - workprefs.cpu_idle / 15);
 	cpu = (workprefs.cpu_model - 68000) / 10;
 	if (cpu >= 5)
@@ -8815,7 +8855,12 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 		idx = 4;
 		if (workprefs.cpu_clock_multiplier >= 1 << 8) {
-			idx = (workprefs.cpu_clock_multiplier >> 8) - 1;
+			idx = 0;
+			while (idx < 3) {
+				if (workprefs.cpu_clock_multiplier < (1 << 8) << idx)
+					break;
+				idx++;
+			}
 		} else if (workprefs.cpu_clock_multiplier == 0 && workprefs.cpu_frequency == 0 && workprefs.cpu_model <= 68010) {
 			idx = 1; // A500
 		} else if (workprefs.cpu_clock_multiplier == 0 && workprefs.cpu_frequency == 0 && workprefs.cpu_model >= 68020) {
@@ -9785,8 +9830,10 @@ static void hardfilecreatehdf (HWND hDlg, TCHAR *newpath)
 	if (res == 0)
 		dostype[0] = 0;
 	if (CreateHardFile (hDlg, setting, dostype, newpath, hdfpath)) {
-		if (!current_hfdlg.ci.rootdir[0])
+		if (!current_hfdlg.ci.rootdir[0]) {
+			fullpath (hdfpath, sizeof hdfpath / sizeof (TCHAR));
 			_tcscpy (current_hfdlg.ci.rootdir, hdfpath);
+		}
 	}
 	sethardfile (hDlg);
 }
@@ -10255,7 +10302,7 @@ static void new_tapedrive (HWND hDlg, int entry)
 	ci.type = UAEDEV_TAPE;
 	ci.blocksize = 512;
 	uci = add_filesys_config (&workprefs, entry, &ci);
-	if (uci) {
+	if (uci && uci->unitnum >= 0) {
 		tape_media_change (uci->unitnum, &ci);
 	}
 }
@@ -15985,6 +16032,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			SetWindowText (GetDlgItem (guiDlg, IDOK), tmp);
 		}
 		ShowWindow (GetDlgItem (guiDlg, IDC_RESTARTEMU), full_property_sheet ? SW_HIDE : SW_SHOW);
+		ShowWindow (GetDlgItem (guiDlg, IDC_ERRORLOG), is_error_log () ? SW_SHOW : SW_HIDE);
 		centerWindow (hDlg);
 		createTreeView (hDlg);
 		updatePanel (currentpage);
@@ -16021,6 +16069,12 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		{
 			switch (LOWORD(wParam))
 			{
+			case IDC_ERRORLOG:
+				{
+					CustomDialogBox (IDD_ERRORLOG, hDlg, ErrorLogProc);
+					ShowWindow (GetDlgItem (guiDlg, IDC_ERRORLOG), is_error_log () ? SW_SHOW : SW_HIDE);
+				}
+				break;
 			case IDC_RESETAMIGA:
 				uae_reset (1, 1);
 				SendMessage (hDlg, WM_COMMAND, IDOK, 0);

@@ -8399,7 +8399,7 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	if (debug_dma)
 		dr->dat = v;
 #endif
-	x_do_cycles_post (CYCLE_UNIT, v);
+	//x_do_cycles_post (CYCLE_UNIT / 2, v);
 
 	return v;
 }
@@ -8464,7 +8464,7 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 	else if (mode == 0)
 		put_byte (addr, v);
 
-	x_do_cycles_post (CYCLE_UNIT, v);
+	//x_do_cycles_post (CYCLE_UNIT / 2, v);
 }
 
 void do_cycles_ce (unsigned long cycles)

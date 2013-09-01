@@ -89,6 +89,7 @@ struct winuae_currentmode {
 	int initdone;
 	int fullfill;
 	int vsync;
+	int freq;
 };
 
 struct MultiDisplay Displays[MAX_DISPLAYS + 1];
@@ -458,8 +459,9 @@ static int set_ddraw_2 (void)
 			olderr = ddrval;
 			if (freq) {
 				write_log (_T("set_ddraw: failed, trying without forced refresh rate\n"));
+				freq = 0;
 				DirectDraw_SetCooperativeLevel (hAmigaWnd, dxfullscreen, TRUE);
-				ddrval = DirectDraw_SetDisplayMode (width, height, bits, 0);
+				ddrval = DirectDraw_SetDisplayMode (width, height, bits, freq);
 				if (SUCCEEDED (ddrval))
 					break;
 			}
@@ -467,6 +469,7 @@ static int set_ddraw_2 (void)
 				goto oops;
 			return -1;
 		}
+		currentmode->freq = freq;
 		updatewinrect (true);
 	}
 
@@ -2414,6 +2417,7 @@ static int modeswitchneeded (struct winuae_currentmode *wc)
 void gfx_set_picasso_state (int on)
 {
 	struct winuae_currentmode wc;
+	struct apmode *newmode, *oldmode;
 	int mode;
 
 	if (screen_is_picasso == on)
@@ -2422,10 +2426,20 @@ void gfx_set_picasso_state (int on)
 	rp_rtg_switch ();
 	memcpy (&wc, currentmode, sizeof (wc));
 
+	newmode = &currprefs.gfx_apmode[on ? 1 : 0];
+	oldmode = &currprefs.gfx_apmode[on ? 0 : 1];
+
 	updatemodes ();
 	update_gfxparams ();
 	clearscreen ();
-	if (currprefs.gfx_apmode[0].gfx_fullscreen != currprefs.gfx_apmode[1].gfx_fullscreen || (currprefs.gfx_apmode[0].gfx_fullscreen == GFX_FULLSCREEN && currprefs.gfx_api)) {
+	if (newmode->gfx_fullscreen != oldmode->gfx_fullscreen ||
+		(newmode->gfx_fullscreen && (
+			newmode->gfx_backbuffers != oldmode->gfx_backbuffers ||
+			newmode->gfx_display != oldmode->gfx_display ||
+			newmode->gfx_refreshrate != oldmode->gfx_refreshrate ||
+			newmode->gfx_strobo != oldmode->gfx_strobo ||
+			newmode->gfx_vflip != oldmode->gfx_vflip ||
+			newmode->gfx_vsync != oldmode->gfx_vsync))) {
 		mode = 1;
 	} else {
 		mode = modeswitchneeded (&wc);
@@ -4150,7 +4164,7 @@ static BOOL doInit (void)
 	S2X_free ();
 	oldtex_w = oldtex_h = -1;
 	if (currentmode->flags & DM_D3D) {
-		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
+		const TCHAR *err = D3D_init (hAmigaWnd, currentmode->native_width, currentmode->native_height, currentmode->current_depth, &currentmode->freq, screen_is_picasso ? 1 : currprefs.gfx_filter_filtermode + 1);
 		if (err) {
 			D3D_free (true);
 			gui_message (err);

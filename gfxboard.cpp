@@ -637,6 +637,7 @@ int is_surface_bgr(DisplaySurface *surface)
 static uaecptr fixaddr_bs (uaecptr addr, int mask, int *bs)
 {
 	bool swapped = false;
+	addr &= gfxmem_bank.mask;
 	if (p4z2) {
 		if (addr < 0x200000) {
 			addr |= p4_vram_bank[0];

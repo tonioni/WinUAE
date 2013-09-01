@@ -15,6 +15,7 @@ struct scsi_data_tape
 	int beom;
 	bool wp;
 	bool nomedia;
+	bool unloaded;
 };
 
 struct scsi_data
