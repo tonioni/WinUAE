@@ -1220,6 +1220,8 @@ static int scsi_read_cd_data (int unitnum, uae_u8 *scsi_data, uae_u32 offset, ua
 {
 	struct blkdevstate *st = &state[unitnum];
 	if (len == 0) {
+		if (offset >= di->sectorspertrack * di->cylinders * di->trackspercylinder)
+			return -1;
 		*scsi_len = 0;
 		return 0;
 	} else {
@@ -1379,8 +1381,12 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 		int pc = cmdbuf[2] >> 6;
 		int pcode = cmdbuf[2] & 0x3f;
 		int dbd = cmdbuf[1] & 8;
-		if (cmdbuf[0] == 0x5a)
+
+		if (atapi) {
+			if (!sense10)
+				goto err;
 			dbd = 1;
+		}
 		if (log_scsiemu)
 			write_log (_T("MODE SENSE PC=%d CODE=%d DBD=%d\n"), pc, pcode, dbd);
 		p = r;
@@ -1478,9 +1484,10 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			r[3] = bdsize & 0xff;
 			r[0] = totalsize & 0xff;
 		}
-		scsi_len = lr = totalsize + 1;
+		scsi_len = totalsize + 1;
 		if (scsi_len > maxlen)
 			scsi_len = maxlen;
+		lr = scsi_len;
 	}
 	break;
 	case 0x01: /* REZERO UNIT */
@@ -1515,6 +1522,18 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 			scsi_len = lr = 8;
 		}
 		break;
+	case 0x0b: /* SEEK (6) */
+		{
+			if (nodisk (&di))
+				goto nodisk;
+			stopplay (unitnum);
+			offset = ((cmdbuf[1] & 31) << 16) | (cmdbuf[2] << 8) | cmdbuf[3];
+			struct cd_toc *t = gettoc (&di.toc, offset);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len);
+			if (v == -1)
+				goto outofbounds;
+		}
+	break;
 	case 0x08: /* READ (6) */
 	{
 		if (nodisk (&di))
@@ -1540,6 +1559,18 @@ int scsi_cd_emulate (int unitnum, uae_u8 *cmdbuf, int scsi_cmd_len,
 	break;
 	case 0x0a: /* WRITE (6) */
 		goto readprot;
+	case 0x2b: /* SEEK (10) */
+		{
+			if (nodisk (&di))
+				goto nodisk;
+			stopplay (unitnum);
+			offset = rl (cmdbuf + 2);
+			struct cd_toc *t = gettoc (&di.toc, offset);
+			v = scsi_read_cd_data (unitnum, scsi_data, offset, 0, &di, &scsi_len);
+			if (v == -1)
+				goto outofbounds;
+		}
+	break;
 	case 0x28: /* READ (10) */
 	{
 		if (nodisk (&di))

@@ -2168,7 +2168,9 @@ struct zfile *archive_getzfile (struct znode *zn, unsigned int id, int flags)
 		zf = archive_access_tar (zn);
 		break;
 	}
-	if (zf)
+	if (zf) {
 		zf->archiveid = id;
+		zfile_fseek (zf, 0, SEEK_SET);
+	}
 	return zf;
 }

@@ -18,7 +18,7 @@
 
 static int outcmd[] = { 0x0a, 0x2a, 0x2f, 0xaa, 0x15, 0x55, -1 };
 static int incmd[] = { 0x01, 0x03, 0x05, 0x08, 0x12, 0x1a, 0x5a, 0x25, 0x28, 0x37, 0x42, 0x43, 0xa8, 0x51, 0x52, 0xbd, -1 };
-static int nonecmd[] = { 0x00, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x35, -1 };
+static int nonecmd[] = { 0x00, 0x0b, 0x11, 0x16, 0x17, 0x19, 0x1b, 0x1e, 0x2b, 0x35, -1 };
 static int scsicmdsizes[] = { 6, 10, 10, 12, 16, 12, 10, 10 };
 
 static int scsi_data_dir(struct scsi_data *sd)
@@ -102,6 +102,7 @@ static void showsense(struct scsi_data *sd)
 static void copysense(struct scsi_data *sd)
 {
 	int len = sd->cmd[4];
+	//write_log (_T("REQUEST SENSE length %d (%d)\n"), len, sd->sense_len);
 	memset(sd->buffer, 0, len);
 	memcpy(sd->buffer, sd->sense, sd->sense_len > len ? len : sd->sense_len);
 	if (sd->sense_len == 0)

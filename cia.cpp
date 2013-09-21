@@ -68,7 +68,6 @@
 static unsigned int ciaaicr, ciaaimask, ciabicr, ciabimask;
 static unsigned int ciaacra, ciaacrb, ciabcra, ciabcrb;
 static unsigned int ciaastarta, ciaastartb, ciabstarta, ciabstartb;
-static unsigned int ciaaicr_reg, ciabicr_reg;
 
 /* Values of the CIA timers.  */
 static unsigned long ciaata, ciaatb, ciabta, ciabtb;
@@ -129,7 +128,6 @@ static void RethinkICRA (void)
 #endif
 		if (!(ciaaicr & 0x80)) {
 			ciaaicr |= 0x80;
-			ciaaicr_reg |= 0x80;
 			if (currprefs.cpu_cycle_exact)
 				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x0008, ICRA);
 			else
@@ -146,7 +144,6 @@ static void RethinkICRB (void)
 #endif
 		if (!(ciabicr & 0x80)) {
 			ciabicr |= 0x80;
-			ciabicr_reg |= 0x80;
 			if (currprefs.cpu_cycle_exact)
 				event2_newevent_xx (-1, DIV10 + 2 * CYCLE_UNIT + CYCLE_UNIT / 2, 0x2000, ICRB);
 			else
@@ -356,8 +353,6 @@ static int CIA_update_check (void)
 	if (bsp) {
 		ciabicr |= 8; icr |= 2;
 	}
-	ciaaicr_reg |= ciaaicr;
-	ciabicr_reg |= ciabicr;
 	return icr;
 }
 static void CIA_update (void)
@@ -446,13 +441,11 @@ void CIA_handler (void)
 
 void cia_diskindex (void)
 {
-	ciabicr_reg |= 0x10;
 	ciabicr |= 0x10;
 	RethinkICRB ();
 }
 void cia_parallelack (void)
 {
-	ciaaicr_reg |= 0x10;
 	ciaaicr |= 0x10;
 	RethinkICRA ();
 }
@@ -491,7 +484,6 @@ STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 		write_log (_T("CIAB tod %08x %08x\n"), ciabtod, ciabalarm);
 #endif
 		if (irq) {
-			ciabicr_reg |= 4;
 			ciabicr |= 4;
 			RethinkICRB ();
 		}
@@ -507,7 +499,6 @@ STATIC_INLINE void ciaa_checkalarm (bool inc)
 #if CIAA_DEBUG_IRQ
 		write_log (_T("CIAA tod %08x %08x\n"), ciaatod, ciaaalarm);
 #endif
-		ciaaicr_reg |= 4;
 		ciaaicr |= 4;
 		RethinkICRA ();
 	}
@@ -605,7 +596,6 @@ static void sendrw (void)
 	ciaasdr = kbcode;
 	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
 	ciaaicr |= 8;
-	ciaaicr_reg |= 8;
 	RethinkICRA ();
 	write_log (_T("KB: sent reset warning code (phase=%d)\n"), resetwarning_phase);
 }
@@ -676,7 +666,6 @@ static void keyreq (void)
 	ciaasdr = kbcode;
 	kblostsynccnt = 8 * maxvpos * 8; // 8 frames * 8 bits.
 	ciaaicr |= 8;
-	ciaaicr_reg |= 8;
 	RethinkICRA ();
 }
 
@@ -739,7 +728,7 @@ void CIAB_tod_handler (int hoffset)
 void CIA_hsync_posthandler (bool dotod)
 {
 	// Previous line was supposed to increase TOD but
-	// no one cared. Do it now at the start of next line.
+	// no one cared. Do it now.
 	if (ciab_tod_event_state == 1)
 		CIAB_tod_inc (0);
 	ciab_tod_event_state = 0;
@@ -1005,10 +994,8 @@ static uae_u8 ReadCIAA (unsigned int addr)
 #endif
 		return ciaasdr;
 	case 13:
-		tmp = ciaaicr_reg & ~0x40;
+		tmp = ciaaicr & ~0x40;
 		ciaaicr = 0;
-		ciaaicr_reg = 0;
-		//RethinkICRA ();
 		return tmp;
 	case 14:
 		return ciaacra;
@@ -1118,10 +1105,8 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	case 12:
 		return ciabsdr;
 	case 13:
-		tmp = ciabicr_reg & ~0x40;
+		tmp = ciabicr & ~0x40;
 		ciabicr = 0;
-		ciabicr_reg = 0;
-		//RethinkICRB ();
 		return tmp;
 	case 14:
 		//write_log (_T("CIABCRA READ %d %x\n"), ciabcra, M68K_GETPC);
@@ -1273,6 +1258,7 @@ static void WriteCIAA (uae_u16 addr, uae_u8 val)
 		break;
 	case 13:
 		setclr (&ciaaimask,val);
+		RethinkICRA ();
 		break;
 	case 14:
 		CIA_update ();
@@ -1436,6 +1422,7 @@ static void WriteCIAB (uae_u16 addr, uae_u8 val)
 		break;
 	case 13:
 		setclr (&ciabimask, val);
+		RethinkICRB ();
 		break;
 	case 14:
 		CIA_update ();
@@ -1492,7 +1479,7 @@ void CIA_reset (void)
 		ciaatlatch = ciabtlatch = 0;
 		ciaapra = 0; ciaadra = 0;
 		ciaatod = ciabtod = 0; ciaatodon = ciabtodon = 0;
-		ciaaicr = ciaaicr_reg = ciabicr = ciabicr_reg = ciaaimask = ciabimask = 0;
+		ciaaicr = ciabicr = ciaaimask = ciabimask = 0;
 		ciaacra = ciaacrb = ciabcra = ciabcrb = 0x4; /* outmode = toggle; */
 		ciaala = ciaalb = ciabla = ciablb = ciaata = ciaatb = ciabta = ciabtb = 0xFFFF;
 		ciaaalarm = ciabalarm = 0;

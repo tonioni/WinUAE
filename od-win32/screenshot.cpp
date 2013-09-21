@@ -156,7 +156,7 @@ static int screenshot_prepare (int imagemode, struct vidbuffer *vb)
 		bi->bmiHeader.biXPelsPerMeter = 0;
 		bi->bmiHeader.biYPelsPerMeter = 0;
 		bi->bmiHeader.biClrUsed = bits <= 8 ? (1 << bits) : 0;
-		bi->bmiHeader.biClrImportant = bi->bmiHeader.biClrUsed;
+		bi->bmiHeader.biClrImportant = 0;
 		if (bits <= 8) {
 			for (int i = 0; i < bi->bmiHeader.biClrUsed; i++) {
 				bi->bmiColors[i].rgbRed = pal[i * 3  + 0];
@@ -372,12 +372,12 @@ static int savebmp (FILE *fp)
 	bfh.bfOffBits = sizeof (BITMAPFILEHEADER) + sizeof (BITMAPINFOHEADER) + bi->bmiHeader.biClrUsed * sizeof RGBQUAD;
 	if (fwrite (&bfh, 1, sizeof (BITMAPFILEHEADER), fp) < sizeof (BITMAPFILEHEADER))
 		return 0; // failed to write bitmap file header
+	if (fwrite (bi, 1, sizeof (BITMAPINFOHEADER), fp) < sizeof (BITMAPINFOHEADER))
+		return 0; // failed to write bitmap infomation header
 	if (bi->bmiHeader.biClrUsed) {
 		if (fwrite (bi->bmiColors, 1, bi->bmiHeader.biClrUsed * sizeof RGBQUAD, fp) < bi->bmiHeader.biClrUsed * sizeof RGBQUAD)
 			return 0; // failed to write bitmap file header
 	}
-	if (fwrite (bi, 1, sizeof (BITMAPINFOHEADER), fp) < sizeof (BITMAPINFOHEADER))
-		return 0; // failed to write bitmap infomation header
 	if (fwrite (lpvBits, 1, bi->bmiHeader.biSizeImage, fp) < bi->bmiHeader.biSizeImage)
 		return 0; // failed to write the bitmap
 	return 1;

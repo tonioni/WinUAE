@@ -89,7 +89,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 74
+#define NEXT_ROM_ID 75
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -192,6 +192,8 @@ static struct romdata roms[] = {
 
 	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 30, _T("CD32FMV\0"), 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
 	0xc35c37bf, 0x03ca81c7,0xa7b259cf,0x64bc9582,0x863eca0f,0x6529f435 },
+	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 22, _T("CD32FMV\0"), 262144, 74, 1, 0, ROMTYPE_CD32CART, 0, 0, _T("391777-01"),
+	0xe57d05fe, 0x56077abd,0x82b652f0,0x54f76002,0xdde2bcd5,0x33198cc2 },
 
 	{ _T("CDTV extended ROM v1.00"), 1, 0, 1, 0, _T("CDTV\0"), 262144, 20, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x42baa124, 0x7BA40FFA,0x17E500ED,0x9FED041F,0x3424BD81,0xD9C907BE },

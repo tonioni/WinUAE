@@ -11,6 +11,8 @@ mkdir bak\include
 copy c:\projects\winuae\src\include\* c:\projects\winuae_bak\bak\include\
 mkdir bak\jit
 copy c:\projects\winuae\src\jit\* c:\projects\winuae_bak\bak\jit\
+copy /s c:\projects\winuae\src\qemuvga\* c:\projects\winuae_bak\bak\qemuvga\
+copy /s c:\projects\winuae\src\slirp\* c:\projects\winuae_bak\bak\slirp\
 copy /s c:\projects\winuae\src\od-win32\* c:\projects\winuae_bak\bak\od-win32\
 
 copy d:\amiga\amiga\filesys.asm c:\projects\winuae_bak\bak

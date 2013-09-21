@@ -1814,14 +1814,18 @@ int check_prefs_changed_gfx (void)
 		}
 
 		if (display_change_requested) {
-			c = 2;
-			keepfsmode = 0;
-			if (display_change_requested <= -1) {
-				dontcapture = true;
-				if (display_change_requested == -2)
-					setpause = true;
-				if (pause_emulation)
-					setpause = true;
+			if (display_change_requested == 2) {
+				c = 512;
+			} else {
+				c = 2;
+				keepfsmode = 0;
+				if (display_change_requested <= -1) {
+					dontcapture = true;
+					if (display_change_requested == -2)
+						setpause = true;
+					if (pause_emulation)
+						setpause = true;
+				}
 			}
 			display_change_requested = 0;
 		}
@@ -3709,6 +3713,18 @@ static int create_windows_2 (void)
 		RECT r;
 		int w, h, x, y;
 		int nw, nh, nx, ny;
+
+		if (minimized) {
+			minimized = -1;
+			return 1;
+		}
+#if 0
+		if (minimized && hMainWnd) {
+			unsetminimized ();
+			ShowWindow (hMainWnd, SW_SHOW);
+			ShowWindow (hMainWnd, SW_RESTORE);
+		}
+#endif
 		GetWindowRect (hAmigaWnd, &r);
 		x = r.left;
 		y = r.top;

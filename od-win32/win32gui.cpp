@@ -8857,7 +8857,7 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		if (workprefs.cpu_clock_multiplier >= 1 << 8) {
 			idx = 0;
 			while (idx < 3) {
-				if (workprefs.cpu_clock_multiplier < (1 << 8) << idx)
+				if (workprefs.cpu_clock_multiplier <= (1 << 8) << idx)
 					break;
 				idx++;
 			}
@@ -8898,9 +8898,9 @@ static INT_PTR CALLBACK CPUDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	case WM_HSCROLL:
 		recursive++;
-		values_from_cpudlg( hDlg );
-		enable_for_cpudlg( hDlg );
-		values_to_cpudlg( hDlg );
+		values_from_cpudlg (hDlg);
+		enable_for_cpudlg ( hDlg);
+		values_to_cpudlg (hDlg);
 		recursive--;
 		break;
 	}

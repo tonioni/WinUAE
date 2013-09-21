@@ -506,11 +506,14 @@ bool setpaused (int priority)
 
 void setminimized (void)
 {
-	minimized = 1;
+	if (!minimized)
+		minimized = 1;
 	set_inhibit_frame (IHF_WINDOWHIDDEN);
 }
 void unsetminimized (void)
 {
+	if (minimized < 0)
+		WIN32GFX_DisplayChangeRequested (2);
 	minimized = 0;
 	clear_inhibit_frame (IHF_WINDOWHIDDEN);
 }

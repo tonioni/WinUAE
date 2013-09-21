@@ -738,8 +738,11 @@ static void pfield_init_linetoscr (void)
 	native_ddf_left = coord_hw_to_window_x (ddf_left);
 	native_ddf_right = coord_hw_to_window_x (ddf_right);
 
+#if 0
+	// this breaks Blerkenwiegel/Scoopex
 	if (native_ddf_left < 0)
 		native_ddf_left = 0;
+#endif
 	if (native_ddf_right < native_ddf_left)
 		native_ddf_right = native_ddf_left;
 
@@ -780,11 +783,11 @@ static void pfield_init_linetoscr (void)
 		if (playfield_end < linetoscr_diw_end && hblank_right_stop > playfield_end) {
 			playfield_end = linetoscr_diw_end;
 		}
-		int end = coord_hw_to_window_x (dp_for_drawing->plfleft * 2);
-		if (end < visible_left_border)
-			end = visible_left_border;
-		if (end < playfield_start && end > linetoscr_diw_start) {
-			playfield_start = end;
+		int left = coord_hw_to_window_x (dp_for_drawing->plfleft * 2);
+		if (left < visible_left_border)
+			left = visible_left_border;
+		if (left < playfield_start && left >= linetoscr_diw_start) {
+			playfield_start = left;
 		}
 	}
 

@@ -1,6 +1,74 @@
 
 - restore only single input target to default.
 
+Beta 8:
+
+NOTE: Still no 68020/030 CE mode changes. Do not use.
+
+- Added CD32 MPEG ROM 40.22 (part number 391777-01) to ROM scanner.
+- GUI 1x/2x/4x/custom CPU speed setting showed incorrect selection (b7)
+- Added "I am Windows 8.1 compatible" manifest entry.
+- Workaround for Blerkenwiegel/Scoopex breakage (261b1). May cause side-effects.
+- 68000 mode "CPU trace" state file restore errors should be gone (270b4)
+- 260b15 sprite update off-by-one fix. (Missing vertical sprite line in Prurient/Rebels and others)
+- Enabling hires bitplanes (by writing to BPLCON0 or enabling DMA) during first 4 hires
+  fetch units didn't wait for next complete fetch unit block (should have skipped next 4
+  "unaligned" hires fetch units) causing shifted graphics. Partially fixes RAF Megademo
+  single line of shifted scroller in vector part.
+- Short horizontal line of incorrect graphics was visible in some very rare situations,
+  internal buffer was not correctly cleared. (SillyScroller / Phenomena)
+- ATAPI MODE SENSE (10) returned too much data if request size was small enough.
+- Return INVALID COMMAND error if ATAPI and command was MODE SENSE (6). ATAPI only supports
+  10 byte variant of MODE SENSE.
+- Added SEEK(6) and SEEK(10) commands to SCSI CD emulation.
+- Some decompression formats (at least lha) were not compatible with file type detection.
+  (for example lha containing executable didn't mount as a floppy image)
+- BTST Dn,#data was accidentally marked as invalid addressing mode in b7.
+- Power supply TOD counting accuracy was not that good in earlier update.
+- 8-bit bmp screenshots were broken (Only created when capturing 8-bit RTG mode)
+- Ignore window size changes if emulation window is minimized. Readjust size (if needed) when unminimized.
+- Picasso IV flifi/VGA output enable logic tweak (Linux Cirrus Logic console)
+
+Beta 7: READ NOTE BELOW BEFORE USING!
+
+- SCSI UNIT ATTENTION/MEDIA MAY HAVE CHANGED clears when TEST UNIT READY is executed, not
+  when UA status is read by using REQUEST SENSE. Fixes ATAPI CD disk change issues with
+  some AOS ATAPI drivers.
+- Accessing real CD (or CD emulator) in non-SPTI mode returned read errors depending on what
+  kind of imaginary geometry IOCTL_CDROM_GET_DRIVE_GEOMETRY returned.
+- Memory bank change (reset) removed new memwatch debugger watchpoints.
+- Built-in lzx decompressor didn't always decompress last byte of file correctly...
+- b4 drive spinup update change: also don't enumerate drives if new config entry is found but
+  drive path fails to open and returns "not found" error (for example USB card reader not connected)
+- When switching from RTG to native fullscreen or vice versa, re-open fullscreen mode if number
+  of backbuffers, selected monitor, refreshrate or vsync mode is different.
+- New adf or hdf path was not converted to relative in relative path mode.
+- Added VID 0x79d, PID 0x0201 ("USB  ADAPTOR") analog joystick to USB adapter to rawinput blacklist.
+- "Error log" button becomes visible in bottom part of GUI if any kind of config error was detected
+  or config required fixing, for example directory or harddrive failed to open, attempting to enable
+  Z3 fast with 24-bit address space CPU etc. (Currently many messages can be confusing and not all
+  important messages are enabled)
+- Tape drive LOAD/UNLOAD SCSI command fix, error message during Amix 2.1 retension tape command.
+- Picasso IV in Z2 mode + Z2 Fast RAM enabled used incorrect internal memory mapping
+  (missing graphics etc..)
+- Only call D3D SetMaximumFrameLatency() when buffer flipping mode is immediate. Vsync waited flipping
+  caused major slowdown if emulation created frames faster than current display refresh rate.
+- Increased "CPU slot" Max RAM size from 64M to 128M.
+
+- Removed 68040+ "cycle-exact" support. It was useless and does not fit in new 68020/030 ce handling
+  without creating new CPU emulation core.
+- Added 68020 and 68030 instruction cache dump command to debugger ("rc"). * = data valid.
+- JIT + more compatible problem fixed.
+
+!IMPORTANT NOTE!
+Following is work in progress. Do not use 68020/030 cycle-exact modes. Timing is broken. Other modes work fine.
+
+- Added 68030 manual head/tail/clocks timing values to table68k, gencpu automatically calculates
+  final values for 68020 (=68030 + 1 wait state added) and 68030 cores using table68k values and
+  EA timing formulas. Only includes 680x0 common instruction so far, 68020+ only instructions and
+  addressing modes and rarely used instructions do not have cycle-exact timing yet.
+
+
 Beta 6:
 
 - Enabled Cirrus Logic RTG VRAM size configuration. CL VRAM memory bank setups used by VRAM size

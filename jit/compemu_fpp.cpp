@@ -8,8 +8,6 @@
   * Modified 2005 Peter Keunecke
  */
 
-#include <math.h>
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 

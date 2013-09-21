@@ -1436,7 +1436,7 @@ static void inputdevice_mh_abs (int x, int y, uae_u32 buttonbits)
 	x -= mouseoffset_x + 1;
 	y -= mouseoffset_y + 2;
 
-	//write_log (_T("%dx%d %08x\n"), x, y, buttonbits);
+	write_log (_T("%04dx%04d %08x\n"), x, y, buttonbits);
 
 	p[MH_ABSX] = x >> 8;
 	p[MH_ABSX + 1] = x;

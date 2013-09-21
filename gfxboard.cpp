@@ -552,7 +552,7 @@ static void reset_pci (void)
 static void picassoiv_checkswitch (void)
 {
 	if (ISP4()) {
-		monswitch = (picassoiv_flifi & 1) == 0 && (vga.vga.cr[0x51] & 8) == 0;
+		monswitch = (picassoiv_flifi & 1) == 0 || (vga.vga.cr[0x51] & 8) == 0;
 	}
 }
 

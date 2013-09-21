@@ -701,10 +701,12 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 		addr &= kickmem_bank.mask;
 		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
 		do_put_mem_long (m, b);
+#if 0
 		if (addr == 524288-4) {
 			rom_write_enabled = false;
 			write_log (_T("ROM write disabled\n"));
 		}
+#endif
 	} else if (a1000_kickstart_mode) {
 		if (addr >= 0xfc0000) {
 			addr &= kickmem_bank.mask;

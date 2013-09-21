@@ -132,7 +132,7 @@
 0000 rrr1 11dd dDDD:050:-----:-----:12: MVPRM.L Dr,d[Areg-Ad16]
 0000 rrr1 00ss sSSS:000:--Z--:-----:11: BTST    Dr,s[Dreg]
 - 4 0 4
-0000 rrr1 00ss sSSS:000:--Z--:-----:11: BTST    Dr,s[!Areg,Dreg,Immd]
+0000 rrr1 00ss sSSS:000:--Z--:-----:11: BTST    Dr,s[!Areg,Dreg]
 - 0 0 4 fea
 0000 rrr1 01ss sSSS:000:--Z--:-----:13: BCHG    Dr,s[Dreg]
 - 6 0 6
