@@ -1649,8 +1649,18 @@ static int open_windows (bool mousecapture)
 	if (!rp_isactive () && mousecapture && startactive)
 		setmouseactive (-1);
 
+	bool upd = false;
 	if (startactive) {
 		setpriority (&priorities[currprefs.win32_active_capture_priority]);
+		upd = true;
+	} else if (startminimized) {
+		setpriority (&priorities[currprefs.win32_iconified_priority]);
+		setminimized ();
+	} else {
+		setpriority (&priorities[currprefs.win32_inactive_priority]);
+		upd = true;
+	}
+	if (upd) {
 		for (i = 0; i < NUM_LEDS; i++)
 			gui_flicker_led (i, -1, -1);
 		gui_led (LED_POWER, gui_data.powerled);
@@ -1659,13 +1669,10 @@ static int open_windows (bool mousecapture)
 			if (currprefs.floppyslots[i].dfxtype >= 0)
 				gui_led (LED_DF0 + i, 0);
 		}
-		inputdevice_acquire (TRUE);
-	} else if (startminimized) {
-		setpriority (&priorities[currprefs.win32_iconified_priority]);
-		setminimized ();
-	} else {
-		setpriority (&priorities[currprefs.win32_inactive_priority]);
+		if (isfocus ())
+			inputdevice_acquire (TRUE);
 	}
+
 	if (startpaused)
 		setpaused (1);
 
@@ -4202,7 +4209,7 @@ static BOOL doInit (void)
 	rp_set_hwnd_delayed ();
 #endif
 
-	if (isfullscreen () > 0)
+	if (isfullscreen () != 0)
 		setmouseactive (-1);
 
 	return 1;

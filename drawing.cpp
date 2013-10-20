@@ -1965,7 +1965,7 @@ void init_aspect_maps (void)
 
 	if (currprefs.gfx_ycenter && !currprefs.gfx_filter_autoscale) {
 		/* @@@ verify maxvpos vs. MAXVPOS */
-		extra_y_adjust = (h - (maxvpos_nom << linedbl)) >> 1;
+		extra_y_adjust = (h - (maxvpos_display << linedbl)) >> 1;
 		if (extra_y_adjust < 0)
 			extra_y_adjust = 0;
 	}
@@ -2111,7 +2111,7 @@ static void pfield_expand_dp_bplconx (int regno, int v)
 	regno -= 0x1000;
 	switch (regno)
 	{
-	case 0x100: // BPLCON1
+	case 0x100: // BPLCON0
 		dp_for_drawing->bplcon0 = v;
 		dp_for_drawing->bplres = GET_RES_DENISE (v);
 		dp_for_drawing->nr_planes = GET_PLANES (v);
@@ -2142,7 +2142,7 @@ static enum { color_match_acolors, color_match_full } color_match_type;
 line.  Try to avoid copying color tables around whenever possible.  */
 static void adjust_drawing_colors (int ctable, int need_full)
 {
-	if (drawing_color_matches != ctable) {
+	if (drawing_color_matches != ctable || need_full < 0) {
 		if (need_full) {
 			color_reg_cpy (&colors_for_drawing, curr_color_tables + ctable);
 			color_match_type = color_match_full;
@@ -2323,7 +2323,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 				int ohposblank = hposblank;
 				do_color_changes (dummy_worker, decode_ham, lineno);
 				hposblank = ohposblank;
-				adjust_drawing_colors (dp_for_drawing->ctable, dp_for_drawing->ham_seen || bplehb);
+				// reset colors to state before above do_color_changes()
+				adjust_drawing_colors (dp_for_drawing->ctable, (dp_for_drawing->ham_seen || bplehb) ? -1 : 0);
+				pfield_expand_dp_bplcon ();
 			}
 			bplham = dp_for_drawing->ham_at_start;
 		}
@@ -2511,13 +2513,13 @@ static void center_image (void)
 	}
 
 	/* Make sure the value makes sense */
-	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_nom)
-		thisframe_y_adjust = maxvpos_nom - max_drawn_amiga_line;
+	if (thisframe_y_adjust + max_drawn_amiga_line > maxvpos_display)
+		thisframe_y_adjust = maxvpos_display - max_drawn_amiga_line;
 	if (thisframe_y_adjust < minfirstline)
 		thisframe_y_adjust = minfirstline;
 
 	thisframe_y_adjust_real = thisframe_y_adjust << linedbl;
-	tmp = (maxvpos_nom - thisframe_y_adjust + 1) << linedbl;
+	tmp = (maxvpos_display - thisframe_y_adjust + 1) << linedbl;
 	if (tmp != max_ypos_thisframe) {
 		last_max_ypos = tmp;
 		if (last_max_ypos < 0)
@@ -2624,7 +2626,7 @@ static void init_drawing_frame (void)
 	if (thisframe_first_drawn_line > thisframe_last_drawn_line)
 		thisframe_last_drawn_line = thisframe_first_drawn_line;
 
-	maxline = ((maxvpos_nom + 1) << linedbl) + 2;
+	maxline = ((maxvpos_display + 1) << linedbl) + 2;
 #ifdef SMART_UPDATE
 	for (i = 0; i < maxline; i++) {
 		switch (linestate[i]) {

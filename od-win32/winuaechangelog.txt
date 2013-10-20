@@ -1,6 +1,50 @@
 
 - restore only single input target to default.
 
+Beta 9:
+
+NOTE: 68020 CE mode can be used now.
+
+- Added CIA tod bug option to Advanced chipset. Demo The end / Trilobit running under
+  KS 1.3 has corruption in "photos" part if tod alarm bug is not emulated. KS 1.3 + real A500
+  does not have corruption. (I don't understand what is going on, some programs require this bug,
+  some will hang if it is emulated. There has to be some unknown variable.)
+- Writing to DIWSTOP during mid scanline and new value matches current vertical line:
+  bitplane DMA fetches stop. Fixes Demo Starflight / Phenomena, OCS only.
+  Interestingly ECS DMA fetches restart when DDFSTOP matches, causing scroller to jump horizontally.
+- Writing to BPLxMOD exactly one cycle before bitplane fetch that also adds modulos
+  uses old modulo value. (Copper Slave / Ram Jam)
+- Mouse was uncaptured when switching from non-fullwindow to fullwindow mode.
+- b8 hires unaligned check removed, it was wrong, logic analyzer confirmed.
+- CMPA idle cycle was 2 cycles too slow in 68000 CE mode.
+- Tape read command returned size of read request, not actual length which may be smaller than request size.
+- OCS/ECS "7-planes" feature got broken in b8.
+- HAM mode double pass display emulation's first pass didn't reset colors back to original before
+  second pass. (Animotion / Phenomena)
+- New memwatchpoint code didn't work with CIA registers.
+- Log message if bitplane DMA ends at 0xe2 (can happen if start position is unaligned enough), this causes
+  odd looking corruption on real hardware. (each scanline has random looking few pixels shift). Previously
+  only DMA that ended at the start of next scanline were logged.
+- Sprite vertical start == sprite DMA first line won't enable sprites. (Ultrademo #1 / The Link)
+- If windowed mode was reset (for example RTG to custom chipset mode change) and mouse was not captured
+  but window had focus: input got disabled, extra mouse click was required to enable input.
+- Copper cycles were emulated too early before bitplane DMA decisions, copper might have used
+  cycle reserved for bitplane DMA in some situations.
+- Added "?" buttons to floppy GUIs. Current implementation is very lazy, few lines of information,
+  boot block contents and it opens in default text editor.
+- Limit VPOSW refresh rate display size changes to sane values, min display size is 256 lines and max
+  is not allowed outside PAL size. Reduces flickering if program does something really weird or stupid
+  with VPOSW.
+
+Second 68EC020 cycle-exact emulation rewrite. Timing may not be much better but cycle usage emulation
+should be much more closer to real hardware. (This needs logic analyzer check but I don't have
+all required hardware yet)
+
+Lots of work left to do but at least it should not be any worse than old code and it also should be
+much more accurate now when code has small loops (for example stupid CPU delays).
+
+NOTE: 68030 can queue data memory accesses, this is not yet emulated.
+
 Beta 8:
 
 NOTE: Still no 68020/030 CE mode changes. Do not use.

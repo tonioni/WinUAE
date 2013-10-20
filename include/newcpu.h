@@ -185,7 +185,9 @@ struct regstruct
 	uae_u32 cacheholdingdata020;
 	uae_u32 cacheholdingaddr020;
 	int ce020memcycles;
+	bool ce020memcycle_data;
 	int ce020_tail;
+	frame_time_t ce020_tail_cycles;
 };
 
 extern struct regstruct regs;

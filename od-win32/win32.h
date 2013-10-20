@@ -19,11 +19,11 @@
 #define LANG_DLL 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("8")
+#define WINUAEBETA _T("9")
 #else
 #define WINUAEBETA _T("")
 #endif
-#define WINUAEDATE MAKEBD(2013, 9, 21)
+#define WINUAEDATE MAKEBD(2013, 10, 20)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")
@@ -36,7 +36,6 @@ extern HWND hAmigaWnd, hMainWnd, hHiddenWnd, hGUIWnd;
 extern RECT amigawin_rect, mainwin_rect;
 extern int in_sizemove;
 extern int manual_painting_needed;
-extern int manual_palette_refresh_needed;
 extern int mouseactive;
 extern int minimized;
 extern int monitor_off;
@@ -55,7 +54,6 @@ int WIN32_RegisterClasses (void);
 int WIN32_InitHtmlHelp (void);
 int WIN32_InitLibraries (void);
 int WIN32_CleanupLibraries (void);
-void WIN32_MouseDefaults (int, int);
 void WIN32_HandleRegistryStuff (void);
 extern void setup_brkhandler (void);
 extern void remove_brkhandler (void);

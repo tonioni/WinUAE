@@ -3655,7 +3655,7 @@ void DISK_reset (void)
 	setamax ();
 }
 
-int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
+int DISK_examine_image (struct uae_prefs *p, int num, struct diskinfo *di)
 {
 	int drvsec;
 	int ret, i;
@@ -3666,7 +3666,8 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	int oldcyl, oldside;
 
 	ret = 0;
-	*crc32 = 0;
+	memset (di, 0, sizeof di);
+	di->unreadable = true;
 	oldcyl = drv->cyl;
 	oldside = side;
 	drv->cyl = 0;
@@ -3676,8 +3677,10 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 		side = oldside;
 		return 1;
 	}
-	*crc32 = zfile_crc32 (drv->diskfile);
+	di->crc32 = zfile_crc32 (drv->diskfile);
+	di->unreadable = false;
 	decode_buffer (drv->bigmfmbuf, drv->cyl, 11, drv->ddhd, drv->filetype, &drvsec, sectable, 1);
+	di->hd = drvsec == 22;
 	drv->cyl = oldcyl;
 	side = oldside;
 	if (sectable[0] == 0 || sectable[1] == 0) {
@@ -3686,6 +3689,10 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 	}
 	crc = crc2 = 0;
 	for (i = 0; i < 1024; i += 4) {
+		di->bootblock[i + 0] = writebuffer[i + 0];
+		di->bootblock[i + 1] = writebuffer[i + 1];
+		di->bootblock[i + 2] = writebuffer[i + 2];
+		di->bootblock[i + 3] = writebuffer[i + 3];
 		uae_u32 v = (writebuffer[i] << 24) | (writebuffer[i + 1] << 16) | (writebuffer[i + 2] << 8) | writebuffer[i + 3];
 		if (i == 0)
 			dos = v;
@@ -3706,6 +3713,7 @@ int DISK_examine_image (struct uae_prefs *p, int num, uae_u32 *crc32)
 		ret = 3;
 		goto end;
 	}
+	di->bb_crc_valid = true;
 	if (dos == 0x444f5300)
 		ret = 10;
 	else if (dos == 0x444f5301 || dos == 0x444f5302 || dos == 0x444f5303)

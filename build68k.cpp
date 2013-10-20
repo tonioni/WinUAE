@@ -231,10 +231,16 @@ int main(int argc, char **argv)
 		getnextch();
 
 		if (nextch == '-') {
-			char c, fm[20];
+			int neg;
+			char fm[20];
 			getnextch();
 			while (isspace(nextch))
 				getnextch();
+			neg = 1;
+			if (nextch == '-') {
+				neg = -1;
+				getnextch();
+			}
 			for (;;) {
 				if (nextch < '0' || nextch > '9')
 					break;
@@ -242,6 +248,7 @@ int main(int argc, char **argv)
 				head += nextch - '0';
 				nextch = fgetc (tablef);
 			}
+			head *= neg;
 			while (isspace(nextch))
 				getnextch();
 			for (;;) {

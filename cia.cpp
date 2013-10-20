@@ -450,21 +450,25 @@ void cia_parallelack (void)
 	RethinkICRA ();
 }
 
-static int checkalarm (unsigned long tod, unsigned long alarm, bool inc)
+static bool checkalarm (unsigned long tod, unsigned long alarm, bool inc, int ab)
 {
 	if (tod == alarm)
-		return 1;
+		return true;
+//	if (!ab)
+//		return false;
+	if (!currprefs.cs_ciatodbug)
+		return false;
 	if (!inc)
-		return 0;
+		return false;
 	/* emulate buggy TODMED counter.
 	* it counts: .. 29 2A 2B 2C 2D 2E 2F 20 30 31 32 ..
 	* (2F->20->30 only takes couple of cycles but it will trigger alarm..
 	*/
 	if (tod & 0x000fff)
-		return 0;
+		return false;
 	if (((tod - 1) & 0xfff000) == alarm)
-		return -1;
-	return 0;
+		return true;
+	return false;
 }
 
 STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
@@ -474,12 +478,13 @@ STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 	// modes. Real hardware value written to ciabtod by KS is always
 	// at least 1 or larger due to bus cycle delays when reading
 	// old value.
+#if 1
 	if ((munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000) {
 		if (ciabtod == 0 && ciabalarm == 0)
 			return false;
 	}
-	int v = checkalarm (ciabtod, ciabalarm, inc);
-	if (v > 0) {
+#endif
+	if (checkalarm (ciabtod, ciabalarm, inc, 1)) {
 #if CIAB_DEBUG_IRQ
 		write_log (_T("CIAB tod %08x %08x\n"), ciabtod, ciabalarm);
 #endif
@@ -494,8 +499,7 @@ STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 
 STATIC_INLINE void ciaa_checkalarm (bool inc)
 {
-	int v = checkalarm (ciaatod, ciaaalarm, inc);
-	if (v > 0) {
+	if (checkalarm (ciaatod, ciaaalarm, inc, 0)) {
 #if CIAA_DEBUG_IRQ
 		write_log (_T("CIAA tod %08x %08x\n"), ciaatod, ciaaalarm);
 #endif
@@ -680,12 +684,21 @@ static int ciab_tod_event_state;
 // Possibly TICK input pin has built-in debounce circuit
 #define TOD_INC_DELAY (14 * (ECLOCK_DATA_CYCLE + ECLOCK_WAIT_CYCLE) / 2)
 
-static void CIAB_tod_inc (uae_u32 v)
+static void CIAB_tod_inc (bool irq)
 {
 	ciab_tod_event_state = 3; // done
+	if (!ciaatodon)
+		return;
 	ciabtod++;
 	ciabtod &= 0xFFFFFF;
-	ciab_checkalarm (true, true);
+	ciab_checkalarm (true, irq);
+}
+
+static void CIAB_tod_inc_event (uae_u32 v)
+{
+	if (ciab_tod_event_state != 2)
+		return;
+	CIAB_tod_inc (true);
 }
 
 // Someone reads or writes TOD registers, sync TOD increase
@@ -697,31 +710,24 @@ static void CIAB_tod_check (void)
 	hpos -= ciab_tod_hoffset;
 	if (hpos >= 0 || currprefs.m68k_speed < 0) {
 		// Program should see the changed TOD
-		CIAB_tod_inc (0);
+		CIAB_tod_inc (true);
 		return;
 	}
 	// Not yet, add event to guarantee exact TOD inc position
 	ciab_tod_event_state = 2; // event active
-	event2_newevent_xx (-1, -hpos, 0, CIAB_tod_inc);
+	event2_newevent_xx (-1, -hpos, 0, CIAB_tod_inc_event);
 }
 
 void CIAB_tod_handler (int hoffset)
 {
-	uae_u32 v;
-
-	ciab_tod_hoffset = hoffset + TOD_INC_DELAY;
 	if (!ciabtodon)
 		return;
+	ciab_tod_hoffset = hoffset + TOD_INC_DELAY;
 	ciab_tod_event_state = 1; // TOD inc needed
-	v = ciabtod;
-	ciabtod++;
-	ciabtod &= 0xFFFFFF;
-	bool irq = ciab_checkalarm (false, false);
-	ciabtod = v;
-	if (irq) {
+	if (checkalarm ((ciabtod + 1) & 0xffffff, ciabalarm, true, 1)) {
 		// causes interrupt on this line, add event
 		ciab_tod_event_state = 2; // event active
-		event2_newevent_xx (-1, ciab_tod_hoffset, 0, CIAB_tod_inc);
+		event2_newevent_xx (-1, ciab_tod_hoffset, 0, CIAB_tod_inc_event);
 	}
 }
 
@@ -730,7 +736,7 @@ void CIA_hsync_posthandler (bool dotod)
 	// Previous line was supposed to increase TOD but
 	// no one cared. Do it now.
 	if (ciab_tod_event_state == 1)
-		CIAB_tod_inc (0);
+		CIAB_tod_inc (false);
 	ciab_tod_event_state = 0;
 
 	if (currprefs.tod_hack && ciaatodon)
@@ -1541,7 +1547,7 @@ addrbank cia_bank = {
 	cia_lget, cia_wget, cia_bget,
 	cia_lput, cia_wput, cia_bput,
 	default_xlate, default_check, NULL, _T("CIA"),
-	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f00, 0xbfc000
+	cia_lgeti, cia_wgeti, ABFLAG_IO, 0x3f01, 0xbfc000
 };
 
 // Gayle or Fat Gary does not enable CIA /CS lines if both CIAs are selected

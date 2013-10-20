@@ -2018,6 +2018,47 @@ static void eject_cd (void)
 	}
 }
 
+static void infofloppy (int n)
+{
+	struct diskinfo di;
+	FILE *f;
+	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+
+	DISK_examine_image (&workprefs, n, &di);
+
+	tmp[0] = 0;
+	if (GetTempPath (MAX_DPATH, tmp) <= 0)
+		return;
+	_tcscat (tmp, _T("floppy_info.txt"));
+	f = _tfopen (tmp, _T("wt, ccs=UTF-8"));
+	if (f) {
+		_stprintf (tmp2,
+			_T("\nDisk readable: %s\nCRC32: %08X\nBoot block checksum valid: %s\n\n"),
+			di.unreadable ? _T("No") : _T("Yes"),
+			di.crc32,
+			di.bb_crc_valid ? _T("Yes") : _T("No")
+		);
+		fputws (tmp2, f);
+		int w = 32;
+		for (int i = 0; i < 1024; i += w) {
+			for (int j = 0; j < w; j++) {
+				uae_u8 b = di.bootblock[i + j];
+				_stprintf (tmp2 + j * 2, _T("%02X"), b);
+				if (b >= 32 && b < 127)
+					tmp2[w * 2 + 1 + j] = (TCHAR)b;
+				else
+					tmp2[w * 2 + 1 + j] = '.';
+			}
+			tmp2[w * 2] = ' ';
+			tmp2[w * 2 + 1 + w] = 0;
+			fputws (tmp2, f);
+			fputws (_T("\n"), f);
+		}
+		fclose (f);
+		ShellExecute (NULL, _T("open"), tmp, NULL, NULL, SW_SHOWNORMAL);
+	}
+}
+
 static void ejectfloppy (int n)
 {
 	if (iscd (n)) {
@@ -5481,7 +5522,7 @@ static void testimage (HWND hDlg, int num)
 {
 	int ret;
 	int reload = 0;
-	uae_u32 crc32;
+	struct diskinfo di;
 	int messageid = -1;
 	TCHAR tmp[MAX_DPATH];
 
@@ -5493,10 +5534,10 @@ static void testimage (HWND hDlg, int num)
 	}
 	if (!workprefs.floppyslots[num].df[0])
 		return;
-	ret = DISK_examine_image (&workprefs, num, &crc32);
+	ret = DISK_examine_image (&workprefs, num, &di);
 	if (!ret)
 		return;
-	floppytooltip (hDlg, num, crc32);
+	floppytooltip (hDlg, num, di.crc32);
 	if (num > 0)
 		return;
 	if (!full_property_sheet)
@@ -5711,7 +5752,9 @@ static INT_PTR CALLBACK QuickstartDlgProc (HWND hDlg, UINT msg, WPARAM wParam, L
 		case IDC_DF1QQ:
 		case IDC_DF0QENABLE:
 		case IDC_DF1QENABLE:
-			if (currentpage == QUICKSTART_ID)
+		case IDC_INFO0Q:
+		case IDC_INFO1Q:
+		if (currentpage == QUICKSTART_ID)
 				ret = FloppyDlgProc (hDlg, msg, wParam, lParam);
 			break;
 		case IDC_QUICKSTART_SETCONFIG:
@@ -6857,6 +6900,7 @@ static void values_to_chipsetdlg2 (HWND hDlg)
 	CheckDlgButton (hDlg, IDC_CS_SCSIMODE, workprefs.scsi == 2);
 	CheckDlgButton (hDlg, IDC_CS_PCMCIA, workprefs.cs_pcmcia);
 	CheckDlgButton (hDlg, IDC_CS_SLOWISFAST, workprefs.cs_slowmemisfast);
+	CheckDlgButton (hDlg, IDC_CS_CIATODBUG, workprefs.cs_ciatodbug);
 	CheckDlgButton (hDlg, IDC_CS_IDE1, workprefs.cs_ide > 0 && (workprefs.cs_ide & 1));
 	CheckDlgButton (hDlg, IDC_CS_IDE2, workprefs.cs_ide > 0 && (workprefs.cs_ide & 2));
 	txt[0] = 0;
@@ -6907,6 +6951,7 @@ static void values_from_chipsetdlg2 (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 
 	workprefs.cs_compatible = ischecked (hDlg, IDC_CS_COMPATIBLE);
 	workprefs.cs_resetwarning = ischecked (hDlg, IDC_CS_RESETWARNING);
+	workprefs.cs_ciatodbug = ischecked (hDlg, IDC_CS_CIATODBUG);
 	workprefs.cs_denisenoehb = ischecked (hDlg, IDC_CS_NOEHB);
 	workprefs.cs_dipagnus = ischecked (hDlg, IDC_CS_DIPAGNUS);
 	workprefs.cs_agnusbltbusybug = workprefs.cs_dipagnus;
@@ -7007,6 +7052,7 @@ static void enable_for_chipsetdlg2 (HWND hDlg)
 	ew (hDlg, IDC_CS_CDTVRAM, e);
 	ew (hDlg, IDC_CS_CDTVRAMEXP, e);
 	ew (hDlg, IDC_CS_RESETWARNING, e);
+	ew (hDlg, IDC_CS_CIATODBUG, e);
 	ew (hDlg, IDC_CS_NOEHB, e);
 	ew (hDlg, IDC_CS_DIPAGNUS, e);
 	ew (hDlg, IDC_CS_KSMIRROR_E0, e);
@@ -10704,18 +10750,18 @@ static void out_floppyspeed (HWND hDlg)
 	SetDlgItemText (hDlg, IDC_FLOPPYSPDTEXT, txt);
 }
 
-#define BUTTONSPERFLOPPY 8
+#define BUTTONSPERFLOPPY 9
 static int floppybuttons[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE },
-	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE },
-	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE },
-	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE }
+	{ IDC_DF0TEXT,IDC_DF0,IDC_EJECT0,IDC_DF0TYPE,IDC_DF0WP,-1,IDC_SAVEIMAGE0,IDC_DF0ENABLE, IDC_INFO0 },
+	{ IDC_DF1TEXT,IDC_DF1,IDC_EJECT1,IDC_DF1TYPE,IDC_DF1WP,-1,IDC_SAVEIMAGE1,IDC_DF1ENABLE, IDC_INFO1 },
+	{ IDC_DF2TEXT,IDC_DF2,IDC_EJECT2,IDC_DF2TYPE,IDC_DF2WP,-1,IDC_SAVEIMAGE2,IDC_DF2ENABLE, IDC_INFO2 },
+	{ IDC_DF3TEXT,IDC_DF3,IDC_EJECT3,IDC_DF3TYPE,IDC_DF3WP,-1,IDC_SAVEIMAGE3,IDC_DF3ENABLE, IDC_INFO3 }
 };
 static int floppybuttonsq[][BUTTONSPERFLOPPY] = {
-	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE },
-	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE },
-	{ -1,-1,-1,-1,-1,-1,-1 },
-	{ -1,-1,-1,-1,-1,-1,-1 }
+	{ IDC_DF0TEXTQ,IDC_DF0QQ,IDC_EJECT0Q,-1,IDC_DF0WPQ,IDC_DF0WPTEXTQ,-1,IDC_DF0QENABLE, IDC_INFO0Q },
+	{ IDC_DF1TEXTQ,IDC_DF1QQ,IDC_EJECT1Q,-1,IDC_DF1WPQ,IDC_DF1WPTEXTQ,-1,IDC_DF1QENABLE, IDC_INFO1Q },
+	{ -1,-1,-1,-1,-1,-1,-1,-1 },
+	{ -1,-1,-1,-1,-1,-1,-1,-1 }
 };
 
 static void floppytooltip (HWND hDlg, int num, uae_u32 crc32)
@@ -10874,6 +10920,7 @@ static void addfloppytype (HWND hDlg, int n)
 	int f_wptext = floppybuttons[n][5];
 	int f_si = floppybuttons[n][6];
 	int f_enable = floppybuttons[n][7];
+	int f_info = floppybuttons[n][8];
 
 	text = workprefs.floppyslots[n].df;
 	if (currentpage == QUICKSTART_ID) {
@@ -10886,12 +10933,14 @@ static void addfloppytype (HWND hDlg, int n)
 		f_wptext = floppybuttonsq[n][5];
 		f_si = -1;
 		f_enable = floppybuttonsq[n][7];
+		f_info = floppybuttonsq[n][8];
 		if (iscd (n))
 			showcd = 1;
 		if (showcd) {
 			nn = 1;
 			hide (hDlg, f_wp, 1);
 			hide (hDlg, f_wptext, 1);
+			hide (hDlg, f_info, 1);
 			ew (hDlg, f_enable, FALSE);
 			WIN32GUI_LoadUIString (IDS_QS_CD, tmp, sizeof tmp / sizeof (TCHAR));
 			SetWindowText (GetDlgItem (hDlg, f_enable), tmp);
@@ -10903,6 +10952,7 @@ static void addfloppytype (HWND hDlg, int n)
 		} else {
 			hide (hDlg, f_wp, 0);
 			hide (hDlg, f_wptext, 0);
+			hide (hDlg, f_info, 0);
 		}
 	}
 	if (!showcd && f_enable > 0 && n == 1 && currentpage == QUICKSTART_ID) {
@@ -10926,7 +10976,7 @@ static void addfloppytype (HWND hDlg, int n)
 	if (f_text >= 0)
 		ew (hDlg, f_text, state);
 	if (f_eject >= 0)
-		ew (hDlg, f_eject, TRUE);
+		ew (hDlg, f_eject, workprefs.floppyslots[n].df[0] != 0);
 	if (f_drive >= 0)
 		ew (hDlg, f_drive, state);
 	if (f_enable >= 0) {
@@ -10940,6 +10990,8 @@ static void addfloppytype (HWND hDlg, int n)
 	chk = !showcd && disk_getwriteprotect (&workprefs, text) && state == TRUE ? BST_CHECKED : 0;
 	if (f_wp >= 0)
 		CheckDlgButton (hDlg, f_wp, chk);
+	if (f_info >= 0)
+		ew (hDlg, f_info, workprefs.floppyslots[n].df[0] != 0);
 	chk = !showcd && state && DISK_validate_filename (&workprefs, text, 0, NULL, NULL, NULL) ? TRUE : FALSE;
 	if (f_wp >= 0) {
 		ew (hDlg, f_wp, chk && !workprefs.floppy_read_only);
@@ -11276,6 +11328,20 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			break;
 		case IDC_DF3:
 			diskselect (hDlg, wParam, &workprefs, 3, NULL);
+			break;
+		case IDC_INFO0:
+		case IDC_INFO0Q:
+			infofloppy (0);
+			break;
+		case IDC_INFO1:
+		case IDC_INFO1Q:
+			infofloppy (1);
+			break;
+		case IDC_INFO2:
+			infofloppy (2);
+			break;
+		case IDC_INFO3:
+			infofloppy (3);
 			break;
 		case IDC_EJECT0:
 		case IDC_EJECT0Q:

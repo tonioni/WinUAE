@@ -549,6 +549,7 @@
 #define IDC_CREATE                      1282
 #define IDC_CREATE_RAW                  1283
 #define IDC_SNAPSHOTNAME                1284
+#define IDC_INFO0                       1284
 #define IDC_SNAPSHOT                    1285
 #define IDC_SAVEIMAGE0                  1285
 #define IDC_DOSAVESTATE                 1286
@@ -559,7 +560,10 @@
 #define IDC_SAVEIMAGE3                  1288
 #define IDC_GUI_FONT                    1288
 #define IDC_GUI_DEFAULT                 1289
+#define IDC_INFO1                       1289
 #define IDC_GUI_LISTFONT                1290
+#define IDC_INFO2                       1290
+#define IDC_INFO3                       1291
 #define IDC_PORT0_JOYSC                 1302
 #define IDC_PORT0_KBDA                  1303
 #define IDC_PORT0_KBDB                  1304
@@ -949,6 +953,8 @@
 #define IDC_DF1WPQ                      1686
 #define IDC_EJECT1Q                     1687
 #define IDC_DF1TEXTQ                    1688
+#define IDC_INFO0Q                      1689
+#define IDC_INFO1Q                      1690
 #define IDC_FILTERXLV                   1692
 #define IDC_FILTERVOV                   1693
 #define IDC_FILTERHOV                   1694
@@ -1034,6 +1040,8 @@
 #define IDC_DBG_FPREG                   1750
 #define IDC_DBG_FPSR                    1751
 #define IDC_DBG_OUTPUT2                 1752
+#define IDC_CS_RESETWARNING2            1752
+#define IDC_CS_CIATODBUG                1752
 #define IDC_DBG_MEMINPUT                1753
 #define IDC_DBG_MEMDOWN                 1754
 #define IDC_DBG_MEMUP                   1755

@@ -101,7 +101,7 @@ extern struct instr {
     unsigned int clev:3, unimpclev:3;
     unsigned int isjmp:1;
     unsigned int unused2:1;
-	unsigned char head, tail, clocks, fetchmode;
+	char head, tail, clocks, fetchmode;
 } *table68k;
 
 extern void read_table68k (void);

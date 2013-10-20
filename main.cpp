@@ -157,11 +157,11 @@ static void fixup_prefs_dim2 (struct wh *wh)
 		wh->height = 128;
 	}
 	if (wh->width > max_uae_width) {
-		error_log (_T("Width (%d) must be at least %d."), wh->width, max_uae_width);
+		error_log (_T("Width (%d) max is %d."), wh->width, max_uae_width);
 		wh->width = max_uae_width;
 	}
 	if (wh->height > max_uae_height) {
-		error_log (_T("Height (%d) must be at least %d."), wh->height, max_uae_height);
+		error_log (_T("Height (%d) max is %d."), wh->height, max_uae_height);
 		wh->height = max_uae_height;
 	}
 }
@@ -204,7 +204,7 @@ void fixup_prefs_dimensions (struct uae_prefs *prefs)
 		prefs->gfx_filter = 1;
 	}
 	if (prefs->gfx_filter == 0 && prefs->monitoremu) {
-		error_log (_T("A2024 and Graffiti require at least null filter."));
+		error_log (_T("A2024 and Graffiti require at least null filter enabled."));
 		prefs->gfx_filter = 1;
 	}
 }
@@ -291,58 +291,67 @@ void fixup_prefs (struct uae_prefs *p)
 		|| p->chipmem_size < 0x20000
 		|| p->chipmem_size > 0x800000)
 	{
-		error_log (_T("Unsupported chipmem size %x."), p->chipmem_size);
+		error_log (_T("Unsupported chipmem size %d (0x%x)."), p->chipmem_size, p->chipmem_size);
 		p->chipmem_size = 0x200000;
 		err = 1;
 	}
 	if ((p->fastmem_size & (p->fastmem_size - 1)) != 0
 		|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
-	{
-		error_log (_T("Unsupported fastmem size %x."), p->fastmem_size);
+{
+		error_log (_T("Unsupported fastmem size %d (0x%x)."), p->fastmem_size, p->fastmem_size);
 		err = 1;
 	}
-	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0
-		|| (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000 || (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3))))
-	{
-		error_log (_T("Unsupported graphics card memory size %x (%x)."), p->rtgmem_size, max_z3fastmem);
+	if (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3) {
+		error_log (_T("Graphics card memory size %d (0x%x) larger than maximum reserved %d (0x%x)."), p->rtgmem_size, p->rtgmem_size, max_z3fastmem, max_z3fastmem);
+		p->rtgmem_size = max_z3fastmem;
+		err = 1;
+	}
+	if ((p->rtgmem_size & (p->rtgmem_size - 1)) != 0 || (p->rtgmem_size != 0 && (p->rtgmem_size < 0x100000))) {
+		error_log (_T("Unsupported graphics card memory size %d (0x%x)."), p->rtgmem_size, p->rtgmem_size);
 		if (p->rtgmem_size > max_z3fastmem)
 			p->rtgmem_size = max_z3fastmem;
 		else
 			p->rtgmem_size = 0;
 		err = 1;
 	}
+	
+	if (p->z3fastmem_size > max_z3fastmem) {
+		error_log (_T("Zorro III fastmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3fastmem_size, p->z3fastmem_size, max_z3fastmem, max_z3fastmem);
+		p->z3fastmem_size = max_z3fastmem;
+		err = 1;
+	}
+	if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0 || (p->z3fastmem_size != 0 && p->z3fastmem_size < 0x100000))
+	{
+		error_log (_T("Unsupported Zorro III fastmem size %d (0x%x)."), p->z3fastmem_size, p->z3fastmem_size);
+		p->z3fastmem_size = 0;
+		err = 1;
+	}
 
-	if ((p->z3fastmem_size & (p->z3fastmem_size - 1)) != 0
-		|| (p->z3fastmem_size != 0 && (p->z3fastmem_size < 0x100000 || p->z3fastmem_size > max_z3fastmem)))
-	{
-		error_log (_T("Unsupported Zorro III fastmem size %x (%x)."), p->z3fastmem_size, max_z3fastmem);
-		if (p->z3fastmem_size > max_z3fastmem)
-			p->z3fastmem_size = max_z3fastmem;
-		else
-			p->z3fastmem_size = 0;
+	if (p->z3fastmem2_size > max_z3fastmem) {
+		error_log (_T("Zorro III fastmem2 size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3fastmem2_size, p->z3fastmem2_size, max_z3fastmem, max_z3fastmem);
+		p->z3fastmem2_size = max_z3fastmem;
 		err = 1;
 	}
-	if ((p->z3fastmem2_size & (p->z3fastmem2_size - 1)) != 0
-		|| (p->z3fastmem2_size != 0 && (p->z3fastmem2_size < 0x100000 || p->z3fastmem2_size > max_z3fastmem)))
+	if ((p->z3fastmem2_size & (p->z3fastmem2_size - 1)) != 0 || (p->z3fastmem2_size != 0 && p->z3fastmem2_size < 0x100000))
 	{
-		error_log (_T("Unsupported Zorro III fastmem size %x (%x)."), p->z3fastmem2_size, max_z3fastmem);
-		if (p->z3fastmem2_size > max_z3fastmem)
-			p->z3fastmem2_size = max_z3fastmem;
-		else
-			p->z3fastmem2_size = 0;
+		error_log (_T("Unsupported Zorro III fastmem2 size %x (%x)."), p->z3fastmem2_size, p->z3fastmem2_size);
+		p->z3fastmem2_size = 0;
 		err = 1;
 	}
+
 	p->z3fastmem_start &= ~0xffff;
 	if (p->z3fastmem_start < 0x1000000)
 		p->z3fastmem_start = 0x1000000;
-	if ((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0
-		|| (p->z3chipmem_size != 0 && (p->z3chipmem_size < 0x100000 || p->z3chipmem_size > max_z3fastmem)))
+
+	if (p->z3chipmem_size > max_z3fastmem) {
+		error_log (_T("Zorro III fake chipmem size %d (0x%x) larger than max reserved %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size, max_z3fastmem, max_z3fastmem);
+		p->z3chipmem_size = max_z3fastmem;
+		err = 1;
+	}
+	if ((p->z3chipmem_size & (p->z3chipmem_size - 1)) != 0 || (p->z3chipmem_size != 0 && p->z3chipmem_size < 0x100000))
 	{
-		error_log (_T("Unsupported Zorro III fake chipmem size %x (%x)."), p->z3chipmem_size, max_z3fastmem);
-		if (p->z3chipmem_size > max_z3fastmem)
-			p->z3chipmem_size = max_z3fastmem;
-		else
-			p->z3chipmem_size = 0;
+		error_log (_T("Unsupported Zorro III fake chipmem size %d (0x%x)."), p->z3chipmem_size, p->z3chipmem_size);
+		p->z3chipmem_size = 0;
 		err = 1;
 	}
 
@@ -350,11 +359,13 @@ void fixup_prefs (struct uae_prefs *p)
 		p->z3fastmem_size = p->z3fastmem2_size = p->z3chipmem_size = 0;
 		error_log (_T("Can't use a Z3 graphics card or 32-bit memory when using a 24 bit address space."));
 	}
+
 	if (p->bogomem_size != 0 && p->bogomem_size != 0x80000 && p->bogomem_size != 0x100000 && p->bogomem_size != 0x180000 && p->bogomem_size != 0x1c0000) {
-		error_log (_T("Unsupported bogomem size %x"), p->bogomem_size);
+		error_log (_T("Unsupported bogomem size %d (0x%x)"), p->bogomem_size, p->bogomem_size);
 		p->bogomem_size = 0;
 		err = 1;
 	}
+
 	if (p->bogomem_size > 0x180000 && (p->cs_fatgaryrev >= 0 || p->cs_ide || p->cs_ramseyrev >= 0)) {
 		p->bogomem_size = 0x180000;
 		error_log (_T("Possible Gayle bogomem conflict fixed."));
@@ -429,9 +440,11 @@ void fixup_prefs (struct uae_prefs *p)
 		p->cachesize = 0;
 		err = 1;
 	}
-	if (p->z3fastmem_size > 0 && (p->address_space_24 || p->cpu_model < 68020)) {
+	if ((p->z3fastmem_size || p->z3fastmem2_size || p->z3chipmem_size) && (p->address_space_24 || p->cpu_model < 68020)) {
 		error_log (_T("Z3 fast memory can't be used with a 68000/68010 emulation. Turning off Z3 fast memory."));
 		p->z3fastmem_size = 0;
+		p->z3fastmem2_size = 0;
+		p->z3chipmem_size = 0;
 		err = 1;
 	}
 	if (p->rtgmem_size > 0 && p->rtgmem_type == GFXBOARD_UAE_Z3 && (p->cpu_model < 68020 || p->address_space_24)) {

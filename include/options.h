@@ -414,6 +414,7 @@ struct uae_prefs {
 	bool cs_denisenoehb;
 	bool cs_dipagnus;
 	bool cs_agnusbltbusybug;
+	bool cs_ciatodbug;
 	int cs_hacks;
 
 	TCHAR romfile[MAX_DPATH];

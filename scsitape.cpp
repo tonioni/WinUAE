@@ -203,12 +203,19 @@ static bool next_file (struct scsi_data_tape *tape)
 	}
 end:
 	write_log (_T("TAPEEMU: end of tape\n"));
+	tape->beom = 1;
 	return false;
 }
 
-static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len)
+static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len, bool *eof)
 {
 	int got;
+
+	*eof = false;
+	if (tape->beom > 0) {
+		*eof = true;
+		return -1;
+	}
 
 	if (!tape->zf) {
 		rewind (tape);
@@ -218,8 +225,10 @@ static int tape_read (struct scsi_data_tape *tape, uae_u8 *scsi_data, int len)
 	zfile_fseek (tape->zf, tape->file_offset, SEEK_SET);
 	got = zfile_fread (scsi_data, 1, len, tape->zf);
 	tape->file_offset += got;
-	if (got < len)
+	if (got < len) {
+		*eof = true;
 		next_file (tape);
+	}
 	return got;
 }
 
@@ -259,18 +268,19 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 	int scsi_len = -1;
 	int status = 0;
 	int lun;
+	bool eof;
 
 	if (log_tapeemu)
-		write_log (_T("TAPEEMU: scsi command 0x%02X.%02X.%02X.%02X.%02X.%02X\n"),
+		write_log (_T("TAPEEMU: %02X.%02X.%02X.%02X.%02X.%02X\n"),
 		cmdbuf[0], cmdbuf[1], cmdbuf[2], cmdbuf[3], cmdbuf[4], cmdbuf[5]);
 
 	if (cmdbuf[0] == 3) {
-		s[0] = 0x70;
-		if (tape->beom < 0)
+		if (tape->beom == -1)
 			s[9] |= 0x8; // beginning of media
-		if (tape->beom > 0)
+		if (tape->beom == 1)
 			s[2] |= 0x40; // end of media
-		*sense_len = 0x12;
+		if (*sense_len < 0x12)
+			*sense_len = 0x12;
 		return 0;
 	}
 
@@ -415,28 +425,42 @@ int scsi_tape_emulate (struct scsi_data_tape *tape, uae_u8 *cmdbuf, int scsi_cmd
 			goto unloaded;
 		if (tape->beom < 0)
 			tape->beom = 0;
-		scsi_len = tape_read (tape, scsi_data, len);
+		scsi_len = tape_read (tape, scsi_data, len, &eof);
+		if (log_tapeemu)
+			write_log (_T("-> READ %d bytes\n"), scsi_len);
+		if ((cmdbuf[1] & 1) && scsi_len > 0 && scsi_len < len) {
+			int gap = tape->blocksize - (scsi_len & (tape->blocksize - 1));
+			if (gap > 0 && gap < tape->blocksize)
+				memset (scsi_data + scsi_len, 0, gap);
+			scsi_len += tape->blocksize - 1;
+			scsi_len &= ~(tape->blocksize - 1);
+		}
 		if (scsi_len < 0) {
-			tape->beom = 1;
+			tape->beom = 2;
 			status = SCSI_STATUS_CHECK_CONDITION;
-			s[0] = 0x70;
-			s[2] = 0x80 | 0x40 | 0; /* File Mark Detected + End of Media + NO SENSE */
+			s[0] = 0x80 | 0x70;
+			s[2] = 8; /* BLANK CHECK */
+			if (cmdbuf[1] & 1)
+				wl (&s[3], len / tape->blocksize);
+			else
+				wl (&s[3], len);
 			s[12] = 0;
 			s[13] = 2; /* End-of-partition/medium detected */
 			ls = 0x12;
-		} else if (scsi_len < len) {
+		} else if (eof) {
 			status = SCSI_STATUS_CHECK_CONDITION;
-			s[0] = 0x70;
+			s[0] = 0x80 | 0x70; // Valid + code
 			s[2] = 0x80 | 0; /* File Mark Detected + NO SENSE */
-			wl (&s[3], len - scsi_len);
+			if (cmdbuf[1] & 1)
+				wl (&s[3], (len - scsi_len) / tape->blocksize);
+			else
+				wl (&s[3], len);
 			s[12] = 0;
 			s[13] = 1; /* File Mark detected */
 			ls = 0x12;
 			if (log_tapeemu)
 				write_log (_T("TAPEEMU READ FILE END, %d remaining\n"), len - scsi_len);
 		}
-		scsi_len = len;
-
 	break;
 
 	case 0x5a: // MODE SENSE(10)
@@ -636,10 +660,16 @@ notape:
 	*reply_len = lr;
 	*sense_len = ls;
 	if (ls > 0) {
-		if (tape->beom > 0)
+		if (tape->beom == 1)
 			s[2] |= 0x40;
-		if (tape->beom < 0)
+		if (tape->beom == -1)
 			s[9] |= 0x8;
+		if (log_tapeemu) {
+			write_log (_T("TAPEEMU SENSE: "));
+			for (int i = 0; i < ls; i++)
+				write_log (_T("%02X."), s[i]);
+			write_log (_T("\n"));
+		}
 	}
 	return status;
 }

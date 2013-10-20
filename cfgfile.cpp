@@ -1308,6 +1308,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_dwrite_bool (f, _T("denise_noehb"), p->cs_denisenoehb);
 	cfgfile_dwrite_bool (f, _T("agnus_bltbusybug"), p->cs_agnusbltbusybug);
 	cfgfile_dwrite_bool (f, _T("ics_agnus"), p->cs_dipagnus);
+	cfgfile_dwrite_bool (f, _T("cia_todbug"), p->cs_ciatodbug);
 	cfgfile_dwrite (f, _T("chipset_hacks"), _T("0x%x"), p->cs_hacks);
 
 	cfgfile_dwrite_bool (f, _T("fastmem_autoconfig"), p->fastmem_autoconfig);
@@ -3209,6 +3210,7 @@ static int cfgfile_parse_hardware (struct uae_prefs *p, const TCHAR *option, TCH
 		|| cfgfile_yesno (option, value, _T("ksmirror_e0"), &p->cs_ksmirror_e0)
 		|| cfgfile_yesno (option, value, _T("ksmirror_a8"), &p->cs_ksmirror_a8)
 		|| cfgfile_yesno (option, value, _T("resetwarning"), &p->cs_resetwarning)
+		|| cfgfile_yesno (option, value, _T("cia_todbug"), &p->cs_ciatodbug)
 		|| cfgfile_yesno (option, value, _T("denise_noehb"), &p->cs_denisenoehb)
 		|| cfgfile_yesno (option, value, _T("ics_agnus"), &p->cs_dipagnus)
 		|| cfgfile_yesno (option, value, _T("agnus_bltbusybug"), &p->cs_agnusbltbusybug)
@@ -4964,6 +4966,7 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->cs_df0idhw = 1;
 	p->cs_slowmemisfast = 0;
 	p->cs_resetwarning = 1;
+	p->cs_ciatodbug = false;
 
 	p->gfx_filter = 0;
 	for (int i = 0; i <= 2 * MAX_FILTERSHADERS; i++) {
@@ -5210,6 +5213,7 @@ static void buildin_default_prefs (struct uae_prefs *p)
 	p->cs_ciaatod = 0;
 	p->cs_df0idhw = 1;
 	p->cs_resetwarning = 0;
+	p->cs_ciatodbug = false;
 
 	_tcscpy (p->romfile, _T(""));
 	_tcscpy (p->romextfile, _T(""));
@@ -5743,6 +5747,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	p->cs_df0idhw = 1;
 	p->cs_resetwarning = 1;
 	p->cs_slowmemisfast = 0;
+	p->cs_ciatodbug = false;
 
 	switch (p->cs_compatible)
 	{

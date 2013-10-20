@@ -47,22 +47,47 @@ STATIC_INLINE uae_u32 get_long_020_prefetch (int o)
 	head = h; tail = t; cycles = c;
 #define CE020_COUNTCYCLES()
 
-
+// only for CPU internal cycles
 STATIC_INLINE void do_cycles_ce020 (int clocks)
 {
-	x_do_cycles (clocks * cpucycleunit);
+	int cycs = clocks * cpucycleunit;
+	if (regs.ce020memcycles > 0) {
+		if (regs.ce020memcycles >= cycs) {
+			regs.ce020memcycles -= cycs;
+			return;
+		}
+		cycs = cycs - regs.ce020memcycles;
+	}
+	regs.ce020memcycles = 0;
+	x_do_cycles (cycs);
 }
+
 STATIC_INLINE void do_cycles_ce020_mem (int clocks, uae_u32 val)
 {
 	x_do_cycles_post (clocks * cpucycleunit, val);
 }
 
-extern void usecycles_ce020 (int cycles);
-
 STATIC_INLINE void resetcycles_ce020 (void)
 {
 	regs.ce020memcycles = 0;
+	regs.ce020memcycle_data = true;
 }
+
+#if 0
+STATIC_INLINE void do_head_cycles_ce020 (int h)
+{
+	if (regs.ce020_tail) {
+		int cycs = regs.ce020_tail_cycles - get_cycles ();
+		if (cycs < 0)
+			cycs = 0;
+		cycs -= h * cpucycleunit;
+		if (cycs)
+			x_do_cycles (cycs < 0 ? -cycs : cycs);
+	} else if (h > 0) {
+		do_cycles_ce020 (h);
+	}
+}
+#endif
 
 void mem_access_delay_long_write_ce020 (uaecptr addr, uae_u32 v);
 void mem_access_delay_word_write_ce020 (uaecptr addr, uae_u32 v);

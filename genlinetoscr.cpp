@@ -442,7 +442,7 @@ static void out_linetoscr (DEPTH_T bpp, HMODE_T hmode, int aga, int spr)
 		outln (	"    uae_u8 xor_val = bplxor;");
 	outln  (	"");
 
-	outln  (	"    if (dp_for_drawing->ham_seen) {");
+	outln  (	"    if (bplham) {");
 	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_HAM);
 	outln  (	"    } else if (bpldualpf) {");
 	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_DUALPF);

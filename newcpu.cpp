@@ -4685,9 +4685,15 @@ static void m68k_run_2ce (void)
 	set_cpu_tracer (false);
 
 	for (;;) {
+		static int prevopcode;
 		r->instruction_pc = m68k_getpc ();
 
-		opcode = currprefs.cpu_model == 68020 ? get_word_ce020_prefetch (0) : get_word_ce030_prefetch (0);
+		if (regs.irc == 0xffff)
+			gui_message (_T("OPCODE %04X HAS FAULTY PREFETCH!"), prevopcode);
+
+		opcode = regs.irc;
+		prevopcode = opcode;
+		regs.irc = 0xffff;
 
 		//write_log (_T("%08x %04x\n"), r->instruction_pc, opcode);
 
@@ -6355,14 +6361,14 @@ static void fill_icache020 (uae_u32 addr, uae_u32 (*fetch)(uaecptr))
 	// even if bus controller is currently processing
 	// previous data access.
 	// Other combinations are not possible.
-	if (regs.ce020memcycles < 0)
+	if (!regs.ce020memcycle_data)
 		regs.ce020memcycles = 0;
+	regs.ce020memcycle_data = false;
 	unsigned long cycs = get_cycles ();
 	data = fetch (addr);
-	// negative cycles = prefetch
-	// ce020memcycles was guaranteed zero or positive.
+	// add as available "free" internal CPU time.
 	cycs = get_cycles () - cycs;
-	regs.ce020memcycles = -regs.ce020memcycles - cycs;
+	regs.ce020memcycles += cycs;
 	if (!(regs.cacr & 2)) {
 		c->tag = tag;
 		c->valid = !!(regs.cacr & 1);
@@ -6382,9 +6388,10 @@ uae_u32 get_word_ce020_prefetch (int o)
 		regs.prefetch020[0] = regs.prefetch020[1];
 		fill_icache020 (pc + 2 + 4, mem_access_delay_longi_read_ce020);
 		regs.prefetch020[1] = regs.cacheholdingdata020;
-		return v;
+	} else {
+		v = regs.prefetch020[0] >> 16;
 	}
-	v = regs.prefetch020[0] >> 16;
+	do_cycles_ce020 (2);
 	return v;
 }
 
@@ -6398,31 +6405,10 @@ uae_u32 get_word_020_prefetch (int o)
 		regs.prefetch020[0] = regs.prefetch020[1];
 		fill_icache020 (pc + 2 + 4, get_longi);
 		regs.prefetch020[1] = regs.cacheholdingdata020;
-		return v;
-	}
-	v = regs.prefetch020[0] >> 16;
-	return v;
-}
-
-void usecycles_ce020 (int cycles)
-{
-	if (regs.ce020memcycles < 0) {
-		if (regs.ce020memcycles <= -cycles) {
-			regs.ce020memcycles += cycles;
-		} else {
-			cycles -= -regs.ce020memcycles;
-			regs.ce020memcycles = 0;
-			x_do_cycles (cycles);
-		}
 	} else {
-		if (regs.ce020memcycles >= cycles) {
-			regs.ce020memcycles -= cycles;
-		} else {
-			cycles -= regs.ce020memcycles;
-			regs.ce020memcycles = 0;
-			x_do_cycles (cycles);
-		}
+		v = regs.prefetch020[0] >> 16;
 	}
+	return v;
 }
 
 // these are also used by 68030.
@@ -6696,13 +6682,14 @@ STATIC_INLINE void fill_icache030 (uae_u32 addr)
 
 	// cache miss
 	if (currprefs.cpu_cycle_exact) {
-		// see fill_icache020
-		if (regs.ce020memcycles < 0)
+		if (!regs.ce020memcycle_data)
 			regs.ce020memcycles = 0;
+		regs.ce020memcycle_data = false;
 		unsigned long cycs = get_cycles ();
 		data = mem_access_delay_longi_read_ce020 (addr);
+		// add as available "free" internal CPU time.
 		cycs = get_cycles () - cycs;
-		regs.ce020memcycles = -regs.ce020memcycles - cycs;
+		regs.ce020memcycles += cycs;
 	} else {
 		data = get_longi (addr);
 	}
@@ -6877,9 +6864,10 @@ uae_u32 get_word_ce030_prefetch (int o)
 		regs.prefetch020[0] = regs.prefetch020[1];
 		fill_icache030 (pc + 2 + 4);
 		regs.prefetch020[1] = regs.cacheholdingdata020;
-		return v;
+	} else {
+		v = regs.prefetch020[0] >> 16;
 	}
-	v = regs.prefetch020[0] >> 16;
+	do_cycles_ce020 (2);
 	return v;
 }
 
@@ -6902,9 +6890,12 @@ void fill_prefetch_030 (void)
 	uaecptr pc = m68k_getpc ();
 	pc &= ~3;
 	fill_icache030 (pc);
+	do_cycles_ce020 (2);
 	regs.prefetch020[0] = regs.cacheholdingdata020;
 	fill_icache030 (pc + 4);
+	do_cycles_ce020 (2);
 	regs.prefetch020[1] = regs.cacheholdingdata020;
+	regs.irc = get_word_ce030_prefetch (0);
 }
 
 void fill_prefetch_020 (void)
@@ -6913,9 +6904,12 @@ void fill_prefetch_020 (void)
 	uae_u32 (*fetch)(uaecptr) = currprefs.cpu_cycle_exact ? mem_access_delay_longi_read_ce020 : get_longi;
 	pc &= ~3;
 	fill_icache020 (pc, fetch);
+	do_cycles_ce020 (2);
 	regs.prefetch020[0] = regs.cacheholdingdata020;
 	fill_icache020 (pc + 4, fetch);
+	do_cycles_ce020 (2);
 	regs.prefetch020[1] = regs.cacheholdingdata020;
+	regs.irc = get_word_020_prefetch (0);
 }
 
 void fill_prefetch (void)
