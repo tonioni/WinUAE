@@ -590,6 +590,7 @@
     <ClCompile Include="..\..\archivers\zip\unzip.cpp" />
     <ClCompile Include="..\..\aros.rom.cpp" />
     <ClCompile Include="..\..\calc.cpp" />
+    <ClCompile Include="..\..\cpuemu_13.cpp" />
     <ClCompile Include="..\..\cpuemu_21.cpp" />
     <ClCompile Include="..\..\cpuemu_22.cpp" />
     <ClCompile Include="..\..\cpuemu_32.cpp" />
@@ -693,7 +694,6 @@
     <ClCompile Include="..\..\cpudefs.cpp" />
     <ClCompile Include="..\..\cpuemu_0.cpp" />
     <ClCompile Include="..\..\cpuemu_11.cpp" />
-    <ClCompile Include="..\..\cpuemu_12.cpp" />
     <ClCompile Include="..\..\cpuemu_20.cpp" />
     <ClCompile Include="..\..\cpuemu_31.cpp" />
     <ClCompile Include="..\..\cpummu.cpp" />

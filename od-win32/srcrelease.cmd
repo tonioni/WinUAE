@@ -33,6 +33,7 @@ del compstbl.cpp
 del cpuemu_0.cpp
 del cpuemu_11.cpp
 del cpuemu_12.cpp
+del cpuemu_13.cpp
 del cpuemu_20.cpp
 del cpuemu_21.cpp
 del cpuemu_22.cpp

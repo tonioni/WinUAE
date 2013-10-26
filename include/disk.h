@@ -18,6 +18,8 @@ struct diskinfo
 	uae_u32 crc32;
 	bool hd;
 	bool unreadable;
+	int bootblocktype;
+	TCHAR diskname[110];
 };
 
 extern void DISK_init (void);

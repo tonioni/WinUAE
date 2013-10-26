@@ -641,6 +641,8 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 	uae_u32 ad = 0;
 	static const int sz1[8] = { 4, 4, 12, 12, 2, 8, 1, 0 };
 	static const int sz2[8] = { 4, 4, 12, 12, 2, 8, 2, 0 };
+	int exts[3];
+	int doext = 0;
 
 	if (!(extra & 0x4000)) {
 		if (fault_if_no_fpu (opcode, extra, 0, oldpc))
@@ -708,10 +710,30 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 					ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
 					break;
 				case 4:
-					ad = m68k_getpc ();
-					m68k_setpc (ad + sz2[size]);
-					if (size == 6)
-						ad++;
+					doext = 1;
+					switch (size)
+					{
+						case 0:
+						case 1:
+						exts[0] = x_next_ilong ();
+						break;
+						case 2:
+						case 3:
+						exts[0] = x_next_ilong ();
+						exts[1] = x_next_ilong ();
+						exts[2] = x_next_ilong ();
+						break;
+						case 4:
+						exts[0] = x_next_iword ();
+						break;
+						case 5:
+						exts[0] = x_next_ilong ();
+						exts[1] = x_next_ilong ();
+						break;
+						case 6:
+						exts[0] = x_next_iword ();
+						break;
+					}				
 					break;
 				default:
 					return 0;
@@ -724,21 +746,21 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 	switch (size)
 	{
 		case 0:
-			*src = (fptype) (uae_s32) x_cp_get_long (ad);
+			*src = (fptype) (uae_s32) (doext ? exts[0] : x_cp_get_long (ad));
 			break;
 		case 1:
-			*src = to_single (x_cp_get_long (ad));
+			*src = to_single ((doext ? exts[0] : x_cp_get_long (ad)));
 			break;
 		case 2:
 			{
 				if (fault_if_4060 (opcode, extra, ad, oldpc, FPU_EXP_UNIMP_DATATYPE))
 					return -1;
 				uae_u32 wrd1, wrd2, wrd3;
-				wrd1 = x_cp_get_long (ad);
+				wrd1 = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
-				wrd2 = x_cp_get_long (ad);
+				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
-				wrd3 = x_cp_get_long (ad);
+				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
 				*src = to_exten (wrd1, wrd2, wrd3);
 			}
 			break;
@@ -747,28 +769,28 @@ STATIC_INLINE int get_fp_value (uae_u32 opcode, uae_u16 extra, fptype *src, uaec
 				if (fault_if_4060 (opcode, extra, ad, oldpc, FPU_EXP_UNIMP_DATATYPE))
 					return -1;
 				uae_u32 wrd1, wrd2, wrd3;
-				wrd1 = x_cp_get_long (ad);
+				wrd1 = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
-				wrd2 = x_cp_get_long (ad);
+				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				ad += 4;
-				wrd3 = x_cp_get_long (ad);
+				wrd3 = (doext ? exts[2] : x_cp_get_long (ad));
 				*src = to_pack (wrd1, wrd2, wrd3);
 			}
 			break;
 		case 4:
-			*src = (fptype) (uae_s16) x_cp_get_word (ad);
+			*src = (fptype) (uae_s16) (doext ? exts[0] : x_cp_get_word (ad));
 			break;
 		case 5:
 			{
 				uae_u32 wrd1, wrd2;
-				wrd1 = x_cp_get_long (ad);
+				wrd1 = (doext ? exts[0] : x_cp_get_long (ad));
 				ad += 4;
-				wrd2 = x_cp_get_long (ad);
+				wrd2 = (doext ? exts[1] : x_cp_get_long (ad));
 				*src = to_double (wrd1, wrd2);
 			}
 			break;
 		case 6:
-			*src = (fptype) (uae_s8) x_cp_get_byte (ad);
+			*src = (fptype) (uae_s8) (doext ? exts[0] : x_cp_get_byte (ad));
 			break;
 		default:
 			return 0;
@@ -855,10 +877,12 @@ STATIC_INLINE int put_fp_value (fptype value, uae_u32 opcode, uae_u16 extra, uae
 				case 3:
 					ad = x_cp_get_disp_ea_020 (m68k_getpc (), 0);
 					break;
+#if 0
 				case 4:
 					ad = m68k_getpc ();
 					m68k_setpc (ad + sz2[size]);
 					break;
+#endif
 				default:
 					return 0;
 			}

@@ -267,6 +267,36 @@ static void hide (HWND hDlg, DWORD id, int hide)
 	ShowWindow (w, hide ? SW_HIDE : SW_SHOW);
 }
 
+static int stringboxdialogactive;
+static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch(msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage (0);
+		return TRUE;
+	case WM_CLOSE:
+		stringboxdialogactive = 0;
+		DestroyWindow (hDlg);
+		return TRUE;
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD (wParam))
+		{
+		case IDOK:
+			stringboxdialogactive = -1;
+			DestroyWindow (hDlg);
+			return TRUE;
+		case IDCANCEL:
+			stringboxdialogactive = 0;
+			DestroyWindow (hDlg);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
 
 static int CALLBACK BrowseForFolderCallback (HWND hwnd, UINT uMsg, LPARAM lp, LPARAM pData)
 {
@@ -2018,45 +2048,71 @@ static void eject_cd (void)
 	}
 }
 
-static void infofloppy (int n)
+static void infofloppy (HWND hDlg, int n)
 {
 	struct diskinfo di;
-	FILE *f;
-	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
+	TCHAR tmp2[MAX_DPATH];
+	TCHAR text[20000];
 
 	DISK_examine_image (&workprefs, n, &di);
 
-	tmp[0] = 0;
-	if (GetTempPath (MAX_DPATH, tmp) <= 0)
-		return;
-	_tcscat (tmp, _T("floppy_info.txt"));
-	f = _tfopen (tmp, _T("wt, ccs=UTF-8"));
-	if (f) {
+	_stprintf (tmp2,
+		_T("'%s'\r\nDisk readable: %s\r\nCRC32: %08X\r\nBoot block checksum valid: %s\r\nBoot block type: %s\r\n"),
+		workprefs.floppyslots[n].df,
+		di.unreadable ? _T("No") : _T("Yes"),
+		di.crc32,
+		di.bb_crc_valid ? _T("Yes") : _T("No"),
+		di.bootblocktype == 0 ? _T("Custom") : (di.bootblocktype == 1 ? _T("Standard 1.x") : _T("Standard 2.x+"))
+	);
+	_tcscpy (text, tmp2);
+	if (di.diskname[0]) {
 		_stprintf (tmp2,
-			_T("\nDisk readable: %s\nCRC32: %08X\nBoot block checksum valid: %s\n\n"),
-			di.unreadable ? _T("No") : _T("Yes"),
-			di.crc32,
-			di.bb_crc_valid ? _T("Yes") : _T("No")
-		);
-		fputws (tmp2, f);
-		int w = 32;
-		for (int i = 0; i < 1024; i += w) {
-			for (int j = 0; j < w; j++) {
-				uae_u8 b = di.bootblock[i + j];
-				_stprintf (tmp2 + j * 2, _T("%02X"), b);
-				if (b >= 32 && b < 127)
-					tmp2[w * 2 + 1 + j] = (TCHAR)b;
-				else
-					tmp2[w * 2 + 1 + j] = '.';
-			}
-			tmp2[w * 2] = ' ';
-			tmp2[w * 2 + 1 + w] = 0;
-			fputws (tmp2, f);
-			fputws (_T("\n"), f);
-		}
-		fclose (f);
-		ShellExecute (NULL, _T("open"), tmp, NULL, NULL, SW_SHOWNORMAL);
+			_T("Label: '%s'\r\n"), di.diskname);
+		_tcscat (text, tmp2);
 	}
+	_tcscat (text, _T("\r\n"));
+
+	int w = 32;
+	for (int i = 0; i < 1024; i += w) {
+		for (int j = 0; j < w; j++) {
+			uae_u8 b = di.bootblock[i + j];
+			_stprintf (tmp2 + j * 2, _T("%02X"), b);
+			if (b >= 32 && b < 127)
+				tmp2[w * 2 + 1 + j] = (TCHAR)b;
+			else
+				tmp2[w * 2 + 1 + j] = '.';
+		}
+		tmp2[w * 2] = ' ';
+		tmp2[w * 2 + 1 + w] = 0;
+		_tcscat (text, tmp2);
+		_tcscat (text, _T("\r\n"));
+	}
+
+	stringboxdialogactive = 1;
+	HWND hwnd = CustomCreateDialog (IDD_DISKINFO, hDlg, StringBoxDialogProc);
+	if (hwnd == NULL)
+		return;
+
+	HFONT font = CreateFont (12, 0, 0, 0, 0, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Lucida Console"));
+	if (font)
+		SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETFONT, WPARAM(font), FALSE);
+	SendMessage (GetDlgItem (hwnd, IDC_DISKINFOBOX), WM_SETTEXT, 0, (LPARAM)text);
+	while (stringboxdialogactive == 1) {
+		MSG msg;
+		int ret;
+		WaitMessage ();
+		while ((ret = GetMessage (&msg, NULL, 0, 0))) {
+			if (ret == -1)
+				break;
+			if (!IsWindow (hwnd) || !IsDialogMessage (hwnd, &msg)) {
+				TranslateMessage (&msg);
+				DispatchMessage (&msg);
+			}
+		}
+		if (stringboxdialogactive == -1)
+			break;
+	}
+	DeleteObject (font);
 }
 
 static void ejectfloppy (int n)
@@ -5137,6 +5193,11 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 		SendDlgItemMessage (hDlg, IDC_LOGSELECT, CB_SETCURSEL, 0, 0);
 		CheckDlgButton (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable || (full_property_sheet == 0 && currprefs.win32_logfile));
 		ew (hDlg, IDC_LOGENABLE, winuaelog_temporary_enable == false && full_property_sheet);
+		extern int consoleopen;
+		if (consoleopen || !full_property_sheet) {
+			CheckDlgButton (hDlg, IDC_LOGENABLE2, consoleopen ? TRUE : FALSE);
+			ew (hDlg, IDC_LOGENABLE2, FALSE);
+		}
 		values_to_pathsdialog (hDlg);
 		recursive--;
 		return TRUE;
@@ -5171,6 +5232,10 @@ static INT_PTR CALLBACK PathsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM
 				break;
 			case IDC_LOGENABLE:
 				winuaelog_temporary_enable = ischecked (hDlg, IDC_LOGENABLE);
+				break;
+			case IDC_LOGENABLE2:
+				extern int console_logging;
+				console_logging = 1;
 				break;
 			case IDC_LOGOPEN:
 				flush_log ();
@@ -5873,7 +5938,7 @@ static void enable_for_chipsetdlg (HWND hDlg)
 {
 	int enable = workprefs.cpu_cycle_exact ? FALSE : TRUE;
 
-#if !defined (CPUEMU_12)
+#if !defined (CPUEMU_13)
 	ew (hDlg, IDC_CYCLEEXACT, FALSE);
 #endif
 	ew (hDlg, IDC_GENLOCK, full_property_sheet);
@@ -8822,10 +8887,8 @@ static void values_from_cpudlg (HWND hDlg)
 
 #ifdef JIT
 	oldcache = workprefs.cachesize;
-	jitena = ischecked (hDlg, IDC_JITENABLE) ? 1 : 0;
+	jitena = (ischecked (hDlg, IDC_JITENABLE) ? 1 : 0) && !workprefs.address_space_24 && workprefs.cpu_model >= 68020;
 	workprefs.cachesize = SendMessage (GetDlgItem (hDlg, IDC_CACHE), TBM_GETPOS, 0, 0) * 1024;
-	if (!workprefs.cachesize)
-		setchecked (hDlg, IDC_JITENABLE, false);
 	if (!jitena) {
 		cachesize_prev = workprefs.cachesize;
 		trust_prev = workprefs.comptrustbyte;
@@ -8843,6 +8906,8 @@ static void values_from_cpudlg (HWND hDlg)
 		workprefs.comptrustlong = trust_prev;
 		workprefs.comptrustnaddr = trust_prev;
 	}
+	if (!workprefs.cachesize)
+		setchecked (hDlg, IDC_JITENABLE, false);
 	if (oldcache == 0 && candirect && workprefs.cachesize > 0)
 		canbang = 1;
 #endif
@@ -11331,17 +11396,17 @@ static INT_PTR CALLBACK FloppyDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARA
 			break;
 		case IDC_INFO0:
 		case IDC_INFO0Q:
-			infofloppy (0);
+			infofloppy (hDlg, 0);
 			break;
 		case IDC_INFO1:
 		case IDC_INFO1Q:
-			infofloppy (1);
+			infofloppy (hDlg, 1);
 			break;
 		case IDC_INFO2:
-			infofloppy (2);
+			infofloppy (hDlg, 2);
 			break;
 		case IDC_INFO3:
-			infofloppy (3);
+			infofloppy (hDlg, 3);
 			break;
 		case IDC_EJECT0:
 		case IDC_EJECT0Q:
@@ -11786,7 +11851,7 @@ static int joys[] = { IDC_PORT0_JOYS, IDC_PORT1_JOYS, IDC_PORT2_JOYS, IDC_PORT3_
 static int joysm[] = { IDC_PORT0_JOYSMODE, IDC_PORT1_JOYSMODE, -1, -1 };
 static int joysaf[] = { IDC_PORT0_AF, IDC_PORT1_AF, -1, -1 };
 
-static void updatejoyport (HWND hDlg)
+static void updatejoyport (HWND hDlg, int changedport)
 {
 	int i, j;
 	TCHAR tmp[MAX_DPATH], tmp2[MAX_DPATH];
@@ -11856,40 +11921,9 @@ static void updatejoyport (HWND hDlg)
 	}
 }
 
-static void fixjport (struct jport *port, int v)
+static void values_from_gameportsdlg (HWND hDlg, int d, int changedport)
 {
-	int vv = port->id;
-	if (vv == JPORT_CUSTOM || vv == JPORT_NONE)
-		return;
-	if (vv != v)
-		return;
-	if (vv >= JSEM_JOYS && vv < JSEM_MICE) {
-		vv -= JSEM_JOYS;
-		vv++;
-		if (vv >= inputdevice_get_device_total (IDTYPE_JOYSTICK))
-			vv = 0;
-		vv += JSEM_JOYS;
-	}
-	if (vv >= JSEM_MICE && vv < JSEM_END) {
-		vv -= JSEM_MICE;
-		vv++;
-		if (vv >= inputdevice_get_device_total (IDTYPE_MOUSE))
-			vv = 0;
-		vv += JSEM_MICE;
-	}
-	if (vv >= JSEM_KBDLAYOUT && vv < JSEM_LASTKBD) {
-		vv -= JSEM_KBDLAYOUT;
-		vv++;
-		if (vv >= JSEM_LASTKBD)
-			vv = 0;
-		vv += JSEM_KBDLAYOUT;
-	}
-	port->id = vv;
-}
-
-static void values_from_gameportsdlg (HWND hDlg, int d)
-{
-	int i, j, success;
+	int i, success;
 	int changed = 0;
 
 	if (d) {
@@ -11948,15 +11982,8 @@ static void values_from_gameportsdlg (HWND hDlg, int d)
 		if (*port != prevport)
 			changed = 1;
 	}
-	if (changed) {
-		for (i = 0; i < MAX_JPORTS; i++) {
-			for (j = 0; j < MAX_JPORTS; j++) {
-				if (j != i)
-					fixjport (&workprefs.jports[i], workprefs.jports[j].id);
-			}
-		}
-	}
-
+	if (changed)
+		inputdevice_validate_jports (&workprefs, changedport);
 }
 
 static int midi2dev (struct midiportinfo **mid, int idx, int def)
@@ -12278,11 +12305,12 @@ static void processport (HWND hDlg, bool reset, int port)
 {
 	if (reset)
 		inputdevice_compa_clear (&workprefs, port);
-	values_from_gameportsdlg (hDlg, 0);
+	values_from_gameportsdlg (hDlg, 0, port);
 	enable_for_gameportsdlg (hDlg);
-	updatejoyport (hDlg);
+	updatejoyport (hDlg, port);
 	inputdevice_updateconfig (NULL, &workprefs);
 	inputdevice_config_change ();
+	reset_inputdevice_config (&workprefs);
 }
 
 /* Handle messages for the Joystick Settings page of our property-sheet */
@@ -12354,13 +12382,13 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 
 		inputdevice_updateconfig (NULL, &workprefs);
 		enable_for_gameportsdlg (hDlg);
-		updatejoyport (hDlg);
+		updatejoyport (hDlg, -1);
 		recursive--;
 		break;
 	case WM_USER:
 		recursive++;
 		enable_for_gameportsdlg (hDlg);
-		updatejoyport (hDlg);
+		updatejoyport (hDlg, -1);
 		recursive--;
 		return TRUE;
 
@@ -12374,23 +12402,23 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 			joyxprevious[0] = joyxprevious[1];
 			joyxprevious[1] = temp;
 			enable_for_gameportsdlg (hDlg);
-			updatejoyport (hDlg);
+			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT0_REMAP) {
 			ports_remap (hDlg, 0);
 			enable_for_gameportsdlg (hDlg);
-			updatejoyport (hDlg);
+			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT1_REMAP) {
 			ports_remap (hDlg, 1);
 			enable_for_gameportsdlg (hDlg);
-			updatejoyport (hDlg);
+			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT2_REMAP) {
 			ports_remap (hDlg, 2);
 			enable_for_gameportsdlg (hDlg);
-			updatejoyport (hDlg);
+			updatejoyport (hDlg, -1);
 		} else if (LOWORD (wParam) == IDC_PORT3_REMAP) {
 			ports_remap (hDlg, 3);
 			enable_for_gameportsdlg (hDlg);
-			updatejoyport (hDlg);
+			updatejoyport (hDlg, -1);
 		} else if (HIWORD (wParam) == CBN_SELCHANGE) {
 			switch (LOWORD (wParam))
 			{
@@ -12422,7 +12450,7 @@ static INT_PTR CALLBACK GamePortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LP
 				}
 			}
 		} else {
-			values_from_gameportsdlg (hDlg, 1);
+			values_from_gameportsdlg (hDlg, 1, -1);
 			enable_for_gameportsdlg (hDlg);
 		}
 		recursive--;
@@ -12444,6 +12472,7 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		currentpage = IOPORTS_ID;
 		init_portsdlg (hDlg);
 		inputdevice_updateconfig (NULL, &workprefs);
+		reset_inputdevice_config (&workprefs);
 		enable_for_portsdlg (hDlg);
 		values_to_portsdlg (hDlg);
 		recursive--;
@@ -12524,37 +12553,6 @@ static void values_to_inputdlg (HWND hDlg)
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDD, workprefs.input_joymouse_speed, FALSE);
 	SetDlgItemInt (hDlg, IDC_INPUTSPEEDA, workprefs.input_joymouse_multiplier, FALSE);
 	CheckDlgButton (hDlg, IDC_INPUTDEVICEDISABLE, (!input_total_devices || inputdevice_get_device_status (input_selected_device)) ? BST_CHECKED : BST_UNCHECKED);
-}
-
-static int stringboxdialogactive;
-static INT_PTR CALLBACK StringBoxDialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch(msg)
-	{
-	case WM_DESTROY:
-		PostQuitMessage (0);
-		return TRUE;
-	case WM_CLOSE:
-		stringboxdialogactive = 0;
-		DestroyWindow (hDlg);
-		return TRUE;
-	case WM_INITDIALOG:
-		return TRUE;
-	case WM_COMMAND:
-		switch (LOWORD (wParam))
-		{
-		case IDOK:
-			stringboxdialogactive = -1;
-			DestroyWindow (hDlg);
-			return TRUE;
-		case IDCANCEL:
-			stringboxdialogactive = 0;
-			DestroyWindow (hDlg);
-			return TRUE;
-		}
-		break;
-	}
-	return FALSE;
 }
 
 static int askinputcustom (HWND hDlg, TCHAR *custom, int maxlen, DWORD titleid)

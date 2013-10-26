@@ -194,24 +194,32 @@ static void addcycles_ce020 (int cycles)
 	addcycles_ce020 (cycles, NULL);
 }
 
-static void get_prefetch_ce020 (void)
+static void get_prefetch_020 (void)
 {
-	if (!using_ce020)
+	if (!using_prefetch_020)
 		return;
 	printf ("\tregs.irc = %s (%d);\n", prefetch_word, m68k_pc_offset);
 }
-static void get_prefetch_ce020_0 (void)
+static void get_prefetch_020_0 (void)
 {
-	if (!using_ce020)
+	if (!using_prefetch_020)
 		return;
 	printf ("\tregs.irc = %s (0);\n", prefetch_word);
 }
 
-
 static void returntail (bool iswrite)
 {
-	if (!using_ce020)
+	if (!using_ce020) {
+		if (using_prefetch_020) {
+			if (!tail_ce020_done) {
+				if (!did_prefetch)
+					get_prefetch_020 ();
+				did_prefetch = 1;
+				tail_ce020_done = true;
+			}
+		}
 		return;
+	}
 	if (!tail_ce020_done) {
 		total_ce020 -= 2;
 		if (iswrite) {
@@ -225,7 +233,7 @@ static void returntail (bool iswrite)
 			total_ce020 = 1;
 		}
 		if (!did_prefetch)
-			get_prefetch_ce020 ();
+			get_prefetch_020 ();
 		if (total_ce020 > 0)
 			addcycles_ce020 (total_ce020);
 
@@ -1932,7 +1940,7 @@ static void genmovemel (uae_u16 opcode)
 	}
 	count_ncycles++;
 	fill_prefetch_next ();
-	get_prefetch_ce020 ();
+	get_prefetch_020 ();
 }
 
 static void genmovemel_ce (uae_u16 opcode)
@@ -2019,7 +2027,7 @@ static void genmovemle (uae_u16 opcode)
 	}
 	count_ncycles++;
 	fill_prefetch_next ();
-	get_prefetch_ce020 ();
+	get_prefetch_020 ();
 }
 
 static void genmovemle_ce (uae_u16 opcode)
@@ -2376,7 +2384,6 @@ static int islongimm (struct instr *curi)
 
 static void resetvars (void)
 {
-	memory_cycle_cnt = 4;
 	insn_n_cycles = using_prefetch ? 0 : 4;
 	insn_n_cycles020 = 0;
 	ir2irc = 0;
@@ -2442,7 +2449,6 @@ static void resetvars (void)
 			do_cycles = "do_cycles_ce020";
 			nextw = "next_iword_020ce";
 			nextl = "next_ilong_020ce";
-			memory_cycle_cnt = 3;
 		} else if (using_ce020 == 2) {
 			// 68030 CE
 			disp020 = "x_get_disp_ea_ce030";
@@ -2460,7 +2466,6 @@ static void resetvars (void)
 			do_cycles = "do_cycles_ce020";
 			nextw = "next_iword_030ce";
 			nextl = "next_ilong_030ce";
-			memory_cycle_cnt = 3;
 		} else if (using_prefetch_020) {
 			disp020 = "x_get_disp_ea_020";
 			prefetch_word = "get_word_020_prefetch";
@@ -2476,7 +2481,6 @@ static void resetvars (void)
 			dstb = "x_put_byte";
 			nextw = "next_iword_020_prefetch";
 			nextl = "next_ilong_020_prefetch";
-			memory_cycle_cnt = 2;
 		}
 #if 0
 	} else if (using_ce020) {
@@ -3337,6 +3341,32 @@ static void gen_opcode (unsigned long int opcode)
 			printf ("\tregs.sr = sr;\n");
 			setpc ("pc");
 			printf ("\tMakeFromSR ();\n");
+		} else if (cpu_level == 1 && using_prefetch) {
+		    int old_brace_level = n_braces;
+		    if (next_cpu_level < 0)
+				next_cpu_level = 0;
+		    printf ("\tuae_u16 newsr; uae_u32 newpc;\n");
+			printf ("\tfor (;;) {\n");
+			printf ("\t\tuaecptr a = m68k_areg (regs, 7);\n");
+			printf ("\t\tuae_u16 sr = %s (a);\n", srcw);
+			printf ("\t\tuae_u32 pc = %s (a + 2);\n", srcl);
+			printf ("\t\tuae_u16 format = %s (a + 2 + 4);\n", srcw);
+			printf ("\t\tint frame = format >> 12;\n");
+			printf ("\t\tint offset = 8;\n");
+			printf ("\t\tnewsr = sr; newpc = pc;\n");
+		    printf ("\t\tif (frame == 0x0) { m68k_areg (regs, 7) += offset; break; }\n");
+		    printf ("\t\telse if (frame == 0x8) { m68k_areg (regs, 7) += offset + 50; break; }\n");
+		    printf ("\t\telse { m68k_areg (regs, 7) += offset; Exception (14); goto %s; }\n", endlabelstr);
+		    printf ("\t\tregs.sr = newsr; MakeFromSR ();\n}\n");
+		    pop_braces (old_brace_level);
+		    printf ("\tregs.sr = newsr; MakeFromSR ();\n");
+		    printf ("\tif (newpc & 1) {\n");
+		    printf ("\t\texception3i (0x%04X, newpc);\n", opcode);
+			printf ("\t\tgoto %s;\n", endlabelstr);
+			printf ("\t}\n");
+		    setpc ("newpc");
+			printf ("\tipl_fetch ();\n");
+		    need_endlabel = 1;
 		} else {
 		    int old_brace_level = n_braces;
 		    if (next_cpu_level < 0)
@@ -3639,7 +3669,7 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("didnt_jump:;\n");
 		need_endlabel = 1;
 		sync_m68k_pc ();
-		get_prefetch_ce020_0 ();
+		get_prefetch_020_0 ();
 		if (curi->size == sz_byte) {
 			addcycles000 (2);
 			irc2ir ();
@@ -3721,7 +3751,7 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\t}\n");
 		setpc ("oldpc + %d", m68k_pc_offset);
 		m68k_pc_offset = 0;
-		get_prefetch_ce020_0 ();
+		get_prefetch_020_0 ();
 		fill_prefetch_full_000 ();
 		insn_n_cycles = 12;
 		need_endlabel = 1;
@@ -5152,7 +5182,7 @@ static void generate_cpu (int id, int mode)
 	}
 
 	postfix = id;
-	if (id == 0 || id == 11 || id == 12 || id == 20 || id == 21 || id == 22 || id == 31 || id == 32 || id == 33) {
+	if (id == 0 || id == 11 || id == 13 || id == 20 || id == 21 || id == 22 || id == 31 || id == 32 || id == 33) {
 		if (generate_stbl)
 			fprintf (stblfile, "#ifdef CPUEMU_%d%s\n", postfix, extraup);
 		postfix2 = postfix;
@@ -5167,16 +5197,28 @@ static void generate_cpu (int id, int mode)
 	using_ce020 = 0;
 	using_mmu = 0;
 	using_waitstates = 0;
+	memory_cycle_cnt = 4;
 	mmu_postfix = "";
 
-	if (id == 11 || id == 12) { // 11 = 68000 prefetch, 12 = 68000 cycle-exact
-		cpu_level = 0;
+	if (id == 11 || id == 12) { // 11 = 68010 prefetch, 12 = 68000 prefetch
+		cpu_level = id == 11 ? 1 : 0;
 		using_prefetch = 1;
 		using_exception_3 = 1;
-		if (id == 12)
-			using_ce = 1;
-		for (rp = 0; rp < nr_cpuop_funcs; rp++)
-			opcode_next_clev[rp] = 0;
+		if (id == 11) {
+			read_counts ();
+			for (rp = 0; rp < nr_cpuop_funcs; rp++)
+				opcode_next_clev[rp] = cpu_level;
+		}
+	} else if (id == 13 || id == 14) { // 13 = 68010 cycle-exact, 14 = 68000 cycle-exact
+		cpu_level = id == 13 ? 1 : 0;
+		using_prefetch = 1;
+		using_exception_3 = 1;
+		using_ce = 1;
+		if (id == 13) {
+			read_counts ();
+			for (rp = 0; rp < nr_cpuop_funcs; rp++)
+				opcode_next_clev[rp] = cpu_level;
+		}
 	} else if (id == 20) { // 68020 prefetch
 		cpu_level = 2;
 		using_prefetch_020 = 2;
@@ -5191,6 +5233,7 @@ static void generate_cpu (int id, int mode)
 		// clock memory accesses, 68020 has 3 clock
 		// memory accesses
 		using_waitstates = 1;
+		memory_cycle_cnt = 3;
 		read_counts ();
 		for (rp = 0; rp < nr_cpuop_funcs; rp++)
 			opcode_next_clev[rp] = cpu_level;
@@ -5198,6 +5241,7 @@ static void generate_cpu (int id, int mode)
 		cpu_level = 3 + (24 - id);
 		using_ce020 = 2;
 		using_prefetch_020 = 2;
+		memory_cycle_cnt = 2;
 		if (id == 22) {
 			read_counts ();
 			for (rp = 0; rp < nr_cpuop_funcs; rp++)
@@ -5272,7 +5316,7 @@ int main (int argc, char **argv)
 	using_ce = 0;
 
 	for (i = 0; i <= 33; i++) {
-		if ((i >= 6 && i < 11) || (i > 12 && i < 20) || (i > 24 && i < 31))
+		if ((i >= 6 && i < 11) || (i > 14 && i < 20) || (i > 24 && i < 31))
 			continue;
 		generate_stbl = 1;
 		generate_cpu (i, 0);

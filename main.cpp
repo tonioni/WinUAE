@@ -523,11 +523,11 @@ void fixup_prefs (struct uae_prefs *p)
 	p->cpu_compatible = 1;
 	p->address_space_24 = 1;
 #endif
-#if !defined (CPUEMU_11) && !defined (CPUEMU_12)
+#if !defined (CPUEMU_11) && !defined (CPUEMU_13)
 	p->cpu_compatible = 0;
 	p->address_space_24 = 0;
 #endif
-#if !defined (CPUEMU_12)
+#if !defined (CPUEMU_13)
 	p->cpu_cycle_exact = p->blitter_cycle_exact = 0;
 #endif
 #ifndef AGA
@@ -553,7 +553,7 @@ void fixup_prefs (struct uae_prefs *p)
 #if !defined (UAESERIAL)
 	p->uaeserial = 0;
 #endif
-#if defined (CPUEMU_12)
+#if defined (CPUEMU_13)
 	if (p->cpu_cycle_exact) {
 		if (p->gfx_framerate > 1) {
 			error_log (_T("Cycle-exact requires disabled frameskip."));

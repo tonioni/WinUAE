@@ -167,18 +167,21 @@ bool preinit_shm (void)
 		if (size64 > MAXZ3MEM32)
 			size64 = MAXZ3MEM32;
 	}
-	if (maxmem < 0)
+	if (maxmem < 0) {
 		size64 = MAXZ3MEM64;
-	else if (maxmem > 0)
+		if (!os_64bit) {
+			if (totalphys64 < 1536 * 1024 * 1024)
+				max_allowed_mman = 256;
+			if (max_allowed_mman < 256)
+				max_allowed_mman = 256;
+		}
+	} else if (maxmem > 0) {
 		size64 = maxmem * 1024 * 1024;
+	}
 	if (size64 < 8 * 1024 * 1024)
 		size64 = 8 * 1024 * 1024;
 	if (max_allowed_mman * 1024 * 1024 > size64)
 		max_allowed_mman = size64 / (1024 * 1024);
-	if (!os_64bit) {
-		if (max_allowed_mman * 1024 * 1024 > (totalphys64 / 2))
-			max_allowed_mman = (totalphys64 / 2) / (1024 * 1024);
-	}
 
 	natmem_size = (max_allowed_mman + 1) * 1024 * 1024;
 	if (natmem_size < 17 * 1024 * 1024)

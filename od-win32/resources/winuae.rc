@@ -1,7 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "winres.h"
 #include "resource.h"
+#include "winres.h"
 /////////////////////////////////////////////////////////////////////////////
 // English resources
 
@@ -922,10 +922,11 @@ BEGIN
     CONTROL         "Use relative paths",IDC_PATHS_RELATIVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,199,231,189,11
     EDITTEXT        IDC_LOGPATH,7,281,324,13,ES_READONLY
     PUSHBUTTON      "Open [] Open selected file.",IDC_LOGOPEN,337,280,51,14
-    COMBOBOX        IDC_LOGSELECT,7,263,169,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "Enable full logging (temporary)",IDC_LOGENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,186,264,140,12
+    COMBOBOX        IDC_LOGSELECT,7,263,137,150,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Enable full logging",IDC_LOGENABLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,151,264,93,12
     PUSHBUTTON      "Save All [] Save and open both logs and config file.",IDC_LOGSAVE,337,264,51,14
     GROUPBOX        "Debug logging",IDC_STATIC,1,248,393,53
+    CONTROL         "Log window",IDC_LOGENABLE2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,254,264,68,12
 END
 
 IDD_QUICKSTART DIALOGEX 0, 0, 396, 262
@@ -1154,6 +1155,16 @@ BEGIN
     PUSHBUTTON      "Select Directory",IDC_TAPE_SELECT_DIR,19,36,123,15
     PUSHBUTTON      "Select Archive or Plain File",IDC_TAPE_SELECT_FILE,160,36,123,15
     CONTROL         "Read/write",IDC_TAPE_RW,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,313,39,67,10
+END
+
+IDD_DISKINFO DIALOGEX 0, 0, 491, 323
+STYLE DS_LOCALEDIT | DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Disk image information"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,220,303,50,14
+    EDITTEXT        IDC_DISKINFOBOX,5,4,481,292,ES_MULTILINE | ES_READONLY | WS_VSCROLL
+    PUSHBUTTON      "Save bootblock",IDC_SAVEBOOTBLOCK,397,303,89,14,NOT WS_VISIBLE
 END
 
 
@@ -1464,6 +1475,10 @@ BEGIN
     END
 
     IDD_TAPEDRIVE, DIALOG
+    BEGIN
+    END
+
+    IDD_DISKINFO, DIALOG
     BEGIN
     END
 END

@@ -67,12 +67,6 @@ STATIC_INLINE void do_cycles_ce020_mem (int clocks, uae_u32 val)
 	x_do_cycles_post (clocks * cpucycleunit, val);
 }
 
-STATIC_INLINE void resetcycles_ce020 (void)
-{
-	regs.ce020memcycles = 0;
-	regs.ce020memcycle_data = true;
-}
-
 #if 0
 STATIC_INLINE void do_head_cycles_ce020 (int h)
 {
@@ -232,7 +226,7 @@ extern uae_u32 get_word_ce040_prefetch (int);
 
 #endif
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 
 STATIC_INLINE void do_cycles_ce000 (int clocks)
 {

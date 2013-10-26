@@ -793,7 +793,7 @@ static void set_x_funcs (void)
 	} else if (!currprefs.cpu_cycle_exact) {
 		// 68020+ no ce
 		if (currprefs.cpu_compatible) {
-			if (currprefs.cpu_model == 68020) {
+			if (currprefs.cpu_model == 68020 && !currprefs.cachesize) {
 				x_prefetch = get_word_prefetch;
 				x_prefetch_long = get_long_prefetch;
 				x_get_ilong = get_long_020_prefetch;
@@ -811,7 +811,7 @@ static void set_x_funcs (void)
 				x_do_cycles_pre = do_cycles;
 				x_do_cycles_post = do_cycles_post;
 			} else {
-				// 68030+ does not have real prefetch only emulation
+				// JIT or 68030+ does not have real prefetch only emulation
 				x_prefetch = NULL;
 				x_prefetch_long = NULL;
 				x_get_ilong = get_ilong;
@@ -1137,6 +1137,14 @@ static void build_cpufunctbl (void)
 	case 68010:
 		lvl = 1;
 		tbl = op_smalltbl_4_ff;
+#ifdef CPUEMU_11
+		if (currprefs.cpu_compatible)
+			tbl = op_smalltbl_11_ff; /* prefetch */
+#endif
+#ifdef CPUEMU_13
+		if (currprefs.cpu_cycle_exact)
+			tbl = op_smalltbl_13_ff; /* prefetch and cycle-exact */
+#endif
 		break;
 #endif
 #endif
@@ -1147,11 +1155,11 @@ static void build_cpufunctbl (void)
 		tbl = op_smalltbl_5_ff;
 #ifdef CPUEMU_11
 		if (currprefs.cpu_compatible)
-			tbl = op_smalltbl_11_ff; /* prefetch */
+			tbl = op_smalltbl_12_ff; /* prefetch */
 #endif
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 		if (currprefs.cpu_cycle_exact)
-			tbl = op_smalltbl_12_ff; /* prefetch and cycle-exact */
+			tbl = op_smalltbl_14_ff; /* prefetch and cycle-exact */
 #endif
 		break;
 	}
@@ -1305,9 +1313,9 @@ void check_prefs_changed_cpu (void)
 		|| currprefs.fpu_no_unimplemented != changed_prefs.fpu_no_unimplemented
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
-
+			bool doprefetch = !currprefs.cpu_compatible && changed_prefs.cpu_compatible;
 			prefs_changed_cpu ();
-			if (!currprefs.cpu_compatible && changed_prefs.cpu_compatible)
+			if (doprefetch)
 				fill_prefetch ();
 			build_cpufunctbl ();
 			changed = true;
@@ -2210,7 +2218,7 @@ static void exception_debug (int nr)
 #endif
 }
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 
 /* cycle-exact exception handler, 68000 only */
 
@@ -2350,18 +2358,32 @@ static void Exception_ce000 (int nr)
 		write_log (_T("Exception %d (%x) at %x -> %x!\n"), nr, last_addr_for_exception_3, currpc, get_long (4 * nr));
 		goto kludge_me_do;
 	}
-	m68k_areg (regs, 7) -= 6;
-	x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
-	if (interrupt) {
-		// fetch interrupt vector number
-		nr = x_get_byte (0x00fffff1 | ((nr - 24) << 1));
-		x_do_cycles (4 * cpucycleunit);
+	if (currprefs.cpu_model == 68010) {
+		// 68010 creates only format 0 and 8 stack frames
+		m68k_areg (regs, 7) -= 8;
+		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
+		if (interrupt) {
+			// fetch interrupt vector number
+			nr = x_get_byte (0x00fffff1 | ((nr - 24) << 1));
+			x_do_cycles (4 * cpucycleunit);
+		}
+		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
+		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
+		x_put_word (m68k_areg (regs, 7) + 6, nr * 4);
+	} else {
+		m68k_areg (regs, 7) -= 6;
+		x_put_word (m68k_areg (regs, 7) + 4, currpc); // write low address
+		if (interrupt) {
+			// fetch interrupt vector number
+			nr = x_get_byte (0x00fffff1 | ((nr - 24) << 1));
+			x_do_cycles (4 * cpucycleunit);
+		}
+		x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
+		x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 	}
-	x_put_word (m68k_areg (regs, 7) + 0, regs.sr); // write SR
-	x_put_word (m68k_areg (regs, 7) + 2, currpc >> 16); // write high address
 kludge_me_do:
-	newpc = x_get_word (4 * nr) << 16; // read high address
-	newpc |= x_get_word (4 * nr + 2); // read low address
+	newpc = x_get_word (regs.vbr + 4 * nr) << 16; // read high address
+	newpc |= x_get_word (regs.vbr + 4 * nr + 2); // read low address
 	if (newpc & 1) {
 		if (nr == 2 || nr == 3)
 			cpu_halt (2);
@@ -2856,8 +2878,8 @@ static void ExceptionX (int nr, uaecptr address)
 	if (currprefs.cachesize)
 		regs.instruction_pc = address == -1 ? m68k_getpc () : address;
 #endif
-#ifdef CPUEMU_12
-	if (currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000)
+#ifdef CPUEMU_13
+	if (currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010)
 		Exception_ce000 (nr);
 	else
 #endif
@@ -4109,6 +4131,7 @@ static void m68k_run_1 (void)
 		}
 #endif
 		do_cycles (cpu_cycles);
+		r->instruction_pc = m68k_getpc ();
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
 		cpu_cycles = adjust_cycles (cpu_cycles);
 		if (r->spcflags) {
@@ -4125,7 +4148,7 @@ static void m68k_run_1 (void)
 
 #endif /* CPUEMU_11 */
 
-#ifndef CPUEMU_12
+#ifndef CPUEMU_13
 
 static void m68k_run_1_ce (void)
 {
@@ -4200,6 +4223,7 @@ static void m68k_run_1_ce (void)
 				inprec_playdebug_cpu (1);
 		}
 
+		r->instruction_pc = m68k_getpc ();
 		(*cpufunctbl[opcode])(opcode);
 		if (cpu_tracer) {
 			cputrace.state = 0;
@@ -4802,7 +4826,7 @@ static void m68k_run_2p (void)
 
 		x_do_cycles (cpu_cycles);
 
-		opcode = get_word_020_prefetch (0);
+		opcode = regs.irc;
 		count_instr (opcode);
 
 		cpu_cycles = (*cpufunctbl[opcode])(opcode);
@@ -5028,8 +5052,8 @@ void m68k_go (int may_quit)
 			run_func = m68k_run_mmu;
 		} else {
 #endif
-			run_func = currprefs.cpu_cycle_exact && currprefs.cpu_model == 68000 ? m68k_run_1_ce :
-				currprefs.cpu_compatible && currprefs.cpu_model == 68000 ? m68k_run_1 :
+			run_func = currprefs.cpu_cycle_exact && currprefs.cpu_model <= 68010 ? m68k_run_1_ce :
+				currprefs.cpu_compatible && currprefs.cpu_model <= 68010 ? m68k_run_1 :
 #ifdef JIT
 				currprefs.cpu_model >= 68020 && currprefs.cachesize ? m68k_run_jit :
 #endif
@@ -6414,7 +6438,8 @@ uae_u32 get_word_020_prefetch (int o)
 // these are also used by 68030.
 
 #define RESET_CE020_CYCLES \
-	resetcycles_ce020 ()
+	regs.ce020memcycles = 0; \
+	regs.ce020memcycle_data = true;
 #define STORE_CE020_CYCLES \
 	unsigned long cycs = get_cycles ()
 #define ADD_CE020_CYCLES \
@@ -6890,10 +6915,12 @@ void fill_prefetch_030 (void)
 	uaecptr pc = m68k_getpc ();
 	pc &= ~3;
 	fill_icache030 (pc);
-	do_cycles_ce020 (2);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020 (2);
 	regs.prefetch020[0] = regs.cacheholdingdata020;
 	fill_icache030 (pc + 4);
-	do_cycles_ce020 (2);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020 (2);
 	regs.prefetch020[1] = regs.cacheholdingdata020;
 	regs.irc = get_word_ce030_prefetch (0);
 }
@@ -6904,10 +6931,12 @@ void fill_prefetch_020 (void)
 	uae_u32 (*fetch)(uaecptr) = currprefs.cpu_cycle_exact ? mem_access_delay_longi_read_ce020 : get_longi;
 	pc &= ~3;
 	fill_icache020 (pc, fetch);
-	do_cycles_ce020 (2);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020 (2);
 	regs.prefetch020[0] = regs.cacheholdingdata020;
 	fill_icache020 (pc + 4, fetch);
-	do_cycles_ce020 (2);
+	if (currprefs.cpu_cycle_exact)
+		do_cycles_ce020 (2);
 	regs.prefetch020[1] = regs.cacheholdingdata020;
 	regs.irc = get_word_020_prefetch (0);
 }

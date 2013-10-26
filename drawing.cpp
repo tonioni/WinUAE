@@ -733,16 +733,17 @@ static void pfield_init_linetoscr (void)
 	int ddf_left = dp_for_drawing->plfleft * 2 + DIW_DDF_OFFSET;
 	int ddf_right = dp_for_drawing->plfright * 2 + DIW_DDF_OFFSET;
 	int leftborderhidden;
+	int native_ddf_left2;
 
 	/* Compute datafetch start/stop in pixels; native display coordinates.  */
 	native_ddf_left = coord_hw_to_window_x (ddf_left);
 	native_ddf_right = coord_hw_to_window_x (ddf_right);
 
-#if 0
-	// this breaks Blerkenwiegel/Scoopex
+	// Blerkenwiegel/Scoopex workaround
+	native_ddf_left2 = native_ddf_left;
 	if (native_ddf_left < 0)
 		native_ddf_left = 0;
-#endif
+
 	if (native_ddf_right < native_ddf_left)
 		native_ddf_right = native_ddf_left;
 
@@ -837,7 +838,7 @@ static void pfield_init_linetoscr (void)
 	pixels_offset = MAX_PIXELS_PER_LINE - (ddf_left << bplres);
 	ddf_left <<= bplres;
 
-	leftborderhidden = playfield_start - native_ddf_left;
+	leftborderhidden = playfield_start - native_ddf_left2;
 	if (hblank_left_start > playfield_start)
 		leftborderhidden += hblank_left_start - playfield_start;
 	src_pixel = MAX_PIXELS_PER_LINE + res_shift_from_window (leftborderhidden);

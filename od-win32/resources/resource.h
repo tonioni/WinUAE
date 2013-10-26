@@ -377,6 +377,7 @@
 #define IDS_JOYMODE_WHEELMOUSE          389
 #define IDD_ERRORLOG                    389
 #define IDS_NUMSG_KS68030PLUS           390
+#define IDD_DISKINFO                    390
 #define IDS_SELECTTAPE                  391
 #define IDS_TAPE                        392
 #define IDS_QS_MODELS                   1000
@@ -1100,6 +1101,7 @@
 #define IDC_DD_SURFACETYPE              1791
 #define IDC_RTG_SCALE_ALLOW             1791
 #define IDC_CPU_FREQUENCY               1791
+#define IDC_LOGENABLE2                  1791
 #define IDC_RTG_SCALE_ASPECTRATIO       1792
 #define IDC_ASSOCIATE_ON                1792
 #define IDC_DD_SURFACETYPE2             1792
@@ -1158,6 +1160,8 @@
 #define IDC_TAPE_RW                     1834
 #define IDC_ERRORLOGMESSAGE             1835
 #define IDC_ERRORLOGCLEAR               1836
+#define IDC_DISKINFOBOX                 1837
+#define IDC_SAVEBOOTBLOCK               1838
 #define ID__FLOPPYDRIVES                40004
 #define ID_FLOPPYDRIVES_DF0             40005
 #define ID_ST_CONFIGURATION             40010
@@ -1206,9 +1210,9 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        390
+#define _APS_NEXT_RESOURCE_VALUE        391
 #define _APS_NEXT_COMMAND_VALUE         40050
-#define _APS_NEXT_CONTROL_VALUE         1837
+#define _APS_NEXT_CONTROL_VALUE         1839
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -69,7 +69,7 @@ static int blit_cyclecounter, blit_waitcyclecounter;
 static int blit_maxcyclecounter, blit_slowdown, blit_totalcyclecounter;
 static int blit_startcycles, blit_misscyclecounter;
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 extern uae_u8 cycle_line[256];
 #endif
 
@@ -683,7 +683,7 @@ STATIC_INLINE void blitter_nxline (void)
 	bltstate = BLT_read;
 }
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 
 static int blitter_cyclecounter;
 static int blitter_hcounter1, blitter_hcounter2;
@@ -831,7 +831,7 @@ void blitter_handler (uae_u32 data)
 	blitter_doit ();
 }
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 
 static uae_u32 preva, prevb;
 STATIC_INLINE uae_u16 blitter_doblit (void)

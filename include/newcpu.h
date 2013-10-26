@@ -468,10 +468,12 @@ extern const struct cputbl op_smalltbl_20_ff[]; // prefetch
 extern const struct cputbl op_smalltbl_21_ff[]; // CE
 /* 68010 */
 extern const struct cputbl op_smalltbl_4_ff[];
+extern const struct cputbl op_smalltbl_11_ff[]; // prefetch
+extern const struct cputbl op_smalltbl_13_ff[]; // CE
 /* 68000 */
 extern const struct cputbl op_smalltbl_5_ff[];
-extern const struct cputbl op_smalltbl_11_ff[]; // prefetch
-extern const struct cputbl op_smalltbl_12_ff[]; // CE
+extern const struct cputbl op_smalltbl_12_ff[]; // prefetch
+extern const struct cputbl op_smalltbl_14_ff[]; // CE
 
 extern cpuop_func *cpufunctbl[65536] ASM_SYM_FOR_FUNC ("cpufunctbl");
 

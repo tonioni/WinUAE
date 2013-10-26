@@ -253,7 +253,7 @@ static int last_sprite_point, nr_armed;
 static int sprite_width, sprres;
 int sprite_buffer_res;
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 uae_u8 cycle_line[256];
 #endif
 
@@ -264,6 +264,8 @@ static uae_s16 bpl1mod, bpl2mod, dbpl1mod, dbpl2mod;
 static int dbpl1mod_on, dbpl2mod_on;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
+static uaecptr dbplpt[8];
+static int dbplpt_on[8], dbplpt_on2;
 
 /*static int blitcount[256];  blitter debug */
 
@@ -458,7 +460,7 @@ STATIC_INLINE void setclr (uae_u16 *p, uae_u16 val)
 
 STATIC_INLINE void alloc_cycle (int hpos, int type)
 {
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 #if 0
 	if (cycle_line[hpos])
 		write_log (_T("hpos=%d, old=%d, new=%d\n"), hpos, cycle_line[hpos], type);
@@ -659,7 +661,7 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 /* Programmed rates or superhires (!) disable normal DMA limits */
 #define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
 
-static void reset_bplmod (void)
+static void reset_bpldelays (void)
 {
 	if (dbpl1mod_on > 0) {
 		bpl1mod = dbpl1mod;
@@ -669,6 +671,15 @@ static void reset_bplmod (void)
 		bpl2mod = dbpl2mod;
 		dbpl2mod_on = 0;
 	}
+	if (dbplpt_on2) {
+		for (int i = 0; i < MAX_PLANES; i++) {
+			if (dbplpt_on[i] > 0) {
+				bplpt[i] = (bplpt[i] & 0xffff0000) | (dbplpt[i] & 0x0000fffe);
+				dbplpt_on[i] = 0;
+			}
+		}
+		dbplpt_on2 = 0;
+	}	
 }
 
 static void add_modulo (int hpos, int nr)
@@ -694,14 +705,14 @@ static void add_modulo (int hpos, int nr)
 		mod = bpl1mod;
 	bplpt[nr] += mod;
 	bplptx[nr] += mod;
-	reset_bplmod ();
+	reset_bpldelays ();
 }
 
 static void add_modulos (void)
 {
 	int m1, m2;
 
-	reset_bplmod ();
+	reset_bpldelays ();
 	if (fmode & 0x4000) {
 		if (((diwstrt >> 8) ^ vpos) & 1)
 			m1 = m2 = bpl2mod;
@@ -1042,7 +1053,7 @@ static void setup_fmodes (int hpos)
 	fetch_modulo_cycle = fetchunit - fetchstart;
 
 	// wacky pixels / raf megademo hires unaligned scroller feature
-	if (thisline_decision.plfleft < 0) {
+	if ((thisline_decision.plfleft < 0) && bplcon0_res >= RES_HIRES) {
 		if (fetch_cycle & (fetchunit >> 1)) {
 			fetch_cycle &= ~(fetchunit_mask >> 1);
 			fetch_cycle += fetchunit;
@@ -2157,8 +2168,11 @@ STATIC_INLINE void decide_line (int hpos)
 {
 	/* Take care of the vertical DIW.  */
 	if (vpos == plffirstline) {
-		diwstate = DIW_waiting_stop;
-		ddf_change = vpos;
+		// A1000 Agnus won't start bitplane DMA if vertical diw is zero.
+		if (vpos > 0 || (vpos == 0 && !currprefs.cs_dipagnus)) {
+			diwstate = DIW_waiting_stop;
+			ddf_change = vpos;
+		}
 	}
 	if (vpos == plflastline) {
 		diwstate = DIW_waiting_start;
@@ -2986,7 +3000,7 @@ static void reset_decisions (void)
 	bpldmasetupphase = 0;
 	ddfstrt_old_hpos = -1;
 	bpldmawasactive = false;
-	reset_bplmod ();
+	reset_bpldelays ();
 
 	if (plf_state > plf_active)
 		plf_state = plf_idle;
@@ -4144,6 +4158,10 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 {
 	decide_line (hpos);
 	decide_fetch (hpos);
+	if (dbplpt_on[num]) {
+		bplpt[num] = (bplpt[num] & 0xffff0000) | (dbplpt[num] & 0x0000fffe);
+		dbplpt_on[num] = 0;
+	}
 	bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
 	bplptx[num] = (bplptx[num] & 0x0000ffff) | ((uae_u32)v << 16);
 	//write_log (_T("%d:%d:BPL%dPTH %08X COP=%08x\n"), hpos, vpos, num, bplpt[num], cop_state.ip);
@@ -4155,10 +4173,20 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 	/* chipset feature: BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
 	 * this write goes nowhere (same happens with all DMA channels, not just BPL)
 	 * (intro MoreNewStuffy by PlasmaForce)
+	 *
+	 * NEW: last fetch block does not have this side-effect, probably due to modulo adds.
+	 * Also it seems only plane 0 fetches have this feature
 	 */
 	/* only detect copper accesses to prevent too fast CPU mode glitches */
-	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1)
+	if (copper_access && num == 0 && is_bitplane_dma (hpos + 1) == num + 1) {
+		if (plf_state < plf_wait_stop)
+			return;
+		/* modulo adds use old value! Argh! */
+		dbplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
+		dbplpt_on[num] = hpos + 1;
+		dbplpt_on2 = 1;
 		return;
+	}
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
 	bplptx[num] = (bplptx[num] & 0xffff0000) | (v & 0x0000fffe);
 	//write_log (_T("%d:%d:BPL%dPTL %08X COP=%08x\n"), hpos, vpos, num, bplpt[num], cop_state.ip);
@@ -4301,7 +4329,7 @@ static void BPL1MOD (int hpos, uae_u16 v)
 	// write to BPLxMOD one cycle before
 	// BPL fetch that also adds modulo:
 	// Old BPLxMOD value is added.
-	if (is_bitplane_dma (hpos + 1) & 1) {
+	if (1 && (is_bitplane_dma (hpos + 1) & 1)) {
 		dbpl1mod = v;
 		dbpl1mod_on = hpos + 1;
 	} else {
@@ -4317,7 +4345,7 @@ static void BPL2MOD (int hpos, uae_u16 v)
 		decide_line (hpos);
 		decide_fetch (hpos);
 	}
-	if (is_bitplane_dma (hpos + 1) & 2) {
+	if (1 && (is_bitplane_dma (hpos + 1) & 2)) {
 		dbpl2mod = v;
 		dbpl2mod_on = hpos + 1;
 	} else {
@@ -6605,7 +6633,7 @@ STATIC_INLINE bool is_last_line (void)
 static void hsync_handler_post (bool onvsync)
 {
 	last_copper_hpos = 0;
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 		memset (cycle_line, 0, sizeof cycle_line);
 	}
@@ -6678,7 +6706,7 @@ static void hsync_handler_post (bool onvsync)
 		vsync_handler_post ();
 		vpos_count = 0;
 	}
-	// DIP Agnus (8361): vblank interrupt is triggered on line 1!
+	// A1000 DIP Agnus (8361): vblank interrupt is triggered on line 1!
 	if (currprefs.cs_dipagnus) {
 		if (vpos == 1)
 			send_interrupt (5, 1 * CYCLE_UNIT);
@@ -6691,7 +6719,7 @@ static void hsync_handler_post (bool onvsync)
 		lof_lastline = lof_store != 0;
 	}
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 	if (currprefs.cpu_cycle_exact || currprefs.blitter_cycle_exact) {
 		int hp = maxhpos - 1, i;
 		for (i = 0; i < 4; i++) {
@@ -8333,6 +8361,8 @@ void check_prefs_changed_custom (void)
 	currprefs.cs_mbdmac = changed_prefs.cs_mbdmac;
 	currprefs.cs_df0idhw = changed_prefs.cs_df0idhw;
 	currprefs.cs_slowmemisfast = changed_prefs.cs_slowmemisfast;
+	currprefs.cs_dipagnus = changed_prefs.cs_dipagnus;
+	currprefs.cs_denisenoehb = changed_prefs.cs_denisenoehb;
 
 	if (currprefs.chipset_mask != changed_prefs.chipset_mask ||
 		currprefs.picasso96_nocustom != changed_prefs.picasso96_nocustom ||
@@ -8354,7 +8384,7 @@ void check_prefs_changed_custom (void)
 #endif
 }
 
-#ifdef CPUEMU_12
+#ifdef CPUEMU_13
 
 STATIC_INLINE void sync_copper (int hpos)
 {

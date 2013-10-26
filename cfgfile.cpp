@@ -3832,6 +3832,7 @@ static int cfgfile_load_2 (struct uae_prefs *p, const TCHAR *filename, bool real
 	if (real) {
 		p->config_version = 0;
 		config_newfilesystem = 0;
+		store_inputdevice_config (p);
 		//reset_inputdevice_config (p);
 	}
 
