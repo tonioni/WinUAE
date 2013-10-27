@@ -41,6 +41,51 @@ uae_u32 uaerand (void)
 	return rand ();
 }
 
+/* convert time_t to/from AmigaDOS time */
+static const uae_s64 msecs_per_day = 24 * 60 * 60 * 1000;
+static const uae_s64 diff = ((8 * 365 + 2) * (24 * 60 * 60)) * (uae_u64)1000;
+
+void timeval_to_amiga (struct mytimeval *tv, int *days, int *mins, int *ticks)
+{
+	/* tv.tv_sec is secs since 1-1-1970 */
+	/* days since 1-1-1978 */
+	/* mins since midnight */
+	/* ticks past minute @ 50Hz */
+
+	uae_s64 t = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+	t -= diff;
+	if (t < 0)
+		t = 0;
+	*days = t / msecs_per_day;
+	t -= *days * msecs_per_day;
+	*mins = t / (60 * 1000);
+	t -= *mins * (60 * 1000);
+	*ticks = t / (1000 / 50);
+}
+
+void amiga_to_timeval (struct mytimeval *tv, int days, int mins, int ticks)
+{
+	uae_s64 t;
+
+	if (days < 0)
+		days = 0;
+	if (days > 9900 * 365)
+		days = 9900 * 365; // in future far enough?
+	if (mins < 0 || mins >= 24 * 60)
+		mins = 0;
+	if (ticks < 0 || ticks >= 60 * 50)
+		ticks = 0;
+
+	t = ticks * 20;
+	t += mins * (60 * 1000);
+	t += ((uae_u64)days) * msecs_per_day;
+	t += diff;
+
+	tv->tv_sec = t / 1000;
+	tv->tv_usec = (t % 1000) * 1000;
+}
+
+
 static int pattern_match (const TCHAR *str, const TCHAR *pattern)
 {
 	enum State {
@@ -228,7 +273,7 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 	}
 
 	while (zfile_readdir_archive (h, fn)) {
-		struct _stat64 st; 
+		struct mystat st; 
 		int isdir;
 		int flags;
 		TCHAR *comment;
@@ -241,8 +286,8 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 		_tcscat (p, sep);
 		_tcscat (p, fn);
 		if (!zfile_stat_archive (p, &st)) {
-			st.st_size = -1;
-			st.st_mtime = 0;
+			st.size = -1;
+			st.mtime.tv_sec = st.mtime.tv_usec = 0;
 		}
 		isdir = 0;
 		flags = 0;
@@ -250,9 +295,9 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 		zfile_fill_file_attrs_archive (p, &isdir, &flags, &comment);
 		flags ^= 15;
 		if (!isdir) {
-			if (0 && st.st_size >= 2 * 1024 * 1024) {
+			if (0 && st.size >= 2 * 1024 * 1024) {
 				iscrc = -1;
-			} else if (st.st_size > 0) {
+			} else if (st.size > 0) {
 				zf = zfile_open_archive (p, 0);
 				if (zf) {
 					crc32 = zfile_crc32 (zf);
@@ -266,8 +311,8 @@ static int unlist2 (struct arcdir *adp, const TCHAR *src, int all)
 		ad->comment = comment;
 		ad->flags = flags;
 		ad->name = my_strdup (fn);
-		ad->size = st.st_size;
-		ad->dt = st.st_mtime;
+		ad->size = st.size;
+		ad->dt = st.mtime.tv_sec;
 		ad->parent = parentid;
 		ad->crc32 = crc32;
 		ad->iscrc = iscrc;
@@ -361,7 +406,7 @@ static void setdate (const TCHAR *src, __time64_t tm)
 	struct utimbuf ut;
 	if (tm) {
 		ut.actime = ut.modtime = tm;
-		utime (src, &ut);
+		_wutime64 (src, &ut);
 	}
 }
 
@@ -393,7 +438,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 		if (all || !_tcsicmp (filename, fn)) {
 			TCHAR tmp[MAX_DPATH];
 			struct zfile *s, *d;
-			struct _stat64 st;
+			struct mystat st;
 
 			found = 1;
 			_tcscpy (tmp, src);
@@ -405,7 +450,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 			}
 			if (dst == NULL || all)
 				dst = fn;
-			if (st.st_mode) {
+			if (st.mode) {
 				if (all > 0)
 					continue;
 				if (all < 0) {
@@ -414,7 +459,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 					my_setcurrentdir (fn, oldcur);
 					unpack (tmp, fn, dst, out, all, 1);
 					my_setcurrentdir (oldcur, NULL);
-					setdate (dst, st.st_mtime);
+					setdate (dst, st.mtime.tv_sec);
 					continue;
 				}
 				_tprintf (_T("Directory extraction not yet supported\n"));
@@ -444,7 +489,7 @@ static int unpack (const TCHAR *src, const TCHAR *filename, const TCHAR *dst, in
 								_tprintf (_T("%s extracted, %d bytes\n"), dst, size);
 							}
 							zfile_fclose (d);
-							setdate (dst, st.st_mtime);
+							setdate (dst, st.mtime.tv_sec);
 						}
 					}
 				}
@@ -510,10 +555,10 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 		}
 
 		if (pattern_match (fn, match)) {
-			struct _stat64 st;
+			struct mystat st;
 
 			if (!zfile_stat_archive (tmp, &st)) {
-				st.st_mtime = -1;
+				st.mtime.tv_sec = st.mtime.tv_usec = -1;
 			}
 			found = 1;
 			dst = fn;
@@ -536,7 +581,7 @@ static int unpack2 (const TCHAR *src, const TCHAR *match, int level)
 							_tprintf (_T("%s extracted, %d bytes\n"), dst, size);
 						}
 						zfile_fclose (d);
-						setdate (dst, st.st_mtime);
+						setdate (dst, st.mtime.tv_sec);
 					}
 				}
 				xfree (b);
