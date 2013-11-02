@@ -379,6 +379,19 @@ static void *cdda_unpack_func (void *v)
 	return 0;
 }
 
+static void audio_unpack (struct cdunit *cdu, struct cdtoc *t)
+{
+	// do this even if audio is not compressed, t->handle also could be
+	// compressed and we want to unpack it in background too
+	while (cdimage_unpack_active == 1)
+		Sleep (10);
+	cdimage_unpack_active = 0;
+	write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
+	write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
+	while (cdimage_unpack_active == 0)
+		Sleep (10);
+}
+
 static void *cdda_play_func (void *v)
 {
 	int cdda_pos;
@@ -423,20 +436,14 @@ static void *cdda_play_func (void *v)
 				if (!t) {
 					write_log (_T("IMAGE CDDA: illegal sector number %d\n"), cdu->cdda_start);
 					setstate (cdu, AUDIO_STATUS_PLAY_ERROR);
+				} else {
+					audio_unpack (cdu, t);
 				}
 			} else {
 				write_log (_T("IMAGE CDDA: playing from %d to %d, track %d ('%s', offset %lld, secoffset %d (%d))\n"),
 					cdu->cdda_start, cdu->cdda_end, t->track, t->fname, t->offset, sector, t->index1);
 				oldtrack = t->track;
-				// do this even if audio is not compressed, t->handle also could be
-				// compressed and we want to unpack it in background too
-				while (cdimage_unpack_active == 1)
-					Sleep (10);
-				cdimage_unpack_active = 0;
-				write_comm_pipe_u32 (&unpack_pipe, cdu - &cdunits[0], 0);
-				write_comm_pipe_u32 (&unpack_pipe, t - &cdu->toc[0], 1);
-				while (cdimage_unpack_active == 0)
-					Sleep (10);
+				audio_unpack (cdu, t);
 			}
 			idleframes = cdu->cdda_delay_frames;
 			while (cdu->cdda_paused && cdu->cdda_play > 0) {
@@ -481,7 +488,8 @@ static void *cdda_play_func (void *v)
 
 			sector = cdda_pos;
 			struct cdtoc *t1 = findtoc (cdu, &sector);
-			struct cdtoc *t2 = findtoc (cdu, &sector + 2 * 75);
+			int tsector = cdda_pos + 2 * 75;
+			struct cdtoc *t2 = findtoc (cdu, &tsector);
 			if (t1 != t2) {
 				for (sector = cdda_pos; sector < cdda_pos + 2 * 75; sector++) {
 					int sec = sector;
@@ -526,6 +534,7 @@ static void *cdda_play_func (void *v)
 						oldtrack = t->track;
 						write_log (_T("IMAGE CDDA: track %d ('%s', offset %lld, secoffset %d (%d))\n"),
 							t->track, t->fname, t->offset, sector, t->index1);
+						audio_unpack (cdu, t);
 					}
 					if (!(t->ctrl & 4)) {
 						if (t->enctype == ENC_CHD) {

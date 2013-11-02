@@ -14719,7 +14719,7 @@ static INT_PTR CALLBACK hw3dDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM 
 			}
 		case IDC_FILTERKEEPAUTOSCALEASPECT:
 			{
-				workprefs.gfx_filter_keep_autoscale_aspect = currprefs.gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 10 : 0;
+				workprefs.gfx_filter_keep_autoscale_aspect = currprefs.gfx_filter_keep_autoscale_aspect = ischecked (hDlg, IDC_FILTERKEEPAUTOSCALEASPECT) ? 1 : 0;
 				enable_for_hw3ddlg (hDlg);
 				values_to_hw3ddlg (hDlg);
 				updatedisplayarea ();

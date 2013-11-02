@@ -390,6 +390,7 @@ static uae_u32 thisline_changed;
 
 static struct decision thisline_decision;
 static int fetch_cycle, fetch_modulo_cycle;
+static int bitplane_dma_turned_on;
 
 enum plfstate
 {
@@ -559,7 +560,7 @@ static void do_sprites (int currhp);
 
 static void remember_ctable (void)
 {
-	/* This can happen when program program crashes very badly */
+	/* This can happen when program crashes very badly */
 	if (next_color_entry >= COLOR_TABLE_SIZE)
 		return;
 	if (remembered_color_entry < 0) {
@@ -1052,12 +1053,10 @@ static void setup_fmodes (int hpos)
 	fm_maxplane = 1 << fm_maxplane_shift;
 	fetch_modulo_cycle = fetchunit - fetchstart;
 
-	// wacky pixels / raf megademo hires unaligned scroller feature
-	if ((thisline_decision.plfleft < 0) && bplcon0_res >= RES_HIRES) {
-		if (fetch_cycle & (fetchunit >> 1)) {
-			fetch_cycle &= ~(fetchunit_mask >> 1);
-			fetch_cycle += fetchunit;
-		}
+	if (thisline_decision.plfleft < 0) {
+		thisline_decision.bplres = bplcon0_res;
+		thisline_decision.bplcon0 = bplcon0;
+		thisline_decision.nr_planes = bplcon0_planes;
 	}
 
 	if (is_bitplane_dma (hpos - 1))
@@ -2148,8 +2147,10 @@ static void maybe_start_bpl_dma (int hpos)
 	* ECS/AGA: BPL DMA restarts but only if DMA was turned off
 	outside of DDF or during current line, otherwise display
 	processing jumps immediately to "DDFSTOP passed"-condition */
-	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
+		bitplane_dma_turned_on = hpos;
 		return;
+	}
 	if (fetch_state != fetch_not_started)
 		return;
 	if (diwstate != DIW_waiting_stop)
@@ -2202,7 +2203,7 @@ STATIC_INLINE void decide_line (int hpos)
 					ok = 0;
 			}
 			if (ok && diwstate == DIW_waiting_stop) {
-				if (dmaen (DMA_BITPLANE)) {
+				if (dmaen (DMA_BITPLANE) && bitplane_dma_turned_on + 4 < hpos) {
 					start_bpl_dma (hpos, plfstrt);
 					estimate_last_fetch_cycle (plfstrt);
 				}
@@ -3001,6 +3002,7 @@ static void reset_decisions (void)
 	ddfstrt_old_hpos = -1;
 	bpldmawasactive = false;
 	reset_bpldelays ();
+	bitplane_dma_turned_on = 0;
 
 	if (plf_state > plf_active)
 		plf_state = plf_idle;
@@ -4203,7 +4205,7 @@ static void BPLCON0_Denise (int hpos, uae_u16 v, bool immediate)
 	v |= 1;
 #endif
 
-	if (bplcon0d == v)
+	if (bplcon0d == v && !immediate)
 		return;
 
 	bplcon0dd = -1;
@@ -8627,6 +8629,8 @@ void do_cycles_ce020 (unsigned long cycles)
 	unsigned long c;
 	int extra;
 
+	if (!cycles)
+		return;
 	c = get_cycles ();
 	extra = c & (CYCLE_UNIT - 1);
 	if (extra) {
@@ -8639,13 +8643,15 @@ void do_cycles_ce020 (unsigned long cycles)
 		cycles -= extra;
 	}
 	c = cycles;
-	while (c >= CYCLE_UNIT) {
+	while (c) {
 		int hpos = current_hpos () + 1;
 		decide_line (hpos);
 		sync_copper (hpos);
 		decide_fetch_ce (hpos);
 		if (bltstate != BLT_done)
 			decide_blitter (hpos);
+		if (c < CYCLE_UNIT)
+			break;
 		do_cycles (1 * CYCLE_UNIT);
 		c -= CYCLE_UNIT;
 	}

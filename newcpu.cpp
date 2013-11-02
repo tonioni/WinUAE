@@ -738,6 +738,7 @@ static void set_x_funcs (void)
 		x_do_cycles_pre = do_cycles;
 		x_do_cycles_post = do_cycles_post;
 	} else if (currprefs.cpu_model < 68020) {
+		// 68000/010
 		if (currprefs.cpu_cycle_exact) {
 			x_prefetch = get_word_ce000_prefetch;
 			x_prefetch_long = NULL;
@@ -992,7 +993,7 @@ bool set_cpu_tracer (bool state)
 	return is_cpu_tracer ();
 }
 
-static void set_cpu_caches (void)
+static void set_cpu_caches (bool flush)
 {
 	int i;
 
@@ -1012,7 +1013,7 @@ static void set_cpu_caches (void)
 	}
 #endif
 	if (currprefs.cpu_model == 68020) {
-		if (regs.cacr & 0x08) { // clear instr cache
+		if ((regs.cacr & 0x08) || flush) { // clear instr cache
 			for (i = 0; i < CACHELINES020; i++)
 				caches020[i].valid = 0;
 		}
@@ -1022,7 +1023,7 @@ static void set_cpu_caches (void)
 		}
 	} else if (currprefs.cpu_model == 68030) {
 		//regs.cacr |= 0x100;
-		if (regs.cacr & 0x08) { // clear instr cache
+		if ((regs.cacr & 0x08) || flush) { // clear instr cache
 			for (i = 0; i < CACHELINES030; i++) {
 				icaches030[i].valid[0] = 0;
 				icaches030[i].valid[1] = 0;
@@ -1034,7 +1035,7 @@ static void set_cpu_caches (void)
 			icaches030[(regs.caar >> 4) & (CACHELINES030 - 1)].valid[(regs.caar >> 2) & 3] = 0;
 			regs.cacr &= ~0x04;
 		}
-		if (regs.cacr & 0x800) { // clear data cache
+		if ((regs.cacr & 0x800) || flush) { // clear data cache
 			for (i = 0; i < CACHELINES030; i++) {
 				dcaches030[i].valid[0] = 0;
 				dcaches030[i].valid[1] = 0;
@@ -1231,7 +1232,7 @@ static void build_cpufunctbl (void)
 #ifdef JIT
 	build_comp ();
 #endif
-	set_cpu_caches ();
+	set_cpu_caches (true);
 }
 
 #define CYCLES_DIV 8192
@@ -1313,11 +1314,10 @@ void check_prefs_changed_cpu (void)
 		|| currprefs.fpu_no_unimplemented != changed_prefs.fpu_no_unimplemented
 		|| currprefs.cpu_compatible != changed_prefs.cpu_compatible
 		|| currprefs.cpu_cycle_exact != changed_prefs.cpu_cycle_exact) {
-			bool doprefetch = !currprefs.cpu_compatible && changed_prefs.cpu_compatible;
+
 			prefs_changed_cpu ();
-			if (doprefetch)
-				fill_prefetch ();
 			build_cpufunctbl ();
+			fill_prefetch ();
 			changed = true;
 	}
 	if (changed
@@ -3004,7 +3004,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 				else if (currprefs.cpu_model == 68060)
 					cacr_mask = 0xf8e0e000;
 				regs.cacr = *regp & cacr_mask;
-				set_cpu_caches ();
+				set_cpu_caches (false);
 			}
 			break;
 			/* 68040/060 only */
@@ -3422,7 +3422,7 @@ static void m68k_reset (bool hardreset)
 	mmu_tt_modified (); 
 	if (currprefs.cpu_model == 68020) {
 		regs.cacr |= 8;
-		set_cpu_caches ();
+		set_cpu_caches (false);
 	}
 
 	mmufixup[0].reg = -1;
@@ -4715,6 +4715,8 @@ static void m68k_run_2ce (void)
 		if (regs.irc == 0xffff)
 			gui_message (_T("OPCODE %04X HAS FAULTY PREFETCH!"), prevopcode);
 
+		//write_log (_T("%x %04x\n"), r->instruction_pc, regs.irc);
+
 		opcode = regs.irc;
 		prevopcode = opcode;
 		regs.irc = 0xffff;
@@ -4781,7 +4783,7 @@ cont:
 
 #ifdef CPUEMU_20
 
-// only opcode fetch prefetch
+// only opcode fetch prefetch (030+ more compatible)
 static void m68k_run_2pf (void)
 {
 	struct regstruct *r = &regs;
@@ -4810,7 +4812,7 @@ static void m68k_run_2pf (void)
 	}
 }
 
-// full prefetch 020+
+// full prefetch 020 (more compatible)
 static void m68k_run_2p (void)
 {
 	struct regstruct *r = &regs;
@@ -5653,7 +5655,7 @@ uae_u8 *restore_cpu (uae_u8 *src)
 		if (khz > 0 && khz < 800000)
 			currprefs.m68k_speed = changed_prefs.m68k_speed = 0;
 	}
-	set_cpu_caches ();
+	set_cpu_caches (true);
 	if (flags & 0x40000000) {
 		if (model == 68020) {
 			for (int i = 0; i < CACHELINES020; i++) {
@@ -6945,12 +6947,14 @@ void fill_prefetch (void)
 {
 	if (currprefs.cachesize)
 		return;
-	uaecptr pc = m68k_getpc ();
 	if (currprefs.cpu_model == 68020) {
 		fill_prefetch_020 ();
 	} else if (currprefs.cpu_model == 68030) {
+		if (!currprefs.cpu_cycle_exact)
+			return;
 		fill_prefetch_030 ();
 	} else if (currprefs.cpu_model <= 68010) {
+		uaecptr pc = m68k_getpc ();
 		regs.ir = x_get_word (pc);
 		regs.irc = x_get_word (pc + 2);
 	}

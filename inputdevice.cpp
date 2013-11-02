@@ -3436,6 +3436,7 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 	int flags = 0;
 	TCHAR *name = NULL;
 	int otherbuttonpressed = 0;
+	int acc = input_acquired;
 
 	//write_log (_T("switchdevice '%s' %d %d\n"), id->name, num, buttonmode);
 
@@ -3507,9 +3508,12 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 				}
 #endif
 				write_log (_T("inputdevice change '%s':%d->%d\n"), name, num, newport);
+				inputdevice_unacquire ();
 				inputdevice_joyport_config (&changed_prefs, name, newport, -1, 2);
 				inputdevice_validate_jports (&changed_prefs, -1);
 				inputdevice_copyconfig (&changed_prefs, &currprefs);
+				if (acc)
+					inputdevice_acquire (TRUE);
 				return 1;
 			}
 		}
@@ -3570,9 +3574,12 @@ static int switchdevice (struct uae_input_device *id, int num, bool buttonmode)
 			}
 		}
 		write_log (_T("inputdevice change '%s':%d->%d\n"), name, num, newport);
+		inputdevice_unacquire ();
 		inputdevice_copyconfig (&currprefs, &changed_prefs);
 		inputdevice_validate_jports (&changed_prefs, -1);
 		inputdevice_copyconfig (&changed_prefs, &currprefs);
+		if (acc)
+			inputdevice_acquire (TRUE);
 		return 1;
 	}
 	return 0;
@@ -3776,6 +3783,7 @@ static void setbuttonstateall (struct uae_input_device *id, struct uae_input_dev
 		return;
 	if (!id->enabled) {
 		frame_time_t t = read_processor_time ();
+
 		if (buttonstate) {
 			switchdevice_timeout = t;
 		} else {
@@ -6684,8 +6692,30 @@ void setjoystickstate (int joy, int axis, int state, int max)
 	if (input_play)
 		return;
 	if (!joysticks[joy].enabled) {
-		if (v1 && v1 != v2)
-			switchdevice (&joysticks[joy], v1 < 0 ? 0 : 1, false);
+		if (v1 > 0)
+			v1 = 1;
+		else if (v1 < 0)
+			v1 = -1;
+		if (v2 > 0)
+			v2 = 1;
+		else if (v2 < 0)
+			v2 = -1;
+		if (v1 && v1 != v2) {
+			static int prevdir;
+			static struct timeval tv1;
+			struct timeval tv2;
+			gettimeofday (&tv2, NULL);
+			if ((uae_s64)tv2.tv_sec * 1000000 + tv2.tv_usec < (uae_s64)tv1.tv_sec * 1000000 + tv1.tv_usec + 500000 && prevdir == v1) {
+				switchdevice (&joysticks[joy], v1 < 0 ? 0 : 1, false);
+				tv1.tv_sec = 0;
+				tv1.tv_usec = 0;
+				prevdir = 0;
+			} else {
+				tv1.tv_sec = tv2.tv_sec;
+				tv1.tv_usec = tv2.tv_usec;
+				prevdir = v1;
+			}
+		}
 		return;
 	}
 	for (i = 0; i < MAX_INPUT_SUB_EVENT; i++) {
@@ -6930,24 +6960,22 @@ void inputdevice_validate_jports (struct uae_prefs *p, int changedport)
 	}
 }
 
-static bool inputdevice_inserted (struct uae_prefs *p, int portnum, int id, int mode, int type)
+static void inputdevice_inserted (struct uae_prefs *p, int portnum, int id, int mode, int type)
 {
 	for (int k = 0; k < MAX_JPORTS; k++) {
 		if (p->jports[k].id == id && k != portnum) {
 			if (type == IDTYPE_JOYSTICK) {
 				// if this joystick is already in port 0, reset port 0 back to original
-				// and insert joystick in port 1. Probably what user wanted.
 				if (k == 0 && portnum == 1) {
 					memcpy (&p->jports[0], &stored_ports[0], sizeof (struct jport));
-					return false;
+					return;
 				}
 			} else if (type == IDTYPE_MOUSE) {
-				return true;
+				return;
 			}
-			return true;
+			return;
 		}
 	}
-	return false;
 }
 
 void store_inputdevice_config (struct uae_prefs *p)
@@ -6979,17 +7007,25 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 				}
 				idf = &idev[type];
 				for (i = 0; i < idf->get_num (); i++) {
-					TCHAR *name1 = idf->get_friendlyname (i);
 					TCHAR *name2 = idf->get_uniquename (i);
-					if ((name1 && !_tcscmp (name1, value)) || (name2 && !_tcscmp (name2, value))) {
-						if (!inputdevice_inserted (p, portnum, idnum + 1, mode, type)) {
-							p->jports[portnum].id = idnum + i;
-							if (mode >= 0)
-								p->jports[portnum].mode = mode;
-							set_config_changed ();
-							return 1;
-						}
-						return 0;
+					if (name2 && !_tcscmp (name2, value)) {
+						inputdevice_inserted (p, portnum, idnum + i, mode, type);
+						p->jports[portnum].id = idnum + i;
+						if (mode >= 0)
+							p->jports[portnum].mode = mode;
+						set_config_changed ();
+						return 1;
+					}
+				}
+				for (i = 0; i < idf->get_num (); i++) {
+					TCHAR *name1 = idf->get_friendlyname (i);
+					if (name1 && !_tcscmp (name1, value)) {
+						inputdevice_inserted (p, portnum, idnum + i, mode, type);
+						p->jports[portnum].id = idnum + i;
+						if (mode >= 0)
+							p->jports[portnum].mode = mode;
+						set_config_changed ();
+						return 1;
 					}
 				}
 			}
@@ -7038,8 +7074,7 @@ int inputdevice_joyport_config (struct uae_prefs *p, const TCHAR *value, int por
 					}
 				}
 				if (got == 2) {
-					if (inputdevice_inserted (p, portnum, start, mode, type))
-						return 0;
+					inputdevice_inserted (p, portnum, start, mode, type);
 					p->jports[portnum].id = start;
 					if (mode >= 0)
 						p->jports[portnum].mode = mode;

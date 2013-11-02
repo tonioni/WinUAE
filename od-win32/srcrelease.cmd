@@ -167,7 +167,11 @@ rm -rf release
 rm -rf fullrelease
 cd ..
 
-rm -rf lib
+cd wix
+rm -rf bin
+rm -rf obj
+cd ..
+
 
 cd ..
 

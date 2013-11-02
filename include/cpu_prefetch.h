@@ -362,10 +362,7 @@ STATIC_INLINE void m68k_do_rts_ce (void)
 	pc = x_get_word (m68k_areg (regs, 7)) << 16;
 	pc |= x_get_word (m68k_areg (regs, 7) + 2);
 	m68k_areg (regs, 7) += 4;
-	if (pc & 1)
-		exception3 (0x4e75, pc);
-	else
-		m68k_setpc (pc);
+	m68k_setpc (pc);
 }
 
 STATIC_INLINE void m68k_do_bsr_ce (uaecptr oldpc, uae_s32 offset)

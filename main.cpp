@@ -148,6 +148,8 @@ void discard_prefs (struct uae_prefs *p, int type)
 
 static void fixup_prefs_dim2 (struct wh *wh)
 {
+	if (wh->special)
+		return;
 	if (wh->width < 160) {
 		error_log (_T("Width (%d) must be at least 128."), wh->width);
 		wh->width = 160;
@@ -299,6 +301,7 @@ void fixup_prefs (struct uae_prefs *p)
 		|| (p->fastmem_size != 0 && (p->fastmem_size < 0x100000 || p->fastmem_size > 0x800000)))
 {
 		error_log (_T("Unsupported fastmem size %d (0x%x)."), p->fastmem_size, p->fastmem_size);
+		p->fastmem_size = 0;
 		err = 1;
 	}
 	if (p->rtgmem_size > max_z3fastmem && p->rtgmem_type == GFXBOARD_UAE_Z3) {

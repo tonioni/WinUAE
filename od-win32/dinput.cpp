@@ -219,7 +219,6 @@ static uae_u32 get_leds (void)
 	if (currprefs.win32_kbledmode) {
 		oldleds = led;
 	} else if (!currprefs.win32_kbledmode && kbhandle != INVALID_HANDLE_VALUE) {
-#ifdef WINDDK
 		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
 		KEYBOARD_INDICATOR_PARAMETERS OutputBuffer;
 		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
@@ -237,7 +236,6 @@ static uae_u32 get_leds (void)
 			led |= KBLED_CAPSLOCKM;
 		if (OutputBuffer.LedFlags & KEYBOARD_SCROLL_LOCK_ON)
 			led |= KBLED_SCROLLLOCKM;
-#endif
 	}
 	return led;
 }
@@ -264,7 +262,6 @@ static void set_leds (uae_u32 led)
 			oldleds ^= KBLED_SCROLLLOCKM;
 		}
 	} else if (kbhandle != INVALID_HANDLE_VALUE) {
-#ifdef WINDDK
 		KEYBOARD_INDICATOR_PARAMETERS InputBuffer;
 		ULONG DataLength = sizeof(KEYBOARD_INDICATOR_PARAMETERS);
 		ULONG ReturnedLength;
@@ -279,7 +276,6 @@ static void set_leds (uae_u32 led)
 		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_SET_INDICATORS,
 			&InputBuffer, DataLength, NULL, 0, &ReturnedLength, NULL))
 			write_log (_T("kbleds: DeviceIoControl() failed %d\n"), GetLastError());
-#endif
 	}
 }
 
@@ -3144,7 +3140,6 @@ static int acquire_kb (int num, int flags)
 	lpdi = di_keyboard[num].lpdi;
 	unacquire (lpdi, _T("keyboard"));
 	if (currprefs.keyboard_leds_in_use) {
-#ifdef WINDDK
 		if (!currprefs.win32_kbledmode) {
 			if (DefineDosDevice (DDD_RAW_TARGET_PATH, _T("Kbd"), _T("\\Device\\KeyboardClass0"))) {
 				kbhandle = CreateFile (_T("\\\\.\\Kbd"), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -3157,9 +3152,6 @@ static int acquire_kb (int num, int flags)
 				write_log (_T("kbled: DefineDosDevice failed, error %d\n"), GetLastError());
 			}
 		}
-#else
-		currprefs.kbledmode = 1;
-#endif
 		oldleds = get_leds ();
 		if (oldusedleds < 0)
 			oldusedleds = newleds = oldleds;
@@ -3206,13 +3198,11 @@ static void unacquire_kb (int num)
 			set_leds (oldleds);
 			oldusedleds = oldleds;
 		}
-#ifdef WINDDK
 		if (kbhandle != INVALID_HANDLE_VALUE) {
 			CloseHandle (kbhandle);
 			DefineDosDevice (DDD_REMOVE_DEFINITION, _T("Kbd"), NULL);
 			kbhandle = INVALID_HANDLE_VALUE;
 		}
-#endif
 	}
 	//unlock_kb ();
 }

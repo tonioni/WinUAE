@@ -1,9 +1,60 @@
 
+
 - restore only single input target to default.
+
+Beta 11:
+
+- 68000/010 CPU core merge accidentally removed 68000 CLR to memory and Scc to memory dummy read
+  -modify-write behavior.
+- Sometimes after autoswitch (unconfigured mouse left button press) mouse was configured correctly
+  but mouse input was kept disabled.
+- Using stick/dpad to autoswitch now requires move, release, move inside 0.5s window to prevent
+  accidental switches.
+- Some more autoswitch bugs fixed.
+- Switching bitplane DMA on just before DDFSTRT handling improved. (Saigon Megademo "Shir Khan" part)
+- 68030 + more compatible without cycle-exact was unstable.
+- Flush 68020/030 caches and refill prefetch buffers when switching CPU modes (cycle-exact/more compatible)
+  on the fly.
+- 68020 cycle-exact improvements.
+- Bitplane graphics was horizontally shifted if program switched from lores to hires less than 4 cycles
+  before bitplane DMA starts. (Chipset emulation was correct but drawing code saw invalid lores to hires
+  switch)
+- Stupid code fixed in CD image audio code that coud cause random crashes.
+- CD image audio start was delayed if audio was compressed (zip/mp3/flac/whatever) and start position
+  was at the very end of previous track.
+
+Beta 10:
+
+- B8 Blerkenwiegel workaround caused buffer overflows in some situations. Fix improved.
+- MoreNewStuffy fix (231b11) was not complete, non-modulo bitplane DMA fetches work
+  differently than modulo adding DMA fetches. (Alpha and Omega / PMC)
+- Also above behavior seems to only happen with first plane fetch. (New and Better Routines / Cult)
+  This needs more testing, someday.. 
+- '?' disk info button now opens normal dialog window, disk label also included (if dos disk) and
+  type of bootblock (1.x standard, 2.x+ standard, custom)
+- When loading config that has 2 identical game controllers configured in both ports and only one
+  controller is connected, connected controller was inserted in both ports.
+- GamePorts panel port change behavior improved, if new device is already inserted in other port,
+  device in other port is now always automatically changed, not the one you just changed.
+- When clicking mouse that is not inserted in either Amiga port and host system has only one mouse
+  connected, "Windows mouse" is inserted, not HID mouse.
+- 68020 more compatible without cycle-exact works again and also uses new 68020 CE prefetch method.
+- 68010 is now supported in more compatible and cycle-exact modes. New instructions supported and
+  new stack frames emulated but timing is same as 68000, 68010 special timing improvements and loop
+  mode is not emulated. At least not yet.
+- 68010 emulation used some 68020+ only exception stack frames.
+- FPU emulator now properly uses prefetch buffer emulation if more compatible or cycle-exact is
+  enabled. Emulated program crashed in older versions with some FPU instructions.
+- On the fly switching from fastest possible to prefetch ("more compatible") or CE didn't fill
+  prefetch buffers and usually caused emulated program to crash.
+- Added "Log window" checkbox to Paths panel, easier non-command line method to open log window.
+- On the fly change of A1000 Agnus or No-EHB Denise Advanced chipset didn't do anything.
+- A1000 Agnus and vertical bitplane start (DIWSTRT) of zero: nothing happens, bitplanes are
+  only enabled if it is 1 or larger.
 
 Beta 9:
 
-NOTE: 68020 CE mode can be used now.
+NOTE: 68020 CE mode should be usable again.
 
 - Added CIA tod bug option to Advanced chipset. Demo The end / Trilobit running under
   KS 1.3 has corruption in "photos" part if tod alarm bug is not emulated. KS 1.3 + real A500
@@ -42,6 +93,9 @@ all required hardware yet)
 
 Lots of work left to do but at least it should not be any worse than old code and it also should be
 much more accurate now when code has small loops (for example stupid CPU delays).
+
+If there are no demos or games that break or run really badly compared to 2.6.1, this is not anymore
+showstopper for 2.7.0 release.
 
 NOTE: 68030 can queue data memory accesses, this is not yet emulated.
 
