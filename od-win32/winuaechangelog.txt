@@ -2,6 +2,19 @@
 
 - restore only single input target to default.
 
+Beta 12:
+
+- AROS rom memory mapping fixed (b1).
+- RTG mode video recording image size was accidentally restricted to native chipset size.
+- Ignore VPOSW writes if it would move vertical position backwards or if vpos is changed during vertical
+  blanking and new value is also inside vblank period. (Prevents strange behavior if program tries to
+  do weird things)
+- Added minimize button to GUI window.
+- 68000 CE ADDA.x/SUBA.x Rn,An was 2 cycles too fast.
+- DIVS/DIVU prefetch is after division operation, not before like with MULS/MULU.
+- Adjusted data returned when accessing non-existing memory.
+- New Wix based installer test version included. Remove old installation first.
+
 Beta 11:
 
 - 68000/010 CPU core merge accidentally removed 68000 CLR to memory and Scc to memory dummy read

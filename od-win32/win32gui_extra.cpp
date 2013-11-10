@@ -243,6 +243,7 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
 	}
+	d->style |= WS_MINIMIZEBOX;
 
 	d2 = (DLGTEMPLATEEX_END*)ns->resource;
 	p = (BYTE*)d + sizeof (DLGTEMPLATEEX);

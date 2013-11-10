@@ -22,6 +22,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Product.wxs" />
+    <Compile Include="WixUI_FeatureTree_NL.wxs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\winuae_msvc11\winuae_msvc.vcxproj">

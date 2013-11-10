@@ -3,25 +3,29 @@
   <Product Id="18550701-62DA-4256-B2EA-5F7E8FA564CE" Name="WinUAE" Language="1033" Version="2.7.0.0" Manufacturer="Arabuusimiehet" UpgradeCode="88C6D045-E416-4AEA-9EE9-0B7A53EE0F16">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
 
+    <?define SRCDIST="$(var.winuae.ProjectDir)/../../../distribution/"?>
+
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes"/>
 
     <Icon Id="ICON" SourceFile="$(var.winuae.ProjectDir)/../resources/winuae.ico"/>
     <Property Id="ARPPRODUCTICON" Value="ICON" />
 
-    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_FeatureTree_NL" />
     <UIRef Id="WixUI_ErrorProgressText" />
     <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONROOTDIRECTORY" />
 
-    <WixVariable Id="WixUIBannerBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_header.bmp" />
-    <WixVariable Id="WixUIDialogBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_welcome.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_header_2013.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.winuae.ProjectDir)/../graphics/amiga_welcome_2013.bmp" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="APPLICATIONROOTDIRECTORY" Name="WinUAE">
-          <Directory Id="CONFIGURATIONS" Name="Configurations"/>
-          <Directory Id="DOCS" Name="Docs"/>
+          <Directory Id="CONFIGURATIONS" Name="Configurations">
+            <Directory Id="CONFIGURATIONSHOST" Name="Host"/>
+          </Directory>
           <Directory Id="AMIGAPROGRAMS" Name="Amiga Programs"/>
+          <Directory Id="DOCS" Name="Docs"/>
         </Directory>
       </Directory>
     </Directory>
@@ -33,14 +37,104 @@
     </DirectoryRef>
 
     <DirectoryRef Id="AMIGAPROGRAMS">
-      <Component Id="AdditionalFiles" Guid="D6062FDF-E323-43B6-A506-344FEDD06081">
-        <File Source="$(var.winuae.ProjectDir)/../winuaechangelog.txt" KeyPath="yes"/>
+      <Component Id="AdditionalFiles1" Guid="D6062FDF-E323-43B6-A506-344FEDD06081">
+        <File Source="$(var.SRCDIST)/Amiga Programs/amigaprog.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles2" Guid="E1E4A638-16B9-4EA3-8F35-01CDD020B5DE">
+        <File Source="$(var.SRCDIST)/Amiga Programs/winuaeenforcer" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles3" Guid="FA668233-1BAA-4C51-887D-3C1369530625">
+        <File Source="$(var.SRCDIST)/Amiga Programs/winuaeenforcer.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles4" Guid="EE72540B-BE4C-4B89-A4C6-4B2BED789968">
+        <File Source="$(var.SRCDIST)/Amiga Programs/winuaeclip" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles5" Guid="5D219AB7-3738-40B9-A764-EE699E8EF7BB">
+        <File Source="$(var.SRCDIST)/Amiga Programs/winuaeclip.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles6" Guid="F0337F4B-3A62-40DB-830F-4862F89D2330">
+        <File Source="$(var.SRCDIST)/Amiga Programs/winuaeclip.info" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles7" Guid="CA71C0B6-D3A0-4E31-85C1-97A4309998FA">
+        <File Source="$(var.SRCDIST)/Amiga Programs/uae-configuration" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles8" Guid="B88BB19C-0897-44C4-8FEA-A9F796C3E780">
+        <File Source="$(var.SRCDIST)/Amiga Programs/uaectrl" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles9" Guid="EC34EF4B-4A83-4F03-99FC-24BD09A3089F">
+        <File Source="$(var.SRCDIST)/Amiga Programs/uae-control.info" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles10" Guid="257DD4B7-B0A7-4B86-9E00-446741453312">
+        <File Source="$(var.SRCDIST)/Amiga Programs/uae-control" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles11" Guid="4954F247-20E8-43FD-9C67-5195F4128F6F">
+        <File Source="$(var.SRCDIST)/Amiga Programs/uae_rcli" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles12" Guid="3169B1E2-D009-42E5-A4A1-2777019B1995">
+        <File Source="$(var.SRCDIST)/Amiga Programs/transdisk" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles13" Guid="66C7D080-B50D-41F7-BDBD-4A5EE2F70D2F">
+        <File Source="$(var.SRCDIST)/Amiga Programs/transrom" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles14" Guid="92BD1DA6-AB73-4DAA-97EF-617AF09C647B">
+        <File Source="$(var.SRCDIST)/Amiga Programs/rtg.library" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles15" Guid="41DBB732-7ACB-4B5A-ADBA-0B48A08D5DC3">
+        <File Source="$(var.SRCDIST)/Amiga Programs/p96refresh" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles16" Guid="5187795E-4423-4FE6-8C5D-8B306CD7EAB7">
+        <File Source="$(var.SRCDIST)/Amiga Programs/german_KeyMap_new.zip" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles17" Guid="3B979B6D-BEBE-487B-9CD3-CAF9211221A1">
+        <File Source="$(var.SRCDIST)/Amiga Programs/UAE_German" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles18" Guid="643C76B3-E146-4431-9CF8-7D6A1130588C">
+        <File Source="$(var.SRCDIST)/Amiga Programs/UAE_German.info" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles19" Guid="4564B037-8446-40FE-AEEC-493D93DCE0EA">
+        <File Source="$(var.SRCDIST)/Amiga Programs/ahidriver.zip" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles20" Guid="A3DA1CD6-9090-4BD0-8967-99561277FB0C">
+        <File Source="$(var.SRCDIST)/Amiga Programs/timehack" KeyPath="yes"/>
+      </Component>
+      <Component Id="AdditionalFiles21" Guid="867BE54B-E842-4FB8-8306-72A09F1C8735">
+        <File Source="$(var.SRCDIST)/Amiga Programs/sources.zip" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
-    <DirectoryRef Id="CONFIGURATIONS">
-      <Component Id="ConfigFiles" Guid="F529ED5F-DA94-4871-8616-0207DCAA9859">
-        <File Source="$(var.winuae.ProjectDir)/../asm.cmd" KeyPath="yes"/>
+    <DirectoryRef Id="CONFIGURATIONSHOST">
+      <Component Id="ConfigFiles1" Guid="F529ED5F-DA94-4871-8616-0207DCAA9859">
+        <File Source="$(var.SRCDIST)/Configurations/Host/Windowed.uae" KeyPath="yes"/>
+      </Component>
+      <Component Id="ConfigFiles2" Guid="A9FD208E-BFA4-4136-8BCA-5B473EA08519">
+        <File Source="$(var.SRCDIST)/Configurations/Host/Fullscreen (800x600).uae" KeyPath="yes"/>
+      </Component>
+      <Component Id="ConfigFiles3" Guid="D966C10C-AA37-4DC1-A96A-2EACE1CBBB69">
+        <File Source="$(var.SRCDIST)/Configurations/Host/Fullscreen PAL VSync.uae" KeyPath="yes"/>
+      </Component>
+      <Component Id="ConfigFiles4" Guid="E5DD85B1-29E5-4B1C-99E9-C284C940A4F7">
+        <File Source="$(var.SRCDIST)/Configurations/Host/FullwindowD3D.uae" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DOCS">
+      <Component Id="Docs1" Guid="1C0D979E-5C00-45BD-8C08-A78AA7E58530">
+        <File Source="$(var.SRCDIST)/Docs/Readme.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="Docs2" Guid="ABE181C5-547C-4D9D-A486-DCB17F72C1B0">
+        <File Source="$(var.SRCDIST)/Docs/winuaechangelog.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="Docs3" Guid="D27F0463-C878-46C8-8D02-028D14BDD4A0">
+        <File Source="$(var.SRCDIST)/Docs/History_old.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="Docs4" Guid="82556236-9A44-4894-84BB-4066820E1B35">
+        <File Source="$(var.SRCDIST)/Docs/README.compemu.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="Docs5" Guid="E7AE8546-62E0-4537-989C-02E10C62E06E">
+        <File Source="$(var.SRCDIST)/Docs/README.JIT.txt" KeyPath="yes"/>
+      </Component>
+      <Component Id="Docs6" Guid="33C9D310-7722-48B4-845B-48933023D647">
+        <File Source="$(var.SRCDIST)/Docs/README.JIT-tuning.txt" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
@@ -57,13 +151,47 @@
       <ComponentRef Id="RegistryEntries" />
     </Feature>
 
-    <Feature Id="ConfigFiles" Title="Configuration files" Description="Example host configuration files" Level="1000" AllowAdvertise="no">
-      <ComponentRef Id="ConfigFiles" />
+    <Feature Id="Docs" Title="Documentation" Description="Read me and information files" Level="1" AllowAdvertise="no">
+      <ComponentRef Id="Docs1" />
+      <ComponentRef Id="Docs2" />
+      <ComponentRef Id="Docs3" />
+      <ComponentRef Id="Docs4" />
+      <ComponentRef Id="Docs5" />
+      <ComponentRef Id="Docs6" />
     </Feature>
 
-    <Feature Id="AdditionalFiles" Title="Amiga files" Description="Miscellaneous utilities" Level="1001" AllowAdvertise="no">
-      <ComponentRef Id="AdditionalFiles" />
+    <Feature Id="ConfigFiles" Title="Configuration files" Description="Example host configuration files" Level="1" AllowAdvertise="no">
+      <ComponentRef Id="ConfigFiles1" />
+      <ComponentRef Id="ConfigFiles2" />
+      <ComponentRef Id="ConfigFiles3" />
+      <ComponentRef Id="ConfigFiles4" />
     </Feature>
+
+    <Feature Id="AdditionalFiles" Title="Amiga files" Description="Miscellaneous Amiga utilities" Level="1" AllowAdvertise="no">
+      <ComponentRef Id="AdditionalFiles1" />
+      <ComponentRef Id="AdditionalFiles2" />
+      <ComponentRef Id="AdditionalFiles3" />
+      <ComponentRef Id="AdditionalFiles4" />
+      <ComponentRef Id="AdditionalFiles5" />
+      <ComponentRef Id="AdditionalFiles6" />
+      <ComponentRef Id="AdditionalFiles7" />
+      <ComponentRef Id="AdditionalFiles8" />
+      <ComponentRef Id="AdditionalFiles9" />
+      <ComponentRef Id="AdditionalFiles10" />
+      <ComponentRef Id="AdditionalFiles11" />
+      <ComponentRef Id="AdditionalFiles12" />
+      <ComponentRef Id="AdditionalFiles13" />
+      <ComponentRef Id="AdditionalFiles14" />
+      <ComponentRef Id="AdditionalFiles15" />
+      <ComponentRef Id="AdditionalFiles16" />
+      <ComponentRef Id="AdditionalFiles17" />
+      <ComponentRef Id="AdditionalFiles18" />
+      <ComponentRef Id="AdditionalFiles19" />
+      <ComponentRef Id="AdditionalFiles20" />
+      <ComponentRef Id="AdditionalFiles21" />
+    </Feature>
+
+
 
   </Product>
 </Wix>

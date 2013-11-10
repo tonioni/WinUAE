@@ -1206,7 +1206,7 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 		bplpt[nr] += 2 << fm;
 		bplptx[nr] += 2 << fm;
 
-		if (hpos == 0xe2 && !(beamcon0 & 0x80)) {
+		if (hpos >= 0xe1 && !(beamcon0 & 0x80)) {
 			static int warned = 30;
 			if (warned > 0) {
 				write_log (_T("WARNING: BPL fetch at hpos 0x%02X!\n"), hpos);
@@ -3694,6 +3694,7 @@ static uae_u16 VPOSR (void)
 
 static void VPOSW (uae_u16 v)
 {
+	int oldvpos = vpos;
 #if 0
 	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (_T("VPOSW %04X PC=%08x\n"), v, M68K_GETPC);
@@ -3714,10 +3715,13 @@ static void VPOSW (uae_u16 v)
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		v &= 1;
 	vpos |= v << 8;
+	if (vpos < oldvpos)
+		vpos = oldvpos;
 }
 
 static void VHPOSW (uae_u16 v)
 {
+	int oldvpos = vpos;
 #if 0
 	if (M68K_GETPC < 0xf00000 || 1)
 		write_log (_T("VHPOSW %04X PC=%08x\n"), v, M68K_GETPC);
@@ -3725,6 +3729,11 @@ static void VHPOSW (uae_u16 v)
 	v >>= 8; // lets ignore hpos for now
 	vpos &= 0xff00;
 	vpos |= v;
+	if (vpos < oldvpos) {
+		vpos = oldvpos;
+	} else if (vpos < minfirstline && oldvpos < minfirstline) {
+		vpos = oldvpos;
+	}
 }
 
 static uae_u16 VHPOSR (void)
@@ -6310,7 +6319,9 @@ static void vsync_handler_post (void)
 		gfxboard_vsync_handler ();
 #endif
 
-	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80)) || (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1)) {
+	if ((beamcon0 & (0x20 | 0x80)) != (new_beamcon0 & (0x20 | 0x80))) {
+		init_hz ();
+	} else if (vpos_count > 0 && abs (vpos_count - vpos_count_diff) > 1) {
 		init_hz ();
 	} else if (interlace_changed || changed_chipset_refresh () || lof_changed) {
 		compute_framesync ();
@@ -8498,6 +8509,8 @@ uae_u32 wait_cpu_cycle_read (uaecptr addr, int mode)
 #endif
 
 	x_do_cycles_post (CYCLE_UNIT, v);
+
+	regs.chipset_latch_rw = regs.chipset_latch_read = v;
 	return v;
 }
 
@@ -8538,6 +8551,7 @@ uae_u32 wait_cpu_cycle_read_ce020 (uaecptr addr, int mode)
 	if (currprefs.cpu_model == 68020)
 		x_do_cycles_post (CYCLE_UNIT / 2, v);
 
+	regs.chipset_latch_rw = regs.chipset_latch_read = v;
 	return v;
 }
 
@@ -8571,6 +8585,7 @@ void wait_cpu_cycle_write (uaecptr addr, int mode, uae_u32 v)
 
 	x_do_cycles_post (CYCLE_UNIT, v);
 
+	regs.chipset_latch_rw = regs.chipset_latch_write = v;
 }
 
 void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
@@ -8604,6 +8619,8 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 
 	if (currprefs.cpu_model == 68020)
 		x_do_cycles_post (CYCLE_UNIT / 2, v);
+
+	regs.chipset_latch_rw = regs.chipset_latch_write = v;
 }
 
 void do_cycles_ce (unsigned long cycles)

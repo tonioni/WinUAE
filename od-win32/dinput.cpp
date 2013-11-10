@@ -1408,7 +1408,9 @@ static void dumphidcaps (struct didata *did)
 static void dumphidend (void)
 {
 	write_log (_T("\n"));
-	}
+}
+
+#define MAX_RAW_KEYBOARD 0
 
 static bool initialize_rawinput (void)
 {
@@ -1486,6 +1488,9 @@ static bool initialize_rawinput (void)
 		else if (type == RIM_TYPEHID)
 			rnum_hid++;
 	}
+	if (MAX_RAW_KEYBOARD > 0 && rnum_kb > MAX_RAW_KEYBOARD)
+		rnum_kb = MAX_RAW_KEYBOARD;
+
 
 	for (int rawcnt = 0; rawcnt < gotnum; rawcnt++) {
 		HANDLE h = ridl[rawcnt].hDevice;
@@ -1506,11 +1511,13 @@ static bool initialize_rawinput (void)
 				if (type == RIM_TYPEHID && !rawinput_enabled_hid)
 					continue;
 			}
-			if (type == RIM_TYPEKEYBOARD)
+			if (type == RIM_TYPEKEYBOARD) {
+				if (num_keyboard >= rnum_kb)
+					continue;
 				did = di_keyboard;
-			else if (type == RIM_TYPEMOUSE)
+			} else if (type == RIM_TYPEMOUSE) {
 				did = di_mouse;
-			else if (type == RIM_TYPEHID) {
+			} else if (type == RIM_TYPEHID) {
 				if (!rawinput_enabled_hid)
 					continue;
 				did = di_joystick;
@@ -1635,7 +1642,10 @@ static bool initialize_rawinput (void)
 						did->axles++;
 						addplusminus (did, 3);
 					}
-					did->priority = -1;
+					if (num_mouse == 1)
+						did->priority = -1;
+					else
+						did->priority = -2;
 				}
 			} else if (type == RIM_TYPEKEYBOARD) {
 				PRID_DEVICE_INFO_KEYBOARD rdik = &rdi->keyboard;
@@ -1643,6 +1653,10 @@ static bool initialize_rawinput (void)
 					rdik->dwType, rdik->dwSubType, rdik->dwKeyboardMode,
 					rdik->dwNumberOfFunctionKeys, rdik->dwNumberOfIndicators, rdik->dwNumberOfKeysTotal);
 				addrkblabels (did);
+				if (num_keyboard == 1)
+					did->priority = -1;
+				else
+					did->priority = -2;
 			} else {
 				bool ok = false;
 				if (hhid != INVALID_HANDLE_VALUE && HidD_GetPreparsedData (hhid, &did->hidpreparseddata)) {
@@ -1779,7 +1793,7 @@ static bool initialize_rawinput (void)
 		did->rawinput = NULL;
 		did->connection = DIDC_RAW;
 		did->sortname = my_strdup (_T("NULLKEYBOARD"));
-		did->priority = -2;
+		did->priority = -3;
 		did->configname = my_strdup (_T("NULLKEYBOARD"));
 		addrkblabels (did);
 	}

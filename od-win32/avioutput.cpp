@@ -485,7 +485,7 @@ static int AVIOutput_AllocateVideo (void)
 	avioutput_fps = (int)(vblank_hz + 0.5);
 	if (!avioutput_fps)
 		avioutput_fps = ispal () ? 50 : 60;
-	if (avioutput_originalsize) {
+	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
 		int pitch;
 		if (!WIN32GFX_IsPicassoScreen ()) {
 			getfilterbuffer (&avioutput_width, &avioutput_height, &pitch, &avioutput_bits);
@@ -864,26 +864,34 @@ static int getFromBuffer (struct avientry *ae, int original)
 	uae_u8 *src, *mem;
 	uae_u8 *dst = ae->lpVideo;
 	int spitch, dpitch;
+	int maxw, maxh;
 
 	mem = NULL;
 	dpitch = ((avioutput_width * avioutput_bits + 31) & ~31) / 8;
-	if (original) {
-		if (!WIN32GFX_IsPicassoScreen ())
+	if (original || WIN32GFX_IsPicassoScreen ()) {
+		if (!WIN32GFX_IsPicassoScreen ()) {
 			src = getfilterbuffer (&w, &h, &spitch, &d);
-		else
+			maxw = gfxvidinfo.outbuffer->outwidth;
+			maxh = gfxvidinfo.outbuffer->outheight;
+		} else {
 			src = mem = getrtgbuffer (&w, &h, &spitch, &d, NULL);
+			maxw = w;
+			maxh = h;
+		}
 	} else {
 		spitch = gfxvidinfo.outbuffer->rowbytes;
 		src = bufmem_ptr;
+		maxw = gfxvidinfo.outbuffer->outwidth;
+		maxh = gfxvidinfo.outbuffer->outheight;
 	}
 	if (!src)
 		return 0;
 	dst += dpitch * avioutput_height;
-	for (y = 0; y < (gfxvidinfo.outbuffer->outheight > avioutput_height ? avioutput_height : gfxvidinfo.outbuffer->outheight); y++) {
+	for (y = 0; y < (maxh > avioutput_height ? avioutput_height : maxh); y++) {
 		uae_u8 *d;
 		dst -= dpitch;
 		d = dst;
-		for (x = 0; x < (gfxvidinfo.outbuffer->outwidth > avioutput_width ? avioutput_width : gfxvidinfo.outbuffer->outwidth); x++) {
+		for (x = 0; x < (maxw > avioutput_width ? avioutput_width : maxw); x++) {
 			if (avioutput_bits == 8) {
 				*d++ = src[x];
 			} else if (avioutput_bits == 16) {
@@ -934,7 +942,7 @@ void AVIOutput_WriteVideo (void)
 		dorestart ();
 	waitqueuefull ();
 	ae = allocavientry_video ();
-	if (avioutput_originalsize) {
+	if (avioutput_originalsize || WIN32GFX_IsPicassoScreen ()) {
 		v = getFromBuffer (ae, 1);
 	} else {
 #if defined (GFXFILTER)
@@ -1328,8 +1336,10 @@ static void *AVIOutput_worker (void *arg)
 			EnterCriticalSection (&AVIOutput_CriticalSection);
 			ae = getavientry ();
 			LeaveCriticalSection (&AVIOutput_CriticalSection);
-			if (ae == NULL)
+			if (ae == NULL) {
+				write_log (_T("AVIOutput worker thread: out of entries!?\n"));
 				break;
+			}
 			write_comm_pipe_u32 (&queuefull, 0, 1);
 			if (!avioutput_failed) {
 				if (ae->lpAudio)

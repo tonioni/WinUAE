@@ -180,15 +180,25 @@ static void dummylog (int rw, uaecptr addr, int size, uae_u32 val, int ins)
 
 static uae_u32 dummy_get (uaecptr addr, int size)
 {
-	uae_u32 v;
-	if (currprefs.cpu_model >= 68020)
-		return NONEXISTINGDATA;
-	v = (regs.irc << 16) | regs.irc;
+	uae_u32 v = NONEXISTINGDATA;
+
+	if (currprefs.cpu_model >= 68040)
+		return v;
+	if (!currprefs.cpu_compatible)
+		return v;
+	if (currprefs.address_space_24)
+		addr &= 0x00ffffff;
+	if (addr >= 0x10000000)
+		return v;
+	/* fixme: emulate correct hardware behavior */
+	if (munge24 (m68k_getpc () & 0xFFF80000) == 0xF80000)
+		return v;
 	if (size == 4) {
-		;
+		v = (regs.irc << 16) | regs.irc;
 	} else if (size == 2) {
-		v &= 0xffff;
+		v = regs.irc & 0xffff;
 	} else {
+		v = regs.irc;
 		v = (addr & 1) ? (v & 0xff) : ((v >> 8) & 0xff);
 	}
 #if 0
@@ -665,11 +675,11 @@ static void a1000_handle_kickstart (int mode)
 	protect_roms (false);
 	if (mode == 0) {
 		a1000_kickstart_mode = 0;
-		memcpy (kickmem_bank.baseaddr, kickmem_bank.baseaddr + 262144, 262144);
-		kickstart_version = (kickmem_bank.baseaddr[262144 + 12] << 8) | kickmem_bank.baseaddr[262144 + 13];
+		memcpy (kickmem_bank.baseaddr, kickmem_bank.baseaddr + ROM_SIZE_256, ROM_SIZE_256);
+		kickstart_version = (kickmem_bank.baseaddr[ROM_SIZE_256 + 12] << 8) | kickmem_bank.baseaddr[ROM_SIZE_256 + 13];
 	} else {
 		a1000_kickstart_mode = 1;
-		memcpy (kickmem_bank.baseaddr, a1000_bootrom, 262144);
+		memcpy (kickmem_bank.baseaddr, a1000_bootrom, ROM_SIZE_256);
 		kickstart_version = 0;
 	}
 	if (kickstart_version == 0xffff)
@@ -702,7 +712,7 @@ static void REGPARAM2 kickmem_lput (uaecptr addr, uae_u32 b)
 		m = (uae_u32 *)(kickmem_bank.baseaddr + addr);
 		do_put_mem_long (m, b);
 #if 0
-		if (addr == 524288-4) {
+		if (addr == ROM_SIZE_512-4) {
 			rom_write_enabled = false;
 			write_log (_T("ROM write disabled\n"));
 		}
@@ -1037,7 +1047,7 @@ addrbank custmem2_bank = {
 	custmem2_lget, custmem2_wget, ABFLAG_RAM
 };
 
-#define fkickmem_size 524288
+#define fkickmem_size ROM_SIZE_512
 static int a3000_f0;
 void a3000_fakekick (int map)
 {
@@ -1096,7 +1106,7 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 		zfile_fseek (f, 512, SEEK_SET);
 		kickdisk = 1;
 #if 0
-	} else if (size >= 524288 && !memcmp (buffer, "AMIG", 4)) {
+	} else if (size >= ROM_SIZE_512 && !memcmp (buffer, "AMIG", 4)) {
 		/* ReKick */
 		zfile_fseek (f, oldpos + 0x6c, SEEK_SET);
 		cr = 2;
@@ -1118,10 +1128,10 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 
 	i = zfile_fread (mem, 1, size, f);
 
-	if (kickdisk && i > 262144)
-		i = 262144;
+	if (kickdisk && i > ROM_SIZE_256)
+		i = ROM_SIZE_256;
 #if 0
-	if (i >= 262144 && (i != 262144 && i != 524288 && i != 524288 * 2 && i != 524288 * 4)) {
+	if (i >= ROM_SIZE_256 && (i != ROM_SIZE_256 && i != ROM_SIZE_512 && i != ROM_SIZE_512 * 2 && i != ROM_SIZE_512 * 4)) {
 		notify_user (NUMSG_KSROMREADERROR);
 		return 0;
 	}
@@ -1143,23 +1153,23 @@ static int read_kickstart (struct zfile *f, uae_u8 *mem, int size, int dochecksu
 	}
 	if (currprefs.cs_a1000ram) {
 		int off = 0;
-		a1000_bootrom = xcalloc (uae_u8, 262144);
-		while (off + i < 262144) {
+		a1000_bootrom = xcalloc (uae_u8, ROM_SIZE_256);
+		while (off + i < ROM_SIZE_256) {
 			memcpy (a1000_bootrom + off, kickmem_bank.baseaddr, i);
 			off += i;
 		}
 		memset (kickmem_bank.baseaddr, 0, kickmem_bank.allocated);
 		a1000_handle_kickstart (1);
 		dochecksum = 0;
-		i = 524288;
+		i = ROM_SIZE_512;
 	}
 
-	for (j = 0; j < 256 && i >= 262144; j++) {
+	for (j = 0; j < 256 && i >= ROM_SIZE_256; j++) {
 		if (!memcmp (mem + j, kickstring, strlen (kickstring) + 1))
 			break;
 	}
 
-	if (j == 256 || i < 262144)
+	if (j == 256 || i < ROM_SIZE_256)
 		dochecksum = 0;
 	if (dochecksum)
 		kickstart_checksum (mem, size);
@@ -1185,7 +1195,7 @@ static bool load_extendedkickstart (const TCHAR *romextfile, int type)
 	}
 	zfile_fseek (f, 0, SEEK_END);
 	size = zfile_ftell (f);
-	extendedkickmem_bank.allocated = 524288;
+	extendedkickmem_bank.allocated = ROM_SIZE_512;
 	off = 0;
 	if (type == 0) {
 		if (currprefs.cs_cd32cd) {
@@ -1251,7 +1261,7 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 	int i, j, patched = 0;
 	uae_char *residents[] = { "NCR scsi.device", 0 };
 	// "scsi.device", "carddisk.device", "card.resource" };
-	uaecptr base = size == 524288 ? 0xf80000 : 0xfc0000;
+	uaecptr base = size == ROM_SIZE_512 ? 0xf80000 : 0xfc0000;
 
 	if (currprefs.cs_mbdmac == 2)
 		residents[0] = NULL;
@@ -1284,7 +1294,7 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 static void patch_kick (void)
 {
 	int patched = 0;
-	if (kickmem_bank.allocated >= 524288 && currprefs.kickshifter)
+	if (kickmem_bank.allocated >= ROM_SIZE_512 && currprefs.kickshifter)
 		patched += patch_shapeshifter (kickmem_bank.baseaddr);
 	patched += patch_residents (kickmem_bank.baseaddr, kickmem_bank.allocated);
 	if (extendedkickmem_bank.baseaddr) {
@@ -1309,14 +1319,17 @@ static bool load_kickstart_replacement (void)
 	f = zfile_gunzip (f);
 	if (!f)
 		return false;
-	kickmem_bank.mask = 0x80000 - 1;
-	kickmem_bank.allocated = 0x80000;
-	extendedkickmem_bank.allocated = 0x80000;
+
+	extendedkickmem_bank.allocated = ROM_SIZE_512;
+	extendedkickmem_bank.mask = ROM_SIZE_512 - 1;
 	extendedkickmem_type = EXTENDED_ROM_KS;
 	extendedkickmem_bank.baseaddr = mapped_malloc (extendedkickmem_bank.allocated, _T("rom_e0"));
-	read_kickstart (f, extendedkickmem_bank.baseaddr, extendedkickmem_bank.allocated, 0, 1);
-	extendedkickmem_bank.mask = extendedkickmem_bank.allocated - 1;
-	read_kickstart (f, extendedkickmem_bank.baseaddr, 0x80000, 1, 0);
+	read_kickstart (f, extendedkickmem_bank.baseaddr, ROM_SIZE_512, 0, 1);
+
+	kickmem_bank.allocated = ROM_SIZE_512;
+	kickmem_bank.mask = ROM_SIZE_512 - 1;
+	read_kickstart (f, kickmem_bank.baseaddr, ROM_SIZE_512, 1, 0);
+
 	zfile_fclose (f);
 	seriallog = -1;
 	return true;
@@ -1363,27 +1376,27 @@ static int load_kickstart (void)
 
 	if (f != NULL) {
 		int filesize, size, maxsize;
-		int kspos = 524288;
+		int kspos = ROM_SIZE_512;
 		int extpos = 0;
 
-		maxsize = 524288;
+		maxsize = ROM_SIZE_512;
 		zfile_fseek (f, 0, SEEK_END);
 		filesize = zfile_ftell (f);
 		zfile_fseek (f, 0, SEEK_SET);
 		if (filesize == 1760 * 512) {
-			filesize = 262144;
-			maxsize = 262144;
+			filesize = ROM_SIZE_256;
+			maxsize = ROM_SIZE_256;
 		}
-		if (filesize == 524288 + 8) {
+		if (filesize == ROM_SIZE_512 + 8) {
 			/* GVP 0xf0 kickstart */
 			zfile_fseek (f, 8, SEEK_SET);
 		}
-		if (filesize >= 524288 * 2) {
+		if (filesize >= ROM_SIZE_512 * 2) {
 			struct romdata *rd = getromdatabyzfile(f);
 			zfile_fseek (f, kspos, SEEK_SET);
 		}
-		if (filesize >= 524288 * 4) {
-			kspos = 524288 * 3;
+		if (filesize >= ROM_SIZE_512 * 4) {
+			kspos = ROM_SIZE_512 * 3;
 			extpos = 0;
 			zfile_fseek (f, kspos, SEEK_SET);
 		}
@@ -1392,8 +1405,8 @@ static int load_kickstart (void)
 			goto err;
 		kickmem_bank.mask = size - 1;
 		kickmem_bank.allocated = size;
-		if (filesize >= 524288 * 2 && !extendedkickmem_type) {
-			extendedkickmem_bank.allocated = 0x80000;
+		if (filesize >= ROM_SIZE_512 * 2 && !extendedkickmem_type) {
+			extendedkickmem_bank.allocated = ROM_SIZE_512;
 			if (currprefs.cs_cdtvcd || currprefs.cs_cdtvram) {
 				extendedkickmem_type = EXTENDED_ROM_CDTV;
 				extendedkickmem_bank.allocated *= 2;
@@ -1408,13 +1421,13 @@ static int load_kickstart (void)
 			read_kickstart (f, extendedkickmem_bank.baseaddr, extendedkickmem_bank.allocated, 0, 1);
 			extendedkickmem_bank.mask = extendedkickmem_bank.allocated - 1;
 		}
-		if (filesize > 524288 * 2) {
-			extendedkickmem2_bank.allocated = 524288 * 2;
+		if (filesize > ROM_SIZE_512 * 2) {
+			extendedkickmem2_bank.allocated = ROM_SIZE_512 * 2;
 			extendedkickmem2_bank.baseaddr = mapped_malloc (extendedkickmem2_bank.allocated, _T("rom_a8"));
-			zfile_fseek (f, extpos + 524288, SEEK_SET);
-			read_kickstart (f, extendedkickmem2_bank.baseaddr, 524288, 0, 1);
-			zfile_fseek (f, extpos + 524288 * 2, SEEK_SET);
-			read_kickstart (f, extendedkickmem2_bank.baseaddr + 524288, 524288, 0, 1);
+			zfile_fseek (f, extpos + ROM_SIZE_512, SEEK_SET);
+			read_kickstart (f, extendedkickmem2_bank.baseaddr, ROM_SIZE_512, 0, 1);
+			zfile_fseek (f, extpos + ROM_SIZE_512 * 2, SEEK_SET);
+			read_kickstart (f, extendedkickmem2_bank.baseaddr + ROM_SIZE_512, ROM_SIZE_512, 0, 1);
 			extendedkickmem2_bank.mask = extendedkickmem2_bank.allocated - 1;
 			extendedkickmem2_bank.start = 0xa80000;
 		}
@@ -2006,7 +2019,7 @@ void memory_reset (void)
 		extendedkickmem_type = 0;
 		load_extendedkickstart (currprefs.romextfile, 0);
 		load_extendedkickstart (currprefs.romextfile2, EXTENDED_ROM_CDTV);
-		kickmem_bank.mask = 524288 - 1;
+		kickmem_bank.mask = ROM_SIZE_512 - 1;
 		if (!load_kickstart ()) {
 			if (_tcslen (currprefs.romfile) > 0) {
 				write_log (_T("Failed to open '%s'\n"), currprefs.romfile);
@@ -2164,7 +2177,7 @@ void memory_reset (void)
 		break;
 #ifdef CDTV
 	case EXTENDED_ROM_CDTV:
-		map_banks (&extendedkickmem_bank, 0xF0, extendedkickmem_bank.allocated == 2 * 524288 ? 16 : 8, 0);
+		map_banks (&extendedkickmem_bank, 0xF0, extendedkickmem_bank.allocated == 2 * ROM_SIZE_512 ? 16 : 8, 0);
 		break;
 #endif
 #ifdef CD32
@@ -2260,8 +2273,8 @@ void memory_init (void)
 	custmem1_bank.baseaddr = NULL;
 	custmem2_bank.baseaddr = NULL;
 
-	kickmem_bank.baseaddr = mapped_malloc (0x80000, _T("kick"));
-	memset (kickmem_bank.baseaddr, 0, 0x80000);
+	kickmem_bank.baseaddr = mapped_malloc (ROM_SIZE_512, _T("kick"));
+	memset (kickmem_bank.baseaddr, 0, ROM_SIZE_512);
 	_tcscpy (currprefs.romfile, _T("<none>"));
 	currprefs.romextfile[0] = 0;
 
@@ -2566,7 +2579,7 @@ uae_u8 *save_rom (int first, int *len, uae_u8 *dstptr)
 			}
 			if (i == mem_size / 2 - 4) {
 				mem_size /= 2;
-				mem_start += 262144;
+				mem_start += ROM_SIZE_256;
 			}
 			version = longget (mem_start + 12); /* version+revision */
 			_stprintf (tmpname, _T("Kickstart %d.%d"), wordget (mem_start + 12), wordget (mem_start + 14));

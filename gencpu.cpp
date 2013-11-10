@@ -2436,7 +2436,7 @@ static void bsetcycles (struct instr *curi)
 
 static int islongimm (struct instr *curi)
 {
-	return (curi->size == sz_long && (curi->smode == Dreg || curi->smode == imm));
+	return (curi->size == sz_long && (curi->smode == Dreg || curi->smode == imm || curi->smode == Areg));
 }
 
 
@@ -2802,7 +2802,7 @@ static void gen_opcode (unsigned long int opcode)
 		if (curi->dmode == Dreg) {
 			if (curi->size == sz_long) {
 				c += 2;
-				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg)
+				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg)
 					c += 2;
 			}
 		}
@@ -2893,7 +2893,7 @@ static void gen_opcode (unsigned long int opcode)
 		if (curi->dmode == Dreg) {
 			if (curi->size == sz_long) {
 				c += 2;
-				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg)
+				if (curi->smode == imm || curi->smode == immi || curi->smode == Dreg || curi->smode == Areg)
 					c += 2;
 			}
 		}
@@ -3240,8 +3240,11 @@ static void gen_opcode (unsigned long int opcode)
 				int prefetch_done = 0, flags;
 				int dualprefetch = curi->dmode == absl && (curi->smode != Dreg && curi->smode != Areg && curi->smode != imm);
 				genamode (curi, curi->smode, "srcreg", curi->size, "src", 1, 0, GF_MOVE);
-				flags = 1 | (dualprefetch ? GF_NOREFILL : 0);
-				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags | GF_MOVE);
+				flags = GF_MOVE | GF_APDI;
+				//if (curi->size == sz_long && (curi->smode == Dreg || curi->smode == Areg))
+				//	flags &= ~GF_APDI;
+				flags |= dualprefetch ? GF_NOREFILL : 0;
+				genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 2, 0, flags);
 				if (curi->mnemo == i_MOVEA && curi->size == sz_word)
 					printf ("\tsrc = (uae_s32)(uae_s16)src;\n");
 				if (curi->dmode == Apdi) {
@@ -3855,12 +3858,12 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\t} else {\n");
 		printf ("\t\tuae_u32 newv = (uae_u32)dst / (uae_u32)(uae_u16)src;\n");
 		printf ("\t\tuae_u32 rem = (uae_u32)dst %% (uae_u32)(uae_u16)src;\n");
-		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();
 			printf ("\t\tint cycles = (getDivu68kCycles((uae_u32)dst, (uae_u16)src));\n");
 			addcycles000_3 ("\t\t");
 		}
+		fill_prefetch_next ();
 		/* The N flag appears to be set each time there is an overflow.
 		 * Weird. but 68020 only sets N when dst is negative.. */
 		printf ("\t\tif (newv > 0xffff) {\n");
@@ -3897,12 +3900,12 @@ static void gen_opcode (unsigned long int opcode)
 		printf ("\t\tgoto %s;\n", endlabelstr);
 		printf ("\t}\n");
 		printf ("\tCLEAR_CZNV ();\n");
-		fill_prefetch_next ();
 		if (using_ce) {
 			start_brace ();
 			printf ("\t\tint cycles = (getDivs68kCycles((uae_s32)dst, (uae_s16)src));\n");
 			addcycles000_3 ("\t\t");
 		}
+		fill_prefetch_next ();
 		printf ("\tif (dst == 0x80000000 && src == -1) {\n");
 		printf ("\t\tSET_VFLG (1);\n");
 		printf ("\t\tSET_NFLG (1);\n");

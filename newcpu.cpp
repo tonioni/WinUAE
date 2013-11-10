@@ -5537,7 +5537,7 @@ void m68k_dumpstate (uaecptr pc, uaecptr *nextpc)
 		for (lookup1 = lookuptab; lookup1->mnemo != dp->mnemo; lookup1++);
 		dp = table68k + regs.ir;
 		for (lookup2 = lookuptab; lookup2->mnemo != dp->mnemo; lookup2++);
-		console_out_f (_T("Prefetch %04x (%s) %04x (%s)\n"), regs.irc, lookup1->name, regs.ir, lookup2->name);
+		console_out_f (_T("Prefetch %04x (%s) %04x (%s) Chip latch %08X\n"), regs.irc, lookup1->name, regs.ir, lookup2->name, regs.chipset_latch_rw);
 	}
 
 	if (pc != 0xffffffff) {
@@ -5696,6 +5696,11 @@ uae_u8 *restore_cpu (uae_u8 *src)
 			regs.ce020memcycles = restore_u32 ();
 			restore_u32 ();
 		}
+	}
+	if (flags & 0x10000000) {
+		regs.chipset_latch_rw = restore_u32 ();
+		regs.chipset_latch_read = restore_u32 ();
+		regs.chipset_latch_write = restore_u32 ();
 	}
 
 	write_log (_T("CPU: %d%s%03d, PC=%08X\n"),
@@ -5921,7 +5926,7 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 		dstbak = dst = xmalloc (uae_u8, 1000);
 	model = currprefs.cpu_model;
 	save_u32 (model);					/* MODEL */
-	save_u32 (0x80000000 | 0x40000000 | 0x20000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
+	save_u32 (0x80000000 | 0x40000000 | 0x20000000 | 0x10000000 | (currprefs.address_space_24 ? 1 : 0)); /* FLAGS */
 	for (i = 0;i < 15; i++)
 		save_u32 (regs.regs[i]);		/* D0-D7 A0-A6 */
 	save_u32 (m68k_getpc ());			/* PC */
@@ -6016,6 +6021,9 @@ uae_u8 *save_cpu (int *len, uae_u8 *dstptr)
 		save_u32 (regs.ce020memcycles);
 		save_u32 (0);
 	}
+	save_u32 (regs.chipset_latch_rw);
+	save_u32 (regs.chipset_latch_read);
+	save_u32 (regs.chipset_latch_write);
 	*len = dst - dstbak;
 	return dstbak;
 }

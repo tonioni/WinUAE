@@ -48,6 +48,7 @@ static int original_ch, original_fill, original_line;
 static int blinea_shift;
 static uae_u16 blinea, blineb;
 static int blitline, blitfc, blitfill, blitife, blitsing, blitdesc;
+static int blitline_started;
 static int blitonedot, blitsign, blitlinepixel;
 static int blit_add;
 static int blit_modadda, blit_modaddb, blit_modaddc, blit_modaddd;
@@ -1175,6 +1176,10 @@ static void blit_bltset (int con)
 		blitdesc = bltcon1 & 2;
 		blt_info.blitbshift = bltcon1 >> 12;
 		blt_info.blitdownbshift = 16 - blt_info.blitbshift;
+		if ((bltcon1 & 1) && !blitline_started) {
+			write_log (_T("BLITTER: linedraw enabled after starting normal blit! %08x\n"), M68K_GETPC);
+			return;
+		}
 	}
 
 	if (con & 1) {
@@ -1187,11 +1192,11 @@ static void blit_bltset (int con)
 	blitfill = !!(bltcon1 & 0x18);
 
 	// disable line draw if bltcon0 is written while it is active
-	if (!savestate_state && bltstate != BLT_done && bltstate != BLT_init && blitline) {
+	if (!savestate_state && bltstate != BLT_done && bltstate != BLT_init && blitline && blitline_started) {
 		blitline = 0;
 		bltstate = BLT_done;
 		blit_interrupt = 1;
-		write_log (_T("BLITTER: register modification during linedraw!\n"));
+		write_log (_T("BLITTER: register modification during linedraw! %08x\n"), M68K_GETPC);
 	}
 
 	if (blitline) {
@@ -1327,6 +1332,7 @@ static void blitter_start_init (void)
 	preva = 0;
 	prevb = 0;
 	blit_frozen = 0;
+	blitline_started = bltcon1 & 1;
 
 	blit_bltset (1 | 2);
 	blit_modset ();
