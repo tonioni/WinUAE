@@ -6947,7 +6947,7 @@ static void addfakefilesys (uaecptr parmpacket, uae_u32 dostype, int ver, int re
 	}
 	put_long (parmpacket + PP_FSHDSTART + 12 + 8 * 4, dostype == 0x444f5300 ? 0 : -1); // globvec
 	// if OFS = seglist -> NULL
-	if ((dostype & 0xffffff00) == 0x444f5300)
+	if (dostype == 0x444f5300)
 		flags &= ~0x080;
 	put_long (parmpacket + PP_FSHDSTART + 8, flags); // patchflags
 }
@@ -7002,7 +7002,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 		addfakefilesys (parmpacket, dostype, ver, rev, ci);
 		return FILESYS_HARDFILE;
 	}
-	if ((dostype & 0xffffff00) == 0x444f5300 && (!uip->filesysdir || !uip->filesysdir[0])) {
+	if (dostype == 0x444f5300 && (!uip->filesysdir || !uip->filesysdir[0])) {
 		write_log (_T("RDB: OFS, using ROM default FS.\n"));
 		return FILESYS_HARDFILE;
 	}
@@ -7030,7 +7030,7 @@ static int dofakefilesys (UnitInfo *uip, uaecptr parmpacket, struct uaedev_confi
 	zf = zfile_fopen (tmp, _T("rb"), ZFD_NORMAL);
 	if (!zf) {
 		addfakefilesys (parmpacket, dostype, ver, rev, ci);
-		write_log (_T("RDB: filesys not found, mounted without filesys\n"));
+		write_log (_T("RDB: filesys not found, mounted without forced filesys\n"));
 		return FILESYS_HARDFILE;
 	}
 
@@ -7254,8 +7254,11 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			put_long (parmpacket + 64, ci->bufmemtype); /* Buffer mem type */
 			put_long (parmpacket + 68, ci->maxtransfer); /* largest transfer */
 			put_long (parmpacket + 72, ci->mask); /* dma mask */
-			if (ci->dostype) // forced dostype?
+			if (ci->dostype) { // forced dostype?
 				put_long (parmpacket + 80, ci->dostype); /* dostype */
+			} else if (hdf_read (&uip[unit_no].hf, buf, 0, sizeof buf)) {
+				put_long (parmpacket + 80, rl (buf));
+			}
 			for (int i = 0; i < 80; i++)
 				buf[i + 128] = get_byte (parmpacket + 16 + i);
 			dump_partinfo (&uip[unit_no].hf, buf);

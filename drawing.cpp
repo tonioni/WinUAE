@@ -2357,11 +2357,17 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			memcpy (row_map[gfx_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.drawbuffer.pixbytes * gfxvidinfo.drawbuffer.inwidth);
 
 		do_flush_line (vb, gfx_ypos);
-		if (do_double) {
+		if (do_double > 0) {
 			if (dh == dh_emerg)
 				memcpy (row_map[follow_ypos], xlinebuffer + linetoscr_x_adjust_bytes, gfxvidinfo.drawbuffer.pixbytes * gfxvidinfo.drawbuffer.inwidth);
 			else if (dh == dh_buf)
 				memcpy (row_map[follow_ypos], row_map[gfx_ypos], gfxvidinfo.drawbuffer.pixbytes * gfxvidinfo.drawbuffer.inwidth);
+			do_flush_line (vb, follow_ypos);
+		} else if (do_double < 0) {
+			if (dh == dh_emerg)
+				memset (row_map[follow_ypos], 0, gfxvidinfo.drawbuffer.pixbytes * gfxvidinfo.drawbuffer.inwidth);
+			else if (dh == dh_buf)
+				memset (row_map[follow_ypos], 0, gfxvidinfo.drawbuffer.pixbytes * gfxvidinfo.drawbuffer.inwidth);
 			do_flush_line (vb, follow_ypos);
 		}
 
@@ -3047,10 +3053,10 @@ bool vsync_handle_check (void)
 	return changed != 0;
 }
 
-void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16 bplcon0p, uae_u16 bplcon3p)
+void vsync_handle_redraw (int long_field, int lof_changed, uae_u16 bplcon0p, uae_u16 bplcon3p)
 {
 	last_redraw_point++;
-	if (lof_changed || interlace_seen <= 0 || last_redraw_point >= 2 || long_frame || doublescan < 0) {
+	if (lof_changed || interlace_seen <= 0 || (currprefs.gfx_scanlines >= 2 && interlace_seen > 0) || last_redraw_point >= 2 || long_field || doublescan < 0) {
 		last_redraw_point = 0;
 
 		if (framecnt == 0)
@@ -3133,6 +3139,14 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 			|| state[1] == LINE_REMEMBERED_AS_PREVIOUS
 			|| state[1] == LINE_AS_PREVIOUS)
 			state[1] = LINE_DECIDED; //LINE_BLACK;
+		break;
+	case nln_lower_black:
+		state[1] = currprefs.gfx_scanlines >= 4 ? LINE_BLACK : LINE_DONE;
+		*state = LINE_DECIDED;
+		break;
+	case nln_upper_black:
+		*state = LINE_DECIDED;
+		state[-1] = currprefs.gfx_scanlines >= 4 ? LINE_BLACK : LINE_DONE;
 		break;
 	}
 }

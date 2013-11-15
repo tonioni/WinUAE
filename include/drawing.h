@@ -264,11 +264,13 @@ enum nln_how {
 	/* Interlace, doubled display, lower line.  */
 	nln_lower,
 	/* This line normal, next one black.  */
-	nln_nblack
+	nln_nblack,
+	nln_upper_black,
+	nln_lower_black
 };
 
 extern void hsync_record_line_state (int lineno, enum nln_how, int changed);
-extern void vsync_handle_redraw (int long_frame, int lof_changed, uae_u16, uae_u16);
+extern void vsync_handle_redraw (int long_field, int lof_changed, uae_u16, uae_u16);
 extern bool vsync_handle_check (void);
 extern void init_hardware_for_drawing_frame (void);
 extern void reset_drawing (void);

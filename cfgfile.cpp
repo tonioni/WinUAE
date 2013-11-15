@@ -128,7 +128,7 @@ static const TCHAR *guimode1[] = { _T("no"), _T("yes"), _T("nowait"), 0 };
 static const TCHAR *guimode2[] = { _T("false"), _T("true"), _T("nowait"), 0 };
 static const TCHAR *guimode3[] = { _T("0"), _T("1"), _T("nowait"), 0 };
 static const TCHAR *csmode[] = { _T("ocs"), _T("ecs_agnus"), _T("ecs_denise"), _T("ecs"), _T("aga"), 0 };
-static const TCHAR *linemode[] = { _T("none"), _T("none"), _T("double"), _T("scanlines"), 0 };
+static const TCHAR *linemode[] = { _T("none"), _T("none"), _T("double"), _T("scanlines"), _T("double2"), _T("scanlines2"), _T("double3"), _T("scanlines3"), 0 };
 static const TCHAR *speedmode[] = { _T("max"), _T("real"), 0 };
 static const TCHAR *colormode1[] = { _T("8bit"), _T("15bit"), _T("16bit"), _T("8bit_dither"), _T("4bit_dither"), _T("32bit"), 0 };
 static const TCHAR *colormode2[] = { _T("8"), _T("15"), _T("16"), _T("8d"), _T("4d"), _T("32"), 0 };
@@ -1095,7 +1095,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	cfgfile_write_str (f, _T("gfx_resolution"), lorestype1[p->gfx_resolution]);
 	cfgfile_write_str (f, _T("gfx_lores_mode"), loresmode[p->gfx_lores_mode]);
 	cfgfile_write_bool (f, _T("gfx_flickerfixer"), p->gfx_scandoubler);
-	cfgfile_write_str (f, _T("gfx_linemode"), linemode[p->gfx_vresolution * 2 + p->gfx_scanlines]);
+	cfgfile_write_str (f, _T("gfx_linemode"), p->gfx_scanlines >= 2 ? linemode[4 + (p->gfx_scanlines - 2)] : linemode[p->gfx_vresolution * 2 + (p->gfx_scanlines ? 1 : 0)]);
 	cfgfile_write_str (f, _T("gfx_fullscreen_amiga"), fullmodes[p->gfx_apmode[0].gfx_fullscreen]);
 	cfgfile_write_str (f, _T("gfx_fullscreen_picasso"), fullmodes[p->gfx_apmode[1].gfx_fullscreen]);
 	cfgfile_write_str (f, _T("gfx_center_horizontal"), centermode1[p->gfx_xcenter]);
@@ -2004,10 +2004,14 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 	if (_tcscmp (option, _T("gfx_linemode")) == 0) {
 		int v;
 		p->gfx_vresolution = VRES_DOUBLE;
-		p->gfx_scanlines = false;
+		p->gfx_scanlines = 0;
 		if (cfgfile_strval (option, value, _T("gfx_linemode"), &v, linemode, 0)) {
-			p->gfx_scanlines = v & 1;
-			p->gfx_vresolution = v / 2;
+			if (v >= 4) {
+				p->gfx_scanlines = (v - 4) + 2;
+			} else {
+				p->gfx_scanlines = v & 1;
+				p->gfx_vresolution = v / 2;
+			}
 		}
 		return 1;
 	}

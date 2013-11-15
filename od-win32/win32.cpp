@@ -393,7 +393,7 @@ static void figure_processor_speed_qpf (void)
 	qpfrate = freq.QuadPart;
 	/* limit to 10MHz */
 	qpcdivisor = 0;
-	while (qpfrate > 10000000) {
+	while (qpfrate >= 10000000) {
 		qpfrate >>= 1;
 		qpcdivisor++;
 	}

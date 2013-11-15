@@ -1269,11 +1269,13 @@ STATIC_INLINE void toscr_3_ecs (int nbits)
 		outword[i] <<= nbits;
 		outword[i] |= (todisplay[i][0] >> (16 - nbits + delay1)) & mask;
 		todisplay[i][0] <<= nbits;
+		//todisplay[i][0] &= ~(0xFFFF0000 << delay1);
 	}
 	for (i = 1; i < toscr_nr_planes2; i += 2) {
 		outword[i] <<= nbits;
 		outword[i] |= (todisplay[i][0] >> (16 - nbits + delay2)) & mask;
 		todisplay[i][0] <<= nbits;
+		//todisplay[i][0] &= ~(0xFFFF0000 << delay2);
 	}
 }
 
@@ -2726,7 +2728,7 @@ static void decide_sprites (int hpos)
 	int count, i;
 	/* apparantly writes to custom registers happen in the 3/4th of cycle
 	* and sprite xpos comparator sees it immediately */
-	int point = hpos * 2 - 3;
+	int point = hpos * 2 - 4;
 	int width = sprite_width;
 	int sscanmask = 0x100 << sprite_buffer_res;
 	int gotdata = 0;
@@ -3076,7 +3078,7 @@ void compute_vsynctime (void)
 	}
 #endif
 	if (currprefs.produce_sound > 1)
-		update_sound (fake_vblank_hz, interlace_seen ? -1 : lof_store, islinetoggle ());
+		update_sound (fake_vblank_hz);
 }
 
 
@@ -3344,16 +3346,18 @@ void init_hz (bool fullinit)
 	islace = (interlace_seen) ? 1 : 0;
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		isntsc = currprefs.ntscmode ? 1 : 0;
+	int clk = currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL;
 	if (!isntsc) {
 		maxvpos = MAXVPOS_PAL;
 		maxhpos = MAXHPOS_PAL;
 		minfirstline = VBLANK_ENDLINE_PAL;
+		vblank_hz = VBLANK_HZ_PAL;
 		sprite_vblank_endline = VBLANK_SPRITE_PAL;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
 		equ_vblank_toggle = true;
-		vblank_hz_shf = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 0) * maxhpos);
-		vblank_hz_lof = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 1) * maxhpos);
-		vblank_hz_lace = (double)CHIPSET_CLOCK_PAL / ((maxvpos + 0.5) * maxhpos);
+		vblank_hz_shf = (double)clk / ((maxvpos + 0) * maxhpos);
+		vblank_hz_lof = (double)clk / ((maxvpos + 1) * maxhpos);
+		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * maxhpos);
 	} else {
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
@@ -3362,11 +3366,10 @@ void init_hz (bool fullinit)
 		sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
 		equ_vblank_toggle = false;
-		vblank_hz_shf = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 0) * maxhpos);
-		vblank_hz_lof = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 1) * maxhpos);
-		vblank_hz_lace = (double)CHIPSET_CLOCK_NTSC / ((maxvpos + 0.5) * maxhpos);
+		vblank_hz_shf = (double)clk / ((maxvpos + 0) * maxhpos);
+		vblank_hz_lof = (double)clk / ((maxvpos + 1) * maxhpos);
+		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * maxhpos);
 	}
-	vblank_hz = vblank_hz_lof;
 
 	maxvpos_nom = maxvpos;
 	maxvpos_display = maxvpos;
@@ -6836,9 +6839,20 @@ static void hsync_handler_post (bool onvsync)
 		nextline_how = nln_normal;
 		if (doflickerfix () && interlace_seen > 0) {
 			lineno *= 2;
+		} else if (currprefs.gfx_scanlines >= 2) {
+			lineno *= 2;
+			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && (currprefs.gfx_scanlines & 1) == 0 ? nln_doubled : nln_nblack;
+			if (interlace_seen) {
+				if (!lof_current) {
+					lineno++;
+					nextline_how = nln_lower_black;
+				} else {
+					nextline_how = nln_upper_black;
+				}
+			}
 		} else if (currprefs.gfx_vresolution && (doublescan <= 0 || interlace_seen > 0)) {
 			lineno *= 2;
-			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && currprefs.gfx_scanlines == false ? nln_doubled : nln_nblack;
+			nextline_how = currprefs.gfx_vresolution > VRES_NONDOUBLE && currprefs.gfx_scanlines == 0 ? nln_doubled : nln_nblack;
 			if (interlace_seen) {
 				if (!lof_current) {
 					lineno++;

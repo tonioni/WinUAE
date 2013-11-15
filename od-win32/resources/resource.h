@@ -483,6 +483,10 @@
 #define IDC_FRAMERATE2                  1194
 #define IDC_RATE2TEXT                   1195
 #define IDC_DA_TEXT                     1196
+#define IDC_LM_INORMAL                  1197
+#define IDC_LM_IDOUBLED                 1198
+#define IDC_LM_IDOUBLED2                1199
+#define IDC_LM_IDOUBLED3                1200
 #define IDC_CPU0                        1200
 #define IDC_CPU1                        1201
 #define IDC_CPU2                        1202

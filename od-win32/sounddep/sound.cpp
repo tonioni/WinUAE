@@ -165,41 +165,15 @@ int setup_sound (void)
 
 float scaled_sample_evtime_orig;
 extern float sampler_evtime;
-void update_sound (double freq, int longframe, int linetoggle)
+void update_sound (double freq)
 
 {
-	static double lastfreq;
-	double lines = 0;
-	double hpos;
-
-	if (freq < 0)
-		freq = lastfreq;
-	lastfreq = freq;
-
 	if (!have_sound)
 		return;
-
-	if (linetoggle) {
-		hpos = maxhpos_short + 0.5;
-		lines += 0.5;
-	} else {
-		if (longframe < 0)
-			lines += 0.5;
-		else if (longframe > 0)
-			lines += 1.0;
-		hpos = maxhpos_short;
-	}
-	lines += maxvpos_nom;
-	scaled_sample_evtime_orig = hpos * lines * freq * CYCLE_UNIT / (double)sdp->obtainedfreq;
+	int clk = currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL;
+	scaled_sample_evtime_orig = clk * CYCLE_UNIT / (double)sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
-	sampler_evtime = hpos * lines * freq * CYCLE_UNIT;
-#if 0
-	lines -= maxvpos_nom;
-	write_log (_T("%d.%d %d.%d %.2f\n"),
-		maxhpos_short, linetoggle ? 5 : 0,
-		maxvpos_nom + (lines == 1.0 ? 1 : 0), lines > 0 && lines < 1 ? 5 : 0,
-		scaled_sample_evtime);
-#endif
+	sampler_evtime = clk * CYCLE_UNIT;
 }
 
 extern int vsynctimebase_orig;
@@ -1602,7 +1576,7 @@ static int open_sound (void)
 
 	have_sound = 1;
 	sound_available = 1;
-	update_sound (fake_vblank_hz, 1, currprefs.ntscmode);
+	update_sound (fake_vblank_hz);
 	paula_sndbufsize = sdp->sndbufsize;
 	paula_sndbufpt = paula_sndbuffer;
 	driveclick_init ();
@@ -2580,7 +2554,11 @@ int enumerate_sound_devices (void)
 #if PORTAUDIO
 		if (sounddrivermask & SOUNDDRIVER_PORTAUDIO) {
 			__try {
+#ifdef CPU_64_BIT
+				HMODULE hm = WIN32_LoadLibrary (_T("portaudio.dll"));
+#else
 				HMODULE hm = WIN32_LoadLibrary (_T("portaudio_x86.dll"));
+#endif
 				if (hm) {
 					TCHAR *s;
 					PaError err;

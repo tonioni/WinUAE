@@ -5926,12 +5926,19 @@ static void enable_for_displaydlg (HWND hDlg)
 	ew (hDlg, IDC_SCREENMODE_RTG2, rtg);
 	ew (hDlg, IDC_XCENTER, TRUE);
 	ew (hDlg, IDC_YCENTER, TRUE);
-	ew (hDlg, IDC_LM_SCANLINES, TRUE);
 	ew (hDlg, IDC_FRAMERATE, !workprefs.cpu_cycle_exact);
 	ew (hDlg, IDC_LORES, !workprefs.gfx_autoresolution);
+
+	bool isdouble = workprefs.gfx_vresolution > 0;
+
 	ew (hDlg, IDC_LM_NORMAL, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_DOUBLED, !workprefs.gfx_autoresolution);
 	ew (hDlg, IDC_LM_SCANLINES, !workprefs.gfx_autoresolution);
+
+	ew (hDlg, IDC_LM_INORMAL, !workprefs.gfx_autoresolution && !isdouble);
+	ew (hDlg, IDC_LM_IDOUBLED, !workprefs.gfx_autoresolution && isdouble);
+	ew (hDlg, IDC_LM_IDOUBLED2, !workprefs.gfx_autoresolution && isdouble);
+	ew (hDlg, IDC_LM_IDOUBLED3, !workprefs.gfx_autoresolution && isdouble);
 }
 
 static void enable_for_chipsetdlg (HWND hDlg)
@@ -6327,7 +6334,8 @@ static void values_to_displaydlg (HWND hDlg)
 	v = workprefs.cpu_cycle_exact ? 1 : workprefs.gfx_framerate;
 	SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_SETPOS, TRUE, (int)v);
 
-	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + workprefs.gfx_vresolution + (workprefs.gfx_scanlines ? 1 : 0));
+	CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + ((workprefs.gfx_scanlines & 1) ? 1 : 0));
+	CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_scanlines >= 2 ? workprefs.gfx_scanlines / 2 + 1: (workprefs.gfx_vresolution ? 1 : 0)));
 
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE, CB_RESETCONTENT, 0, 0);
 	SendDlgItemMessage(hDlg, IDC_SCREENMODE_NATIVE2, CB_RESETCONTENT, 0, 0);
@@ -6517,8 +6525,25 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 	workprefs.gfx_lores_mode = ischecked (hDlg, IDC_LORES_SMOOTHED);
 	workprefs.gfx_scandoubler = ischecked (hDlg, IDC_FLICKERFIXER);
 	workprefs.gfx_blackerthanblack = ischecked (hDlg, IDC_BLACKER_THAN_BLACK);
+	
+	int vres = workprefs.gfx_vresolution;
+	int vscan = workprefs.gfx_scanlines;
+	
 	workprefs.gfx_vresolution = (ischecked (hDlg, IDC_LM_DOUBLED) || ischecked (hDlg, IDC_LM_SCANLINES)) ? VRES_DOUBLE : VRES_NONDOUBLE;
-	workprefs.gfx_scanlines = ischecked (hDlg, IDC_LM_SCANLINES);	
+	workprefs.gfx_scanlines = 0;
+	if (workprefs.gfx_vresolution >= VRES_DOUBLE) {
+		if (ischecked (hDlg, IDC_LM_IDOUBLED2))
+			workprefs.gfx_scanlines = 2;
+		if (ischecked (hDlg, IDC_LM_IDOUBLED3))
+			workprefs.gfx_scanlines = 4;
+	}
+	workprefs.gfx_scanlines |= ischecked (hDlg, IDC_LM_SCANLINES) ? 1 : 0;
+
+	if (vres != workprefs.gfx_vresolution || vscan != workprefs.gfx_scanlines) {
+		CheckRadioButton (hDlg, IDC_LM_NORMAL, IDC_LM_SCANLINES, IDC_LM_NORMAL + (workprefs.gfx_vresolution ? 1 : 0) + ((workprefs.gfx_scanlines & 1) ? 1 : 0));
+		CheckRadioButton (hDlg, IDC_LM_INORMAL, IDC_LM_IDOUBLED3, IDC_LM_INORMAL + (workprefs.gfx_scanlines >= 2 ? workprefs.gfx_scanlines / 2 + 1: (workprefs.gfx_vresolution ? 1 : 0)));
+	}
+
 	workprefs.gfx_apmode[0].gfx_backbuffers = SendDlgItemMessage (hDlg, IDC_DISPLAY_BUFFERCNT, CB_GETCURSEL, 0, 0);
 	workprefs.gfx_framerate = SendDlgItemMessage (hDlg, IDC_FRAMERATE, TBM_GETPOS, 0, 0);
 
@@ -16486,7 +16511,8 @@ static int GetSettings (int all_options, HWND hwnd)
 
 		dialogreturn = -1;
 		hAccelTable = NULL;
-		DragAcceptFiles (hwnd, TRUE);
+		if (hwnd != NULL)
+			DragAcceptFiles (hwnd, TRUE);
 		if (first)
 			write_log (_T("Entering GUI idle loop\n"));
 
@@ -16504,7 +16530,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 
 		tres = scaleresource (panelresource, hwnd, gui_resize_enabled);
-		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, hwnd, DialogProc);
+		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, NULL, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;
 		dialog_rect.bottom = tres->height;
