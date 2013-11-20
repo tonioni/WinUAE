@@ -1392,6 +1392,8 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	if (p->filesys_no_uaefsdb)
 		cfgfile_write_bool (f, _T("filesys_no_fsdb"), p->filesys_no_uaefsdb);
 	cfgfile_dwrite (f, _T("filesys_max_size"), _T("%d"), p->filesys_limit);
+	cfgfile_dwrite (f, _T("filesys_max_name_length"), _T("%d"), p->filesys_max_name);
+	cfgfile_dwrite (f, _T("filesys_max_file_size"), _T("%d"), p->filesys_max_file_size);
 #endif
 	write_inputdevice_config (p, f);
 }
@@ -1850,6 +1852,8 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		|| cfgfile_intval (option, value, _T("gfx_horizontal_tweak"), &p->gfx_extrawidth, 1)
 		|| cfgfile_string (option, value, _T("gfx_filter_mask"), p->gfx_filtermask[2 * MAX_FILTERSHADERS], sizeof p->gfx_filtermask[2 * MAX_FILTERSHADERS] / sizeof (TCHAR))
 		|| cfgfile_intval (option, value, _T("filesys_max_size"), &p->filesys_limit, 1)
+		|| cfgfile_intval (option, value, _T("filesys_max_name_length"), &p->filesys_max_name, 1)
+		|| cfgfile_intval (option, value, _T("filesys_max_file_size"), &p->filesys_max_file_size, 1)
 
 		|| cfgfile_floatval (option, value, _T("rtg_vert_zoom_multf"), &p->rtg_vert_zoom_mult)
 		|| cfgfile_floatval (option, value, _T("rtg_horiz_zoom_multf"), &p->rtg_horiz_zoom_mult)
@@ -5034,6 +5038,8 @@ void default_prefs (struct uae_prefs *p, int type)
 	p->genlock = 0;
 	p->ntscmode = 0;
 	p->filesys_limit = 0;
+	p->filesys_max_name = 107;
+	p->filesys_max_file_size = 0x7fffffff;
 
 	p->fastmem_size = 0x00000000;
 	p->fastmem2_size = 0x00000000;

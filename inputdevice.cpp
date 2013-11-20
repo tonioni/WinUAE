@@ -228,7 +228,6 @@ static uae_u8 pot_dat[NORMAL_JPORTS][2];
 static int pot_dat_act[NORMAL_JPORTS][2];
 static int analog_port[NORMAL_JPORTS][2];
 static int digital_port[NORMAL_JPORTS][2];
-static int lightpen;
 #define POTDAT_DELAY_PAL 8
 #define POTDAT_DELAY_NTSC 7
 
@@ -288,15 +287,16 @@ static void copyjport (const struct uae_prefs *src, struct uae_prefs *dst, int n
 	dst->jports[num].autofire = src->jports[num].autofire;
 }
 
-static void out_config (struct zfile *f, int id, int num, TCHAR *s1, TCHAR *s2)
+static void out_config (struct zfile *f, int id, int num, const TCHAR *s1, const TCHAR *s2)
 {
 	TCHAR tmp[MAX_DPATH];
 	_stprintf (tmp, _T("input.%d.%s%d"), id, s1, num);
 	cfgfile_write_str (f, tmp, s2);
 }
 
-static bool write_config_head (struct zfile *f, int idnum, int devnum, TCHAR *name, struct uae_input_device *id,  struct inputdevice_functions *idf)
+static bool write_config_head (struct zfile *f, int idnum, int devnum, const TCHAR *name, struct uae_input_device *id,  struct inputdevice_functions *idf)
 {
+	TCHAR *s = NULL;
 	TCHAR tmp2[CONFIG_BLEN];
 
 	if (idnum == GAMEPORT_INPUT_SETTINGS) {
@@ -306,7 +306,6 @@ static bool write_config_head (struct zfile *f, int idnum, int devnum, TCHAR *na
 			return false;
 	}
 
-	TCHAR *s = NULL;
 	if (id->name)
 		s = id->name;
 	else if (devnum < idf->get_num ())
@@ -331,7 +330,7 @@ static bool write_config_head (struct zfile *f, int idnum, int devnum, TCHAR *na
 		cfgfile_write_bool (f, tmp2, true);
 		if (id->enabled) {
 			_stprintf (tmp2, _T("input.%d.%s.%d.disabled"), idnum + 1, name, devnum);
-			cfgfile_write (f, tmp2, _T("%d"), id->enabled ? 0 : 1);
+			cfgfile_write_bool (f, tmp2, id->enabled ? false : true);
 		}
 		return false;
 	}
@@ -541,7 +540,7 @@ static void write_kbr_config (struct zfile *f, int idnum, int devnum, struct uae
 	}
 }
 
-static void write_config (struct zfile *f, int idnum, int devnum, TCHAR *name, struct uae_input_device *id, struct inputdevice_functions *idf)
+static void write_config (struct zfile *f, int idnum, int devnum, const TCHAR *name, struct uae_input_device *id, struct inputdevice_functions *idf)
 {
 	TCHAR tmp1[MAX_DPATH];
 	int i;
@@ -624,7 +623,7 @@ static int getnum (const TCHAR **pp)
 
 	if (!_tcsnicmp (p, _T("false"), 5))
 		v = 0;
-	if (!_tcsnicmp (p, _T("true"), 4))
+	else if (!_tcsnicmp (p, _T("true"), 4))
 		v = 1;
 	else
 		v = _tstol (p);
@@ -671,8 +670,10 @@ static void reset_inputdevice_settings (struct uae_input_device *uid)
 		for (int i = 0; i < MAX_INPUT_SUB_EVENT_ALL; i++) {
 			uid->eventid[l][i] = 0;
 			uid->flags[l][i] = 0;
-			xfree (uid->custom[l][i]);
-			uid->custom[l][i] = NULL;
+			if (uid->custom[l][i]) {
+				xfree (uid->custom[l][i]);
+				uid->custom[l][i] = NULL;
+			}
 		}
 	}
 }
@@ -686,7 +687,7 @@ static void reset_inputdevice_slot (struct uae_prefs *prefs, int slot)
 }
 void reset_inputdevice_config (struct uae_prefs *prefs)
 {
-	for (int i = 0; i< MAX_INPUT_SETTINGS; i++)
+	for (int i = 0; i < MAX_INPUT_SETTINGS; i++)
 		reset_inputdevice_slot (prefs, i);
 }
 
@@ -3055,6 +3056,7 @@ static int handle_input_event (int nr, int state, int max, int autofire, bool ca
 				lightpen_y = gfxvidinfo.outbuffer->outheight / 2;
 			}
 			lightpen_active = true;
+			lightpen_enabled = true;
 			if (ie->type == 0) {
 				int delta = 0;
 				if (max == 0)
@@ -3973,7 +3975,7 @@ static int isdigitalbutton (int ei)
 static int islightpen (int ei)
 {
 	if (ei >= INPUTEVENT_LIGHTPEN_FIRST && ei < INPUTEVENT_LIGHTPEN_LAST) {
-		lightpen = 1;
+		lightpen_enabled = true;
 		return 1;
 	}
 	return 0;
@@ -4002,7 +4004,7 @@ static void scanevents (struct uae_prefs *p)
 			joydirpot[i][j] = 128 / (312 * 100 / currprefs.input_analog_joystick_mult) + (128 * currprefs.input_analog_joystick_mult / 100) + currprefs.input_analog_joystick_offset;
 		}
 	}
-	lightpen = 0;
+	lightpen_enabled = false;
 	if (lightpen_active > 0)
 		lightpen_active = -1;
 

@@ -3134,15 +3134,15 @@ STATIC_INLINE int div_unsigned (uae_u32 src_hi, uae_u32 src_lo, uae_u32 div, uae
 	return 0;
 }
 
-void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
+bool m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
-		return;
+		return false;
 	}
 	if (src == 0) {
 		Exception (5);
-		return;
+		return false;
 	}
 #if defined (uae_s64)
 	if (extra & 0x800) {
@@ -3260,6 +3260,7 @@ void m68k_divl (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		}
 	}
 #endif
+	return true;
 }
 
 STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, uae_u32 *dst_lo)
@@ -3280,11 +3281,11 @@ STATIC_INLINE void mul_unsigned (uae_u32 src1, uae_u32 src2, uae_u32 *dst_hi, ua
 	*dst_hi = r3;
 }
 
-void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
+bool m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 {
 	if ((extra & 0x400) && currprefs.int_no_unimplemented && currprefs.cpu_model == 68060) {
 		op_unimpl (opcode);
-		return;
+		return false;
 	}
 #if defined (uae_s64)
 	if (extra & 0x800) {
@@ -3369,6 +3370,7 @@ void m68k_mull (uae_u32 opcode, uae_u32 src, uae_u16 extra)
 		m68k_dreg (regs, (extra >> 12) & 7) = dst_lo;
 	}
 #endif
+	return true;
 }
 
 #endif

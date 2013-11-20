@@ -166,7 +166,7 @@ static int lof_togglecnt_lace, lof_togglecnt_nlace; //, nlace_cnt;
 */
 static int vpos_previous, hpos_previous;
 static int vpos_lpen, hpos_lpen, lightpen_triggered;
-int lightpen_x = -1, lightpen_y = -1, lightpen_cx, lightpen_cy, lightpen_active;
+int lightpen_x = -1, lightpen_y = -1, lightpen_cx, lightpen_cy, lightpen_active, lightpen_enabled;
 
 static uae_u32 sprtaba[256],sprtabb[256];
 static uae_u32 sprite_ab_merge[256];
@@ -200,7 +200,7 @@ static int maxvpos_total = 511;
 int minfirstline = VBLANK_ENDLINE_PAL;
 static int equ_vblank_endline = EQU_ENDLINE_PAL;
 static bool equ_vblank_toggle = true;
-double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored;
+double vblank_hz = VBLANK_HZ_PAL, fake_vblank_hz, vblank_hz_stored, vblank_hz_nom;
 static float vblank_hz_lof, vblank_hz_shf, vblank_hz_lace;
 static int vblank_hz_mult, vblank_hz_state;
 static struct chipset_refresh *stored_chipset_refresh;
@@ -1023,7 +1023,7 @@ static void compute_toscr_delay (int hpos, int bplcon1)
 
 static int bpldmasetuphpos;
 static int bpldmasetupphase;
-static void update_toscr_planes (void);
+static void update_toscr_planes (int fm);
 /* set currently active Agnus bitplane DMA sequence */
 static void setup_fmodes (int hpos)
 {
@@ -1136,22 +1136,26 @@ STATIC_INLINE void clear_fetchbuffer (uae_u32 *ptr, int nwords)
 	memset (ptr, 0, nwords * 4);
 }
 
-static void update_toscr_planes (void)
+static void update_toscr_planes (int fm)
 {
 	// This must be called just before new bitplane block starts,
 	// not when depth value changes. Depth can change early and can leave
 	// 16+ pixel horizontal line of old data visible.
 	if (toscr_nr_planes_agnus > thisline_decision.nr_planes) {
-		int j;
-		for (j = thisline_decision.nr_planes; j < toscr_nr_planes_agnus; j++) {
-			clear_fetchbuffer ((uae_u32 *)(line_data[next_lineno] + 2 * MAX_WORDS_PER_LINE * j), out_offs);
-			if (thisline_decision.plfleft >= 0) {
-				todisplay[j][0] = 0;
+		if (out_offs) {
+			int j;
+			for (j = thisline_decision.nr_planes; j < toscr_nr_planes_agnus; j++) {
+				clear_fetchbuffer ((uae_u32 *)(line_data[next_lineno] + 2 * MAX_WORDS_PER_LINE * j), out_offs);
+				if (thisline_decision.plfleft >= 0) {
+					todisplay[j][0] = 0;
 #ifdef AGA
-				todisplay[j][1] = 0;
-				todisplay[j][2] = 0;
-				todisplay[j][3] = 0;
+					if (fm) {
+						todisplay[j][1] = 0;
+						todisplay[j][2] = 0;
+						todisplay[j][3] = 0;
+					}
 #endif
+				}
 			}
 		}
 		thisline_decision.nr_planes = toscr_nr_planes_agnus;
@@ -1486,7 +1490,7 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 #endif
 
 	update_denise (hpos);
-	update_toscr_planes ();
+	update_toscr_planes (fm);
 	maybe_first_bpl1dat (hpos);
 
 	bplcon1t2 = bplcon1t;
@@ -1908,7 +1912,7 @@ static void update_fetch_x (int until, int fm)
 		return;
 
 	pos = last_fetch_hpos;
-	update_toscr_planes ();
+	update_toscr_planes (fm);
 
 	// not optimized, update_fetch_x() is extremely rarely used.
 	for (; pos < until; pos++) {
@@ -3059,7 +3063,7 @@ void compute_vsynctime (void)
 		vblank_hz = currprefs.chipset_refreshrate;
 		if (isvsync_chipset ()) {
 			int mult = 0;
-			if (!fake_vblank_hz && getvsyncrate (vblank_hz, &mult) != vblank_hz) {
+			if (getvsyncrate (vblank_hz, &mult) != vblank_hz) {
 				vblank_hz = getvsyncrate (vblank_hz, &vblank_hz_mult);
 				if (vblank_hz_mult > 0)
 					vblank_hz_state = 0;
@@ -3077,8 +3081,21 @@ void compute_vsynctime (void)
 		updatedisplayarea ();
 	}
 #endif
-	if (currprefs.produce_sound > 1)
-		update_sound (fake_vblank_hz);
+	if (currprefs.produce_sound > 1) {
+		double svpos = maxvpos;
+		double shpos = maxhpos_short;
+		if (islinetoggle ()) {
+			shpos += 0.5;
+		}
+		if (interlace_seen) {
+			svpos += 0.5;
+		} else if (lof_current) {
+			svpos += 1.0;
+		}
+		double clk = svpos * shpos * fake_vblank_hz;
+		write_log (_T("SNDRATE %.1f*%.1f*%.6f=%.6f\n"), svpos, shpos, fake_vblank_hz, clk);
+		update_sound (clk);
+	}
 }
 
 
@@ -3351,7 +3368,7 @@ void init_hz (bool fullinit)
 		maxvpos = MAXVPOS_PAL;
 		maxhpos = MAXHPOS_PAL;
 		minfirstline = VBLANK_ENDLINE_PAL;
-		vblank_hz = VBLANK_HZ_PAL;
+		vblank_hz_nom = vblank_hz = VBLANK_HZ_PAL;
 		sprite_vblank_endline = VBLANK_SPRITE_PAL;
 		equ_vblank_endline = EQU_ENDLINE_PAL;
 		equ_vblank_toggle = true;
@@ -3362,13 +3379,13 @@ void init_hz (bool fullinit)
 		maxvpos = MAXVPOS_NTSC;
 		maxhpos = MAXHPOS_NTSC;
 		minfirstline = VBLANK_ENDLINE_NTSC;
-		vblank_hz = VBLANK_HZ_NTSC;
+		vblank_hz_nom = vblank_hz = VBLANK_HZ_NTSC;
 		sprite_vblank_endline = VBLANK_SPRITE_NTSC;
 		equ_vblank_endline = EQU_ENDLINE_NTSC;
 		equ_vblank_toggle = false;
-		vblank_hz_shf = (double)clk / ((maxvpos + 0) * maxhpos);
-		vblank_hz_lof = (double)clk / ((maxvpos + 1) * maxhpos);
-		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * maxhpos);
+		vblank_hz_shf = (double)clk / ((maxvpos + 0) * (maxhpos + 0.5));
+		vblank_hz_lof = (double)clk / ((maxvpos + 1) * (maxhpos + 0.5));
+		vblank_hz_lace = (double)clk / ((maxvpos + 0.5) * (maxhpos + 0.5));
 	}
 
 	maxvpos_nom = maxvpos;
@@ -3379,7 +3396,7 @@ void init_hz (bool fullinit)
 		if (vpos_count < 10)
 			vpos_count = 10;
 		vblank_hz = (isntsc ? 15734 : 15625.0) / vpos_count;
-		vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = vblank_hz;
+		vblank_hz_nom = vblank_hz_shf = vblank_hz_lof = vblank_hz_lace = vblank_hz;
 		maxvpos_nom = vpos_count - (lof_current ? 1 : 0);
 		if ((maxvpos_nom >= 256 && maxvpos_nom <= 313) || (beamcon0 & 0x80)) {
 			maxvpos_display = maxvpos_nom;
@@ -3398,7 +3415,7 @@ void init_hz (bool fullinit)
 		if (htotal >= MAXHPOS)
 			htotal = MAXHPOS - 1;
 		maxhpos = htotal + 1;
-		vblank_hz = 227.0 * 312.0 * 50.0 / (maxvpos * maxhpos);
+		vblank_hz_nom = vblank_hz = 227.0 * 312.0 * 50.0 / (maxvpos * maxhpos);
 		vblank_hz_shf = vblank_hz;
 		vblank_hz_lof = 227.0 * 313.0 * 50.0 / (maxvpos * maxhpos);;
 		vblank_hz_lace = 227.0 * 312.5 * 50.0 / (maxvpos * maxhpos);;
@@ -3684,7 +3701,7 @@ static uae_u16 VPOSR (void)
 
 	if (!(currprefs.chipset_mask & CSMASK_ECS_AGNUS))
 		vp &= 1;
-	vp = vp | (lof_store ? 0x8000 : 0) | csbit;
+	vp |= (lof_store ? 0x8000 : 0) | csbit;
 	if (currprefs.chipset_mask & CSMASK_ECS_AGNUS)
 		vp |= lol ? 0x80 : 0;
 	hsyncdelay ();
@@ -6262,6 +6279,11 @@ static void vsync_handler_post (void)
 		if (lof_togglecnt_lace >= LOF_TOGGLES_NEEDED)
 			lof_togglecnt_nlace = 0;
 	} else {
+		// only 1-2 vblanks with bplcon0 lace bit set?
+		// lets check if lof has changed
+		if (!(bplcon0 & 4) && lof_togglecnt_lace > 0 && lof_togglecnt_lace < LOF_TOGGLES_NEEDED && !interlace_seen) {
+			lof_changed = 1;
+		}
 		lof_togglecnt_nlace = LOF_TOGGLES_NEEDED;
 		lof_togglecnt_lace = 0;
 #if 0
@@ -6579,7 +6601,7 @@ static void hsync_handler_pre (bool onvsync)
 			lightpen_triggered = 0;
 			sprite_0 = 0;
 		}
-		if (lightpen_cx > 0 && (bplcon0 & 8) && !lightpen_triggered && lightpen_cy == vpos) {
+		if (lightpen_enabled && lightpen_cx > 0 && (bplcon0 & 8) && !lightpen_triggered && lightpen_cy == vpos) {
 			vpos_lpen = vpos;
 			hpos_lpen = lightpen_cx;
 			lightpen_triggered = 1;

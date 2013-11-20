@@ -383,6 +383,8 @@ struct uae_prefs {
 	int turbo_emulation;
 	bool headless;
 	int filesys_limit;
+	int filesys_max_name;
+	int filesys_max_file_size;
 
 	int cs_compatible;
 	int cs_ciaatod;

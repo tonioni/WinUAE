@@ -2,6 +2,17 @@
 
 - restore only single input target to default.
 
+Beta 13:
+
+- Standard partition hardfile OFS filesystem check was broken (2.6.1)
+- Adjusted sprite xpos == hpos check. (Shed Tears / Ozone scroller)
+- 64-bit build didn't load portaudio dll.
+- GUI window minimize button worked strangely when emulation window was open.
+- Added new interlace emulation modes, first new is same as old one but display is updated every field
+  (Old doubling updated every frame) and another that does same and also blanks every other line.
+- Added separate non-laced and lace doubling modes to GUI. (Better labels needed, but there is no space)
+- Sound timing calculation wasn't updated to match new long/short field/interlace display emulation timing (b1).
+
 Beta 12:
 
 - AROS rom memory mapping fixed (b1).

@@ -24,6 +24,7 @@
 #include "registry.h"
 #include "win32.h"
 #include "win32gui.h"
+#include "xwin.h"
 
 #define MAX_GUI_FONTS 2
 #define DEFAULT_FONTSIZE  8
@@ -243,7 +244,8 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
 	}
-	d->style |= WS_MINIMIZEBOX;
+	if (isfullscreen () <= 0)
+		d->style |= WS_MINIMIZEBOX;
 
 	d2 = (DLGTEMPLATEEX_END*)ns->resource;
 	p = (BYTE*)d + sizeof (DLGTEMPLATEEX);

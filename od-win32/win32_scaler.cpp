@@ -441,7 +441,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 				if (currprefs.gfx_ycenter_size >= 0)
 					hh = currprefs.gfx_ycenter_size;
 				int oldwinw = currprefs.gfx_size_win.width;
-				int oldwinh = currprefs.gfx_size_win.width;
+				int oldwinh = currprefs.gfx_size_win.height;
 				changed_prefs.gfx_size_win.width = ww;
 				changed_prefs.gfx_size_win.height = hh;
 				fixup_prefs_dimensions (&changed_prefs);

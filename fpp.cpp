@@ -233,7 +233,7 @@ static void fpu_op_unimp (uae_u16 opcode, uae_u32 ea, uaecptr oldpc, int type)
 		}
 	} else if (currprefs.cpu_model == 68040) {
 		regs.fpiar = oldpc;
-		if (type == FPU_EXP_UNIMP_INS) {
+		if (type == FPU_EXP_UNIMP_INS || type == FPU_EXP_DISABLED) {
 			// PC = next instruction
 			oldpc = newpc;
 			m68k_areg (regs, 7) -= 4;

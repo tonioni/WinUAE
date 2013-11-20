@@ -336,14 +336,15 @@ STATIC_INLINE int canblit (int hpos)
 	return 1;
 }
 
-// blitter interrupt is set when last "main" cycle
-// has been finished, any non-linedraw D-channel blit
-// still needs 2 more cycles before final D is written
+// blitter interrupt is set (and busy bit cleared) when
+// last "main" cycle has been finished, any non-linedraw
+// D-channel blit still needs 2 more cycles before final
+// D is written
 static void blitter_interrupt (int hpos, int done)
 {
 	if (blit_interrupt)
 		return;
-	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68020))
+	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68030))
 		return;
 	blit_interrupt = 1;
 	send_interrupt (6, 3 * CYCLE_UNIT);

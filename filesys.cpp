@@ -3669,8 +3669,10 @@ static void
 	TRACE((_T("name=\"%s\"\n"), xs));
 	x2 = x = ua_fs (xs, -1);
 	n = strlen (x);
-	if (n > 106)
-		n = 106;
+	if (n > 107)
+		n = 107;
+	if (n > abs (currprefs.filesys_max_name))
+		n = abs (currprefs.filesys_max_name);
 	i = 8;
 	put_byte (info + i, n); i++;
 	while (n--)
@@ -4057,6 +4059,11 @@ end:
 	return ret;
 }
 
+static bool filesys_name_invalid (const TCHAR *fn)
+{
+	return _tcslen (fn) > currprefs.filesys_max_name;
+}
+
 static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecptr exalldata, uae_u32 exalldatasize, uae_u32 type, uaecptr control)
 {
 	a_inode *aino, *base = NULL;
@@ -4082,7 +4089,7 @@ static int action_examine_all_do (Unit *unit, uaecptr lock, ExAllKey *eak, uaecp
 					ok = isofs_readdir (d->isod, fn, &uniq);
 				else
 					ok = 0;
-			} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid_dir (fn));
+			} while (ok && d->fstype == FS_DIRECTORY && (filesys_name_invalid (fn) || fsdb_name_invalid_dir (fn)));
 			if (!ok)
 				return 0;
 		} else {
@@ -4355,7 +4362,7 @@ static void populate_directory (Unit *unit, a_inode *base)
 				ok = isofs_readdir (d->isod, fn, &uniq);
 			else
 				ok = 0;
-		} while (ok && d->fstype == FS_DIRECTORY && fsdb_name_invalid_dir (fn));
+		} while (ok && d->fstype == FS_DIRECTORY && (filesys_name_invalid (fn) || fsdb_name_invalid_dir (fn)));
 		if (!ok)
 			break;
 		/* This calls init_child_aino, which will notice that the parent is

@@ -3048,10 +3048,15 @@ static int get_kb_widget_first (int kb, int type)
 
 static int get_kb_widget_type (int kb, int num, TCHAR *name, uae_u32 *code)
 {
-	if (name)
-		_tcscpy (name, di_keyboard[kb].buttonname[num]);
-	if (code)
+	if (name) {
+		if (di_keyboard[kb].buttonname[num])
+			_tcscpy (name, di_keyboard[kb].buttonname[num]);
+		else
+			name[0] = 0;
+	}
+	if (code) {
 		*code = di_keyboard[kb].buttonmappings[num];
+	}
 	return IDEV_WIDGET_KEY;
 }
 

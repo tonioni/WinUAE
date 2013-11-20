@@ -163,17 +163,18 @@ int setup_sound (void)
 	return 1;
 }
 
+float sound_sync_multiplier = 1.0;
 float scaled_sample_evtime_orig;
 extern float sampler_evtime;
-void update_sound (double freq)
+
+void update_sound (double clk)
 
 {
 	if (!have_sound)
 		return;
-	int clk = currprefs.ntscmode ? CHIPSET_CLOCK_NTSC : CHIPSET_CLOCK_PAL;
-	scaled_sample_evtime_orig = clk * CYCLE_UNIT / (double)sdp->obtainedfreq;
+	scaled_sample_evtime_orig = clk * CYCLE_UNIT * sound_sync_multiplier / sdp->obtainedfreq;
 	scaled_sample_evtime = scaled_sample_evtime_orig;
-	sampler_evtime = clk * CYCLE_UNIT;
+	sampler_evtime = clk * CYCLE_UNIT * sound_sync_multiplier;
 }
 
 extern int vsynctimebase_orig;
@@ -1576,7 +1577,6 @@ static int open_sound (void)
 
 	have_sound = 1;
 	sound_available = 1;
-	update_sound (fake_vblank_hz);
 	paula_sndbufsize = sdp->sndbufsize;
 	paula_sndbufpt = paula_sndbuffer;
 	driveclick_init ();

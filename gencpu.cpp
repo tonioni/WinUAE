@@ -4620,13 +4620,15 @@ static void gen_opcode (unsigned long int opcode)
 		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc ();
-		printf ("\tm68k_divl(opcode, dst, extra);\n");
+		printf ("\tif (!m68k_divl(opcode, dst, extra)) goto %s;\n", endlabelstr);
+		need_endlabel = 1;
 		break;
 	case i_MULL:
 		genamode (curi, curi->smode, "srcreg", curi->size, "extra", 1, 0, 0);
 		genamode (curi, curi->dmode, "dstreg", curi->size, "dst", 1, 0, 0);
 		sync_m68k_pc ();
-		printf ("\tm68k_mull(opcode, dst, extra);\n");
+		printf ("\tif (!m68k_mull(opcode, dst, extra)) goto %s;\n", endlabelstr);
+		need_endlabel = 1;
 		break;
 	case i_BFTST:
 	case i_BFEXTU:

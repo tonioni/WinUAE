@@ -12335,7 +12335,6 @@ static void processport (HWND hDlg, bool reset, int port)
 	updatejoyport (hDlg, port);
 	inputdevice_updateconfig (NULL, &workprefs);
 	inputdevice_config_change ();
-	reset_inputdevice_config (&workprefs);
 }
 
 /* Handle messages for the Joystick Settings page of our property-sheet */
@@ -12496,8 +12495,6 @@ static INT_PTR CALLBACK IOPortsDlgProc (HWND hDlg, UINT msg, WPARAM wParam, LPAR
 		pages[IOPORTS_ID] = hDlg;
 		currentpage = IOPORTS_ID;
 		init_portsdlg (hDlg);
-		inputdevice_updateconfig (NULL, &workprefs);
-		reset_inputdevice_config (&workprefs);
 		enable_for_portsdlg (hDlg);
 		values_to_portsdlg (hDlg);
 		recursive--;
@@ -16530,7 +16527,7 @@ static int GetSettings (int all_options, HWND hwnd)
 		}
 
 		tres = scaleresource (panelresource, hwnd, gui_resize_enabled);
-		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, NULL, DialogProc);
+		dhwnd = CreateDialogIndirect (tres->inst, tres->resource, isfullscreen () > 0 ? hwnd : NULL, DialogProc);
 		dialog_rect.top = dialog_rect.left = 0;
 		dialog_rect.right = tres->width;
 		dialog_rect.bottom = tres->height;

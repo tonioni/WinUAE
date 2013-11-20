@@ -4777,6 +4777,7 @@ extern int tablet_log;
 extern int log_blitter;
 extern int slirp_debug;
 extern int fakemodewaitms;
+extern float sound_sync_multiplier;
 
 extern DWORD_PTR cpu_affinity, cpu_paffinity;
 static DWORD_PTR original_affinity = -1;
@@ -4794,6 +4795,18 @@ static int getval (const TCHAR *s)
 		return 0;
 	return v;
 }
+#if 0
+static float getvalf (const TCHAR *s)
+{
+	TCHAR *endptr;
+	double v;
+
+	v = _tcstof (s, &endptr);
+	if (*endptr != '\0' || *s == '\0')
+		return 0;
+	return v;
+}
+#endif
 
 static void makeverstr (TCHAR *s)
 {
@@ -5067,6 +5080,12 @@ static int parseargs (const TCHAR *argx, const TCHAR *np, const TCHAR *np2)
 	if (!np)
 		return 0;
 
+#if 0
+	if (!_tcscmp (arg, _T("sound_adjust"))) {
+		sound_sync_multiplier = getvalf (np);
+		return 2;
+	}
+#endif
 	if (!_tcscmp (arg, _T("vsync_modechangetimeout"))) {
 		vsync_modechangetimeout = getval (np);
 		return 2;
