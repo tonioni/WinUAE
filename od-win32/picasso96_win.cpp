@@ -737,9 +737,11 @@ static void picasso_handle_vsync2 (void)
 	bool rendered = false;
 	bool uaegfx = currprefs.rtgmem_type < GFXBOARD_HARDWARE;
 
-	if (vsync < 0) {
-		vsync_busywait_end (NULL);
-		vsync_busywait_do (NULL, false, false);
+	if (picasso_on) {
+		if (vsync < 0) {
+			vsync_busywait_end (NULL);
+			vsync_busywait_do (NULL, false, false);
+		}
 	}
 
 	getvsyncrate (currprefs.chipset_refreshrate, &mult);
@@ -752,6 +754,15 @@ static void picasso_handle_vsync2 (void)
 	}
 
 	framecnt++;
+
+	if (!uaegfx && !picasso_on) {
+		rtg_render ();
+		return;
+	}
+
+	if (!picasso_on)
+		return;
+
 	if (uaegfx)
 		mouseupdate ();
 

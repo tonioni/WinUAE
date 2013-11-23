@@ -115,7 +115,7 @@ static wstring szNone;
 
 static int allow_quit;
 static int restart_requested;
-static int full_property_sheet = 1;
+int full_property_sheet = 1;
 static struct uae_prefs *pguiprefs;
 struct uae_prefs workprefs;
 static int currentpage = -1;
@@ -10412,7 +10412,7 @@ static void new_filesys (HWND hDlg, int entry)
 	if (uci) {
 		if (uci->ci.rootdir[0])
 			filesys_media_change (uci->ci.rootdir, 1, uci);
-		else
+		else if (uci->configoffset >= 0)
 			filesys_eject (uci->configoffset);
 	}
 }

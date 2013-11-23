@@ -3147,7 +3147,7 @@ void hsync_record_line_state (int lineno, enum nln_how how, int changed)
 	case nln_upper_black:
 		if (currprefs.gfx_scanlines >= 4) {
 			*state = LINE_DECIDED;
-			state[1] = LINE_BLACK;
+			state[-1] = LINE_BLACK;
 		} else {
 			changed += state[0] != LINE_DONE;
 			*state = changed ? LINE_DECIDED : LINE_DONE;

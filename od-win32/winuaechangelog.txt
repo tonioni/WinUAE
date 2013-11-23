@@ -2,6 +2,23 @@
 
 - restore only single input target to default.
 
+Beta 14:
+
+- GUI didn't work in fullscreen modes.
+- Input panel lost all keyboard events (not even Test button accepted any key presses) in some situations,
+  already non-working config files can't be fixed. Older bug.
+- New frames interlace mode (without blacklines) now only redraws changed lines.
+- 68040 without FPU: unimplemented FPU exception used wrong exception vector.
+- 68020+ DIVL div-by-zero exception in cycle-exact mode didn't skip prefetch phase.
+- Do not set lightpen triggered state when BPLCON0 lightpen bit is set unless lightpen is also configured
+  in gameports or input panel.
+- Fixed crash if disabled keyboard had (old) gameport mappings.
+- Autoscale size change comparison used wrong value (width, not height) causing slow down, forced config
+  change check every frame.
+- Added configurable directory filesystem file/directory name length limit, currently config file only,
+  filesys_max_name_length=x, files and dirs with longer names are not seen in Amiga-side (directory operations only)
+- Really fixed sound sync timing issue, partly introduced in b1 and b13.
+
 Beta 13:
 
 - Standard partition hardfile OFS filesystem check was broken (2.6.1)

@@ -65,7 +65,7 @@
 #define CUSTOM_DEBUG 0
 #define SPRITE_DEBUG 0
 #define SPRITE_DEBUG_MINY 0x0
-#define SPRITE_DEBUG_MAXY 0x100
+#define SPRITE_DEBUG_MAXY 0x300
 #define SPR0_HPOS 0x15
 #define MAX_SPRITES 8
 #define SPRITE_COLLISIONS
@@ -980,7 +980,7 @@ STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 	return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
 }
 
-static void update_denise (int hpos)
+STATIC_INLINE void update_denise (int hpos)
 {
 	toscr_res = GET_RES_DENISE (bplcon0d);
 	if (bplcon0dd != bplcon0d) {
@@ -1490,7 +1490,8 @@ STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 #endif
 
 	update_denise (hpos);
-	update_toscr_planes (fm);
+	if (toscr_nr_planes_agnus > thisline_decision.nr_planes)
+		update_toscr_planes (fm);
 	maybe_first_bpl1dat (hpos);
 
 	bplcon1t2 = bplcon1t;
@@ -3273,11 +3274,11 @@ void compute_framesync (void)
 		if (vres2 > VRES_QUAD)
 			vres2 = VRES_QUAD;
 
-		int start = hbstrt;
-		int stop = hbstop;
+		int start = hsyncstartpos; //hbstrt;
+		int stop = hsyncendpos; //hbstop;
 
-		gfxvidinfo.drawbuffer.inwidth = (((start > stop ? (maxhpos - (maxhpos - start + stop)) : (maxhpos - (stop - start) + 2)) * 2) << res2);
-		gfxvidinfo.drawbuffer.inxoffset = ((stop + 1) & ~1) * 2;
+		gfxvidinfo.drawbuffer.inwidth = ((maxhpos - (maxhpos - start + stop) + 1) * 2) << res2;
+		gfxvidinfo.drawbuffer.inxoffset = stop * 2;
 		
 		gfxvidinfo.drawbuffer.extrawidth = 0;
 		gfxvidinfo.drawbuffer.inwidth2 = gfxvidinfo.drawbuffer.inwidth;
@@ -3451,13 +3452,15 @@ void init_hz (bool fullinit)
 	maxhpos_short = maxhpos;
 	if (beamcon0 & 0x80) {
 		if (hbstrt > maxhpos)
-			hsyncstartpos = hbstrt;
+			hsyncstartpos = hbstrt + 1;
 		else
-			hsyncstartpos = maxhpos + hbstrt;
+			hsyncstartpos = maxhpos + hbstrt + 1;
 		if (hbstop > maxhpos)
-			hsyncendpos = maxhpos - hbstop;
+			hsyncendpos = maxhpos - hbstop - 1;
 		else
-			hsyncendpos = hbstop;
+			hsyncendpos = hbstop - 1;
+		if (hsyncendpos < 2)
+			hsyncendpos = 2;
 	} else {
 		hsyncstartpos = maxhpos_short + 13;
 		hsyncendpos = 24;
@@ -3948,6 +3951,15 @@ static void DMACON (int hpos, uae_u16 v)
 	int newb = (dmacon & DMA_BLITTER) && (dmacon & DMA_MASTER);
 	int oldbn = (oldcon & DMA_BLITPRI);
 	int newbn = (dmacon & DMA_BLITPRI);
+#endif
+
+#if SPRITE_DEBUG > 0
+	{
+	int olds = (oldcon & DMA_SPRITE) && (oldcon & DMA_MASTER);
+	int news = (dmacon & DMA_SPRITE) && (dmacon & DMA_MASTER);
+	if (olds != news)
+		write_log (_T("SPRITE DMA: %d -> %d\n"), olds, news);
+	}
 #endif
 
 	if ((dmacon & DMA_BLITPRI) > (oldcon & DMA_BLITPRI) && bltstate != BLT_done)
@@ -4594,6 +4606,10 @@ static void BLTSIZH (int hpos, uae_u16 v)
 
 STATIC_INLINE void spr_arm (int num, int state)
 {
+#if SPRITE_DEBUG > 0
+	if (spr[num].armed != state)
+		write_log (_T("SPR%d ARM=%d\n"), num, state);
+#endif
 	switch (state) {
 	case 0:
 		nr_armed -= spr[num].armed;
@@ -4608,6 +4624,8 @@ STATIC_INLINE void spr_arm (int num, int state)
 
 STATIC_INLINE void sprstartstop (struct sprite *s)
 {
+	if (vpos < sprite_vblank_endline)
+		return;
 	if (vpos == s->vstart)
 		s->dmastate = 1;
 	if (vpos == s->vstop)
@@ -4947,7 +4965,7 @@ STATIC_INLINE int copper_cant_read2 (int hpos, int alloc)
 static int copper_cant_read (int hpos, int alloc)
 {
 	int cant = copper_cant_read2 (hpos, alloc);
-	if (cant && debug_dma)
+	if (cant && debug_dma && alloc)
 		record_dma_event (DMA_EVENT_COPPERWANTED, hpos, vpos);
 	return cant;
 }
@@ -5211,7 +5229,7 @@ static void update_copper (int until_hpos)
 				}
 #ifdef DEBUGGER
 				if (debug_copper && !cop_state.ignore_next)
-					record_copper (debugip - 4, old_hpos, vpos);
+					record_copper (debugip - 4, cop_state.saved_i1, cop_state.saved_i2, old_hpos, vpos);
 #endif
 				cop_state.ignore_next = 0;
 			}
@@ -5283,16 +5301,15 @@ static void update_copper (int until_hpos)
 						copper_enabled_thisline = 0;
 						unset_special (SPCFLAG_COPPER);
 						goto out;
-					} else {
-						if (debug_dma)
-							record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
 					}
 				}
+				if (debug_dma)
+					record_dma_event (DMA_EVENT_COPPERWAKE, old_hpos, vp);
 
-	#ifdef DEBUGGER
+#ifdef DEBUGGER
 				if (debug_copper)
-					record_copper (cop_state.ip - 4, old_hpos, vpos);
-	#endif
+					record_copper (cop_state.ip - 4, cop_state.saved_i1, cop_state.saved_i2, old_hpos, vpos);
+#endif
 
 				cop_state.state = COP_read1;
 			}
@@ -5320,7 +5337,7 @@ static void update_copper (int until_hpos)
 
 #ifdef DEBUGGER
 				if (debug_copper)
-					record_copper (cop_state.ip - 4, old_hpos, vpos);
+					record_copper (cop_state.ip - 4, cop_state.saved_i1, cop_state.saved_i2, old_hpos, vpos);
 #endif
 
 				break;
@@ -5391,8 +5408,13 @@ void blitter_done_notify (int hpos)
 	cop_state.hpos = hpos;
 	cop_state.vpos = vp;
 	cop_state.state = COP_read1;
+
+#ifdef DEBUGGER
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_COPPERWAKE, hpos, vp);
+	if (debug_copper)
+		record_copper_blitwait (cop_state.ip - 4, hpos, vp);
+#endif
 
 	if (dmaen (DMA_COPPER) && vp == vpos) {
 		copper_enabled_thisline = 1;
@@ -7058,6 +7080,8 @@ void custom_reset (bool hardreset, bool keyboardreset)
 	lightpen_active = -1;
 	lightpen_triggered = 0;
 	lightpen_cx = lightpen_cy = -1;
+	nr_armed = 0;
+
 	if (!savestate_state) {
 		extra_cycle = 0;
 		hsync_counter = 0;
@@ -7082,7 +7106,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 
 		/* Clear the armed flags of all sprites.  */
 		memset (spr, 0, sizeof spr);
-		nr_armed = 0;
 
 		dmacon = 0;
 		intreq_internal = 0;
@@ -7109,6 +7132,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		blit_interrupt = 1;
 		lof_store = lof_current = 0;
 		lof_lace = false;
+		init_sprites ();
 	}
 
 	gayle_reset (hardreset);
@@ -7166,8 +7190,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		audio_update_adkmasks ();
 	}
 
-	init_sprites ();
-
 	init_hardware_frame ();
 	drawing_init ();
 
@@ -7211,6 +7233,14 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		CLXCON (clxcon);
 		CLXCON2 (clxcon2);
 		calcdiw ();
+		for (i = 0; i < 8; i++) {
+			SPRxCTLPOS (i);
+			nr_armed += spr[i].armed != 0;
+		}
+		if (! currprefs.produce_sound) {
+			eventtab[ev_audio].active = 0;
+			events_schedule ();
+		}
 		write_log (_T("CPU=%d Chipset=%s %s\n"),
 			currprefs.cpu_model,
 			(currprefs.chipset_mask & CSMASK_AGA) ? _T("AGA") :
@@ -7219,12 +7249,6 @@ void custom_reset (bool hardreset, bool keyboardreset)
 			(currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? _T("ECS") :
 			_T("OCS"), currprefs.ntscmode ? _T("NTSC") : _T("PAL"));
 		write_log (_T("State restored\n"));
-		for (i = 0; i < 8; i++)
-			nr_armed += spr[i].armed != 0;
-		if (! currprefs.produce_sound) {
-			eventtab[ev_audio].active = 0;
-			events_schedule ();
-		}
 	}
 	sprres = expand_sprres (bplcon0, bplcon3);
 	sprite_width = GET_SPRITEWIDTH (fmode);
@@ -8173,7 +8197,7 @@ uae_u8 *restore_custom_sprite (int num, uae_u8 *src)
 	sprdatb[num][2] = RW;
 	sprdata[num][3] = RW;
 	sprdatb[num][3] = RW;
-	spr[num].armed = RB;
+	spr[num].armed = RB & 1;
 	return src;
 }
 
@@ -8661,9 +8685,6 @@ void wait_cpu_cycle_write_ce020 (uaecptr addr, int mode, uae_u32 v)
 
 void do_cycles_ce (unsigned long cycles)
 {
-	unsigned long c;
-
-	c = cycles + extra_cycle;
 	while (cycles >= CYCLE_UNIT) {
 		int hpos = current_hpos () + 1;
 		decide_line (hpos);
@@ -8674,7 +8695,6 @@ void do_cycles_ce (unsigned long cycles)
 		do_cycles (1 * CYCLE_UNIT);
 		cycles -= CYCLE_UNIT;
 	}
-	extra_cycle = c;
 }
 
 void do_cycles_ce020 (unsigned long cycles)

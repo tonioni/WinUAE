@@ -1070,7 +1070,9 @@ static void allocate_expamem (void)
 	currprefs.z3chipmem_size = changed_prefs.z3chipmem_size;
 
 	z3chipmem_bank.start = currprefs.z3fastmem_start;
-	z3fastmem_bank.start = currprefs.z3fastmem_start;
+	if (currprefs.mbresmem_high_size == 128 * 1024 * 1024)
+		z3chipmem_bank.start += 16 * 1024 * 1024;
+	z3fastmem_bank.start = z3chipmem_bank.start;
 	if (currprefs.z3chipmem_size)
 		z3fastmem_bank.start += currprefs.z3chipmem_size + 16 * 1024 * 1024;
 	z3fastmem2_bank.start = z3fastmem_bank.start + currprefs.z3fastmem_size;

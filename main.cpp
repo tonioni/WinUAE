@@ -280,6 +280,8 @@ void fixup_cpu (struct uae_prefs *p)
 		error_log (_T("Immediate blitter and waiting blits can't be enabled simultaneously.\n"));
 		p->waiting_blits = 0;
 	}
+	if (p->cpu_cycle_exact)
+		p->cpu_compatible = true;
 }
 
 void fixup_prefs (struct uae_prefs *p)

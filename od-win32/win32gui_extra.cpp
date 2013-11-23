@@ -208,6 +208,8 @@ static INT_PTR CALLBACK DummyProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM lP
 	return FALSE;
 }
 
+extern int full_property_sheet;
+
 struct newresource *scaleresource (struct newresource *res, HWND parent, int resize)
 {
 	DLGTEMPLATEEX *d, *s;
@@ -244,7 +246,7 @@ struct newresource *scaleresource (struct newresource *res, HWND parent, int res
 		d->style |= DS_MODALFRAME;
 		d->style &= ~WS_THICKFRAME;
 	}
-	if (isfullscreen () <= 0)
+	if (full_property_sheet)
 		d->style |= WS_MINIMIZEBOX;
 
 	d2 = (DLGTEMPLATEEX_END*)ns->resource;
