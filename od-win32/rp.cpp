@@ -589,6 +589,13 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 
 	} else {
 
+		int rw, rh, rx, ry;
+		get_custom_raw_limits (&rw, &rh, &rx, &ry);
+		rw = shift (rw, RES_MAX);
+		rx = shift (rx, RES_MAX);
+		rh = shift (rh, VRES_MAX);
+		ry = shift (ry, VRES_MAX);
+
 		hmult = p->gfx_filter_horiz_zoom_mult;
 		vmult = p->gfx_filter_vert_zoom_mult;
 
@@ -612,10 +619,20 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			m = RP_SCREENMODE_SCALE_1X;
 		}
 
-		sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
-		sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
-		sm->lClipWidth = p->gfx_xcenter_size <= 0 ? -1 : p->gfx_xcenter_size;
-		sm->lClipHeight = p->gfx_ycenter_size <= 0 ? -1 : p->gfx_ycenter_size;
+		if (p->gfx_xcenter_pos < 0 && p->gfx_ycenter_pos < 0) {
+			sm->lClipLeft = rx;
+			sm->lClipTop = ry;
+		} else {
+			sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
+			sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
+		}
+		if (p->gfx_xcenter_size <= 0 && p->gfx_ycenter_size <= 0) {
+			sm->lClipWidth = rw;
+			sm->lClipHeight = rh;
+		} else {
+			sm->lClipWidth = p->gfx_xcenter_size <= 0 ? -1 : p->gfx_xcenter_size;
+			sm->lClipHeight = p->gfx_ycenter_size <= 0 ? -1 : p->gfx_ycenter_size;
+		}
 
 		if (p->gfx_filter_scanlines || p->gfx_scanlines)
 			m |= RP_SCREENMODE_SCANLINES;

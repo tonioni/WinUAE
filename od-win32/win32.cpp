@@ -412,12 +412,18 @@ static void figure_processor_speed (void)
 		figure_processor_speed_qpf ();
 }
 
+static int windowmouse_max_w;
+static int windowmouse_max_h;
+
 static void setcursor (int oldx, int oldy)
 {
 	int x = abs (amigawin_rect.right - amigawin_rect.left) / 2;
 	int y = abs (amigawin_rect.bottom - amigawin_rect.top) / 2;
 	mouseposx = oldx - x;
 	mouseposy = oldy - y;
+
+	windowmouse_max_w = (amigawin_rect.right - amigawin_rect.left) / 2 - 25;
+	windowmouse_max_h = (amigawin_rect.bottom - amigawin_rect.top) / 2 - 25;
 
 	if (currprefs.input_magic_mouse && currprefs.input_tablet > 0 && mousehack_alive () && isfullscreen () <= 0) {
 		mouseposx = mouseposy = 0;
@@ -434,7 +440,7 @@ static void setcursor (int oldx, int oldy)
 		mouseposx = mouseposy = 0;
 		oldx = oldy = 0;
 	} else {
-		if (abs (mouseposx) < 50 && abs (mouseposy) < 50)
+		if (abs (mouseposx) < windowmouse_max_w && abs (mouseposy) < windowmouse_max_h)
 			return;
 	}
 	mouseposx = mouseposy = 0;
@@ -645,10 +651,11 @@ static bool iswindowfocus (void)
 		donotfocus = true;
 	if (w3 != NULL && f == w3)
 		donotfocus = false;
-
+#if 0
 #ifdef RETROPLATFORM
 	if (rp_isactive () && isfullscreen () == 0)
 		donotfocus = false;
+#endif
 #endif
 	if (isfullscreen () > 0)
 		donotfocus = false;
@@ -695,6 +702,7 @@ static void setmouseactive2 (int active, bool allowpause)
 	if (!iswindowfocus ()) {
 		focus = 0;
 		mouseactive = 0;
+		active = 0;
 	}
 
 	if (mouseactive) {
@@ -1281,9 +1289,13 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 					int myy = (amigawin_rect.bottom - amigawin_rect.top) / 2;
 					mx = mx - mxx;
 					my = my - myy;
-					//write_log (_T("%d:%dx%d\n"), dinput_winmouse(), mx, my);
-					setmousestate (dinput_winmouse (), 0, mx, 0);
-					setmousestate (dinput_winmouse (), 1, my, 0);
+					if (abs(mx) < windowmouse_max_w && abs(my) < windowmouse_max_h) {
+						//write_log (_T("%d:%dx%d\n"), dinput_winmouse(), mx, my);
+						setmousestate (dinput_winmouse (), 0, mx, 0);
+						setmousestate (dinput_winmouse (), 1, my, 0);
+					}  else {
+						;//write_log (_T("!!! %d:%dx%d\n"), dinput_winmouse(), mx, my);
+					}
 				}
 			} else if (isfocus () < 0 && (istablet || currprefs.input_tablet >= TABLET_MOUSEHACK)) {
 				setmousestate (0, 0, mx, 1);

@@ -2062,17 +2062,25 @@ void picasso_getwritewatch (int offset)
 }
 bool picasso_is_vram_dirty (uaecptr addr, int size)
 {
+	static ULONG_PTR last;
 	uae_u8 *a = addr + natmem_offset + watch_offset;
 	int s = size;
 	int ms = gwwpagesize;
-	for (ULONG_PTR i = 0; i < writewatchcount; i++) {
-		uae_u8 *ma = (uae_u8*)gwwbuf[i];
-		if (
-			(a < ma && a + s >= ma) ||
-			(a < ma + ms && a + s >= ma + ms) ||
-			(a >= ma && a < ma + ms)) {
-			return true;
+
+	for (;;) {
+		for (ULONG_PTR i = last; i < writewatchcount; i++) {
+			uae_u8 *ma = (uae_u8*)gwwbuf[i];
+			if (
+				(a < ma && a + s >= ma) ||
+				(a < ma + ms && a + s >= ma + ms) ||
+				(a >= ma && a < ma + ms)) {
+				last = i;
+				return true;
+			}
 		}
+		if (last == 0)
+			break;
+		last = 0;
 	}
 	return false;
 }
@@ -4108,6 +4116,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 	int pheight = picasso96_state.Height > picasso96_state.VirtualHeight ? picasso96_state.VirtualHeight : picasso96_state.Height;
 	int maxy = -1;
 	int miny = pheight - 1;
+	int flushlines = 0, matchcount = 0;
 
 	src_start = src + (off & ~gwwpagemask);
 	src_end = src + ((off + picasso96_state.BytesPerRow * pheight + gwwpagesize - 1) & ~gwwpagemask);
@@ -4146,6 +4155,8 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 				break;
 		}
 
+		matchcount += gwwcnt;
+
 		if (gwwcnt == 0)
 			break;
 
@@ -4176,6 +4187,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 
 			miny = 0;
 			maxy = pheight;
+			flushlines = -1;
 			break;
 		}
 
@@ -4200,6 +4212,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 							picasso96_state.BytesPerRow, picasso96_state.BytesPerPixel,
 							picasso_vidinfo.rowbytes, picasso_vidinfo.pixbytes,
 							picasso96_state.RGBFormat == host_mode, picasso_convert);
+						flushlines++;
 					w = (gwwpagesize - (picasso96_state.BytesPerRow - x * picasso96_state.BytesPerPixel)) / picasso96_state.BytesPerPixel;
 					if (y < miny)
 						miny = y;
@@ -4212,6 +4225,7 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 							picasso96_state.RGBFormat == host_mode, picasso_convert);
 						w -= maxw;
 						y++;
+						flushlines++;
 					}
 					if (y > maxy)
 						maxy = y;
@@ -4221,6 +4235,10 @@ bool picasso_flushpixels (uae_u8 *src, int off)
 
 		}
 		break;
+	}
+
+	if (0 && flushlines) {
+		write_log (_T("%d:%d\n"), flushlines, matchcount);
 	}
 
 	if (currprefs.leds_on_screen & STATUSLINE_RTG) {

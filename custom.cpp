@@ -264,8 +264,8 @@ static uae_s16 bpl1mod, bpl2mod, dbpl1mod, dbpl2mod;
 static int dbpl1mod_on, dbpl2mod_on;
 static uaecptr prevbpl[2][MAXVPOS][8];
 static uaecptr bplpt[8], bplptx[8];
-static uaecptr dbplpt[8];
-static int dbplpt_on[8], dbplpt_on2;
+static uaecptr dbplptl[8], dbplpth[8];
+static int dbplptl_on[8], dbplpth_on[8], dbplptl_on2, dbplpth_on2;
 
 /*static int blitcount[256];  blitter debug */
 
@@ -662,7 +662,39 @@ STATIC_INLINE int GET_PLANES_LIMIT (uae_u16 bc0)
 /* Programmed rates or superhires (!) disable normal DMA limits */
 #define HARD_DDF_START (HARD_DDF_LIMITS_DISABLED ? 0x04 : 0x18)
 
-static void reset_bpldelays (void)
+static void reset_dbplh (int hpos, int num)
+{
+	if (dbplpth_on[num] && hpos >= dbplpth_on[num]) {
+		bplpt[num] = dbplpth[num] | (bplpt[num] & 0x0000fffe);
+		dbplpth_on[num] = 0;
+		dbplpth_on2--;
+	}
+}
+
+static void reset_dbplh_all (int hpos)
+{
+	if (dbplpth_on2) {
+		for (int i = 0; i < MAX_PLANES; i++) {
+			reset_dbplh (hpos, i);
+		}
+		dbplpth_on2 = 0;
+	}	
+}
+
+static void reset_bplldelays (void)
+{
+	if (dbplptl_on2) {
+		for (int i = 0; i < MAX_PLANES; i++) {
+			if (dbplptl_on[i]) {
+				bplpt[i] = (bplpt[i] & 0xffff0000) | dbplptl[i];
+				dbplptl_on[i] = 0;
+			}
+		}
+		dbplptl_on2 = 0;
+	}	
+}
+
+static void reset_moddelays (void)
 {
 	if (dbpl1mod_on > 0) {
 		bpl1mod = dbpl1mod;
@@ -672,15 +704,6 @@ static void reset_bpldelays (void)
 		bpl2mod = dbpl2mod;
 		dbpl2mod_on = 0;
 	}
-	if (dbplpt_on2) {
-		for (int i = 0; i < MAX_PLANES; i++) {
-			if (dbplpt_on[i] > 0) {
-				bplpt[i] = (bplpt[i] & 0xffff0000) | (dbplpt[i] & 0x0000fffe);
-				dbplpt_on[i] = 0;
-			}
-		}
-		dbplpt_on2 = 0;
-	}	
 }
 
 static void add_modulo (int hpos, int nr)
@@ -706,14 +729,16 @@ static void add_modulo (int hpos, int nr)
 		mod = bpl1mod;
 	bplpt[nr] += mod;
 	bplptx[nr] += mod;
-	reset_bpldelays ();
+	reset_moddelays ();
+	reset_bplldelays ();
 }
 
 static void add_modulos (void)
 {
 	int m1, m2;
 
-	reset_bpldelays ();
+	reset_moddelays ();
+	reset_bplldelays ();
 	if (fmode & 0x4000) {
 		if (((diwstrt >> 8) ^ vpos) & 1)
 			m1 = m2 = bpl2mod;
@@ -1217,6 +1242,9 @@ STATIC_INLINE void fetch (int nr, int fm, int hpos)
 				warned--;
 			}
 		}
+
+		if (dbplpth_on2)
+			reset_dbplh (nr, hpos);
 
 		if (nr == 0)
 			bpl1dat_written = true;
@@ -3008,7 +3036,9 @@ static void reset_decisions (void)
 	bpldmasetupphase = 0;
 	ddfstrt_old_hpos = -1;
 	bpldmawasactive = false;
-	reset_bpldelays ();
+	reset_moddelays ();
+	reset_bplldelays ();
+	reset_dbplh_all (256);
 	bitplane_dma_turned_on = 0;
 
 	if (plf_state > plf_active)
@@ -3958,7 +3988,7 @@ static void DMACON (int hpos, uae_u16 v)
 	int olds = (oldcon & DMA_SPRITE) && (oldcon & DMA_MASTER);
 	int news = (dmacon & DMA_SPRITE) && (dmacon & DMA_MASTER);
 	if (olds != news)
-		write_log (_T("SPRITE DMA: %d -> %d\n"), olds, news);
+		write_log (_T("SPRITE DMA: %d -> %d %08x\n"), olds, news, m68k_getpc ());
 	}
 #endif
 
@@ -4201,10 +4231,14 @@ static void BPLxPTH (int hpos, uae_u16 v, int num)
 {
 	decide_line (hpos);
 	decide_fetch (hpos);
-	if (dbplpt_on[num]) {
-		bplpt[num] = (bplpt[num] & 0xffff0000) | (dbplpt[num] & 0x0000fffe);
-		dbplpt_on[num] = 0;
+	if (copper_access && is_bitplane_dma (hpos + 1) == num + 1) {
+		dbplpth[num] = (v << 16) & 0xffff0000;
+		dbplpth_on[num] = hpos;
+		dbplpth_on2++;
+		ddf_change = vpos;
+		return;
 	}
+
 	bplpt[num] = (bplpt[num] & 0x0000ffff) | ((uae_u32)v << 16);
 	bplptx[num] = (bplptx[num] & 0x0000ffff) | ((uae_u32)v << 16);
 	//write_log (_T("%d:%d:BPL%dPTH %08X COP=%08x\n"), hpos, vpos, num, bplpt[num], cop_state.ip);
@@ -4213,6 +4247,8 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 {
 	decide_line (hpos);
 	decide_fetch (hpos);
+	reset_dbplh (hpos, num);
+	//reset_dbpl (hpos, num);
 	/* chipset feature: BPLxPTL write and next cycle doing DMA fetch using same pointer register ->
 	 * this write goes nowhere (same happens with all DMA channels, not just BPL)
 	 * (intro MoreNewStuffy by PlasmaForce)
@@ -4225,9 +4261,10 @@ static void BPLxPTL (int hpos, uae_u16 v, int num)
 		if (plf_state < plf_wait_stop)
 			return;
 		/* modulo adds use old value! Argh! */
-		dbplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
-		dbplpt_on[num] = hpos + 1;
-		dbplpt_on2 = 1;
+		dbplptl[num] = v & 0x0000fffe;
+		dbplptl_on[num] = 255;
+		dbplptl_on2 = 1;
+		ddf_change = vpos;
 		return;
 	}
 	bplpt[num] = (bplpt[num] & 0xffff0000) | (v & 0x0000fffe);
@@ -5101,7 +5138,7 @@ static void update_copper (int until_hpos)
 			// Second cycle after COPJMP. This is the strange one.
 			// This cycle does not need to be free
 			// But it still gets allocated by copper if it is free = CPU and blitter can't use it.
-			if (copper_cant_read (old_hpos, 1)) {
+			if (!copper_cant_read (old_hpos, 0)) {
 				alloc_cycle (old_hpos, CYCLE_COPPER);
 				if (debug_dma)
 					record_dma (0x1fe, chipmem_wget_indirect (cop_state.ip), cop_state.ip, old_hpos, vpos, DMARECORD_COPPER);

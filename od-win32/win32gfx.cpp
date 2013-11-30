@@ -1233,8 +1233,8 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 	
 	picasso_offset_x = 0;
 	picasso_offset_y = 0;
-	picasso_offset_mx = 1000;
-	picasso_offset_my = 1000;
+	picasso_offset_mx = 1.0;
+	picasso_offset_my = 1.0;
 
 	if (!picasso_on)
 		return;

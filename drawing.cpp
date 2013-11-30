@@ -410,6 +410,26 @@ static void set_blanking_limits (void)
 	}
 }
 
+void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy)
+{
+	int x = visible_left_border;
+	if (x < visible_left_start)
+		x = visible_left_start;
+	*pdx = x;
+	int x2 = visible_right_border;
+	if (x2 > visible_right_stop)
+		x2 = visible_right_stop;
+	*pw = x2 - x;
+	int y = min_ypos_for_screen;
+	if (y < visible_top_start)
+		y = visible_top_start;
+	*pdy = y;
+	int y2 = max_drawn_amiga_line;
+	if (y2 > visible_bottom_stop)
+		y2 = visible_bottom_stop;
+	*ph = y2 - y;
+}
+
 void set_custom_limits (int w, int h, int dx, int dy)
 {
 	int vls = visible_left_start;

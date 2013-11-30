@@ -5787,10 +5787,12 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_resetwarning = 0;
 		if (p->bogomem_size || p->chipmem_size > 0x80000 || p->fastmem_size)
 			p->cs_rtc = 1;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_A500P: // A500+
 		p->cs_rtc = 1;
 		p->cs_resetwarning = 0;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_A600: // A600
 		p->cs_rtc = 1;
@@ -5799,6 +5801,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_a8 = 1;
 		p->cs_ciaoverlay = 0;
 		p->cs_resetwarning = 0;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_A1000: // A1000
 		p->cs_a1000ram = 1;
@@ -5806,6 +5809,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 		p->cs_ksmirror_e0 = 0;
 		p->cs_agnusbltbusybug = 1;
 		p->cs_dipagnus = 1;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_A1200: // A1200
 		p->cs_ide = IDE_A600A1200;
@@ -5818,6 +5822,7 @@ int built_in_chipset_prefs (struct uae_prefs *p)
 	case CP_A2000: // A2000
 		p->cs_rtc = 1;
 		p->cs_ciaatod = p->ntscmode ? 2 : 1;
+		p->cs_ciatodbug = true;
 		break;
 	case CP_A3000: // A3000
 		p->cs_rtc = 2;

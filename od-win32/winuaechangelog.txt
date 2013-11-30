@@ -1,6 +1,20 @@
 
-
 - restore only single input target to default.
+
+Beta 15:
+
+- Removing directory harddrives on the fly crashed in some situations.
+- Interlace with black lines ("fields+") didn't always work correctly.
+- Only allow GUI mininize button if emulation has not yet been started, minimizing GUI when emulation window
+  is open only causes problems..
+- Copper debugger (od) shows when blit waiting WAIT ends and also stores copper instruction words when
+  copper fetched them, shows '!' if words have changed since copper fetched them. (Previously it was possible
+  to see copper list in state that makes no sense if program modified it after copper executed it)
+- Add 16M to Z3 start address if Processor slot RAM is set to 128M, prevents KS RAM detection to confuse Z3
+  board as being part of Processor Slot RAM.
+- Cirrus Logic graphics board enabled but inactive and refresh set to Chipset slowed down emulation.
+- Sprite stuck in non-DMA mode was not correctly restored from statefile. (Has never worked previously)
+- Adjusted programmed refresh rate blanking start and end position calculations.
 
 Beta 14:
 
