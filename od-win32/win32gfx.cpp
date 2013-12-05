@@ -2851,8 +2851,10 @@ static bool getvblankpos2 (int *vp, int *flags, bool updateprev)
 static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 {
 	int vp;
+	int count = 0;
 	if (flags)
 		*flags = 0;
+	uae_u32 t = getlocaltime () + 5;
 	for (;;) {
 		int omax = maxscanline;
 		if (!getvblankpos2 (&vp, flags, true))
@@ -2870,6 +2872,12 @@ static bool waitvblankstate (bool state, int *maxvpos, int *flags)
 		} else {
 			if (!state)
 				return true;
+		}
+		count--;
+		if (count < 0) {
+			if (getlocaltime () > t)
+				return false;
+			count = 1000;
 		}
 	}
 }
@@ -3466,6 +3474,7 @@ double vblank_calibrate (double approx_vblank, bool waitonly)
 	struct remembered_vsync *rv;
 	double rval = -1;
 	struct apmode *ap = picasso_on ? &currprefs.gfx_apmode[1] : &currprefs.gfx_apmode[0];
+	struct apmode *apc = picasso_on ? &changed_prefs.gfx_apmode[1] : &changed_prefs.gfx_apmode[0];
 	bool remembered = false;
 	bool lace = false;
 
@@ -3688,6 +3697,7 @@ skip:
 fail:
 	write_log (_T("VSync calibration failed\n"));
 	ap->gfx_vsync = 0;
+	apc->gfx_vsync = 0;
 	return -1;
 }
 

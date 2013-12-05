@@ -1,14 +1,15 @@
 /*****************************************************************************
  Name    : RetroPlatformIPC.h
  Project : RetroPlatform Player
- Client  : Cloanto Italia srl
  Support : http://www.retroplatform.com
  Legal   : Copyright 2007-2013 Cloanto Italia srl - All rights reserved. This
-         : file is made available under the terms of the Mozilla Public License
-         : version 2.0 as published by Mozilla Corporation.
+         : file is multi-licensed under the terms of the Mozilla Public License
+         : version 2.0 as published by Mozilla Corporation and the GNU General
+         : Public License, version 2 or later, as published by the Free
+         : Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2013-03-20 17:30:00
+ Updated : 2013-12-02 10:26:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -119,15 +120,18 @@
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // in guest pixel units; -1 = ignore (0 is a valid value); see http://www.retroplatform.com/kb/19-115
-	LONG lClipTop;      // in guest pixel units; -1 = ignore (0 is a valid value)
-	LONG lClipWidth;    // in guest pixel units; -1 = ignore
-	LONG lClipHeight;   // in guest pixel units; -1 = ignore
+	LONG lClipLeft;     // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore (0 is a valid value); see http://www.retroplatform.com/kb/19-115
+	LONG lClipTop;      // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore (0 is a valid value)
+	LONG lClipWidth;    // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore
+	LONG lClipHeight;   // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore
 	HWND hGuestWindow;  // only valid for RP_IPC_TO_HOST_SCREENMODE
 	DWORD dwClipFlags;	// clip flags (or 0)
 	LONG lTargetWidth;  // in exact host pixels; if set, must also set lTargetHeight; ignored unless RP_SCREENMODE_SCALE_TARGET is set (resulting size is result of clipping and scaling); RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH are taken into account
 	LONG lTargetHeight; // in exact host pixels, used with lTargetWidth
 } RPSCREENMODE;
+
+// See below for more notes about lClipLeft, lClipTop, lClipWidth, lClipHeight, etc.
+
 
 // Scaling Factor (for Window and Fullscreen)
 #define RP_SCREENMODE_SCALE_1X      		0x00000000 // 1x window or fullscreen mode ("CGA mode")
@@ -217,7 +221,7 @@ typedef struct RPScreenMode
 //
 // Example 2: An unknown Amiga application or one that has no known clip offset/size will start with RP_CLIPFLAGS_AUTOCLIP.
 // The guest (e.g. WinUAE) will apply whatever logic it can to minimize the visible overscan region.
-// The guest will send to the host the actual RPScreenMode data with the offset/size details that were applied.
+// The guest will send to the host the actual RPScreenMode data (with clipping details, rather than with -1) with the offset/size details that were applied.
 // In windowed mode, RP_SCREENMODE_SCALE_nX scaling is applied like in the previous example.
 // RP_SCREENMODE_FULLSCREEN_SHARED and RP_SCREENMODE_FULLSCREEN_EXCLUSIVE modes behave like in the previous example (scaling, etc.)
 // If an Amiga application sets a different Amiga or RTG chipset screen mode, the "container" window size may change (because it is not constrained by any host-set clipping values), in consideration of RP_SCREENMODE_SCALE_nX.
@@ -235,6 +239,16 @@ typedef struct RPScreenMode
 //
 // In window mode, after a change of clipping or size, the player may have to reset the visual hilight of the 1X, 2X etc. buttons according to new RP_IPC_TO_HOST_SCREENMODE data (setting a hilight if the correct scaling button is present in the user interface, or removing all hilights if the corresponding button is missing).
 //
+// If the host finds an unexpected "-1" or an out-of-bounds value in the lClipLeft/Top/Width/Height
+// values when it needs to display a clipping outline (for editing)
+// to the user, it can solve the problem (rather than making the editing action unavailable) in
+// one of two ways:
+//
+// - Display a "widest possible" outline (as if there was no clipping) and let the user narrow
+//   that manually
+//
+// - Apply its own auto-clipping logic (as already used when images are dragged and dropped to
+//   add preview thumbnails) to set an initial outline, and let the user change it from there
 
 
 // RPInputDeviceDescription (used by initial host device enumeration via RP_IPC_TO_HOST_INPUTDEVICE, right after RP_IPC_TO_HOST_FEATURES and before RP_IPC_TO_HOST_SCREENMODE)
@@ -427,6 +441,11 @@ typedef struct RPScreenCapture
 //
 // The top-left origin of the Filtered bitmap should match the origin as displayed in the playback
 // window (i.e. net of clipping).
+//
+// If the host needs the "raw" bitmap (e.g. to allow the user to edit the clipping outline), but the
+// guest for some reason did not provide it (although it is always desirable), then the host
+// will reconstruct a synthetic unclipped bitmap by adding blank borders (background color, if known,
+// or black). If needed, the guest can use a similar approach rather than sending no "raw" bitmap at all.
 //
 
 // Return codes for RP_IPC_TO_GUEST_SCREENCAPTURE

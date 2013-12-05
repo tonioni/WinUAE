@@ -156,6 +156,8 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 	float filter_horiz_offset = currprefs.gfx_filter_horiz_offset / 10000.0f;
 	float filter_vert_offset = currprefs.gfx_filter_vert_offset / 10000.0f;
 
+	store_custom_limits (-1, -1, -1, -1);
+
 	if (!usedfilter && !currprefs.gfx_api) {
 		filter_horiz_zoom = filter_vert_zoom = 0.0;
 		filter_horiz_zoom_mult = filter_vert_zoom_mult = 1.0;
@@ -258,6 +260,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					ch -= 25 << currprefs.gfx_vresolution;
 				}
 				set_custom_limits (cw, ch, cx, cy);
+				store_custom_limits (cw, ch, cx, cy);
 				scl = true;
 			}
 
@@ -275,10 +278,15 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 					get_custom_topedge (&cx, &cy, false);
 				}
 
-				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE)
+				if (scalemode == AUTOSCALE_INTEGER_AUTOSCALE) {
 					ok = get_custom_limits (&cw, &ch, &cx, &cy, &crealh) != 0;
-				if (scalemode == AUTOSCALE_INTEGER || ok == false)
+					if (ok)
+						store_custom_limits (cw, ch, cx, cy);
+				}
+				if (scalemode == AUTOSCALE_INTEGER || ok == false) {
 					getmanualpos (&cx, &cy, &cw, &ch);
+					store_custom_limits (cw, ch, cx, cy);
+				}
 
 				int cw2 = cw + filter_horiz_zoom;
 				int ch2 = ch + filter_vert_zoom;
@@ -322,6 +330,7 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 
 			getmanualpos (&cx, &cy, &cw, &ch);
 			set_custom_limits (cw, ch, cx, cy);
+			store_custom_limits (cw, ch, cx, cy);
 			scl = true;
 
 			//write_log (_T("%dx%d %dx%d %dx%d\n"), currprefs.gfx_xcenter_pos, currprefs.gfx_ycenter_pos, cx, cy, cw, ch);
@@ -331,19 +340,23 @@ void getfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_height
 		} else if (scalemode == AUTOSCALE_CENTER || scalemode == AUTOSCALE_RESIZE) {
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
+			if (cv)
+				store_custom_limits (cw, ch, cx, cy);
 
 		} else {
 
 			cv = get_custom_limits (&cw, &ch, &cx, &cy, &crealh);
 			if (cv) {
 				set_custom_limits (cw, ch, cx, cy);
+				store_custom_limits (cw, ch, cx, cy);
 				scl = true;
 			}
 
 		}
 
-		if (!scl)
+		if (!scl) {
 			set_custom_limits (-1, -1, -1, -1);
+		}
 	
 		autoaspectratio = 0;
 		if (currprefs.gfx_filter_keep_autoscale_aspect && cw > 0 && ch > 0 && crealh > 0 && (scalemode == AUTOSCALE_NORMAL || scalemode == AUTOSCALE_INTEGER_AUTOSCALE || scalemode == AUTOSCALE_MANUAL)) {
@@ -611,6 +624,16 @@ end:
 	}
 
 	fpux_restore (&fpuv);
+
+#if 0
+	int rw, rh, rx, ry;
+	get_custom_raw_limits (&rw, &rh, &rx, &ry);
+	rw <<= RES_MAX - currprefs.gfx_resolution;
+	rx <<= RES_MAX - currprefs.gfx_resolution;
+	rh <<= VRES_MAX - currprefs.gfx_vresolution;
+	ry <<= VRES_MAX - currprefs.gfx_vresolution;
+	write_log (_T("%d %d %d %d\n"), rx, rw, ry, rh);
+#endif
 
 }
 

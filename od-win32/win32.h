@@ -15,7 +15,7 @@
 #define GETBDM(x) (((x) - ((x / 10000) * 10000)) / 100)
 #define GETBDD(x) ((x) % 100)
 
-#define WINUAEPUBLICBETA 1
+#define WINUAEPUBLICBETA 0
 #define LANG_DLL 1
 
 #if WINUAEPUBLICBETA
@@ -23,7 +23,7 @@
 #else
 #define WINUAEBETA _T("")
 #endif
-#define WINUAEDATE MAKEBD(2013, 11, 30)
+#define WINUAEDATE MAKEBD(2013, 12, 5)
 #define WINUAEEXTRA _T("")
 //#define WINUAEEXTRA _T("AmiKit Preview")
 //#define WINUAEEXTRA _T("Amiga Forever Edition")

@@ -550,7 +550,7 @@ static int shift (int val, int shift)
 	return val;
 }
 
-static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
+static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool getclip)
 {
 	int m, cf;
 	int full = 0;
@@ -590,11 +590,17 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 	} else {
 
 		int rw, rh, rx, ry;
+		int xp, yp;
+
 		get_custom_raw_limits (&rw, &rh, &rx, &ry);
-		rw = shift (rw, RES_MAX);
-		rx = shift (rx, RES_MAX);
-		rh = shift (rh, VRES_MAX);
-		ry = shift (ry, VRES_MAX);
+		get_custom_topedge (&xp, &yp, false);
+		rx += xp;
+		ry += yp;
+		rw <<= RES_MAX - currprefs.gfx_resolution;
+		rx <<= RES_MAX - currprefs.gfx_resolution;
+		rh <<= VRES_MAX - currprefs.gfx_vresolution;
+		ry <<= VRES_MAX - currprefs.gfx_vresolution;
+		//write_log (_T("* %d %d %d %d\n"), rx, ry, rw, rh);
 
 		hmult = p->gfx_filter_horiz_zoom_mult;
 		vmult = p->gfx_filter_vert_zoom_mult;
@@ -619,14 +625,14 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p)
 			m = RP_SCREENMODE_SCALE_1X;
 		}
 
-		if (p->gfx_xcenter_pos < 0 && p->gfx_ycenter_pos < 0) {
+		if (getclip && p->gfx_xcenter_pos < 0 && p->gfx_ycenter_pos < 0) {
 			sm->lClipLeft = rx;
 			sm->lClipTop = ry;
 		} else {
 			sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
 			sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
 		}
-		if (p->gfx_xcenter_size <= 0 && p->gfx_ycenter_size <= 0) {
+		if (getclip && p->gfx_xcenter_size <= 0 && p->gfx_ycenter_size <= 0) {
 			sm->lClipWidth = rw;
 			sm->lClipHeight = rh;
 		} else {
@@ -1350,7 +1356,7 @@ void rp_fixup_options (struct uae_prefs *p)
 	}
 
 	fixup_size (p);
-	get_screenmode (&sm, p);
+	get_screenmode (&sm, p, false);
 	sm.dwScreenMode = rp_screenmode;
 	set_screenmode (&sm, &currprefs);
 	set_screenmode (&sm, &changed_prefs);
@@ -1466,7 +1472,7 @@ void rp_input_change (int num)
 	}
 	if (log_rp & 1)
 		write_log(_T("PORT%d: '%s':%d\n"), num, name, mode);
-	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, false, name);
+	rp_device_change (RP_DEVICECATEGORY_INPUTPORT, num, mode, true, name);
 }
 void rp_disk_image_change (int num, const TCHAR *name, bool writeprotected)
 {
@@ -1703,7 +1709,7 @@ void rp_set_hwnd (HWND hWnd)
 	}
 	//write_log (_T("RP_IPC_TO_HOST_SCREENMODE\n"));
 	guestwindow = hWnd;
-	get_screenmode (&sm, &currprefs);
+	get_screenmode (&sm, &currprefs, false);
 	if (hWnd != NULL)
 		hwndset = 1;
 	RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL); 
@@ -1767,7 +1773,7 @@ void rp_vsync (void)
 		if (screenmode_request == 0) {
 			//write_log (_T("RP_IPC_TO_HOST_SCREENMODE screenmode_request timeout\n"));
 			struct RPScreenMode sm = { 0 };
-			get_screenmode (&sm, &currprefs);
+			get_screenmode (&sm, &currprefs, true);
 			RPSendMessagex (RP_IPC_TO_HOST_SCREENMODE, 0, 0, &sm, sizeof sm, &guestinfo, NULL);
 		}
 	}

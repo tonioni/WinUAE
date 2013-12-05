@@ -1,6 +1,26 @@
 
 - restore only single input target to default.
 
+- If Picasso IV flash image is not found, show also link where to download it from.
+
+Beta 16: (RC1)
+
+- Z3 RTG base address was not adjusted if Processor Slot RAM was 128M.
+- Writing to high BPL pointer when next cycle does same bitplane number DMA fetch: old address is
+  used for fetch. (Powertrax / The Light Circle graphics glitch)
+- Added workaround for Windows 8.1 bug, after SetCursorPos() call WM_MOUSEMOVE returns new coordinate
+  as expected, then comes single message with old coordinate (this shouldn't happen) before it works
+  correctly again. This fixes "Windows mouse" jumping ~50 pixels while moving the mouse. Rawinput HID
+  mouse is not affected by this bug. (No, KB2908279 does not fix it, I guess working fix will be released someday)
+- "Install mouse driver" + RTG mode has been unusable since 2600b1.
+- Re-enabled "CIA TOD bug" by default but only in A500-like modes.
+- Built-in HRTMon updated to 2.35
+- Built-in AROS ROM updated. Added memory hack, bootup structures are allocated from hidden memory pool
+  (located at 0xa80000-0xb80000, automatically enabled if built-in AROS rom is in use), when AROS starts
+  booting from disk or HD, hidden pool is marked as full and all following allocations come from normal RAM.
+  Now even 512k chip only config will boot and work with AROS rom replacement. Hack only used if CPU has 24-bit
+  address bus. (68000/68010/68EC020).
+
 Beta 15:
 
 - Removing directory harddrives on the fly crashed in some situations.

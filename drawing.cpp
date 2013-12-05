@@ -346,6 +346,8 @@ void notice_screen_contents_lost (void)
 
 bool isnativevidbuf (void)
 {
+	if (gfxvidinfo.outbuffer == NULL)
+		return false;
 	if (gfxvidinfo.outbuffer == &gfxvidinfo.drawbuffer)
 		return true;
 	return gfxvidinfo.outbuffer->nativepositioning;
@@ -364,6 +366,7 @@ extern int lof_store;
 #define MAX_DISPLAY_H 283
 
 static int gclow, gcloh, gclox, gcloy, gclorealh;
+static int stored_left_start, stored_top_start, stored_width, stored_height;
 
 void get_custom_topedge (int *xp, int *yp, bool max)
 {
@@ -412,22 +415,29 @@ static void set_blanking_limits (void)
 
 void get_custom_raw_limits (int *pw, int *ph, int *pdx, int *pdy)
 {
-	int x = visible_left_border;
-	if (x < visible_left_start)
-		x = visible_left_start;
-	*pdx = x;
-	int x2 = visible_right_border;
-	if (x2 > visible_right_stop)
-		x2 = visible_right_stop;
-	*pw = x2 - x;
-	int y = min_ypos_for_screen;
-	if (y < visible_top_start)
-		y = visible_top_start;
-	*pdy = y;
-	int y2 = max_drawn_amiga_line;
-	if (y2 > visible_bottom_stop)
-		y2 = visible_bottom_stop;
-	*ph = y2 - y;
+	if (stored_width > 0) {
+		*pw = stored_width;
+		*ph = stored_height;
+		*pdx = stored_left_start;
+		*pdy = stored_top_start;
+	} else {
+		int x = visible_left_border;
+		if (x < visible_left_start)
+			x = visible_left_start;
+		*pdx = x;
+		int x2 = visible_right_border;
+		if (x2 > visible_right_stop)
+			x2 = visible_right_stop;
+		*pw = x2 - x;
+		int y = min_ypos_for_screen;
+		if (y < visible_top_start)
+			y = visible_top_start;
+		*pdy = y;
+		int y2 = max_ypos_thisframe;
+		if (y2 > visible_bottom_stop)
+			y2 = visible_bottom_stop;
+		*ph = y2 - y;
+	}
 }
 
 void set_custom_limits (int w, int h, int dx, int dy)
@@ -455,6 +465,22 @@ void set_custom_limits (int w, int h, int dx, int dy)
 		vts != visible_top_start || vbs != visible_bottom_stop)
 		notice_screen_contents_lost ();
 	set_blanking_limits ();
+}
+
+void store_custom_limits (int w, int h, int x, int y)
+{
+	stored_left_start = x;
+	stored_top_start = y;
+	stored_width = w;
+	stored_height = h;
+#if 0
+	write_log (_T("%dx%d %dx%d %dx%d %dx%d %d\n"), x, y, w, h,
+	   	currprefs.gfx_xcenter_pos,
+		currprefs.gfx_ycenter_pos,
+		currprefs.gfx_xcenter_size,
+		currprefs.gfx_ycenter_size,
+		currprefs.gfx_filter_autoscale);
+#endif
 }
 
 int get_custom_limits (int *pw, int *ph, int *pdx, int *pdy, int *prealh)

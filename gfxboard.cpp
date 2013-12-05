@@ -2090,8 +2090,8 @@ void gfxboard_init_memory (void)
 			}
 			gfxboard_intena = true;
 		} else {
-			error_log (_T("Picasso IV: '%s' flash rom image not found\n"), path);
-			gui_message (_T("Couldn't load Picasso IV flash rom image:\n%s"), path);
+			error_log (_T("Picasso IV: '%s' flash rom image not found!\nAvailable from http://www.sophisticated-development.de/\nPIV_FlashImageXX -> picasso_iv_flash.rom"), path);
+			gui_message (_T("Picasso IV: '%s' flash rom image not found!\nAvailable from http://www.sophisticated-development.de/\nPIV_FlashImageXX -> picasso_iv_flash.rom"), path);
 		}
 	}
 
