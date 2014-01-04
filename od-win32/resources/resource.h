@@ -462,9 +462,9 @@
 #define IDC_BLITWAIT                    1175
 #define IDC_LORES                       1176
 #define IDC_RATE2BOX                    1177
+#define IDC_AUTORESOLUTIONSELECT        1178
 #define IDC_LORES_SMOOTHED              1179
 #define IDC_FLICKERFIXER                1180
-#define IDC_AUTORESOLUTION              1181
 #define IDC_RATE2ENABLE                 1182
 #define IDC_FRAMERATE                   1185
 #define IDC_XSIZE                       1187

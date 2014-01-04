@@ -612,7 +612,7 @@ static uae_u16 chip_wget (uaecptr addr)
 {
 	if (addr == RAP) {
 		return rap;
-	} else if (addr = RDP) {
+	} else if (addr == RDP) {
 		uae_u16 v = csr[rap];
 		if (rap == 0) {
 			if (v & (CSR0_BABL | CSR0_CERR | CSR0_MISS | CSR0_MERR))

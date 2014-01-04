@@ -148,7 +148,7 @@ typedef struct {
 #define DRIVE_ID_35HD  0xAAAAAAAA
 #define DRIVE_ID_525SD 0x55555555 /* 40 track 5.25 drive , kickstart does not recognize this */
 
-typedef enum { ADF_NONE = -1, ADF_NORMAL, ADF_EXT1, ADF_EXT2, ADF_FDI, ADF_IPF, ADF_CATWEASEL, ADF_PCDOS } drive_filetype;
+typedef enum { ADF_NONE = -1, ADF_NORMAL, ADF_EXT1, ADF_EXT2, ADF_FDI, ADF_IPF, ADF_CATWEASEL, ADF_PCDOS, ADF_KICK, ADF_SKICK } drive_filetype;
 typedef struct {
 	struct zfile *diskfile;
 	struct zfile *writediskfile;
@@ -1127,7 +1127,23 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 			if (side == 1)
 				drv->num_tracks *= 2;
 
+	} else if ((size == 262144 || size == 524288) && buffer[0] == 0x11 && (buffer[1] == 0x11 || buffer[1] == 0x14)) {
+
+		// 256k -> KICK disk, 512k -> SuperKickstart disk
+		drv->filetype = size == 262144 ? ADF_KICK : ADF_SKICK;
+		drv->num_tracks = 1760 / (drv->num_secs = 11);
+		for (int i = 0; i < drv->num_tracks; i++) {
+			tid = &drv->trackdata[i];
+			tid->type = TRACK_AMIGADOS;
+			tid->len = 512 * drv->num_secs;
+			tid->bitlen = 0;
+			tid->offs = i * 512 * drv->num_secs - (drv->filetype == ADF_KICK ? 512 : 262144 + 1024);
+			tid->track = i;
+			tid->revolutions = 1;
+		}
+
 	} else {
+
 		int i, ds;
 
 		ds = 0;
@@ -1349,12 +1365,32 @@ static void drive_motor (drive * drv, bool off)
 #endif
 }
 
-static void read_floppy_data (struct zfile *diskfile, trackid *tid, int offset, uae_u8 *dst, int len)
+static void read_floppy_data (struct zfile *diskfile, int type, trackid *tid, int offset, uae_u8 *dst, int len)
 {
 	if (len == 0)
 		return;
-	zfile_fseek (diskfile, tid->offs + offset, SEEK_SET);
-	zfile_fread (dst, 1, len, diskfile);
+	if (tid->track == 0) {
+		if (type == ADF_KICK) {
+			memset (dst, 0, len > 512 ? 512 : len);
+			if (offset == 0) {
+				memcpy (dst, "KICK", 4);
+				len -= 512;
+			}
+		} else if (type == ADF_SKICK) {
+			memset (dst, 0, len > 512 ? 512 : len);
+			if (offset == 0) {
+				memcpy (dst, "KICKSUP0", 8);
+				len -= 1024;
+			} else if (offset == 512) {
+				len -= 512;
+			}
+		}
+	}
+	int off = tid->offs + offset;
+	if (off >= 0 && len > 0) {
+		zfile_fseek (diskfile, off, SEEK_SET);
+		zfile_fread (dst, 1, len, diskfile);
+	}
 }
 
 /* Megalomania does not like zero MFM words... */
@@ -1444,7 +1480,7 @@ static void decode_pcdos (drive *drv)
 		secbuf[57] = 0xa1;
 		secbuf[58] = 0xa1;
 		secbuf[59] = 0xfb;
-		read_floppy_data (drv->diskfile, ti, i * 512, &secbuf[60], 512);
+		read_floppy_data (drv->diskfile, drv->filetype, ti, i * 512, &secbuf[60], 512);
 		crc16 = get_crc16 (secbuf + 56, 3 + 1 + 512);
 		secbuf[60 + 512] = crc16 >> 8;
 		secbuf[61 + 512] = crc16 & 0xff;
@@ -1501,7 +1537,7 @@ static void decode_amigados (drive *drv)
 		for (i = 8; i < 24; i++)
 			secbuf[i] = 0;
 
-		read_floppy_data (drv->diskfile, ti, sec * 512, &secbuf[32], 512);
+		read_floppy_data (drv->diskfile, drv->filetype, ti, sec * 512, &secbuf[32], 512);
 
 		mfmbuf[0] = prevbit ? 0x2aaa : 0xaaaa;
 		mfmbuf[1] = 0xaaaa;
@@ -1607,7 +1643,7 @@ static void decode_diskspare (drive *drv)
 		secbuf[2] = 0;
 		secbuf[3] = 0;
 
-		read_floppy_data (drv->diskfile, ti, sec * 512, &secbuf[4], 512);
+		read_floppy_data (drv->diskfile, drv->filetype, ti, sec * 512, &secbuf[4], 512);
 
 		mfmbuf[0] = 0xaaaa;
 		mfmbuf[1] = 0x4489;
@@ -1684,7 +1720,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 		trackid *wti = &drv->writetrackdata[tr];
 		drv->tracklen = wti->bitlen;
 		drv->revolutions = wti->revolutions;
-		read_floppy_data (drv->writediskfile, wti, 0, (uae_u8*)drv->bigmfmbuf, (wti->bitlen + 7) / 8);
+		read_floppy_data (drv->writediskfile, drv->filetype, wti, 0, (uae_u8*)drv->bigmfmbuf, (wti->bitlen + 7) / 8);
 		for (i = 0; i < (drv->tracklen + 15) / 16; i++) {
 			uae_u16 *mfm = drv->bigmfmbuf + i;
 			uae_u8 *data = (uae_u8 *) mfm;
@@ -1737,7 +1773,7 @@ static void drive_fill_bigbuf (drive * drv, int force)
 		int base_offset = ti->type == TRACK_RAW ? 0 : 1;
 		drv->tracklen = ti->bitlen + 16 * base_offset;
 		drv->bigmfmbuf[0] = ti->sync;
-		read_floppy_data (drv->diskfile, ti, 0, (uae_u8*)(drv->bigmfmbuf + base_offset), (ti->bitlen + 7) / 8);
+		read_floppy_data (drv->diskfile, drv->filetype, ti, 0, (uae_u8*)(drv->bigmfmbuf + base_offset), (ti->bitlen + 7) / 8);
 		for (i = base_offset; i < (drv->tracklen + 15) / 16; i++) {
 			uae_u16 *mfm = drv->bigmfmbuf + i;
 			uae_u8 *data = (uae_u8 *) mfm;
@@ -1823,7 +1859,9 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 	uae_u8 *secdata;
 	uae_u8 secbuf[544];
 	uae_u16 *mend = mbuf + length, *mstart;
+	uae_u32 sechead[4];
 	int shift = 0;
+	bool issechead;
 
 	memset (sectable, 0, MAX_SECTORS * sizeof (int));
 	mstart = mbuf;
@@ -1862,6 +1900,7 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 #if MFM_VALIDATOR
 		check_valid_mfm (mbuf - 4, 544 - 4 + 1, trackoffs);
 #endif
+		issechead = false;
 		chksum = odd ^ even;
 		for (i = 0; i < 4; i++) {
 			odd = getmfmlong (mbuf, shift);
@@ -1870,12 +1909,17 @@ static int decode_buffer (uae_u16 *mbuf, int cyl, int drvsec, int ddhd, int file
 
 			dlong = (odd << 1) | even;
 			if (dlong && !checkmode) {
-				if (filetype == ADF_EXT2)
-					return 6;
-				secwritten = -200;
+				issechead = true;
 			}
+			sechead[i] = dlong;
 			chksum ^= odd ^ even;
-		}   /* could check here if the label is nonstandard */
+		}
+		if (issechead) {
+			write_log (_T("Disk decode: sector %d header: %08X %08X %08X %08X\n"),
+				trackoffs, sechead[0], sechead[1], sechead[2], sechead[3]);
+			if (filetype == ADF_EXT2)
+				return 6;
+		}
 		mbuf += 8;
 		odd = getmfmlong (mbuf, shift);
 		even = getmfmlong (mbuf + 2, shift);
@@ -3437,7 +3481,7 @@ void DSKLEN (uae_u16 v, int hpos)
 		drive *drv = &floppy[dr];
 		if (selected & (1 << dr))
 			continue;
-		if (drv->filetype != ADF_NORMAL)
+		if (drv->filetype != ADF_NORMAL && drv->filetype != ADF_KICK && drv->filetype != ADF_SKICK)
 			break;
 	}
 	if (dr < MAX_FLOPPY_DRIVES) /* no turbo mode if any selected drive has non-standard ADF */

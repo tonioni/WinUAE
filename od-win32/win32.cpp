@@ -139,6 +139,7 @@ static void *tablet;
 HCURSOR normalcursor;
 static HWND hwndNextViewer;
 HANDLE AVTask;
+static int all_events_disabled;
 
 TCHAR VersionStr[256];
 TCHAR BetaStr[64];
@@ -662,21 +663,33 @@ static bool iswindowfocus (void)
 	return donotfocus == false;
 }
 
+bool ismouseactive (void)
+{
+	return mouseactive > 0;
+}
+
 static void setmouseactive2 (int active, bool allowpause)
 {
+#ifdef RETROPLATFORM
+	bool isrp = rp_isactive () != 0;
+#else
+	bool isrp = false;
+#endif
+
 	//write_log (_T("setmouseactive %d->%d showcursor=%d focus=%d recap=%d\n"), mouseactive, active, showcursor, focus, recapture);
+
 	if (active == 0)
 		releasecapture ();
 	if (mouseactive == active && active >= 0)
 		return;
 
-	if (active == 1 && !currprefs.input_magic_mouse) {
+	if (!isrp && active == 1 && !currprefs.input_magic_mouse) {
 		HANDLE c = GetCursor ();
 		if (c != normalcursor)
 			return;
 	}
 	if (active) {
-		if (IsWindowVisible (hAmigaWnd) == FALSE)
+		if (!isrp && !IsWindowVisible (hAmigaWnd))
 			return;
 	}
 
@@ -696,14 +709,15 @@ static void setmouseactive2 (int active, bool allowpause)
 		SetCursor (normalcursor);
 	}
 
-	if (mouseactive > 0)
-		focus = 1;
-
 	if (!iswindowfocus ()) {
+		write_log (_T("Tried to capture mouse but window didn't have focus! F=%d A=%d\n"), focus, mouseactive);
 		focus = 0;
 		mouseactive = 0;
 		active = 0;
 	}
+
+	if (mouseactive > 0)
+		focus = 1;
 
 	if (mouseactive) {
 		if (focus) {
@@ -745,6 +759,8 @@ static void setmouseactive2 (int active, bool allowpause)
 void setmouseactive (int active)
 {
 	monitor_off = 0;
+	if (active > 1)
+		SetForegroundWindow (hAmigaWnd);
 	setmouseactive2 (active, true);
 }
 
@@ -754,7 +770,7 @@ static void winuae_active (HWND hWnd, int minimized)
 {
 	struct threadpriorities *pri;
 
-	write_log (_T("winuae_active(%d)\n"), minimized);
+	//write_log (_T("winuae_active(%d)\n"), minimized);
 	monitor_off = 0;
 	/* without this returning from hibernate-mode causes wrong timing
 	*/
@@ -811,7 +827,7 @@ static void winuae_inactive (HWND hWnd, int minimized)
 	struct threadpriorities *pri;
 	int wasfocus = focus;
 
-	write_log (_T("winuae_inactive(%d)\n"), minimized);
+	//write_log (_T("winuae_inactive(%d)\n"), minimized);
 #if USETHREADCHARACTERICS
 	if (AVTask)
 		AvRevertMmThreadCharacteristics (AVTask);
@@ -1000,6 +1016,8 @@ static int isfocus2 (void)
 		return 1;
 	if (focus && mouseactive > 0)
 		return 1;
+	if (currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse)
+		return 1;
 	if (focus)
 		return -1;
 	return 0;
@@ -1031,6 +1049,9 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 #if MSGDEBUG > 1
 	write_log (_T("AWP: %x %x\n"), hWnd, message);
 #endif
+
+	if (all_events_disabled)
+		return 0;
 
 	switch (message)
 	{
@@ -1618,6 +1639,9 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 #if MSGDEBUG > 1
 	write_log (_T("MWP: %x %d\n"), hWnd, message);
 #endif
+
+	if (all_events_disabled)
+		return 0;
 
 	switch (message)
 	{
@@ -2475,7 +2499,7 @@ void logging_init (void)
 		}
 	}
 
-	write_log (_T("%s (%d.%d %s%s[%d])"), VersionStr,
+	write_log (_T("\n%s (%d.%d %s%s[%d])"), VersionStr,
 		osVersion.dwMajorVersion, osVersion.dwMinorVersion, osVersion.szCSDVersion,
 		_tcslen (osVersion.szCSDVersion) > 0 ? _T(" ") : _T(""), os_winnt_admin);
 	write_log (_T(" %d-bit %X.%X.%X %d %s"),
@@ -5611,32 +5635,10 @@ int driveclick_loadresource (struct drvsample *sp, int drivetype)
 	return ok;
 }
 
-#if defined(_WIN64)
-
-LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
-{
-	write_log (_T("EVALEXCEPTION!\n"));
-	return EXCEPTION_EXECUTE_HANDLER;
-}
-#else
-
-#if 0
-#include <errorrep.h>
-#endif
 typedef BOOL (WINAPI *MINIDUMPWRITEDUMP)(HANDLE hProcess, DWORD dwPid, HANDLE hFile, MINIDUMP_TYPE DumpType,
 	CONST PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
 	CONST PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
 	CONST PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
-
-/* Gah, don't look at this crap, please.. */
-static void efix (DWORD *regp, void *p, void *ps, int *got)
-{
-	DWORD reg = *regp;
-	if (p >= (void*)reg && p < (void*)(reg + 32)) {
-		*regp = (DWORD)ps;
-		*got = 1;
-	}
-}
 
 static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTERS *pExceptionPointers)
 {
@@ -5672,6 +5674,105 @@ static void savedump (MINIDUMPWRITEDUMP dump, HANDLE f, struct _EXCEPTION_POINTE
 	exinfo.ClientPointers = 0;
 	dump (GetCurrentProcess (), GetCurrentProcessId (), f, minidumpmode, &exinfo, musip, NULL);
 }
+
+static void create_dump (struct _EXCEPTION_POINTERS *pExceptionPointers)
+{
+	TCHAR path[MAX_DPATH];
+	TCHAR path2[MAX_DPATH];
+	TCHAR msg[1024];
+	TCHAR *p;
+	HMODULE dll = NULL;
+	struct tm when;
+	__time64_t now;
+
+	if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
+		TCHAR dumpfilename[100];
+		TCHAR beta[100];
+		TCHAR path3[MAX_DPATH];
+		TCHAR *slash = _tcsrchr (path, '\\');
+		_time64 (&now);
+		when = *_localtime64 (&now);
+		_tcscpy (path2, path);
+		if (slash) {
+			_tcscpy (slash + 1, _T("DBGHELP.DLL"));
+			dll = WIN32_LoadLibrary (path);
+		}
+		slash = _tcsrchr (path2, '\\');
+		if (slash)
+			p = slash + 1;
+		else
+			p = path2;
+		p[0] = 0;
+		beta[0] = 0;
+		if (WINUAEPUBLICBETA > 0)
+			_stprintf (beta, _T("b%s"), WINUAEBETA);
+		_stprintf (dumpfilename, _T("winuae%s_%d.%d.%d_%s_%d.%02d.%02d_%02d.%02d.%02d.dmp"),
+#ifdef _WIN64
+			_T("_x64"),
+#else
+			_T(""),
+#endif
+			UAEMAJOR, UAEMINOR, UAESUBREV, beta[0] ? beta : _T("R"),
+			when.tm_year + 1900, when.tm_mon + 1, when.tm_mday, when.tm_hour, when.tm_min, when.tm_sec);
+		if (dll == NULL)
+			dll = WIN32_LoadLibrary (_T("DBGHELP.DLL"));
+		if (dll) {
+			all_events_disabled = 1;
+			MINIDUMPWRITEDUMP dump = (MINIDUMPWRITEDUMP)GetProcAddress (dll, "MiniDumpWriteDump");
+			if (dump) {
+				_tcscpy (path3, path2);
+				_tcscat (path3, dumpfilename);
+				HANDLE f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+				if (f == INVALID_HANDLE_VALUE) {
+					_tcscpy (path3, start_path_data);
+					_tcscat (path3, dumpfilename);
+					f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+				}
+				if (f == INVALID_HANDLE_VALUE) {
+					if (GetTempPath (MAX_DPATH, path3) > 0) {
+						_tcscat (path3, dumpfilename);
+						f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+					}
+				}
+				if (f != INVALID_HANDLE_VALUE) {
+					flush_log ();
+					savedump (dump, f, pExceptionPointers);
+					CloseHandle (f);
+					if (isfullscreen () <= 0) {
+						_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
+						MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
+					}
+				}
+			}
+			all_events_disabled = 0;
+		}
+	}
+}
+
+#if defined(_WIN64)
+
+LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS * pExceptionPointers, DWORD ec)
+{
+	write_log (_T("EVALEXCEPTION!\n"));
+	create_dump  (pExceptionPointers);
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+#else
+
+#if 0
+#include <errorrep.h>
+#endif
+
+/* Gah, don't look at this crap, please.. */
+static void efix (DWORD *regp, void *p, void *ps, int *got)
+{
+	DWORD reg = *regp;
+	if (p >= (void*)reg && p < (void*)(reg + 32)) {
+		*regp = (DWORD)ps;
+		*got = 1;
+	}
+}
+
 
 LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointers, DWORD ec)
 {
@@ -5729,71 +5830,8 @@ LONG WINAPI WIN32_ExceptionFilter (struct _EXCEPTION_POINTERS *pExceptionPointer
 	}
 #endif
 #ifndef	_DEBUG
-	if (lRet == EXCEPTION_CONTINUE_SEARCH) {
-		TCHAR path[MAX_DPATH];
-		TCHAR path2[MAX_DPATH];
-		TCHAR msg[1024];
-		TCHAR *p;
-		HMODULE dll = NULL;
-		struct tm when;
-		__time64_t now;
-
-		if (os_winnt && GetModuleFileName (NULL, path, MAX_DPATH)) {
-			TCHAR dumpfilename[100];
-			TCHAR beta[100];
-			TCHAR path3[MAX_DPATH];
-			TCHAR *slash = _tcsrchr (path, '\\');
-			_time64 (&now);
-			when = *_localtime64 (&now);
-			_tcscpy (path2, path);
-			if (slash) {
-				_tcscpy (slash + 1, _T("DBGHELP.DLL"));
-				dll = WIN32_LoadLibrary (path);
-			}
-			slash = _tcsrchr (path2, '\\');
-			if (slash)
-				p = slash + 1;
-			else
-				p = path2;
-			p[0] = 0;
-			beta[0] = 0;
-			if (WINUAEPUBLICBETA > 0)
-				_stprintf (beta, _T("b%s"), WINUAEBETA);
-			_stprintf (dumpfilename, _T("winuae_%d%d%d%s_%d%02d%02d_%02d%02d%02d.dmp"),
-				UAEMAJOR, UAEMINOR, UAESUBREV, beta,
-				when.tm_year + 1900, when.tm_mon + 1, when.tm_mday, when.tm_hour, when.tm_min, when.tm_sec);
-			if (dll == NULL)
-				dll = WIN32_LoadLibrary (_T("DBGHELP.DLL"));
-			if (dll) {
-				MINIDUMPWRITEDUMP dump = (MINIDUMPWRITEDUMP)GetProcAddress (dll, "MiniDumpWriteDump");
-				if (dump) {
-					_tcscpy (path3, path2);
-					_tcscat (path3, dumpfilename);
-					HANDLE f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-					if (f == INVALID_HANDLE_VALUE) {
-						_tcscpy (path3, start_path_data);
-						_tcscat (path3, dumpfilename);
-						f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-					}
-					if (f == INVALID_HANDLE_VALUE) {
-						if (GetTempPath (MAX_DPATH, path3) > 0) {
-							_tcscat (path3, dumpfilename);
-							f = CreateFile (path3, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-						}
-					}
-					if (f != INVALID_HANDLE_VALUE) {
-						flush_log ();
-						savedump (dump, f, pExceptionPointers);
-						CloseHandle (f);
-						if (isfullscreen () <= 0) {
-							_stprintf (msg, _T("Crash detected. MiniDump saved as:\n%s\n"), path3);
-							MessageBox (NULL, msg, _T("Crash"), MB_OK | MB_ICONWARNING | MB_TASKMODAL | MB_SETFOREGROUND);
-						}
-					}
-				}
-			}
-		}
-	}
+	if (lRet == EXCEPTION_CONTINUE_SEARCH)
+		create_dump  (pExceptionPointers);
 #endif
 #if 0
 	HMODULE hFaultRepDll = LoadLibrary (_T("FaultRep.dll")) ;

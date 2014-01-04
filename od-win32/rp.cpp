@@ -355,7 +355,7 @@ int port_insert_custom (int inputmap_port, int devicetype, DWORD flags, const TC
 			}
 			if (wdnum >= 0) {
 				write_log (_T("kb=%d (%s) wdnum=%d\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), wdnum);
-				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, flags, inputmap_port);
+				inputdevice_set_gameports_mapping (&changed_prefs, kb + j, wdnum, evtnum, flags, inputmap_port, GAMEPORT_INPUT_SETTINGS);
 			} else {
 				write_log (_T("kb=%d (%): keycode %02x not found!\n"), j, inputdevicefunc_keyboard.get_friendlyname (j), kc);
 			}
@@ -593,14 +593,16 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 		int xp, yp;
 
 		get_custom_raw_limits (&rw, &rh, &rx, &ry);
-		get_custom_topedge (&xp, &yp, false);
-		rx += xp;
-		ry += yp;
-		rw <<= RES_MAX - currprefs.gfx_resolution;
-		rx <<= RES_MAX - currprefs.gfx_resolution;
-		rh <<= VRES_MAX - currprefs.gfx_vresolution;
-		ry <<= VRES_MAX - currprefs.gfx_vresolution;
-		//write_log (_T("* %d %d %d %d\n"), rx, ry, rw, rh);
+		if (rx >= 0 && ry >= 0) {
+			get_custom_topedge (&xp, &yp, false);
+			rx += xp;
+			ry += yp;
+			rw <<= RES_MAX - currprefs.gfx_resolution;
+			rx <<= RES_MAX - currprefs.gfx_resolution;
+			rh <<= VRES_MAX - currprefs.gfx_vresolution;
+			ry <<= VRES_MAX - currprefs.gfx_vresolution;
+		}
+		write_log (_T("GET_RPSM: %d %d %d %d\n"), rx, ry, rw, rh);
 
 		hmult = p->gfx_filter_horiz_zoom_mult;
 		vmult = p->gfx_filter_vert_zoom_mult;
@@ -625,17 +627,14 @@ static void get_screenmode (struct RPScreenMode *sm, struct uae_prefs *p, bool g
 			m = RP_SCREENMODE_SCALE_1X;
 		}
 
-		if (getclip && p->gfx_xcenter_pos < 0 && p->gfx_ycenter_pos < 0) {
+		if (rx > 0 && ry > 0) {
 			sm->lClipLeft = rx;
 			sm->lClipTop = ry;
-		} else {
-			sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
-			sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
-		}
-		if (getclip && p->gfx_xcenter_size <= 0 && p->gfx_ycenter_size <= 0) {
 			sm->lClipWidth = rw;
 			sm->lClipHeight = rh;
 		} else {
+			sm->lClipLeft = p->gfx_xcenter_pos < 0 ? -1 : p->gfx_xcenter_pos;
+			sm->lClipTop = p->gfx_ycenter_pos < 0 ? -1 : p->gfx_ycenter_pos;
 			sm->lClipWidth = p->gfx_xcenter_size <= 0 ? -1 : p->gfx_xcenter_size;
 			sm->lClipHeight = p->gfx_ycenter_size <= 0 ? -1 : p->gfx_ycenter_size;
 		}

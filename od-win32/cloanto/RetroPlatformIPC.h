@@ -9,7 +9,7 @@
          : Software Foundation.
  Authors : os, mcb
  Created : 2007-08-27 13:55:49
- Updated : 2013-12-02 10:26:00
+ Updated : 2013-12-06 11:14:00
  Comment : RetroPlatform Player interprocess communication include file
  *****************************************************************************/
 
@@ -120,10 +120,10 @@
 typedef struct RPScreenMode
 {
 	DWORD dwScreenMode; // RP_SCREENMODE_* values and flags
-	LONG lClipLeft;     // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore (0 is a valid value); see http://www.retroplatform.com/kb/19-115
-	LONG lClipTop;      // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore (0 is a valid value)
-	LONG lClipWidth;    // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore
-	LONG lClipHeight;   // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore
+	LONG lClipLeft;     // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore (0 is a valid value); guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP; see http://www.retroplatform.com/kb/19-115
+	LONG lClipTop;      // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore (0 is a valid value); guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
+	LONG lClipWidth;    // in guest pixel units (Amiga: Super Hires or RTG); -1 = ignore; guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
+	LONG lClipHeight;   // in guest pixel units (Amiga: interlaced or RTG); -1 = ignore; guest should also ignore this if RP_CLIPFLAGS_AUTOCLIP or RP_CLIPFLAGS_NOCLIP
 	HWND hGuestWindow;  // only valid for RP_IPC_TO_HOST_SCREENMODE
 	DWORD dwClipFlags;	// clip flags (or 0)
 	LONG lTargetWidth;  // in exact host pixels; if set, must also set lTargetHeight; ignored unless RP_SCREENMODE_SCALE_TARGET is set (resulting size is result of clipping and scaling); RP_SCREENMODE_SCALING_SUBPIXEL and RP_SCREENMODE_SCALING_STRETCH are taken into account
@@ -401,6 +401,7 @@ typedef struct RPDeviceContent
 
 
 // RPScreenCapture (used by RP_IPC_TO_GUEST_SCREENCAPTURE to request one bitmap or two simultaneous bitmaps)
+// See RP_GUESTSCREENFLAGS_ for return code and flags
 
 typedef struct RPScreenCapture
 {
@@ -411,8 +412,8 @@ typedef struct RPScreenCapture
 
 //
 // The return value of RP_IPC_TO_GUEST_SCREENCAPTURE serves to both indicate an error (if 0)
-// and for the guest to process the raw image (i.e. to scale and present appropriate PAL/NTSC
-// options to the user).
+// and (if set to other RP_GUESTSCREENFLAGS_ values) to allow the guest to interpret and
+// process the raw image (i.e. to scale and present appropriate PAL/NTSC options to the user).
 //
 // If the raw image is not the same as the Amiga bitmap, then out of necessity the flags
 // describe the properties of the image that is sent to the host, not the Amiga mode. Otherwise
@@ -449,6 +450,8 @@ typedef struct RPScreenCapture
 //
 
 // Return codes for RP_IPC_TO_GUEST_SCREENCAPTURE
+// Note: the flags describe the "raw" image with 1:1 pixels, not the "filtered" one which is scaled
+
 #define RP_SCREENCAPTURE_ERROR                      0x00000000  // non-error is always >= 1 (because of "MODE" flags)
 
 #define RP_GUESTSCREENFLAGS_MODE_DIGITAL            0x00000001  // "RTG" on Amiga, might be referred to as VGA or other digital (non-TV) mode on other systems

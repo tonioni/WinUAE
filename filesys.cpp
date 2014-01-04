@@ -180,6 +180,7 @@ typedef struct {
 	TCHAR *filesysdir;
 	/* filesystem seglist */
 	uaecptr filesysseg;
+	uae_u32 rdb_dostype;
 
 	/* CDFS */
 	bool cd_open;
@@ -6297,6 +6298,7 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 #ifdef UAESERIAL
 	resaddr = uaeserialdev_startup (resaddr);
 #endif
+
 	/* scan for Residents and return pointer to array of them */
 	residents = resaddr;
 	while (tmp < residents && tmp > start) {
@@ -6608,7 +6610,7 @@ static void dump_partinfo (struct hardfiledata *hfd, uae_u8 *pp)
 	highcyl = rl (pp + 40);
 	size = ((uae_u64)blocksize) * surfaces * spt * (highcyl - lowcyl + 1);
 
-	write_log (_T("Partition '%s' Dostype=%08X (%s) Flags: %08X\n"), s, dostype, dostypes (dostype), flags);
+	write_log (_T("Partition '%s' Dostype=%08X (%s) Flags: %08X\n"), s[0] ? s : _T("_NULL_"), dostype, dostypes (dostype), flags);
 	write_log (_T("BlockSize: %d, Surfaces: %d, SectorsPerBlock %d\n"),
 		blocksize, surfaces, spb);
 	write_log (_T("SectorsPerTrack: %d, Reserved: %d, LowCyl %d, HighCyl %d, Size %dM\n"),
@@ -6724,6 +6726,8 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 		hdf_read_rdb (hfd, bufrdb, rdblock * hfd->ci.blocksize, hfd->ci.blocksize);
 		if (rdb_checksum ("RDSK", bufrdb, rdblock))
 			break;
+		if (rdb_checksum ("CDSK", bufrdb, rdblock))
+			break;
 		hdf_read_rdb (hfd, bufrdb, rdblock * hfd->ci.blocksize, hfd->ci.blocksize);
 		if (!memcmp ("RDSK", bufrdb, 4)) {
 			bufrdb[0xdc] = 0;
@@ -6824,6 +6828,7 @@ static int rdb_mount (UnitInfo *uip, int unit_no, int partnum, uaecptr parmpacke
 	for (i = 0; i < PP_MAXSIZE; i++)
 		put_byte (parmpacket + 16 + i, buf[128 + i]);
 	dostype = get_long (parmpacket + 80);
+	uip->rdb_dostype = dostype;
 
 	if (dostype == 0) {
 		write_log (_T("RDB: mount failed, dostype=0\n"));
@@ -7264,7 +7269,9 @@ static uae_u32 REGPARAM2 filesys_dev_storeinfo (TrapContext *context)
 			if (ci->dostype) { // forced dostype?
 				put_long (parmpacket + 80, ci->dostype); /* dostype */
 			} else if (hdf_read (&uip[unit_no].hf, buf, 0, sizeof buf)) {
-				put_long (parmpacket + 80, rl (buf));
+				uae_u32 dt = get_long (rl (buf));
+				if (dt != 0x00000000 && dt != 0xffffffff)
+					put_long (parmpacket + 80, dt);
 			}
 			for (int i = 0; i < 80; i++)
 				buf[i + 128] = get_byte (parmpacket + 16 + i);

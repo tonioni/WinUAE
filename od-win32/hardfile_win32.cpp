@@ -584,10 +584,12 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			h = INVALID_HANDLE_VALUE;
 		}
 		if (udi == NULL) {
+			write_log (_T("Enumerating drives..\n"));
 			hdf_init_target ();
 			drvnum = isharddrive (name);
 			if (drvnum >= 0)
 				udi = &uae_drives[drvnum];
+			write_log (_T("Enumeration end..\n"));
 		}
 		if (udi != NULL) {
 			DWORD r;

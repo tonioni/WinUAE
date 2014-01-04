@@ -74,9 +74,9 @@ extern struct memwatch_node mwnodes[MEMWATCH_TOTAL];
 
 extern void memwatch_dump2 (TCHAR *buf, int bufsize, int num);
 
-uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v);
-uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v);
-uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v);
+uae_u16 debug_wgetpeekdma_chipram (uaecptr addr, uae_u32 v, int reg);
+uae_u16 debug_wputpeekdma_chipram (uaecptr addr, uae_u32 v, int reg);
+uae_u16 debug_wputpeekdma_chipset (uaecptr addr, uae_u32 v, int reg);
 void debug_lgetpeek (uaecptr addr, uae_u32 v);
 void debug_wgetpeek (uaecptr addr, uae_u32 v);
 void debug_bgetpeek (uaecptr addr, uae_u32 v);
@@ -106,7 +106,7 @@ struct dma_rec
 
 #define DMA_EVENT_BLITIRQ 1
 #define DMA_EVENT_BLITNASTY 2
-#define DMA_EVENT_BLITFINISHED 4
+#define DMA_EVENT_BLITSTARTFINISH 4
 #define DMA_EVENT_BPLFETCHUPDATE 8
 #define DMA_EVENT_COPPERWAKE 16
 #define DMA_EVENT_CPUIRQ 32
@@ -118,11 +118,12 @@ struct dma_rec
 #define DMARECORD_COPPER 3
 #define DMARECORD_AUDIO 4
 #define DMARECORD_BLITTER 5
-#define DMARECORD_BLITTER_LINE 6
-#define DMARECORD_BITPLANE 7
-#define DMARECORD_SPRITE 8
-#define DMARECORD_DISK 9
-#define DMARECORD_MAX 10
+#define DMARECORD_BLITTER_FILL 6
+#define DMARECORD_BLITTER_LINE 7
+#define DMARECORD_BITPLANE 8
+#define DMARECORD_SPRITE 9
+#define DMARECORD_DISK 10
+#define DMARECORD_MAX 11
 
 extern struct dma_rec *record_dma (uae_u16 reg, uae_u16 dat, uae_u32 addr, int hpos, int vpos, int type);
 extern void record_dma_reset (void);

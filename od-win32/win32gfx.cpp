@@ -1272,7 +1272,7 @@ void getrtgfilterrect2 (RECT *sr, RECT *dr, RECT *zr, int dst_width, int dst_hei
 			srcratio = dstratio = 0;
 		} else {
 			// manual
-			dstratio = currprefs.win32_rtgscaleaspectratio;
+			dstratio = (currprefs.win32_rtgscaleaspectratio / ASPECTMULT) * ASPECTMULT / (currprefs.win32_rtgscaleaspectratio & (ASPECTMULT - 1));
 			srcratio = srcwidth * ASPECTMULT / srcheight;
 		}
 

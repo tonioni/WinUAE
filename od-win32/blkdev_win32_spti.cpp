@@ -440,7 +440,7 @@ static void checkcapabilities (struct dev_info_spti *di)
 	status = DeviceIoControl (di->handle, IOCTL_STORAGE_QUERY_PROPERTY,
 		&query, sizeof query, &desc, sizeof desc, &ret, NULL);
 	if (status) {
-		if (desc.Version > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
+		if (desc.Size > offsetof (STORAGE_ADAPTER_DESCRIPTOR, BusType))
 			write_log (_T("SCSI CAPS: BusType=%d, MaxTransfer=0x%08X, Mask=0x%08X\n"),
 			desc.BusType, desc.MaximumTransferLength, desc.AlignmentMask);
 	}
@@ -820,7 +820,7 @@ static void scanscsi (void)
 				InquiryData = (PSCSI_INQUIRY_DATA) ((PUCHAR)AdapterInfo + InquiryData->NextInquiryDataOffset);
 			}   // for Luns
 		}	// for Bus
-		CloseHandle(h);
+		CloseHandle (h);
 	}
 }
 

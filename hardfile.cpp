@@ -205,8 +205,9 @@ void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int 
 {
 	uae_u8 block[512];
 	int i;
+	uae_u64 minsize = 512 * 1024 * 1024;
 
-	if (size <= 512 * 1024 * 1024) {
+	if (size <= minsize) {
 		*phead = 1;
 		*psectorspertrack = 32;
 	}
@@ -233,7 +234,7 @@ void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int 
 			}
 		}
 	}
-	getchsgeometry2 (size, pcyl, phead, psectorspertrack, 2);
+	getchsgeometry2 (size, pcyl, phead, psectorspertrack, size <= minsize ? 1 : 2);
 }
 
 void getchspgeometry (uae_u64 total, int *pcyl, int *phead, int *psectorspertrack, bool idegeometry)

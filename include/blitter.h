@@ -22,11 +22,15 @@ extern enum blitter_states {
 
 extern struct bltinfo blt_info;
 
-extern int blitter_nasty, blit_interrupt;
+extern int blitter_nasty, blit_interrupt, blitter_dangerous_bpl;
+
+extern void check_is_blit_dangerous (uaecptr *bplpt, int planes, int words);
 
 extern uae_u16 bltsize;
 extern uae_u16 bltcon0, bltcon1;
 extern uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
+extern uae_u32 bltptx;
+extern int bltptxpos, bltptxc;
 extern int blit_singlechannel;
 
 extern void maybe_blit (int, int);
@@ -42,6 +46,7 @@ extern void blitter_done_notify (int hpos);
 extern void blitter_slowdown (int, int, int, int);
 extern int blitter_channel_state (void);
 extern void blitter_check_start (void);
+extern void blitter_reset (void);
 
 typedef void blitter_func(uaecptr, uaecptr, uaecptr, uaecptr, struct bltinfo *);
 

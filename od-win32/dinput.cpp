@@ -102,6 +102,7 @@ struct didata {
 	int wininput;
 	int catweasel;
 	int coop;
+	int xinput;
 
 	HANDLE parjoy;
 	PAR_QUERY_INFORMATION oldparjoystatus;
@@ -1576,6 +1577,8 @@ static bool initialize_rawinput (void)
 				num_joystick++;
 				rhid++;
 				v = rhid;
+				if (_tcsstr (buf1, _T("IG_")))
+					did->xinput = 1;
 			}
 
 			prodname[0] = 0;
@@ -1596,10 +1599,11 @@ static bool initialize_rawinput (void)
 				_tcscpy (tmp, prodname);
 				did->fullname = true;
 			} else {
+				TCHAR *st = type == RIM_TYPEHID ? (did->xinput ? _T("RAW HID+XINPUT") : _T("RAW HID")) : (type == RIM_TYPEMOUSE ? _T("RAW Mouse") : _T("RAW Keyboard"));
 				if (did->vid > 0 && did->pid > 0)
-					_stprintf (tmp, _T("%s (%04X/%04X)"), type == RIM_TYPEHID ? _T("RAW HID") : (type == RIM_TYPEMOUSE ? _T("RAW Mouse") : _T("RAW Keyboard")), did->vid, did->pid);
+					_stprintf (tmp, _T("%s (%04X/%04X)"), st, did->vid, did->pid);
 				else
-					_stprintf (tmp, _T("%s"), type == RIM_TYPEHID ? _T("RAW HID") : (type == RIM_TYPEMOUSE ? _T("RAW Mouse") : _T("RAW Keyboard")));
+					_stprintf (tmp, _T("%s"), st);
 			}
 			did->name = my_strdup (tmp);
 			did->rawinput = h;
@@ -1887,7 +1891,7 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		}
 		if (rawinput_log & 2)
-			write_log (_T("%08x %04x %04x %04x %08x %3d %3d %08x M=%d\n"),
+			write_log (_T("%08x %04x %04x %04x %08x %3d %3d %08x M=%d F=%d\n"),
 				raw->header.hDevice,
 				rm->usFlags,
 				rm->usButtonFlags,
@@ -1895,7 +1899,8 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 				rm->ulRawButtons,
 				rm->lLastX,
 				rm->lLastY,
-				rm->ulExtraInformation, num < num_mouse ? num + 1 : -1);
+				rm->ulExtraInformation, num < num_mouse ? num + 1 : -1,
+				isfocus ());
 
 		if (num == num_mouse)
 			return;

@@ -507,3 +507,10 @@ void fillPTKtable (Uchar poss[37][2])
   poss[36][0]=0x00,  poss[36][1]=0x71;
   return;
 }
+
+#ifndef _WIN64
+int htonl(int v)
+{
+	return v;
+}
+#endif

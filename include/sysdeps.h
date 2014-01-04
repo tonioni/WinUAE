@@ -455,6 +455,7 @@ extern void flush_log (void);
 extern TCHAR *setconsolemode (TCHAR *buffer, int maxlen);
 extern void close_console (void);
 extern void reopen_console (void);
+extern void activate_console (void);
 extern void console_out (const TCHAR *);
 extern void console_out_f (const TCHAR *, ...);
 extern void console_flush (void);

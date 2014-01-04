@@ -188,6 +188,7 @@ static void fpu_format_error (void)
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
 #endif
+	regs.fp_exception = true;
 }
 
 #define FPU_EXP_UNIMP_INS 0
@@ -259,6 +260,7 @@ static void fpu_op_unimp (uae_u16 opcode, uae_u32 ea, uaecptr oldpc, int type)
 		warned--;
 #endif
 	}
+	regs.fp_exception = true;
 	m68k_setpc (newpc);
 #ifdef JIT
 	set_special (SPCFLAG_END_COMPILE);
@@ -272,6 +274,7 @@ static void fpu_op_illg2 (uae_u16 opcode, uae_u32 ea, uaecptr oldpc)
 			fpu_op_unimp (opcode, ea, oldpc, FPU_EXP_DISABLED);
 			return;
 	}
+	regs.fp_exception = true;
 	m68k_setpc (oldpc);
 	op_illg (opcode);
 }
@@ -287,6 +290,7 @@ static void fpu_noinst (uae_u16 opcode, uaecptr pc)
 #if EXCEPTION_FPP
 	write_log (_T("Unknown FPU instruction %04X %08X\n"), opcode, pc);
 #endif
+	regs.fp_exception = true;
 	m68k_setpc (pc);
 	op_illg (opcode);
 }
@@ -416,6 +420,7 @@ static bool fault_if_no_6888x (uae_u16 opcode, uae_u32 extra, uaecptr oldpc)
 		write_log (_T("6888x no FPU: %04x %08x PC=%08x\n"), opcode, extra, oldpc);
 #endif
 		m68k_setpc (oldpc);
+		regs.fp_exception = true;
 		op_illg (opcode);
 		return true;
 	}
@@ -1085,6 +1090,7 @@ void fpuop_dbcc (uae_u32 opcode, uae_u16 extra)
 	uae_s32 disp;
 	int cc;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("fdbcc_opp at %08lx\n"), m68k_getpc ());
@@ -1116,6 +1122,7 @@ void fpuop_scc (uae_u32 opcode, uae_u16 extra)
 	int cc;
 	uaecptr pc = m68k_getpc () - 4;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("fscc_opp at %08lx\n"), m68k_getpc ());
@@ -1145,6 +1152,7 @@ void fpuop_trapcc (uae_u32 opcode, uaecptr oldpc, uae_u16 extra)
 {
 	int cc;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("ftrapcc_opp at %08lx\n"), m68k_getpc ());
@@ -1166,6 +1174,7 @@ void fpuop_bcc (uae_u32 opcode, uaecptr oldpc, uae_u32 extra)
 {
 	int cc;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("fbcc_opp at %08lx\n"), m68k_getpc ());
@@ -1193,6 +1202,7 @@ void fpuop_save (uae_u32 opcode)
 	uaecptr pc = m68k_getpc () - 2;
 	int i;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("fsave_opp at %08lx\n"), m68k_getpc ());
@@ -1303,6 +1313,7 @@ void fpuop_restore (uae_u32 opcode)
 	uae_u32 d;
 	int incr = (opcode & 0x38) == 0x20 ? -1 : 1;
 
+	regs.fp_exception = false;
 #if DEBUG_FPP
 	if (!isinrom ())
 		write_log (_T("frestore_opp at %08lx\n"), m68k_getpc ());
@@ -2108,6 +2119,7 @@ void fpuop_arithmetic (uae_u32 opcode, uae_u16 extra)
 {
 	regs.fpsr_highbyte = 0;
 	regs.fpu_state = 1;
+	regs.fp_exception = false;
 	fpuop_arithmetic2 (opcode, extra);
 	if (regs.fpsr_highbyte) {
 		regs.fpsr &= 0xffff00ff;

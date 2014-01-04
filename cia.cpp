@@ -479,7 +479,7 @@ STATIC_INLINE bool ciab_checkalarm (bool inc, bool irq)
 	// at least 1 or larger due to bus cycle delays when reading
 	// old value.
 #if 1
-	if ((munge24 (m68k_getpc ()) & 0xFFF80000) == 0xF80000) {
+	if ((munge24 (m68k_getpc ()) & 0xFFF80000) != 0xF80000) {
 		if (ciabtod == 0 && ciabalarm == 0)
 			return false;
 	}
@@ -888,7 +888,8 @@ static uae_u8 ReadCIAA (unsigned int addr)
 	compute_passed_time ();
 
 #if CIAA_DEBUG_R > 0
-	write_log (_T("R_CIAA: bfe%x01 %08X\n"), reg, M68K_GETPC);
+	if (CIAA_DEBUG_R > 1 || (munge24 (M68K_GETPC) & 0xFFF80000) != 0xF80000)
+		write_log (_T("R_CIAA: bfe%x01 %08X\n"), reg, M68K_GETPC);
 #endif
 
 	switch (reg) {
@@ -1017,8 +1018,10 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	int reg = addr & 15;
 
 #if CIAB_DEBUG_R > 0
-	if ((addr >= 8 && addr <= 10) || CIAB_DEBUG_R > 1)
-		write_log (_T("R_CIAB: bfd%x00 %08X\n"), reg, M68K_GETPC);
+	if (CIAB_DEBUG_R > 1 || (munge24 (M68K_GETPC) & 0xFFF80000) != 0xF80000) {
+		if ((addr >= 8 && addr <= 10) || CIAB_DEBUG_R > 1)
+			write_log (_T("R_CIAB: bfd%x00 %08X\n"), reg, M68K_GETPC);
+	}
 #endif
 
 	compute_passed_time ();
@@ -1026,9 +1029,14 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	switch (reg) {
 	case 0:
 		tmp = 0;
+#ifdef ARCADIA
+		// CD inactive, Arcadia bios 4.00 does not detect printer
+		if (arcadia_bios && !currprefs.use_serial)
+			tmp = 0x20;
+#endif
 #ifdef SERIAL_PORT
 		if (currprefs.use_serial)
-			tmp = serial_readstatus(ciabdra);
+			tmp = serial_readstatus (ciabdra);
 #endif
 #ifdef PARALLEL_PORT
 		if (isprinter () > 0) {
@@ -1631,10 +1639,16 @@ static uae_u32 REGPARAM2 cia_bget (uaecptr addr)
 			v = (addr & 1) ? ReadCIAA (r) : ReadCIAB (r);
 		break;
 	case 1:
-		v = (addr & 1) ? 0xff : ReadCIAB (r);
+		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
+			v = (addr & 1) ? regs.irc : ReadCIAB (r);
+		else
+			v = (addr & 1) ? 0xff : ReadCIAB (r);
 		break;
 	case 2:
-		v = (addr & 1) ? ReadCIAA (r) : 0xff;
+		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)
+			v = (addr & 1) ? ReadCIAA (r) : regs.irc >> 8;
+		else
+			v = (addr & 1) ? ReadCIAA (r) : 0xff;
 		break;
 	case 3:
 		if (currprefs.cpu_model == 68000 && currprefs.cpu_compatible)

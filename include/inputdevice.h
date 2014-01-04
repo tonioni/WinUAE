@@ -81,6 +81,7 @@ struct inputevent {
 #define ID_FLAG_GAMEPORTSCUSTOM2 8
 #define ID_FLAG_INVERTTOGGLE 16
 #define ID_FLAG_INVERT 32
+#define ID_FLAG_RESERVEDGAMEPORTSCUSTOM 64
 
 #define ID_FLAG_GAMEPORTSCUSTOM_MASK (ID_FLAG_GAMEPORTSCUSTOM1 | ID_FLAG_GAMEPORTSCUSTOM2)
 #define ID_FLAG_AUTOFIRE_MASK (ID_FLAG_TOGGLE | ID_FLAG_INVERTTOGGLE | ID_FLAG_AUTOFIRE)
@@ -139,7 +140,7 @@ struct inputevent {
 #define MAX_COMPA_INPUTLIST 30
 
 extern int inputdevice_iterate (int devnum, int num, TCHAR *name, int *af);
-extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, uae_u64 flags, int port);
+extern bool inputdevice_set_gameports_mapping (struct uae_prefs *prefs, int devnum, int num, int evtnum, uae_u64 flags, int port, int input_selected_setting);
 extern int inputdevice_set_mapping (int devnum, int num, const TCHAR *name, TCHAR *custom, uae_u64 flags, int port, int sub);
 extern int inputdevice_get_mapping (int devnum, int num, uae_u64 *pflags, int *port, TCHAR *name, TCHAR *custom, int sub);
 extern void inputdevice_copyconfig (const struct uae_prefs *src, struct uae_prefs *dst);
@@ -187,6 +188,7 @@ extern int input_mousehack_status (int mode, uaecptr diminfo, uaecptr dispinfo, 
 extern void input_mousehack_mouseoffset (uaecptr pointerprefs);
 extern int mousehack_alive (void);
 extern void setmouseactive (int);
+extern bool ismouseactive (void);
 
 extern void setmousebuttonstateall (int mouse, uae_u32 buttonbits, uae_u32 buttonmask);
 extern void setjoybuttonstateall (int joy, uae_u32 buttonbits, uae_u32 buttonmask);

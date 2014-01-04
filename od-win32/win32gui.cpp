@@ -148,7 +148,7 @@ static const int defaultaspectratios[] = {
 static int getaspectratioindex (int ar)
 {
 	for (int i = 0; defaultaspectratios[i] >= 0; i += 2) {
-		if (ar == defaultaspectratios[i + 0] * 1024 + defaultaspectratios[i + 1])
+		if (ar == defaultaspectratios[i + 0] * ASPECTMULT + defaultaspectratios[i + 1])
 			return i / 2;
 	}
 	return 0;
@@ -157,7 +157,7 @@ static int getaspectratio (int index)
 {
 	for (int i = 0; defaultaspectratios[i] >= 0; i += 2) {
 		if (i == index * 2) {
-			return defaultaspectratios[i + 0] * 1024 + defaultaspectratios[i + 1];
+			return defaultaspectratios[i + 0] * ASPECTMULT + defaultaspectratios[i + 1];
 		}
 	}
 	return 0;
@@ -6400,14 +6400,29 @@ static void values_to_displaydlg (HWND hDlg)
 	SendDlgItemMessage(hDlg, IDC_LORES, CB_ADDSTRING, 0, (LPARAM)buffer);
 	SendDlgItemMessage (hDlg, IDC_LORES, CB_SETCURSEL, workprefs.gfx_resolution, 0);
 
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_RESETCONTENT, 0, 0);
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Disabled"));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("Always on"));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("10%"));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("33%"));
+	SendDlgItemMessage(hDlg, IDC_AUTORESOLUTIONSELECT, CB_ADDSTRING, 0, (LPARAM)_T("66%"));
+	if (workprefs.gfx_autoresolution == 0)
+		SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 0, 0);
+	else if (workprefs.gfx_autoresolution == 1)
+		SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 1, 0);
+	else if (workprefs.gfx_autoresolution <= 10)
+		SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 2, 0);
+	else if (workprefs.gfx_autoresolution <= 33)
+		SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 3, 0);
+	else
+		SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_SETCURSEL, 4, 0);
+
 	CheckDlgButton (hDlg, IDC_BLACKER_THAN_BLACK, workprefs.gfx_blackerthanblack);
 	CheckDlgButton (hDlg, IDC_LORES_SMOOTHED, workprefs.gfx_lores_mode);
 	CheckDlgButton (hDlg, IDC_FLICKERFIXER, workprefs.gfx_scandoubler);
 
 	CheckDlgButton (hDlg, IDC_XCENTER, workprefs.gfx_xcenter);
 	CheckDlgButton (hDlg, IDC_YCENTER, workprefs.gfx_ycenter);
-
-	CheckDlgButton (hDlg, IDC_AUTORESOLUTION, workprefs.gfx_autoresolution);
 
 	SendDlgItemMessage(hDlg, IDC_DISPLAY_BUFFERCNT, CB_RESETCONTENT, 0, 0);
 	WIN32GUI_LoadUIString(IDS_BUFFER_SINGLE, buffer, sizeof buffer / sizeof (TCHAR));
@@ -6633,12 +6648,24 @@ static void values_from_displaydlg (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 	workprefs.gfx_xcenter = ischecked (hDlg, IDC_XCENTER) ? 2 : 0; /* Smart centering */
 	workprefs.gfx_ycenter = ischecked (hDlg, IDC_YCENTER) ? 2 : 0; /* Smart centering */
-	workprefs.gfx_autoresolution = ischecked (hDlg, IDC_AUTORESOLUTION);
+	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_AUTORESOLUTIONSELECT, CB_GETCURSEL, 0, 0);
+	if (posn1 != CB_ERR) {
+		if (posn1 == 0)
+			workprefs.gfx_autoresolution = 0;
+		else if (posn1 == 1)
+			workprefs.gfx_autoresolution = 1;
+		else if (posn1 == 2)
+			workprefs.gfx_autoresolution = 10;
+		else if (posn1 == 3)
+			workprefs.gfx_autoresolution = 33;
+		else if (posn1 == 4)
+			workprefs.gfx_autoresolution = 66;
+	}
 
 	int dmode = -1;
 	bool native = false;
 	struct MultiDisplay *md = getdisplay (&workprefs);
-	LRESULT posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
+	posn1 = SendDlgItemMessage (hDlg, IDC_RESOLUTION, CB_GETCURSEL, 0, 0);
 	LRESULT posn2 = SendDlgItemMessage (hDlg, IDC_RESOLUTIONDEPTH, CB_GETCURSEL, 0, 0);
 	if (posn1 != CB_ERR) {
 		if (posn2 == CB_ERR)
@@ -9569,7 +9596,7 @@ static void hardfile_testrdb (struct hfdlg_vals *hdf)
 				hdf->ci.controller = HD_CONTROLLER_PCMCIA_SRAM;
 				break;
 			}
-			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
+			if (!memcmp (id, "RDSK\0\0\0", 7) || !memcmp (id, "CDSK\0\0\0", 7) || !memcmp (id, "DRKS\0\0", 6) || (id[0] == 0x53 && id[1] == 0x10 && id[2] == 0x9b && id[3] == 0x13 && id[4] == 0 && id[5] == 0)) {
 				// RDSK or ADIDE "encoded" RDSK
 				int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
 				hdf->ci.cyls = hdf->ci.highcyl = hdf->forcedcylinders = 0;
@@ -9869,7 +9896,7 @@ static void updatehdfinfo (HWND hDlg, bool force, bool defaults)
 				hdf_read (&hfd, id, i * 512, 512);
 				bsize = hfd.virtsize;
 				current_hfdlg.size = hfd.virtsize;
-				if (!memcmp (id, "RDSK", 4)) {
+				if (!memcmp (id, "RDSK", 4) || !memcmp (id, "CDSK", 4)) {
 					int blocksize = (id[16] << 24)  | (id[17] << 16) | (id[18] << 8) | (id[19] << 0);
 					break;
 				}
@@ -13014,8 +13041,9 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 
 				int max = inputdevice_get_compatibility_input (&workprefs, inputmap_port, &mode, events, &axistable);
 				if (max < MAX_COMPA_INPUTLIST - 1) {
-					if (inputmap_remap_event > 0)
-						inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, inputmap_remap_event, 0, inputmap_port);
+					if (inputmap_remap_event > 0) {
+						inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, inputmap_remap_event, 0, inputmap_port, workprefs.input_selected_setting);
+					}
 				}
 				inputmap_remap_event = 0;
 				InitializeListView (myDlg);
@@ -13124,8 +13152,8 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 								for (int i = 0; i < wcnt; i++) {
 									wtype = widgets[i];
 									if (inputdevice_get_widget_type (input_selected_device, wtype, NULL) == IDEV_WIDGET_AXIS) {
-										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, prevwidget, -1, 0, inputmap_port);
-										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, wtype, axistable2[0], 0, inputmap_port);
+										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, prevwidget, -1, 0, inputmap_port, workprefs.input_selected_setting);
+										inputdevice_set_gameports_mapping (&workprefs, input_selected_device, wtype, axistable2[0], 0, inputmap_port, workprefs.input_selected_setting);
 										evtnum = -1;
 										break;
 									}
@@ -13137,7 +13165,7 @@ static void CALLBACK timerfunc (HWND hDlg, UINT uMsg, UINT_PTR idEvent, DWORD dw
 
 //				write_log (_T("%d %d %d\n"), input_selected_device, input_selected_widget, evtnum);
 				if (evtnum >= 0)
-					inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port);
+					inputdevice_set_gameports_mapping (&workprefs, input_selected_device, input_selected_widget, evtnum, 0, inputmap_port, workprefs.input_selected_setting);
 				InitializeListView (hDlg);
 				inputmap_remap_counter++;
 				if (inputmap_remap_counter >= max || inputmap_oneshot) {

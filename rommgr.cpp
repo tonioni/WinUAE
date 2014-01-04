@@ -89,7 +89,7 @@ struct romdata *getromdatabypath (const TCHAR *path)
 	return NULL;
 }
 
-#define NEXT_ROM_ID 75
+#define NEXT_ROM_ID 87
 
 static struct romheader romheaders[] = {
 	{ _T("Freezer Cartridges"), 1 },
@@ -193,7 +193,7 @@ static struct romdata roms[] = {
 	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 30, _T("CD32FMV\0"), 262144, 23, 1, 0, ROMTYPE_CD32CART, 0, 0, NULL,
 	0xc35c37bf, 0x03ca81c7,0xa7b259cf,0x64bc9582,0x863eca0f,0x6529f435 },
 	{ _T("CD32 MPEG Cartridge ROM"), 3, 1, 40, 22, _T("CD32FMV\0"), 262144, 74, 1, 0, ROMTYPE_CD32CART, 0, 0, _T("391777-01"),
-	0xe57d05fe, 0x56077abd,0x82b652f0,0x54f76002,0xdde2bcd5,0x33198cc2 },
+	0xc2002d08, 0xa1ca2d71,0x7efb6c60,0xb9bfabeb,0x0280ae97,0xe82b0cb9 },
 
 	{ _T("CDTV extended ROM v1.00"), 1, 0, 1, 0, _T("CDTV\0"), 262144, 20, 0, 0, ROMTYPE_EXTCDTV, 0, 0, NULL,
 	0x42baa124, 0x7BA40FFA,0x17E500ED,0x9FED041F,0x3424BD81,0xD9C907BE },
@@ -288,21 +288,33 @@ static struct romdata roms[] = {
 
 	{ _T("Arcadia OnePlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 49, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
 	{ _T("Arcadia TenPlay 2.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 50, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
+	{ _T("Arcadia TenPlay 2.20"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 75, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
 	{ _T("Arcadia OnePlay 3.00"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 51, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
+	{ _T("Arcadia TenPlay 3.11"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 76, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
+	{ _T("Arcadia TenPlay 4.00"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 77, 0, 0, ROMTYPE_ARCADIABIOS, 0, 0 },
 
-	{ _T("Arcadia SportTime Table Hockey"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 33, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia SportTime Bowling"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 34, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia World Darts"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 35, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Magic Johnson's Fast Break"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 36, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Leader Board Golf"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 37, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Leader Board Golf (alt)"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 38, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Ninja Mission"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 39, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Road Wars"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 40, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Sidewinder"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 41, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Spot"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 42, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Space Ranger"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 43, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia Xenon"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 44, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
-	{ _T("Arcadia World Trophy Soccer"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 45, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia SportTime Table Hockey v2.1"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 33, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia SportTime Bowling v2.1"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 34, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia World Darts v2.1"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 35, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Magic Johnson's Fast Break v2.8"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 36, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Leader Board Golf v2.4"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 37, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Leader Board Golf"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 38, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Ninja Mission v2.5"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 39, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Road Wars v2.3"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 40, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Sidewinder v2.1"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 41, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Spot v2.0"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 42, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Space Ranger v2.0"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 43, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Xenon v2.3"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 44, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia World Trophy Soccer v3.0"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 45, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Blastaball v2.1"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 78, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Delta Command"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 79, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Pharaohs Match"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 80, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia SportTime Table Hockey"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 81, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia World Darts (bad)"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 82, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Magic Johnson's Fast Break v2.7"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 83, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Ninja Mission"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 84, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Sidewinder"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 85, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
+	{ _T("Arcadia Leader Board Golf v2.5"), 0, 0, 0, 0, _T("ARCADIA\0"), 0, 86, 0, 0, ROMTYPE_ARCADIAGAME, 0, 2 },
 
 	{ NULL }
 

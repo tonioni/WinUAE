@@ -164,6 +164,7 @@ struct regstruct
 	uae_u32 fpcr, fpsr, fpiar;
 	uae_u32 fpsr_highbyte;
 	uae_u32 fpu_state;
+	bool fp_exception;
 #endif
 #ifndef CPUEMU_68000_ONLY
 	uae_u32 cacr, caar;

@@ -450,11 +450,14 @@ void REGPARAM2 chipmem_wput (uaecptr addr, uae_u32 w)
 	m = (uae_u16 *)(chipmem_bank.baseaddr + addr);
 	do_put_mem_word (m, w);
 #if 0
-    if (addr == 0x120) {
+    if (addr == 4) {
+		write_log (_T("*"));
+#if 0
 		if (told)
 			tables[toldv] += hsync_counter - told;
 		told = hsync_counter;
 		toldv = w;
+#endif
 	}
 #endif
 }
@@ -1830,7 +1833,11 @@ static void fill_ce_banks (void)
 {
 	int i;
 
-	memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
+	if (currprefs.cpu_model <= 68010) {
+		memset (ce_banktype, CE_MEMBANK_FAST16, sizeof ce_banktype);
+	} else {
+		memset (ce_banktype, CE_MEMBANK_FAST32, sizeof ce_banktype);
+	}
 	// data cachable regions (2 = burst supported)
 	memset (ce_cachable, 0, sizeof ce_cachable);
 	memset (ce_cachable + (0x00200000 >> 16), 1 | 2, currprefs.fastmem_size >> 16);
@@ -1867,6 +1874,7 @@ static void fill_ce_banks (void)
 		for (i = (0xf80000 >> 16); i <= (0xff0000 >> 16); i++)
 			ce_banktype[i] = CE_MEMBANK_FAST16;
 	}
+
 	if (currprefs.address_space_24) {
 		for (i = 1; i < 256; i++)
 			memcpy (&ce_banktype[i * 256], &ce_banktype[0], 256);

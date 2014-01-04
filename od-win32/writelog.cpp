@@ -96,6 +96,13 @@ static void getconsole (void)
 	}
 }
 
+void activate_console (void)
+{
+	if (!consoleopen)
+		return;
+	SetForegroundWindow (GetConsoleWindow ());
+}
+
 static void open_console_window (void)
 {
 	AllocConsole ();

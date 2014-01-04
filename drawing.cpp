@@ -85,6 +85,7 @@ static int linedbl, linedbld;
 int interlace_seen = 0;
 #define AUTO_LORES_FRAMES 10
 static int can_use_lores = 0, frame_res, frame_res_lace, last_max_ypos;
+static int resolution_count[RES_MAX + 1];
 static bool center_reset;
 
 /* Lookup tables for dual playfields.  The dblpf_*1 versions are for the case
@@ -923,9 +924,11 @@ static void pfield_erase_hborder_sprites (void)
 // erase whole viewable area if upper or lower border
 static void pfield_erase_vborder_sprites (void)
 {
-	uae_u8 c = colors_for_drawing.borderblank ? 0 : colors_for_drawing.acolors[0];
-	int size = res_shift_from_window (linetoscr_diw_end - linetoscr_diw_start);
-	memset (pixdata.apixels + MAX_PIXELS_PER_LINE - size, c, size);
+	if (linetoscr_diw_end > linetoscr_diw_start) {
+		uae_u8 c = colors_for_drawing.borderblank ? 0 : colors_for_drawing.acolors[0];
+		int size = res_shift_from_window (linetoscr_diw_end - linetoscr_diw_start);
+		memset (pixdata.apixels + MAX_PIXELS_PER_LINE - size, c, size);
+	}
 }
 
 
@@ -1817,13 +1820,13 @@ static void clear_bitplane_border_aga (void)
 #endif
 
 /* emulate OCS/ECS only undocumented "SWIV" hardware feature */
-static void weird_bitplane_fix (void)
+static void weird_bitplane_fix (int start, int end)
 {
 	int i;
 	int sh = lores_shift;
 	uae_u8 *p = pixdata.apixels + pixels_offset;
 
-	for (i = playfield_start >> sh; i < playfield_end >> sh; i++) {
+	for (i = start >> sh; i < end >> sh; i++) {
 		if (p[i] > 16)
 			p[i] = 16;
 	}
@@ -2244,6 +2247,8 @@ static void do_color_changes (line_draw_func worker_border, line_draw_func worke
 		// playfield
 		if (nextpos_in_range > lastpos && lastpos >= playfield_start && lastpos < playfield_end) {
 			int t = nextpos_in_range <= playfield_end ? nextpos_in_range : playfield_end;
+			if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
+				weird_bitplane_fix (lastpos, t);
 			(*worker_pfield) (lastpos, t, false);
 			lastpos = t;
 		}
@@ -2298,6 +2303,8 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 
 	dp_for_drawing = line_decisions + lineno;
 	dip_for_drawing = curr_drawinfo + lineno;
+
+	resolution_count[dp_for_drawing->bplres]++;
 
 	switch (linestate[lineno])
 	{
@@ -2376,9 +2383,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			}
 			bplham = dp_for_drawing->ham_at_start;
 		}
-
-		if (plf2pri > 5 && bplplanecnt == 5 && !(currprefs.chipset_mask & CSMASK_AGA))
-			weird_bitplane_fix ();
 
 		if (dip_for_drawing->nr_sprites) {
 			int i;
@@ -2591,69 +2595,96 @@ static int frame_res_cnt;
 static void init_drawing_frame (void)
 {
 	int i, maxline;
-#if 1
 	static int frame_res_old;
 
-	if (currprefs.gfx_autoresolution && frame_res >= 0 && frame_res_lace >= 0) {
-		if (frame_res_cnt > 0 && frame_res_old == frame_res * 2 + frame_res_lace) {
-			frame_res_cnt--;
-			if (frame_res_cnt == 0) {
-				int m = frame_res * 2 + frame_res_lace;
-				struct wh *dst = currprefs.gfx_apmode[0].gfx_fullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
-				while (m < 3 * 2) {
-					struct wh *src = currprefs.gfx_apmode[0].gfx_fullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
-					if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
-						int nr = m >> 1;
-						int nl = (m & 1) == 0 ? 0 : 1;
-						int nr_o = nr;
-						int nl_o = nl;
+	if (currprefs.gfx_autoresolution && !specialmonitoron) {
+		int frame_res_detected;
+		int frame_res_lace_detected = frame_res_lace;
 
-						if (currprefs.gfx_autoresolution_minh < 0) {
-							if (nr < nl)
-								nr = nl;
-						} else if (nr < currprefs.gfx_autoresolution_minh) {
-							nr = currprefs.gfx_autoresolution_minh;
-						}
-						if (currprefs.gfx_autoresolution_minv < 0) {
-							if (nl < nr)
-								nl = nr;
-						} else if (nl < currprefs.gfx_autoresolution_minv) {
-							nl = currprefs.gfx_autoresolution_minv;
-						}
-
-						if (nr > gfxvidinfo.gfx_resolution_reserved)
-							nr = gfxvidinfo.gfx_resolution_reserved;
-						if (nl > gfxvidinfo.gfx_vresolution_reserved)
-							nl = gfxvidinfo.gfx_vresolution_reserved;
-
-						if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
-							changed_prefs.gfx_resolution = nr;
-							changed_prefs.gfx_vresolution = nl;
-							write_log (_T("RES -> %d (%d) LINE -> %d (%d) (%d - %d, %d - %d)\n"), nr, nr_o, nl, nl_o,
-								currprefs.gfx_autoresolution_minh, currprefs.gfx_autoresolution_minv,
-								gfxvidinfo.gfx_resolution_reserved, gfxvidinfo.gfx_vresolution_reserved);
-							set_config_changed ();
-							//activate_debugger ();
-						}
-						if (src->width > 0 && src->height > 0) {
-							if (memcmp (dst, src, sizeof *dst)) {
-								*dst = *src;
-								set_config_changed ();
-							}
-						}
-						break;
-					}
-					m++;
-				}
-				frame_res_cnt = currprefs.gfx_autoresolution_delay;
+		int largest_count = 0;
+		int largest_count_res = 0;
+		int largest_res = 0;
+		for (int i = 0; i <= RES_MAX; i++) {
+			if (resolution_count[i])
+				largest_res = i;
+			if (resolution_count[i] >= largest_count) {
+				largest_count = resolution_count[i];
+				largest_count_res = i;
 			}
-		} else {
-			frame_res_old = frame_res * 2 + frame_res_lace;
-			frame_res_cnt = currprefs.gfx_autoresolution_delay;
-			if (frame_res_cnt <= 0)
-				frame_res_cnt = 1;
+		}
+
+		if (currprefs.gfx_autoresolution == 1)
+			frame_res_detected = largest_res;
+		else if (largest_count * 100 / maxvpos >= currprefs.gfx_autoresolution)
+			frame_res_detected = largest_count_res;
+		else
+			frame_res_detected = largest_count_res - 1;
+		if (frame_res_detected < 0)
+			frame_res_detected = 0;
+
+		if (frame_res_detected >= 0 && frame_res_lace_detected >= 0) {
+			if (frame_res_cnt > 0 && frame_res_old == frame_res_detected * 2 + frame_res_lace_detected) {
+				frame_res_cnt--;
+				if (frame_res_cnt == 0) {
+					int m = frame_res_detected * 2 + frame_res_lace_detected;
+					struct wh *dst = currprefs.gfx_apmode[0].gfx_fullscreen ? &changed_prefs.gfx_size_fs : &changed_prefs.gfx_size_win;
+					while (m < 3 * 2) {
+						struct wh *src = currprefs.gfx_apmode[0].gfx_fullscreen ? &currprefs.gfx_size_fs_xtra[m] : &currprefs.gfx_size_win_xtra[m];
+						if ((src->width > 0 && src->height > 0) || (currprefs.gfx_api || currprefs.gfx_filter > 0)) {
+							int nr = m >> 1;
+							int nl = (m & 1) == 0 ? 0 : 1;
+							int nr_o = nr;
+							int nl_o = nl;
+
+							if (currprefs.gfx_autoresolution_minh < 0) {
+								if (nr < nl)
+									nr = nl;
+							} else if (nr < currprefs.gfx_autoresolution_minh) {
+								nr = currprefs.gfx_autoresolution_minh;
+							}
+							if (currprefs.gfx_autoresolution_minv < 0) {
+								if (nl < nr)
+									nl = nr;
+							} else if (nl < currprefs.gfx_autoresolution_minv) {
+								nl = currprefs.gfx_autoresolution_minv;
+							}
+
+							if (nr > gfxvidinfo.gfx_resolution_reserved)
+								nr = gfxvidinfo.gfx_resolution_reserved;
+							if (nl > gfxvidinfo.gfx_vresolution_reserved)
+								nl = gfxvidinfo.gfx_vresolution_reserved;
+
+							if (changed_prefs.gfx_resolution != nr || changed_prefs.gfx_vresolution != nl) {
+								changed_prefs.gfx_resolution = nr;
+								changed_prefs.gfx_vresolution = nl;
+								write_log (_T("RES -> %d (%d) LINE -> %d (%d) (%d - %d, %d - %d)\n"), nr, nr_o, nl, nl_o,
+									currprefs.gfx_autoresolution_minh, currprefs.gfx_autoresolution_minv,
+									gfxvidinfo.gfx_resolution_reserved, gfxvidinfo.gfx_vresolution_reserved);
+								set_config_changed ();
+								//activate_debugger ();
+							}
+							if (src->width > 0 && src->height > 0) {
+								if (memcmp (dst, src, sizeof *dst)) {
+									*dst = *src;
+									set_config_changed ();
+								}
+							}
+							break;
+						}
+						m++;
+					}
+					frame_res_cnt = currprefs.gfx_autoresolution_delay;
+				}
+			} else {
+				frame_res_old = frame_res_detected * 2 + frame_res_lace_detected;
+				frame_res_cnt = currprefs.gfx_autoresolution_delay;
+				if (frame_res_cnt <= 0)
+					frame_res_cnt = 1;
+			}
 		}
 	}
+	for (int i = 0; i <= RES_MAX; i++)
+		resolution_count[i] = 0;
 	frame_res = -1;
 	frame_res_lace = 0;
 
@@ -2664,7 +2695,6 @@ static void init_drawing_frame (void)
 		can_use_lores++;
 		lores_reset ();
 	}
-#endif
 
 	init_hardware_for_drawing_frame ();
 

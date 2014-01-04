@@ -21,6 +21,7 @@ extern int vsynctimebase, syncbase;
 extern void reset_frame_rate_hack (void);
 extern unsigned long int vsync_cycles;
 extern unsigned long start_cycles;
+extern int event2_count;
 
 extern void compute_vsynctime (void);
 extern void init_eventtab (void);

@@ -28,9 +28,10 @@
 // 2 = no wait detection
 // 4 = no D
 // 8 = instant
+// 16 = activate debugger if weird things
 
 #if BLITTER_DEBUG
-int log_blitter = 1;
+int log_blitter = 1 | 16;
 #else
 int log_blitter = 0;
 #endif
@@ -41,7 +42,11 @@ static int blt_statefile_type;
 
 uae_u16 bltcon0, bltcon1;
 uae_u32 bltapt, bltbpt, bltcpt, bltdpt;
+uae_u32 bltptx;
+int bltptxpos, bltptxc;
 int blitter_nasty;
+// blitter is active and D may write to visible bitplane addresses
+int blitter_dangerous_bpl;
 
 static int original_ch, original_fill, original_line;
 
@@ -262,6 +267,8 @@ STATIC_INLINE void record_dma_blit (uae_u16 reg, uae_u16 dat, uae_u32 addr, int 
 
 	if (blitline)
 		type = DMARECORD_BLITTER_LINE;
+	else if (blitfill)
+		type = DMARECORD_BLITTER_FILL;
 	else
 		type = DMARECORD_BLITTER;
 	if (debug_dma)
@@ -290,7 +297,7 @@ STATIC_INLINE const int *get_ch (void)
 	if (blit_faulty)
 		return &blit_diag[0];
 	if (blit_final)
-		return blitline ? blit_cycle_diagram_finalld : blit_cycle_diagram_finald;
+		return blitline || blit_nod ? blit_cycle_diagram_finalld : blit_cycle_diagram_finald;
 	return blit_diag;
 }
 
@@ -331,15 +338,63 @@ STATIC_INLINE int canblit (int hpos)
 		return -1;
 	if (is_bitplane_dma (hpos))
 		return 0;
-	if (cycle_line[hpos] & CYCLE_MASK)
+	if (cycle_line[hpos] & CYCLE_MASK) {
+#if 0
+		if ((dmacon & DMA_BLITPRI) && (cycle_line[hpos] & CYCLE_MASK) == CYCLE_CPU)
+			write_log (_T("BLITTER: CPU stole cycle from blitter without nasty!?\n"));
+#endif
 		return 0;
+	}
 	return 1;
+}
+
+static void markidlecycle (int hpos)
+{
+	if (debug_dma)
+		record_dma_event (DMA_EVENT_BLITSTARTFINISH, hpos, vpos);
+}
+
+static void reset_channel_mods (void)
+{
+	if (bltptxpos < 0)
+		return;
+	bltptxpos = -1;
+	switch (bltptxc)
+	{
+		case 1:
+		bltapt = bltptx;
+		break;
+		case 2:
+		bltbpt = bltptx;
+		break;
+		case 3:
+		bltcpt = bltptx;
+		break;
+		case 4:
+		bltdpt = bltptx;
+		break;
+	}
+}
+
+static void check_channel_mods (int hpos, int ch)
+{
+	if (bltptxpos != hpos)
+		return;
+	if (ch == bltptxc) {
+		bltptxpos = -1;
+		write_log (_T("BLITTER: %08X write to %cPT ignored! %08x\n"), bltptx, ch + 'A' - 1, m68k_getpc ());
+	}
 }
 
 // blitter interrupt is set (and busy bit cleared) when
 // last "main" cycle has been finished, any non-linedraw
 // D-channel blit still needs 2 more cycles before final
-// D is written
+// D is written (idle cycle, final D write)
+//
+// line draw interrupt triggers when last D is written
+// (or cycle where last D write would have been if
+// ONEDOT was active)
+
 static void blitter_interrupt (int hpos, int done)
 {
 	if (blit_interrupt)
@@ -347,7 +402,7 @@ static void blitter_interrupt (int hpos, int done)
 	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68030))
 		return;
 	blit_interrupt = 1;
-	send_interrupt (6, 3 * CYCLE_UNIT);
+	send_interrupt (6, 4 * CYCLE_UNIT);
 	if (debug_dma)
 		record_dma_event (DMA_EVENT_BLITIRQ, hpos, vpos);
 }
@@ -358,13 +413,13 @@ static void blitter_done (int hpos)
 	bltstate = blit_startcycles == 0 || !currprefs.blitter_cycle_exact ? BLT_done : BLT_init;
 	blitter_interrupt (hpos, 1);
 	blitter_done_notify (hpos);
-	if (debug_dma)
-		record_dma_event (DMA_EVENT_BLITFINISHED, hpos, vpos);
+	markidlecycle (hpos);
 	event2_remevent (ev2_blitter);
 	unset_special (SPCFLAG_BLTNASTY);
 	if (log_blitter & 1)
 		write_log (_T("cycles %d, missed %d, total %d\n"),
 			blit_totalcyclecounter, blit_misscyclecounter, blit_totalcyclecounter + blit_misscyclecounter);
+	blitter_dangerous_bpl = 0;
 }
 
 STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
@@ -372,7 +427,7 @@ STATIC_INLINE void chipmem_agnus_wput2 (uaecptr addr, uae_u32 w)
 	last_custom_value1 = w;
 	if (!(log_blitter & 4)) {
 		chipmem_wput_indirect (addr, w);
-		debug_wputpeekdma_chipram (addr, w);
+		debug_wputpeekdma_chipram (addr, w, 0x000);
 	}
 }
 
@@ -596,7 +651,7 @@ STATIC_INLINE void blitter_write (void)
 			return;
 		last_custom_value1 = blt_info.bltddat;
 		chipmem_wput_indirect (bltdpt, blt_info.bltddat);
-		debug_wputpeekdma_chipram (bltdpt, blt_info.bltddat);
+		debug_wputpeekdma_chipram (bltdpt, blt_info.bltddat, 0x000);
 	}
 	bltstate = BLT_next;
 }
@@ -706,6 +761,18 @@ static void decide_blitter_line (int hsync, int hpos)
 				break;
 			}
 
+			// final 2 idle cycles? does not need free bus
+			// in line mode idle cycles also use line mode cycle sequence (every other cycle)
+			if (blit_final) { 
+				blit_cyclecounter++;
+				blit_totalcyclecounter++;
+				if (blit_cyclecounter >= 4) {
+					blitter_done (last_blitter_hpos);
+					return;
+				}
+				break;
+			}
+
 			if (v <= 0) {
 				blit_misscyclecounter++;
 				blitter_nasty++;
@@ -715,20 +782,14 @@ static void decide_blitter_line (int hsync, int hpos)
 			blit_cyclecounter++;
 			blit_totalcyclecounter++;
 
-			// final 2 idle cycles?
-			if (blit_final) {
-				if (blit_cyclecounter > get_ch ()[0]) {
-					blitter_done (last_blitter_hpos);
-					return;
-				}
-				break;
-			}
+			check_channel_mods (last_blitter_hpos, c);
 
 			if (c == 3) {
 
 				blitter_read ();
 				alloc_cycle_blitter (last_blitter_hpos, &bltcpt, 3);
 				record_dma_blit (0x70, blt_info.bltcdat, bltcpt, last_blitter_hpos);
+				blitter_nasty++;
 
 			} else if (c == 5) {
 
@@ -748,12 +809,16 @@ static void decide_blitter_line (int hsync, int hpos)
 					alloc_cycle_blitter (last_blitter_hpos, &bltdpt, 4);
 					record_dma_blit (0x00, blt_info.bltddat, bltdpt, last_blitter_hpos);
 					blitlinepixel = 0;
+					blitter_nasty++;
 				}
 				if (blt_info.vblitsize == 0) {
 					bltdpt = bltcpt;
 					blit_final = 1;
 					blit_cyclecounter = 0;
 					blit_waitcyclecounter = 0;
+					// blit finished bit is set and interrupt triggered
+					// immediately after last D write
+					blitter_interrupt (last_blitter_hpos, 0);
 					break;
 				}
 
@@ -765,6 +830,7 @@ static void decide_blitter_line (int hsync, int hpos)
 	}
 	if (hsync)
 		last_blitter_hpos = 0;
+	reset_channel_mods ();
 }
 
 #endif
@@ -855,7 +921,7 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 
 	ddat = blit_func (blitahold, blt_info.bltbhold, blt_info.bltcdat, mt) & 0xFFFF;
 
-	if (bltcon1 & 0x18) {
+	if ((bltcon1 & 0x18)) {
 		uae_u16 d = ddat;
 		int ifemode = blitife ? 2 : 0;
 		int fc1 = blit_filltable[d & 255][ifemode + blitfc][1];
@@ -878,7 +944,7 @@ STATIC_INLINE void blitter_doddma (int hpos)
 
 	wd = 0;
 	if (blit_dmacount2 == 0) {
-		d =  blitter_doblit ();
+		d = blitter_doblit ();
 		wd = -1;
 	} else if (ddat2use) {
 		d = ddat2;
@@ -894,7 +960,6 @@ STATIC_INLINE void blitter_doddma (int hpos)
 			warn--;
 			write_log (_T("BLITTER: D-channel without nothing to do?\n"));
 		}
-		blitter_vcounter2 = blitter_vcounter1 = blt_info.vblitsize;
 		return;
 	}
 	record_dma_blit (0x00, d, bltdpt, hpos);
@@ -907,6 +972,8 @@ STATIC_INLINE void blitter_doddma (int hpos)
 		blitter_hcounter2 = 0;
 		bltdpt += blit_modaddd;
 		blitter_vcounter2++;
+		if (blit_dmacount2 == 0) // d-only
+			blitter_vcounter1++;
 		if (blitter_vcounter2 > blitter_vcounter1)
 			blitter_vcounter1 = blitter_vcounter2;
 	}
@@ -1011,6 +1078,8 @@ static void do_startcycles (int hpos)
 					blit_faulty = 1;
 				return;
 			}
+		} else {
+			markidlecycle (hpos);
 		}
 	}
 }
@@ -1061,13 +1130,15 @@ void decide_blitter (int hpos)
 			// copper bltsize write needs one cycle (any cycle) delay
 			if (blit_waitcyclecounter) {
 				blit_waitcyclecounter = 0;
+				markidlecycle (last_blitter_hpos);
 				break;
 			}
-			// idle cycles require free bus..
+			// idle cycles require free bus.
+			// Final empty cycle does not, unless it is fill mode that requires extra idle cycle
 			// (CPU can still use this cycle)
-			if ((c == 0 && v == 0) || v < 0) {
-				blitter_nasty++;
+			if ((blit_cyclecounter < 0 || !blit_final || (blitfill && blit_cycle_diagram_fill[blit_ch][0])) && ((c == 0 && v == 0) || v < 0)) {
 				blit_misscyclecounter++;
+				blitter_nasty++;
 				break;
 			}
 
@@ -1087,6 +1158,7 @@ void decide_blitter (int hpos)
 					blitter_done (last_blitter_hpos);
 					return;
 				}
+				markidlecycle (last_blitter_hpos);
 				break;
 			}
 
@@ -1097,6 +1169,7 @@ void decide_blitter (int hpos)
 				break;
 			}
 
+			check_channel_mods (last_blitter_hpos, c);
 			blt_info.got_cycle = 1;
 			if (c == 4) {
 				blitter_doddma (last_blitter_hpos);
@@ -1119,13 +1192,16 @@ void decide_blitter (int hpos)
 			break;
 		}
 
-		if (!blit_final && blitter_vcounter1 == blt_info.vblitsize && channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
-			blitter_interrupt (last_blitter_hpos, 0);
-			blit_cyclecounter = 0;
-			blit_final = 1;
+		if (dmaen (DMA_BLITTER) && !blit_final && (blitter_vcounter1 == blt_info.vblitsize || (blitter_vcounter1 == blt_info.vblitsize - 1 && blitter_hcounter1 == blt_info.hblitsize - 1 && blit_dmacount2 == 0))) {
+			if (channel_pos (blit_cyclecounter - 1) == blit_diag[0] - 1) {
+				blitter_interrupt (last_blitter_hpos, 0);
+				blit_cyclecounter = 0;
+				blit_final = 1;
+			}
 		}
 		last_blitter_hpos++;
 	}
+	reset_channel_mods ();
 	if (hsync)
 		last_blitter_hpos = 0;
 }
@@ -1198,12 +1274,17 @@ static void blit_bltset (int con)
 		bltstate = BLT_done;
 		blit_interrupt = 1;
 		write_log (_T("BLITTER: register modification during linedraw! %08x\n"), M68K_GETPC);
+		if (log_blitter & 16)
+			activate_debugger ();
 	}
 
 	if (blitline) {
-		if (blt_info.hblitsize != 2)
+		if (blt_info.hblitsize != 2) {
 			debugtest (DEBUGTEST_BLITTER, _T("weird blt_info.hblitsize in linemode: %d vsize=%d\n"),
 				blt_info.hblitsize, blt_info.vblitsize);
+			if (log_blitter & 16)
+				activate_debugger ();
+		}
 		blit_diag = blit_cycle_diagram_line;
 	} else {
 		if (con & 2) {
@@ -1214,12 +1295,18 @@ static void blit_bltset (int con)
 				blitife = 0;
 			}
 		}
-		if (blitfill && !blitdesc)
+		if (blitfill && !blitdesc) {
 			debugtest (DEBUGTEST_BLITTER, _T("fill without desc\n"));
+			if (log_blitter & 16)
+				activate_debugger ();
+		}
 		blit_diag = blitfill && blit_cycle_diagram_fill[blit_ch][0] ? blit_cycle_diagram_fill[blit_ch] : blit_cycle_diagram[blit_ch];
 	}
-	if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS))
+	if ((bltcon1 & 0x80) && (currprefs.chipset_mask & CSMASK_ECS_AGNUS)) {
 		debugtest (DEBUGTEST_BLITTER, _T("ECS BLTCON1 DOFF-bit set\n"));
+		if (log_blitter & 16)
+			activate_debugger ();
+	}
 
 	// on the fly switching fillmode from extra cycle to non-extra: blitter freezes
 	// non-extra cycle to extra cycle: does not freeze but cycle diagram goes weird,
@@ -1240,10 +1327,12 @@ static void blit_bltset (int con)
 		} else if (iseo && !isen) {
 			blit_frozen = 1;
 			write_log (_T("BLITTER: frozen! %d (%d) -> %d (%d) %08X\n"), original_ch, iseo, blit_ch, isen, M68K_GETPC);
+			if (log_blitter & 16)
+				activate_debugger ();
 		} else if (!iseo && isen) {
 			if (!dmaen (DMA_BLITTER)) // subtle shades / nuance bootblock bug
 				blit_frozen = 1;
-			if (log_blitter) 
+			if (log_blitter)
 				write_log (_T("BLITTER: on the fly %d (%d) -> %d (%d) switch\n"), original_ch, iseo, blit_ch, isen);
 		}
 	}
@@ -1258,6 +1347,8 @@ static void blit_bltset (int con)
 			if (changetable[o * 32 + n] < 10) {
 				changetable[o * 32 + n]++;
 				write_log (_T("BLITTER: channel mode changed while active (%02X->%02X) PC=%08x\n"), o, n, M68K_GETPC);
+				if (log_blitter & 16)
+					activate_debugger ();
 			}
 		}
 		if (blit_ch == 13 && original_ch == 1) {
@@ -1281,7 +1372,10 @@ static void blit_bltset (int con)
 		if (v == 4)
 			blit_nod = 0;
 	}
-
+	if (blit_dmacount2 == 0) {
+		ddat2use = 0;
+		ddat1use = 0;
+	}
 }
 
 static void blit_modset (void)
@@ -1514,8 +1608,11 @@ void maybe_blit (int hpos, int hack)
 {
 	static int warned = 10;
 
+	reset_channel_mods ();
+
 	if (bltstate == BLT_done)
 		return;
+
 	if (savestate_state)
 		return;
 
@@ -1540,8 +1637,7 @@ void maybe_blit (int hpos, int hack)
 
 	if (warned && dmaen (DMA_BLITTER) && blt_info.got_cycle) {
 		warned--;
-		debugtest (DEBUGTEST_BLITTER, _T("program does not wait for blitter tc=%d\n"),
-			blit_cyclecounter);
+		debugtest (DEBUGTEST_BLITTER, _T("program does not wait for blitter tc=%d\n"), blit_cyclecounter);
 		if (log_blitter)
 			warned = 0;
 		if (log_blitter & 2) {
@@ -1564,6 +1660,22 @@ void maybe_blit (int hpos, int hack)
 end:;
 	if (log_blitter)
 		blitter_delayed_debug = 1;
+}
+
+void check_is_blit_dangerous (uaecptr *bplpt, int planes, int words)
+{
+	blitter_dangerous_bpl = 0;
+	if (bltstate == BLT_done || !currprefs.blitter_cycle_exact)
+		return;
+	// too simple but better than nothing
+	for (int i = 0; i < planes; i++) {
+		uaecptr bpl = bplpt[i];
+		uaecptr dpt = bltdpt & chipmem_bank.mask;
+		if (dpt >= bpl - 2 * words && dpt < bpl + 2 * words) {
+			blitter_dangerous_bpl = 1;
+			return;
+		}
+	}
 }
 
 int blitnasty (void)
@@ -1613,6 +1725,11 @@ void blitter_slowdown (int ddfstrt, int ddfstop, int totalcycles, int freecycles
 		return;
 	blit_slowdown += slow;
 	blit_misscyclecounter += slow;
+}
+
+void blitter_reset (void)
+{
+	bltptxpos = -1;
 }
 
 #ifdef SAVESTATE
