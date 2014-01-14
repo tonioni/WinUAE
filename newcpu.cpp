@@ -2980,7 +2980,7 @@ int movec_illg (int regno)
 		return 1;
 	} else if (currprefs.cpu_model == 68040) {
 		if (regno == 0x802)
-			return 1; /* 68020 only */
+			return 1; /* 68020/030 only */
 		if (regno2 < 8) return 0;
 		return 1;
 	}
@@ -3031,7 +3031,7 @@ int m68k_move2c (int regno, uae_u32 *regp)
 
 		case 0x800: regs.usp = *regp; break;
 		case 0x801: regs.vbr = *regp; break;
-		case 0x802: regs.caar = *regp & 0xfc; break;
+		case 0x802: regs.caar = *regp; break;
 		case 0x803: regs.msp = *regp; if (regs.m == 1) m68k_areg (regs, 7) = regs.msp; break;
 		case 0x804: regs.isp = *regp; if (regs.m == 0) m68k_areg (regs, 7) = regs.isp; break;
 			/* 68040 only */
@@ -5060,6 +5060,7 @@ void m68k_go (int may_quit)
 			cpu_halt (regs.halted);
 			continue;
 		}
+
 #if 0
 		if (mmu_enabled && !currprefs.cachesize) {
 			run_func = m68k_run_mmu;

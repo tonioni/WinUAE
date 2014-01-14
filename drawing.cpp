@@ -774,13 +774,16 @@ STATIC_INLINE xcolnr getbgc (bool blank)
 /* Initialize the variables necessary for drawing a line.
 * This involves setting up start/stop positions and display window
 * borders.  */
-static void pfield_init_linetoscr (void)
+static void pfield_init_linetoscr (bool border)
 {
 	/* First, get data fetch start/stop in DIW coordinates.  */
 	int ddf_left = dp_for_drawing->plfleft * 2 + DIW_DDF_OFFSET;
 	int ddf_right = dp_for_drawing->plfright * 2 + DIW_DDF_OFFSET;
 	int leftborderhidden;
 	int native_ddf_left2;
+
+	if (border)
+		ddf_left = DISPLAY_LEFT_SHIFT;
 
 	/* Compute datafetch start/stop in pixels; native display coordinates.  */
 	native_ddf_left = coord_hw_to_window_x (ddf_left);
@@ -847,7 +850,8 @@ static void pfield_init_linetoscr (void)
 			x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].pos;
 			if (x < min)
 				min = x;
-			x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].max;
+			// include max extra pixels, sprite may be 2x or 4x size: 4x - 1.
+			x = curr_sprite_entries[dip_for_drawing->first_sprite_entry + i].max + (4 - 1);
 			if (x > max)
 				max = x;
 		}
@@ -921,14 +925,20 @@ static void pfield_erase_hborder_sprites (void)
 	}
 }
 
-// erase whole viewable area if upper or lower border
+// erase whole viewable area if sprite in upper or lower border
 static void pfield_erase_vborder_sprites (void)
 {
-	if (linetoscr_diw_end > linetoscr_diw_start) {
-		uae_u8 c = colors_for_drawing.borderblank ? 0 : colors_for_drawing.acolors[0];
-		int size = res_shift_from_window (linetoscr_diw_end - linetoscr_diw_start);
-		memset (pixdata.apixels + MAX_PIXELS_PER_LINE - size, c, size);
+	if (visible_right_border <= visible_left_border)
+		return;
+	int pos = 0;
+	int size = 0;
+	if (visible_left_border < native_ddf_left) {
+		size = res_shift_from_window (native_ddf_left - visible_left_border);
+		pos = -size;
 	}
+	if (visible_right_border > native_ddf_left)
+		size += res_shift_from_window (visible_right_border - native_ddf_left);
+	memset (pixdata.apixels + MAX_PIXELS_PER_LINE - pos, 0, size);
 }
 
 
@@ -2360,7 +2370,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 	if (border == 0) {
 
 		pfield_expand_dp_bplcon ();
-		pfield_init_linetoscr ();
+		pfield_init_linetoscr (false);
 		pfield_doline (lineno);
 
 		adjust_drawing_colors (dp_for_drawing->ctable, dp_for_drawing->ham_seen || bplehb || ecsshres);
@@ -2428,7 +2438,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 		if (dp_for_drawing->bordersprite_seen && dip_for_drawing->nr_sprites) {
 			dosprites = true;
 			pfield_expand_dp_bplcon ();
-			pfield_init_linetoscr ();
+			pfield_init_linetoscr (true);
 			pfield_erase_vborder_sprites ();
 		}
 #endif
@@ -2449,6 +2459,7 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			return;
 		}
 
+#ifdef AGA
 		if (dosprites) {
 
 			int i;
@@ -2456,7 +2467,6 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 			for (i = 0; i < dip_for_drawing->nr_sprites; i++)
 				draw_sprites_aga (curr_sprite_entries + dip_for_drawing->first_sprite_entry + i, 1);
 			uae_u16 oxor = bplxor;
-			memset (pixdata.apixels, 0, sizeof pixdata);
 			if (dp_for_drawing->ham_seen) {
 				int todraw_amiga = res_shift_from_window (visible_right_border - visible_left_border);
 				init_ham_decoding ();
@@ -2467,6 +2477,9 @@ static void pfield_draw_line (struct vidbuffer *vb, int lineno, int gfx_ypos, in
 				do_color_changes (pfield_do_fill_line, pfield_do_linetoscr_border, lineno);
 				bplxor = oxor;
 			}
+#else
+		if (0) {
+#endif
 
 		} else {
 

@@ -247,6 +247,11 @@ void fixup_cpu (struct uae_prefs *p)
 		break;
 	}
 
+	if (p->cpu_model < 68020 && p->cachesize) {
+		p->cachesize = 0;
+		error_log (_T("JIT requires 68020 or better CPU."));
+	}
+
 	if (p->cpu_model >= 68040 && p->cachesize && p->cpu_compatible)
 		p->cpu_compatible = false;
 

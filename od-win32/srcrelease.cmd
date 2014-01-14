@@ -79,6 +79,7 @@ rm -f genlinetoscr.exe
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd build68k_msvc
@@ -86,6 +87,7 @@ rm -f build68k.exe
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd genblitter_msvc
@@ -93,6 +95,7 @@ rm -f genblitter.exe
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd gencomp_msvc
@@ -100,6 +103,7 @@ rm -f gencomp.exe
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd gencpu_msvc
@@ -107,12 +111,14 @@ rm -f gencpu.exe
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd winuae_msvc
 rm -rf debug
 rm -rf release
 rm -rf fullrelease
+rm -rf test
 cd ..
 
 cd winuae_msvc10
@@ -120,6 +126,7 @@ rm -rf debug
 rm -rf release
 rm -rf fullrelease
 rm -rf ipch
+rm -rf test
 rm -rf x64
 cd ..
 

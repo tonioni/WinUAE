@@ -1,6 +1,112 @@
 
 - restore only single input target to default.
 
+Lots of small blitter, copper and CPU timing adjustments. (Thanks to amilo3438 for collecting huge amounts
+of demo test cases). Lots of logic analyzer tests done during last few weeks.
+
+Custom chipset and 68000 CPU should be now 100% cycle-exact!
+Note that it does not yet means glitch free programs:
+
+- Blitter behavior when register modified while active is still mostly unknown.
+- Bitplane delays (BPLCON1) are not fully cycle-exact (Psycho Medium IV / Turnips does horizontal
+  scaling effect differently than any other demo I have seen)
+- Reading write-only custom registers is not fully known.
+
+Huge changelog, mostly technical stuff.
+
+- Setting blitter channel mode to D only from D + any other channel(s) combination when blitter was active
+  caused blitter emulation to repeat D write until BLTSIZE was written again. (Sinemania / Latex)
+- Blitter was not fully synced with bitplane DMA. When CPU had nothing to do (waiting for memory fetch or had
+  long internal operation executing), blitter and bitplane DMA was emulated in separate passes. Optimization
+  which is not that good idea in cycle-exact modes. Fixes glitches in most demos with vertical "copper" bars.
+- "Blitter: D-channel without nothing to do?" can happen if program changes channel mode on the fly from D to AD,
+  do not cancel blit in this situation. (Just Another Compilation / Magnetic Fields)
+- Blitter's last idle cycle before final D write does not require free bus cycle. Exception: it needs to be
+  free if it is extra cycle added in fill mode. (Lets Rave / Profecy, CrazyWorld / Dioxide)
+- D-only blit didn't set blitter finished state early enough. Blitter finished bit is set, in normal mode,
+  after second to last D write is done, not when blitter pipeline is empty and final D is written. (Bob demo / D-Mob)
+- Blitter line mode timing updates, blit finished bit gets set immediately when last D write has been done
+  but copper waiting for blitter needs 4 extra cycles and they don't need to be free cycles.
+  I assume these 4 extra cycles are same as non-line mode 2 extra cycles + line mode forcing blitter to
+  use only every other cycle. (Matches logic analyzer results but this is not easy to 100% confirm)
+- Writing to blitter pointer register 1 cycle before same blitter channel is used for DMA fetch: written
+  value is ignored, pointer does not change. Cycle exact mode only.
+  (Rampage / TEK music corruption in Credits and Acknowledgements part, corrupted when landscape part started)
+- Blitter not in nasty mode: idle cycles (that are usable by CPU) incorrectly counted as "CPU waits for bus".
+- Blit without D-channel active in cycle-exact mode: final cycle still used D channel. (Oops..)
+
+- When copper was stopped by writing to both COPxJMP registers while DMA was also disabled, it incorrectly was
+  set to strobed state if yet another COPxJMP access was done with DMA still being disabled.
+- Emulated quite weird copper feature, if second cycle of copjmp strobe cycle sequence would cross scanlines
+  (positioned immediately after first strobe/refresh slot), it will disappear! (Psycho Medium 4 / Turnips)
+
+- New undocumented feature: bitplane DMA and sprite DMA is inhibited during last line of field.
+  (A500 logic analyzer confirmed, no difference between OCS or ECS)
+- DDFSTOP > maxhpos causing full horizontal overscan DMA (ECS only) improved. (Child's Play 1 / Silicon Ltd)
+- "SWIV" bitplane feature was line based, now it is cycle-based. (No one has enabled or disabled it
+  mid-scanline, but at least emulation is more compatible now)
+- If number of bitplanes decreases mid scanline, possible remaining data (BPLCON1 non-zero) in disabled planes'
+  shift registers must be shifted out. (Party Report / Escape & Outlaws)
+- Optimized "SPEEDUP" bitplane emulation didn't copy last fetched data to BPLxDAT storage variable, causing
+  random glitches in other parts of display if program changed number of planes after DDFSTRT had matched.
+  (Plasma Explosion / Timex)
+- Bitplane delay (BPLCON1) mid-scanline timing should be now 100% exact. (Psycho Medium IV / Turnips)
+- Sprite update in 270b13 was wrong, should work better now, it broke Elfmania scoreboard.
+- Modified interrupt delays, handle situation where (broken) program starts blitter with INTREQ already
+  set and blit finishes before next instruction clears it. (Absolute Inebriation / VD "big double glenz" part)
+
+- Reset color registers only after hardware reset.
+- It seems ECS Denise color palette is full white after power up but full black if OCS. (Small Intro / TWW)
+- Reading byte from CIA address that has valid CIA A/B select bit but bit 0 inverted (Active 8 bits of
+  16-bit data bus not driven by CIAs) didn't read prefetch buffer contents in 68000 CE/prefetch mode.
+  (Copper Bandwaggon / New Age)
+- 68020 CE mode 6888x exceptions didn't skip instruction prefetch, broke for example KS 1.3 FPU detection.
+- 68020 CE last prefetch word load after branch or exception used incorrect (too fast) non-ce fetch call.
+
+- MSVC 2013 compiled, switched to fastcall calling convention.
+- Added optional gameports panel setting: don't disable original key if it is mapped to keyboard joystick
+  emulation. Config file only, joyportXkeyboardoverride=false (X=port number).
+- Added "delay <fields>" command to custom event strings. (for example "kbr 'a'" "delay 50" "kbr 'b'" will
+  send key 'a', wait 1 second (in PAL mode), send key 'b'. Multiple delayed custom events can be active at
+  the same time.
+- Accept Draco Casablanca partition table identifier (CDSK instead of usual RDSK).
+- 256k rom image inserted in floppy drive: mount as A1000 KICK disk, 512k rom image mounts as A3000
+  SuperKickstart disk (with 256k rom area empty and no bonus code included = useless for A3000 emulation)
+- Resolution autoswitch was not compatible with new interlace scanline modes.
+- Resolution autoswitch improved, instead of being boolean (on or off), now it can be configured for
+  percentage of resolution used, for example if value is about 10 or larger, and game has tiny hires scoreboard
+  and the rest is lores: lores will be selected. Value=1 emulates old behavior, use highest resolution if
+  there is even single line of hires or shres mode.
+- Some Game Ports panel remap operations didn't work correctly if Input panel was set to "Configuration #1-#3"
+- Automatically focus debugger window when debugger activates.
+- Capture mouse after exiting debugger if it was captured when debugger was activated.
+- Do not ask for extended ADF if program writes to disk using standard dos format and 1 or more sectors
+  have non-zero header data, add message to load and ignore sector header data. (Thrill Kill disk writing)
+- Standard partition HDF zero or -1 dostype: force DOS\0.
+- <= 512M partition hardfiles had IDE-like geometry if it didn't have OFS or FFS filesystem.
+- Always mount all non-CDROM SCSI devices if uaescsi.device is enabled and SCSI mode is SPTI.
+- More readable crash dump file naming, 64-build dump file support added.
+- Mouse driver mode + magic mouse lost mouse buttons when WinUAE window focus was lost.
+- RTG mode + Aspect ratio not default or automatic + Scale if smaller set: screen was very narrow.
+- DMA debugger blitter color changed, now normal blit, fill blit and line blits are different enough.
+
+- Arcadia support synced with MAME 0.152 (ar_xxxx.zip rom images), missing bios roms and games added.
+  Old rom files not supported. Note that Arcadia is NTSC, new bios 4.00 hangs in PAL mode. ROM rescan
+  required to detect new files.
+
+Some 68000 emulation cycle usage fixes and logic analyzer tests.
+
+- JSR and JMP (d8,PC,Xn) or (d8,An,Xn) addressing modes did one unneeded prefetch.
+- MOVE from SR was too fast if destination was memory (68000 does memory write twice for some reason)
+- SR/CCR modification instructions always do full prefetch fill.
+- (d8,PC,Xn) and (d8,An,Xn) addressing modes have idle cycle before first prefetch, not after.
+- CMP.X #imm,EA where EA = -(a0) or (d8,An,Xn) didn't have extra idle cycle.
+- Logic analyzer rechecked and updated exception initialization times. (Some were 2 cycles too fast)
+- DIVU/DIVS cycle count algorithm had prefetch included: division operations were always 4 cycles too slow.
+
+
+2.7.0
+
 - If Picasso IV flash image is not found, show also link where to download it from.
 
 Beta 16: (RC1)

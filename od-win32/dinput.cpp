@@ -2282,7 +2282,12 @@ static void handle_rawinput_2 (RAWINPUT *raw)
 			}
 		} else {
 			scancode = keyhack (scancode, pressed, num);
-			if (scancode < 0 || isfocus () == 0)
+			//write_log (_T("%02X %d %d\n"), scancode, pressed, isfocus ());
+			if (scancode < 0)
+				return;
+			if (!isfocus ())
+				return;
+			if (isfocus () < 2 && currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) 
 				return;
 			di_keycodes[num][scancode] = pressed;
 			if (stopoutput == 0)

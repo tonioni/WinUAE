@@ -164,6 +164,7 @@ static int sound_closed;
 static int recapture;
 static int focus;
 int mouseactive;
+int mouseinside;
 int minimized;
 int monitor_off;
 
@@ -1010,22 +1011,22 @@ void setmouseactivexy (int x, int y, int dir)
 	}
 }
 
-static int isfocus2 (void)
+int isfocus (void)
 {
 	if (isfullscreen () > 0)
-		return 1;
+		return 2;
+	if (currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse) {
+		if (mouseinside)
+			return 2;
+		if (focus)
+			return 1;
+		return 0;
+	}
 	if (focus && mouseactive > 0)
-		return 1;
-	if (currprefs.input_tablet >= TABLET_MOUSEHACK && currprefs.input_magic_mouse)
-		return 1;
+		return 2;
 	if (focus)
 		return -1;
 	return 0;
-}
-int isfocus (void)
-{
-	int v = isfocus2 ();
-	return v;
 }
 
 static void handleXbutton (WPARAM wParam, int updown)
@@ -1273,11 +1274,23 @@ static LRESULT CALLBACK AmigaWindowProc (HWND hWnd, UINT message, WPARAM wParam,
 			break;
 		}
 
+	case WM_MOUSELEAVE:
+		mouseinside = false;
+		return 0;
+
 	case WM_MOUSEMOVE:
 		{
 			int wm = dinput_winmouse ();
 			
 			monitor_off = 0;
+			if (!mouseinside) {
+				TRACKMOUSEEVENT tme = { 0 };
+				mouseinside = true;
+				tme.cbSize = sizeof tme;
+				tme.dwFlags = TME_LEAVE;
+				tme.hwndTrack = hAmigaWnd;
+				TrackMouseEvent (&tme);
+			}
 
 			mx = (signed short) LOWORD (lParam);
 			my = (signed short) HIWORD (lParam);
@@ -1649,6 +1662,7 @@ static LRESULT CALLBACK MainWindowProc (HWND hWnd, UINT message, WPARAM wParam, 
 	case WM_KILLFOCUS:
 	case WM_SETFOCUS:
 	case WM_MOUSEMOVE:
+	case WM_MOUSELEAVE:
 	case WM_MOUSEWHEEL:
 	case WM_MOUSEHWHEEL:
 	case WM_ACTIVATEAPP:

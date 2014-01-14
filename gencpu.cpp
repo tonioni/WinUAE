@@ -510,7 +510,7 @@ static const char *gen_nextibyte (int flags)
 
 static void check_ipl (void)
 {
-	if (using_ce)
+	if (using_ce || using_ce020)
 		printf ("\tipl_fetch ();\n");
 }
 
