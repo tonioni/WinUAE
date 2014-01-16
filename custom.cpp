@@ -296,7 +296,6 @@ static int last_ddf_pix_hpos;
 static int last_decide_line_hpos;
 static int last_fetch_hpos, last_sprite_hpos;
 static int diwfirstword, diwlastword;
-static int plfleft_real;
 static int last_hdiw;
 static enum diw_states diwstate, hdiwstate, ddfstate;
 int first_planes_vpos, last_planes_vpos;
@@ -891,7 +890,7 @@ static void estimate_last_fetch_cycle (int hpos)
 {
 	int fetchunit = fetchunits[fetchmode * 4 + bplcon0_res];
 
-	if (plf_state < plf_passed_stop) { 
+	if (plf_state < plf_passed_stop) {
 		int stop = plfstop < hpos || plfstop > HARD_DDF_STOP ? HARD_DDF_STOP : plfstop;
 		/* We know that fetching is up-to-date up until hpos, so we can use fetch_cycle.  */
 		int fetch_cycle_at_stop = fetch_cycle + (stop - hpos);
@@ -918,9 +917,10 @@ static uae_u64 fetched_aga[MAX_PLANES];
 #endif
 
 /* Expansions from bplcon0/bplcon1.  */
-static int toscr_res, toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, fetchwidth;
+static int toscr_res, toscr_res2p;
+static int toscr_nr_planes, toscr_nr_planes2, toscr_nr_planes_agnus, fetchwidth;
 static int toscr_delay[2], toscr_delay_adjusted[2];
-static int delay_cycles, delay_res;
+static int delay_cycles;
 static bool bplcon1_written;
 
 /* The number of bits left from the last fetched words.
@@ -1007,23 +1007,6 @@ STATIC_INLINE int is_bitplane_dma_inline (int hpos)
 		|| hpos >= estimated_last_fetch_cycle)
 		return 0;
 	return curr_diagram[(hpos - cycle_diagram_shift) & fetchstart_mask];
-}
-
-STATIC_INLINE void update_denise (int hpos)
-{
-	toscr_res = GET_RES_DENISE (bplcon0d);
-	delay_cycles = (hpos * 2) << toscr_res;
-	if (bplcon0dd != bplcon0d) {
-		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
-		bplcon0dd = bplcon0d;
-	}
-	toscr_nr_planes = GET_PLANES (bplcon0d);
-	if (isocs7planes ()) {
-		if (toscr_nr_planes2 < 6)
-			toscr_nr_planes2 = 6;
-	} else {
-		toscr_nr_planes2 = toscr_nr_planes;
-	}
 }
 
 /* Expand bplcon0/bplcon1 into the toscr_xxx variables.  */
@@ -1144,7 +1127,6 @@ STATIC_INLINE void maybe_check (int hpos)
 static void bpldmainitdelay (int hpos)
 {
 	ddf_change = vpos;
-	delay_res = GET_RES_DENISE (bplcon0);
 	if (hpos + BPLCON_AGNUS_DELAY < 0x14) {
 		BPLCON0_Denise (hpos, bplcon0, false);
 		setup_fmodes (hpos);
@@ -1200,22 +1182,8 @@ static void update_toscr_planes (int fm)
 
 STATIC_INLINE void maybe_first_bpl1dat (int hpos)
 {
-	if (thisline_decision.plfleft >= 0) {
-		// early bpl1dat crap fix (Sequential engine animation)
-		if (plfleft_real < 0) {
-			for (int i = 0; i < MAX_PLANES; i++) {
-				todisplay[i] = 0;
-#ifdef AGA
-				if (fetchmode)
-					todisplay_aga[i] = 0;
-#endif
-			}
-			plfleft_real = hpos;
-			bpl1dat_early = true;
-		}
-	} else {
-		plfleft_real = thisline_decision.plfleft = hpos;
-	}
+	if (thisline_decision.plfleft < 0)
+		thisline_decision.plfleft = hpos;
 }
 
 // emulate weird shifting glitch on right border if
@@ -1627,6 +1595,27 @@ STATIC_INLINE void flush_display (int fm)
 	toscr_nbits = 0;
 }
 
+STATIC_INLINE void update_denise (int hpos)
+{
+	int res = GET_RES_DENISE (bplcon0d);
+	if (res != toscr_res)
+		flush_display (fetchmode);
+	toscr_res = GET_RES_DENISE (bplcon0d);
+	toscr_res2p = 2 << toscr_res;
+	delay_cycles = (hpos * 2) << toscr_res;
+	if (bplcon0dd != bplcon0d) {
+		record_color_change2 (hpos, 0x100 + 0x1000, bplcon0d);
+		bplcon0dd = bplcon0d;
+	}
+	toscr_nr_planes = GET_PLANES (bplcon0d);
+	if (isocs7planes ()) {
+		if (toscr_nr_planes2 < 6)
+			toscr_nr_planes2 = 6;
+	} else {
+		toscr_nr_planes2 = toscr_nr_planes;
+	}
+}
+
 STATIC_INLINE void fetch_start (int hpos)
 {
 	fetch_state = fetch_started;
@@ -1638,6 +1627,7 @@ moved into todisplay[].  */
 STATIC_INLINE void beginning_of_plane_block (int hpos, int fm)
 {
 	int i;
+
 	if (fm == 0)
 		for (i = 0; i < MAX_PLANES; i++) {
 			todisplay[i] = fetched[i];
@@ -2026,7 +2016,7 @@ static void maybe_finish_last_fetch (int pos, int fm)
 			break;
 		}
 		fetch_cycle++;
-		toscr_nbits += 2 << toscr_res;
+		toscr_nbits += toscr_res2p;
 
 		if (toscr_nbits > 16)
 			toscr_nbits = 0;
@@ -2121,7 +2111,7 @@ STATIC_INLINE int one_fetch_cycle_0 (int pos, int ddfstop_to_test, int dma, int 
 	}
 
 	fetch_cycle++;
-	toscr_nbits += 2 << toscr_res;
+	toscr_nbits += toscr_res2p;
 
 	if (bplcon1_written) {
 		flush_display (fm);
@@ -2155,17 +2145,6 @@ STATIC_INLINE int one_fetch_cycle (int pos, int ddfstop_to_test, int dma, int fm
 	}
 }
 
-static void update_bpldats (int hpos)
-{
-	for (int i = 0; i < MAX_PLANES; i++) {
-		fetched[i] = bplxdat[i];
-#ifdef AGA
-		fetched_aga[i] = bplxdat[i];
-#endif
-	}
-	beginning_of_plane_block (hpos, fetchmode);
-}
-
 static void update_fetch_x (int until, int fm)
 {
 	int pos;
@@ -2179,7 +2158,7 @@ static void update_fetch_x (int until, int fm)
 	// not optimized, update_fetch_x() is extremely rarely used.
 	for (; pos < until; pos++) {
 
-		toscr_nbits += 2 << toscr_res;
+		toscr_nbits += toscr_res2p;
 
 		if (toscr_nbits > 16) {
 			uae_abort (_T("xtoscr_nbits > 16 (%d)"), toscr_nbits);
@@ -2233,6 +2212,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 
 		if (fetch_state == fetch_was_plane0)
 			break;
+#if 0
 		if (fetch_state == fetch_started_first) {
 #ifdef SPEEDUP
 			if (until >= maxhpos) {
@@ -2242,6 +2222,7 @@ STATIC_INLINE void update_fetch (int until, int fm)
 #endif
 			fetch_state = fetch_started;
 		}
+#endif
 		fetch_start (pos);
 		if (one_fetch_cycle (pos, ddfstop_to_test, dma, fm))
 			return;
@@ -2383,7 +2364,7 @@ static void start_bpl_dma (int hpos, int hstart)
 		}
 	}
 
-#if 1
+#if 0
 	fetch_state = (fm_maxplane == fetchstart) ? fetch_started_first : fetch_started;
 #else
 	fetch_state = fetch_started;
@@ -2395,8 +2376,6 @@ static void start_bpl_dma (int hpos, int hstart)
 		plfstrt_sprite = plfstrt;
 		fetch_cycle = 0;
 		update_denise (last_fetch_hpos);
-		/* If someone already wrote BPL1DAT, clear the area between that point and
-		the real fetch start.  */
 		if (bpl1dat_written_at_least_once && hstart > last_fetch_hpos) {
 			update_fetch_x (hstart, fetchmode);
 			bpl1dat_written_at_least_once = false;
@@ -2409,6 +2388,9 @@ static void start_bpl_dma (int hpos, int hstart)
 
 	} else {
 		
+		update_denise (last_fetch_hpos);
+		update_fetch_x (hstart, fetchmode);
+		cycle_diagram_shift = hstart;
 		// this is a hack, something weird happens without this
 		// (Subtle Shades)
 		thisline_decision.plfright++;
@@ -2419,6 +2401,8 @@ static void start_bpl_dma (int hpos, int hstart)
 
 
 #if 0
+	/* If someone already wrote BPL1DAT, clear the area between that point and
+	the real fetch start.  */
 	if (!nodraw ()) {
 		if (thisline_decision.plfleft >= 0) {
 			out_nbits = (plfstrt - thisline_decision.plfleft) << (1 + toscr_res);
@@ -2501,7 +2485,7 @@ STATIC_INLINE void decide_line (int hpos)
 					ok = 0;
 			}
 			if (ok && diwstate == DIW_waiting_stop) {
-				if (dmaen (DMA_BITPLANE) && bitplane_dma_turned_on +  hpos) {
+				if (dmaen (DMA_BITPLANE) && bitplane_dma_turned_on + hpos) {
 					start_bpl_dma (hpos, plfstrt);
 					estimate_last_fetch_cycle (plfstrt);
 				}
@@ -3262,7 +3246,6 @@ static void reset_decisions (void)
 	bpl1dat_written_at_least_once = false;
 	bpl1dat_early = false;
 
-	plfleft_real = -1;
 	thisline_decision.plfleft = -1;
 	thisline_decision.plflinelen = -1;
 	thisline_decision.ham_seen = !! (bplcon0 & 0x800);
@@ -4402,7 +4385,7 @@ void INTREQ_0 (uae_u16 v)
 	if (use_eventmode (v)) {
 		// don't bother to waste time for interrupt queuing if nothing changes
 		// but only if we are sure there is no queued changes
-		if (event2_count == 0 && old == intreq && intreq_internal == intreq)
+		if (old == intreq && intreq_internal == intreq)
 			return;
 		event2_newevent_xx (-1, INT_PROCESSING_DELAY, intreq, send_intreq_do);
 	} else {
@@ -4728,15 +4711,20 @@ static void BPLxDAT (int hpos, int num, uae_u16 v)
 		decide_line (hpos);
 		decide_fetch_safe (hpos);
 	}
+	flush_display (fetchmode);
 	bplxdat[num] = v;
+	fetched[num] = v;
+	fetched_aga[num] = v;
 	if (num == 0 && hpos >= 7) {
 		bpl1dat_written = true;
 		bpl1dat_written_at_least_once = true;
 		if (thisline_decision.plfleft < 0) {
-			thisline_decision.plfleft = (hpos + 3) & ~3;
+			thisline_decision.plfleft = hpos;
 			reset_bpl_vars ();
+			update_denise (hpos);
+			bpl1dat_early = true;
 		}
-		update_bpldats (hpos);
+		beginning_of_plane_block (hpos, fetchmode);
 	}
 }
 

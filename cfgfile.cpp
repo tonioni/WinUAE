@@ -1402,7 +1402,7 @@ void cfgfile_save_options (struct zfile *f, struct uae_prefs *p, int type)
 	write_inputdevice_config (p, f);
 }
 
-int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location)
+int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location, bool numbercheck)
 {
 	if (name != NULL && _tcscmp (option, name) != 0)
 		return 0;
@@ -1411,7 +1411,7 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, i
 		*location = 1;
 	else if (strcasecmp (value, _T("no")) == 0 || strcasecmp (value, _T("n")) == 0
 		|| strcasecmp (value, _T("false")) == 0 || strcasecmp (value, _T("f")) == 0
-		|| strcasecmp (value, _T("0")) == 0)
+		|| (numbercheck && strcasecmp (value, _T("0")) == 0))
 		*location = 0;
 	else {
 		write_log (_T("Option `%s' requires a value of either `yes' or `no' (was '%s').\n"), option, value);
@@ -1419,10 +1419,14 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, i
 	}
 	return 1;
 }
-int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location)
+int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, int *location)
+{
+	return cfgfile_yesno (option, value, name, location, true);
+}
+int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location, bool numbercheck)
 {
 	int val;
-	int ret = cfgfile_yesno (option, value, name, &val);
+	int ret = cfgfile_yesno (option, value, name, &val, numbercheck);
 	if (ret == 0)
 		return 0;
 	if (ret < 0)
@@ -1430,6 +1434,10 @@ int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, b
 	else
 		*location = val != 0;
 	return 1;
+}
+int cfgfile_yesno (const TCHAR *option, const TCHAR *value, const TCHAR *name, bool *location)
+{
+	return cfgfile_yesno (option, value, name, location, true);
 }
 
 int cfgfile_doubleval (const TCHAR *option, const TCHAR *value, const TCHAR *name, double *location)
@@ -1801,14 +1809,13 @@ static int cfgfile_parse_host (struct uae_prefs *p, TCHAR *option, TCHAR *value)
 		p->gfx_autoresolution_minh--;
 		return 1;
 	}
-
-	v = cfgfile_yesno (option, value, _T("gfx_autoresolution"), &vb);
-	if (v) {
-		if (v < 0) {
-			p->gfx_autoresolution = 0;
-			cfgfile_intval (option, value, _T("gfx_autoresolution"), &p->gfx_autoresolution, 1);
-		} else {
-			p->gfx_autoresolution = vb ? 10 : 0;
+	if (!_tcsicmp (option, _T("gfx_autoresolution"))) {
+		p->gfx_autoresolution = 0;
+		cfgfile_intval (option, value, _T("gfx_autoresolution"), &p->gfx_autoresolution, 1);
+		if (!p->gfx_autoresolution) {
+			v = cfgfile_yesno (option, value, _T("gfx_autoresolution"), &vb);
+			if (v > 0)
+				p->gfx_autoresolution = vb ? 10 : 0;
 		}
 		return 1;
 	}
