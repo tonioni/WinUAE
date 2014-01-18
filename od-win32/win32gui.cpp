@@ -16126,6 +16126,7 @@ static INT_PTR CALLBACK DialogProc (HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		return TRUE;
 	case WM_CLOSE:
 		addnotifications (hDlg, TRUE, TRUE);
+		updatePanel (-1);
 		DestroyWindow(hDlg);
 		if (dialogreturn < 0) {
 			dialogreturn = 0;

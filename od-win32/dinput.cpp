@@ -138,7 +138,7 @@ static int num_mouse, num_keyboard, num_joystick;
 static int dd_inited, mouse_inited, keyboard_inited, joystick_inited;
 static int stopoutput;
 static HANDLE kbhandle = INVALID_HANDLE_VALUE;
-static int oldleds, oldusedleds, newleds, disabledleds;
+static int originalleds, oldleds, newleds, disabledleds, ledstate;
 static int normalmouse, supermouse, rawmouse, winmouse, winmousenumber, winmousemode, winmousewheelbuttonstart;
 static int normalkb, superkb, rawkb;
 static int rawhid;
@@ -249,6 +249,7 @@ static void kbevt (uae_u8 vk, uae_u8 sc)
 
 static void set_leds (uae_u32 led)
 {
+	//write_log (_T("setleds %08x\n"), led);
 	if (currprefs.win32_kbledmode) {
 		if ((oldleds & KBLED_NUMLOCKM) != (led & KBLED_NUMLOCKM) && !(disabledleds & KBLED_NUMLOCKM)) {
 			kbevt (VK_NUMLOCK, 0x45);
@@ -268,12 +269,19 @@ static void set_leds (uae_u32 led)
 		ULONG ReturnedLength;
 
 		memset (&InputBuffer, 0, sizeof (InputBuffer));
-		if (led & KBLED_NUMLOCKM)
+		oldleds = 0;
+		if (led & KBLED_NUMLOCKM) {
 			InputBuffer.LedFlags |= KEYBOARD_NUM_LOCK_ON;
-		if (led & KBLED_CAPSLOCKM)
+			oldleds |= KBLED_NUMLOCKM;
+		}
+		if (led & KBLED_CAPSLOCKM) {
 			InputBuffer.LedFlags |= KEYBOARD_CAPS_LOCK_ON;
-		if (led & KBLED_SCROLLLOCKM)
+			oldleds |= KBLED_CAPSLOCKM;
+		}
+		if (led & KBLED_SCROLLLOCKM) {
 			InputBuffer.LedFlags |= KEYBOARD_SCROLL_LOCK_ON;
+			oldleds |= KBLED_SCROLLLOCKM;
+		}
 		if (!DeviceIoControl (kbhandle, IOCTL_KEYBOARD_SET_INDICATORS,
 			&InputBuffer, DataLength, NULL, 0, &ReturnedLength, NULL))
 			write_log (_T("kbleds: DeviceIoControl() failed %d\n"), GetLastError());
@@ -284,27 +292,27 @@ static void update_leds (void)
 {
 	if (!currprefs.keyboard_leds_in_use)
 		return;
-	if (newleds != oldusedleds) {
-		oldusedleds = newleds;
+	if (newleds != oldleds)
 		set_leds (newleds);
-	}
 }
 
 void indicator_leds (int num, int state)
 {
-	int i;
+	if (state == 0)
+		ledstate &= ~(1 << num);
+	else if (state > 0)
+		ledstate |= 1 << num;
 
-	if (!currprefs.keyboard_leds_in_use)
-		return;
 	disabledleds = 0;
-	for (i = 0; i < 3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if (state >= 0) {
-			if (currprefs.keyboard_leds[i] == num + 1) {
-				newleds &= ~(1 << i);
-				if (state)
-					newleds |= 1 << i;
-			} else if (currprefs.keyboard_leds[i] <= 0) {
+			int l = currprefs.keyboard_leds[i];
+			if (l <= 0) {
 				disabledleds |= 1 << i;
+			} else {
+				newleds &= ~(1 << i);
+				if ((1 << (l - 1)) & ledstate)
+					newleds |= 1 << i;
 			}
 		}
 	}
@@ -3080,7 +3088,7 @@ static int init_kb (void)
 	if (keyboard_inited)
 		return 1;
 	di_init ();
-	oldusedleds = -1;
+	originalleds = -1;
 	keyboard_inited = 1;
 	for (i = 0; i < num_keyboard; i++) {
 		struct didata *did = &di_keyboard[i];
@@ -3163,29 +3171,31 @@ static int acquire_kb (int num, int flags)
 
 	if (num < 0) {
 		doregister_rawinput ();
+		if (currprefs.keyboard_leds_in_use) {
+			if (!currprefs.win32_kbledmode) {
+				if (DefineDosDevice (DDD_RAW_TARGET_PATH, _T("Kbd"), _T("\\Device\\KeyboardClass0"))) {
+					kbhandle = CreateFile (_T("\\\\.\\Kbd"), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+					if (kbhandle == INVALID_HANDLE_VALUE) {
+						write_log (_T("kbled: CreateFile failed, error %d\n"), GetLastError());
+						currprefs.win32_kbledmode = 1;
+					}
+				} else {
+					currprefs.win32_kbledmode = 1;
+					write_log (_T("kbled: DefineDosDevice failed, error %d\n"), GetLastError());
+				}
+			}
+			oldleds = get_leds ();
+			if (originalleds == -1) {
+				originalleds = oldleds;
+				//write_log (_T("stored %08x -> %08x\n"), originalleds, newleds);
+			}
+			update_leds ();
+		}
 		return 1;
 	}
 
 	lpdi = di_keyboard[num].lpdi;
 	unacquire (lpdi, _T("keyboard"));
-	if (currprefs.keyboard_leds_in_use) {
-		if (!currprefs.win32_kbledmode) {
-			if (DefineDosDevice (DDD_RAW_TARGET_PATH, _T("Kbd"), _T("\\Device\\KeyboardClass0"))) {
-				kbhandle = CreateFile (_T("\\\\.\\Kbd"), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
-				if (kbhandle == INVALID_HANDLE_VALUE) {
-					write_log (_T("kbled: CreateFile failed, error %d\n"), GetLastError());
-					currprefs.win32_kbledmode = 1;
-				}
-			} else {
-				currprefs.win32_kbledmode = 1;
-				write_log (_T("kbled: DefineDosDevice failed, error %d\n"), GetLastError());
-			}
-		}
-		oldleds = get_leds ();
-		if (oldusedleds < 0)
-			oldusedleds = newleds = oldleds;
-		set_leds (oldusedleds);
-	}
 
 	//lock_kb ();
 	setcoop (&di_keyboard[num], DISCL_NOWINKEY | DISCL_FOREGROUND | DISCL_EXCLUSIVE, _T("keyboard"));
@@ -3208,6 +3218,18 @@ static void unacquire_kb (int num)
 	LPDIRECTINPUTDEVICE8 lpdi;
 	if (num < 0) {
 		doregister_rawinput ();
+		if (currprefs.keyboard_leds_in_use) {
+			if (originalleds != -1) {
+				//write_log (_T("restored %08x -> %08x\n"), oldleds, originalleds);
+				set_leds (originalleds);
+				originalleds = -1;
+			}
+			if (kbhandle != INVALID_HANDLE_VALUE) {
+				CloseHandle (kbhandle);
+				DefineDosDevice (DDD_REMOVE_DEFINITION, _T("Kbd"), NULL);
+				kbhandle = INVALID_HANDLE_VALUE;
+			}
+		}
 		return;
 	}
 	lpdi = di_keyboard[num].lpdi;
@@ -3220,18 +3242,6 @@ static void unacquire_kb (int num)
 		else
 			normalkb--;
 		di_keyboard[num].acquired = 0;
-	}
-
-	if (currprefs.keyboard_leds_in_use) {
-		if (oldusedleds >= 0) {
-			set_leds (oldleds);
-			oldusedleds = oldleds;
-		}
-		if (kbhandle != INVALID_HANDLE_VALUE) {
-			CloseHandle (kbhandle);
-			DefineDosDevice (DDD_REMOVE_DEFINITION, _T("Kbd"), NULL);
-			kbhandle = INVALID_HANDLE_VALUE;
-		}
 	}
 	//unlock_kb ();
 }
@@ -3278,7 +3288,8 @@ static void read_kb (void)
 	if (IGNOREEVERYTHING)
 		return;
 
-	update_leds ();
+	if (originalleds != -1)
+		update_leds ();
 	for (i = 0; i < MAX_INPUT_DEVICES; i++) {
 		struct didata *did = &di_keyboard[i];
 		if (!did->acquired)

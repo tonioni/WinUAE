@@ -21,6 +21,7 @@
 #define MAXHPOS_ROWS 256
 #define MAXVPOS_LINES_ECS 2048
 #define MAXVPOS_LINES_OCS 512
+#define HPOS_SHIFT 3
 
 uae_u32 get_copper_address (int copno);
 
