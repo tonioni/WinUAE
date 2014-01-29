@@ -7,8 +7,6 @@
 *           2002 Toni Wilen (scsi emulation, 64-bit support)
 */
 
-#define USE_CHD 1
-
 #include "sysconfig.h"
 #include "sysdeps.h"
 
@@ -30,16 +28,16 @@
 #include "execio.h"
 #include "zfile.h"
 
-#if USE_CHD
+#ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
 #include "archivers/chd/chd.h"
 #endif
 
 //#undef DEBUGME
-#define hf_log
-#define hf_log2
-#define scsi_log
-#define hf_log3
+#define hf_log(fmt, ...)
+#define hf_log2(fmt, ...)
+#define scsi_log(fmt, ...)
+#define hf_log3(fmt, ...)
 
 //#define DEBUGME
 #ifdef DEBUGME
@@ -465,7 +463,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 	hfd->hfd_type = 0;
 	if (!pname)
 		pname = hfd->ci.rootdir;
-#if USE_CHD
+#ifdef WITH_CHD
 	TCHAR nametmp[MAX_DPATH];
 	_tcscpy (nametmp, pname);
 	TCHAR *ext = _tcsrchr (nametmp, '.');
@@ -537,7 +535,7 @@ int hdf_open (struct hardfiledata *hfd, const TCHAR *pname)
 		hfd->vhd_sectormapblock = -1;
 		hfd->vhd_bitmapsize = ((hfd->vhd_blocksize / (8 * 512)) + 511) & ~511;
 	}
-	write_log (_T("HDF is VHD %s image, virtual size=%dK\n"),
+	write_log (_T("HDF is VHD %s image, virtual size=%lldK\n"),
 		hfd->hfd_type == HFD_VHD_FIXED ? _T("fixed") : _T("dynamic"),
 		hfd->virtsize / 1024);
 	hdf_init_cache (hfd);
@@ -557,11 +555,13 @@ void hdf_close (struct hardfiledata *hfd)
 {
 	hdf_flush_cache (hfd);
 	hdf_close_target (hfd);
+#ifdef WITH_CHD
 	if (hfd->chd_handle) {
 		chd_file *cf = (chd_file*)hfd->chd_handle;
 		cf->close();
 		hfd->chd_handle = NULL;
 	}
+#endif
 	hfd->hfd_type = 0;
 	xfree (hfd->vhd_header);
 	hfd->vhd_header = NULL;
@@ -866,12 +866,15 @@ static int hdf_read2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, in
 		return vhd_read (hfd, buffer, offset, len);
 	else if (hfd->hfd_type == HFD_VHD_FIXED)
 		return hdf_read_target (hfd, buffer, offset + 512, len);
+#ifdef WITH_CHD
 	else if (hfd->hfd_type == HFD_CHD) {
 		chd_file *cf = (chd_file*)hfd->chd_handle;
 		if (cf->read_bytes(offset, buffer, len) == CHDERR_NONE)
 			return len;
 		return 0;
-	} else
+	}
+#endif
+	else
 		return hdf_read_target (hfd, buffer, offset, len);
 }
 
@@ -881,8 +884,10 @@ static int hdf_write2 (struct hardfiledata *hfd, void *buffer, uae_u64 offset, i
 		return vhd_write (hfd, buffer, offset, len);
 	else if (hfd->hfd_type == HFD_VHD_FIXED)
 		return hdf_write_target (hfd, buffer, offset + 512, len);
+#ifdef WITH_CHD
 	else if (hfd->hfd_type == HFD_CHD)
 		return 0;
+#endif
 	else
 		return hdf_write_target (hfd, buffer, offset, len);
 }

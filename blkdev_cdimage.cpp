@@ -33,9 +33,11 @@
 #define FLAC__NO_DLL
 #include "FLAC/stream_decoder.h"
 
+#ifdef WITH_CHD
 #include "archivers/chd/chdtypes.h"
 #include "archivers/chd/chd.h"
 #include "archivers/chd/chdcd.h"
+#endif
 
 #define scsi_log write_log
 
@@ -66,7 +68,9 @@ struct cdtoc
 	audenc enctype;
 	int writeoffset;
 	int subcode;
+#ifdef WITH_CHD
 	const cdrom_track_info *chdtrack;
+#endif
 };
 
 struct cdunit {
@@ -92,8 +96,10 @@ struct cdunit {
 	TCHAR imgname[MAX_DPATH];
 	uae_sem_t sub_sem;
 	struct device_info di;
+#ifdef WITH_CHD
 	chd_file *chd_f;
 	cdrom_file *chd_cdf;
+#endif
 };
 
 static struct cdunit cdunits[MAX_TOTAL_SCSI_DEVICES];
@@ -140,7 +146,9 @@ static struct cdtoc *findtoc (struct cdunit *cdu, int *sectorp)
 static int do_read (struct cdunit *cdu, struct cdtoc *t, uae_u8 *data, int sector, int offset, int size)
 {
 	if (t->enctype == ENC_CHD) {
+#ifdef WITH_CHD
 		return read_partial_sector(cdu->chd_cdf, data, sector + t->offset, 0, offset, size) == CHDERR_NONE;
+#endif
 	} else if (t->handle) {
 		int ssize = t->size + t->skipsize;
 		zfile_fseek (t->handle, t->offset + (uae_u64)sector * ssize + offset, SEEK_SET);
@@ -236,7 +244,7 @@ static uae_u8 *flac_get_data (struct cdtoc *t)
 	return t->data;
 }
 
-static void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
+void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
 {
 	for (int i = 0; i < 8 * 12; i ++) {
 		int dmask = 0x80;
@@ -249,7 +257,7 @@ static void sub_to_interleaved (const uae_u8 *s, uae_u8 *d)
 		d++;
 	}
 }
-static void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
+void sub_to_deinterleaved (const uae_u8 *s, uae_u8 *d)
 {
 	for (int i = 0; i < 8 * 12; i ++) {
 		int dmask = 0x80;
@@ -269,10 +277,12 @@ static int getsub_deinterleaved (uae_u8 *dst, struct cdunit *cdu, struct cdtoc *
 	uae_sem_wait (&cdu->sub_sem);
 	if (t->subcode) {
 		if (t->enctype == ENC_CHD) {
+#ifdef WITH_CHD
 			const cdrom_track_info *cti = t->chdtrack;
 			ret = do_read (cdu, t, dst, sector, cti->datasize, cti->subsize);
 			if (ret)
 				ret = t->subcode;
+#endif
 		} else if (t->subhandle) {
 			int offset = 0;
 			int totalsize = SUB_CHANNEL_SIZE;
@@ -396,7 +406,6 @@ static void *cdda_play_func (void *v)
 {
 	int cdda_pos;
 	int num_sectors = CDDA_BUFFERS;
-	int quit = 0;
 	int bufnum;
 	int bufon[2];
 	int oldplay;
@@ -538,6 +547,7 @@ static void *cdda_play_func (void *v)
 					}
 					if (!(t->ctrl & 4)) {
 						if (t->enctype == ENC_CHD) {
+#ifdef WITH_CHD
 							do_read (cdu, t, dst, sector, 0, t->size);
 							for (int i = 0; i < 2352; i+=2) {
 								uae_u8 p;
@@ -545,6 +555,7 @@ static void *cdda_play_func (void *v)
 								dst[i + 0] = dst[i + 1];
 								dst[i +1] = p;
 							}
+#endif
 						} else if (t->handle) {
 							int totalsize = t->size + t->skipsize;
 							int offset = t->offset;
@@ -1174,6 +1185,7 @@ end:
 	return cdu->tracks;
 }
 
+#ifdef WITH_CHD
 static int parsechd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 {
 	chd_error err;
@@ -1260,7 +1272,7 @@ static int parsechd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 	}
 	return cdu->tracks;
 }
-
+#endif
 
 static int parseccd (struct cdunit *cdu, struct zfile *zcue, const TCHAR *img)
 {
@@ -1695,8 +1707,10 @@ static int parse_image (struct cdunit *cdu, const TCHAR *img)
 			parseccd (cdu, zcue, img);
 		else if (!_tcsicmp (ext, _T("mds")))
 			parsemds (cdu, zcue, img);
+#ifdef WITH_CHD
 		else if (!_tcsicmp (ext, _T("chd")))
 			parsechd (cdu, zcue, img);
+#endif
 
 		if (oldcurdir[0])
 			my_setcurrentdir (oldcurdir, NULL);
@@ -1827,11 +1841,13 @@ static void unload_image (struct cdunit *cdu)
 		xfree (t->subdata);
 		xfree (t->extrainfo);
 	}
+#ifdef WITH_CHD
 	cdrom_close (cdu->chd_cdf);
 	cdu->chd_cdf = NULL;
 	if (cdu->chd_f)
 		cdu->chd_f->close();
 	cdu->chd_f = NULL;
+#endif
 	memset (cdu->toc, 0, sizeof cdu->toc);
 	cdu->tracks = 0;
 	cdu->cdsize = 0;
