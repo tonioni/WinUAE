@@ -841,7 +841,7 @@ static void do_packet_command (struct ide_hdf *ide)
 	if (IDE_LOG > 0) {
 		uae_u8 *c = ide->scsi->cmd;
 		write_log (_T("ATASCSI %02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x.%02x\n"),
-			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]);
+			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11]);
 	}
 	ide->direction = 0;
 	scsi_emulate_analyze (ide->scsi);
