@@ -2951,7 +2951,7 @@ static uaecptr get_base (const uae_char *name, int offset)
 	if (!b || !b->check (v, 400) || b->flags != ABFLAG_RAM)
 		return 0;
 	v += offset;
-	while (v = get_long_debug (v)) {
+	while (v == (get_long_debug (v))) {
 		uae_u32 v2;
 		uae_u8 *p;
 		b = &get_mem_bank (v);
