@@ -2651,11 +2651,9 @@ int disk_empty (int num)
 
 static TCHAR *tobin (uae_u8 v)
 {
-	int i;
-	static TCHAR buf[10];
-	for( i = 7; i >= 0; i--)
+	static TCHAR buf[9];
+	for (int i = 7; i >= 0; i--)
 		buf[7 - i] = v & (1 << i) ? '1' : '0';
-	buf[i] = 0;
 	return buf;
 }
 
