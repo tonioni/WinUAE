@@ -6,6 +6,9 @@
 * Copyright 1995 Bernd Schmidt
 */
 
+#ifndef MEMORY_H
+#define MEMORY_H
+
 extern void memory_reset (void);
 extern void a1000_reset (void);
 
@@ -440,3 +443,6 @@ extern void memcpyah (uae_u8 *dst, uaecptr src, int size);
 
 extern uae_s32 getz2size (struct uae_prefs *p);
 extern ULONG getz2endaddr (void);
+
+#endif
+

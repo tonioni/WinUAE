@@ -1,4 +1,10 @@
+#ifndef A2091_H
+#define A2091_H
+
 #ifdef A2091
+
+#include "filesys.h"
+#include "memory.h"
 
 extern addrbank dmaca2091_bank;
 
@@ -35,3 +41,6 @@ extern int add_scsi_cd (int ch, int unitnum);
 extern int add_scsi_tape (int ch, const TCHAR *tape_directory, bool readonly);
 
 #endif
+
+#endif
+

@@ -35,6 +35,7 @@
 #else
 #include "qemuuaeglue.h"
 #endif
+#include <string.h> /* memmove */
 
 /*
  * TODO:
