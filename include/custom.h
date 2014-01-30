@@ -6,7 +6,11 @@
 * (c) 1995 Bernd Schmidt
 */
 
+#ifndef CUSTOM_H
+#define CUSTOM_H
+
 #include "machdep/rpt.h"
+#include "options.h"
 
 /* These are the masks that are ORed together in the chipset_mask option.
 * If CSMASK_AGA is set, the ECS bits are guaranteed to be set as well.  */
@@ -231,3 +235,6 @@ extern bool ispal (void);
 extern int current_maxvpos (void);
 extern struct chipset_refresh *get_chipset_refresh (void);
 extern void compute_framesync (void);
+
+#endif
+

@@ -6,6 +6,9 @@
   * Copyright 1997 Bernd Schmidt
   */
 
+#ifndef FILESYS_H
+#define FILESYS_H
+
 struct hardfilehandle;
 
 #define MAX_HDF_CACHE_BLOCKS 128
@@ -145,4 +148,6 @@ extern int hdf_resize_target (struct hardfiledata *hfd, uae_u64 newsize);
 extern void getchsgeometry (uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
 extern void getchsgeometry_hdf (struct hardfiledata *hfd, uae_u64 size, int *pcyl, int *phead, int *psectorspertrack);
 extern void getchspgeometry (uae_u64 total, int *pcyl, int *phead, int *psectorspertrack, bool idegeometry);
+
+#endif
 
