@@ -1786,7 +1786,11 @@ void audio_hsync (void)
 {
 	if (!isaudio ())
 		return;
-	if (audio_work_to_do > 0 && currprefs.sound_auto && !avioutput_enabled) {
+	if (audio_work_to_do > 0 && currprefs.sound_auto
+#ifdef AVIOUTPUT
+			&& !avioutput_enabled
+#endif
+			) {
 		audio_work_to_do--;
 		if (audio_work_to_do == 0)
 			audio_deactivate ();
