@@ -7732,7 +7732,7 @@ void custom_reset (bool hardreset, bool keyboardreset)
 		write_log (_T("CPU=%d Chipset=%s %s\n"),
 			currprefs.cpu_model,
 			(currprefs.chipset_mask & CSMASK_AGA) ? _T("AGA") :
-			(currprefs.chipset_mask & CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE) == (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE) ? _T("Full ECS") :
+			(currprefs.chipset_mask & (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE)) == (CSMASK_ECS_AGNUS | CSMASK_ECS_DENISE) ? _T("Full ECS") :
 			(currprefs.chipset_mask & CSMASK_ECS_DENISE) ? _T("ECS Denise") :
 			(currprefs.chipset_mask & CSMASK_ECS_AGNUS) ? _T("ECS") :
 			_T("OCS"), currprefs.ntscmode ? _T("NTSC") : _T("PAL"));
