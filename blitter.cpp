@@ -4,7 +4,7 @@
 * Custom chip emulation
 *
 * (c) 1995 Bernd Schmidt, Alessandro Bissacco
-* (c) 2002 - 2005 Toni Wilen
+* (c) 2002 - 2014 Toni Wilen
 */
 
 #define SPEEDUP 1
@@ -82,7 +82,8 @@ extern uae_u8 cycle_line[256];
 static long blit_firstline_cycles;
 static long blit_first_cycle;
 static int blit_last_cycle, blit_dmacount, blit_dmacount2;
-static int blit_linecycles, blit_extracycles, blit_nod;
+//REMOVEME: static int blit_linecycles, blit_extracycles;
+static int blit_nod;
 static const int *blit_diag;
 static int blit_frozen, blit_faulty;
 static int blit_final;
@@ -939,21 +940,21 @@ STATIC_INLINE uae_u16 blitter_doblit (void)
 
 STATIC_INLINE void blitter_doddma (int hpos)
 {
-	int wd;
+//REMOVEME:	int wd;
 	uae_u16 d;
 
-	wd = 0;
+//REMOVEME:	wd = 0;
 	if (blit_dmacount2 == 0) {
 		d = blitter_doblit ();
-		wd = -1;
+//REMOVEME:		wd = -1;
 	} else if (ddat2use) {
 		d = ddat2;
 		ddat2use = 0;
-		wd = 2;
+//REMOVEME:		wd = 2;
 	} else if (ddat1use) {
 		d = ddat1;
 		ddat1use = 0;
-		wd = 1;
+//REMOVEME:		wd = 1;
 	} else {
 		static int warn = 10;
 		if (warn > 0) {
