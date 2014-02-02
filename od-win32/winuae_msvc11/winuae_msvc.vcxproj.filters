@@ -628,6 +628,12 @@
     <ClCompile Include="..\..\cpuemu_13.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\uaenative.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp">
+      <Filter>qemu</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\resources\35floppy.ico">

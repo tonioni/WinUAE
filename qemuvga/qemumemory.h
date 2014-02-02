@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef QMEMORY_H
+#define QMEMORY_H
 
 #ifndef CONFIG_USER_ONLY
 
@@ -899,4 +899,5 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 #endif
 
-#endif
+#endif /* QMEMORY */
+

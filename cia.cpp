@@ -76,7 +76,7 @@ static unsigned long ciaata_passed, ciaatb_passed, ciabta_passed, ciabtb_passed;
 
 static unsigned long ciaatod, ciabtod, ciaatol, ciabtol, ciaaalarm, ciabalarm;
 static int ciaatlatch, ciabtlatch;
-static bool oldled, oldovl, oldcd32mute;
+static bool oldovl, oldcd32mute;
 static bool led;
 static int led_old_brightness;
 static unsigned long led_cycles_on, led_cycles_off, led_cycle;
@@ -853,7 +853,7 @@ void CIAA_tod_inc (int cycles)
 	event2_newevent_xx (-1, cycles + TOD_INC_DELAY, 0, CIAA_tod_handler);
 }
 
-static void bfe001_change (void)
+static void check_led (void)
 {
 	uae_u8 v = ciaapra;
 	bool led2;
@@ -865,6 +865,12 @@ static void bfe001_change (void)
 		led = led2;
 		led_old_brightness = -1;
 	}
+}
+
+static void bfe001_change (void)
+{
+	uae_u8 v = ciaapra;
+	check_led ();
 	if (currprefs.cs_ciaoverlay && (v & 1) != oldovl) {
 		oldovl = v & 1;
 		if (!oldovl) {
@@ -1119,6 +1125,10 @@ static uae_u8 ReadCIAB (unsigned int addr)
 	case 12:
 		return ciabsdr;
 	case 13:
+#if CIAB_DEBUG_IRQ
+		if (ciabicr & (0x80 | 0x40))
+			write_log (_T("CIAB IRQ cleared\n"));
+#endif
 		tmp = ciabicr & ~0x40;
 		ciabicr = 0;
 		return tmp;
@@ -1482,7 +1492,6 @@ void CIA_reset (void)
 	kblostsynccnt = 0;
 	serbits = 0;
 	oldcd32mute = 1;
-	oldled = true;
 	resetwarning_phase = resetwarning_timer = 0;
 	heartbeat_cnt = 0;
 	ciab_tod_event_state = 0;
@@ -1506,6 +1515,7 @@ void CIA_reset (void)
 		DISK_select_set (ciabprb);
 	}
 	map_overlay (0);
+	check_led ();
 #ifdef SERIAL_PORT
 	if (currprefs.use_serial && !savestate_state)
 		serial_dtr_off (); /* Drop DTR at reset */

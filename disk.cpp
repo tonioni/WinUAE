@@ -932,13 +932,22 @@ static bool diskfile_iswriteprotect (struct uae_prefs *p, const TCHAR *fname, in
 	return wrprot1;
 }
 
+static bool isrecognizedext (const TCHAR *name)
+{
+	const TCHAR *ext = _tcsrchr (name, '.');
+	if (ext) {
+		if (!_tcsicmp (ext + 1, _T("adf")) || !_tcsicmp (ext + 1, _T("adz")) || !_tcsicmp (ext + 1, _T("st")) || !_tcsicmp (ext + 1, _T("ima")) || !_tcsicmp (ext + 1, _T("img"))) 
+			return true;
+	}
+	return false;
+}
+
 static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR *fname, bool fake, bool forcedwriteprotect)
 {
 	uae_u8 buffer[2 + 2 + 4 + 4];
 	trackid *tid;
 	int num_tracks, size;
 	int canauto;
-	const TCHAR *ext;
 
 	drive_image_free (drv);
 	DISK_validate_filename (p, fname, 1, &drv->wrprot, &drv->crc32, &drv->diskfile);
@@ -953,13 +962,6 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 	drv->indexoffset = 0;
 
 	gui_disk_image_change (dnum, fname, drv->wrprot);
-
-	canauto = 0;
-	ext = _tcsrchr (fname, '.');
-	if (ext) {
-		if (!_tcsicmp (ext + 1, _T("adf")) || !_tcsicmp (ext + 1, _T("adz")) || !_tcsicmp (ext + 1, _T("st")) || !_tcsicmp (ext + 1, _T("ima")) || !_tcsicmp (ext + 1, _T("img"))) 
-			canauto = 1;
-	}
 
 	if (!drv->motoroff) {
 		drv->dskready_up_time = DSKREADY_UP_TIME;
@@ -992,6 +994,12 @@ static int drive_insert (drive * drv, struct uae_prefs *p, int dnum, const TCHAR
 		size = zfile_ftell (drv->diskfile);
 		zfile_fseek (drv->diskfile, 0, SEEK_SET);
 	}
+
+	canauto = 0;
+	if (isrecognizedext (fname)) 
+		canauto = 1;
+	if (!canauto && drv->diskfile && isrecognizedext (zfile_getname (drv->diskfile)))
+		canauto = 1;
 
 	if (drv->catweasel) {
 

@@ -986,7 +986,7 @@ static void sortobjects (struct didata *did)
 #define RDP_DEVICE1 _T("\\??\\Root#")
 #define RDP_DEVICE2 _T("\\\\?\\Root#")
 
-static int rdpdevice(TCHAR *buf)
+static int rdpdevice(const TCHAR *buf)
 {
 	if (!_tcsncmp (RDP_DEVICE1, buf, _tcslen (RDP_DEVICE1)))
 		return 1;
@@ -1392,11 +1392,11 @@ static void dumphidbuttoncaps (PHIDP_BUTTON_CAPS pcaps, int size)
 	}
 }
 
-static void dumphidcaps (struct didata *did)
+static void dumphidcaps (struct didata *did, int cnt)
 {
 	HIDP_CAPS caps = did->hidcaps;
 
-	write_log (_T("\n******** USB HID: '%s'\n"), did->name);
+	write_log (_T("\n******** %d USB HID: '%s'\n"), cnt, did->name);
 	write_log (_T("Usage: %04x\n"), caps.Usage);
 	write_log (_T("UsagePage: %04x\n"), caps.UsagePage);
 	write_log (_T("InputReportByteLength: %u\n"), caps.InputReportByteLength);
@@ -1500,7 +1500,7 @@ static bool initialize_rawinput (void)
 	if (MAX_RAW_KEYBOARD > 0 && rnum_kb > MAX_RAW_KEYBOARD)
 		rnum_kb = MAX_RAW_KEYBOARD;
 
-
+	write_log (_T("HID device check:\n"));
 	for (int rawcnt = 0; rawcnt < gotnum; rawcnt++) {
 		HANDLE h = ridl[rawcnt].hDevice;
 		int type = ridl[rawcnt].dwType;
@@ -1533,28 +1533,44 @@ static bool initialize_rawinput (void)
 			} else
 				continue;
 
-			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == -1)
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, NULL, &vtmp) == -1) {
+				write_log (_T("%p RIDI_DEVICENAME failed\n"), h);
 				continue;
-			if (vtmp >= bufsize)
+			}
+			if (vtmp >= bufsize) {
+				write_log (_T("%p RIDI_DEVICENAME too big %d\n"), h, vtmp);
 				continue;
-			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf1, &vtmp) == -1)
+			}
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICENAME, buf1, &vtmp) == -1) {
+				write_log (_T("%p RIDI_DEVICENAME %d failed\n"), h, vtmp);
 				continue;
+			}
 
 			rdi = (PRID_DEVICE_INFO)buf2;
 			memset (rdi, 0, sizeof (RID_DEVICE_INFO));
 			rdi->cbSize = sizeof (RID_DEVICE_INFO);
-			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1)
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, NULL, &vtmp) == -1) {
+				write_log (_T("%p RIDI_DEVICEINFO failed\n"), h);
 				continue;
-			if (vtmp >= bufsize)
+			}
+			if (vtmp >= bufsize) {
+				write_log (_T("%p RIDI_DEVICEINFO too big %d\n"), h, vtmp);
 				continue;
-			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf2, &vtmp) == -1)
+			}
+			if (GetRawInputDeviceInfo (h, RIDI_DEVICEINFO, buf2, &vtmp) == -1) {
+				write_log (_T("%p RIDI_DEVICEINFO %d failed\n"), h, vtmp);
 				continue;
+			}
+
+			write_log (_T("%p %04x/%04x (%d/%d)\n"), h, rdi->hid.dwVendorId, rdi->hid.dwProductId, rdi->hid.usUsage, rdi->hid.usUsagePage);
 
 			if (type == RIM_TYPEMOUSE) {
 				if (rdpdevice (buf1))
 					continue;
-				if (num_mouse >= MAX_INPUT_DEVICES - 1) /* leave space for Windows mouse */
+				if (num_mouse >= MAX_INPUT_DEVICES - 1)  {/* leave space for Windows mouse */
+					write_log (_T("Too many mice\n"));
 					continue;
+				}
 				did += num_mouse;
 				num_mouse++;
 				rmouse++;
@@ -1562,8 +1578,10 @@ static bool initialize_rawinput (void)
 			} else if (type == RIM_TYPEKEYBOARD) {
 				if (rdpdevice (buf1))
 					continue;
-				if (num_keyboard >= MAX_INPUT_DEVICES)
+				if (num_keyboard >= MAX_INPUT_DEVICES) {
+					write_log (_T("Too many keyboards\n"));
 					continue;
+				}
 				did += num_keyboard;
 				num_keyboard++;
 				rkb++;
@@ -1571,16 +1589,26 @@ static bool initialize_rawinput (void)
 			} else if (type == RIM_TYPEHID) {
 				if (rdpdevice (buf1))
 					continue;
-				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5)
+				if (rdi->hid.usUsage != 4 && rdi->hid.usUsage != 5) {
+					write_log (_T("RAWHID: Usage not 4 or 5 (%d)\n"), rdi->hid.usUsage);
 					continue;
-				if (rdi->hid.usUsagePage >= 0xff00) // vendor specific
+				}
+				if (rdi->hid.usUsagePage >= 0xff00) { // vendor specific
+					write_log (_T("RAWHID: Ignored vendor specific %04x\n"), rdi->hid.usUsagePage);
 					continue;
+				}
 				for (i = 0; hidnorawinput[i].vid; i++) {
 					if (rdi->hid.dwProductId == hidnorawinput[i].pid && rdi->hid.dwVendorId == hidnorawinput[i].vid)
 						break;
 				}
-				if (hidnorawinput[i].vid || num_joystick >= MAX_INPUT_DEVICES)
+				if (hidnorawinput[i].vid) {
+					write_log (_T("RAWHID: blacklisted\n"));
 					continue;
+				}
+				if (num_joystick >= MAX_INPUT_DEVICES) {
+					write_log (_T("RAWHID: too many devices\n"));
+					continue;
+				}
 				did += num_joystick;
 				num_joystick++;
 				rhid++;
@@ -1675,7 +1703,7 @@ static bool initialize_rawinput (void)
 					if (HidP_GetCaps (did->hidpreparseddata, &did->hidcaps) == HIDP_STATUS_SUCCESS) {
 						PHIDP_BUTTON_CAPS bcaps;
 						USHORT size = did->hidcaps.NumberInputButtonCaps;
-						dumphidcaps (did);
+						dumphidcaps (did, rawcnt);
 						bcaps = xmalloc (HIDP_BUTTON_CAPS, size);
 						if (HidP_GetButtonCaps (HidP_Input, bcaps, &size, did->hidpreparseddata) == HIDP_STATUS_SUCCESS) {
 							dumphidbuttoncaps (bcaps, size);
@@ -3164,6 +3192,14 @@ static void release_keys (void)
 	rawprevkey = -1;
 }
 
+static void flushmsgpump (void)
+{
+	MSG msg;
+	while (PeekMessage (&msg, 0, 0, 0, PM_REMOVE)) {
+		TranslateMessage (&msg);
+		DispatchMessage (&msg);
+	}
+}
 
 static int acquire_kb (int num, int flags)
 {
@@ -3172,6 +3208,7 @@ static int acquire_kb (int num, int flags)
 	if (num < 0) {
 		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
+			//write_log (_T("***********************acquire_kb_led\n"));
 			if (!currprefs.win32_kbledmode) {
 				if (DefineDosDevice (DDD_RAW_TARGET_PATH, _T("Kbd"), _T("\\Device\\KeyboardClass0"))) {
 					kbhandle = CreateFile (_T("\\\\.\\Kbd"), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -3189,7 +3226,8 @@ static int acquire_kb (int num, int flags)
 				originalleds = oldleds;
 				//write_log (_T("stored %08x -> %08x\n"), originalleds, newleds);
 			}
-			update_leds ();
+			set_leds (newleds);
+			flushmsgpump ();
 		}
 		return 1;
 	}
@@ -3219,10 +3257,12 @@ static void unacquire_kb (int num)
 	if (num < 0) {
 		doregister_rawinput ();
 		if (currprefs.keyboard_leds_in_use) {
+			//write_log (_T("*********************** unacquire_kb_led\n"));
 			if (originalleds != -1) {
 				//write_log (_T("restored %08x -> %08x\n"), oldleds, originalleds);
 				set_leds (originalleds);
 				originalleds = -1;
+				flushmsgpump ();
 			}
 			if (kbhandle != INVALID_HANDLE_VALUE) {
 				CloseHandle (kbhandle);

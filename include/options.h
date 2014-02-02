@@ -7,6 +7,9 @@
 * Copyright 1995-2001 Bernd Schmidt
 */
 
+#ifndef OPTIONS_H
+#define OPTIONS_H
+
 #define UAEMAJOR 2
 #define UAEMINOR 7
 #define UAESUBREV 1
@@ -30,7 +33,7 @@ struct strlist {
 #define MAX_TOTAL_SCSI_DEVICES 8
 
 /* maximum number native input devices supported (single type) */
-#define MAX_INPUT_DEVICES 16
+#define MAX_INPUT_DEVICES 20
 /* maximum number of native input device's buttons and axles supported */
 #define MAX_INPUT_DEVICE_EVENTS 256
 /* 4 different customization settings */
@@ -664,3 +667,5 @@ extern struct uae_prefs currprefs, changed_prefs;
 
 extern int machdep_init (void);
 extern void machdep_free (void);
+
+#endif /* OPTIONS_H */

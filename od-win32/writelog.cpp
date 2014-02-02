@@ -417,7 +417,7 @@ static TCHAR *writets (void)
 	_stprintf (p, _T("%03d"), tb.millitm);
 	p += _tcslen (p);
 	if (vsync_counter != 0xffffffff)
-		_stprintf (p, _T(" [%d %03d%s%03d]"), vsync_counter, current_hpos (), lof_store ? _T("-") : _T("="), vpos);
+		_stprintf (p, _T(" [%d %03d%s%03d]"), vsync_counter, current_hpos_safe (), lof_store ? _T("-") : _T("="), vpos);
 	_tcscat (p, _T(": "));
 	return out;
 }
@@ -497,6 +497,9 @@ void write_log (const TCHAR *format, ...)
 		return;
 
 	premsg ();
+
+	if (!_tcsicmp (format, _T("*")))
+		count = 0;
 
 	EnterCriticalSection (&cs);
 	va_start (parms, format);

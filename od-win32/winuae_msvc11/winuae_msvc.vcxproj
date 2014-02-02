@@ -204,7 +204,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
-      <CallingConvention>StdCall</CallingConvention>
+      <CallingConvention>FastCall</CallingConvention>
       <CompileAs>Default</CompileAs>
       <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <EnablePREfast>false</EnablePREfast>
@@ -224,7 +224,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <IgnoreSpecificDefaultLibraries>LIBCMT;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;packet.dll;d3dx9_43.dll;openal32.dll;wintab32.dll;portaudio_x86.dll;ws2_32.dll;msacm32.dll;wtsapi32.dll;dsound.dll;wininet.dll;avrt.dll;ddraw.dll;Iphlpapi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/winuae.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
@@ -799,6 +799,7 @@
     <ClCompile Include="..\..\isofs.cpp" />
     <ClCompile Include="..\..\luascript.cpp" />
     <ClCompile Include="..\..\qemuvga\cirrus_vga.cpp" />
+    <ClCompile Include="..\..\qemuvga\lsi53c895a.cpp" />
     <ClCompile Include="..\..\qemuvga\qemuuaeglue.cpp" />
     <ClCompile Include="..\..\qemuvga\vga.cpp" />
     <ClCompile Include="..\..\scsitape.cpp" />
@@ -822,6 +823,7 @@
     <ClCompile Include="..\..\slirp\udp.cpp" />
     <ClCompile Include="..\..\specialmonitors.cpp" />
     <ClCompile Include="..\..\statusline.cpp" />
+    <ClCompile Include="..\..\uaenative.cpp" />
     <ClCompile Include="..\ahidsound_dsonly.cpp" />
     <ClCompile Include="..\ahidsound_new.cpp" />
     <ClCompile Include="..\avioutput.cpp" />

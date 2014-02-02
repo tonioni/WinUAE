@@ -75,8 +75,23 @@ struct uae_driveinfo {
 * - block 0 is zeroed
 */
 
-int harddrive_dangerous, do_rdbdump;
+int harddrive_dangerous = 0x1234dead;
+int do_rdbdump;
 static struct uae_driveinfo uae_drives[MAX_FILESYSTEM_UNITS];
+
+#if 0
+static void fixdrive (struct hardfiledata *hfd)
+{
+	uae_u8 data[512];
+	struct zfile *zf = zfile_fopen (_T("d:\\amiga\\hdf\\a500supradrive.hdf"), _T("rb"));
+	for (int i = 0; i < 0x30000 / 512; i++) {
+		zfile_fread (data, 1, 512, zf);
+		hdf_write (hfd, data, i * 512, 512);
+	}
+	zfile_fclose (zf);
+
+}
+#endif
 
 static int isnomediaerr (DWORD err)
 {
@@ -624,6 +639,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 				goto end;
 			if (!DeviceIoControl (h, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &r, NULL))
 				write_log (_T("WARNING: '%s' FSCTL_ALLOW_EXTENDED_DASD_IO returned %d\n"), name, GetLastError ());
+
 			//queryidentifydevice (hfd);
 			_tcsncpy (hfd->vendor_id, udi->vendor_id, 8);
 			_tcsncpy (hfd->product_id, udi->product_id, 16);
@@ -672,6 +688,7 @@ int hdf_open_target (struct hardfiledata *hfd, const TCHAR *pname)
 			}
 			hfd->handle_valid = HDF_HANDLE_WIN32;
 			hfd->emptyname = my_strdup (name);
+			//fixdrive (hfd);
 		} else {
 			hfd->flags = HFD_FLAGS_REALDRIVE;
 			hfd->drive_empty = -1;

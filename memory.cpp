@@ -1266,27 +1266,27 @@ static int patch_residents (uae_u8 *kickmemory, int size)
 	// "scsi.device", "carddisk.device", "card.resource" };
 	uaecptr base = size == ROM_SIZE_512 ? 0xf80000 : 0xfc0000;
 
-	if (currprefs.cs_mbdmac == 2)
-		residents[0] = NULL;
-	for (i = 0; i < size - 100; i++) {
-		if (kickmemory[i] == 0x4a && kickmemory[i + 1] == 0xfc) {
-			uaecptr addr;
-			addr = (kickmemory[i + 2] << 24) | (kickmemory[i + 3] << 16) | (kickmemory[i + 4] << 8) | (kickmemory[i + 5] << 0);
-			if (addr != i + base)
-				continue;
-			addr = (kickmemory[i + 14] << 24) | (kickmemory[i + 15] << 16) | (kickmemory[i + 16] << 8) | (kickmemory[i + 17] << 0);
-			if (addr >= base && addr < base + size) {
-				j = 0;
-				while (residents[j]) {
-					if (!memcmp (residents[j], kickmemory + addr - base, strlen (residents[j]) + 1)) {
-						TCHAR *s = au (residents[j]);
-						write_log (_T("KSPatcher: '%s' at %08X disabled\n"), s, i + base);
-						xfree (s);
-						kickmemory[i] = 0x4b; /* destroy RTC_MATCHWORD */
-						patched++;
-						break;
+	if (currprefs.cs_mbdmac != 2) {
+		for (i = 0; i < size - 100; i++) {
+			if (kickmemory[i] == 0x4a && kickmemory[i + 1] == 0xfc) {
+				uaecptr addr;
+				addr = (kickmemory[i + 2] << 24) | (kickmemory[i + 3] << 16) | (kickmemory[i + 4] << 8) | (kickmemory[i + 5] << 0);
+				if (addr != i + base)
+					continue;
+				addr = (kickmemory[i + 14] << 24) | (kickmemory[i + 15] << 16) | (kickmemory[i + 16] << 8) | (kickmemory[i + 17] << 0);
+				if (addr >= base && addr < base + size) {
+					j = 0;
+					while (residents[j]) {
+						if (!memcmp (residents[j], kickmemory + addr - base, strlen (residents[j]) + 1)) {
+							TCHAR *s = au (residents[j]);
+							write_log (_T("KSPatcher: '%s' at %08X disabled\n"), s, i + base);
+							xfree (s);
+							kickmemory[i] = 0x4b; /* destroy RTC_MATCHWORD */
+							patched++;
+							break;
+						}
+						j++;
 					}
-					j++;
 				}
 			}
 		}

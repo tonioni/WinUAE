@@ -40,8 +40,6 @@ void events_schedule (void)
 	nextevent = currcycle + mintime;
 }
 
-static int iwas1 = 123, iwas2 = 123, ihandled = 123;
-
 void do_cycles_slow (unsigned long cycles_to_add)
 {
 	if ((pissoff -= cycles_to_add) >= 0)
@@ -83,12 +81,13 @@ void do_cycles_slow (unsigned long cycles_to_add)
 		currcycle = nextevent;
 
 		for (i = 0; i < ev_max; i++) {
-			iwas1 = i;
 			if (eventtab[i].active && eventtab[i].evtime == currcycle) {
-				iwas2 = i;
-				ihandled = -1;
-				(*eventtab[i].handler)();
-				ihandled = 1;
+				if (eventtab[i].handler == NULL) {
+					gui_message(_T("eventtab[%d].handler is null!\n"), i);
+					eventtab[i].active = 0;
+				} else {
+					(*eventtab[i].handler)();
+				}
 			}
 		}
 		events_schedule ();

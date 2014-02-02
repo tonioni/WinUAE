@@ -6,6 +6,9 @@
 * (c) 1995 Bernd Schmidt
 */
 
+#ifndef CUSTOM_H
+#define CUSTOM_H
+
 #include "machdep/rpt.h"
 
 /* These are the masks that are ORed together in the chipset_mask option.
@@ -85,7 +88,7 @@ extern unsigned int joy0dir, joy1dir;
 extern int joy0button, joy1button;
 
 extern void INTREQ (uae_u16);
-extern void INTREQ_0 (uae_u16);
+extern bool INTREQ_0 (uae_u16);
 extern void INTREQ_f (uae_u16);
 extern void send_interrupt (int num, int delay);
 extern uae_u16 INTREQR (void);
@@ -231,3 +234,5 @@ extern bool ispal (void);
 extern int current_maxvpos (void);
 extern struct chipset_refresh *get_chipset_refresh (void);
 extern void compute_framesync (void);
+
+#endif /* CUSTOM_H */

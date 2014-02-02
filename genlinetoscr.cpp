@@ -118,24 +118,30 @@ static void out_linetoscr_decl (DEPTH_T bpp, HMODE_T hmode, int aga, int spr)
 {
 	outlnf ("static int NOINLINE linetoscr_%s%s%s%s (int spix, int dpix, int dpix_end)",
 		get_depth_str (bpp),
-		get_hmode_str (hmode), aga ? "_aga" : "", spr ? "_spr" : "");
+		get_hmode_str (hmode), aga ? "_aga" : "", spr > 0 ? "_spr" : (spr < 0 ? "_spronly" : ""));
 }
 
 static void out_linetoscr_do_srcpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
 {
-	if (aga && cmode != CMODE_DUALPF) {
-		if (spr)
-			outln (     "    sprpix_val = pixdata.apixels[spix];");
-		outln ( 	"    spix_val = pixdata.apixels[spix] ^ xor_val;");
-	} else if (cmode != CMODE_HAM) {
-		outln ( 	"    spix_val = pixdata.apixels[spix];");
-		if (spr)
-			outln (     "    sprpix_val = spix_val;");
+	if (spr < 0) {
+		outln (     "    sprpix_val = 0;");
+	} else {
+		if (aga && cmode != CMODE_DUALPF) {
+			if (spr)
+				outln (     "    sprpix_val = pixdata.apixels[spix];");
+			outln ( 	"    spix_val = pixdata.apixels[spix] ^ xor_val;");
+		} else if (cmode != CMODE_HAM) {
+			outln ( 	"    spix_val = pixdata.apixels[spix];");
+			if (spr)
+				outln (     "    sprpix_val = spix_val;");
+		}
 	}
 }
 
 static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
 {
+	if (spr < 0)
+		return;
 	if (aga && cmode == CMODE_HAM) {
 		outln (	    "    spix_val = ham_linebuf[spix];");
 		outln (	    "    dpix_val = CONVERT_RGB (spix_val);");
@@ -171,6 +177,8 @@ static void out_linetoscr_do_dstpix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_
 
 static void out_linetoscr_do_incspix (DEPTH_T bpp, HMODE_T hmode, int aga, CMODE_T cmode, int spr)
 {
+	if (spr < 0)
+		return;
 	if (hmode == HMODE_HALVE1F) {
 		outln (         "    {");
 		outln (         "    uae_u32 tmp_val;");
@@ -216,7 +224,7 @@ static void put_dpix (const char *var)
 	outlnf ("    buf[dpix++] = %s;", var);
 }
 
-static void out_sprite (DEPTH_T bpp, HMODE_T hmode, CMODE_T cmode, int aga, int cnt)
+static void out_sprite (DEPTH_T bpp, HMODE_T hmode, CMODE_T cmode, int aga, int cnt, int spr)
 {
 	if (aga) {
 		if (cnt == 1) {
@@ -325,8 +333,10 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	outln (		"while (dpix < dpix_end) {");
 	if (spr)
 		outln (		"    uae_u32 sprpix_val;");
-	outln (		"    uae_u32 spix_val;");
-	outln (		"    uae_u32 dpix_val;");
+	if (spr >= 0) {
+		outln (		"    uae_u32 spix_val;");
+		outln (		"    uae_u32 dpix_val;");
+	}
 	outln (		"    uae_u32 out_val;");
 	outln (		"");
 
@@ -334,7 +344,10 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	out_linetoscr_do_dstpix (bpp, hmode, aga, cmode, spr);
 	out_linetoscr_do_incspix (bpp, hmode, aga, cmode, spr);
 
-	outln (		"    out_val = dpix_val;");
+	if (spr >= 0)
+		outln (		"    out_val = dpix_val;");
+	else
+		outln (		"    out_val = colors_for_drawing.acolors[0];");
 
 	if (hmode != HMODE_DOUBLE && hmode != HMODE_DOUBLE2X && bpp == DEPTH_16BPP && spr == 0) {
 		out_linetoscr_do_srcpix (bpp, hmode, aga, cmode, spr);
@@ -353,14 +366,14 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 			outln (	"    dpix += 2;");
 		} else if (bpp == DEPTH_16BPP) {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 2);
+				out_sprite (bpp, hmode, cmode, aga, 2, spr);
 			} else {
 				outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 				outln (	"    dpix += 2;");
 			}
 		} else {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 2);
+				out_sprite (bpp, hmode, cmode, aga, 2, spr);
 			} else {
 				put_dpix ("out_val");
 				put_dpix ("out_val");
@@ -372,7 +385,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 			outln (	"    dpix += 4;");
 		} else if (bpp == DEPTH_16BPP) {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 4);
+				out_sprite (bpp, hmode, cmode, aga, 4, spr);
 			} else {
 				outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 				outln (	"    dpix += 2;");
@@ -381,7 +394,7 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 			}
 		} else {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 4);
+				out_sprite (bpp, hmode, cmode, aga, 4, spr);
 			} else {
 				put_dpix ("out_val");
 				put_dpix ("out_val");
@@ -392,14 +405,14 @@ static void out_linetoscr_mode (DEPTH_T bpp, HMODE_T hmode, int aga, int spr, CM
 	} else {
 		if (bpp == DEPTH_16BPP) {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 1);
+				out_sprite (bpp, hmode, cmode, aga, 1, spr);
 			} else {
 				outln (	"    *((uae_u32 *)&buf[dpix]) = out_val;");
 				outln (	"    dpix += 2;");
 			}
 		} else {
 			if (spr) {
-				out_sprite (bpp, hmode, cmode, aga, 1);
+				out_sprite (bpp, hmode, cmode, aga, 1, spr);
 			} else {
 				put_dpix ("out_val");
 			}
@@ -438,18 +451,23 @@ static void out_linetoscr (DEPTH_T bpp, HMODE_T hmode, int aga, int spr)
 	outlnf (	"    %s *buf = (%s *) xlinebuffer;", get_depth_type_str (bpp), get_depth_type_str (bpp));
 	if (spr)
 		outln ( "    uae_u8 sprcol;");
-	if (aga)
+	if (aga && spr >= 0)
 		outln (	"    uae_u8 xor_val = bplxor;");
 	outln  (	"");
 
-	outln  (	"    if (bplham) {");
-	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_HAM);
-	outln  (	"    } else if (bpldualpf) {");
-	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_DUALPF);
-	outln  (	"    } else if (bplehb) {");
-	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_EXTRAHB);
-	outln  (	"    } else {");
-	out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_NORMAL);
+	if (spr >= 0) {
+		outln  (	"    if (bplham) {");
+		out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_HAM);
+		outln  (	"    } else if (bpldualpf) {");
+		out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_DUALPF);
+		outln  (	"    } else if (bplehb) {");
+		out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_EXTRAHB);
+		outln  (	"    } else {");
+		out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_NORMAL);
+	} else {
+		outln  (	"    if (1) {");
+		out_linetoscr_mode (bpp, hmode, aga, spr, CMODE_NORMAL);
+	}
 
 	outln  (	"    }\n");
 	outln  (	"    return spix;");
@@ -479,7 +497,7 @@ int main (int argc, char *argv[])
 	set_outfile (stdout);
 
 	outln ("/*");
-	outln (" * E-UAE - The portable Amiga emulator.");
+	outln (" * UAE - The portable Amiga emulator.");
 	outln (" *");
 	outln (" * This file was generated by genlinetoscr. Don't edit.");
 	outln (" */");
@@ -489,7 +507,9 @@ int main (int argc, char *argv[])
 		for (aga = 0; aga <= 1 ; aga++) {
 			if (aga && bpp == DEPTH_8BPP)
 				continue;
-			for (spr = 0; spr <= 1; spr++) {
+			for (spr = -1; spr <= 1; spr++) {
+				if (!aga && spr < 0)
+					continue;
 				for (hmode = HMODE_NORMAL; hmode <= HMODE_MAX; hmode++)
 					out_linetoscr (bpp, hmode, aga, spr);
 			}

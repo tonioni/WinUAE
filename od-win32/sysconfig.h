@@ -16,6 +16,7 @@
 #define __i386__
 #define WINDOWS
 #define ZLIB_WINAPI
+#define PACKAGE_STRING "WinUAE"
 
 #ifndef UAE_MINI
 
@@ -77,6 +78,7 @@
 #define RETROPLATFORM /* Cloanto RetroPlayer support */
 #define WITH_CHD
 #define WITH_LUA /* lua scripting */
+#define WITH_UAENATIVE
 
 #else
 

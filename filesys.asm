@@ -163,6 +163,25 @@ filesys_init:
 FSIN_explibok:
 	move.l d0,a4
 
+	; create fake configdev
+	exg a4,a6
+	jsr -$030(a6) ;expansion/AllocConfigDev
+	tst.l d0
+	beq.s .nocd
+	move.l d0,a0
+	lea start(pc),a1
+	move.l a1,d0
+	clr.w d0
+	move.l d0,32(a0)
+	move.l #65536,36(a0)
+	move.w #$0104,16(a0) ;type + product
+	move.w #2011,16+4(a0) ;manufacturer
+	moveq #1,d0
+	move.l d0,22(a0) ;serial
+	jsr -$01e(a6) ;expansion/AddConfigDev
+.nocd
+	exg a4,a6
+
 	tst.l $10c(a5)
 	beq.w FSIN_none
 

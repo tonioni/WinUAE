@@ -45,6 +45,7 @@
 #include "gayle.h"
 #include "savestate.h"
 #include "a2091.h"
+#include "ncr_scsi.h"
 #include "cdtv.h"
 #include "sana2.h"
 #include "bsdsocket.h"
@@ -55,6 +56,7 @@
 #include "blkdev.h"
 #include "isofs_api.h"
 #include "scsi.h"
+#include "uaenative.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -828,14 +830,24 @@ static void initialize_mountinfo (void)
 			gayle_add_ide_unit (uci->controller - HD_CONTROLLER_IDE0, uci);
 			allocuci (&currprefs, nr, -1);
 		} else if (uci->controller <= HD_CONTROLLER_SCSI6) {
-			if (currprefs.cs_mbdmac > 0) {
+			if (currprefs.cs_mbdmac == 1) {
 #ifdef A2091
 				a3000_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
+				allocuci (&currprefs, nr, -1);
+#endif
+			} else if (currprefs.cs_mbdmac == 2) {
+#ifdef NCR
+				a4000t_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);	
 				allocuci (&currprefs, nr, -1);
 #endif
 			} else if (currprefs.cs_a2091) {
 #ifdef A2091
 				a2091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
+				allocuci (&currprefs, nr, -1);
+#endif
+			} else if (currprefs.cs_a4091) {
+#ifdef NCR
+				a4091_add_scsi_unit (uci->controller - HD_CONTROLLER_SCSI0, uci);
 				allocuci (&currprefs, nr, -1);
 #endif
 			} else if (currprefs.cs_cdtvscsi) {
@@ -6288,6 +6300,9 @@ static uae_u32 REGPARAM2 filesys_diagentry (TrapContext *context)
 	resaddr = uaeres_startup (resaddr);
 #ifdef BSDSOCKET
 	resaddr = bsdlib_startup (resaddr);
+#endif
+#ifdef WITH_UAENATIVE
+	resaddr = uaenative_startup (resaddr);
 #endif
 #ifdef SCSIEMU
 	resaddr = scsidev_startup (resaddr);

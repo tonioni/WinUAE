@@ -1,5 +1,65 @@
 
+1 -> 0: 0,1FE,1FE,1FE,..
+1 -> 1: 0,1FE,0,1FE,0,..
+1 -> 2: 0,1FE,70,1FE,70,.. (C-)
+1 -> 9: 0,1FE,0,74,0,74,.. (DA)
+1 -> B: 0,1FE,70,0,74,70,0,74,70,0,74,.. (ACD)
+1 -> C: 0,1FE,72,74,70,72,74,70,72,.. (CBA)
+1 -> D: 0,1FE,72,74,70,72,74,70,72,.. (CBA)
+1 -> E: 0,1FE,70,70,70,70,.. (C)
+1 -> F: 0,1FE,70,70,74,70,70,70,74,70,70,70,74,.. (CCCA)
+
 - restore only single input target to default.
+
+- More than one horizontal DDFSTRT-DDFSTOP window is now accurately emulated without requiring any hacks.
+  Random garbage between display windows is also gone. (Subtle Shades / Nuance)
+- Removed some more obsolete variables from display emulation.
+- Saigon Megademo fix got accidentally broken in b2.
+- 260b17 "strange right edge overscan display shift" optional hack removed, new delay/shift register
+  behavior creates identical output automatically simply by reseting delay counter (hpos counter) at the
+  end of scanline. NOTE: Some programs with large overscan can now have small graphics corruption in right
+  border (gap in graphics), it is not a bug, it is accurate emulation. (For example Back in Bizness / 2000AD)
+- Some OCS only programs may now have graphics corruption in ECS mode (if bitplane DMA crosses scanlines),
+  this is also not a bug, real hardware would show even worse corruption. Someday this will be more accurately emulated.
+- Agnus vpos counter increase delayed by 1 cycle. Fixes Hit the Road / Flash Production "Floffy2" part.
+- Keyboard leds as power/floppy/etc indicators are now properly restored back to original state when
+  keyboard input is not active, changing led config on the fly also works now.
+- Exiting GUI with close button or ALT-F4 didn't save GUI position.
+
+Beta 3:
+
+- Sprites near left border had strange corruption (b1)
+- "toscr_nbits > 16" error in some situations (b1)
+- "Modified interrupt delays" b1 change was bad, sometimes interrupt request was kept active
+  causing spurious interrupts (which caused crashes).
+- New autoresolution selection was not loaded correctly from config file.
+- Blitter final D write don't increase "nasty" count. (Which makes sense, blit is already
+  finished, blitbusy bit was cleared 2 cycles ago)
+- Removed most BPLxDAT related hacks, they become obsolete after b2 BPLCON1 update (it also changed
+  how data gets moved to shift registers). May introduce new glitches and if it does, it needs
+  correct emulation updates, not hacks.
+
+Beta 2:
+
+- BPLCON1 mid scan line modifications now should match real hardware 100%.
+  This was very big change, old emulation was functionally close enough but very far from real
+  hardware behavior. Old code couldn't emulate some side-effects correctly.
+
+- Partial/full scanline based mode ("SPEEDUP") is again used more regularly, "is it safe to use" check
+  got partially broken during 2.7.0 betas. It is also more optimal in AGA 32/64-bit fetch modes.
+- AGA border sprite in right border and 2x or 4x horizontal sprite pixels (vs bitplane pixels): sprite's
+  rightmost pixel(s) were missing.
+- Superhires and top or bottom border sprite: graphics garbage was seen in border area, memory
+  corruption was also possible in some situations.
+- Magic mouse + mousehack mode now always stops keyboard input when mouse is outside of emulation
+  window, even if window still has focus.
+- 68020/030 CAAR register preserves also all reserved bits.
+- Disable JIT if config has 68000/010 CPU and non-zero JIT cache size.
+- 68020 CE broke interrupt state fetch, interrupt didn't clear if write to INTREQ was immediately
+  followed by RTE. (b1)
+- Does not anymore require SSE2 capable CPU (b1 did)
+
+Beta 1:
 
 Lots of small blitter, copper and CPU timing adjustments. (Thanks to amilo3438 for collecting huge amounts
 of demo test cases). Lots of logic analyzer tests done during last few weeks.

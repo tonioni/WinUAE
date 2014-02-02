@@ -11,9 +11,9 @@
 #define MEMLOGR 0
 #define MEMLOGW 0
 #define MEMLOGINDIRECT 0
-#define MEMDEBUG 0
+#define MEMDEBUG 1
 #define MEMDEBUGMASK 0x7fffff
-#define MEMDEBUGTEST 0x280000
+#define MEMDEBUGTEST 0x1ff000
 #define PICASSOIV_DEBUG_IO 0
 
 static bool memlogr = false;
@@ -101,6 +101,9 @@ struct gfxboard
 #define PICASSOIV_Z3 11
 
 #define ISP4() (currprefs.rtgmem_type == PICASSOIV_Z2 || currprefs.rtgmem_type == PICASSOIV_Z3)
+
+// Picasso II: 8* 4x256 (1M) or 16* 4x256 (2M)
+// Piccolo: 8* 4x256 + 2* 16x256 (2M)
 
 static struct gfxboard boards[] =
 {

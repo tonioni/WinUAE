@@ -6210,6 +6210,40 @@ void fpux_restore (int *v)
 #endif
 }
 
+struct winuae	//this struct is put in a6 if you call
+	//execute native function
+{
+	HWND amigawnd;    //adress of amiga Window Windows Handle
+	unsigned int changenum;   //number to detect screen close/open
+	unsigned int z3offset;    //the offset to add to acsess Z3 mem from Dll side
+};
+
+void *uaenative_get_uaevar (void)
+{
+	static struct winuae uaevar;
+#ifdef _WIN32
+    uaevar.amigawnd = hAmigaWnd;
+#endif
+    uaevar.z3offset = (uae_u32)get_real_address (0x10000000) - 0x10000000;
+    return &uaevar;
+}
+
+const TCHAR **uaenative_get_library_dirs (void)
+{
+	static const TCHAR **nats;
+	static TCHAR *path;
+
+	if (nats == NULL)
+		nats = xcalloc (const TCHAR*, 3);
+	if (path == NULL) {
+		path = xcalloc (TCHAR, MAX_DPATH);
+		_tcscpy (path, start_path_data);
+		_tcscat (path, _T("plugins"));
+	}
+	nats[0] = start_path_data;
+	nats[1] = path;
+	return nats;
+}
 
 typedef BOOL (CALLBACK* CHANGEWINDOWMESSAGEFILTER)(UINT, DWORD);
 

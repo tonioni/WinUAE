@@ -1023,7 +1023,7 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 		if (!memcmp (buf, "PKD\x13", 4) || !memcmp (buf, "PKD\x11", 4)) {
 			TCHAR *fn;
 			int sectors = buf[18];
-			int heads = buf[15];
+			int reserved = buf[15];
 			int blocks = (buf[6] << 8) | buf[7];
 			int blocksize = (buf[10] << 8) | buf[11];
 			struct zfile *zo;
@@ -1034,7 +1034,7 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 			uae_u8 *nullsector;
 
 			nullsector = xcalloc (uae_u8, blocksize);
-			sectors /= heads;
+			sectors /= 2;
 			if (buf[3] == 0x13) {
 				off = 52;
 				if (buf[off - 1] == 1) {
@@ -1047,7 +1047,8 @@ static struct zfile *dsq (struct zfile *z, int lzx, int *retcode)
 				off = 32;
 			}
 
-			if (size < 1760 * 512)
+			// some Amiga disk images are smaller than full adf for some reason
+			if (sectors == 11 && size < 1760 * 512)
 				size = 1760 * 512;
 
 			if (zfile_getfilename (zi) && _tcslen (zfile_getfilename (zi))) {

@@ -1238,7 +1238,7 @@ static void expamem_init_a2091 (void)
 static void expamem_init_a4091 (void)
 {
 #ifdef NCR
-	ncr_init ();
+	ncr_autoconfig_init ();
 #endif
 }
 static void expamem_init_gfxboard_memory (void)

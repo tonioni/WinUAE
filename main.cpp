@@ -56,6 +56,7 @@
 #include "gayle.h"
 #include "gfxboard.h"
 #include "luascript.h"
+#include "uaenative.h"
 #ifdef RETROPLATFORM
 #include "rp.h"
 #endif
@@ -1003,6 +1004,9 @@ void virtualdevice_init (void)
 #endif
 #if defined (BSDSOCKET)
 	bsdlib_install ();
+#endif
+#ifdef WITH_UAENATIVE
+	uaenative_install ();
 #endif
 }
 

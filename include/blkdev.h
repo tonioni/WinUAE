@@ -1,4 +1,7 @@
 
+#ifndef BLKDEV_H
+#define BLKDEV_H
+
 #define DEVICE_SCSI_BUFSIZE (65536 - 1024)
 
 #define SCSI_UNIT_DISABLED -1
@@ -210,3 +213,5 @@ extern void blkdev_entergui (void);
 extern void blkdev_exitgui (void);
 
 bool filesys_do_disk_change (int, bool);
+
+#endif /* BLKDEV_H */
