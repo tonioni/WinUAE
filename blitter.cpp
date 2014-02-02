@@ -399,7 +399,7 @@ static void blitter_interrupt (int hpos, int done)
 {
 	if (blit_interrupt)
 		return;
-	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68030))
+	if (!done && (!currprefs.blitter_cycle_exact || currprefs.cpu_model >= 68030 || currprefs.cachesize || currprefs.m68k_speed < 0))
 		return;
 	blit_interrupt = 1;
 	send_interrupt (6, 4 * CYCLE_UNIT);

@@ -19,7 +19,7 @@
 #define LANG_DLL 1
 
 #if WINUAEPUBLICBETA
-#define WINUAEBETA _T("5")
+#define WINUAEBETA _T("6")
 #else
 #define WINUAEBETA _T("")
 #endif

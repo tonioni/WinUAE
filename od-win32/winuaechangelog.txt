@@ -11,6 +11,42 @@
 
 - restore only single input target to default.
 
+Beta 6:
+
+- Display emulation last horizontal position (plfright) was not correctly updated, caused all kinds of
+  bad side-effects, including non-immediate/non-ce blitter to take seconds to finish.
+
+Beta 5:
+
+- "Strange right edge overscan display shift" adjusted, in some situations it was visible when
+  it shouldn't have been. Looks also correct in NTSC mode now (Sawtooth pattern caused by alternating
+  line lengths)
+- OCS Agnus requires one cycle between sprite DMA and bitplane DMA, ECS Agnus can have both cycles
+  back to back. This means OCS Agnus will only fetch first sprite word (practically making sprite useless)
+  where ECS Agnus can fetch both.
+- Rarely during heavy interrupt activity in cycle-exact mode some delayed interrupt register set or clear
+  operation may have been lost causing possible spurious interrupt.
+- lea (d8,An,Xn) prefetch is last operation, not idle cycle.
+- 68020 CE mode CAS instruction prefetch was broken.
+- When UAE boot ROM is enabled, add fake autoconfig board (configdev) that has same board address and
+  size as boot ROM. Allows MMU utilities (mmu libraries, enforcer etc..) to mark boot ROM as valid
+  address space without extra command line parameters.
+- Partially rewritten horizontal Agnus bitplane state machine. Can (as usual) break something..
+- When BPLCON1 matches, only copy enabled planes to shift registers. (Back In 90 / Samplers)
+- Power led didn't turn off after soft reset.
+- Added sprite-only linetoscr routines, bordersprites and HAM do not mix well. (Satyanarayanan / Scoopex)
+- AGA and 64-bit fetch modes: last 16 or so pixels were not flushed to display, depending on BPLCON1 value.
+  (Satyanarayanan / Scoopex)
+- New (still WIP) modern native library interface merged from FS-UAE.
+- Added LSI 53C895A SCSI chip emulation from QEMU. Lots of changes to make it 53C710 compatible
+  (53C720 and later have multiple registers changes but SCRIPTS code is fortunately backwards compatible)
+  A4091 and A4000T NCR driver now "work", chip init works, returns timeout error (no device connected) when
+  it tries to detect SCSI devices. Do not connect any drives, it does not work yet.
+- pdk compressed (or dsq) files always unpacked to Amiga DD floppy size.
+- Keyboard leds lost sync in some situations.
+
+Beta 4:
+
 - More than one horizontal DDFSTRT-DDFSTOP window is now accurately emulated without requiring any hacks.
   Random garbage between display windows is also gone. (Subtle Shades / Nuance)
 - Removed some more obsolete variables from display emulation.
@@ -141,7 +177,7 @@ Huge changelog, mostly technical stuff.
 - Automatically focus debugger window when debugger activates.
 - Capture mouse after exiting debugger if it was captured when debugger was activated.
 - Do not ask for extended ADF if program writes to disk using standard dos format and 1 or more sectors
-  have non-zero header data, add message to load and ignore sector header data. (Thrill Kill disk writing)
+  have non-zero header data, add message to log and ignore sector header data. (Thrill Kill disk writing)
 - Standard partition HDF zero or -1 dostype: force DOS\0.
 - <= 512M partition hardfiles had IDE-like geometry if it didn't have OFS or FFS filesystem.
 - Always mount all non-CDROM SCSI devices if uaescsi.device is enabled and SCSI mode is SPTI.
@@ -252,7 +288,7 @@ Beta 11:
 - Using stick/dpad to autoswitch now requires move, release, move inside 0.5s window to prevent
   accidental switches.
 - Some more autoswitch bugs fixed.
-- Switching bitplane DMA on just before DDFSTRT handling improved. (Saigon Megademo "Shir Khan" part)
+- Switching bitplane DMA on just before DDFSTRT handling improved. (Sargon Megademo "Shir Khan" part)
 - 68030 + more compatible without cycle-exact was unstable.
 - Flush 68020/030 caches and refill prefetch buffers when switching CPU modes (cycle-exact/more compatible)
   on the fly.

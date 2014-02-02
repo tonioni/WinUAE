@@ -2023,17 +2023,16 @@ static void finish_last_fetch (int pos, int fm, bool reallylast)
 	plfr_state = plfr_end;
 
 	flush_display (fm);
+	// This may not be the last fetch, store current endpos for future use.
+	// There is at least one demo that has two DDFSTRT-DDFSTOP horizontal sections.
+	thisline_decision.plfright = pos;
+
 	if (!reallylast) {
-		// This may not be the last fetch, store current endpos for future use.
-		// There is at least one demo that has two DDFSTRT-DDFSTOP horizontal sections.
-		thisline_decision.plfright = pos;
-#if 1
 		if (currprefs.chipset_mask & CSMASK_ECS_AGNUS) {
 			ddfstate = DIW_waiting_start;
 			fetch_state = fetch_not_started;
 		}
 	}
-#endif
 }
 /* check special case where last fetch wraps to next line
  * this makes totally corrupted and flickering display on
@@ -3418,7 +3417,7 @@ static void reset_decisions (void)
 	}
 
 	memset (outword, 0, sizeof outword);
-	memset (fetched, 0, sizeof fetched);
+	//memset (fetched, 0, sizeof fetched); // This must remain between scanlines
 	todisplay_fetched[0] = todisplay_fetched[1] = false;
 	memset (todisplay, 0, sizeof todisplay);
 	memset (todisplay2, 0, sizeof todisplay2);
@@ -4461,6 +4460,8 @@ STATIC_INLINE int use_eventmode (uae_u16 v)
 		return 1;
 	if (v & 0x8000)
 		return 1;
+	if (currprefs.cachesize || currprefs.m68k_speed < 0)
+		return 0;
 	if (event2_count)
 		return 1;
 	return 0;
@@ -4578,7 +4579,7 @@ bool INTREQ_0 (uae_u16 v)
 			return false;
 	}
 
-	if ((use_eventmode (v) || event2_count)) {
+	if (use_eventmode (v)) {
 		// don't bother to waste time for interrupt queuing if nothing changes
 		// but only if we are sure there is no other queued changes
 		if (old == intreq && intreq_internal == intreq)
