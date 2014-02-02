@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 extern void activate_debugger(void);
 
@@ -283,3 +284,72 @@ void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
                                MemoryRegion *system_memory,
                                MemoryRegion *system_io);
 
+struct DeviceState
+{
+	void *lsistate;
+};
+
+#define QEMUFile void*
+#define PCIDevice void*
+typedef unsigned long dma_addr_t;
+#define PCI_DEVICE(s) (void**)s
+#define DMA_ADDR_FMT "%08x"
+
+void pci_set_irq(PCIDevice *pci_dev, int level);
+void lsi_scsi_init(DeviceState *dev);
+void lsi_scsi_reset(DeviceState *dev);
+
+static inline int32_t sextract32(uint32_t value, int start, int length)
+{
+//    assert(start >= 0 && length > 0 && length <= 32 - start);
+    /* Note that this implementation relies on right shift of signed
+     * integers being an arithmetic shift.
+     */
+    return ((int32_t)(value << (32 - length - start))) >> (32 - length);
+}
+static inline uint32_t deposit32(uint32_t value, int start, int length,
+                                 uint32_t fieldval)
+{
+    uint32_t mask;
+//    assert(start >= 0 && length > 0 && length <= 32 - start);
+    mask = (~0U >> (32 - length)) << start;
+    return (value & ~mask) | ((fieldval << start) & mask);
+}
+
+STATIC_INLINE uint32_t cpu_to_le32(uint32_t t)
+{
+	return ((t >> 24) & 0x000000ff) | ((t >> 8) & 0x0000ff00) | ((t << 8) & 0x00ff0000) | ((t << 24) & 0xff000000);
+}
+
+typedef enum {
+    DMA_DIRECTION_TO_DEVICE = 0,
+    DMA_DIRECTION_FROM_DEVICE = 1,
+} DMADirection;
+
+int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir);
+
+static inline int pci_dma_read(PCIDevice *dev, dma_addr_t addr,
+                               void *buf, dma_addr_t len)
+{
+    return pci_dma_rw(dev, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+}
+
+static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+}
+
+struct BusState {
+    //Object obj;
+    DeviceState *parent;
+    const char *name;
+    int allow_hotplug;
+    int max_index;
+//    QTAILQ_HEAD(ChildrenHead, BusChild) children;
+//    QLIST_ENTRY(BusState) sibling;
+};
+
+
+extern void lsi_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+extern uint64_t lsi_mmio_read(void *opaque, hwaddr addr, unsigned size);

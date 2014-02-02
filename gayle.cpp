@@ -54,6 +54,8 @@ DE0000 to DEFFFF	64 KB Motherboard resources
 */
 
 #define NCR_OFFSET 0x40
+#define NCR_LONG_OFFSET 0x80
+#define NCR_MASK 0x3f
 
 /* Gayle definitions from Linux drivers and preliminary Gayle datasheet */
 
@@ -1524,13 +1526,13 @@ addrbank gayle_bank = {
 	dummy_lgeti, dummy_wgeti, ABFLAG_IO
 };
 
-static int isa4000t (uaecptr addr)
+static bool isa4000t (uaecptr addr)
 {
 	if (currprefs.cs_mbdmac != 2)
-		return 0;
+		return false;
 	if ((addr & 0xffff) >= (GAYLE_BASE_4000 & 0xffff))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
@@ -1541,6 +1543,19 @@ static uae_u32 REGPARAM2 gayle_lget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+	if (isa4000t (addr)) {
+		addr &= 0xff;
+		if (addr >= NCR_LONG_OFFSET) {
+			addr &= NCR_MASK;
+			v = (ncr_io_bget (addr + 3) << 24) | (ncr_io_bget (addr + 2) << 16) |
+				(ncr_io_bget (addr + 1) << 8) | (ncr_io_bget (addr + 0));
+		} else if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			v = (ncr_io_bget (addr + 0) << 24) | (ncr_io_bget (addr + 1) << 16) |
+				(ncr_io_bget (addr + 2) << 8) | (ncr_io_bget (addr + 3));
+		}
+		return v;
+	}
 	ide_reg = get_gayle_ide_reg (addr, &ide);
 	if (ide_reg == IDE_DATA) {
 		v = ide_get_data (ide) << 16;
@@ -1559,10 +1574,16 @@ static uae_u32 REGPARAM2 gayle_wget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+#ifdef NCR
 	if (isa4000t (addr)) {
-		addr -= NCR_OFFSET;
-		return (ncr_bget2 (addr) << 8) | ncr_bget2 (addr + 1);
+		addr &= 0xff;
+		if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			v = (ncr_io_bget (addr) << 8) | ncr_io_bget (addr + 1);
+		}
+		return v;
 	}
+#endif
 	ide_reg = get_gayle_ide_reg (addr, &ide);
 	if (ide_reg == IDE_DATA)
 		return ide_get_data (ide);
@@ -1575,10 +1596,16 @@ static uae_u32 REGPARAM2 gayle_bget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
+#ifdef NCR
 	if (isa4000t (addr)) {
-		addr -= NCR_OFFSET;
-		return ncr_bget2 (addr);
+		addr &= 0xff;
+		if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			return ncr_io_bget (addr);
+		}
+		return 0;
 	}
+#endif
 	return gayle_read (addr);
 }
 
@@ -1589,6 +1616,23 @@ static void REGPARAM2 gayle_lput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+	if (isa4000t (addr)) {
+		addr &= 0xff;
+		if (addr >= NCR_LONG_OFFSET) {
+			addr &= NCR_MASK;
+			ncr_io_bput (addr + 3, value >> 0);
+			ncr_io_bput (addr + 2, value >> 8);
+			ncr_io_bput (addr + 1, value >> 16);
+			ncr_io_bput (addr + 0, value >> 24);
+		} else if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			ncr_io_bput (addr + 0, value >> 24);
+			ncr_io_bput (addr + 1, value >> 16);
+			ncr_io_bput (addr + 2, value >> 8);
+			ncr_io_bput (addr + 3, value >> 0);
+		}
+		return;
+	}
 	ide_reg = get_gayle_ide_reg (addr, &ide);
 	if (ide_reg == IDE_DATA) {
 		ide_put_data (ide, value >> 16);
@@ -1605,12 +1649,17 @@ static void REGPARAM2 gayle_wput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+#ifdef NCR
 	if (isa4000t (addr)) {
-		addr -= NCR_OFFSET;
-		ncr_bput2 (addr, value >> 8);
-		ncr_bput2 (addr + 1, value);
+		addr &= 0xff;
+		if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			ncr_io_bput (addr, value >> 8);
+			ncr_io_bput (addr + 1, value);
+		}
 		return;
 	}
+#endif
 	ide_reg = get_gayle_ide_reg (addr, &ide);
 	if (ide_reg == IDE_DATA) {
 		ide_put_data (ide, value);
@@ -1625,11 +1674,16 @@ static void REGPARAM2 gayle_bput (uaecptr addr, uae_u32 value)
 #ifdef JIT
 	special_mem |= S_WRITE;
 #endif
+#ifdef NCR
 	if (isa4000t (addr)) {
-		addr -= NCR_OFFSET;
-		ncr_bput2 (addr, value);
+		addr &= 0xff;
+		if (addr >= NCR_OFFSET) {
+			addr &= NCR_MASK;
+			ncr_io_bput (addr, value);
+		}
 		return;
 	}
+#endif
 	gayle_write (addr, value);
 }
 
@@ -2764,10 +2818,13 @@ void gayle_reset (int hardreset)
 	_tcscpy (bankname, _T("Gayle (low)"));
 	if (currprefs.cs_ide == IDE_A4000)
 		_tcscpy (bankname, _T("A4000 IDE"));
+#ifdef NCR
 	if (currprefs.cs_mbdmac == 2) {
 		_tcscat (bankname, _T(" + NCR53C710 SCSI"));
+		ncr_init ();
 		ncr_reset ();
 	}
+#endif
 	gayle_bank.name = bankname;
 }
 

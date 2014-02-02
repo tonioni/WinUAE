@@ -1177,14 +1177,14 @@ static void cirrus_valid_memory_config(CirrusVGAState *s)
 {
 	s->valid_memory_config = 1;
 	if (s->device_id >= CIRRUS_ID_CLGD5426 && s->device_id <= CIRRUS_ID_CLGD5430) {
-		// '26/28/29 can't have 2M and 256kx16 memory config
+		// '26/28/29 can't have 2M and 512kx16 memory config
 		// Amiga CyberGraphX uses this to detect memory size
 		// by writing long and then reading it back, if SRF[7]
 		// set and test value reads correct: memory size = 2M.
-		if (s->vga.vram_size_mb == 1 && (s->vga.sr[0xf] & 0x80))
+		if (s->vga.vram_size_mb == 2 && !(s->vga.sr[0xf] & 0x80))
 			s->valid_memory_config = 0;
 	} else if (s->device_id >= CIRRUS_ID_CLGD5434) {
-		// SRF[7] must be set for 4M VRAM chips
+		// SRF[7] must be set for 4M VRAM size
 		if (s->vga.vram_size_mb == 4 && !(s->vga.sr[0xf] & 0x80))
 			s->valid_memory_config = 0;
 	}

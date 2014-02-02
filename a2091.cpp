@@ -849,10 +849,14 @@ void scsi_hsync (void)
 	if (wd_data_avail < 0 && dmac_dma > 0) {
 		bool v;
 		do_dma ();
-		if (scsi->direction < 0)
+		if (scsi->direction < 0) {
 			v = wd_do_transfer_in ();
-		else if (scsi->direction > 0)
+		} else if (scsi->direction > 0) {
 			v = wd_do_transfer_out ();
+		} else {
+			write_log (_T("%s data transfer attempt without data!\n"), WD33C93);
+			v = true;
+		}
 		if (v) {
 			scsi->direction = 0;
 			wd_data_avail = 0;

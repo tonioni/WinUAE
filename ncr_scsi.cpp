@@ -1,16 +1,18 @@
 /*
 * UAE - The Un*x Amiga Emulator
 *
-* A4000T NCR 53C710 SCSI (nothing done yet)
+* A4000T / A4091 NCR 53C710 SCSI (not much to see here)
 *
-* (c) 2007 Toni Wilen
+* (c) 2007-2014 Toni Wilen
 */
-
-#define NCR_LOG 1
-#define NCR_DEBUG 1
 
 #include "sysconfig.h"
 #include "sysdeps.h"
+
+#ifdef NCR
+
+#define NCR_LOG 1
+#define NCR_DEBUG 1
 
 #include "options.h"
 #include "uae.h"
@@ -19,7 +21,12 @@
 #include "custom.h"
 #include "newcpu.h"
 #include "ncr_scsi.h"
+#include "scsi.h"
+#include "filesys.h"
 #include "zfile.h"
+#include "qemuvga\qemuuaeglue.h"
+#include "qemuvga\queue.h"
+#include "qemuvga\scsi\scsi.h"
 
 #define NCRNAME _T("NCR53C710")
 #define NCR_REGS 0x40
@@ -30,230 +37,70 @@
 #define ROM_MASK (ROM_SIZE - 1)
 #define BOARD_SIZE 16777216
 
+#define A4091_IO_OFFSET 0x00800000
+#define A4091_IO_SWAP 0x00840000
+#define A4091_IO_END 0x00880000
+#define A4091_IO_MASK 0xff
+
+#define A4091_DIP_OFFSET 0x008c0003
+
 static uae_u8 *rom;
 static int board_mask;
 static int configured;
 static uae_u8 acmemory[100];
-
-static uae_u8 ncrregs[NCR_REGS];
 
 struct ncrscsi {
 	TCHAR *name;
 	int be, le;
 };
 
-static struct ncrscsi regsinfo[] =
+static DeviceState devobject;
+static SCSIDevice *scsid[8];
+
+void pci_set_irq(PCIDevice *pci_dev, int level)
 {
-	_T("SCNTL0"),	 0,  3,
-	_T("SCNTL1"),	 1,  2,
-	_T("SDID"),	 2,  1,
-	_T("SIEN"),	 3,  0,
-	_T("SCID"),	 4,  7,
-	_T("SXFER"),	 5,  6,
-	_T("SODL"),	 6,  5,
-	_T("SOCL"),	 7,  4,
-	_T("SFBR"),	 8, 11,
-	_T("SIDL"),	 9, 10,
-	_T("SBDL"),	10, -1,
-	_T("SBCL"),	11,  8,
-	_T("DSTAT"),	12, 15,
-	_T("SSTAT0"),	13, 14,
-	_T("SSTAT1"),	14, 13,
-	_T("SSTAT2"),	15, 12,
-	_T("DSA0"),	16, 19,
-	_T("DSA1"),	17, 18,
-	_T("DSA2"),	18, 17,
-	_T("DSA3"),	19, 16,
-	_T("CTEST0"),	20, 23,
-	_T("CTEST1"),	21, 22,
-	_T("CTEST2"),	22, 21,
-	_T("CTEST3"),	23, 20,
-	_T("CTEST4"),	24, 27,
-	_T("CTEST5"),	25, 26,
-	_T("CTEST6"),	26, 25,
-	_T("CTEST7"),	27, 24,
-	_T("TEMP0"),	28, 31,
-	_T("TEMP1"),	29, 30,
-	_T("TEMP2"),	30, 29,
-	_T("TEMP3"),	31, 28,
-	_T("DFIFO"),	32, 35,
-	_T("ISTAT"),	33, 34,
-	_T("CTEST8"),	34, 33,
-	_T("LCRC"),	35, 32,
-	_T("DBC0"),	36, 39,
-	_T("DBC1"),	37, 38,
-	_T("DBC2"),	38, 37,
-	_T("DCMD"),	39, 36,
-	_T("DNAD0"),	40, 43,
-	_T("DNAD1"),	41, 42,
-	_T("DNAD2"),	42, 41,
-	_T("DNAD3"),	43, 40,
-	_T("DSP0"),	44, 47,
-	_T("DSP1"),	45, 46,
-	_T("DSP2"),	46, 45,
-	_T("DSP3"),	47, 44,
-	_T("DSPS0"),	48, 51,
-	_T("DSPS1"),	49, 50,
-	_T("DSPS2"),	50, 49,
-	_T("DSPS3"),	51, 48,
-	_T("SCRATCH0"),	52, 55,
-	_T("SCRATCH1"),	53, 54,
-	_T("SCRATCH2"),	54, 53,
-	_T("SCRATCH3"),	55, 52,
-	_T("DMODE"),	56, 59,
-	_T("DIEN"),	57, 58,
-	_T("DWT"),	58, 57,
-	_T("DCNTL"),	59, 56,
-	_T("ADDER0"),	60, 63,
-	_T("ADDER1"),	61, 62,
-	_T("ADDER2"),	62, 61,
-	_T("ADDER3"),	63, 60,
-	NULL
-};
-
-static TCHAR *regname (uaecptr addr)
-{
-	int i;
-
-	for (i = 0; regsinfo[i].name; i++) {
-		if (regsinfo[i].le == addr)
-			return regsinfo[i].name;
-	}
-	return _T("?");
-}
-
-#define SCNTL0_REG                      0x03
-#define         FULL_ARBITRATION        0xc0
-#define         PARITY                  0x08
-#define         ENABLE_PARITY           0x04
-#define         AUTO_ATN                0x02
-#define SCNTL1_REG                      0x02
-#define         SLOW_BUS                0x80
-#define         ENABLE_SELECT           0x20
-#define         ASSERT_RST              0x08
-#define         ASSERT_EVEN_PARITY      0x04
-#define SDID_REG                        0x01
-#define SIEN_REG                        0x00
-#define         PHASE_MM_INT            0x80
-#define         FUNC_COMP_INT           0x40
-#define         SEL_TIMEOUT_INT         0x20
-#define         SELECT_INT              0x10
-#define         GROSS_ERR_INT           0x08
-#define         UX_DISC_INT             0x04
-#define         RST_INT                 0x02
-#define         PAR_ERR_INT             0x01
-#define SCID_REG                        0x07
-#define SXFER_REG                       0x06
-#define         ASYNC_OPERATION         0x00
-#define SODL_REG                        0x05
-#define SOCL_REG                        0x04
-#define SFBR_REG                        0x0b
-#define SIDL_REG                        0x0a
-#define SBDL_REG                        0x0a
-#define SBCL_REG                        0x08
-#define         SBCL_IO                 0x01
-#define         SYNC_DIV_AS_ASYNC       0x00
-#define         SYNC_DIV_1_0            0x01
-#define         SYNC_DIV_1_5            0x02
-#define         SYNC_DIV_2_0            0x03
-#define DSTAT_REG                       0x0e
-#define         ILGL_INST_DETECTED      0x01
-#define         WATCH_DOG_INTERRUPT     0x02
-#define         SCRIPT_INT_RECEIVED     0x04
-#define         ABORTED                 0x10
-#define SSTAT0_REG                      0x0e
-#define         PARITY_ERROR            0x01
-#define         SCSI_RESET_DETECTED     0x02
-#define         UNEXPECTED_DISCONNECT   0x04
-#define         SCSI_GROSS_ERROR        0x08
-#define         SELECTED                0x10
-#define         SELECTION_TIMEOUT       0x20
-#define         FUNCTION_COMPLETE       0x40
-#define         PHASE_MISMATCH          0x80
-#define SSTAT1_REG                      0x0d
-#define         SIDL_REG_FULL           0x80
-#define         SODR_REG_FULL           0x40
-#define         SODL_REG_FULL           0x20
-#define SSTAT2_REG                      0x0c
-#define CTEST0_REG                      0x17
-#define         BTB_TIMER_DISABLE       0x40
-#define CTEST1_REG                      0x16
-#define CTEST2_REG                      0x15
-#define CTEST3_REG                      0x14
-#define CTEST4_REG                      0x1b
-#define         DISABLE_FIFO            0x00
-#define         SLBE                    0x10
-#define         SFWR                    0x08
-#define         BYTE_LANE0              0x04
-#define         BYTE_LANE1              0x05
-#define         BYTE_LANE2              0x06
-#define         BYTE_LANE3              0x07
-#define         SCSI_ZMODE              0x20
-#define         ZMODE                   0x40
-#define CTEST5_REG                      0x1a
-#define         MASTER_CONTROL          0x10
-#define         DMA_DIRECTION           0x08
-#define CTEST7_REG                      0x18
-#define         BURST_DISABLE           0x80 /* 710 only */
-#define         SEL_TIMEOUT_DISABLE     0x10 /* 710 only */
-#define         DFP                     0x08
-#define         EVP                     0x04
-#define         DIFF                    0x01
-#define CTEST6_REG                      0x19
-#define TEMP_REG                        0x1C
-#define DFIFO_REG                       0x20
-#define         FLUSH_DMA_FIFO          0x80
-#define         CLR_FIFO                0x40
-#define ISTAT_REG                       0x22
-#define         ABORT_OPERATION         0x80
-#define         SOFTWARE_RESET_710      0x40
-#define         DMA_INT_PENDING         0x01
-#define         SCSI_INT_PENDING        0x02
-#define         CONNECTED               0x08
-#define CTEST8_REG                      0x21
-#define         LAST_DIS_ENBL           0x01
-#define         SHORTEN_FILTERING       0x04
-#define         ENABLE_ACTIVE_NEGATION  0x10
-#define         GENERATE_RECEIVE_PARITY 0x20
-#define         CLR_FIFO_710            0x04
-#define         FLUSH_DMA_FIFO_710      0x08
-#define LCRC_REG                        0x20
-#define DBC_REG                         0x25
-#define DCMD_REG                        0x24
-#define DNAD_REG                        0x28
-#define DIEN_REG                        0x3a
-#define         BUS_FAULT               0x20
-#define         ABORT_INT               0x10
-#define         INT_INST_INT            0x04
-#define         WD_INT                  0x02
-#define         ILGL_INST_INT           0x01
-#define DCNTL_REG                       0x38
-#define         SOFTWARE_RESET          0x01
-#define         COMPAT_700_MODE         0x01
-#define         SCRPTS_16BITS           0x20
-#define         ASYNC_DIV_2_0           0x00
-#define         ASYNC_DIV_1_5           0x40
-#define         ASYNC_DIV_1_0           0x80
-#define         ASYNC_DIV_3_0           0xc0
-#define DMODE_710_REG                   0x3b
-#define DMODE_700_REG                   0x34
-#define         BURST_LENGTH_1          0x00
-#define         BURST_LENGTH_2          0x40
-#define         BURST_LENGTH_4          0x80
-#define         BURST_LENGTH_8          0xC0
-#define         DMODE_FC1               0x10
-#define         DMODE_FC2               0x20
-#define         BW16                    32
-#define         MODE_286                16
-#define         IO_XFER                 8
-#define         FIXED_ADDR              4
-
-static void INT2(void)
-{
-	if (ncrregs[SIEN_REG] == 0)
+	if (!level)
 		return;
 	INTREQ (0x8000 | 0x0008);
-	write_log (_T("IRQ\n"));
+	write_log (_T("NCR IRQ\n"));
+}
+
+void scsi_req_continue(SCSIRequest *req)
+{
+}
+SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun, uint8_t *buf, int len, void *hba_private)
+{
+	SCSIRequest *req = xcalloc(SCSIRequest, 1);
+	req->dev = d;
+	struct scsi_data *sd = (struct scsi_data*)d->handle;
+	
+	memcpy (sd->cmd, buf, len);
+	sd->cmd_len = len;
+	return req;
+}
+int32_t scsi_req_enqueue(SCSIRequest *req)
+{
+	struct scsi_data *sd = (struct scsi_data*)req->dev->handle;
+	scsi_start_transfer (sd);
+	scsi_emulate_analyze (sd);
+	scsi_emulate_cmd(sd);
+	return -sd->direction;
+}
+void scsi_req_unref(SCSIRequest *req)
+{
+}
+uint8_t *scsi_req_get_buf(SCSIRequest *req)
+{
+	return NULL;
+}
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun)
+{
+	if (lun != 0)
+		return NULL;
+	return scsid[target];
+}
+void scsi_req_cancel(SCSIRequest *req)
+{
 }
 
 
@@ -264,52 +111,63 @@ static uae_u8 read_rombyte (uaecptr addr)
 	return v;
 }
 
-void ncr_bput2 (uaecptr addr, uae_u32 val)
+int pci_dma_rw(PCIDevice *dev, dma_addr_t addr, void *buf, dma_addr_t len, DMADirection dir)
+{
+	int i = 0;
+	uae_u8 *p = (uae_u8*)buf;
+	while (len > 0) {
+		if (!dir) {
+			*p = get_byte (addr);
+		} else {
+			put_byte (addr, *p);
+		}
+		p++;
+		len--;
+		addr++;
+	}
+	return 0;
+}
+
+
+static uaecptr beswap (uaecptr addr)
+{
+	return (addr & ~3) | (3 - (addr & 3));
+}
+
+void ncr_io_bput (uaecptr addr, uae_u32 val)
+{
+	addr &= A4091_IO_MASK;
+	lsi_mmio_write (devobject.lsistate, beswap (addr), val, 1);
+}
+
+static void ncr_bput2 (uaecptr addr, uae_u32 val)
 {
 	uae_u32 v = val;
 	addr &= board_mask;
-	if (addr >= NCR_REGS)
+	if (addr < A4091_IO_OFFSET || addr >= A4091_IO_END)
 		return;
-	switch (addr)
-	{
-	case ISTAT_REG:
-		if (val & 0x80)
-			val |= 1;
-		val &= ~0x80;
-		INT2();
-		break;
-	}
-	write_log (_T("%s write %04X (%s) = %02X PC=%08X\n"), NCRNAME, addr, regname(addr), v & 0xff, M68K_GETPC);
-	ncrregs[addr] = val;
+	ncr_io_bput (addr, val);
 }
 
-uae_u32 ncr_bget2 (uaecptr addr)
+uae_u32 ncr_io_bget (uaecptr addr)
 {
-	uae_u32 v = 0, v2;
+	addr &= A4091_IO_MASK;
+	return lsi_mmio_read (devobject.lsistate, beswap (addr), 1);
+}
+
+static uae_u32 ncr_bget2 (uaecptr addr)
+{
+	uae_u32 v = 0;
 
 	addr &= board_mask;
-	if (rom && addr >= ROM_VECTOR && addr >= ROM_OFFSET)
+	if (rom && addr >= ROM_VECTOR && addr < A4091_IO_OFFSET)
 		return read_rombyte (addr);
-	if (addr >= NCR_REGS)
+	if (addr == A4091_DIP_OFFSET)
+		return 0xff;
+	if (addr < A4091_IO_OFFSET || addr >= A4091_IO_END)
 		return v;
-	v2 = v = ncrregs[addr];
-	switch (addr)
-	{
-	case ISTAT_REG:
-		v2 &= ~3;
-		break;
-	case SSTAT2_REG:
-		v &= ~7;
-		v |= ncrregs[SBCL_REG] & 7;
-		break;
-	case CTEST8_REG:
-		v &= 0x0f; // revision 0
-		break;
-	}
-	write_log (_T("%s read  %04X (%s) = %02X PC=%08X\n"), NCRNAME, addr, regname(addr), v, M68K_GETPC);
-	if (v2 != v)
-		ncrregs[addr] = v2;
-	return v;
+	addr &= A4091_IO_MASK;
+	return ncr_io_bget (addr);
 }
 
 extern addrbank ncr_bank;
@@ -320,9 +178,14 @@ static uae_u32 REGPARAM2 ncr_lget (uaecptr addr)
 #ifdef JIT
 	special_mem |= S_READ;
 #endif
-	addr &= 65535;
-	v = (ncr_bget2 (addr) << 24) | (ncr_bget2 (addr + 1) << 16) |
-		(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
+	addr &= board_mask;
+	if (addr >= A4091_IO_SWAP) {
+		v = (ncr_bget2 (addr + 3) << 24) | (ncr_bget2 (addr + 2) << 16) |
+			(ncr_bget2 (addr + 1) << 8) | (ncr_bget2 (addr + 0));
+	} else {
+		v = (ncr_bget2 (addr + 0) << 24) | (ncr_bget2 (addr + 1) << 16) |
+			(ncr_bget2 (addr + 2) << 8) | (ncr_bget2 (addr + 3));
+	}
 #if NCR_DEBUG > 0
 	if (addr < ROM_VECTOR)
 		write_log (_T("ncr_lget %08X=%08X PC=%08X\n"), addr, v, M68K_GETPC);
@@ -371,10 +234,17 @@ static void REGPARAM2 ncr_lput (uaecptr addr, uae_u32 l)
 	if (addr < ROM_VECTOR)
 		write_log (_T("ncr_lput %08X=%08X PC=%08X\n"), addr, l, M68K_GETPC);
 #endif
-	ncr_bput2 (addr, l >> 24);
-	ncr_bput2 (addr + 1, l >> 16);
-	ncr_bput2 (addr + 2, l >> 8);
-	ncr_bput2 (addr + 3, l);
+	if (addr >= A4091_IO_SWAP) {
+		ncr_bput2 (addr + 3, l >> 0);
+		ncr_bput2 (addr + 2, l >> 8);
+		ncr_bput2 (addr + 1, l >> 16);
+		ncr_bput2 (addr + 0, l >> 24);
+	} else {
+		ncr_bput2 (addr + 0, l >> 24);
+		ncr_bput2 (addr + 1, l >> 16);
+		ncr_bput2 (addr + 2, l >> 8);
+		ncr_bput2 (addr + 3, l >> 0);
+	}
 }
 
 static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
@@ -389,10 +259,14 @@ static void REGPARAM2 ncr_wput (uaecptr addr, uae_u32 w)
 		write_log (_T("ncr_wput %04X=%04X PC=%08X\n"), addr, w & 65535, M68K_GETPC);
 #endif
 	if (addr == 0x44 && !configured) {
-		uae_u32 value = (gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff)) >> 16;
+		uae_u32 value = gfxmem_bank.start + ((currprefs.rtgmem_size + 0xffffff) & ~0xffffff);
+		if (value < 0x10000000)
+			value = 0x10000000;
+		value >>= 16;
 		chipmem_wput (regs.regs[11] + 0x20, value);
 		chipmem_wput (regs.regs[11] + 0x28, value);
 		map_banks (&ncr_bank, value, BOARD_SIZE >> 16, 0);
+		board_mask = 0x00ffffff;
 		write_log (_T("A4091 Z3 autoconfigured at %04X0000\n"), value);
 		configured = 1;
 		expamem_next();
@@ -412,7 +286,7 @@ static void REGPARAM2 ncr_bput (uaecptr addr, uae_u32 b)
 	if (addr == 0x4c && !configured) {
 		write_log (_T("A4091 AUTOCONFIG SHUT-UP!\n"));
 		configured = 1;
-		expamem_next();
+		expamem_next ();
 		return;
 	}
 	if (!configured)
@@ -444,15 +318,21 @@ void ncr_free (void)
 
 void ncr_reset (void)
 {
-	board_mask = 131072 - 1;
 	configured = 0;
+	board_mask = 0xffff;
 	if (currprefs.cs_mbdmac == 2) {
-		board_mask = 65535 - 1;
 		configured = -1;
 	}
+	if (devobject.lsistate)
+		lsi_scsi_reset (&devobject);
 }
 
 void ncr_init (void)
+{
+	lsi_scsi_init (&devobject);
+}
+
+void ncr_autoconfig_init (void)
 {
 	struct zfile *z;
 	int roms[3];
@@ -500,6 +380,59 @@ void ncr_init (void)
 	} else {
 		romwarning (roms);
 	}
+
+	ncr_init ();
 	map_banks (&ncr_bank, 0xe80000 >> 16, 65536 >> 16, 0);
 }
+
+static void freescsi (SCSIDevice *scsi)
+{
+	xfree (scsi);
+}
+
+static int add_scsi_hd (int ch, struct hd_hardfiledata *hfd, struct uaedev_config_info *ci, int scsi_level)
+{
+	void *handle;
+	
+	freescsi (scsid[ch]);
+	scsid[ch] = NULL;
+	if (!hfd) {
+		hfd = xcalloc (struct hd_hardfiledata, 1);
+		memcpy (&hfd->hfd.ci, ci, sizeof (struct uaedev_config_info));
+	}
+	if (!hdf_hd_open (hfd))
+		return 0;
+	hfd->ansi_version = scsi_level;
+	handle = scsi_alloc_hd (ch, hfd);
+	if (!handle)
+		return 0;
+	scsid[ch] = xcalloc (SCSIDevice, 1);
+	scsid[ch]->handle = handle;
+	return scsid[ch] ? 1 : 0;
+}
+
+
+int a4000t_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+//	if (ci->type == UAEDEV_CD)
+//		return add_scsi_cd (ch, ci->device_emu_unit);
+//	else if (ci->type == UAEDEV_TAPE)
+//		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
+//	else
+		return add_scsi_hd (ch, NULL, ci, 1);
+}
+
+int a4091_add_scsi_unit (int ch, struct uaedev_config_info *ci)
+{
+//	if (ci->type == UAEDEV_CD)
+//		return add_scsi_cd (ch, ci->device_emu_unit);
+//	else if (ci->type == UAEDEV_TAPE)
+//		return add_scsi_tape (ch, ci->rootdir, ci->readonly);
+//	else
+		return add_scsi_hd (ch, NULL, ci, 1);
+}
+
+
+
+#endif
 
